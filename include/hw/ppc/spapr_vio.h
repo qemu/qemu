@@ -34,7 +34,7 @@
 #define TYPE_SPAPR_VIO_BUS "spapr-vio-bus"
 #define SPAPR_VIO_BUS(obj) OBJECT_CHECK(VIOsPAPRBus, (obj), TYPE_SPAPR_VIO_BUS)
 
-struct VIOsPAPRDevice;
+#define TYPE_SPAPR_VIO_BRIDGE "spapr-vio-bridge"
 
 typedef struct VIOsPAPR_CRQ {
     uint64_t qladdr;

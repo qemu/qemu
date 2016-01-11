@@ -375,6 +375,9 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
                           qemu_uuid[14], qemu_uuid[15]);
 
     _FDT((fdt_property_string(fdt, "vm,uuid", buf)));
+    if (qemu_uuid_set) {
+        _FDT((fdt_property_string(fdt, "system-id", buf)));
+    }
     g_free(buf);
 
     if (qemu_get_vm_name()) {
@@ -1914,7 +1917,11 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     if (machine->usb) {
-        pci_create_simple(phb->bus, -1, "pci-ohci");
+        if (smc->use_ohci_by_default) {
+            pci_create_simple(phb->bus, -1, "pci-ohci");
+        } else {
+            pci_create_simple(phb->bus, -1, "nec-usb-xhci");
+        }
 
         if (spapr->has_graphics) {
             USBBus *usb_bus = usb_bus_find(-1);
@@ -2101,6 +2108,13 @@ static void spapr_machine_initfn(Object *obj)
                                     NULL);
 }
 
+static void spapr_machine_finalizefn(Object *obj)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    g_free(spapr->kvm_type);
+}
+
 static void ppc_cpu_do_nmi_on_cpu(void *arg)
 {
     CPUState *cs = arg;
@@ -2262,6 +2276,13 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     NMIClass *nc = NMI_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
+    mc->desc = "pSeries Logical Partition (PAPR compliant)";
+
+    /*
+     * We set up the default / latest behaviour here.  The class_init
+     * functions for the specific versioned machine types can override
+     * these details for backwards compatibility
+     */
     mc->init = ppc_spapr_init;
     mc->reset = ppc_spapr_reset;
     mc->block_default_type = IF_SCSI;
@@ -2277,7 +2298,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     hc->unplug = spapr_machine_device_unplug;
     mc->cpu_index_to_socket_id = spapr_cpu_index_to_socket_id;
 
-    smc->dr_lmb_enabled = false;
+    smc->dr_lmb_enabled = true;
     fwc->get_dev_path = spapr_get_fw_dev_path;
     nc->nmi_monitor_handler = spapr_nmi;
 }
@@ -2288,6 +2309,7 @@ static const TypeInfo spapr_machine_info = {
     .abstract      = true,
     .instance_size = sizeof(sPAPRMachineState),
     .instance_init = spapr_machine_initfn,
+    .instance_finalize = spapr_machine_finalizefn,
     .class_size    = sizeof(sPAPRMachineClass),
     .class_init    = spapr_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
@@ -2298,9 +2320,94 @@ static const TypeInfo spapr_machine_info = {
     },
 };
 
+#define DEFINE_SPAPR_MACHINE(suffix, verstr, latest)                 \
+    static void spapr_machine_##suffix##_class_init(ObjectClass *oc, \
+                                                    void *data)      \
+    {                                                                \
+        MachineClass *mc = MACHINE_CLASS(oc);                        \
+        spapr_machine_##suffix##_class_options(mc);                  \
+        if (latest) {                                                \
+            mc->alias = "pseries";                                   \
+            mc->is_default = 1;                                      \
+        }                                                            \
+    }                                                                \
+    static void spapr_machine_##suffix##_instance_init(Object *obj)  \
+    {                                                                \
+        MachineState *machine = MACHINE(obj);                        \
+        spapr_machine_##suffix##_instance_options(machine);          \
+    }                                                                \
+    static const TypeInfo spapr_machine_##suffix##_info = {          \
+        .name = MACHINE_TYPE_NAME("pseries-" verstr),                \
+        .parent = TYPE_SPAPR_MACHINE,                                \
+        .class_init = spapr_machine_##suffix##_class_init,           \
+        .instance_init = spapr_machine_##suffix##_instance_init,     \
+    };                                                               \
+    static void spapr_machine_register_##suffix(void)                \
+    {                                                                \
+        type_register(&spapr_machine_##suffix##_info);               \
+    }                                                                \
+    machine_init(spapr_machine_register_##suffix)
+
+/*
+ * pseries-2.6
+ */
+static void spapr_machine_2_6_instance_options(MachineState *machine)
+{
+}
+
+static void spapr_machine_2_6_class_options(MachineClass *mc)
+{
+    /* Defaults for the latest behaviour inherited from the base class */
+}
+
+DEFINE_SPAPR_MACHINE(2_6, "2.6", true);
+
+/*
+ * pseries-2.5
+ */
+#define SPAPR_COMPAT_2_5 \
+        HW_COMPAT_2_5
+
+static void spapr_machine_2_5_instance_options(MachineState *machine)
+{
+}
+
+static void spapr_machine_2_5_class_options(MachineClass *mc)
+{
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
+    spapr_machine_2_6_class_options(mc);
+    smc->use_ohci_by_default = true;
+    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_5);
+}
+
+DEFINE_SPAPR_MACHINE(2_5, "2.5", false);
+
+/*
+ * pseries-2.4
+ */
 #define SPAPR_COMPAT_2_4 \
         HW_COMPAT_2_4
 
+static void spapr_machine_2_4_instance_options(MachineState *machine)
+{
+    spapr_machine_2_5_instance_options(machine);
+}
+
+static void spapr_machine_2_4_class_options(MachineClass *mc)
+{
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
+    spapr_machine_2_5_class_options(mc);
+    smc->dr_lmb_enabled = false;
+    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_4);
+}
+
+DEFINE_SPAPR_MACHINE(2_4, "2.4", false);
+
+/*
+ * pseries-2.3
+ */
 #define SPAPR_COMPAT_2_3 \
         SPAPR_COMPAT_2_4 \
         HW_COMPAT_2_3 \
@@ -2309,6 +2416,24 @@ static const TypeInfo spapr_machine_info = {
             .property = "dynamic-reconfiguration",\
             .value    = "off",\
         },
+
+static void spapr_machine_2_3_instance_options(MachineState *machine)
+{
+    spapr_machine_2_4_instance_options(machine);
+    savevm_skip_section_footers();
+    global_state_set_optional();
+}
+
+static void spapr_machine_2_3_class_options(MachineClass *mc)
+{
+    spapr_machine_2_4_class_options(mc);
+    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_3);
+}
+DEFINE_SPAPR_MACHINE(2_3, "2.3", false);
+
+/*
+ * pseries-2.2
+ */
 
 #define SPAPR_COMPAT_2_2 \
         SPAPR_COMPAT_2_3 \
@@ -2319,145 +2444,40 @@ static const TypeInfo spapr_machine_info = {
             .value    = "0x20000000",\
         },
 
+static void spapr_machine_2_2_instance_options(MachineState *machine)
+{
+    spapr_machine_2_3_instance_options(machine);
+}
+
+static void spapr_machine_2_2_class_options(MachineClass *mc)
+{
+    spapr_machine_2_3_class_options(mc);
+    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_2);
+}
+DEFINE_SPAPR_MACHINE(2_2, "2.2", false);
+
+/*
+ * pseries-2.1
+ */
 #define SPAPR_COMPAT_2_1 \
         SPAPR_COMPAT_2_2 \
         HW_COMPAT_2_1
 
-static void spapr_compat_2_3(Object *obj)
+static void spapr_machine_2_1_instance_options(MachineState *machine)
 {
-    savevm_skip_section_footers();
-    global_state_set_optional();
+    spapr_machine_2_2_instance_options(machine);
 }
 
-static void spapr_compat_2_2(Object *obj)
+static void spapr_machine_2_1_class_options(MachineClass *mc)
 {
-    spapr_compat_2_3(obj);
+    spapr_machine_2_2_class_options(mc);
+    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_1);
 }
-
-static void spapr_compat_2_1(Object *obj)
-{
-    spapr_compat_2_2(obj);
-}
-
-static void spapr_machine_2_3_instance_init(Object *obj)
-{
-    spapr_compat_2_3(obj);
-    spapr_machine_initfn(obj);
-}
-
-static void spapr_machine_2_2_instance_init(Object *obj)
-{
-    spapr_compat_2_2(obj);
-    spapr_machine_initfn(obj);
-}
-
-static void spapr_machine_2_1_instance_init(Object *obj)
-{
-    spapr_compat_2_1(obj);
-    spapr_machine_initfn(obj);
-}
-
-static void spapr_machine_2_1_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    static GlobalProperty compat_props[] = {
-        SPAPR_COMPAT_2_1
-        { /* end of list */ }
-    };
-
-    mc->desc = "pSeries Logical Partition (PAPR compliant) v2.1";
-    mc->compat_props = compat_props;
-}
-
-static const TypeInfo spapr_machine_2_1_info = {
-    .name          = MACHINE_TYPE_NAME("pseries-2.1"),
-    .parent        = TYPE_SPAPR_MACHINE,
-    .class_init    = spapr_machine_2_1_class_init,
-    .instance_init = spapr_machine_2_1_instance_init,
-};
-
-static void spapr_machine_2_2_class_init(ObjectClass *oc, void *data)
-{
-    static GlobalProperty compat_props[] = {
-        SPAPR_COMPAT_2_2
-        { /* end of list */ }
-    };
-    MachineClass *mc = MACHINE_CLASS(oc);
-
-    mc->desc = "pSeries Logical Partition (PAPR compliant) v2.2";
-    mc->compat_props = compat_props;
-}
-
-static const TypeInfo spapr_machine_2_2_info = {
-    .name          = MACHINE_TYPE_NAME("pseries-2.2"),
-    .parent        = TYPE_SPAPR_MACHINE,
-    .class_init    = spapr_machine_2_2_class_init,
-    .instance_init = spapr_machine_2_2_instance_init,
-};
-
-static void spapr_machine_2_3_class_init(ObjectClass *oc, void *data)
-{
-    static GlobalProperty compat_props[] = {
-        SPAPR_COMPAT_2_3
-        { /* end of list */ }
-    };
-    MachineClass *mc = MACHINE_CLASS(oc);
-
-    mc->desc = "pSeries Logical Partition (PAPR compliant) v2.3";
-    mc->compat_props = compat_props;
-}
-
-static const TypeInfo spapr_machine_2_3_info = {
-    .name          = MACHINE_TYPE_NAME("pseries-2.3"),
-    .parent        = TYPE_SPAPR_MACHINE,
-    .class_init    = spapr_machine_2_3_class_init,
-    .instance_init = spapr_machine_2_3_instance_init,
-};
-
-static void spapr_machine_2_4_class_init(ObjectClass *oc, void *data)
-{
-    static GlobalProperty compat_props[] = {
-        SPAPR_COMPAT_2_4
-        { /* end of list */ }
-    };
-    MachineClass *mc = MACHINE_CLASS(oc);
-
-    mc->desc = "pSeries Logical Partition (PAPR compliant) v2.4";
-    mc->compat_props = compat_props;
-}
-
-static const TypeInfo spapr_machine_2_4_info = {
-    .name          = MACHINE_TYPE_NAME("pseries-2.4"),
-    .parent        = TYPE_SPAPR_MACHINE,
-    .class_init    = spapr_machine_2_4_class_init,
-};
-
-static void spapr_machine_2_5_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(oc);
-
-    mc->name = "pseries-2.5";
-    mc->desc = "pSeries Logical Partition (PAPR compliant) v2.5";
-    mc->alias = "pseries";
-    mc->is_default = 1;
-    smc->dr_lmb_enabled = true;
-}
-
-static const TypeInfo spapr_machine_2_5_info = {
-    .name          = MACHINE_TYPE_NAME("pseries-2.5"),
-    .parent        = TYPE_SPAPR_MACHINE,
-    .class_init    = spapr_machine_2_5_class_init,
-};
+DEFINE_SPAPR_MACHINE(2_1, "2.1", false);
 
 static void spapr_machine_register_types(void)
 {
     type_register_static(&spapr_machine_info);
-    type_register_static(&spapr_machine_2_1_info);
-    type_register_static(&spapr_machine_2_2_info);
-    type_register_static(&spapr_machine_2_3_info);
-    type_register_static(&spapr_machine_2_4_info);
-    type_register_static(&spapr_machine_2_5_info);
 }
 
 type_init(spapr_machine_register_types)

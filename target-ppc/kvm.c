@@ -1838,13 +1838,8 @@ static int kvmppc_find_cpu_dt(char *buf, int buf_len)
     return 0;
 }
 
-/* Read a CPU node property from the host device tree that's a single
- * integer (32-bit or 64-bit).  Returns 0 if anything goes wrong
- * (can't find or open the property, or doesn't understand the
- * format) */
-static uint64_t kvmppc_read_int_cpu_dt(const char *propname)
+static uint64_t kvmppc_read_int_dt(const char *filename)
 {
-    char buf[PATH_MAX], *tmp;
     union {
         uint32_t v32;
         uint64_t v64;
@@ -1852,14 +1847,7 @@ static uint64_t kvmppc_read_int_cpu_dt(const char *propname)
     FILE *f;
     int len;
 
-    if (kvmppc_find_cpu_dt(buf, sizeof(buf))) {
-        return -1;
-    }
-
-    tmp = g_strdup_printf("%s/%s", buf, propname);
-
-    f = fopen(tmp, "rb");
-    g_free(tmp);
+    f = fopen(filename, "rb");
     if (!f) {
         return -1;
     }
@@ -1875,6 +1863,26 @@ static uint64_t kvmppc_read_int_cpu_dt(const char *propname)
     }
 
     return 0;
+}
+
+/* Read a CPU node property from the host device tree that's a single
+ * integer (32-bit or 64-bit).  Returns 0 if anything goes wrong
+ * (can't find or open the property, or doesn't understand the
+ * format) */
+static uint64_t kvmppc_read_int_cpu_dt(const char *propname)
+{
+    char buf[PATH_MAX], *tmp;
+    uint64_t val;
+
+    if (kvmppc_find_cpu_dt(buf, sizeof(buf))) {
+        return -1;
+    }
+
+    tmp = g_strdup_printf("%s/%s", buf, propname);
+    val = kvmppc_read_int_dt(tmp);
+    g_free(tmp);
+
+    return val;
 }
 
 uint64_t kvmppc_get_clockfreq(void)
