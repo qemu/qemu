@@ -637,13 +637,13 @@ def batch(stats):
     s = stats.get()
     for key in sorted(s.keys()):
         values = s[key]
-        print '%-22s%10d%10d' % (key, values[0], values[1])
+        print '%-42s%10d%10d' % (key, values[0], values[1])
 
 def log(stats):
     keys = sorted(stats.get().iterkeys())
     def banner():
         for k in keys:
-            print '%10s' % k[0:9],
+            print '%s' % k,
         print
     def statline():
         s = stats.get()
