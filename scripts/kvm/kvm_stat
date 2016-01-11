@@ -472,31 +472,41 @@ class DebugfsProvider(object):
             return int(file(PATH_DEBUGFS_KVM + '/' + key).read())
         return dict([(key, val(key)) for key in self._fields])
 
-class Stats:
+class Stats(object):
     def __init__(self, providers, fields=None):
         self.providers = providers
-        self.fields_filter = fields
-        self._update()
-    def _update(self):
+        self._fields_filter = fields
+        self.values = {}
+        self.update_provider_filters()
+
+    def update_provider_filters(self):
         def wanted(key):
-            if not self.fields_filter:
+            if not self._fields_filter:
                 return True
-            return re.match(self.fields_filter, key) is not None
-        self.values = dict()
-        for d in self.providers:
-            provider_fields = [key for key in d.fields if wanted(key)]
-            for key in provider_fields:
-                self.values[key] = None
-            d.fields = provider_fields
-    def set_fields_filter(self, fields_filter):
-        self.fields_filter = fields_filter
-        self._update()
+            return re.match(self._fields_filter, key) is not None
+
+        # As we reset the counters when updating the fields we can
+        # also clear the cache of old values.
+        self.values = {}
+        for provider in self.providers:
+            provider_fields = [key for key in provider.fields if wanted(key)]
+            provider.fields = provider_fields
+
+    @property
+    def fields_filter(self):
+        return self._fields_filter
+
+    @fields_filter.setter
+    def fields_filter(self, fields_filter):
+        self._fields_filter = fields_filter
+        self.update_provider_filters()
+
     def get(self):
-        for d in self.providers:
-            new = d.read()
-            for key in d.fields:
+        for provider in self.providers:
+            new = provider.read()
+            for key in provider.fields:
                 oldval = self.values.get(key, (0, 0))
-                newval = new[key]
+                newval = new.get(key, 0)
                 newdelta = None
                 if oldval is not None:
                     newdelta = newval - oldval[0]
@@ -514,9 +524,9 @@ def tui(screen, stats):
     def update_drilldown():
         if not fields_filter:
             if drilldown:
-                stats.set_fields_filter(None)
+                stats.fields_filter = None
             else:
-                stats.set_fields_filter(r'^[^\(]*$')
+                stats.fields_filter = r'^[^\(]*$'
     update_drilldown()
     def refresh(sleeptime):
         screen.erase()
