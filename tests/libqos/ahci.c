@@ -668,16 +668,16 @@ void ahci_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
     props = ahci_command_find(ide_cmd);
     g_assert(props);
     ptr = ahci_alloc(ahci, bufsize);
-    g_assert(ptr);
+    g_assert(!bufsize || ptr);
     qmemset(ptr, 0x00, bufsize);
 
-    if (props->write) {
+    if (bufsize && props->write) {
         bufwrite(ptr, buffer, bufsize);
     }
 
     ahci_guest_io(ahci, port, ide_cmd, ptr, bufsize, sector);
 
-    if (props->read) {
+    if (bufsize && props->read) {
         bufread(ptr, buffer, bufsize);
     }
 

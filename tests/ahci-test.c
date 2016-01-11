@@ -890,18 +890,12 @@ static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
 static uint8_t ahci_test_nondata(AHCIQState *ahci, uint8_t ide_cmd)
 {
     uint8_t port;
-    AHCICommand *cmd;
 
     /* Sanitize */
     port = ahci_port_select(ahci);
     ahci_port_clear(ahci, port);
 
-    /* Issue Command */
-    cmd = ahci_command_create(ide_cmd);
-    ahci_command_commit(ahci, cmd, port);
-    ahci_command_issue(ahci, cmd);
-    ahci_command_verify(ahci, cmd);
-    ahci_command_free(cmd);
+    ahci_io(ahci, port, ide_cmd, NULL, 0, 0);
 
     return port;
 }
