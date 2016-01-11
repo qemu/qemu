@@ -347,18 +347,18 @@ static void write_memory(DumpState *s, GuestPhysBlock *block, ram_addr_t start,
     int64_t i;
     Error *local_err = NULL;
 
-    for (i = 0; i < size / TARGET_PAGE_SIZE; i++) {
-        write_data(s, block->host_addr + start + i * TARGET_PAGE_SIZE,
-                   TARGET_PAGE_SIZE, &local_err);
+    for (i = 0; i < size / s->dump_info.page_size; i++) {
+        write_data(s, block->host_addr + start + i * s->dump_info.page_size,
+                   s->dump_info.page_size, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
         }
     }
 
-    if ((size % TARGET_PAGE_SIZE) != 0) {
-        write_data(s, block->host_addr + start + i * TARGET_PAGE_SIZE,
-                   size % TARGET_PAGE_SIZE, &local_err);
+    if ((size % s->dump_info.page_size) != 0) {
+        write_data(s, block->host_addr + start + i * s->dump_info.page_size,
+                   size % s->dump_info.page_size, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
@@ -737,7 +737,7 @@ static void create_header32(DumpState *s, Error **errp)
 
     strncpy(dh->signature, KDUMP_SIGNATURE, strlen(KDUMP_SIGNATURE));
     dh->header_version = cpu_to_dump32(s, 6);
-    block_size = TARGET_PAGE_SIZE;
+    block_size = s->dump_info.page_size;
     dh->block_size = cpu_to_dump32(s, block_size);
     sub_hdr_size = sizeof(struct KdumpSubHeader32) + s->note_size;
     sub_hdr_size = DIV_ROUND_UP(sub_hdr_size, block_size);
@@ -837,7 +837,7 @@ static void create_header64(DumpState *s, Error **errp)
 
     strncpy(dh->signature, KDUMP_SIGNATURE, strlen(KDUMP_SIGNATURE));
     dh->header_version = cpu_to_dump32(s, 6);
-    block_size = TARGET_PAGE_SIZE;
+    block_size = s->dump_info.page_size;
     dh->block_size = cpu_to_dump32(s, block_size);
     sub_hdr_size = sizeof(struct KdumpSubHeader64) + s->note_size;
     sub_hdr_size = DIV_ROUND_UP(sub_hdr_size, block_size);
@@ -933,6 +933,11 @@ static void write_dump_header(DumpState *s, Error **errp)
     }
 }
 
+static size_t dump_bitmap_get_bufsize(DumpState *s)
+{
+    return s->dump_info.page_size;
+}
+
 /*
  * set dump_bitmap sequencely. the bit before last_pfn is not allowed to be
  * rewritten, so if need to set the first bit, set last_pfn and pfn to 0.
@@ -946,6 +951,8 @@ static int set_dump_bitmap(uint64_t last_pfn, uint64_t pfn, bool value,
     off_t old_offset, new_offset;
     off_t offset_bitmap1, offset_bitmap2;
     uint32_t byte, bit;
+    size_t bitmap_bufsize = dump_bitmap_get_bufsize(s);
+    size_t bits_per_buf = bitmap_bufsize * CHAR_BIT;
 
     /* should not set the previous place */
     assert(last_pfn <= pfn);
@@ -956,14 +963,14 @@ static int set_dump_bitmap(uint64_t last_pfn, uint64_t pfn, bool value,
      * making new_offset be bigger than old_offset can also sync remained data
      * into vmcore.
      */
-    old_offset = BUFSIZE_BITMAP * (last_pfn / PFN_BUFBITMAP);
-    new_offset = BUFSIZE_BITMAP * (pfn / PFN_BUFBITMAP);
+    old_offset = bitmap_bufsize * (last_pfn / bits_per_buf);
+    new_offset = bitmap_bufsize * (pfn / bits_per_buf);
 
     while (old_offset < new_offset) {
         /* calculate the offset and write dump_bitmap */
         offset_bitmap1 = s->offset_dump_bitmap + old_offset;
         if (write_buffer(s->fd, offset_bitmap1, buf,
-                         BUFSIZE_BITMAP) < 0) {
+                         bitmap_bufsize) < 0) {
             return -1;
         }
 
@@ -971,17 +978,17 @@ static int set_dump_bitmap(uint64_t last_pfn, uint64_t pfn, bool value,
         offset_bitmap2 = s->offset_dump_bitmap + s->len_dump_bitmap +
                          old_offset;
         if (write_buffer(s->fd, offset_bitmap2, buf,
-                         BUFSIZE_BITMAP) < 0) {
+                         bitmap_bufsize) < 0) {
             return -1;
         }
 
-        memset(buf, 0, BUFSIZE_BITMAP);
-        old_offset += BUFSIZE_BITMAP;
+        memset(buf, 0, bitmap_bufsize);
+        old_offset += bitmap_bufsize;
     }
 
     /* get the exact place of the bit in the buf, and set it */
-    byte = (pfn % PFN_BUFBITMAP) / CHAR_BIT;
-    bit = (pfn % PFN_BUFBITMAP) % CHAR_BIT;
+    byte = (pfn % bits_per_buf) / CHAR_BIT;
+    bit = (pfn % bits_per_buf) % CHAR_BIT;
     if (value) {
         buf[byte] |= 1u << bit;
     } else {
@@ -989,6 +996,20 @@ static int set_dump_bitmap(uint64_t last_pfn, uint64_t pfn, bool value,
     }
 
     return 0;
+}
+
+static uint64_t dump_paddr_to_pfn(DumpState *s, uint64_t addr)
+{
+    int target_page_shift = ctz32(s->dump_info.page_size);
+
+    return (addr >> target_page_shift) - ARCH_PFN_OFFSET;
+}
+
+static uint64_t dump_pfn_to_paddr(DumpState *s, uint64_t pfn)
+{
+    int target_page_shift = ctz32(s->dump_info.page_size);
+
+    return (pfn + ARCH_PFN_OFFSET) << target_page_shift;
 }
 
 /*
@@ -1001,16 +1022,16 @@ static bool get_next_page(GuestPhysBlock **blockptr, uint64_t *pfnptr,
                           uint8_t **bufptr, DumpState *s)
 {
     GuestPhysBlock *block = *blockptr;
-    hwaddr addr;
+    hwaddr addr, target_page_mask = ~((hwaddr)s->dump_info.page_size - 1);
     uint8_t *buf;
 
     /* block == NULL means the start of the iteration */
     if (!block) {
         block = QTAILQ_FIRST(&s->guest_phys_blocks.head);
         *blockptr = block;
-        assert((block->target_start & ~TARGET_PAGE_MASK) == 0);
-        assert((block->target_end & ~TARGET_PAGE_MASK) == 0);
-        *pfnptr = paddr_to_pfn(block->target_start);
+        assert((block->target_start & ~target_page_mask) == 0);
+        assert((block->target_end & ~target_page_mask) == 0);
+        *pfnptr = dump_paddr_to_pfn(s, block->target_start);
         if (bufptr) {
             *bufptr = block->host_addr;
         }
@@ -1018,10 +1039,10 @@ static bool get_next_page(GuestPhysBlock **blockptr, uint64_t *pfnptr,
     }
 
     *pfnptr = *pfnptr + 1;
-    addr = pfn_to_paddr(*pfnptr);
+    addr = dump_pfn_to_paddr(s, *pfnptr);
 
     if ((addr >= block->target_start) &&
-        (addr + TARGET_PAGE_SIZE <= block->target_end)) {
+        (addr + s->dump_info.page_size <= block->target_end)) {
         buf = block->host_addr + (addr - block->target_start);
     } else {
         /* the next page is in the next block */
@@ -1030,9 +1051,9 @@ static bool get_next_page(GuestPhysBlock **blockptr, uint64_t *pfnptr,
         if (!block) {
             return false;
         }
-        assert((block->target_start & ~TARGET_PAGE_MASK) == 0);
-        assert((block->target_end & ~TARGET_PAGE_MASK) == 0);
-        *pfnptr = paddr_to_pfn(block->target_start);
+        assert((block->target_start & ~target_page_mask) == 0);
+        assert((block->target_end & ~target_page_mask) == 0);
+        *pfnptr = dump_paddr_to_pfn(s, block->target_start);
         buf = block->host_addr;
     }
 
@@ -1050,9 +1071,11 @@ static void write_dump_bitmap(DumpState *s, Error **errp)
     void *dump_bitmap_buf;
     size_t num_dumpable;
     GuestPhysBlock *block_iter = NULL;
+    size_t bitmap_bufsize = dump_bitmap_get_bufsize(s);
+    size_t bits_per_buf = bitmap_bufsize * CHAR_BIT;
 
     /* dump_bitmap_buf is used to store dump_bitmap temporarily */
-    dump_bitmap_buf = g_malloc0(BUFSIZE_BITMAP);
+    dump_bitmap_buf = g_malloc0(bitmap_bufsize);
 
     num_dumpable = 0;
     last_pfn = 0;
@@ -1074,11 +1097,11 @@ static void write_dump_bitmap(DumpState *s, Error **errp)
 
     /*
      * set_dump_bitmap will always leave the recently set bit un-sync. Here we
-     * set last_pfn + PFN_BUFBITMAP to 0 and those set but un-sync bit will be
-     * synchronized into vmcore.
+     * set the remaining bits from last_pfn to the end of the bitmap buffer to
+     * 0. With those set, the un-sync bit will be synchronized into the vmcore.
      */
     if (num_dumpable > 0) {
-        ret = set_dump_bitmap(last_pfn, last_pfn + PFN_BUFBITMAP, false,
+        ret = set_dump_bitmap(last_pfn, last_pfn + bits_per_buf, false,
                               dump_bitmap_buf, s);
         if (ret < 0) {
             dump_error(s, "dump: failed to sync dump_bitmap", errp);
@@ -1098,8 +1121,8 @@ static void prepare_data_cache(DataCache *data_cache, DumpState *s,
 {
     data_cache->fd = s->fd;
     data_cache->data_size = 0;
-    data_cache->buf_size = BUFSIZE_DATA_CACHE;
-    data_cache->buf = g_malloc0(BUFSIZE_DATA_CACHE);
+    data_cache->buf_size = 4 * dump_bitmap_get_bufsize(s);
+    data_cache->buf = g_malloc0(data_cache->buf_size);
     data_cache->offset = offset;
 }
 
@@ -1193,7 +1216,7 @@ static void write_dump_pages(DumpState *s, Error **errp)
     prepare_data_cache(&page_data, s, offset_data);
 
     /* prepare buffer to store compressed data */
-    len_buf_out = get_len_buf_out(TARGET_PAGE_SIZE, s->flag_compress);
+    len_buf_out = get_len_buf_out(s->dump_info.page_size, s->flag_compress);
     assert(len_buf_out != 0);
 
 #ifdef CONFIG_LZO
@@ -1206,19 +1229,19 @@ static void write_dump_pages(DumpState *s, Error **errp)
      * init zero page's page_desc and page_data, because every zero page
      * uses the same page_data
      */
-    pd_zero.size = cpu_to_dump32(s, TARGET_PAGE_SIZE);
+    pd_zero.size = cpu_to_dump32(s, s->dump_info.page_size);
     pd_zero.flags = cpu_to_dump32(s, 0);
     pd_zero.offset = cpu_to_dump64(s, offset_data);
     pd_zero.page_flags = cpu_to_dump64(s, 0);
-    buf = g_malloc0(TARGET_PAGE_SIZE);
-    ret = write_cache(&page_data, buf, TARGET_PAGE_SIZE, false);
+    buf = g_malloc0(s->dump_info.page_size);
+    ret = write_cache(&page_data, buf, s->dump_info.page_size, false);
     g_free(buf);
     if (ret < 0) {
         dump_error(s, "dump: failed to write page data (zero page)", errp);
         goto out;
     }
 
-    offset_data += TARGET_PAGE_SIZE;
+    offset_data += s->dump_info.page_size;
 
     /*
      * dump memory to vmcore page by page. zero page will all be resided in the
@@ -1226,7 +1249,7 @@ static void write_dump_pages(DumpState *s, Error **errp)
      */
     while (get_next_page(&block_iter, &pfn_iter, &buf, s)) {
         /* check zero page */
-        if (is_zero_page(buf, TARGET_PAGE_SIZE)) {
+        if (is_zero_page(buf, s->dump_info.page_size)) {
             ret = write_cache(&page_desc, &pd_zero, sizeof(PageDescriptor),
                               false);
             if (ret < 0) {
@@ -1248,8 +1271,8 @@ static void write_dump_pages(DumpState *s, Error **errp)
              size_out = len_buf_out;
              if ((s->flag_compress & DUMP_DH_COMPRESSED_ZLIB) &&
                     (compress2(buf_out, (uLongf *)&size_out, buf,
-                               TARGET_PAGE_SIZE, Z_BEST_SPEED) == Z_OK) &&
-                    (size_out < TARGET_PAGE_SIZE)) {
+                               s->dump_info.page_size, Z_BEST_SPEED) == Z_OK) &&
+                    (size_out < s->dump_info.page_size)) {
                 pd.flags = cpu_to_dump32(s, DUMP_DH_COMPRESSED_ZLIB);
                 pd.size  = cpu_to_dump32(s, size_out);
 
@@ -1260,9 +1283,9 @@ static void write_dump_pages(DumpState *s, Error **errp)
                 }
 #ifdef CONFIG_LZO
             } else if ((s->flag_compress & DUMP_DH_COMPRESSED_LZO) &&
-                    (lzo1x_1_compress(buf, TARGET_PAGE_SIZE, buf_out,
+                    (lzo1x_1_compress(buf, s->dump_info.page_size, buf_out,
                     (lzo_uint *)&size_out, wrkmem) == LZO_E_OK) &&
-                    (size_out < TARGET_PAGE_SIZE)) {
+                    (size_out < s->dump_info.page_size)) {
                 pd.flags = cpu_to_dump32(s, DUMP_DH_COMPRESSED_LZO);
                 pd.size  = cpu_to_dump32(s, size_out);
 
@@ -1274,9 +1297,9 @@ static void write_dump_pages(DumpState *s, Error **errp)
 #endif
 #ifdef CONFIG_SNAPPY
             } else if ((s->flag_compress & DUMP_DH_COMPRESSED_SNAPPY) &&
-                    (snappy_compress((char *)buf, TARGET_PAGE_SIZE,
+                    (snappy_compress((char *)buf, s->dump_info.page_size,
                     (char *)buf_out, &size_out) == SNAPPY_OK) &&
-                    (size_out < TARGET_PAGE_SIZE)) {
+                    (size_out < s->dump_info.page_size)) {
                 pd.flags = cpu_to_dump32(s, DUMP_DH_COMPRESSED_SNAPPY);
                 pd.size  = cpu_to_dump32(s, size_out);
 
@@ -1289,13 +1312,14 @@ static void write_dump_pages(DumpState *s, Error **errp)
             } else {
                 /*
                  * fall back to save in plaintext, size_out should be
-                 * assigned TARGET_PAGE_SIZE
+                 * assigned the target's page size
                  */
                 pd.flags = cpu_to_dump32(s, 0);
-                size_out = TARGET_PAGE_SIZE;
+                size_out = s->dump_info.page_size;
                 pd.size = cpu_to_dump32(s, size_out);
 
-                ret = write_cache(&page_data, buf, TARGET_PAGE_SIZE, false);
+                ret = write_cache(&page_data, buf,
+                                  s->dump_info.page_size, false);
                 if (ret < 0) {
                     dump_error(s, "dump: failed to write page data", errp);
                     goto out;
@@ -1430,7 +1454,7 @@ static void get_max_mapnr(DumpState *s)
     GuestPhysBlock *last_block;
 
     last_block = QTAILQ_LAST(&s->guest_phys_blocks.head, GuestPhysBlockHead);
-    s->max_mapnr = paddr_to_pfn(last_block->target_end);
+    s->max_mapnr = dump_paddr_to_pfn(s, last_block->target_end);
 }
 
 static void dump_init(DumpState *s, int fd, bool has_format,
@@ -1489,6 +1513,10 @@ static void dump_init(DumpState *s, int fd, bool has_format,
         goto cleanup;
     }
 
+    if (!s->dump_info.page_size) {
+        s->dump_info.page_size = TARGET_PAGE_SIZE;
+    }
+
     s->note_size = cpu_get_note_size(s->dump_info.d_class,
                                      s->dump_info.d_machine, nr_cpus);
     if (s->note_size < 0) {
@@ -1512,8 +1540,9 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     get_max_mapnr(s);
 
     uint64_t tmp;
-    tmp = DIV_ROUND_UP(DIV_ROUND_UP(s->max_mapnr, CHAR_BIT), TARGET_PAGE_SIZE);
-    s->len_dump_bitmap = tmp * TARGET_PAGE_SIZE;
+    tmp = DIV_ROUND_UP(DIV_ROUND_UP(s->max_mapnr, CHAR_BIT),
+                       s->dump_info.page_size);
+    s->len_dump_bitmap = tmp * s->dump_info.page_size;
 
     /* init for kdump-compressed format */
     if (has_format && format != DUMP_GUEST_MEMORY_FORMAT_ELF) {

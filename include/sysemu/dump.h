@@ -20,12 +20,9 @@
 #define VERSION_FLAT_HEADER         (1)    /* version of flattened format */
 #define END_FLAG_FLAT_HEADER        (-1)
 
+#ifndef ARCH_PFN_OFFSET
 #define ARCH_PFN_OFFSET             (0)
-
-#define paddr_to_pfn(X) \
-    (((unsigned long long)(X) >> TARGET_PAGE_BITS) - ARCH_PFN_OFFSET)
-#define pfn_to_paddr(X) \
-    (((unsigned long long)(X) + ARCH_PFN_OFFSET) << TARGET_PAGE_BITS)
+#endif
 
 /*
  * flag for compressed format
@@ -39,9 +36,6 @@
 #define PHYS_BASE                   (0)
 #define DUMP_LEVEL                  (1)
 #define DISKDUMP_HEADER_BLOCKS      (1)
-#define BUFSIZE_BITMAP              (TARGET_PAGE_SIZE)
-#define PFN_BUFBITMAP               (CHAR_BIT * BUFSIZE_BITMAP)
-#define BUFSIZE_DATA_CACHE          (TARGET_PAGE_SIZE * 4)
 
 #include "sysemu/dump-arch.h"
 #include "sysemu/memory_mapping.h"
