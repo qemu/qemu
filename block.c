@@ -905,7 +905,7 @@ static QemuOptsList bdrv_runtime_opts = {
  * Removes all processed options from *options.
  */
 static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
-                            QDict *options, int flags, Error **errp)
+                            QDict *options, Error **errp)
 {
     int ret, open_flags;
     const char *filename;
@@ -943,7 +943,8 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
         goto fail_opts;
     }
 
-    trace_bdrv_open_common(bs, filename ?: "", flags, drv->format_name);
+    trace_bdrv_open_common(bs, filename ?: "", bs->open_flags,
+                           drv->format_name);
 
     node_name = qemu_opt_get(opts, "node-name");
     bdrv_assign_node_name(bs, node_name, &local_err);
@@ -955,8 +956,7 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
 
     bs->request_alignment = 512;
     bs->zero_beyond_eof = true;
-    open_flags = bdrv_open_flags(bs, flags);
-    bs->read_only = !(open_flags & BDRV_O_RDWR);
+    bs->read_only = !(bs->open_flags & BDRV_O_RDWR);
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv, bs->read_only)) {
         error_setg(errp,
@@ -969,7 +969,7 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
     }
 
     assert(bs->copy_on_read == 0); /* bdrv_new() and bdrv_close() make it so */
-    if (flags & BDRV_O_COPY_ON_READ) {
+    if (bs->open_flags & BDRV_O_COPY_ON_READ) {
         if (!bs->read_only) {
             bdrv_enable_copy_on_read(bs);
         } else {
@@ -994,6 +994,7 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
     bdrv_set_enable_write_cache(bs, bs->open_flags & BDRV_O_CACHE_WB);
 
     /* Open the image, either directly or using a protocol */
+    open_flags = bdrv_open_flags(bs, bs->open_flags);
     if (drv->bdrv_file_open) {
         assert(file == NULL);
         assert(!drv->bdrv_needs_filename || filename != NULL);
@@ -1656,7 +1657,7 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
     assert(!(flags & BDRV_O_PROTOCOL) || !file);
 
     /* Open the image */
-    ret = bdrv_open_common(bs, file, options, flags, &local_err);
+    ret = bdrv_open_common(bs, file, options, &local_err);
     if (ret < 0) {
         goto fail;
     }
