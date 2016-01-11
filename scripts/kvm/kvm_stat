@@ -25,15 +25,14 @@ from collections import defaultdict
 
 class DebugfsProvider(object):
     def __init__(self):
-        self.base = '/sys/kernel/debug/kvm'
-        self._fields = walkdir(self.base)[2]
+        self._fields = walkdir(PATH_DEBUGFS_KVM)[2]
     def fields(self):
         return self._fields
     def select(self, fields):
         self._fields = fields
     def read(self):
         def val(key):
-            return int(file(self.base + '/' + key).read())
+            return int(file(PATH_DEBUGFS_KVM + '/' + key).read())
         return dict([(key, val(key)) for key in self._fields])
 
 VMX_EXIT_REASONS = {
@@ -328,7 +327,8 @@ def _perf_event_open(attr, pid, cpu, group_fd, flags):
 PERF_TYPE_TRACEPOINT = 2
 PERF_FORMAT_GROUP = 1 << 3
 
-sys_tracing = '/sys/kernel/debug/tracing'
+PATH_DEBUGFS_TRACING = '/sys/kernel/debug/tracing'
+PATH_DEBUGFS_KVM = '/sys/kernel/debug/kvm'
 
 class Group(object):
     def __init__(self, cpu):
@@ -353,7 +353,7 @@ class Event(object):
         attr = perf_event_attr()
         attr.type = PERF_TYPE_TRACEPOINT
         attr.size = ctypes.sizeof(attr)
-        id_path = os.path.join(sys_tracing, 'events', event_set,
+        id_path = os.path.join(PATH_DEBUGFS_TRACING, 'events', event_set,
                                tracepoint, 'id')
         id = int(file(id_path).read())
         attr.config = id
@@ -378,7 +378,7 @@ class Event(object):
 
 class TracepointProvider(object):
     def __init__(self):
-        path = os.path.join(sys_tracing, 'events', 'kvm')
+        path = os.path.join(PATH_DEBUGFS_TRACING, 'events', 'kvm')
         fields = walkdir(path)[1]
         extra = []
         for f in fields:
@@ -476,7 +476,7 @@ class Stats:
 if not os.access('/sys/kernel/debug', os.F_OK):
     print 'Please enable CONFIG_DEBUG_FS in your kernel'
     sys.exit(1)
-if not os.access('/sys/kernel/debug/kvm', os.F_OK):
+if not os.access(PATH_DEBUGFS_KVM, os.F_OK):
     print "Please mount debugfs ('mount -t debugfs debugfs /sys/kernel/debug')"
     print "and ensure the kvm modules are loaded"
     sys.exit(1)
