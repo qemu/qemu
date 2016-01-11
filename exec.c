@@ -1757,6 +1757,16 @@ int qemu_get_ram_fd(ram_addr_t addr)
     return fd;
 }
 
+void qemu_set_ram_fd(ram_addr_t addr, int fd)
+{
+    RAMBlock *block;
+
+    rcu_read_lock();
+    block = qemu_get_ram_block(addr);
+    block->fd = fd;
+    rcu_read_unlock();
+}
+
 void *qemu_get_ram_block_host_ptr(ram_addr_t addr)
 {
     RAMBlock *block;

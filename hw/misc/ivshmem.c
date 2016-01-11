@@ -29,6 +29,7 @@
 #include "sysemu/char.h"
 #include "sysemu/hostmem.h"
 #include "qapi/visitor.h"
+#include "exec/ram_addr.h"
 
 #include "hw/misc/ivshmem.h"
 
@@ -422,6 +423,7 @@ static int create_shared_memory_BAR(IVShmemState *s, int fd, uint8_t attr,
 
     memory_region_init_ram_ptr(&s->ivshmem, OBJECT(s), "ivshmem.bar2",
                                s->ivshmem_size, ptr);
+    qemu_set_ram_fd(s->ivshmem.ram_addr, fd);
     vmstate_register_ram(&s->ivshmem, DEVICE(s));
     memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
 
@@ -682,6 +684,7 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
         }
         memory_region_init_ram_ptr(&s->ivshmem, OBJECT(s),
                                    "ivshmem.bar2", s->ivshmem_size, map_ptr);
+        qemu_set_ram_fd(s->ivshmem.ram_addr, incoming_fd);
         vmstate_register_ram(&s->ivshmem, DEVICE(s));
 
         IVSHMEM_DPRINTF("guest h/w addr = %p, size = %" PRIu64 "\n",
@@ -689,7 +692,6 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
 
         memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
 
-        close(incoming_fd);
         return;
     }
 
@@ -991,7 +993,6 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         }
 
         create_shared_memory_BAR(s, fd, attr, errp);
-        close(fd);
     }
 }
 
@@ -1010,11 +1011,15 @@ static void pci_ivshmem_exit(PCIDevice *dev)
     if (memory_region_is_mapped(&s->ivshmem)) {
         if (!s->hostmem) {
             void *addr = memory_region_get_ram_ptr(&s->ivshmem);
+            int fd;
 
             if (munmap(addr, s->ivshmem_size) == -1) {
                 error_report("Failed to munmap shared memory %s",
                              strerror(errno));
             }
+
+            if ((fd = qemu_get_ram_fd(s->ivshmem.ram_addr)) != -1)
+                close(fd);
         }
 
         vmstate_unregister_ram(&s->ivshmem, DEVICE(dev));

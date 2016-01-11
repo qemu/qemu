@@ -43,6 +43,7 @@
 #include "sysemu/tpm.h"
 #include "hw/acpi/tpm.h"
 #include "sysemu/tpm_backend.h"
+#include "hw/timer/mc146818rtc_regs.h"
 
 /* Supported chipsets: */
 #include "hw/acpi/piix4.h"
@@ -51,9 +52,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci-host/q35.h"
 #include "hw/i386/intel_iommu.h"
-
-#include "hw/i386/q35-acpi-dsdt.hex"
-#include "hw/i386/acpi-dsdt.hex"
+#include "hw/timer/hpet.h"
 
 #include "hw/acpi/aml-build.h"
 
@@ -107,6 +106,7 @@ typedef struct AcpiPmInfo {
 } AcpiPmInfo;
 
 typedef struct AcpiMiscInfo {
+    bool is_piix4;
     bool has_hpet;
     TPMVersion tpm_version;
     const unsigned char *dsdt_code;
@@ -121,22 +121,6 @@ typedef struct AcpiBuildPciBusHotplugState {
     struct AcpiBuildPciBusHotplugState *parent;
     bool pcihp_bridge_en;
 } AcpiBuildPciBusHotplugState;
-
-static void acpi_get_dsdt(AcpiMiscInfo *info)
-{
-    Object *piix = piix4_pm_find();
-    Object *lpc = ich9_lpc_find();
-    assert(!!piix != !!lpc);
-
-    if (piix) {
-        info->dsdt_code = AcpiDsdtAmlCode;
-        info->dsdt_size = sizeof AcpiDsdtAmlCode;
-    }
-    if (lpc) {
-        info->dsdt_code = Q35AcpiDsdtAmlCode;
-        info->dsdt_size = sizeof Q35AcpiDsdtAmlCode;
-    }
-}
 
 static
 int acpi_add_cpu_info(Object *o, void *opaque)
@@ -236,6 +220,17 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
 
 static void acpi_get_misc_info(AcpiMiscInfo *info)
 {
+    Object *piix = piix4_pm_find();
+    Object *lpc = ich9_lpc_find();
+    assert(!!piix != !!lpc);
+
+    if (piix) {
+        info->is_piix4 = true;
+    }
+    if (lpc) {
+        info->is_piix4 = false;
+    }
+
     info->has_hpet = hpet_find();
     info->tpm_version = tpm_get_version();
     info->pvpanic_port = pvpanic_port();
@@ -335,6 +330,7 @@ static void fadt_setup(AcpiFadtDescriptorRev1 *fadt, AcpiPmInfo *pm)
     if (max_cpus > 8) {
         fadt->flags |= cpu_to_le32(1 << ACPI_FADT_F_FORCE_APIC_CLUSTER_MODEL);
     }
+    fadt->century = RTC_CENTURY;
 }
 
 
@@ -617,6 +613,23 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
     qobject_decref(bsel);
 }
 
+/**
+ * build_prt_entry:
+ * @link_name: link name for PCI route entry
+ *
+ * build AML package containing a PCI route entry for @link_name
+ */
+static Aml *build_prt_entry(const char *link_name)
+{
+    Aml *a_zero = aml_int(0);
+    Aml *pkg = aml_package(4);
+    aml_append(pkg, a_zero);
+    aml_append(pkg, a_zero);
+    aml_append(pkg, aml_name("%s", link_name));
+    aml_append(pkg, a_zero);
+    return pkg;
+}
+
 /*
  * initialize_route - Initialize the interrupt routing rule
  * through a specific LINK:
@@ -627,12 +640,8 @@ static Aml *initialize_route(Aml *route, const char *link_name,
                              Aml *lnk_idx, int idx)
 {
     Aml *if_ctx = aml_if(aml_equal(lnk_idx, aml_int(idx)));
-    Aml *pkg = aml_package(4);
+    Aml *pkg = build_prt_entry(link_name);
 
-    aml_append(pkg, aml_int(0));
-    aml_append(pkg, aml_int(0));
-    aml_append(pkg, aml_name("%s", link_name));
-    aml_append(pkg, aml_int(0));
     aml_append(if_ctx, aml_store(pkg, route));
 
     return if_ctx;
@@ -648,7 +657,7 @@ static Aml *initialize_route(Aml *route, const char *link_name,
  * The hash function is  (slot + pin) & 3 -> "LNK[D|A|B|C]".
  *
  */
-static Aml *build_prt(void)
+static Aml *build_prt(bool is_pci0_prt)
 {
     Aml *method, *while_ctx, *pin, *res;
 
@@ -675,7 +684,29 @@ static Aml *build_prt(void)
 
         /* route[2] = "LNK[D|A|B|C]", selection based on pin % 3  */
         aml_append(while_ctx, initialize_route(route, "LNKD", lnk_idx, 0));
-        aml_append(while_ctx, initialize_route(route, "LNKA", lnk_idx, 1));
+        if (is_pci0_prt) {
+            Aml *if_device_1, *if_pin_4, *else_pin_4;
+
+            /* device 1 is the power-management device, needs SCI */
+            if_device_1 = aml_if(aml_equal(lnk_idx, aml_int(1)));
+            {
+                if_pin_4 = aml_if(aml_equal(pin, aml_int(4)));
+                {
+                    aml_append(if_pin_4,
+                        aml_store(build_prt_entry("LNKS"), route));
+                }
+                aml_append(if_device_1, if_pin_4);
+                else_pin_4 = aml_else();
+                {
+                    aml_append(else_pin_4,
+                        aml_store(build_prt_entry("LNKA"), route));
+                }
+                aml_append(if_device_1, else_pin_4);
+            }
+            aml_append(while_ctx, if_device_1);
+        } else {
+            aml_append(while_ctx, initialize_route(route, "LNKA", lnk_idx, 1));
+        }
         aml_append(while_ctx, initialize_route(route, "LNKB", lnk_idx, 2));
         aml_append(while_ctx, initialize_route(route, "LNKC", lnk_idx, 3));
 
@@ -929,6 +960,981 @@ static Aml *build_crs(PCIHostState *host,
     return crs;
 }
 
+static void build_processor_devices(Aml *sb_scope, unsigned acpi_cpus,
+                                    AcpiCpuInfo *cpu, AcpiPmInfo *pm)
+{
+    int i;
+    Aml *dev;
+    Aml *crs;
+    Aml *pkg;
+    Aml *field;
+    Aml *ifctx;
+    Aml *method;
+
+    /* The current AML generator can cover the APIC ID range [0..255],
+     * inclusive, for VCPU hotplug. */
+    QEMU_BUILD_BUG_ON(ACPI_CPU_HOTPLUG_ID_LIMIT > 256);
+    g_assert(acpi_cpus <= ACPI_CPU_HOTPLUG_ID_LIMIT);
+
+    /* create PCI0.PRES device and its _CRS to reserve CPU hotplug MMIO */
+    dev = aml_device("PCI0." stringify(CPU_HOTPLUG_RESOURCE_DEVICE));
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A06")));
+    aml_append(dev,
+        aml_name_decl("_UID", aml_string("CPU Hotplug resources"))
+    );
+    /* device present, functioning, decoding, not shown in UI */
+    aml_append(dev, aml_name_decl("_STA", aml_int(0xB)));
+    crs = aml_resource_template();
+    aml_append(crs,
+        aml_io(AML_DECODE16, pm->cpu_hp_io_base, pm->cpu_hp_io_base, 1,
+               pm->cpu_hp_io_len)
+    );
+    aml_append(dev, aml_name_decl("_CRS", crs));
+    aml_append(sb_scope, dev);
+    /* declare CPU hotplug MMIO region and PRS field to access it */
+    aml_append(sb_scope, aml_operation_region(
+        "PRST", AML_SYSTEM_IO, pm->cpu_hp_io_base, pm->cpu_hp_io_len));
+    field = aml_field("PRST", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("PRS", 256));
+    aml_append(sb_scope, field);
+
+    /* build Processor object for each processor */
+    for (i = 0; i < acpi_cpus; i++) {
+        dev = aml_processor(i, 0, 0, "CP%.02X", i);
+
+        method = aml_method("_MAT", 0, AML_NOTSERIALIZED);
+        aml_append(method,
+            aml_return(aml_call1(CPU_MAT_METHOD, aml_int(i))));
+        aml_append(dev, method);
+
+        method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+        aml_append(method,
+            aml_return(aml_call1(CPU_STATUS_METHOD, aml_int(i))));
+        aml_append(dev, method);
+
+        method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
+        aml_append(method,
+            aml_return(aml_call2(CPU_EJECT_METHOD, aml_int(i), aml_arg(0)))
+        );
+        aml_append(dev, method);
+
+        aml_append(sb_scope, dev);
+    }
+
+    /* build this code:
+     *   Method(NTFY, 2) {If (LEqual(Arg0, 0x00)) {Notify(CP00, Arg1)} ...}
+     */
+    /* Arg0 = Processor ID = APIC ID */
+    method = aml_method(AML_NOTIFY_METHOD, 2, AML_NOTSERIALIZED);
+    for (i = 0; i < acpi_cpus; i++) {
+        ifctx = aml_if(aml_equal(aml_arg(0), aml_int(i)));
+        aml_append(ifctx,
+            aml_notify(aml_name("CP%.02X", i), aml_arg(1))
+        );
+        aml_append(method, ifctx);
+    }
+    aml_append(sb_scope, method);
+
+    /* build "Name(CPON, Package() { One, One, ..., Zero, Zero, ... })"
+     *
+     * Note: The ability to create variable-sized packages was first
+     * introduced in ACPI 2.0. ACPI 1.0 only allowed fixed-size packages
+     * ith up to 255 elements. Windows guests up to win2k8 fail when
+     * VarPackageOp is used.
+     */
+    pkg = acpi_cpus <= 255 ? aml_package(acpi_cpus) :
+                             aml_varpackage(acpi_cpus);
+
+    for (i = 0; i < acpi_cpus; i++) {
+        uint8_t b = test_bit(i, cpu->found_cpus) ? 0x01 : 0x00;
+        aml_append(pkg, aml_int(b));
+    }
+    aml_append(sb_scope, aml_name_decl(CPU_ON_BITMAP, pkg));
+}
+
+static void build_memory_devices(Aml *sb_scope, int nr_mem,
+                                 uint16_t io_base, uint16_t io_len)
+{
+    int i;
+    Aml *scope;
+    Aml *crs;
+    Aml *field;
+    Aml *dev;
+    Aml *method;
+    Aml *ifctx;
+
+    /* build memory devices */
+    assert(nr_mem <= ACPI_MAX_RAM_SLOTS);
+    scope = aml_scope("\\_SB.PCI0." MEMORY_HOTPLUG_DEVICE);
+    aml_append(scope,
+        aml_name_decl(MEMORY_SLOTS_NUMBER, aml_int(nr_mem))
+    );
+
+    crs = aml_resource_template();
+    aml_append(crs,
+        aml_io(AML_DECODE16, io_base, io_base, 0, io_len)
+    );
+    aml_append(scope, aml_name_decl("_CRS", crs));
+
+    aml_append(scope, aml_operation_region(
+        MEMORY_HOTPLUG_IO_REGION, AML_SYSTEM_IO,
+        io_base, io_len)
+    );
+
+    field = aml_field(MEMORY_HOTPLUG_IO_REGION, AML_DWORD_ACC,
+                      AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, /* read only */
+        aml_named_field(MEMORY_SLOT_ADDR_LOW, 32));
+    aml_append(field, /* read only */
+        aml_named_field(MEMORY_SLOT_ADDR_HIGH, 32));
+    aml_append(field, /* read only */
+        aml_named_field(MEMORY_SLOT_SIZE_LOW, 32));
+    aml_append(field, /* read only */
+        aml_named_field(MEMORY_SLOT_SIZE_HIGH, 32));
+    aml_append(field, /* read only */
+        aml_named_field(MEMORY_SLOT_PROXIMITY, 32));
+    aml_append(scope, field);
+
+    field = aml_field(MEMORY_HOTPLUG_IO_REGION, AML_BYTE_ACC,
+                      AML_NOLOCK, AML_WRITE_AS_ZEROS);
+    aml_append(field, aml_reserved_field(160 /* bits, Offset(20) */));
+    aml_append(field, /* 1 if enabled, read only */
+        aml_named_field(MEMORY_SLOT_ENABLED, 1));
+    aml_append(field,
+        /*(read) 1 if has a insert event. (write) 1 to clear event */
+        aml_named_field(MEMORY_SLOT_INSERT_EVENT, 1));
+    aml_append(field,
+        /* (read) 1 if has a remove event. (write) 1 to clear event */
+        aml_named_field(MEMORY_SLOT_REMOVE_EVENT, 1));
+    aml_append(field,
+        /* initiates device eject, write only */
+        aml_named_field(MEMORY_SLOT_EJECT, 1));
+    aml_append(scope, field);
+
+    field = aml_field(MEMORY_HOTPLUG_IO_REGION, AML_DWORD_ACC,
+                      AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, /* DIMM selector, write only */
+        aml_named_field(MEMORY_SLOT_SLECTOR, 32));
+    aml_append(field, /* _OST event code, write only */
+        aml_named_field(MEMORY_SLOT_OST_EVENT, 32));
+    aml_append(field, /* _OST status code, write only */
+        aml_named_field(MEMORY_SLOT_OST_STATUS, 32));
+    aml_append(scope, field);
+    aml_append(sb_scope, scope);
+
+    for (i = 0; i < nr_mem; i++) {
+        #define BASEPATH "\\_SB.PCI0." MEMORY_HOTPLUG_DEVICE "."
+        const char *s;
+
+        dev = aml_device("MP%02X", i);
+        aml_append(dev, aml_name_decl("_UID", aml_string("0x%02X", i)));
+        aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C80")));
+
+        method = aml_method("_CRS", 0, AML_NOTSERIALIZED);
+        s = BASEPATH MEMORY_SLOT_CRS_METHOD;
+        aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
+        aml_append(dev, method);
+
+        method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+        s = BASEPATH MEMORY_SLOT_STATUS_METHOD;
+        aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
+        aml_append(dev, method);
+
+        method = aml_method("_PXM", 0, AML_NOTSERIALIZED);
+        s = BASEPATH MEMORY_SLOT_PROXIMITY_METHOD;
+        aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
+        aml_append(dev, method);
+
+        method = aml_method("_OST", 3, AML_NOTSERIALIZED);
+        s = BASEPATH MEMORY_SLOT_OST_METHOD;
+
+        aml_append(method, aml_return(aml_call4(
+            s, aml_name("_UID"), aml_arg(0), aml_arg(1), aml_arg(2)
+        )));
+        aml_append(dev, method);
+
+        method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
+        s = BASEPATH MEMORY_SLOT_EJECT_METHOD;
+        aml_append(method, aml_return(aml_call2(
+                   s, aml_name("_UID"), aml_arg(0))));
+        aml_append(dev, method);
+
+        aml_append(sb_scope, dev);
+    }
+
+    /* build Method(MEMORY_SLOT_NOTIFY_METHOD, 2) {
+     *     If (LEqual(Arg0, 0x00)) {Notify(MP00, Arg1)} ... }
+     */
+    method = aml_method(MEMORY_SLOT_NOTIFY_METHOD, 2, AML_NOTSERIALIZED);
+    for (i = 0; i < nr_mem; i++) {
+        ifctx = aml_if(aml_equal(aml_arg(0), aml_int(i)));
+        aml_append(ifctx,
+            aml_notify(aml_name("MP%.02X", i), aml_arg(1))
+        );
+        aml_append(method, ifctx);
+    }
+    aml_append(sb_scope, method);
+}
+
+static void build_hpet_aml(Aml *table)
+{
+    Aml *crs;
+    Aml *field;
+    Aml *method;
+    Aml *if_ctx;
+    Aml *scope = aml_scope("_SB");
+    Aml *dev = aml_device("HPET");
+    Aml *zero = aml_int(0);
+    Aml *id = aml_local(0);
+    Aml *period = aml_local(1);
+
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0103")));
+    aml_append(dev, aml_name_decl("_UID", zero));
+
+    aml_append(dev,
+        aml_operation_region("HPTM", AML_SYSTEM_MEMORY, HPET_BASE, HPET_LEN));
+    field = aml_field("HPTM", AML_DWORD_ACC, AML_LOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("VEND", 32));
+    aml_append(field, aml_named_field("PRD", 32));
+    aml_append(dev, field);
+
+    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_store(aml_name("VEND"), id));
+    aml_append(method, aml_store(aml_name("PRD"), period));
+    aml_append(method, aml_shiftright(id, aml_int(16), id));
+    if_ctx = aml_if(aml_lor(aml_equal(id, zero),
+                            aml_equal(id, aml_int(0xffff))));
+    {
+        aml_append(if_ctx, aml_return(zero));
+    }
+    aml_append(method, if_ctx);
+
+    if_ctx = aml_if(aml_lor(aml_equal(period, zero),
+                            aml_lgreater(period, aml_int(100000000))));
+    {
+        aml_append(if_ctx, aml_return(zero));
+    }
+    aml_append(method, if_ctx);
+
+    aml_append(method, aml_return(aml_int(0x0F)));
+    aml_append(dev, method);
+
+    crs = aml_resource_template();
+    aml_append(crs, aml_memory32_fixed(HPET_BASE, HPET_LEN, AML_READ_ONLY));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    aml_append(scope, dev);
+    aml_append(table, scope);
+}
+
+static Aml *build_fdc_device_aml(void)
+{
+    Aml *dev;
+    Aml *crs;
+    Aml *method;
+    Aml *if_ctx;
+    Aml *else_ctx;
+    Aml *zero = aml_int(0);
+    Aml *is_present = aml_local(0);
+
+    dev = aml_device("FDC0");
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0700")));
+
+    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_store(aml_name("FDEN"), is_present));
+    if_ctx = aml_if(aml_equal(is_present, zero));
+    {
+        aml_append(if_ctx, aml_return(aml_int(0x00)));
+    }
+    aml_append(method, if_ctx);
+    else_ctx = aml_else();
+    {
+        aml_append(else_ctx, aml_return(aml_int(0x0f)));
+    }
+    aml_append(method, else_ctx);
+    aml_append(dev, method);
+
+    crs = aml_resource_template();
+    aml_append(crs, aml_io(AML_DECODE16, 0x03F2, 0x03F2, 0x00, 0x04));
+    aml_append(crs, aml_io(AML_DECODE16, 0x03F7, 0x03F7, 0x00, 0x01));
+    aml_append(crs, aml_irq_no_flags(6));
+    aml_append(crs,
+        aml_dma(AML_COMPATIBILITY, AML_NOTBUSMASTER, AML_TRANSFER8, 2));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    return dev;
+}
+
+static Aml *build_rtc_device_aml(void)
+{
+    Aml *dev;
+    Aml *crs;
+
+    dev = aml_device("RTC");
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0B00")));
+    crs = aml_resource_template();
+    aml_append(crs, aml_io(AML_DECODE16, 0x0070, 0x0070, 0x10, 0x02));
+    aml_append(crs, aml_irq_no_flags(8));
+    aml_append(crs, aml_io(AML_DECODE16, 0x0072, 0x0072, 0x02, 0x06));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    return dev;
+}
+
+static Aml *build_kbd_device_aml(void)
+{
+    Aml *dev;
+    Aml *crs;
+    Aml *method;
+
+    dev = aml_device("KBD");
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0303")));
+
+    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_return(aml_int(0x0f)));
+    aml_append(dev, method);
+
+    crs = aml_resource_template();
+    aml_append(crs, aml_io(AML_DECODE16, 0x0060, 0x0060, 0x01, 0x01));
+    aml_append(crs, aml_io(AML_DECODE16, 0x0064, 0x0064, 0x01, 0x01));
+    aml_append(crs, aml_irq_no_flags(1));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    return dev;
+}
+
+static Aml *build_mouse_device_aml(void)
+{
+    Aml *dev;
+    Aml *crs;
+    Aml *method;
+
+    dev = aml_device("MOU");
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0F13")));
+
+    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_return(aml_int(0x0f)));
+    aml_append(dev, method);
+
+    crs = aml_resource_template();
+    aml_append(crs, aml_irq_no_flags(12));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    return dev;
+}
+
+static Aml *build_lpt_device_aml(void)
+{
+    Aml *dev;
+    Aml *crs;
+    Aml *method;
+    Aml *if_ctx;
+    Aml *else_ctx;
+    Aml *zero = aml_int(0);
+    Aml *is_present = aml_local(0);
+
+    dev = aml_device("LPT");
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0400")));
+
+    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_store(aml_name("LPEN"), is_present));
+    if_ctx = aml_if(aml_equal(is_present, zero));
+    {
+        aml_append(if_ctx, aml_return(aml_int(0x00)));
+    }
+    aml_append(method, if_ctx);
+    else_ctx = aml_else();
+    {
+        aml_append(else_ctx, aml_return(aml_int(0x0f)));
+    }
+    aml_append(method, else_ctx);
+    aml_append(dev, method);
+
+    crs = aml_resource_template();
+    aml_append(crs, aml_io(AML_DECODE16, 0x0378, 0x0378, 0x08, 0x08));
+    aml_append(crs, aml_irq_no_flags(7));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    return dev;
+}
+
+static Aml *build_com_device_aml(uint8_t uid)
+{
+    Aml *dev;
+    Aml *crs;
+    Aml *method;
+    Aml *if_ctx;
+    Aml *else_ctx;
+    Aml *zero = aml_int(0);
+    Aml *is_present = aml_local(0);
+    const char *enabled_field = "CAEN";
+    uint8_t irq = 4;
+    uint16_t io_port = 0x03F8;
+
+    assert(uid == 1 || uid == 2);
+    if (uid == 2) {
+        enabled_field = "CBEN";
+        irq = 3;
+        io_port = 0x02F8;
+    }
+
+    dev = aml_device("COM%d", uid);
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0501")));
+    aml_append(dev, aml_name_decl("_UID", aml_int(uid)));
+
+    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_store(aml_name("%s", enabled_field), is_present));
+    if_ctx = aml_if(aml_equal(is_present, zero));
+    {
+        aml_append(if_ctx, aml_return(aml_int(0x00)));
+    }
+    aml_append(method, if_ctx);
+    else_ctx = aml_else();
+    {
+        aml_append(else_ctx, aml_return(aml_int(0x0f)));
+    }
+    aml_append(method, else_ctx);
+    aml_append(dev, method);
+
+    crs = aml_resource_template();
+    aml_append(crs, aml_io(AML_DECODE16, io_port, io_port, 0x00, 0x08));
+    aml_append(crs, aml_irq_no_flags(irq));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    return dev;
+}
+
+static void build_isa_devices_aml(Aml *table)
+{
+    Aml *scope = aml_scope("_SB.PCI0.ISA");
+
+    aml_append(scope, build_rtc_device_aml());
+    aml_append(scope, build_kbd_device_aml());
+    aml_append(scope, build_mouse_device_aml());
+    aml_append(scope, build_fdc_device_aml());
+    aml_append(scope, build_lpt_device_aml());
+    aml_append(scope, build_com_device_aml(1));
+    aml_append(scope, build_com_device_aml(2));
+
+    aml_append(table, scope);
+}
+
+static void build_dbg_aml(Aml *table)
+{
+    Aml *field;
+    Aml *method;
+    Aml *while_ctx;
+    Aml *scope = aml_scope("\\");
+    Aml *buf = aml_local(0);
+    Aml *len = aml_local(1);
+    Aml *idx = aml_local(2);
+
+    aml_append(scope,
+       aml_operation_region("DBG", AML_SYSTEM_IO, 0x0402, 0x01));
+    field = aml_field("DBG", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("DBGB", 8));
+    aml_append(scope, field);
+
+    method = aml_method("DBUG", 1, AML_NOTSERIALIZED);
+
+    aml_append(method, aml_to_hexstring(aml_arg(0), buf));
+    aml_append(method, aml_to_buffer(buf, buf));
+    aml_append(method, aml_subtract(aml_sizeof(buf), aml_int(1), len));
+    aml_append(method, aml_store(aml_int(0), idx));
+
+    while_ctx = aml_while(aml_lless(idx, len));
+    aml_append(while_ctx,
+        aml_store(aml_derefof(aml_index(buf, idx)), aml_name("DBGB")));
+    aml_append(while_ctx, aml_increment(idx));
+    aml_append(method, while_ctx);
+
+    aml_append(method, aml_store(aml_int(0x0A), aml_name("DBGB")));
+    aml_append(scope, method);
+
+    aml_append(table, scope);
+}
+
+static Aml *build_link_dev(const char *name, uint8_t uid, Aml *reg)
+{
+    Aml *dev;
+    Aml *crs;
+    Aml *method;
+    uint32_t irqs[] = {5, 10, 11};
+
+    dev = aml_device("%s", name);
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C0F")));
+    aml_append(dev, aml_name_decl("_UID", aml_int(uid)));
+
+    crs = aml_resource_template();
+    aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
+                                  AML_SHARED, irqs, ARRAY_SIZE(irqs)));
+    aml_append(dev, aml_name_decl("_PRS", crs));
+
+    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_return(aml_call1("IQST", reg)));
+    aml_append(dev, method);
+
+    method = aml_method("_DIS", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_or(reg, aml_int(0x80), reg));
+    aml_append(dev, method);
+
+    method = aml_method("_CRS", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_return(aml_call1("IQCR", reg)));
+    aml_append(dev, method);
+
+    method = aml_method("_SRS", 1, AML_NOTSERIALIZED);
+    aml_append(method, aml_create_dword_field(aml_arg(0), aml_int(5), "PRRI"));
+    aml_append(method, aml_store(aml_name("PRRI"), reg));
+    aml_append(dev, method);
+
+    return dev;
+ }
+
+static Aml *build_gsi_link_dev(const char *name, uint8_t uid, uint8_t gsi)
+{
+    Aml *dev;
+    Aml *crs;
+    Aml *method;
+    uint32_t irqs;
+
+    dev = aml_device("%s", name);
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C0F")));
+    aml_append(dev, aml_name_decl("_UID", aml_int(uid)));
+
+    crs = aml_resource_template();
+    irqs = gsi;
+    aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
+                                  AML_SHARED, &irqs, 1));
+    aml_append(dev, aml_name_decl("_PRS", crs));
+
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    method = aml_method("_SRS", 1, AML_NOTSERIALIZED);
+    aml_append(dev, method);
+
+    return dev;
+}
+
+/* _CRS method - get current settings */
+static Aml *build_iqcr_method(bool is_piix4)
+{
+    Aml *if_ctx;
+    uint32_t irqs;
+    Aml *method = aml_method("IQCR", 1, AML_SERIALIZED);
+    Aml *crs = aml_resource_template();
+
+    irqs = 0;
+    aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL,
+                                  AML_ACTIVE_HIGH, AML_SHARED, &irqs, 1));
+    aml_append(method, aml_name_decl("PRR0", crs));
+
+    aml_append(method,
+        aml_create_dword_field(aml_name("PRR0"), aml_int(5), "PRRI"));
+
+    if (is_piix4) {
+        if_ctx = aml_if(aml_lless(aml_arg(0), aml_int(0x80)));
+        aml_append(if_ctx, aml_store(aml_arg(0), aml_name("PRRI")));
+        aml_append(method, if_ctx);
+    } else {
+        aml_append(method,
+            aml_store(aml_and(aml_arg(0), aml_int(0xF), NULL),
+                      aml_name("PRRI")));
+    }
+
+    aml_append(method, aml_return(aml_name("PRR0")));
+    return method;
+}
+
+/* _STA method - get status */
+static Aml *build_irq_status_method(void)
+{
+    Aml *if_ctx;
+    Aml *method = aml_method("IQST", 1, AML_NOTSERIALIZED);
+
+    if_ctx = aml_if(aml_and(aml_int(0x80), aml_arg(0), NULL));
+    aml_append(if_ctx, aml_return(aml_int(0x09)));
+    aml_append(method, if_ctx);
+    aml_append(method, aml_return(aml_int(0x0B)));
+    return method;
+}
+
+static void build_piix4_pci0_int(Aml *table)
+{
+    Aml *dev;
+    Aml *crs;
+    Aml *field;
+    Aml *method;
+    uint32_t irqs;
+    Aml *sb_scope = aml_scope("_SB");
+    Aml *pci0_scope = aml_scope("PCI0");
+
+    aml_append(pci0_scope, build_prt(true));
+    aml_append(sb_scope, pci0_scope);
+
+    field = aml_field("PCI0.ISA.P40C", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("PRQ0", 8));
+    aml_append(field, aml_named_field("PRQ1", 8));
+    aml_append(field, aml_named_field("PRQ2", 8));
+    aml_append(field, aml_named_field("PRQ3", 8));
+    aml_append(sb_scope, field);
+
+    aml_append(sb_scope, build_irq_status_method());
+    aml_append(sb_scope, build_iqcr_method(true));
+
+    aml_append(sb_scope, build_link_dev("LNKA", 0, aml_name("PRQ0")));
+    aml_append(sb_scope, build_link_dev("LNKB", 1, aml_name("PRQ1")));
+    aml_append(sb_scope, build_link_dev("LNKC", 2, aml_name("PRQ2")));
+    aml_append(sb_scope, build_link_dev("LNKD", 3, aml_name("PRQ3")));
+
+    dev = aml_device("LNKS");
+    {
+        aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C0F")));
+        aml_append(dev, aml_name_decl("_UID", aml_int(4)));
+
+        crs = aml_resource_template();
+        irqs = 9;
+        aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL,
+                                      AML_ACTIVE_HIGH, AML_SHARED,
+                                      &irqs, 1));
+        aml_append(dev, aml_name_decl("_PRS", crs));
+
+        /* The SCI cannot be disabled and is always attached to GSI 9,
+         * so these are no-ops.  We only need this link to override the
+         * polarity to active high and match the content of the MADT.
+         */
+        method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_return(aml_int(0x0b)));
+        aml_append(dev, method);
+
+        method = aml_method("_DIS", 0, AML_NOTSERIALIZED);
+        aml_append(dev, method);
+
+        method = aml_method("_CRS", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_return(aml_name("_PRS")));
+        aml_append(dev, method);
+
+        method = aml_method("_SRS", 1, AML_NOTSERIALIZED);
+        aml_append(dev, method);
+    }
+    aml_append(sb_scope, dev);
+
+    aml_append(table, sb_scope);
+}
+
+static void append_q35_prt_entry(Aml *ctx, uint32_t nr, const char *name)
+{
+    int i;
+    int head;
+    Aml *pkg;
+    char base = name[3] < 'E' ? 'A' : 'E';
+    char *s = g_strdup(name);
+    Aml *a_nr = aml_int((nr << 16) | 0xffff);
+
+    assert(strlen(s) == 4);
+
+    head = name[3] - base;
+    for (i = 0; i < 4; i++) {
+        if (head + i > 3) {
+            head = i * -1;
+        }
+        s[3] = base + head + i;
+        pkg = aml_package(4);
+        aml_append(pkg, a_nr);
+        aml_append(pkg, aml_int(i));
+        aml_append(pkg, aml_name("%s", s));
+        aml_append(pkg, aml_int(0));
+        aml_append(ctx, pkg);
+    }
+    g_free(s);
+}
+
+static Aml *build_q35_routing_table(const char *str)
+{
+    int i;
+    Aml *pkg;
+    char *name = g_strdup_printf("%s ", str);
+
+    pkg = aml_package(128);
+    for (i = 0; i < 0x18; i++) {
+            name[3] = 'E' + (i & 0x3);
+            append_q35_prt_entry(pkg, i, name);
+    }
+
+    name[3] = 'E';
+    append_q35_prt_entry(pkg, 0x18, name);
+
+    /* INTA -> PIRQA for slot 25 - 31, see the default value of D<N>IR */
+    for (i = 0x0019; i < 0x1e; i++) {
+        name[3] = 'A';
+        append_q35_prt_entry(pkg, i, name);
+    }
+
+    /* PCIe->PCI bridge. use PIRQ[E-H] */
+    name[3] = 'E';
+    append_q35_prt_entry(pkg, 0x1e, name);
+    name[3] = 'A';
+    append_q35_prt_entry(pkg, 0x1f, name);
+
+    g_free(name);
+    return pkg;
+}
+
+static void build_q35_pci0_int(Aml *table)
+{
+    Aml *field;
+    Aml *method;
+    Aml *sb_scope = aml_scope("_SB");
+    Aml *pci0_scope = aml_scope("PCI0");
+
+    /* Zero => PIC mode, One => APIC Mode */
+    aml_append(table, aml_name_decl("PICF", aml_int(0)));
+    method = aml_method("_PIC", 1, AML_NOTSERIALIZED);
+    {
+        aml_append(method, aml_store(aml_arg(0), aml_name("PICF")));
+    }
+    aml_append(table, method);
+
+    aml_append(pci0_scope,
+        aml_name_decl("PRTP", build_q35_routing_table("LNK")));
+    aml_append(pci0_scope,
+        aml_name_decl("PRTA", build_q35_routing_table("GSI")));
+
+    method = aml_method("_PRT", 0, AML_NOTSERIALIZED);
+    {
+        Aml *if_ctx;
+        Aml *else_ctx;
+
+        /* PCI IRQ routing table, example from ACPI 2.0a specification,
+           section 6.2.8.1 */
+        /* Note: we provide the same info as the PCI routing
+           table of the Bochs BIOS */
+        if_ctx = aml_if(aml_equal(aml_name("PICF"), aml_int(0)));
+        aml_append(if_ctx, aml_return(aml_name("PRTP")));
+        aml_append(method, if_ctx);
+        else_ctx = aml_else();
+        aml_append(else_ctx, aml_return(aml_name("PRTA")));
+        aml_append(method, else_ctx);
+    }
+    aml_append(pci0_scope, method);
+    aml_append(sb_scope, pci0_scope);
+
+    field = aml_field("PCI0.ISA.PIRQ", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("PRQA", 8));
+    aml_append(field, aml_named_field("PRQB", 8));
+    aml_append(field, aml_named_field("PRQC", 8));
+    aml_append(field, aml_named_field("PRQD", 8));
+    aml_append(field, aml_reserved_field(0x20));
+    aml_append(field, aml_named_field("PRQE", 8));
+    aml_append(field, aml_named_field("PRQF", 8));
+    aml_append(field, aml_named_field("PRQG", 8));
+    aml_append(field, aml_named_field("PRQH", 8));
+    aml_append(sb_scope, field);
+
+    aml_append(sb_scope, build_irq_status_method());
+    aml_append(sb_scope, build_iqcr_method(false));
+
+    aml_append(sb_scope, build_link_dev("LNKA", 0, aml_name("PRQA")));
+    aml_append(sb_scope, build_link_dev("LNKB", 1, aml_name("PRQB")));
+    aml_append(sb_scope, build_link_dev("LNKC", 2, aml_name("PRQC")));
+    aml_append(sb_scope, build_link_dev("LNKD", 3, aml_name("PRQD")));
+    aml_append(sb_scope, build_link_dev("LNKE", 4, aml_name("PRQE")));
+    aml_append(sb_scope, build_link_dev("LNKF", 5, aml_name("PRQF")));
+    aml_append(sb_scope, build_link_dev("LNKG", 6, aml_name("PRQG")));
+    aml_append(sb_scope, build_link_dev("LNKH", 7, aml_name("PRQH")));
+
+    /*
+     * TODO: UID probably shouldn't be the same for GSIx devices
+     * but that's how it was in original ASL so keep it for now
+     */
+    aml_append(sb_scope, build_gsi_link_dev("GSIA", 0, 0x10));
+    aml_append(sb_scope, build_gsi_link_dev("GSIB", 0, 0x11));
+    aml_append(sb_scope, build_gsi_link_dev("GSIC", 0, 0x12));
+    aml_append(sb_scope, build_gsi_link_dev("GSID", 0, 0x13));
+    aml_append(sb_scope, build_gsi_link_dev("GSIE", 0, 0x14));
+    aml_append(sb_scope, build_gsi_link_dev("GSIF", 0, 0x15));
+    aml_append(sb_scope, build_gsi_link_dev("GSIG", 0, 0x16));
+    aml_append(sb_scope, build_gsi_link_dev("GSIH", 0, 0x17));
+
+    aml_append(table, sb_scope);
+}
+
+static void build_q35_isa_bridge(Aml *table)
+{
+    Aml *dev;
+    Aml *scope;
+    Aml *field;
+
+    scope =  aml_scope("_SB.PCI0");
+    dev = aml_device("ISA");
+    aml_append(dev, aml_name_decl("_ADR", aml_int(0x001F0000)));
+
+    /* ICH9 PCI to ISA irq remapping */
+    aml_append(dev, aml_operation_region("PIRQ", AML_PCI_CONFIG,
+                                         0x60, 0x0C));
+
+    aml_append(dev, aml_operation_region("LPCD", AML_PCI_CONFIG,
+                                         0x80, 0x02));
+    field = aml_field("LPCD", AML_ANY_ACC, AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("COMA", 3));
+    aml_append(field, aml_reserved_field(1));
+    aml_append(field, aml_named_field("COMB", 3));
+    aml_append(field, aml_reserved_field(1));
+    aml_append(field, aml_named_field("LPTD", 2));
+    aml_append(field, aml_reserved_field(2));
+    aml_append(field, aml_named_field("FDCD", 2));
+    aml_append(dev, field);
+
+    aml_append(dev, aml_operation_region("LPCE", AML_PCI_CONFIG,
+                                         0x82, 0x02));
+    /* enable bits */
+    field = aml_field("LPCE", AML_ANY_ACC, AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("CAEN", 1));
+    aml_append(field, aml_named_field("CBEN", 1));
+    aml_append(field, aml_named_field("LPEN", 1));
+    aml_append(field, aml_named_field("FDEN", 1));
+    aml_append(dev, field);
+
+    aml_append(scope, dev);
+    aml_append(table, scope);
+}
+
+static void build_piix4_pm(Aml *table)
+{
+    Aml *dev;
+    Aml *scope;
+
+    scope =  aml_scope("_SB.PCI0");
+    dev = aml_device("PX13");
+    aml_append(dev, aml_name_decl("_ADR", aml_int(0x00010003)));
+
+    aml_append(dev, aml_operation_region("P13C", AML_PCI_CONFIG,
+                                         0x00, 0xff));
+    aml_append(scope, dev);
+    aml_append(table, scope);
+}
+
+static void build_piix4_isa_bridge(Aml *table)
+{
+    Aml *dev;
+    Aml *scope;
+    Aml *field;
+
+    scope =  aml_scope("_SB.PCI0");
+    dev = aml_device("ISA");
+    aml_append(dev, aml_name_decl("_ADR", aml_int(0x00010000)));
+
+    /* PIIX PCI to ISA irq remapping */
+    aml_append(dev, aml_operation_region("P40C", AML_PCI_CONFIG,
+                                         0x60, 0x04));
+    /* enable bits */
+    field = aml_field("^PX13.P13C", AML_ANY_ACC, AML_NOLOCK, AML_PRESERVE);
+    /* Offset(0x5f),, 7, */
+    aml_append(field, aml_reserved_field(0x2f8));
+    aml_append(field, aml_reserved_field(7));
+    aml_append(field, aml_named_field("LPEN", 1));
+    /* Offset(0x67),, 3, */
+    aml_append(field, aml_reserved_field(0x38));
+    aml_append(field, aml_reserved_field(3));
+    aml_append(field, aml_named_field("CAEN", 1));
+    aml_append(field, aml_reserved_field(3));
+    aml_append(field, aml_named_field("CBEN", 1));
+    aml_append(dev, field);
+    aml_append(dev, aml_name_decl("FDEN", aml_int(1)));
+
+    aml_append(scope, dev);
+    aml_append(table, scope);
+}
+
+static void build_piix4_pci_hotplug(Aml *table)
+{
+    Aml *scope;
+    Aml *field;
+    Aml *method;
+
+    scope =  aml_scope("_SB.PCI0");
+
+    aml_append(scope,
+        aml_operation_region("PCST", AML_SYSTEM_IO, 0xae00, 0x08));
+    field = aml_field("PCST", AML_DWORD_ACC, AML_NOLOCK, AML_WRITE_AS_ZEROS);
+    aml_append(field, aml_named_field("PCIU", 32));
+    aml_append(field, aml_named_field("PCID", 32));
+    aml_append(scope, field);
+
+    aml_append(scope,
+        aml_operation_region("SEJ", AML_SYSTEM_IO, 0xae08, 0x04));
+    field = aml_field("SEJ", AML_DWORD_ACC, AML_NOLOCK, AML_WRITE_AS_ZEROS);
+    aml_append(field, aml_named_field("B0EJ", 32));
+    aml_append(scope, field);
+
+    aml_append(scope,
+        aml_operation_region("BNMR", AML_SYSTEM_IO, 0xae10, 0x04));
+    field = aml_field("BNMR", AML_DWORD_ACC, AML_NOLOCK, AML_WRITE_AS_ZEROS);
+    aml_append(field, aml_named_field("BNUM", 32));
+    aml_append(scope, field);
+
+    aml_append(scope, aml_mutex("BLCK", 0));
+
+    method = aml_method("PCEJ", 2, AML_NOTSERIALIZED);
+    aml_append(method, aml_acquire(aml_name("BLCK"), 0xFFFF));
+    aml_append(method, aml_store(aml_arg(0), aml_name("BNUM")));
+    aml_append(method,
+        aml_store(aml_shiftleft(aml_int(1), aml_arg(1)), aml_name("B0EJ")));
+    aml_append(method, aml_release(aml_name("BLCK")));
+    aml_append(method, aml_return(aml_int(0)));
+    aml_append(scope, method);
+
+    aml_append(table, scope);
+}
+
+static Aml *build_q35_osc_method(void)
+{
+    Aml *if_ctx;
+    Aml *if_ctx2;
+    Aml *else_ctx;
+    Aml *method;
+    Aml *a_cwd1 = aml_name("CDW1");
+    Aml *a_ctrl = aml_name("CTRL");
+
+    method = aml_method("_OSC", 4, AML_NOTSERIALIZED);
+    aml_append(method, aml_create_dword_field(aml_arg(3), aml_int(0), "CDW1"));
+
+    if_ctx = aml_if(aml_equal(
+        aml_arg(0), aml_touuid("33DB4D5B-1FF7-401C-9657-7441C03DD766")));
+    aml_append(if_ctx, aml_create_dword_field(aml_arg(3), aml_int(4), "CDW2"));
+    aml_append(if_ctx, aml_create_dword_field(aml_arg(3), aml_int(8), "CDW3"));
+
+    aml_append(if_ctx, aml_store(aml_name("CDW2"), aml_name("SUPP")));
+    aml_append(if_ctx, aml_store(aml_name("CDW3"), a_ctrl));
+
+    /*
+     * Always allow native PME, AER (no dependencies)
+     * Never allow SHPC (no SHPC controller in this system)
+     */
+    aml_append(if_ctx, aml_and(a_ctrl, aml_int(0x1D), a_ctrl));
+
+    if_ctx2 = aml_if(aml_lnot(aml_equal(aml_arg(1), aml_int(1))));
+    /* Unknown revision */
+    aml_append(if_ctx2, aml_or(a_cwd1, aml_int(0x08), a_cwd1));
+    aml_append(if_ctx, if_ctx2);
+
+    if_ctx2 = aml_if(aml_lnot(aml_equal(aml_name("CDW3"), a_ctrl)));
+    /* Capabilities bits were masked */
+    aml_append(if_ctx2, aml_or(a_cwd1, aml_int(0x10), a_cwd1));
+    aml_append(if_ctx, if_ctx2);
+
+    /* Update DWORD3 in the buffer */
+    aml_append(if_ctx, aml_store(a_ctrl, aml_name("CDW3")));
+    aml_append(method, if_ctx);
+
+    else_ctx = aml_else();
+    /* Unrecognized UUID */
+    aml_append(else_ctx, aml_or(a_cwd1, aml_int(4), a_cwd1));
+    aml_append(method, else_ctx);
+
+    aml_append(method, aml_return(aml_arg(3)));
+    return method;
+}
+
 static void
 build_ssdt(GArray *table_data, GArray *linker,
            AcpiCpuInfo *cpu, AcpiPmInfo *pm, AcpiMiscInfo *misc,
@@ -936,8 +1942,7 @@ build_ssdt(GArray *table_data, GArray *linker,
 {
     MachineState *machine = MACHINE(qdev_get_machine());
     uint32_t nr_mem = machine->ram_slots;
-    unsigned acpi_cpus = guest_info->apic_id_limit;
-    Aml *ssdt, *sb_scope, *scope, *pkg, *dev, *method, *crs, *field, *ifctx;
+    Aml *ssdt, *sb_scope, *scope, *pkg, *dev, *method, *crs, *field;
     PCIBus *bus = NULL;
     GPtrArray *io_ranges = g_ptr_array_new_with_free_func(crs_range_free);
     GPtrArray *mem_ranges = g_ptr_array_new_with_free_func(crs_range_free);
@@ -946,10 +1951,6 @@ build_ssdt(GArray *table_data, GArray *linker,
     int i;
 
     ssdt = init_aml_allocator();
-    /* The current AML generator can cover the APIC ID range [0..255],
-     * inclusive, for VCPU hotplug. */
-    QEMU_BUILD_BUG_ON(ACPI_CPU_HOTPLUG_ID_LIMIT > 256);
-    g_assert(acpi_cpus <= ACPI_CPU_HOTPLUG_ID_LIMIT);
 
     /* Reserve space for header */
     acpi_data_push(ssdt->buf, sizeof(AcpiTableHeader));
@@ -979,7 +1980,7 @@ build_ssdt(GArray *table_data, GArray *linker,
                 aml_append(dev, aml_name_decl("_PXM", aml_int(numa_node)));
             }
 
-            aml_append(dev, build_prt());
+            aml_append(dev, build_prt(false));
             crs = build_crs(PCI_HOST_BRIDGE(BUS(bus)->parent),
                             io_ranges, mem_ranges);
             aml_append(dev, aml_name_decl("_CRS", crs));
@@ -1155,192 +2156,10 @@ build_ssdt(GArray *table_data, GArray *linker,
 
     sb_scope = aml_scope("\\_SB");
     {
-        /* create PCI0.PRES device and its _CRS to reserve CPU hotplug MMIO */
-        dev = aml_device("PCI0." stringify(CPU_HOTPLUG_RESOURCE_DEVICE));
-        aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A06")));
-        aml_append(dev,
-            aml_name_decl("_UID", aml_string("CPU Hotplug resources"))
-        );
-        /* device present, functioning, decoding, not shown in UI */
-        aml_append(dev, aml_name_decl("_STA", aml_int(0xB)));
-        crs = aml_resource_template();
-        aml_append(crs,
-            aml_io(AML_DECODE16, pm->cpu_hp_io_base, pm->cpu_hp_io_base, 1,
-                   pm->cpu_hp_io_len)
-        );
-        aml_append(dev, aml_name_decl("_CRS", crs));
-        aml_append(sb_scope, dev);
-        /* declare CPU hotplug MMIO region and PRS field to access it */
-        aml_append(sb_scope, aml_operation_region(
-            "PRST", AML_SYSTEM_IO, pm->cpu_hp_io_base, pm->cpu_hp_io_len));
-        field = aml_field("PRST", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
-        aml_append(field, aml_named_field("PRS", 256));
-        aml_append(sb_scope, field);
+        build_processor_devices(sb_scope, guest_info->apic_id_limit, cpu, pm);
 
-        /* build Processor object for each processor */
-        for (i = 0; i < acpi_cpus; i++) {
-            dev = aml_processor(i, 0, 0, "CP%.02X", i);
-
-            method = aml_method("_MAT", 0, AML_NOTSERIALIZED);
-            aml_append(method, aml_return(aml_call1("CPMA", aml_int(i))));
-            aml_append(dev, method);
-
-            method = aml_method("_STA", 0, AML_NOTSERIALIZED);
-            aml_append(method, aml_return(aml_call1("CPST", aml_int(i))));
-            aml_append(dev, method);
-
-            method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
-            aml_append(method,
-                aml_return(aml_call2("CPEJ", aml_int(i), aml_arg(0)))
-            );
-            aml_append(dev, method);
-
-            aml_append(sb_scope, dev);
-        }
-
-        /* build this code:
-         *   Method(NTFY, 2) {If (LEqual(Arg0, 0x00)) {Notify(CP00, Arg1)} ...}
-         */
-        /* Arg0 = Processor ID = APIC ID */
-        method = aml_method("NTFY", 2, AML_NOTSERIALIZED);
-        for (i = 0; i < acpi_cpus; i++) {
-            ifctx = aml_if(aml_equal(aml_arg(0), aml_int(i)));
-            aml_append(ifctx,
-                aml_notify(aml_name("CP%.02X", i), aml_arg(1))
-            );
-            aml_append(method, ifctx);
-        }
-        aml_append(sb_scope, method);
-
-        /* build "Name(CPON, Package() { One, One, ..., Zero, Zero, ... })"
-         *
-         * Note: The ability to create variable-sized packages was first
-         * introduced in ACPI 2.0. ACPI 1.0 only allowed fixed-size packages
-         * ith up to 255 elements. Windows guests up to win2k8 fail when
-         * VarPackageOp is used.
-         */
-        pkg = acpi_cpus <= 255 ? aml_package(acpi_cpus) :
-                                 aml_varpackage(acpi_cpus);
-
-        for (i = 0; i < acpi_cpus; i++) {
-            uint8_t b = test_bit(i, cpu->found_cpus) ? 0x01 : 0x00;
-            aml_append(pkg, aml_int(b));
-        }
-        aml_append(sb_scope, aml_name_decl("CPON", pkg));
-
-        /* build memory devices */
-        assert(nr_mem <= ACPI_MAX_RAM_SLOTS);
-        scope = aml_scope("\\_SB.PCI0." stringify(MEMORY_HOTPLUG_DEVICE));
-        aml_append(scope,
-            aml_name_decl(stringify(MEMORY_SLOTS_NUMBER), aml_int(nr_mem))
-        );
-
-        crs = aml_resource_template();
-        aml_append(crs,
-            aml_io(AML_DECODE16, pm->mem_hp_io_base, pm->mem_hp_io_base, 0,
-                   pm->mem_hp_io_len)
-        );
-        aml_append(scope, aml_name_decl("_CRS", crs));
-
-        aml_append(scope, aml_operation_region(
-            stringify(MEMORY_HOTPLUG_IO_REGION), AML_SYSTEM_IO,
-            pm->mem_hp_io_base, pm->mem_hp_io_len)
-        );
-
-        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), AML_DWORD_ACC,
-                          AML_NOLOCK, AML_PRESERVE);
-        aml_append(field, /* read only */
-            aml_named_field(stringify(MEMORY_SLOT_ADDR_LOW), 32));
-        aml_append(field, /* read only */
-            aml_named_field(stringify(MEMORY_SLOT_ADDR_HIGH), 32));
-        aml_append(field, /* read only */
-            aml_named_field(stringify(MEMORY_SLOT_SIZE_LOW), 32));
-        aml_append(field, /* read only */
-            aml_named_field(stringify(MEMORY_SLOT_SIZE_HIGH), 32));
-        aml_append(field, /* read only */
-            aml_named_field(stringify(MEMORY_SLOT_PROXIMITY), 32));
-        aml_append(scope, field);
-
-        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), AML_BYTE_ACC,
-                          AML_NOLOCK, AML_WRITE_AS_ZEROS);
-        aml_append(field, aml_reserved_field(160 /* bits, Offset(20) */));
-        aml_append(field, /* 1 if enabled, read only */
-            aml_named_field(stringify(MEMORY_SLOT_ENABLED), 1));
-        aml_append(field,
-            /*(read) 1 if has a insert event. (write) 1 to clear event */
-            aml_named_field(stringify(MEMORY_SLOT_INSERT_EVENT), 1));
-        aml_append(field,
-            /* (read) 1 if has a remove event. (write) 1 to clear event */
-            aml_named_field(stringify(MEMORY_SLOT_REMOVE_EVENT), 1));
-        aml_append(field,
-            /* initiates device eject, write only */
-            aml_named_field(stringify(MEMORY_SLOT_EJECT), 1));
-        aml_append(scope, field);
-
-        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), AML_DWORD_ACC,
-                          AML_NOLOCK, AML_PRESERVE);
-        aml_append(field, /* DIMM selector, write only */
-            aml_named_field(stringify(MEMORY_SLOT_SLECTOR), 32));
-        aml_append(field, /* _OST event code, write only */
-            aml_named_field(stringify(MEMORY_SLOT_OST_EVENT), 32));
-        aml_append(field, /* _OST status code, write only */
-            aml_named_field(stringify(MEMORY_SLOT_OST_STATUS), 32));
-        aml_append(scope, field);
-
-        aml_append(sb_scope, scope);
-
-        for (i = 0; i < nr_mem; i++) {
-            #define BASEPATH "\\_SB.PCI0." stringify(MEMORY_HOTPLUG_DEVICE) "."
-            const char *s;
-
-            dev = aml_device("MP%02X", i);
-            aml_append(dev, aml_name_decl("_UID", aml_string("0x%02X", i)));
-            aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C80")));
-
-            method = aml_method("_CRS", 0, AML_NOTSERIALIZED);
-            s = BASEPATH stringify(MEMORY_SLOT_CRS_METHOD);
-            aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
-            aml_append(dev, method);
-
-            method = aml_method("_STA", 0, AML_NOTSERIALIZED);
-            s = BASEPATH stringify(MEMORY_SLOT_STATUS_METHOD);
-            aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
-            aml_append(dev, method);
-
-            method = aml_method("_PXM", 0, AML_NOTSERIALIZED);
-            s = BASEPATH stringify(MEMORY_SLOT_PROXIMITY_METHOD);
-            aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
-            aml_append(dev, method);
-
-            method = aml_method("_OST", 3, AML_NOTSERIALIZED);
-            s = BASEPATH stringify(MEMORY_SLOT_OST_METHOD);
-            aml_append(method, aml_return(aml_call4(
-                s, aml_name("_UID"), aml_arg(0), aml_arg(1), aml_arg(2)
-            )));
-            aml_append(dev, method);
-
-            method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
-            s = BASEPATH stringify(MEMORY_SLOT_EJECT_METHOD);
-            aml_append(method, aml_return(aml_call2(
-                       s, aml_name("_UID"), aml_arg(0))));
-            aml_append(dev, method);
-
-            aml_append(sb_scope, dev);
-        }
-
-        /* build Method(MEMORY_SLOT_NOTIFY_METHOD, 2) {
-         *     If (LEqual(Arg0, 0x00)) {Notify(MP00, Arg1)} ... }
-         */
-        method = aml_method(stringify(MEMORY_SLOT_NOTIFY_METHOD), 2,
-                            AML_NOTSERIALIZED);
-        for (i = 0; i < nr_mem; i++) {
-            ifctx = aml_if(aml_equal(aml_arg(0), aml_int(i)));
-            aml_append(ifctx,
-                aml_notify(aml_name("MP%.02X", i), aml_arg(1))
-            );
-            aml_append(method, ifctx);
-        }
-        aml_append(sb_scope, method);
+        build_memory_devices(sb_scope, nr_mem, pm->mem_hp_io_base,
+                             pm->mem_hp_io_len);
 
         {
             Object *pci_host;
@@ -1605,18 +2424,113 @@ build_dmar_q35(GArray *table_data, GArray *linker)
 }
 
 static void
-build_dsdt(GArray *table_data, GArray *linker, AcpiMiscInfo *misc)
+build_dsdt(GArray *table_data, GArray *linker,
+           AcpiPmInfo *pm, AcpiMiscInfo *misc)
 {
-    AcpiTableHeader *dsdt;
+    Aml *dsdt, *sb_scope, *scope, *dev, *method, *field;
+    MachineState *machine = MACHINE(qdev_get_machine());
+    uint32_t nr_mem = machine->ram_slots;
 
-    assert(misc->dsdt_code && misc->dsdt_size);
+    dsdt = init_aml_allocator();
 
-    dsdt = acpi_data_push(table_data, misc->dsdt_size);
-    memcpy(dsdt, misc->dsdt_code, misc->dsdt_size);
+    /* Reserve space for header */
+    acpi_data_push(dsdt->buf, sizeof(AcpiTableHeader));
 
-    memset(dsdt, 0, sizeof *dsdt);
-    build_header(linker, table_data, dsdt, "DSDT",
-                 misc->dsdt_size, 1, NULL);
+    build_dbg_aml(dsdt);
+    if (misc->is_piix4) {
+        sb_scope = aml_scope("_SB");
+        dev = aml_device("PCI0");
+        aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A03")));
+        aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
+        aml_append(dev, aml_name_decl("_UID", aml_int(1)));
+        aml_append(sb_scope, dev);
+        aml_append(dsdt, sb_scope);
+
+        build_hpet_aml(dsdt);
+        build_piix4_pm(dsdt);
+        build_piix4_isa_bridge(dsdt);
+        build_isa_devices_aml(dsdt);
+        build_piix4_pci_hotplug(dsdt);
+        build_piix4_pci0_int(dsdt);
+    } else {
+        sb_scope = aml_scope("_SB");
+        aml_append(sb_scope,
+            aml_operation_region("PCST", AML_SYSTEM_IO, 0xae00, 0x0c));
+        aml_append(sb_scope,
+            aml_operation_region("PCSB", AML_SYSTEM_IO, 0xae0c, 0x01));
+        field = aml_field("PCSB", AML_ANY_ACC, AML_NOLOCK, AML_WRITE_AS_ZEROS);
+        aml_append(field, aml_named_field("PCIB", 8));
+        aml_append(sb_scope, field);
+        aml_append(dsdt, sb_scope);
+
+        sb_scope = aml_scope("_SB");
+        dev = aml_device("PCI0");
+        aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A08")));
+        aml_append(dev, aml_name_decl("_CID", aml_eisaid("PNP0A03")));
+        aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
+        aml_append(dev, aml_name_decl("_UID", aml_int(1)));
+        aml_append(dev, aml_name_decl("SUPP", aml_int(0)));
+        aml_append(dev, aml_name_decl("CTRL", aml_int(0)));
+        aml_append(dev, build_q35_osc_method());
+        aml_append(sb_scope, dev);
+        aml_append(dsdt, sb_scope);
+
+        build_hpet_aml(dsdt);
+        build_q35_isa_bridge(dsdt);
+        build_isa_devices_aml(dsdt);
+        build_q35_pci0_int(dsdt);
+    }
+
+    build_cpu_hotplug_aml(dsdt);
+    build_memory_hotplug_aml(dsdt, nr_mem, pm->mem_hp_io_base,
+                             pm->mem_hp_io_len);
+
+    scope =  aml_scope("_GPE");
+    {
+        aml_append(scope, aml_name_decl("_HID", aml_string("ACPI0006")));
+
+        aml_append(scope, aml_method("_L00", 0, AML_NOTSERIALIZED));
+
+        if (misc->is_piix4) {
+            method = aml_method("_E01", 0, AML_NOTSERIALIZED);
+            aml_append(method,
+                aml_acquire(aml_name("\\_SB.PCI0.BLCK"), 0xFFFF));
+            aml_append(method, aml_call0("\\_SB.PCI0.PCNT"));
+            aml_append(method, aml_release(aml_name("\\_SB.PCI0.BLCK")));
+            aml_append(scope, method);
+        } else {
+            aml_append(scope, aml_method("_L01", 0, AML_NOTSERIALIZED));
+        }
+
+        method = aml_method("_E02", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_call0("\\_SB." CPU_SCAN_METHOD));
+        aml_append(scope, method);
+
+        method = aml_method("_E03", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_call0(MEMORY_HOTPLUG_HANDLER_PATH));
+        aml_append(scope, method);
+
+        aml_append(scope, aml_method("_L04", 0, AML_NOTSERIALIZED));
+        aml_append(scope, aml_method("_L05", 0, AML_NOTSERIALIZED));
+        aml_append(scope, aml_method("_L06", 0, AML_NOTSERIALIZED));
+        aml_append(scope, aml_method("_L07", 0, AML_NOTSERIALIZED));
+        aml_append(scope, aml_method("_L08", 0, AML_NOTSERIALIZED));
+        aml_append(scope, aml_method("_L09", 0, AML_NOTSERIALIZED));
+        aml_append(scope, aml_method("_L0A", 0, AML_NOTSERIALIZED));
+        aml_append(scope, aml_method("_L0B", 0, AML_NOTSERIALIZED));
+        aml_append(scope, aml_method("_L0C", 0, AML_NOTSERIALIZED));
+        aml_append(scope, aml_method("_L0D", 0, AML_NOTSERIALIZED));
+        aml_append(scope, aml_method("_L0E", 0, AML_NOTSERIALIZED));
+        aml_append(scope, aml_method("_L0F", 0, AML_NOTSERIALIZED));
+    }
+    aml_append(dsdt, scope);
+
+    /* copy AML table into ACPI tables blob and patch header there */
+    g_array_append_vals(table_data, dsdt->buf->data, dsdt->buf->len);
+    build_header(linker, table_data,
+        (void *)(table_data->data + table_data->len - dsdt->buf->len),
+        "DSDT", dsdt->buf->len, 1, NULL);
+    free_aml_allocator();
 }
 
 static GArray *
@@ -1710,7 +2624,6 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
 
     acpi_get_cpu_info(&cpu);
     acpi_get_pm_info(&pm);
-    acpi_get_dsdt(&misc);
     acpi_get_misc_info(&misc);
     acpi_get_pci_info(&pci);
 
@@ -1732,7 +2645,7 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
 
     /* DSDT is pointed to by FADT */
     dsdt = tables_blob->len;
-    build_dsdt(tables_blob, tables->linker, &misc);
+    build_dsdt(tables_blob, tables->linker, &pm, &misc);
 
     /* Count the size of the DSDT and SSDT, we will need it for legacy
      * sizing of ACPI tables.
