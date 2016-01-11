@@ -254,24 +254,21 @@ def aarch64_init():
     EXIT_REASONS = AARCH64_EXIT_REASONS
 
 def detect_platform():
-    if os.uname()[4].startswith('ppc'):
-        ppc_init()
-        return
-    elif os.uname()[4].startswith('aarch64'):
-        aarch64_init()
-        return
+    machine = os.uname()[4]
 
-    for line in file('/proc/cpuinfo').readlines():
-        if line.startswith('flags'):
-            for flag in line.split():
-                if flag in X86_EXIT_REASONS:
-                    x86_init(flag)
-                    return
-        elif line.startswith('vendor_id'):
-            for flag in line.split():
-                if flag == 'IBM/S390':
-                    s390_init()
-                    return
+    if machine.startswith('ppc'):
+        ppc_init()
+    elif machine.startswith('aarch64'):
+        aarch64_init()
+    elif machine.startswith('s390'):
+        s390_init()
+    else:
+        for line in file('/proc/cpuinfo').readlines():
+            if line.startswith('flags'):
+                for flag in line.split():
+                    if flag in X86_EXIT_REASONS:
+                        x86_init(flag)
+                        return
 
 
 def walkdir(path):
