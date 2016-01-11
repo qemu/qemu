@@ -271,13 +271,18 @@ static void spice_chr_accept_input(struct CharDriverState *chr)
 }
 
 static CharDriverState *chr_open(const char *subtype,
-    void (*set_fe_open)(struct CharDriverState *, int))
-
+                                 void (*set_fe_open)(struct CharDriverState *,
+                                                     int),
+                                 ChardevCommon *backend,
+                                 Error **errp)
 {
     CharDriverState *chr;
     SpiceCharDriver *s;
 
-    chr = qemu_chr_alloc();
+    chr = qemu_chr_alloc(backend, errp);
+    if (!chr) {
+        return NULL;
+    }
     s = g_malloc0(sizeof(SpiceCharDriver));
     s->chr = chr;
     s->active = false;
@@ -303,6 +308,7 @@ static CharDriverState *qemu_chr_open_spice_vmc(const char *id,
 {
     const char *type = backend->u.spicevmc->type;
     const char **psubtype = spice_server_char_device_recognized_subtypes();
+    ChardevCommon *common = qapi_ChardevSpiceChannel_base(backend->u.spicevmc);
 
     for (; *psubtype != NULL; ++psubtype) {
         if (strcmp(type, *psubtype) == 0) {
@@ -315,7 +321,7 @@ static CharDriverState *qemu_chr_open_spice_vmc(const char *id,
         return NULL;
     }
 
-    return chr_open(type, spice_vmc_set_fe_open);
+    return chr_open(type, spice_vmc_set_fe_open, common, errp);
 }
 
 #if SPICE_SERVER_VERSION >= 0x000c02
@@ -325,6 +331,7 @@ static CharDriverState *qemu_chr_open_spice_port(const char *id,
                                                  Error **errp)
 {
     const char *name = backend->u.spiceport->fqdn;
+    ChardevCommon *common = qapi_ChardevSpicePort_base(backend->u.spiceport);
     CharDriverState *chr;
     SpiceCharDriver *s;
 
@@ -333,7 +340,10 @@ static CharDriverState *qemu_chr_open_spice_port(const char *id,
         return NULL;
     }
 
-    chr = chr_open("port", spice_port_set_fe_open);
+    chr = chr_open("port", spice_port_set_fe_open, common, errp);
+    if (!chr) {
+        return NULL;
+    }
     s = chr->opaque;
     s->sin.portname = g_strdup(name);
 
