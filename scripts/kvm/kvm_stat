@@ -634,6 +634,28 @@ class Tui(object):
             row += 1
         self.screen.refresh()
 
+    def show_filter_selection(self):
+        while True:
+            self.screen.erase()
+            self.screen.addstr(0, 0,
+                               "Show statistics for events matching a regex.",
+                               curses.A_BOLD)
+            self.screen.addstr(2, 0,
+                               "Current regex: {0}"
+                               .format(self.stats.fields_filter))
+            self.screen.addstr(3, 0, "New regex: ")
+            curses.echo()
+            regex = self.screen.getstr()
+            curses.noecho()
+            if len(regex) == 0:
+                return
+            try:
+                re.compile(regex)
+                self.stats.fields_filter = regex
+                return
+            except re.error:
+                continue
+
     def show_stats(self):
         sleeptime = 0.25
         while True:
@@ -647,6 +669,8 @@ class Tui(object):
                     self.update_drilldown()
                 if char == 'q':
                     break
+                if char == 'f':
+                    self.show_filter_selection()
             except KeyboardInterrupt:
                 break
             except curses.error:
