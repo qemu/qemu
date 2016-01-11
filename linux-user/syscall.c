@@ -1659,7 +1659,8 @@ set_timeout:
 		addr_ifname = alloca(IFNAMSIZ);
 		memcpy(addr_ifname, dev_ifname, optlen);
 		addr_ifname[optlen] = 0;
-		ret = get_errno(setsockopt(sockfd, level, optname, addr_ifname, optlen));
+		ret = get_errno(setsockopt(sockfd, SOL_SOCKET, optname,
+                                           addr_ifname, optlen));
 		unlock_user (dev_ifname, optval_addr, 0);
 		return ret;
 	}
