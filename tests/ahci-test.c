@@ -1080,7 +1080,6 @@ static void test_flush_retry(void)
     AHCIQState *ahci;
     AHCICommand *cmd;
     uint8_t port;
-    const char *s;
 
     prepare_blkdebug_script(debug_path, "flush_to_disk");
     ahci = ahci_boot_and_enable("-drive file=blkdebug:%s:%s,if=none,id=drive0,"
@@ -1094,19 +1093,10 @@ static void test_flush_retry(void)
     /* Issue Flush Command and wait for error */
     port = ahci_port_select(ahci);
     ahci_port_clear(ahci, port);
-    cmd = ahci_command_create(CMD_FLUSH_CACHE);
-    ahci_command_commit(ahci, cmd, port);
-    ahci_command_issue_async(ahci, cmd);
-    qmp_eventwait("STOP");
 
-    /* Complete the command */
-    s = "{'execute':'cont' }";
-    qmp_async(s);
-    qmp_eventwait("RESUME");
-    ahci_command_wait(ahci, cmd);
-    ahci_command_verify(ahci, cmd);
+    cmd = ahci_guest_io_halt(ahci, port, CMD_FLUSH_CACHE, 0, 0, 0);
+    ahci_guest_io_resume(ahci, cmd);
 
-    ahci_command_free(cmd);
     ahci_shutdown(ahci);
 }
 

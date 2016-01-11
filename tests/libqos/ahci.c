@@ -842,6 +842,9 @@ void ahci_command_set_offset(AHCICommand *cmd, uint64_t lba_sect)
     if (cmd->props->atapi) {
         ahci_atapi_command_set_offset(cmd, lba_sect);
         return;
+    } else if (!cmd->props->data && !lba_sect) {
+        /* Not meaningful, ignore. */
+        return;
     } else if (cmd->props->lba28) {
         g_assert_cmphex(lba_sect, <=, 0xFFFFFFF);
     } else if (cmd->props->lba48 || cmd->props->ncq) {
