@@ -325,29 +325,8 @@ def _perf_event_open(attr, pid, cpu, group_fd, flags):
                    ctypes.c_int(cpu), ctypes.c_int(group_fd),
                    ctypes.c_long(flags))
 
-PERF_TYPE_HARDWARE              = 0
-PERF_TYPE_SOFTWARE              = 1
-PERF_TYPE_TRACEPOINT            = 2
-PERF_TYPE_HW_CACHE              = 3
-PERF_TYPE_RAW                   = 4
-PERF_TYPE_BREAKPOINT            = 5
-
-PERF_SAMPLE_IP                  = 1 << 0
-PERF_SAMPLE_TID                 = 1 << 1
-PERF_SAMPLE_TIME                = 1 << 2
-PERF_SAMPLE_ADDR                = 1 << 3
-PERF_SAMPLE_READ                = 1 << 4
-PERF_SAMPLE_CALLCHAIN           = 1 << 5
-PERF_SAMPLE_ID                  = 1 << 6
-PERF_SAMPLE_CPU                 = 1 << 7
-PERF_SAMPLE_PERIOD              = 1 << 8
-PERF_SAMPLE_STREAM_ID           = 1 << 9
-PERF_SAMPLE_RAW                 = 1 << 10
-
-PERF_FORMAT_TOTAL_TIME_ENABLED  = 1 << 0
-PERF_FORMAT_TOTAL_TIME_RUNNING  = 1 << 1
-PERF_FORMAT_ID                  = 1 << 2
-PERF_FORMAT_GROUP               = 1 << 3
+PERF_TYPE_TRACEPOINT = 2
+PERF_FORMAT_GROUP = 1 << 3
 
 sys_tracing = '/sys/kernel/debug/tracing'
 
@@ -378,9 +357,6 @@ class Event(object):
                                tracepoint, 'id')
         id = int(file(id_path).read())
         attr.config = id
-        attr.sample_type = (PERF_SAMPLE_RAW
-                            | PERF_SAMPLE_TIME
-                            | PERF_SAMPLE_CPU)
         attr.sample_period = 1
         attr.read_format = PERF_FORMAT_GROUP
         group_leader = -1
