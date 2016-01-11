@@ -280,18 +280,27 @@ def walkdir(path):
     return next(os.walk(path))
 
 
+def parse_int_list(list_string):
+    """Returns an int list from a string of comma separated integers and
+    integer ranges."""
+    integers = []
+    members = list_string.split(',')
+
+    for member in members:
+        if '-' not in member:
+            integers.append(int(member))
+        else:
+            int_range = member.split('-')
+            integers.extend(range(int(int_range[0]),
+                                  int(int_range[1]) + 1))
+
+    return integers
+
+
 def get_online_cpus():
-    cpulist = []
-    pattern = r'cpu([0-9]+)'
-    basedir = '/sys/devices/system/cpu'
-    for entry in os.listdir(basedir):
-        match = re.match(pattern, entry)
-        if not match:
-            continue
-        path = os.path.join(basedir, entry, 'online')
-        if os.path.isfile(path) and open(path).read().strip() == '1':
-            cpulist.append(int(match.group(1)))
-    return cpulist
+    with open('/sys/devices/system/cpu/online') as cpu_list:
+        cpu_string = cpu_list.readline()
+        return parse_int_list(cpu_string)
 
 filters = {}
 filters['kvm_userspace_exit'] = ('reason', USERSPACE_EXIT_REASONS)
