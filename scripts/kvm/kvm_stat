@@ -339,15 +339,11 @@ PATH_DEBUGFS_TRACING = '/sys/kernel/debug/tracing'
 PATH_DEBUGFS_KVM = '/sys/kernel/debug/kvm'
 
 class Group(object):
-    def __init__(self, cpu):
+    def __init__(self):
         self.events = []
-        self.cpu = cpu
 
-    def add_event(self, name, event_set, tracepoint, tracefilter=None):
-        self.events.append(Event(group=self,
-                                 name=name, event_set=event_set,
-                                 tracepoint=tracepoint,
-                                 tracefilter=tracefilter))
+    def add_event(self, event):
+        self.events.append(event)
 
     def read(self):
         length = 8 * (1 + len(self.events))
@@ -357,32 +353,52 @@ class Group(object):
                                       os.read(self.events[0].fd, length))))
 
 class Event(object):
-    def __init__(self, group, name, event_set, tracepoint, tracefilter=None):
+    def __init__(self, name, group, trace_cpu, trace_point, trace_filter,
+                 trace_set='kvm'):
         self.name = name
-        attr = perf_event_attr()
-        attr.type = PERF_TYPE_TRACEPOINT
-        attr.size = ctypes.sizeof(attr)
-        id_path = os.path.join(PATH_DEBUGFS_TRACING, 'events', event_set,
-                               tracepoint, 'id')
-        id = int(file(id_path).read())
-        attr.config = id
-        attr.sample_period = 1
-        attr.read_format = PERF_FORMAT_GROUP
+        self.fd = None
+        self.setup_event(group, trace_cpu, trace_point, trace_filter,
+                         trace_set)
+
+    def setup_event_attribute(self, trace_set, trace_point):
+        id_path = os.path.join(PATH_DEBUGFS_TRACING, 'events', trace_set,
+                               trace_point, 'id')
+
+        event_attr = perf_event_attr()
+        event_attr.type = PERF_TYPE_TRACEPOINT
+        event_attr.size = ctypes.sizeof(event_attr)
+        event_attr.config = int(open(id_path).read())
+        event_attr.sample_period = 1
+        event_attr.read_format = PERF_FORMAT_GROUP
+        return event_attr
+
+    def setup_event(self, group, trace_cpu, trace_point, trace_filter,
+                    trace_set):
+        event_attr = self.setup_event_attribute(trace_set, trace_point)
+
         group_leader = -1
         if group.events:
             group_leader = group.events[0].fd
-        fd = perf_event_open(attr, -1, group.cpu, group_leader, 0)
+
+        fd = perf_event_open(event_attr, -1, trace_cpu,
+                             group_leader, 0)
         if fd == -1:
             err = ctypes.get_errno()
             raise OSError(err, os.strerror(err),
                           'while calling sys_perf_event_open().')
-        if tracefilter:
-            fcntl.ioctl(fd, IOCTL_NUMBERS['SET_FILTER'], tracefilter)
+
+        if trace_filter:
+            fcntl.ioctl(fd, IOCTL_NUMBERS['SET_FILTER'],
+                        trace_filter)
+
         self.fd = fd
+
     def enable(self):
         fcntl.ioctl(self.fd, IOCTL_NUMBERS['ENABLE'], 0)
+
     def disable(self):
         fcntl.ioctl(self.fd, IOCTL_NUMBERS['DISABLE'], 0)
+
     def reset(self):
         fcntl.ioctl(self.fd, IOCTL_NUMBERS['RESET'], 0)
 
@@ -418,7 +434,7 @@ class TracepointProvider(object):
             sys.exit("NOFILE rlimit could not be raised to {0}".format(rlimit))
 
         for cpu in cpus:
-            group = Group(cpu)
+            group = Group()
             for name in self._fields:
                 tracepoint = name
                 tracefilter = None
@@ -428,9 +444,12 @@ class TracepointProvider(object):
                     tracefilter = ('%s==%d\0' %
                                    (self.filters[tracepoint][0],
                                     self.filters[tracepoint][1][sub]))
-                group.add_event(name, event_set='kvm',
-                                tracepoint=tracepoint,
-                                tracefilter=tracefilter)
+
+                group.add_event(Event(name=name,
+                                      group=group,
+                                      trace_cpu=cpu,
+                                      trace_point=tracepoint,
+                                      trace_filter=tracefilter))
             self.group_leaders.append(group)
 
     @property
