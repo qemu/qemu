@@ -19,6 +19,7 @@ struct sdl2_console {
     int hidden;
     int opengl;
     int updates;
+    int idle_counter;
     SDL_GLContext winctx;
 #ifdef CONFIG_OPENGL
     ConsoleGLState *gls;
