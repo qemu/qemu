@@ -4688,13 +4688,13 @@ Press left mouse button.
 -> { "execute": "x-input-send-event",
     "arguments": { "device": "video0",
                    "events": [ { "type": "btn",
-                   "data" : { "down": true, "button": "Left" } } ] } }
+                   "data" : { "down": true, "button": "left" } } ] } }
 <- { "return": {} }
 
 -> { "execute": "x-input-send-event",
     "arguments": { "device": "video0",
                    "events": [ { "type": "btn",
-                   "data" : { "down": false, "button": "Left" } } ] } }
+                   "data" : { "down": false, "button": "left" } } ] } }
 <- { "return": {} }
 
 Example (2):

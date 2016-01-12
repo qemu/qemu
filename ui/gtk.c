@@ -966,9 +966,9 @@ static gboolean gd_scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
     InputButton btn;
 
     if (scroll->direction == GDK_SCROLL_UP) {
-        btn = INPUT_BUTTON_WHEELUP;
+        btn = INPUT_BUTTON_WHEEL_UP;
     } else if (scroll->direction == GDK_SCROLL_DOWN) {
-        btn = INPUT_BUTTON_WHEELDOWN;
+        btn = INPUT_BUTTON_WHEEL_DOWN;
     } else {
         return TRUE;
     }

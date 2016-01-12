@@ -475,8 +475,8 @@ static void sdl_send_mouse_event(int dx, int dy, int x, int y, int state)
         [INPUT_BUTTON_LEFT]       = SDL_BUTTON(SDL_BUTTON_LEFT),
         [INPUT_BUTTON_MIDDLE]     = SDL_BUTTON(SDL_BUTTON_MIDDLE),
         [INPUT_BUTTON_RIGHT]      = SDL_BUTTON(SDL_BUTTON_RIGHT),
-        [INPUT_BUTTON_WHEELUP]    = SDL_BUTTON(SDL_BUTTON_WHEELUP),
-        [INPUT_BUTTON_WHEELDOWN]  = SDL_BUTTON(SDL_BUTTON_WHEELDOWN),
+        [INPUT_BUTTON_WHEEL_UP]   = SDL_BUTTON(SDL_BUTTON_WHEELUP),
+        [INPUT_BUTTON_WHEEL_DOWN] = SDL_BUTTON(SDL_BUTTON_WHEELDOWN),
     };
     static uint32_t prev_state;
 

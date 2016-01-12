@@ -67,7 +67,6 @@ case_whitelist = [
     'CpuInfoMIPS',          # PC, visible through query-cpu
     'CpuInfoTricore',       # PC, visible through query-cpu
     'InputAxis',            # TODO: drop when x-input-send-event is fixed
-    'InputButton',          # TODO: drop when x-input-send-event is fixed
     'QapiErrorClass',       # all members, visible through errors
     'UuidInfo',             # UUID, visible through query-uuid
     'X86CPURegister32',     # all members, visible indirectly through qom-get

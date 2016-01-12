@@ -1593,8 +1593,8 @@ static void pointer_event(VncState *vs, int button_mask, int x, int y)
         [INPUT_BUTTON_LEFT]       = 0x01,
         [INPUT_BUTTON_MIDDLE]     = 0x02,
         [INPUT_BUTTON_RIGHT]      = 0x04,
-        [INPUT_BUTTON_WHEELUP]    = 0x08,
-        [INPUT_BUTTON_WHEELDOWN]  = 0x10,
+        [INPUT_BUTTON_WHEEL_UP]   = 0x08,
+        [INPUT_BUTTON_WHEEL_DOWN] = 0x10,
     };
     QemuConsole *con = vs->vd->dcl.con;
     int width = pixman_image_get_width(vs->vd->server);
