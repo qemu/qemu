@@ -215,6 +215,7 @@ static AHCIQState *ahci_boot_and_enable(const char *cli, ...)
     va_list ap;
     uint16_t buff[256];
     uint8_t port;
+    uint8_t hello;
 
     if (cli) {
         va_start(ap, cli);
@@ -229,7 +230,12 @@ static AHCIQState *ahci_boot_and_enable(const char *cli, ...)
     /* Initialize test device */
     port = ahci_port_select(ahci);
     ahci_port_clear(ahci, port);
-    ahci_io(ahci, port, CMD_IDENTIFY, &buff, sizeof(buff), 0);
+    if (is_atapi(ahci, port)) {
+        hello = CMD_PACKET_ID;
+    } else {
+        hello = CMD_IDENTIFY;
+    }
+    ahci_io(ahci, port, hello, &buff, sizeof(buff), 0);
 
     return ahci;
 }
@@ -884,18 +890,12 @@ static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
 static uint8_t ahci_test_nondata(AHCIQState *ahci, uint8_t ide_cmd)
 {
     uint8_t port;
-    AHCICommand *cmd;
 
     /* Sanitize */
     port = ahci_port_select(ahci);
     ahci_port_clear(ahci, port);
 
-    /* Issue Command */
-    cmd = ahci_command_create(ide_cmd);
-    ahci_command_commit(ahci, cmd, port);
-    ahci_command_issue(ahci, cmd);
-    ahci_command_verify(ahci, cmd);
-    ahci_command_free(cmd);
+    ahci_io(ahci, port, ide_cmd, NULL, 0, 0);
 
     return port;
 }
@@ -1045,14 +1045,14 @@ static void test_dma_fragmented(void)
     ahci_command_commit(ahci, cmd, px);
     ahci_command_issue(ahci, cmd);
     ahci_command_verify(ahci, cmd);
-    g_free(cmd);
+    ahci_command_free(cmd);
 
     cmd = ahci_command_create(CMD_READ_DMA);
     ahci_command_adjust(cmd, 0, ptr, bufsize, 32);
     ahci_command_commit(ahci, cmd, px);
     ahci_command_issue(ahci, cmd);
     ahci_command_verify(ahci, cmd);
-    g_free(cmd);
+    ahci_command_free(cmd);
 
     /* Read back the guest's receive buffer into local memory */
     bufread(ptr, rx, bufsize);
@@ -1080,7 +1080,6 @@ static void test_flush_retry(void)
     AHCIQState *ahci;
     AHCICommand *cmd;
     uint8_t port;
-    const char *s;
 
     prepare_blkdebug_script(debug_path, "flush_to_disk");
     ahci = ahci_boot_and_enable("-drive file=blkdebug:%s:%s,if=none,id=drive0,"
@@ -1094,19 +1093,10 @@ static void test_flush_retry(void)
     /* Issue Flush Command and wait for error */
     port = ahci_port_select(ahci);
     ahci_port_clear(ahci, port);
-    cmd = ahci_command_create(CMD_FLUSH_CACHE);
-    ahci_command_commit(ahci, cmd, port);
-    ahci_command_issue_async(ahci, cmd);
-    qmp_eventwait("STOP");
 
-    /* Complete the command */
-    s = "{'execute':'cont' }";
-    qmp_async(s);
-    qmp_eventwait("RESUME");
-    ahci_command_wait(ahci, cmd);
-    ahci_command_verify(ahci, cmd);
+    cmd = ahci_guest_io_halt(ahci, port, CMD_FLUSH_CACHE, 0, 0, 0);
+    ahci_guest_io_resume(ahci, cmd);
 
-    ahci_command_free(cmd);
     ahci_shutdown(ahci);
 }
 
@@ -1423,6 +1413,98 @@ static void test_ncq_simple(void)
     ahci_shutdown(ahci);
 }
 
+static int prepare_iso(size_t size, unsigned char **buf, char **name)
+{
+    char cdrom_path[] = "/tmp/qtest.iso.XXXXXX";
+    unsigned char *patt;
+    ssize_t ret;
+    int fd = mkstemp(cdrom_path);
+
+    g_assert(buf);
+    g_assert(name);
+    patt = g_malloc(size);
+
+    /* Generate a pattern and build a CDROM image to read from */
+    generate_pattern(patt, size, ATAPI_SECTOR_SIZE);
+    ret = write(fd, patt, size);
+    g_assert(ret == size);
+
+    *name = g_strdup(cdrom_path);
+    *buf = patt;
+    return fd;
+}
+
+static void remove_iso(int fd, char *name)
+{
+    unlink(name);
+    g_free(name);
+    close(fd);
+}
+
+static int ahci_cb_cmp_buff(AHCIQState *ahci, AHCICommand *cmd,
+                            const AHCIOpts *opts)
+{
+    unsigned char *tx = opts->opaque;
+    unsigned char *rx = g_malloc0(opts->size);
+
+    bufread(opts->buffer, rx, opts->size);
+    g_assert_cmphex(memcmp(tx, rx, opts->size), ==, 0);
+    g_free(rx);
+
+    return 0;
+}
+
+static void ahci_test_cdrom(int nsectors, bool dma)
+{
+    AHCIQState *ahci;
+    unsigned char *tx;
+    char *iso;
+    int fd;
+    AHCIOpts opts = {
+        .size = (ATAPI_SECTOR_SIZE * nsectors),
+        .atapi = true,
+        .atapi_dma = dma,
+        .post_cb = ahci_cb_cmp_buff,
+    };
+
+    /* Prepare ISO and fill 'tx' buffer */
+    fd = prepare_iso(1024 * 1024, &tx, &iso);
+    opts.opaque = tx;
+
+    /* Standard startup wonkery, but use ide-cd and our special iso file */
+    ahci = ahci_boot_and_enable("-drive if=none,id=drive0,file=%s,format=raw "
+                                "-M q35 "
+                                "-device ide-cd,drive=drive0 ", iso);
+
+    /* Build & Send AHCI command */
+    ahci_exec(ahci, ahci_port_select(ahci), CMD_ATAPI_READ_10, &opts);
+
+    /* Cleanup */
+    g_free(tx);
+    ahci_shutdown(ahci);
+    remove_iso(fd, iso);
+}
+
+static void test_cdrom_dma(void)
+{
+    ahci_test_cdrom(1, true);
+}
+
+static void test_cdrom_dma_multi(void)
+{
+    ahci_test_cdrom(3, true);
+}
+
+static void test_cdrom_pio(void)
+{
+    ahci_test_cdrom(1, false);
+}
+
+static void test_cdrom_pio_multi(void)
+{
+    ahci_test_cdrom(3, false);
+}
+
 /******************************************************************************/
 /* AHCI I/O Test Matrix Definitions                                           */
 
@@ -1706,6 +1788,11 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/migrate/ncq/simple", test_migrate_ncq);
     qtest_add_func("/ahci/io/ncq/retry", test_halted_ncq);
     qtest_add_func("/ahci/migrate/ncq/halted", test_migrate_halted_ncq);
+
+    qtest_add_func("/ahci/cdrom/dma/single", test_cdrom_dma);
+    qtest_add_func("/ahci/cdrom/dma/multi", test_cdrom_dma_multi);
+    qtest_add_func("/ahci/cdrom/pio/single", test_cdrom_pio);
+    qtest_add_func("/ahci/cdrom/pio/multi", test_cdrom_pio_multi);
 
     ret = g_test_run();
 

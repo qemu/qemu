@@ -270,6 +270,10 @@ uint64_t guest_alloc(QGuestAllocator *allocator, size_t size)
     uint64_t rsize = size;
     uint64_t naddr;
 
+    if (!size) {
+        return 0;
+    }
+
     rsize += (allocator->page_size - 1);
     rsize &= -allocator->page_size;
     g_assert_cmpint((allocator->start + rsize), <=, allocator->end);
