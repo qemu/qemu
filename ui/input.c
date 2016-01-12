@@ -82,19 +82,12 @@ void qemu_input_handler_bind(QemuInputHandlerState *s,
                              const char *device_id, int head,
                              Error **errp)
 {
-    DeviceState *dev;
     QemuConsole *con;
+    Error *err = NULL;
 
-    dev = qdev_find_recursive(sysbus_get_default(), device_id);
-    if (dev == NULL) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device_id);
-        return;
-    }
-
-    con = qemu_console_lookup_by_device(dev, head);
-    if (con == NULL) {
-        error_setg(errp, "Device %s is not bound to a QemuConsole", device_id);
+    con = qemu_console_lookup_by_device_name(device_id, head, &err);
+    if (err) {
+        error_propagate(errp, err);
         return;
     }
 

@@ -3732,19 +3732,12 @@ void vnc_display_open(const char *id, Error **errp)
 
     device_id = qemu_opt_get(opts, "display");
     if (device_id) {
-        DeviceState *dev;
         int head = qemu_opt_get_number(opts, "head", 0);
+        Error *err = NULL;
 
-        dev = qdev_find_recursive(sysbus_get_default(), device_id);
-        if (dev == NULL) {
-            error_setg(errp, "Device '%s' not found", device_id);
-            goto fail;
-        }
-
-        con = qemu_console_lookup_by_device(dev, head);
-        if (con == NULL) {
-            error_setg(errp, "Device %s is not bound to a QemuConsole",
-                       device_id);
+        con = qemu_console_lookup_by_device_name(device_id, head, &err);
+        if (err) {
+            error_propagate(errp, err);
             goto fail;
         }
     } else {
