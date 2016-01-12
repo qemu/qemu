@@ -108,6 +108,8 @@ struct SCSIDevice
     int blocksize;
     int type;
     uint64_t max_lba;
+    uint64_t wwn;
+    uint64_t port_wwn;
 };
 
 extern const VMStateDescription vmstate_scsi_device;
