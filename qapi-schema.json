@@ -3819,7 +3819,7 @@
               'abs'     : 'InputMoveEvent' } }
 
 ##
-# @x-input-send-event
+# @input-send-event
 #
 # Send input event(s) to guest.
 #
@@ -3840,16 +3840,10 @@
 # specified, both input devices with and without input routing config
 # are admissible, but devices with input routing config take
 # precedence.
-
-# Since: 2.2
 #
-# Note: this command is experimental, and not a stable API.  Things that
-# might change before it becomes stable include the spelling of enum
-# values for InputButton and InputAxis, and the notion of how to designate
-# which console will receive the event.
-#
+# Since: 2.6
 ##
-{ 'command': 'x-input-send-event',
+{ 'command': 'input-send-event',
   'data': { '*device': 'str',
             '*head'  : 'int',
             'events' : [ 'InputEvent' ] } }

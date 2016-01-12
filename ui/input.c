@@ -119,9 +119,9 @@ qemu_input_find_handler(uint32_t mask, QemuConsole *con)
     return NULL;
 }
 
-void qmp_x_input_send_event(bool has_device, const char *device,
-                            bool has_head, int64_t head,
-                            InputEventList *events, Error **errp)
+void qmp_input_send_event(bool has_device, const char *device,
+                          bool has_head, int64_t head,
+                          InputEventList *events, Error **errp)
 {
     InputEventList *e;
     QemuConsole *con;
