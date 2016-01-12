@@ -25,19 +25,36 @@ typedef struct XlnxEP108 {
     MemoryRegion ddr_ram;
 } XlnxEP108;
 
-/* Max 2GB RAM */
-#define EP108_MAX_RAM_SIZE 0x80000000ull
-
 static struct arm_boot_info xlnx_ep108_binfo;
 
 static void xlnx_ep108_init(MachineState *machine)
 {
     XlnxEP108 *s = g_new0(XlnxEP108, 1);
     Error *err = NULL;
+    uint64_t ram_size = machine->ram_size;
+
+    /* Create the memory region to pass to the SoC */
+    if (ram_size > XLNX_ZYNQMP_MAX_RAM_SIZE) {
+        error_report("ERROR: RAM size 0x%" PRIx64 " above max supported of "
+                     "0x%llx", ram_size,
+                     XLNX_ZYNQMP_MAX_RAM_SIZE);
+        exit(1);
+    }
+
+    if (ram_size < 0x08000000) {
+        qemu_log("WARNING: RAM size 0x%" PRIx64 " is small for EP108",
+                 ram_size);
+    }
+
+    memory_region_allocate_system_memory(&s->ddr_ram, NULL, "ddr-ram",
+                                         ram_size);
 
     object_initialize(&s->soc, sizeof(s->soc), TYPE_XLNX_ZYNQMP);
     object_property_add_child(OBJECT(machine), "soc", OBJECT(&s->soc),
                               &error_abort);
+
+    object_property_set_link(OBJECT(&s->soc), OBJECT(&s->ddr_ram),
+                         "ddr-ram", &error_abort);
 
     object_property_set_bool(OBJECT(&s->soc), true, "realized", &err);
     if (err) {
@@ -45,22 +62,7 @@ static void xlnx_ep108_init(MachineState *machine)
         exit(1);
     }
 
-    if (machine->ram_size > EP108_MAX_RAM_SIZE) {
-        error_report("WARNING: RAM size " RAM_ADDR_FMT " above max supported, "
-                     "reduced to %llx", machine->ram_size, EP108_MAX_RAM_SIZE);
-        machine->ram_size = EP108_MAX_RAM_SIZE;
-    }
-
-    if (machine->ram_size < 0x08000000) {
-        qemu_log("WARNING: RAM size " RAM_ADDR_FMT " is small for EP108",
-                 machine->ram_size);
-    }
-
-    memory_region_allocate_system_memory(&s->ddr_ram, NULL, "ddr-ram",
-                                         machine->ram_size);
-    memory_region_add_subregion(get_system_memory(), 0, &s->ddr_ram);
-
-    xlnx_ep108_binfo.ram_size = machine->ram_size;
+    xlnx_ep108_binfo.ram_size = ram_size;
     xlnx_ep108_binfo.kernel_filename = machine->kernel_filename;
     xlnx_ep108_binfo.kernel_cmdline = machine->kernel_cmdline;
     xlnx_ep108_binfo.initrd_filename = machine->initrd_filename;

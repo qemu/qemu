@@ -90,6 +90,11 @@ static void xlnx_zynqmp_init(Object *obj)
                                   &error_abort);
     }
 
+    object_property_add_link(obj, "ddr-ram", TYPE_MEMORY_REGION,
+                             (Object **)&s->ddr_ram,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
+
     object_initialize(&s->gic, sizeof(s->gic), TYPE_ARM_GIC);
     qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
 
@@ -119,9 +124,41 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     XlnxZynqMPState *s = XLNX_ZYNQMP(dev);
     MemoryRegion *system_memory = get_system_memory();
     uint8_t i;
+    uint64_t ram_size;
     const char *boot_cpu = s->boot_cpu ? s->boot_cpu : "apu-cpu[0]";
+    ram_addr_t ddr_low_size, ddr_high_size;
     qemu_irq gic_spi[GIC_NUM_SPI_INTR];
     Error *err = NULL;
+
+    ram_size = memory_region_size(s->ddr_ram);
+
+    /* Create the DDR Memory Regions. User friendly checks should happen at
+     * the board level
+     */
+    if (ram_size > XLNX_ZYNQMP_MAX_LOW_RAM_SIZE) {
+        /* The RAM size is above the maximum available for the low DDR.
+         * Create the high DDR memory region as well.
+         */
+        assert(ram_size <= XLNX_ZYNQMP_MAX_RAM_SIZE);
+        ddr_low_size = XLNX_ZYNQMP_MAX_LOW_RAM_SIZE;
+        ddr_high_size = ram_size - XLNX_ZYNQMP_MAX_LOW_RAM_SIZE;
+
+        memory_region_init_alias(&s->ddr_ram_high, NULL,
+                                 "ddr-ram-high", s->ddr_ram,
+                                  ddr_low_size, ddr_high_size);
+        memory_region_add_subregion(get_system_memory(),
+                                    XLNX_ZYNQMP_HIGH_RAM_START,
+                                    &s->ddr_ram_high);
+    } else {
+        /* RAM must be non-zero */
+        assert(ram_size);
+        ddr_low_size = ram_size;
+    }
+
+    memory_region_init_alias(&s->ddr_ram_low, NULL,
+                             "ddr-ram-low", s->ddr_ram,
+                              0, ddr_low_size);
+    memory_region_add_subregion(get_system_memory(), 0, &s->ddr_ram_low);
 
     /* Create the four OCM banks */
     for (i = 0; i < XLNX_ZYNQMP_NUM_OCM_BANKS; i++) {
