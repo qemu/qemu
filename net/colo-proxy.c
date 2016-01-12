@@ -686,12 +686,12 @@ static int colo_packet_compare(Packet *ppkt, Packet *spkt)
     trace_colo_proxy_packet_size(ppkt->size);
     trace_colo_proxy_packet_src(inet_ntoa(ppkt->ip->ip_src));
     trace_colo_proxy_packet_dst(inet_ntoa(ppkt->ip->ip_dst));
-    colo_proxy_dump_packet(ppkt);
+    /*colo_proxy_dump_packet(ppkt);*/
     trace_colo_proxy("colo_packet_compare data   spkt");
     trace_colo_proxy_packet_size(spkt->size);
     trace_colo_proxy_packet_src(inet_ntoa(spkt->ip->ip_src));
     trace_colo_proxy_packet_dst(inet_ntoa(spkt->ip->ip_dst));
-    colo_proxy_dump_packet(spkt);
+    /*colo_proxy_dump_packet(spkt);*/
 
     if (ppkt->size == spkt->size) {
         return memcmp(ppkt->data, spkt->data, spkt->size);
