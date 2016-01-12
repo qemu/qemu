@@ -1,5 +1,5 @@
-#ifndef _QEMU_VIRTIO_9P_MARSHAL_H
-#define _QEMU_VIRTIO_9P_MARSHAL_H
+#ifndef _QEMU_9P_MARSHAL_H
+#define _QEMU_9P_MARSHAL_H
 
 typedef struct V9fsString
 {
@@ -30,7 +30,7 @@ typedef struct V9fsStat
     V9fsString muid;
     /* 9p2000.u */
     V9fsString extension;
-   int32_t n_uid;
+    int32_t n_uid;
     int32_t n_gid;
     int32_t n_muid;
 } V9fsStat;
@@ -81,10 +81,4 @@ extern void v9fs_string_null(V9fsString *str);
 extern void v9fs_string_sprintf(V9fsString *str, const char *fmt, ...);
 extern void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs);
 
-ssize_t v9fs_pack(struct iovec *in_sg, int in_num, size_t offset,
-                  const void *src, size_t size);
-ssize_t v9fs_unmarshal(struct iovec *out_sg, int out_num, size_t offset,
-                       int bswap, const char *fmt, ...);
-ssize_t v9fs_marshal(struct iovec *in_sg, int in_num, size_t offset,
-                     int bswap, const char *fmt, ...);
 #endif

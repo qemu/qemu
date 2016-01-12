@@ -1,5 +1,5 @@
 /*
- * Virtio 9p
+ * 9p
  *
  * Copyright IBM, Corp. 2010
  *
@@ -10,8 +10,8 @@
  * the COPYING file in the top-level directory.
  *
  */
-#ifndef _QEMU_VIRTIO_9P_XATTR_H
-#define _QEMU_VIRTIO_9P_XATTR_H
+#ifndef _QEMU_9P_XATTR_H
+#define _QEMU_9P_XATTR_H
 
 #include "qemu/xattr.h"
 

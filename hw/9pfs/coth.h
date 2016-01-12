@@ -1,5 +1,5 @@
 /*
- * Virtio 9p backend
+ * 9p backend
  *
  * Copyright IBM, Corp. 2010
  *
@@ -12,8 +12,8 @@
  *
  */
 
-#ifndef _QEMU_VIRTIO_9P_COTH_H
-#define _QEMU_VIRTIO_9P_COTH_H
+#ifndef _QEMU_9P_COTH_H
+#define _QEMU_9P_COTH_H
 
 #include "qemu/thread.h"
 #include "qemu/coroutine.h"

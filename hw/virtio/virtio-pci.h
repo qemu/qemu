@@ -23,7 +23,6 @@
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/virtio-balloon.h"
 #include "hw/virtio/virtio-bus.h"
-#include "hw/virtio/virtio-9p.h"
 #include "hw/virtio/virtio-input.h"
 #include "hw/virtio/virtio-gpu.h"
 #ifdef CONFIG_VIRTFS
@@ -243,7 +242,7 @@ struct VirtIONetPCI {
 
 typedef struct V9fsPCIState {
     VirtIOPCIProxy parent_obj;
-    V9fsState vdev;
+    V9fsVirtioState vdev;
 } V9fsPCIState;
 
 #endif

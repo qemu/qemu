@@ -23,9 +23,9 @@
 #include "qemu-common.h"
 #include "qemu/sockets.h"
 #include "qemu/xattr.h"
-#include "virtio-9p-marshal.h"
-#include "hw/9pfs/virtio-9p-proxy.h"
-#include "fsdev/virtio-9p-marshal.h"
+#include "9p-iov-marshal.h"
+#include "hw/9pfs/9p-proxy.h"
+#include "fsdev/9p-iov-marshal.h"
 
 #define PROGNAME "virtfs-proxy-helper"
 

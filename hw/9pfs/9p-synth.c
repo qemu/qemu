@@ -13,10 +13,10 @@
  */
 
 #include "hw/virtio/virtio.h"
-#include "virtio-9p.h"
-#include "virtio-9p-xattr.h"
+#include "9p.h"
+#include "9p-xattr.h"
 #include "fsdev/qemu-fsdev.h"
-#include "virtio-9p-synth.h"
+#include "9p-synth.h"
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
 #include <sys/stat.h>

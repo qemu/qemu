@@ -1,5 +1,5 @@
 /*
- * Virtio 9p  xattr callback
+ * 9p  xattr callback
  *
  * Copyright IBM, Corp. 2010
  *
@@ -11,10 +11,9 @@
  *
  */
 
-#include "hw/virtio/virtio.h"
-#include "virtio-9p.h"
+#include "9p.h"
 #include "fsdev/file-op-9p.h"
-#include "virtio-9p-xattr.h"
+#include "9p-xattr.h"
 
 
 static XattrOperations *get_xattr_operations(XattrOperations **h,
