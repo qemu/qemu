@@ -4,7 +4,10 @@ common-obj-$(CONFIG_ARM_DIS) += arm.o
 common-obj-$(CONFIG_ARM_A64_DIS) += arm-a64.o
 common-obj-$(CONFIG_ARM_A64_DIS) += libvixl/
 libvixldir = $(SRC_PATH)/disas/libvixl
-arm-a64.o-cflags := -I$(libvixldir)
+# The -Wno-sign-compare is needed only for gcc 4.6, which complains about
+# some signed-unsigned equality comparisons in libvixl which later gcc
+# versions do not.
+arm-a64.o-cflags := -I$(libvixldir) -Wno-sign-compare
 common-obj-$(CONFIG_CRIS_DIS) += cris.o
 common-obj-$(CONFIG_HPPA_DIS) += hppa.o
 common-obj-$(CONFIG_I386_DIS) += i386.o

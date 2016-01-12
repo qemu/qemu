@@ -4,6 +4,8 @@ libvixl_OBJS = vixl/utils.o \
                vixl/a64/decoder-a64.o \
                vixl/a64/disasm-a64.o
 
-$(addprefix $(obj)/,$(libvixl_OBJS)): QEMU_CFLAGS := -I$(SRC_PATH)/disas/libvixl $(QEMU_CFLAGS)
+# The -Wno-sign-compare is needed only for gcc 4.6, which complains about
+# some signed-unsigned equality comparisons which later gcc versions do not.
+$(addprefix $(obj)/,$(libvixl_OBJS)): QEMU_CFLAGS := -I$(SRC_PATH)/disas/libvixl -Wno-sign-compare $(QEMU_CFLAGS)
 
 common-obj-$(CONFIG_ARM_A64_DIS) += $(libvixl_OBJS)
