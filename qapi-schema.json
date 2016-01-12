@@ -3753,12 +3753,9 @@
 # Position axis of a pointer input device (mouse, tablet).
 #
 # Since: 2.0
-#
-# Note that the spelling of these values may change when the
-# x-input-send-event is promoted out of experimental status.
 ##
 { 'enum'  : 'InputAxis',
-  'data'  : [ 'X', 'Y' ] }
+  'data'  : [ 'x', 'y' ] }
 
 ##
 # @InputKeyEvent

@@ -4717,8 +4717,8 @@ Move mouse pointer to absolute coordinates (20000, 400).
 
 -> { "execute": "x-input-send-event" ,
   "arguments": { "events": [
-               { "type": "abs", "data" : { "axis": "X", "value" : 20000 } },
-               { "type": "abs", "data" : { "axis": "Y", "value" : 400 } } ] } }
+               { "type": "abs", "data" : { "axis": "x", "value" : 20000 } },
+               { "type": "abs", "data" : { "axis": "y", "value" : 400 } } ] } }
 <- { "return": {} }
 
 EQMP
