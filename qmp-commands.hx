@@ -4671,8 +4671,9 @@ Send input event to guest.
 
 Arguments:
 
-- "console": console index. (json-int, optional)
-- "events": list of input events.
+- "device": display device (json-string, optional)
+- "head": display head (json-int, optional)
+- "events": list of input events
 
 The consoles are visible in the qom tree, under
 /backend/console[$index]. They have a device link and head property, so
@@ -4685,15 +4686,15 @@ Example (1):
 Press left mouse button.
 
 -> { "execute": "x-input-send-event",
-    "arguments": { "console": 0,
+    "arguments": { "device": "video0",
                    "events": [ { "type": "btn",
-                    "data" : { "down": true, "button": "Left" } } ] } }
+                   "data" : { "down": true, "button": "Left" } } ] } }
 <- { "return": {} }
 
 -> { "execute": "x-input-send-event",
-    "arguments": { "console": 0,
+    "arguments": { "device": "video0",
                    "events": [ { "type": "btn",
-                    "data" : { "down": false, "button": "Left" } } ] } }
+                   "data" : { "down": false, "button": "Left" } } ] } }
 <- { "return": {} }
 
 Example (2):
@@ -4701,7 +4702,7 @@ Example (2):
 Press ctrl-alt-del.
 
 -> { "execute": "x-input-send-event",
-     "arguments": { "console": 0, "events": [
+     "arguments": { "events": [
         { "type": "key", "data" : { "down": true,
           "key": {"type": "qcode", "data": "ctrl" } } },
         { "type": "key", "data" : { "down": true,
@@ -4715,7 +4716,7 @@ Example (3):
 Move mouse pointer to absolute coordinates (20000, 400).
 
 -> { "execute": "x-input-send-event" ,
-  "arguments": { "console": 0, "events": [
+  "arguments": { "events": [
                { "type": "abs", "data" : { "axis": "X", "value" : 20000 } },
                { "type": "abs", "data" : { "axis": "Y", "value" : 400 } } ] } }
 <- { "return": {} }

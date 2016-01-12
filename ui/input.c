@@ -119,17 +119,22 @@ qemu_input_find_handler(uint32_t mask, QemuConsole *con)
     return NULL;
 }
 
-void qmp_x_input_send_event(bool has_console, int64_t console,
+void qmp_x_input_send_event(bool has_device, const char *device,
+                            bool has_head, int64_t head,
                             InputEventList *events, Error **errp)
 {
     InputEventList *e;
     QemuConsole *con;
+    Error *err = NULL;
 
     con = NULL;
-    if (has_console) {
-        con = qemu_console_lookup_by_index(console);
-        if (!con) {
-            error_setg(errp, "console %" PRId64 " not found", console);
+    if (has_device) {
+        if (!has_head) {
+            head = 0;
+        }
+        con = qemu_console_lookup_by_device_name(device, head, &err);
+        if (err) {
+            error_propagate(errp, err);
             return;
         }
     }

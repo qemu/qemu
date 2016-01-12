@@ -3829,24 +3829,24 @@
 #
 # Send input event(s) to guest.
 #
-# @console: #optional console to send event(s) to.
-#           This parameter can be used to send the input event to
-#           specific input devices in case (a) multiple input devices
-#           of the same kind are added to the virtual machine and (b)
-#           you have configured input routing (see docs/multiseat.txt)
-#           for those input devices.  If input routing is not
-#           configured this parameter has no effect.
-#           If @console is missing, only devices that aren't associated
-#           with a console are admissible.
-#           If @console is specified, it must exist, and both devices
-#           associated with that console and devices not associated with a
-#           console are admissible, but the former take precedence.
-
-#
+# @device: #optional display device to send event(s) to.
+# @head: #optional head to send event(s) to, in case the
+#        display device supports multiple scanouts.
 # @events: List of InputEvent union.
 #
 # Returns: Nothing on success.
 #
+# The @display and @head parameters can be used to send the input
+# event to specific input devices in case (a) multiple input devices
+# of the same kind are added to the virtual machine and (b) you have
+# configured input routing (see docs/multiseat.txt) for those input
+# devices.  The parameters work exactly like the device and head
+# properties of input devices.  If @device is missing, only devices
+# that have no input routing config are admissible.  If @device is
+# specified, both input devices with and without input routing config
+# are admissible, but devices with input routing config take
+# precedence.
+
 # Since: 2.2
 #
 # Note: this command is experimental, and not a stable API.  Things that
@@ -3856,7 +3856,9 @@
 #
 ##
 { 'command': 'x-input-send-event',
-  'data': { '*console':'int', 'events': [ 'InputEvent' ] } }
+  'data': { '*device': 'str',
+            '*head'  : 'int',
+            'events' : [ 'InputEvent' ] } }
 
 ##
 # @NumaOptions
