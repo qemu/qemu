@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/pci/msi.h"
+#include "hw/xen/xen.h"
 #include "qemu/range.h"
 
 /* PCI_MSI_ADDRESS_LO */
@@ -254,10 +255,16 @@ void msi_reset(PCIDevice *dev)
 static bool msi_is_masked(const PCIDevice *dev, unsigned int vector)
 {
     uint16_t flags = pci_get_word(dev->config + msi_flags_off(dev));
-    uint32_t mask;
+    uint32_t mask, data;
+    bool msi64bit = flags & PCI_MSI_FLAGS_64BIT;
     assert(vector < PCI_MSI_VECTORS_MAX);
 
     if (!(flags & PCI_MSI_FLAGS_MASKBIT)) {
+        return false;
+    }
+
+    data = pci_get_word(dev->config + msi_data_off(dev, msi64bit));
+    if (xen_is_pirq_msi(data)) {
         return false;
     }
 
