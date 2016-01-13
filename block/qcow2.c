@@ -1141,7 +1141,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Clear unknown autoclear feature bits */
-    if (!bs->read_only && !(flags & BDRV_O_INCOMING) && s->autoclear_features) {
+    if (!bs->read_only && !(flags & BDRV_O_INACTIVE) && s->autoclear_features) {
         s->autoclear_features = 0;
         ret = qcow2_update_header(bs);
         if (ret < 0) {
@@ -1154,7 +1154,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     qemu_co_mutex_init(&s->lock);
 
     /* Repair image if dirty */
-    if (!(flags & (BDRV_O_CHECK | BDRV_O_INCOMING)) && !bs->read_only &&
+    if (!(flags & (BDRV_O_CHECK | BDRV_O_INACTIVE)) && !bs->read_only &&
         (s->incompatible_features & QCOW2_INCOMPAT_DIRTY)) {
         BdrvCheckResult result = {0};
 
@@ -1693,7 +1693,7 @@ static void qcow2_close(BlockDriverState *bs)
     /* else pre-write overlap checks in cache_destroy may crash */
     s->l1_table = NULL;
 
-    if (!(bs->open_flags & BDRV_O_INCOMING)) {
+    if (!(bs->open_flags & BDRV_O_INACTIVE)) {
         int ret1, ret2;
 
         ret1 = qcow2_cache_flush(bs, s->l2_table_cache);
