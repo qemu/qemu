@@ -138,7 +138,7 @@ size_t qcrypto_cipher_get_iv_len(QCryptoCipherAlgorithm alg,
  * @mode: the cipher usage mode
  * @key: the private key bytes
  * @nkey: the length of @key
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Creates a new cipher object for encrypting/decrypting
  * data with the algorithm @alg in the usage mode @mode.
@@ -174,7 +174,7 @@ void qcrypto_cipher_free(QCryptoCipher *cipher);
  * @in: buffer holding the plain text input data
  * @out: buffer to fill with the cipher text output data
  * @len: the length of @in and @out buffers
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Encrypts the plain text stored in @in, filling
  * @out with the resulting ciphered text. Both the
@@ -196,7 +196,7 @@ int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
  * @in: buffer holding the cipher text input data
  * @out: buffer to fill with the plain text output data
  * @len: the length of @in and @out buffers
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Decrypts the cipher text stored in @in, filling
  * @out with the resulting plain text. Both the
@@ -216,7 +216,7 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
  * @cipher: the cipher object
  * @iv: the initialization vector bytes
  * @niv: the length of @iv
- * @errpr: pointer to an uninitialized error object
+ * @errpr: pointer to a NULL-initialized error object
  *
  * If the @cipher object is setup to use a mode that requires
  * initialization vectors, this sets the initialization vector
