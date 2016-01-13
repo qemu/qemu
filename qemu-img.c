@@ -1071,28 +1071,50 @@ static int img_compare(int argc, char **argv)
     }
 
     for (;;) {
+        int64_t status1, status2;
         nb_sectors = sectors_to_process(total_sectors, sector_num);
         if (nb_sectors <= 0) {
             break;
         }
-        allocated1 = bdrv_is_allocated_above(bs1, NULL, sector_num, nb_sectors,
-                                             &pnum1);
-        if (allocated1 < 0) {
+        status1 = bdrv_get_block_status_above(bs1, NULL, sector_num,
+                                              total_sectors1 - sector_num,
+                                              &pnum1);
+        if (status1 < 0) {
             ret = 3;
             error_report("Sector allocation test failed for %s", filename1);
             goto out;
         }
+        allocated1 = status1 & BDRV_BLOCK_ALLOCATED;
 
-        allocated2 = bdrv_is_allocated_above(bs2, NULL, sector_num, nb_sectors,
-                                             &pnum2);
-        if (allocated2 < 0) {
+        status2 = bdrv_get_block_status_above(bs2, NULL, sector_num,
+                                              total_sectors2 - sector_num,
+                                              &pnum2);
+        if (status2 < 0) {
             ret = 3;
             error_report("Sector allocation test failed for %s", filename2);
             goto out;
         }
-        nb_sectors = MIN(pnum1, pnum2);
+        allocated2 = status2 & BDRV_BLOCK_ALLOCATED;
+        if (pnum1) {
+            nb_sectors = MIN(nb_sectors, pnum1);
+        }
+        if (pnum2) {
+            nb_sectors = MIN(nb_sectors, pnum2);
+        }
 
-        if (allocated1 == allocated2) {
+        if (strict) {
+            if ((status1 & ~BDRV_BLOCK_OFFSET_MASK) !=
+                (status2 & ~BDRV_BLOCK_OFFSET_MASK)) {
+                ret = 1;
+                qprintf(quiet, "Strict mode: Offset %" PRId64
+                        " block status mismatch!\n",
+                        sectors_to_bytes(sector_num));
+                goto out;
+            }
+        }
+        if ((status1 & BDRV_BLOCK_ZERO) && (status2 & BDRV_BLOCK_ZERO)) {
+            nb_sectors = MIN(pnum1, pnum2);
+        } else if (allocated1 == allocated2) {
             if (allocated1) {
                 ret = blk_read(blk1, sector_num, buf1, nb_sectors);
                 if (ret < 0) {
@@ -1120,13 +1142,6 @@ static int img_compare(int argc, char **argv)
                 }
             }
         } else {
-            if (strict) {
-                ret = 1;
-                qprintf(quiet, "Strict mode: Offset %" PRId64
-                        " allocation mismatch!\n",
-                        sectors_to_bytes(sector_num));
-                goto out;
-            }
 
             if (allocated1) {
                 ret = check_empty_sectors(blk1, sector_num, nb_sectors,
