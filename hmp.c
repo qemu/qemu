@@ -1734,21 +1734,18 @@ void hmp_sendkey(Monitor *mon, const QDict *qdict)
     int has_hold_time = qdict_haskey(qdict, "hold-time");
     int hold_time = qdict_get_try_int(qdict, "hold-time", -1);
     Error *err = NULL;
-    char keyname_buf[16];
     char *separator;
     int keyname_len;
 
     while (1) {
         separator = strchr(keys, '-');
         keyname_len = separator ? separator - keys : strlen(keys);
-        pstrcpy(keyname_buf, sizeof(keyname_buf), keys);
 
         /* Be compatible with old interface, convert user inputted "<" */
-        if (!strncmp(keyname_buf, "<", 1) && keyname_len == 1) {
-            pstrcpy(keyname_buf, sizeof(keyname_buf), "less");
+        if (keys[0] == '<' && keyname_len == 1) {
+            keys = "less";
             keyname_len = 4;
         }
-        keyname_buf[keyname_len] = 0;
 
         keylist = g_malloc0(sizeof(*keylist));
         keylist->value = g_malloc0(sizeof(*keylist->value));
@@ -1761,16 +1758,17 @@ void hmp_sendkey(Monitor *mon, const QDict *qdict)
         }
         tmp = keylist;
 
-        if (strstart(keyname_buf, "0x", NULL)) {
+        if (strstart(keys, "0x", NULL)) {
             char *endp;
-            int value = strtoul(keyname_buf, &endp, 0);
-            if (*endp != '\0') {
+            int value = strtoul(keys, &endp, 0);
+            assert(endp <= keys + keyname_len);
+            if (endp != keys + keyname_len) {
                 goto err_out;
             }
             keylist->value->type = KEY_VALUE_KIND_NUMBER;
             keylist->value->u.number = value;
         } else {
-            int idx = index_from_key(keyname_buf);
+            int idx = index_from_key(keys, keyname_len);
             if (idx == Q_KEY_CODE_MAX) {
                 goto err_out;
             }
@@ -1792,7 +1790,7 @@ out:
     return;
 
 err_out:
-    monitor_printf(mon, "invalid parameter: %s\n", keyname_buf);
+    monitor_printf(mon, "invalid parameter: %.*s\n", keyname_len, keys);
     goto out;
 }
 

@@ -433,7 +433,7 @@ static inline int vnc_display_pw_expire(const char *id, time_t expires)
 void curses_display_init(DisplayState *ds, int full_screen);
 
 /* input.c */
-int index_from_key(const char *key);
+int index_from_key(const char *key, size_t key_length);
 
 /* gtk.c */
 void early_gtk_display_init(int opengl);
