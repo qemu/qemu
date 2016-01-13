@@ -40,6 +40,7 @@
 #include "net/slirp.h"
 #include "qemu-options.h"
 #include "qemu/rcu.h"
+#include "qemu/error-report.h"
 
 #ifdef CONFIG_LINUX
 #include <sys/prctl.h>
@@ -139,6 +140,8 @@ void os_parse_cmd_args(int index, const char *optarg)
     switch (index) {
 #ifdef CONFIG_SLIRP
     case QEMU_OPTION_smb:
+        error_report("The -smb option is deprecated. "
+                     "Please use '-netdev user,smb=...' instead.");
         if (net_slirp_smb(optarg) < 0)
             exit(1);
         break;
