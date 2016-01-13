@@ -259,7 +259,7 @@ Linux should boot and give you a prompt.
 
 @example
 @c man begin SYNOPSIS
-usage: qemu-system-i386 [options] [@var{disk_image}]
+@command{qemu-system-i386} [@var{options}] [@var{disk_image}]
 @c man end
 @end example
 
@@ -1406,7 +1406,7 @@ no type is given, the HCI logic corresponds to @code{-bt hci,vlan=0}.
 This USB device implements the USB Transport Layer of HCI.  Example
 usage:
 @example
-qemu-system-i386 [...OPTIONS...] -usbdevice bt:hci,vlan=3 -bt device:keyboard,vlan=3
+@command{qemu-system-i386} [...@var{OPTIONS}...] @option{-usbdevice} bt:hci,vlan=3 @option{-bt} device:keyboard,vlan=3
 @end example
 @end table
 
@@ -2755,7 +2755,7 @@ qemu-i386 /usr/local/qemu-i386/wine/bin/wine \
 @subsection Command line options
 
 @example
-usage: qemu-i386 [-h] [-d] [-L path] [-s size] [-cpu model] [-g port] [-B offset] [-R size] program [arguments...]
+@command{qemu-i386} [@option{-h]} [@option{-d]} [@option{-L} @var{path}] [@option{-s} @var{size}] [@option{-cpu} @var{model}] [@option{-g} @var{port}] [@option{-B} @var{offset}] [@option{-R} @var{size}] @var{program} [@var{arguments}...]
 @end example
 
 @table @option
@@ -2897,7 +2897,7 @@ qemu-sparc64 /bin/ls
 @subsection Command line options
 
 @example
-usage: qemu-sparc64 [-h] [-d] [-L path] [-s size] [-bsd type] program [arguments...]
+@command{qemu-sparc64} [@option{-h]} [@option{-d]} [@option{-L} @var{path}] [@option{-s} @var{size}] [@option{-bsd} @var{type}] @var{program} [@var{arguments}...]
 @end example
 
 @table @option

@@ -1,6 +1,6 @@
 @example
 @c man begin SYNOPSIS
-usage: qemu-img command [command options]
+@command{qemu-img} @var{command} [@var{command} @var{options}]
 @c man end
 @end example
 
