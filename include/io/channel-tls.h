@@ -55,7 +55,7 @@ struct QIOChannelTLS {
  * @master: the underlying channel object
  * @creds: the credentials to use for TLS handshake
  * @aclname: the access control list for validating clients
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Create a new TLS channel that runs the server side of
  * a TLS session. The TLS session handshake will use the
@@ -85,7 +85,7 @@ qio_channel_tls_new_server(QIOChannel *master,
  * @master: the underlying channel object
  * @creds: the credentials to use for TLS handshake
  * @hostname: the user specified server hostname
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Create a new TLS channel that runs the client side of
  * a TLS session. The TLS session handshake will use the

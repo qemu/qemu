@@ -152,7 +152,7 @@ bool qio_channel_has_feature(QIOChannel *ioc,
  * @niov: the length of the @iov array
  * @fds: pointer to an array that will received file handles
  * @nfds: pointer filled with number of elements in @fds on return
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Read data from the IO channel, storing it in the
  * memory regions referenced by @iov. Each element
@@ -198,7 +198,7 @@ ssize_t qio_channel_readv_full(QIOChannel *ioc,
  * @niov: the length of the @iov array
  * @fds: an array of file handles to send
  * @nfds: number of file handles in @fds
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Write data to the IO channel, reading it from the
  * memory regions referenced by @iov. Each element
@@ -237,7 +237,7 @@ ssize_t qio_channel_writev_full(QIOChannel *ioc,
  * @ioc: the channel object
  * @iov: the array of memory regions to read data into
  * @niov: the length of the @iov array
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Behaves as qio_channel_readv_full() but does not support
  * receiving of file handles.
@@ -252,7 +252,7 @@ ssize_t qio_channel_readv(QIOChannel *ioc,
  * @ioc: the channel object
  * @iov: the array of memory regions to write data from
  * @niov: the length of the @iov array
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Behaves as qio_channel_writev_full() but does not support
  * sending of file handles.
@@ -267,7 +267,7 @@ ssize_t qio_channel_writev(QIOChannel *ioc,
  * @ioc: the channel object
  * @buf: the memory region to read data into
  * @buflen: the length of @buf
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Behaves as qio_channel_readv_full() but does not support
  * receiving of file handles, and only supports reading into
@@ -283,7 +283,7 @@ ssize_t qio_channel_read(QIOChannel *ioc,
  * @ioc: the channel object
  * @buf: the memory regions to send data from
  * @buflen: the length of @buf
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Behaves as qio_channel_writev_full() but does not support
  * sending of file handles, and only supports writing from a
@@ -298,7 +298,7 @@ ssize_t qio_channel_write(QIOChannel *ioc,
  * qio_channel_set_blocking:
  * @ioc: the channel object
  * @enabled: the blocking flag state
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * If @enabled is true, then the channel is put into
  * blocking mode, otherwise it will be non-blocking.
@@ -314,7 +314,7 @@ int qio_channel_set_blocking(QIOChannel *ioc,
 /**
  * qio_channel_close:
  * @ioc: the channel object
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Close the channel, flushing any pending I/O
  *
@@ -327,7 +327,7 @@ int qio_channel_close(QIOChannel *ioc,
  * qio_channel_shutdown:
  * @ioc: the channel object
  * @how: the direction to shutdown
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Shutdowns transmission and/or receiving of data
  * without closing the underlying transport.
@@ -403,7 +403,7 @@ void qio_channel_set_cork(QIOChannel *ioc,
  * @ioc: the channel object
  * @offset: the position to seek to, relative to @whence
  * @whence: one of the (POSIX) SEEK_* constants listed below
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Moves the current I/O position within the channel
  * @ioc, to be @offset. The value of @offset is
