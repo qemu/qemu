@@ -300,21 +300,19 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
-    int r, e, i;
+    int r, e, i, j;
 
     if (!k->set_guest_notifiers) {
         error_report("binding does not support guest notifiers");
-        r = -ENOSYS;
-        goto err;
+        return -ENOSYS;
     }
 
-    r = vhost_net_set_vnet_endian(dev, ncs[0].peer, true);
-    if (r < 0) {
-        goto err;
-    }
-
-    for (i = 0; i < total_queues; i++) {
-        vhost_net_set_vq_index(get_vhost_net(ncs[i].peer), i * 2);
+    for (j = 0; j < total_queues; j++) {
+        r = vhost_net_set_vnet_endian(dev, ncs[j].peer, true);
+        if (r < 0) {
+            goto err_endian;
+        }
+        vhost_net_set_vq_index(get_vhost_net(ncs[j].peer), j * 2);
     }
 
     r = k->set_guest_notifiers(qbus->parent, total_queues * 2, true);
@@ -343,8 +341,9 @@ err_start:
         fflush(stderr);
     }
 err_endian:
-    vhost_net_set_vnet_endian(dev, ncs[0].peer, false);
-err:
+    while (--j >= 0) {
+        vhost_net_set_vnet_endian(dev, ncs[j].peer, false);
+    }
     return r;
 }
 
