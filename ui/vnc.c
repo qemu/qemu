@@ -3606,7 +3606,7 @@ void vnc_display_open(const char *id, Error **errp)
             qemu_opt_get(opts, "x509") ||
             qemu_opt_get(opts, "x509verify")) {
             error_setg(errp,
-                       "'credid' parameter is mutually exclusive with "
+                       "'tls-creds' parameter is mutually exclusive with "
                        "'tls', 'x509' and 'x509verify' parameters");
             goto fail;
         }
