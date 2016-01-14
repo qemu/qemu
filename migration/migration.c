@@ -56,10 +56,12 @@
 /* Migration XBZRLE default cache size */
 #define DEFAULT_MIGRATE_CACHE_SIZE (64 * 1024 * 1024)
 
-/* The delay time (in ms) between two COLO checkpoints
- * Note: Please change this default value to 10000 when we support hybrid mode.
+/* The delay time (in ms) between two passive COLO checkpoints
  */
 #define DEFAULT_MIGRATE_X_CHECKPOINT_DELAY 200
+/* The maximum time (in ms) for a COLO active checkpoint */
+#define DEFAULT_MIGRATE_X_COLO_MAX_TIME (10*1000)
+
 
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
@@ -98,6 +100,8 @@ MigrationState *migrate_get_current(void)
                 DEFAULT_MIGRATE_X_CPU_THROTTLE_INCREMENT,
         .parameters[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY] =
                 DEFAULT_MIGRATE_X_CHECKPOINT_DELAY,
+        .parameters[MIGRATION_PARAMETER_X_COLO_MAX_TIME] =
+                DEFAULT_MIGRATE_X_COLO_MAX_TIME,
     };
 
     if (!once) {
@@ -539,6 +543,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
             s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT];
     params->x_checkpoint_delay =
             s->parameters[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY];
+    params->x_colo_max_time =
+            s->parameters[MIGRATION_PARAMETER_X_COLO_MAX_TIME];
 
     return params;
 }
@@ -748,6 +754,8 @@ void qmp_migrate_set_parameters(bool has_compress_level,
                                 int64_t x_cpu_throttle_increment,
                                 bool has_x_checkpoint_delay,
                                 int64_t x_checkpoint_delay,
+                                bool has_x_colo_max_time,
+                                int64_t x_colo_max_time,
                                 Error **errp)
 {
     MigrationState *s = migrate_get_current();
@@ -812,6 +820,11 @@ void qmp_migrate_set_parameters(bool has_compress_level,
     if (has_x_checkpoint_delay) {
         s->parameters[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY] =
                                                     x_checkpoint_delay;
+    }
+
+    if (has_x_colo_max_time) {
+        s->parameters[MIGRATION_PARAMETER_X_COLO_MAX_TIME] =
+                                                    x_colo_max_time;
     }
 }
 

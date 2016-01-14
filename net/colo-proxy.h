@@ -20,5 +20,6 @@ int colo_proxy_start(int mode);
 void colo_proxy_stop(int mode);
 int colo_proxy_do_checkpoint(int mode);
 bool colo_proxy_query_checkpoint(void);
+bool colo_proxy_wait_for_diff(uint64_t wait_ms);
 
 #endif /* QEMU_COLO_PROXY_H */

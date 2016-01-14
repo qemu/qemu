@@ -132,7 +132,11 @@ enum {
 
 /* save all the connections of a vm instance in this table */
 GHashTable *colo_conn_hash;
+/* true if a miscompare is discovered and a checkpoint should be triggered */
 static bool colo_do_checkpoint;
+/* Used for signalling from the colo-proxy threads to the colo thread */
+static pthread_cond_t colo_proxy_signal_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t colo_proxy_signal_mutex = PTHREAD_MUTEX_INITIALIZER;
 static ssize_t hashtable_max_size;
 
 static inline void colo_proxy_dump_packet(Packet *pkt)
@@ -667,10 +671,37 @@ static ssize_t colo_proxy_connect(COLOProxyState *s)
     return 0;
 }
 
+/* Wait for either 'wait_ms' or until a miscompare happens (if earlier) */
+bool colo_proxy_wait_for_diff(uint64_t wait_ms)
+{
+    struct timespec t;
+    int err = 0;
+
+    trace_colo_proxy_wait_for_diff_entry(wait_ms);
+    clock_gettime(CLOCK_REALTIME, &t);
+    t.tv_sec += wait_ms / 1000l;
+    t.tv_nsec += 1000000l * (wait_ms % 1000l);
+    t.tv_sec += t.tv_nsec / 1000000000l;
+    t.tv_nsec = t.tv_nsec % 1000000000l;
+
+    while (!colo_do_checkpoint) {
+        err = pthread_cond_timedwait(&colo_proxy_signal_cond, 
+                                     &colo_proxy_signal_mutex,
+                                     &t);
+        if (err) {
+            break;
+        }
+    }
+    trace_colo_proxy_wait_for_diff_exit(colo_do_checkpoint, err);
+    return colo_do_checkpoint;
+}
+
 static void colo_proxy_notify_checkpoint(void)
 {
     trace_colo_proxy("colo_proxy_notify_checkpoint");
     colo_do_checkpoint = true;
+    /* This is harmless if no one is waiting */
+    pthread_cond_broadcast(&colo_proxy_signal_cond);
 }
 
 /*
@@ -871,6 +902,11 @@ static void colo_proxy_class_init(ObjectClass *oc, void *data)
     nfc->setup = colo_proxy_setup;
     nfc->cleanup = colo_proxy_cleanup;
     nfc->receive_iov = colo_proxy_receive_iov;
+
+    /* We take the lock, it's only ever released by the wait on
+     * the colo_proxy_signal_cond cond variable.
+     */
+    pthread_mutex_lock(&colo_proxy_signal_mutex);
 }
 
 static int colo_proxy_get_mode(Object *obj, Error **errp)

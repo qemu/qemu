@@ -1606,6 +1606,8 @@ colo_proxy_packet_src(const char *src) ":ipsrc = %s"
 colo_proxy_packet_dst(const char *dst) ":ipdst = %s"
 colo_proxy_packet_size(int size) ": %d"
 colo_proxy_queue_size(int size) ": %d"
+colo_proxy_wait_for_diff_entry(uint64_t wait_ms) "%" PRIu64
+colo_proxy_wait_for_diff_exit(int do_checkpoint, int err) "result: %d err: %d"
 
 # kvm-all.c
 kvm_ioctl(int type, void *arg) "type 0x%x, arg %p"
