@@ -65,7 +65,7 @@ ivshmem_server_parse_args(IvshmemServerArgs *args, int argc, char *argv[])
 {
     int c;
     unsigned long long v;
-    Error *errp = NULL;
+    Error *err = NULL;
 
     while ((c = getopt(argc, argv,
                        "h"  /* help */
@@ -104,11 +104,9 @@ ivshmem_server_parse_args(IvshmemServerArgs *args, int argc, char *argv[])
             break;
 
         case 'l': /* shm_size */
-            parse_option_size("shm_size", optarg, &args->shm_size, &errp);
-            if (errp) {
-                fprintf(stderr, "cannot parse shm size: %s\n",
-                        error_get_pretty(errp));
-                error_free(errp);
+            parse_option_size("shm_size", optarg, &args->shm_size, &err);
+            if (err) {
+                error_report_err(err);
                 ivshmem_server_usage(argv[0], 1);
             }
             break;

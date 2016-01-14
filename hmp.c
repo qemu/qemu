@@ -41,8 +41,7 @@ static void hmp_handle_error(Monitor *mon, Error **errp)
 {
     assert(errp);
     if (*errp) {
-        monitor_printf(mon, "%s\n", error_get_pretty(*errp));
-        error_free(*errp);
+        error_report_err(*errp);
     }
 }
 
@@ -556,8 +555,7 @@ void hmp_info_vnc(Monitor *mon, const QDict *qdict)
 
     info = qmp_query_vnc(&err);
     if (err) {
-        monitor_printf(mon, "%s\n", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
         return;
     }
 
@@ -679,8 +677,7 @@ void hmp_info_balloon(Monitor *mon, const QDict *qdict)
 
     info = qmp_query_balloon(&err);
     if (err) {
-        monitor_printf(mon, "%s\n", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
         return;
     }
 
@@ -948,8 +945,7 @@ void hmp_ringbuf_read(Monitor *mon, const QDict *qdict)
 
     data = qmp_ringbuf_read(chardev, size, false, 0, &err);
     if (err) {
-        monitor_printf(mon, "%s\n", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
         return;
     }
 
@@ -1042,8 +1038,7 @@ void hmp_balloon(Monitor *mon, const QDict *qdict)
 
     qmp_balloon(value, &err);
     if (err) {
-        monitor_printf(mon, "balloon: %s\n", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
     }
 }
 
@@ -1191,8 +1186,7 @@ void hmp_migrate_set_cache_size(Monitor *mon, const QDict *qdict)
 
     qmp_migrate_set_cache_size(value, &err);
     if (err) {
-        monitor_printf(mon, "%s\n", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
         return;
     }
 }
@@ -1229,9 +1223,7 @@ void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
     qapi_free_MigrationCapabilityStatusList(caps);
 
     if (err) {
-        monitor_printf(mon, "migrate_set_capability: %s\n",
-                       error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
     }
 }
 
@@ -1281,9 +1273,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     }
 
     if (err) {
-        monitor_printf(mon, "migrate_set_parameter: %s\n",
-                       error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
     }
 }
 
@@ -1544,8 +1534,7 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
 
     qmp_migrate(uri, !!blk, blk, !!inc, inc, false, false, &err);
     if (err) {
-        monitor_printf(mon, "migrate: %s\n", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
         return;
     }
 
@@ -2089,11 +2078,11 @@ void hmp_rocker(Monitor *mon, const QDict *qdict)
 {
     const char *name = qdict_get_str(qdict, "name");
     RockerSwitch *rocker;
-    Error *errp = NULL;
+    Error *err = NULL;
 
-    rocker = qmp_query_rocker(name, &errp);
-    if (errp != NULL) {
-        hmp_handle_error(mon, &errp);
+    rocker = qmp_query_rocker(name, &err);
+    if (err != NULL) {
+        hmp_handle_error(mon, &err);
         return;
     }
 
@@ -2108,11 +2097,11 @@ void hmp_rocker_ports(Monitor *mon, const QDict *qdict)
 {
     RockerPortList *list, *port;
     const char *name = qdict_get_str(qdict, "name");
-    Error *errp = NULL;
+    Error *err = NULL;
 
-    list = qmp_query_rocker_ports(name, &errp);
-    if (errp != NULL) {
-        hmp_handle_error(mon, &errp);
+    list = qmp_query_rocker_ports(name, &err);
+    if (err != NULL) {
+        hmp_handle_error(mon, &err);
         return;
     }
 
@@ -2137,11 +2126,11 @@ void hmp_rocker_of_dpa_flows(Monitor *mon, const QDict *qdict)
     RockerOfDpaFlowList *list, *info;
     const char *name = qdict_get_str(qdict, "name");
     uint32_t tbl_id = qdict_get_try_int(qdict, "tbl_id", -1);
-    Error *errp = NULL;
+    Error *err = NULL;
 
-    list = qmp_query_rocker_of_dpa_flows(name, tbl_id != -1, tbl_id, &errp);
-    if (errp != NULL) {
-        hmp_handle_error(mon, &errp);
+    list = qmp_query_rocker_of_dpa_flows(name, tbl_id != -1, tbl_id, &err);
+    if (err != NULL) {
+        hmp_handle_error(mon, &err);
         return;
     }
 
@@ -2287,12 +2276,12 @@ void hmp_rocker_of_dpa_groups(Monitor *mon, const QDict *qdict)
     RockerOfDpaGroupList *list, *g;
     const char *name = qdict_get_str(qdict, "name");
     uint8_t type = qdict_get_try_int(qdict, "type", 9);
-    Error *errp = NULL;
+    Error *err = NULL;
     bool set = false;
 
-    list = qmp_query_rocker_of_dpa_groups(name, type != 9, type, &errp);
-    if (errp != NULL) {
-        hmp_handle_error(mon, &errp);
+    list = qmp_query_rocker_of_dpa_groups(name, type != 9, type, &err);
+    if (err != NULL) {
+        hmp_handle_error(mon, &err);
         return;
     }
 

@@ -581,21 +581,8 @@ static void test_groups(void)
 
 int main(int argc, char **argv)
 {
-    Error *local_error = NULL;
-
-    qemu_init_main_loop(&local_error);
+    qemu_init_main_loop(&error_fatal);
     ctx = qemu_get_aio_context();
-
-    if (!ctx) {
-        error_report("Failed to create AIO Context: '%s'",
-                     local_error ? error_get_pretty(local_error) :
-                     "Failed to initialize the QEMU main loop");
-        if (local_error) {
-            error_free(local_error);
-        }
-        exit(1);
-    }
-
     bdrv_init();
 
     do {} while (g_main_context_iteration(NULL, false));

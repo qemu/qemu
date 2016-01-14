@@ -38,7 +38,7 @@ static void netduino2_init(MachineState *machine)
     qdev_prop_set_string(dev, "cpu-model", "cortex-m3");
     object_property_set_bool(OBJECT(dev), true, "realized", &err);
     if (err != NULL) {
-        error_report("%s", error_get_pretty(err));
+        error_report_err(err);
         exit(1);
     }
 }

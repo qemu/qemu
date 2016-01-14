@@ -99,33 +99,21 @@ static void realview_init(MachineState *machine,
 
     for (n = 0; n < smp_cpus; n++) {
         Object *cpuobj = object_new(object_class_get_name(cpu_oc));
-        Error *err = NULL;
 
         /* By default A9,A15 and ARM1176 CPUs have EL3 enabled.  This board
          * does not currently support EL3 so the CPU EL3 property is disabled
          * before realization.
          */
         if (object_property_find(cpuobj, "has_el3", NULL)) {
-            object_property_set_bool(cpuobj, false, "has_el3", &err);
-            if (err) {
-                error_report_err(err);
-                exit(1);
-            }
+            object_property_set_bool(cpuobj, false, "has_el3", &error_fatal);
         }
 
         if (is_pb && is_mpcore) {
-            object_property_set_int(cpuobj, periphbase, "reset-cbar", &err);
-            if (err) {
-                error_report_err(err);
-                exit(1);
-            }
+            object_property_set_int(cpuobj, periphbase, "reset-cbar",
+                                    &error_fatal);
         }
 
-        object_property_set_bool(cpuobj, true, "realized", &err);
-        if (err) {
-            error_report_err(err);
-            exit(1);
-        }
+        object_property_set_bool(cpuobj, true, "realized", &error_fatal);
 
         cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpuobj), ARM_CPU_IRQ);
     }

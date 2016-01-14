@@ -82,15 +82,15 @@ static int vhost_user_start(int queues, NetClientState *ncs[])
         options.opaque      = s->chr;
         s->vhost_net = vhost_net_init(&options);
         if (!s->vhost_net) {
-            error_report("failed to init vhost_net for queue %d\n", i);
+            error_report("failed to init vhost_net for queue %d", i);
             goto err;
         }
 
         if (i == 0) {
             max_queues = vhost_net_get_max_queues(s->vhost_net);
             if (queues > max_queues) {
-                error_report("you are asking more queues than "
-                             "supported: %d\n", max_queues);
+                error_report("you are asking more queues than supported: %d",
+                             max_queues);
                 goto err;
             }
         }

@@ -2498,6 +2498,42 @@ sub process {
 			WARN("use QEMU instead of Qemu or QEmu\n" . $herecurr);
 		}
 
+# Qemu error function tests
+
+	# Find newlines in error messages
+	my $qemu_error_funcs = qr{error_setg|
+				error_setg_errno|
+				error_setg_win32|
+				error_set|
+				error_vreport|
+				error_report}x;
+
+	if ($rawline =~ /\b(?:$qemu_error_funcs)\s*\(\s*\".*\\n/) {
+		WARN("Error messages should not contain newlines\n" . $herecurr);
+	}
+
+	# Continue checking for error messages that contains newlines. This
+	# check handles cases where string literals are spread over multiple lines.
+	# Example:
+	# error_report("Error msg line #1"
+	#              "Error msg line #2\n");
+	my $quoted_newline_regex = qr{\+\s*\".*\\n.*\"};
+	my $continued_str_literal = qr{\+\s*\".*\"};
+
+	if ($rawline =~ /$quoted_newline_regex/) {
+		# Backtrack to first line that does not contain only a quoted literal
+		# and assume that it is the start of the statement.
+		my $i = $linenr - 2;
+
+		while (($i >= 0) & $rawlines[$i] =~ /$continued_str_literal/) {
+			$i--;
+		}
+
+		if ($rawlines[$i] =~ /\b(?:$qemu_error_funcs)\s*\(/) {
+			WARN("Error messages should not contain newlines\n" . $herecurr);
+		}
+	}
+
 # check for non-portable ffs() calls that have portable alternatives in QEMU
 		if ($line =~ /\bffs\(/) {
 			ERROR("use ctz32() instead of ffs()\n" . $herecurr);

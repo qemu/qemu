@@ -44,10 +44,10 @@ static const TypeInfo isa_bus_info = {
 };
 
 ISABus *isa_bus_new(DeviceState *dev, MemoryRegion* address_space,
-                    MemoryRegion *address_space_io)
+                    MemoryRegion *address_space_io, Error **errp)
 {
     if (isabus) {
-        fprintf(stderr, "Can't create a second ISA bus\n");
+        error_setg(errp, "Can't create a second ISA bus");
         return NULL;
     }
     if (!dev) {
@@ -63,9 +63,6 @@ ISABus *isa_bus_new(DeviceState *dev, MemoryRegion* address_space,
 
 void isa_bus_irqs(ISABus *bus, qemu_irq *irqs)
 {
-    if (!bus) {
-        hw_error("Can't set isa irqs with no isa bus present.");
-    }
     bus->irqs = irqs;
 }
 
@@ -137,10 +134,6 @@ ISADevice *isa_create(ISABus *bus, const char *name)
 {
     DeviceState *dev;
 
-    if (!bus) {
-        hw_error("Tried to create isa device %s with no isa bus present.",
-                 name);
-    }
     dev = qdev_create(BUS(bus), name);
     return ISA_DEVICE(dev);
 }
@@ -149,10 +142,6 @@ ISADevice *isa_try_create(ISABus *bus, const char *name)
 {
     DeviceState *dev;
 
-    if (!bus) {
-        hw_error("Tried to create isa device %s with no isa bus present.",
-                 name);
-    }
     dev = qdev_try_create(BUS(bus), name);
     return ISA_DEVICE(dev);
 }

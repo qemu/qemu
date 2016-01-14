@@ -1051,7 +1051,7 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
 
     if (tis->irq_num > 15) {
         error_setg(errp, "tpm_tis: IRQ %d for TPM TIS is outside valid range "
-                   "of 0 to 15.\n", tis->irq_num);
+                   "of 0 to 15", tis->irq_num);
         return;
     }
 

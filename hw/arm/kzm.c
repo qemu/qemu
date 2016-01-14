@@ -74,7 +74,7 @@ static void kzm_init(MachineState *machine)
 
     object_property_set_bool(OBJECT(&s->soc), true, "realized", &err);
     if (err != NULL) {
-        error_report("%s", error_get_pretty(err));
+        error_report_err(err);
         exit(1);
     }
 

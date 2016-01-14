@@ -258,9 +258,7 @@ void do_acpitable_option(const QemuOpts *opts)
 
     acpi_table_add(opts, &err);
     if (err) {
-        error_report("Wrong acpi table provided: %s",
-                     error_get_pretty(err));
-        error_free(err);
+        error_reportf_err(err, "Wrong acpi table provided: ");
         exit(1);
     }
 #endif

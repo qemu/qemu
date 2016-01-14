@@ -2245,10 +2245,12 @@ ISADevice *fdctrl_init_isa(ISABus *bus, DriveInfo **fds)
     dev = DEVICE(isadev);
 
     if (fds[0]) {
-        qdev_prop_set_drive_nofail(dev, "driveA", blk_by_legacy_dinfo(fds[0]));
+        qdev_prop_set_drive(dev, "driveA", blk_by_legacy_dinfo(fds[0]),
+                            &error_fatal);
     }
     if (fds[1]) {
-        qdev_prop_set_drive_nofail(dev, "driveB", blk_by_legacy_dinfo(fds[1]));
+        qdev_prop_set_drive(dev, "driveB", blk_by_legacy_dinfo(fds[1]),
+                            &error_fatal);
     }
     qdev_init_nofail(dev);
 
@@ -2268,10 +2270,12 @@ void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
     fdctrl = &sys->state;
     fdctrl->dma_chann = dma_chann; /* FIXME */
     if (fds[0]) {
-        qdev_prop_set_drive_nofail(dev, "driveA", blk_by_legacy_dinfo(fds[0]));
+        qdev_prop_set_drive(dev, "driveA", blk_by_legacy_dinfo(fds[0]),
+                            &error_fatal);
     }
     if (fds[1]) {
-        qdev_prop_set_drive_nofail(dev, "driveB", blk_by_legacy_dinfo(fds[1]));
+        qdev_prop_set_drive(dev, "driveB", blk_by_legacy_dinfo(fds[1]),
+                            &error_fatal);
     }
     qdev_init_nofail(dev);
     sbd = SYS_BUS_DEVICE(dev);
@@ -2287,7 +2291,8 @@ void sun4m_fdctrl_init(qemu_irq irq, hwaddr io_base,
 
     dev = qdev_create(NULL, "SUNW,fdtwo");
     if (fds[0]) {
-        qdev_prop_set_drive_nofail(dev, "drive", blk_by_legacy_dinfo(fds[0]));
+        qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(fds[0]),
+                            &error_fatal);
     }
     qdev_init_nofail(dev);
     sys = SYSBUS_FDC(dev);

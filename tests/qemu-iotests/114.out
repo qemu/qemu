@@ -7,7 +7,7 @@ virtual size: 64M (67108864 bytes)
 cluster_size: 65536
 backing file: TEST_DIR/t.IMGFMT.base
 backing file format: foo
-qemu-io: can't open device TEST_DIR/t.qcow2: Could not open backing file: Unknown driver 'foo'
+can't open device TEST_DIR/t.qcow2: Could not open backing file: Unknown driver 'foo'
 read 4096/4096 bytes at offset 0
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 *** done

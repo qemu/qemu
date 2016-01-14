@@ -1571,8 +1571,8 @@ static int loadvm_handle_cmd_packaged(MigrationIncomingState *mis)
     ret = qemu_get_buffer(mis->from_src_file, buffer, (int)length);
     if (ret != length) {
         g_free(buffer);
-        error_report("CMD_PACKAGED: Buffer receive fail ret=%d length=%d\n",
-                ret, length);
+        error_report("CMD_PACKAGED: Buffer receive fail ret=%d length=%d",
+                     ret, length);
         return (ret < 0) ? ret : -EAGAIN;
     }
     trace_loadvm_handle_cmd_packaged_received(ret);
@@ -1935,10 +1935,9 @@ void hmp_savevm(Monitor *mon, const QDict *qdict)
 
     /* Delete old snapshots of the same name */
     if (name && bdrv_all_delete_snapshot(name, &bs1, &local_err) < 0) {
-        monitor_printf(mon,
-                       "Error while deleting snapshot on device '%s': %s\n",
-                       bdrv_get_device_name(bs1), error_get_pretty(local_err));
-        error_free(local_err);
+        error_reportf_err(local_err,
+                          "Error while deleting snapshot on device '%s': ",
+                          bdrv_get_device_name(bs1));
         return;
     }
 
@@ -1992,8 +1991,7 @@ void hmp_savevm(Monitor *mon, const QDict *qdict)
     vm_state_size = qemu_ftell(f);
     qemu_fclose(f);
     if (ret < 0) {
-        monitor_printf(mon, "%s\n", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
         goto the_end;
     }
 
@@ -2117,10 +2115,9 @@ void hmp_delvm(Monitor *mon, const QDict *qdict)
     const char *name = qdict_get_str(qdict, "name");
 
     if (bdrv_all_delete_snapshot(name, &bs, &err) < 0) {
-        monitor_printf(mon,
-                       "Error while deleting snapshot on device '%s': %s\n",
-                       bdrv_get_device_name(bs), error_get_pretty(err));
-        error_free(err);
+        error_reportf_err(err,
+                          "Error while deleting snapshot on device '%s': ",
+                          bdrv_get_device_name(bs));
     }
 }
 

@@ -62,6 +62,7 @@
 #include "hw/ide.h"
 #include "hw/loader.h"
 #include "elf.h"
+#include "qemu/error-report.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "hw/usb.h"
@@ -226,7 +227,7 @@ static void ppc_core99_init(MachineState *machine)
         bios_size = -1;
     }
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
-        hw_error("qemu: could not load PowerPC bios '%s'\n", bios_name);
+        error_report("could not load PowerPC bios '%s'", bios_name);
         exit(1);
     }
 
@@ -252,7 +253,7 @@ static void ppc_core99_init(MachineState *machine)
                                               kernel_base,
                                               ram_size - kernel_base);
         if (kernel_size < 0) {
-            hw_error("qemu: could not load kernel '%s'\n", kernel_filename);
+            error_report("could not load kernel '%s'", kernel_filename);
             exit(1);
         }
         /* load initrd */
@@ -261,8 +262,8 @@ static void ppc_core99_init(MachineState *machine)
             initrd_size = load_image_targphys(initrd_filename, initrd_base,
                                               ram_size - initrd_base);
             if (initrd_size < 0) {
-                hw_error("qemu: could not load initial ram disk '%s'\n",
-                         initrd_filename);
+                error_report("could not load initial ram disk '%s'",
+                             initrd_filename);
                 exit(1);
             }
             cmdline_base = round_page(initrd_base + initrd_size);
@@ -344,7 +345,7 @@ static void ppc_core99_init(MachineState *machine)
             break;
 #endif /* defined(TARGET_PPC64) */
         default:
-            hw_error("Bus model not supported on mac99 machine\n");
+            error_report("Bus model not supported on mac99 machine");
             exit(1);
         }
     }

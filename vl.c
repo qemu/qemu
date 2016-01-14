@@ -3038,7 +3038,7 @@ int main(int argc, char **argv, char **envp)
     runstate_init();
 
     if (qcrypto_init(&err) < 0) {
-        error_report("cannot initialize crypto: %s", error_get_pretty(err));
+        error_reportf_err(err, "cannot initialize crypto: ");
         exit(1);
     }
     rtc_clock = QEMU_CLOCK_HOST;
@@ -4324,12 +4324,7 @@ int main(int argc, char **argv, char **envp)
     configure_accelerator(current_machine);
 
     if (qtest_chrdev) {
-        Error *local_err = NULL;
-        qtest_init(qtest_chrdev, qtest_log, &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-            exit(1);
-        }
+        qtest_init(qtest_chrdev, qtest_log, &error_fatal);
     }
 
     machine_opts = qemu_get_machine_opts();
@@ -4340,24 +4335,14 @@ int main(int argc, char **argv, char **envp)
 
     opts = qemu_opts_find(qemu_find_opts("boot-opts"), NULL);
     if (opts) {
-        Error *local_err = NULL;
-
         boot_order = qemu_opt_get(opts, "order");
         if (boot_order) {
-            validate_bootdevices(boot_order, &local_err);
-            if (local_err) {
-                error_report_err(local_err);
-                exit(1);
-            }
+            validate_bootdevices(boot_order, &error_fatal);
         }
 
         boot_once = qemu_opt_get(opts, "once");
         if (boot_once) {
-            validate_bootdevices(boot_once, &local_err);
-            if (local_err) {
-                error_report_err(local_err);
-                exit(1);
-            }
+            validate_bootdevices(boot_once, &error_fatal);
         }
 
         boot_menu = qemu_opt_get_bool(opts, "menu", boot_menu);
@@ -4563,7 +4548,7 @@ int main(int argc, char **argv, char **envp)
         Error *local_err = NULL;
         qemu_boot_set(boot_once, &local_err);
         if (local_err) {
-            error_report("%s", error_get_pretty(local_err));
+            error_report_err(local_err);
             exit(1);
         }
         qemu_register_reset(restore_boot_order, g_strdup(boot_order));
@@ -4659,9 +4644,7 @@ int main(int argc, char **argv, char **envp)
         Error *local_err = NULL;
         qemu_start_incoming_migration(incoming, &local_err);
         if (local_err) {
-            error_report("-incoming %s: %s", incoming,
-                         error_get_pretty(local_err));
-            error_free(local_err);
+            error_reportf_err(local_err, "-incoming %s: ", incoming);
             exit(1);
         }
     } else if (autostart) {

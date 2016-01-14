@@ -122,10 +122,11 @@ static XICSState *xics_system_init(MachineState *machine,
             icp = try_create_xics(TYPE_KVM_XICS, nr_servers, nr_irqs, &err);
         }
         if (machine_kernel_irqchip_required(machine) && !icp) {
-            error_report("kernel_irqchip requested but unavailable: %s",
-                         error_get_pretty(err));
+            error_reportf_err(err,
+                              "kernel_irqchip requested but unavailable: ");
+        } else {
+            error_free(err);
         }
-        error_free(err);
     }
 
     if (!icp) {
@@ -1216,7 +1217,8 @@ static void spapr_create_nvram(sPAPRMachineState *spapr)
     DriveInfo *dinfo = drive_get(IF_PFLASH, 0, 0);
 
     if (dinfo) {
-        qdev_prop_set_drive_nofail(dev, "drive", blk_by_legacy_dinfo(dinfo));
+        qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo),
+                            &error_fatal);
     }
 
     qdev_init_nofail(dev);
@@ -1834,7 +1836,8 @@ static void ppc_spapr_init(MachineState *machine)
         ram_addr_t hotplug_mem_size = machine->maxram_size - machine->ram_size;
 
         if (machine->ram_slots > SPAPR_MAX_RAM_SLOTS) {
-            error_report("Specified number of memory slots %"PRIu64" exceeds max supported %d\n",
+            error_report("Specified number of memory slots %" PRIu64
+                         " exceeds max supported %d",
                          machine->ram_slots, SPAPR_MAX_RAM_SLOTS);
             exit(EXIT_FAILURE);
         }

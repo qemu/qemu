@@ -57,17 +57,15 @@ static int openfile(char *name, int flags, QDict *opts)
     BlockDriverState *bs;
 
     if (qemuio_blk) {
-        fprintf(stderr, "file open already, try 'help close'\n");
+        error_report("file open already, try 'help close'");
         QDECREF(opts);
         return 1;
     }
 
     qemuio_blk = blk_new_open("hda", name, NULL, opts, flags, &local_err);
     if (!qemuio_blk) {
-        fprintf(stderr, "%s: can't open%s%s: %s\n", progname,
-                name ? " device " : "", name ?: "",
-                error_get_pretty(local_err));
-        error_free(local_err);
+        error_reportf_err(local_err, "can't open%s%s: ",
+                          name ? " device " : "", name ?: "");
         return 1;
     }
 

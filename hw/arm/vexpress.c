@@ -211,7 +211,6 @@ static void init_cpus(const char *cpu_model, const char *privdev,
     /* Create the actual CPUs */
     for (n = 0; n < smp_cpus; n++) {
         Object *cpuobj = object_new(object_class_get_name(cpu_oc));
-        Error *err = NULL;
 
         if (!secure) {
             object_property_set_bool(cpuobj, false, "has_el3", NULL);
@@ -221,11 +220,7 @@ static void init_cpus(const char *cpu_model, const char *privdev,
             object_property_set_int(cpuobj, periphbase,
                                     "reset-cbar", &error_abort);
         }
-        object_property_set_bool(cpuobj, true, "realized", &err);
-        if (err) {
-            error_report_err(err);
-            exit(1);
-        }
+        object_property_set_bool(cpuobj, true, "realized", &error_fatal);
     }
 
     /* Create the private peripheral devices (including the GIC);

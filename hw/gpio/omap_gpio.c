@@ -21,6 +21,7 @@
 #include "hw/hw.h"
 #include "hw/arm/omap.h"
 #include "hw/sysbus.h"
+#include "qemu/error-report.h"
 
 struct omap_gpio_s {
     qemu_irq irq;
@@ -682,7 +683,8 @@ static int omap_gpio_init(SysBusDevice *sbd)
     struct omap_gpif_s *s = OMAP1_GPIO(dev);
 
     if (!s->clk) {
-        hw_error("omap-gpio: clk not connected\n");
+        error_report("omap-gpio: clk not connected");
+        return -1;
     }
     qdev_init_gpio_in(dev, omap_gpio_set, 16);
     qdev_init_gpio_out(dev, s->omap1.handler, 16);
@@ -700,25 +702,35 @@ static int omap2_gpio_init(SysBusDevice *sbd)
     int i;
 
     if (!s->iclk) {
-        hw_error("omap2-gpio: iclk not connected\n");
+        error_report("omap2-gpio: iclk not connected");
+        return -1;
     }
+
+    s->modulecount = s->mpu_model < omap2430 ? 4
+                   : s->mpu_model < omap3430 ? 5
+                   : 6;
+
+    for (i = 0; i < s->modulecount; i++) {
+        if (!s->fclk[i]) {
+            error_report("omap2-gpio: fclk%d not connected", i);
+            return -1;
+        }
+    }
+
     if (s->mpu_model < omap3430) {
-        s->modulecount = (s->mpu_model < omap2430) ? 4 : 5;
         memory_region_init_io(&s->iomem, OBJECT(s), &omap2_gpif_top_ops, s,
                               "omap2.gpio", 0x1000);
         sysbus_init_mmio(sbd, &s->iomem);
-    } else {
-        s->modulecount = 6;
     }
+
     s->modules = g_new0(struct omap2_gpio_s, s->modulecount);
     s->handler = g_new0(qemu_irq, s->modulecount * 32);
     qdev_init_gpio_in(dev, omap2_gpio_set, s->modulecount * 32);
     qdev_init_gpio_out(dev, s->handler, s->modulecount * 32);
+
     for (i = 0; i < s->modulecount; i++) {
         struct omap2_gpio_s *m = &s->modules[i];
-        if (!s->fclk[i]) {
-            hw_error("omap2-gpio: fclk%d not connected\n", i);
-        }
+
         m->revision = (s->mpu_model < omap3430) ? 0x18 : 0x25;
         m->handler = &s->handler[i * 32];
         sysbus_init_irq(sbd, &m->irq[0]); /* mpu irq */
@@ -728,6 +740,7 @@ static int omap2_gpio_init(SysBusDevice *sbd)
                               "omap.gpio-module", 0x1000);
         sysbus_init_mmio(sbd, &m->iomem);
     }
+
     return 0;
 }
 

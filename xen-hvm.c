@@ -240,6 +240,7 @@ static void xen_ram_init(PCMachineState *pcms,
 
 void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr)
 {
+    /* FIXME caller ram_block_add() wants error_setg() on failure */
     unsigned long nr_pfn;
     xen_pfn_t *pfn_list;
     int i;
@@ -1192,6 +1193,12 @@ static void xen_wakeup_notifier(Notifier *notifier, void *data)
 int xen_hvm_init(PCMachineState *pcms,
                  MemoryRegion **ram_memory)
 {
+    /*
+     * FIXME Returns -1 without cleaning up on some errors (harmless
+     * as long as the caller exit()s on error), dies with hw_error()
+     * on others.  hw_error() isn't approprate here.  Should probably
+     * simply exit() on all errors.
+     */
     int i, rc;
     xen_pfn_t ioreq_pfn;
     xen_pfn_t bufioreq_pfn;

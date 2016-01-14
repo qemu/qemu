@@ -30,7 +30,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <getopt.h>
-#include <err.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -157,8 +156,8 @@ static int find_partition(BlockBackend *blk, int partition,
     int ret;
 
     if ((ret = blk_read(blk, 0, data, 1)) < 0) {
-        errno = -ret;
-        err(EXIT_FAILURE, "error while reading");
+        error_report("error while reading: %s", strerror(-ret));
+        exit(EXIT_FAILURE);
     }
 
     if (data[510] != 0x55 || data[511] != 0xaa) {
@@ -178,8 +177,8 @@ static int find_partition(BlockBackend *blk, int partition,
             int j;
 
             if ((ret = blk_read(blk, mbr[i].start_sector_abs, data1, 1)) < 0) {
-                errno = -ret;
-                err(EXIT_FAILURE, "error while reading");
+                error_report("error while reading: %s", strerror(-ret));
+                exit(EXIT_FAILURE);
             }
 
             for (j = 0; j < 4; j++) {
@@ -250,8 +249,7 @@ static void *nbd_client_thread(void *arg)
                                 &size, &local_error);
     if (ret < 0) {
         if (local_error) {
-            fprintf(stderr, "%s\n", error_get_pretty(local_error));
-            error_free(local_error);
+            error_report_err(local_error);
         }
         goto out_socket;
     }
@@ -259,7 +257,7 @@ static void *nbd_client_thread(void *arg)
     fd = open(device, O_RDWR);
     if (fd < 0) {
         /* Linux-only, we can use %m in printf.  */
-        fprintf(stderr, "Failed to open %s: %m\n", device);
+        error_report("Failed to open %s: %m", device);
         goto out_socket;
     }
 
@@ -454,16 +452,19 @@ int main(int argc, char **argv)
             /* fallthrough */
         case QEMU_NBD_OPT_CACHE:
             if (seen_cache) {
-                errx(EXIT_FAILURE, "-n and --cache can only be specified once");
+                error_report("-n and --cache can only be specified once");
+                exit(EXIT_FAILURE);
             }
             seen_cache = true;
             if (bdrv_parse_cache_flags(optarg, &flags) == -1) {
-                errx(EXIT_FAILURE, "Invalid cache mode `%s'", optarg);
+                error_report("Invalid cache mode `%s'", optarg);
+                exit(EXIT_FAILURE);
             }
             break;
         case QEMU_NBD_OPT_AIO:
             if (seen_aio) {
-                errx(EXIT_FAILURE, "--aio can only be specified once");
+                error_report("--aio can only be specified once");
+                exit(EXIT_FAILURE);
             }
             seen_aio = true;
             if (!strcmp(optarg, "native")) {
@@ -471,16 +472,19 @@ int main(int argc, char **argv)
             } else if (!strcmp(optarg, "threads")) {
                 /* this is the default */
             } else {
-               errx(EXIT_FAILURE, "invalid aio mode `%s'", optarg);
+               error_report("invalid aio mode `%s'", optarg);
+               exit(EXIT_FAILURE);
             }
             break;
         case QEMU_NBD_OPT_DISCARD:
             if (seen_discard) {
-                errx(EXIT_FAILURE, "--discard can only be specified once");
+                error_report("--discard can only be specified once");
+                exit(EXIT_FAILURE);
             }
             seen_discard = true;
             if (bdrv_parse_discard_flags(optarg, &flags) == -1) {
-                errx(EXIT_FAILURE, "Invalid discard mode `%s'", optarg);
+                error_report("Invalid discard mode `%s'", optarg);
+                exit(EXIT_FAILURE);
             }
             break;
         case QEMU_NBD_OPT_DETECT_ZEROES:
@@ -491,13 +495,15 @@ int main(int argc, char **argv)
                                 BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
                                 &local_err);
             if (local_err) {
-                errx(EXIT_FAILURE, "Failed to parse detect_zeroes mode: %s", 
-                     error_get_pretty(local_err));
+                error_reportf_err(local_err,
+                                  "Failed to parse detect_zeroes mode: ");
+                exit(EXIT_FAILURE);
             }
             if (detect_zeroes == BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP &&
                 !(flags & BDRV_O_UNMAP)) {
-                errx(EXIT_FAILURE, "setting detect-zeroes to unmap is not allowed "
-                                   "without setting discard operation to unmap"); 
+                error_report("setting detect-zeroes to unmap is not allowed "
+                             "without setting discard operation to unmap");
+                exit(EXIT_FAILURE);
             }
             break;
         case 'b':
@@ -509,10 +515,12 @@ int main(int argc, char **argv)
         case 'o':
                 dev_offset = strtoll (optarg, &end, 0);
             if (*end) {
-                errx(EXIT_FAILURE, "Invalid offset `%s'", optarg);
+                error_report("Invalid offset `%s'", optarg);
+                exit(EXIT_FAILURE);
             }
             if (dev_offset < 0) {
-                errx(EXIT_FAILURE, "Offset must be positive `%s'", optarg);
+                error_report("Offset must be positive `%s'", optarg);
+                exit(EXIT_FAILURE);
             }
             break;
         case 'l':
@@ -520,8 +528,9 @@ int main(int argc, char **argv)
                 sn_opts = qemu_opts_parse_noisily(&internal_snapshot_opts,
                                                   optarg, false);
                 if (!sn_opts) {
-                    errx(EXIT_FAILURE, "Failed in parsing snapshot param `%s'",
-                         optarg);
+                    error_report("Failed in parsing snapshot param `%s'",
+                                 optarg);
+                    exit(EXIT_FAILURE);
                 }
             } else {
                 sn_id_or_name = optarg;
@@ -534,16 +543,19 @@ int main(int argc, char **argv)
         case 'P':
             partition = strtol(optarg, &end, 0);
             if (*end) {
-                errx(EXIT_FAILURE, "Invalid partition `%s'", optarg);
+                error_report("Invalid partition `%s'", optarg);
+                exit(EXIT_FAILURE);
             }
             if (partition < 1 || partition > 8) {
-                errx(EXIT_FAILURE, "Invalid partition %d", partition);
+                error_report("Invalid partition %d", partition);
+                exit(EXIT_FAILURE);
             }
             break;
         case 'k':
             sockpath = optarg;
             if (sockpath[0] != '/') {
-                errx(EXIT_FAILURE, "socket path must be absolute\n");
+                error_report("socket path must be absolute");
+                exit(EXIT_FAILURE);
             }
             break;
         case 'd':
@@ -555,10 +567,12 @@ int main(int argc, char **argv)
         case 'e':
             shared = strtol(optarg, &end, 0);
             if (*end) {
-                errx(EXIT_FAILURE, "Invalid shared device number '%s'", optarg);
+                error_report("Invalid shared device number '%s'", optarg);
+                exit(EXIT_FAILURE);
             }
             if (shared < 1) {
-                errx(EXIT_FAILURE, "Shared device number must be greater than 0\n");
+                error_report("Shared device number must be greater than 0");
+                exit(EXIT_FAILURE);
             }
             break;
         case 'f':
@@ -579,21 +593,23 @@ int main(int argc, char **argv)
             exit(0);
             break;
         case '?':
-            errx(EXIT_FAILURE, "Try `%s --help' for more information.",
-                 argv[0]);
+            error_report("Try `%s --help' for more information.", argv[0]);
+            exit(EXIT_FAILURE);
         }
     }
 
     if ((argc - optind) != 1) {
-        errx(EXIT_FAILURE, "Invalid number of argument.\n"
-             "Try `%s --help' for more information.",
-             argv[0]);
+        error_report("Invalid number of arguments");
+        error_printf("Try `%s --help' for more information.\n", argv[0]);
+        exit(EXIT_FAILURE);
     }
 
     if (disconnect) {
         fd = open(argv[optind], O_RDWR);
         if (fd < 0) {
-            err(EXIT_FAILURE, "Cannot open %s", argv[optind]);
+            error_report("Cannot open %s: %s", argv[optind],
+                         strerror(errno));
+            exit(EXIT_FAILURE);
         }
         nbd_disconnect(fd);
 
@@ -610,7 +626,9 @@ int main(int argc, char **argv)
         int ret;
 
         if (qemu_pipe(stderr_fd) < 0) {
-            err(EXIT_FAILURE, "Error setting up communication pipe");
+            error_report("Error setting up communication pipe: %s",
+                         strerror(errno));
+            exit(EXIT_FAILURE);
         }
 
         /* Now daemonize, but keep a communication channel open to
@@ -618,7 +636,8 @@ int main(int argc, char **argv)
          */
         pid = fork();
         if (pid < 0) {
-            err(EXIT_FAILURE, "Failed to fork");
+            error_report("Failed to fork: %s", strerror(errno));
+            exit(EXIT_FAILURE);
         } else if (pid == 0) {
             close(stderr_fd[0]);
             ret = qemu_daemon(1, 0);
@@ -626,7 +645,8 @@ int main(int argc, char **argv)
             /* Temporarily redirect stderr to the parent's pipe...  */
             dup2(stderr_fd[1], STDERR_FILENO);
             if (ret < 0) {
-                err(EXIT_FAILURE, "Failed to daemonize");
+                error_report("Failed to daemonize: %s", strerror(errno));
+                exit(EXIT_FAILURE);
             }
 
             /* ... close the descriptor we inherited and go on.  */
@@ -648,7 +668,9 @@ int main(int argc, char **argv)
                 }
             }
             if (ret < 0) {
-                err(EXIT_FAILURE, "Cannot read from daemon");
+                error_report("Cannot read from daemon: %s",
+                             strerror(errno));
+                exit(EXIT_FAILURE);
             }
 
             /* Usually the daemon should not print any message.
@@ -680,8 +702,9 @@ int main(int argc, char **argv)
     srcpath = argv[optind];
     blk = blk_new_open("hda", srcpath, NULL, options, flags, &local_err);
     if (!blk) {
-        errx(EXIT_FAILURE, "Failed to blk_new_open '%s': %s", argv[optind],
-             error_get_pretty(local_err));
+        error_reportf_err(local_err, "Failed to blk_new_open '%s': ",
+                          argv[optind]);
+        exit(EXIT_FAILURE);
     }
     bs = blk_bs(blk);
 
@@ -695,31 +718,32 @@ int main(int argc, char **argv)
                                                    &local_err);
     }
     if (ret < 0) {
-        errno = -ret;
-        err(EXIT_FAILURE,
-            "Failed to load snapshot: %s",
-            error_get_pretty(local_err));
+        error_reportf_err(local_err, "Failed to load snapshot: ");
+        exit(EXIT_FAILURE);
     }
 
     bs->detect_zeroes = detect_zeroes;
     fd_size = blk_getlength(blk);
     if (fd_size < 0) {
-        errx(EXIT_FAILURE, "Failed to determine the image length: %s",
-             strerror(-fd_size));
+        error_report("Failed to determine the image length: %s",
+                     strerror(-fd_size));
+        exit(EXIT_FAILURE);
     }
 
     if (partition != -1) {
         ret = find_partition(blk, partition, &dev_offset, &fd_size);
         if (ret < 0) {
-            errno = -ret;
-            err(EXIT_FAILURE, "Could not find partition %d", partition);
+            error_report("Could not find partition %d: %s", partition,
+                         strerror(-ret));
+            exit(EXIT_FAILURE);
         }
     }
 
     exp = nbd_export_new(blk, dev_offset, fd_size, nbdflags, nbd_export_closed,
                          &local_err);
     if (!exp) {
-        errx(EXIT_FAILURE, "%s", error_get_pretty(local_err));
+        error_report_err(local_err);
+        exit(EXIT_FAILURE);
     }
 
     fd = socket_listen(saddr, &local_err);
@@ -733,8 +757,8 @@ int main(int argc, char **argv)
 
         ret = pthread_create(&client_thread, NULL, nbd_client_thread, device);
         if (ret != 0) {
-            errx(EXIT_FAILURE, "Failed to create client thread: %s",
-                 strerror(ret));
+            error_report("Failed to create client thread: %s", strerror(ret));
+            exit(EXIT_FAILURE);
         }
     } else {
         /* Shut up GCC warnings.  */
@@ -747,7 +771,9 @@ int main(int argc, char **argv)
     /* now when the initialization is (almost) complete, chdir("/")
      * to free any busy filesystems */
     if (chdir("/") < 0) {
-        err(EXIT_FAILURE, "Could not chdir to root directory");
+        error_report("Could not chdir to root directory: %s",
+                     strerror(errno));
+        exit(EXIT_FAILURE);
     }
 
     state = RUNNING;

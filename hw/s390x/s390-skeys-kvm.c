@@ -21,7 +21,7 @@ static int kvm_s390_skeys_enabled(S390SKeysState *ss)
 
     r = skeyclass->get_skeys(ss, 0, 1, &single_key);
     if (r != 0 && r != KVM_S390_GET_SKEYS_NONE) {
-        error_report("S390_GET_KEYS error %d\n", r);
+        error_report("S390_GET_KEYS error %d", r);
     }
     return (r == 0);
 }

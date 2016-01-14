@@ -760,6 +760,17 @@ static int vmdk_open_sparse(BlockDriverState *bs, BdrvChild *file, int flags,
     }
 }
 
+static const char *next_line(const char *s)
+{
+    while (*s) {
+        if (*s == '\n') {
+            return s + 1;
+        }
+        s++;
+    }
+    return s;
+}
+
 static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
                               const char *desc_file_path, QDict *options,
                               Error **errp)
@@ -769,7 +780,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
     char access[11];
     char type[11];
     char fname[512];
-    const char *p = desc;
+    const char *p, *np;
     int64_t sectors = 0;
     int64_t flat_offset;
     char *extent_path;
@@ -779,7 +790,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
     char extent_opt_prefix[32];
     Error *local_err = NULL;
 
-    while (*p) {
+    for (p = desc; *p; p = next_line(p)) {
         /* parse extent line in one of below formats:
          *
          * RW [size in sectors] FLAT "file-name.vmdk" OFFSET
@@ -791,29 +802,26 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
         matches = sscanf(p, "%10s %" SCNd64 " %10s \"%511[^\n\r\"]\" %" SCNd64,
                          access, &sectors, type, fname, &flat_offset);
         if (matches < 4 || strcmp(access, "RW")) {
-            goto next_line;
+            continue;
         } else if (!strcmp(type, "FLAT")) {
             if (matches != 5 || flat_offset < 0) {
-                error_setg(errp, "Invalid extent lines: \n%s", p);
-                return -EINVAL;
+                goto invalid;
             }
         } else if (!strcmp(type, "VMFS")) {
             if (matches == 4) {
                 flat_offset = 0;
             } else {
-                error_setg(errp, "Invalid extent lines:\n%s", p);
-                return -EINVAL;
+                goto invalid;
             }
         } else if (matches != 4) {
-            error_setg(errp, "Invalid extent lines:\n%s", p);
-            return -EINVAL;
+            goto invalid;
         }
 
         if (sectors <= 0 ||
             (strcmp(type, "FLAT") && strcmp(type, "SPARSE") &&
              strcmp(type, "VMFS") && strcmp(type, "VMFSSPARSE")) ||
             (strcmp(access, "RW"))) {
-            goto next_line;
+            continue;
         }
 
         if (!path_is_absolute(fname) && !path_has_protocol(fname) &&
@@ -870,17 +878,17 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
             return -ENOTSUP;
         }
         extent->type = g_strdup(type);
-next_line:
-        /* move to next line */
-        while (*p) {
-            if (*p == '\n') {
-                p++;
-                break;
-            }
-            p++;
-        }
     }
     return 0;
+
+invalid:
+    np = next_line(p);
+    assert(np != p);
+    if (np[-1] == '\n') {
+        np--;
+    }
+    error_setg(errp, "Invalid extent line: %.*s", (int)(np - p), p);
+    return -EINVAL;
 }
 
 static int vmdk_open_desc_file(BlockDriverState *bs, int flags, char *buf,
@@ -1494,8 +1502,8 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
 
     if (sector_num > bs->total_sectors) {
         error_report("Wrong offset: sector_num=0x%" PRIx64
-                " total_sectors=0x%" PRIx64 "\n",
-                sector_num, bs->total_sectors);
+                     " total_sectors=0x%" PRIx64,
+                     sector_num, bs->total_sectors);
         return -EIO;
     }
 

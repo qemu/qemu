@@ -450,17 +450,13 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
 
     memory_region_init(mr, owner, name, ram_size);
     for (i = 0; i < MAX_NODES; i++) {
-        Error *local_err = NULL;
         uint64_t size = numa_info[i].node_mem;
         HostMemoryBackend *backend = numa_info[i].node_memdev;
         if (!backend) {
             continue;
         }
-        MemoryRegion *seg = host_memory_backend_get_memory(backend, &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-            exit(1);
-        }
+        MemoryRegion *seg = host_memory_backend_get_memory(backend,
+                                                           &error_fatal);
 
         if (memory_region_is_mapped(seg)) {
             char *path = object_get_canonical_path_component(OBJECT(backend));

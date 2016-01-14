@@ -20,6 +20,7 @@
 #include "hw/hw.h"
 #include "hw/arm/omap.h"
 #include "hw/sysbus.h"
+#include "qemu/error-report.h"
 
 /* Interrupt Handlers */
 struct omap_intr_handler_bank_s {
@@ -367,7 +368,8 @@ static int omap_intc_init(SysBusDevice *sbd)
     struct omap_intr_handler_s *s = OMAP_INTC(dev);
 
     if (!s->iclk) {
-        hw_error("omap-intc: clk not connected\n");
+        error_report("omap-intc: clk not connected");
+        return -1;
     }
     s->nbanks = 1;
     sysbus_init_irq(sbd, &s->parent_intr[0]);
@@ -608,10 +610,12 @@ static int omap2_intc_init(SysBusDevice *sbd)
     struct omap_intr_handler_s *s = OMAP_INTC(dev);
 
     if (!s->iclk) {
-        hw_error("omap2-intc: iclk not connected\n");
+        error_report("omap2-intc: iclk not connected");
+        return -1;
     }
     if (!s->fclk) {
-        hw_error("omap2-intc: fclk not connected\n");
+        error_report("omap2-intc: fclk not connected");
+        return -1;
     }
     s->level_only = 1;
     s->nbanks = 3;

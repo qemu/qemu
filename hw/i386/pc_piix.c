@@ -189,7 +189,8 @@ static void pc_init1(MachineState *machine,
     } else {
         pci_bus = NULL;
         i440fx_state = NULL;
-        isa_bus = isa_bus_new(NULL, get_system_memory(), system_io);
+        isa_bus = isa_bus_new(NULL, get_system_memory(), system_io,
+                              &error_abort);
         no_hpet = 1;
     }
     isa_bus_irqs(isa_bus, gsi);

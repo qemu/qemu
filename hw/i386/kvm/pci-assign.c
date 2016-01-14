@@ -770,7 +770,7 @@ static char *assign_failed_examine(const AssignedDevice *dev)
         "*** $ echo \"%04x:%02x:%02x.%x\" > /sys/bus/pci/drivers/"
         "pci-stub/bind\n"
         "*** $ echo \"%04x %04x\" > /sys/bus/pci/drivers/pci-stub/remove_id\n"
-        "***",
+        "***\n",
         ns, dev->host.domain, dev->host.bus, dev->host.slot,
         dev->host.function, vendor_id, device_id,
         dev->host.domain, dev->host.bus, dev->host.slot, dev->host.function,
@@ -778,7 +778,7 @@ static char *assign_failed_examine(const AssignedDevice *dev)
         dev->host.function, vendor_id, device_id);
 
 fail:
-    return g_strdup("Couldn't find out why.");
+    return g_strdup("Couldn't find out why.\n");
 }
 
 static void assign_device(AssignedDevice *dev, Error **errp)
@@ -812,8 +812,9 @@ static void assign_device(AssignedDevice *dev, Error **errp)
             char *cause;
 
             cause = assign_failed_examine(dev);
-            error_setg_errno(errp, -r, "Failed to assign device \"%s\"\n%s",
-                             dev->dev.qdev.id, cause);
+            error_setg_errno(errp, -r, "Failed to assign device \"%s\"",
+                             dev->dev.qdev.id);
+            error_append_hint(errp, "%s", cause);
             g_free(cause);
             break;
         }
@@ -912,11 +913,10 @@ retry:
             dev->features |= ASSIGNED_DEVICE_PREFER_MSI_MASK;
             goto retry;
         }
-        error_setg_errno(errp, -r,
-                         "Failed to assign irq for \"%s\"\n"
-                         "Perhaps you are assigning a device "
-                         "that shares an IRQ with another device?",
+        error_setg_errno(errp, -r, "Failed to assign irq for \"%s\"",
                          dev->dev.qdev.id);
+        error_append_hint(errp, "Perhaps you are assigning a device "
+                          "that shares an IRQ with another device?\n");
         return r;
     }
 

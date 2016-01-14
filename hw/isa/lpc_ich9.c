@@ -602,12 +602,16 @@ static void ich9_lpc_initfn(Object *obj)
     ich9_lpc_add_properties(lpc);
 }
 
-static int ich9_lpc_init(PCIDevice *d)
+static void ich9_lpc_realize(PCIDevice *d, Error **errp)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(d);
     ISABus *isa_bus;
 
-    isa_bus = isa_bus_new(DEVICE(d), get_system_memory(), get_system_io());
+    isa_bus = isa_bus_new(DEVICE(d), get_system_memory(), get_system_io(),
+                          errp);
+    if (!isa_bus) {
+        return;
+    }
 
     pci_set_long(d->wmask + ICH9_LPC_PMBASE,
                  ICH9_LPC_PMBASE_BASE_ADDRESS_MASK);
@@ -628,7 +632,6 @@ static int ich9_lpc_init(PCIDevice *d)
     memory_region_add_subregion_overlap(pci_address_space_io(d),
                                         ICH9_RST_CNT_IOPORT, &lpc->rst_cnt_mem,
                                         1);
-    return 0;
 }
 
 static void ich9_device_plug_cb(HotplugHandler *hotplug_dev,
@@ -706,7 +709,7 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->reset = ich9_lpc_reset;
-    k->init = ich9_lpc_init;
+    k->realize = ich9_lpc_realize;
     dc->vmsd = &vmstate_ich9_lpc;
     dc->props = ich9_lpc_properties;
     k->config_write = ich9_lpc_config_write;

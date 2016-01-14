@@ -1063,10 +1063,8 @@ static void qdev_prop_set_globals_for_type(DeviceState *dev,
         object_property_parse(OBJECT(dev), prop->value, prop->property, &err);
         if (err != NULL) {
             assert(prop->user_provided);
-            error_report("Warning: global %s.%s=%s ignored (%s)",
-                         prop->driver, prop->property, prop->value,
-                         error_get_pretty(err));
-            error_free(err);
+            error_reportf_err(err, "Warning: global %s.%s=%s ignored: ",
+                              prop->driver, prop->property, prop->value);
             return;
         }
     }
