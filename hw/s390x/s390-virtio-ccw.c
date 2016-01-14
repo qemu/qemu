@@ -235,7 +235,11 @@ static const TypeInfo ccw_machine_info = {
     },
 };
 
+#define CCW_COMPAT_2_5 \
+        HW_COMPAT_2_5
+
 #define CCW_COMPAT_2_4 \
+        CCW_COMPAT_2_5 \
         HW_COMPAT_2_4 \
         {\
             .driver   = TYPE_S390_SKEYS,\
@@ -296,10 +300,13 @@ static const TypeInfo ccw_machine_2_4_info = {
 static void ccw_machine_2_5_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    static GlobalProperty compat_props[] = {
+        CCW_COMPAT_2_5
+        { /* end of list */ }
+    };
 
-    mc->alias = "s390-ccw-virtio";
     mc->desc = "VirtIO-ccw based S390 machine v2.5";
-    mc->is_default = 1;
+    mc->compat_props = compat_props;
 }
 
 static const TypeInfo ccw_machine_2_5_info = {
@@ -308,11 +315,27 @@ static const TypeInfo ccw_machine_2_5_info = {
     .class_init    = ccw_machine_2_5_class_init,
 };
 
+static void ccw_machine_2_6_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->alias = "s390-ccw-virtio";
+    mc->desc = "VirtIO-ccw based S390 machine v2.6";
+    mc->is_default = 1;
+}
+
+static const TypeInfo ccw_machine_2_6_info = {
+    .name          = MACHINE_TYPE_NAME("s390-ccw-virtio-2.6"),
+    .parent        = TYPE_S390_CCW_MACHINE,
+    .class_init    = ccw_machine_2_6_class_init,
+};
+
 static void ccw_machine_register_types(void)
 {
     type_register_static(&ccw_machine_info);
     type_register_static(&ccw_machine_2_4_info);
     type_register_static(&ccw_machine_2_5_info);
+    type_register_static(&ccw_machine_2_6_info);
 }
 
 type_init(ccw_machine_register_types)

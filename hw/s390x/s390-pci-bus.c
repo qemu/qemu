@@ -317,7 +317,7 @@ static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *iommu, hwaddr addr,
         .perm = IOMMU_NONE,
     };
 
-    if (!pbdev->configured || !pbdev->pdev) {
+    if (!pbdev->configured || !pbdev->pdev || !(pbdev->fh & FH_ENABLED)) {
         return ret;
     }
 
@@ -425,6 +425,10 @@ static void s390_msi_ctrl_write(void *opaque, hwaddr addr, uint64_t data,
     if (!pbdev) {
         e |= (vec << ERR_EVENT_MVN_OFFSET);
         s390_pci_generate_error_event(ERR_EVENT_NOMSI, 0, fid, addr, e);
+        return;
+    }
+
+    if (!(pbdev->fh & FH_ENABLED)) {
         return;
     }
 

@@ -35,7 +35,6 @@
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
 
-#include "hw/s390x/s390-virtio-bus.h"
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/s390-virtio.h"
@@ -61,7 +60,6 @@
 #define S390_TOD_CLOCK_VALUE_MISSING    0x00
 #define S390_TOD_CLOCK_VALUE_PRESENT    0x01
 
-static VirtIOS390Bus *s390_bus;
 static S390CPU **ipi_states;
 
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
@@ -71,78 +69,6 @@ S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
     }
 
     return ipi_states[cpu_addr];
-}
-
-static int s390_virtio_hcall_notify(const uint64_t *args)
-{
-    uint64_t mem = args[0];
-    int r = 0, i;
-
-    if (mem > ram_size) {
-        VirtIOS390Device *dev = s390_virtio_bus_find_vring(s390_bus, mem, &i);
-        if (dev) {
-            /*
-             * Older kernels will use the virtqueue before setting DRIVER_OK.
-             * In this case the feature bits are not yet up to date, meaning
-             * that several funny things can happen, e.g. the guest thinks
-             * EVENT_IDX is on and QEMU thinks it is off. Let's force a feature
-             * and status sync.
-             */
-            if (!(dev->vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
-                s390_virtio_device_update_status(dev);
-            }
-            virtio_queue_notify(dev->vdev, i);
-        } else {
-            r = -EINVAL;
-        }
-    } else {
-        /* Early printk */
-    }
-    return r;
-}
-
-static int s390_virtio_hcall_reset(const uint64_t *args)
-{
-    uint64_t mem = args[0];
-    VirtIOS390Device *dev;
-
-    dev = s390_virtio_bus_find_mem(s390_bus, mem);
-    if (dev == NULL) {
-        return -EINVAL;
-    }
-    virtio_reset(dev->vdev);
-    address_space_stb(&address_space_memory,
-                      dev->dev_offs + VIRTIO_DEV_OFFS_STATUS, 0,
-                      MEMTXATTRS_UNSPECIFIED, NULL);
-    s390_virtio_device_sync(dev);
-    s390_virtio_reset_idx(dev);
-
-    return 0;
-}
-
-static int s390_virtio_hcall_set_status(const uint64_t *args)
-{
-    uint64_t mem = args[0];
-    int r = 0;
-    VirtIOS390Device *dev;
-
-    dev = s390_virtio_bus_find_mem(s390_bus, mem);
-    if (dev) {
-        s390_virtio_device_update_status(dev);
-    } else {
-        r = -EINVAL;
-    }
-    return r;
-}
-
-static void s390_virtio_register_hcalls(void)
-{
-    s390_register_virtio_hypercall(KVM_S390_VIRTIO_NOTIFY,
-                                   s390_virtio_hcall_notify);
-    s390_register_virtio_hypercall(KVM_S390_VIRTIO_RESET,
-                                   s390_virtio_hcall_reset);
-    s390_register_virtio_hypercall(KVM_S390_VIRTIO_SET_STATUS,
-                                   s390_virtio_hcall_set_status);
 }
 
 void s390_init_ipl_dev(const char *kernel_filename,
@@ -205,10 +131,7 @@ void s390_create_virtio_net(BusState *bus, const char *name)
             nd->model = g_strdup("virtio");
         }
 
-        if (strcmp(nd->model, "virtio")) {
-            fprintf(stderr, "S390 only supports VirtIO nics\n");
-            exit(1);
-        }
+        qemu_check_nic_model(nd, "virtio");
 
         dev = qdev_create(bus, name);
         qdev_set_nic_properties(dev, nd);
@@ -261,58 +184,6 @@ int gtod_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-/* PC hardware initialisation */
-static void s390_init(MachineState *machine)
-{
-    ram_addr_t my_ram_size;
-    void *virtio_region;
-    hwaddr virtio_region_len;
-    hwaddr virtio_region_start;
-
-    if (!qtest_enabled()) {
-        error_printf("WARNING\n"
-                     "The s390-virtio machine (non-ccw) is deprecated.\n"
-                     "It will be removed in 2.6. Please use s390-ccw-virtio\n");
-    }
-
-    if (machine->ram_slots) {
-        error_report("Memory hotplug not supported by the selected machine.");
-        exit(EXIT_FAILURE);
-    }
-    s390_sclp_init();
-    my_ram_size = machine->ram_size;
-
-    /* get a BUS */
-    s390_bus = s390_virtio_bus_init(&my_ram_size);
-    s390_init_ipl_dev(machine->kernel_filename, machine->kernel_cmdline,
-                      machine->initrd_filename, ZIPL_FILENAME, false);
-    s390_flic_init();
-
-    /* register hypercalls */
-    s390_virtio_register_hcalls();
-
-    /* allocate RAM */
-    s390_memory_init(my_ram_size);
-
-    /* clear virtio region */
-    virtio_region_len = my_ram_size - ram_size;
-    virtio_region_start = ram_size;
-    virtio_region = cpu_physical_memory_map(virtio_region_start,
-                                            &virtio_region_len, true);
-    memset(virtio_region, 0, virtio_region_len);
-    cpu_physical_memory_unmap(virtio_region, virtio_region_len, 1,
-                              virtio_region_len);
-
-    /* init CPUs */
-    s390_init_cpus(machine->cpu_model);
-
-    /* Create VirtIO network adapters */
-    s390_create_virtio_net((BusState *)s390_bus, "virtio-net-s390");
-
-    /* Register savevm handler for guest TOD clock */
-    register_savevm(NULL, "todclock", 0, 1, gtod_save, gtod_load, NULL);
-}
-
 void s390_nmi(NMIState *n, int cpu_index, Error **errp)
 {
     CPUState *cs = qemu_get_cpu(cpu_index);
@@ -334,40 +205,3 @@ void s390_machine_reset(void)
     s390_ipl_prepare_cpu(ipl_cpu);
     s390_cpu_set_state(CPU_STATE_OPERATING, ipl_cpu);
 }
-
-static void s390_machine_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    NMIClass *nc = NMI_CLASS(oc);
-
-    mc->alias = "s390";
-    mc->desc = "VirtIO based S390 machine (deprecated)";
-    mc->init = s390_init;
-    mc->reset = s390_machine_reset;
-    mc->block_default_type = IF_VIRTIO;
-    mc->max_cpus = 255;
-    mc->no_serial = 1;
-    mc->no_parallel = 1;
-    mc->use_virtcon = 1;
-    mc->no_floppy = 1;
-    mc->no_cdrom = 1;
-    mc->no_sdcard = 1;
-    nc->nmi_monitor_handler = s390_nmi;
-}
-
-static const TypeInfo s390_machine_info = {
-    .name          = TYPE_S390_MACHINE,
-    .parent        = TYPE_MACHINE,
-    .class_init    = s390_machine_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_NMI },
-        { }
-    },
-};
-
-static void s390_machine_register_types(void)
-{
-    type_register_static(&s390_machine_info);
-}
-
-type_init(s390_machine_register_types)
