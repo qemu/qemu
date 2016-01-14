@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
- *  Network Block Device
+ *  Network Block Device Server Side
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,86 +16,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "block/nbd.h"
-#include "sysemu/block-backend.h"
-
-#include "qemu/coroutine.h"
-
-#include <errno.h>
-#include <string.h>
-#ifndef _WIN32
-#include <sys/ioctl.h>
-#endif
-#if defined(__sun__) || defined(__HAIKU__)
-#include <sys/ioccom.h>
-#endif
-#include <ctype.h>
-#include <inttypes.h>
-
-#ifdef __linux__
-#include <linux/fs.h>
-#endif
-
-#include "qemu/sockets.h"
-#include "qemu/queue.h"
-#include "qemu/main-loop.h"
-
-//#define DEBUG_NBD
-
-#ifdef DEBUG_NBD
-#define TRACE(msg, ...) do { \
-    LOG(msg, ## __VA_ARGS__); \
-} while(0)
-#else
-#define TRACE(msg, ...) \
-    do { } while (0)
-#endif
-
-#define LOG(msg, ...) do { \
-    fprintf(stderr, "%s:%s():L%d: " msg "\n", \
-            __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__); \
-} while(0)
-
-/* This is all part of the "official" NBD API.
- *
- * The most up-to-date documentation is available at:
- * https://github.com/yoe/nbd/blob/master/doc/proto.txt
- */
-
-#define NBD_REQUEST_SIZE        (4 + 4 + 8 + 8 + 4)
-#define NBD_REPLY_SIZE          (4 + 4 + 8)
-#define NBD_REQUEST_MAGIC       0x25609513
-#define NBD_REPLY_MAGIC         0x67446698
-#define NBD_OPTS_MAGIC          0x49484156454F5054LL
-#define NBD_CLIENT_MAGIC        0x0000420281861253LL
-#define NBD_REP_MAGIC           0x3e889045565a9LL
-
-#define NBD_SET_SOCK            _IO(0xab, 0)
-#define NBD_SET_BLKSIZE         _IO(0xab, 1)
-#define NBD_SET_SIZE            _IO(0xab, 2)
-#define NBD_DO_IT               _IO(0xab, 3)
-#define NBD_CLEAR_SOCK          _IO(0xab, 4)
-#define NBD_CLEAR_QUE           _IO(0xab, 5)
-#define NBD_PRINT_DEBUG         _IO(0xab, 6)
-#define NBD_SET_SIZE_BLOCKS     _IO(0xab, 7)
-#define NBD_DISCONNECT          _IO(0xab, 8)
-#define NBD_SET_TIMEOUT         _IO(0xab, 9)
-#define NBD_SET_FLAGS           _IO(0xab, 10)
-
-#define NBD_OPT_EXPORT_NAME     (1)
-#define NBD_OPT_ABORT           (2)
-#define NBD_OPT_LIST            (3)
-
-/* NBD errors are based on errno numbers, so there is a 1:1 mapping,
- * but only a limited set of errno values is specified in the protocol.
- * Everything else is squashed to EINVAL.
- */
-#define NBD_SUCCESS    0
-#define NBD_EPERM      1
-#define NBD_EIO        5
-#define NBD_ENOMEM     12
-#define NBD_EINVAL     22
-#define NBD_ENOSPC     28
+#include "nbd-internal.h"
 
 static int system_errno_to_nbd_errno(int err)
 {
@@ -117,25 +38,6 @@ static int system_errno_to_nbd_errno(int err)
     case EINVAL:
     default:
         return NBD_EINVAL;
-    }
-}
-
-static int nbd_errno_to_system_errno(int err)
-{
-    switch (err) {
-    case NBD_SUCCESS:
-        return 0;
-    case NBD_EPERM:
-        return EPERM;
-    case NBD_EIO:
-        return EIO;
-    case NBD_ENOMEM:
-        return ENOMEM;
-    case NBD_ENOSPC:
-        return ENOSPC;
-    case NBD_EINVAL:
-    default:
-        return EINVAL;
     }
 }
 
@@ -191,61 +93,6 @@ static void nbd_set_handlers(NBDClient *client);
 static void nbd_unset_handlers(NBDClient *client);
 static void nbd_update_can_read(NBDClient *client);
 
-ssize_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read)
-{
-    size_t offset = 0;
-    int err;
-
-    if (qemu_in_coroutine()) {
-        if (do_read) {
-            return qemu_co_recv(fd, buffer, size);
-        } else {
-            return qemu_co_send(fd, buffer, size);
-        }
-    }
-
-    while (offset < size) {
-        ssize_t len;
-
-        if (do_read) {
-            len = qemu_recv(fd, buffer + offset, size - offset, 0);
-        } else {
-            len = send(fd, buffer + offset, size - offset, 0);
-        }
-
-        if (len < 0) {
-            err = socket_error();
-
-            /* recoverable error */
-            if (err == EINTR || (offset > 0 && (err == EAGAIN || err == EWOULDBLOCK))) {
-                continue;
-            }
-
-            /* unrecoverable error */
-            return -err;
-        }
-
-        /* eof */
-        if (len == 0) {
-            break;
-        }
-
-        offset += len;
-    }
-
-    return offset;
-}
-
-static ssize_t read_sync(int fd, void *buffer, size_t size)
-{
-    /* Sockets are kept in blocking mode in the negotiation phase.  After
-     * that, a non-readable socket simply means that another thread stole
-     * our request/reply.  Synchronization is done with recv_coroutine, so
-     * that this is coroutine-safe.
-     */
-    return nbd_wr_sync(fd, buffer, size, true);
-}
-
 static ssize_t drop_sync(int fd, size_t size)
 {
     ssize_t ret, dropped = size;
@@ -264,16 +111,6 @@ static ssize_t drop_sync(int fd, size_t size)
 
     g_free(buffer);
     return dropped;
-}
-
-static ssize_t write_sync(int fd, void *buffer, size_t size)
-{
-    int ret;
-    do {
-        /* For writes, we do expect the socket to be writable.  */
-        ret = nbd_wr_sync(fd, buffer, size, false);
-    } while (ret == -EAGAIN);
-    return ret;
 }
 
 /* Basic flow for negotiation
@@ -579,188 +416,7 @@ fail:
     return rc;
 }
 
-int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
-                          off_t *size, Error **errp)
-{
-    char buf[256];
-    uint64_t magic, s;
-    uint16_t tmp;
-    int rc;
-
-    TRACE("Receiving negotiation.");
-
-    rc = -EINVAL;
-
-    if (read_sync(csock, buf, 8) != 8) {
-        error_setg(errp, "Failed to read data");
-        goto fail;
-    }
-
-    buf[8] = '\0';
-    if (strlen(buf) == 0) {
-        error_setg(errp, "Server connection closed unexpectedly");
-        goto fail;
-    }
-
-    TRACE("Magic is %c%c%c%c%c%c%c%c",
-          qemu_isprint(buf[0]) ? buf[0] : '.',
-          qemu_isprint(buf[1]) ? buf[1] : '.',
-          qemu_isprint(buf[2]) ? buf[2] : '.',
-          qemu_isprint(buf[3]) ? buf[3] : '.',
-          qemu_isprint(buf[4]) ? buf[4] : '.',
-          qemu_isprint(buf[5]) ? buf[5] : '.',
-          qemu_isprint(buf[6]) ? buf[6] : '.',
-          qemu_isprint(buf[7]) ? buf[7] : '.');
-
-    if (memcmp(buf, "NBDMAGIC", 8) != 0) {
-        error_setg(errp, "Invalid magic received");
-        goto fail;
-    }
-
-    if (read_sync(csock, &magic, sizeof(magic)) != sizeof(magic)) {
-        error_setg(errp, "Failed to read magic");
-        goto fail;
-    }
-    magic = be64_to_cpu(magic);
-    TRACE("Magic is 0x%" PRIx64, magic);
-
-    if (name) {
-        uint32_t reserved = 0;
-        uint32_t opt;
-        uint32_t namesize;
-
-        TRACE("Checking magic (opts_magic)");
-        if (magic != NBD_OPTS_MAGIC) {
-            if (magic == NBD_CLIENT_MAGIC) {
-                error_setg(errp, "Server does not support export names");
-            } else {
-                error_setg(errp, "Bad magic received");
-            }
-            goto fail;
-        }
-        if (read_sync(csock, &tmp, sizeof(tmp)) != sizeof(tmp)) {
-            error_setg(errp, "Failed to read server flags");
-            goto fail;
-        }
-        *flags = be16_to_cpu(tmp) << 16;
-        /* reserved for future use */
-        if (write_sync(csock, &reserved, sizeof(reserved)) !=
-            sizeof(reserved)) {
-            error_setg(errp, "Failed to read reserved field");
-            goto fail;
-        }
-        /* write the export name */
-        magic = cpu_to_be64(magic);
-        if (write_sync(csock, &magic, sizeof(magic)) != sizeof(magic)) {
-            error_setg(errp, "Failed to send export name magic");
-            goto fail;
-        }
-        opt = cpu_to_be32(NBD_OPT_EXPORT_NAME);
-        if (write_sync(csock, &opt, sizeof(opt)) != sizeof(opt)) {
-            error_setg(errp, "Failed to send export name option number");
-            goto fail;
-        }
-        namesize = cpu_to_be32(strlen(name));
-        if (write_sync(csock, &namesize, sizeof(namesize)) !=
-            sizeof(namesize)) {
-            error_setg(errp, "Failed to send export name length");
-            goto fail;
-        }
-        if (write_sync(csock, (char*)name, strlen(name)) != strlen(name)) {
-            error_setg(errp, "Failed to send export name");
-            goto fail;
-        }
-    } else {
-        TRACE("Checking magic (cli_magic)");
-
-        if (magic != NBD_CLIENT_MAGIC) {
-            if (magic == NBD_OPTS_MAGIC) {
-                error_setg(errp, "Server requires an export name");
-            } else {
-                error_setg(errp, "Bad magic received");
-            }
-            goto fail;
-        }
-    }
-
-    if (read_sync(csock, &s, sizeof(s)) != sizeof(s)) {
-        error_setg(errp, "Failed to read export length");
-        goto fail;
-    }
-    *size = be64_to_cpu(s);
-    TRACE("Size is %" PRIu64, *size);
-
-    if (!name) {
-        if (read_sync(csock, flags, sizeof(*flags)) != sizeof(*flags)) {
-            error_setg(errp, "Failed to read export flags");
-            goto fail;
-        }
-        *flags = be32_to_cpup(flags);
-    } else {
-        if (read_sync(csock, &tmp, sizeof(tmp)) != sizeof(tmp)) {
-            error_setg(errp, "Failed to read export flags");
-            goto fail;
-        }
-        *flags |= be16_to_cpu(tmp);
-    }
-    if (read_sync(csock, &buf, 124) != 124) {
-        error_setg(errp, "Failed to read reserved block");
-        goto fail;
-    }
-    rc = 0;
-
-fail:
-    return rc;
-}
-
 #ifdef __linux__
-int nbd_init(int fd, int csock, uint32_t flags, off_t size)
-{
-    TRACE("Setting NBD socket");
-
-    if (ioctl(fd, NBD_SET_SOCK, csock) < 0) {
-        int serrno = errno;
-        LOG("Failed to set NBD socket");
-        return -serrno;
-    }
-
-    TRACE("Setting block size to %lu", (unsigned long)BDRV_SECTOR_SIZE);
-
-    if (ioctl(fd, NBD_SET_BLKSIZE, (size_t)BDRV_SECTOR_SIZE) < 0) {
-        int serrno = errno;
-        LOG("Failed setting NBD block size");
-        return -serrno;
-    }
-
-    TRACE("Setting size to %zd block(s)", (size_t)(size / BDRV_SECTOR_SIZE));
-
-    if (ioctl(fd, NBD_SET_SIZE_BLOCKS, (size_t)(size / BDRV_SECTOR_SIZE)) < 0) {
-        int serrno = errno;
-        LOG("Failed setting size (in blocks)");
-        return -serrno;
-    }
-
-    if (ioctl(fd, NBD_SET_FLAGS, flags) < 0) {
-        if (errno == ENOTTY) {
-            int read_only = (flags & NBD_FLAG_READ_ONLY) != 0;
-            TRACE("Setting readonly attribute");
-
-            if (ioctl(fd, BLKROSET, (unsigned long) &read_only) < 0) {
-                int serrno = errno;
-                LOG("Failed setting read-only attribute");
-                return -serrno;
-            }
-        } else {
-            int serrno = errno;
-            LOG("Failed setting flags");
-            return -serrno;
-        }
-    }
-
-    TRACE("Negotiation ended");
-
-    return 0;
-}
 
 int nbd_disconnect(int fd)
 {
@@ -770,77 +426,13 @@ int nbd_disconnect(int fd)
     return 0;
 }
 
-int nbd_client(int fd)
-{
-    int ret;
-    int serrno;
-
-    TRACE("Doing NBD loop");
-
-    ret = ioctl(fd, NBD_DO_IT);
-    if (ret < 0 && errno == EPIPE) {
-        /* NBD_DO_IT normally returns EPIPE when someone has disconnected
-         * the socket via NBD_DISCONNECT.  We do not want to return 1 in
-         * that case.
-         */
-        ret = 0;
-    }
-    serrno = errno;
-
-    TRACE("NBD loop returned %d: %s", ret, strerror(serrno));
-
-    TRACE("Clearing NBD queue");
-    ioctl(fd, NBD_CLEAR_QUE);
-
-    TRACE("Clearing NBD socket");
-    ioctl(fd, NBD_CLEAR_SOCK);
-
-    errno = serrno;
-    return ret;
-}
 #else
-int nbd_init(int fd, int csock, uint32_t flags, off_t size)
-{
-    return -ENOTSUP;
-}
 
 int nbd_disconnect(int fd)
 {
     return -ENOTSUP;
 }
-
-int nbd_client(int fd)
-{
-    return -ENOTSUP;
-}
 #endif
-
-ssize_t nbd_send_request(int csock, struct nbd_request *request)
-{
-    uint8_t buf[NBD_REQUEST_SIZE];
-    ssize_t ret;
-
-    cpu_to_be32w((uint32_t*)buf, NBD_REQUEST_MAGIC);
-    cpu_to_be32w((uint32_t*)(buf + 4), request->type);
-    cpu_to_be64w((uint64_t*)(buf + 8), request->handle);
-    cpu_to_be64w((uint64_t*)(buf + 16), request->from);
-    cpu_to_be32w((uint32_t*)(buf + 24), request->len);
-
-    TRACE("Sending request to client: "
-          "{ .from = %" PRIu64", .len = %u, .handle = %" PRIu64", .type=%i}",
-          request->from, request->len, request->handle, request->type);
-
-    ret = write_sync(csock, buf, sizeof(buf));
-    if (ret < 0) {
-        return ret;
-    }
-
-    if (ret != sizeof(buf)) {
-        LOG("writing to socket failed");
-        return -EINVAL;
-    }
-    return 0;
-}
 
 static ssize_t nbd_receive_request(int csock, struct nbd_request *request)
 {
@@ -877,45 +469,6 @@ static ssize_t nbd_receive_request(int csock, struct nbd_request *request)
           magic, request->type, request->from, request->len);
 
     if (magic != NBD_REQUEST_MAGIC) {
-        LOG("invalid magic (got 0x%x)", magic);
-        return -EINVAL;
-    }
-    return 0;
-}
-
-ssize_t nbd_receive_reply(int csock, struct nbd_reply *reply)
-{
-    uint8_t buf[NBD_REPLY_SIZE];
-    uint32_t magic;
-    ssize_t ret;
-
-    ret = read_sync(csock, buf, sizeof(buf));
-    if (ret < 0) {
-        return ret;
-    }
-
-    if (ret != sizeof(buf)) {
-        LOG("read failed");
-        return -EINVAL;
-    }
-
-    /* Reply
-       [ 0 ..  3]    magic   (NBD_REPLY_MAGIC)
-       [ 4 ..  7]    error   (0 == no error)
-       [ 7 .. 15]    handle
-     */
-
-    magic = be32_to_cpup((uint32_t*)buf);
-    reply->error  = be32_to_cpup((uint32_t*)(buf + 4));
-    reply->handle = be64_to_cpup((uint64_t*)(buf + 8));
-
-    reply->error = nbd_errno_to_system_errno(reply->error);
-
-    TRACE("Got reply: "
-          "{ magic = 0x%x, .error = %d, handle = %" PRIu64" }",
-          magic, reply->error, reply->handle);
-
-    if (magic != NBD_REPLY_MAGIC) {
         LOG("invalid magic (got 0x%x)", magic);
         return -EINVAL;
     }
