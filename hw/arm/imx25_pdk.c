@@ -65,7 +65,6 @@ static struct arm_boot_info imx25_pdk_binfo;
 static void imx25_pdk_init(MachineState *machine)
 {
     IMX25PDK *s = g_new0(IMX25PDK, 1);
-    Error *err = NULL;
     unsigned int ram_size;
     unsigned int alias_offset;
     int i;
@@ -74,11 +73,7 @@ static void imx25_pdk_init(MachineState *machine)
     object_property_add_child(OBJECT(machine), "soc", OBJECT(&s->soc),
                               &error_abort);
 
-    object_property_set_bool(OBJECT(&s->soc), true, "realized", &err);
-    if (err != NULL) {
-        error_report_err(err);
-        exit(1);
-    }
+    object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_fatal);
 
     /* We need to initialize our memory */
     if (machine->ram_size > (FSL_IMX25_SDRAM0_SIZE + FSL_IMX25_SDRAM1_SIZE)) {

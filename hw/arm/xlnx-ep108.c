@@ -32,7 +32,6 @@ static void xlnx_ep108_init(MachineState *machine)
 {
     XlnxEP108 *s = g_new0(XlnxEP108, 1);
     int i;
-    Error *err = NULL;
     uint64_t ram_size = machine->ram_size;
 
     /* Create the memory region to pass to the SoC */
@@ -58,11 +57,7 @@ static void xlnx_ep108_init(MachineState *machine)
     object_property_set_link(OBJECT(&s->soc), OBJECT(&s->ddr_ram),
                          "ddr-ram", &error_abort);
 
-    object_property_set_bool(OBJECT(&s->soc), true, "realized", &err);
-    if (err) {
-        error_report_err(err);
-        exit(1);
-    }
+    object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_fatal);
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_SPIS; i++) {
         SSIBus *spi_bus;

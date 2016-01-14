@@ -64,7 +64,6 @@ static struct arm_boot_info kzm_binfo = {
 static void kzm_init(MachineState *machine)
 {
     IMX31KZM *s = g_new0(IMX31KZM, 1);
-    Error *err = NULL;
     unsigned int ram_size;
     unsigned int alias_offset;
     unsigned int i;
@@ -73,11 +72,7 @@ static void kzm_init(MachineState *machine)
     object_property_add_child(OBJECT(machine), "soc", OBJECT(&s->soc),
                               &error_abort);
 
-    object_property_set_bool(OBJECT(&s->soc), true, "realized", &err);
-    if (err != NULL) {
-        error_report_err(err);
-        exit(1);
-    }
+    object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_fatal);
 
     /* Check the amount of memory is compatible with the SOC */
     if (machine->ram_size > (FSL_IMX31_SDRAM0_SIZE + FSL_IMX31_SDRAM1_SIZE)) {
