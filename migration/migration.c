@@ -281,6 +281,10 @@ static void process_incoming_migration_bh(void *opaque)
      */
     qemu_announce_self();
 
+    if (multifd_load_cleanup(&local_err) != 0) {
+        error_report_err(local_err);
+        autostart = false;
+    }
     /* If global state section was not received or we are in running
        state, we need to obey autostart. Any other state is set with
        runstate_set. */
@@ -353,10 +357,15 @@ static void process_incoming_migration_co(void *opaque)
     }
 
     if (ret < 0) {
+        Error *local_err = NULL;
+
         migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                           MIGRATION_STATUS_FAILED);
         error_report("load of migration failed: %s", strerror(-ret));
         qemu_fclose(mis->from_src_file);
+        if (multifd_load_cleanup(&local_err) != 0) {
+            error_report_err(local_err);
+        }
         exit(EXIT_FAILURE);
     }
     mis->bh = qemu_bh_new(process_incoming_migration_bh, mis);
@@ -367,6 +376,12 @@ void migration_fd_process_incoming(QEMUFile *f)
 {
     Coroutine *co = qemu_coroutine_create(process_incoming_migration_co, NULL);
     MigrationIncomingState *mis = migration_incoming_get_current();
+
+    if (multifd_load_setup() != 0) {
+        /* We haven't been able to create multifd threads
+           nothing better to do */
+        exit(EXIT_FAILURE);
+    }
 
     if (!mis->from_src_file) {
         mis->from_src_file = f;
@@ -1020,6 +1035,8 @@ static void migrate_fd_cleanup(void *opaque)
     s->cleanup_bh = NULL;
 
     if (s->to_dst_file) {
+        Error *local_err = NULL;
+
         trace_migrate_fd_cleanup();
         qemu_mutex_unlock_iothread();
         if (s->migration_thread_running) {
@@ -1028,6 +1045,9 @@ static void migrate_fd_cleanup(void *opaque)
         }
         qemu_mutex_lock_iothread();
 
+        if (multifd_save_cleanup(&local_err) != 0) {
+            error_report_err(local_err);
+        }
         qemu_fclose(s->to_dst_file);
         s->to_dst_file = NULL;
     }
@@ -2217,6 +2237,12 @@ void migrate_fd_connect(MigrationState *s)
         }
     }
 
+    if (multifd_save_setup() != 0) {
+        migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
+                          MIGRATION_STATUS_FAILED);
+        migrate_fd_cleanup(s);
+        return;
+    }
     qemu_thread_create(&s->thread, "live_migration", migration_thread, s,
                        QEMU_THREAD_JOINABLE);
     s->migration_thread_running = true;
