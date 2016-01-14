@@ -61,6 +61,8 @@
 #define DEFAULT_MIGRATE_X_CHECKPOINT_DELAY 200
 /* The maximum time (in ms) for a COLO active checkpoint */
 #define DEFAULT_MIGRATE_X_COLO_MAX_TIME (10*1000)
+/* The minimum time (in ms) for a COLO active checkpoint */
+#define DEFAULT_MIGRATE_X_COLO_MIN_TIME 3
 
 
 static NotifierList migration_state_notifiers =
@@ -102,6 +104,8 @@ MigrationState *migrate_get_current(void)
                 DEFAULT_MIGRATE_X_CHECKPOINT_DELAY,
         .parameters[MIGRATION_PARAMETER_X_COLO_MAX_TIME] =
                 DEFAULT_MIGRATE_X_COLO_MAX_TIME,
+        .parameters[MIGRATION_PARAMETER_X_COLO_MIN_TIME] =
+                DEFAULT_MIGRATE_X_COLO_MIN_TIME,
     };
 
     if (!once) {
@@ -545,6 +549,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
             s->parameters[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY];
     params->x_colo_max_time =
             s->parameters[MIGRATION_PARAMETER_X_COLO_MAX_TIME];
+    params->x_colo_min_time =
+            s->parameters[MIGRATION_PARAMETER_X_COLO_MIN_TIME];
 
     return params;
 }
@@ -756,6 +762,8 @@ void qmp_migrate_set_parameters(bool has_compress_level,
                                 int64_t x_checkpoint_delay,
                                 bool has_x_colo_max_time,
                                 int64_t x_colo_max_time,
+                                bool has_x_colo_min_time,
+                                int64_t x_colo_min_time,
                                 Error **errp)
 {
     MigrationState *s = migrate_get_current();
@@ -825,6 +833,10 @@ void qmp_migrate_set_parameters(bool has_compress_level,
     if (has_x_colo_max_time) {
         s->parameters[MIGRATION_PARAMETER_X_COLO_MAX_TIME] =
                                                     x_colo_max_time;
+    }
+    if (has_x_colo_min_time) {
+        s->parameters[MIGRATION_PARAMETER_X_COLO_MIN_TIME] =
+                                                    x_colo_min_time;
     }
 }
 

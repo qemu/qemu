@@ -290,6 +290,9 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, " %s: %" PRId64,
             MigrationParameter_lookup[MIGRATION_PARAMETER_X_COLO_MAX_TIME],
             params->x_colo_max_time);
+        monitor_printf(mon, " %s: %" PRId64,
+            MigrationParameter_lookup[MIGRATION_PARAMETER_X_COLO_MIN_TIME],
+            params->x_colo_min_time);
         monitor_printf(mon, "\n");
     }
 
@@ -1273,6 +1276,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     bool has_x_cpu_throttle_increment = false;
     bool has_x_checkpoint_delay = false;
     bool has_x_colo_max_time = false;
+    bool has_x_colo_min_time = false;
     int i;
 
     for (i = 0; i < MIGRATION_PARAMETER__MAX; i++) {
@@ -1298,6 +1302,9 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
             case MIGRATION_PARAMETER_X_COLO_MAX_TIME:
                 has_x_colo_max_time = true;
                 break;
+            case MIGRATION_PARAMETER_X_COLO_MIN_TIME:
+                has_x_colo_min_time = true;
+                break;
             }
             qmp_migrate_set_parameters(has_compress_level, value,
                                        has_compress_threads, value,
@@ -1306,6 +1313,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
                                        has_x_cpu_throttle_increment, value,
                                        has_x_checkpoint_delay, value,
                                        has_x_colo_max_time, value,
+                                       has_x_colo_min_time, value,
                                        &err);
             break;
         }

@@ -628,12 +628,15 @@
 # @x-colo-max-time: The maximum length of an active COLO checkpoint (in ms)
 #          in the case where no miscompare is detected (Since 2.6)
 #
+# @x-colo-min-time: The minimum length of an active COLO checkpoint (in ms)
+#          where a micompare is encountered (Since 2.6)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
   'data': ['compress-level', 'compress-threads', 'decompress-threads',
            'x-cpu-throttle-initial', 'x-cpu-throttle-increment',
-           'x-checkpoint-delay', 'x-colo-max-time' ] }
+           'x-checkpoint-delay', 'x-colo-max-time', 'x-colo-min-time' ] }
 
 #
 # @migrate-set-parameters
@@ -659,6 +662,9 @@
 # @x-colo-max-time: The maximum length of an active COLO checkpoint (in ms)
 #          in the case where no miscompare is detected (Since 2.6)
 #
+# @x-colo-min-time: The minimum length of an active COLO checkpoint (in ms)
+#          where a micompare is encountered (Since 2.6)
+#
 # Since: 2.4
 ##
 { 'command': 'migrate-set-parameters',
@@ -668,7 +674,8 @@
             '*x-cpu-throttle-initial': 'int',
             '*x-cpu-throttle-increment': 'int',
             '*x-checkpoint-delay': 'int',
-            '*x-colo-max-time': 'int' } }
+            '*x-colo-max-time': 'int',
+            '*x-colo-min-time': 'int' } }
 
 #
 # @MigrationParameters
@@ -692,6 +699,9 @@
 # @x-colo-max-time: The maximum length of an active COLO checkpoint (in ms)
 #          in the case where no miscompare is detected (Since 2.6)
 #
+# @x-colo-min-time: The minimum length of an active COLO checkpoint (in ms)
+#          where a micompare is encountered (Since 2.6)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -701,7 +711,8 @@
             'x-cpu-throttle-initial': 'int',
             'x-cpu-throttle-increment': 'int',
             'x-checkpoint-delay': 'int',
-            'x-colo-max-time': 'int' } }
+            'x-colo-max-time': 'int',
+            'x-colo-min-time': 'int' } }
 
 ##
 # @query-migrate-parameters

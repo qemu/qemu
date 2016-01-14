@@ -264,7 +264,8 @@ static uint64_t colo_get_cmd_value(QEMUFile *f, uint32_t expect_cmd,
 }
 
 static int colo_do_checkpoint_transaction(MigrationState *s,
-                                          QEMUSizedBuffer *buffer)
+                                          QEMUSizedBuffer *buffer,
+                                          unsigned int delay)
 {
     int colo_shutdown;
     QEMUFile *trans = NULL;
@@ -278,6 +279,13 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
         goto out;
     }
 
+    /* This lets the primary get some useful work done in the case
+     * of rapid miscompares, in the shadow of the secondary preparing
+     * for the new checkpoint
+     */
+    if (delay) {
+        usleep(delay * 1000l);
+    }
     /* Reset colo buffer and open it for write */
     qsb_set_length(buffer, 0);
     trans = qemu_bufopen("w", buffer);
@@ -482,30 +490,38 @@ static void colo_process_checkpoint(MigrationState *s)
     }
 
     while (s->state == MIGRATION_STATUS_COLO) {
+        unsigned int extra_delay;
+        bool miscompare = false;
         if (failover_request_is_active()) {
             error_report("failover request");
             goto out;
         }
 
-        if (colo_proxy_query_checkpoint()) {
-            goto checkpoint_begin;
-        }
+        /* TODO: pass colo_proxy_wait_for_diff the absolute time */
         current_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+
         if ((current_time - checkpoint_time <
-            s->parameters[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY]) &&
+            s->parameters[MIGRATION_PARAMETER_X_COLO_MAX_TIME]) &&
             !colo_shutdown_requested) {
             int64_t delay_ms;
-
-            delay_ms = s->parameters[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY] -
+            delay_ms = s->parameters[MIGRATION_PARAMETER_X_COLO_MAX_TIME] -
                        (current_time - checkpoint_time);
-            /*g_usleep(delay_ms * 1000); 
-             * hack from colo upstream dev tree
-             */
-            g_usleep(delay_ms * 10);
+            miscompare = colo_proxy_wait_for_diff(delay_ms);
         }
-checkpoint_begin:
+        if (miscompare) {
+            int64_t delay_ms;
+            /* Limit the checkpoint rate if we're getting frequent miscompares
+             * by adding an extra delay
+             */
+            current_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+            delay_ms = current_time - checkpoint_time;
+            delay_ms =  s->parameters[MIGRATION_PARAMETER_X_COLO_MIN_TIME] - delay_ms;
+            extra_delay = (delay_ms > 0) ? delay_ms : 0;
+        } else {
+            extra_delay = 0;
+        }
         /* start a colo checkpoint */
-        ret = colo_do_checkpoint_transaction(s, buffer);
+        ret = colo_do_checkpoint_transaction(s, buffer, extra_delay);
         if (ret < 0) {
             goto out;
         }
