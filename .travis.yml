@@ -1,9 +1,37 @@
+sudo: false
 language: c
 python:
   - "2.4"
 compiler:
   - gcc
   - clang
+addons:
+  apt:
+    packages:
+      - libaio-dev
+      - libattr1-dev
+      - libbrlapi-dev
+      - libcap-ng-dev
+      - libgnutls-dev
+      - libgtk-3-dev
+      - libiscsi-dev
+      - liblttng-ust-dev
+      - libncurses5-dev
+      - libnss3-dev
+      - libpixman-1-dev
+      - libpng12-dev
+      - librados-dev
+      - libsdl1.2-dev
+      - libseccomp-dev
+      - libspice-protocol-dev
+      - libspice-server-dev
+      - libssh2-1-dev
+      - liburcu-dev
+      - libusb-1.0-0-dev
+      - libvte-2.90-dev
+      - sparse
+      - uuid-dev
+
 notifications:
   irc:
     channels:
@@ -14,11 +42,6 @@ env:
   global:
     - TEST_CMD=""
     - EXTRA_CONFIG=""
-    # Development packages, EXTRA_PKGS saved for additional builds
-    - CORE_PKGS="libusb-1.0-0-dev libiscsi-dev librados-dev libncurses5-dev"
-    - NET_PKGS="libseccomp-dev libgnutls-dev libssh2-1-dev  libspice-server-dev libspice-protocol-dev libnss3-dev"
-    - GUI_PKGS="libgtk-3-dev libvte-2.90-dev libsdl1.2-dev libpng12-dev libpixman-1-dev"
-    - EXTRA_PKGS=""
   matrix:
     # Group major targets together with their linux-user counterparts
     - TARGETS=alpha-softmmu,alpha-linux-user
@@ -43,8 +66,6 @@ git:
 before_install:
   - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
   - git submodule update --init --recursive
-  - sudo apt-get update -qq
-  - sudo apt-get install -qq ${CORE_PKGS} ${NET_PKGS} ${GUI_PKGS} ${EXTRA_PKGS}
 before_script:
   - ./configure --target-list=${TARGETS} --enable-debug-tcg ${EXTRA_CONFIG}
 script:
@@ -54,7 +75,7 @@ matrix:
   include:
     # Make check target (we only do this once)
     - env:
-        - TARGETS=alpha-softmmu,arm-softmmu,aarch64-softmmu,cris-softmmu,i386-softmmu,x86_64-softmmu,m68k-softmmu,microblaze-softmmu,microblazeel-softmmu,mips-softmmu,mips64-softmmu,mips64el-softmmu,mipsel-softmmu,or32-softmmu,ppc-softmmu,ppc64-softmmu,ppcemb-softmmu,s390x-softmmu,sh4-softmmu,sh4eb-softmmu,sparc-softmmu,sparc64-softmmu,unicore32-softmmu,unicore32-linux-user,lm32-softmmu,moxie-softmmu,tricore-softmmu,xtensa-softmmu,xtensaeb-softmmu
+        - TARGETS=alpha-softmmu,arm-softmmu,aarch64-softmmu,cris-softmmu,i386-softmmu,x86_64-softmmu,m68k-softmmu,microblaze-softmmu,microblazeel-softmmu,mips-softmmu,mips64-softmmu,mips64el-softmmu,mipsel-softmmu,or32-softmmu,ppc-softmmu,ppc64-softmmu,ppcemb-softmmu,s390x-softmmu,sh4-softmmu,sh4eb-softmmu,sparc-softmmu,sparc64-softmmu,unicore32-softmmu,lm32-softmmu,moxie-softmmu,tricore-softmmu,xtensa-softmmu,xtensaeb-softmmu
           TEST_CMD="make check"
       compiler: gcc
     # Debug related options
@@ -64,16 +85,16 @@ matrix:
     - env: TARGETS=i386-softmmu,x86_64-softmmu
            EXTRA_CONFIG="--enable-debug --enable-tcg-interpreter"
       compiler: gcc
-    # All the extra -dev packages
+    # Disable a few of the optional features
     - env: TARGETS=i386-softmmu,x86_64-softmmu
-           EXTRA_PKGS="libaio-dev libcap-ng-dev libattr1-dev libbrlapi-dev uuid-dev libusb-1.0.0-dev"
+           EXTRA_CONFIG="--disable-linux-aio --disable-cap-ng --disable-attr --disable-brlapi --disable-uuid --disable-libusb"
       compiler: gcc
     # Currently configure doesn't force --disable-pie
     - env: TARGETS=i386-softmmu,x86_64-softmmu
            EXTRA_CONFIG="--enable-gprof --enable-gcov --disable-pie"
       compiler: gcc
+    # Sparse
     - env: TARGETS=i386-softmmu,x86_64-softmmu
-           EXTRA_PKGS="sparse"
            EXTRA_CONFIG="--enable-sparse"
       compiler: gcc
     # All the trace backends (apart from dtrace)
@@ -87,7 +108,6 @@ matrix:
            EXTRA_CONFIG="--enable-trace-backends=ftrace"
       compiler: gcc
     - env: TARGETS=i386-softmmu,x86_64-softmmu
-          EXTRA_PKGS="liblttng-ust-dev liburcu-dev"
           EXTRA_CONFIG="--enable-trace-backends=ust"
       compiler: gcc
     - env: TARGETS=i386-softmmu,x86_64-softmmu
