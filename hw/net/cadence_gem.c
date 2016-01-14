@@ -867,6 +867,14 @@ static void gem_transmit(CadenceGEMState *s)
             break;
         }
 
+        if (tx_desc_get_length(desc) > sizeof(tx_packet) - (p - tx_packet)) {
+            DB_PRINT("TX descriptor @ 0x%x too large: size 0x%x space 0x%x\n",
+                     (unsigned)packet_desc_addr,
+                     (unsigned)tx_desc_get_length(desc),
+                     sizeof(tx_packet) - (p - tx_packet));
+            break;
+        }
+
         /* Gather this fragment of the packet from "dma memory" to our contig.
          * buffer.
          */
