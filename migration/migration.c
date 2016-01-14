@@ -111,6 +111,7 @@ MigrationIncomingState *migration_incoming_state_new(QEMUFile* f)
 {
     mis_current = g_new0(MigrationIncomingState, 1);
     mis_current->from_src_file = f;
+    mis_current->state = MIGRATION_STATUS_NONE;
     QLIST_INIT(&mis_current->loadvm_handlers);
     qemu_mutex_init(&mis_current->rp_mutex);
     qemu_event_init(&mis_current->main_thread_load_event, false);
@@ -331,8 +332,8 @@ static void process_incoming_migration_co(void *opaque)
 
     mis = migration_incoming_state_new(f);
     postcopy_state_set(POSTCOPY_INCOMING_NONE);
-    migrate_generate_event(MIGRATION_STATUS_ACTIVE);
-
+    migrate_set_state(&mis->state, MIGRATION_STATUS_NONE,
+                      MIGRATION_STATUS_ACTIVE);
     ret = qemu_loadvm_state(f);
 
     ps = postcopy_state_get();
@@ -358,10 +359,10 @@ static void process_incoming_migration_co(void *opaque)
 
     qemu_fclose(f);
     free_xbzrle_decoded_buf();
-    migration_incoming_state_destroy();
 
     if (ret < 0) {
-        migrate_generate_event(MIGRATION_STATUS_FAILED);
+        migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
+                          MIGRATION_STATUS_FAILED);
         error_report("load of migration failed: %s", strerror(-ret));
         migrate_decompress_threads_join();
         exit(EXIT_FAILURE);
@@ -370,7 +371,8 @@ static void process_incoming_migration_co(void *opaque)
     /* Make sure all file formats flush their mutable metadata */
     bdrv_invalidate_cache_all(&local_err);
     if (local_err) {
-        migrate_generate_event(MIGRATION_STATUS_FAILED);
+        migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
+                          MIGRATION_STATUS_FAILED);
         error_report_err(local_err);
         migrate_decompress_threads_join();
         exit(EXIT_FAILURE);
@@ -402,7 +404,9 @@ static void process_incoming_migration_co(void *opaque)
      * observer sees this event they might start to prod at the VM assuming
      * it's ready to use.
      */
-    migrate_generate_event(MIGRATION_STATUS_COMPLETED);
+    migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
+                      MIGRATION_STATUS_COMPLETED);
+    migration_incoming_state_destroy();
 }
 
 void process_incoming_migration(QEMUFile *f)
@@ -787,9 +791,9 @@ void qmp_migrate_start_postcopy(Error **errp)
 
 /* shared migration helpers */
 
-static void migrate_set_state(MigrationState *s, int old_state, int new_state)
+void migrate_set_state(int *state, int old_state, int new_state)
 {
-    if (atomic_cmpxchg(&s->state, old_state, new_state) == old_state) {
+    if (atomic_cmpxchg(state, old_state, new_state) == old_state) {
         trace_migrate_set_state(new_state);
         migrate_generate_event(new_state);
     }
@@ -822,7 +826,7 @@ static void migrate_fd_cleanup(void *opaque)
            (s->state != MIGRATION_STATUS_POSTCOPY_ACTIVE));
 
     if (s->state == MIGRATION_STATUS_CANCELLING) {
-        migrate_set_state(s, MIGRATION_STATUS_CANCELLING,
+        migrate_set_state(&s->state, MIGRATION_STATUS_CANCELLING,
                           MIGRATION_STATUS_CANCELLED);
     }
 
@@ -833,7 +837,8 @@ void migrate_fd_error(MigrationState *s)
 {
     trace_migrate_fd_error();
     assert(s->file == NULL);
-    migrate_set_state(s, MIGRATION_STATUS_SETUP, MIGRATION_STATUS_FAILED);
+    migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
+                      MIGRATION_STATUS_FAILED);
     notifier_list_notify(&migration_state_notifiers, s);
 }
 
@@ -853,7 +858,7 @@ static void migrate_fd_cancel(MigrationState *s)
         if (!migration_is_setup_or_active(old_state)) {
             break;
         }
-        migrate_set_state(s, old_state, MIGRATION_STATUS_CANCELLING);
+        migrate_set_state(&s->state, old_state, MIGRATION_STATUS_CANCELLING);
     } while (s->state != MIGRATION_STATUS_CANCELLING);
 
     /*
@@ -927,7 +932,7 @@ MigrationState *migrate_init(const MigrationParams *params)
     s->migration_thread_running = false;
     s->last_req_rb = NULL;
 
-    migrate_set_state(s, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
+    migrate_set_state(&s->state, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
 
     QSIMPLEQ_INIT(&s->src_page_requests);
 
@@ -1026,7 +1031,8 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     } else {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "uri",
                    "a valid migration protocol");
-        migrate_set_state(s, MIGRATION_STATUS_SETUP, MIGRATION_STATUS_FAILED);
+        migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
+                          MIGRATION_STATUS_FAILED);
         return;
     }
 
@@ -1405,7 +1411,7 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
     int ret;
     const QEMUSizedBuffer *qsb;
     int64_t time_at_stop = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
-    migrate_set_state(ms, MIGRATION_STATUS_ACTIVE,
+    migrate_set_state(&ms->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_POSTCOPY_ACTIVE);
 
     trace_postcopy_start();
@@ -1496,7 +1502,7 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
     ret = qemu_file_get_error(ms->file);
     if (ret) {
         error_report("postcopy_start: Migration stream errored");
-        migrate_set_state(ms, MIGRATION_STATUS_POSTCOPY_ACTIVE,
+        migrate_set_state(&ms->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
                               MIGRATION_STATUS_FAILED);
     }
 
@@ -1505,7 +1511,7 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
 fail_closefb:
     qemu_fclose(fb);
 fail:
-    migrate_set_state(ms, MIGRATION_STATUS_POSTCOPY_ACTIVE,
+    migrate_set_state(&ms->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
                           MIGRATION_STATUS_FAILED);
     qemu_mutex_unlock_iothread();
     return -1;
@@ -1574,11 +1580,13 @@ static void migration_completion(MigrationState *s, int current_active_state,
         goto fail;
     }
 
-    migrate_set_state(s, current_active_state, MIGRATION_STATUS_COMPLETED);
+    migrate_set_state(&s->state, current_active_state,
+                      MIGRATION_STATUS_COMPLETED);
     return;
 
 fail:
-    migrate_set_state(s, current_active_state, MIGRATION_STATUS_FAILED);
+    migrate_set_state(&s->state, current_active_state,
+                      MIGRATION_STATUS_FAILED);
 }
 
 /*
@@ -1623,7 +1631,8 @@ static void *migration_thread(void *opaque)
 
     s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
     current_active_state = MIGRATION_STATUS_ACTIVE;
-    migrate_set_state(s, MIGRATION_STATUS_SETUP, MIGRATION_STATUS_ACTIVE);
+    migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
+                      MIGRATION_STATUS_ACTIVE);
 
     trace_migration_thread_setup_complete();
 
@@ -1666,7 +1675,8 @@ static void *migration_thread(void *opaque)
         }
 
         if (qemu_file_get_error(s->file)) {
-            migrate_set_state(s, current_active_state, MIGRATION_STATUS_FAILED);
+            migrate_set_state(&s->state, current_active_state,
+                              MIGRATION_STATUS_FAILED);
             trace_migration_thread_file_err();
             break;
         }
@@ -1747,7 +1757,7 @@ void migrate_fd_connect(MigrationState *s)
     if (migrate_postcopy_ram()) {
         if (open_return_path_on_source(s)) {
             error_report("Unable to open return-path for postcopy");
-            migrate_set_state(s, MIGRATION_STATUS_SETUP,
+            migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
                               MIGRATION_STATUS_FAILED);
             migrate_fd_cleanup(s);
             return;

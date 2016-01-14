@@ -1399,6 +1399,8 @@ static void *postcopy_ram_listen_thread(void *opaque)
     MigrationIncomingState *mis = migration_incoming_get_current();
     int load_res;
 
+    migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
+                                   MIGRATION_STATUS_POSTCOPY_ACTIVE);
     qemu_sem_post(&mis->listen_thread_sem);
     trace_postcopy_ram_listen_thread_start();
 
@@ -1415,6 +1417,8 @@ static void *postcopy_ram_listen_thread(void *opaque)
     if (load_res < 0) {
         error_report("%s: loadvm failed: %d", __func__, load_res);
         qemu_file_set_error(f, load_res);
+        migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
+                                       MIGRATION_STATUS_FAILED);
     } else {
         /*
          * This looks good, but it's possible that the device loading in the
@@ -1424,13 +1428,6 @@ static void *postcopy_ram_listen_thread(void *opaque)
         qemu_event_wait(&mis->main_thread_load_event);
     }
     postcopy_ram_incoming_cleanup(mis);
-    /*
-     * If everything has worked fine, then the main thread has waited
-     * for us to start, and we're the last use of the mis.
-     * (If something broke then qemu will have to exit anyway since it's
-     * got a bad migration state).
-     */
-    migration_incoming_state_destroy();
 
     if (load_res < 0) {
         /*
@@ -1441,6 +1438,17 @@ static void *postcopy_ram_listen_thread(void *opaque)
          */
         exit(EXIT_FAILURE);
     }
+
+    migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
+                                   MIGRATION_STATUS_COMPLETED);
+    /*
+     * If everything has worked fine, then the main thread has waited
+     * for us to start, and we're the last use of the mis.
+     * (If something broke then qemu will have to exit anyway since it's
+     * got a bad migration state).
+     */
+    migration_incoming_state_destroy();
+
 
     return NULL;
 }
