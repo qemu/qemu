@@ -113,6 +113,7 @@
 
 /* The shift of source_id in the key of IOTLB hash table */
 #define VTD_IOTLB_SID_SHIFT         36
+#define VTD_IOTLB_LVL_SHIFT         44
 #define VTD_IOTLB_MAX_SIZE          1024    /* Max size of the hash table */
 
 /* IOTLB_REG */
@@ -185,9 +186,10 @@
 #define VTD_CAP_ND                  (((VTD_DOMAIN_ID_SHIFT - 4) / 2) & 7ULL)
 #define VTD_MGAW                    39  /* Maximum Guest Address Width */
 #define VTD_CAP_MGAW                (((VTD_MGAW - 1) & 0x3fULL) << 16)
-#define VTD_MAMV                    9ULL
+#define VTD_MAMV                    18ULL
 #define VTD_CAP_MAMV                (VTD_MAMV << 48)
 #define VTD_CAP_PSI                 (1ULL << 39)
+#define VTD_CAP_SLLPS               ((1ULL << 34) | (1ULL << 35))
 
 /* Supported Adjusted Guest Address Widths */
 #define VTD_CAP_SAGAW_SHIFT         8
@@ -320,7 +322,7 @@ typedef struct VTDInvDesc VTDInvDesc;
 /* Information about page-selective IOTLB invalidate */
 struct VTDIOTLBPageInvInfo {
     uint16_t domain_id;
-    uint64_t gfn;
+    uint64_t addr;
     uint8_t mask;
 };
 typedef struct VTDIOTLBPageInvInfo VTDIOTLBPageInvInfo;
