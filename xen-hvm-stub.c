@@ -30,7 +30,8 @@ void xen_hvm_inject_msi(uint64_t addr, uint32_t data)
 {
 }
 
-void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr)
+void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr,
+                   Error **errp)
 {
 }
 

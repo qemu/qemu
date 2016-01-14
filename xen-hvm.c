@@ -239,9 +239,9 @@ static void xen_ram_init(PCMachineState *pcms,
     }
 }
 
-void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr)
+void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr,
+                   Error **errp)
 {
-    /* FIXME caller ram_block_add() wants error_setg() on failure */
     unsigned long nr_pfn;
     xen_pfn_t *pfn_list;
     int i;
@@ -268,7 +268,8 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr)
     }
 
     if (xc_domain_populate_physmap_exact(xen_xc, xen_domid, nr_pfn, 0, 0, pfn_list)) {
-        hw_error("xen: failed to populate ram at " RAM_ADDR_FMT, ram_addr);
+        error_setg(errp, "xen: failed to populate ram at " RAM_ADDR_FMT,
+                   ram_addr);
     }
 
     g_free(pfn_list);
