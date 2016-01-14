@@ -161,7 +161,7 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         pte_index &= ~7ULL;
         token = ppc_hash64_start_access(cpu, pte_index);
         for (; index < 8; index++) {
-            if ((ppc_hash64_load_hpte0(env, token, index) & HPTE64_V_VALID) == 0) {
+            if (!(ppc_hash64_load_hpte0(cpu, token, index) & HPTE64_V_VALID)) {
                 break;
             }
         }
@@ -171,14 +171,14 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         }
     } else {
         token = ppc_hash64_start_access(cpu, pte_index);
-        if (ppc_hash64_load_hpte0(env, token, 0) & HPTE64_V_VALID) {
+        if (ppc_hash64_load_hpte0(cpu, token, 0) & HPTE64_V_VALID) {
             ppc_hash64_stop_access(token);
             return H_PTEG_FULL;
         }
         ppc_hash64_stop_access(token);
     }
 
-    ppc_hash64_store_hpte(env, pte_index + index,
+    ppc_hash64_store_hpte(cpu, pte_index + index,
                           pteh | HPTE64_V_HPTE_DIRTY, ptel);
 
     args[0] = pte_index + index;
@@ -192,11 +192,12 @@ typedef enum {
     REMOVE_HW = 3,
 } RemoveResult;
 
-static RemoveResult remove_hpte(CPUPPCState *env, target_ulong ptex,
+static RemoveResult remove_hpte(PowerPCCPU *cpu, target_ulong ptex,
                                 target_ulong avpn,
                                 target_ulong flags,
                                 target_ulong *vp, target_ulong *rp)
 {
+    CPUPPCState *env = &cpu->env;
     uint64_t token;
     target_ulong v, r, rb;
 
@@ -204,9 +205,9 @@ static RemoveResult remove_hpte(CPUPPCState *env, target_ulong ptex,
         return REMOVE_PARM;
     }
 
-    token = ppc_hash64_start_access(ppc_env_get_cpu(env), ptex);
-    v = ppc_hash64_load_hpte0(env, token, 0);
-    r = ppc_hash64_load_hpte1(env, token, 0);
+    token = ppc_hash64_start_access(cpu, ptex);
+    v = ppc_hash64_load_hpte0(cpu, token, 0);
+    r = ppc_hash64_load_hpte1(cpu, token, 0);
     ppc_hash64_stop_access(token);
 
     if ((v & HPTE64_V_VALID) == 0 ||
@@ -216,7 +217,7 @@ static RemoveResult remove_hpte(CPUPPCState *env, target_ulong ptex,
     }
     *vp = v;
     *rp = r;
-    ppc_hash64_store_hpte(env, ptex, HPTE64_V_HPTE_DIRTY, 0);
+    ppc_hash64_store_hpte(cpu, ptex, HPTE64_V_HPTE_DIRTY, 0);
     rb = compute_tlbie_rb(v, r, ptex);
     ppc_tlb_invalidate_one(env, rb);
     return REMOVE_SUCCESS;
@@ -225,13 +226,12 @@ static RemoveResult remove_hpte(CPUPPCState *env, target_ulong ptex,
 static target_ulong h_remove(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                              target_ulong opcode, target_ulong *args)
 {
-    CPUPPCState *env = &cpu->env;
     target_ulong flags = args[0];
     target_ulong pte_index = args[1];
     target_ulong avpn = args[2];
     RemoveResult ret;
 
-    ret = remove_hpte(env, pte_index, avpn, flags,
+    ret = remove_hpte(cpu, pte_index, avpn, flags,
                       &args[0], &args[1]);
 
     switch (ret) {
@@ -272,7 +272,6 @@ static target_ulong h_remove(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 static target_ulong h_bulk_remove(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                   target_ulong opcode, target_ulong *args)
 {
-    CPUPPCState *env = &cpu->env;
     int i;
 
     for (i = 0; i < H_BULK_REMOVE_MAX_BATCH; i++) {
@@ -294,7 +293,7 @@ static target_ulong h_bulk_remove(PowerPCCPU *cpu, sPAPRMachineState *spapr,
             return H_PARAMETER;
         }
 
-        ret = remove_hpte(env, *tsh & H_BULK_REMOVE_PTEX, tsl,
+        ret = remove_hpte(cpu, *tsh & H_BULK_REMOVE_PTEX, tsl,
                           (*tsh & H_BULK_REMOVE_FLAGS) >> 26,
                           &v, &r);
 
@@ -331,8 +330,8 @@ static target_ulong h_protect(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     }
 
     token = ppc_hash64_start_access(cpu, pte_index);
-    v = ppc_hash64_load_hpte0(env, token, 0);
-    r = ppc_hash64_load_hpte1(env, token, 0);
+    v = ppc_hash64_load_hpte0(cpu, token, 0);
+    r = ppc_hash64_load_hpte1(cpu, token, 0);
     ppc_hash64_stop_access(token);
 
     if ((v & HPTE64_V_VALID) == 0 ||
@@ -346,11 +345,11 @@ static target_ulong h_protect(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     r |= (flags << 48) & HPTE64_R_KEY_HI;
     r |= flags & (HPTE64_R_PP | HPTE64_R_N | HPTE64_R_KEY_LO);
     rb = compute_tlbie_rb(v, r, pte_index);
-    ppc_hash64_store_hpte(env, pte_index,
+    ppc_hash64_store_hpte(cpu, pte_index,
                           (v & ~HPTE64_V_VALID) | HPTE64_V_HPTE_DIRTY, 0);
     ppc_tlb_invalidate_one(env, rb);
     /* Don't need a memory barrier, due to qemu's global lock */
-    ppc_hash64_store_hpte(env, pte_index, v | HPTE64_V_HPTE_DIRTY, r);
+    ppc_hash64_store_hpte(cpu, pte_index, v | HPTE64_V_HPTE_DIRTY, r);
     return H_SUCCESS;
 }
 

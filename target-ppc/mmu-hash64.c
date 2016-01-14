@@ -41,8 +41,9 @@ bool kvmppc_kern_htab;
  * SLB handling
  */
 
-static ppc_slb_t *slb_lookup(CPUPPCState *env, target_ulong eaddr)
+static ppc_slb_t *slb_lookup(PowerPCCPU *cpu, target_ulong eaddr)
 {
+    CPUPPCState *env = &cpu->env;
     uint64_t esid_256M, esid_1T;
     int n;
 
@@ -70,12 +71,13 @@ static ppc_slb_t *slb_lookup(CPUPPCState *env, target_ulong eaddr)
     return NULL;
 }
 
-void dump_slb(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
+void dump_slb(FILE *f, fprintf_function cpu_fprintf, PowerPCCPU *cpu)
 {
+    CPUPPCState *env = &cpu->env;
     int i;
     uint64_t slbe, slbv;
 
-    cpu_synchronize_state(CPU(ppc_env_get_cpu(env)));
+    cpu_synchronize_state(CPU(cpu));
 
     cpu_fprintf(f, "SLB\tESID\t\t\tVSID\n");
     for (i = 0; i < env->slb_nr; i++) {
@@ -118,7 +120,7 @@ void helper_slbie(CPUPPCState *env, target_ulong addr)
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppc_slb_t *slb;
 
-    slb = slb_lookup(env, addr);
+    slb = slb_lookup(cpu, addr);
     if (!slb) {
         return;
     }
@@ -134,8 +136,9 @@ void helper_slbie(CPUPPCState *env, target_ulong addr)
     }
 }
 
-int ppc_store_slb(CPUPPCState *env, target_ulong rb, target_ulong rs)
+int ppc_store_slb(PowerPCCPU *cpu, target_ulong rb, target_ulong rs)
 {
+    CPUPPCState *env = &cpu->env;
     int slot = rb & 0xfff;
     ppc_slb_t *slb = &env->slb[slot];
 
@@ -160,9 +163,10 @@ int ppc_store_slb(CPUPPCState *env, target_ulong rb, target_ulong rs)
     return 0;
 }
 
-static int ppc_load_slb_esid(CPUPPCState *env, target_ulong rb,
+static int ppc_load_slb_esid(PowerPCCPU *cpu, target_ulong rb,
                              target_ulong *rt)
 {
+    CPUPPCState *env = &cpu->env;
     int slot = rb & 0xfff;
     ppc_slb_t *slb = &env->slb[slot];
 
@@ -174,9 +178,10 @@ static int ppc_load_slb_esid(CPUPPCState *env, target_ulong rb,
     return 0;
 }
 
-static int ppc_load_slb_vsid(CPUPPCState *env, target_ulong rb,
+static int ppc_load_slb_vsid(PowerPCCPU *cpu, target_ulong rb,
                              target_ulong *rt)
 {
+    CPUPPCState *env = &cpu->env;
     int slot = rb & 0xfff;
     ppc_slb_t *slb = &env->slb[slot];
 
@@ -190,7 +195,9 @@ static int ppc_load_slb_vsid(CPUPPCState *env, target_ulong rb,
 
 void helper_store_slb(CPUPPCState *env, target_ulong rb, target_ulong rs)
 {
-    if (ppc_store_slb(env, rb, rs) < 0) {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
+    if (ppc_store_slb(cpu, rb, rs) < 0) {
         helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL);
     }
@@ -198,9 +205,10 @@ void helper_store_slb(CPUPPCState *env, target_ulong rb, target_ulong rs)
 
 target_ulong helper_load_slb_esid(CPUPPCState *env, target_ulong rb)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     target_ulong rt = 0;
 
-    if (ppc_load_slb_esid(env, rb, &rt) < 0) {
+    if (ppc_load_slb_esid(cpu, rb, &rt) < 0) {
         helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL);
     }
@@ -209,9 +217,10 @@ target_ulong helper_load_slb_esid(CPUPPCState *env, target_ulong rb)
 
 target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     target_ulong rt = 0;
 
-    if (ppc_load_slb_vsid(env, rb, &rt) < 0) {
+    if (ppc_load_slb_vsid(cpu, rb, &rt) < 0) {
         helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL);
     }
@@ -222,9 +231,10 @@ target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
  * 64-bit hash table MMU handling
  */
 
-static int ppc_hash64_pte_prot(CPUPPCState *env,
+static int ppc_hash64_pte_prot(PowerPCCPU *cpu,
                                ppc_slb_t *slb, ppc_hash_pte64_t pte)
 {
+    CPUPPCState *env = &cpu->env;
     unsigned pp, key;
     /* Some pp bit combinations have undefined behaviour, so default
      * to no access in those cases */
@@ -274,11 +284,11 @@ static int ppc_hash64_pte_prot(CPUPPCState *env,
     return prot;
 }
 
-static int ppc_hash64_amr_prot(CPUPPCState *env, ppc_hash_pte64_t pte)
+static int ppc_hash64_amr_prot(PowerPCCPU *cpu, ppc_hash_pte64_t pte)
 {
+    CPUPPCState *env = &cpu->env;
     int key, amrbits;
     int prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-
 
     /* Only recent MMUs implement Virtual Page Class Key Protection */
     if (!(env->mmu_model & POWERPC_MMU_AMR)) {
@@ -348,23 +358,24 @@ void ppc_hash64_stop_access(uint64_t token)
     }
 }
 
-static hwaddr ppc_hash64_pteg_search(CPUPPCState *env, hwaddr hash,
+static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
                                      bool secondary, target_ulong ptem,
                                      ppc_hash_pte64_t *pte)
 {
+    CPUPPCState *env = &cpu->env;
     int i;
     uint64_t token;
     target_ulong pte0, pte1;
     target_ulong pte_index;
 
     pte_index = (hash & env->htab_mask) * HPTES_PER_GROUP;
-    token = ppc_hash64_start_access(ppc_env_get_cpu(env), pte_index);
+    token = ppc_hash64_start_access(cpu, pte_index);
     if (!token) {
         return -1;
     }
     for (i = 0; i < HPTES_PER_GROUP; i++) {
-        pte0 = ppc_hash64_load_hpte0(env, token, i);
-        pte1 = ppc_hash64_load_hpte1(env, token, i);
+        pte0 = ppc_hash64_load_hpte0(cpu, token, i);
+        pte1 = ppc_hash64_load_hpte1(cpu, token, i);
 
         if ((pte0 & HPTE64_V_VALID)
             && (secondary == !!(pte0 & HPTE64_V_SECONDARY))
@@ -400,10 +411,11 @@ static uint64_t ppc_hash64_page_shift(ppc_slb_t *slb)
     return epnshift;
 }
 
-static hwaddr ppc_hash64_htab_lookup(CPUPPCState *env,
+static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
                                      ppc_slb_t *slb, target_ulong eaddr,
                                      ppc_hash_pte64_t *pte)
 {
+    CPUPPCState *env = &cpu->env;
     hwaddr pte_offset;
     hwaddr hash;
     uint64_t vsid, epnshift, epnmask, epn, ptem;
@@ -436,7 +448,7 @@ static hwaddr ppc_hash64_htab_lookup(CPUPPCState *env,
             " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
             " hash=" TARGET_FMT_plx "\n",
             env->htab_base, env->htab_mask, vsid, ptem,  hash);
-    pte_offset = ppc_hash64_pteg_search(env, hash, 0, ptem, pte);
+    pte_offset = ppc_hash64_pteg_search(cpu, hash, 0, ptem, pte);
 
     if (pte_offset == -1) {
         /* Secondary PTEG lookup */
@@ -446,7 +458,7 @@ static hwaddr ppc_hash64_htab_lookup(CPUPPCState *env,
                 " hash=" TARGET_FMT_plx "\n", env->htab_base,
                 env->htab_mask, vsid, ptem, ~hash);
 
-        pte_offset = ppc_hash64_pteg_search(env, ~hash, 1, ptem, pte);
+        pte_offset = ppc_hash64_pteg_search(cpu, ~hash, 1, ptem, pte);
     }
 
     return pte_offset;
@@ -493,7 +505,7 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr,
     }
 
     /* 2. Translation is on, so look up the SLB */
-    slb = slb_lookup(env, eaddr);
+    slb = slb_lookup(cpu, eaddr);
 
     if (!slb) {
         if (rwx == 2) {
@@ -515,7 +527,7 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr,
     }
 
     /* 4. Locate the PTE in the hash table */
-    pte_offset = ppc_hash64_htab_lookup(env, slb, eaddr, &pte);
+    pte_offset = ppc_hash64_htab_lookup(cpu, slb, eaddr, &pte);
     if (pte_offset == -1) {
         if (rwx == 2) {
             cs->exception_index = POWERPC_EXCP_ISI;
@@ -537,8 +549,8 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr,
 
     /* 5. Check access permissions */
 
-    pp_prot = ppc_hash64_pte_prot(env, slb, pte);
-    amr_prot = ppc_hash64_amr_prot(env, pte);
+    pp_prot = ppc_hash64_pte_prot(cpu, slb, pte);
+    amr_prot = ppc_hash64_amr_prot(cpu, pte);
     prot = pp_prot & amr_prot;
 
     if ((need_prot[rwx] & ~prot) != 0) {
@@ -581,7 +593,7 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr,
     }
 
     if (new_pte1 != pte.pte1) {
-        ppc_hash64_store_hpte(env, pte_offset / HASH_PTE_SIZE_64,
+        ppc_hash64_store_hpte(cpu, pte_offset / HASH_PTE_SIZE_64,
                               pte.pte0, new_pte1);
     }
 
@@ -595,8 +607,9 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr,
     return 0;
 }
 
-hwaddr ppc_hash64_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
+hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
 {
+    CPUPPCState *env = &cpu->env;
     ppc_slb_t *slb;
     hwaddr pte_offset;
     ppc_hash_pte64_t pte;
@@ -606,12 +619,12 @@ hwaddr ppc_hash64_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
         return addr & 0x0FFFFFFFFFFFFFFFULL;
     }
 
-    slb = slb_lookup(env, addr);
+    slb = slb_lookup(cpu, addr);
     if (!slb) {
         return -1;
     }
 
-    pte_offset = ppc_hash64_htab_lookup(env, slb, addr, &pte);
+    pte_offset = ppc_hash64_htab_lookup(cpu, slb, addr, &pte);
     if (pte_offset == -1) {
         return -1;
     }
@@ -619,11 +632,11 @@ hwaddr ppc_hash64_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
     return ppc_hash64_pte_raddr(slb, pte, addr) & TARGET_PAGE_MASK;
 }
 
-void ppc_hash64_store_hpte(CPUPPCState *env,
+void ppc_hash64_store_hpte(PowerPCCPU *cpu,
                            target_ulong pte_index,
                            target_ulong pte0, target_ulong pte1)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUPPCState *env = &cpu->env;
 
     if (kvmppc_kern_htab) {
         kvmppc_hash64_write_pte(env, pte_index, pte0, pte1);
@@ -633,9 +646,10 @@ void ppc_hash64_store_hpte(CPUPPCState *env,
     pte_index *= HASH_PTE_SIZE_64;
     if (env->external_htab) {
         stq_p(env->external_htab + pte_index, pte0);
-        stq_p(env->external_htab + pte_index + HASH_PTE_SIZE_64/2, pte1);
+        stq_p(env->external_htab + pte_index + HASH_PTE_SIZE_64 / 2, pte1);
     } else {
-        stq_phys(cs->as, env->htab_base + pte_index, pte0);
-        stq_phys(cs->as, env->htab_base + pte_index + HASH_PTE_SIZE_64/2, pte1);
+        stq_phys(CPU(cpu)->as, env->htab_base + pte_index, pte0);
+        stq_phys(CPU(cpu)->as,
+                 env->htab_base + pte_index + HASH_PTE_SIZE_64 / 2, pte1);
     }
 }
