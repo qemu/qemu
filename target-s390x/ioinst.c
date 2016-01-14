@@ -616,7 +616,8 @@ static void ioinst_handle_chsc_sei(ChscReq *req, ChscResp *res)
             (*res_flags) &= ~0x80;
         }
     } else {
-        res->code = cpu_to_be16(0x0004);
+        res->code = cpu_to_be16(0x0005);
+        res->len = cpu_to_be16(CHSC_MIN_RESP_LEN);
     }
 }
 
