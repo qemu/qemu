@@ -228,10 +228,10 @@ static int con_initialise(struct XenDevice *xendev)
 	con->buffer.max_capacity = limit;
 
     if (!xendev->dev) {
-        con->sring = xc_map_foreign_range(xen_xc, con->xendev.dom,
-                                          XC_PAGE_SIZE,
-                                          PROT_READ|PROT_WRITE,
-                                          con->ring_ref);
+        xen_pfn_t mfn = con->ring_ref;
+        con->sring = xc_map_foreign_pages(xen_xc, con->xendev.dom,
+                                         PROT_READ|PROT_WRITE,
+                                         &mfn, 1);
     } else {
         con->sring = xengnttab_map_grant_ref(xendev->gnttabdev, con->xendev.dom,
                                              con->ring_ref,
