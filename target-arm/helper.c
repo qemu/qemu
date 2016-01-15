@@ -5996,11 +5996,15 @@ static inline bool regime_using_lpae_format(CPUARMState *env,
     return false;
 }
 
-/* Returns true if the translation regime is using LPAE format page tables.
- * Used when raising alignment exceptions, whose FSR changes depending on
- * whether the long or short descriptor format is in use. */
-bool arm_regime_using_lpae_format(CPUARMState *env, ARMMMUIdx mmu_idx)
+/* Returns true if the stage 1 translation regime is using LPAE format page
+ * tables. Used when raising alignment exceptions, whose FSR changes depending
+ * on whether the long or short descriptor format is in use. */
+bool arm_s1_regime_using_lpae_format(CPUARMState *env, ARMMMUIdx mmu_idx)
 {
+    if (mmu_idx == ARMMMUIdx_S12NSE0 || mmu_idx == ARMMMUIdx_S12NSE1) {
+        mmu_idx += ARMMMUIdx_S1NSE0;
+    }
+
     return regime_using_lpae_format(env, mmu_idx);
 }
 
