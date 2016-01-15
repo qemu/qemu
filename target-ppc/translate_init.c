@@ -8750,6 +8750,15 @@ static void dump_ppc_insns (CPUPPCState *env)
 }
 #endif
 
+static bool avr_need_swap(CPUPPCState *env)
+{
+#ifdef HOST_WORDS_BIGENDIAN
+    return false;
+#else
+    return true;
+#endif
+}
+
 static int gdb_get_float_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
@@ -8783,13 +8792,13 @@ static int gdb_set_float_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
 static int gdb_get_avr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
-#ifdef HOST_WORDS_BIGENDIAN
-        stq_p(mem_buf, env->avr[n].u64[0]);
-        stq_p(mem_buf+8, env->avr[n].u64[1]);
-#else
-        stq_p(mem_buf, env->avr[n].u64[1]);
-        stq_p(mem_buf+8, env->avr[n].u64[0]);
-#endif
+        if (!avr_need_swap(env)) {
+            stq_p(mem_buf, env->avr[n].u64[0]);
+            stq_p(mem_buf+8, env->avr[n].u64[1]);
+        } else {
+            stq_p(mem_buf, env->avr[n].u64[1]);
+            stq_p(mem_buf+8, env->avr[n].u64[0]);
+        }
         return 16;
     }
     if (n == 32) {
@@ -8806,13 +8815,13 @@ static int gdb_get_avr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
 static int gdb_set_avr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
-#ifdef HOST_WORDS_BIGENDIAN
-        env->avr[n].u64[0] = ldq_p(mem_buf);
-        env->avr[n].u64[1] = ldq_p(mem_buf+8);
-#else
-        env->avr[n].u64[1] = ldq_p(mem_buf);
-        env->avr[n].u64[0] = ldq_p(mem_buf+8);
-#endif
+        if (!avr_need_swap(env)) {
+            env->avr[n].u64[0] = ldq_p(mem_buf);
+            env->avr[n].u64[1] = ldq_p(mem_buf+8);
+        } else {
+            env->avr[n].u64[1] = ldq_p(mem_buf);
+            env->avr[n].u64[0] = ldq_p(mem_buf+8);
+        }
         return 16;
     }
     if (n == 32) {
