@@ -51,9 +51,9 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
     }
 
     if (fd_is_socket(fd)) {
-        s->file = qemu_fopen_socket(fd, "wb");
+        s->to_dst_file = qemu_fopen_socket(fd, "wb");
     } else {
-        s->file = qemu_fdopen(fd, "wb");
+        s->to_dst_file = qemu_fdopen(fd, "wb");
     }
 
     migrate_fd_connect(s);

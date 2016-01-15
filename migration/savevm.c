@@ -1163,7 +1163,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
         .shared = 0
     };
     MigrationState *ms = migrate_init(&params);
-    ms->file = f;
+    ms->to_dst_file = f;
 
     if (qemu_savevm_state_blocked(errp)) {
         return -EINVAL;
