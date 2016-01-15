@@ -48,6 +48,8 @@ unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
 #define SLB_VSID_LLP_MASK       (SLB_VSID_L | SLB_VSID_LP)
 #define SLB_VSID_4K             0x0000000000000000ULL
 #define SLB_VSID_64K            0x0000000000000110ULL
+#define SLB_VSID_16M            0x0000000000000100ULL
+#define SLB_VSID_16G            0x0000000000000120ULL
 
 /*
  * Hash page table definitions

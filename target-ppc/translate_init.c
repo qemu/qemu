@@ -8105,6 +8105,36 @@ static Property powerpc_servercpu_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+#ifdef CONFIG_SOFTMMU
+static const struct ppc_segment_page_sizes POWER7_POWER8_sps = {
+    .sps = {
+        {
+            .page_shift = 12, /* 4K */
+            .slb_enc = 0,
+            .enc = { { .page_shift = 12, .pte_enc = 0 },
+                     { .page_shift = 16, .pte_enc = 0x7 },
+                     { .page_shift = 24, .pte_enc = 0x38 }, },
+        },
+        {
+            .page_shift = 16, /* 64K */
+            .slb_enc = SLB_VSID_64K,
+            .enc = { { .page_shift = 16, .pte_enc = 0x1 },
+                     { .page_shift = 24, .pte_enc = 0x8 }, },
+        },
+        {
+            .page_shift = 24, /* 16M */
+            .slb_enc = SLB_VSID_16M,
+            .enc = { { .page_shift = 24, .pte_enc = 0 }, },
+        },
+        {
+            .page_shift = 34, /* 16G */
+            .slb_enc = SLB_VSID_16G,
+            .enc = { { .page_shift = 34, .pte_enc = 0x3 }, },
+        },
+    }
+};
+#endif /* CONFIG_SOFTMMU */
+
 static void init_proc_POWER7 (CPUPPCState *env)
 {
     init_proc_book3s_64(env, BOOK3S_CPU_POWER7);
@@ -8168,6 +8198,7 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
     pcc->mmu_model = POWERPC_MMU_2_06;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
+    pcc->sps = &POWER7_POWER8_sps;
 #endif
     pcc->excp_model = POWERPC_EXCP_POWER7;
     pcc->bus_model = PPC_FLAGS_INPUT_POWER7;
@@ -8248,6 +8279,7 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
     pcc->mmu_model = POWERPC_MMU_2_07;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
+    pcc->sps = &POWER7_POWER8_sps;
 #endif
     pcc->excp_model = POWERPC_EXCP_POWER7;
     pcc->bus_model = PPC_FLAGS_INPUT_POWER7;
