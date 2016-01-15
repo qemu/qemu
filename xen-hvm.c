@@ -110,7 +110,7 @@ typedef struct XenIOState {
     /* evtchn local port for buffered io */
     evtchn_port_t bufioreq_local_port;
     /* the evtchn fd for polling */
-    XenEvtchn xce_handle;
+    xenevtchn_handle *xce_handle;
     /* which vcpu we are serving */
     int send_vcpu;
 
@@ -717,7 +717,7 @@ static ioreq_t *cpu_get_ioreq(XenIOState *state)
     int i;
     evtchn_port_t port;
 
-    port = xc_evtchn_pending(state->xce_handle);
+    port = xenevtchn_pending(state->xce_handle);
     if (port == state->bufioreq_local_port) {
         timer_mod(state->buffered_io_timer,
                 BUFFER_IO_MAX_DELAY + qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
@@ -736,7 +736,7 @@ static ioreq_t *cpu_get_ioreq(XenIOState *state)
         }
 
         /* unmask the wanted port again */
-        xc_evtchn_unmask(state->xce_handle, port);
+        xenevtchn_unmask(state->xce_handle, port);
 
         /* get the io packet from shared memory */
         state->send_vcpu = i;
@@ -1043,7 +1043,7 @@ static void handle_buffered_io(void *opaque)
                 BUFFER_IO_MAX_DELAY + qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
     } else {
         timer_del(state->buffered_io_timer);
-        xc_evtchn_unmask(state->xce_handle, state->bufioreq_local_port);
+        xenevtchn_unmask(state->xce_handle, state->bufioreq_local_port);
     }
 }
 
@@ -1087,7 +1087,8 @@ static void cpu_handle_ioreq(void *opaque)
         }
 
         req->state = STATE_IORESP_READY;
-        xc_evtchn_notify(state->xce_handle, state->ioreq_local_port[state->send_vcpu]);
+        xenevtchn_notify(state->xce_handle,
+                         state->ioreq_local_port[state->send_vcpu]);
     }
 }
 
@@ -1095,8 +1096,8 @@ static void xen_main_loop_prepare(XenIOState *state)
 {
     int evtchn_fd = -1;
 
-    if (state->xce_handle != XC_HANDLER_INITIAL_VALUE) {
-        evtchn_fd = xc_evtchn_fd(state->xce_handle);
+    if (state->xce_handle != NULL) {
+        evtchn_fd = xenevtchn_fd(state->xce_handle);
     }
 
     state->buffered_io_timer = timer_new_ms(QEMU_CLOCK_REALTIME, handle_buffered_io,
@@ -1134,7 +1135,7 @@ static void xen_exit_notifier(Notifier *n, void *data)
 {
     XenIOState *state = container_of(n, XenIOState, exit);
 
-    xc_evtchn_close(state->xce_handle);
+    xenevtchn_close(state->xce_handle);
     xs_daemon_close(state->xenstore);
 }
 
@@ -1201,8 +1202,8 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
 
     state = g_malloc0(sizeof (XenIOState));
 
-    state->xce_handle = xen_xc_evtchn_open(NULL, 0);
-    if (state->xce_handle == XC_HANDLER_INITIAL_VALUE) {
+    state->xce_handle = xenevtchn_open(NULL, 0);
+    if (state->xce_handle == NULL) {
         perror("xen: event channel open");
         goto err;
     }
@@ -1289,7 +1290,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
 
     /* FIXME: how about if we overflow the page here? */
     for (i = 0; i < max_cpus; i++) {
-        rc = xc_evtchn_bind_interdomain(state->xce_handle, xen_domid,
+        rc = xenevtchn_bind_interdomain(state->xce_handle, xen_domid,
                                         xen_vcpu_eport(state->shared_page, i));
         if (rc == -1) {
             error_report("shared evtchn %d bind error %d", i, errno);
@@ -1298,7 +1299,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
         state->ioreq_local_port[i] = rc;
     }
 
-    rc = xc_evtchn_bind_interdomain(state->xce_handle, xen_domid,
+    rc = xenevtchn_bind_interdomain(state->xce_handle, xen_domid,
                                     bufioreq_evtchn);
     if (rc == -1) {
         error_report("buffered evtchn bind error %d", errno);

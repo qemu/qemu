@@ -39,17 +39,38 @@ static inline void *xc_map_foreign_bulk(int xc_handle, uint32_t dom, int prot,
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 410
 
 typedef int XenXC;
-typedef int XenEvtchn;
+typedef int xenevtchn_handle;
 typedef int XenGnttab;
 
 #  define XC_INTERFACE_FMT "%i"
 #  define XC_HANDLER_INITIAL_VALUE    -1
 
-static inline XenEvtchn xen_xc_evtchn_open(void *logger,
-                                           unsigned int open_flags)
+static inline xenevtchn_handle *xenevtchn_open(void *logger,
+                                               unsigned int open_flags)
 {
-    return xc_evtchn_open();
+    xenevtchn_handle *h = malloc(sizeof(*h));
+    if (!h) {
+        return NULL;
+    }
+    *h = xc_evtchn_open();
+    if (*h == -1) {
+        free(h);
+        h = NULL;
+    }
+    return h;
 }
+static inline int xenevtchn_close(xenevtchn_handle *h)
+{
+    int rc = xc_evtchn_close(*h);
+    free(h);
+    return rc;
+}
+#define xenevtchn_fd(h) xc_evtchn_fd(*h)
+#define xenevtchn_pending(h) xc_evtchn_pending(*h)
+#define xenevtchn_notify(h, p) xc_evtchn_notify(*h, p)
+#define xenevtchn_bind_interdomain(h, d, p) xc_evtchn_bind_interdomain(*h, d, p)
+#define xenevtchn_unmask(h, p) xc_evtchn_unmask(*h, p)
+#define xenevtchn_unbind(h, p) xc_evtchn_unmask(*h, p)
 
 static inline XenGnttab xen_xc_gnttab_open(void *logger,
                                            unsigned int open_flags)
@@ -108,17 +129,20 @@ static inline void xs_close(struct xs_handle *xsh)
 #else
 
 typedef xc_interface *XenXC;
-typedef xc_evtchn *XenEvtchn;
+typedef xc_evtchn xenevtchn_handle;
 typedef xc_gnttab *XenGnttab;
 
 #  define XC_INTERFACE_FMT "%p"
 #  define XC_HANDLER_INITIAL_VALUE    NULL
 
-static inline XenEvtchn xen_xc_evtchn_open(void *logger,
-                                           unsigned int open_flags)
-{
-    return xc_evtchn_open(logger, open_flags);
-}
+#define xenevtchn_open(l, f) xc_evtchn_open(l, f);
+#define xenevtchn_close(h) xc_evtchn_close(h)
+#define xenevtchn_fd(h) xc_evtchn_fd(h)
+#define xenevtchn_pending(h) xc_evtchn_pending(h)
+#define xenevtchn_notify(h, p) xc_evtchn_notify(h, p)
+#define xenevtchn_bind_interdomain(h, d, p) xc_evtchn_bind_interdomain(h, d, p)
+#define xenevtchn_unmask(h, p) xc_evtchn_unmask(h, p)
+#define xenevtchn_unbind(h, p) xc_evtchn_unbind(h, p)
 
 static inline XenGnttab xen_xc_gnttab_open(void *logger,
                                            unsigned int open_flags)

@@ -243,19 +243,19 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
     xendev->debug      = debug;
     xendev->local_port = -1;
 
-    xendev->evtchndev = xen_xc_evtchn_open(NULL, 0);
-    if (xendev->evtchndev == XC_HANDLER_INITIAL_VALUE) {
+    xendev->evtchndev = xenevtchn_open(NULL, 0);
+    if (xendev->evtchndev == NULL) {
         xen_be_printf(NULL, 0, "can't open evtchn device\n");
         g_free(xendev);
         return NULL;
     }
-    fcntl(xc_evtchn_fd(xendev->evtchndev), F_SETFD, FD_CLOEXEC);
+    fcntl(xenevtchn_fd(xendev->evtchndev), F_SETFD, FD_CLOEXEC);
 
     if (ops->flags & DEVOPS_FLAG_NEED_GNTDEV) {
         xendev->gnttabdev = xen_xc_gnttab_open(NULL, 0);
         if (xendev->gnttabdev == XC_HANDLER_INITIAL_VALUE) {
             xen_be_printf(NULL, 0, "can't open gnttab device\n");
-            xc_evtchn_close(xendev->evtchndev);
+            xenevtchn_close(xendev->evtchndev);
             g_free(xendev);
             return NULL;
         }
@@ -306,8 +306,8 @@ static struct XenDevice *xen_be_del_xendev(int dom, int dev)
             g_free(xendev->fe);
         }
 
-        if (xendev->evtchndev != XC_HANDLER_INITIAL_VALUE) {
-            xc_evtchn_close(xendev->evtchndev);
+        if (xendev->evtchndev != NULL) {
+            xenevtchn_close(xendev->evtchndev);
         }
         if (xendev->gnttabdev != XC_HANDLER_INITIAL_VALUE) {
             xc_gnttab_close(xendev->gnttabdev);
@@ -691,13 +691,14 @@ static void xen_be_evtchn_event(void *opaque)
     struct XenDevice *xendev = opaque;
     evtchn_port_t port;
 
-    port = xc_evtchn_pending(xendev->evtchndev);
+    port = xenevtchn_pending(xendev->evtchndev);
     if (port != xendev->local_port) {
-        xen_be_printf(xendev, 0, "xc_evtchn_pending returned %d (expected %d)\n",
+        xen_be_printf(xendev, 0,
+                      "xenevtchn_pending returned %d (expected %d)\n",
                       port, xendev->local_port);
         return;
     }
-    xc_evtchn_unmask(xendev->evtchndev, port);
+    xenevtchn_unmask(xendev->evtchndev, port);
 
     if (xendev->ops->event) {
         xendev->ops->event(xendev);
@@ -740,14 +741,14 @@ int xen_be_bind_evtchn(struct XenDevice *xendev)
     if (xendev->local_port != -1) {
         return 0;
     }
-    xendev->local_port = xc_evtchn_bind_interdomain
+    xendev->local_port = xenevtchn_bind_interdomain
         (xendev->evtchndev, xendev->dom, xendev->remote_port);
     if (xendev->local_port == -1) {
-        xen_be_printf(xendev, 0, "xc_evtchn_bind_interdomain failed\n");
+        xen_be_printf(xendev, 0, "xenevtchn_bind_interdomain failed\n");
         return -1;
     }
     xen_be_printf(xendev, 2, "bind evtchn port %d\n", xendev->local_port);
-    qemu_set_fd_handler(xc_evtchn_fd(xendev->evtchndev),
+    qemu_set_fd_handler(xenevtchn_fd(xendev->evtchndev),
                         xen_be_evtchn_event, NULL, xendev);
     return 0;
 }
@@ -757,15 +758,15 @@ void xen_be_unbind_evtchn(struct XenDevice *xendev)
     if (xendev->local_port == -1) {
         return;
     }
-    qemu_set_fd_handler(xc_evtchn_fd(xendev->evtchndev), NULL, NULL, NULL);
-    xc_evtchn_unbind(xendev->evtchndev, xendev->local_port);
+    qemu_set_fd_handler(xenevtchn_fd(xendev->evtchndev), NULL, NULL, NULL);
+    xenevtchn_unbind(xendev->evtchndev, xendev->local_port);
     xen_be_printf(xendev, 2, "unbind evtchn port %d\n", xendev->local_port);
     xendev->local_port = -1;
 }
 
 int xen_be_send_notify(struct XenDevice *xendev)
 {
-    return xc_evtchn_notify(xendev->evtchndev, xendev->local_port);
+    return xenevtchn_notify(xendev->evtchndev, xendev->local_port);
 }
 
 /*
