@@ -61,11 +61,7 @@ static int xio3130_downstream_initfn(PCIDevice *d)
     PCIESlot *s = PCIE_SLOT(d);
     int rc;
 
-    rc = pci_bridge_initfn(d, TYPE_PCIE_BUS);
-    if (rc < 0) {
-        return rc;
-    }
-
+    pci_bridge_initfn(d, TYPE_PCIE_BUS);
     pcie_port_init_reg(d);
 
     rc = msi_init(d, XIO3130_MSI_OFFSET, XIO3130_MSI_NR_VECTOR,

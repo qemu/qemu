@@ -98,11 +98,7 @@ static int ioh3420_initfn(PCIDevice *d)
     PCIESlot *s = PCIE_SLOT(d);
     int rc;
 
-    rc = pci_bridge_initfn(d, TYPE_PCIE_BUS);
-    if (rc < 0) {
-        return rc;
-    }
-
+    pci_bridge_initfn(d, TYPE_PCIE_BUS);
     pcie_port_init_reg(d);
 
     rc = pci_bridge_ssvid_init(d, IOH_EP_SSVID_OFFSET,
