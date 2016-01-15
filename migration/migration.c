@@ -77,6 +77,7 @@
  * Note: Please change this default value to 10000 when we support hybrid mode.
  */
 #define DEFAULT_MIGRATE_X_CHECKPOINT_DELAY 200
+#define DEFAULT_MIGRATE_MULTIFD_CHANNELS 2
 
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
@@ -481,6 +482,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->x_checkpoint_delay = s->parameters.x_checkpoint_delay;
     params->has_block_incremental = true;
     params->block_incremental = s->parameters.block_incremental;
+    params->has_x_multifd_channels = true;
+    params->x_multifd_channels = s->parameters.x_multifd_channels;
 
     return params;
 }
@@ -762,6 +765,13 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
                     "is invalid, it should be positive");
         return false;
     }
+    if (params->has_x_multifd_channels &&
+        (params->x_multifd_channels < 1 || params->x_multifd_channels > 255)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "multifd_channels",
+                   "is invalid, it should be in the range of 1 to 255");
+        return false;
+    }
 
     return true;
 }
@@ -879,6 +889,9 @@ static void migrate_params_apply(MigrateSetParameters *params)
 
     if (params->has_block_incremental) {
         s->parameters.block_incremental = params->block_incremental;
+    }
+    if (params->has_x_multifd_channels) {
+        s->parameters.x_multifd_channels = params->x_multifd_channels;
     }
 }
 
@@ -1456,6 +1469,15 @@ bool migrate_use_multifd(void)
     s = migrate_get_current();
 
     return s->enabled_capabilities[MIGRATION_CAPABILITY_X_MULTIFD];
+}
+
+int migrate_multifd_channels(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.x_multifd_channels;
 }
 
 int migrate_use_xbzrle(void)
@@ -2223,6 +2245,9 @@ static Property migration_properties[] = {
     DEFINE_PROP_INT64("x-checkpoint-delay", MigrationState,
                       parameters.x_checkpoint_delay,
                       DEFAULT_MIGRATE_X_CHECKPOINT_DELAY),
+    DEFINE_PROP_INT64("x-multifd-channels", MigrationState,
+                      parameters.x_multifd_channels,
+                      DEFAULT_MIGRATE_MULTIFD_CHANNELS),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
@@ -2280,6 +2305,7 @@ static void migration_instance_init(Object *obj)
     params->has_downtime_limit = true;
     params->has_x_checkpoint_delay = true;
     params->has_block_incremental = true;
+    params->has_x_multifd_channels = true;
 }
 
 /*

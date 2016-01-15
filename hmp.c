@@ -336,6 +336,9 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %s\n",
             MigrationParameter_str(MIGRATION_PARAMETER_BLOCK_INCREMENTAL),
             params->block_incremental ? "on" : "off");
+        monitor_printf(mon, "%s: %" PRId64 "\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_X_MULTIFD_CHANNELS),
+            params->x_multifd_channels);
     }
 
     qapi_free_MigrationParameters(params);
@@ -1620,6 +1623,10 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     case MIGRATION_PARAMETER_BLOCK_INCREMENTAL:
         p->has_block_incremental = true;
         visit_type_bool(v, param, &p->block_incremental, &err);
+        break;
+    case MIGRATION_PARAMETER_X_MULTIFD_CHANNELS:
+        p->has_x_multifd_channels = true;
+        visit_type_int(v, param, &p->x_multifd_channels, &err);
         break;
     default:
         assert(0);

@@ -466,13 +466,19 @@
 # 	migrated and the destination must already have access to the
 # 	same backing chain as was used on the source.  (since 2.10)
 #
+# @x-multifd-channels: Number of channels used to migrate data in
+#                     parallel. This is the same number that the
+#                     number of sockets used for migration.  The
+#                     default value is 2 (since 2.11)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
   'data': ['compress-level', 'compress-threads', 'decompress-threads',
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'max-bandwidth',
-           'downtime-limit', 'x-checkpoint-delay', 'block-incremental' ] }
+           'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
+           'x-multifd-channels'] }
 
 ##
 # @MigrateSetParameters:
@@ -528,6 +534,11 @@
 # 	migrated and the destination must already have access to the
 # 	same backing chain as was used on the source.  (since 2.10)
 #
+# @x-multifd-channels: Number of channels used to migrate data in
+#                     parallel. This is the same number that the
+#                     number of sockets used for migration.  The
+#                     default value is 2 (since 2.11)
+#
 # Since: 2.4
 ##
 # TODO either fuse back into MigrationParameters, or make
@@ -543,7 +554,8 @@
             '*max-bandwidth': 'int',
             '*downtime-limit': 'int',
             '*x-checkpoint-delay': 'int',
-            '*block-incremental': 'bool' } }
+            '*block-incremental': 'bool',
+            '*x-multifd-channels': 'int' } }
 
 ##
 # @migrate-set-parameters:
@@ -614,6 +626,11 @@
 # 	migrated and the destination must already have access to the
 # 	same backing chain as was used on the source.  (since 2.10)
 #
+# @x-multifd-channels: Number of channels used to migrate data in
+#                     parallel. This is the same number that the
+#                     number of sockets used for migration.
+#                     The default value is 2 (since 2.11)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -627,7 +644,8 @@
             '*max-bandwidth': 'int',
             '*downtime-limit': 'int',
             '*x-checkpoint-delay': 'int',
-            '*block-incremental': 'bool' } }
+            '*block-incremental': 'bool' ,
+            '*x-multifd-channels': 'int' } }
 
 ##
 # @query-migrate-parameters:
