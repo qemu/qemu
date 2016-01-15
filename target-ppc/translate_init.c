@@ -8848,6 +8848,7 @@ static int gdb_get_spe_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
     if (n < 32) {
 #if defined(TARGET_PPC64)
         stl_p(mem_buf, env->gpr[n] >> 32);
+        ppc_maybe_bswap_register(env, mem_buf, 4);
 #else
         stl_p(mem_buf, env->gprh[n]);
 #endif
@@ -8855,10 +8856,12 @@ static int gdb_get_spe_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
     }
     if (n == 32) {
         stq_p(mem_buf, env->spe_acc);
+        ppc_maybe_bswap_register(env, mem_buf, 8);
         return 8;
     }
     if (n == 33) {
         stl_p(mem_buf, env->spe_fscr);
+        ppc_maybe_bswap_register(env, mem_buf, 4);
         return 4;
     }
     return 0;
@@ -8869,7 +8872,11 @@ static int gdb_set_spe_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
     if (n < 32) {
 #if defined(TARGET_PPC64)
         target_ulong lo = (uint32_t)env->gpr[n];
-        target_ulong hi = (target_ulong)ldl_p(mem_buf) << 32;
+        target_ulong hi;
+
+        ppc_maybe_bswap_register(env, mem_buf, 4);
+
+        hi = (target_ulong)ldl_p(mem_buf) << 32;
         env->gpr[n] = lo | hi;
 #else
         env->gprh[n] = ldl_p(mem_buf);
@@ -8877,10 +8884,12 @@ static int gdb_set_spe_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
         return 4;
     }
     if (n == 32) {
+        ppc_maybe_bswap_register(env, mem_buf, 8);
         env->spe_acc = ldq_p(mem_buf);
         return 8;
     }
     if (n == 33) {
+        ppc_maybe_bswap_register(env, mem_buf, 4);
         env->spe_fscr = ldl_p(mem_buf);
         return 4;
     }
