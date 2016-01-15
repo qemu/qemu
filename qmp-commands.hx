@@ -3700,6 +3700,10 @@ Set migration parameters
 - "compress-level": set compression level during migration (json-int)
 - "compress-threads": set compression thread count for migration (json-int)
 - "decompress-threads": set decompression thread count for migration (json-int)
+- "x-cpu-throttle-initial": set initial percentage of time guest cpus are
+                           throttled for auto-converge (json-int)
+- "x-cpu-throttle-increment": set throttle increasing percentage for
+                             auto-converge (json-int)
 
 Arguments:
 
@@ -3713,7 +3717,7 @@ EQMP
     {
         .name       = "migrate-set-parameters",
         .args_type  =
-            "compress-level:i?,compress-threads:i?,decompress-threads:i?",
+            "compress-level:i?,compress-threads:i?,decompress-threads:i?,x-cpu-throttle-initial:i?,x-cpu-throttle-increment:i?",
         .mhandler.cmd_new = qmp_marshal_migrate_set_parameters,
     },
 SQMP
@@ -3726,6 +3730,10 @@ Query current migration parameters
          - "compress-level" : compression level value (json-int)
          - "compress-threads" : compression thread count value (json-int)
          - "decompress-threads" : decompression thread count value (json-int)
+         - "x-cpu-throttle-initial" : initial percentage of time guest cpus are
+                                      throttled (json-int)
+         - "x-cpu-throttle-increment" : throttle increasing percentage for
+                                        auto-converge (json-int)
 
 Arguments:
 
@@ -3734,9 +3742,11 @@ Example:
 -> { "execute": "query-migrate-parameters" }
 <- {
       "return": {
-         "decompress-threads", 2,
-         "compress-threads", 8,
-         "compress-level", 1
+         "decompress-threads": 2,
+         "x-cpu-throttle-increment": 10,
+         "compress-threads": 8,
+         "compress-level": 1,
+         "x-cpu-throttle-initial": 20
       }
    }
 
