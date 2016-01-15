@@ -3647,7 +3647,9 @@ Enable/Disable migration capabilities
 - "rdma-pin-all": pin all pages when using RDMA during migration
 - "auto-converge": throttle down guest to help convergence of migration
 - "zero-blocks": compress zero blocks during block migration
+- "compress": use multiple compression threads to accelerate live migration
 - "events": generate events for each migration state change
+- "x-postcopy-ram": postcopy mode for live migration
 
 Arguments:
 
@@ -3675,13 +3677,24 @@ Query current migration capabilities
          - "rdma-pin-all" : RDMA Pin Page state (json-bool)
          - "auto-converge" : Auto Converge state (json-bool)
          - "zero-blocks" : Zero Blocks state (json-bool)
+         - "compress": Multiple compression threads state (json-bool)
+         - "events": Migration state change event state (json-bool)
+         - "x-postcopy-ram": postcopy ram state (json-bool)
 
 Arguments:
 
 Example:
 
 -> { "execute": "query-migrate-capabilities" }
-<- { "return": [ { "state": false, "capability": "xbzrle" } ] }
+<- {"return": [
+     {"state": false, "capability": "xbzrle"},
+     {"state": false, "capability": "rdma-pin-all"},
+     {"state": false, "capability": "auto-converge"},
+     {"state": false, "capability": "zero-blocks"},
+     {"state": false, "capability": "compress"},
+     {"state": true, "capability": "events"},
+     {"state": false, "capability": "x-postcopy-ram"}
+   ]}
 
 EQMP
 
