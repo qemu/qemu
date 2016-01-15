@@ -678,6 +678,10 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     } else {
         unsigned crc_val;
 
+        if (size > sizeof(rxbuf) - sizeof(crc_val)) {
+            size = sizeof(rxbuf) - sizeof(crc_val);
+        }
+        bytes_to_copy = size;
         /* The application wants the FCS field, which QEMU does not provide.
          * We must try and calculate one.
          */
