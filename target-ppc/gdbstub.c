@@ -88,7 +88,7 @@ static int ppc_gdb_register_len(int n)
    the proper ordering for the binary, and cannot be changed.
    For system mode, TARGET_WORDS_BIGENDIAN is always set, and we must check
    the current mode of the chip to see if we're running in little-endian.  */
-static void maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len)
+void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len)
 {
 #ifndef CONFIG_USER_ONLY
     if (!msr_le) {
@@ -158,7 +158,7 @@ int ppc_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
             break;
         }
     }
-    maybe_bswap_register(env, mem_buf, r);
+    ppc_maybe_bswap_register(env, mem_buf, r);
     return r;
 }
 
@@ -214,7 +214,7 @@ int ppc_cpu_gdb_read_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
             break;
         }
     }
-    maybe_bswap_register(env, mem_buf, r);
+    ppc_maybe_bswap_register(env, mem_buf, r);
     return r;
 }
 
@@ -227,7 +227,7 @@ int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     if (!r) {
         return r;
     }
-    maybe_bswap_register(env, mem_buf, r);
+    ppc_maybe_bswap_register(env, mem_buf, r);
     if (n < 32) {
         /* gprs */
         env->gpr[n] = ldtul_p(mem_buf);
@@ -277,7 +277,7 @@ int ppc_cpu_gdb_write_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
     if (!r) {
         return r;
     }
-    maybe_bswap_register(env, mem_buf, r);
+    ppc_maybe_bswap_register(env, mem_buf, r);
     if (n < 32) {
         /* gprs */
         env->gpr[n] = ldq_p(mem_buf);
