@@ -729,7 +729,7 @@ static int save_zero_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
  * @last_stage: if we are at the completion stage
  * @bytes_transferred: increase it with the number of transferred bytes
  */
-static int ram_save_page(QEMUFile *f, RAMBlock* block, ram_addr_t offset,
+static int ram_save_page(QEMUFile *f, PageSearchStatus *pss,
                          bool last_stage, uint64_t *bytes_transferred)
 {
     int pages = -1;
@@ -738,6 +738,8 @@ static int ram_save_page(QEMUFile *f, RAMBlock* block, ram_addr_t offset,
     uint8_t *p;
     int ret;
     bool send_async = true;
+    RAMBlock *block = pss->block;
+    ram_addr_t offset = pss->offset;
 
     p = block->host + offset;
 
@@ -912,14 +914,16 @@ static int compress_page_with_multi_thread(QEMUFile *f, RAMBlock *block,
  * @last_stage: if we are at the completion stage
  * @bytes_transferred: increase it with the number of transferred bytes
  */
-static int ram_save_compressed_page(QEMUFile *f, RAMBlock *block,
-                                    ram_addr_t offset, bool last_stage,
+static int ram_save_compressed_page(QEMUFile *f, PageSearchStatus *pss,
+                                    bool last_stage,
                                     uint64_t *bytes_transferred)
 {
     int pages = -1;
     uint64_t bytes_xmit;
     uint8_t *p;
     int ret;
+    RAMBlock *block = pss->block;
+    ram_addr_t offset = pss->offset;
 
     p = block->host + offset;
 
@@ -1229,7 +1233,7 @@ err:
  * Returns: Number of pages written.
  */
 static int ram_save_target_page(MigrationState *ms, QEMUFile *f,
-                                RAMBlock *block, ram_addr_t offset,
+                                PageSearchStatus *pss,
                                 bool last_stage,
                                 uint64_t *bytes_transferred,
                                 ram_addr_t dirty_ram_abs)
@@ -1240,11 +1244,11 @@ static int ram_save_target_page(MigrationState *ms, QEMUFile *f,
     if (migration_bitmap_clear_dirty(dirty_ram_abs)) {
         unsigned long *unsentmap;
         if (compression_switch && migrate_use_compression()) {
-            res = ram_save_compressed_page(f, block, offset,
+            res = ram_save_compressed_page(f, pss,
                                            last_stage,
                                            bytes_transferred);
         } else {
-            res = ram_save_page(f, block, offset, last_stage,
+            res = ram_save_page(f, pss, last_stage,
                                 bytes_transferred);
         }
 
@@ -1260,7 +1264,7 @@ static int ram_save_target_page(MigrationState *ms, QEMUFile *f,
          * to the stream.
          */
         if (res > 0) {
-            last_sent_block = block;
+            last_sent_block = pss->block;
         }
     }
 
@@ -1284,26 +1288,27 @@ static int ram_save_target_page(MigrationState *ms, QEMUFile *f,
  * @bytes_transferred: increase it with the number of transferred bytes
  * @dirty_ram_abs: Address of the start of the dirty page in ram_addr_t space
  */
-static int ram_save_host_page(MigrationState *ms, QEMUFile *f, RAMBlock *block,
-                              ram_addr_t *offset, bool last_stage,
+static int ram_save_host_page(MigrationState *ms, QEMUFile *f,
+                              PageSearchStatus *pss,
+                              bool last_stage,
                               uint64_t *bytes_transferred,
                               ram_addr_t dirty_ram_abs)
 {
     int tmppages, pages = 0;
     do {
-        tmppages = ram_save_target_page(ms, f, block, *offset, last_stage,
+        tmppages = ram_save_target_page(ms, f, pss, last_stage,
                                         bytes_transferred, dirty_ram_abs);
         if (tmppages < 0) {
             return tmppages;
         }
 
         pages += tmppages;
-        *offset += TARGET_PAGE_SIZE;
+        pss->offset += TARGET_PAGE_SIZE;
         dirty_ram_abs += TARGET_PAGE_SIZE;
-    } while (*offset & (qemu_host_page_size - 1));
+    } while (pss->offset & (qemu_host_page_size - 1));
 
     /* The offset we leave with is the last one we looked at */
-    *offset -= TARGET_PAGE_SIZE;
+    pss->offset -= TARGET_PAGE_SIZE;
     return pages;
 }
 
@@ -1351,7 +1356,7 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
         }
 
         if (found) {
-            pages = ram_save_host_page(ms, f, pss.block, &pss.offset,
+            pages = ram_save_host_page(ms, f, &pss,
                                        last_stage, bytes_transferred,
                                        dirty_ram_abs);
         }
