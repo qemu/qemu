@@ -708,3 +708,15 @@ void ppc_hash64_store_hpte(PowerPCCPU *cpu,
                  env->htab_base + pte_index + HASH_PTE_SIZE_64 / 2, pte1);
     }
 }
+
+void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu,
+                               target_ulong pte_index,
+                               target_ulong pte0, target_ulong pte1)
+{
+    /*
+     * XXX: given the fact that there are too many segments to
+     * invalidate, and we still don't have a tlb_flush_mask(env, n,
+     * mask) in QEMU, we just invalidate all TLBs
+     */
+    tlb_flush(CPU(cpu), 1);
+}

@@ -13,6 +13,9 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, target_ulong address, int rw,
                                 int mmu_idx);
 void ppc_hash64_store_hpte(PowerPCCPU *cpu, target_ulong index,
                            target_ulong pte0, target_ulong pte1);
+void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu,
+                               target_ulong pte_index,
+                               target_ulong pte0, target_ulong pte1);
 #endif
 
 /*
