@@ -1759,6 +1759,15 @@ void scsi_req_cancel_async(SCSIRequest *req, Notifier *notifier)
     if (notifier) {
         notifier_list_add(&req->cancel_notifiers, notifier);
     }
+    if (req->io_canceled) {
+        /* A blk_aio_cancel_async is pending; when it finishes,
+         * scsi_req_cancel_complete will be called and will
+         * call the notifier we just added.  Just wait for that.
+         */
+        assert(req->aiocb);
+        return;
+    }
+    /* Dropped in scsi_req_cancel_complete.  */
     scsi_req_ref(req);
     scsi_req_dequeue(req);
     req->io_canceled = true;
@@ -1775,6 +1784,8 @@ void scsi_req_cancel(SCSIRequest *req)
     if (!req->enqueued) {
         return;
     }
+    assert(!req->io_canceled);
+    /* Dropped in scsi_req_cancel_complete.  */
     scsi_req_ref(req);
     scsi_req_dequeue(req);
     req->io_canceled = true;
@@ -1850,7 +1861,7 @@ void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense)
 
 static char *scsibus_get_dev_path(DeviceState *dev)
 {
-    SCSIDevice *d = DO_UPCAST(SCSIDevice, qdev, dev);
+    SCSIDevice *d = SCSI_DEVICE(dev);
     DeviceState *hba = dev->parent_bus->parent;
     char *id;
     char *path;
@@ -2023,7 +2034,7 @@ static void scsi_device_class_init(ObjectClass *klass, void *data)
 static void scsi_dev_instance_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
-    SCSIDevice *s = DO_UPCAST(SCSIDevice, qdev, dev);
+    SCSIDevice *s = SCSI_DEVICE(dev);
 
     device_add_bootindex_property(obj, &s->conf.bootindex,
                                   "bootindex", NULL,

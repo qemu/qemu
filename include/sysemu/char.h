@@ -77,6 +77,7 @@ struct CharDriverState {
     void *opaque;
     char *label;
     char *filename;
+    int logfd;
     int be_open;
     int fe_open;
     int explicit_fe_open;
@@ -89,13 +90,15 @@ struct CharDriverState {
 };
 
 /**
- * @qemu_chr_alloc:
+ * qemu_chr_alloc:
+ * @backend: the common backend config
+ * @errp: pointer to a NULL-initialized error object
  *
  * Allocate and initialize a new CharDriverState.
  *
- * Returns: a newly allocated CharDriverState.
+ * Returns: a newly allocated CharDriverState, or NULL on error.
  */
-CharDriverState *qemu_chr_alloc(void);
+CharDriverState *qemu_chr_alloc(ChardevCommon *backend, Error **errp);
 
 /**
  * @qemu_chr_new_from_opts:

@@ -159,10 +159,33 @@ static int sockaddr_to_str(char *dest, int max_len,
 static QTAILQ_HEAD(CharDriverStateHead, CharDriverState) chardevs =
     QTAILQ_HEAD_INITIALIZER(chardevs);
 
-CharDriverState *qemu_chr_alloc(void)
+static void qemu_chr_free_common(CharDriverState *chr);
+
+CharDriverState *qemu_chr_alloc(ChardevCommon *backend, Error **errp)
 {
     CharDriverState *chr = g_malloc0(sizeof(CharDriverState));
     qemu_mutex_init(&chr->chr_write_lock);
+
+    if (backend->has_logfile) {
+        int flags = O_WRONLY | O_CREAT;
+        if (backend->has_logappend &&
+            backend->logappend) {
+            flags |= O_APPEND;
+        } else {
+            flags |= O_TRUNC;
+        }
+        chr->logfd = qemu_open(backend->logfile, flags, 0666);
+        if (chr->logfd < 0) {
+            error_setg_errno(errp, errno,
+                             "Unable to open logfile %s",
+                             backend->logfile);
+            g_free(chr);
+            return NULL;
+        }
+    } else {
+        chr->logfd = -1;
+    }
+
     return chr;
 }
 
@@ -188,12 +211,45 @@ void qemu_chr_be_generic_open(CharDriverState *s)
     qemu_chr_be_event(s, CHR_EVENT_OPENED);
 }
 
+
+/* Not reporting errors from writing to logfile, as logs are
+ * defined to be "best effort" only */
+static void qemu_chr_fe_write_log(CharDriverState *s,
+                                  const uint8_t *buf, size_t len)
+{
+    size_t done = 0;
+    ssize_t ret;
+
+    if (s->logfd < 0) {
+        return;
+    }
+
+    while (done < len) {
+        do {
+            ret = write(s->logfd, buf + done, len - done);
+            if (ret == -1 && errno == EAGAIN) {
+                g_usleep(100);
+            }
+        } while (ret == -1 && errno == EAGAIN);
+
+        if (ret <= 0) {
+            return;
+        }
+        done += ret;
+    }
+}
+
 int qemu_chr_fe_write(CharDriverState *s, const uint8_t *buf, int len)
 {
     int ret;
 
     qemu_mutex_lock(&s->chr_write_lock);
     ret = s->chr_write(s, buf, len);
+
+    if (ret > 0) {
+        qemu_chr_fe_write_log(s, buf, ret);
+    }
+
     qemu_mutex_unlock(&s->chr_write_lock);
     return ret;
 }
@@ -218,6 +274,10 @@ int qemu_chr_fe_write_all(CharDriverState *s, const uint8_t *buf, int len)
 
         offset += res;
     }
+    if (offset > 0) {
+        qemu_chr_fe_write_log(s, buf, offset);
+    }
+
     qemu_mutex_unlock(&s->chr_write_lock);
 
     if (res < 0) {
@@ -365,8 +425,12 @@ static CharDriverState *qemu_chr_open_null(const char *id,
                                            Error **errp)
 {
     CharDriverState *chr;
+    ChardevCommon *common = qapi_ChardevDummy_base(backend->u.null);
 
-    chr = qemu_chr_alloc();
+    chr = qemu_chr_alloc(common, errp);
+    if (!chr) {
+        return NULL;
+    }
     chr->chr_write = null_chr_write;
     chr->explicit_be_open = true;
     return chr;
@@ -665,6 +729,7 @@ static CharDriverState *qemu_chr_open_mux(const char *id,
     ChardevMux *mux = backend->u.mux;
     CharDriverState *chr, *drv;
     MuxDriver *d;
+    ChardevCommon *common = qapi_ChardevMux_base(backend->u.mux);
 
     drv = qemu_chr_find(mux->chardev);
     if (drv == NULL) {
@@ -672,7 +737,10 @@ static CharDriverState *qemu_chr_open_mux(const char *id,
         return NULL;
     }
 
-    chr = qemu_chr_alloc();
+    chr = qemu_chr_alloc(common, errp);
+    if (!chr) {
+        return NULL;
+    }
     d = g_new0(MuxDriver, 1);
 
     chr->opaque = d;
@@ -695,77 +763,6 @@ static CharDriverState *qemu_chr_open_mux(const char *id,
     return chr;
 }
 
-
-#ifdef _WIN32
-int send_all(int fd, const void *buf, int len1)
-{
-    int ret, len;
-
-    len = len1;
-    while (len > 0) {
-        ret = send(fd, buf, len, 0);
-        if (ret < 0) {
-            errno = WSAGetLastError();
-            if (errno != WSAEWOULDBLOCK) {
-                return -1;
-            }
-        } else if (ret == 0) {
-            break;
-        } else {
-            buf += ret;
-            len -= ret;
-        }
-    }
-    return len1 - len;
-}
-
-#else
-
-int send_all(int fd, const void *_buf, int len1)
-{
-    int ret, len;
-    const uint8_t *buf = _buf;
-
-    len = len1;
-    while (len > 0) {
-        ret = write(fd, buf, len);
-        if (ret < 0) {
-            if (errno != EINTR && errno != EAGAIN)
-                return -1;
-        } else if (ret == 0) {
-            break;
-        } else {
-            buf += ret;
-            len -= ret;
-        }
-    }
-    return len1 - len;
-}
-
-int recv_all(int fd, void *_buf, int len1, bool single_read)
-{
-    int ret, len;
-    uint8_t *buf = _buf;
-
-    len = len1;
-    while ((len > 0) && (ret = read(fd, buf, len)) != 0) {
-        if (ret < 0) {
-            if (errno != EINTR && errno != EAGAIN) {
-                return -1;
-            }
-            continue;
-        } else {
-            if (single_read) {
-                return ret;
-            }
-            buf += ret;
-            len -= ret;
-        }
-    }
-    return len1 - len;
-}
-
-#endif /* !_WIN32 */
 
 typedef struct IOWatchPoll
 {
@@ -1046,12 +1043,16 @@ static void fd_chr_close(struct CharDriverState *chr)
 }
 
 /* open a character device to a unix fd */
-static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
+static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out,
+                                         ChardevCommon *backend, Error **errp)
 {
     CharDriverState *chr;
     FDCharDriver *s;
 
-    chr = qemu_chr_alloc();
+    chr = qemu_chr_alloc(backend, errp);
+    if (!chr) {
+        return NULL;
+    }
     s = g_new0(FDCharDriver, 1);
     s->fd_in = io_channel_from_fd(fd_in);
     s->fd_out = io_channel_from_fd(fd_out);
@@ -1076,6 +1077,7 @@ static CharDriverState *qemu_chr_open_pipe(const char *id,
     char filename_in[CHR_MAX_FILENAME_SIZE];
     char filename_out[CHR_MAX_FILENAME_SIZE];
     const char *filename = opts->device;
+    ChardevCommon *common = qapi_ChardevHostdev_base(backend->u.pipe);
 
     snprintf(filename_in, CHR_MAX_FILENAME_SIZE, "%s.in", filename);
     snprintf(filename_out, CHR_MAX_FILENAME_SIZE, "%s.out", filename);
@@ -1092,7 +1094,7 @@ static CharDriverState *qemu_chr_open_pipe(const char *id,
             return NULL;
         }
     }
-    return qemu_chr_open_fd(fd_in, fd_out);
+    return qemu_chr_open_fd(fd_in, fd_out, common, errp);
 }
 
 /* init terminal so that we can grab keys */
@@ -1152,6 +1154,7 @@ static CharDriverState *qemu_chr_open_stdio(const char *id,
     ChardevStdio *opts = backend->u.stdio;
     CharDriverState *chr;
     struct sigaction act;
+    ChardevCommon *common = qapi_ChardevStdio_base(backend->u.stdio);
 
     if (is_daemonized()) {
         error_setg(errp, "cannot use stdio with -daemonize");
@@ -1173,7 +1176,7 @@ static CharDriverState *qemu_chr_open_stdio(const char *id,
     act.sa_handler = term_stdio_handler;
     sigaction(SIGCONT, &act, NULL);
 
-    chr = qemu_chr_open_fd(0, 1);
+    chr = qemu_chr_open_fd(0, 1, common, errp);
     chr->chr_close = qemu_chr_close_stdio;
     chr->chr_set_echo = qemu_chr_set_echo_stdio;
     if (opts->has_signal) {
@@ -1395,6 +1398,7 @@ static CharDriverState *qemu_chr_open_pty(const char *id,
     PtyCharDriver *s;
     int master_fd, slave_fd;
     char pty_name[PATH_MAX];
+    ChardevCommon *common = qapi_ChardevDummy_base(backend->u.pty);
 
     master_fd = qemu_openpty_raw(&slave_fd, pty_name);
     if (master_fd < 0) {
@@ -1405,7 +1409,11 @@ static CharDriverState *qemu_chr_open_pty(const char *id,
     close(slave_fd);
     qemu_set_nonblock(master_fd);
 
-    chr = qemu_chr_alloc();
+    chr = qemu_chr_alloc(common, errp);
+    if (!chr) {
+        close(master_fd);
+        return NULL;
+    }
 
     chr->filename = g_strdup_printf("pty:%s", pty_name);
     ret->pty = g_strdup(pty_name);
@@ -1628,12 +1636,14 @@ static void qemu_chr_close_tty(CharDriverState *chr)
     }
 }
 
-static CharDriverState *qemu_chr_open_tty_fd(int fd)
+static CharDriverState *qemu_chr_open_tty_fd(int fd,
+                                             ChardevCommon *backend,
+                                             Error **errp)
 {
     CharDriverState *chr;
 
     tty_serial_init(fd, 115200, 'N', 8, 1);
-    chr = qemu_chr_open_fd(fd, fd);
+    chr = qemu_chr_open_fd(fd, fd, backend, errp);
     chr->chr_ioctl = tty_serial_ioctl;
     chr->chr_close = qemu_chr_close_tty;
     return chr;
@@ -1753,7 +1763,9 @@ static void pp_close(CharDriverState *chr)
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
 
-static CharDriverState *qemu_chr_open_pp_fd(int fd, Error **errp)
+static CharDriverState *qemu_chr_open_pp_fd(int fd,
+                                            ChardevCommon *backend,
+                                            Error **errp)
 {
     CharDriverState *chr;
     ParallelCharDriver *drv;
@@ -1768,7 +1780,10 @@ static CharDriverState *qemu_chr_open_pp_fd(int fd, Error **errp)
     drv->fd = fd;
     drv->mode = IEEE1284_MODE_COMPAT;
 
-    chr = qemu_chr_alloc();
+    chr = qemu_chr_alloc(backend, errp);
+    if (!chr) {
+        return NULL;
+    }
     chr->chr_write = null_chr_write;
     chr->chr_ioctl = pp_ioctl;
     chr->chr_close = pp_close;
@@ -1819,11 +1834,16 @@ static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
     return 0;
 }
 
-static CharDriverState *qemu_chr_open_pp_fd(int fd, Error **errp)
+static CharDriverState *qemu_chr_open_pp_fd(int fd,
+                                            ChardevBackend *backend,
+                                            Error **errp)
 {
     CharDriverState *chr;
 
-    chr = qemu_chr_alloc();
+    chr = qemu_chr_alloc(common, errp);
+    if (!chr) {
+        return NULL;
+    }
     chr->opaque = (void *)(intptr_t)fd;
     chr->chr_write = null_chr_write;
     chr->chr_ioctl = pp_ioctl;
@@ -2049,12 +2069,16 @@ static int win_chr_poll(void *opaque)
 }
 
 static CharDriverState *qemu_chr_open_win_path(const char *filename,
+                                               ChardevCommon *backend,
                                                Error **errp)
 {
     CharDriverState *chr;
     WinCharState *s;
 
-    chr = qemu_chr_alloc();
+    chr = qemu_chr_alloc(backend, errp);
+    if (!chr) {
+        return NULL;
+    }
     s = g_new0(WinCharState, 1);
     chr->opaque = s;
     chr->chr_write = win_chr_write;
@@ -2062,7 +2086,7 @@ static CharDriverState *qemu_chr_open_win_path(const char *filename,
 
     if (win_chr_init(chr, filename, errp) < 0) {
         g_free(s);
-        g_free(chr);
+        qemu_chr_free_common(chr);
         return NULL;
     }
     return chr;
@@ -2157,8 +2181,12 @@ static CharDriverState *qemu_chr_open_pipe(const char *id,
     const char *filename = opts->device;
     CharDriverState *chr;
     WinCharState *s;
+    ChardevCommon *common = qapi_ChardevHostdev_base(backend->u.pipe);
 
-    chr = qemu_chr_alloc();
+    chr = qemu_chr_alloc(common, errp);
+    if (!chr) {
+        return NULL;
+    }
     s = g_new0(WinCharState, 1);
     chr->opaque = s;
     chr->chr_write = win_chr_write;
@@ -2166,18 +2194,23 @@ static CharDriverState *qemu_chr_open_pipe(const char *id,
 
     if (win_chr_pipe_init(chr, filename, errp) < 0) {
         g_free(s);
-        g_free(chr);
+        qemu_chr_free_common(chr);
         return NULL;
     }
     return chr;
 }
 
-static CharDriverState *qemu_chr_open_win_file(HANDLE fd_out)
+static CharDriverState *qemu_chr_open_win_file(HANDLE fd_out,
+                                               ChardevCommon *backend,
+                                               Error **errp)
 {
     CharDriverState *chr;
     WinCharState *s;
 
-    chr = qemu_chr_alloc();
+    chr = qemu_chr_alloc(backend, errp);
+    if (!chr) {
+        return NULL;
+    }
     s = g_new0(WinCharState, 1);
     s->hcom = fd_out;
     chr->opaque = s;
@@ -2190,7 +2223,9 @@ static CharDriverState *qemu_chr_open_win_con(const char *id,
                                               ChardevReturn *ret,
                                               Error **errp)
 {
-    return qemu_chr_open_win_file(GetStdHandle(STD_OUTPUT_HANDLE));
+    ChardevCommon *common = qapi_ChardevDummy_base(backend->u.console);
+    return qemu_chr_open_win_file(GetStdHandle(STD_OUTPUT_HANDLE),
+                                  common, errp);
 }
 
 static int win_stdio_write(CharDriverState *chr, const uint8_t *buf, int len)
@@ -2338,8 +2373,12 @@ static CharDriverState *qemu_chr_open_stdio(const char *id,
     WinStdioCharState *stdio;
     DWORD              dwMode;
     int                is_console = 0;
+    ChardevCommon *common = qapi_ChardevStdio_base(backend->u.stdio);
 
-    chr   = qemu_chr_alloc();
+    chr   = qemu_chr_alloc(common, errp);
+    if (!chr) {
+        return NULL;
+    }
     stdio = g_new0(WinStdioCharState, 1);
 
     stdio->hStdIn = GetStdHandle(STD_INPUT_HANDLE);
@@ -2511,12 +2550,17 @@ static void udp_chr_close(CharDriverState *chr)
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
 
-static CharDriverState *qemu_chr_open_udp_fd(int fd)
+static CharDriverState *qemu_chr_open_udp_fd(int fd,
+                                             ChardevCommon *backend,
+                                             Error **errp)
 {
     CharDriverState *chr = NULL;
     NetCharDriver *s = NULL;
 
-    chr = qemu_chr_alloc();
+    chr = qemu_chr_alloc(backend, errp);
+    if (!chr) {
+        return NULL;
+    }
     s = g_new0(NetCharDriver, 1);
 
     s->fd = fd;
@@ -2927,7 +2971,7 @@ static int tcp_chr_sync_read(CharDriverState *chr, const uint8_t *buf, int len)
 #ifndef _WIN32
 CharDriverState *qemu_chr_open_eventfd(int eventfd)
 {
-    CharDriverState *chr = qemu_chr_open_fd(eventfd, eventfd);
+    CharDriverState *chr = qemu_chr_open_fd(eventfd, eventfd, NULL, NULL);
 
     if (chr) {
         chr->avail_connections = 1;
@@ -3209,10 +3253,14 @@ static CharDriverState *qemu_chr_open_ringbuf(const char *id,
                                               Error **errp)
 {
     ChardevRingbuf *opts = backend->u.ringbuf;
+    ChardevCommon *common = qapi_ChardevRingbuf_base(backend->u.ringbuf);
     CharDriverState *chr;
     RingBufCharDriver *d;
 
-    chr = qemu_chr_alloc();
+    chr = qemu_chr_alloc(common, errp);
+    if (!chr) {
+        return NULL;
+    }
     d = g_malloc(sizeof(*d));
 
     d->size = opts->has_size ? opts->size : 65536;
@@ -3235,7 +3283,7 @@ static CharDriverState *qemu_chr_open_ringbuf(const char *id,
 
 fail:
     g_free(d);
-    g_free(chr);
+    qemu_chr_free_common(chr);
     return NULL;
 }
 
@@ -3479,6 +3527,18 @@ fail:
     return NULL;
 }
 
+static void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend)
+{
+    const char *logfile = qemu_opt_get(opts, "logfile");
+
+    backend->has_logfile = logfile != NULL;
+    backend->logfile = logfile ? g_strdup(logfile) : NULL;
+
+    backend->has_logappend = true;
+    backend->logappend = qemu_opt_get_bool(opts, "logappend", false);
+}
+
+
 static void qemu_chr_parse_file_out(QemuOpts *opts, ChardevBackend *backend,
                                     Error **errp)
 {
@@ -3489,6 +3549,7 @@ static void qemu_chr_parse_file_out(QemuOpts *opts, ChardevBackend *backend,
         return;
     }
     backend->u.file = g_new0(ChardevFile, 1);
+    qemu_chr_parse_common(opts, qapi_ChardevFile_base(backend->u.file));
     backend->u.file->out = g_strdup(path);
 
     backend->u.file->has_append = true;
@@ -3499,6 +3560,7 @@ static void qemu_chr_parse_stdio(QemuOpts *opts, ChardevBackend *backend,
                                  Error **errp)
 {
     backend->u.stdio = g_new0(ChardevStdio, 1);
+    qemu_chr_parse_common(opts, qapi_ChardevStdio_base(backend->u.stdio));
     backend->u.stdio->has_signal = true;
     backend->u.stdio->signal = qemu_opt_get_bool(opts, "signal", true);
 }
@@ -3514,6 +3576,7 @@ static void qemu_chr_parse_serial(QemuOpts *opts, ChardevBackend *backend,
         return;
     }
     backend->u.serial = g_new0(ChardevHostdev, 1);
+    qemu_chr_parse_common(opts, qapi_ChardevHostdev_base(backend->u.serial));
     backend->u.serial->device = g_strdup(device);
 }
 #endif
@@ -3529,6 +3592,7 @@ static void qemu_chr_parse_parallel(QemuOpts *opts, ChardevBackend *backend,
         return;
     }
     backend->u.parallel = g_new0(ChardevHostdev, 1);
+    qemu_chr_parse_common(opts, qapi_ChardevHostdev_base(backend->u.parallel));
     backend->u.parallel->device = g_strdup(device);
 }
 #endif
@@ -3543,6 +3607,7 @@ static void qemu_chr_parse_pipe(QemuOpts *opts, ChardevBackend *backend,
         return;
     }
     backend->u.pipe = g_new0(ChardevHostdev, 1);
+    qemu_chr_parse_common(opts, qapi_ChardevHostdev_base(backend->u.pipe));
     backend->u.pipe->device = g_strdup(device);
 }
 
@@ -3552,6 +3617,7 @@ static void qemu_chr_parse_ringbuf(QemuOpts *opts, ChardevBackend *backend,
     int val;
 
     backend->u.ringbuf = g_new0(ChardevRingbuf, 1);
+    qemu_chr_parse_common(opts, qapi_ChardevRingbuf_base(backend->u.ringbuf));
 
     val = qemu_opt_get_size(opts, "size", 0);
     if (val != 0) {
@@ -3570,6 +3636,7 @@ static void qemu_chr_parse_mux(QemuOpts *opts, ChardevBackend *backend,
         return;
     }
     backend->u.mux = g_new0(ChardevMux, 1);
+    qemu_chr_parse_common(opts, qapi_ChardevMux_base(backend->u.mux));
     backend->u.mux->chardev = g_strdup(chardev);
 }
 
@@ -3598,6 +3665,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     }
 
     backend->u.socket = g_new0(ChardevSocket, 1);
+    qemu_chr_parse_common(opts, qapi_ChardevSocket_base(backend->u.socket));
 
     backend->u.socket->has_nodelay = true;
     backend->u.socket->nodelay = do_nodelay;
@@ -3659,6 +3727,7 @@ static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
     }
 
     backend->u.udp = g_new0(ChardevUdp, 1);
+    qemu_chr_parse_common(opts, qapi_ChardevUdp_base(backend->u.udp));
 
     addr = g_new0(SocketAddress, 1);
     addr->type = SOCKET_ADDRESS_KIND_INET;
@@ -3758,7 +3827,12 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
             error_propagate(errp, local_err);
             goto qapi_out;
         }
+    } else {
+        ChardevCommon *cc = g_new0(ChardevCommon, 1);
+        qemu_chr_parse_common(opts, cc);
+        backend->u.data = cc;
     }
+
     ret = qmp_chardev_add(bid ? bid : id, backend, errp);
     if (!ret) {
         goto qapi_out;
@@ -3890,15 +3964,24 @@ void qemu_chr_fe_release(CharDriverState *s)
     s->avail_connections++;
 }
 
+static void qemu_chr_free_common(CharDriverState *chr)
+{
+    g_free(chr->filename);
+    g_free(chr->label);
+    qemu_opts_del(chr->opts);
+    if (chr->logfd != -1) {
+        close(chr->logfd);
+    }
+    qemu_mutex_destroy(&chr->chr_write_lock);
+    g_free(chr);
+}
+
 void qemu_chr_free(CharDriverState *chr)
 {
     if (chr->chr_close) {
         chr->chr_close(chr);
     }
-    g_free(chr->filename);
-    g_free(chr->label);
-    qemu_opts_del(chr->opts);
-    g_free(chr);
+    qemu_chr_free_common(chr);
 }
 
 void qemu_chr_delete(CharDriverState *chr)
@@ -4053,6 +4136,12 @@ QemuOptsList qemu_chardev_opts = {
         },{
             .name = "append",
             .type = QEMU_OPT_BOOL,
+        },{
+            .name = "logfile",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "logappend",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
     },
@@ -4066,6 +4155,7 @@ static CharDriverState *qmp_chardev_open_file(const char *id,
                                               Error **errp)
 {
     ChardevFile *file = backend->u.file;
+    ChardevCommon *common = qapi_ChardevFile_base(backend->u.file);
     HANDLE out;
 
     if (file->has_in) {
@@ -4079,7 +4169,7 @@ static CharDriverState *qmp_chardev_open_file(const char *id,
         error_setg(errp, "open %s failed", file->out);
         return NULL;
     }
-    return qemu_chr_open_win_file(out);
+    return qemu_chr_open_win_file(out, common, errp);
 }
 
 static CharDriverState *qmp_chardev_open_serial(const char *id,
@@ -4088,7 +4178,8 @@ static CharDriverState *qmp_chardev_open_serial(const char *id,
                                                 Error **errp)
 {
     ChardevHostdev *serial = backend->u.serial;
-    return qemu_chr_open_win_path(serial->device, errp);
+    ChardevCommon *common = qapi_ChardevHostdev_base(backend->u.serial);
+    return qemu_chr_open_win_path(serial->device, common, errp);
 }
 
 #else /* WIN32 */
@@ -4111,6 +4202,7 @@ static CharDriverState *qmp_chardev_open_file(const char *id,
                                               Error **errp)
 {
     ChardevFile *file = backend->u.file;
+    ChardevCommon *common = qapi_ChardevFile_base(backend->u.file);
     int flags, in = -1, out;
 
     flags = O_WRONLY | O_CREAT | O_BINARY;
@@ -4134,7 +4226,7 @@ static CharDriverState *qmp_chardev_open_file(const char *id,
         }
     }
 
-    return qemu_chr_open_fd(in, out);
+    return qemu_chr_open_fd(in, out, common, errp);
 }
 
 #ifdef HAVE_CHARDEV_SERIAL
@@ -4144,6 +4236,7 @@ static CharDriverState *qmp_chardev_open_serial(const char *id,
                                                 Error **errp)
 {
     ChardevHostdev *serial = backend->u.serial;
+    ChardevCommon *common = qapi_ChardevHostdev_base(backend->u.serial);
     int fd;
 
     fd = qmp_chardev_open_file_source(serial->device, O_RDWR, errp);
@@ -4151,7 +4244,7 @@ static CharDriverState *qmp_chardev_open_serial(const char *id,
         return NULL;
     }
     qemu_set_nonblock(fd);
-    return qemu_chr_open_tty_fd(fd);
+    return qemu_chr_open_tty_fd(fd, common, errp);
 }
 #endif
 
@@ -4162,13 +4255,14 @@ static CharDriverState *qmp_chardev_open_parallel(const char *id,
                                                   Error **errp)
 {
     ChardevHostdev *parallel = backend->u.parallel;
+    ChardevCommon *common = qapi_ChardevHostdev_base(backend->u.parallel);
     int fd;
 
     fd = qmp_chardev_open_file_source(parallel->device, O_RDWR, errp);
     if (fd < 0) {
         return NULL;
     }
-    return qemu_chr_open_pp_fd(fd, errp);
+    return qemu_chr_open_pp_fd(fd, common, errp);
 }
 #endif
 
@@ -4213,8 +4307,12 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
     bool is_telnet      = sock->has_telnet  ? sock->telnet  : false;
     bool is_waitconnect = sock->has_wait    ? sock->wait    : false;
     int64_t reconnect   = sock->has_reconnect ? sock->reconnect : 0;
+    ChardevCommon *common = qapi_ChardevSocket_base(backend->u.socket);
 
-    chr = qemu_chr_alloc();
+    chr = qemu_chr_alloc(common, errp);
+    if (!chr) {
+        return NULL;
+    }
     s = g_new0(TCPCharDriver, 1);
 
     s->fd = -1;
@@ -4253,8 +4351,7 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
         socket_try_connect(chr);
     } else if (!qemu_chr_open_socket_fd(chr, errp)) {
         g_free(s);
-        g_free(chr->filename);
-        g_free(chr);
+        qemu_chr_free_common(chr);
         return NULL;
     }
 
@@ -4274,13 +4371,14 @@ static CharDriverState *qmp_chardev_open_udp(const char *id,
                                              Error **errp)
 {
     ChardevUdp *udp = backend->u.udp;
+    ChardevCommon *common = qapi_ChardevUdp_base(backend->u.udp);
     int fd;
 
     fd = socket_dgram(udp->remote, udp->local, errp);
     if (fd < 0) {
         return NULL;
     }
-    return qemu_chr_open_udp_fd(fd);
+    return qemu_chr_open_udp_fd(fd, common, errp);
 }
 
 ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,

@@ -333,13 +333,9 @@ static void nbd_accept(void *opaque)
         return;
     }
 
-    if (nbd_client_new(exp, fd, nbd_client_closed)) {
-        nb_fds++;
-        nbd_update_server_fd_handler(server_fd);
-    } else {
-        shutdown(fd, 2);
-        close(fd);
-    }
+    nb_fds++;
+    nbd_update_server_fd_handler(server_fd);
+    nbd_client_new(exp, fd, nbd_client_closed);
 }
 
 static void nbd_update_server_fd_handler(int fd)

@@ -1953,12 +1953,16 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
 
 static CharDriverState *text_console_init(ChardevVC *vc, Error **errp)
 {
+    ChardevCommon *common = qapi_ChardevVC_base(vc);
     CharDriverState *chr;
     QemuConsole *s;
     unsigned width = 0;
     unsigned height = 0;
 
-    chr = qemu_chr_alloc();
+    chr = qemu_chr_alloc(common, errp);
+    if (!chr) {
+        return NULL;
+    }
 
     if (vc->has_width) {
         width = vc->width;

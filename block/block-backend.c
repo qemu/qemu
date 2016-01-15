@@ -1033,6 +1033,11 @@ void blk_set_guest_block_size(BlockBackend *blk, int align)
     blk->guest_block_size = align;
 }
 
+void *blk_try_blockalign(BlockBackend *blk, size_t size)
+{
+    return qemu_try_blockalign(blk ? blk->bs : NULL, size);
+}
+
 void *blk_blockalign(BlockBackend *blk, size_t size)
 {
     return qemu_blockalign(blk ? blk->bs : NULL, size);
