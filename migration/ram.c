@@ -2124,28 +2124,24 @@ static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
  * Returns a pointer from within the RCU-protected ram_list.
  */
 /*
- * Read a RAMBlock ID from the stream f, find the host address of the
- * start of that block and add on 'offset'
+ * Read a RAMBlock ID from the stream f.
  *
  * f: Stream to read from
- * offset: Offset within the block
  * flags: Page flags (mostly to see if it's a continuation of previous block)
  */
-static inline void *host_from_stream_offset(QEMUFile *f,
-                                            ram_addr_t offset,
-                                            int flags)
+static inline RAMBlock *ram_block_from_stream(QEMUFile *f,
+                                              int flags)
 {
     static RAMBlock *block = NULL;
     char id[256];
     uint8_t len;
 
     if (flags & RAM_SAVE_FLAG_CONTINUE) {
-        if (!block || block->max_length <= offset) {
+        if (!block) {
             error_report("Ack, bad migration stream!");
             return NULL;
         }
-
-        return block->host + offset;
+        return block;
     }
 
     len = qemu_get_byte(f);
@@ -2153,12 +2149,22 @@ static inline void *host_from_stream_offset(QEMUFile *f,
     id[len] = 0;
 
     block = qemu_ram_block_by_name(id);
-    if (block && block->max_length > offset) {
-        return block->host + offset;
+    if (!block) {
+        error_report("Can't find block %s", id);
+        return NULL;
     }
 
-    error_report("Can't find block %s", id);
-    return NULL;
+    return block;
+}
+
+static inline void *host_from_ram_block_offset(RAMBlock *block,
+                                               ram_addr_t offset)
+{
+    if (!offset_in_ramblock(block, offset)) {
+        return NULL;
+    }
+
+    return block->host + offset;
 }
 
 /*
@@ -2302,7 +2308,9 @@ static int ram_load_postcopy(QEMUFile *f)
         trace_ram_load_postcopy_loop((uint64_t)addr, flags);
         place_needed = false;
         if (flags & (RAM_SAVE_FLAG_COMPRESS | RAM_SAVE_FLAG_PAGE)) {
-            host = host_from_stream_offset(f, addr, flags);
+            RAMBlock *block = ram_block_from_stream(f, flags);
+
+            host = host_from_ram_block_offset(block, addr);
             if (!host) {
                 error_report("Illegal RAM offset " RAM_ADDR_FMT, addr);
                 ret = -EINVAL;
@@ -2433,7 +2441,9 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 
         if (flags & (RAM_SAVE_FLAG_COMPRESS | RAM_SAVE_FLAG_PAGE |
                      RAM_SAVE_FLAG_COMPRESS_PAGE | RAM_SAVE_FLAG_XBZRLE)) {
-            host = host_from_stream_offset(f, addr, flags);
+            RAMBlock *block = ram_block_from_stream(f, flags);
+
+            host = host_from_ram_block_offset(block, addr);
             if (!host) {
                 error_report("Illegal RAM offset " RAM_ADDR_FMT, addr);
                 ret = -EINVAL;

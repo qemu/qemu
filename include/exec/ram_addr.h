@@ -38,10 +38,14 @@ struct RAMBlock {
     int fd;
 };
 
+static inline bool offset_in_ramblock(RAMBlock *b, ram_addr_t offset)
+{
+    return (b && b->host && offset < b->used_length) ? true : false;
+}
+
 static inline void *ramblock_ptr(RAMBlock *block, ram_addr_t offset)
 {
-    assert(offset < block->used_length);
-    assert(block->host);
+    assert(offset_in_ramblock(block, offset));
     return (char *)block->host + offset;
 }
 
