@@ -650,8 +650,13 @@ static int kvm_put_fp(CPUState *cs)
         for (i = 0; i < 32; i++) {
             uint64_t vsr[2];
 
+#ifdef HOST_WORDS_BIGENDIAN
             vsr[0] = float64_val(env->fpr[i]);
             vsr[1] = env->vsr[i];
+#else
+            vsr[0] = env->vsr[i];
+            vsr[1] = float64_val(env->fpr[i]);
+#endif
             reg.addr = (uintptr_t) &vsr;
             reg.id = vsx ? KVM_REG_PPC_VSR(i) : KVM_REG_PPC_FPR(i);
 
@@ -721,10 +726,17 @@ static int kvm_get_fp(CPUState *cs)
                         vsx ? "VSR" : "FPR", i, strerror(errno));
                 return ret;
             } else {
+#ifdef HOST_WORDS_BIGENDIAN
                 env->fpr[i] = vsr[0];
                 if (vsx) {
                     env->vsr[i] = vsr[1];
                 }
+#else
+                env->fpr[i] = vsr[1];
+                if (vsx) {
+                    env->vsr[i] = vsr[0];
+                }
+#endif
             }
         }
     }
