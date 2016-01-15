@@ -1471,6 +1471,11 @@ typedef struct elf64_shdr {
 #define NT_PPC_VMX       0x100          /* PowerPC Altivec/VMX registers */
 #define NT_PPC_SPE       0x101          /* PowerPC SPE/EVR registers */
 #define NT_PPC_VSX       0x102          /* PowerPC VSX registers */
+#define NT_ARM_VFP      0x400           /* ARM VFP/NEON registers */
+#define NT_ARM_TLS      0x401           /* ARM TLS register */
+#define NT_ARM_HW_BREAK 0x402           /* ARM hardware breakpoint registers */
+#define NT_ARM_HW_WATCH 0x403           /* ARM hardware watchpoint registers */
+#define NT_ARM_SYSTEM_CALL      0x404   /* ARM system call number */
 
 
 /* Note header in a PT_NOTE section */

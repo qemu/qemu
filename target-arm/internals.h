@@ -441,8 +441,9 @@ struct ARMMMUFaultInfo {
 bool arm_tlb_fill(CPUState *cpu, vaddr address, int rw, int mmu_idx,
                   uint32_t *fsr, ARMMMUFaultInfo *fi);
 
-/* Return true if the translation regime is using LPAE format page tables */
-bool arm_regime_using_lpae_format(CPUARMState *env, ARMMMUIdx mmu_idx);
+/* Return true if the stage 1 translation regime is using LPAE format page
+ * tables */
+bool arm_s1_regime_using_lpae_format(CPUARMState *env, ARMMMUIdx mmu_idx);
 
 /* Raise a data fault alignment exception for the specified virtual address */
 void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr, int is_write,
