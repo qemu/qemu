@@ -116,12 +116,6 @@ static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
 
 /* See below for xenforeignmemory_* APIs */
 
-static inline int xc_fd(int xen_xc)
-{
-    return xen_xc;
-}
-
-
 static inline int xc_domain_populate_physmap_exact
     (XenXC xc_handle, uint32_t domid, unsigned long nr_extents,
      unsigned int extent_order, unsigned int mem_flags, xen_pfn_t *extent_start)
@@ -193,11 +187,6 @@ static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
 
 /* See below for xenforeignmemory_* APIs */
 
-/* FIXME There is no way to have the xen fd */
-static inline int xc_fd(xc_interface *xen_xc)
-{
-    return -1;
-}
 #else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 471 */
 
 typedef xc_interface *XenXC;
@@ -213,12 +202,6 @@ static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
                                           unsigned int open_flags)
 {
     return xc_interface_open(logger, dombuild_logger, open_flags);
-}
-
-/* FIXME There is now way to have the xen fd */
-static inline int xc_fd(xc_interface *xen_xc)
-{
-    return -1;
 }
 #endif
 
