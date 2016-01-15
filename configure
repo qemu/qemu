@@ -250,6 +250,7 @@ vnc_jpeg=""
 vnc_png=""
 xen=""
 xen_ctrl_version=""
+xen_pv_domain_build="no"
 xen_pci_passthrough=""
 linux_aio=""
 cap_ng=""
@@ -926,6 +927,10 @@ for opt do
   --disable-xen-pci-passthrough) xen_pci_passthrough="no"
   ;;
   --enable-xen-pci-passthrough) xen_pci_passthrough="yes"
+  ;;
+  --disable-xen-pv-domain-build) xen_pv_domain_build="no"
+  ;;
+  --enable-xen-pv-domain-build) xen_pv_domain_build="yes"
   ;;
   --disable-brlapi) brlapi="no"
   ;;
@@ -2227,6 +2232,12 @@ if test "$xen_pci_passthrough" != "no"; then
     fi
     xen_pci_passthrough=no
   fi
+fi
+
+if test "$xen_pv_domain_build" = "yes" &&
+   test "$xen" != "yes"; then
+    error_exit "User requested Xen PV domain builder support" \
+	       "which requires Xen support."
 fi
 
 ##########################################
@@ -4848,6 +4859,7 @@ fi
 echo "xen support       $xen"
 if test "$xen" = "yes" ; then
   echo "xen ctrl version  $xen_ctrl_version"
+  echo "pv dom build      $xen_pv_domain_build"
 fi
 echo "brlapi support    $brlapi"
 echo "bluez  support    $bluez"
@@ -5219,6 +5231,9 @@ fi
 if test "$xen" = "yes" ; then
   echo "CONFIG_XEN_BACKEND=y" >> $config_host_mak
   echo "CONFIG_XEN_CTRL_INTERFACE_VERSION=$xen_ctrl_version" >> $config_host_mak
+  if test "$xen_pv_domain_build" = "yes" ; then
+    echo "CONFIG_XEN_PV_DOMAIN_BUILD=y" >> $config_host_mak
+  fi
 fi
 if test "$linux_aio" = "yes" ; then
   echo "CONFIG_LINUX_AIO=y" >> $config_host_mak
