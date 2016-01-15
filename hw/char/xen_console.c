@@ -229,9 +229,9 @@ static int con_initialise(struct XenDevice *xendev)
 
     if (!xendev->dev) {
         xen_pfn_t mfn = con->ring_ref;
-        con->sring = xc_map_foreign_pages(xen_xc, con->xendev.dom,
-                                         PROT_READ|PROT_WRITE,
-                                         &mfn, 1);
+        con->sring = xenforeignmemory_map(xen_fmem, con->xendev.dom,
+                                          PROT_READ|PROT_WRITE,
+                                          1, &mfn, NULL);
     } else {
         con->sring = xengnttab_map_grant_ref(xendev->gnttabdev, con->xendev.dom,
                                              con->ring_ref,
@@ -273,7 +273,7 @@ static void con_disconnect(struct XenDevice *xendev)
 
     if (con->sring) {
         if (!xendev->dev) {
-            munmap(con->sring, XC_PAGE_SIZE);
+            xenforeignmemory_unmap(xen_fmem, con->sring, 1);
         } else {
             xengnttab_unmap(xendev->gnttabdev, con->sring, 1);
         }

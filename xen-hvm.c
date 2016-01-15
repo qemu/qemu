@@ -1242,9 +1242,9 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     DPRINTF("buffered io page at pfn %lx\n", bufioreq_pfn);
     DPRINTF("buffered io evtchn is %x\n", bufioreq_evtchn);
 
-    state->shared_page = xc_map_foreign_pages(xen_xc, xen_domid,
+    state->shared_page = xenforeignmemory_map(xen_fmem, xen_domid,
                                               PROT_READ|PROT_WRITE,
-                                              &ioreq_pfn, 1);
+                                              1, &ioreq_pfn, NULL);
     if (state->shared_page == NULL) {
         error_report("map shared IO page returned error %d handle=" XC_INTERFACE_FMT,
                      errno, xen_xc);
@@ -1255,8 +1255,8 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     if (!rc) {
         DPRINTF("shared vmport page at pfn %lx\n", ioreq_pfn);
         state->shared_vmport_page =
-            xc_map_foreign_pages(xen_xc, xen_domid, PROT_READ|PROT_WRITE,
-                                 &ioreq_pfn, 1);
+            xenforeignmemory_map(xen_fmem, xen_domid, PROT_READ|PROT_WRITE,
+                                 1, &ioreq_pfn, NULL);
         if (state->shared_vmport_page == NULL) {
             error_report("map shared vmport IO page returned error %d handle="
                          XC_INTERFACE_FMT, errno, xen_xc);
@@ -1268,9 +1268,9 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
         goto err;
     }
 
-    state->buffered_io_page = xc_map_foreign_pages(xen_xc, xen_domid,
+    state->buffered_io_page = xenforeignmemory_map(xen_fmem, xen_domid,
                                                    PROT_READ|PROT_WRITE,
-                                                   &bufioreq_pfn, 1);
+                                                   1, &bufioreq_pfn, NULL);
     if (state->buffered_io_page == NULL) {
         error_report("map buffered IO page returned error %d", errno);
         goto err;

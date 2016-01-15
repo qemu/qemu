@@ -41,6 +41,7 @@ static inline void *xc_map_foreign_bulk(int xc_handle, uint32_t dom, int prot,
 typedef int XenXC;
 typedef int xenevtchn_handle;
 typedef int xengnttab_handle;
+typedef int xenforeignmemory_handle;
 
 #  define XC_INTERFACE_FMT "%i"
 #  define XC_HANDLER_INITIAL_VALUE    -1
@@ -104,6 +105,8 @@ static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
     return xc_interface_open();
 }
 
+/* See below for xenforeignmemory_* APIs */
+
 static inline int xc_fd(int xen_xc)
 {
     return xen_xc;
@@ -149,6 +152,7 @@ static inline void xs_close(struct xs_handle *xsh)
 #else
 
 typedef xc_interface *XenXC;
+typedef xc_interface *xenforeignmemory_handle;
 typedef xc_evtchn xenevtchn_handle;
 typedef xc_gnttab xengnttab_handle;
 
@@ -177,6 +181,8 @@ static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
 {
     return xc_interface_open(logger, dombuild_logger, open_flags);
 }
+
+/* See below for xenforeignmemory_* APIs */
 
 /* FIXME There is now way to have the xen fd */
 static inline int xc_fd(xc_interface *xen_xc)
@@ -499,6 +505,25 @@ static inline int xen_domain_create(XenXC xc, uint32_t ssidref,
 {
     return xc_domain_create(xc, ssidref, handle, flags, pdomid, NULL);
 }
+#endif
+
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 471
+
+#define xenforeignmemory_open(l, f) &xen_xc
+
+static inline void *xenforeignmemory_map(XenXC *h, uint32_t dom,
+                                         int prot, size_t pages,
+                                         const xen_pfn_t arr[/*pages*/],
+                                         int err[/*pages*/])
+{
+    if (err)
+        return xc_map_foreign_bulk(*h, dom, prot, arr, err, pages);
+    else
+        return xc_map_foreign_pages(*h, dom, prot, arr, pages);
+}
+
+#define xenforeignmemory_unmap(h, p, s) munmap(p, s * XC_PAGE_SIZE)
+
 #endif
 
 #endif /* QEMU_HW_XEN_COMMON_H */
