@@ -8753,9 +8753,9 @@ static void dump_ppc_insns (CPUPPCState *env)
 static bool avr_need_swap(CPUPPCState *env)
 {
 #ifdef HOST_WORDS_BIGENDIAN
-    return false;
+    return msr_le;
 #else
-    return true;
+    return !msr_le;
 #endif
 }
 
@@ -8799,14 +8799,18 @@ static int gdb_get_avr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
             stq_p(mem_buf, env->avr[n].u64[1]);
             stq_p(mem_buf+8, env->avr[n].u64[0]);
         }
+        ppc_maybe_bswap_register(env, mem_buf, 8);
+        ppc_maybe_bswap_register(env, mem_buf + 8, 8);
         return 16;
     }
     if (n == 32) {
         stl_p(mem_buf, env->vscr);
+        ppc_maybe_bswap_register(env, mem_buf, 4);
         return 4;
     }
     if (n == 33) {
         stl_p(mem_buf, (uint32_t)env->spr[SPR_VRSAVE]);
+        ppc_maybe_bswap_register(env, mem_buf, 4);
         return 4;
     }
     return 0;
@@ -8815,6 +8819,8 @@ static int gdb_get_avr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
 static int gdb_set_avr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
+        ppc_maybe_bswap_register(env, mem_buf, 8);
+        ppc_maybe_bswap_register(env, mem_buf + 8, 8);
         if (!avr_need_swap(env)) {
             env->avr[n].u64[0] = ldq_p(mem_buf);
             env->avr[n].u64[1] = ldq_p(mem_buf+8);
@@ -8825,10 +8831,12 @@ static int gdb_set_avr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
         return 16;
     }
     if (n == 32) {
+        ppc_maybe_bswap_register(env, mem_buf, 4);
         env->vscr = ldl_p(mem_buf);
         return 4;
     }
     if (n == 33) {
+        ppc_maybe_bswap_register(env, mem_buf, 4);
         env->spr[SPR_VRSAVE] = (target_ulong)ldl_p(mem_buf);
         return 4;
     }
