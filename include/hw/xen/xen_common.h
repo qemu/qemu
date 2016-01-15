@@ -6,6 +6,15 @@
 #include <stddef.h>
 #include <inttypes.h>
 
+/*
+ * If we have new enough libxenctrl then we do not want/need these compat
+ * interfaces, despite what the user supplied cflags might say. They
+ * must be undefined before including xenctrl.h
+ */
+#undef XC_WANT_COMPAT_EVTCHN_API
+#undef XC_WANT_COMPAT_GNTTAB_API
+#undef XC_WANT_COMPAT_MAP_FOREIGN_API
+
 #include <xenctrl.h>
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 420
 #  include <xs.h>
@@ -148,8 +157,8 @@ static inline void xs_close(struct xs_handle *xsh)
 }
 
 
-/* Xen 4.1 */
-#else
+/* Xen 4.1 thru 4.6 */
+#elif CONFIG_XEN_CTRL_INTERFACE_VERSION < 471
 
 typedef xc_interface *XenXC;
 typedef xc_interface *xenforeignmemory_handle;
@@ -183,6 +192,28 @@ static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
 }
 
 /* See below for xenforeignmemory_* APIs */
+
+/* FIXME There is no way to have the xen fd */
+static inline int xc_fd(xc_interface *xen_xc)
+{
+    return -1;
+}
+#else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 471 */
+
+typedef xc_interface *XenXC;
+
+#  define XC_INTERFACE_FMT "%p"
+#  define XC_HANDLER_INITIAL_VALUE    NULL
+
+#include <xenevtchn.h>
+#include <xengnttab.h>
+#include <xenforeignmemory.h>
+
+static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
+                                          unsigned int open_flags)
+{
+    return xc_interface_open(logger, dombuild_logger, open_flags);
+}
 
 /* FIXME There is now way to have the xen fd */
 static inline int xc_fd(xc_interface *xen_xc)
