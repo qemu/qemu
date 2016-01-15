@@ -252,15 +252,15 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
     fcntl(xenevtchn_fd(xendev->evtchndev), F_SETFD, FD_CLOEXEC);
 
     if (ops->flags & DEVOPS_FLAG_NEED_GNTDEV) {
-        xendev->gnttabdev = xen_xc_gnttab_open(NULL, 0);
-        if (xendev->gnttabdev == XC_HANDLER_INITIAL_VALUE) {
+        xendev->gnttabdev = xengnttab_open(NULL, 0);
+        if (xendev->gnttabdev == NULL) {
             xen_be_printf(NULL, 0, "can't open gnttab device\n");
             xenevtchn_close(xendev->evtchndev);
             g_free(xendev);
             return NULL;
         }
     } else {
-        xendev->gnttabdev = XC_HANDLER_INITIAL_VALUE;
+        xendev->gnttabdev = NULL;
     }
 
     QTAILQ_INSERT_TAIL(&xendevs, xendev, next);
@@ -309,8 +309,8 @@ static struct XenDevice *xen_be_del_xendev(int dom, int dev)
         if (xendev->evtchndev != NULL) {
             xenevtchn_close(xendev->evtchndev);
         }
-        if (xendev->gnttabdev != XC_HANDLER_INITIAL_VALUE) {
-            xc_gnttab_close(xendev->gnttabdev);
+        if (xendev->gnttabdev != NULL) {
+            xengnttab_close(xendev->gnttabdev);
         }
 
         QTAILQ_REMOVE(&xendevs, xendev, next);

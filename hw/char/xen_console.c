@@ -233,7 +233,7 @@ static int con_initialise(struct XenDevice *xendev)
                                           PROT_READ|PROT_WRITE,
                                           con->ring_ref);
     } else {
-        con->sring = xc_gnttab_map_grant_ref(xendev->gnttabdev, con->xendev.dom,
+        con->sring = xengnttab_map_grant_ref(xendev->gnttabdev, con->xendev.dom,
                                              con->ring_ref,
                                              PROT_READ|PROT_WRITE);
     }
@@ -275,7 +275,7 @@ static void con_disconnect(struct XenDevice *xendev)
         if (!xendev->dev) {
             munmap(con->sring, XC_PAGE_SIZE);
         } else {
-            xc_gnttab_munmap(xendev->gnttabdev, con->sring, 1);
+            xengnttab_unmap(xendev->gnttabdev, con->sring, 1);
         }
         con->sring = NULL;
     }

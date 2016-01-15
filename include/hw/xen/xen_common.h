@@ -40,7 +40,7 @@ static inline void *xc_map_foreign_bulk(int xc_handle, uint32_t dom, int prot,
 
 typedef int XenXC;
 typedef int xenevtchn_handle;
-typedef int XenGnttab;
+typedef int xengnttab_handle;
 
 #  define XC_INTERFACE_FMT "%i"
 #  define XC_HANDLER_INITIAL_VALUE    -1
@@ -72,11 +72,31 @@ static inline int xenevtchn_close(xenevtchn_handle *h)
 #define xenevtchn_unmask(h, p) xc_evtchn_unmask(*h, p)
 #define xenevtchn_unbind(h, p) xc_evtchn_unmask(*h, p)
 
-static inline XenGnttab xen_xc_gnttab_open(void *logger,
-                                           unsigned int open_flags)
+static inline xengnttab_handle *xengnttab_open(void *logger,
+                                               unsigned int open_flags)
 {
-    return xc_gnttab_open();
+    xengnttab_handle *h = malloc(sizeof(*h));
+    if (!h) {
+        return NULL;
+    }
+    *h = xc_gnttab_open();
+    if (*h == -1) {
+        free(h);
+        h = NULL;
+    }
+    return h;
 }
+static inline int xengnttab_close(xengnttab_handle *h)
+{
+    int rc = xc_gnttab_close(*h);
+    free(h);
+    return rc;
+}
+#define xengnttab_set_max_grants(h, n) xc_gnttab_set_max_grants(*h, n)
+#define xengnttab_map_grant_ref(h, d, r, p) xc_gnttab_map_grant_ref(*h, d, r, p)
+#define xengnttab_map_grant_refs(h, c, d, r, p) \
+    xc_gnttab_map_grant_refs(*h, c, d, r, p)
+#define xengnttab_unmap(h, a, n) xc_gnttab_munmap(*h, a, n)
 
 static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
                                           unsigned int open_flags)
@@ -130,7 +150,7 @@ static inline void xs_close(struct xs_handle *xsh)
 
 typedef xc_interface *XenXC;
 typedef xc_evtchn xenevtchn_handle;
-typedef xc_gnttab *XenGnttab;
+typedef xc_gnttab xengnttab_handle;
 
 #  define XC_INTERFACE_FMT "%p"
 #  define XC_HANDLER_INITIAL_VALUE    NULL
@@ -144,11 +164,13 @@ typedef xc_gnttab *XenGnttab;
 #define xenevtchn_unmask(h, p) xc_evtchn_unmask(h, p)
 #define xenevtchn_unbind(h, p) xc_evtchn_unbind(h, p)
 
-static inline XenGnttab xen_xc_gnttab_open(void *logger,
-                                           unsigned int open_flags)
-{
-    return xc_gnttab_open(logger, open_flags);
-}
+#define xengnttab_open(l, f) xc_gnttab_open(l, f)
+#define xengnttab_close(h) xc_gnttab_close(h)
+#define xengnttab_set_max_grants(h, n) xc_gnttab_set_max_grants(h, n)
+#define xengnttab_map_grant_ref(h, d, r, p) xc_gnttab_map_grant_ref(h, d, r, p)
+#define xengnttab_unmap(h, a, n) xc_gnttab_munmap(h, a, n)
+#define xengnttab_map_grant_refs(h, c, d, r, p) \
+    xc_gnttab_map_grant_refs(h, c, d, r, p)
 
 static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
                                           unsigned int open_flags)
