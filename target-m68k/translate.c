@@ -2021,6 +2021,33 @@ DISAS_INSN(eor)
     DEST_EA(env, insn, OS_LONG, dest, &addr);
 }
 
+static void do_exg(TCGv reg1, TCGv reg2)
+{
+    TCGv temp = tcg_temp_new();
+    tcg_gen_mov_i32(temp, reg1);
+    tcg_gen_mov_i32(reg1, reg2);
+    tcg_gen_mov_i32(reg2, temp);
+    tcg_temp_free(temp);
+}
+
+DISAS_INSN(exg_aa)
+{
+    /* exchange Dx and Dy */
+    do_exg(DREG(insn, 9), DREG(insn, 0));
+}
+
+DISAS_INSN(exg_dd)
+{
+    /* exchange Ax and Ay */
+    do_exg(AREG(insn, 9), AREG(insn, 0));
+}
+
+DISAS_INSN(exg_da)
+{
+    /* exchange Dx and Ay */
+    do_exg(DREG(insn, 9), AREG(insn, 0));
+}
+
 DISAS_INSN(and)
 {
     TCGv src;
@@ -3154,6 +3181,9 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(cmpa,      b0c0, f0c0, M68000);
     INSN(eor,       b180, f1c0, CF_ISA_A);
     BASE(and,       c000, f000);
+    INSN(exg_dd,    c140, f1f8, M68000);
+    INSN(exg_aa,    c148, f1f8, M68000);
+    INSN(exg_da,    c188, f1f8, M68000);
     BASE(mulw,      c0c0, f0c0);
     BASE(addsub,    d000, f000);
     INSN(addx,      d180, f1f8, CF_ISA_A);
