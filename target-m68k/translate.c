@@ -1989,19 +1989,21 @@ DISAS_INSN(or)
     TCGv dest;
     TCGv src;
     TCGv addr;
+    int opsize;
 
-    reg = DREG(insn, 9);
+    opsize = insn_opsize(insn);
+    reg = gen_extend(DREG(insn, 9), opsize, 0);
     dest = tcg_temp_new();
     if (insn & 0x100) {
-        SRC_EA(env, src, OS_LONG, 0, &addr);
+        SRC_EA(env, src, opsize, 0, &addr);
         tcg_gen_or_i32(dest, src, reg);
-        DEST_EA(env, insn, OS_LONG, dest, &addr);
+        DEST_EA(env, insn, opsize, dest, &addr);
     } else {
-        SRC_EA(env, src, OS_LONG, 0, NULL);
+        SRC_EA(env, src, opsize, 0, NULL);
         tcg_gen_or_i32(dest, src, reg);
-        tcg_gen_mov_i32(reg, dest);
+        gen_partset_reg(opsize, DREG(insn, 9), dest);
     }
-    gen_logic_cc(s, dest, OS_LONG);
+    gen_logic_cc(s, dest, opsize);
 }
 
 DISAS_INSN(suba)
