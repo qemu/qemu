@@ -1253,34 +1253,36 @@ DISAS_INSN(addsub)
     TCGv tmp;
     TCGv addr;
     int add;
+    int opsize;
 
     add = (insn & 0x4000) != 0;
-    reg = DREG(insn, 9);
+    opsize = insn_opsize(insn);
+    reg = gen_extend(DREG(insn, 9), opsize, 1);
     dest = tcg_temp_new();
     if (insn & 0x100) {
-        SRC_EA(env, tmp, OS_LONG, 0, &addr);
+        SRC_EA(env, tmp, opsize, 1, &addr);
         src = reg;
     } else {
         tmp = reg;
-        SRC_EA(env, src, OS_LONG, 0, NULL);
+        SRC_EA(env, src, opsize, 1, NULL);
     }
     if (add) {
         tcg_gen_add_i32(dest, tmp, src);
         tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, dest, src);
-        set_cc_op(s, CC_OP_ADDL);
+        set_cc_op(s, CC_OP_ADDB + opsize);
     } else {
         tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, tmp, src);
         tcg_gen_sub_i32(dest, tmp, src);
-        set_cc_op(s, CC_OP_SUBL);
+        set_cc_op(s, CC_OP_SUBB + opsize);
     }
-    gen_update_cc_add(dest, src, OS_LONG);
+    gen_update_cc_add(dest, src, opsize);
     if (insn & 0x100) {
-        DEST_EA(env, insn, OS_LONG, dest, &addr);
+        DEST_EA(env, insn, opsize, dest, &addr);
     } else {
-        tcg_gen_mov_i32(reg, dest);
+        gen_partset_reg(opsize, DREG(insn, 9), dest);
     }
+    tcg_temp_free(dest);
 }
-
 
 /* Reverse the order of the bits in REG.  */
 DISAS_INSN(bitrev)
@@ -1889,40 +1891,48 @@ DISAS_INSN(jump)
 
 DISAS_INSN(addsubq)
 {
-    TCGv src1;
-    TCGv src2;
+    TCGv src;
     TCGv dest;
-    int val;
+    TCGv val;
+    int imm;
     TCGv addr;
+    int opsize;
 
-    SRC_EA(env, src1, OS_LONG, 0, &addr);
-    val = (insn >> 9) & 7;
-    if (val == 0)
-        val = 8;
+    if ((insn & 070) == 010) {
+        /* Operation on address register is always long.  */
+        opsize = OS_LONG;
+    } else {
+        opsize = insn_opsize(insn);
+    }
+    SRC_EA(env, src, opsize, 1, &addr);
+    imm = (insn >> 9) & 7;
+    if (imm == 0) {
+        imm = 8;
+    }
+    val = tcg_const_i32(imm);
     dest = tcg_temp_new();
-    tcg_gen_mov_i32(dest, src1);
+    tcg_gen_mov_i32(dest, src);
     if ((insn & 0x38) == 0x08) {
         /* Don't update condition codes if the destination is an
            address register.  */
         if (insn & 0x0100) {
-            tcg_gen_subi_i32(dest, dest, val);
+            tcg_gen_sub_i32(dest, dest, val);
         } else {
-            tcg_gen_addi_i32(dest, dest, val);
+            tcg_gen_add_i32(dest, dest, val);
         }
     } else {
-        src2 = tcg_const_i32(val);
         if (insn & 0x0100) {
-            tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, dest, src2);
-            tcg_gen_sub_i32(dest, dest, src2);
-            set_cc_op(s, CC_OP_SUBL);
+            tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, dest, val);
+            tcg_gen_sub_i32(dest, dest, val);
+            set_cc_op(s, CC_OP_SUBB + opsize);
         } else {
-            tcg_gen_add_i32(dest, dest, src2);
-            tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, dest, src2);
-            set_cc_op(s, CC_OP_ADDL);
+            tcg_gen_add_i32(dest, dest, val);
+            tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, dest, val);
+            set_cc_op(s, CC_OP_ADDB + opsize);
         }
-        gen_update_cc_add(dest, src2, OS_LONG);
+        gen_update_cc_add(dest, val, opsize);
     }
-    DEST_EA(env, insn, OS_LONG, dest, &addr);
+    DEST_EA(env, insn, opsize, dest, &addr);
 }
 
 DISAS_INSN(tpf)
@@ -3336,15 +3346,12 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(rts,       4e75, ffff);
     INSN(movec,     4e7b, ffff, CF_ISA_A);
     BASE(jump,      4e80, ffc0);
-    INSN(jump,      4ec0, ffc0, CF_ISA_A);
-    INSN(addsubq,   5180, f1c0, CF_ISA_A);
-    INSN(jump,      4ec0, ffc0, M68000);
+    BASE(jump,      4ec0, ffc0);
     INSN(addsubq,   5000, f080, M68000);
-    INSN(addsubq,   5080, f0c0, M68000);
+    BASE(addsubq,   5080, f0c0);
     INSN(scc,       50c0, f0f8, CF_ISA_A); /* Scc.B Dx   */
     INSN(scc,       50c0, f0c0, M68000);   /* Scc.B <EA> */
     INSN(dbcc,      50c8, f0f8, M68000);
-    INSN(addsubq,   5080, f1c0, CF_ISA_A);
     INSN(tpf,       51f8, fff8, CF_ISA_A);
 
     /* Branch instructions.  */
