@@ -584,32 +584,41 @@ void HELPER(mac_set_flags)(CPUM68KState *env, uint32_t acc)
     }
 }
 
+#define EXTSIGN(val, index) (     \
+    (index == 0) ? (int8_t)(val) : ((index == 1) ? (int16_t)(val) : (val)) \
+)
 
 #define COMPUTE_CCR(op, x, n, z, v, c) {                                   \
     switch (op) {                                                          \
     case CC_OP_FLAGS:                                                      \
         /* Everything in place.  */                                        \
         break;                                                             \
-    case CC_OP_ADD:                                                        \
+    case CC_OP_ADDB:                                                       \
+    case CC_OP_ADDW:                                                       \
+    case CC_OP_ADDL:                                                       \
         res = n;                                                           \
         src2 = v;                                                          \
-        src1 = res - src2;                                                 \
+        src1 = EXTSIGN(res - src2, op - CC_OP_ADDB);                       \
         c = x;                                                             \
         z = n;                                                             \
         v = (res ^ src1) & ~(src1 ^ src2);                                 \
         break;                                                             \
-    case CC_OP_SUB:                                                        \
+    case CC_OP_SUBB:                                                       \
+    case CC_OP_SUBW:                                                       \
+    case CC_OP_SUBL:                                                       \
         res = n;                                                           \
         src2 = v;                                                          \
-        src1 = res + src2;                                                 \
+        src1 = EXTSIGN(res + src2, op - CC_OP_SUBB);                       \
         c = x;                                                             \
         z = n;                                                             \
         v = (res ^ src1) & (src1 ^ src2);                                  \
         break;                                                             \
-    case CC_OP_CMP:                                                        \
+    case CC_OP_CMPB:                                                       \
+    case CC_OP_CMPW:                                                       \
+    case CC_OP_CMPL:                                                       \
         src1 = n;                                                          \
         src2 = v;                                                          \
-        res = src1 - src2;                                                 \
+        res = EXTSIGN(src1 - src2, op - CC_OP_CMPB);                       \
         n = res;                                                           \
         z = res;                                                           \
         c = src1 < src2;                                                   \
@@ -630,16 +639,16 @@ uint32_t cpu_m68k_get_ccr(CPUM68KState *env)
     uint32_t res, src1, src2;
 
     x = env->cc_x;
-    c = env->cc_c;
     n = env->cc_n;
     z = env->cc_z;
     v = env->cc_v;
+    c = env->cc_c;
 
     COMPUTE_CCR(env->cc_op, x, n, z, v, c);
 
     n = n >> 31;
-    v = v >> 31;
     z = (z == 0);
+    v = v >> 31;
 
     return x * CCF_X + n * CCF_N + z * CCF_Z + v * CCF_V + c * CCF_C;
 }

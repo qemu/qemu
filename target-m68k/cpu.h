@@ -179,11 +179,11 @@ typedef enum {
     CC_OP_FLAGS,
 
     /* X in cc_x, C = X, N in cc_n, Z in cc_n, V via cc_n/cc_v.  */
-    CC_OP_ADD,
-    CC_OP_SUB,
+    CC_OP_ADDB, CC_OP_ADDW, CC_OP_ADDL,
+    CC_OP_SUBB, CC_OP_SUBW, CC_OP_SUBL,
 
     /* X in cc_x, {N,Z,C,V} via cc_n/cc_v.  */
-    CC_OP_CMP,
+    CC_OP_CMPB, CC_OP_CMPW, CC_OP_CMPL,
 
     /* X in cc_x, C = 0, V = 0, N in cc_n, Z in cc_n.  */
     CC_OP_LOGIC,
