@@ -255,8 +255,11 @@ void m68k_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 void register_m68k_insns (CPUM68KState *env);
 
 #ifdef CONFIG_USER_ONLY
-/* Linux uses 8k pages.  */
-#define TARGET_PAGE_BITS 13
+/* Coldfire Linux uses 8k pages
+ * and m68k linux uses 4k pages
+ * use the smaller one
+ */
+#define TARGET_PAGE_BITS 12
 #else
 /* Smallest TLB entry size is 1k.  */
 #define TARGET_PAGE_BITS 10
