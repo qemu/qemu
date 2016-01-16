@@ -1631,16 +1631,20 @@ DISAS_INSN(move_from_ccr)
 
 DISAS_INSN(neg)
 {
-    TCGv reg;
     TCGv src1;
+    TCGv dest;
+    TCGv addr;
+    int opsize;
 
-    reg = DREG(insn, 0);
-    src1 = tcg_temp_new();
-    tcg_gen_mov_i32(src1, reg);
-    tcg_gen_neg_i32(reg, src1);
-    gen_update_cc_add(reg, src1, OS_LONG);
-    tcg_gen_setcondi_i32(TCG_COND_NE, QREG_CC_X, src1, 0);
-    set_cc_op(s, CC_OP_SUBL);
+    opsize = insn_opsize(insn);
+    SRC_EA(env, src1, opsize, 1, &addr);
+    dest = tcg_temp_new();
+    tcg_gen_neg_i32(dest, src1);
+    set_cc_op(s, CC_OP_SUBB + opsize);
+    gen_update_cc_add(dest, src1, opsize);
+    tcg_gen_setcondi_i32(TCG_COND_NE, QREG_CC_X, dest, 0);
+    DEST_EA(env, insn, opsize, dest, &addr);
+    tcg_temp_free(dest);
 }
 
 static void gen_set_sr_im(DisasContext *s, uint16_t val, int ccr_only)
