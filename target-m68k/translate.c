@@ -2131,16 +2131,17 @@ DISAS_INSN(cmpa)
 DISAS_INSN(eor)
 {
     TCGv src;
-    TCGv reg;
     TCGv dest;
     TCGv addr;
+    int opsize;
 
-    SRC_EA(env, src, OS_LONG, 0, &addr);
-    reg = DREG(insn, 9);
+    opsize = insn_opsize(insn);
+
+    SRC_EA(env, src, opsize, 0, &addr);
     dest = tcg_temp_new();
-    tcg_gen_xor_i32(dest, src, reg);
-    gen_logic_cc(s, dest, OS_LONG);
-    DEST_EA(env, insn, OS_LONG, dest, &addr);
+    tcg_gen_xor_i32(dest, src, DREG(insn, 9));
+    gen_logic_cc(s, dest, opsize);
+    DEST_EA(env, insn, opsize, dest, &addr);
 }
 
 static void do_exg(TCGv reg1, TCGv reg2)
