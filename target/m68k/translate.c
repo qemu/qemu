@@ -1863,24 +1863,62 @@ DISAS_INSN(tas)
 DISAS_INSN(mull)
 {
     uint16_t ext;
-    TCGv reg;
     TCGv src1;
-    TCGv dest;
+    int sign;
 
-    /* The upper 32 bits of the product are discarded, so
-       muls.l and mulu.l are functionally equivalent.  */
     ext = read_im16(env, s);
-    if (ext & 0x87ff) {
-        gen_exception(s, s->pc - 4, EXCP_UNSUPPORTED);
+
+    sign = ext & 0x800;
+
+    if (ext & 0x400) {
+        if (!m68k_feature(s->env, M68K_FEATURE_QUAD_MULDIV)) {
+            gen_exception(s, s->pc - 4, EXCP_UNSUPPORTED);
+            return;
+        }
+
+        SRC_EA(env, src1, OS_LONG, 0, NULL);
+
+        if (sign) {
+            tcg_gen_muls2_i32(QREG_CC_Z, QREG_CC_N, src1, DREG(ext, 12));
+        } else {
+            tcg_gen_mulu2_i32(QREG_CC_Z, QREG_CC_N, src1, DREG(ext, 12));
+        }
+        /* if Dl == Dh, 68040 returns low word */
+        tcg_gen_mov_i32(DREG(ext, 0), QREG_CC_N);
+        tcg_gen_mov_i32(DREG(ext, 12), QREG_CC_Z);
+        tcg_gen_or_i32(QREG_CC_Z, QREG_CC_Z, QREG_CC_N);
+
+        tcg_gen_movi_i32(QREG_CC_V, 0);
+        tcg_gen_movi_i32(QREG_CC_C, 0);
+
+        set_cc_op(s, CC_OP_FLAGS);
         return;
     }
-    reg = DREG(ext, 12);
     SRC_EA(env, src1, OS_LONG, 0, NULL);
-    dest = tcg_temp_new();
-    tcg_gen_mul_i32(dest, src1, reg);
-    tcg_gen_mov_i32(reg, dest);
-    /* Unlike m68k, coldfire always clears the overflow bit.  */
-    gen_logic_cc(s, dest, OS_LONG);
+    if (m68k_feature(s->env, M68K_FEATURE_M68000)) {
+        tcg_gen_movi_i32(QREG_CC_C, 0);
+        if (sign) {
+            tcg_gen_muls2_i32(QREG_CC_N, QREG_CC_V, src1, DREG(ext, 12));
+            /* QREG_CC_V is -(QREG_CC_V != (QREG_CC_N >> 31)) */
+            tcg_gen_sari_i32(QREG_CC_Z, QREG_CC_N, 31);
+            tcg_gen_setcond_i32(TCG_COND_NE, QREG_CC_V, QREG_CC_V, QREG_CC_Z);
+        } else {
+            tcg_gen_mulu2_i32(QREG_CC_N, QREG_CC_V, src1, DREG(ext, 12));
+            /* QREG_CC_V is -(QREG_CC_V != 0), use QREG_CC_C as 0 */
+            tcg_gen_setcond_i32(TCG_COND_NE, QREG_CC_V, QREG_CC_V, QREG_CC_C);
+        }
+        tcg_gen_neg_i32(QREG_CC_V, QREG_CC_V);
+        tcg_gen_mov_i32(DREG(ext, 12), QREG_CC_N);
+
+        tcg_gen_mov_i32(QREG_CC_Z, QREG_CC_N);
+
+        set_cc_op(s, CC_OP_FLAGS);
+    } else {
+        /* The upper 32 bits of the product are discarded, so
+           muls.l and mulu.l are functionally equivalent.  */
+        tcg_gen_mul_i32(DREG(ext, 12), src1, DREG(ext, 12));
+        gen_logic_cc(s, DREG(ext, 12), OS_LONG);
+    }
 }
 
 static void gen_link(DisasContext *s, uint16_t insn, int32_t offset)
