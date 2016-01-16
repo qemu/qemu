@@ -1673,11 +1673,17 @@ DISAS_INSN(move_to_ccr)
 
 DISAS_INSN(not)
 {
-    TCGv reg;
+    TCGv src1;
+    TCGv dest;
+    TCGv addr;
+    int opsize;
 
-    reg = DREG(insn, 0);
-    tcg_gen_not_i32(reg, reg);
-    gen_logic_cc(s, reg, OS_LONG);
+    opsize = insn_opsize(insn);
+    SRC_EA(env, src1, opsize, 1, &addr);
+    dest = tcg_temp_new();
+    tcg_gen_not_i32(dest, src1);
+    DEST_EA(env, insn, opsize, dest, &addr);
+    gen_logic_cc(s, dest, opsize);
 }
 
 DISAS_INSN(swap)
