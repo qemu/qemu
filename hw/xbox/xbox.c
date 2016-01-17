@@ -42,6 +42,8 @@
 
 #include "hw/xbox/xbox.h"
 
+#include "net/net.h"
+
 /* mostly from pc_memory_init */
 static void xbox_memory_init(MemoryRegion *system_memory,
                              ram_addr_t mem_size,
@@ -234,7 +236,14 @@ void xbox_init_common(QEMUMachineInitArgs *args,
     qdev_init_nofail(&usb0->qdev);
 
     /* Ethernet! */
-    PCIDevice *nvnet = pci_create_simple(host_bus, PCI_DEVFN(4, 0), "nvnet");
+    PCIDevice *nvnet = pci_create(host_bus, PCI_DEVFN(4, 0), "nvnet");
+
+    for (i = 0; i < nb_nics; i++) {
+        NICInfo *nd = &nd_table[i];
+        qemu_check_nic_model(nd, "nvnet");
+        qdev_set_nic_properties(&nvnet->qdev, nd);
+        qdev_init_nofail(&nvnet->qdev);
+    }
 
     /* APU! */
     PCIDevice *apu = pci_create_simple(host_bus, PCI_DEVFN(5, 0), "mcpx-apu");
