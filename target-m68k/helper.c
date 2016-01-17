@@ -132,9 +132,8 @@ void m68k_cpu_init_gdb(M68kCPU *cpu)
     /* TODO: Add [E]MAC registers.  */
 }
 
-void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op)
+static uint32_t cpu_m68k_flush_flags(CPUM68KState *env, int op)
 {
-    M68kCPU *cpu = m68k_env_get_cpu(env);
     int flags;
     uint32_t src;
     uint32_t dest;
@@ -202,7 +201,7 @@ void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op)
     flags = 0;
     src = env->cc_src;
     dest = env->cc_dest;
-    switch (cc_op) {
+    switch (op) {
     case CC_OP_FLAGS:
         flags = dest;
         break;
@@ -268,10 +267,9 @@ set_x:
         SET_FLAGS_SHIFT(int32_t);
         break;
     default:
-        cpu_abort(CPU(cpu), "Bad CC_OP %d", cc_op);
+        g_assert_not_reached();
     }
-    env->cc_op = CC_OP_FLAGS;
-    env->cc_dest = flags;
+    return flags;
 }
 
 void HELPER(movec)(CPUM68KState *env, uint32_t reg, uint32_t val)
@@ -422,20 +420,21 @@ uint32_t HELPER(subx_cc)(CPUM68KState *env, uint32_t op1, uint32_t op2)
 {
     uint32_t res;
     uint32_t old_flags;
+    int op;
 
     old_flags = env->cc_dest;
     if (env->cc_x) {
         env->cc_x = (op1 <= op2);
-        env->cc_op = CC_OP_SUBX;
+        op = CC_OP_SUBX;
         res = op1 - (op2 + 1);
     } else {
         env->cc_x = (op1 < op2);
-        env->cc_op = CC_OP_SUB;
+        op = CC_OP_SUB;
         res = op1 - op2;
     }
     env->cc_dest = res;
     env->cc_src = op2;
-    cpu_m68k_flush_flags(env, env->cc_op);
+    env->cc_dest = cpu_m68k_flush_flags(env, op);
     /* !Z is sticky.  */
     env->cc_dest &= (old_flags | ~CCF_Z);
     return res;
@@ -445,20 +444,21 @@ uint32_t HELPER(addx_cc)(CPUM68KState *env, uint32_t op1, uint32_t op2)
 {
     uint32_t res;
     uint32_t old_flags;
+    int op;
 
     old_flags = env->cc_dest;
     if (env->cc_x) {
         res = op1 + op2 + 1;
         env->cc_x = (res <= op2);
-        env->cc_op = CC_OP_ADDX;
+        op = CC_OP_ADDX;
     } else {
         res = op1 + op2;
         env->cc_x = (res < op2);
-        env->cc_op = CC_OP_ADD;
+        op = CC_OP_ADD;
     }
     env->cc_dest = res;
     env->cc_src = op2;
-    cpu_m68k_flush_flags(env, env->cc_op);
+    env->cc_dest = cpu_m68k_flush_flags(env, op);
     /* !Z is sticky.  */
     env->cc_dest &= (old_flags | ~CCF_Z);
     return res;
@@ -790,9 +790,9 @@ void HELPER(mac_set_flags)(CPUM68KState *env, uint32_t acc)
     }
 }
 
-void HELPER(flush_flags)(CPUM68KState *env, uint32_t cc_op)
+uint32_t HELPER(flush_flags)(CPUM68KState *env, uint32_t op)
 {
-    cpu_m68k_flush_flags(env, cc_op);
+    return cpu_m68k_flush_flags(env, op);
 }
 
 uint32_t HELPER(get_macf)(CPUM68KState *env, uint64_t val)

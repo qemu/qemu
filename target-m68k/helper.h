@@ -45,5 +45,5 @@ DEF_HELPER_3(set_mac_extf, void, env, i32, i32)
 DEF_HELPER_3(set_mac_exts, void, env, i32, i32)
 DEF_HELPER_3(set_mac_extu, void, env, i32, i32)
 
-DEF_HELPER_2(flush_flags, void, env, i32)
+DEF_HELPER_2(flush_flags, i32, env, i32)
 DEF_HELPER_2(raise_exception, void, env, i32)
