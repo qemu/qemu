@@ -808,8 +808,11 @@ static int xen_pt_initfn(PCIDevice *d)
             return -1;
         }
 
-        if (xen_pt_setup_vga(s, &s->real_device) < 0) {
-            XEN_PT_ERR(d, "Setup VGA BIOS of passthrough GFX failed!\n");
+        xen_pt_setup_vga(s, &s->real_device, &err);
+        if (err) {
+            error_append_hint(&err, "Setup VGA BIOS of passthrough"
+                    " GFX failed");
+            error_report_err(err);
             xen_host_pci_device_put(&s->real_device);
             return -1;
         }

@@ -330,5 +330,6 @@ static inline bool is_igd_vga_passthrough(XenHostPCIDevice *dev)
 }
 int xen_pt_register_vga_regions(XenHostPCIDevice *dev);
 int xen_pt_unregister_vga_regions(XenHostPCIDevice *dev);
-int xen_pt_setup_vga(XenPCIPassthroughState *s, XenHostPCIDevice *dev);
+void xen_pt_setup_vga(XenPCIPassthroughState *s, XenHostPCIDevice *dev,
+                     Error **errp);
 #endif /* !XEN_PT_H */
