@@ -767,6 +767,7 @@ static int xen_pt_initfn(PCIDevice *d)
     uint8_t machine_irq = 0, scratch;
     uint16_t cmd = 0;
     int pirq = XEN_PT_UNASSIGNED_PIRQ;
+    Error *err = NULL;
 
     /* register real device */
     XEN_PT_LOG(d, "Assigning real physical device %02x:%02x.%d"
@@ -774,11 +775,13 @@ static int xen_pt_initfn(PCIDevice *d)
                s->hostaddr.bus, s->hostaddr.slot, s->hostaddr.function,
                s->dev.devfn);
 
-    rc = xen_host_pci_device_get(&s->real_device,
-                                 s->hostaddr.domain, s->hostaddr.bus,
-                                 s->hostaddr.slot, s->hostaddr.function);
-    if (rc) {
-        XEN_PT_ERR(d, "Failed to \"open\" the real pci device. rc: %i\n", rc);
+    xen_host_pci_device_get(&s->real_device,
+                            s->hostaddr.domain, s->hostaddr.bus,
+                            s->hostaddr.slot, s->hostaddr.function,
+                            &err);
+    if (err) {
+        error_append_hint(&err, "Failed to \"open\" the real pci device");
+        error_report_err(err);
         return -1;
     }
 

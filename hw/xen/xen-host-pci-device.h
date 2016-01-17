@@ -36,8 +36,9 @@ typedef struct XenHostPCIDevice {
     int config_fd;
 } XenHostPCIDevice;
 
-int xen_host_pci_device_get(XenHostPCIDevice *d, uint16_t domain,
-                            uint8_t bus, uint8_t dev, uint8_t func);
+void xen_host_pci_device_get(XenHostPCIDevice *d, uint16_t domain,
+                             uint8_t bus, uint8_t dev, uint8_t func,
+                             Error **errp);
 void xen_host_pci_device_put(XenHostPCIDevice *pci_dev);
 bool xen_host_pci_device_closed(XenHostPCIDevice *d);
 
