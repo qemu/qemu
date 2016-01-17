@@ -31,19 +31,14 @@
 #define IORESOURCE_PREFETCH     0x00001000      /* No side effects */
 #define IORESOURCE_MEM_64       0x00100000
 
-static int xen_host_pci_sysfs_path(const XenHostPCIDevice *d,
-                                   const char *name, char *buf, ssize_t size)
+static void xen_host_pci_sysfs_path(const XenHostPCIDevice *d,
+                                    const char *name, char *buf, ssize_t size)
 {
     int rc;
 
     rc = snprintf(buf, size, "/sys/bus/pci/devices/%04x:%02x:%02x.%d/%s",
                   d->domain, d->bus, d->dev, d->func, name);
-
-    if (rc >= size || rc < 0) {
-        /* The output is truncated, or some other error was encountered */
-        return -ENODEV;
-    }
-    return 0;
+    assert(rc >= 0 && rc < size);
 }
 
 
@@ -58,10 +53,8 @@ static int xen_host_pci_get_resource(XenHostPCIDevice *d)
     char *endptr, *s;
     uint8_t type;
 
-    rc = xen_host_pci_sysfs_path(d, "resource", path, sizeof (path));
-    if (rc) {
-        return rc;
-    }
+    xen_host_pci_sysfs_path(d, "resource", path, sizeof(path));
+
     fd = open(path, O_RDONLY);
     if (fd == -1) {
         XEN_HOST_PCI_LOG("Error: Can't open %s: %s\n", path, strerror(errno));
@@ -150,10 +143,8 @@ static int xen_host_pci_get_value(XenHostPCIDevice *d, const char *name,
     unsigned long value;
     char *endptr;
 
-    rc = xen_host_pci_sysfs_path(d, name, path, sizeof (path));
-    if (rc) {
-        return rc;
-    }
+    xen_host_pci_sysfs_path(d, name, path, sizeof(path));
+
     fd = open(path, O_RDONLY);
     if (fd == -1) {
         XEN_HOST_PCI_LOG("Error: Can't open %s: %s\n", path, strerror(errno));
@@ -200,21 +191,17 @@ static bool xen_host_pci_dev_is_virtfn(XenHostPCIDevice *d)
     char path[PATH_MAX];
     struct stat buf;
 
-    if (xen_host_pci_sysfs_path(d, "physfn", path, sizeof (path))) {
-        return false;
-    }
+    xen_host_pci_sysfs_path(d, "physfn", path, sizeof(path));
+
     return !stat(path, &buf);
 }
 
 static int xen_host_pci_config_open(XenHostPCIDevice *d)
 {
     char path[PATH_MAX];
-    int rc;
 
-    rc = xen_host_pci_sysfs_path(d, "config", path, sizeof (path));
-    if (rc) {
-        return rc;
-    }
+    xen_host_pci_sysfs_path(d, "config", path, sizeof(path));
+
     d->config_fd = open(path, O_RDWR);
     if (d->config_fd < 0) {
         return -errno;
