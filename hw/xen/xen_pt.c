@@ -825,9 +825,11 @@ static int xen_pt_initfn(PCIDevice *d)
     xen_pt_register_regions(s, &cmd);
 
     /* reinitialize each config register to be emulated */
-    rc = xen_pt_config_init(s);
-    if (rc) {
-        XEN_PT_ERR(d, "PCI Config space initialisation failed.\n");
+    xen_pt_config_init(s, &err);
+    if (err) {
+        error_append_hint(&err, "PCI Config space initialisation failed");
+        error_report_err(err);
+        rc = -1;
         goto err_out;
     }
 

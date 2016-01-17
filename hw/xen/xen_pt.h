@@ -230,7 +230,7 @@ struct XenPCIPassthroughState {
     bool listener_set;
 };
 
-int xen_pt_config_init(XenPCIPassthroughState *s);
+void xen_pt_config_init(XenPCIPassthroughState *s, Error **errp);
 void xen_pt_config_delete(XenPCIPassthroughState *s);
 XenPTRegGroup *xen_pt_find_reg_grp(XenPCIPassthroughState *s, uint32_t address);
 XenPTReg *xen_pt_find_reg(XenPTRegGroup *reg_grp, uint32_t address);
