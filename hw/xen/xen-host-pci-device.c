@@ -141,7 +141,7 @@ static int xen_host_pci_get_value(XenHostPCIDevice *d, const char *name,
     char buf[XEN_HOST_PCI_GET_VALUE_BUFFER_SIZE];
     int fd, rc;
     unsigned long value;
-    char *endptr;
+    const char *endptr;
 
     xen_host_pci_sysfs_path(d, name, path, sizeof(path));
 
@@ -158,13 +158,9 @@ static int xen_host_pci_get_value(XenHostPCIDevice *d, const char *name,
         }
     } while (rc < 0);
     buf[rc] = 0;
-    value = strtol(buf, &endptr, base);
-    if (endptr == buf || *endptr != '\n') {
-        rc = -1;
-    } else if ((value == LONG_MIN || value == LONG_MAX) && errno == ERANGE) {
-        rc = -errno;
-    } else {
-        rc = 0;
+    rc = qemu_strtoul(buf, &endptr, base, &value);
+    if (!rc) {
+        assert(value <= UINT_MAX);
         *pvalue = value;
     }
 out:
