@@ -1639,6 +1639,11 @@ DISAS_INSN(swap)
     gen_logic_cc(s, reg, OS_LONG);
 }
 
+DISAS_INSN(bkpt)
+{
+    gen_exception(s, s->pc - 2, EXCP_DEBUG);
+}
+
 DISAS_INSN(pea)
 {
     TCGv tmp;
@@ -3056,6 +3061,7 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(move_to_sr, 46c0, ffc0, CF_ISA_A);
     BASE(pea,       4840, ffc0);
     BASE(swap,      4840, fff8);
+    INSN(bkpt,      4848, fff8, BKPT);
     BASE(movem,     48c0, fbc0);
     BASE(ext,       4880, fff8);
     BASE(ext,       48c0, fff8);
