@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include <CoreAudio/CoreAudio.h>
-#include <string.h>             /* strerror */
 #include <pthread.h>            /* pthread_X */
 
 #include "qemu-common.h"

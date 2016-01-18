@@ -7,6 +7,7 @@
  * This file is licensed under GNU GPL.
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/i2c/i2c.h"
 #include "audio/audio.h"

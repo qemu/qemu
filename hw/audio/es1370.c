@@ -26,6 +26,7 @@
 /* #define VERBOSE_ES1370 */
 #define SILENT_ES1370
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/audio/audio.h"
 #include "audio/audio.h"

@@ -1,5 +1,6 @@
 /* public domain */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 
 #define AUDIO_CAP "win-int"

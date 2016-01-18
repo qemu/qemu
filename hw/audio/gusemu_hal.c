@@ -26,6 +26,7 @@
  * TODO: check mixer: see 7.20 of sdk for panning pos (applies to all gus models?)?
  */
 
+#include "qemu/osdep.h"
 #include "gustate.h"
 #include "gusemu.h"
 

@@ -26,6 +26,7 @@
  * SEAL 1.07 by Carlos 'pel' Hasan was used as documentation
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "audio.h"
 

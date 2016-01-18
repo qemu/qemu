@@ -13,6 +13,7 @@
  * It supports only one playback voice and no record voice.
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "audio/audio.h"
 #include "lm4549.h"
@@ -33,7 +34,6 @@ do { printf("lm4549: " fmt , ## __VA_ARGS__); } while (0)
 #endif
 
 #if defined(LM4549_DUMP_DAC_INPUT)
-#include <stdio.h>
 static FILE *fp_dac_input;
 #endif
 
