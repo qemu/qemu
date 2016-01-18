@@ -366,7 +366,7 @@ static void nvdimm_build_nfit(GSList *device_list, GArray *table_offsets,
 
     build_header(linker, table_data,
                  (void *)(table_data->data + header), "NFIT",
-                 sizeof(NvdimmNfitHeader) + structures->len, 1, NULL);
+                 sizeof(NvdimmNfitHeader) + structures->len, 1, NULL, NULL);
     g_array_free(structures, true);
 }
 
@@ -471,7 +471,7 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
     g_array_append_vals(table_data, ssdt->buf->data, ssdt->buf->len);
     build_header(linker, table_data,
         (void *)(table_data->data + table_data->len - ssdt->buf->len),
-        "SSDT", ssdt->buf->len, 1, "NVDIMM");
+        "SSDT", ssdt->buf->len, 1, NULL, "NVDIMM");
     free_aml_allocator();
 }
 
