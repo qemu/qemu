@@ -137,7 +137,7 @@ static void netfilter_complete(UserCreatable *uc, Error **errp)
     Error *local_err = NULL;
     char *str, *info;
     ObjectProperty *prop;
-    ObjectPropertyIterator *iter;
+    ObjectPropertyIterator iter;
     StringOutputVisitor *ov;
 
     if (!nf->netdev_id) {
@@ -174,8 +174,8 @@ static void netfilter_complete(UserCreatable *uc, Error **errp)
     QTAILQ_INSERT_TAIL(&nf->netdev->filters, nf, next);
 
     /* generate info str */
-    iter = object_property_iter_init(OBJECT(nf));
-    while ((prop = object_property_iter_next(iter))) {
+    object_property_iter_init(&iter, OBJECT(nf));
+    while ((prop = object_property_iter_next(&iter))) {
         if (!strcmp(prop->name, "type")) {
             continue;
         }
@@ -189,7 +189,6 @@ static void netfilter_complete(UserCreatable *uc, Error **errp)
         g_free(str);
         g_free(info);
     }
-    object_property_iter_free(iter);
 }
 
 static void netfilter_finalize(Object *obj)

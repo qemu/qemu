@@ -587,7 +587,7 @@ F: hw/ppc/prep.c
 F: hw/pci-host/prep.[hc]
 F: hw/isa/pc87312.[hc]
 
-sPAPR (pseries)
+sPAPR
 M: David Gibson <david@gibson.dropbear.id.au>
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org

@@ -123,17 +123,27 @@ static void dummy_init(Object *obj)
                              dummy_get_bv,
                              dummy_set_bv,
                              NULL);
-    object_property_add_str(obj, "sv",
-                            dummy_get_sv,
-                            dummy_set_sv,
-                            NULL);
-    object_property_add_enum(obj, "av",
-                             "DummyAnimal",
-                             dummy_animal_map,
-                             dummy_get_av,
-                             dummy_set_av,
-                             NULL);
 }
+
+
+static void dummy_class_init(ObjectClass *cls, void *data)
+{
+    object_class_property_add_bool(cls, "bv",
+                                   dummy_get_bv,
+                                   dummy_set_bv,
+                                   NULL);
+    object_class_property_add_str(cls, "sv",
+                                  dummy_get_sv,
+                                  dummy_set_sv,
+                                  NULL);
+    object_class_property_add_enum(cls, "av",
+                                   "DummyAnimal",
+                                   dummy_animal_map,
+                                   dummy_get_av,
+                                   dummy_set_av,
+                                   NULL);
+}
+
 
 static void dummy_finalize(Object *obj)
 {
@@ -150,6 +160,7 @@ static const TypeInfo dummy_info = {
     .instance_init = dummy_init,
     .instance_finalize = dummy_finalize,
     .class_size = sizeof(DummyObjectClass),
+    .class_init = dummy_class_init,
 };
 
 
@@ -444,11 +455,11 @@ static void test_dummy_iterator(void)
                               NULL));
 
     ObjectProperty *prop;
-    ObjectPropertyIterator *iter;
+    ObjectPropertyIterator iter;
     bool seenbv = false, seensv = false, seenav = false, seentype;
 
-    iter = object_property_iter_init(OBJECT(dobj));
-    while ((prop = object_property_iter_next(iter))) {
+    object_property_iter_init(&iter, OBJECT(dobj));
+    while ((prop = object_property_iter_next(&iter))) {
         if (g_str_equal(prop->name, "bv")) {
             seenbv = true;
         } else if (g_str_equal(prop->name, "sv")) {
@@ -463,7 +474,6 @@ static void test_dummy_iterator(void)
             g_assert_not_reached();
         }
     }
-    object_property_iter_free(iter);
     g_assert(seenbv);
     g_assert(seenav);
     g_assert(seensv);

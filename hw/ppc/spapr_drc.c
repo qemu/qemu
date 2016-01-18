@@ -684,7 +684,7 @@ int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
 {
     Object *root_container;
     ObjectProperty *prop;
-    ObjectPropertyIterator *iter;
+    ObjectPropertyIterator iter;
     uint32_t drc_count = 0;
     GArray *drc_indexes, *drc_power_domains;
     GString *drc_names, *drc_types;
@@ -708,8 +708,8 @@ int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
      */
     root_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
 
-    iter = object_property_iter_init(root_container);
-    while ((prop = object_property_iter_next(iter))) {
+    object_property_iter_init(&iter, root_container);
+    while ((prop = object_property_iter_next(&iter))) {
         Object *obj;
         sPAPRDRConnector *drc;
         sPAPRDRConnectorClass *drck;
@@ -750,7 +750,6 @@ int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
                                     spapr_drc_get_type_str(drc->type));
         drc_types = g_string_insert_len(drc_types, -1, "\0", 1);
     }
-    object_property_iter_free(iter);
 
     /* now write the drc count into the space we reserved at the
      * beginning of the arrays previously
