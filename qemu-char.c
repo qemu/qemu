@@ -1740,18 +1740,19 @@ static CharDriverState *qemu_chr_open_pp_fd(int fd,
         return NULL;
     }
 
-    drv = g_new0(ParallelCharDriver, 1);
-    drv->fd = fd;
-    drv->mode = IEEE1284_MODE_COMPAT;
-
     chr = qemu_chr_alloc(backend, errp);
     if (!chr) {
         return NULL;
     }
+
+    drv = g_new0(ParallelCharDriver, 1);
+    chr->opaque = drv;
     chr->chr_write = null_chr_write;
     chr->chr_ioctl = pp_ioctl;
     chr->chr_close = pp_close;
-    chr->opaque = drv;
+
+    drv->fd = fd;
+    drv->mode = IEEE1284_MODE_COMPAT;
 
     return chr;
 }
