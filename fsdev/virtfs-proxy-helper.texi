@@ -28,8 +28,8 @@ QEMU and proxy helper communicate using this socket. QEMU proxy fs
 driver sends filesystem request to proxy helper and receives the
 response from it.
 
-Proxy helper is designed so that it can drop the root privilege with
-retaining capbilities needed for doing filesystem operations only.
+The proxy helper is designed so that it can drop root privileges except
+for the capabilities needed for doing filesystem operations.
 
 @end table
 @c man end
