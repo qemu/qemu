@@ -720,7 +720,7 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size)
 
     if (ioctl(fd, NBD_SET_SOCK, csock) < 0) {
         int serrno = errno;
-        LOG("Failed to set NBD socket");
+        LOG("Failed to set NBD socket: %s", strerror(serrno));
         return -serrno;
     }
 
@@ -728,7 +728,7 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size)
 
     if (ioctl(fd, NBD_SET_BLKSIZE, (size_t)BDRV_SECTOR_SIZE) < 0) {
         int serrno = errno;
-        LOG("Failed setting NBD block size");
+        LOG("Failed setting NBD block size: %s", strerror(serrno));
         return -serrno;
     }
 
@@ -736,7 +736,7 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size)
 
     if (ioctl(fd, NBD_SET_SIZE_BLOCKS, (size_t)(size / BDRV_SECTOR_SIZE)) < 0) {
         int serrno = errno;
-        LOG("Failed setting size (in blocks)");
+        LOG("Failed setting size (in blocks): %s", strerror(serrno));
         return -serrno;
     }
 
@@ -747,12 +747,12 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size)
 
             if (ioctl(fd, BLKROSET, (unsigned long) &read_only) < 0) {
                 int serrno = errno;
-                LOG("Failed setting read-only attribute");
+                LOG("Failed setting read-only attribute: %s", strerror(serrno));
                 return -serrno;
             }
         } else {
             int serrno = errno;
-            LOG("Failed setting flags");
+            LOG("Failed setting flags: %s", strerror(serrno));
             return -serrno;
         }
     }
@@ -854,7 +854,7 @@ static ssize_t nbd_receive_request(int csock, struct nbd_request *request)
     }
 
     if (ret != sizeof(buf)) {
-        LOG("read failed");
+        LOG("partial read indicates failure: (%ld != %ld)", ret, sizeof(buf));
         return -EINVAL;
     }
 
