@@ -18,6 +18,7 @@
  * http://www.loongsondeveloper.com/doc/Loongson2EUserGuide.pdf
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "hw/char/serial.h"

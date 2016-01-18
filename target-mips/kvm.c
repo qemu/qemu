@@ -9,7 +9,7 @@
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
 */
 
-#include <sys/types.h>
+#include "qemu/osdep.h"
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 

@@ -7,6 +7,7 @@
  * All peripherial devices are attached to this "bus" with
  * the standard PC ISA addresses.
 */
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/mips/mips.h"
 #include "hw/mips/cpudevs.h"
