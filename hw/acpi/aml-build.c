@@ -1492,7 +1492,8 @@ void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre)
 
 /* Build rsdt table */
 void
-build_rsdt(GArray *table_data, GArray *linker, GArray *table_offsets)
+build_rsdt(GArray *table_data, GArray *linker, GArray *table_offsets,
+           const char *oem_id, const char *oem_table_id)
 {
     AcpiRsdtDescriptorRev1 *rsdt;
     size_t rsdt_len;
@@ -1511,5 +1512,5 @@ build_rsdt(GArray *table_data, GArray *linker, GArray *table_offsets)
                                        sizeof(uint32_t));
     }
     build_header(linker, table_data,
-                 (void *)rsdt, "RSDT", rsdt_len, 1, NULL, NULL);
+                 (void *)rsdt, "RSDT", rsdt_len, 1, oem_id, oem_table_id);
 }
