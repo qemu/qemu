@@ -851,6 +851,13 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     DeviceState *dev = DEVICE(pci_dev);
 
     pci_dev->bus = bus;
+    /* Only pci bridges can be attached to extra PCI root buses */
+    if (pci_bus_is_root(bus) && bus->parent_dev && !pc->is_bridge) {
+        error_setg(errp,
+                   "PCI: Only PCI/PCIe bridges can be plugged into %s",
+                    bus->parent_dev->name);
+        return NULL;
+    }
 
     if (devfn < 0) {
         for(devfn = bus->devfn_min ; devfn < ARRAY_SIZE(bus->devices);
