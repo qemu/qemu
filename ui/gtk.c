@@ -1588,6 +1588,13 @@ static int gd_vc_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
     return len;
 }
 
+static void gd_vc_chr_set_echo(CharDriverState *chr, bool echo)
+{
+    VirtualConsole *vc = chr->opaque;
+
+    vc->vte.echo = echo;
+}
+
 static int nb_vcs;
 static CharDriverState *vcs[MAX_VCS];
 
@@ -1597,6 +1604,11 @@ static CharDriverState *gd_vc_handler(ChardevVC *unused, Error **errp)
 
     chr = g_malloc0(sizeof(*chr));
     chr->chr_write = gd_vc_chr_write;
+    chr->chr_set_echo = gd_vc_chr_set_echo;
+
+    /* Temporary, until gd_vc_vte_init runs.  */
+    chr->opaque = g_new(VirtualConsole, 1);
+
     /* defer OPENED events until our vc is fully initialized */
     chr->explicit_be_open = true;
 
@@ -1610,6 +1622,24 @@ static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
 {
     VirtualConsole *vc = user_data;
 
+    if (vc->vte.echo) {
+        VteTerminal *term = VTE_TERMINAL(vc->vte.terminal);
+        int i;
+        for (i = 0; i < size; i++) {
+            uint8_t c = text[i];
+            if (c >= 128 || isprint(c)) {
+                /* 8-bit characters are considered printable.  */
+                vte_terminal_feed(term, &text[i], 1);
+            } else if (c == '\r' || c == '\n') {
+                vte_terminal_feed(term, "\r\n", 2);
+            } else {
+                char ctrl[2] = { '^', 0};
+                ctrl[1] = text[i] ^ 64;
+                vte_terminal_feed(term, ctrl, 2);
+            }
+        }
+    }
+
     qemu_chr_be_write(vc->vte.chr, (uint8_t  *)text, (unsigned int)size);
     return TRUE;
 }
@@ -1622,9 +1652,14 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
     GtkWidget *box;
     GtkWidget *scrollbar;
     GtkAdjustment *vadjustment;
+    VirtualConsole *tmp_vc = chr->opaque;
 
     vc->s = s;
+    vc->vte.echo = tmp_vc->vte.echo;
+
     vc->vte.chr = chr;
+    chr->opaque = vc;
+    g_free(tmp_vc);
 
     snprintf(buffer, sizeof(buffer), "vc%d", idx);
     vc->label = g_strdup_printf("%s", vc->vte.chr->label
@@ -1633,6 +1668,15 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
 
     vc->vte.terminal = vte_terminal_new();
     g_signal_connect(vc->vte.terminal, "commit", G_CALLBACK(gd_vc_in), vc);
+
+    /* The documentation says that the default is UTF-8, but actually it is
+     * 7-bit ASCII at least in VTE 0.38.
+     */
+#if VTE_CHECK_VERSION(0, 40, 0)
+    vte_terminal_set_encoding(VTE_TERMINAL(vc->vte.terminal), "UTF-8", NULL);
+#else
+    vte_terminal_set_encoding(VTE_TERMINAL(vc->vte.terminal), "UTF-8");
+#endif
 
     vte_terminal_set_scrollback_lines(VTE_TERMINAL(vc->vte.terminal), -1);
     vte_terminal_set_size(VTE_TERMINAL(vc->vte.terminal),
@@ -1656,7 +1700,6 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
     gtk_box_pack_start(GTK_BOX(box), vc->vte.terminal, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(box), scrollbar, FALSE, FALSE, 0);
 
-    vc->vte.chr->opaque = vc;
     vc->vte.box = box;
     vc->vte.scrollbar = scrollbar;
 

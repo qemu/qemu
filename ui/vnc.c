@@ -3134,6 +3134,7 @@ static void vnc_display_close(VncDisplay *vs)
     vs->subauth = VNC_AUTH_INVALID;
     if (vs->tlscreds) {
         object_unparent(OBJECT(vs->tlscreds));
+        vs->tlscreds = NULL;
     }
     g_free(vs->tlsaclname);
     vs->tlsaclname = NULL;
@@ -3605,7 +3606,7 @@ void vnc_display_open(const char *id, Error **errp)
             qemu_opt_get(opts, "x509") ||
             qemu_opt_get(opts, "x509verify")) {
             error_setg(errp,
-                       "'credid' parameter is mutually exclusive with "
+                       "'tls-creds' parameter is mutually exclusive with "
                        "'tls', 'x509' and 'x509verify' parameters");
             goto fail;
         }
