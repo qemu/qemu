@@ -1472,6 +1472,10 @@ ACPI headers (possible overridden by other options).
 For data=, only data
 portion of the table is used, all header information is specified in the
 command line.
+If a SLIC table is supplied to QEMU, then the SLIC's oem_id and oem_table_id
+fields will override the same in the RSDT and the FADT (a.k.a. FACP), in order
+to ensure the field matches required by the Microsoft SLIC spec and the ACPI
+spec.
 ETEXI
 
 DEF("smbios", HAS_ARG, QEMU_OPTION_smbios,

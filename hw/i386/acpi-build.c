@@ -336,7 +336,8 @@ static void fadt_setup(AcpiFadtDescriptorRev1 *fadt, AcpiPmInfo *pm)
 /* FADT */
 static void
 build_fadt(GArray *table_data, GArray *linker, AcpiPmInfo *pm,
-           unsigned facs, unsigned dsdt)
+           unsigned facs, unsigned dsdt,
+           const char *oem_id, const char *oem_table_id)
 {
     AcpiFadtDescriptorRev1 *fadt = acpi_data_push(table_data, sizeof(*fadt));
 
@@ -357,7 +358,7 @@ build_fadt(GArray *table_data, GArray *linker, AcpiPmInfo *pm,
     fadt_setup(fadt, pm);
 
     build_header(linker, table_data,
-                 (void *)fadt, "FACP", sizeof(*fadt), 1, NULL, NULL);
+                 (void *)fadt, "FACP", sizeof(*fadt), 1, oem_id, oem_table_id);
 }
 
 static void
@@ -2601,11 +2602,13 @@ void acpi_build(AcpiBuildTables *tables)
     uint8_t *u;
     size_t aml_len = 0;
     GArray *tables_blob = tables->table_data;
+    AcpiSlicOem slic_oem = { .id = NULL, .table_id = NULL };
 
     acpi_get_cpu_info(&cpu);
     acpi_get_pm_info(&pm);
     acpi_get_misc_info(&misc);
     acpi_get_pci_info(&pci);
+    acpi_get_slic_oem(&slic_oem);
 
     table_offsets = g_array_new(false, true /* clear */,
                                         sizeof(uint32_t));
@@ -2635,7 +2638,8 @@ void acpi_build(AcpiBuildTables *tables)
     /* ACPI tables pointed to by RSDT */
     fadt = tables_blob->len;
     acpi_add_table(table_offsets, tables_blob);
-    build_fadt(tables_blob, tables->linker, &pm, facs, dsdt);
+    build_fadt(tables_blob, tables->linker, &pm, facs, dsdt,
+               slic_oem.id, slic_oem.table_id);
     aml_len += tables_blob->len - fadt;
 
     acpi_add_table(table_offsets, tables_blob);
@@ -2681,7 +2685,8 @@ void acpi_build(AcpiBuildTables *tables)
 
     /* RSDT is pointed to by RSDP */
     rsdt = tables_blob->len;
-    build_rsdt(tables_blob, tables->linker, table_offsets, NULL, NULL);
+    build_rsdt(tables_blob, tables->linker, table_offsets,
+               slic_oem.id, slic_oem.table_id);
 
     /* RSDP is in FSEG memory, so allocate it separately */
     build_rsdp(tables->rsdp, tables->linker, rsdt);
