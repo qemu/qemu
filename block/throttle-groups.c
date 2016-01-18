@@ -22,6 +22,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "block/throttle-groups.h"
 #include "qemu/queue.h"
 #include "qemu/thread.h"

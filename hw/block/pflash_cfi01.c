@@ -36,6 +36,7 @@
  * It does not implement much more ...
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/block/flash.h"
 #include "sysemu/block-backend.h"

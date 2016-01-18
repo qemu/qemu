@@ -10,6 +10,7 @@
  * or later.  See the COPYING.LIB file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"
 #include "block/blockjob.h"

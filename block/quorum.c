@@ -13,6 +13,7 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "block/block_int.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"

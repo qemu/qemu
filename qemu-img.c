@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include "qemu/osdep.h"
 #include "qapi-visit.h"
 #include "qapi/qmp-output-visitor.h"
 #include "qapi/qmp/qerror.h"
@@ -28,7 +29,6 @@
 #include "qemu-common.h"
 #include "qemu/option.h"
 #include "qemu/error-report.h"
-#include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"

@@ -11,6 +11,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "qed.h"
 
 void *gencb_alloc(size_t len, BlockCompletionFunc *cb, void *opaque)

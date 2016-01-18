@@ -26,6 +26,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "nbd-client.h"
 #include "qemu/sockets.h"
 

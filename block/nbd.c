@@ -26,6 +26,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "block/nbd-client.h"
 #include "qemu/uri.h"
 #include "block/block_int.h"
@@ -36,8 +37,6 @@
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qstring.h"
 
-#include <sys/types.h>
-#include <unistd.h>
 
 #define EN_OPTSTR ":exportname="
 

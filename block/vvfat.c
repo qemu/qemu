@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <sys/stat.h>
+#include "qemu/osdep.h"
 #include <dirent.h>
 #include "qemu-common.h"
 #include "block/block_int.h"

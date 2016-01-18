@@ -11,9 +11,7 @@
  *
  */
 
-#include <stdio.h>
-#include <errno.h>
-#include <unistd.h>
+#include "qemu/osdep.h"
 
 #include "trace.h"
 #include "block/block.h"

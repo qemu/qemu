@@ -22,9 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
+#include "qemu/osdep.h"
 
 #include <libssh2.h>
 #include <libssh2_sftp.h>

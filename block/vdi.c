@@ -49,6 +49,7 @@
  * so this seems to be reasonable.
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "block/block_int.h"
 #include "qemu/module.h"

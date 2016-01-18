@@ -7,7 +7,7 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include <stdarg.h>
+#include "qemu/osdep.h"
 #include "qemu/sockets.h" /* for EINPROGRESS on Windows */
 #include "block/block_int.h"
 #include "qapi/qmp/qdict.h"

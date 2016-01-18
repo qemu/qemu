@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "block/block_int.h"
 #include "qapi/qmp/qerror.h"

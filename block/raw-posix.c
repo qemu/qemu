@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
@@ -51,8 +52,6 @@
 #include <sys/dkio.h>
 #endif
 #ifdef __linux__
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
 #include <linux/cdrom.h>

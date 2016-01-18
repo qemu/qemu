@@ -12,6 +12,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/uri.h"
 #include "qemu/error-report.h"
