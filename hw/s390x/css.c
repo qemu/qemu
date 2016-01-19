@@ -49,6 +49,7 @@ typedef struct IoAdapter {
 
 typedef struct ChannelSubSys {
     QTAILQ_HEAD(, CrwContainer) pending_crws;
+    bool sei_pending;
     bool do_crw_mchk;
     bool crws_lost;
     uint8_t max_cssid;
@@ -1359,7 +1360,15 @@ void css_generate_chp_crws(uint8_t cssid, uint8_t chpid)
 
 void css_generate_css_crws(uint8_t cssid)
 {
-    css_queue_crw(CRW_RSC_CSS, 0, 0, cssid);
+    if (!channel_subsys->sei_pending) {
+        css_queue_crw(CRW_RSC_CSS, 0, 0, cssid);
+    }
+    channel_subsys->sei_pending = true;
+}
+
+void css_clear_sei_pending(void)
+{
+    channel_subsys->sei_pending = false;
 }
 
 int css_enable_mcsse(void)
@@ -1509,6 +1518,7 @@ static void css_init(void)
 {
     channel_subsys = g_malloc0(sizeof(*channel_subsys));
     QTAILQ_INIT(&channel_subsys->pending_crws);
+    channel_subsys->sei_pending = false;
     channel_subsys->do_crw_mchk = true;
     channel_subsys->crws_lost = false;
     channel_subsys->chnmon_active = false;
@@ -1561,6 +1571,7 @@ void css_reset(void)
         QTAILQ_REMOVE(&channel_subsys->pending_crws, crw_cont, sibling);
         g_free(crw_cont);
     }
+    channel_subsys->sei_pending = false;
     channel_subsys->do_crw_mchk = true;
     channel_subsys->crws_lost = false;
 
