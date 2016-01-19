@@ -2877,19 +2877,70 @@ static void tcp_chr_update_read_handler(CharDriverState *chr)
     }
 }
 
-#define IACSET(x,a,b,c) x[0] = a; x[1] = b; x[2] = c;
-static void tcp_chr_telnet_init(QIOChannel *ioc)
+typedef struct {
+    CharDriverState *chr;
+    char buf[12];
+    size_t buflen;
+} TCPCharDriverTelnetInit;
+
+static gboolean tcp_chr_telnet_init_io(QIOChannel *ioc,
+                                       GIOCondition cond G_GNUC_UNUSED,
+                                       gpointer user_data)
 {
-    char buf[3];
-    /* Send the telnet negotion to put telnet in binary, no echo, single char mode */
-    IACSET(buf, 0xff, 0xfb, 0x01);  /* IAC WILL ECHO */
-    qio_channel_write(ioc, buf, 3, NULL);
-    IACSET(buf, 0xff, 0xfb, 0x03);  /* IAC WILL Suppress go ahead */
-    qio_channel_write(ioc, buf, 3, NULL);
-    IACSET(buf, 0xff, 0xfb, 0x00);  /* IAC WILL Binary */
-    qio_channel_write(ioc, buf, 3, NULL);
-    IACSET(buf, 0xff, 0xfd, 0x00);  /* IAC DO Binary */
-    qio_channel_write(ioc, buf, 3, NULL);
+    TCPCharDriverTelnetInit *init = user_data;
+    ssize_t ret;
+
+    ret = qio_channel_write(ioc, init->buf, init->buflen, NULL);
+    if (ret < 0) {
+        if (ret == QIO_CHANNEL_ERR_BLOCK) {
+            ret = 0;
+        } else {
+            tcp_chr_disconnect(init->chr);
+            return FALSE;
+        }
+    }
+    init->buflen -= ret;
+
+    if (init->buflen == 0) {
+        tcp_chr_connect(init->chr);
+        return FALSE;
+    }
+
+    memmove(init->buf, init->buf + ret, init->buflen);
+
+    return TRUE;
+}
+
+static void tcp_chr_telnet_init(CharDriverState *chr)
+{
+    TCPCharDriver *s = chr->opaque;
+    TCPCharDriverTelnetInit *init =
+        g_new0(TCPCharDriverTelnetInit, 1);
+    size_t n = 0;
+
+    init->chr = chr;
+    init->buflen = 12;
+
+#define IACSET(x, a, b, c)                      \
+    do {                                        \
+        x[n++] = a;                             \
+        x[n++] = b;                             \
+        x[n++] = c;                             \
+    } while (0)
+
+    /* Prep the telnet negotion to put telnet in binary,
+     * no echo, single char mode */
+    IACSET(init->buf, 0xff, 0xfb, 0x01);  /* IAC WILL ECHO */
+    IACSET(init->buf, 0xff, 0xfb, 0x03);  /* IAC WILL Suppress go ahead */
+    IACSET(init->buf, 0xff, 0xfb, 0x00);  /* IAC WILL Binary */
+    IACSET(init->buf, 0xff, 0xfd, 0x00);  /* IAC DO Binary */
+
+#undef IACSET
+
+    qio_channel_add_watch(
+        s->ioc, G_IO_OUT,
+        tcp_chr_telnet_init_io,
+        init, NULL);
 }
 
 static int tcp_chr_new_client(CharDriverState *chr, QIOChannelSocket *sioc)
@@ -2909,7 +2960,12 @@ static int tcp_chr_new_client(CharDriverState *chr, QIOChannelSocket *sioc)
         g_source_remove(s->listen_tag);
         s->listen_tag = 0;
     }
-    tcp_chr_connect(chr);
+
+    if (s->do_telnetopt) {
+        tcp_chr_telnet_init(chr);
+    } else {
+        tcp_chr_connect(chr);
+    }
 
     return 0;
 }
@@ -2935,17 +2991,12 @@ static gboolean tcp_chr_accept(QIOChannel *channel,
                                void *opaque)
 {
     CharDriverState *chr = opaque;
-    TCPCharDriver *s = chr->opaque;
     QIOChannelSocket *sioc;
 
     sioc = qio_channel_socket_accept(QIO_CHANNEL_SOCKET(channel),
                                      NULL);
     if (!sioc) {
         return TRUE;
-    }
-
-    if (s->do_telnetopt) {
-        tcp_chr_telnet_init(QIO_CHANNEL(sioc));
     }
 
     tcp_chr_new_client(chr, sioc);
