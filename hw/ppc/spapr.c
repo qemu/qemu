@@ -764,6 +764,13 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
     int nr_nodes = nb_numa_nodes ? nb_numa_nodes : 1;
 
     /*
+     * Don't create the node if there are no DR LMBs.
+     */
+    if (!nr_lmbs) {
+        return 0;
+    }
+
+    /*
      * Allocate enough buffer size to fit in ibm,dynamic-memory
      * or ibm,associativity-lookup-arrays
      */
@@ -869,7 +876,7 @@ int spapr_h_cas_compose_response(sPAPRMachineState *spapr,
         _FDT((spapr_fixup_cpu_dt(fdt, spapr)));
     }
 
-    /* Generate memory nodes or ibm,dynamic-reconfiguration-memory node */
+    /* Generate ibm,dynamic-reconfiguration-memory node if required */
     if (memory_update && smc->dr_lmb_enabled) {
         _FDT((spapr_populate_drconf_memory(spapr, fdt)));
     }
