@@ -229,6 +229,19 @@ static void rtas_stop_self(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     env->msr = 0;
 }
 
+static inline int sysparm_st(target_ulong addr, target_ulong len,
+                             const void *val, uint16_t vallen)
+{
+    hwaddr phys = ppc64_phys_to_real(addr);
+
+    if (len < 2) {
+        return RTAS_OUT_SYSPARM_PARAM_ERROR;
+    }
+    stw_be_phys(&address_space_memory, phys, vallen);
+    cpu_physical_memory_write(phys + 2, val, MIN(len - 2, vallen));
+    return RTAS_OUT_SUCCESS;
+}
+
 static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
                                           sPAPRMachineState *spapr,
                                           uint32_t token, uint32_t nargs,
@@ -238,7 +251,7 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
     target_ulong parameter = rtas_ld(args, 0);
     target_ulong buffer = rtas_ld(args, 1);
     target_ulong length = rtas_ld(args, 2);
-    target_ulong ret = RTAS_OUT_SUCCESS;
+    target_ulong ret;
 
     switch (parameter) {
     case RTAS_SYSPARM_SPLPAR_CHARACTERISTICS: {
@@ -250,18 +263,18 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
                                           current_machine->ram_size / M_BYTE,
                                           smp_cpus,
                                           max_cpus);
-        rtas_st_buffer(buffer, length, (uint8_t *)param_val, strlen(param_val));
+        ret = sysparm_st(buffer, length, param_val, strlen(param_val) + 1);
         g_free(param_val);
         break;
     }
     case RTAS_SYSPARM_DIAGNOSTICS_RUN_MODE: {
         uint8_t param_val = DIAGNOSTICS_RUN_MODE_DISABLED;
 
-        rtas_st_buffer(buffer, length, &param_val, sizeof(param_val));
+        ret = sysparm_st(buffer, length, &param_val, sizeof(param_val));
         break;
     }
     case RTAS_SYSPARM_UUID:
-        rtas_st_buffer(buffer, length, qemu_uuid, (qemu_uuid_set ? 16 : 0));
+        ret = sysparm_st(buffer, length, qemu_uuid, (qemu_uuid_set ? 16 : 0));
         break;
     default:
         ret = RTAS_OUT_NOT_SUPPORTED;
