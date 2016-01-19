@@ -1405,21 +1405,23 @@ static int ehci_process_itd(EHCIState *ehci,
         if (itd->transact[i] & ITD_XACT_ACTIVE) {
             pg   = get_field(itd->transact[i], ITD_XACT_PGSEL);
             off  = itd->transact[i] & ITD_XACT_OFFSET_MASK;
-            ptr1 = (itd->bufptr[pg] & ITD_BUFPTR_MASK);
-            ptr2 = (itd->bufptr[pg+1] & ITD_BUFPTR_MASK);
             len  = get_field(itd->transact[i], ITD_XACT_LENGTH);
 
             if (len > max * mult) {
                 len = max * mult;
             }
-
-            if (len > BUFF_SIZE) {
+            if (len > BUFF_SIZE || pg > 6) {
                 return -1;
             }
 
+            ptr1 = (itd->bufptr[pg] & ITD_BUFPTR_MASK);
             qemu_sglist_init(&ehci->isgl, ehci->device, 2, ehci->as);
             if (off + len > 4096) {
                 /* transfer crosses page border */
+                if (pg == 6) {
+                    return -1;  /* avoid page pg + 1 */
+                }
+                ptr2 = (itd->bufptr[pg + 1] & ITD_BUFPTR_MASK);
                 uint32_t len2 = off + len - 4096;
                 uint32_t len1 = len - len2;
                 qemu_sglist_add(&ehci->isgl, ptr1 + off, len1);
