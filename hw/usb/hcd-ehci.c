@@ -866,6 +866,7 @@ void ehci_reset(void *opaque)
     s->usbsts = USBSTS_HALT;
     s->usbsts_pending = 0;
     s->usbsts_frindex = 0;
+    ehci_update_irq(s);
 
     s->astate = EST_INACTIVE;
     s->pstate = EST_INACTIVE;
