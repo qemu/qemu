@@ -88,39 +88,37 @@
 
 #define READ_BUF_LEN 4096
 #define READ_RETRIES 10
-#define CHR_MAX_FILENAME_SIZE 256
 #define TCP_MAX_FDS 16
 
 /***********************************************************/
 /* Socket address helpers */
 
-static int SocketAddress_to_str(char *dest, int max_len,
-                                const char *prefix, SocketAddress *addr,
-                                bool is_listen, bool is_telnet)
+static char *SocketAddress_to_str(const char *prefix, SocketAddress *addr,
+                                  bool is_listen, bool is_telnet)
 {
     switch (addr->type) {
     case SOCKET_ADDRESS_KIND_INET:
-        return snprintf(dest, max_len, "%s%s:%s:%s%s", prefix,
-                        is_telnet ? "telnet" : "tcp", addr->u.inet->host,
-                        addr->u.inet->port, is_listen ? ",server" : "");
+        return g_strdup_printf("%s%s:%s:%s%s", prefix,
+                               is_telnet ? "telnet" : "tcp", addr->u.inet->host,
+                               addr->u.inet->port, is_listen ? ",server" : "");
         break;
     case SOCKET_ADDRESS_KIND_UNIX:
-        return snprintf(dest, max_len, "%sunix:%s%s", prefix,
-                        addr->u.q_unix->path, is_listen ? ",server" : "");
+        return g_strdup_printf("%sunix:%s%s", prefix,
+                               addr->u.q_unix->path,
+                               is_listen ? ",server" : "");
         break;
     case SOCKET_ADDRESS_KIND_FD:
-        return snprintf(dest, max_len, "%sfd:%s%s", prefix, addr->u.fd->str,
-                        is_listen ? ",server" : "");
+        return g_strdup_printf("%sfd:%s%s", prefix, addr->u.fd->str,
+                               is_listen ? ",server" : "");
         break;
     default:
         abort();
     }
 }
 
-static int sockaddr_to_str(char *dest, int max_len,
-                           struct sockaddr_storage *ss, socklen_t ss_len,
-                           struct sockaddr_storage *ps, socklen_t ps_len,
-                           bool is_listen, bool is_telnet)
+static char *sockaddr_to_str(struct sockaddr_storage *ss, socklen_t ss_len,
+                             struct sockaddr_storage *ps, socklen_t ps_len,
+                             bool is_listen, bool is_telnet)
 {
     char shost[NI_MAXHOST], sserv[NI_MAXSERV];
     char phost[NI_MAXHOST], pserv[NI_MAXSERV];
@@ -129,9 +127,9 @@ static int sockaddr_to_str(char *dest, int max_len,
     switch (ss->ss_family) {
 #ifndef _WIN32
     case AF_UNIX:
-        return snprintf(dest, max_len, "unix:%s%s",
-                        ((struct sockaddr_un *)(ss))->sun_path,
-                        is_listen ? ",server" : "");
+        return g_strdup_printf("unix:%s%s",
+                               ((struct sockaddr_un *)(ss))->sun_path,
+                               is_listen ? ",server" : "");
 #endif
     case AF_INET6:
         left  = "[";
@@ -142,14 +140,14 @@ static int sockaddr_to_str(char *dest, int max_len,
                     sserv, sizeof(sserv), NI_NUMERICHOST | NI_NUMERICSERV);
         getnameinfo((struct sockaddr *) ps, ps_len, phost, sizeof(phost),
                     pserv, sizeof(pserv), NI_NUMERICHOST | NI_NUMERICSERV);
-        return snprintf(dest, max_len, "%s:%s%s%s:%s%s <-> %s%s%s:%s",
-                        is_telnet ? "telnet" : "tcp",
-                        left, shost, right, sserv,
-                        is_listen ? ",server" : "",
-                        left, phost, right, pserv);
+        return g_strdup_printf("%s:%s%s%s:%s%s <-> %s%s%s:%s",
+                               is_telnet ? "telnet" : "tcp",
+                               left, shost, right, sserv,
+                               is_listen ? ",server" : "",
+                               left, phost, right, pserv);
 
     default:
-        return snprintf(dest, max_len, "unknown");
+        return g_strdup_printf("unknown");
     }
 }
 
@@ -923,6 +921,7 @@ static GIOChannel *io_channel_from_socket(int fd)
     return chan;
 }
 
+#ifndef _WIN32
 static int io_channel_send(GIOChannel *fd, const void *buf, size_t len)
 {
     size_t offset = 0;
@@ -953,7 +952,6 @@ static int io_channel_send(GIOChannel *fd, const void *buf, size_t len)
     return -1;
 }
 
-#ifndef _WIN32
 
 typedef struct FDCharDriver {
     CharDriverState *chr;
@@ -1074,15 +1072,18 @@ static CharDriverState *qemu_chr_open_pipe(const char *id,
 {
     ChardevHostdev *opts = backend->u.pipe;
     int fd_in, fd_out;
-    char filename_in[CHR_MAX_FILENAME_SIZE];
-    char filename_out[CHR_MAX_FILENAME_SIZE];
+    char *filename_in;
+    char *filename_out;
     const char *filename = opts->device;
     ChardevCommon *common = qapi_ChardevHostdev_base(backend->u.pipe);
 
-    snprintf(filename_in, CHR_MAX_FILENAME_SIZE, "%s.in", filename);
-    snprintf(filename_out, CHR_MAX_FILENAME_SIZE, "%s.out", filename);
+
+    filename_in = g_strdup_printf("%s.in", filename);
+    filename_out = g_strdup_printf("%s.out", filename);
     TFR(fd_in = qemu_open(filename_in, O_RDWR | O_BINARY));
     TFR(fd_out = qemu_open(filename_out, O_RDWR | O_BINARY));
+    g_free(filename_in);
+    g_free(filename_out);
     if (fd_in < 0 || fd_out < 0) {
 	if (fd_in >= 0)
 	    close(fd_in);
@@ -2115,7 +2116,7 @@ static int win_chr_pipe_init(CharDriverState *chr, const char *filename,
     OVERLAPPED ov;
     int ret;
     DWORD size;
-    char openname[CHR_MAX_FILENAME_SIZE];
+    char *openname;
 
     s->fpipe = TRUE;
 
@@ -2130,11 +2131,12 @@ static int win_chr_pipe_init(CharDriverState *chr, const char *filename,
         goto fail;
     }
 
-    snprintf(openname, sizeof(openname), "\\\\.\\pipe\\%s", filename);
+    openname = g_strdup_printf("\\\\.\\pipe\\%s", filename);
     s->hcom = CreateNamedPipe(openname, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
                               PIPE_TYPE_BYTE | PIPE_READMODE_BYTE |
                               PIPE_WAIT,
                               MAXCONNECT, NSENDBUF, NRECVBUF, NTIMEOUT, NULL);
+    g_free(openname);
     if (s->hcom == INVALID_HANDLE_VALUE) {
         error_setg(errp, "Failed CreateNamedPipe (%lu)", GetLastError());
         s->hcom = NULL;
@@ -2913,8 +2915,9 @@ static void tcp_chr_disconnect(CharDriverState *chr)
     s->chan = NULL;
     closesocket(s->fd);
     s->fd = -1;
-    SocketAddress_to_str(chr->filename, CHR_MAX_FILENAME_SIZE,
-                         "disconnected:", s->addr, s->is_listen, s->is_telnet);
+    g_free(chr->filename);
+    chr->filename = SocketAddress_to_str("disconnected:", s->addr,
+                                         s->is_listen, s->is_telnet);
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
     if (s->reconnect_time) {
         qemu_chr_socket_restart_timer(chr);
@@ -2989,16 +2992,16 @@ static void tcp_chr_connect(void *opaque)
     socklen_t ss_len = sizeof(ss), ps_len = sizeof(ps);
 
     memset(&ss, 0, ss_len);
+    g_free(chr->filename);
     if (getsockname(s->fd, (struct sockaddr *) &ss, &ss_len) != 0) {
-        snprintf(chr->filename, CHR_MAX_FILENAME_SIZE,
-                 "Error in getsockname: %s\n", strerror(errno));
+        chr->filename = g_strdup_printf("Error in getsockname: %s\n",
+                                        strerror(errno));
     } else if (getpeername(s->fd, (struct sockaddr *) &ps, &ps_len) != 0) {
-        snprintf(chr->filename, CHR_MAX_FILENAME_SIZE,
-                 "Error in getpeername: %s\n", strerror(errno));
+        chr->filename = g_strdup_printf("Error in getpeername: %s\n",
+                                        strerror(errno));
     } else {
-        sockaddr_to_str(chr->filename, CHR_MAX_FILENAME_SIZE,
-                        &ss, ss_len, &ps, ps_len,
-                        s->is_listen, s->is_telnet);
+        chr->filename = sockaddr_to_str(&ss, ss_len, &ps, ps_len,
+                                        s->is_listen, s->is_telnet);
     }
 
     s->connected = 1;
@@ -4335,9 +4338,8 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
     /* be isn't opened until we get a connection */
     chr->explicit_be_open = true;
 
-    chr->filename = g_malloc(CHR_MAX_FILENAME_SIZE);
-    SocketAddress_to_str(chr->filename, CHR_MAX_FILENAME_SIZE, "disconnected:",
-                         addr, is_listen, is_telnet);
+    chr->filename = SocketAddress_to_str("disconnected:",
+                                         addr, is_listen, is_telnet);
 
     if (is_listen) {
         if (is_telnet) {
