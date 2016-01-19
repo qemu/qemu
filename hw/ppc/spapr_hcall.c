@@ -862,7 +862,8 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
                                                   target_ulong opcode,
                                                   target_ulong *args)
 {
-    target_ulong list = args[0], ov_table;
+    target_ulong list = ppc64_phys_to_real(args[0]);
+    target_ulong ov_table, ov5;
     PowerPCCPUClass *pcc_ = POWERPC_CPU_GET_CLASS(cpu_);
     CPUState *cs;
     bool cpu_match = false, cpu_update = true, memory_update = false;
@@ -876,9 +877,9 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
     for (counter = 0; counter < 512; ++counter) {
         uint32_t pvr, pvr_mask;
 
-        pvr_mask = rtas_ld(list, 0);
+        pvr_mask = ldl_be_phys(&address_space_memory, list);
         list += 4;
-        pvr = rtas_ld(list, 0);
+        pvr = ldl_be_phys(&address_space_memory, list);
         list += 4;
 
         trace_spapr_cas_pvr_try(pvr);
@@ -949,14 +950,13 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
     /* For the future use: here @ov_table points to the first option vector */
     ov_table = list;
 
-    list = cas_get_option_vector(5, ov_table);
-    if (!list) {
+    ov5 = cas_get_option_vector(5, ov_table);
+    if (!ov5) {
         return H_SUCCESS;
     }
 
     /* @list now points to OV 5 */
-    list += 2;
-    ov5_byte2 = rtas_ld(list, 0) >> 24;
+    ov5_byte2 = ldub_phys(&address_space_memory, ov5 + 2);
     if (ov5_byte2 & OV5_DRCONF_MEMORY) {
         memory_update = true;
     }
