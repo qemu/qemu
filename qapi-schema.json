@@ -3146,6 +3146,7 @@
 #
 # @addr: socket address to listen on (server=true)
 #        or connect to (server=false)
+# @tls-creds: #optional the ID of the TLS credentials object (since 2.6)
 # @server: #optional create server socket (default: true)
 # @wait: #optional wait for incoming connection on server
 #        sockets (default: false).
@@ -3160,6 +3161,7 @@
 # Since: 1.4
 ##
 { 'struct': 'ChardevSocket', 'data': { 'addr'       : 'SocketAddress',
+                                     '*tls-creds'  : 'str',
                                      '*server'    : 'bool',
                                      '*wait'      : 'bool',
                                      '*nodelay'   : 'bool',

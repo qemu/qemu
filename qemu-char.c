@@ -35,6 +35,7 @@
 #include "qemu/base64.h"
 #include "io/channel-socket.h"
 #include "io/channel-file.h"
+#include "io/channel-tls.h"
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -2532,9 +2533,11 @@ static CharDriverState *qemu_chr_open_udp(QIOChannelSocket *sioc,
 /* TCP Net console */
 
 typedef struct {
-    QIOChannel *ioc;
+    QIOChannel *ioc; /* Client I/O channel */
+    QIOChannelSocket *sioc; /* Client master channel */
     QIOChannelSocket *listen_ioc;
     guint listen_tag;
+    QCryptoTLSCreds *tls_creds;
     int connected;
     int max_size;
     int do_telnetopt;
@@ -2776,6 +2779,8 @@ static void tcp_chr_disconnect(CharDriverState *chr)
             QIO_CHANNEL(s->listen_ioc), G_IO_IN, tcp_chr_accept, chr, NULL);
     }
     remove_fd_in_watch(chr);
+    object_unref(OBJECT(s->sioc));
+    s->sioc = NULL;
     object_unref(OBJECT(s->ioc));
     s->ioc = NULL;
     g_free(chr->filename);
@@ -2849,12 +2854,12 @@ static void tcp_chr_connect(void *opaque)
 {
     CharDriverState *chr = opaque;
     TCPCharDriver *s = chr->opaque;
-    QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(s->ioc);
 
     g_free(chr->filename);
-    chr->filename = sockaddr_to_str(&sioc->localAddr, sioc->localAddrLen,
-                                    &sioc->remoteAddr, sioc->remoteAddrLen,
-                                    s->is_listen, s->is_telnet);
+    chr->filename = sockaddr_to_str(
+        &s->sioc->localAddr, s->sioc->localAddrLen,
+        &s->sioc->remoteAddr, s->sioc->remoteAddrLen,
+        s->is_listen, s->is_telnet);
 
     s->connected = 1;
     if (s->ioc) {
@@ -2943,6 +2948,57 @@ static void tcp_chr_telnet_init(CharDriverState *chr)
         init, NULL);
 }
 
+
+static void tcp_chr_tls_handshake(Object *source,
+                                  Error *err,
+                                  gpointer user_data)
+{
+    CharDriverState *chr = user_data;
+    TCPCharDriver *s = chr->opaque;
+
+    if (err) {
+        tcp_chr_disconnect(chr);
+    } else {
+        if (s->do_telnetopt) {
+            tcp_chr_telnet_init(chr);
+        } else {
+            tcp_chr_connect(chr);
+        }
+    }
+}
+
+
+static void tcp_chr_tls_init(CharDriverState *chr)
+{
+    TCPCharDriver *s = chr->opaque;
+    QIOChannelTLS *tioc;
+    Error *err = NULL;
+
+    if (s->is_listen) {
+        tioc = qio_channel_tls_new_server(
+            s->ioc, s->tls_creds,
+            NULL, /* XXX Use an ACL */
+            &err);
+    } else {
+        tioc = qio_channel_tls_new_client(
+            s->ioc, s->tls_creds,
+            s->addr->u.inet->host,
+            &err);
+    }
+    if (tioc == NULL) {
+        error_free(err);
+        tcp_chr_disconnect(chr);
+    }
+    object_unref(OBJECT(s->ioc));
+    s->ioc = QIO_CHANNEL(tioc);
+
+    qio_channel_tls_handshake(tioc,
+                              tcp_chr_tls_handshake,
+                              chr,
+                              NULL);
+}
+
+
 static int tcp_chr_new_client(CharDriverState *chr, QIOChannelSocket *sioc)
 {
     TCPCharDriver *s = chr->opaque;
@@ -2951,6 +3007,8 @@ static int tcp_chr_new_client(CharDriverState *chr, QIOChannelSocket *sioc)
     }
 
     s->ioc = QIO_CHANNEL(sioc);
+    object_ref(OBJECT(sioc));
+    s->sioc = sioc;
     object_ref(OBJECT(sioc));
 
     if (s->do_nodelay) {
@@ -2961,10 +3019,14 @@ static int tcp_chr_new_client(CharDriverState *chr, QIOChannelSocket *sioc)
         s->listen_tag = 0;
     }
 
-    if (s->do_telnetopt) {
-        tcp_chr_telnet_init(chr);
+    if (s->tls_creds) {
+        tcp_chr_tls_init(chr);
     } else {
-        tcp_chr_connect(chr);
+        if (s->do_telnetopt) {
+            tcp_chr_telnet_init(chr);
+        } else {
+            tcp_chr_connect(chr);
+        }
     }
 
     return 0;
@@ -3032,6 +3094,9 @@ static void tcp_chr_close(CharDriverState *chr)
             close(s->read_msgfds[i]);
         }
         g_free(s->read_msgfds);
+    }
+    if (s->tls_creds) {
+        object_unref(OBJECT(s->tls_creds));
     }
     if (s->write_msgfds_num) {
         g_free(s->write_msgfds);
@@ -3563,6 +3628,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     const char *path = qemu_opt_get(opts, "path");
     const char *host = qemu_opt_get(opts, "host");
     const char *port = qemu_opt_get(opts, "port");
+    const char *tls_creds = qemu_opt_get(opts, "tls-creds");
     SocketAddress *addr;
 
     if (!path) {
@@ -3572,6 +3638,11 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
         }
         if (!port) {
             error_setg(errp, "chardev: socket: no port given");
+            return;
+        }
+    } else {
+        if (tls_creds) {
+            error_setg(errp, "TLS can only be used over TCP socket");
             return;
         }
     }
@@ -3589,6 +3660,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     backend->u.socket->wait = is_waitconnect;
     backend->u.socket->has_reconnect = true;
     backend->u.socket->reconnect = reconnect;
+    backend->u.socket->tls_creds = g_strdup(tls_creds);
 
     addr = g_new0(SocketAddress, 1);
     if (path) {
@@ -4016,6 +4088,9 @@ QemuOptsList qemu_chardev_opts = {
             .name = "telnet",
             .type = QEMU_OPT_BOOL,
         },{
+            .name = "tls-creds",
+            .type = QEMU_OPT_STRING,
+        },{
             .name = "width",
             .type = QEMU_OPT_NUMBER,
         },{
@@ -4231,6 +4306,39 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
     s->is_listen = is_listen;
     s->is_telnet = is_telnet;
     s->do_nodelay = do_nodelay;
+    if (sock->tls_creds) {
+        Object *creds;
+        creds = object_resolve_path_component(
+            object_get_objects_root(), sock->tls_creds);
+        if (!creds) {
+            error_setg(errp, "No TLS credentials with id '%s'",
+                       sock->tls_creds);
+            goto error;
+        }
+        s->tls_creds = (QCryptoTLSCreds *)
+            object_dynamic_cast(creds,
+                                TYPE_QCRYPTO_TLS_CREDS);
+        if (!s->tls_creds) {
+            error_setg(errp, "Object with id '%s' is not TLS credentials",
+                       sock->tls_creds);
+            goto error;
+        }
+        object_ref(OBJECT(s->tls_creds));
+        if (is_listen) {
+            if (s->tls_creds->endpoint != QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
+                error_setg(errp, "%s",
+                           "Expected TLS credentials for server endpoint");
+                goto error;
+            }
+        } else {
+            if (s->tls_creds->endpoint != QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT) {
+                error_setg(errp, "%s",
+                           "Expected TLS credentials for client endpoint");
+                goto error;
+            }
+        }
+    }
+
     qapi_copy_SocketAddress(&s->addr, sock->addr);
 
     chr->opaque = s;
@@ -4259,9 +4367,7 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
     if (s->reconnect_time) {
         socket_try_connect(chr);
     } else if (!qemu_chr_open_socket_fd(chr, errp)) {
-        g_free(s);
-        qemu_chr_free_common(chr);
-        return NULL;
+        goto error;
     }
 
     if (is_listen && is_waitconnect) {
@@ -4272,6 +4378,14 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
     }
 
     return chr;
+
+ error:
+    if (s->tls_creds) {
+        object_unref(OBJECT(s->tls_creds));
+    }
+    g_free(s);
+    qemu_chr_free_common(chr);
+    return NULL;
 }
 
 static CharDriverState *qmp_chardev_open_udp(const char *id,
