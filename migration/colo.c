@@ -140,11 +140,6 @@ static void primary_vm_do_failover(void)
                      old_state);
         return;
     }
-    /* Don't buffer any packets while exited COLO */
-    qemu_set_default_filters_status(false);
-    /* Flush the residuary buffered packts */
-    qemu_release_default_filters_packets();
-
     bdrv_stop_replication_all(true, &local_err);
     if (local_err) {
         error_report_err(local_err);
@@ -360,8 +355,6 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
         goto out;
     }
 
-    qemu_release_default_filters_packets();
-
     if (colo_shutdown) {
         qemu_mutex_lock_iothread();
         bdrv_stop_replication_all(false, NULL);
@@ -415,8 +408,6 @@ static int colo_init_buffer_filters(void)
     if (!qemu_netdev_support_netfilter()) {
         return -EPERM;
     }
-    /* Begin to buffer packets that sent by VM */
-    qemu_set_default_filters_status(true);
 
     return 0;
 }
