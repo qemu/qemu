@@ -24,6 +24,15 @@
 
 #include "qemu/queue.h"
 
+/* Possible values for action parameter. */
+#define WDT_RESET        1      /* Hard reset. */
+#define WDT_SHUTDOWN     2      /* Shutdown. */
+#define WDT_POWEROFF     3      /* Quit. */
+#define WDT_PAUSE        4      /* Pause. */
+#define WDT_DEBUG        5      /* Prints a message and continues running. */
+#define WDT_NONE         6      /* Do nothing. */
+#define WDT_NMI          7      /* Inject nmi into the guest. */
+
 struct WatchdogTimerModel {
     QLIST_ENTRY(WatchdogTimerModel) entry;
 
@@ -37,6 +46,7 @@ typedef struct WatchdogTimerModel WatchdogTimerModel;
 /* in hw/watchdog.c */
 int select_watchdog(const char *p);
 int select_watchdog_action(const char *action);
+int get_watchdog_action(void);
 void watchdog_add_model(WatchdogTimerModel *model);
 void watchdog_perform_action(void);
 
