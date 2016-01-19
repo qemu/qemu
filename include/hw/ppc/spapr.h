@@ -506,14 +506,6 @@ static inline void rtas_st(target_ulong phys, int n, uint32_t val)
     stl_be_phys(&address_space_memory, ppc64_phys_to_real(phys + 4*n), val);
 }
 
-static inline void rtas_st_buffer_direct(target_ulong phys,
-                                         target_ulong phys_len,
-                                         uint8_t *buffer, uint16_t buffer_len)
-{
-    cpu_physical_memory_write(ppc64_phys_to_real(phys), buffer,
-                              MIN(buffer_len, phys_len));
-}
-
 typedef void (*spapr_rtas_fn)(PowerPCCPU *cpu, sPAPRMachineState *sm,
                               uint32_t token,
                               uint32_t nargs, target_ulong args,

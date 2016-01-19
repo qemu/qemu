@@ -506,6 +506,13 @@ out:
 #define CC_VAL_DATA_OFFSET ((CC_IDX_PROP_DATA_OFFSET + 1) * 4)
 #define CC_WA_LEN 4096
 
+static void configure_connector_st(target_ulong addr, target_ulong offset,
+                                   const void *buf, size_t len)
+{
+    cpu_physical_memory_write(ppc64_phys_to_real(addr + offset),
+                              buf, MIN(len, CC_WA_LEN - offset));
+}
+
 static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
                                          sPAPRMachineState *spapr,
                                          uint32_t token, uint32_t nargs,
@@ -571,8 +578,7 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
             /* provide the name of the next OF node */
             wa_offset = CC_VAL_DATA_OFFSET;
             rtas_st(wa_addr, CC_IDX_NODE_NAME_OFFSET, wa_offset);
-            rtas_st_buffer_direct(wa_addr + wa_offset, CC_WA_LEN - wa_offset,
-                                  (uint8_t *)name, strlen(name) + 1);
+            configure_connector_st(wa_addr, wa_offset, name, strlen(name) + 1);
             resp = SPAPR_DR_CC_RESPONSE_NEXT_CHILD;
             break;
         case FDT_END_NODE:
@@ -597,8 +603,7 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
             /* provide the name of the next OF property */
             wa_offset = CC_VAL_DATA_OFFSET;
             rtas_st(wa_addr, CC_IDX_PROP_NAME_OFFSET, wa_offset);
-            rtas_st_buffer_direct(wa_addr + wa_offset, CC_WA_LEN - wa_offset,
-                                  (uint8_t *)name, strlen(name) + 1);
+            configure_connector_st(wa_addr, wa_offset, name, strlen(name) + 1);
 
             /* provide the length and value of the OF property. data gets
              * placed immediately after NULL terminator of the OF property's
@@ -607,9 +612,7 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
             wa_offset += strlen(name) + 1,
             rtas_st(wa_addr, CC_IDX_PROP_LEN, prop_len);
             rtas_st(wa_addr, CC_IDX_PROP_DATA_OFFSET, wa_offset);
-            rtas_st_buffer_direct(wa_addr + wa_offset, CC_WA_LEN - wa_offset,
-                                  (uint8_t *)((struct fdt_property *)prop)->data,
-                                  prop_len);
+            configure_connector_st(wa_addr, wa_offset, prop->data, prop_len);
             resp = SPAPR_DR_CC_RESPONSE_NEXT_PROPERTY;
             break;
         case FDT_END:
