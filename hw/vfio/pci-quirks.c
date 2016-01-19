@@ -328,7 +328,7 @@ static void vfio_probe_ati_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     window->data_offset = 4;
     window->nr_matches = 1;
     window->matches[0].match = 0x4000;
-    window->matches[0].mask = PCIE_CONFIG_SPACE_SIZE - 1;
+    window->matches[0].mask = vdev->config_size - 1;
     window->bar = nr;
     window->addr_mem = &quirk->mem[0];
     window->data_mem = &quirk->mem[1];
@@ -674,7 +674,7 @@ static void vfio_probe_nvidia_bar5_quirk(VFIOPCIDevice *vdev, int nr)
     window->matches[0].match = 0x1800;
     window->matches[0].mask = PCI_CONFIG_SPACE_SIZE - 1;
     window->matches[1].match = 0x88000;
-    window->matches[1].mask = PCIE_CONFIG_SPACE_SIZE - 1;
+    window->matches[1].mask = vdev->config_size - 1;
     window->bar = nr;
     window->addr_mem = bar5->addr_mem = &quirk->mem[0];
     window->data_mem = bar5->data_mem = &quirk->mem[1];
@@ -765,7 +765,7 @@ static void vfio_probe_nvidia_bar0_quirk(VFIOPCIDevice *vdev, int nr)
     memory_region_init_io(mirror->mem, OBJECT(vdev),
                           &vfio_nvidia_mirror_quirk, mirror,
                           "vfio-nvidia-bar0-88000-mirror-quirk",
-                          PCIE_CONFIG_SPACE_SIZE);
+                          vdev->config_size);
     memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
                                         mirror->offset, mirror->mem, 1);
 
