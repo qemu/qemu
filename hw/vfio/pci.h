@@ -95,6 +95,7 @@ typedef struct VFIOMSIXInfo {
     uint32_t pba_offset;
     MemoryRegion mmap_mem;
     void *mmap;
+    unsigned long *pending;
 } VFIOMSIXInfo;
 
 typedef struct VFIOPCIDevice {
