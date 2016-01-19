@@ -23,6 +23,8 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu-common.h"
+#include "cpu.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "hw/pci-host/apb.h"

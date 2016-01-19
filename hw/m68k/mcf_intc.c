@@ -6,6 +6,8 @@
  * This code is licensed under the GPL
  */
 #include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "cpu.h"
 #include "hw/hw.h"
 #include "hw/m68k/mcf.h"
 #include "exec/address-spaces.h"

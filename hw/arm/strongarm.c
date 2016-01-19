@@ -28,6 +28,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "cpu.h"
 #include "hw/boards.h"
 #include "hw/sysbus.h"
 #include "strongarm.h"

@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "hw/i2c/i2c.h"
 
 /* Size of NVRAM including both the user-accessible area and the
