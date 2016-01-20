@@ -701,7 +701,7 @@ int css_do_csch(SubchDev *sch)
 
     /* Trigger the clear function. */
     s->ctrl &= ~(SCSW_CTRL_MASK_FCTL | SCSW_CTRL_MASK_ACTL);
-    s->ctrl |= SCSW_FCTL_CLEAR_FUNC | SCSW_FCTL_CLEAR_FUNC;
+    s->ctrl |= SCSW_FCTL_CLEAR_FUNC | SCSW_ACTL_CLEAR_PEND;
 
     do_subchannel_work(sch, NULL);
     ret = 0;
