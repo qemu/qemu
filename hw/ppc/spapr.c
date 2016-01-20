@@ -1643,9 +1643,7 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu)
     }
 
     if (cpu->max_compat) {
-        if (ppc_set_compat(cpu, cpu->max_compat) < 0) {
-            exit(1);
-        }
+        ppc_set_compat(cpu, cpu->max_compat, &error_fatal);
     }
 
     xics_cpu_setup(spapr->icp, cpu);

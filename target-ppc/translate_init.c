@@ -9185,7 +9185,7 @@ int ppc_get_compat_smt_threads(PowerPCCPU *cpu)
     return ret;
 }
 
-int ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version)
+void ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version, Error **errp)
 {
     int ret = 0;
     CPUPPCState *env = &cpu->env;
@@ -9207,12 +9207,13 @@ int ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version)
         break;
     }
 
-    if (kvm_enabled() && kvmppc_set_compat(cpu, cpu->cpu_version) < 0) {
-        error_report("Unable to set compatibility mode in KVM");
-        ret = -1;
+    if (kvm_enabled()) {
+        ret = kvmppc_set_compat(cpu, cpu->cpu_version);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret,
+                             "Unable to set CPU compatibility mode in KVM");
+        }
     }
-
-    return ret;
 }
 
 static gint ppc_cpu_compare_class_pvr(gconstpointer a, gconstpointer b)

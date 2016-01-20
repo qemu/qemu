@@ -838,7 +838,7 @@ static target_ulong cas_get_option_vector(int vector, target_ulong table)
 typedef struct {
     PowerPCCPU *cpu;
     uint32_t cpu_version;
-    int ret;
+    Error *err;
 } SetCompatState;
 
 static void do_set_compat(void *arg)
@@ -846,7 +846,7 @@ static void do_set_compat(void *arg)
     SetCompatState *s = arg;
 
     cpu_synchronize_state(CPU(s->cpu));
-    s->ret = ppc_set_compat(s->cpu, s->cpu_version);
+    ppc_set_compat(s->cpu, s->cpu_version, &s->err);
 }
 
 #define get_compat_level(cpuver) ( \
@@ -931,13 +931,13 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
             SetCompatState s = {
                 .cpu = POWERPC_CPU(cs),
                 .cpu_version = cpu_version,
-                .ret = 0
+                .err = NULL,
             };
 
             run_on_cpu(cs, do_set_compat, &s);
 
-            if (s.ret < 0) {
-                fprintf(stderr, "Unable to set compatibility mode\n");
+            if (s.err) {
+                error_report_err(s.err);
                 return H_HARDWARE;
             }
         }
