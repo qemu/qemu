@@ -1534,7 +1534,7 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     int fd = -1;
 
     if (version_id < 1 || version_id > 1) {
-        fprintf(stderr, "htab_load() bad version\n");
+        error_report("htab_load() bad version");
         return -EINVAL;
     }
 
@@ -1555,8 +1555,8 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
 
         fd = kvmppc_get_htab_fd(true);
         if (fd < 0) {
-            fprintf(stderr, "Unable to open fd to restore KVM hash table: %s\n",
-                    strerror(errno));
+            error_report("Unable to open fd to restore KVM hash table: %s",
+                         strerror(errno));
         }
     }
 
@@ -1576,9 +1576,9 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
         if ((index + n_valid + n_invalid) >
             (HTAB_SIZE(spapr) / HASH_PTE_SIZE_64)) {
             /* Bad index in stream */
-            fprintf(stderr, "htab_load() bad index %d (%hd+%hd entries) "
-                    "in htab stream (htab_shift=%d)\n", index, n_valid, n_invalid,
-                    spapr->htab_shift);
+            error_report(
+                "htab_load() bad index %d (%hd+%hd entries) in htab stream (htab_shift=%d)",
+                index, n_valid, n_invalid, spapr->htab_shift);
             return -EINVAL;
         }
 
