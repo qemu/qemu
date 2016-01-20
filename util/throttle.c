@@ -282,22 +282,18 @@ bool throttle_conflicting(ThrottleConfig *cfg)
  */
 bool throttle_is_valid(ThrottleConfig *cfg)
 {
-    bool invalid = false;
     int i;
 
     for (i = 0; i < BUCKETS_COUNT; i++) {
-        if (cfg->buckets[i].avg < 0) {
-            invalid = true;
+        if (cfg->buckets[i].avg < 0 ||
+            cfg->buckets[i].max < 0 ||
+            cfg->buckets[i].avg > THROTTLE_VALUE_MAX ||
+            cfg->buckets[i].max > THROTTLE_VALUE_MAX) {
+            return false;
         }
     }
 
-    for (i = 0; i < BUCKETS_COUNT; i++) {
-        if (cfg->buckets[i].max < 0) {
-            invalid = true;
-        }
-    }
-
-    return !invalid;
+    return true;
 }
 
 /* check if bps_max/iops_max is used without bps/iops
