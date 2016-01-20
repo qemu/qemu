@@ -1625,7 +1625,8 @@ static void spapr_boot_set(void *opaque, const char *boot_device,
     machine->boot_order = g_strdup(boot_device);
 }
 
-static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu)
+static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
+                           Error **errp)
 {
     CPUPPCState *env = &cpu->env;
 
@@ -1643,7 +1644,13 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu)
     }
 
     if (cpu->max_compat) {
-        ppc_set_compat(cpu, cpu->max_compat, &error_fatal);
+        Error *local_err = NULL;
+
+        ppc_set_compat(cpu, cpu->max_compat, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
     }
 
     xics_cpu_setup(spapr->icp, cpu);
@@ -1812,10 +1819,10 @@ static void ppc_spapr_init(MachineState *machine)
     for (i = 0; i < smp_cpus; i++) {
         cpu = cpu_ppc_init(machine->cpu_model);
         if (cpu == NULL) {
-            fprintf(stderr, "Unable to find PowerPC CPU definition\n");
+            error_report("Unable to find PowerPC CPU definition");
             exit(1);
         }
-        spapr_cpu_init(spapr, cpu);
+        spapr_cpu_init(spapr, cpu, &error_fatal);
     }
 
     if (kvm_enabled()) {
