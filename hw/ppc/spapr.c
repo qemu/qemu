@@ -1246,7 +1246,7 @@ static void spapr_rtc_create(sPAPRMachineState *spapr)
 }
 
 /* Returns whether we want to use VGA or not */
-static int spapr_vga_init(PCIBus *pci_bus)
+static bool spapr_vga_init(PCIBus *pci_bus, Error **errp)
 {
     switch (vga_interface_type) {
     case VGA_NONE:
@@ -1257,9 +1257,9 @@ static int spapr_vga_init(PCIBus *pci_bus)
     case VGA_VIRTIO:
         return pci_vga_init(pci_bus) != NULL;
     default:
-        fprintf(stderr, "This vga model is not supported,"
-                "currently it only supports -vga std\n");
-        exit(0);
+        error_setg(errp,
+                   "Unsupported VGA mode, only -vga std or -vga virtio is supported");
+        return false;
     }
 }
 
@@ -1934,7 +1934,7 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     /* Graphics */
-    if (spapr_vga_init(phb->bus)) {
+    if (spapr_vga_init(phb->bus, &error_fatal)) {
         spapr->has_graphics = true;
         machine->usb |= defaults_enabled() && !machine->usb_disabled;
     }
