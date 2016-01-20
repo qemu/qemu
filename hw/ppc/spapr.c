@@ -1789,8 +1789,8 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     if (spapr->rma_size > node0_size) {
-        fprintf(stderr, "Error: Numa node 0 has to span the RMA (%#08"HWADDR_PRIx")\n",
-                spapr->rma_size);
+        error_report("Numa node 0 has to span the RMA (%#08"HWADDR_PRIx")",
+                     spapr->rma_size);
         exit(1);
     }
 
@@ -1856,10 +1856,10 @@ static void ppc_spapr_init(MachineState *machine)
         ram_addr_t hotplug_mem_size = machine->maxram_size - machine->ram_size;
 
         if (machine->ram_slots > SPAPR_MAX_RAM_SLOTS) {
-            error_report("Specified number of memory slots %" PRIu64
-                         " exceeds max supported %d",
+            error_report("Specified number of memory slots %"
+                         PRIu64" exceeds max supported %d",
                          machine->ram_slots, SPAPR_MAX_RAM_SLOTS);
-            exit(EXIT_FAILURE);
+            exit(1);
         }
 
         spapr->hotplug_memory.base = ROUND_UP(machine->ram_size,
@@ -1955,8 +1955,9 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     if (spapr->rma_size < (MIN_RMA_SLOF << 20)) {
-        fprintf(stderr, "qemu: pSeries SLOF firmware requires >= "
-                "%ldM guest RMA (Real Mode Area memory)\n", MIN_RMA_SLOF);
+        error_report(
+            "pSeries SLOF firmware requires >= %ldM guest RMA (Real Mode Area memory)",
+            MIN_RMA_SLOF);
         exit(1);
     }
 
@@ -1972,8 +1973,8 @@ static void ppc_spapr_init(MachineState *machine)
             kernel_le = kernel_size > 0;
         }
         if (kernel_size < 0) {
-            fprintf(stderr, "qemu: error loading %s: %s\n",
-                    kernel_filename, load_elf_strerror(kernel_size));
+            error_report("error loading %s: %s",
+                         kernel_filename, load_elf_strerror(kernel_size));
             exit(1);
         }
 
@@ -1986,8 +1987,8 @@ static void ppc_spapr_init(MachineState *machine)
             initrd_size = load_image_targphys(initrd_filename, initrd_base,
                                               load_limit - initrd_base);
             if (initrd_size < 0) {
-                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
-                        initrd_filename);
+                error_report("could not load initial ram disk '%s'",
+                             initrd_filename);
                 exit(1);
             }
         } else {
