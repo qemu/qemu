@@ -665,17 +665,11 @@ target_ulong spapr_rtas_call(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
 void spapr_rtas_register(int token, const char *name, spapr_rtas_fn fn)
 {
-    if (!((token >= RTAS_TOKEN_BASE) && (token < RTAS_TOKEN_MAX))) {
-        fprintf(stderr, "RTAS invalid token 0x%x\n", token);
-        exit(1);
-    }
+    assert((token >= RTAS_TOKEN_BASE) && (token < RTAS_TOKEN_MAX));
 
     token -= RTAS_TOKEN_BASE;
-    if (rtas_table[token].name) {
-        fprintf(stderr, "RTAS call \"%s\" is registered already as 0x%x\n",
-                rtas_table[token].name, token);
-        exit(1);
-    }
+
+    assert(!rtas_table[token].name);
 
     rtas_table[token].name = name;
     rtas_table[token].fn = fn;
