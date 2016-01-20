@@ -265,6 +265,7 @@ static uint64_t colo_get_cmd_value(QEMUFile *f, uint32_t expect_cmd,
 
 static int colo_do_checkpoint_transaction(MigrationState *s,
                                           QEMUSizedBuffer *buffer,
+                                          bool passive,
                                           unsigned int delay)
 {
     int colo_shutdown;
@@ -273,7 +274,9 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
     Error *local_err = NULL;
     int ret = -1;
 
-    colo_put_cmd(s->to_dst_file, COLO_COMMAND_CHECKPOINT_REQUEST,
+    colo_put_cmd(s->to_dst_file, passive
+                                   ? COLO_COMMAND_CHECKPOINT_REQUEST_PASSIVE
+                                   : COLO_COMMAND_CHECKPOINT_REQUEST,
                  &local_err);
     if (local_err) {
         goto out;
@@ -420,6 +423,71 @@ static int colo_prepare_before_save(MigrationState *s)
     return ret;
 }
 
+/*
+ * Counter that is reset to 'n' when we enter passive mode and
+ * is decremented once per checkpoint; when it hits zero we flip
+ * back to COLO mode.
+ */
+static unsigned int passive_count;
+
+/*
+ * Weighted average of checkpoint lengths, used to decide on mode.
+ */
+static double colo_checkpoint_time_mean;
+/* Count of checkpoints since we reset colo_checkpoint_time_mean */
+static uint64_t colo_checkpoint_time_count;
+
+/* Decides whether the checkpoint that's about to start should be
+ * a COLO type (with the secondary running and packet comparison) or
+ * a 'passive' type (with the secondary idle and running for fixed time)
+ *
+ * Returns:
+ *   True: 'passive' type checkpoint
+ */
+static bool checkpoint_to_passive_mode(MigrationState *s)
+{
+    trace_checkpoint_to_passive_mode(passive_count,
+                                     colo_checkpoint_time_count,
+                                     colo_checkpoint_time_mean);
+    if (passive_count) {
+        /*
+         * The last checkpoint was passive; we stay in passive
+         * mode for a number of checkpoints before trying colo
+         * again.
+         */
+        passive_count--;
+        if (passive_count) {
+            /* Stay passive */
+            return true;
+        } else {
+            /* Transition back to COLO */
+            trace_checkpoint_to_passive_mode_colo();
+            colo_checkpoint_time_mean = 0.0;
+            colo_checkpoint_time_count = 0;
+            return false;
+        }
+    } else {
+        /* The last checkpoint was COLO */
+        /* Could make that tunable, I'm not particularly worried about
+         * load behaviour for this, startup etc is probably more interesting.
+         */
+        if (colo_checkpoint_time_count < 5) {
+            /* Not done enough COLO cycles to evaluate times yet */
+            return false;
+        }
+        if (colo_checkpoint_time_mean <
+            s->parameters[MIGRATION_PARAMETER_COLO_PASSIVE_LIMIT]) {
+            trace_checkpoint_to_passive_mode_passive(colo_checkpoint_time_mean);
+            /* We've had a few short checkpoints, switch to passive */
+            passive_count =
+                        s->parameters[MIGRATION_PARAMETER_COLO_PASSIVE_COUNT];
+            return true;
+        }
+        /* Keep going in COLO mode */
+        return false;
+    }
+}
+
 static int colo_init_buffer_filters(void)
 {
     if (!qemu_netdev_support_netfilter()) {
@@ -484,36 +552,42 @@ static void colo_process_checkpoint(MigrationState *s)
     qemu_mutex_unlock_iothread();
     trace_colo_vm_state_change("stop", "run");
 
+    passive_count = 0;
+    colo_checkpoint_time_mean = 0.0;
+    colo_checkpoint_time_count = 0;
+
     ret = global_state_store();
     if (ret < 0) {
         goto out;
     }
 
     while (s->state == MIGRATION_STATUS_COLO) {
-        unsigned int extra_delay;
+        unsigned int extra_delay, checkpoint_limit;
         bool miscompare = false;
         if (failover_request_is_active()) {
             error_report("failover request");
             goto out;
         }
 
+        checkpoint_limit = passive_count ?
+            s->parameters[MIGRATION_PARAMETER_COLO_PASSIVE_TIME] :
+            s->parameters[MIGRATION_PARAMETER_X_COLO_MAX_TIME];
+
         /* TODO: pass colo_proxy_wait_for_diff the absolute time */
         current_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
 
-        if ((current_time - checkpoint_time <
-            s->parameters[MIGRATION_PARAMETER_X_COLO_MAX_TIME]) &&
+        if ((current_time - checkpoint_time < checkpoint_limit) &&
             !colo_shutdown_requested) {
             int64_t delay_ms;
-            delay_ms = s->parameters[MIGRATION_PARAMETER_X_COLO_MAX_TIME] -
-                       (current_time - checkpoint_time);
+            delay_ms = checkpoint_limit - (current_time - checkpoint_time);
             miscompare = colo_proxy_wait_for_diff(delay_ms);
         }
+        current_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
         if (miscompare) {
             int64_t delay_ms;
             /* Limit the checkpoint rate if we're getting frequent miscompares
              * by adding an extra delay
              */
-            current_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
             delay_ms = current_time - checkpoint_time;
             delay_ms =  s->parameters[MIGRATION_PARAMETER_X_COLO_MIN_TIME] - delay_ms;
             extra_delay = (delay_ms > 0) ? delay_ms : 0;
@@ -521,7 +595,18 @@ static void colo_process_checkpoint(MigrationState *s)
             extra_delay = 0;
         }
         /* start a colo checkpoint */
-        ret = colo_do_checkpoint_transaction(s, buffer, extra_delay);
+        /* Update a weighted mean of checkpoint lengths, weighted
+         * so that an occasional short checkpoint doesn't cause a switch
+         * to passive.  The 0.7+0.3 is just a current guess which seems
+         * to work well.
+         */
+        colo_checkpoint_time_mean = colo_checkpoint_time_mean * 0.7 +
+                                0.3 * (current_time - checkpoint_time);
+        colo_checkpoint_time_count++;
+
+        ret = colo_do_checkpoint_transaction(s, buffer,
+                                             checkpoint_to_passive_mode(s),
+                                             extra_delay);
         if (ret < 0) {
             goto out;
         }
@@ -572,8 +657,8 @@ void migrate_start_colo_process(MigrationState *s)
     qemu_mutex_lock_iothread();
 }
 
-static void colo_wait_handle_cmd(QEMUFile *f, int *checkpoint_request,
-                                 Error **errp)
+static COLOCommand colo_wait_handle_cmd(QEMUFile *f, int *checkpoint_request,
+                                        Error **errp)
 {
     COLOCommand cmd;
     Error *local_err = NULL;
@@ -581,11 +666,12 @@ static void colo_wait_handle_cmd(QEMUFile *f, int *checkpoint_request,
     cmd = colo_get_cmd(f, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return;
+        return cmd;
     }
 
     switch (cmd) {
     case COLO_COMMAND_CHECKPOINT_REQUEST:
+    case COLO_COMMAND_CHECKPOINT_REQUEST_PASSIVE:
         *checkpoint_request = 1;
         break;
     case COLO_COMMAND_GUEST_SHUTDOWN:
@@ -604,6 +690,8 @@ static void colo_wait_handle_cmd(QEMUFile *f, int *checkpoint_request,
         error_setg(errp, "Got unknown COLO command: %d", cmd);
         break;
     }
+
+    return cmd;
 }
 
 static int colo_prepare_before_load(QEMUFile *f)
@@ -626,6 +714,7 @@ void *colo_process_incoming_thread(void *opaque)
     uint64_t value;
     Error *local_err = NULL;
     int ret;
+    bool last_was_passive = false;
 
     qemu_sem_init(&mis->colo_incoming_sem, 0);
 
@@ -683,7 +772,8 @@ void *colo_process_incoming_thread(void *opaque)
     while (mis->state == MIGRATION_STATUS_COLO) {
         int request;
 
-        colo_wait_handle_cmd(mis->from_src_file, &request, &local_err);
+        COLOCommand mode = colo_wait_handle_cmd(mis->from_src_file,
+                                                &request, &local_err);
         if (local_err) {
             goto out;
         }
@@ -693,10 +783,12 @@ void *colo_process_incoming_thread(void *opaque)
             goto out;
         }
 
-        qemu_mutex_lock_iothread();
-        vm_stop_force_state(RUN_STATE_COLO);
-        trace_colo_vm_state_change("run", "stop");
-        qemu_mutex_unlock_iothread();
+        if (!last_was_passive) {
+            qemu_mutex_lock_iothread();
+            vm_stop_force_state(RUN_STATE_COLO);
+            trace_colo_vm_state_change("run", "stop");
+            qemu_mutex_unlock_iothread();
+        }
 
         colo_get_check_cmd(mis->from_src_file,
                            COLO_COMMAND_VMSTATE_SEND, &local_err);
@@ -776,10 +868,18 @@ void *colo_process_incoming_thread(void *opaque)
             goto out;
         }
 
-        qemu_mutex_lock_iothread();
-        vm_start();
-        trace_colo_vm_state_change("stop", "run");
-        qemu_mutex_unlock_iothread();
+        if (mode == COLO_COMMAND_CHECKPOINT_REQUEST_PASSIVE) {
+            last_was_passive = true;
+            trace_colo_process_incoming_checkpoints_passive();
+        } else {
+            qemu_mutex_lock_iothread();
+            vm_start();
+            last_was_passive = false;
+            trace_colo_vm_state_change("stop", "run");
+            qemu_mutex_unlock_iothread();
+            trace_colo_process_incoming_checkpoints_active();
+        }
+
         qemu_fclose(fb);
         fb = NULL;
     }

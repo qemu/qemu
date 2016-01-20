@@ -63,7 +63,13 @@
 #define DEFAULT_MIGRATE_X_COLO_MAX_TIME (10*1000)
 /* The minimum time (in ms) for a COLO active checkpoint */
 #define DEFAULT_MIGRATE_X_COLO_MIN_TIME 3
-
+/* COLO: The number of passive checkpoints to try before switching back
+ *       to COLO */
+#define DEFAULT_MIGRATE_COLO_PASSIVE_COUNT 100
+/* COLO Checkpoint time (ms) below which we switch into passive mode */
+#define DEFAULT_MIGRATE_COLO_PASSIVE_LIMIT 400
+/* COLO passive mode checkpoint time (ms) */
+#define DEFAULT_MIGRATE_COLO_PASSIVE_TIME 250
 
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
@@ -96,6 +102,12 @@ MigrationState *migrate_get_current(void)
                 DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT,
         .parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS] =
                 DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT,
+        .parameters[MIGRATION_PARAMETER_COLO_PASSIVE_COUNT] =
+                DEFAULT_MIGRATE_COLO_PASSIVE_COUNT,
+        .parameters[MIGRATION_PARAMETER_COLO_PASSIVE_LIMIT] =
+                DEFAULT_MIGRATE_COLO_PASSIVE_LIMIT,
+        .parameters[MIGRATION_PARAMETER_COLO_PASSIVE_TIME] =
+                DEFAULT_MIGRATE_COLO_PASSIVE_TIME,
         .parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL] =
                 DEFAULT_MIGRATE_X_CPU_THROTTLE_INITIAL,
         .parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT] =
@@ -417,6 +429,7 @@ static void process_incoming_migration_co(void *opaque)
        runstate_set. */
 
     if (!global_state_received() ||
+        migration_incoming_enable_colo() ||
         global_state_get_runstate() == RUN_STATE_RUNNING) {
         if (autostart) {
             vm_start();
@@ -551,6 +564,12 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
             s->parameters[MIGRATION_PARAMETER_X_COLO_MAX_TIME];
     params->x_colo_min_time =
             s->parameters[MIGRATION_PARAMETER_X_COLO_MIN_TIME];
+    params->colo_passive_count =
+            s->parameters[MIGRATION_PARAMETER_COLO_PASSIVE_COUNT];
+    params->colo_passive_limit =
+            s->parameters[MIGRATION_PARAMETER_COLO_PASSIVE_LIMIT];
+    params->colo_passive_time =
+            s->parameters[MIGRATION_PARAMETER_COLO_PASSIVE_TIME];
 
     return params;
 }
@@ -764,6 +783,12 @@ void qmp_migrate_set_parameters(bool has_compress_level,
                                 int64_t x_colo_max_time,
                                 bool has_x_colo_min_time,
                                 int64_t x_colo_min_time,
+                                bool has_colo_passive_count,
+                                int64_t colo_passive_count,
+                                bool has_colo_passive_limit,
+                                int64_t colo_passive_limit,
+                                bool has_colo_passive_time,
+                                int64_t colo_passive_time,
                                 Error **errp)
 {
     MigrationState *s = migrate_get_current();
@@ -804,6 +829,21 @@ void qmp_migrate_set_parameters(bool has_compress_level,
                     "x_checkpoint_delay",
                     "is invalid, it should be positive");
     }
+    if (has_colo_passive_count && (colo_passive_count < 0)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                  "colo_passive_count",
+                  "is invalid, it must be positive");
+    }
+    if (has_colo_passive_limit && (colo_passive_limit < 0)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                  "colo_passive_limit",
+                  "is invalid, it must be positive");
+    }
+    if (has_colo_passive_time && (colo_passive_time < 0)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                  "colo_passive_time",
+                  "is invalid, it must be positive");
+    }
 
     if (has_compress_level) {
         s->parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL] = compress_level;
@@ -838,6 +878,19 @@ void qmp_migrate_set_parameters(bool has_compress_level,
         s->parameters[MIGRATION_PARAMETER_X_COLO_MIN_TIME] =
                                                     x_colo_min_time;
     }
+    if (has_colo_passive_count) {
+        s->parameters[MIGRATION_PARAMETER_COLO_PASSIVE_COUNT] =
+                                                    colo_passive_count;
+    }
+    if (has_colo_passive_limit) {
+        s->parameters[MIGRATION_PARAMETER_COLO_PASSIVE_LIMIT] =
+                                                    colo_passive_limit;
+    }
+    if (has_colo_passive_time) {
+        s->parameters[MIGRATION_PARAMETER_COLO_PASSIVE_TIME] =
+                                                    colo_passive_time;
+    }
+
 }
 
 void qmp_migrate_start_postcopy(Error **errp)

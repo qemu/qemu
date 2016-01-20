@@ -3673,6 +3673,11 @@ Set migration parameters
 - "compress-threads": set compression thread count for migration (json-int)
 - "decompress-threads": set decompression thread count for migration (json-int)
 - "x-checkpoint-delay": set the delay time for periodic checkpoint (json-int)
+- "colo-passive-count": In COLO, the number of passive checkpoint cycles to
+                        try before reverting to COLO mode
+- "colo-passive-limit": Time (in ms) below which we switch into passive mode
+- "colo-passive-time": Time (in ms) for a COLO passive mode checkpoint
+
 Arguments:
 
 Example:
@@ -3698,6 +3703,11 @@ Query current migration parameters
          - "compress-level" : compression level value (json-int)
          - "compress-threads" : compression thread count value (json-int)
          - "decompress-threads" : decompression thread count value (json-int)
+         - "colo-passive-count": In COLO, the number of passive checkpoints
+                                 cycles to try before reverting to COLO mode
+         - "colo-passive-limit": Time (in ms) below which we switch into
+                                 passive mode
+         - "colo-passive-time": Time (in ms) for a COLO passive mode checkpoint
 
 Arguments:
 

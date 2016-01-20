@@ -630,13 +630,17 @@
 #
 # @x-colo-min-time: The minimum length of an active COLO checkpoint (in ms)
 #          where a micompare is encountered (Since 2.6)
+# @colo-passive-count: Time (in ms) for a COLO passive mode checkpoint
+# @colo-passive-limit: Time (in ms) below which we switch into passive mode
+# @colo-passive-time: Time (in ms) for a COLO passive mode checkpoint
 #
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
   'data': ['compress-level', 'compress-threads', 'decompress-threads',
            'x-cpu-throttle-initial', 'x-cpu-throttle-increment',
-           'x-checkpoint-delay', 'x-colo-max-time', 'x-colo-min-time' ] }
+           'x-checkpoint-delay', 'x-colo-max-time', 'x-colo-min-time',
+           'colo-passive-count', 'colo-passive-limit', 'colo-passive-time' ] }
 
 #
 # @migrate-set-parameters
@@ -665,6 +669,10 @@
 # @x-colo-min-time: The minimum length of an active COLO checkpoint (in ms)
 #          where a micompare is encountered (Since 2.6)
 #
+# @colo-passive-count: Time (in ms) for a COLO passive mode checkpoint
+# @colo-passive-limit: Time (in ms) below which we switch into passive mode
+# @colo-passive-time: Time (in ms) for a COLO passive mode checkpoint
+#
 # Since: 2.4
 ##
 { 'command': 'migrate-set-parameters',
@@ -675,7 +683,10 @@
             '*x-cpu-throttle-increment': 'int',
             '*x-checkpoint-delay': 'int',
             '*x-colo-max-time': 'int',
-            '*x-colo-min-time': 'int' } }
+            '*x-colo-min-time': 'int',
+            '*colo-passive-count': 'int',
+            '*colo-passive-limit': 'int',
+            '*colo-passive-time': 'int' } }
 
 #
 # @MigrationParameters
@@ -702,6 +713,10 @@
 # @x-colo-min-time: The minimum length of an active COLO checkpoint (in ms)
 #          where a micompare is encountered (Since 2.6)
 #
+# @colo-passive-count: Time (in ms) for a COLO passive mode checkpoint
+# @colo-passive-limit: Time (in ms) below which we switch into passive mode
+# @colo-passive-time: Time (in ms) for a COLO passive mode checkpoint
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -712,7 +727,10 @@
             'x-cpu-throttle-increment': 'int',
             'x-checkpoint-delay': 'int',
             'x-colo-max-time': 'int',
-            'x-colo-min-time': 'int' } }
+            'x-colo-min-time': 'int',
+            '*colo-passive-count': 'int',
+            '*colo-passive-limit': 'int',
+            '*colo-passive-time': 'int' } }
 
 ##
 # @query-migrate-parameters
@@ -764,6 +782,8 @@
 #
 # @checkpoint-request: PVM tells SVM to prepare for new checkpointing
 #
+# @checkpoint-request-passive: PVM tells SVM to prepare for new passive checkpointing
+#
 # @checkpoint-reply: SVM gets PVM's checkpoint request
 #
 # @vmstate-send: VM's state will be sent by PVM.
@@ -779,7 +799,8 @@
 # Since: 2.6
 ##
 { 'enum': 'COLOCommand',
-  'data': [ 'checkpoint-ready', 'checkpoint-request', 'checkpoint-reply',
+  'data': [ 'checkpoint-ready', 'checkpoint-request',
+            'checkpoint-request-passive', 'checkpoint-reply',
             'vmstate-send', 'vmstate-size', 'vmstate-received',
             'vmstate-loaded', 'guest-shutdown' ] }
 

@@ -1592,10 +1592,15 @@ postcopy_ram_incoming_cleanup_exit(void) ""
 postcopy_ram_incoming_cleanup_join(void) ""
 
 # migration/colo.c
+checkpoint_to_passive_mode(uint64_t passive_count, uint64_t colo_checkpoint_time_count, double colo_checkpoint_time_mean) "%" PRIu64 "/%" PRIu64 " %f"
+checkpoint_to_passive_mode_colo(void) ""
+checkpoint_to_passive_mode_passive(double check_time) "weighted checkpoint time=%f"
 colo_vm_state_change(const char *old, const char *new) "Change '%s' => '%s'"
 colo_put_cmd(const char *msg) "Send '%s' cmd"
 colo_get_cmd(const char *msg) "Receive '%s' cmd"
 colo_failover_set_state(int new_state) "new state %d"
+colo_process_incoming_checkpoints_passive(void) ""
+colo_process_incoming_checkpoints_active(void) ""
 colo_start_block_replication(void) "Block replication is started"
 colo_stop_block_replication(const char *reason) "Block replication is stopped(reason: '%s')"
 

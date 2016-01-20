@@ -293,6 +293,15 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, " %s: %" PRId64,
             MigrationParameter_lookup[MIGRATION_PARAMETER_X_COLO_MIN_TIME],
             params->x_colo_min_time);
+        monitor_printf(mon, " %s: %" PRId64,
+            MigrationParameter_lookup[MIGRATION_PARAMETER_COLO_PASSIVE_COUNT],
+            params->colo_passive_count);
+        monitor_printf(mon, " %s: %" PRId64,
+            MigrationParameter_lookup[MIGRATION_PARAMETER_COLO_PASSIVE_LIMIT],
+            params->colo_passive_limit);
+        monitor_printf(mon, " %s: %" PRId64,
+            MigrationParameter_lookup[MIGRATION_PARAMETER_COLO_PASSIVE_TIME],
+            params->colo_passive_time);
         monitor_printf(mon, "\n");
     }
 
@@ -1277,6 +1286,10 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     bool has_x_checkpoint_delay = false;
     bool has_x_colo_max_time = false;
     bool has_x_colo_min_time = false;
+    bool has_colo_passive_count = false;
+    bool has_colo_passive_limit = false;
+    bool has_colo_passive_time = false;
+
     int i;
 
     for (i = 0; i < MIGRATION_PARAMETER__MAX; i++) {
@@ -1305,6 +1318,15 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
             case MIGRATION_PARAMETER_X_COLO_MIN_TIME:
                 has_x_colo_min_time = true;
                 break;
+            case MIGRATION_PARAMETER_COLO_PASSIVE_COUNT:
+                has_colo_passive_count = true;
+                break;
+            case MIGRATION_PARAMETER_COLO_PASSIVE_LIMIT:
+                has_colo_passive_limit = true;
+                break;
+            case MIGRATION_PARAMETER_COLO_PASSIVE_TIME:
+                has_colo_passive_time = true;
+                break;
             }
             qmp_migrate_set_parameters(has_compress_level, value,
                                        has_compress_threads, value,
@@ -1314,6 +1336,9 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
                                        has_x_checkpoint_delay, value,
                                        has_x_colo_max_time, value,
                                        has_x_colo_min_time, value,
+                                       has_colo_passive_count, value,
+                                       has_colo_passive_limit, value,
+                                       has_colo_passive_time, value,
                                        &err);
             break;
         }
