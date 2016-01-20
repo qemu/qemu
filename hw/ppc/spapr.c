@@ -112,7 +112,7 @@ static XICSState *try_create_xics(const char *type, int nr_servers,
 }
 
 static XICSState *xics_system_init(MachineState *machine,
-                                   int nr_servers, int nr_irqs)
+                                   int nr_servers, int nr_irqs, Error **errp)
 {
     XICSState *icp = NULL;
 
@@ -131,7 +131,7 @@ static XICSState *xics_system_init(MachineState *machine,
     }
 
     if (!icp) {
-        icp = try_create_xics(TYPE_XICS, nr_servers, nr_irqs, &error_abort);
+        icp = try_create_xics(TYPE_XICS, nr_servers, nr_irqs, errp);
     }
 
     return icp;
@@ -1813,7 +1813,7 @@ static void ppc_spapr_init(MachineState *machine)
     spapr->icp = xics_system_init(machine,
                                   DIV_ROUND_UP(max_cpus * kvmppc_smt_threads(),
                                                smp_threads),
-                                  XICS_IRQS);
+                                  XICS_IRQS, &error_fatal);
 
     if (smc->dr_lmb_enabled) {
         spapr_validate_node_memory(machine, &error_fatal);
