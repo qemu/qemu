@@ -29,7 +29,7 @@
 #include "qemu/log.h"
 #include "qemu/fifo8.h"
 
-#include "hw/ssi.h"
+#include "hw/ssi/ssi.h"
 
 #ifdef XILINX_SPI_ERR_DEBUG
 #define DB_PRINT(...) do { \

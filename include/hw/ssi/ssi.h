@@ -14,6 +14,8 @@
 #include "hw/qdev.h"
 
 typedef struct SSISlave SSISlave;
+typedef struct SSISlaveClass SSISlaveClass;
+typedef enum SSICSMode SSICSMode;
 
 #define TYPE_SSI_SLAVE "ssi-slave"
 #define SSI_SLAVE(obj) \
@@ -25,14 +27,14 @@ typedef struct SSISlave SSISlave;
 
 #define SSI_GPIO_CS "ssi-gpio-cs"
 
-typedef enum {
+enum SSICSMode {
     SSI_CS_NONE = 0,
     SSI_CS_LOW,
     SSI_CS_HIGH,
-} SSICSMode;
+};
 
 /* Slave devices.  */
-typedef struct SSISlaveClass {
+struct SSISlaveClass {
     DeviceClass parent_class;
 
     int (*init)(SSISlave *dev);
@@ -55,7 +57,7 @@ typedef struct SSISlaveClass {
      * always be called for the device for every txrx access to the parent bus
      */
     uint32_t (*transfer_raw)(SSISlave *dev, uint32_t val);
-} SSISlaveClass;
+};
 
 struct SSISlave {
     DeviceState parent_obj;

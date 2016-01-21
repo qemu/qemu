@@ -26,7 +26,7 @@
 #include "sysemu/block-backend.h"
 #include "hw/loader.h"
 #include "hw/misc/zynq-xadc.h"
-#include "hw/ssi.h"
+#include "hw/ssi/ssi.h"
 #include "qemu/error-report.h"
 
 #define NUM_SPI_FLASHES 4

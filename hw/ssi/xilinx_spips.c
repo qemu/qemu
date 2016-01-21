@@ -27,7 +27,7 @@
 #include "hw/ptimer.h"
 #include "qemu/log.h"
 #include "qemu/fifo8.h"
-#include "hw/ssi.h"
+#include "hw/ssi/ssi.h"
 #include "qemu/bitops.h"
 
 #ifndef XILINX_SPIPS_ERR_DEBUG
