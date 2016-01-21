@@ -449,6 +449,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
     void *p;
     MemoryRegion *mr;
     CPUState *cpu = ENV_GET_CPU(env1);
+    CPUIOTLBEntry *iotlbentry;
 
     page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     mmu_idx = cpu_mmu_index(env1, true);
@@ -456,8 +457,9 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
                  (addr & TARGET_PAGE_MASK))) {
         cpu_ldub_code(env1, addr);
     }
-    pd = env1->iotlb[mmu_idx][page_index].addr & ~TARGET_PAGE_MASK;
-    mr = iotlb_to_region(cpu, pd);
+    iotlbentry = &env1->iotlb[mmu_idx][page_index];
+    pd = iotlbentry->addr & ~TARGET_PAGE_MASK;
+    mr = iotlb_to_region(cpu, pd, iotlbentry->attrs);
     if (memory_region_is_unassigned(mr)) {
         CPUClass *cc = CPU_GET_CLASS(cpu);
 
