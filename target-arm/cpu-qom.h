@@ -219,7 +219,8 @@ bool arm_cpu_exec_interrupt(CPUState *cpu, int int_req);
 void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
                         int flags);
 
-hwaddr arm_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
+                                         MemTxAttrs *attrs);
 
 int arm_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
 int arm_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
