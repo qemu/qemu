@@ -1631,6 +1631,8 @@ vfio_msi_interrupt(const char *name, int index, uint64_t addr, int data) " (%s) 
 vfio_msix_vector_do_use(const char *name, int index) " (%s) vector %d used"
 vfio_msix_vector_release(const char *name, int index) " (%s) vector %d released"
 vfio_msix_enable(const char *name) " (%s)"
+vfio_msix_pba_disable(const char *name) " (%s)"
+vfio_msix_pba_enable(const char *name) " (%s)"
 vfio_msix_disable(const char *name) " (%s)"
 vfio_msi_enable(const char *name, int nr_vectors) " (%s) Enabled %d MSI vectors"
 vfio_msi_disable(const char *name) " (%s)"
