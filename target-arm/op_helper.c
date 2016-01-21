@@ -738,7 +738,11 @@ void HELPER(exception_return)(CPUARMState *env)
         }
         aarch64_sync_64_to_32(env);
 
-        env->regs[15] = env->elr_el[cur_el] & ~0x1;
+        if (spsr & CPSR_T) {
+            env->regs[15] = env->elr_el[cur_el] & ~0x1;
+        } else {
+            env->regs[15] = env->elr_el[cur_el] & ~0x3;
+        }
     } else {
         env->aarch64 = 1;
         pstate_write(env, spsr);
