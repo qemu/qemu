@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "block/accounting.h"
 #include "block/block_int.h"
 #include "qemu/timer.h"

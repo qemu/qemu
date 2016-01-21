@@ -285,6 +285,45 @@ Testing: -drive file=TEST_DIR/t.qcow2,readonly=on,read-only=off
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,readonly=on,read-only=off: 'read-only' and its alias 'readonly' can't be used at the same time
 
 
+=== Catching negative/large throttling values ===
+
+Testing: -drive file=TEST_DIR/t.qcow2,iops=-1
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,iops=-1: bps/iops/max values must be within [0, 1000000000000000]
+
+Testing: -drive file=TEST_DIR/t.qcow2,bps=-2
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,bps=-2: bps/iops/max values must be within [0, 1000000000000000]
+
+Testing: -drive file=TEST_DIR/t.qcow2,bps_rd=-3
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,bps_rd=-3: bps/iops/max values must be within [0, 1000000000000000]
+
+Testing: -drive file=TEST_DIR/t.qcow2,bps_rd_max=-3
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,bps_rd_max=-3: bps/iops/max values must be within [0, 1000000000000000]
+
+Testing: -drive file=TEST_DIR/t.qcow2,throttling.iops-total=-4
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,throttling.iops-total=-4: bps/iops/max values must be within [0, 1000000000000000]
+
+Testing: -drive file=TEST_DIR/t.qcow2,throttling.bps-total=-5
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,throttling.bps-total=-5: bps/iops/max values must be within [0, 1000000000000000]
+
+Testing: -drive file=TEST_DIR/t.qcow2,bps=0
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,bps=1
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,bps=1000000000000000
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,bps=1000000000000001
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,bps=1000000000000001: bps/iops/max values must be within [0, 1000000000000000]
+
+Testing: -drive file=TEST_DIR/t.qcow2,bps=9999999999999999
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,bps=9999999999999999: bps/iops/max values must be within [0, 1000000000000000]
+
+
 === Parsing protocol from file name ===
 
 Testing: -hda foo:bar

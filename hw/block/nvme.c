@@ -20,6 +20,7 @@
  *      -device nvme,drive=<drive_id>,serial=<serial>,id=<id[optional]>
  */
 
+#include "qemu/osdep.h"
 #include <hw/block/block.h>
 #include <hw/hw.h>
 #include <hw/pci/msix.h>

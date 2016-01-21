@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "block/block_int.h"
 #include "qemu/module.h"
@@ -1140,7 +1141,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Clear unknown autoclear feature bits */
-    if (!bs->read_only && !(flags & BDRV_O_INCOMING) && s->autoclear_features) {
+    if (!bs->read_only && !(flags & BDRV_O_INACTIVE) && s->autoclear_features) {
         s->autoclear_features = 0;
         ret = qcow2_update_header(bs);
         if (ret < 0) {
@@ -1153,7 +1154,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     qemu_co_mutex_init(&s->lock);
 
     /* Repair image if dirty */
-    if (!(flags & (BDRV_O_CHECK | BDRV_O_INCOMING)) && !bs->read_only &&
+    if (!(flags & (BDRV_O_CHECK | BDRV_O_INACTIVE)) && !bs->read_only &&
         (s->incompatible_features & QCOW2_INCOMPAT_DIRTY)) {
         BdrvCheckResult result = {0};
 
@@ -1685,6 +1686,32 @@ fail:
     return ret;
 }
 
+static int qcow2_inactivate(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int ret, result = 0;
+
+    ret = qcow2_cache_flush(bs, s->l2_table_cache);
+    if (ret) {
+        result = ret;
+        error_report("Failed to flush the L2 table cache: %s",
+                     strerror(-ret));
+    }
+
+    ret = qcow2_cache_flush(bs, s->refcount_block_cache);
+    if (ret) {
+        result = ret;
+        error_report("Failed to flush the refcount block cache: %s",
+                     strerror(-ret));
+    }
+
+    if (result == 0) {
+        qcow2_mark_clean(bs);
+    }
+
+    return result;
+}
+
 static void qcow2_close(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
@@ -1692,24 +1719,8 @@ static void qcow2_close(BlockDriverState *bs)
     /* else pre-write overlap checks in cache_destroy may crash */
     s->l1_table = NULL;
 
-    if (!(bs->open_flags & BDRV_O_INCOMING)) {
-        int ret1, ret2;
-
-        ret1 = qcow2_cache_flush(bs, s->l2_table_cache);
-        ret2 = qcow2_cache_flush(bs, s->refcount_block_cache);
-
-        if (ret1) {
-            error_report("Failed to flush the L2 table cache: %s",
-                         strerror(-ret1));
-        }
-        if (ret2) {
-            error_report("Failed to flush the refcount block cache: %s",
-                         strerror(-ret2));
-        }
-
-        if (!ret1 && !ret2) {
-            qcow2_mark_clean(bs);
-        }
+    if (!(s->flags & BDRV_O_INACTIVE)) {
+        qcow2_inactivate(bs);
     }
 
     cache_clean_timer_del(bs);
@@ -1753,20 +1764,24 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
     bdrv_invalidate_cache(bs->file->bs, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
+        bs->drv = NULL;
         return;
     }
 
     memset(s, 0, sizeof(BDRVQcow2State));
     options = qdict_clone_shallow(bs->options);
 
+    flags &= ~BDRV_O_INACTIVE;
     ret = qcow2_open(bs, options, flags, &local_err);
     QDECREF(options);
     if (local_err) {
         error_propagate(errp, local_err);
         error_prepend(errp, "Could not reopen qcow2 layer: ");
+        bs->drv = NULL;
         return;
     } else if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not reopen qcow2 layer");
+        bs->drv = NULL;
         return;
     }
 
@@ -1894,31 +1909,33 @@ int qcow2_update_header(BlockDriverState *bs)
     }
 
     /* Feature table */
-    Qcow2Feature features[] = {
-        {
-            .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
-            .bit  = QCOW2_INCOMPAT_DIRTY_BITNR,
-            .name = "dirty bit",
-        },
-        {
-            .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
-            .bit  = QCOW2_INCOMPAT_CORRUPT_BITNR,
-            .name = "corrupt bit",
-        },
-        {
-            .type = QCOW2_FEAT_TYPE_COMPATIBLE,
-            .bit  = QCOW2_COMPAT_LAZY_REFCOUNTS_BITNR,
-            .name = "lazy refcounts",
-        },
-    };
+    if (s->qcow_version >= 3) {
+        Qcow2Feature features[] = {
+            {
+                .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
+                .bit  = QCOW2_INCOMPAT_DIRTY_BITNR,
+                .name = "dirty bit",
+            },
+            {
+                .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
+                .bit  = QCOW2_INCOMPAT_CORRUPT_BITNR,
+                .name = "corrupt bit",
+            },
+            {
+                .type = QCOW2_FEAT_TYPE_COMPATIBLE,
+                .bit  = QCOW2_COMPAT_LAZY_REFCOUNTS_BITNR,
+                .name = "lazy refcounts",
+            },
+        };
 
-    ret = header_ext_add(buf, QCOW2_EXT_MAGIC_FEATURE_TABLE,
-                         features, sizeof(features), buflen);
-    if (ret < 0) {
-        goto fail;
+        ret = header_ext_add(buf, QCOW2_EXT_MAGIC_FEATURE_TABLE,
+                             features, sizeof(features), buflen);
+        if (ret < 0) {
+            goto fail;
+        }
+        buf += ret;
+        buflen -= ret;
     }
-    buf += ret;
-    buflen -= ret;
 
     /* Keep unknown header extensions */
     QLIST_FOREACH(uext, &s->unknown_header_ext, next) {
@@ -2234,6 +2251,13 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     } else if (ret != 0) {
         error_report("Huh, first cluster in empty image is already in use?");
         abort();
+    }
+
+    /* Create a full header (including things like feature table) */
+    ret = qcow2_update_header(bs);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not update qcow2 header");
+        goto out;
     }
 
     /* Okay, now that we have a valid image, let's give it the right size */
@@ -3330,6 +3354,7 @@ BlockDriver bdrv_qcow2 = {
 
     .bdrv_refresh_limits        = qcow2_refresh_limits,
     .bdrv_invalidate_cache      = qcow2_invalidate_cache,
+    .bdrv_inactivate            = qcow2_inactivate,
 
     .create_opts         = &qcow2_create_opts,
     .bdrv_check          = qcow2_check,

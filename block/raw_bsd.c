@@ -26,6 +26,7 @@
  * IN THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "block/block_int.h"
 #include "qemu/option.h"
 

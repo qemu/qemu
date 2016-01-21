@@ -24,6 +24,11 @@ autoclear_features        0x0
 refcount_order            4
 header_length             104
 
+Header extension:
+magic                     0x6803f857
+length                    144
+data                      <binary>
+
 magic                     0x514649fb
 version                   2
 backing_file_offset       0x0
@@ -42,11 +47,6 @@ compatible_features       0x0
 autoclear_features        0x0
 refcount_order            4
 header_length             72
-
-Header extension:
-magic                     0x6803f857
-length                    144
-data                      <binary>
 
 read 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -81,6 +81,11 @@ autoclear_features        0x0
 refcount_order            4
 header_length             104
 
+Header extension:
+magic                     0x6803f857
+length                    144
+data                      <binary>
+
 ERROR cluster 5 refcount=0 reference=1
 ERROR cluster 6 refcount=0 reference=1
 Rebuilding refcount structure
@@ -104,11 +109,6 @@ compatible_features       0x0
 autoclear_features        0x0
 refcount_order            4
 header_length             72
-
-Header extension:
-magic                     0x6803f857
-length                    144
-data                      <binary>
 
 read 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -136,6 +136,11 @@ autoclear_features        0x40000000000
 refcount_order            4
 header_length             104
 
+Header extension:
+magic                     0x6803f857
+length                    144
+data                      <binary>
+
 magic                     0x514649fb
 version                   2
 backing_file_offset       0x0
@@ -154,11 +159,6 @@ compatible_features       0x0
 autoclear_features        0x0
 refcount_order            4
 header_length             72
-
-Header extension:
-magic                     0x6803f857
-length                    144
-data                      <binary>
 
 No errors were found on the image.
 
@@ -242,6 +242,11 @@ compatible_features       0x1
 autoclear_features        0x0
 refcount_order            4
 header_length             104
+
+Header extension:
+magic                     0x6803f857
+length                    144
+data                      <binary>
 
 ERROR cluster 5 refcount=0 reference=1
 ERROR cluster 6 refcount=0 reference=1

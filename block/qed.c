@@ -12,6 +12,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "qemu/timer.h"
 #include "trace.h"
 #include "qed.h"
@@ -477,7 +478,7 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
      * feature is no longer valid.
      */
     if ((s->header.autoclear_features & ~QED_AUTOCLEAR_FEATURE_MASK) != 0 &&
-        !bdrv_is_read_only(bs->file->bs) && !(flags & BDRV_O_INCOMING)) {
+        !bdrv_is_read_only(bs->file->bs) && !(flags & BDRV_O_INACTIVE)) {
         s->header.autoclear_features &= QED_AUTOCLEAR_FEATURE_MASK;
 
         ret = qed_write_header_sync(s);
@@ -505,7 +506,7 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
          * aid data recovery from an otherwise inconsistent image.
          */
         if (!bdrv_is_read_only(bs->file->bs) &&
-            !(flags & BDRV_O_INCOMING)) {
+            !(flags & BDRV_O_INACTIVE)) {
             BdrvCheckResult result = {0};
 
             ret = qed_check(s, &result, true);

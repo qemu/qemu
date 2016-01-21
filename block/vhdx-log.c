@@ -17,6 +17,7 @@
  * See the COPYING.LIB file in the top-level directory.
  *
  */
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "block/block_int.h"
 #include "qemu/error-report.h"

@@ -23,7 +23,7 @@
  */
 
 /* Needed for CONFIG_MADVISE */
-#include "config-host.h"
+#include "qemu/osdep.h"
 
 #if defined(CONFIG_MADVISE) || defined(CONFIG_POSIX_MADVISE)
 #include <sys/mman.h>
@@ -31,7 +31,6 @@
 
 #include "block/block_int.h"
 #include "qemu-common.h"
-#include "qemu/osdep.h"
 #include "qcow2.h"
 #include "trace.h"
 

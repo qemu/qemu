@@ -53,11 +53,6 @@ refcount_order            4
 header_length             72
 
 Header extension:
-magic                     0x6803f857
-length                    144
-data                      <binary>
-
-Header extension:
 magic                     0x12345678
 length                    31
 data                      'This is a test header extension'
@@ -68,7 +63,7 @@ No errors were found on the image.
 
 magic                     0x514649fb
 version                   2
-backing_file_offset       0x128
+backing_file_offset       0x90
 backing_file_size         0x17
 cluster_bits              16
 size                      67108864
@@ -89,11 +84,6 @@ Header extension:
 magic                     0xe2792aca
 length                    11
 data                      'host_device'
-
-Header extension:
-magic                     0x6803f857
-length                    144
-data                      <binary>
 
 Header extension:
 magic                     0x12345678
@@ -124,6 +114,11 @@ compatible_features       0x0
 autoclear_features        0x0
 refcount_order            4
 header_length             104
+
+Header extension:
+magic                     0x6803f857
+length                    144
+data                      <binary>
 
 Header extension:
 magic                     0x12345678

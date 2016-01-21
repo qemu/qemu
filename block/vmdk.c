@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "block/block_int.h"
 #include "qapi/qmp/qerror.h"
@@ -1662,7 +1663,13 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     }
     magic = cpu_to_be32(VMDK4_MAGIC);
     memset(&header, 0, sizeof(header));
-    header.version = zeroed_grain ? 2 : 1;
+    if (compress) {
+        header.version = 3;
+    } else if (zeroed_grain) {
+        header.version = 2;
+    } else {
+        header.version = 1;
+    }
     header.flags = VMDK4_FLAG_RGD | VMDK4_FLAG_NL_DETECT
                    | (compress ? VMDK4_FLAG_COMPRESS | VMDK4_FLAG_MARKER : 0)
                    | (zeroed_grain ? VMDK4_FLAG_ZERO_GRAIN : 0);

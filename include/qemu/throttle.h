@@ -29,6 +29,8 @@
 #include "qemu-common.h"
 #include "qemu/timer.h"
 
+#define THROTTLE_VALUE_MAX 1000000000000000LL
+
 typedef enum {
     THROTTLE_BPS_TOTAL,
     THROTTLE_BPS_READ,

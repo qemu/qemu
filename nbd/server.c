@@ -668,7 +668,7 @@ NBDExport *nbd_export_new(BlockBackend *blk, off_t dev_offset, off_t size,
     blk_add_aio_context_notifier(blk, blk_aio_attached, blk_aio_detach, exp);
     /*
      * NBD exports are used for non-shared storage migration.  Make sure
-     * that BDRV_O_INCOMING is cleared and the image is ready for write
+     * that BDRV_O_INACTIVE is cleared and the image is ready for write
      * access since the export could be available before migration handover.
      */
     blk_invalidate_cache(blk, NULL);

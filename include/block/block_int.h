@@ -172,6 +172,7 @@ struct BlockDriver {
      * Invalidate any cached meta-data.
      */
     void (*bdrv_invalidate_cache)(BlockDriverState *bs, Error **errp);
+    int (*bdrv_inactivate)(BlockDriverState *bs);
 
     /*
      * Flushes all data that was already written to the OS all the way down to

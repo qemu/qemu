@@ -27,6 +27,7 @@
  * way. There are changes in DOR register and DMA is not available.
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/block/fdc.h"
 #include "qemu/error-report.h"

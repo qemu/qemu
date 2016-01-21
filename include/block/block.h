@@ -84,7 +84,7 @@ typedef struct HDGeometry {
 #define BDRV_O_NO_BACKING  0x0100 /* don't open the backing file */
 #define BDRV_O_NO_FLUSH    0x0200 /* disable flushing on this disk */
 #define BDRV_O_COPY_ON_READ 0x0400 /* copy read backing sectors into image */
-#define BDRV_O_INCOMING    0x0800  /* consistency hint for incoming migration */
+#define BDRV_O_INACTIVE    0x0800  /* consistency hint for migration handoff */
 #define BDRV_O_CHECK       0x1000  /* open solely for consistency check */
 #define BDRV_O_ALLOW_RDWR  0x2000  /* allow reopen to change from r/o to r/w */
 #define BDRV_O_UNMAP       0x4000  /* execute guest UNMAP/TRIM operations */
@@ -369,6 +369,7 @@ BlockAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
 /* Invalidate any cached metadata used by image formats */
 void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp);
 void bdrv_invalidate_cache_all(Error **errp);
+int bdrv_inactivate_all(void);
 
 /* Ensure contents are flushed to disk.  */
 int bdrv_flush(BlockDriverState *bs);

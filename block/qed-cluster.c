@@ -12,6 +12,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "qed.h"
 
 /**

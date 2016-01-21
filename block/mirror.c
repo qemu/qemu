@@ -11,6 +11,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "trace.h"
 #include "block/blockjob.h"
 #include "block/block_int.h"

@@ -348,7 +348,8 @@ static bool check_throttle_config(ThrottleConfig *cfg, Error **errp)
     }
 
     if (!throttle_is_valid(cfg)) {
-        error_setg(errp, "bps/iops/maxs values must be 0 or greater");
+        error_setg(errp, "bps/iops/max values must be within [0, %lld]",
+                   THROTTLE_VALUE_MAX);
         return false;
     }
 

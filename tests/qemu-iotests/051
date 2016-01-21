@@ -263,6 +263,24 @@ run_qemu -drive file="$TEST_IMG",iops_size=1234,throttling.iops-size=5678
 run_qemu -drive file="$TEST_IMG",readonly=on,read-only=off
 
 echo
+echo === Catching negative/large throttling values ===
+echo
+
+run_qemu -drive file="$TEST_IMG",iops=-1
+run_qemu -drive file="$TEST_IMG",bps=-2
+run_qemu -drive file="$TEST_IMG",bps_rd=-3
+run_qemu -drive file="$TEST_IMG",bps_rd_max=-3
+run_qemu -drive file="$TEST_IMG",throttling.iops-total=-4
+run_qemu -drive file="$TEST_IMG",throttling.bps-total=-5
+# These are accepted
+run_qemu -drive file="$TEST_IMG",bps=0
+run_qemu -drive file="$TEST_IMG",bps=1
+run_qemu -drive file="$TEST_IMG",bps=1000000000000000
+# While these are not
+run_qemu -drive file="$TEST_IMG",bps=1000000000000001
+run_qemu -drive file="$TEST_IMG",bps=9999999999999999
+
+echo
 echo === Parsing protocol from file name ===
 echo
 

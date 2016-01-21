@@ -905,7 +905,7 @@ static QemuOptsList bdrv_runtime_opts = {
  * Removes all processed options from *options.
  */
 static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
-                            QDict *options, int flags, Error **errp)
+                            QDict *options, Error **errp)
 {
     int ret, open_flags;
     const char *filename;
@@ -943,7 +943,8 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
         goto fail_opts;
     }
 
-    trace_bdrv_open_common(bs, filename ?: "", flags, drv->format_name);
+    trace_bdrv_open_common(bs, filename ?: "", bs->open_flags,
+                           drv->format_name);
 
     node_name = qemu_opt_get(opts, "node-name");
     bdrv_assign_node_name(bs, node_name, &local_err);
@@ -955,8 +956,7 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
 
     bs->request_alignment = 512;
     bs->zero_beyond_eof = true;
-    open_flags = bdrv_open_flags(bs, flags);
-    bs->read_only = !(open_flags & BDRV_O_RDWR);
+    bs->read_only = !(bs->open_flags & BDRV_O_RDWR);
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv, bs->read_only)) {
         error_setg(errp,
@@ -969,7 +969,7 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
     }
 
     assert(bs->copy_on_read == 0); /* bdrv_new() and bdrv_close() make it so */
-    if (flags & BDRV_O_COPY_ON_READ) {
+    if (bs->open_flags & BDRV_O_COPY_ON_READ) {
         if (!bs->read_only) {
             bdrv_enable_copy_on_read(bs);
         } else {
@@ -994,6 +994,7 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
     bdrv_set_enable_write_cache(bs, bs->open_flags & BDRV_O_CACHE_WB);
 
     /* Open the image, either directly or using a protocol */
+    open_flags = bdrv_open_flags(bs, bs->open_flags);
     if (drv->bdrv_file_open) {
         assert(file == NULL);
         assert(!drv->bdrv_needs_filename || filename != NULL);
@@ -1190,7 +1191,7 @@ static int bdrv_fill_options(QDict **options, const char *filename,
     }
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
-        *flags |= BDRV_O_INCOMING;
+        *flags |= BDRV_O_INACTIVE;
     }
 
     return 0;
@@ -1656,7 +1657,7 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
     assert(!(flags & BDRV_O_PROTOCOL) || !file);
 
     /* Open the image */
-    ret = bdrv_open_common(bs, file, options, flags, &local_err);
+    ret = bdrv_open_common(bs, file, options, &local_err);
     if (ret < 0) {
         goto fail;
     }
@@ -3260,10 +3261,10 @@ void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
         return;
     }
 
-    if (!(bs->open_flags & BDRV_O_INCOMING)) {
+    if (!(bs->open_flags & BDRV_O_INACTIVE)) {
         return;
     }
-    bs->open_flags &= ~BDRV_O_INCOMING;
+    bs->open_flags &= ~BDRV_O_INACTIVE;
 
     if (bs->drv->bdrv_invalidate_cache) {
         bs->drv->bdrv_invalidate_cache(bs, &local_err);
@@ -3271,12 +3272,14 @@ void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
         bdrv_invalidate_cache(bs->file->bs, &local_err);
     }
     if (local_err) {
+        bs->open_flags |= BDRV_O_INACTIVE;
         error_propagate(errp, local_err);
         return;
     }
 
     ret = refresh_total_sectors(bs, bs->total_sectors);
     if (ret < 0) {
+        bs->open_flags |= BDRV_O_INACTIVE;
         error_setg_errno(errp, -ret, "Could not refresh total sector count");
         return;
     }
@@ -3298,6 +3301,40 @@ void bdrv_invalidate_cache_all(Error **errp)
             return;
         }
     }
+}
+
+static int bdrv_inactivate(BlockDriverState *bs)
+{
+    int ret;
+
+    if (bs->drv->bdrv_inactivate) {
+        ret = bs->drv->bdrv_inactivate(bs);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    bs->open_flags |= BDRV_O_INACTIVE;
+    return 0;
+}
+
+int bdrv_inactivate_all(void)
+{
+    BlockDriverState *bs;
+    int ret;
+
+    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(aio_context);
+        ret = bdrv_inactivate(bs);
+        aio_context_release(aio_context);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    return 0;
 }
 
 /**************************************************************/
