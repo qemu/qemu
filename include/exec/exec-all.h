@@ -84,7 +84,21 @@ void QEMU_NORETURN cpu_loop_exit_restore(CPUState *cpu, uintptr_t pc);
 
 #if !defined(CONFIG_USER_ONLY)
 void cpu_reloading_memory_map(void);
-void tcg_cpu_address_space_init(CPUState *cpu, AddressSpace *as);
+/**
+ * cpu_address_space_init:
+ * @cpu: CPU to add this address space to
+ * @as: address space to add
+ * @asidx: integer index of this address space
+ *
+ * Add the specified address space to the CPU's cpu_ases list.
+ * The address space added with @asidx 0 is the one used for the
+ * convenience pointer cpu->as.
+ * The target-specific code which registers ASes is responsible
+ * for defining what semantics address space 0, 1, 2, etc have.
+ *
+ * Note that with KVM only one address space is supported.
+ */
+void cpu_address_space_init(CPUState *cpu, AddressSpace *as, int asidx);
 /* cputlb.c */
 /**
  * tlb_flush_page:

@@ -2861,9 +2861,10 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 
 #ifndef CONFIG_USER_ONLY
     if (tcg_enabled()) {
+        AddressSpace *newas = g_new(AddressSpace, 1);
+
         cpu->cpu_as_mem = g_new(MemoryRegion, 1);
         cpu->cpu_as_root = g_new(MemoryRegion, 1);
-        cs->as = g_new(AddressSpace, 1);
 
         /* Outer container... */
         memory_region_init(cpu->cpu_as_root, OBJECT(cpu), "memory", ~0ull);
@@ -2876,7 +2877,8 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
                                  get_system_memory(), 0, ~0ull);
         memory_region_add_subregion_overlap(cpu->cpu_as_root, 0, cpu->cpu_as_mem, 0);
         memory_region_set_enabled(cpu->cpu_as_mem, true);
-        address_space_init(cs->as, cpu->cpu_as_root, "CPU");
+        address_space_init(newas, cpu->cpu_as_root, "CPU");
+        cpu_address_space_init(cs, newas, 0);
 
         /* ... SMRAM with higher priority, linked from /machine/smram.  */
         cpu->machine_done.notify = x86_cpu_machine_done;
