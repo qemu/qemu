@@ -2878,6 +2878,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         memory_region_add_subregion_overlap(cpu->cpu_as_root, 0, cpu->cpu_as_mem, 0);
         memory_region_set_enabled(cpu->cpu_as_mem, true);
         address_space_init(newas, cpu->cpu_as_root, "CPU");
+        cs->num_ases = 1;
         cpu_address_space_init(cs, newas, 0);
 
         /* ... SMRAM with higher priority, linked from /machine/smram.  */
