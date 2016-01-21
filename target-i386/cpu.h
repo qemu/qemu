@@ -407,6 +407,7 @@
 #define XSTATE_OPMASK                   (1ULL << 5)
 #define XSTATE_ZMM_Hi256                (1ULL << 6)
 #define XSTATE_Hi16_ZMM                 (1ULL << 7)
+#define XSTATE_PKRU                     (1ULL << 9)
 
 
 /* CPUID feature words */
@@ -414,6 +415,7 @@ typedef enum FeatureWord {
     FEAT_1_EDX,         /* CPUID[1].EDX */
     FEAT_1_ECX,         /* CPUID[1].ECX */
     FEAT_7_0_EBX,       /* CPUID[EAX=7,ECX=0].EBX */
+    FEAT_7_0_ECX,       /* CPUID[EAX=7,ECX=0].ECX */
     FEAT_8000_0001_EDX, /* CPUID[8000_0001].EDX */
     FEAT_8000_0001_ECX, /* CPUID[8000_0001].ECX */
     FEAT_8000_0007_EDX, /* CPUID[8000_0007].EDX */
@@ -585,6 +587,9 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_7_0_EBX_AVX512ER (1U << 27) /* AVX-512 Exponential and Reciprocal */
 #define CPUID_7_0_EBX_AVX512CD (1U << 28) /* AVX-512 Conflict Detection */
 
+#define CPUID_7_0_ECX_PKU      (1U << 3)
+#define CPUID_7_0_ECX_OSPKE    (1U << 4)
+
 #define CPUID_XSAVE_XSAVEOPT   (1U << 0)
 #define CPUID_XSAVE_XSAVEC     (1U << 1)
 #define CPUID_XSAVE_XGETBV1    (1U << 2)
@@ -725,22 +730,18 @@ typedef struct SegmentCache {
     uint32_t flags;
 } SegmentCache;
 
-typedef union {
-    uint8_t _b[64];
-    uint16_t _w[32];
-    uint32_t _l[16];
-    uint64_t _q[8];
-    float32 _s[16];
-    float64 _d[8];
-} XMMReg; /* really zmm */
+#define MMREG_UNION(n, bits)        \
+    union n {                       \
+        uint8_t  _b_##n[(bits)/8];  \
+        uint16_t _w_##n[(bits)/16]; \
+        uint32_t _l_##n[(bits)/32]; \
+        uint64_t _q_##n[(bits)/64]; \
+        float32  _s_##n[(bits)/32]; \
+        float64  _d_##n[(bits)/64]; \
+    }
 
-typedef union {
-    uint8_t _b[8];
-    uint16_t _w[4];
-    uint32_t _l[2];
-    float32 _s[2];
-    uint64_t q;
-} MMXReg;
+typedef MMREG_UNION(ZMMReg, 512) ZMMReg;
+typedef MMREG_UNION(MMXReg, 64)  MMXReg;
 
 typedef struct BNDReg {
     uint64_t lb;
@@ -753,31 +754,31 @@ typedef struct BNDCSReg {
 } BNDCSReg;
 
 #ifdef HOST_WORDS_BIGENDIAN
-#define XMM_B(n) _b[63 - (n)]
-#define XMM_W(n) _w[31 - (n)]
-#define XMM_L(n) _l[15 - (n)]
-#define XMM_S(n) _s[15 - (n)]
-#define XMM_Q(n) _q[7 - (n)]
-#define XMM_D(n) _d[7 - (n)]
+#define ZMM_B(n) _b_ZMMReg[63 - (n)]
+#define ZMM_W(n) _w_ZMMReg[31 - (n)]
+#define ZMM_L(n) _l_ZMMReg[15 - (n)]
+#define ZMM_S(n) _s_ZMMReg[15 - (n)]
+#define ZMM_Q(n) _q_ZMMReg[7 - (n)]
+#define ZMM_D(n) _d_ZMMReg[7 - (n)]
 
-#define MMX_B(n) _b[7 - (n)]
-#define MMX_W(n) _w[3 - (n)]
-#define MMX_L(n) _l[1 - (n)]
-#define MMX_S(n) _s[1 - (n)]
+#define MMX_B(n) _b_MMXReg[7 - (n)]
+#define MMX_W(n) _w_MMXReg[3 - (n)]
+#define MMX_L(n) _l_MMXReg[1 - (n)]
+#define MMX_S(n) _s_MMXReg[1 - (n)]
 #else
-#define XMM_B(n) _b[n]
-#define XMM_W(n) _w[n]
-#define XMM_L(n) _l[n]
-#define XMM_S(n) _s[n]
-#define XMM_Q(n) _q[n]
-#define XMM_D(n) _d[n]
+#define ZMM_B(n) _b_ZMMReg[n]
+#define ZMM_W(n) _w_ZMMReg[n]
+#define ZMM_L(n) _l_ZMMReg[n]
+#define ZMM_S(n) _s_ZMMReg[n]
+#define ZMM_Q(n) _q_ZMMReg[n]
+#define ZMM_D(n) _d_ZMMReg[n]
 
-#define MMX_B(n) _b[n]
-#define MMX_W(n) _w[n]
-#define MMX_L(n) _l[n]
-#define MMX_S(n) _s[n]
+#define MMX_B(n) _b_MMXReg[n]
+#define MMX_W(n) _w_MMXReg[n]
+#define MMX_L(n) _l_MMXReg[n]
+#define MMX_S(n) _s_MMXReg[n]
 #endif
-#define MMX_Q(n) q
+#define MMX_Q(n) _q_MMXReg[n]
 
 typedef union {
     floatx80 d __attribute__((aligned(16)));
@@ -865,8 +866,8 @@ typedef struct CPUX86State {
     float_status mmx_status; /* for 3DNow! float ops */
     float_status sse_status;
     uint32_t mxcsr;
-    XMMReg xmm_regs[CPU_NB_REGS == 8 ? 8 : 32];
-    XMMReg xmm_t0;
+    ZMMReg xmm_regs[CPU_NB_REGS == 8 ? 8 : 32];
+    ZMMReg xmm_t0;
     MMXReg mmx_t0;
 
     uint64_t opmask_regs[NB_OPMASK_REGS];
@@ -982,6 +983,7 @@ typedef struct CPUX86State {
     uint32_t sipi_vector;
     bool tsc_valid;
     int64_t tsc_khz;
+    int64_t user_tsc_khz; /* for sanity check only */
     void *kvm_xsave_buf;
 
     uint64_t mcg_cap;
@@ -998,6 +1000,8 @@ typedef struct CPUX86State {
 
     uint64_t xcr0;
     uint64_t xss;
+
+    uint32_t pkru;
 
     TPRAccess tpr_access_type;
 } CPUX86State;
@@ -1224,7 +1228,7 @@ static inline target_long lshift(target_long x, int n)
 #define ST1    ST(1)
 
 /* translate.c */
-void optimize_flags_init(void);
+void tcg_x86_init(void);
 
 #include "exec/cpu-all.h"
 #include "svm.h"

@@ -120,6 +120,9 @@ struct PCMachineClass {
     bool has_reserved_memory;
     bool enforce_aligned_dimm;
     bool broken_reserved_end;
+
+    /* TSC rate migration: */
+    bool save_tsc_khz;
 };
 
 #define TYPE_PC_MACHINE "generic-pc-machine"

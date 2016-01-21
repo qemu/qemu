@@ -6,6 +6,8 @@
 #include "cpu.h"
 #include "sysemu/kvm.h"
 
+#include "qemu/error-report.h"
+
 static const VMStateDescription vmstate_segment = {
     .name = "segment",
     .version_id = 1,
@@ -36,15 +38,15 @@ static const VMStateDescription vmstate_xmm_reg = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(XMM_Q(0), XMMReg),
-        VMSTATE_UINT64(XMM_Q(1), XMMReg),
+        VMSTATE_UINT64(ZMM_Q(0), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(1), ZMMReg),
         VMSTATE_END_OF_LIST()
     }
 };
 
 #define VMSTATE_XMM_REGS(_field, _state, _start)                         \
     VMSTATE_STRUCT_SUB_ARRAY(_field, _state, _start, CPU_NB_REGS, 0,     \
-                             vmstate_xmm_reg, XMMReg)
+                             vmstate_xmm_reg, ZMMReg)
 
 /* YMMH format is the same as XMM, but for bits 128-255 */
 static const VMStateDescription vmstate_ymmh_reg = {
@@ -52,32 +54,32 @@ static const VMStateDescription vmstate_ymmh_reg = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(XMM_Q(2), XMMReg),
-        VMSTATE_UINT64(XMM_Q(3), XMMReg),
+        VMSTATE_UINT64(ZMM_Q(2), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(3), ZMMReg),
         VMSTATE_END_OF_LIST()
     }
 };
 
 #define VMSTATE_YMMH_REGS_VARS(_field, _state, _start, _v)               \
     VMSTATE_STRUCT_SUB_ARRAY(_field, _state, _start, CPU_NB_REGS, _v,    \
-                             vmstate_ymmh_reg, XMMReg)
+                             vmstate_ymmh_reg, ZMMReg)
 
 static const VMStateDescription vmstate_zmmh_reg = {
     .name = "zmmh_reg",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(XMM_Q(4), XMMReg),
-        VMSTATE_UINT64(XMM_Q(5), XMMReg),
-        VMSTATE_UINT64(XMM_Q(6), XMMReg),
-        VMSTATE_UINT64(XMM_Q(7), XMMReg),
+        VMSTATE_UINT64(ZMM_Q(4), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(5), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(6), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(7), ZMMReg),
         VMSTATE_END_OF_LIST()
     }
 };
 
 #define VMSTATE_ZMMH_REGS_VARS(_field, _state, _start)                   \
     VMSTATE_STRUCT_SUB_ARRAY(_field, _state, _start, CPU_NB_REGS, 0,     \
-                             vmstate_zmmh_reg, XMMReg)
+                             vmstate_zmmh_reg, ZMMReg)
 
 #ifdef TARGET_X86_64
 static const VMStateDescription vmstate_hi16_zmm_reg = {
@@ -85,21 +87,21 @@ static const VMStateDescription vmstate_hi16_zmm_reg = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(XMM_Q(0), XMMReg),
-        VMSTATE_UINT64(XMM_Q(1), XMMReg),
-        VMSTATE_UINT64(XMM_Q(2), XMMReg),
-        VMSTATE_UINT64(XMM_Q(3), XMMReg),
-        VMSTATE_UINT64(XMM_Q(4), XMMReg),
-        VMSTATE_UINT64(XMM_Q(5), XMMReg),
-        VMSTATE_UINT64(XMM_Q(6), XMMReg),
-        VMSTATE_UINT64(XMM_Q(7), XMMReg),
+        VMSTATE_UINT64(ZMM_Q(0), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(1), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(2), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(3), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(4), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(5), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(6), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(7), ZMMReg),
         VMSTATE_END_OF_LIST()
     }
 };
 
 #define VMSTATE_Hi16_ZMM_REGS_VARS(_field, _state, _start)               \
     VMSTATE_STRUCT_SUB_ARRAY(_field, _state, _start, CPU_NB_REGS, 0,     \
-                             vmstate_hi16_zmm_reg, XMMReg)
+                             vmstate_hi16_zmm_reg, ZMMReg)
 #endif
 
 static const VMStateDescription vmstate_bnd_regs = {
@@ -330,6 +332,13 @@ static int cpu_post_load(void *opaque, int version_id)
     CPUState *cs = CPU(cpu);
     CPUX86State *env = &cpu->env;
     int i;
+
+    if (env->tsc_khz && env->user_tsc_khz &&
+        env->tsc_khz != env->user_tsc_khz) {
+        error_report("Mismatch between user-specified TSC frequency and "
+                     "migrated TSC frequency");
+        return -EINVAL;
+    }
 
     /*
      * Real mode guest segments register DPL should be zero.
@@ -787,7 +796,7 @@ static bool avx512_needed(void *opaque)
     }
 
     for (i = 0; i < CPU_NB_REGS; i++) {
-#define ENV_XMM(reg, field) (env->xmm_regs[reg].XMM_Q(field))
+#define ENV_XMM(reg, field) (env->xmm_regs[reg].ZMM_Q(field))
         if (ENV_XMM(i, 4) || ENV_XMM(i, 6) ||
             ENV_XMM(i, 5) || ENV_XMM(i, 7)) {
             return true;
@@ -835,6 +844,47 @@ static const VMStateDescription vmstate_xss = {
     .needed = xss_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64(env.xss, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+#ifdef TARGET_X86_64
+static bool pkru_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->pkru != 0;
+}
+
+static const VMStateDescription vmstate_pkru = {
+    .name = "cpu/pkru",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = pkru_needed,
+    .fields = (VMStateField[]){
+        VMSTATE_UINT32(env.pkru, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+#endif
+
+static bool tsc_khz_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(mc);
+    return env->tsc_khz && pcmc->save_tsc_khz;
+}
+
+static const VMStateDescription vmstate_tsc_khz = {
+    .name = "cpu/tsc_khz",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = tsc_khz_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT64(env.tsc_khz, X86CPU),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -961,6 +1011,10 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_msr_hyperv_stimer,
         &vmstate_avx512,
         &vmstate_xss,
+        &vmstate_tsc_khz,
+#ifdef TARGET_X86_64
+        &vmstate_pkru,
+#endif
         NULL
     }
 };
