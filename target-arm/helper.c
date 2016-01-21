@@ -5867,7 +5867,26 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
     unsigned int new_mode = aarch64_pstate_mode(new_el, true);
 
     if (arm_current_el(env) < new_el) {
-        if (env->aarch64) {
+        /* Entry vector offset depends on whether the implemented EL
+         * immediately lower than the target level is using AArch32 or AArch64
+         */
+        bool is_aa64;
+
+        switch (new_el) {
+        case 3:
+            is_aa64 = (env->cp15.scr_el3 & SCR_RW) != 0;
+            break;
+        case 2:
+            is_aa64 = (env->cp15.hcr_el2 & HCR_RW) != 0;
+            break;
+        case 1:
+            is_aa64 = is_a64(env);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
+        if (is_aa64) {
             addr += 0x400;
         } else {
             addr += 0x600;
