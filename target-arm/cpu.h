@@ -1997,4 +1997,12 @@ enum {
     QEMU_PSCI_CONDUIT_HVC = 2,
 };
 
+#ifndef CONFIG_USER_ONLY
+/* Return the address space index to use for a memory access */
+static inline int arm_asidx_from_attrs(CPUState *cs, MemTxAttrs attrs)
+{
+    return attrs.secure ? ARMASIdx_S : ARMASIdx_NS;
+}
+#endif
+
 #endif
