@@ -3502,8 +3502,10 @@ void vnc_display_open(const char *id, Error **errp)
 
         const char *websocket = qemu_opt_get(opts, "websocket");
         int to = qemu_opt_get_number(opts, "to", 0);
-        bool has_ipv4 = qemu_opt_get_bool(opts, "ipv4", false);
-        bool has_ipv6 = qemu_opt_get_bool(opts, "ipv6", false);
+        bool has_ipv4 = qemu_opt_get(opts, "ipv4");
+        bool has_ipv6 = qemu_opt_get(opts, "ipv6");
+        bool ipv4 = qemu_opt_get_bool(opts, "ipv4", false);
+        bool ipv6 = qemu_opt_get_bool(opts, "ipv6", false);
 
         saddr = g_new0(SocketAddress, 1);
         if (websocket) {
@@ -3551,8 +3553,10 @@ void vnc_display_open(const char *id, Error **errp)
                 saddr->u.inet->has_to = true;
                 saddr->u.inet->to = to + 5900;
             }
-            saddr->u.inet->ipv4 = saddr->u.inet->has_ipv4 = has_ipv4;
-            saddr->u.inet->ipv6 = saddr->u.inet->has_ipv6 = has_ipv6;
+            saddr->u.inet->ipv4 = ipv4;
+            saddr->u.inet->has_ipv4 = has_ipv4;
+            saddr->u.inet->ipv6 = ipv6;
+            saddr->u.inet->has_ipv6 = has_ipv6;
 
             if (vs->ws_enabled) {
                 wsaddr->type = SOCKET_ADDRESS_KIND_INET;
@@ -3564,8 +3568,10 @@ void vnc_display_open(const char *id, Error **errp)
                     wsaddr->u.inet->has_to = true;
                     wsaddr->u.inet->to = to;
                 }
-                wsaddr->u.inet->ipv4 = wsaddr->u.inet->has_ipv4 = has_ipv4;
-                wsaddr->u.inet->ipv6 = wsaddr->u.inet->has_ipv6 = has_ipv6;
+                wsaddr->u.inet->ipv4 = ipv4;
+                wsaddr->u.inet->has_ipv4 = has_ipv4;
+                wsaddr->u.inet->ipv6 = ipv6;
+                wsaddr->u.inet->has_ipv6 = has_ipv6;
             }
         }
     } else {
