@@ -9,7 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
-#include "hw/ssi.h"
+#include "hw/ssi/ssi.h"
 #include "hw/arm/arm.h"
 #include "hw/devices.h"
 #include "qemu/timer.h"

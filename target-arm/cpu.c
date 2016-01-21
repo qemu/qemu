@@ -543,6 +543,15 @@ static void arm_cpu_post_init(Object *obj)
          */
         qdev_property_add_static(DEVICE(obj), &arm_cpu_has_el3_property,
                                  &error_abort);
+
+#ifndef CONFIG_USER_ONLY
+        object_property_add_link(obj, "secure-memory",
+                                 TYPE_MEMORY_REGION,
+                                 (Object **)&cpu->secure_memory,
+                                 qdev_prop_allow_set_link_before_realize,
+                                 OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                                 &error_abort);
+#endif
     }
 
     if (arm_feature(&cpu->env, ARM_FEATURE_MPU)) {
@@ -665,6 +674,29 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     arm_cpu_register_gdb_regs_for_features(cpu);
 
     init_cpreg_list(cpu);
+
+#ifndef CONFIG_USER_ONLY
+    if (cpu->has_el3) {
+        cs->num_ases = 2;
+    } else {
+        cs->num_ases = 1;
+    }
+
+    if (cpu->has_el3) {
+        AddressSpace *as;
+
+        if (!cpu->secure_memory) {
+            cpu->secure_memory = cs->memory;
+        }
+        as = address_space_init_shareable(cpu->secure_memory,
+                                          "cpu-secure-memory");
+        cpu_address_space_init(cs, as, ARMASIdx_S);
+    }
+    cpu_address_space_init(cs,
+                           address_space_init_shareable(cs->memory,
+                                                        "cpu-memory"),
+                           ARMASIdx_NS);
+#endif
 
     qemu_init_vcpu(cs);
     cpu_reset(cs);
@@ -1419,7 +1451,8 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 #else
     cc->do_interrupt = arm_cpu_do_interrupt;
     cc->do_unaligned_access = arm_cpu_do_unaligned_access;
-    cc->get_phys_page_debug = arm_cpu_get_phys_page_debug;
+    cc->get_phys_page_attrs_debug = arm_cpu_get_phys_page_attrs_debug;
+    cc->asidx_from_attrs = arm_asidx_from_attrs;
     cc->vmsd = &vmstate_arm_cpu;
     cc->virtio_is_big_endian = arm_cpu_is_big_endian;
     cc->write_elf64_note = arm_cpu_write_elf64_note;

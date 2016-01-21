@@ -12,6 +12,7 @@
 #include "arm_ldst.h"
 #include <zlib.h> /* For crc32 */
 #include "exec/semihost.h"
+#include "sysemu/kvm.h"
 
 #define ARM_CPU_FREQ 1000000000 /* FIXME: 1 GHz, should be configurable */
 
@@ -2890,6 +2891,17 @@ static void sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     tlb_flush(CPU(cpu), 1);
 }
 
+static CPAccessResult fpexc32_access(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    if ((env->cp15.cptr_el[2] & CPTR_TFP) && arm_current_el(env) == 2) {
+        return CP_ACCESS_TRAP_EL2;
+    }
+    if (env->cp15.cptr_el[3] & CPTR_TFP) {
+        return CP_ACCESS_TRAP_EL3;
+    }
+    return CP_ACCESS_OK;
+}
+
 static const ARMCPRegInfo v8_cp_reginfo[] = {
     /* Minimal set of EL0-visible registers. This will need to be expanded
      * significantly for system emulation of AArch64 CPUs.
@@ -3150,6 +3162,11 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 2, .opc2 = 0,
       .type = ARM_CP_NO_RAW,
       .access = PL1_RW, .readfn = spsel_read, .writefn = spsel_write },
+    { .name = "FPEXC32_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 5, .crm = 3, .opc2 = 0,
+      .type = ARM_CP_ALIAS,
+      .fieldoffset = offsetof(CPUARMState, vfp.xregs[ARM_VFP_FPEXC]),
+      .access = PL2_RW, .accessfn = fpexc32_access },
     REGINFO_SENTINEL
 };
 
@@ -5707,8 +5724,7 @@ void aarch64_sync_64_to_32(CPUARMState *env)
     env->regs[15] = env->pc;
 }
 
-/* Handle a CPU exception.  */
-void arm_cpu_do_interrupt(CPUState *cs)
+static void arm_cpu_do_interrupt_aarch32(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
@@ -5717,16 +5733,6 @@ void arm_cpu_do_interrupt(CPUState *cs)
     int new_mode;
     uint32_t offset;
     uint32_t moe;
-
-    assert(!IS_M(env));
-
-    arm_log_exception(cs->exception_index);
-
-    if (arm_is_psci_call(cpu, cs->exception_index)) {
-        arm_handle_psci_call(cpu);
-        qemu_log_mask(CPU_LOG_INT, "...handled as PSCI call\n");
-        return;
-    }
 
     /* If this is a debug exception we must update the DBGDSCR.MOE bits */
     switch (env->exception.syndrome >> ARM_EL_EC_SHIFT) {
@@ -5765,27 +5771,6 @@ void arm_cpu_do_interrupt(CPUState *cs)
             offset = 4;
         break;
     case EXCP_SWI:
-        if (semihosting_enabled()) {
-            /* Check for semihosting interrupt.  */
-            if (env->thumb) {
-                mask = arm_lduw_code(env, env->regs[15] - 2, env->bswap_code)
-                    & 0xff;
-            } else {
-                mask = arm_ldl_code(env, env->regs[15] - 4, env->bswap_code)
-                    & 0xffffff;
-            }
-            /* Only intercept calls from privileged modes, to provide some
-               semblance of security.  */
-            if (((mask == 0x123456 && !env->thumb)
-                    || (mask == 0xab && env->thumb))
-                  && (env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR) {
-                qemu_log_mask(CPU_LOG_INT,
-                              "...handling as semihosting call 0x%x\n",
-                              env->regs[0]);
-                env->regs[0] = do_arm_semihosting(env);
-                return;
-            }
-        }
         new_mode = ARM_CPU_MODE_SVC;
         addr = 0x08;
         mask = CPSR_I;
@@ -5793,19 +5778,6 @@ void arm_cpu_do_interrupt(CPUState *cs)
         offset = 0;
         break;
     case EXCP_BKPT:
-        /* See if this is a semihosting syscall.  */
-        if (env->thumb && semihosting_enabled()) {
-            mask = arm_lduw_code(env, env->regs[15], env->bswap_code) & 0xff;
-            if (mask == 0xab
-                  && (env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR) {
-                env->regs[15] += 2;
-                qemu_log_mask(CPU_LOG_INT,
-                              "...handling as semihosting call 0x%x\n",
-                              env->regs[0]);
-                env->regs[0] = do_arm_semihosting(env);
-                return;
-            }
-        }
         env->exception.fsr = 2;
         /* Fall through to prefetch abort.  */
     case EXCP_PREFETCH_ABORT:
@@ -5899,9 +5871,227 @@ void arm_cpu_do_interrupt(CPUState *cs)
     }
     env->regs[14] = env->regs[15] + offset;
     env->regs[15] = addr;
-    cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
 
+/* Handle exception entry to a target EL which is using AArch64 */
+static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    unsigned int new_el = env->exception.target_el;
+    target_ulong addr = env->cp15.vbar_el[new_el];
+    unsigned int new_mode = aarch64_pstate_mode(new_el, true);
+
+    if (arm_current_el(env) < new_el) {
+        /* Entry vector offset depends on whether the implemented EL
+         * immediately lower than the target level is using AArch32 or AArch64
+         */
+        bool is_aa64;
+
+        switch (new_el) {
+        case 3:
+            is_aa64 = (env->cp15.scr_el3 & SCR_RW) != 0;
+            break;
+        case 2:
+            is_aa64 = (env->cp15.hcr_el2 & HCR_RW) != 0;
+            break;
+        case 1:
+            is_aa64 = is_a64(env);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
+        if (is_aa64) {
+            addr += 0x400;
+        } else {
+            addr += 0x600;
+        }
+    } else if (pstate_read(env) & PSTATE_SP) {
+        addr += 0x200;
+    }
+
+    switch (cs->exception_index) {
+    case EXCP_PREFETCH_ABORT:
+    case EXCP_DATA_ABORT:
+        env->cp15.far_el[new_el] = env->exception.vaddress;
+        qemu_log_mask(CPU_LOG_INT, "...with FAR 0x%" PRIx64 "\n",
+                      env->cp15.far_el[new_el]);
+        /* fall through */
+    case EXCP_BKPT:
+    case EXCP_UDEF:
+    case EXCP_SWI:
+    case EXCP_HVC:
+    case EXCP_HYP_TRAP:
+    case EXCP_SMC:
+        env->cp15.esr_el[new_el] = env->exception.syndrome;
+        break;
+    case EXCP_IRQ:
+    case EXCP_VIRQ:
+        addr += 0x80;
+        break;
+    case EXCP_FIQ:
+    case EXCP_VFIQ:
+        addr += 0x100;
+        break;
+    case EXCP_SEMIHOST:
+        qemu_log_mask(CPU_LOG_INT,
+                      "...handling as semihosting call 0x%" PRIx64 "\n",
+                      env->xregs[0]);
+        env->xregs[0] = do_arm_semihosting(env);
+        return;
+    default:
+        cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
+    }
+
+    if (is_a64(env)) {
+        env->banked_spsr[aarch64_banked_spsr_index(new_el)] = pstate_read(env);
+        aarch64_save_sp(env, arm_current_el(env));
+        env->elr_el[new_el] = env->pc;
+    } else {
+        env->banked_spsr[aarch64_banked_spsr_index(new_el)] = cpsr_read(env);
+        if (!env->thumb) {
+            env->cp15.esr_el[new_el] |= 1 << 25;
+        }
+        env->elr_el[new_el] = env->regs[15];
+
+        aarch64_sync_32_to_64(env);
+
+        env->condexec_bits = 0;
+    }
+    qemu_log_mask(CPU_LOG_INT, "...with ELR 0x%" PRIx64 "\n",
+                  env->elr_el[new_el]);
+
+    pstate_write(env, PSTATE_DAIF | new_mode);
+    env->aarch64 = 1;
+    aarch64_restore_sp(env, new_el);
+
+    env->pc = addr;
+
+    qemu_log_mask(CPU_LOG_INT, "...to EL%d PC 0x%" PRIx64 " PSTATE 0x%x\n",
+                  new_el, env->pc, pstate_read(env));
+}
+
+static inline bool check_for_semihosting(CPUState *cs)
+{
+    /* Check whether this exception is a semihosting call; if so
+     * then handle it and return true; otherwise return false.
+     */
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
+    if (is_a64(env)) {
+        if (cs->exception_index == EXCP_SEMIHOST) {
+            /* This is always the 64-bit semihosting exception.
+             * The "is this usermode" and "is semihosting enabled"
+             * checks have been done at translate time.
+             */
+            qemu_log_mask(CPU_LOG_INT,
+                          "...handling as semihosting call 0x%" PRIx64 "\n",
+                          env->xregs[0]);
+            env->xregs[0] = do_arm_semihosting(env);
+            return true;
+        }
+        return false;
+    } else {
+        uint32_t imm;
+
+        /* Only intercept calls from privileged modes, to provide some
+         * semblance of security.
+         */
+        if (!semihosting_enabled() ||
+            ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_USR)) {
+            return false;
+        }
+
+        switch (cs->exception_index) {
+        case EXCP_SWI:
+            /* Check for semihosting interrupt.  */
+            if (env->thumb) {
+                imm = arm_lduw_code(env, env->regs[15] - 2, env->bswap_code)
+                    & 0xff;
+                if (imm == 0xab) {
+                    break;
+                }
+            } else {
+                imm = arm_ldl_code(env, env->regs[15] - 4, env->bswap_code)
+                    & 0xffffff;
+                if (imm == 0x123456) {
+                    break;
+                }
+            }
+            return false;
+        case EXCP_BKPT:
+            /* See if this is a semihosting syscall.  */
+            if (env->thumb) {
+                imm = arm_lduw_code(env, env->regs[15], env->bswap_code)
+                    & 0xff;
+                if (imm == 0xab) {
+                    env->regs[15] += 2;
+                    break;
+                }
+            }
+            return false;
+        default:
+            return false;
+        }
+
+        qemu_log_mask(CPU_LOG_INT,
+                      "...handling as semihosting call 0x%x\n",
+                      env->regs[0]);
+        env->regs[0] = do_arm_semihosting(env);
+        return true;
+    }
+}
+
+/* Handle a CPU exception for A and R profile CPUs.
+ * Do any appropriate logging, handle PSCI calls, and then hand off
+ * to the AArch64-entry or AArch32-entry function depending on the
+ * target exception level's register width.
+ */
+void arm_cpu_do_interrupt(CPUState *cs)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    unsigned int new_el = env->exception.target_el;
+
+    assert(!IS_M(env));
+
+    arm_log_exception(cs->exception_index);
+    qemu_log_mask(CPU_LOG_INT, "...from EL%d to EL%d\n", arm_current_el(env),
+                  new_el);
+    if (qemu_loglevel_mask(CPU_LOG_INT)
+        && !excp_is_internal(cs->exception_index)) {
+        qemu_log_mask(CPU_LOG_INT, "...with ESR %x/0x%" PRIx32 "\n",
+                      env->exception.syndrome >> ARM_EL_EC_SHIFT,
+                      env->exception.syndrome);
+    }
+
+    if (arm_is_psci_call(cpu, cs->exception_index)) {
+        arm_handle_psci_call(cpu);
+        qemu_log_mask(CPU_LOG_INT, "...handled as PSCI call\n");
+        return;
+    }
+
+    /* Semihosting semantics depend on the register width of the
+     * code that caused the exception, not the target exception level,
+     * so must be handled here.
+     */
+    if (check_for_semihosting(cs)) {
+        return;
+    }
+
+    assert(!excp_is_internal(cs->exception_index));
+    if (arm_el_is_aa64(env, new_el)) {
+        arm_cpu_do_interrupt_aarch64(cs);
+    } else {
+        arm_cpu_do_interrupt_aarch32(cs);
+    }
+
+    if (!kvm_enabled()) {
+        cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
+    }
+}
 
 /* Return the exception level which controls this address translation regime */
 static inline uint32_t regime_el(CPUARMState *env, ARMMMUIdx mmu_idx)
@@ -6273,13 +6463,15 @@ static uint32_t arm_ldl_ptw(CPUState *cs, hwaddr addr, bool is_secure,
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
     MemTxAttrs attrs = {};
+    AddressSpace *as;
 
     attrs.secure = is_secure;
+    as = arm_addressspace(cs, attrs);
     addr = S1_ptw_translate(env, mmu_idx, addr, attrs, fsr, fi);
     if (fi->s1ptw) {
         return 0;
     }
-    return address_space_ldl(cs->as, addr, attrs, NULL);
+    return address_space_ldl(as, addr, attrs, NULL);
 }
 
 static uint64_t arm_ldq_ptw(CPUState *cs, hwaddr addr, bool is_secure,
@@ -6289,13 +6481,15 @@ static uint64_t arm_ldq_ptw(CPUState *cs, hwaddr addr, bool is_secure,
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
     MemTxAttrs attrs = {};
+    AddressSpace *as;
 
     attrs.secure = is_secure;
+    as = arm_addressspace(cs, attrs);
     addr = S1_ptw_translate(env, mmu_idx, addr, attrs, fsr, fi);
     if (fi->s1ptw) {
         return 0;
     }
-    return address_space_ldq(cs->as, addr, attrs, NULL);
+    return address_space_ldq(as, addr, attrs, NULL);
 }
 
 static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
@@ -7346,7 +7540,8 @@ bool arm_tlb_fill(CPUState *cs, vaddr address,
     return ret;
 }
 
-hwaddr arm_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
+                                         MemTxAttrs *attrs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
@@ -7355,16 +7550,16 @@ hwaddr arm_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     int prot;
     bool ret;
     uint32_t fsr;
-    MemTxAttrs attrs = {};
     ARMMMUFaultInfo fi = {};
 
+    *attrs = (MemTxAttrs) {};
+
     ret = get_phys_addr(env, addr, 0, cpu_mmu_index(env, false), &phys_addr,
-                        &attrs, &prot, &page_size, &fsr, &fi);
+                        attrs, &prot, &page_size, &fsr, &fi);
 
     if (ret) {
         return -1;
     }
-
     return phys_addr;
 }
 

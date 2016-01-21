@@ -8,7 +8,7 @@
  */
 
 #include "hw/sysbus.h"
-#include "hw/ssi.h"
+#include "hw/ssi/ssi.h"
 
 //#define DEBUG_PL022 1
 

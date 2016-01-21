@@ -431,12 +431,13 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
 
 /* Called from RCU critical section */
 MemoryRegionSection *
-address_space_translate_for_iotlb(CPUState *cpu, hwaddr addr,
+address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr addr,
                                   hwaddr *xlat, hwaddr *plen)
 {
     MemoryRegionSection *section;
-    section = address_space_translate_internal(cpu->cpu_ases[0].memory_dispatch,
-                                               addr, xlat, plen, false);
+    AddressSpaceDispatch *d = cpu->cpu_ases[asidx].memory_dispatch;
+
+    section = address_space_translate_internal(d, addr, xlat, plen, false);
 
     assert(!section->mr->iommu_ops);
     return section;
@@ -536,21 +537,38 @@ CPUState *qemu_get_cpu(int index)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void tcg_cpu_address_space_init(CPUState *cpu, AddressSpace *as)
+void cpu_address_space_init(CPUState *cpu, AddressSpace *as, int asidx)
 {
-    /* We only support one address space per cpu at the moment.  */
-    assert(cpu->as == as);
+    CPUAddressSpace *newas;
 
-    if (cpu->cpu_ases) {
-        /* We've already registered the listener for our only AS */
-        return;
+    /* Target code should have set num_ases before calling us */
+    assert(asidx < cpu->num_ases);
+
+    if (asidx == 0) {
+        /* address space 0 gets the convenience alias */
+        cpu->as = as;
     }
 
-    cpu->cpu_ases = g_new0(CPUAddressSpace, 1);
-    cpu->cpu_ases[0].cpu = cpu;
-    cpu->cpu_ases[0].as = as;
-    cpu->cpu_ases[0].tcg_as_listener.commit = tcg_commit;
-    memory_listener_register(&cpu->cpu_ases[0].tcg_as_listener, as);
+    /* KVM cannot currently support multiple address spaces. */
+    assert(asidx == 0 || !kvm_enabled());
+
+    if (!cpu->cpu_ases) {
+        cpu->cpu_ases = g_new0(CPUAddressSpace, cpu->num_ases);
+    }
+
+    newas = &cpu->cpu_ases[asidx];
+    newas->cpu = cpu;
+    newas->as = as;
+    if (tcg_enabled()) {
+        newas->tcg_as_listener.commit = tcg_commit;
+        memory_listener_register(&newas->tcg_as_listener, as);
+    }
+}
+
+AddressSpace *cpu_get_address_space(CPUState *cpu, int asidx)
+{
+    /* Return the AddressSpace corresponding to the specified index */
+    return cpu->cpu_ases[asidx].as;
 }
 #endif
 
@@ -605,9 +623,25 @@ void cpu_exec_init(CPUState *cpu, Error **errp)
     int cpu_index;
     Error *local_err = NULL;
 
+    cpu->as = NULL;
+    cpu->num_ases = 0;
+
 #ifndef CONFIG_USER_ONLY
-    cpu->as = &address_space_memory;
     cpu->thread_id = qemu_get_thread_id();
+
+    /* This is a softmmu CPU object, so create a property for it
+     * so users can wire up its memory. (This can't go in qom/cpu.c
+     * because that file is compiled only once for both user-mode
+     * and system builds.) The default if no link is set up is to use
+     * the system address space.
+     */
+    object_property_add_link(OBJECT(cpu), "memory", TYPE_MEMORY_REGION,
+                             (Object **)&cpu->memory,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &error_abort);
+    cpu->memory = system_memory;
+    object_ref(OBJECT(cpu->memory));
 #endif
 
 #if defined(CONFIG_USER_ONLY)
@@ -647,9 +681,11 @@ static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
 #else
 static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
 {
-    hwaddr phys = cpu_get_phys_page_debug(cpu, pc);
+    MemTxAttrs attrs;
+    hwaddr phys = cpu_get_phys_page_attrs_debug(cpu, pc, &attrs);
+    int asidx = cpu_asidx_from_attrs(cpu, attrs);
     if (phys != -1) {
-        tb_invalidate_phys_addr(cpu->as,
+        tb_invalidate_phys_addr(cpu->cpu_ases[asidx].as,
                                 phys | (pc & ~TARGET_PAGE_MASK));
     }
 }
@@ -2034,17 +2070,19 @@ static MemTxResult watch_mem_read(void *opaque, hwaddr addr, uint64_t *pdata,
 {
     MemTxResult res;
     uint64_t data;
+    int asidx = cpu_asidx_from_attrs(current_cpu, attrs);
+    AddressSpace *as = current_cpu->cpu_ases[asidx].as;
 
     check_watchpoint(addr & ~TARGET_PAGE_MASK, size, attrs, BP_MEM_READ);
     switch (size) {
     case 1:
-        data = address_space_ldub(&address_space_memory, addr, attrs, &res);
+        data = address_space_ldub(as, addr, attrs, &res);
         break;
     case 2:
-        data = address_space_lduw(&address_space_memory, addr, attrs, &res);
+        data = address_space_lduw(as, addr, attrs, &res);
         break;
     case 4:
-        data = address_space_ldl(&address_space_memory, addr, attrs, &res);
+        data = address_space_ldl(as, addr, attrs, &res);
         break;
     default: abort();
     }
@@ -2057,17 +2095,19 @@ static MemTxResult watch_mem_write(void *opaque, hwaddr addr,
                                    MemTxAttrs attrs)
 {
     MemTxResult res;
+    int asidx = cpu_asidx_from_attrs(current_cpu, attrs);
+    AddressSpace *as = current_cpu->cpu_ases[asidx].as;
 
     check_watchpoint(addr & ~TARGET_PAGE_MASK, size, attrs, BP_MEM_WRITE);
     switch (size) {
     case 1:
-        address_space_stb(&address_space_memory, addr, val, attrs, &res);
+        address_space_stb(as, addr, val, attrs, &res);
         break;
     case 2:
-        address_space_stw(&address_space_memory, addr, val, attrs, &res);
+        address_space_stw(as, addr, val, attrs, &res);
         break;
     case 4:
-        address_space_stl(&address_space_memory, addr, val, attrs, &res);
+        address_space_stl(as, addr, val, attrs, &res);
         break;
     default: abort();
     }
@@ -2224,9 +2264,10 @@ static uint16_t dummy_section(PhysPageMap *map, AddressSpace *as,
     return phys_section_add(map, &section);
 }
 
-MemoryRegion *iotlb_to_region(CPUState *cpu, hwaddr index)
+MemoryRegion *iotlb_to_region(CPUState *cpu, hwaddr index, MemTxAttrs attrs)
 {
-    CPUAddressSpace *cpuas = &cpu->cpu_ases[0];
+    int asidx = cpu_asidx_from_attrs(cpu, attrs);
+    CPUAddressSpace *cpuas = &cpu->cpu_ases[asidx];
     AddressSpaceDispatch *d = atomic_rcu_read(&cpuas->memory_dispatch);
     MemoryRegionSection *sections = d->map.sections;
 
@@ -3565,8 +3606,12 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
     target_ulong page;
 
     while (len > 0) {
+        int asidx;
+        MemTxAttrs attrs;
+
         page = addr & TARGET_PAGE_MASK;
-        phys_addr = cpu_get_phys_page_debug(cpu, page);
+        phys_addr = cpu_get_phys_page_attrs_debug(cpu, page, &attrs);
+        asidx = cpu_asidx_from_attrs(cpu, attrs);
         /* if no physical page mapped, return an error */
         if (phys_addr == -1)
             return -1;
@@ -3575,9 +3620,11 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
             l = len;
         phys_addr += (addr & ~TARGET_PAGE_MASK);
         if (is_write) {
-            cpu_physical_memory_write_rom(cpu->as, phys_addr, buf, l);
+            cpu_physical_memory_write_rom(cpu->cpu_ases[asidx].as,
+                                          phys_addr, buf, l);
         } else {
-            address_space_rw(cpu->as, phys_addr, MEMTXATTRS_UNSPECIFIED,
+            address_space_rw(cpu->cpu_ases[asidx].as, phys_addr,
+                             MEMTXATTRS_UNSPECIFIED,
                              buf, l, 0);
         }
         len -= l;

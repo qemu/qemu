@@ -241,6 +241,8 @@ struct AddressSpace {
     struct rcu_head rcu;
     char *name;
     MemoryRegion *root;
+    int ref_count;
+    bool malloced;
 
     /* Accessed via RCU.  */
     struct FlatView *current_map;
@@ -1189,6 +1191,22 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
  */
 void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name);
 
+/**
+ * address_space_init_shareable: return an address space for a memory region,
+ *                               creating it if it does not already exist
+ *
+ * @root: a #MemoryRegion that routes addresses for the address space
+ * @name: an address space name.  The name is only used for debugging
+ *        output.
+ *
+ * This function will return a pointer to an existing AddressSpace
+ * which was initialized with the specified MemoryRegion, or it will
+ * create and initialize one if it does not already exist. The ASes
+ * are reference-counted, so the memory will be freed automatically
+ * when the AddressSpace is destroyed via address_space_destroy.
+ */
+AddressSpace *address_space_init_shareable(MemoryRegion *root,
+                                           const char *name);
 
 /**
  * address_space_destroy: destroy an address space

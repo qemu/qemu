@@ -1310,8 +1310,6 @@ static void qemu_tcg_init_vcpu(CPUState *cpu)
     static QemuCond *tcg_halt_cond;
     static QemuThread *tcg_cpu_thread;
 
-    tcg_cpu_address_space_init(cpu, cpu->as);
-
     /* share a single thread for all cpus with TCG */
     if (!tcg_cpu_thread) {
         cpu->thread = g_malloc0(sizeof(QemuThread));
@@ -1372,6 +1370,17 @@ void qemu_init_vcpu(CPUState *cpu)
     cpu->nr_cores = smp_cores;
     cpu->nr_threads = smp_threads;
     cpu->stopped = true;
+
+    if (!cpu->as) {
+        /* If the target cpu hasn't set up any address spaces itself,
+         * give it the default one.
+         */
+        AddressSpace *as = address_space_init_shareable(cpu->memory,
+                                                        "cpu-memory");
+        cpu->num_ases = 1;
+        cpu_address_space_init(cpu, as, 0);
+    }
+
     if (kvm_enabled()) {
         qemu_kvm_start_vcpu(cpu);
     } else if (tcg_enabled()) {

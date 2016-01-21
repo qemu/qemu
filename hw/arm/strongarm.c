@@ -35,7 +35,7 @@
 #include "hw/arm/arm.h"
 #include "sysemu/char.h"
 #include "sysemu/sysemu.h"
-#include "hw/ssi.h"
+#include "hw/ssi/ssi.h"
 
 //#define DEBUG
 

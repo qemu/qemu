@@ -969,18 +969,33 @@ static inline bool arm_is_secure(CPUARMState *env)
 /* Return true if the specified exception level is running in AArch64 state. */
 static inline bool arm_el_is_aa64(CPUARMState *env, int el)
 {
-    /* We don't currently support EL2, and this isn't valid for EL0
-     * (if we're in EL0, is_a64() is what you want, and if we're not in EL0
-     * then the state of EL0 isn't well defined.)
+    /* This isn't valid for EL0 (if we're in EL0, is_a64() is what you want,
+     * and if we're not in EL0 then the state of EL0 isn't well defined.)
      */
-    assert(el == 1 || el == 3);
+    assert(el >= 1 && el <= 3);
+    bool aa64 = arm_feature(env, ARM_FEATURE_AARCH64);
 
-    /* AArch64-capable CPUs always run with EL1 in AArch64 mode. This
-     * is a QEMU-imposed simplification which we may wish to change later.
-     * If we in future support EL2 and/or EL3, then the state of lower
-     * exception levels is controlled by the HCR.RW and SCR.RW bits.
+    /* The highest exception level is always at the maximum supported
+     * register width, and then lower levels have a register width controlled
+     * by bits in the SCR or HCR registers.
      */
-    return arm_feature(env, ARM_FEATURE_AARCH64);
+    if (el == 3) {
+        return aa64;
+    }
+
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        aa64 = aa64 && (env->cp15.scr_el3 & SCR_RW);
+    }
+
+    if (el == 2) {
+        return aa64;
+    }
+
+    if (arm_feature(env, ARM_FEATURE_EL2) && !arm_is_secure_below_el3(env)) {
+        aa64 = aa64 && (env->cp15.hcr_el2 & HCR_RW);
+    }
+
+    return aa64;
 }
 
 /* Function for determing whether guest cp register reads and writes should
@@ -1720,6 +1735,12 @@ static inline int cpu_mmu_index(CPUARMState *env, bool ifetch)
     return el;
 }
 
+/* Indexes used when registering address spaces with cpu_address_space_init */
+typedef enum ARMASIdx {
+    ARMASIdx_NS = 0,
+    ARMASIdx_S = 1,
+} ARMASIdx;
+
 /* Return the Exception Level targeted by debug exceptions;
  * currently always EL1 since we don't implement EL2 or EL3.
  */
@@ -1990,5 +2011,22 @@ enum {
     QEMU_PSCI_CONDUIT_SMC = 1,
     QEMU_PSCI_CONDUIT_HVC = 2,
 };
+
+#ifndef CONFIG_USER_ONLY
+/* Return the address space index to use for a memory access */
+static inline int arm_asidx_from_attrs(CPUState *cs, MemTxAttrs attrs)
+{
+    return attrs.secure ? ARMASIdx_S : ARMASIdx_NS;
+}
+
+/* Return the AddressSpace to use for a memory access
+ * (which depends on whether the access is S or NS, and whether
+ * the board gave us a separate AddressSpace for S accesses).
+ */
+static inline AddressSpace *arm_addressspace(CPUState *cs, MemTxAttrs attrs)
+{
+    return cpu_get_address_space(cs, arm_asidx_from_attrs(cs, attrs));
+}
+#endif
 
 #endif

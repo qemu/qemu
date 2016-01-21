@@ -580,6 +580,12 @@ void qdev_pass_gpios(DeviceState *dev, DeviceState *container,
 BusState *qdev_get_child_bus(DeviceState *dev, const char *name)
 {
     BusState *bus;
+    Object *child = object_resolve_path_component(OBJECT(dev), name);
+
+    bus = (BusState *)object_dynamic_cast(child, TYPE_BUS);
+    if (bus) {
+        return bus;
+    }
 
     QLIST_FOREACH(bus, &dev->child_bus, sibling) {
         if (strcmp(name, bus->name) == 0) {
