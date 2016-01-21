@@ -51,7 +51,7 @@ struct QIOChannelCommand {
  * @writefd: the FD connected to the command's stdin
  * @readfd: the FD connected to the command's stdout
  * @pid: the PID of the running child command
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Create a channel for performing I/O with the
  * previously spawned command identified by @pid.
@@ -75,7 +75,7 @@ qio_channel_command_new_pid(int writefd,
  * qio_channel_command_new_spawn:
  * @argv: the NULL terminated list of command arguments
  * @flags: the I/O mode, one of O_RDONLY, O_WRONLY, O_RDWR
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Create a channel for performing I/O with the
  * command to be spawned with arguments @argv.
