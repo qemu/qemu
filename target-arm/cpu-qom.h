@@ -254,6 +254,4 @@ int aarch64_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
 int aarch64_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 #endif
 
-void aarch64_cpu_do_interrupt(CPUState *cs);
-
 #endif
