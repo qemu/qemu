@@ -1720,6 +1720,12 @@ static inline int cpu_mmu_index(CPUARMState *env, bool ifetch)
     return el;
 }
 
+/* Indexes used when registering address spaces with cpu_address_space_init */
+typedef enum ARMASIdx {
+    ARMASIdx_NS = 0,
+    ARMASIdx_S = 1,
+} ARMASIdx;
+
 /* Return the Exception Level targeted by debug exceptions;
  * currently always EL1 since we don't implement EL2 or EL3.
  */

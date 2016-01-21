@@ -87,6 +87,9 @@ typedef struct ARMCPU {
     /* GPIO outputs for generic timer */
     qemu_irq gt_timer_outputs[NUM_GTIMERS];
 
+    /* MemoryRegion to use for secure physical accesses */
+    MemoryRegion *secure_memory;
+
     /* 'compatible' string for this CPU for Linux device trees */
     const char *dtb_compatible;
 
