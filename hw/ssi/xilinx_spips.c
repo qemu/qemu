@@ -29,6 +29,7 @@
 #include "qemu/fifo8.h"
 #include "hw/ssi/ssi.h"
 #include "qemu/bitops.h"
+#include "hw/ssi/xilinx_spips.h"
 
 #ifndef XILINX_SPIPS_ERR_DEBUG
 #define XILINX_SPIPS_ERR_DEBUG 0
@@ -103,8 +104,6 @@
 
 #define R_MOD_ID            (0xFC / 4)
 
-#define R_MAX (R_MOD_ID+1)
-
 /* size of TXRX FIFOs */
 #define RXFF_A          32
 #define TXFF_A          32
@@ -135,30 +134,6 @@ typedef enum {
 } FlashCMD;
 
 typedef struct {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    MemoryRegion mmlqspi;
-
-    qemu_irq irq;
-    int irqline;
-
-    uint8_t num_cs;
-    uint8_t num_busses;
-
-    uint8_t snoop_state;
-    qemu_irq *cs_lines;
-    SSIBus **spi;
-
-    Fifo8 rx_fifo;
-    Fifo8 tx_fifo;
-
-    uint8_t num_txrx_bytes;
-
-    uint32_t regs[R_MAX];
-} XilinxSPIPS;
-
-typedef struct {
     XilinxSPIPS parent_obj;
 
     uint8_t lqspi_buf[LQSPI_CACHE_SIZE];
@@ -173,19 +148,6 @@ typedef struct XilinxSPIPSClass {
     uint32_t rx_fifo_size;
     uint32_t tx_fifo_size;
 } XilinxSPIPSClass;
-
-#define TYPE_XILINX_SPIPS "xlnx.ps7-spi"
-#define TYPE_XILINX_QSPIPS "xlnx.ps7-qspi"
-
-#define XILINX_SPIPS(obj) \
-     OBJECT_CHECK(XilinxSPIPS, (obj), TYPE_XILINX_SPIPS)
-#define XILINX_SPIPS_CLASS(klass) \
-     OBJECT_CLASS_CHECK(XilinxSPIPSClass, (klass), TYPE_XILINX_SPIPS)
-#define XILINX_SPIPS_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(XilinxSPIPSClass, (obj), TYPE_XILINX_SPIPS)
-
-#define XILINX_QSPIPS(obj) \
-     OBJECT_CHECK(XilinxQSPIPS, (obj), TYPE_XILINX_QSPIPS)
 
 static inline int num_effective_busses(XilinxSPIPS *s)
 {
@@ -257,7 +219,7 @@ static void xilinx_spips_reset(DeviceState *d)
     XilinxSPIPS *s = XILINX_SPIPS(d);
 
     int i;
-    for (i = 0; i < R_MAX; i++) {
+    for (i = 0; i < XLNX_SPIPS_R_MAX; i++) {
         s->regs[i] = 0;
     }
 
@@ -664,7 +626,7 @@ static void xilinx_spips_realize(DeviceState *dev, Error **errp)
     }
 
     memory_region_init_io(&s->iomem, OBJECT(s), xsc->reg_ops, s,
-                          "spi", R_MAX*4);
+                          "spi", XLNX_SPIPS_R_MAX * 4);
     sysbus_init_mmio(sbd, &s->iomem);
 
     s->irqline = -1;
@@ -708,7 +670,7 @@ static const VMStateDescription vmstate_xilinx_spips = {
     .fields = (VMStateField[]) {
         VMSTATE_FIFO8(tx_fifo, XilinxSPIPS),
         VMSTATE_FIFO8(rx_fifo, XilinxSPIPS),
-        VMSTATE_UINT32_ARRAY(regs, XilinxSPIPS, R_MAX),
+        VMSTATE_UINT32_ARRAY(regs, XilinxSPIPS, XLNX_SPIPS_R_MAX),
         VMSTATE_UINT8(snoop_state, XilinxSPIPS),
         VMSTATE_END_OF_LIST()
     }
