@@ -2124,7 +2124,9 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
 {
     memory_region_ref(root);
     memory_region_transaction_begin();
+    as->ref_count = 1;
     as->root = root;
+    as->malloced = false;
     as->current_map = g_new(FlatView, 1);
     flatview_init(as->current_map);
     as->ioeventfd_nb = 0;
@@ -2139,6 +2141,7 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
 static void do_address_space_destroy(AddressSpace *as)
 {
     MemoryListener *listener;
+    bool do_free = as->malloced;
 
     address_space_destroy_dispatch(as);
 
@@ -2150,12 +2153,36 @@ static void do_address_space_destroy(AddressSpace *as)
     g_free(as->name);
     g_free(as->ioeventfds);
     memory_region_unref(as->root);
+    if (do_free) {
+        g_free(as);
+    }
+}
+
+AddressSpace *address_space_init_shareable(MemoryRegion *root, const char *name)
+{
+    AddressSpace *as;
+
+    QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
+        if (root == as->root && as->malloced) {
+            as->ref_count++;
+            return as;
+        }
+    }
+
+    as = g_malloc0(sizeof *as);
+    address_space_init(as, root, name);
+    as->malloced = true;
+    return as;
 }
 
 void address_space_destroy(AddressSpace *as)
 {
     MemoryRegion *root = as->root;
 
+    as->ref_count--;
+    if (as->ref_count) {
+        return;
+    }
     /* Flush out anything from MemoryListeners listening in on this */
     memory_region_transaction_begin();
     as->root = NULL;
