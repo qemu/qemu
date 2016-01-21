@@ -31,6 +31,7 @@ static struct arm_boot_info xlnx_ep108_binfo;
 static void xlnx_ep108_init(MachineState *machine)
 {
     XlnxEP108 *s = g_new0(XlnxEP108, 1);
+    int i;
     Error *err = NULL;
     uint64_t ram_size = machine->ram_size;
 
@@ -61,6 +62,21 @@ static void xlnx_ep108_init(MachineState *machine)
     if (err) {
         error_report_err(err);
         exit(1);
+    }
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_SPIS; i++) {
+        SSIBus *spi_bus;
+        DeviceState *flash_dev;
+        qemu_irq cs_line;
+        gchar *bus_name = g_strdup_printf("spi%d", i);
+
+        spi_bus = (SSIBus *)qdev_get_child_bus(DEVICE(&s->soc), bus_name);
+        g_free(bus_name);
+
+        flash_dev = ssi_create_slave(spi_bus, "sst25wf080");
+        cs_line = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
+
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->soc.spi[i]), 1, cs_line);
     }
 
     xlnx_ep108_binfo.ram_size = ram_size;
