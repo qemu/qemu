@@ -57,6 +57,14 @@ static const int sdhci_intr[XLNX_ZYNQMP_NUM_SDHCI] = {
     48, 49,
 };
 
+static const uint64_t spi_addr[XLNX_ZYNQMP_NUM_SPIS] = {
+    0xFF040000, 0xFF050000,
+};
+
+static const int spi_intr[XLNX_ZYNQMP_NUM_SPIS] = {
+    19, 20,
+};
+
 typedef struct XlnxZynqMPGICRegion {
     int region_index;
     uint32_t address;
@@ -117,6 +125,12 @@ static void xlnx_zynqmp_init(Object *obj)
                           TYPE_SYSBUS_SDHCI);
         qdev_set_parent_bus(DEVICE(&s->sdhci[i]),
                             sysbus_get_default());
+    }
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_SPIS; i++) {
+        object_initialize(&s->spi[i], sizeof(s->spi[i]),
+                          TYPE_XILINX_SPIPS);
+        qdev_set_parent_bus(DEVICE(&s->spi[i]), sysbus_get_default());
     }
 }
 
@@ -323,6 +337,23 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
                         sdhci_addr[i]);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->sdhci[i]), 0,
                            gic_spi[sdhci_intr[i]]);
+    }
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_SPIS; i++) {
+        gchar *bus_name;
+
+        object_property_set_bool(OBJECT(&s->spi[i]), true, "realized", &err);
+
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi[i]), 0, spi_addr[i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->spi[i]), 0,
+                           gic_spi[spi_intr[i]]);
+
+        /* Alias controller SPI bus to the SoC itself */
+        bus_name = g_strdup_printf("spi%d", i);
+        object_property_add_alias(OBJECT(s), bus_name,
+                                  OBJECT(&s->spi[i]), "spi0",
+                                  &error_abort);
+	g_free(bus_name);
     }
 }
 
