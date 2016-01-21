@@ -293,6 +293,7 @@ static void fdt_add_timer_nodes(const VirtBoardInfo *vbi, int gictype)
         qemu_fdt_setprop_string(vbi->fdt, "/timer", "compatible",
                                 "arm,armv7-timer");
     }
+    qemu_fdt_setprop(vbi->fdt, "/timer", "always-on", NULL, 0);
     qemu_fdt_setprop_cells(vbi->fdt, "/timer", "interrupts",
                        GIC_FDT_IRQ_TYPE_PPI, ARCH_TIMER_S_EL1_IRQ, irqflags,
                        GIC_FDT_IRQ_TYPE_PPI, ARCH_TIMER_NS_EL1_IRQ, irqflags,
