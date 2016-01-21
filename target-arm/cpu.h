@@ -2003,6 +2003,15 @@ static inline int arm_asidx_from_attrs(CPUState *cs, MemTxAttrs attrs)
 {
     return attrs.secure ? ARMASIdx_S : ARMASIdx_NS;
 }
+
+/* Return the AddressSpace to use for a memory access
+ * (which depends on whether the access is S or NS, and whether
+ * the board gave us a separate AddressSpace for S accesses).
+ */
+static inline AddressSpace *arm_addressspace(CPUState *cs, MemTxAttrs attrs)
+{
+    return cpu_get_address_space(cs, arm_asidx_from_attrs(cs, attrs));
+}
 #endif
 
 #endif

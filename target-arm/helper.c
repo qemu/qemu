@@ -6273,13 +6273,15 @@ static uint32_t arm_ldl_ptw(CPUState *cs, hwaddr addr, bool is_secure,
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
     MemTxAttrs attrs = {};
+    AddressSpace *as;
 
     attrs.secure = is_secure;
+    as = arm_addressspace(cs, attrs);
     addr = S1_ptw_translate(env, mmu_idx, addr, attrs, fsr, fi);
     if (fi->s1ptw) {
         return 0;
     }
-    return address_space_ldl(cs->as, addr, attrs, NULL);
+    return address_space_ldl(as, addr, attrs, NULL);
 }
 
 static uint64_t arm_ldq_ptw(CPUState *cs, hwaddr addr, bool is_secure,
@@ -6289,13 +6291,15 @@ static uint64_t arm_ldq_ptw(CPUState *cs, hwaddr addr, bool is_secure,
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
     MemTxAttrs attrs = {};
+    AddressSpace *as;
 
     attrs.secure = is_secure;
+    as = arm_addressspace(cs, attrs);
     addr = S1_ptw_translate(env, mmu_idx, addr, attrs, fsr, fi);
     if (fi->s1ptw) {
         return 0;
     }
-    return address_space_ldq(cs->as, addr, attrs, NULL);
+    return address_space_ldq(as, addr, attrs, NULL);
 }
 
 static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
