@@ -446,6 +446,34 @@
   'data': [ 'none', 'setup', 'cancelling', 'cancelled',
             'active', 'postcopy-active', 'completed', 'failed', 'colo' ] }
 
+# @COLOCheckpointStats
+#
+# Detailed colo checkpoint statistics
+#
+# @checkpoint-count: the number of checkpoint times
+#
+# @proxy-discompare-count: the number of net proxy discompare times
+#
+# @length-min: Shortest checkpoint in last sample period (ms)
+# @length-max: Longest checkpoint in last sample period (ms)
+# @length-average: Average checkpoint length in last sample period (ms)
+# @paused-min: Shortest downtime in last sample period (ms)
+# @paused-max: Longest downtime in last sample period (ms)
+# @paused-average: Average downtime length in last sample period (ms)
+# @size-min: Smallest checkpoint in last sample period (ms)
+# @size-max: Largest checkpoint in last sample period (ms)
+# @size-average: Average checkpoint size in last sample period (ms)
+# Since: 2.7
+##
+{ 'struct': 'COLOCheckpointStats',
+  'data': {'checkpoint-count': 'int', 'proxy-discompare-count': 'int',
+           'length-min': 'number', 'length-max': 'number',
+               'length-average': 'number',
+           'paused-min': 'number', 'paused-max': 'number',
+               'paused-average': 'number',
+           'size-min': 'number', 'size-max': 'number',
+               'size-average': 'number' } }
+
 ##
 # @MigrationInfo
 #
@@ -489,6 +517,9 @@
 #       throttled during auto-converge. This is only present when auto-converge
 #       has started throttling guest cpus. (Since 2.5)
 #
+# @ colo-stats: #optional #COLOCheckpointStats containing detailed checkpoint
+#       statistics (since 2.7)
+#
 # Since: 0.14.0
 ##
 { 'struct': 'MigrationInfo',
@@ -499,7 +530,8 @@
            '*expected-downtime': 'int',
            '*downtime': 'int',
            '*setup-time': 'int',
-           '*x-cpu-throttle-percentage': 'int'} }
+           '*x-cpu-throttle-percentage': 'int',
+           '*colo-stats': 'COLOCheckpointStats' } }
 
 ##
 # @query-migrate

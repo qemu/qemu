@@ -693,7 +693,33 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         break;
     case MIGRATION_STATUS_COLO:
         info->has_status = true;
-        /* TODO: display COLO specific information (checkpoint info etc.) */
+        info->has_colo_stats = true;
+        info->colo_stats = g_malloc0(sizeof(*info->colo_stats));
+        info->colo_stats->checkpoint_count =
+                                    s->checkpoint_state.checkpoint_count;
+        info->colo_stats->proxy_discompare_count =
+                                    s->checkpoint_state.proxy_discompare_count;
+        /* These times are stored in the timed_average in us since it's int
+         * but we use ms everywhere else
+         */
+        info->colo_stats->length_min =
+            timed_average_min(&s->checkpoint_state.stats_length) / 1000.0;
+        info->colo_stats->length_max =
+            timed_average_max(&s->checkpoint_state.stats_length) / 1000.0;
+        info->colo_stats->length_average =
+            timed_average_avg(&s->checkpoint_state.stats_length) / 1000.0;
+        info->colo_stats->paused_min =
+            timed_average_min(&s->checkpoint_state.stats_paused) / 1000.0;
+        info->colo_stats->paused_max =
+            timed_average_max(&s->checkpoint_state.stats_paused) / 1000.0;
+        info->colo_stats->paused_average =
+            timed_average_avg(&s->checkpoint_state.stats_paused) / 1000.0;
+        info->colo_stats->size_min =
+            timed_average_min(&s->checkpoint_state.stats_size);
+        info->colo_stats->size_max =
+            timed_average_max(&s->checkpoint_state.stats_size);
+        info->colo_stats->size_average =
+            timed_average_avg(&s->checkpoint_state.stats_size);
         break;
     case MIGRATION_STATUS_COMPLETED:
         get_xbzrle_cache_stats(info);

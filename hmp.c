@@ -238,6 +238,25 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->x_cpu_throttle_percentage);
     }
 
+    if (info->has_colo_stats) {
+        monitor_printf(mon, "checkpoint count: %" PRIu64 "\n",
+                       info->colo_stats->checkpoint_count);
+        monitor_printf(mon, "proxy discompare count: %" PRIu64 "\n",
+                       info->colo_stats->proxy_discompare_count);
+        monitor_printf(mon, "checkpoint length min/max/avg (ms): %lf/%lf/%lf\n",
+                       info->colo_stats->length_min,
+                       info->colo_stats->length_max,
+                       info->colo_stats->length_average);
+        monitor_printf(mon, "checkpoint paused min/max/avg (ms): %lf/%lf/%lf\n",
+                       info->colo_stats->paused_min,
+                       info->colo_stats->paused_max,
+                       info->colo_stats->paused_average);
+        monitor_printf(mon, "checkpoint size min/max/avg (MiB): %lf/%lf/%lf\n",
+                       info->colo_stats->size_min / (1024.0 * 1024.0),
+                       info->colo_stats->size_max / (1024.0 * 1024.0),
+                       info->colo_stats->size_average / (1024.0 * 1024.0));
+    }
+
     qapi_free_MigrationInfo(info);
     qapi_free_MigrationCapabilityStatusList(caps);
 }

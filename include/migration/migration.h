@@ -23,6 +23,7 @@
 #include "qapi-types.h"
 #include "exec/cpu-common.h"
 #include "qemu/coroutine_int.h"
+#include "qemu/timed-average.h"
 
 #define QEMU_VM_FILE_MAGIC           0x5145564d
 #define QEMU_VM_FILE_VERSION_COMPAT  0x00000002
@@ -42,6 +43,17 @@
 struct MigrationParams {
     bool blk;
     bool shared;
+};
+
+typedef struct COLOCheckpointState COLOCheckpointState;
+struct COLOCheckpointState {
+    uint64_t        checkpoint_count;
+    uint64_t        proxy_discompare_count;
+
+    /* We use us here since the averages are integer */
+    TimedAverage    stats_length;  /* Length of checkpoint (us) */
+    TimedAverage    stats_paused;  /* Time guest was paused (us) */
+    TimedAverage    stats_size;    /* Size of the checkpoint (bytes) */
 };
 
 /* Messages sent on the return path from destination to source */
@@ -177,7 +189,8 @@ struct MigrationState
     /* The RAMBlock used in the last src_page_request */
     RAMBlock *last_req_rb;
 
-    QemuSemaphore colo_sem;
+    QemuSemaphore        colo_sem;
+    COLOCheckpointState  checkpoint_state;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);

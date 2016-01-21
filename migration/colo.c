@@ -271,6 +271,8 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
     int colo_shutdown;
     QEMUFile *trans = NULL;
     size_t size;
+    int64_t stop_time, restart_time;
+    int64_t fpos_before, fpos_after;
     Error *local_err = NULL;
     int ret = -1;
 
@@ -306,6 +308,8 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
     vm_stop_force_state(RUN_STATE_COLO);
     qemu_mutex_unlock_iothread();
     trace_colo_vm_state_change("run", "stop");
+    stop_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+    fpos_before = qemu_ftell_fast(s->to_dst_file);
     /*
      * failover request bh could be called after
      * vm_stop_force_state so we check failover_request_is_active() again.
@@ -398,6 +402,15 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
     vm_start();
     qemu_mutex_unlock_iothread();
     trace_colo_vm_state_change("stop", "run");
+    restart_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+    fpos_after = qemu_ftell_fast(s->to_dst_file);
+    timed_average_account(&s->checkpoint_state.stats_paused,
+                          (restart_time - stop_time) * 1000ul);
+    /* Size of the snapshot - doesn't include any background ram transfer ? */
+    timed_average_account(&s->checkpoint_state.stats_size,
+                          (fpos_after - fpos_before));
+    s->checkpoint_state.checkpoint_count++;
+
 out:
     if (local_err) {
         error_report_err(local_err);
@@ -585,6 +598,7 @@ static void colo_process_checkpoint(MigrationState *s)
         current_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
         if (miscompare) {
             int64_t delay_ms;
+            s->checkpoint_state.proxy_discompare_count++;
             /* Limit the checkpoint rate if we're getting frequent miscompares
              * by adding an extra delay
              */
@@ -603,6 +617,8 @@ static void colo_process_checkpoint(MigrationState *s)
         colo_checkpoint_time_mean = colo_checkpoint_time_mean * 0.7 +
                                 0.3 * (current_time - checkpoint_time);
         colo_checkpoint_time_count++;
+        timed_average_account(&s->checkpoint_state.stats_length,
+                              (current_time - checkpoint_time) * 1000ul);
 
         ret = colo_do_checkpoint_transaction(s, buffer,
                                              checkpoint_to_passive_mode(s),
@@ -651,6 +667,14 @@ void migrate_start_colo_process(MigrationState *s)
 {
     qemu_mutex_unlock_iothread();
     qemu_sem_init(&s->colo_sem, 0);
+    s->checkpoint_state.checkpoint_count = 0;
+    s->checkpoint_state.proxy_discompare_count = 0;
+    timed_average_init(&s->checkpoint_state.stats_length, QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
+    timed_average_init(&s->checkpoint_state.stats_paused, QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
+    timed_average_init(&s->checkpoint_state.stats_size, QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
     migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_COLO);
     colo_process_checkpoint(s);
