@@ -789,8 +789,9 @@ static void xenfb_handle_events(struct XenFB *xenfb)
 
     prod = page->out_prod;
     out_cons = page->out_cons;
-    if (prod == out_cons)
-	return;
+    if (prod - out_cons >= XENFB_OUT_RING_LEN) {
+        return;
+    }
     xen_rmb();		/* ensure we see ring contents up to prod */
     for (cons = out_cons; cons != prod; cons++) {
 	union xenfb_out_event *event = &XENFB_OUT_RING_REF(page, cons);

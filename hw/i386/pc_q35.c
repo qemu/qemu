@@ -111,9 +111,8 @@ static void pc_q35_init(MachineState *machine)
         pcms->below_4g_mem_size = machine->ram_size;
     }
 
-    if (xen_enabled() && xen_hvm_init(pcms, &ram_memory) != 0) {
-        fprintf(stderr, "xen hardware virtual machine initialisation failed\n");
-        exit(1);
+    if (xen_enabled()) {
+        xen_hvm_init(pcms, &ram_memory);
     }
 
     pc_cpus_init(pcms);

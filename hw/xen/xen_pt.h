@@ -230,7 +230,7 @@ struct XenPCIPassthroughState {
     bool listener_set;
 };
 
-int xen_pt_config_init(XenPCIPassthroughState *s);
+void xen_pt_config_init(XenPCIPassthroughState *s, Error **errp);
 void xen_pt_config_delete(XenPCIPassthroughState *s);
 XenPTRegGroup *xen_pt_find_reg_grp(XenPCIPassthroughState *s, uint32_t address);
 XenPTReg *xen_pt_find_reg(XenPTRegGroup *reg_grp, uint32_t address);
@@ -330,5 +330,6 @@ static inline bool is_igd_vga_passthrough(XenHostPCIDevice *dev)
 }
 int xen_pt_register_vga_regions(XenHostPCIDevice *dev);
 int xen_pt_unregister_vga_regions(XenHostPCIDevice *dev);
-int xen_pt_setup_vga(XenPCIPassthroughState *s, XenHostPCIDevice *dev);
+void xen_pt_setup_vga(XenPCIPassthroughState *s, XenHostPCIDevice *dev,
+                     Error **errp);
 #endif /* !XEN_PT_H */

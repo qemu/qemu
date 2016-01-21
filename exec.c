@@ -1510,6 +1510,7 @@ static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
     RAMBlock *block;
     RAMBlock *last_block = NULL;
     ram_addr_t old_ram_size, new_ram_size;
+    Error *err = NULL;
 
     old_ram_size = last_ram_offset() >> TARGET_PAGE_BITS;
 
@@ -1519,7 +1520,12 @@ static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
     if (!new_block->host) {
         if (xen_enabled()) {
             xen_ram_alloc(new_block->offset, new_block->max_length,
-                          new_block->mr);
+                          new_block->mr, &err);
+            if (err) {
+                error_propagate(errp, err);
+                qemu_mutex_unlock_ramlist();
+                return -1;
+            }
         } else {
             new_block->host = phys_mem_alloc(new_block->max_length,
                                              &new_block->mr->align);
