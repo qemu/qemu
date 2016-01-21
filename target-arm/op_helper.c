@@ -719,6 +719,16 @@ void HELPER(exception_return)(CPUARMState *env)
         goto illegal_return;
     }
 
+    if (new_el == 2 && arm_is_secure_below_el3(env)) {
+        /* Return to the non-existent secure-EL2 */
+        goto illegal_return;
+    }
+
+    if (new_el == 1 && (env->cp15.hcr_el2 & HCR_TGE)
+        && !arm_is_secure_below_el3(env)) {
+        goto illegal_return;
+    }
+
     if (!return_to_aa64) {
         env->aarch64 = 0;
         env->uncached_cpsr = spsr & CPSR_M;
