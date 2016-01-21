@@ -85,10 +85,25 @@ static inline bool valid_pte_index(CPUPPCState *env, target_ulong pte_index)
     return true;
 }
 
+static bool is_ram_address(sPAPRMachineState *spapr, hwaddr addr)
+{
+    MachineState *machine = MACHINE(spapr);
+    MemoryHotplugState *hpms = &spapr->hotplug_memory;
+
+    if (addr < machine->ram_size) {
+        return true;
+    }
+    if ((addr >= hpms->base)
+        && ((addr - hpms->base) < memory_region_size(&hpms->mr))) {
+        return true;
+    }
+
+    return false;
+}
+
 static target_ulong h_enter(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                             target_ulong opcode, target_ulong *args)
 {
-    MachineState *machine = MACHINE(spapr);
     CPUPPCState *env = &cpu->env;
     target_ulong flags = args[0];
     target_ulong pte_index = args[1];
@@ -120,7 +135,7 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     raddr = (ptel & HPTE64_R_RPN) & ~((1ULL << page_shift) - 1);
 
-    if (raddr < machine->ram_size) {
+    if (is_ram_address(spapr, raddr)) {
         /* Regular RAM - should have WIMG=0010 */
         if ((ptel & HPTE64_R_WIMG) != HPTE64_R_M) {
             return H_PARAMETER;
