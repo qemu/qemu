@@ -16,6 +16,7 @@
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "block/block_int.h"
+#include "crypto/secret.h"
 
 #include <rbd/librbd.h>
 
@@ -228,6 +229,27 @@ static char *qemu_rbd_parse_clientname(const char *conf, char *clientname)
     return NULL;
 }
 
+
+static int qemu_rbd_set_auth(rados_t cluster, const char *secretid,
+                             Error **errp)
+{
+    if (secretid == 0) {
+        return 0;
+    }
+
+    gchar *secret = qcrypto_secret_lookup_as_base64(secretid,
+                                                    errp);
+    if (!secret) {
+        return -1;
+    }
+
+    rados_conf_set(cluster, "key", secret);
+    g_free(secret);
+
+    return 0;
+}
+
+
 static int qemu_rbd_set_conf(rados_t cluster, const char *conf,
                              bool only_read_conf_file,
                              Error **errp)
@@ -299,9 +321,12 @@ static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
     char conf[RBD_MAX_CONF_SIZE];
     char clientname_buf[RBD_MAX_CONF_SIZE];
     char *clientname;
+    const char *secretid;
     rados_t cluster;
     rados_ioctx_t io_ctx;
     int ret;
+
+    secretid = qemu_opt_get(opts, "password-secret");
 
     if (qemu_rbd_parsename(filename, pool, sizeof(pool),
                            snap_buf, sizeof(snap_buf),
@@ -347,6 +372,11 @@ static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
         qemu_rbd_set_conf(cluster, conf, false, &local_err) < 0) {
         rados_shutdown(cluster);
         error_propagate(errp, local_err);
+        return -EIO;
+    }
+
+    if (qemu_rbd_set_auth(cluster, secretid, errp) < 0) {
+        rados_shutdown(cluster);
         return -EIO;
     }
 
@@ -423,6 +453,11 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "Specification of the rbd image",
         },
+        {
+            .name = "password-secret",
+            .type = QEMU_OPT_STRING,
+            .help = "ID of secret providing the password",
+        },
         { /* end of list */ }
     },
 };
@@ -436,6 +471,7 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     char conf[RBD_MAX_CONF_SIZE];
     char clientname_buf[RBD_MAX_CONF_SIZE];
     char *clientname;
+    const char *secretid;
     QemuOpts *opts;
     Error *local_err = NULL;
     const char *filename;
@@ -450,6 +486,7 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     filename = qemu_opt_get(opts, "filename");
+    secretid = qemu_opt_get(opts, "password-secret");
 
     if (qemu_rbd_parsename(filename, pool, sizeof(pool),
                            snap_buf, sizeof(snap_buf),
@@ -486,6 +523,11 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         if (r < 0) {
             goto failed_shutdown;
         }
+    }
+
+    if (qemu_rbd_set_auth(s->cluster, secretid, errp) < 0) {
+        r = -EIO;
+        goto failed_shutdown;
     }
 
     /*
@@ -918,6 +960,11 @@ static QemuOptsList qemu_rbd_create_opts = {
             .name = BLOCK_OPT_CLUSTER_SIZE,
             .type = QEMU_OPT_SIZE,
             .help = "RBD object size"
+        },
+        {
+            .name = "password-secret",
+            .type = QEMU_OPT_STRING,
+            .help = "ID of secret providing the password",
         },
         { /* end of list */ }
     }
