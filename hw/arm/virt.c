@@ -1093,6 +1093,9 @@ static void machvirt_init(MachineState *machine)
                                     "reset-cbar", &error_abort);
         }
 
+        object_property_set_link(cpuobj, OBJECT(sysmem), "memory",
+                                 &error_abort);
+
         object_property_set_bool(cpuobj, true, "realized", NULL);
     }
     g_strfreev(cpustr);
