@@ -641,12 +641,51 @@ void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
     }
 }
 
+static int el_from_spsr(uint32_t spsr)
+{
+    /* Return the exception level that this SPSR is requesting a return to,
+     * or -1 if it is invalid (an illegal return)
+     */
+    if (spsr & PSTATE_nRW) {
+        switch (spsr & CPSR_M) {
+        case ARM_CPU_MODE_USR:
+            return 0;
+        case ARM_CPU_MODE_HYP:
+            return 2;
+        case ARM_CPU_MODE_FIQ:
+        case ARM_CPU_MODE_IRQ:
+        case ARM_CPU_MODE_SVC:
+        case ARM_CPU_MODE_ABT:
+        case ARM_CPU_MODE_UND:
+        case ARM_CPU_MODE_SYS:
+            return 1;
+        case ARM_CPU_MODE_MON:
+            /* Returning to Mon from AArch64 is never possible,
+             * so this is an illegal return.
+             */
+        default:
+            return -1;
+        }
+    } else {
+        if (extract32(spsr, 1, 1)) {
+            /* Return with reserved M[1] bit set */
+            return -1;
+        }
+        if (extract32(spsr, 0, 4) == 1) {
+            /* return to EL0 with M[0] bit set */
+            return -1;
+        }
+        return extract32(spsr, 2, 2);
+    }
+}
+
 void HELPER(exception_return)(CPUARMState *env)
 {
     int cur_el = arm_current_el(env);
     unsigned int spsr_idx = aarch64_banked_spsr_index(cur_el);
     uint32_t spsr = env->banked_spsr[spsr_idx];
     int new_el;
+    bool return_to_aa64 = (spsr & PSTATE_nRW) == 0;
 
     aarch64_save_sp(env, cur_el);
 
@@ -663,35 +702,34 @@ void HELPER(exception_return)(CPUARMState *env)
         spsr &= ~PSTATE_SS;
     }
 
-    if (spsr & PSTATE_nRW) {
-        /* TODO: We currently assume EL1/2/3 are running in AArch64.  */
+    new_el = el_from_spsr(spsr);
+    if (new_el == -1) {
+        goto illegal_return;
+    }
+    if (new_el > cur_el
+        || (new_el == 2 && !arm_feature(env, ARM_FEATURE_EL2))) {
+        /* Disallow return to an EL which is unimplemented or higher
+         * than the current one.
+         */
+        goto illegal_return;
+    }
+
+    if (new_el != 0 && arm_el_is_aa64(env, new_el) != return_to_aa64) {
+        /* Return to an EL which is configured for a different register width */
+        goto illegal_return;
+    }
+
+    if (!return_to_aa64) {
         env->aarch64 = 0;
-        new_el = 0;
-        env->uncached_cpsr = 0x10;
+        env->uncached_cpsr = spsr & CPSR_M;
         cpsr_write(env, spsr, ~0);
         if (!arm_singlestep_active(env)) {
             env->uncached_cpsr &= ~PSTATE_SS;
         }
         aarch64_sync_64_to_32(env);
 
-        env->regs[15] = env->elr_el[1] & ~0x1;
+        env->regs[15] = env->elr_el[cur_el] & ~0x1;
     } else {
-        new_el = extract32(spsr, 2, 2);
-        if (new_el > cur_el
-            || (new_el == 2 && !arm_feature(env, ARM_FEATURE_EL2))) {
-            /* Disallow return to an EL which is unimplemented or higher
-             * than the current one.
-             */
-            goto illegal_return;
-        }
-        if (extract32(spsr, 1, 1)) {
-            /* Return with reserved M[1] bit set */
-            goto illegal_return;
-        }
-        if (new_el == 0 && (spsr & PSTATE_SP)) {
-            /* Return to EL0 with M[0] bit set */
-            goto illegal_return;
-        }
         env->aarch64 = 1;
         pstate_write(env, spsr);
         if (!arm_singlestep_active(env)) {
