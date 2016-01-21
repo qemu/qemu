@@ -164,6 +164,7 @@ static const FlashPartInfo known_devices[] = {
     { INFO("sst25wf010",  0xbf2502,      0,  64 << 10,   2, ER_4K) },
     { INFO("sst25wf020",  0xbf2503,      0,  64 << 10,   4, ER_4K) },
     { INFO("sst25wf040",  0xbf2504,      0,  64 << 10,   8, ER_4K) },
+    { INFO("sst25wf080",  0xbf2505,      0,  64 << 10,  16, ER_4K) },
 
     /* ST Microelectronics -- newer production may have feature updates */
     { INFO("m25p05",      0x202010,      0,  32 << 10,   2, 0) },
