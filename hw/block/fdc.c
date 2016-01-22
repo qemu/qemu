@@ -274,7 +274,9 @@ static void pick_geometry(FDrive *drv)
     }
     if (match == -1) {
         if (first_match == -1) {
-            match = 1;
+            error_setg(&error_abort, "No candidate geometries present in table "
+                       " for floppy drive type '%s'",
+                       FloppyDriveType_lookup[drv->drive]);
         } else {
             match = first_match;
         }
