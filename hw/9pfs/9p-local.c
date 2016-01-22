@@ -20,6 +20,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include "qemu/xattr.h"
+#include "qemu/error-report.h"
 #include <libgen.h>
 #include <linux/fs.h>
 #ifdef CONFIG_LINUX_MAGIC_H
@@ -1209,9 +1210,9 @@ static int local_parse_opts(QemuOpts *opts, struct FsDriverEntry *fse)
     const char *path = qemu_opt_get(opts, "path");
 
     if (!sec_model) {
-        fprintf(stderr, "security model not specified, "
-                "local fs needs security model\nvalid options are:"
-                "\tsecurity_model=[passthrough|mapped|none]\n");
+        error_report("Security model not specified, local fs needs security model");
+        error_printf("valid options are:"
+                     "\tsecurity_model=[passthrough|mapped-xattr|mapped-file|none]\n");
         return -1;
     }
 
@@ -1225,14 +1226,14 @@ static int local_parse_opts(QemuOpts *opts, struct FsDriverEntry *fse)
     } else if (!strcmp(sec_model, "mapped-file")) {
         fse->export_flags |= V9FS_SM_MAPPED_FILE;
     } else {
-        fprintf(stderr, "Invalid security model %s specified, valid options are"
-                "\n\t [passthrough|mapped-xattr|mapped-file|none]\n",
-                sec_model);
+        error_report("Invalid security model %s specified", sec_model);
+        error_printf("valid options are:"
+                     "\t[passthrough|mapped-xattr|mapped-file|none]\n");
         return -1;
     }
 
     if (!path) {
-        fprintf(stderr, "fsdev: No path specified.\n");
+        error_report("fsdev: No path specified");
         return -1;
     }
     fse->path = g_strdup(path);

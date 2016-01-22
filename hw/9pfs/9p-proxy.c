@@ -1100,19 +1100,19 @@ static int connect_namedsocket(const char *path)
     struct sockaddr_un helper;
 
     if (strlen(path) >= sizeof(helper.sun_path)) {
-        fprintf(stderr, "Socket name too large\n");
+        error_report("Socket name too long");
         return -1;
     }
     sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sockfd < 0) {
-        fprintf(stderr, "failed to create socket: %s\n", strerror(errno));
+        error_report("Failed to create socket: %s", strerror(errno));
         return -1;
     }
     strcpy(helper.sun_path, path);
     helper.sun_family = AF_UNIX;
     size = strlen(helper.sun_path) + sizeof(helper.sun_family);
     if (connect(sockfd, (struct sockaddr *)&helper, size) < 0) {
-        fprintf(stderr, "failed to connect to %s: %s\n", path, strerror(errno));
+        error_report("Failed to connect to %s: %s", path, strerror(errno));
         close(sockfd);
         return -1;
     }
@@ -1128,11 +1128,11 @@ static int proxy_parse_opts(QemuOpts *opts, struct FsDriverEntry *fs)
     const char *sock_fd = qemu_opt_get(opts, "sock_fd");
 
     if (!socket && !sock_fd) {
-        fprintf(stderr, "socket and sock_fd none of the option specified\n");
+        error_report("Must specify either socket or sock_fd");
         return -1;
     }
     if (socket && sock_fd) {
-        fprintf(stderr, "Both socket and sock_fd options specified\n");
+        error_report("Both socket and sock_fd options specified");
         return -1;
     }
     if (socket) {
@@ -1155,7 +1155,7 @@ static int proxy_init(FsContext *ctx)
     } else {
         sock_id = atoi(ctx->fs_root);
         if (sock_id < 0) {
-            fprintf(stderr, "socket descriptor not initialized\n");
+            error_report("Socket descriptor not initialized");
         }
     }
     if (sock_id < 0) {
