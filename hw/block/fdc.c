@@ -115,51 +115,6 @@ static const FDFormat fd_formats[] = {
     { FDRIVE_DRV_NONE, -1, -1, 0, 0, },
 };
 
-static void pick_geometry(BlockBackend *blk, int *nb_heads,
-                          int *max_track, int *last_sect,
-                          FDriveType drive_in, FDriveType *drive,
-                          FDriveRate *rate)
-{
-    const FDFormat *parse;
-    uint64_t nb_sectors, size;
-    int i, first_match, match;
-
-    blk_get_geometry(blk, &nb_sectors);
-    match = -1;
-    first_match = -1;
-    for (i = 0; ; i++) {
-        parse = &fd_formats[i];
-        if (parse->drive == FDRIVE_DRV_NONE) {
-            break;
-        }
-        if (drive_in == parse->drive ||
-            drive_in == FDRIVE_DRV_NONE) {
-            size = (parse->max_head + 1) * parse->max_track *
-                parse->last_sect;
-            if (nb_sectors == size) {
-                match = i;
-                break;
-            }
-            if (first_match == -1) {
-                first_match = i;
-            }
-        }
-    }
-    if (match == -1) {
-        if (first_match == -1) {
-            match = 1;
-        } else {
-            match = first_match;
-        }
-        parse = &fd_formats[match];
-    }
-    *nb_heads = parse->max_head + 1;
-    *max_track = parse->max_track;
-    *last_sect = parse->last_sect;
-    *drive = parse->drive;
-    *rate = parse->rate;
-}
-
 #define GET_CUR_DRV(fdctrl) ((fdctrl)->cur_drv)
 #define SET_CUR_DRV(fdctrl, drive) ((fdctrl)->cur_drv = (drive))
 
@@ -285,6 +240,51 @@ static void fd_recalibrate(FDrive *drv)
 {
     FLOPPY_DPRINTF("recalibrate\n");
     fd_seek(drv, 0, 0, 1, 1);
+}
+
+static void pick_geometry(BlockBackend *blk, int *nb_heads,
+                          int *max_track, int *last_sect,
+                          FDriveType drive_in, FDriveType *drive,
+                          FDriveRate *rate)
+{
+    const FDFormat *parse;
+    uint64_t nb_sectors, size;
+    int i, first_match, match;
+
+    blk_get_geometry(blk, &nb_sectors);
+    match = -1;
+    first_match = -1;
+    for (i = 0; ; i++) {
+        parse = &fd_formats[i];
+        if (parse->drive == FDRIVE_DRV_NONE) {
+            break;
+        }
+        if (drive_in == parse->drive ||
+            drive_in == FDRIVE_DRV_NONE) {
+            size = (parse->max_head + 1) * parse->max_track *
+                parse->last_sect;
+            if (nb_sectors == size) {
+                match = i;
+                break;
+            }
+            if (first_match == -1) {
+                first_match = i;
+            }
+        }
+    }
+    if (match == -1) {
+        if (first_match == -1) {
+            match = 1;
+        } else {
+            match = first_match;
+        }
+        parse = &fd_formats[match];
+    }
+    *nb_heads = parse->max_head + 1;
+    *max_track = parse->max_track;
+    *last_sect = parse->last_sect;
+    *drive = parse->drive;
+    *rate = parse->rate;
 }
 
 /* Revalidate a disk drive after a disk change */
