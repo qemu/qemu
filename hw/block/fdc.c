@@ -242,11 +242,9 @@ static void fd_recalibrate(FDrive *drv)
     fd_seek(drv, 0, 0, 1, 1);
 }
 
-static void pick_geometry(BlockBackend *blk, int *nb_heads,
-                          int *max_track, int *last_sect,
-                          FDriveType drive_in, FDriveType *drive,
-                          FDriveRate *rate)
+static void pick_geometry(FDrive *drv)
 {
+    BlockBackend *blk = drv->blk;
     const FDFormat *parse;
     uint64_t nb_sectors, size;
     int i, first_match, match;
@@ -259,8 +257,8 @@ static void pick_geometry(BlockBackend *blk, int *nb_heads,
         if (parse->drive == FDRIVE_DRV_NONE) {
             break;
         }
-        if (drive_in == parse->drive ||
-            drive_in == FDRIVE_DRV_NONE) {
+        if (drv->drive == parse->drive ||
+            drv->drive == FDRIVE_DRV_NONE) {
             size = (parse->max_head + 1) * parse->max_track *
                 parse->last_sect;
             if (nb_sectors == size) {
@@ -280,41 +278,33 @@ static void pick_geometry(BlockBackend *blk, int *nb_heads,
         }
         parse = &fd_formats[match];
     }
-    *nb_heads = parse->max_head + 1;
-    *max_track = parse->max_track;
-    *last_sect = parse->last_sect;
-    *drive = parse->drive;
-    *rate = parse->rate;
+
+    if (parse->max_head == 0) {
+        drv->flags &= ~FDISK_DBL_SIDES;
+    } else {
+        drv->flags |= FDISK_DBL_SIDES;
+    }
+    drv->max_track = parse->max_track;
+    drv->last_sect = parse->last_sect;
+    drv->drive = parse->drive;
+    drv->media_rate = parse->rate;
 }
 
 /* Revalidate a disk drive after a disk change */
 static void fd_revalidate(FDrive *drv)
 {
-    int nb_heads, max_track, last_sect, ro;
-    FDriveType drive;
-    FDriveRate rate;
-
     FLOPPY_DPRINTF("revalidate\n");
     if (drv->blk != NULL) {
-        ro = blk_is_read_only(drv->blk);
-        pick_geometry(drv->blk, &nb_heads, &max_track,
-                      &last_sect, drv->drive, &drive, &rate);
+        drv->ro = blk_is_read_only(drv->blk);
+        pick_geometry(drv);
         if (!drv->media_inserted) {
             FLOPPY_DPRINTF("No disk in drive\n");
         } else {
-            FLOPPY_DPRINTF("Floppy disk (%d h %d t %d s) %s\n", nb_heads,
-                           max_track, last_sect, ro ? "ro" : "rw");
+            FLOPPY_DPRINTF("Floppy disk (%d h %d t %d s) %s\n",
+                           (drv->flags & FDISK_DBL_SIDES) ? 2 : 1,
+                           drv->max_track, drv->last_sect,
+                           drv->ro ? "ro" : "rw");
         }
-        if (nb_heads == 1) {
-            drv->flags &= ~FDISK_DBL_SIDES;
-        } else {
-            drv->flags |= FDISK_DBL_SIDES;
-        }
-        drv->max_track = max_track;
-        drv->last_sect = last_sect;
-        drv->ro = ro;
-        drv->drive = drive;
-        drv->media_rate = rate;
     } else {
         FLOPPY_DPRINTF("No drive connected\n");
         drv->last_sect = 0;
