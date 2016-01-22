@@ -69,35 +69,60 @@ ELF64_PHDR = ("I"  # p_type
           )
 
 def int128_get64(val):
-    assert (val["hi"] == 0)
+    """Returns low 64bit part of Int128 struct."""
+
+    assert val["hi"] == 0
     return val["lo"]
 
+
 def qlist_foreach(head, field_str):
+    """Generator for qlists."""
+
     var_p = head["lh_first"]
-    while (var_p != 0):
+    while var_p != 0:
         var = var_p.dereference()
-        yield var
         var_p = var[field_str]["le_next"]
+        yield var
+
 
 def qemu_get_ram_block(ram_addr):
+    """Returns the RAMBlock struct to which the given address belongs."""
+
     ram_blocks = gdb.parse_and_eval("ram_list.blocks")
+
     for block in qlist_foreach(ram_blocks, "next"):
-        if (ram_addr - block["offset"] < block["used_length"]):
+        if (ram_addr - block["offset"]) < block["used_length"]:
             return block
+
     raise gdb.GdbError("Bad ram offset %x" % ram_addr)
 
+
 def qemu_get_ram_ptr(ram_addr):
+    """Returns qemu vaddr for given guest physical address."""
+
     block = qemu_get_ram_block(ram_addr)
     return block["host"] + (ram_addr - block["offset"])
 
-def memory_region_get_ram_ptr(mr):
-    if (mr["alias"] != 0):
-        return (memory_region_get_ram_ptr(mr["alias"].dereference()) +
-                mr["alias_offset"])
-    return qemu_get_ram_ptr(mr["ram_addr"] & TARGET_PAGE_MASK)
+
+def memory_region_get_ram_ptr(memory_region):
+    if memory_region["alias"] != 0:
+        return (memory_region_get_ram_ptr(memory_region["alias"].dereference())
+                + memory_region["alias_offset"])
+
+    return qemu_get_ram_ptr(memory_region["ram_addr"] & TARGET_PAGE_MASK)
+
 
 def get_guest_phys_blocks():
+    """Returns a list of ram blocks.
+
+    Each block entry contains:
+    'target_start': guest block phys start address
+    'target_end':   guest block phys end address
+    'host_addr':    qemu vaddr of the block's start
+    """
+
     guest_phys_blocks = []
+
     print("guest RAM blocks:")
     print("target_start     target_end       host_addr        message "
           "count")
@@ -111,29 +136,29 @@ def get_guest_phys_blocks():
     # compatibility. Otherwise range doesn't cast the value itself and
     # breaks.
     for cur in range(int(current_map["nr"])):
-        flat_range   = (current_map["ranges"] + cur).dereference()
-        mr           = flat_range["mr"].dereference()
+        flat_range = (current_map["ranges"] + cur).dereference()
+        memory_region = flat_range["mr"].dereference()
 
         # we only care about RAM
-        if (not mr["ram"]):
+        if not memory_region["ram"]:
             continue
 
         section_size = int128_get64(flat_range["addr"]["size"])
         target_start = int128_get64(flat_range["addr"]["start"])
-        target_end   = target_start + section_size
-        host_addr    = (memory_region_get_ram_ptr(mr) +
-                        flat_range["offset_in_region"])
+        target_end = target_start + section_size
+        host_addr = (memory_region_get_ram_ptr(memory_region)
+                     + flat_range["offset_in_region"])
         predecessor = None
 
         # find continuity in guest physical address space
-        if (len(guest_phys_blocks) > 0):
+        if len(guest_phys_blocks) > 0:
             predecessor = guest_phys_blocks[-1]
             predecessor_size = (predecessor["target_end"] -
                                 predecessor["target_start"])
 
             # the memory API guarantees monotonically increasing
             # traversal
-            assert (predecessor["target_end"] <= target_start)
+            assert predecessor["target_end"] <= target_start
 
             # we want continuity in both guest-physical and
             # host-virtual memory
@@ -141,11 +166,11 @@ def get_guest_phys_blocks():
                 predecessor["host_addr"] + predecessor_size != host_addr):
                 predecessor = None
 
-        if (predecessor is None):
+        if predecessor is None:
             # isolated mapping, add it to the list
             guest_phys_blocks.append({"target_start": target_start,
-                                      "target_end"  : target_end,
-                                      "host_addr"   : host_addr})
+                                      "target_end":   target_end,
+                                      "host_addr":    host_addr})
             message = "added"
         else:
             # expand predecessor until @target_end; predecessor's
@@ -282,7 +307,7 @@ shape and this command should mostly work."""
         # We should never reach PN_XNUM for paging=false dumps: there's
         # just a handful of discontiguous ranges after merging.
         self.phdr_num += len(self.guest_phys_blocks)
-        assert (self.phdr_num < PN_XNUM)
+        assert self.phdr_num < PN_XNUM
 
         # Calculate the ELF file offset where the memory dump commences:
         #
@@ -313,15 +338,15 @@ shape and this command should mostly work."""
     def dump_iterate(self, vmcore):
         qemu_core = gdb.inferiors()[0]
         for block in self.guest_phys_blocks:
-            cur  = block["host_addr"]
+            cur = block["host_addr"]
             left = block["target_end"] - block["target_start"]
             print("dumping range at %016x for length %016x" %
                   (cur.cast(UINTPTR_T), left))
-            while (left > 0):
+            while left > 0:
                 chunk_size = min(TARGET_PAGE_SIZE, left)
                 chunk = qemu_core.read_memory(cur, chunk_size)
                 vmcore.write(chunk)
-                cur  += chunk_size
+                cur += chunk_size
                 left -= chunk_size
 
     def create_vmcore(self, filename):
@@ -336,7 +361,7 @@ shape and this command should mostly work."""
         self.dont_repeat()
 
         argv = gdb.string_to_argv(args)
-        if (len(argv) != 1):
+        if len(argv) != 1:
             raise gdb.GdbError("usage: dump-guest-memory FILE")
 
         self.dump_init()
