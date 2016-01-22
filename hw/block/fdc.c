@@ -160,7 +160,6 @@ static FloppyDriveType get_fallback_drive_type(FDrive *drv);
 static void fd_init(FDrive *drv)
 {
     /* Drive */
-    drv->drive = FLOPPY_DRIVE_TYPE_NONE;
     drv->perpendicular = 0;
     /* Disk */
     drv->disk = FLOPPY_DRIVE_TYPE_NONE;
@@ -264,7 +263,7 @@ static int pick_geometry(FDrive *drv)
     int i, first_match, match;
 
     /* We can only pick a geometry if we have a diskette. */
-    if (!drv->media_inserted) {
+    if (!drv->media_inserted || drv->drive == FLOPPY_DRIVE_TYPE_NONE) {
         return -1;
     }
 
@@ -277,7 +276,7 @@ static int pick_geometry(FDrive *drv)
             break;
         }
         if (drv->drive == parse->drive ||
-            drv->drive == FLOPPY_DRIVE_TYPE_NONE) {
+            drv->drive == FLOPPY_DRIVE_TYPE_AUTO) {
             size = (parse->max_head + 1) * parse->max_track *
                 parse->last_sect;
             if (nb_sectors == size) {
@@ -314,11 +313,17 @@ static int pick_geometry(FDrive *drv)
 
 static void pick_drive_type(FDrive *drv)
 {
+    if (drv->drive != FLOPPY_DRIVE_TYPE_AUTO) {
+        return;
+    }
+
     if (pick_geometry(drv) == 0) {
         drv->drive = drv->disk;
     } else {
         drv->drive = get_fallback_drive_type(drv);
     }
+
+    g_assert(drv->drive != FLOPPY_DRIVE_TYPE_AUTO);
 }
 
 /* Revalidate a disk drive after a disk change */
@@ -2475,6 +2480,12 @@ static Property isa_fdc_properties[] = {
     DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.drives[1].blk),
     DEFINE_PROP_BIT("check_media_rate", FDCtrlISABus, state.check_media_rate,
                     0, true),
+    DEFINE_PROP_DEFAULT("fdtypeA", FDCtrlISABus, state.drives[0].drive,
+                        FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
+    DEFINE_PROP_DEFAULT("fdtypeB", FDCtrlISABus, state.drives[1].drive,
+                        FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
     DEFINE_PROP_DEFAULT("fallback", FDCtrlISABus, state.fallback,
                         FLOPPY_DRIVE_TYPE_144, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
@@ -2526,6 +2537,12 @@ static const VMStateDescription vmstate_sysbus_fdc ={
 static Property sysbus_fdc_properties[] = {
     DEFINE_PROP_DRIVE("driveA", FDCtrlSysBus, state.drives[0].blk),
     DEFINE_PROP_DRIVE("driveB", FDCtrlSysBus, state.drives[1].blk),
+    DEFINE_PROP_DEFAULT("fdtypeA", FDCtrlSysBus, state.drives[0].drive,
+                        FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
+    DEFINE_PROP_DEFAULT("fdtypeB", FDCtrlSysBus, state.drives[1].drive,
+                        FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
     DEFINE_PROP_DEFAULT("fallback", FDCtrlISABus, state.fallback,
                         FLOPPY_DRIVE_TYPE_144, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
@@ -2549,6 +2566,9 @@ static const TypeInfo sysbus_fdc_info = {
 
 static Property sun4m_fdc_properties[] = {
     DEFINE_PROP_DRIVE("drive", FDCtrlSysBus, state.drives[0].blk),
+    DEFINE_PROP_DEFAULT("fdtype", FDCtrlSysBus, state.drives[0].drive,
+                        FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
     DEFINE_PROP_DEFAULT("fallback", FDCtrlISABus, state.fallback,
                         FLOPPY_DRIVE_TYPE_144, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
