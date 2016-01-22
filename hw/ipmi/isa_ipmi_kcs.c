@@ -368,7 +368,7 @@ static void ipmi_kcs_class_init(IPMIInterfaceClass *iic)
 
 typedef struct ISAIPMIKCSDevice {
     ISADevice dev;
-    int32 isairq;
+    int32_t isairq;
     IPMIKCS kcs;
     IPMIFwInfo fwinfo;
 } ISAIPMIKCSDevice;

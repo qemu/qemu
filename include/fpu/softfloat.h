@@ -102,7 +102,7 @@ typedef uint8_t flag;
 typedef uint8_t uint8;
 typedef int8_t int8;
 typedef unsigned int uint32;
-typedef signed int int32;
+typedef signed int int32_t;
 
 #define LIT64( a ) a##LL
 
@@ -374,8 +374,8 @@ int_fast16_t float32_to_int16(float32, float_status *status);
 uint_fast16_t float32_to_uint16(float32, float_status *status);
 int_fast16_t float32_to_int16_round_to_zero(float32, float_status *status);
 uint_fast16_t float32_to_uint16_round_to_zero(float32, float_status *status);
-int32 float32_to_int32(float32, float_status *status);
-int32 float32_to_int32_round_to_zero(float32, float_status *status);
+int32_t float32_to_int32(float32, float_status *status);
+int32_t float32_to_int32_round_to_zero(float32, float_status *status);
 uint32 float32_to_uint32(float32, float_status *status);
 uint32 float32_to_uint32_round_to_zero(float32, float_status *status);
 int64_t float32_to_int64(float32, float_status *status);
@@ -486,8 +486,8 @@ int_fast16_t float64_to_int16(float64, float_status *status);
 uint_fast16_t float64_to_uint16(float64, float_status *status);
 int_fast16_t float64_to_int16_round_to_zero(float64, float_status *status);
 uint_fast16_t float64_to_uint16_round_to_zero(float64, float_status *status);
-int32 float64_to_int32(float64, float_status *status);
-int32 float64_to_int32_round_to_zero(float64, float_status *status);
+int32_t float64_to_int32(float64, float_status *status);
+int32_t float64_to_int32_round_to_zero(float64, float_status *status);
 uint32 float64_to_uint32(float64, float_status *status);
 uint32 float64_to_uint32_round_to_zero(float64, float_status *status);
 int64_t float64_to_int64(float64, float_status *status);
@@ -594,8 +594,8 @@ extern const float64 float64_default_nan;
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision conversion routines.
 *----------------------------------------------------------------------------*/
-int32 floatx80_to_int32(floatx80, float_status *status);
-int32 floatx80_to_int32_round_to_zero(floatx80, float_status *status);
+int32_t floatx80_to_int32(floatx80, float_status *status);
+int32_t floatx80_to_int32_round_to_zero(floatx80, float_status *status);
 int64_t floatx80_to_int64(floatx80, float_status *status);
 int64_t floatx80_to_int64_round_to_zero(floatx80, float_status *status);
 float32 floatx80_to_float32(floatx80, float_status *status);
@@ -679,8 +679,8 @@ extern const floatx80 floatx80_default_nan;
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE quadruple-precision conversion routines.
 *----------------------------------------------------------------------------*/
-int32 float128_to_int32(float128, float_status *status);
-int32 float128_to_int32_round_to_zero(float128, float_status *status);
+int32_t float128_to_int32(float128, float_status *status);
+int32_t float128_to_int32_round_to_zero(float128, float_status *status);
 int64_t float128_to_int64(float128, float_status *status);
 int64_t float128_to_int64_round_to_zero(float128, float_status *status);
 float32 float128_to_float32(float128, float_status *status);
