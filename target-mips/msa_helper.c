@@ -1604,7 +1604,7 @@ static inline int get_enabled_exceptions(const CPUMIPSState *env, int c)
     return c & enable;
 }
 
-static inline float16 float16_from_float32(int32 a, flag ieee,
+static inline float16 float16_from_float32(int32_t a, flag ieee,
                                            float_status *status)
 {
       float16 f_val;
@@ -1615,7 +1615,7 @@ static inline float16 float16_from_float32(int32 a, flag ieee,
       return a < 0 ? (f_val | (1 << 15)) : f_val;
 }
 
-static inline float32 float32_from_float64(int64 a, float_status *status)
+static inline float32 float32_from_float64(int64_t a, float_status *status)
 {
       float32 f_val;
 
@@ -1636,7 +1636,7 @@ static inline float32 float32_from_float16(int16_t a, flag ieee,
       return a < 0 ? (f_val | (1 << 31)) : f_val;
 }
 
-static inline float64 float64_from_float32(int32 a, float_status *status)
+static inline float64 float64_from_float32(int32_t a, float_status *status)
 {
       float64 f_val;
 
@@ -1657,7 +1657,7 @@ static inline float32 float32_from_q16(int16_t a, float_status *status)
     return f_val;
 }
 
-static inline float64 float64_from_q32(int32 a, float_status *status)
+static inline float64 float64_from_q32(int32_t a, float_status *status)
 {
     float64 f_val;
 
@@ -1670,9 +1670,9 @@ static inline float64 float64_from_q32(int32 a, float_status *status)
 
 static inline int16_t float32_to_q16(float32 a, float_status *status)
 {
-    int32 q_val;
-    int32 q_min = 0xffff8000;
-    int32 q_max = 0x00007fff;
+    int32_t q_val;
+    int32_t q_min = 0xffff8000;
+    int32_t q_max = 0x00007fff;
 
     int ieee_ex;
 
@@ -1690,7 +1690,7 @@ static inline int16_t float32_to_q16(float32 a, float_status *status)
 
     if (ieee_ex & float_flag_overflow) {
         float_raise(float_flag_inexact, status);
-        return (int32)a < 0 ? q_min : q_max;
+        return (int32_t)a < 0 ? q_min : q_max;
     }
 
     /* conversion to int */
@@ -1704,7 +1704,7 @@ static inline int16_t float32_to_q16(float32 a, float_status *status)
         set_float_exception_flags(ieee_ex & (~float_flag_invalid)
                                , status);
         float_raise(float_flag_overflow | float_flag_inexact, status);
-        return (int32)a < 0 ? q_min : q_max;
+        return (int32_t)a < 0 ? q_min : q_max;
     }
 
     if (q_val < q_min) {
@@ -1720,11 +1720,11 @@ static inline int16_t float32_to_q16(float32 a, float_status *status)
     return (int16_t)q_val;
 }
 
-static inline int32 float64_to_q32(float64 a, float_status *status)
+static inline int32_t float64_to_q32(float64 a, float_status *status)
 {
-    int64 q_val;
-    int64 q_min = 0xffffffff80000000LL;
-    int64 q_max = 0x000000007fffffffLL;
+    int64_t q_val;
+    int64_t q_min = 0xffffffff80000000LL;
+    int64_t q_max = 0x000000007fffffffLL;
 
     int ieee_ex;
 
@@ -1742,7 +1742,7 @@ static inline int32 float64_to_q32(float64 a, float_status *status)
 
     if (ieee_ex & float_flag_overflow) {
         float_raise(float_flag_inexact, status);
-        return (int64)a < 0 ? q_min : q_max;
+        return (int64_t)a < 0 ? q_min : q_max;
     }
 
     /* conversion to integer */
@@ -1756,20 +1756,20 @@ static inline int32 float64_to_q32(float64 a, float_status *status)
         set_float_exception_flags(ieee_ex & (~float_flag_invalid)
                , status);
         float_raise(float_flag_overflow | float_flag_inexact, status);
-        return (int64)a < 0 ? q_min : q_max;
+        return (int64_t)a < 0 ? q_min : q_max;
     }
 
     if (q_val < q_min) {
         float_raise(float_flag_overflow | float_flag_inexact, status);
-        return (int32)q_min;
+        return (int32_t)q_min;
     }
 
     if (q_max < q_val) {
         float_raise(float_flag_overflow | float_flag_inexact, status);
-        return (int32)q_max;
+        return (int32_t)q_max;
     }
 
-    return (int32)q_val;
+    return (int32_t)q_val;
 }
 
 #define MSA_FLOAT_COND(DEST, OP, ARG1, ARG2, BITS, QUIET)                   \

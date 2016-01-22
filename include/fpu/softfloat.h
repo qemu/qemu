@@ -90,21 +90,11 @@ this code that are retained.
 #include "config-host.h"
 #include "qemu/osdep.h"
 
-/*----------------------------------------------------------------------------
-| Each of the following `typedef's defines the most convenient type that holds
-| integers of at least as many bits as specified.  For example, `uint8' should
-| be the most convenient type that can hold unsigned integers of as many as
-| 8 bits.  The `flag' type must be able to hold either a 0 or 1.  For most
-| implementations of C, `flag', `uint8', and `int8' should all be `typedef'ed
-| to the same as `int'.
-*----------------------------------------------------------------------------*/
+/* This 'flag' type must be able to hold at least 0 and 1. It should
+ * probably be replaced with 'bool' but the uses would need to be audited
+ * to check that they weren't accidentally relying on it being a larger type.
+ */
 typedef uint8_t flag;
-typedef uint8_t uint8;
-typedef int8_t int8;
-typedef unsigned int uint32;
-typedef signed int int32;
-typedef uint64_t uint64;
-typedef int64_t int64;
 
 #define LIT64( a ) a##LL
 
@@ -282,7 +272,7 @@ static inline flag get_default_nan_mode(float_status *status)
 | Routine to raise any or all of the software IEC/IEEE floating-point
 | exception flags.
 *----------------------------------------------------------------------------*/
-void float_raise(int8 flags, float_status *status);
+void float_raise(int8_t flags, float_status *status);
 
 /*----------------------------------------------------------------------------
 | If `a' is denormal and we are in flush-to-zero mode then set the
@@ -376,14 +366,14 @@ int_fast16_t float32_to_int16(float32, float_status *status);
 uint_fast16_t float32_to_uint16(float32, float_status *status);
 int_fast16_t float32_to_int16_round_to_zero(float32, float_status *status);
 uint_fast16_t float32_to_uint16_round_to_zero(float32, float_status *status);
-int32 float32_to_int32(float32, float_status *status);
-int32 float32_to_int32_round_to_zero(float32, float_status *status);
-uint32 float32_to_uint32(float32, float_status *status);
-uint32 float32_to_uint32_round_to_zero(float32, float_status *status);
-int64 float32_to_int64(float32, float_status *status);
-uint64 float32_to_uint64(float32, float_status *status);
-uint64 float32_to_uint64_round_to_zero(float32, float_status *status);
-int64 float32_to_int64_round_to_zero(float32, float_status *status);
+int32_t float32_to_int32(float32, float_status *status);
+int32_t float32_to_int32_round_to_zero(float32, float_status *status);
+uint32_t float32_to_uint32(float32, float_status *status);
+uint32_t float32_to_uint32_round_to_zero(float32, float_status *status);
+int64_t float32_to_int64(float32, float_status *status);
+uint64_t float32_to_uint64(float32, float_status *status);
+uint64_t float32_to_uint64_round_to_zero(float32, float_status *status);
+int64_t float32_to_int64_round_to_zero(float32, float_status *status);
 float64 float32_to_float64(float32, float_status *status);
 floatx80 float32_to_floatx80(float32, float_status *status);
 float128 float32_to_float128(float32, float_status *status);
@@ -488,14 +478,14 @@ int_fast16_t float64_to_int16(float64, float_status *status);
 uint_fast16_t float64_to_uint16(float64, float_status *status);
 int_fast16_t float64_to_int16_round_to_zero(float64, float_status *status);
 uint_fast16_t float64_to_uint16_round_to_zero(float64, float_status *status);
-int32 float64_to_int32(float64, float_status *status);
-int32 float64_to_int32_round_to_zero(float64, float_status *status);
-uint32 float64_to_uint32(float64, float_status *status);
-uint32 float64_to_uint32_round_to_zero(float64, float_status *status);
-int64 float64_to_int64(float64, float_status *status);
-int64 float64_to_int64_round_to_zero(float64, float_status *status);
-uint64 float64_to_uint64(float64 a, float_status *status);
-uint64 float64_to_uint64_round_to_zero(float64 a, float_status *status);
+int32_t float64_to_int32(float64, float_status *status);
+int32_t float64_to_int32_round_to_zero(float64, float_status *status);
+uint32_t float64_to_uint32(float64, float_status *status);
+uint32_t float64_to_uint32_round_to_zero(float64, float_status *status);
+int64_t float64_to_int64(float64, float_status *status);
+int64_t float64_to_int64_round_to_zero(float64, float_status *status);
+uint64_t float64_to_uint64(float64 a, float_status *status);
+uint64_t float64_to_uint64_round_to_zero(float64 a, float_status *status);
 float32 float64_to_float32(float64, float_status *status);
 floatx80 float64_to_floatx80(float64, float_status *status);
 float128 float64_to_float128(float64, float_status *status);
@@ -596,10 +586,10 @@ extern const float64 float64_default_nan;
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision conversion routines.
 *----------------------------------------------------------------------------*/
-int32 floatx80_to_int32(floatx80, float_status *status);
-int32 floatx80_to_int32_round_to_zero(floatx80, float_status *status);
-int64 floatx80_to_int64(floatx80, float_status *status);
-int64 floatx80_to_int64_round_to_zero(floatx80, float_status *status);
+int32_t floatx80_to_int32(floatx80, float_status *status);
+int32_t floatx80_to_int32_round_to_zero(floatx80, float_status *status);
+int64_t floatx80_to_int64(floatx80, float_status *status);
+int64_t floatx80_to_int64_round_to_zero(floatx80, float_status *status);
 float32 floatx80_to_float32(floatx80, float_status *status);
 float64 floatx80_to_float64(floatx80, float_status *status);
 float128 floatx80_to_float128(floatx80, float_status *status);
@@ -681,10 +671,10 @@ extern const floatx80 floatx80_default_nan;
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE quadruple-precision conversion routines.
 *----------------------------------------------------------------------------*/
-int32 float128_to_int32(float128, float_status *status);
-int32 float128_to_int32_round_to_zero(float128, float_status *status);
-int64 float128_to_int64(float128, float_status *status);
-int64 float128_to_int64_round_to_zero(float128, float_status *status);
+int32_t float128_to_int32(float128, float_status *status);
+int32_t float128_to_int32_round_to_zero(float128, float_status *status);
+int64_t float128_to_int64(float128, float_status *status);
+int64_t float128_to_int64_round_to_zero(float128, float_status *status);
 float32 float128_to_float32(float128, float_status *status);
 float64 float128_to_float64(float128, float_status *status);
 floatx80 float128_to_floatx80(float128, float_status *status);

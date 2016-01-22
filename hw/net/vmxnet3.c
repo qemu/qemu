@@ -522,7 +522,7 @@ vmxnet3_dec_rx_completion_counter(VMXNET3State *s, int qidx)
     vmxnet3_ring_dec(&s->rxq_descr[qidx].comp_ring);
 }
 
-static void vmxnet3_complete_packet(VMXNET3State *s, int qidx, uint32 tx_ridx)
+static void vmxnet3_complete_packet(VMXNET3State *s, int qidx, uint32_t tx_ridx)
 {
     struct Vmxnet3_TxCompDesc txcq_descr;
 

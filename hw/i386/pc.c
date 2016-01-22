@@ -1454,7 +1454,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice **rtc_state,
                           bool create_fdctrl,
                           bool no_vmport,
-                          uint32 hpet_irqs)
+                          uint32_t hpet_irqs)
 {
     int i;
     DriveInfo *fd[MAX_FD];

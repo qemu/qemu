@@ -405,7 +405,7 @@ static void ipmi_bt_class_init(IPMIInterfaceClass *iic)
 
 typedef struct ISAIPMIBTDevice {
     ISADevice dev;
-    int32 isairq;
+    int32_t isairq;
     IPMIBT bt;
     IPMIFwInfo fwinfo;
 } ISAIPMIBTDevice;

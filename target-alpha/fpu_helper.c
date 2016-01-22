@@ -437,7 +437,7 @@ uint64_t helper_cvtqs(CPUAlphaState *env, uint64_t a)
     return float32_to_s(fr);
 }
 
-/* Implement float64 to uint64 conversion without saturation -- we must
+/* Implement float64 to uint64_t conversion without saturation -- we must
    supply the truncated result.  This behaviour is used by the compiler
    to get unsigned conversion for free with the same instruction.  */
 

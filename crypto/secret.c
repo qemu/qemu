@@ -434,7 +434,7 @@ int qcrypto_secret_lookup(const char *secretid,
         return -1;
     }
 
-    *data = g_new0(uint8, secret->rawlen + 1);
+    *data = g_new0(uint8_t, secret->rawlen + 1);
     memcpy(*data, secret->rawdata, secret->rawlen);
     (*data)[secret->rawlen] = '\0';
     *datalen = secret->rawlen;
