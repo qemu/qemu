@@ -100,7 +100,6 @@ this code that are retained.
 *----------------------------------------------------------------------------*/
 typedef uint8_t flag;
 typedef uint8_t uint8;
-typedef int8_t int8;
 
 #define LIT64( a ) a##LL
 
@@ -278,7 +277,7 @@ static inline flag get_default_nan_mode(float_status *status)
 | Routine to raise any or all of the software IEC/IEEE floating-point
 | exception flags.
 *----------------------------------------------------------------------------*/
-void float_raise(int8 flags, float_status *status);
+void float_raise(int8_t flags, float_status *status);
 
 /*----------------------------------------------------------------------------
 | If `a' is denormal and we are in flush-to-zero mode then set the
