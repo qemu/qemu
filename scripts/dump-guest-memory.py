@@ -17,6 +17,55 @@
 
 import struct
 
+TARGET_PAGE_SIZE = 0x1000
+TARGET_PAGE_MASK = 0xFFFFFFFFFFFFF000
+
+# Various ELF constants
+EM_X86_64   = 62        # AMD x86-64 target machine
+ELFDATA2LSB = 1         # little endian
+ELFCLASS64  = 2
+ELFMAG      = "\x7FELF"
+EV_CURRENT  = 1
+ET_CORE     = 4
+PT_LOAD     = 1
+PT_NOTE     = 4
+
+# Special value for e_phnum. This indicates that the real number of
+# program headers is too large to fit into e_phnum. Instead the real
+# value is in the field sh_info of section 0.
+PN_XNUM = 0xFFFF
+
+# Format strings for packing and header size calculation.
+ELF64_EHDR = ("4s" # e_ident/magic
+              "B"  # e_ident/class
+              "B"  # e_ident/data
+              "B"  # e_ident/version
+              "B"  # e_ident/osabi
+              "8s" # e_ident/pad
+              "H"  # e_type
+              "H"  # e_machine
+              "I"  # e_version
+              "Q"  # e_entry
+              "Q"  # e_phoff
+              "Q"  # e_shoff
+              "I"  # e_flags
+              "H"  # e_ehsize
+              "H"  # e_phentsize
+              "H"  # e_phnum
+              "H"  # e_shentsize
+              "H"  # e_shnum
+              "H"  # e_shstrndx
+          )
+ELF64_PHDR = ("I"  # p_type
+              "I"  # p_flags
+              "Q"  # p_offset
+              "Q"  # p_vaddr
+              "Q"  # p_paddr
+              "Q"  # p_filesz
+              "Q"  # p_memsz
+              "Q"  # p_align
+          )
+
 class DumpGuestMemory(gdb.Command):
     """Extract guest vmcore from qemu process coredump.
 
@@ -47,62 +96,13 @@ deliberately called abort(), or it was dumped in response to a signal at
 a halfway fortunate point, then its coredump should be in reasonable
 shape and this command should mostly work."""
 
-    TARGET_PAGE_SIZE = 0x1000
-    TARGET_PAGE_MASK = 0xFFFFFFFFFFFFF000
-
-    # Various ELF constants
-    EM_X86_64   = 62        # AMD x86-64 target machine
-    ELFDATA2LSB = 1         # little endian
-    ELFCLASS64  = 2
-    ELFMAG      = "\x7FELF"
-    EV_CURRENT  = 1
-    ET_CORE     = 4
-    PT_LOAD     = 1
-    PT_NOTE     = 4
-
-    # Special value for e_phnum. This indicates that the real number of
-    # program headers is too large to fit into e_phnum. Instead the real
-    # value is in the field sh_info of section 0.
-    PN_XNUM = 0xFFFF
-
-    # Format strings for packing and header size calculation.
-    ELF64_EHDR = ("4s" # e_ident/magic
-                  "B"  # e_ident/class
-                  "B"  # e_ident/data
-                  "B"  # e_ident/version
-                  "B"  # e_ident/osabi
-                  "8s" # e_ident/pad
-                  "H"  # e_type
-                  "H"  # e_machine
-                  "I"  # e_version
-                  "Q"  # e_entry
-                  "Q"  # e_phoff
-                  "Q"  # e_shoff
-                  "I"  # e_flags
-                  "H"  # e_ehsize
-                  "H"  # e_phentsize
-                  "H"  # e_phnum
-                  "H"  # e_shentsize
-                  "H"  # e_shnum
-                  "H"  # e_shstrndx
-                 )
-    ELF64_PHDR = ("I"  # p_type
-                  "I"  # p_flags
-                  "Q"  # p_offset
-                  "Q"  # p_vaddr
-                  "Q"  # p_paddr
-                  "Q"  # p_filesz
-                  "Q"  # p_memsz
-                  "Q"  # p_align
-                 )
-
     def __init__(self):
         super(DumpGuestMemory, self).__init__("dump-guest-memory",
                                               gdb.COMMAND_DATA,
                                               gdb.COMPLETE_FILENAME)
         self.uintptr_t     = gdb.lookup_type("uintptr_t")
-        self.elf64_ehdr_le = struct.Struct("<%s" % self.ELF64_EHDR)
-        self.elf64_phdr_le = struct.Struct("<%s" % self.ELF64_PHDR)
+        self.elf64_ehdr_le = struct.Struct("<%s" % ELF64_EHDR)
+        self.elf64_phdr_le = struct.Struct("<%s" % ELF64_PHDR)
 
     def int128_get64(self, val):
         assert (val["hi"] == 0)
@@ -130,7 +130,7 @@ shape and this command should mostly work."""
         if (mr["alias"] != 0):
             return (self.memory_region_get_ram_ptr(mr["alias"].dereference()) +
                     mr["alias_offset"])
-        return self.qemu_get_ram_ptr(mr["ram_addr"] & self.TARGET_PAGE_MASK)
+        return self.qemu_get_ram_ptr(mr["ram_addr"] & TARGET_PAGE_MASK)
 
     def guest_phys_blocks_init(self):
         self.guest_phys_blocks = []
@@ -198,21 +198,21 @@ shape and this command should mostly work."""
         # most common values. This also means that instruction pointer
         # etc. will be bogus in the dump, but at least the RAM contents
         # should be valid.
-        self.dump_info = {"d_machine": self.EM_X86_64,
-                          "d_endian" : self.ELFDATA2LSB,
-                          "d_class"  : self.ELFCLASS64}
+        self.dump_info = {"d_machine": EM_X86_64,
+                          "d_endian" : ELFDATA2LSB,
+                          "d_class"  : ELFCLASS64}
 
     def encode_elf64_ehdr_le(self):
         return self.elf64_ehdr_le.pack(
-                                 self.ELFMAG,                 # e_ident/magic
+                                 ELFMAG,                      # e_ident/magic
                                  self.dump_info["d_class"],   # e_ident/class
                                  self.dump_info["d_endian"],  # e_ident/data
-                                 self.EV_CURRENT,             # e_ident/version
+                                 EV_CURRENT,                  # e_ident/version
                                  0,                           # e_ident/osabi
                                  "",                          # e_ident/pad
-                                 self.ET_CORE,                # e_type
+                                 ET_CORE,                     # e_type
                                  self.dump_info["d_machine"], # e_machine
-                                 self.EV_CURRENT,             # e_version
+                                 EV_CURRENT,                  # e_version
                                  0,                           # e_entry
                                  self.elf64_ehdr_le.size,     # e_phoff
                                  0,                           # e_shoff
@@ -226,7 +226,7 @@ shape and this command should mostly work."""
                                 )
 
     def encode_elf64_note_le(self):
-        return self.elf64_phdr_le.pack(self.PT_NOTE,         # p_type
+        return self.elf64_phdr_le.pack(PT_NOTE,              # p_type
                                        0,                    # p_flags
                                        (self.memory_offset -
                                         len(self.note)),     # p_offset
@@ -238,7 +238,7 @@ shape and this command should mostly work."""
                                       )
 
     def encode_elf64_load_le(self, offset, start_hwaddr, range_size):
-        return self.elf64_phdr_le.pack(self.PT_LOAD, # p_type
+        return self.elf64_phdr_le.pack(PT_LOAD,      # p_type
                                        0,            # p_flags
                                        offset,       # p_offset
                                        0,            # p_vaddr
@@ -276,7 +276,7 @@ shape and this command should mostly work."""
         # We should never reach PN_XNUM for paging=false dumps: there's
         # just a handful of discontiguous ranges after merging.
         self.phdr_num += len(self.guest_phys_blocks)
-        assert (self.phdr_num < self.PN_XNUM)
+        assert (self.phdr_num < PN_XNUM)
 
         # Calculate the ELF file offset where the memory dump commences:
         #
@@ -312,7 +312,7 @@ shape and this command should mostly work."""
             print ("dumping range at %016x for length %016x" %
                    (cur.cast(self.uintptr_t), left))
             while (left > 0):
-                chunk_size = min(self.TARGET_PAGE_SIZE, left)
+                chunk_size = min(TARGET_PAGE_SIZE, left)
                 chunk = qemu_core.read_memory(cur, chunk_size)
                 vmcore.write(chunk)
                 cur  += chunk_size
