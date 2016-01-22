@@ -154,6 +154,9 @@ typedef struct FDrive {
     bool media_validated;     /* Have we validated the media? */
 } FDrive;
 
+
+static FloppyDriveType get_fallback_drive_type(FDrive *drv);
+
 static void fd_init(FDrive *drv)
 {
     /* Drive */
@@ -314,8 +317,7 @@ static void pick_drive_type(FDrive *drv)
     if (pick_geometry(drv) == 0) {
         drv->drive = drv->disk;
     } else {
-        /* Legacy behavior: default to 1.44MB floppy */
-        drv->drive = FLOPPY_DRIVE_TYPE_144;
+        drv->drive = get_fallback_drive_type(drv);
     }
 }
 
@@ -598,10 +600,16 @@ struct FDCtrl {
     FDrive drives[MAX_FD];
     int reset_sensei;
     uint32_t check_media_rate;
+    FloppyDriveType fallback; /* type=auto failure fallback */
     /* Timers state */
     uint8_t timer0;
     uint8_t timer1;
 };
+
+static FloppyDriveType get_fallback_drive_type(FDrive *drv)
+{
+    return drv->fdctrl->fallback;
+}
 
 #define TYPE_SYSBUS_FDC "base-sysbus-fdc"
 #define SYSBUS_FDC(obj) OBJECT_CHECK(FDCtrlSysBus, (obj), TYPE_SYSBUS_FDC)
@@ -2338,6 +2346,10 @@ static void fdctrl_realize_common(FDCtrl *fdctrl, Error **errp)
     int i, j;
     static int command_tables_inited = 0;
 
+    if (fdctrl->fallback == FLOPPY_DRIVE_TYPE_AUTO) {
+        error_setg(errp, "Cannot choose a fallback FDrive type of 'auto'");
+    }
+
     /* Fill 'command_to_handler' lookup table */
     if (!command_tables_inited) {
         command_tables_inited = 1;
@@ -2463,6 +2475,9 @@ static Property isa_fdc_properties[] = {
     DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.drives[1].blk),
     DEFINE_PROP_BIT("check_media_rate", FDCtrlISABus, state.check_media_rate,
                     0, true),
+    DEFINE_PROP_DEFAULT("fallback", FDCtrlISABus, state.fallback,
+                        FLOPPY_DRIVE_TYPE_144, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2511,6 +2526,9 @@ static const VMStateDescription vmstate_sysbus_fdc ={
 static Property sysbus_fdc_properties[] = {
     DEFINE_PROP_DRIVE("driveA", FDCtrlSysBus, state.drives[0].blk),
     DEFINE_PROP_DRIVE("driveB", FDCtrlSysBus, state.drives[1].blk),
+    DEFINE_PROP_DEFAULT("fallback", FDCtrlISABus, state.fallback,
+                        FLOPPY_DRIVE_TYPE_144, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2531,6 +2549,9 @@ static const TypeInfo sysbus_fdc_info = {
 
 static Property sun4m_fdc_properties[] = {
     DEFINE_PROP_DRIVE("drive", FDCtrlSysBus, state.drives[0].blk),
+    DEFINE_PROP_DEFAULT("fallback", FDCtrlISABus, state.fallback,
+                        FLOPPY_DRIVE_TYPE_144, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
     DEFINE_PROP_END_OF_LIST(),
 };
 
