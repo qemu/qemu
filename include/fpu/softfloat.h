@@ -101,8 +101,6 @@ this code that are retained.
 typedef uint8_t flag;
 typedef uint8_t uint8;
 typedef int8_t int8;
-typedef unsigned int uint32;
-typedef signed int int32_t;
 
 #define LIT64( a ) a##LL
 
@@ -376,8 +374,8 @@ int_fast16_t float32_to_int16_round_to_zero(float32, float_status *status);
 uint_fast16_t float32_to_uint16_round_to_zero(float32, float_status *status);
 int32_t float32_to_int32(float32, float_status *status);
 int32_t float32_to_int32_round_to_zero(float32, float_status *status);
-uint32 float32_to_uint32(float32, float_status *status);
-uint32 float32_to_uint32_round_to_zero(float32, float_status *status);
+uint32_t float32_to_uint32(float32, float_status *status);
+uint32_t float32_to_uint32_round_to_zero(float32, float_status *status);
 int64_t float32_to_int64(float32, float_status *status);
 uint64_t float32_to_uint64(float32, float_status *status);
 uint64_t float32_to_uint64_round_to_zero(float32, float_status *status);
@@ -488,8 +486,8 @@ int_fast16_t float64_to_int16_round_to_zero(float64, float_status *status);
 uint_fast16_t float64_to_uint16_round_to_zero(float64, float_status *status);
 int32_t float64_to_int32(float64, float_status *status);
 int32_t float64_to_int32_round_to_zero(float64, float_status *status);
-uint32 float64_to_uint32(float64, float_status *status);
-uint32 float64_to_uint32_round_to_zero(float64, float_status *status);
+uint32_t float64_to_uint32(float64, float_status *status);
+uint32_t float64_to_uint32_round_to_zero(float64, float_status *status);
 int64_t float64_to_int64(float64, float_status *status);
 int64_t float64_to_int64_round_to_zero(float64, float_status *status);
 uint64_t float64_to_uint64(float64 a, float_status *status);

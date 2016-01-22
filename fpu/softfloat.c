@@ -1296,7 +1296,7 @@ float32 int32_to_float32(int32_t a, float_status *status)
 float64 int32_to_float64(int32_t a, float_status *status)
 {
     flag zSign;
-    uint32 absA;
+    uint32_t absA;
     int8 shiftCount;
     uint64_t zSig;
 
@@ -1319,7 +1319,7 @@ float64 int32_to_float64(int32_t a, float_status *status)
 floatx80 int32_to_floatx80(int32_t a, float_status *status)
 {
     flag zSign;
-    uint32 absA;
+    uint32_t absA;
     int8 shiftCount;
     uint64_t zSig;
 
@@ -1341,7 +1341,7 @@ floatx80 int32_to_floatx80(int32_t a, float_status *status)
 float128 int32_to_float128(int32_t a, float_status *status)
 {
     flag zSign;
-    uint32 absA;
+    uint32_t absA;
     int8 shiftCount;
     uint64_t zSig0;
 
@@ -7080,10 +7080,10 @@ float64 uint32_to_float64(uint32_t a, float_status *status)
     return int64_to_float64(a, status);
 }
 
-uint32 float32_to_uint32(float32 a, float_status *status)
+uint32_t float32_to_uint32(float32 a, float_status *status)
 {
     int64_t v;
-    uint32 res;
+    uint32_t res;
     int old_exc_flags = get_float_exception_flags(status);
 
     v = float32_to_int64(a, status);
@@ -7099,10 +7099,10 @@ uint32 float32_to_uint32(float32 a, float_status *status)
     return res;
 }
 
-uint32 float32_to_uint32_round_to_zero(float32 a, float_status *status)
+uint32_t float32_to_uint32_round_to_zero(float32 a, float_status *status)
 {
     int64_t v;
-    uint32 res;
+    uint32_t res;
     int old_exc_flags = get_float_exception_flags(status);
 
     v = float32_to_int64_round_to_zero(a, status);
@@ -7177,10 +7177,10 @@ uint_fast16_t float32_to_uint16_round_to_zero(float32 a, float_status *status)
     return res;
 }
 
-uint32 float64_to_uint32(float64 a, float_status *status)
+uint32_t float64_to_uint32(float64 a, float_status *status)
 {
     uint64_t v;
-    uint32 res;
+    uint32_t res;
     int old_exc_flags = get_float_exception_flags(status);
 
     v = float64_to_uint64(a, status);
@@ -7194,10 +7194,10 @@ uint32 float64_to_uint32(float64 a, float_status *status)
     return res;
 }
 
-uint32 float64_to_uint32_round_to_zero(float64 a, float_status *status)
+uint32_t float64_to_uint32_round_to_zero(float64 a, float_status *status)
 {
     uint64_t v;
-    uint32 res;
+    uint32_t res;
     int old_exc_flags = get_float_exception_flags(status);
 
     v = float64_to_uint64_round_to_zero(a, status);

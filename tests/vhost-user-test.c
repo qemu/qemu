@@ -439,7 +439,7 @@ static void wait_for_log_fd(TestServer *s)
     g_mutex_unlock(&s->data_mutex);
 }
 
-static void write_guest_mem(TestServer *s, uint32 seed)
+static void write_guest_mem(TestServer *s, uint32_t seed)
 {
     uint32_t *guest_mem;
     int i, j;

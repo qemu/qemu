@@ -459,7 +459,7 @@ void spapr_hotplug_req_add_by_index(sPAPRDRConnector *drc)
 {
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     sPAPRDRConnectorType drc_type = drck->get_type(drc);
-    uint32 index = drck->get_index(drc);
+    uint32_t index = drck->get_index(drc);
 
     spapr_hotplug_req_event(RTAS_LOG_V6_HP_ID_DRC_INDEX,
                             RTAS_LOG_V6_HP_ACTION_ADD, drc_type, index);
@@ -469,7 +469,7 @@ void spapr_hotplug_req_remove_by_index(sPAPRDRConnector *drc)
 {
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     sPAPRDRConnectorType drc_type = drck->get_type(drc);
-    uint32 index = drck->get_index(drc);
+    uint32_t index = drck->get_index(drc);
 
     spapr_hotplug_req_event(RTAS_LOG_V6_HP_ID_DRC_INDEX,
                             RTAS_LOG_V6_HP_ACTION_REMOVE, drc_type, index);
