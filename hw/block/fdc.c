@@ -125,7 +125,6 @@ static const FDFormat fd_formats[] = {
     { FLOPPY_DRIVE_TYPE_NONE, -1, -1, 0, 0, },
 };
 
-__attribute__((__unused__))
 static FDriveSize drive_size(FloppyDriveType drive)
 {
     switch (drive) {
@@ -284,45 +283,78 @@ static int pick_geometry(FDrive *drv)
     BlockBackend *blk = drv->blk;
     const FDFormat *parse;
     uint64_t nb_sectors, size;
-    int i, first_match, match;
+    int i;
+    int match, size_match, type_match;
+    bool magic = drv->drive == FLOPPY_DRIVE_TYPE_AUTO;
 
     /* We can only pick a geometry if we have a diskette. */
     if (!drv->media_inserted || drv->drive == FLOPPY_DRIVE_TYPE_NONE) {
         return -1;
     }
 
+    /* We need to determine the likely geometry of the inserted medium.
+     * In order of preference, we look for:
+     * (1) The same drive type and number of sectors,
+     * (2) The same diskette size and number of sectors,
+     * (3) The same drive type.
+     *
+     * In all cases, matches that occur higher in the drive table will take
+     * precedence over matches that occur later in the table.
+     */
     blk_get_geometry(blk, &nb_sectors);
-    match = -1;
-    first_match = -1;
+    match = size_match = type_match = -1;
     for (i = 0; ; i++) {
         parse = &fd_formats[i];
         if (parse->drive == FLOPPY_DRIVE_TYPE_NONE) {
             break;
         }
-        if (drv->drive == parse->drive ||
-            drv->drive == FLOPPY_DRIVE_TYPE_AUTO) {
-            size = (parse->max_head + 1) * parse->max_track *
-                parse->last_sect;
-            if (nb_sectors == size) {
-                match = i;
-                break;
+        size = (parse->max_head + 1) * parse->max_track * parse->last_sect;
+        if (nb_sectors == size) {
+            if (magic || parse->drive == drv->drive) {
+                /* (1) perfect match -- nb_sectors and drive type */
+                goto out;
+            } else if (drive_size(parse->drive) == drive_size(drv->drive)) {
+                /* (2) size match -- nb_sectors and physical medium size */
+                match = (match == -1) ? i : match;
+            } else {
+                /* This is suspicious -- Did the user misconfigure? */
+                size_match = (size_match == -1) ? i : size_match;
             }
-            if (first_match == -1) {
-                first_match = i;
+        } else if (type_match == -1) {
+            if ((parse->drive == drv->drive) ||
+                (magic && (parse->drive == get_fallback_drive_type(drv)))) {
+                /* (3) type match -- nb_sectors mismatch, but matches the type
+                 *     specified explicitly by the user, or matches the fallback
+                 *     default type when using the drive autodetect mechanism */
+                type_match = i;
             }
         }
-    }
-    if (match == -1) {
-        if (first_match == -1) {
-            error_setg(&error_abort, "No candidate geometries present in table "
-                       " for floppy drive type '%s'",
-                       FloppyDriveType_lookup[drv->drive]);
-        } else {
-            match = first_match;
-        }
-        parse = &fd_formats[match];
     }
 
+    /* No exact match found */
+    if (match == -1) {
+        if (size_match != -1) {
+            parse = &fd_formats[size_match];
+            FLOPPY_DPRINTF("User requested floppy drive type '%s', "
+                           "but inserted medium appears to be a "
+                           "%d sector '%s' type\n",
+                           FloppyDriveType_lookup[drv->drive],
+                           nb_sectors,
+                           FloppyDriveType_lookup[parse->drive]);
+        }
+        match = type_match;
+    }
+
+    /* No match of any kind found -- fd_format is misconfigured, abort. */
+    if (match == -1) {
+        error_setg(&error_abort, "No candidate geometries present in table "
+                   " for floppy drive type '%s'",
+                   FloppyDriveType_lookup[drv->drive]);
+    }
+
+    parse = &(fd_formats[match]);
+
+ out:
     if (parse->max_head == 0) {
         drv->flags &= ~FDISK_DBL_SIDES;
     } else {
