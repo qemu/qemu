@@ -3,6 +3,10 @@
 
 #define HW_COMPAT_2_5 \
     {\
+        .driver   = "isa-fdc",\
+        .property = "fallback",\
+        .value    = "144",\
+    },{\
         .driver   = "pvscsi",\
         .property = "x-old-pci-configuration",\
         .value    = "on",\

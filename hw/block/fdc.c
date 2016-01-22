@@ -2543,7 +2543,7 @@ static Property isa_fdc_properties[] = {
                         FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
     DEFINE_PROP_DEFAULT("fallback", FDCtrlISABus, state.fallback,
-                        FLOPPY_DRIVE_TYPE_144, qdev_prop_fdc_drive_type,
+                        FLOPPY_DRIVE_TYPE_288, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
     DEFINE_PROP_END_OF_LIST(),
 };
