@@ -19,6 +19,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include "qemu/xattr.h"
+#include "qemu/error-report.h"
 #include <unistd.h>
 #include <linux/fs.h>
 #ifdef CONFIG_LINUX_MAGIC_H
@@ -655,12 +656,12 @@ static int handle_parse_opts(QemuOpts *opts, struct FsDriverEntry *fse)
     const char *path = qemu_opt_get(opts, "path");
 
     if (sec_model) {
-        fprintf(stderr, "Invalid argument security_model specified with handle fsdriver\n");
+        error_report("Invalid argument security_model specified with handle fsdriver");
         return -1;
     }
 
     if (!path) {
-        fprintf(stderr, "fsdev: No path specified.\n");
+        error_report("fsdev: No path specified");
         return -1;
     }
     fse->path = g_strdup(path);
