@@ -151,6 +151,7 @@ typedef struct FDrive {
     uint8_t media_rate;       /* Data rate of medium    */
 
     bool media_inserted;      /* Is there a medium in the tray */
+    bool media_validated;     /* Have we validated the media? */
 } FDrive;
 
 static void fd_init(FDrive *drv)
@@ -162,6 +163,8 @@ static void fd_init(FDrive *drv)
     drv->disk = FLOPPY_DRIVE_TYPE_NONE;
     drv->last_sect = 0;
     drv->max_track = 0;
+    drv->ro = true;
+    drv->media_changed = 1;
 }
 
 #define NUM_SIDES(drv) ((drv)->flags & FDISK_DBL_SIDES ? 2 : 1)
@@ -244,12 +247,23 @@ static void fd_recalibrate(FDrive *drv)
     fd_seek(drv, 0, 0, 1, 1);
 }
 
-static void pick_geometry(FDrive *drv)
+/**
+ * Determine geometry based on inserted diskette.
+ * Will not operate on an empty drive.
+ *
+ * @return: 0 on success, -1 if the drive is empty.
+ */
+static int pick_geometry(FDrive *drv)
 {
     BlockBackend *blk = drv->blk;
     const FDFormat *parse;
     uint64_t nb_sectors, size;
     int i, first_match, match;
+
+    /* We can only pick a geometry if we have a diskette. */
+    if (!drv->media_inserted) {
+        return -1;
+    }
 
     blk_get_geometry(blk, &nb_sectors);
     match = -1;
@@ -290,31 +304,51 @@ static void pick_geometry(FDrive *drv)
     }
     drv->max_track = parse->max_track;
     drv->last_sect = parse->last_sect;
-    drv->drive = parse->drive;
-    drv->disk = drv->media_inserted ? parse->drive : FLOPPY_DRIVE_TYPE_NONE;
+    drv->disk = parse->drive;
     drv->media_rate = parse->rate;
+    return 0;
+}
+
+static void pick_drive_type(FDrive *drv)
+{
+    if (pick_geometry(drv) == 0) {
+        drv->drive = drv->disk;
+    } else {
+        /* Legacy behavior: default to 1.44MB floppy */
+        drv->drive = FLOPPY_DRIVE_TYPE_144;
+    }
 }
 
 /* Revalidate a disk drive after a disk change */
 static void fd_revalidate(FDrive *drv)
 {
+    int rc;
+
     FLOPPY_DPRINTF("revalidate\n");
     if (drv->blk != NULL) {
         drv->ro = blk_is_read_only(drv->blk);
-        pick_geometry(drv);
         if (!drv->media_inserted) {
             FLOPPY_DPRINTF("No disk in drive\n");
-        } else {
-            FLOPPY_DPRINTF("Floppy disk (%d h %d t %d s) %s\n",
-                           (drv->flags & FDISK_DBL_SIDES) ? 2 : 1,
-                           drv->max_track, drv->last_sect,
-                           drv->ro ? "ro" : "rw");
+            drv->disk = FLOPPY_DRIVE_TYPE_NONE;
+        } else if (!drv->media_validated) {
+            rc = pick_geometry(drv);
+            if (rc) {
+                FLOPPY_DPRINTF("Could not validate floppy drive media");
+            } else {
+                drv->media_validated = true;
+                FLOPPY_DPRINTF("Floppy disk (%d h %d t %d s) %s\n",
+                               (drv->flags & FDISK_DBL_SIDES) ? 2 : 1,
+                               drv->max_track, drv->last_sect,
+                               drv->ro ? "ro" : "rw");
+            }
         }
     } else {
         FLOPPY_DPRINTF("No drive connected\n");
         drv->last_sect = 0;
         drv->max_track = 0;
         drv->flags &= ~FDISK_DBL_SIDES;
+        drv->drive = FLOPPY_DRIVE_TYPE_NONE;
+        drv->disk = FLOPPY_DRIVE_TYPE_NONE;
     }
 }
 
@@ -2185,6 +2219,7 @@ static void fdctrl_change_cb(void *opaque, bool load)
     drive->media_inserted = load && drive->blk && blk_is_inserted(drive->blk);
 
     drive->media_changed = 1;
+    drive->media_validated = false;
     fd_revalidate(drive);
 }
 
@@ -2221,11 +2256,12 @@ static void fdctrl_connect_drives(FDCtrl *fdctrl, Error **errp)
         }
 
         fd_init(drive);
-        fdctrl_change_cb(drive, 0);
         if (drive->blk) {
             blk_set_dev_ops(drive->blk, &fdctrl_block_ops, drive);
             drive->media_inserted = blk_is_inserted(drive->blk);
+            pick_drive_type(drive);
         }
+        fd_revalidate(drive);
     }
 }
 
