@@ -606,6 +606,11 @@ static void cuda_receive_packet(CUDAState *s,
         }
         break;
     default:
+        obuf[0] = ERROR_PACKET;
+        obuf[1] = 0x2;
+        obuf[2] = CUDA_PACKET;
+        obuf[3] = data[0];
+        cuda_send_packet_to_host(s, obuf, 4);
         break;
     }
 }
