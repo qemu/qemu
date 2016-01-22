@@ -1166,15 +1166,6 @@ static void quorum_start_replication(BlockDriverState *bs, ReplicationMode mode,
     int count = 0, i, index;
     Error *local_err = NULL;
 
-    /*
-     * TODO: support REPLICATION_MODE_SECONDARY if we allow secondary
-     * QEMU becoming primary QEMU.
-     */
-    if (mode != REPLICATION_MODE_PRIMARY) {
-        error_setg(errp, "The replication mode for quorum should be 'primary'");
-        return;
-    }
-
     if (s->read_pattern != QUORUM_READ_PATTERN_FIFO) {
         error_setg(errp, "Block replication needs read pattern 'fifo'");
         return;

@@ -3888,6 +3888,7 @@ void qmp_x_blockdev_change(const char *parent, bool has_child,
         }
         bdrv_add_child(parent_bs, new_bs, errp);
     }
+    bdrv_refresh_filename(parent_bs);
 }
 
 BlockJobInfoList *qmp_query_block_jobs(Error **errp)
