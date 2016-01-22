@@ -60,6 +60,12 @@ typedef enum FDriveRate {
     FDRIVE_RATE_1M   = 0x03,  /*   1 Mbps */
 } FDriveRate;
 
+typedef enum FDriveSize {
+    FDRIVE_SIZE_UNKNOWN,
+    FDRIVE_SIZE_350,
+    FDRIVE_SIZE_525,
+} FDriveSize;
+
 typedef struct FDFormat {
     FloppyDriveType drive;
     uint8_t last_sect;
@@ -68,11 +74,15 @@ typedef struct FDFormat {
     FDriveRate rate;
 } FDFormat;
 
+/* In many cases, the total sector size of a format is enough to uniquely
+ * identify it. However, there are some total sector collisions between
+ * formats of different physical size, and these are noted below by
+ * highlighting the total sector size for entries with collisions. */
 static const FDFormat fd_formats[] = {
     /* First entry is default format */
     /* 1.44 MB 3"1/2 floppy disks */
-    { FLOPPY_DRIVE_TYPE_144, 18, 80, 1, FDRIVE_RATE_500K, },
-    { FLOPPY_DRIVE_TYPE_144, 20, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_144, 18, 80, 1, FDRIVE_RATE_500K, }, /* 3.5" 2880 */
+    { FLOPPY_DRIVE_TYPE_144, 20, 80, 1, FDRIVE_RATE_500K, }, /* 3.5" 3200 */
     { FLOPPY_DRIVE_TYPE_144, 21, 80, 1, FDRIVE_RATE_500K, },
     { FLOPPY_DRIVE_TYPE_144, 21, 82, 1, FDRIVE_RATE_500K, },
     { FLOPPY_DRIVE_TYPE_144, 21, 83, 1, FDRIVE_RATE_500K, },
@@ -86,7 +96,7 @@ static const FDFormat fd_formats[] = {
     { FLOPPY_DRIVE_TYPE_288, 44, 80, 1, FDRIVE_RATE_1M, },
     { FLOPPY_DRIVE_TYPE_288, 48, 80, 1, FDRIVE_RATE_1M, },
     /* 720 kB 3"1/2 floppy disks */
-    { FLOPPY_DRIVE_TYPE_144,  9, 80, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_144,  9, 80, 1, FDRIVE_RATE_250K, }, /* 3.5" 1440 */
     { FLOPPY_DRIVE_TYPE_144, 10, 80, 1, FDRIVE_RATE_250K, },
     { FLOPPY_DRIVE_TYPE_144, 10, 82, 1, FDRIVE_RATE_250K, },
     { FLOPPY_DRIVE_TYPE_144, 10, 83, 1, FDRIVE_RATE_250K, },
@@ -94,15 +104,15 @@ static const FDFormat fd_formats[] = {
     { FLOPPY_DRIVE_TYPE_144, 14, 80, 1, FDRIVE_RATE_250K, },
     /* 1.2 MB 5"1/4 floppy disks */
     { FLOPPY_DRIVE_TYPE_120, 15, 80, 1, FDRIVE_RATE_500K, },
-    { FLOPPY_DRIVE_TYPE_120, 18, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_120, 18, 80, 1, FDRIVE_RATE_500K, }, /* 5.25" 2880 */
     { FLOPPY_DRIVE_TYPE_120, 18, 82, 1, FDRIVE_RATE_500K, },
     { FLOPPY_DRIVE_TYPE_120, 18, 83, 1, FDRIVE_RATE_500K, },
-    { FLOPPY_DRIVE_TYPE_120, 20, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_120, 20, 80, 1, FDRIVE_RATE_500K, }, /* 5.25" 3200 */
     /* 720 kB 5"1/4 floppy disks */
-    { FLOPPY_DRIVE_TYPE_120,  9, 80, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_120,  9, 80, 1, FDRIVE_RATE_250K, }, /* 5.25" 1440 */
     { FLOPPY_DRIVE_TYPE_120, 11, 80, 1, FDRIVE_RATE_250K, },
     /* 360 kB 5"1/4 floppy disks */
-    { FLOPPY_DRIVE_TYPE_120,  9, 40, 1, FDRIVE_RATE_300K, },
+    { FLOPPY_DRIVE_TYPE_120,  9, 40, 1, FDRIVE_RATE_300K, }, /* 5.25" 720 */
     { FLOPPY_DRIVE_TYPE_120,  9, 40, 0, FDRIVE_RATE_300K, },
     { FLOPPY_DRIVE_TYPE_120, 10, 41, 1, FDRIVE_RATE_300K, },
     { FLOPPY_DRIVE_TYPE_120, 10, 42, 1, FDRIVE_RATE_300K, },
@@ -110,10 +120,24 @@ static const FDFormat fd_formats[] = {
     { FLOPPY_DRIVE_TYPE_120,  8, 40, 1, FDRIVE_RATE_250K, },
     { FLOPPY_DRIVE_TYPE_120,  8, 40, 0, FDRIVE_RATE_250K, },
     /* 360 kB must match 5"1/4 better than 3"1/2... */
-    { FLOPPY_DRIVE_TYPE_144,  9, 80, 0, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_144,  9, 80, 0, FDRIVE_RATE_250K, }, /* 3.5" 720 */
     /* end */
     { FLOPPY_DRIVE_TYPE_NONE, -1, -1, 0, 0, },
 };
+
+__attribute__((__unused__))
+static FDriveSize drive_size(FloppyDriveType drive)
+{
+    switch (drive) {
+    case FLOPPY_DRIVE_TYPE_120:
+        return FDRIVE_SIZE_525;
+    case FLOPPY_DRIVE_TYPE_144:
+    case FLOPPY_DRIVE_TYPE_288:
+        return FDRIVE_SIZE_350;
+    default:
+        return FDRIVE_SIZE_UNKNOWN;
+    }
+}
 
 #define GET_CUR_DRV(fdctrl) ((fdctrl)->cur_drv)
 #define SET_CUR_DRV(fdctrl, drive) ((fdctrl)->cur_drv = (drive))
