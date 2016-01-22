@@ -3368,7 +3368,7 @@ static float16 packFloat16(flag zSign, int_fast16_t zExp, uint16_t zSig)
 | Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float32 roundAndPackFloat16(flag zSign, int_fast16_t zExp,
+static float16 roundAndPackFloat16(flag zSign, int_fast16_t zExp,
                                    uint32_t zSig, flag ieee,
                                    float_status *status)
 {
