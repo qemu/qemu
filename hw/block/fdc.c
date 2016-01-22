@@ -61,7 +61,7 @@ typedef enum FDriveRate {
 } FDriveRate;
 
 typedef struct FDFormat {
-    FDriveType drive;
+    FloppyDriveType drive;
     uint8_t last_sect;
     uint8_t max_track;
     uint8_t max_head;
@@ -71,48 +71,48 @@ typedef struct FDFormat {
 static const FDFormat fd_formats[] = {
     /* First entry is default format */
     /* 1.44 MB 3"1/2 floppy disks */
-    { FDRIVE_DRV_144, 18, 80, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_144, 20, 80, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_144, 21, 80, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_144, 21, 82, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_144, 21, 83, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_144, 22, 80, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_144, 23, 80, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_144, 24, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_144, 18, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_144, 20, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_144, 21, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_144, 21, 82, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_144, 21, 83, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_144, 22, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_144, 23, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_144, 24, 80, 1, FDRIVE_RATE_500K, },
     /* 2.88 MB 3"1/2 floppy disks */
-    { FDRIVE_DRV_288, 36, 80, 1, FDRIVE_RATE_1M, },
-    { FDRIVE_DRV_288, 39, 80, 1, FDRIVE_RATE_1M, },
-    { FDRIVE_DRV_288, 40, 80, 1, FDRIVE_RATE_1M, },
-    { FDRIVE_DRV_288, 44, 80, 1, FDRIVE_RATE_1M, },
-    { FDRIVE_DRV_288, 48, 80, 1, FDRIVE_RATE_1M, },
+    { FLOPPY_DRIVE_TYPE_288, 36, 80, 1, FDRIVE_RATE_1M, },
+    { FLOPPY_DRIVE_TYPE_288, 39, 80, 1, FDRIVE_RATE_1M, },
+    { FLOPPY_DRIVE_TYPE_288, 40, 80, 1, FDRIVE_RATE_1M, },
+    { FLOPPY_DRIVE_TYPE_288, 44, 80, 1, FDRIVE_RATE_1M, },
+    { FLOPPY_DRIVE_TYPE_288, 48, 80, 1, FDRIVE_RATE_1M, },
     /* 720 kB 3"1/2 floppy disks */
-    { FDRIVE_DRV_144,  9, 80, 1, FDRIVE_RATE_250K, },
-    { FDRIVE_DRV_144, 10, 80, 1, FDRIVE_RATE_250K, },
-    { FDRIVE_DRV_144, 10, 82, 1, FDRIVE_RATE_250K, },
-    { FDRIVE_DRV_144, 10, 83, 1, FDRIVE_RATE_250K, },
-    { FDRIVE_DRV_144, 13, 80, 1, FDRIVE_RATE_250K, },
-    { FDRIVE_DRV_144, 14, 80, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_144,  9, 80, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_144, 10, 80, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_144, 10, 82, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_144, 10, 83, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_144, 13, 80, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_144, 14, 80, 1, FDRIVE_RATE_250K, },
     /* 1.2 MB 5"1/4 floppy disks */
-    { FDRIVE_DRV_120, 15, 80, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_120, 18, 80, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_120, 18, 82, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_120, 18, 83, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_120, 20, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_120, 15, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_120, 18, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_120, 18, 82, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_120, 18, 83, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_120, 20, 80, 1, FDRIVE_RATE_500K, },
     /* 720 kB 5"1/4 floppy disks */
-    { FDRIVE_DRV_120,  9, 80, 1, FDRIVE_RATE_250K, },
-    { FDRIVE_DRV_120, 11, 80, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_120,  9, 80, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_120, 11, 80, 1, FDRIVE_RATE_250K, },
     /* 360 kB 5"1/4 floppy disks */
-    { FDRIVE_DRV_120,  9, 40, 1, FDRIVE_RATE_300K, },
-    { FDRIVE_DRV_120,  9, 40, 0, FDRIVE_RATE_300K, },
-    { FDRIVE_DRV_120, 10, 41, 1, FDRIVE_RATE_300K, },
-    { FDRIVE_DRV_120, 10, 42, 1, FDRIVE_RATE_300K, },
+    { FLOPPY_DRIVE_TYPE_120,  9, 40, 1, FDRIVE_RATE_300K, },
+    { FLOPPY_DRIVE_TYPE_120,  9, 40, 0, FDRIVE_RATE_300K, },
+    { FLOPPY_DRIVE_TYPE_120, 10, 41, 1, FDRIVE_RATE_300K, },
+    { FLOPPY_DRIVE_TYPE_120, 10, 42, 1, FDRIVE_RATE_300K, },
     /* 320 kB 5"1/4 floppy disks */
-    { FDRIVE_DRV_120,  8, 40, 1, FDRIVE_RATE_250K, },
-    { FDRIVE_DRV_120,  8, 40, 0, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_120,  8, 40, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_120,  8, 40, 0, FDRIVE_RATE_250K, },
     /* 360 kB must match 5"1/4 better than 3"1/2... */
-    { FDRIVE_DRV_144,  9, 80, 0, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_144,  9, 80, 0, FDRIVE_RATE_250K, },
     /* end */
-    { FDRIVE_DRV_NONE, -1, -1, 0, 0, },
+    { FLOPPY_DRIVE_TYPE_NONE, -1, -1, 0, 0, },
 };
 
 #define GET_CUR_DRV(fdctrl) ((fdctrl)->cur_drv)
@@ -134,7 +134,7 @@ typedef struct FDrive {
     FDCtrl *fdctrl;
     BlockBackend *blk;
     /* Drive status */
-    FDriveType drive;
+    FloppyDriveType drive;    /* CMOS drive type        */
     uint8_t perpendicular;    /* 2.88 MB access mode    */
     /* Position */
     uint8_t head;
@@ -155,7 +155,7 @@ typedef struct FDrive {
 static void fd_init(FDrive *drv)
 {
     /* Drive */
-    drv->drive = FDRIVE_DRV_NONE;
+    drv->drive = FLOPPY_DRIVE_TYPE_NONE;
     drv->perpendicular = 0;
     /* Disk */
     drv->last_sect = 0;
@@ -254,11 +254,11 @@ static void pick_geometry(FDrive *drv)
     first_match = -1;
     for (i = 0; ; i++) {
         parse = &fd_formats[i];
-        if (parse->drive == FDRIVE_DRV_NONE) {
+        if (parse->drive == FLOPPY_DRIVE_TYPE_NONE) {
             break;
         }
         if (drv->drive == parse->drive ||
-            drv->drive == FDRIVE_DRV_NONE) {
+            drv->drive == FLOPPY_DRIVE_TYPE_NONE) {
             size = (parse->max_head + 1) * parse->max_track *
                 parse->last_sect;
             if (nb_sectors == size) {
@@ -2397,7 +2397,7 @@ static void sysbus_fdc_common_realize(DeviceState *dev, Error **errp)
     fdctrl_realize_common(fdctrl, errp);
 }
 
-FDriveType isa_fdc_get_drive_type(ISADevice *fdc, int i)
+FloppyDriveType isa_fdc_get_drive_type(ISADevice *fdc, int i)
 {
     FDCtrlISABus *isa = ISA_FDC(fdc);
 
