@@ -1363,7 +1363,7 @@ float128 int32_to_float128(int32_t a, float_status *status)
 float32 int64_to_float32(int64_t a, float_status *status)
 {
     flag zSign;
-    uint64 absA;
+    uint64_t absA;
     int8 shiftCount;
 
     if ( a == 0 ) return float32_zero;
@@ -1414,7 +1414,7 @@ float64 int64_to_float64(int64_t a, float_status *status)
 floatx80 int64_to_floatx80(int64_t a, float_status *status)
 {
     flag zSign;
-    uint64 absA;
+    uint64_t absA;
     int8 shiftCount;
 
     if ( a == 0 ) return packFloatx80( 0, 0, 0 );
@@ -1434,7 +1434,7 @@ floatx80 int64_to_floatx80(int64_t a, float_status *status)
 float128 int64_to_float128(int64_t a, float_status *status)
 {
     flag zSign;
-    uint64 absA;
+    uint64_t absA;
     int8 shiftCount;
     int32 zExp;
     uint64_t zSig0, zSig1;
@@ -1705,7 +1705,7 @@ int64_t float32_to_int64(float32 a, float_status *status)
 | raise the inexact exception flag.
 *----------------------------------------------------------------------------*/
 
-uint64 float32_to_uint64(float32 a, float_status *status)
+uint64_t float32_to_uint64(float32 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
@@ -1750,7 +1750,7 @@ uint64 float32_to_uint64(float32 a, float_status *status)
 | not round to zero will raise the inexact flag.
 *----------------------------------------------------------------------------*/
 
-uint64 float32_to_uint64_round_to_zero(float32 a, float_status *status)
+uint64_t float32_to_uint64_round_to_zero(float32 a, float_status *status)
 {
     signed char current_rounding_mode = status->float_rounding_mode;
     set_float_rounding_mode(float_round_to_zero, status);
