@@ -1,20 +1,17 @@
-# This python script adds a new gdb command, "dump-guest-memory". It
-# should be loaded with "source dump-guest-memory.py" at the (gdb)
-# prompt.
-#
-# Copyright (C) 2013, Red Hat, Inc.
-#
-# Authors:
-#   Laszlo Ersek <lersek@redhat.com>
-#   Janosch Frank <frankja@linux.vnet.ibm.com>
-#
-# This work is licensed under the terms of the GNU GPL, version 2 or later. See
-# the COPYING file in the top-level directory.
-#
-# The leading docstring doesn't have idiomatic Python formatting. It is
-# printed by gdb's "help" command (the first line is printed in the
-# "help data" summary), and it should match how other help texts look in
-# gdb.
+"""
+This python script adds a new gdb command, "dump-guest-memory". It
+should be loaded with "source dump-guest-memory.py" at the (gdb)
+prompt.
+
+Copyright (C) 2013, Red Hat, Inc.
+
+Authors:
+   Laszlo Ersek <lersek@redhat.com>
+   Janosch Frank <frankja@linux.vnet.ibm.com>
+
+This work is licensed under the terms of the GNU GPL, version 2 or later. See
+the COPYING file in the top-level directory.
+"""
 
 import ctypes
 
@@ -431,6 +428,10 @@ def get_guest_phys_blocks():
     return guest_phys_blocks
 
 
+# The leading docstring doesn't have idiomatic Python formatting. It is
+# printed by gdb's "help" command (the first line is printed in the
+# "help data" summary), and it should match how other help texts look in
+# gdb.
 class DumpGuestMemory(gdb.Command):
     """Extract guest vmcore from qemu process coredump.
 
