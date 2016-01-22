@@ -1796,12 +1796,12 @@ static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
 }
 
 static CharDriverState *qemu_chr_open_pp_fd(int fd,
-                                            ChardevBackend *backend,
+                                            ChardevCommon *backend,
                                             Error **errp)
 {
     CharDriverState *chr;
 
-    chr = qemu_chr_alloc(common, errp);
+    chr = qemu_chr_alloc(backend, errp);
     if (!chr) {
         return NULL;
     }
