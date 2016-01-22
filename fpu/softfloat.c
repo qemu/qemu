@@ -198,7 +198,7 @@ static int32 roundAndPackInt32(flag zSign, uint64_t absZ, float_status *status)
 | returned.
 *----------------------------------------------------------------------------*/
 
-static int64 roundAndPackInt64(flag zSign, uint64_t absZ0, uint64_t absZ1,
+static int64_t roundAndPackInt64(flag zSign, uint64_t absZ0, uint64_t absZ1,
                                float_status *status)
 {
     int8 roundingMode;
@@ -255,7 +255,7 @@ static int64 roundAndPackInt64(flag zSign, uint64_t absZ0, uint64_t absZ1,
 | exception is raised and the largest unsigned integer is returned.
 *----------------------------------------------------------------------------*/
 
-static int64 roundAndPackUint64(flag zSign, uint64_t absZ0,
+static int64_t roundAndPackUint64(flag zSign, uint64_t absZ0,
                                 uint64_t absZ1, float_status *status)
 {
     int8 roundingMode;
@@ -784,7 +784,7 @@ static floatx80 roundAndPackFloatx80(int8 roundingPrecision, flag zSign,
 {
     int8 roundingMode;
     flag roundNearestEven, increment, isTiny;
-    int64 roundIncrement, roundMask, roundBits;
+    int64_t roundIncrement, roundMask, roundBits;
 
     roundingMode = status->float_rounding_mode;
     roundNearestEven = ( roundingMode == float_round_nearest_even );
@@ -1666,7 +1666,7 @@ int_fast16_t float32_to_int16_round_to_zero(float32 a, float_status *status)
 | largest integer with the same sign as `a' is returned.
 *----------------------------------------------------------------------------*/
 
-int64 float32_to_int64(float32 a, float_status *status)
+int64_t float32_to_int64(float32 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
@@ -1769,13 +1769,13 @@ uint64 float32_to_uint64_round_to_zero(float32 a, float_status *status)
 | returned.
 *----------------------------------------------------------------------------*/
 
-int64 float32_to_int64_round_to_zero(float32 a, float_status *status)
+int64_t float32_to_int64_round_to_zero(float32 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
     uint32_t aSig;
     uint64_t aSig64;
-    int64 z;
+    int64_t z;
     a = float32_squash_input_denormal(a, status);
 
     aSig = extractFloat32Frac( a );
@@ -3201,7 +3201,7 @@ int_fast16_t float64_to_int16_round_to_zero(float64 a, float_status *status)
 | largest integer with the same sign as `a' is returned.
 *----------------------------------------------------------------------------*/
 
-int64 float64_to_int64(float64 a, float_status *status)
+int64_t float64_to_int64(float64 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
@@ -3244,12 +3244,12 @@ int64 float64_to_int64(float64 a, float_status *status)
 | returned.
 *----------------------------------------------------------------------------*/
 
-int64 float64_to_int64_round_to_zero(float64 a, float_status *status)
+int64_t float64_to_int64_round_to_zero(float64 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
     uint64_t aSig;
-    int64 z;
+    int64_t z;
     a = float64_squash_input_denormal(a, status);
 
     aSig = extractFloat64Frac( a );
@@ -4864,7 +4864,7 @@ int32 floatx80_to_int32_round_to_zero(floatx80 a, float_status *status)
 | overflows, the largest integer with the same sign as `a' is returned.
 *----------------------------------------------------------------------------*/
 
-int64 floatx80_to_int64(floatx80 a, float_status *status)
+int64_t floatx80_to_int64(floatx80 a, float_status *status)
 {
     flag aSign;
     int32 aExp, shiftCount;
@@ -4904,12 +4904,12 @@ int64 floatx80_to_int64(floatx80 a, float_status *status)
 | sign as `a' is returned.
 *----------------------------------------------------------------------------*/
 
-int64 floatx80_to_int64_round_to_zero(floatx80 a, float_status *status)
+int64_t floatx80_to_int64_round_to_zero(floatx80 a, float_status *status)
 {
     flag aSign;
     int32 aExp, shiftCount;
     uint64_t aSig;
-    int64 z;
+    int64_t z;
 
     aSig = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
@@ -5933,7 +5933,7 @@ int32 float128_to_int32_round_to_zero(float128 a, float_status *status)
 | largest integer with the same sign as `a' is returned.
 *----------------------------------------------------------------------------*/
 
-int64 float128_to_int64(float128 a, float_status *status)
+int64_t float128_to_int64(float128 a, float_status *status)
 {
     flag aSign;
     int32 aExp, shiftCount;
@@ -5976,12 +5976,12 @@ int64 float128_to_int64(float128 a, float_status *status)
 | returned.
 *----------------------------------------------------------------------------*/
 
-int64 float128_to_int64_round_to_zero(float128 a, float_status *status)
+int64_t float128_to_int64_round_to_zero(float128 a, float_status *status)
 {
     flag aSign;
     int32 aExp, shiftCount;
     uint64_t aSig0, aSig1;
-    int64 z;
+    int64_t z;
 
     aSig1 = extractFloat128Frac1( a );
     aSig0 = extractFloat128Frac0( a );

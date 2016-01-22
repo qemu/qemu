@@ -1615,7 +1615,7 @@ static inline float16 float16_from_float32(int32 a, flag ieee,
       return a < 0 ? (f_val | (1 << 15)) : f_val;
 }
 
-static inline float32 float32_from_float64(int64 a, float_status *status)
+static inline float32 float32_from_float64(int64_t a, float_status *status)
 {
       float32 f_val;
 
@@ -1722,9 +1722,9 @@ static inline int16_t float32_to_q16(float32 a, float_status *status)
 
 static inline int32 float64_to_q32(float64 a, float_status *status)
 {
-    int64 q_val;
-    int64 q_min = 0xffffffff80000000LL;
-    int64 q_max = 0x000000007fffffffLL;
+    int64_t q_val;
+    int64_t q_min = 0xffffffff80000000LL;
+    int64_t q_max = 0x000000007fffffffLL;
 
     int ieee_ex;
 
@@ -1742,7 +1742,7 @@ static inline int32 float64_to_q32(float64 a, float_status *status)
 
     if (ieee_ex & float_flag_overflow) {
         float_raise(float_flag_inexact, status);
-        return (int64)a < 0 ? q_min : q_max;
+        return (int64_t)a < 0 ? q_min : q_max;
     }
 
     /* conversion to integer */
@@ -1756,7 +1756,7 @@ static inline int32 float64_to_q32(float64 a, float_status *status)
         set_float_exception_flags(ieee_ex & (~float_flag_invalid)
                , status);
         float_raise(float_flag_overflow | float_flag_inexact, status);
-        return (int64)a < 0 ? q_min : q_max;
+        return (int64_t)a < 0 ? q_min : q_max;
     }
 
     if (q_val < q_min) {
