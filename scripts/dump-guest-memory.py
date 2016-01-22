@@ -6,6 +6,7 @@
 #
 # Authors:
 #   Laszlo Ersek <lersek@redhat.com>
+#   Janosch Frank <frankja@linux.vnet.ibm.com>
 #
 # This work is licensed under the terms of the GNU GPL, version 2 or later. See
 # the COPYING file in the top-level directory.
@@ -15,58 +16,303 @@
 # "help data" summary), and it should match how other help texts look in
 # gdb.
 
-import struct
+import ctypes
 
 UINTPTR_T = gdb.lookup_type("uintptr_t")
 
 TARGET_PAGE_SIZE = 0x1000
 TARGET_PAGE_MASK = 0xFFFFFFFFFFFFF000
 
-# Various ELF constants
-EM_X86_64   = 62        # AMD x86-64 target machine
-ELFDATA2LSB = 1         # little endian
-ELFCLASS64  = 2
-ELFMAG      = "\x7FELF"
-EV_CURRENT  = 1
-ET_CORE     = 4
-PT_LOAD     = 1
-PT_NOTE     = 4
-
 # Special value for e_phnum. This indicates that the real number of
 # program headers is too large to fit into e_phnum. Instead the real
 # value is in the field sh_info of section 0.
 PN_XNUM = 0xFFFF
 
-# Format strings for packing and header size calculation.
-ELF64_EHDR = ("4s" # e_ident/magic
-              "B"  # e_ident/class
-              "B"  # e_ident/data
-              "B"  # e_ident/version
-              "B"  # e_ident/osabi
-              "8s" # e_ident/pad
-              "H"  # e_type
-              "H"  # e_machine
-              "I"  # e_version
-              "Q"  # e_entry
-              "Q"  # e_phoff
-              "Q"  # e_shoff
-              "I"  # e_flags
-              "H"  # e_ehsize
-              "H"  # e_phentsize
-              "H"  # e_phnum
-              "H"  # e_shentsize
-              "H"  # e_shnum
-              "H"  # e_shstrndx
-          )
-ELF64_PHDR = ("I"  # p_type
-              "I"  # p_flags
-              "Q"  # p_offset
-              "Q"  # p_vaddr
-              "Q"  # p_paddr
-              "Q"  # p_filesz
-              "Q"  # p_memsz
-              "Q"  # p_align
-          )
+EV_CURRENT = 1
+
+ELFCLASS32 = 1
+ELFCLASS64 = 2
+
+ELFDATA2LSB = 1
+ELFDATA2MSB = 2
+
+ET_CORE = 4
+
+PT_LOAD = 1
+PT_NOTE = 4
+
+EM_386 = 3
+EM_PPC = 20
+EM_PPC64 = 21
+EM_S390 = 22
+EM_AARCH = 183
+EM_X86_64 = 62
+
+class ELF(object):
+    """Representation of a ELF file."""
+
+    def __init__(self, arch):
+        self.ehdr = None
+        self.notes = []
+        self.segments = []
+        self.notes_size = 0
+        self.endianess = None
+        self.elfclass = ELFCLASS64
+
+        if arch == 'aarch64-le':
+            self.endianess = ELFDATA2LSB
+            self.elfclass = ELFCLASS64
+            self.ehdr = get_arch_ehdr(self.endianess, self.elfclass)
+            self.ehdr.e_machine = EM_AARCH
+
+        elif arch == 'aarch64-be':
+            self.endianess = ELFDATA2MSB
+            self.ehdr = get_arch_ehdr(self.endianess, self.elfclass)
+            self.ehdr.e_machine = EM_AARCH
+
+        elif arch == 'X86_64':
+            self.endianess = ELFDATA2LSB
+            self.ehdr = get_arch_ehdr(self.endianess, self.elfclass)
+            self.ehdr.e_machine = EM_X86_64
+
+        elif arch == '386':
+            self.endianess = ELFDATA2LSB
+            self.elfclass = ELFCLASS32
+            self.ehdr = get_arch_ehdr(self.endianess, self.elfclass)
+            self.ehdr.e_machine = EM_386
+
+        elif arch == 's390':
+            self.endianess = ELFDATA2MSB
+            self.ehdr = get_arch_ehdr(self.endianess, self.elfclass)
+            self.ehdr.e_machine = EM_S390
+
+        elif arch == 'ppc64-le':
+            self.endianess = ELFDATA2LSB
+            self.ehdr = get_arch_ehdr(self.endianess, self.elfclass)
+            self.ehdr.e_machine = EM_PPC64
+
+        elif arch == 'ppc64-be':
+            self.endianess = ELFDATA2MSB
+            self.ehdr = get_arch_ehdr(self.endianess, self.elfclass)
+            self.ehdr.e_machine = EM_PPC64
+
+        else:
+            raise gdb.GdbError("No valid arch type specified.\n"
+                               "Currently supported types:\n"
+                               "aarch64-be, aarch64-le, X86_64, 386, s390, "
+                               "ppc64-be, ppc64-le")
+
+        self.add_segment(PT_NOTE, 0, 0)
+
+    def add_note(self, n_name, n_desc, n_type):
+        """Adds a note to the ELF."""
+
+        note = get_arch_note(self.endianess, len(n_name), len(n_desc))
+        note.n_namesz = len(n_name) + 1
+        note.n_descsz = len(n_desc)
+        note.n_name = n_name.encode()
+        note.n_type = n_type
+
+        # Desc needs to be 4 byte aligned (although the 64bit spec
+        # specifies 8 byte). When defining n_desc as uint32 it will be
+        # automatically aligned but we need the memmove to copy the
+        # string into it.
+        ctypes.memmove(note.n_desc, n_desc.encode(), len(n_desc))
+
+        self.notes.append(note)
+        self.segments[0].p_filesz += ctypes.sizeof(note)
+        self.segments[0].p_memsz += ctypes.sizeof(note)
+
+    def add_segment(self, p_type, p_paddr, p_size):
+        """Adds a segment to the elf."""
+
+        phdr = get_arch_phdr(self.endianess, self.elfclass)
+        phdr.p_type = p_type
+        phdr.p_paddr = p_paddr
+        phdr.p_filesz = p_size
+        phdr.p_memsz = p_size
+        self.segments.append(phdr)
+        self.ehdr.e_phnum += 1
+
+    def to_file(self, elf_file):
+        """Writes all ELF structures to the the passed file.
+
+        Structure:
+        Ehdr
+        Segment 0:PT_NOTE
+        Segment 1:PT_LOAD
+        Segment N:PT_LOAD
+        Note    0..N
+        Dump contents
+        """
+        elf_file.write(self.ehdr)
+        off = ctypes.sizeof(self.ehdr) + \
+              len(self.segments) * ctypes.sizeof(self.segments[0])
+
+        for phdr in self.segments:
+            phdr.p_offset = off
+            elf_file.write(phdr)
+            off += phdr.p_filesz
+
+        for note in self.notes:
+            elf_file.write(note)
+
+
+def get_arch_note(endianess, len_name, len_desc):
+    """Returns a Note class with the specified endianess."""
+
+    if endianess == ELFDATA2LSB:
+        superclass = ctypes.LittleEndianStructure
+    else:
+        superclass = ctypes.BigEndianStructure
+
+    len_name = len_name + 1
+
+    class Note(superclass):
+        """Represents an ELF note, includes the content."""
+
+        _fields_ = [("n_namesz", ctypes.c_uint32),
+                    ("n_descsz", ctypes.c_uint32),
+                    ("n_type", ctypes.c_uint32),
+                    ("n_name", ctypes.c_char * len_name),
+                    ("n_desc", ctypes.c_uint32 * ((len_desc + 3) // 4))]
+    return Note()
+
+
+class Ident(ctypes.Structure):
+    """Represents the ELF ident array in the ehdr structure."""
+
+    _fields_ = [('ei_mag0', ctypes.c_ubyte),
+                ('ei_mag1', ctypes.c_ubyte),
+                ('ei_mag2', ctypes.c_ubyte),
+                ('ei_mag3', ctypes.c_ubyte),
+                ('ei_class', ctypes.c_ubyte),
+                ('ei_data', ctypes.c_ubyte),
+                ('ei_version', ctypes.c_ubyte),
+                ('ei_osabi', ctypes.c_ubyte),
+                ('ei_abiversion', ctypes.c_ubyte),
+                ('ei_pad', ctypes.c_ubyte * 7)]
+
+    def __init__(self, endianess, elfclass):
+        self.ei_mag0 = 0x7F
+        self.ei_mag1 = ord('E')
+        self.ei_mag2 = ord('L')
+        self.ei_mag3 = ord('F')
+        self.ei_class = elfclass
+        self.ei_data = endianess
+        self.ei_version = EV_CURRENT
+
+
+def get_arch_ehdr(endianess, elfclass):
+    """Returns a EHDR64 class with the specified endianess."""
+
+    if endianess == ELFDATA2LSB:
+        superclass = ctypes.LittleEndianStructure
+    else:
+        superclass = ctypes.BigEndianStructure
+
+    class EHDR64(superclass):
+        """Represents the 64 bit ELF header struct."""
+
+        _fields_ = [('e_ident', Ident),
+                    ('e_type', ctypes.c_uint16),
+                    ('e_machine', ctypes.c_uint16),
+                    ('e_version', ctypes.c_uint32),
+                    ('e_entry', ctypes.c_uint64),
+                    ('e_phoff', ctypes.c_uint64),
+                    ('e_shoff', ctypes.c_uint64),
+                    ('e_flags', ctypes.c_uint32),
+                    ('e_ehsize', ctypes.c_uint16),
+                    ('e_phentsize', ctypes.c_uint16),
+                    ('e_phnum', ctypes.c_uint16),
+                    ('e_shentsize', ctypes.c_uint16),
+                    ('e_shnum', ctypes.c_uint16),
+                    ('e_shstrndx', ctypes.c_uint16)]
+
+        def __init__(self):
+            super(superclass, self).__init__()
+            self.e_ident = Ident(endianess, elfclass)
+            self.e_type = ET_CORE
+            self.e_version = EV_CURRENT
+            self.e_ehsize = ctypes.sizeof(self)
+            self.e_phoff = ctypes.sizeof(self)
+            self.e_phentsize = ctypes.sizeof(get_arch_phdr(endianess, elfclass))
+            self.e_phnum = 0
+
+
+    class EHDR32(superclass):
+        """Represents the 32 bit ELF header struct."""
+
+        _fields_ = [('e_ident', Ident),
+                    ('e_type', ctypes.c_uint16),
+                    ('e_machine', ctypes.c_uint16),
+                    ('e_version', ctypes.c_uint32),
+                    ('e_entry', ctypes.c_uint32),
+                    ('e_phoff', ctypes.c_uint32),
+                    ('e_shoff', ctypes.c_uint32),
+                    ('e_flags', ctypes.c_uint32),
+                    ('e_ehsize', ctypes.c_uint16),
+                    ('e_phentsize', ctypes.c_uint16),
+                    ('e_phnum', ctypes.c_uint16),
+                    ('e_shentsize', ctypes.c_uint16),
+                    ('e_shnum', ctypes.c_uint16),
+                    ('e_shstrndx', ctypes.c_uint16)]
+
+        def __init__(self):
+            super(superclass, self).__init__()
+            self.e_ident = Ident(endianess, elfclass)
+            self.e_type = ET_CORE
+            self.e_version = EV_CURRENT
+            self.e_ehsize = ctypes.sizeof(self)
+            self.e_phoff = ctypes.sizeof(self)
+            self.e_phentsize = ctypes.sizeof(get_arch_phdr(endianess, elfclass))
+            self.e_phnum = 0
+
+    # End get_arch_ehdr
+    if elfclass == ELFCLASS64:
+        return EHDR64()
+    else:
+        return EHDR32()
+
+
+def get_arch_phdr(endianess, elfclass):
+    """Returns a 32 or 64 bit PHDR class with the specified endianess."""
+
+    if endianess == ELFDATA2LSB:
+        superclass = ctypes.LittleEndianStructure
+    else:
+        superclass = ctypes.BigEndianStructure
+
+    class PHDR64(superclass):
+        """Represents the 64 bit ELF program header struct."""
+
+        _fields_ = [('p_type', ctypes.c_uint32),
+                    ('p_flags', ctypes.c_uint32),
+                    ('p_offset', ctypes.c_uint64),
+                    ('p_vaddr', ctypes.c_uint64),
+                    ('p_paddr', ctypes.c_uint64),
+                    ('p_filesz', ctypes.c_uint64),
+                    ('p_memsz', ctypes.c_uint64),
+                    ('p_align', ctypes.c_uint64)]
+
+    class PHDR32(superclass):
+        """Represents the 32 bit ELF program header struct."""
+
+        _fields_ = [('p_type', ctypes.c_uint32),
+                    ('p_offset', ctypes.c_uint32),
+                    ('p_vaddr', ctypes.c_uint32),
+                    ('p_paddr', ctypes.c_uint32),
+                    ('p_filesz', ctypes.c_uint32),
+                    ('p_memsz', ctypes.c_uint32),
+                    ('p_flags', ctypes.c_uint32),
+                    ('p_align', ctypes.c_uint32)]
+
+    # End get_arch_phdr
+    if elfclass == ELFCLASS64:
+        return PHDR64()
+    else:
+        return PHDR32()
+
 
 def int128_get64(val):
     """Returns low 64bit part of Int128 struct."""
@@ -188,20 +434,22 @@ def get_guest_phys_blocks():
 class DumpGuestMemory(gdb.Command):
     """Extract guest vmcore from qemu process coredump.
 
-The sole argument is FILE, identifying the target file to write the
-guest vmcore to.
+The two required arguments are FILE and ARCH:
+FILE identifies the target file to write the guest vmcore to.
+ARCH specifies the architecture for which the core will be generated.
 
 This GDB command reimplements the dump-guest-memory QMP command in
 python, using the representation of guest memory as captured in the qemu
 coredump. The qemu process that has been dumped must have had the
-command line option "-machine dump-guest-core=on".
+command line option "-machine dump-guest-core=on" which is the default.
 
 For simplicity, the "paging", "begin" and "end" parameters of the QMP
 command are not supported -- no attempt is made to get the guest's
 internal paging structures (ie. paging=false is hard-wired), and guest
 memory is always fully dumped.
 
-Only x86_64 guests are supported.
+Currently aarch64-be, aarch64-le, X86_64, 386, s390, ppc64-be,
+ppc64-le guests are supported.
 
 The CORE/NT_PRSTATUS and QEMU notes (that is, the VCPUs' statuses) are
 not written to the vmcore. Preparing these would require context that is
@@ -219,129 +467,39 @@ shape and this command should mostly work."""
         super(DumpGuestMemory, self).__init__("dump-guest-memory",
                                               gdb.COMMAND_DATA,
                                               gdb.COMPLETE_FILENAME)
-        self.elf64_ehdr_le = struct.Struct("<%s" % ELF64_EHDR)
-        self.elf64_phdr_le = struct.Struct("<%s" % ELF64_PHDR)
+        self.elf = None
         self.guest_phys_blocks = None
 
-    def cpu_get_dump_info(self):
-        # We can't synchronize the registers with KVM post-mortem, and
-        # the bits in (first_x86_cpu->env.hflags) seem to be stale; they
-        # may not reflect long mode for example. Hence just assume the
-        # most common values. This also means that instruction pointer
-        # etc. will be bogus in the dump, but at least the RAM contents
-        # should be valid.
-        self.dump_info = {"d_machine": EM_X86_64,
-                          "d_endian" : ELFDATA2LSB,
-                          "d_class"  : ELFCLASS64}
+    def dump_init(self, vmcore):
+        """Prepares and writes ELF structures to core file."""
 
-    def encode_elf64_ehdr_le(self):
-        return self.elf64_ehdr_le.pack(
-                                 ELFMAG,                      # e_ident/magic
-                                 self.dump_info["d_class"],   # e_ident/class
-                                 self.dump_info["d_endian"],  # e_ident/data
-                                 EV_CURRENT,                  # e_ident/version
-                                 0,                           # e_ident/osabi
-                                 "",                          # e_ident/pad
-                                 ET_CORE,                     # e_type
-                                 self.dump_info["d_machine"], # e_machine
-                                 EV_CURRENT,                  # e_version
-                                 0,                           # e_entry
-                                 self.elf64_ehdr_le.size,     # e_phoff
-                                 0,                           # e_shoff
-                                 0,                           # e_flags
-                                 self.elf64_ehdr_le.size,     # e_ehsize
-                                 self.elf64_phdr_le.size,     # e_phentsize
-                                 self.phdr_num,               # e_phnum
-                                 0,                           # e_shentsize
-                                 0,                           # e_shnum
-                                 0                            # e_shstrndx
-                                )
+        # Needed to make crash happy, data for more useful notes is
+        # not available in a qemu core.
+        self.elf.add_note("NONE", "EMPTY", 0)
 
-    def encode_elf64_note_le(self):
-        return self.elf64_phdr_le.pack(PT_NOTE,              # p_type
-                                       0,                    # p_flags
-                                       (self.memory_offset -
-                                        len(self.note)),     # p_offset
-                                       0,                    # p_vaddr
-                                       0,                    # p_paddr
-                                       len(self.note),       # p_filesz
-                                       len(self.note),       # p_memsz
-                                       0                     # p_align
-                                      )
+        # We should never reach PN_XNUM for paging=false dumps,
+        # there's just a handful of discontiguous ranges after
+        # merging.
+        # The constant is needed to account for the PT_NOTE segment.
+        phdr_num = len(self.guest_phys_blocks) + 1
+        assert phdr_num < PN_XNUM
 
-    def encode_elf64_load_le(self, offset, start_hwaddr, range_size):
-        return self.elf64_phdr_le.pack(PT_LOAD,      # p_type
-                                       0,            # p_flags
-                                       offset,       # p_offset
-                                       0,            # p_vaddr
-                                       start_hwaddr, # p_paddr
-                                       range_size,   # p_filesz
-                                       range_size,   # p_memsz
-                                       0             # p_align
-                                      )
-
-    def note_init(self, name, desc, type):
-        # name must include a trailing NUL
-        namesz = (len(name) + 1 + 3) / 4 * 4
-        descsz = (len(desc)     + 3) / 4 * 4
-        fmt = ("<"   # little endian
-               "I"   # n_namesz
-               "I"   # n_descsz
-               "I"   # n_type
-               "%us" # name
-               "%us" # desc
-               % (namesz, descsz))
-        self.note = struct.pack(fmt,
-                                len(name) + 1, len(desc), type, name, desc)
-
-    def dump_init(self):
-        self.guest_phys_blocks = get_guest_phys_blocks()
-        self.cpu_get_dump_info()
-        # we have no way to retrieve the VCPU status from KVM
-        # post-mortem
-        self.note_init("NONE", "EMPTY", 0)
-
-        # Account for PT_NOTE.
-        self.phdr_num = 1
-
-        # We should never reach PN_XNUM for paging=false dumps: there's
-        # just a handful of discontiguous ranges after merging.
-        self.phdr_num += len(self.guest_phys_blocks)
-        assert self.phdr_num < PN_XNUM
-
-        # Calculate the ELF file offset where the memory dump commences:
-        #
-        #   ELF header
-        #   PT_NOTE
-        #   PT_LOAD: 1
-        #   PT_LOAD: 2
-        #   ...
-        #   PT_LOAD: len(self.guest_phys_blocks)
-        #   ELF note
-        #   memory dump
-        self.memory_offset = (self.elf64_ehdr_le.size +
-                              self.elf64_phdr_le.size * self.phdr_num +
-                              len(self.note))
-
-    def dump_begin(self, vmcore):
-        vmcore.write(self.encode_elf64_ehdr_le())
-        vmcore.write(self.encode_elf64_note_le())
-        running = self.memory_offset
         for block in self.guest_phys_blocks:
-            range_size = block["target_end"] - block["target_start"]
-            vmcore.write(self.encode_elf64_load_le(running,
-                                                   block["target_start"],
-                                                   range_size))
-            running += range_size
-        vmcore.write(self.note)
+            block_size = block["target_end"] - block["target_start"]
+            self.elf.add_segment(PT_LOAD, block["target_start"], block_size)
+
+        self.elf.to_file(vmcore)
 
     def dump_iterate(self, vmcore):
+        """Writes guest core to file."""
+
         qemu_core = gdb.inferiors()[0]
         for block in self.guest_phys_blocks:
             cur = block["host_addr"]
             left = block["target_end"] - block["target_start"]
             print("dumping range at %016x for length %016x" %
                   (cur.cast(UINTPTR_T), left))
+
             while left > 0:
                 chunk_size = min(TARGET_PAGE_SIZE, left)
                 chunk = qemu_core.read_memory(cur, chunk_size)
@@ -349,22 +507,22 @@ shape and this command should mostly work."""
                 cur += chunk_size
                 left -= chunk_size
 
-    def create_vmcore(self, filename):
-        vmcore = open(filename, "wb")
-        self.dump_begin(vmcore)
-        self.dump_iterate(vmcore)
-        vmcore.close()
-
     def invoke(self, args, from_tty):
+        """Handles command invocation from gdb."""
+
         # Unwittingly pressing the Enter key after the command should
         # not dump the same multi-gig coredump to the same file.
         self.dont_repeat()
 
         argv = gdb.string_to_argv(args)
-        if len(argv) != 1:
-            raise gdb.GdbError("usage: dump-guest-memory FILE")
+        if len(argv) != 2:
+            raise gdb.GdbError("usage: dump-guest-memory FILE ARCH")
 
-        self.dump_init()
-        self.create_vmcore(argv[0])
+        self.elf = ELF(argv[1])
+        self.guest_phys_blocks = get_guest_phys_blocks()
+
+        with open(argv[0], "wb") as vmcore:
+            self.dump_init(vmcore)
+            self.dump_iterate(vmcore)
 
 DumpGuestMemory()
