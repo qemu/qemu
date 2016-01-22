@@ -98,15 +98,19 @@ def memory_region_get_ram_ptr(mr):
 
 def get_guest_phys_blocks():
     guest_phys_blocks = []
-    print "guest RAM blocks:"
-    print ("target_start     target_end       host_addr        message "
-           "count")
-    print ("---------------- ---------------- ---------------- ------- "
-           "-----")
+    print("guest RAM blocks:")
+    print("target_start     target_end       host_addr        message "
+          "count")
+    print("---------------- ---------------- ---------------- ------- "
+          "-----")
 
     current_map_p = gdb.parse_and_eval("address_space_memory.current_map")
     current_map = current_map_p.dereference()
-    for cur in range(current_map["nr"]):
+
+    # Conversion to int is needed for python 3
+    # compatibility. Otherwise range doesn't cast the value itself and
+    # breaks.
+    for cur in range(int(current_map["nr"])):
         flat_range   = (current_map["ranges"] + cur).dereference()
         mr           = flat_range["mr"].dereference()
 
@@ -149,9 +153,9 @@ def get_guest_phys_blocks():
             predecessor["target_end"] = target_end
             message = "joined"
 
-        print ("%016x %016x %016x %-7s %5u" %
-               (target_start, target_end, host_addr.cast(UINTPTR_T),
-                message, len(guest_phys_blocks)))
+        print("%016x %016x %016x %-7s %5u" %
+              (target_start, target_end, host_addr.cast(UINTPTR_T),
+               message, len(guest_phys_blocks)))
 
     return guest_phys_blocks
 
@@ -311,8 +315,8 @@ shape and this command should mostly work."""
         for block in self.guest_phys_blocks:
             cur  = block["host_addr"]
             left = block["target_end"] - block["target_start"]
-            print ("dumping range at %016x for length %016x" %
-                   (cur.cast(UINTPTR_T), left))
+            print("dumping range at %016x for length %016x" %
+                  (cur.cast(UINTPTR_T), left))
             while (left > 0):
                 chunk_size = min(TARGET_PAGE_SIZE, left)
                 chunk = qemu_core.read_memory(cur, chunk_size)
