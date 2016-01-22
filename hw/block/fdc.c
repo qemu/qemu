@@ -141,6 +141,7 @@ typedef struct FDrive {
     uint8_t track;
     uint8_t sect;
     /* Media */
+    FloppyDriveType disk;     /* Current disk type      */
     FDiskFlags flags;
     uint8_t last_sect;        /* Nb sector per track    */
     uint8_t max_track;        /* Nb of tracks           */
@@ -158,6 +159,7 @@ static void fd_init(FDrive *drv)
     drv->drive = FLOPPY_DRIVE_TYPE_NONE;
     drv->perpendicular = 0;
     /* Disk */
+    drv->disk = FLOPPY_DRIVE_TYPE_NONE;
     drv->last_sect = 0;
     drv->max_track = 0;
 }
@@ -287,6 +289,7 @@ static void pick_geometry(FDrive *drv)
     drv->max_track = parse->max_track;
     drv->last_sect = parse->last_sect;
     drv->drive = parse->drive;
+    drv->disk = drv->media_inserted ? parse->drive : FLOPPY_DRIVE_TYPE_NONE;
     drv->media_rate = parse->rate;
 }
 
