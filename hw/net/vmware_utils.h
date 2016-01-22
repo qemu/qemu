@@ -49,7 +49,7 @@ vmw_shmem_rw(hwaddr addr, void *buf, int len, int is_write)
 }
 
 static inline void
-vmw_shmem_set(hwaddr addr, uint8 val, int len)
+vmw_shmem_set(hwaddr addr, uint8_t val, int len)
 {
     int i;
     VMW_SHPRN("SHMEM set: %" PRIx64 ", len: %d (value 0x%X)", addr, len, val);

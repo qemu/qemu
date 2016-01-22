@@ -90,16 +90,11 @@ this code that are retained.
 #include "config-host.h"
 #include "qemu/osdep.h"
 
-/*----------------------------------------------------------------------------
-| Each of the following `typedef's defines the most convenient type that holds
-| integers of at least as many bits as specified.  For example, `uint8' should
-| be the most convenient type that can hold unsigned integers of as many as
-| 8 bits.  The `flag' type must be able to hold either a 0 or 1.  For most
-| implementations of C, `flag', `uint8', and `int8' should all be `typedef'ed
-| to the same as `int'.
-*----------------------------------------------------------------------------*/
+/* This 'flag' type must be able to hold at least 0 and 1. It should
+ * probably be replaced with 'bool' but the uses would need to be audited
+ * to check that they weren't accidentally relying on it being a larger type.
+ */
 typedef uint8_t flag;
-typedef uint8_t uint8;
 
 #define LIT64( a ) a##LL
 
