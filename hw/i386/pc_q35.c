@@ -81,11 +81,9 @@ static void pc_q35_init(MachineState *machine)
      * If it doesn't, we need to split it in chunks below and above 4G.
      * In any case, try to make sure that guest addresses aligned at
      * 1G boundaries get mapped to host addresses aligned at 1G boundaries.
-     * For old machine types, use whatever split we used historically to avoid
-     * breaking migration.
      */
     if (machine->ram_size >= 0xb0000000) {
-        lowmem = pcmc->gigabyte_align ? 0x80000000 : 0xb0000000;
+        lowmem = 0x80000000;
     } else {
         lowmem = 0xb0000000;
     }
