@@ -84,7 +84,6 @@ struct MachineClass {
         no_cdrom:1,
         no_sdcard:1,
         has_dynamic_sysbus:1,
-        no_tco:1,
         pci_allow_0_address:1;
     int is_default;
     const char *default_machine_opts;
