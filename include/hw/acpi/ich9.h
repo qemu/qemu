@@ -62,7 +62,6 @@ typedef struct ICH9LPCPMRegs {
 
 void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
                   bool smm_enabled,
-                  bool enable_tco,
                   qemu_irq sci_irq);
 
 void ich9_pm_iospace_update(ICH9LPCPMRegs *pm, uint32_t pm_io_base);

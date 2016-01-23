@@ -225,7 +225,7 @@ static void pc_q35_init(MachineState *machine)
                          (pcms->vmport != ON_OFF_AUTO_ON), 0xff0104);
 
     /* connect pm stuff to lpc */
-    ich9_lpc_pm_init(lpc, pc_machine_is_smm_enabled(pcms), true);
+    ich9_lpc_pm_init(lpc, pc_machine_is_smm_enabled(pcms));
 
     /* ahci and SATA device, for q35 1 ahci controller is built-in */
     ahci = pci_create_simple_multifunction(host_bus,
