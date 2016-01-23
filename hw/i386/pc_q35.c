@@ -116,10 +116,6 @@ static void pc_q35_init(MachineState *machine)
     }
 
     pc_cpus_init(pcms);
-    if (!pcmc->has_acpi_build) {
-        /* only machine types 1.7 & older need this */
-        pc_acpi_init("q35-acpi-dsdt.aml");
-    }
 
     kvmclock_create();
 
