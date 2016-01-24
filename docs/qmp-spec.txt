@@ -180,7 +180,7 @@ Some events are rate-limited to at most one per second.  If additional
 dropped, and the last one is delayed.  "Similar" normally means same
 event type.  See qmp-events.txt for details.
 
-2.5 QGA Synchronization
+2.6 QGA Synchronization
 -----------------------
 
 When using QGA, an additional synchronization feature is built into
