@@ -237,7 +237,7 @@ _filter_nbd()
     # receive callbacks sometimes, making them unreliable.
     #
     # Filter out the TCP port number since this changes between runs.
-    sed -e 's#^.*nbd/.*\.c:.*##g' \
+    sed -e '/nbd\/.*\.c:/d' \
         -e 's#nbd:127\.0\.0\.1:[^:]*:#nbd:127\.0\.0\.1:PORT:#g' \
         -e 's#\(exportname=foo\|PORT\): Failed to .*$#\1#'
 }
