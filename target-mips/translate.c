@@ -21,6 +21,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg-op.h"
@@ -4630,7 +4631,16 @@ static void gen_align(DisasContext *ctx, int opc, int rd, int rs, int rt,
     t0 = tcg_temp_new();
     gen_load_gpr(t0, rt);
     if (bp == 0) {
-        tcg_gen_mov_tl(cpu_gpr[rd], t0);
+        switch (opc) {
+        case OPC_ALIGN:
+            tcg_gen_ext32s_tl(cpu_gpr[rd], t0);
+            break;
+#if defined(TARGET_MIPS64)
+        case OPC_DALIGN:
+            tcg_gen_mov_tl(cpu_gpr[rd], t0);
+            break;
+#endif
+        }
     } else {
         TCGv t1 = tcg_temp_new();
         gen_load_gpr(t1, rs);

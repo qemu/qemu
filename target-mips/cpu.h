@@ -358,7 +358,7 @@ struct CPUMIPSState {
 #define CP0St_IE    0
     int32_t CP0_IntCtl;
 #define CP0IntCtl_IPTI 29
-#define CP0IntCtl_IPPC1 26
+#define CP0IntCtl_IPPCI 26
 #define CP0IntCtl_VS 5
     int32_t CP0_SRSCtl;
 #define CP0SRSCtl_HSS 26
