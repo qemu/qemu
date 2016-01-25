@@ -32,6 +32,7 @@
 #define IPMI_CMD_GET_CHASSIS_CAPABILITIES 0x00
 #define IPMI_CMD_GET_CHASSIS_STATUS       0x01
 #define IPMI_CMD_CHASSIS_CONTROL          0x02
+#define IPMI_CMD_GET_SYS_RESTART_CAUSE    0x09
 
 #define IPMI_NETFN_SENSOR_EVENT       0x04
 
@@ -194,6 +195,8 @@ struct IPMIBmcSim {
     uint8_t fwrev2;
     uint8_t mfg_id[3];
     uint8_t product_id[2];
+
+    uint8_t restart_cause;
 
     IPMISel sel;
     IPMISdr sdr;
@@ -752,6 +755,15 @@ static void chassis_control(IPMIBmcSim *ibs,
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
         return;
     }
+}
+
+static void chassis_get_sys_restart_cause(IPMIBmcSim *ibs,
+                           uint8_t *cmd, unsigned int cmd_len,
+                           uint8_t *rsp, unsigned int *rsp_len,
+                           unsigned int max_rsp_len)
+{
+    IPMI_ADD_RSP_DATA(ibs->restart_cause & 0xf); /* Restart Cause */
+    IPMI_ADD_RSP_DATA(0);  /* Channel 0 */
 }
 
 static void get_device_id(IPMIBmcSim *ibs,
@@ -1570,7 +1582,8 @@ static void get_sensor_type(IPMIBmcSim *ibs,
 static const IPMICmdHandler chassis_cmds[] = {
     [IPMI_CMD_GET_CHASSIS_CAPABILITIES] = chassis_capabilities,
     [IPMI_CMD_GET_CHASSIS_STATUS] = chassis_status,
-    [IPMI_CMD_CHASSIS_CONTROL] = chassis_control
+    [IPMI_CMD_CHASSIS_CONTROL] = chassis_control,
+    [IPMI_CMD_GET_SYS_RESTART_CAUSE] = chassis_get_sys_restart_cause
 };
 static const IPMINetfn chassis_netfn = {
     .cmd_nums = ARRAY_SIZE(chassis_cmds),
@@ -1691,6 +1704,7 @@ static void ipmi_sim_init(Object *obj)
     ibs->bmc_global_enables = (1 << IPMI_BMC_EVENT_LOG_BIT);
     ibs->device_id = 0x20;
     ibs->ipmi_version = 0x02; /* IPMI 2.0 */
+    ibs->restart_cause = 0;
     for (i = 0; i < 4; i++) {
         ibs->sel.last_addition[i] = 0xff;
         ibs->sel.last_clear[i] = 0xff;
