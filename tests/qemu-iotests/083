@@ -49,7 +49,7 @@ wait_for_tcp_port() {
 	done
 }
 
-filter_nbd() {
+_filter_nbd() {
 	# nbd.c error messages contain function names and line numbers that are prone
 	# to change.  Message ordering depends on timing between send and receive
 	# callbacks sometimes, making them unreliable.
@@ -84,7 +84,7 @@ EOF
 
 	$PYTHON nbd-fault-injector.py $extra_args "127.0.0.1:$port" "$TEST_DIR/nbd-fault-injector.conf" 2>&1 >/dev/null &
 	wait_for_tcp_port "127\\.0\\.0\\.1:$port"
-	$QEMU_IO -c "read 0 512" "$nbd_url" 2>&1 | _filter_qemu_io | filter_nbd
+	$QEMU_IO -c "read 0 512" "$nbd_url" 2>&1 | _filter_qemu_io | _filter_nbd
 
 	echo
 }
