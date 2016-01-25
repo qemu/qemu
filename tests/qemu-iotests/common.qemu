@@ -129,6 +129,8 @@ function _send_qemu_cmd()
 # $qemu_comm_method: set this variable to 'monitor' (case insensitive)
 #                    to use the QEMU HMP monitor for communication.
 #                    Otherwise, the default of QMP is used.
+# $keep_stderr: Set this variable to 'y' to keep QEMU's stderr output on stderr.
+#               If this variable is empty, stderr will be redirected to stdout.
 # Returns:
 # $QEMU_HANDLE: set to a handle value to communicate with this QEMU instance.
 #
@@ -151,11 +153,20 @@ function _launch_qemu()
     mkfifo "${fifo_out}"
     mkfifo "${fifo_in}"
 
-    QEMU_NEED_PID='y'\
-    ${QEMU} -nographic -serial none ${comm} -machine accel=qtest "${@}" \
+    if [ -z "$keep_stderr" ]; then
+        QEMU_NEED_PID='y'\
+        ${QEMU} -nographic -serial none ${comm} -machine accel=qtest "${@}" \
                                                                 >"${fifo_out}" \
                                                                 2>&1 \
                                                                 <"${fifo_in}" &
+    elif [ "$keep_stderr" = "y" ]; then
+        QEMU_NEED_PID='y'\
+        ${QEMU} -nographic -serial none ${comm} -machine accel=qtest "${@}" \
+                                                                >"${fifo_out}" \
+                                                                <"${fifo_in}" &
+    else
+        exit 1
+    fi
 
     if [[ "${BASH_VERSINFO[0]}" -ge "5" ||
         ("${BASH_VERSINFO[0]}" -ge "4"  &&  "${BASH_VERSINFO[1]}" -ge "1") ]]
