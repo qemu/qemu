@@ -299,6 +299,9 @@ static void quorum_aio_cb(void *opaque, int ret)
             quorum_copy_qiov(acb->qiov, &acb->qcrs[acb->child_iter].qiov);
         }
         acb->vote_ret = ret;
+        if (ret < 0) {
+            acb->child_iter--;
+        }
         quorum_aio_finalize(acb);
         return;
     }
