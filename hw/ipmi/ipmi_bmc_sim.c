@@ -40,6 +40,8 @@
 #define IPMI_CMD_REARM_SENSOR_EVTS        0x2a
 #define IPMI_CMD_GET_SENSOR_EVT_STATUS    0x2b
 #define IPMI_CMD_GET_SENSOR_READING       0x2d
+#define IPMI_CMD_SET_SENSOR_TYPE          0x2e
+#define IPMI_CMD_GET_SENSOR_TYPE          0x2f
 
 /* #define IPMI_NETFN_APP             0x06 In ipmi.h */
 
@@ -1526,6 +1528,45 @@ static void get_sensor_reading(IPMIBmcSim *ibs,
     }
 }
 
+static void set_sensor_type(IPMIBmcSim *ibs,
+                               uint8_t *cmd, unsigned int cmd_len,
+                               uint8_t *rsp, unsigned int *rsp_len,
+                               unsigned int max_rsp_len)
+{
+    IPMISensor *sens;
+
+
+    IPMI_CHECK_CMD_LEN(5);
+    if ((cmd[2] > MAX_SENSORS) ||
+            !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
+        rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
+        return;
+    }
+    sens = ibs->sensors + cmd[2];
+    sens->sensor_type = cmd[3];
+    sens->evt_reading_type_code = cmd[4] & 0x7f;
+}
+
+static void get_sensor_type(IPMIBmcSim *ibs,
+                               uint8_t *cmd, unsigned int cmd_len,
+                               uint8_t *rsp, unsigned int *rsp_len,
+                               unsigned int max_rsp_len)
+{
+    IPMISensor *sens;
+
+
+    IPMI_CHECK_CMD_LEN(3);
+    if ((cmd[2] > MAX_SENSORS) ||
+            !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
+        rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
+        return;
+    }
+    sens = ibs->sensors + cmd[2];
+    IPMI_ADD_RSP_DATA(sens->sensor_type);
+    IPMI_ADD_RSP_DATA(sens->evt_reading_type_code);
+}
+
+
 static const IPMICmdHandler chassis_cmds[] = {
     [IPMI_CMD_GET_CHASSIS_CAPABILITIES] = chassis_capabilities,
     [IPMI_CMD_GET_CHASSIS_STATUS] = chassis_status,
@@ -1541,7 +1582,9 @@ static const IPMICmdHandler sensor_event_cmds[] = {
     [IPMI_CMD_GET_SENSOR_EVT_ENABLE] = get_sensor_evt_enable,
     [IPMI_CMD_REARM_SENSOR_EVTS] = rearm_sensor_evts,
     [IPMI_CMD_GET_SENSOR_EVT_STATUS] = get_sensor_evt_status,
-    [IPMI_CMD_GET_SENSOR_READING] = get_sensor_reading
+    [IPMI_CMD_GET_SENSOR_READING] = get_sensor_reading,
+    [IPMI_CMD_SET_SENSOR_TYPE] = set_sensor_type,
+    [IPMI_CMD_GET_SENSOR_TYPE] = get_sensor_type,
 };
 static const IPMINetfn sensor_event_netfn = {
     .cmd_nums = ARRAY_SIZE(sensor_event_cmds),
