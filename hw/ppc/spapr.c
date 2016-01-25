@@ -1699,27 +1699,34 @@ static void spapr_create_lmb_dr_connectors(sPAPRMachineState *spapr)
  * to SPAPR_MEMORY_BLOCK_SIZE(256MB), then refuse to start the guest
  * since we can't support such unaligned sizes with DRCONF_MEMORY.
  */
-static void spapr_validate_node_memory(MachineState *machine)
+static void spapr_validate_node_memory(MachineState *machine, Error **errp)
 {
     int i;
 
-    if (machine->maxram_size % SPAPR_MEMORY_BLOCK_SIZE ||
-        machine->ram_size % SPAPR_MEMORY_BLOCK_SIZE) {
-        error_report("Can't support memory configuration where RAM size "
-                     "0x" RAM_ADDR_FMT " or maxmem size "
-                     "0x" RAM_ADDR_FMT " isn't aligned to %llu MB",
-                     machine->ram_size, machine->maxram_size,
-                     SPAPR_MEMORY_BLOCK_SIZE/M_BYTE);
-        exit(EXIT_FAILURE);
+    if (machine->ram_size % SPAPR_MEMORY_BLOCK_SIZE) {
+        error_setg(errp, "Memory size 0x" RAM_ADDR_FMT
+                   " is not aligned to %llu MiB",
+                   machine->ram_size,
+                   SPAPR_MEMORY_BLOCK_SIZE / M_BYTE);
+        return;
+    }
+
+    if (machine->maxram_size % SPAPR_MEMORY_BLOCK_SIZE) {
+        error_setg(errp, "Maximum memory size 0x" RAM_ADDR_FMT
+                   " is not aligned to %llu MiB",
+                   machine->ram_size,
+                   SPAPR_MEMORY_BLOCK_SIZE / M_BYTE);
+        return;
     }
 
     for (i = 0; i < nb_numa_nodes; i++) {
         if (numa_info[i].node_mem % SPAPR_MEMORY_BLOCK_SIZE) {
-            error_report("Can't support memory configuration where memory size"
-                         " %" PRIx64 " of node %d isn't aligned to %llu MB",
-                         numa_info[i].node_mem, i,
-                         SPAPR_MEMORY_BLOCK_SIZE/M_BYTE);
-            exit(EXIT_FAILURE);
+            error_setg(errp,
+                       "Node %d memory size 0x%" PRIx64
+                       " is not aligned to %llu MiB",
+                       i, numa_info[i].node_mem,
+                       SPAPR_MEMORY_BLOCK_SIZE / M_BYTE);
+            return;
         }
     }
 }
@@ -1809,7 +1816,7 @@ static void ppc_spapr_init(MachineState *machine)
                                   XICS_IRQS);
 
     if (smc->dr_lmb_enabled) {
-        spapr_validate_node_memory(machine);
+        spapr_validate_node_memory(machine, &error_fatal);
     }
 
     /* init CPUs */
