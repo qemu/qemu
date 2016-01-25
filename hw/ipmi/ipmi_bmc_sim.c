@@ -356,7 +356,7 @@ static int sdr_find_entry(IPMISdr *sdr, uint16_t recid,
 
     while (pos < sdr->next_free) {
         uint16_t trec = sdr->sdr[pos] | (sdr->sdr[pos + 1] << 8);
-        unsigned int nextpos = pos + sdr->sdr[pos + 4];
+        unsigned int nextpos = pos + sdr->sdr[pos + 4] + 5;
 
         if (trec == recid) {
             if (nextrec) {
@@ -1164,7 +1164,7 @@ static void get_sdr(IPMIBmcSim *ibs,
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
         return;
     }
-    if (cmd[6] > (ibs->sdr.sdr[pos + 4])) {
+    if (cmd[6] > (ibs->sdr.sdr[pos + 4] + 5)) {
         rsp[2] = IPMI_CC_PARM_OUT_OF_RANGE;
         return;
     }
@@ -1173,7 +1173,7 @@ static void get_sdr(IPMIBmcSim *ibs,
     IPMI_ADD_RSP_DATA((nextrec >> 8) & 0xff);
 
     if (cmd[7] == 0xff) {
-        cmd[7] = ibs->sdr.sdr[pos + 4] - cmd[6];
+        cmd[7] = ibs->sdr.sdr[pos + 4] + 5 - cmd[6];
     }
 
     if ((cmd[7] + *rsp_len) > max_rsp_len) {
@@ -1647,17 +1647,17 @@ static void ipmi_sim_init(Object *obj)
             error_report("Problem with recid 0x%4.4x", i);
             return;
         }
-        len = init_sdrs[i + 4];
+        len = init_sdrs[i + 4] + 5;
         recid = init_sdrs[i] | (init_sdrs[i + 1] << 8);
         if (recid == 0xffff) {
             break;
         }
-        if ((i + len + 5) > sizeof(init_sdrs)) {
+        if ((i + len) > sizeof(init_sdrs)) {
             error_report("Problem with recid 0x%4.4x", i);
             return;
         }
         sdr_add_entry(ibs, init_sdrs + i, len, NULL);
-        i += len + 5;
+        i += len;
     }
 
     ipmi_init_sensors_from_sdrs(ibs);
