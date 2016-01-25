@@ -1644,7 +1644,7 @@ static void ipmi_sim_init(Object *obj)
     for (i = 0;;) {
         int len;
         if ((i + 5) > sizeof(init_sdrs)) {
-            error_report("Problem with recid 0x%4.4x: \n", i);
+            error_report("Problem with recid 0x%4.4x", i);
             return;
         }
         len = init_sdrs[i + 4];
@@ -1653,7 +1653,7 @@ static void ipmi_sim_init(Object *obj)
             break;
         }
         if ((i + len + 5) > sizeof(init_sdrs)) {
-            error_report("Problem with recid 0x%4.4x\n", i);
+            error_report("Problem with recid 0x%4.4x", i);
             return;
         }
         sdr_add_entry(ibs, init_sdrs + i, len, NULL);
