@@ -672,4 +672,6 @@ if __name__ == '__main__':
         # We need floppy and IDE CD-ROM
         iotests.notrun('not suitable for this machine type: %s' %
                        iotests.qemu_default_machine)
-    iotests.main()
+    # Need to support image creation
+    iotests.main(supported_fmts=['vpc', 'parallels', 'qcow', 'vdi', 'qcow2',
+                                 'vmdk', 'raw', 'vhdx', 'qed'])
