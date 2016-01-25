@@ -165,6 +165,10 @@ static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
     unsigned long end, page;
     unsigned long **d = ram_list.dirty_memory;
 
+    if (!mask && !xen_enabled()) {
+        return;
+    }
+
     end = TARGET_PAGE_ALIGN(start + length) >> TARGET_PAGE_BITS;
     page = start >> TARGET_PAGE_BITS;
     if (likely(mask & (1 << DIRTY_MEMORY_MIGRATION))) {
