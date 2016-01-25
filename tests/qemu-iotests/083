@@ -49,15 +49,16 @@ wait_for_tcp_port() {
 	done
 }
 
-_filter_nbd() {
-	# nbd.c error messages contain function names and line numbers that are prone
-	# to change.  Message ordering depends on timing between send and receive
-	# callbacks sometimes, making them unreliable.
-	#
-	# Filter out the TCP port number since this changes between runs.
-	sed -e 's#^.*nbd/.*\.c:.*##g' \
-	    -e 's#nbd:127\.0\.0\.1:[^:]*:#nbd:127\.0\.0\.1:PORT:#g' \
-            -e 's#\(exportname=foo\|PORT\): Failed to .*$#\1#'
+_filter_nbd()
+{
+    # nbd.c error messages contain function names and line numbers that are
+    # prone to change.  Message ordering depends on timing between send and
+    # receive callbacks sometimes, making them unreliable.
+    #
+    # Filter out the TCP port number since this changes between runs.
+    sed -e 's#^.*nbd/.*\.c:.*##g' \
+        -e 's#nbd:127\.0\.0\.1:[^:]*:#nbd:127\.0\.0\.1:PORT:#g' \
+        -e 's#\(exportname=foo\|PORT\): Failed to .*$#\1#'
 }
 
 check_disconnect() {
