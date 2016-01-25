@@ -28,14 +28,12 @@
 #include "qemu/error-report.h"
 
 #define IPMI_NETFN_CHASSIS            0x00
-#define IPMI_NETFN_CHASSIS_MAXCMD         0x03
 
 #define IPMI_CMD_GET_CHASSIS_CAPABILITIES 0x00
 #define IPMI_CMD_GET_CHASSIS_STATUS       0x01
 #define IPMI_CMD_CHASSIS_CONTROL          0x02
 
 #define IPMI_NETFN_SENSOR_EVENT       0x04
-#define IPMI_NETFN_SENSOR_EVENT_MAXCMD    0x2e
 
 #define IPMI_CMD_SET_SENSOR_EVT_ENABLE    0x28
 #define IPMI_CMD_GET_SENSOR_EVT_ENABLE    0x29
@@ -44,7 +42,6 @@
 #define IPMI_CMD_GET_SENSOR_READING       0x2d
 
 /* #define IPMI_NETFN_APP             0x06 In ipmi.h */
-#define IPMI_NETFN_APP_MAXCMD             0x36
 
 #define IPMI_CMD_GET_DEVICE_ID            0x01
 #define IPMI_CMD_COLD_RESET               0x02
@@ -61,7 +58,6 @@
 #define IPMI_CMD_READ_EVT_MSG_BUF         0x35
 
 #define IPMI_NETFN_STORAGE            0x0a
-#define IPMI_NETFN_STORAGE_MAXCMD         0x4a
 
 #define IPMI_CMD_GET_SDR_REP_INFO         0x20
 #define IPMI_CMD_GET_SDR_REP_ALLOC_INFO   0x21
@@ -1516,18 +1512,17 @@ static void get_sensor_reading(IPMIBmcSim *ibs,
     }
 }
 
-static const IPMICmdHandler chassis_cmds[IPMI_NETFN_CHASSIS_MAXCMD] = {
+static const IPMICmdHandler chassis_cmds[] = {
     [IPMI_CMD_GET_CHASSIS_CAPABILITIES] = chassis_capabilities,
     [IPMI_CMD_GET_CHASSIS_STATUS] = chassis_status,
     [IPMI_CMD_CHASSIS_CONTROL] = chassis_control
 };
 static const IPMINetfn chassis_netfn = {
-    .cmd_nums = IPMI_NETFN_CHASSIS_MAXCMD,
+    .cmd_nums = ARRAY_SIZE(chassis_cmds),
     .cmd_handlers = chassis_cmds
 };
 
-static const IPMICmdHandler
-sensor_event_cmds[IPMI_NETFN_SENSOR_EVENT_MAXCMD] = {
+static const IPMICmdHandler sensor_event_cmds[] = {
     [IPMI_CMD_SET_SENSOR_EVT_ENABLE] = set_sensor_evt_enable,
     [IPMI_CMD_GET_SENSOR_EVT_ENABLE] = get_sensor_evt_enable,
     [IPMI_CMD_REARM_SENSOR_EVTS] = rearm_sensor_evts,
@@ -1535,11 +1530,11 @@ sensor_event_cmds[IPMI_NETFN_SENSOR_EVENT_MAXCMD] = {
     [IPMI_CMD_GET_SENSOR_READING] = get_sensor_reading
 };
 static const IPMINetfn sensor_event_netfn = {
-    .cmd_nums = IPMI_NETFN_SENSOR_EVENT_MAXCMD,
+    .cmd_nums = ARRAY_SIZE(sensor_event_cmds),
     .cmd_handlers = sensor_event_cmds
 };
 
-static const IPMICmdHandler app_cmds[IPMI_NETFN_APP_MAXCMD] = {
+static const IPMICmdHandler app_cmds[] = {
     [IPMI_CMD_GET_DEVICE_ID] = get_device_id,
     [IPMI_CMD_COLD_RESET] = cold_reset,
     [IPMI_CMD_WARM_RESET] = warm_reset,
@@ -1555,11 +1550,11 @@ static const IPMICmdHandler app_cmds[IPMI_NETFN_APP_MAXCMD] = {
     [IPMI_CMD_GET_WATCHDOG_TIMER] = get_watchdog_timer,
 };
 static const IPMINetfn app_netfn = {
-    .cmd_nums = IPMI_NETFN_APP_MAXCMD,
+    .cmd_nums = ARRAY_SIZE(app_cmds),
     .cmd_handlers = app_cmds
 };
 
-static const IPMICmdHandler storage_cmds[IPMI_NETFN_STORAGE_MAXCMD] = {
+static const IPMICmdHandler storage_cmds[] = {
     [IPMI_CMD_GET_SDR_REP_INFO] = get_sdr_rep_info,
     [IPMI_CMD_RESERVE_SDR_REP] = reserve_sdr_rep,
     [IPMI_CMD_GET_SDR] = get_sdr,
@@ -1575,7 +1570,7 @@ static const IPMICmdHandler storage_cmds[IPMI_NETFN_STORAGE_MAXCMD] = {
 };
 
 static const IPMINetfn storage_netfn = {
-    .cmd_nums = IPMI_NETFN_STORAGE_MAXCMD,
+    .cmd_nums = ARRAY_SIZE(storage_cmds),
     .cmd_handlers = storage_cmds
 };
 
