@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 #include "hw/ipmi/ipmi.h"
 #include "qemu/error-report.h"
@@ -49,6 +50,9 @@
 #define IPMI_CMD_GET_DEVICE_ID            0x01
 #define IPMI_CMD_COLD_RESET               0x02
 #define IPMI_CMD_WARM_RESET               0x03
+#define IPMI_CMD_SET_ACPI_POWER_STATE     0x06
+#define IPMI_CMD_GET_ACPI_POWER_STATE     0x07
+#define IPMI_CMD_GET_DEVICE_GUID          0x08
 #define IPMI_CMD_RESET_WATCHDOG_TIMER     0x22
 #define IPMI_CMD_SET_WATCHDOG_TIMER       0x24
 #define IPMI_CMD_GET_WATCHDOG_TIMER       0x25
@@ -197,6 +201,9 @@ struct IPMIBmcSim {
     uint8_t product_id[2];
 
     uint8_t restart_cause;
+
+    uint8_t acpi_power_state[2];
+    uint8_t uuid[16];
 
     IPMISel sel;
     IPMISdr sdr;
@@ -824,6 +831,36 @@ static void warm_reset(IPMIBmcSim *ibs,
 
     if (k->reset) {
         k->reset(s, false);
+    }
+}
+static void set_acpi_power_state(IPMIBmcSim *ibs,
+                          uint8_t *cmd, unsigned int cmd_len,
+                          uint8_t *rsp, unsigned int *rsp_len,
+                          unsigned int max_rsp_len)
+{
+    IPMI_CHECK_CMD_LEN(4);
+    ibs->acpi_power_state[0] = cmd[2];
+    ibs->acpi_power_state[1] = cmd[3];
+}
+
+static void get_acpi_power_state(IPMIBmcSim *ibs,
+                          uint8_t *cmd, unsigned int cmd_len,
+                          uint8_t *rsp, unsigned int *rsp_len,
+                          unsigned int max_rsp_len)
+{
+    IPMI_ADD_RSP_DATA(ibs->acpi_power_state[0]);
+    IPMI_ADD_RSP_DATA(ibs->acpi_power_state[1]);
+}
+
+static void get_device_guid(IPMIBmcSim *ibs,
+                          uint8_t *cmd, unsigned int cmd_len,
+                          uint8_t *rsp, unsigned int *rsp_len,
+                          unsigned int max_rsp_len)
+{
+    unsigned int i;
+
+    for (i = 0; i < 16; i++) {
+        IPMI_ADD_RSP_DATA(ibs->uuid[i]);
     }
 }
 
@@ -1608,6 +1645,9 @@ static const IPMICmdHandler app_cmds[] = {
     [IPMI_CMD_GET_DEVICE_ID] = get_device_id,
     [IPMI_CMD_COLD_RESET] = cold_reset,
     [IPMI_CMD_WARM_RESET] = warm_reset,
+    [IPMI_CMD_SET_ACPI_POWER_STATE] = set_acpi_power_state,
+    [IPMI_CMD_GET_ACPI_POWER_STATE] = get_acpi_power_state,
+    [IPMI_CMD_GET_DEVICE_GUID] = get_device_guid,
     [IPMI_CMD_SET_BMC_GLOBAL_ENABLES] = set_bmc_global_enables,
     [IPMI_CMD_GET_BMC_GLOBAL_ENABLES] = get_bmc_global_enables,
     [IPMI_CMD_CLR_MSG_FLAGS] = clr_msg_flags,
@@ -1731,6 +1771,15 @@ static void ipmi_sim_init(Object *obj)
         }
         sdr_add_entry(ibs, sdrh, len, NULL);
         i += len;
+    }
+
+    ibs->acpi_power_state[0] = 0;
+    ibs->acpi_power_state[1] = 0;
+
+    if (qemu_uuid_set) {
+        memcpy(&ibs->uuid, qemu_uuid, 16);
+    } else {
+        memset(&ibs->uuid, 0, 16);
     }
 
     ipmi_init_sensors_from_sdrs(ibs);
