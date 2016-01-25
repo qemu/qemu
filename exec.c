@@ -980,8 +980,9 @@ bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
                                               ram_addr_t length,
                                               unsigned client)
 {
+    DirtyMemoryBlocks *blocks;
     unsigned long end, page;
-    bool dirty;
+    bool dirty = false;
 
     if (length == 0) {
         return false;
@@ -989,8 +990,22 @@ bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
 
     end = TARGET_PAGE_ALIGN(start + length) >> TARGET_PAGE_BITS;
     page = start >> TARGET_PAGE_BITS;
-    dirty = bitmap_test_and_clear_atomic(ram_list.dirty_memory[client],
-                                         page, end - page);
+
+    rcu_read_lock();
+
+    blocks = atomic_rcu_read(&ram_list.dirty_memory[client]);
+
+    while (page < end) {
+        unsigned long idx = page / DIRTY_MEMORY_BLOCK_SIZE;
+        unsigned long offset = page % DIRTY_MEMORY_BLOCK_SIZE;
+        unsigned long num = MIN(end - page, DIRTY_MEMORY_BLOCK_SIZE - offset);
+
+        dirty |= bitmap_test_and_clear_atomic(blocks->blocks[idx],
+                                              offset, num);
+        page += num;
+    }
+
+    rcu_read_unlock();
 
     if (dirty && tcg_enabled()) {
         tlb_reset_dirty_range_all(start, length);
@@ -1504,6 +1519,47 @@ int qemu_ram_resize(ram_addr_t base, ram_addr_t newsize, Error **errp)
     return 0;
 }
 
+/* Called with ram_list.mutex held */
+static void dirty_memory_extend(ram_addr_t old_ram_size,
+                                ram_addr_t new_ram_size)
+{
+    ram_addr_t old_num_blocks = DIV_ROUND_UP(old_ram_size,
+                                             DIRTY_MEMORY_BLOCK_SIZE);
+    ram_addr_t new_num_blocks = DIV_ROUND_UP(new_ram_size,
+                                             DIRTY_MEMORY_BLOCK_SIZE);
+    int i;
+
+    /* Only need to extend if block count increased */
+    if (new_num_blocks <= old_num_blocks) {
+        return;
+    }
+
+    for (i = 0; i < DIRTY_MEMORY_NUM; i++) {
+        DirtyMemoryBlocks *old_blocks;
+        DirtyMemoryBlocks *new_blocks;
+        int j;
+
+        old_blocks = atomic_rcu_read(&ram_list.dirty_memory[i]);
+        new_blocks = g_malloc(sizeof(*new_blocks) +
+                              sizeof(new_blocks->blocks[0]) * new_num_blocks);
+
+        if (old_num_blocks) {
+            memcpy(new_blocks->blocks, old_blocks->blocks,
+                   old_num_blocks * sizeof(old_blocks->blocks[0]));
+        }
+
+        for (j = old_num_blocks; j < new_num_blocks; j++) {
+            new_blocks->blocks[j] = bitmap_new(DIRTY_MEMORY_BLOCK_SIZE);
+        }
+
+        atomic_rcu_set(&ram_list.dirty_memory[i], new_blocks);
+
+        if (old_blocks) {
+            g_free_rcu(old_blocks, rcu);
+        }
+    }
+}
+
 static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
 {
     RAMBlock *block;
@@ -1543,6 +1599,7 @@ static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
               (new_block->offset + new_block->max_length) >> TARGET_PAGE_BITS);
     if (new_ram_size > old_ram_size) {
         migration_bitmap_extend(old_ram_size, new_ram_size);
+        dirty_memory_extend(old_ram_size, new_ram_size);
     }
     /* Keep the list sorted from biggest to smallest block.  Unlike QTAILQ,
      * QLIST (which has an RCU-friendly variant) does not have insertion at
@@ -1568,18 +1625,6 @@ static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
     ram_list.version++;
     qemu_mutex_unlock_ramlist();
 
-    new_ram_size = last_ram_offset() >> TARGET_PAGE_BITS;
-
-    if (new_ram_size > old_ram_size) {
-        int i;
-
-        /* ram_list.dirty_memory[] is protected by the iothread lock.  */
-        for (i = 0; i < DIRTY_MEMORY_NUM; i++) {
-            ram_list.dirty_memory[i] =
-                bitmap_zero_extend(ram_list.dirty_memory[i],
-                                   old_ram_size, new_ram_size);
-       }
-    }
     cpu_physical_memory_set_dirty_range(new_block->offset,
                                         new_block->used_length,
                                         DIRTY_CLIENTS_ALL);
