@@ -318,14 +318,18 @@ static void sdr_inc_reservation(IPMISdr *sdr)
     }
 }
 
-static int sdr_add_entry(IPMIBmcSim *ibs, const uint8_t *entry,
+static int sdr_add_entry(IPMIBmcSim *ibs,
+                         const struct ipmi_sdr_header *sdrh_entry,
                          unsigned int len, uint16_t *recid)
 {
-    if ((len < 5) || (len > 255)) {
+    struct ipmi_sdr_header *sdrh =
+        (struct ipmi_sdr_header *) &ibs->sdr.sdr[ibs->sdr.next_free];
+
+    if ((len < IPMI_SDR_HEADER_SIZE) || (len > 255)) {
         return 1;
     }
 
-    if (entry[4] != len - 5) {
+    if (ipmi_sdr_length(sdrh_entry) != len) {
         return 1;
     }
 
@@ -334,10 +338,10 @@ static int sdr_add_entry(IPMIBmcSim *ibs, const uint8_t *entry,
         return 1;
     }
 
-    memcpy(ibs->sdr.sdr + ibs->sdr.next_free, entry, len);
-    ibs->sdr.sdr[ibs->sdr.next_free] = ibs->sdr.next_rec_id & 0xff;
-    ibs->sdr.sdr[ibs->sdr.next_free+1] = (ibs->sdr.next_rec_id >> 8) & 0xff;
-    ibs->sdr.sdr[ibs->sdr.next_free+2] = 0x51; /* Conform to IPMI 1.5 spec */
+    memcpy(sdrh, sdrh_entry, len);
+    sdrh->rec_id[0] = ibs->sdr.next_rec_id & 0xff;
+    sdrh->rec_id[1] = (ibs->sdr.next_rec_id >> 8) & 0xff;
+    sdrh->sdr_version = 0x51; /* Conform to IPMI 1.5 spec */
 
     if (recid) {
         *recid = ibs->sdr.next_rec_id;
@@ -355,8 +359,10 @@ static int sdr_find_entry(IPMISdr *sdr, uint16_t recid,
     unsigned int pos = *retpos;
 
     while (pos < sdr->next_free) {
-        uint16_t trec = sdr->sdr[pos] | (sdr->sdr[pos + 1] << 8);
-        unsigned int nextpos = pos + sdr->sdr[pos + 4] + 5;
+        struct ipmi_sdr_header *sdrh =
+            (struct ipmi_sdr_header *) &sdr->sdr[pos];
+        uint16_t trec = ipmi_sdr_recid(sdrh);
+        unsigned int nextpos = pos + ipmi_sdr_length(sdrh);
 
         if (trec == recid) {
             if (nextrec) {
@@ -505,29 +511,32 @@ static void ipmi_init_sensors_from_sdrs(IPMIBmcSim *s)
 
     pos = 0;
     for (i = 0; !sdr_find_entry(&s->sdr, i, &pos, NULL); i++) {
-        uint8_t *sdr = s->sdr.sdr + pos;
-        unsigned int len = sdr[4];
+        struct ipmi_sdr_compact *sdr =
+            (struct ipmi_sdr_compact *) &s->sdr.sdr[pos];
+        unsigned int len = sdr->header.rec_length;
 
         if (len < 20) {
             continue;
         }
-        if ((sdr[3] < 1) || (sdr[3] > 2)) {
+        if (sdr->header.rec_type != IPMI_SDR_COMPACT_TYPE) {
             continue; /* Not a sensor SDR we set from */
         }
 
-        if (sdr[7] > MAX_SENSORS) {
+        if (sdr->sensor_owner_number > MAX_SENSORS) {
             continue;
         }
-        sens = s->sensors + sdr[7];
+        sens = s->sensors + sdr->sensor_owner_number;
 
         IPMI_SENSOR_SET_PRESENT(sens, 1);
-        IPMI_SENSOR_SET_SCAN_ON(sens, (sdr[10] >> 6) & 1);
-        IPMI_SENSOR_SET_EVENTS_ON(sens, (sdr[10] >> 5) & 1);
-        sens->assert_suppt = sdr[14] | (sdr[15] << 8);
-        sens->deassert_suppt = sdr[16] | (sdr[17] << 8);
-        sens->states_suppt = sdr[18] | (sdr[19] << 8);
-        sens->sensor_type = sdr[12];
-        sens->evt_reading_type_code = sdr[13] & 0x7f;
+        IPMI_SENSOR_SET_SCAN_ON(sens, (sdr->sensor_init >> 6) & 1);
+        IPMI_SENSOR_SET_EVENTS_ON(sens, (sdr->sensor_init >> 5) & 1);
+        sens->assert_suppt = sdr->assert_mask[0] | (sdr->assert_mask[1] << 8);
+        sens->deassert_suppt =
+            sdr->deassert_mask[0] | (sdr->deassert_mask[1] << 8);
+        sens->states_suppt =
+            sdr->discrete_mask[0] | (sdr->discrete_mask[1] << 8);
+        sens->sensor_type = sdr->sensor_type;
+        sens->evt_reading_type_code = sdr->reading_type & 0x7f;
 
         /* Enable all the events that are supported. */
         sens->assert_enable = sens->assert_suppt;
@@ -1153,6 +1162,7 @@ static void get_sdr(IPMIBmcSim *ibs,
 {
     unsigned int pos;
     uint16_t nextrec;
+    struct ipmi_sdr_header *sdrh;
 
     IPMI_CHECK_CMD_LEN(8);
     if (cmd[6]) {
@@ -1164,7 +1174,10 @@ static void get_sdr(IPMIBmcSim *ibs,
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
         return;
     }
-    if (cmd[6] > (ibs->sdr.sdr[pos + 4] + 5)) {
+
+    sdrh = (struct ipmi_sdr_header *) &ibs->sdr.sdr[pos];
+
+    if (cmd[6] > ipmi_sdr_length(sdrh)) {
         rsp[2] = IPMI_CC_PARM_OUT_OF_RANGE;
         return;
     }
@@ -1173,7 +1186,7 @@ static void get_sdr(IPMIBmcSim *ibs,
     IPMI_ADD_RSP_DATA((nextrec >> 8) & 0xff);
 
     if (cmd[7] == 0xff) {
-        cmd[7] = ibs->sdr.sdr[pos + 4] + 5 - cmd[6];
+        cmd[7] = ipmi_sdr_length(sdrh) - cmd[6];
     }
 
     if ((cmd[7] + *rsp_len) > max_rsp_len) {
@@ -1190,8 +1203,9 @@ static void add_sdr(IPMIBmcSim *ibs,
                     unsigned int max_rsp_len)
 {
     uint16_t recid;
+    struct ipmi_sdr_header *sdrh = (struct ipmi_sdr_header *) cmd + 2;
 
-    if (sdr_add_entry(ibs, cmd + 2, cmd_len - 2, &recid)) {
+    if (sdr_add_entry(ibs, sdrh, cmd_len - 2, &recid)) {
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
         return;
     }
@@ -1642,13 +1656,15 @@ static void ipmi_sim_init(Object *obj)
     }
 
     for (i = 0;;) {
+        struct ipmi_sdr_header *sdrh;
         int len;
-        if ((i + 5) > sizeof(init_sdrs)) {
+        if ((i + IPMI_SDR_HEADER_SIZE) > sizeof(init_sdrs)) {
             error_report("Problem with recid 0x%4.4x", i);
             return;
         }
-        len = init_sdrs[i + 4] + 5;
-        recid = init_sdrs[i] | (init_sdrs[i + 1] << 8);
+        sdrh = (struct ipmi_sdr_header *) &init_sdrs[i];
+        len = ipmi_sdr_length(sdrh);
+        recid = ipmi_sdr_recid(sdrh);
         if (recid == 0xffff) {
             break;
         }
@@ -1656,7 +1672,7 @@ static void ipmi_sim_init(Object *obj)
             error_report("Problem with recid 0x%4.4x", i);
             return;
         }
-        sdr_add_entry(ibs, init_sdrs + i, len, NULL);
+        sdr_add_entry(ibs, sdrh, len, NULL);
         i += len;
     }
 

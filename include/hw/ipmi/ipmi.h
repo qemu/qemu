@@ -210,4 +210,49 @@ IPMIFwInfo *ipmi_next_fwinfo(IPMIFwInfo *current);
 #define ipmi_debug(fs, ...)
 #endif
 
+struct ipmi_sdr_header {
+    uint8_t  rec_id[2];
+    uint8_t  sdr_version;               /* 0x51 */
+    uint8_t  rec_type;
+    uint8_t  rec_length;
+};
+#define IPMI_SDR_HEADER_SIZE     sizeof(struct ipmi_sdr_header)
+
+#define ipmi_sdr_recid(sdr) ((sdr)->rec_id[0] | ((sdr)->rec_id[1] << 8))
+#define ipmi_sdr_length(sdr) ((sdr)->rec_length + IPMI_SDR_HEADER_SIZE)
+
+/*
+ * 43.2 SDR Type 02h. Compact Sensor Record
+ */
+#define IPMI_SDR_COMPACT_TYPE    2
+
+struct ipmi_sdr_compact {
+    struct ipmi_sdr_header header;
+
+    uint8_t  sensor_owner_id;
+    uint8_t  sensor_owner_lun;
+    uint8_t  sensor_owner_number;       /* byte 8 */
+    uint8_t  entity_id;
+    uint8_t  entity_instance;
+    uint8_t  sensor_init;
+    uint8_t  sensor_caps;
+    uint8_t  sensor_type;
+    uint8_t  reading_type;
+    uint8_t  assert_mask[2];            /* byte 16 */
+    uint8_t  deassert_mask[2];
+    uint8_t  discrete_mask[2];
+    uint8_t  sensor_unit1;
+    uint8_t  sensor_unit2;
+    uint8_t  sensor_unit3;
+    uint8_t  sensor_direction[2];       /* byte 24 */
+    uint8_t  positive_threshold;
+    uint8_t  negative_threshold;
+    uint8_t  reserved[3];
+    uint8_t  oem;
+    uint8_t  id_str_len;                /* byte 32 */
+    uint8_t  id_string[16];
+};
+
+typedef uint8_t ipmi_sdr_compact_buffer[sizeof(struct ipmi_sdr_compact)];
+
 #endif
