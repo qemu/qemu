@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include <sys/ioctl.h>
 #include "exec/address-spaces.h"
 #include "hw/hw.h"

@@ -10,6 +10,7 @@
  * directory.
  */
 
+#include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "hw/sysbus.h"
 #include "migration/qemu-file.h"
