@@ -52,6 +52,7 @@
  *         - Set entry->pirq to '-1'.
  */
 
+#include "qemu/osdep.h"
 #include <sys/ioctl.h>
 
 #include "hw/pci/pci.h"

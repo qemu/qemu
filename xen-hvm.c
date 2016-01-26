@@ -8,6 +8,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include "qemu/osdep.h"
 #include <sys/mman.h>
 
 #include "hw/pci/pci.h"

@@ -24,16 +24,8 @@
  *  with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdarg.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <fcntl.h>
-#include <unistd.h>
+#include "qemu/osdep.h"
 #include <sys/mman.h>
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
 
 #include "hw/hw.h"
 #include "ui/console.h"

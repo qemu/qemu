@@ -9,6 +9,7 @@
  * This file implements direct PCI assignment to a HVM guest
  */
 
+#include "qemu/osdep.h"
 #include <sys/mman.h>
 
 #include "hw/xen/xen_backend.h"

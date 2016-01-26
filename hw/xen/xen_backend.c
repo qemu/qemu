@@ -22,15 +22,7 @@
  * TODO: add some xenbus / xenstore concepts overview here.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <inttypes.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include "qemu/osdep.h"
 #include <sys/mman.h>
 #include <sys/signal.h>
 

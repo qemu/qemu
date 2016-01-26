@@ -1,4 +1,4 @@
-#include <signal.h>
+#include "qemu/osdep.h"
 #include "hw/xen/xen_backend.h"
 #include "xen_domainbuild.h"
 #include "qemu/timer.h"

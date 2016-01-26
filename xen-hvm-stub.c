@@ -8,6 +8,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "hw/xen/xen.h"
 #include "exec/memory.h"
