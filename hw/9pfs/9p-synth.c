@@ -12,6 +12,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/virtio/virtio.h"
 #include "9p.h"
 #include "9p-xattr.h"
@@ -19,7 +20,6 @@
 #include "9p-synth.h"
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
-#include <sys/stat.h>
 
 /* Root node for synth file system */
 static V9fsSynthNode v9fs_synth_root = {

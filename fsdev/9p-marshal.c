@@ -11,18 +11,13 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include <glib.h>
 #include <glib/gprintf.h>
-#include <sys/types.h>
 #include <dirent.h>
-#include <sys/time.h>
 #include <utime.h>
 #include <sys/uio.h>
-#include <string.h>
-#include <stdint.h>
-#include <errno.h>
 
-#include "qemu/compiler.h"
 #include "9p-marshal.h"
 
 void v9fs_string_free(V9fsString *str)

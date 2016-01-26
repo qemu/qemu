@@ -9,6 +9,7 @@
  * the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include <sys/resource.h>
 #include <getopt.h>
 #include <syslog.h>

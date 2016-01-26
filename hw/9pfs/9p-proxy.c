@@ -9,6 +9,7 @@
  * This work is licensed under the terms of the GNU GPL, version 2.  See
  * the COPYING file in the top-level directory.
  */
+#include "qemu/osdep.h"
 #include <sys/socket.h>
 #include <sys/un.h>
 #include "9p.h"

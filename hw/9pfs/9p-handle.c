@@ -11,6 +11,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "9p.h"
 #include "9p-xattr.h"
 #include <arpa/inet.h>
@@ -20,7 +21,6 @@
 #include <sys/un.h>
 #include "qemu/xattr.h"
 #include "qemu/error-report.h"
-#include <unistd.h>
 #include <linux/fs.h>
 #ifdef CONFIG_LINUX_MAGIC_H
 #include <linux/magic.h>

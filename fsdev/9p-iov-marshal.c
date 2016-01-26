@@ -11,17 +11,12 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include <glib.h>
 #include <glib/gprintf.h>
-#include <sys/types.h>
-#include <sys/time.h>
 #include <utime.h>
 #include <sys/uio.h>
-#include <string.h>
-#include <stdint.h>
-#include <errno.h>
 
-#include "qemu/compiler.h"
 #include "9p-iov-marshal.h"
 #include "qemu/bswap.h"
 

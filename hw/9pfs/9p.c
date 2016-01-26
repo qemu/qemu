@@ -11,6 +11,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/virtio/virtio.h"
 #include "hw/i386/pc.h"
 #include "qemu/error-report.h"

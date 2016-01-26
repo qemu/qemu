@@ -11,7 +11,7 @@
  *
  */
 
-#include <sys/types.h>
+#include "qemu/osdep.h"
 #include "9p.h"
 #include "fsdev/file-op-9p.h"
 #include "9p-xattr.h"
