@@ -2236,7 +2236,7 @@ static int get_block_status(BlockDriverState *bs, int64_t sector_num,
     e->flags = ret & ~BDRV_BLOCK_OFFSET_MASK;
     e->offset = ret & BDRV_BLOCK_OFFSET_MASK;
     e->depth = depth;
-    e->bs = bs;
+    e->bs = file;
     return 0;
 }
 
