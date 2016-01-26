@@ -17,15 +17,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/time.h>
-#include <time.h>
+#include "qemu/osdep.h"
 
 #include "cpu.h"
 #if defined(CONFIG_USER_ONLY)

@@ -6,6 +6,7 @@
  * This code is licensed under the GPL
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
