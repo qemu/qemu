@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "hw/timer/stm32f2xx_timer.h"
 
 #ifndef STM_TIMER_ERR_DEBUG

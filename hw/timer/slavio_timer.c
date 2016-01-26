@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "hw/sparc/sun4m.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"

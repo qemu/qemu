@@ -8,6 +8,7 @@
  * This code is licensed under the GPL.
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/sh4/sh.h"
 #include "qemu/timer.h"
