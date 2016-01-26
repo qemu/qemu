@@ -720,6 +720,20 @@ MigrationInfo *qmp_query_migrate(Error **errp)
             timed_average_max(&s->checkpoint_state.stats_size);
         info->colo_stats->size_average =
             timed_average_avg(&s->checkpoint_state.stats_size);
+#define FILL_STATS_DIV_1000(field) \
+        info->colo_stats->field ## _min = \
+            timed_average_min(&s->checkpoint_state.field) / 1000.0; \
+        info->colo_stats->field ## _max = \
+            timed_average_max(&s->checkpoint_state.field) / 1000.0; \
+        info->colo_stats->field ## _average = \
+            timed_average_avg(&s->checkpoint_state.field) / 1000.0;
+
+        FILL_STATS_DIV_1000(time_block_checkpoint)
+        FILL_STATS_DIV_1000(time_save_live_state)
+        FILL_STATS_DIV_1000(time_save_device_state)
+        FILL_STATS_DIV_1000(time_push_device_state)
+        FILL_STATS_DIV_1000(time_wait_received)
+        FILL_STATS_DIV_1000(time_wait_loaded)
         break;
     case MIGRATION_STATUS_COMPLETED:
         get_xbzrle_cache_stats(info);

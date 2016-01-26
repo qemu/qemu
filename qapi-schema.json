@@ -463,6 +463,18 @@
 # @size-min: Smallest checkpoint in last sample period (ms)
 # @size-max: Largest checkpoint in last sample period (ms)
 # @size-average: Average checkpoint size in last sample period (ms)
+# @time-block-checkpoint-min/max/average: Time for the block checkpointing
+#            part of the checkpoint process (ms)
+# @time-save-live-state-min/max/average: Time for the live state
+#            part of the checkpoint process (ms)
+# @time-save-device-state-min/max/average: Time for the device state
+#            part of the checkpoint process (ms)
+# @time-push-device-state-min/max/average: Time for the live state
+#            part of the checkpoint process (ms)
+# @time-wait-received-min/max/average: Time waiting for the secondary
+#            to acknowledge it received the checkpoint (ms)
+# @time-wait-loaded-min/max/average: Time waiting for the secondary
+#            to acknowledge it loaded the checkpoint (ms)
 # Since: 2.7
 ##
 { 'struct': 'COLOCheckpointStats',
@@ -472,7 +484,26 @@
            'paused-min': 'number', 'paused-max': 'number',
                'paused-average': 'number',
            'size-min': 'number', 'size-max': 'number',
-               'size-average': 'number' } }
+               'size-average': 'number',
+           'time-block-checkpoint-min': 'number',
+               'time-block-checkpoint-max': 'number',
+               'time-block-checkpoint-average': 'number',
+           'time-save-live-state-min': 'number',
+               'time-save-live-state-max': 'number',
+               'time-save-live-state-average': 'number',
+           'time-save-device-state-min': 'number',
+               'time-save-device-state-max': 'number',
+               'time-save-device-state-average': 'number',
+           'time-push-device-state-min': 'number',
+               'time-push-device-state-max': 'number',
+               'time-push-device-state-average': 'number',
+           'time-wait-received-min': 'number',
+               'time-wait-received-max': 'number',
+               'time-wait-received-average': 'number',
+           'time-wait-loaded-min': 'number',
+               'time-wait-loaded-max': 'number',
+               'time-wait-loaded-average': 'number'
+          } }
 
 ##
 # @MigrationInfo

@@ -54,6 +54,12 @@ struct COLOCheckpointState {
     TimedAverage    stats_length;  /* Length of checkpoint (us) */
     TimedAverage    stats_paused;  /* Time guest was paused (us) */
     TimedAverage    stats_size;    /* Size of the checkpoint (bytes) */
+    TimedAverage    time_block_checkpoint;
+    TimedAverage    time_save_live_state;
+    TimedAverage    time_save_device_state;
+    TimedAverage    time_push_device_state;
+    TimedAverage    time_wait_received;
+    TimedAverage    time_wait_loaded;
 };
 
 /* Messages sent on the return path from destination to source */

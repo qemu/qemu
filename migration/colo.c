@@ -272,6 +272,7 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
     QEMUFile *trans = NULL;
     size_t size;
     int64_t stop_time, restart_time;
+    int64_t stage_time_start, stage_time_end;
     int64_t fpos_before, fpos_after;
     Error *local_err = NULL;
     int ret = -1;
@@ -318,6 +319,7 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
         goto out;
     }
 
+    stage_time_start = qemu_clock_get_us(QEMU_CLOCK_HOST);
     /* we call this api although this may do nothing on primary side */
     qemu_mutex_lock_iothread();
     bdrv_do_checkpoint_all(&local_err);
@@ -325,15 +327,22 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
     if (local_err) {
         goto out;
     }
-
+    stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
+    timed_average_account(&s->checkpoint_state.time_block_checkpoint,
+                          stage_time_end - stage_time_start);
     colo_put_cmd(s->to_dst_file, COLO_COMMAND_VMSTATE_SEND, &local_err);
     if (local_err) {
         goto out;
     }
 
+    stage_time_start = qemu_clock_get_us(QEMU_CLOCK_HOST);
     qemu_mutex_lock_iothread();
     /* Only save VM's live state, which not including device state */
     qemu_savevm_live_state(s->to_dst_file);
+    stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
+    timed_average_account(&s->checkpoint_state.time_save_live_state,
+                          stage_time_end - stage_time_start);
+    stage_time_start = stage_time_end;
     /* Note: device state is saved into buffer */
     ret = qemu_save_device_state(trans);
     if (ret < 0) {
@@ -346,6 +355,10 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
 
     /* we send the total size of the vmstate first */
     size = qsb_get_length(buffer);
+    stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
+    timed_average_account(&s->checkpoint_state.time_save_device_state,
+                          stage_time_end - stage_time_start);
+    stage_time_start = stage_time_end;
     colo_put_cmd_value(s->to_dst_file, COLO_COMMAND_VMSTATE_SIZE,
                        size, &local_err);
     if (local_err) {
@@ -358,12 +371,20 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
     if (ret < 0) {
         goto out;
     }
+    stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
+    timed_average_account(&s->checkpoint_state.time_push_device_state,
+                          stage_time_end - stage_time_start);
+    stage_time_start = stage_time_end;
 
     colo_get_check_cmd(s->rp_state.from_dst_file,
                        COLO_COMMAND_VMSTATE_RECEIVED, &local_err);
     if (local_err) {
         goto out;
     }
+    stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
+    timed_average_account(&s->checkpoint_state.time_wait_received,
+                          stage_time_end - stage_time_start);
+    stage_time_start = stage_time_end;
 
     /* We can't do this before the secondary has received the full checkpoint
      * otherwise we could send packets that if we were killed and the secondary
@@ -379,6 +400,9 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
     if (local_err) {
         goto out;
     }
+    stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
+    timed_average_account(&s->checkpoint_state.time_wait_loaded,
+                          stage_time_end - stage_time_start);
 
     if (colo_shutdown) {
         qemu_mutex_lock_iothread();
@@ -674,6 +698,24 @@ void migrate_start_colo_process(MigrationState *s)
     timed_average_init(&s->checkpoint_state.stats_paused, QEMU_CLOCK_REALTIME,
                        60 * NANOSECONDS_PER_SECOND);
     timed_average_init(&s->checkpoint_state.stats_size, QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
+    timed_average_init(&s->checkpoint_state.time_block_checkpoint,
+                       QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
+    timed_average_init(&s->checkpoint_state.time_save_live_state,
+                       QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
+    timed_average_init(&s->checkpoint_state.time_save_device_state,
+                       QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
+    timed_average_init(&s->checkpoint_state.time_push_device_state,
+                       QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
+    timed_average_init(&s->checkpoint_state.time_wait_received,
+                       QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
+    timed_average_init(&s->checkpoint_state.time_wait_loaded,
+                       QEMU_CLOCK_REALTIME,
                        60 * NANOSECONDS_PER_SECOND);
     migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_COLO);

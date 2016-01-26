@@ -255,6 +255,30 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->colo_stats->size_min / (1024.0 * 1024.0),
                        info->colo_stats->size_max / (1024.0 * 1024.0),
                        info->colo_stats->size_average / (1024.0 * 1024.0));
+        monitor_printf(mon, "checkpoint time-block min/max/avg (ms): %lf/%lf/%lf\n",
+                       info->colo_stats->time_block_checkpoint_min,
+                       info->colo_stats->time_block_checkpoint_max,
+                       info->colo_stats->time_block_checkpoint_average);
+        monitor_printf(mon, "checkpoint time-save live min/max/avg (ms): %lf/%lf/%lf\n",
+                       info->colo_stats->time_save_device_state_min,
+                       info->colo_stats->time_save_device_state_max,
+                       info->colo_stats->time_save_device_state_average);
+        monitor_printf(mon, "checkpoint time-save device min/max/avg (ms): %lf/%lf/%lf\n",
+                       info->colo_stats->time_save_device_state_min,
+                       info->colo_stats->time_save_device_state_max,
+                       info->colo_stats->time_save_device_state_average);
+        monitor_printf(mon, "checkpoint time-push device min/max/avg (ms): %lf/%lf/%lf\n",
+                       info->colo_stats->time_push_device_state_min,
+                       info->colo_stats->time_push_device_state_max,
+                       info->colo_stats->time_push_device_state_average);
+        monitor_printf(mon, "checkpoint time-wait received min/max/avg (ms): %lf/%lf/%lf\n",
+                       info->colo_stats->time_wait_received_min,
+                       info->colo_stats->time_wait_received_max,
+                       info->colo_stats->time_wait_received_average);
+        monitor_printf(mon, "checkpoint time-wait loaded min/max/avg (ms): %lf/%lf/%lf\n",
+                       info->colo_stats->time_wait_loaded_min,
+                       info->colo_stats->time_wait_loaded_max,
+                       info->colo_stats->time_wait_loaded_average);
     }
 
     qapi_free_MigrationInfo(info);
