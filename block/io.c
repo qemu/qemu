@@ -1554,13 +1554,13 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
         }
     }
 
-    if (bs->file &&
+    if (*file && *file != bs &&
         (ret & BDRV_BLOCK_DATA) && !(ret & BDRV_BLOCK_ZERO) &&
         (ret & BDRV_BLOCK_OFFSET_VALID)) {
         BlockDriverState *file2;
         int file_pnum;
 
-        ret2 = bdrv_co_get_block_status(bs->file->bs, ret >> BDRV_SECTOR_BITS,
+        ret2 = bdrv_co_get_block_status(*file, ret >> BDRV_SECTOR_BITS,
                                         *pnum, &file_pnum, &file2);
         if (ret2 >= 0) {
             /* Ignore errors.  This is just providing extra information, it
