@@ -23,7 +23,7 @@
  */
 
 /* Needed early for CONFIG_BSD etc. */
-#include "config-host.h"
+#include "qemu/osdep.h"
 
 #include "monitor/monitor.h"
 #include "qapi/qmp/qerror.h"

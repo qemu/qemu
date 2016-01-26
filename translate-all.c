@@ -19,16 +19,10 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
-#include <sys/types.h>
 #include <sys/mman.h>
 #endif
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <inttypes.h>
+#include "qemu/osdep.h"
 
-#include "config.h"
 
 #include "qemu-common.h"
 #define NO_CPU_IO_DEFS
@@ -43,7 +37,6 @@
 #if __FreeBSD_version >= 700104
 #define HAVE_KINFO_GETVMMAP
 #define sigqueue sigqueue_freebsd  /* avoid redefinition */
-#include <sys/time.h>
 #include <sys/proc.h>
 #include <machine/profile.h>
 #define _KERNEL
