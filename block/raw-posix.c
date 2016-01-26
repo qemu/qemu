@@ -1861,6 +1861,7 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
         *pnum = MIN(nb_sectors, (data - start) / BDRV_SECTOR_SIZE);
         ret = BDRV_BLOCK_ZERO;
     }
+    *file = bs;
     return ret | BDRV_BLOCK_OFFSET_VALID | start;
 }
 
