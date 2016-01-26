@@ -12,6 +12,7 @@
 #error This file only exist under softmmu circumstance
 #endif
 
+#include "qemu/osdep.h"
 #include <cpu.h>
 
 #undef DEBUG_UC32

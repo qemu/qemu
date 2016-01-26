@@ -9,6 +9,7 @@
  * or (at your option) any later version.
  */
 
+#include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/gdbstub.h"
 #include "exec/helper-proto.h"
