@@ -14,8 +14,8 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include <sys/ioctl.h>
-#include "config.h"
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "monitor/monitor.h"

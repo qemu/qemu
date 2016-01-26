@@ -11,6 +11,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "hw/scsi/scsi.h"
@@ -31,10 +32,6 @@ do { printf("scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
 #define BADF(fmt, ...) \
 do { fprintf(stderr, "scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <scsi/sg.h>
 #include "block/scsi.h"
 

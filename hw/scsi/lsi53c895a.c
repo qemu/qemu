@@ -13,7 +13,7 @@
  * as well-behaved operating systems will not try to use them.
  */
 
-#include <assert.h>
+#include "qemu/osdep.h"
 
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
