@@ -46,8 +46,8 @@ struct XenDevice {
     int                remote_port;
     int                local_port;
 
-    XenEvtchn          evtchndev;
-    XenGnttab          gnttabdev;
+    xenevtchn_handle   *evtchndev;
+    xengnttab_handle   *gnttabdev;
 
     struct XenDevOps   *ops;
     QTAILQ_ENTRY(XenDevice) next;
@@ -57,6 +57,7 @@ struct XenDevice {
 
 /* variables */
 extern XenXC xen_xc;
+extern xenforeignmemory_handle *xen_fmem;
 extern struct xs_handle *xenstore;
 extern const char *xen_protocol;
 

@@ -6,6 +6,15 @@
 #include <stddef.h>
 #include <inttypes.h>
 
+/*
+ * If we have new enough libxenctrl then we do not want/need these compat
+ * interfaces, despite what the user supplied cflags might say. They
+ * must be undefined before including xenctrl.h
+ */
+#undef XC_WANT_COMPAT_EVTCHN_API
+#undef XC_WANT_COMPAT_GNTTAB_API
+#undef XC_WANT_COMPAT_MAP_FOREIGN_API
+
 #include <xenctrl.h>
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 420
 #  include <xs.h>
@@ -39,23 +48,65 @@ static inline void *xc_map_foreign_bulk(int xc_handle, uint32_t dom, int prot,
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 410
 
 typedef int XenXC;
-typedef int XenEvtchn;
-typedef int XenGnttab;
+typedef int xenevtchn_handle;
+typedef int xengnttab_handle;
+typedef int xenforeignmemory_handle;
 
 #  define XC_INTERFACE_FMT "%i"
 #  define XC_HANDLER_INITIAL_VALUE    -1
 
-static inline XenEvtchn xen_xc_evtchn_open(void *logger,
-                                           unsigned int open_flags)
+static inline xenevtchn_handle *xenevtchn_open(void *logger,
+                                               unsigned int open_flags)
 {
-    return xc_evtchn_open();
+    xenevtchn_handle *h = malloc(sizeof(*h));
+    if (!h) {
+        return NULL;
+    }
+    *h = xc_evtchn_open();
+    if (*h == -1) {
+        free(h);
+        h = NULL;
+    }
+    return h;
 }
+static inline int xenevtchn_close(xenevtchn_handle *h)
+{
+    int rc = xc_evtchn_close(*h);
+    free(h);
+    return rc;
+}
+#define xenevtchn_fd(h) xc_evtchn_fd(*h)
+#define xenevtchn_pending(h) xc_evtchn_pending(*h)
+#define xenevtchn_notify(h, p) xc_evtchn_notify(*h, p)
+#define xenevtchn_bind_interdomain(h, d, p) xc_evtchn_bind_interdomain(*h, d, p)
+#define xenevtchn_unmask(h, p) xc_evtchn_unmask(*h, p)
+#define xenevtchn_unbind(h, p) xc_evtchn_unmask(*h, p)
 
-static inline XenGnttab xen_xc_gnttab_open(void *logger,
-                                           unsigned int open_flags)
+static inline xengnttab_handle *xengnttab_open(void *logger,
+                                               unsigned int open_flags)
 {
-    return xc_gnttab_open();
+    xengnttab_handle *h = malloc(sizeof(*h));
+    if (!h) {
+        return NULL;
+    }
+    *h = xc_gnttab_open();
+    if (*h == -1) {
+        free(h);
+        h = NULL;
+    }
+    return h;
 }
+static inline int xengnttab_close(xengnttab_handle *h)
+{
+    int rc = xc_gnttab_close(*h);
+    free(h);
+    return rc;
+}
+#define xengnttab_set_max_grants(h, n) xc_gnttab_set_max_grants(*h, n)
+#define xengnttab_map_grant_ref(h, d, r, p) xc_gnttab_map_grant_ref(*h, d, r, p)
+#define xengnttab_map_grant_refs(h, c, d, r, p) \
+    xc_gnttab_map_grant_refs(*h, c, d, r, p)
+#define xengnttab_unmap(h, a, n) xc_gnttab_munmap(*h, a, n)
 
 static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
                                           unsigned int open_flags)
@@ -63,11 +114,7 @@ static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
     return xc_interface_open();
 }
 
-static inline int xc_fd(int xen_xc)
-{
-    return xen_xc;
-}
-
+/* See below for xenforeignmemory_* APIs */
 
 static inline int xc_domain_populate_physmap_exact
     (XenXC xc_handle, uint32_t domid, unsigned long nr_extents,
@@ -104,27 +151,33 @@ static inline void xs_close(struct xs_handle *xsh)
 }
 
 
-/* Xen 4.1 */
-#else
+/* Xen 4.1 thru 4.6 */
+#elif CONFIG_XEN_CTRL_INTERFACE_VERSION < 471
 
 typedef xc_interface *XenXC;
-typedef xc_evtchn *XenEvtchn;
-typedef xc_gnttab *XenGnttab;
+typedef xc_interface *xenforeignmemory_handle;
+typedef xc_evtchn xenevtchn_handle;
+typedef xc_gnttab xengnttab_handle;
 
 #  define XC_INTERFACE_FMT "%p"
 #  define XC_HANDLER_INITIAL_VALUE    NULL
 
-static inline XenEvtchn xen_xc_evtchn_open(void *logger,
-                                           unsigned int open_flags)
-{
-    return xc_evtchn_open(logger, open_flags);
-}
+#define xenevtchn_open(l, f) xc_evtchn_open(l, f);
+#define xenevtchn_close(h) xc_evtchn_close(h)
+#define xenevtchn_fd(h) xc_evtchn_fd(h)
+#define xenevtchn_pending(h) xc_evtchn_pending(h)
+#define xenevtchn_notify(h, p) xc_evtchn_notify(h, p)
+#define xenevtchn_bind_interdomain(h, d, p) xc_evtchn_bind_interdomain(h, d, p)
+#define xenevtchn_unmask(h, p) xc_evtchn_unmask(h, p)
+#define xenevtchn_unbind(h, p) xc_evtchn_unbind(h, p)
 
-static inline XenGnttab xen_xc_gnttab_open(void *logger,
-                                           unsigned int open_flags)
-{
-    return xc_gnttab_open(logger, open_flags);
-}
+#define xengnttab_open(l, f) xc_gnttab_open(l, f)
+#define xengnttab_close(h) xc_gnttab_close(h)
+#define xengnttab_set_max_grants(h, n) xc_gnttab_set_max_grants(h, n)
+#define xengnttab_map_grant_ref(h, d, r, p) xc_gnttab_map_grant_ref(h, d, r, p)
+#define xengnttab_unmap(h, a, n) xc_gnttab_munmap(h, a, n)
+#define xengnttab_map_grant_refs(h, c, d, r, p) \
+    xc_gnttab_map_grant_refs(h, c, d, r, p)
 
 static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
                                           unsigned int open_flags)
@@ -132,10 +185,23 @@ static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
     return xc_interface_open(logger, dombuild_logger, open_flags);
 }
 
-/* FIXME There is now way to have the xen fd */
-static inline int xc_fd(xc_interface *xen_xc)
+/* See below for xenforeignmemory_* APIs */
+
+#else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 471 */
+
+typedef xc_interface *XenXC;
+
+#  define XC_INTERFACE_FMT "%p"
+#  define XC_HANDLER_INITIAL_VALUE    NULL
+
+#include <xenevtchn.h>
+#include <xengnttab.h>
+#include <xenforeignmemory.h>
+
+static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
+                                          unsigned int open_flags)
 {
-    return -1;
+    return xc_interface_open(logger, dombuild_logger, open_flags);
 }
 #endif
 
@@ -439,6 +505,7 @@ static inline int xen_xc_domain_add_to_physmap(XenXC xch, uint32_t domid,
 }
 #endif
 
+#ifdef CONFIG_XEN_PV_DOMAIN_BUILD
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 470
 static inline int xen_domain_create(XenXC xc, uint32_t ssidref,
                                     xen_domain_handle_t handle, uint32_t flags,
@@ -453,6 +520,26 @@ static inline int xen_domain_create(XenXC xc, uint32_t ssidref,
 {
     return xc_domain_create(xc, ssidref, handle, flags, pdomid, NULL);
 }
+#endif
+#endif
+
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 471
+
+#define xenforeignmemory_open(l, f) &xen_xc
+
+static inline void *xenforeignmemory_map(XenXC *h, uint32_t dom,
+                                         int prot, size_t pages,
+                                         const xen_pfn_t arr[/*pages*/],
+                                         int err[/*pages*/])
+{
+    if (err)
+        return xc_map_foreign_bulk(*h, dom, prot, arr, err, pages);
+    else
+        return xc_map_foreign_pages(*h, dom, prot, arr, pages);
+}
+
+#define xenforeignmemory_unmap(h, p, s) munmap(p, s * XC_PAGE_SIZE)
+
 #endif
 
 #endif /* QEMU_HW_XEN_COMMON_H */

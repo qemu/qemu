@@ -168,7 +168,7 @@ static void net_tx_packets(struct XenNetDev *netdev)
                           (txreq.flags & NETTXF_more_data)      ? " more_data"      : "",
                           (txreq.flags & NETTXF_extra_info)     ? " extra_info"     : "");
 
-            page = xc_gnttab_map_grant_ref(netdev->xendev.gnttabdev,
+            page = xengnttab_map_grant_ref(netdev->xendev.gnttabdev,
                                            netdev->xendev.dom,
                                            txreq.gref, PROT_READ);
             if (page == NULL) {
@@ -190,7 +190,7 @@ static void net_tx_packets(struct XenNetDev *netdev)
                 qemu_send_packet(qemu_get_queue(netdev->nic),
                                  page + txreq.offset, txreq.size);
             }
-            xc_gnttab_munmap(netdev->xendev.gnttabdev, page, 1);
+            xengnttab_unmap(netdev->xendev.gnttabdev, page, 1);
             net_tx_response(netdev, &txreq, NETIF_RSP_OKAY);
         }
         if (!netdev->tx_work) {
@@ -260,7 +260,7 @@ static ssize_t net_rx_packet(NetClientState *nc, const uint8_t *buf, size_t size
     memcpy(&rxreq, RING_GET_REQUEST(&netdev->rx_ring, rc), sizeof(rxreq));
     netdev->rx_ring.req_cons = ++rc;
 
-    page = xc_gnttab_map_grant_ref(netdev->xendev.gnttabdev,
+    page = xengnttab_map_grant_ref(netdev->xendev.gnttabdev,
                                    netdev->xendev.dom,
                                    rxreq.gref, PROT_WRITE);
     if (page == NULL) {
@@ -270,7 +270,7 @@ static ssize_t net_rx_packet(NetClientState *nc, const uint8_t *buf, size_t size
         return -1;
     }
     memcpy(page + NET_IP_ALIGN, buf, size);
-    xc_gnttab_munmap(netdev->xendev.gnttabdev, page, 1);
+    xengnttab_unmap(netdev->xendev.gnttabdev, page, 1);
     net_rx_response(netdev, &rxreq, NETIF_RSP_OKAY, NET_IP_ALIGN, size, 0);
 
     return size;
@@ -342,19 +342,19 @@ static int net_connect(struct XenDevice *xendev)
         return -1;
     }
 
-    netdev->txs = xc_gnttab_map_grant_ref(netdev->xendev.gnttabdev,
+    netdev->txs = xengnttab_map_grant_ref(netdev->xendev.gnttabdev,
                                           netdev->xendev.dom,
                                           netdev->tx_ring_ref,
                                           PROT_READ | PROT_WRITE);
     if (!netdev->txs) {
         return -1;
     }
-    netdev->rxs = xc_gnttab_map_grant_ref(netdev->xendev.gnttabdev,
+    netdev->rxs = xengnttab_map_grant_ref(netdev->xendev.gnttabdev,
                                           netdev->xendev.dom,
                                           netdev->rx_ring_ref,
                                           PROT_READ | PROT_WRITE);
     if (!netdev->rxs) {
-        xc_gnttab_munmap(netdev->xendev.gnttabdev, netdev->txs, 1);
+        xengnttab_unmap(netdev->xendev.gnttabdev, netdev->txs, 1);
         netdev->txs = NULL;
         return -1;
     }
@@ -379,11 +379,11 @@ static void net_disconnect(struct XenDevice *xendev)
     xen_be_unbind_evtchn(&netdev->xendev);
 
     if (netdev->txs) {
-        xc_gnttab_munmap(netdev->xendev.gnttabdev, netdev->txs, 1);
+        xengnttab_unmap(netdev->xendev.gnttabdev, netdev->txs, 1);
         netdev->txs = NULL;
     }
     if (netdev->rxs) {
-        xc_gnttab_munmap(netdev->xendev.gnttabdev, netdev->rxs, 1);
+        xengnttab_unmap(netdev->xendev.gnttabdev, netdev->rxs, 1);
         netdev->rxs = NULL;
     }
 }

@@ -228,12 +228,12 @@ static int con_initialise(struct XenDevice *xendev)
 	con->buffer.max_capacity = limit;
 
     if (!xendev->dev) {
-        con->sring = xc_map_foreign_range(xen_xc, con->xendev.dom,
-                                          XC_PAGE_SIZE,
+        xen_pfn_t mfn = con->ring_ref;
+        con->sring = xenforeignmemory_map(xen_fmem, con->xendev.dom,
                                           PROT_READ|PROT_WRITE,
-                                          con->ring_ref);
+                                          1, &mfn, NULL);
     } else {
-        con->sring = xc_gnttab_map_grant_ref(xendev->gnttabdev, con->xendev.dom,
+        con->sring = xengnttab_map_grant_ref(xendev->gnttabdev, con->xendev.dom,
                                              con->ring_ref,
                                              PROT_READ|PROT_WRITE);
     }
@@ -265,9 +265,6 @@ static void con_disconnect(struct XenDevice *xendev)
 {
     struct XenConsole *con = container_of(xendev, struct XenConsole, xendev);
 
-    if (!xendev->dev) {
-        return;
-    }
     if (con->chr) {
         qemu_chr_add_handlers(con->chr, NULL, NULL, NULL, NULL);
         qemu_chr_fe_release(con->chr);
@@ -275,12 +272,12 @@ static void con_disconnect(struct XenDevice *xendev)
     xen_be_unbind_evtchn(&con->xendev);
 
     if (con->sring) {
-        if (!xendev->gnttabdev) {
-            munmap(con->sring, XC_PAGE_SIZE);
+        if (!xendev->dev) {
+            xenforeignmemory_unmap(xen_fmem, con->sring, 1);
         } else {
-            xc_gnttab_munmap(xendev->gnttabdev, con->sring, 1);
+            xengnttab_unmap(xendev->gnttabdev, con->sring, 1);
         }
-	con->sring = NULL;
+        con->sring = NULL;
     }
 }
 

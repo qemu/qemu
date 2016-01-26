@@ -95,23 +95,24 @@ struct XenFB {
 
 static int common_bind(struct common *c)
 {
-    uint64_t mfn;
+    uint64_t val;
+    xen_pfn_t mfn;
 
-    if (xenstore_read_fe_uint64(&c->xendev, "page-ref", &mfn) == -1)
+    if (xenstore_read_fe_uint64(&c->xendev, "page-ref", &val) == -1)
 	return -1;
-    assert(mfn == (xen_pfn_t)mfn);
+    mfn = (xen_pfn_t)val;
+    assert(val == mfn);
 
     if (xenstore_read_fe_int(&c->xendev, "event-channel", &c->xendev.remote_port) == -1)
 	return -1;
 
-    c->page = xc_map_foreign_range(xen_xc, c->xendev.dom,
-				   XC_PAGE_SIZE,
-				   PROT_READ | PROT_WRITE, mfn);
+    c->page = xenforeignmemory_map(xen_fmem, c->xendev.dom,
+                                   PROT_READ | PROT_WRITE, 1, &mfn, NULL);
     if (c->page == NULL)
 	return -1;
 
     xen_be_bind_evtchn(&c->xendev);
-    xen_be_printf(&c->xendev, 1, "ring mfn %"PRIx64", remote-port %d, local-port %d\n",
+    xen_be_printf(&c->xendev, 1, "ring mfn %"PRI_xen_pfn", remote-port %d, local-port %d\n",
 		  mfn, c->xendev.remote_port, c->xendev.local_port);
 
     return 0;
@@ -121,7 +122,7 @@ static void common_unbind(struct common *c)
 {
     xen_be_unbind_evtchn(&c->xendev);
     if (c->page) {
-	munmap(c->page, XC_PAGE_SIZE);
+        xenforeignmemory_unmap(xen_fmem, c->page, 1);
 	c->page = NULL;
     }
 }
@@ -494,15 +495,15 @@ static int xenfb_map_fb(struct XenFB *xenfb)
     fbmfns = g_malloc0(sizeof(xen_pfn_t) * xenfb->fbpages);
 
     xenfb_copy_mfns(mode, n_fbdirs, pgmfns, pd);
-    map = xc_map_foreign_pages(xen_xc, xenfb->c.xendev.dom,
-			       PROT_READ, pgmfns, n_fbdirs);
+    map = xenforeignmemory_map(xen_fmem, xenfb->c.xendev.dom,
+                               PROT_READ, n_fbdirs, pgmfns, NULL);
     if (map == NULL)
 	goto out;
     xenfb_copy_mfns(mode, xenfb->fbpages, fbmfns, map);
-    munmap(map, n_fbdirs * XC_PAGE_SIZE);
+    xenforeignmemory_unmap(xen_fmem, map, n_fbdirs);
 
-    xenfb->pixels = xc_map_foreign_pages(xen_xc, xenfb->c.xendev.dom,
-            PROT_READ, fbmfns, xenfb->fbpages);
+    xenfb->pixels = xenforeignmemory_map(xen_fmem, xenfb->c.xendev.dom,
+            PROT_READ, xenfb->fbpages, fbmfns, NULL);
     if (xenfb->pixels == NULL)
 	goto out;
 
@@ -912,6 +913,7 @@ static void fb_disconnect(struct XenDevice *xendev)
      *   Replacing the framebuffer with anonymous shared memory
      *   instead.  This releases the guest pages and keeps qemu happy.
      */
+    xenforeignmemory_unmap(xen_fmem, fb->pixels, fb->fbpages);
     fb->pixels = mmap(fb->pixels, fb->fbpages * XC_PAGE_SIZE,
                       PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON,
                       -1, 0);

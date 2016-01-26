@@ -250,6 +250,7 @@ vnc_jpeg=""
 vnc_png=""
 xen=""
 xen_ctrl_version=""
+xen_pv_domain_build="no"
 xen_pci_passthrough=""
 linux_aio=""
 cap_ng=""
@@ -926,6 +927,10 @@ for opt do
   --disable-xen-pci-passthrough) xen_pci_passthrough="no"
   ;;
   --enable-xen-pci-passthrough) xen_pci_passthrough="yes"
+  ;;
+  --disable-xen-pv-domain-build) xen_pv_domain_build="no"
+  ;;
+  --enable-xen-pv-domain-build) xen_pv_domain_build="yes"
   ;;
   --disable-brlapi) brlapi="no"
   ;;
@@ -1938,6 +1943,7 @@ fi
 
 if test "$xen" != "no" ; then
   xen_libs="-lxenstore -lxenctrl -lxenguest"
+  xen_stable_libs="-lxenforeignmemory -lxengnttab -lxenevtchn"
 
   # First we test whether Xen headers and libraries are available.
   # If no, we are done and there is no Xen support.
@@ -1958,6 +1964,57 @@ EOF
     xen=no
 
   # Xen unstable
+  elif
+      cat > $TMPC <<EOF &&
+/*
+ * If we have stable libs the we don't want the libxc compat
+ * layers, regardless of what CFLAGS we may have been given.
+ */
+#undef XC_WANT_COMPAT_EVTCHN_API
+#undef XC_WANT_COMPAT_GNTTAB_API
+#undef XC_WANT_COMPAT_MAP_FOREIGN_API
+#include <xenctrl.h>
+#include <xenstore.h>
+#include <xenevtchn.h>
+#include <xengnttab.h>
+#include <xenforeignmemory.h>
+#include <stdint.h>
+#include <xen/hvm/hvm_info_table.h>
+#if !defined(HVM_MAX_VCPUS)
+# error HVM_MAX_VCPUS not defined
+#endif
+int main(void) {
+  xc_interface *xc = NULL;
+  xenforeignmemory_handle *xfmem;
+  xenevtchn_handle *xe;
+  xengnttab_handle *xg;
+  xen_domain_handle_t handle;
+
+  xs_daemon_open();
+
+  xc = xc_interface_open(0, 0, 0);
+  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
+  xc_domain_add_to_physmap(0, 0, XENMAPSPACE_gmfn, 0, 0);
+  xc_hvm_inject_msi(xc, 0, 0xf0000000, 0x00000000);
+  xc_hvm_create_ioreq_server(xc, 0, HVM_IOREQSRV_BUFIOREQ_ATOMIC, NULL);
+  xc_domain_create(xc, 0, handle, 0, NULL, NULL);
+
+  xfmem = xenforeignmemory_open(0, 0);
+  xenforeignmemory_map(xfmem, 0, 0, 0, 0, 0);
+
+  xe = xenevtchn_open(0, 0);
+  xenevtchn_fd(xe);
+
+  xg = xengnttab_open(0, 0);
+  xengnttab_map_grant_ref(xg, 0, 0, 0);
+
+  return 0;
+}
+EOF
+      compile_prog "" "$xen_libs $xen_stable_libs"
+    then
+    xen_ctrl_version=471
+    xen=yes
   elif
       cat > $TMPC <<EOF &&
 #include <xenctrl.h>
@@ -2153,6 +2210,9 @@ EOF
   fi
 
   if test "$xen" = yes; then
+    if test $xen_ctrl_version -ge 471  ; then
+      libs_softmmu="$xen_stable_libs $libs_softmmu"
+    fi
     libs_softmmu="$xen_libs $libs_softmmu"
   fi
 fi
@@ -2172,6 +2232,12 @@ if test "$xen_pci_passthrough" != "no"; then
     fi
     xen_pci_passthrough=no
   fi
+fi
+
+if test "$xen_pv_domain_build" = "yes" &&
+   test "$xen" != "yes"; then
+    error_exit "User requested Xen PV domain builder support" \
+	       "which requires Xen support."
 fi
 
 ##########################################
@@ -4793,6 +4859,7 @@ fi
 echo "xen support       $xen"
 if test "$xen" = "yes" ; then
   echo "xen ctrl version  $xen_ctrl_version"
+  echo "pv dom build      $xen_pv_domain_build"
 fi
 echo "brlapi support    $brlapi"
 echo "bluez  support    $bluez"
@@ -5164,6 +5231,9 @@ fi
 if test "$xen" = "yes" ; then
   echo "CONFIG_XEN_BACKEND=y" >> $config_host_mak
   echo "CONFIG_XEN_CTRL_INTERFACE_VERSION=$xen_ctrl_version" >> $config_host_mak
+  if test "$xen_pv_domain_build" = "yes" ; then
+    echo "CONFIG_XEN_PV_DOMAIN_BUILD=y" >> $config_host_mak
+  fi
 fi
 if test "$linux_aio" = "yes" ; then
   echo "CONFIG_LINUX_AIO=y" >> $config_host_mak
