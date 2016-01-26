@@ -1278,6 +1278,7 @@ static int64_t coroutine_fn vmdk_co_get_block_status(BlockDriverState *bs,
                              0, 0);
     qemu_co_mutex_unlock(&s->lock);
 
+    index_in_cluster = vmdk_find_index_in_cluster(extent, sector_num);
     switch (ret) {
     case VMDK_ERROR:
         ret = -EIO;
@@ -1291,13 +1292,14 @@ static int64_t coroutine_fn vmdk_co_get_block_status(BlockDriverState *bs,
     case VMDK_OK:
         ret = BDRV_BLOCK_DATA;
         if (extent->file == bs->file && !extent->compressed) {
-            ret |= BDRV_BLOCK_OFFSET_VALID | offset;
+            ret |= BDRV_BLOCK_OFFSET_VALID;
+            ret |= (offset + (index_in_cluster << BDRV_SECTOR_BITS))
+                    & BDRV_BLOCK_OFFSET_MASK;
         }
 
         break;
     }
 
-    index_in_cluster = vmdk_find_index_in_cluster(extent, sector_num);
     n = extent->cluster_sectors - index_in_cluster;
     if (n > nb_sectors) {
         n = nb_sectors;
