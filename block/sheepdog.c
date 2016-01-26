@@ -2708,7 +2708,7 @@ retry:
 
 static coroutine_fn int64_t
 sd_co_get_block_status(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
-                       int *pnum)
+                       int *pnum, BlockDriverState **file)
 {
     BDRVSheepdogState *s = bs->opaque;
     SheepdogInode *inode = &s->inode;

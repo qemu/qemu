@@ -664,6 +664,7 @@ int bdrv_write_zeroes(BlockDriverState *bs, int64_t sector_num,
 int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags)
 {
     int64_t target_sectors, ret, nb_sectors, sector_num = 0;
+    BlockDriverState *file;
     int n;
 
     target_sectors = bdrv_nb_sectors(bs);
@@ -676,7 +677,7 @@ int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags)
         if (nb_sectors <= 0) {
             return 0;
         }
-        ret = bdrv_get_block_status(bs, sector_num, nb_sectors, &n);
+        ret = bdrv_get_block_status(bs, sector_num, nb_sectors, &n, &file);
         if (ret < 0) {
             error_report("error getting block status at sector %" PRId64 ": %s",
                          sector_num, strerror(-ret));
@@ -1466,6 +1467,7 @@ int bdrv_flush_all(void)
 typedef struct BdrvCoGetBlockStatusData {
     BlockDriverState *bs;
     BlockDriverState *base;
+    BlockDriverState **file;
     int64_t sector_num;
     int nb_sectors;
     int *pnum;
@@ -1487,10 +1489,14 @@ typedef struct BdrvCoGetBlockStatusData {
  *
  * 'nb_sectors' is the max value 'pnum' should be set to.  If nb_sectors goes
  * beyond the end of the disk image it will be clamped.
+ *
+ * If returned value is positive and BDRV_BLOCK_OFFSET_VALID bit is set, 'file'
+ * points to the BDS which the sector range is allocated in.
  */
 static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
                                                      int64_t sector_num,
-                                                     int nb_sectors, int *pnum)
+                                                     int nb_sectors, int *pnum,
+                                                     BlockDriverState **file)
 {
     int64_t total_sectors;
     int64_t n;
@@ -1520,7 +1526,9 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
         return ret;
     }
 
-    ret = bs->drv->bdrv_co_get_block_status(bs, sector_num, nb_sectors, pnum);
+    *file = NULL;
+    ret = bs->drv->bdrv_co_get_block_status(bs, sector_num, nb_sectors, pnum,
+                                            file);
     if (ret < 0) {
         *pnum = 0;
         return ret;
@@ -1529,7 +1537,7 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
     if (ret & BDRV_BLOCK_RAW) {
         assert(ret & BDRV_BLOCK_OFFSET_VALID);
         return bdrv_get_block_status(bs->file->bs, ret >> BDRV_SECTOR_BITS,
-                                     *pnum, pnum);
+                                     *pnum, pnum, file);
     }
 
     if (ret & (BDRV_BLOCK_DATA | BDRV_BLOCK_ZERO)) {
@@ -1549,10 +1557,11 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
     if (bs->file &&
         (ret & BDRV_BLOCK_DATA) && !(ret & BDRV_BLOCK_ZERO) &&
         (ret & BDRV_BLOCK_OFFSET_VALID)) {
+        BlockDriverState *file2;
         int file_pnum;
 
         ret2 = bdrv_co_get_block_status(bs->file->bs, ret >> BDRV_SECTOR_BITS,
-                                        *pnum, &file_pnum);
+                                        *pnum, &file_pnum, &file2);
         if (ret2 >= 0) {
             /* Ignore errors.  This is just providing extra information, it
              * is useful but not necessary.
@@ -1577,14 +1586,15 @@ static int64_t coroutine_fn bdrv_co_get_block_status_above(BlockDriverState *bs,
         BlockDriverState *base,
         int64_t sector_num,
         int nb_sectors,
-        int *pnum)
+        int *pnum,
+        BlockDriverState **file)
 {
     BlockDriverState *p;
     int64_t ret = 0;
 
     assert(bs != base);
     for (p = bs; p != base; p = backing_bs(p)) {
-        ret = bdrv_co_get_block_status(p, sector_num, nb_sectors, pnum);
+        ret = bdrv_co_get_block_status(p, sector_num, nb_sectors, pnum, file);
         if (ret < 0 || ret & BDRV_BLOCK_ALLOCATED) {
             break;
         }
@@ -1603,7 +1613,8 @@ static void coroutine_fn bdrv_get_block_status_above_co_entry(void *opaque)
     data->ret = bdrv_co_get_block_status_above(data->bs, data->base,
                                                data->sector_num,
                                                data->nb_sectors,
-                                               data->pnum);
+                                               data->pnum,
+                                               data->file);
     data->done = true;
 }
 
@@ -1615,12 +1626,14 @@ static void coroutine_fn bdrv_get_block_status_above_co_entry(void *opaque)
 int64_t bdrv_get_block_status_above(BlockDriverState *bs,
                                     BlockDriverState *base,
                                     int64_t sector_num,
-                                    int nb_sectors, int *pnum)
+                                    int nb_sectors, int *pnum,
+                                    BlockDriverState **file)
 {
     Coroutine *co;
     BdrvCoGetBlockStatusData data = {
         .bs = bs,
         .base = base,
+        .file = file,
         .sector_num = sector_num,
         .nb_sectors = nb_sectors,
         .pnum = pnum,
@@ -1644,16 +1657,19 @@ int64_t bdrv_get_block_status_above(BlockDriverState *bs,
 
 int64_t bdrv_get_block_status(BlockDriverState *bs,
                               int64_t sector_num,
-                              int nb_sectors, int *pnum)
+                              int nb_sectors, int *pnum,
+                              BlockDriverState **file)
 {
     return bdrv_get_block_status_above(bs, backing_bs(bs),
-                                       sector_num, nb_sectors, pnum);
+                                       sector_num, nb_sectors, pnum, file);
 }
 
 int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num,
                                    int nb_sectors, int *pnum)
 {
-    int64_t ret = bdrv_get_block_status(bs, sector_num, nb_sectors, pnum);
+    BlockDriverState *file;
+    int64_t ret = bdrv_get_block_status(bs, sector_num, nb_sectors, pnum,
+                                        &file);
     if (ret < 0) {
         return ret;
     }

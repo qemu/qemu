@@ -1072,13 +1072,15 @@ static int img_compare(int argc, char **argv)
 
     for (;;) {
         int64_t status1, status2;
+        BlockDriverState *file;
+
         nb_sectors = sectors_to_process(total_sectors, sector_num);
         if (nb_sectors <= 0) {
             break;
         }
         status1 = bdrv_get_block_status_above(bs1, NULL, sector_num,
                                               total_sectors1 - sector_num,
-                                              &pnum1);
+                                              &pnum1, &file);
         if (status1 < 0) {
             ret = 3;
             error_report("Sector allocation test failed for %s", filename1);
@@ -1088,7 +1090,7 @@ static int img_compare(int argc, char **argv)
 
         status2 = bdrv_get_block_status_above(bs2, NULL, sector_num,
                                               total_sectors2 - sector_num,
-                                              &pnum2);
+                                              &pnum2, &file);
         if (status2 < 0) {
             ret = 3;
             error_report("Sector allocation test failed for %s", filename2);
@@ -1271,9 +1273,10 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
     n = MIN(s->total_sectors - sector_num, BDRV_REQUEST_MAX_SECTORS);
 
     if (s->sector_next_status <= sector_num) {
+        BlockDriverState *file;
         ret = bdrv_get_block_status(blk_bs(s->src[s->src_cur]),
                                     sector_num - s->src_cur_offset,
-                                    n, &n);
+                                    n, &n, &file);
         if (ret < 0) {
             return ret;
         }
@@ -2201,6 +2204,7 @@ static int get_block_status(BlockDriverState *bs, int64_t sector_num,
 {
     int64_t ret;
     int depth;
+    BlockDriverState *file;
 
     /* As an optimization, we could cache the current range of unallocated
      * clusters in each file of the chain, and avoid querying the same
@@ -2209,7 +2213,8 @@ static int get_block_status(BlockDriverState *bs, int64_t sector_num,
 
     depth = 0;
     for (;;) {
-        ret = bdrv_get_block_status(bs, sector_num, nb_sectors, &nb_sectors);
+        ret = bdrv_get_block_status(bs, sector_num, nb_sectors, &nb_sectors,
+                                    &file);
         if (ret < 0) {
             return ret;
         }

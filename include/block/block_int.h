@@ -166,7 +166,8 @@ struct BlockDriver {
     int coroutine_fn (*bdrv_co_discard)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors);
     int64_t coroutine_fn (*bdrv_co_get_block_status)(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, int *pnum);
+        int64_t sector_num, int nb_sectors, int *pnum,
+        BlockDriverState **file);
 
     /*
      * Invalidate any cached meta-data.

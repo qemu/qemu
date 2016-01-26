@@ -725,7 +725,8 @@ static void qed_is_allocated_cb(void *opaque, int ret, uint64_t offset, size_t l
 
 static int64_t coroutine_fn bdrv_qed_co_get_block_status(BlockDriverState *bs,
                                                  int64_t sector_num,
-                                                 int nb_sectors, int *pnum)
+                                                 int nb_sectors, int *pnum,
+                                                 BlockDriverState **file)
 {
     BDRVQEDState *s = bs->opaque;
     size_t len = (size_t)nb_sectors * BDRV_SECTOR_SIZE;

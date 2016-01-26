@@ -1818,7 +1818,8 @@ static int find_allocation(BlockDriverState *bs, off_t start,
  */
 static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
                                                     int64_t sector_num,
-                                                    int nb_sectors, int *pnum)
+                                                    int nb_sectors, int *pnum,
+                                                    BlockDriverState **file)
 {
     off_t start, data = 0, hole = 0;
     int64_t total_size;

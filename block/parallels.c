@@ -261,7 +261,7 @@ static coroutine_fn int parallels_co_flush_to_os(BlockDriverState *bs)
 
 
 static int64_t coroutine_fn parallels_co_get_block_status(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, int *pnum)
+        int64_t sector_num, int nb_sectors, int *pnum, BlockDriverState **file)
 {
     BDRVParallelsState *s = bs->opaque;
     int64_t offset;
