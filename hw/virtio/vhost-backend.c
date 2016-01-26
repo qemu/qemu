@@ -8,6 +8,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-backend.h"
 #include "qemu/error-report.h"

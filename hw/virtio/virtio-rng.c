@@ -9,6 +9,7 @@
  * top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "qemu/iov.h"
 #include "hw/qdev.h"
 #include "hw/virtio/virtio.h"

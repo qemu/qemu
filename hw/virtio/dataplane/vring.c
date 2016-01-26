@@ -14,6 +14,7 @@
  * This work is licensed under the terms of the GNU GPL, version 2.
  */
 
+#include "qemu/osdep.h"
 #include "trace.h"
 #include "hw/hw.h"
 #include "exec/memory.h"

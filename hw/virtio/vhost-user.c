@@ -8,6 +8,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-backend.h"
 #include "hw/virtio/virtio-net.h"
@@ -18,8 +19,6 @@
 #include "exec/ram_addr.h"
 #include "migration/migration.h"
 
-#include <fcntl.h>
-#include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/un.h>

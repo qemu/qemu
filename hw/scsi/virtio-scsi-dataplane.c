@@ -11,6 +11,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/virtio/virtio-scsi.h"
 #include "qemu/error-report.h"
 #include "sysemu/block-backend.h"

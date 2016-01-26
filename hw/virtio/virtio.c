@@ -11,7 +11,7 @@
  *
  */
 
-#include <inttypes.h>
+#include "qemu/osdep.h"
 
 #include "trace.h"
 #include "exec/address-spaces.h"

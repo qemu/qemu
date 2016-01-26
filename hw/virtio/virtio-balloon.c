@@ -13,6 +13,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "qemu/iov.h"
 #include "qemu/timer.h"
 #include "qemu-common.h"

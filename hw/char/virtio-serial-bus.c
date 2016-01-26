@@ -18,6 +18,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include "qemu/osdep.h"
 #include "qemu/iov.h"
 #include "monitor/monitor.h"
 #include "qemu/error-report.h"

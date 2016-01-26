@@ -15,7 +15,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include <inttypes.h>
+#include "qemu/osdep.h"
 
 #include "standard-headers/linux/virtio_pci.h"
 #include "hw/virtio/virtio.h"
