@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "tcg-be-ldst.h"
 
 #if defined _CALL_DARWIN || defined __APPLE__
@@ -2725,8 +2726,6 @@ static void __attribute__((constructor)) tcg_cache_init(void)
 }
 
 #elif defined __APPLE__
-#include <stdio.h>
-#include <sys/types.h>
 #include <sys/sysctl.h>
 
 static void __attribute__((constructor)) tcg_cache_init(void)
@@ -2745,11 +2744,6 @@ static void __attribute__((constructor)) tcg_cache_init(void)
 }
 
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
 #include <sys/sysctl.h>
 
 static void __attribute__((constructor)) tcg_cache_init(void)

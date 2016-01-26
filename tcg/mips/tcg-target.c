@@ -24,6 +24,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "tcg-be-ldst.h"
 
 #ifdef HOST_WORDS_BIGENDIAN
@@ -1735,7 +1736,6 @@ static int tcg_target_callee_save_regs[] = {
 /* The Linux kernel doesn't provide any information about the available
    instruction set. Probe it using a signal handler. */
 
-#include <signal.h>
 
 #ifndef use_movnz_instructions
 bool use_movnz_instructions = false;

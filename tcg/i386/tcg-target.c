@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "tcg-be-ldst.h"
 
 #ifndef NDEBUG

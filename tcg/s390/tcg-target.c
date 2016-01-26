@@ -24,6 +24,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "tcg-be-ldst.h"
 
 /* We only support generating code for 64-bit mode.  */

@@ -26,7 +26,7 @@
 #define USE_LIVENESS_ANALYSIS
 #define USE_TCG_OPTIMIZATIONS
 
-#include "config.h"
+#include "qemu/osdep.h"
 
 /* Define to jump the ELF file used to communicate with GDB.  */
 #undef DEBUG_JIT

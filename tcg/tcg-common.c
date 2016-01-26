@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "tcg/tcg.h"
 
 #if defined(CONFIG_TCG_INTERPRETER)
