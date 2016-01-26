@@ -14,6 +14,7 @@
  *  Copyright Red Hat, Inc. 2012
  */
 
+#include "qemu/osdep.h"
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
 

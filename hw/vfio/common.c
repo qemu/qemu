@@ -18,6 +18,7 @@
  *  Copyright (C) 2008, IBM, Muli Ben-Yehuda (muli@il.ibm.com)
  */
 
+#include "qemu/osdep.h"
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <linux/vfio.h>

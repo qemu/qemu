@@ -10,6 +10,7 @@
  * the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "pci.h"
 #include "trace.h"
 #include "qemu/range.h"
