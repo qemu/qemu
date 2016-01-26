@@ -541,6 +541,17 @@ PropertyInfo qdev_prop_bios_chs_trans = {
     .set = set_enum,
 };
 
+/* --- FDC default drive types */
+
+PropertyInfo qdev_prop_fdc_drive_type = {
+    .name = "FdcDriveType",
+    .description = "FDC drive type, "
+                   "144/288/120/none/auto",
+    .enum_table = FloppyDriveType_lookup,
+    .get = get_enum,
+    .set = set_enum
+};
+
 /* --- pci address --- */
 
 /*

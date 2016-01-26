@@ -199,24 +199,24 @@ static void pic_irq_request(void *opaque, int irq, int level)
 
 #define REG_EQUIPMENT_BYTE          0x14
 
-static int cmos_get_fd_drive_type(FDriveType fd0)
+static int cmos_get_fd_drive_type(FloppyDriveType fd0)
 {
     int val;
 
     switch (fd0) {
-    case FDRIVE_DRV_144:
+    case FLOPPY_DRIVE_TYPE_144:
         /* 1.44 Mb 3"5 drive */
         val = 4;
         break;
-    case FDRIVE_DRV_288:
+    case FLOPPY_DRIVE_TYPE_288:
         /* 2.88 Mb 3"5 drive */
         val = 5;
         break;
-    case FDRIVE_DRV_120:
+    case FLOPPY_DRIVE_TYPE_120:
         /* 1.2 Mb 5"5 drive */
         val = 2;
         break;
-    case FDRIVE_DRV_NONE:
+    case FLOPPY_DRIVE_TYPE_NONE:
     default:
         val = 0;
         break;
@@ -287,7 +287,8 @@ static void pc_boot_set(void *opaque, const char *boot_device, Error **errp)
 static void pc_cmos_init_floppy(ISADevice *rtc_state, ISADevice *floppy)
 {
     int val, nb, i;
-    FDriveType fd_type[2] = { FDRIVE_DRV_NONE, FDRIVE_DRV_NONE };
+    FloppyDriveType fd_type[2] = { FLOPPY_DRIVE_TYPE_NONE,
+                                   FLOPPY_DRIVE_TYPE_NONE };
 
     /* floppy type */
     if (floppy) {
@@ -301,10 +302,10 @@ static void pc_cmos_init_floppy(ISADevice *rtc_state, ISADevice *floppy)
 
     val = rtc_get_memory(rtc_state, REG_EQUIPMENT_BYTE);
     nb = 0;
-    if (fd_type[0] < FDRIVE_DRV_NONE) {
+    if (fd_type[0] != FLOPPY_DRIVE_TYPE_NONE) {
         nb++;
     }
-    if (fd_type[1] < FDRIVE_DRV_NONE) {
+    if (fd_type[1] != FLOPPY_DRIVE_TYPE_NONE) {
         nb++;
     }
     switch (nb) {

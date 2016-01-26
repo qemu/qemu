@@ -60,104 +60,82 @@ typedef enum FDriveRate {
     FDRIVE_RATE_1M   = 0x03,  /*   1 Mbps */
 } FDriveRate;
 
+typedef enum FDriveSize {
+    FDRIVE_SIZE_UNKNOWN,
+    FDRIVE_SIZE_350,
+    FDRIVE_SIZE_525,
+} FDriveSize;
+
 typedef struct FDFormat {
-    FDriveType drive;
+    FloppyDriveType drive;
     uint8_t last_sect;
     uint8_t max_track;
     uint8_t max_head;
     FDriveRate rate;
 } FDFormat;
 
+/* In many cases, the total sector size of a format is enough to uniquely
+ * identify it. However, there are some total sector collisions between
+ * formats of different physical size, and these are noted below by
+ * highlighting the total sector size for entries with collisions. */
 static const FDFormat fd_formats[] = {
     /* First entry is default format */
     /* 1.44 MB 3"1/2 floppy disks */
-    { FDRIVE_DRV_144, 18, 80, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_144, 20, 80, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_144, 21, 80, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_144, 21, 82, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_144, 21, 83, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_144, 22, 80, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_144, 23, 80, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_144, 24, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_144, 18, 80, 1, FDRIVE_RATE_500K, }, /* 3.5" 2880 */
+    { FLOPPY_DRIVE_TYPE_144, 20, 80, 1, FDRIVE_RATE_500K, }, /* 3.5" 3200 */
+    { FLOPPY_DRIVE_TYPE_144, 21, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_144, 21, 82, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_144, 21, 83, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_144, 22, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_144, 23, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_144, 24, 80, 1, FDRIVE_RATE_500K, },
     /* 2.88 MB 3"1/2 floppy disks */
-    { FDRIVE_DRV_288, 36, 80, 1, FDRIVE_RATE_1M, },
-    { FDRIVE_DRV_288, 39, 80, 1, FDRIVE_RATE_1M, },
-    { FDRIVE_DRV_288, 40, 80, 1, FDRIVE_RATE_1M, },
-    { FDRIVE_DRV_288, 44, 80, 1, FDRIVE_RATE_1M, },
-    { FDRIVE_DRV_288, 48, 80, 1, FDRIVE_RATE_1M, },
+    { FLOPPY_DRIVE_TYPE_288, 36, 80, 1, FDRIVE_RATE_1M, },
+    { FLOPPY_DRIVE_TYPE_288, 39, 80, 1, FDRIVE_RATE_1M, },
+    { FLOPPY_DRIVE_TYPE_288, 40, 80, 1, FDRIVE_RATE_1M, },
+    { FLOPPY_DRIVE_TYPE_288, 44, 80, 1, FDRIVE_RATE_1M, },
+    { FLOPPY_DRIVE_TYPE_288, 48, 80, 1, FDRIVE_RATE_1M, },
     /* 720 kB 3"1/2 floppy disks */
-    { FDRIVE_DRV_144,  9, 80, 1, FDRIVE_RATE_250K, },
-    { FDRIVE_DRV_144, 10, 80, 1, FDRIVE_RATE_250K, },
-    { FDRIVE_DRV_144, 10, 82, 1, FDRIVE_RATE_250K, },
-    { FDRIVE_DRV_144, 10, 83, 1, FDRIVE_RATE_250K, },
-    { FDRIVE_DRV_144, 13, 80, 1, FDRIVE_RATE_250K, },
-    { FDRIVE_DRV_144, 14, 80, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_144,  9, 80, 1, FDRIVE_RATE_250K, }, /* 3.5" 1440 */
+    { FLOPPY_DRIVE_TYPE_144, 10, 80, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_144, 10, 82, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_144, 10, 83, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_144, 13, 80, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_144, 14, 80, 1, FDRIVE_RATE_250K, },
     /* 1.2 MB 5"1/4 floppy disks */
-    { FDRIVE_DRV_120, 15, 80, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_120, 18, 80, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_120, 18, 82, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_120, 18, 83, 1, FDRIVE_RATE_500K, },
-    { FDRIVE_DRV_120, 20, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_120, 15, 80, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_120, 18, 80, 1, FDRIVE_RATE_500K, }, /* 5.25" 2880 */
+    { FLOPPY_DRIVE_TYPE_120, 18, 82, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_120, 18, 83, 1, FDRIVE_RATE_500K, },
+    { FLOPPY_DRIVE_TYPE_120, 20, 80, 1, FDRIVE_RATE_500K, }, /* 5.25" 3200 */
     /* 720 kB 5"1/4 floppy disks */
-    { FDRIVE_DRV_120,  9, 80, 1, FDRIVE_RATE_250K, },
-    { FDRIVE_DRV_120, 11, 80, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_120,  9, 80, 1, FDRIVE_RATE_250K, }, /* 5.25" 1440 */
+    { FLOPPY_DRIVE_TYPE_120, 11, 80, 1, FDRIVE_RATE_250K, },
     /* 360 kB 5"1/4 floppy disks */
-    { FDRIVE_DRV_120,  9, 40, 1, FDRIVE_RATE_300K, },
-    { FDRIVE_DRV_120,  9, 40, 0, FDRIVE_RATE_300K, },
-    { FDRIVE_DRV_120, 10, 41, 1, FDRIVE_RATE_300K, },
-    { FDRIVE_DRV_120, 10, 42, 1, FDRIVE_RATE_300K, },
+    { FLOPPY_DRIVE_TYPE_120,  9, 40, 1, FDRIVE_RATE_300K, }, /* 5.25" 720 */
+    { FLOPPY_DRIVE_TYPE_120,  9, 40, 0, FDRIVE_RATE_300K, },
+    { FLOPPY_DRIVE_TYPE_120, 10, 41, 1, FDRIVE_RATE_300K, },
+    { FLOPPY_DRIVE_TYPE_120, 10, 42, 1, FDRIVE_RATE_300K, },
     /* 320 kB 5"1/4 floppy disks */
-    { FDRIVE_DRV_120,  8, 40, 1, FDRIVE_RATE_250K, },
-    { FDRIVE_DRV_120,  8, 40, 0, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_120,  8, 40, 1, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_120,  8, 40, 0, FDRIVE_RATE_250K, },
     /* 360 kB must match 5"1/4 better than 3"1/2... */
-    { FDRIVE_DRV_144,  9, 80, 0, FDRIVE_RATE_250K, },
+    { FLOPPY_DRIVE_TYPE_144,  9, 80, 0, FDRIVE_RATE_250K, }, /* 3.5" 720 */
     /* end */
-    { FDRIVE_DRV_NONE, -1, -1, 0, 0, },
+    { FLOPPY_DRIVE_TYPE_NONE, -1, -1, 0, 0, },
 };
 
-static void pick_geometry(BlockBackend *blk, int *nb_heads,
-                          int *max_track, int *last_sect,
-                          FDriveType drive_in, FDriveType *drive,
-                          FDriveRate *rate)
+static FDriveSize drive_size(FloppyDriveType drive)
 {
-    const FDFormat *parse;
-    uint64_t nb_sectors, size;
-    int i, first_match, match;
-
-    blk_get_geometry(blk, &nb_sectors);
-    match = -1;
-    first_match = -1;
-    for (i = 0; ; i++) {
-        parse = &fd_formats[i];
-        if (parse->drive == FDRIVE_DRV_NONE) {
-            break;
-        }
-        if (drive_in == parse->drive ||
-            drive_in == FDRIVE_DRV_NONE) {
-            size = (parse->max_head + 1) * parse->max_track *
-                parse->last_sect;
-            if (nb_sectors == size) {
-                match = i;
-                break;
-            }
-            if (first_match == -1) {
-                first_match = i;
-            }
-        }
+    switch (drive) {
+    case FLOPPY_DRIVE_TYPE_120:
+        return FDRIVE_SIZE_525;
+    case FLOPPY_DRIVE_TYPE_144:
+    case FLOPPY_DRIVE_TYPE_288:
+        return FDRIVE_SIZE_350;
+    default:
+        return FDRIVE_SIZE_UNKNOWN;
     }
-    if (match == -1) {
-        if (first_match == -1) {
-            match = 1;
-        } else {
-            match = first_match;
-        }
-        parse = &fd_formats[match];
-    }
-    *nb_heads = parse->max_head + 1;
-    *max_track = parse->max_track;
-    *last_sect = parse->last_sect;
-    *drive = parse->drive;
-    *rate = parse->rate;
 }
 
 #define GET_CUR_DRV(fdctrl) ((fdctrl)->cur_drv)
@@ -179,13 +157,14 @@ typedef struct FDrive {
     FDCtrl *fdctrl;
     BlockBackend *blk;
     /* Drive status */
-    FDriveType drive;
+    FloppyDriveType drive;    /* CMOS drive type        */
     uint8_t perpendicular;    /* 2.88 MB access mode    */
     /* Position */
     uint8_t head;
     uint8_t track;
     uint8_t sect;
     /* Media */
+    FloppyDriveType disk;     /* Current disk type      */
     FDiskFlags flags;
     uint8_t last_sect;        /* Nb sector per track    */
     uint8_t max_track;        /* Nb of tracks           */
@@ -195,16 +174,22 @@ typedef struct FDrive {
     uint8_t media_rate;       /* Data rate of medium    */
 
     bool media_inserted;      /* Is there a medium in the tray */
+    bool media_validated;     /* Have we validated the media? */
 } FDrive;
+
+
+static FloppyDriveType get_fallback_drive_type(FDrive *drv);
 
 static void fd_init(FDrive *drv)
 {
     /* Drive */
-    drv->drive = FDRIVE_DRV_NONE;
     drv->perpendicular = 0;
     /* Disk */
+    drv->disk = FLOPPY_DRIVE_TYPE_NONE;
     drv->last_sect = 0;
     drv->max_track = 0;
+    drv->ro = true;
+    drv->media_changed = 1;
 }
 
 #define NUM_SIDES(drv) ((drv)->flags & FDISK_DBL_SIDES ? 2 : 1)
@@ -287,39 +272,146 @@ static void fd_recalibrate(FDrive *drv)
     fd_seek(drv, 0, 0, 1, 1);
 }
 
+/**
+ * Determine geometry based on inserted diskette.
+ * Will not operate on an empty drive.
+ *
+ * @return: 0 on success, -1 if the drive is empty.
+ */
+static int pick_geometry(FDrive *drv)
+{
+    BlockBackend *blk = drv->blk;
+    const FDFormat *parse;
+    uint64_t nb_sectors, size;
+    int i;
+    int match, size_match, type_match;
+    bool magic = drv->drive == FLOPPY_DRIVE_TYPE_AUTO;
+
+    /* We can only pick a geometry if we have a diskette. */
+    if (!drv->media_inserted || drv->drive == FLOPPY_DRIVE_TYPE_NONE) {
+        return -1;
+    }
+
+    /* We need to determine the likely geometry of the inserted medium.
+     * In order of preference, we look for:
+     * (1) The same drive type and number of sectors,
+     * (2) The same diskette size and number of sectors,
+     * (3) The same drive type.
+     *
+     * In all cases, matches that occur higher in the drive table will take
+     * precedence over matches that occur later in the table.
+     */
+    blk_get_geometry(blk, &nb_sectors);
+    match = size_match = type_match = -1;
+    for (i = 0; ; i++) {
+        parse = &fd_formats[i];
+        if (parse->drive == FLOPPY_DRIVE_TYPE_NONE) {
+            break;
+        }
+        size = (parse->max_head + 1) * parse->max_track * parse->last_sect;
+        if (nb_sectors == size) {
+            if (magic || parse->drive == drv->drive) {
+                /* (1) perfect match -- nb_sectors and drive type */
+                goto out;
+            } else if (drive_size(parse->drive) == drive_size(drv->drive)) {
+                /* (2) size match -- nb_sectors and physical medium size */
+                match = (match == -1) ? i : match;
+            } else {
+                /* This is suspicious -- Did the user misconfigure? */
+                size_match = (size_match == -1) ? i : size_match;
+            }
+        } else if (type_match == -1) {
+            if ((parse->drive == drv->drive) ||
+                (magic && (parse->drive == get_fallback_drive_type(drv)))) {
+                /* (3) type match -- nb_sectors mismatch, but matches the type
+                 *     specified explicitly by the user, or matches the fallback
+                 *     default type when using the drive autodetect mechanism */
+                type_match = i;
+            }
+        }
+    }
+
+    /* No exact match found */
+    if (match == -1) {
+        if (size_match != -1) {
+            parse = &fd_formats[size_match];
+            FLOPPY_DPRINTF("User requested floppy drive type '%s', "
+                           "but inserted medium appears to be a "
+                           "%d sector '%s' type\n",
+                           FloppyDriveType_lookup[drv->drive],
+                           nb_sectors,
+                           FloppyDriveType_lookup[parse->drive]);
+        }
+        match = type_match;
+    }
+
+    /* No match of any kind found -- fd_format is misconfigured, abort. */
+    if (match == -1) {
+        error_setg(&error_abort, "No candidate geometries present in table "
+                   " for floppy drive type '%s'",
+                   FloppyDriveType_lookup[drv->drive]);
+    }
+
+    parse = &(fd_formats[match]);
+
+ out:
+    if (parse->max_head == 0) {
+        drv->flags &= ~FDISK_DBL_SIDES;
+    } else {
+        drv->flags |= FDISK_DBL_SIDES;
+    }
+    drv->max_track = parse->max_track;
+    drv->last_sect = parse->last_sect;
+    drv->disk = parse->drive;
+    drv->media_rate = parse->rate;
+    return 0;
+}
+
+static void pick_drive_type(FDrive *drv)
+{
+    if (drv->drive != FLOPPY_DRIVE_TYPE_AUTO) {
+        return;
+    }
+
+    if (pick_geometry(drv) == 0) {
+        drv->drive = drv->disk;
+    } else {
+        drv->drive = get_fallback_drive_type(drv);
+    }
+
+    g_assert(drv->drive != FLOPPY_DRIVE_TYPE_AUTO);
+}
+
 /* Revalidate a disk drive after a disk change */
 static void fd_revalidate(FDrive *drv)
 {
-    int nb_heads, max_track, last_sect, ro;
-    FDriveType drive;
-    FDriveRate rate;
+    int rc;
 
     FLOPPY_DPRINTF("revalidate\n");
     if (drv->blk != NULL) {
-        ro = blk_is_read_only(drv->blk);
-        pick_geometry(drv->blk, &nb_heads, &max_track,
-                      &last_sect, drv->drive, &drive, &rate);
+        drv->ro = blk_is_read_only(drv->blk);
         if (!drv->media_inserted) {
             FLOPPY_DPRINTF("No disk in drive\n");
-        } else {
-            FLOPPY_DPRINTF("Floppy disk (%d h %d t %d s) %s\n", nb_heads,
-                           max_track, last_sect, ro ? "ro" : "rw");
+            drv->disk = FLOPPY_DRIVE_TYPE_NONE;
+        } else if (!drv->media_validated) {
+            rc = pick_geometry(drv);
+            if (rc) {
+                FLOPPY_DPRINTF("Could not validate floppy drive media");
+            } else {
+                drv->media_validated = true;
+                FLOPPY_DPRINTF("Floppy disk (%d h %d t %d s) %s\n",
+                               (drv->flags & FDISK_DBL_SIDES) ? 2 : 1,
+                               drv->max_track, drv->last_sect,
+                               drv->ro ? "ro" : "rw");
+            }
         }
-        if (nb_heads == 1) {
-            drv->flags &= ~FDISK_DBL_SIDES;
-        } else {
-            drv->flags |= FDISK_DBL_SIDES;
-        }
-        drv->max_track = max_track;
-        drv->last_sect = last_sect;
-        drv->ro = ro;
-        drv->drive = drive;
-        drv->media_rate = rate;
     } else {
         FLOPPY_DPRINTF("No drive connected\n");
         drv->last_sect = 0;
         drv->max_track = 0;
         drv->flags &= ~FDISK_DBL_SIDES;
+        drv->drive = FLOPPY_DRIVE_TYPE_NONE;
+        drv->disk = FLOPPY_DRIVE_TYPE_NONE;
     }
 }
 
@@ -569,10 +661,16 @@ struct FDCtrl {
     FDrive drives[MAX_FD];
     int reset_sensei;
     uint32_t check_media_rate;
+    FloppyDriveType fallback; /* type=auto failure fallback */
     /* Timers state */
     uint8_t timer0;
     uint8_t timer1;
 };
+
+static FloppyDriveType get_fallback_drive_type(FDrive *drv)
+{
+    return drv->fdctrl->fallback;
+}
 
 #define TYPE_SYSBUS_FDC "base-sysbus-fdc"
 #define SYSBUS_FDC(obj) OBJECT_CHECK(FDCtrlSysBus, (obj), TYPE_SYSBUS_FDC)
@@ -2190,6 +2288,7 @@ static void fdctrl_change_cb(void *opaque, bool load)
     drive->media_inserted = load && drive->blk && blk_is_inserted(drive->blk);
 
     drive->media_changed = 1;
+    drive->media_validated = false;
     fd_revalidate(drive);
 }
 
@@ -2226,11 +2325,12 @@ static void fdctrl_connect_drives(FDCtrl *fdctrl, Error **errp)
         }
 
         fd_init(drive);
-        fdctrl_change_cb(drive, 0);
         if (drive->blk) {
             blk_set_dev_ops(drive->blk, &fdctrl_block_ops, drive);
             drive->media_inserted = blk_is_inserted(drive->blk);
+            pick_drive_type(drive);
         }
+        fd_revalidate(drive);
     }
 }
 
@@ -2306,6 +2406,10 @@ static void fdctrl_realize_common(FDCtrl *fdctrl, Error **errp)
 {
     int i, j;
     static int command_tables_inited = 0;
+
+    if (fdctrl->fallback == FLOPPY_DRIVE_TYPE_AUTO) {
+        error_setg(errp, "Cannot choose a fallback FDrive type of 'auto'");
+    }
 
     /* Fill 'command_to_handler' lookup table */
     if (!command_tables_inited) {
@@ -2407,7 +2511,7 @@ static void sysbus_fdc_common_realize(DeviceState *dev, Error **errp)
     fdctrl_realize_common(fdctrl, errp);
 }
 
-FDriveType isa_fdc_get_drive_type(ISADevice *fdc, int i)
+FloppyDriveType isa_fdc_get_drive_type(ISADevice *fdc, int i)
 {
     FDCtrlISABus *isa = ISA_FDC(fdc);
 
@@ -2432,6 +2536,15 @@ static Property isa_fdc_properties[] = {
     DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.drives[1].blk),
     DEFINE_PROP_BIT("check_media_rate", FDCtrlISABus, state.check_media_rate,
                     0, true),
+    DEFINE_PROP_DEFAULT("fdtypeA", FDCtrlISABus, state.drives[0].drive,
+                        FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
+    DEFINE_PROP_DEFAULT("fdtypeB", FDCtrlISABus, state.drives[1].drive,
+                        FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
+    DEFINE_PROP_DEFAULT("fallback", FDCtrlISABus, state.fallback,
+                        FLOPPY_DRIVE_TYPE_288, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2480,6 +2593,15 @@ static const VMStateDescription vmstate_sysbus_fdc ={
 static Property sysbus_fdc_properties[] = {
     DEFINE_PROP_DRIVE("driveA", FDCtrlSysBus, state.drives[0].blk),
     DEFINE_PROP_DRIVE("driveB", FDCtrlSysBus, state.drives[1].blk),
+    DEFINE_PROP_DEFAULT("fdtypeA", FDCtrlSysBus, state.drives[0].drive,
+                        FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
+    DEFINE_PROP_DEFAULT("fdtypeB", FDCtrlSysBus, state.drives[1].drive,
+                        FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
+    DEFINE_PROP_DEFAULT("fallback", FDCtrlISABus, state.fallback,
+                        FLOPPY_DRIVE_TYPE_144, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2500,6 +2622,12 @@ static const TypeInfo sysbus_fdc_info = {
 
 static Property sun4m_fdc_properties[] = {
     DEFINE_PROP_DRIVE("drive", FDCtrlSysBus, state.drives[0].blk),
+    DEFINE_PROP_DEFAULT("fdtype", FDCtrlSysBus, state.drives[0].drive,
+                        FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
+    DEFINE_PROP_DEFAULT("fallback", FDCtrlISABus, state.fallback,
+                        FLOPPY_DRIVE_TYPE_144, qdev_prop_fdc_drive_type,
+                        FloppyDriveType),
     DEFINE_PROP_END_OF_LIST(),
 };
 
