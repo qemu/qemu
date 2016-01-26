@@ -2335,6 +2335,31 @@ e1000003f0:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
 read 1024/1024 bytes at offset 966367641600
 1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
+=== Testing qemu-img map on extents ===
+Formatting 'TEST_DIR/iotest-version3.IMGFMT', fmt=IMGFMT size=33285996544 subformat=monolithicSparse
+wrote 1024/1024 bytes at offset 65024
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1024/1024 bytes at offset 2147483136
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1024/1024 bytes at offset 5368709120
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Offset          Length          Mapped to       File
+0               0x20000         0x3f0000        TEST_DIR/iotest-version3.vmdk
+0x7fff0000      0x20000         0x410000        TEST_DIR/iotest-version3.vmdk
+0x140000000     0x10000         0x430000        TEST_DIR/iotest-version3.vmdk
+Formatting 'TEST_DIR/iotest-version3.IMGFMT', fmt=IMGFMT size=33285996544 subformat=twoGbMaxExtentSparse
+wrote 1024/1024 bytes at offset 65024
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1024/1024 bytes at offset 2147483136
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1024/1024 bytes at offset 5368709120
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Offset          Length          Mapped to       File
+0               0x20000         0x50000         TEST_DIR/iotest-version3-s001.vmdk
+0x7fff0000      0x10000         0x70000         TEST_DIR/iotest-version3-s001.vmdk
+0x80000000      0x10000         0x50000         TEST_DIR/iotest-version3-s002.vmdk
+0x140000000     0x10000         0x50000         TEST_DIR/iotest-version3-s003.vmdk
+
 === Testing afl image with a very large capacity ===
 qemu-img: Can't get size of device 'image': File too large
 *** done

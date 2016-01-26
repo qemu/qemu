@@ -133,6 +133,16 @@ $QEMU_IO -c "write -P 0xa 900G 512" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "read -v 900G 1024" "$TEST_IMG" | _filter_qemu_io
 
 echo
+echo "=== Testing qemu-img map on extents ==="
+for fmt in monolithicSparse twoGbMaxExtentSparse; do
+    IMGOPTS="subformat=$fmt" _make_test_img 31G
+    $QEMU_IO -c "write 65024 1k" "$TEST_IMG" | _filter_qemu_io
+    $QEMU_IO -c "write 2147483136 1k" "$TEST_IMG" | _filter_qemu_io
+    $QEMU_IO -c "write 5G 1k" "$TEST_IMG" | _filter_qemu_io
+    $QEMU_IMG map "$TEST_IMG" | _filter_testdir
+done
+
+echo
 echo "=== Testing afl image with a very large capacity ==="
 _use_sample_img afl9.vmdk.bz2
 _img_info
