@@ -1291,12 +1291,12 @@ static int64_t coroutine_fn vmdk_co_get_block_status(BlockDriverState *bs,
         break;
     case VMDK_OK:
         ret = BDRV_BLOCK_DATA;
-        if (extent->file == bs->file && !extent->compressed) {
+        if (!extent->compressed) {
             ret |= BDRV_BLOCK_OFFSET_VALID;
             ret |= (offset + (index_in_cluster << BDRV_SECTOR_BITS))
                     & BDRV_BLOCK_OFFSET_MASK;
         }
-
+        *file = extent->file->bs;
         break;
     }
 
