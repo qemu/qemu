@@ -274,6 +274,7 @@ static int64_t coroutine_fn parallels_co_get_block_status(BlockDriverState *bs,
         return 0;
     }
 
+    *file = bs->file->bs;
     return (offset << BDRV_SECTOR_BITS) |
         BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
 }
