@@ -9,11 +9,10 @@
  * This code is licensed under the GPL v2 or later.
  */
 
+#include "qemu/osdep.h"
 #include <wchar.h>
 #include <dirent.h>
-#include <unistd.h>
 
-#include <sys/stat.h>
 #include <sys/statvfs.h>
 #ifdef __linux__
 #include <sys/inotify.h>

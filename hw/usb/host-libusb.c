@@ -33,6 +33,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include <poll.h>
 #include <libusb.h>
 

@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"

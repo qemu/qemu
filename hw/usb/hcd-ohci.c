@@ -25,6 +25,7 @@
  *  o BIOS work to boot from USB storage
 */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "qemu/timer.h"
 #include "hw/usb.h"

@@ -1,3 +1,4 @@
+#include "qemu/osdep.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 

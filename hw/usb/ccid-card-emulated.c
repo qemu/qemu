@@ -26,6 +26,7 @@
  * the db parameter.
  */
 
+#include "qemu/osdep.h"
 #include <eventt.h>
 #include <vevent.h>
 #include <vreader.h>

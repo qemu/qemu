@@ -19,6 +19,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "hw/usb.h"
 #include "qemu/iov.h"

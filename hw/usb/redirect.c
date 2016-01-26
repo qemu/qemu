@@ -25,6 +25,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"

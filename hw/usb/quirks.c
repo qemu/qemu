@@ -12,6 +12,7 @@
  * (at your option) any later version.
  */
 
+#include "qemu/osdep.h"
 #include "quirks.h"
 #include "hw/usb.h"
 

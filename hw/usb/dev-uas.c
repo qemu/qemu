@@ -9,6 +9,7 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"

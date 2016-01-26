@@ -15,6 +15,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "hw/usb/hcd-ehci.h"
 #include "qemu/range.h"
 
