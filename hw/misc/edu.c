@@ -22,6 +22,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "hw/pci/pci.h"
 #include "qemu/timer.h"
 #include "qemu/main-loop.h" /* iothread mutex */

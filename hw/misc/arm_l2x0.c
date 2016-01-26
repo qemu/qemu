@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 
 /* L2C-310 r3p2 */

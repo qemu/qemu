@@ -30,6 +30,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/isa/isa.h"
 #include "ui/console.h"

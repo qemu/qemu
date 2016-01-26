@@ -11,6 +11,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/qdev.h"
 #include "hw/isa/isa.h"
