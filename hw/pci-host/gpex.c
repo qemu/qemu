@@ -28,6 +28,7 @@
  * http://www.kernel.org/doc/Documentation/devicetree/bindings/pci/host-generic-pci.txt
  * http://www.firmware.org/1275/practice/imap/imap0_9d.pdf
  */
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/pci-host/gpex.h"
 

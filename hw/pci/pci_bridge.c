@@ -29,6 +29,7 @@
  *                    VA Linux Systems Japan K.K.
  */
 
+#include "qemu/osdep.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
 #include "qemu/range.h"

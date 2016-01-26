@@ -37,7 +37,7 @@
  * north bridge address to pci address.
  */
 
-#include <assert.h>
+#include "qemu/osdep.h"
 
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
