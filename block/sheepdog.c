@@ -2739,6 +2739,9 @@ sd_co_get_block_status(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
     if (*pnum > nb_sectors) {
         *pnum = nb_sectors;
     }
+    if (ret > 0 && ret & BDRV_BLOCK_OFFSET_VALID) {
+        *file = bs;
+    }
     return ret;
 }
 
