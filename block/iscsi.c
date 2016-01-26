@@ -625,6 +625,9 @@ out:
     if (iTask.task != NULL) {
         scsi_free_scsi_task(iTask.task);
     }
+    if (ret > 0 && ret & BDRV_BLOCK_OFFSET_VALID) {
+        *file = bs;
+    }
     return ret;
 }
 
