@@ -11,6 +11,7 @@
  * directory.
  */
 
+#include "qemu/osdep.h"
 #include "s390-pci-inst.h"
 #include "s390-pci-bus.h"
 #include <exec/memory-internal.h>

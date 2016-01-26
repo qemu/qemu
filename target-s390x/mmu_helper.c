@@ -15,6 +15,7 @@
  * GNU General Public License for more details.
  */
 
+#include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "exec/address-spaces.h"
 #include "cpu.h"

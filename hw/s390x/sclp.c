@@ -12,6 +12,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "cpu.h"
 #include "sysemu/kvm.h"
 #include "exec/memory.h"

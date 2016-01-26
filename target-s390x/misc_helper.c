@@ -18,11 +18,11 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/memory.h"
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
-#include <string.h>
 #include "sysemu/kvm.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"

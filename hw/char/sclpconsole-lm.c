@@ -13,6 +13,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/qdev.h"
 #include "qemu/thread.h"
 #include "qemu/error-report.h"

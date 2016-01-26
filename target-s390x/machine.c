@@ -14,6 +14,7 @@
  * or (at your option) any later version.
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "cpu.h"
 #include "sysemu/kvm.h"

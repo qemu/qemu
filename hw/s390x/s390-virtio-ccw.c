@@ -9,6 +9,7 @@
  * directory.
  */
 
+#include "qemu/osdep.h"
 #include "hw/boards.h"
 #include "exec/address-spaces.h"
 #include "s390-virtio.h"

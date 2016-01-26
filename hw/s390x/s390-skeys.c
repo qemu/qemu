@@ -9,6 +9,7 @@
  * directory.
  */
 
+#include "qemu/osdep.h"
 #include "hw/boards.h"
 #include "qmp-commands.h"
 #include "migration/qemu-file.h"

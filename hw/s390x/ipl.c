@@ -11,6 +11,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
 #include "cpu.h"
 #include "elf.h"

@@ -9,6 +9,7 @@
  * directory.
  */
 
+#include "qemu/osdep.h"
 #include "hw/s390x/storage-keys.h"
 #include "sysemu/kvm.h"
 #include "qemu/error-report.h"

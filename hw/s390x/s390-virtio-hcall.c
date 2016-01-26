@@ -9,6 +9,7 @@
  * directory.
  */
 
+#include "qemu/osdep.h"
 #include "cpu.h"
 #include "hw/s390x/s390-virtio.h"
 

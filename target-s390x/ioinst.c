@@ -9,7 +9,7 @@
  * directory.
  */
 
-#include <sys/types.h>
+#include "qemu/osdep.h"
 
 #include "cpu.h"
 #include "ioinst.h"

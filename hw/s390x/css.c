@@ -9,6 +9,7 @@
  * directory.
  */
 
+#include "qemu/osdep.h"
 #include <hw/qdev.h>
 #include "qemu/bitops.h"
 #include "exec/address-spaces.h"

@@ -28,6 +28,7 @@
 #  define LOG_DISAS(...) do { } while (0)
 #endif
 
+#include "qemu/osdep.h"
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg-op.h"
