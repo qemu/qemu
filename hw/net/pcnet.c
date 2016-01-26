@@ -35,6 +35,7 @@
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR92C990.txt
  */
 
+#include "qemu/osdep.h"
 #include "hw/qdev.h"
 #include "net/net.h"
 #include "qemu/timer.h"

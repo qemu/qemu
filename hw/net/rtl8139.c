@@ -49,6 +49,7 @@
  */
 
 /* For crc32 */
+#include "qemu/osdep.h"
 #include <zlib.h>
 
 #include "hw/hw.h"

@@ -13,6 +13,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include "qemu/osdep.h"
 #include "net/net.h"
 #include "net/tap.h"
 #include "net/vhost-user.h"
@@ -21,19 +22,16 @@
 #include "net/vhost_net.h"
 #include "qemu/error-report.h"
 
-#include "config.h"
 
 #ifdef CONFIG_VHOST_NET
 #include <linux/vhost.h>
 #include <sys/socket.h>
 #include <linux/kvm.h>
-#include <fcntl.h>
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <netinet/in.h>
 
-#include <stdio.h>
 
 #include "standard-headers/linux/virtio_ring.h"
 #include "hw/virtio/vhost.h"

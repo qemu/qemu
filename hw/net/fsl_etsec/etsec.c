@@ -26,6 +26,7 @@
  * This implementation doesn't include ring priority, TCP/IP Off-Load, QoS.
  */
 
+#include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
 #include "trace.h"

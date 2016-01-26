@@ -15,6 +15,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "vmxnet_tx_pkt.h"
 #include "net/eth.h"

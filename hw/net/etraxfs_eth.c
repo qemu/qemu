@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include <stdio.h>
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
 #include "hw/cris/etraxfs.h"

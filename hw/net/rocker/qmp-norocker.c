@@ -15,6 +15,7 @@
  * GNU General Public License for more details.
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qmp-commands.h"
 #include "qapi/qmp/qerror.h"

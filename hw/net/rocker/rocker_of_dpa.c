@@ -14,6 +14,7 @@
  * GNU General Public License for more details.
  */
 
+#include "qemu/osdep.h"
 #include "net/eth.h"
 #include "qemu/iov.h"
 #include "qemu/timer.h"
