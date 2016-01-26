@@ -24,6 +24,7 @@
  * uses PMU INFORM5 register as a holding pen.
  */
 
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 
 #ifndef DEBUG_PMU

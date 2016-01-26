@@ -15,6 +15,7 @@
  * TODO: implement vectors.
  */
 
+#include "qemu/osdep.h"
 #include "hw/intc/imx_avic.h"
 
 #ifndef DEBUG_IMX_AVIC

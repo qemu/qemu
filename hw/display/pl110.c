@@ -7,6 +7,7 @@
  * This code is licensed under the GNU LGPL
  */
 
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "ui/console.h"
 #include "framebuffer.h"

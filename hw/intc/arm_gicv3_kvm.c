@@ -19,6 +19,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/sysbus.h"
 #include "sysemu/kvm.h"

@@ -11,6 +11,7 @@
  * retrieve the CCM frequencies from the various i.MX SOC.
  */
 
+#include "qemu/osdep.h"
 #include "hw/misc/imx_ccm.h"
 
 #ifndef DEBUG_IMX_CCM

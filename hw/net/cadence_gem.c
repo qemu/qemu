@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include <zlib.h> /* For crc32 */
 
 #include "hw/net/cadence_gem.h"

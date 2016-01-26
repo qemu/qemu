@@ -16,6 +16,7 @@
  * GNU General Public License for more details.
  *
  */
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
 #include "qemu/fifo8.h"

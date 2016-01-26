@@ -7,6 +7,7 @@
  * This code is licensed under the GPL.
  */
 
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "sysemu/char.h"
 

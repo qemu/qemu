@@ -15,6 +15,7 @@
  * for more details.
  */
 
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "hw/timer/allwinner-a10-pit.h"

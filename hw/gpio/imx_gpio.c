@@ -17,6 +17,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "hw/gpio/imx_gpio.h"
 
 #ifndef DEBUG_IMX_GPIO

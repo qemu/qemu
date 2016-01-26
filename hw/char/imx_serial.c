@@ -18,6 +18,7 @@
  *     is a real serial device.
  */
 
+#include "qemu/osdep.h"
 #include "hw/char/imx_serial.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/char.h"

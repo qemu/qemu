@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/i2c/imx_i2c.h"
 #include "hw/i2c/i2c.h"
 

@@ -11,6 +11,7 @@
  * the CCM.
  */
 
+#include "qemu/osdep.h"
 #include "hw/misc/imx25_ccm.h"
 
 #ifndef DEBUG_IMX25_CCM

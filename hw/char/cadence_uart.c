@@ -16,6 +16,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "hw/char/cadence_uart.h"
 
 #ifdef CADENCE_UART_ERR_DEBUG

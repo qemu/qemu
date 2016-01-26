@@ -20,6 +20,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "hw/intc/arm_gicv3_common.h"
 
 static void gicv3_pre_save(void *opaque)

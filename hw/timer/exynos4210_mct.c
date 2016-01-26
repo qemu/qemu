@@ -52,6 +52,7 @@
  * there is no way to avoid frequently events).
  */
 
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "qemu/main-loop.h"

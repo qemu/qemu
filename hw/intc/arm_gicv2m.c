@@ -25,6 +25,7 @@
  * identification registers and with a single non-secure MSI register frame.
  */
 
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/pci/msi.h"
 

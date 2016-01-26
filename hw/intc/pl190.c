@@ -7,6 +7,7 @@
  * This code is licensed under the GPL.
  */
 
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 
 /* The number of virtual priority levels.  16 user vectors plus the

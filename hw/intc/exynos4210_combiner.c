@@ -27,6 +27,7 @@
  * IRQs are passed to GIC through Combiner.
  */
 
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 
 #include "hw/arm/exynos4210.h"

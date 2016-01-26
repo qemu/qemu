@@ -11,6 +11,7 @@
  * the i.MX31 CCM.
  */
 
+#include "qemu/osdep.h"
 #include "hw/misc/imx31_ccm.h"
 
 #define CKIH_FREQ 26000000 /* 26MHz crystal input */

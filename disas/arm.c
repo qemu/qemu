@@ -22,6 +22,7 @@
 /* Start of qemu specific additions.  Mostly this is stub definitions
    for things we don't care about.  */
 
+#include "qemu/osdep.h"
 #include "disas/bfd.h"
 #define ATTRIBUTE_UNUSED __attribute__((unused))
 #define ISSPACE(x) ((x) == ' ' || (x) == '\t' || (x) == '\n')

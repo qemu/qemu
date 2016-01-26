@@ -8,6 +8,7 @@
  * This code is licensed under the GPL.
  */
 
+#include "qemu/osdep.h"
 #include "hw/misc/a9scu.h"
 
 static uint64_t a9_scu_read(void *opaque, hwaddr offset,

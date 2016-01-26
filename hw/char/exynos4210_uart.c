@@ -19,6 +19,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"

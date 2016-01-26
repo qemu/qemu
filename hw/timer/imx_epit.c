@@ -12,6 +12,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/timer/imx_epit.h"
 #include "hw/misc/imx_ccm.h"
 #include "qemu/main-loop.h"

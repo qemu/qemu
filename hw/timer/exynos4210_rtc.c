@@ -25,6 +25,7 @@
  *  CLKOUTEN Bit[9] not used
  */
 
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "qemu-common.h"

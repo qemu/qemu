@@ -24,6 +24,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "sysemu/char.h"
 #include "qemu/log.h"
