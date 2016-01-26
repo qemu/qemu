@@ -17,10 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <string.h>
+#include "qemu/osdep.h"
 
-#include "config.h"
 #include "cpu.h"
 #include "mmu.h"
 #include "exec/exec-all.h"

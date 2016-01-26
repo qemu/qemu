@@ -14,7 +14,7 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, see <http://www.gnu.org/licenses/>. */
 
-#include <stdio.h>
+#include "qemu/osdep.h"
 #define STATIC_TABLE
 #define DEFINE_TABLE
 
