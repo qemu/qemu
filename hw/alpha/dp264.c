@@ -6,6 +6,7 @@
  * that we need to emulate as well.
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "elf.h"
 #include "hw/loader.h"

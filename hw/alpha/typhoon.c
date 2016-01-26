@@ -6,6 +6,7 @@
  * This work is licensed under the GNU GPL license version 2 or later.
  */
 
+#include "qemu/osdep.h"
 #include "cpu.h"
 #include "hw/hw.h"
 #include "hw/devices.h"

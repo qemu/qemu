@@ -17,9 +17,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include "qemu/osdep.h"
 
 #include "cpu.h"
 #include "fpu/softfloat.h"
