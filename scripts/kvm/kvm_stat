@@ -12,285 +12,311 @@
 # the COPYING file in the top-level directory.
 
 import curses
-import sys, os, time, optparse, ctypes
-from ctypes import *
+import sys
+import os
+import time
+import optparse
+import ctypes
+import fcntl
+import resource
+import struct
+import re
+from collections import defaultdict
 
-class DebugfsProvider(object):
-    def __init__(self):
-        self.base = '/sys/kernel/debug/kvm'
-        self._fields = os.listdir(self.base)
-    def fields(self):
-        return self._fields
-    def select(self, fields):
-        self._fields = fields
-    def read(self):
-        def val(key):
-            return int(file(self.base + '/' + key).read())
-        return dict([(key, val(key)) for key in self._fields])
-
-vmx_exit_reasons = {
-    0: 'EXCEPTION_NMI',
-    1: 'EXTERNAL_INTERRUPT',
-    2: 'TRIPLE_FAULT',
-    7: 'PENDING_INTERRUPT',
-    8: 'NMI_WINDOW',
-    9: 'TASK_SWITCH',
-    10: 'CPUID',
-    12: 'HLT',
-    14: 'INVLPG',
-    15: 'RDPMC',
-    16: 'RDTSC',
-    18: 'VMCALL',
-    19: 'VMCLEAR',
-    20: 'VMLAUNCH',
-    21: 'VMPTRLD',
-    22: 'VMPTRST',
-    23: 'VMREAD',
-    24: 'VMRESUME',
-    25: 'VMWRITE',
-    26: 'VMOFF',
-    27: 'VMON',
-    28: 'CR_ACCESS',
-    29: 'DR_ACCESS',
-    30: 'IO_INSTRUCTION',
-    31: 'MSR_READ',
-    32: 'MSR_WRITE',
-    33: 'INVALID_STATE',
-    36: 'MWAIT_INSTRUCTION',
-    39: 'MONITOR_INSTRUCTION',
-    40: 'PAUSE_INSTRUCTION',
-    41: 'MCE_DURING_VMENTRY',
-    43: 'TPR_BELOW_THRESHOLD',
-    44: 'APIC_ACCESS',
-    48: 'EPT_VIOLATION',
-    49: 'EPT_MISCONFIG',
-    54: 'WBINVD',
-    55: 'XSETBV',
-    56: 'APIC_WRITE',
-    58: 'INVPCID',
+VMX_EXIT_REASONS = {
+    'EXCEPTION_NMI':        0,
+    'EXTERNAL_INTERRUPT':   1,
+    'TRIPLE_FAULT':         2,
+    'PENDING_INTERRUPT':    7,
+    'NMI_WINDOW':           8,
+    'TASK_SWITCH':          9,
+    'CPUID':                10,
+    'HLT':                  12,
+    'INVLPG':               14,
+    'RDPMC':                15,
+    'RDTSC':                16,
+    'VMCALL':               18,
+    'VMCLEAR':              19,
+    'VMLAUNCH':             20,
+    'VMPTRLD':              21,
+    'VMPTRST':              22,
+    'VMREAD':               23,
+    'VMRESUME':             24,
+    'VMWRITE':              25,
+    'VMOFF':                26,
+    'VMON':                 27,
+    'CR_ACCESS':            28,
+    'DR_ACCESS':            29,
+    'IO_INSTRUCTION':       30,
+    'MSR_READ':             31,
+    'MSR_WRITE':            32,
+    'INVALID_STATE':        33,
+    'MWAIT_INSTRUCTION':    36,
+    'MONITOR_INSTRUCTION':  39,
+    'PAUSE_INSTRUCTION':    40,
+    'MCE_DURING_VMENTRY':   41,
+    'TPR_BELOW_THRESHOLD':  43,
+    'APIC_ACCESS':          44,
+    'EPT_VIOLATION':        48,
+    'EPT_MISCONFIG':        49,
+    'WBINVD':               54,
+    'XSETBV':               55,
+    'APIC_WRITE':           56,
+    'INVPCID':              58,
 }
 
-svm_exit_reasons = {
-    0x000: 'READ_CR0',
-    0x003: 'READ_CR3',
-    0x004: 'READ_CR4',
-    0x008: 'READ_CR8',
-    0x010: 'WRITE_CR0',
-    0x013: 'WRITE_CR3',
-    0x014: 'WRITE_CR4',
-    0x018: 'WRITE_CR8',
-    0x020: 'READ_DR0',
-    0x021: 'READ_DR1',
-    0x022: 'READ_DR2',
-    0x023: 'READ_DR3',
-    0x024: 'READ_DR4',
-    0x025: 'READ_DR5',
-    0x026: 'READ_DR6',
-    0x027: 'READ_DR7',
-    0x030: 'WRITE_DR0',
-    0x031: 'WRITE_DR1',
-    0x032: 'WRITE_DR2',
-    0x033: 'WRITE_DR3',
-    0x034: 'WRITE_DR4',
-    0x035: 'WRITE_DR5',
-    0x036: 'WRITE_DR6',
-    0x037: 'WRITE_DR7',
-    0x040: 'EXCP_BASE',
-    0x060: 'INTR',
-    0x061: 'NMI',
-    0x062: 'SMI',
-    0x063: 'INIT',
-    0x064: 'VINTR',
-    0x065: 'CR0_SEL_WRITE',
-    0x066: 'IDTR_READ',
-    0x067: 'GDTR_READ',
-    0x068: 'LDTR_READ',
-    0x069: 'TR_READ',
-    0x06a: 'IDTR_WRITE',
-    0x06b: 'GDTR_WRITE',
-    0x06c: 'LDTR_WRITE',
-    0x06d: 'TR_WRITE',
-    0x06e: 'RDTSC',
-    0x06f: 'RDPMC',
-    0x070: 'PUSHF',
-    0x071: 'POPF',
-    0x072: 'CPUID',
-    0x073: 'RSM',
-    0x074: 'IRET',
-    0x075: 'SWINT',
-    0x076: 'INVD',
-    0x077: 'PAUSE',
-    0x078: 'HLT',
-    0x079: 'INVLPG',
-    0x07a: 'INVLPGA',
-    0x07b: 'IOIO',
-    0x07c: 'MSR',
-    0x07d: 'TASK_SWITCH',
-    0x07e: 'FERR_FREEZE',
-    0x07f: 'SHUTDOWN',
-    0x080: 'VMRUN',
-    0x081: 'VMMCALL',
-    0x082: 'VMLOAD',
-    0x083: 'VMSAVE',
-    0x084: 'STGI',
-    0x085: 'CLGI',
-    0x086: 'SKINIT',
-    0x087: 'RDTSCP',
-    0x088: 'ICEBP',
-    0x089: 'WBINVD',
-    0x08a: 'MONITOR',
-    0x08b: 'MWAIT',
-    0x08c: 'MWAIT_COND',
-    0x08d: 'XSETBV',
-    0x400: 'NPF',
+SVM_EXIT_REASONS = {
+    'READ_CR0':       0x000,
+    'READ_CR3':       0x003,
+    'READ_CR4':       0x004,
+    'READ_CR8':       0x008,
+    'WRITE_CR0':      0x010,
+    'WRITE_CR3':      0x013,
+    'WRITE_CR4':      0x014,
+    'WRITE_CR8':      0x018,
+    'READ_DR0':       0x020,
+    'READ_DR1':       0x021,
+    'READ_DR2':       0x022,
+    'READ_DR3':       0x023,
+    'READ_DR4':       0x024,
+    'READ_DR5':       0x025,
+    'READ_DR6':       0x026,
+    'READ_DR7':       0x027,
+    'WRITE_DR0':      0x030,
+    'WRITE_DR1':      0x031,
+    'WRITE_DR2':      0x032,
+    'WRITE_DR3':      0x033,
+    'WRITE_DR4':      0x034,
+    'WRITE_DR5':      0x035,
+    'WRITE_DR6':      0x036,
+    'WRITE_DR7':      0x037,
+    'EXCP_BASE':      0x040,
+    'INTR':           0x060,
+    'NMI':            0x061,
+    'SMI':            0x062,
+    'INIT':           0x063,
+    'VINTR':          0x064,
+    'CR0_SEL_WRITE':  0x065,
+    'IDTR_READ':      0x066,
+    'GDTR_READ':      0x067,
+    'LDTR_READ':      0x068,
+    'TR_READ':        0x069,
+    'IDTR_WRITE':     0x06a,
+    'GDTR_WRITE':     0x06b,
+    'LDTR_WRITE':     0x06c,
+    'TR_WRITE':       0x06d,
+    'RDTSC':          0x06e,
+    'RDPMC':          0x06f,
+    'PUSHF':          0x070,
+    'POPF':           0x071,
+    'CPUID':          0x072,
+    'RSM':            0x073,
+    'IRET':           0x074,
+    'SWINT':          0x075,
+    'INVD':           0x076,
+    'PAUSE':          0x077,
+    'HLT':            0x078,
+    'INVLPG':         0x079,
+    'INVLPGA':        0x07a,
+    'IOIO':           0x07b,
+    'MSR':            0x07c,
+    'TASK_SWITCH':    0x07d,
+    'FERR_FREEZE':    0x07e,
+    'SHUTDOWN':       0x07f,
+    'VMRUN':          0x080,
+    'VMMCALL':        0x081,
+    'VMLOAD':         0x082,
+    'VMSAVE':         0x083,
+    'STGI':           0x084,
+    'CLGI':           0x085,
+    'SKINIT':         0x086,
+    'RDTSCP':         0x087,
+    'ICEBP':          0x088,
+    'WBINVD':         0x089,
+    'MONITOR':        0x08a,
+    'MWAIT':          0x08b,
+    'MWAIT_COND':     0x08c,
+    'XSETBV':         0x08d,
+    'NPF':            0x400,
 }
 
 # EC definition of HSR (from arch/arm64/include/asm/kvm_arm.h)
-aarch64_exit_reasons = {
-    0x00: 'UNKNOWN',
-    0x01: 'WFI',
-    0x03: 'CP15_32',
-    0x04: 'CP15_64',
-    0x05: 'CP14_MR',
-    0x06: 'CP14_LS',
-    0x07: 'FP_ASIMD',
-    0x08: 'CP10_ID',
-    0x0C: 'CP14_64',
-    0x0E: 'ILL_ISS',
-    0x11: 'SVC32',
-    0x12: 'HVC32',
-    0x13: 'SMC32',
-    0x15: 'SVC64',
-    0x16: 'HVC64',
-    0x17: 'SMC64',
-    0x18: 'SYS64',
-    0x20: 'IABT',
-    0x21: 'IABT_HYP',
-    0x22: 'PC_ALIGN',
-    0x24: 'DABT',
-    0x25: 'DABT_HYP',
-    0x26: 'SP_ALIGN',
-    0x28: 'FP_EXC32',
-    0x2C: 'FP_EXC64',
-    0x2F: 'SERROR',
-    0x30: 'BREAKPT',
-    0x31: 'BREAKPT_HYP',
-    0x32: 'SOFTSTP',
-    0x33: 'SOFTSTP_HYP',
-    0x34: 'WATCHPT',
-    0x35: 'WATCHPT_HYP',
-    0x38: 'BKPT32',
-    0x3A: 'VECTOR32',
-    0x3C: 'BRK64',
+AARCH64_EXIT_REASONS = {
+    'UNKNOWN':      0x00,
+    'WFI':          0x01,
+    'CP15_32':      0x03,
+    'CP15_64':      0x04,
+    'CP14_MR':      0x05,
+    'CP14_LS':      0x06,
+    'FP_ASIMD':     0x07,
+    'CP10_ID':      0x08,
+    'CP14_64':      0x0C,
+    'ILL_ISS':      0x0E,
+    'SVC32':        0x11,
+    'HVC32':        0x12,
+    'SMC32':        0x13,
+    'SVC64':        0x15,
+    'HVC64':        0x16,
+    'SMC64':        0x17,
+    'SYS64':        0x18,
+    'IABT':         0x20,
+    'IABT_HYP':     0x21,
+    'PC_ALIGN':     0x22,
+    'DABT':         0x24,
+    'DABT_HYP':     0x25,
+    'SP_ALIGN':     0x26,
+    'FP_EXC32':     0x28,
+    'FP_EXC64':     0x2C,
+    'SERROR':       0x2F,
+    'BREAKPT':      0x30,
+    'BREAKPT_HYP':  0x31,
+    'SOFTSTP':      0x32,
+    'SOFTSTP_HYP':  0x33,
+    'WATCHPT':      0x34,
+    'WATCHPT_HYP':  0x35,
+    'BKPT32':       0x38,
+    'VECTOR32':     0x3A,
+    'BRK64':        0x3C,
 }
 
 # From include/uapi/linux/kvm.h, KVM_EXIT_xxx
-userspace_exit_reasons = {
-     0: 'UNKNOWN',
-     1: 'EXCEPTION',
-     2: 'IO',
-     3: 'HYPERCALL',
-     4: 'DEBUG',
-     5: 'HLT',
-     6: 'MMIO',
-     7: 'IRQ_WINDOW_OPEN',
-     8: 'SHUTDOWN',
-     9: 'FAIL_ENTRY',
-    10: 'INTR',
-    11: 'SET_TPR',
-    12: 'TPR_ACCESS',
-    13: 'S390_SIEIC',
-    14: 'S390_RESET',
-    15: 'DCR',
-    16: 'NMI',
-    17: 'INTERNAL_ERROR',
-    18: 'OSI',
-    19: 'PAPR_HCALL',
-    20: 'S390_UCONTROL',
-    21: 'WATCHDOG',
-    22: 'S390_TSCH',
-    23: 'EPR',
-    24: 'SYSTEM_EVENT',
+USERSPACE_EXIT_REASONS = {
+    'UNKNOWN':          0,
+    'EXCEPTION':        1,
+    'IO':               2,
+    'HYPERCALL':        3,
+    'DEBUG':            4,
+    'HLT':              5,
+    'MMIO':             6,
+    'IRQ_WINDOW_OPEN':  7,
+    'SHUTDOWN':         8,
+    'FAIL_ENTRY':       9,
+    'INTR':             10,
+    'SET_TPR':          11,
+    'TPR_ACCESS':       12,
+    'S390_SIEIC':       13,
+    'S390_RESET':       14,
+    'DCR':              15,
+    'NMI':              16,
+    'INTERNAL_ERROR':   17,
+    'OSI':              18,
+    'PAPR_HCALL':       19,
+    'S390_UCONTROL':    20,
+    'WATCHDOG':         21,
+    'S390_TSCH':        22,
+    'EPR':              23,
+    'SYSTEM_EVENT':     24,
 }
 
-x86_exit_reasons = {
-    'vmx': vmx_exit_reasons,
-    'svm': svm_exit_reasons,
+IOCTL_NUMBERS = {
+    'SET_FILTER':  0x40082406,
+    'ENABLE':      0x00002400,
+    'DISABLE':     0x00002401,
+    'RESET':       0x00002403,
 }
 
-sc_perf_evt_open = None
-exit_reasons = None
+class Arch(object):
+    """Class that encapsulates global architecture specific data like
+    syscall and ioctl numbers.
 
-ioctl_numbers = {
-    'SET_FILTER' : 0x40082406,
-    'ENABLE'     : 0x00002400,
-    'DISABLE'    : 0x00002401,
-    'RESET'      : 0x00002403,
-}
+    """
+    @staticmethod
+    def get_arch():
+        machine = os.uname()[4]
 
-def x86_init(flag):
-    globals().update({
-        'sc_perf_evt_open' : 298,
-        'exit_reasons' : x86_exit_reasons[flag],
-    })
+        if machine.startswith('ppc'):
+            return ArchPPC()
+        elif machine.startswith('aarch64'):
+            return ArchA64()
+        elif machine.startswith('s390'):
+            return ArchS390()
+        else:
+            # X86_64
+            for line in open('/proc/cpuinfo'):
+                if not line.startswith('flags'):
+                    continue
 
-def s390_init():
-    globals().update({
-        'sc_perf_evt_open' : 331
-    })
+                flags = line.split()
+                if 'vmx' in flags:
+                    return ArchX86(VMX_EXIT_REASONS)
+                if 'svm' in flags:
+                    return ArchX86(SVM_EXIT_REASONS)
+                return
 
-def ppc_init():
-    globals().update({
-        'sc_perf_evt_open' : 319,
-        'ioctl_numbers' : {
-            'SET_FILTER' : 0x80002406 | (ctypes.sizeof(ctypes.c_char_p) << 16),
-            'ENABLE'     : 0x20002400,
-            'DISABLE'    : 0x20002401,
-        }
-    })
+class ArchX86(Arch):
+    def __init__(self, exit_reasons):
+        self.sc_perf_evt_open = 298
+        self.ioctl_numbers = IOCTL_NUMBERS
+        self.exit_reasons = exit_reasons
 
-def aarch64_init():
-    globals().update({
-        'sc_perf_evt_open' : 241,
-        'exit_reasons' : aarch64_exit_reasons,
-    })
+class ArchPPC(Arch):
+    def __init__(self):
+        self.sc_perf_evt_open = 319
+        self.ioctl_numbers = IOCTL_NUMBERS
+        self.ioctl_numbers['ENABLE'] = 0x20002400
+        self.ioctl_numbers['DISABLE'] = 0x20002401
 
-def detect_platform():
-    if os.uname()[4].startswith('ppc'):
-        ppc_init()
-        return
-    elif os.uname()[4].startswith('aarch64'):
-        aarch64_init()
-        return
+        # PPC comes in 32 and 64 bit and some generated ioctl
+        # numbers depend on the wordsize.
+        char_ptr_size = ctypes.sizeof(ctypes.c_char_p)
+        self.ioctl_numbers['SET_FILTER'] = 0x80002406 | char_ptr_size << 16
 
-    for line in file('/proc/cpuinfo').readlines():
-        if line.startswith('flags'):
-            for flag in line.split():
-                if flag in x86_exit_reasons:
-                    x86_init(flag)
-                    return
-        elif line.startswith('vendor_id'):
-            for flag in line.split():
-                if flag == 'IBM/S390':
-                    s390_init()
-                    return
+class ArchA64(Arch):
+    def __init__(self):
+        self.sc_perf_evt_open = 241
+        self.ioctl_numbers = IOCTL_NUMBERS
+        self.exit_reasons = AARCH64_EXIT_REASONS
 
-detect_platform()
+class ArchS390(Arch):
+    def __init__(self):
+        self.sc_perf_evt_open = 331
+        self.ioctl_numbers = IOCTL_NUMBERS
+        self.exit_reasons = None
 
-def invert(d):
-    return dict((x[1], x[0]) for x in d.iteritems())
+ARCH = Arch.get_arch()
 
-filters = {}
-filters['kvm_userspace_exit'] = ('reason', invert(userspace_exit_reasons))
-if exit_reasons:
-    filters['kvm_exit'] = ('exit_reason', invert(exit_reasons))
 
-import struct, array
+def walkdir(path):
+    """Returns os.walk() data for specified directory.
 
-libc = ctypes.CDLL('libc.so.6')
+    As it is only a wrapper it returns the same 3-tuple of (dirpath,
+    dirnames, filenames).
+    """
+    return next(os.walk(path))
+
+
+def parse_int_list(list_string):
+    """Returns an int list from a string of comma separated integers and
+    integer ranges."""
+    integers = []
+    members = list_string.split(',')
+
+    for member in members:
+        if '-' not in member:
+            integers.append(int(member))
+        else:
+            int_range = member.split('-')
+            integers.extend(range(int(int_range[0]),
+                                  int(int_range[1]) + 1))
+
+    return integers
+
+
+def get_online_cpus():
+    with open('/sys/devices/system/cpu/online') as cpu_list:
+        cpu_string = cpu_list.readline()
+        return parse_int_list(cpu_string)
+
+
+def get_filters():
+    filters = {}
+    filters['kvm_userspace_exit'] = ('reason', USERSPACE_EXIT_REASONS)
+    if ARCH.exit_reasons:
+        filters['kvm_exit'] = ('exit_reason', ARCH.exit_reasons)
+    return filters
+
+libc = ctypes.CDLL('libc.so.6', use_errno=True)
 syscall = libc.syscall
-get_errno = libc.__errno_location
-get_errno.restype = POINTER(c_int)
 
 class perf_event_attr(ctypes.Structure):
     _fields_ = [('type', ctypes.c_uint32),
@@ -305,262 +331,350 @@ class perf_event_attr(ctypes.Structure):
                 ('bp_addr', ctypes.c_uint64),
                 ('bp_len', ctypes.c_uint64),
                 ]
-def _perf_event_open(attr, pid, cpu, group_fd, flags):
-    return syscall(sc_perf_evt_open, ctypes.pointer(attr), ctypes.c_int(pid),
-                   ctypes.c_int(cpu), ctypes.c_int(group_fd),
-                   ctypes.c_long(flags))
 
-PERF_TYPE_HARDWARE              = 0
-PERF_TYPE_SOFTWARE              = 1
-PERF_TYPE_TRACEPOINT            = 2
-PERF_TYPE_HW_CACHE              = 3
-PERF_TYPE_RAW                   = 4
-PERF_TYPE_BREAKPOINT            = 5
+    def __init__(self):
+        super(self.__class__, self).__init__()
+        self.type = PERF_TYPE_TRACEPOINT
+        self.size = ctypes.sizeof(self)
+        self.read_format = PERF_FORMAT_GROUP
 
-PERF_SAMPLE_IP                  = 1 << 0
-PERF_SAMPLE_TID                 = 1 << 1
-PERF_SAMPLE_TIME                = 1 << 2
-PERF_SAMPLE_ADDR                = 1 << 3
-PERF_SAMPLE_READ                = 1 << 4
-PERF_SAMPLE_CALLCHAIN           = 1 << 5
-PERF_SAMPLE_ID                  = 1 << 6
-PERF_SAMPLE_CPU                 = 1 << 7
-PERF_SAMPLE_PERIOD              = 1 << 8
-PERF_SAMPLE_STREAM_ID           = 1 << 9
-PERF_SAMPLE_RAW                 = 1 << 10
+def perf_event_open(attr, pid, cpu, group_fd, flags):
+    return syscall(ARCH.sc_perf_evt_open, ctypes.pointer(attr),
+                   ctypes.c_int(pid), ctypes.c_int(cpu),
+                   ctypes.c_int(group_fd), ctypes.c_long(flags))
 
-PERF_FORMAT_TOTAL_TIME_ENABLED  = 1 << 0
-PERF_FORMAT_TOTAL_TIME_RUNNING  = 1 << 1
-PERF_FORMAT_ID                  = 1 << 2
-PERF_FORMAT_GROUP               = 1 << 3
+PERF_TYPE_TRACEPOINT = 2
+PERF_FORMAT_GROUP = 1 << 3
 
-import re
-
-sys_tracing = '/sys/kernel/debug/tracing'
+PATH_DEBUGFS_TRACING = '/sys/kernel/debug/tracing'
+PATH_DEBUGFS_KVM = '/sys/kernel/debug/kvm'
 
 class Group(object):
-    def __init__(self, cpu):
+    def __init__(self):
         self.events = []
-        self.group_leader = None
-        self.cpu = cpu
-    def add_event(self, name, event_set, tracepoint, filter = None):
-        self.events.append(Event(group = self,
-                                 name = name, event_set = event_set,
-                                 tracepoint = tracepoint, filter = filter))
-        if len(self.events) == 1:
-            self.file = os.fdopen(self.events[0].fd)
+
+    def add_event(self, event):
+        self.events.append(event)
+
     def read(self):
-        bytes = 8 * (1 + len(self.events))
-        fmt = 'xxxxxxxx' + 'q' * len(self.events)
+        length = 8 * (1 + len(self.events))
+        read_format = 'xxxxxxxx' + 'Q' * len(self.events)
         return dict(zip([event.name for event in self.events],
-                        struct.unpack(fmt, self.file.read(bytes))))
+                        struct.unpack(read_format,
+                                      os.read(self.events[0].fd, length))))
 
 class Event(object):
-    def __init__(self, group, name, event_set, tracepoint, filter = None):
+    def __init__(self, name, group, trace_cpu, trace_point, trace_filter,
+                 trace_set='kvm'):
         self.name = name
-        attr = perf_event_attr()
-        attr.type = PERF_TYPE_TRACEPOINT
-        attr.size = ctypes.sizeof(attr)
-        id_path = os.path.join(sys_tracing, 'events', event_set,
-                               tracepoint, 'id')
-        id = int(file(id_path).read())
-        attr.config = id
-        attr.sample_type = (PERF_SAMPLE_RAW
-                            | PERF_SAMPLE_TIME
-                            | PERF_SAMPLE_CPU)
-        attr.sample_period = 1
-        attr.read_format = PERF_FORMAT_GROUP
+        self.fd = None
+        self.setup_event(group, trace_cpu, trace_point, trace_filter,
+                         trace_set)
+
+    def setup_event_attribute(self, trace_set, trace_point):
+        id_path = os.path.join(PATH_DEBUGFS_TRACING, 'events', trace_set,
+                               trace_point, 'id')
+
+        event_attr = perf_event_attr()
+        event_attr.config = int(open(id_path).read())
+        return event_attr
+
+    def setup_event(self, group, trace_cpu, trace_point, trace_filter,
+                    trace_set):
+        event_attr = self.setup_event_attribute(trace_set, trace_point)
+
         group_leader = -1
         if group.events:
             group_leader = group.events[0].fd
-        fd = _perf_event_open(attr, -1, group.cpu, group_leader, 0)
+
+        fd = perf_event_open(event_attr, -1, trace_cpu,
+                             group_leader, 0)
         if fd == -1:
-            err = get_errno()[0]
-            raise Exception('perf_event_open failed, errno = ' + err.__str__())
-        if filter:
-            import fcntl
-            fcntl.ioctl(fd, ioctl_numbers['SET_FILTER'], filter)
+            err = ctypes.get_errno()
+            raise OSError(err, os.strerror(err),
+                          'while calling sys_perf_event_open().')
+
+        if trace_filter:
+            fcntl.ioctl(fd, ARCH.ioctl_numbers['SET_FILTER'],
+                        trace_filter)
+
         self.fd = fd
+
     def enable(self):
-        import fcntl
-        fcntl.ioctl(self.fd, ioctl_numbers['ENABLE'], 0)
+        fcntl.ioctl(self.fd, ARCH.ioctl_numbers['ENABLE'], 0)
+
     def disable(self):
-        import fcntl
-        fcntl.ioctl(self.fd, ioctl_numbers['DISABLE'], 0)
+        fcntl.ioctl(self.fd, ARCH.ioctl_numbers['DISABLE'], 0)
+
     def reset(self):
-        import fcntl
-        fcntl.ioctl(self.fd, ioctl_numbers['RESET'], 0)
+        fcntl.ioctl(self.fd, ARCH.ioctl_numbers['RESET'], 0)
 
 class TracepointProvider(object):
     def __init__(self):
-        path = os.path.join(sys_tracing, 'events', 'kvm')
-        fields = [f
-                  for f in os.listdir(path)
-                  if os.path.isdir(os.path.join(path, f))]
+        self.group_leaders = []
+        self.filters = get_filters()
+        self._fields = self.get_available_fields()
+        self.setup_traces()
+        self.fields = self._fields
+
+    def get_available_fields(self):
+        path = os.path.join(PATH_DEBUGFS_TRACING, 'events', 'kvm')
+        fields = walkdir(path)[1]
         extra = []
-        for f in fields:
-            if f in filters:
-                subfield, values = filters[f]
-                for name, number in values.iteritems():
-                    extra.append(f + '(' + name + ')')
+        for field in fields:
+            if field in self.filters:
+                filter_name_, filter_dicts = self.filters[field]
+                for name in filter_dicts:
+                    extra.append(field + '(' + name + ')')
         fields += extra
-        self._setup(fields)
-        self.select(fields)
+        return fields
+
+    def setup_traces(self):
+        cpus = get_online_cpus()
+
+        # The constant is needed as a buffer for python libs, std
+        # streams and other files that the script opens.
+        newlim = len(cpus) * len(self._fields) + 50
+        try:
+            softlim_, hardlim = resource.getrlimit(resource.RLIMIT_NOFILE)
+
+            if hardlim < newlim:
+                # Now we need CAP_SYS_RESOURCE, to increase the hard limit.
+                resource.setrlimit(resource.RLIMIT_NOFILE, (newlim, newlim))
+            else:
+                # Raising the soft limit is sufficient.
+                resource.setrlimit(resource.RLIMIT_NOFILE, (newlim, hardlim))
+
+        except ValueError:
+            sys.exit("NOFILE rlimit could not be raised to {0}".format(newlim))
+
+        for cpu in cpus:
+            group = Group()
+            for name in self._fields:
+                tracepoint = name
+                tracefilter = None
+                match = re.match(r'(.*)\((.*)\)', name)
+                if match:
+                    tracepoint, sub = match.groups()
+                    tracefilter = ('%s==%d\0' %
+                                   (self.filters[tracepoint][0],
+                                    self.filters[tracepoint][1][sub]))
+
+                group.add_event(Event(name=name,
+                                      group=group,
+                                      trace_cpu=cpu,
+                                      trace_point=tracepoint,
+                                      trace_filter=tracefilter))
+            self.group_leaders.append(group)
+
+    def available_fields(self):
+        return self.get_available_fields()
+
+    @property
     def fields(self):
         return self._fields
 
-    def _online_cpus(self):
-        l = []
-        pattern = r'cpu([0-9]+)'
-        basedir = '/sys/devices/system/cpu'
-        for entry in os.listdir(basedir):
-            match = re.match(pattern, entry)
-            if not match:
-                continue
-            path = os.path.join(basedir, entry, 'online')
-            if os.path.exists(path) and open(path).read().strip() != '1':
-                continue
-            l.append(int(match.group(1)))
-        return l
-
-    def _setup(self, _fields):
-        self._fields = _fields
-        cpus = self._online_cpus()
-        import resource
-        nfiles = len(cpus) * 1000
-        resource.setrlimit(resource.RLIMIT_NOFILE, (nfiles, nfiles))
-        events = []
-        self.group_leaders = []
-        for cpu in cpus:
-            group = Group(cpu)
-            for name in _fields:
-                tracepoint = name
-                filter = None
-                m = re.match(r'(.*)\((.*)\)', name)
-                if m:
-                    tracepoint, sub = m.groups()
-                    filter = '%s==%d\0' % (filters[tracepoint][0],
-                                           filters[tracepoint][1][sub])
-                event = group.add_event(name, event_set = 'kvm',
-                                        tracepoint = tracepoint,
-                                        filter = filter)
-            self.group_leaders.append(group)
-    def select(self, fields):
+    @fields.setter
+    def fields(self, fields):
+        self._fields = fields
         for group in self.group_leaders:
-            for event in group.events:
+            for index, event in enumerate(group.events):
                 if event.name in fields:
                     event.reset()
                     event.enable()
                 else:
-                    event.disable()
+                    # Do not disable the group leader.
+                    # It would disable all of its events.
+                    if index != 0:
+                        event.disable()
+
     def read(self):
-        from collections import defaultdict
         ret = defaultdict(int)
         for group in self.group_leaders:
             for name, val in group.read().iteritems():
-                ret[name] += val
+                if name in self._fields:
+                    ret[name] += val
         return ret
 
-class Stats:
-    def __init__(self, providers, fields = None):
+class DebugfsProvider(object):
+    def __init__(self):
+        self._fields = self.get_available_fields()
+
+    def get_available_fields(self):
+        return walkdir(PATH_DEBUGFS_KVM)[2]
+
+    @property
+    def fields(self):
+        return self._fields
+
+    @fields.setter
+    def fields(self, fields):
+        self._fields = fields
+
+    def read(self):
+        def val(key):
+            return int(file(PATH_DEBUGFS_KVM + '/' + key).read())
+        return dict([(key, val(key)) for key in self._fields])
+
+class Stats(object):
+    def __init__(self, providers, fields=None):
         self.providers = providers
-        self.fields_filter = fields
-        self._update()
-    def _update(self):
+        self._fields_filter = fields
+        self.values = {}
+        self.update_provider_filters()
+
+    def update_provider_filters(self):
         def wanted(key):
-            import re
-            if not self.fields_filter:
+            if not self._fields_filter:
                 return True
-            return re.match(self.fields_filter, key) is not None
-        self.values = dict()
-        for d in providers:
-            provider_fields = [key for key in d.fields() if wanted(key)]
-            for key in provider_fields:
-                self.values[key] = None
-            d.select(provider_fields)
-    def set_fields_filter(self, fields_filter):
-        self.fields_filter = fields_filter
-        self._update()
+            return re.match(self._fields_filter, key) is not None
+
+        # As we reset the counters when updating the fields we can
+        # also clear the cache of old values.
+        self.values = {}
+        for provider in self.providers:
+            provider_fields = [key for key in provider.get_available_fields()
+                               if wanted(key)]
+            provider.fields = provider_fields
+
+    @property
+    def fields_filter(self):
+        return self._fields_filter
+
+    @fields_filter.setter
+    def fields_filter(self, fields_filter):
+        self._fields_filter = fields_filter
+        self.update_provider_filters()
+
     def get(self):
-        for d in providers:
-            new = d.read()
-            for key in d.fields():
+        for provider in self.providers:
+            new = provider.read()
+            for key in provider.fields:
                 oldval = self.values.get(key, (0, 0))
-                newval = new[key]
+                newval = new.get(key, 0)
                 newdelta = None
                 if oldval is not None:
                     newdelta = newval - oldval[0]
                 self.values[key] = (newval, newdelta)
         return self.values
 
-if not os.access('/sys/kernel/debug', os.F_OK):
-    print 'Please enable CONFIG_DEBUG_FS in your kernel'
-    sys.exit(1)
-if not os.access('/sys/kernel/debug/kvm', os.F_OK):
-    print "Please mount debugfs ('mount -t debugfs debugfs /sys/kernel/debug')"
-    print "and ensure the kvm modules are loaded"
-    sys.exit(1)
+LABEL_WIDTH = 40
+NUMBER_WIDTH = 10
 
-label_width = 40
-number_width = 10
+class Tui(object):
+    def __init__(self, stats):
+        self.stats = stats
+        self.screen = None
+        self.drilldown = False
+        self.update_drilldown()
 
-def tui(screen, stats):
-    curses.use_default_colors()
-    curses.noecho()
-    drilldown = False
-    fields_filter = stats.fields_filter
-    def update_drilldown():
-        if not fields_filter:
-            if drilldown:
-                stats.set_fields_filter(None)
-            else:
-                stats.set_fields_filter(r'^[^\(]*$')
-    update_drilldown()
-    def refresh(sleeptime):
-        screen.erase()
-        screen.addstr(0, 0, 'kvm statistics')
-        screen.addstr(2, 1, 'Event')
-        screen.addstr(2, 1 + label_width + number_width - len('Total'), 'Total')
-        screen.addstr(2, 1 + label_width + number_width + 8 - len('Current'), 'Current')
+    def __enter__(self):
+        """Initialises curses for later use.  Based on curses.wrapper
+           implementation from the Python standard library."""
+        self.screen = curses.initscr()
+        curses.noecho()
+        curses.cbreak()
+
+        # The try/catch works around a minor bit of
+        # over-conscientiousness in the curses module, the error
+        # return from C start_color() is ignorable.
+        try:
+            curses.start_color()
+        except:
+            pass
+
+        curses.use_default_colors()
+        return self
+
+    def __exit__(self, *exception):
+        """Resets the terminal to its normal state.  Based on curses.wrappre
+           implementation from the Python standard library."""
+        if self.screen:
+            self.screen.keypad(0)
+            curses.echo()
+            curses.nocbreak()
+            curses.endwin()
+
+    def update_drilldown(self):
+        if not self.stats.fields_filter:
+            self.stats.fields_filter = r'^[^\(]*$'
+
+        elif self.stats.fields_filter == r'^[^\(]*$':
+            self.stats.fields_filter = None
+
+    def refresh(self, sleeptime):
+        self.screen.erase()
+        self.screen.addstr(0, 0, 'kvm statistics - summary', curses.A_BOLD)
+        self.screen.addstr(2, 1, 'Event')
+        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH -
+                           len('Total'), 'Total')
+        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH + 8 -
+                           len('Current'), 'Current')
         row = 3
-        s = stats.get()
+        stats = self.stats.get()
         def sortkey(x):
-            if s[x][1]:
-                return (-s[x][1], -s[x][0])
+            if stats[x][1]:
+                return (-stats[x][1], -stats[x][0])
             else:
-                return (0, -s[x][0])
-        for key in sorted(s.keys(), key = sortkey):
-            if row >= screen.getmaxyx()[0]:
+                return (0, -stats[x][0])
+        for key in sorted(stats.keys(), key=sortkey):
+
+            if row >= self.screen.getmaxyx()[0]:
                 break
-            values = s[key]
+            values = stats[key]
             if not values[0] and not values[1]:
                 break
             col = 1
-            screen.addstr(row, col, key)
-            col += label_width
-            screen.addstr(row, col, '%10d' % (values[0],))
-            col += number_width
+            self.screen.addstr(row, col, key)
+            col += LABEL_WIDTH
+            self.screen.addstr(row, col, '%10d' % (values[0],))
+            col += NUMBER_WIDTH
             if values[1] is not None:
-                screen.addstr(row, col, '%8d' % (values[1] / sleeptime,))
+                self.screen.addstr(row, col, '%8d' % (values[1] / sleeptime,))
             row += 1
-        screen.refresh()
+        self.screen.refresh()
 
-    sleeptime = 0.25
-    while True:
-        refresh(sleeptime)
-        curses.halfdelay(int(sleeptime * 10))
-        sleeptime = 3
-        try:
-            c = screen.getkey()
-            if c == 'x':
-                drilldown = not drilldown
-                update_drilldown()
-            if c == 'q':
+    def show_filter_selection(self):
+        while True:
+            self.screen.erase()
+            self.screen.addstr(0, 0,
+                               "Show statistics for events matching a regex.",
+                               curses.A_BOLD)
+            self.screen.addstr(2, 0,
+                               "Current regex: {0}"
+                               .format(self.stats.fields_filter))
+            self.screen.addstr(3, 0, "New regex: ")
+            curses.echo()
+            regex = self.screen.getstr()
+            curses.noecho()
+            if len(regex) == 0:
+                return
+            try:
+                re.compile(regex)
+                self.stats.fields_filter = regex
+                return
+            except re.error:
+                continue
+
+    def show_stats(self):
+        sleeptime = 0.25
+        while True:
+            self.refresh(sleeptime)
+            curses.halfdelay(int(sleeptime * 10))
+            sleeptime = 3
+            try:
+                char = self.screen.getkey()
+                if char == 'x':
+                    self.drilldown = not self.drilldown
+                    self.update_drilldown()
+                if char == 'q':
+                    break
+                if char == 'f':
+                    self.show_filter_selection()
+            except KeyboardInterrupt:
                 break
-        except KeyboardInterrupt:
-            break
-        except curses.error:
-            continue
+            except curses.error:
+                continue
 
 def batch(stats):
     s = stats.get()
@@ -568,13 +682,13 @@ def batch(stats):
     s = stats.get()
     for key in sorted(s.keys()):
         values = s[key]
-        print '%-22s%10d%10d' % (key, values[0], values[1])
+        print '%-42s%10d%10d' % (key, values[0], values[1])
 
 def log(stats):
     keys = sorted(stats.get().iterkeys())
     def banner():
         for k in keys:
-            print '%10s' % k[0:9],
+            print '%s' % k,
         print
     def statline():
         s = stats.get()
@@ -590,57 +704,110 @@ def log(stats):
         statline()
         line += 1
 
-options = optparse.OptionParser()
-options.add_option('-1', '--once', '--batch',
-                   action = 'store_true',
-                   default = False,
-                   dest = 'once',
-                   help = 'run in batch mode for one second',
-                   )
-options.add_option('-l', '--log',
-                   action = 'store_true',
-                   default = False,
-                   dest = 'log',
-                   help = 'run in logging mode (like vmstat)',
-                   )
-options.add_option('-t', '--tracepoints',
-                   action = 'store_true',
-                   default = False,
-                   dest = 'tracepoints',
-                   help = 'retrieve statistics from tracepoints',
-                   )
-options.add_option('-d', '--debugfs',
-                   action = 'store_true',
-                   default = False,
-                   dest = 'debugfs',
-                   help = 'retrieve statistics from debugfs',
-                   )
-options.add_option('-f', '--fields',
-                   action = 'store',
-                   default = None,
-                   dest = 'fields',
-                   help = 'fields to display (regex)',
-                   )
-(options, args) = options.parse_args(sys.argv)
+def get_options():
+    description_text = """
+This script displays various statistics about VMs running under KVM.
+The statistics are gathered from the KVM debugfs entries and / or the
+currently available perf traces.
 
-providers = []
-if options.tracepoints:
-    providers.append(TracepointProvider())
-if options.debugfs:
-    providers.append(DebugfsProvider())
+The monitoring takes additional cpu cycles and might affect the VM's
+performance.
 
-if len(providers) == 0:
-    try:
-        providers = [TracepointProvider()]
-    except:
-        providers = [DebugfsProvider()]
+Requirements:
+- Access to:
+    /sys/kernel/debug/kvm
+    /sys/kernel/debug/trace/events/*
+    /proc/pid/task
+- /proc/sys/kernel/perf_event_paranoid < 1 if user has no
+  CAP_SYS_ADMIN and perf events are used.
+- CAP_SYS_RESOURCE if the hard limit is not high enough to allow
+  the large number of files that are possibly opened.
+"""
 
-stats = Stats(providers, fields = options.fields)
+    class PlainHelpFormatter(optparse.IndentedHelpFormatter):
+        def format_description(self, description):
+            if description:
+                return description + "\n"
+            else:
+                return ""
 
-if options.log:
-    log(stats)
-elif not options.once:
-    import curses.wrapper
-    curses.wrapper(tui, stats)
-else:
-    batch(stats)
+    optparser = optparse.OptionParser(description=description_text,
+                                      formatter=PlainHelpFormatter())
+    optparser.add_option('-1', '--once', '--batch',
+                         action='store_true',
+                         default=False,
+                         dest='once',
+                         help='run in batch mode for one second',
+                         )
+    optparser.add_option('-l', '--log',
+                         action='store_true',
+                         default=False,
+                         dest='log',
+                         help='run in logging mode (like vmstat)',
+                         )
+    optparser.add_option('-t', '--tracepoints',
+                         action='store_true',
+                         default=False,
+                         dest='tracepoints',
+                         help='retrieve statistics from tracepoints',
+                         )
+    optparser.add_option('-d', '--debugfs',
+                         action='store_true',
+                         default=False,
+                         dest='debugfs',
+                         help='retrieve statistics from debugfs',
+                         )
+    optparser.add_option('-f', '--fields',
+                         action='store',
+                         default=None,
+                         dest='fields',
+                         help='fields to display (regex)',
+                         )
+    (options, _) = optparser.parse_args(sys.argv)
+    return options
+
+def get_providers(options):
+    providers = []
+
+    if options.tracepoints:
+        providers.append(TracepointProvider())
+    if options.debugfs:
+        providers.append(DebugfsProvider())
+    if len(providers) == 0:
+        providers.append(TracepointProvider())
+
+    return providers
+
+def check_access():
+    if not os.path.exists('/sys/kernel/debug'):
+        sys.stderr.write('Please enable CONFIG_DEBUG_FS in your kernel.')
+        sys.exit(1)
+
+    if not os.path.exists(PATH_DEBUGFS_KVM):
+        sys.stderr.write("Please make sure, that debugfs is mounted and "
+                         "readable by the current user:\n"
+                         "('mount -t debugfs debugfs /sys/kernel/debug')\n"
+                         "Also ensure, that the kvm modules are loaded.\n")
+        sys.exit(1)
+
+    if not os.path.exists(PATH_DEBUGFS_TRACING):
+        sys.stderr.write("Please make {0} readable by the current user.\n"
+                         .format(PATH_DEBUGFS_TRACING))
+        sys.exit(1)
+
+def main():
+    check_access()
+    options = get_options()
+    providers = get_providers(options)
+    stats = Stats(providers, fields=options.fields)
+
+    if options.log:
+        log(stats)
+    elif not options.once:
+        with Tui(stats) as tui:
+            tui.show_stats()
+    else:
+        batch(stats)
+
+if __name__ == "__main__":
+    main()

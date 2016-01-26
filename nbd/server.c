@@ -671,7 +671,9 @@ NBDExport *nbd_export_new(BlockBackend *blk, off_t dev_offset, off_t size,
      * that BDRV_O_INACTIVE is cleared and the image is ready for write
      * access since the export could be available before migration handover.
      */
+    aio_context_acquire(exp->ctx);
     blk_invalidate_cache(blk, NULL);
+    aio_context_release(exp->ctx);
     return exp;
 
 fail:

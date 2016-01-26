@@ -1,6 +1,6 @@
 @example
 @c man begin SYNOPSIS
-usage: qemu-ga [OPTIONS]
+@command{qemu-ga} [@var{OPTIONS}]
 @c man end
 @end example
 

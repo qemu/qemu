@@ -1,6 +1,6 @@
 @example
 @c man begin SYNOPSIS
-usage: virtfs-proxy-helper options
+@command{virtfs-proxy-helper} @var{options}
 @c man end
 @end example
 
