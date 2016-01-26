@@ -23,6 +23,7 @@
  * The condition code translation is in need of attention.
  */
 
+#include "qemu/osdep.h"
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg-op.h"
