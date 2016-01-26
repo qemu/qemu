@@ -34,6 +34,22 @@ ssize_t qemu_netfilter_receive(NetFilterState *nf,
     return 0;
 }
 
+static NetFilterState *netfilter_next(NetFilterState *nf,
+                                      NetFilterDirection dir)
+{
+    NetFilterState *next;
+
+    if (dir == NET_FILTER_DIRECTION_TX) {
+        /* forward walk through filters */
+        next = QTAILQ_NEXT(nf, next);
+    } else {
+        /* reverse order */
+        next = QTAILQ_PREV(nf, NetFilterHead, next);
+    }
+
+    return next;
+}
+
 ssize_t qemu_netfilter_pass_to_next(NetClientState *sender,
                                     unsigned flags,
                                     const struct iovec *iov,
@@ -43,7 +59,7 @@ ssize_t qemu_netfilter_pass_to_next(NetClientState *sender,
     int ret = 0;
     int direction;
     NetFilterState *nf = opaque;
-    NetFilterState *next = QTAILQ_NEXT(nf, next);
+    NetFilterState *next = NULL;
 
     if (!sender || !sender->peer) {
         /* no receiver, or sender been deleted, no need to pass it further */
@@ -61,6 +77,7 @@ ssize_t qemu_netfilter_pass_to_next(NetClientState *sender,
         direction = nf->direction;
     }
 
+    next = netfilter_next(nf, direction);
     while (next) {
         /*
          * if qemu_netfilter_pass_to_next been called, means that
@@ -73,7 +90,7 @@ ssize_t qemu_netfilter_pass_to_next(NetClientState *sender,
         if (ret) {
             return ret;
         }
-        next = QTAILQ_NEXT(next, next);
+        next = netfilter_next(next, direction);
     }
 
     /*

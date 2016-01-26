@@ -92,7 +92,7 @@ struct NetClientState {
     NetClientDestructor *destructor;
     unsigned int queue_index;
     unsigned rxfilter_notify_enabled:1;
-    QTAILQ_HEAD(, NetFilterState) filters;
+    QTAILQ_HEAD(NetFilterHead, NetFilterState) filters;
 };
 
 typedef struct NICState {
