@@ -19,6 +19,7 @@
 
 #define DEBUG_DISAS
 
+#include "qemu/osdep.h"
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg-op.h"
