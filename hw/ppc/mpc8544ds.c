@@ -9,7 +9,7 @@
  * (at your option) any later version.
  */
 
-#include "config.h"
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "e500.h"
 #include "hw/boards.h"

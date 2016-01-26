@@ -31,6 +31,7 @@
  *  - Add indirect descriptors support
  *  - Maybe do autosense (PAPR seems to mandate it, linux doesn't care)
  */
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/scsi/scsi.h"
 #include "block/scsi.h"

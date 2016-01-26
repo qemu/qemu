@@ -24,6 +24,7 @@
  * inside "#if defined(TODO) ... #endif" statements to make tests easier.
  */
 
+#include "qemu/osdep.h"
 #include "cpu.h"
 #include "cpu-models.h"
 

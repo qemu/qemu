@@ -24,6 +24,7 @@
  * THE SOFTWARE.
  *
  */
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "net/net.h"
 #include "hw/qdev.h"

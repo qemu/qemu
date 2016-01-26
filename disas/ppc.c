@@ -18,6 +18,7 @@ the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this file; see the file COPYING.  If not,
 see <http://www.gnu.org/licenses/>.  */
+#include "qemu/osdep.h"
 #include "disas/bfd.h"
 #define BFD_DEFAULT_TARGET_SIZE 64
 

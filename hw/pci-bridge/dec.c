@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "dec.h"
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"

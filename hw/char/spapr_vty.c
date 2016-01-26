@@ -1,3 +1,4 @@
+#include "qemu/osdep.h"
 #include "hw/qdev.h"
 #include "sysemu/char.h"
 #include "hw/ppc/spapr.h"

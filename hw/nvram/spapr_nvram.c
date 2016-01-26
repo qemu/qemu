@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include <libfdt.h>
 
 #include "sysemu/block-backend.h"

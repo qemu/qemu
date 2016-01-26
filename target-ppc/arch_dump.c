@@ -12,6 +12,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "cpu.h"
 #include "elf.h"
 #include "exec/cpu-all.h"

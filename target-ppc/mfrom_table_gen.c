@@ -1,6 +1,5 @@
 #define _GNU_SOURCE
-#include <stdint.h>
-#include <stdio.h>
+#include "qemu/osdep.h"
 #include <math.h>
 
 int main (void)

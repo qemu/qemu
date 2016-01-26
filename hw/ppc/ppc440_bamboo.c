@@ -11,7 +11,7 @@
  *
  */
 
-#include "config.h"
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "net/net.h"
 #include "hw/hw.h"

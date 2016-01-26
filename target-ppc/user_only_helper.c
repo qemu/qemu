@@ -18,6 +18,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "cpu.h"
 
 int ppc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,

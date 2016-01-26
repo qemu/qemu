@@ -19,6 +19,7 @@
 /* This file implements emulation of the 32-bit PCI controller found in some
  * 4xx SoCs, such as the 440EP. */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc4xx.h"

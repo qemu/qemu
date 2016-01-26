@@ -24,6 +24,7 @@
  * THE SOFTWARE.
  *
  */
+#include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/numa.h"
 #include "hw/hw.h"

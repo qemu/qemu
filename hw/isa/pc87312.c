@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "hw/isa/pc87312.h"
 #include "qemu/error-report.h"
 #include "sysemu/block-backend.h"

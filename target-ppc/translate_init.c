@@ -18,6 +18,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "disas/bfd.h"
 #include "exec/gdbstub.h"
 #include <sysemu/kvm.h>
@@ -8471,8 +8472,6 @@ static void dump_ppc_sprs (CPUPPCState *env)
 #endif
 
 /*****************************************************************************/
-#include <stdlib.h>
-#include <string.h>
 
 /* Opcode types */
 enum {
@@ -9303,7 +9302,6 @@ static gint ppc_cpu_compare_class_name(gconstpointer a, gconstpointer b)
     return -1;
 }
 
-#include <ctype.h>
 
 static ObjectClass *ppc_cpu_class_by_name(const char *name);
 
