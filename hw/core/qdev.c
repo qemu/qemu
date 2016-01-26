@@ -25,10 +25,10 @@
    inherit from a particular bus (e.g. PCI or I2C) rather than
    this API directly.  */
 
+#include "qemu/osdep.h"
 #include "hw/qdev.h"
 #include "hw/fw-path-provider.h"
 #include "sysemu/sysemu.h"
-#include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
 #include "qapi/qmp/qjson.h"

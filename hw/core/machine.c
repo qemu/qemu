@@ -10,6 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "hw/boards.h"
 #include "qapi-visit.h"
 #include "qapi/visitor.h"

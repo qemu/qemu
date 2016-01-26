@@ -19,6 +19,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "hw/platform-bus.h"
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"

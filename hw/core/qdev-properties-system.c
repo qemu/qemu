@@ -10,6 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "net/net.h"
 #include "hw/qdev.h"
 #include "qapi/qmp/qerror.h"

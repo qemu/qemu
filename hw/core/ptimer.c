@@ -5,6 +5,7 @@
  *
  * This code is licensed under the GNU LGPL.
  */
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
