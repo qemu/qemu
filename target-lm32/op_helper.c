@@ -1,4 +1,4 @@
-#include <assert.h>
+#include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "qemu/host-utils.h"

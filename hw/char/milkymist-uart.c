@@ -21,6 +21,7 @@
  *   http://www.milkymist.org/socdoc/uart.pdf
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "trace.h"

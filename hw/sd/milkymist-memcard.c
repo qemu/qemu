@@ -21,6 +21,7 @@
  *   http://www.milkymist.org/socdoc/memcard.pdf
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"

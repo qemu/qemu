@@ -10,10 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include <errno.h>
-#include <unistd.h>
-#include <string.h>
-#include <stddef.h>
+#include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "qemu/log.h"

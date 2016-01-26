@@ -21,6 +21,7 @@
  *   http://www.latticesemi.com/documents/mico32timer.pdf
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "trace.h"
