@@ -47,6 +47,7 @@ typedef struct BackupBlockJob {
     uint64_t sectors_read;
     unsigned long *done_bitmap;
     int64_t cluster_size;
+    NotifierWithReturn before_write;
     QLIST_HEAD(, CowRequest) inflight_reqs;
 } BackupBlockJob;
 
@@ -94,11 +95,11 @@ static void cow_request_end(CowRequest *req)
 }
 
 static int coroutine_fn backup_do_cow(BlockDriverState *bs,
+                                      BackupBlockJob *job,
                                       int64_t sector_num, int nb_sectors,
                                       bool *error_is_read,
                                       bool is_write_notifier)
 {
-    BackupBlockJob *job = (BackupBlockJob *)bs->job;
     CowRequest cow_request;
     struct iovec iov;
     QEMUIOVector bounce_qiov;
@@ -197,6 +198,7 @@ static int coroutine_fn backup_before_write_notify(
         NotifierWithReturn *notifier,
         void *opaque)
 {
+    BackupBlockJob *job = container_of(notifier, BackupBlockJob, before_write);
     BdrvTrackedRequest *req = opaque;
     int64_t sector_num = req->offset >> BDRV_SECTOR_BITS;
     int nb_sectors = req->bytes >> BDRV_SECTOR_BITS;
@@ -204,7 +206,8 @@ static int coroutine_fn backup_before_write_notify(
     assert((req->offset & (BDRV_SECTOR_SIZE - 1)) == 0);
     assert((req->bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
 
-    return backup_do_cow(req->bs, sector_num, nb_sectors, NULL, true);
+    return backup_do_cow(req->bs, job, sector_num,
+                         nb_sectors, NULL, true);
 }
 
 static void backup_set_speed(BlockJob *job, int64_t speed, Error **errp)
@@ -343,7 +346,7 @@ static int coroutine_fn backup_run_incremental(BackupBlockJob *job)
                 if (yield_and_check(job)) {
                     return ret;
                 }
-                ret = backup_do_cow(bs, cluster * sectors_per_cluster,
+                ret = backup_do_cow(bs, job, cluster * sectors_per_cluster,
                                     sectors_per_cluster, &error_is_read,
                                     false);
                 if ((ret < 0) &&
@@ -378,9 +381,6 @@ static void coroutine_fn backup_run(void *opaque)
     BackupCompleteData *data;
     BlockDriverState *bs = job->common.bs;
     BlockDriverState *target = job->target;
-    NotifierWithReturn before_write = {
-        .notify = backup_before_write_notify,
-    };
     int64_t start, end;
     int64_t sectors_per_cluster = cluster_size_sectors(job);
     int ret = 0;
@@ -393,7 +393,8 @@ static void coroutine_fn backup_run(void *opaque)
 
     job->done_bitmap = bitmap_new(end);
 
-    bdrv_add_before_write_notifier(bs, &before_write);
+    job->before_write.notify = backup_before_write_notify;
+    bdrv_add_before_write_notifier(bs, &job->before_write);
 
     if (job->sync_mode == MIRROR_SYNC_MODE_NONE) {
         while (!block_job_is_cancelled(&job->common)) {
@@ -445,7 +446,7 @@ static void coroutine_fn backup_run(void *opaque)
                 }
             }
             /* FULL sync mode we copy the whole drive. */
-            ret = backup_do_cow(bs, start * sectors_per_cluster,
+            ret = backup_do_cow(bs, job, start * sectors_per_cluster,
                                 sectors_per_cluster, &error_is_read, false);
             if (ret < 0) {
                 /* Depending on error action, fail now or retry cluster */
@@ -461,7 +462,7 @@ static void coroutine_fn backup_run(void *opaque)
         }
     }
 
-    notifier_with_return_remove(&before_write);
+    notifier_with_return_remove(&job->before_write);
 
     /* wait until pending backup_do_cow() calls have completed */
     qemu_co_rwlock_wrlock(&job->flush_rwlock);
