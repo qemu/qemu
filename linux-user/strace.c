@@ -1,13 +1,11 @@
-#include <stdio.h>
+#include "qemu/osdep.h"
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
 #include <sys/select.h>
-#include <sys/types.h>
 #include <sys/mount.h>
 #include <sys/mman.h>
-#include <unistd.h>
 #include <sched.h>
 #include "qemu.h"
 

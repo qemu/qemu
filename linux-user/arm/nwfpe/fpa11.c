@@ -18,6 +18,7 @@
     along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "qemu/osdep.h"
 #include "fpa11.h"
 
 #include "fpopcode.h"
@@ -27,7 +28,6 @@
 
 //#include <asm/system.h>
 
-#include <stdio.h>
 
 FPA11* qemufpa = NULL;
 CPUARMState* user_registers;

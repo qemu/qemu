@@ -17,24 +17,13 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #define _ATFILE_SOURCE
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
+#include "qemu/osdep.h"
 #include <elf.h>
 #include <endian.h>
-#include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <time.h>
-#include <limits.h>
 #include <grp.h>
-#include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/wait.h>
-#include <sys/time.h>
-#include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/file.h>
 #include <sys/fsuid.h>
@@ -44,7 +33,6 @@
 #include <sys/mman.h>
 #include <sys/swap.h>
 #include <linux/capability.h>
-#include <signal.h>
 #include <sched.h>
 #ifdef __ia64__
 int __clone2(int (*fn)(void *), void *child_stack_base,
