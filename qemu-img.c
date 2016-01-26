@@ -2147,47 +2147,37 @@ static int img_info(int argc, char **argv)
     return 0;
 }
 
-
-typedef struct MapEntry {
-    int flags;
-    int depth;
-    int64_t start;
-    int64_t length;
-    int64_t offset;
-    BlockDriverState *bs;
-} MapEntry;
-
 static void dump_map_entry(OutputFormat output_format, MapEntry *e,
                            MapEntry *next)
 {
     switch (output_format) {
     case OFORMAT_HUMAN:
-        if ((e->flags & BDRV_BLOCK_DATA) &&
-            !(e->flags & BDRV_BLOCK_OFFSET_VALID)) {
+        if (e->data && !e->has_offset) {
             error_report("File contains external, encrypted or compressed clusters.");
             exit(1);
         }
-        if ((e->flags & (BDRV_BLOCK_DATA|BDRV_BLOCK_ZERO)) == BDRV_BLOCK_DATA) {
+        if (e->data && !e->zero) {
             printf("%#-16"PRIx64"%#-16"PRIx64"%#-16"PRIx64"%s\n",
-                   e->start, e->length, e->offset, e->bs->filename);
+                   e->start, e->length,
+                   e->has_offset ? e->offset : 0,
+                   e->has_filename ? e->filename : "");
         }
         /* This format ignores the distinction between 0, ZERO and ZERO|DATA.
          * Modify the flags here to allow more coalescing.
          */
-        if (next &&
-            (next->flags & (BDRV_BLOCK_DATA|BDRV_BLOCK_ZERO)) != BDRV_BLOCK_DATA) {
-            next->flags &= ~BDRV_BLOCK_DATA;
-            next->flags |= BDRV_BLOCK_ZERO;
+        if (next && (!next->data || next->zero)) {
+            next->data = false;
+            next->zero = true;
         }
         break;
     case OFORMAT_JSON:
-        printf("%s{ \"start\": %"PRId64", \"length\": %"PRId64", \"depth\": %d,"
-               " \"zero\": %s, \"data\": %s",
+        printf("%s{ \"start\": %"PRId64", \"length\": %"PRId64","
+               " \"depth\": %"PRId64", \"zero\": %s, \"data\": %s",
                (e->start == 0 ? "[" : ",\n"),
                e->start, e->length, e->depth,
-               (e->flags & BDRV_BLOCK_ZERO) ? "true" : "false",
-               (e->flags & BDRV_BLOCK_DATA) ? "true" : "false");
-        if (e->flags & BDRV_BLOCK_OFFSET_VALID) {
+               e->zero ? "true" : "false",
+               e->data ? "true" : "false");
+        if (e->has_offset) {
             printf(", \"offset\": %"PRId64"", e->offset);
         }
         putchar('}');
@@ -2233,11 +2223,37 @@ static int get_block_status(BlockDriverState *bs, int64_t sector_num,
 
     e->start = sector_num * BDRV_SECTOR_SIZE;
     e->length = nb_sectors * BDRV_SECTOR_SIZE;
-    e->flags = ret & ~BDRV_BLOCK_OFFSET_MASK;
+    e->data = !!(ret & BDRV_BLOCK_DATA);
+    e->zero = !!(ret & BDRV_BLOCK_ZERO);
     e->offset = ret & BDRV_BLOCK_OFFSET_MASK;
+    e->has_offset = !!(ret & BDRV_BLOCK_OFFSET_VALID);
     e->depth = depth;
-    e->bs = file;
+    if (file && e->has_offset) {
+        e->has_filename = true;
+        e->filename = file->filename;
+    }
     return 0;
+}
+
+static inline bool entry_mergeable(const MapEntry *curr, const MapEntry *next)
+{
+    if (curr->length == 0) {
+        return false;
+    }
+    if (curr->zero != next->zero ||
+        curr->data != next->data ||
+        curr->depth != next->depth ||
+        curr->has_filename != next->has_filename ||
+        curr->has_offset != next->has_offset) {
+        return false;
+    }
+    if (curr->has_filename && strcmp(curr->filename, next->filename)) {
+        return false;
+    }
+    if (curr->has_offset && curr->offset + curr->length != next->offset) {
+        return false;
+    }
+    return true;
 }
 
 static int img_map(int argc, char **argv)
@@ -2321,10 +2337,7 @@ static int img_map(int argc, char **argv)
             goto out;
         }
 
-        if (curr.length != 0 && curr.flags == next.flags &&
-            curr.depth == next.depth &&
-            ((curr.flags & BDRV_BLOCK_OFFSET_VALID) == 0 ||
-             curr.offset + curr.length == next.offset)) {
+        if (entry_mergeable(&curr, &next)) {
             curr.length += next.length;
             continue;
         }

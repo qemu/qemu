@@ -186,6 +186,33 @@
            '*fragmented-clusters': 'int', '*compressed-clusters': 'int' } }
 
 ##
+# @MapEntry:
+#
+# Mapping information from a virtual block range to a host file range
+#
+# @start: the start byte of the mapped virtual range
+#
+# @length: the number of bytes of the mapped virtual range
+#
+# @data: whether the mapped range has data
+#
+# @zero: whether the virtual blocks are zeroed
+#
+# @depth: the depth of the mapping
+#
+# @offset: #optional the offset in file that the virtual sectors are mapped to
+#
+# @filename: #optional filename that is referred to by @offset
+#
+# Since: 2.6
+#
+##
+{ 'struct': 'MapEntry',
+  'data': {'start': 'int', 'length': 'int', 'data': 'bool',
+           'zero': 'bool', 'depth': 'int', '*offset': 'int',
+           '*filename': 'str' } }
+
+##
 # @BlockdevCacheInfo
 #
 # Cache mode information for a block device
