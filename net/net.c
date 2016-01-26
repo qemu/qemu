@@ -45,6 +45,7 @@
 #include "qapi/dealloc-visitor.h"
 #include "sysemu/sysemu.h"
 #include "net/filter.h"
+#include "qapi/string-output-visitor.h"
 
 /* Net bridge is currently not supported for W32. */
 #if !defined(_WIN32)
@@ -1195,6 +1196,30 @@ void qmp_netdev_del(const char *id, Error **errp)
     qemu_opts_del(opts);
 }
 
+static void netfilter_print_info(Monitor *mon, NetFilterState *nf)
+{
+    char *str;
+    ObjectProperty *prop;
+    ObjectPropertyIterator iter;
+    StringOutputVisitor *ov;
+
+    /* generate info str */
+    object_property_iter_init(&iter, OBJECT(nf));
+    while ((prop = object_property_iter_next(&iter))) {
+        if (!strcmp(prop->name, "type")) {
+            continue;
+        }
+        ov = string_output_visitor_new(false);
+        object_property_get(OBJECT(nf), string_output_get_visitor(ov),
+                            prop->name, NULL);
+        str = string_output_get_string(ov);
+        string_output_visitor_cleanup(ov);
+        monitor_printf(mon, ",%s=%s", prop->name, str);
+        g_free(str);
+    }
+    monitor_printf(mon, "\n");
+}
+
 void print_net_client(Monitor *mon, NetClientState *nc)
 {
     NetFilterState *nf;
@@ -1208,9 +1233,10 @@ void print_net_client(Monitor *mon, NetClientState *nc)
     }
     QTAILQ_FOREACH(nf, &nc->filters, next) {
         char *path = object_get_canonical_path_component(OBJECT(nf));
-        monitor_printf(mon, "  - %s: type=%s%s\n", path,
-                       object_get_typename(OBJECT(nf)),
-                       nf->info_str);
+
+        monitor_printf(mon, "  - %s: type=%s", path,
+                       object_get_typename(OBJECT(nf)));
+        netfilter_print_info(mon, nf);
         g_free(path);
     }
 }
