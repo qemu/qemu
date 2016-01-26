@@ -246,9 +246,11 @@ static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
     }
 
 #ifdef DEBUG_MMU
-    DPRINTF_MMU("%s lru replacement failed: no entries available\n", strmmu);
+    DPRINTF_MMU("%s lru replacement: no free entries available, "
+                "replacing the last one\n", strmmu);
 #endif
-    /* error state? */
+    /* corner case: the last entry is replaced anyway */
+    replace_tlb_entry(&tlb[63], tlb_tag, tlb_tte, env1);
 }
 
 #endif
