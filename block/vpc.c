@@ -589,6 +589,7 @@ static int64_t coroutine_fn vpc_co_get_block_status(BlockDriverState *bs,
 
     if (be32_to_cpu(footer->type) == VHD_FIXED) {
         *pnum = nb_sectors;
+        *file = bs->file->bs;
         return BDRV_BLOCK_RAW | BDRV_BLOCK_OFFSET_VALID | BDRV_BLOCK_DATA |
                (sector_num << BDRV_SECTOR_BITS);
     }
@@ -610,6 +611,7 @@ static int64_t coroutine_fn vpc_co_get_block_status(BlockDriverState *bs,
         /* *pnum can't be greater than one block for allocated
          * sectors since there is always a bitmap in between. */
         if (allocated) {
+            *file = bs->file->bs;
             return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | start;
         }
         if (nb_sectors == 0) {
