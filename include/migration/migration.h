@@ -62,6 +62,18 @@ struct COLOCheckpointState {
     TimedAverage    time_wait_loaded;
 };
 
+typedef struct COLOIncomingState COLOIncomingState;
+struct COLOIncomingState {
+    TimedAverage    time_stop_guest;
+    TimedAverage    time_wait_send;
+    TimedAverage    time_load_ram;
+    TimedAverage    time_read_device;
+    TimedAverage    time_reset;
+    TimedAverage    time_flush_ram;
+    TimedAverage    time_load_device;
+    TimedAverage    time_block_checkpoint;
+};
+
 /* Messages sent on the return path from destination to source */
 enum mig_rp_message_type {
     MIG_RP_MSG_INVALID = 0,  /* Must be 0 */
@@ -132,6 +144,7 @@ struct MigrationIncomingState {
     Coroutine *migration_incoming_co;
     QemuSemaphore colo_incoming_sem;
 
+    COLOIncomingState colo_state;
     /* See savevm.c */
     LoadStateEntry_Head loadvm_handlers;
 };

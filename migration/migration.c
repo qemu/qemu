@@ -610,6 +610,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
 {
     MigrationInfo *info = g_malloc0(sizeof(*info));
     MigrationState *s = migrate_get_current();
+    MigrationIncomingState *mis = migration_incoming_get_current();
 
     switch (s->state) {
     case MIGRATION_STATUS_NONE:
@@ -767,6 +768,27 @@ MigrationInfo *qmp_query_migrate(Error **errp)
     }
     info->status = s->state;
 
+    /* Hmm is that flag test racey? */
+    if (mis && mis->have_colo_incoming_thread) {
+#define FILL_INSTATS_DIV_1000(field) \
+        info->colo_in_stats->field ## _min = \
+            timed_average_min(&mis->colo_state.field) / 1000.0; \
+        info->colo_in_stats->field ## _max = \
+            timed_average_max(&mis->colo_state.field) / 1000.0; \
+        info->colo_in_stats->field ## _average = \
+            timed_average_avg(&mis->colo_state.field) / 1000.0;
+
+        info->colo_in_stats = g_malloc0(sizeof(*info->colo_in_stats));
+        FILL_INSTATS_DIV_1000(time_stop_guest)
+        FILL_INSTATS_DIV_1000(time_wait_send)
+        FILL_INSTATS_DIV_1000(time_load_ram)
+        FILL_INSTATS_DIV_1000(time_read_device)
+        FILL_INSTATS_DIV_1000(time_reset)
+        FILL_INSTATS_DIV_1000(time_flush_ram)
+        FILL_INSTATS_DIV_1000(time_load_device)
+        FILL_INSTATS_DIV_1000(time_block_checkpoint)
+        info->has_colo_in_stats = true;
+    }
     return info;
 }
 

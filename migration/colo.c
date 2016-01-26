@@ -774,6 +774,7 @@ static int colo_prepare_before_load(QEMUFile *f)
 void *colo_process_incoming_thread(void *opaque)
 {
     MigrationIncomingState *mis = opaque;
+    int64_t stage_time_start, stage_time_end;
     QEMUFile *fb = NULL;
     QEMUSizedBuffer *buffer = NULL; /* Cache incoming device state */
     uint64_t total_size;
@@ -784,6 +785,22 @@ void *colo_process_incoming_thread(void *opaque)
 
     qemu_sem_init(&mis->colo_incoming_sem, 0);
 
+    timed_average_init(&mis->colo_state.time_stop_guest, QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
+    timed_average_init(&mis->colo_state.time_wait_send, QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
+    timed_average_init(&mis->colo_state.time_load_ram, QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
+    timed_average_init(&mis->colo_state.time_read_device, QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
+    timed_average_init(&mis->colo_state.time_reset, QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
+    timed_average_init(&mis->colo_state.time_flush_ram, QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
+    timed_average_init(&mis->colo_state.time_load_device, QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
+    timed_average_init(&mis->colo_state.time_block_checkpoint, QEMU_CLOCK_REALTIME,
+                       60 * NANOSECONDS_PER_SECOND);
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_COLO);
 
@@ -849,24 +866,37 @@ void *colo_process_incoming_thread(void *opaque)
             goto out;
         }
 
+        stage_time_start = qemu_clock_get_us(QEMU_CLOCK_HOST);
         if (!last_was_passive) {
             qemu_mutex_lock_iothread();
             vm_stop_force_state(RUN_STATE_COLO);
             trace_colo_vm_state_change("run", "stop");
             qemu_mutex_unlock_iothread();
         }
+        stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
+        timed_average_account(&mis->colo_state.time_stop_guest,
+                          stage_time_end - stage_time_start);
+        stage_time_start = stage_time_end;
 
         colo_get_check_cmd(mis->from_src_file,
                            COLO_COMMAND_VMSTATE_SEND, &local_err);
         if (local_err) {
             goto out;
         }
+        stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
+        timed_average_account(&mis->colo_state.time_wait_send,
+                          stage_time_end - stage_time_start);
+        stage_time_start = stage_time_end;
 
         ret = qemu_load_ram_state(mis->from_src_file);
         if (ret < 0) {
             error_report("load ram state error");
             goto out;
         }
+        stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
+        timed_average_account(&mis->colo_state.time_load_ram,
+                          stage_time_end - stage_time_start);
+        stage_time_start = stage_time_end;
         /* read the VM state total size first */
         value = colo_get_cmd_value(mis->from_src_file,
                                  COLO_COMMAND_VMSTATE_SIZE, &local_err);
@@ -883,6 +913,9 @@ void *colo_process_incoming_thread(void *opaque)
             goto out;
         }
 
+        stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
+        timed_average_account(&mis->colo_state.time_read_device,
+                          stage_time_end - stage_time_start);
         colo_put_cmd(mis->to_src_file, COLO_COMMAND_VMSTATE_RECEIVED,
                      &local_err);
         if (local_err) {
@@ -896,10 +929,19 @@ void *colo_process_incoming_thread(void *opaque)
             goto out;
         }
 
+        stage_time_start = qemu_clock_get_us(QEMU_CLOCK_HOST);
         qemu_mutex_lock_iothread();
         qemu_system_reset(VMRESET_SILENT);
+        stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
+        timed_average_account(&mis->colo_state.time_reset,
+                          stage_time_end - stage_time_start);
+        stage_time_start = stage_time_end;
         vmstate_loading = true;
         colo_flush_ram_cache();
+        stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
+        timed_average_account(&mis->colo_state.time_flush_ram,
+                          stage_time_end - stage_time_start);
+        stage_time_start = stage_time_end;
         ret = qemu_load_device_state(fb);
         if (ret < 0) {
             error_report("COLO: load device state failed\n");
@@ -907,6 +949,10 @@ void *colo_process_incoming_thread(void *opaque)
             qemu_mutex_unlock_iothread();
             goto out;
         }
+        stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
+        timed_average_account(&mis->colo_state.time_load_device,
+                          stage_time_end - stage_time_start);
+        stage_time_start = stage_time_end;
         /* discard colo disk buffer */
         bdrv_do_checkpoint_all(&local_err);
         if (local_err) {
@@ -914,6 +960,9 @@ void *colo_process_incoming_thread(void *opaque)
             qemu_mutex_unlock_iothread();
             goto out;
         }
+        stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
+        timed_average_account(&mis->colo_state.time_block_checkpoint,
+                          stage_time_end - stage_time_start);
 
         vmstate_loading = false;
         qemu_mutex_unlock_iothread();

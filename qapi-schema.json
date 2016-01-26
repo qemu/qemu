@@ -505,6 +505,45 @@
                'time-wait-loaded-average': 'number'
           } }
 
+# @COLOIncomingStats
+#
+# Detailed colo statistics from the secondary
+#
+##
+{ 'struct': 'COLOIncomingStats',
+  'data': {
+           'time-stop-guest-min': 'number',
+           'time-stop-guest-max': 'number',
+           'time-stop-guest-average': 'number',
+
+           'time-wait-send-min': 'number',
+           'time-wait-send-max': 'number',
+           'time-wait-send-average': 'number',
+
+           'time-load-ram-min': 'number',
+           'time-load-ram-max': 'number',
+           'time-load-ram-average': 'number',
+
+           'time-read-device-min': 'number',
+           'time-read-device-max': 'number',
+           'time-read-device-average': 'number',
+
+           'time-reset-min': 'number',
+           'time-reset-max': 'number',
+           'time-reset-average': 'number',
+
+           'time-flush-ram-min': 'number',
+           'time-flush-ram-max': 'number',
+           'time-flush-ram-average': 'number',
+
+           'time-load-device-min': 'number',
+           'time-load-device-max': 'number',
+           'time-load-device-average': 'number',
+
+           'time-block-checkpoint-min': 'number',
+           'time-block-checkpoint-max': 'number',
+           'time-block-checkpoint-average': 'number'
+          } }
 ##
 # @MigrationInfo
 #
@@ -551,6 +590,9 @@
 # @ colo-stats: #optional #COLOCheckpointStats containing detailed checkpoint
 #       statistics (since 2.7)
 #
+# @ colo-incoming-stats: #optional #COLOIncomingStats containing detailed checkpoint
+#       statistics from the secondary (since 2.7)
+#
 # Since: 0.14.0
 ##
 { 'struct': 'MigrationInfo',
@@ -562,7 +604,8 @@
            '*downtime': 'int',
            '*setup-time': 'int',
            '*x-cpu-throttle-percentage': 'int',
-           '*colo-stats': 'COLOCheckpointStats' } }
+           '*colo-stats': 'COLOCheckpointStats',
+           '*colo-in-stats': 'COLOIncomingStats' } }
 
 ##
 # @query-migrate

@@ -281,6 +281,41 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->colo_stats->time_wait_loaded_average);
     }
 
+    if (info->has_colo_in_stats) {
+        monitor_printf(mon, "checkpoint time-stop guest min/max/avg (ms): %lf/%lf/%lf\n",
+                       info->colo_in_stats->time_stop_guest_min,
+                       info->colo_in_stats->time_stop_guest_max,
+                       info->colo_in_stats->time_stop_guest_average);
+        monitor_printf(mon, "checkpoint time-wait send min/max/avg (ms): %lf/%lf/%lf\n",
+                       info->colo_in_stats->time_wait_send_min,
+                       info->colo_in_stats->time_wait_send_max,
+                       info->colo_in_stats->time_wait_send_average);
+        monitor_printf(mon, "checkpoint time-load ram min/max/avg (ms): %lf/%lf/%lf\n",
+                       info->colo_in_stats->time_load_ram_min,
+                       info->colo_in_stats->time_load_ram_max,
+                       info->colo_in_stats->time_load_ram_average);
+        monitor_printf(mon, "checkpoint time-read device min/max/avg (ms): %lf/%lf/%lf\n",
+                       info->colo_in_stats->time_read_device_min,
+                       info->colo_in_stats->time_read_device_max,
+                       info->colo_in_stats->time_read_device_average);
+        monitor_printf(mon, "checkpoint time-reset min/max/avg (ms): %lf/%lf/%lf\n",
+                       info->colo_in_stats->time_reset_min,
+                       info->colo_in_stats->time_reset_max,
+                       info->colo_in_stats->time_reset_average);
+        monitor_printf(mon, "checkpoint time-flush ram min/max/avg (ms): %lf/%lf/%lf\n",
+                       info->colo_in_stats->time_flush_ram_min,
+                       info->colo_in_stats->time_flush_ram_max,
+                       info->colo_in_stats->time_flush_ram_average);
+        monitor_printf(mon, "checkpoint time-load device min/max/avg (ms): %lf/%lf/%lf\n",
+                       info->colo_in_stats->time_load_device_min,
+                       info->colo_in_stats->time_load_device_max,
+                       info->colo_in_stats->time_load_device_average);
+        monitor_printf(mon, "checkpoint time-block checkpoint min/max/avg (ms): %lf/%lf/%lf\n",
+                       info->colo_in_stats->time_block_checkpoint_min,
+                       info->colo_in_stats->time_block_checkpoint_max,
+                       info->colo_in_stats->time_block_checkpoint_average);
+    }
+
     qapi_free_MigrationInfo(info);
     qapi_free_MigrationCapabilityStatusList(caps);
 }
