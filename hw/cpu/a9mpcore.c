@@ -8,6 +8,7 @@
  * This code is licensed under the GPL.
  */
 
+#include "qemu/osdep.h"
 #include "hw/cpu/a9mpcore.h"
 
 static void a9mp_priv_set_irq(void *opaque, int irq, int level)

@@ -8,6 +8,7 @@
  * This code is licensed under the GPL.
  */
 
+#include "qemu/osdep.h"
 #include "hw/cpu/arm11mpcore.h"
 #include "hw/intc/realview_gic.h"
 
