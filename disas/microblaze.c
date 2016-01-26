@@ -33,12 +33,9 @@ along with this program; if not, see <http://www.gnu.org/licenses/>. */
  */
 
 
-#include <stdio.h>
+#include "qemu/osdep.h"
 #define STATIC_TABLE
 #define DEFINE_TABLE
-
-#define TRUE   1
-#define FALSE  0
 
 #ifndef MICROBLAZE_OPC
 #define MICROBLAZE_OPC
