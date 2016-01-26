@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "crypto/tlscredsx509.h"
 #include "crypto/tlscredspriv.h"
 #include "crypto/secret.h"

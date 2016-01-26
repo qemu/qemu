@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "crypto/tlscredspriv.h"
 #include "trace.h"
 

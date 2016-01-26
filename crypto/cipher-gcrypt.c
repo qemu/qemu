@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include <gcrypt.h>
 
 

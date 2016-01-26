@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "crypto/tlssession.h"
 #include "crypto/tlscredsanon.h"
 #include "crypto/tlscredsx509.h"

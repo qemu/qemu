@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "crypto/secret.h"
 #include "crypto/cipher.h"
 #include "qom/object_interfaces.h"

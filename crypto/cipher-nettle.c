@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include <nettle/nettle-types.h>
 #include <nettle/aes.h>
 #include <nettle/des.h>

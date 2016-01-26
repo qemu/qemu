@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "crypto/aes.h"
 #include "crypto/desrfb.h"
 
