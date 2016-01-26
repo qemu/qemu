@@ -22,9 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include <stdint.h>
-#include <string.h>
-#include <stdio.h>
+#include "qemu/osdep.h"
 #include <getopt.h>
 #include <glib.h>
 
