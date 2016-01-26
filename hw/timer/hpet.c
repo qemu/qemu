@@ -24,6 +24,7 @@
  * This driver attempts to emulate an HPET device in software.
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "ui/console.h"

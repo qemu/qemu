@@ -1,3 +1,4 @@
+#include "qemu/osdep.h"
 #include "hw/acpi/acpi_dev_interface.h"
 #include "qemu/module.h"
 

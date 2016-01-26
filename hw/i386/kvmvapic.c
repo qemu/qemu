@@ -8,6 +8,7 @@
  * (at your option) any later version. See the COPYING file in the
  * top-level directory.
  */
+#include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/cpus.h"
 #include "sysemu/kvm.h"

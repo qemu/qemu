@@ -27,6 +27,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "qom/object.h"
 #include "sysemu/sysemu.h"
 #include "hw/pci-host/pam.h"

@@ -9,7 +9,7 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include <stdbool.h>
+#include "qemu/osdep.h"
 #include "hw/acpi/memory_hotplug.h"
 #include "include/hw/acpi/pc-hotplug.h"
 #include "hw/boards.h"

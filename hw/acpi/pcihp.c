@@ -24,6 +24,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include "qemu/osdep.h"
 #include "hw/acpi/pcihp.h"
 
 #include "hw/hw.h"

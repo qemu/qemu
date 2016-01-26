@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "sysemu/block-backend.h"
 #include "qemu/error-report.h"
 #include "hw/sysbus.h"

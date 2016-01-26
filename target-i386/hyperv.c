@@ -11,6 +11,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hyperv.h"
 #include "standard-headers/asm-x86/hyperv.h"
 

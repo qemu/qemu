@@ -20,11 +20,8 @@
  *  Copyright (C) 2008, Red Hat, Amit Shah (amit.shah@redhat.com)
  *  Copyright (C) 2008, IBM, Muli Ben-Yehuda (muli@il.ibm.com)
  */
-#include <stdio.h>
-#include <unistd.h>
+#include "qemu/osdep.h"
 #include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "qemu/error-report.h"

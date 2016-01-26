@@ -19,12 +19,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include <glib/gprintf.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <assert.h>
-#include <stdbool.h>
-#include <string.h>
 #include "hw/acpi/aml-build.h"
 #include "qemu/bswap.h"
 #include "qemu/bitops.h"

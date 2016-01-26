@@ -35,7 +35,7 @@
  * git://git.kernel.org/pub/scm/virt/kvm/kvm-unit-tests.git
 */
 
-#include "config-host.h"
+#include "qemu/osdep.h"
 #if defined(CONFIG_POSIX)
 #include <sys/mman.h>
 #endif

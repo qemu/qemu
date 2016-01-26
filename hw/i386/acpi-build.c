@@ -20,12 +20,11 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "acpi-build.h"
-#include <stddef.h>
 #include <glib.h>
 #include "qemu-common.h"
 #include "qemu/bitmap.h"
-#include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "hw/pci/pci.h"
 #include "qom/cpu.h"

@@ -13,6 +13,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "hw/acpi/cpu_hotplug.h"
 
 void build_cpu_hotplug_aml(Aml *ctx)
