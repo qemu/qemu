@@ -19,7 +19,7 @@
  * By Richard W.M. Jones (rjones@redhat.com).
  */
 
-#include <inttypes.h>
+#include "qemu/osdep.h"
 
 #include "qemu-common.h"
 #include "qemu/timer.h"

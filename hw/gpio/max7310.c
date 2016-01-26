@@ -7,6 +7,7 @@
  * This file is licensed under GNU GPL.
  */
 
+#include "qemu/osdep.h"
 #include "hw/i2c/i2c.h"
 
 #define TYPE_MAX7310 "max7310"

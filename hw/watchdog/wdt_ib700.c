@@ -19,6 +19,7 @@
  * By Richard W.M. Jones (rjones@redhat.com).
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/timer.h"
 #include "sysemu/watchdog.h"

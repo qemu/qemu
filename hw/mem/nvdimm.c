@@ -22,6 +22,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
 
+#include "qemu/osdep.h"
 #include "hw/mem/nvdimm.h"
 
 static void nvdimm_class_init(ObjectClass *oc, void *data)

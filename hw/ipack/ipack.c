@@ -8,6 +8,7 @@
  * later version.
  */
 
+#include "qemu/osdep.h"
 #include "hw/ipack/ipack.h"
 
 IPackDevice *ipack_device_find(IPackBus *bus, int32_t slot)

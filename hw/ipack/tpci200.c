@@ -8,10 +8,10 @@
  * later version.
  */
 
+#include "qemu/osdep.h"
 #include "hw/ipack/ipack.h"
 #include "hw/pci/pci.h"
 #include "qemu/bitops.h"
-#include <stdio.h>
 
 /* #define DEBUG_TPCI */
 

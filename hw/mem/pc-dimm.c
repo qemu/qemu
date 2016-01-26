@@ -18,6 +18,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
 
+#include "qemu/osdep.h"
 #include "hw/mem/pc-dimm.h"
 #include "qemu/config-file.h"
 #include "qapi/visitor.h"

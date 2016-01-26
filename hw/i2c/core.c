@@ -7,6 +7,7 @@
  * This code is licensed under the LGPL.
  */
 
+#include "qemu/osdep.h"
 #include "hw/i2c/i2c.h"
 
 struct I2CBus

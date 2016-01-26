@@ -21,8 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <stdio.h>
-#include <sys/time.h>
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "exec/address-spaces.h"
 #include "qemu-common.h"

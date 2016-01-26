@@ -8,6 +8,7 @@
  * later version.
  */
 
+#include "qemu/osdep.h"
 #include "hw/ipack/ipack.h"
 #include "qemu/bitops.h"
 #include "sysemu/char.h"

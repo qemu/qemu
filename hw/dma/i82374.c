@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "hw/isa/isa.h"
 
 //#define DEBUG_I82374

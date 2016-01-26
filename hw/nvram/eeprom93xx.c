@@ -35,6 +35,7 @@
  * - No emulation of EEPROM timings.
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/nvram/eeprom93xx.h"
 
