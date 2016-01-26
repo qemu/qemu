@@ -16,9 +16,8 @@
  * source to the destination before all the data has been copied.
  */
 
+#include "qemu/osdep.h"
 #include <glib.h>
-#include <stdio.h>
-#include <unistd.h>
 
 #include "qemu-common.h"
 #include "migration/migration.h"
@@ -57,7 +56,6 @@ struct PostcopyDiscardState {
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
-#include <sys/types.h>
 #include <asm/types.h> /* for __u64 */
 #endif
 

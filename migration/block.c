@@ -13,6 +13,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "block/block.h"
 #include "qemu/error-report.h"
@@ -24,7 +25,6 @@
 #include "migration/migration.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/block-backend.h"
-#include <assert.h>
 
 #define BLOCK_SIZE                       (1 << 20)
 #define BDRV_SECTORS_PER_DIRTY_CHUNK     (BLOCK_SIZE >> BDRV_SECTOR_BITS)

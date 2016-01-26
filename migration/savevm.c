@@ -26,7 +26,7 @@
  * THE SOFTWARE.
  */
 
-#include "config-host.h"
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "hw/boards.h"
 #include "hw/hw.h"

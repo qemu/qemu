@@ -15,13 +15,13 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/sockets.h"
 #include "qemu/main-loop.h"
 #include "migration/migration.h"
 #include "migration/qemu-file.h"
 #include "block/block.h"
-#include <sys/types.h>
 #include <sys/wait.h>
 
 //#define DEBUG_MIGRATION_EXEC

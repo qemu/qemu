@@ -11,6 +11,7 @@
  * later.  See the COPYING file in the top-level directory.
  *
  */
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "migration/migration.h"
 #include "migration/qemu-file.h"
@@ -20,12 +21,9 @@
 #include "qemu/sockets.h"
 #include "qemu/bitmap.h"
 #include "qemu/coroutine.h"
-#include <stdio.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-#include <string.h>
 #include <rdma/rdma_cma.h>
 #include "trace.h"
 
