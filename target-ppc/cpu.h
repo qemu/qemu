@@ -419,6 +419,7 @@ typedef struct ppc_slb_t ppc_slb_t;
 struct ppc_slb_t {
     uint64_t esid;
     uint64_t vsid;
+    const struct ppc_one_seg_page_size *sps;
 };
 
 #define MAX_SLB_ENTRIES         64

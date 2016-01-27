@@ -3,6 +3,7 @@
 #include "hw/boards.h"
 #include "sysemu/kvm.h"
 #include "helper_regs.h"
+#include "mmu-hash64.h"
 
 static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
 {
@@ -353,11 +354,30 @@ static bool slb_needed(void *opaque)
     return (cpu->env.mmu_model & POWERPC_MMU_64);
 }
 
+static int slb_post_load(void *opaque, int version_id)
+{
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
+    int i;
+
+    /* We've pulled in the raw esid and vsid values from the migration
+     * stream, but we need to recompute the page size pointers */
+    for (i = 0; i < env->slb_nr; i++) {
+        if (ppc_store_slb(cpu, i, env->slb[i].esid, env->slb[i].vsid) < 0) {
+            /* Migration source had bad values in its SLB */
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_slb = {
     .name = "cpu/slb",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = slb_needed,
+    .post_load = slb_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_INT32_EQUAL(env.slb_nr, PowerPCCPU),
         VMSTATE_SLB_ARRAY(env.slb, PowerPCCPU, MAX_SLB_ENTRIES),
