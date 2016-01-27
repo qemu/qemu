@@ -278,9 +278,9 @@ static void pcibus_reset(BusState *qbus)
     }
 }
 
-static void pci_host_bus_register(PCIBus *bus, DeviceState *parent)
+static void pci_host_bus_register(DeviceState *host)
 {
-    PCIHostState *host_bridge = PCI_HOST_BRIDGE(parent);
+    PCIHostState *host_bridge = PCI_HOST_BRIDGE(host);
 
     QLIST_INSERT_HEAD(&pci_host_bridges, host_bridge, next);
 }
@@ -344,7 +344,7 @@ static void pci_bus_init(PCIBus *bus, DeviceState *parent,
     /* host bridge */
     QLIST_INIT(&bus->child);
 
-    pci_host_bus_register(bus, parent);
+    pci_host_bus_register(parent);
 }
 
 bool pci_bus_is_express(PCIBus *bus)
