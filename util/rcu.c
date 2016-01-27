@@ -318,15 +318,35 @@ static void rcu_init_complete(void)
     rcu_register_thread();
 }
 
+static int atfork_depth = 1;
+
+void rcu_enable_atfork(void)
+{
+    atfork_depth++;
+}
+
+void rcu_disable_atfork(void)
+{
+    atfork_depth--;
+}
+
 #ifdef CONFIG_POSIX
 static void rcu_init_lock(void)
 {
+    if (atfork_depth < 1) {
+        return;
+    }
+
     qemu_mutex_lock(&rcu_sync_lock);
     qemu_mutex_lock(&rcu_registry_lock);
 }
 
 static void rcu_init_unlock(void)
 {
+    if (atfork_depth < 1) {
+        return;
+    }
+
     qemu_mutex_unlock(&rcu_registry_lock);
     qemu_mutex_unlock(&rcu_sync_lock);
 }
