@@ -5905,7 +5905,7 @@ static void gen_tlbiva(DisasContext *ctx)
     }
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
-    gen_helper_tlbie(cpu_env, cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_tlbiva(cpu_env, cpu_gpr[rB(ctx->opcode)]);
     tcg_temp_free(t0);
 #endif
 }

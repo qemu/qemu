@@ -1946,10 +1946,6 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
             ppc6xx_tlb_invalidate_virt(env, addr, 1);
         }
         break;
-    case POWERPC_MMU_BOOKE:
-        /* XXX: TODO */
-        cpu_abort(CPU(cpu), "BookE MMU model is not implemented\n");
-        break;
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
         /* tlbie invalidate TLBs for all segments */
@@ -2089,6 +2085,16 @@ void helper_tlbia(CPUPPCState *env)
 void helper_tlbie(CPUPPCState *env, target_ulong addr)
 {
     ppc_tlb_invalidate_one(env, addr);
+}
+
+void helper_tlbiva(CPUPPCState *env, target_ulong addr)
+{
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
+    /* tlbiva instruction only exists on BookE */
+    assert(env->mmu_model == POWERPC_MMU_BOOKE);
+    /* XXX: TODO */
+    cpu_abort(CPU(cpu), "BookE MMU model is not implemented\n");
 }
 
 /* Software driven TLBs management */
