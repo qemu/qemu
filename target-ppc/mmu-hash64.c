@@ -22,6 +22,7 @@
 #include "exec/helper-proto.h"
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"
+#include "qemu/error-report.h"
 #include "kvm_ppc.h"
 #include "mmu-hash64.h"
 
@@ -475,12 +476,50 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
     return pte_offset;
 }
 
+static unsigned hpte_page_shift(const struct ppc_one_seg_page_size *sps,
+    uint64_t pte0, uint64_t pte1)
+{
+    int i;
+
+    if (!(pte0 & HPTE64_V_LARGE)) {
+        if (sps->page_shift != 12) {
+            /* 4kiB page in a non 4kiB segment */
+            return 0;
+        }
+        /* Normal 4kiB page */
+        return 12;
+    }
+
+    for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
+        const struct ppc_one_page_size *ps = &sps->enc[i];
+        uint64_t mask;
+
+        if (!ps->page_shift) {
+            break;
+        }
+
+        if (ps->page_shift == 12) {
+            /* L bit is set so this can't be a 4kiB page */
+            continue;
+        }
+
+        mask = ((1ULL << ps->page_shift) - 1) & HPTE64_R_RPN;
+
+        if ((pte1 & mask) == (ps->pte_enc << HPTE64_R_RPN_SHIFT)) {
+            return ps->page_shift;
+        }
+    }
+
+    return 0; /* Bad page size encoding */
+}
+
 int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr,
                                 int rwx, int mmu_idx)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     ppc_slb_t *slb;
+    unsigned apshift;
     hwaddr pte_offset;
     ppc_hash_pte64_t pte;
     int pp_prot, amr_prot, prot;
@@ -544,6 +583,18 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr,
     qemu_log_mask(CPU_LOG_MMU,
                 "found PTE at offset %08" HWADDR_PRIx "\n", pte_offset);
 
+    /* Validate page size encoding */
+    apshift = hpte_page_shift(slb->sps, pte.pte0, pte.pte1);
+    if (!apshift) {
+        error_report("Bad page size encoding in HPTE 0x%"PRIx64" - 0x%"PRIx64
+                     " @ 0x%"HWADDR_PRIx, pte.pte0, pte.pte1, pte_offset);
+        /* Not entirely sure what the right action here, but machine
+         * check seems reasonable */
+        cs->exception_index = POWERPC_EXCP_MCHECK;
+        env->error_code = 0;
+        return 1;
+    }
+
     /* 5. Check access permissions */
 
     pp_prot = ppc_hash64_pte_prot(cpu, slb, pte);
@@ -596,10 +647,10 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr,
 
     /* 7. Determine the real address from the PTE */
 
-    raddr = deposit64(pte.pte1 & HPTE64_R_RPN, 0, slb->sps->page_shift, eaddr);
+    raddr = deposit64(pte.pte1 & HPTE64_R_RPN, 0, apshift, eaddr);
 
     tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
-                 prot, mmu_idx, TARGET_PAGE_SIZE);
+                 prot, mmu_idx, 1ULL << apshift);
 
     return 0;
 }
@@ -610,6 +661,7 @@ hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
     ppc_slb_t *slb;
     hwaddr pte_offset;
     ppc_hash_pte64_t pte;
+    unsigned apshift;
 
     if (msr_dr == 0) {
         /* In real mode the top 4 effective address bits are ignored */
@@ -626,7 +678,12 @@ hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
         return -1;
     }
 
-    return deposit64(pte.pte1 & HPTE64_R_RPN, 0, slb->sps->page_shift, addr)
+    apshift = hpte_page_shift(slb->sps, pte.pte0, pte.pte1);
+    if (!apshift) {
+        return -1;
+    }
+
+    return deposit64(pte.pte1 & HPTE64_R_RPN, 0, apshift, addr)
         & TARGET_PAGE_MASK;
 }
 
