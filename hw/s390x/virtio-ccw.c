@@ -32,69 +32,6 @@
 #include "virtio-ccw.h"
 #include "trace.h"
 
-static QTAILQ_HEAD(, IndAddr) indicator_addresses =
-    QTAILQ_HEAD_INITIALIZER(indicator_addresses);
-
-static IndAddr *get_indicator(hwaddr ind_addr, int len)
-{
-    IndAddr *indicator;
-
-    QTAILQ_FOREACH(indicator, &indicator_addresses, sibling) {
-        if (indicator->addr == ind_addr) {
-            indicator->refcnt++;
-            return indicator;
-        }
-    }
-    indicator = g_new0(IndAddr, 1);
-    indicator->addr = ind_addr;
-    indicator->len = len;
-    indicator->refcnt = 1;
-    QTAILQ_INSERT_TAIL(&indicator_addresses, indicator, sibling);
-    return indicator;
-}
-
-static int s390_io_adapter_map(AdapterInfo *adapter, uint64_t map_addr,
-                               bool do_map)
-{
-    S390FLICState *fs = s390_get_flic();
-    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
-
-    return fsc->io_adapter_map(fs, adapter->adapter_id, map_addr, do_map);
-}
-
-static void release_indicator(AdapterInfo *adapter, IndAddr *indicator)
-{
-    assert(indicator->refcnt > 0);
-    indicator->refcnt--;
-    if (indicator->refcnt > 0) {
-        return;
-    }
-    QTAILQ_REMOVE(&indicator_addresses, indicator, sibling);
-    if (indicator->map) {
-        s390_io_adapter_map(adapter, indicator->map, false);
-    }
-    g_free(indicator);
-}
-
-static int map_indicator(AdapterInfo *adapter, IndAddr *indicator)
-{
-    int ret;
-
-    if (indicator->map) {
-        return 0; /* already mapped is not an error */
-    }
-    indicator->map = indicator->addr;
-    ret = s390_io_adapter_map(adapter, indicator->map, true);
-    if ((ret != 0) && (ret != -ENOSYS)) {
-        goto out_err;
-    }
-    return 0;
-
-out_err:
-    indicator->map = 0;
-    return ret;
-}
-
 static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtioCcwDevice *dev);
 
