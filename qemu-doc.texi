@@ -3064,7 +3064,6 @@ Additional Requirements (install in order):
 @item pkg-config: @uref{http://www.freedesktop.org/wiki/Software/pkg-config/}
 @item autoconf: @uref{http://www.gnu.org/software/autoconf/autoconf.html}
 @item automake: @uref{http://www.gnu.org/software/automake/}
-@item libtool: @uref{http://www.gnu.org/software/libtool/}
 @item pixman: @uref{http://www.pixman.org/}
 @end enumerate
 
