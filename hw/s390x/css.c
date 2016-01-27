@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include <hw/qdev.h>
 #include "qemu/bitops.h"
 #include "exec/address-spaces.h"
@@ -192,12 +193,46 @@ out:
     return ret;
 }
 
-uint16_t css_build_subchannel_id(SubchDev *sch)
+static void css_clear_io_interrupt(uint16_t subchannel_id,
+                                   uint16_t subchannel_nr)
+{
+    Error *err = NULL;
+    static bool no_clear_irq;
+    S390FLICState *fs = s390_get_flic();
+    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
+    int r;
+
+    if (unlikely(no_clear_irq)) {
+        return;
+    }
+    r = fsc->clear_io_irq(fs, subchannel_id, subchannel_nr);
+    switch (r) {
+    case 0:
+        break;
+    case -ENOSYS:
+        no_clear_irq = true;
+        /*
+        * Ignore unavailability, as the user can't do anything
+        * about it anyway.
+        */
+        break;
+    default:
+        error_setg_errno(&err, -r, "unexpected error condition");
+        error_propagate(&error_abort, err);
+    }
+}
+
+static inline uint16_t css_do_build_subchannel_id(uint8_t cssid, uint8_t ssid)
 {
     if (channel_subsys.max_cssid > 0) {
-        return (sch->cssid << 8) | (1 << 3) | (sch->ssid << 1) | 1;
+        return (cssid << 8) | (1 << 3) | (ssid << 1) | 1;
     }
-    return (sch->ssid << 1) | 1;
+    return (ssid << 1) | 1;
+}
+
+uint16_t css_build_subchannel_id(SubchDev *sch)
+{
+    return css_do_build_subchannel_id(sch->cssid, sch->ssid);
 }
 
 static void css_inject_io_interrupt(SubchDev *sch)
@@ -1429,6 +1464,8 @@ void css_generate_sch_crws(uint8_t cssid, uint8_t ssid, uint16_t schid,
         css_queue_crw(CRW_RSC_SUBCH, CRW_ERC_IPI, 0,
                       (guest_cssid << 8) | (ssid << 4));
     }
+    /* RW_ERC_IPI --> clear pending interrupts */
+    css_clear_io_interrupt(css_do_build_subchannel_id(cssid, ssid), schid);
 }
 
 void css_generate_chp_crws(uint8_t cssid, uint8_t chpid)
