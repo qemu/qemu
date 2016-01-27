@@ -2089,21 +2089,17 @@ void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
             (int)srnum, value, env->sr[srnum]);
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
-        uint64_t rb = 0, rs = 0;
+        uint64_t esid, vsid;
 
         /* ESID = srnum */
-        rb |= ((uint32_t)srnum & 0xf) << 28;
-        /* Set the valid bit */
-        rb |= SLB_ESID_V;
-        /* Index = ESID */
-        rb |= (uint32_t)srnum;
+        esid = ((uint64_t)(srnum & 0xf) << 28) | SLB_ESID_V;
 
         /* VSID = VSID */
-        rs |= (value & 0xfffffff) << 12;
+        vsid = (value & 0xfffffff) << 12;
         /* flags = flags */
-        rs |= ((value >> 27) & 0xf) << 8;
+        vsid |= ((value >> 27) & 0xf) << 8;
 
-        ppc_store_slb(cpu, rb, rs);
+        ppc_store_slb(cpu, srnum, esid, vsid);
     } else
 #endif
     if (env->sr[srnum] != value) {

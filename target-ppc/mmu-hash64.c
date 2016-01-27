@@ -136,28 +136,30 @@ void helper_slbie(CPUPPCState *env, target_ulong addr)
     }
 }
 
-int ppc_store_slb(PowerPCCPU *cpu, target_ulong rb, target_ulong rs)
+int ppc_store_slb(PowerPCCPU *cpu, target_ulong slot,
+                  target_ulong esid, target_ulong vsid)
 {
     CPUPPCState *env = &cpu->env;
-    int slot = rb & 0xfff;
     ppc_slb_t *slb = &env->slb[slot];
 
-    if (rb & (0x1000 - env->slb_nr)) {
-        return -1; /* Reserved bits set or slot too high */
+    if (slot >= env->slb_nr) {
+        return -1; /* Bad slot number */
     }
-    if (rs & (SLB_VSID_B & ~SLB_VSID_B_1T)) {
+    if (esid & ~(SLB_ESID_ESID | SLB_ESID_V)) {
+        return -1; /* Reserved bits set */
+    }
+    if (vsid & (SLB_VSID_B & ~SLB_VSID_B_1T)) {
         return -1; /* Bad segment size */
     }
-    if ((rs & SLB_VSID_B) && !(env->mmu_model & POWERPC_MMU_1TSEG)) {
+    if ((vsid & SLB_VSID_B) && !(env->mmu_model & POWERPC_MMU_1TSEG)) {
         return -1; /* 1T segment on MMU that doesn't support it */
     }
 
-    /* Mask out the slot number as we store the entry */
-    slb->esid = rb & (SLB_ESID_ESID | SLB_ESID_V);
-    slb->vsid = rs;
+    slb->esid = esid;
+    slb->vsid = vsid;
 
     LOG_SLB("%s: %d " TARGET_FMT_lx " - " TARGET_FMT_lx " => %016" PRIx64
-            " %016" PRIx64 "\n", __func__, slot, rb, rs,
+            " %016" PRIx64 "\n", __func__, slot, esid, vsid,
             slb->esid, slb->vsid);
 
     return 0;
@@ -197,7 +199,7 @@ void helper_store_slb(CPUPPCState *env, target_ulong rb, target_ulong rs)
 {
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
 
-    if (ppc_store_slb(cpu, rb, rs) < 0) {
+    if (ppc_store_slb(cpu, rb & 0xfff, rb & ~0xfffULL, rs) < 0) {
         helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL);
     }

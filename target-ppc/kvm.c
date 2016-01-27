@@ -1205,7 +1205,7 @@ int kvm_arch_get_registers(CPUState *cs)
              * Only restore valid entries
              */
             if (rb & SLB_ESID_V) {
-                ppc_store_slb(cpu, rb, rs);
+                ppc_store_slb(cpu, rb & 0xfff, rb & ~0xfffULL, rs);
             }
         }
 #endif
