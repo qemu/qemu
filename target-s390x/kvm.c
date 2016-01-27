@@ -936,17 +936,6 @@ void kvm_s390_floating_interrupt(struct kvm_s390_irq *irq)
     __kvm_s390_floating_interrupt(irq);
 }
 
-void kvm_s390_virtio_irq(int config_change, uint64_t token)
-{
-    struct kvm_s390_irq irq = {
-        .type = KVM_S390_INT_VIRTIO,
-        .u.ext.ext_params = config_change,
-        .u.ext.ext_params2 = token,
-    };
-
-    kvm_s390_floating_interrupt(&irq);
-}
-
 void kvm_s390_service_interrupt(uint32_t parm)
 {
     struct kvm_s390_irq irq = {
