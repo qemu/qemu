@@ -73,31 +73,18 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     target_ulong pte_index = args[1];
     target_ulong pteh = args[2];
     target_ulong ptel = args[3];
-    target_ulong page_shift = 12;
+    unsigned apshift, spshift;
     target_ulong raddr;
     target_ulong index;
     uint64_t token;
 
-    /* only handle 4k and 16M pages for now */
-    if (pteh & HPTE64_V_LARGE) {
-#if 0 /* We don't support 64k pages yet */
-        if ((ptel & 0xf000) == 0x1000) {
-            /* 64k page */
-        } else
-#endif
-        if ((ptel & 0xff000) == 0) {
-            /* 16M page */
-            page_shift = 24;
-            /* lowest AVA bit must be 0 for 16M pages */
-            if (pteh & 0x80) {
-                return H_PARAMETER;
-            }
-        } else {
-            return H_PARAMETER;
-        }
+    apshift = ppc_hash64_hpte_page_shift_noslb(cpu, pteh, ptel, &spshift);
+    if (!apshift) {
+        /* Bad page size encoding */
+        return H_PARAMETER;
     }
 
-    raddr = (ptel & HPTE64_R_RPN) & ~((1ULL << page_shift) - 1);
+    raddr = (ptel & HPTE64_R_RPN) & ~((1ULL << apshift) - 1);
 
     if (is_ram_address(spapr, raddr)) {
         /* Regular RAM - should have WIMG=0010 */

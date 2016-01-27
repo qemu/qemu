@@ -513,6 +513,41 @@ static unsigned hpte_page_shift(const struct ppc_one_seg_page_size *sps,
     return 0; /* Bad page size encoding */
 }
 
+unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
+                                          uint64_t pte0, uint64_t pte1,
+                                          unsigned *seg_page_shift)
+{
+    CPUPPCState *env = &cpu->env;
+    int i;
+
+    if (!(pte0 & HPTE64_V_LARGE)) {
+        *seg_page_shift = 12;
+        return 12;
+    }
+
+    /*
+     * The encodings in env->sps need to be carefully chosen so that
+     * this gives an unambiguous result.
+     */
+    for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
+        const struct ppc_one_seg_page_size *sps = &env->sps.sps[i];
+        unsigned shift;
+
+        if (!sps->page_shift) {
+            break;
+        }
+
+        shift = hpte_page_shift(sps, pte0, pte1);
+        if (shift) {
+            *seg_page_shift = sps->page_shift;
+            return shift;
+        }
+    }
+
+    *seg_page_shift = 0;
+    return 0;
+}
+
 int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr,
                                 int rwx, int mmu_idx)
 {

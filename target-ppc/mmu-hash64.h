@@ -16,6 +16,9 @@ void ppc_hash64_store_hpte(PowerPCCPU *cpu, target_ulong index,
 void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu,
                                target_ulong pte_index,
                                target_ulong pte0, target_ulong pte1);
+unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
+                                          uint64_t pte0, uint64_t pte1,
+                                          unsigned *seg_page_shift);
 #endif
 
 /*
