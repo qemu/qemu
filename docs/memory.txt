@@ -26,14 +26,28 @@ These represent memory as seen from the CPU or a device's viewpoint.
 Types of regions
 ----------------
 
-There are four types of memory regions (all represented by a single C type
+There are multiple types of memory regions (all represented by a single C type
 MemoryRegion):
 
 - RAM: a RAM region is simply a range of host memory that can be made available
   to the guest.
+  You typically initialize these with memory_region_init_ram().  Some special
+  purposes require the variants memory_region_init_resizeable_ram(),
+  memory_region_init_ram_from_file(), or memory_region_init_ram_ptr().
 
 - MMIO: a range of guest memory that is implemented by host callbacks;
   each read or write causes a callback to be called on the host.
+  You initialize these with memory_region_io(), passing it a MemoryRegionOps
+  structure describing the callbacks.
+
+- ROM: a ROM memory region works like RAM for reads (directly accessing
+  a region of host memory), but like MMIO for writes (invoking a callback).
+  You initialize these with memory_region_init_rom_device().
+
+- IOMMU region: an IOMMU region translates addresses of accesses made to it
+  and forwards them to some other target memory region.  As the name suggests,
+  these are only needed for modelling an IOMMU, not for simple devices.
+  You initialize these with memory_region_init_iommu().
 
 - container: a container simply includes other memory regions, each at
   a different offset.  Containers are useful for grouping several regions
@@ -45,12 +59,22 @@ MemoryRegion):
   can overlay a subregion of RAM with MMIO or ROM, or a PCI controller
   that does not prevent card from claiming overlapping BARs.
 
+  You initialize a pure container with memory_region_init().
+
 - alias: a subsection of another region.  Aliases allow a region to be
   split apart into discontiguous regions.  Examples of uses are memory banks
   used when the guest address space is smaller than the amount of RAM
   addressed, or a memory controller that splits main memory to expose a "PCI
   hole".  Aliases may point to any type of region, including other aliases,
   but an alias may not point back to itself, directly or indirectly.
+  You initialize these with memory_region_init_alias().
+
+- reservation region: a reservation region is primarily for debugging.
+  It claims I/O space that is not supposed to be handled by QEMU itself.
+  The typical use is to track parts of the address space which will be
+  handled by the host kernel when KVM is enabled.
+  You initialize these with memory_region_init_reservation(), or by
+  passing a NULL callback parameter to memory_region_init_io().
 
 It is valid to add subregions to a region which is not a pure container
 (that is, to an MMIO, RAM or ROM region). This means that the region
