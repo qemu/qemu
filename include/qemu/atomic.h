@@ -8,6 +8,8 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  *
+ * See docs/atomics.txt for discussion about the guarantees each
+ * atomic primitive is meant to provide.
  */
 
 #ifndef __QEMU_ATOMIC_H
@@ -15,12 +17,130 @@
 
 #include "qemu/compiler.h"
 
-/* For C11 atomic ops */
 
 /* Compiler barrier */
 #define barrier()   ({ asm volatile("" ::: "memory"); (void)0; })
 
-#ifndef __ATOMIC_RELAXED
+#ifdef __ATOMIC_RELAXED
+/* For C11 atomic ops */
+
+/* Manual memory barriers
+ *
+ *__atomic_thread_fence does not include a compiler barrier; instead,
+ * the barrier is part of __atomic_load/__atomic_store's "volatile-like"
+ * semantics. If smp_wmb() is a no-op, absence of the barrier means that
+ * the compiler is free to reorder stores on each side of the barrier.
+ * Add one here, and similarly in smp_rmb() and smp_read_barrier_depends().
+ */
+
+#define smp_mb()    ({ barrier(); __atomic_thread_fence(__ATOMIC_SEQ_CST); barrier(); })
+#define smp_wmb()   ({ barrier(); __atomic_thread_fence(__ATOMIC_RELEASE); barrier(); })
+#define smp_rmb()   ({ barrier(); __atomic_thread_fence(__ATOMIC_ACQUIRE); barrier(); })
+
+#define smp_read_barrier_depends() ({ barrier(); __atomic_thread_fence(__ATOMIC_CONSUME); barrier(); })
+
+/* Weak atomic operations prevent the compiler moving other
+ * loads/stores past the atomic operation load/store. However there is
+ * no explicit memory barrier for the processor.
+ */
+#define atomic_read(ptr)                          \
+    ({                                            \
+    typeof(*ptr) _val;                            \
+     __atomic_load(ptr, &_val, __ATOMIC_RELAXED); \
+    _val;                                         \
+    })
+
+#define atomic_set(ptr, i)  do {                  \
+    typeof(*ptr) _val = (i);                      \
+    __atomic_store(ptr, &_val, __ATOMIC_RELAXED); \
+} while(0)
+
+/* Atomic RCU operations imply weak memory barriers */
+
+#define atomic_rcu_read(ptr)                      \
+    ({                                            \
+    typeof(*ptr) _val;                            \
+     __atomic_load(ptr, &_val, __ATOMIC_CONSUME); \
+    _val;                                         \
+    })
+
+#define atomic_rcu_set(ptr, i)  do {                    \
+    typeof(*ptr) _val = (i);                            \
+    __atomic_store(ptr, &_val, __ATOMIC_RELEASE);       \
+} while(0)
+
+/* atomic_mb_read/set semantics map Java volatile variables. They are
+ * less expensive on some platforms (notably POWER & ARMv7) than fully
+ * sequentially consistent operations.
+ *
+ * As long as they are used as paired operations they are safe to
+ * use. See docs/atomic.txt for more discussion.
+ */
+
+#if defined(_ARCH_PPC)
+#define atomic_mb_read(ptr)                             \
+    ({                                                  \
+    typeof(*ptr) _val;                                  \
+     __atomic_load(ptr, &_val, __ATOMIC_RELAXED);       \
+     smp_rmb();                                         \
+    _val;                                               \
+    })
+
+#define atomic_mb_set(ptr, i)  do {                     \
+    typeof(*ptr) _val = (i);                            \
+    smp_wmb();                                          \
+    __atomic_store(ptr, &_val, __ATOMIC_RELAXED);       \
+    smp_mb();                                           \
+} while(0)
+#else
+#define atomic_mb_read(ptr)                       \
+    ({                                            \
+    typeof(*ptr) _val;                            \
+     __atomic_load(ptr, &_val, __ATOMIC_SEQ_CST); \
+    _val;                                         \
+    })
+
+#define atomic_mb_set(ptr, i)  do {               \
+    typeof(*ptr) _val = (i);                      \
+    __atomic_store(ptr, &_val, __ATOMIC_SEQ_CST); \
+} while(0)
+#endif
+
+
+/* All the remaining operations are fully sequentially consistent */
+
+#define atomic_xchg(ptr, i)    ({                           \
+    typeof(*ptr) _new = (i), _old;                          \
+    __atomic_exchange(ptr, &_new, &_old, __ATOMIC_SEQ_CST); \
+    _old;                                                   \
+})
+
+/* Returns the eventual value, failed or not */
+#define atomic_cmpxchg(ptr, old, new)                                   \
+    ({                                                                  \
+    typeof(*ptr) _old = (old), _new = (new);                            \
+    __atomic_compare_exchange(ptr, &_old, &_new, false,                 \
+                              __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);      \
+    _old;                                                               \
+    })
+
+/* Provide shorter names for GCC atomic builtins, return old value */
+#define atomic_fetch_inc(ptr)  __atomic_fetch_add(ptr, 1, __ATOMIC_SEQ_CST)
+#define atomic_fetch_dec(ptr)  __atomic_fetch_sub(ptr, 1, __ATOMIC_SEQ_CST)
+#define atomic_fetch_add(ptr, n) __atomic_fetch_add(ptr, n, __ATOMIC_SEQ_CST)
+#define atomic_fetch_sub(ptr, n) __atomic_fetch_sub(ptr, n, __ATOMIC_SEQ_CST)
+#define atomic_fetch_and(ptr, n) __atomic_fetch_and(ptr, n, __ATOMIC_SEQ_CST)
+#define atomic_fetch_or(ptr, n)  __atomic_fetch_or(ptr, n, __ATOMIC_SEQ_CST)
+
+/* And even shorter names that return void.  */
+#define atomic_inc(ptr)    ((void) __atomic_fetch_add(ptr, 1, __ATOMIC_SEQ_CST))
+#define atomic_dec(ptr)    ((void) __atomic_fetch_sub(ptr, 1, __ATOMIC_SEQ_CST))
+#define atomic_add(ptr, n) ((void) __atomic_fetch_add(ptr, n, __ATOMIC_SEQ_CST))
+#define atomic_sub(ptr, n) ((void) __atomic_fetch_sub(ptr, n, __ATOMIC_SEQ_CST))
+#define atomic_and(ptr, n) ((void) __atomic_fetch_and(ptr, n, __ATOMIC_SEQ_CST))
+#define atomic_or(ptr, n)  ((void) __atomic_fetch_or(ptr, n, __ATOMIC_SEQ_CST))
+
+#else /* __ATOMIC_RELAXED */
 
 /*
  * We use GCC builtin if it's available, as that can use mfence on
@@ -85,8 +205,6 @@
 
 #endif /* _ARCH_PPC */
 
-#endif /* C11 atomics */
-
 /*
  * For (host) platforms we don't have explicit barrier definitions
  * for, we use the gcc __sync_synchronize() primitive to generate a
@@ -98,42 +216,22 @@
 #endif
 
 #ifndef smp_wmb
-#ifdef __ATOMIC_RELEASE
-/* __atomic_thread_fence does not include a compiler barrier; instead,
- * the barrier is part of __atomic_load/__atomic_store's "volatile-like"
- * semantics. If smp_wmb() is a no-op, absence of the barrier means that
- * the compiler is free to reorder stores on each side of the barrier.
- * Add one here, and similarly in smp_rmb() and smp_read_barrier_depends().
- */
-#define smp_wmb()   ({ barrier(); __atomic_thread_fence(__ATOMIC_RELEASE); barrier(); })
-#else
 #define smp_wmb()   __sync_synchronize()
-#endif
 #endif
 
 #ifndef smp_rmb
-#ifdef __ATOMIC_ACQUIRE
-#define smp_rmb()   ({ barrier(); __atomic_thread_fence(__ATOMIC_ACQUIRE); barrier(); })
-#else
 #define smp_rmb()   __sync_synchronize()
-#endif
 #endif
 
 #ifndef smp_read_barrier_depends
-#ifdef __ATOMIC_CONSUME
-#define smp_read_barrier_depends()   ({ barrier(); __atomic_thread_fence(__ATOMIC_CONSUME); barrier(); })
-#else
 #define smp_read_barrier_depends()   barrier()
 #endif
-#endif
 
-#ifndef atomic_read
+/* These will only be atomic if the processor does the fetch or store
+ * in a single issue memory operation
+ */
 #define atomic_read(ptr)       (*(__typeof__(*ptr) volatile*) (ptr))
-#endif
-
-#ifndef atomic_set
 #define atomic_set(ptr, i)     ((*(__typeof__(*ptr) volatile*) (ptr)) = (i))
-#endif
 
 /**
  * atomic_rcu_read - reads a RCU-protected pointer to a local variable
@@ -146,30 +244,18 @@
  * Inserts memory barriers on architectures that require them (currently only
  * Alpha) and documents which pointers are protected by RCU.
  *
- * Unless the __ATOMIC_CONSUME memory order is available, atomic_rcu_read also
- * includes a compiler barrier to ensure that value-speculative optimizations
- * (e.g. VSS: Value Speculation Scheduling) does not perform the data read
- * before the pointer read by speculating the value of the pointer.  On new
- * enough compilers, atomic_load takes care of such concern about
- * dependency-breaking optimizations.
+ * atomic_rcu_read also includes a compiler barrier to ensure that
+ * value-speculative optimizations (e.g. VSS: Value Speculation
+ * Scheduling) does not perform the data read before the pointer read
+ * by speculating the value of the pointer.
  *
  * Should match atomic_rcu_set(), atomic_xchg(), atomic_cmpxchg().
  */
-#ifndef atomic_rcu_read
-#ifdef __ATOMIC_CONSUME
-#define atomic_rcu_read(ptr)    ({                \
-    typeof(*ptr) _val;                            \
-     __atomic_load(ptr, &_val, __ATOMIC_CONSUME); \
-    _val;                                         \
-})
-#else
 #define atomic_rcu_read(ptr)    ({                \
     typeof(*ptr) _val = atomic_read(ptr);         \
     smp_read_barrier_depends();                   \
     _val;                                         \
 })
-#endif
-#endif
 
 /**
  * atomic_rcu_set - assigns (publicizes) a pointer to a new data structure
@@ -182,19 +268,10 @@
  *
  * Should match atomic_rcu_read().
  */
-#ifndef atomic_rcu_set
-#ifdef __ATOMIC_RELEASE
-#define atomic_rcu_set(ptr, i)  do {              \
-    typeof(*ptr) _val = (i);                      \
-    __atomic_store(ptr, &_val, __ATOMIC_RELEASE); \
-} while(0)
-#else
 #define atomic_rcu_set(ptr, i)  do {              \
     smp_wmb();                                    \
     atomic_set(ptr, i);                           \
 } while (0)
-#endif
-#endif
 
 /* These have the same semantics as Java volatile variables.
  * See http://gee.cs.oswego.edu/dl/jmm/cookbook.html:
@@ -218,13 +295,11 @@
  * (see docs/atomics.txt), and I'm not sure that __ATOMIC_ACQ_REL is enough.
  * Just always use the barriers manually by the rules above.
  */
-#ifndef atomic_mb_read
 #define atomic_mb_read(ptr)    ({           \
     typeof(*ptr) _val = atomic_read(ptr);   \
     smp_rmb();                              \
     _val;                                   \
 })
-#endif
 
 #ifndef atomic_mb_set
 #define atomic_mb_set(ptr, i)  do {         \
@@ -237,12 +312,6 @@
 #ifndef atomic_xchg
 #if defined(__clang__)
 #define atomic_xchg(ptr, i)    __sync_swap(ptr, i)
-#elif defined(__ATOMIC_SEQ_CST)
-#define atomic_xchg(ptr, i)    ({                           \
-    typeof(*ptr) _new = (i), _old;                          \
-    __atomic_exchange(ptr, &_new, &_old, __ATOMIC_SEQ_CST); \
-    _old;                                                   \
-})
 #else
 /* __sync_lock_test_and_set() is documented to be an acquire barrier only.  */
 #define atomic_xchg(ptr, i)    (smp_mb(), __sync_lock_test_and_set(ptr, i))
@@ -266,4 +335,5 @@
 #define atomic_and(ptr, n)     ((void) __sync_fetch_and_and(ptr, n))
 #define atomic_or(ptr, n)      ((void) __sync_fetch_and_or(ptr, n))
 
-#endif
+#endif /* __ATOMIC_RELAXED */
+#endif /* __QEMU_ATOMIC_H */
