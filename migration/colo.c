@@ -339,6 +339,7 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
     qemu_mutex_lock_iothread();
     /* Only save VM's live state, which not including device state */
     qemu_savevm_live_state(s->to_dst_file);
+    check_host_md5();
     stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
     timed_average_account(&s->checkpoint_state.time_save_live_state,
                           stage_time_end - stage_time_start);
@@ -939,6 +940,7 @@ void *colo_process_incoming_thread(void *opaque)
         vmstate_loading = true;
         colo_flush_ram_cache();
         stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
+        check_host_md5();
         timed_average_account(&mis->colo_state.time_flush_ram,
                           stage_time_end - stage_time_start);
         stage_time_start = stage_time_end;

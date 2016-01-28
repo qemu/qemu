@@ -373,4 +373,7 @@ PostcopyState postcopy_state_set(PostcopyState new_state);
 int colo_init_ram_cache(void);
 void colo_release_ram_cache(void);
 void colo_flush_ram_cache(void);
+
+void check_host_md5(void);
+
 #endif

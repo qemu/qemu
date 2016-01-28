@@ -41,6 +41,7 @@
 #include "exec/ram_addr.h"
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
+#include "crypto/hash.h"
 
 #ifdef DEBUG_MIGRATION_RAM
 #define DPRINTF(fmt, ...) \
@@ -72,6 +73,38 @@ static const uint8_t ZERO_TARGET_PAGE[TARGET_PAGE_SIZE];
 static inline bool is_zero_range(uint8_t *p, uint64_t size)
 {
     return buffer_find_nonzero_offset(p, size) == size;
+}
+
+void check_host_md5(void)
+{
+#if 0
+    static unsigned int counter = 0;
+    static const unsigned int frequency = 30;
+    int i;
+    uint8_t *result = NULL;
+    size_t resultlen = 0;
+
+    if (frequency && (!(counter % frequency))) {
+        rcu_read_lock();
+    
+        RAMBlock *block = QLIST_FIRST_RCU(&ram_list.blocks);/* Only check 'pc.ram' block */
+    
+        rcu_read_unlock();
+    
+        i = qcrypto_hash_bytes(QCRYPTO_HASH_ALG_MD5,
+            (void *)block->host, block->used_length, &result, &resultlen, NULL);
+        fprintf(stderr, "%s: %zd i=%d\n", __func__, resultlen, i);
+        
+        fprintf(stderr, "%s: %u : ", __func__, counter);
+        for(i = 0; i < 16; i++) {
+            fprintf(stderr, "%02x", result[i]);
+        }
+        g_free(result);
+        fprintf(stderr, "\n");
+    }
+    
+    counter++;
+#endif
 }
 
 /* struct contains XBZRLE cache and a static page
