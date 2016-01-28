@@ -888,16 +888,13 @@ static void configure_rtc(QemuOpts *opts)
     value = qemu_opt_get(opts, "driftfix");
     if (value) {
         if (!strcmp(value, "slew")) {
-            static GlobalProperty slew_lost_ticks[] = {
-                {
-                    .driver   = "mc146818rtc",
-                    .property = "lost_tick_policy",
-                    .value    = "slew",
-                },
-                { /* end of list */ }
+            static GlobalProperty slew_lost_ticks = {
+                .driver   = "mc146818rtc",
+                .property = "lost_tick_policy",
+                .value    = "slew",
             };
 
-            qdev_prop_register_global_list(slew_lost_ticks);
+            qdev_prop_register_global(&slew_lost_ticks);
         } else if (!strcmp(value, "none")) {
             /* discard is default */
         } else {
@@ -3626,16 +3623,13 @@ int main(int argc, char **argv, char **envp)
                 win2k_install_hack = 1;
                 break;
             case QEMU_OPTION_rtc_td_hack: {
-                static GlobalProperty slew_lost_ticks[] = {
-                    {
-                        .driver   = "mc146818rtc",
-                        .property = "lost_tick_policy",
-                        .value    = "slew",
-                    },
-                    { /* end of list */ }
+                static GlobalProperty slew_lost_ticks = {
+                    .driver   = "mc146818rtc",
+                    .property = "lost_tick_policy",
+                    .value    = "slew",
                 };
 
-                qdev_prop_register_global_list(slew_lost_ticks);
+                qdev_prop_register_global(&slew_lost_ticks);
                 break;
             }
             case QEMU_OPTION_acpitable:
@@ -3682,18 +3676,15 @@ int main(int argc, char **argv, char **envp)
                 break;
             }
             case QEMU_OPTION_no_kvm_pit_reinjection: {
-                static GlobalProperty kvm_pit_lost_tick_policy[] = {
-                    {
-                        .driver   = "kvm-pit",
-                        .property = "lost_tick_policy",
-                        .value    = "discard",
-                    },
-                    { /* end of list */ }
+                static GlobalProperty kvm_pit_lost_tick_policy = {
+                    .driver   = "kvm-pit",
+                    .property = "lost_tick_policy",
+                    .value    = "discard",
                 };
 
                 error_report("warning: deprecated, replaced by "
                              "-global kvm-pit.lost_tick_policy=discard");
-                qdev_prop_register_global_list(kvm_pit_lost_tick_policy);
+                qdev_prop_register_global(&kvm_pit_lost_tick_policy);
                 break;
             }
             case QEMU_OPTION_usb:
