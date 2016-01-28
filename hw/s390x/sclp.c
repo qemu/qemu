@@ -465,6 +465,12 @@ static void sclp_realize(DeviceState *dev, Error **errp)
     if (err) {
         goto out;
     }
+    /*
+     * qdev_device_add searches the sysbus for TYPE_SCLP_EVENTS_BUS. As long
+     * as we can't find a fitting bus via the qom tree, we have to add the
+     * event facility to the sysbus, so e.g. a sclp console can be created.
+     */
+    qdev_set_parent_bus(DEVICE(sclp->event_facility), sysbus_get_default());
 
     ret = s390_set_memory_limit(machine->maxram_size, &hw_limit);
     if (ret == -E2BIG) {
@@ -533,8 +539,6 @@ static void sclp_init(Object *obj)
 
     new = object_new(TYPE_SCLP_EVENT_FACILITY);
     object_property_add_child(obj, TYPE_SCLP_EVENT_FACILITY, new, NULL);
-    /* qdev_device_add searches the sysbus for TYPE_SCLP_EVENTS_BUS */
-    qdev_set_parent_bus(DEVICE(new), sysbus_get_default());
     object_unref(new);
     sclp->event_facility = EVENT_FACILITY(new);
 
