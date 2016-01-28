@@ -266,7 +266,6 @@ typedef struct GlobalProperty {
     const char *value;
     bool user_provided;
     bool used;
-    QTAILQ_ENTRY(GlobalProperty) next;
 } GlobalProperty;
 
 /*** Board API.  This should go away once we have a machine config file.  ***/
