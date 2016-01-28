@@ -278,14 +278,6 @@ void block_job_iostatus_reset(BlockJob *job)
     }
 }
 
-struct BlockFinishData {
-    BlockJob *job;
-    BlockCompletionFunc *cb;
-    void *opaque;
-    bool cancelled;
-    int ret;
-};
-
 static int block_job_finish_sync(BlockJob *job,
                                  void (*finish)(BlockJob *, Error **errp),
                                  Error **errp)
