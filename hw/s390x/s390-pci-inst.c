@@ -621,19 +621,19 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
 
 static int reg_irqs(CPUS390XState *env, S390PCIBusDevice *pbdev, ZpciFib fib)
 {
-    int ret;
-    S390FLICState *fs = s390_get_flic();
-    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
+    int ret, len;
 
     ret = css_register_io_adapter(S390_PCIPT_ADAPTER,
                                   FIB_DATA_ISC(ldl_p(&fib.data)), true, false,
                                   &pbdev->routes.adapter.adapter_id);
     assert(ret == 0);
 
-    fsc->io_adapter_map(fs, pbdev->routes.adapter.adapter_id,
-        ldq_p(&fib.aisb), true);
-    fsc->io_adapter_map(fs, pbdev->routes.adapter.adapter_id,
-        ldq_p(&fib.aibv), true);
+    pbdev->summary_ind = get_indicator(ldq_p(&fib.aisb), sizeof(uint64_t));
+    len = BITS_TO_LONGS(FIB_DATA_NOI(ldl_p(&fib.data))) * sizeof(unsigned long);
+    pbdev->indicator = get_indicator(ldq_p(&fib.aibv), len);
+
+    map_indicator(&pbdev->routes.adapter, pbdev->summary_ind);
+    map_indicator(&pbdev->routes.adapter, pbdev->indicator);
 
     pbdev->routes.adapter.summary_addr = ldq_p(&fib.aisb);
     pbdev->routes.adapter.summary_offset = FIB_DATA_AISBO(ldl_p(&fib.data));
@@ -649,12 +649,11 @@ static int reg_irqs(CPUS390XState *env, S390PCIBusDevice *pbdev, ZpciFib fib)
 
 static int dereg_irqs(S390PCIBusDevice *pbdev)
 {
-    S390FLICState *fs = s390_get_flic();
-    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
+    release_indicator(&pbdev->routes.adapter, pbdev->summary_ind);
+    release_indicator(&pbdev->routes.adapter, pbdev->indicator);
 
-    fsc->io_adapter_map(fs, pbdev->routes.adapter.adapter_id,
-                        pbdev->routes.adapter.ind_addr, false);
-
+    pbdev->summary_ind = NULL;
+    pbdev->indicator = NULL;
     pbdev->routes.adapter.summary_addr = 0;
     pbdev->routes.adapter.summary_offset = 0;
     pbdev->routes.adapter.ind_addr = 0;
