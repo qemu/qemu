@@ -330,7 +330,6 @@ static const TypeInfo ccw_machine_info = {
         HW_COMPAT_2_5
 
 #define CCW_COMPAT_2_4 \
-        CCW_COMPAT_2_5 \
         HW_COMPAT_2_4 \
         {\
             .driver   = TYPE_S390_SKEYS,\

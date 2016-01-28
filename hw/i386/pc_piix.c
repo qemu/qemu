@@ -582,7 +582,6 @@ DEFINE_I440FX_MACHINE(v1_4, "pc-i440fx-1.4", pc_compat_1_4,
 
 
 #define PC_COMPAT_1_3 \
-        PC_COMPAT_1_4 \
         {\
             .driver   = "usb-tablet",\
             .property = "usb_version",\
@@ -614,7 +613,6 @@ DEFINE_I440FX_MACHINE(v1_3, "pc-1.3", pc_compat_1_3,
 
 
 #define PC_COMPAT_1_2 \
-        PC_COMPAT_1_3 \
         {\
             .driver   = "nec-usb-xhci",\
             .property = "msi",\
@@ -653,7 +651,6 @@ DEFINE_I440FX_MACHINE(v1_2, "pc-1.2", pc_compat_1_2,
 
 
 #define PC_COMPAT_1_1 \
-        PC_COMPAT_1_2 \
         {\
             .driver   = "virtio-scsi-pci",\
             .property = "hotplug",\
@@ -696,7 +693,6 @@ DEFINE_I440FX_MACHINE(v1_1, "pc-1.1", pc_compat_1_2,
 
 
 #define PC_COMPAT_1_0 \
-        PC_COMPAT_1_1 \
         {\
             .driver   = TYPE_ISA_FDC,\
             .property = "check_media_rate",\
@@ -726,14 +722,10 @@ DEFINE_I440FX_MACHINE(v1_0, "pc-1.0", pc_compat_1_2,
                       pc_i440fx_1_0_machine_options);
 
 
-#define PC_COMPAT_0_15 \
-        PC_COMPAT_1_0
-
 static void pc_i440fx_0_15_machine_options(MachineClass *m)
 {
     pc_i440fx_1_0_machine_options(m);
     m->hw_version = "0.15";
-    SET_MACHINE_COMPAT(m, PC_COMPAT_0_15);
 }
 
 DEFINE_I440FX_MACHINE(v0_15, "pc-0.15", pc_compat_1_2,
@@ -741,7 +733,6 @@ DEFINE_I440FX_MACHINE(v0_15, "pc-0.15", pc_compat_1_2,
 
 
 #define PC_COMPAT_0_14 \
-        PC_COMPAT_0_15 \
         {\
             .driver   = "virtio-blk-pci",\
             .property = "event_idx",\
@@ -780,7 +771,6 @@ DEFINE_I440FX_MACHINE(v0_14, "pc-0.14", pc_compat_1_2,
 
 
 #define PC_COMPAT_0_13 \
-        PC_COMPAT_0_14 \
         {\
             .driver   = TYPE_PCI_DEVICE,\
             .property = "command_serr_enable",\
@@ -817,7 +807,6 @@ DEFINE_I440FX_MACHINE(v0_13, "pc-0.13", pc_compat_0_13,
 
 
 #define PC_COMPAT_0_12 \
-        PC_COMPAT_0_13 \
         {\
             .driver   = "virtio-serial-pci",\
             .property = "max_ports",\
@@ -852,7 +841,6 @@ DEFINE_I440FX_MACHINE(v0_12, "pc-0.12", pc_compat_0_13,
 
 
 #define PC_COMPAT_0_11 \
-        PC_COMPAT_0_12 \
         {\
             .driver   = "virtio-blk-pci",\
             .property = "vectors",\
@@ -883,7 +871,6 @@ DEFINE_I440FX_MACHINE(v0_11, "pc-0.11", pc_compat_0_13,
 
 
 #define PC_COMPAT_0_10 \
-    PC_COMPAT_0_11 \
     {\
         .driver   = "virtio-blk-pci",\
         .property = "class",\

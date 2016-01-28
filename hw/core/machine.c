@@ -571,6 +571,15 @@ bool machine_mem_merge(MachineState *machine)
     return machine->mem_merge;
 }
 
+static void machine_class_finalize(ObjectClass *klass, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(klass);
+
+    if (mc->compat_props) {
+        g_array_free(mc->compat_props, true);
+    }
+}
+
 static const TypeInfo machine_info = {
     .name = TYPE_MACHINE,
     .parent = TYPE_OBJECT,
@@ -578,6 +587,7 @@ static const TypeInfo machine_info = {
     .class_size = sizeof(MachineClass),
     .class_init    = machine_class_init,
     .class_base_init = machine_class_base_init,
+    .class_finalize = machine_class_finalize,
     .instance_size = sizeof(MachineState),
     .instance_init = machine_initfn,
     .instance_finalize = machine_finalize,

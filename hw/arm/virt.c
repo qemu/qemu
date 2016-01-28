@@ -1418,13 +1418,9 @@ static void virt_2_6_instance_init(Object *obj)
 static void virt_2_6_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
-    static GlobalProperty compat_props[] = {
-        { /* end of list */ }
-    };
 
     mc->desc = "QEMU 2.6 ARM Virtual Machine";
     mc->alias = "virt";
-    mc->compat_props = compat_props;
 }
 
 static const TypeInfo machvirt_info = {

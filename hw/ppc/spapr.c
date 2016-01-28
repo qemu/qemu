@@ -2387,7 +2387,6 @@ DEFINE_SPAPR_MACHINE(2_5, "2.5", false);
  * pseries-2.4
  */
 #define SPAPR_COMPAT_2_4 \
-        SPAPR_COMPAT_2_5 \
         HW_COMPAT_2_4
 
 static void spapr_machine_2_4_instance_options(MachineState *machine)
@@ -2410,7 +2409,6 @@ DEFINE_SPAPR_MACHINE(2_4, "2.4", false);
  * pseries-2.3
  */
 #define SPAPR_COMPAT_2_3 \
-        SPAPR_COMPAT_2_4 \
         HW_COMPAT_2_3 \
         {\
             .driver   = "spapr-pci-host-bridge",\
@@ -2438,7 +2436,6 @@ DEFINE_SPAPR_MACHINE(2_3, "2.3", false);
  */
 
 #define SPAPR_COMPAT_2_2 \
-        SPAPR_COMPAT_2_3 \
         HW_COMPAT_2_2 \
         {\
             .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,\
@@ -2463,7 +2460,6 @@ DEFINE_SPAPR_MACHINE(2_2, "2.2", false);
  * pseries-2.1
  */
 #define SPAPR_COMPAT_2_1 \
-        SPAPR_COMPAT_2_2 \
         HW_COMPAT_2_1
 
 static void spapr_machine_2_1_instance_options(MachineState *machine)
