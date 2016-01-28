@@ -40,7 +40,7 @@ notifications:
     on_failure: always
 env:
   global:
-    - TEST_CMD=""
+    - TEST_CMD="make check"
     - EXTRA_CONFIG=""
   matrix:
     # Group major targets together with their linux-user counterparts
@@ -73,17 +73,14 @@ script:
 matrix:
   # We manually include a number of additional build for non-standard bits
   include:
-    # Make check target (we only do this once)
-    - env:
-        - TARGETS=alpha-softmmu,arm-softmmu,aarch64-softmmu,cris-softmmu,i386-softmmu,x86_64-softmmu,m68k-softmmu,microblaze-softmmu,microblazeel-softmmu,mips-softmmu,mips64-softmmu,mips64el-softmmu,mipsel-softmmu,or32-softmmu,ppc-softmmu,ppc64-softmmu,ppcemb-softmmu,s390x-softmmu,sh4-softmmu,sh4eb-softmmu,sparc-softmmu,sparc64-softmmu,unicore32-softmmu,lm32-softmmu,moxie-softmmu,tricore-softmmu,xtensa-softmmu,xtensaeb-softmmu
-          TEST_CMD="make check"
-      compiler: gcc
     # Debug related options
     - env: TARGETS=i386-softmmu,x86_64-softmmu
            EXTRA_CONFIG="--enable-debug"
       compiler: gcc
+    # We currently disable "make check"
     - env: TARGETS=i386-softmmu,x86_64-softmmu
            EXTRA_CONFIG="--enable-debug --enable-tcg-interpreter"
+           TEST_CMD=""
       compiler: gcc
     # Disable a few of the optional features
     - env: TARGETS=i386-softmmu,x86_64-softmmu
@@ -101,14 +98,20 @@ matrix:
     - env: TARGETS=i386-softmmu,x86_64-softmmu
            EXTRA_CONFIG="--enable-trace-backends=log"
       compiler: gcc
+    # We currently disable "make check" (until 41fc57e44ed regression fixed)
     - env: TARGETS=i386-softmmu,x86_64-softmmu
            EXTRA_CONFIG="--enable-trace-backends=simple"
+           TEST_CMD=""
       compiler: gcc
+    # We currently disable "make check"
     - env: TARGETS=i386-softmmu,x86_64-softmmu
            EXTRA_CONFIG="--enable-trace-backends=ftrace"
+           TEST_CMD=""
       compiler: gcc
+    # We currently disable "make check"
     - env: TARGETS=i386-softmmu,x86_64-softmmu
-          EXTRA_CONFIG="--enable-trace-backends=ust"
+           EXTRA_CONFIG="--enable-trace-backends=ust"
+           TEST_CMD=""
       compiler: gcc
     - env: TARGETS=i386-softmmu,x86_64-softmmu
            EXTRA_CONFIG="--enable-modules"
