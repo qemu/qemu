@@ -94,6 +94,10 @@ matrix:
     - env: TARGETS=i386-softmmu,x86_64-softmmu
            EXTRA_CONFIG="--enable-sparse"
       compiler: gcc
+    # Modules
+    - env: TARGETS=i386-softmmu,x86_64-softmmu
+           EXTRA_CONFIG="--enable-modules"
+      compiler: gcc
     # All the trace backends (apart from dtrace)
     - env: TARGETS=i386-softmmu,x86_64-softmmu
            EXTRA_CONFIG="--enable-trace-backends=log"
@@ -113,6 +117,15 @@ matrix:
            EXTRA_CONFIG="--enable-trace-backends=ust"
            TEST_CMD=""
       compiler: gcc
+    # All the co-routine backends (apart from windows)
+    # We currently disable "make check"
     - env: TARGETS=i386-softmmu,x86_64-softmmu
-           EXTRA_CONFIG="--enable-modules"
+           EXTRA_CONFIG="--with-coroutine=gthread"
+           TEST_CMD=""
+      compiler: gcc
+    - env: TARGETS=i386-softmmu,x86_64-softmmu
+           EXTRA_CONFIG="--with-coroutine=ucontext"
+      compiler: gcc
+    - env: TARGETS=i386-softmmu,x86_64-softmmu
+           EXTRA_CONFIG="--with-coroutine=sigaltstack"
       compiler: gcc
