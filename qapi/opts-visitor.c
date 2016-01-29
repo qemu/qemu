@@ -361,7 +361,7 @@ opts_type_bool(Visitor *v, bool *obj, const char *name, Error **errp)
 
 
 static void
-opts_type_int(Visitor *v, int64_t *obj, const char *name, Error **errp)
+opts_type_int64(Visitor *v, int64_t *obj, const char *name, Error **errp)
 {
     OptsVisitor *ov = to_ov(v);
     const QemuOpt *opt;
@@ -529,7 +529,7 @@ opts_visitor_new(const QemuOpts *opts)
      */
     ov->visitor.type_enum = &input_type_enum;
 
-    ov->visitor.type_int    = &opts_type_int;
+    ov->visitor.type_int64  = &opts_type_int64;
     ov->visitor.type_uint64 = &opts_type_uint64;
     ov->visitor.type_size   = &opts_type_size;
     ov->visitor.type_bool   = &opts_type_bool;

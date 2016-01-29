@@ -159,8 +159,8 @@ static void qmp_output_end_list(Visitor *v, Error **errp)
     qmp_output_pop(qov);
 }
 
-static void qmp_output_type_int(Visitor *v, int64_t *obj, const char *name,
-                                Error **errp)
+static void qmp_output_type_int64(Visitor *v, int64_t *obj, const char *name,
+                                  Error **errp)
 {
     QmpOutputVisitor *qov = to_qov(v);
     qmp_output_add(qov, name, qint_from_int(*obj));
@@ -242,7 +242,7 @@ QmpOutputVisitor *qmp_output_visitor_new(void)
     v->visitor.next_list = qmp_output_next_list;
     v->visitor.end_list = qmp_output_end_list;
     v->visitor.type_enum = output_type_enum;
-    v->visitor.type_int = qmp_output_type_int;
+    v->visitor.type_int64 = qmp_output_type_int64;
     v->visitor.type_bool = qmp_output_type_bool;
     v->visitor.type_str = qmp_output_type_str;
     v->visitor.type_number = qmp_output_type_number;

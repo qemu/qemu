@@ -225,8 +225,8 @@ static void qmp_input_get_next_type(Visitor *v, QType *type, bool promote_int,
     }
 }
 
-static void qmp_input_type_int(Visitor *v, int64_t *obj, const char *name,
-                               Error **errp)
+static void qmp_input_type_int64(Visitor *v, int64_t *obj, const char *name,
+                                 Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
     QInt *qint = qobject_to_qint(qmp_input_get_object(qiv, name, true));
@@ -342,7 +342,7 @@ QmpInputVisitor *qmp_input_visitor_new(QObject *obj)
     v->visitor.next_list = qmp_input_next_list;
     v->visitor.end_list = qmp_input_end_list;
     v->visitor.type_enum = input_type_enum;
-    v->visitor.type_int = qmp_input_type_int;
+    v->visitor.type_int64 = qmp_input_type_int64;
     v->visitor.type_bool = qmp_input_type_bool;
     v->visitor.type_str = qmp_input_type_str;
     v->visitor.type_number = qmp_input_type_number;

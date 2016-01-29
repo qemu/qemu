@@ -122,8 +122,8 @@ static void format_string(StringOutputVisitor *sov, Range *r, bool next,
     }
 }
 
-static void print_type_int(Visitor *v, int64_t *obj, const char *name,
-                           Error **errp)
+static void print_type_int64(Visitor *v, int64_t *obj, const char *name,
+                             Error **errp)
 {
     StringOutputVisitor *sov = to_sov(v);
     GList *l;
@@ -346,7 +346,7 @@ StringOutputVisitor *string_output_visitor_new(bool human)
     v->string = g_string_new(NULL);
     v->human = human;
     v->visitor.type_enum = output_type_enum;
-    v->visitor.type_int = print_type_int;
+    v->visitor.type_int64 = print_type_int64;
     v->visitor.type_size = print_type_size;
     v->visitor.type_bool = print_type_bool;
     v->visitor.type_str = print_type_str;

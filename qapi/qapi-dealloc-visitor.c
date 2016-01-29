@@ -136,8 +136,8 @@ static void qapi_dealloc_type_str(Visitor *v, char **obj, const char *name,
     }
 }
 
-static void qapi_dealloc_type_int(Visitor *v, int64_t *obj, const char *name,
-                                  Error **errp)
+static void qapi_dealloc_type_int64(Visitor *v, int64_t *obj, const char *name,
+                                    Error **errp)
 {
 }
 
@@ -215,7 +215,7 @@ QapiDeallocVisitor *qapi_dealloc_visitor_new(void)
     v->visitor.next_list = qapi_dealloc_next_list;
     v->visitor.end_list = qapi_dealloc_end_list;
     v->visitor.type_enum = qapi_dealloc_type_enum;
-    v->visitor.type_int = qapi_dealloc_type_int;
+    v->visitor.type_int64 = qapi_dealloc_type_int64;
     v->visitor.type_bool = qapi_dealloc_type_bool;
     v->visitor.type_str = qapi_dealloc_type_str;
     v->visitor.type_number = qapi_dealloc_type_number;
