@@ -443,6 +443,8 @@ struct BlockDriverState {
     QTAILQ_ENTRY(BlockDriverState) node_list;
     /* element of the list of "drives" the guest sees */
     QTAILQ_ENTRY(BlockDriverState) device_list;
+    /* element of the list of all BlockDriverStates (all_bdrv_states) */
+    QTAILQ_ENTRY(BlockDriverState) bs_list;
     QLIST_HEAD(, BdrvDirtyBitmap) dirty_bitmaps;
     int refcnt;
 
