@@ -93,6 +93,8 @@ static void bdrv_release_named_dirty_bitmaps(BlockDriverState *bs);
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
 
+static void bdrv_close(BlockDriverState *bs);
+
 #ifdef _WIN32
 static int is_windows_drive_prefix(const char *filename)
 {
@@ -2134,7 +2136,7 @@ void bdrv_reopen_abort(BDRVReopenState *reopen_state)
 }
 
 
-void bdrv_close(BlockDriverState *bs)
+static void bdrv_close(BlockDriverState *bs)
 {
     BdrvAioNotifier *ban, *ban_next;
 
