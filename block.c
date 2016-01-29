@@ -88,6 +88,8 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
                              const BdrvChildRole *child_role, Error **errp);
 
 static void bdrv_dirty_bitmap_truncate(BlockDriverState *bs);
+static void bdrv_release_named_dirty_bitmaps(BlockDriverState *bs);
+
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
 
@@ -2157,6 +2159,9 @@ void bdrv_close(BlockDriverState *bs)
 
     notifier_list_notify(&bs->close_notifiers, bs);
 
+    bdrv_release_named_dirty_bitmaps(bs);
+    assert(QLIST_EMPTY(&bs->dirty_bitmaps));
+
     if (bs->blk) {
         blk_dev_change_media_cb(bs->blk, false);
     }
@@ -2366,7 +2371,6 @@ static void bdrv_delete(BlockDriverState *bs)
     assert(!bs->job);
     assert(bdrv_op_blocker_is_empty(bs));
     assert(!bs->refcnt);
-    assert(QLIST_EMPTY(&bs->dirty_bitmaps));
 
     bdrv_close(bs);
 
@@ -3582,19 +3586,38 @@ static void bdrv_dirty_bitmap_truncate(BlockDriverState *bs)
     }
 }
 
-void bdrv_release_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap)
+static void bdrv_do_release_matching_dirty_bitmap(BlockDriverState *bs,
+                                                  BdrvDirtyBitmap *bitmap,
+                                                  bool only_named)
 {
     BdrvDirtyBitmap *bm, *next;
     QLIST_FOREACH_SAFE(bm, &bs->dirty_bitmaps, list, next) {
-        if (bm == bitmap) {
+        if ((!bitmap || bm == bitmap) && (!only_named || bm->name)) {
             assert(!bdrv_dirty_bitmap_frozen(bm));
-            QLIST_REMOVE(bitmap, list);
-            hbitmap_free(bitmap->bitmap);
-            g_free(bitmap->name);
-            g_free(bitmap);
-            return;
+            QLIST_REMOVE(bm, list);
+            hbitmap_free(bm->bitmap);
+            g_free(bm->name);
+            g_free(bm);
+
+            if (bitmap) {
+                return;
+            }
         }
     }
+}
+
+void bdrv_release_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap)
+{
+    bdrv_do_release_matching_dirty_bitmap(bs, bitmap, false);
+}
+
+/**
+ * Release all named dirty bitmaps attached to a BDS (for use in bdrv_close()).
+ * There must not be any frozen bitmaps attached.
+ */
+static void bdrv_release_named_dirty_bitmaps(BlockDriverState *bs)
+{
+    bdrv_do_release_matching_dirty_bitmap(bs, NULL, true);
 }
 
 void bdrv_disable_dirty_bitmap(BdrvDirtyBitmap *bitmap)
