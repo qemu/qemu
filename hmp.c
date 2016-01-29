@@ -1659,6 +1659,7 @@ void hmp_object_add(Monitor *mon, const QDict *qdict)
     char *id = NULL;
     OptsVisitor *ov;
     QDict *pdict;
+    Visitor *v;
 
     opts = qemu_opts_from_qdict(qemu_find_opts("object"), qdict, &err);
     if (err) {
@@ -1667,28 +1668,29 @@ void hmp_object_add(Monitor *mon, const QDict *qdict)
 
     ov = opts_visitor_new(opts);
     pdict = qdict_clone_shallow(qdict);
+    v = opts_get_visitor(ov);
 
-    visit_start_struct(opts_get_visitor(ov), NULL, NULL, NULL, 0, &err);
+    visit_start_struct(v, NULL, NULL, NULL, 0, &err);
     if (err) {
         goto out_clean;
     }
 
     qdict_del(pdict, "qom-type");
-    visit_type_str(opts_get_visitor(ov), &type, "qom-type", &err);
+    visit_type_str(v, &type, "qom-type", &err);
     if (err) {
         goto out_end;
     }
 
     qdict_del(pdict, "id");
-    visit_type_str(opts_get_visitor(ov), &id, "id", &err);
+    visit_type_str(v, &id, "id", &err);
     if (err) {
         goto out_end;
     }
 
-    object_add(type, id, pdict, opts_get_visitor(ov), &err);
+    object_add(type, id, pdict, v, &err);
 
 out_end:
-    visit_end_struct(opts_get_visitor(ov), &err_end);
+    visit_end_struct(v, &err_end);
     if (!err && err_end) {
         qmp_object_del(id, NULL);
     }

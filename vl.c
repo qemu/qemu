@@ -2824,17 +2824,19 @@ static int object_create(void *opaque, QemuOpts *opts, Error **errp)
     OptsVisitor *ov;
     QDict *pdict;
     bool (*type_predicate)(const char *) = opaque;
+    Visitor *v;
 
     ov = opts_visitor_new(opts);
     pdict = qemu_opts_to_qdict(opts, NULL);
+    v = opts_get_visitor(ov);
 
-    visit_start_struct(opts_get_visitor(ov), NULL, NULL, NULL, 0, &err);
+    visit_start_struct(v, NULL, NULL, NULL, 0, &err);
     if (err) {
         goto out;
     }
 
     qdict_del(pdict, "qom-type");
-    visit_type_str(opts_get_visitor(ov), &type, "qom-type", &err);
+    visit_type_str(v, &type, "qom-type", &err);
     if (err) {
         goto out;
     }
@@ -2843,16 +2845,16 @@ static int object_create(void *opaque, QemuOpts *opts, Error **errp)
     }
 
     qdict_del(pdict, "id");
-    visit_type_str(opts_get_visitor(ov), &id, "id", &err);
+    visit_type_str(v, &id, "id", &err);
     if (err) {
         goto out;
     }
 
-    object_add(type, id, pdict, opts_get_visitor(ov), &err);
+    object_add(type, id, pdict, v, &err);
     if (err) {
         goto out;
     }
-    visit_end_struct(opts_get_visitor(ov), &err);
+    visit_end_struct(v, &err);
     if (err) {
         qmp_object_del(id, NULL);
     }
