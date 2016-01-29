@@ -90,6 +90,12 @@ struct OptsVisitor
 };
 
 
+static OptsVisitor *to_ov(Visitor *v)
+{
+    return container_of(v, OptsVisitor, visitor);
+}
+
+
 static void
 destroy_list(gpointer list)
 {
@@ -122,7 +128,7 @@ static void
 opts_start_struct(Visitor *v, void **obj, const char *kind,
                   const char *name, size_t size, Error **errp)
 {
-    OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
+    OptsVisitor *ov = to_ov(v);
     const QemuOpt *opt;
 
     if (obj) {
@@ -161,7 +167,7 @@ ghr_true(gpointer ign_key, gpointer ign_value, gpointer ign_user_data)
 static void
 opts_end_struct(Visitor *v, Error **errp)
 {
-    OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
+    OptsVisitor *ov = to_ov(v);
     GQueue *any;
 
     if (--ov->depth > 0) {
@@ -203,7 +209,7 @@ lookup_distinct(const OptsVisitor *ov, const char *name, Error **errp)
 static void
 opts_start_list(Visitor *v, const char *name, Error **errp)
 {
-    OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
+    OptsVisitor *ov = to_ov(v);
 
     /* we can't traverse a list in a list */
     assert(ov->list_mode == LM_NONE);
@@ -217,7 +223,7 @@ opts_start_list(Visitor *v, const char *name, Error **errp)
 static GenericList *
 opts_next_list(Visitor *v, GenericList **list, Error **errp)
 {
-    OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
+    OptsVisitor *ov = to_ov(v);
     GenericList **link;
 
     switch (ov->list_mode) {
@@ -266,7 +272,7 @@ opts_next_list(Visitor *v, GenericList **list, Error **errp)
 static void
 opts_end_list(Visitor *v, Error **errp)
 {
-    OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
+    OptsVisitor *ov = to_ov(v);
 
     assert(ov->list_mode == LM_STARTED ||
            ov->list_mode == LM_IN_PROGRESS ||
@@ -308,7 +314,7 @@ processed(OptsVisitor *ov, const char *name)
 static void
 opts_type_str(Visitor *v, char **obj, const char *name, Error **errp)
 {
-    OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
+    OptsVisitor *ov = to_ov(v);
     const QemuOpt *opt;
 
     opt = lookup_scalar(ov, name, errp);
@@ -324,7 +330,7 @@ opts_type_str(Visitor *v, char **obj, const char *name, Error **errp)
 static void
 opts_type_bool(Visitor *v, bool *obj, const char *name, Error **errp)
 {
-    OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
+    OptsVisitor *ov = to_ov(v);
     const QemuOpt *opt;
 
     opt = lookup_scalar(ov, name, errp);
@@ -357,7 +363,7 @@ opts_type_bool(Visitor *v, bool *obj, const char *name, Error **errp)
 static void
 opts_type_int(Visitor *v, int64_t *obj, const char *name, Error **errp)
 {
-    OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
+    OptsVisitor *ov = to_ov(v);
     const QemuOpt *opt;
     const char *str;
     long long val;
@@ -413,7 +419,7 @@ opts_type_int(Visitor *v, int64_t *obj, const char *name, Error **errp)
 static void
 opts_type_uint64(Visitor *v, uint64_t *obj, const char *name, Error **errp)
 {
-    OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
+    OptsVisitor *ov = to_ov(v);
     const QemuOpt *opt;
     const char *str;
     unsigned long long val;
@@ -465,7 +471,7 @@ opts_type_uint64(Visitor *v, uint64_t *obj, const char *name, Error **errp)
 static void
 opts_type_size(Visitor *v, uint64_t *obj, const char *name, Error **errp)
 {
-    OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
+    OptsVisitor *ov = to_ov(v);
     const QemuOpt *opt;
     int64_t val;
     char *endptr;
@@ -491,7 +497,7 @@ opts_type_size(Visitor *v, uint64_t *obj, const char *name, Error **errp)
 static void
 opts_optional(Visitor *v, bool *present, const char *name)
 {
-    OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
+    OptsVisitor *ov = to_ov(v);
 
     /* we only support a single mandatory scalar field in a list node */
     assert(ov->list_mode == LM_NONE);

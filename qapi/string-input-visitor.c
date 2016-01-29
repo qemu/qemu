@@ -33,6 +33,11 @@ struct StringInputVisitor
     const char *string;
 };
 
+static StringInputVisitor *to_siv(Visitor *v)
+{
+    return container_of(v, StringInputVisitor, visitor);
+}
+
 static void free_range(void *range, void *dummy)
 {
     g_free(range);
@@ -121,7 +126,7 @@ error:
 static void
 start_list(Visitor *v, const char *name, Error **errp)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
 
     parse_str(siv, errp);
 
@@ -137,7 +142,7 @@ start_list(Visitor *v, const char *name, Error **errp)
 static GenericList *
 next_list(Visitor *v, GenericList **list, Error **errp)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
     GenericList **link;
     Range *r;
 
@@ -176,14 +181,14 @@ next_list(Visitor *v, GenericList **list, Error **errp)
 static void
 end_list(Visitor *v, Error **errp)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
     siv->head = true;
 }
 
 static void parse_type_int(Visitor *v, int64_t *obj, const char *name,
                            Error **errp)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
 
     if (!siv->string) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
@@ -225,7 +230,7 @@ error:
 static void parse_type_size(Visitor *v, uint64_t *obj, const char *name,
                             Error **errp)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
     Error *err = NULL;
     uint64_t val;
 
@@ -247,7 +252,7 @@ static void parse_type_size(Visitor *v, uint64_t *obj, const char *name,
 static void parse_type_bool(Visitor *v, bool *obj, const char *name,
                             Error **errp)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
 
     if (siv->string) {
         if (!strcasecmp(siv->string, "on") ||
@@ -271,7 +276,7 @@ static void parse_type_bool(Visitor *v, bool *obj, const char *name,
 static void parse_type_str(Visitor *v, char **obj, const char *name,
                            Error **errp)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
     if (siv->string) {
         *obj = g_strdup(siv->string);
     } else {
@@ -283,7 +288,7 @@ static void parse_type_str(Visitor *v, char **obj, const char *name,
 static void parse_type_number(Visitor *v, double *obj, const char *name,
                               Error **errp)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
     char *endp = (char *) siv->string;
     double val;
 
@@ -302,7 +307,7 @@ static void parse_type_number(Visitor *v, double *obj, const char *name,
 
 static void parse_optional(Visitor *v, bool *present, const char *name)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
 
     if (!siv->string) {
         *present = false;

@@ -67,6 +67,11 @@ struct StringOutputVisitor
     GList *ranges;
 };
 
+static StringOutputVisitor *to_sov(Visitor *v)
+{
+    return container_of(v, StringOutputVisitor, visitor);
+}
+
 static void string_output_set(StringOutputVisitor *sov, char *string)
 {
     if (sov->string) {
@@ -120,7 +125,7 @@ static void format_string(StringOutputVisitor *sov, Range *r, bool next,
 static void print_type_int(Visitor *v, int64_t *obj, const char *name,
                            Error **errp)
 {
-    StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
+    StringOutputVisitor *sov = to_sov(v);
     GList *l;
 
     switch (sov->list_mode) {
@@ -196,7 +201,7 @@ static void print_type_int(Visitor *v, int64_t *obj, const char *name,
 static void print_type_size(Visitor *v, uint64_t *obj, const char *name,
                            Error **errp)
 {
-    StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
+    StringOutputVisitor *sov = to_sov(v);
     static const char suffixes[] = { 'B', 'K', 'M', 'G', 'T', 'P', 'E' };
     uint64_t div, val;
     char *out;
@@ -227,14 +232,14 @@ static void print_type_size(Visitor *v, uint64_t *obj, const char *name,
 static void print_type_bool(Visitor *v, bool *obj, const char *name,
                             Error **errp)
 {
-    StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
+    StringOutputVisitor *sov = to_sov(v);
     string_output_set(sov, g_strdup(*obj ? "true" : "false"));
 }
 
 static void print_type_str(Visitor *v, char **obj, const char *name,
                            Error **errp)
 {
-    StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
+    StringOutputVisitor *sov = to_sov(v);
     char *out;
 
     if (sov->human) {
@@ -248,14 +253,14 @@ static void print_type_str(Visitor *v, char **obj, const char *name,
 static void print_type_number(Visitor *v, double *obj, const char *name,
                               Error **errp)
 {
-    StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
+    StringOutputVisitor *sov = to_sov(v);
     string_output_set(sov, g_strdup_printf("%f", *obj));
 }
 
 static void
 start_list(Visitor *v, const char *name, Error **errp)
 {
-    StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
+    StringOutputVisitor *sov = to_sov(v);
 
     /* we can't traverse a list in a list */
     assert(sov->list_mode == LM_NONE);
@@ -266,7 +271,7 @@ start_list(Visitor *v, const char *name, Error **errp)
 static GenericList *
 next_list(Visitor *v, GenericList **list, Error **errp)
 {
-    StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
+    StringOutputVisitor *sov = to_sov(v);
     GenericList *ret = NULL;
     if (*list) {
         if (sov->head) {
@@ -293,7 +298,7 @@ next_list(Visitor *v, GenericList **list, Error **errp)
 static void
 end_list(Visitor *v, Error **errp)
 {
-    StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
+    StringOutputVisitor *sov = to_sov(v);
 
     assert(sov->list_mode == LM_STARTED ||
            sov->list_mode == LM_END ||
