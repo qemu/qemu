@@ -11,6 +11,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "qapi/dealloc-visitor.h"
 #include "qemu/queue.h"
 #include "qemu-common.h"

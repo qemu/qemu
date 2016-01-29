@@ -10,6 +10,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/opts-visitor.h"

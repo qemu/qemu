@@ -10,8 +10,8 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "qapi/error.h"
 #include "qapi/util.h"
 
 int qapi_enum_parse(const char * const lookup[], const char *buf,

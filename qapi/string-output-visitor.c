@@ -10,6 +10,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qapi/string-output-visitor.h"
 #include "qapi/visitor-impl.h"
