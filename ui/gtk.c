@@ -34,6 +34,7 @@
 #define GETTEXT_PACKAGE "qemu"
 #define LOCALEDIR "po"
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 
 #include "ui/console.h"

@@ -15,10 +15,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdbool.h>
-#include <string.h>
+#include "qemu/osdep.h"
 
 #include <spice.h>
 #include <spice/enums.h>

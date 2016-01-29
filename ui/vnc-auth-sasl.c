@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "vnc.h"
 
 /* Max amount of data we send/recv for SASL steps to prevent DOS */

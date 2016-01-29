@@ -100,6 +100,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #define ZYWRLE_QUANTIZE
+#include "qemu/osdep.h"
 #include "vnc-enc-zywrle.h"
 
 #ifndef ZRLE_COMPACT_PIXEL

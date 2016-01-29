@@ -25,6 +25,7 @@
 /* Avoid compiler warning because macro is redefined in SDL_syswm.h. */
 #undef WIN32_LEAN_AND_MEAN
 
+#include "qemu/osdep.h"
 #include <SDL.h>
 #include <SDL_syswm.h>
 

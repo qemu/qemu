@@ -18,6 +18,7 @@
  * along with this software; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "vnc.h"
 #include "io/channel-websock.h"
 

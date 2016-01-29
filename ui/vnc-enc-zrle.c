@@ -26,6 +26,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "vnc.h"
 #include "vnc-enc-zrle.h"
 

@@ -24,6 +24,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "vnc.h"
 
 static void hextile_enc_cord(uint8_t *ptr, int x, int y, int w, int h)

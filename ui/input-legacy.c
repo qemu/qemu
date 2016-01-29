@@ -22,9 +22,9 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
 #include "ui/console.h"
-#include "qapi/error.h"
 #include "qmp-commands.h"
 #include "qapi-types.h"
 #include "ui/keymaps.h"

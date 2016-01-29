@@ -26,9 +26,9 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "vnc-palette.h"
 #include <glib.h>
-#include <string.h>
 
 static VncPaletteEntry *palette_find(const VncPalette *palette,
                                      uint32_t color, unsigned int hash)

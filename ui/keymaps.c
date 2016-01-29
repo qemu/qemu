@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "keymaps.h"
 #include "sysemu/sysemu.h"
 

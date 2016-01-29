@@ -24,6 +24,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "vnc.h"
 #include "vnc-jobs.h"
 #include "trace.h"
@@ -37,7 +38,6 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/types.h"
 #include "qmp-commands.h"
-#include "qemu/osdep.h"
 #include "ui/input.h"
 #include "qapi-event.h"
 #include "crypto/hash.h"

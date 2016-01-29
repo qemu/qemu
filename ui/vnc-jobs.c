@@ -26,6 +26,7 @@
  */
 
 
+#include "qemu/osdep.h"
 #include "vnc.h"
 #include "vnc-jobs.h"
 #include "qemu/sockets.h"

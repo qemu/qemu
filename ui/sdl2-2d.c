@@ -23,6 +23,7 @@
  */
 /* Ported SDL 1.2 code to 2.0 by Dave Airlie. */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "ui/console.h"
 #include "ui/input.h"
