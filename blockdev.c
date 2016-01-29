@@ -2792,7 +2792,7 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
             return;
         }
 
-        bdrv_close(bs);
+        blk_remove_bs(blk);
     }
 
     /* if we have a device attached to this BlockDriverState
