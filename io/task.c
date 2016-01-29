@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "io/task.h"
 #include "qemu/thread.h"
 #include "trace.h"

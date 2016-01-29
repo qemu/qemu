@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "io/channel-websock.h"
 #include "crypto/hash.h"
 #include "trace.h"

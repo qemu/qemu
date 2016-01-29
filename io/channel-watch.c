@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "io/channel-watch.h"
 
 typedef struct QIOChannelFDSource QIOChannelFDSource;

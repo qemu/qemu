@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "io/channel-socket.h"
 #include "io/channel-watch.h"
 #include "trace.h"
