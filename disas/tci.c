@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "disas/bfd.h"
 #include "tcg/tcg.h"

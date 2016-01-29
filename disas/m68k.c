@@ -1,9 +1,8 @@
 /* This file is composed of several different files from the upstream
    sourceware.org CVS.  Original file boundaries marked with **** */
 
-#include <string.h>
+#include "qemu/osdep.h"
 #include <math.h>
-#include <stdio.h>
 
 #include "disas/bfd.h"
 

@@ -18,7 +18,7 @@
    along with this file; see the file COPYING.  If not, see
    <http://www.gnu.org/licenses/>. */
 
-#include <string.h>
+#include "qemu/osdep.h"
 
 #include "disas/bfd.h"
 
@@ -27,7 +27,6 @@
    Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com> */
 
-#include <sys/types.h>
 
 typedef uint64_t ia64_insn;
 

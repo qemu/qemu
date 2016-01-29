@@ -26,7 +26,7 @@
    along with GAS or GDB; see the file COPYING. If not,
    see <http://www.gnu.org/licenses/>.  */
 
-#include <stdlib.h>
+#include "qemu/osdep.h"
 #include "disas/bfd.h"
 
 /* The SPARC opcode table (and other related data) is defined in

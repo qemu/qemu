@@ -31,7 +31,7 @@
    and the small letter tells about the operand size.  Refer to
    the Intel manual for details.  */
 
-#include <stdlib.h>
+#include "qemu/osdep.h"
 #include "disas/bfd.h"
 /* include/opcode/i386.h r1.78 */
 
