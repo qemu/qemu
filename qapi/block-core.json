@@ -2048,8 +2048,7 @@
 #   respond to the eject request
 # - if the BlockBackend denoted by @device does not have a guest device attached
 #   to it
-# - if the guest device does not have an actual tray and is empty, for instance
-#   for floppy disk drives
+# - if the guest device does not have an actual tray
 #
 # @device: block device name
 #
