@@ -185,7 +185,7 @@ end_list(Visitor *v, Error **errp)
     siv->head = true;
 }
 
-static void parse_type_int64(Visitor *v, int64_t *obj, const char *name,
+static void parse_type_int64(Visitor *v, const char *name, int64_t *obj,
                              Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
@@ -227,13 +227,13 @@ error:
                "an int64 value or range");
 }
 
-static void parse_type_uint64(Visitor *v, uint64_t *obj, const char *name,
+static void parse_type_uint64(Visitor *v, const char *name, uint64_t *obj,
                               Error **errp)
 {
     /* FIXME: parse_type_int64 mishandles values over INT64_MAX */
     int64_t i;
     Error *err = NULL;
-    parse_type_int64(v, &i, name, &err);
+    parse_type_int64(v, name, &i, &err);
     if (err) {
         error_propagate(errp, err);
     } else {
@@ -241,7 +241,7 @@ static void parse_type_uint64(Visitor *v, uint64_t *obj, const char *name,
     }
 }
 
-static void parse_type_size(Visitor *v, uint64_t *obj, const char *name,
+static void parse_type_size(Visitor *v, const char *name, uint64_t *obj,
                             Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
@@ -263,7 +263,7 @@ static void parse_type_size(Visitor *v, uint64_t *obj, const char *name,
     *obj = val;
 }
 
-static void parse_type_bool(Visitor *v, bool *obj, const char *name,
+static void parse_type_bool(Visitor *v, const char *name, bool *obj,
                             Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
@@ -287,7 +287,7 @@ static void parse_type_bool(Visitor *v, bool *obj, const char *name,
                "boolean");
 }
 
-static void parse_type_str(Visitor *v, char **obj, const char *name,
+static void parse_type_str(Visitor *v, const char *name, char **obj,
                            Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
@@ -299,7 +299,7 @@ static void parse_type_str(Visitor *v, char **obj, const char *name,
     }
 }
 
-static void parse_type_number(Visitor *v, double *obj, const char *name,
+static void parse_type_number(Visitor *v, const char *name, double *obj,
                               Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
@@ -319,7 +319,7 @@ static void parse_type_number(Visitor *v, double *obj, const char *name,
     *obj = val;
 }
 
-static void parse_optional(Visitor *v, bool *present, const char *name)
+static void parse_optional(Visitor *v, const char *name, bool *present)
 {
     StringInputVisitor *siv = to_siv(v);
 

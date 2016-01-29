@@ -18,8 +18,8 @@
 struct Visitor
 {
     /* Must be set */
-    void (*start_struct)(Visitor *v, void **obj, const char *kind,
-                         const char *name, size_t size, Error **errp);
+    void (*start_struct)(Visitor *v, const char *name, void **obj,
+                         const char *kind, size_t size, Error **errp);
     void (*end_struct)(Visitor *v, Error **errp);
 
     void (*start_implicit_struct)(Visitor *v, void **obj, size_t size,
@@ -30,38 +30,41 @@ struct Visitor
     GenericList *(*next_list)(Visitor *v, GenericList **list, Error **errp);
     void (*end_list)(Visitor *v, Error **errp);
 
-    void (*type_enum)(Visitor *v, int *obj, const char * const strings[],
-                      const char *kind, const char *name, Error **errp);
+    void (*type_enum)(Visitor *v, const char *name, int *obj,
+                      const char *const strings[], const char *kind,
+                      Error **errp);
     /* May be NULL; only needed for input visitors. */
-    void (*get_next_type)(Visitor *v, QType *type, bool promote_int,
-                          const char *name, Error **errp);
+    void (*get_next_type)(Visitor *v, const char *name, QType *type,
+                          bool promote_int, Error **errp);
 
     /* Must be set. */
-    void (*type_int64)(Visitor *v, int64_t *obj, const char *name,
+    void (*type_int64)(Visitor *v, const char *name, int64_t *obj,
                        Error **errp);
     /* Must be set. */
-    void (*type_uint64)(Visitor *v, uint64_t *obj, const char *name,
+    void (*type_uint64)(Visitor *v, const char *name, uint64_t *obj,
                         Error **errp);
     /* Optional; fallback is type_uint64().  */
-    void (*type_size)(Visitor *v, uint64_t *obj, const char *name,
+    void (*type_size)(Visitor *v, const char *name, uint64_t *obj,
                       Error **errp);
     /* Must be set. */
-    void (*type_bool)(Visitor *v, bool *obj, const char *name, Error **errp);
-    void (*type_str)(Visitor *v, char **obj, const char *name, Error **errp);
-    void (*type_number)(Visitor *v, double *obj, const char *name,
+    void (*type_bool)(Visitor *v, const char *name, bool *obj, Error **errp);
+    void (*type_str)(Visitor *v, const char *name, char **obj, Error **errp);
+    void (*type_number)(Visitor *v, const char *name, double *obj,
                         Error **errp);
-    void (*type_any)(Visitor *v, QObject **obj, const char *name,
+    void (*type_any)(Visitor *v, const char *name, QObject **obj,
                      Error **errp);
 
     /* May be NULL; most useful for input visitors. */
-    void (*optional)(Visitor *v, bool *present, const char *name);
+    void (*optional)(Visitor *v, const char *name, bool *present);
 
     bool (*start_union)(Visitor *v, bool data_present, Error **errp);
 };
 
-void input_type_enum(Visitor *v, int *obj, const char * const strings[],
-                     const char *kind, const char *name, Error **errp);
-void output_type_enum(Visitor *v, int *obj, const char * const strings[],
-                      const char *kind, const char *name, Error **errp);
+void input_type_enum(Visitor *v, const char *name, int *obj,
+                     const char *const strings[], const char *kind,
+                     Error **errp);
+void output_type_enum(Visitor *v, const char *name, int *obj,
+                      const char *const strings[], const char *kind,
+                      Error **errp);
 
 #endif

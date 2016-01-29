@@ -59,8 +59,8 @@ static void *qapi_dealloc_pop(QapiDeallocVisitor *qov)
     return value;
 }
 
-static void qapi_dealloc_start_struct(Visitor *v, void **obj, const char *kind,
-                                      const char *name, size_t unused,
+static void qapi_dealloc_start_struct(Visitor *v, const char *name, void **obj,
+                                      const char *kind, size_t unused,
                                       Error **errp)
 {
     QapiDeallocVisitor *qov = to_qov(v);
@@ -128,7 +128,7 @@ static void qapi_dealloc_end_list(Visitor *v, Error **errp)
     assert(obj == NULL); /* should've been list head tracker with no payload */
 }
 
-static void qapi_dealloc_type_str(Visitor *v, char **obj, const char *name,
+static void qapi_dealloc_type_str(Visitor *v, const char *name, char **obj,
                                   Error **errp)
 {
     if (obj) {
@@ -136,38 +136,37 @@ static void qapi_dealloc_type_str(Visitor *v, char **obj, const char *name,
     }
 }
 
-static void qapi_dealloc_type_int64(Visitor *v, int64_t *obj, const char *name,
+static void qapi_dealloc_type_int64(Visitor *v, const char *name, int64_t *obj,
                                     Error **errp)
 {
 }
 
-static void qapi_dealloc_type_uint64(Visitor *v, uint64_t *obj,
-                                     const char *name, Error **errp)
+static void qapi_dealloc_type_uint64(Visitor *v, const char *name,
+                                     uint64_t *obj, Error **errp)
 {
 }
 
-static void qapi_dealloc_type_bool(Visitor *v, bool *obj, const char *name,
+static void qapi_dealloc_type_bool(Visitor *v, const char *name, bool *obj,
                                    Error **errp)
 {
 }
 
-static void qapi_dealloc_type_number(Visitor *v, double *obj, const char *name,
+static void qapi_dealloc_type_number(Visitor *v, const char *name, double *obj,
                                      Error **errp)
 {
 }
 
-static void qapi_dealloc_type_anything(Visitor *v, QObject **obj,
-                                       const char *name, Error **errp)
+static void qapi_dealloc_type_anything(Visitor *v, const char *name,
+                                       QObject **obj, Error **errp)
 {
     if (obj) {
         qobject_decref(*obj);
     }
 }
 
-static void qapi_dealloc_type_enum(Visitor *v, int *obj,
+static void qapi_dealloc_type_enum(Visitor *v, const char *name, int *obj,
                                    const char * const strings[],
-                                   const char *kind, const char *name,
-                                   Error **errp)
+                                   const char *kind, Error **errp)
 {
 }
 

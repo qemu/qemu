@@ -125,8 +125,8 @@ opts_visitor_insert(GHashTable *unprocessed_opts, const QemuOpt *opt)
 
 
 static void
-opts_start_struct(Visitor *v, void **obj, const char *kind,
-                  const char *name, size_t size, Error **errp)
+opts_start_struct(Visitor *v, const char *name, void **obj, const char *kind,
+                  size_t size, Error **errp)
 {
     OptsVisitor *ov = to_ov(v);
     const QemuOpt *opt;
@@ -312,7 +312,7 @@ processed(OptsVisitor *ov, const char *name)
 
 
 static void
-opts_type_str(Visitor *v, char **obj, const char *name, Error **errp)
+opts_type_str(Visitor *v, const char *name, char **obj, Error **errp)
 {
     OptsVisitor *ov = to_ov(v);
     const QemuOpt *opt;
@@ -328,7 +328,7 @@ opts_type_str(Visitor *v, char **obj, const char *name, Error **errp)
 
 /* mimics qemu-option.c::parse_option_bool() */
 static void
-opts_type_bool(Visitor *v, bool *obj, const char *name, Error **errp)
+opts_type_bool(Visitor *v, const char *name, bool *obj, Error **errp)
 {
     OptsVisitor *ov = to_ov(v);
     const QemuOpt *opt;
@@ -361,7 +361,7 @@ opts_type_bool(Visitor *v, bool *obj, const char *name, Error **errp)
 
 
 static void
-opts_type_int64(Visitor *v, int64_t *obj, const char *name, Error **errp)
+opts_type_int64(Visitor *v, const char *name, int64_t *obj, Error **errp)
 {
     OptsVisitor *ov = to_ov(v);
     const QemuOpt *opt;
@@ -417,7 +417,7 @@ opts_type_int64(Visitor *v, int64_t *obj, const char *name, Error **errp)
 
 
 static void
-opts_type_uint64(Visitor *v, uint64_t *obj, const char *name, Error **errp)
+opts_type_uint64(Visitor *v, const char *name, uint64_t *obj, Error **errp)
 {
     OptsVisitor *ov = to_ov(v);
     const QemuOpt *opt;
@@ -469,7 +469,7 @@ opts_type_uint64(Visitor *v, uint64_t *obj, const char *name, Error **errp)
 
 
 static void
-opts_type_size(Visitor *v, uint64_t *obj, const char *name, Error **errp)
+opts_type_size(Visitor *v, const char *name, uint64_t *obj, Error **errp)
 {
     OptsVisitor *ov = to_ov(v);
     const QemuOpt *opt;
@@ -495,7 +495,7 @@ opts_type_size(Visitor *v, uint64_t *obj, const char *name, Error **errp)
 
 
 static void
-opts_optional(Visitor *v, bool *present, const char *name)
+opts_optional(Visitor *v, const char *name, bool *present)
 {
     OptsVisitor *ov = to_ov(v);
 

@@ -122,7 +122,7 @@ static void format_string(StringOutputVisitor *sov, Range *r, bool next,
     }
 }
 
-static void print_type_int64(Visitor *v, int64_t *obj, const char *name,
+static void print_type_int64(Visitor *v, const char *name, int64_t *obj,
                              Error **errp)
 {
     StringOutputVisitor *sov = to_sov(v);
@@ -198,16 +198,16 @@ static void print_type_int64(Visitor *v, int64_t *obj, const char *name,
     }
 }
 
-static void print_type_uint64(Visitor *v, uint64_t *obj, const char *name,
+static void print_type_uint64(Visitor *v, const char *name, uint64_t *obj,
                              Error **errp)
 {
     /* FIXME: print_type_int64 mishandles values over INT64_MAX */
     int64_t i = *obj;
-    print_type_int64(v, &i, name, errp);
+    print_type_int64(v, name, &i, errp);
 }
 
-static void print_type_size(Visitor *v, uint64_t *obj, const char *name,
-                           Error **errp)
+static void print_type_size(Visitor *v, const char *name, uint64_t *obj,
+                            Error **errp)
 {
     StringOutputVisitor *sov = to_sov(v);
     static const char suffixes[] = { 'B', 'K', 'M', 'G', 'T', 'P', 'E' };
@@ -237,14 +237,14 @@ static void print_type_size(Visitor *v, uint64_t *obj, const char *name,
     string_output_set(sov, out);
 }
 
-static void print_type_bool(Visitor *v, bool *obj, const char *name,
+static void print_type_bool(Visitor *v, const char *name, bool *obj,
                             Error **errp)
 {
     StringOutputVisitor *sov = to_sov(v);
     string_output_set(sov, g_strdup(*obj ? "true" : "false"));
 }
 
-static void print_type_str(Visitor *v, char **obj, const char *name,
+static void print_type_str(Visitor *v, const char *name, char **obj,
                            Error **errp)
 {
     StringOutputVisitor *sov = to_sov(v);
@@ -258,7 +258,7 @@ static void print_type_str(Visitor *v, char **obj, const char *name,
     string_output_set(sov, out);
 }
 
-static void print_type_number(Visitor *v, double *obj, const char *name,
+static void print_type_number(Visitor *v, const char *name, double *obj,
                               Error **errp)
 {
     StringOutputVisitor *sov = to_sov(v);

@@ -111,8 +111,8 @@ static void qmp_output_add_obj(QmpOutputVisitor *qov, const char *name,
     }
 }
 
-static void qmp_output_start_struct(Visitor *v, void **obj, const char *kind,
-                                    const char *name, size_t unused,
+static void qmp_output_start_struct(Visitor *v, const char *name, void **obj,
+                                    const char *kind, size_t unused,
                                     Error **errp)
 {
     QmpOutputVisitor *qov = to_qov(v);
@@ -159,14 +159,14 @@ static void qmp_output_end_list(Visitor *v, Error **errp)
     qmp_output_pop(qov);
 }
 
-static void qmp_output_type_int64(Visitor *v, int64_t *obj, const char *name,
+static void qmp_output_type_int64(Visitor *v, const char *name, int64_t *obj,
                                   Error **errp)
 {
     QmpOutputVisitor *qov = to_qov(v);
     qmp_output_add(qov, name, qint_from_int(*obj));
 }
 
-static void qmp_output_type_uint64(Visitor *v, uint64_t *obj, const char *name,
+static void qmp_output_type_uint64(Visitor *v, const char *name, uint64_t *obj,
                                    Error **errp)
 {
     /* FIXME: QMP outputs values larger than INT64_MAX as negative */
@@ -174,14 +174,14 @@ static void qmp_output_type_uint64(Visitor *v, uint64_t *obj, const char *name,
     qmp_output_add(qov, name, qint_from_int(*obj));
 }
 
-static void qmp_output_type_bool(Visitor *v, bool *obj, const char *name,
+static void qmp_output_type_bool(Visitor *v, const char *name, bool *obj,
                                  Error **errp)
 {
     QmpOutputVisitor *qov = to_qov(v);
     qmp_output_add(qov, name, qbool_from_bool(*obj));
 }
 
-static void qmp_output_type_str(Visitor *v, char **obj, const char *name,
+static void qmp_output_type_str(Visitor *v, const char *name, char **obj,
                                 Error **errp)
 {
     QmpOutputVisitor *qov = to_qov(v);
@@ -192,14 +192,14 @@ static void qmp_output_type_str(Visitor *v, char **obj, const char *name,
     }
 }
 
-static void qmp_output_type_number(Visitor *v, double *obj, const char *name,
+static void qmp_output_type_number(Visitor *v, const char *name, double *obj,
                                    Error **errp)
 {
     QmpOutputVisitor *qov = to_qov(v);
     qmp_output_add(qov, name, qfloat_from_double(*obj));
 }
 
-static void qmp_output_type_any(Visitor *v, QObject **obj, const char *name,
+static void qmp_output_type_any(Visitor *v, const char *name, QObject **obj,
                                 Error **errp)
 {
     QmpOutputVisitor *qov = to_qov(v);

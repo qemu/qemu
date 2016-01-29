@@ -115,8 +115,8 @@ static void qmp_input_pop(QmpInputVisitor *qiv, Error **errp)
     qiv->nb_stack--;
 }
 
-static void qmp_input_start_struct(Visitor *v, void **obj, const char *kind,
-                                   const char *name, size_t size, Error **errp)
+static void qmp_input_start_struct(Visitor *v, const char *name, void **obj,
+                                   const char *kind, size_t size, Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qmp_input_get_object(qiv, name, true);
@@ -209,8 +209,8 @@ static void qmp_input_end_list(Visitor *v, Error **errp)
     qmp_input_pop(qiv, errp);
 }
 
-static void qmp_input_get_next_type(Visitor *v, QType *type, bool promote_int,
-                                    const char *name, Error **errp)
+static void qmp_input_get_next_type(Visitor *v, const char *name, QType *type,
+                                    bool promote_int, Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qmp_input_get_object(qiv, name, false);
@@ -225,7 +225,7 @@ static void qmp_input_get_next_type(Visitor *v, QType *type, bool promote_int,
     }
 }
 
-static void qmp_input_type_int64(Visitor *v, int64_t *obj, const char *name,
+static void qmp_input_type_int64(Visitor *v, const char *name, int64_t *obj,
                                  Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
@@ -240,7 +240,7 @@ static void qmp_input_type_int64(Visitor *v, int64_t *obj, const char *name,
     *obj = qint_get_int(qint);
 }
 
-static void qmp_input_type_uint64(Visitor *v, uint64_t *obj, const char *name,
+static void qmp_input_type_uint64(Visitor *v, const char *name, uint64_t *obj,
                                   Error **errp)
 {
     /* FIXME: qobject_to_qint mishandles values over INT64_MAX */
@@ -256,7 +256,7 @@ static void qmp_input_type_uint64(Visitor *v, uint64_t *obj, const char *name,
     *obj = qint_get_int(qint);
 }
 
-static void qmp_input_type_bool(Visitor *v, bool *obj, const char *name,
+static void qmp_input_type_bool(Visitor *v, const char *name, bool *obj,
                                 Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
@@ -271,7 +271,7 @@ static void qmp_input_type_bool(Visitor *v, bool *obj, const char *name,
     *obj = qbool_get_bool(qbool);
 }
 
-static void qmp_input_type_str(Visitor *v, char **obj, const char *name,
+static void qmp_input_type_str(Visitor *v, const char *name, char **obj,
                                Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
@@ -286,7 +286,7 @@ static void qmp_input_type_str(Visitor *v, char **obj, const char *name,
     *obj = g_strdup(qstring_get_str(qstr));
 }
 
-static void qmp_input_type_number(Visitor *v, double *obj, const char *name,
+static void qmp_input_type_number(Visitor *v, const char *name, double *obj,
                                   Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
@@ -310,7 +310,7 @@ static void qmp_input_type_number(Visitor *v, double *obj, const char *name,
                "number");
 }
 
-static void qmp_input_type_any(Visitor *v, QObject **obj, const char *name,
+static void qmp_input_type_any(Visitor *v, const char *name, QObject **obj,
                                Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
@@ -320,7 +320,7 @@ static void qmp_input_type_any(Visitor *v, QObject **obj, const char *name,
     *obj = qobj;
 }
 
-static void qmp_input_optional(Visitor *v, bool *present, const char *name)
+static void qmp_input_optional(Visitor *v, const char *name, bool *present)
 {
     QmpInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qmp_input_get_object(qiv, name, true);
