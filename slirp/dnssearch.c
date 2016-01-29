@@ -22,9 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
+#include "qemu/osdep.h"
 #include <glib.h>
 #include "slirp.h"
 

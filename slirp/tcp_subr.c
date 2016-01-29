@@ -38,6 +38,7 @@
  * terms and conditions of the copyright.
  */
 
+#include "qemu/osdep.h"
 #include <slirp.h>
 
 /* patchable/settable parameters for tcp */
