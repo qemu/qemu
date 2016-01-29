@@ -112,8 +112,7 @@ static void qmp_output_add_obj(QmpOutputVisitor *qov, const char *name,
 }
 
 static void qmp_output_start_struct(Visitor *v, const char *name, void **obj,
-                                    const char *kind, size_t unused,
-                                    Error **errp)
+                                    size_t unused, Error **errp)
 {
     QmpOutputVisitor *qov = to_qov(v);
     QDict *dict = qdict_new();

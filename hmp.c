@@ -1670,7 +1670,7 @@ void hmp_object_add(Monitor *mon, const QDict *qdict)
     pdict = qdict_clone_shallow(qdict);
     v = opts_get_visitor(ov);
 
-    visit_start_struct(v, NULL, NULL, NULL, 0, &err);
+    visit_start_struct(v, NULL, NULL, 0, &err);
     if (err) {
         goto out_clean;
     }

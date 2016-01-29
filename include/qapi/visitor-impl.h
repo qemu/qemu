@@ -19,7 +19,7 @@ struct Visitor
 {
     /* Must be set */
     void (*start_struct)(Visitor *v, const char *name, void **obj,
-                         const char *kind, size_t size, Error **errp);
+                         size_t size, Error **errp);
     void (*end_struct)(Visitor *v, Error **errp);
 
     void (*start_implicit_struct)(Visitor *v, void **obj, size_t size,
@@ -31,8 +31,7 @@ struct Visitor
     void (*end_list)(Visitor *v, Error **errp);
 
     void (*type_enum)(Visitor *v, const char *name, int *obj,
-                      const char *const strings[], const char *kind,
-                      Error **errp);
+                      const char *const strings[], Error **errp);
     /* May be NULL; only needed for input visitors. */
     void (*get_next_type)(Visitor *v, const char *name, QType *type,
                           bool promote_int, Error **errp);
@@ -61,10 +60,8 @@ struct Visitor
 };
 
 void input_type_enum(Visitor *v, const char *name, int *obj,
-                     const char *const strings[], const char *kind,
-                     Error **errp);
+                     const char *const strings[], Error **errp);
 void output_type_enum(Visitor *v, const char *name, int *obj,
-                      const char *const strings[], const char *kind,
-                      Error **errp);
+                      const char *const strings[], Error **errp);
 
 #endif

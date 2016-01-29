@@ -28,7 +28,7 @@ typedef struct GenericList
 } GenericList;
 
 void visit_start_struct(Visitor *v, const char *name, void **obj,
-                        const char *kind, size_t size, Error **errp);
+                        size_t size, Error **errp);
 void visit_end_struct(Visitor *v, Error **errp);
 void visit_start_implicit_struct(Visitor *v, void **obj, size_t size,
                                  Error **errp);
@@ -54,8 +54,7 @@ bool visit_optional(Visitor *v, const char *name, bool *present);
 void visit_get_next_type(Visitor *v, const char *name, QType *type,
                          bool promote_int, Error **errp);
 void visit_type_enum(Visitor *v, const char *name, int *obj,
-                     const char *const strings[], const char *kind,
-                     Error **errp);
+                     const char *const strings[], Error **errp);
 void visit_type_int(Visitor *v, const char *name, int64_t *obj, Error **errp);
 void visit_type_uint8(Visitor *v, const char *name, uint8_t *obj,
                       Error **errp);

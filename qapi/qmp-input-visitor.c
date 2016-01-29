@@ -116,7 +116,7 @@ static void qmp_input_pop(QmpInputVisitor *qiv, Error **errp)
 }
 
 static void qmp_input_start_struct(Visitor *v, const char *name, void **obj,
-                                   const char *kind, size_t size, Error **errp)
+                                   size_t size, Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qmp_input_get_object(qiv, name, true);

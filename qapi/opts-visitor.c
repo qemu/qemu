@@ -125,7 +125,7 @@ opts_visitor_insert(GHashTable *unprocessed_opts, const QemuOpt *opt)
 
 
 static void
-opts_start_struct(Visitor *v, const char *name, void **obj, const char *kind,
+opts_start_struct(Visitor *v, const char *name, void **obj,
                   size_t size, Error **errp)
 {
     OptsVisitor *ov = to_ov(v);

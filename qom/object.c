@@ -1245,7 +1245,7 @@ int object_property_get_enum(Object *obj, const char *name,
     siv = string_input_visitor_new(str);
     string_output_visitor_cleanup(sov);
     visit_type_enum(string_input_get_visitor(siv), name, &ret,
-                    enumprop->strings, NULL, errp);
+                    enumprop->strings, errp);
 
     g_free(str);
     string_input_visitor_cleanup(siv);
@@ -1916,7 +1916,7 @@ static void property_get_enum(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_enum(v, name, &value, prop->strings, NULL, errp);
+    visit_type_enum(v, name, &value, prop->strings, errp);
 }
 
 static void property_set_enum(Object *obj, Visitor *v, const char *name,
@@ -1926,7 +1926,7 @@ static void property_set_enum(Object *obj, Visitor *v, const char *name,
     int value;
     Error *err = NULL;
 
-    visit_type_enum(v, name, &value, prop->strings, NULL, &err);
+    visit_type_enum(v, name, &value, prop->strings, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -2007,7 +2007,7 @@ static void property_get_tm(Object *obj, Visitor *v, const char *name,
         goto out;
     }
 
-    visit_start_struct(v, name, NULL, "struct tm", 0, &err);
+    visit_start_struct(v, name, NULL, 0, &err);
     if (err) {
         goto out;
     }

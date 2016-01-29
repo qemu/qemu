@@ -120,7 +120,7 @@ static void balloon_stats_get_all(Object *obj, Visitor *v, const char *name,
     VirtIOBalloon *s = opaque;
     int i;
 
-    visit_start_struct(v, name, NULL, "guest-stats", 0, &err);
+    visit_start_struct(v, name, NULL, 0, &err);
     if (err) {
         goto out;
     }
@@ -129,7 +129,7 @@ static void balloon_stats_get_all(Object *obj, Visitor *v, const char *name,
         goto out_end;
     }
 
-    visit_start_struct(v, "stats", NULL, NULL, 0, &err);
+    visit_start_struct(v, "stats", NULL, 0, &err);
     if (err) {
         goto out_end;
     }

@@ -2831,7 +2831,7 @@ static int object_create(void *opaque, QemuOpts *opts, Error **errp)
     pdict = qemu_opts_to_qdict(opts, NULL);
     v = opts_get_visitor(ov);
 
-    visit_start_struct(v, NULL, NULL, NULL, 0, &err);
+    visit_start_struct(v, NULL, NULL, 0, &err);
     if (err) {
         goto out;
     }

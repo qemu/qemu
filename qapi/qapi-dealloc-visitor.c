@@ -60,8 +60,7 @@ static void *qapi_dealloc_pop(QapiDeallocVisitor *qov)
 }
 
 static void qapi_dealloc_start_struct(Visitor *v, const char *name, void **obj,
-                                      const char *kind, size_t unused,
-                                      Error **errp)
+                                      size_t unused, Error **errp)
 {
     QapiDeallocVisitor *qov = to_qov(v);
     qapi_dealloc_push(qov, obj);
@@ -165,8 +164,7 @@ static void qapi_dealloc_type_anything(Visitor *v, const char *name,
 }
 
 static void qapi_dealloc_type_enum(Visitor *v, const char *name, int *obj,
-                                   const char * const strings[],
-                                   const char *kind, Error **errp)
+                                   const char * const strings[], Error **errp)
 {
 }
 

@@ -49,8 +49,7 @@ static void get_enum(Object *obj, Visitor *v, const char *name, void *opaque,
     Property *prop = opaque;
     int *ptr = qdev_get_prop_ptr(dev, prop);
 
-    visit_type_enum(v, prop->name, ptr, prop->info->enum_table,
-                    prop->info->name, errp);
+    visit_type_enum(v, prop->name, ptr, prop->info->enum_table, errp);
 }
 
 static void set_enum(Object *obj, Visitor *v, const char *name, void *opaque,
@@ -65,8 +64,7 @@ static void set_enum(Object *obj, Visitor *v, const char *name, void *opaque,
         return;
     }
 
-    visit_type_enum(v, prop->name, ptr, prop->info->enum_table,
-                    prop->info->name, errp);
+    visit_type_enum(v, prop->name, ptr, prop->info->enum_table, errp);
 }
 
 /* Bit */

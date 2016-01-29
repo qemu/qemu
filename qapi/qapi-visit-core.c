@@ -20,9 +20,9 @@
 #include "qapi/visitor-impl.h"
 
 void visit_start_struct(Visitor *v, const char *name, void **obj,
-                        const char *kind, size_t size, Error **errp)
+                        size_t size, Error **errp)
 {
-    v->start_struct(v, name, obj, kind, size, errp);
+    v->start_struct(v, name, obj, size, errp);
 }
 
 void visit_end_struct(Visitor *v, Error **errp)
@@ -85,10 +85,9 @@ void visit_get_next_type(Visitor *v, const char *name, QType *type,
 }
 
 void visit_type_enum(Visitor *v, const char *name, int *obj,
-                     const char *const strings[], const char *kind,
-                     Error **errp)
+                     const char *const strings[], Error **errp)
 {
-    v->type_enum(v, name, obj, strings, kind, errp);
+    v->type_enum(v, name, obj, strings, errp);
 }
 
 void visit_type_int(Visitor *v, const char *name, int64_t *obj, Error **errp)
@@ -222,8 +221,7 @@ void visit_type_any(Visitor *v, const char *name, QObject **obj, Error **errp)
 }
 
 void output_type_enum(Visitor *v, const char *name, int *obj,
-                      const char *const strings[], const char *kind,
-                      Error **errp)
+                      const char *const strings[], Error **errp)
 {
     int i = 0;
     int value = *obj;
@@ -241,8 +239,7 @@ void output_type_enum(Visitor *v, const char *name, int *obj,
 }
 
 void input_type_enum(Visitor *v, const char *name, int *obj,
-                     const char *const strings[], const char *kind,
-                     Error **errp)
+                     const char *const strings[], Error **errp)
 {
     Error *local_err = NULL;
     int64_t value = 0;
