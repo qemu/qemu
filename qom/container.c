@@ -10,9 +10,9 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "qom/object.h"
 #include "qemu/module.h"
-#include <assert.h>
 
 static const TypeInfo container_info = {
     .name          = "container",
