@@ -11,11 +11,10 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include <glib.h>
 #include <wtypes.h>
 #include <powrprof.h>
-#include <stdio.h>
-#include <string.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <iptypes.h>

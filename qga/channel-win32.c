@@ -1,9 +1,6 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdbool.h>
+#include "qemu/osdep.h"
 #include <glib.h>
 #include <windows.h>
-#include <errno.h>
 #include <io.h>
 #include "qga/guest-agent-core.h"
 #include "qga/channel.h"
