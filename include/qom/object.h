@@ -18,9 +18,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "qemu/queue.h"
+#include "qemu/typedefs.h"
 #include "qapi/error.h"
-
-struct Visitor;
 
 struct TypeImpl;
 typedef struct TypeImpl *Type;
@@ -298,7 +297,7 @@ typedef struct InterfaceInfo InterfaceInfo;
  * Called when trying to get/set a property.
  */
 typedef void (ObjectPropertyAccessor)(Object *obj,
-                                      struct Visitor *v,
+                                      Visitor *v,
                                       void *opaque,
                                       const char *name,
                                       Error **errp);
@@ -1025,7 +1024,7 @@ void object_unparent(Object *obj);
  *
  * Reads a property from a object.
  */
-void object_property_get(Object *obj, struct Visitor *v, const char *name,
+void object_property_get(Object *obj, Visitor *v, const char *name,
                          Error **errp);
 
 /**
@@ -1161,7 +1160,7 @@ void object_property_get_uint16List(Object *obj, const char *name,
  *
  * Writes a property to a object.
  */
-void object_property_set(Object *obj, struct Visitor *v, const char *name,
+void object_property_set(Object *obj, Visitor *v, const char *name,
                          Error **errp);
 
 /**

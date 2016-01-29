@@ -2945,7 +2945,7 @@ typedef struct BitProperty {
 } BitProperty;
 
 static void x86_cpu_get_bit_prop(Object *obj,
-                                 struct Visitor *v,
+                                 Visitor *v,
                                  void *opaque,
                                  const char *name,
                                  Error **errp)
@@ -2956,7 +2956,7 @@ static void x86_cpu_get_bit_prop(Object *obj,
 }
 
 static void x86_cpu_set_bit_prop(Object *obj,
-                                 struct Visitor *v,
+                                 Visitor *v,
                                  void *opaque,
                                  const char *name,
                                  Error **errp)

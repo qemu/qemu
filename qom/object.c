@@ -2185,7 +2185,7 @@ typedef struct {
     char *target_name;
 } AliasProperty;
 
-static void property_get_alias(Object *obj, struct Visitor *v, void *opaque,
+static void property_get_alias(Object *obj, Visitor *v, void *opaque,
                                const char *name, Error **errp)
 {
     AliasProperty *prop = opaque;
@@ -2193,7 +2193,7 @@ static void property_get_alias(Object *obj, struct Visitor *v, void *opaque,
     object_property_get(prop->target_obj, v, prop->target_name, errp);
 }
 
-static void property_set_alias(Object *obj, struct Visitor *v, void *opaque,
+static void property_set_alias(Object *obj, Visitor *v, void *opaque,
                                const char *name, Error **errp)
 {
     AliasProperty *prop = opaque;
