@@ -206,7 +206,7 @@ static void qmp_input_end_list(Visitor *v, Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
 
-    qmp_input_pop(qiv, errp);
+    qmp_input_pop(qiv, &error_abort);
 }
 
 static void qmp_input_get_next_type(Visitor *v, const char *name, QType *type,
