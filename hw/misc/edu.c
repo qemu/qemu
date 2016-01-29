@@ -368,7 +368,7 @@ static void edu_obj_uint64(Object *obj, Visitor *v, void *opaque,
 {
     uint64_t *val = opaque;
 
-    visit_type_uint64(v, val, name, errp);
+    visit_type_uint64(v, name, val, errp);
 }
 
 static void edu_instance_init(Object *obj)

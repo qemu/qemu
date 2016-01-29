@@ -139,7 +139,7 @@ static void filter_buffer_get_interval(Object *obj, Visitor *v, void *opaque,
     FilterBufferState *s = FILTER_BUFFER(obj);
     uint32_t value = s->interval;
 
-    visit_type_uint32(v, &value, name, errp);
+    visit_type_uint32(v, name, &value, errp);
 }
 
 static void filter_buffer_set_interval(Object *obj, Visitor *v, void *opaque,
@@ -149,7 +149,7 @@ static void filter_buffer_set_interval(Object *obj, Visitor *v, void *opaque,
     Error *local_err = NULL;
     uint32_t value;
 
-    visit_type_uint32(v, &value, name, &local_err);
+    visit_type_uint32(v, name, &value, &local_err);
     if (local_err) {
         goto out;
     }

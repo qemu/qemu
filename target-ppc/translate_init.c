@@ -8060,7 +8060,7 @@ static void powerpc_get_compat(Object *obj, Visitor *v,
         break;
     }
 
-    visit_type_str(v, &value, name, errp);
+    visit_type_str(v, name, &value, errp);
 }
 
 static void powerpc_set_compat(Object *obj, Visitor *v,
@@ -8071,7 +8071,7 @@ static void powerpc_set_compat(Object *obj, Visitor *v,
     Property *prop = opaque;
     uint32_t *max_compat = qdev_get_prop_ptr(DEVICE(obj), prop);
 
-    visit_type_str(v, &value, name, &error);
+    visit_type_str(v, name, &value, &error);
     if (error) {
         error_propagate(errp, error);
         return;

@@ -641,7 +641,7 @@ void bdrv_image_info_specific_dump(fprintf_function func_fprintf, void *f,
     QmpOutputVisitor *ov = qmp_output_visitor_new();
     QObject *obj, *data;
 
-    visit_type_ImageInfoSpecific(qmp_output_get_visitor(ov), &info_spec, NULL,
+    visit_type_ImageInfoSpecific(qmp_output_get_visitor(ov), NULL, &info_spec,
                                  &error_abort);
     obj = qmp_output_get_qobject(ov);
     assert(qobject_type(obj) == QTYPE_QDICT);

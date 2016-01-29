@@ -376,8 +376,8 @@ static void dump_json_image_check(ImageCheck *check, bool quiet)
     QString *str;
     QmpOutputVisitor *ov = qmp_output_visitor_new();
     QObject *obj;
-    visit_type_ImageCheck(qmp_output_get_visitor(ov),
-                          &check, NULL, &local_err);
+    visit_type_ImageCheck(qmp_output_get_visitor(ov), NULL, &check,
+                          &local_err);
     obj = qmp_output_get_qobject(ov);
     str = qobject_to_json_pretty(obj);
     assert(str != NULL);
@@ -1942,8 +1942,8 @@ static void dump_json_image_info_list(ImageInfoList *list)
     QString *str;
     QmpOutputVisitor *ov = qmp_output_visitor_new();
     QObject *obj;
-    visit_type_ImageInfoList(qmp_output_get_visitor(ov),
-                             &list, NULL, &local_err);
+    visit_type_ImageInfoList(qmp_output_get_visitor(ov), NULL, &list,
+                             &local_err);
     obj = qmp_output_get_qobject(ov);
     str = qobject_to_json_pretty(obj);
     assert(str != NULL);
@@ -1959,8 +1959,7 @@ static void dump_json_image_info(ImageInfo *info)
     QString *str;
     QmpOutputVisitor *ov = qmp_output_visitor_new();
     QObject *obj;
-    visit_type_ImageInfo(qmp_output_get_visitor(ov),
-                         &info, NULL, &local_err);
+    visit_type_ImageInfo(qmp_output_get_visitor(ov), NULL, &info, &local_err);
     obj = qmp_output_get_qobject(ov);
     str = qobject_to_json_pretty(obj);
     assert(str != NULL);

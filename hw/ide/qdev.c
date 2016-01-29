@@ -205,7 +205,7 @@ static void ide_dev_get_bootindex(Object *obj, Visitor *v, void *opaque,
 {
     IDEDevice *d = IDE_DEVICE(obj);
 
-    visit_type_int32(v, &d->conf.bootindex, name, errp);
+    visit_type_int32(v, name, &d->conf.bootindex, errp);
 }
 
 static void ide_dev_set_bootindex(Object *obj, Visitor *v, void *opaque,
@@ -215,7 +215,7 @@ static void ide_dev_set_bootindex(Object *obj, Visitor *v, void *opaque,
     int32_t boot_index;
     Error *local_err = NULL;
 
-    visit_type_int32(v, &boot_index, name, &local_err);
+    visit_type_int32(v, name, &boot_index, &local_err);
     if (local_err) {
         goto out;
     }

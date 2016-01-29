@@ -383,7 +383,7 @@ static void pc_dimm_get_size(Object *obj, Visitor *v, void *opaque,
     mr = host_memory_backend_get_memory(dimm->hostmem, errp);
     value = memory_region_size(mr);
 
-    visit_type_int(v, &value, name, errp);
+    visit_type_int(v, name, &value, errp);
 }
 
 static void pc_dimm_check_memdev_is_busy(Object *obj, const char *name,

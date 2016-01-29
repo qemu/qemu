@@ -63,7 +63,7 @@ def gen_event_send(name, arg_type):
     qov = qmp_output_visitor_new();
     v = qmp_output_get_visitor(qov);
 
-    visit_start_struct(v, NULL, NULL, "%(name)s", 0, &err);
+    visit_start_struct(v, "%(name)s", NULL, NULL, 0, &err);
 ''',
                      name=name)
         ret += gen_err_check()

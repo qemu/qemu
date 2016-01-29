@@ -59,7 +59,7 @@ static void tmp105_get_temperature(Object *obj, Visitor *v, void *opaque,
     TMP105State *s = TMP105(obj);
     int64_t value = s->temperature * 1000 / 256;
 
-    visit_type_int(v, &value, name, errp);
+    visit_type_int(v, name, &value, errp);
 }
 
 /* Units are 0.001 centigrades relative to 0 C.  s->temperature is 8.8
@@ -72,7 +72,7 @@ static void tmp105_set_temperature(Object *obj, Visitor *v, void *opaque,
     Error *local_err = NULL;
     int64_t temp;
 
-    visit_type_int(v, &temp, name, &local_err);
+    visit_type_int(v, name, &temp, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;

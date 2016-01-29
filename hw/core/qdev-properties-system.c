@@ -31,7 +31,7 @@ static void get_pointer(Object *obj, Visitor *v, Property *prop,
     char *p;
 
     p = *ptr ? print(*ptr) : g_strdup("");
-    visit_type_str(v, &p, name, errp);
+    visit_type_str(v, name, &p, errp);
     g_free(p);
 }
 
@@ -51,7 +51,7 @@ static void set_pointer(Object *obj, Visitor *v, Property *prop,
         return;
     }
 
-    visit_type_str(v, &str, name, &local_err);
+    visit_type_str(v, name, &str, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -202,7 +202,7 @@ static void get_netdev(Object *obj, Visitor *v, void *opaque,
     NICPeers *peers_ptr = qdev_get_prop_ptr(dev, prop);
     char *p = g_strdup(peers_ptr->ncs[0] ? peers_ptr->ncs[0]->name : "");
 
-    visit_type_str(v, &p, name, errp);
+    visit_type_str(v, name, &p, errp);
     g_free(p);
 }
 
@@ -223,7 +223,7 @@ static void set_netdev(Object *obj, Visitor *v, void *opaque,
         return;
     }
 
-    visit_type_str(v, &str, name, &local_err);
+    visit_type_str(v, name, &str, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -308,7 +308,7 @@ static void get_vlan(Object *obj, Visitor *v, void *opaque,
         }
     }
 
-    visit_type_int32(v, &id, name, errp);
+    visit_type_int32(v, name, &id, errp);
 }
 
 static void set_vlan(Object *obj, Visitor *v, void *opaque,
@@ -327,7 +327,7 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
         return;
     }
 
-    visit_type_int32(v, &id, name, &local_err);
+    visit_type_int32(v, name, &id, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;

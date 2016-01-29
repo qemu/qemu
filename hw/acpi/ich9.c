@@ -290,7 +290,7 @@ static void ich9_pm_get_gpe0_blk(Object *obj, Visitor *v,
     ICH9LPCPMRegs *pm = opaque;
     uint32_t value = pm->pm_io_base + ICH9_PMIO_GPE0_STS;
 
-    visit_type_uint32(v, &value, name, errp);
+    visit_type_uint32(v, name, &value, errp);
 }
 
 static bool ich9_pm_get_memory_hotplug_support(Object *obj, Error **errp)
@@ -315,7 +315,7 @@ static void ich9_pm_get_disable_s3(Object *obj, Visitor *v,
     ICH9LPCPMRegs *pm = opaque;
     uint8_t value = pm->disable_s3;
 
-    visit_type_uint8(v, &value, name, errp);
+    visit_type_uint8(v, name, &value, errp);
 }
 
 static void ich9_pm_set_disable_s3(Object *obj, Visitor *v,
@@ -326,7 +326,7 @@ static void ich9_pm_set_disable_s3(Object *obj, Visitor *v,
     Error *local_err = NULL;
     uint8_t value;
 
-    visit_type_uint8(v, &value, name, &local_err);
+    visit_type_uint8(v, name, &value, &local_err);
     if (local_err) {
         goto out;
     }
@@ -342,7 +342,7 @@ static void ich9_pm_get_disable_s4(Object *obj, Visitor *v,
     ICH9LPCPMRegs *pm = opaque;
     uint8_t value = pm->disable_s4;
 
-    visit_type_uint8(v, &value, name, errp);
+    visit_type_uint8(v, name, &value, errp);
 }
 
 static void ich9_pm_set_disable_s4(Object *obj, Visitor *v,
@@ -353,7 +353,7 @@ static void ich9_pm_set_disable_s4(Object *obj, Visitor *v,
     Error *local_err = NULL;
     uint8_t value;
 
-    visit_type_uint8(v, &value, name, &local_err);
+    visit_type_uint8(v, name, &value, &local_err);
     if (local_err) {
         goto out;
     }
@@ -369,7 +369,7 @@ static void ich9_pm_get_s4_val(Object *obj, Visitor *v,
     ICH9LPCPMRegs *pm = opaque;
     uint8_t value = pm->s4_val;
 
-    visit_type_uint8(v, &value, name, errp);
+    visit_type_uint8(v, name, &value, errp);
 }
 
 static void ich9_pm_set_s4_val(Object *obj, Visitor *v,
@@ -380,7 +380,7 @@ static void ich9_pm_set_s4_val(Object *obj, Visitor *v,
     Error *local_err = NULL;
     uint8_t value;
 
-    visit_type_uint8(v, &value, name, &local_err);
+    visit_type_uint8(v, name, &value, &local_err);
     if (local_err) {
         goto out;
     }

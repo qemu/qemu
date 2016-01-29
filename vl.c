@@ -2837,7 +2837,7 @@ static int object_create(void *opaque, QemuOpts *opts, Error **errp)
     }
 
     qdict_del(pdict, "qom-type");
-    visit_type_str(v, &type, "qom-type", &err);
+    visit_type_str(v, "qom-type", &type, &err);
     if (err) {
         goto out;
     }
@@ -2847,7 +2847,7 @@ static int object_create(void *opaque, QemuOpts *opts, Error **errp)
     }
 
     qdict_del(pdict, "id");
-    visit_type_str(v, &id, "id", &err);
+    visit_type_str(v, "id", &id, &err);
     if (err) {
         goto out_end;
     }

@@ -243,7 +243,7 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
         OptsVisitor *ov;
 
         ov = opts_visitor_new(opts);
-        visit_type_AcpiTableOptions(opts_get_visitor(ov), &hdrs, NULL, &err);
+        visit_type_AcpiTableOptions(opts_get_visitor(ov), NULL, &hdrs, &err);
         opts_visitor_cleanup(ov);
     }
 
@@ -302,7 +302,7 @@ out:
         QapiDeallocVisitor *dv;
 
         dv = qapi_dealloc_visitor_new();
-        visit_type_AcpiTableOptions(qapi_dealloc_get_visitor(dv), &hdrs, NULL,
+        visit_type_AcpiTableOptions(qapi_dealloc_get_visitor(dv), NULL, &hdrs,
                                     NULL);
         qapi_dealloc_visitor_cleanup(dv);
     }

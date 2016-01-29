@@ -577,7 +577,7 @@ static void ich9_lpc_get_sci_int(Object *obj, Visitor *v,
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(obj);
     uint32_t value = ich9_lpc_sci_irq(lpc);
 
-    visit_type_uint32(v, &value, name, errp);
+    visit_type_uint32(v, name, &value, errp);
 }
 
 static void ich9_lpc_add_properties(ICH9LPCState *lpc)

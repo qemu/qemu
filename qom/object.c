@@ -1244,8 +1244,8 @@ int object_property_get_enum(Object *obj, const char *name,
     str = string_output_get_string(sov);
     siv = string_input_visitor_new(str);
     string_output_visitor_cleanup(sov);
-    visit_type_enum(string_input_get_visitor(siv),
-                    &ret, enumprop->strings, NULL, name, errp);
+    visit_type_enum(string_input_get_visitor(siv), name, &ret,
+                    enumprop->strings, NULL, errp);
 
     g_free(str);
     string_input_visitor_cleanup(siv);
@@ -1270,8 +1270,7 @@ void object_property_get_uint16List(Object *obj, const char *name,
     }
     str = string_output_get_string(ov);
     iv = string_input_visitor_new(str);
-    visit_type_uint16List(string_input_get_visitor(iv),
-                          list, NULL, errp);
+    visit_type_uint16List(string_input_get_visitor(iv), NULL, list, errp);
 
     g_free(str);
     string_input_visitor_cleanup(iv);
@@ -1343,7 +1342,7 @@ static void object_get_child_property(Object *obj, Visitor *v, void *opaque,
     gchar *path;
 
     path = object_get_canonical_path(child);
-    visit_type_str(v, &path, name, errp);
+    visit_type_str(v, name, &path, errp);
     g_free(path);
 }
 
@@ -1414,11 +1413,11 @@ static void object_get_link_property(Object *obj, Visitor *v, void *opaque,
 
     if (*child) {
         path = object_get_canonical_path(*child);
-        visit_type_str(v, &path, name, errp);
+        visit_type_str(v, name, &path, errp);
         g_free(path);
     } else {
         path = (gchar *)"";
-        visit_type_str(v, &path, name, errp);
+        visit_type_str(v, name, &path, errp);
     }
 }
 
@@ -1472,7 +1471,7 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
     Object *new_target = NULL;
     char *path = NULL;
 
-    visit_type_str(v, &path, name, &local_err);
+    visit_type_str(v, name, &path, &local_err);
 
     if (!local_err && strcmp(path, "") != 0) {
         new_target = object_resolve_link(obj, name, path, &local_err);
@@ -1739,7 +1738,7 @@ static void property_get_str(Object *obj, Visitor *v, void *opaque,
         return;
     }
 
-    visit_type_str(v, &value, name, errp);
+    visit_type_str(v, name, &value, errp);
     g_free(value);
 }
 
@@ -1750,7 +1749,7 @@ static void property_set_str(Object *obj, Visitor *v, void *opaque,
     char *value;
     Error *local_err = NULL;
 
-    visit_type_str(v, &value, name, &local_err);
+    visit_type_str(v, name, &value, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1831,7 +1830,7 @@ static void property_get_bool(Object *obj, Visitor *v, void *opaque,
         return;
     }
 
-    visit_type_bool(v, &value, name, errp);
+    visit_type_bool(v, name, &value, errp);
 }
 
 static void property_set_bool(Object *obj, Visitor *v, void *opaque,
@@ -1841,7 +1840,7 @@ static void property_set_bool(Object *obj, Visitor *v, void *opaque,
     bool value;
     Error *local_err = NULL;
 
-    visit_type_bool(v, &value, name, &local_err);
+    visit_type_bool(v, name, &value, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1914,7 +1913,7 @@ static void property_get_enum(Object *obj, Visitor *v, void *opaque,
         return;
     }
 
-    visit_type_enum(v, &value, prop->strings, NULL, name, errp);
+    visit_type_enum(v, name, &value, prop->strings, NULL, errp);
 }
 
 static void property_set_enum(Object *obj, Visitor *v, void *opaque,
@@ -1924,7 +1923,7 @@ static void property_set_enum(Object *obj, Visitor *v, void *opaque,
     int value;
     Error *err = NULL;
 
-    visit_type_enum(v, &value, prop->strings, NULL, name, &err);
+    visit_type_enum(v, name, &value, prop->strings, NULL, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -2005,31 +2004,31 @@ static void property_get_tm(Object *obj, Visitor *v, void *opaque,
         goto out;
     }
 
-    visit_start_struct(v, NULL, "struct tm", name, 0, &err);
+    visit_start_struct(v, name, NULL, "struct tm", 0, &err);
     if (err) {
         goto out;
     }
-    visit_type_int32(v, &value.tm_year, "tm_year", &err);
+    visit_type_int32(v, "tm_year", &value.tm_year, &err);
     if (err) {
         goto out_end;
     }
-    visit_type_int32(v, &value.tm_mon, "tm_mon", &err);
+    visit_type_int32(v, "tm_mon", &value.tm_mon, &err);
     if (err) {
         goto out_end;
     }
-    visit_type_int32(v, &value.tm_mday, "tm_mday", &err);
+    visit_type_int32(v, "tm_mday", &value.tm_mday, &err);
     if (err) {
         goto out_end;
     }
-    visit_type_int32(v, &value.tm_hour, "tm_hour", &err);
+    visit_type_int32(v, "tm_hour", &value.tm_hour, &err);
     if (err) {
         goto out_end;
     }
-    visit_type_int32(v, &value.tm_min, "tm_min", &err);
+    visit_type_int32(v, "tm_min", &value.tm_min, &err);
     if (err) {
         goto out_end;
     }
-    visit_type_int32(v, &value.tm_sec, "tm_sec", &err);
+    visit_type_int32(v, "tm_sec", &value.tm_sec, &err);
     if (err) {
         goto out_end;
     }
@@ -2097,7 +2096,7 @@ static void property_get_uint8_ptr(Object *obj, Visitor *v,
                                    Error **errp)
 {
     uint8_t value = *(uint8_t *)opaque;
-    visit_type_uint8(v, &value, name, errp);
+    visit_type_uint8(v, name, &value, errp);
 }
 
 static void property_get_uint16_ptr(Object *obj, Visitor *v,
@@ -2105,7 +2104,7 @@ static void property_get_uint16_ptr(Object *obj, Visitor *v,
                                    Error **errp)
 {
     uint16_t value = *(uint16_t *)opaque;
-    visit_type_uint16(v, &value, name, errp);
+    visit_type_uint16(v, name, &value, errp);
 }
 
 static void property_get_uint32_ptr(Object *obj, Visitor *v,
@@ -2113,7 +2112,7 @@ static void property_get_uint32_ptr(Object *obj, Visitor *v,
                                    Error **errp)
 {
     uint32_t value = *(uint32_t *)opaque;
-    visit_type_uint32(v, &value, name, errp);
+    visit_type_uint32(v, name, &value, errp);
 }
 
 static void property_get_uint64_ptr(Object *obj, Visitor *v,
@@ -2121,7 +2120,7 @@ static void property_get_uint64_ptr(Object *obj, Visitor *v,
                                    Error **errp)
 {
     uint64_t value = *(uint64_t *)opaque;
-    visit_type_uint64(v, &value, name, errp);
+    visit_type_uint64(v, name, &value, errp);
 }
 
 void object_property_add_uint8_ptr(Object *obj, const char *name,

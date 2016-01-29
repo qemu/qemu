@@ -1647,7 +1647,7 @@ def gen_visit_fields(members, prefix='', need_cast=False, skiperr=False,
     for memb in members:
         if memb.optional:
             ret += mcgen('''
-    if (visit_optional(v, &%(prefix)shas_%(c_name)s, "%(name)s")) {
+    if (visit_optional(v, "%(name)s", &%(prefix)shas_%(c_name)s)) {
 ''',
                          prefix=prefix, c_name=c_name(memb.name),
                          name=memb.name)
@@ -1660,7 +1660,7 @@ def gen_visit_fields(members, prefix='', need_cast=False, skiperr=False,
             cast = ''
 
         ret += mcgen('''
-    visit_type_%(c_type)s(v, %(cast)s&%(prefix)s%(c_name)s, "%(name)s", %(errp)s);
+    visit_type_%(c_type)s(v, "%(name)s", %(cast)s&%(prefix)s%(c_name)s, %(errp)s);
 ''',
                      c_type=memb.type.c_name(), prefix=prefix, cast=cast,
                      c_name=c_name(memb.name), name=memb.name,

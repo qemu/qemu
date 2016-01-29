@@ -787,7 +787,7 @@ static void usb_msd_get_bootindex(Object *obj, Visitor *v, void *opaque,
     USBDevice *dev = USB_DEVICE(obj);
     MSDState *s = USB_STORAGE_DEV(dev);
 
-    visit_type_int32(v, &s->conf.bootindex, name, errp);
+    visit_type_int32(v, name, &s->conf.bootindex, errp);
 }
 
 static void usb_msd_set_bootindex(Object *obj, Visitor *v, void *opaque,
@@ -798,7 +798,7 @@ static void usb_msd_set_bootindex(Object *obj, Visitor *v, void *opaque,
     int32_t boot_index;
     Error *local_err = NULL;
 
-    visit_type_int32(v, &boot_index, name, &local_err);
+    visit_type_int32(v, name, &boot_index, &local_err);
     if (local_err) {
         goto out;
     }

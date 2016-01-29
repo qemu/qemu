@@ -1541,7 +1541,7 @@ static void x86_cpuid_version_get_family(Object *obj, Visitor *v, void *opaque,
     if (value == 0xf) {
         value += (env->cpuid_version >> 20) & 0xff;
     }
-    visit_type_int(v, &value, name, errp);
+    visit_type_int(v, name, &value, errp);
 }
 
 static void x86_cpuid_version_set_family(Object *obj, Visitor *v, void *opaque,
@@ -1554,7 +1554,7 @@ static void x86_cpuid_version_set_family(Object *obj, Visitor *v, void *opaque,
     Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, &value, name, &local_err);
+    visit_type_int(v, name, &value, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1582,7 +1582,7 @@ static void x86_cpuid_version_get_model(Object *obj, Visitor *v, void *opaque,
 
     value = (env->cpuid_version >> 4) & 0xf;
     value |= ((env->cpuid_version >> 16) & 0xf) << 4;
-    visit_type_int(v, &value, name, errp);
+    visit_type_int(v, name, &value, errp);
 }
 
 static void x86_cpuid_version_set_model(Object *obj, Visitor *v, void *opaque,
@@ -1595,7 +1595,7 @@ static void x86_cpuid_version_set_model(Object *obj, Visitor *v, void *opaque,
     Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, &value, name, &local_err);
+    visit_type_int(v, name, &value, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1619,7 +1619,7 @@ static void x86_cpuid_version_get_stepping(Object *obj, Visitor *v,
     int64_t value;
 
     value = env->cpuid_version & 0xf;
-    visit_type_int(v, &value, name, errp);
+    visit_type_int(v, name, &value, errp);
 }
 
 static void x86_cpuid_version_set_stepping(Object *obj, Visitor *v,
@@ -1633,7 +1633,7 @@ static void x86_cpuid_version_set_stepping(Object *obj, Visitor *v,
     Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, &value, name, &local_err);
+    visit_type_int(v, name, &value, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1726,7 +1726,7 @@ static void x86_cpuid_get_tsc_freq(Object *obj, Visitor *v, void *opaque,
     int64_t value;
 
     value = cpu->env.tsc_khz * 1000;
-    visit_type_int(v, &value, name, errp);
+    visit_type_int(v, name, &value, errp);
 }
 
 static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, void *opaque,
@@ -1738,7 +1738,7 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, void *opaque,
     Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, &value, name, &local_err);
+    visit_type_int(v, name, &value, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1758,7 +1758,7 @@ static void x86_cpuid_get_apic_id(Object *obj, Visitor *v, void *opaque,
     X86CPU *cpu = X86_CPU(obj);
     int64_t value = cpu->apic_id;
 
-    visit_type_int(v, &value, name, errp);
+    visit_type_int(v, name, &value, errp);
 }
 
 static void x86_cpuid_set_apic_id(Object *obj, Visitor *v, void *opaque,
@@ -1777,7 +1777,7 @@ static void x86_cpuid_set_apic_id(Object *obj, Visitor *v, void *opaque,
         return;
     }
 
-    visit_type_int(v, &value, name, &error);
+    visit_type_int(v, name, &value, &error);
     if (error) {
         error_propagate(errp, error);
         return;
@@ -1822,7 +1822,7 @@ static void x86_cpu_get_feature_words(Object *obj, Visitor *v, void *opaque,
         list = &list_entries[w];
     }
 
-    visit_type_X86CPUFeatureWordInfoList(v, &list, "feature-words", &err);
+    visit_type_X86CPUFeatureWordInfoList(v, "feature-words", &list, &err);
     error_propagate(errp, err);
 }
 
@@ -1832,7 +1832,7 @@ static void x86_get_hv_spinlocks(Object *obj, Visitor *v, void *opaque,
     X86CPU *cpu = X86_CPU(obj);
     int64_t value = cpu->hyperv_spinlock_attempts;
 
-    visit_type_int(v, &value, name, errp);
+    visit_type_int(v, name, &value, errp);
 }
 
 static void x86_set_hv_spinlocks(Object *obj, Visitor *v, void *opaque,
@@ -1844,7 +1844,7 @@ static void x86_set_hv_spinlocks(Object *obj, Visitor *v, void *opaque,
     Error *err = NULL;
     int64_t value;
 
-    visit_type_int(v, &value, name, &err);
+    visit_type_int(v, name, &value, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -2952,7 +2952,7 @@ static void x86_cpu_get_bit_prop(Object *obj,
 {
     BitProperty *fp = opaque;
     bool value = (*fp->ptr & fp->mask) == fp->mask;
-    visit_type_bool(v, &value, name, errp);
+    visit_type_bool(v, name, &value, errp);
 }
 
 static void x86_cpu_set_bit_prop(Object *obj,
@@ -2971,7 +2971,7 @@ static void x86_cpu_set_bit_prop(Object *obj,
         return;
     }
 
-    visit_type_bool(v, &value, name, &local_err);
+    visit_type_bool(v, name, &value, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;

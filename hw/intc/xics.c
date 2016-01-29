@@ -95,7 +95,7 @@ static void xics_prop_get_nr_irqs(Object *obj, Visitor *v,
     XICSState *icp = XICS_COMMON(obj);
     int64_t value = icp->nr_irqs;
 
-    visit_type_int(v, &value, name, errp);
+    visit_type_int(v, name, &value, errp);
 }
 
 static void xics_prop_set_nr_irqs(Object *obj, Visitor *v,
@@ -106,7 +106,7 @@ static void xics_prop_set_nr_irqs(Object *obj, Visitor *v,
     Error *error = NULL;
     int64_t value;
 
-    visit_type_int(v, &value, name, &error);
+    visit_type_int(v, name, &value, &error);
     if (error) {
         error_propagate(errp, error);
         return;
@@ -129,7 +129,7 @@ static void xics_prop_get_nr_servers(Object *obj, Visitor *v,
     XICSState *icp = XICS_COMMON(obj);
     int64_t value = icp->nr_servers;
 
-    visit_type_int(v, &value, name, errp);
+    visit_type_int(v, name, &value, errp);
 }
 
 static void xics_prop_set_nr_servers(Object *obj, Visitor *v,
@@ -141,7 +141,7 @@ static void xics_prop_set_nr_servers(Object *obj, Visitor *v,
     Error *error = NULL;
     int64_t value;
 
-    visit_type_int(v, &value, name, &error);
+    visit_type_int(v, name, &value, &error);
     if (error) {
         error_propagate(errp, error);
         return;

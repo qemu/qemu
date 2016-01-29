@@ -217,7 +217,7 @@ static void test_dealloc_partial(void)
         qdict_put_obj(ud2_dict, "string0", QOBJECT(qstring_from_str(text)));
 
         qiv = qmp_input_visitor_new(QOBJECT(ud2_dict));
-        visit_type_UserDefTwo(qmp_input_get_visitor(qiv), &ud2, NULL, &err);
+        visit_type_UserDefTwo(qmp_input_get_visitor(qiv), NULL, &ud2, &err);
         qmp_input_visitor_cleanup(qiv);
         QDECREF(ud2_dict);
     }

@@ -1676,13 +1676,13 @@ void hmp_object_add(Monitor *mon, const QDict *qdict)
     }
 
     qdict_del(pdict, "qom-type");
-    visit_type_str(v, &type, "qom-type", &err);
+    visit_type_str(v, "qom-type", &type, &err);
     if (err) {
         goto out_end;
     }
 
     qdict_del(pdict, "id");
-    visit_type_str(v, &id, "id", &err);
+    visit_type_str(v, "id", &id, &err);
     if (err) {
         goto out_end;
     }
@@ -1948,8 +1948,8 @@ void hmp_info_memdev(Monitor *mon, const QDict *qdict)
 
     while (m) {
         ov = string_output_visitor_new(false);
-        visit_type_uint16List(string_output_get_visitor(ov),
-                              &m->value->host_nodes, NULL, NULL);
+        visit_type_uint16List(string_output_get_visitor(ov), NULL,
+                              &m->value->host_nodes, NULL);
         monitor_printf(mon, "memory backend: %d\n", i);
         monitor_printf(mon, "  size:  %" PRId64 "\n", m->value->size);
         monitor_printf(mon, "  merge: %s\n",

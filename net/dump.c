@@ -278,7 +278,7 @@ static void filter_dump_get_maxlen(Object *obj, Visitor *v, void *opaque,
     NetFilterDumpState *nfds = FILTER_DUMP(obj);
     uint32_t value = nfds->maxlen;
 
-    visit_type_uint32(v, &value, name, errp);
+    visit_type_uint32(v, name, &value, errp);
 }
 
 static void filter_dump_set_maxlen(Object *obj, Visitor *v, void *opaque,
@@ -288,7 +288,7 @@ static void filter_dump_set_maxlen(Object *obj, Visitor *v, void *opaque,
     Error *local_err = NULL;
     uint32_t value;
 
-    visit_type_uint32(v, &value, name, &local_err);
+    visit_type_uint32(v, name, &value, &local_err);
     if (local_err) {
         goto out;
     }

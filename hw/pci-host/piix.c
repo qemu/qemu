@@ -222,7 +222,7 @@ static void i440fx_pcihost_get_pci_hole_start(Object *obj, Visitor *v,
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
     uint32_t value = s->pci_info.w32.begin;
 
-    visit_type_uint32(v, &value, name, errp);
+    visit_type_uint32(v, name, &value, errp);
 }
 
 static void i440fx_pcihost_get_pci_hole_end(Object *obj, Visitor *v,
@@ -232,7 +232,7 @@ static void i440fx_pcihost_get_pci_hole_end(Object *obj, Visitor *v,
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
     uint32_t value = s->pci_info.w32.end;
 
-    visit_type_uint32(v, &value, name, errp);
+    visit_type_uint32(v, name, &value, errp);
 }
 
 static void i440fx_pcihost_get_pci_hole64_start(Object *obj, Visitor *v,
@@ -244,7 +244,7 @@ static void i440fx_pcihost_get_pci_hole64_start(Object *obj, Visitor *v,
 
     pci_bus_get_w64_range(h->bus, &w64);
 
-    visit_type_uint64(v, &w64.begin, name, errp);
+    visit_type_uint64(v, name, &w64.begin, errp);
 }
 
 static void i440fx_pcihost_get_pci_hole64_end(Object *obj, Visitor *v,
@@ -256,7 +256,7 @@ static void i440fx_pcihost_get_pci_hole64_end(Object *obj, Visitor *v,
 
     pci_bus_get_w64_range(h->bus, &w64);
 
-    visit_type_uint64(v, &w64.end, name, errp);
+    visit_type_uint64(v, name, &w64.end, errp);
 }
 
 static void i440fx_pcihost_initfn(Object *obj)

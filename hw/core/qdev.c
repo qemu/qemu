@@ -903,7 +903,7 @@ static void qdev_get_legacy_property(Object *obj, Visitor *v, void *opaque,
     char *ptr = buffer;
 
     prop->info->print(dev, prop, buffer, sizeof(buffer));
-    visit_type_str(v, &ptr, name, errp);
+    visit_type_str(v, name, &ptr, errp);
 }
 
 /**

@@ -221,7 +221,7 @@ static void prop_get_index(Object *obj, Visitor *v, void *opaque,
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     uint32_t value = (uint32_t)drck->get_index(drc);
-    visit_type_uint32(v, &value, name, errp);
+    visit_type_uint32(v, name, &value, errp);
 }
 
 static void prop_get_type(Object *obj, Visitor *v, void *opaque,
@@ -230,7 +230,7 @@ static void prop_get_type(Object *obj, Visitor *v, void *opaque,
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     uint32_t value = (uint32_t)drck->get_type(drc);
-    visit_type_uint32(v, &value, name, errp);
+    visit_type_uint32(v, name, &value, errp);
 }
 
 static char *prop_get_name(Object *obj, Error **errp)
@@ -248,7 +248,7 @@ static void prop_get_entity_sense(Object *obj, Visitor *v, void *opaque,
     uint32_t value;
 
     drck->entity_sense(drc, &value);
-    visit_type_uint32(v, &value, name, errp);
+    visit_type_uint32(v, name, &value, errp);
 }
 
 static void prop_get_fdt(Object *obj, Visitor *v, void *opaque,
@@ -260,7 +260,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, void *opaque,
     void *fdt;
 
     if (!drc->fdt) {
-        visit_start_struct(v, NULL, NULL, name, 0, &err);
+        visit_start_struct(v, name, NULL, NULL, 0, &err);
         if (!err) {
             visit_end_struct(v, &err);
         }
@@ -283,7 +283,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, void *opaque,
         case FDT_BEGIN_NODE:
             fdt_depth++;
             name = fdt_get_name(fdt, fdt_offset, &name_len);
-            visit_start_struct(v, NULL, NULL, name, 0, &err);
+            visit_start_struct(v, name, NULL, NULL, 0, &err);
             if (err) {
                 error_propagate(errp, err);
                 return;
@@ -309,7 +309,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, void *opaque,
                 return;
             }
             for (i = 0; i < prop_len; i++) {
-                visit_type_uint8(v, (uint8_t *)&prop->data[i], NULL, &err);
+                visit_type_uint8(v, NULL, (uint8_t *)&prop->data[i], &err);
                 if (err) {
                     error_propagate(errp, err);
                     return;

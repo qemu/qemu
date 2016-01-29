@@ -33,7 +33,7 @@ host_memory_backend_get_size(Object *obj, Visitor *v, void *opaque,
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
     uint64_t value = backend->size;
 
-    visit_type_size(v, &value, name, errp);
+    visit_type_size(v, name, &value, errp);
 }
 
 static void
@@ -49,7 +49,7 @@ host_memory_backend_set_size(Object *obj, Visitor *v, void *opaque,
         goto out;
     }
 
-    visit_type_size(v, &value, name, &local_err);
+    visit_type_size(v, name, &value, &local_err);
     if (local_err) {
         goto out;
     }
@@ -92,7 +92,7 @@ host_memory_backend_get_host_nodes(Object *obj, Visitor *v, void *opaque,
         node = &(*node)->next;
     } while (true);
 
-    visit_type_uint16List(v, &host_nodes, name, errp);
+    visit_type_uint16List(v, name, &host_nodes, errp);
 }
 
 static void
@@ -103,7 +103,7 @@ host_memory_backend_set_host_nodes(Object *obj, Visitor *v, void *opaque,
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
     uint16List *l = NULL;
 
-    visit_type_uint16List(v, &l, name, errp);
+    visit_type_uint16List(v, name, &l, errp);
 
     while (l) {
         bitmap_set(backend->host_nodes, l->value, 1);

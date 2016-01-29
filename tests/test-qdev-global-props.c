@@ -124,7 +124,7 @@ static void prop1_accessor(Object *obj,
 {
     MyType *mt = DYNAMIC_TYPE(obj);
 
-    visit_type_uint32(v, &mt->prop1, name, errp);
+    visit_type_uint32(v, name, &mt->prop1, errp);
 }
 
 static void prop2_accessor(Object *obj,
@@ -135,7 +135,7 @@ static void prop2_accessor(Object *obj,
 {
     MyType *mt = DYNAMIC_TYPE(obj);
 
-    visit_type_uint32(v, &mt->prop2, name, errp);
+    visit_type_uint32(v, name, &mt->prop2, errp);
 }
 
 static void dynamic_instance_init(Object *obj)
