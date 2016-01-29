@@ -5,11 +5,11 @@
  * (at your option) any later version.  See the COPYING file in the
  * top-level directory.
  */
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/sockets.h"
 
 #include <sys/mman.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #ifdef CONFIG_LINUX
