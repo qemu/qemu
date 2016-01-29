@@ -16,14 +16,10 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <errno.h>
+#include "qemu/osdep.h"
 #include <sys/select.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/ioccom.h>
-#include <ctype.h>
 
 #include "qemu.h"
 

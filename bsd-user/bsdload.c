@@ -1,12 +1,6 @@
 /* Code for loading BSD executables.  Mostly linux kernel code.  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include "qemu/osdep.h"
 
 #include "qemu.h"
 
