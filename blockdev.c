@@ -2304,6 +2304,11 @@ void qmp_blockdev_open_tray(const char *device, bool has_force, bool force,
         return;
     }
 
+    if (!blk_dev_has_tray(blk)) {
+        /* Ignore this command on tray-less devices */
+        return;
+    }
+
     if (blk_dev_is_tray_open(blk)) {
         return;
     }
@@ -2331,6 +2336,11 @@ void qmp_blockdev_close_tray(const char *device, Error **errp)
 
     if (!blk_dev_has_removable_media(blk)) {
         error_setg(errp, "Device '%s' is not removable", device);
+        return;
+    }
+
+    if (!blk_dev_has_tray(blk)) {
+        /* Ignore this command on tray-less devices */
         return;
     }
 
@@ -2363,7 +2373,7 @@ void qmp_x_blockdev_remove_medium(const char *device, Error **errp)
         return;
     }
 
-    if (has_device && !blk_dev_is_tray_open(blk)) {
+    if (has_device && blk_dev_has_tray(blk) && !blk_dev_is_tray_open(blk)) {
         error_setg(errp, "Tray of device '%s' is not open", device);
         return;
     }
@@ -2387,6 +2397,14 @@ void qmp_x_blockdev_remove_medium(const char *device, Error **errp)
     }
 
     blk_remove_bs(blk);
+
+    if (!blk_dev_has_tray(blk)) {
+        /* For tray-less devices, blockdev-open-tray is a no-op (or may not be
+         * called at all); therefore, the medium needs to be ejected here.
+         * Do it after blk_remove_bs() so blk_is_inserted(blk) returns the @load
+         * value passed here (i.e. false). */
+        blk_dev_change_media_cb(blk, false);
+    }
 
 out:
     aio_context_release(aio_context);
@@ -2413,7 +2431,7 @@ static void qmp_blockdev_insert_anon_medium(const char *device,
         return;
     }
 
-    if (has_device && !blk_dev_is_tray_open(blk)) {
+    if (has_device && blk_dev_has_tray(blk) && !blk_dev_is_tray_open(blk)) {
         error_setg(errp, "Tray of device '%s' is not open", device);
         return;
     }
@@ -2426,6 +2444,15 @@ static void qmp_blockdev_insert_anon_medium(const char *device,
     blk_insert_bs(blk, bs);
 
     QTAILQ_INSERT_TAIL(&bdrv_states, bs, device_list);
+
+    if (!blk_dev_has_tray(blk)) {
+        /* For tray-less devices, blockdev-close-tray is a no-op (or may not be
+         * called at all); therefore, the medium needs to be pushed into the
+         * slot here.
+         * Do it after blk_insert_bs() so blk_is_inserted(blk) returns the @load
+         * value passed here (i.e. true). */
+        blk_dev_change_media_cb(blk, true);
+    }
 }
 
 void qmp_x_blockdev_insert_medium(const char *device, const char *node_name,
