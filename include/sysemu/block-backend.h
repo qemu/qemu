@@ -68,6 +68,7 @@ BlockBackend *blk_new_open(const char *name, const char *filename,
 int blk_get_refcnt(BlockBackend *blk);
 void blk_ref(BlockBackend *blk);
 void blk_unref(BlockBackend *blk);
+void blk_remove_all_bs(void);
 const char *blk_name(BlockBackend *blk);
 BlockBackend *blk_by_name(const char *name);
 BlockBackend *blk_next(BlockBackend *blk);

@@ -223,6 +223,21 @@ void blk_unref(BlockBackend *blk)
     }
 }
 
+void blk_remove_all_bs(void)
+{
+    BlockBackend *blk;
+
+    QTAILQ_FOREACH(blk, &blk_backends, link) {
+        AioContext *ctx = blk_get_aio_context(blk);
+
+        aio_context_acquire(ctx);
+        if (blk->bs) {
+            blk_remove_bs(blk);
+        }
+        aio_context_release(ctx);
+    }
+}
+
 /*
  * Return the BlockBackend after @blk.
  * If @blk is null, return the first one.
