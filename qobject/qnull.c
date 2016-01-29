@@ -10,6 +10,7 @@
  * or later.  See the COPYING.LIB file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qapi/qmp/qobject.h"
 

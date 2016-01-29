@@ -11,6 +11,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "qapi/qmp/qfloat.h"
 #include "qapi/qmp/qobject.h"
 #include "qemu-common.h"

@@ -11,9 +11,9 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qapi/qmp/json-lexer.h"
-#include <stdint.h>
 
 #define MAX_TOKEN_SIZE (64ULL << 20)
 
