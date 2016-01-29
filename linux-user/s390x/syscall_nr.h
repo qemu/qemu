@@ -271,6 +271,36 @@
 #define TARGET_NR_s390_runtime_instr    342
 #define TARGET_NR_kcmp                  343
 #define TARGET_NR_finit_module          344
+#define TARGET_NR_sched_setattr         345
+#define TARGET_NR_sched_getattr         346
+#define TARGET_NR_renameat2             347
+#define TARGET_NR_seccomp               348
+#define TARGET_NR_getrandom             349
+#define TARGET_NR_memfd_create          350
+#define TARGET_NR_bpf                   351
+#define TARGET_NR_s390_pci_mmio_write   352
+#define TARGET_NR_s390_pci_mmio_read    353
+#define TARGET_NR_execveat              354
+#define TARGET_NR_userfaultfd           355
+#define TARGET_NR_membarrier            356
+#define TARGET_NR_recvmmsg              357
+#define TARGET_NR_sendmmsg              358
+#define TARGET_NR_socket                359
+#define TARGET_NR_socketpair            360
+#define TARGET_NR_bind                  361
+#define TARGET_NR_connect               362
+#define TARGET_NR_listen                363
+#define TARGET_NR_accept4               364
+#define TARGET_NR_getsockopt            365
+#define TARGET_NR_setsockopt            366
+#define TARGET_NR_getsockname           367
+#define TARGET_NR_getpeername           368
+#define TARGET_NR_sendto                369
+#define TARGET_NR_sendmsg               370
+#define TARGET_NR_recvfrom              371
+#define TARGET_NR_recvmsg               372
+#define TARGET_NR_shutdown              373
+#define TARGET_NR_mlock2                374
 
 /*
  * There are some system calls that are not present on 64 bit, some

@@ -341,3 +341,17 @@
 #define TARGET_NR_kern_features         340
 #define TARGET_NR_kcmp                  341
 #define TARGET_NR_finit_module          342
+#define TARGET_NR_sched_setattr         343
+#define TARGET_NR_sched_getattr         344
+#define TARGET_NR_renameat2             345
+#define TARGET_NR_seccomp               346
+#define TARGET_NR_getrandom             347
+#define TARGET_NR_memfd_create          348
+#define TARGET_NR_bpf                   349
+#define TARGET_NR_execveat              350
+#define TARGET_NR_membarrier            351
+#define TARGET_NR_userfaultfd           352
+#define TARGET_NR_bind                  353
+#define TARGET_NR_listen                354
+#define TARGET_NR_setsockopt            355
+#define TARGET_NR_mlock2                356

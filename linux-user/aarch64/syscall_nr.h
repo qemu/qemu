@@ -262,7 +262,6 @@
 #define TARGET_NR_process_vm_writev 271
 #define TARGET_NR_kcmp 272
 #define TARGET_NR_finit_module 273
-
 #define TARGET_NR_sched_setattr 274
 #define TARGET_NR_sched_getattr 275
 #define TARGET_NR_renameat2 276
@@ -274,6 +273,7 @@
 #define TARGET_NR_userfaultfd 282
 #define TARGET_NR_membarrier 283
 #define TARGET_NR_mlock2 284
+#define TARGET_NR_copy_file_range 285
 
 #define TARGET_NR_open 1024
 #define TARGET_NR_link 1025

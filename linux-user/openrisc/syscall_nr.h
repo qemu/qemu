@@ -382,9 +382,18 @@
 #define TARGET_NR_process_vm_writev 271
 #define TARGET_NR_kcmp 272
 #define TARGET_NR_finit_module 273
-
-#undef TARGET_NR_syscalls
-#define TARGET_NR_syscalls 274
+#define TARGET_NR_sched_setattr 274
+#define TARGET_NR_sched_getattr 275
+#define TARGET_NR_renameat2 276
+#define TARGET_NR_seccomp 277
+#define TARGET_NR_getrandom 278
+#define TARGET_NR_memfd_create 279
+#define TARGET_NR_bpf 280
+#define TARGET_NR_execveat 281
+#define TARGET_NR_userfaultfd 282
+#define TARGET_NR_membarrier 283
+#define TARGET_NR_mlock2 284
+#define TARGET_NR_copy_file_range 285
 
 /*
  * All syscalls below here should go away really,
@@ -411,19 +420,12 @@
 #define TARGET_NR_3264_stat 1038
 #define TARGET_NR_3264_lstat 1039
 
-#undef TARGET_NR_syscalls
-#define TARGET_NR_syscalls (TARGET_NR_3264_lstat+1)
-
 #define TARGET_NR_pipe 1040
 #define TARGET_NR_dup2 1041
 #define TARGET_NR_epoll_create 1042
 #define TARGET_NR_inotify_init 1043
 #define TARGET_NR_eventfd 1044
 #define TARGET_NR_signalfd 1045
-
-#undef TARGET_NR_syscalls
-#define TARGET_NR_syscalls (TARGET_NR_signalfd+1)
-
 
 #define TARGET_NR_sendfile 1046
 #define TARGET_NR_ftruncate 1047
@@ -440,9 +442,6 @@
 #define TARGET_NR_statfs 1056
 #define TARGET_NR_lseek 1057
 #define TARGET_NR_mmap 1058
-
-#undef TARGET_NR_syscalls
-#define TARGET_NR_syscalls (TARGET_NR_mmap+1)
 
 #define TARGET_NR_alarm 1059
 #define __ARCH_WANT_SYS_ALARM
@@ -476,9 +475,6 @@
 #define TARGET_NR__sysctl 1078
 
 #define TARGET_NR_fork 1079
-
-#undef TARGET_NR_syscalls
-#define TARGET_NR_syscalls (TARGET_NR_fork+1)
 
 
 /*

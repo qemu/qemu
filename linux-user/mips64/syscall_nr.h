@@ -316,6 +316,18 @@
 #define TARGET_NR_process_vm_writev     (TARGET_NR_Linux + 310)
 #define TARGET_NR_kcmp                  (TARGET_NR_Linux + 311)
 #define TARGET_NR_finit_module          (TARGET_NR_Linux + 312)
+#define TARGET_NR_sched_setattr         (TARGET_NR_Linux + 313)
+#define TARGET_NR_sched_getattr         (TARGET_NR_Linux + 314)
+#define TARGET_NR_renameat2             (TARGET_NR_Linux + 315)
+#define TARGET_NR_seccomp               (TARGET_NR_Linux + 316)
+#define TARGET_NR_getrandom             (TARGET_NR_Linux + 317)
+#define TARGET_NR_memfd_create          (TARGET_NR_Linux + 318)
+#define TARGET_NR_bpf                   (TARGET_NR_Linux + 319)
+#define TARGET_NR_execveat              (TARGET_NR_Linux + 320)
+#define TARGET_NR_userfaultfd           (TARGET_NR_Linux + 321)
+#define TARGET_NR_membarrier            (TARGET_NR_Linux + 322)
+#define TARGET_NR_mlock2                (TARGET_NR_Linux + 323)
+
 #else
 /*
  * Linux 64-bit syscalls are in the range from 5000 to 5999.
@@ -630,4 +642,15 @@
 #define TARGET_NR_kcmp                  (TARGET_NR_Linux + 306)
 #define TARGET_NR_finit_module          (TARGET_NR_Linux + 307)
 #define TARGET_NR_getdents64            (TARGET_NR_Linux + 308)
+#define TARGET_NR_sched_setattr         (TARGET_NR_Linux + 309)
+#define TARGET_NR_sched_getattr         (TARGET_NR_Linux + 310)
+#define TARGET_NR_renameat2             (TARGET_NR_Linux + 311)
+#define TARGET_NR_seccomp               (TARGET_NR_Linux + 312)
+#define TARGET_NR_getrandom             (TARGET_NR_Linux + 313)
+#define TARGET_NR_memfd_create          (TARGET_NR_Linux + 314)
+#define TARGET_NR_bpf                   (TARGET_NR_Linux + 315)
+#define TARGET_NR_execveat              (TARGET_NR_Linux + 316)
+#define TARGET_NR_userfaultfd           (TARGET_NR_Linux + 317)
+#define TARGET_NR_membarrier            (TARGET_NR_Linux + 318)
+#define TARGET_NR_mlock2                (TARGET_NR_Linux + 319)
 #endif
