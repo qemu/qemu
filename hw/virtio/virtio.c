@@ -1143,8 +1143,8 @@ static const VMStateDescription vmstate_virtio_virtqueues = {
     .minimum_version_id = 1,
     .needed = &virtio_virtqueue_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_STRUCT_VARRAY_KNOWN(vq, struct VirtIODevice, VIRTIO_QUEUE_MAX,
-                      0, vmstate_virtqueue, VirtQueue),
+        VMSTATE_STRUCT_VARRAY_POINTER_KNOWN(vq, struct VirtIODevice,
+                      VIRTIO_QUEUE_MAX, 0, vmstate_virtqueue, VirtQueue),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -1165,8 +1165,8 @@ static const VMStateDescription vmstate_virtio_ringsize = {
     .minimum_version_id = 1,
     .needed = &virtio_ringsize_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_STRUCT_VARRAY_KNOWN(vq, struct VirtIODevice, VIRTIO_QUEUE_MAX,
-                      0, vmstate_ringsize, VirtQueue),
+        VMSTATE_STRUCT_VARRAY_POINTER_KNOWN(vq, struct VirtIODevice,
+                      VIRTIO_QUEUE_MAX, 0, vmstate_ringsize, VirtQueue),
         VMSTATE_END_OF_LIST()
     }
 };
