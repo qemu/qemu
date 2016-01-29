@@ -2819,6 +2819,7 @@ static bool object_create_delayed(const char *type)
 static int object_create(void *opaque, QemuOpts *opts, Error **errp)
 {
     Error *err = NULL;
+    Error *err_end = NULL;
     char *type = NULL;
     char *id = NULL;
     OptsVisitor *ov;
@@ -2841,23 +2842,24 @@ static int object_create(void *opaque, QemuOpts *opts, Error **errp)
         goto out;
     }
     if (!type_predicate(type)) {
+        visit_end_struct(v, NULL);
         goto out;
     }
 
     qdict_del(pdict, "id");
     visit_type_str(v, &id, "id", &err);
     if (err) {
-        goto out;
+        goto out_end;
     }
 
     object_add(type, id, pdict, v, &err);
-    if (err) {
-        goto out;
-    }
-    visit_end_struct(v, &err);
-    if (err) {
+
+out_end:
+    visit_end_struct(v, &err_end);
+    if (!err && err_end) {
         qmp_object_del(id, NULL);
     }
+    error_propagate(&err, err_end);
 
 out:
     opts_visitor_cleanup(ov);
