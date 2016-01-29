@@ -10,6 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "sysemu/rng.h"
 #include "qapi/qmp/qerror.h"
 #include "qom/object_interfaces.h"
