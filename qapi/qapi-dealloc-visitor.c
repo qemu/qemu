@@ -159,11 +159,6 @@ static void qapi_dealloc_type_anything(Visitor *v, QObject **obj,
     }
 }
 
-static void qapi_dealloc_type_size(Visitor *v, uint64_t *obj, const char *name,
-                                   Error **errp)
-{
-}
-
 static void qapi_dealloc_type_enum(Visitor *v, int *obj,
                                    const char * const strings[],
                                    const char *kind, const char *name,
@@ -225,7 +220,6 @@ QapiDeallocVisitor *qapi_dealloc_visitor_new(void)
     v->visitor.type_str = qapi_dealloc_type_str;
     v->visitor.type_number = qapi_dealloc_type_number;
     v->visitor.type_any = qapi_dealloc_type_anything;
-    v->visitor.type_size = qapi_dealloc_type_size;
     v->visitor.start_union = qapi_dealloc_start_union;
 
     QTAILQ_INIT(&v->stack);
