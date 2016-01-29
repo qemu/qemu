@@ -178,12 +178,13 @@ out:
 
 
 def gen_visit_enum(name):
-    # FIXME cast from enum *obj to int * invalidly assumes enum is int
     return mcgen('''
 
 void visit_type_%(c_name)s(Visitor *v, %(c_name)s *obj, const char *name, Error **errp)
 {
-    visit_type_enum(v, (int *)obj, %(c_name)s_lookup, "%(name)s", name, errp);
+    int value = *obj;
+    visit_type_enum(v, &value, %(c_name)s_lookup, "%(name)s", name, errp);
+    *obj = value;
 }
 ''',
                  c_name=c_name(name), name=name)
