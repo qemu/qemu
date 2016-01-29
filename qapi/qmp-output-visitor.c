@@ -29,6 +29,15 @@ typedef QTAILQ_HEAD(QStack, QStackEntry) QStack;
 struct QmpOutputVisitor
 {
     Visitor visitor;
+    /* FIXME: we are abusing stack to hold two separate pieces of
+     * information: the current root object in slot 0, and the stack
+     * of N objects still being built in slots 1 through N (for N+1
+     * slots in use).  Worse, our behavior is inconsistent:
+     * qmp_output_add_obj() visiting two top-level scalars in a row
+     * discards the first in favor of the second, but visiting two
+     * top-level objects in a row tries to append the second object
+     * into the first (since the first object was placed in the stack
+     * in both slot 0 and 1, but only popped from slot 1).  */
     QStack stack;
 };
 
@@ -41,10 +50,12 @@ static QmpOutputVisitor *to_qov(Visitor *v)
     return container_of(v, QmpOutputVisitor, visitor);
 }
 
+/* Push @value onto the stack of current QObjects being built */
 static void qmp_output_push_obj(QmpOutputVisitor *qov, QObject *value)
 {
     QStackEntry *e = g_malloc0(sizeof(*e));
 
+    assert(value);
     e->value = value;
     if (qobject_type(e->value) == QTYPE_QLIST) {
         e->is_list_head = true;
@@ -52,44 +63,53 @@ static void qmp_output_push_obj(QmpOutputVisitor *qov, QObject *value)
     QTAILQ_INSERT_HEAD(&qov->stack, e, node);
 }
 
+/* Pop a value off the stack of QObjects being built, and return it. */
 static QObject *qmp_output_pop(QmpOutputVisitor *qov)
 {
     QStackEntry *e = QTAILQ_FIRST(&qov->stack);
     QObject *value;
+
+    assert(e);
     QTAILQ_REMOVE(&qov->stack, e, node);
     value = e->value;
+    assert(value);
     g_free(e);
     return value;
 }
 
+/* Grab the root QObject, if any */
 static QObject *qmp_output_first(QmpOutputVisitor *qov)
 {
     QStackEntry *e = QTAILQ_LAST(&qov->stack, QStack);
 
-    /*
-     * FIXME Wrong, because qmp_output_get_qobject() will increment
-     * the refcnt *again*.  We need to think through how visitors
-     * handle null.
-     */
     if (!e) {
-        return qnull();
+        /* No root */
+        return NULL;
     }
-
+    assert(e->value);
     return e->value;
 }
 
+/* Peek at the top of the stack of QObjects being built.
+ * The stack must not be empty. */
 static QObject *qmp_output_last(QmpOutputVisitor *qov)
 {
     QStackEntry *e = QTAILQ_FIRST(&qov->stack);
+
+    assert(e && e->value);
     return e->value;
 }
 
+/* Add @value to the current QObject being built.
+ * If the stack is visiting a dictionary or list, @value is now owned
+ * by that container. Otherwise, @value is now the root.  */
 static void qmp_output_add_obj(QmpOutputVisitor *qov, const char *name,
                                QObject *value)
 {
     QObject *cur;
 
     if (QTAILQ_EMPTY(&qov->stack)) {
+        /* Stack was empty, track this object as root */
         qmp_output_push_obj(qov, value);
         return;
     }
@@ -98,13 +118,17 @@ static void qmp_output_add_obj(QmpOutputVisitor *qov, const char *name,
 
     switch (qobject_type(cur)) {
     case QTYPE_QDICT:
+        assert(name);
         qdict_put_obj(qobject_to_qdict(cur), name, value);
         break;
     case QTYPE_QLIST:
         qlist_append_obj(qobject_to_qlist(cur), value);
         break;
     default:
+        /* The previous root was a scalar, replace it with a new root */
+        /* FIXME this is abusing the stack; see comment above */
         qobject_decref(qmp_output_pop(qov));
+        assert(QTAILQ_EMPTY(&qov->stack));
         qmp_output_push_obj(qov, value);
         break;
     }
@@ -198,11 +222,14 @@ static void qmp_output_type_any(Visitor *v, QObject **obj, const char *name,
     qmp_output_add_obj(qov, name, *obj);
 }
 
+/* Finish building, and return the root object. Will not be NULL. */
 QObject *qmp_output_get_qobject(QmpOutputVisitor *qov)
 {
     QObject *obj = qmp_output_first(qov);
     if (obj) {
         qobject_incref(obj);
+    } else {
+        obj = qnull();
     }
     return obj;
 }
