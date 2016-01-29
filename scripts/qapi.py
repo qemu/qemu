@@ -1636,7 +1636,8 @@ def gen_err_check(label='out', skiperr=False):
                  label=label)
 
 
-def gen_visit_fields(members, prefix='', need_cast=False, skiperr=False):
+def gen_visit_fields(members, prefix='', need_cast=False, skiperr=False,
+                     label='out'):
     ret = ''
     if skiperr:
         errparg = 'NULL'
@@ -1664,7 +1665,7 @@ def gen_visit_fields(members, prefix='', need_cast=False, skiperr=False):
                      c_type=memb.type.c_name(), prefix=prefix, cast=cast,
                      c_name=c_name(memb.name), name=memb.name,
                      errp=errparg)
-        ret += gen_err_check(skiperr=skiperr)
+        ret += gen_err_check(skiperr=skiperr, label=label)
 
         if memb.optional:
             pop_indent()

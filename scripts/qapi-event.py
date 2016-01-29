@@ -2,7 +2,7 @@
 # QAPI event generator
 #
 # Copyright (c) 2014 Wenchao Xia
-# Copyright (c) 2015 Red Hat Inc.
+# Copyright (c) 2015-2016 Red Hat Inc.
 #
 # Authors:
 #  Wenchao Xia <wenchaoqemu@gmail.com>
@@ -61,25 +61,23 @@ def gen_event_send(name, arg_type):
     if arg_type and arg_type.members:
         ret += mcgen('''
     qov = qmp_output_visitor_new();
-    g_assert(qov);
-
     v = qmp_output_get_visitor(qov);
-    g_assert(v);
 
-    /* Fake visit, as if all members are under a structure */
-    visit_start_struct(v, NULL, "", "%(name)s", 0, &err);
+    visit_start_struct(v, NULL, NULL, "%(name)s", 0, &err);
 ''',
                      name=name)
         ret += gen_err_check()
-        ret += gen_visit_fields(arg_type.members, need_cast=True)
+        ret += gen_visit_fields(arg_type.members, need_cast=True,
+                                label='out_obj')
         ret += mcgen('''
-    visit_end_struct(v, &err);
+out_obj:
+    visit_end_struct(v, err ? NULL : &err);
     if (err) {
         goto out;
     }
 
     obj = qmp_output_get_qobject(qov);
-    g_assert(obj != NULL);
+    g_assert(obj);
 
     qdict_put_obj(qmp, "data", obj);
 ''')
