@@ -13,6 +13,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 
 void qemu_hexdump(const char *buf, FILE *fp, const char *prefix, size_t size)

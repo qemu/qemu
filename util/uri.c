@@ -51,9 +51,8 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include <glib.h>
-#include <string.h>
-#include <stdio.h>
 
 #include "qemu/uri.h"
 

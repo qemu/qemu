@@ -10,16 +10,7 @@
  * See the COPYING file in the top-level directory.
  *
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
-#include <time.h>
-#include <signal.h>
-#include <stdint.h>
-#include <string.h>
-#include <limits.h>
-#include <unistd.h>
-#include <sys/time.h>
+#include "qemu/osdep.h"
 #ifdef __linux__
 #include <sys/syscall.h>
 #include <linux/futex.h>

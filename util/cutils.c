@@ -21,11 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/host-utils.h"
 #include <math.h>
-#include <limits.h>
-#include <errno.h>
 
 #include "qemu/sockets.h"
 #include "qemu/iov.h"

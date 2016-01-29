@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "qemu/buffer.h"
 #include "trace.h"
 

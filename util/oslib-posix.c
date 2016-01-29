@@ -47,13 +47,12 @@ extern int daemon(int, int);
 #  define QEMU_VMALLOC_ALIGN getpagesize()
 #endif
 
+#include "qemu/osdep.h"
 #include <termios.h>
-#include <unistd.h>
 #include <termios.h>
 
 #include <glib/gprintf.h>
 
-#include "config-host.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 #include "qemu/sockets.h"

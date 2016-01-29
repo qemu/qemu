@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include <config-host.h>
 
 #include "qemu/base64.h"

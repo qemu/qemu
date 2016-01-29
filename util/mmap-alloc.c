@@ -9,10 +9,9 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or
  * later.  See the COPYING file in the top-level directory.
  */
+#include "qemu/osdep.h"
 #include <qemu/mmap-alloc.h>
-#include <sys/types.h>
 #include <sys/mman.h>
-#include <assert.h>
 
 #define HUGETLBFS_MAGIC       0x958458f6
 

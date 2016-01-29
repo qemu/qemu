@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include "qemu-common.h"
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 
 #ifdef CONFIG_GETAUXVAL
 /* Don't inline this in qemu/osdep.h, because pulling in <sys/auxv.h> for

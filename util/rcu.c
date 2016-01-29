@@ -26,12 +26,8 @@
  * IBM's contributions to this file may be relicensed under LGPLv2 or later.
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
-#include <stdio.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <errno.h>
 #include "qemu/rcu.h"
 #include "qemu/atomic.h"
 #include "qemu/thread.h"

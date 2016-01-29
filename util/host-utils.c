@@ -23,8 +23,7 @@
  * THE SOFTWARE.
  */
 
-#include <stdlib.h>
-#include <stdint.h>
+#include "qemu/osdep.h"
 #include "qemu/host-utils.h"
 
 /* Long integer helpers */

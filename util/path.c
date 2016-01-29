@@ -3,14 +3,9 @@
 
    The assumption is that this area does not change.
 */
-#include <sys/types.h>
+#include "qemu/osdep.h"
 #include <sys/param.h>
 #include <dirent.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <stdio.h>
 #include "qemu-common.h"
 
 struct pathelem

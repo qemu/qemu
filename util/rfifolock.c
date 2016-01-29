@@ -11,7 +11,7 @@
  *
  */
 
-#include <assert.h>
+#include "qemu/osdep.h"
 #include "qemu/rfifolock.h"
 
 void rfifolock_init(RFifoLock *r, void (*cb)(void *), void *opaque)

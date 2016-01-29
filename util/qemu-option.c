@@ -23,13 +23,11 @@
  * THE SOFTWARE.
  */
 
-#include <stdio.h>
-#include <string.h>
+#include "qemu/osdep.h"
 
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "qapi/qmp/types.h"
-#include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/option_int.h"
 

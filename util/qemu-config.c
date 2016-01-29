@@ -1,8 +1,8 @@
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
-#include "qapi/error.h"
 #include "qmp-commands.h"
 
 static QemuOptsList *vm_config_groups[48];

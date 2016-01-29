@@ -21,24 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
+#include "qemu/osdep.h"
 
 /* Needed early for CONFIG_BSD etc. */
-#include "config-host.h"
 
 #if defined(CONFIG_MADVISE) || defined(CONFIG_POSIX_MADVISE)
 #include <sys/mman.h>
 #endif
 
 #ifdef CONFIG_SOLARIS
-#include <sys/types.h>
 #include <sys/statvfs.h>
 /* See MySQL bug #7156 (http://bugs.mysql.com/bug.php?id=7156) for
    discussion about Solaris header problems */

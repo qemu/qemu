@@ -9,6 +9,7 @@
  * Version 2.
  */
 
+#include "qemu/osdep.h"
 #include "qemu/bitops.h"
 #include "qemu/bitmap.h"
 #include "qemu/atomic.h"

@@ -10,12 +10,11 @@
  * See the COPYING file in the top-level directory.
  *
  */
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/thread.h"
 #include "qemu/notify.h"
 #include <process.h>
-#include <assert.h>
-#include <limits.h>
 
 static bool name_threads;
 

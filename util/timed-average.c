@@ -22,7 +22,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <string.h>
+#include "qemu/osdep.h"
 
 #include "qemu/timed-average.h"
 

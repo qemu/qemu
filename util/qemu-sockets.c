@@ -15,12 +15,7 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <errno.h>
-#include <unistd.h>
+#include "qemu/osdep.h"
 
 #include "monitor/monitor.h"
 #include "qemu/sockets.h"

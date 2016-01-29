@@ -10,7 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include <stdio.h>
+#include "qemu/osdep.h"
 #include "monitor/monitor.h"
 #include "qemu/error-report.h"
 

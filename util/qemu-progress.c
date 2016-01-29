@@ -22,9 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include "qemu-common.h"
 #include "qemu/osdep.h"
-#include <stdio.h>
+#include "qemu-common.h"
 
 struct progress_state {
     float current;
