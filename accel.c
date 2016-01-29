@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "sysemu/accel.h"
 #include "hw/boards.h"
 #include "qemu-common.h"

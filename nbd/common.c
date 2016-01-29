@@ -16,6 +16,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "nbd-internal.h"
 
 ssize_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read)

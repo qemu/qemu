@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "config-host.h"
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/queue.h"
 #include "block/aio.h"

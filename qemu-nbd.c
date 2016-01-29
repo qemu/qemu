@@ -16,6 +16,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"
@@ -27,15 +28,11 @@
 #include "qapi/util.h"
 #include "qapi/qmp/qstring.h"
 
-#include <stdarg.h>
-#include <stdio.h>
 #include <getopt.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
-#include <signal.h>
 #include <libgen.h>
 #include <pthread.h>
 

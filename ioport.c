@@ -25,6 +25,7 @@
  * splitted out ioport related stuffs from vl.c.
  */
 
+#include "qemu/osdep.h"
 #include "exec/ioport.h"
 #include "trace.h"
 #include "exec/memory.h"

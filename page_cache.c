@@ -12,13 +12,7 @@
  *
  */
 
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <stdbool.h>
+#include "qemu/osdep.h"
 #include <glib.h>
 
 #include "qemu-common.h"

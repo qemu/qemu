@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "config.h"
+#include "qemu/osdep.h"
 
 /* Defining NDEBUG disables assertions (which makes the code faster). */
 #if !defined(CONFIG_DEBUG_TCG) && !defined(NDEBUG)

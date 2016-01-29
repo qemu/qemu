@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 
-#include "config-host.h"
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "trace.h"
 #include "block/block.h"

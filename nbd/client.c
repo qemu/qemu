@@ -16,6 +16,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "nbd-internal.h"
 
 static int nbd_errno_to_system_errno(int err)

@@ -7,6 +7,7 @@
  * (GNU GPL), version 2 or later.
  */
 
+#include "qemu/osdep.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/dma.h"
 #include "trace.h"

@@ -8,12 +8,8 @@
  *
  */
 
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <time.h>
+#include "qemu/osdep.h"
 #ifndef _WIN32
-#include <signal.h>
 #include <pthread.h>
 #endif
 #include "qemu/timer.h"

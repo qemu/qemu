@@ -7,6 +7,7 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "qemu/typedefs.h"
 #include "qmp-commands.h"
 #include "trace/control.h"

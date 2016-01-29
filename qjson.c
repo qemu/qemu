@@ -11,8 +11,8 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include <qapi/qmp/qstring.h>
-#include <stdbool.h>
 #include <glib.h>
 #include <qjson.h>
 #include <qemu/module.h>

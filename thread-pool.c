@@ -14,10 +14,10 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/queue.h"
 #include "qemu/thread.h"
-#include "qemu/osdep.h"
 #include "qemu/coroutine.h"
 #include "trace.h"
 #include "block/thread-pool.h"

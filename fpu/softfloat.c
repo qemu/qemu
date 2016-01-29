@@ -82,12 +82,11 @@ this code that are retained.
 /* softfloat (and in particular the code in softfloat-specialize.h) is
  * target-dependent and needs the TARGET_* macros.
  */
-#include "config.h"
+#include "qemu/osdep.h"
 
 #include "fpu/softfloat.h"
 
 /* We only need stdlib for abort() */
-#include <stdlib.h>
 
 /*----------------------------------------------------------------------------
 | Primitive arithmetic functions, including multi-word arithmetic, and

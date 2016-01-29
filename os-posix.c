@@ -23,10 +23,7 @@
  * THE SOFTWARE.
  */
 
-#include <unistd.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <sys/types.h>
+#include "qemu/osdep.h"
 #include <sys/wait.h>
 /*needed for MAP_POPULATE before including qemu-options.h */
 #include <sys/mman.h>
@@ -35,7 +32,6 @@
 #include <libgen.h>
 
 /* Needed early for CONFIG_BSD etc. */
-#include "config-host.h"
 #include "sysemu/sysemu.h"
 #include "net/slirp.h"
 #include "qemu-options.h"

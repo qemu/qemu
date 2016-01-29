@@ -11,12 +11,7 @@
  *
  */
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
+#include "qemu/osdep.h"
 
 #include "qemu-common.h"
 #include "qemu/error-report.h"

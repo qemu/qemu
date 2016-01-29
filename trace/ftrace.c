@@ -9,10 +9,7 @@
  *
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <fcntl.h>
-#include <limits.h>
+#include "qemu/osdep.h"
 #include "trace.h"
 #include "trace/control.h"
 

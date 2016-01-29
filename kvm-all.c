@@ -13,10 +13,9 @@
  *
  */
 
-#include <sys/types.h>
+#include "qemu/osdep.h"
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <stdarg.h>
 
 #include <linux/kvm.h>
 

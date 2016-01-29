@@ -13,6 +13,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include "qemu/osdep.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #include "exec/ioport.h"
@@ -21,7 +22,6 @@
 #include "qemu/error-report.h"
 #include "qom/object.h"
 #include "trace.h"
-#include <assert.h>
 
 #include "exec/memory-internal.h"
 #include "exec/ram_addr.h"

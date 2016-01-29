@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "qemu/timer.h"
 #include "sysemu/replay.h"

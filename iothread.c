@@ -11,6 +11,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
 #include "qemu/module.h"

@@ -11,7 +11,7 @@
  *
  * Based on net.c
  */
-#include "config-host.h"
+#include "qemu/osdep.h"
 
 #include "qapi/qmp/qerror.h"
 #include "sysemu/tpm_backend.h"

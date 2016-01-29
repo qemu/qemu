@@ -1,11 +1,10 @@
-#include "config-host.h"
+#include "qemu/osdep.h"
 #include "trace.h"
 #include "ui/qemu-spice.h"
 #include "sysemu/char.h"
 #include <spice.h>
 #include <spice/protocol.h>
 
-#include "qemu/osdep.h"
 
 typedef struct SpiceCharDriver {
     CharDriverState*      chr;
