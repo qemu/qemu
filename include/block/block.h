@@ -226,7 +226,6 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
 void bdrv_reopen_commit(BDRVReopenState *reopen_state);
 void bdrv_reopen_abort(BDRVReopenState *reopen_state);
 void bdrv_close(BlockDriverState *bs);
-void bdrv_add_close_notifier(BlockDriverState *bs, Notifier *notify);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,
               uint8_t *buf, int nb_sectors);
 int bdrv_read_unthrottled(BlockDriverState *bs, int64_t sector_num,

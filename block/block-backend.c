@@ -1146,13 +1146,6 @@ void blk_add_insert_bs_notifier(BlockBackend *blk, Notifier *notify)
     notifier_list_add(&blk->insert_bs_notifiers, notify);
 }
 
-void blk_add_close_notifier(BlockBackend *blk, Notifier *notify)
-{
-    if (blk->bs) {
-        bdrv_add_close_notifier(blk->bs, notify);
-    }
-}
-
 void blk_io_plug(BlockBackend *blk)
 {
     if (blk->bs) {

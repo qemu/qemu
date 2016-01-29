@@ -403,8 +403,6 @@ struct BlockDriverState {
     BdrvChild *backing;
     BdrvChild *file;
 
-    NotifierList close_notifiers;
-
     /* Callback before write request is processed */
     NotifierWithReturnList before_write_notifiers;
 
