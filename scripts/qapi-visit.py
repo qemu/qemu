@@ -320,11 +320,6 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
 out_obj:
     error_propagate(errp, err);
     err = NULL;
-    if (*obj) {
-        visit_end_union(v, !!(*obj)->u.data, &err);
-    }
-    error_propagate(errp, err);
-    err = NULL;
     visit_end_struct(v, &err);
 out:
     error_propagate(errp, err);

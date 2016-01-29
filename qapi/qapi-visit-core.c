@@ -1,6 +1,7 @@
 /*
  * Core Definitions for QAPI Visitor Classes
  *
+ * Copyright (C) 2012-2016 Red Hat, Inc.
  * Copyright IBM, Corp. 2011
  *
  * Authors:
@@ -65,13 +66,6 @@ bool visit_start_union(Visitor *v, bool data_present, Error **errp)
         return v->start_union(v, data_present, errp);
     }
     return true;
-}
-
-void visit_end_union(Visitor *v, bool data_present, Error **errp)
-{
-    if (v->end_union) {
-        v->end_union(v, data_present, errp);
-    }
 }
 
 bool visit_optional(Visitor *v, bool *present, const char *name)

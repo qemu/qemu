@@ -58,7 +58,6 @@ struct Visitor
     /* visit_type_size() falls back to (*type_uint64)() if type_size is unset */
     void (*type_size)(Visitor *v, uint64_t *obj, const char *name, Error **errp);
     bool (*start_union)(Visitor *v, bool data_present, Error **errp);
-    void (*end_union)(Visitor *v, bool data_present, Error **errp);
 };
 
 void input_type_enum(Visitor *v, int *obj, const char * const strings[],
