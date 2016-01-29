@@ -719,6 +719,12 @@ enum {
 #define FP_RN1		(1ull << FPSCR_RN1)
 #define FP_RN		(1ull << FPSCR_RN)
 
+/* the exception bits which can be cleared by mcrfs - includes FX */
+#define FP_EX_CLEAR_BITS (FP_FX     | FP_OX     | FP_UX     | FP_ZX     | \
+                          FP_XX     | FP_VXSNAN | FP_VXISI  | FP_VXIDI  | \
+                          FP_VXZDZ  | FP_VXIMZ  | FP_VXVC   | FP_VXSOFT | \
+                          FP_VXSQRT | FP_VXCVI)
+
 /*****************************************************************************/
 /* Vector status and control register */
 #define VSCR_NJ		16 /* Vector non-java */
