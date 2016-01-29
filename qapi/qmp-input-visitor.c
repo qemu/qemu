@@ -240,6 +240,22 @@ static void qmp_input_type_int64(Visitor *v, int64_t *obj, const char *name,
     *obj = qint_get_int(qint);
 }
 
+static void qmp_input_type_uint64(Visitor *v, uint64_t *obj, const char *name,
+                                  Error **errp)
+{
+    /* FIXME: qobject_to_qint mishandles values over INT64_MAX */
+    QmpInputVisitor *qiv = to_qiv(v);
+    QInt *qint = qobject_to_qint(qmp_input_get_object(qiv, name, true));
+
+    if (!qint) {
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
+                   "integer");
+        return;
+    }
+
+    *obj = qint_get_int(qint);
+}
+
 static void qmp_input_type_bool(Visitor *v, bool *obj, const char *name,
                                 Error **errp)
 {
@@ -343,6 +359,7 @@ QmpInputVisitor *qmp_input_visitor_new(QObject *obj)
     v->visitor.end_list = qmp_input_end_list;
     v->visitor.type_enum = input_type_enum;
     v->visitor.type_int64 = qmp_input_type_int64;
+    v->visitor.type_uint64 = qmp_input_type_uint64;
     v->visitor.type_bool = qmp_input_type_bool;
     v->visitor.type_str = qmp_input_type_str;
     v->visitor.type_number = qmp_input_type_number;

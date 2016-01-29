@@ -198,6 +198,14 @@ static void print_type_int64(Visitor *v, int64_t *obj, const char *name,
     }
 }
 
+static void print_type_uint64(Visitor *v, uint64_t *obj, const char *name,
+                             Error **errp)
+{
+    /* FIXME: print_type_int64 mishandles values over INT64_MAX */
+    int64_t i = *obj;
+    print_type_int64(v, &i, name, errp);
+}
+
 static void print_type_size(Visitor *v, uint64_t *obj, const char *name,
                            Error **errp)
 {
@@ -347,6 +355,7 @@ StringOutputVisitor *string_output_visitor_new(bool human)
     v->human = human;
     v->visitor.type_enum = output_type_enum;
     v->visitor.type_int64 = print_type_int64;
+    v->visitor.type_uint64 = print_type_uint64;
     v->visitor.type_size = print_type_size;
     v->visitor.type_bool = print_type_bool;
     v->visitor.type_str = print_type_str;

@@ -97,14 +97,14 @@ void visit_type_int(Visitor *v, int64_t *obj, const char *name, Error **errp)
 
 void visit_type_uint8(Visitor *v, uint8_t *obj, const char *name, Error **errp)
 {
-    int64_t value;
+    uint64_t value;
 
     if (v->type_uint8) {
         v->type_uint8(v, obj, name, errp);
     } else {
         value = *obj;
-        v->type_int64(v, &value, name, errp);
-        if (value < 0 || value > UINT8_MAX) {
+        v->type_uint64(v, &value, name, errp);
+        if (value > UINT8_MAX) {
             /* FIXME questionable reuse of errp if callback changed
                value on error */
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
@@ -117,14 +117,14 @@ void visit_type_uint8(Visitor *v, uint8_t *obj, const char *name, Error **errp)
 
 void visit_type_uint16(Visitor *v, uint16_t *obj, const char *name, Error **errp)
 {
-    int64_t value;
+    uint64_t value;
 
     if (v->type_uint16) {
         v->type_uint16(v, obj, name, errp);
     } else {
         value = *obj;
-        v->type_int64(v, &value, name, errp);
-        if (value < 0 || value > UINT16_MAX) {
+        v->type_uint64(v, &value, name, errp);
+        if (value > UINT16_MAX) {
             /* FIXME questionable reuse of errp if callback changed
                value on error */
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
@@ -137,14 +137,14 @@ void visit_type_uint16(Visitor *v, uint16_t *obj, const char *name, Error **errp
 
 void visit_type_uint32(Visitor *v, uint32_t *obj, const char *name, Error **errp)
 {
-    int64_t value;
+    uint64_t value;
 
     if (v->type_uint32) {
         v->type_uint32(v, obj, name, errp);
     } else {
         value = *obj;
-        v->type_int64(v, &value, name, errp);
-        if (value < 0 || value > UINT32_MAX) {
+        v->type_uint64(v, &value, name, errp);
+        if (value > UINT32_MAX) {
             /* FIXME questionable reuse of errp if callback changed
                value on error */
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
@@ -157,15 +157,7 @@ void visit_type_uint32(Visitor *v, uint32_t *obj, const char *name, Error **errp
 
 void visit_type_uint64(Visitor *v, uint64_t *obj, const char *name, Error **errp)
 {
-    int64_t value;
-
-    if (v->type_uint64) {
-        v->type_uint64(v, obj, name, errp);
-    } else {
-        value = *obj;
-        v->type_int64(v, &value, name, errp);
-        *obj = value;
-    }
+    v->type_uint64(v, obj, name, errp);
 }
 
 void visit_type_int8(Visitor *v, int8_t *obj, const char *name, Error **errp)
@@ -235,16 +227,10 @@ void visit_type_int64(Visitor *v, int64_t *obj, const char *name, Error **errp)
 
 void visit_type_size(Visitor *v, uint64_t *obj, const char *name, Error **errp)
 {
-    int64_t value;
-
     if (v->type_size) {
         v->type_size(v, obj, name, errp);
-    } else if (v->type_uint64) {
-        v->type_uint64(v, obj, name, errp);
     } else {
-        value = *obj;
-        v->type_int64(v, &value, name, errp);
-        *obj = value;
+        v->type_uint64(v, obj, name, errp);
     }
 }
 

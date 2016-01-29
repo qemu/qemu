@@ -166,6 +166,14 @@ static void qmp_output_type_int64(Visitor *v, int64_t *obj, const char *name,
     qmp_output_add(qov, name, qint_from_int(*obj));
 }
 
+static void qmp_output_type_uint64(Visitor *v, uint64_t *obj, const char *name,
+                                   Error **errp)
+{
+    /* FIXME: QMP outputs values larger than INT64_MAX as negative */
+    QmpOutputVisitor *qov = to_qov(v);
+    qmp_output_add(qov, name, qint_from_int(*obj));
+}
+
 static void qmp_output_type_bool(Visitor *v, bool *obj, const char *name,
                                  Error **errp)
 {
@@ -243,6 +251,7 @@ QmpOutputVisitor *qmp_output_visitor_new(void)
     v->visitor.end_list = qmp_output_end_list;
     v->visitor.type_enum = output_type_enum;
     v->visitor.type_int64 = qmp_output_type_int64;
+    v->visitor.type_uint64 = qmp_output_type_uint64;
     v->visitor.type_bool = qmp_output_type_bool;
     v->visitor.type_str = qmp_output_type_str;
     v->visitor.type_number = qmp_output_type_number;

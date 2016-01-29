@@ -227,6 +227,20 @@ error:
                "an int64 value or range");
 }
 
+static void parse_type_uint64(Visitor *v, uint64_t *obj, const char *name,
+                              Error **errp)
+{
+    /* FIXME: parse_type_int64 mishandles values over INT64_MAX */
+    int64_t i;
+    Error *err = NULL;
+    parse_type_int64(v, &i, name, &err);
+    if (err) {
+        error_propagate(errp, err);
+    } else {
+        *obj = i;
+    }
+}
+
 static void parse_type_size(Visitor *v, uint64_t *obj, const char *name,
                             Error **errp)
 {
@@ -337,6 +351,7 @@ StringInputVisitor *string_input_visitor_new(const char *str)
 
     v->visitor.type_enum = input_type_enum;
     v->visitor.type_int64 = parse_type_int64;
+    v->visitor.type_uint64 = parse_type_uint64;
     v->visitor.type_size = parse_type_size;
     v->visitor.type_bool = parse_type_bool;
     v->visitor.type_str = parse_type_str;
