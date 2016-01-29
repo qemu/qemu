@@ -29,7 +29,6 @@ struct QapiDeallocVisitor
 {
     Visitor visitor;
     QTAILQ_HEAD(, StackEntry) stack;
-    bool is_list_head;
 };
 
 static QapiDeallocVisitor *to_qov(Visitor *v)
