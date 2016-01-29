@@ -2,7 +2,7 @@
 # QAPI visitor generator
 #
 # Copyright IBM, Corp. 2011
-# Copyright (C) 2014-2015 Red Hat, Inc.
+# Copyright (C) 2014-2016 Red Hat, Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
@@ -123,12 +123,18 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
     Error *err = NULL;
 
     visit_start_struct(v, (void **)obj, "%(name)s", name, sizeof(%(c_name)s), &err);
-    if (!err) {
-        if (*obj) {
-            visit_type_%(c_name)s_fields(v, obj, errp);
-        }
-        visit_end_struct(v, &err);
+    if (err) {
+        goto out;
     }
+    if (!*obj) {
+        goto out_obj;
+    }
+    visit_type_%(c_name)s_fields(v, obj, &err);
+    error_propagate(errp, err);
+    err = NULL;
+out_obj:
+    visit_end_struct(v, &err);
+out:
     error_propagate(errp, err);
 }
 ''',
