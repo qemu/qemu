@@ -1,7 +1,7 @@
 /*
  * Core Definitions for QAPI Visitor implementations
  *
- * Copyright (C) 2012 Red Hat, Inc.
+ * Copyright (C) 2012-2016 Red Hat, Inc.
  *
  * Author: Paolo Bonizni <pbonzini@redhat.com>
  *
@@ -56,12 +56,6 @@ struct Visitor
     /* May be NULL; most useful for input visitors. */
     void (*optional)(Visitor *v, bool *present, const char *name);
 
-    void (*type_uint8)(Visitor *v, uint8_t *obj, const char *name, Error **errp);
-    void (*type_uint16)(Visitor *v, uint16_t *obj, const char *name, Error **errp);
-    void (*type_uint32)(Visitor *v, uint32_t *obj, const char *name, Error **errp);
-    void (*type_int8)(Visitor *v, int8_t *obj, const char *name, Error **errp);
-    void (*type_int16)(Visitor *v, int16_t *obj, const char *name, Error **errp);
-    void (*type_int32)(Visitor *v, int32_t *obj, const char *name, Error **errp);
     bool (*start_union)(Visitor *v, bool data_present, Error **errp);
 };
 
