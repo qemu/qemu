@@ -445,6 +445,8 @@ struct BlockDriverState {
     QTAILQ_ENTRY(BlockDriverState) device_list;
     /* element of the list of all BlockDriverStates (all_bdrv_states) */
     QTAILQ_ENTRY(BlockDriverState) bs_list;
+    /* element of the list of monitor-owned BDS */
+    QTAILQ_ENTRY(BlockDriverState) monitor_list;
     QLIST_HEAD(, BdrvDirtyBitmap) dirty_bitmaps;
     int refcnt;
 
@@ -706,5 +708,7 @@ bool bdrv_requests_pending(BlockDriverState *bs);
 
 void bdrv_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap **out);
 void bdrv_undo_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap *in);
+
+void blockdev_close_all_bdrv_states(void);
 
 #endif /* BLOCK_INT_H */
