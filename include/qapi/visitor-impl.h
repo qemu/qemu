@@ -24,11 +24,14 @@ struct Visitor
 
     void (*start_implicit_struct)(Visitor *v, void **obj, size_t size,
                                   Error **errp);
-    void (*end_implicit_struct)(Visitor *v, Error **errp);
+    /* May be NULL */
+    void (*end_implicit_struct)(Visitor *v);
 
     void (*start_list)(Visitor *v, const char *name, Error **errp);
-    GenericList *(*next_list)(Visitor *v, GenericList **list, Error **errp);
-    void (*end_list)(Visitor *v, Error **errp);
+    /* Must be set */
+    GenericList *(*next_list)(Visitor *v, GenericList **list);
+    /* Must be set */
+    void (*end_list)(Visitor *v);
 
     void (*type_enum)(Visitor *v, const char *name, int *obj,
                       const char *const strings[], Error **errp);

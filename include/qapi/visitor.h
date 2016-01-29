@@ -1,6 +1,7 @@
 /*
  * Core Definitions for QAPI Visitor Classes
  *
+ * Copyright (C) 2012-2016 Red Hat, Inc.
  * Copyright IBM, Corp. 2011
  *
  * Authors:
@@ -32,10 +33,11 @@ void visit_start_struct(Visitor *v, const char *name, void **obj,
 void visit_end_struct(Visitor *v, Error **errp);
 void visit_start_implicit_struct(Visitor *v, void **obj, size_t size,
                                  Error **errp);
-void visit_end_implicit_struct(Visitor *v, Error **errp);
+void visit_end_implicit_struct(Visitor *v);
+
 void visit_start_list(Visitor *v, const char *name, Error **errp);
-GenericList *visit_next_list(Visitor *v, GenericList **list, Error **errp);
-void visit_end_list(Visitor *v, Error **errp);
+GenericList *visit_next_list(Visitor *v, GenericList **list);
+void visit_end_list(Visitor *v);
 
 /**
  * Check if an optional member @name of an object needs visiting.

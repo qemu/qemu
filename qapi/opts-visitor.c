@@ -1,7 +1,7 @@
 /*
  * Options Visitor
  *
- * Copyright Red Hat, Inc. 2012, 2013
+ * Copyright Red Hat, Inc. 2012-2016
  *
  * Author: Laszlo Ersek <lersek@redhat.com>
  *
@@ -221,7 +221,7 @@ opts_start_list(Visitor *v, const char *name, Error **errp)
 
 
 static GenericList *
-opts_next_list(Visitor *v, GenericList **list, Error **errp)
+opts_next_list(Visitor *v, GenericList **list)
 {
     OptsVisitor *ov = to_ov(v);
     GenericList **link;
@@ -270,7 +270,7 @@ opts_next_list(Visitor *v, GenericList **list, Error **errp)
 
 
 static void
-opts_end_list(Visitor *v, Error **errp)
+opts_end_list(Visitor *v)
 {
     OptsVisitor *ov = to_ov(v);
 

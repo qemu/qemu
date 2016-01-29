@@ -1,6 +1,7 @@
 /*
  * Dealloc Visitor
  *
+ * Copyright (C) 2012-2016 Red Hat, Inc.
  * Copyright IBM, Corp. 2011
  *
  * Authors:
@@ -84,7 +85,7 @@ static void qapi_dealloc_start_implicit_struct(Visitor *v,
     qapi_dealloc_push(qov, obj);
 }
 
-static void qapi_dealloc_end_implicit_struct(Visitor *v, Error **errp)
+static void qapi_dealloc_end_implicit_struct(Visitor *v)
 {
     QapiDeallocVisitor *qov = to_qov(v);
     void **obj = qapi_dealloc_pop(qov);
@@ -99,8 +100,7 @@ static void qapi_dealloc_start_list(Visitor *v, const char *name, Error **errp)
     qapi_dealloc_push(qov, NULL);
 }
 
-static GenericList *qapi_dealloc_next_list(Visitor *v, GenericList **listp,
-                                           Error **errp)
+static GenericList *qapi_dealloc_next_list(Visitor *v, GenericList **listp)
 {
     GenericList *list = *listp;
     QapiDeallocVisitor *qov = to_qov(v);
@@ -120,7 +120,7 @@ static GenericList *qapi_dealloc_next_list(Visitor *v, GenericList **listp,
     return NULL;
 }
 
-static void qapi_dealloc_end_list(Visitor *v, Error **errp)
+static void qapi_dealloc_end_list(Visitor *v)
 {
     QapiDeallocVisitor *qov = to_qov(v);
     void *obj = qapi_dealloc_pop(qov);

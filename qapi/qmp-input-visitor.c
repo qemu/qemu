@@ -1,6 +1,7 @@
 /*
  * Input Visitor
  *
+ * Copyright (C) 2012-2016 Red Hat, Inc.
  * Copyright IBM, Corp. 2011
  *
  * Authors:
@@ -154,10 +155,6 @@ static void qmp_input_start_implicit_struct(Visitor *v, void **obj,
     }
 }
 
-static void qmp_input_end_implicit_struct(Visitor *v, Error **errp)
-{
-}
-
 static void qmp_input_start_list(Visitor *v, const char *name, Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
@@ -172,8 +169,7 @@ static void qmp_input_start_list(Visitor *v, const char *name, Error **errp)
     qmp_input_push(qiv, qobj, errp);
 }
 
-static GenericList *qmp_input_next_list(Visitor *v, GenericList **list,
-                                        Error **errp)
+static GenericList *qmp_input_next_list(Visitor *v, GenericList **list)
 {
     QmpInputVisitor *qiv = to_qiv(v);
     GenericList *entry;
@@ -202,7 +198,7 @@ static GenericList *qmp_input_next_list(Visitor *v, GenericList **list,
     return entry;
 }
 
-static void qmp_input_end_list(Visitor *v, Error **errp)
+static void qmp_input_end_list(Visitor *v)
 {
     QmpInputVisitor *qiv = to_qiv(v);
 
@@ -353,7 +349,6 @@ QmpInputVisitor *qmp_input_visitor_new(QObject *obj)
     v->visitor.start_struct = qmp_input_start_struct;
     v->visitor.end_struct = qmp_input_end_struct;
     v->visitor.start_implicit_struct = qmp_input_start_implicit_struct;
-    v->visitor.end_implicit_struct = qmp_input_end_implicit_struct;
     v->visitor.start_list = qmp_input_start_list;
     v->visitor.next_list = qmp_input_next_list;
     v->visitor.end_list = qmp_input_end_list;

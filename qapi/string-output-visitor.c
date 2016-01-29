@@ -1,7 +1,7 @@
 /*
  * String printing Visitor
  *
- * Copyright Red Hat, Inc. 2012
+ * Copyright Red Hat, Inc. 2012-2016
  *
  * Author: Paolo Bonzini <pbonzini@redhat.com>
  *
@@ -276,8 +276,7 @@ start_list(Visitor *v, const char *name, Error **errp)
     sov->head = true;
 }
 
-static GenericList *
-next_list(Visitor *v, GenericList **list, Error **errp)
+static GenericList *next_list(Visitor *v, GenericList **list)
 {
     StringOutputVisitor *sov = to_sov(v);
     GenericList *ret = NULL;
@@ -303,8 +302,7 @@ next_list(Visitor *v, GenericList **list, Error **errp)
     return ret;
 }
 
-static void
-end_list(Visitor *v, Error **errp)
+static void end_list(Visitor *v)
 {
     StringOutputVisitor *sov = to_sov(v);
 

@@ -38,10 +38,10 @@ void visit_start_implicit_struct(Visitor *v, void **obj, size_t size,
     }
 }
 
-void visit_end_implicit_struct(Visitor *v, Error **errp)
+void visit_end_implicit_struct(Visitor *v)
 {
     if (v->end_implicit_struct) {
-        v->end_implicit_struct(v, errp);
+        v->end_implicit_struct(v);
     }
 }
 
@@ -50,14 +50,14 @@ void visit_start_list(Visitor *v, const char *name, Error **errp)
     v->start_list(v, name, errp);
 }
 
-GenericList *visit_next_list(Visitor *v, GenericList **list, Error **errp)
+GenericList *visit_next_list(Visitor *v, GenericList **list)
 {
-    return v->next_list(v, list, errp);
+    return v->next_list(v, list);
 }
 
-void visit_end_list(Visitor *v, Error **errp)
+void visit_end_list(Visitor *v)
 {
-    v->end_list(v, errp);
+    v->end_list(v);
 }
 
 bool visit_start_union(Visitor *v, bool data_present, Error **errp)

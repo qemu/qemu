@@ -315,11 +315,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
                     return;
                 }
             }
-            visit_end_list(v, &err);
-            if (err) {
-                error_propagate(errp, err);
-                return;
-            }
+            visit_end_list(v);
             break;
         }
         default:
