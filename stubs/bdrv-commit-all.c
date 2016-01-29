@@ -1,3 +1,4 @@
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "block/block.h"
 

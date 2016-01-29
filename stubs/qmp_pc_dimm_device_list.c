@@ -1,3 +1,4 @@
+#include "qemu/osdep.h"
 #include "qom/object.h"
 #include "hw/mem/pc-dimm.h"
 

@@ -9,6 +9,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "sysemu/replay.h"
 
 bool replay_exception(void)

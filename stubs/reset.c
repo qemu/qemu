@@ -1,3 +1,4 @@
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 
 /* Stub functions for binaries that never call qemu_devices_reset(),

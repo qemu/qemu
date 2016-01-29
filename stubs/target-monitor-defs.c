@@ -1,3 +1,4 @@
+#include "qemu/osdep.h"
 #include "stddef.h"
 #include "qemu/typedefs.h"
 
