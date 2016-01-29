@@ -300,7 +300,7 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
     info->locked = blk_dev_is_medium_locked(blk);
     info->removable = blk_dev_has_removable_media(blk);
 
-    if (blk_dev_has_removable_media(blk)) {
+    if (blk_dev_has_tray(blk)) {
         info->has_tray_open = true;
         info->tray_open = blk_dev_is_tray_open(blk);
     }

@@ -382,8 +382,8 @@
 # @locked: True if the guest has locked this device from having its media
 #          removed
 #
-# @tray_open: #optional True if the device has a tray and it is open
-#             (only present if removable is true)
+# @tray_open: #optional True if the device's tray is open
+#             (only present if it has a tray)
 #
 # @dirty-bitmaps: #optional dirty bitmaps information (only present if the
 #                 driver has one or more dirty bitmaps) (Since 2.0)
