@@ -2821,7 +2821,6 @@ static int object_create(void *opaque, QemuOpts *opts, Error **errp)
     Error *err = NULL;
     char *type = NULL;
     char *id = NULL;
-    void *dummy = NULL;
     OptsVisitor *ov;
     QDict *pdict;
     bool (*type_predicate)(const char *) = opaque;
@@ -2829,7 +2828,7 @@ static int object_create(void *opaque, QemuOpts *opts, Error **errp)
     ov = opts_visitor_new(opts);
     pdict = qemu_opts_to_qdict(opts, NULL);
 
-    visit_start_struct(opts_get_visitor(ov), &dummy, NULL, NULL, 0, &err);
+    visit_start_struct(opts_get_visitor(ov), NULL, NULL, NULL, 0, &err);
     if (err) {
         goto out;
     }
@@ -2864,7 +2863,6 @@ out:
     QDECREF(pdict);
     g_free(id);
     g_free(type);
-    g_free(dummy);
     if (err) {
         error_report_err(err);
         return -1;

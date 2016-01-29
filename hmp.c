@@ -1657,7 +1657,6 @@ void hmp_object_add(Monitor *mon, const QDict *qdict)
     QemuOpts *opts;
     char *type = NULL;
     char *id = NULL;
-    void *dummy = NULL;
     OptsVisitor *ov;
     QDict *pdict;
 
@@ -1669,7 +1668,7 @@ void hmp_object_add(Monitor *mon, const QDict *qdict)
     ov = opts_visitor_new(opts);
     pdict = qdict_clone_shallow(qdict);
 
-    visit_start_struct(opts_get_visitor(ov), &dummy, NULL, NULL, 0, &err);
+    visit_start_struct(opts_get_visitor(ov), NULL, NULL, NULL, 0, &err);
     if (err) {
         goto out_clean;
     }
@@ -1701,7 +1700,6 @@ out_clean:
     qemu_opts_del(opts);
     g_free(id);
     g_free(type);
-    g_free(dummy);
 
 out:
     hmp_handle_error(mon, &err);
