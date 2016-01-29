@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
+
 #import <Cocoa/Cocoa.h>
 #include <crt_externs.h>
 
