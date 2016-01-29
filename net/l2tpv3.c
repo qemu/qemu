@@ -23,9 +23,9 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include <linux/ip.h>
 #include <netdb.h>
-#include "config-host.h"
 #include "net/net.h"
 #include "clients.h"
 #include "qemu-common.h"

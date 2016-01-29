@@ -15,6 +15,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "net/eth.h"
 #include "net/checksum.h"
 #include "qemu-common.h"

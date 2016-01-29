@@ -21,6 +21,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "net/queue.h"
 #include "qemu/queue.h"
 #include "net/net.h"

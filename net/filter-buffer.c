@@ -6,6 +6,7 @@
  * later.  See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "net/filter.h"
 #include "net/queue.h"
 #include "qemu-common.h"

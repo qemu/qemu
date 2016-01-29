@@ -22,9 +22,8 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "util.h"
-#include <errno.h>
-#include <stdlib.h>
 
 int net_parse_macaddr(uint8_t *macaddr, const char *p)
 {

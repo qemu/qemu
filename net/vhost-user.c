@@ -8,6 +8,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "clients.h"
 #include "net/vhost_net.h"
 #include "net/vhost-user.h"

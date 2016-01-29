@@ -26,6 +26,7 @@
  *  distribution); if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "tap_int.h"
 
 #include "qemu-common.h"
@@ -34,7 +35,6 @@
 #include "net/tap.h"            /* tap_has_ufo, ... */
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
-#include <stdio.h>
 #include <windows.h>
 #include <winioctl.h>
 

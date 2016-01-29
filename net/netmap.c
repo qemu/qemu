@@ -23,11 +23,10 @@
  */
 
 
+#include "qemu/osdep.h"
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <sys/mman.h>
-#include <stdint.h>
-#include <stdio.h>
 #define NETMAP_WITH_LIBS
 #include <net/netmap.h>
 #include <net/netmap_user.h>

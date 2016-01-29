@@ -12,6 +12,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "monitor/monitor.h"
 #include "net/net.h"
 #include "clients.h"
