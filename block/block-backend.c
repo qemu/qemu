@@ -459,6 +459,14 @@ bool blk_dev_has_removable_media(BlockBackend *blk)
 }
 
 /*
+ * Does @blk's attached device model have a tray?
+ */
+bool blk_dev_has_tray(BlockBackend *blk)
+{
+    return blk->dev_ops && blk->dev_ops->is_tray_open;
+}
+
+/*
  * Notify @blk's attached device model of a media eject request.
  * If @force is true, the medium is about to be yanked out forcefully.
  */
@@ -474,7 +482,7 @@ void blk_dev_eject_request(BlockBackend *blk, bool force)
  */
 bool blk_dev_is_tray_open(BlockBackend *blk)
 {
-    if (blk->dev_ops && blk->dev_ops->is_tray_open) {
+    if (blk_dev_has_tray(blk)) {
         return blk->dev_ops->is_tray_open(blk->dev_opaque);
     }
     return false;
