@@ -304,7 +304,6 @@ static void test_media_insert(void)
     qmp_discard_response("{'execute':'change', 'arguments':{"
                          " 'device':'floppy0', 'target': %s, 'arg': 'raw' }}",
                          test_image);
-    qmp_discard_response(""); /* ignore event (open -> close) */
 
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
@@ -335,7 +334,6 @@ static void test_media_change(void)
      * reset the bit. */
     qmp_discard_response("{'execute':'eject', 'arguments':{"
                          " 'device':'floppy0' }}");
-    qmp_discard_response(""); /* ignore event */
 
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
