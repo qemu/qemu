@@ -2145,9 +2145,7 @@ static void bdrv_close(BlockDriverState *bs)
 {
     BdrvAioNotifier *ban, *ban_next;
 
-    if (bs->job) {
-        block_job_cancel_sync(bs->job);
-    }
+    assert(!bs->job);
 
     /* Disable I/O limits and drain all pending throttled requests */
     if (bs->throttle_state) {
@@ -2214,13 +2212,33 @@ static void bdrv_close(BlockDriverState *bs)
 void bdrv_close_all(void)
 {
     BlockDriverState *bs;
+    AioContext *aio_context;
 
-    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
+    /* Drop references from requests still in flight, such as canceled block
+     * jobs whose AIO context has not been polled yet */
+    bdrv_drain_all();
 
-        aio_context_acquire(aio_context);
-        bdrv_close(bs);
-        aio_context_release(aio_context);
+    blk_remove_all_bs();
+    blockdev_close_all_bdrv_states();
+
+    /* Cancel all block jobs */
+    while (!QTAILQ_EMPTY(&all_bdrv_states)) {
+        QTAILQ_FOREACH(bs, &all_bdrv_states, bs_list) {
+            aio_context = bdrv_get_aio_context(bs);
+
+            aio_context_acquire(aio_context);
+            if (bs->job) {
+                block_job_cancel_sync(bs->job);
+                aio_context_release(aio_context);
+                break;
+            }
+            aio_context_release(aio_context);
+        }
+
+        /* All the remaining BlockDriverStates are referenced directly or
+         * indirectly from block jobs, so there needs to be at least one BDS
+         * directly used by a block job */
+        assert(bs);
     }
 }
 
