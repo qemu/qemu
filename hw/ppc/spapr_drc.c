@@ -215,8 +215,8 @@ static uint32_t entity_sense(sPAPRDRConnector *drc, sPAPRDREntitySense *state)
     return RTAS_OUT_SUCCESS;
 }
 
-static void prop_get_index(Object *obj, Visitor *v, void *opaque,
-                                  const char *name, Error **errp)
+static void prop_get_index(Object *obj, Visitor *v, const char *name,
+                           void *opaque, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
@@ -224,8 +224,8 @@ static void prop_get_index(Object *obj, Visitor *v, void *opaque,
     visit_type_uint32(v, name, &value, errp);
 }
 
-static void prop_get_type(Object *obj, Visitor *v, void *opaque,
-                          const char *name, Error **errp)
+static void prop_get_type(Object *obj, Visitor *v, const char *name,
+                          void *opaque, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
@@ -240,8 +240,8 @@ static char *prop_get_name(Object *obj, Error **errp)
     return g_strdup(drck->get_name(drc));
 }
 
-static void prop_get_entity_sense(Object *obj, Visitor *v, void *opaque,
-                                  const char *name, Error **errp)
+static void prop_get_entity_sense(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
@@ -251,8 +251,8 @@ static void prop_get_entity_sense(Object *obj, Visitor *v, void *opaque,
     visit_type_uint32(v, name, &value, errp);
 }
 
-static void prop_get_fdt(Object *obj, Visitor *v, void *opaque,
-                        const char *name, Error **errp)
+static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
     Error *err = NULL;

@@ -113,8 +113,8 @@ static void balloon_stats_poll_cb(void *opaque)
     s->stats_vq_elem = NULL;
 }
 
-static void balloon_stats_get_all(Object *obj, Visitor *v,
-                                  void *opaque, const char *name, Error **errp)
+static void balloon_stats_get_all(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     Error *err = NULL;
     VirtIOBalloon *s = opaque;
@@ -152,7 +152,7 @@ out:
 }
 
 static void balloon_stats_get_poll_interval(Object *obj, Visitor *v,
-                                            void *opaque, const char *name,
+                                            const char *name, void *opaque,
                                             Error **errp)
 {
     VirtIOBalloon *s = opaque;
@@ -160,7 +160,7 @@ static void balloon_stats_get_poll_interval(Object *obj, Visitor *v,
 }
 
 static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
-                                            void *opaque, const char *name,
+                                            const char *name, void *opaque,
                                             Error **errp)
 {
     VirtIOBalloon *s = opaque;

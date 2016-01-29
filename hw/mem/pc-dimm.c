@@ -373,8 +373,8 @@ static Property pc_dimm_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void pc_dimm_get_size(Object *obj, Visitor *v, void *opaque,
-                          const char *name, Error **errp)
+static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
 {
     int64_t value;
     MemoryRegion *mr;

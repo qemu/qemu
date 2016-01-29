@@ -94,8 +94,9 @@ static void isa_ne2000_class_initfn(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
-static void isa_ne2000_get_bootindex(Object *obj, Visitor *v, void *opaque,
-                                     const char *name, Error **errp)
+static void isa_ne2000_get_bootindex(Object *obj, Visitor *v,
+                                     const char *name, void *opaque,
+                                     Error **errp)
 {
     ISANE2000State *isa = ISA_NE2000(obj);
     NE2000State *s = &isa->ne2000;
@@ -103,8 +104,9 @@ static void isa_ne2000_get_bootindex(Object *obj, Visitor *v, void *opaque,
     visit_type_int32(v, name, &s->c.bootindex, errp);
 }
 
-static void isa_ne2000_set_bootindex(Object *obj, Visitor *v, void *opaque,
-                                     const char *name, Error **errp)
+static void isa_ne2000_set_bootindex(Object *obj, Visitor *v,
+                                     const char *name, void *opaque,
+                                     Error **errp)
 {
     ISANE2000State *isa = ISA_NE2000(obj);
     NE2000State *s = &isa->ne2000;

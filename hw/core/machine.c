@@ -34,7 +34,7 @@ static void machine_set_accel(Object *obj, const char *value, Error **errp)
 }
 
 static void machine_set_kernel_irqchip(Object *obj, Visitor *v,
-                                       void *opaque, const char *name,
+                                       const char *name, void *opaque,
                                        Error **errp)
 {
     Error *err = NULL;
@@ -69,7 +69,7 @@ static void machine_set_kernel_irqchip(Object *obj, Visitor *v,
 }
 
 static void machine_get_kvm_shadow_mem(Object *obj, Visitor *v,
-                                       void *opaque, const char *name,
+                                       const char *name, void *opaque,
                                        Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -79,7 +79,7 @@ static void machine_get_kvm_shadow_mem(Object *obj, Visitor *v,
 }
 
 static void machine_set_kvm_shadow_mem(Object *obj, Visitor *v,
-                                       void *opaque, const char *name,
+                                       const char *name, void *opaque,
                                        Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -171,8 +171,8 @@ static void machine_set_dumpdtb(Object *obj, const char *value, Error **errp)
 }
 
 static void machine_get_phandle_start(Object *obj, Visitor *v,
-                                       void *opaque, const char *name,
-                                       Error **errp)
+                                      const char *name, void *opaque,
+                                      Error **errp)
 {
     MachineState *ms = MACHINE(obj);
     int64_t value = ms->phandle_start;
@@ -181,8 +181,8 @@ static void machine_get_phandle_start(Object *obj, Visitor *v,
 }
 
 static void machine_set_phandle_start(Object *obj, Visitor *v,
-                                       void *opaque, const char *name,
-                                       Error **errp)
+                                      const char *name, void *opaque,
+                                      Error **errp)
 {
     MachineState *ms = MACHINE(obj);
     Error *error = NULL;

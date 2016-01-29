@@ -68,7 +68,7 @@ static const char *q35_host_root_bus_path(PCIHostState *host_bridge,
 }
 
 static void q35_host_get_pci_hole_start(Object *obj, Visitor *v,
-                                        void *opaque, const char *name,
+                                        const char *name, void *opaque,
                                         Error **errp)
 {
     Q35PCIHost *s = Q35_HOST_DEVICE(obj);
@@ -78,7 +78,7 @@ static void q35_host_get_pci_hole_start(Object *obj, Visitor *v,
 }
 
 static void q35_host_get_pci_hole_end(Object *obj, Visitor *v,
-                                      void *opaque, const char *name,
+                                      const char *name, void *opaque,
                                       Error **errp)
 {
     Q35PCIHost *s = Q35_HOST_DEVICE(obj);
@@ -88,7 +88,7 @@ static void q35_host_get_pci_hole_end(Object *obj, Visitor *v,
 }
 
 static void q35_host_get_pci_hole64_start(Object *obj, Visitor *v,
-                                          void *opaque, const char *name,
+                                          const char *name, void *opaque,
                                           Error **errp)
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
@@ -100,7 +100,7 @@ static void q35_host_get_pci_hole64_start(Object *obj, Visitor *v,
 }
 
 static void q35_host_get_pci_hole64_end(Object *obj, Visitor *v,
-                                        void *opaque, const char *name,
+                                        const char *name, void *opaque,
                                         Error **errp)
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
@@ -111,9 +111,8 @@ static void q35_host_get_pci_hole64_end(Object *obj, Visitor *v,
     visit_type_uint64(v, name, &w64.end, errp);
 }
 
-static void q35_host_get_mmcfg_size(Object *obj, Visitor *v,
-                                    void *opaque, const char *name,
-                                    Error **errp)
+static void q35_host_get_mmcfg_size(Object *obj, Visitor *v, const char *name,
+                                    void *opaque, Error **errp)
 {
     PCIExpressHost *e = PCIE_HOST_BRIDGE(obj);
     uint32_t value = e->size;

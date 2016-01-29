@@ -1530,8 +1530,9 @@ static void report_unavailable_features(FeatureWord w, uint32_t mask)
     }
 }
 
-static void x86_cpuid_version_get_family(Object *obj, Visitor *v, void *opaque,
-                                         const char *name, Error **errp)
+static void x86_cpuid_version_get_family(Object *obj, Visitor *v,
+                                         const char *name, void *opaque,
+                                         Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
     CPUX86State *env = &cpu->env;
@@ -1544,8 +1545,9 @@ static void x86_cpuid_version_get_family(Object *obj, Visitor *v, void *opaque,
     visit_type_int(v, name, &value, errp);
 }
 
-static void x86_cpuid_version_set_family(Object *obj, Visitor *v, void *opaque,
-                                         const char *name, Error **errp)
+static void x86_cpuid_version_set_family(Object *obj, Visitor *v,
+                                         const char *name, void *opaque,
+                                         Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
     CPUX86State *env = &cpu->env;
@@ -1573,8 +1575,9 @@ static void x86_cpuid_version_set_family(Object *obj, Visitor *v, void *opaque,
     }
 }
 
-static void x86_cpuid_version_get_model(Object *obj, Visitor *v, void *opaque,
-                                        const char *name, Error **errp)
+static void x86_cpuid_version_get_model(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
     CPUX86State *env = &cpu->env;
@@ -1585,8 +1588,9 @@ static void x86_cpuid_version_get_model(Object *obj, Visitor *v, void *opaque,
     visit_type_int(v, name, &value, errp);
 }
 
-static void x86_cpuid_version_set_model(Object *obj, Visitor *v, void *opaque,
-                                        const char *name, Error **errp)
+static void x86_cpuid_version_set_model(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
     CPUX86State *env = &cpu->env;
@@ -1611,7 +1615,7 @@ static void x86_cpuid_version_set_model(Object *obj, Visitor *v, void *opaque,
 }
 
 static void x86_cpuid_version_get_stepping(Object *obj, Visitor *v,
-                                           void *opaque, const char *name,
+                                           const char *name, void *opaque,
                                            Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
@@ -1623,7 +1627,7 @@ static void x86_cpuid_version_get_stepping(Object *obj, Visitor *v,
 }
 
 static void x86_cpuid_version_set_stepping(Object *obj, Visitor *v,
-                                           void *opaque, const char *name,
+                                           const char *name, void *opaque,
                                            Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
@@ -1719,8 +1723,8 @@ static void x86_cpuid_set_model_id(Object *obj, const char *model_id,
     }
 }
 
-static void x86_cpuid_get_tsc_freq(Object *obj, Visitor *v, void *opaque,
-                                   const char *name, Error **errp)
+static void x86_cpuid_get_tsc_freq(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
     int64_t value;
@@ -1729,8 +1733,8 @@ static void x86_cpuid_get_tsc_freq(Object *obj, Visitor *v, void *opaque,
     visit_type_int(v, name, &value, errp);
 }
 
-static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, void *opaque,
-                                   const char *name, Error **errp)
+static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
     const int64_t min = 0;
@@ -1752,8 +1756,8 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, void *opaque,
     cpu->env.tsc_khz = cpu->env.user_tsc_khz = value / 1000;
 }
 
-static void x86_cpuid_get_apic_id(Object *obj, Visitor *v, void *opaque,
-                                  const char *name, Error **errp)
+static void x86_cpuid_get_apic_id(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
     int64_t value = cpu->apic_id;
@@ -1761,8 +1765,8 @@ static void x86_cpuid_get_apic_id(Object *obj, Visitor *v, void *opaque,
     visit_type_int(v, name, &value, errp);
 }
 
-static void x86_cpuid_set_apic_id(Object *obj, Visitor *v, void *opaque,
-                                  const char *name, Error **errp)
+static void x86_cpuid_set_apic_id(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
     DeviceState *dev = DEVICE(obj);
@@ -1797,8 +1801,9 @@ static void x86_cpuid_set_apic_id(Object *obj, Visitor *v, void *opaque,
 }
 
 /* Generic getter for "feature-words" and "filtered-features" properties */
-static void x86_cpu_get_feature_words(Object *obj, Visitor *v, void *opaque,
-                                      const char *name, Error **errp)
+static void x86_cpu_get_feature_words(Object *obj, Visitor *v,
+                                      const char *name, void *opaque,
+                                      Error **errp)
 {
     uint32_t *array = (uint32_t *)opaque;
     FeatureWord w;
@@ -1826,8 +1831,8 @@ static void x86_cpu_get_feature_words(Object *obj, Visitor *v, void *opaque,
     error_propagate(errp, err);
 }
 
-static void x86_get_hv_spinlocks(Object *obj, Visitor *v, void *opaque,
-                                 const char *name, Error **errp)
+static void x86_get_hv_spinlocks(Object *obj, Visitor *v, const char *name,
+                                 void *opaque, Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
     int64_t value = cpu->hyperv_spinlock_attempts;
@@ -1835,8 +1840,8 @@ static void x86_get_hv_spinlocks(Object *obj, Visitor *v, void *opaque,
     visit_type_int(v, name, &value, errp);
 }
 
-static void x86_set_hv_spinlocks(Object *obj, Visitor *v, void *opaque,
-                                 const char *name, Error **errp)
+static void x86_set_hv_spinlocks(Object *obj, Visitor *v, const char *name,
+                                 void *opaque, Error **errp)
 {
     const int64_t min = 0xFFF;
     const int64_t max = UINT_MAX;
@@ -2944,22 +2949,16 @@ typedef struct BitProperty {
     uint32_t mask;
 } BitProperty;
 
-static void x86_cpu_get_bit_prop(Object *obj,
-                                 Visitor *v,
-                                 void *opaque,
-                                 const char *name,
-                                 Error **errp)
+static void x86_cpu_get_bit_prop(Object *obj, Visitor *v, const char *name,
+                                 void *opaque, Error **errp)
 {
     BitProperty *fp = opaque;
     bool value = (*fp->ptr & fp->mask) == fp->mask;
     visit_type_bool(v, name, &value, errp);
 }
 
-static void x86_cpu_set_bit_prop(Object *obj,
-                                 Visitor *v,
-                                 void *opaque,
-                                 const char *name,
-                                 Error **errp)
+static void x86_cpu_set_bit_prop(Object *obj, Visitor *v, const char *name,
+                                 void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     BitProperty *fp = opaque;

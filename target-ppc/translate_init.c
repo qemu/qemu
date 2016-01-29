@@ -8035,8 +8035,8 @@ POWERPC_FAMILY(POWER5P)(ObjectClass *oc, void *data)
     pcc->l1_icache_size = 0x10000;
 }
 
-static void powerpc_get_compat(Object *obj, Visitor *v,
-                               void *opaque, const char *name, Error **errp)
+static void powerpc_get_compat(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
 {
     char *value = (char *)"";
     Property *prop = opaque;
@@ -8063,8 +8063,8 @@ static void powerpc_get_compat(Object *obj, Visitor *v,
     visit_type_str(v, name, &value, errp);
 }
 
-static void powerpc_set_compat(Object *obj, Visitor *v,
-                               void *opaque, const char *name, Error **errp)
+static void powerpc_set_compat(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
 {
     Error *error = NULL;
     char *value = NULL;

@@ -1741,8 +1741,9 @@ static HotplugHandler *pc_get_hotpug_handler(MachineState *machine,
 }
 
 static void
-pc_machine_get_hotplug_memory_region_size(Object *obj, Visitor *v, void *opaque,
-                                          const char *name, Error **errp)
+pc_machine_get_hotplug_memory_region_size(Object *obj, Visitor *v,
+                                          const char *name, void *opaque,
+                                          Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
     int64_t value = memory_region_size(&pcms->hotplug_memory.mr);
@@ -1751,8 +1752,8 @@ pc_machine_get_hotplug_memory_region_size(Object *obj, Visitor *v, void *opaque,
 }
 
 static void pc_machine_get_max_ram_below_4g(Object *obj, Visitor *v,
-                                         void *opaque, const char *name,
-                                         Error **errp)
+                                            const char *name, void *opaque,
+                                            Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
     uint64_t value = pcms->max_ram_below_4g;
@@ -1761,8 +1762,8 @@ static void pc_machine_get_max_ram_below_4g(Object *obj, Visitor *v,
 }
 
 static void pc_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
-                                         void *opaque, const char *name,
-                                         Error **errp)
+                                            const char *name, void *opaque,
+                                            Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
     Error *error = NULL;
@@ -1790,8 +1791,8 @@ static void pc_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
     pcms->max_ram_below_4g = value;
 }
 
-static void pc_machine_get_vmport(Object *obj, Visitor *v, void *opaque,
-                                  const char *name, Error **errp)
+static void pc_machine_get_vmport(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
     OnOffAuto vmport = pcms->vmport;
@@ -1799,8 +1800,8 @@ static void pc_machine_get_vmport(Object *obj, Visitor *v, void *opaque,
     visit_type_OnOffAuto(v, name, &vmport, errp);
 }
 
-static void pc_machine_set_vmport(Object *obj, Visitor *v, void *opaque,
-                                  const char *name, Error **errp)
+static void pc_machine_set_vmport(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
@@ -1832,8 +1833,8 @@ bool pc_machine_is_smm_enabled(PCMachineState *pcms)
     return false;
 }
 
-static void pc_machine_get_smm(Object *obj, Visitor *v, void *opaque,
-                              const char *name, Error **errp)
+static void pc_machine_get_smm(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
     OnOffAuto smm = pcms->smm;
@@ -1841,8 +1842,8 @@ static void pc_machine_get_smm(Object *obj, Visitor *v, void *opaque,
     visit_type_OnOffAuto(v, name, &smm, errp);
 }
 
-static void pc_machine_set_smm(Object *obj, Visitor *v, void *opaque,
-                                  const char *name, Error **errp)
+static void pc_machine_set_smm(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 

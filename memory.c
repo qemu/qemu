@@ -928,8 +928,8 @@ void memory_region_init(MemoryRegion *mr,
     }
 }
 
-static void memory_region_get_addr(Object *obj, Visitor *v, void *opaque,
-                                   const char *name, Error **errp)
+static void memory_region_get_addr(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
 {
     MemoryRegion *mr = MEMORY_REGION(obj);
     uint64_t value = mr->addr;
@@ -937,8 +937,9 @@ static void memory_region_get_addr(Object *obj, Visitor *v, void *opaque,
     visit_type_uint64(v, name, &value, errp);
 }
 
-static void memory_region_get_container(Object *obj, Visitor *v, void *opaque,
-                                        const char *name, Error **errp)
+static void memory_region_get_container(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
 {
     MemoryRegion *mr = MEMORY_REGION(obj);
     gchar *path = (gchar *)"";
@@ -960,8 +961,9 @@ static Object *memory_region_resolve_container(Object *obj, void *opaque,
     return OBJECT(mr->container);
 }
 
-static void memory_region_get_priority(Object *obj, Visitor *v, void *opaque,
-                                       const char *name, Error **errp)
+static void memory_region_get_priority(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
 {
     MemoryRegion *mr = MEMORY_REGION(obj);
     int32_t value = mr->priority;
@@ -976,8 +978,8 @@ static bool memory_region_get_may_overlap(Object *obj, Error **errp)
     return mr->may_overlap;
 }
 
-static void memory_region_get_size(Object *obj, Visitor *v, void *opaque,
-                                   const char *name, Error **errp)
+static void memory_region_get_size(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
 {
     MemoryRegion *mr = MEMORY_REGION(obj);
     uint64_t value = memory_region_size(mr);

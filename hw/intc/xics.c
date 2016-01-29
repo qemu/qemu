@@ -89,8 +89,8 @@ static void xics_common_reset(DeviceState *d)
     device_reset(DEVICE(icp->ics));
 }
 
-static void xics_prop_get_nr_irqs(Object *obj, Visitor *v,
-                                  void *opaque, const char *name, Error **errp)
+static void xics_prop_get_nr_irqs(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     XICSState *icp = XICS_COMMON(obj);
     int64_t value = icp->nr_irqs;
@@ -98,8 +98,8 @@ static void xics_prop_get_nr_irqs(Object *obj, Visitor *v,
     visit_type_int(v, name, &value, errp);
 }
 
-static void xics_prop_set_nr_irqs(Object *obj, Visitor *v,
-                                  void *opaque, const char *name, Error **errp)
+static void xics_prop_set_nr_irqs(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     XICSState *icp = XICS_COMMON(obj);
     XICSStateClass *info = XICS_COMMON_GET_CLASS(icp);
@@ -123,7 +123,7 @@ static void xics_prop_set_nr_irqs(Object *obj, Visitor *v,
 }
 
 static void xics_prop_get_nr_servers(Object *obj, Visitor *v,
-                                     void *opaque, const char *name,
+                                     const char *name, void *opaque,
                                      Error **errp)
 {
     XICSState *icp = XICS_COMMON(obj);
@@ -133,7 +133,7 @@ static void xics_prop_get_nr_servers(Object *obj, Visitor *v,
 }
 
 static void xics_prop_set_nr_servers(Object *obj, Visitor *v,
-                                     void *opaque, const char *name,
+                                     const char *name, void *opaque,
                                      Error **errp)
 {
     XICSState *icp = XICS_COMMON(obj);

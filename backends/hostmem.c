@@ -27,8 +27,8 @@ QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_INTERLEAVE != MPOL_INTERLEAVE);
 #endif
 
 static void
-host_memory_backend_get_size(Object *obj, Visitor *v, void *opaque,
-                             const char *name, Error **errp)
+host_memory_backend_get_size(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
     uint64_t value = backend->size;
@@ -37,8 +37,8 @@ host_memory_backend_get_size(Object *obj, Visitor *v, void *opaque,
 }
 
 static void
-host_memory_backend_set_size(Object *obj, Visitor *v, void *opaque,
-                             const char *name, Error **errp)
+host_memory_backend_set_size(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
     Error *local_err = NULL;
@@ -64,8 +64,8 @@ out:
 }
 
 static void
-host_memory_backend_get_host_nodes(Object *obj, Visitor *v, void *opaque,
-                                   const char *name, Error **errp)
+host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
     uint16List *host_nodes = NULL;
@@ -96,8 +96,8 @@ host_memory_backend_get_host_nodes(Object *obj, Visitor *v, void *opaque,
 }
 
 static void
-host_memory_backend_set_host_nodes(Object *obj, Visitor *v, void *opaque,
-                                   const char *name, Error **errp)
+host_memory_backend_set_host_nodes(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
 {
 #ifdef CONFIG_NUMA
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);

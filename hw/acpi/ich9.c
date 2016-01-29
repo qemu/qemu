@@ -283,9 +283,8 @@ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
     }
 }
 
-static void ich9_pm_get_gpe0_blk(Object *obj, Visitor *v,
-                                 void *opaque, const char *name,
-                                 Error **errp)
+static void ich9_pm_get_gpe0_blk(Object *obj, Visitor *v, const char *name,
+                                 void *opaque, Error **errp)
 {
     ICH9LPCPMRegs *pm = opaque;
     uint32_t value = pm->pm_io_base + ICH9_PMIO_GPE0_STS;
@@ -308,9 +307,8 @@ static void ich9_pm_set_memory_hotplug_support(Object *obj, bool value,
     s->pm.acpi_memory_hotplug.is_enabled = value;
 }
 
-static void ich9_pm_get_disable_s3(Object *obj, Visitor *v,
-                                   void *opaque, const char *name,
-                                   Error **errp)
+static void ich9_pm_get_disable_s3(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
 {
     ICH9LPCPMRegs *pm = opaque;
     uint8_t value = pm->disable_s3;
@@ -318,9 +316,8 @@ static void ich9_pm_get_disable_s3(Object *obj, Visitor *v,
     visit_type_uint8(v, name, &value, errp);
 }
 
-static void ich9_pm_set_disable_s3(Object *obj, Visitor *v,
-                                   void *opaque, const char *name,
-                                   Error **errp)
+static void ich9_pm_set_disable_s3(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
 {
     ICH9LPCPMRegs *pm = opaque;
     Error *local_err = NULL;
@@ -335,9 +332,8 @@ out:
     error_propagate(errp, local_err);
 }
 
-static void ich9_pm_get_disable_s4(Object *obj, Visitor *v,
-                                   void *opaque, const char *name,
-                                   Error **errp)
+static void ich9_pm_get_disable_s4(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
 {
     ICH9LPCPMRegs *pm = opaque;
     uint8_t value = pm->disable_s4;
@@ -345,9 +341,8 @@ static void ich9_pm_get_disable_s4(Object *obj, Visitor *v,
     visit_type_uint8(v, name, &value, errp);
 }
 
-static void ich9_pm_set_disable_s4(Object *obj, Visitor *v,
-                                   void *opaque, const char *name,
-                                   Error **errp)
+static void ich9_pm_set_disable_s4(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
 {
     ICH9LPCPMRegs *pm = opaque;
     Error *local_err = NULL;
@@ -362,9 +357,8 @@ out:
     error_propagate(errp, local_err);
 }
 
-static void ich9_pm_get_s4_val(Object *obj, Visitor *v,
-                               void *opaque, const char *name,
-                               Error **errp)
+static void ich9_pm_get_s4_val(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
 {
     ICH9LPCPMRegs *pm = opaque;
     uint8_t value = pm->s4_val;
@@ -372,9 +366,8 @@ static void ich9_pm_get_s4_val(Object *obj, Visitor *v,
     visit_type_uint8(v, name, &value, errp);
 }
 
-static void ich9_pm_set_s4_val(Object *obj, Visitor *v,
-                               void *opaque, const char *name,
-                               Error **errp)
+static void ich9_pm_set_s4_val(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
 {
     ICH9LPCPMRegs *pm = opaque;
     Error *local_err = NULL;

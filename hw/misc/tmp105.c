@@ -53,8 +53,8 @@ static void tmp105_alarm_update(TMP105State *s)
     tmp105_interrupt_update(s);
 }
 
-static void tmp105_get_temperature(Object *obj, Visitor *v, void *opaque,
-                                   const char *name, Error **errp)
+static void tmp105_get_temperature(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
 {
     TMP105State *s = TMP105(obj);
     int64_t value = s->temperature * 1000 / 256;
@@ -65,8 +65,8 @@ static void tmp105_get_temperature(Object *obj, Visitor *v, void *opaque,
 /* Units are 0.001 centigrades relative to 0 C.  s->temperature is 8.8
  * fixed point, so units are 1/256 centigrades.  A simple ratio will do.
  */
-static void tmp105_set_temperature(Object *obj, Visitor *v, void *opaque,
-                                   const char *name, Error **errp)
+static void tmp105_set_temperature(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
 {
     TMP105State *s = TMP105(obj);
     Error *local_err = NULL;

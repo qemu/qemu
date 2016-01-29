@@ -290,16 +290,16 @@ typedef struct InterfaceInfo InterfaceInfo;
  * ObjectPropertyAccessor:
  * @obj: the object that owns the property
  * @v: the visitor that contains the property data
- * @opaque: the object property opaque
  * @name: the name of the property
+ * @opaque: the object property opaque
  * @errp: a pointer to an Error that is filled if getting/setting fails.
  *
  * Called when trying to get/set a property.
  */
 typedef void (ObjectPropertyAccessor)(Object *obj,
                                       Visitor *v,
-                                      void *opaque,
                                       const char *name,
+                                      void *opaque,
                                       Error **errp);
 
 /**

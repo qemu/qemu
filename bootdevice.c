@@ -271,15 +271,15 @@ typedef struct {
     DeviceState *dev;
 } BootIndexProperty;
 
-static void device_get_bootindex(Object *obj, Visitor *v, void *opaque,
-                                 const char *name, Error **errp)
+static void device_get_bootindex(Object *obj, Visitor *v, const char *name,
+                                 void *opaque, Error **errp)
 {
     BootIndexProperty *prop = opaque;
     visit_type_int32(v, name, prop->bootindex, errp);
 }
 
-static void device_set_bootindex(Object *obj, Visitor *v, void *opaque,
-                                 const char *name, Error **errp)
+static void device_set_bootindex(Object *obj, Visitor *v, const char *name,
+                                 void *opaque, Error **errp)
 {
     BootIndexProperty *prop = opaque;
     int32_t boot_index;
