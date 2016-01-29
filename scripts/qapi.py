@@ -2,7 +2,7 @@
 # QAPI helper library
 #
 # Copyright IBM, Corp. 2011
-# Copyright (c) 2013-2015 Red Hat Inc.
+# Copyright (c) 2013-2016 Red Hat Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
@@ -1649,7 +1649,7 @@ def gen_visit_fields(members, prefix='', need_cast=False, skiperr=False):
     if (visit_optional(v, &%(prefix)shas_%(c_name)s, "%(name)s")) {
 ''',
                          prefix=prefix, c_name=c_name(memb.name),
-                         name=memb.name, errp=errparg)
+                         name=memb.name)
             push_indent()
 
         # Ugly: sometimes we need to cast away const
