@@ -1,0 +1,186 @@
+#!/bin/bash
+#
+# Test case for ejecting BDSs with block jobs still running on them
+#
+# Copyright (C) 2016 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    rm -f "$TEST_DIR/{b,m,o}.$IMGFMT"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+# Needs backing file and backing format support
+_supported_fmt qcow2 qed
+_supported_proto file
+_supported_os Linux
+
+
+test_blockjob()
+{
+    _send_qemu_cmd $QEMU_HANDLE \
+        "{'execute': 'blockdev-add',
+          'arguments': {
+              'options': {
+                  'id': 'drv0',
+                  'driver': '$IMGFMT',
+                  'file': {
+                      'driver': 'file',
+                      'filename': '$TEST_IMG'
+                  }}}}" \
+        'return'
+
+    _send_qemu_cmd $QEMU_HANDLE \
+        "$1" \
+        "$2" \
+        | _filter_img_create
+
+    # We want this to return an error because the block job is still running
+    _send_qemu_cmd $QEMU_HANDLE \
+        "{'execute': 'x-blockdev-remove-medium',
+          'arguments': {'device': 'drv0'}}" \
+        'error'
+
+    _send_qemu_cmd $QEMU_HANDLE \
+        "{'execute': 'block-job-cancel',
+          'arguments': {'device': 'drv0'}}" \
+        "$3"
+
+    _send_qemu_cmd $QEMU_HANDLE \
+        "{'execute': 'x-blockdev-del',
+          'arguments': {'id': 'drv0'}}" \
+        'return'
+}
+
+
+TEST_IMG="$TEST_DIR/b.$IMGFMT" _make_test_img 1M
+TEST_IMG="$TEST_DIR/m.$IMGFMT" _make_test_img -b "$TEST_DIR/b.$IMGFMT" 1M
+_make_test_img -b "$TEST_DIR/m.$IMGFMT" 1M
+
+_launch_qemu -nodefaults
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'qmp_capabilities'}" \
+    'return'
+
+echo
+echo '=== Testing drive-backup ==='
+echo
+
+# drive-backup will not send BLOCK_JOB_READY by itself, and cancelling the job
+# will consequently result in BLOCK_JOB_CANCELLED being emitted.
+
+test_blockjob \
+    "{'execute': 'drive-backup',
+      'arguments': {'device': 'drv0',
+                    'target': '$TEST_DIR/o.$IMGFMT',
+                    'format': '$IMGFMT',
+                    'sync': 'none'}}" \
+    'return' \
+    'BLOCK_JOB_CANCELLED'
+
+echo
+echo '=== Testing drive-mirror ==='
+echo
+
+# drive-mirror will send BLOCK_JOB_READY basically immediately, and cancelling
+# the job will consequently result in BLOCK_JOB_COMPLETED being emitted.
+
+test_blockjob \
+    "{'execute': 'drive-mirror',
+      'arguments': {'device': 'drv0',
+                    'target': '$TEST_DIR/o.$IMGFMT',
+                    'format': '$IMGFMT',
+                    'sync': 'none'}}" \
+    'BLOCK_JOB_READY' \
+    'BLOCK_JOB_COMPLETED'
+
+echo
+echo '=== Testing active block-commit ==='
+echo
+
+# An active block-commit will send BLOCK_JOB_READY basically immediately, and
+# cancelling the job will consequently result in BLOCK_JOB_COMPLETED being
+# emitted.
+
+test_blockjob \
+    "{'execute': 'block-commit',
+      'arguments': {'device': 'drv0'}}" \
+    'BLOCK_JOB_READY' \
+    'BLOCK_JOB_COMPLETED'
+
+echo
+echo '=== Testing non-active block-commit ==='
+echo
+
+# Give block-commit something to work on, otherwise it would be done
+# immediately, send a BLOCK_JOB_COMPLETED and ejecting the BDS would work just
+# fine without the block job still running.
+
+$QEMU_IO -c 'write 0 1M' "$TEST_DIR/m.$IMGFMT" | _filter_qemu_io
+
+test_blockjob \
+    "{'execute': 'block-commit',
+      'arguments': {'device': 'drv0',
+                    'top':    '$TEST_DIR/m.$IMGFMT',
+                    'speed':  1}}" \
+    'return' \
+    'BLOCK_JOB_CANCELLED'
+
+echo
+echo '=== Testing block-stream ==='
+echo
+
+# Give block-stream something to work on, otherwise it would be done
+# immediately, send a BLOCK_JOB_COMPLETED and ejecting the BDS would work just
+# fine without the block job still running.
+
+$QEMU_IO -c 'write 0 1M' "$TEST_DIR/b.$IMGFMT" | _filter_qemu_io
+
+# With some data to stream (and @speed set to 1), block-stream will not complete
+# until we send the block-job-cancel command. Therefore, no event other than
+# BLOCK_JOB_CANCELLED will be emitted.
+
+test_blockjob \
+    "{'execute': 'block-stream',
+      'arguments': {'device': 'drv0',
+                    'speed': 1}}" \
+    'return' \
+    'BLOCK_JOB_CANCELLED'
+
+_cleanup_qemu
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
