@@ -658,32 +658,6 @@ static inline void ppc4xx_tlb_invalidate_all(CPUPPCState *env)
     tlb_flush(CPU(cpu), 1);
 }
 
-static inline void ppc4xx_tlb_invalidate_virt(CPUPPCState *env,
-                                              target_ulong eaddr, uint32_t pid)
-{
-#if !defined(FLUSH_ALL_TLBS)
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
-    ppcemb_tlb_t *tlb;
-    hwaddr raddr;
-    target_ulong page, end;
-    int i;
-
-    for (i = 0; i < env->nb_tlb; i++) {
-        tlb = &env->tlb.tlbe[i];
-        if (ppcemb_tlb_check(env, tlb, &raddr, eaddr, pid, 0, i) == 0) {
-            end = tlb->EPN + tlb->size;
-            for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE) {
-                tlb_flush_page(cs, page);
-            }
-            tlb->prot &= ~PAGE_VALID;
-            break;
-        }
-    }
-#else
-    ppc4xx_tlb_invalidate_all(env);
-#endif
-}
-
 static int mmu40x_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
                                        target_ulong address, int rw,
                                        int access_type)
@@ -1972,24 +1946,9 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
             ppc6xx_tlb_invalidate_virt(env, addr, 1);
         }
         break;
-    case POWERPC_MMU_SOFT_4xx:
-    case POWERPC_MMU_SOFT_4xx_Z:
-        ppc4xx_tlb_invalidate_virt(env, addr, env->spr[SPR_40x_PID]);
-        break;
-    case POWERPC_MMU_REAL:
-        cpu_abort(CPU(cpu), "No TLB for PowerPC 4xx in real mode\n");
-        break;
-    case POWERPC_MMU_MPC8xx:
-        /* XXX: TODO */
-        cpu_abort(CPU(cpu), "MPC8xx MMU model is not implemented\n");
-        break;
     case POWERPC_MMU_BOOKE:
         /* XXX: TODO */
         cpu_abort(CPU(cpu), "BookE MMU model is not implemented\n");
-        break;
-    case POWERPC_MMU_BOOKE206:
-        /* XXX: TODO */
-        cpu_abort(CPU(cpu), "BookE 2.06 MMU model is not implemented\n");
         break;
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
@@ -2032,9 +1991,8 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
         break;
 #endif /* defined(TARGET_PPC64) */
     default:
-        /* XXX: TODO */
-        cpu_abort(CPU(cpu), "Unknown MMU model\n");
-        break;
+        /* Should never reach here with other MMU models */
+        assert(0);
     }
 #else
     ppc_tlb_invalidate_all(env);
