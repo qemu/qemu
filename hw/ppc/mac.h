@@ -134,7 +134,6 @@ typedef struct MACIOIDEState {
 
     MemoryRegion mem;
     IDEBus bus;
-    BlockAIOCB *aiocb;
     IDEDMA dma;
     void *dbdma;
     bool dma_active;
