@@ -70,7 +70,12 @@ typedef struct VRing
 struct VirtQueue
 {
     VRing vring;
+
+    /* Next head to pop */
     uint16_t last_avail_idx;
+
+    /* Last avail_idx read from VQ. */
+    uint16_t shadow_avail_idx;
 
     uint16_t used_idx;
 
@@ -132,7 +137,8 @@ static inline uint16_t vring_avail_idx(VirtQueue *vq)
 {
     hwaddr pa;
     pa = vq->vring.avail + offsetof(VRingAvail, idx);
-    return virtio_lduw_phys(vq->vdev, pa);
+    vq->shadow_avail_idx = virtio_lduw_phys(vq->vdev, pa);
+    return vq->shadow_avail_idx;
 }
 
 static inline uint16_t vring_avail_ring(VirtQueue *vq, int i)
@@ -223,8 +229,14 @@ int virtio_queue_ready(VirtQueue *vq)
     return vq->vring.avail != 0;
 }
 
+/* Fetch avail_idx from VQ memory only when we really need to know if
+ * guest has added some buffers. */
 int virtio_queue_empty(VirtQueue *vq)
 {
+    if (vq->shadow_avail_idx != vq->last_avail_idx) {
+        return 0;
+    }
+
     return vring_avail_idx(vq) == vq->last_avail_idx;
 }
 
@@ -300,7 +312,7 @@ static int virtqueue_num_heads(VirtQueue *vq, unsigned int idx)
     /* Check it isn't doing very strange things with descriptor numbers. */
     if (num_heads > vq->vring.num) {
         error_report("Guest moved used index from %u to %u",
-                     idx, vring_avail_idx(vq));
+                     idx, vq->shadow_avail_idx);
         exit(1);
     }
     /* On success, callers read a descriptor at vq->last_avail_idx.
@@ -535,9 +547,12 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     struct iovec iov[VIRTQUEUE_MAX_SIZE];
     VRingDesc desc;
 
-    if (!virtqueue_num_heads(vq, vq->last_avail_idx)) {
+    if (virtio_queue_empty(vq)) {
         return NULL;
     }
+    /* Needed after virtio_queue_empty(), see comment in
+     * virtqueue_num_heads(). */
+    smp_rmb();
 
     /* When we start there are none of either input nor output. */
     out_num = in_num = 0;
@@ -786,6 +801,7 @@ void virtio_reset(void *opaque)
         vdev->vq[i].vring.avail = 0;
         vdev->vq[i].vring.used = 0;
         vdev->vq[i].last_avail_idx = 0;
+        vdev->vq[i].shadow_avail_idx = 0;
         vdev->vq[i].used_idx = 0;
         virtio_queue_set_vector(vdev, i, VIRTIO_NO_VECTOR);
         vdev->vq[i].signalled_used = 0;
@@ -1155,7 +1171,7 @@ static bool vring_notify(VirtIODevice *vdev, VirtQueue *vq)
     smp_mb();
     /* Always notify when queue is empty (when feature acknowledge) */
     if (virtio_vdev_has_feature(vdev, VIRTIO_F_NOTIFY_ON_EMPTY) &&
-        !vq->inuse && vring_avail_idx(vq) == vq->last_avail_idx) {
+        !vq->inuse && virtio_queue_empty(vq)) {
         return true;
     }
 
@@ -1579,6 +1595,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
                 return -1;
             }
             vdev->vq[i].used_idx = vring_used_idx(&vdev->vq[i]);
+            vdev->vq[i].shadow_avail_idx = vring_avail_idx(&vdev->vq[i]);
         }
     }
 
@@ -1714,6 +1731,7 @@ uint16_t virtio_queue_get_last_avail_idx(VirtIODevice *vdev, int n)
 void virtio_queue_set_last_avail_idx(VirtIODevice *vdev, int n, uint16_t idx)
 {
     vdev->vq[n].last_avail_idx = idx;
+    vdev->vq[n].shadow_avail_idx = idx;
 }
 
 void virtio_queue_invalidate_signalled_used(VirtIODevice *vdev, int n)
