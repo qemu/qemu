@@ -1566,6 +1566,12 @@ L: qemu-block@nongnu.org
 S: Supported
 F: tests/image-fuzzer/
 
+Build and test automation
+-------------------------
+M: Alex Bennée <alex.bennee@linaro.org>
+L: qemu-devel@nongnu.org
+S: Supported
+F: .travis.yml
 
 Documentation
 -------------
