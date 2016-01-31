@@ -71,6 +71,9 @@ struct VirtQueue
 {
     VRing vring;
     uint16_t last_avail_idx;
+
+    uint16_t used_idx;
+
     /* Last used index value we have signalled on */
     uint16_t signalled_used;
 
@@ -170,6 +173,7 @@ static inline void vring_used_idx_set(VirtQueue *vq, uint16_t val)
     hwaddr pa;
     pa = vq->vring.used + offsetof(VRingUsed, idx);
     virtio_stw_phys(vq->vdev, pa, val);
+    vq->used_idx = val;
 }
 
 static inline void vring_used_flags_set_bit(VirtQueue *vq, int mask)
@@ -261,7 +265,7 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
 
     virtqueue_unmap_sg(vq, elem, len);
 
-    idx = (idx + vring_used_idx(vq)) % vq->vring.num;
+    idx = (idx + vq->used_idx) % vq->vring.num;
 
     /* Get a pointer to the next entry in the used ring. */
     vring_used_ring_id(vq, idx, elem->index);
@@ -274,7 +278,7 @@ void virtqueue_flush(VirtQueue *vq, unsigned int count)
     /* Make sure buffer is written before we update index. */
     smp_wmb();
     trace_virtqueue_flush(vq, count);
-    old = vring_used_idx(vq);
+    old = vq->used_idx;
     new = old + count;
     vring_used_idx_set(vq, new);
     vq->inuse -= count;
@@ -782,6 +786,7 @@ void virtio_reset(void *opaque)
         vdev->vq[i].vring.avail = 0;
         vdev->vq[i].vring.used = 0;
         vdev->vq[i].last_avail_idx = 0;
+        vdev->vq[i].used_idx = 0;
         virtio_queue_set_vector(vdev, i, VIRTIO_NO_VECTOR);
         vdev->vq[i].signalled_used = 0;
         vdev->vq[i].signalled_used_valid = false;
@@ -1161,7 +1166,7 @@ static bool vring_notify(VirtIODevice *vdev, VirtQueue *vq)
     v = vq->signalled_used_valid;
     vq->signalled_used_valid = true;
     old = vq->signalled_used;
-    new = vq->signalled_used = vring_used_idx(vq);
+    new = vq->signalled_used = vq->used_idx;
     return !v || vring_need_event(vring_get_used_event(vq), new, old);
 }
 
@@ -1573,6 +1578,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
                              vdev->vq[i].last_avail_idx, nheads);
                 return -1;
             }
+            vdev->vq[i].used_idx = vring_used_idx(&vdev->vq[i]);
         }
     }
 
