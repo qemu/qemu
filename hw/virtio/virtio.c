@@ -153,18 +153,15 @@ static inline uint16_t vring_get_used_event(VirtQueue *vq)
     return vring_avail_ring(vq, vq->vring.num);
 }
 
-static inline void vring_used_ring_id(VirtQueue *vq, int i, uint32_t val)
+static inline void vring_used_write(VirtQueue *vq, VRingUsedElem *uelem,
+                                    int i)
 {
     hwaddr pa;
-    pa = vq->vring.used + offsetof(VRingUsed, ring[i].id);
-    virtio_stl_phys(vq->vdev, pa, val);
-}
-
-static inline void vring_used_ring_len(VirtQueue *vq, int i, uint32_t val)
-{
-    hwaddr pa;
-    pa = vq->vring.used + offsetof(VRingUsed, ring[i].len);
-    virtio_stl_phys(vq->vdev, pa, val);
+    virtio_tswap32s(vq->vdev, &uelem->id);
+    virtio_tswap32s(vq->vdev, &uelem->len);
+    pa = vq->vring.used + offsetof(VRingUsed, ring[i]);
+    address_space_write(&address_space_memory, pa, MEMTXATTRS_UNSPECIFIED,
+                       (void *)uelem, sizeof(VRingUsedElem));
 }
 
 static uint16_t vring_used_idx(VirtQueue *vq)
@@ -273,15 +270,17 @@ void virtqueue_discard(VirtQueue *vq, const VirtQueueElement *elem,
 void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len, unsigned int idx)
 {
+    VRingUsedElem uelem;
+
     trace_virtqueue_fill(vq, elem, len, idx);
 
     virtqueue_unmap_sg(vq, elem, len);
 
     idx = (idx + vq->used_idx) % vq->vring.num;
 
-    /* Get a pointer to the next entry in the used ring. */
-    vring_used_ring_id(vq, idx, elem->index);
-    vring_used_ring_len(vq, idx, len);
+    uelem.id = elem->index;
+    uelem.len = len;
+    vring_used_write(vq, &uelem, idx);
 }
 
 void virtqueue_flush(VirtQueue *vq, unsigned int count)
