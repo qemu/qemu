@@ -153,6 +153,8 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
 
 void virtqueue_map(VirtQueueElement *elem);
 void *virtqueue_pop(VirtQueue *vq, size_t sz);
+void *qemu_get_virtqueue_element(QEMUFile *f, size_t sz);
+void qemu_put_virtqueue_element(QEMUFile *f, VirtQueueElement *elem);
 int virtqueue_avail_bytes(VirtQueue *vq, unsigned int in_bytes,
                           unsigned int out_bytes);
 void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,

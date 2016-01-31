@@ -646,9 +646,7 @@ static void virtio_serial_save_device(VirtIODevice *vdev, QEMUFile *f)
         if (elem_popped) {
             qemu_put_be32s(f, &port->iov_idx);
             qemu_put_be64s(f, &port->iov_offset);
-
-            qemu_put_buffer(f, (unsigned char *)port->elem,
-                            sizeof(VirtQueueElement));
+            qemu_put_virtqueue_element(f, port->elem);
         }
     }
 }
@@ -723,10 +721,8 @@ static int fetch_active_ports_list(QEMUFile *f, int version_id,
                 qemu_get_be32s(f, &port->iov_idx);
                 qemu_get_be64s(f, &port->iov_offset);
 
-                port->elem = g_new(VirtQueueElement, 1);
-                qemu_get_buffer(f, (unsigned char *)port->elem,
-                                sizeof(VirtQueueElement));
-                virtqueue_map(port->elem);
+                port->elem =
+                    qemu_get_virtqueue_element(f, sizeof(VirtQueueElement));
 
                 /*
                  *  Port was throttled on source machine.  Let's

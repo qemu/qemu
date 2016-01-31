@@ -576,6 +576,19 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     return elem;
 }
 
+void *qemu_get_virtqueue_element(QEMUFile *f, size_t sz)
+{
+    VirtQueueElement *elem = g_malloc(sz);
+    qemu_get_buffer(f, (uint8_t *)elem, sizeof(VirtQueueElement));
+    virtqueue_map(elem);
+    return elem;
+}
+
+void qemu_put_virtqueue_element(QEMUFile *f, VirtQueueElement *elem)
+{
+    qemu_put_buffer(f, (uint8_t *)elem, sizeof(VirtQueueElement));
+}
+
 /* virtio device */
 static void virtio_notify_vector(VirtIODevice *vdev, uint16_t vector)
 {

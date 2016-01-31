@@ -189,7 +189,7 @@ static void virtio_scsi_save_request(QEMUFile *f, SCSIRequest *sreq)
 
     assert(n < vs->conf.num_queues);
     qemu_put_be32s(f, &n);
-    qemu_put_buffer(f, (unsigned char *)&req->elem, sizeof(req->elem));
+    qemu_put_virtqueue_element(f, &req->elem);
 }
 
 static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
@@ -202,11 +202,8 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
 
     qemu_get_be32s(f, &n);
     assert(n < vs->conf.num_queues);
-    req = g_malloc(sizeof(VirtIOSCSIReq) + vs->cdb_size);
-    qemu_get_buffer(f, (unsigned char *)&req->elem, sizeof(req->elem));
+    req = qemu_get_virtqueue_element(f, sizeof(VirtIOSCSIReq) + vs->cdb_size);
     virtio_scsi_init_req(s, vs->cmd_vqs[n], req);
-
-    virtqueue_map(&req->elem);
 
     if (virtio_scsi_parse_req(req, sizeof(VirtIOSCSICmdReq) + vs->cdb_size,
                               sizeof(VirtIOSCSICmdResp) + vs->sense_size) < 0) {
