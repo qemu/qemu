@@ -45,8 +45,7 @@ VirtIOSCSIReq *virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq)
 {
     VirtIOSCSIReq *req;
     VirtIOSCSICommon *vs = (VirtIOSCSICommon *)s;
-    const size_t zero_skip = offsetof(VirtIOSCSIReq, elem)
-                             + sizeof(VirtQueueElement);
+    const size_t zero_skip = offsetof(VirtIOSCSIReq, vring);
 
     req = g_malloc(sizeof(*req) + vs->cdb_size);
     req->vq = vq;

@@ -112,18 +112,17 @@ typedef struct VirtIOSCSI {
 } VirtIOSCSI;
 
 typedef struct VirtIOSCSIReq {
+    /* Note:
+     * - fields up to resp_iov are initialized by virtio_scsi_init_req;
+     * - fields starting at vring are zeroed by virtio_scsi_init_req.
+     * */
+    VirtQueueElement elem;
+
     VirtIOSCSI *dev;
     VirtQueue *vq;
     QEMUSGList qsgl;
     QEMUIOVector resp_iov;
 
-    /* Note:
-     * - fields before elem are initialized by virtio_scsi_init_req;
-     * - elem is uninitialized at the time of allocation.
-     * - fields after elem are zeroed by virtio_scsi_init_req.
-     * */
-
-    VirtQueueElement elem;
     /* Set by dataplane code. */
     VirtIOSCSIVring *vring;
 

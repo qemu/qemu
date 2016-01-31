@@ -60,9 +60,9 @@ typedef struct VirtIOBlock {
 } VirtIOBlock;
 
 typedef struct VirtIOBlockReq {
+    VirtQueueElement elem;
     int64_t sector_num;
     VirtIOBlock *dev;
-    VirtQueueElement elem;
     struct virtio_blk_inhdr *in;
     struct virtio_blk_outhdr out;
     QEMUIOVector qiov;
