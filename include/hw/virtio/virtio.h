@@ -46,10 +46,10 @@ typedef struct VirtQueueElement
     unsigned int index;
     unsigned int out_num;
     unsigned int in_num;
-    hwaddr in_addr[VIRTQUEUE_MAX_SIZE];
-    hwaddr out_addr[VIRTQUEUE_MAX_SIZE];
-    struct iovec in_sg[VIRTQUEUE_MAX_SIZE];
-    struct iovec out_sg[VIRTQUEUE_MAX_SIZE];
+    hwaddr *in_addr;
+    hwaddr *out_addr;
+    struct iovec *in_sg;
+    struct iovec *out_sg;
 } VirtQueueElement;
 
 #define VIRTIO_QUEUE_MAX 1024
@@ -143,6 +143,7 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
 
 void virtio_del_queue(VirtIODevice *vdev, int n);
 
+void *virtqueue_alloc_element(size_t sz, unsigned out_num, unsigned in_num);
 void virtqueue_push(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len);
 void virtqueue_flush(VirtQueue *vq, unsigned int count);

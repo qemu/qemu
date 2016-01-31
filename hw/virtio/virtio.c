@@ -494,11 +494,30 @@ static void virtqueue_map_iovec(struct iovec *sg, hwaddr *addr,
 void virtqueue_map(VirtQueueElement *elem)
 {
     virtqueue_map_iovec(elem->in_sg, elem->in_addr, &elem->in_num,
-                        MIN(ARRAY_SIZE(elem->in_sg), ARRAY_SIZE(elem->in_addr)),
-                        1);
+                        VIRTQUEUE_MAX_SIZE, 1);
     virtqueue_map_iovec(elem->out_sg, elem->out_addr, &elem->out_num,
-                        MIN(ARRAY_SIZE(elem->out_sg), ARRAY_SIZE(elem->out_addr)),
-                        0);
+                        VIRTQUEUE_MAX_SIZE, 0);
+}
+
+void *virtqueue_alloc_element(size_t sz, unsigned out_num, unsigned in_num)
+{
+    VirtQueueElement *elem;
+    size_t in_addr_ofs = QEMU_ALIGN_UP(sz, __alignof__(elem->in_addr[0]));
+    size_t out_addr_ofs = in_addr_ofs + in_num * sizeof(elem->in_addr[0]);
+    size_t out_addr_end = out_addr_ofs + out_num * sizeof(elem->out_addr[0]);
+    size_t in_sg_ofs = QEMU_ALIGN_UP(out_addr_end, __alignof__(elem->in_sg[0]));
+    size_t out_sg_ofs = in_sg_ofs + in_num * sizeof(elem->in_sg[0]);
+    size_t out_sg_end = out_sg_ofs + out_num * sizeof(elem->out_sg[0]);
+
+    assert(sz >= sizeof(VirtQueueElement));
+    elem = g_malloc(out_sg_end);
+    elem->out_num = out_num;
+    elem->in_num = in_num;
+    elem->in_addr = (void *)elem + in_addr_ofs;
+    elem->out_addr = (void *)elem + out_addr_ofs;
+    elem->in_sg = (void *)elem + in_sg_ofs;
+    elem->out_sg = (void *)elem + out_sg_ofs;
+    return elem;
 }
 
 void *virtqueue_pop(VirtQueue *vq, size_t sz)
@@ -513,8 +532,7 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     }
 
     /* When we start there are none of either input nor output. */
-    assert(sz >= sizeof(VirtQueueElement));
-    elem = g_malloc(sz);
+    elem = virtqueue_alloc_element(sz, VIRTQUEUE_MAX_SIZE, VIRTQUEUE_MAX_SIZE);
     elem->out_num = elem->in_num = 0;
 
     max = vq->vring.num;
@@ -541,14 +559,14 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
         struct iovec *sg;
 
         if (vring_desc_flags(vdev, desc_pa, i) & VRING_DESC_F_WRITE) {
-            if (elem->in_num >= ARRAY_SIZE(elem->in_sg)) {
+            if (elem->in_num >= VIRTQUEUE_MAX_SIZE) {
                 error_report("Too many write descriptors in indirect table");
                 exit(1);
             }
             elem->in_addr[elem->in_num] = vring_desc_addr(vdev, desc_pa, i);
             sg = &elem->in_sg[elem->in_num++];
         } else {
-            if (elem->out_num >= ARRAY_SIZE(elem->out_sg)) {
+            if (elem->out_num >= VIRTQUEUE_MAX_SIZE) {
                 error_report("Too many read descriptors in indirect table");
                 exit(1);
             }
@@ -576,17 +594,87 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     return elem;
 }
 
+/* Reading and writing a structure directly to QEMUFile is *awful*, but
+ * it is what QEMU has always done by mistake.  We can change it sooner
+ * or later by bumping the version number of the affected vm states.
+ * In the meanwhile, since the in-memory layout of VirtQueueElement
+ * has changed, we need to marshal to and from the layout that was
+ * used before the change.
+ */
+typedef struct VirtQueueElementOld {
+    unsigned int index;
+    unsigned int out_num;
+    unsigned int in_num;
+    hwaddr in_addr[VIRTQUEUE_MAX_SIZE];
+    hwaddr out_addr[VIRTQUEUE_MAX_SIZE];
+    struct iovec in_sg[VIRTQUEUE_MAX_SIZE];
+    struct iovec out_sg[VIRTQUEUE_MAX_SIZE];
+} VirtQueueElementOld;
+
 void *qemu_get_virtqueue_element(QEMUFile *f, size_t sz)
 {
-    VirtQueueElement *elem = g_malloc(sz);
-    qemu_get_buffer(f, (uint8_t *)elem, sizeof(VirtQueueElement));
+    VirtQueueElement *elem;
+    VirtQueueElementOld data;
+    int i;
+
+    qemu_get_buffer(f, (uint8_t *)&data, sizeof(VirtQueueElementOld));
+
+    elem = virtqueue_alloc_element(sz, data.out_num, data.in_num);
+    elem->index = data.index;
+
+    for (i = 0; i < elem->in_num; i++) {
+        elem->in_addr[i] = data.in_addr[i];
+    }
+
+    for (i = 0; i < elem->out_num; i++) {
+        elem->out_addr[i] = data.out_addr[i];
+    }
+
+    for (i = 0; i < elem->in_num; i++) {
+        /* Base is overwritten by virtqueue_map.  */
+        elem->in_sg[i].iov_base = 0;
+        elem->in_sg[i].iov_len = data.in_sg[i].iov_len;
+    }
+
+    for (i = 0; i < elem->out_num; i++) {
+        /* Base is overwritten by virtqueue_map.  */
+        elem->out_sg[i].iov_base = 0;
+        elem->out_sg[i].iov_len = data.out_sg[i].iov_len;
+    }
+
     virtqueue_map(elem);
     return elem;
 }
 
 void qemu_put_virtqueue_element(QEMUFile *f, VirtQueueElement *elem)
 {
-    qemu_put_buffer(f, (uint8_t *)elem, sizeof(VirtQueueElement));
+    VirtQueueElementOld data;
+    int i;
+
+    memset(&data, 0, sizeof(data));
+    data.index = elem->index;
+    data.in_num = elem->in_num;
+    data.out_num = elem->out_num;
+
+    for (i = 0; i < elem->in_num; i++) {
+        data.in_addr[i] = elem->in_addr[i];
+    }
+
+    for (i = 0; i < elem->out_num; i++) {
+        data.out_addr[i] = elem->out_addr[i];
+    }
+
+    for (i = 0; i < elem->in_num; i++) {
+        /* Base is overwritten by virtqueue_map when loading.  Do not
+         * save it, as it would leak the QEMU address space layout.  */
+        data.in_sg[i].iov_len = elem->in_sg[i].iov_len;
+    }
+
+    for (i = 0; i < elem->out_num; i++) {
+        /* Do not save iov_base as above.  */
+        data.out_sg[i].iov_len = elem->out_sg[i].iov_len;
+    }
+    qemu_put_buffer(f, (uint8_t *)&data, sizeof(VirtQueueElementOld));
 }
 
 /* virtio device */

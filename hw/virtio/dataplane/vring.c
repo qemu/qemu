@@ -403,8 +403,7 @@ void *vring_pop(VirtIODevice *vdev, Vring *vring, size_t sz)
         goto out;
     }
 
-    assert(sz >= sizeof(VirtQueueElement));
-    elem = g_malloc(sz);
+    elem = virtqueue_alloc_element(sz, VIRTQUEUE_MAX_SIZE, VIRTQUEUE_MAX_SIZE);
 
     /* Initialize elem so it can be safely unmapped */
     elem->in_num = elem->out_num = 0;
