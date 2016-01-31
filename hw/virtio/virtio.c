@@ -448,6 +448,32 @@ int virtqueue_avail_bytes(VirtQueue *vq, unsigned int in_bytes,
     return in_bytes <= in_total && out_bytes <= out_total;
 }
 
+static void virtqueue_map_desc(unsigned int *p_num_sg, hwaddr *addr, struct iovec *iov,
+                               unsigned int max_num_sg, bool is_write,
+                               hwaddr pa, size_t sz)
+{
+    unsigned num_sg = *p_num_sg;
+    assert(num_sg <= max_num_sg);
+
+    while (sz) {
+        hwaddr len = sz;
+
+        if (num_sg == max_num_sg) {
+            error_report("virtio: too many write descriptors in indirect table");
+            exit(1);
+        }
+
+        iov[num_sg].iov_base = cpu_physical_memory_map(pa, &len, is_write);
+        iov[num_sg].iov_len = len;
+        addr[num_sg] = pa;
+
+        sz -= len;
+        pa += len;
+        num_sg++;
+    }
+    *p_num_sg = num_sg;
+}
+
 static void virtqueue_map_iovec(struct iovec *sg, hwaddr *addr,
                                 unsigned int *num_sg, unsigned int max_size,
                                 int is_write)
@@ -474,20 +500,10 @@ static void virtqueue_map_iovec(struct iovec *sg, hwaddr *addr,
             error_report("virtio: error trying to map MMIO memory");
             exit(1);
         }
-        if (len == sg[i].iov_len) {
-            continue;
-        }
-        if (*num_sg >= max_size) {
-            error_report("virtio: memory split makes iovec too large");
+        if (len != sg[i].iov_len) {
+            error_report("virtio: unexpected memory split");
             exit(1);
         }
-        memmove(sg + i + 1, sg + i, sizeof(*sg) * (*num_sg - i));
-        memmove(addr + i + 1, addr + i, sizeof(*addr) * (*num_sg - i));
-        assert(len < sg[i + 1].iov_len);
-        sg[i].iov_len = len;
-        addr[i + 1] += len;
-        sg[i + 1].iov_len -= len;
-        ++*num_sg;
     }
 }
 
@@ -526,14 +542,16 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     hwaddr desc_pa = vq->vring.desc;
     VirtIODevice *vdev = vq->vdev;
     VirtQueueElement *elem;
+    unsigned out_num, in_num;
+    hwaddr addr[VIRTQUEUE_MAX_SIZE];
+    struct iovec iov[VIRTQUEUE_MAX_SIZE];
 
     if (!virtqueue_num_heads(vq, vq->last_avail_idx)) {
         return NULL;
     }
 
     /* When we start there are none of either input nor output. */
-    elem = virtqueue_alloc_element(sz, VIRTQUEUE_MAX_SIZE, VIRTQUEUE_MAX_SIZE);
-    elem->out_num = elem->in_num = 0;
+    out_num = in_num = 0;
 
     max = vq->vring.num;
 
@@ -556,37 +574,39 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
 
     /* Collect all the descriptors */
     do {
-        struct iovec *sg;
+        hwaddr pa = vring_desc_addr(vdev, desc_pa, i);
+        size_t len = vring_desc_len(vdev, desc_pa, i);
 
         if (vring_desc_flags(vdev, desc_pa, i) & VRING_DESC_F_WRITE) {
-            if (elem->in_num >= VIRTQUEUE_MAX_SIZE) {
-                error_report("Too many write descriptors in indirect table");
-                exit(1);
-            }
-            elem->in_addr[elem->in_num] = vring_desc_addr(vdev, desc_pa, i);
-            sg = &elem->in_sg[elem->in_num++];
+            virtqueue_map_desc(&in_num, addr + out_num, iov + out_num,
+                               VIRTQUEUE_MAX_SIZE - out_num, true, pa, len);
         } else {
-            if (elem->out_num >= VIRTQUEUE_MAX_SIZE) {
-                error_report("Too many read descriptors in indirect table");
+            if (in_num) {
+                error_report("Incorrect order for descriptors");
                 exit(1);
             }
-            elem->out_addr[elem->out_num] = vring_desc_addr(vdev, desc_pa, i);
-            sg = &elem->out_sg[elem->out_num++];
+            virtqueue_map_desc(&out_num, addr, iov,
+                               VIRTQUEUE_MAX_SIZE, false, pa, len);
         }
 
-        sg->iov_len = vring_desc_len(vdev, desc_pa, i);
-
         /* If we've got too many, that implies a descriptor loop. */
-        if ((elem->in_num + elem->out_num) > max) {
+        if ((in_num + out_num) > max) {
             error_report("Looped descriptor");
             exit(1);
         }
     } while ((i = virtqueue_next_desc(vdev, desc_pa, i, max)) != max);
 
-    /* Now map what we have collected */
-    virtqueue_map(elem);
-
+    /* Now copy what we have collected and mapped */
+    elem = virtqueue_alloc_element(sz, out_num, in_num);
     elem->index = head;
+    for (i = 0; i < out_num; i++) {
+        elem->out_addr[i] = addr[i];
+        elem->out_sg[i] = iov[i];
+    }
+    for (i = 0; i < in_num; i++) {
+        elem->in_addr[i] = addr[out_num + i];
+        elem->in_sg[i] = iov[out_num + i];
+    }
 
     vq->inuse++;
 
