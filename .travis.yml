@@ -5,6 +5,7 @@ python:
 compiler:
   - gcc
   - clang
+cache: ccache
 addons:
   apt:
     packages:
