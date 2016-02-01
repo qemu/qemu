@@ -45,20 +45,12 @@ env:
     - EXTRA_CONFIG=""
   matrix:
     # Group major targets together with their linux-user counterparts
-    - TARGETS=alpha-softmmu,alpha-linux-user
+    - TARGETS=alpha-softmmu,alpha-linux-user,cris-softmmu,cris-linux-user,m68k-softmmu,m68k-linux-user,microblaze-softmmu,microblazeel-softmmu,microblaze-linux-user,microblazeel-linux-user
     - TARGETS=arm-softmmu,arm-linux-user,armeb-linux-user,aarch64-softmmu,aarch64-linux-user
-    - TARGETS=cris-softmmu,cris-linux-user
     - TARGETS=i386-softmmu,i386-linux-user,x86_64-softmmu,x86_64-linux-user
-    - TARGETS=m68k-softmmu,m68k-linux-user
-    - TARGETS=microblaze-softmmu,microblazeel-softmmu,microblaze-linux-user,microblazeel-linux-user
-    - TARGETS=mips-softmmu,mips64-softmmu,mips64el-softmmu,mipsel-softmmu
-    - TARGETS=mips-linux-user,mips64-linux-user,mips64el-linux-user,mipsel-linux-user,mipsn32-linux-user,mipsn32el-linux-user
-    - TARGETS=or32-softmmu,or32-linux-user
-    - TARGETS=ppc-softmmu,ppc64-softmmu,ppcemb-softmmu,ppc-linux-user,ppc64-linux-user,ppc64abi32-linux-user,ppc64le-linux-user
-    - TARGETS=s390x-softmmu,s390x-linux-user
-    - TARGETS=sh4-softmmu,sh4eb-softmmu,sh4-linux-user sh4eb-linux-user
-    - TARGETS=sparc-softmmu,sparc64-softmmu,sparc-linux-user,sparc32plus-linux-user,sparc64-linux-user
-    - TARGETS=unicore32-softmmu,unicore32-linux-user
+    - TARGETS=mips-softmmu,mips64-softmmu,mips64el-softmmu,mipsel-softmmu,mips-linux-user,mips64-linux-user,mips64el-linux-user,mipsel-linux-user,mipsn32-linux-user,mipsn32el-linux-user
+    - TARGETS=or32-softmmu,or32-linux-user,ppc-softmmu,ppc64-softmmu,ppcemb-softmmu,ppc-linux-user,ppc64-linux-user,ppc64abi32-linux-user,ppc64le-linux-user
+    - TARGETS=s390x-softmmu,s390x-linux-user,sh4-softmmu,sh4eb-softmmu,sh4-linux-user,sh4eb-linux-user,sparc-softmmu,sparc64-softmmu,sparc-linux-user,sparc32plus-linux-user,sparc64-linux-user,unicore32-softmmu,unicore32-linux-user
     # Group remaining softmmu only targets into one build
     - TARGETS=lm32-softmmu,moxie-softmmu,tricore-softmmu,xtensa-softmmu,xtensaeb-softmmu
 git:
@@ -75,58 +67,58 @@ matrix:
   # We manually include a number of additional build for non-standard bits
   include:
     # Debug related options
-    - env: TARGETS=i386-softmmu,x86_64-softmmu
+    - env: TARGETS=x86_64-softmmu
            EXTRA_CONFIG="--enable-debug"
       compiler: gcc
     # We currently disable "make check"
-    - env: TARGETS=i386-softmmu,x86_64-softmmu
+    - env: TARGETS=alpha-softmmu
            EXTRA_CONFIG="--enable-debug --enable-tcg-interpreter"
            TEST_CMD=""
       compiler: gcc
     # Disable a few of the optional features
-    - env: TARGETS=i386-softmmu,x86_64-softmmu
+    - env: TARGETS=x86_64-softmmu
            EXTRA_CONFIG="--disable-linux-aio --disable-cap-ng --disable-attr --disable-brlapi --disable-uuid --disable-libusb"
       compiler: gcc
     # Currently configure doesn't force --disable-pie
-    - env: TARGETS=i386-softmmu,x86_64-softmmu
+    - env: TARGETS=x86_64-softmmu
            EXTRA_CONFIG="--enable-gprof --enable-gcov --disable-pie"
       compiler: gcc
     # Sparse
-    - env: TARGETS=i386-softmmu,x86_64-softmmu
+    - env: TARGETS=x86_64-softmmu
            EXTRA_CONFIG="--enable-sparse"
       compiler: gcc
     # Modules
-    - env: TARGETS=i386-softmmu,x86_64-softmmu
+    - env: TARGETS=arm-softmmu,x86_64-softmmu
            EXTRA_CONFIG="--enable-modules"
       compiler: gcc
     # All the trace backends (apart from dtrace)
-    - env: TARGETS=i386-softmmu,x86_64-softmmu
+    - env: TARGETS=i386-softmmu
            EXTRA_CONFIG="--enable-trace-backends=log"
       compiler: gcc
     # We currently disable "make check" (until 41fc57e44ed regression fixed)
-    - env: TARGETS=i386-softmmu,x86_64-softmmu
+    - env: TARGETS=x86_64-softmmu
            EXTRA_CONFIG="--enable-trace-backends=simple"
            TEST_CMD=""
       compiler: gcc
     # We currently disable "make check"
-    - env: TARGETS=i386-softmmu,x86_64-softmmu
+    - env: TARGETS=x86_64-softmmu
            EXTRA_CONFIG="--enable-trace-backends=ftrace"
            TEST_CMD=""
       compiler: gcc
     # We currently disable "make check"
-    - env: TARGETS=i386-softmmu,x86_64-softmmu
+    - env: TARGETS=x86_64-softmmu
            EXTRA_CONFIG="--enable-trace-backends=ust"
            TEST_CMD=""
       compiler: gcc
     # All the co-routine backends (apart from windows)
     # We currently disable "make check"
-    - env: TARGETS=i386-softmmu,x86_64-softmmu
+    - env: TARGETS=x86_64-softmmu
            EXTRA_CONFIG="--with-coroutine=gthread"
            TEST_CMD=""
       compiler: gcc
-    - env: TARGETS=i386-softmmu,x86_64-softmmu
+    - env: TARGETS=x86_64-softmmu
            EXTRA_CONFIG="--with-coroutine=ucontext"
       compiler: gcc
-    - env: TARGETS=i386-softmmu,x86_64-softmmu
+    - env: TARGETS=x86_64-softmmu
            EXTRA_CONFIG="--with-coroutine=sigaltstack"
       compiler: gcc
