@@ -1130,7 +1130,19 @@ static int qemu_rdma_reg_whole_ram_blocks(RDMAContext *rdma)
     int i;
     RDMALocalBlocks *local = &rdma->local_ram_blocks;
 
+    trace_rdma_reg_whole_ram_blocks();
+
     for (i = 0; i < local->nb_blocks; i++) {
+        if (local->block[i].mr) {
+            int err;
+            err = ibv_dereg_mr(local->block[i].mr);
+            if (err) {
+                fprintf(stderr, "%s: Failed to deregister block %d: %s\n",
+                        __func__, i, strerror(err));
+                return -err;
+            }
+            rdma->total_registrations--;
+        }
         local->block[i].mr =
             ibv_reg_mr(rdma->pd,
                     local->block[i].local_host_addr,
@@ -3563,22 +3575,75 @@ static int rdma_registration_colo(QEMUFile *f, RDMAContext *rdma)
     uint64_t bi;
     trace_rdma_registration_colo();
 
-    /* Force all existing chunks to be deregistered */
-    for (bi = 0; bi < local->nb_blocks; bi++) {
-        uint64_t ci;
-        for (ci = 0; local->block[bi].pmr &&
-                     ci < local->block[bi].nb_chunks; ci++) {
-            /* Make sure there is some room for the unregister */
-            if (rdma->unregistrations[rdma->unregister_next] != 0) {
-                qemu_rdma_unregister_waiting(rdma);
+    if (!rdma->pin_all) {
+        /* Force all existing chunks to be deregistered - they'll
+         * automatically get reregistered on the new address space.
+         */
+        for (bi = 0; bi < local->nb_blocks; bi++) {
+            uint64_t ci;
+            for (ci = 0; local->block[bi].pmr &&
+                         ci < local->block[bi].nb_chunks; ci++) {
+                /* Make sure there is some room for the unregister */
+                if (rdma->unregistrations[rdma->unregister_next] != 0) {
+                    qemu_rdma_unregister_waiting(rdma);
+                }
+                /* One existing use uses 0 for the wr_id ?! */
+                qemu_rdma_signal_unregister(rdma, bi, ci, 0);
             }
-            /* One existing use uses 0 for the wr_id ?! */
-            qemu_rdma_signal_unregister(rdma, bi, ci, 0);
+        }
+        /* Makes sure all of our unregistrations go through */
+        qemu_rdma_drain_cq(f, rdma);
+    } else {
+        RDMALocalBlocks *local = &rdma->local_ram_blocks;
+        RDMAControlHeader resp = { .type = RDMA_CONTROL_RAM_BLOCKS_RESULT };
+        RDMAControlHeader head = { .type = RDMA_CONTROL_RAM_BLOCKS_REQUEST,
+                                   .repeat = 1,
+                                 };
+        int ret, nb_dest_blocks, reg_result_idx, i;
+
+        /* Tell the destination to reregister, it should send us back
+         * a new set of handles; which ends up very much like
+         * the end of a RAM_CONTROL_SETUP negotiation.
+         */
+	ret = qemu_rdma_exchange_send(rdma, &head, NULL, &resp,
+                    &reg_result_idx, NULL);
+        if (ret < 0) {
+            fprintf(stderr, "%s: receiving remote info", __func__);
+            return ret;
+        }
+
+        nb_dest_blocks = resp.len / sizeof(RDMADestBlock);
+        if (local->nb_blocks != nb_dest_blocks) {
+            fprintf(stderr, "%s: ram blocks mismatch (Number of blocks %d vs %d) ",
+                        __func__, local->nb_blocks, nb_dest_blocks);
+            rdma->error_state = -EINVAL;
+            return -EINVAL;
+        }
+        qemu_rdma_move_header(rdma, reg_result_idx, &resp);
+
+        /* Hopefully the destination sent us a new block list in the same
+         * order, it did do a sort the first time through.
+         */
+        for (i = 0; i < nb_dest_blocks; i++) {
+            RDMADestBlock tmp;
+            memcpy(&tmp, rdma->wr_data[reg_result_idx].control_curr +
+                   (i * sizeof(tmp)), sizeof(tmp));
+            network_to_dest_block(&tmp);
+            if (tmp.length != rdma->dest_blocks[i].length) {
+                fprintf(stderr, "Remap block %s/%d has a different length %" PRIu64
+                           "vs %" PRIu64, local->block[i].block_name, i,
+                           tmp.length, rdma->dest_blocks[i].length);
+                rdma->error_state = -EINVAL;
+                return -EINVAL;
+            }
+            rdma->dest_blocks[i].remote_host_addr = tmp.remote_host_addr;
+            rdma->dest_blocks[i].remote_rkey = tmp.remote_rkey;
+            local->block[i].remote_host_addr =
+                    rdma->dest_blocks[i].remote_host_addr;
+            local->block[i].remote_rkey = rdma->dest_blocks[i].remote_rkey;
         }
     }
 
-    /* Makes sure all of our unregistrations go through */
-    qemu_rdma_drain_cq(f, rdma);
     trace_rdma_registration_colo_end();
 
     return 0;
