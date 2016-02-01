@@ -35,7 +35,7 @@ enum BSDType {
 extern enum BSDType bsd_type;
 
 #include "syscall_defs.h"
-#include "syscall.h"
+#include "target_syscall.h"
 #include "target_signal.h"
 #include "exec/gdbstub.h"
 

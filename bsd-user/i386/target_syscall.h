@@ -1,3 +1,6 @@
+#ifndef TARGET_SYSCALL_H
+#define TARGET_SYSCALL_H
+
 /* default linux values for the selectors */
 #define __USER_CS	(0x23)
 #define __USER_DS	(0x2B)
@@ -159,3 +162,4 @@ struct target_vm86plus_struct {
 
 #define UNAME_MACHINE "i386"
 
+#endif  /* TARGET_SYSCALL_H */

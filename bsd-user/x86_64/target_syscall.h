@@ -1,3 +1,6 @@
+#ifndef TARGET_SYSCALL_H
+#define TARGET_SYSCALL_H
+
 #define __USER_CS	(0x33)
 #define __USER_DS	(0x2B)
 
@@ -114,3 +117,5 @@ struct target_msqid64_ds {
 #define TARGET_ARCH_SET_FS 0x1002
 #define TARGET_ARCH_GET_FS 0x1003
 #define TARGET_ARCH_GET_GS 0x1004
+
+#endif  /* TARGET_SYSCALL_H */

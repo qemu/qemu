@@ -1,3 +1,6 @@
+#ifndef TARGET_SYSCALL_H
+#define TARGET_SYSCALL_H
+
 struct target_pt_regs {
 	abi_ulong psr;
 	abi_ulong pc;
@@ -7,3 +10,5 @@ struct target_pt_regs {
 };
 
 #define UNAME_MACHINE "sun4"
+
+#endif  /* TARGET_SYSCALL_H */
