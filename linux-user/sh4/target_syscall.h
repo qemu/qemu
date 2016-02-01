@@ -1,3 +1,6 @@
+#ifndef TARGET_SYSCALL_H
+#define TARGET_SYSCALL_H
+
 struct target_pt_regs {
         unsigned long regs[16];
         unsigned long pc;
@@ -15,3 +18,5 @@ struct target_pt_regs {
 #define TARGET_MINSIGSTKSZ 2048
 #define TARGET_MLOCKALL_MCL_CURRENT 1
 #define TARGET_MLOCKALL_MCL_FUTURE  2
+
+#endif  /* TARGET_SYSCALL_H */

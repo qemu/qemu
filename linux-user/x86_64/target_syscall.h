@@ -1,3 +1,6 @@
+#ifndef TARGET_SYSCALL_H
+#define TARGET_SYSCALL_H
+
 #define __USER_CS	(0x33)
 #define __USER_DS	(0x2B)
 
@@ -100,3 +103,5 @@ struct target_msqid64_ds {
 #define TARGET_MINSIGSTKSZ 2048
 #define TARGET_MLOCKALL_MCL_CURRENT 1
 #define TARGET_MLOCKALL_MCL_FUTURE  2
+
+#endif  /* TARGET_SYSCALL_H */

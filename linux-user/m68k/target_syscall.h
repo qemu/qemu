@@ -1,3 +1,5 @@
+#ifndef TARGET_SYSCALL_H
+#define TARGET_SYSCALL_H
 
 /* this struct defines the way the registers are stored on the
    stack during a system call. */
@@ -23,3 +25,5 @@ struct target_pt_regs {
 #define TARGET_MLOCKALL_MCL_FUTURE  2
 
 void do_m68k_simcall(CPUM68KState *, int);
+
+#endif  /* TARGET_SYSCALL_H */
