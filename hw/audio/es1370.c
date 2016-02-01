@@ -289,6 +289,10 @@ struct chan_bits {
                        uint32_t *old_freq, uint32_t *new_freq);
 };
 
+#define TYPE_ES1370 "ES1370"
+#define ES1370(obj) \
+    OBJECT_CHECK(ES1370State, (obj), TYPE_ES1370)
+
 static void es1370_dac1_calc_freq (ES1370State *s, uint32_t ctl,
                                    uint32_t *old_freq, uint32_t *new_freq);
 static void es1370_dac2_and_adc_calc_freq (ES1370State *s, uint32_t ctl,
@@ -1014,7 +1018,7 @@ static void es1370_on_reset (void *opaque)
 
 static void es1370_realize(PCIDevice *dev, Error **errp)
 {
-    ES1370State *s = DO_UPCAST (ES1370State, dev, dev);
+    ES1370State *s = ES1370(dev);
     uint8_t *c = s->dev.config;
 
     c[PCI_STATUS + 1] = PCI_STATUS_DEVSEL_SLOW >> 8;
@@ -1039,7 +1043,7 @@ static void es1370_realize(PCIDevice *dev, Error **errp)
 
 static int es1370_init (PCIBus *bus)
 {
-    pci_create_simple (bus, -1, "ES1370");
+    pci_create_simple (bus, -1, TYPE_ES1370);
     return 0;
 }
 
@@ -1060,7 +1064,7 @@ static void es1370_class_init (ObjectClass *klass, void *data)
 }
 
 static const TypeInfo es1370_info = {
-    .name          = "ES1370",
+    .name          = TYPE_ES1370,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof (ES1370State),
     .class_init    = es1370_class_init,
