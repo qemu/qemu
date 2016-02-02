@@ -2838,19 +2838,6 @@ static int tcp_chr_sync_read(CharDriverState *chr, const uint8_t *buf, int len)
     return size;
 }
 
-#ifndef _WIN32
-CharDriverState *qemu_chr_open_eventfd(int eventfd)
-{
-    CharDriverState *chr = qemu_chr_open_fd(eventfd, eventfd, NULL, NULL);
-
-    if (chr) {
-        chr->avail_connections = 1;
-    }
-
-    return chr;
-}
-#endif
-
 static void tcp_chr_connect(void *opaque)
 {
     CharDriverState *chr = opaque;

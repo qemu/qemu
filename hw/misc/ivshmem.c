@@ -263,15 +263,6 @@ static const MemoryRegionOps ivshmem_mmio_ops = {
     },
 };
 
-static void ivshmem_receive(void *opaque, const uint8_t *buf, int size)
-{
-    IVShmemState *s = opaque;
-
-    IVSHMEM_DPRINTF("ivshmem_receive 0x%02x size: %d\n", *buf, size);
-
-    ivshmem_IntrStatus_write(s, *buf);
-}
-
 static int ivshmem_can_receive(void * opaque)
 {
     return sizeof(int64_t);
@@ -282,15 +273,24 @@ static void ivshmem_event(void *opaque, int event)
     IVSHMEM_DPRINTF("ivshmem_event %d\n", event);
 }
 
-static void fake_irqfd(void *opaque, const uint8_t *buf, int size) {
-
+static void ivshmem_vector_notify(void *opaque)
+{
     MSIVector *entry = opaque;
     PCIDevice *pdev = entry->pdev;
     IVShmemState *s = IVSHMEM(pdev);
     int vector = entry - s->msi_vectors;
+    EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
+
+    if (!event_notifier_test_and_clear(n)) {
+        return;
+    }
 
     IVSHMEM_DPRINTF("interrupt on vector %p %d\n", pdev, vector);
-    msix_notify(pdev, vector);
+    if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
+        msix_notify(pdev, vector);
+    } else {
+        ivshmem_IntrStatus_write(s, 1);
+    }
 }
 
 static int ivshmem_vector_unmask(PCIDevice *dev, unsigned vector,
@@ -350,38 +350,16 @@ static void ivshmem_vector_poll(PCIDevice *dev,
     }
 }
 
-static CharDriverState* create_eventfd_chr_device(void * opaque, EventNotifier *n,
-                                                  int vector)
+static void watch_vector_notifier(IVShmemState *s, EventNotifier *n,
+                                 int vector)
 {
-    /* create a event character device based on the passed eventfd */
-    IVShmemState *s = opaque;
-    PCIDevice *pdev = PCI_DEVICE(s);
     int eventfd = event_notifier_get_fd(n);
-    CharDriverState *chr;
-
-    s->msi_vectors[vector].pdev = pdev;
-
-    chr = qemu_chr_open_eventfd(eventfd);
-
-    if (chr == NULL) {
-        error_report("creating chardriver for eventfd %d failed", eventfd);
-        return NULL;
-    }
-    qemu_chr_fe_claim_no_fail(chr);
 
     /* if MSI is supported we need multiple interrupts */
-    if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
-        s->msi_vectors[vector].pdev = PCI_DEVICE(s);
+    s->msi_vectors[vector].pdev = PCI_DEVICE(s);
 
-        qemu_chr_add_handlers(chr, ivshmem_can_receive, fake_irqfd,
-                      ivshmem_event, &s->msi_vectors[vector]);
-    } else {
-        qemu_chr_add_handlers(chr, ivshmem_can_receive, ivshmem_receive,
-                      ivshmem_event, s);
-    }
-
-    return chr;
-
+    qemu_set_fd_handler(eventfd, ivshmem_vector_notify,
+                        NULL, &s->msi_vectors[vector]);
 }
 
 static int check_shm_size(IVShmemState *s, int fd, Error **errp)
@@ -591,7 +569,7 @@ static void setup_interrupt(IVShmemState *s, int vector)
 
     if (!with_irqfd) {
         IVSHMEM_DPRINTF("with eventfd");
-        s->eventfd_chr[vector] = create_eventfd_chr_device(s, n, vector);
+        watch_vector_notifier(s, n, vector);
     } else if (msix_enabled(pdev)) {
         IVSHMEM_DPRINTF("with irqfd");
         if (ivshmem_add_kvm_msi_virq(s, vector) < 0) {
@@ -772,18 +750,20 @@ static void ivshmem_reset(DeviceState *d)
     ivshmem_use_msix(s);
 }
 
-static int ivshmem_setup_msi(IVShmemState * s)
+static int ivshmem_setup_interrupts(IVShmemState *s)
 {
-    if (msix_init_exclusive_bar(PCI_DEVICE(s), s->vectors, 1)) {
-        return -1;
-    }
-
-    IVSHMEM_DPRINTF("msix initialized (%d vectors)\n", s->vectors);
-
-    /* allocate QEMU char devices for receiving interrupts */
+    /* allocate QEMU callback data for receiving interrupts */
     s->msi_vectors = g_malloc0(s->vectors * sizeof(MSIVector));
 
-    ivshmem_use_msix(s);
+    if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
+        if (msix_init_exclusive_bar(PCI_DEVICE(s), s->vectors, 1)) {
+            return -1;
+        }
+
+        IVSHMEM_DPRINTF("msix initialized (%d vectors)\n", s->vectors);
+        ivshmem_use_msix(s);
+    }
+
     return 0;
 }
 
@@ -950,9 +930,8 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         IVSHMEM_DPRINTF("using shared memory server (socket = %s)\n",
                         s->server_chr->filename);
 
-        if (ivshmem_has_feature(s, IVSHMEM_MSI) &&
-            ivshmem_setup_msi(s)) {
-            error_setg(errp, "msix initialization failed");
+        if (ivshmem_setup_interrupts(s) < 0) {
+            error_setg(errp, "failed to initialize interrupts");
             return;
         }
 
