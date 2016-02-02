@@ -2408,8 +2408,7 @@ void qmp_x_blockdev_remove_medium(const char *device, Error **errp)
 
     /* This follows the convention established by bdrv_make_anon() */
     if (bs->device_list.tqe_prev) {
-        QTAILQ_REMOVE(&bdrv_states, bs, device_list);
-        bs->device_list.tqe_prev = NULL;
+        bdrv_device_remove(bs);
     }
 
     blk_remove_bs(blk);
