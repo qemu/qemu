@@ -2501,18 +2501,31 @@ static void gen_fmrgow(DisasContext *ctx)
 static void gen_mcrfs(DisasContext *ctx)
 {
     TCGv tmp = tcg_temp_new();
+    TCGv_i32 tmask;
+    TCGv_i64 tnew_fpscr = tcg_temp_new_i64();
     int bfa;
+    int nibble;
+    int shift;
 
     if (unlikely(!ctx->fpu_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
-    bfa = 4 * (7 - crfS(ctx->opcode));
-    tcg_gen_shri_tl(tmp, cpu_fpscr, bfa);
+    bfa = crfS(ctx->opcode);
+    nibble = 7 - bfa;
+    shift = 4 * nibble;
+    tcg_gen_shri_tl(tmp, cpu_fpscr, shift);
     tcg_gen_trunc_tl_i32(cpu_crf[crfD(ctx->opcode)], tmp);
-    tcg_temp_free(tmp);
     tcg_gen_andi_i32(cpu_crf[crfD(ctx->opcode)], cpu_crf[crfD(ctx->opcode)], 0xf);
-    tcg_gen_andi_tl(cpu_fpscr, cpu_fpscr, ~(0xF << bfa));
+    tcg_temp_free(tmp);
+    tcg_gen_extu_tl_i64(tnew_fpscr, cpu_fpscr);
+    /* Only the exception bits (including FX) should be cleared if read */
+    tcg_gen_andi_i64(tnew_fpscr, tnew_fpscr, ~((0xF << shift) & FP_EX_CLEAR_BITS));
+    /* FEX and VX need to be updated, so don't set fpscr directly */
+    tmask = tcg_const_i32(1 << nibble);
+    gen_helper_store_fpscr(cpu_env, tnew_fpscr, tmask);
+    tcg_temp_free_i32(tmask);
+    tcg_temp_free_i64(tnew_fpscr);
 }
 
 /* mffs */
@@ -5905,7 +5918,7 @@ static void gen_tlbiva(DisasContext *ctx)
     }
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
-    gen_helper_tlbie(cpu_env, cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_tlbiva(cpu_env, cpu_gpr[rB(ctx->opcode)]);
     tcg_temp_free(t0);
 #endif
 }

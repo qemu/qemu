@@ -112,7 +112,7 @@ static XICSState *try_create_xics(const char *type, int nr_servers,
 }
 
 static XICSState *xics_system_init(MachineState *machine,
-                                   int nr_servers, int nr_irqs)
+                                   int nr_servers, int nr_irqs, Error **errp)
 {
     XICSState *icp = NULL;
 
@@ -131,7 +131,7 @@ static XICSState *xics_system_init(MachineState *machine,
     }
 
     if (!icp) {
-        icp = try_create_xics(TYPE_XICS, nr_servers, nr_irqs, &error_abort);
+        icp = try_create_xics(TYPE_XICS, nr_servers, nr_irqs, errp);
     }
 
     return icp;
@@ -764,6 +764,13 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
     int nr_nodes = nb_numa_nodes ? nb_numa_nodes : 1;
 
     /*
+     * Don't create the node if there are no DR LMBs.
+     */
+    if (!nr_lmbs) {
+        return 0;
+    }
+
+    /*
      * Allocate enough buffer size to fit in ibm,dynamic-memory
      * or ibm,associativity-lookup-arrays
      */
@@ -869,7 +876,7 @@ int spapr_h_cas_compose_response(sPAPRMachineState *spapr,
         _FDT((spapr_fixup_cpu_dt(fdt, spapr)));
     }
 
-    /* Generate memory nodes or ibm,dynamic-reconfiguration-memory node */
+    /* Generate ibm,dynamic-reconfiguration-memory node if required */
     if (memory_update && smc->dr_lmb_enabled) {
         _FDT((spapr_populate_drconf_memory(spapr, fdt)));
     }
@@ -1239,7 +1246,7 @@ static void spapr_rtc_create(sPAPRMachineState *spapr)
 }
 
 /* Returns whether we want to use VGA or not */
-static int spapr_vga_init(PCIBus *pci_bus)
+static bool spapr_vga_init(PCIBus *pci_bus, Error **errp)
 {
     switch (vga_interface_type) {
     case VGA_NONE:
@@ -1250,9 +1257,9 @@ static int spapr_vga_init(PCIBus *pci_bus)
     case VGA_VIRTIO:
         return pci_vga_init(pci_bus) != NULL;
     default:
-        fprintf(stderr, "This vga model is not supported,"
-                "currently it only supports -vga std\n");
-        exit(0);
+        error_setg(errp,
+                   "Unsupported VGA mode, only -vga std or -vga virtio is supported");
+        return false;
     }
 }
 
@@ -1527,7 +1534,7 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     int fd = -1;
 
     if (version_id < 1 || version_id > 1) {
-        fprintf(stderr, "htab_load() bad version\n");
+        error_report("htab_load() bad version");
         return -EINVAL;
     }
 
@@ -1548,8 +1555,8 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
 
         fd = kvmppc_get_htab_fd(true);
         if (fd < 0) {
-            fprintf(stderr, "Unable to open fd to restore KVM hash table: %s\n",
-                    strerror(errno));
+            error_report("Unable to open fd to restore KVM hash table: %s",
+                         strerror(errno));
         }
     }
 
@@ -1569,9 +1576,9 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
         if ((index + n_valid + n_invalid) >
             (HTAB_SIZE(spapr) / HASH_PTE_SIZE_64)) {
             /* Bad index in stream */
-            fprintf(stderr, "htab_load() bad index %d (%hd+%hd entries) "
-                    "in htab stream (htab_shift=%d)\n", index, n_valid, n_invalid,
-                    spapr->htab_shift);
+            error_report(
+                "htab_load() bad index %d (%hd+%hd entries) in htab stream (htab_shift=%d)",
+                index, n_valid, n_invalid, spapr->htab_shift);
             return -EINVAL;
         }
 
@@ -1618,7 +1625,8 @@ static void spapr_boot_set(void *opaque, const char *boot_device,
     machine->boot_order = g_strdup(boot_device);
 }
 
-static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu)
+static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
+                           Error **errp)
 {
     CPUPPCState *env = &cpu->env;
 
@@ -1636,8 +1644,12 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu)
     }
 
     if (cpu->max_compat) {
-        if (ppc_set_compat(cpu, cpu->max_compat) < 0) {
-            exit(1);
+        Error *local_err = NULL;
+
+        ppc_set_compat(cpu, cpu->max_compat, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
         }
     }
 
@@ -1687,27 +1699,34 @@ static void spapr_create_lmb_dr_connectors(sPAPRMachineState *spapr)
  * to SPAPR_MEMORY_BLOCK_SIZE(256MB), then refuse to start the guest
  * since we can't support such unaligned sizes with DRCONF_MEMORY.
  */
-static void spapr_validate_node_memory(MachineState *machine)
+static void spapr_validate_node_memory(MachineState *machine, Error **errp)
 {
     int i;
 
-    if (machine->maxram_size % SPAPR_MEMORY_BLOCK_SIZE ||
-        machine->ram_size % SPAPR_MEMORY_BLOCK_SIZE) {
-        error_report("Can't support memory configuration where RAM size "
-                     "0x" RAM_ADDR_FMT " or maxmem size "
-                     "0x" RAM_ADDR_FMT " isn't aligned to %llu MB",
-                     machine->ram_size, machine->maxram_size,
-                     SPAPR_MEMORY_BLOCK_SIZE/M_BYTE);
-        exit(EXIT_FAILURE);
+    if (machine->ram_size % SPAPR_MEMORY_BLOCK_SIZE) {
+        error_setg(errp, "Memory size 0x" RAM_ADDR_FMT
+                   " is not aligned to %llu MiB",
+                   machine->ram_size,
+                   SPAPR_MEMORY_BLOCK_SIZE / M_BYTE);
+        return;
+    }
+
+    if (machine->maxram_size % SPAPR_MEMORY_BLOCK_SIZE) {
+        error_setg(errp, "Maximum memory size 0x" RAM_ADDR_FMT
+                   " is not aligned to %llu MiB",
+                   machine->ram_size,
+                   SPAPR_MEMORY_BLOCK_SIZE / M_BYTE);
+        return;
     }
 
     for (i = 0; i < nb_numa_nodes; i++) {
         if (numa_info[i].node_mem % SPAPR_MEMORY_BLOCK_SIZE) {
-            error_report("Can't support memory configuration where memory size"
-                         " %" PRIx64 " of node %d isn't aligned to %llu MB",
-                         numa_info[i].node_mem, i,
-                         SPAPR_MEMORY_BLOCK_SIZE/M_BYTE);
-            exit(EXIT_FAILURE);
+            error_setg(errp,
+                       "Node %d memory size 0x%" PRIx64
+                       " is not aligned to %llu MiB",
+                       i, numa_info[i].node_mem,
+                       SPAPR_MEMORY_BLOCK_SIZE / M_BYTE);
+            return;
         }
     }
 }
@@ -1770,8 +1789,8 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     if (spapr->rma_size > node0_size) {
-        fprintf(stderr, "Error: Numa node 0 has to span the RMA (%#08"HWADDR_PRIx")\n",
-                spapr->rma_size);
+        error_report("Numa node 0 has to span the RMA (%#08"HWADDR_PRIx")",
+                     spapr->rma_size);
         exit(1);
     }
 
@@ -1794,10 +1813,10 @@ static void ppc_spapr_init(MachineState *machine)
     spapr->icp = xics_system_init(machine,
                                   DIV_ROUND_UP(max_cpus * kvmppc_smt_threads(),
                                                smp_threads),
-                                  XICS_IRQS);
+                                  XICS_IRQS, &error_fatal);
 
     if (smc->dr_lmb_enabled) {
-        spapr_validate_node_memory(machine);
+        spapr_validate_node_memory(machine, &error_fatal);
     }
 
     /* init CPUs */
@@ -1807,10 +1826,10 @@ static void ppc_spapr_init(MachineState *machine)
     for (i = 0; i < smp_cpus; i++) {
         cpu = cpu_ppc_init(machine->cpu_model);
         if (cpu == NULL) {
-            fprintf(stderr, "Unable to find PowerPC CPU definition\n");
+            error_report("Unable to find PowerPC CPU definition");
             exit(1);
         }
-        spapr_cpu_init(spapr, cpu);
+        spapr_cpu_init(spapr, cpu, &error_fatal);
     }
 
     if (kvm_enabled()) {
@@ -1837,10 +1856,10 @@ static void ppc_spapr_init(MachineState *machine)
         ram_addr_t hotplug_mem_size = machine->maxram_size - machine->ram_size;
 
         if (machine->ram_slots > SPAPR_MAX_RAM_SLOTS) {
-            error_report("Specified number of memory slots %" PRIu64
-                         " exceeds max supported %d",
+            error_report("Specified number of memory slots %"
+                         PRIu64" exceeds max supported %d",
                          machine->ram_slots, SPAPR_MAX_RAM_SLOTS);
-            exit(EXIT_FAILURE);
+            exit(1);
         }
 
         spapr->hotplug_memory.base = ROUND_UP(machine->ram_size,
@@ -1915,7 +1934,7 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     /* Graphics */
-    if (spapr_vga_init(phb->bus)) {
+    if (spapr_vga_init(phb->bus, &error_fatal)) {
         spapr->has_graphics = true;
         machine->usb |= defaults_enabled() && !machine->usb_disabled;
     }
@@ -1936,8 +1955,9 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     if (spapr->rma_size < (MIN_RMA_SLOF << 20)) {
-        fprintf(stderr, "qemu: pSeries SLOF firmware requires >= "
-                "%ldM guest RMA (Real Mode Area memory)\n", MIN_RMA_SLOF);
+        error_report(
+            "pSeries SLOF firmware requires >= %ldM guest RMA (Real Mode Area memory)",
+            MIN_RMA_SLOF);
         exit(1);
     }
 
@@ -1953,8 +1973,8 @@ static void ppc_spapr_init(MachineState *machine)
             kernel_le = kernel_size > 0;
         }
         if (kernel_size < 0) {
-            fprintf(stderr, "qemu: error loading %s: %s\n",
-                    kernel_filename, load_elf_strerror(kernel_size));
+            error_report("error loading %s: %s",
+                         kernel_filename, load_elf_strerror(kernel_size));
             exit(1);
         }
 
@@ -1967,8 +1987,8 @@ static void ppc_spapr_init(MachineState *machine)
             initrd_size = load_image_targphys(initrd_filename, initrd_base,
                                               load_limit - initrd_base);
             if (initrd_size < 0) {
-                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
-                        initrd_filename);
+                error_report("could not load initial ram disk '%s'",
+                             initrd_filename);
                 exit(1);
             }
         } else {

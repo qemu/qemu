@@ -419,6 +419,7 @@ typedef struct ppc_slb_t ppc_slb_t;
 struct ppc_slb_t {
     uint64_t esid;
     uint64_t vsid;
+    const struct ppc_one_seg_page_size *sps;
 };
 
 #define MAX_SLB_ENTRIES         64
@@ -686,24 +687,43 @@ enum {
 
 #define FP_FX		(1ull << FPSCR_FX)
 #define FP_FEX		(1ull << FPSCR_FEX)
-#define FP_OX		(1ull << FPSCR_OX)
-#define FP_OE		(1ull << FPSCR_OE)
-#define FP_UX		(1ull << FPSCR_UX)
-#define FP_UE		(1ull << FPSCR_UE)
-#define FP_XX		(1ull << FPSCR_XX)
-#define FP_XE		(1ull << FPSCR_XE)
-#define FP_ZX		(1ull << FPSCR_ZX)
-#define FP_ZE		(1ull << FPSCR_ZE)
 #define FP_VX		(1ull << FPSCR_VX)
+#define FP_OX		(1ull << FPSCR_OX)
+#define FP_UX		(1ull << FPSCR_UX)
+#define FP_ZX		(1ull << FPSCR_ZX)
+#define FP_XX		(1ull << FPSCR_XX)
 #define FP_VXSNAN	(1ull << FPSCR_VXSNAN)
 #define FP_VXISI	(1ull << FPSCR_VXISI)
-#define FP_VXIMZ	(1ull << FPSCR_VXIMZ)
-#define FP_VXZDZ	(1ull << FPSCR_VXZDZ)
 #define FP_VXIDI	(1ull << FPSCR_VXIDI)
+#define FP_VXZDZ	(1ull << FPSCR_VXZDZ)
+#define FP_VXIMZ	(1ull << FPSCR_VXIMZ)
 #define FP_VXVC		(1ull << FPSCR_VXVC)
+#define FP_FR		(1ull << FSPCR_FR)
+#define FP_FI		(1ull << FPSCR_FI)
+#define FP_C		(1ull << FPSCR_C)
+#define FP_FL		(1ull << FPSCR_FL)
+#define FP_FG		(1ull << FPSCR_FG)
+#define FP_FE		(1ull << FPSCR_FE)
+#define FP_FU		(1ull << FPSCR_FU)
+#define FP_FPCC		(FP_FL | FP_FG | FP_FE | FP_FU)
+#define FP_FPRF		(FP_C  | FP_FL | FP_FG | FP_FE | FP_FU)
+#define FP_VXSOFT	(1ull << FPSCR_VXSOFT)
+#define FP_VXSQRT	(1ull << FPSCR_VXSQRT)
 #define FP_VXCVI	(1ull << FPSCR_VXCVI)
 #define FP_VE		(1ull << FPSCR_VE)
-#define FP_FI		(1ull << FPSCR_FI)
+#define FP_OE		(1ull << FPSCR_OE)
+#define FP_UE		(1ull << FPSCR_UE)
+#define FP_ZE		(1ull << FPSCR_ZE)
+#define FP_XE		(1ull << FPSCR_XE)
+#define FP_NI		(1ull << FPSCR_NI)
+#define FP_RN1		(1ull << FPSCR_RN1)
+#define FP_RN		(1ull << FPSCR_RN)
+
+/* the exception bits which can be cleared by mcrfs - includes FX */
+#define FP_EX_CLEAR_BITS (FP_FX     | FP_OX     | FP_UX     | FP_ZX     | \
+                          FP_XX     | FP_VXSNAN | FP_VXISI  | FP_VXIDI  | \
+                          FP_VXZDZ  | FP_VXIMZ  | FP_VXVC   | FP_VXSOFT | \
+                          FP_VXSQRT | FP_VXCVI)
 
 /*****************************************************************************/
 /* Vector status and control register */
@@ -1210,7 +1230,7 @@ void ppc_store_msr (CPUPPCState *env, target_ulong value);
 
 void ppc_cpu_list (FILE *f, fprintf_function cpu_fprintf);
 int ppc_get_compat_smt_threads(PowerPCCPU *cpu);
-int ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version);
+void ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version, Error **errp);
 
 /* Time-base and decrementer management */
 #ifndef NO_CPU_IO_DEFS
@@ -2355,4 +2375,5 @@ int ppc_get_vcpu_dt_id(PowerPCCPU *cpu);
  */
 PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id);
 
+void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len);
 #endif /* !defined (__CPU_PPC_H__) */

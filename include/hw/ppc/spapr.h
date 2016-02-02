@@ -408,14 +408,15 @@ int spapr_allocate_irq_block(int num, bool lsi, bool msi);
 #define RTAS_SLOT_PERM_ERR_LOG           2
 
 /* RTAS return codes */
-#define RTAS_OUT_SUCCESS            0
-#define RTAS_OUT_NO_ERRORS_FOUND    1
-#define RTAS_OUT_HW_ERROR           -1
-#define RTAS_OUT_BUSY               -2
-#define RTAS_OUT_PARAM_ERROR        -3
-#define RTAS_OUT_NOT_SUPPORTED      -3
-#define RTAS_OUT_NO_SUCH_INDICATOR  -3
-#define RTAS_OUT_NOT_AUTHORIZED     -9002
+#define RTAS_OUT_SUCCESS                        0
+#define RTAS_OUT_NO_ERRORS_FOUND                1
+#define RTAS_OUT_HW_ERROR                       -1
+#define RTAS_OUT_BUSY                           -2
+#define RTAS_OUT_PARAM_ERROR                    -3
+#define RTAS_OUT_NOT_SUPPORTED                  -3
+#define RTAS_OUT_NO_SUCH_INDICATOR              -3
+#define RTAS_OUT_NOT_AUTHORIZED                 -9002
+#define RTAS_OUT_SYSPARM_PARAM_ERROR            -9999
 
 /* RTAS tokens */
 #define RTAS_TOKEN_BASE      0x2000
@@ -503,25 +504,6 @@ static inline uint64_t rtas_ldq(target_ulong phys, int n)
 static inline void rtas_st(target_ulong phys, int n, uint32_t val)
 {
     stl_be_phys(&address_space_memory, ppc64_phys_to_real(phys + 4*n), val);
-}
-
-static inline void rtas_st_buffer_direct(target_ulong phys,
-                                         target_ulong phys_len,
-                                         uint8_t *buffer, uint16_t buffer_len)
-{
-    cpu_physical_memory_write(ppc64_phys_to_real(phys), buffer,
-                              MIN(buffer_len, phys_len));
-}
-
-static inline void rtas_st_buffer(target_ulong phys, target_ulong phys_len,
-                                  uint8_t *buffer, uint16_t buffer_len)
-{
-    if (phys_len < 2) {
-        return;
-    }
-    stw_be_phys(&address_space_memory,
-                ppc64_phys_to_real(phys), buffer_len);
-    rtas_st_buffer_direct(phys + 2, phys_len - 2, buffer, buffer_len);
 }
 
 typedef void (*spapr_rtas_fn)(PowerPCCPU *cpu, sPAPRMachineState *sm,

@@ -4,13 +4,21 @@
 #ifndef CONFIG_USER_ONLY
 
 #ifdef TARGET_PPC64
-void dump_slb(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env);
-int ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs);
-hwaddr ppc_hash64_get_phys_page_debug(CPUPPCState *env, target_ulong addr);
+void ppc_hash64_check_page_sizes(PowerPCCPU *cpu, Error **errp);
+void dump_slb(FILE *f, fprintf_function cpu_fprintf, PowerPCCPU *cpu);
+int ppc_store_slb(PowerPCCPU *cpu, target_ulong slot,
+                  target_ulong esid, target_ulong vsid);
+hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr);
 int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, target_ulong address, int rw,
                                 int mmu_idx);
-void ppc_hash64_store_hpte(CPUPPCState *env, target_ulong index,
+void ppc_hash64_store_hpte(PowerPCCPU *cpu, target_ulong index,
                            target_ulong pte0, target_ulong pte1);
+void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu,
+                               target_ulong pte_index,
+                               target_ulong pte0, target_ulong pte1);
+unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
+                                          uint64_t pte0, uint64_t pte1,
+                                          unsigned *seg_page_shift);
 #endif
 
 /*
@@ -40,6 +48,8 @@ void ppc_hash64_store_hpte(CPUPPCState *env, target_ulong index,
 #define SLB_VSID_LLP_MASK       (SLB_VSID_L | SLB_VSID_LP)
 #define SLB_VSID_4K             0x0000000000000000ULL
 #define SLB_VSID_64K            0x0000000000000110ULL
+#define SLB_VSID_16M            0x0000000000000100ULL
+#define SLB_VSID_16G            0x0000000000000120ULL
 
 /*
  * Hash page table definitions
@@ -85,31 +95,31 @@ extern bool kvmppc_kern_htab;
 uint64_t ppc_hash64_start_access(PowerPCCPU *cpu, target_ulong pte_index);
 void ppc_hash64_stop_access(uint64_t token);
 
-static inline target_ulong ppc_hash64_load_hpte0(CPUPPCState *env,
+static inline target_ulong ppc_hash64_load_hpte0(PowerPCCPU *cpu,
                                                  uint64_t token, int index)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUPPCState *env = &cpu->env;
     uint64_t addr;
 
     addr = token + (index * HASH_PTE_SIZE_64);
     if (env->external_htab) {
         return  ldq_p((const void *)(uintptr_t)addr);
     } else {
-        return ldq_phys(cs->as, addr);
+        return ldq_phys(CPU(cpu)->as, addr);
     }
 }
 
-static inline target_ulong ppc_hash64_load_hpte1(CPUPPCState *env,
+static inline target_ulong ppc_hash64_load_hpte1(PowerPCCPU *cpu,
                                                  uint64_t token, int index)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUPPCState *env = &cpu->env;
     uint64_t addr;
 
     addr = token + (index * HASH_PTE_SIZE_64) + HASH_PTE_SIZE_64/2;
     if (env->external_htab) {
         return  ldq_p((const void *)(uintptr_t)addr);
     } else {
-        return ldq_phys(cs->as, addr);
+        return ldq_phys(CPU(cpu)->as, addr);
     }
 }
 

@@ -229,6 +229,19 @@ static void rtas_stop_self(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     env->msr = 0;
 }
 
+static inline int sysparm_st(target_ulong addr, target_ulong len,
+                             const void *val, uint16_t vallen)
+{
+    hwaddr phys = ppc64_phys_to_real(addr);
+
+    if (len < 2) {
+        return RTAS_OUT_SYSPARM_PARAM_ERROR;
+    }
+    stw_be_phys(&address_space_memory, phys, vallen);
+    cpu_physical_memory_write(phys + 2, val, MIN(len - 2, vallen));
+    return RTAS_OUT_SUCCESS;
+}
+
 static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
                                           sPAPRMachineState *spapr,
                                           uint32_t token, uint32_t nargs,
@@ -238,7 +251,7 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
     target_ulong parameter = rtas_ld(args, 0);
     target_ulong buffer = rtas_ld(args, 1);
     target_ulong length = rtas_ld(args, 2);
-    target_ulong ret = RTAS_OUT_SUCCESS;
+    target_ulong ret;
 
     switch (parameter) {
     case RTAS_SYSPARM_SPLPAR_CHARACTERISTICS: {
@@ -250,18 +263,18 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
                                           current_machine->ram_size / M_BYTE,
                                           smp_cpus,
                                           max_cpus);
-        rtas_st_buffer(buffer, length, (uint8_t *)param_val, strlen(param_val));
+        ret = sysparm_st(buffer, length, param_val, strlen(param_val) + 1);
         g_free(param_val);
         break;
     }
     case RTAS_SYSPARM_DIAGNOSTICS_RUN_MODE: {
         uint8_t param_val = DIAGNOSTICS_RUN_MODE_DISABLED;
 
-        rtas_st_buffer(buffer, length, &param_val, sizeof(param_val));
+        ret = sysparm_st(buffer, length, &param_val, sizeof(param_val));
         break;
     }
     case RTAS_SYSPARM_UUID:
-        rtas_st_buffer(buffer, length, qemu_uuid, (qemu_uuid_set ? 16 : 0));
+        ret = sysparm_st(buffer, length, qemu_uuid, (qemu_uuid_set ? 16 : 0));
         break;
     default:
         ret = RTAS_OUT_NOT_SUPPORTED;
@@ -493,6 +506,13 @@ out:
 #define CC_VAL_DATA_OFFSET ((CC_IDX_PROP_DATA_OFFSET + 1) * 4)
 #define CC_WA_LEN 4096
 
+static void configure_connector_st(target_ulong addr, target_ulong offset,
+                                   const void *buf, size_t len)
+{
+    cpu_physical_memory_write(ppc64_phys_to_real(addr + offset),
+                              buf, MIN(len, CC_WA_LEN - offset));
+}
+
 static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
                                          sPAPRMachineState *spapr,
                                          uint32_t token, uint32_t nargs,
@@ -558,8 +578,7 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
             /* provide the name of the next OF node */
             wa_offset = CC_VAL_DATA_OFFSET;
             rtas_st(wa_addr, CC_IDX_NODE_NAME_OFFSET, wa_offset);
-            rtas_st_buffer_direct(wa_addr + wa_offset, CC_WA_LEN - wa_offset,
-                                  (uint8_t *)name, strlen(name) + 1);
+            configure_connector_st(wa_addr, wa_offset, name, strlen(name) + 1);
             resp = SPAPR_DR_CC_RESPONSE_NEXT_CHILD;
             break;
         case FDT_END_NODE:
@@ -584,8 +603,7 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
             /* provide the name of the next OF property */
             wa_offset = CC_VAL_DATA_OFFSET;
             rtas_st(wa_addr, CC_IDX_PROP_NAME_OFFSET, wa_offset);
-            rtas_st_buffer_direct(wa_addr + wa_offset, CC_WA_LEN - wa_offset,
-                                  (uint8_t *)name, strlen(name) + 1);
+            configure_connector_st(wa_addr, wa_offset, name, strlen(name) + 1);
 
             /* provide the length and value of the OF property. data gets
              * placed immediately after NULL terminator of the OF property's
@@ -594,9 +612,7 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
             wa_offset += strlen(name) + 1,
             rtas_st(wa_addr, CC_IDX_PROP_LEN, prop_len);
             rtas_st(wa_addr, CC_IDX_PROP_DATA_OFFSET, wa_offset);
-            rtas_st_buffer_direct(wa_addr + wa_offset, CC_WA_LEN - wa_offset,
-                                  (uint8_t *)((struct fdt_property *)prop)->data,
-                                  prop_len);
+            configure_connector_st(wa_addr, wa_offset, prop->data, prop_len);
             resp = SPAPR_DR_CC_RESPONSE_NEXT_PROPERTY;
             break;
         case FDT_END:
@@ -649,17 +665,11 @@ target_ulong spapr_rtas_call(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
 void spapr_rtas_register(int token, const char *name, spapr_rtas_fn fn)
 {
-    if (!((token >= RTAS_TOKEN_BASE) && (token < RTAS_TOKEN_MAX))) {
-        fprintf(stderr, "RTAS invalid token 0x%x\n", token);
-        exit(1);
-    }
+    assert((token >= RTAS_TOKEN_BASE) && (token < RTAS_TOKEN_MAX));
 
     token -= RTAS_TOKEN_BASE;
-    if (rtas_table[token].name) {
-        fprintf(stderr, "RTAS call \"%s\" is registered already as 0x%x\n",
-                rtas_table[token].name, token);
-        exit(1);
-    }
+
+    assert(!rtas_table[token].name);
 
     rtas_table[token].name = name;
     rtas_table[token].fn = fn;

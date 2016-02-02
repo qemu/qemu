@@ -331,6 +331,15 @@ static void unin_agp_pci_host_realize(PCIDevice *d, Error **errp)
     d->config[0x0C] = 0x08; // cache_line_size
     d->config[0x0D] = 0x10; // latency_timer
     //    d->config[0x34] = 0x80; // capabilities_pointer
+    /*
+     * Set kMacRISCPCIAddressSelect (0x48) register to indicate PCI
+     * memory space with base 0x80000000, size 0x10000000 for Apple's
+     * AppleMacRiscPCI driver
+     */
+    d->config[0x48] = 0x0;
+    d->config[0x49] = 0x0;
+    d->config[0x4a] = 0x0;
+    d->config[0x4b] = 0x1;
 }
 
 static void u3_agp_pci_host_realize(PCIDevice *d, Error **errp)

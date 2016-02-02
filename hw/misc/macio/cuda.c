@@ -606,6 +606,11 @@ static void cuda_receive_packet(CUDAState *s,
         }
         break;
     default:
+        obuf[0] = ERROR_PACKET;
+        obuf[1] = 0x2;
+        obuf[2] = CUDA_PACKET;
+        obuf[3] = data[0];
+        cuda_send_packet_to_host(s, obuf, 4);
         break;
     }
 }
@@ -705,15 +710,17 @@ static const VMStateDescription vmstate_cuda_timer = {
 
 static const VMStateDescription vmstate_cuda = {
     .name = "cuda",
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(a, CUDAState),
         VMSTATE_UINT8(b, CUDAState),
+        VMSTATE_UINT8(last_b, CUDAState),
         VMSTATE_UINT8(dira, CUDAState),
         VMSTATE_UINT8(dirb, CUDAState),
         VMSTATE_UINT8(sr, CUDAState),
         VMSTATE_UINT8(acr, CUDAState),
+        VMSTATE_UINT8(last_acr, CUDAState),
         VMSTATE_UINT8(pcr, CUDAState),
         VMSTATE_UINT8(ifr, CUDAState),
         VMSTATE_UINT8(ier, CUDAState),
@@ -728,6 +735,7 @@ static const VMStateDescription vmstate_cuda = {
         VMSTATE_STRUCT_ARRAY(timers, CUDAState, 2, 1,
                              vmstate_cuda_timer, CUDATimer),
         VMSTATE_TIMER_PTR(adb_poll_timer, CUDAState),
+        VMSTATE_TIMER_PTR(sr_delay_timer, CUDAState),
         VMSTATE_END_OF_LIST()
     }
 };
