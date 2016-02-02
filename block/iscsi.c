@@ -532,7 +532,8 @@ static bool iscsi_allocationmap_is_allocated(IscsiLun *iscsilun,
 
 static int64_t coroutine_fn iscsi_co_get_block_status(BlockDriverState *bs,
                                                   int64_t sector_num,
-                                                  int nb_sectors, int *pnum)
+                                                  int nb_sectors, int *pnum,
+                                                  BlockDriverState **file)
 {
     IscsiLun *iscsilun = bs->opaque;
     struct scsi_get_lba_status *lbas = NULL;
@@ -624,6 +625,9 @@ out:
     if (iTask.task != NULL) {
         scsi_free_scsi_task(iTask.task);
     }
+    if (ret > 0 && ret & BDRV_BLOCK_OFFSET_VALID) {
+        *file = bs;
+    }
     return ret;
 }
 
@@ -650,7 +654,8 @@ static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
         !iscsi_allocationmap_is_allocated(iscsilun, sector_num, nb_sectors)) {
         int64_t ret;
         int pnum;
-        ret = iscsi_co_get_block_status(bs, sector_num, INT_MAX, &pnum);
+        BlockDriverState *file;
+        ret = iscsi_co_get_block_status(bs, sector_num, INT_MAX, &pnum, &file);
         if (ret < 0) {
             return ret;
         }

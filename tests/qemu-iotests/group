@@ -122,6 +122,7 @@
 114 rw auto quick
 115 rw auto
 116 rw auto quick
+117 rw auto
 118 rw auto
 119 rw auto quick
 120 rw auto quick
@@ -141,4 +142,8 @@
 137 rw auto
 138 rw auto quick
 139 rw auto quick
+140 rw auto quick
+141 rw auto quick
 142 auto
+143 auto quick
+144 rw auto quick

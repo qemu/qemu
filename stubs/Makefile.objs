@@ -1,5 +1,6 @@
 stub-obj-y += arch-query-cpu-def.o
 stub-obj-y += bdrv-commit-all.o
+stub-obj-y += blockdev-close-all-bdrv-states.o
 stub-obj-y += clock-warp.o
 stub-obj-y += cpu-get-clock.o
 stub-obj-y += cpu-get-icount.o

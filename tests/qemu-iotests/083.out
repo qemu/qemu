@@ -51,7 +51,6 @@ no file open, try 'help open'
 
 === Check disconnect after neg2 ===
 
-
 read failed: Input/output error
 
 === Check disconnect 8 neg2 ===
@@ -66,41 +65,33 @@ no file open, try 'help open'
 
 === Check disconnect before request ===
 
-
 read failed: Input/output error
 
 === Check disconnect after request ===
-
 
 read failed: Input/output error
 
 === Check disconnect before reply ===
 
-
 read failed: Input/output error
 
 === Check disconnect after reply ===
-
 
 read failed: Input/output error
 
 === Check disconnect 4 reply ===
 
-
 read failed: Input/output error
 
 === Check disconnect 8 reply ===
-
 
 read failed: Input/output error
 
 === Check disconnect before data ===
 
-
 read failed: Input/output error
 
 === Check disconnect after data ===
-
 
 read 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -131,7 +122,6 @@ can't open device nbd:127.0.0.1:PORT
 no file open, try 'help open'
 
 === Check disconnect after neg-classic ===
-
 
 read failed: Input/output error
 

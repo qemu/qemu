@@ -693,6 +693,7 @@ typedef struct {
     uint64_t pos;
     int64_t status;
     int *pnum;
+    BlockDriverState **file;
 } QEDIsAllocatedCB;
 
 static void qed_is_allocated_cb(void *opaque, int ret, uint64_t offset, size_t len)
@@ -704,6 +705,7 @@ static void qed_is_allocated_cb(void *opaque, int ret, uint64_t offset, size_t l
     case QED_CLUSTER_FOUND:
         offset |= qed_offset_into_cluster(s, cb->pos);
         cb->status = BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | offset;
+        *cb->file = cb->bs->file->bs;
         break;
     case QED_CLUSTER_ZERO:
         cb->status = BDRV_BLOCK_ZERO;
@@ -725,7 +727,8 @@ static void qed_is_allocated_cb(void *opaque, int ret, uint64_t offset, size_t l
 
 static int64_t coroutine_fn bdrv_qed_co_get_block_status(BlockDriverState *bs,
                                                  int64_t sector_num,
-                                                 int nb_sectors, int *pnum)
+                                                 int nb_sectors, int *pnum,
+                                                 BlockDriverState **file)
 {
     BDRVQEDState *s = bs->opaque;
     size_t len = (size_t)nb_sectors * BDRV_SECTOR_SIZE;
@@ -734,6 +737,7 @@ static int64_t coroutine_fn bdrv_qed_co_get_block_status(BlockDriverState *bs,
         .pos = (uint64_t)sector_num * BDRV_SECTOR_SIZE,
         .status = BDRV_BLOCK_OFFSET_MASK,
         .pnum = pnum,
+        .file = file,
     };
     QEDRequest request = { .l2_table = NULL };
 

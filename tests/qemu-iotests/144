@@ -1,0 +1,114 @@
+#!/bin/bash
+# Check live snapshot, followed by active commit, and another snapshot.
+#
+# This test is to catch the error case of BZ #1300209:
+# https://bugzilla.redhat.com/show_bug.cgi?id=1300209
+#
+# Copyright (C) 2016 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=jcody@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+status=1	# failure is the default!
+
+TMP_SNAP1=${TEST_DIR}/tmp.qcow2
+TMP_SNAP2=${TEST_DIR}/tmp2.qcow2
+
+_cleanup()
+{
+    _cleanup_qemu
+    rm -f "${TEST_IMG}" "${TMP_SNAP1}" "${TMP_SNAP2}"
+}
+
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+size=512M
+
+_make_test_img $size
+
+echo
+echo === Launching QEMU ===
+echo
+
+qemu_comm_method="qmp"
+_launch_qemu -drive file="${TEST_IMG}",if=virtio
+h=$QEMU_HANDLE
+
+
+echo
+echo === Performing Live Snapshot 1 ===
+echo
+
+_send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" "return"
+
+
+# First live snapshot, new overlay as active layer
+_send_qemu_cmd $h "{ 'execute': 'blockdev-snapshot-sync',
+                                'arguments': {
+                                             'device': 'virtio0',
+                                             'snapshot-file':'${TMP_SNAP1}',
+                                             'format': 'qcow2'
+                                             }
+                    }" "return"
+
+echo
+echo === Performing block-commit on active layer ===
+echo
+
+# Block commit on active layer, push the new overlay into base
+_send_qemu_cmd $h "{ 'execute': 'block-commit',
+                                'arguments': {
+                                                 'device': 'virtio0'
+                                              }
+                    }" "READY"
+
+_send_qemu_cmd $h "{ 'execute': 'block-job-complete',
+                                'arguments': {
+                                                'device': 'virtio0'
+                                              }
+                   }" "COMPLETED"
+
+echo
+echo === Performing Live Snapshot 2 ===
+echo
+
+# New live snapshot, new overlays as active layer
+_send_qemu_cmd $h "{ 'execute': 'blockdev-snapshot-sync',
+                                'arguments': {
+                                                'device': 'virtio0',
+                                                'snapshot-file':'${TMP_SNAP2}',
+                                                'format': 'qcow2'
+                                              }
+                   }" "return"
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

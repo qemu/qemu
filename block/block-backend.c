@@ -49,6 +49,8 @@ struct BlockBackend {
     BlockdevOnError on_read_error, on_write_error;
     bool iostatus_enabled;
     BlockDeviceIoStatus iostatus;
+
+    NotifierList remove_bs_notifiers, insert_bs_notifiers;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -99,6 +101,8 @@ BlockBackend *blk_new(const char *name, Error **errp)
     blk = g_new0(BlockBackend, 1);
     blk->name = g_strdup(name);
     blk->refcnt = 1;
+    notifier_list_init(&blk->remove_bs_notifiers);
+    notifier_list_init(&blk->insert_bs_notifiers);
     QTAILQ_INSERT_TAIL(&blk_backends, blk, link);
     return blk;
 }
@@ -162,11 +166,10 @@ static void blk_delete(BlockBackend *blk)
     assert(!blk->refcnt);
     assert(!blk->dev);
     if (blk->bs) {
-        assert(blk->bs->blk == blk);
-        blk->bs->blk = NULL;
-        bdrv_unref(blk->bs);
-        blk->bs = NULL;
+        blk_remove_bs(blk);
     }
+    assert(QLIST_EMPTY(&blk->remove_bs_notifiers.notifiers));
+    assert(QLIST_EMPTY(&blk->insert_bs_notifiers.notifiers));
     if (blk->root_state.throttle_state) {
         g_free(blk->root_state.throttle_group);
         throttle_group_unref(blk->root_state.throttle_state);
@@ -217,6 +220,21 @@ void blk_unref(BlockBackend *blk)
         if (!--blk->refcnt) {
             blk_delete(blk);
         }
+    }
+}
+
+void blk_remove_all_bs(void)
+{
+    BlockBackend *blk;
+
+    QTAILQ_FOREACH(blk, &blk_backends, link) {
+        AioContext *ctx = blk_get_aio_context(blk);
+
+        aio_context_acquire(ctx);
+        if (blk->bs) {
+            blk_remove_bs(blk);
+        }
+        aio_context_release(ctx);
     }
 }
 
@@ -345,6 +363,10 @@ void blk_hide_on_behalf_of_hmp_drive_del(BlockBackend *blk)
  */
 void blk_remove_bs(BlockBackend *blk)
 {
+    assert(blk->bs->blk == blk);
+
+    notifier_list_notify(&blk->remove_bs_notifiers, blk);
+
     blk_update_root_state(blk);
 
     blk->bs->blk = NULL;
@@ -361,6 +383,8 @@ void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
     bdrv_ref(bs);
     blk->bs = bs;
     bs->blk = blk;
+
+    notifier_list_notify(&blk->insert_bs_notifiers, blk);
 }
 
 /*
@@ -459,6 +483,14 @@ bool blk_dev_has_removable_media(BlockBackend *blk)
 }
 
 /*
+ * Does @blk's attached device model have a tray?
+ */
+bool blk_dev_has_tray(BlockBackend *blk)
+{
+    return blk->dev_ops && blk->dev_ops->is_tray_open;
+}
+
+/*
  * Notify @blk's attached device model of a media eject request.
  * If @force is true, the medium is about to be yanked out forcefully.
  */
@@ -474,7 +506,7 @@ void blk_dev_eject_request(BlockBackend *blk, bool force)
  */
 bool blk_dev_is_tray_open(BlockBackend *blk)
 {
-    if (blk->dev_ops && blk->dev_ops->is_tray_open) {
+    if (blk_dev_has_tray(blk)) {
         return blk->dev_ops->is_tray_open(blk->dev_opaque);
     }
     return false;
@@ -1118,11 +1150,14 @@ void blk_remove_aio_context_notifier(BlockBackend *blk,
     }
 }
 
-void blk_add_close_notifier(BlockBackend *blk, Notifier *notify)
+void blk_add_remove_bs_notifier(BlockBackend *blk, Notifier *notify)
 {
-    if (blk->bs) {
-        bdrv_add_close_notifier(blk->bs, notify);
-    }
+    notifier_list_add(&blk->remove_bs_notifiers, notify);
+}
+
+void blk_add_insert_bs_notifier(BlockBackend *blk, Notifier *notify)
+{
+    notifier_list_add(&blk->insert_bs_notifiers, notify);
 }
 
 void blk_io_plug(BlockBackend *blk)

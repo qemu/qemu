@@ -76,6 +76,13 @@ typedef struct VirtIOSCSICommon {
     VirtQueue **cmd_vqs;
 } VirtIOSCSICommon;
 
+typedef struct VirtIOSCSIBlkChangeNotifier {
+    Notifier n;
+    struct VirtIOSCSI *s;
+    SCSIDevice *sd;
+    QTAILQ_ENTRY(VirtIOSCSIBlkChangeNotifier) next;
+} VirtIOSCSIBlkChangeNotifier;
+
 typedef struct VirtIOSCSI {
     VirtIOSCSICommon parent_obj;
 
@@ -85,6 +92,9 @@ typedef struct VirtIOSCSI {
 
     /* Fields for dataplane below */
     AioContext *ctx; /* one iothread per virtio-scsi-pci for now */
+
+    QTAILQ_HEAD(, VirtIOSCSIBlkChangeNotifier) insert_notifiers;
+    QTAILQ_HEAD(, VirtIOSCSIBlkChangeNotifier) remove_notifiers;
 
     /* Vring is used instead of vq in dataplane code, because of the underlying
      * memory layer thread safety */

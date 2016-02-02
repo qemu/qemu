@@ -1330,7 +1330,7 @@ static void qcow2_join_options(QDict *options, QDict *old_options)
 }
 
 static int64_t coroutine_fn qcow2_co_get_block_status(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, int *pnum)
+        int64_t sector_num, int nb_sectors, int *pnum, BlockDriverState **file)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t cluster_offset;
@@ -1349,6 +1349,7 @@ static int64_t coroutine_fn qcow2_co_get_block_status(BlockDriverState *bs,
         !s->cipher) {
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
         cluster_offset |= (index_in_cluster << BDRV_SECTOR_BITS);
+        *file = bs->file->bs;
         status |= BDRV_BLOCK_OFFSET_VALID | cluster_offset;
     }
     if (ret == QCOW2_CLUSTER_ZERO) {

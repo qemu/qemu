@@ -186,6 +186,33 @@
            '*fragmented-clusters': 'int', '*compressed-clusters': 'int' } }
 
 ##
+# @MapEntry:
+#
+# Mapping information from a virtual block range to a host file range
+#
+# @start: the start byte of the mapped virtual range
+#
+# @length: the number of bytes of the mapped virtual range
+#
+# @data: whether the mapped range has data
+#
+# @zero: whether the virtual blocks are zeroed
+#
+# @depth: the depth of the mapping
+#
+# @offset: #optional the offset in file that the virtual sectors are mapped to
+#
+# @filename: #optional filename that is referred to by @offset
+#
+# Since: 2.6
+#
+##
+{ 'struct': 'MapEntry',
+  'data': {'start': 'int', 'length': 'int', 'data': 'bool',
+           'zero': 'bool', 'depth': 'int', '*offset': 'int',
+           '*filename': 'str' } }
+
+##
 # @BlockdevCacheInfo
 #
 # Cache mode information for a block device
@@ -382,8 +409,8 @@
 # @locked: True if the guest has locked this device from having its media
 #          removed
 #
-# @tray_open: #optional True if the device has a tray and it is open
-#             (only present if removable is true)
+# @tray_open: #optional True if the device's tray is open
+#             (only present if it has a tray)
 #
 # @dirty-bitmaps: #optional dirty bitmaps information (only present if the
 #                 driver has one or more dirty bitmaps) (Since 2.0)
@@ -2098,8 +2125,7 @@
 #   respond to the eject request
 # - if the BlockBackend denoted by @device does not have a guest device attached
 #   to it
-# - if the guest device does not have an actual tray and is empty, for instance
-#   for floppy disk drives
+# - if the guest device does not have an actual tray
 #
 # @device: block device name
 #

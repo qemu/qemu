@@ -527,7 +527,7 @@ static int vdi_reopen_prepare(BDRVReopenState *state,
 }
 
 static int64_t coroutine_fn vdi_co_get_block_status(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, int *pnum)
+        int64_t sector_num, int nb_sectors, int *pnum, BlockDriverState **file)
 {
     /* TODO: Check for too large sector_num (in bdrv_is_allocated or here). */
     BDRVVdiState *s = (BDRVVdiState *)bs->opaque;
@@ -551,6 +551,7 @@ static int64_t coroutine_fn vdi_co_get_block_status(BlockDriverState *bs,
     offset = s->header.offset_data +
                               (uint64_t)bmap_entry * s->block_size +
                               sector_in_block * SECTOR_SIZE;
+    *file = bs->file->bs;
     return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | offset;
 }
 

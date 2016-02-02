@@ -1818,7 +1818,8 @@ static int find_allocation(BlockDriverState *bs, off_t start,
  */
 static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
                                                     int64_t sector_num,
-                                                    int nb_sectors, int *pnum)
+                                                    int nb_sectors, int *pnum,
+                                                    BlockDriverState **file)
 {
     off_t start, data = 0, hole = 0;
     int64_t total_size;
@@ -1860,6 +1861,7 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
         *pnum = MIN(nb_sectors, (data - start) / BDRV_SECTOR_SIZE);
         ret = BDRV_BLOCK_ZERO;
     }
+    *file = bs;
     return ret | BDRV_BLOCK_OFFSET_VALID | start;
 }
 

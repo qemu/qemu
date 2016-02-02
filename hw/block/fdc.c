@@ -173,7 +173,6 @@ typedef struct FDrive {
     uint8_t media_changed;    /* Is media changed       */
     uint8_t media_rate;       /* Data rate of medium    */
 
-    bool media_inserted;      /* Is there a medium in the tray */
     bool media_validated;     /* Have we validated the media? */
 } FDrive;
 
@@ -249,7 +248,7 @@ static int fd_seek(FDrive *drv, uint8_t head, uint8_t track, uint8_t sect,
 #endif
         drv->head = head;
         if (drv->track != track) {
-            if (drv->media_inserted) {
+            if (drv->blk != NULL && blk_is_inserted(drv->blk)) {
                 drv->media_changed = 0;
             }
             ret = 1;
@@ -258,7 +257,7 @@ static int fd_seek(FDrive *drv, uint8_t head, uint8_t track, uint8_t sect,
         drv->sect = sect;
     }
 
-    if (!drv->media_inserted) {
+    if (drv->blk == NULL || !blk_is_inserted(drv->blk)) {
         ret = 2;
     }
 
@@ -288,7 +287,9 @@ static int pick_geometry(FDrive *drv)
     bool magic = drv->drive == FLOPPY_DRIVE_TYPE_AUTO;
 
     /* We can only pick a geometry if we have a diskette. */
-    if (!drv->media_inserted || drv->drive == FLOPPY_DRIVE_TYPE_NONE) {
+    if (!drv->blk || !blk_is_inserted(drv->blk) ||
+        drv->drive == FLOPPY_DRIVE_TYPE_NONE)
+    {
         return -1;
     }
 
@@ -390,7 +391,7 @@ static void fd_revalidate(FDrive *drv)
     FLOPPY_DPRINTF("revalidate\n");
     if (drv->blk != NULL) {
         drv->ro = blk_is_read_only(drv->blk);
-        if (!drv->media_inserted) {
+        if (!blk_is_inserted(drv->blk)) {
             FLOPPY_DPRINTF("No disk in drive\n");
             drv->disk = FLOPPY_DRIVE_TYPE_NONE;
         } else if (!drv->media_validated) {
@@ -793,7 +794,7 @@ static bool fdrive_media_changed_needed(void *opaque)
 {
     FDrive *drive = opaque;
 
-    return (drive->media_inserted && drive->media_changed != 1);
+    return (drive->blk != NULL && drive->media_changed != 1);
 }
 
 static const VMStateDescription vmstate_fdrive_media_changed = {
@@ -2285,22 +2286,13 @@ static void fdctrl_change_cb(void *opaque, bool load)
 {
     FDrive *drive = opaque;
 
-    drive->media_inserted = load && drive->blk && blk_is_inserted(drive->blk);
-
     drive->media_changed = 1;
     drive->media_validated = false;
     fd_revalidate(drive);
 }
 
-static bool fdctrl_is_tray_open(void *opaque)
-{
-    FDrive *drive = opaque;
-    return !drive->media_inserted;
-}
-
 static const BlockDevOps fdctrl_block_ops = {
     .change_media_cb = fdctrl_change_cb,
-    .is_tray_open = fdctrl_is_tray_open,
 };
 
 /* Init functions */
@@ -2327,7 +2319,6 @@ static void fdctrl_connect_drives(FDCtrl *fdctrl, Error **errp)
         fd_init(drive);
         if (drive->blk) {
             blk_set_dev_ops(drive->blk, &fdctrl_block_ops, drive);
-            drive->media_inserted = blk_is_inserted(drive->blk);
             pick_drive_type(drive);
         }
         fd_revalidate(drive);

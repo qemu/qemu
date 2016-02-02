@@ -1,0 +1,59 @@
+QA output created by 141
+Formatting 'TEST_DIR/b.IMGFMT', fmt=IMGFMT size=1048576
+Formatting 'TEST_DIR/m.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/b.IMGFMT
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/m.IMGFMT
+{"return": {}}
+
+=== Testing drive-backup ===
+
+{"return": {}}
+Formatting 'TEST_DIR/o.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT backing_fmt=IMGFMT
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "Node 'drv0' is busy: block device is in use by block job: backup"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_CANCELLED", "data": {"device": "drv0", "len": 1048576, "offset": 0, "speed": 0, "type": "backup"}}
+{"return": {}}
+
+=== Testing drive-mirror ===
+
+{"return": {}}
+Formatting 'TEST_DIR/o.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT backing_fmt=IMGFMT
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_READY", "data": {"device": "drv0", "len": 0, "offset": 0, "speed": 0, "type": "mirror"}}
+{"error": {"class": "GenericError", "desc": "Node 'drv0' is busy: block device is in use by block job: mirror"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_COMPLETED", "data": {"device": "drv0", "len": 0, "offset": 0, "speed": 0, "type": "mirror"}}
+{"return": {}}
+
+=== Testing active block-commit ===
+
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_READY", "data": {"device": "drv0", "len": 0, "offset": 0, "speed": 0, "type": "commit"}}
+{"error": {"class": "GenericError", "desc": "Node 'drv0' is busy: block device is in use by block job: commit"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_COMPLETED", "data": {"device": "drv0", "len": 0, "offset": 0, "speed": 0, "type": "commit"}}
+{"return": {}}
+
+=== Testing non-active block-commit ===
+
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{"return": {}}
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "Node 'drv0' is busy: block device is in use by block job: commit"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_CANCELLED", "data": {"device": "drv0", "len": 1048576, "offset": 524288, "speed": 1, "type": "commit"}}
+{"return": {}}
+
+=== Testing block-stream ===
+
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{"return": {}}
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "Node 'drv0' is busy: block device is in use by block job: stream"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_CANCELLED", "data": {"device": "drv0", "len": 1048576, "offset": 524288, "speed": 1, "type": "stream"}}
+{"return": {}}
+*** done

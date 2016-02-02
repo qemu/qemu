@@ -166,7 +166,8 @@ struct BlockDriver {
     int coroutine_fn (*bdrv_co_discard)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors);
     int64_t coroutine_fn (*bdrv_co_get_block_status)(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, int *pnum);
+        int64_t sector_num, int nb_sectors, int *pnum,
+        BlockDriverState **file);
 
     /*
      * Invalidate any cached meta-data.
@@ -403,8 +404,6 @@ struct BlockDriverState {
     BdrvChild *backing;
     BdrvChild *file;
 
-    NotifierList close_notifiers;
-
     /* Callback before write request is processed */
     NotifierWithReturnList before_write_notifiers;
 
@@ -445,6 +444,10 @@ struct BlockDriverState {
     QTAILQ_ENTRY(BlockDriverState) node_list;
     /* element of the list of "drives" the guest sees */
     QTAILQ_ENTRY(BlockDriverState) device_list;
+    /* element of the list of all BlockDriverStates (all_bdrv_states) */
+    QTAILQ_ENTRY(BlockDriverState) bs_list;
+    /* element of the list of monitor-owned BDS */
+    QTAILQ_ENTRY(BlockDriverState) monitor_list;
     QLIST_HEAD(, BdrvDirtyBitmap) dirty_bitmaps;
     int refcnt;
 
@@ -695,6 +698,7 @@ void blk_set_bs(BlockBackend *blk, BlockDriverState *bs);
 
 void blk_dev_change_media_cb(BlockBackend *blk, bool load);
 bool blk_dev_has_removable_media(BlockBackend *blk);
+bool blk_dev_has_tray(BlockBackend *blk);
 void blk_dev_eject_request(BlockBackend *blk, bool force);
 bool blk_dev_is_tray_open(BlockBackend *blk);
 bool blk_dev_is_medium_locked(BlockBackend *blk);
@@ -705,5 +709,7 @@ bool bdrv_requests_pending(BlockDriverState *bs);
 
 void bdrv_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap **out);
 void bdrv_undo_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap *in);
+
+void blockdev_close_all_bdrv_states(void);
 
 #endif /* BLOCK_INT_H */

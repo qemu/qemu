@@ -111,9 +111,10 @@ typedef struct HDGeometry {
 
 /*
  * Allocation status flags
- * BDRV_BLOCK_DATA: data is read from bs->file or another file
+ * BDRV_BLOCK_DATA: data is read from a file returned by bdrv_get_block_status.
  * BDRV_BLOCK_ZERO: sectors read as zero
- * BDRV_BLOCK_OFFSET_VALID: sector stored in bs->file as raw data
+ * BDRV_BLOCK_OFFSET_VALID: sector stored as raw data in a file returned by
+ *                          bdrv_get_block_status.
  * BDRV_BLOCK_ALLOCATED: the content of the block is determined by this
  *                       layer (as opposed to the backing file)
  * BDRV_BLOCK_RAW: used internally to indicate that the request
@@ -198,6 +199,7 @@ int bdrv_create(BlockDriver *drv, const char* filename,
 int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp);
 BlockDriverState *bdrv_new_root(void);
 BlockDriverState *bdrv_new(void);
+void bdrv_device_remove(BlockDriverState *bs);
 void bdrv_make_anon(BlockDriverState *bs);
 void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);
 void bdrv_replace_in_backing_chain(BlockDriverState *old,
@@ -225,8 +227,6 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
                         BlockReopenQueue *queue, Error **errp);
 void bdrv_reopen_commit(BDRVReopenState *reopen_state);
 void bdrv_reopen_abort(BDRVReopenState *reopen_state);
-void bdrv_close(BlockDriverState *bs);
-void bdrv_add_close_notifier(BlockDriverState *bs, Notifier *notify);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,
               uint8_t *buf, int nb_sectors);
 int bdrv_read_unthrottled(BlockDriverState *bs, int64_t sector_num,
@@ -386,11 +386,13 @@ int bdrv_has_zero_init(BlockDriverState *bs);
 bool bdrv_unallocated_blocks_are_zero(BlockDriverState *bs);
 bool bdrv_can_write_zeroes_with_unmap(BlockDriverState *bs);
 int64_t bdrv_get_block_status(BlockDriverState *bs, int64_t sector_num,
-                              int nb_sectors, int *pnum);
+                              int nb_sectors, int *pnum,
+                              BlockDriverState **file);
 int64_t bdrv_get_block_status_above(BlockDriverState *bs,
                                     BlockDriverState *base,
                                     int64_t sector_num,
-                                    int nb_sectors, int *pnum);
+                                    int nb_sectors, int *pnum,
+                                    BlockDriverState **file);
 int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
                       int *pnum);
 int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
