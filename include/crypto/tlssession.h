@@ -114,7 +114,7 @@ typedef struct QCryptoTLSSession QCryptoTLSSession;
  * @hostname: optional hostname to validate
  * @aclname: optional ACL to validate peer credentials against
  * @endpoint: role of the TLS session, client or server
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Create a new TLS session object that will be used to
  * negotiate a TLS session over an arbitrary data channel.
@@ -163,7 +163,7 @@ void qcrypto_tls_session_free(QCryptoTLSSession *sess);
 /**
  * qcrypto_tls_session_check_credentials:
  * @sess: the TLS session object
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Validate the peer's credentials after a successful
  * TLS handshake. It is an error to call this before
@@ -249,7 +249,7 @@ ssize_t qcrypto_tls_session_read(QCryptoTLSSession *sess,
 /**
  * qcrypto_tls_session_handshake:
  * @sess: the TLS session object
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Start, or continue, a TLS handshake sequence. If
  * the underlying data channel is non-blocking, then
@@ -292,7 +292,7 @@ qcrypto_tls_session_get_handshake_status(QCryptoTLSSession *sess);
 /**
  * qcrypto_tls_session_get_key_size:
  * @sess: the TLS session object
- * @errp: pointer to an uninitialized error object
+ * @errp: pointer to a NULL-initialized error object
  *
  * Check the size of the data channel encryption key
  *
