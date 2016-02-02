@@ -1,4 +1,5 @@
 /* public domain */
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "audio.h"
 
