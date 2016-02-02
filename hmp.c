@@ -319,11 +319,13 @@ void hmp_info_cpus(Monitor *mon, const QDict *qdict)
             monitor_printf(mon, " nip=0x%016" PRIx64, cpu->value->u.ppc->nip);
             break;
         case CPU_INFO_ARCH_SPARC:
-            monitor_printf(mon, " pc=0x%016" PRIx64, cpu->value->u.sparc->pc);
-            monitor_printf(mon, " npc=0x%016" PRIx64, cpu->value->u.sparc->npc);
+            monitor_printf(mon, " pc=0x%016" PRIx64,
+                           cpu->value->u.q_sparc->pc);
+            monitor_printf(mon, " npc=0x%016" PRIx64,
+                           cpu->value->u.q_sparc->npc);
             break;
         case CPU_INFO_ARCH_MIPS:
-            monitor_printf(mon, " PC=0x%016" PRIx64, cpu->value->u.mips->PC);
+            monitor_printf(mon, " PC=0x%016" PRIx64, cpu->value->u.q_mips->PC);
             break;
         case CPU_INFO_ARCH_TRICORE:
             monitor_printf(mon, " PC=0x%016" PRIx64, cpu->value->u.tricore->PC);
