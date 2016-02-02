@@ -1976,21 +1976,25 @@ void bdrv_close_all(void)
     }
 }
 
+/* Note that bs->device_list.tqe_prev is initially null,
+ * and gets set to non-null by QTAILQ_INSERT_TAIL().  Establish
+ * the useful invariant "bs in bdrv_states iff bs->tqe_prev" by
+ * resetting it to null on remove.  */
+void bdrv_device_remove(BlockDriverState *bs)
+{
+    QTAILQ_REMOVE(&bdrv_states, bs, device_list);
+    bs->device_list.tqe_prev = NULL;
+}
+
 /* make a BlockDriverState anonymous by removing from bdrv_state and
  * graph_bdrv_state list.
    Also, NULL terminate the device_name to prevent double remove */
 void bdrv_make_anon(BlockDriverState *bs)
 {
-    /*
-     * Take care to remove bs from bdrv_states only when it's actually
-     * in it.  Note that bs->device_list.tqe_prev is initially null,
-     * and gets set to non-null by QTAILQ_INSERT_TAIL().  Establish
-     * the useful invariant "bs in bdrv_states iff bs->tqe_prev" by
-     * resetting it to null on remove.
-     */
+    /* Take care to remove bs from bdrv_states only when it's actually
+     * in it. */
     if (bs->device_list.tqe_prev) {
-        QTAILQ_REMOVE(&bdrv_states, bs, device_list);
-        bs->device_list.tqe_prev = NULL;
+        bdrv_device_remove(bs);
     }
     if (bs->node_name[0] != '\0') {
         QTAILQ_REMOVE(&graph_bdrv_states, bs, node_list);
@@ -2031,7 +2035,7 @@ static void change_parent_backing_link(BlockDriverState *from,
         if (!to->device_list.tqe_prev) {
             QTAILQ_INSERT_BEFORE(from, to, device_list);
         }
-        QTAILQ_REMOVE(&bdrv_states, from, device_list);
+        bdrv_device_remove(from);
     }
 }
 
