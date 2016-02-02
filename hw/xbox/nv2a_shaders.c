@@ -573,9 +573,7 @@ static QString *generate_vertex_shader(const ShaderState state,
                                   "uniform vec2 surfaceSize;\n"
                                   "\n"
                                   /* All constants in 1 array declaration */
-                                  "layout(shared) uniform VertexConstants {\n"
-                                  "  uniform vec4 c[192];\n"
-                                  "};\n"
+                                  "uniform vec4 c[192];\n"
                                   "\n"
                                   /* FIXME: Most [all?] of these are probably part of the constant space */
                                   "uniform vec4 fogColor;\n"
@@ -874,8 +872,14 @@ ShaderBinding* generate_shaders(const ShaderState state)
             ret->psh_constant_loc[i][j] = glGetUniformLocation(program, tmp);
         }
     }
-
-    ret->gl_constants_loc = glGetUniformBlockIndex(program, "VertexConstants");
+    if (state.vertex_program) {
+        /* lookup vertex shader bindings */
+        for(i = 0; i < NV2A_VERTEXSHADER_CONSTANTS; i++) {
+            char tmp[8];
+            snprintf(tmp, sizeof(tmp), "c[%d]", i);
+            ret->vsh_constant_loc[i] = glGetUniformLocation(program, tmp);
+        }
+    }
 
     return ret;
 }
