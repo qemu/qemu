@@ -342,6 +342,12 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         }
         cs->kvm_run->s.regs.fpc = env->fpc;
         cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_VRS;
+    } else if (can_sync_regs(cs, KVM_SYNC_FPRS)) {
+        for (i = 0; i < 16; i++) {
+            cs->kvm_run->s.regs.fprs[i] = get_freg(env, i)->ll;
+        }
+        cs->kvm_run->s.regs.fpc = env->fpc;
+        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_FPRS;
     } else {
         /* Floating point */
         for (i = 0; i < 16; i++) {
@@ -480,6 +486,11 @@ int kvm_arch_get_registers(CPUState *cs)
         for (i = 0; i < 32; i++) {
             env->vregs[i][0].ll = cs->kvm_run->s.regs.vrs[i][0];
             env->vregs[i][1].ll = cs->kvm_run->s.regs.vrs[i][1];
+        }
+        env->fpc = cs->kvm_run->s.regs.fpc;
+    } else if (can_sync_regs(cs, KVM_SYNC_FPRS)) {
+        for (i = 0; i < 16; i++) {
+            get_freg(env, i)->ll = cs->kvm_run->s.regs.fprs[i];
         }
         env->fpc = cs->kvm_run->s.regs.fpc;
     } else {
