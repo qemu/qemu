@@ -49,6 +49,10 @@ static int guest_x, guest_y;
 static SDL_Cursor *guest_sprite;
 static Notifier mouse_mode_notifier;
 
+#define SDL2_REFRESH_INTERVAL_BUSY 10
+#define SDL2_MAX_IDLE_COUNT (2 * GUI_REFRESH_INTERVAL_DEFAULT \
+                             / SDL2_REFRESH_INTERVAL_BUSY + 1)
+
 static void sdl_update_caption(struct sdl2_console *scon);
 
 static struct sdl2_console *get_scon_from_window(uint32_t window_id)
@@ -578,6 +582,7 @@ static void handle_windowevent(SDL_Event *ev)
 void sdl2_poll_events(struct sdl2_console *scon)
 {
     SDL_Event ev1, *ev = &ev1;
+    int idle = 1;
 
     if (scon->last_vm_running != runstate_is_running()) {
         scon->last_vm_running = runstate_is_running();
@@ -587,12 +592,15 @@ void sdl2_poll_events(struct sdl2_console *scon)
     while (SDL_PollEvent(ev)) {
         switch (ev->type) {
         case SDL_KEYDOWN:
+            idle = 0;
             handle_keydown(ev);
             break;
         case SDL_KEYUP:
+            idle = 0;
             handle_keyup(ev);
             break;
         case SDL_TEXTINPUT:
+            idle = 0;
             handle_textinput(ev);
             break;
         case SDL_QUIT:
@@ -602,13 +610,16 @@ void sdl2_poll_events(struct sdl2_console *scon)
             }
             break;
         case SDL_MOUSEMOTION:
+            idle = 0;
             handle_mousemotion(ev);
             break;
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
+            idle = 0;
             handle_mousebutton(ev);
             break;
         case SDL_MOUSEWHEEL:
+            idle = 0;
             handle_mousewheel(ev);
             break;
         case SDL_WINDOWEVENT:
@@ -617,6 +628,18 @@ void sdl2_poll_events(struct sdl2_console *scon)
         default:
             break;
         }
+    }
+
+    if (idle) {
+        if (scon->idle_counter < SDL2_MAX_IDLE_COUNT) {
+            scon->idle_counter++;
+            if (scon->idle_counter >= SDL2_MAX_IDLE_COUNT) {
+                scon->dcl.update_interval = GUI_REFRESH_INTERVAL_DEFAULT;
+            }
+        }
+    } else {
+        scon->idle_counter = 0;
+        scon->dcl.update_interval = SDL2_REFRESH_INTERVAL_BUSY;
     }
 }
 

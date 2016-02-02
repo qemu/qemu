@@ -60,6 +60,11 @@ static SDL_Cursor *guest_sprite = NULL;
 static SDL_PixelFormat host_format;
 static int scaling_active = 0;
 static Notifier mouse_mode_notifier;
+static int idle_counter;
+
+#define SDL_REFRESH_INTERVAL_BUSY 10
+#define SDL_MAX_IDLE_COUNT (2 * GUI_REFRESH_INTERVAL_DEFAULT \
+                            / SDL_REFRESH_INTERVAL_BUSY + 1)
 
 #if 0
 #define DEBUG_SDL
@@ -802,6 +807,7 @@ static void handle_activation(SDL_Event *ev)
 static void sdl_refresh(DisplayChangeListener *dcl)
 {
     SDL_Event ev1, *ev = &ev1;
+    int idle = 1;
 
     if (last_vm_running != runstate_is_running()) {
         last_vm_running = runstate_is_running();
@@ -817,9 +823,11 @@ static void sdl_refresh(DisplayChangeListener *dcl)
             sdl_update(dcl, 0, 0, real_screen->w, real_screen->h);
             break;
         case SDL_KEYDOWN:
+            idle = 0;
             handle_keydown(ev);
             break;
         case SDL_KEYUP:
+            idle = 0;
             handle_keyup(ev);
             break;
         case SDL_QUIT:
@@ -829,10 +837,12 @@ static void sdl_refresh(DisplayChangeListener *dcl)
             }
             break;
         case SDL_MOUSEMOTION:
+            idle = 0;
             handle_mousemotion(ev);
             break;
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
+            idle = 0;
             handle_mousebutton(ev);
             break;
         case SDL_ACTIVEEVENT:
@@ -846,6 +856,18 @@ static void sdl_refresh(DisplayChangeListener *dcl)
         default:
             break;
         }
+    }
+
+    if (idle) {
+        if (idle_counter < SDL_MAX_IDLE_COUNT) {
+            idle_counter++;
+            if (idle_counter >= SDL_MAX_IDLE_COUNT) {
+                dcl->update_interval = GUI_REFRESH_INTERVAL_DEFAULT;
+            }
+        }
+    } else {
+        idle_counter = 0;
+        dcl->update_interval = SDL_REFRESH_INTERVAL_BUSY;
     }
 }
 
