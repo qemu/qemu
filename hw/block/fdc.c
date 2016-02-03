@@ -2492,6 +2492,8 @@ static void sun4m_fdc_initfn(Object *obj)
     FDCtrlSysBus *sys = SYSBUS_FDC(obj);
     FDCtrl *fdctrl = &sys->state;
 
+    fdctrl->dma_chann = -1;
+
     memory_region_init_io(&fdctrl->iomem, obj, &fdctrl_mem_strict_ops,
                           fdctrl, "fdctrl", 0x08);
     sysbus_init_mmio(sbd, &fdctrl->iomem);
