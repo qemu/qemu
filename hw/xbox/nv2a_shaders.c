@@ -356,7 +356,7 @@ GLSL_DEFINE(sceneAmbientColor, GLSL_LTCTXA(NV_IGRAPH_XF_LTCTXA_FR_AMB) ".xyz")
     }
 
     /* Texgen */
-    for (i = 0; i < 4 /* FIXME: NV2A_MAX_TEXTURES */; i++) {
+    for (i = 0; i < NV2A_MAX_TEXTURES; i++) {
         qstring_append_fmt(body, "/* Texgen for stage %d */\n",
                            i);
         /* Set each component individually */
@@ -423,7 +423,7 @@ GLSL_DEFINE(sceneAmbientColor, GLSL_LTCTXA(NV_IGRAPH_XF_LTCTXA_FR_AMB) ".xyz")
     }
 
     /* Apply texture matrices */
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < NV2A_MAX_TEXTURES; i++) {
         if (state.texture_matrix_enable[i]) {
             qstring_append_fmt(body,
                                "oT%d = oT%d * texMat%d;\n",
@@ -634,7 +634,7 @@ STRUCT_VERTEX_DATA);
     qstring_append_fmt(header, "#define vtx %c_vtx\n",
                        vtx_prefix);
     qstring_append(header, "\n");
-    for(i = 0; i < 16; i++) {
+    for(i = 0; i < NV2A_VERTEXSHADER_ATTRIBUTES; i++) {
         qstring_append_fmt(header, "in vec4 v%d;\n", i);
     }
     qstring_append(header, "\n");
@@ -829,7 +829,7 @@ ShaderBinding* generate_shaders(const ShaderState state)
 
 
     /* Bind attributes for vertices */
-    for(i = 0; i < 16; i++) {
+    for(i = 0; i < NV2A_VERTEXSHADER_ATTRIBUTES; i++) {
         snprintf(tmp, sizeof(tmp), "v%d", i);
         glBindAttribLocation(program, i, tmp);
     }
@@ -863,7 +863,7 @@ ShaderBinding* generate_shaders(const ShaderState state)
     glUseProgram(program);
 
     /* set texture samplers */
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < NV2A_MAX_TEXTURES; i++) {
         char samplerName[16];
         snprintf(samplerName, sizeof(samplerName), "texSamp%d", i);
         GLint texSampLoc = glGetUniformLocation(program, samplerName);
@@ -895,7 +895,7 @@ ShaderBinding* generate_shaders(const ShaderState state)
         }
     }
     ret->alpha_ref_loc = glGetUniformLocation(program, "alphaRef");
-    for (i = 1; i < 4; i++) {
+    for (i = 1; i < NV2A_MAX_TEXTURES; i++) {
         snprintf(tmp, sizeof(tmp), "bumpMat%d", i);
         ret->bump_mat_loc[i] = glGetUniformLocation(program, tmp);
         snprintf(tmp, sizeof(tmp), "bumpScale%d", i);
