@@ -23,6 +23,7 @@
 #include "sysemu/kvm.h"
 #include "qemu/notify.h"
 #include "qemu/log.h"
+#include "exec/log.h"
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 

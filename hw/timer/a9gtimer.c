@@ -25,6 +25,7 @@
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
+#include "qom/cpu.h"
 
 #ifndef A9_GTIMER_ERR_DEBUG
 #define A9_GTIMER_ERR_DEBUG 0

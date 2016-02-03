@@ -24,6 +24,7 @@
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "mmu-hash32.h"
+#include "exec/log.h"
 
 //#define DEBUG_BAT
 

@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "trace.h"
 #include "sysemu/sysemu.h"
+#include "exec/log.h"
 
 #define DEBUG_PCALL
 

@@ -435,7 +435,7 @@ int main(int argc, char **argv)
             }
             break;
         case 'T':
-            if (!trace_init_backends(optarg, NULL)) {
+            if (!trace_init_backends()) {
                 exit(1); /* error message will have been printed */
             }
             break;

@@ -28,6 +28,7 @@
 #include "qemu/timer.h"
 #include "qemu/envlist.h"
 #include "elf.h"
+#include "exec/log.h"
 
 char *exec_path;
 

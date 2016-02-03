@@ -3544,7 +3544,7 @@ config files on @var{sysconfdir}, but won't make it skip the QEMU-provided confi
 files from @var{datadir}.
 ETEXI
 DEF("trace", HAS_ARG, QEMU_OPTION_trace,
-    "-trace [events=<file>][,file=<file>]\n"
+    "-trace [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
     "                specify tracing options\n",
     QEMU_ARCH_ALL)
 STEXI
@@ -3556,15 +3556,25 @@ HXCOMM HX does not support conditional compilation of text.
 Specify tracing options.
 
 @table @option
+@item [enable=]@var{pattern}
+Immediately enable events matching @var{pattern}.
+The file must contain one event name (as listed in the @file{trace-events} file)
+per line; globbing patterns are accepted too.  This option is only
+available if QEMU has been compiled with the @var{simple}, @var{stderr}
+or @var{ftrace} tracing backend.  To specify multiple events or patterns,
+specify the @option{-trace} option multiple times.
+
+Use @code{-trace help} to print a list of names of trace points.
+
 @item events=@var{file}
 Immediately enable events listed in @var{file}.
-The file must contain one event name (as listed in the @var{trace-events} file)
-per line.
-This option is only available if QEMU has been compiled with
-either @var{simple} or @var{stderr} tracing backend.
+The file must contain one event name (as listed in the @file{trace-events} file)
+per line; globbing patterns are accepted too.  This option is only
+available if QEMU has been compiled with the @var{simple}, @var{stderr} or
+@var{ftrace} tracing backend.
+
 @item file=@var{file}
 Log output traces to @var{file}.
-
 This option is only available if QEMU has been compiled with
 the @var{simple} tracing backend.
 @end table

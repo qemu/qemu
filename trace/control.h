@@ -104,7 +104,7 @@ static const char * trace_event_get_name(TraceEvent *ev);
  * As a down side, you must always use an immediate #TraceEventID value.
  */
 #define trace_event_get_state(id)                       \
-    ((id ##_ENABLED) && trace_event_get_state_dynamic(trace_event_id(id)))
+    ((id ##_ENABLED) && trace_event_get_state_dynamic_by_id(id))
 
 /**
  * trace_event_get_state_static:
@@ -150,8 +150,6 @@ static void trace_event_set_state_dynamic(TraceEvent *ev, bool state);
 
 /**
  * trace_init_backends:
- * @events: Name of file with events to be enabled at startup; may be NULL.
- *          Corresponds to commandline option "-trace events=...".
  * @file:   Name of trace output file; may be NULL.
  *          Corresponds to commandline option "-trace file=...".
  *
@@ -159,7 +157,45 @@ static void trace_event_set_state_dynamic(TraceEvent *ev, bool state);
  *
  * Returns: Whether the backends could be successfully initialized.
  */
-bool trace_init_backends(const char *events, const char *file);
+bool trace_init_backends(void);
+
+/**
+ * trace_init_events:
+ * @events: Name of file with events to be enabled at startup; may be NULL.
+ *          Corresponds to commandline option "-trace events=...".
+ *
+ * Read the list of enabled tracing events.
+ *
+ * Returns: Whether the backends could be successfully initialized.
+ */
+void trace_init_events(const char *file);
+
+/**
+ * trace_init_file:
+ * @file:   Name of trace output file; may be NULL.
+ *          Corresponds to commandline option "-trace file=...".
+ *
+ * Record the name of the output file for the tracing backend.
+ * Exits if no selected backend does not support specifying the
+ * output file, and a non-NULL file was passed.
+ */
+void trace_init_file(const char *file);
+
+/**
+ * trace_list_events:
+ *
+ * List all available events.
+ */
+void trace_list_events(void);
+
+/**
+ * trace_enable_events:
+ * @line_buf: A string with a glob pattern of events to be enabled or,
+ *            if the string starts with '-', disabled.
+ *
+ * Enable or disable matching events.
+ */
+void trace_enable_events(const char *line_buf);
 
 
 #include "trace/control-internal.h"

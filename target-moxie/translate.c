@@ -31,6 +31,7 @@
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
+#include "exec/log.h"
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {

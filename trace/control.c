@@ -14,7 +14,13 @@
 #ifdef CONFIG_TRACE_FTRACE
 #include "trace/ftrace.h"
 #endif
+#ifdef CONFIG_TRACE_LOG
+#include "qemu/log.h"
+#endif
 #include "qemu/error-report.h"
+
+int trace_events_enabled_count;
+bool trace_events_dstate[TRACE_EVENT_COUNT];
 
 TraceEvent *trace_event_name(const char *name)
 {
@@ -85,7 +91,52 @@ TraceEvent *trace_event_pattern(const char *pat, TraceEvent *ev)
     return NULL;
 }
 
-static void trace_init_events(const char *fname)
+void trace_list_events(void)
+{
+    int i;
+    for (i = 0; i < trace_event_count(); i++) {
+        TraceEvent *res = trace_event_id(i);
+        fprintf(stderr, "%s\n", trace_event_get_name(res));
+    }
+}
+
+static void do_trace_enable_events(const char *line_buf)
+{
+    const bool enable = ('-' != line_buf[0]);
+    const char *line_ptr = enable ? line_buf : line_buf + 1;
+
+    if (trace_event_is_pattern(line_ptr)) {
+        TraceEvent *ev = NULL;
+        while ((ev = trace_event_pattern(line_ptr, ev)) != NULL) {
+            if (trace_event_get_state_static(ev)) {
+                trace_event_set_state_dynamic(ev, enable);
+            }
+        }
+    } else {
+        TraceEvent *ev = trace_event_name(line_ptr);
+        if (ev == NULL) {
+            error_report("WARNING: trace event '%s' does not exist",
+                         line_ptr);
+        } else if (!trace_event_get_state_static(ev)) {
+            error_report("WARNING: trace event '%s' is not traceable",
+                         line_ptr);
+        } else {
+            trace_event_set_state_dynamic(ev, enable);
+        }
+    }
+}
+
+void trace_enable_events(const char *line_buf)
+{
+    if (is_help_option(line_buf)) {
+        trace_list_events();
+        exit(0);
+    } else {
+        do_trace_enable_events(line_buf);
+    }
+}
+
+void trace_init_events(const char *fname)
 {
     Location loc;
     FILE *fp;
@@ -111,27 +162,7 @@ static void trace_init_events(const char *fname)
             if ('#' == line_buf[0]) { /* skip commented lines */
                 continue;
             }
-            const bool enable = ('-' != line_buf[0]);
-            char *line_ptr = enable ? line_buf : line_buf + 1;
-            if (trace_event_is_pattern(line_ptr)) {
-                TraceEvent *ev = NULL;
-                while ((ev = trace_event_pattern(line_ptr, ev)) != NULL) {
-                    if (trace_event_get_state_static(ev)) {
-                        trace_event_set_state_dynamic(ev, enable);
-                    }
-                }
-            } else {
-                TraceEvent *ev = trace_event_name(line_ptr);
-                if (ev == NULL) {
-                    error_report("WARNING: trace event '%s' does not exist",
-                                 line_ptr);
-                } else if (!trace_event_get_state_static(ev)) {
-                    error_report("WARNING: trace event '%s' is not traceable",
-                                 line_ptr);
-                } else {
-                    trace_event_set_state_dynamic(ev, enable);
-                }
-            }
+            trace_enable_events(line_buf);
         }
     }
     if (fclose(fp) != 0) {
@@ -142,17 +173,31 @@ static void trace_init_events(const char *fname)
     loc_pop(&loc);
 }
 
-bool trace_init_backends(const char *events, const char *file)
+void trace_init_file(const char *file)
 {
 #ifdef CONFIG_TRACE_SIMPLE
-    if (!st_init(file)) {
-        fprintf(stderr, "failed to initialize simple tracing backend.\n");
-        return false;
+    st_set_trace_file(file);
+#elif defined CONFIG_TRACE_LOG
+    /* If both the simple and the log backends are enabled, "-trace file"
+     * only applies to the simple backend; use "-D" for the log backend.
+     */
+    if (file) {
+        qemu_set_log_filename(file);
     }
 #else
     if (file) {
         fprintf(stderr, "error: -trace file=...: "
                 "option not supported by the selected tracing backends\n");
+        exit(1);
+    }
+#endif
+}
+
+bool trace_init_backends(void)
+{
+#ifdef CONFIG_TRACE_SIMPLE
+    if (!st_init()) {
+        fprintf(stderr, "failed to initialize simple tracing backend.\n");
         return false;
     }
 #endif
@@ -164,6 +209,5 @@ bool trace_init_backends(const char *events, const char *file)
     }
 #endif
 
-    trace_init_events(events);
     return true;
 }

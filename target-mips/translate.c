@@ -33,6 +33,7 @@
 #include "exec/semihost.h"
 
 #include "trace-tcg.h"
+#include "exec/log.h"
 
 #define MIPS_DEBUG_DISAS 0
 
