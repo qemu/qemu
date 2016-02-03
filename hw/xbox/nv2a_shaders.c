@@ -545,7 +545,7 @@ GLSL_DEFINE(sceneAmbientColor, GLSL_LTCTXA(NV_IGRAPH_XF_LTCTXA_FR_AMB) ".xyz")
             qstring_append(body, "  float fogDistance = clamp(specular.a, 0.0, 1.0);\n");
             break;
         case FOGGEN_RADIAL:
-            qstring_append(body, "  float fogDistance = length(tPosition.xyz)");
+            qstring_append(body, "  float fogDistance = length(tPosition.xyz);\n");
             break;
         case FOGGEN_PLANAR:
         case FOGGEN_ABS_PLANAR:
