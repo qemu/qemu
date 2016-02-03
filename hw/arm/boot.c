@@ -488,7 +488,9 @@ static void do_cpu_reset(void *opaque)
                  * adjust.
                  */
                 if (env->aarch64) {
+                    env->cp15.scr_el3 |= SCR_RW;
                     if (arm_feature(env, ARM_FEATURE_EL2)) {
+                        env->cp15.hcr_el2 |= HCR_RW;
                         env->pstate = PSTATE_MODE_EL2h;
                     } else {
                         env->pstate = PSTATE_MODE_EL1h;
