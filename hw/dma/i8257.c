@@ -38,7 +38,7 @@
 #define ldebug(...)
 #endif
 
-struct dma_regs {
+typedef struct I8257Regs {
     int now[2];
     uint16_t base[2];
     uint8_t mode;
@@ -48,7 +48,7 @@ struct dma_regs {
     uint8_t eop;
     DMA_transfer_handler transfer_handler;
     void *opaque;
-};
+} I8257Regs;
 
 #define ADDR 0
 #define COUNT 1
@@ -59,7 +59,7 @@ typedef struct I8257State {
     uint8_t mask;
     uint8_t flip_flop;
     int dshift;
-    struct dma_regs regs[4];
+    I8257Regs regs[4];
     MemoryRegion channel_io;
     MemoryRegion cont_io;
 } I8257State;
@@ -139,7 +139,7 @@ static uint32_t read_pageh (void *opaque, uint32_t nport)
 
 static inline void init_chan(I8257State *d, int ichan)
 {
-    struct dma_regs *r;
+    I8257Regs *r;
 
     r = d->regs + ichan;
     r->now[ADDR] = r->base[ADDR] << d->dshift;
@@ -159,7 +159,7 @@ static uint64_t read_chan(void *opaque, hwaddr nport, unsigned size)
 {
     I8257State *d = opaque;
     int ichan, nreg, iport, ff, val, dir;
-    struct dma_regs *r;
+    I8257Regs *r;
 
     iport = (nport >> d->dshift) & 0x0f;
     ichan = iport >> 1;
@@ -182,7 +182,7 @@ static void write_chan(void *opaque, hwaddr nport, uint64_t data,
 {
     I8257State *d = opaque;
     int iport, ichan, nreg;
-    struct dma_regs *r;
+    I8257Regs *r;
 
     iport = (nport >> d->dshift) & 0x0f;
     ichan = iport >> 1;
@@ -338,7 +338,7 @@ void DMA_release_DREQ (int nchan)
 static void channel_run (int ncont, int ichan)
 {
     int n;
-    struct dma_regs *r = &dma_controllers[ncont].regs[ichan];
+    I8257Regs *r = &dma_controllers[ncont].regs[ichan];
 #ifdef DEBUG_DMA
     int dir, opmode;
 
@@ -409,7 +409,7 @@ void DMA_register_channel (int nchan,
                            DMA_transfer_handler transfer_handler,
                            void *opaque)
 {
-    struct dma_regs *r;
+    I8257Regs *r;
     int ichan, ncont;
 
     ncont = nchan > 3;
@@ -422,7 +422,7 @@ void DMA_register_channel (int nchan,
 
 int DMA_read_memory (int nchan, void *buf, int pos, int len)
 {
-    struct dma_regs *r = &dma_controllers[nchan > 3].regs[nchan & 3];
+    I8257Regs *r = &dma_controllers[nchan > 3].regs[nchan & 3];
     hwaddr addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
 
     if (r->mode & 0x20) {
@@ -444,7 +444,7 @@ int DMA_read_memory (int nchan, void *buf, int pos, int len)
 
 int DMA_write_memory (int nchan, void *buf, int pos, int len)
 {
-    struct dma_regs *r = &dma_controllers[nchan > 3].regs[nchan & 3];
+    I8257Regs *r = &dma_controllers[nchan > 3].regs[nchan & 3];
     hwaddr addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
 
     if (r->mode & 0x20) {
@@ -553,18 +553,18 @@ static void dma_init2(I8257State *d, int base, int dshift,
     }
 }
 
-static const VMStateDescription vmstate_dma_regs = {
+static const VMStateDescription vmstate_i8257_regs = {
     .name = "dma_regs",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_INT32_ARRAY(now, struct dma_regs, 2),
-        VMSTATE_UINT16_ARRAY(base, struct dma_regs, 2),
-        VMSTATE_UINT8(mode, struct dma_regs),
-        VMSTATE_UINT8(page, struct dma_regs),
-        VMSTATE_UINT8(pageh, struct dma_regs),
-        VMSTATE_UINT8(dack, struct dma_regs),
-        VMSTATE_UINT8(eop, struct dma_regs),
+        VMSTATE_INT32_ARRAY(now, I8257Regs, 2),
+        VMSTATE_UINT16_ARRAY(base, I8257Regs, 2),
+        VMSTATE_UINT8(mode, I8257Regs),
+        VMSTATE_UINT8(page, I8257Regs),
+        VMSTATE_UINT8(pageh, I8257Regs),
+        VMSTATE_UINT8(dack, I8257Regs),
+        VMSTATE_UINT8(eop, I8257Regs),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -586,8 +586,8 @@ static const VMStateDescription vmstate_dma = {
         VMSTATE_UINT8(mask, I8257State),
         VMSTATE_UINT8(flip_flop, I8257State),
         VMSTATE_INT32(dshift, I8257State),
-        VMSTATE_STRUCT_ARRAY(regs, I8257State, 4, 1, vmstate_dma_regs,
-                             struct dma_regs),
+        VMSTATE_STRUCT_ARRAY(regs, I8257State, 4, 1, vmstate_i8257_regs,
+                             I8257Regs),
         VMSTATE_END_OF_LIST()
     }
 };
