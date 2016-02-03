@@ -2750,8 +2750,10 @@ static void pgraph_method(NV2AState *d,
         return;
     }
 
-    uint32_t class_method = (object->graphics_class << 16) | method;
-    switch (class_method) {
+    /* ugly switch for now */
+    switch (object->graphics_class) {
+
+    case NV_CONTEXT_SURFACES_2D: { switch (method) {
     case NV062_SET_CONTEXT_DMA_IMAGE_SOURCE:
         context_surfaces_2d->dma_image_source = parameter;
         break;
@@ -2771,7 +2773,9 @@ static void pgraph_method(NV2AState *d,
     case NV062_SET_OFFSET_DESTIN:
         context_surfaces_2d->dest_offset = parameter & 0x07FFFFFF;
         break;
+    } break; }
 
+    case NV_IMAGE_BLIT: { switch (method) {
     case NV09F_SET_CONTEXT_SURFACES:
         image_blit->context_surfaces = parameter;
         break;
@@ -2851,8 +2855,10 @@ static void pgraph_method(NV2AState *d,
         }
 
         break;
+    } break; }
 
 
+    case NV_KELVIN_PRIMITIVE: { switch (method) {
     case NV097_NO_OPERATION:
         /* The bios uses nop as a software method call -
          * it seems to expect a notify interrupt if the parameter isn't 0.
@@ -3026,7 +3032,7 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_COMBINER_ALPHA_ICW ...
             NV097_SET_COMBINER_ALPHA_ICW + 28:
-        slot = (class_method - NV097_SET_COMBINER_ALPHA_ICW) / 4;
+        slot = (method - NV097_SET_COMBINER_ALPHA_ICW) / 4;
         pg->regs[NV_PGRAPH_COMBINEALPHAI0 + slot*4] = parameter;
         break;
 
@@ -3039,7 +3045,7 @@ static void pgraph_method(NV2AState *d,
         break;
 
     CASE_4(NV097_SET_TEXTURE_ADDRESS, 64):
-        slot = (class_method - NV097_SET_TEXTURE_ADDRESS) / 64;
+        slot = (method - NV097_SET_TEXTURE_ADDRESS) / 64;
         pg->regs[NV_PGRAPH_TEXADDRESS0 + slot * 4] = parameter;
         break;
     case NV097_SET_CONTROL0: {
@@ -3423,7 +3429,7 @@ static void pgraph_method(NV2AState *d,
         break;
 
     CASE_4(NV097_SET_TEXGEN_S, 16): {
-        slot = (class_method - NV097_SET_TEXGEN_S) / 16;
+        slot = (method - NV097_SET_TEXGEN_S) / 16;
         unsigned int reg = (slot < 2) ? NV_PGRAPH_CSV1_A
                                       : NV_PGRAPH_CSV1_B;
         unsigned int mask = (slot % 2) ? NV_PGRAPH_CSV1_A_T1_S
@@ -3432,7 +3438,7 @@ static void pgraph_method(NV2AState *d,
         break;
     }
     CASE_4(NV097_SET_TEXGEN_T, 16): {
-        slot = (class_method - NV097_SET_TEXGEN_T) / 16;
+        slot = (method - NV097_SET_TEXGEN_T) / 16;
         unsigned int reg = (slot < 2) ? NV_PGRAPH_CSV1_A
                                       : NV_PGRAPH_CSV1_B;
         unsigned int mask = (slot % 2) ? NV_PGRAPH_CSV1_A_T1_T
@@ -3441,7 +3447,7 @@ static void pgraph_method(NV2AState *d,
         break;
     }
     CASE_4(NV097_SET_TEXGEN_R, 16): {
-        slot = (class_method - NV097_SET_TEXGEN_R) / 16;
+        slot = (method - NV097_SET_TEXGEN_R) / 16;
         unsigned int reg = (slot < 2) ? NV_PGRAPH_CSV1_A
                                       : NV_PGRAPH_CSV1_B;
         unsigned int mask = (slot % 2) ? NV_PGRAPH_CSV1_A_T1_R
@@ -3450,7 +3456,7 @@ static void pgraph_method(NV2AState *d,
         break;
     }
     CASE_4(NV097_SET_TEXGEN_Q, 16): {
-        slot = (class_method - NV097_SET_TEXGEN_Q) / 16;
+        slot = (method - NV097_SET_TEXGEN_Q) / 16;
         unsigned int reg = (slot < 2) ? NV_PGRAPH_CSV1_A
                                       : NV_PGRAPH_CSV1_B;
         unsigned int mask = (slot % 2) ? NV_PGRAPH_CSV1_A_T1_Q
@@ -3459,13 +3465,13 @@ static void pgraph_method(NV2AState *d,
         break;
     }
     CASE_4(NV097_SET_TEXTURE_MATRIX_ENABLE,4):
-        slot = (class_method - NV097_SET_TEXTURE_MATRIX_ENABLE) / 4;
+        slot = (method - NV097_SET_TEXTURE_MATRIX_ENABLE) / 4;
         pg->texture_matrix_enable[slot] = parameter;
         break;
 
     case NV097_SET_PROJECTION_MATRIX ...
             NV097_SET_PROJECTION_MATRIX + 0x3c: {
-        slot = (class_method - NV097_SET_PROJECTION_MATRIX) / 4;
+        slot = (method - NV097_SET_PROJECTION_MATRIX) / 4;
         // pg->projection_matrix[slot] = *(float*)&parameter;
         unsigned int row = NV_IGRAPH_XF_XFCTX_PMAT0 + slot/4;
         pg->vsh_constants[row][slot%4] = parameter;
@@ -3475,7 +3481,7 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_MODEL_VIEW_MATRIX ...
             NV097_SET_MODEL_VIEW_MATRIX + 0xfc: {
-        slot = (class_method - NV097_SET_MODEL_VIEW_MATRIX) / 4;
+        slot = (method - NV097_SET_MODEL_VIEW_MATRIX) / 4;
         unsigned int matnum = slot / 16;
         unsigned int entry = slot % 16;
         unsigned int row = NV_IGRAPH_XF_XFCTX_MMAT0 + matnum*8 + entry/4;
@@ -3486,7 +3492,7 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_INVERSE_MODEL_VIEW_MATRIX ...
             NV097_SET_INVERSE_MODEL_VIEW_MATRIX + 0xfc: {
-        slot = (class_method - NV097_SET_INVERSE_MODEL_VIEW_MATRIX) / 4;
+        slot = (method - NV097_SET_INVERSE_MODEL_VIEW_MATRIX) / 4;
         unsigned int matnum = slot / 16;
         unsigned int entry = slot % 16;
         unsigned int row = NV_IGRAPH_XF_XFCTX_IMMAT0 + matnum*8 + entry/4;
@@ -3497,7 +3503,7 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_COMPOSITE_MATRIX ...
             NV097_SET_COMPOSITE_MATRIX + 0x3c: {
-        slot = (class_method - NV097_SET_COMPOSITE_MATRIX) / 4;
+        slot = (method - NV097_SET_COMPOSITE_MATRIX) / 4;
         unsigned int row = NV_IGRAPH_XF_XFCTX_CMAT0 + slot/4;
         pg->vsh_constants[row][slot%4] = parameter;
         pg->vsh_constants_dirty[row] = true;
@@ -3506,7 +3512,7 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_TEXTURE_MATRIX ...
             NV097_SET_TEXTURE_MATRIX + 0xfc: {
-        slot = (class_method - NV097_SET_TEXTURE_MATRIX) / 4;
+        slot = (method - NV097_SET_TEXTURE_MATRIX) / 4;
         unsigned int tex = slot / 16;
         unsigned int entry = slot % 16;
         unsigned int row = NV_IGRAPH_XF_XFCTX_T0MAT + tex*8 + entry/4;
@@ -3517,7 +3523,7 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_FOG_PARAMS ...
             NV097_SET_FOG_PARAMS + 8:
-        slot = (class_method - NV097_SET_FOG_PARAMS) / 4;
+        slot = (method - NV097_SET_FOG_PARAMS) / 4;
         if (slot < 2) {
             pg->regs[NV_PGRAPH_FOGPARAM0 + slot*4] = parameter;
         } else {
@@ -3531,7 +3537,7 @@ static void pgraph_method(NV2AState *d,
     /* Handles NV097_SET_TEXGEN_PLANE_S,T,R,Q */
     case NV097_SET_TEXGEN_PLANE_S ...
             NV097_SET_TEXGEN_PLANE_S + 0xfc: {
-        slot = (class_method - NV097_SET_TEXGEN_PLANE_S) / 4;
+        slot = (method - NV097_SET_TEXGEN_PLANE_S) / 4;
         unsigned int tex = slot / 16;
         unsigned int entry = slot % 16;
         unsigned int row = NV_IGRAPH_XF_XFCTX_TG0MAT + tex*8 + entry/4;
@@ -3547,14 +3553,14 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_FOG_PLANE ...
             NV097_SET_FOG_PLANE + 12:
-        slot = (class_method - NV097_SET_FOG_PLANE) / 4;
+        slot = (method - NV097_SET_FOG_PLANE) / 4;
         pg->vsh_constants[NV_IGRAPH_XF_XFCTX_FOG][slot] = parameter;
         pg->vsh_constants_dirty[NV_IGRAPH_XF_XFCTX_FOG] = true;
         break;
 
     case NV097_SET_SCENE_AMBIENT_COLOR ...
             NV097_SET_SCENE_AMBIENT_COLOR + 8:
-        slot = (class_method - NV097_SET_SCENE_AMBIENT_COLOR) / 4;
+        slot = (method - NV097_SET_SCENE_AMBIENT_COLOR) / 4;
         // ??
         pg->ltctxa[NV_IGRAPH_XF_LTCTXA_FR_AMB][slot] = parameter;
         pg->ltctxa_dirty[NV_IGRAPH_XF_LTCTXA_FR_AMB] = true;
@@ -3562,44 +3568,44 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_VIEWPORT_OFFSET ...
             NV097_SET_VIEWPORT_OFFSET + 12:
-        slot = (class_method - NV097_SET_VIEWPORT_OFFSET) / 4;
+        slot = (method - NV097_SET_VIEWPORT_OFFSET) / 4;
         pg->vsh_constants[NV_IGRAPH_XF_XFCTX_VPOFF][slot] = parameter;
         pg->vsh_constants_dirty[NV_IGRAPH_XF_XFCTX_VPOFF] = true;
         break;
 
     case NV097_SET_EYE_POSITION ...
             NV097_SET_EYE_POSITION + 12:
-        slot = (class_method - NV097_SET_EYE_POSITION) / 4;
+        slot = (method - NV097_SET_EYE_POSITION) / 4;
         pg->vsh_constants[NV_IGRAPH_XF_XFCTX_EYEP][slot] = parameter;
         pg->vsh_constants_dirty[NV_IGRAPH_XF_XFCTX_EYEP] = true;
         break;
     case NV097_SET_COMBINER_FACTOR0 ...
             NV097_SET_COMBINER_FACTOR0 + 28:
-        slot = (class_method - NV097_SET_COMBINER_FACTOR0) / 4;
+        slot = (method - NV097_SET_COMBINER_FACTOR0) / 4;
         pg->regs[NV_PGRAPH_COMBINEFACTOR0 + slot*4] = parameter;
         break;
 
     case NV097_SET_COMBINER_FACTOR1 ...
             NV097_SET_COMBINER_FACTOR1 + 28:
-        slot = (class_method - NV097_SET_COMBINER_FACTOR1) / 4;
+        slot = (method - NV097_SET_COMBINER_FACTOR1) / 4;
         pg->regs[NV_PGRAPH_COMBINEFACTOR1 + slot*4] = parameter;
         break;
 
     case NV097_SET_COMBINER_ALPHA_OCW ...
             NV097_SET_COMBINER_ALPHA_OCW + 28:
-        slot = (class_method - NV097_SET_COMBINER_ALPHA_OCW) / 4;
+        slot = (method - NV097_SET_COMBINER_ALPHA_OCW) / 4;
         pg->regs[NV_PGRAPH_COMBINEALPHAO0 + slot*4] = parameter;
         break;
 
     case NV097_SET_COMBINER_COLOR_ICW ...
             NV097_SET_COMBINER_COLOR_ICW + 28:
-        slot = (class_method - NV097_SET_COMBINER_COLOR_ICW) / 4;
+        slot = (method - NV097_SET_COMBINER_COLOR_ICW) / 4;
         pg->regs[NV_PGRAPH_COMBINECOLORI0 + slot*4] = parameter;
         break;
 
     case NV097_SET_VIEWPORT_SCALE ...
             NV097_SET_VIEWPORT_SCALE + 12:
-        slot = (class_method - NV097_SET_VIEWPORT_SCALE) / 4;
+        slot = (method - NV097_SET_VIEWPORT_SCALE) / 4;
         pg->vsh_constants[NV_IGRAPH_XF_XFCTX_VPSCL][slot] = parameter;
         pg->vsh_constants_dirty[NV_IGRAPH_XF_XFCTX_VPSCL] = true;
         break;
@@ -3607,7 +3613,7 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_TRANSFORM_PROGRAM ...
             NV097_SET_TRANSFORM_PROGRAM + 0x7c: {
 
-        slot = (class_method - NV097_SET_TRANSFORM_PROGRAM) / 4;
+        slot = (method - NV097_SET_TRANSFORM_PROGRAM) / 4;
 
         int program_load = GET_MASK(pg->regs[NV_PGRAPH_CHEOPS_OFFSET],
                                     NV_PGRAPH_CHEOPS_OFFSET_PROG_LD_PTR);
@@ -3626,7 +3632,7 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_TRANSFORM_CONSTANT ...
             NV097_SET_TRANSFORM_CONSTANT + 0x7c: {
 
-        slot = (class_method - NV097_SET_TRANSFORM_CONSTANT) / 4;
+        slot = (method - NV097_SET_TRANSFORM_CONSTANT) / 4;
 
         int const_load = GET_MASK(pg->regs[NV_PGRAPH_CHEOPS_OFFSET],
                                   NV_PGRAPH_CHEOPS_OFFSET_CONST_LD_PTR);
@@ -3646,7 +3652,7 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_VERTEX3F ...
             NV097_SET_VERTEX3F + 8: {
-        slot = (class_method - NV097_SET_VERTEX3F) / 4;
+        slot = (method - NV097_SET_VERTEX3F) / 4;
         VertexAttribute *attribute =
             &pg->vertex_attributes[NV2A_VERTEX_ATTR_POSITION];
         pgraph_allocate_inline_buffer_vertices(pg, NV2A_VERTEX_ATTR_POSITION);
@@ -3661,7 +3667,7 @@ static void pgraph_method(NV2AState *d,
     /* Handles NV097_SET_BACK_LIGHT_* */
     case NV097_SET_BACK_LIGHT_AMBIENT_COLOR ...
             NV097_SET_BACK_LIGHT_SPECULAR_COLOR + 0x1C8: {
-        slot = (class_method - NV097_SET_BACK_LIGHT_AMBIENT_COLOR) / 4;
+        slot = (method - NV097_SET_BACK_LIGHT_AMBIENT_COLOR) / 4;
         unsigned int part = NV097_SET_BACK_LIGHT_AMBIENT_COLOR / 4 + slot % 16;
         slot /= 16; /* [Light index] */
         assert(slot < 8);
@@ -3693,7 +3699,7 @@ static void pgraph_method(NV2AState *d,
     /* Handles all the light source props except for NV097_SET_BACK_LIGHT_* */
     case NV097_SET_LIGHT_AMBIENT_COLOR ...
             NV097_SET_LIGHT_LOCAL_ATTENUATION + 0x38C: {
-        slot = (class_method - NV097_SET_LIGHT_AMBIENT_COLOR) / 4;
+        slot = (method - NV097_SET_LIGHT_AMBIENT_COLOR) / 4;
         unsigned int part = NV097_SET_LIGHT_AMBIENT_COLOR / 4 + slot % 32;
         slot /= 32; /* [Light index] */
         assert(slot < 8);
@@ -3761,7 +3767,7 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_VERTEX4F ...
             NV097_SET_VERTEX4F + 12: {
-        slot = (class_method - NV097_SET_VERTEX4F) / 4;
+        slot = (method - NV097_SET_VERTEX4F) / 4;
         VertexAttribute *attribute =
             &pg->vertex_attributes[NV2A_VERTEX_ATTR_POSITION];
         pgraph_allocate_inline_buffer_vertices(pg, NV2A_VERTEX_ATTR_POSITION);
@@ -3775,7 +3781,7 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_VERTEX_DATA_ARRAY_FORMAT ...
             NV097_SET_VERTEX_DATA_ARRAY_FORMAT + 0x3c: {
 
-        slot = (class_method - NV097_SET_VERTEX_DATA_ARRAY_FORMAT) / 4;
+        slot = (method - NV097_SET_VERTEX_DATA_ARRAY_FORMAT) / 4;
         VertexAttribute *vertex_attribute = &pg->vertex_attributes[slot];
 
         vertex_attribute->format =
@@ -3855,7 +3861,7 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_VERTEX_DATA_ARRAY_OFFSET ...
             NV097_SET_VERTEX_DATA_ARRAY_OFFSET + 0x3c:
 
-        slot = (class_method - NV097_SET_VERTEX_DATA_ARRAY_OFFSET) / 4;
+        slot = (method - NV097_SET_VERTEX_DATA_ARRAY_OFFSET) / 4;
 
         pg->vertex_attributes[slot].dma_select =
             parameter & 0x80000000;
@@ -3937,7 +3943,7 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_EYE_DIRECTION ...
             NV097_SET_EYE_DIRECTION + 8:
-        slot = (class_method - NV097_SET_EYE_DIRECTION) / 4;
+        slot = (method - NV097_SET_EYE_DIRECTION) / 4;
         pg->ltctxa[NV_IGRAPH_XF_LTCTXA_EYED][slot] = parameter;
         pg->ltctxa_dirty[NV_IGRAPH_XF_LTCTXA_EYED] = true;
         break;
@@ -4237,12 +4243,12 @@ static void pgraph_method(NV2AState *d,
         break;
     }
     CASE_4(NV097_SET_TEXTURE_OFFSET, 64):
-        slot = (class_method - NV097_SET_TEXTURE_OFFSET) / 64;
+        slot = (method - NV097_SET_TEXTURE_OFFSET) / 64;
         pg->regs[NV_PGRAPH_TEXOFFSET0 + slot * 4] = parameter;
         pg->texture_dirty[slot] = true;
         break;
     CASE_4(NV097_SET_TEXTURE_FORMAT, 64): {
-        slot = (class_method - NV097_SET_TEXTURE_FORMAT) / 64;
+        slot = (method - NV097_SET_TEXTURE_FORMAT) / 64;
 
         bool dma_select =
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA) == 2;
@@ -4278,24 +4284,24 @@ static void pgraph_method(NV2AState *d,
         break;
     }
     CASE_4(NV097_SET_TEXTURE_CONTROL0, 64):
-        slot = (class_method - NV097_SET_TEXTURE_CONTROL0) / 64;
+        slot = (method - NV097_SET_TEXTURE_CONTROL0) / 64;
         pg->regs[NV_PGRAPH_TEXCTL0_0 + slot*4] = parameter;
         break;
     CASE_4(NV097_SET_TEXTURE_CONTROL1, 64):
-        slot = (class_method - NV097_SET_TEXTURE_CONTROL1) / 64;
+        slot = (method - NV097_SET_TEXTURE_CONTROL1) / 64;
         pg->regs[NV_PGRAPH_TEXCTL1_0 + slot*4] = parameter;
         break;
     CASE_4(NV097_SET_TEXTURE_FILTER, 64):
-        slot = (class_method - NV097_SET_TEXTURE_FILTER) / 64;
+        slot = (method - NV097_SET_TEXTURE_FILTER) / 64;
         pg->regs[NV_PGRAPH_TEXFILTER0 + slot * 4] = parameter;
         break;
     CASE_4(NV097_SET_TEXTURE_IMAGE_RECT, 64):
-        slot = (class_method - NV097_SET_TEXTURE_IMAGE_RECT) / 64;
+        slot = (method - NV097_SET_TEXTURE_IMAGE_RECT) / 64;
         pg->regs[NV_PGRAPH_TEXIMAGERECT0 + slot * 4] = parameter;
         pg->texture_dirty[slot] = true;
         break;
     CASE_4(NV097_SET_TEXTURE_PALETTE, 64): {
-        slot = (class_method - NV097_SET_TEXTURE_PALETTE) / 64;
+        slot = (method - NV097_SET_TEXTURE_PALETTE) / 64;
 
         bool dma_select =
             GET_MASK(parameter, NV097_SET_TEXTURE_PALETTE_CONTEXT_DMA) == 1;
@@ -4314,27 +4320,27 @@ static void pgraph_method(NV2AState *d,
     }
 
     CASE_4(NV097_SET_TEXTURE_BORDER_COLOR, 64):
-        slot = (class_method - NV097_SET_TEXTURE_BORDER_COLOR) / 64;
+        slot = (method - NV097_SET_TEXTURE_BORDER_COLOR) / 64;
         pg->regs[NV_PGRAPH_BORDERCOLOR0 + slot * 4] = parameter;
         break;
     CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0x0, 64):
     CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0x4, 64):
     CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0x8, 64):
     CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0xc, 64):
-        slot = (class_method - NV097_SET_TEXTURE_SET_BUMP_ENV_MAT) / 4;
+        slot = (method - NV097_SET_TEXTURE_SET_BUMP_ENV_MAT) / 4;
         assert((slot / 16) > 0);
         slot -= 16;
         pg->bump_env_matrix[slot / 16][slot % 4] = *(float*)&parameter;
         break;
 
     CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_SCALE, 64):
-        slot = (class_method - NV097_SET_TEXTURE_SET_BUMP_ENV_SCALE) / 64;
+        slot = (method - NV097_SET_TEXTURE_SET_BUMP_ENV_SCALE) / 64;
         assert(slot > 0);
         slot--;
         pg->regs[NV_PGRAPH_BUMPSCALE1 + slot * 4] = parameter;
         break;
     CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_OFFSET, 64):
-        slot = (class_method - NV097_SET_TEXTURE_SET_BUMP_ENV_OFFSET) / 64;
+        slot = (method - NV097_SET_TEXTURE_SET_BUMP_ENV_OFFSET) / 64;
         assert(slot > 0);
         slot--;
         pg->regs[NV_PGRAPH_BUMPOFFSET1 + slot * 4] = parameter;
@@ -4385,13 +4391,13 @@ static void pgraph_method(NV2AState *d,
         break;
     case NV097_SET_EYE_VECTOR ...
             NV097_SET_EYE_VECTOR + 8:
-        slot = (class_method - NV097_SET_EYE_VECTOR) / 4;
+        slot = (method - NV097_SET_EYE_VECTOR) / 4;
         pg->regs[NV_PGRAPH_EYEVEC0 + slot * 4] = parameter;
         break;
 
     case NV097_SET_VERTEX_DATA2F_M ...
             NV097_SET_VERTEX_DATA2F_M + 0x7c: {
-        slot = (class_method - NV097_SET_VERTEX_DATA2F_M) / 4;
+        slot = (method - NV097_SET_VERTEX_DATA2F_M) / 4;
         unsigned int part = slot % 2;
         slot /= 2;
         VertexAttribute *attribute = &pg->vertex_attributes[slot];
@@ -4407,7 +4413,7 @@ static void pgraph_method(NV2AState *d,
     }
     case NV097_SET_VERTEX_DATA4F_M ...
             NV097_SET_VERTEX_DATA4F_M + 0xfc: {
-        slot = (class_method - NV097_SET_VERTEX_DATA4F_M) / 4;
+        slot = (method - NV097_SET_VERTEX_DATA4F_M) / 4;
         unsigned int part = slot % 4;
         slot /= 4;
         VertexAttribute *attribute = &pg->vertex_attributes[slot];
@@ -4420,7 +4426,7 @@ static void pgraph_method(NV2AState *d,
     }
     case NV097_SET_VERTEX_DATA2S ...
             NV097_SET_VERTEX_DATA2S + 0x3c: {
-        slot = (class_method - NV097_SET_VERTEX_DATA2S) / 4;
+        slot = (method - NV097_SET_VERTEX_DATA2S) / 4;
         assert(false); /* FIXME: Untested! */
         VertexAttribute *attribute = &pg->vertex_attributes[slot];
         pgraph_allocate_inline_buffer_vertices(pg, slot);
@@ -4440,7 +4446,7 @@ static void pgraph_method(NV2AState *d,
     }
     case NV097_SET_VERTEX_DATA4UB ...
             NV097_SET_VERTEX_DATA4UB + 0x3c: {
-        slot = (class_method - NV097_SET_VERTEX_DATA4UB) / 4;
+        slot = (method - NV097_SET_VERTEX_DATA4UB) / 4;
         VertexAttribute *attribute = &pg->vertex_attributes[slot];
         pgraph_allocate_inline_buffer_vertices(pg, slot);
         attribute->inline_value[0] = (parameter & 0xFF) / 255.0;
@@ -4455,7 +4461,7 @@ static void pgraph_method(NV2AState *d,
     }
     case NV097_SET_VERTEX_DATA4S_M ...
             NV097_SET_VERTEX_DATA4S_M + 0x7c: {
-        slot = (class_method - NV097_SET_VERTEX_DATA4S_M) / 4;
+        slot = (method - NV097_SET_VERTEX_DATA4S_M) / 4;
         unsigned int part = slot % 2;
         slot /= 2;
         assert(false); /* FIXME: Untested! */
@@ -4687,7 +4693,7 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_SPECULAR_FOG_FACTOR ...
             NV097_SET_SPECULAR_FOG_FACTOR + 4:
-        slot = (class_method - NV097_SET_SPECULAR_FOG_FACTOR) / 4;
+        slot = (method - NV097_SET_SPECULAR_FOG_FACTOR) / 4;
         pg->regs[NV_PGRAPH_SPECFOGFACTOR0 + slot*4] = parameter;
         break;
 
@@ -4697,7 +4703,7 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_COMBINER_COLOR_OCW ...
             NV097_SET_COMBINER_COLOR_OCW + 28:
-        slot = (class_method - NV097_SET_COMBINER_COLOR_OCW) / 4;
+        slot = (method - NV097_SET_COMBINER_COLOR_OCW) / 4;
         pg->regs[NV_PGRAPH_COMBINECOLORO0 + slot*4] = parameter;
         break;
 
@@ -4750,6 +4756,13 @@ static void pgraph_method(NV2AState *d,
         NV2A_GL_DPRINTF(true, "    unhandled  (0x%02x 0x%08x)",
                         object->graphics_class, method);
         break;
+    } break; }
+
+    default:
+        NV2A_GL_DPRINTF(true, "    unhandled  (0x%02x 0x%08x)",
+                        object->graphics_class, method);
+        break;
+
     }
 }
 
