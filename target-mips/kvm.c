@@ -228,6 +228,7 @@ int kvm_mips_set_ipi_interrupt(MIPSCPU *cpu, int irq, int level)
 #define KVM_REG_MIPS_CP0_STATUS         MIPS_CP0_32(12, 0)
 #define KVM_REG_MIPS_CP0_CAUSE          MIPS_CP0_32(13, 0)
 #define KVM_REG_MIPS_CP0_EPC            MIPS_CP0_64(14, 0)
+#define KVM_REG_MIPS_CP0_PRID           MIPS_CP0_32(15, 0)
 #define KVM_REG_MIPS_CP0_ERROREPC       MIPS_CP0_64(30, 0)
 
 static inline int kvm_mips_put_one_reg(CPUState *cs, uint64_t reg_id,
@@ -520,6 +521,11 @@ static int kvm_mips_put_cp0_registers(CPUState *cs, int level)
         DPRINTF("%s: Failed to put CP0_EPC (%d)\n", __func__, err);
         ret = err;
     }
+    err = kvm_mips_put_one_reg(cs, KVM_REG_MIPS_CP0_PRID, &env->CP0_PRid);
+    if (err < 0) {
+        DPRINTF("%s: Failed to put CP0_PRID (%d)\n", __func__, err);
+        ret = err;
+    }
     err = kvm_mips_put_one_ulreg(cs, KVM_REG_MIPS_CP0_ERROREPC,
                                  &env->CP0_ErrorEPC);
     if (err < 0) {
@@ -604,6 +610,11 @@ static int kvm_mips_get_cp0_registers(CPUState *cs)
     err = kvm_mips_get_one_ulreg(cs, KVM_REG_MIPS_CP0_EPC, &env->CP0_EPC);
     if (err < 0) {
         DPRINTF("%s: Failed to get CP0_EPC (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_CP0_PRID, &env->CP0_PRid);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_PRID (%d)\n", __func__, err);
         ret = err;
     }
     err = kvm_mips_get_one_ulreg(cs, KVM_REG_MIPS_CP0_ERROREPC,
