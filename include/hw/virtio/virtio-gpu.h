@@ -76,6 +76,7 @@ struct virtio_gpu_ctrl_command {
     VirtQueue *vq;
     struct virtio_gpu_ctrl_hdr cmd_hdr;
     uint32_t error;
+    bool waiting;
     bool finished;
     QTAILQ_ENTRY(virtio_gpu_ctrl_command) next;
 };
@@ -94,6 +95,7 @@ typedef struct VirtIOGPU {
     DeviceState *qdev;
 
     QTAILQ_HEAD(, virtio_gpu_simple_resource) reslist;
+    QTAILQ_HEAD(, virtio_gpu_ctrl_command) cmdq;
     QTAILQ_HEAD(, virtio_gpu_ctrl_command) fenceq;
 
     struct virtio_gpu_scanout scanout[VIRTIO_GPU_MAX_SCANOUT];
@@ -105,6 +107,7 @@ typedef struct VirtIOGPU {
 
     bool use_virgl_renderer;
     bool renderer_inited;
+    bool renderer_blocked;
     QEMUTimer *fence_poll;
     QEMUTimer *print_stats;
 
@@ -151,6 +154,7 @@ int virtio_gpu_create_mapping_iov(struct virtio_gpu_resource_attach_backing *ab,
                                   struct virtio_gpu_ctrl_command *cmd,
                                   struct iovec **iov);
 void virtio_gpu_cleanup_mapping_iov(struct iovec *iov, uint32_t count);
+void virtio_gpu_process_cmdq(VirtIOGPU *g);
 
 /* virtio-gpu-3d.c */
 void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,

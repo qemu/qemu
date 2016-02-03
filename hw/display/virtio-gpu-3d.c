@@ -198,7 +198,7 @@ static void virgl_cmd_submit_3d(VirtIOGPU *g,
         qemu_log_mask(LOG_GUEST_ERROR, "%s: size mismatch (%zd/%d)",
                       __func__, s, cs.size);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
-        return;
+        goto out;
     }
 
     if (virtio_gpu_stats_enabled(g->conf)) {
@@ -208,6 +208,7 @@ static void virgl_cmd_submit_3d(VirtIOGPU *g,
 
     virgl_renderer_submit_cmd(buf, cs.hdr.ctx_id, cs.size / 4);
 
+out:
     g_free(buf);
 }
 
@@ -382,6 +383,11 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
 {
     VIRTIO_GPU_FILL_CMD(cmd->cmd_hdr);
 
+    cmd->waiting = g->renderer_blocked;
+    if (cmd->waiting) {
+        return;
+    }
+
     virgl_renderer_force_ctx_0();
     switch (cmd->cmd_hdr.type) {
     case VIRTIO_GPU_CMD_CTX_CREATE:
@@ -553,7 +559,8 @@ static void virtio_gpu_fence_poll(void *opaque)
     VirtIOGPU *g = opaque;
 
     virgl_renderer_poll();
-    if (g->inflight) {
+    virtio_gpu_process_cmdq(g);
+    if (!QTAILQ_EMPTY(&g->cmdq) || !QTAILQ_EMPTY(&g->fenceq)) {
         timer_mod(g->fence_poll, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 10);
     }
 }

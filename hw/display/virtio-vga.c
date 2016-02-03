@@ -66,11 +66,21 @@ static int virtio_vga_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info)
     return -1;
 }
 
+static void virtio_vga_gl_block(void *opaque, bool block)
+{
+    VirtIOVGA *vvga = opaque;
+
+    if (virtio_gpu_ops.gl_block) {
+        virtio_gpu_ops.gl_block(&vvga->vdev, block);
+    }
+}
+
 static const GraphicHwOps virtio_vga_ops = {
     .invalidate = virtio_vga_invalidate_display,
     .gfx_update = virtio_vga_update_display,
     .text_update = virtio_vga_text_update,
     .ui_info = virtio_vga_ui_info,
+    .gl_block = virtio_vga_gl_block,
 };
 
 /* VGA device wrapper around PCI device around virtio GPU */
