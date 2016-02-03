@@ -696,12 +696,6 @@ void vsh_translate(uint16_t version,
                    QString *header, QString *body)
 {
 
-
-    qstring_append(header, "\n"
-                      "uniform mat4 texMat0;\n"
-                      "uniform mat4 texMat1;\n"
-                      "uniform mat4 texMat2;\n"
-                      "uniform mat4 texMat3;\n");
     qstring_append(header, vsh_header);
 
     bool has_final = false;

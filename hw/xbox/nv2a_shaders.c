@@ -226,6 +226,15 @@ static void append_skinning_code(QString* str, bool mix,
     }
 }
 
+#define GLSL_C(idx) "c[" stringify(idx) "]"
+#define GLSL_LTCTXA(idx) "ltctxa[" stringify(idx) "]"
+
+#define GLSL_C_MAT4(idx) \
+    "mat4(" GLSL_C(idx) ", " GLSL_C(idx+1) ", " \
+            GLSL_C(idx+2) ", " GLSL_C(idx+3) ")"
+
+#define GLSL_DEFINE(a, b) "#define " stringify(a) " " b "\n"
+
 static void generate_fixed_function(const ShaderState state,
                                     QString *header, QString *body)
 {
@@ -249,40 +258,63 @@ static void generate_fixed_function(const ShaderState state,
 "#define reserved1     v13\n"
 "#define reserved2     v14\n"
 "#define reserved3     v15\n"
-"\n");
-
-    qstring_append(header,
-/* FIXME: Add these uniforms using code when they are used */
-"uniform vec4 texPlaneS0;\n"
-"uniform vec4 texPlaneT0;\n"
-"uniform vec4 texPlaneQ0;\n"
-"uniform vec4 texPlaneR0;\n"
-"uniform vec4 texPlaneS1;\n"
-"uniform vec4 texPlaneT1;\n"
-"uniform vec4 texPlaneQ1;\n"
-"uniform vec4 texPlaneR1;\n"
-"uniform vec4 texPlaneS2;\n"
-"uniform vec4 texPlaneT2;\n"
-"uniform vec4 texPlaneQ2;\n"
-"uniform vec4 texPlaneR2;\n"
-"uniform vec4 texPlaneS3;\n"
-"uniform vec4 texPlaneT3;\n"
-"uniform vec4 texPlaneQ3;\n"
-"uniform vec4 texPlaneR3;\n"
-"uniform mat4 texMat0;\n"
-"uniform mat4 texMat1;\n"
-"uniform mat4 texMat2;\n"
-"uniform mat4 texMat3;\n"
-"uniform mat4 modelViewMat0;\n"
-"uniform mat4 modelViewMat1;\n"
-"uniform mat4 modelViewMat2;\n"
-"uniform mat4 modelViewMat3;\n"
-"uniform mat4 invModelViewMat0;\n"
-"uniform mat4 invModelViewMat1;\n"
-"uniform mat4 invModelViewMat2;\n"
-"uniform mat4 invModelViewMat3;\n"
-"uniform mat4 projectionMat; /* FIXME: when is this used? */\n"
-"uniform mat4 compositeMat;\n"
+"\n"
+"uniform vec4 ltctxa[" stringify(NV2A_LTCTXA_COUNT) "];\n"
+"uniform vec4 ltctxb[" stringify(NV2A_LTCTXB_COUNT) "];\n"
+"uniform vec4 ltc1[" stringify(NV2A_LTC1_COUNT) "];\n"
+"\n"
+GLSL_DEFINE(projectionMat, GLSL_C_MAT4(NV_IGRAPH_XF_XFCTX_PMAT0))
+GLSL_DEFINE(compositeMat, GLSL_C_MAT4(NV_IGRAPH_XF_XFCTX_CMAT0))
+"\n"
+GLSL_DEFINE(texPlaneS0, GLSL_C(NV_IGRAPH_XF_XFCTX_TG0MAT + 0))
+GLSL_DEFINE(texPlaneT0, GLSL_C(NV_IGRAPH_XF_XFCTX_TG0MAT + 1))
+GLSL_DEFINE(texPlaneQ0, GLSL_C(NV_IGRAPH_XF_XFCTX_TG0MAT + 2))
+GLSL_DEFINE(texPlaneR0, GLSL_C(NV_IGRAPH_XF_XFCTX_TG0MAT + 3))
+"\n"
+GLSL_DEFINE(texPlaneS1, GLSL_C(NV_IGRAPH_XF_XFCTX_TG1MAT + 0))
+GLSL_DEFINE(texPlaneT1, GLSL_C(NV_IGRAPH_XF_XFCTX_TG1MAT + 1))
+GLSL_DEFINE(texPlaneQ1, GLSL_C(NV_IGRAPH_XF_XFCTX_TG1MAT + 2))
+GLSL_DEFINE(texPlaneR1, GLSL_C(NV_IGRAPH_XF_XFCTX_TG1MAT + 3))
+"\n"
+GLSL_DEFINE(texPlaneS2, GLSL_C(NV_IGRAPH_XF_XFCTX_TG2MAT + 0))
+GLSL_DEFINE(texPlaneT2, GLSL_C(NV_IGRAPH_XF_XFCTX_TG2MAT + 1))
+GLSL_DEFINE(texPlaneQ2, GLSL_C(NV_IGRAPH_XF_XFCTX_TG2MAT + 2))
+GLSL_DEFINE(texPlaneR2, GLSL_C(NV_IGRAPH_XF_XFCTX_TG2MAT + 3))
+"\n"
+GLSL_DEFINE(texPlaneS3, GLSL_C(NV_IGRAPH_XF_XFCTX_TG3MAT + 0))
+GLSL_DEFINE(texPlaneT3, GLSL_C(NV_IGRAPH_XF_XFCTX_TG3MAT + 1))
+GLSL_DEFINE(texPlaneQ3, GLSL_C(NV_IGRAPH_XF_XFCTX_TG3MAT + 2))
+GLSL_DEFINE(texPlaneR3, GLSL_C(NV_IGRAPH_XF_XFCTX_TG3MAT + 3))
+"\n"
+GLSL_DEFINE(modelViewMat0, GLSL_C_MAT4(NV_IGRAPH_XF_XFCTX_MMAT0))
+GLSL_DEFINE(modelViewMat1, GLSL_C_MAT4(NV_IGRAPH_XF_XFCTX_MMAT1))
+GLSL_DEFINE(modelViewMat2, GLSL_C_MAT4(NV_IGRAPH_XF_XFCTX_MMAT2))
+GLSL_DEFINE(modelViewMat3, GLSL_C_MAT4(NV_IGRAPH_XF_XFCTX_MMAT3))
+"\n"
+GLSL_DEFINE(invModelViewMat0, GLSL_C_MAT4(NV_IGRAPH_XF_XFCTX_IMMAT0))
+GLSL_DEFINE(invModelViewMat1, GLSL_C_MAT4(NV_IGRAPH_XF_XFCTX_IMMAT1))
+GLSL_DEFINE(invModelViewMat2, GLSL_C_MAT4(NV_IGRAPH_XF_XFCTX_IMMAT2))
+GLSL_DEFINE(invModelViewMat3, GLSL_C_MAT4(NV_IGRAPH_XF_XFCTX_IMMAT3))
+"\n"
+GLSL_DEFINE(eyePosition, GLSL_C(NV_IGRAPH_XF_XFCTX_EYEP))
+"\n"
+"#define lightAmbientColor(i) "
+    "ltctxb[" stringify(NV_IGRAPH_XF_LTCTXB_L0_AMB) " + (i)*6].xyz\n"
+"#define lightDiffuseColor(i) "
+    "ltctxb[" stringify(NV_IGRAPH_XF_LTCTXB_L0_DIF) " + (i)*6].xyz\n"
+"#define lightSpecularColor(i) "
+    "ltctxb[" stringify(NV_IGRAPH_XF_LTCTXB_L0_SPC) " + (i)*6].xyz\n"
+"\n"
+"#define lightSpotFalloff(i) "
+    "ltctxa[" stringify(NV_IGRAPH_XF_LTCTXA_L0_K) " + (i)*2].xyz\n"
+"#define lightSpotDirection(i) "
+    "ltctxa[" stringify(NV_IGRAPH_XF_LTCTXA_L0_SPT) " + (i)*2]\n"
+"\n"
+"#define lightLocalRange(i) "
+    "ltc1[" stringify(NV_IGRAPH_XF_LTC1_r0) " + (i)].x\n"
+"\n"
+GLSL_DEFINE(sceneAmbientColor, GLSL_LTCTXA(NV_IGRAPH_XF_LTCTXA_FR_AMB) ".xyz")
+"\n"
 "uniform mat4 invViewport;\n"
 "\n");
 
@@ -403,24 +435,13 @@ static void generate_fixed_function(const ShaderState state,
     if (state.lighting) {
 
         //FIXME: Do 2 passes if we want 2 sided-lighting?
-        qstring_append_fmt(header, "uniform vec3 sceneAmbientColor;\n");
         qstring_append(body, "oD0 = vec4(sceneAmbientColor, diffuse.a);\n");
         qstring_append(body, "oD1 = vec4(0.0, 0.0, 0.0, specular.a);\n");
-
-        /* FIXME: Only add if necessary */
-        qstring_append(header,
-            "uniform vec4 eyePosition;\n");
 
         for (i = 0; i < NV2A_MAX_LIGHTS; i++) {
             if (state.light[i] == LIGHT_OFF) {
                 continue;
             }
-
-            qstring_append_fmt(header,
-                "uniform vec3 lightAmbientColor%d;\n"
-                "uniform vec3 lightDiffuseColor%d;\n"
-                "uniform vec3 lightSpecularColor%d;\n",
-                i, i, i);
 
             /* FIXME: It seems that we only have to handle the surface colors if
              *        they are not part of the material [= vertex colors].
@@ -429,9 +450,6 @@ static void generate_fixed_function(const ShaderState state,
              */
 
             qstring_append_fmt(body, "/* Light %d */ {\n", i);
-
-            qstring_append_fmt(header,
-                "uniform float lightLocalRange%d;\n", i);
 
             if (state.light[i] == LIGHT_LOCAL
                     || state.light[i] == LIGHT_SPOT) {
@@ -479,10 +497,6 @@ static void generate_fixed_function(const ShaderState state,
                 /* Everything done already */
                 break;
             case LIGHT_SPOT:
-                qstring_append_fmt(header,
-                    "uniform vec3 lightSpotFalloff%d;\n"
-                    "uniform vec4 lightSpotDirection%d;\n",
-                    i, i);
                 assert(false);
                 /*FIXME: calculate falloff */
                 break;
@@ -498,9 +512,9 @@ static void generate_fixed_function(const ShaderState state,
                 "  } else {\n"
                 "    pf = pow(nDotHV, /* specular(l, m, n, l1, m1, n1) */ 0.001);\n"
                 "  }\n"
-                "  vec3 lightAmbient = lightAmbientColor%d * attenuation;\n"
-                "  vec3 lightDiffuse = lightDiffuseColor%d * attenuation * nDotVP;\n"
-                "  vec3 lightSpecular = lightSpecularColor%d * pf;\n",
+                "  vec3 lightAmbient = lightAmbientColor(%d) * attenuation;\n"
+                "  vec3 lightDiffuse = lightDiffuseColor(%d) * attenuation * nDotVP;\n"
+                "  vec3 lightSpecular = lightSpecularColor(%d) * pf;\n",
                 i, i, i);
 
             qstring_append(body,
@@ -567,46 +581,54 @@ static QString *generate_vertex_shader(const ShaderState state,
                                        char vtx_prefix)
 {
     int i;
-    QString *header = qstring_from_str("#version 330\n"
-                                  "\n"
-                                  "uniform vec2 clipRange;\n"
-                                  "uniform vec2 surfaceSize;\n"
-                                  "\n"
-                                  /* All constants in 1 array declaration */
-                                  "uniform vec4 c[192];\n"
-                                  "\n"
-                                  /* FIXME: Most [all?] of these are probably part of the constant space */
-                                  "uniform vec4 fogColor;\n"
-                                  "uniform vec4 fogPlane;\n"
-                                  "uniform float fogParam[2];\n"
-                                  "\n"
-                                  "vec4 oPos = vec4(0.0,0.0,0.0,1.0);\n"
-                                  "vec4 oD0 = vec4(0.0,0.0,0.0,1.0);\n"
-                                  "vec4 oD1 = vec4(0.0,0.0,0.0,1.0);\n"
-                                  "vec4 oB0 = vec4(0.0,0.0,0.0,1.0);\n"
-                                  "vec4 oB1 = vec4(0.0,0.0,0.0,1.0);\n"
-                                  "vec4 oPts = vec4(0.0,0.0,0.0,1.0);\n"
-    /* FIXME: NV_vertex_program says: "FOGC is the transformed vertex's fog
-     * coordinate. The register's first floating-point component is interpolated
-     * across the assembled primitive during rasterization and used as the fog
-     * distance to compute per-fragment the fog factor when fog is enabled.
-     * However, if both fog and vertex program mode are enabled, but the FOGC
-     * vertex result register is not written, the fog factor is overridden to
-     * 1.0. The register's other three components are ignored."
-     *
-     * That probably means it will read back as vec4(0.0, 0.0, 0.0, 1.0) but
-     * will be set to 1.0 AFTER the VP if it was never written?
-     * We should test on real hardware..
-     *
-     * We'll force 1.0 for oFog.x for now.
-     */
-                                  "vec4 oFog = vec4(1.0,0.0,0.0,1.0);\n"
-                                  "vec4 oT0 = vec4(0.0,0.0,0.0,1.0);\n"
-                                  "vec4 oT1 = vec4(0.0,0.0,0.0,1.0);\n"
-                                  "vec4 oT2 = vec4(0.0,0.0,0.0,1.0);\n"
-                                  "vec4 oT3 = vec4(0.0,0.0,0.0,1.0);\n"
-                                  "\n"
-                                  STRUCT_VERTEX_DATA);
+    QString *header = qstring_from_str(
+"#version 330\n"
+"\n"
+"uniform vec2 clipRange;\n"
+"uniform vec2 surfaceSize;\n"
+"\n"
+/* All constants in 1 array declaration */
+"uniform vec4 c[" stringify(NV2A_VERTEXSHADER_CONSTANTS) "];\n"
+"\n"
+"uniform vec4 fogColor;\n"
+"uniform float fogParam[2];\n"
+"\n"
+
+GLSL_DEFINE(fogPlane, GLSL_C(NV_IGRAPH_XF_XFCTX_FOG))
+GLSL_DEFINE(texMat0, GLSL_C_MAT4(NV_IGRAPH_XF_XFCTX_T0MAT))
+GLSL_DEFINE(texMat1, GLSL_C_MAT4(NV_IGRAPH_XF_XFCTX_T1MAT))
+GLSL_DEFINE(texMat2, GLSL_C_MAT4(NV_IGRAPH_XF_XFCTX_T2MAT))
+GLSL_DEFINE(texMat3, GLSL_C_MAT4(NV_IGRAPH_XF_XFCTX_T3MAT))
+
+"\n"
+"vec4 oPos = vec4(0.0,0.0,0.0,1.0);\n"
+"vec4 oD0 = vec4(0.0,0.0,0.0,1.0);\n"
+"vec4 oD1 = vec4(0.0,0.0,0.0,1.0);\n"
+"vec4 oB0 = vec4(0.0,0.0,0.0,1.0);\n"
+"vec4 oB1 = vec4(0.0,0.0,0.0,1.0);\n"
+"vec4 oPts = vec4(0.0,0.0,0.0,1.0);\n"
+/* FIXME: NV_vertex_program says: "FOGC is the transformed vertex's fog
+ * coordinate. The register's first floating-point component is interpolated
+ * across the assembled primitive during rasterization and used as the fog
+ * distance to compute per-fragment the fog factor when fog is enabled.
+ * However, if both fog and vertex program mode are enabled, but the FOGC
+ * vertex result register is not written, the fog factor is overridden to
+ * 1.0. The register's other three components are ignored."
+ *
+ * That probably means it will read back as vec4(0.0, 0.0, 0.0, 1.0) but
+ * will be set to 1.0 AFTER the VP if it was never written?
+ * We should test on real hardware..
+ *
+ * We'll force 1.0 for oFog.x for now.
+ */
+"vec4 oFog = vec4(1.0,0.0,0.0,1.0);\n"
+"vec4 oT0 = vec4(0.0,0.0,0.0,1.0);\n"
+"vec4 oT1 = vec4(0.0,0.0,0.0,1.0);\n"
+"vec4 oT2 = vec4(0.0,0.0,0.0,1.0);\n"
+"vec4 oT3 = vec4(0.0,0.0,0.0,1.0);\n"
+"\n"
+STRUCT_VERTEX_DATA);
+
     qstring_append_fmt(header, "noperspective out VertexData %c_vtx;\n",
                        vtx_prefix);
     qstring_append_fmt(header, "#define vtx %c_vtx\n",
@@ -767,6 +789,8 @@ static GLuint create_gl_shader(GLenum gl_shader_type,
 ShaderBinding* generate_shaders(const ShaderState state)
 {
     int i, j;
+    char tmp[64];
+
     char vtx_prefix;
     GLuint program = glCreateProgram();
 
@@ -805,7 +829,6 @@ ShaderBinding* generate_shaders(const ShaderState state)
 
 
     /* Bind attributes for vertices */
-    char tmp[8];
     for(i = 0; i < 16; i++) {
         snprintf(tmp, sizeof(tmp), "v%d", i);
         glBindAttribLocation(program, i, tmp);
@@ -864,21 +887,57 @@ ShaderBinding* generate_shaders(const ShaderState state)
     ret->gl_program = program;
     ret->gl_primitive_mode = gl_primitive_mode;
 
-    /* lookup fragment shader locations */
+    /* lookup fragment shader uniforms */
     for (i=0; i<=8; i++) {
         for (j=0; j<2; j++) {
-            char tmp[8];
             snprintf(tmp, sizeof(tmp), "c_%d_%d", i, j);
             ret->psh_constant_loc[i][j] = glGetUniformLocation(program, tmp);
         }
     }
-    if (state.vertex_program) {
-        /* lookup vertex shader bindings */
-        for(i = 0; i < NV2A_VERTEXSHADER_CONSTANTS; i++) {
-            char tmp[8];
-            snprintf(tmp, sizeof(tmp), "c[%d]", i);
-            ret->vsh_constant_loc[i] = glGetUniformLocation(program, tmp);
-        }
+    ret->alpha_ref_loc = glGetUniformLocation(program, "alphaRef");
+    for (i = 1; i < 4; i++) {
+        snprintf(tmp, sizeof(tmp), "bumpMat%d", i);
+        ret->bump_mat_loc[i] = glGetUniformLocation(program, tmp);
+        snprintf(tmp, sizeof(tmp), "bumpScale%d", i);
+        ret->bump_scale_loc[i] = glGetUniformLocation(program, tmp);
+        snprintf(tmp, sizeof(tmp), "bumpOffset%d", i);
+        ret->bump_offset_loc[i] = glGetUniformLocation(program, tmp);
+    }
+
+    /* lookup vertex shader uniforms */
+    for(i = 0; i < NV2A_VERTEXSHADER_CONSTANTS; i++) {
+        snprintf(tmp, sizeof(tmp), "c[%d]", i);
+        ret->vsh_constant_loc[i] = glGetUniformLocation(program, tmp);
+    }
+    ret->surface_size_loc = glGetUniformLocation(program, "surfaceSize");
+    ret->clip_range_loc = glGetUniformLocation(program, "clipRange");
+    ret->fog_color_loc = glGetUniformLocation(program, "fogColor");
+    ret->fog_param_loc[0] = glGetUniformLocation(program, "fogParam[0]");
+    ret->fog_param_loc[1] = glGetUniformLocation(program, "fogParam[1]");
+
+    ret->inv_viewport_loc = glGetUniformLocation(program, "invViewport");
+    for (i = 0; i < NV2A_LTCTXA_COUNT; i++) {
+        snprintf(tmp, sizeof(tmp), "ltctxa[%d]", i);
+        ret->ltctxa_loc[i] = glGetUniformLocation(program, tmp);
+    }
+    for (i = 0; i < NV2A_LTCTXB_COUNT; i++) {
+        snprintf(tmp, sizeof(tmp), "ltctxb[%d]", i);
+        ret->ltctxb_loc[i] = glGetUniformLocation(program, tmp);
+    }
+    for (i = 0; i < NV2A_LTC1_COUNT; i++) {
+        snprintf(tmp, sizeof(tmp), "ltc1[%d]", i);
+        ret->ltc1_loc[i] = glGetUniformLocation(program, tmp);
+    }
+    for (i = 0; i < NV2A_MAX_LIGHTS; i++) {
+        snprintf(tmp, sizeof(tmp), "lightInfiniteHalfVector%d", i);
+        ret->light_infinite_half_vector_loc = glGetUniformLocation(program, tmp);
+        snprintf(tmp, sizeof(tmp), "lightInfiniteDirection%d", i);
+        ret->light_infinite_direction_loc = glGetUniformLocation(program, tmp);
+
+        snprintf(tmp, sizeof(tmp), "lightLocalPosition%d", i);
+        ret->light_local_position_loc = glGetUniformLocation(program, tmp);
+        snprintf(tmp, sizeof(tmp), "lightLocalAttenuation%d", i);
+        ret->light_local_attenuation_loc = glGetUniformLocation(program, tmp);
     }
 
     return ret;

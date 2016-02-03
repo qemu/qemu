@@ -22,6 +22,7 @@
 #ifndef HW_NV2A_VSH_H
 #define HW_NV2A_VSH_H
 
+#include <stdbool.h>
 #include "qapi/qmp/qstring.h"
 
 enum VshLight {

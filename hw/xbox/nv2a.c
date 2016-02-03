@@ -1438,11 +1438,6 @@ typedef struct VertexAttribute {
     GLuint gl_inline_buffer;
 } VertexAttribute;
 
-typedef struct VertexShaderConstant {
-    bool dirty;
-    uint32_t data[4];
-} VertexShaderConstant;
-
 typedef struct Surface {
     bool draw_dirty;
     bool buffer_dirty;
@@ -1574,38 +1569,7 @@ typedef struct PGRAPHState {
     GHashTable *shader_cache;
     ShaderBinding *shader_binding;
 
-    float composite_matrix[16];
-
-    /* FIXME: These are probably stored in the vshader consts */
     bool texture_matrix_enable[NV2A_MAX_TEXTURES];
-    float texture_matrix[NV2A_MAX_TEXTURES][16]; /* 4 stages with 4x4 matrix each */
-    float texture_plane[NV2A_MAX_TEXTURES][4][4]; /* 4 stages, 4 components + plane for each */
-    float projection_matrix[16];
-    float inverse_model_view_matrix[4][16]; /* 4 weights with 4x4 matrix each */
-    float model_view_matrix[4][16]; /* 4 weights with 4x4 matrix each */
-
-    /* FIXME: Also in vshader consts? */
-    float fog_plane[4];
-
-    /* FIXME: These are probably stored in the vshader consts */
-    float scene_ambient_color[3];
-    float back_light_ambient_color[NV2A_MAX_LIGHTS][3];
-    float back_light_diffuse_color[NV2A_MAX_LIGHTS][3];
-    float back_light_specular_color[NV2A_MAX_LIGHTS][3];
-    float light_ambient_color[NV2A_MAX_LIGHTS][3];
-    float light_diffuse_color[NV2A_MAX_LIGHTS][3];
-    float light_specular_color[NV2A_MAX_LIGHTS][3];
-    float light_local_range[NV2A_MAX_LIGHTS];
-    float light_infinite_half_vector[NV2A_MAX_LIGHTS][3];
-    float light_infinite_direction[NV2A_MAX_LIGHTS][3];
-    float light_spot_falloff[NV2A_MAX_LIGHTS][3];
-    float light_spot_direction[NV2A_MAX_LIGHTS][4];
-    float light_local_position[NV2A_MAX_LIGHTS][3];
-    float light_local_attenuation[NV2A_MAX_LIGHTS][3];
-
-    /* FIXME: These are probably stored in the vshader consts */
-    float eye_position[4];
-    float eye_direction[3];
 
     /* FIXME: Move to NV_PGRAPH_BUMPMAT... */
     float bump_env_matrix[NV2A_MAX_TEXTURES-1][4]; /* 3 allowed stages with 2x2 matrix each */
@@ -1630,7 +1594,22 @@ typedef struct PGRAPHState {
 
     uint32_t program_data[NV2A_MAX_TRANSFORM_PROGRAM_LENGTH][VSH_TOKEN_SIZE];
 
-    VertexShaderConstant constants[NV2A_VERTEXSHADER_CONSTANTS];
+    uint32_t vsh_constants[NV2A_VERTEXSHADER_CONSTANTS][4];
+    bool vsh_constants_dirty[NV2A_VERTEXSHADER_CONSTANTS];
+
+    /* lighting constant arrays */
+    uint32_t ltctxa[NV2A_LTCTXA_COUNT][4];
+    bool ltctxa_dirty[NV2A_LTCTXA_COUNT];
+    uint32_t ltctxb[NV2A_LTCTXB_COUNT][4];
+    bool ltctxb_dirty[NV2A_LTCTXB_COUNT];
+    uint32_t ltc1[NV2A_LTC1_COUNT][4];
+    bool ltc1_dirty[NV2A_LTC1_COUNT];
+
+    // should figure out where these are in lighting context
+    float light_infinite_half_vector[NV2A_MAX_LIGHTS][3];
+    float light_infinite_direction[NV2A_MAX_LIGHTS][3];
+    float light_local_position[NV2A_MAX_LIGHTS][3];
+    float light_local_attenuation[NV2A_MAX_LIGHTS][3];
 
     VertexAttribute vertex_attributes[NV2A_VERTEXSHADER_ATTRIBUTES];
 
@@ -2908,6 +2887,192 @@ static gboolean shader_equal(gconstpointer a, gconstpointer b)
     return memcmp(as, bs, sizeof(ShaderState)) == 0;
 }
 
+static void pgraph_shader_update_constants(PGRAPHState *pg,
+                                           ShaderBinding *binding,
+                                           bool binding_changed,
+                                           bool vertex_program,
+                                           bool fixed_function)
+{
+    int i, j;
+
+    /* update combiner constants */
+    for (i = 0; i<= 8; i++) {
+        uint32_t constant[2];
+        if (i == 8) {
+            /* final combiner */
+            constant[0] = pg->regs[NV_PGRAPH_SPECFOGFACTOR0];
+            constant[1] = pg->regs[NV_PGRAPH_SPECFOGFACTOR1];
+        } else {
+            constant[0] = pg->regs[NV_PGRAPH_COMBINEFACTOR0 + i * 4];
+            constant[1] = pg->regs[NV_PGRAPH_COMBINEFACTOR1 + i * 4];
+        }
+
+        for (j = 0; j < 2; j++) {
+            GLint loc = binding->psh_constant_loc[i][j];
+            if (loc != -1) {
+                float value[4];
+                value[0] = (float) ((constant[j] >> 16) & 0xFF) / 255.0f;
+                value[1] = (float) ((constant[j] >> 8) & 0xFF) / 255.0f;
+                value[2] = (float) (constant[j] & 0xFF) / 255.0f;
+                value[3] = (float) ((constant[j] >> 24) & 0xFF) / 255.0f;
+
+                glUniform4fv(loc, 1, value);
+            }
+        }
+    }
+    if (binding->alpha_ref_loc != -1) {
+        float alpha_ref = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                                   NV_PGRAPH_CONTROL_0_ALPHAREF) / 255.0;
+        glUniform1f(binding->alpha_ref_loc, alpha_ref);
+    }
+
+
+    /* For each texture stage */
+    for (i = 0; i < NV2A_MAX_TEXTURES; i++) {
+        // char name[32];
+        GLint loc;
+
+        /* Bump luminance only during stages 1 - 3 */
+        if (i > 0) {
+            loc = binding->bump_mat_loc[i];
+            if (loc != -1) {
+                glUniformMatrix2fv(loc, 1, GL_FALSE, pg->bump_env_matrix[i - 1]);
+            }
+            loc = binding->bump_scale_loc[i];
+            if (loc != -1) {
+                glUniform1f(loc, *(float*)&pg->regs[
+                                NV_PGRAPH_BUMPSCALE1 + (i - 1) * 4]);
+            }
+            loc = binding->bump_offset_loc[i];
+            if (loc != -1) {
+                glUniform1f(loc, *(float*)&pg->regs[
+                            NV_PGRAPH_BUMPOFFSET1 + (i - 1) * 4]);
+            }
+        }
+
+    }
+
+    if (binding->fog_color_loc != -1) {
+        uint32_t fog_color = pg->regs[NV_PGRAPH_FOGCOLOR];
+        glUniform4f(binding->fog_color_loc,
+                    GET_MASK(fog_color, NV_PGRAPH_FOGCOLOR_RED) / 255.0,
+                    GET_MASK(fog_color, NV_PGRAPH_FOGCOLOR_GREEN) / 255.0,
+                    GET_MASK(fog_color, NV_PGRAPH_FOGCOLOR_BLUE) / 255.0,
+                    GET_MASK(fog_color, NV_PGRAPH_FOGCOLOR_ALPHA) / 255.0);
+    }
+    if (binding->fog_param_loc[0] != -1) {
+        glUniform1f(binding->fog_param_loc[0],
+                    *(float*)&pg->regs[NV_PGRAPH_FOGPARAM0]);
+    }
+    if (binding->fog_param_loc[1] != -1) {
+        glUniform1f(binding->fog_param_loc[1],
+                    *(float*)&pg->regs[NV_PGRAPH_FOGPARAM1]);
+    }
+
+
+    float zclip_max = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMAX];
+    float zclip_min = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMIN];
+
+    if (fixed_function) {
+        /* update lighting constants */
+        struct {
+            uint32_t* v;
+            bool* dirty;
+            GLint* locs;
+            size_t len;
+        } lighting_arrays[] = {
+            {&pg->ltctxa[0][0], &pg->ltctxa_dirty[0], binding->ltctxa_loc, NV2A_LTCTXA_COUNT},
+            {&pg->ltctxb[0][0], &pg->ltctxb_dirty[0], binding->ltctxb_loc, NV2A_LTCTXB_COUNT},
+            {&pg->ltc1[0][0], &pg->ltc1_dirty[0], binding->ltc1_loc, NV2A_LTC1_COUNT},
+        };
+
+        for (i=0; i<ARRAY_SIZE(lighting_arrays); i++) {
+            uint32_t *lighting_v = lighting_arrays[i].v;
+            bool *lighting_dirty = lighting_arrays[i].dirty;
+            GLint *lighting_locs = lighting_arrays[i].locs;
+            size_t lighting_len = lighting_arrays[i].len;
+            for (j=0; j<lighting_len; j++) {
+                if (!lighting_dirty[j] && !binding_changed) continue;
+                GLint loc = lighting_locs[j];
+                if (loc != -1) {
+                    glUniform4fv(loc, 1, (const GLfloat*)&lighting_v[j*4]);
+                }
+                lighting_dirty[j] = false;
+            }
+        }
+
+
+        for (i = 0; i < NV2A_MAX_LIGHTS; i++) {
+            GLint loc;
+            loc = binding->light_infinite_half_vector_loc;
+            if (loc != -1) {
+                glUniform3fv(loc, 1, pg->light_infinite_half_vector[i]);
+            }
+            loc = binding->light_infinite_direction_loc;
+            if (loc != -1) {
+                glUniform3fv(loc, 1, pg->light_infinite_direction[i]);
+            }
+
+            loc = binding->light_local_position_loc;
+            if (loc != -1) {
+                glUniform3fv(loc, 1, pg->light_local_position[i]);
+            }
+            loc = binding->light_local_attenuation_loc;
+            if (loc != -1) {
+                glUniform3fv(loc, 1, pg->light_local_attenuation[i]);
+            }
+        }
+
+        /* estimate the viewport by assuming it matches the surface ... */
+        //FIXME: Get surface dimensions?
+        float m11 = 0.5 * pg->surface_shape.clip_width;
+        float m22 = -0.5 * pg->surface_shape.clip_height;
+        float m33 = zclip_max - zclip_min;
+        //float m41 = m11;
+        //float m42 = -m22;
+        float m43 = zclip_min;
+        //float m44 = 1.0;
+
+        if (m33 == 0.0) {
+            m33 = 1.0;
+        }
+        float invViewport[16] = {
+            1.0/m11, 0, 0, 0,
+            0, 1.0/m22, 0, 0,
+            0, 0, 1.0/m33, 0,
+            -1.0, 1.0, -m43/m33, 1.0
+        };
+
+        if (binding->inv_viewport_loc != -1) {
+            glUniformMatrix4fv(binding->inv_viewport_loc,
+                               1, GL_FALSE, &invViewport[0]);
+        }
+
+    }
+
+    /* update vertex program constants */
+    for (i=0; i<NV2A_VERTEXSHADER_CONSTANTS; i++) {
+        if (!pg->vsh_constants_dirty[i] && !binding_changed) continue;
+
+        GLint loc = binding->vsh_constant_loc[i];
+        //assert(loc != -1);
+        if (loc != -1) {
+            glUniform4fv(loc, 1, (const GLfloat*)pg->vsh_constants[i]);
+        }
+        pg->vsh_constants_dirty[i] = false;
+    }
+
+    if (binding->surface_size_loc != -1) {
+        glUniform2f(binding->surface_size_loc, pg->surface_shape.clip_width,
+                    pg->surface_shape.clip_height);
+    }
+
+    if (binding->clip_range_loc != -1) {
+        glUniform2f(binding->clip_range_loc, zclip_min, zclip_max);
+    }
+
+}
+
 static void pgraph_bind_shaders(PGRAPHState *pg)
 {
     int i, j;
@@ -2926,7 +3091,6 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
                          fixed_function ? "yes" : "no");
 
     ShaderBinding* old_binding = pg->shader_binding;
-    bool binding_changed = false;
 
     ShaderState state = {
         .psh = (PshState){
@@ -3068,318 +3232,13 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
                             (gpointer)pg->shader_binding);
     }
 
-    binding_changed = (pg->shader_binding != old_binding);
+    bool binding_changed = (pg->shader_binding != old_binding);
 
     glUseProgram(pg->shader_binding->gl_program);
 
+    pgraph_shader_update_constants(pg, pg->shader_binding, binding_changed,
+                                   vertex_program, fixed_function);
 
-    /* update combiner constants */
-    for (i = 0; i<= 8; i++) {
-        uint32_t constant[2];
-        if (i == 8) {
-            /* final combiner */
-            constant[0] = pg->regs[NV_PGRAPH_SPECFOGFACTOR0];
-            constant[1] = pg->regs[NV_PGRAPH_SPECFOGFACTOR1];
-        } else {
-            constant[0] = pg->regs[NV_PGRAPH_COMBINEFACTOR0 + i * 4];
-            constant[1] = pg->regs[NV_PGRAPH_COMBINEFACTOR1 + i * 4];
-        }
-
-        for (j = 0; j < 2; j++) {
-            GLint loc = pg->shader_binding->psh_constant_loc[i][j];
-            if (loc != -1) {
-                float value[4];
-                value[0] = (float) ((constant[j] >> 16) & 0xFF) / 255.0f;
-                value[1] = (float) ((constant[j] >> 8) & 0xFF) / 255.0f;
-                value[2] = (float) (constant[j] & 0xFF) / 255.0f;
-                value[3] = (float) ((constant[j] >> 24) & 0xFF) / 255.0f;
-
-                glUniform4fv(loc, 1, value);
-            }
-        }
-    }
-    GLint alpha_ref_loc = glGetUniformLocation(pg->shader_binding->gl_program,
-                                               "alphaRef");
-    if (alpha_ref_loc != -1) {
-        float alpha_ref = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
-                                   NV_PGRAPH_CONTROL_0_ALPHAREF) / 255.0;
-        glUniform1f(alpha_ref_loc, alpha_ref);
-    }
-
-    /* For each texture stage */
-    for (i = 0; i < NV2A_MAX_TEXTURES; i++) {
-        char name[32];
-        GLint loc;
-
-        /* Bump luminance only during stages 1 - 3 */
-        if (i > 0) {
-
-            snprintf(name, sizeof(name), "bumpMat%d", i);
-            loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
-            if (loc != -1) {
-                glUniformMatrix2fv(loc, 1, GL_FALSE, pg->bump_env_matrix[i - 1]);
-            }
-
-            snprintf(name, sizeof(name), "bumpScale%d", i);
-            loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
-            if (loc != -1) {
-                glUniform1f(loc, *(float*)&pg->regs[
-                                NV_PGRAPH_BUMPSCALE1 + (i - 1) * 4]);
-            }
-
-            snprintf(name, sizeof(name), "bumpOffset%d", i);
-            loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
-            if (loc != -1) {
-                glUniform1f(loc, *(float*)&pg->regs[
-                                NV_PGRAPH_BUMPOFFSET1 + (i - 1) * 4]);
-            }
-
-        }
-
-        /* Texture matrices */
-        snprintf(name, sizeof(name), "texMat%d", i);
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
-        if (loc != -1) {
-            glUniformMatrix4fv(loc, 1, GL_FALSE, pg->texture_matrix[i]);
-        }
-
-        /* TexGen planes */
-        for(j = 0; j < 4; j++) {
-            char cSuffix = "STRQ"[j];
-            snprintf(name, sizeof(name), "texPlane%c%d", cSuffix, i);
-            loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
-            if (loc != -1) {
-                glUniform4fv(loc, 1, pg->texture_plane[i][j]);
-            }
-        }
-
-    }
-
-    /* Fog */
-    {
-        GLint loc;
-        uint32_t fog_color = pg->regs[NV_PGRAPH_FOGCOLOR];
-        loc  = glGetUniformLocation(pg->shader_binding->gl_program, "fogColor");
-        if (loc != -1) {
-            glUniform4f(loc,
-                        GET_MASK(fog_color, NV_PGRAPH_FOGCOLOR_RED) / 255.0,
-                        GET_MASK(fog_color, NV_PGRAPH_FOGCOLOR_GREEN) / 255.0,
-                        GET_MASK(fog_color, NV_PGRAPH_FOGCOLOR_BLUE) / 255.0,
-                        GET_MASK(fog_color, NV_PGRAPH_FOGCOLOR_ALPHA) / 255.0);
-        }
-
-        /* FIXME: PGRAPH regs have a 16 byte stride in emulation! can't just
-         *        upload this as an array =(
-         */
-        loc = glGetUniformLocation(pg->shader_binding->gl_program,
-                                   "fogParam[0]");
-        if (loc != -1) {
-            glUniform1f(loc, *(float*)&pg->regs[NV_PGRAPH_FOGPARAM0]);
-        }
-        loc = glGetUniformLocation(pg->shader_binding->gl_program,
-                                   "fogParam[1]");
-        if (loc != -1) {
-            glUniform1f(loc, *(float*)&pg->regs[NV_PGRAPH_FOGPARAM1]);
-        }
-
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, "fogPlane");
-        if (loc != -1) {
-            glUniform4fv(loc, 1, pg->fog_plane);
-        }
-    }
-
-    /* For each vertex weight */
-    for (i = 0; i < 4; i++) {
-        char name[32];
-        GLint loc;
-
-        snprintf(name, sizeof(name), "modelViewMat%d", i);
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
-        if (loc != -1) {
-            glUniformMatrix4fv(loc, 1, GL_FALSE,
-                               pg->model_view_matrix[i]);
-        }
-
-        snprintf(name, sizeof(name), "invModelViewMat%d", i);
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
-        if (loc != -1) {
-            glUniformMatrix4fv(loc, 1, GL_FALSE,
-                               pg->inverse_model_view_matrix[i]);
-        }
-
-    }
-
-    GLint projLoc = glGetUniformLocation(pg->shader_binding->gl_program,
-                                     "projectionMat");
-    if (projLoc != -1) {
-        glUniformMatrix4fv(projLoc, 1, GL_FALSE, pg->projection_matrix);
-    }
-
-    GLint eyeVecLoc = glGetUniformLocation(pg->shader_binding->gl_program,
-                                           "eyeVector");
-    if (eyeVecLoc != -1) {
-        glUniform3f(eyeVecLoc, *(float*)&pg->regs[NV_PGRAPH_EYEVEC0],
-                               *(float*)&pg->regs[NV_PGRAPH_EYEVEC1],
-                               *(float*)&pg->regs[NV_PGRAPH_EYEVEC2]);
-    }
-    GLint eyePosLoc = glGetUniformLocation(pg->shader_binding->gl_program,
-                                           "eyePosition");
-    if (eyePosLoc != -1) {
-        glUniform4fv(eyePosLoc, 1, pg->eye_position);
-    }
-    GLint eyeDirLoc = glGetUniformLocation(pg->shader_binding->gl_program,
-                                           "eyeDirection");
-    if (eyeDirLoc != -1) {
-        glUniform3fv(eyeDirLoc, 1, pg->eye_direction);
-    }
-
-    /* FIXME: Only do this if lighting is allowed? I'd believe lighting works
-     *        with both FFP and VPs.
-     */
-    NV2A_GL_DGROUP_BEGIN("Lighting uniforms");
-    GLint ambLoc = glGetUniformLocation(pg->shader_binding->gl_program,
-                                        "sceneAmbientColor");
-    if (ambLoc != -1) {
-        glUniform3fv(ambLoc, 1, pg->scene_ambient_color);
-    }
-    for (i = 0; i < NV2A_MAX_LIGHTS; i++) {
-        GLint loc;
-        char tmp[64];
-        snprintf(tmp, sizeof(tmp), "backLightAmbientColor%d", i);
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
-        if (loc != -1) {
-            glUniform3fv(loc, 1, pg->back_light_ambient_color[i]);
-        }
-        snprintf(tmp, sizeof(tmp), "backLightDiffuseColor%d", i);
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
-        if (loc != -1) {
-            glUniform3fv(loc, 1, pg->back_light_diffuse_color[i]);
-        }
-        snprintf(tmp, sizeof(tmp), "backLightSpecularColor%d", i);
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
-        if (loc != -1) {
-            glUniform3fv(loc, 1, pg->back_light_specular_color[i]);
-        }
-        snprintf(tmp, sizeof(tmp), "lightAmbientColor%d", i);
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
-        if (loc != -1) {
-            glUniform3fv(loc, 1, pg->light_ambient_color[i]);
-        }
-        snprintf(tmp, sizeof(tmp), "lightDiffuseColor%d", i);
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
-        if (loc != -1) {
-            glUniform3fv(loc, 1, pg->light_diffuse_color[i]);
-        }
-        snprintf(tmp, sizeof(tmp), "lightSpecularColor%d", i);
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
-        if (loc != -1) {
-            glUniform3fv(loc, 1, pg->light_specular_color[i]);
-        }
-        snprintf(tmp, sizeof(tmp), "lightLocalRange%d", i);
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
-        if (loc != -1) {
-            glUniform1f(loc, pg->light_local_range[i]);
-        }
-        snprintf(tmp, sizeof(tmp), "lightInfiniteHalfVector%d", i);
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
-        if (loc != -1) {
-            glUniform3fv(loc, 1, pg->light_infinite_half_vector[i]);
-        }
-        snprintf(tmp, sizeof(tmp), "lightInfiniteDirection%d", i);
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
-        if (loc != -1) {
-            glUniform3fv(loc, 1, pg->light_infinite_direction[i]);
-        }
-        snprintf(tmp, sizeof(tmp), "lightSpotFalloff%d", i);
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
-        if (loc != -1) {
-            glUniform3fv(loc, 1, pg->light_spot_falloff[i]);
-        }
-        snprintf(tmp, sizeof(tmp), "lightSpotDirection%d", i);
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
-        if (loc != -1) {
-            glUniform4fv(loc, 1, pg->light_spot_direction[i]);
-        }
-        snprintf(tmp, sizeof(tmp), "lightLocalPosition%d", i);
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
-        if (loc != -1) {
-            glUniform3fv(loc, 1, pg->light_local_position[i]);
-        }
-        snprintf(tmp, sizeof(tmp), "lightLocalAttenuation%d", i);
-        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
-        if (loc != -1) {
-            glUniform3fv(loc, 1, pg->light_local_attenuation[i]);
-        }
-    }
-    NV2A_GL_DGROUP_END();
-
-    float zclip_max = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMAX];
-    float zclip_min = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMIN];
-
-    if (fixed_function) {
-        /* update fixed function composite matrix */
-
-        GLint comLoc = glGetUniformLocation(pg->shader_binding->gl_program,
-                                            "compositeMat");
-        if (comLoc != -1) {
-            glUniformMatrix4fv(comLoc, 1, GL_FALSE, pg->composite_matrix);
-        }
-
-        /* estimate the viewport by assuming it matches the surface ... */
-        //FIXME: Get surface dimensions?
-        float m11 = 0.5 * pg->surface_shape.clip_width;
-        float m22 = -0.5 * pg->surface_shape.clip_height;
-        float m33 = zclip_max - zclip_min;
-        //float m41 = m11;
-        //float m42 = -m22;
-        float m43 = zclip_min;
-        //float m44 = 1.0;
-
-        if (m33 == 0.0) {
-            m33 = 1.0;
-        }
-        float invViewport[16] = {
-            1.0/m11, 0, 0, 0,
-            0, 1.0/m22, 0, 0,
-            0, 0, 1.0/m33, 0,
-            -1.0, 1.0, -m43/m33, 1.0
-        };
-
-        GLint view_loc = glGetUniformLocation(pg->shader_binding->gl_program,
-                                              "invViewport");
-        if (view_loc != -1) {
-            glUniformMatrix4fv(view_loc, 1, GL_FALSE, &invViewport[0]);
-        }
-
-    } else if (vertex_program) {
-        /* update vertex program constants */
-
-        for (i=0; i<NV2A_VERTEXSHADER_CONSTANTS; i++) {
-            VertexShaderConstant *constant = &pg->constants[i];
-            if (!constant->dirty && !binding_changed) continue;
-
-            GLint loc = pg->shader_binding->vsh_constant_loc[i];
-            //assert(loc != -1);
-            if (loc != -1) {
-                glUniform4fv(loc, 1, (const GLfloat*)constant->data);
-            }
-            constant->dirty = false;
-        }
-
-        GLint loc = glGetUniformLocation(pg->shader_binding->gl_program,
-                                          "surfaceSize");
-        if (loc != -1) {
-            glUniform2f(loc, pg->surface_shape.clip_width,
-                        pg->surface_shape.clip_height);
-        }
-
-        loc = glGetUniformLocation(pg->shader_binding->gl_program,
-                                   "clipRange");
-        if (loc != -1) {
-            glUniform2f(loc, zclip_min, zclip_max);
-        }
-
-    }
     NV2A_GL_DGROUP_END();
 }
 
@@ -4688,34 +4547,56 @@ static void pgraph_method(NV2AState *d,
         break;
 
     case NV097_SET_PROJECTION_MATRIX ...
-            NV097_SET_PROJECTION_MATRIX + 0x3c:
+            NV097_SET_PROJECTION_MATRIX + 0x3c: {
         slot = (class_method - NV097_SET_PROJECTION_MATRIX) / 4;
-        pg->projection_matrix[slot] = *(float*)&parameter;
+        // pg->projection_matrix[slot] = *(float*)&parameter;
+        unsigned int row = NV_IGRAPH_XF_XFCTX_PMAT0 + slot/4;
+        pg->vsh_constants[row][slot%4] = parameter;
+        pg->vsh_constants_dirty[row] = true;
         break;
+    }
 
     case NV097_SET_MODEL_VIEW_MATRIX ...
-            NV097_SET_MODEL_VIEW_MATRIX + 0xfc:
+            NV097_SET_MODEL_VIEW_MATRIX + 0xfc: {
         slot = (class_method - NV097_SET_MODEL_VIEW_MATRIX) / 4;
-        pg->model_view_matrix[slot / 16][slot % 16] = *(float*)&parameter;
+        unsigned int matnum = slot / 16;
+        unsigned int entry = slot % 16;
+        unsigned int row = NV_IGRAPH_XF_XFCTX_MMAT0 + matnum*8 + entry/4;
+        pg->vsh_constants[row][entry % 4] = parameter;
+        pg->vsh_constants_dirty[row] = true;
         break;
+    }
 
     case NV097_SET_INVERSE_MODEL_VIEW_MATRIX ...
-            NV097_SET_INVERSE_MODEL_VIEW_MATRIX + 0xfc:
+            NV097_SET_INVERSE_MODEL_VIEW_MATRIX + 0xfc: {
         slot = (class_method - NV097_SET_INVERSE_MODEL_VIEW_MATRIX) / 4;
-        pg->inverse_model_view_matrix[slot / 16][slot % 16] = *(float*)&parameter;
+        unsigned int matnum = slot / 16;
+        unsigned int entry = slot % 16;
+        unsigned int row = NV_IGRAPH_XF_XFCTX_IMMAT0 + matnum*8 + entry/4;
+        pg->vsh_constants[row][entry % 4] = parameter;
+        pg->vsh_constants_dirty[row] = true;
         break;
+    }
 
     case NV097_SET_COMPOSITE_MATRIX ...
-            NV097_SET_COMPOSITE_MATRIX + 0x3c:
+            NV097_SET_COMPOSITE_MATRIX + 0x3c: {
         slot = (class_method - NV097_SET_COMPOSITE_MATRIX) / 4;
-        pg->composite_matrix[slot] = *(float*)&parameter;
+        unsigned int row = NV_IGRAPH_XF_XFCTX_CMAT0 + slot/4;
+        pg->vsh_constants[row][slot%4] = parameter;
+        pg->vsh_constants_dirty[row] = true;
         break;
+    }
 
     case NV097_SET_TEXTURE_MATRIX ...
-            NV097_SET_TEXTURE_MATRIX + 0xfc:
+            NV097_SET_TEXTURE_MATRIX + 0xfc: {
         slot = (class_method - NV097_SET_TEXTURE_MATRIX) / 4;
-        pg->texture_matrix[slot / 16][slot % 16] = *(float*)&parameter;
+        unsigned int tex = slot / 16;
+        unsigned int entry = slot % 16;
+        unsigned int row = NV_IGRAPH_XF_XFCTX_T0MAT + tex*8 + entry/4;
+        pg->vsh_constants[row][entry%4] = parameter;
+        pg->vsh_constants_dirty[row] = true;
         break;
+    }
 
     case NV097_SET_FOG_PARAMS ...
             NV097_SET_FOG_PARAMS + 8:
@@ -4725,14 +4606,20 @@ static void pgraph_method(NV2AState *d,
         } else {
             /* FIXME: No idea where slot = 2 is */
         }
+
+        pg->ltctxa[NV_IGRAPH_XF_LTCTXA_FOG_K][slot] = parameter;
+        pg->ltctxa_dirty[NV_IGRAPH_XF_LTCTXA_FOG_K] = true;
         break;
 
     /* Handles NV097_SET_TEXGEN_PLANE_S,T,R,Q */
     case NV097_SET_TEXGEN_PLANE_S ...
             NV097_SET_TEXGEN_PLANE_S + 0xfc: {
         slot = (class_method - NV097_SET_TEXGEN_PLANE_S) / 4;
-        unsigned int part = slot % 16;
-        pg->texture_plane[slot / 16][part / 4][part % 4] = *(float*)&parameter;
+        unsigned int tex = slot / 16;
+        unsigned int entry = slot % 16;
+        unsigned int row = NV_IGRAPH_XF_XFCTX_TG0MAT + tex*8 + entry/4;
+        pg->vsh_constants[row][entry%4] = parameter;
+        pg->vsh_constants_dirty[row] = true;
         break;
     }
 
@@ -4744,29 +4631,30 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_FOG_PLANE ...
             NV097_SET_FOG_PLANE + 12:
         slot = (class_method - NV097_SET_FOG_PLANE) / 4;
-        pg->fog_plane[slot] = *(float*)&parameter;
+        pg->vsh_constants[NV_IGRAPH_XF_XFCTX_FOG][slot] = parameter;
+        pg->vsh_constants_dirty[NV_IGRAPH_XF_XFCTX_FOG] = true;
         break;
 
     case NV097_SET_SCENE_AMBIENT_COLOR ...
             NV097_SET_SCENE_AMBIENT_COLOR + 8:
         slot = (class_method - NV097_SET_SCENE_AMBIENT_COLOR) / 4;
-        pg->scene_ambient_color[slot] = *(float*)&parameter;
+        // ??
+        pg->ltctxa[NV_IGRAPH_XF_LTCTXA_FR_AMB][slot] = parameter;
+        pg->ltctxa_dirty[NV_IGRAPH_XF_LTCTXA_FR_AMB] = true;
         break;
 
     case NV097_SET_VIEWPORT_OFFSET ...
             NV097_SET_VIEWPORT_OFFSET + 12:
-
         slot = (class_method - NV097_SET_VIEWPORT_OFFSET) / 4;
-
-        /* populate magic viewport offset constant */
-        pg->constants[59].data[slot] = parameter;
-        pg->constants[59].dirty = true;
+        pg->vsh_constants[NV_IGRAPH_XF_XFCTX_VPOFF][slot] = parameter;
+        pg->vsh_constants_dirty[NV_IGRAPH_XF_XFCTX_VPOFF] = true;
         break;
 
     case NV097_SET_EYE_POSITION ...
             NV097_SET_EYE_POSITION + 12:
         slot = (class_method - NV097_SET_EYE_POSITION) / 4;
-        pg->eye_position[slot] = *(float*)&parameter;
+        pg->vsh_constants[NV_IGRAPH_XF_XFCTX_EYEP][slot] = parameter;
+        pg->vsh_constants_dirty[NV_IGRAPH_XF_XFCTX_EYEP] = true;
         break;
     case NV097_SET_COMBINER_FACTOR0 ...
             NV097_SET_COMBINER_FACTOR0 + 28:
@@ -4794,12 +4682,9 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_VIEWPORT_SCALE ...
             NV097_SET_VIEWPORT_SCALE + 12:
-
         slot = (class_method - NV097_SET_VIEWPORT_SCALE) / 4;
-
-        /* populate magic viewport scale constant */
-        pg->constants[58].data[slot] = parameter;
-        pg->constants[58].dirty = true;
+        pg->vsh_constants[NV_IGRAPH_XF_XFCTX_VPSCL][slot] = parameter;
+        pg->vsh_constants_dirty[NV_IGRAPH_XF_XFCTX_VPSCL] = true;
         break;
 
     case NV097_SET_TRANSFORM_PROGRAM ...
@@ -4830,9 +4715,10 @@ static void pgraph_method(NV2AState *d,
                                   NV_PGRAPH_CHEOPS_OFFSET_CONST_LD_PTR);
 
         assert(const_load < NV2A_VERTEXSHADER_CONSTANTS);
-        VertexShaderConstant *constant = &pg->constants[const_load];
-        constant->dirty |= (parameter != constant->data[slot%4]);
-        constant->data[slot%4] = parameter;
+        // VertexShaderConstant *constant = &pg->constants[const_load];
+        pg->vsh_constants_dirty[const_load] |=
+            (parameter != pg->vsh_constants[const_load][slot%4]);
+        pg->vsh_constants[const_load][slot%4] = parameter;
 
         if (slot % 4 == 3) {
             SET_MASK(pg->regs[NV_PGRAPH_CHEOPS_OFFSET],
@@ -4866,17 +4752,20 @@ static void pgraph_method(NV2AState *d,
         case NV097_SET_BACK_LIGHT_AMBIENT_COLOR ...
                 NV097_SET_BACK_LIGHT_AMBIENT_COLOR + 8:
             part -= NV097_SET_BACK_LIGHT_AMBIENT_COLOR / 4;
-            pg->back_light_ambient_color[slot][part] = *(float*)&parameter;
+            pg->ltctxb[NV_IGRAPH_XF_LTCTXB_L0_BAMB + slot*6][part] = parameter;
+            pg->ltctxb_dirty[NV_IGRAPH_XF_LTCTXB_L0_BAMB + slot*6] = true;
             break;
         case NV097_SET_BACK_LIGHT_DIFFUSE_COLOR ...
                 NV097_SET_BACK_LIGHT_DIFFUSE_COLOR + 8:
             part -= NV097_SET_BACK_LIGHT_DIFFUSE_COLOR / 4;
-            pg->back_light_diffuse_color[slot][part] = *(float*)&parameter;
+            pg->ltctxb[NV_IGRAPH_XF_LTCTXB_L0_BDIF + slot*6][part] = parameter;
+            pg->ltctxb_dirty[NV_IGRAPH_XF_LTCTXB_L0_BDIF + slot*6] = true;
             break;
         case NV097_SET_BACK_LIGHT_SPECULAR_COLOR ...
                 NV097_SET_BACK_LIGHT_SPECULAR_COLOR + 8:
             part -= NV097_SET_BACK_LIGHT_SPECULAR_COLOR / 4;
-            pg->back_light_specular_color[slot][part] = *(float*)&parameter;
+            pg->ltctxb[NV_IGRAPH_XF_LTCTXB_L0_BSPC + slot*6][part] = parameter;
+            pg->ltctxb_dirty[NV_IGRAPH_XF_LTCTXB_L0_BSPC + slot*6] = true;
             break;
         default:
             assert(false);
@@ -4895,20 +4784,24 @@ static void pgraph_method(NV2AState *d,
         case NV097_SET_LIGHT_AMBIENT_COLOR ...
                 NV097_SET_LIGHT_AMBIENT_COLOR + 8:
             part -= NV097_SET_LIGHT_AMBIENT_COLOR / 4;
-            pg->light_ambient_color[slot][part] = *(float*)&parameter;
+            pg->ltctxb[NV_IGRAPH_XF_LTCTXB_L0_AMB + slot*6][part] = parameter;
+            pg->ltctxb_dirty[NV_IGRAPH_XF_LTCTXB_L0_AMB + slot*6] = true;
             break;
         case NV097_SET_LIGHT_DIFFUSE_COLOR ...
                NV097_SET_LIGHT_DIFFUSE_COLOR + 8:
             part -= NV097_SET_LIGHT_DIFFUSE_COLOR / 4;
-            pg->light_diffuse_color[slot][part] = *(float*)&parameter;
+            pg->ltctxb[NV_IGRAPH_XF_LTCTXB_L0_DIF + slot*6][part] = parameter;
+            pg->ltctxb_dirty[NV_IGRAPH_XF_LTCTXB_L0_DIF + slot*6] = true;
             break;
         case NV097_SET_LIGHT_SPECULAR_COLOR ...
                 NV097_SET_LIGHT_SPECULAR_COLOR + 8:
             part -= NV097_SET_LIGHT_SPECULAR_COLOR / 4;
-            pg->light_specular_color[slot][part] = *(float*)&parameter;
+            pg->ltctxb[NV_IGRAPH_XF_LTCTXB_L0_SPC + slot*6][part] = parameter;
+            pg->ltctxb_dirty[NV_IGRAPH_XF_LTCTXB_L0_SPC + slot*6] = true;
             break;
         case NV097_SET_LIGHT_LOCAL_RANGE:
-            pg->light_local_range[slot] = *(float*)&parameter;
+            pg->ltc1[NV_IGRAPH_XF_LTC1_r0 + slot][0] = parameter;
+            pg->ltc1_dirty[NV_IGRAPH_XF_LTC1_r0 + slot] = true;
             break;
         case NV097_SET_LIGHT_INFINITE_HALF_VECTOR ...
                 NV097_SET_LIGHT_INFINITE_HALF_VECTOR + 8:
@@ -4923,12 +4816,14 @@ static void pgraph_method(NV2AState *d,
         case NV097_SET_LIGHT_SPOT_FALLOFF ...
                 NV097_SET_LIGHT_SPOT_FALLOFF + 8:
             part -= NV097_SET_LIGHT_SPOT_FALLOFF / 4;
-            pg->light_spot_falloff[slot][part] = *(float*)&parameter;
+            pg->ltctxa[NV_IGRAPH_XF_LTCTXA_L0_K + slot*2][part] = parameter;
+            pg->ltctxa_dirty[NV_IGRAPH_XF_LTCTXA_L0_K + slot*2] = true;
             break;
         case NV097_SET_LIGHT_SPOT_DIRECTION ...
                 NV097_SET_LIGHT_SPOT_DIRECTION + 12:
             part -= NV097_SET_LIGHT_SPOT_DIRECTION / 4;
-            pg->light_spot_direction[slot][part] = *(float*)&parameter;
+            pg->ltctxa[NV_IGRAPH_XF_LTCTXA_L0_SPT + slot*2][part] = parameter;
+            pg->ltctxa_dirty[NV_IGRAPH_XF_LTCTXA_L0_SPT + slot*2] = true;
             break;
         case NV097_SET_LIGHT_LOCAL_POSITION ...
                 NV097_SET_LIGHT_LOCAL_POSITION + 8:
@@ -5126,7 +5021,8 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_EYE_DIRECTION ...
             NV097_SET_EYE_DIRECTION + 8:
         slot = (class_method - NV097_SET_EYE_DIRECTION) / 4;
-        pg->eye_direction[slot] = *(float*)&parameter;
+        pg->ltctxa[NV_IGRAPH_XF_LTCTXA_EYED][slot] = parameter;
+        pg->ltctxa_dirty[NV_IGRAPH_XF_LTCTXA_EYED] = true;
         break;
 
     case NV097_SET_BEGIN_END: {
