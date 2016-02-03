@@ -229,6 +229,12 @@ int kvm_mips_set_ipi_interrupt(MIPSCPU *cpu, int irq, int level)
 #define KVM_REG_MIPS_CP0_CAUSE          MIPS_CP0_32(13, 0)
 #define KVM_REG_MIPS_CP0_EPC            MIPS_CP0_64(14, 0)
 #define KVM_REG_MIPS_CP0_PRID           MIPS_CP0_32(15, 0)
+#define KVM_REG_MIPS_CP0_CONFIG         MIPS_CP0_32(16, 0)
+#define KVM_REG_MIPS_CP0_CONFIG1        MIPS_CP0_32(16, 1)
+#define KVM_REG_MIPS_CP0_CONFIG2        MIPS_CP0_32(16, 2)
+#define KVM_REG_MIPS_CP0_CONFIG3        MIPS_CP0_32(16, 3)
+#define KVM_REG_MIPS_CP0_CONFIG4        MIPS_CP0_32(16, 4)
+#define KVM_REG_MIPS_CP0_CONFIG5        MIPS_CP0_32(16, 5)
 #define KVM_REG_MIPS_CP0_ERROREPC       MIPS_CP0_64(30, 0)
 
 static inline int kvm_mips_put_one_reg(CPUState *cs, uint64_t reg_id,
@@ -302,6 +308,34 @@ static inline int kvm_mips_get_one_reg64(CPUState *cs, uint64_t reg_id,
     };
 
     return kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &cp0reg);
+}
+
+#define KVM_REG_MIPS_CP0_CONFIG_MASK    (1U << CP0C0_M)
+#define KVM_REG_MIPS_CP0_CONFIG1_MASK   (1U << CP0C1_M)
+#define KVM_REG_MIPS_CP0_CONFIG2_MASK   (1U << CP0C2_M)
+#define KVM_REG_MIPS_CP0_CONFIG3_MASK   (1U << CP0C3_M)
+#define KVM_REG_MIPS_CP0_CONFIG4_MASK   (1U << CP0C4_M)
+#define KVM_REG_MIPS_CP0_CONFIG5_MASK   0
+
+static inline int kvm_mips_change_one_reg(CPUState *cs, uint64_t reg_id,
+                                          int32_t *addr, int32_t mask)
+{
+    int err;
+    int32_t tmp, change;
+
+    err = kvm_mips_get_one_reg(cs, reg_id, &tmp);
+    if (err < 0) {
+        return err;
+    }
+
+    /* only change bits in mask */
+    change = (*addr ^ tmp) & mask;
+    if (!change) {
+        return 0;
+    }
+
+    tmp = tmp ^ change;
+    return kvm_mips_put_one_reg(cs, reg_id, &tmp);
 }
 
 /*
@@ -526,6 +560,48 @@ static int kvm_mips_put_cp0_registers(CPUState *cs, int level)
         DPRINTF("%s: Failed to put CP0_PRID (%d)\n", __func__, err);
         ret = err;
     }
+    err = kvm_mips_change_one_reg(cs, KVM_REG_MIPS_CP0_CONFIG,
+                                  &env->CP0_Config0,
+                                  KVM_REG_MIPS_CP0_CONFIG_MASK);
+    if (err < 0) {
+        DPRINTF("%s: Failed to change CP0_CONFIG (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_change_one_reg(cs, KVM_REG_MIPS_CP0_CONFIG1,
+                                  &env->CP0_Config1,
+                                  KVM_REG_MIPS_CP0_CONFIG1_MASK);
+    if (err < 0) {
+        DPRINTF("%s: Failed to change CP0_CONFIG1 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_change_one_reg(cs, KVM_REG_MIPS_CP0_CONFIG2,
+                                  &env->CP0_Config2,
+                                  KVM_REG_MIPS_CP0_CONFIG2_MASK);
+    if (err < 0) {
+        DPRINTF("%s: Failed to change CP0_CONFIG2 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_change_one_reg(cs, KVM_REG_MIPS_CP0_CONFIG3,
+                                  &env->CP0_Config3,
+                                  KVM_REG_MIPS_CP0_CONFIG3_MASK);
+    if (err < 0) {
+        DPRINTF("%s: Failed to change CP0_CONFIG3 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_change_one_reg(cs, KVM_REG_MIPS_CP0_CONFIG4,
+                                  &env->CP0_Config4,
+                                  KVM_REG_MIPS_CP0_CONFIG4_MASK);
+    if (err < 0) {
+        DPRINTF("%s: Failed to change CP0_CONFIG4 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_change_one_reg(cs, KVM_REG_MIPS_CP0_CONFIG5,
+                                  &env->CP0_Config5,
+                                  KVM_REG_MIPS_CP0_CONFIG5_MASK);
+    if (err < 0) {
+        DPRINTF("%s: Failed to change CP0_CONFIG5 (%d)\n", __func__, err);
+        ret = err;
+    }
     err = kvm_mips_put_one_ulreg(cs, KVM_REG_MIPS_CP0_ERROREPC,
                                  &env->CP0_ErrorEPC);
     if (err < 0) {
@@ -615,6 +691,36 @@ static int kvm_mips_get_cp0_registers(CPUState *cs)
     err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_CP0_PRID, &env->CP0_PRid);
     if (err < 0) {
         DPRINTF("%s: Failed to get CP0_PRID (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_CP0_CONFIG, &env->CP0_Config0);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_CONFIG (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_CP0_CONFIG1, &env->CP0_Config1);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_CONFIG1 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_CP0_CONFIG2, &env->CP0_Config2);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_CONFIG2 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_CP0_CONFIG3, &env->CP0_Config3);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_CONFIG3 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_CP0_CONFIG4, &env->CP0_Config4);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_CONFIG4 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_CP0_CONFIG5, &env->CP0_Config5);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_CONFIG5 (%d)\n", __func__, err);
         ret = err;
     }
     err = kvm_mips_get_one_ulreg(cs, KVM_REG_MIPS_CP0_ERROREPC,
