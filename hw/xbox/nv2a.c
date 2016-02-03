@@ -280,8 +280,6 @@ static const SurfaceColorFormatInfo kelvin_surface_color_format_map[] = {
         {4, GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
 };
 
-#define ARRAYSIZE(x) (sizeof(x)/sizeof(x[0]))
-
 #define GET_MASK(v, mask) (((v) & (mask)) >> (ffs(mask)-1))
 
 #define SET_MASK(v, mask, val) ({                                    \
@@ -1540,7 +1538,7 @@ static void pgraph_bind_textures(NV2AState *d)
                      min_mipmap_level, max_mipmap_level, levels,
                      lod_bias);
 
-        assert(color_format < ARRAYSIZE(kelvin_color_format_map));
+        assert(color_format < ARRAY_SIZE(kelvin_color_format_map));
         ColorFormatInfo f = kelvin_color_format_map[color_format];
         if (f.bytes_per_pixel == 0) {
             fprintf(stderr, "nv2a: unimplemented texture color format 0x%x\n",
@@ -1725,16 +1723,16 @@ static void pgraph_bind_textures(NV2AState *d)
             pgraph_texture_mag_filter_map[mag_filter]);
 
         /* Texture wrapping */
-        assert(addru < ARRAYSIZE(pgraph_texture_addr_map));
+        assert(addru < ARRAY_SIZE(pgraph_texture_addr_map));
         glTexParameteri(binding->gl_target, GL_TEXTURE_WRAP_S,
             pgraph_texture_addr_map[addru]);
         if (dimensionality > 1) {
-            assert(addrv < ARRAYSIZE(pgraph_texture_addr_map));
+            assert(addrv < ARRAY_SIZE(pgraph_texture_addr_map));
             glTexParameteri(binding->gl_target, GL_TEXTURE_WRAP_T,
                 pgraph_texture_addr_map[addrv]);
         }
         if (dimensionality > 2) {
-            assert(addrp < ARRAYSIZE(pgraph_texture_addr_map));
+            assert(addrp < ARRAY_SIZE(pgraph_texture_addr_map));
             glTexParameteri(binding->gl_target, GL_TEXTURE_WRAP_R,
                 pgraph_texture_addr_map[addrp]);
         }
@@ -2220,7 +2218,7 @@ static void pgraph_update_surface_part(NV2AState *d, bool upload, bool color) {
 
         assert(pg->surface_shape.color_format != 0);
         assert(pg->surface_shape.color_format
-                < ARRAYSIZE(kelvin_surface_color_format_map));
+                < ARRAY_SIZE(kelvin_surface_color_format_map));
         SurfaceColorFormatInfo f =
             kelvin_surface_color_format_map[pg->surface_shape.color_format];
         if (f.bytes_per_pixel == 0) {
@@ -4081,14 +4079,14 @@ static void pgraph_method(NV2AState *d,
                                             NV_PGRAPH_BLEND_SFACTOR);
                 uint32_t dfactor = GET_MASK(pg->regs[NV_PGRAPH_BLEND],
                                             NV_PGRAPH_BLEND_DFACTOR);
-                assert(sfactor < ARRAYSIZE(pgraph_blend_factor_map));
-                assert(dfactor < ARRAYSIZE(pgraph_blend_factor_map));
+                assert(sfactor < ARRAY_SIZE(pgraph_blend_factor_map));
+                assert(dfactor < ARRAY_SIZE(pgraph_blend_factor_map));
                 glBlendFunc(pgraph_blend_factor_map[sfactor],
                             pgraph_blend_factor_map[dfactor]);
 
                 uint32_t equation = GET_MASK(pg->regs[NV_PGRAPH_BLEND],
                                              NV_PGRAPH_BLEND_EQN);
-                assert(equation < ARRAYSIZE(pgraph_blend_equation_map));
+                assert(equation < ARRAY_SIZE(pgraph_blend_equation_map));
                 glBlendEquation(pgraph_blend_equation_map[equation]);
 
                 uint32_t blend_color = pg->regs[NV_PGRAPH_BLENDCOLOR];
@@ -4105,7 +4103,7 @@ static void pgraph_method(NV2AState *d,
                     & NV_PGRAPH_SETUPRASTER_CULLENABLE) {
                 uint32_t cull_face = GET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
                                               NV_PGRAPH_SETUPRASTER_CULLCTRL);
-                assert(cull_face < ARRAYSIZE(pgraph_cull_face_map));
+                assert(cull_face < ARRAY_SIZE(pgraph_cull_face_map));
                 glCullFace(pgraph_cull_face_map[cull_face]);
                 glEnable(GL_CULL_FACE);
             } else {
@@ -4152,7 +4150,7 @@ static void pgraph_method(NV2AState *d,
 
                 uint32_t depth_func = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
                                                NV_PGRAPH_CONTROL_0_ZFUNC);
-                assert(depth_func < ARRAYSIZE(pgraph_depth_func_map));
+                assert(depth_func < ARRAY_SIZE(pgraph_depth_func_map));
                 glDepthFunc(pgraph_depth_func_map[depth_func]);
             } else {
                 glDisable(GL_DEPTH_TEST);
@@ -4174,10 +4172,10 @@ static void pgraph_method(NV2AState *d,
                 uint32_t op_zpass = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_2],
                                         NV_PGRAPH_CONTROL_2_STENCIL_OP_ZPASS);
 
-                assert(stencil_func < ARRAYSIZE(pgraph_stencil_func_map));
-                assert(op_fail < ARRAYSIZE(pgraph_stencil_op_map));
-                assert(op_zfail < ARRAYSIZE(pgraph_stencil_op_map));
-                assert(op_zpass < ARRAYSIZE(pgraph_stencil_op_map));
+                assert(stencil_func < ARRAY_SIZE(pgraph_stencil_func_map));
+                assert(op_fail < ARRAY_SIZE(pgraph_stencil_op_map));
+                assert(op_zfail < ARRAY_SIZE(pgraph_stencil_op_map));
+                assert(op_zpass < ARRAY_SIZE(pgraph_stencil_op_map));
 
                 glStencilFunc(
                     pgraph_stencil_func_map[stencil_func],
@@ -4361,7 +4359,7 @@ static void pgraph_method(NV2AState *d,
 
         pg->draw_arrays_max_count = MAX(pg->draw_arrays_max_count, start + count);
 
-        assert(pg->draw_arrays_length < ARRAYSIZE(pg->gl_draw_arrays_start));
+        assert(pg->draw_arrays_length < ARRAY_SIZE(pg->gl_draw_arrays_start));
 
         /* Attempt to connect primitives */
         if (pg->draw_arrays_length > 0) {
@@ -6198,7 +6196,7 @@ static void reg_log_read(int block, hwaddr addr, uint64_t val) {
 static void reg_log_write(int block, hwaddr addr, uint64_t val) {
     if (blocktable[block].name) {
         hwaddr naddr = blocktable[block].offset + addr;
-        if (naddr < ARRAYSIZE(nv2a_reg_names) && nv2a_reg_names[naddr]) {
+        if (naddr < ARRAY_SIZE(nv2a_reg_names) && nv2a_reg_names[naddr]) {
             NV2A_DPRINTF("%s: [%s] = 0x%" PRIx64 "\n",
                     blocktable[block].name, nv2a_reg_names[naddr], val);
         } else {
@@ -6232,7 +6230,7 @@ static void pgraph_method_log(unsigned int subchannel,
             default:
                 break;
         }
-        if (nmethod != 0 && nmethod < ARRAYSIZE(nv2a_method_names)) {
+        if (nmethod != 0 && nmethod < ARRAY_SIZE(nv2a_method_names)) {
             method_name = nv2a_method_names[nmethod];
         }
         if (method_name) {
@@ -6451,7 +6449,7 @@ static int nv2a_initfn(PCIDevice *dev)
     memory_region_init(&d->mmio, OBJECT(dev), "nv2a-mmio", 0x1000000);
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
 
-    for (i=0; i<ARRAYSIZE(blocktable); i++) {
+    for (i=0; i<ARRAY_SIZE(blocktable); i++) {
         if (!blocktable[i].name) continue;
         memory_region_init_io(&d->block_mmio[i], OBJECT(dev),
                               &blocktable[i].ops, d,
