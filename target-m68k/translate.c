@@ -2841,6 +2841,11 @@ register_opcode (disas_proc proc, uint16_t opcode, uint16_t mask)
    Later insn override earlier ones.  */
 void register_m68k_insns (CPUM68KState *env)
 {
+    /* Build the opcode table only once to avoid
+       multithreading issues. */
+    if (opcode_table[0] != NULL) {
+        return;
+    }
 #define INSN(name, opcode, mask, feature) do { \
     if (m68k_feature(env, M68K_FEATURE_##feature)) \
         register_opcode(disas_##name, 0x##opcode, 0x##mask); \
