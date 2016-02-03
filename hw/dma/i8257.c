@@ -62,6 +62,10 @@ typedef struct I8257State {
     I8257Regs regs[4];
     MemoryRegion channel_io;
     MemoryRegion cont_io;
+
+    QEMUBH *dma_bh;
+    bool dma_bh_scheduled;
+    int running;
 } I8257State;
 
 static I8257State dma_controllers[2];
@@ -81,7 +85,7 @@ enum {
 
 };
 
-static void i8257_dma_run(void);
+static void i8257_dma_run(void *opaque);
 
 static int channels[8] = {-1, 2, 3, 1, -1, -1, -1, 0};
 
@@ -221,7 +225,7 @@ static void i8257_write_cont(void *opaque, hwaddr nport, uint64_t data,
             d->status &= ~(1 << (ichan + 4));
         }
         d->status &= ~(1 << ichan);
-        i8257_dma_run();
+        i8257_dma_run(d);
         break;
 
     case 0x02:                  /* single mask */
@@ -229,7 +233,7 @@ static void i8257_write_cont(void *opaque, hwaddr nport, uint64_t data,
             d->mask |= 1 << (data & 3);
         else
             d->mask &= ~(1 << (data & 3));
-        i8257_dma_run();
+        i8257_dma_run(d);
         break;
 
     case 0x03:                  /* mode */
@@ -264,12 +268,12 @@ static void i8257_write_cont(void *opaque, hwaddr nport, uint64_t data,
 
     case 0x06:                  /* clear mask for all channels */
         d->mask = 0;
-        i8257_dma_run();
+        i8257_dma_run(d);
         break;
 
     case 0x07:                  /* write mask for all channels */
         d->mask = data;
-        i8257_dma_run();
+        i8257_dma_run(d);
         break;
 
     default:
@@ -321,7 +325,7 @@ void DMA_hold_DREQ (int nchan)
     ichan = nchan & 3;
     linfo ("held cont=%d chan=%d\n", ncont, ichan);
     dma_controllers[ncont].status |= 1 << (ichan + 4);
-    i8257_dma_run();
+    i8257_dma_run(&dma_controllers[ncont]);
 }
 
 void DMA_release_DREQ (int nchan)
@@ -332,13 +336,14 @@ void DMA_release_DREQ (int nchan)
     ichan = nchan & 3;
     linfo ("released cont=%d chan=%d\n", ncont, ichan);
     dma_controllers[ncont].status &= ~(1 << (ichan + 4));
-    i8257_dma_run();
+    i8257_dma_run(&dma_controllers[ncont]);
 }
 
-static void i8257_channel_run(int ncont, int ichan)
+static void i8257_channel_run(I8257State *d, int ichan)
 {
+    int ncont = d->dshift;
     int n;
-    I8257Regs *r = &dma_controllers[ncont].regs[ichan];
+    I8257Regs *r = &d->regs[ichan];
 #ifdef DEBUG_DMA
     int dir, opmode;
 
@@ -359,50 +364,36 @@ static void i8257_channel_run(int ncont, int ichan)
     ldebug ("dma_pos %d size %d\n", n, (r->base[COUNT] + 1) << ncont);
 }
 
-static QEMUBH *dma_bh;
-static bool dma_bh_scheduled;
-
-static void i8257_dma_run(void)
+static void i8257_dma_run(void *opaque)
 {
-    I8257State *d;
-    int icont, ichan;
+    I8257State *d = opaque;
+    int ichan;
     int rearm = 0;
-    static int running = 0;
 
-    if (running) {
+    if (d->running) {
         rearm = 1;
         goto out;
     } else {
-        running = 1;
+        d->running = 1;
     }
 
-    d = dma_controllers;
+    for (ichan = 0; ichan < 4; ichan++) {
+        int mask;
 
-    for (icont = 0; icont < 2; icont++, d++) {
-        for (ichan = 0; ichan < 4; ichan++) {
-            int mask;
+        mask = 1 << ichan;
 
-            mask = 1 << ichan;
-
-            if ((0 == (d->mask & mask)) && (0 != (d->status & (mask << 4)))) {
-                i8257_channel_run(icont, ichan);
-                rearm = 1;
-            }
+        if ((0 == (d->mask & mask)) && (0 != (d->status & (mask << 4)))) {
+            i8257_channel_run(d, ichan);
+            rearm = 1;
         }
     }
 
-    running = 0;
+    d->running = 0;
 out:
     if (rearm) {
-        qemu_bh_schedule_idle(dma_bh);
-        dma_bh_scheduled = true;
+        qemu_bh_schedule_idle(d->dma_bh);
+        d->dma_bh_scheduled = true;
     }
-}
-
-static void i8257_dma_run_bh(void *unused)
-{
-    dma_bh_scheduled = false;
-    i8257_dma_run();
 }
 
 void DMA_register_channel (int nchan,
@@ -469,7 +460,8 @@ int DMA_write_memory (int nchan, void *buf, int pos, int len)
  */
 void DMA_schedule(void)
 {
-    if (dma_bh_scheduled) {
+    if (dma_controllers[0].dma_bh_scheduled ||
+        dma_controllers[1].dma_bh_scheduled) {
         qemu_notify_event();
     }
 }
@@ -552,6 +544,8 @@ static void dma_init2(I8257State *d, int base, int dshift,
     for (i = 0; i < ARRAY_SIZE (d->regs); ++i) {
         d->regs[i].transfer_handler = i8257_phony_handler;
     }
+
+    d->dma_bh = qemu_bh_new(i8257_dma_run, d);
 }
 
 static const VMStateDescription vmstate_i8257_regs = {
@@ -572,7 +566,8 @@ static const VMStateDescription vmstate_i8257_regs = {
 
 static int i8257_post_load(void *opaque, int version_id)
 {
-    i8257_dma_run();
+    I8257State *d = opaque;
+    i8257_dma_run(d);
 
     return 0;
 }
@@ -599,6 +594,4 @@ void DMA_init(ISABus *bus, int high_page_enable)
     dma_init2(&dma_controllers[1], 0xc0, 1, 0x88, high_page_enable ? 0x488 : -1);
     vmstate_register (NULL, 0, &vmstate_dma, &dma_controllers[0]);
     vmstate_register (NULL, 1, &vmstate_dma, &dma_controllers[1]);
-
-    dma_bh = qemu_bh_new(i8257_dma_run_bh, NULL);
 }
