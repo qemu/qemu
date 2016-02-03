@@ -443,7 +443,7 @@ build_gtdt(GArray *table_data, GArray *linker)
     gtdt->secure_el1_flags = ACPI_EDGE_SENSITIVE;
 
     gtdt->non_secure_el1_interrupt = ARCH_TIMER_NS_EL1_IRQ + 16;
-    gtdt->non_secure_el1_flags = ACPI_EDGE_SENSITIVE;
+    gtdt->non_secure_el1_flags = ACPI_EDGE_SENSITIVE | ACPI_GTDT_ALWAYS_ON;
 
     gtdt->virtual_timer_interrupt = ARCH_TIMER_VIRT_IRQ + 16;
     gtdt->virtual_timer_flags = ACPI_EDGE_SENSITIVE;
