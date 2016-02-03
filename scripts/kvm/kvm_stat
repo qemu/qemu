@@ -22,6 +22,7 @@ import resource
 import struct
 import re
 from collections import defaultdict
+from time import sleep
 
 VMX_EXIT_REASONS = {
     'EXCEPTION_NMI':        0,
@@ -778,7 +779,7 @@ def get_providers(options):
 
     return providers
 
-def check_access():
+def check_access(options):
     if not os.path.exists('/sys/kernel/debug'):
         sys.stderr.write('Please enable CONFIG_DEBUG_FS in your kernel.')
         sys.exit(1)
@@ -790,14 +791,24 @@ def check_access():
                          "Also ensure, that the kvm modules are loaded.\n")
         sys.exit(1)
 
-    if not os.path.exists(PATH_DEBUGFS_TRACING):
-        sys.stderr.write("Please make {0} readable by the current user.\n"
-                         .format(PATH_DEBUGFS_TRACING))
-        sys.exit(1)
+    if not os.path.exists(PATH_DEBUGFS_TRACING) and (options.tracepoints
+                                                     or not options.debugfs):
+        sys.stderr.write("Please enable CONFIG_TRACING in your kernel "
+                         "when using the option -t (default).\n"
+                         "If it is enabled, make {0} readable by the "
+                         "current user.\n")
+        if options.tracepoints:
+            sys.exit(1)
+
+        sys.stderr.write("Falling back to debugfs statistics!\n"
+        options.debugfs = True
+        sleep(5)
+
+    return options
 
 def main():
-    check_access()
     options = get_options()
+    options = check_access(options)
     providers = get_providers(options)
     stats = Stats(providers, fields=options.fields)
 
