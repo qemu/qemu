@@ -6763,17 +6763,18 @@ typedef enum {
 } MMUFaultType;
 
 /*
- * check_s2_startlevel
+ * check_s2_mmu_setup
  * @cpu:        ARMCPU
  * @is_aa64:    True if the translation regime is in AArch64 state
  * @startlevel: Suggested starting level
  * @inputsize:  Bitsize of IPAs
  * @stride:     Page-table stride (See the ARM ARM)
  *
- * Returns true if the suggested starting level is OK and false otherwise.
+ * Returns true if the suggested S2 translation parameters are OK and
+ * false otherwise.
  */
-static bool check_s2_startlevel(ARMCPU *cpu, bool is_aa64, int level,
-                                int inputsize, int stride)
+static bool check_s2_mmu_setup(ARMCPU *cpu, bool is_aa64, int level,
+                               int inputsize, int stride)
 {
     const int grainsize = stride + 3;
     int startsizecheck;
@@ -7013,8 +7014,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         }
 
         /* Check that the starting level is valid. */
-        ok = check_s2_startlevel(cpu, va_size == 64, level,
-                                 inputsize, stride);
+        ok = check_s2_mmu_setup(cpu, va_size == 64, level, inputsize, stride);
         if (!ok) {
             /* AArch64 reports these as level 0 faults.
              * AArch32 reports these as level 1 faults.
