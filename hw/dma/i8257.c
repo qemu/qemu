@@ -24,10 +24,10 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/isa/isa.h"
+#include "hw/isa/i8257.h"
 #include "qemu/main-loop.h"
 #include "trace.h"
 
-#define TYPE_I8257 "i8257"
 #define I8257(obj) \
     OBJECT_CHECK(I8257State, (obj), TYPE_I8257)
 
@@ -42,41 +42,8 @@
 #define ldebug(...)
 #endif
 
-typedef struct I8257Regs {
-    int now[2];
-    uint16_t base[2];
-    uint8_t mode;
-    uint8_t page;
-    uint8_t pageh;
-    uint8_t dack;
-    uint8_t eop;
-    DMA_transfer_handler transfer_handler;
-    void *opaque;
-} I8257Regs;
-
 #define ADDR 0
 #define COUNT 1
-
-typedef struct I8257State {
-    ISADevice parent_obj;
-
-    int32_t base;
-    int32_t page_base;
-    int32_t pageh_base;
-    int32_t dshift;
-
-    uint8_t status;
-    uint8_t command;
-    uint8_t mask;
-    uint8_t flip_flop;
-    I8257Regs regs[4];
-    MemoryRegion channel_io;
-    MemoryRegion cont_io;
-
-    QEMUBH *dma_bh;
-    bool dma_bh_scheduled;
-    int running;
-} I8257State;
 
 static I8257State *dma_controllers[2];
 
