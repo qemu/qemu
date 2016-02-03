@@ -53,7 +53,7 @@ struct dma_regs {
 #define ADDR 0
 #define COUNT 1
 
-static struct dma_cont {
+typedef struct I8257State {
     uint8_t status;
     uint8_t command;
     uint8_t mask;
@@ -62,7 +62,9 @@ static struct dma_cont {
     struct dma_regs regs[4];
     MemoryRegion channel_io;
     MemoryRegion cont_io;
-} dma_controllers[2];
+} I8257State;
+
+static I8257State dma_controllers[2];
 
 enum {
     CMD_MEMORY_TO_MEMORY = 0x01,
@@ -85,7 +87,7 @@ static int channels[8] = {-1, 2, 3, 1, -1, -1, -1, 0};
 
 static void write_page (void *opaque, uint32_t nport, uint32_t data)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     int ichan;
 
     ichan = channels[nport & 7];
@@ -98,7 +100,7 @@ static void write_page (void *opaque, uint32_t nport, uint32_t data)
 
 static void write_pageh (void *opaque, uint32_t nport, uint32_t data)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     int ichan;
 
     ichan = channels[nport & 7];
@@ -111,7 +113,7 @@ static void write_pageh (void *opaque, uint32_t nport, uint32_t data)
 
 static uint32_t read_page (void *opaque, uint32_t nport)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     int ichan;
 
     ichan = channels[nport & 7];
@@ -124,7 +126,7 @@ static uint32_t read_page (void *opaque, uint32_t nport)
 
 static uint32_t read_pageh (void *opaque, uint32_t nport)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     int ichan;
 
     ichan = channels[nport & 7];
@@ -135,7 +137,7 @@ static uint32_t read_pageh (void *opaque, uint32_t nport)
     return d->regs[ichan].pageh;
 }
 
-static inline void init_chan (struct dma_cont *d, int ichan)
+static inline void init_chan(I8257State *d, int ichan)
 {
     struct dma_regs *r;
 
@@ -144,7 +146,7 @@ static inline void init_chan (struct dma_cont *d, int ichan)
     r->now[COUNT] = 0;
 }
 
-static inline int getff (struct dma_cont *d)
+static inline int getff(I8257State *d)
 {
     int ff;
 
@@ -155,7 +157,7 @@ static inline int getff (struct dma_cont *d)
 
 static uint64_t read_chan(void *opaque, hwaddr nport, unsigned size)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     int ichan, nreg, iport, ff, val, dir;
     struct dma_regs *r;
 
@@ -178,7 +180,7 @@ static uint64_t read_chan(void *opaque, hwaddr nport, unsigned size)
 static void write_chan(void *opaque, hwaddr nport, uint64_t data,
                        unsigned size)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     int iport, ichan, nreg;
     struct dma_regs *r;
 
@@ -197,7 +199,7 @@ static void write_chan(void *opaque, hwaddr nport, uint64_t data,
 static void write_cont(void *opaque, hwaddr nport, uint64_t data,
                        unsigned size)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     int iport, ichan = 0;
 
     iport = (nport >> d->dshift) & 0x0f;
@@ -285,7 +287,7 @@ static void write_cont(void *opaque, hwaddr nport, uint64_t data,
 
 static uint64_t read_cont(void *opaque, hwaddr nport, unsigned size)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     int iport, val;
 
     iport = (nport >> d->dshift) & 0x0f;
@@ -362,7 +364,7 @@ static bool dma_bh_scheduled;
 
 static void DMA_run (void)
 {
-    struct dma_cont *d;
+    I8257State *d;
     int icont, ichan;
     int rearm = 0;
     static int running = 0;
@@ -474,7 +476,7 @@ void DMA_schedule(void)
 
 static void dma_reset(void *opaque)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     write_cont(d, (0x05 << d->dshift), 0, 1);
 }
 
@@ -520,7 +522,7 @@ static const MemoryRegionOps cont_io_ops = {
 };
 
 /* dshift = 0: 8 bit DMA, 1 = 16 bit DMA */
-static void dma_init2(struct dma_cont *d, int base, int dshift,
+static void dma_init2(I8257State *d, int base, int dshift,
                       int page_base, int pageh_base)
 {
     int i;
@@ -580,11 +582,12 @@ static const VMStateDescription vmstate_dma = {
     .minimum_version_id = 1,
     .post_load = dma_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT8(command, struct dma_cont),
-        VMSTATE_UINT8(mask, struct dma_cont),
-        VMSTATE_UINT8(flip_flop, struct dma_cont),
-        VMSTATE_INT32(dshift, struct dma_cont),
-        VMSTATE_STRUCT_ARRAY(regs, struct dma_cont, 4, 1, vmstate_dma_regs, struct dma_regs),
+        VMSTATE_UINT8(command, I8257State),
+        VMSTATE_UINT8(mask, I8257State),
+        VMSTATE_UINT8(flip_flop, I8257State),
+        VMSTATE_INT32(dshift, I8257State),
+        VMSTATE_STRUCT_ARRAY(regs, I8257State, 4, 1, vmstate_dma_regs,
+                             struct dma_regs),
         VMSTATE_END_OF_LIST()
     }
 };
