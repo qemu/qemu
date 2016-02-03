@@ -70,6 +70,7 @@ typedef struct CSState {
     uint32_t irq;
     uint32_t dma;
     uint32_t port;
+    IsaDma *isa_dma;
     int shift;
     int dma_running;
     int audio_free;
@@ -265,6 +266,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
 {
     int xtal;
     struct audsettings as;
+    IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
 
 #ifdef DEBUG_XLAW
     if (val == 0 || val == 32)
@@ -328,7 +330,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
 
     if (s->dregs[Interface_Configuration] & PEN) {
         if (!s->dma_running) {
-            DMA_hold_DREQ (s->dma);
+            k->hold_DREQ(s->isa_dma, s->dma);
             AUD_set_active_out (s->voice, 1);
             s->transferred = 0;
         }
@@ -336,7 +338,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
     }
     else {
         if (s->dma_running) {
-            DMA_release_DREQ (s->dma);
+            k->release_DREQ(s->isa_dma, s->dma);
             AUD_set_active_out (s->voice, 0);
         }
         s->dma_running = 0;
@@ -345,7 +347,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
 
  error:
     if (s->dma_running) {
-        DMA_release_DREQ (s->dma);
+        k->release_DREQ(s->isa_dma, s->dma);
         AUD_set_active_out (s->voice, 0);
     }
 }
@@ -453,7 +455,8 @@ static void cs_write (void *opaque, hwaddr addr,
             }
             else {
                 if (s->dma_running) {
-                    DMA_release_DREQ (s->dma);
+                    IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
+                    k->release_DREQ(s->isa_dma, s->dma);
                     AUD_set_active_out (s->voice, 0);
                     s->dma_running = 0;
                 }
@@ -518,6 +521,7 @@ static int cs_write_audio (CSState *s, int nchan, int dma_pos,
 {
     int temp, net;
     uint8_t tmpbuf[4096];
+    IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
 
     temp = len;
     net = 0;
@@ -532,7 +536,7 @@ static int cs_write_audio (CSState *s, int nchan, int dma_pos,
             to_copy = sizeof (tmpbuf);
         }
 
-        copied = DMA_read_memory (nchan, tmpbuf, dma_pos, to_copy);
+        copied = k->read_memory(s->isa_dma, nchan, tmpbuf, dma_pos, to_copy);
         if (s->tab) {
             int i;
             int16_t linbuf[4096];
@@ -600,7 +604,8 @@ static int cs4231a_pre_load (void *opaque)
     CSState *s = opaque;
 
     if (s->dma_running) {
-        DMA_release_DREQ (s->dma);
+        IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
+        k->release_DREQ(s->isa_dma, s->dma);
         AUD_set_active_out (s->voice, 0);
     }
     s->dma_running = 0;
@@ -656,12 +661,14 @@ static void cs4231a_realizefn (DeviceState *dev, Error **errp)
 {
     ISADevice *d = ISA_DEVICE (dev);
     CSState *s = CS4231A (dev);
+    IsaDmaClass *k;
 
     isa_init_irq (d, &s->pic, s->irq);
+    s->isa_dma = isa_get_dma(isa_bus_from_device(d), s->dma);
+    k = ISADMA_GET_CLASS(s->isa_dma);
+    k->register_channel(s->isa_dma, s->dma, cs_dma_read, s);
 
     isa_register_ioport (d, &s->ioports, s->port);
-
-    DMA_register_channel (s->dma, cs_dma_read, s);
 
     AUD_register_card ("cs4231a", &s->card);
 }
