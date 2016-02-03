@@ -589,7 +589,7 @@ static const VMStateDescription vmstate_dma = {
     }
 };
 
-void DMA_init(int high_page_enable)
+void DMA_init(ISABus *bus, int high_page_enable)
 {
     dma_init2(&dma_controllers[0], 0x00, 0, 0x80, high_page_enable ? 0x480 : -1);
     dma_init2(&dma_controllers[1], 0xc0, 1, 0x88, high_page_enable ? 0x488 : -1);

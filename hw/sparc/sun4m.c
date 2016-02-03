@@ -112,7 +112,7 @@ void DMA_hold_DREQ (int nchan) {}
 void DMA_release_DREQ (int nchan) {}
 void DMA_schedule(void) {}
 
-void DMA_init(int high_page_enable)
+void DMA_init(ISABus *bus, int high_page_enable)
 {
 }
 

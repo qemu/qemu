@@ -123,7 +123,7 @@ static void i82374_realize(DeviceState *dev, Error **errp)
     portio_list_add(&s->port_list, isa_address_space_io(&s->parent_obj),
                     s->iobase);
 
-    DMA_init(1);
+    DMA_init(isa_bus_from_device(ISA_DEVICE(dev)), 1);
     memset(s->commands, 0, sizeof(s->commands));
 }
 
