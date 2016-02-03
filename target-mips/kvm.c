@@ -88,7 +88,6 @@ static inline int cpu_mips_io_interrupts_pending(MIPSCPU *cpu)
 {
     CPUMIPSState *env = &cpu->env;
 
-    DPRINTF("%s: %#x\n", __func__, env->CP0_Cause & (1 << (2 + CP0Ca_IP)));
     return env->CP0_Cause & (0x1 << (2 + CP0Ca_IP));
 }
 
@@ -117,7 +116,6 @@ void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
 
 MemTxAttrs kvm_arch_post_run(CPUState *cs, struct kvm_run *run)
 {
-    DPRINTF("%s\n", __func__);
     return MEMTXATTRS_UNSPECIFIED;
 }
 
