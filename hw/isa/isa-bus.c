@@ -37,6 +37,12 @@ static void isa_bus_class_init(ObjectClass *klass, void *data)
     k->get_fw_dev_path = isabus_get_fw_dev_path;
 }
 
+static const TypeInfo isa_dma_info = {
+    .name = TYPE_ISADMA,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(IsaDmaClass),
+};
+
 static const TypeInfo isa_bus_info = {
     .name = TYPE_ISA_BUS,
     .parent = TYPE_BUS,
@@ -88,6 +94,20 @@ void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq)
     dev->isairq[dev->nirqs] = isairq;
     *p = isa_get_irq(dev, isairq);
     dev->nirqs++;
+}
+
+void isa_bus_dma(ISABus *bus, IsaDma *dma8, IsaDma *dma16)
+{
+    assert(bus && dma8 && dma16);
+    assert(!bus->dma[0] && !bus->dma[1]);
+    bus->dma[0] = dma8;
+    bus->dma[1] = dma16;
+}
+
+IsaDma *isa_get_dma(ISABus *bus, int nchan)
+{
+    assert(bus);
+    return bus->dma[nchan > 3 ? 1 : 0];
 }
 
 static inline void isa_init_ioport(ISADevice *dev, uint16_t ioport)
@@ -223,6 +243,7 @@ static const TypeInfo isa_device_type_info = {
 
 static void isabus_register_types(void)
 {
+    type_register_static(&isa_dma_info);
     type_register_static(&isa_bus_info);
     type_register_static(&isabus_bridge_info);
     type_register_static(&isa_device_type_info);
