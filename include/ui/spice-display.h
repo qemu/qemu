@@ -71,6 +71,7 @@ typedef struct QXLCookie {
             QXLRect area;
             int redraw;
         } render;
+        void *data;
     } u;
 } QXLCookie;
 
