@@ -87,7 +87,7 @@ enum {
 
 static void i8257_dma_run(void *opaque);
 
-static int channels[8] = {-1, 2, 3, 1, -1, -1, -1, 0};
+static const int channels[8] = {-1, 2, 3, 1, -1, -1, -1, 0};
 
 static void i8257_write_page(void *opaque, uint32_t nport, uint32_t data)
 {
