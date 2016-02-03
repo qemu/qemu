@@ -27,6 +27,10 @@
 #include "qemu/main-loop.h"
 #include "trace.h"
 
+#define TYPE_I8257 "i8257"
+#define I8257(obj) \
+    OBJECT_CHECK(I8257State, (obj), TYPE_I8257)
+
 /* #define DEBUG_DMA */
 
 #define dolog(...) fprintf (stderr, "dma: " __VA_ARGS__)
@@ -54,11 +58,17 @@ typedef struct I8257Regs {
 #define COUNT 1
 
 typedef struct I8257State {
+    ISADevice parent_obj;
+
+    int32_t base;
+    int32_t page_base;
+    int32_t pageh_base;
+    int32_t dshift;
+
     uint8_t status;
     uint8_t command;
     uint8_t mask;
     uint8_t flip_flop;
-    int dshift;
     I8257Regs regs[4];
     MemoryRegion channel_io;
     MemoryRegion cont_io;
@@ -68,7 +78,7 @@ typedef struct I8257State {
     int running;
 } I8257State;
 
-static I8257State dma_controllers[2];
+static I8257State *dma_controllers[2];
 
 enum {
     CMD_MEMORY_TO_MEMORY = 0x01,
@@ -314,7 +324,7 @@ static uint64_t i8257_read_cont(void *opaque, hwaddr nport, unsigned size)
 
 int DMA_get_channel_mode (int nchan)
 {
-    return dma_controllers[nchan > 3].regs[nchan & 3].mode;
+    return dma_controllers[nchan > 3]->regs[nchan & 3].mode;
 }
 
 void DMA_hold_DREQ (int nchan)
@@ -324,8 +334,8 @@ void DMA_hold_DREQ (int nchan)
     ncont = nchan > 3;
     ichan = nchan & 3;
     linfo ("held cont=%d chan=%d\n", ncont, ichan);
-    dma_controllers[ncont].status |= 1 << (ichan + 4);
-    i8257_dma_run(&dma_controllers[ncont]);
+    dma_controllers[ncont]->status |= 1 << (ichan + 4);
+    i8257_dma_run(dma_controllers[ncont]);
 }
 
 void DMA_release_DREQ (int nchan)
@@ -335,8 +345,8 @@ void DMA_release_DREQ (int nchan)
     ncont = nchan > 3;
     ichan = nchan & 3;
     linfo ("released cont=%d chan=%d\n", ncont, ichan);
-    dma_controllers[ncont].status &= ~(1 << (ichan + 4));
-    i8257_dma_run(&dma_controllers[ncont]);
+    dma_controllers[ncont]->status &= ~(1 << (ichan + 4));
+    i8257_dma_run(dma_controllers[ncont]);
 }
 
 static void i8257_channel_run(I8257State *d, int ichan)
@@ -406,14 +416,14 @@ void DMA_register_channel (int nchan,
     ncont = nchan > 3;
     ichan = nchan & 3;
 
-    r = dma_controllers[ncont].regs + ichan;
+    r = dma_controllers[ncont]->regs + ichan;
     r->transfer_handler = transfer_handler;
     r->opaque = opaque;
 }
 
 int DMA_read_memory (int nchan, void *buf, int pos, int len)
 {
-    I8257Regs *r = &dma_controllers[nchan > 3].regs[nchan & 3];
+    I8257Regs *r = &dma_controllers[nchan > 3]->regs[nchan & 3];
     hwaddr addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
 
     if (r->mode & 0x20) {
@@ -435,7 +445,7 @@ int DMA_read_memory (int nchan, void *buf, int pos, int len)
 
 int DMA_write_memory (int nchan, void *buf, int pos, int len)
 {
-    I8257Regs *r = &dma_controllers[nchan > 3].regs[nchan & 3];
+    I8257Regs *r = &dma_controllers[nchan > 3]->regs[nchan & 3];
     hwaddr addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
 
     if (r->mode & 0x20) {
@@ -460,15 +470,15 @@ int DMA_write_memory (int nchan, void *buf, int pos, int len)
  */
 void DMA_schedule(void)
 {
-    if (dma_controllers[0].dma_bh_scheduled ||
-        dma_controllers[1].dma_bh_scheduled) {
+    if (dma_controllers[0]->dma_bh_scheduled ||
+        dma_controllers[1]->dma_bh_scheduled) {
         qemu_notify_event();
     }
 }
 
-static void i8257_reset(void *opaque)
+static void i8257_reset(DeviceState *dev)
 {
-    I8257State *d = opaque;
+    I8257State *d = I8257(dev);
     i8257_write_cont(d, (0x05 << d->dshift), 0, 1);
 }
 
@@ -514,40 +524,6 @@ static const MemoryRegionOps cont_io_ops = {
     },
 };
 
-/* dshift = 0: 8 bit DMA, 1 = 16 bit DMA */
-static void dma_init2(I8257State *d, int base, int dshift,
-                      int page_base, int pageh_base)
-{
-    int i;
-
-    d->dshift = dshift;
-
-    memory_region_init_io(&d->channel_io, NULL, &channel_io_ops, d,
-                          "dma-chan", 8 << d->dshift);
-    memory_region_add_subregion(isa_address_space_io(NULL),
-                                base, &d->channel_io);
-
-    isa_register_portio_list(NULL, page_base, page_portio_list, d,
-                             "dma-page");
-    if (pageh_base >= 0) {
-        isa_register_portio_list(NULL, pageh_base, pageh_portio_list, d,
-                                 "dma-pageh");
-    }
-
-    memory_region_init_io(&d->cont_io, NULL, &cont_io_ops, d, "dma-cont",
-                          8 << d->dshift);
-    memory_region_add_subregion(isa_address_space_io(NULL),
-                                base + (8 << d->dshift), &d->cont_io);
-
-    qemu_register_reset(i8257_reset, d);
-    i8257_reset(d);
-    for (i = 0; i < ARRAY_SIZE (d->regs); ++i) {
-        d->regs[i].transfer_handler = i8257_phony_handler;
-    }
-
-    d->dma_bh = qemu_bh_new(i8257_dma_run, d);
-}
-
 static const VMStateDescription vmstate_i8257_regs = {
     .name = "dma_regs",
     .version_id = 1,
@@ -572,7 +548,7 @@ static int i8257_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static const VMStateDescription vmstate_dma = {
+static const VMStateDescription vmstate_i8257 = {
     .name = "dma",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -588,10 +564,88 @@ static const VMStateDescription vmstate_dma = {
     }
 };
 
+static void i8257_realize(DeviceState *dev, Error **errp)
+{
+    ISADevice *isa = ISA_DEVICE(dev);
+    I8257State *d = I8257(dev);
+    int i;
+
+    memory_region_init_io(&d->channel_io, NULL, &channel_io_ops, d,
+                          "dma-chan", 8 << d->dshift);
+    memory_region_add_subregion(isa_address_space_io(isa),
+                                d->base, &d->channel_io);
+
+    isa_register_portio_list(isa, d->page_base, page_portio_list, d,
+                             "dma-page");
+    if (d->pageh_base >= 0) {
+        isa_register_portio_list(isa, d->pageh_base, pageh_portio_list, d,
+                                 "dma-pageh");
+    }
+
+    memory_region_init_io(&d->cont_io, OBJECT(isa), &cont_io_ops, d,
+                          "dma-cont", 8 << d->dshift);
+    memory_region_add_subregion(isa_address_space_io(isa),
+                                d->base + (8 << d->dshift), &d->cont_io);
+
+    for (i = 0; i < ARRAY_SIZE(d->regs); ++i) {
+        d->regs[i].transfer_handler = i8257_phony_handler;
+    }
+
+    d->dma_bh = qemu_bh_new(i8257_dma_run, d);
+}
+
+static Property i8257_properties[] = {
+    DEFINE_PROP_INT32("base", I8257State, base, 0x00),
+    DEFINE_PROP_INT32("page-base", I8257State, page_base, 0x80),
+    DEFINE_PROP_INT32("pageh-base", I8257State, pageh_base, 0x480),
+    DEFINE_PROP_INT32("dshift", I8257State, dshift, 0),
+    DEFINE_PROP_END_OF_LIST()
+};
+
+static void i8257_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = i8257_realize;
+    dc->reset = i8257_reset;
+    dc->vmsd = &vmstate_i8257;
+    dc->props = i8257_properties;
+}
+
+static const TypeInfo i8257_info = {
+    .name = TYPE_I8257,
+    .parent = TYPE_ISA_DEVICE,
+    .instance_size = sizeof(I8257State),
+    .class_init = i8257_class_init,
+};
+
+static void i8257_register_types(void)
+{
+    type_register_static(&i8257_info);
+}
+
+type_init(i8257_register_types)
+
 void DMA_init(ISABus *bus, int high_page_enable)
 {
-    dma_init2(&dma_controllers[0], 0x00, 0, 0x80, high_page_enable ? 0x480 : -1);
-    dma_init2(&dma_controllers[1], 0xc0, 1, 0x88, high_page_enable ? 0x488 : -1);
-    vmstate_register (NULL, 0, &vmstate_dma, &dma_controllers[0]);
-    vmstate_register (NULL, 1, &vmstate_dma, &dma_controllers[1]);
+    ISADevice *isa1, *isa2;
+    DeviceState *d;
+
+    isa1 = isa_create(bus, TYPE_I8257);
+    d = DEVICE(isa1);
+    qdev_prop_set_int32(d, "base", 0x00);
+    qdev_prop_set_int32(d, "page-base", 0x80);
+    qdev_prop_set_int32(d, "pageh-base", high_page_enable ? 0x480 : -1);
+    qdev_prop_set_int32(d, "dshift", 0);
+    qdev_init_nofail(d);
+    dma_controllers[0] = I8257(d);
+
+    isa2 = isa_create(bus, TYPE_I8257);
+    d = DEVICE(isa2);
+    qdev_prop_set_int32(d, "base", 0xc0);
+    qdev_prop_set_int32(d, "page-base", 0x88);
+    qdev_prop_set_int32(d, "pageh-base", high_page_enable ? 0x488 : -1);
+    qdev_prop_set_int32(d, "dshift", 1);
+    qdev_init_nofail(d);
+    dma_controllers[1] = I8257(d);
 }
