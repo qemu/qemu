@@ -81,11 +81,11 @@ enum {
 
 };
 
-static void DMA_run (void);
+static void i8257_dma_run(void);
 
 static int channels[8] = {-1, 2, 3, 1, -1, -1, -1, 0};
 
-static void write_page (void *opaque, uint32_t nport, uint32_t data)
+static void i8257_write_page(void *opaque, uint32_t nport, uint32_t data)
 {
     I8257State *d = opaque;
     int ichan;
@@ -98,7 +98,7 @@ static void write_page (void *opaque, uint32_t nport, uint32_t data)
     d->regs[ichan].page = data;
 }
 
-static void write_pageh (void *opaque, uint32_t nport, uint32_t data)
+static void i8257_write_pageh(void *opaque, uint32_t nport, uint32_t data)
 {
     I8257State *d = opaque;
     int ichan;
@@ -111,7 +111,7 @@ static void write_pageh (void *opaque, uint32_t nport, uint32_t data)
     d->regs[ichan].pageh = data;
 }
 
-static uint32_t read_page (void *opaque, uint32_t nport)
+static uint32_t i8257_read_page(void *opaque, uint32_t nport)
 {
     I8257State *d = opaque;
     int ichan;
@@ -124,7 +124,7 @@ static uint32_t read_page (void *opaque, uint32_t nport)
     return d->regs[ichan].page;
 }
 
-static uint32_t read_pageh (void *opaque, uint32_t nport)
+static uint32_t i8257_read_pageh(void *opaque, uint32_t nport)
 {
     I8257State *d = opaque;
     int ichan;
@@ -137,7 +137,7 @@ static uint32_t read_pageh (void *opaque, uint32_t nport)
     return d->regs[ichan].pageh;
 }
 
-static inline void init_chan(I8257State *d, int ichan)
+static inline void i8257_init_chan(I8257State *d, int ichan)
 {
     I8257Regs *r;
 
@@ -146,7 +146,7 @@ static inline void init_chan(I8257State *d, int ichan)
     r->now[COUNT] = 0;
 }
 
-static inline int getff(I8257State *d)
+static inline int i8257_getff(I8257State *d)
 {
     int ff;
 
@@ -155,7 +155,7 @@ static inline int getff(I8257State *d)
     return ff;
 }
 
-static uint64_t read_chan(void *opaque, hwaddr nport, unsigned size)
+static uint64_t i8257_read_chan(void *opaque, hwaddr nport, unsigned size)
 {
     I8257State *d = opaque;
     int ichan, nreg, iport, ff, val, dir;
@@ -167,7 +167,7 @@ static uint64_t read_chan(void *opaque, hwaddr nport, unsigned size)
     r = d->regs + ichan;
 
     dir = ((r->mode >> 5) & 1) ? -1 : 1;
-    ff = getff (d);
+    ff = i8257_getff(d);
     if (nreg)
         val = (r->base[COUNT] << d->dshift) - r->now[COUNT];
     else
@@ -177,8 +177,8 @@ static uint64_t read_chan(void *opaque, hwaddr nport, unsigned size)
     return (val >> (d->dshift + (ff << 3))) & 0xff;
 }
 
-static void write_chan(void *opaque, hwaddr nport, uint64_t data,
-                       unsigned size)
+static void i8257_write_chan(void *opaque, hwaddr nport, uint64_t data,
+                             unsigned int size)
 {
     I8257State *d = opaque;
     int iport, ichan, nreg;
@@ -188,16 +188,16 @@ static void write_chan(void *opaque, hwaddr nport, uint64_t data,
     ichan = iport >> 1;
     nreg = iport & 1;
     r = d->regs + ichan;
-    if (getff (d)) {
+    if (i8257_getff(d)) {
         r->base[nreg] = (r->base[nreg] & 0xff) | ((data << 8) & 0xff00);
-        init_chan (d, ichan);
+        i8257_init_chan(d, ichan);
     } else {
         r->base[nreg] = (r->base[nreg] & 0xff00) | (data & 0xff);
     }
 }
 
-static void write_cont(void *opaque, hwaddr nport, uint64_t data,
-                       unsigned size)
+static void i8257_write_cont(void *opaque, hwaddr nport, uint64_t data,
+                             unsigned int size)
 {
     I8257State *d = opaque;
     int iport, ichan = 0;
@@ -221,7 +221,7 @@ static void write_cont(void *opaque, hwaddr nport, uint64_t data,
             d->status &= ~(1 << (ichan + 4));
         }
         d->status &= ~(1 << ichan);
-        DMA_run();
+        i8257_dma_run();
         break;
 
     case 0x02:                  /* single mask */
@@ -229,7 +229,7 @@ static void write_cont(void *opaque, hwaddr nport, uint64_t data,
             d->mask |= 1 << (data & 3);
         else
             d->mask &= ~(1 << (data & 3));
-        DMA_run();
+        i8257_dma_run();
         break;
 
     case 0x03:                  /* mode */
@@ -264,12 +264,12 @@ static void write_cont(void *opaque, hwaddr nport, uint64_t data,
 
     case 0x06:                  /* clear mask for all channels */
         d->mask = 0;
-        DMA_run();
+        i8257_dma_run();
         break;
 
     case 0x07:                  /* write mask for all channels */
         d->mask = data;
-        DMA_run();
+        i8257_dma_run();
         break;
 
     default:
@@ -285,7 +285,7 @@ static void write_cont(void *opaque, hwaddr nport, uint64_t data,
 #endif
 }
 
-static uint64_t read_cont(void *opaque, hwaddr nport, unsigned size)
+static uint64_t i8257_read_cont(void *opaque, hwaddr nport, unsigned size)
 {
     I8257State *d = opaque;
     int iport, val;
@@ -321,7 +321,7 @@ void DMA_hold_DREQ (int nchan)
     ichan = nchan & 3;
     linfo ("held cont=%d chan=%d\n", ncont, ichan);
     dma_controllers[ncont].status |= 1 << (ichan + 4);
-    DMA_run();
+    i8257_dma_run();
 }
 
 void DMA_release_DREQ (int nchan)
@@ -332,10 +332,10 @@ void DMA_release_DREQ (int nchan)
     ichan = nchan & 3;
     linfo ("released cont=%d chan=%d\n", ncont, ichan);
     dma_controllers[ncont].status &= ~(1 << (ichan + 4));
-    DMA_run();
+    i8257_dma_run();
 }
 
-static void channel_run (int ncont, int ichan)
+static void i8257_channel_run(int ncont, int ichan)
 {
     int n;
     I8257Regs *r = &dma_controllers[ncont].regs[ichan];
@@ -362,7 +362,7 @@ static void channel_run (int ncont, int ichan)
 static QEMUBH *dma_bh;
 static bool dma_bh_scheduled;
 
-static void DMA_run (void)
+static void i8257_dma_run(void)
 {
     I8257State *d;
     int icont, ichan;
@@ -385,7 +385,7 @@ static void DMA_run (void)
             mask = 1 << ichan;
 
             if ((0 == (d->mask & mask)) && (0 != (d->status & (mask << 4)))) {
-                channel_run (icont, ichan);
+                i8257_channel_run(icont, ichan);
                 rearm = 1;
             }
         }
@@ -399,10 +399,10 @@ out:
     }
 }
 
-static void DMA_run_bh(void *unused)
+static void i8257_dma_run_bh(void *unused)
 {
     dma_bh_scheduled = false;
-    DMA_run();
+    i8257_dma_run();
 }
 
 void DMA_register_channel (int nchan,
@@ -474,13 +474,14 @@ void DMA_schedule(void)
     }
 }
 
-static void dma_reset(void *opaque)
+static void i8257_reset(void *opaque)
 {
     I8257State *d = opaque;
-    write_cont(d, (0x05 << d->dshift), 0, 1);
+    i8257_write_cont(d, (0x05 << d->dshift), 0, 1);
 }
 
-static int dma_phony_handler (void *opaque, int nchan, int dma_pos, int dma_len)
+static int i8257_phony_handler(void *opaque, int nchan, int dma_pos,
+                               int dma_len)
 {
     trace_i8257_unregistered_dma(nchan, dma_pos, dma_len);
     return dma_pos;
@@ -488,8 +489,8 @@ static int dma_phony_handler (void *opaque, int nchan, int dma_pos, int dma_len)
 
 
 static const MemoryRegionOps channel_io_ops = {
-    .read = read_chan,
-    .write = write_chan,
+    .read = i8257_read_chan,
+    .write = i8257_write_chan,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -499,21 +500,21 @@ static const MemoryRegionOps channel_io_ops = {
 
 /* IOport from page_base */
 static const MemoryRegionPortio page_portio_list[] = {
-    { 0x01, 3, 1, .write = write_page, .read = read_page, },
-    { 0x07, 1, 1, .write = write_page, .read = read_page, },
+    { 0x01, 3, 1, .write = i8257_write_page, .read = i8257_read_page, },
+    { 0x07, 1, 1, .write = i8257_write_page, .read = i8257_read_page, },
     PORTIO_END_OF_LIST(),
 };
 
 /* IOport from pageh_base */
 static const MemoryRegionPortio pageh_portio_list[] = {
-    { 0x01, 3, 1, .write = write_pageh, .read = read_pageh, },
-    { 0x07, 3, 1, .write = write_pageh, .read = read_pageh, },
+    { 0x01, 3, 1, .write = i8257_write_pageh, .read = i8257_read_pageh, },
+    { 0x07, 3, 1, .write = i8257_write_pageh, .read = i8257_read_pageh, },
     PORTIO_END_OF_LIST(),
 };
 
 static const MemoryRegionOps cont_io_ops = {
-    .read = read_cont,
-    .write = write_cont,
+    .read = i8257_read_cont,
+    .write = i8257_write_cont,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -546,10 +547,10 @@ static void dma_init2(I8257State *d, int base, int dshift,
     memory_region_add_subregion(isa_address_space_io(NULL),
                                 base + (8 << d->dshift), &d->cont_io);
 
-    qemu_register_reset(dma_reset, d);
-    dma_reset(d);
+    qemu_register_reset(i8257_reset, d);
+    i8257_reset(d);
     for (i = 0; i < ARRAY_SIZE (d->regs); ++i) {
-        d->regs[i].transfer_handler = dma_phony_handler;
+        d->regs[i].transfer_handler = i8257_phony_handler;
     }
 }
 
@@ -569,9 +570,9 @@ static const VMStateDescription vmstate_i8257_regs = {
     }
 };
 
-static int dma_post_load(void *opaque, int version_id)
+static int i8257_post_load(void *opaque, int version_id)
 {
-    DMA_run();
+    i8257_dma_run();
 
     return 0;
 }
@@ -580,7 +581,7 @@ static const VMStateDescription vmstate_dma = {
     .name = "dma",
     .version_id = 1,
     .minimum_version_id = 1,
-    .post_load = dma_post_load,
+    .post_load = i8257_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(command, I8257State),
         VMSTATE_UINT8(mask, I8257State),
@@ -599,5 +600,5 @@ void DMA_init(ISABus *bus, int high_page_enable)
     vmstate_register (NULL, 0, &vmstate_dma, &dma_controllers[0]);
     vmstate_register (NULL, 1, &vmstate_dma, &dma_controllers[1]);
 
-    dma_bh = qemu_bh_new(DMA_run_bh, NULL);
+    dma_bh = qemu_bh_new(i8257_dma_run_bh, NULL);
 }
