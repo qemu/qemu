@@ -176,6 +176,10 @@ DEF_HELPER_0(dmt, tl)
 DEF_HELPER_0(emt, tl)
 DEF_HELPER_1(dvpe, tl, env)
 DEF_HELPER_1(evpe, tl, env)
+
+/* R6 Multi-threading */
+DEF_HELPER_1(dvp, tl, env)
+DEF_HELPER_1(evp, tl, env)
 #endif /* !CONFIG_USER_ONLY */
 
 /* microMIPS functions */

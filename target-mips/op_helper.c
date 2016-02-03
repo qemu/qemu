@@ -571,6 +571,14 @@ static bool mips_vpe_is_wfi(MIPSCPU *c)
     return cpu->halted && mips_vpe_active(env);
 }
 
+static bool mips_vp_is_wfi(MIPSCPU *c)
+{
+    CPUState *cpu = CPU(c);
+    CPUMIPSState *env = &c->env;
+
+    return cpu->halted && mips_vp_active(env);
+}
+
 static inline void mips_vpe_wake(MIPSCPU *c)
 {
     /* Dont set ->halted = 0 directly, let it be done via cpu_has_work
@@ -1839,6 +1847,46 @@ target_ulong helper_yield(CPUMIPSState *env, target_ulong arg)
     }
     return env->CP0_YQMask;
 }
+
+/* R6 Multi-threading */
+#ifndef CONFIG_USER_ONLY
+target_ulong helper_dvp(CPUMIPSState *env)
+{
+    CPUState *other_cs = first_cpu;
+    target_ulong prev = env->CP0_VPControl;
+
+    if (!((env->CP0_VPControl >> CP0VPCtl_DIS) & 1)) {
+        CPU_FOREACH(other_cs) {
+            MIPSCPU *other_cpu = MIPS_CPU(other_cs);
+            /* Turn off all VPs except the one executing the dvp. */
+            if (&other_cpu->env != env) {
+                mips_vpe_sleep(other_cpu);
+            }
+        }
+        env->CP0_VPControl |= (1 << CP0VPCtl_DIS);
+    }
+    return prev;
+}
+
+target_ulong helper_evp(CPUMIPSState *env)
+{
+    CPUState *other_cs = first_cpu;
+    target_ulong prev = env->CP0_VPControl;
+
+    if ((env->CP0_VPControl >> CP0VPCtl_DIS) & 1) {
+        CPU_FOREACH(other_cs) {
+            MIPSCPU *other_cpu = MIPS_CPU(other_cs);
+            if ((&other_cpu->env != env) && !mips_vp_is_wfi(other_cpu)) {
+                /* If the VP is WFI, don't disturb its sleep.
+                 * Otherwise, wake it up. */
+                mips_vpe_wake(other_cpu);
+            }
+        }
+        env->CP0_VPControl &= ~(1 << CP0VPCtl_DIS);
+    }
+    return prev;
+}
+#endif /* !CONFIG_USER_ONLY */
 
 #ifndef CONFIG_USER_ONLY
 /* TLB management */
