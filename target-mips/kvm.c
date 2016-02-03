@@ -31,6 +31,7 @@
     do { if (DEBUG_KVM) { fprintf(stderr, fmt, ## __VA_ARGS__); } } while (0)
 
 static int kvm_mips_fpu_cap;
+static int kvm_mips_msa_cap;
 
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
@@ -49,6 +50,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     kvm_set_sigmask_len(s, 16);
 
     kvm_mips_fpu_cap = kvm_check_extension(s, KVM_CAP_MIPS_FPU);
+    kvm_mips_msa_cap = kvm_check_extension(s, KVM_CAP_MIPS_MSA);
 
     DPRINTF("%s\n", __func__);
     return 0;
@@ -71,6 +73,15 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
     }
 
+    if (kvm_mips_msa_cap && env->CP0_Config3 & (1 << CP0C3_MSAP)) {
+        ret = kvm_vcpu_enable_cap(cs, KVM_CAP_MIPS_MSA, 0, 0);
+        if (ret < 0) {
+            /* mark unsupported so it gets disabled on reset */
+            kvm_mips_msa_cap = 0;
+            ret = 0;
+        }
+    }
+
     DPRINTF("%s\n", __func__);
     return ret;
 }
@@ -82,6 +93,10 @@ void kvm_mips_reset_vcpu(MIPSCPU *cpu)
     if (!kvm_mips_fpu_cap && env->CP0_Config1 & (1 << CP0C1_FP)) {
         fprintf(stderr, "Warning: KVM does not support FPU, disabling\n");
         env->CP0_Config1 &= ~(1 << CP0C1_FP);
+    }
+    if (!kvm_mips_msa_cap && env->CP0_Config3 & (1 << CP0C3_MSAP)) {
+        fprintf(stderr, "Warning: KVM does not support MSA, disabling\n");
+        env->CP0_Config3 &= ~(1 << CP0C3_MSAP);
     }
 
     DPRINTF("%s\n", __func__);
@@ -373,9 +388,11 @@ static inline int kvm_mips_get_one_ureg64(CPUState *cs, uint64_t reg_id,
 #define KVM_REG_MIPS_CP0_CONFIG1_MASK   ((1U << CP0C1_M) | \
                                          (1U << CP0C1_FP))
 #define KVM_REG_MIPS_CP0_CONFIG2_MASK   (1U << CP0C2_M)
-#define KVM_REG_MIPS_CP0_CONFIG3_MASK   (1U << CP0C3_M)
+#define KVM_REG_MIPS_CP0_CONFIG3_MASK   ((1U << CP0C3_M) | \
+                                         (1U << CP0C3_MSAP))
 #define KVM_REG_MIPS_CP0_CONFIG4_MASK   (1U << CP0C4_M)
-#define KVM_REG_MIPS_CP0_CONFIG5_MASK   ((1U << CP0C5_UFE) | \
+#define KVM_REG_MIPS_CP0_CONFIG5_MASK   ((1U << CP0C5_MSAEn) | \
+                                         (1U << CP0C5_UFE) | \
                                          (1U << CP0C5_FRE) | \
                                          (1U << CP0C5_UFR))
 
@@ -564,17 +581,53 @@ static int kvm_mips_put_fpu_registers(CPUState *cs, int level)
             ret = err;
         }
 
-        /* Floating point registers */
-        for (i = 0; i < 32; ++i) {
-            if (env->CP0_Status & (1 << CP0St_FR)) {
-                err = kvm_mips_put_one_ureg64(cs, KVM_REG_MIPS_FPR_64(i),
-                                              &env->active_fpu.fpr[i].d);
-            } else {
-                err = kvm_mips_get_one_ureg(cs, KVM_REG_MIPS_FPR_32(i),
-                                      &env->active_fpu.fpr[i].w[FP_ENDIAN_IDX]);
+        /*
+         * FPU register state is a subset of MSA vector state, so don't put FPU
+         * registers if we're emulating a CPU with MSA.
+         */
+        if (!(env->CP0_Config3 & (1 << CP0C3_MSAP))) {
+            /* Floating point registers */
+            for (i = 0; i < 32; ++i) {
+                if (env->CP0_Status & (1 << CP0St_FR)) {
+                    err = kvm_mips_put_one_ureg64(cs, KVM_REG_MIPS_FPR_64(i),
+                                                  &env->active_fpu.fpr[i].d);
+                } else {
+                    err = kvm_mips_get_one_ureg(cs, KVM_REG_MIPS_FPR_32(i),
+                                    &env->active_fpu.fpr[i].w[FP_ENDIAN_IDX]);
+                }
+                if (err < 0) {
+                    DPRINTF("%s: Failed to put FPR%u (%d)\n", __func__, i, err);
+                    ret = err;
+                }
             }
+        }
+    }
+
+    /* Only put MSA state if we're emulating a CPU with MSA */
+    if (env->CP0_Config3 & (1 << CP0C3_MSAP)) {
+        /* MSA Control Registers */
+        if (level == KVM_PUT_FULL_STATE) {
+            err = kvm_mips_put_one_reg(cs, KVM_REG_MIPS_MSA_IR,
+                                       &env->msair);
             if (err < 0) {
-                DPRINTF("%s: Failed to put FPR%u (%d)\n", __func__, i, err);
+                DPRINTF("%s: Failed to put MSA_IR (%d)\n", __func__, err);
+                ret = err;
+            }
+        }
+        err = kvm_mips_put_one_reg(cs, KVM_REG_MIPS_MSA_CSR,
+                                   &env->active_tc.msacsr);
+        if (err < 0) {
+            DPRINTF("%s: Failed to put MSA_CSR (%d)\n", __func__, err);
+            ret = err;
+        }
+
+        /* Vector registers (includes FP registers) */
+        for (i = 0; i < 32; ++i) {
+            /* Big endian MSA not supported by QEMU yet anyway */
+            err = kvm_mips_put_one_reg64(cs, KVM_REG_MIPS_VEC_128(i),
+                                         env->active_fpu.fpr[i].wr.d);
+            if (err < 0) {
+                DPRINTF("%s: Failed to put VEC%u (%d)\n", __func__, i, err);
                 ret = err;
             }
         }
@@ -608,17 +661,53 @@ static int kvm_mips_get_fpu_registers(CPUState *cs)
             restore_fp_status(env);
         }
 
-        /* Floating point registers */
-        for (i = 0; i < 32; ++i) {
-            if (env->CP0_Status & (1 << CP0St_FR)) {
-                err = kvm_mips_get_one_ureg64(cs, KVM_REG_MIPS_FPR_64(i),
-                                              &env->active_fpu.fpr[i].d);
-            } else {
-                err = kvm_mips_get_one_ureg(cs, KVM_REG_MIPS_FPR_32(i),
-                                      &env->active_fpu.fpr[i].w[FP_ENDIAN_IDX]);
+        /*
+         * FPU register state is a subset of MSA vector state, so don't save FPU
+         * registers if we're emulating a CPU with MSA.
+         */
+        if (!(env->CP0_Config3 & (1 << CP0C3_MSAP))) {
+            /* Floating point registers */
+            for (i = 0; i < 32; ++i) {
+                if (env->CP0_Status & (1 << CP0St_FR)) {
+                    err = kvm_mips_get_one_ureg64(cs, KVM_REG_MIPS_FPR_64(i),
+                                                  &env->active_fpu.fpr[i].d);
+                } else {
+                    err = kvm_mips_get_one_ureg(cs, KVM_REG_MIPS_FPR_32(i),
+                                    &env->active_fpu.fpr[i].w[FP_ENDIAN_IDX]);
+                }
+                if (err < 0) {
+                    DPRINTF("%s: Failed to get FPR%u (%d)\n", __func__, i, err);
+                    ret = err;
+                }
             }
+        }
+    }
+
+    /* Only get MSA state if we're emulating a CPU with MSA */
+    if (env->CP0_Config3 & (1 << CP0C3_MSAP)) {
+        /* MSA Control Registers */
+        err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_MSA_IR,
+                                   &env->msair);
+        if (err < 0) {
+            DPRINTF("%s: Failed to get MSA_IR (%d)\n", __func__, err);
+            ret = err;
+        }
+        err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_MSA_CSR,
+                                   &env->active_tc.msacsr);
+        if (err < 0) {
+            DPRINTF("%s: Failed to get MSA_CSR (%d)\n", __func__, err);
+            ret = err;
+        } else {
+            restore_msa_fp_status(env);
+        }
+
+        /* Vector registers (includes FP registers) */
+        for (i = 0; i < 32; ++i) {
+            /* Big endian MSA not supported by QEMU yet anyway */
+            err = kvm_mips_get_one_reg64(cs, KVM_REG_MIPS_VEC_128(i),
+                                         env->active_fpu.fpr[i].wr.d);
             if (err < 0) {
-                DPRINTF("%s: Failed to get FPR%u (%d)\n", __func__, i, err);
+                DPRINTF("%s: Failed to get VEC%u (%d)\n", __func__, i, err);
                 ret = err;
             }
         }
