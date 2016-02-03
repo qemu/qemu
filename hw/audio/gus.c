@@ -58,6 +58,7 @@ typedef struct GUSState {
     SWVoiceOut *voice;
     int64_t last_ticks;
     qemu_irq pic;
+    IsaDma *isa_dma;
 } GUSState;
 
 static uint32_t gus_readb(void *opaque, uint32_t nport)
@@ -168,34 +169,36 @@ void GUS_irqclear (GUSEmuState *emu, int hwirq)
 #endif
 }
 
-void GUS_dmarequest (GUSEmuState *der)
+void GUS_dmarequest (GUSEmuState *emu)
 {
-    /* GUSState *s = (GUSState *) der; */
+    GUSState *s = emu->opaque;
+    IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
     ldebug ("dma request %d\n", der->gusdma);
-    DMA_hold_DREQ (der->gusdma);
+    k->hold_DREQ(s->isa_dma, s->emu.gusdma);
 }
 
 static int GUS_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
 {
     GUSState *s = opaque;
+    IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
     char tmpbuf[4096];
     int pos = dma_pos, mode, left = dma_len - dma_pos;
 
     ldebug ("read DMA %#x %d\n", dma_pos, dma_len);
-    mode = DMA_get_channel_mode (s->emu.gusdma);
+    mode = k->has_autoinitialization(s->isa_dma, s->emu.gusdma);
     while (left) {
         int to_copy = audio_MIN ((size_t) left, sizeof (tmpbuf));
         int copied;
 
         ldebug ("left=%d to_copy=%d pos=%d\n", left, to_copy, pos);
-        copied = DMA_read_memory (nchan, tmpbuf, pos, to_copy);
+        copied = k->read_memory(s->isa_dma, nchan, tmpbuf, pos, to_copy);
         gus_dma_transferdata (&s->emu, tmpbuf, copied, left == copied);
         left -= copied;
         pos += copied;
     }
 
     if (((mode >> 4) & 1) == 0) {
-        DMA_release_DREQ (s->emu.gusdma);
+        k->release_DREQ(s->isa_dma, s->emu.gusdma);
     }
     return dma_len;
 }
@@ -232,6 +235,7 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
 {
     ISADevice *d = ISA_DEVICE(dev);
     GUSState *s = GUS (dev);
+    IsaDmaClass *k;
     struct audsettings as;
 
     AUD_register_card ("gus", &s->card);
@@ -264,7 +268,9 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
     isa_register_portio_list (d, (s->port + 0x100) & 0xf00,
                               gus_portio_list2, s, "gus");
 
-    DMA_register_channel (s->emu.gusdma, GUS_read_DMA, s);
+    s->isa_dma = isa_get_dma(isa_bus_from_device(d), s->emu.gusdma);
+    k = ISADMA_GET_CLASS(s->isa_dma);
+    k->register_channel(s->isa_dma, s->emu.gusdma, GUS_read_DMA, s);
     s->emu.himemaddr = s->himem;
     s->emu.gusdatapos = s->emu.himemaddr + 1024 * 1024 + 32;
     s->emu.opaque = s;
