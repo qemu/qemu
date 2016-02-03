@@ -6790,6 +6790,7 @@ static bool check_s2_mmu_setup(ARMCPU *cpu, bool is_aa64, int level,
     }
 
     if (is_aa64) {
+        CPUARMState *env = &cpu->env;
         unsigned int pamax = arm_pamax(cpu);
 
         switch (stride) {
@@ -6810,6 +6811,13 @@ static bool check_s2_mmu_setup(ARMCPU *cpu, bool is_aa64, int level,
             break;
         default:
             g_assert_not_reached();
+        }
+
+        /* Inputsize checks.  */
+        if (inputsize > pamax &&
+            (arm_el_is_aa64(env, 1) || inputsize > 40)) {
+            /* This is CONSTRAINED UNPREDICTABLE and we choose to fault.  */
+            return false;
         }
     } else {
         /* AArch32 only supports 4KB pages. Assert on that.  */
