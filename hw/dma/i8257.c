@@ -45,8 +45,6 @@
 #define ADDR 0
 #define COUNT 1
 
-static I8257State *dma_controllers[2];
-
 enum {
     CMD_MEMORY_TO_MEMORY = 0x01,
     CMD_FIXED_ADDRESS    = 0x02,
@@ -289,31 +287,36 @@ static uint64_t i8257_read_cont(void *opaque, hwaddr nport, unsigned size)
     return val;
 }
 
-int DMA_get_channel_mode (int nchan)
+static IsaDmaTransferMode i8257_dma_get_transfer_mode(IsaDma *obj, int nchan)
 {
-    return dma_controllers[nchan > 3]->regs[nchan & 3].mode;
+    I8257State *d = I8257(obj);
+    return (d->regs[nchan & 3].mode >> 2) & 3;
 }
 
-void DMA_hold_DREQ (int nchan)
+static bool i8257_dma_has_autoinitialization(IsaDma *obj, int nchan)
 {
-    int ncont, ichan;
-
-    ncont = nchan > 3;
-    ichan = nchan & 3;
-    linfo ("held cont=%d chan=%d\n", ncont, ichan);
-    dma_controllers[ncont]->status |= 1 << (ichan + 4);
-    i8257_dma_run(dma_controllers[ncont]);
+    I8257State *d = I8257(obj);
+    return (d->regs[nchan & 3].mode >> 4) & 1;
 }
 
-void DMA_release_DREQ (int nchan)
+static void i8257_dma_hold_DREQ(IsaDma *obj, int nchan)
 {
-    int ncont, ichan;
+    I8257State *d = I8257(obj);
+    int ichan;
 
-    ncont = nchan > 3;
     ichan = nchan & 3;
-    linfo ("released cont=%d chan=%d\n", ncont, ichan);
-    dma_controllers[ncont]->status &= ~(1 << (ichan + 4));
-    i8257_dma_run(dma_controllers[ncont]);
+    d->status |= 1 << (ichan + 4);
+    i8257_dma_run(d);
+}
+
+static void i8257_dma_release_DREQ(IsaDma *obj, int nchan)
+{
+    I8257State *d = I8257(obj);
+    int ichan;
+
+    ichan = nchan & 3;
+    d->status &= ~(1 << (ichan + 4));
+    i8257_dma_run(d);
 }
 
 static void i8257_channel_run(I8257State *d, int ichan)
@@ -373,24 +376,26 @@ out:
     }
 }
 
-void DMA_register_channel (int nchan,
-                           DMA_transfer_handler transfer_handler,
-                           void *opaque)
+static void i8257_dma_register_channel(IsaDma *obj, int nchan,
+                                       DMA_transfer_handler transfer_handler,
+                                       void *opaque)
 {
+    I8257State *d = I8257(obj);
     I8257Regs *r;
-    int ichan, ncont;
+    int ichan;
 
-    ncont = nchan > 3;
     ichan = nchan & 3;
 
-    r = dma_controllers[ncont]->regs + ichan;
+    r = d->regs + ichan;
     r->transfer_handler = transfer_handler;
     r->opaque = opaque;
 }
 
-int DMA_read_memory (int nchan, void *buf, int pos, int len)
+static int i8257_dma_read_memory(IsaDma *obj, int nchan, void *buf, int pos,
+                                 int len)
 {
-    I8257Regs *r = &dma_controllers[nchan > 3]->regs[nchan & 3];
+    I8257State *d = I8257(obj);
+    I8257Regs *r = &d->regs[nchan & 3];
     hwaddr addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
 
     if (r->mode & 0x20) {
@@ -410,9 +415,11 @@ int DMA_read_memory (int nchan, void *buf, int pos, int len)
     return len;
 }
 
-int DMA_write_memory (int nchan, void *buf, int pos, int len)
+static int i8257_dma_write_memory(IsaDma *obj, int nchan, void *buf, int pos,
+                                 int len)
 {
-    I8257Regs *r = &dma_controllers[nchan > 3]->regs[nchan & 3];
+    I8257State *s = I8257(obj);
+    I8257Regs *r = &s->regs[nchan & 3];
     hwaddr addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
 
     if (r->mode & 0x20) {
@@ -435,10 +442,10 @@ int DMA_write_memory (int nchan, void *buf, int pos, int len)
 /* request the emulator to transfer a new DMA memory block ASAP (even
  * if the idle bottom half would not have exited the iothread yet).
  */
-void DMA_schedule(void)
+static void i8257_dma_schedule(IsaDma *obj)
 {
-    if (dma_controllers[0]->dma_bh_scheduled ||
-        dma_controllers[1]->dma_bh_scheduled) {
+    I8257State *d = I8257(obj);
+    if (d->dma_bh_scheduled) {
         qemu_notify_event();
     }
 }
@@ -572,11 +579,85 @@ static Property i8257_properties[] = {
 static void i8257_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    IsaDmaClass *idc = ISADMA_CLASS(klass);
 
     dc->realize = i8257_realize;
     dc->reset = i8257_reset;
     dc->vmsd = &vmstate_i8257;
     dc->props = i8257_properties;
+
+    idc->get_transfer_mode = i8257_dma_get_transfer_mode;
+    idc->has_autoinitialization = i8257_dma_has_autoinitialization;
+    idc->read_memory = i8257_dma_read_memory;
+    idc->write_memory = i8257_dma_write_memory;
+    idc->hold_DREQ = i8257_dma_hold_DREQ;
+    idc->release_DREQ = i8257_dma_release_DREQ;
+    idc->schedule = i8257_dma_schedule;
+    idc->register_channel = i8257_dma_register_channel;
+}
+
+static ISABus *i8257_bus;
+
+int DMA_get_channel_mode(int nchan)
+{
+    IsaDma *dma = isa_get_dma(i8257_bus, nchan);
+    IsaDmaClass *k = ISADMA_GET_CLASS(dma);
+    uint8_t res = 0;
+
+    res |= k->has_autoinitialization(dma, nchan) ? 0 : 0x10;
+    res |= k->get_transfer_mode(dma, nchan) << 2;
+
+    return res;
+}
+
+int DMA_read_memory(int nchan, void *buf, int pos, int size)
+{
+    IsaDma *dma = isa_get_dma(i8257_bus, nchan);
+    IsaDmaClass *k = ISADMA_GET_CLASS(dma);
+    return k->read_memory(dma, nchan, buf, pos, size);
+}
+
+int DMA_write_memory(int nchan, void *buf, int pos, int size)
+{
+    IsaDma *dma = isa_get_dma(i8257_bus, nchan);
+    IsaDmaClass *k = ISADMA_GET_CLASS(dma);
+    return k->write_memory(dma, nchan, buf, pos, size);
+}
+
+void DMA_hold_DREQ(int nchan)
+{
+    IsaDma *dma = isa_get_dma(i8257_bus, nchan);
+    IsaDmaClass *k = ISADMA_GET_CLASS(dma);
+    k->hold_DREQ(dma, nchan);
+}
+
+void DMA_release_DREQ(int nchan)
+{
+    IsaDma *dma = isa_get_dma(i8257_bus, nchan);
+    IsaDmaClass *k = ISADMA_GET_CLASS(dma);
+    k->release_DREQ(dma, nchan);
+}
+
+void DMA_schedule(void)
+{
+    IsaDma *dma;
+    IsaDmaClass *k;
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        dma = isa_get_dma(i8257_bus, i << 2);
+        k = ISADMA_GET_CLASS(dma);
+        k->schedule(dma);
+    }
+}
+
+void DMA_register_channel(int nchan,
+                          DMA_transfer_handler transfer_handler,
+                          void *opaque)
+{
+    IsaDma *dma = isa_get_dma(i8257_bus, nchan);
+    IsaDmaClass *k = ISADMA_GET_CLASS(dma);
+    k->register_channel(dma, nchan, transfer_handler, opaque);
 }
 
 static const TypeInfo i8257_info = {
@@ -584,6 +665,10 @@ static const TypeInfo i8257_info = {
     .parent = TYPE_ISA_DEVICE,
     .instance_size = sizeof(I8257State),
     .class_init = i8257_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_ISADMA },
+        { }
+    }
 };
 
 static void i8257_register_types(void)
@@ -605,7 +690,6 @@ void DMA_init(ISABus *bus, int high_page_enable)
     qdev_prop_set_int32(d, "pageh-base", high_page_enable ? 0x480 : -1);
     qdev_prop_set_int32(d, "dshift", 0);
     qdev_init_nofail(d);
-    dma_controllers[0] = I8257(d);
 
     isa2 = isa_create(bus, TYPE_I8257);
     d = DEVICE(isa2);
@@ -614,5 +698,7 @@ void DMA_init(ISABus *bus, int high_page_enable)
     qdev_prop_set_int32(d, "pageh-base", high_page_enable ? 0x488 : -1);
     qdev_prop_set_int32(d, "dshift", 1);
     qdev_init_nofail(d);
-    dma_controllers[1] = I8257(d);
+
+    isa_bus_dma(bus, ISADMA(isa1), ISADMA(isa2));
+    i8257_bus = bus;
 }
