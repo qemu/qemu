@@ -30,6 +30,8 @@
 #define DPRINTF(fmt, ...) \
     do { if (DEBUG_KVM) { fprintf(stderr, fmt, ## __VA_ARGS__); } } while (0)
 
+static int kvm_mips_fpu_cap;
+
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
@@ -46,15 +48,28 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     /* MIPS has 128 signals */
     kvm_set_sigmask_len(s, 16);
 
+    kvm_mips_fpu_cap = kvm_check_extension(s, KVM_CAP_MIPS_FPU);
+
     DPRINTF("%s\n", __func__);
     return 0;
 }
 
 int kvm_arch_init_vcpu(CPUState *cs)
 {
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
     int ret = 0;
 
     qemu_add_vm_change_state_handler(kvm_mips_update_state, cs);
+
+    if (kvm_mips_fpu_cap && env->CP0_Config1 & (1 << CP0C1_FP)) {
+        ret = kvm_vcpu_enable_cap(cs, KVM_CAP_MIPS_FPU, 0, 0);
+        if (ret < 0) {
+            /* mark unsupported so it gets disabled on reset */
+            kvm_mips_fpu_cap = 0;
+            ret = 0;
+        }
+    }
 
     DPRINTF("%s\n", __func__);
     return ret;
@@ -64,8 +79,8 @@ void kvm_mips_reset_vcpu(MIPSCPU *cpu)
 {
     CPUMIPSState *env = &cpu->env;
 
-    if (env->CP0_Config1 & (1 << CP0C1_FP)) {
-        fprintf(stderr, "Warning: FPU not supported with KVM, disabling\n");
+    if (!kvm_mips_fpu_cap && env->CP0_Config1 & (1 << CP0C1_FP)) {
+        fprintf(stderr, "Warning: KVM does not support FPU, disabling\n");
         env->CP0_Config1 &= ~(1 << CP0C1_FP);
     }
 
@@ -355,11 +370,14 @@ static inline int kvm_mips_get_one_ureg64(CPUState *cs, uint64_t reg_id,
 }
 
 #define KVM_REG_MIPS_CP0_CONFIG_MASK    (1U << CP0C0_M)
-#define KVM_REG_MIPS_CP0_CONFIG1_MASK   (1U << CP0C1_M)
+#define KVM_REG_MIPS_CP0_CONFIG1_MASK   ((1U << CP0C1_M) | \
+                                         (1U << CP0C1_FP))
 #define KVM_REG_MIPS_CP0_CONFIG2_MASK   (1U << CP0C2_M)
 #define KVM_REG_MIPS_CP0_CONFIG3_MASK   (1U << CP0C3_M)
 #define KVM_REG_MIPS_CP0_CONFIG4_MASK   (1U << CP0C4_M)
-#define KVM_REG_MIPS_CP0_CONFIG5_MASK   0
+#define KVM_REG_MIPS_CP0_CONFIG5_MASK   ((1U << CP0C5_UFE) | \
+                                         (1U << CP0C5_FRE) | \
+                                         (1U << CP0C5_UFR))
 
 static inline int kvm_mips_change_one_reg(CPUState *cs, uint64_t reg_id,
                                           int32_t *addr, int32_t mask)
@@ -520,6 +538,95 @@ static void kvm_mips_update_state(void *opaque, int running, RunState state)
         }
     }
 }
+
+static int kvm_mips_put_fpu_registers(CPUState *cs, int level)
+{
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
+    int err, ret = 0;
+    unsigned int i;
+
+    /* Only put FPU state if we're emulating a CPU with an FPU */
+    if (env->CP0_Config1 & (1 << CP0C1_FP)) {
+        /* FPU Control Registers */
+        if (level == KVM_PUT_FULL_STATE) {
+            err = kvm_mips_put_one_ureg(cs, KVM_REG_MIPS_FCR_IR,
+                                        &env->active_fpu.fcr0);
+            if (err < 0) {
+                DPRINTF("%s: Failed to put FCR_IR (%d)\n", __func__, err);
+                ret = err;
+            }
+        }
+        err = kvm_mips_put_one_ureg(cs, KVM_REG_MIPS_FCR_CSR,
+                                    &env->active_fpu.fcr31);
+        if (err < 0) {
+            DPRINTF("%s: Failed to put FCR_CSR (%d)\n", __func__, err);
+            ret = err;
+        }
+
+        /* Floating point registers */
+        for (i = 0; i < 32; ++i) {
+            if (env->CP0_Status & (1 << CP0St_FR)) {
+                err = kvm_mips_put_one_ureg64(cs, KVM_REG_MIPS_FPR_64(i),
+                                              &env->active_fpu.fpr[i].d);
+            } else {
+                err = kvm_mips_get_one_ureg(cs, KVM_REG_MIPS_FPR_32(i),
+                                      &env->active_fpu.fpr[i].w[FP_ENDIAN_IDX]);
+            }
+            if (err < 0) {
+                DPRINTF("%s: Failed to put FPR%u (%d)\n", __func__, i, err);
+                ret = err;
+            }
+        }
+    }
+
+    return ret;
+}
+
+static int kvm_mips_get_fpu_registers(CPUState *cs)
+{
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
+    int err, ret = 0;
+    unsigned int i;
+
+    /* Only get FPU state if we're emulating a CPU with an FPU */
+    if (env->CP0_Config1 & (1 << CP0C1_FP)) {
+        /* FPU Control Registers */
+        err = kvm_mips_get_one_ureg(cs, KVM_REG_MIPS_FCR_IR,
+                                    &env->active_fpu.fcr0);
+        if (err < 0) {
+            DPRINTF("%s: Failed to get FCR_IR (%d)\n", __func__, err);
+            ret = err;
+        }
+        err = kvm_mips_get_one_ureg(cs, KVM_REG_MIPS_FCR_CSR,
+                                    &env->active_fpu.fcr31);
+        if (err < 0) {
+            DPRINTF("%s: Failed to get FCR_CSR (%d)\n", __func__, err);
+            ret = err;
+        } else {
+            restore_fp_status(env);
+        }
+
+        /* Floating point registers */
+        for (i = 0; i < 32; ++i) {
+            if (env->CP0_Status & (1 << CP0St_FR)) {
+                err = kvm_mips_get_one_ureg64(cs, KVM_REG_MIPS_FPR_64(i),
+                                              &env->active_fpu.fpr[i].d);
+            } else {
+                err = kvm_mips_get_one_ureg(cs, KVM_REG_MIPS_FPR_32(i),
+                                      &env->active_fpu.fpr[i].w[FP_ENDIAN_IDX]);
+            }
+            if (err < 0) {
+                DPRINTF("%s: Failed to get FPR%u (%d)\n", __func__, i, err);
+                ret = err;
+            }
+        }
+    }
+
+    return ret;
+}
+
 
 static int kvm_mips_put_cp0_registers(CPUState *cs, int level)
 {
@@ -805,6 +912,11 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return ret;
     }
 
+    ret = kvm_mips_put_fpu_registers(cs, level);
+    if (ret < 0) {
+        return ret;
+    }
+
     return ret;
 }
 
@@ -832,6 +944,7 @@ int kvm_arch_get_registers(CPUState *cs)
     env->active_tc.PC = regs.pc;
 
     kvm_mips_get_cp0_registers(cs);
+    kvm_mips_get_fpu_registers(cs);
 
     return ret;
 }
