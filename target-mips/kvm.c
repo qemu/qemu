@@ -272,7 +272,18 @@ static inline int kvm_mips_put_one_ulreg(CPUState *cs, uint64_t reg_id,
 }
 
 static inline int kvm_mips_put_one_reg64(CPUState *cs, uint64_t reg_id,
-                                         uint64_t *addr)
+                                         int64_t *addr)
+{
+    struct kvm_one_reg cp0reg = {
+        .id = reg_id,
+        .addr = (uintptr_t)addr
+    };
+
+    return kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &cp0reg);
+}
+
+static inline int kvm_mips_put_one_ureg64(CPUState *cs, uint64_t reg_id,
+                                          uint64_t *addr)
 {
     struct kvm_one_reg cp0reg = {
         .id = reg_id,
@@ -322,7 +333,18 @@ static inline int kvm_mips_get_one_ulreg(CPUState *cs, uint64_t reg_id,
 }
 
 static inline int kvm_mips_get_one_reg64(CPUState *cs, uint64_t reg_id,
-                                         uint64_t *addr)
+                                         int64_t *addr)
+{
+    struct kvm_one_reg cp0reg = {
+        .id = reg_id,
+        .addr = (uintptr_t)addr
+    };
+
+    return kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &cp0reg);
+}
+
+static inline int kvm_mips_get_one_ureg64(CPUState *cs, uint64_t reg_id,
+                                          uint64_t *addr)
 {
     struct kvm_one_reg cp0reg = {
         .id = reg_id,
@@ -377,13 +399,13 @@ static int kvm_mips_save_count(CPUState *cs)
     int err, ret = 0;
 
     /* freeze KVM timer */
-    err = kvm_mips_get_one_reg64(cs, KVM_REG_MIPS_COUNT_CTL, &count_ctl);
+    err = kvm_mips_get_one_ureg64(cs, KVM_REG_MIPS_COUNT_CTL, &count_ctl);
     if (err < 0) {
         DPRINTF("%s: Failed to get COUNT_CTL (%d)\n", __func__, err);
         ret = err;
     } else if (!(count_ctl & KVM_REG_MIPS_COUNT_CTL_DC)) {
         count_ctl |= KVM_REG_MIPS_COUNT_CTL_DC;
-        err = kvm_mips_put_one_reg64(cs, KVM_REG_MIPS_COUNT_CTL, &count_ctl);
+        err = kvm_mips_put_one_ureg64(cs, KVM_REG_MIPS_COUNT_CTL, &count_ctl);
         if (err < 0) {
             DPRINTF("%s: Failed to set COUNT_CTL.DC=1 (%d)\n", __func__, err);
             ret = err;
@@ -419,14 +441,14 @@ static int kvm_mips_restore_count(CPUState *cs)
     int err_dc, err, ret = 0;
 
     /* check the timer is frozen */
-    err_dc = kvm_mips_get_one_reg64(cs, KVM_REG_MIPS_COUNT_CTL, &count_ctl);
+    err_dc = kvm_mips_get_one_ureg64(cs, KVM_REG_MIPS_COUNT_CTL, &count_ctl);
     if (err_dc < 0) {
         DPRINTF("%s: Failed to get COUNT_CTL (%d)\n", __func__, err_dc);
         ret = err_dc;
     } else if (!(count_ctl & KVM_REG_MIPS_COUNT_CTL_DC)) {
         /* freeze timer (sets COUNT_RESUME for us) */
         count_ctl |= KVM_REG_MIPS_COUNT_CTL_DC;
-        err = kvm_mips_put_one_reg64(cs, KVM_REG_MIPS_COUNT_CTL, &count_ctl);
+        err = kvm_mips_put_one_ureg64(cs, KVM_REG_MIPS_COUNT_CTL, &count_ctl);
         if (err < 0) {
             DPRINTF("%s: Failed to set COUNT_CTL.DC=1 (%d)\n", __func__, err);
             ret = err;
@@ -450,7 +472,7 @@ static int kvm_mips_restore_count(CPUState *cs)
     /* resume KVM timer */
     if (err_dc >= 0) {
         count_ctl &= ~KVM_REG_MIPS_COUNT_CTL_DC;
-        err = kvm_mips_put_one_reg64(cs, KVM_REG_MIPS_COUNT_CTL, &count_ctl);
+        err = kvm_mips_put_one_ureg64(cs, KVM_REG_MIPS_COUNT_CTL, &count_ctl);
         if (err < 0) {
             DPRINTF("%s: Failed to set COUNT_CTL.DC=0 (%d)\n", __func__, err);
             ret = err;
@@ -483,8 +505,8 @@ static void kvm_mips_update_state(void *opaque, int running, RunState state)
     } else {
         /* Set clock restore time to now */
         count_resume = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-        ret = kvm_mips_put_one_reg64(cs, KVM_REG_MIPS_COUNT_RESUME,
-                                     &count_resume);
+        ret = kvm_mips_put_one_ureg64(cs, KVM_REG_MIPS_COUNT_RESUME,
+                                      &count_resume);
         if (ret < 0) {
             fprintf(stderr, "Failed setting COUNT_RESUME\n");
             return;
