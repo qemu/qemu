@@ -596,70 +596,6 @@ static void i8257_class_init(ObjectClass *klass, void *data)
     idc->register_channel = i8257_dma_register_channel;
 }
 
-static ISABus *i8257_bus;
-
-int DMA_get_channel_mode(int nchan)
-{
-    IsaDma *dma = isa_get_dma(i8257_bus, nchan);
-    IsaDmaClass *k = ISADMA_GET_CLASS(dma);
-    uint8_t res = 0;
-
-    res |= k->has_autoinitialization(dma, nchan) ? 0 : 0x10;
-    res |= k->get_transfer_mode(dma, nchan) << 2;
-
-    return res;
-}
-
-int DMA_read_memory(int nchan, void *buf, int pos, int size)
-{
-    IsaDma *dma = isa_get_dma(i8257_bus, nchan);
-    IsaDmaClass *k = ISADMA_GET_CLASS(dma);
-    return k->read_memory(dma, nchan, buf, pos, size);
-}
-
-int DMA_write_memory(int nchan, void *buf, int pos, int size)
-{
-    IsaDma *dma = isa_get_dma(i8257_bus, nchan);
-    IsaDmaClass *k = ISADMA_GET_CLASS(dma);
-    return k->write_memory(dma, nchan, buf, pos, size);
-}
-
-void DMA_hold_DREQ(int nchan)
-{
-    IsaDma *dma = isa_get_dma(i8257_bus, nchan);
-    IsaDmaClass *k = ISADMA_GET_CLASS(dma);
-    k->hold_DREQ(dma, nchan);
-}
-
-void DMA_release_DREQ(int nchan)
-{
-    IsaDma *dma = isa_get_dma(i8257_bus, nchan);
-    IsaDmaClass *k = ISADMA_GET_CLASS(dma);
-    k->release_DREQ(dma, nchan);
-}
-
-void DMA_schedule(void)
-{
-    IsaDma *dma;
-    IsaDmaClass *k;
-    int i;
-
-    for (i = 0; i < 2; i++) {
-        dma = isa_get_dma(i8257_bus, i << 2);
-        k = ISADMA_GET_CLASS(dma);
-        k->schedule(dma);
-    }
-}
-
-void DMA_register_channel(int nchan,
-                          DMA_transfer_handler transfer_handler,
-                          void *opaque)
-{
-    IsaDma *dma = isa_get_dma(i8257_bus, nchan);
-    IsaDmaClass *k = ISADMA_GET_CLASS(dma);
-    k->register_channel(dma, nchan, transfer_handler, opaque);
-}
-
 static const TypeInfo i8257_info = {
     .name = TYPE_I8257,
     .parent = TYPE_ISA_DEVICE,
@@ -700,5 +636,4 @@ void DMA_init(ISABus *bus, int high_page_enable)
     qdev_init_nofail(d);
 
     isa_bus_dma(bus, ISADMA(isa1), ISADMA(isa2));
-    i8257_bus = bus;
 }

@@ -144,15 +144,6 @@ static inline ISABus *isa_bus_from_device(ISADevice *d)
     return ISA_BUS(qdev_get_parent_bus(DEVICE(d)));
 }
 
-/* dma.c */
-int DMA_get_channel_mode (int nchan);
-int DMA_read_memory (int nchan, void *buf, int pos, int size);
-int DMA_write_memory (int nchan, void *buf, int pos, int size);
-void DMA_hold_DREQ (int nchan);
-void DMA_release_DREQ (int nchan);
-void DMA_schedule(void);
+/* i8257.c */
 void DMA_init(ISABus *bus, int high_page_enable);
-void DMA_register_channel (int nchan,
-                           DMA_transfer_handler transfer_handler,
-                           void *opaque);
 #endif
