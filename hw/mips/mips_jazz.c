@@ -297,7 +297,8 @@ static void mips_jazz_init(MachineState *machine,
     for (n = 0; n < MAX_FD; n++) {
         fds[n] = drive_get(IF_FLOPPY, 0, n);
     }
-    fdctrl_init_sysbus(qdev_get_gpio_in(rc4030, 1), 0, 0x80003000, fds);
+    /* FIXME: we should enable DMA with a custom IsaDma device */
+    fdctrl_init_sysbus(qdev_get_gpio_in(rc4030, 1), -1, 0x80003000, fds);
 
     /* Real time clock */
     rtc_init(isa_bus, 1980, NULL);
