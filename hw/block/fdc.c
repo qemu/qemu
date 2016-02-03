@@ -179,6 +179,21 @@ typedef struct FDrive {
 
 static FloppyDriveType get_fallback_drive_type(FDrive *drv);
 
+/* Hack: FD_SEEK is expected to work on empty drives. However, QEMU
+ * currently goes through some pains to keep seeks within the bounds
+ * established by last_sect and max_track. Correcting this is difficult,
+ * as refactoring FDC code tends to expose nasty bugs in the Linux kernel.
+ *
+ * For now: allow empty drives to have large bounds so we can seek around,
+ * with the understanding that when a diskette is inserted, the bounds will
+ * properly tighten to match the geometry of that inserted medium.
+ */
+static void fd_empty_seek_hack(FDrive *drv)
+{
+    drv->last_sect = 0xFF;
+    drv->max_track = 0xFF;
+}
+
 static void fd_init(FDrive *drv)
 {
     /* Drive */
@@ -394,6 +409,7 @@ static void fd_revalidate(FDrive *drv)
         if (!blk_is_inserted(drv->blk)) {
             FLOPPY_DPRINTF("No disk in drive\n");
             drv->disk = FLOPPY_DRIVE_TYPE_NONE;
+            fd_empty_seek_hack(drv);
         } else if (!drv->media_validated) {
             rc = pick_geometry(drv);
             if (rc) {
