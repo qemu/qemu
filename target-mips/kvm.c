@@ -248,6 +248,17 @@ static inline int kvm_mips_put_one_reg(CPUState *cs, uint64_t reg_id,
     return kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &cp0reg);
 }
 
+static inline int kvm_mips_put_one_ureg(CPUState *cs, uint64_t reg_id,
+                                        uint32_t *addr)
+{
+    struct kvm_one_reg cp0reg = {
+        .id = reg_id,
+        .addr = (uintptr_t)addr
+    };
+
+    return kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &cp0reg);
+}
+
 static inline int kvm_mips_put_one_ulreg(CPUState *cs, uint64_t reg_id,
                                          target_ulong *addr)
 {
@@ -273,6 +284,17 @@ static inline int kvm_mips_put_one_reg64(CPUState *cs, uint64_t reg_id,
 
 static inline int kvm_mips_get_one_reg(CPUState *cs, uint64_t reg_id,
                                        int32_t *addr)
+{
+    struct kvm_one_reg cp0reg = {
+        .id = reg_id,
+        .addr = (uintptr_t)addr
+    };
+
+    return kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &cp0reg);
+}
+
+static inline int kvm_mips_get_one_ureg(CPUState *cs, uint64_t reg_id,
+                                        uint32_t *addr)
 {
     struct kvm_one_reg cp0reg = {
         .id = reg_id,
