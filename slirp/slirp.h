@@ -327,7 +327,7 @@ void tcp_respond(struct tcpcb *, register struct tcpiphdr *, register struct mbu
 struct tcpcb * tcp_newtcpcb(struct socket *);
 struct tcpcb * tcp_close(register struct tcpcb *);
 void tcp_sockclosed(struct tcpcb *);
-int tcp_fconnect(struct socket *);
+int tcp_fconnect(struct socket *, unsigned short af);
 void tcp_connect(struct socket *);
 int tcp_attach(struct socket *);
 uint8_t tcp_tos(struct socket *);

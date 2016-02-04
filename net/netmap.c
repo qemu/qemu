@@ -39,21 +39,12 @@
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
 
-/* Private netmap device info. */
-typedef struct NetmapPriv {
-    int                 fd;
-    size_t              memsize;
-    void                *mem;
-    struct netmap_if    *nifp;
-    struct netmap_ring  *rx;
-    struct netmap_ring  *tx;
-    char                fdname[PATH_MAX];        /* Normally "/dev/netmap". */
-    char                ifname[IFNAMSIZ];
-} NetmapPriv;
-
 typedef struct NetmapState {
     NetClientState      nc;
-    NetmapPriv          me;
+    struct nm_desc      *nmd;
+    char                ifname[IFNAMSIZ];
+    struct netmap_ring  *tx;
+    struct netmap_ring  *rx;
     bool                read_poll;
     bool                write_poll;
     struct iovec        iov[IOV_MAX];
@@ -90,44 +81,23 @@ pkt_copy(const void *_src, void *_dst, int l)
  * Open a netmap device. We assume there is only one queue
  * (which is the case for the VALE bridge).
  */
-static void netmap_open(NetmapPriv *me, Error **errp)
+static struct nm_desc *netmap_open(const NetdevNetmapOptions *nm_opts,
+                                   Error **errp)
 {
-    int fd;
-    int err;
-    size_t l;
+    struct nm_desc *nmd;
     struct nmreq req;
 
-    me->fd = fd = open(me->fdname, O_RDWR);
-    if (fd < 0) {
-        error_setg_file_open(errp, errno, me->fdname);
-        return;
-    }
     memset(&req, 0, sizeof(req));
-    pstrcpy(req.nr_name, sizeof(req.nr_name), me->ifname);
-    req.nr_ringid = NETMAP_NO_TX_POLL;
-    req.nr_version = NETMAP_API;
-    err = ioctl(fd, NIOCREGIF, &req);
-    if (err) {
-        error_setg_errno(errp, errno, "Unable to register %s", me->ifname);
-        goto error;
-    }
-    l = me->memsize = req.nr_memsize;
 
-    me->mem = mmap(0, l, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
-    if (me->mem == MAP_FAILED) {
-        error_setg_errno(errp, errno, "Unable to mmap netmap shared memory");
-        me->mem = NULL;
-        goto error;
+    nmd = nm_open(nm_opts->ifname, &req, NETMAP_NO_TX_POLL,
+                  NULL);
+    if (nmd == NULL) {
+        error_setg_errno(errp, errno, "Failed to nm_open() %s",
+                         nm_opts->ifname);
+        return NULL;
     }
 
-    me->nifp = NETMAP_IF(me->mem, req.nr_offset);
-    me->tx = NETMAP_TXRING(me->nifp, 0);
-    me->rx = NETMAP_RXRING(me->nifp, 0);
-
-    return;
-
-error:
-    close(me->fd);
+    return nmd;
 }
 
 static void netmap_send(void *opaque);
@@ -136,7 +106,7 @@ static void netmap_writable(void *opaque);
 /* Set the event-loop handlers for the netmap backend. */
 static void netmap_update_fd_handler(NetmapState *s)
 {
-    qemu_set_fd_handler(s->me.fd,
+    qemu_set_fd_handler(s->nmd->fd,
                         s->read_poll ? netmap_send : NULL,
                         s->write_poll ? netmap_writable : NULL,
                         s);
@@ -188,7 +158,7 @@ static ssize_t netmap_receive(NetClientState *nc,
       const uint8_t *buf, size_t size)
 {
     NetmapState *s = DO_UPCAST(NetmapState, nc, nc);
-    struct netmap_ring *ring = s->me.tx;
+    struct netmap_ring *ring = s->tx;
     uint32_t i;
     uint32_t idx;
     uint8_t *dst;
@@ -218,7 +188,7 @@ static ssize_t netmap_receive(NetClientState *nc,
     ring->slot[i].flags = 0;
     pkt_copy(buf, dst, size);
     ring->cur = ring->head = nm_ring_next(ring, i);
-    ioctl(s->me.fd, NIOCTXSYNC, NULL);
+    ioctl(s->nmd->fd, NIOCTXSYNC, NULL);
 
     return size;
 }
@@ -227,7 +197,7 @@ static ssize_t netmap_receive_iov(NetClientState *nc,
                     const struct iovec *iov, int iovcnt)
 {
     NetmapState *s = DO_UPCAST(NetmapState, nc, nc);
-    struct netmap_ring *ring = s->me.tx;
+    struct netmap_ring *ring = s->tx;
     uint32_t last;
     uint32_t idx;
     uint8_t *dst;
@@ -284,7 +254,7 @@ static ssize_t netmap_receive_iov(NetClientState *nc,
     /* Now update ring->cur and ring->head. */
     ring->cur = ring->head = i;
 
-    ioctl(s->me.fd, NIOCTXSYNC, NULL);
+    ioctl(s->nmd->fd, NIOCTXSYNC, NULL);
 
     return iov_size(iov, iovcnt);
 }
@@ -301,7 +271,7 @@ static void netmap_send_completed(NetClientState *nc, ssize_t len)
 static void netmap_send(void *opaque)
 {
     NetmapState *s = opaque;
-    struct netmap_ring *ring = s->me.rx;
+    struct netmap_ring *ring = s->rx;
 
     /* Keep sending while there are available packets into the netmap
        RX ring and the forwarding path towards the peer is open. */
@@ -349,10 +319,8 @@ static void netmap_cleanup(NetClientState *nc)
     qemu_purge_queued_packets(nc);
 
     netmap_poll(nc, false);
-    munmap(s->me.mem, s->me.memsize);
-    close(s->me.fd);
-
-    s->me.fd = -1;
+    nm_close(s->nmd);
+    s->nmd = NULL;
 }
 
 /* Offloading manipulation support callbacks. */
@@ -383,17 +351,17 @@ static void netmap_set_vnet_hdr_len(NetClientState *nc, int len)
     struct nmreq req;
 
     /* Issue a NETMAP_BDG_VNET_HDR command to change the virtio-net header
-     * length for the netmap adapter associated to 'me->ifname'.
+     * length for the netmap adapter associated to 's->ifname'.
      */
     memset(&req, 0, sizeof(req));
-    pstrcpy(req.nr_name, sizeof(req.nr_name), s->me.ifname);
+    pstrcpy(req.nr_name, sizeof(req.nr_name), s->ifname);
     req.nr_version = NETMAP_API;
     req.nr_cmd = NETMAP_BDG_VNET_HDR;
     req.nr_arg1 = len;
-    err = ioctl(s->me.fd, NIOCREGIF, &req);
+    err = ioctl(s->nmd->fd, NIOCREGIF, &req);
     if (err) {
         error_report("Unable to execute NETMAP_BDG_VNET_HDR on %s: %s",
-                     s->me.ifname, strerror(errno));
+                     s->ifname, strerror(errno));
     } else {
         /* Keep track of the current length. */
         s->vnet_hdr_len = len;
@@ -437,16 +405,12 @@ int net_init_netmap(const NetClientOptions *opts,
                     const char *name, NetClientState *peer, Error **errp)
 {
     const NetdevNetmapOptions *netmap_opts = opts->u.netmap;
+    struct nm_desc *nmd;
     NetClientState *nc;
     Error *err = NULL;
-    NetmapPriv me;
     NetmapState *s;
 
-    pstrcpy(me.fdname, sizeof(me.fdname),
-        netmap_opts->has_devname ? netmap_opts->devname : "/dev/netmap");
-    /* Set default name for the port if not supplied. */
-    pstrcpy(me.ifname, sizeof(me.ifname), netmap_opts->ifname);
-    netmap_open(&me, &err);
+    nmd = netmap_open(netmap_opts, &err);
     if (err) {
         error_propagate(errp, err);
         return -1;
@@ -454,8 +418,11 @@ int net_init_netmap(const NetClientOptions *opts,
     /* Create the object. */
     nc = qemu_new_net_client(&net_netmap_info, peer, "netmap", name);
     s = DO_UPCAST(NetmapState, nc, nc);
-    s->me = me;
+    s->nmd = nmd;
+    s->tx = NETMAP_TXRING(nmd->nifp, 0);
+    s->rx = NETMAP_RXRING(nmd->nifp, 0);
     s->vnet_hdr_len = 0;
+    pstrcpy(s->ifname, sizeof(s->ifname), netmap_opts->ifname);
     netmap_read_poll(s, true); /* Initially only poll for reads. */
 
     return 0;

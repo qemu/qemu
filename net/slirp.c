@@ -784,6 +784,9 @@ int net_slirp_parse_legacy(QemuOptsList *opts_list, const char *optarg, int *ret
         return 0;
     }
 
+    error_report("The '-net channel' option is deprecated. "
+                 "Please use '-netdev user,guestfwd=...' instead.");
+
     /* handle legacy -net channel,port:chr */
     optarg += strlen("channel,");
 

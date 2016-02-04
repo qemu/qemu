@@ -325,7 +325,7 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
 
     m->m_len = sizeof(struct bootp_t) -
         sizeof(struct ip) - sizeof(struct udphdr);
-    udp_output2(NULL, m, &saddr, &daddr, IPTOS_LOWDELAY);
+    udp_output(NULL, m, &saddr, &daddr, IPTOS_LOWDELAY);
 }
 
 void bootp_input(struct mbuf *m)

@@ -79,7 +79,7 @@ struct mbuf {
 	int	m_len;			/* Amount of data in this mbuf */
 
 	Slirp *slirp;
-	bool	arp_requested;
+	bool	resolution_requested;
 	uint64_t expiration_date;
 	/* start of dynamic buffer area, must be last element */
 	union {

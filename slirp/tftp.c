@@ -155,7 +155,7 @@ static int tftp_send_oack(struct tftp_session *spt,
 
     m->m_len = sizeof(struct tftp_t) - 514 + n -
         sizeof(struct ip) - sizeof(struct udphdr);
-    udp_output2(NULL, m, &saddr, &daddr, IPTOS_LOWDELAY);
+    udp_output(NULL, m, &saddr, &daddr, IPTOS_LOWDELAY);
 
     return 0;
 }
@@ -193,7 +193,7 @@ static void tftp_send_error(struct tftp_session *spt,
   m->m_len = sizeof(struct tftp_t) - 514 + 3 + strlen(msg) -
         sizeof(struct ip) - sizeof(struct udphdr);
 
-  udp_output2(NULL, m, &saddr, &daddr, IPTOS_LOWDELAY);
+  udp_output(NULL, m, &saddr, &daddr, IPTOS_LOWDELAY);
 
 out:
   tftp_session_terminate(spt);
@@ -243,7 +243,7 @@ static void tftp_send_next_block(struct tftp_session *spt,
   m->m_len = sizeof(struct tftp_t) - (512 - nobytes) -
         sizeof(struct ip) - sizeof(struct udphdr);
 
-  udp_output2(NULL, m, &saddr, &daddr, IPTOS_LOWDELAY);
+  udp_output(NULL, m, &saddr, &daddr, IPTOS_LOWDELAY);
 
   if (nobytes == 512) {
     tftp_session_update(spt);

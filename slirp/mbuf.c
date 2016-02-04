@@ -91,7 +91,7 @@ m_get(Slirp *slirp)
 	m->m_len = 0;
         m->m_nextpkt = NULL;
         m->m_prevpkt = NULL;
-        m->arp_requested = false;
+        m->resolution_requested = false;
         m->expiration_date = (uint64_t)-1;
 end_error:
 	DEBUG_ARG("m = %p", m);

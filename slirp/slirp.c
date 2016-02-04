@@ -23,6 +23,7 @@
  */
 #include "qemu-common.h"
 #include "qemu/timer.h"
+#include "qemu/error-report.h"
 #include "sysemu/char.h"
 #include "slirp.h"
 #include "hw/hw.h"
@@ -234,7 +235,7 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
 
     slirp->opaque = opaque;
 
-    register_savevm(NULL, "slirp", 0, 3,
+    register_savevm(NULL, "slirp", 0, 4,
                     slirp_state_save, slirp_state_load, slirp);
 
     QTAILQ_INSERT_TAIL(&slirp_instances, slirp, entry);
@@ -762,19 +763,14 @@ void slirp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
     }
 }
 
-/* Output the IP packet to the ethernet device. Returns 0 if the packet must be
- * re-queued.
+/* Prepare the IPv4 packet to be sent to the ethernet device. Returns 1 if no
+ * packet should be sent, 0 if the packet must be re-queued, 2 if the packet
+ * is ready to go.
  */
-int if_encap(Slirp *slirp, struct mbuf *ifm)
+static int if_encap4(Slirp *slirp, struct mbuf *ifm, struct ethhdr *eh,
+        uint8_t ethaddr[ETH_ALEN])
 {
-    uint8_t buf[1600];
-    struct ethhdr *eh = (struct ethhdr *)buf;
-    uint8_t ethaddr[ETH_ALEN];
     const struct ip *iph = (const struct ip *)ifm->m_data;
-
-    if (ifm->m_len + ETH_HLEN > sizeof(buf)) {
-        return 1;
-    }
 
     if (iph->ip_dst.s_addr == 0) {
         /* 0.0.0.0 can not be a destination address, something went wrong,
@@ -786,7 +782,7 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
         struct ethhdr *reh = (struct ethhdr *)arp_req;
         struct arphdr *rah = (struct arphdr *)(arp_req + ETH_HLEN);
 
-        if (!ifm->arp_requested) {
+        if (!ifm->resolution_requested) {
             /* If the client addr is not known, send an ARP request */
             memset(reh->h_dest, 0xff, ETH_ALEN);
             memcpy(reh->h_source, special_ethaddr, ETH_ALEN - 4);
@@ -812,22 +808,62 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
             rah->ar_tip = iph->ip_dst.s_addr;
             slirp->client_ipaddr = iph->ip_dst;
             slirp_output(slirp->opaque, arp_req, sizeof(arp_req));
-            ifm->arp_requested = true;
+            ifm->resolution_requested = true;
 
             /* Expire request and drop outgoing packet after 1 second */
             ifm->expiration_date = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + 1000000000ULL;
         }
         return 0;
     } else {
-        memcpy(eh->h_dest, ethaddr, ETH_ALEN);
         memcpy(eh->h_source, special_ethaddr, ETH_ALEN - 4);
         /* XXX: not correct */
         memcpy(&eh->h_source[2], &slirp->vhost_addr, 4);
         eh->h_proto = htons(ETH_P_IP);
-        memcpy(buf + sizeof(struct ethhdr), ifm->m_data, ifm->m_len);
-        slirp_output(slirp->opaque, buf, ifm->m_len + ETH_HLEN);
+
+        /* Send this */
+        return 2;
+    }
+}
+
+/* Output the IP packet to the ethernet device. Returns 0 if the packet must be
+ * re-queued.
+ */
+int if_encap(Slirp *slirp, struct mbuf *ifm)
+{
+    uint8_t buf[1600];
+    struct ethhdr *eh = (struct ethhdr *)buf;
+    uint8_t ethaddr[ETH_ALEN];
+    const struct ip *iph = (const struct ip *)ifm->m_data;
+    int ret;
+
+    if (ifm->m_len + ETH_HLEN > sizeof(buf)) {
         return 1;
     }
+
+    switch (iph->ip_v) {
+    case IPVERSION:
+        ret = if_encap4(slirp, ifm, eh, ethaddr);
+        if (ret < 2) {
+            return ret;
+        }
+        break;
+
+    default:
+        /* Do not assert while we don't manage IP6VERSION */
+        /* assert(0); */
+        break;
+    }
+
+    memcpy(eh->h_dest, ethaddr, ETH_ALEN);
+    DEBUG_ARGS((dfd, " src = %02x:%02x:%02x:%02x:%02x:%02x\n",
+                eh->h_source[0], eh->h_source[1], eh->h_source[2],
+                eh->h_source[3], eh->h_source[4], eh->h_source[5]));
+    DEBUG_ARGS((dfd, " dst = %02x:%02x:%02x:%02x:%02x:%02x\n",
+                eh->h_dest[0], eh->h_dest[1], eh->h_dest[2],
+                eh->h_dest[3], eh->h_dest[4], eh->h_dest[5]));
+    memcpy(buf + sizeof(struct ethhdr), ifm->m_data, ifm->m_len);
+    slirp_output(slirp->opaque, buf, ifm->m_len + ETH_HLEN);
+    return 1;
 }
 
 /* Drop host forwarding rule, return 0 if found. */
@@ -1011,10 +1047,26 @@ static void slirp_sbuf_save(QEMUFile *f, struct sbuf *sbuf)
 static void slirp_socket_save(QEMUFile *f, struct socket *so)
 {
     qemu_put_be32(f, so->so_urgc);
-    qemu_put_be32(f, so->so_faddr.s_addr);
-    qemu_put_be32(f, so->so_laddr.s_addr);
-    qemu_put_be16(f, so->so_fport);
-    qemu_put_be16(f, so->so_lport);
+    qemu_put_be16(f, so->so_ffamily);
+    switch (so->so_ffamily) {
+    case AF_INET:
+        qemu_put_be32(f, so->so_faddr.s_addr);
+        qemu_put_be16(f, so->so_fport);
+        break;
+    default:
+        error_report(
+                "so_ffamily unknown, unable to save so_faddr and so_fport\n");
+    }
+    qemu_put_be16(f, so->so_lfamily);
+    switch (so->so_lfamily) {
+    case AF_INET:
+        qemu_put_be32(f, so->so_laddr.s_addr);
+        qemu_put_be16(f, so->so_lport);
+        break;
+    default:
+        error_report(
+                "so_ffamily unknown, unable to save so_laddr and so_lport\n");
+    }
     qemu_put_byte(f, so->so_iptos);
     qemu_put_byte(f, so->so_emu);
     qemu_put_byte(f, so->so_type);
@@ -1134,10 +1186,26 @@ static int slirp_socket_load(QEMUFile *f, struct socket *so)
         return -ENOMEM;
 
     so->so_urgc = qemu_get_be32(f);
-    so->so_faddr.s_addr = qemu_get_be32(f);
-    so->so_laddr.s_addr = qemu_get_be32(f);
-    so->so_fport = qemu_get_be16(f);
-    so->so_lport = qemu_get_be16(f);
+    so->so_ffamily = qemu_get_be16(f);
+    switch (so->so_ffamily) {
+    case AF_INET:
+        so->so_faddr.s_addr = qemu_get_be32(f);
+        so->so_fport = qemu_get_be16(f);
+        break;
+    default:
+        error_report(
+                "so_ffamily unknown, unable to restore so_faddr and so_lport\n");
+    }
+    so->so_lfamily = qemu_get_be16(f);
+    switch (so->so_lfamily) {
+    case AF_INET:
+        so->so_laddr.s_addr = qemu_get_be32(f);
+        so->so_lport = qemu_get_be16(f);
+        break;
+    default:
+        error_report(
+                "so_ffamily unknown, unable to restore so_laddr and so_lport\n");
+    }
     so->so_iptos = qemu_get_byte(f);
     so->so_emu = qemu_get_byte(f);
     so->so_type = qemu_get_byte(f);

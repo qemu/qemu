@@ -157,12 +157,12 @@ icmp_input(struct mbuf *m, int hlen)
         goto freeit;
     } else {
       struct socket *so;
-      struct sockaddr_in addr;
+      struct sockaddr_storage addr;
       if ((so = socreate(slirp)) == NULL) goto freeit;
       if (icmp_send(so, m, hlen) == 0) {
         return;
       }
-      if(udp_attach(so) == -1) {
+      if (udp_attach(so, AF_INET) == -1) {
 	DEBUG_MISC((dfd,"icmp_input udp_attach errno = %d-%s\n",
 		    errno,strerror(errno)));
 	sofree(so);
@@ -170,8 +170,10 @@ icmp_input(struct mbuf *m, int hlen)
 	goto end_error;
       }
       so->so_m = m;
+      so->so_ffamily = AF_INET;
       so->so_faddr = ip->ip_dst;
       so->so_fport = htons(7);
+      so->so_lfamily = AF_INET;
       so->so_laddr = ip->ip_src;
       so->so_lport = htons(9);
       so->so_iptos = ip->ip_tos;
@@ -179,20 +181,9 @@ icmp_input(struct mbuf *m, int hlen)
       so->so_state = SS_ISFCONNECTED;
 
       /* Send the packet */
-      addr.sin_family = AF_INET;
-      if ((so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
-          slirp->vnetwork_addr.s_addr) {
-	/* It's an alias */
-	if (so->so_faddr.s_addr == slirp->vnameserver_addr.s_addr) {
-	  if (get_dns_addr(&addr.sin_addr) < 0)
-	    addr.sin_addr = loopback_addr;
-	} else {
-	  addr.sin_addr = loopback_addr;
-	}
-      } else {
-	addr.sin_addr = so->so_faddr;
-      }
-      addr.sin_port = so->so_fport;
+      addr = so->fhost.ss;
+      sotranslate_out(so, &addr);
+
       if(sendto(so->s, icmp_ping_msg, strlen(icmp_ping_msg), 0,
 		(struct sockaddr *)&addr, sizeof(addr)) == -1) {
 	DEBUG_MISC((dfd,"icmp_input udp sendto tx errno = %d-%s\n",

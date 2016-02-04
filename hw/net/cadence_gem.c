@@ -678,6 +678,10 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     } else {
         unsigned crc_val;
 
+        if (size > sizeof(rxbuf) - sizeof(crc_val)) {
+            size = sizeof(rxbuf) - sizeof(crc_val);
+        }
+        bytes_to_copy = size;
         /* The application wants the FCS field, which QEMU does not provide.
          * We must try and calculate one.
          */
@@ -860,6 +864,14 @@ static void gem_transmit(CadenceGEMState *s)
             (tx_desc_get_length(desc) == 0)) {
             DB_PRINT("Invalid TX descriptor @ 0x%x\n",
                      (unsigned)packet_desc_addr);
+            break;
+        }
+
+        if (tx_desc_get_length(desc) > sizeof(tx_packet) - (p - tx_packet)) {
+            DB_PRINT("TX descriptor @ 0x%x too large: size 0x%x space 0x%x\n",
+                     (unsigned)packet_desc_addr,
+                     (unsigned)tx_desc_get_length(desc),
+                     sizeof(tx_packet) - (p - tx_packet));
             break;
         }
 
