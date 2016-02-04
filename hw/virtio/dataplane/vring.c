@@ -389,22 +389,25 @@ static void vring_unmap_element(VirtQueueElement *elem)
  *
  * Stolen from linux/drivers/vhost/vhost.c.
  */
-int vring_pop(VirtIODevice *vdev, Vring *vring,
-              VirtQueueElement *elem)
+void *vring_pop(VirtIODevice *vdev, Vring *vring, size_t sz)
 {
     struct vring_desc desc;
     unsigned int i, head, found = 0, num = vring->vr.num;
     uint16_t avail_idx, last_avail_idx;
+    VirtQueueElement *elem = NULL;
     int ret;
-
-    /* Initialize elem so it can be safely unmapped */
-    elem->in_num = elem->out_num = 0;
 
     /* If there was a fatal error then refuse operation */
     if (vring->broken) {
         ret = -EFAULT;
         goto out;
     }
+
+    assert(sz >= sizeof(VirtQueueElement));
+    elem = g_malloc(sz);
+
+    /* Initialize elem so it can be safely unmapped */
+    elem->in_num = elem->out_num = 0;
 
     /* Check it isn't doing very strange things with descriptor numbers. */
     last_avail_idx = vring->last_avail_idx;
@@ -481,7 +484,7 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
             virtio_tswap16(vdev, vring->last_avail_idx);
     }
 
-    return head;
+    return elem;
 
 out:
     assert(ret < 0);
@@ -489,7 +492,8 @@ out:
         vring->broken = true;
     }
     vring_unmap_element(elem);
-    return ret;
+    g_free(elem);
+    return NULL;
 }
 
 /* After we've used one of their buffers, we tell them about it.

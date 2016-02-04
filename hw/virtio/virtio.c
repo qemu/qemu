@@ -501,16 +501,20 @@ void virtqueue_map(VirtQueueElement *elem)
                         0);
 }
 
-int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
+void *virtqueue_pop(VirtQueue *vq, size_t sz)
 {
     unsigned int i, head, max;
     hwaddr desc_pa = vq->vring.desc;
     VirtIODevice *vdev = vq->vdev;
+    VirtQueueElement *elem;
 
-    if (!virtqueue_num_heads(vq, vq->last_avail_idx))
-        return 0;
+    if (!virtqueue_num_heads(vq, vq->last_avail_idx)) {
+        return NULL;
+    }
 
     /* When we start there are none of either input nor output. */
+    assert(sz >= sizeof(VirtQueueElement));
+    elem = g_malloc(sz);
     elem->out_num = elem->in_num = 0;
 
     max = vq->vring.num;
@@ -569,7 +573,7 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
     vq->inuse++;
 
     trace_virtqueue_pop(vq, elem, elem->in_num, elem->out_num);
-    return elem->in_num + elem->out_num;
+    return elem;
 }
 
 /* virtio device */

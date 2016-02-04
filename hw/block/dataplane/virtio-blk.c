@@ -100,20 +100,19 @@ static void handle_notify(EventNotifier *e)
     blk_io_plug(s->conf->conf.blk);
     for (;;) {
         MultiReqBuffer mrb = {};
-        int ret;
 
         /* Disable guest->host notifies to avoid unnecessary vmexits */
         vring_disable_notification(s->vdev, &s->vring);
 
         for (;;) {
-            VirtIOBlockReq *req = virtio_blk_alloc_request(vblk);
+            VirtIOBlockReq *req = vring_pop(s->vdev, &s->vring,
+                                            sizeof(VirtIOBlockReq));
 
-            ret = vring_pop(s->vdev, &s->vring, &req->elem);
-            if (ret < 0) {
-                virtio_blk_free_request(req);
+            if (req == NULL) {
                 break; /* no more requests */
             }
 
+            virtio_blk_init_request(vblk, req);
             trace_virtio_blk_data_plane_process_request(s, req->elem.out_num,
                                                         req->elem.in_num,
                                                         req->elem.index);
@@ -125,7 +124,7 @@ static void handle_notify(EventNotifier *e)
             virtio_blk_submit_multireq(s->conf->conf.blk, &mrb);
         }
 
-        if (likely(ret == -EAGAIN)) { /* vring emptied */
+        if (likely(!vring_more_avail(s->vdev, &s->vring))) { /* vring emptied */
             /* Re-enable guest->host notifies and stop processing the vring.
              * But if the guest has snuck in more descriptors, keep processing.
              */

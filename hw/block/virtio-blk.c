@@ -29,15 +29,13 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 
-VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
+void virtio_blk_init_request(VirtIOBlock *s, VirtIOBlockReq *req)
 {
-    VirtIOBlockReq *req = g_new(VirtIOBlockReq, 1);
     req->dev = s;
     req->qiov.size = 0;
     req->in_len = 0;
     req->next = NULL;
     req->mr_next = NULL;
-    return req;
 }
 
 void virtio_blk_free_request(VirtIOBlockReq *req)
@@ -193,13 +191,11 @@ out:
 
 static VirtIOBlockReq *virtio_blk_get_request(VirtIOBlock *s)
 {
-    VirtIOBlockReq *req = virtio_blk_alloc_request(s);
+    VirtIOBlockReq *req = virtqueue_pop(s->vq, sizeof(VirtIOBlockReq));
 
-    if (!virtqueue_pop(s->vq, &req->elem)) {
-        virtio_blk_free_request(req);
-        return NULL;
+    if (req) {
+        virtio_blk_init_request(s, req);
     }
-
     return req;
 }
 
@@ -836,7 +832,8 @@ static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
     VirtIOBlock *s = VIRTIO_BLK(vdev);
 
     while (qemu_get_sbyte(f)) {
-        VirtIOBlockReq *req = virtio_blk_alloc_request(s);
+        VirtIOBlockReq *req = g_new(VirtIOBlockReq, 1);
+        virtio_blk_init_request(s, req);
         qemu_get_buffer(f, (unsigned char *)&req->elem,
                         sizeof(VirtQueueElement));
         req->next = s->rq;

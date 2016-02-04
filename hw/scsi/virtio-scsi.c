@@ -41,19 +41,15 @@ static inline SCSIDevice *virtio_scsi_device_find(VirtIOSCSI *s, uint8_t *lun)
     return scsi_device_find(&s->bus, 0, lun[1], virtio_scsi_get_lun(lun));
 }
 
-VirtIOSCSIReq *virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq)
+void virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq, VirtIOSCSIReq *req)
 {
-    VirtIOSCSIReq *req;
-    VirtIOSCSICommon *vs = (VirtIOSCSICommon *)s;
     const size_t zero_skip = offsetof(VirtIOSCSIReq, vring);
 
-    req = g_malloc(sizeof(*req) + vs->cdb_size);
     req->vq = vq;
     req->dev = s;
     qemu_sglist_init(&req->qsgl, DEVICE(s), 8, &address_space_memory);
     qemu_iovec_init(&req->resp_iov, 1);
     memset((uint8_t *)req + zero_skip, 0, sizeof(*req) - zero_skip);
-    return req;
 }
 
 void virtio_scsi_free_req(VirtIOSCSIReq *req)
@@ -174,11 +170,14 @@ static int virtio_scsi_parse_req(VirtIOSCSIReq *req,
 
 static VirtIOSCSIReq *virtio_scsi_pop_req(VirtIOSCSI *s, VirtQueue *vq)
 {
-    VirtIOSCSIReq *req = virtio_scsi_init_req(s, vq);
-    if (!virtqueue_pop(vq, &req->elem)) {
-        virtio_scsi_free_req(req);
+    VirtIOSCSICommon *vs = (VirtIOSCSICommon *)s;
+    VirtIOSCSIReq *req;
+
+    req = virtqueue_pop(vq, sizeof(VirtIOSCSIReq) + vs->cdb_size);
+    if (!req) {
         return NULL;
     }
+    virtio_scsi_init_req(s, vq, req);
     return req;
 }
 
@@ -203,8 +202,9 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
 
     qemu_get_be32s(f, &n);
     assert(n < vs->conf.num_queues);
-    req = virtio_scsi_init_req(s, vs->cmd_vqs[n]);
+    req = g_malloc(sizeof(VirtIOSCSIReq) + vs->cdb_size);
     qemu_get_buffer(f, (unsigned char *)&req->elem, sizeof(req->elem));
+    virtio_scsi_init_req(s, vs->cmd_vqs[n], req);
 
     virtqueue_map(&req->elem);
 

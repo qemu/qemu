@@ -107,8 +107,10 @@ static void balloon_stats_poll_cb(void *opaque)
         return;
     }
 
-    virtqueue_push(s->svq, &s->stats_vq_elem, s->stats_vq_offset);
+    virtqueue_push(s->svq, s->stats_vq_elem, s->stats_vq_offset);
     virtio_notify(vdev, s->svq);
+    g_free(s->stats_vq_elem);
+    s->stats_vq_elem = NULL;
 }
 
 static void balloon_stats_get_all(Object *obj, struct Visitor *v,
@@ -206,14 +208,18 @@ static void balloon_stats_set_poll_interval(Object *obj, struct Visitor *v,
 static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
-    VirtQueueElement elem;
+    VirtQueueElement *elem;
     MemoryRegionSection section;
 
-    while (virtqueue_pop(vq, &elem)) {
+    for (;;) {
         size_t offset = 0;
         uint32_t pfn;
+        elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+        if (!elem) {
+            return;
+        }
 
-        while (iov_to_buf(elem.out_sg, elem.out_num, offset, &pfn, 4) == 4) {
+        while (iov_to_buf(elem->out_sg, elem->out_num, offset, &pfn, 4) == 4) {
             ram_addr_t pa;
             ram_addr_t addr;
             int p = virtio_ldl_p(vdev, &pfn);
@@ -236,20 +242,22 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
             memory_region_unref(section.mr);
         }
 
-        virtqueue_push(vq, &elem, offset);
+        virtqueue_push(vq, elem, offset);
         virtio_notify(vdev, vq);
+        g_free(elem);
     }
 }
 
 static void virtio_balloon_receive_stats(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
-    VirtQueueElement *elem = &s->stats_vq_elem;
+    VirtQueueElement *elem;
     VirtIOBalloonStat stat;
     size_t offset = 0;
     qemu_timeval tv;
 
-    if (!virtqueue_pop(vq, elem)) {
+    s->stats_vq_elem = elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+    if (!elem) {
         goto out;
     }
 
