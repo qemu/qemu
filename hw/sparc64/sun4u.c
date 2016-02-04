@@ -99,29 +99,7 @@ typedef struct EbusState {
     MemoryRegion bar1;
 } EbusState;
 
-int DMA_get_channel_mode (int nchan)
-{
-    return 0;
-}
-int DMA_read_memory (int nchan, void *buf, int pos, int size)
-{
-    return 0;
-}
-int DMA_write_memory (int nchan, void *buf, int pos, int size)
-{
-    return 0;
-}
-void DMA_hold_DREQ (int nchan) {}
-void DMA_release_DREQ (int nchan) {}
-void DMA_schedule(void) {}
-
-void DMA_init(int high_page_enable)
-{
-}
-
-void DMA_register_channel (int nchan,
-                           DMA_transfer_handler transfer_handler,
-                           void *opaque)
+void DMA_init(ISABus *bus, int high_page_enable)
 {
 }
 
@@ -816,6 +794,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     qemu_irq *ivec_irqs, *pbm_irqs;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
+    DeviceState *dev;
     FWCfgState *fw_cfg;
 
     /* init CPUs */
@@ -852,10 +831,22 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     pci_cmd646_ide_init(pci_bus, hd, 1);
 
     isa_create_simple(isa_bus, "i8042");
+
+    /* Floppy */
     for(i = 0; i < MAX_FD; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
-    fdctrl_init_isa(isa_bus, fd);
+    dev = DEVICE(isa_create(isa_bus, TYPE_ISA_FDC));
+    if (fd[0]) {
+        qdev_prop_set_drive(dev, "driveA", blk_by_legacy_dinfo(fd[0]),
+                            &error_abort);
+    }
+    if (fd[1]) {
+        qdev_prop_set_drive(dev, "driveB", blk_by_legacy_dinfo(fd[1]),
+                            &error_abort);
+    }
+    qdev_prop_set_uint32(dev, "dma", -1);
+    qdev_init_nofail(dev);
 
     /* Map NVRAM into I/O (ebus) space */
     nvram = m48t59_init(NULL, 0, 0, NVRAM_SIZE, 1968, 59);

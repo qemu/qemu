@@ -24,8 +24,12 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/isa/isa.h"
+#include "hw/isa/i8257.h"
 #include "qemu/main-loop.h"
 #include "trace.h"
+
+#define I8257(obj) \
+    OBJECT_CHECK(I8257State, (obj), TYPE_I8257)
 
 /* #define DEBUG_DMA */
 
@@ -38,31 +42,8 @@
 #define ldebug(...)
 #endif
 
-struct dma_regs {
-    int now[2];
-    uint16_t base[2];
-    uint8_t mode;
-    uint8_t page;
-    uint8_t pageh;
-    uint8_t dack;
-    uint8_t eop;
-    DMA_transfer_handler transfer_handler;
-    void *opaque;
-};
-
 #define ADDR 0
 #define COUNT 1
-
-static struct dma_cont {
-    uint8_t status;
-    uint8_t command;
-    uint8_t mask;
-    uint8_t flip_flop;
-    int dshift;
-    struct dma_regs regs[4];
-    MemoryRegion channel_io;
-    MemoryRegion cont_io;
-} dma_controllers[2];
 
 enum {
     CMD_MEMORY_TO_MEMORY = 0x01,
@@ -79,13 +60,13 @@ enum {
 
 };
 
-static void DMA_run (void);
+static void i8257_dma_run(void *opaque);
 
-static int channels[8] = {-1, 2, 3, 1, -1, -1, -1, 0};
+static const int channels[8] = {-1, 2, 3, 1, -1, -1, -1, 0};
 
-static void write_page (void *opaque, uint32_t nport, uint32_t data)
+static void i8257_write_page(void *opaque, uint32_t nport, uint32_t data)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     int ichan;
 
     ichan = channels[nport & 7];
@@ -96,9 +77,9 @@ static void write_page (void *opaque, uint32_t nport, uint32_t data)
     d->regs[ichan].page = data;
 }
 
-static void write_pageh (void *opaque, uint32_t nport, uint32_t data)
+static void i8257_write_pageh(void *opaque, uint32_t nport, uint32_t data)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     int ichan;
 
     ichan = channels[nport & 7];
@@ -109,9 +90,9 @@ static void write_pageh (void *opaque, uint32_t nport, uint32_t data)
     d->regs[ichan].pageh = data;
 }
 
-static uint32_t read_page (void *opaque, uint32_t nport)
+static uint32_t i8257_read_page(void *opaque, uint32_t nport)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     int ichan;
 
     ichan = channels[nport & 7];
@@ -122,9 +103,9 @@ static uint32_t read_page (void *opaque, uint32_t nport)
     return d->regs[ichan].page;
 }
 
-static uint32_t read_pageh (void *opaque, uint32_t nport)
+static uint32_t i8257_read_pageh(void *opaque, uint32_t nport)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     int ichan;
 
     ichan = channels[nport & 7];
@@ -135,16 +116,16 @@ static uint32_t read_pageh (void *opaque, uint32_t nport)
     return d->regs[ichan].pageh;
 }
 
-static inline void init_chan (struct dma_cont *d, int ichan)
+static inline void i8257_init_chan(I8257State *d, int ichan)
 {
-    struct dma_regs *r;
+    I8257Regs *r;
 
     r = d->regs + ichan;
     r->now[ADDR] = r->base[ADDR] << d->dshift;
     r->now[COUNT] = 0;
 }
 
-static inline int getff (struct dma_cont *d)
+static inline int i8257_getff(I8257State *d)
 {
     int ff;
 
@@ -153,11 +134,11 @@ static inline int getff (struct dma_cont *d)
     return ff;
 }
 
-static uint64_t read_chan(void *opaque, hwaddr nport, unsigned size)
+static uint64_t i8257_read_chan(void *opaque, hwaddr nport, unsigned size)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     int ichan, nreg, iport, ff, val, dir;
-    struct dma_regs *r;
+    I8257Regs *r;
 
     iport = (nport >> d->dshift) & 0x0f;
     ichan = iport >> 1;
@@ -165,7 +146,7 @@ static uint64_t read_chan(void *opaque, hwaddr nport, unsigned size)
     r = d->regs + ichan;
 
     dir = ((r->mode >> 5) & 1) ? -1 : 1;
-    ff = getff (d);
+    ff = i8257_getff(d);
     if (nreg)
         val = (r->base[COUNT] << d->dshift) - r->now[COUNT];
     else
@@ -175,29 +156,29 @@ static uint64_t read_chan(void *opaque, hwaddr nport, unsigned size)
     return (val >> (d->dshift + (ff << 3))) & 0xff;
 }
 
-static void write_chan(void *opaque, hwaddr nport, uint64_t data,
-                       unsigned size)
+static void i8257_write_chan(void *opaque, hwaddr nport, uint64_t data,
+                             unsigned int size)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     int iport, ichan, nreg;
-    struct dma_regs *r;
+    I8257Regs *r;
 
     iport = (nport >> d->dshift) & 0x0f;
     ichan = iport >> 1;
     nreg = iport & 1;
     r = d->regs + ichan;
-    if (getff (d)) {
+    if (i8257_getff(d)) {
         r->base[nreg] = (r->base[nreg] & 0xff) | ((data << 8) & 0xff00);
-        init_chan (d, ichan);
+        i8257_init_chan(d, ichan);
     } else {
         r->base[nreg] = (r->base[nreg] & 0xff00) | (data & 0xff);
     }
 }
 
-static void write_cont(void *opaque, hwaddr nport, uint64_t data,
-                       unsigned size)
+static void i8257_write_cont(void *opaque, hwaddr nport, uint64_t data,
+                             unsigned int size)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     int iport, ichan = 0;
 
     iport = (nport >> d->dshift) & 0x0f;
@@ -219,7 +200,7 @@ static void write_cont(void *opaque, hwaddr nport, uint64_t data,
             d->status &= ~(1 << (ichan + 4));
         }
         d->status &= ~(1 << ichan);
-        DMA_run();
+        i8257_dma_run(d);
         break;
 
     case 0x02:                  /* single mask */
@@ -227,7 +208,7 @@ static void write_cont(void *opaque, hwaddr nport, uint64_t data,
             d->mask |= 1 << (data & 3);
         else
             d->mask &= ~(1 << (data & 3));
-        DMA_run();
+        i8257_dma_run(d);
         break;
 
     case 0x03:                  /* mode */
@@ -262,12 +243,12 @@ static void write_cont(void *opaque, hwaddr nport, uint64_t data,
 
     case 0x06:                  /* clear mask for all channels */
         d->mask = 0;
-        DMA_run();
+        i8257_dma_run(d);
         break;
 
     case 0x07:                  /* write mask for all channels */
         d->mask = data;
-        DMA_run();
+        i8257_dma_run(d);
         break;
 
     default:
@@ -283,9 +264,9 @@ static void write_cont(void *opaque, hwaddr nport, uint64_t data,
 #endif
 }
 
-static uint64_t read_cont(void *opaque, hwaddr nport, unsigned size)
+static uint64_t i8257_read_cont(void *opaque, hwaddr nport, unsigned size)
 {
-    struct dma_cont *d = opaque;
+    I8257State *d = opaque;
     int iport, val;
 
     iport = (nport >> d->dshift) & 0x0f;
@@ -306,37 +287,43 @@ static uint64_t read_cont(void *opaque, hwaddr nport, unsigned size)
     return val;
 }
 
-int DMA_get_channel_mode (int nchan)
+static IsaDmaTransferMode i8257_dma_get_transfer_mode(IsaDma *obj, int nchan)
 {
-    return dma_controllers[nchan > 3].regs[nchan & 3].mode;
+    I8257State *d = I8257(obj);
+    return (d->regs[nchan & 3].mode >> 2) & 3;
 }
 
-void DMA_hold_DREQ (int nchan)
+static bool i8257_dma_has_autoinitialization(IsaDma *obj, int nchan)
 {
-    int ncont, ichan;
+    I8257State *d = I8257(obj);
+    return (d->regs[nchan & 3].mode >> 4) & 1;
+}
 
-    ncont = nchan > 3;
+static void i8257_dma_hold_DREQ(IsaDma *obj, int nchan)
+{
+    I8257State *d = I8257(obj);
+    int ichan;
+
     ichan = nchan & 3;
-    linfo ("held cont=%d chan=%d\n", ncont, ichan);
-    dma_controllers[ncont].status |= 1 << (ichan + 4);
-    DMA_run();
+    d->status |= 1 << (ichan + 4);
+    i8257_dma_run(d);
 }
 
-void DMA_release_DREQ (int nchan)
+static void i8257_dma_release_DREQ(IsaDma *obj, int nchan)
 {
-    int ncont, ichan;
+    I8257State *d = I8257(obj);
+    int ichan;
 
-    ncont = nchan > 3;
     ichan = nchan & 3;
-    linfo ("released cont=%d chan=%d\n", ncont, ichan);
-    dma_controllers[ncont].status &= ~(1 << (ichan + 4));
-    DMA_run();
+    d->status &= ~(1 << (ichan + 4));
+    i8257_dma_run(d);
 }
 
-static void channel_run (int ncont, int ichan)
+static void i8257_channel_run(I8257State *d, int ichan)
 {
+    int ncont = d->dshift;
     int n;
-    struct dma_regs *r = &dma_controllers[ncont].regs[ichan];
+    I8257Regs *r = &d->regs[ichan];
 #ifdef DEBUG_DMA
     int dir, opmode;
 
@@ -357,70 +344,58 @@ static void channel_run (int ncont, int ichan)
     ldebug ("dma_pos %d size %d\n", n, (r->base[COUNT] + 1) << ncont);
 }
 
-static QEMUBH *dma_bh;
-static bool dma_bh_scheduled;
-
-static void DMA_run (void)
+static void i8257_dma_run(void *opaque)
 {
-    struct dma_cont *d;
-    int icont, ichan;
+    I8257State *d = opaque;
+    int ichan;
     int rearm = 0;
-    static int running = 0;
 
-    if (running) {
+    if (d->running) {
         rearm = 1;
         goto out;
     } else {
-        running = 1;
+        d->running = 1;
     }
 
-    d = dma_controllers;
+    for (ichan = 0; ichan < 4; ichan++) {
+        int mask;
 
-    for (icont = 0; icont < 2; icont++, d++) {
-        for (ichan = 0; ichan < 4; ichan++) {
-            int mask;
+        mask = 1 << ichan;
 
-            mask = 1 << ichan;
-
-            if ((0 == (d->mask & mask)) && (0 != (d->status & (mask << 4)))) {
-                channel_run (icont, ichan);
-                rearm = 1;
-            }
+        if ((0 == (d->mask & mask)) && (0 != (d->status & (mask << 4)))) {
+            i8257_channel_run(d, ichan);
+            rearm = 1;
         }
     }
 
-    running = 0;
+    d->running = 0;
 out:
     if (rearm) {
-        qemu_bh_schedule_idle(dma_bh);
-        dma_bh_scheduled = true;
+        qemu_bh_schedule_idle(d->dma_bh);
+        d->dma_bh_scheduled = true;
     }
 }
 
-static void DMA_run_bh(void *unused)
+static void i8257_dma_register_channel(IsaDma *obj, int nchan,
+                                       DMA_transfer_handler transfer_handler,
+                                       void *opaque)
 {
-    dma_bh_scheduled = false;
-    DMA_run();
-}
+    I8257State *d = I8257(obj);
+    I8257Regs *r;
+    int ichan;
 
-void DMA_register_channel (int nchan,
-                           DMA_transfer_handler transfer_handler,
-                           void *opaque)
-{
-    struct dma_regs *r;
-    int ichan, ncont;
-
-    ncont = nchan > 3;
     ichan = nchan & 3;
 
-    r = dma_controllers[ncont].regs + ichan;
+    r = d->regs + ichan;
     r->transfer_handler = transfer_handler;
     r->opaque = opaque;
 }
 
-int DMA_read_memory (int nchan, void *buf, int pos, int len)
+static int i8257_dma_read_memory(IsaDma *obj, int nchan, void *buf, int pos,
+                                 int len)
 {
-    struct dma_regs *r = &dma_controllers[nchan > 3].regs[nchan & 3];
+    I8257State *d = I8257(obj);
+    I8257Regs *r = &d->regs[nchan & 3];
     hwaddr addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
 
     if (r->mode & 0x20) {
@@ -440,9 +415,11 @@ int DMA_read_memory (int nchan, void *buf, int pos, int len)
     return len;
 }
 
-int DMA_write_memory (int nchan, void *buf, int pos, int len)
+static int i8257_dma_write_memory(IsaDma *obj, int nchan, void *buf, int pos,
+                                 int len)
 {
-    struct dma_regs *r = &dma_controllers[nchan > 3].regs[nchan & 3];
+    I8257State *s = I8257(obj);
+    I8257Regs *r = &s->regs[nchan & 3];
     hwaddr addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
 
     if (r->mode & 0x20) {
@@ -465,20 +442,22 @@ int DMA_write_memory (int nchan, void *buf, int pos, int len)
 /* request the emulator to transfer a new DMA memory block ASAP (even
  * if the idle bottom half would not have exited the iothread yet).
  */
-void DMA_schedule(void)
+static void i8257_dma_schedule(IsaDma *obj)
 {
-    if (dma_bh_scheduled) {
+    I8257State *d = I8257(obj);
+    if (d->dma_bh_scheduled) {
         qemu_notify_event();
     }
 }
 
-static void dma_reset(void *opaque)
+static void i8257_reset(DeviceState *dev)
 {
-    struct dma_cont *d = opaque;
-    write_cont(d, (0x05 << d->dshift), 0, 1);
+    I8257State *d = I8257(dev);
+    i8257_write_cont(d, (0x05 << d->dshift), 0, 1);
 }
 
-static int dma_phony_handler (void *opaque, int nchan, int dma_pos, int dma_len)
+static int i8257_phony_handler(void *opaque, int nchan, int dma_pos,
+                               int dma_len)
 {
     trace_i8257_unregistered_dma(nchan, dma_pos, dma_len);
     return dma_pos;
@@ -486,8 +465,8 @@ static int dma_phony_handler (void *opaque, int nchan, int dma_pos, int dma_len)
 
 
 static const MemoryRegionOps channel_io_ops = {
-    .read = read_chan,
-    .write = write_chan,
+    .read = i8257_read_chan,
+    .write = i8257_write_chan,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -497,21 +476,21 @@ static const MemoryRegionOps channel_io_ops = {
 
 /* IOport from page_base */
 static const MemoryRegionPortio page_portio_list[] = {
-    { 0x01, 3, 1, .write = write_page, .read = read_page, },
-    { 0x07, 1, 1, .write = write_page, .read = read_page, },
+    { 0x01, 3, 1, .write = i8257_write_page, .read = i8257_read_page, },
+    { 0x07, 1, 1, .write = i8257_write_page, .read = i8257_read_page, },
     PORTIO_END_OF_LIST(),
 };
 
 /* IOport from pageh_base */
 static const MemoryRegionPortio pageh_portio_list[] = {
-    { 0x01, 3, 1, .write = write_pageh, .read = read_pageh, },
-    { 0x07, 3, 1, .write = write_pageh, .read = read_pageh, },
+    { 0x01, 3, 1, .write = i8257_write_pageh, .read = i8257_read_pageh, },
+    { 0x07, 3, 1, .write = i8257_write_pageh, .read = i8257_read_pageh, },
     PORTIO_END_OF_LIST(),
 };
 
 static const MemoryRegionOps cont_io_ops = {
-    .read = read_cont,
-    .write = write_cont,
+    .read = i8257_read_cont,
+    .write = i8257_write_cont,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -519,82 +498,142 @@ static const MemoryRegionOps cont_io_ops = {
     },
 };
 
-/* dshift = 0: 8 bit DMA, 1 = 16 bit DMA */
-static void dma_init2(struct dma_cont *d, int base, int dshift,
-                      int page_base, int pageh_base)
-{
-    int i;
-
-    d->dshift = dshift;
-
-    memory_region_init_io(&d->channel_io, NULL, &channel_io_ops, d,
-                          "dma-chan", 8 << d->dshift);
-    memory_region_add_subregion(isa_address_space_io(NULL),
-                                base, &d->channel_io);
-
-    isa_register_portio_list(NULL, page_base, page_portio_list, d,
-                             "dma-page");
-    if (pageh_base >= 0) {
-        isa_register_portio_list(NULL, pageh_base, pageh_portio_list, d,
-                                 "dma-pageh");
-    }
-
-    memory_region_init_io(&d->cont_io, NULL, &cont_io_ops, d, "dma-cont",
-                          8 << d->dshift);
-    memory_region_add_subregion(isa_address_space_io(NULL),
-                                base + (8 << d->dshift), &d->cont_io);
-
-    qemu_register_reset(dma_reset, d);
-    dma_reset(d);
-    for (i = 0; i < ARRAY_SIZE (d->regs); ++i) {
-        d->regs[i].transfer_handler = dma_phony_handler;
-    }
-}
-
-static const VMStateDescription vmstate_dma_regs = {
+static const VMStateDescription vmstate_i8257_regs = {
     .name = "dma_regs",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_INT32_ARRAY(now, struct dma_regs, 2),
-        VMSTATE_UINT16_ARRAY(base, struct dma_regs, 2),
-        VMSTATE_UINT8(mode, struct dma_regs),
-        VMSTATE_UINT8(page, struct dma_regs),
-        VMSTATE_UINT8(pageh, struct dma_regs),
-        VMSTATE_UINT8(dack, struct dma_regs),
-        VMSTATE_UINT8(eop, struct dma_regs),
+        VMSTATE_INT32_ARRAY(now, I8257Regs, 2),
+        VMSTATE_UINT16_ARRAY(base, I8257Regs, 2),
+        VMSTATE_UINT8(mode, I8257Regs),
+        VMSTATE_UINT8(page, I8257Regs),
+        VMSTATE_UINT8(pageh, I8257Regs),
+        VMSTATE_UINT8(dack, I8257Regs),
+        VMSTATE_UINT8(eop, I8257Regs),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static int dma_post_load(void *opaque, int version_id)
+static int i8257_post_load(void *opaque, int version_id)
 {
-    DMA_run();
+    I8257State *d = opaque;
+    i8257_dma_run(d);
 
     return 0;
 }
 
-static const VMStateDescription vmstate_dma = {
+static const VMStateDescription vmstate_i8257 = {
     .name = "dma",
     .version_id = 1,
     .minimum_version_id = 1,
-    .post_load = dma_post_load,
+    .post_load = i8257_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT8(command, struct dma_cont),
-        VMSTATE_UINT8(mask, struct dma_cont),
-        VMSTATE_UINT8(flip_flop, struct dma_cont),
-        VMSTATE_INT32(dshift, struct dma_cont),
-        VMSTATE_STRUCT_ARRAY(regs, struct dma_cont, 4, 1, vmstate_dma_regs, struct dma_regs),
+        VMSTATE_UINT8(command, I8257State),
+        VMSTATE_UINT8(mask, I8257State),
+        VMSTATE_UINT8(flip_flop, I8257State),
+        VMSTATE_INT32(dshift, I8257State),
+        VMSTATE_STRUCT_ARRAY(regs, I8257State, 4, 1, vmstate_i8257_regs,
+                             I8257Regs),
         VMSTATE_END_OF_LIST()
     }
 };
 
-void DMA_init(int high_page_enable)
+static void i8257_realize(DeviceState *dev, Error **errp)
 {
-    dma_init2(&dma_controllers[0], 0x00, 0, 0x80, high_page_enable ? 0x480 : -1);
-    dma_init2(&dma_controllers[1], 0xc0, 1, 0x88, high_page_enable ? 0x488 : -1);
-    vmstate_register (NULL, 0, &vmstate_dma, &dma_controllers[0]);
-    vmstate_register (NULL, 1, &vmstate_dma, &dma_controllers[1]);
+    ISADevice *isa = ISA_DEVICE(dev);
+    I8257State *d = I8257(dev);
+    int i;
 
-    dma_bh = qemu_bh_new(DMA_run_bh, NULL);
+    memory_region_init_io(&d->channel_io, NULL, &channel_io_ops, d,
+                          "dma-chan", 8 << d->dshift);
+    memory_region_add_subregion(isa_address_space_io(isa),
+                                d->base, &d->channel_io);
+
+    isa_register_portio_list(isa, d->page_base, page_portio_list, d,
+                             "dma-page");
+    if (d->pageh_base >= 0) {
+        isa_register_portio_list(isa, d->pageh_base, pageh_portio_list, d,
+                                 "dma-pageh");
+    }
+
+    memory_region_init_io(&d->cont_io, OBJECT(isa), &cont_io_ops, d,
+                          "dma-cont", 8 << d->dshift);
+    memory_region_add_subregion(isa_address_space_io(isa),
+                                d->base + (8 << d->dshift), &d->cont_io);
+
+    for (i = 0; i < ARRAY_SIZE(d->regs); ++i) {
+        d->regs[i].transfer_handler = i8257_phony_handler;
+    }
+
+    d->dma_bh = qemu_bh_new(i8257_dma_run, d);
+}
+
+static Property i8257_properties[] = {
+    DEFINE_PROP_INT32("base", I8257State, base, 0x00),
+    DEFINE_PROP_INT32("page-base", I8257State, page_base, 0x80),
+    DEFINE_PROP_INT32("pageh-base", I8257State, pageh_base, 0x480),
+    DEFINE_PROP_INT32("dshift", I8257State, dshift, 0),
+    DEFINE_PROP_END_OF_LIST()
+};
+
+static void i8257_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    IsaDmaClass *idc = ISADMA_CLASS(klass);
+
+    dc->realize = i8257_realize;
+    dc->reset = i8257_reset;
+    dc->vmsd = &vmstate_i8257;
+    dc->props = i8257_properties;
+
+    idc->get_transfer_mode = i8257_dma_get_transfer_mode;
+    idc->has_autoinitialization = i8257_dma_has_autoinitialization;
+    idc->read_memory = i8257_dma_read_memory;
+    idc->write_memory = i8257_dma_write_memory;
+    idc->hold_DREQ = i8257_dma_hold_DREQ;
+    idc->release_DREQ = i8257_dma_release_DREQ;
+    idc->schedule = i8257_dma_schedule;
+    idc->register_channel = i8257_dma_register_channel;
+}
+
+static const TypeInfo i8257_info = {
+    .name = TYPE_I8257,
+    .parent = TYPE_ISA_DEVICE,
+    .instance_size = sizeof(I8257State),
+    .class_init = i8257_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_ISADMA },
+        { }
+    }
+};
+
+static void i8257_register_types(void)
+{
+    type_register_static(&i8257_info);
+}
+
+type_init(i8257_register_types)
+
+void DMA_init(ISABus *bus, int high_page_enable)
+{
+    ISADevice *isa1, *isa2;
+    DeviceState *d;
+
+    isa1 = isa_create(bus, TYPE_I8257);
+    d = DEVICE(isa1);
+    qdev_prop_set_int32(d, "base", 0x00);
+    qdev_prop_set_int32(d, "page-base", 0x80);
+    qdev_prop_set_int32(d, "pageh-base", high_page_enable ? 0x480 : -1);
+    qdev_prop_set_int32(d, "dshift", 0);
+    qdev_init_nofail(d);
+
+    isa2 = isa_create(bus, TYPE_I8257);
+    d = DEVICE(isa2);
+    qdev_prop_set_int32(d, "base", 0xc0);
+    qdev_prop_set_int32(d, "page-base", 0x88);
+    qdev_prop_set_int32(d, "pageh-base", high_page_enable ? 0x488 : -1);
+    qdev_prop_set_int32(d, "dshift", 1);
+    qdev_init_nofail(d);
+
+    isa_bus_dma(bus, ISADMA(isa1), ISADMA(isa2));
 }

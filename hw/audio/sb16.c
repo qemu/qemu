@@ -56,6 +56,8 @@ typedef struct SB16State {
     uint32_t hdma;
     uint32_t port;
     uint32_t ver;
+    IsaDma *isa_dma;
+    IsaDma *isa_hdma;
 
     int in_index;
     int out_data_len;
@@ -166,16 +168,18 @@ static void speaker (SB16State *s, int on)
 static void control (SB16State *s, int hold)
 {
     int dma = s->use_hdma ? s->hdma : s->dma;
+    IsaDma *isa_dma = s->use_hdma ? s->isa_hdma : s->isa_dma;
+    IsaDmaClass *k = ISADMA_GET_CLASS(isa_dma);
     s->dma_running = hold;
 
     ldebug ("hold %d high %d dma %d\n", hold, s->use_hdma, dma);
 
     if (hold) {
-        DMA_hold_DREQ (dma);
+        k->hold_DREQ(isa_dma, dma);
         AUD_set_active_out (s->voice, 1);
     }
     else {
-        DMA_release_DREQ (dma);
+        k->release_DREQ(isa_dma, dma);
         AUD_set_active_out (s->voice, 0);
     }
 }
@@ -1137,6 +1141,8 @@ static uint32_t mixer_read(void *opaque, uint32_t nport)
 static int write_audio (SB16State *s, int nchan, int dma_pos,
                         int dma_len, int len)
 {
+    IsaDma *isa_dma = nchan == s->dma ? s->isa_dma : s->isa_hdma;
+    IsaDmaClass *k = ISADMA_GET_CLASS(isa_dma);
     int temp, net;
     uint8_t tmpbuf[4096];
 
@@ -1153,7 +1159,7 @@ static int write_audio (SB16State *s, int nchan, int dma_pos,
             to_copy = sizeof (tmpbuf);
         }
 
-        copied = DMA_read_memory (nchan, tmpbuf, dma_pos, to_copy);
+        copied = k->read_memory(isa_dma, nchan, tmpbuf, dma_pos, to_copy);
         copied = AUD_write (s->voice, tmpbuf, copied);
 
         temp -= copied;
@@ -1355,6 +1361,7 @@ static void sb16_realizefn (DeviceState *dev, Error **errp)
 {
     ISADevice *isadev = ISA_DEVICE (dev);
     SB16State *s = SB16 (dev);
+    IsaDmaClass *k;
 
     isa_init_irq (isadev, &s->pic, s->irq);
 
@@ -1373,8 +1380,14 @@ static void sb16_realizefn (DeviceState *dev, Error **errp)
 
     isa_register_portio_list (isadev, s->port, sb16_ioport_list, s, "sb16");
 
-    DMA_register_channel (s->hdma, SB_read_DMA, s);
-    DMA_register_channel (s->dma, SB_read_DMA, s);
+    s->isa_hdma = isa_get_dma(isa_bus_from_device(isadev), s->hdma);
+    k = ISADMA_GET_CLASS(s->isa_hdma);
+    k->register_channel(s->isa_hdma, s->hdma, SB_read_DMA, s);
+
+    s->isa_dma = isa_get_dma(isa_bus_from_device(isadev), s->dma);
+    k = ISADMA_GET_CLASS(s->isa_dma);
+    k->register_channel(s->isa_dma, s->dma, SB_read_DMA, s);
+
     s->can_write = 1;
 
     AUD_register_card ("sb16", &s->card);

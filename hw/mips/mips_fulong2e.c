@@ -366,7 +366,7 @@ static void mips_fulong2e_init(MachineState *machine)
 
     /* init other devices */
     pit = pit_init(isa_bus, 0x40, 0, NULL);
-    DMA_init(0);
+    DMA_init(isa_bus, 0);
 
     /* Super I/O */
     isa_create_simple(isa_bus, "i8042");

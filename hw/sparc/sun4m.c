@@ -96,29 +96,7 @@ struct sun4m_hwdef {
     uint8_t nvram_machine_id;
 };
 
-int DMA_get_channel_mode (int nchan)
-{
-    return 0;
-}
-int DMA_read_memory (int nchan, void *buf, int pos, int size)
-{
-    return 0;
-}
-int DMA_write_memory (int nchan, void *buf, int pos, int size)
-{
-    return 0;
-}
-void DMA_hold_DREQ (int nchan) {}
-void DMA_release_DREQ (int nchan) {}
-void DMA_schedule(void) {}
-
-void DMA_init(int high_page_enable)
-{
-}
-
-void DMA_register_channel (int nchan,
-                           DMA_transfer_handler transfer_handler,
-                           void *opaque)
+void DMA_init(ISABus *bus, int high_page_enable)
 {
 }
 

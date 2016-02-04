@@ -179,6 +179,21 @@ typedef struct FDrive {
 
 static FloppyDriveType get_fallback_drive_type(FDrive *drv);
 
+/* Hack: FD_SEEK is expected to work on empty drives. However, QEMU
+ * currently goes through some pains to keep seeks within the bounds
+ * established by last_sect and max_track. Correcting this is difficult,
+ * as refactoring FDC code tends to expose nasty bugs in the Linux kernel.
+ *
+ * For now: allow empty drives to have large bounds so we can seek around,
+ * with the understanding that when a diskette is inserted, the bounds will
+ * properly tighten to match the geometry of that inserted medium.
+ */
+static void fd_empty_seek_hack(FDrive *drv)
+{
+    drv->last_sect = 0xFF;
+    drv->max_track = 0xFF;
+}
+
 static void fd_init(FDrive *drv)
 {
     /* Drive */
@@ -394,6 +409,7 @@ static void fd_revalidate(FDrive *drv)
         if (!blk_is_inserted(drv->blk)) {
             FLOPPY_DPRINTF("No disk in drive\n");
             drv->disk = FLOPPY_DRIVE_TYPE_NONE;
+            fd_empty_seek_hack(drv);
         } else if (!drv->media_validated) {
             rc = pick_geometry(drv);
             if (rc) {
@@ -628,6 +644,7 @@ struct FDCtrl {
     QEMUTimer *result_timer;
     int dma_chann;
     uint8_t phase;
+    IsaDma *dma;
     /* Controller's identification */
     uint8_t version;
     /* HW */
@@ -1413,7 +1430,8 @@ static void fdctrl_stop_transfer(FDCtrl *fdctrl, uint8_t status0,
     fdctrl->fifo[6] = FD_SECTOR_SC;
     fdctrl->data_dir = FD_DIR_READ;
     if (!(fdctrl->msr & FD_MSR_NONDMA)) {
-        DMA_release_DREQ(fdctrl->dma_chann);
+        IsaDmaClass *k = ISADMA_GET_CLASS(fdctrl->dma);
+        k->release_DREQ(fdctrl->dma, fdctrl->dma_chann);
     }
     fdctrl->msr |= FD_MSR_RQM | FD_MSR_DIO;
     fdctrl->msr &= ~FD_MSR_NONDMA;
@@ -1499,27 +1517,43 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
     }
     fdctrl->eot = fdctrl->fifo[6];
     if (fdctrl->dor & FD_DOR_DMAEN) {
-        int dma_mode;
+        IsaDmaTransferMode dma_mode;
+        IsaDmaClass *k = ISADMA_GET_CLASS(fdctrl->dma);
+        bool dma_mode_ok;
         /* DMA transfer are enabled. Check if DMA channel is well programmed */
-        dma_mode = DMA_get_channel_mode(fdctrl->dma_chann);
-        dma_mode = (dma_mode >> 2) & 3;
+        dma_mode = k->get_transfer_mode(fdctrl->dma, fdctrl->dma_chann);
         FLOPPY_DPRINTF("dma_mode=%d direction=%d (%d - %d)\n",
                        dma_mode, direction,
                        (128 << fdctrl->fifo[5]) *
                        (cur_drv->last_sect - ks + 1), fdctrl->data_len);
-        if (((direction == FD_DIR_SCANE || direction == FD_DIR_SCANL ||
-              direction == FD_DIR_SCANH) && dma_mode == 0) ||
-            (direction == FD_DIR_WRITE && dma_mode == 2) ||
-            (direction == FD_DIR_READ && dma_mode == 1) ||
-            (direction == FD_DIR_VERIFY)) {
+        switch (direction) {
+        case FD_DIR_SCANE:
+        case FD_DIR_SCANL:
+        case FD_DIR_SCANH:
+            dma_mode_ok = (dma_mode == ISADMA_TRANSFER_VERIFY);
+            break;
+        case FD_DIR_WRITE:
+            dma_mode_ok = (dma_mode == ISADMA_TRANSFER_WRITE);
+            break;
+        case FD_DIR_READ:
+            dma_mode_ok = (dma_mode == ISADMA_TRANSFER_READ);
+            break;
+        case FD_DIR_VERIFY:
+            dma_mode_ok = true;
+            break;
+        default:
+            dma_mode_ok = false;
+            break;
+        }
+        if (dma_mode_ok) {
             /* No access is allowed until DMA transfer has completed */
             fdctrl->msr &= ~FD_MSR_RQM;
             if (direction != FD_DIR_VERIFY) {
                 /* Now, we just have to wait for the DMA controller to
                  * recall us...
                  */
-                DMA_hold_DREQ(fdctrl->dma_chann);
-                DMA_schedule();
+                k->hold_DREQ(fdctrl->dma, fdctrl->dma_chann);
+                k->schedule(fdctrl->dma);
             } else {
                 /* Start transfer */
                 fdctrl_transfer_handler(fdctrl, fdctrl->dma_chann, 0,
@@ -1558,12 +1592,14 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
     FDrive *cur_drv;
     int len, start_pos, rel_pos;
     uint8_t status0 = 0x00, status1 = 0x00, status2 = 0x00;
+    IsaDmaClass *k;
 
     fdctrl = opaque;
     if (fdctrl->msr & FD_MSR_RQM) {
         FLOPPY_DPRINTF("Not in DMA transfer mode !\n");
         return 0;
     }
+    k = ISADMA_GET_CLASS(fdctrl->dma);
     cur_drv = get_cur_drv(fdctrl);
     if (fdctrl->data_dir == FD_DIR_SCANE || fdctrl->data_dir == FD_DIR_SCANL ||
         fdctrl->data_dir == FD_DIR_SCANH)
@@ -1602,8 +1638,8 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
         switch (fdctrl->data_dir) {
         case FD_DIR_READ:
             /* READ commands */
-            DMA_write_memory (nchan, fdctrl->fifo + rel_pos,
-                              fdctrl->data_pos, len);
+            k->write_memory(fdctrl->dma, nchan, fdctrl->fifo + rel_pos,
+                            fdctrl->data_pos, len);
             break;
         case FD_DIR_WRITE:
             /* WRITE commands */
@@ -1617,8 +1653,8 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
                 goto transfer_error;
             }
 
-            DMA_read_memory (nchan, fdctrl->fifo + rel_pos,
-                             fdctrl->data_pos, len);
+            k->read_memory(fdctrl->dma, nchan, fdctrl->fifo + rel_pos,
+                           fdctrl->data_pos, len);
             if (blk_write(cur_drv->blk, fd_sector(cur_drv),
                           fdctrl->fifo, 1) < 0) {
                 FLOPPY_DPRINTF("error writing sector %d\n",
@@ -1635,7 +1671,8 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
             {
                 uint8_t tmpbuf[FD_SECTOR_LEN];
                 int ret;
-                DMA_read_memory (nchan, tmpbuf, fdctrl->data_pos, len);
+                k->read_memory(fdctrl->dma, nchan, tmpbuf, fdctrl->data_pos,
+                               len);
                 ret = memcmp(tmpbuf, fdctrl->fifo + rel_pos, len);
                 if (ret == 0) {
                     status2 = FD_SR2_SEH;
@@ -2425,7 +2462,11 @@ static void fdctrl_realize_common(FDCtrl *fdctrl, Error **errp)
     fdctrl->num_floppies = MAX_FD;
 
     if (fdctrl->dma_chann != -1) {
-        DMA_register_channel(fdctrl->dma_chann, &fdctrl_transfer_handler, fdctrl);
+        IsaDmaClass *k;
+        assert(fdctrl->dma);
+        k = ISADMA_GET_CLASS(fdctrl->dma);
+        k->register_channel(fdctrl->dma, fdctrl->dma_chann,
+                            &fdctrl_transfer_handler, fdctrl);
     }
     fdctrl_connect_drives(fdctrl, errp);
 }
@@ -2448,6 +2489,10 @@ static void isabus_fdc_realize(DeviceState *dev, Error **errp)
 
     isa_init_irq(isadev, &fdctrl->irq, isa->irq);
     fdctrl->dma_chann = isa->dma;
+    if (fdctrl->dma_chann != -1) {
+        fdctrl->dma = isa_get_dma(isa_bus_from_device(isadev), isa->dma);
+        assert(fdctrl->dma);
+    }
 
     qdev_set_legacy_instance_id(dev, isa->iobase, 2);
     fdctrl_realize_common(fdctrl, &err);
@@ -2475,6 +2520,8 @@ static void sun4m_fdc_initfn(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     FDCtrlSysBus *sys = SYSBUS_FDC(obj);
     FDCtrl *fdctrl = &sys->state;
+
+    fdctrl->dma_chann = -1;
 
     memory_region_init_io(&fdctrl->iomem, obj, &fdctrl_mem_strict_ops,
                           fdctrl, "fdctrl", 0x08);
