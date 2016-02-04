@@ -23,7 +23,6 @@
 #include "qemu-common.h"
 #include "hw/arm/virt.h"
 
-#define VIRT_ACPI_CPU_ID_LIMIT 8
 #define ACPI_GICC_ENABLED 1
 
 typedef struct VirtGuestInfo {

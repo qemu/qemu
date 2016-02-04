@@ -3167,6 +3167,35 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .type = ARM_CP_ALIAS,
       .fieldoffset = offsetof(CPUARMState, vfp.xregs[ARM_VFP_FPEXC]),
       .access = PL2_RW, .accessfn = fpexc32_access },
+    { .name = "DACR32_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 3, .crm = 0, .opc2 = 0,
+      .access = PL2_RW, .resetvalue = 0,
+      .writefn = dacr_write, .raw_writefn = raw_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.dacr32_el2) },
+    { .name = "IFSR32_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 5, .crm = 0, .opc2 = 1,
+      .access = PL2_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.ifsr32_el2) },
+    { .name = "SPSR_IRQ", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_ALIAS,
+      .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 3, .opc2 = 0,
+      .access = PL2_RW,
+      .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_IRQ]) },
+    { .name = "SPSR_ABT", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_ALIAS,
+      .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 3, .opc2 = 1,
+      .access = PL2_RW,
+      .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_ABT]) },
+    { .name = "SPSR_UND", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_ALIAS,
+      .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 3, .opc2 = 2,
+      .access = PL2_RW,
+      .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_UND]) },
+    { .name = "SPSR_FIQ", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_ALIAS,
+      .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 3, .opc2 = 3,
+      .access = PL2_RW,
+      .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_FIQ]) },
     REGINFO_SENTINEL
 };
 
@@ -3294,11 +3323,6 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 0,
       .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.hcr_el2),
       .writefn = hcr_write },
-    { .name = "DACR32_EL2", .state = ARM_CP_STATE_AA64,
-      .opc0 = 3, .opc1 = 4, .crn = 3, .crm = 0, .opc2 = 0,
-      .access = PL2_RW, .resetvalue = 0,
-      .writefn = dacr_write, .raw_writefn = raw_write,
-      .fieldoffset = offsetof(CPUARMState, cp15.dacr32_el2) },
     { .name = "ELR_EL2", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS,
       .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 0, .opc2 = 1,
@@ -3308,10 +3332,6 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .type = ARM_CP_ALIAS,
       .opc0 = 3, .opc1 = 4, .crn = 5, .crm = 2, .opc2 = 0,
       .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.esr_el[2]) },
-    { .name = "IFSR32_EL2", .state = ARM_CP_STATE_AA64,
-      .opc0 = 3, .opc1 = 4, .crn = 5, .crm = 0, .opc2 = 1,
-      .access = PL2_RW, .resetvalue = 0,
-      .fieldoffset = offsetof(CPUARMState, cp15.ifsr32_el2) },
     { .name = "FAR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 6, .crm = 0, .opc2 = 0,
       .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.far_el[2]) },
@@ -3320,26 +3340,6 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 0, .opc2 = 0,
       .access = PL2_RW,
       .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_HYP]) },
-    { .name = "SPSR_IRQ", .state = ARM_CP_STATE_AA64,
-      .type = ARM_CP_ALIAS,
-      .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 3, .opc2 = 0,
-      .access = PL2_RW,
-      .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_IRQ]) },
-    { .name = "SPSR_ABT", .state = ARM_CP_STATE_AA64,
-      .type = ARM_CP_ALIAS,
-      .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 3, .opc2 = 1,
-      .access = PL2_RW,
-      .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_ABT]) },
-    { .name = "SPSR_UND", .state = ARM_CP_STATE_AA64,
-      .type = ARM_CP_ALIAS,
-      .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 3, .opc2 = 2,
-      .access = PL2_RW,
-      .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_UND]) },
-    { .name = "SPSR_FIQ", .state = ARM_CP_STATE_AA64,
-      .type = ARM_CP_ALIAS,
-      .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 3, .opc2 = 3,
-      .access = PL2_RW,
-      .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_FIQ]) },
     { .name = "VBAR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 12, .crm = 0, .opc2 = 0,
       .access = PL2_RW, .writefn = vbar_write,
@@ -6763,24 +6763,34 @@ typedef enum {
 } MMUFaultType;
 
 /*
- * check_s2_startlevel
+ * check_s2_mmu_setup
  * @cpu:        ARMCPU
  * @is_aa64:    True if the translation regime is in AArch64 state
  * @startlevel: Suggested starting level
  * @inputsize:  Bitsize of IPAs
  * @stride:     Page-table stride (See the ARM ARM)
  *
- * Returns true if the suggested starting level is OK and false otherwise.
+ * Returns true if the suggested S2 translation parameters are OK and
+ * false otherwise.
  */
-static bool check_s2_startlevel(ARMCPU *cpu, bool is_aa64, int level,
-                                int inputsize, int stride)
+static bool check_s2_mmu_setup(ARMCPU *cpu, bool is_aa64, int level,
+                               int inputsize, int stride)
 {
+    const int grainsize = stride + 3;
+    int startsizecheck;
+
     /* Negative levels are never allowed.  */
     if (level < 0) {
         return false;
     }
 
+    startsizecheck = inputsize - ((3 - level) * stride + grainsize);
+    if (startsizecheck < 1 || startsizecheck > stride + 4) {
+        return false;
+    }
+
     if (is_aa64) {
+        CPUARMState *env = &cpu->env;
         unsigned int pamax = arm_pamax(cpu);
 
         switch (stride) {
@@ -6802,19 +6812,18 @@ static bool check_s2_startlevel(ARMCPU *cpu, bool is_aa64, int level,
         default:
             g_assert_not_reached();
         }
-    } else {
-        const int grainsize = stride + 3;
-        int startsizecheck;
 
+        /* Inputsize checks.  */
+        if (inputsize > pamax &&
+            (arm_el_is_aa64(env, 1) || inputsize > 40)) {
+            /* This is CONSTRAINED UNPREDICTABLE and we choose to fault.  */
+            return false;
+        }
+    } else {
         /* AArch32 only supports 4KB pages. Assert on that.  */
         assert(stride == 9);
 
         if (level == 0) {
-            return false;
-        }
-
-        startsizecheck = inputsize - ((3 - level) * stride + grainsize);
-        if (startsizecheck < 1 || startsizecheck > stride + 4) {
             return false;
         }
     }
@@ -7013,8 +7022,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         }
 
         /* Check that the starting level is valid. */
-        ok = check_s2_startlevel(cpu, va_size == 64, level,
-                                 inputsize, stride);
+        ok = check_s2_mmu_setup(cpu, va_size == 64, level, inputsize, stride);
         if (!ok) {
             /* AArch64 reports these as level 0 faults.
              * AArch32 reports these as level 1 faults.

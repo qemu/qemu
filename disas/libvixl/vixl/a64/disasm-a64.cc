@@ -2688,8 +2688,12 @@ void Disassembler::AppendRegisterNameToOutput(const Instruction* instr,
 void Disassembler::AppendPCRelativeOffsetToOutput(const Instruction* instr,
                                                   int64_t offset) {
   USE(instr);
+  uint64_t abs_offset = offset;
   char sign = (offset < 0) ? '-' : '+';
-  AppendToOutput("#%c0x%" PRIx64, sign, std::abs(offset));
+  if (offset < 0) {
+    abs_offset = -abs_offset;
+  }
+  AppendToOutput("#%c0x%" PRIx64, sign, abs_offset);
 }
 
 
