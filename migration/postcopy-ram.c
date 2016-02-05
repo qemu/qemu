@@ -725,7 +725,8 @@ void postcopy_discard_send_range(MigrationState *ms, PostcopyDiscardState *pds,
 
     if (pds->cur_entry == MAX_DISCARDS_PER_COMMAND) {
         /* Full set, ship it! */
-        qemu_savevm_send_postcopy_ram_discard(ms->file, pds->ramblock_name,
+        qemu_savevm_send_postcopy_ram_discard(ms->to_dst_file,
+                                              pds->ramblock_name,
                                               pds->cur_entry,
                                               pds->start_list,
                                               pds->length_list);
@@ -745,7 +746,8 @@ void postcopy_discard_send_finish(MigrationState *ms, PostcopyDiscardState *pds)
 {
     /* Anything unsent? */
     if (pds->cur_entry) {
-        qemu_savevm_send_postcopy_ram_discard(ms->file, pds->ramblock_name,
+        qemu_savevm_send_postcopy_ram_discard(ms->to_dst_file,
+                                              pds->ramblock_name,
                                               pds->cur_entry,
                                               pds->start_list,
                                               pds->length_list);

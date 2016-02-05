@@ -99,6 +99,7 @@ def get_changed_sec_name(sec):
     # Section names can change -- see commit 292b1634 for an example.
     changes = {
         "ICH9 LPC": "ICH9-LPC",
+        "e1000-82540em": "e1000",
     }
 
     for item in changes:

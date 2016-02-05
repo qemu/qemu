@@ -3647,7 +3647,9 @@ Enable/Disable migration capabilities
 - "rdma-pin-all": pin all pages when using RDMA during migration
 - "auto-converge": throttle down guest to help convergence of migration
 - "zero-blocks": compress zero blocks during block migration
+- "compress": use multiple compression threads to accelerate live migration
 - "events": generate events for each migration state change
+- "x-postcopy-ram": postcopy mode for live migration
 
 Arguments:
 
@@ -3675,13 +3677,24 @@ Query current migration capabilities
          - "rdma-pin-all" : RDMA Pin Page state (json-bool)
          - "auto-converge" : Auto Converge state (json-bool)
          - "zero-blocks" : Zero Blocks state (json-bool)
+         - "compress": Multiple compression threads state (json-bool)
+         - "events": Migration state change event state (json-bool)
+         - "x-postcopy-ram": postcopy ram state (json-bool)
 
 Arguments:
 
 Example:
 
 -> { "execute": "query-migrate-capabilities" }
-<- { "return": [ { "state": false, "capability": "xbzrle" } ] }
+<- {"return": [
+     {"state": false, "capability": "xbzrle"},
+     {"state": false, "capability": "rdma-pin-all"},
+     {"state": false, "capability": "auto-converge"},
+     {"state": false, "capability": "zero-blocks"},
+     {"state": false, "capability": "compress"},
+     {"state": true, "capability": "events"},
+     {"state": false, "capability": "x-postcopy-ram"}
+   ]}
 
 EQMP
 
@@ -3700,6 +3713,10 @@ Set migration parameters
 - "compress-level": set compression level during migration (json-int)
 - "compress-threads": set compression thread count for migration (json-int)
 - "decompress-threads": set decompression thread count for migration (json-int)
+- "x-cpu-throttle-initial": set initial percentage of time guest cpus are
+                           throttled for auto-converge (json-int)
+- "x-cpu-throttle-increment": set throttle increasing percentage for
+                             auto-converge (json-int)
 
 Arguments:
 
@@ -3713,7 +3730,7 @@ EQMP
     {
         .name       = "migrate-set-parameters",
         .args_type  =
-            "compress-level:i?,compress-threads:i?,decompress-threads:i?",
+            "compress-level:i?,compress-threads:i?,decompress-threads:i?,x-cpu-throttle-initial:i?,x-cpu-throttle-increment:i?",
         .mhandler.cmd_new = qmp_marshal_migrate_set_parameters,
     },
 SQMP
@@ -3726,6 +3743,10 @@ Query current migration parameters
          - "compress-level" : compression level value (json-int)
          - "compress-threads" : compression thread count value (json-int)
          - "decompress-threads" : decompression thread count value (json-int)
+         - "x-cpu-throttle-initial" : initial percentage of time guest cpus are
+                                      throttled (json-int)
+         - "x-cpu-throttle-increment" : throttle increasing percentage for
+                                        auto-converge (json-int)
 
 Arguments:
 
@@ -3734,9 +3755,11 @@ Example:
 -> { "execute": "query-migrate-parameters" }
 <- {
       "return": {
-         "decompress-threads", 2,
-         "compress-threads", 8,
-         "compress-level", 1
+         "decompress-threads": 2,
+         "x-cpu-throttle-increment": 10,
+         "compress-threads": 8,
+         "compress-level": 1,
+         "x-cpu-throttle-initial": 20
       }
    }
 

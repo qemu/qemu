@@ -133,7 +133,7 @@ struct MigrationState
     size_t xfer_limit;
     QemuThread thread;
     QEMUBH *cleanup_bh;
-    QEMUFile *file;
+    QEMUFile *to_dst_file;
     int parameters[MIGRATION_PARAMETER__MAX];
 
     int state;

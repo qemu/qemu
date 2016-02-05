@@ -3504,7 +3504,7 @@ void rdma_start_outgoing_migration(void *opaque,
 
     trace_rdma_start_outgoing_migration_after_rdma_connect();
 
-    s->file = qemu_fopen_rdma(rdma, "wb");
+    s->to_dst_file = qemu_fopen_rdma(rdma, "wb");
     migrate_fd_connect(s);
     return;
 err:
