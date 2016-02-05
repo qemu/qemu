@@ -196,6 +196,14 @@ static int mirror_cow_align(MirrorBlockJob *s,
     return ret;
 }
 
+static inline void mirror_wait_for_io(MirrorBlockJob *s)
+{
+    assert(!s->waiting_for_io);
+    s->waiting_for_io = true;
+    qemu_coroutine_yield();
+    s->waiting_for_io = false;
+}
+
 /* Submit async read while handling COW.
  * Returns: nb_sectors if no alignment is necessary, or
  *          (new_end - sector_num) if tail is rounded up or down due to
@@ -228,9 +236,7 @@ static int mirror_do_read(MirrorBlockJob *s, int64_t sector_num,
 
     while (s->buf_free_count < nb_chunks) {
         trace_mirror_yield_in_flight(s, sector_num, s->in_flight);
-        s->waiting_for_io = true;
-        qemu_coroutine_yield();
-        s->waiting_for_io = false;
+        mirror_wait_for_io(s);
     }
 
     /* Allocate a MirrorOp that is used as an AIO callback.  */
@@ -321,9 +327,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
                 break;
             }
             trace_mirror_yield_in_flight(s, next_sector, s->in_flight);
-            s->waiting_for_io = true;
-            qemu_coroutine_yield();
-            s->waiting_for_io = false;
+            mirror_wait_for_io(s);
             /* Now retry.  */
         } else {
             hbitmap_next = hbitmap_iter_next(&s->hbi);
@@ -414,9 +418,7 @@ static void mirror_free_init(MirrorBlockJob *s)
 static void mirror_drain(MirrorBlockJob *s)
 {
     while (s->in_flight > 0) {
-        s->waiting_for_io = true;
-        qemu_coroutine_yield();
-        s->waiting_for_io = false;
+        mirror_wait_for_io(s);
     }
 }
 
@@ -604,9 +606,7 @@ static void coroutine_fn mirror_run(void *opaque)
             if (s->in_flight == MAX_IN_FLIGHT || s->buf_free_count == 0 ||
                 (cnt == 0 && s->in_flight > 0)) {
                 trace_mirror_yield(s, s->in_flight, s->buf_free_count, cnt);
-                s->waiting_for_io = true;
-                qemu_coroutine_yield();
-                s->waiting_for_io = false;
+                mirror_wait_for_io(s);
                 continue;
             } else if (cnt != 0) {
                 delay_ns = mirror_iteration(s);
