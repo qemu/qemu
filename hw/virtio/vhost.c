@@ -749,6 +749,11 @@ static void vhost_log_stop(MemoryListener *listener,
     /* FIXME: implement */
 }
 
+/* The vhost driver natively knows how to handle the vrings of non
+ * cross-endian legacy devices and modern devices. Only legacy devices
+ * exposed to a bi-endian guest may require the vhost driver to use a
+ * specific endianness.
+ */
 static inline bool vhost_needs_vring_endian(VirtIODevice *vdev)
 {
     if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
@@ -756,9 +761,9 @@ static inline bool vhost_needs_vring_endian(VirtIODevice *vdev)
     }
 #ifdef TARGET_IS_BIENDIAN
 #ifdef HOST_WORDS_BIGENDIAN
-    return !virtio_is_big_endian(vdev);
+    return vdev->device_endian == VIRTIO_DEVICE_ENDIAN_LITTLE;
 #else
-    return virtio_is_big_endian(vdev);
+    return vdev->device_endian == VIRTIO_DEVICE_ENDIAN_BIG;
 #endif
 #else
     return false;
