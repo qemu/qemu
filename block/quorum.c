@@ -286,7 +286,8 @@ static void quorum_aio_cb(void *opaque, int ret)
 
     if (acb->is_read && s->read_pattern == QUORUM_READ_PATTERN_FIFO) {
         /* We try to read next child in FIFO order if we fail to read */
-        if (ret < 0 && ++acb->child_iter < s->num_children) {
+        if (ret < 0 && (acb->child_iter + 1) < s->num_children) {
+            acb->child_iter++;
             read_fifo_child(acb);
             return;
         }
