@@ -143,15 +143,6 @@ static inline uint64_t virtio_ldq_p(VirtIODevice *vdev, const void *ptr)
     }
 }
 
-static inline bool virtio_needs_swap(VirtIODevice *vdev)
-{
-#ifdef HOST_WORDS_BIGENDIAN
-    return virtio_access_is_big_endian(vdev) ? false : true;
-#else
-    return virtio_access_is_big_endian(vdev) ? true : false;
-#endif
-}
-
 static inline uint16_t virtio_tswap16(VirtIODevice *vdev, uint16_t s)
 {
 #ifdef HOST_WORDS_BIGENDIAN
