@@ -751,6 +751,9 @@ static void vhost_log_stop(MemoryListener *listener,
 
 static inline bool vhost_needs_vring_endian(VirtIODevice *vdev)
 {
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+        return false;
+    }
 #ifdef TARGET_IS_BIENDIAN
 #ifdef HOST_WORDS_BIGENDIAN
     return !virtio_is_big_endian(vdev);
@@ -812,8 +815,7 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
         return -errno;
     }
 
-    if (!virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1) &&
-        vhost_needs_vring_endian(vdev)) {
+    if (vhost_needs_vring_endian(vdev)) {
         r = vhost_virtqueue_set_vring_endian_legacy(dev,
                                                     virtio_is_big_endian(vdev),
                                                     vhost_vq_index);
@@ -909,8 +911,7 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
     /* In the cross-endian case, we need to reset the vring endianness to
      * native as legacy devices expect so by default.
      */
-    if (!virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1) &&
-        vhost_needs_vring_endian(vdev)) {
+    if (vhost_needs_vring_endian(vdev)) {
         r = vhost_virtqueue_set_vring_endian_legacy(dev,
                                                     !virtio_is_big_endian(vdev),
                                                     vhost_vq_index);
