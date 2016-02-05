@@ -749,6 +749,19 @@ static void vhost_log_stop(MemoryListener *listener,
     /* FIXME: implement */
 }
 
+static inline bool vhost_needs_vring_endian(VirtIODevice *vdev)
+{
+#ifdef TARGET_IS_BIENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
+    return !virtio_is_big_endian(vdev);
+#else
+    return virtio_is_big_endian(vdev);
+#endif
+#else
+    return false;
+#endif
+}
+
 static int vhost_virtqueue_set_vring_endian_legacy(struct vhost_dev *dev,
                                                    bool is_big_endian,
                                                    int vhost_vq_index)
@@ -800,7 +813,7 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
     }
 
     if (!virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1) &&
-        virtio_legacy_is_cross_endian(vdev)) {
+        vhost_needs_vring_endian(vdev)) {
         r = vhost_virtqueue_set_vring_endian_legacy(dev,
                                                     virtio_is_big_endian(vdev),
                                                     vhost_vq_index);
@@ -897,7 +910,7 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
      * native as legacy devices expect so by default.
      */
     if (!virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1) &&
-        virtio_legacy_is_cross_endian(vdev)) {
+        vhost_needs_vring_endian(vdev)) {
         r = vhost_virtqueue_set_vring_endian_legacy(dev,
                                                     !virtio_is_big_endian(vdev),
                                                     vhost_vq_index);
