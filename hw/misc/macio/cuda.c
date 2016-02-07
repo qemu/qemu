@@ -535,12 +535,46 @@ static void cuda_adb_poll(void *opaque)
                    (get_ticks_per_sec() / CUDA_ADB_POLL_FREQ));
 }
 
+/* description of commands */
+typedef struct CudaCommand {
+    uint8_t command;
+    const char *name;
+    bool (*handler)(CUDAState *s,
+                    const uint8_t *in_args, int in_len,
+                    uint8_t *out_args, int *out_len);
+} CudaCommand;
+
+static const CudaCommand handlers[] = {
+};
+
 static void cuda_receive_packet(CUDAState *s,
                                 const uint8_t *data, int len)
 {
     uint8_t obuf[16] = { CUDA_PACKET, 0, data[0] };
     int autopoll;
+    int i, out_len = 0;
     uint32_t ti;
+
+    for (i = 0; i < ARRAY_SIZE(handlers); i++) {
+        const CudaCommand *desc = &handlers[i];
+        if (desc->command == data[0]) {
+            CUDA_DPRINTF("handling command %s\n", desc->name);
+            out_len = 0;
+            if (desc->handler(s, data + 1, len - 1, obuf + 3, &out_len)) {
+                cuda_send_packet_to_host(s, obuf, 3 + out_len);
+            } else {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "CUDA: %s: wrong parameters %d\n",
+                              desc->name, len);
+                obuf[0] = ERROR_PACKET;
+                obuf[1] = 0x5; /* bad parameters */
+                obuf[2] = CUDA_PACKET;
+                obuf[3] = data[0];
+                cuda_send_packet_to_host(s, obuf, 4);
+            }
+            return;
+        }
+    }
 
     switch(data[0]) {
     case CUDA_AUTOPOLL:
