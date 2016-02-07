@@ -544,14 +544,38 @@ typedef struct CudaCommand {
                     uint8_t *out_args, int *out_len);
 } CudaCommand;
 
+static bool cuda_cmd_autopoll(CUDAState *s,
+                              const uint8_t *in_data, int in_len,
+                              uint8_t *out_data, int *out_len)
+{
+    int autopoll;
+
+    if (in_len != 1) {
+        return false;
+    }
+
+    autopoll = (in_data[0] != 0);
+    if (autopoll != s->autopoll) {
+        s->autopoll = autopoll;
+        if (autopoll) {
+            timer_mod(s->adb_poll_timer,
+                      qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                      (get_ticks_per_sec() / CUDA_ADB_POLL_FREQ));
+        } else {
+            timer_del(s->adb_poll_timer);
+        }
+    }
+    return true;
+}
+
 static const CudaCommand handlers[] = {
+    { CUDA_AUTOPOLL, "AUTOPOLL", cuda_cmd_autopoll },
 };
 
 static void cuda_receive_packet(CUDAState *s,
                                 const uint8_t *data, int len)
 {
     uint8_t obuf[16] = { CUDA_PACKET, 0, data[0] };
-    int autopoll;
     int i, out_len = 0;
     uint32_t ti;
 
@@ -577,20 +601,6 @@ static void cuda_receive_packet(CUDAState *s,
     }
 
     switch(data[0]) {
-    case CUDA_AUTOPOLL:
-        autopoll = (data[1] != 0);
-        if (autopoll != s->autopoll) {
-            s->autopoll = autopoll;
-            if (autopoll) {
-                timer_mod(s->adb_poll_timer,
-                               qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                               (get_ticks_per_sec() / CUDA_ADB_POLL_FREQ));
-            } else {
-                timer_del(s->adb_poll_timer);
-            }
-        }
-        cuda_send_packet_to_host(s, obuf, 3);
-        return;
     case CUDA_GET_6805_ADDR:
         cuda_send_packet_to_host(s, obuf, 3);
         return;
