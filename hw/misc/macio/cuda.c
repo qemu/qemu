@@ -602,10 +602,23 @@ static bool cuda_cmd_set_device_list(CUDAState *s,
     return true;
 }
 
+static bool cuda_cmd_powerdown(CUDAState *s,
+                               const uint8_t *in_data, int in_len,
+                               uint8_t *out_data, int *out_len)
+{
+    if (in_len != 0) {
+        return false;
+    }
+
+    qemu_system_shutdown_request();
+    return true;
+}
+
 static const CudaCommand handlers[] = {
     { CUDA_AUTOPOLL, "AUTOPOLL", cuda_cmd_autopoll },
     { CUDA_SET_AUTO_RATE, "SET_AUTO_RATE",  cuda_cmd_set_autorate },
     { CUDA_SET_DEVICE_LIST, "SET_DEVICE_LIST", cuda_cmd_set_device_list },
+    { CUDA_POWERDOWN, "POWERDOWN", cuda_cmd_powerdown },
 };
 
 static void cuda_receive_packet(CUDAState *s,
@@ -656,10 +669,6 @@ static void cuda_receive_packet(CUDAState *s,
     case CUDA_FILE_SERVER_FLAG:
     case CUDA_SET_POWER_MESSAGES:
         cuda_send_packet_to_host(s, obuf, 3);
-        return;
-    case CUDA_POWERDOWN:
-        cuda_send_packet_to_host(s, obuf, 3);
-        qemu_system_shutdown_request();
         return;
     case CUDA_RESET_SYSTEM:
         cuda_send_packet_to_host(s, obuf, 3);
