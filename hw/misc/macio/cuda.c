@@ -590,15 +590,15 @@ static void cuda_receive_packet(CUDAState *s,
             }
         }
         cuda_send_packet_to_host(s, obuf, 3);
-        break;
+        return;
     case CUDA_GET_6805_ADDR:
         cuda_send_packet_to_host(s, obuf, 3);
-        break;
+        return;
     case CUDA_SET_TIME:
         ti = (((uint32_t)data[1]) << 24) + (((uint32_t)data[2]) << 16) + (((uint32_t)data[3]) << 8) + data[4];
         s->tick_offset = ti - (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / get_ticks_per_sec());
         cuda_send_packet_to_host(s, obuf, 3);
-        break;
+        return;
     case CUDA_GET_TIME:
         ti = s->tick_offset + (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / get_ticks_per_sec());
         obuf[3] = ti >> 24;
@@ -606,28 +606,28 @@ static void cuda_receive_packet(CUDAState *s,
         obuf[5] = ti >> 8;
         obuf[6] = ti;
         cuda_send_packet_to_host(s, obuf, 7);
-        break;
+        return;
     case CUDA_FILE_SERVER_FLAG:
     case CUDA_SET_DEVICE_LIST:
     case CUDA_SET_AUTO_RATE:
     case CUDA_SET_POWER_MESSAGES:
         cuda_send_packet_to_host(s, obuf, 3);
-        break;
+        return;
     case CUDA_POWERDOWN:
         cuda_send_packet_to_host(s, obuf, 3);
         qemu_system_shutdown_request();
-        break;
+        return;
     case CUDA_RESET_SYSTEM:
         cuda_send_packet_to_host(s, obuf, 3);
         qemu_system_reset_request();
-        break;
+        return;
     case CUDA_COMBINED_FORMAT_IIC:
         obuf[0] = ERROR_PACKET;
         obuf[1] = 0x5;
         obuf[2] = CUDA_PACKET;
         obuf[3] = data[0];
         cuda_send_packet_to_host(s, obuf, 4);
-        break;
+        return;
     case CUDA_GET_SET_IIC:
         if (len == 4) {
             cuda_send_packet_to_host(s, obuf, 3);
@@ -638,15 +638,17 @@ static void cuda_receive_packet(CUDAState *s,
             obuf[3] = data[0];
             cuda_send_packet_to_host(s, obuf, 4);
         }
-        break;
+        return;
     default:
-        obuf[0] = ERROR_PACKET;
-        obuf[1] = 0x2;
-        obuf[2] = CUDA_PACKET;
-        obuf[3] = data[0];
-        cuda_send_packet_to_host(s, obuf, 4);
         break;
     }
+
+    qemu_log_mask(LOG_GUEST_ERROR, "CUDA: unknown command 0x%02x\n", data[0]);
+    obuf[0] = ERROR_PACKET;
+    obuf[1] = 0x2; /* unknown command */
+    obuf[2] = CUDA_PACKET;
+    obuf[3] = data[0];
+    cuda_send_packet_to_host(s, obuf, 4);
 }
 
 static void cuda_receive_packet_from_host(CUDAState *s,
