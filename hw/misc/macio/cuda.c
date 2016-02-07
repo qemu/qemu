@@ -654,6 +654,26 @@ static bool cuda_cmd_set_power_message(CUDAState *s,
     return true;
 }
 
+static bool cuda_cmd_get_time(CUDAState *s,
+                              const uint8_t *in_data, int in_len,
+                              uint8_t *out_data, int *out_len)
+{
+    uint32_t ti;
+
+    if (in_len != 0) {
+        return false;
+    }
+
+    ti = s->tick_offset + (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)
+                           / get_ticks_per_sec());
+    out_data[0] = ti >> 24;
+    out_data[1] = ti >> 16;
+    out_data[2] = ti >> 8;
+    out_data[3] = ti;
+    *out_len = 4;
+    return true;
+}
+
 static const CudaCommand handlers[] = {
     { CUDA_AUTOPOLL, "AUTOPOLL", cuda_cmd_autopoll },
     { CUDA_SET_AUTO_RATE, "SET_AUTO_RATE",  cuda_cmd_set_autorate },
@@ -664,6 +684,7 @@ static const CudaCommand handlers[] = {
       cuda_cmd_set_file_server_flag },
     { CUDA_SET_POWER_MESSAGES, "SET_POWER_MESSAGES",
       cuda_cmd_set_power_message },
+    { CUDA_GET_TIME, "GET_TIME", cuda_cmd_get_time },
 };
 
 static void cuda_receive_packet(CUDAState *s,
@@ -702,14 +723,6 @@ static void cuda_receive_packet(CUDAState *s,
         ti = (((uint32_t)data[1]) << 24) + (((uint32_t)data[2]) << 16) + (((uint32_t)data[3]) << 8) + data[4];
         s->tick_offset = ti - (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / get_ticks_per_sec());
         cuda_send_packet_to_host(s, obuf, 3);
-        return;
-    case CUDA_GET_TIME:
-        ti = s->tick_offset + (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / get_ticks_per_sec());
-        obuf[3] = ti >> 24;
-        obuf[4] = ti >> 16;
-        obuf[5] = ti >> 8;
-        obuf[6] = ti;
-        cuda_send_packet_to_host(s, obuf, 7);
         return;
     case CUDA_COMBINED_FORMAT_IIC:
         obuf[0] = ERROR_PACKET;
