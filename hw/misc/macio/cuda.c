@@ -674,6 +674,23 @@ static bool cuda_cmd_get_time(CUDAState *s,
     return true;
 }
 
+static bool cuda_cmd_set_time(CUDAState *s,
+                              const uint8_t *in_data, int in_len,
+                              uint8_t *out_data, int *out_len)
+{
+    uint32_t ti;
+
+    if (in_len != 4) {
+        return false;
+    }
+
+    ti = (((uint32_t)in_data[1]) << 24) + (((uint32_t)in_data[2]) << 16)
+         + (((uint32_t)in_data[3]) << 8) + in_data[4];
+    s->tick_offset = ti - (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)
+                           / get_ticks_per_sec());
+    return true;
+}
+
 static const CudaCommand handlers[] = {
     { CUDA_AUTOPOLL, "AUTOPOLL", cuda_cmd_autopoll },
     { CUDA_SET_AUTO_RATE, "SET_AUTO_RATE",  cuda_cmd_set_autorate },
@@ -685,6 +702,7 @@ static const CudaCommand handlers[] = {
     { CUDA_SET_POWER_MESSAGES, "SET_POWER_MESSAGES",
       cuda_cmd_set_power_message },
     { CUDA_GET_TIME, "GET_TIME", cuda_cmd_get_time },
+    { CUDA_SET_TIME, "SET_TIME", cuda_cmd_set_time },
 };
 
 static void cuda_receive_packet(CUDAState *s,
@@ -692,7 +710,6 @@ static void cuda_receive_packet(CUDAState *s,
 {
     uint8_t obuf[16] = { CUDA_PACKET, 0, data[0] };
     int i, out_len = 0;
-    uint32_t ti;
 
     for (i = 0; i < ARRAY_SIZE(handlers); i++) {
         const CudaCommand *desc = &handlers[i];
@@ -717,11 +734,6 @@ static void cuda_receive_packet(CUDAState *s,
 
     switch(data[0]) {
     case CUDA_GET_6805_ADDR:
-        cuda_send_packet_to_host(s, obuf, 3);
-        return;
-    case CUDA_SET_TIME:
-        ti = (((uint32_t)data[1]) << 24) + (((uint32_t)data[2]) << 16) + (((uint32_t)data[3]) << 8) + data[4];
-        s->tick_offset = ti - (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / get_ticks_per_sec());
         cuda_send_packet_to_host(s, obuf, 3);
         return;
     case CUDA_COMBINED_FORMAT_IIC:
