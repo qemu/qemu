@@ -732,29 +732,6 @@ static void cuda_receive_packet(CUDAState *s,
         }
     }
 
-    switch(data[0]) {
-    case CUDA_COMBINED_FORMAT_IIC:
-        obuf[0] = ERROR_PACKET;
-        obuf[1] = 0x5;
-        obuf[2] = CUDA_PACKET;
-        obuf[3] = data[0];
-        cuda_send_packet_to_host(s, obuf, 4);
-        return;
-    case CUDA_GET_SET_IIC:
-        if (len == 4) {
-            cuda_send_packet_to_host(s, obuf, 3);
-        } else {
-            obuf[0] = ERROR_PACKET;
-            obuf[1] = 0x2;
-            obuf[2] = CUDA_PACKET;
-            obuf[3] = data[0];
-            cuda_send_packet_to_host(s, obuf, 4);
-        }
-        return;
-    default:
-        break;
-    }
-
     qemu_log_mask(LOG_GUEST_ERROR, "CUDA: unknown command 0x%02x\n", data[0]);
     obuf[0] = ERROR_PACKET;
     obuf[1] = 0x2; /* unknown command */
