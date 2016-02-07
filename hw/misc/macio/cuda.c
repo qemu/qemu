@@ -640,6 +640,20 @@ static bool cuda_cmd_set_file_server_flag(CUDAState *s,
     return true;
 }
 
+static bool cuda_cmd_set_power_message(CUDAState *s,
+                                       const uint8_t *in_data, int in_len,
+                                       uint8_t *out_data, int *out_len)
+{
+    if (in_len != 1) {
+        return false;
+    }
+
+    qemu_log_mask(LOG_UNIMP,
+                  "CUDA: unimplemented command SET_POWER_MESSAGE %d\n",
+                  in_data[0]);
+    return true;
+}
+
 static const CudaCommand handlers[] = {
     { CUDA_AUTOPOLL, "AUTOPOLL", cuda_cmd_autopoll },
     { CUDA_SET_AUTO_RATE, "SET_AUTO_RATE",  cuda_cmd_set_autorate },
@@ -648,6 +662,8 @@ static const CudaCommand handlers[] = {
     { CUDA_RESET_SYSTEM, "RESET_SYSTEM", cuda_cmd_reset_system },
     { CUDA_FILE_SERVER_FLAG, "FILE_SERVER_FLAG",
       cuda_cmd_set_file_server_flag },
+    { CUDA_SET_POWER_MESSAGES, "SET_POWER_MESSAGES",
+      cuda_cmd_set_power_message },
 };
 
 static void cuda_receive_packet(CUDAState *s,
@@ -694,9 +710,6 @@ static void cuda_receive_packet(CUDAState *s,
         obuf[5] = ti >> 8;
         obuf[6] = ti;
         cuda_send_packet_to_host(s, obuf, 7);
-        return;
-    case CUDA_SET_POWER_MESSAGES:
-        cuda_send_packet_to_host(s, obuf, 3);
         return;
     case CUDA_COMBINED_FORMAT_IIC:
         obuf[0] = ERROR_PACKET;
