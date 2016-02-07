@@ -106,7 +106,6 @@
 #define CUDA_COMBINED_FORMAT_IIC	0x25
 
 #define CUDA_TIMER_FREQ (4700000 / 6)
-#define CUDA_ADB_POLL_FREQ 50
 
 /* CUDA returns time_t's offset from Jan 1, 1904, not 1970 */
 #define RTC_OFFSET                      2082844800
@@ -532,7 +531,7 @@ static void cuda_adb_poll(void *opaque)
     }
     timer_mod(s->adb_poll_timer,
                    qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                   (get_ticks_per_sec() / CUDA_ADB_POLL_FREQ));
+                   (get_ticks_per_sec() / (1000 / s->autopoll_rate_ms)));
 }
 
 /* description of commands */
@@ -560,7 +559,7 @@ static bool cuda_cmd_autopoll(CUDAState *s,
         if (autopoll) {
             timer_mod(s->adb_poll_timer,
                       qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                      (get_ticks_per_sec() / CUDA_ADB_POLL_FREQ));
+                      (get_ticks_per_sec() / (1000 / s->autopoll_rate_ms)));
         } else {
             timer_del(s->adb_poll_timer);
         }
@@ -568,8 +567,32 @@ static bool cuda_cmd_autopoll(CUDAState *s,
     return true;
 }
 
+static bool cuda_cmd_set_autorate(CUDAState *s,
+                                  const uint8_t *in_data, int in_len,
+                                  uint8_t *out_data, int *out_len)
+{
+    if (in_len != 1) {
+        return false;
+    }
+
+    /* we don't want a period of 0 ms */
+    /* FIXME: check what real hardware does */
+    if (in_data[0] == 0) {
+        return false;
+    }
+
+    s->autopoll_rate_ms = in_data[0];
+    if (s->autopoll) {
+        timer_mod(s->adb_poll_timer,
+                  qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                  (get_ticks_per_sec() / (1000 / s->autopoll_rate_ms)));
+    }
+    return true;
+}
+
 static const CudaCommand handlers[] = {
     { CUDA_AUTOPOLL, "AUTOPOLL", cuda_cmd_autopoll },
+    { CUDA_SET_AUTO_RATE, "SET_AUTO_RATE",  cuda_cmd_set_autorate },
 };
 
 static void cuda_receive_packet(CUDAState *s,
@@ -619,7 +642,6 @@ static void cuda_receive_packet(CUDAState *s,
         return;
     case CUDA_FILE_SERVER_FLAG:
     case CUDA_SET_DEVICE_LIST:
-    case CUDA_SET_AUTO_RATE:
     case CUDA_SET_POWER_MESSAGES:
         cuda_send_packet_to_host(s, obuf, 3);
         return;
@@ -756,8 +778,8 @@ static const VMStateDescription vmstate_cuda_timer = {
 
 static const VMStateDescription vmstate_cuda = {
     .name = "cuda",
-    .version_id = 3,
-    .minimum_version_id = 3,
+    .version_id = 4,
+    .minimum_version_id = 4,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(a, CUDAState),
         VMSTATE_UINT8(b, CUDAState),
@@ -775,6 +797,7 @@ static const VMStateDescription vmstate_cuda = {
         VMSTATE_INT32(data_in_index, CUDAState),
         VMSTATE_INT32(data_out_index, CUDAState),
         VMSTATE_UINT8(autopoll, CUDAState),
+        VMSTATE_UINT8(autopoll_rate_ms, CUDAState),
         VMSTATE_BUFFER(data_in, CUDAState),
         VMSTATE_BUFFER(data_out, CUDAState),
         VMSTATE_UINT32(tick_offset, CUDAState),
@@ -828,6 +851,7 @@ static void cuda_realizefn(DeviceState *dev, Error **errp)
     s->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
 
     s->adb_poll_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cuda_adb_poll, s);
+    s->autopoll_rate_ms = 20;
 }
 
 static void cuda_initfn(Object *obj)

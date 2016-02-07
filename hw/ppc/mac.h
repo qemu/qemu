@@ -111,6 +111,7 @@ typedef struct CUDAState {
     int data_out_index;
 
     qemu_irq irq;
+    uint8_t autopoll_rate_ms;
     uint8_t autopoll;
     uint8_t data_in[128];
     uint8_t data_out[16];
