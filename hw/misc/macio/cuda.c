@@ -523,7 +523,7 @@ static void cuda_adb_poll(void *opaque)
     uint8_t obuf[ADB_MAX_OUT_LEN + 2];
     int olen;
 
-    olen = adb_poll(&s->adb_bus, obuf + 2);
+    olen = adb_poll(&s->adb_bus, obuf + 2, s->adb_poll_mask);
     if (olen > 0) {
         obuf[0] = ADB_PACKET;
         obuf[1] = 0x40; /* polled data */
@@ -590,9 +590,22 @@ static bool cuda_cmd_set_autorate(CUDAState *s,
     return true;
 }
 
+static bool cuda_cmd_set_device_list(CUDAState *s,
+                                     const uint8_t *in_data, int in_len,
+                                     uint8_t *out_data, int *out_len)
+{
+    if (in_len != 2) {
+        return false;
+    }
+
+    s->adb_poll_mask = (((uint16_t)in_data[0]) << 8) | in_data[1];
+    return true;
+}
+
 static const CudaCommand handlers[] = {
     { CUDA_AUTOPOLL, "AUTOPOLL", cuda_cmd_autopoll },
     { CUDA_SET_AUTO_RATE, "SET_AUTO_RATE",  cuda_cmd_set_autorate },
+    { CUDA_SET_DEVICE_LIST, "SET_DEVICE_LIST", cuda_cmd_set_device_list },
 };
 
 static void cuda_receive_packet(CUDAState *s,
@@ -641,7 +654,6 @@ static void cuda_receive_packet(CUDAState *s,
         cuda_send_packet_to_host(s, obuf, 7);
         return;
     case CUDA_FILE_SERVER_FLAG:
-    case CUDA_SET_DEVICE_LIST:
     case CUDA_SET_POWER_MESSAGES:
         cuda_send_packet_to_host(s, obuf, 3);
         return;
@@ -798,6 +810,7 @@ static const VMStateDescription vmstate_cuda = {
         VMSTATE_INT32(data_out_index, CUDAState),
         VMSTATE_UINT8(autopoll, CUDAState),
         VMSTATE_UINT8(autopoll_rate_ms, CUDAState),
+        VMSTATE_UINT16(adb_poll_mask, CUDAState),
         VMSTATE_BUFFER(data_in, CUDAState),
         VMSTATE_BUFFER(data_out, CUDAState),
         VMSTATE_UINT32(tick_offset, CUDAState),
@@ -852,6 +865,7 @@ static void cuda_realizefn(DeviceState *dev, Error **errp)
 
     s->adb_poll_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cuda_adb_poll, s);
     s->autopoll_rate_ms = 20;
+    s->adb_poll_mask = 0xffff;
 }
 
 static void cuda_initfn(Object *obj)
