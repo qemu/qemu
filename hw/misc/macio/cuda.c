@@ -733,9 +733,6 @@ static void cuda_receive_packet(CUDAState *s,
     }
 
     switch(data[0]) {
-    case CUDA_GET_6805_ADDR:
-        cuda_send_packet_to_host(s, obuf, 3);
-        return;
     case CUDA_COMBINED_FORMAT_IIC:
         obuf[0] = ERROR_PACKET;
         obuf[1] = 0x5;
