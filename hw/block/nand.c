@@ -18,8 +18,9 @@
 
 #ifndef NAND_IO
 
-# include "hw/hw.h"
-# include "hw/block/flash.h"
+#include "qemu/osdep.h"
+#include "hw/hw.h"
+#include "hw/block/flash.h"
 #include "sysemu/block-backend.h"
 #include "hw/qdev.h"
 #include "qemu/error-report.h"
