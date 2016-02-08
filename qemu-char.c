@@ -2858,6 +2858,10 @@ static void tcp_chr_update_read_handler(CharDriverState *chr)
 {
     TCPCharDriver *s = chr->opaque;
 
+    if (!s->connected) {
+        return;
+    }
+
     remove_fd_in_watch(chr);
     if (s->ioc) {
         chr->fd_in_tag = io_add_watch_poll(s->ioc,
