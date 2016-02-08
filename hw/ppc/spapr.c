@@ -1024,6 +1024,32 @@ static void emulate_spapr_hypercall(PowerPCCPU *cpu)
 #define CLEAN_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) &= tswap64(~HPTE64_V_HPTE_DIRTY))
 #define DIRTY_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) |= tswap64(HPTE64_V_HPTE_DIRTY))
 
+/*
+ * Get the fd to access the kernel htab, re-opening it if necessary
+ */
+static int get_htab_fd(sPAPRMachineState *spapr)
+{
+    if (spapr->htab_fd >= 0) {
+        return spapr->htab_fd;
+    }
+
+    spapr->htab_fd = kvmppc_get_htab_fd(false);
+    if (spapr->htab_fd < 0) {
+        error_report("Unable to open fd for reading hash table from KVM: %s",
+                     strerror(errno));
+    }
+
+    return spapr->htab_fd;
+}
+
+static void close_htab_fd(sPAPRMachineState *spapr)
+{
+    if (spapr->htab_fd >= 0) {
+        close(spapr->htab_fd);
+    }
+    spapr->htab_fd = -1;
+}
+
 static void spapr_alloc_htab(sPAPRMachineState *spapr)
 {
     long shift;
@@ -1085,10 +1111,7 @@ static void spapr_reset_htab(sPAPRMachineState *spapr)
             error_setg(&error_abort, "Requested HTAB allocation failed during reset");
         }
 
-        /* Tell readers to update their file descriptor */
-        if (spapr->htab_fd >= 0) {
-            spapr->htab_fd_stale = true;
-        }
+        close_htab_fd(spapr);
     } else {
         memset(spapr->htab, 0, HTAB_SIZE(spapr));
 
@@ -1119,28 +1142,6 @@ static int find_unknown_sysbus_device(SysBusDevice *sbdev, void *opaque)
     }
 
     return 0;
-}
-
-/*
- * A guest reset will cause spapr->htab_fd to become stale if being used.
- * Reopen the file descriptor to make sure the whole HTAB is properly read.
- */
-static int spapr_check_htab_fd(sPAPRMachineState *spapr)
-{
-    int rc = 0;
-
-    if (spapr->htab_fd_stale) {
-        close(spapr->htab_fd);
-        spapr->htab_fd = kvmppc_get_htab_fd(false);
-        if (spapr->htab_fd < 0) {
-            error_report("Unable to open fd for reading hash table from KVM: "
-                         "%s", strerror(errno));
-            rc = -1;
-        }
-        spapr->htab_fd_stale = false;
-    }
-
-    return rc;
 }
 
 static void ppc_spapr_reset(void)
@@ -1313,14 +1314,6 @@ static int htab_save_setup(QEMUFile *f, void *opaque)
         spapr->htab_first_pass = true;
     } else {
         assert(kvm_enabled());
-
-        spapr->htab_fd = kvmppc_get_htab_fd(false);
-        spapr->htab_fd_stale = false;
-        if (spapr->htab_fd < 0) {
-            fprintf(stderr, "Unable to open fd for reading hash table from KVM: %s\n",
-                    strerror(errno));
-            return -1;
-        }
     }
 
 
@@ -1460,6 +1453,7 @@ static int htab_save_later_pass(QEMUFile *f, sPAPRMachineState *spapr,
 static int htab_save_iterate(QEMUFile *f, void *opaque)
 {
     sPAPRMachineState *spapr = opaque;
+    int fd;
     int rc = 0;
 
     /* Iteration header */
@@ -1468,13 +1462,12 @@ static int htab_save_iterate(QEMUFile *f, void *opaque)
     if (!spapr->htab) {
         assert(kvm_enabled());
 
-        rc = spapr_check_htab_fd(spapr);
-        if (rc < 0) {
-            return rc;
+        fd = get_htab_fd(spapr);
+        if (fd < 0) {
+            return fd;
         }
 
-        rc = kvmppc_save_htab(f, spapr->htab_fd,
-                              MAX_KVM_BUF_SIZE, MAX_ITERATION_NS);
+        rc = kvmppc_save_htab(f, fd, MAX_KVM_BUF_SIZE, MAX_ITERATION_NS);
         if (rc < 0) {
             return rc;
         }
@@ -1495,6 +1488,7 @@ static int htab_save_iterate(QEMUFile *f, void *opaque)
 static int htab_save_complete(QEMUFile *f, void *opaque)
 {
     sPAPRMachineState *spapr = opaque;
+    int fd;
 
     /* Iteration header */
     qemu_put_be32(f, 0);
@@ -1504,17 +1498,16 @@ static int htab_save_complete(QEMUFile *f, void *opaque)
 
         assert(kvm_enabled());
 
-        rc = spapr_check_htab_fd(spapr);
-        if (rc < 0) {
-            return rc;
+        fd = get_htab_fd(spapr);
+        if (fd < 0) {
+            return fd;
         }
 
-        rc = kvmppc_save_htab(f, spapr->htab_fd, MAX_KVM_BUF_SIZE, -1);
+        rc = kvmppc_save_htab(f, fd, MAX_KVM_BUF_SIZE, -1);
         if (rc < 0) {
             return rc;
         }
-        close(spapr->htab_fd);
-        spapr->htab_fd = -1;
+        close_htab_fd(spapr);
     } else {
         htab_save_later_pass(f, spapr, -1);
     }
@@ -2125,6 +2118,9 @@ static void spapr_set_kvm_type(Object *obj, const char *value, Error **errp)
 
 static void spapr_machine_initfn(Object *obj)
 {
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    spapr->htab_fd = -1;
     object_property_add_str(obj, "kvm-type",
                             spapr_get_kvm_type, spapr_set_kvm_type, NULL);
     object_property_set_description(obj, "kvm-type",

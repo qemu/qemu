@@ -72,7 +72,6 @@ struct sPAPRMachineState {
     int htab_save_index;
     bool htab_first_pass;
     int htab_fd;
-    bool htab_fd_stale;
 
     /* RTAS state */
     QTAILQ_HEAD(, sPAPRConfigureConnectorState) ccs_list;
