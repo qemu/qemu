@@ -394,7 +394,7 @@ build_spcr(GArray *table_data, GArray *linker, VirtGuestInfo *guest_info)
     spcr->pci_vendor_id = 0xffff;  /* PCI Vendor ID: not a PCI device */
 
     build_header(linker, table_data, (void *)spcr, "SPCR", sizeof(*spcr), 2,
-                 NULL);
+                 NULL, NULL);
 }
 
 static void
@@ -413,7 +413,7 @@ build_mcfg(GArray *table_data, GArray *linker, VirtGuestInfo *guest_info)
     mcfg->allocation[0].end_bus_number = (memmap[VIRT_PCIE_ECAM].size
                                           / PCIE_MMCFG_SIZE_MIN) - 1;
 
-    build_header(linker, table_data, (void *)mcfg, "MCFG", len, 1, NULL);
+    build_header(linker, table_data, (void *)mcfg, "MCFG", len, 1, NULL, NULL);
 }
 
 /* GTDT */
@@ -439,7 +439,7 @@ build_gtdt(GArray *table_data, GArray *linker)
 
     build_header(linker, table_data,
                  (void *)(table_data->data + gtdt_start), "GTDT",
-                 table_data->len - gtdt_start, 2, NULL);
+                 table_data->len - gtdt_start, 2, NULL, NULL);
 }
 
 /* MADT */
@@ -498,7 +498,7 @@ build_madt(GArray *table_data, GArray *linker, VirtGuestInfo *guest_info)
 
     build_header(linker, table_data,
                  (void *)(table_data->data + madt_start), "APIC",
-                 table_data->len - madt_start, 3, NULL);
+                 table_data->len - madt_start, 3, NULL, NULL);
 }
 
 /* FADT */
@@ -523,7 +523,7 @@ build_fadt(GArray *table_data, GArray *linker, unsigned dsdt)
                                    sizeof fadt->dsdt);
 
     build_header(linker, table_data,
-                 (void *)fadt, "FACP", sizeof(*fadt), 5, NULL);
+                 (void *)fadt, "FACP", sizeof(*fadt), 5, NULL, NULL);
 }
 
 /* DSDT */
@@ -562,7 +562,7 @@ build_dsdt(GArray *table_data, GArray *linker, VirtGuestInfo *guest_info)
     g_array_append_vals(table_data, dsdt->buf->data, dsdt->buf->len);
     build_header(linker, table_data,
         (void *)(table_data->data + table_data->len - dsdt->buf->len),
-        "DSDT", dsdt->buf->len, 2, NULL);
+        "DSDT", dsdt->buf->len, 2, NULL, NULL);
     free_aml_allocator();
 }
 
@@ -623,7 +623,7 @@ void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
 
     /* RSDT is pointed to by RSDP */
     rsdt = tables_blob->len;
-    build_rsdt(tables_blob, tables->linker, table_offsets);
+    build_rsdt(tables_blob, tables->linker, table_offsets, NULL, NULL);
 
     /* RSDP is in FSEG memory, so allocate it separately */
     build_rsdp(tables->rsdp, tables->linker, rsdt);

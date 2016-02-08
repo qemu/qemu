@@ -1156,18 +1156,12 @@ typedef struct PcRomPciInfo {
     uint64_t w64_max;
 } PcRomPciInfo;
 
-typedef struct PcGuestInfoState {
-    PcGuestInfo info;
-    Notifier machine_done;
-} PcGuestInfoState;
-
 static
-void pc_guest_info_machine_done(Notifier *notifier, void *data)
+void pc_machine_done(Notifier *notifier, void *data)
 {
-    PcGuestInfoState *guest_info_state = container_of(notifier,
-                                                      PcGuestInfoState,
-                                                      machine_done);
-    PCIBus *bus = PC_MACHINE(qdev_get_machine())->bus;
+    PCMachineState *pcms = container_of(notifier,
+                                        PCMachineState, machine_done);
+    PCIBus *bus = pcms->bus;
 
     if (bus) {
         int extra_hosts = 0;
@@ -1178,51 +1172,46 @@ void pc_guest_info_machine_done(Notifier *notifier, void *data)
                 extra_hosts++;
             }
         }
-        if (extra_hosts && guest_info_state->info.fw_cfg) {
+        if (extra_hosts && pcms->fw_cfg) {
             uint64_t *val = g_malloc(sizeof(*val));
             *val = cpu_to_le64(extra_hosts);
-            fw_cfg_add_file(guest_info_state->info.fw_cfg,
+            fw_cfg_add_file(pcms->fw_cfg,
                     "etc/extra-pci-roots", val, sizeof(*val));
         }
     }
 
-    acpi_setup(&guest_info_state->info);
+    acpi_setup();
 }
 
-PcGuestInfo *pc_guest_info_init(PCMachineState *pcms)
+void pc_guest_info_init(PCMachineState *pcms)
 {
-    PcGuestInfoState *guest_info_state = g_malloc0(sizeof *guest_info_state);
-    PcGuestInfo *guest_info = &guest_info_state->info;
     int i, j;
 
-    guest_info->ram_size_below_4g = pcms->below_4g_mem_size;
-    guest_info->ram_size = pcms->below_4g_mem_size + pcms->above_4g_mem_size;
-    guest_info->apic_id_limit = pc_apic_id_limit(max_cpus);
-    guest_info->apic_xrupt_override = kvm_allows_irq0_override();
-    guest_info->numa_nodes = nb_numa_nodes;
-    guest_info->node_mem = g_malloc0(guest_info->numa_nodes *
-                                    sizeof *guest_info->node_mem);
+    pcms->apic_id_limit = pc_apic_id_limit(max_cpus);
+    pcms->apic_xrupt_override = kvm_allows_irq0_override();
+    pcms->numa_nodes = nb_numa_nodes;
+    pcms->node_mem = g_malloc0(pcms->numa_nodes *
+                                    sizeof *pcms->node_mem);
     for (i = 0; i < nb_numa_nodes; i++) {
-        guest_info->node_mem[i] = numa_info[i].node_mem;
+        pcms->node_mem[i] = numa_info[i].node_mem;
     }
 
-    guest_info->node_cpu = g_malloc0(guest_info->apic_id_limit *
-                                     sizeof *guest_info->node_cpu);
+    pcms->node_cpu = g_malloc0(pcms->apic_id_limit *
+                                     sizeof *pcms->node_cpu);
 
     for (i = 0; i < max_cpus; i++) {
         unsigned int apic_id = x86_cpu_apic_id_from_index(i);
-        assert(apic_id < guest_info->apic_id_limit);
+        assert(apic_id < pcms->apic_id_limit);
         for (j = 0; j < nb_numa_nodes; j++) {
             if (test_bit(i, numa_info[j].node_cpu)) {
-                guest_info->node_cpu[apic_id] = j;
+                pcms->node_cpu[apic_id] = j;
                 break;
             }
         }
     }
 
-    guest_info_state->machine_done.notify = pc_guest_info_machine_done;
-    qemu_add_machine_init_done_notifier(&guest_info_state->machine_done);
-    return guest_info;
+    pcms->machine_done.notify = pc_machine_done;
+    qemu_add_machine_init_done_notifier(&pcms->machine_done);
 }
 
 /* setup pci memory address space mapping into system address space */
@@ -1262,8 +1251,7 @@ void pc_acpi_init(const char *default_dsdt)
     }
 }
 
-FWCfgState *xen_load_linux(PCMachineState *pcms,
-                           PcGuestInfo *guest_info)
+void xen_load_linux(PCMachineState *pcms)
 {
     int i;
     FWCfgState *fw_cfg;
@@ -1279,15 +1267,13 @@ FWCfgState *xen_load_linux(PCMachineState *pcms,
                !strcmp(option_rom[i].name, "multiboot.bin"));
         rom_add_option(option_rom[i].name, option_rom[i].bootindex);
     }
-    guest_info->fw_cfg = fw_cfg;
-    return fw_cfg;
+    pcms->fw_cfg = fw_cfg;
 }
 
-FWCfgState *pc_memory_init(PCMachineState *pcms,
-                           MemoryRegion *system_memory,
-                           MemoryRegion *rom_memory,
-                           MemoryRegion **ram_memory,
-                           PcGuestInfo *guest_info)
+void pc_memory_init(PCMachineState *pcms,
+                    MemoryRegion *system_memory,
+                    MemoryRegion *rom_memory,
+                    MemoryRegion **ram_memory)
 {
     int linux_boot, i;
     MemoryRegion *ram, *option_rom_mr;
@@ -1324,7 +1310,7 @@ FWCfgState *pc_memory_init(PCMachineState *pcms,
         e820_add_entry(0x100000000ULL, pcms->above_4g_mem_size, E820_RAM);
     }
 
-    if (!guest_info->has_reserved_memory &&
+    if (!pcmc->has_reserved_memory &&
         (machine->ram_slots ||
          (machine->maxram_size > machine->ram_size))) {
         MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -1335,7 +1321,7 @@ FWCfgState *pc_memory_init(PCMachineState *pcms,
     }
 
     /* initialize hotplug memory address space */
-    if (guest_info->has_reserved_memory &&
+    if (pcmc->has_reserved_memory &&
         (machine->ram_size < machine->maxram_size)) {
         ram_addr_t hotplug_mem_size =
             machine->maxram_size - machine->ram_size;
@@ -1375,7 +1361,7 @@ FWCfgState *pc_memory_init(PCMachineState *pcms,
     }
 
     /* Initialize PC system firmware */
-    pc_system_firmware_init(rom_memory, guest_info->isapc_ram_fw);
+    pc_system_firmware_init(rom_memory, !pcmc->pci_enabled);
 
     option_rom_mr = g_malloc(sizeof(*option_rom_mr));
     memory_region_init_ram(option_rom_mr, NULL, "pc.rom", PC_ROM_SIZE,
@@ -1390,7 +1376,7 @@ FWCfgState *pc_memory_init(PCMachineState *pcms,
 
     rom_set_fw(fw_cfg);
 
-    if (guest_info->has_reserved_memory && pcms->hotplug_memory.base) {
+    if (pcmc->has_reserved_memory && pcms->hotplug_memory.base) {
         uint64_t *val = g_malloc(sizeof(*val));
         PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
         uint64_t res_mem_end = pcms->hotplug_memory.base;
@@ -1409,8 +1395,7 @@ FWCfgState *pc_memory_init(PCMachineState *pcms,
     for (i = 0; i < nb_option_roms; i++) {
         rom_add_option(option_rom[i].name, option_rom[i].bootindex);
     }
-    guest_info->fw_cfg = fw_cfg;
-    return fw_cfg;
+    pcms->fw_cfg = fw_cfg;
 }
 
 qemu_irq pc_allocate_cpu_irq(void)

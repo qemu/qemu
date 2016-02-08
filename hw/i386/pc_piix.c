@@ -85,7 +85,6 @@ static void pc_init1(MachineState *machine,
     MemoryRegion *ram_memory;
     MemoryRegion *pci_memory;
     MemoryRegion *rom_memory;
-    PcGuestInfo *guest_info;
     ram_addr_t lowmem;
 
     /* Check whether RAM fits below 4G (leaving 1/2 GByte for IO memory).
@@ -141,14 +140,7 @@ static void pc_init1(MachineState *machine,
         rom_memory = system_memory;
     }
 
-    guest_info = pc_guest_info_init(pcms);
-
-    guest_info->has_acpi_build = pcmc->has_acpi_build;
-    guest_info->legacy_acpi_table_size = pcmc->legacy_acpi_table_size;
-
-    guest_info->isapc_ram_fw = !pcmc->pci_enabled;
-    guest_info->has_reserved_memory = pcmc->has_reserved_memory;
-    guest_info->rsdp_in_ram = pcmc->rsdp_in_ram;
+    pc_guest_info_init(pcms);
 
     if (pcmc->smbios_defaults) {
         MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -162,10 +154,10 @@ static void pc_init1(MachineState *machine,
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
         pc_memory_init(pcms, system_memory,
-                       rom_memory, &ram_memory, guest_info);
+                       rom_memory, &ram_memory);
     } else if (machine->kernel_filename != NULL) {
         /* For xen HVM direct kernel boot, load linux here */
-        xen_load_linux(pcms, guest_info);
+        xen_load_linux(pcms);
     }
 
     gsi_state = g_malloc0(sizeof(*gsi_state));

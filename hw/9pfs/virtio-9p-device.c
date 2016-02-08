@@ -26,10 +26,12 @@ void virtio_9p_push_and_notify(V9fsPDU *pdu)
 {
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
-    VirtQueueElement *elem = &v->elems[pdu->idx];
+    VirtQueueElement *elem = v->elems[pdu->idx];
 
     /* push onto queue and notify */
     virtqueue_push(v->vq, elem, pdu->size);
+    g_free(elem);
+    v->elems[pdu->idx] = NULL;
 
     /* FIXME: we should batch these completions */
     virtio_notify(VIRTIO_DEVICE(v), v->vq);
@@ -48,10 +50,10 @@ static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
             uint8_t id;
             uint16_t tag_le;
         } QEMU_PACKED out;
-        VirtQueueElement *elem = &v->elems[pdu->idx];
+        VirtQueueElement *elem;
 
-        len = virtqueue_pop(vq, elem);
-        if (!len) {
+        elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+        if (!elem) {
             pdu_free(pdu);
             break;
         }
@@ -59,6 +61,7 @@ static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
         BUG_ON(elem->out_num == 0 || elem->in_num == 0);
         QEMU_BUILD_BUG_ON(sizeof out != 7);
 
+        v->elems[pdu->idx] = elem;
         len = iov_to_buf(elem->out_sg, elem->out_num, 0,
                          &out, sizeof out);
         BUG_ON(len != sizeof out);
@@ -141,7 +144,7 @@ ssize_t virtio_pdu_vmarshal(V9fsPDU *pdu, size_t offset,
 {
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
-    VirtQueueElement *elem = &v->elems[pdu->idx];
+    VirtQueueElement *elem = v->elems[pdu->idx];
 
     return v9fs_iov_vmarshal(elem->in_sg, elem->in_num, offset, 1, fmt, ap);
 }
@@ -151,7 +154,7 @@ ssize_t virtio_pdu_vunmarshal(V9fsPDU *pdu, size_t offset,
 {
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
-    VirtQueueElement *elem = &v->elems[pdu->idx];
+    VirtQueueElement *elem = v->elems[pdu->idx];
 
     return v9fs_iov_vunmarshal(elem->out_sg, elem->out_num, offset, 1, fmt, ap);
 }
@@ -161,7 +164,7 @@ void virtio_init_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
 {
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
-    VirtQueueElement *elem = &v->elems[pdu->idx];
+    VirtQueueElement *elem = v->elems[pdu->idx];
 
     if (is_write) {
         *piov = elem->out_sg;

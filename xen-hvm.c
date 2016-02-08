@@ -13,6 +13,7 @@
 
 #include "hw/pci/pci.h"
 #include "hw/i386/pc.h"
+#include "hw/i386/apic-msidef.h"
 #include "hw/xen/xen_common.h"
 #include "hw/xen/xen_backend.h"
 #include "qmp-commands.h"
@@ -156,6 +157,14 @@ void xen_piix_pci_write_config_client(uint32_t address, uint32_t val, int len)
             xc_hvm_set_pci_link_route(xen_xc, xen_domid, address + i - 0x60, v);
         }
     }
+}
+
+int xen_is_pirq_msi(uint32_t msi_data)
+{
+    /* If vector is 0, the msi is remapped into a pirq, passed as
+     * dest_id.
+     */
+    return ((msi_data & MSI_DATA_VECTOR_MASK) >> MSI_DATA_VECTOR_SHIFT) == 0;
 }
 
 void xen_hvm_inject_msi(uint64_t addr, uint32_t data)

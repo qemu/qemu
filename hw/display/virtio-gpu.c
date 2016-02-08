@@ -804,16 +804,15 @@ static void virtio_gpu_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
     }
 #endif
 
-    cmd = g_new(struct virtio_gpu_ctrl_command, 1);
-    while (virtqueue_pop(vq, &cmd->elem)) {
+    cmd = virtqueue_pop(vq, sizeof(struct virtio_gpu_ctrl_command));
+    while (cmd) {
         cmd->vq = vq;
         cmd->error = 0;
         cmd->finished = false;
         cmd->waiting = false;
         QTAILQ_INSERT_TAIL(&g->cmdq, cmd, next);
-        cmd = g_new(struct virtio_gpu_ctrl_command, 1);
+        cmd = virtqueue_pop(vq, sizeof(struct virtio_gpu_ctrl_command));
     }
-    g_free(cmd);
 
     virtio_gpu_process_cmdq(g);
 
@@ -833,15 +832,20 @@ static void virtio_gpu_ctrl_bh(void *opaque)
 static void virtio_gpu_handle_cursor(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOGPU *g = VIRTIO_GPU(vdev);
-    VirtQueueElement elem;
+    VirtQueueElement *elem;
     size_t s;
     struct virtio_gpu_update_cursor cursor_info;
 
     if (!virtio_queue_ready(vq)) {
         return;
     }
-    while (virtqueue_pop(vq, &elem)) {
-        s = iov_to_buf(elem.out_sg, elem.out_num, 0,
+    for (;;) {
+        elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+        if (!elem) {
+            break;
+        }
+
+        s = iov_to_buf(elem->out_sg, elem->out_num, 0,
                        &cursor_info, sizeof(cursor_info));
         if (s != sizeof(cursor_info)) {
             qemu_log_mask(LOG_GUEST_ERROR,
@@ -850,8 +854,9 @@ static void virtio_gpu_handle_cursor(VirtIODevice *vdev, VirtQueue *vq)
         } else {
             update_cursor(g, &cursor_info);
         }
-        virtqueue_push(vq, &elem, 0);
+        virtqueue_push(vq, elem, 0);
         virtio_notify(vdev, vq);
+        g_free(elem);
     }
 }
 

@@ -77,7 +77,7 @@ typedef struct PCDIMMDeviceClass {
  * @mr: hotplug memory address space container
  */
 typedef struct MemoryHotplugState {
-    ram_addr_t base;
+    hwaddr base;
     MemoryRegion mr;
 } MemoryHotplugState;
 

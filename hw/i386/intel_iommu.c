@@ -153,14 +153,27 @@ static gboolean vtd_hash_remove_by_domain(gpointer key, gpointer value,
     return entry->domain_id == domain_id;
 }
 
+/* The shift of an addr for a certain level of paging structure */
+static inline uint32_t vtd_slpt_level_shift(uint32_t level)
+{
+    return VTD_PAGE_SHIFT_4K + (level - 1) * VTD_SL_LEVEL_BITS;
+}
+
+static inline uint64_t vtd_slpt_level_page_mask(uint32_t level)
+{
+    return ~((1ULL << vtd_slpt_level_shift(level)) - 1);
+}
+
 static gboolean vtd_hash_remove_by_page(gpointer key, gpointer value,
                                         gpointer user_data)
 {
     VTDIOTLBEntry *entry = (VTDIOTLBEntry *)value;
     VTDIOTLBPageInvInfo *info = (VTDIOTLBPageInvInfo *)user_data;
-    uint64_t gfn = info->gfn & info->mask;
+    uint64_t gfn = (info->addr >> VTD_PAGE_SHIFT_4K) & info->mask;
+    uint64_t gfn_tlb = (info->addr & entry->mask) >> VTD_PAGE_SHIFT_4K;
     return (entry->domain_id == info->domain_id) &&
-            ((entry->gfn & info->mask) == gfn);
+            (((entry->gfn & info->mask) == gfn) ||
+             (entry->gfn == gfn_tlb));
 }
 
 /* Reset all the gen of VTDAddressSpace to zero and set the gen of
@@ -194,24 +207,46 @@ static void vtd_reset_iotlb(IntelIOMMUState *s)
     g_hash_table_remove_all(s->iotlb);
 }
 
+static uint64_t vtd_get_iotlb_key(uint64_t gfn, uint8_t source_id,
+                                  uint32_t level)
+{
+    return gfn | ((uint64_t)(source_id) << VTD_IOTLB_SID_SHIFT) |
+           ((uint64_t)(level) << VTD_IOTLB_LVL_SHIFT);
+}
+
+static uint64_t vtd_get_iotlb_gfn(hwaddr addr, uint32_t level)
+{
+    return (addr & vtd_slpt_level_page_mask(level)) >> VTD_PAGE_SHIFT_4K;
+}
+
 static VTDIOTLBEntry *vtd_lookup_iotlb(IntelIOMMUState *s, uint16_t source_id,
                                        hwaddr addr)
 {
+    VTDIOTLBEntry *entry;
     uint64_t key;
+    int level;
 
-    key = (addr >> VTD_PAGE_SHIFT_4K) |
-           ((uint64_t)(source_id) << VTD_IOTLB_SID_SHIFT);
-    return g_hash_table_lookup(s->iotlb, &key);
+    for (level = VTD_SL_PT_LEVEL; level < VTD_SL_PML4_LEVEL; level++) {
+        key = vtd_get_iotlb_key(vtd_get_iotlb_gfn(addr, level),
+                                source_id, level);
+        entry = g_hash_table_lookup(s->iotlb, &key);
+        if (entry) {
+            goto out;
+        }
+    }
 
+out:
+    return entry;
 }
 
 static void vtd_update_iotlb(IntelIOMMUState *s, uint16_t source_id,
                              uint16_t domain_id, hwaddr addr, uint64_t slpte,
-                             bool read_flags, bool write_flags)
+                             bool read_flags, bool write_flags,
+                             uint32_t level)
 {
     VTDIOTLBEntry *entry = g_malloc(sizeof(*entry));
     uint64_t *key = g_malloc(sizeof(*key));
-    uint64_t gfn = addr >> VTD_PAGE_SHIFT_4K;
+    uint64_t gfn = vtd_get_iotlb_gfn(addr, level);
 
     VTD_DPRINTF(CACHE, "update iotlb sid 0x%"PRIx16 " gpa 0x%"PRIx64
                 " slpte 0x%"PRIx64 " did 0x%"PRIx16, source_id, addr, slpte,
@@ -226,7 +261,8 @@ static void vtd_update_iotlb(IntelIOMMUState *s, uint16_t source_id,
     entry->slpte = slpte;
     entry->read_flags = read_flags;
     entry->write_flags = write_flags;
-    *key = gfn | ((uint64_t)(source_id) << VTD_IOTLB_SID_SHIFT);
+    entry->mask = vtd_slpt_level_page_mask(level);
+    *key = vtd_get_iotlb_key(gfn, source_id, level);
     g_hash_table_replace(s->iotlb, key, entry);
 }
 
@@ -501,12 +537,6 @@ static inline dma_addr_t vtd_get_slpt_base_from_context(VTDContextEntry *ce)
     return ce->lo & VTD_CONTEXT_ENTRY_SLPTPTR;
 }
 
-/* The shift of an addr for a certain level of paging structure */
-static inline uint32_t vtd_slpt_level_shift(uint32_t level)
-{
-    return VTD_PAGE_SHIFT_4K + (level - 1) * VTD_SL_LEVEL_BITS;
-}
-
 static inline uint64_t vtd_get_slpte_addr(uint64_t slpte)
 {
     return slpte & VTD_SL_PT_BASE_ADDR_MASK;
@@ -762,7 +792,7 @@ static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     VTDContextEntry ce;
     uint8_t bus_num = pci_bus_num(bus);
     VTDContextCacheEntry *cc_entry = &vtd_as->context_cache_entry;
-    uint64_t slpte;
+    uint64_t slpte, page_mask;
     uint32_t level;
     uint16_t source_id = vtd_make_source_id(bus_num, devfn);
     int ret_fr;
@@ -802,6 +832,7 @@ static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         slpte = iotlb_entry->slpte;
         reads = iotlb_entry->read_flags;
         writes = iotlb_entry->write_flags;
+        page_mask = iotlb_entry->mask;
         goto out;
     }
     /* Try to fetch context-entry from cache first */
@@ -848,12 +879,13 @@ static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         return;
     }
 
+    page_mask = vtd_slpt_level_page_mask(level);
     vtd_update_iotlb(s, source_id, VTD_CONTEXT_ENTRY_DID(ce.hi), addr, slpte,
-                     reads, writes);
+                     reads, writes, level);
 out:
-    entry->iova = addr & VTD_PAGE_MASK_4K;
-    entry->translated_addr = vtd_get_slpte_addr(slpte) & VTD_PAGE_MASK_4K;
-    entry->addr_mask = ~VTD_PAGE_MASK_4K;
+    entry->iova = addr & page_mask;
+    entry->translated_addr = vtd_get_slpte_addr(slpte) & page_mask;
+    entry->addr_mask = ~page_mask;
     entry->perm = (writes ? 2 : 0) + (reads ? 1 : 0);
 }
 
@@ -991,7 +1023,7 @@ static void vtd_iotlb_page_invalidate(IntelIOMMUState *s, uint16_t domain_id,
 
     assert(am <= VTD_MAMV);
     info.domain_id = domain_id;
-    info.gfn = addr >> VTD_PAGE_SHIFT_4K;
+    info.addr = addr;
     info.mask = ~((1 << am) - 1);
     g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_page, &info);
 }
@@ -1917,7 +1949,7 @@ static void vtd_init(IntelIOMMUState *s)
     s->iq_last_desc_type = VTD_INV_DESC_NONE;
     s->next_frcd_reg = 0;
     s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND | VTD_CAP_MGAW |
-             VTD_CAP_SAGAW | VTD_CAP_MAMV | VTD_CAP_PSI;
+             VTD_CAP_SAGAW | VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SLLPS;
     s->ecap = VTD_ECAP_QI | VTD_ECAP_IRO;
 
     vtd_reset_context_cache(s);

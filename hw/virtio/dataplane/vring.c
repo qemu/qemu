@@ -218,8 +218,14 @@ bool vring_should_notify(VirtIODevice *vdev, Vring *vring)
                             new, old);
 }
 
+typedef struct VirtQueueCurrentElement {
+    unsigned in_num;
+    unsigned out_num;
+    hwaddr addr[VIRTQUEUE_MAX_SIZE];
+    struct iovec iov[VIRTQUEUE_MAX_SIZE];
+} VirtQueueCurrentElement;
 
-static int get_desc(Vring *vring, VirtQueueElement *elem,
+static int get_desc(Vring *vring, VirtQueueCurrentElement *elem,
                     struct vring_desc *desc)
 {
     unsigned *num;
@@ -230,12 +236,12 @@ static int get_desc(Vring *vring, VirtQueueElement *elem,
 
     if (desc->flags & VRING_DESC_F_WRITE) {
         num = &elem->in_num;
-        iov = &elem->in_sg[*num];
-        addr = &elem->in_addr[*num];
+        iov = &elem->iov[elem->out_num + *num];
+        addr = &elem->addr[elem->out_num + *num];
     } else {
         num = &elem->out_num;
-        iov = &elem->out_sg[*num];
-        addr = &elem->out_addr[*num];
+        iov = &elem->iov[*num];
+        addr = &elem->addr[*num];
 
         /* If it's an output descriptor, they're all supposed
          * to come before any input descriptors. */
@@ -299,7 +305,8 @@ static bool read_vring_desc(VirtIODevice *vdev,
 
 /* This is stolen from linux/drivers/vhost/vhost.c. */
 static int get_indirect(VirtIODevice *vdev, Vring *vring,
-                        VirtQueueElement *elem, struct vring_desc *indirect)
+                        VirtQueueCurrentElement *cur_elem,
+                        struct vring_desc *indirect)
 {
     struct vring_desc desc;
     unsigned int i = 0, count, found = 0;
@@ -351,7 +358,7 @@ static int get_indirect(VirtIODevice *vdev, Vring *vring,
             return -EFAULT;
         }
 
-        ret = get_desc(vring, elem, &desc);
+        ret = get_desc(vring, cur_elem, &desc);
         if (ret < 0) {
             vring->broken |= (ret == -EFAULT);
             return ret;
@@ -389,22 +396,22 @@ static void vring_unmap_element(VirtQueueElement *elem)
  *
  * Stolen from linux/drivers/vhost/vhost.c.
  */
-int vring_pop(VirtIODevice *vdev, Vring *vring,
-              VirtQueueElement *elem)
+void *vring_pop(VirtIODevice *vdev, Vring *vring, size_t sz)
 {
     struct vring_desc desc;
     unsigned int i, head, found = 0, num = vring->vr.num;
     uint16_t avail_idx, last_avail_idx;
+    VirtQueueCurrentElement cur_elem;
+    VirtQueueElement *elem = NULL;
     int ret;
-
-    /* Initialize elem so it can be safely unmapped */
-    elem->in_num = elem->out_num = 0;
 
     /* If there was a fatal error then refuse operation */
     if (vring->broken) {
         ret = -EFAULT;
         goto out;
     }
+
+    cur_elem.in_num = cur_elem.out_num = 0;
 
     /* Check it isn't doing very strange things with descriptor numbers. */
     last_avail_idx = vring->last_avail_idx;
@@ -430,8 +437,6 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
     /* Grab the next descriptor number they're advertising, and increment
      * the index we've seen. */
     head = vring_get_avail_ring(vdev, vring, last_avail_idx % num);
-
-    elem->index = head;
 
     /* If their number is silly, that's an error. */
     if (unlikely(head >= num)) {
@@ -459,14 +464,14 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
         barrier();
 
         if (desc.flags & VRING_DESC_F_INDIRECT) {
-            ret = get_indirect(vdev, vring, elem, &desc);
+            ret = get_indirect(vdev, vring, &cur_elem, &desc);
             if (ret < 0) {
                 goto out;
             }
             continue;
         }
 
-        ret = get_desc(vring, elem, &desc);
+        ret = get_desc(vring, &cur_elem, &desc);
         if (ret < 0) {
             goto out;
         }
@@ -481,15 +486,32 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
             virtio_tswap16(vdev, vring->last_avail_idx);
     }
 
-    return head;
+    /* Now copy what we have collected and mapped */
+    elem = virtqueue_alloc_element(sz, cur_elem.out_num, cur_elem.in_num);
+    elem->index = head;
+    for (i = 0; i < cur_elem.out_num; i++) {
+        elem->out_addr[i] = cur_elem.addr[i];
+        elem->out_sg[i] = cur_elem.iov[i];
+    }
+    for (i = 0; i < cur_elem.in_num; i++) {
+        elem->in_addr[i] = cur_elem.addr[cur_elem.out_num + i];
+        elem->in_sg[i] = cur_elem.iov[cur_elem.out_num + i];
+    }
+
+    return elem;
 
 out:
     assert(ret < 0);
     if (ret == -EFAULT) {
         vring->broken = true;
     }
-    vring_unmap_element(elem);
-    return ret;
+
+    for (i = 0; i < cur_elem.out_num + cur_elem.in_num; i++) {
+        vring_unmap(cur_elem.iov[i].iov_base, false);
+    }
+
+    g_free(elem);
+    return NULL;
 }
 
 /* After we've used one of their buffers, we tell them about it.

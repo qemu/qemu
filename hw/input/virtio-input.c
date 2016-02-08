@@ -17,7 +17,7 @@
 
 void virtio_input_send(VirtIOInput *vinput, virtio_input_event *event)
 {
-    VirtQueueElement elem;
+    VirtQueueElement *elem;
     unsigned have, need;
     int i, len;
 
@@ -50,14 +50,16 @@ void virtio_input_send(VirtIOInput *vinput, virtio_input_event *event)
 
     /* ... and finally pass them to the guest */
     for (i = 0; i < vinput->qindex; i++) {
-        if (!virtqueue_pop(vinput->evt, &elem)) {
+        elem = virtqueue_pop(vinput->evt, sizeof(VirtQueueElement));
+        if (!elem) {
             /* should not happen, we've checked for space beforehand */
             fprintf(stderr, "%s: Huh?  No vq elem available ...\n", __func__);
             return;
         }
-        len = iov_from_buf(elem.in_sg, elem.in_num,
+        len = iov_from_buf(elem->in_sg, elem->in_num,
                            0, vinput->queue+i, sizeof(virtio_input_event));
-        virtqueue_push(vinput->evt, &elem, len);
+        virtqueue_push(vinput->evt, elem, len);
+        g_free(elem);
     }
     virtio_notify(VIRTIO_DEVICE(vinput), vinput->evt);
     vinput->qindex = 0;
@@ -73,17 +75,23 @@ static void virtio_input_handle_sts(VirtIODevice *vdev, VirtQueue *vq)
     VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(vdev);
     VirtIOInput *vinput = VIRTIO_INPUT(vdev);
     virtio_input_event event;
-    VirtQueueElement elem;
+    VirtQueueElement *elem;
     int len;
 
-    while (virtqueue_pop(vinput->sts, &elem)) {
+    for (;;) {
+        elem = virtqueue_pop(vinput->sts, sizeof(VirtQueueElement));
+        if (!elem) {
+            break;
+        }
+
         memset(&event, 0, sizeof(event));
-        len = iov_to_buf(elem.out_sg, elem.out_num,
+        len = iov_to_buf(elem->out_sg, elem->out_num,
                          0, &event, sizeof(event));
         if (vic->handle_status) {
             vic->handle_status(vinput, &event);
         }
-        virtqueue_push(vinput->sts, &elem, len);
+        virtqueue_push(vinput->sts, elem, len);
+        g_free(elem);
     }
     virtio_notify(vdev, vinput->sts);
 }

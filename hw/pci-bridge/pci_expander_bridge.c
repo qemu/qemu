@@ -302,6 +302,7 @@ static void pxb_dev_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "PCI Expander Bridge";
     dc->props = pxb_dev_properties;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo pxb_dev_info = {
@@ -334,6 +335,7 @@ static void pxb_pcie_dev_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "PCI Express Expander Bridge";
     dc->props = pxb_dev_properties;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo pxb_pcie_dev_info = {

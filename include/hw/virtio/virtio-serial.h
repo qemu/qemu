@@ -122,7 +122,7 @@ struct VirtIOSerialPort {
      * element popped and continue consuming it once the backend
      * becomes writable again.
      */
-    VirtQueueElement elem;
+    VirtQueueElement *elem;
 
     /*
      * The index and the offset into the iov buffer that was popped in

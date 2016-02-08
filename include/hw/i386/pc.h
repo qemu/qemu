@@ -45,11 +45,13 @@ struct PCMachineState {
 
     /* State for other subsystems/APIs: */
     MemoryHotplugState hotplug_memory;
+    Notifier machine_done;
 
     /* Pointers to devices and objects: */
     HotplugHandler *acpi_dev;
     ISADevice *rtc;
     PCIBus *bus;
+    FWCfgState *fw_cfg;
 
     /* Configuration options: */
     uint64_t max_ram_below_4g;
@@ -59,6 +61,15 @@ struct PCMachineState {
 
     /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
+
+    /* CPU and apic information: */
+    bool apic_xrupt_override;
+    unsigned apic_id_limit;
+
+    /* NUMA information: */
+    uint64_t numa_nodes;
+    uint64_t *node_mem;
+    uint64_t *node_cpu;
 };
 
 #define PC_MACHINE_ACPI_DEVICE_PROP "acpi-device"
@@ -151,21 +162,6 @@ typedef struct PcPciInfo {
 #define ACPI_PM_PROP_GPE0_BLK_LEN "gpe0_blk_len"
 #define ACPI_PM_PROP_TCO_ENABLED "enable_tco"
 
-struct PcGuestInfo {
-    bool isapc_ram_fw;
-    hwaddr ram_size, ram_size_below_4g;
-    unsigned apic_id_limit;
-    bool apic_xrupt_override;
-    uint64_t numa_nodes;
-    uint64_t *node_mem;
-    uint64_t *node_cpu;
-    FWCfgState *fw_cfg;
-    int legacy_acpi_table_size;
-    bool has_acpi_build;
-    bool has_reserved_memory;
-    bool rsdp_in_ram;
-};
-
 /* parallel.c */
 
 void parallel_hds_isa_init(ISABus *bus, int n);
@@ -232,7 +228,7 @@ void pc_cpus_init(PCMachineState *pcms);
 void pc_hot_add_cpu(const int64_t id, Error **errp);
 void pc_acpi_init(const char *default_dsdt);
 
-PcGuestInfo *pc_guest_info_init(PCMachineState *pcms);
+void pc_guest_info_init(PCMachineState *pcms);
 
 #define PCI_HOST_PROP_PCI_HOLE_START   "pci-hole-start"
 #define PCI_HOST_PROP_PCI_HOLE_END     "pci-hole-end"
@@ -245,13 +241,11 @@ PcGuestInfo *pc_guest_info_init(PCMachineState *pcms);
 void pc_pci_as_mapping_init(Object *owner, MemoryRegion *system_memory,
                             MemoryRegion *pci_address_space);
 
-FWCfgState *xen_load_linux(PCMachineState *pcms,
-                           PcGuestInfo *guest_info);
-FWCfgState *pc_memory_init(PCMachineState *pcms,
-                           MemoryRegion *system_memory,
-                           MemoryRegion *rom_memory,
-                           MemoryRegion **ram_memory,
-                           PcGuestInfo *guest_info);
+void xen_load_linux(PCMachineState *pcms);
+void pc_memory_init(PCMachineState *pcms,
+                    MemoryRegion *system_memory,
+                    MemoryRegion *rom_memory,
+                    MemoryRegion **ram_memory);
 qemu_irq pc_allocate_cpu_irq(void);
 DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus);
 void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,

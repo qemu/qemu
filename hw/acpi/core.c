@@ -350,6 +350,22 @@ uint8_t *acpi_table_next(uint8_t *current)
     }
 }
 
+int acpi_get_slic_oem(AcpiSlicOem *oem)
+{
+    uint8_t *u;
+
+    for (u = acpi_table_first(); u; u = acpi_table_next(u)) {
+        struct acpi_table_header *hdr = (void *)(u - sizeof(hdr->_length));
+
+        if (memcmp(hdr->sig, "SLIC", 4) == 0) {
+            oem->id = hdr->oem_id;
+            oem->table_id = hdr->oem_table_id;
+            return 0;
+        }
+    }
+    return -1;
+}
+
 static void acpi_notify_wakeup(Notifier *notifier, void *data)
 {
     ACPIREGS *ar = container_of(notifier, ACPIREGS, wakeup);

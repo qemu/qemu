@@ -23,32 +23,36 @@
  */
 
 #include "qemu/osdep.h"
+#include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 #include "hw/ipmi/ipmi.h"
 #include "qemu/error-report.h"
 
 #define IPMI_NETFN_CHASSIS            0x00
-#define IPMI_NETFN_CHASSIS_MAXCMD         0x03
 
 #define IPMI_CMD_GET_CHASSIS_CAPABILITIES 0x00
 #define IPMI_CMD_GET_CHASSIS_STATUS       0x01
 #define IPMI_CMD_CHASSIS_CONTROL          0x02
+#define IPMI_CMD_GET_SYS_RESTART_CAUSE    0x09
 
 #define IPMI_NETFN_SENSOR_EVENT       0x04
-#define IPMI_NETFN_SENSOR_EVENT_MAXCMD    0x2e
 
 #define IPMI_CMD_SET_SENSOR_EVT_ENABLE    0x28
 #define IPMI_CMD_GET_SENSOR_EVT_ENABLE    0x29
 #define IPMI_CMD_REARM_SENSOR_EVTS        0x2a
 #define IPMI_CMD_GET_SENSOR_EVT_STATUS    0x2b
 #define IPMI_CMD_GET_SENSOR_READING       0x2d
+#define IPMI_CMD_SET_SENSOR_TYPE          0x2e
+#define IPMI_CMD_GET_SENSOR_TYPE          0x2f
 
 /* #define IPMI_NETFN_APP             0x06 In ipmi.h */
-#define IPMI_NETFN_APP_MAXCMD             0x36
 
 #define IPMI_CMD_GET_DEVICE_ID            0x01
 #define IPMI_CMD_COLD_RESET               0x02
 #define IPMI_CMD_WARM_RESET               0x03
+#define IPMI_CMD_SET_ACPI_POWER_STATE     0x06
+#define IPMI_CMD_GET_ACPI_POWER_STATE     0x07
+#define IPMI_CMD_GET_DEVICE_GUID          0x08
 #define IPMI_CMD_RESET_WATCHDOG_TIMER     0x22
 #define IPMI_CMD_SET_WATCHDOG_TIMER       0x24
 #define IPMI_CMD_GET_WATCHDOG_TIMER       0x25
@@ -61,7 +65,6 @@
 #define IPMI_CMD_READ_EVT_MSG_BUF         0x35
 
 #define IPMI_NETFN_STORAGE            0x0a
-#define IPMI_NETFN_STORAGE_MAXCMD         0x4a
 
 #define IPMI_CMD_GET_SDR_REP_INFO         0x20
 #define IPMI_CMD_GET_SDR_REP_ALLOC_INFO   0x21
@@ -197,6 +200,11 @@ struct IPMIBmcSim {
     uint8_t mfg_id[3];
     uint8_t product_id[2];
 
+    uint8_t restart_cause;
+
+    uint8_t acpi_power_state[2];
+    uint8_t uuid[16];
+
     IPMISel sel;
     IPMISdr sdr;
     IPMISensor sensors[MAX_SENSORS];
@@ -256,7 +264,7 @@ struct IPMIBmcSim {
     do {                                                   \
         if (*rsp_len >= max_rsp_len) {                     \
             rsp[2] = IPMI_CC_REQUEST_DATA_TRUNCATED;       \
-            goto out;                                      \
+            return;                                        \
         }                                                  \
         rsp[(*rsp_len)++] = (b);                           \
     } while (0)
@@ -265,7 +273,7 @@ struct IPMIBmcSim {
 #define IPMI_CHECK_CMD_LEN(l) \
     if (cmd_len < l) {                                     \
         rsp[2] = IPMI_CC_REQUEST_DATA_LENGTH_INVALID;      \
-        goto out; \
+        return; \
     }
 
 /* Check that the reservation in the command is valid. */
@@ -273,7 +281,7 @@ struct IPMIBmcSim {
     do {                                                   \
         if ((cmd[off] | (cmd[off + 1] << 8)) != r) {       \
             rsp[2] = IPMI_CC_INVALID_RESERVATION;          \
-            goto out;                                      \
+            return;                                        \
         }                                                  \
     } while (0)
 
@@ -322,14 +330,18 @@ static void sdr_inc_reservation(IPMISdr *sdr)
     }
 }
 
-static int sdr_add_entry(IPMIBmcSim *ibs, const uint8_t *entry,
+static int sdr_add_entry(IPMIBmcSim *ibs,
+                         const struct ipmi_sdr_header *sdrh_entry,
                          unsigned int len, uint16_t *recid)
 {
-    if ((len < 5) || (len > 255)) {
+    struct ipmi_sdr_header *sdrh =
+        (struct ipmi_sdr_header *) &ibs->sdr.sdr[ibs->sdr.next_free];
+
+    if ((len < IPMI_SDR_HEADER_SIZE) || (len > 255)) {
         return 1;
     }
 
-    if (entry[4] != len - 5) {
+    if (ipmi_sdr_length(sdrh_entry) != len) {
         return 1;
     }
 
@@ -338,10 +350,10 @@ static int sdr_add_entry(IPMIBmcSim *ibs, const uint8_t *entry,
         return 1;
     }
 
-    memcpy(ibs->sdr.sdr + ibs->sdr.next_free, entry, len);
-    ibs->sdr.sdr[ibs->sdr.next_free] = ibs->sdr.next_rec_id & 0xff;
-    ibs->sdr.sdr[ibs->sdr.next_free+1] = (ibs->sdr.next_rec_id >> 8) & 0xff;
-    ibs->sdr.sdr[ibs->sdr.next_free+2] = 0x51; /* Conform to IPMI 1.5 spec */
+    memcpy(sdrh, sdrh_entry, len);
+    sdrh->rec_id[0] = ibs->sdr.next_rec_id & 0xff;
+    sdrh->rec_id[1] = (ibs->sdr.next_rec_id >> 8) & 0xff;
+    sdrh->sdr_version = 0x51; /* Conform to IPMI 1.5 spec */
 
     if (recid) {
         *recid = ibs->sdr.next_rec_id;
@@ -359,8 +371,10 @@ static int sdr_find_entry(IPMISdr *sdr, uint16_t recid,
     unsigned int pos = *retpos;
 
     while (pos < sdr->next_free) {
-        uint16_t trec = sdr->sdr[pos] | (sdr->sdr[pos + 1] << 8);
-        unsigned int nextpos = pos + sdr->sdr[pos + 4];
+        struct ipmi_sdr_header *sdrh =
+            (struct ipmi_sdr_header *) &sdr->sdr[pos];
+        uint16_t trec = ipmi_sdr_recid(sdrh);
+        unsigned int nextpos = pos + ipmi_sdr_length(sdrh);
 
         if (trec == recid) {
             if (nextrec) {
@@ -451,14 +465,12 @@ static void gen_event(IPMIBmcSim *ibs, unsigned int sens_num, uint8_t deassert,
     }
 
     if (ibs->msg_flags & IPMI_BMC_MSG_FLAG_EVT_BUF_FULL) {
-        goto out;
+        return;
     }
 
     memcpy(ibs->evtbuf, evt, 16);
     ibs->msg_flags |= IPMI_BMC_MSG_FLAG_EVT_BUF_FULL;
     k->set_atn(s, 1, attn_irq_enabled(ibs));
- out:
-    return;
 }
 
 static void sensor_set_discrete_bit(IPMIBmcSim *ibs, unsigned int sensor,
@@ -511,29 +523,32 @@ static void ipmi_init_sensors_from_sdrs(IPMIBmcSim *s)
 
     pos = 0;
     for (i = 0; !sdr_find_entry(&s->sdr, i, &pos, NULL); i++) {
-        uint8_t *sdr = s->sdr.sdr + pos;
-        unsigned int len = sdr[4];
+        struct ipmi_sdr_compact *sdr =
+            (struct ipmi_sdr_compact *) &s->sdr.sdr[pos];
+        unsigned int len = sdr->header.rec_length;
 
         if (len < 20) {
             continue;
         }
-        if ((sdr[3] < 1) || (sdr[3] > 2)) {
+        if (sdr->header.rec_type != IPMI_SDR_COMPACT_TYPE) {
             continue; /* Not a sensor SDR we set from */
         }
 
-        if (sdr[7] > MAX_SENSORS) {
+        if (sdr->sensor_owner_number > MAX_SENSORS) {
             continue;
         }
-        sens = s->sensors + sdr[7];
+        sens = s->sensors + sdr->sensor_owner_number;
 
         IPMI_SENSOR_SET_PRESENT(sens, 1);
-        IPMI_SENSOR_SET_SCAN_ON(sens, (sdr[10] >> 6) & 1);
-        IPMI_SENSOR_SET_EVENTS_ON(sens, (sdr[10] >> 5) & 1);
-        sens->assert_suppt = sdr[14] | (sdr[15] << 8);
-        sens->deassert_suppt = sdr[16] | (sdr[17] << 8);
-        sens->states_suppt = sdr[18] | (sdr[19] << 8);
-        sens->sensor_type = sdr[12];
-        sens->evt_reading_type_code = sdr[13] & 0x7f;
+        IPMI_SENSOR_SET_SCAN_ON(sens, (sdr->sensor_init >> 6) & 1);
+        IPMI_SENSOR_SET_EVENTS_ON(sens, (sdr->sensor_init >> 5) & 1);
+        sens->assert_suppt = sdr->assert_mask[0] | (sdr->assert_mask[1] << 8);
+        sens->deassert_suppt =
+            sdr->deassert_mask[0] | (sdr->deassert_mask[1] << 8);
+        sens->states_suppt =
+            sdr->discrete_mask[0] | (sdr->discrete_mask[1] << 8);
+        sens->sensor_type = sdr->sensor_type;
+        sens->evt_reading_type_code = sdr->reading_type & 0x7f;
 
         /* Enable all the events that are supported. */
         sens->assert_enable = sens->assert_suppt;
@@ -579,6 +594,11 @@ static void ipmi_sim_handle_command(IPMIBmc *b,
 
     /* Set up the response, set the low bit of NETFN. */
     /* Note that max_rsp_len must be at least 3 */
+    if (max_rsp_len < 3) {
+        rsp[2] = IPMI_CC_REQUEST_DATA_TRUNCATED;
+        goto out;
+    }
+
     IPMI_ADD_RSP_DATA(cmd[0] | 0x04);
     IPMI_ADD_RSP_DATA(cmd[1]);
     IPMI_ADD_RSP_DATA(0); /* Assume success */
@@ -696,8 +716,6 @@ static void chassis_capabilities(IPMIBmcSim *ibs,
     IPMI_ADD_RSP_DATA(ibs->parent.slave_addr);
     IPMI_ADD_RSP_DATA(ibs->parent.slave_addr);
     IPMI_ADD_RSP_DATA(ibs->parent.slave_addr);
- out:
-    return;
 }
 
 static void chassis_status(IPMIBmcSim *ibs,
@@ -709,8 +727,6 @@ static void chassis_status(IPMIBmcSim *ibs,
     IPMI_ADD_RSP_DATA(0);
     IPMI_ADD_RSP_DATA(0);
     IPMI_ADD_RSP_DATA(0);
- out:
-    return;
 }
 
 static void chassis_control(IPMIBmcSim *ibs,
@@ -744,10 +760,17 @@ static void chassis_control(IPMIBmcSim *ibs,
         break;
     default:
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
-        goto out;
+        return;
     }
- out:
-    return;
+}
+
+static void chassis_get_sys_restart_cause(IPMIBmcSim *ibs,
+                           uint8_t *cmd, unsigned int cmd_len,
+                           uint8_t *rsp, unsigned int *rsp_len,
+                           unsigned int max_rsp_len)
+{
+    IPMI_ADD_RSP_DATA(ibs->restart_cause & 0xf); /* Restart Cause */
+    IPMI_ADD_RSP_DATA(0);  /* Channel 0 */
 }
 
 static void get_device_id(IPMIBmcSim *ibs,
@@ -766,8 +789,6 @@ static void get_device_id(IPMIBmcSim *ibs,
     IPMI_ADD_RSP_DATA(ibs->mfg_id[2]);
     IPMI_ADD_RSP_DATA(ibs->product_id[0]);
     IPMI_ADD_RSP_DATA(ibs->product_id[1]);
- out:
-    return;
 }
 
 static void set_global_enables(IPMIBmcSim *ibs, uint8_t val)
@@ -812,6 +833,36 @@ static void warm_reset(IPMIBmcSim *ibs,
         k->reset(s, false);
     }
 }
+static void set_acpi_power_state(IPMIBmcSim *ibs,
+                          uint8_t *cmd, unsigned int cmd_len,
+                          uint8_t *rsp, unsigned int *rsp_len,
+                          unsigned int max_rsp_len)
+{
+    IPMI_CHECK_CMD_LEN(4);
+    ibs->acpi_power_state[0] = cmd[2];
+    ibs->acpi_power_state[1] = cmd[3];
+}
+
+static void get_acpi_power_state(IPMIBmcSim *ibs,
+                          uint8_t *cmd, unsigned int cmd_len,
+                          uint8_t *rsp, unsigned int *rsp_len,
+                          unsigned int max_rsp_len)
+{
+    IPMI_ADD_RSP_DATA(ibs->acpi_power_state[0]);
+    IPMI_ADD_RSP_DATA(ibs->acpi_power_state[1]);
+}
+
+static void get_device_guid(IPMIBmcSim *ibs,
+                          uint8_t *cmd, unsigned int cmd_len,
+                          uint8_t *rsp, unsigned int *rsp_len,
+                          unsigned int max_rsp_len)
+{
+    unsigned int i;
+
+    for (i = 0; i < 16; i++) {
+        IPMI_ADD_RSP_DATA(ibs->uuid[i]);
+    }
+}
 
 static void set_bmc_global_enables(IPMIBmcSim *ibs,
                                    uint8_t *cmd, unsigned int cmd_len,
@@ -820,8 +871,6 @@ static void set_bmc_global_enables(IPMIBmcSim *ibs,
 {
     IPMI_CHECK_CMD_LEN(3);
     set_global_enables(ibs, cmd[2]);
- out:
-    return;
 }
 
 static void get_bmc_global_enables(IPMIBmcSim *ibs,
@@ -830,8 +879,6 @@ static void get_bmc_global_enables(IPMIBmcSim *ibs,
                                    unsigned int max_rsp_len)
 {
     IPMI_ADD_RSP_DATA(ibs->bmc_global_enables);
- out:
-    return;
 }
 
 static void clr_msg_flags(IPMIBmcSim *ibs,
@@ -845,8 +892,6 @@ static void clr_msg_flags(IPMIBmcSim *ibs,
     IPMI_CHECK_CMD_LEN(3);
     ibs->msg_flags &= ~cmd[2];
     k->set_atn(s, attn_set(ibs), attn_irq_enabled(ibs));
- out:
-    return;
 }
 
 static void get_msg_flags(IPMIBmcSim *ibs,
@@ -855,8 +900,6 @@ static void get_msg_flags(IPMIBmcSim *ibs,
                           unsigned int max_rsp_len)
 {
     IPMI_ADD_RSP_DATA(ibs->msg_flags);
- out:
-    return;
 }
 
 static void read_evt_msg_buf(IPMIBmcSim *ibs,
@@ -870,15 +913,13 @@ static void read_evt_msg_buf(IPMIBmcSim *ibs,
 
     if (!(ibs->msg_flags & IPMI_BMC_MSG_FLAG_EVT_BUF_FULL)) {
         rsp[2] = 0x80;
-        goto out;
+        return;
     }
     for (i = 0; i < 16; i++) {
         IPMI_ADD_RSP_DATA(ibs->evtbuf[i]);
     }
     ibs->msg_flags &= ~IPMI_BMC_MSG_FLAG_EVT_BUF_FULL;
     k->set_atn(s, attn_set(ibs), attn_irq_enabled(ibs));
- out:
-    return;
 }
 
 static void get_msg(IPMIBmcSim *ibs,
@@ -909,7 +950,7 @@ static void get_msg(IPMIBmcSim *ibs,
         k->set_atn(s, attn_set(ibs), attn_irq_enabled(ibs));
     }
 
- out:
+out:
     qemu_mutex_unlock(&ibs->lock);
     return;
 }
@@ -940,14 +981,14 @@ static void send_msg(IPMIBmcSim *ibs,
     if (cmd[2] != 0) {
         /* We only handle channel 0 with no options */
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
-        goto out;
+        return;
     }
 
     IPMI_CHECK_CMD_LEN(10);
     if (cmd[3] != 0x40) {
         /* We only emulate a MC at address 0x40. */
         rsp[2] = 0x83; /* NAK on write */
-        goto out;
+        return;
     }
 
     cmd += 3; /* Skip the header. */
@@ -959,7 +1000,7 @@ static void send_msg(IPMIBmcSim *ibs,
      */
     if (ipmb_checksum(cmd, cmd_len, 0) != 0 ||
         cmd[3] != 0x20) { /* Improper response address */
-        goto out; /* No response */
+        return; /* No response */
     }
 
     netfn = cmd[1] >> 2;
@@ -969,7 +1010,7 @@ static void send_msg(IPMIBmcSim *ibs,
 
     if (rqLun != 2) {
         /* We only support LUN 2 coming back to us. */
-        goto out;
+        return;
     }
 
     msg = g_malloc(sizeof(*msg));
@@ -1009,9 +1050,6 @@ static void send_msg(IPMIBmcSim *ibs,
     ibs->msg_flags |= IPMI_BMC_MSG_FLAG_RCV_MSG_QUEUE;
     k->set_atn(s, 1, attn_irq_enabled(ibs));
     qemu_mutex_unlock(&ibs->lock);
-
- out:
-    return;
 }
 
 static void do_watchdog_reset(IPMIBmcSim *ibs)
@@ -1040,11 +1078,9 @@ static void reset_watchdog_timer(IPMIBmcSim *ibs,
 {
     if (!ibs->watchdog_initialized) {
         rsp[2] = 0x80;
-        goto out;
+        return;
     }
     do_watchdog_reset(ibs);
- out:
-    return;
 }
 
 static void set_watchdog_timer(IPMIBmcSim *ibs,
@@ -1060,7 +1096,7 @@ static void set_watchdog_timer(IPMIBmcSim *ibs,
     val = cmd[2] & 0x7; /* Validate use */
     if (val == 0 || val > 5) {
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
-        goto out;
+        return;
     }
     val = cmd[3] & 0x7; /* Validate action */
     switch (val) {
@@ -1084,7 +1120,7 @@ static void set_watchdog_timer(IPMIBmcSim *ibs,
     }
     if (rsp[2]) {
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
-        goto out;
+        return;
     }
 
     val = (cmd[3] >> 4) & 0x7; /* Validate preaction */
@@ -1097,12 +1133,12 @@ static void set_watchdog_timer(IPMIBmcSim *ibs,
         if (!k->do_hw_op(s, IPMI_SEND_NMI, 1)) {
             /* NMI not supported. */
             rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
-            goto out;
+            return;
         }
     default:
         /* We don't support PRE_SMI */
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
-        goto out;
+        return;
     }
 
     ibs->watchdog_initialized = 1;
@@ -1116,8 +1152,6 @@ static void set_watchdog_timer(IPMIBmcSim *ibs,
     } else {
         ibs->watchdog_running = 0;
     }
- out:
-    return;
 }
 
 static void get_watchdog_timer(IPMIBmcSim *ibs,
@@ -1139,8 +1173,6 @@ static void get_watchdog_timer(IPMIBmcSim *ibs,
         IPMI_ADD_RSP_DATA(0);
         IPMI_ADD_RSP_DATA(0);
     }
- out:
-    return;
 }
 
 static void get_sdr_rep_info(IPMIBmcSim *ibs,
@@ -1163,8 +1195,6 @@ static void get_sdr_rep_info(IPMIBmcSim *ibs,
     }
     /* Only modal support, reserve supported */
     IPMI_ADD_RSP_DATA((ibs->sdr.overflow << 7) | 0x22);
- out:
-    return;
 }
 
 static void reserve_sdr_rep(IPMIBmcSim *ibs,
@@ -1174,8 +1204,6 @@ static void reserve_sdr_rep(IPMIBmcSim *ibs,
 {
     IPMI_ADD_RSP_DATA(ibs->sdr.reservation & 0xff);
     IPMI_ADD_RSP_DATA((ibs->sdr.reservation >> 8) & 0xff);
- out:
-    return;
 }
 
 static void get_sdr(IPMIBmcSim *ibs,
@@ -1185,6 +1213,7 @@ static void get_sdr(IPMIBmcSim *ibs,
 {
     unsigned int pos;
     uint16_t nextrec;
+    struct ipmi_sdr_header *sdrh;
 
     IPMI_CHECK_CMD_LEN(8);
     if (cmd[6]) {
@@ -1194,28 +1223,29 @@ static void get_sdr(IPMIBmcSim *ibs,
     if (sdr_find_entry(&ibs->sdr, cmd[4] | (cmd[5] << 8),
                        &pos, &nextrec)) {
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
-        goto out;
+        return;
     }
-    if (cmd[6] > (ibs->sdr.sdr[pos + 4])) {
+
+    sdrh = (struct ipmi_sdr_header *) &ibs->sdr.sdr[pos];
+
+    if (cmd[6] > ipmi_sdr_length(sdrh)) {
         rsp[2] = IPMI_CC_PARM_OUT_OF_RANGE;
-        goto out;
+        return;
     }
 
     IPMI_ADD_RSP_DATA(nextrec & 0xff);
     IPMI_ADD_RSP_DATA((nextrec >> 8) & 0xff);
 
     if (cmd[7] == 0xff) {
-        cmd[7] = ibs->sdr.sdr[pos + 4] - cmd[6];
+        cmd[7] = ipmi_sdr_length(sdrh) - cmd[6];
     }
 
     if ((cmd[7] + *rsp_len) > max_rsp_len) {
         rsp[2] = IPMI_CC_CANNOT_RETURN_REQ_NUM_BYTES;
-        goto out;
+        return;
     }
     memcpy(rsp + *rsp_len, ibs->sdr.sdr + pos + cmd[6], cmd[7]);
     *rsp_len += cmd[7];
- out:
-    return;
 }
 
 static void add_sdr(IPMIBmcSim *ibs,
@@ -1224,15 +1254,14 @@ static void add_sdr(IPMIBmcSim *ibs,
                     unsigned int max_rsp_len)
 {
     uint16_t recid;
+    struct ipmi_sdr_header *sdrh = (struct ipmi_sdr_header *) cmd + 2;
 
-    if (sdr_add_entry(ibs, cmd + 2, cmd_len - 2, &recid)) {
+    if (sdr_add_entry(ibs, sdrh, cmd_len - 2, &recid)) {
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
-        goto out;
+        return;
     }
     IPMI_ADD_RSP_DATA(recid & 0xff);
     IPMI_ADD_RSP_DATA((recid >> 8) & 0xff);
- out:
-    return;
 }
 
 static void clear_sdr_rep(IPMIBmcSim *ibs,
@@ -1244,7 +1273,7 @@ static void clear_sdr_rep(IPMIBmcSim *ibs,
     IPMI_CHECK_RESERVATION(2, ibs->sdr.reservation);
     if (cmd[4] != 'C' || cmd[5] != 'L' || cmd[6] != 'R') {
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
-        goto out;
+        return;
     }
     if (cmd[7] == 0xaa) {
         ibs->sdr.next_free = 0;
@@ -1256,10 +1285,8 @@ static void clear_sdr_rep(IPMIBmcSim *ibs,
         IPMI_ADD_RSP_DATA(1); /* Erasure complete */
     } else {
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
-        goto out;
+        return;
     }
- out:
-    return;
 }
 
 static void get_sel_info(IPMIBmcSim *ibs,
@@ -1283,8 +1310,6 @@ static void get_sel_info(IPMIBmcSim *ibs,
     }
     /* Only support Reserve SEL */
     IPMI_ADD_RSP_DATA((ibs->sel.overflow << 7) | 0x02);
- out:
-    return;
 }
 
 static void reserve_sel(IPMIBmcSim *ibs,
@@ -1294,8 +1319,6 @@ static void reserve_sel(IPMIBmcSim *ibs,
 {
     IPMI_ADD_RSP_DATA(ibs->sel.reservation & 0xff);
     IPMI_ADD_RSP_DATA((ibs->sel.reservation >> 8) & 0xff);
- out:
-    return;
 }
 
 static void get_sel_entry(IPMIBmcSim *ibs,
@@ -1311,17 +1334,17 @@ static void get_sel_entry(IPMIBmcSim *ibs,
     }
     if (ibs->sel.next_free == 0) {
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
-        goto out;
+        return;
     }
     if (cmd[6] > 15) {
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
-        goto out;
+        return;
     }
     if (cmd[7] == 0xff) {
         cmd[7] = 16;
     } else if ((cmd[7] + cmd[6]) > 16) {
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
-        goto out;
+        return;
     } else {
         cmd[7] += cmd[6];
     }
@@ -1331,7 +1354,7 @@ static void get_sel_entry(IPMIBmcSim *ibs,
         val = ibs->sel.next_free - 1;
     } else if (val >= ibs->sel.next_free) {
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
-        goto out;
+        return;
     }
     if ((val + 1) == ibs->sel.next_free) {
         IPMI_ADD_RSP_DATA(0xff);
@@ -1343,8 +1366,6 @@ static void get_sel_entry(IPMIBmcSim *ibs,
     for (; cmd[6] < cmd[7]; cmd[6]++) {
         IPMI_ADD_RSP_DATA(ibs->sel.sel[val][cmd[6]]);
     }
- out:
-    return;
 }
 
 static void add_sel_entry(IPMIBmcSim *ibs,
@@ -1355,13 +1376,11 @@ static void add_sel_entry(IPMIBmcSim *ibs,
     IPMI_CHECK_CMD_LEN(18);
     if (sel_add_event(ibs, cmd + 2)) {
         rsp[2] = IPMI_CC_OUT_OF_SPACE;
-        goto out;
+        return;
     }
     /* sel_add_event fills in the record number. */
     IPMI_ADD_RSP_DATA(cmd[2]);
     IPMI_ADD_RSP_DATA(cmd[3]);
- out:
-    return;
 }
 
 static void clear_sel(IPMIBmcSim *ibs,
@@ -1373,7 +1392,7 @@ static void clear_sel(IPMIBmcSim *ibs,
     IPMI_CHECK_RESERVATION(2, ibs->sel.reservation);
     if (cmd[4] != 'C' || cmd[5] != 'L' || cmd[6] != 'R') {
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
-        goto out;
+        return;
     }
     if (cmd[7] == 0xaa) {
         ibs->sel.next_free = 0;
@@ -1385,10 +1404,8 @@ static void clear_sel(IPMIBmcSim *ibs,
         IPMI_ADD_RSP_DATA(1); /* Erasure complete */
     } else {
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
-        goto out;
+        return;
     }
- out:
-    return;
 }
 
 static void get_sel_time(IPMIBmcSim *ibs,
@@ -1405,8 +1422,6 @@ static void get_sel_time(IPMIBmcSim *ibs,
     IPMI_ADD_RSP_DATA((val >> 8) & 0xff);
     IPMI_ADD_RSP_DATA((val >> 16) & 0xff);
     IPMI_ADD_RSP_DATA((val >> 24) & 0xff);
- out:
-    return;
 }
 
 static void set_sel_time(IPMIBmcSim *ibs,
@@ -1421,8 +1436,6 @@ static void set_sel_time(IPMIBmcSim *ibs,
     val = cmd[2] | (cmd[3] << 8) | (cmd[4] << 16) | (cmd[5] << 24);
     ipmi_gettime(&now);
     ibs->sel.time_offset = now.tv_sec - ((long) val);
- out:
-    return;
 }
 
 static void set_sensor_evt_enable(IPMIBmcSim *ibs,
@@ -1436,7 +1449,7 @@ static void set_sensor_evt_enable(IPMIBmcSim *ibs,
     if ((cmd[2] > MAX_SENSORS) ||
             !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
-        goto out;
+        return;
     }
     sens = ibs->sensors + cmd[2];
     switch ((cmd[3] >> 4) & 0x3) {
@@ -1472,11 +1485,9 @@ static void set_sensor_evt_enable(IPMIBmcSim *ibs,
         break;
     case 3:
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
-        goto out;
+        return;
     }
     IPMI_SENSOR_SET_RET_STATUS(sens, cmd[3]);
- out:
-    return;
 }
 
 static void get_sensor_evt_enable(IPMIBmcSim *ibs,
@@ -1490,7 +1501,7 @@ static void get_sensor_evt_enable(IPMIBmcSim *ibs,
     if ((cmd[2] > MAX_SENSORS) ||
         !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
-        goto out;
+        return;
     }
     sens = ibs->sensors + cmd[2];
     IPMI_ADD_RSP_DATA(IPMI_SENSOR_GET_RET_STATUS(sens));
@@ -1498,8 +1509,6 @@ static void get_sensor_evt_enable(IPMIBmcSim *ibs,
     IPMI_ADD_RSP_DATA((sens->assert_enable >> 8) & 0xff);
     IPMI_ADD_RSP_DATA(sens->deassert_enable & 0xff);
     IPMI_ADD_RSP_DATA((sens->deassert_enable >> 8) & 0xff);
- out:
-    return;
 }
 
 static void rearm_sensor_evts(IPMIBmcSim *ibs,
@@ -1513,17 +1522,15 @@ static void rearm_sensor_evts(IPMIBmcSim *ibs,
     if ((cmd[2] > MAX_SENSORS) ||
         !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
-        goto out;
+        return;
     }
     sens = ibs->sensors + cmd[2];
 
     if ((cmd[3] & 0x80) == 0) {
         /* Just clear everything */
         sens->states = 0;
-        goto out;
+        return;
     }
- out:
-    return;
 }
 
 static void get_sensor_evt_status(IPMIBmcSim *ibs,
@@ -1537,7 +1544,7 @@ static void get_sensor_evt_status(IPMIBmcSim *ibs,
     if ((cmd[2] > MAX_SENSORS) ||
         !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
-        goto out;
+        return;
     }
     sens = ibs->sensors + cmd[2];
     IPMI_ADD_RSP_DATA(sens->reading);
@@ -1546,8 +1553,6 @@ static void get_sensor_evt_status(IPMIBmcSim *ibs,
     IPMI_ADD_RSP_DATA((sens->assert_states >> 8) & 0xff);
     IPMI_ADD_RSP_DATA(sens->deassert_states & 0xff);
     IPMI_ADD_RSP_DATA((sens->deassert_states >> 8) & 0xff);
- out:
-    return;
 }
 
 static void get_sensor_reading(IPMIBmcSim *ibs,
@@ -1561,7 +1566,7 @@ static void get_sensor_reading(IPMIBmcSim *ibs,
     if ((cmd[2] > MAX_SENSORS) ||
             !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
-        goto out;
+        return;
     }
     sens = ibs->sensors + cmd[2];
     IPMI_ADD_RSP_DATA(sens->reading);
@@ -1570,37 +1575,79 @@ static void get_sensor_reading(IPMIBmcSim *ibs,
     if (IPMI_SENSOR_IS_DISCRETE(sens)) {
         IPMI_ADD_RSP_DATA((sens->states >> 8) & 0xff);
     }
- out:
-    return;
 }
 
-static const IPMICmdHandler chassis_cmds[IPMI_NETFN_CHASSIS_MAXCMD] = {
+static void set_sensor_type(IPMIBmcSim *ibs,
+                               uint8_t *cmd, unsigned int cmd_len,
+                               uint8_t *rsp, unsigned int *rsp_len,
+                               unsigned int max_rsp_len)
+{
+    IPMISensor *sens;
+
+
+    IPMI_CHECK_CMD_LEN(5);
+    if ((cmd[2] > MAX_SENSORS) ||
+            !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
+        rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
+        return;
+    }
+    sens = ibs->sensors + cmd[2];
+    sens->sensor_type = cmd[3];
+    sens->evt_reading_type_code = cmd[4] & 0x7f;
+}
+
+static void get_sensor_type(IPMIBmcSim *ibs,
+                               uint8_t *cmd, unsigned int cmd_len,
+                               uint8_t *rsp, unsigned int *rsp_len,
+                               unsigned int max_rsp_len)
+{
+    IPMISensor *sens;
+
+
+    IPMI_CHECK_CMD_LEN(3);
+    if ((cmd[2] > MAX_SENSORS) ||
+            !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
+        rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
+        return;
+    }
+    sens = ibs->sensors + cmd[2];
+    IPMI_ADD_RSP_DATA(sens->sensor_type);
+    IPMI_ADD_RSP_DATA(sens->evt_reading_type_code);
+}
+
+
+static const IPMICmdHandler chassis_cmds[] = {
     [IPMI_CMD_GET_CHASSIS_CAPABILITIES] = chassis_capabilities,
     [IPMI_CMD_GET_CHASSIS_STATUS] = chassis_status,
-    [IPMI_CMD_CHASSIS_CONTROL] = chassis_control
+    [IPMI_CMD_CHASSIS_CONTROL] = chassis_control,
+    [IPMI_CMD_GET_SYS_RESTART_CAUSE] = chassis_get_sys_restart_cause
 };
 static const IPMINetfn chassis_netfn = {
-    .cmd_nums = IPMI_NETFN_CHASSIS_MAXCMD,
+    .cmd_nums = ARRAY_SIZE(chassis_cmds),
     .cmd_handlers = chassis_cmds
 };
 
-static const IPMICmdHandler
-sensor_event_cmds[IPMI_NETFN_SENSOR_EVENT_MAXCMD] = {
+static const IPMICmdHandler sensor_event_cmds[] = {
     [IPMI_CMD_SET_SENSOR_EVT_ENABLE] = set_sensor_evt_enable,
     [IPMI_CMD_GET_SENSOR_EVT_ENABLE] = get_sensor_evt_enable,
     [IPMI_CMD_REARM_SENSOR_EVTS] = rearm_sensor_evts,
     [IPMI_CMD_GET_SENSOR_EVT_STATUS] = get_sensor_evt_status,
-    [IPMI_CMD_GET_SENSOR_READING] = get_sensor_reading
+    [IPMI_CMD_GET_SENSOR_READING] = get_sensor_reading,
+    [IPMI_CMD_SET_SENSOR_TYPE] = set_sensor_type,
+    [IPMI_CMD_GET_SENSOR_TYPE] = get_sensor_type,
 };
 static const IPMINetfn sensor_event_netfn = {
-    .cmd_nums = IPMI_NETFN_SENSOR_EVENT_MAXCMD,
+    .cmd_nums = ARRAY_SIZE(sensor_event_cmds),
     .cmd_handlers = sensor_event_cmds
 };
 
-static const IPMICmdHandler app_cmds[IPMI_NETFN_APP_MAXCMD] = {
+static const IPMICmdHandler app_cmds[] = {
     [IPMI_CMD_GET_DEVICE_ID] = get_device_id,
     [IPMI_CMD_COLD_RESET] = cold_reset,
     [IPMI_CMD_WARM_RESET] = warm_reset,
+    [IPMI_CMD_SET_ACPI_POWER_STATE] = set_acpi_power_state,
+    [IPMI_CMD_GET_ACPI_POWER_STATE] = get_acpi_power_state,
+    [IPMI_CMD_GET_DEVICE_GUID] = get_device_guid,
     [IPMI_CMD_SET_BMC_GLOBAL_ENABLES] = set_bmc_global_enables,
     [IPMI_CMD_GET_BMC_GLOBAL_ENABLES] = get_bmc_global_enables,
     [IPMI_CMD_CLR_MSG_FLAGS] = clr_msg_flags,
@@ -1613,11 +1660,11 @@ static const IPMICmdHandler app_cmds[IPMI_NETFN_APP_MAXCMD] = {
     [IPMI_CMD_GET_WATCHDOG_TIMER] = get_watchdog_timer,
 };
 static const IPMINetfn app_netfn = {
-    .cmd_nums = IPMI_NETFN_APP_MAXCMD,
+    .cmd_nums = ARRAY_SIZE(app_cmds),
     .cmd_handlers = app_cmds
 };
 
-static const IPMICmdHandler storage_cmds[IPMI_NETFN_STORAGE_MAXCMD] = {
+static const IPMICmdHandler storage_cmds[] = {
     [IPMI_CMD_GET_SDR_REP_INFO] = get_sdr_rep_info,
     [IPMI_CMD_RESERVE_SDR_REP] = reserve_sdr_rep,
     [IPMI_CMD_GET_SDR] = get_sdr,
@@ -1633,7 +1680,7 @@ static const IPMICmdHandler storage_cmds[IPMI_NETFN_STORAGE_MAXCMD] = {
 };
 
 static const IPMINetfn storage_netfn = {
-    .cmd_nums = IPMI_NETFN_STORAGE_MAXCMD,
+    .cmd_nums = ARRAY_SIZE(storage_cmds),
     .cmd_handlers = storage_cmds
 };
 
@@ -1697,6 +1744,7 @@ static void ipmi_sim_init(Object *obj)
     ibs->bmc_global_enables = (1 << IPMI_BMC_EVENT_LOG_BIT);
     ibs->device_id = 0x20;
     ibs->ipmi_version = 0x02; /* IPMI 2.0 */
+    ibs->restart_cause = 0;
     for (i = 0; i < 4; i++) {
         ibs->sel.last_addition[i] = 0xff;
         ibs->sel.last_clear[i] = 0xff;
@@ -1705,22 +1753,33 @@ static void ipmi_sim_init(Object *obj)
     }
 
     for (i = 0;;) {
+        struct ipmi_sdr_header *sdrh;
         int len;
-        if ((i + 5) > sizeof(init_sdrs)) {
-            error_report("Problem with recid 0x%4.4x: \n", i);
+        if ((i + IPMI_SDR_HEADER_SIZE) > sizeof(init_sdrs)) {
+            error_report("Problem with recid 0x%4.4x", i);
             return;
         }
-        len = init_sdrs[i + 4];
-        recid = init_sdrs[i] | (init_sdrs[i + 1] << 8);
+        sdrh = (struct ipmi_sdr_header *) &init_sdrs[i];
+        len = ipmi_sdr_length(sdrh);
+        recid = ipmi_sdr_recid(sdrh);
         if (recid == 0xffff) {
             break;
         }
-        if ((i + len + 5) > sizeof(init_sdrs)) {
-            error_report("Problem with recid 0x%4.4x\n", i);
+        if ((i + len) > sizeof(init_sdrs)) {
+            error_report("Problem with recid 0x%4.4x", i);
             return;
         }
-        sdr_add_entry(ibs, init_sdrs + i, len, NULL);
-        i += len + 5;
+        sdr_add_entry(ibs, sdrh, len, NULL);
+        i += len;
+    }
+
+    ibs->acpi_power_state[0] = 0;
+    ibs->acpi_power_state[1] = 0;
+
+    if (qemu_uuid_set) {
+        memcpy(&ibs->uuid, qemu_uuid, 16);
+    } else {
+        memset(&ibs->uuid, 0, 16);
     }
 
     ipmi_init_sensors_from_sdrs(ibs);
