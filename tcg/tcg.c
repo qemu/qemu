@@ -2059,9 +2059,9 @@ static void tcg_reg_alloc_op(TCGContext *s,
     } else {
         if (def->flags & TCG_OPF_CALL_CLOBBER) {
             /* XXX: permit generic clobber register list ? */ 
-            for(reg = 0; reg < TCG_TARGET_NB_REGS; reg++) {
-                if (tcg_regset_test_reg(tcg_target_call_clobber_regs, reg)) {
-                    tcg_reg_free(s, reg);
+            for (i = 0; i < TCG_TARGET_NB_REGS; i++) {
+                if (tcg_regset_test_reg(tcg_target_call_clobber_regs, i)) {
+                    tcg_reg_free(s, i);
                 }
             }
         }
@@ -2227,9 +2227,9 @@ static void tcg_reg_alloc_call(TCGContext *s, int nb_oargs, int nb_iargs,
     }
     
     /* clobber call registers */
-    for(reg = 0; reg < TCG_TARGET_NB_REGS; reg++) {
-        if (tcg_regset_test_reg(tcg_target_call_clobber_regs, reg)) {
-            tcg_reg_free(s, reg);
+    for (i = 0; i < TCG_TARGET_NB_REGS; i++) {
+        if (tcg_regset_test_reg(tcg_target_call_clobber_regs, i)) {
+            tcg_reg_free(s, i);
         }
     }
 
