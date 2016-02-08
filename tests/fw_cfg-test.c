@@ -10,7 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include <string.h>
+#include "qemu/osdep.h"
 #include <glib.h>
 
 #include "libqtest.h"

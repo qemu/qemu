@@ -17,12 +17,11 @@
  *  with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "libqos/i2c.h"
 
 #include <glib.h>
-#include <string.h>
 
-#include "qemu/osdep.h"
 #include "libqtest.h"
 
 #include "hw/i2c/imx_i2c.h"

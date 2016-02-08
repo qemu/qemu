@@ -7,10 +7,9 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include <glib.h>
-#include <string.h>
-#include "libqtest.h"
 #include "qemu/osdep.h"
+#include <glib.h>
+#include "libqtest.h"
 #include "libqos/pci.h"
 
 #define PCI_SLOT_HP             0x06

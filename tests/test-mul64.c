@@ -6,10 +6,9 @@
  *
  */
 
-#include <glib.h>
-#include <stdint.h>
-#include "qemu/host-utils.h"
 #include "qemu/osdep.h"
+#include <glib.h>
+#include "qemu/host-utils.h"
 
 
 typedef struct {

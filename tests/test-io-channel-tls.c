@@ -21,10 +21,8 @@
  */
 
 
-#include <stdlib.h>
-#include <fcntl.h>
+#include "qemu/osdep.h"
 
-#include "config-host.h"
 #include "crypto-tls-x509-helpers.h"
 #include "io/channel-tls.h"
 #include "io/channel-socket.h"

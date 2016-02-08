@@ -20,14 +20,10 @@
  * Copyright (c) 2013 Mike D. Day, IBM Corporation.
  */
 
+#include "qemu/osdep.h"
 #include <glib.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include "qemu/atomic.h"
 #include "qemu/rcu.h"
-#include "qemu/compiler.h"
-#include "qemu/osdep.h"
 #include "qemu/thread.h"
 #include "qemu/rcu_queue.h"
 

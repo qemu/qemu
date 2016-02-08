@@ -10,6 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "libqos/malloc-pc.h"
 #include "libqos/fw_cfg.h"
 

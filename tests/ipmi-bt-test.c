@@ -22,10 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include <sys/types.h>
-#include <stdint.h>
-#include <string.h>
-#include <stdio.h>
+#include "qemu/osdep.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>

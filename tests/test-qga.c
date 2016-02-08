@@ -1,18 +1,11 @@
+#include "qemu/osdep.h"
 #include <locale.h>
 #include <glib.h>
 #include <glib/gstdio.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <unistd.h>
-#include <inttypes.h>
 
 #include "libqtest.h"
-#include "config-host.h"
 #include "qga/guest-agent-core.h"
 
 typedef struct {

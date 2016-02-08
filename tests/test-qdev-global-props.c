@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include <glib.h>
-#include <stdint.h>
 
 #include "hw/qdev.h"
 #include "qom/object.h"

@@ -60,13 +60,10 @@
  * Test variables.
  */
 
+#include "qemu/osdep.h"
 #include <glib.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include "qemu/atomic.h"
 #include "qemu/rcu.h"
-#include "qemu/compiler.h"
 #include "qemu/thread.h"
 
 long long n_reads = 0LL;

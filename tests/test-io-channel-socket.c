@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "io/channel-socket.h"
 #include "io-channel-helpers.h"
 #ifdef HAVE_IFADDRS_H

@@ -6,12 +6,11 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+#include "qemu/osdep.h"
 #include "libqos/i2c.h"
 
 #include <glib.h>
-#include <string.h>
 
-#include "qemu/osdep.h"
 #include "qemu/bswap.h"
 #include "libqtest.h"
 

@@ -6,9 +6,8 @@
  *
  */
 
-#include <glib.h>
-#include <stdint.h>
 #include "qemu/osdep.h"
+#include <glib.h>
 #include "qemu/bitops.h"
 
 typedef struct {

@@ -7,8 +7,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include <glib.h>
-#include <stdio.h>
 #include "libqtest.h"
 #include "libqos/virtio.h"
 #include "libqos/virtio-mmio.h"

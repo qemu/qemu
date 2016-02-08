@@ -18,6 +18,7 @@
  * Author: Daniel P. Berrange <berrange@redhat.com>
  */
 
+#include "qemu/osdep.h"
 #include <glib.h>
 
 #include "qom/object.h"

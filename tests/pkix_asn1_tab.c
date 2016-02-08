@@ -3,6 +3,7 @@
  * and is under copyright of various GNUTLS contributors.
  */
 
+#include "qemu/osdep.h"
 #include <libtasn1.h>
 
 const ASN1_ARRAY_TYPE pkix_asn1_tab[] = {

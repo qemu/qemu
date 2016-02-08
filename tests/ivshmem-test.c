@@ -8,17 +8,13 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include <errno.h>
-#include <fcntl.h>
+#include "qemu/osdep.h"
 #include <glib.h>
 #include <glib/gstdio.h>
-#include <string.h>
 #include <sys/mman.h>
-#include <unistd.h>
 #include "contrib/ivshmem-server/ivshmem-server.h"
 #include "libqos/pci-pc.h"
 #include "libqtest.h"
-#include "qemu/osdep.h"
 #include "qemu-common.h"
 
 #define TMPSHMSIZE (1 << 20)

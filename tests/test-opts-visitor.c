@@ -10,6 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include <glib.h>
 
 #include "qemu/config-file.h"     /* qemu_add_opts() */

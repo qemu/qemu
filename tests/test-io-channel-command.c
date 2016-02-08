@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "io/channel-command.h"
 #include "io-channel-helpers.h"
 

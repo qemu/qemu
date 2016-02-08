@@ -6,10 +6,9 @@
  *
  */
 
-#include <glib.h>
-#include <stdio.h>
-#include "qemu/int128.h"
 #include "qemu/osdep.h"
+#include <glib.h>
+#include "qemu/int128.h"
 
 /* clang doesn't support __noclone__ but it does have a mechanism for
  * telling us this. We assume that if we don't have __has_attribute()

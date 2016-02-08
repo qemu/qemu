@@ -10,15 +10,9 @@
  * See the COPYING.LIB file in the top-level directory.
  */
 
-#include <stdio.h>
-#include <errno.h>
+#include "qemu/osdep.h"
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
 
 /* #define SOCKET_SCM_DEBUG */
 

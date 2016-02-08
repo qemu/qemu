@@ -14,22 +14,14 @@
  * See the COPYING file in the top-level directory.
  *
  */
+#include "qemu/osdep.h"
 #include "libqtest.h"
 
 #include <glib.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/un.h>
-#include <inttypes.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 
-#include "qemu/compiler.h"
-#include "qemu/osdep.h"
 #include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/json-streamer.h"
 #include "qapi/qmp/qjson.h"

@@ -9,10 +9,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include <glib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <sys/types.h>
 #include "qemu/hbitmap.h"
 
 #define LOG_BITS_PER_LONG          (BITS_PER_LONG == 32 ? 5 : 6)

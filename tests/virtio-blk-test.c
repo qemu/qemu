@@ -8,11 +8,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include <glib.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
 #include "libqtest.h"
 #include "libqos/virtio.h"
 #include "libqos/virtio-pci.h"

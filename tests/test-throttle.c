@@ -12,6 +12,7 @@
  * See the COPYING.LIB file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include <glib.h>
 #include <math.h>
 #include "block/aio.h"

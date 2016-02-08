@@ -1,3 +1,4 @@
+#include "qemu/osdep.h"
 #include "libqos/libqos-pc.h"
 #include "libqos/malloc-pc.h"
 

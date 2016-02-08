@@ -29,23 +29,13 @@
 
 #define _FILE_OFFSET_BITS 64
 
-#include <stddef.h>
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <inttypes.h>
-#include <string.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/types.h>
+#include "qemu/osdep.h"
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/unistd.h>
 #include <sys/mman.h>
 #include <sys/eventfd.h>
 #include <arpa/inet.h>
-#include <ctype.h>
 #include <netdb.h>
 
 #include <linux/vhost.h>

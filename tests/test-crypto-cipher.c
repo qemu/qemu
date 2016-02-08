@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include <glib.h>
 
 #include "crypto/init.h"

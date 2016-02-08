@@ -10,10 +10,9 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "libqos/malloc.h"
 #include "qemu-common.h"
-#include <stdio.h>
-#include <inttypes.h>
 #include <glib.h>
 
 typedef QTAILQ_HEAD(MemList, MemBlock) MemList;

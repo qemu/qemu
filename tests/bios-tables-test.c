@@ -10,13 +10,11 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include <string.h>
-#include <stdio.h>
+#include "qemu/osdep.h"
 #include <glib.h>
 #include <glib/gstdio.h>
 #include "qemu-common.h"
 #include "libqtest.h"
-#include "qemu/compiler.h"
 #include "hw/acpi/acpi-defs.h"
 #include "hw/smbios/smbios.h"
 #include "qemu/bitmap.h"

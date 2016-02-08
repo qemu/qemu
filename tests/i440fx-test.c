@@ -14,12 +14,7 @@
 
 #include "qemu/osdep.h"
 #include <glib.h>
-#include <string.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <errno.h>
 #include <sys/mman.h>
-#include <stdlib.h>
 
 #include "libqtest.h"
 #include "libqos/pci.h"

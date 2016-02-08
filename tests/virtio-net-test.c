@@ -7,12 +7,11 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include <glib.h>
-#include <string.h>
 #include "libqtest.h"
 #include "qemu-common.h"
 #include "qemu/sockets.h"
-#include "qemu/osdep.h"
 #include "qemu/iov.h"
 #include "libqos/pci-pc.h"
 #include "libqos/virtio.h"
