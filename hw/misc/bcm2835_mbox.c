@@ -8,6 +8,7 @@
  *   https://github.com/raspberrypi/firmware/wiki/Accessing-mailboxes
  */
 
+#include "qemu/osdep.h"
 #include "hw/misc/bcm2835_mbox.h"
 
 #define MAIL0_PEEK   0x90

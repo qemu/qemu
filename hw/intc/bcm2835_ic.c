@@ -12,6 +12,7 @@
  * This code is licensed under the GPL.
  */
 
+#include "qemu/osdep.h"
 #include "hw/intc/bcm2835_ic.h"
 
 #define GPU_IRQS 64

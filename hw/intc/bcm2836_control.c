@@ -13,6 +13,7 @@
  * https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2836/QA7_rev3.4.pdf
  */
 
+#include "qemu/osdep.h"
 #include "hw/intc/bcm2836_control.h"
 
 #define REG_GPU_ROUTE           0x0c
