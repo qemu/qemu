@@ -26,15 +26,6 @@
  * THE SOFTWARE.
  */
 
-/* The following block of code temporarily renames the daemon() function so the
-   compiler does not see the warning associated with it in stdlib.h on OSX */
-#ifdef __APPLE__
-#define daemon qemu_fake_daemon_function
-#include <stdlib.h>
-#undef daemon
-extern int daemon(int, int);
-#endif
-
 #if defined(__linux__) && (defined(__x86_64__) || defined(__arm__))
    /* Use 2 MiB alignment so transparent hugepages can be used by KVM.
       Valgrind does not support alignments larger than 1 MiB,
