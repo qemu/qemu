@@ -3,6 +3,7 @@
 include pci.mak
 include usb.mak
 CONFIG_SERIAL=y
+CONFIG_SERIAL_ISA=y
 CONFIG_I8254=y
 CONFIG_PCKBD=y
 CONFIG_VGA_CIRRUS=y
