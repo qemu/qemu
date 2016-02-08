@@ -1220,14 +1220,25 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
     case ASI_IMMU: /* I-MMU regs */
         {
             int reg = (addr >> 3) & 0xf;
-
-            if (reg == 0) {
-                /* I-TSB Tag Target register */
+            switch (reg) {
+            case 0:
+                /* 0x00 I-TSB Tag Target register */
                 ret = ultrasparc_tag_target(env->immu.tag_access);
-            } else {
-                ret = env->immuregs[reg];
+                break;
+            case 3: /* SFSR */
+                ret = env->immu.sfsr;
+                break;
+            case 5: /* TSB access */
+                ret = env->immu.tsb;
+                break;
+            case 6:
+                /* 0x30 I-TSB Tag Access register */
+                ret = env->immu.tag_access;
+                break;
+            default:
+                cpu_unassigned_access(cs, addr, false, false, 1, size);
+                ret = 0;
             }
-
             break;
         }
     case ASI_IMMU_TSB_8KB_PTR: /* I-MMU 8k TSB pointer */
@@ -1263,12 +1274,38 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
     case ASI_DMMU: /* D-MMU regs */
         {
             int reg = (addr >> 3) & 0xf;
-
-            if (reg == 0) {
-                /* D-TSB Tag Target register */
+            switch (reg) {
+            case 0:
+                /* 0x00 D-TSB Tag Target register */
                 ret = ultrasparc_tag_target(env->dmmu.tag_access);
-            } else {
-                ret = env->dmmuregs[reg];
+                break;
+            case 1: /* 0x08 Primary Context */
+                ret = env->dmmu.mmu_primary_context;
+                break;
+            case 2: /* 0x10 Secondary Context */
+                ret = env->dmmu.mmu_secondary_context;
+                break;
+            case 3: /* SFSR */
+                ret = env->dmmu.sfsr;
+                break;
+            case 4: /* 0x20 SFAR */
+                ret = env->dmmu.sfar;
+                break;
+            case 5: /* 0x28 TSB access */
+                ret = env->dmmu.tsb;
+                break;
+            case 6: /* 0x30 D-TSB Tag Access register */
+                ret = env->dmmu.tag_access;
+                break;
+            case 7:
+                ret = env->dmmu.virtual_watchpoint;
+                break;
+            case 8:
+                ret = env->dmmu.physical_watchpoint;
+                break;
+            default:
+                cpu_unassigned_access(cs, addr, false, false, 1, size);
+                ret = 0;
             }
             break;
         }
@@ -1456,6 +1493,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
             case 8:
                 return;
             default:
+                cpu_unassigned_access(cs, addr, true, false, 1, size);
                 break;
             }
 
@@ -1526,9 +1564,13 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
                 env->dmmu.tag_access = val;
                 break;
             case 7: /* Virtual Watchpoint */
+                env->dmmu.virtual_watchpoint = val;
+                break;
             case 8: /* Physical Watchpoint */
+                env->dmmu.physical_watchpoint = val;
+                break;
             default:
-                env->dmmuregs[reg] = val;
+                cpu_unassigned_access(cs, addr, true, false, 1, size);
                 break;
             }
 
