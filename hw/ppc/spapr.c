@@ -1197,13 +1197,6 @@ static void spapr_cpu_reset(void *opaque)
     env->spr[SPR_HIOR] = 0;
 
     env->external_htab = (uint8_t *)spapr->htab;
-    if (kvm_enabled() && !env->external_htab) {
-        /*
-         * HV KVM, set external_htab to 1 so our ppc_hash64_load_hpte*
-         * functions do the right thing.
-         */
-        env->external_htab = (void *)1;
-    }
     env->htab_base = -1;
     /*
      * htab_mask is the mask used to normalize hash value to PTEG index.
