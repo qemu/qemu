@@ -279,6 +279,7 @@ h_comment = '''
                             c_comment, h_comment)
 
 fdef.write(mcgen('''
+#include "qemu/osdep.h"
 #include "qapi/dealloc-visitor.h"
 #include "%(prefix)sqapi-types.h"
 #include "%(prefix)sqapi-visit.h"
@@ -287,8 +288,6 @@ fdef.write(mcgen('''
 
 # To avoid circular headers, use only typedefs.h here, not qobject.h
 fdecl.write(mcgen('''
-#include <stdbool.h>
-#include <stdint.h>
 #include "qemu/typedefs.h"
 '''))
 

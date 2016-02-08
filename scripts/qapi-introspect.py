@@ -1,7 +1,7 @@
 #
 # QAPI introspection generator
 #
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2015-2016 Red Hat, Inc.
 #
 # Authors:
 #  Markus Armbruster <armbru@redhat.com>
@@ -204,6 +204,7 @@ h_comment = '''
                             c_comment, h_comment)
 
 fdef.write(mcgen('''
+#include "qemu/osdep.h"
 #include "%(prefix)sqmp-introspect.h"
 
 ''',
