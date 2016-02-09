@@ -30,18 +30,13 @@
 static void netduino2_init(MachineState *machine)
 {
     DeviceState *dev;
-    Error *err = NULL;
 
     dev = qdev_create(NULL, TYPE_STM32F205_SOC);
     if (machine->kernel_filename) {
         qdev_prop_set_string(dev, "kernel-filename", machine->kernel_filename);
     }
     qdev_prop_set_string(dev, "cpu-model", "cortex-m3");
-    object_property_set_bool(OBJECT(dev), true, "realized", &err);
-    if (err != NULL) {
-        error_report_err(err);
-        exit(1);
-    }
+    object_property_set_bool(OBJECT(dev), true, "realized", &error_fatal);
 }
 
 static void netduino2_machine_init(MachineClass *mc)

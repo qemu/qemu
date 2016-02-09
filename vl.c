@@ -4557,12 +4557,7 @@ int main(int argc, char **argv, char **envp)
     net_check_clients();
 
     if (boot_once) {
-        Error *local_err = NULL;
-        qemu_boot_set(boot_once, &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-            exit(1);
-        }
+        qemu_boot_set(boot_once, &error_fatal);
         qemu_register_reset(restore_boot_order, g_strdup(boot_order));
     }
 

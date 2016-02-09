@@ -157,3 +157,58 @@ painful. These are:
  * you may assume that integers are 2s complement representation
  * you may assume that right shift of a signed integer duplicates
    the sign bit (ie it is an arithmetic shift, not a logical shift)
+
+7. Error handling and reporting
+
+7.1 Reporting errors to the human user
+
+Do not use printf(), fprintf() or monitor_printf().  Instead, use
+error_report() or error_vreport() from error-report.h.  This ensures the
+error is reported in the right place (current monitor or stderr), and in
+a uniform format.
+
+Use error_printf() & friends to print additional information.
+
+error_report() prints the current location.  In certain common cases
+like command line parsing, the current location is tracked
+automatically.  To manipulate it manually, use the loc_*() from
+error-report.h.
+
+7.2 Propagating errors
+
+An error can't always be reported to the user right where it's detected,
+but often needs to be propagated up the call chain to a place that can
+handle it.  This can be done in various ways.
+
+The most flexible one is Error objects.  See error.h for usage
+information.
+
+Use the simplest suitable method to communicate success / failure to
+callers.  Stick to common methods: non-negative on success / -1 on
+error, non-negative / -errno, non-null / null, or Error objects.
+
+Example: when a function returns a non-null pointer on success, and it
+can fail only in one way (as far as the caller is concerned), returning
+null on failure is just fine, and certainly simpler and a lot easier on
+the eyes than propagating an Error object through an Error ** parameter.
+
+Example: when a function's callers need to report details on failure
+only the function really knows, use Error **, and set suitable errors.
+
+Do not report an error to the user when you're also returning an error
+for somebody else to handle.  Leave the reporting to the place that
+consumes the error returned.
+
+7.3 Handling errors
+
+Calling exit() is fine when handling configuration errors during
+startup.  It's problematic during normal operation.  In particular,
+monitor commands should never exit().
+
+Do not call exit() or abort() to handle an error that can be triggered
+by the guest (e.g., some unimplemented corner case in guest code
+translation or device emulation).  Guests should not be able to
+terminate QEMU.
+
+Note that &error_fatal is just another way to exit(1), and &error_abort
+is just another way to abort().
