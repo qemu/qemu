@@ -1483,7 +1483,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
             int reg = (addr >> 3) & 0xf;
             uint64_t oldreg;
 
-            oldreg = env->immuregs[reg];
+            oldreg = env->immu.mmuregs[reg];
             switch (reg) {
             case 0: /* RO */
                 return;
@@ -1514,7 +1514,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
                 break;
             }
 
-            if (oldreg != env->immuregs[reg]) {
+            if (oldreg != env->immu.mmuregs[reg]) {
                 DPRINTF_MMU("immu change reg[%d]: 0x%016" PRIx64 " -> 0x%016"
                             PRIx64 "\n", reg, oldreg, env->immuregs[reg]);
             }
@@ -1548,7 +1548,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
             int reg = (addr >> 3) & 0xf;
             uint64_t oldreg;
 
-            oldreg = env->dmmuregs[reg];
+            oldreg = env->dmmu.mmuregs[reg];
             switch (reg) {
             case 0: /* RO */
             case 4:
@@ -1591,7 +1591,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
                 break;
             }
 
-            if (oldreg != env->dmmuregs[reg]) {
+            if (oldreg != env->dmmu.mmuregs[reg]) {
                 DPRINTF_MMU("dmmu change reg[%d]: 0x%016" PRIx64 " -> 0x%016"
                             PRIx64 "\n", reg, oldreg, env->dmmuregs[reg]);
             }

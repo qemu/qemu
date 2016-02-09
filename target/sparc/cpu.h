@@ -404,7 +404,22 @@ struct CPUTimer
 typedef struct CPUTimer CPUTimer;
 
 typedef struct CPUSPARCState CPUSPARCState;
-
+#if defined(TARGET_SPARC64)
+typedef union {
+   uint64_t mmuregs[16];
+   struct {
+    uint64_t tsb_tag_target;
+    uint64_t mmu_primary_context;
+    uint64_t mmu_secondary_context;
+    uint64_t sfsr;
+    uint64_t sfar;
+    uint64_t tsb;
+    uint64_t tag_access;
+    uint64_t virtual_watchpoint;
+    uint64_t physical_watchpoint;
+   };
+} SparcV9MMU;
+#endif
 struct CPUSPARCState {
     target_ulong gregs[8]; /* general registers */
     target_ulong *regwptr; /* pointer to current register window */
@@ -457,35 +472,8 @@ struct CPUSPARCState {
     uint64_t lsu;
 #define DMMU_E 0x8
 #define IMMU_E 0x4
-    //typedef struct SparcMMU
-    union {
-        uint64_t immuregs[16];
-        struct {
-            uint64_t tsb_tag_target;
-            uint64_t unused_mmu_primary_context;   // use DMMU
-            uint64_t unused_mmu_secondary_context; // use DMMU
-            uint64_t sfsr;
-            uint64_t sfar;
-            uint64_t tsb;
-            uint64_t tag_access;
-            uint64_t virtual_watchpoint;
-            uint64_t physical_watchpoint;
-        } immu;
-    };
-    union {
-        uint64_t dmmuregs[16];
-        struct {
-            uint64_t tsb_tag_target;
-            uint64_t mmu_primary_context;
-            uint64_t mmu_secondary_context;
-            uint64_t sfsr;
-            uint64_t sfar;
-            uint64_t tsb;
-            uint64_t tag_access;
-            uint64_t virtual_watchpoint;
-            uint64_t physical_watchpoint;
-        } dmmu;
-    };
+    SparcV9MMU immu;
+    SparcV9MMU dmmu;
     SparcTLBEntry itlb[64];
     SparcTLBEntry dtlb[64];
     uint32_t mmu_version;

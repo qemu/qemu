@@ -1166,7 +1166,7 @@ void cpu_loop (CPUSPARCState *env)
                 /* XXX: check env->error_code */
                 info.si_code = TARGET_SEGV_MAPERR;
                 if (trapnr == TT_DFAULT)
-                    info._sifields._sigfault._addr = env->dmmuregs[4];
+                    info._sifields._sigfault._addr = env->dmmu.mmuregs[4];
                 else
                     info._sifields._sigfault._addr = cpu_tsptr(env)->tpc;
                 queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
