@@ -35,8 +35,7 @@
 /* context structures.						      */
 /* ------------------------------------------------------------------ */
 
-#include <string.h>	      /* for strcmp */
-#include <stdio.h>	      /* for printf if DECCHECK */
+#include "qemu/osdep.h"
 #include "libdecnumber/dconfig.h"
 #include "libdecnumber/decContext.h"
 #include "libdecnumber/decNumberLocal.h"

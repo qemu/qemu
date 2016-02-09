@@ -166,10 +166,7 @@
 /*	**  -- raise to the power				      */
 /* ------------------------------------------------------------------ */
 
-#include <stdlib.h>		   /* for malloc, free, etc. */
-#include <stdio.h>		   /* for printf [if needed] */
-#include <string.h>		   /* for strcpy */
-#include <ctype.h>		   /* for lower */
+#include "qemu/osdep.h"
 #include "libdecnumber/dconfig.h"
 #include "libdecnumber/decNumber.h"
 #include "libdecnumber/decNumberLocal.h"
