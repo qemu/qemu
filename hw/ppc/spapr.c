@@ -1063,80 +1063,54 @@ static int spapr_hpt_shift_for_ramsize(uint64_t ramsize)
     return shift;
 }
 
-static void spapr_alloc_htab(sPAPRMachineState *spapr)
+static void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
+                                 Error **errp)
 {
-    long shift;
-    int index;
+    long rc;
 
-    /* allocate hash page table.  For now we always make this 16mb,
-     * later we should probably make it scale to the size of guest
-     * RAM */
+    /* Clean up any HPT info from a previous boot */
+    g_free(spapr->htab);
+    spapr->htab = NULL;
+    spapr->htab_shift = 0;
+    close_htab_fd(spapr);
 
-    shift = kvmppc_reset_htab(spapr->htab_shift);
-    if (shift < 0) {
-        /*
-         * For HV KVM, host kernel will return -ENOMEM when requested
-         * HTAB size can't be allocated.
-         */
-        error_setg(&error_abort, "Failed to allocate HTAB of requested size, try with smaller maxmem");
-    } else if (shift > 0) {
-        /*
-         * Kernel handles htab, we don't need to allocate one
-         *
-         * Older kernels can fall back to lower HTAB shift values,
-         * but we don't allow booting of such guests.
-         */
-        if (shift != spapr->htab_shift) {
-            error_setg(&error_abort, "Failed to allocate HTAB of requested size, try with smaller maxmem");
+    rc = kvmppc_reset_htab(shift);
+    if (rc < 0) {
+        /* kernel-side HPT needed, but couldn't allocate one */
+        error_setg_errno(errp, errno,
+                         "Failed to allocate KVM HPT of order %d (try smaller maxmem?)",
+                         shift);
+        /* This is almost certainly fatal, but if the caller really
+         * wants to carry on with shift == 0, it's welcome to try */
+    } else if (rc > 0) {
+        /* kernel-side HPT allocated */
+        if (rc != shift) {
+            error_setg(errp,
+                       "Requested order %d HPT, but kernel allocated order %ld (try smaller maxmem?)",
+                       shift, rc);
         }
 
         spapr->htab_shift = shift;
         kvmppc_kern_htab = true;
     } else {
-        /* Allocate htab */
-        spapr->htab = qemu_memalign(HTAB_SIZE(spapr), HTAB_SIZE(spapr));
+        /* kernel-side HPT not needed, allocate in userspace instead */
+        size_t size = 1ULL << shift;
+        int i;
 
-        /* And clear it */
-        memset(spapr->htab, 0, HTAB_SIZE(spapr));
-
-        for (index = 0; index < HTAB_SIZE(spapr) / HASH_PTE_SIZE_64; index++) {
-            DIRTY_HPTE(HPTE(spapr->htab, index));
-        }
-    }
-}
-
-/*
- * Clear HTAB entries during reset.
- *
- * If host kernel has allocated HTAB, KVM_PPC_ALLOCATE_HTAB ioctl is
- * used to clear HTAB. Otherwise QEMU-allocated HTAB is cleared manually.
- */
-static void spapr_reset_htab(sPAPRMachineState *spapr)
-{
-    long shift;
-    int index;
-
-    shift = kvmppc_reset_htab(spapr->htab_shift);
-    if (shift < 0) {
-        error_setg(&error_abort, "Failed to reset HTAB");
-    } else if (shift > 0) {
-        if (shift != spapr->htab_shift) {
-            error_setg(&error_abort, "Requested HTAB allocation failed during reset");
+        spapr->htab = qemu_memalign(size, size);
+        if (!spapr->htab) {
+            error_setg_errno(errp, errno,
+                             "Could not allocate HPT of order %d", shift);
+            return;
         }
 
-        close_htab_fd(spapr);
-    } else {
-        memset(spapr->htab, 0, HTAB_SIZE(spapr));
+        memset(spapr->htab, 0, size);
+        spapr->htab_shift = shift;
+        kvmppc_kern_htab = false;
 
-        for (index = 0; index < HTAB_SIZE(spapr) / HASH_PTE_SIZE_64; index++) {
-            DIRTY_HPTE(HPTE(spapr->htab, index));
+        for (i = 0; i < size / HASH_PTE_SIZE_64; i++) {
+            DIRTY_HPTE(HPTE(spapr->htab, i));
         }
-    }
-
-    /* Update the RMA size if necessary */
-    if (spapr->vrma_adjust) {
-        spapr->rma_size = kvmppc_rma_size(spapr_node0_size(),
-                                          spapr->htab_shift);
     }
 }
 
@@ -1159,15 +1133,24 @@ static int find_unknown_sysbus_device(SysBusDevice *sbdev, void *opaque)
 
 static void ppc_spapr_reset(void)
 {
-    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    MachineState *machine = MACHINE(qdev_get_machine());
+    sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
     PowerPCCPU *first_ppc_cpu;
     uint32_t rtas_limit;
 
     /* Check for unknown sysbus devices */
     foreach_dynamic_sysbus_device(find_unknown_sysbus_device, NULL);
 
-    /* Reset the hash table & recalc the RMA */
-    spapr_reset_htab(spapr);
+    /* Allocate and/or reset the hash page table */
+    spapr_reallocate_hpt(spapr,
+                         spapr_hpt_shift_for_ramsize(machine->maxram_size),
+                         &error_fatal);
+
+    /* Update the RMA size if necessary */
+    if (spapr->vrma_adjust) {
+        spapr->rma_size = kvmppc_rma_size(spapr_node0_size(),
+                                          spapr->htab_shift);
+    }
 
     qemu_devices_reset();
 
@@ -1547,10 +1530,12 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     section_hdr = qemu_get_be32(f);
 
     if (section_hdr) {
-        /* First section, just the hash shift */
-        if (spapr->htab_shift != section_hdr) {
-            error_report("htab_shift mismatch: source %d target %d",
-                         section_hdr, spapr->htab_shift);
+        Error *local_err;
+
+        /* First section gives the htab size */
+        spapr_reallocate_hpt(spapr, section_hdr, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
             return -EINVAL;
         }
         return 0;
@@ -1802,9 +1787,6 @@ static void ppc_spapr_init(MachineState *machine)
 
     /* Setup a load limit for the ramdisk leaving room for SLOF and FDT */
     load_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FW_OVERHEAD;
-
-    spapr->htab_shift = spapr_hpt_shift_for_ramsize(machine->maxram_size);
-    spapr_alloc_htab(spapr);
 
     /* Set up Interrupt Controller before we create the VCPUs */
     spapr->icp = xics_system_init(machine,
