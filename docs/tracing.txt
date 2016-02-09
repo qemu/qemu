@@ -172,9 +172,6 @@ source tree.  It may not be as powerful as platform-specific or third-party
 trace backends but it is portable.  This is the recommended trace backend
 unless you have specific needs for more advanced backends.
 
-The "simple" backend currently does not capture string arguments, it simply
-records the char* pointer value instead of the string that is pointed to.
-
 === Ftrace ===
 
 The "ftrace" backend writes trace data to ftrace marker. This effectively
