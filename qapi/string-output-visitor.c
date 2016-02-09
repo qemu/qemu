@@ -1,7 +1,7 @@
 /*
  * String printing Visitor
  *
- * Copyright Red Hat, Inc. 2012
+ * Copyright Red Hat, Inc. 2012-2016
  *
  * Author: Paolo Bonzini <pbonzini@redhat.com>
  *
@@ -67,6 +67,11 @@ struct StringOutputVisitor
     GList *ranges;
 };
 
+static StringOutputVisitor *to_sov(Visitor *v)
+{
+    return container_of(v, StringOutputVisitor, visitor);
+}
+
 static void string_output_set(StringOutputVisitor *sov, char *string)
 {
     if (sov->string) {
@@ -117,10 +122,10 @@ static void format_string(StringOutputVisitor *sov, Range *r, bool next,
     }
 }
 
-static void print_type_int(Visitor *v, int64_t *obj, const char *name,
-                           Error **errp)
+static void print_type_int64(Visitor *v, const char *name, int64_t *obj,
+                             Error **errp)
 {
-    StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
+    StringOutputVisitor *sov = to_sov(v);
     GList *l;
 
     switch (sov->list_mode) {
@@ -193,10 +198,18 @@ static void print_type_int(Visitor *v, int64_t *obj, const char *name,
     }
 }
 
-static void print_type_size(Visitor *v, uint64_t *obj, const char *name,
-                           Error **errp)
+static void print_type_uint64(Visitor *v, const char *name, uint64_t *obj,
+                             Error **errp)
 {
-    StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
+    /* FIXME: print_type_int64 mishandles values over INT64_MAX */
+    int64_t i = *obj;
+    print_type_int64(v, name, &i, errp);
+}
+
+static void print_type_size(Visitor *v, const char *name, uint64_t *obj,
+                            Error **errp)
+{
+    StringOutputVisitor *sov = to_sov(v);
     static const char suffixes[] = { 'B', 'K', 'M', 'G', 'T', 'P', 'E' };
     uint64_t div, val;
     char *out;
@@ -224,17 +237,17 @@ static void print_type_size(Visitor *v, uint64_t *obj, const char *name,
     string_output_set(sov, out);
 }
 
-static void print_type_bool(Visitor *v, bool *obj, const char *name,
+static void print_type_bool(Visitor *v, const char *name, bool *obj,
                             Error **errp)
 {
-    StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
+    StringOutputVisitor *sov = to_sov(v);
     string_output_set(sov, g_strdup(*obj ? "true" : "false"));
 }
 
-static void print_type_str(Visitor *v, char **obj, const char *name,
+static void print_type_str(Visitor *v, const char *name, char **obj,
                            Error **errp)
 {
-    StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
+    StringOutputVisitor *sov = to_sov(v);
     char *out;
 
     if (sov->human) {
@@ -245,17 +258,17 @@ static void print_type_str(Visitor *v, char **obj, const char *name,
     string_output_set(sov, out);
 }
 
-static void print_type_number(Visitor *v, double *obj, const char *name,
+static void print_type_number(Visitor *v, const char *name, double *obj,
                               Error **errp)
 {
-    StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
+    StringOutputVisitor *sov = to_sov(v);
     string_output_set(sov, g_strdup_printf("%f", *obj));
 }
 
 static void
 start_list(Visitor *v, const char *name, Error **errp)
 {
-    StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
+    StringOutputVisitor *sov = to_sov(v);
 
     /* we can't traverse a list in a list */
     assert(sov->list_mode == LM_NONE);
@@ -263,10 +276,9 @@ start_list(Visitor *v, const char *name, Error **errp)
     sov->head = true;
 }
 
-static GenericList *
-next_list(Visitor *v, GenericList **list, Error **errp)
+static GenericList *next_list(Visitor *v, GenericList **list)
 {
-    StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
+    StringOutputVisitor *sov = to_sov(v);
     GenericList *ret = NULL;
     if (*list) {
         if (sov->head) {
@@ -290,10 +302,9 @@ next_list(Visitor *v, GenericList **list, Error **errp)
     return ret;
 }
 
-static void
-end_list(Visitor *v, Error **errp)
+static void end_list(Visitor *v)
 {
-    StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
+    StringOutputVisitor *sov = to_sov(v);
 
     assert(sov->list_mode == LM_STARTED ||
            sov->list_mode == LM_END ||
@@ -341,7 +352,8 @@ StringOutputVisitor *string_output_visitor_new(bool human)
     v->string = g_string_new(NULL);
     v->human = human;
     v->visitor.type_enum = output_type_enum;
-    v->visitor.type_int = print_type_int;
+    v->visitor.type_int64 = print_type_int64;
+    v->visitor.type_uint64 = print_type_uint64;
     v->visitor.type_size = print_type_size;
     v->visitor.type_bool = print_type_bool;
     v->visitor.type_str = print_type_str;

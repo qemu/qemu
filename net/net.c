@@ -1046,9 +1046,9 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
 static void net_visit(Visitor *v, int is_netdev, void **object, Error **errp)
 {
     if (is_netdev) {
-        visit_type_Netdev(v, (Netdev **)object, NULL, errp);
+        visit_type_Netdev(v, NULL, (Netdev **)object, errp);
     } else {
-        visit_type_NetLegacy(v, (NetLegacy **)object, NULL, errp);
+        visit_type_NetLegacy(v, NULL, (NetLegacy **)object, errp);
     }
 }
 

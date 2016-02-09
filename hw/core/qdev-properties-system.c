@@ -31,7 +31,7 @@ static void get_pointer(Object *obj, Visitor *v, Property *prop,
     char *p;
 
     p = *ptr ? print(*ptr) : g_strdup("");
-    visit_type_str(v, &p, name, errp);
+    visit_type_str(v, name, &p, errp);
     g_free(p);
 }
 
@@ -51,7 +51,7 @@ static void set_pointer(Object *obj, Visitor *v, Property *prop,
         return;
     }
 
-    visit_type_str(v, &str, name, &local_err);
+    visit_type_str(v, name, &str, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -112,14 +112,14 @@ static char *print_drive(void *ptr)
     return g_strdup(blk_name(ptr));
 }
 
-static void get_drive(Object *obj, Visitor *v, void *opaque,
-                      const char *name, Error **errp)
+static void get_drive(Object *obj, Visitor *v, const char *name, void *opaque,
+                      Error **errp)
 {
     get_pointer(obj, v, opaque, print_drive, name, errp);
 }
 
-static void set_drive(Object *obj, Visitor *v, void *opaque,
-                      const char *name, Error **errp)
+static void set_drive(Object *obj, Visitor *v, const char *name, void *opaque,
+                      Error **errp)
 {
     set_pointer(obj, v, opaque, parse_drive, name, errp);
 }
@@ -173,14 +173,14 @@ static char *print_chr(void *ptr)
     return g_strdup(val);
 }
 
-static void get_chr(Object *obj, Visitor *v, void *opaque,
-                    const char *name, Error **errp)
+static void get_chr(Object *obj, Visitor *v, const char *name, void *opaque,
+                    Error **errp)
 {
     get_pointer(obj, v, opaque, print_chr, name, errp);
 }
 
-static void set_chr(Object *obj, Visitor *v, void *opaque,
-                    const char *name, Error **errp)
+static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
+                    Error **errp)
 {
     set_pointer(obj, v, opaque, parse_chr, name, errp);
 }
@@ -194,20 +194,20 @@ PropertyInfo qdev_prop_chr = {
 };
 
 /* --- netdev device --- */
-static void get_netdev(Object *obj, Visitor *v, void *opaque,
-                       const char *name, Error **errp)
+static void get_netdev(Object *obj, Visitor *v, const char *name,
+                       void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     NICPeers *peers_ptr = qdev_get_prop_ptr(dev, prop);
     char *p = g_strdup(peers_ptr->ncs[0] ? peers_ptr->ncs[0]->name : "");
 
-    visit_type_str(v, &p, name, errp);
+    visit_type_str(v, name, &p, errp);
     g_free(p);
 }
 
-static void set_netdev(Object *obj, Visitor *v, void *opaque,
-                       const char *name, Error **errp)
+static void set_netdev(Object *obj, Visitor *v, const char *name,
+                       void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
@@ -223,7 +223,7 @@ static void set_netdev(Object *obj, Visitor *v, void *opaque,
         return;
     }
 
-    visit_type_str(v, &str, name, &local_err);
+    visit_type_str(v, name, &str, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -293,8 +293,8 @@ static int print_vlan(DeviceState *dev, Property *prop, char *dest, size_t len)
     return snprintf(dest, len, "<null>");
 }
 
-static void get_vlan(Object *obj, Visitor *v, void *opaque,
-                     const char *name, Error **errp)
+static void get_vlan(Object *obj, Visitor *v, const char *name, void *opaque,
+                     Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
@@ -308,11 +308,11 @@ static void get_vlan(Object *obj, Visitor *v, void *opaque,
         }
     }
 
-    visit_type_int32(v, &id, name, errp);
+    visit_type_int32(v, name, &id, errp);
 }
 
-static void set_vlan(Object *obj, Visitor *v, void *opaque,
-                     const char *name, Error **errp)
+static void set_vlan(Object *obj, Visitor *v, const char *name, void *opaque,
+                     Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
@@ -327,7 +327,7 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
         return;
     }
 
-    visit_type_int32(v, &id, name, &local_err);
+    visit_type_int32(v, name, &id, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;

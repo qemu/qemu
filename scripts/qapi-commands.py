@@ -131,7 +131,7 @@ static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in, QObject **ret_out, 
     Visitor *v;
 
     v = qmp_output_get_visitor(qov);
-    visit_type_%(c_name)s(v, &ret_in, "unused", &err);
+    visit_type_%(c_name)s(v, "unused", &ret_in, &err);
     if (err) {
         goto out;
     }
@@ -142,7 +142,7 @@ out:
     qmp_output_visitor_cleanup(qov);
     qdv = qapi_dealloc_visitor_new();
     v = qapi_dealloc_get_visitor(qdv);
-    visit_type_%(c_name)s(v, &ret_in, "unused", NULL);
+    visit_type_%(c_name)s(v, "unused", &ret_in, NULL);
     qapi_dealloc_visitor_cleanup(qdv);
 }
 ''',

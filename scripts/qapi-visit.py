@@ -2,7 +2,7 @@
 # QAPI visitor generator
 #
 # Copyright IBM, Corp. 2011
-# Copyright (C) 2014-2015 Red Hat, Inc.
+# Copyright (C) 2014-2016 Red Hat, Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
@@ -29,7 +29,7 @@ def gen_visit_decl(name, scalar=False):
     if not scalar:
         c_type += '*'
     return mcgen('''
-void visit_type_%(c_name)s(Visitor *v, %(c_type)sobj, const char *name, Error **errp);
+void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_type)sobj, Error **errp);
 ''',
                  c_name=c_name(name), c_type=c_type)
 
@@ -62,7 +62,7 @@ static void visit_type_implicit_%(c_type)s(Visitor *v, %(c_type)s **obj, Error *
     visit_start_implicit_struct(v, (void **)obj, sizeof(%(c_type)s), &err);
     if (!err) {
         visit_type_%(c_type)s_fields(v, obj, errp);
-        visit_end_implicit_struct(v, &err);
+        visit_end_implicit_struct(v);
     }
     error_propagate(errp, err);
 }
@@ -118,21 +118,27 @@ def gen_visit_struct(name, base, members):
     # call qapi_free_FOO() to avoid a memory leak of the partial FOO.
     ret += mcgen('''
 
-void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
 {
     Error *err = NULL;
 
-    visit_start_struct(v, (void **)obj, "%(name)s", name, sizeof(%(c_name)s), &err);
-    if (!err) {
-        if (*obj) {
-            visit_type_%(c_name)s_fields(v, obj, errp);
-        }
-        visit_end_struct(v, &err);
+    visit_start_struct(v, name, (void **)obj, sizeof(%(c_name)s), &err);
+    if (err) {
+        goto out;
     }
+    if (!*obj) {
+        goto out_obj;
+    }
+    visit_type_%(c_name)s_fields(v, obj, &err);
+    error_propagate(errp, err);
+    err = NULL;
+out_obj:
+    visit_end_struct(v, &err);
+out:
     error_propagate(errp, err);
 }
 ''',
-                 name=name, c_name=c_name(name))
+                 c_name=c_name(name))
 
     return ret
 
@@ -144,7 +150,7 @@ def gen_visit_list(name, element_type):
     # call qapi_free_FOOList() to avoid a memory leak of the partial FOOList.
     return mcgen('''
 
-void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
 {
     Error *err = NULL;
     GenericList *i, **prev;
@@ -155,15 +161,13 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
     }
 
     for (prev = (GenericList **)obj;
-         !err && (i = visit_next_list(v, prev, &err)) != NULL;
+         !err && (i = visit_next_list(v, prev)) != NULL;
          prev = &i) {
         %(c_name)s *native_i = (%(c_name)s *)i;
-        visit_type_%(c_elt_type)s(v, &native_i->value, NULL, &err);
+        visit_type_%(c_elt_type)s(v, NULL, &native_i->value, &err);
     }
 
-    error_propagate(errp, err);
-    err = NULL;
-    visit_end_list(v, &err);
+    visit_end_list(v);
 out:
     error_propagate(errp, err);
 }
@@ -172,15 +176,16 @@ out:
 
 
 def gen_visit_enum(name):
-    # FIXME cast from enum *obj to int * invalidly assumes enum is int
     return mcgen('''
 
-void visit_type_%(c_name)s(Visitor *v, %(c_name)s *obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s *obj, Error **errp)
 {
-    visit_type_enum(v, (int *)obj, %(c_name)s_lookup, "%(name)s", name, errp);
+    int value = *obj;
+    visit_type_enum(v, name, &value, %(c_name)s_lookup, errp);
+    *obj = value;
 }
 ''',
-                 c_name=c_name(name), name=name)
+                 c_name=c_name(name))
 
 
 def gen_visit_alternate(name, variants):
@@ -191,7 +196,7 @@ def gen_visit_alternate(name, variants):
 
     ret = mcgen('''
 
-void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
 {
     Error *err = NULL;
 
@@ -199,7 +204,7 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
     if (err) {
         goto out;
     }
-    visit_get_next_type(v, &(*obj)->type, %(promote_int)s, name, &err);
+    visit_get_next_type(v, name, &(*obj)->type, %(promote_int)s, &err);
     if (err) {
         goto out_obj;
     }
@@ -210,7 +215,7 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
     for var in variants.variants:
         ret += mcgen('''
     case %(case)s:
-        visit_type_%(c_type)s(v, &(*obj)->u.%(c_name)s, name, &err);
+        visit_type_%(c_type)s(v, name, &(*obj)->u.%(c_name)s, &err);
         break;
 ''',
                      case=var.type.alternate_qtype(),
@@ -223,9 +228,7 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
                    "%(name)s");
     }
 out_obj:
-    error_propagate(errp, err);
-    err = NULL;
-    visit_end_implicit_struct(v, &err);
+    visit_end_implicit_struct(v);
 out:
     error_propagate(errp, err);
 }
@@ -248,11 +251,11 @@ def gen_visit_union(name, base, variants):
 
     ret += mcgen('''
 
-void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
 {
     Error *err = NULL;
 
-    visit_start_struct(v, (void **)obj, "%(name)s", name, sizeof(%(c_name)s), &err);
+    visit_start_struct(v, name, (void **)obj, sizeof(%(c_name)s), &err);
     if (err) {
         goto out;
     }
@@ -260,7 +263,7 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
         goto out_obj;
     }
 ''',
-                 c_name=c_name(name), name=name)
+                 c_name=c_name(name))
 
     if base:
         ret += mcgen('''
@@ -269,7 +272,7 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
                      c_name=base.c_name())
     else:
         ret += mcgen('''
-    visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, "%(name)s", &err);
+    visit_type_%(c_type)s(v, "%(name)s", &(*obj)->%(c_name)s, &err);
 ''',
                      c_type=variants.tag_member.type.c_name(),
                      c_name=c_name(variants.tag_member.name),
@@ -293,7 +296,7 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
                                        var.name))
         if simple_union_type:
             ret += mcgen('''
-        visit_type_%(c_type)s(v, &(*obj)->u.%(c_name)s, "data", &err);
+        visit_type_%(c_type)s(v, "data", &(*obj)->u.%(c_name)s, &err);
 ''',
                          c_type=simple_union_type.c_name(),
                          c_name=c_name(var.name))
@@ -312,11 +315,6 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
         abort();
     }
 out_obj:
-    error_propagate(errp, err);
-    err = NULL;
-    if (*obj) {
-        visit_end_union(v, !!(*obj)->u.data, &err);
-    }
     error_propagate(errp, err);
     err = NULL;
     visit_end_struct(v, &err);

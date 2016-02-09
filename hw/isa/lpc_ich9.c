@@ -570,14 +570,13 @@ Object *ich9_lpc_find(void)
     return o;
 }
 
-static void ich9_lpc_get_sci_int(Object *obj, Visitor *v,
-                                 void *opaque, const char *name,
-                                 Error **errp)
+static void ich9_lpc_get_sci_int(Object *obj, Visitor *v, const char *name,
+                                 void *opaque, Error **errp)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(obj);
     uint32_t value = ich9_lpc_sci_irq(lpc);
 
-    visit_type_uint32(v, &value, name, errp);
+    visit_type_uint32(v, name, &value, errp);
 }
 
 static void ich9_lpc_add_properties(ICH9LPCState *lpc)

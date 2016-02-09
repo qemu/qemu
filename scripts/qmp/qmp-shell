@@ -240,7 +240,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
     def _execute_cmd(self, cmdline):
         try:
             qmpcmd = self.__build_cmd(cmdline)
-        except Exception, e:
+        except Exception as e:
             print 'Error while parsing command line: %s' % e
             print 'command format: <command-name> ',
             print '[arg-name1=arg1] ... [arg-nameN=argN]'

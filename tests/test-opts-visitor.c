@@ -44,7 +44,7 @@ setup_fixture(OptsVisitorFixture *f, gconstpointer test_data)
     g_assert(opts != NULL);
 
     ov = opts_visitor_new(opts);
-    visit_type_UserDefOptions(opts_get_visitor(ov), &f->userdef, NULL,
+    visit_type_UserDefOptions(opts_get_visitor(ov), NULL, &f->userdef,
                               &f->err);
     opts_visitor_cleanup(ov);
     qemu_opts_del(opts);
@@ -58,8 +58,8 @@ teardown_fixture(OptsVisitorFixture *f, gconstpointer test_data)
         QapiDeallocVisitor *dv;
 
         dv = qapi_dealloc_visitor_new();
-        visit_type_UserDefOptions(qapi_dealloc_get_visitor(dv), &f->userdef,
-                                  NULL, NULL);
+        visit_type_UserDefOptions(qapi_dealloc_get_visitor(dv), NULL,
+                                  &f->userdef, NULL);
         qapi_dealloc_visitor_cleanup(dv);
     }
     error_free(f->err);

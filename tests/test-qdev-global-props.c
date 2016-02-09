@@ -116,26 +116,20 @@ static void test_static_globalprop(void)
 #define TYPE_UNUSED_HOTPLUG   "hotplug-type"
 #define TYPE_UNUSED_NOHOTPLUG "nohotplug-type"
 
-static void prop1_accessor(Object *obj,
-                           Visitor *v,
-                           void *opaque,
-                           const char *name,
-                           Error **errp)
+static void prop1_accessor(Object *obj, Visitor *v, const char *name,
+                           void *opaque, Error **errp)
 {
     MyType *mt = DYNAMIC_TYPE(obj);
 
-    visit_type_uint32(v, &mt->prop1, name, errp);
+    visit_type_uint32(v, name, &mt->prop1, errp);
 }
 
-static void prop2_accessor(Object *obj,
-                           Visitor *v,
-                           void *opaque,
-                           const char *name,
-                           Error **errp)
+static void prop2_accessor(Object *obj, Visitor *v, const char *name,
+                           void *opaque, Error **errp)
 {
     MyType *mt = DYNAMIC_TYPE(obj);
 
-    visit_type_uint32(v, &mt->prop2, name, errp);
+    visit_type_uint32(v, name, &mt->prop2, errp);
 }
 
 static void dynamic_instance_init(Object *obj)

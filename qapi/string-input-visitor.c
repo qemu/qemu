@@ -1,7 +1,7 @@
 /*
  * String parsing visitor
  *
- * Copyright Red Hat, Inc. 2012
+ * Copyright Red Hat, Inc. 2012-2016
  *
  * Author: Paolo Bonzini <pbonzini@redhat.com>
  *
@@ -32,6 +32,11 @@ struct StringInputVisitor
 
     const char *string;
 };
+
+static StringInputVisitor *to_siv(Visitor *v)
+{
+    return container_of(v, StringInputVisitor, visitor);
+}
 
 static void free_range(void *range, void *dummy)
 {
@@ -121,7 +126,7 @@ error:
 static void
 start_list(Visitor *v, const char *name, Error **errp)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
 
     parse_str(siv, errp);
 
@@ -134,10 +139,9 @@ start_list(Visitor *v, const char *name, Error **errp)
     }
 }
 
-static GenericList *
-next_list(Visitor *v, GenericList **list, Error **errp)
+static GenericList *next_list(Visitor *v, GenericList **list)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
     GenericList **link;
     Range *r;
 
@@ -173,17 +177,16 @@ next_list(Visitor *v, GenericList **list, Error **errp)
     return *link;
 }
 
-static void
-end_list(Visitor *v, Error **errp)
+static void end_list(Visitor *v)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
     siv->head = true;
 }
 
-static void parse_type_int(Visitor *v, int64_t *obj, const char *name,
-                           Error **errp)
+static void parse_type_int64(Visitor *v, const char *name, int64_t *obj,
+                             Error **errp)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
 
     if (!siv->string) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
@@ -222,10 +225,24 @@ error:
                "an int64 value or range");
 }
 
-static void parse_type_size(Visitor *v, uint64_t *obj, const char *name,
+static void parse_type_uint64(Visitor *v, const char *name, uint64_t *obj,
+                              Error **errp)
+{
+    /* FIXME: parse_type_int64 mishandles values over INT64_MAX */
+    int64_t i;
+    Error *err = NULL;
+    parse_type_int64(v, name, &i, &err);
+    if (err) {
+        error_propagate(errp, err);
+    } else {
+        *obj = i;
+    }
+}
+
+static void parse_type_size(Visitor *v, const char *name, uint64_t *obj,
                             Error **errp)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
     Error *err = NULL;
     uint64_t val;
 
@@ -244,10 +261,10 @@ static void parse_type_size(Visitor *v, uint64_t *obj, const char *name,
     *obj = val;
 }
 
-static void parse_type_bool(Visitor *v, bool *obj, const char *name,
+static void parse_type_bool(Visitor *v, const char *name, bool *obj,
                             Error **errp)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
 
     if (siv->string) {
         if (!strcasecmp(siv->string, "on") ||
@@ -268,10 +285,10 @@ static void parse_type_bool(Visitor *v, bool *obj, const char *name,
                "boolean");
 }
 
-static void parse_type_str(Visitor *v, char **obj, const char *name,
+static void parse_type_str(Visitor *v, const char *name, char **obj,
                            Error **errp)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
     if (siv->string) {
         *obj = g_strdup(siv->string);
     } else {
@@ -280,10 +297,10 @@ static void parse_type_str(Visitor *v, char **obj, const char *name,
     }
 }
 
-static void parse_type_number(Visitor *v, double *obj, const char *name,
+static void parse_type_number(Visitor *v, const char *name, double *obj,
                               Error **errp)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
     char *endp = (char *) siv->string;
     double val;
 
@@ -300,9 +317,9 @@ static void parse_type_number(Visitor *v, double *obj, const char *name,
     *obj = val;
 }
 
-static void parse_optional(Visitor *v, bool *present, const char *name)
+static void parse_optional(Visitor *v, const char *name, bool *present)
 {
-    StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
+    StringInputVisitor *siv = to_siv(v);
 
     if (!siv->string) {
         *present = false;
@@ -331,7 +348,8 @@ StringInputVisitor *string_input_visitor_new(const char *str)
     v = g_malloc0(sizeof(*v));
 
     v->visitor.type_enum = input_type_enum;
-    v->visitor.type_int = parse_type_int;
+    v->visitor.type_int64 = parse_type_int64;
+    v->visitor.type_uint64 = parse_type_uint64;
     v->visitor.type_size = parse_type_size;
     v->visitor.type_bool = parse_type_bool;
     v->visitor.type_str = parse_type_str;

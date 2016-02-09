@@ -1,6 +1,7 @@
 /*
  * Core Definitions for QAPI Visitor Classes
  *
+ * Copyright (C) 2012-2016 Red Hat, Inc.
  * Copyright IBM, Corp. 2011
  *
  * Authors:
@@ -18,10 +19,10 @@
 #include "qapi/visitor.h"
 #include "qapi/visitor-impl.h"
 
-void visit_start_struct(Visitor *v, void **obj, const char *kind,
-                        const char *name, size_t size, Error **errp)
+void visit_start_struct(Visitor *v, const char *name, void **obj,
+                        size_t size, Error **errp)
 {
-    v->start_struct(v, obj, kind, name, size, errp);
+    v->start_struct(v, name, obj, size, errp);
 }
 
 void visit_end_struct(Visitor *v, Error **errp)
@@ -37,10 +38,10 @@ void visit_start_implicit_struct(Visitor *v, void **obj, size_t size,
     }
 }
 
-void visit_end_implicit_struct(Visitor *v, Error **errp)
+void visit_end_implicit_struct(Visitor *v)
 {
     if (v->end_implicit_struct) {
-        v->end_implicit_struct(v, errp);
+        v->end_implicit_struct(v);
     }
 }
 
@@ -49,14 +50,14 @@ void visit_start_list(Visitor *v, const char *name, Error **errp)
     v->start_list(v, name, errp);
 }
 
-GenericList *visit_next_list(Visitor *v, GenericList **list, Error **errp)
+GenericList *visit_next_list(Visitor *v, GenericList **list)
 {
-    return v->next_list(v, list, errp);
+    return v->next_list(v, list);
 }
 
-void visit_end_list(Visitor *v, Error **errp)
+void visit_end_list(Visitor *v)
 {
-    v->end_list(v, errp);
+    v->end_list(v);
 }
 
 bool visit_start_union(Visitor *v, bool data_present, Error **errp)
@@ -67,209 +68,160 @@ bool visit_start_union(Visitor *v, bool data_present, Error **errp)
     return true;
 }
 
-void visit_end_union(Visitor *v, bool data_present, Error **errp)
-{
-    if (v->end_union) {
-        v->end_union(v, data_present, errp);
-    }
-}
-
-bool visit_optional(Visitor *v, bool *present, const char *name)
+bool visit_optional(Visitor *v, const char *name, bool *present)
 {
     if (v->optional) {
-        v->optional(v, present, name);
+        v->optional(v, name, present);
     }
     return *present;
 }
 
-void visit_get_next_type(Visitor *v, QType *type, bool promote_int,
-                         const char *name, Error **errp)
+void visit_get_next_type(Visitor *v, const char *name, QType *type,
+                         bool promote_int, Error **errp)
 {
     if (v->get_next_type) {
-        v->get_next_type(v, type, promote_int, name, errp);
+        v->get_next_type(v, name, type, promote_int, errp);
     }
 }
 
-void visit_type_enum(Visitor *v, int *obj, const char * const strings[],
-                     const char *kind, const char *name, Error **errp)
+void visit_type_enum(Visitor *v, const char *name, int *obj,
+                     const char *const strings[], Error **errp)
 {
-    v->type_enum(v, obj, strings, kind, name, errp);
+    v->type_enum(v, name, obj, strings, errp);
 }
 
-void visit_type_int(Visitor *v, int64_t *obj, const char *name, Error **errp)
+void visit_type_int(Visitor *v, const char *name, int64_t *obj, Error **errp)
 {
-    v->type_int(v, obj, name, errp);
+    v->type_int64(v, name, obj, errp);
 }
 
-void visit_type_uint8(Visitor *v, uint8_t *obj, const char *name, Error **errp)
+static void visit_type_uintN(Visitor *v, uint64_t *obj, const char *name,
+                             uint64_t max, const char *type, Error **errp)
 {
-    int64_t value;
+    Error *err = NULL;
+    uint64_t value = *obj;
 
-    if (v->type_uint8) {
-        v->type_uint8(v, obj, name, errp);
+    v->type_uint64(v, name, &value, &err);
+    if (err) {
+        error_propagate(errp, err);
+    } else if (value > max) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   name ? name : "null", type);
     } else {
-        value = *obj;
-        v->type_int(v, &value, name, errp);
-        if (value < 0 || value > UINT8_MAX) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                       name ? name : "null", "uint8_t");
-            return;
-        }
         *obj = value;
     }
 }
 
-void visit_type_uint16(Visitor *v, uint16_t *obj, const char *name, Error **errp)
-{
-    int64_t value;
-
-    if (v->type_uint16) {
-        v->type_uint16(v, obj, name, errp);
-    } else {
-        value = *obj;
-        v->type_int(v, &value, name, errp);
-        if (value < 0 || value > UINT16_MAX) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                       name ? name : "null", "uint16_t");
-            return;
-        }
-        *obj = value;
-    }
-}
-
-void visit_type_uint32(Visitor *v, uint32_t *obj, const char *name, Error **errp)
-{
-    int64_t value;
-
-    if (v->type_uint32) {
-        v->type_uint32(v, obj, name, errp);
-    } else {
-        value = *obj;
-        v->type_int(v, &value, name, errp);
-        if (value < 0 || value > UINT32_MAX) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                       name ? name : "null", "uint32_t");
-            return;
-        }
-        *obj = value;
-    }
-}
-
-void visit_type_uint64(Visitor *v, uint64_t *obj, const char *name, Error **errp)
-{
-    int64_t value;
-
-    if (v->type_uint64) {
-        v->type_uint64(v, obj, name, errp);
-    } else {
-        value = *obj;
-        v->type_int(v, &value, name, errp);
-        *obj = value;
-    }
-}
-
-void visit_type_int8(Visitor *v, int8_t *obj, const char *name, Error **errp)
-{
-    int64_t value;
-
-    if (v->type_int8) {
-        v->type_int8(v, obj, name, errp);
-    } else {
-        value = *obj;
-        v->type_int(v, &value, name, errp);
-        if (value < INT8_MIN || value > INT8_MAX) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                       name ? name : "null", "int8_t");
-            return;
-        }
-        *obj = value;
-    }
-}
-
-void visit_type_int16(Visitor *v, int16_t *obj, const char *name, Error **errp)
-{
-    int64_t value;
-
-    if (v->type_int16) {
-        v->type_int16(v, obj, name, errp);
-    } else {
-        value = *obj;
-        v->type_int(v, &value, name, errp);
-        if (value < INT16_MIN || value > INT16_MAX) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                       name ? name : "null", "int16_t");
-            return;
-        }
-        *obj = value;
-    }
-}
-
-void visit_type_int32(Visitor *v, int32_t *obj, const char *name, Error **errp)
-{
-    int64_t value;
-
-    if (v->type_int32) {
-        v->type_int32(v, obj, name, errp);
-    } else {
-        value = *obj;
-        v->type_int(v, &value, name, errp);
-        if (value < INT32_MIN || value > INT32_MAX) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                       name ? name : "null", "int32_t");
-            return;
-        }
-        *obj = value;
-    }
-}
-
-void visit_type_int64(Visitor *v, int64_t *obj, const char *name, Error **errp)
-{
-    if (v->type_int64) {
-        v->type_int64(v, obj, name, errp);
-    } else {
-        v->type_int(v, obj, name, errp);
-    }
-}
-
-void visit_type_size(Visitor *v, uint64_t *obj, const char *name, Error **errp)
-{
-    int64_t value;
-
-    if (v->type_size) {
-        v->type_size(v, obj, name, errp);
-    } else if (v->type_uint64) {
-        v->type_uint64(v, obj, name, errp);
-    } else {
-        value = *obj;
-        v->type_int(v, &value, name, errp);
-        *obj = value;
-    }
-}
-
-void visit_type_bool(Visitor *v, bool *obj, const char *name, Error **errp)
-{
-    v->type_bool(v, obj, name, errp);
-}
-
-void visit_type_str(Visitor *v, char **obj, const char *name, Error **errp)
-{
-    v->type_str(v, obj, name, errp);
-}
-
-void visit_type_number(Visitor *v, double *obj, const char *name, Error **errp)
-{
-    v->type_number(v, obj, name, errp);
-}
-
-void visit_type_any(Visitor *v, QObject **obj, const char *name,
-                    Error **errp)
-{
-    v->type_any(v, obj, name, errp);
-}
-
-void output_type_enum(Visitor *v, int *obj, const char * const strings[],
-                      const char *kind, const char *name,
+void visit_type_uint8(Visitor *v, const char *name, uint8_t *obj,
                       Error **errp)
+{
+    uint64_t value = *obj;
+    visit_type_uintN(v, &value, name, UINT8_MAX, "uint8_t", errp);
+    *obj = value;
+}
+
+void visit_type_uint16(Visitor *v, const char *name, uint16_t *obj,
+                       Error **errp)
+{
+    uint64_t value = *obj;
+    visit_type_uintN(v, &value, name, UINT16_MAX, "uint16_t", errp);
+    *obj = value;
+}
+
+void visit_type_uint32(Visitor *v, const char *name, uint32_t *obj,
+                       Error **errp)
+{
+    uint64_t value = *obj;
+    visit_type_uintN(v, &value, name, UINT32_MAX, "uint32_t", errp);
+    *obj = value;
+}
+
+void visit_type_uint64(Visitor *v, const char *name, uint64_t *obj,
+                       Error **errp)
+{
+    v->type_uint64(v, name, obj, errp);
+}
+
+static void visit_type_intN(Visitor *v, int64_t *obj, const char *name,
+                            int64_t min, int64_t max, const char *type,
+                            Error **errp)
+{
+    Error *err = NULL;
+    int64_t value = *obj;
+
+    v->type_int64(v, name, &value, &err);
+    if (err) {
+        error_propagate(errp, err);
+    } else if (value < min || value > max) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   name ? name : "null", type);
+    } else {
+        *obj = value;
+    }
+}
+
+void visit_type_int8(Visitor *v, const char *name, int8_t *obj, Error **errp)
+{
+    int64_t value = *obj;
+    visit_type_intN(v, &value, name, INT8_MIN, INT8_MAX, "int8_t", errp);
+    *obj = value;
+}
+
+void visit_type_int16(Visitor *v, const char *name, int16_t *obj,
+                      Error **errp)
+{
+    int64_t value = *obj;
+    visit_type_intN(v, &value, name, INT16_MIN, INT16_MAX, "int16_t", errp);
+    *obj = value;
+}
+
+void visit_type_int32(Visitor *v, const char *name, int32_t *obj,
+                      Error **errp)
+{
+    int64_t value = *obj;
+    visit_type_intN(v, &value, name, INT32_MIN, INT32_MAX, "int32_t", errp);
+    *obj = value;
+}
+
+void visit_type_int64(Visitor *v, const char *name, int64_t *obj,
+                      Error **errp)
+{
+    v->type_int64(v, name, obj, errp);
+}
+
+void visit_type_size(Visitor *v, const char *name, uint64_t *obj,
+                     Error **errp)
+{
+    if (v->type_size) {
+        v->type_size(v, name, obj, errp);
+    } else {
+        v->type_uint64(v, name, obj, errp);
+    }
+}
+
+void visit_type_bool(Visitor *v, const char *name, bool *obj, Error **errp)
+{
+    v->type_bool(v, name, obj, errp);
+}
+
+void visit_type_str(Visitor *v, const char *name, char **obj, Error **errp)
+{
+    v->type_str(v, name, obj, errp);
+}
+
+void visit_type_number(Visitor *v, const char *name, double *obj,
+                       Error **errp)
+{
+    v->type_number(v, name, obj, errp);
+}
+
+void visit_type_any(Visitor *v, const char *name, QObject **obj, Error **errp)
+{
+    v->type_any(v, name, obj, errp);
+}
+
+void output_type_enum(Visitor *v, const char *name, int *obj,
+                      const char *const strings[], Error **errp)
 {
     int i = 0;
     int value = *obj;
@@ -283,12 +235,11 @@ void output_type_enum(Visitor *v, int *obj, const char * const strings[],
     }
 
     enum_str = (char *)strings[value];
-    visit_type_str(v, &enum_str, name, errp);
+    visit_type_str(v, name, &enum_str, errp);
 }
 
-void input_type_enum(Visitor *v, int *obj, const char * const strings[],
-                     const char *kind, const char *name,
-                     Error **errp)
+void input_type_enum(Visitor *v, const char *name, int *obj,
+                     const char *const strings[], Error **errp)
 {
     Error *local_err = NULL;
     int64_t value = 0;
@@ -296,7 +247,7 @@ void input_type_enum(Visitor *v, int *obj, const char * const strings[],
 
     assert(strings);
 
-    visit_type_str(v, &enum_str, name, &local_err);
+    visit_type_str(v, name, &enum_str, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;

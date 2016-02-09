@@ -1741,34 +1741,35 @@ static HotplugHandler *pc_get_hotpug_handler(MachineState *machine,
 }
 
 static void
-pc_machine_get_hotplug_memory_region_size(Object *obj, Visitor *v, void *opaque,
-                                          const char *name, Error **errp)
+pc_machine_get_hotplug_memory_region_size(Object *obj, Visitor *v,
+                                          const char *name, void *opaque,
+                                          Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
     int64_t value = memory_region_size(&pcms->hotplug_memory.mr);
 
-    visit_type_int(v, &value, name, errp);
+    visit_type_int(v, name, &value, errp);
 }
 
 static void pc_machine_get_max_ram_below_4g(Object *obj, Visitor *v,
-                                         void *opaque, const char *name,
-                                         Error **errp)
+                                            const char *name, void *opaque,
+                                            Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
     uint64_t value = pcms->max_ram_below_4g;
 
-    visit_type_size(v, &value, name, errp);
+    visit_type_size(v, name, &value, errp);
 }
 
 static void pc_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
-                                         void *opaque, const char *name,
-                                         Error **errp)
+                                            const char *name, void *opaque,
+                                            Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
     Error *error = NULL;
     uint64_t value;
 
-    visit_type_size(v, &value, name, &error);
+    visit_type_size(v, name, &value, &error);
     if (error) {
         error_propagate(errp, error);
         return;
@@ -1790,21 +1791,21 @@ static void pc_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
     pcms->max_ram_below_4g = value;
 }
 
-static void pc_machine_get_vmport(Object *obj, Visitor *v, void *opaque,
-                                  const char *name, Error **errp)
+static void pc_machine_get_vmport(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
     OnOffAuto vmport = pcms->vmport;
 
-    visit_type_OnOffAuto(v, &vmport, name, errp);
+    visit_type_OnOffAuto(v, name, &vmport, errp);
 }
 
-static void pc_machine_set_vmport(Object *obj, Visitor *v, void *opaque,
-                                  const char *name, Error **errp)
+static void pc_machine_set_vmport(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    visit_type_OnOffAuto(v, &pcms->vmport, name, errp);
+    visit_type_OnOffAuto(v, name, &pcms->vmport, errp);
 }
 
 bool pc_machine_is_smm_enabled(PCMachineState *pcms)
@@ -1832,21 +1833,21 @@ bool pc_machine_is_smm_enabled(PCMachineState *pcms)
     return false;
 }
 
-static void pc_machine_get_smm(Object *obj, Visitor *v, void *opaque,
-                              const char *name, Error **errp)
+static void pc_machine_get_smm(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
     OnOffAuto smm = pcms->smm;
 
-    visit_type_OnOffAuto(v, &smm, name, errp);
+    visit_type_OnOffAuto(v, name, &smm, errp);
 }
 
-static void pc_machine_set_smm(Object *obj, Visitor *v, void *opaque,
-                                  const char *name, Error **errp)
+static void pc_machine_set_smm(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    visit_type_OnOffAuto(v, &pcms->smm, name, errp);
+    visit_type_OnOffAuto(v, name, &pcms->smm, errp);
 }
 
 static bool pc_machine_get_nvdimm(Object *obj, Error **errp)

@@ -113,29 +113,31 @@ static void balloon_stats_poll_cb(void *opaque)
     s->stats_vq_elem = NULL;
 }
 
-static void balloon_stats_get_all(Object *obj, struct Visitor *v,
-                                  void *opaque, const char *name, Error **errp)
+static void balloon_stats_get_all(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     Error *err = NULL;
     VirtIOBalloon *s = opaque;
     int i;
 
-    visit_start_struct(v, NULL, "guest-stats", name, 0, &err);
+    visit_start_struct(v, name, NULL, 0, &err);
     if (err) {
         goto out;
     }
-    visit_type_int(v, &s->stats_last_update, "last-update", &err);
+    visit_type_int(v, "last-update", &s->stats_last_update, &err);
     if (err) {
         goto out_end;
     }
 
-    visit_start_struct(v, NULL, NULL, "stats", 0, &err);
+    visit_start_struct(v, "stats", NULL, 0, &err);
     if (err) {
         goto out_end;
     }
-    for (i = 0; !err && i < VIRTIO_BALLOON_S_NR; i++) {
-        visit_type_int64(v, (int64_t *) &s->stats[i], balloon_stat_names[i],
-                         &err);
+    for (i = 0; i < VIRTIO_BALLOON_S_NR; i++) {
+        visit_type_uint64(v, balloon_stat_names[i], &s->stats[i], &err);
+        if (err) {
+            break;
+        }
     }
     error_propagate(errp, err);
     err = NULL;
@@ -149,23 +151,23 @@ out:
     error_propagate(errp, err);
 }
 
-static void balloon_stats_get_poll_interval(Object *obj, struct Visitor *v,
-                                            void *opaque, const char *name,
+static void balloon_stats_get_poll_interval(Object *obj, Visitor *v,
+                                            const char *name, void *opaque,
                                             Error **errp)
 {
     VirtIOBalloon *s = opaque;
-    visit_type_int(v, &s->stats_poll_interval, name, errp);
+    visit_type_int(v, name, &s->stats_poll_interval, errp);
 }
 
-static void balloon_stats_set_poll_interval(Object *obj, struct Visitor *v,
-                                            void *opaque, const char *name,
+static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
+                                            const char *name, void *opaque,
                                             Error **errp)
 {
     VirtIOBalloon *s = opaque;
     Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, &value, name, &local_err);
+    visit_type_int(v, name, &value, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;

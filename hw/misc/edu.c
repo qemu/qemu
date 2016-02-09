@@ -363,12 +363,12 @@ static void pci_edu_uninit(PCIDevice *pdev)
     timer_del(&edu->dma_timer);
 }
 
-static void edu_obj_uint64(Object *obj, struct Visitor *v, void *opaque,
-                const char *name, Error **errp)
+static void edu_obj_uint64(Object *obj, Visitor *v, const char *name,
+                           void *opaque, Error **errp)
 {
     uint64_t *val = opaque;
 
-    visit_type_uint64(v, val, name, errp);
+    visit_type_uint64(v, name, val, errp);
 }
 
 static void edu_instance_init(Object *obj)

@@ -2819,44 +2819,47 @@ static bool object_create_delayed(const char *type)
 static int object_create(void *opaque, QemuOpts *opts, Error **errp)
 {
     Error *err = NULL;
+    Error *err_end = NULL;
     char *type = NULL;
     char *id = NULL;
-    void *dummy = NULL;
     OptsVisitor *ov;
     QDict *pdict;
     bool (*type_predicate)(const char *) = opaque;
+    Visitor *v;
 
     ov = opts_visitor_new(opts);
     pdict = qemu_opts_to_qdict(opts, NULL);
+    v = opts_get_visitor(ov);
 
-    visit_start_struct(opts_get_visitor(ov), &dummy, NULL, NULL, 0, &err);
+    visit_start_struct(v, NULL, NULL, 0, &err);
     if (err) {
         goto out;
     }
 
     qdict_del(pdict, "qom-type");
-    visit_type_str(opts_get_visitor(ov), &type, "qom-type", &err);
+    visit_type_str(v, "qom-type", &type, &err);
     if (err) {
         goto out;
     }
     if (!type_predicate(type)) {
+        visit_end_struct(v, NULL);
         goto out;
     }
 
     qdict_del(pdict, "id");
-    visit_type_str(opts_get_visitor(ov), &id, "id", &err);
+    visit_type_str(v, "id", &id, &err);
     if (err) {
-        goto out;
+        goto out_end;
     }
 
-    object_add(type, id, pdict, opts_get_visitor(ov), &err);
-    if (err) {
-        goto out;
-    }
-    visit_end_struct(opts_get_visitor(ov), &err);
-    if (err) {
+    object_add(type, id, pdict, v, &err);
+
+out_end:
+    visit_end_struct(v, &err_end);
+    if (!err && err_end) {
         qmp_object_del(id, NULL);
     }
+    error_propagate(&err, err_end);
 
 out:
     opts_visitor_cleanup(ov);
@@ -2864,7 +2867,6 @@ out:
     QDECREF(pdict);
     g_free(id);
     g_free(type);
-    g_free(dummy);
     if (err) {
         error_report_err(err);
         return -1;

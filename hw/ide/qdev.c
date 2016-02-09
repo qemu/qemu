@@ -200,22 +200,22 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
     return 0;
 }
 
-static void ide_dev_get_bootindex(Object *obj, Visitor *v, void *opaque,
-                                  const char *name, Error **errp)
+static void ide_dev_get_bootindex(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     IDEDevice *d = IDE_DEVICE(obj);
 
-    visit_type_int32(v, &d->conf.bootindex, name, errp);
+    visit_type_int32(v, name, &d->conf.bootindex, errp);
 }
 
-static void ide_dev_set_bootindex(Object *obj, Visitor *v, void *opaque,
-                                  const char *name, Error **errp)
+static void ide_dev_set_bootindex(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     IDEDevice *d = IDE_DEVICE(obj);
     int32_t boot_index;
     Error *local_err = NULL;
 
-    visit_type_int32(v, &boot_index, name, &local_err);
+    visit_type_int32(v, name, &boot_index, &local_err);
     if (local_err) {
         goto out;
     }

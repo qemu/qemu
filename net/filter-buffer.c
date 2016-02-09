@@ -133,23 +133,25 @@ static void filter_buffer_class_init(ObjectClass *oc, void *data)
     nfc->receive_iov = filter_buffer_receive_iov;
 }
 
-static void filter_buffer_get_interval(Object *obj, Visitor *v, void *opaque,
-                                       const char *name, Error **errp)
+static void filter_buffer_get_interval(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
 {
     FilterBufferState *s = FILTER_BUFFER(obj);
     uint32_t value = s->interval;
 
-    visit_type_uint32(v, &value, name, errp);
+    visit_type_uint32(v, name, &value, errp);
 }
 
-static void filter_buffer_set_interval(Object *obj, Visitor *v, void *opaque,
-                                       const char *name, Error **errp)
+static void filter_buffer_set_interval(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
 {
     FilterBufferState *s = FILTER_BUFFER(obj);
     Error *local_err = NULL;
     uint32_t value;
 
-    visit_type_uint32(v, &value, name, &local_err);
+    visit_type_uint32(v, name, &value, &local_err);
     if (local_err) {
         goto out;
     }
