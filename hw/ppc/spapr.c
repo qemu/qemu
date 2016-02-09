@@ -1050,6 +1050,19 @@ static void close_htab_fd(sPAPRMachineState *spapr)
     spapr->htab_fd = -1;
 }
 
+static int spapr_hpt_shift_for_ramsize(uint64_t ramsize)
+{
+    int shift;
+
+    /* We aim for a hash table of size 1/128 the size of RAM (rounded
+     * up).  The PAPR recommendation is actually 1/64 of RAM size, but
+     * that's much more than is needed for Linux guests */
+    shift = ctz64(pow2ceil(ramsize)) - 7;
+    shift = MAX(shift, 18); /* Minimum architected size */
+    shift = MIN(shift, 46); /* Maximum architected size */
+    return shift;
+}
+
 static void spapr_alloc_htab(sPAPRMachineState *spapr)
 {
     long shift;
@@ -1790,16 +1803,7 @@ static void ppc_spapr_init(MachineState *machine)
     /* Setup a load limit for the ramdisk leaving room for SLOF and FDT */
     load_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FW_OVERHEAD;
 
-    /* We aim for a hash table of size 1/128 the size of RAM.  The
-     * normal rule of thumb is 1/64 the size of RAM, but that's much
-     * more than needed for the Linux guests we support. */
-    spapr->htab_shift = 18; /* Minimum architected size */
-    while (spapr->htab_shift <= 46) {
-        if ((1ULL << (spapr->htab_shift + 7)) >= machine->maxram_size) {
-            break;
-        }
-        spapr->htab_shift++;
-    }
+    spapr->htab_shift = spapr_hpt_shift_for_ramsize(machine->maxram_size);
     spapr_alloc_htab(spapr);
 
     /* Set up Interrupt Controller before we create the VCPUs */
