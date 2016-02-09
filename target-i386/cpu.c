@@ -361,7 +361,7 @@ static const char *cpuid_6_feature_name[] = {
           CPUID_7_0_EBX_HLE, CPUID_7_0_EBX_AVX2,
           CPUID_7_0_EBX_ERMS, CPUID_7_0_EBX_INVPCID, CPUID_7_0_EBX_RTM,
           CPUID_7_0_EBX_RDSEED */
-#define TCG_7_0_ECX_FEATURES 0
+#define TCG_7_0_ECX_FEATURES (CPUID_7_0_ECX_PKU | CPUID_7_0_ECX_OSPKE)
 #define TCG_APM_FEATURES 0
 #define TCG_6_EAX_FEATURES CPUID_6_EAX_ARAT
 #define TCG_XSAVE_FEATURES (CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XGETBV1)
@@ -2426,6 +2426,9 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *eax = 0; /* Maximum ECX value for sub-leaves */
             *ebx = env->features[FEAT_7_0_EBX]; /* Feature flags */
             *ecx = env->features[FEAT_7_0_ECX]; /* Feature flags */
+            if ((*ecx & CPUID_7_0_ECX_PKU) && env->cr[4] & CR4_PKE_MASK) {
+                *ecx |= CPUID_7_0_ECX_OSPKE;
+            }
             *edx = 0; /* Reserved */
         } else {
             *eax = 0;
@@ -2733,9 +2736,13 @@ static void x86_cpu_reset(CPUState *s)
     if (env->features[FEAT_1_EDX] & CPUID_SSE) {
         xcr0 |= XSTATE_SSE_MASK;
     }
-    if (env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_MPX) {
-        xcr0 |= XSTATE_BNDREGS_MASK | XSTATE_BNDCSR_MASK;
+    for (i = 2; i < ARRAY_SIZE(x86_ext_save_areas); i++) {
+        const ExtSaveArea *esa = &x86_ext_save_areas[i];
+        if ((env->features[esa->feature] & esa->bits) == esa->bits) {
+            xcr0 |= 1ull << i;
+        }
     }
+
     if (env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE) {
         cr4 |= CR4_OSFXSR_MASK | CR4_OSXSAVE_MASK;
     }

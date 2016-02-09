@@ -609,3 +609,30 @@ void helper_debug(CPUX86State *env)
     cs->exception_index = EXCP_DEBUG;
     cpu_loop_exit(cs);
 }
+
+uint64_t helper_rdpkru(CPUX86State *env, uint32_t ecx)
+{
+    if ((env->cr[4] & CR4_PKE_MASK) == 0) {
+        raise_exception_err_ra(env, EXCP06_ILLOP, 0, GETPC());
+    }
+    if (ecx != 0) {
+        raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
+    }
+
+    return env->pkru;
+}
+
+void helper_wrpkru(CPUX86State *env, uint32_t ecx, uint64_t val)
+{
+    CPUState *cs = CPU(x86_env_get_cpu(env));
+
+    if ((env->cr[4] & CR4_PKE_MASK) == 0) {
+        raise_exception_err_ra(env, EXCP06_ILLOP, 0, GETPC());
+    }
+    if (ecx != 0 || (val & 0xFFFFFFFF00000000ull)) {
+        raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
+    }
+
+    env->pkru = val;
+    tlb_flush(cs, 1);
+}
