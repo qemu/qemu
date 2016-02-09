@@ -2598,8 +2598,9 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
 #define N_SHM_REGIONS	32
 
 static struct shm_region {
-    abi_ulong	start;
-    abi_ulong	size;
+    abi_ulong start;
+    abi_ulong size;
+    bool in_use;
 } shm_regions[N_SHM_REGIONS];
 
 struct target_semid_ds
@@ -3291,7 +3292,8 @@ static inline abi_ulong do_shmat(int shmid, abi_ulong shmaddr, int shmflg)
                    ((shmflg & SHM_RDONLY)? 0 : PAGE_WRITE));
 
     for (i = 0; i < N_SHM_REGIONS; i++) {
-        if (shm_regions[i].start == 0) {
+        if (!shm_regions[i].in_use) {
+            shm_regions[i].in_use = true;
             shm_regions[i].start = raddr;
             shm_regions[i].size = shm_info.shm_segsz;
             break;
@@ -3308,8 +3310,8 @@ static inline abi_long do_shmdt(abi_ulong shmaddr)
     int i;
 
     for (i = 0; i < N_SHM_REGIONS; ++i) {
-        if (shm_regions[i].start == shmaddr) {
-            shm_regions[i].start = 0;
+        if (shm_regions[i].in_use && shm_regions[i].start == shmaddr) {
+            shm_regions[i].in_use = false;
             page_set_flags(shmaddr, shmaddr + shm_regions[i].size, 0);
             break;
         }
