@@ -77,18 +77,6 @@
 #define typeof_field(type, field) typeof(((type *)0)->field)
 #define type_check(t1,t2) ((t1*)0 - (t2*)0)
 
-#ifndef always_inline
-#if !((__GNUC__ < 3) || defined(__APPLE__))
-#ifdef __OPTIMIZE__
-#undef inline
-#define inline __attribute__ (( always_inline )) __inline__
-#endif
-#endif
-#else
-#undef inline
-#define inline always_inline
-#endif
-
 #define QEMU_BUILD_BUG_ON(x) \
     typedef char glue(qemu_build_bug_on__,__LINE__)[(x)?-1:1] __attribute__((unused));
 
