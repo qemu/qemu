@@ -1870,34 +1870,34 @@ void mb_tcg_init(void)
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 
-    env_debug = tcg_global_mem_new(TCG_AREG0, 
+    env_debug = tcg_global_mem_new(cpu_env,
                     offsetof(CPUMBState, debug),
                     "debug0");
-    env_iflags = tcg_global_mem_new(TCG_AREG0, 
+    env_iflags = tcg_global_mem_new(cpu_env,
                     offsetof(CPUMBState, iflags),
                     "iflags");
-    env_imm = tcg_global_mem_new(TCG_AREG0, 
+    env_imm = tcg_global_mem_new(cpu_env,
                     offsetof(CPUMBState, imm),
                     "imm");
-    env_btarget = tcg_global_mem_new(TCG_AREG0,
+    env_btarget = tcg_global_mem_new(cpu_env,
                      offsetof(CPUMBState, btarget),
                      "btarget");
-    env_btaken = tcg_global_mem_new(TCG_AREG0,
+    env_btaken = tcg_global_mem_new(cpu_env,
                      offsetof(CPUMBState, btaken),
                      "btaken");
-    env_res_addr = tcg_global_mem_new(TCG_AREG0,
+    env_res_addr = tcg_global_mem_new(cpu_env,
                      offsetof(CPUMBState, res_addr),
                      "res_addr");
-    env_res_val = tcg_global_mem_new(TCG_AREG0,
+    env_res_val = tcg_global_mem_new(cpu_env,
                      offsetof(CPUMBState, res_val),
                      "res_val");
     for (i = 0; i < ARRAY_SIZE(cpu_R); i++) {
-        cpu_R[i] = tcg_global_mem_new(TCG_AREG0,
+        cpu_R[i] = tcg_global_mem_new(cpu_env,
                           offsetof(CPUMBState, regs[i]),
                           regnames[i]);
     }
     for (i = 0; i < ARRAY_SIZE(cpu_SR); i++) {
-        cpu_SR[i] = tcg_global_mem_new(TCG_AREG0,
+        cpu_SR[i] = tcg_global_mem_new(cpu_env,
                           offsetof(CPUMBState, sregs[i]),
                           special_regnames[i]);
     }

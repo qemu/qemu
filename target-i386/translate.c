@@ -7860,17 +7860,17 @@ void tcg_x86_init(void)
     int i;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    cpu_cc_op = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_cc_op = tcg_global_mem_new_i32(cpu_env,
                                        offsetof(CPUX86State, cc_op), "cc_op");
-    cpu_cc_dst = tcg_global_mem_new(TCG_AREG0, offsetof(CPUX86State, cc_dst),
+    cpu_cc_dst = tcg_global_mem_new(cpu_env, offsetof(CPUX86State, cc_dst),
                                     "cc_dst");
-    cpu_cc_src = tcg_global_mem_new(TCG_AREG0, offsetof(CPUX86State, cc_src),
+    cpu_cc_src = tcg_global_mem_new(cpu_env, offsetof(CPUX86State, cc_src),
                                     "cc_src");
-    cpu_cc_src2 = tcg_global_mem_new(TCG_AREG0, offsetof(CPUX86State, cc_src2),
+    cpu_cc_src2 = tcg_global_mem_new(cpu_env, offsetof(CPUX86State, cc_src2),
                                      "cc_src2");
 
     for (i = 0; i < CPU_NB_REGS; ++i) {
-        cpu_regs[i] = tcg_global_mem_new(TCG_AREG0,
+        cpu_regs[i] = tcg_global_mem_new(cpu_env,
                                          offsetof(CPUX86State, regs[i]),
                                          reg_names[i]);
     }
@@ -7878,8 +7878,7 @@ void tcg_x86_init(void)
     helper_lock_init();
 }
 
-/* generate intermediate code in gen_opc_buf and gen_opparam_buf for
-   basic block 'tb'.  */
+/* generate intermediate code for basic block 'tb'.  */
 void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb)
 {
     X86CPU *cpu = x86_env_get_cpu(env);

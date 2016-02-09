@@ -152,13 +152,13 @@ void alpha_translate_init(void)
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 
     for (i = 0; i < 31; i++) {
-        cpu_std_ir[i] = tcg_global_mem_new_i64(TCG_AREG0,
+        cpu_std_ir[i] = tcg_global_mem_new_i64(cpu_env,
                                                offsetof(CPUAlphaState, ir[i]),
                                                greg_names[i]);
     }
 
     for (i = 0; i < 31; i++) {
-        cpu_fir[i] = tcg_global_mem_new_i64(TCG_AREG0,
+        cpu_fir[i] = tcg_global_mem_new_i64(cpu_env,
                                             offsetof(CPUAlphaState, fir[i]),
                                             freg_names[i]);
     }
@@ -167,7 +167,7 @@ void alpha_translate_init(void)
     memcpy(cpu_pal_ir, cpu_std_ir, sizeof(cpu_pal_ir));
     for (i = 0; i < 8; i++) {
         int r = (i == 7 ? 25 : i + 8);
-        cpu_pal_ir[r] = tcg_global_mem_new_i64(TCG_AREG0,
+        cpu_pal_ir[r] = tcg_global_mem_new_i64(cpu_env,
                                                offsetof(CPUAlphaState,
                                                         shadow[i]),
                                                shadow_names[i]);
@@ -176,7 +176,7 @@ void alpha_translate_init(void)
 
     for (i = 0; i < ARRAY_SIZE(vars); ++i) {
         const GlobalVar *v = &vars[i];
-        *v->var = tcg_global_mem_new_i64(TCG_AREG0, v->ofs, v->name);
+        *v->var = tcg_global_mem_new_i64(cpu_env, v->ofs, v->name);
     }
 }
 

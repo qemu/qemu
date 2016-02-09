@@ -5353,75 +5353,79 @@ void gen_intermediate_code_init(CPUSPARCState *env)
         inited = 1;
 
         cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-        cpu_regwptr = tcg_global_mem_new_ptr(TCG_AREG0,
+        cpu_regwptr = tcg_global_mem_new_ptr(cpu_env,
                                              offsetof(CPUSPARCState, regwptr),
                                              "regwptr");
 #ifdef TARGET_SPARC64
-        cpu_xcc = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUSPARCState, xcc),
+        cpu_xcc = tcg_global_mem_new_i32(cpu_env, offsetof(CPUSPARCState, xcc),
                                          "xcc");
-        cpu_asi = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUSPARCState, asi),
+        cpu_asi = tcg_global_mem_new_i32(cpu_env, offsetof(CPUSPARCState, asi),
                                          "asi");
-        cpu_fprs = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUSPARCState, fprs),
+        cpu_fprs = tcg_global_mem_new_i32(cpu_env,
+                                          offsetof(CPUSPARCState, fprs),
                                           "fprs");
-        cpu_gsr = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, gsr),
+        cpu_gsr = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, gsr),
                                      "gsr");
-        cpu_tick_cmpr = tcg_global_mem_new(TCG_AREG0,
+        cpu_tick_cmpr = tcg_global_mem_new(cpu_env,
                                            offsetof(CPUSPARCState, tick_cmpr),
                                            "tick_cmpr");
-        cpu_stick_cmpr = tcg_global_mem_new(TCG_AREG0,
+        cpu_stick_cmpr = tcg_global_mem_new(cpu_env,
                                             offsetof(CPUSPARCState, stick_cmpr),
                                             "stick_cmpr");
-        cpu_hstick_cmpr = tcg_global_mem_new(TCG_AREG0,
+        cpu_hstick_cmpr = tcg_global_mem_new(cpu_env,
                                              offsetof(CPUSPARCState, hstick_cmpr),
                                              "hstick_cmpr");
-        cpu_hintp = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, hintp),
+        cpu_hintp = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, hintp),
                                        "hintp");
-        cpu_htba = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, htba),
+        cpu_htba = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, htba),
                                       "htba");
-        cpu_hver = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, hver),
+        cpu_hver = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, hver),
                                       "hver");
-        cpu_ssr = tcg_global_mem_new(TCG_AREG0,
+        cpu_ssr = tcg_global_mem_new(cpu_env,
                                      offsetof(CPUSPARCState, ssr), "ssr");
-        cpu_ver = tcg_global_mem_new(TCG_AREG0,
+        cpu_ver = tcg_global_mem_new(cpu_env,
                                      offsetof(CPUSPARCState, version), "ver");
-        cpu_softint = tcg_global_mem_new_i32(TCG_AREG0,
+        cpu_softint = tcg_global_mem_new_i32(cpu_env,
                                              offsetof(CPUSPARCState, softint),
                                              "softint");
 #else
-        cpu_wim = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, wim),
+        cpu_wim = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, wim),
                                      "wim");
 #endif
-        cpu_cond = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, cond),
+        cpu_cond = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, cond),
                                       "cond");
-        cpu_cc_src = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, cc_src),
+        cpu_cc_src = tcg_global_mem_new(cpu_env,
+                                        offsetof(CPUSPARCState, cc_src),
                                         "cc_src");
-        cpu_cc_src2 = tcg_global_mem_new(TCG_AREG0,
+        cpu_cc_src2 = tcg_global_mem_new(cpu_env,
                                          offsetof(CPUSPARCState, cc_src2),
                                          "cc_src2");
-        cpu_cc_dst = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, cc_dst),
+        cpu_cc_dst = tcg_global_mem_new(cpu_env,
+                                        offsetof(CPUSPARCState, cc_dst),
                                         "cc_dst");
-        cpu_cc_op = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUSPARCState, cc_op),
+        cpu_cc_op = tcg_global_mem_new_i32(cpu_env,
+                                           offsetof(CPUSPARCState, cc_op),
                                            "cc_op");
-        cpu_psr = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUSPARCState, psr),
+        cpu_psr = tcg_global_mem_new_i32(cpu_env, offsetof(CPUSPARCState, psr),
                                          "psr");
-        cpu_fsr = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, fsr),
+        cpu_fsr = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, fsr),
                                      "fsr");
-        cpu_pc = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, pc),
+        cpu_pc = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, pc),
                                     "pc");
-        cpu_npc = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, npc),
+        cpu_npc = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, npc),
                                      "npc");
-        cpu_y = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, y), "y");
+        cpu_y = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, y), "y");
 #ifndef CONFIG_USER_ONLY
-        cpu_tbr = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, tbr),
+        cpu_tbr = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, tbr),
                                      "tbr");
 #endif
         for (i = 1; i < 8; i++) {
-            cpu_gregs[i] = tcg_global_mem_new(TCG_AREG0,
+            cpu_gregs[i] = tcg_global_mem_new(cpu_env,
                                               offsetof(CPUSPARCState, gregs[i]),
                                               gregnames[i]);
         }
         for (i = 0; i < TARGET_DPREGS; i++) {
-            cpu_fpr[i] = tcg_global_mem_new_i64(TCG_AREG0,
+            cpu_fpr[i] = tcg_global_mem_new_i64(cpu_env,
                                                 offsetof(CPUSPARCState, fpr[i]),
                                                 fregnames[i]);
         }

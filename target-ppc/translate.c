@@ -93,7 +93,7 @@ void ppc_translate_init(void)
 
     for (i = 0; i < 8; i++) {
         snprintf(p, cpu_reg_names_size, "crf%d", i);
-        cpu_crf[i] = tcg_global_mem_new_i32(TCG_AREG0,
+        cpu_crf[i] = tcg_global_mem_new_i32(cpu_env,
                                             offsetof(CPUPPCState, crf[i]), p);
         p += 5;
         cpu_reg_names_size -= 5;
@@ -101,28 +101,28 @@ void ppc_translate_init(void)
 
     for (i = 0; i < 32; i++) {
         snprintf(p, cpu_reg_names_size, "r%d", i);
-        cpu_gpr[i] = tcg_global_mem_new(TCG_AREG0,
+        cpu_gpr[i] = tcg_global_mem_new(cpu_env,
                                         offsetof(CPUPPCState, gpr[i]), p);
         p += (i < 10) ? 3 : 4;
         cpu_reg_names_size -= (i < 10) ? 3 : 4;
         snprintf(p, cpu_reg_names_size, "r%dH", i);
-        cpu_gprh[i] = tcg_global_mem_new(TCG_AREG0,
+        cpu_gprh[i] = tcg_global_mem_new(cpu_env,
                                          offsetof(CPUPPCState, gprh[i]), p);
         p += (i < 10) ? 4 : 5;
         cpu_reg_names_size -= (i < 10) ? 4 : 5;
 
         snprintf(p, cpu_reg_names_size, "fp%d", i);
-        cpu_fpr[i] = tcg_global_mem_new_i64(TCG_AREG0,
+        cpu_fpr[i] = tcg_global_mem_new_i64(cpu_env,
                                             offsetof(CPUPPCState, fpr[i]), p);
         p += (i < 10) ? 4 : 5;
         cpu_reg_names_size -= (i < 10) ? 4 : 5;
 
         snprintf(p, cpu_reg_names_size, "avr%dH", i);
 #ifdef HOST_WORDS_BIGENDIAN
-        cpu_avrh[i] = tcg_global_mem_new_i64(TCG_AREG0,
+        cpu_avrh[i] = tcg_global_mem_new_i64(cpu_env,
                                              offsetof(CPUPPCState, avr[i].u64[0]), p);
 #else
-        cpu_avrh[i] = tcg_global_mem_new_i64(TCG_AREG0,
+        cpu_avrh[i] = tcg_global_mem_new_i64(cpu_env,
                                              offsetof(CPUPPCState, avr[i].u64[1]), p);
 #endif
         p += (i < 10) ? 6 : 7;
@@ -130,55 +130,55 @@ void ppc_translate_init(void)
 
         snprintf(p, cpu_reg_names_size, "avr%dL", i);
 #ifdef HOST_WORDS_BIGENDIAN
-        cpu_avrl[i] = tcg_global_mem_new_i64(TCG_AREG0,
+        cpu_avrl[i] = tcg_global_mem_new_i64(cpu_env,
                                              offsetof(CPUPPCState, avr[i].u64[1]), p);
 #else
-        cpu_avrl[i] = tcg_global_mem_new_i64(TCG_AREG0,
+        cpu_avrl[i] = tcg_global_mem_new_i64(cpu_env,
                                              offsetof(CPUPPCState, avr[i].u64[0]), p);
 #endif
         p += (i < 10) ? 6 : 7;
         cpu_reg_names_size -= (i < 10) ? 6 : 7;
         snprintf(p, cpu_reg_names_size, "vsr%d", i);
-        cpu_vsr[i] = tcg_global_mem_new_i64(TCG_AREG0,
-                                             offsetof(CPUPPCState, vsr[i]), p);
+        cpu_vsr[i] = tcg_global_mem_new_i64(cpu_env,
+                                            offsetof(CPUPPCState, vsr[i]), p);
         p += (i < 10) ? 5 : 6;
         cpu_reg_names_size -= (i < 10) ? 5 : 6;
     }
 
-    cpu_nip = tcg_global_mem_new(TCG_AREG0,
+    cpu_nip = tcg_global_mem_new(cpu_env,
                                  offsetof(CPUPPCState, nip), "nip");
 
-    cpu_msr = tcg_global_mem_new(TCG_AREG0,
+    cpu_msr = tcg_global_mem_new(cpu_env,
                                  offsetof(CPUPPCState, msr), "msr");
 
-    cpu_ctr = tcg_global_mem_new(TCG_AREG0,
+    cpu_ctr = tcg_global_mem_new(cpu_env,
                                  offsetof(CPUPPCState, ctr), "ctr");
 
-    cpu_lr = tcg_global_mem_new(TCG_AREG0,
+    cpu_lr = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUPPCState, lr), "lr");
 
 #if defined(TARGET_PPC64)
-    cpu_cfar = tcg_global_mem_new(TCG_AREG0,
+    cpu_cfar = tcg_global_mem_new(cpu_env,
                                   offsetof(CPUPPCState, cfar), "cfar");
 #endif
 
-    cpu_xer = tcg_global_mem_new(TCG_AREG0,
+    cpu_xer = tcg_global_mem_new(cpu_env,
                                  offsetof(CPUPPCState, xer), "xer");
-    cpu_so = tcg_global_mem_new(TCG_AREG0,
+    cpu_so = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUPPCState, so), "SO");
-    cpu_ov = tcg_global_mem_new(TCG_AREG0,
+    cpu_ov = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUPPCState, ov), "OV");
-    cpu_ca = tcg_global_mem_new(TCG_AREG0,
+    cpu_ca = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUPPCState, ca), "CA");
 
-    cpu_reserve = tcg_global_mem_new(TCG_AREG0,
+    cpu_reserve = tcg_global_mem_new(cpu_env,
                                      offsetof(CPUPPCState, reserve_addr),
                                      "reserve_addr");
 
-    cpu_fpscr = tcg_global_mem_new(TCG_AREG0,
+    cpu_fpscr = tcg_global_mem_new(cpu_env,
                                    offsetof(CPUPPCState, fpscr), "fpscr");
 
-    cpu_access_type = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_access_type = tcg_global_mem_new_i32(cpu_env,
                                              offsetof(CPUPPCState, access_type), "access_type");
 
     done_init = 1;

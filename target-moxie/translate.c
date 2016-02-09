@@ -106,16 +106,16 @@ void moxie_translate_init(void)
         return;
     }
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    cpu_pc = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_pc = tcg_global_mem_new_i32(cpu_env,
                                     offsetof(CPUMoxieState, pc), "$pc");
     for (i = 0; i < 16; i++)
-        cpu_gregs[i] = tcg_global_mem_new_i32(TCG_AREG0,
+        cpu_gregs[i] = tcg_global_mem_new_i32(cpu_env,
                                               offsetof(CPUMoxieState, gregs[i]),
                                               gregnames[i]);
 
-    cc_a = tcg_global_mem_new_i32(TCG_AREG0,
+    cc_a = tcg_global_mem_new_i32(cpu_env,
                                   offsetof(CPUMoxieState, cc_a), "cc_a");
-    cc_b = tcg_global_mem_new_i32(TCG_AREG0,
+    cc_b = tcg_global_mem_new_i32(cpu_env,
                                   offsetof(CPUMoxieState, cc_b), "cc_b");
 
     done_init = 1;
