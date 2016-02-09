@@ -1620,8 +1620,8 @@ disable exec_tb_exit(void *next_tb, unsigned int flags) "tb:%p flags=%x"
 translate_block(void *tb, uintptr_t pc, uint8_t *tb_code) "tb:%p, pc:0x%"PRIxPTR", tb_code:%p"
 
 # memory.c
-memory_region_ops_read(void *mr, uint64_t offset, uint64_t value, unsigned size) "mr %p offset %#"PRIx64" value %#"PRIx64" size %u"
-memory_region_ops_write(void *mr, uint64_t offset, uint64_t value, unsigned size) "mr %p offset %#"PRIx64" value %#"PRIx64" size %u"
+memory_region_ops_read(void *mr, uint64_t addr, uint64_t value, unsigned size) "mr %p addr %#"PRIx64" value %#"PRIx64" size %u"
+memory_region_ops_write(void *mr, uint64_t addr, uint64_t value, unsigned size) "mr %p addr %#"PRIx64" value %#"PRIx64" size %u"
 memory_region_subpage_read(void *mr, uint64_t offset, uint64_t value, unsigned size) "mr %p offset %#"PRIx64" value %#"PRIx64" size %u"
 memory_region_subpage_write(void *mr, uint64_t offset, uint64_t value, unsigned size) "mr %p offset %#"PRIx64" value %#"PRIx64" size %u"
 

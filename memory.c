@@ -372,6 +372,20 @@ static void adjust_endianness(MemoryRegion *mr, uint64_t *data, unsigned size)
     }
 }
 
+static hwaddr memory_region_to_absolute_addr(MemoryRegion *mr, hwaddr offset)
+{
+    MemoryRegion *root;
+    hwaddr abs_addr = offset;
+
+    abs_addr += mr->addr;
+    for (root = mr; root->container; ) {
+        root = root->container;
+        abs_addr += root->addr;
+    }
+
+    return abs_addr;
+}
+
 static MemTxResult memory_region_oldmmio_read_accessor(MemoryRegion *mr,
                                                        hwaddr addr,
                                                        uint64_t *value,
@@ -385,8 +399,9 @@ static MemTxResult memory_region_oldmmio_read_accessor(MemoryRegion *mr,
     tmp = mr->ops->old_mmio.read[ctz32(size)](mr->opaque, addr);
     if (mr->subpage) {
         trace_memory_region_subpage_read(mr, addr, tmp, size);
-    } else {
-        trace_memory_region_ops_read(mr, addr, tmp, size);
+    } else if (TRACE_MEMORY_REGION_OPS_READ_ENABLED) {
+        hwaddr abs_addr = memory_region_to_absolute_addr(mr, addr);
+        trace_memory_region_ops_read(mr, abs_addr, tmp, size);
     }
     *value |= (tmp & mask) << shift;
     return MEMTX_OK;
@@ -405,8 +420,9 @@ static MemTxResult  memory_region_read_accessor(MemoryRegion *mr,
     tmp = mr->ops->read(mr->opaque, addr, size);
     if (mr->subpage) {
         trace_memory_region_subpage_read(mr, addr, tmp, size);
-    } else {
-        trace_memory_region_ops_read(mr, addr, tmp, size);
+    } else if (TRACE_MEMORY_REGION_OPS_READ_ENABLED) {
+        hwaddr abs_addr = memory_region_to_absolute_addr(mr, addr);
+        trace_memory_region_ops_read(mr, abs_addr, tmp, size);
     }
     *value |= (tmp & mask) << shift;
     return MEMTX_OK;
@@ -426,8 +442,9 @@ static MemTxResult memory_region_read_with_attrs_accessor(MemoryRegion *mr,
     r = mr->ops->read_with_attrs(mr->opaque, addr, &tmp, size, attrs);
     if (mr->subpage) {
         trace_memory_region_subpage_read(mr, addr, tmp, size);
-    } else {
-        trace_memory_region_ops_read(mr, addr, tmp, size);
+    } else if (TRACE_MEMORY_REGION_OPS_READ_ENABLED) {
+        hwaddr abs_addr = memory_region_to_absolute_addr(mr, addr);
+        trace_memory_region_ops_read(mr, abs_addr, tmp, size);
     }
     *value |= (tmp & mask) << shift;
     return r;
@@ -446,8 +463,9 @@ static MemTxResult memory_region_oldmmio_write_accessor(MemoryRegion *mr,
     tmp = (*value >> shift) & mask;
     if (mr->subpage) {
         trace_memory_region_subpage_write(mr, addr, tmp, size);
-    } else {
-        trace_memory_region_ops_write(mr, addr, tmp, size);
+    } else if (TRACE_MEMORY_REGION_OPS_WRITE_ENABLED) {
+        hwaddr abs_addr = memory_region_to_absolute_addr(mr, addr);
+        trace_memory_region_ops_write(mr, abs_addr, tmp, size);
     }
     mr->ops->old_mmio.write[ctz32(size)](mr->opaque, addr, tmp);
     return MEMTX_OK;
@@ -466,8 +484,9 @@ static MemTxResult memory_region_write_accessor(MemoryRegion *mr,
     tmp = (*value >> shift) & mask;
     if (mr->subpage) {
         trace_memory_region_subpage_write(mr, addr, tmp, size);
-    } else {
-        trace_memory_region_ops_write(mr, addr, tmp, size);
+    } else if (TRACE_MEMORY_REGION_OPS_WRITE_ENABLED) {
+        hwaddr abs_addr = memory_region_to_absolute_addr(mr, addr);
+        trace_memory_region_ops_write(mr, abs_addr, tmp, size);
     }
     mr->ops->write(mr->opaque, addr, tmp, size);
     return MEMTX_OK;
@@ -486,8 +505,9 @@ static MemTxResult memory_region_write_with_attrs_accessor(MemoryRegion *mr,
     tmp = (*value >> shift) & mask;
     if (mr->subpage) {
         trace_memory_region_subpage_write(mr, addr, tmp, size);
-    } else {
-        trace_memory_region_ops_write(mr, addr, tmp, size);
+    } else if (TRACE_MEMORY_REGION_OPS_WRITE_ENABLED) {
+        hwaddr abs_addr = memory_region_to_absolute_addr(mr, addr);
+        trace_memory_region_ops_write(mr, abs_addr, tmp, size);
     }
     return mr->ops->write_with_attrs(mr->opaque, addr, tmp, size, attrs);
 }
