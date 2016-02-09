@@ -1602,7 +1602,7 @@ static void dump_regs(TCGContext *s)
 
 static void check_regs(TCGContext *s)
 {
-    TCGReg reg;
+    int reg;
     int k;
     TCGTemp *ts;
     char buf[64];
