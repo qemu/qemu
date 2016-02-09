@@ -52,6 +52,11 @@ General Project Administration
 ------------------------------
 M: Peter Maydell <peter.maydell@linaro.org>
 
+All patches CC here
+L: qemu-devel@nongnu.org
+F: *
+F: */
+
 Responsible Disclosure, Reporting Security Issues
 ------------------------------
 W: http://wiki.qemu.org/SecurityProcess

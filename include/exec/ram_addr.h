@@ -49,13 +49,43 @@ static inline void *ramblock_ptr(RAMBlock *block, ram_addr_t offset)
     return (char *)block->host + offset;
 }
 
+/* The dirty memory bitmap is split into fixed-size blocks to allow growth
+ * under RCU.  The bitmap for a block can be accessed as follows:
+ *
+ *   rcu_read_lock();
+ *
+ *   DirtyMemoryBlocks *blocks =
+ *       atomic_rcu_read(&ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION]);
+ *
+ *   ram_addr_t idx = (addr >> TARGET_PAGE_BITS) / DIRTY_MEMORY_BLOCK_SIZE;
+ *   unsigned long *block = blocks.blocks[idx];
+ *   ...access block bitmap...
+ *
+ *   rcu_read_unlock();
+ *
+ * Remember to check for the end of the block when accessing a range of
+ * addresses.  Move on to the next block if you reach the end.
+ *
+ * Organization into blocks allows dirty memory to grow (but not shrink) under
+ * RCU.  When adding new RAMBlocks requires the dirty memory to grow, a new
+ * DirtyMemoryBlocks array is allocated with pointers to existing blocks kept
+ * the same.  Other threads can safely access existing blocks while dirty
+ * memory is being grown.  When no threads are using the old DirtyMemoryBlocks
+ * anymore it is freed by RCU (but the underlying blocks stay because they are
+ * pointed to from the new DirtyMemoryBlocks).
+ */
+#define DIRTY_MEMORY_BLOCK_SIZE ((ram_addr_t)256 * 1024 * 8)
+typedef struct {
+    struct rcu_head rcu;
+    unsigned long *blocks[];
+} DirtyMemoryBlocks;
+
 typedef struct RAMList {
     QemuMutex mutex;
-    /* Protected by the iothread lock.  */
-    unsigned long *dirty_memory[DIRTY_MEMORY_NUM];
     RAMBlock *mru_block;
     /* RCU-enabled, writes protected by the ramlist lock. */
     QLIST_HEAD(, RAMBlock) blocks;
+    DirtyMemoryBlocks *dirty_memory[DIRTY_MEMORY_NUM];
     uint32_t version;
 } RAMList;
 extern RAMList ram_list;
@@ -89,30 +119,70 @@ static inline bool cpu_physical_memory_get_dirty(ram_addr_t start,
                                                  ram_addr_t length,
                                                  unsigned client)
 {
-    unsigned long end, page, next;
+    DirtyMemoryBlocks *blocks;
+    unsigned long end, page;
+    bool dirty = false;
 
     assert(client < DIRTY_MEMORY_NUM);
 
     end = TARGET_PAGE_ALIGN(start + length) >> TARGET_PAGE_BITS;
     page = start >> TARGET_PAGE_BITS;
-    next = find_next_bit(ram_list.dirty_memory[client], end, page);
 
-    return next < end;
+    rcu_read_lock();
+
+    blocks = atomic_rcu_read(&ram_list.dirty_memory[client]);
+
+    while (page < end) {
+        unsigned long idx = page / DIRTY_MEMORY_BLOCK_SIZE;
+        unsigned long offset = page % DIRTY_MEMORY_BLOCK_SIZE;
+        unsigned long num = MIN(end - page, DIRTY_MEMORY_BLOCK_SIZE - offset);
+
+        if (find_next_bit(blocks->blocks[idx], offset, num) < num) {
+            dirty = true;
+            break;
+        }
+
+        page += num;
+    }
+
+    rcu_read_unlock();
+
+    return dirty;
 }
 
 static inline bool cpu_physical_memory_all_dirty(ram_addr_t start,
                                                  ram_addr_t length,
                                                  unsigned client)
 {
-    unsigned long end, page, next;
+    DirtyMemoryBlocks *blocks;
+    unsigned long end, page;
+    bool dirty = true;
 
     assert(client < DIRTY_MEMORY_NUM);
 
     end = TARGET_PAGE_ALIGN(start + length) >> TARGET_PAGE_BITS;
     page = start >> TARGET_PAGE_BITS;
-    next = find_next_zero_bit(ram_list.dirty_memory[client], end, page);
 
-    return next >= end;
+    rcu_read_lock();
+
+    blocks = atomic_rcu_read(&ram_list.dirty_memory[client]);
+
+    while (page < end) {
+        unsigned long idx = page / DIRTY_MEMORY_BLOCK_SIZE;
+        unsigned long offset = page % DIRTY_MEMORY_BLOCK_SIZE;
+        unsigned long num = MIN(end - page, DIRTY_MEMORY_BLOCK_SIZE - offset);
+
+        if (find_next_zero_bit(blocks->blocks[idx], offset, num) < num) {
+            dirty = false;
+            break;
+        }
+
+        page += num;
+    }
+
+    rcu_read_unlock();
+
+    return dirty;
 }
 
 static inline bool cpu_physical_memory_get_dirty_flag(ram_addr_t addr,
@@ -154,28 +224,68 @@ static inline uint8_t cpu_physical_memory_range_includes_clean(ram_addr_t start,
 static inline void cpu_physical_memory_set_dirty_flag(ram_addr_t addr,
                                                       unsigned client)
 {
+    unsigned long page, idx, offset;
+    DirtyMemoryBlocks *blocks;
+
     assert(client < DIRTY_MEMORY_NUM);
-    set_bit_atomic(addr >> TARGET_PAGE_BITS, ram_list.dirty_memory[client]);
+
+    page = addr >> TARGET_PAGE_BITS;
+    idx = page / DIRTY_MEMORY_BLOCK_SIZE;
+    offset = page % DIRTY_MEMORY_BLOCK_SIZE;
+
+    rcu_read_lock();
+
+    blocks = atomic_rcu_read(&ram_list.dirty_memory[client]);
+
+    set_bit_atomic(offset, blocks->blocks[idx]);
+
+    rcu_read_unlock();
 }
 
 static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
                                                        ram_addr_t length,
                                                        uint8_t mask)
 {
+    DirtyMemoryBlocks *blocks[DIRTY_MEMORY_NUM];
     unsigned long end, page;
-    unsigned long **d = ram_list.dirty_memory;
+    int i;
+
+    if (!mask && !xen_enabled()) {
+        return;
+    }
 
     end = TARGET_PAGE_ALIGN(start + length) >> TARGET_PAGE_BITS;
     page = start >> TARGET_PAGE_BITS;
-    if (likely(mask & (1 << DIRTY_MEMORY_MIGRATION))) {
-        bitmap_set_atomic(d[DIRTY_MEMORY_MIGRATION], page, end - page);
+
+    rcu_read_lock();
+
+    for (i = 0; i < DIRTY_MEMORY_NUM; i++) {
+        blocks[i] = atomic_rcu_read(&ram_list.dirty_memory[i]);
     }
-    if (unlikely(mask & (1 << DIRTY_MEMORY_VGA))) {
-        bitmap_set_atomic(d[DIRTY_MEMORY_VGA], page, end - page);
+
+    while (page < end) {
+        unsigned long idx = page / DIRTY_MEMORY_BLOCK_SIZE;
+        unsigned long offset = page % DIRTY_MEMORY_BLOCK_SIZE;
+        unsigned long num = MIN(end - page, DIRTY_MEMORY_BLOCK_SIZE - offset);
+
+        if (likely(mask & (1 << DIRTY_MEMORY_MIGRATION))) {
+            bitmap_set_atomic(blocks[DIRTY_MEMORY_MIGRATION]->blocks[idx],
+                              offset, num);
+        }
+        if (unlikely(mask & (1 << DIRTY_MEMORY_VGA))) {
+            bitmap_set_atomic(blocks[DIRTY_MEMORY_VGA]->blocks[idx],
+                              offset, num);
+        }
+        if (unlikely(mask & (1 << DIRTY_MEMORY_CODE))) {
+            bitmap_set_atomic(blocks[DIRTY_MEMORY_CODE]->blocks[idx],
+                              offset, num);
+        }
+
+        page += num;
     }
-    if (unlikely(mask & (1 << DIRTY_MEMORY_CODE))) {
-        bitmap_set_atomic(d[DIRTY_MEMORY_CODE], page, end - page);
-    }
+
+    rcu_read_unlock();
+
     xen_modified_memory(start, length);
 }
 
@@ -195,21 +305,41 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
     /* start address is aligned at the start of a word? */
     if ((((page * BITS_PER_LONG) << TARGET_PAGE_BITS) == start) &&
         (hpratio == 1)) {
+        unsigned long **blocks[DIRTY_MEMORY_NUM];
+        unsigned long idx;
+        unsigned long offset;
         long k;
         long nr = BITS_TO_LONGS(pages);
+
+        idx = (start >> TARGET_PAGE_BITS) / DIRTY_MEMORY_BLOCK_SIZE;
+        offset = BIT_WORD((start >> TARGET_PAGE_BITS) %
+                          DIRTY_MEMORY_BLOCK_SIZE);
+
+        rcu_read_lock();
+
+        for (i = 0; i < DIRTY_MEMORY_NUM; i++) {
+            blocks[i] = atomic_rcu_read(&ram_list.dirty_memory[i])->blocks;
+        }
 
         for (k = 0; k < nr; k++) {
             if (bitmap[k]) {
                 unsigned long temp = leul_to_cpu(bitmap[k]);
-                unsigned long **d = ram_list.dirty_memory;
 
-                atomic_or(&d[DIRTY_MEMORY_MIGRATION][page + k], temp);
-                atomic_or(&d[DIRTY_MEMORY_VGA][page + k], temp);
+                atomic_or(&blocks[DIRTY_MEMORY_MIGRATION][idx][offset], temp);
+                atomic_or(&blocks[DIRTY_MEMORY_VGA][idx][offset], temp);
                 if (tcg_enabled()) {
-                    atomic_or(&d[DIRTY_MEMORY_CODE][page + k], temp);
+                    atomic_or(&blocks[DIRTY_MEMORY_CODE][idx][offset], temp);
                 }
             }
+
+            if (++offset >= BITS_TO_LONGS(DIRTY_MEMORY_BLOCK_SIZE)) {
+                offset = 0;
+                idx++;
+            }
         }
+
+        rcu_read_unlock();
+
         xen_modified_memory(start, pages << TARGET_PAGE_BITS);
     } else {
         uint8_t clients = tcg_enabled() ? DIRTY_CLIENTS_ALL : DIRTY_CLIENTS_NOCODE;
@@ -261,18 +391,33 @@ uint64_t cpu_physical_memory_sync_dirty_bitmap(unsigned long *dest,
     if (((page * BITS_PER_LONG) << TARGET_PAGE_BITS) == start) {
         int k;
         int nr = BITS_TO_LONGS(length >> TARGET_PAGE_BITS);
-        unsigned long *src = ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION];
+        unsigned long * const *src;
+        unsigned long idx = (page * BITS_PER_LONG) / DIRTY_MEMORY_BLOCK_SIZE;
+        unsigned long offset = BIT_WORD((page * BITS_PER_LONG) %
+                                        DIRTY_MEMORY_BLOCK_SIZE);
+
+        rcu_read_lock();
+
+        src = atomic_rcu_read(
+                &ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION])->blocks;
 
         for (k = page; k < page + nr; k++) {
-            if (src[k]) {
-                unsigned long bits = atomic_xchg(&src[k], 0);
+            if (src[idx][offset]) {
+                unsigned long bits = atomic_xchg(&src[idx][offset], 0);
                 unsigned long new_dirty;
                 new_dirty = ~dest[k];
                 dest[k] |= bits;
                 new_dirty &= bits;
                 num_dirty += ctpopl(new_dirty);
             }
+
+            if (++offset >= BITS_TO_LONGS(DIRTY_MEMORY_BLOCK_SIZE)) {
+                offset = 0;
+                idx++;
+            }
         }
+
+        rcu_read_unlock();
     } else {
         for (addr = 0; addr < length; addr += TARGET_PAGE_SIZE) {
             if (cpu_physical_memory_test_and_clear_dirty(

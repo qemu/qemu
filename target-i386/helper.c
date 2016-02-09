@@ -861,7 +861,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             /* Bits 20-13 provide bits 39-32 of the address, bit 21 is reserved.
              * Leave bits 20-13 in place for setting accessed/dirty bits below.
              */
-            pte = pde | ((pde & 0x1fe000) << (32 - 13));
+            pte = pde | ((pde & 0x1fe000LL) << (32 - 13));
             rsvd_mask = 0x200000;
             goto do_check_protect_pse36;
         }
@@ -1056,7 +1056,7 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
         if (!(pde & PG_PRESENT_MASK))
             return -1;
         if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
-            pte = pde | ((pde & 0x1fe000) << (32 - 13));
+            pte = pde | ((pde & 0x1fe000LL) << (32 - 13));
             page_size = 4096 * 1024;
         } else {
             /* page directory entry */

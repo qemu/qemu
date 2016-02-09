@@ -1171,6 +1171,7 @@ typedef struct {
     int connected;
     guint timer_tag;
     guint open_tag;
+    int slave_fd;
 } PtyCharDriver;
 
 static void pty_chr_update_read_handler_locked(CharDriverState *chr);
@@ -1347,6 +1348,7 @@ static void pty_chr_close(struct CharDriverState *chr)
 
     qemu_mutex_lock(&chr->chr_write_lock);
     pty_chr_state(chr, 0);
+    close(s->slave_fd);
     object_unref(OBJECT(s->ioc));
     if (s->timer_tag) {
         g_source_remove(s->timer_tag);
@@ -1374,7 +1376,6 @@ static CharDriverState *qemu_chr_open_pty(const char *id,
         return NULL;
     }
 
-    close(slave_fd);
     qemu_set_nonblock(master_fd);
 
     chr = qemu_chr_alloc(common, errp);
@@ -1399,6 +1400,7 @@ static CharDriverState *qemu_chr_open_pty(const char *id,
     chr->explicit_be_open = true;
 
     s->ioc = QIO_CHANNEL(qio_channel_file_new_fd(master_fd));
+    s->slave_fd = slave_fd;
     s->timer_tag = 0;
 
     return chr;
@@ -2855,6 +2857,10 @@ static void tcp_chr_connect(void *opaque)
 static void tcp_chr_update_read_handler(CharDriverState *chr)
 {
     TCPCharDriver *s = chr->opaque;
+
+    if (!s->connected) {
+        return;
+    }
 
     remove_fd_in_watch(chr);
     if (s->ioc) {
@@ -4380,7 +4386,7 @@ static CharDriverState *qmp_chardev_open_udp(const char *id,
     QIOChannelSocket *sioc = qio_channel_socket_new();
 
     if (qio_channel_socket_dgram_sync(sioc,
-                                      udp->remote, udp->local,
+                                      udp->local, udp->remote,
                                       errp) < 0) {
         object_unref(OBJECT(sioc));
         return NULL;

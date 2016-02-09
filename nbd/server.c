@@ -417,12 +417,12 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
     memcpy(buf, "NBDMAGIC", 8);
     if (client->exp) {
         assert ((client->exp->nbdflags & ~65535) == 0);
-        cpu_to_be64w((uint64_t*)(buf + 8), NBD_CLIENT_MAGIC);
-        cpu_to_be64w((uint64_t*)(buf + 16), client->exp->size);
-        cpu_to_be16w((uint16_t*)(buf + 26), client->exp->nbdflags | myflags);
+        stq_be_p(buf + 8, NBD_CLIENT_MAGIC);
+        stq_be_p(buf + 16, client->exp->size);
+        stw_be_p(buf + 26, client->exp->nbdflags | myflags);
     } else {
-        cpu_to_be64w((uint64_t*)(buf + 8), NBD_OPTS_MAGIC);
-        cpu_to_be16w((uint16_t *)(buf + 16), NBD_FLAG_FIXED_NEWSTYLE);
+        stq_be_p(buf + 8, NBD_OPTS_MAGIC);
+        stw_be_p(buf + 16, NBD_FLAG_FIXED_NEWSTYLE);
     }
 
     if (client->exp) {
@@ -442,8 +442,8 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
         }
 
         assert ((client->exp->nbdflags & ~65535) == 0);
-        cpu_to_be64w((uint64_t*)(buf + 18), client->exp->size);
-        cpu_to_be16w((uint16_t*)(buf + 26), client->exp->nbdflags | myflags);
+        stq_be_p(buf + 18, client->exp->size);
+        stw_be_p(buf + 26, client->exp->nbdflags | myflags);
         if (nbd_negotiate_write(csock, buf + 18,
                                 sizeof(buf) - 18) != sizeof(buf) - 18) {
             LOG("write failed");
@@ -528,9 +528,9 @@ static ssize_t nbd_send_reply(int csock, struct nbd_reply *reply)
        [ 4 ..  7]    error   (0 == no error)
        [ 7 .. 15]    handle
      */
-    cpu_to_be32w((uint32_t*)buf, NBD_REPLY_MAGIC);
-    cpu_to_be32w((uint32_t*)(buf + 4), reply->error);
-    cpu_to_be64w((uint64_t*)(buf + 8), reply->handle);
+    stl_be_p(buf, NBD_REPLY_MAGIC);
+    stl_be_p(buf + 4, reply->error);
+    stq_be_p(buf + 8, reply->handle);
 
     TRACE("Sending response to client");
 

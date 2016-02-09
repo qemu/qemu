@@ -355,6 +355,96 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
     }
 }
 
+static int read_naa_id(const uint8_t *p, uint64_t *p_wwn)
+{
+    int i;
+
+    if ((p[1] & 0xF) == 3) {
+        /* NAA designator type */
+        if (p[3] != 8) {
+            return -EINVAL;
+        }
+        *p_wwn = ldq_be_p(p + 4);
+        return 0;
+    }
+
+    if ((p[1] & 0xF) == 8) {
+        /* SCSI name string designator type */
+        if (p[3] < 20 || memcmp(&p[4], "naa.", 4)) {
+            return -EINVAL;
+        }
+        if (p[3] > 20 && p[24] != ',') {
+            return -EINVAL;
+        }
+        *p_wwn = 0;
+        for (i = 8; i < 24; i++) {
+            char c = toupper(p[i]);
+            c -= (c >= '0' && c <= '9' ? '0' : 'A' - 10);
+            *p_wwn = (*p_wwn << 4) | c;
+        }
+        return 0;
+    }
+
+    return -EINVAL;
+}
+
+void scsi_generic_read_device_identification(SCSIDevice *s)
+{
+    uint8_t cmd[6];
+    uint8_t buf[250];
+    uint8_t sensebuf[8];
+    sg_io_hdr_t io_header;
+    int ret;
+    int i, len;
+
+    memset(cmd, 0, sizeof(cmd));
+    memset(buf, 0, sizeof(buf));
+    cmd[0] = INQUIRY;
+    cmd[1] = 1;
+    cmd[2] = 0x83;
+    cmd[4] = sizeof(buf);
+
+    memset(&io_header, 0, sizeof(io_header));
+    io_header.interface_id = 'S';
+    io_header.dxfer_direction = SG_DXFER_FROM_DEV;
+    io_header.dxfer_len = sizeof(buf);
+    io_header.dxferp = buf;
+    io_header.cmdp = cmd;
+    io_header.cmd_len = sizeof(cmd);
+    io_header.mx_sb_len = sizeof(sensebuf);
+    io_header.sbp = sensebuf;
+    io_header.timeout = 6000; /* XXX */
+
+    ret = blk_ioctl(s->conf.blk, SG_IO, &io_header);
+    if (ret < 0 || io_header.driver_status || io_header.host_status) {
+        return;
+    }
+
+    len = MIN((buf[2] << 8) | buf[3], sizeof(buf) - 4);
+    for (i = 0; i + 3 <= len; ) {
+        const uint8_t *p = &buf[i + 4];
+        uint64_t wwn;
+
+        if (i + (p[3] + 4) > len) {
+            break;
+        }
+
+        if ((p[1] & 0x10) == 0) {
+            /* Associated with the logical unit */
+            if (read_naa_id(p, &wwn) == 0) {
+                s->wwn = wwn;
+            }
+        } else if ((p[1] & 0x10) == 0x10) {
+            /* Associated with the target port */
+            if (read_naa_id(p, &wwn) == 0) {
+                s->port_wwn = wwn;
+            }
+        }
+
+        i += p[3] + 4;
+    }
+}
+
 static int get_stream_blocksize(BlockBackend *blk)
 {
     uint8_t cmd[6];
@@ -458,6 +548,8 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
     }
 
     DPRINTF("block size %d\n", s->blocksize);
+
+    scsi_generic_read_device_identification(s);
 }
 
 const SCSIReqOps scsi_generic_req_ops = {

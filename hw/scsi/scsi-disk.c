@@ -77,8 +77,6 @@ struct SCSIDiskState
     bool media_changed;
     bool media_event;
     bool eject_request;
-    uint64_t wwn;
-    uint64_t port_wwn;
     uint16_t port_index;
     uint64_t max_unmap_size;
     uint64_t max_io_size;
@@ -633,21 +631,21 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             memcpy(outbuf+buflen, str, id_len);
             buflen += id_len;
 
-            if (s->wwn) {
+            if (s->qdev.wwn) {
                 outbuf[buflen++] = 0x1; // Binary
                 outbuf[buflen++] = 0x3; // NAA
                 outbuf[buflen++] = 0;   // reserved
                 outbuf[buflen++] = 8;
-                stq_be_p(&outbuf[buflen], s->wwn);
+                stq_be_p(&outbuf[buflen], s->qdev.wwn);
                 buflen += 8;
             }
 
-            if (s->port_wwn) {
+            if (s->qdev.port_wwn) {
                 outbuf[buflen++] = 0x61; // SAS / Binary
                 outbuf[buflen++] = 0x93; // PIV / Target port / NAA
                 outbuf[buflen++] = 0;    // reserved
                 outbuf[buflen++] = 8;
-                stq_be_p(&outbuf[buflen], s->port_wwn);
+                stq_be_p(&outbuf[buflen], s->qdev.port_wwn);
                 buflen += 8;
             }
 
@@ -2575,6 +2573,7 @@ static void scsi_block_realize(SCSIDevice *dev, Error **errp)
     s->features |= (1 << SCSI_DISK_F_NO_REMOVABLE_DEVOPS);
 
     scsi_realize(&s->qdev, errp);
+    scsi_generic_read_device_identification(&s->qdev);
 }
 
 static bool scsi_block_is_passthrough(SCSIDiskState *s, uint8_t *buf)
@@ -2668,8 +2667,8 @@ static Property scsi_hd_properties[] = {
                     SCSI_DISK_F_REMOVABLE, false),
     DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
                     SCSI_DISK_F_DPOFUA, false),
-    DEFINE_PROP_UINT64("wwn", SCSIDiskState, wwn, 0),
-    DEFINE_PROP_UINT64("port_wwn", SCSIDiskState, port_wwn, 0),
+    DEFINE_PROP_UINT64("wwn", SCSIDiskState, qdev.wwn, 0),
+    DEFINE_PROP_UINT64("port_wwn", SCSIDiskState, qdev.port_wwn, 0),
     DEFINE_PROP_UINT16("port_index", SCSIDiskState, port_index, 0),
     DEFINE_PROP_UINT64("max_unmap_size", SCSIDiskState, max_unmap_size,
                        DEFAULT_MAX_UNMAP_SIZE),
@@ -2718,8 +2717,8 @@ static const TypeInfo scsi_hd_info = {
 
 static Property scsi_cd_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
-    DEFINE_PROP_UINT64("wwn", SCSIDiskState, wwn, 0),
-    DEFINE_PROP_UINT64("port_wwn", SCSIDiskState, port_wwn, 0),
+    DEFINE_PROP_UINT64("wwn", SCSIDiskState, qdev.wwn, 0),
+    DEFINE_PROP_UINT64("port_wwn", SCSIDiskState, qdev.port_wwn, 0),
     DEFINE_PROP_UINT16("port_index", SCSIDiskState, port_index, 0),
     DEFINE_PROP_UINT64("max_io_size", SCSIDiskState, max_io_size,
                        DEFAULT_MAX_IO_SIZE),
@@ -2783,8 +2782,8 @@ static Property scsi_disk_properties[] = {
                     SCSI_DISK_F_REMOVABLE, false),
     DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
                     SCSI_DISK_F_DPOFUA, false),
-    DEFINE_PROP_UINT64("wwn", SCSIDiskState, wwn, 0),
-    DEFINE_PROP_UINT64("port_wwn", SCSIDiskState, port_wwn, 0),
+    DEFINE_PROP_UINT64("wwn", SCSIDiskState, qdev.wwn, 0),
+    DEFINE_PROP_UINT64("port_wwn", SCSIDiskState, qdev.port_wwn, 0),
     DEFINE_PROP_UINT16("port_index", SCSIDiskState, port_index, 0),
     DEFINE_PROP_UINT64("max_unmap_size", SCSIDiskState, max_unmap_size,
                        DEFAULT_MAX_UNMAP_SIZE),

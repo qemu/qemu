@@ -559,7 +559,7 @@ static void ipmi_init_sensors_from_sdrs(IPMIBmcSim *s)
 static int ipmi_register_netfn(IPMIBmcSim *s, unsigned int netfn,
                                const IPMINetfn *netfnd)
 {
-    if ((netfn & 1) || (netfn > MAX_NETFNS) || (s->netfns[netfn / 2])) {
+    if ((netfn & 1) || (netfn >= MAX_NETFNS) || (s->netfns[netfn / 2])) {
         return -1;
     }
     s->netfns[netfn / 2] = netfnd;
@@ -1135,6 +1135,8 @@ static void set_watchdog_timer(IPMIBmcSim *ibs,
             rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
             return;
         }
+        break;
+
     default:
         /* We don't support PRE_SMI */
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
