@@ -385,7 +385,8 @@ done:
 }
 
 GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
-                                   int64_t whence_code, Error **errp)
+                                   GuestFileWhence *whence_code,
+                                   Error **errp)
 {
     GuestFileHandle *gfh;
     GuestFileSeek *seek_data;
@@ -394,6 +395,7 @@ GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
     off_pos.QuadPart = offset;
     BOOL res;
     int whence;
+    Error *err = NULL;
 
     gfh = guest_file_handle_find(handle, errp);
     if (!gfh) {
@@ -401,18 +403,9 @@ GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
     }
 
     /* We stupidly exposed 'whence':'int' in our qapi */
-    switch (whence_code) {
-    case QGA_SEEK_SET:
-        whence = SEEK_SET;
-        break;
-    case QGA_SEEK_CUR:
-        whence = SEEK_CUR;
-        break;
-    case QGA_SEEK_END:
-        whence = SEEK_END;
-        break;
-    default:
-        error_setg(errp, "invalid whence code %"PRId64, whence_code);
+    whence = ga_parse_whence(whence_code, &err);
+    if (err) {
+        error_propagate(errp, err);
         return NULL;
     }
 
