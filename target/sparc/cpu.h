@@ -417,6 +417,8 @@ typedef union {
     uint64_t tag_access;
     uint64_t virtual_watchpoint;
     uint64_t physical_watchpoint;
+    uint64_t sun4v_ctx_config[2];
+    uint64_t sun4v_tsb_pointers[4];
    };
 } SparcV9MMU;
 #endif
