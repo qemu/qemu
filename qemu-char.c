@@ -4386,7 +4386,7 @@ static CharDriverState *qmp_chardev_open_udp(const char *id,
     QIOChannelSocket *sioc = qio_channel_socket_new();
 
     if (qio_channel_socket_dgram_sync(sioc,
-                                      udp->remote, udp->local,
+                                      udp->local, udp->remote,
                                       errp) < 0) {
         object_unref(OBJECT(sioc));
         return NULL;
