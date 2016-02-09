@@ -770,6 +770,20 @@ STEXI
 Show rocker OF-DPA groups.
 ETEXI
 
+    {
+        .name       = "colo-proxy",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Show the state of the colo proxy",
+        .mhandler.cmd = hmp_info_colo_proxy,
+    },
+
+STEXI
+@item info colo-proxy
+@findex colo-proxy
+Show the state of the colo proxy
+ETEXI
+
 #if defined(TARGET_S390X)
     {
         .name       = "skeys",

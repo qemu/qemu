@@ -165,6 +165,7 @@ ssize_t qemu_deliver_packet_iov(NetClientState *sender,
 
 void print_net_client(Monitor *mon, NetClientState *nc);
 void hmp_info_network(Monitor *mon, const QDict *qdict);
+void hmp_info_colo_proxy(Monitor *mon, const QDict *qdict);
 
 /* NIC info */
 

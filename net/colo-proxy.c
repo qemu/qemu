@@ -23,6 +23,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/jhash.h"
 #include "qemu/coroutine.h"
+#include "monitor/monitor.h"
 #include "net/eth.h"
 #include "slirp/slirp.h"
 #include "slirp/slirp_config.h"
@@ -146,6 +147,44 @@ static inline void colo_proxy_dump_packet(Packet *pkt)
         printf("%02x ", ((uint8_t *)pkt->data)[i]);
     }
     printf("\n");
+}
+
+static void info_packet(void *opaque, void *user_data)
+{
+    Packet *pkt = opaque;
+    Monitor *mon = user_data;
+    size_t to_print, i;
+
+    monitor_printf(mon, "    (%5d bytes): ", pkt->size);
+
+    to_print = pkt->size;
+    if (to_print > 64) to_print = 64;
+    for(i = 0; i< to_print; i++) {
+        monitor_printf(mon, "%02x ", ((uint8_t *)pkt->data)[i]);
+    }
+    monitor_printf(mon, "\n");
+}
+
+static void info_hash(gpointer key, gpointer value, gpointer user_data)
+{
+    Monitor *mon = user_data;
+    ConnectionKey *ck = key;
+    Connection *conn = value;
+
+    monitor_printf(mon, "  (%4d), %s:%d -> ", ck->ip_proto, inet_ntoa(ck->src), ck->src_port);
+    monitor_printf(mon, "  %s:%d processing: %d\n ", inet_ntoa(ck->dst), ck->dst_port, conn->processing);
+
+    monitor_printf(mon, "  Primary list:\n");
+    g_queue_foreach(&conn->primary_list, info_packet, mon);
+
+    monitor_printf(mon, "  Secondary list:\n");
+    g_queue_foreach(&conn->secondary_list, info_packet, mon);
+}
+
+void hmp_info_colo_proxy(Monitor *mon, const QDict *qdict)
+{
+    monitor_printf(mon, "colo proxy:\n");
+    g_hash_table_foreach (colo_conn_hash, info_hash, mon);
 }
 
 static void packet_destroy(void *opaque, void *user_data);
