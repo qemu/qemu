@@ -296,7 +296,9 @@ static int block_job_finish_sync(BlockJob *job,
         return -EBUSY;
     }
     while (!job->completed) {
-        aio_poll(bdrv_get_aio_context(bs), true);
+        aio_poll(job->deferred_to_main_loop ? qemu_get_aio_context() :
+                                              bdrv_get_aio_context(bs),
+                 true);
     }
     ret = (job->cancelled && job->ret == 0) ? -ECANCELED : job->ret;
     block_job_unref(job);
@@ -470,6 +472,7 @@ static void block_job_defer_to_main_loop_bh(void *opaque)
     aio_context = bdrv_get_aio_context(data->job->bs);
     aio_context_acquire(aio_context);
 
+    data->job->deferred_to_main_loop = false;
     data->fn(data->job, data->opaque);
 
     aio_context_release(aio_context);
@@ -489,6 +492,7 @@ void block_job_defer_to_main_loop(BlockJob *job,
     data->aio_context = bdrv_get_aio_context(job->bs);
     data->fn = fn;
     data->opaque = opaque;
+    job->deferred_to_main_loop = true;
 
     qemu_bh_schedule(data->bh);
 }

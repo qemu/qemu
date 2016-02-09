@@ -39,10 +39,36 @@ size_t iov_size(const struct iovec *iov, const unsigned int iov_cnt);
  * such "large" value is -1 (sinice size_t is unsigned),
  * so specifying `-1' as `bytes' means 'up to the end of iovec'.
  */
-size_t iov_from_buf(const struct iovec *iov, unsigned int iov_cnt,
-                    size_t offset, const void *buf, size_t bytes);
-size_t iov_to_buf(const struct iovec *iov, const unsigned int iov_cnt,
-                  size_t offset, void *buf, size_t bytes);
+size_t iov_from_buf_full(const struct iovec *iov, unsigned int iov_cnt,
+                         size_t offset, const void *buf, size_t bytes);
+size_t iov_to_buf_full(const struct iovec *iov, const unsigned int iov_cnt,
+		       size_t offset, void *buf, size_t bytes);
+
+static inline size_t
+iov_from_buf(const struct iovec *iov, unsigned int iov_cnt,
+             size_t offset, const void *buf, size_t bytes)
+{
+    if (__builtin_constant_p(bytes) && iov_cnt &&
+        offset <= iov[0].iov_len && bytes <= iov[0].iov_len - offset) {
+        memcpy(iov[0].iov_base + offset, buf, bytes);
+        return bytes;
+    } else {
+        return iov_from_buf_full(iov, iov_cnt, offset, buf, bytes);
+    }
+}
+
+static inline size_t
+iov_to_buf(const struct iovec *iov, const unsigned int iov_cnt,
+           size_t offset, void *buf, size_t bytes)
+{
+    if (__builtin_constant_p(bytes) && iov_cnt &&
+        offset <= iov[0].iov_len && bytes <= iov[0].iov_len - offset) {
+        memcpy(buf, iov[0].iov_base + offset, bytes);
+        return bytes;
+    } else {
+        return iov_to_buf_full(iov, iov_cnt, offset, buf, bytes);
+    }
+}
 
 /**
  * Set data bytes pointed out by iovec `iov' of size `iov_cnt' elements,
