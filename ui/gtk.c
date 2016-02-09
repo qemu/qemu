@@ -1613,7 +1613,7 @@ static CharDriverState *gd_vc_handler(ChardevVC *vc, Error **errp)
     chr->chr_set_echo = gd_vc_chr_set_echo;
 
     /* Temporary, until gd_vc_vte_init runs.  */
-    chr->opaque = g_new(VirtualConsole, 1);
+    chr->opaque = g_new0(VirtualConsole, 1);
 
     /* defer OPENED events until our vc is fully initialized */
     chr->explicit_be_open = true;
