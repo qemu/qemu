@@ -1224,7 +1224,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
                                    &ioreq_pfn, &bufioreq_pfn,
                                    &bufioreq_evtchn);
     if (rc < 0) {
-        error_report("failed to get ioreq server info: error %d handle=" XC_INTERFACE_FMT,
+        error_report("failed to get ioreq server info: error %d handle=%p",
                      errno, xen_xc);
         goto err;
     }
@@ -1237,7 +1237,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
                                               PROT_READ|PROT_WRITE,
                                               1, &ioreq_pfn, NULL);
     if (state->shared_page == NULL) {
-        error_report("map shared IO page returned error %d handle=" XC_INTERFACE_FMT,
+        error_report("map shared IO page returned error %d handle=%p",
                      errno, xen_xc);
         goto err;
     }
@@ -1249,8 +1249,8 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
             xenforeignmemory_map(xen_fmem, xen_domid, PROT_READ|PROT_WRITE,
                                  1, &ioreq_pfn, NULL);
         if (state->shared_vmport_page == NULL) {
-            error_report("map shared vmport IO page returned error %d handle="
-                         XC_INTERFACE_FMT, errno, xen_xc);
+            error_report("map shared vmport IO page returned error %d handle=%p",
+                         errno, xen_xc);
             goto err;
         }
     } else if (rc != -ENOSYS) {
@@ -1272,7 +1272,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
 
     rc = xen_set_ioreq_server_state(xen_xc, xen_domid, state->ioservid, true);
     if (rc < 0) {
-        error_report("failed to enable ioreq server info: error %d handle=" XC_INTERFACE_FMT,
+        error_report("failed to enable ioreq server info: error %d handle=%p",
                      errno, xen_xc);
         goto err;
     }
@@ -1333,11 +1333,11 @@ err:
 
 void destroy_hvm_domain(bool reboot)
 {
-    XenXC xc_handle;
+    xc_interface *xc_handle;
     int sts;
 
-    xc_handle = xen_xc_interface_open(0, 0, 0);
-    if (xc_handle == XC_HANDLER_INITIAL_VALUE) {
+    xc_handle = xc_interface_open(0, 0, 0);
+    if (xc_handle == NULL) {
         fprintf(stderr, "Cannot acquire xenctrl handle\n");
     } else {
         sts = xc_domain_shutdown(xc_handle, xen_domid,

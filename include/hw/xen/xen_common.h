@@ -32,13 +32,9 @@
 /* Xen 4.2 thru 4.6 */
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 471
 
-typedef xc_interface *XenXC;
-typedef xc_interface *xenforeignmemory_handle;
+typedef xc_interface xenforeignmemory_handle;
 typedef xc_evtchn xenevtchn_handle;
 typedef xc_gnttab xengnttab_handle;
-
-#  define XC_INTERFACE_FMT "%p"
-#  define XC_HANDLER_INITIAL_VALUE    NULL
 
 #define xenevtchn_open(l, f) xc_evtchn_open(l, f);
 #define xenevtchn_close(h) xc_evtchn_close(h)
@@ -57,30 +53,14 @@ typedef xc_gnttab xengnttab_handle;
 #define xengnttab_map_grant_refs(h, c, d, r, p) \
     xc_gnttab_map_grant_refs(h, c, d, r, p)
 
-static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
-                                          unsigned int open_flags)
-{
-    return xc_interface_open(logger, dombuild_logger, open_flags);
-}
-
 /* See below for xenforeignmemory_* APIs */
 
 #else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 471 */
-
-typedef xc_interface *XenXC;
-
-#  define XC_INTERFACE_FMT "%p"
-#  define XC_HANDLER_INITIAL_VALUE    NULL
 
 #include <xenevtchn.h>
 #include <xengnttab.h>
 #include <xenforeignmemory.h>
 
-static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
-                                          unsigned int open_flags)
-{
-    return xc_interface_open(logger, dombuild_logger, open_flags);
-}
 #endif
 
 void destroy_hvm_domain(bool reboot);
@@ -89,7 +69,7 @@ void destroy_hvm_domain(bool reboot);
 void xen_shutdown_fatal_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
 #ifdef HVM_PARAM_VMPORT_REGS_PFN
-static inline int xen_get_vmport_regs_pfn(XenXC xc, domid_t dom,
+static inline int xen_get_vmport_regs_pfn(xc_interface *xc, domid_t dom,
                                           xen_pfn_t *vmport_regs_pfn)
 {
     int rc;
@@ -101,7 +81,7 @@ static inline int xen_get_vmport_regs_pfn(XenXC xc, domid_t dom,
     return rc;
 }
 #else
-static inline int xen_get_vmport_regs_pfn(XenXC xc, domid_t dom,
+static inline int xen_get_vmport_regs_pfn(xc_interface *xc, domid_t dom,
                                           xen_pfn_t *vmport_regs_pfn)
 {
     return -ENOSYS;
@@ -128,54 +108,54 @@ static inline int xen_get_vmport_regs_pfn(XenXC xc, domid_t dom,
 
 typedef uint16_t ioservid_t;
 
-static inline void xen_map_memory_section(XenXC xc, domid_t dom,
+static inline void xen_map_memory_section(xc_interface *xc, domid_t dom,
                                           ioservid_t ioservid,
                                           MemoryRegionSection *section)
 {
 }
 
-static inline void xen_unmap_memory_section(XenXC xc, domid_t dom,
+static inline void xen_unmap_memory_section(xc_interface *xc, domid_t dom,
                                             ioservid_t ioservid,
                                             MemoryRegionSection *section)
 {
 }
 
-static inline void xen_map_io_section(XenXC xc, domid_t dom,
+static inline void xen_map_io_section(xc_interface *xc, domid_t dom,
                                       ioservid_t ioservid,
                                       MemoryRegionSection *section)
 {
 }
 
-static inline void xen_unmap_io_section(XenXC xc, domid_t dom,
+static inline void xen_unmap_io_section(xc_interface *xc, domid_t dom,
                                         ioservid_t ioservid,
                                         MemoryRegionSection *section)
 {
 }
 
-static inline void xen_map_pcidev(XenXC xc, domid_t dom,
+static inline void xen_map_pcidev(xc_interface *xc, domid_t dom,
                                   ioservid_t ioservid,
                                   PCIDevice *pci_dev)
 {
 }
 
-static inline void xen_unmap_pcidev(XenXC xc, domid_t dom,
+static inline void xen_unmap_pcidev(xc_interface *xc, domid_t dom,
                                     ioservid_t ioservid,
                                     PCIDevice *pci_dev)
 {
 }
 
-static inline int xen_create_ioreq_server(XenXC xc, domid_t dom,
+static inline int xen_create_ioreq_server(xc_interface *xc, domid_t dom,
                                           ioservid_t *ioservid)
 {
     return 0;
 }
 
-static inline void xen_destroy_ioreq_server(XenXC xc, domid_t dom,
+static inline void xen_destroy_ioreq_server(xc_interface *xc, domid_t dom,
                                             ioservid_t ioservid)
 {
 }
 
-static inline int xen_get_ioreq_server_info(XenXC xc, domid_t dom,
+static inline int xen_get_ioreq_server_info(xc_interface *xc, domid_t dom,
                                             ioservid_t ioservid,
                                             xen_pfn_t *ioreq_pfn,
                                             xen_pfn_t *bufioreq_pfn,
@@ -212,7 +192,7 @@ static inline int xen_get_ioreq_server_info(XenXC xc, domid_t dom,
     return 0;
 }
 
-static inline int xen_set_ioreq_server_state(XenXC xc, domid_t dom,
+static inline int xen_set_ioreq_server_state(xc_interface *xc, domid_t dom,
                                              ioservid_t ioservid,
                                              bool enable)
 {
@@ -222,7 +202,7 @@ static inline int xen_set_ioreq_server_state(XenXC xc, domid_t dom,
 /* Xen 4.5 */
 #else
 
-static inline void xen_map_memory_section(XenXC xc, domid_t dom,
+static inline void xen_map_memory_section(xc_interface *xc, domid_t dom,
                                           ioservid_t ioservid,
                                           MemoryRegionSection *section)
 {
@@ -235,7 +215,7 @@ static inline void xen_map_memory_section(XenXC xc, domid_t dom,
                                         start_addr, end_addr);
 }
 
-static inline void xen_unmap_memory_section(XenXC xc, domid_t dom,
+static inline void xen_unmap_memory_section(xc_interface *xc, domid_t dom,
                                             ioservid_t ioservid,
                                             MemoryRegionSection *section)
 {
@@ -248,7 +228,7 @@ static inline void xen_unmap_memory_section(XenXC xc, domid_t dom,
                                             start_addr, end_addr);
 }
 
-static inline void xen_map_io_section(XenXC xc, domid_t dom,
+static inline void xen_map_io_section(xc_interface *xc, domid_t dom,
                                       ioservid_t ioservid,
                                       MemoryRegionSection *section)
 {
@@ -261,7 +241,7 @@ static inline void xen_map_io_section(XenXC xc, domid_t dom,
                                         start_addr, end_addr);
 }
 
-static inline void xen_unmap_io_section(XenXC xc, domid_t dom,
+static inline void xen_unmap_io_section(xc_interface *xc, domid_t dom,
                                         ioservid_t ioservid,
                                         MemoryRegionSection *section)
 {
@@ -274,7 +254,7 @@ static inline void xen_unmap_io_section(XenXC xc, domid_t dom,
                                             start_addr, end_addr);
 }
 
-static inline void xen_map_pcidev(XenXC xc, domid_t dom,
+static inline void xen_map_pcidev(xc_interface *xc, domid_t dom,
                                   ioservid_t ioservid,
                                   PCIDevice *pci_dev)
 {
@@ -286,7 +266,7 @@ static inline void xen_map_pcidev(XenXC xc, domid_t dom,
                                       PCI_FUNC(pci_dev->devfn));
 }
 
-static inline void xen_unmap_pcidev(XenXC xc, domid_t dom,
+static inline void xen_unmap_pcidev(xc_interface *xc, domid_t dom,
                                     ioservid_t ioservid,
                                     PCIDevice *pci_dev)
 {
@@ -298,7 +278,7 @@ static inline void xen_unmap_pcidev(XenXC xc, domid_t dom,
                                           PCI_FUNC(pci_dev->devfn));
 }
 
-static inline int xen_create_ioreq_server(XenXC xc, domid_t dom,
+static inline int xen_create_ioreq_server(xc_interface *xc, domid_t dom,
                                           ioservid_t *ioservid)
 {
     int rc = xc_hvm_create_ioreq_server(xc, dom, HVM_IOREQSRV_BUFIOREQ_ATOMIC,
@@ -311,14 +291,14 @@ static inline int xen_create_ioreq_server(XenXC xc, domid_t dom,
     return rc;
 }
 
-static inline void xen_destroy_ioreq_server(XenXC xc, domid_t dom,
+static inline void xen_destroy_ioreq_server(xc_interface *xc, domid_t dom,
                                             ioservid_t ioservid)
 {
     trace_xen_ioreq_server_destroy(ioservid);
     xc_hvm_destroy_ioreq_server(xc, dom, ioservid);
 }
 
-static inline int xen_get_ioreq_server_info(XenXC xc, domid_t dom,
+static inline int xen_get_ioreq_server_info(xc_interface *xc, domid_t dom,
                                             ioservid_t ioservid,
                                             xen_pfn_t *ioreq_pfn,
                                             xen_pfn_t *bufioreq_pfn,
@@ -329,7 +309,7 @@ static inline int xen_get_ioreq_server_info(XenXC xc, domid_t dom,
                                         bufioreq_evtchn);
 }
 
-static inline int xen_set_ioreq_server_state(XenXC xc, domid_t dom,
+static inline int xen_set_ioreq_server_state(xc_interface *xc, domid_t dom,
                                              ioservid_t ioservid,
                                              bool enable)
 {
@@ -340,7 +320,7 @@ static inline int xen_set_ioreq_server_state(XenXC xc, domid_t dom,
 #endif
 
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 460
-static inline int xen_xc_domain_add_to_physmap(XenXC xch, uint32_t domid,
+static inline int xen_xc_domain_add_to_physmap(xc_interface *xch, uint32_t domid,
                                                unsigned int space,
                                                unsigned long idx,
                                                xen_pfn_t gpfn)
@@ -348,7 +328,7 @@ static inline int xen_xc_domain_add_to_physmap(XenXC xch, uint32_t domid,
     return xc_domain_add_to_physmap(xch, domid, space, idx, gpfn);
 }
 #else
-static inline int xen_xc_domain_add_to_physmap(XenXC xch, uint32_t domid,
+static inline int xen_xc_domain_add_to_physmap(xc_interface *xch, uint32_t domid,
                                                unsigned int space,
                                                unsigned long idx,
                                                xen_pfn_t gpfn)
@@ -363,14 +343,14 @@ static inline int xen_xc_domain_add_to_physmap(XenXC xch, uint32_t domid,
 
 #ifdef CONFIG_XEN_PV_DOMAIN_BUILD
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 470
-static inline int xen_domain_create(XenXC xc, uint32_t ssidref,
+static inline int xen_domain_create(xc_interface *xc, uint32_t ssidref,
                                     xen_domain_handle_t handle, uint32_t flags,
                                     uint32_t *pdomid)
 {
     return xc_domain_create(xc, ssidref, handle, flags, pdomid);
 }
 #else
-static inline int xen_domain_create(XenXC xc, uint32_t ssidref,
+static inline int xen_domain_create(xc_interface *xc, uint32_t ssidref,
                                     xen_domain_handle_t handle, uint32_t flags,
                                     uint32_t *pdomid)
 {
@@ -381,17 +361,17 @@ static inline int xen_domain_create(XenXC xc, uint32_t ssidref,
 
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 471
 
-#define xenforeignmemory_open(l, f) &xen_xc
+#define xenforeignmemory_open(l, f) xen_xc
 
-static inline void *xenforeignmemory_map(XenXC *h, uint32_t dom,
+static inline void *xenforeignmemory_map(xc_interface *h, uint32_t dom,
                                          int prot, size_t pages,
                                          const xen_pfn_t arr[/*pages*/],
                                          int err[/*pages*/])
 {
     if (err)
-        return xc_map_foreign_bulk(*h, dom, prot, arr, err, pages);
+        return xc_map_foreign_bulk(h, dom, prot, arr, err, pages);
     else
-        return xc_map_foreign_pages(*h, dom, prot, arr, pages);
+        return xc_map_foreign_pages(h, dom, prot, arr, pages);
 }
 
 #define xenforeignmemory_unmap(h, p, s) munmap(p, s * XC_PAGE_SIZE)
