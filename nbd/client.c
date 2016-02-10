@@ -76,7 +76,6 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
 {
     char buf[256];
     uint64_t magic, s;
-    uint16_t tmp;
     int rc;
 
     TRACE("Receiving negotiation.");
@@ -117,19 +116,26 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
     TRACE("Magic is 0x%" PRIx64, magic);
 
     if (magic == NBD_OPTS_MAGIC) {
-        uint32_t reserved = 0;
+        uint32_t clientflags = 0;
         uint32_t opt;
         uint32_t namesize;
+        uint16_t globalflags;
+        uint16_t exportflags;
 
-        if (read_sync(ioc, &tmp, sizeof(tmp)) != sizeof(tmp)) {
+        if (read_sync(ioc, &globalflags, sizeof(globalflags)) !=
+            sizeof(globalflags)) {
             error_setg(errp, "Failed to read server flags");
             goto fail;
         }
-        *flags = be16_to_cpu(tmp) << 16;
-        /* reserved for future use */
-        if (write_sync(ioc, &reserved, sizeof(reserved)) !=
-            sizeof(reserved)) {
-            error_setg(errp, "Failed to read reserved field");
+        *flags = be16_to_cpu(globalflags) << 16;
+        if (globalflags & NBD_FLAG_FIXED_NEWSTYLE) {
+            TRACE("Server supports fixed new style");
+            clientflags |= NBD_FLAG_C_FIXED_NEWSTYLE;
+        }
+        /* client requested flags */
+        if (write_sync(ioc, &clientflags, sizeof(clientflags)) !=
+            sizeof(clientflags)) {
+            error_setg(errp, "Failed to send clientflags field");
             goto fail;
         }
         /* write the export name */
@@ -165,11 +171,12 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
         *size = be64_to_cpu(s);
         TRACE("Size is %" PRIu64, *size);
 
-        if (read_sync(ioc, &tmp, sizeof(tmp)) != sizeof(tmp)) {
+        if (read_sync(ioc, &exportflags, sizeof(exportflags)) !=
+            sizeof(exportflags)) {
             error_setg(errp, "Failed to read export flags");
             goto fail;
         }
-        *flags |= be16_to_cpu(tmp);
+        *flags |= be16_to_cpu(exportflags);
     } else if (magic == NBD_CLIENT_MAGIC) {
         if (name) {
             error_setg(errp, "Server does not support export names");
