@@ -43,9 +43,6 @@ void monitor_read_command(Monitor *mon, int show_prompt);
 int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
                           void *opaque);
 
-void object_add(const char *type, const char *id, const QDict *qdict,
-                Visitor *v, Error **errp);
-
 AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
                                 bool has_opaque, const char *opaque,
                                 Error **errp);

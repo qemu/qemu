@@ -633,65 +633,13 @@ void qmp_add_client(const char *protocol, const char *fdname,
     close(fd);
 }
 
-void object_add(const char *type, const char *id, const QDict *qdict,
-                Visitor *v, Error **errp)
-{
-    Object *obj;
-    ObjectClass *klass;
-    const QDictEntry *e;
-    Error *local_err = NULL;
-
-    klass = object_class_by_name(type);
-    if (!klass) {
-        error_setg(errp, "invalid object type: %s", type);
-        return;
-    }
-
-    if (!object_class_dynamic_cast(klass, TYPE_USER_CREATABLE)) {
-        error_setg(errp, "object type '%s' isn't supported by object-add",
-                   type);
-        return;
-    }
-
-    if (object_class_is_abstract(klass)) {
-        error_setg(errp, "object type '%s' is abstract", type);
-        return;
-    }
-
-    obj = object_new(type);
-    if (qdict) {
-        for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
-            object_property_set(obj, v, e->key, &local_err);
-            if (local_err) {
-                goto out;
-            }
-        }
-    }
-
-    object_property_add_child(object_get_objects_root(),
-                              id, obj, &local_err);
-    if (local_err) {
-        goto out;
-    }
-
-    user_creatable_complete(obj, &local_err);
-    if (local_err) {
-        object_property_del(object_get_objects_root(),
-                            id, &error_abort);
-        goto out;
-    }
-out:
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
-    object_unref(obj);
-}
 
 void qmp_object_add(const char *type, const char *id,
                     bool has_props, QObject *props, Error **errp)
 {
     const QDict *pdict = NULL;
     QmpInputVisitor *qiv;
+    Object *obj;
 
     if (props) {
         pdict = qobject_to_qdict(props);
@@ -702,27 +650,17 @@ void qmp_object_add(const char *type, const char *id,
     }
 
     qiv = qmp_input_visitor_new(props);
-    object_add(type, id, pdict, qmp_input_get_visitor(qiv), errp);
+    obj = user_creatable_add_type(type, id, pdict,
+                                  qmp_input_get_visitor(qiv), errp);
     qmp_input_visitor_cleanup(qiv);
+    if (obj) {
+        object_unref(obj);
+    }
 }
 
 void qmp_object_del(const char *id, Error **errp)
 {
-    Object *container;
-    Object *obj;
-
-    container = object_get_objects_root();
-    obj = object_resolve_path_component(container, id);
-    if (!obj) {
-        error_setg(errp, "object id not found");
-        return;
-    }
-
-    if (!user_creatable_can_be_deleted(USER_CREATABLE(obj), errp)) {
-        error_setg(errp, "%s is in use, can not be deleted", id);
-        return;
-    }
-    object_unparent(obj);
+    user_creatable_del(id, errp);
 }
 
 MemoryDeviceInfoList *qmp_query_memory_devices(Error **errp)
