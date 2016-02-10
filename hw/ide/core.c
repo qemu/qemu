@@ -649,7 +649,7 @@ void ide_cancel_dma_sync(IDEState *s)
 #ifdef DEBUG_IDE
         printf("%s: draining all remaining requests", __func__);
 #endif
-        blk_drain_all();
+        blk_drain(s->blk);
         assert(s->bus->dma->aiocb == NULL);
     }
 }
