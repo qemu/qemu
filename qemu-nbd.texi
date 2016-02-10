@@ -18,6 +18,12 @@ Export a QEMU disk image using the NBD protocol.
 @var{dev} is an NBD device.
 
 @table @option
+@item --object type,id=@var{id},...props...
+Define a new instance of the @var{type} object class identified by @var{id}.
+See the @code{qemu(1)} manual page for full details of the properties
+supported. The common object type that it makes sense to define is the
+@code{secret} object, which is used to supply passwords and/or encryption
+keys.
 @item -p, --port=@var{port}
 The TCP port to listen on (default @samp{10809})
 @item -o, --offset=@var{offset}

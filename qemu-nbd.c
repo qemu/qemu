@@ -24,9 +24,11 @@
 #include "qemu/main-loop.h"
 #include "qemu/sockets.h"
 #include "qemu/error-report.h"
+#include "qemu/config-file.h"
 #include "block/snapshot.h"
 #include "qapi/util.h"
 #include "qapi/qmp/qstring.h"
+#include "qom/object_interfaces.h"
 
 #include <getopt.h>
 #include <sys/socket.h>
@@ -41,6 +43,7 @@
 #define QEMU_NBD_OPT_AIO           2
 #define QEMU_NBD_OPT_DISCARD       3
 #define QEMU_NBD_OPT_DETECT_ZEROES 4
+#define QEMU_NBD_OPT_OBJECT        5
 
 static NBDExport *exp;
 static int verbose;
@@ -74,6 +77,9 @@ static void usage(const char *name)
 "  -o, --offset=OFFSET       offset into the image\n"
 "  -P, --partition=NUM       only expose partition NUM\n"
 "\n"
+"General purpose options:\n"
+"  --object type,id=ID,...   define an object such as 'secret' for providing\n"
+"                            passwords and/or encryption keys\n"
 #ifdef __linux__
 "Kernel NBD client support:\n"
 "  -c, --connect=DEV         connect FILE to the local NBD device DEV\n"
@@ -371,6 +377,16 @@ static SocketAddress *nbd_build_socket_address(const char *sockpath,
 }
 
 
+static QemuOptsList qemu_object_opts = {
+    .name = "object",
+    .implied_opt_name = "qom-type",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_object_opts.head),
+    .desc = {
+        { }
+    },
+};
+
+
 int main(int argc, char **argv)
 {
     BlockBackend *blk;
@@ -408,6 +424,7 @@ int main(int argc, char **argv)
         { "format", 1, NULL, 'f' },
         { "persistent", 0, NULL, 't' },
         { "verbose", 0, NULL, 'v' },
+        { "object", 1, NULL, QEMU_NBD_OPT_OBJECT },
         { NULL, 0, NULL, 0 }
     };
     int ch;
@@ -433,6 +450,8 @@ int main(int argc, char **argv)
     memset(&sa_sigterm, 0, sizeof(sa_sigterm));
     sa_sigterm.sa_handler = termsig_handler;
     sigaction(SIGTERM, &sa_sigterm, NULL);
+    module_call_init(MODULE_INIT_QOM);
+    qemu_add_opts(&qemu_object_opts);
     qemu_init_exec_dir(argv[0]);
 
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
@@ -588,12 +607,27 @@ int main(int argc, char **argv)
         case '?':
             error_report("Try `%s --help' for more information.", argv[0]);
             exit(EXIT_FAILURE);
+        case QEMU_NBD_OPT_OBJECT: {
+            QemuOpts *opts;
+            opts = qemu_opts_parse_noisily(&qemu_object_opts,
+                                           optarg, true);
+            if (!opts) {
+                exit(EXIT_FAILURE);
+            }
+        }   break;
         }
     }
 
     if ((argc - optind) != 1) {
         error_report("Invalid number of arguments");
         error_printf("Try `%s --help' for more information.\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    if (qemu_opts_foreach(&qemu_object_opts,
+                          user_creatable_add_opts_foreach,
+                          NULL, &local_err)) {
+        error_report_err(local_err);
         exit(EXIT_FAILURE);
     }
 
