@@ -71,7 +71,7 @@ static QTAILQ_HEAD(, NBDExport) exports = QTAILQ_HEAD_INITIALIZER(exports);
 
 */
 
-int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
+int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
                           off_t *size, Error **errp)
 {
     char buf[256];
@@ -83,7 +83,7 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
 
     rc = -EINVAL;
 
-    if (read_sync(csock, buf, 8) != 8) {
+    if (read_sync(ioc, buf, 8) != 8) {
         error_setg(errp, "Failed to read data");
         goto fail;
     }
@@ -109,7 +109,7 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
         goto fail;
     }
 
-    if (read_sync(csock, &magic, sizeof(magic)) != sizeof(magic)) {
+    if (read_sync(ioc, &magic, sizeof(magic)) != sizeof(magic)) {
         error_setg(errp, "Failed to read magic");
         goto fail;
     }
@@ -130,35 +130,35 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
             }
             goto fail;
         }
-        if (read_sync(csock, &tmp, sizeof(tmp)) != sizeof(tmp)) {
+        if (read_sync(ioc, &tmp, sizeof(tmp)) != sizeof(tmp)) {
             error_setg(errp, "Failed to read server flags");
             goto fail;
         }
         *flags = be16_to_cpu(tmp) << 16;
         /* reserved for future use */
-        if (write_sync(csock, &reserved, sizeof(reserved)) !=
+        if (write_sync(ioc, &reserved, sizeof(reserved)) !=
             sizeof(reserved)) {
             error_setg(errp, "Failed to read reserved field");
             goto fail;
         }
         /* write the export name */
         magic = cpu_to_be64(magic);
-        if (write_sync(csock, &magic, sizeof(magic)) != sizeof(magic)) {
+        if (write_sync(ioc, &magic, sizeof(magic)) != sizeof(magic)) {
             error_setg(errp, "Failed to send export name magic");
             goto fail;
         }
         opt = cpu_to_be32(NBD_OPT_EXPORT_NAME);
-        if (write_sync(csock, &opt, sizeof(opt)) != sizeof(opt)) {
+        if (write_sync(ioc, &opt, sizeof(opt)) != sizeof(opt)) {
             error_setg(errp, "Failed to send export name option number");
             goto fail;
         }
         namesize = cpu_to_be32(strlen(name));
-        if (write_sync(csock, &namesize, sizeof(namesize)) !=
+        if (write_sync(ioc, &namesize, sizeof(namesize)) !=
             sizeof(namesize)) {
             error_setg(errp, "Failed to send export name length");
             goto fail;
         }
-        if (write_sync(csock, (char*)name, strlen(name)) != strlen(name)) {
+        if (write_sync(ioc, (char *)name, strlen(name)) != strlen(name)) {
             error_setg(errp, "Failed to send export name");
             goto fail;
         }
@@ -175,7 +175,7 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
         }
     }
 
-    if (read_sync(csock, &s, sizeof(s)) != sizeof(s)) {
+    if (read_sync(ioc, &s, sizeof(s)) != sizeof(s)) {
         error_setg(errp, "Failed to read export length");
         goto fail;
     }
@@ -183,19 +183,19 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
     TRACE("Size is %" PRIu64, *size);
 
     if (!name) {
-        if (read_sync(csock, flags, sizeof(*flags)) != sizeof(*flags)) {
+        if (read_sync(ioc, flags, sizeof(*flags)) != sizeof(*flags)) {
             error_setg(errp, "Failed to read export flags");
             goto fail;
         }
         *flags = be32_to_cpup(flags);
     } else {
-        if (read_sync(csock, &tmp, sizeof(tmp)) != sizeof(tmp)) {
+        if (read_sync(ioc, &tmp, sizeof(tmp)) != sizeof(tmp)) {
             error_setg(errp, "Failed to read export flags");
             goto fail;
         }
         *flags |= be16_to_cpu(tmp);
     }
-    if (read_sync(csock, &buf, 124) != 124) {
+    if (read_sync(ioc, &buf, 124) != 124) {
         error_setg(errp, "Failed to read reserved block");
         goto fail;
     }
@@ -206,11 +206,11 @@ fail:
 }
 
 #ifdef __linux__
-int nbd_init(int fd, int csock, uint32_t flags, off_t size)
+int nbd_init(int fd, QIOChannelSocket *sioc, uint32_t flags, off_t size)
 {
     TRACE("Setting NBD socket");
 
-    if (ioctl(fd, NBD_SET_SOCK, csock) < 0) {
+    if (ioctl(fd, NBD_SET_SOCK, sioc->fd) < 0) {
         int serrno = errno;
         LOG("Failed to set NBD socket");
         return -serrno;
@@ -283,7 +283,7 @@ int nbd_client(int fd)
     return ret;
 }
 #else
-int nbd_init(int fd, int csock, uint32_t flags, off_t size)
+int nbd_init(int fd, QIOChannelSocket *ioc, uint32_t flags, off_t size)
 {
     return -ENOTSUP;
 }
@@ -294,7 +294,7 @@ int nbd_client(int fd)
 }
 #endif
 
-ssize_t nbd_send_request(int csock, struct nbd_request *request)
+ssize_t nbd_send_request(QIOChannel *ioc, struct nbd_request *request)
 {
     uint8_t buf[NBD_REQUEST_SIZE];
     ssize_t ret;
@@ -309,7 +309,7 @@ ssize_t nbd_send_request(int csock, struct nbd_request *request)
           "{ .from = %" PRIu64", .len = %u, .handle = %" PRIu64", .type=%i}",
           request->from, request->len, request->handle, request->type);
 
-    ret = write_sync(csock, buf, sizeof(buf));
+    ret = write_sync(ioc, buf, sizeof(buf));
     if (ret < 0) {
         return ret;
     }
@@ -321,13 +321,13 @@ ssize_t nbd_send_request(int csock, struct nbd_request *request)
     return 0;
 }
 
-ssize_t nbd_receive_reply(int csock, struct nbd_reply *reply)
+ssize_t nbd_receive_reply(QIOChannel *ioc, struct nbd_reply *reply)
 {
     uint8_t buf[NBD_REPLY_SIZE];
     uint32_t magic;
     ssize_t ret;
 
-    ret = read_sync(csock, buf, sizeof(buf));
+    ret = read_sync(ioc, buf, sizeof(buf));
     if (ret < 0) {
         return ret;
     }

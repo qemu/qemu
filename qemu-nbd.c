@@ -249,7 +249,7 @@ static void *nbd_client_thread(void *arg)
         goto out;
     }
 
-    ret = nbd_receive_negotiate(sioc->fd, NULL, &nbdflags,
+    ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), NULL, &nbdflags,
                                 &size, &local_error);
     if (ret < 0) {
         if (local_error) {
@@ -265,7 +265,7 @@ static void *nbd_client_thread(void *arg)
         goto out_socket;
     }
 
-    ret = nbd_init(fd, sioc->fd, nbdflags, size);
+    ret = nbd_init(fd, sioc, nbdflags, size);
     if (ret < 0) {
         goto out_fd;
     }
@@ -325,7 +325,6 @@ static void nbd_client_closed(NBDClient *client)
 static gboolean nbd_accept(QIOChannel *ioc, GIOCondition cond, gpointer opaque)
 {
     QIOChannelSocket *cioc;
-    int fd;
 
     cioc = qio_channel_socket_accept(QIO_CHANNEL_SOCKET(ioc),
                                      NULL);
@@ -340,10 +339,7 @@ static gboolean nbd_accept(QIOChannel *ioc, GIOCondition cond, gpointer opaque)
 
     nb_fds++;
     nbd_update_server_watch();
-    fd = dup(cioc->fd);
-    if (fd >= 0) {
-        nbd_client_new(exp, fd, nbd_client_closed);
-    }
+    nbd_client_new(exp, cioc, nbd_client_closed);
     object_unref(OBJECT(cioc));
 
     return TRUE;

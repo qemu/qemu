@@ -80,7 +80,7 @@ static void nbd_reply_ready(void *opaque)
          * that another thread has done the same thing in parallel, so
          * the socket is not readable anymore.
          */
-        ret = nbd_receive_reply(s->sioc->fd, &s->reply);
+        ret = nbd_receive_reply(s->ioc, &s->reply);
         if (ret == -EAGAIN) {
             return;
         }
@@ -131,6 +131,7 @@ static int nbd_co_send_request(BlockDriverState *bs,
         }
     }
 
+    g_assert(qemu_in_coroutine());
     assert(i < MAX_NBD_REQUESTS);
     request->handle = INDEX_TO_HANDLE(s, i);
 
@@ -146,17 +147,17 @@ static int nbd_co_send_request(BlockDriverState *bs,
                        nbd_reply_ready, nbd_restart_write, bs);
     if (qiov) {
         qio_channel_set_cork(s->ioc, true);
-        rc = nbd_send_request(s->sioc->fd, request);
+        rc = nbd_send_request(s->ioc, request);
         if (rc >= 0) {
-            ret = qemu_co_sendv(s->sioc->fd, qiov->iov, qiov->niov,
-                                offset, request->len);
+            ret = nbd_wr_syncv(s->ioc, qiov->iov, qiov->niov,
+                               offset, request->len, 0);
             if (ret != request->len) {
                 rc = -EIO;
             }
         }
         qio_channel_set_cork(s->ioc, false);
     } else {
-        rc = nbd_send_request(s->sioc->fd, request);
+        rc = nbd_send_request(s->ioc, request);
     }
     aio_set_fd_handler(aio_context, s->sioc->fd, false,
                        nbd_reply_ready, NULL, bs);
@@ -180,8 +181,8 @@ static void nbd_co_receive_reply(NbdClientSession *s,
         reply->error = EIO;
     } else {
         if (qiov && reply->error == 0) {
-            ret = qemu_co_recvv(s->sioc->fd, qiov->iov, qiov->niov,
-                                offset, request->len);
+            ret = nbd_wr_syncv(s->ioc, qiov->iov, qiov->niov,
+                               offset, request->len, 1);
             if (ret != request->len) {
                 reply->error = EIO;
             }
@@ -388,7 +389,7 @@ void nbd_client_close(BlockDriverState *bs)
         return;
     }
 
-    nbd_send_request(client->sioc->fd, &request);
+    nbd_send_request(client->ioc, &request);
 
     nbd_teardown_connection(bs);
 }
@@ -403,7 +404,7 @@ int nbd_client_init(BlockDriverState *bs, QIOChannelSocket *sioc,
     logout("session init %s\n", export);
     qio_channel_set_blocking(QIO_CHANNEL(sioc), true, NULL);
 
-    ret = nbd_receive_negotiate(sioc->fd, export,
+    ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), export,
                                 &client->nbdflags, &client->size, errp);
     if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");

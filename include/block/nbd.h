@@ -23,6 +23,7 @@
 
 #include "qemu-common.h"
 #include "qemu/option.h"
+#include "io/channel-socket.h"
 
 struct nbd_request {
     uint32_t magic;
@@ -73,12 +74,17 @@ enum {
 /* Maximum size of a single READ/WRITE data buffer */
 #define NBD_MAX_BUFFER_SIZE (32 * 1024 * 1024)
 
-ssize_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read);
-int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
+ssize_t nbd_wr_syncv(QIOChannel *ioc,
+                     struct iovec *iov,
+                     size_t niov,
+                     size_t offset,
+                     size_t length,
+                     bool do_read);
+int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
                           off_t *size, Error **errp);
-int nbd_init(int fd, int csock, uint32_t flags, off_t size);
-ssize_t nbd_send_request(int csock, struct nbd_request *request);
-ssize_t nbd_receive_reply(int csock, struct nbd_reply *reply);
+int nbd_init(int fd, QIOChannelSocket *sioc, uint32_t flags, off_t size);
+ssize_t nbd_send_request(QIOChannel *ioc, struct nbd_request *request);
+ssize_t nbd_receive_reply(QIOChannel *ioc, struct nbd_reply *reply);
 int nbd_client(int fd);
 int nbd_disconnect(int fd);
 
@@ -98,7 +104,9 @@ NBDExport *nbd_export_find(const char *name);
 void nbd_export_set_name(NBDExport *exp, const char *name);
 void nbd_export_close_all(void);
 
-void nbd_client_new(NBDExport *exp, int csock, void (*close_fn)(NBDClient *));
+void nbd_client_new(NBDExport *exp,
+                    QIOChannelSocket *sioc,
+                    void (*close)(NBDClient *));
 void nbd_client_get(NBDClient *client);
 void nbd_client_put(NBDClient *client);
 

@@ -27,7 +27,6 @@ static gboolean nbd_accept(QIOChannel *ioc, GIOCondition condition,
                            gpointer opaque)
 {
     QIOChannelSocket *cioc;
-    int fd;
 
     cioc = qio_channel_socket_accept(QIO_CHANNEL_SOCKET(ioc),
                                      NULL);
@@ -35,10 +34,7 @@ static gboolean nbd_accept(QIOChannel *ioc, GIOCondition condition,
         return TRUE;
     }
 
-    fd = dup(cioc->fd);
-    if (fd >= 0) {
-        nbd_client_new(NULL, fd, nbd_client_put);
-    }
+    nbd_client_new(NULL, cioc, nbd_client_put);
     object_unref(OBJECT(cioc));
     return TRUE;
 }
