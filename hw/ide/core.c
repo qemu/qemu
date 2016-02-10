@@ -505,7 +505,6 @@ void ide_transfer_stop(IDEState *s)
     ide_transfer_halt(s, ide_transfer_stop, true);
 }
 
-__attribute__((__unused__))
 static void ide_transfer_cancel(IDEState *s)
 {
     ide_transfer_halt(s, ide_transfer_cancel, false);
@@ -1298,6 +1297,23 @@ static bool cmd_nop(IDEState *s, uint8_t cmd)
     return true;
 }
 
+static bool cmd_device_reset(IDEState *s, uint8_t cmd)
+{
+    /* Halt PIO (in the DRQ phase), then DMA */
+    ide_transfer_cancel(s);
+    ide_cancel_dma_sync(s);
+
+    /* Reset any PIO commands, reset signature, etc */
+    ide_reset(s);
+
+    /* RESET: ATA8-ACS3 7.10.4 "Normal Outputs";
+     * ATA8-ACS3 Table 184 "Device Signatures for Normal Output" */
+    s->status = 0x00;
+
+    /* Do not overwrite status register */
+    return false;
+}
+
 static bool cmd_data_set_management(IDEState *s, uint8_t cmd)
 {
     switch (s->feature) {
@@ -1610,15 +1626,6 @@ static bool cmd_exec_dev_diagnostic(IDEState *s, uint8_t cmd)
         s->error = 0x01;
         ide_set_irq(s->bus);
     }
-
-    return false;
-}
-
-static bool cmd_device_reset(IDEState *s, uint8_t cmd)
-{
-    ide_set_signature(s);
-    s->status = 0x00; /* NOTE: READY is _not_ set */
-    s->error = 0x01;
 
     return false;
 }
