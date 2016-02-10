@@ -68,6 +68,28 @@
 
 */
 
+typedef enum colo_conn_state {
+     COLO_CONN_IDLE,
+
+    /* States on the primary: For incoming connection */
+     COLO_CONN_PRI_IN_SYN,   /* Received Syn */
+     COLO_CONN_PRI_IN_PSYNACK, /* Received syn/ack from primary, but not
+                                yet from secondary */
+     COLO_CONN_PRI_IN_SSYNACK, /* Received syn/ack from secondary, but
+                                  not yet from primary */
+     COLO_CONN_PRI_IN_SYNACK,  /* Received syn/ack from both */
+     COLO_CONN_PRI_IN_ESTABLISHED, /* Got the ACK */
+} colo_conn_state;
+
+static const char *conn_state_str[] = {
+     "Idle",
+     "P:In Syn",
+     "P:In PSynAck",
+     "P:In SSynAck",
+     "P:In SynAck",
+     "P:Established"
+};
+
 typedef struct COLOProxyState {
     NetFilterState parent_obj;
     NetQueue *incoming_queue;/* guest normal net queue */
@@ -124,6 +146,8 @@ typedef struct Connection {
     int ip_proto;
 
     void *proto; /* tcp only now */
+
+    colo_conn_state state;
 } Connection;
 
 enum {
@@ -174,7 +198,9 @@ static void info_hash(gpointer key, gpointer value, gpointer user_data)
     Connection *conn = value;
 
     monitor_printf(mon, "  (%4d), %s:%d -> ", ck->ip_proto, inet_ntoa(ck->src), ck->src_port);
-    monitor_printf(mon, "  %s:%d processing: %d\n ", inet_ntoa(ck->dst), ck->dst_port, conn->processing);
+    monitor_printf(mon, "  %s:%d %s processing: %d\n ", inet_ntoa(ck->dst), ck->dst_port,
+                   conn_state_str[conn->state],
+                   conn->processing);
 
     monitor_printf(mon, "  Primary list:\n");
     g_queue_foreach(&conn->primary_list, info_packet, mon);
@@ -325,7 +351,7 @@ int colo_proxy_do_checkpoint(int mode)
 static int parse_packet_early(Packet *pkt, ConnectionKey *key)
 {
     int network_length;
-    uint8_t *data = pkt->data;
+    uint8_t *data = pkt->data + 12; /* dgilbert: vhdr hack! */
     uint16_t l3_proto;
     uint32_t tmp_ports;
     ssize_t l2hdr_len = eth_get_l2_hdr_length(data);
@@ -419,6 +445,7 @@ static Connection *colo_proxy_get_conn(COLOProxyState *s,
      return conn;
 }
 
+/* Primary: Outgoing packet */
 static ssize_t colo_proxy_enqueue_primary_packet(NetFilterState *nf,
                                          NetClientState *sender,
                                          unsigned flags,
@@ -470,7 +497,7 @@ colo_proxy_enqueue_secondary_packet(NetFilterState *nf,
     Packet *pkt = packet_new(s, buf, len, &key, NULL);
 
     if (!pkt) {
-        error_report("%s paket_new failed", __func__);
+        // - mostly this is just arps error_report("%s paket_new failed", __func__);
         return -1;
     }
 
@@ -593,12 +620,16 @@ static ssize_t colo_proxy_primary_handler(NetFilterState *nf,
      * secondary and flush  queued packets
     */
     if (sender == nf->netdev) {
-        /* This packet is sent by netdev itself */
+        /* Incoming packet received from network */
+        /* Send a copy of the incoming data to the secondary */
         ret = colo_proxy_sock_send(nf, iov, iovcnt);
         if (ret > 0) {
             ret = 0;
         }
     } else {
+        /* ??? Outgoing packet from primary, hold it in proxy
+         * until the secondary sends the matching packet.
+         */
         ret = colo_proxy_enqueue_primary_packet(nf, sender, flags, iov,
                     iovcnt, sent_cb);
     }
@@ -631,7 +662,13 @@ static ssize_t colo_proxy_secondary_handler(NetFilterState *nf,
      */
     if (sender == nf->netdev) {
         /* This packet is sent by netdev itself */
+        /* ??? Incoming packet from net, ignore - we only pass the
+         * packets from the socket to the guest
+         */
     } else {
+        /* Outgoing packets from secondary guest - send to
+         * primary for comparison
+         */
         ret = colo_proxy_sock_send(nf, iov, iovcnt);
     }
 
@@ -662,6 +699,7 @@ static ssize_t colo_proxy_receive_iov(NetFilterState *nf,
         ret = colo_proxy_primary_handler(nf, sender, flags,
                     iov, iovcnt, sent_cb);
         if (ret == 0) {
+            /* We've queued this packet and will release it ourselves later */
             return 0;
         }
     } else {
@@ -671,6 +709,7 @@ static ssize_t colo_proxy_receive_iov(NetFilterState *nf,
     if (ret < 0) {
         trace_colo_proxy("colo_proxy_receive_iov running failed");
     }
+    /* We stole this packet - dont pass it further */
     return iov_size(iov, iovcnt);
 }
 
@@ -747,7 +786,7 @@ bool colo_proxy_wait_for_diff(uint64_t wait_ms)
     t.tv_nsec = t.tv_nsec % 1000000000l;
 
     while (!colo_do_checkpoint) {
-        err = pthread_cond_timedwait(&colo_proxy_signal_cond, 
+        err = pthread_cond_timedwait(&colo_proxy_signal_cond,
                                      &colo_proxy_signal_mutex,
                                      &t);
         if (err) {
@@ -764,6 +803,55 @@ static void colo_proxy_notify_checkpoint(void)
     colo_do_checkpoint = true;
     /* This is harmless if no one is waiting */
     pthread_cond_broadcast(&colo_proxy_signal_cond);
+}
+
+/* Primary
+ * the TCP packets sent here are equal length and on the same port
+ * between the same host pair.
+ *
+ * return:    0  means packet same
+ *            > 0 || < 0 means packet different
+ *
+ * We ignore sequence number differences for syn/ack packets
+ *   - the secondary will fix up future packets sequence numbers
+ */
+static int colo_packet_compare_tcp(Packet *ppkt, Packet *spkt)
+{
+    struct tcphdr *ptcp, *stcp;
+    int res;
+    char *sdebug, *pdebug;
+    ptrdiff_t offset;
+
+    ptcp = (struct tcphdr *)ppkt->transport_layer;
+    stcp = (struct tcphdr *)spkt->transport_layer;
+
+    /* Initial is compare the whole packet */
+    offset = 12; /* Hack! Skip virtio header */
+
+    if (ptcp->th_flags == stcp->th_flags &&
+        ((ptcp->th_flags & (TH_ACK | TH_SYN)) == (TH_ACK | TH_SYN))) {
+        /* This is the syn/ack response from the guest to an incoming
+         * connection; the secondary won't have matched the sequence number
+         * Note: We should probably compare the IP level?
+         * Note hack: This already has the virtio offset
+         */
+        offset = sizeof(ptcp->th_ack) + (void *)&ptcp->th_ack - ppkt->data;
+    }
+    // Note - we want to compare everything as long as it's not the syn/ack?
+    assert(offset > 0);
+    assert(spkt->size > offset);
+
+    res = memcmp(ppkt->data + offset, spkt->data + offset,
+                 (spkt->size - offset));
+    pdebug=strdup(inet_ntoa(ppkt->ip->ip_src));
+    sdebug=strdup(inet_ntoa(spkt->ip->ip_src));
+    fprintf(stderr,"%s: src: %s/%s offset=%zd p: seq/ack=%d/%d s: seq/ack=%d/%d res=%d flags=%x/%x\n", __func__,
+                   pdebug, sdebug, offset,
+                   ptcp->th_seq, ptcp->th_ack,
+                   stcp->th_seq, stcp->th_ack, res, ptcp->th_flags, stcp->th_flags);
+    g_free(pdebug);
+    g_free(sdebug);
+    return res;
 }
 
 /*
@@ -787,7 +875,10 @@ static int colo_packet_compare(Packet *ppkt, Packet *spkt)
     /*colo_proxy_dump_packet(spkt);*/
 
     if (ppkt->size == spkt->size) {
-        return memcmp(ppkt->data, spkt->data, spkt->size);
+        if (ppkt->ip->ip_p == IPPROTO_TCP) {
+            return colo_packet_compare_tcp(ppkt, spkt);
+        }
+        return memcmp(ppkt->data, spkt->data, spkt->size - 12 /* dgilbert: vhdr hack! */);
     } else {
         trace_colo_proxy("colo_packet_compare size not same");
         return -1;
