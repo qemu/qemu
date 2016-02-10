@@ -67,17 +67,6 @@ struct shared_vmport_iopage {
 typedef struct shared_vmport_iopage shared_vmport_iopage_t;
 #endif
 
-#if __XEN_LATEST_INTERFACE_VERSION__ < 0x0003020a
-static inline uint32_t xen_vcpu_eport(shared_iopage_t *shared_page, int i)
-{
-    return shared_page->vcpu_iodata[i].vp_eport;
-}
-static inline ioreq_t *xen_vcpu_ioreq(shared_iopage_t *shared_page, int vcpu)
-{
-    return &shared_page->vcpu_iodata[vcpu].vp_ioreq;
-}
-#  define FMT_ioreq_size PRIx64
-#else
 static inline uint32_t xen_vcpu_eport(shared_iopage_t *shared_page, int i)
 {
     return shared_page->vcpu_ioreq[i].vp_eport;
@@ -86,8 +75,6 @@ static inline ioreq_t *xen_vcpu_ioreq(shared_iopage_t *shared_page, int vcpu)
 {
     return &shared_page->vcpu_ioreq[vcpu];
 }
-#  define FMT_ioreq_size "u"
-#endif
 
 #define BUFFER_IO_MAX_DELAY  100
 
@@ -688,7 +675,7 @@ static ioreq_t *cpu_get_ioreq_from_shared_memory(XenIOState *state, int vcpu)
     if (req->state != STATE_IOREQ_READY) {
         DPRINTF("I/O request not ready: "
                 "%x, ptr: %x, port: %"PRIx64", "
-                "data: %"PRIx64", count: %" FMT_ioreq_size ", size: %" FMT_ioreq_size "\n",
+                "data: %"PRIx64", count: %u, size: %u\n",
                 req->state, req->data_is_ptr, req->addr,
                 req->data, req->count, req->size);
         return NULL;
@@ -1050,9 +1037,7 @@ static void cpu_handle_ioreq(void *opaque)
         if (req->state != STATE_IOREQ_INPROCESS) {
             fprintf(stderr, "Badness in I/O request ... not in service?!: "
                     "%x, ptr: %x, port: %"PRIx64", "
-                    "data: %"PRIx64", count: %" FMT_ioreq_size
-                    ", size: %" FMT_ioreq_size
-                    ", type: %"FMT_ioreq_size"\n",
+                    "data: %"PRIx64", count: %u, size: %u, type: %u\n",
                     req->state, req->data_is_ptr, req->addr,
                     req->data, req->count, req->size, req->type);
             destroy_hvm_domain(false);

@@ -241,9 +241,7 @@ static int xenfb_send_motion(struct XenInput *xenfb,
     event.type = XENKBD_TYPE_MOTION;
     event.motion.rel_x = rel_x;
     event.motion.rel_y = rel_y;
-#if __XEN_LATEST_INTERFACE_VERSION__ >= 0x00030207
     event.motion.rel_z = rel_z;
-#endif
 
     return xenfb_kbd_event(xenfb, &event);
 }
@@ -258,12 +256,7 @@ static int xenfb_send_position(struct XenInput *xenfb,
     event.type = XENKBD_TYPE_POS;
     event.pos.abs_x = abs_x;
     event.pos.abs_y = abs_y;
-#if __XEN_LATEST_INTERFACE_VERSION__ == 0x00030207
-    event.pos.abs_z = z;
-#endif
-#if __XEN_LATEST_INTERFACE_VERSION__ >= 0x00030208
     event.pos.rel_z = z;
-#endif
 
     return xenfb_kbd_event(xenfb, &event);
 }
