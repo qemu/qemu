@@ -41,14 +41,15 @@
 
 /********************************************************/
 /* debug Floppy devices */
-//#define DEBUG_FLOPPY
 
-#ifdef DEBUG_FLOPPY
+#define DEBUG_FLOPPY 0
+
 #define FLOPPY_DPRINTF(fmt, ...)                                \
-    do { printf("FLOPPY: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define FLOPPY_DPRINTF(fmt, ...)
-#endif
+    do {                                                        \
+        if (DEBUG_FLOPPY) {                                     \
+            fprintf(stderr, "FLOPPY: " fmt , ## __VA_ARGS__);   \
+        }                                                       \
+    } while (0)
 
 /********************************************************/
 /* Floppy drive emulation                               */
@@ -353,7 +354,7 @@ static int pick_geometry(FDrive *drv)
             parse = &fd_formats[size_match];
             FLOPPY_DPRINTF("User requested floppy drive type '%s', "
                            "but inserted medium appears to be a "
-                           "%d sector '%s' type\n",
+                           "%"PRId64" sector '%s' type\n",
                            FloppyDriveType_lookup[drv->drive],
                            nb_sectors,
                            FloppyDriveType_lookup[parse->drive]);
