@@ -294,6 +294,8 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, uint32_t length)
     }
     name[length] = '\0';
 
+    TRACE("Client requested export '%s'", name);
+
     client->exp = nbd_export_find(name);
     if (!client->exp) {
         LOG("export not found");

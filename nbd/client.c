@@ -71,6 +71,177 @@ static QTAILQ_HEAD(, NBDExport) exports = QTAILQ_HEAD_INITIALIZER(exports);
 
 */
 
+
+static int nbd_handle_reply_err(uint32_t opt, uint32_t type, Error **errp)
+{
+    if (!(type & (1 << 31))) {
+        return 0;
+    }
+
+    switch (type) {
+    case NBD_REP_ERR_UNSUP:
+        error_setg(errp, "Unsupported option type %x", opt);
+        break;
+
+    case NBD_REP_ERR_INVALID:
+        error_setg(errp, "Invalid data length for option %x", opt);
+        break;
+
+    default:
+        error_setg(errp, "Unknown error code when asking for option %x", opt);
+        break;
+    }
+
+    return -1;
+}
+
+static int nbd_receive_list(QIOChannel *ioc, char **name, Error **errp)
+{
+    uint64_t magic;
+    uint32_t opt;
+    uint32_t type;
+    uint32_t len;
+    uint32_t namelen;
+
+    *name = NULL;
+    if (read_sync(ioc, &magic, sizeof(magic)) != sizeof(magic)) {
+        error_setg(errp, "failed to read list option magic");
+        return -1;
+    }
+    magic = be64_to_cpu(magic);
+    if (magic != NBD_REP_MAGIC) {
+        error_setg(errp, "Unexpected option list magic");
+        return -1;
+    }
+    if (read_sync(ioc, &opt, sizeof(opt)) != sizeof(opt)) {
+        error_setg(errp, "failed to read list option");
+        return -1;
+    }
+    opt = be32_to_cpu(opt);
+    if (opt != NBD_OPT_LIST) {
+        error_setg(errp, "Unexpected option type %x expected %x",
+                   opt, NBD_OPT_LIST);
+        return -1;
+    }
+
+    if (read_sync(ioc, &type, sizeof(type)) != sizeof(type)) {
+        error_setg(errp, "failed to read list option type");
+        return -1;
+    }
+    type = be32_to_cpu(type);
+    if (type == NBD_REP_ERR_UNSUP) {
+        return 0;
+    }
+    if (nbd_handle_reply_err(opt, type, errp) < 0) {
+        return -1;
+    }
+
+    if (read_sync(ioc, &len, sizeof(len)) != sizeof(len)) {
+        error_setg(errp, "failed to read option length");
+        return -1;
+    }
+    len = be32_to_cpu(len);
+
+    if (type == NBD_REP_ACK) {
+        if (len != 0) {
+            error_setg(errp, "length too long for option end");
+            return -1;
+        }
+    } else if (type == NBD_REP_SERVER) {
+        if (read_sync(ioc, &namelen, sizeof(namelen)) != sizeof(namelen)) {
+            error_setg(errp, "failed to read option name length");
+            return -1;
+        }
+        namelen = be32_to_cpu(namelen);
+        if (len != (namelen + sizeof(namelen))) {
+            error_setg(errp, "incorrect option mame length");
+            return -1;
+        }
+        if (namelen > 255) {
+            error_setg(errp, "export name length too long %d", namelen);
+            return -1;
+        }
+
+        *name = g_new0(char, namelen + 1);
+        if (read_sync(ioc, *name, namelen) != namelen) {
+            error_setg(errp, "failed to read export name");
+            g_free(*name);
+            *name = NULL;
+            return -1;
+        }
+        (*name)[namelen] = '\0';
+    } else {
+        error_setg(errp, "Unexpected reply type %x expected %x",
+                   type, NBD_REP_SERVER);
+        return -1;
+    }
+    return 1;
+}
+
+
+static int nbd_receive_query_exports(QIOChannel *ioc,
+                                     const char *wantname,
+                                     Error **errp)
+{
+    uint64_t magic = cpu_to_be64(NBD_OPTS_MAGIC);
+    uint32_t opt = cpu_to_be32(NBD_OPT_LIST);
+    uint32_t length = 0;
+    bool foundExport = false;
+
+    TRACE("Querying export list");
+    if (write_sync(ioc, &magic, sizeof(magic)) != sizeof(magic)) {
+        error_setg(errp, "Failed to send list option magic");
+        return -1;
+    }
+
+    if (write_sync(ioc, &opt, sizeof(opt)) != sizeof(opt)) {
+        error_setg(errp, "Failed to send list option number");
+        return -1;
+    }
+
+    if (write_sync(ioc, &length, sizeof(length)) != sizeof(length)) {
+        error_setg(errp, "Failed to send list option length");
+        return -1;
+    }
+
+    TRACE("Reading available export names");
+    while (1) {
+        char *name = NULL;
+        int ret = nbd_receive_list(ioc, &name, errp);
+
+        if (ret < 0) {
+            g_free(name);
+            name = NULL;
+            return -1;
+        }
+        if (ret == 0) {
+            /* Server doesn't support export listing, so
+             * we will just assume an export with our
+             * wanted name exists */
+            foundExport = true;
+            break;
+        }
+        if (name == NULL) {
+            TRACE("End of export name list");
+            break;
+        }
+        if (g_str_equal(name, wantname)) {
+            foundExport = true;
+            TRACE("Found desired export name '%s'", name);
+        } else {
+            TRACE("Ignored export name '%s'", name);
+        }
+        g_free(name);
+    }
+
+    if (!foundExport) {
+        error_setg(errp, "No export with name '%s' available", wantname);
+        return -1;
+    }
+
+    return 0;
+}
+
 int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
                           off_t *size, Error **errp)
 {
@@ -121,28 +292,44 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
         uint32_t namesize;
         uint16_t globalflags;
         uint16_t exportflags;
+        bool fixedNewStyle = false;
 
         if (read_sync(ioc, &globalflags, sizeof(globalflags)) !=
             sizeof(globalflags)) {
             error_setg(errp, "Failed to read server flags");
             goto fail;
         }
-        *flags = be16_to_cpu(globalflags) << 16;
+        globalflags = be16_to_cpu(globalflags);
+        *flags = globalflags << 16;
+        TRACE("Global flags are %x", globalflags);
         if (globalflags & NBD_FLAG_FIXED_NEWSTYLE) {
+            fixedNewStyle = true;
             TRACE("Server supports fixed new style");
             clientflags |= NBD_FLAG_C_FIXED_NEWSTYLE;
         }
         /* client requested flags */
+        clientflags = cpu_to_be32(clientflags);
         if (write_sync(ioc, &clientflags, sizeof(clientflags)) !=
             sizeof(clientflags)) {
             error_setg(errp, "Failed to send clientflags field");
             goto fail;
         }
-        /* write the export name */
         if (!name) {
             error_setg(errp, "Server requires an export name");
             goto fail;
         }
+        if (fixedNewStyle) {
+            /* Check our desired export is present in the
+             * server export list. Since NBD_OPT_EXPORT_NAME
+             * cannot return an error message, running this
+             * query gives us good error reporting if the
+             * server required TLS
+             */
+            if (nbd_receive_query_exports(ioc, name, errp) < 0) {
+                goto fail;
+            }
+        }
+        /* write the export name */
         magic = cpu_to_be64(magic);
         if (write_sync(ioc, &magic, sizeof(magic)) != sizeof(magic)) {
             error_setg(errp, "Failed to send export name magic");
@@ -176,7 +363,9 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
             error_setg(errp, "Failed to read export flags");
             goto fail;
         }
-        *flags |= be16_to_cpu(exportflags);
+        exportflags = be16_to_cpu(exportflags);
+        *flags |= exportflags;
+        TRACE("Export flags are %x", exportflags);
     } else if (magic == NBD_CLIENT_MAGIC) {
         if (name) {
             error_setg(errp, "Server does not support export names");
