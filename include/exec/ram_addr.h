@@ -121,6 +121,7 @@ static inline bool cpu_physical_memory_get_dirty(ram_addr_t start,
 {
     DirtyMemoryBlocks *blocks;
     unsigned long end, page;
+    unsigned long idx, offset, base;
     bool dirty = false;
 
     assert(client < DIRTY_MEMORY_NUM);
@@ -132,17 +133,22 @@ static inline bool cpu_physical_memory_get_dirty(ram_addr_t start,
 
     blocks = atomic_rcu_read(&ram_list.dirty_memory[client]);
 
+    idx = page / DIRTY_MEMORY_BLOCK_SIZE;
+    offset = page % DIRTY_MEMORY_BLOCK_SIZE;
+    base = page - offset;
     while (page < end) {
-        unsigned long idx = page / DIRTY_MEMORY_BLOCK_SIZE;
-        unsigned long offset = page % DIRTY_MEMORY_BLOCK_SIZE;
-        unsigned long num = MIN(end - page, DIRTY_MEMORY_BLOCK_SIZE - offset);
-
-        if (find_next_bit(blocks->blocks[idx], offset, num) < num) {
+        unsigned long next = MIN(end, base + DIRTY_MEMORY_BLOCK_SIZE);
+        unsigned long num = next - base;
+        unsigned long found = find_next_bit(blocks->blocks[idx], num, offset);
+        if (found < num) {
             dirty = true;
             break;
         }
 
-        page += num;
+        page = next;
+        idx++;
+        offset = 0;
+        base += DIRTY_MEMORY_BLOCK_SIZE;
     }
 
     rcu_read_unlock();
@@ -156,6 +162,7 @@ static inline bool cpu_physical_memory_all_dirty(ram_addr_t start,
 {
     DirtyMemoryBlocks *blocks;
     unsigned long end, page;
+    unsigned long idx, offset, base;
     bool dirty = true;
 
     assert(client < DIRTY_MEMORY_NUM);
@@ -167,17 +174,22 @@ static inline bool cpu_physical_memory_all_dirty(ram_addr_t start,
 
     blocks = atomic_rcu_read(&ram_list.dirty_memory[client]);
 
+    idx = page / DIRTY_MEMORY_BLOCK_SIZE;
+    offset = page % DIRTY_MEMORY_BLOCK_SIZE;
+    base = page - offset;
     while (page < end) {
-        unsigned long idx = page / DIRTY_MEMORY_BLOCK_SIZE;
-        unsigned long offset = page % DIRTY_MEMORY_BLOCK_SIZE;
-        unsigned long num = MIN(end - page, DIRTY_MEMORY_BLOCK_SIZE - offset);
-
-        if (find_next_zero_bit(blocks->blocks[idx], offset, num) < num) {
+        unsigned long next = MIN(end, base + DIRTY_MEMORY_BLOCK_SIZE);
+        unsigned long num = next - base;
+        unsigned long found = find_next_zero_bit(blocks->blocks[idx], num, offset);
+        if (found < num) {
             dirty = false;
             break;
         }
 
-        page += num;
+        page = next;
+        idx++;
+        offset = 0;
+        base += DIRTY_MEMORY_BLOCK_SIZE;
     }
 
     rcu_read_unlock();
@@ -248,6 +260,7 @@ static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
 {
     DirtyMemoryBlocks *blocks[DIRTY_MEMORY_NUM];
     unsigned long end, page;
+    unsigned long idx, offset, base;
     int i;
 
     if (!mask && !xen_enabled()) {
@@ -263,25 +276,29 @@ static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
         blocks[i] = atomic_rcu_read(&ram_list.dirty_memory[i]);
     }
 
+    idx = page / DIRTY_MEMORY_BLOCK_SIZE;
+    offset = page % DIRTY_MEMORY_BLOCK_SIZE;
+    base = page - offset;
     while (page < end) {
-        unsigned long idx = page / DIRTY_MEMORY_BLOCK_SIZE;
-        unsigned long offset = page % DIRTY_MEMORY_BLOCK_SIZE;
-        unsigned long num = MIN(end - page, DIRTY_MEMORY_BLOCK_SIZE - offset);
+        unsigned long next = MIN(end, base + DIRTY_MEMORY_BLOCK_SIZE);
 
         if (likely(mask & (1 << DIRTY_MEMORY_MIGRATION))) {
             bitmap_set_atomic(blocks[DIRTY_MEMORY_MIGRATION]->blocks[idx],
-                              offset, num);
+                              offset, next - page);
         }
         if (unlikely(mask & (1 << DIRTY_MEMORY_VGA))) {
             bitmap_set_atomic(blocks[DIRTY_MEMORY_VGA]->blocks[idx],
-                              offset, num);
+                              offset, next - page);
         }
         if (unlikely(mask & (1 << DIRTY_MEMORY_CODE))) {
             bitmap_set_atomic(blocks[DIRTY_MEMORY_CODE]->blocks[idx],
-                              offset, num);
+                              offset, next - page);
         }
 
-        page += num;
+        page = next;
+        idx++;
+        offset = 0;
+        base += DIRTY_MEMORY_BLOCK_SIZE;
     }
 
     rcu_read_unlock();
