@@ -53,7 +53,20 @@ typedef xc_gnttab xengnttab_handle;
 #define xengnttab_map_grant_refs(h, c, d, r, p) \
     xc_gnttab_map_grant_refs(h, c, d, r, p)
 
-/* See below for xenforeignmemory_* APIs */
+#define xenforeignmemory_open(l, f) xen_xc
+
+static inline void *xenforeignmemory_map(xc_interface *h, uint32_t dom,
+                                         int prot, size_t pages,
+                                         const xen_pfn_t arr[/*pages*/],
+                                         int err[/*pages*/])
+{
+    if (err)
+        return xc_map_foreign_bulk(h, dom, prot, arr, err, pages);
+    else
+        return xc_map_foreign_pages(h, dom, prot, arr, pages);
+}
+
+#define xenforeignmemory_unmap(h, p, s) munmap(p, s * XC_PAGE_SIZE)
 
 #else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 471 */
 
@@ -357,25 +370,6 @@ static inline int xen_domain_create(xc_interface *xc, uint32_t ssidref,
     return xc_domain_create(xc, ssidref, handle, flags, pdomid, NULL);
 }
 #endif
-#endif
-
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 471
-
-#define xenforeignmemory_open(l, f) xen_xc
-
-static inline void *xenforeignmemory_map(xc_interface *h, uint32_t dom,
-                                         int prot, size_t pages,
-                                         const xen_pfn_t arr[/*pages*/],
-                                         int err[/*pages*/])
-{
-    if (err)
-        return xc_map_foreign_bulk(h, dom, prot, arr, err, pages);
-    else
-        return xc_map_foreign_pages(h, dom, prot, arr, pages);
-}
-
-#define xenforeignmemory_unmap(h, p, s) munmap(p, s * XC_PAGE_SIZE)
-
 #endif
 
 #endif /* QEMU_HW_XEN_COMMON_H */
