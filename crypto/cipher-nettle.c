@@ -23,6 +23,7 @@
 #include <nettle/aes.h>
 #include <nettle/des.h>
 #include <nettle/cbc.h>
+#include <nettle/cast128.h>
 
 #if CONFIG_NETTLE_VERSION_MAJOR < 3
 typedef nettle_crypt_func nettle_cipher_func;
@@ -63,6 +64,18 @@ static void des_decrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
     des_decrypt(ctx, length, dst, src);
 }
 
+static void cast128_encrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+                                    uint8_t *dst, const uint8_t *src)
+{
+    cast128_encrypt(ctx, length, dst, src);
+}
+
+static void cast128_decrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+                                    uint8_t *dst, const uint8_t *src)
+{
+    cast128_decrypt(ctx, length, dst, src);
+}
+
 typedef struct QCryptoCipherNettle QCryptoCipherNettle;
 struct QCryptoCipherNettle {
     void *ctx_encrypt;
@@ -80,6 +93,7 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg)
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
     case QCRYPTO_CIPHER_ALG_AES_256:
+    case QCRYPTO_CIPHER_ALG_CAST5_128:
         return true;
     default:
         return false;
@@ -142,6 +156,18 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         ctx->alg_decrypt = aes_decrypt_wrapper;
 
         ctx->blocksize = AES_BLOCK_SIZE;
+        break;
+
+    case QCRYPTO_CIPHER_ALG_CAST5_128:
+        ctx->ctx_encrypt = g_new0(struct cast128_ctx, 1);
+        ctx->ctx_decrypt = NULL; /* 1 ctx can do both */
+
+        cast5_set_key(ctx->ctx_encrypt, nkey, key);
+
+        ctx->alg_encrypt = cast128_encrypt_wrapper;
+        ctx->alg_decrypt = cast128_decrypt_wrapper;
+
+        ctx->blocksize = CAST128_BLOCK_SIZE;
         break;
     default:
         error_setg(errp, "Unsupported cipher algorithm %d", alg);

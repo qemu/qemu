@@ -165,6 +165,15 @@ static QCryptoCipherTestData test_data[] = {
             "ffd29f1bb5596ad94ea2d8e6196b7f09"
             "30d8ed0bf2773af36dd82a6280c20926",
     },
+    {
+        /* RFC 2144, Appendix B.1 */
+        .path = "/crypto/cipher/cast5-128",
+        .alg = QCRYPTO_CIPHER_ALG_CAST5_128,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "0123456712345678234567893456789A",
+        .plaintext = "0123456789abcdef",
+        .ciphertext = "238b4fe5847e44b2",
+    },
 };
 
 

@@ -29,6 +29,7 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg)
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
     case QCRYPTO_CIPHER_ALG_AES_256:
+    case QCRYPTO_CIPHER_ALG_CAST5_128:
         return true;
     default:
         return false;
@@ -84,6 +85,10 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         gcryalg = GCRY_CIPHER_AES256;
         break;
 
+    case QCRYPTO_CIPHER_ALG_CAST5_128:
+        gcryalg = GCRY_CIPHER_CAST5;
+        break;
+
     default:
         error_setg(errp, "Unsupported cipher algorithm %d", alg);
         return NULL;
@@ -113,7 +118,18 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         ctx->blocksize = 8;
     } else {
         err = gcry_cipher_setkey(ctx->handle, key, nkey);
-        ctx->blocksize = 16;
+        switch (cipher->alg) {
+        case QCRYPTO_CIPHER_ALG_AES_128:
+        case QCRYPTO_CIPHER_ALG_AES_192:
+        case QCRYPTO_CIPHER_ALG_AES_256:
+            ctx->blocksize = 16;
+            break;
+        case QCRYPTO_CIPHER_ALG_CAST5_128:
+            ctx->blocksize = 8;
+            break;
+        default:
+            g_assert_not_reached();
+        }
     }
     if (err != 0) {
         error_setg(errp, "Cannot set key: %s",

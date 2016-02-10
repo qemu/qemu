@@ -27,6 +27,7 @@ static size_t alg_key_len[QCRYPTO_CIPHER_ALG__MAX] = {
     [QCRYPTO_CIPHER_ALG_AES_192] = 24,
     [QCRYPTO_CIPHER_ALG_AES_256] = 32,
     [QCRYPTO_CIPHER_ALG_DES_RFB] = 8,
+    [QCRYPTO_CIPHER_ALG_CAST5_128] = 16,
 };
 
 static size_t alg_block_len[QCRYPTO_CIPHER_ALG__MAX] = {
@@ -34,6 +35,7 @@ static size_t alg_block_len[QCRYPTO_CIPHER_ALG__MAX] = {
     [QCRYPTO_CIPHER_ALG_AES_192] = 16,
     [QCRYPTO_CIPHER_ALG_AES_256] = 16,
     [QCRYPTO_CIPHER_ALG_DES_RFB] = 8,
+    [QCRYPTO_CIPHER_ALG_CAST5_128] = 8,
 };
 
 static bool mode_need_iv[QCRYPTO_CIPHER_MODE__MAX] = {

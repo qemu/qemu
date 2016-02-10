@@ -59,11 +59,14 @@
 # @aes-192: AES with 192 bit / 24 byte keys
 # @aes-256: AES with 256 bit / 32 byte keys
 # @des-rfb: RFB specific variant of single DES. Do not use except in VNC.
+# @cast5-128: Cast5 with 128 bit / 16 byte keys
 # Since: 2.6
 ##
 { 'enum': 'QCryptoCipherAlgorithm',
   'prefix': 'QCRYPTO_CIPHER_ALG',
-  'data': ['aes-128', 'aes-192', 'aes-256', 'des-rfb']}
+  'data': ['aes-128', 'aes-192', 'aes-256',
+           'des-rfb',
+           'cast5-128']}
 
 
 ##
