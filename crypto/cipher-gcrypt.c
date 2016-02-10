@@ -30,6 +30,9 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg)
     case QCRYPTO_CIPHER_ALG_AES_192:
     case QCRYPTO_CIPHER_ALG_AES_256:
     case QCRYPTO_CIPHER_ALG_CAST5_128:
+    case QCRYPTO_CIPHER_ALG_SERPENT_128:
+    case QCRYPTO_CIPHER_ALG_SERPENT_192:
+    case QCRYPTO_CIPHER_ALG_SERPENT_256:
         return true;
     default:
         return false;
@@ -89,6 +92,18 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         gcryalg = GCRY_CIPHER_CAST5;
         break;
 
+    case QCRYPTO_CIPHER_ALG_SERPENT_128:
+        gcryalg = GCRY_CIPHER_SERPENT128;
+        break;
+
+    case QCRYPTO_CIPHER_ALG_SERPENT_192:
+        gcryalg = GCRY_CIPHER_SERPENT192;
+        break;
+
+    case QCRYPTO_CIPHER_ALG_SERPENT_256:
+        gcryalg = GCRY_CIPHER_SERPENT256;
+        break;
+
     default:
         error_setg(errp, "Unsupported cipher algorithm %d", alg);
         return NULL;
@@ -122,6 +137,9 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         case QCRYPTO_CIPHER_ALG_AES_128:
         case QCRYPTO_CIPHER_ALG_AES_192:
         case QCRYPTO_CIPHER_ALG_AES_256:
+        case QCRYPTO_CIPHER_ALG_SERPENT_128:
+        case QCRYPTO_CIPHER_ALG_SERPENT_192:
+        case QCRYPTO_CIPHER_ALG_SERPENT_256:
             ctx->blocksize = 16;
             break;
         case QCRYPTO_CIPHER_ALG_CAST5_128:

@@ -24,6 +24,7 @@
 #include <nettle/des.h>
 #include <nettle/cbc.h>
 #include <nettle/cast128.h>
+#include <nettle/serpent.h>
 
 #if CONFIG_NETTLE_VERSION_MAJOR < 3
 typedef nettle_crypt_func nettle_cipher_func;
@@ -76,6 +77,18 @@ static void cast128_decrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
     cast128_decrypt(ctx, length, dst, src);
 }
 
+static void serpent_encrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+                                    uint8_t *dst, const uint8_t *src)
+{
+    serpent_encrypt(ctx, length, dst, src);
+}
+
+static void serpent_decrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+                                    uint8_t *dst, const uint8_t *src)
+{
+    serpent_decrypt(ctx, length, dst, src);
+}
+
 typedef struct QCryptoCipherNettle QCryptoCipherNettle;
 struct QCryptoCipherNettle {
     void *ctx_encrypt;
@@ -94,6 +107,9 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg)
     case QCRYPTO_CIPHER_ALG_AES_192:
     case QCRYPTO_CIPHER_ALG_AES_256:
     case QCRYPTO_CIPHER_ALG_CAST5_128:
+    case QCRYPTO_CIPHER_ALG_SERPENT_128:
+    case QCRYPTO_CIPHER_ALG_SERPENT_192:
+    case QCRYPTO_CIPHER_ALG_SERPENT_256:
         return true;
     default:
         return false;
@@ -169,6 +185,21 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
 
         ctx->blocksize = CAST128_BLOCK_SIZE;
         break;
+
+    case QCRYPTO_CIPHER_ALG_SERPENT_128:
+    case QCRYPTO_CIPHER_ALG_SERPENT_192:
+    case QCRYPTO_CIPHER_ALG_SERPENT_256:
+        ctx->ctx_encrypt = g_new0(struct serpent_ctx, 1);
+        ctx->ctx_decrypt = NULL; /* 1 ctx can do both */
+
+        serpent_set_key(ctx->ctx_encrypt, nkey, key);
+
+        ctx->alg_encrypt = serpent_encrypt_wrapper;
+        ctx->alg_decrypt = serpent_decrypt_wrapper;
+
+        ctx->blocksize = SERPENT_BLOCK_SIZE;
+        break;
+
     default:
         error_setg(errp, "Unsupported cipher algorithm %d", alg);
         goto error;

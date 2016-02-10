@@ -174,6 +174,45 @@ static QCryptoCipherTestData test_data[] = {
         .plaintext = "0123456789abcdef",
         .ciphertext = "238b4fe5847e44b2",
     },
+    {
+        /* libgcrypt serpent.c */
+        .path = "/crypto/cipher/serpent-128",
+        .alg = QCRYPTO_CIPHER_ALG_SERPENT_128,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "00000000000000000000000000000000",
+        .plaintext = "d29d576fcea3a3a7ed9099f29273d78e",
+        .ciphertext = "b2288b968ae8b08648d1ce9606fd992d",
+    },
+    {
+        /* libgcrypt serpent.c */
+        .path = "/crypto/cipher/serpent-192",
+        .alg = QCRYPTO_CIPHER_ALG_SERPENT_192,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "00000000000000000000000000000000"
+               "0000000000000000",
+        .plaintext = "d29d576fceaba3a7ed9899f2927bd78e",
+        .ciphertext = "130e353e1037c22405e8faefb2c3c3e9",
+    },
+    {
+        /* libgcrypt serpent.c */
+        .path = "/crypto/cipher/serpent-256a",
+        .alg = QCRYPTO_CIPHER_ALG_SERPENT_256,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "00000000000000000000000000000000"
+               "00000000000000000000000000000000",
+        .plaintext = "d095576fcea3e3a7ed98d9f29073d78e",
+        .ciphertext = "b90ee5862de69168f2bdd5125b45472b",
+    },
+    {
+        /* libgcrypt serpent.c */
+        .path = "/crypto/cipher/serpent-256b",
+        .alg = QCRYPTO_CIPHER_ALG_SERPENT_256,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "00000000000000000000000000000000"
+               "00000000000000000000000000000000",
+        .plaintext = "00000000010000000200000003000000",
+        .ciphertext = "2061a42782bd52ec691ec383b03ba77c",
+    },
 };
 
 

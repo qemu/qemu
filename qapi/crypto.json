@@ -60,13 +60,17 @@
 # @aes-256: AES with 256 bit / 32 byte keys
 # @des-rfb: RFB specific variant of single DES. Do not use except in VNC.
 # @cast5-128: Cast5 with 128 bit / 16 byte keys
+# @serpent-128: Serpent with 128 bit / 16 byte keys
+# @serpent-192: Serpent with 192 bit / 24 byte keys
+# @serpent-256: Serpent with 256 bit / 32 byte keys
 # Since: 2.6
 ##
 { 'enum': 'QCryptoCipherAlgorithm',
   'prefix': 'QCRYPTO_CIPHER_ALG',
   'data': ['aes-128', 'aes-192', 'aes-256',
            'des-rfb',
-           'cast5-128']}
+           'cast5-128',
+           'serpent-128', 'serpent-192', 'serpent-256']}
 
 
 ##
