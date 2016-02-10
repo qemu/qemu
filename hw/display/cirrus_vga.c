@@ -276,14 +276,14 @@ static bool blit_region_is_unsafe(struct CirrusVGAState *s,
             + ((int64_t)s->cirrus_blt_height-1) * pitch;
         int32_t max = addr
             + s->cirrus_blt_width;
-        if (min < 0 || max >= s->vga.vram_size) {
+        if (min < 0 || max > s->vga.vram_size) {
             return true;
         }
     } else {
         int64_t max = addr
             + ((int64_t)s->cirrus_blt_height-1) * pitch
             + s->cirrus_blt_width;
-        if (max >= s->vga.vram_size) {
+        if (max > s->vga.vram_size) {
             return true;
         }
     }
