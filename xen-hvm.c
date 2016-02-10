@@ -169,7 +169,7 @@ int xen_is_pirq_msi(uint32_t msi_data)
 
 void xen_hvm_inject_msi(uint64_t addr, uint32_t data)
 {
-    xen_xc_hvm_inject_msi(xen_xc, xen_domid, addr, data);
+    xc_hvm_inject_msi(xen_xc, xen_domid, addr, data);
 }
 
 static void xen_suspend_notifier(Notifier *notifier, void *data)

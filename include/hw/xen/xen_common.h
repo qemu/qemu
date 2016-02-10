@@ -83,12 +83,6 @@ static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
 }
 #endif
 
-static inline int xen_xc_hvm_inject_msi(XenXC xen_xc, domid_t dom,
-        uint64_t addr, uint32_t data)
-{
-    return xc_hvm_inject_msi(xen_xc, dom, addr, data);
-}
-
 void destroy_hvm_domain(bool reboot);
 
 /* shutdown/destroy current domain because of an error */
