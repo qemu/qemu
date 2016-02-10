@@ -609,6 +609,51 @@ BlockAIOCB *ide_buffered_readv(IDEState *s, int64_t sector_num,
     return aioreq;
 }
 
+/**
+ * Cancel all pending DMA requests.
+ * Any buffered DMA requests are instantly canceled,
+ * but any pending unbuffered DMA requests must be waited on.
+ */
+void ide_cancel_dma_sync(IDEState *s)
+{
+    IDEBufferedRequest *req;
+
+    /* First invoke the callbacks of all buffered requests
+     * and flag those requests as orphaned. Ideally there
+     * are no unbuffered (Scatter Gather DMA Requests or
+     * write requests) pending and we can avoid to drain. */
+    QLIST_FOREACH(req, &s->buffered_requests, list) {
+        if (!req->orphaned) {
+#ifdef DEBUG_IDE
+            printf("%s: invoking cb %p of buffered request %p with"
+                   " -ECANCELED\n", __func__, req->original_cb, req);
+#endif
+            req->original_cb(req->original_opaque, -ECANCELED);
+        }
+        req->orphaned = true;
+    }
+
+    /*
+     * We can't cancel Scatter Gather DMA in the middle of the
+     * operation or a partial (not full) DMA transfer would reach
+     * the storage so we wait for completion instead (we beahve
+     * like if the DMA was completed by the time the guest trying
+     * to cancel dma with bmdma_cmd_writeb with BM_CMD_START not
+     * set).
+     *
+     * In the future we'll be able to safely cancel the I/O if the
+     * whole DMA operation will be submitted to disk with a single
+     * aio operation with preadv/pwritev.
+     */
+    if (s->bus->dma->aiocb) {
+#ifdef DEBUG_IDE
+        printf("%s: draining all remaining requests", __func__);
+#endif
+        blk_drain_all();
+        assert(s->bus->dma->aiocb == NULL);
+    }
+}
+
 static void ide_sector_read(IDEState *s);
 
 static void ide_sector_read_cb(void *opaque, int ret)
