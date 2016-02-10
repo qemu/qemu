@@ -63,6 +63,9 @@
 # @serpent-128: Serpent with 128 bit / 16 byte keys
 # @serpent-192: Serpent with 192 bit / 24 byte keys
 # @serpent-256: Serpent with 256 bit / 32 byte keys
+# @twofish-128: Twofish with 128 bit / 16 byte keys
+# @twofish-192: Twofish with 192 bit / 24 byte keys
+# @twofish-256: Twofish with 256 bit / 32 byte keys
 # Since: 2.6
 ##
 { 'enum': 'QCryptoCipherAlgorithm',
@@ -70,7 +73,8 @@
   'data': ['aes-128', 'aes-192', 'aes-256',
            'des-rfb',
            'cast5-128',
-           'serpent-128', 'serpent-192', 'serpent-256']}
+           'serpent-128', 'serpent-192', 'serpent-256',
+           'twofish-128', 'twofish-192', 'twofish-256']}
 
 
 ##

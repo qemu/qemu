@@ -213,6 +213,35 @@ static QCryptoCipherTestData test_data[] = {
         .plaintext = "00000000010000000200000003000000",
         .ciphertext = "2061a42782bd52ec691ec383b03ba77c",
     },
+    {
+        /* Twofish paper "Known Answer Test" */
+        .path = "/crypto/cipher/twofish-128",
+        .alg = QCRYPTO_CIPHER_ALG_TWOFISH_128,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "d491db16e7b1c39e86cb086b789f5419",
+        .plaintext = "019f9809de1711858faac3a3ba20fbc3",
+        .ciphertext = "6363977de839486297e661c6c9d668eb",
+    },
+    {
+        /* Twofish paper "Known Answer Test", I=3 */
+        .path = "/crypto/cipher/twofish-192",
+        .alg = QCRYPTO_CIPHER_ALG_TWOFISH_192,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "88b2b2706b105e36b446bb6d731a1e88"
+               "efa71f788965bd44",
+        .plaintext = "39da69d6ba4997d585b6dc073ca341b2",
+        .ciphertext = "182b02d81497ea45f9daacdc29193a65",
+    },
+    {
+        /* Twofish paper "Known Answer Test", I=4 */
+        .path = "/crypto/cipher/twofish-256",
+        .alg = QCRYPTO_CIPHER_ALG_TWOFISH_256,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "d43bb7556ea32e46f2a282b7d45b4e0d"
+               "57ff739d4dc92c1bd7fc01700cc8216f",
+        .plaintext = "90afe91bb288544f2c32dc239b2635e6",
+        .ciphertext = "6cb4561c40bf0a9705931cb6d408e7fa",
+    },
 };
 
 
