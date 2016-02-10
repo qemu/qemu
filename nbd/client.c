@@ -116,20 +116,11 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
     magic = be64_to_cpu(magic);
     TRACE("Magic is 0x%" PRIx64, magic);
 
-    if (name) {
+    if (magic == NBD_OPTS_MAGIC) {
         uint32_t reserved = 0;
         uint32_t opt;
         uint32_t namesize;
 
-        TRACE("Checking magic (opts_magic)");
-        if (magic != NBD_OPTS_MAGIC) {
-            if (magic == NBD_CLIENT_MAGIC) {
-                error_setg(errp, "Server does not support export names");
-            } else {
-                error_setg(errp, "Bad magic received");
-            }
-            goto fail;
-        }
         if (read_sync(ioc, &tmp, sizeof(tmp)) != sizeof(tmp)) {
             error_setg(errp, "Failed to read server flags");
             goto fail;
@@ -142,6 +133,10 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
             goto fail;
         }
         /* write the export name */
+        if (!name) {
+            error_setg(errp, "Server requires an export name");
+            goto fail;
+        }
         magic = cpu_to_be64(magic);
         if (write_sync(ioc, &magic, sizeof(magic)) != sizeof(magic)) {
             error_setg(errp, "Failed to send export name magic");
@@ -162,39 +157,42 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
             error_setg(errp, "Failed to send export name");
             goto fail;
         }
-    } else {
-        TRACE("Checking magic (cli_magic)");
 
-        if (magic != NBD_CLIENT_MAGIC) {
-            if (magic == NBD_OPTS_MAGIC) {
-                error_setg(errp, "Server requires an export name");
-            } else {
-                error_setg(errp, "Bad magic received");
-            }
+        if (read_sync(ioc, &s, sizeof(s)) != sizeof(s)) {
+            error_setg(errp, "Failed to read export length");
             goto fail;
         }
-    }
+        *size = be64_to_cpu(s);
+        TRACE("Size is %" PRIu64, *size);
 
-    if (read_sync(ioc, &s, sizeof(s)) != sizeof(s)) {
-        error_setg(errp, "Failed to read export length");
-        goto fail;
-    }
-    *size = be64_to_cpu(s);
-    TRACE("Size is %" PRIu64, *size);
+        if (read_sync(ioc, &tmp, sizeof(tmp)) != sizeof(tmp)) {
+            error_setg(errp, "Failed to read export flags");
+            goto fail;
+        }
+        *flags |= be16_to_cpu(tmp);
+    } else if (magic == NBD_CLIENT_MAGIC) {
+        if (name) {
+            error_setg(errp, "Server does not support export names");
+            goto fail;
+        }
 
-    if (!name) {
+        if (read_sync(ioc, &s, sizeof(s)) != sizeof(s)) {
+            error_setg(errp, "Failed to read export length");
+            goto fail;
+        }
+        *size = be64_to_cpu(s);
+        TRACE("Size is %" PRIu64, *size);
+
         if (read_sync(ioc, flags, sizeof(*flags)) != sizeof(*flags)) {
             error_setg(errp, "Failed to read export flags");
             goto fail;
         }
         *flags = be32_to_cpup(flags);
     } else {
-        if (read_sync(ioc, &tmp, sizeof(tmp)) != sizeof(tmp)) {
-            error_setg(errp, "Failed to read export flags");
-            goto fail;
-        }
-        *flags |= be16_to_cpu(tmp);
+        error_setg(errp, "Bad magic received");
+        goto fail;
     }
+
     if (read_sync(ioc, &buf, 124) != 124) {
         error_setg(errp, "Failed to read reserved block");
         goto fail;
