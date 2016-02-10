@@ -405,7 +405,10 @@ int nbd_client_init(BlockDriverState *bs, QIOChannelSocket *sioc,
     qio_channel_set_blocking(QIO_CHANNEL(sioc), true, NULL);
 
     ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), export,
-                                &client->nbdflags, &client->size, errp);
+                                &client->nbdflags,
+                                NULL, NULL,
+                                &client->ioc,
+                                &client->size, errp);
     if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");
         return ret;
@@ -415,8 +418,11 @@ int nbd_client_init(BlockDriverState *bs, QIOChannelSocket *sioc,
     qemu_co_mutex_init(&client->free_sema);
     client->sioc = sioc;
     object_ref(OBJECT(client->sioc));
-    client->ioc = QIO_CHANNEL(sioc);
-    object_ref(OBJECT(client->ioc));
+
+    if (!client->ioc) {
+        client->ioc = QIO_CHANNEL(sioc);
+        object_ref(OBJECT(client->ioc));
+    }
 
     /* Now that we're connected, set the socket to be non-blocking and
      * kick the reply mechanism.  */

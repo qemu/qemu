@@ -76,6 +76,8 @@ struct NBDClient {
     void (*close)(NBDClient *client);
 
     NBDExport *exp;
+    QCryptoTLSCreds *tlscreds;
+    char *tlsaclname;
     QIOChannelSocket *sioc; /* The underlying data channel */
     QIOChannel *ioc; /* The current I/O channel which may differ (eg TLS) */
 
@@ -191,6 +193,8 @@ static int nbd_negotiate_send_rep(QIOChannel *ioc, uint32_t type, uint32_t opt)
 {
     uint64_t magic;
     uint32_t len;
+
+    TRACE("Reply opt=%x type=%x", type, opt);
 
     magic = cpu_to_be64(NBD_REP_MAGIC);
     if (nbd_negotiate_write(ioc, &magic, sizeof(magic)) != sizeof(magic)) {
@@ -310,6 +314,55 @@ fail:
     return rc;
 }
 
+
+static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
+                                                 uint32_t length)
+{
+    QIOChannel *ioc;
+    QIOChannelTLS *tioc;
+    struct NBDTLSHandshakeData data = { 0 };
+
+    TRACE("Setting up TLS");
+    ioc = client->ioc;
+    if (length) {
+        if (nbd_negotiate_drop_sync(ioc, length) != length) {
+            return NULL;
+        }
+        nbd_negotiate_send_rep(ioc, NBD_REP_ERR_INVALID, NBD_OPT_STARTTLS);
+        return NULL;
+    }
+
+    nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK, NBD_OPT_STARTTLS);
+
+    tioc = qio_channel_tls_new_server(ioc,
+                                      client->tlscreds,
+                                      client->tlsaclname,
+                                      NULL);
+    if (!tioc) {
+        return NULL;
+    }
+
+    TRACE("Starting TLS handshake");
+    data.loop = g_main_loop_new(g_main_context_default(), FALSE);
+    qio_channel_tls_handshake(tioc,
+                              nbd_tls_handshake,
+                              &data,
+                              NULL);
+
+    if (!data.complete) {
+        g_main_loop_run(data.loop);
+    }
+    g_main_loop_unref(data.loop);
+    if (data.error) {
+        object_unref(OBJECT(tioc));
+        error_free(data.error);
+        return NULL;
+    }
+
+    return QIO_CHANNEL(tioc);
+}
+
+
 static int nbd_negotiate_options(NBDClient *client)
 {
     uint32_t flags;
@@ -377,7 +430,30 @@ static int nbd_negotiate_options(NBDClient *client)
         length = be32_to_cpu(length);
 
         TRACE("Checking option 0x%x", clientflags);
-        if (fixedNewstyle) {
+        if (client->tlscreds &&
+            client->ioc == (QIOChannel *)client->sioc) {
+            QIOChannel *tioc;
+            if (!fixedNewstyle) {
+                TRACE("Unsupported option 0x%x", clientflags);
+                return -EINVAL;
+            }
+            switch (clientflags) {
+            case NBD_OPT_STARTTLS:
+                tioc = nbd_negotiate_handle_starttls(client, length);
+                if (!tioc) {
+                    return -EIO;
+                }
+                object_unref(OBJECT(client->ioc));
+                client->ioc = QIO_CHANNEL(tioc);
+                break;
+
+            default:
+                TRACE("Option 0x%x not permitted before TLS", clientflags);
+                nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_TLS_REQD,
+                                       clientflags);
+                return -EINVAL;
+            }
+        } else if (fixedNewstyle) {
             switch (clientflags) {
             case NBD_OPT_LIST:
                 ret = nbd_negotiate_handle_list(client, length);
@@ -392,6 +468,17 @@ static int nbd_negotiate_options(NBDClient *client)
             case NBD_OPT_EXPORT_NAME:
                 return nbd_negotiate_handle_export_name(client, length);
 
+            case NBD_OPT_STARTTLS:
+                if (client->tlscreds) {
+                    TRACE("TLS already enabled");
+                    nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_INVALID,
+                                           clientflags);
+                } else {
+                    TRACE("TLS not configured");
+                    nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_POLICY,
+                                           clientflags);
+                }
+                return -EINVAL;
             default:
                 TRACE("Unsupported option 0x%x", clientflags);
                 nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_UNSUP,
@@ -427,8 +514,9 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
     int rc;
     const int myflags = (NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_TRIM |
                          NBD_FLAG_SEND_FLUSH | NBD_FLAG_SEND_FUA);
+    bool oldStyle;
 
-    /* Negotiation header without options:
+    /* Old style negotiation header without options
         [ 0 ..   7]   passwd       ("NBDMAGIC")
         [ 8 ..  15]   magic        (NBD_CLIENT_MAGIC)
         [16 ..  23]   size
@@ -436,12 +524,11 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
         [26 ..  27]   export flags
         [28 .. 151]   reserved     (0)
 
-       Negotiation header with options, part 1:
+       New style negotiation header with options
         [ 0 ..   7]   passwd       ("NBDMAGIC")
         [ 8 ..  15]   magic        (NBD_OPTS_MAGIC)
         [16 ..  17]   server flags (0)
-
-       part 2 (after options are sent):
+        ....options sent....
         [18 ..  25]   size
         [26 ..  27]   export flags
         [28 .. 151]   reserved     (0)
@@ -453,7 +540,9 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
     TRACE("Beginning negotiation.");
     memset(buf, 0, sizeof(buf));
     memcpy(buf, "NBDMAGIC", 8);
-    if (client->exp) {
+
+    oldStyle = client->exp != NULL && !client->tlscreds;
+    if (oldStyle) {
         assert ((client->exp->nbdflags & ~65535) == 0);
         stq_be_p(buf + 8, NBD_CLIENT_MAGIC);
         stq_be_p(buf + 16, client->exp->size);
@@ -463,7 +552,11 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
         stw_be_p(buf + 16, NBD_FLAG_FIXED_NEWSTYLE);
     }
 
-    if (client->exp) {
+    if (oldStyle) {
+        if (client->tlscreds) {
+            TRACE("TLS cannot be enabled with oldstyle protocol");
+            goto fail;
+        }
         if (nbd_negotiate_write(client->ioc, buf, sizeof(buf)) != sizeof(buf)) {
             LOG("write failed");
             goto fail;
@@ -602,6 +695,10 @@ void nbd_client_put(NBDClient *client)
         nbd_unset_handlers(client);
         object_unref(OBJECT(client->sioc));
         object_unref(OBJECT(client->ioc));
+        if (client->tlscreds) {
+            object_unref(OBJECT(client->tlscreds));
+        }
+        g_free(client->tlsaclname);
         if (client->exp) {
             QTAILQ_REMOVE(&client->exp->clients, client, next);
             nbd_export_put(client->exp);
@@ -1150,6 +1247,8 @@ out:
 
 void nbd_client_new(NBDExport *exp,
                     QIOChannelSocket *sioc,
+                    QCryptoTLSCreds *tlscreds,
+                    const char *tlsaclname,
                     void (*close_fn)(NBDClient *))
 {
     NBDClient *client;
@@ -1158,6 +1257,11 @@ void nbd_client_new(NBDExport *exp,
     client = g_malloc0(sizeof(NBDClient));
     client->refcount = 1;
     client->exp = exp;
+    client->tlscreds = tlscreds;
+    if (tlscreds) {
+        object_ref(OBJECT(client->tlscreds));
+    }
+    client->tlsaclname = g_strdup(tlsaclname);
     client->sioc = sioc;
     object_ref(OBJECT(client->sioc));
     client->ioc = QIO_CHANNEL(sioc);

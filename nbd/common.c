@@ -75,3 +75,18 @@ ssize_t nbd_wr_syncv(QIOChannel *ioc,
     g_free(local_iov_head);
     return done;
 }
+
+
+void nbd_tls_handshake(Object *src,
+                       Error *err,
+                       void *opaque)
+{
+    struct NBDTLSHandshakeData *data = opaque;
+
+    if (err) {
+        TRACE("TLS failed %s", error_get_pretty(err));
+        data->error = error_copy(err);
+    }
+    data->complete = true;
+    g_main_loop_quit(data->loop);
+}

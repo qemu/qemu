@@ -83,8 +83,16 @@ static int nbd_handle_reply_err(uint32_t opt, uint32_t type, Error **errp)
         error_setg(errp, "Unsupported option type %x", opt);
         break;
 
+    case NBD_REP_ERR_POLICY:
+        error_setg(errp, "Denied by server for option %x", opt);
+        break;
+
     case NBD_REP_ERR_INVALID:
         error_setg(errp, "Invalid data length for option %x", opt);
+        break;
+
+    case NBD_REP_ERR_TLS_REQD:
+        error_setg(errp, "TLS negotiation required before option %x", opt);
         break;
 
     default:
@@ -242,16 +250,126 @@ static int nbd_receive_query_exports(QIOChannel *ioc,
     return 0;
 }
 
+static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
+                                        QCryptoTLSCreds *tlscreds,
+                                        const char *hostname, Error **errp)
+{
+    uint64_t magic = cpu_to_be64(NBD_OPTS_MAGIC);
+    uint32_t opt = cpu_to_be32(NBD_OPT_STARTTLS);
+    uint32_t length = 0;
+    uint32_t type;
+    QIOChannelTLS *tioc;
+    struct NBDTLSHandshakeData data = { 0 };
+
+    TRACE("Requesting TLS from server");
+    if (write_sync(ioc, &magic, sizeof(magic)) != sizeof(magic)) {
+        error_setg(errp, "Failed to send option magic");
+        return NULL;
+    }
+
+    if (write_sync(ioc, &opt, sizeof(opt)) != sizeof(opt)) {
+        error_setg(errp, "Failed to send option number");
+        return NULL;
+    }
+
+    if (write_sync(ioc, &length, sizeof(length)) != sizeof(length)) {
+        error_setg(errp, "Failed to send option length");
+        return NULL;
+    }
+
+    TRACE("Getting TLS reply from server1");
+    if (read_sync(ioc, &magic, sizeof(magic)) != sizeof(magic)) {
+        error_setg(errp, "failed to read option magic");
+        return NULL;
+    }
+    magic = be64_to_cpu(magic);
+    if (magic != NBD_REP_MAGIC) {
+        error_setg(errp, "Unexpected option magic");
+        return NULL;
+    }
+    TRACE("Getting TLS reply from server2");
+    if (read_sync(ioc, &opt, sizeof(opt)) != sizeof(opt)) {
+        error_setg(errp, "failed to read option");
+        return NULL;
+    }
+    opt = be32_to_cpu(opt);
+    if (opt != NBD_OPT_STARTTLS) {
+        error_setg(errp, "Unexpected option type %x expected %x",
+                   opt, NBD_OPT_STARTTLS);
+        return NULL;
+    }
+
+    TRACE("Getting TLS reply from server");
+    if (read_sync(ioc, &type, sizeof(type)) != sizeof(type)) {
+        error_setg(errp, "failed to read option type");
+        return NULL;
+    }
+    type = be32_to_cpu(type);
+    if (type != NBD_REP_ACK) {
+        error_setg(errp, "Server rejected request to start TLS %x",
+                   type);
+        return NULL;
+    }
+
+    TRACE("Getting TLS reply from server");
+    if (read_sync(ioc, &length, sizeof(length)) != sizeof(length)) {
+        error_setg(errp, "failed to read option length");
+        return NULL;
+    }
+    length = be32_to_cpu(length);
+    if (length != 0) {
+        error_setg(errp, "Start TLS reponse was not zero %x",
+                   length);
+        return NULL;
+    }
+
+    TRACE("TLS request approved, setting up TLS");
+    tioc = qio_channel_tls_new_client(ioc, tlscreds, hostname, errp);
+    if (!tioc) {
+        return NULL;
+    }
+    data.loop = g_main_loop_new(g_main_context_default(), FALSE);
+    TRACE("Starting TLS hanshake");
+    qio_channel_tls_handshake(tioc,
+                              nbd_tls_handshake,
+                              &data,
+                              NULL);
+
+    if (!data.complete) {
+        g_main_loop_run(data.loop);
+    }
+    g_main_loop_unref(data.loop);
+    if (data.error) {
+        error_propagate(errp, data.error);
+        object_unref(OBJECT(tioc));
+        return NULL;
+    }
+
+    return QIO_CHANNEL(tioc);
+}
+
+
 int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
+                          QCryptoTLSCreds *tlscreds, const char *hostname,
+                          QIOChannel **outioc,
                           off_t *size, Error **errp)
 {
     char buf[256];
     uint64_t magic, s;
     int rc;
 
-    TRACE("Receiving negotiation.");
+    TRACE("Receiving negotiation tlscreds=%p hostname=%s.",
+          tlscreds, hostname ? hostname : "<null>");
 
     rc = -EINVAL;
+
+    if (outioc) {
+        *outioc = NULL;
+    }
+    if (tlscreds && !outioc) {
+        error_setg(errp, "Output I/O channel required for TLS");
+        goto fail;
+    }
 
     if (read_sync(ioc, buf, 8) != 8) {
         error_setg(errp, "Failed to read data");
@@ -314,6 +432,18 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
             error_setg(errp, "Failed to send clientflags field");
             goto fail;
         }
+        if (tlscreds) {
+            if (fixedNewStyle) {
+                *outioc = nbd_receive_starttls(ioc, tlscreds, hostname, errp);
+                if (!*outioc) {
+                    goto fail;
+                }
+                ioc = *outioc;
+            } else {
+                error_setg(errp, "Server does not support STARTTLS");
+                goto fail;
+            }
+        }
         if (!name) {
             TRACE("Using default NBD export name \"\"");
             name = "";
@@ -369,6 +499,10 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
     } else if (magic == NBD_CLIENT_MAGIC) {
         if (name) {
             error_setg(errp, "Server does not support export names");
+            goto fail;
+        }
+        if (tlscreds) {
+            error_setg(errp, "Server does not support STARTTLS");
             goto fail;
         }
 

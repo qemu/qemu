@@ -34,7 +34,7 @@ static gboolean nbd_accept(QIOChannel *ioc, GIOCondition condition,
         return TRUE;
     }
 
-    nbd_client_new(NULL, cioc, nbd_client_put);
+    nbd_client_new(NULL, cioc, NULL, NULL, nbd_client_put);
     object_unref(OBJECT(cioc));
     return TRUE;
 }

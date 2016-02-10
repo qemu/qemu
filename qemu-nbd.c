@@ -251,6 +251,7 @@ static void *nbd_client_thread(void *arg)
     }
 
     ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), NULL, &nbdflags,
+                                NULL, NULL, NULL,
                                 &size, &local_error);
     if (ret < 0) {
         if (local_error) {
@@ -340,7 +341,8 @@ static gboolean nbd_accept(QIOChannel *ioc, GIOCondition cond, gpointer opaque)
 
     nb_fds++;
     nbd_update_server_watch();
-    nbd_client_new(newproto ? NULL : exp, cioc, nbd_client_closed);
+    nbd_client_new(newproto ? NULL : exp, cioc,
+                   NULL, NULL, nbd_client_closed);
     object_unref(OBJECT(cioc));
 
     return TRUE;

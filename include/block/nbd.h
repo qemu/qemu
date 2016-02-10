@@ -24,6 +24,7 @@
 #include "qemu-common.h"
 #include "qemu/option.h"
 #include "io/channel-socket.h"
+#include "crypto/tlscreds.h"
 
 struct nbd_request {
     uint32_t magic;
@@ -56,7 +57,10 @@ struct nbd_reply {
 #define NBD_REP_ACK             (1)             /* Data sending finished. */
 #define NBD_REP_SERVER          (2)             /* Export description. */
 #define NBD_REP_ERR_UNSUP       ((UINT32_C(1) << 31) | 1) /* Unknown option. */
+#define NBD_REP_ERR_POLICY      ((UINT32_C(1) << 31) | 2) /* Server denied */
 #define NBD_REP_ERR_INVALID     ((UINT32_C(1) << 31) | 3) /* Invalid length. */
+#define NBD_REP_ERR_TLS_REQD    ((UINT32_C(1) << 31) | 5) /* TLS required */
+
 
 #define NBD_CMD_MASK_COMMAND	0x0000ffff
 #define NBD_CMD_FLAG_FUA	(1 << 16)
@@ -81,6 +85,8 @@ ssize_t nbd_wr_syncv(QIOChannel *ioc,
                      size_t length,
                      bool do_read);
 int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
+                          QCryptoTLSCreds *tlscreds, const char *hostname,
+                          QIOChannel **outioc,
                           off_t *size, Error **errp);
 int nbd_init(int fd, QIOChannelSocket *sioc, uint32_t flags, off_t size);
 ssize_t nbd_send_request(QIOChannel *ioc, struct nbd_request *request);
@@ -106,6 +112,8 @@ void nbd_export_close_all(void);
 
 void nbd_client_new(NBDExport *exp,
                     QIOChannelSocket *sioc,
+                    QCryptoTLSCreds *tlscreds,
+                    const char *tlsaclname,
                     void (*close)(NBDClient *));
 void nbd_client_get(NBDClient *client);
 void nbd_client_put(NBDClient *client);
