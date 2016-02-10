@@ -662,6 +662,10 @@ static bool ahci_map_fis_address(AHCIDevice *ad)
 
 static void ahci_unmap_fis_address(AHCIDevice *ad)
 {
+    if (ad->res_fis == NULL) {
+        DPRINTF(ad->port_no, "Attempt to unmap NULL FIS address\n");
+        return;
+    }
     dma_memory_unmap(ad->hba->as, ad->res_fis, 256,
                      DMA_DIRECTION_FROM_DEVICE, 256);
     ad->res_fis = NULL;
@@ -678,6 +682,10 @@ static bool ahci_map_clb_address(AHCIDevice *ad)
 
 static void ahci_unmap_clb_address(AHCIDevice *ad)
 {
+    if (ad->lst == NULL) {
+        DPRINTF(ad->port_no, "Attempt to unmap NULL CLB address\n");
+        return;
+    }
     dma_memory_unmap(ad->hba->as, ad->lst, 1024,
                      DMA_DIRECTION_FROM_DEVICE, 1024);
     ad->lst = NULL;
