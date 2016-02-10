@@ -220,6 +220,7 @@ static int nbd_negotiate_send_rep_list(QIOChannel *ioc, NBDExport *exp)
     uint64_t magic, name_len;
     uint32_t opt, type, len;
 
+    TRACE("Advertizing export name '%s'", exp->name ? exp->name : "");
     name_len = strlen(exp->name);
     magic = cpu_to_be64(NBD_REP_MAGIC);
     if (nbd_negotiate_write(ioc, &magic, sizeof(magic)) != sizeof(magic)) {

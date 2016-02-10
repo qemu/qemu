@@ -315,8 +315,8 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
             goto fail;
         }
         if (!name) {
-            error_setg(errp, "Server requires an export name");
-            goto fail;
+            TRACE("Using default NBD export name \"\"");
+            name = "";
         }
         if (fixedNewStyle) {
             /* Check our desired export is present in the
