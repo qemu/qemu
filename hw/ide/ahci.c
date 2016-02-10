@@ -218,10 +218,6 @@ static int ahci_cond_start_engines(AHCIDevice *ad, bool allow_stop)
     } else if (pr->cmd & PORT_CMD_LIST_ON) {
         if (allow_stop) {
             ahci_unmap_clb_address(ad);
-        } else {
-            error_report("AHCI: DMA engine should be off, "
-                         "but appears to still be running");
-            return -1;
         }
     }
 
@@ -234,10 +230,6 @@ static int ahci_cond_start_engines(AHCIDevice *ad, bool allow_stop)
     } else if (pr->cmd & PORT_CMD_FIS_ON) {
         if (allow_stop) {
             ahci_unmap_fis_address(ad);
-        } else {
-            error_report("AHCI: FIS receive engine should be off, "
-                         "but appears to still be running");
-            return -1;
         }
     }
 
@@ -1568,10 +1560,23 @@ static int ahci_state_post_load(void *opaque, int version_id)
     int i, j;
     struct AHCIDevice *ad;
     NCQTransferState *ncq_tfs;
+    AHCIPortRegs *pr;
     AHCIState *s = opaque;
 
     for (i = 0; i < s->ports; i++) {
         ad = &s->dev[i];
+        pr = &ad->port_regs;
+
+        if (!(pr->cmd & PORT_CMD_START) && (pr->cmd & PORT_CMD_LIST_ON)) {
+            error_report("AHCI: DMA engine should be off, but status bit "
+                         "indicates it is still running.");
+            return -1;
+        }
+        if (!(pr->cmd & PORT_CMD_FIS_RX) && (pr->cmd & PORT_CMD_FIS_ON)) {
+            error_report("AHCI: FIS RX engine should be off, but status bit "
+                         "indicates it is still running.");
+            return -1;
+        }
 
         /* Only remap the CLB address if appropriate, disallowing a state
          * transition from 'on' to 'off' it should be consistent here. */
