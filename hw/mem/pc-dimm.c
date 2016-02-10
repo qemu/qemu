@@ -192,32 +192,6 @@ int qmp_pc_dimm_device_list(Object *obj, void *opaque)
     return 0;
 }
 
-ram_addr_t get_current_ram_size(void)
-{
-    MemoryDeviceInfoList *info_list = NULL;
-    MemoryDeviceInfoList **prev = &info_list;
-    MemoryDeviceInfoList *info;
-    ram_addr_t size = ram_size;
-
-    qmp_pc_dimm_device_list(qdev_get_machine(), &prev);
-    for (info = info_list; info; info = info->next) {
-        MemoryDeviceInfo *value = info->value;
-
-        if (value) {
-            switch (value->type) {
-            case MEMORY_DEVICE_INFO_KIND_DIMM:
-                size += value->u.dimm->size;
-                break;
-            default:
-                break;
-            }
-        }
-    }
-    qapi_free_MemoryDeviceInfoList(info_list);
-
-    return size;
-}
-
 static int pc_dimm_slot2bitmap(Object *obj, void *opaque)
 {
     unsigned long *bitmap = opaque;
