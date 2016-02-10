@@ -307,26 +307,15 @@ static void virtio_balloon_get_config(VirtIODevice *vdev, uint8_t *config_data)
 
 static ram_addr_t get_current_ram_size(void)
 {
-    MemoryDeviceInfoList *info_list = NULL;
-    MemoryDeviceInfoList **prev = &info_list;
-    MemoryDeviceInfoList *info;
+    GSList *list = NULL, *item;
     ram_addr_t size = ram_size;
 
-    qmp_pc_dimm_device_list(qdev_get_machine(), &prev);
-    for (info = info_list; info; info = info->next) {
-        MemoryDeviceInfo *value = info->value;
-
-        if (value) {
-            switch (value->type) {
-            case MEMORY_DEVICE_INFO_KIND_DIMM:
-                size += value->u.dimm->size;
-                break;
-            default:
-                break;
-            }
-        }
+    pc_dimm_build_list(qdev_get_machine(), &list);
+    for (item = list; item; item = g_slist_next(item)) {
+        Object *obj = OBJECT(item->data);
+        size += object_property_get_int(obj, PC_DIMM_SIZE_PROP, &error_abort);
     }
-    qapi_free_MemoryDeviceInfoList(info_list);
+    g_slist_free(list);
 
     return size;
 }
