@@ -44,6 +44,7 @@
 #define QEMU_NBD_OPT_OBJECT        5
 
 static NBDExport *exp;
+static bool newproto;
 static int verbose;
 static char *srcpath;
 static SocketAddress *saddr;
@@ -339,7 +340,7 @@ static gboolean nbd_accept(QIOChannel *ioc, GIOCondition cond, gpointer opaque)
 
     nb_fds++;
     nbd_update_server_watch();
-    nbd_client_new(exp, cioc, nbd_client_closed);
+    nbd_client_new(newproto ? NULL : exp, cioc, nbd_client_closed);
     object_unref(OBJECT(cioc));
 
     return TRUE;
@@ -413,7 +414,7 @@ int main(int argc, char **argv)
     off_t fd_size;
     QemuOpts *sn_opts = NULL;
     const char *sn_id_or_name = NULL;
-    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:";
+    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:";
     struct option lopt[] = {
         { "help", 0, NULL, 'h' },
         { "version", 0, NULL, 'V' },
@@ -437,6 +438,7 @@ int main(int argc, char **argv)
         { "persistent", 0, NULL, 't' },
         { "verbose", 0, NULL, 'v' },
         { "object", 1, NULL, QEMU_NBD_OPT_OBJECT },
+        { "export-name", 1, NULL, 'x' },
         { NULL, 0, NULL, 0 }
     };
     int ch;
@@ -453,6 +455,7 @@ int main(int argc, char **argv)
     Error *local_err = NULL;
     BlockdevDetectZeroesOptions detect_zeroes = BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF;
     QDict *options = NULL;
+    const char *export_name = NULL;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
@@ -603,6 +606,9 @@ int main(int argc, char **argv)
             break;
         case 't':
             persistent = 1;
+            break;
+        case 'x':
+            export_name = optarg;
             break;
         case 'v':
             verbose = 1;
@@ -782,6 +788,10 @@ int main(int argc, char **argv)
     if (!exp) {
         error_report_err(local_err);
         exit(EXIT_FAILURE);
+    }
+    if (export_name) {
+        nbd_export_set_name(exp, export_name);
+        newproto = true;
     }
 
     server_ioc = qio_channel_socket_new();
