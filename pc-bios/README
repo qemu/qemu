@@ -35,10 +35,6 @@
 	10ec:8139 -> pxe-rtl8139.rom
 	1af4:1000 -> pxe-virtio.rom
 
-- The S390 zipl loader is an addition to the official IBM s390-tools
-  package. That fork is maintained in its own git repository at:
-  git://repo.or.cz/s390-tools.git
-
 - The sources for the Alpha palcode image is available from:
   git://github.com/rth7680/qemu-palcode.git
 
