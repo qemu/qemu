@@ -18,32 +18,48 @@
 #include "qmp-commands.h"
 #include "trace.h"
 #include "block/nbd.h"
-#include "qemu/sockets.h"
+#include "io/channel-socket.h"
 
-static int server_fd = -1;
+static QIOChannelSocket *server_ioc;
+static int server_watch = -1;
 
-static void nbd_accept(void *opaque)
+static gboolean nbd_accept(QIOChannel *ioc, GIOCondition condition,
+                           gpointer opaque)
 {
-    struct sockaddr_in addr;
-    socklen_t addr_len = sizeof(addr);
+    QIOChannelSocket *cioc;
+    int fd;
 
-    int fd = accept(server_fd, (struct sockaddr *)&addr, &addr_len);
+    cioc = qio_channel_socket_accept(QIO_CHANNEL_SOCKET(ioc),
+                                     NULL);
+    if (!cioc) {
+        return TRUE;
+    }
+
+    fd = dup(cioc->fd);
     if (fd >= 0) {
         nbd_client_new(NULL, fd, nbd_client_put);
     }
+    object_unref(OBJECT(cioc));
+    return TRUE;
 }
 
 void qmp_nbd_server_start(SocketAddress *addr, Error **errp)
 {
-    if (server_fd != -1) {
+    if (server_ioc) {
         error_setg(errp, "NBD server already running");
         return;
     }
 
-    server_fd = socket_listen(addr, errp);
-    if (server_fd != -1) {
-        qemu_set_fd_handler(server_fd, nbd_accept, NULL, NULL);
+    server_ioc = qio_channel_socket_new();
+    if (qio_channel_socket_listen_sync(server_ioc, addr, errp) < 0) {
+        return;
     }
+
+    server_watch = qio_channel_add_watch(QIO_CHANNEL(server_ioc),
+                                         G_IO_IN,
+                                         nbd_accept,
+                                         NULL,
+                                         NULL);
 }
 
 void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
@@ -52,7 +68,7 @@ void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
     BlockBackend *blk;
     NBDExport *exp;
 
-    if (server_fd == -1) {
+    if (!server_ioc) {
         error_setg(errp, "NBD server not running");
         return;
     }
@@ -98,9 +114,12 @@ void qmp_nbd_server_stop(Error **errp)
 {
     nbd_export_close_all();
 
-    if (server_fd != -1) {
-        qemu_set_fd_handler(server_fd, NULL, NULL, NULL);
-        close(server_fd);
-        server_fd = -1;
+    if (server_watch != -1) {
+        g_source_remove(server_watch);
+        server_watch = -1;
+    }
+    if (server_ioc) {
+        object_unref(OBJECT(server_ioc));
+        server_ioc = NULL;
     }
 }
