@@ -31,7 +31,6 @@
 #include "qemu/uri.h"
 #include "block/block_int.h"
 #include "qemu/module.h"
-#include "qemu/sockets.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qint.h"
@@ -238,25 +237,25 @@ NbdClientSession *nbd_get_client_session(BlockDriverState *bs)
     return &s->client;
 }
 
-static int nbd_establish_connection(BlockDriverState *bs,
-                                    SocketAddress *saddr,
-                                    Error **errp)
+static QIOChannelSocket *nbd_establish_connection(SocketAddress *saddr,
+                                                  Error **errp)
 {
-    BDRVNBDState *s = bs->opaque;
-    int sock;
+    QIOChannelSocket *sioc;
+    Error *local_err = NULL;
 
-    sock = socket_connect(saddr, errp, NULL, NULL);
+    sioc = qio_channel_socket_new();
 
-    if (sock < 0) {
-        logout("Failed to establish connection to NBD server\n");
-        return -EIO;
+    qio_channel_socket_connect_sync(sioc,
+                                    saddr,
+                                    &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return NULL;
     }
 
-    if (!s->client.is_unix) {
-        socket_set_nodelay(sock);
-    }
+    qio_channel_set_delay(QIO_CHANNEL(sioc), false);
 
-    return sock;
+    return sioc;
 }
 
 static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
@@ -264,7 +263,8 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
 {
     BDRVNBDState *s = bs->opaque;
     char *export = NULL;
-    int result, sock;
+    int result;
+    QIOChannelSocket *sioc;
     SocketAddress *saddr;
 
     /* Pop the config into our state object. Exit if invalid. */
@@ -276,15 +276,16 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     /* establish TCP connection, return error if it fails
      * TODO: Configurable retry-until-timeout behaviour.
      */
-    sock = nbd_establish_connection(bs, saddr, errp);
+    sioc = nbd_establish_connection(saddr, errp);
     qapi_free_SocketAddress(saddr);
-    if (sock < 0) {
+    if (!sioc) {
         g_free(export);
-        return sock;
+        return -ECONNREFUSED;
     }
 
     /* NBD handshake */
-    result = nbd_client_init(bs, sock, export, errp);
+    result = nbd_client_init(bs, sioc, export, errp);
+    object_unref(OBJECT(sioc));
     g_free(export);
     return result;
 }

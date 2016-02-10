@@ -390,8 +390,8 @@ test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o \
 	tests/test-qapi-event.o tests/test-qmp-introspect.o \
 	$(test-qom-obj-y)
 test-crypto-obj-y = $(crypto-obj-y) $(test-qom-obj-y)
-test-block-obj-y = $(block-obj-y) $(test-crypto-obj-y)
 test-io-obj-y = $(io-obj-y) $(test-crypto-obj-y)
+test-block-obj-y = $(block-obj-y) $(test-io-obj-y)
 
 tests/check-qint$(EXESUF): tests/check-qint.o $(test-util-obj-y)
 tests/check-qstring$(EXESUF): tests/check-qstring.o $(test-util-obj-y)

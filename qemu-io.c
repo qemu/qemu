@@ -394,6 +394,7 @@ int main(int argc, char **argv)
     progname = basename(argv[0]);
     qemu_init_exec_dir(argv[0]);
 
+    module_call_init(MODULE_INIT_QOM);
     bdrv_init();
 
     while ((c = getopt_long(argc, argv, sopt, lopt, &opt_index)) != -1) {
