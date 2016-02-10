@@ -487,13 +487,28 @@ static void ide_cmd_done(IDEState *s)
     }
 }
 
-void ide_transfer_stop(IDEState *s)
+static void ide_transfer_halt(IDEState *s,
+                              void(*end_transfer_func)(IDEState *),
+                              bool notify)
 {
-    s->end_transfer_func = ide_transfer_stop;
+    s->end_transfer_func = end_transfer_func;
     s->data_ptr = s->io_buffer;
     s->data_end = s->io_buffer;
     s->status &= ~DRQ_STAT;
-    ide_cmd_done(s);
+    if (notify) {
+        ide_cmd_done(s);
+    }
+}
+
+void ide_transfer_stop(IDEState *s)
+{
+    ide_transfer_halt(s, ide_transfer_stop, true);
+}
+
+__attribute__((__unused__))
+static void ide_transfer_cancel(IDEState *s)
+{
+    ide_transfer_halt(s, ide_transfer_cancel, false);
 }
 
 int64_t ide_get_sector(IDEState *s)
