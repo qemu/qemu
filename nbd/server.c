@@ -310,6 +310,7 @@ fail:
 static int nbd_negotiate_options(NBDClient *client)
 {
     uint32_t flags;
+    bool fixedNewstyle = false;
 
     /* Client sends:
         [ 0 ..   3]   client flags
@@ -332,14 +333,19 @@ static int nbd_negotiate_options(NBDClient *client)
     }
     TRACE("Checking client flags");
     be32_to_cpus(&flags);
-    if (flags != 0 && flags != NBD_FLAG_C_FIXED_NEWSTYLE) {
-        LOG("Bad client flags received");
+    if (flags & NBD_FLAG_C_FIXED_NEWSTYLE) {
+        TRACE("Support supports fixed newstyle handshake");
+        fixedNewstyle = true;
+        flags &= ~NBD_FLAG_C_FIXED_NEWSTYLE;
+    }
+    if (flags != 0) {
+        TRACE("Unknown client flags 0x%x received", flags);
         return -EIO;
     }
 
     while (1) {
         int ret;
-        uint32_t tmp, length;
+        uint32_t clientflags, length;
         uint64_t magic;
 
         if (nbd_negotiate_read(client->ioc, &magic, sizeof(magic)) !=
@@ -353,10 +359,12 @@ static int nbd_negotiate_options(NBDClient *client)
             return -EINVAL;
         }
 
-        if (nbd_negotiate_read(client->ioc, &tmp, sizeof(tmp)) != sizeof(tmp)) {
+        if (nbd_negotiate_read(client->ioc, &clientflags,
+                               sizeof(clientflags)) != sizeof(clientflags)) {
             LOG("read failed");
             return -EINVAL;
         }
+        clientflags = be32_to_cpu(clientflags);
 
         if (nbd_negotiate_read(client->ioc, &length, sizeof(length)) !=
             sizeof(length)) {
@@ -365,26 +373,41 @@ static int nbd_negotiate_options(NBDClient *client)
         }
         length = be32_to_cpu(length);
 
-        TRACE("Checking option");
-        switch (be32_to_cpu(tmp)) {
-        case NBD_OPT_LIST:
-            ret = nbd_negotiate_handle_list(client, length);
-            if (ret < 0) {
-                return ret;
+        TRACE("Checking option 0x%x", clientflags);
+        if (fixedNewstyle) {
+            switch (clientflags) {
+            case NBD_OPT_LIST:
+                ret = nbd_negotiate_handle_list(client, length);
+                if (ret < 0) {
+                    return ret;
+                }
+                break;
+
+            case NBD_OPT_ABORT:
+                return -EINVAL;
+
+            case NBD_OPT_EXPORT_NAME:
+                return nbd_negotiate_handle_export_name(client, length);
+
+            default:
+                TRACE("Unsupported option 0x%x", clientflags);
+                nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_UNSUP,
+                                       clientflags);
+                return -EINVAL;
             }
-            break;
+        } else {
+            /*
+             * If broken new-style we should drop the connection
+             * for anything except NBD_OPT_EXPORT_NAME
+             */
+            switch (clientflags) {
+            case NBD_OPT_EXPORT_NAME:
+                return nbd_negotiate_handle_export_name(client, length);
 
-        case NBD_OPT_ABORT:
-            return -EINVAL;
-
-        case NBD_OPT_EXPORT_NAME:
-            return nbd_negotiate_handle_export_name(client, length);
-
-        default:
-            tmp = be32_to_cpu(tmp);
-            LOG("Unsupported option 0x%x", tmp);
-            nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_UNSUP, tmp);
-            return -EINVAL;
+            default:
+                TRACE("Unsupported option 0x%x", clientflags);
+                return -EINVAL;
+            }
         }
     }
 }
