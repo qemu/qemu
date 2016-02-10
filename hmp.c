@@ -1793,7 +1793,7 @@ void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
         goto exit;
     }
 
-    qmp_nbd_server_start(addr, &local_err);
+    qmp_nbd_server_start(addr, false, NULL, &local_err);
     qapi_free_SocketAddress(addr);
     if (local_err != NULL) {
         goto exit;

@@ -146,13 +146,15 @@
 # QEMU instance could refer to them as "nbd:HOST:PORT:exportname=NAME".
 #
 # @addr: Address on which to listen.
+# @tls-creds: (optional) ID of the TLS credentials object. Since 2.6
 #
 # Returns: error if the server is already running.
 #
 # Since: 1.3.0
 ##
 { 'command': 'nbd-server-start',
-  'data': { 'addr': 'SocketAddress' } }
+  'data': { 'addr': 'SocketAddress',
+            '*tls-creds': 'str'} }
 
 ##
 # @nbd-server-add:

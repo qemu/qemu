@@ -20,13 +20,23 @@
 #include "block/nbd.h"
 #include "io/channel-socket.h"
 
-static QIOChannelSocket *server_ioc;
-static int server_watch = -1;
+typedef struct NBDServerData {
+    QIOChannelSocket *listen_ioc;
+    int watch;
+    QCryptoTLSCreds *tlscreds;
+} NBDServerData;
+
+static NBDServerData *nbd_server;
+
 
 static gboolean nbd_accept(QIOChannel *ioc, GIOCondition condition,
                            gpointer opaque)
 {
     QIOChannelSocket *cioc;
+
+    if (!nbd_server) {
+        return FALSE;
+    }
 
     cioc = qio_channel_socket_accept(QIO_CHANNEL_SOCKET(ioc),
                                      NULL);
@@ -34,28 +44,102 @@ static gboolean nbd_accept(QIOChannel *ioc, GIOCondition condition,
         return TRUE;
     }
 
-    nbd_client_new(NULL, cioc, NULL, NULL, nbd_client_put);
+    nbd_client_new(NULL, cioc,
+                   nbd_server->tlscreds, NULL,
+                   nbd_client_put);
     object_unref(OBJECT(cioc));
     return TRUE;
 }
 
-void qmp_nbd_server_start(SocketAddress *addr, Error **errp)
+
+static void nbd_server_free(NBDServerData *server)
 {
-    if (server_ioc) {
+    if (!server) {
+        return;
+    }
+
+    if (server->watch != -1) {
+        g_source_remove(server->watch);
+    }
+    object_unref(OBJECT(server->listen_ioc));
+    if (server->tlscreds) {
+        object_unref(OBJECT(server->tlscreds));
+    }
+
+    g_free(server);
+}
+
+static QCryptoTLSCreds *nbd_get_tls_creds(const char *id, Error **errp)
+{
+    Object *obj;
+    QCryptoTLSCreds *creds;
+
+    obj = object_resolve_path_component(
+        object_get_objects_root(), id);
+    if (!obj) {
+        error_setg(errp, "No TLS credentials with id '%s'",
+                   id);
+        return NULL;
+    }
+    creds = (QCryptoTLSCreds *)
+        object_dynamic_cast(obj, TYPE_QCRYPTO_TLS_CREDS);
+    if (!creds) {
+        error_setg(errp, "Object with id '%s' is not TLS credentials",
+                   id);
+        return NULL;
+    }
+
+    if (creds->endpoint != QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
+        error_setg(errp,
+                   "Expecting TLS credentials with a server endpoint");
+        return NULL;
+    }
+    object_ref(obj);
+    return creds;
+}
+
+
+void qmp_nbd_server_start(SocketAddress *addr,
+                          bool has_tls_creds, const char *tls_creds,
+                          Error **errp)
+{
+    if (nbd_server) {
         error_setg(errp, "NBD server already running");
         return;
     }
 
-    server_ioc = qio_channel_socket_new();
-    if (qio_channel_socket_listen_sync(server_ioc, addr, errp) < 0) {
-        return;
+    nbd_server = g_new0(NBDServerData, 1);
+    nbd_server->watch = -1;
+    nbd_server->listen_ioc = qio_channel_socket_new();
+    if (qio_channel_socket_listen_sync(
+            nbd_server->listen_ioc, addr, errp) < 0) {
+        goto error;
     }
 
-    server_watch = qio_channel_add_watch(QIO_CHANNEL(server_ioc),
-                                         G_IO_IN,
-                                         nbd_accept,
-                                         NULL,
-                                         NULL);
+    if (has_tls_creds) {
+        nbd_server->tlscreds = nbd_get_tls_creds(tls_creds, errp);
+        if (!nbd_server->tlscreds) {
+            goto error;
+        }
+
+        if (addr->type != SOCKET_ADDRESS_KIND_INET) {
+            error_setg(errp, "TLS is only supported with IPv4/IPv6");
+            goto error;
+        }
+    }
+
+    nbd_server->watch = qio_channel_add_watch(
+        QIO_CHANNEL(nbd_server->listen_ioc),
+        G_IO_IN,
+        nbd_accept,
+        NULL,
+        NULL);
+
+    return;
+
+ error:
+    nbd_server_free(nbd_server);
+    nbd_server = NULL;
 }
 
 void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
@@ -64,7 +148,7 @@ void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
     BlockBackend *blk;
     NBDExport *exp;
 
-    if (!server_ioc) {
+    if (!nbd_server) {
         error_setg(errp, "NBD server not running");
         return;
     }
@@ -110,12 +194,6 @@ void qmp_nbd_server_stop(Error **errp)
 {
     nbd_export_close_all();
 
-    if (server_watch != -1) {
-        g_source_remove(server_watch);
-        server_watch = -1;
-    }
-    if (server_ioc) {
-        object_unref(OBJECT(server_ioc));
-        server_ioc = NULL;
-    }
+    nbd_server_free(nbd_server);
+    nbd_server = NULL;
 }
