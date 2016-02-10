@@ -380,7 +380,9 @@ int main(int argc, char **argv)
     g_assert(qcrypto_init(NULL) == 0);
 
     for (i = 0; i < G_N_ELEMENTS(test_data); i++) {
-        g_test_add_data_func(test_data[i].path, &test_data[i], test_cipher);
+        if (qcrypto_cipher_supports(test_data[i].alg)) {
+            g_test_add_data_func(test_data[i].path, &test_data[i], test_cipher);
+        }
     }
 
     g_test_add_func("/crypto/cipher/null-iv",
