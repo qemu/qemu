@@ -1877,9 +1877,13 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         return;
     }
 
-    /* Only DEVICE RESET is allowed while BSY or/and DRQ are set */
-    if ((s->status & (BUSY_STAT|DRQ_STAT)) && val != WIN_DEVICE_RESET)
-        return;
+    /* Only RESET is allowed while BSY and/or DRQ are set,
+     * and only to ATAPI devices. */
+    if (s->status & (BUSY_STAT|DRQ_STAT)) {
+        if (val != WIN_DEVICE_RESET || s->drive_kind != IDE_CD) {
+            return;
+        }
+    }
 
     if (!ide_cmd_permitted(s, val)) {
         ide_abort_command(s);
