@@ -39,6 +39,8 @@ NbdClientSession *nbd_get_client_session(BlockDriverState *bs);
 int nbd_client_init(BlockDriverState *bs,
                     QIOChannelSocket *sock,
                     const char *export_name,
+                    QCryptoTLSCreds *tlscreds,
+                    const char *hostname,
                     Error **errp);
 void nbd_client_close(BlockDriverState *bs);
 

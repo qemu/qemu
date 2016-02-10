@@ -394,8 +394,12 @@ void nbd_client_close(BlockDriverState *bs)
     nbd_teardown_connection(bs);
 }
 
-int nbd_client_init(BlockDriverState *bs, QIOChannelSocket *sioc,
-                    const char *export, Error **errp)
+int nbd_client_init(BlockDriverState *bs,
+                    QIOChannelSocket *sioc,
+                    const char *export,
+                    QCryptoTLSCreds *tlscreds,
+                    const char *hostname,
+                    Error **errp)
 {
     NbdClientSession *client = nbd_get_client_session(bs);
     int ret;
@@ -406,7 +410,7 @@ int nbd_client_init(BlockDriverState *bs, QIOChannelSocket *sioc,
 
     ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), export,
                                 &client->nbdflags,
-                                NULL, NULL,
+                                tlscreds, hostname,
                                 &client->ioc,
                                 &client->size, errp);
     if (ret < 0) {
