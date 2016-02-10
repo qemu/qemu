@@ -199,38 +199,38 @@ static void map_page(AddressSpace *as, uint8_t **ptr, uint64_t addr,
  * Check the cmd register to see if we should start or stop
  * the DMA or FIS RX engines.
  *
- * @ad: Device to engage.
- * @allow_stop: Allow device to transition from started to stopped?
- *   'no' is useful for migration post_load, which does not expect a transition.
+ * @ad: Device to dis/engage.
  *
  * @return 0 on success, -1 on error.
  */
-static int ahci_cond_start_engines(AHCIDevice *ad, bool allow_stop)
+static int ahci_cond_start_engines(AHCIDevice *ad)
 {
     AHCIPortRegs *pr = &ad->port_regs;
+    bool cmd_start = pr->cmd & PORT_CMD_START;
+    bool cmd_on    = pr->cmd & PORT_CMD_LIST_ON;
+    bool fis_start = pr->cmd & PORT_CMD_FIS_RX;
+    bool fis_on    = pr->cmd & PORT_CMD_FIS_ON;
 
-    if (pr->cmd & PORT_CMD_START) {
+    if (cmd_start && !cmd_on) {
         if (!ahci_map_clb_address(ad)) {
+            pr->cmd &= ~PORT_CMD_START;
             error_report("AHCI: Failed to start DMA engine: "
                          "bad command list buffer address");
             return -1;
         }
-    } else if (pr->cmd & PORT_CMD_LIST_ON) {
-        if (allow_stop) {
-            ahci_unmap_clb_address(ad);
-        }
+    } else if (!cmd_start && cmd_on) {
+        ahci_unmap_clb_address(ad);
     }
 
-    if (pr->cmd & PORT_CMD_FIS_RX) {
+    if (fis_start && !fis_on) {
         if (!ahci_map_fis_address(ad)) {
+            pr->cmd &= ~PORT_CMD_FIS_RX;
             error_report("AHCI: Failed to start FIS receive engine: "
                          "bad FIS receive buffer address");
             return -1;
         }
-    } else if (pr->cmd & PORT_CMD_FIS_ON) {
-        if (allow_stop) {
-            ahci_unmap_fis_address(ad);
-        }
+    } else if (!fis_start && fis_on) {
+        ahci_unmap_fis_address(ad);
     }
 
     return 0;
@@ -272,8 +272,8 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
             pr->cmd = (pr->cmd & PORT_CMD_RO_MASK) |
                       (val & ~(PORT_CMD_RO_MASK|PORT_CMD_ICC_MASK));
 
-            /* Check FIS RX and CLB engines, allow transition to false: */
-            ahci_cond_start_engines(&s->dev[port], true);
+            /* Check FIS RX and CLB engines */
+            ahci_cond_start_engines(&s->dev[port]);
 
             /* XXX usually the FIS would be pending on the bus here and
                    issuing deferred until the OS enables FIS receival.
@@ -1578,9 +1578,10 @@ static int ahci_state_post_load(void *opaque, int version_id)
             return -1;
         }
 
-        /* Only remap the CLB address if appropriate, disallowing a state
-         * transition from 'on' to 'off' it should be consistent here. */
-        if (ahci_cond_start_engines(ad, false) != 0) {
+        /* After a migrate, the DMA/FIS engines are "off" and
+         * need to be conditionally restarted */
+        pr->cmd &= ~(PORT_CMD_LIST_ON | PORT_CMD_FIS_ON);
+        if (ahci_cond_start_engines(ad) != 0) {
             return -1;
         }
 
