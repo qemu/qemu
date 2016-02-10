@@ -21,9 +21,10 @@ Export a QEMU disk image using the NBD protocol.
 @item --object type,id=@var{id},...props...
 Define a new instance of the @var{type} object class identified by @var{id}.
 See the @code{qemu(1)} manual page for full details of the properties
-supported. The common object type that it makes sense to define is the
+supported. The common object types that it makes sense to define are the
 @code{secret} object, which is used to supply passwords and/or encryption
-keys.
+keys, and the @code{tls-creds} object, which is used to supply TLS
+credentials for the qemu-nbd server.
 @item -p, --port=@var{port}
 The TCP port to listen on (default @samp{10809})
 @item -o, --offset=@var{offset}
@@ -76,6 +77,10 @@ Don't exit on the last connection
 @item -x NAME, --export-name=NAME
 Set the NBD volume export name. This switches the server to use
 the new style NBD protocol negotiation
+@item --tls-creds=ID
+Enable mandatory TLS encryption for the server by setting the ID
+of the TLS credentials object previously created with the --object
+option.
 @item -v, --verbose
 Display extra debugging information
 @item -h, --help

@@ -42,6 +42,7 @@
 #define QEMU_NBD_OPT_DISCARD       3
 #define QEMU_NBD_OPT_DETECT_ZEROES 4
 #define QEMU_NBD_OPT_OBJECT        5
+#define QEMU_NBD_OPT_TLSCREDS      6
 
 static NBDExport *exp;
 static bool newproto;
@@ -54,6 +55,7 @@ static int shared = 1;
 static int nb_fds;
 static QIOChannelSocket *server_ioc;
 static int server_watch = -1;
+static QCryptoTLSCreds *tlscreds;
 
 static void usage(const char *name)
 {
@@ -342,7 +344,7 @@ static gboolean nbd_accept(QIOChannel *ioc, GIOCondition cond, gpointer opaque)
     nb_fds++;
     nbd_update_server_watch();
     nbd_client_new(newproto ? NULL : exp, cioc,
-                   NULL, NULL, nbd_client_closed);
+                   tlscreds, NULL, nbd_client_closed);
     object_unref(OBJECT(cioc));
 
     return TRUE;
@@ -402,6 +404,37 @@ static QemuOptsList qemu_object_opts = {
 };
 
 
+
+static QCryptoTLSCreds *nbd_get_tls_creds(const char *id, Error **errp)
+{
+    Object *obj;
+    QCryptoTLSCreds *creds;
+
+    obj = object_resolve_path_component(
+        object_get_objects_root(), id);
+    if (!obj) {
+        error_setg(errp, "No TLS credentials with id '%s'",
+                   id);
+        return NULL;
+    }
+    creds = (QCryptoTLSCreds *)
+        object_dynamic_cast(obj, TYPE_QCRYPTO_TLS_CREDS);
+    if (!creds) {
+        error_setg(errp, "Object with id '%s' is not TLS credentials",
+                   id);
+        return NULL;
+    }
+
+    if (creds->endpoint != QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
+        error_setg(errp,
+                   "Expecting TLS credentials with a server endpoint");
+        return NULL;
+    }
+    object_ref(obj);
+    return creds;
+}
+
+
 int main(int argc, char **argv)
 {
     BlockBackend *blk;
@@ -441,6 +474,7 @@ int main(int argc, char **argv)
         { "verbose", 0, NULL, 'v' },
         { "object", 1, NULL, QEMU_NBD_OPT_OBJECT },
         { "export-name", 1, NULL, 'x' },
+        { "tls-creds", 1, NULL, QEMU_NBD_OPT_TLSCREDS },
         { NULL, 0, NULL, 0 }
     };
     int ch;
@@ -458,6 +492,7 @@ int main(int argc, char **argv)
     BlockdevDetectZeroesOptions detect_zeroes = BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF;
     QDict *options = NULL;
     const char *export_name = NULL;
+    const char *tlscredsid = NULL;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
@@ -634,6 +669,9 @@ int main(int argc, char **argv)
                 exit(EXIT_FAILURE);
             }
         }   break;
+        case QEMU_NBD_OPT_TLSCREDS:
+            tlscredsid = optarg;
+            break;
         }
     }
 
@@ -648,6 +686,28 @@ int main(int argc, char **argv)
                           NULL, &local_err)) {
         error_report_err(local_err);
         exit(EXIT_FAILURE);
+    }
+
+    if (tlscredsid) {
+        if (sockpath) {
+            error_report("TLS is only supported with IPv4/IPv6");
+            exit(EXIT_FAILURE);
+        }
+        if (device) {
+            error_report("TLS is not supported with a host device");
+            exit(EXIT_FAILURE);
+        }
+        if (!export_name) {
+            /* Set the default NBD protocol export name, since
+             * we *must* use new style protocol for TLS */
+            export_name = "";
+        }
+        tlscreds = nbd_get_tls_creds(tlscredsid, &local_err);
+        if (local_err) {
+            error_report("Failed to get TLS creds %s",
+                         error_get_pretty(local_err));
+            exit(EXIT_FAILURE);
+        }
     }
 
     if (disconnect) {
