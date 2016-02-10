@@ -48,8 +48,4 @@ void xen_modified_memory(ram_addr_t start, ram_addr_t length);
 
 void xen_register_framebuffer(struct MemoryRegion *mr);
 
-#if defined(CONFIG_XEN) && CONFIG_XEN_CTRL_INTERFACE_VERSION < 400
-#  define HVM_MAX_VCPUS 32
-#endif
-
 #endif /* QEMU_HW_XEN_H */

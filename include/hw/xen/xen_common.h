@@ -16,11 +16,7 @@
 #undef XC_WANT_COMPAT_MAP_FOREIGN_API
 
 #include <xenctrl.h>
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 420
-#  include <xs.h>
-#else
-#  include <xenstore.h>
-#endif
+#include <xenstore.h>
 #include <xen/io/xenbus.h>
 
 #include "hw/hw.h"
@@ -30,129 +26,11 @@
 #include "trace.h"
 
 /*
- * We don't support Xen prior to 3.3.0.
+ * We don't support Xen prior to 4.2.0.
  */
 
-/* Xen before 4.0 */
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 400
-static inline void *xc_map_foreign_bulk(int xc_handle, uint32_t dom, int prot,
-                                        xen_pfn_t *arr, int *err,
-                                        unsigned int num)
-{
-    return xc_map_foreign_batch(xc_handle, dom, prot, arr, num);
-}
-#endif
-
-
-/* Xen before 4.1 */
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 410
-
-typedef int XenXC;
-typedef int xenevtchn_handle;
-typedef int xengnttab_handle;
-typedef int xenforeignmemory_handle;
-
-#  define XC_INTERFACE_FMT "%i"
-#  define XC_HANDLER_INITIAL_VALUE    -1
-
-static inline xenevtchn_handle *xenevtchn_open(void *logger,
-                                               unsigned int open_flags)
-{
-    xenevtchn_handle *h = malloc(sizeof(*h));
-    if (!h) {
-        return NULL;
-    }
-    *h = xc_evtchn_open();
-    if (*h == -1) {
-        free(h);
-        h = NULL;
-    }
-    return h;
-}
-static inline int xenevtchn_close(xenevtchn_handle *h)
-{
-    int rc = xc_evtchn_close(*h);
-    free(h);
-    return rc;
-}
-#define xenevtchn_fd(h) xc_evtchn_fd(*h)
-#define xenevtchn_pending(h) xc_evtchn_pending(*h)
-#define xenevtchn_notify(h, p) xc_evtchn_notify(*h, p)
-#define xenevtchn_bind_interdomain(h, d, p) xc_evtchn_bind_interdomain(*h, d, p)
-#define xenevtchn_unmask(h, p) xc_evtchn_unmask(*h, p)
-#define xenevtchn_unbind(h, p) xc_evtchn_unmask(*h, p)
-
-static inline xengnttab_handle *xengnttab_open(void *logger,
-                                               unsigned int open_flags)
-{
-    xengnttab_handle *h = malloc(sizeof(*h));
-    if (!h) {
-        return NULL;
-    }
-    *h = xc_gnttab_open();
-    if (*h == -1) {
-        free(h);
-        h = NULL;
-    }
-    return h;
-}
-static inline int xengnttab_close(xengnttab_handle *h)
-{
-    int rc = xc_gnttab_close(*h);
-    free(h);
-    return rc;
-}
-#define xengnttab_set_max_grants(h, n) xc_gnttab_set_max_grants(*h, n)
-#define xengnttab_map_grant_ref(h, d, r, p) xc_gnttab_map_grant_ref(*h, d, r, p)
-#define xengnttab_map_grant_refs(h, c, d, r, p) \
-    xc_gnttab_map_grant_refs(*h, c, d, r, p)
-#define xengnttab_unmap(h, a, n) xc_gnttab_munmap(*h, a, n)
-
-static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
-                                          unsigned int open_flags)
-{
-    return xc_interface_open();
-}
-
-/* See below for xenforeignmemory_* APIs */
-
-static inline int xc_domain_populate_physmap_exact
-    (XenXC xc_handle, uint32_t domid, unsigned long nr_extents,
-     unsigned int extent_order, unsigned int mem_flags, xen_pfn_t *extent_start)
-{
-    return xc_domain_memory_populate_physmap
-        (xc_handle, domid, nr_extents, extent_order, mem_flags, extent_start);
-}
-
-static inline int xc_domain_add_to_physmap(int xc_handle, uint32_t domid,
-                                           unsigned int space, unsigned long idx,
-                                           xen_pfn_t gpfn)
-{
-    struct xen_add_to_physmap xatp = {
-        .domid = domid,
-        .space = space,
-        .idx = idx,
-        .gpfn = gpfn,
-    };
-
-    return xc_memory_op(xc_handle, XENMEM_add_to_physmap, &xatp);
-}
-
-static inline struct xs_handle *xs_open(unsigned long flags)
-{
-    return xs_daemon_open();
-}
-
-static inline void xs_close(struct xs_handle *xsh)
-{
-    if (xsh != NULL) {
-        xs_daemon_close(xsh);
-    }
-}
-
-
-/* Xen 4.1 thru 4.6 */
-#elif CONFIG_XEN_CTRL_INTERFACE_VERSION < 471
+/* Xen 4.2 thru 4.6 */
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 471
 
 typedef xc_interface *XenXC;
 typedef xc_interface *xenforeignmemory_handle;
@@ -205,27 +83,11 @@ static inline XenXC xen_xc_interface_open(void *logger, void *dombuild_logger,
 }
 #endif
 
-/* Xen before 4.2 */
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 420
-static inline int xen_xc_hvm_inject_msi(XenXC xen_xc, domid_t dom,
-        uint64_t addr, uint32_t data)
-{
-    return -ENOSYS;
-}
-/* The followings are only to compile op_discard related code on older
- * Xen releases. */
-#define BLKIF_OP_DISCARD 5
-struct blkif_request_discard {
-    uint64_t nr_sectors;
-    uint64_t sector_number;
-};
-#else
 static inline int xen_xc_hvm_inject_msi(XenXC xen_xc, domid_t dom,
         uint64_t addr, uint32_t data)
 {
     return xc_hvm_inject_msi(xen_xc, dom, addr, data);
 }
-#endif
 
 void destroy_hvm_domain(bool reboot);
 

@@ -316,7 +316,6 @@ static hwaddr xen_phys_offset_to_gaddr(hwaddr start_addr,
     return start_addr;
 }
 
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION >= 340
 static int xen_add_to_physmap(XenIOState *state,
                               hwaddr start_addr,
                               ram_addr_t size,
@@ -450,24 +449,6 @@ static int xen_remove_from_physmap(XenIOState *state,
 
     return 0;
 }
-
-#else
-static int xen_add_to_physmap(XenIOState *state,
-                              hwaddr start_addr,
-                              ram_addr_t size,
-                              MemoryRegion *mr,
-                              hwaddr offset_within_region)
-{
-    return -ENOSYS;
-}
-
-static int xen_remove_from_physmap(XenIOState *state,
-                                   hwaddr start_addr,
-                                   ram_addr_t size)
-{
-    return -ENOSYS;
-}
-#endif
 
 static void xen_set_memory(struct MemoryListener *listener,
                            MemoryRegionSection *section,

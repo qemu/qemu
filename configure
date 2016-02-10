@@ -2111,100 +2111,10 @@ EOF
     xen_ctrl_version=420
     xen=yes
 
-  elif
-      cat > $TMPC <<EOF &&
-#include <xenctrl.h>
-#include <xs.h>
-#include <stdint.h>
-#include <xen/hvm/hvm_info_table.h>
-#if !defined(HVM_MAX_VCPUS)
-# error HVM_MAX_VCPUS not defined
-#endif
-int main(void) {
-  xs_daemon_open();
-  xc_interface_open(0, 0, 0);
-  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
-  xc_gnttab_open(NULL, 0);
-  xc_domain_add_to_physmap(0, 0, XENMAPSPACE_gmfn, 0, 0);
-  return 0;
-}
-EOF
-      compile_prog "" "$xen_libs"
-    then
-    xen_ctrl_version=410
-    xen=yes
-
-  # Xen 4.0.0
-  elif
-      cat > $TMPC <<EOF &&
-#include <xenctrl.h>
-#include <xs.h>
-#include <stdint.h>
-#include <xen/hvm/hvm_info_table.h>
-#if !defined(HVM_MAX_VCPUS)
-# error HVM_MAX_VCPUS not defined
-#endif
-int main(void) {
-  struct xen_add_to_physmap xatp = {
-    .domid = 0, .space = XENMAPSPACE_gmfn, .idx = 0, .gpfn = 0,
-  };
-  xs_daemon_open();
-  xc_interface_open();
-  xc_gnttab_open();
-  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
-  xc_memory_op(0, XENMEM_add_to_physmap, &xatp);
-  return 0;
-}
-EOF
-      compile_prog "" "$xen_libs"
-    then
-    xen_ctrl_version=400
-    xen=yes
-
-  # Xen 3.4.0
-  elif
-      cat > $TMPC <<EOF &&
-#include <xenctrl.h>
-#include <xs.h>
-int main(void) {
-  struct xen_add_to_physmap xatp = {
-    .domid = 0, .space = XENMAPSPACE_gmfn, .idx = 0, .gpfn = 0,
-  };
-  xs_daemon_open();
-  xc_interface_open();
-  xc_gnttab_open();
-  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
-  xc_memory_op(0, XENMEM_add_to_physmap, &xatp);
-  return 0;
-}
-EOF
-      compile_prog "" "$xen_libs"
-    then
-    xen_ctrl_version=340
-    xen=yes
-
-  # Xen 3.3.0
-  elif
-      cat > $TMPC <<EOF &&
-#include <xenctrl.h>
-#include <xs.h>
-int main(void) {
-  xs_daemon_open();
-  xc_interface_open();
-  xc_gnttab_open();
-  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
-  return 0;
-}
-EOF
-      compile_prog "" "$xen_libs"
-    then
-    xen_ctrl_version=330
-    xen=yes
-
-  # Xen version unsupported
   else
     if test "$xen" = "yes" ; then
-      feature_not_found "xen (unsupported version)" "Install supported xen (e.g. 4.0, 3.4, 3.3)"
+      feature_not_found "xen (unsupported version)" \
+                        "Install a supported xen (xen 4.2 or newer)"
     fi
     xen=no
   fi
@@ -2218,15 +2128,10 @@ EOF
 fi
 
 if test "$xen_pci_passthrough" != "no"; then
-  if test "$xen" = "yes" && test "$linux" = "yes" &&
-    test "$xen_ctrl_version" -ge 340; then
+  if test "$xen" = "yes" && test "$linux" = "yes"; then
     xen_pci_passthrough=yes
   else
     if test "$xen_pci_passthrough" = "yes"; then
-      if test "$xen_ctrl_version" -lt 340; then
-        error_exit "User requested feature Xen PCI Passthrough" \
-            "This feature does not work with Xen 3.3"
-      fi
       error_exit "User requested feature Xen PCI Passthrough" \
           " but this feature requires /sys from Linux"
     fi
