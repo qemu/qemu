@@ -457,7 +457,8 @@ void HELPER(set_user_reg)(CPUARMState *env, uint32_t regno, uint32_t val)
     }
 }
 
-void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome)
+void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome,
+                                 uint32_t isread)
 {
     const ARMCPRegInfo *ri = rip;
     int target_el;
@@ -471,7 +472,7 @@ void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome)
         return;
     }
 
-    switch (ri->accessfn(env, ri)) {
+    switch (ri->accessfn(env, ri, isread)) {
     case CP_ACCESS_OK:
         return;
     case CP_ACCESS_TRAP:

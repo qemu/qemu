@@ -7169,7 +7169,7 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
              * call in order to handle c15_cpar.
              */
             TCGv_ptr tmpptr;
-            TCGv_i32 tcg_syn;
+            TCGv_i32 tcg_syn, tcg_isread;
             uint32_t syndrome;
 
             /* Note that since we are an implementation which takes an
@@ -7214,9 +7214,12 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
             gen_set_pc_im(s, s->pc - 4);
             tmpptr = tcg_const_ptr(ri);
             tcg_syn = tcg_const_i32(syndrome);
-            gen_helper_access_check_cp_reg(cpu_env, tmpptr, tcg_syn);
+            tcg_isread = tcg_const_i32(isread);
+            gen_helper_access_check_cp_reg(cpu_env, tmpptr, tcg_syn,
+                                           tcg_isread);
             tcg_temp_free_ptr(tmpptr);
             tcg_temp_free_i32(tcg_syn);
+            tcg_temp_free_i32(tcg_isread);
         }
 
         /* Handle special cases first */
