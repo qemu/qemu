@@ -586,6 +586,7 @@ BlockAIOCB *ide_issue_trim(BlockBackend *blk,
 BlockAIOCB *ide_buffered_readv(IDEState *s, int64_t sector_num,
                                QEMUIOVector *iov, int nb_sectors,
                                BlockCompletionFunc *cb, void *opaque);
+void ide_cancel_dma_sync(IDEState *s);
 
 /* hw/ide/atapi.c */
 void ide_atapi_cmd(IDEState *s);

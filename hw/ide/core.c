@@ -487,13 +487,27 @@ static void ide_cmd_done(IDEState *s)
     }
 }
 
-void ide_transfer_stop(IDEState *s)
+static void ide_transfer_halt(IDEState *s,
+                              void(*end_transfer_func)(IDEState *),
+                              bool notify)
 {
-    s->end_transfer_func = ide_transfer_stop;
+    s->end_transfer_func = end_transfer_func;
     s->data_ptr = s->io_buffer;
     s->data_end = s->io_buffer;
     s->status &= ~DRQ_STAT;
-    ide_cmd_done(s);
+    if (notify) {
+        ide_cmd_done(s);
+    }
+}
+
+void ide_transfer_stop(IDEState *s)
+{
+    ide_transfer_halt(s, ide_transfer_stop, true);
+}
+
+static void ide_transfer_cancel(IDEState *s)
+{
+    ide_transfer_halt(s, ide_transfer_cancel, false);
 }
 
 int64_t ide_get_sector(IDEState *s)
@@ -607,6 +621,51 @@ BlockAIOCB *ide_buffered_readv(IDEState *s, int64_t sector_num,
 
     QLIST_INSERT_HEAD(&s->buffered_requests, req, list);
     return aioreq;
+}
+
+/**
+ * Cancel all pending DMA requests.
+ * Any buffered DMA requests are instantly canceled,
+ * but any pending unbuffered DMA requests must be waited on.
+ */
+void ide_cancel_dma_sync(IDEState *s)
+{
+    IDEBufferedRequest *req;
+
+    /* First invoke the callbacks of all buffered requests
+     * and flag those requests as orphaned. Ideally there
+     * are no unbuffered (Scatter Gather DMA Requests or
+     * write requests) pending and we can avoid to drain. */
+    QLIST_FOREACH(req, &s->buffered_requests, list) {
+        if (!req->orphaned) {
+#ifdef DEBUG_IDE
+            printf("%s: invoking cb %p of buffered request %p with"
+                   " -ECANCELED\n", __func__, req->original_cb, req);
+#endif
+            req->original_cb(req->original_opaque, -ECANCELED);
+        }
+        req->orphaned = true;
+    }
+
+    /*
+     * We can't cancel Scatter Gather DMA in the middle of the
+     * operation or a partial (not full) DMA transfer would reach
+     * the storage so we wait for completion instead (we beahve
+     * like if the DMA was completed by the time the guest trying
+     * to cancel dma with bmdma_cmd_writeb with BM_CMD_START not
+     * set).
+     *
+     * In the future we'll be able to safely cancel the I/O if the
+     * whole DMA operation will be submitted to disk with a single
+     * aio operation with preadv/pwritev.
+     */
+    if (s->bus->dma->aiocb) {
+#ifdef DEBUG_IDE
+        printf("%s: draining all remaining requests", __func__);
+#endif
+        blk_drain(s->blk);
+        assert(s->bus->dma->aiocb == NULL);
+    }
 }
 
 static void ide_sector_read(IDEState *s);
@@ -1175,9 +1234,84 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
+static void ide_reset(IDEState *s)
+{
+#ifdef DEBUG_IDE
+    printf("ide: reset\n");
+#endif
+
+    if (s->pio_aiocb) {
+        blk_aio_cancel(s->pio_aiocb);
+        s->pio_aiocb = NULL;
+    }
+
+    if (s->drive_kind == IDE_CFATA)
+        s->mult_sectors = 0;
+    else
+        s->mult_sectors = MAX_MULT_SECTORS;
+    /* ide regs */
+    s->feature = 0;
+    s->error = 0;
+    s->nsector = 0;
+    s->sector = 0;
+    s->lcyl = 0;
+    s->hcyl = 0;
+
+    /* lba48 */
+    s->hob_feature = 0;
+    s->hob_sector = 0;
+    s->hob_nsector = 0;
+    s->hob_lcyl = 0;
+    s->hob_hcyl = 0;
+
+    s->select = 0xa0;
+    s->status = READY_STAT | SEEK_STAT;
+
+    s->lba48 = 0;
+
+    /* ATAPI specific */
+    s->sense_key = 0;
+    s->asc = 0;
+    s->cdrom_changed = 0;
+    s->packet_transfer_size = 0;
+    s->elementary_transfer_size = 0;
+    s->io_buffer_index = 0;
+    s->cd_sector_size = 0;
+    s->atapi_dma = 0;
+    s->tray_locked = 0;
+    s->tray_open = 0;
+    /* ATA DMA state */
+    s->io_buffer_size = 0;
+    s->req_nb_sectors = 0;
+
+    ide_set_signature(s);
+    /* init the transfer handler so that 0xffff is returned on data
+       accesses */
+    s->end_transfer_func = ide_dummy_transfer_stop;
+    ide_dummy_transfer_stop(s);
+    s->media_changed = 0;
+}
+
 static bool cmd_nop(IDEState *s, uint8_t cmd)
 {
     return true;
+}
+
+static bool cmd_device_reset(IDEState *s, uint8_t cmd)
+{
+    /* Halt PIO (in the DRQ phase), then DMA */
+    ide_transfer_cancel(s);
+    ide_cancel_dma_sync(s);
+
+    /* Reset any PIO commands, reset signature, etc */
+    ide_reset(s);
+
+    /* RESET: ATA8-ACS3 7.10.4 "Normal Outputs";
+     * ATA8-ACS3 Table 184 "Device Signatures for Normal Output" */
+    s->status = 0x00;
+
+    /* Do not overwrite status register */
+    return false;
 }
 
 static bool cmd_data_set_management(IDEState *s, uint8_t cmd)
@@ -1492,15 +1626,6 @@ static bool cmd_exec_dev_diagnostic(IDEState *s, uint8_t cmd)
         s->error = 0x01;
         ide_set_irq(s->bus);
     }
-
-    return false;
-}
-
-static bool cmd_device_reset(IDEState *s, uint8_t cmd)
-{
-    ide_set_signature(s);
-    s->status = 0x00; /* NOTE: READY is _not_ set */
-    s->error = 0x01;
 
     return false;
 }
@@ -1877,9 +2002,13 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         return;
     }
 
-    /* Only DEVICE RESET is allowed while BSY or/and DRQ are set */
-    if ((s->status & (BUSY_STAT|DRQ_STAT)) && val != WIN_DEVICE_RESET)
-        return;
+    /* Only RESET is allowed while BSY and/or DRQ are set,
+     * and only to ATAPI devices. */
+    if (s->status & (BUSY_STAT|DRQ_STAT)) {
+        if (val != WIN_DEVICE_RESET || s->drive_kind != IDE_CD) {
+            return;
+        }
+    }
 
     if (!ide_cmd_permitted(s, val)) {
         ide_abort_command(s);
@@ -2177,64 +2306,6 @@ static void ide_dummy_transfer_stop(IDEState *s)
     s->io_buffer[1] = 0xff;
     s->io_buffer[2] = 0xff;
     s->io_buffer[3] = 0xff;
-}
-
-static void ide_reset(IDEState *s)
-{
-#ifdef DEBUG_IDE
-    printf("ide: reset\n");
-#endif
-
-    if (s->pio_aiocb) {
-        blk_aio_cancel(s->pio_aiocb);
-        s->pio_aiocb = NULL;
-    }
-
-    if (s->drive_kind == IDE_CFATA)
-        s->mult_sectors = 0;
-    else
-        s->mult_sectors = MAX_MULT_SECTORS;
-    /* ide regs */
-    s->feature = 0;
-    s->error = 0;
-    s->nsector = 0;
-    s->sector = 0;
-    s->lcyl = 0;
-    s->hcyl = 0;
-
-    /* lba48 */
-    s->hob_feature = 0;
-    s->hob_sector = 0;
-    s->hob_nsector = 0;
-    s->hob_lcyl = 0;
-    s->hob_hcyl = 0;
-
-    s->select = 0xa0;
-    s->status = READY_STAT | SEEK_STAT;
-
-    s->lba48 = 0;
-
-    /* ATAPI specific */
-    s->sense_key = 0;
-    s->asc = 0;
-    s->cdrom_changed = 0;
-    s->packet_transfer_size = 0;
-    s->elementary_transfer_size = 0;
-    s->io_buffer_index = 0;
-    s->cd_sector_size = 0;
-    s->atapi_dma = 0;
-    s->tray_locked = 0;
-    s->tray_open = 0;
-    /* ATA DMA state */
-    s->io_buffer_size = 0;
-    s->req_nb_sectors = 0;
-
-    ide_set_signature(s);
-    /* init the transfer handler so that 0xffff is returned on data
-       accesses */
-    s->end_transfer_func = ide_dummy_transfer_stop;
-    ide_dummy_transfer_stop(s);
-    s->media_changed = 0;
 }
 
 void ide_bus_reset(IDEBus *bus)
