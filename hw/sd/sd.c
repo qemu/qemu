@@ -669,8 +669,10 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
     /* Not interpreting this as an app command */
     sd->card_status &= ~APP_CMD;
 
-    if (sd_cmd_type[req.cmd] == sd_ac || sd_cmd_type[req.cmd] == sd_adtc)
+    if (sd_cmd_type[req.cmd & 0x3F] == sd_ac
+        || sd_cmd_type[req.cmd & 0x3F] == sd_adtc) {
         rca = req.arg >> 16;
+    }
 
     DPRINTF("CMD%d 0x%08x state %d\n", req.cmd, req.arg, sd->state);
     switch (req.cmd) {
@@ -1341,7 +1343,8 @@ static int cmd_valid_while_locked(SDState *sd, SDRequest *req)
     if (req->cmd == 16 || req->cmd == 55) {
         return 1;
     }
-    return sd_cmd_class[req->cmd] == 0 || sd_cmd_class[req->cmd] == 7;
+    return sd_cmd_class[req->cmd & 0x3F] == 0
+            || sd_cmd_class[req->cmd & 0x3F] == 7;
 }
 
 int sd_do_command(SDState *sd, SDRequest *req,
