@@ -1312,6 +1312,7 @@ static int htab_save_setup(QEMUFile *f, void *opaque)
 static void htab_save_first_pass(QEMUFile *f, sPAPRMachineState *spapr,
                                  int64_t max_ns)
 {
+    bool has_timeout = max_ns != -1;
     int htabslots = HTAB_SIZE(spapr) / HASH_PTE_SIZE_64;
     int index = spapr->htab_save_index;
     int64_t starttime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
@@ -1345,7 +1346,8 @@ static void htab_save_first_pass(QEMUFile *f, sPAPRMachineState *spapr,
             qemu_put_buffer(f, HPTE(spapr->htab, chunkstart),
                             HASH_PTE_SIZE_64 * n_valid);
 
-            if ((qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - starttime) > max_ns) {
+            if (has_timeout &&
+                (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - starttime) > max_ns) {
                 break;
             }
         }
@@ -1498,6 +1500,9 @@ static int htab_save_complete(QEMUFile *f, void *opaque)
         }
         close_htab_fd(spapr);
     } else {
+        if (spapr->htab_first_pass) {
+            htab_save_first_pass(f, spapr, -1);
+        }
         htab_save_later_pass(f, spapr, -1);
     }
 
