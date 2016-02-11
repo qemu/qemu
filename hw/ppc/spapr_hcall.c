@@ -365,6 +365,27 @@ static target_ulong h_set_dabr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_set_xdabr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+                                target_ulong opcode, target_ulong *args)
+{
+    target_ulong dabrx = args[1];
+
+    if (!has_spr(cpu, SPR_DABR) || !has_spr(cpu, SPR_DABRX)) {
+        return H_HARDWARE;
+    }
+
+    if ((dabrx & ~0xfULL) != 0 || (dabrx & H_DABRX_HYPERVISOR) != 0
+        || (dabrx & (H_DABRX_KERNEL | H_DABRX_USER)) == 0) {
+        return H_PARAMETER;
+    }
+
+    cpu_synchronize_state(CPU(cpu));
+    cpu->env.spr[SPR_DABRX] = dabrx;
+    cpu->env.spr[SPR_DABR] = args[0];
+
+    return H_SUCCESS;
+}
+
 #define FLAGS_REGISTER_VPA         0x0000200000000000ULL
 #define FLAGS_REGISTER_DTL         0x0000400000000000ULL
 #define FLAGS_REGISTER_SLBSHADOW   0x0000600000000000ULL
@@ -1023,6 +1044,7 @@ static void hypercall_register_types(void)
     /* processor register resource access h-calls */
     spapr_register_hypercall(H_SET_SPRG0, h_set_sprg0);
     spapr_register_hypercall(H_SET_DABR, h_set_dabr);
+    spapr_register_hypercall(H_SET_XDABR, h_set_xdabr);
     spapr_register_hypercall(H_SET_MODE, h_set_mode);
 
     /* "debugger" hcalls (also used by SLOF). Note: We do -not- differenciate
