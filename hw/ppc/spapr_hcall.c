@@ -38,6 +38,12 @@ static void set_spr(CPUState *cs, int spr, target_ulong value,
     run_on_cpu(cs, do_spr_sync, &s);
 }
 
+static bool has_spr(PowerPCCPU *cpu, int spr)
+{
+    /* We can test whether the SPR is defined by checking for a valid name */
+    return cpu->env.spr_cb[spr].name != NULL;
+}
+
 static inline bool valid_pte_index(CPUPPCState *env, target_ulong pte_index)
 {
     /*
@@ -344,8 +350,19 @@ static target_ulong h_set_sprg0(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 static target_ulong h_set_dabr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                target_ulong opcode, target_ulong *args)
 {
-    /* FIXME: actually implement this */
-    return H_HARDWARE;
+    if (!has_spr(cpu, SPR_DABR)) {
+        return H_HARDWARE;              /* DABR register not available */
+    }
+    cpu_synchronize_state(CPU(cpu));
+
+    if (has_spr(cpu, SPR_DABRX)) {
+        cpu->env.spr[SPR_DABRX] = 0x3;  /* Use Problem and Privileged state */
+    } else if (!(args[0] & 0x4)) {      /* Breakpoint Translation set? */
+        return H_RESERVED_DABR;
+    }
+
+    cpu->env.spr[SPR_DABR] = args[0];
+    return H_SUCCESS;
 }
 
 #define FLAGS_REGISTER_VPA         0x0000200000000000ULL
@@ -999,15 +1016,13 @@ static void hypercall_register_types(void)
     /* hcall-bulk */
     spapr_register_hypercall(H_BULK_REMOVE, h_bulk_remove);
 
-    /* hcall-dabr */
-    spapr_register_hypercall(H_SET_DABR, h_set_dabr);
-
     /* hcall-splpar */
     spapr_register_hypercall(H_REGISTER_VPA, h_register_vpa);
     spapr_register_hypercall(H_CEDE, h_cede);
 
     /* processor register resource access h-calls */
     spapr_register_hypercall(H_SET_SPRG0, h_set_sprg0);
+    spapr_register_hypercall(H_SET_DABR, h_set_dabr);
     spapr_register_hypercall(H_SET_MODE, h_set_mode);
 
     /* "debugger" hcalls (also used by SLOF). Note: We do -not- differenciate
