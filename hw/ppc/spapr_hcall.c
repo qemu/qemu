@@ -332,6 +332,15 @@ static target_ulong h_read(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_set_sprg0(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+                                target_ulong opcode, target_ulong *args)
+{
+    cpu_synchronize_state(CPU(cpu));
+    cpu->env.spr[SPR_SPRG0] = args[0];
+
+    return H_SUCCESS;
+}
+
 static target_ulong h_set_dabr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                target_ulong opcode, target_ulong *args)
 {
@@ -997,6 +1006,10 @@ static void hypercall_register_types(void)
     spapr_register_hypercall(H_REGISTER_VPA, h_register_vpa);
     spapr_register_hypercall(H_CEDE, h_cede);
 
+    /* processor register resource access h-calls */
+    spapr_register_hypercall(H_SET_SPRG0, h_set_sprg0);
+    spapr_register_hypercall(H_SET_MODE, h_set_mode);
+
     /* "debugger" hcalls (also used by SLOF). Note: We do -not- differenciate
      * here between the "CI" and the "CACHE" variants, they will use whatever
      * mapping attributes qemu is using. When using KVM, the kernel will
@@ -1012,8 +1025,6 @@ static void hypercall_register_types(void)
 
     /* qemu/KVM-PPC specific hcalls */
     spapr_register_hypercall(KVMPPC_H_RTAS, h_rtas);
-
-    spapr_register_hypercall(H_SET_MODE, h_set_mode);
 
     /* ibm,client-architecture-support support */
     spapr_register_hypercall(KVMPPC_H_CAS, h_client_architecture_support);
