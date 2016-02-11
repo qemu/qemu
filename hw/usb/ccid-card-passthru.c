@@ -39,8 +39,6 @@ static const uint8_t DEFAULT_ATR[] = {
  0x13, 0x08
 };
 
-
-#define PASSTHRU_DEV_NAME "ccid-card-passthru"
 #define VSCARD_IN_SIZE 65536
 
 /* maximum size of ATR - from 7816-3 */
@@ -58,6 +56,10 @@ struct PassthruState {
     uint8_t  atr_length;
     uint8_t  debug;
 };
+
+#define TYPE_CCID_PASSTHRU "ccid-card-passthru"
+#define PASSTHRU_CCID_CARD(obj) \
+    OBJECT_CHECK(PassthruState, (obj), TYPE_CCID_PASSTHRU)
 
 /*
  * VSCard protocol over chardev
@@ -317,7 +319,7 @@ static void ccid_card_vscard_event(void *opaque, int event)
 static void passthru_apdu_from_guest(
     CCIDCardState *base, const uint8_t *apdu, uint32_t len)
 {
-    PassthruState *card = DO_UPCAST(PassthruState, base, base);
+    PassthruState *card = PASSTHRU_CCID_CARD(base);
 
     if (!card->cs) {
         printf("ccid-passthru: no chardev, discarding apdu length %d\n", len);
@@ -328,7 +330,7 @@ static void passthru_apdu_from_guest(
 
 static const uint8_t *passthru_get_atr(CCIDCardState *base, uint32_t *len)
 {
-    PassthruState *card = DO_UPCAST(PassthruState, base, base);
+    PassthruState *card = PASSTHRU_CCID_CARD(base);
 
     *len = card->atr_length;
     return card->atr;
@@ -336,7 +338,7 @@ static const uint8_t *passthru_get_atr(CCIDCardState *base, uint32_t *len)
 
 static int passthru_initfn(CCIDCardState *base)
 {
-    PassthruState *card = DO_UPCAST(PassthruState, base, base);
+    PassthruState *card = PASSTHRU_CCID_CARD(base);
 
     card->vscard_in_pos = 0;
     card->vscard_in_hdr = 0;
@@ -400,7 +402,7 @@ static void passthru_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo passthru_card_info = {
-    .name          = PASSTHRU_DEV_NAME,
+    .name          = TYPE_CCID_PASSTHRU,
     .parent        = TYPE_CCID_CARD,
     .instance_size = sizeof(PassthruState),
     .class_init    = passthru_class_initfn,

@@ -459,7 +459,7 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
 
     if (err) {
         error_propagate(errp, err);
-        return -1;
+        goto err;
     }
 
     addr = sraddr->host;
@@ -469,13 +469,13 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
     }
     if (port == NULL || strlen(port) == 0) {
         error_setg(errp, "remote port not specified");
-        return -1;
+        goto err;
     }
 
     if (0 != (rc = getaddrinfo(addr, port, &ai, &peer))) {
         error_setg(errp, "address resolution failed for %s:%s: %s", addr, port,
                    gai_strerror(rc));
-	return -1;
+	goto err;
     }
 
     /* lookup local addr */

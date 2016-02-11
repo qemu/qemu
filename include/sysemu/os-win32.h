@@ -26,8 +26,8 @@
 #ifndef QEMU_OS_WIN32_H
 #define QEMU_OS_WIN32_H
 
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 
 /* Workaround for older versions of MinGW. */
 #ifndef ECONNREFUSED

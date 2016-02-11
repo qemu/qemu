@@ -54,7 +54,6 @@
 #endif
 
 #define MAX_BLK_DEVS                    10
-#define ZIPL_FILENAME                   "s390-zipl.rom"
 #define S390_MACHINE                    "s390-virtio"
 #define TYPE_S390_MACHINE               MACHINE_TYPE_NAME(S390_MACHINE)
 
