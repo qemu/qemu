@@ -382,6 +382,7 @@ typedef struct CPUARMState {
         uint64_t mdscr_el1;
         uint64_t oslsr_el1; /* OS Lock Status */
         uint64_t mdcr_el2;
+        uint64_t mdcr_el3;
         /* If the counter is enabled, this stores the last time the counter
          * was reset. Otherwise it stores the counter value
          */
