@@ -43,8 +43,7 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
             resplen = 4;
             break;
         case 0x00010002: /* Get board revision */
-            qemu_log_mask(LOG_UNIMP,
-                          "bcm2835_property: %x get board revision NYI\n", tag);
+            stl_phys(&s->dma_as, value + 12, s->board_rev);
             resplen = 4;
             break;
         case 0x00010003: /* Get board MAC address */
@@ -258,6 +257,7 @@ static void bcm2835_property_realize(DeviceState *dev, Error **errp)
 }
 
 static Property bcm2835_property_props[] = {
+    DEFINE_PROP_UINT32("board-rev", BCM2835PropertyState, board_rev, 0),
     DEFINE_PROP_UINT32("ram-size", BCM2835PropertyState, ram_size, 0),
     DEFINE_PROP_END_OF_LIST()
 };
