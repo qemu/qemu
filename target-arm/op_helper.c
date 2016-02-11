@@ -457,7 +457,8 @@ void HELPER(set_user_reg)(CPUARMState *env, uint32_t regno, uint32_t val)
     }
 }
 
-void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome)
+void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome,
+                                 uint32_t isread)
 {
     const ARMCPRegInfo *ri = rip;
     int target_el;
@@ -471,7 +472,7 @@ void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome)
         return;
     }
 
-    switch (ri->accessfn(env, ri)) {
+    switch (ri->accessfn(env, ri, isread)) {
     case CP_ACCESS_OK:
         return;
     case CP_ACCESS_TRAP:
@@ -975,6 +976,16 @@ void HELPER(check_breakpoints)(CPUARMState *env)
     }
 }
 
+bool arm_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
+{
+    /* Called by core code when a CPU watchpoint fires; need to check if this
+     * is also an architectural watchpoint match.
+     */
+    ARMCPU *cpu = ARM_CPU(cs);
+
+    return check_watchpoints(cpu);
+}
+
 void arm_debug_excp_handler(CPUState *cs)
 {
     /* Called by core code when a watchpoint or breakpoint fires;
@@ -986,23 +997,20 @@ void arm_debug_excp_handler(CPUState *cs)
 
     if (wp_hit) {
         if (wp_hit->flags & BP_CPU) {
-            cs->watchpoint_hit = NULL;
-            if (check_watchpoints(cpu)) {
-                bool wnr = (wp_hit->flags & BP_WATCHPOINT_HIT_WRITE) != 0;
-                bool same_el = arm_debug_target_el(env) == arm_current_el(env);
+            bool wnr = (wp_hit->flags & BP_WATCHPOINT_HIT_WRITE) != 0;
+            bool same_el = arm_debug_target_el(env) == arm_current_el(env);
 
-                if (extended_addresses_enabled(env)) {
-                    env->exception.fsr = (1 << 9) | 0x22;
-                } else {
-                    env->exception.fsr = 0x2;
-                }
-                env->exception.vaddress = wp_hit->hitaddr;
-                raise_exception(env, EXCP_DATA_ABORT,
-                                syn_watchpoint(same_el, 0, wnr),
-                                arm_debug_target_el(env));
+            cs->watchpoint_hit = NULL;
+
+            if (extended_addresses_enabled(env)) {
+                env->exception.fsr = (1 << 9) | 0x22;
             } else {
-                cpu_resume_from_signal(cs, NULL);
+                env->exception.fsr = 0x2;
             }
+            env->exception.vaddress = wp_hit->hitaddr;
+            raise_exception(env, EXCP_DATA_ABORT,
+                    syn_watchpoint(same_el, 0, wnr),
+                    arm_debug_target_el(env));
         }
     } else {
         uint64_t pc = is_a64(env) ? env->pc : env->regs[15];

@@ -128,6 +128,8 @@ static void raspi2_init(MachineState *machine)
                                    &error_abort);
     object_property_set_int(OBJECT(&s->soc), smp_cpus, "enabled-cpus",
                             &error_abort);
+    object_property_set_int(OBJECT(&s->soc), 0xa21041, "board-rev",
+                            &error_abort);
     object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_abort);
 
     setup_boot(machine, 2, machine->ram_size);

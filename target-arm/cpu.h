@@ -382,6 +382,7 @@ typedef struct CPUARMState {
         uint64_t mdscr_el1;
         uint64_t oslsr_el1; /* OS Lock Status */
         uint64_t mdcr_el2;
+        uint64_t mdcr_el3;
         /* If the counter is enabled, this stores the last time the counter
          * was reset. Otherwise it stores the counter value
          */
@@ -931,7 +932,7 @@ static inline bool arm_is_secure_below_el3(CPUARMState *env)
     if (arm_feature(env, ARM_FEATURE_EL3)) {
         return !(env->cp15.scr_el3 & SCR_NS);
     } else {
-        /* If EL2 is not supported then the secure state is implementation
+        /* If EL3 is not supported then the secure state is implementation
          * defined, in which case QEMU defaults to non-secure.
          */
         return false;
@@ -1318,7 +1319,9 @@ typedef uint64_t CPReadFn(CPUARMState *env, const ARMCPRegInfo *opaque);
 typedef void CPWriteFn(CPUARMState *env, const ARMCPRegInfo *opaque,
                        uint64_t value);
 /* Access permission check functions for coprocessor registers. */
-typedef CPAccessResult CPAccessFn(CPUARMState *env, const ARMCPRegInfo *opaque);
+typedef CPAccessResult CPAccessFn(CPUARMState *env,
+                                  const ARMCPRegInfo *opaque,
+                                  bool isread);
 /* Hook function for register reset */
 typedef void CPResetFn(CPUARMState *env, const ARMCPRegInfo *opaque);
 
@@ -1741,9 +1744,7 @@ typedef enum ARMASIdx {
     ARMASIdx_S = 1,
 } ARMASIdx;
 
-/* Return the Exception Level targeted by debug exceptions;
- * currently always EL1 since we don't implement EL2 or EL3.
- */
+/* Return the Exception Level targeted by debug exceptions. */
 static inline int arm_debug_target_el(CPUARMState *env)
 {
     bool secure = arm_is_secure(env);
@@ -1766,6 +1767,14 @@ static inline int arm_debug_target_el(CPUARMState *env)
 
 static inline bool aa64_generate_debug_exceptions(CPUARMState *env)
 {
+    if (arm_is_secure(env)) {
+        /* MDCR_EL3.SDD disables debug events from Secure state */
+        if (extract32(env->cp15.mdcr_el3, 16, 1) != 0
+            || arm_current_el(env) == 3) {
+            return false;
+        }
+    }
+
     if (arm_current_el(env) == arm_debug_target_el(env)) {
         if ((extract32(env->cp15.mdscr_el1, 13, 1) == 0)
             || (env->daif & PSTATE_D)) {
@@ -1777,10 +1786,42 @@ static inline bool aa64_generate_debug_exceptions(CPUARMState *env)
 
 static inline bool aa32_generate_debug_exceptions(CPUARMState *env)
 {
-    if (arm_current_el(env) == 0 && arm_el_is_aa64(env, 1)) {
+    int el = arm_current_el(env);
+
+    if (el == 0 && arm_el_is_aa64(env, 1)) {
         return aa64_generate_debug_exceptions(env);
     }
-    return arm_current_el(env) != 2;
+
+    if (arm_is_secure(env)) {
+        int spd;
+
+        if (el == 0 && (env->cp15.sder & 1)) {
+            /* SDER.SUIDEN means debug exceptions from Secure EL0
+             * are always enabled. Otherwise they are controlled by
+             * SDCR.SPD like those from other Secure ELs.
+             */
+            return true;
+        }
+
+        spd = extract32(env->cp15.mdcr_el3, 14, 2);
+        switch (spd) {
+        case 1:
+            /* SPD == 0b01 is reserved, but behaves as 0b00. */
+        case 0:
+            /* For 0b00 we return true if external secure invasive debug
+             * is enabled. On real hardware this is controlled by external
+             * signals to the core. QEMU always permits debug, and behaves
+             * as if DBGEN, SPIDEN, NIDEN and SPNIDEN are all tied high.
+             */
+            return true;
+        case 2:
+            return false;
+        case 3:
+            return true;
+        }
+    }
+
+    return el != 2;
 }
 
 /* Return true if debugging exceptions are currently enabled.

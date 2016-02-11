@@ -270,10 +270,10 @@ static inline uint32_t syn_aa64_smc(uint32_t imm16)
     return (EC_AA64_SMC << ARM_EL_EC_SHIFT) | ARM_EL_IL | (imm16 & 0xffff);
 }
 
-static inline uint32_t syn_aa32_svc(uint32_t imm16, bool is_thumb)
+static inline uint32_t syn_aa32_svc(uint32_t imm16, bool is_16bit)
 {
     return (EC_AA32_SVC << ARM_EL_EC_SHIFT) | (imm16 & 0xffff)
-        | (is_thumb ? 0 : ARM_EL_IL);
+        | (is_16bit ? 0 : ARM_EL_IL);
 }
 
 static inline uint32_t syn_aa32_hvc(uint32_t imm16)
@@ -291,10 +291,10 @@ static inline uint32_t syn_aa64_bkpt(uint32_t imm16)
     return (EC_AA64_BKPT << ARM_EL_EC_SHIFT) | ARM_EL_IL | (imm16 & 0xffff);
 }
 
-static inline uint32_t syn_aa32_bkpt(uint32_t imm16, bool is_thumb)
+static inline uint32_t syn_aa32_bkpt(uint32_t imm16, bool is_16bit)
 {
     return (EC_AA32_BKPT << ARM_EL_EC_SHIFT) | (imm16 & 0xffff)
-        | (is_thumb ? 0 : ARM_EL_IL);
+        | (is_16bit ? 0 : ARM_EL_IL);
 }
 
 static inline uint32_t syn_aa64_sysregtrap(int op0, int op1, int op2,
@@ -308,48 +308,48 @@ static inline uint32_t syn_aa64_sysregtrap(int op0, int op1, int op2,
 
 static inline uint32_t syn_cp14_rt_trap(int cv, int cond, int opc1, int opc2,
                                         int crn, int crm, int rt, int isread,
-                                        bool is_thumb)
+                                        bool is_16bit)
 {
     return (EC_CP14RTTRAP << ARM_EL_EC_SHIFT)
-        | (is_thumb ? 0 : ARM_EL_IL)
+        | (is_16bit ? 0 : ARM_EL_IL)
         | (cv << 24) | (cond << 20) | (opc2 << 17) | (opc1 << 14)
         | (crn << 10) | (rt << 5) | (crm << 1) | isread;
 }
 
 static inline uint32_t syn_cp15_rt_trap(int cv, int cond, int opc1, int opc2,
                                         int crn, int crm, int rt, int isread,
-                                        bool is_thumb)
+                                        bool is_16bit)
 {
     return (EC_CP15RTTRAP << ARM_EL_EC_SHIFT)
-        | (is_thumb ? 0 : ARM_EL_IL)
+        | (is_16bit ? 0 : ARM_EL_IL)
         | (cv << 24) | (cond << 20) | (opc2 << 17) | (opc1 << 14)
         | (crn << 10) | (rt << 5) | (crm << 1) | isread;
 }
 
 static inline uint32_t syn_cp14_rrt_trap(int cv, int cond, int opc1, int crm,
                                          int rt, int rt2, int isread,
-                                         bool is_thumb)
+                                         bool is_16bit)
 {
     return (EC_CP14RRTTRAP << ARM_EL_EC_SHIFT)
-        | (is_thumb ? 0 : ARM_EL_IL)
+        | (is_16bit ? 0 : ARM_EL_IL)
         | (cv << 24) | (cond << 20) | (opc1 << 16)
         | (rt2 << 10) | (rt << 5) | (crm << 1) | isread;
 }
 
 static inline uint32_t syn_cp15_rrt_trap(int cv, int cond, int opc1, int crm,
                                          int rt, int rt2, int isread,
-                                         bool is_thumb)
+                                         bool is_16bit)
 {
     return (EC_CP15RRTTRAP << ARM_EL_EC_SHIFT)
-        | (is_thumb ? 0 : ARM_EL_IL)
+        | (is_16bit ? 0 : ARM_EL_IL)
         | (cv << 24) | (cond << 20) | (opc1 << 16)
         | (rt2 << 10) | (rt << 5) | (crm << 1) | isread;
 }
 
-static inline uint32_t syn_fp_access_trap(int cv, int cond, bool is_thumb)
+static inline uint32_t syn_fp_access_trap(int cv, int cond, bool is_16bit)
 {
     return (EC_ADVSIMDFPACCESSTRAP << ARM_EL_EC_SHIFT)
-        | (is_thumb ? 0 : ARM_EL_IL)
+        | (is_16bit ? 0 : ARM_EL_IL)
         | (cv << 24) | (cond << 20);
 }
 
@@ -408,6 +408,9 @@ void hw_breakpoint_update(ARMCPU *cpu, int n);
  * suitable for use after migration or on reset.
  */
 void hw_breakpoint_update_all(ARMCPU *cpu);
+
+/* Callback function for checking if a watchpoint should trigger. */
+bool arm_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp);
 
 /* Callback function for when a watchpoint or breakpoint triggers. */
 void arm_debug_excp_handler(CPUState *cs);

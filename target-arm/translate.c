@@ -3077,7 +3077,7 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
      */
     if (s->fp_excp_el) {
         gen_exception_insn(s, 4, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, s->thumb), s->fp_excp_el);
+                           syn_fp_access_trap(1, 0xe, false), s->fp_excp_el);
         return 0;
     }
 
@@ -4399,7 +4399,7 @@ static int disas_neon_ls_insn(DisasContext *s, uint32_t insn)
      */
     if (s->fp_excp_el) {
         gen_exception_insn(s, 4, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, s->thumb), s->fp_excp_el);
+                           syn_fp_access_trap(1, 0xe, false), s->fp_excp_el);
         return 0;
     }
 
@@ -5137,7 +5137,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
      */
     if (s->fp_excp_el) {
         gen_exception_insn(s, 4, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, s->thumb), s->fp_excp_el);
+                           syn_fp_access_trap(1, 0xe, false), s->fp_excp_el);
         return 0;
     }
 
@@ -7169,7 +7169,7 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
              * call in order to handle c15_cpar.
              */
             TCGv_ptr tmpptr;
-            TCGv_i32 tcg_syn;
+            TCGv_i32 tcg_syn, tcg_isread;
             uint32_t syndrome;
 
             /* Note that since we are an implementation which takes an
@@ -7184,19 +7184,19 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
             case 14:
                 if (is64) {
                     syndrome = syn_cp14_rrt_trap(1, 0xe, opc1, crm, rt, rt2,
-                                                 isread, s->thumb);
+                                                 isread, false);
                 } else {
                     syndrome = syn_cp14_rt_trap(1, 0xe, opc1, opc2, crn, crm,
-                                                rt, isread, s->thumb);
+                                                rt, isread, false);
                 }
                 break;
             case 15:
                 if (is64) {
                     syndrome = syn_cp15_rrt_trap(1, 0xe, opc1, crm, rt, rt2,
-                                                 isread, s->thumb);
+                                                 isread, false);
                 } else {
                     syndrome = syn_cp15_rt_trap(1, 0xe, opc1, opc2, crn, crm,
-                                                rt, isread, s->thumb);
+                                                rt, isread, false);
                 }
                 break;
             default:
@@ -7214,9 +7214,12 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
             gen_set_pc_im(s, s->pc - 4);
             tmpptr = tcg_const_ptr(ri);
             tcg_syn = tcg_const_i32(syndrome);
-            gen_helper_access_check_cp_reg(cpu_env, tmpptr, tcg_syn);
+            tcg_isread = tcg_const_i32(isread);
+            gen_helper_access_check_cp_reg(cpu_env, tmpptr, tcg_syn,
+                                           tcg_isread);
             tcg_temp_free_ptr(tmpptr);
             tcg_temp_free_i32(tcg_syn);
+            tcg_temp_free_i32(tcg_isread);
         }
 
         /* Handle special cases first */

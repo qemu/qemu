@@ -344,7 +344,8 @@ void init_cpreg_list(ARMCPU *cpu)
  * access_el3_aa32ns_aa64any: Used to check both AArch32/64 register views.
  */
 static CPAccessResult access_el3_aa32ns(CPUARMState *env,
-                                        const ARMCPRegInfo *ri)
+                                        const ARMCPRegInfo *ri,
+                                        bool isread)
 {
     bool secure = arm_is_secure_below_el3(env);
 
@@ -356,12 +357,32 @@ static CPAccessResult access_el3_aa32ns(CPUARMState *env,
 }
 
 static CPAccessResult access_el3_aa32ns_aa64any(CPUARMState *env,
-                                                const ARMCPRegInfo *ri)
+                                                const ARMCPRegInfo *ri,
+                                                bool isread)
 {
     if (!arm_el_is_aa64(env, 3)) {
-        return access_el3_aa32ns(env, ri);
+        return access_el3_aa32ns(env, ri, isread);
     }
     return CP_ACCESS_OK;
+}
+
+/* Some secure-only AArch32 registers trap to EL3 if used from
+ * Secure EL1 (but are just ordinary UNDEF in other non-EL3 contexts).
+ * Note that an access from Secure EL1 can only happen if EL3 is AArch64.
+ * We assume that the .access field is set to PL1_RW.
+ */
+static CPAccessResult access_trap_aa32s_el1(CPUARMState *env,
+                                            const ARMCPRegInfo *ri,
+                                            bool isread)
+{
+    if (arm_current_el(env) == 3) {
+        return CP_ACCESS_OK;
+    }
+    if (arm_is_secure_below_el3(env)) {
+        return CP_ACCESS_TRAP_EL3;
+    }
+    /* This will be EL1 NS and EL2 NS, which just UNDEF */
+    return CP_ACCESS_TRAP_UNCATEGORIZED;
 }
 
 static void dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
@@ -634,7 +655,8 @@ static void cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     env->cp15.cpacr_el1 = value;
 }
 
-static CPAccessResult cpacr_access(CPUARMState *env, const ARMCPRegInfo *ri)
+static CPAccessResult cpacr_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                   bool isread)
 {
     if (arm_feature(env, ARM_FEATURE_V8)) {
         /* Check if CPACR accesses are to be trapped to EL2 */
@@ -651,7 +673,8 @@ static CPAccessResult cpacr_access(CPUARMState *env, const ARMCPRegInfo *ri)
     return CP_ACCESS_OK;
 }
 
-static CPAccessResult cptr_access(CPUARMState *env, const ARMCPRegInfo *ri)
+static CPAccessResult cptr_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                  bool isread)
 {
     /* Check if CPTR accesses are set to trap to EL3 */
     if (arm_current_el(env) == 2 && (env->cp15.cptr_el[3] & CPTR_TCPAC)) {
@@ -693,7 +716,8 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-static CPAccessResult pmreg_access(CPUARMState *env, const ARMCPRegInfo *ri)
+static CPAccessResult pmreg_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                   bool isread)
 {
     /* Performance monitor registers user accessibility is controlled
      * by PMUSERENR.
@@ -1137,7 +1161,8 @@ static void teecr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     env->teecr = value;
 }
 
-static CPAccessResult teehbr_access(CPUARMState *env, const ARMCPRegInfo *ri)
+static CPAccessResult teehbr_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                    bool isread)
 {
     if (arm_current_el(env) == 0 && (env->teecr & 1)) {
         return CP_ACCESS_TRAP;
@@ -1190,7 +1215,8 @@ static const ARMCPRegInfo v6k_cp_reginfo[] = {
 
 #ifndef CONFIG_USER_ONLY
 
-static CPAccessResult gt_cntfrq_access(CPUARMState *env, const ARMCPRegInfo *ri)
+static CPAccessResult gt_cntfrq_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                       bool isread)
 {
     /* CNTFRQ: not visible from PL0 if both PL0PCTEN and PL0VCTEN are zero */
     if (arm_current_el(env) == 0 && !extract32(env->cp15.c14_cntkctl, 0, 2)) {
@@ -1199,7 +1225,8 @@ static CPAccessResult gt_cntfrq_access(CPUARMState *env, const ARMCPRegInfo *ri)
     return CP_ACCESS_OK;
 }
 
-static CPAccessResult gt_counter_access(CPUARMState *env, int timeridx)
+static CPAccessResult gt_counter_access(CPUARMState *env, int timeridx,
+                                        bool isread)
 {
     unsigned int cur_el = arm_current_el(env);
     bool secure = arm_is_secure(env);
@@ -1218,7 +1245,8 @@ static CPAccessResult gt_counter_access(CPUARMState *env, int timeridx)
     return CP_ACCESS_OK;
 }
 
-static CPAccessResult gt_timer_access(CPUARMState *env, int timeridx)
+static CPAccessResult gt_timer_access(CPUARMState *env, int timeridx,
+                                      bool isread)
 {
     unsigned int cur_el = arm_current_el(env);
     bool secure = arm_is_secure(env);
@@ -1240,29 +1268,34 @@ static CPAccessResult gt_timer_access(CPUARMState *env, int timeridx)
 }
 
 static CPAccessResult gt_pct_access(CPUARMState *env,
-                                         const ARMCPRegInfo *ri)
+                                    const ARMCPRegInfo *ri,
+                                    bool isread)
 {
-    return gt_counter_access(env, GTIMER_PHYS);
+    return gt_counter_access(env, GTIMER_PHYS, isread);
 }
 
 static CPAccessResult gt_vct_access(CPUARMState *env,
-                                         const ARMCPRegInfo *ri)
+                                    const ARMCPRegInfo *ri,
+                                    bool isread)
 {
-    return gt_counter_access(env, GTIMER_VIRT);
+    return gt_counter_access(env, GTIMER_VIRT, isread);
 }
 
-static CPAccessResult gt_ptimer_access(CPUARMState *env, const ARMCPRegInfo *ri)
+static CPAccessResult gt_ptimer_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                       bool isread)
 {
-    return gt_timer_access(env, GTIMER_PHYS);
+    return gt_timer_access(env, GTIMER_PHYS, isread);
 }
 
-static CPAccessResult gt_vtimer_access(CPUARMState *env, const ARMCPRegInfo *ri)
+static CPAccessResult gt_vtimer_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                       bool isread)
 {
-    return gt_timer_access(env, GTIMER_VIRT);
+    return gt_timer_access(env, GTIMER_VIRT, isread);
 }
 
 static CPAccessResult gt_stimer_access(CPUARMState *env,
-                                       const ARMCPRegInfo *ri)
+                                       const ARMCPRegInfo *ri,
+                                       bool isread)
 {
     /* The AArch64 register view of the secure physical timer is
      * always accessible from EL3, and configurably accessible from
@@ -1759,7 +1792,8 @@ static void par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 #ifndef CONFIG_USER_ONLY
 /* get_phys_addr() isn't present for user-mode-only targets */
 
-static CPAccessResult ats_access(CPUARMState *env, const ARMCPRegInfo *ri)
+static CPAccessResult ats_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                 bool isread)
 {
     if (ri->opc2 & 4) {
         /* The ATS12NSO* operations must trap to EL3 if executed in
@@ -1904,7 +1938,8 @@ static void ats1h_write(CPUARMState *env, const ARMCPRegInfo *ri,
     A32_BANKED_CURRENT_REG_SET(env, par, par64);
 }
 
-static CPAccessResult at_s1e2_access(CPUARMState *env, const ARMCPRegInfo *ri)
+static CPAccessResult at_s1e2_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                     bool isread)
 {
     if (arm_current_el(env) == 3 && !(env->cp15.scr_el3 & SCR_NS)) {
         return CP_ACCESS_TRAP;
@@ -2558,7 +2593,8 @@ static void aa64_fpsr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     vfp_set_fpsr(env, value);
 }
 
-static CPAccessResult aa64_daif_access(CPUARMState *env, const ARMCPRegInfo *ri)
+static CPAccessResult aa64_daif_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                       bool isread)
 {
     if (arm_current_el(env) == 0 && !(env->cp15.sctlr_el[1] & SCTLR_UMA)) {
         return CP_ACCESS_TRAP;
@@ -2573,7 +2609,8 @@ static void aa64_daif_write(CPUARMState *env, const ARMCPRegInfo *ri,
 }
 
 static CPAccessResult aa64_cacheop_access(CPUARMState *env,
-                                          const ARMCPRegInfo *ri)
+                                          const ARMCPRegInfo *ri,
+                                          bool isread)
 {
     /* Cache invalidate/clean: NOP, but EL0 must UNDEF unless
      * SCTLR_EL1.UCI is set.
@@ -2829,7 +2866,8 @@ static void tlbi_aa64_ipas2e1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     }
 }
 
-static CPAccessResult aa64_zva_access(CPUARMState *env, const ARMCPRegInfo *ri)
+static CPAccessResult aa64_zva_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                      bool isread)
 {
     /* We don't implement EL2, so the only control on DC ZVA is the
      * bit in the SCTLR which can prohibit access for EL0.
@@ -2846,13 +2884,14 @@ static uint64_t aa64_dczid_read(CPUARMState *env, const ARMCPRegInfo *ri)
     int dzp_bit = 1 << 4;
 
     /* DZP indicates whether DC ZVA access is allowed */
-    if (aa64_zva_access(env, NULL) == CP_ACCESS_OK) {
+    if (aa64_zva_access(env, NULL, false) == CP_ACCESS_OK) {
         dzp_bit = 0;
     }
     return cpu->dcz_blocksize | dzp_bit;
 }
 
-static CPAccessResult sp_el0_access(CPUARMState *env, const ARMCPRegInfo *ri)
+static CPAccessResult sp_el0_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                    bool isread)
 {
     if (!(env->pstate & PSTATE_SP)) {
         /* Access to SP_EL0 is undefined if it's being used as
@@ -2891,7 +2930,8 @@ static void sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     tlb_flush(CPU(cpu), 1);
 }
 
-static CPAccessResult fpexc32_access(CPUARMState *env, const ARMCPRegInfo *ri)
+static CPAccessResult fpexc32_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                     bool isread)
 {
     if ((env->cp15.cptr_el[2] & CPTR_TFP) && arm_current_el(env) == 2) {
         return CP_ACCESS_TRAP_EL2;
@@ -3523,6 +3563,25 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+static CPAccessResult nsacr_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                   bool isread)
+{
+    /* The NSACR is RW at EL3, and RO for NS EL1 and NS EL2.
+     * At Secure EL1 it traps to EL3.
+     */
+    if (arm_current_el(env) == 3) {
+        return CP_ACCESS_OK;
+    }
+    if (arm_is_secure_below_el3(env)) {
+        return CP_ACCESS_TRAP_EL3;
+    }
+    /* Accesses from EL1 NS and EL2 NS are UNDEF for write but allow reads. */
+    if (isread) {
+        return CP_ACCESS_OK;
+    }
+    return CP_ACCESS_TRAP_UNCATEGORIZED;
+}
+
 static const ARMCPRegInfo el3_cp_reginfo[] = {
     { .name = "SCR_EL3", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 6, .crn = 1, .crm = 1, .opc2 = 0,
@@ -3530,8 +3589,17 @@ static const ARMCPRegInfo el3_cp_reginfo[] = {
       .resetvalue = 0, .writefn = scr_write },
     { .name = "SCR",  .type = ARM_CP_ALIAS,
       .cp = 15, .opc1 = 0, .crn = 1, .crm = 1, .opc2 = 0,
-      .access = PL3_RW, .fieldoffset = offsetoflow32(CPUARMState, cp15.scr_el3),
+      .access = PL1_RW, .accessfn = access_trap_aa32s_el1,
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.scr_el3),
       .writefn = scr_write },
+    { .name = "MDCR_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 1, .crm = 3, .opc2 = 1,
+      .resetvalue = 0,
+      .access = PL3_RW, .fieldoffset = offsetof(CPUARMState, cp15.mdcr_el3) },
+    { .name = "SDCR", .type = ARM_CP_ALIAS,
+      .cp = 15, .opc1 = 0, .crn = 1, .crm = 3, .opc2 = 1,
+      .access = PL1_RW, .accessfn = access_trap_aa32s_el1,
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.mdcr_el3) },
     { .name = "SDER32_EL3", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 6, .crn = 1, .crm = 1, .opc2 = 1,
       .access = PL3_RW, .resetvalue = 0,
@@ -3540,12 +3608,9 @@ static const ARMCPRegInfo el3_cp_reginfo[] = {
       .cp = 15, .opc1 = 0, .crn = 1, .crm = 1, .opc2 = 1,
       .access = PL3_RW, .resetvalue = 0,
       .fieldoffset = offsetoflow32(CPUARMState, cp15.sder) },
-      /* TODO: Implement NSACR trapping of secure EL1 accesses to EL3 */
-    { .name = "NSACR", .cp = 15, .opc1 = 0, .crn = 1, .crm = 1, .opc2 = 2,
-      .access = PL3_W | PL1_R, .resetvalue = 0,
-      .fieldoffset = offsetof(CPUARMState, cp15.nsacr) },
     { .name = "MVBAR", .cp = 15, .opc1 = 0, .crn = 12, .crm = 0, .opc2 = 1,
-      .access = PL3_RW, .writefn = vbar_write, .resetvalue = 0,
+      .access = PL1_RW, .accessfn = access_trap_aa32s_el1,
+      .writefn = vbar_write, .resetvalue = 0,
       .fieldoffset = offsetof(CPUARMState, cp15.mvbar) },
     { .name = "SCTLR_EL3", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS, /* reset handled by AArch32 view */
@@ -3630,7 +3695,8 @@ static const ARMCPRegInfo el3_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-static CPAccessResult ctr_el0_access(CPUARMState *env, const ARMCPRegInfo *ri)
+static CPAccessResult ctr_el0_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                     bool isread)
 {
     /* Only accessible in EL0 if SCTLR.UCT is set (and only in AArch64,
      * but the AArch32 CTR has its own reginfo struct)
@@ -4312,6 +4378,45 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         };
         define_one_arm_cp_reg(cpu, &rvbar);
     }
+    /* The behaviour of NSACR is sufficiently various that we don't
+     * try to describe it in a single reginfo:
+     *  if EL3 is 64 bit, then trap to EL3 from S EL1,
+     *     reads as constant 0xc00 from NS EL1 and NS EL2
+     *  if EL3 is 32 bit, then RW at EL3, RO at NS EL1 and NS EL2
+     *  if v7 without EL3, register doesn't exist
+     *  if v8 without EL3, reads as constant 0xc00 from NS EL1 and NS EL2
+     */
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        if (arm_feature(env, ARM_FEATURE_AARCH64)) {
+            ARMCPRegInfo nsacr = {
+                .name = "NSACR", .type = ARM_CP_CONST,
+                .cp = 15, .opc1 = 0, .crn = 1, .crm = 1, .opc2 = 2,
+                .access = PL1_RW, .accessfn = nsacr_access,
+                .resetvalue = 0xc00
+            };
+            define_one_arm_cp_reg(cpu, &nsacr);
+        } else {
+            ARMCPRegInfo nsacr = {
+                .name = "NSACR",
+                .cp = 15, .opc1 = 0, .crn = 1, .crm = 1, .opc2 = 2,
+                .access = PL3_RW | PL1_R,
+                .resetvalue = 0,
+                .fieldoffset = offsetof(CPUARMState, cp15.nsacr)
+            };
+            define_one_arm_cp_reg(cpu, &nsacr);
+        }
+    } else {
+        if (arm_feature(env, ARM_FEATURE_V8)) {
+            ARMCPRegInfo nsacr = {
+                .name = "NSACR", .type = ARM_CP_CONST,
+                .cp = 15, .opc1 = 0, .crn = 1, .crm = 1, .opc2 = 2,
+                .access = PL1_R,
+                .resetvalue = 0xc00
+            };
+            define_one_arm_cp_reg(cpu, &nsacr);
+        }
+    }
+
     if (arm_feature(env, ARM_FEATURE_MPU)) {
         if (arm_feature(env, ARM_FEATURE_V6)) {
             /* PMSAv6 not implemented */

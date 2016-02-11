@@ -39,6 +39,8 @@ static void bcm2836_init(Object *obj)
                       TYPE_BCM2835_PERIPHERALS);
     object_property_add_child(obj, "peripherals", OBJECT(&s->peripherals),
                               &error_abort);
+    object_property_add_alias(obj, "board-rev", OBJECT(&s->peripherals),
+                              "board-rev", &error_abort);
     qdev_set_parent_bus(DEVICE(&s->peripherals), sysbus_get_default());
 }
 
