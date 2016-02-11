@@ -19,6 +19,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "crypto/xts.h"
+
 #include <gcrypt.h>
 
 
@@ -44,7 +46,9 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg)
 typedef struct QCryptoCipherGcrypt QCryptoCipherGcrypt;
 struct QCryptoCipherGcrypt {
     gcry_cipher_hd_t handle;
+    gcry_cipher_hd_t tweakhandle;
     size_t blocksize;
+    uint8_t *iv;
 };
 
 QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
@@ -59,6 +63,7 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
 
     switch (mode) {
     case QCRYPTO_CIPHER_MODE_ECB:
+    case QCRYPTO_CIPHER_MODE_XTS:
         gcrymode = GCRY_CIPHER_MODE_ECB;
         break;
     case QCRYPTO_CIPHER_MODE_CBC:
@@ -69,7 +74,7 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         return NULL;
     }
 
-    if (!qcrypto_cipher_validate_key_length(alg, nkey, errp)) {
+    if (!qcrypto_cipher_validate_key_length(alg, mode, nkey, errp)) {
         return NULL;
     }
 
@@ -131,6 +136,14 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
                    gcry_strerror(err));
         goto error;
     }
+    if (cipher->mode == QCRYPTO_CIPHER_MODE_XTS) {
+        err = gcry_cipher_open(&ctx->tweakhandle, gcryalg, gcrymode, 0);
+        if (err != 0) {
+            error_setg(errp, "Cannot initialize cipher: %s",
+                       gcry_strerror(err));
+            goto error;
+        }
+    }
 
     if (cipher->alg == QCRYPTO_CIPHER_ALG_DES_RFB) {
         /* We're using standard DES cipher from gcrypt, so we need
@@ -142,7 +155,23 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         g_free(rfbkey);
         ctx->blocksize = 8;
     } else {
-        err = gcry_cipher_setkey(ctx->handle, key, nkey);
+        if (cipher->mode == QCRYPTO_CIPHER_MODE_XTS) {
+            nkey /= 2;
+            err = gcry_cipher_setkey(ctx->handle, key, nkey);
+            if (err != 0) {
+                error_setg(errp, "Cannot set key: %s",
+                           gcry_strerror(err));
+                goto error;
+            }
+            err = gcry_cipher_setkey(ctx->tweakhandle, key + nkey, nkey);
+        } else {
+            err = gcry_cipher_setkey(ctx->handle, key, nkey);
+        }
+        if (err != 0) {
+            error_setg(errp, "Cannot set key: %s",
+                       gcry_strerror(err));
+            goto error;
+        }
         switch (cipher->alg) {
         case QCRYPTO_CIPHER_ALG_AES_128:
         case QCRYPTO_CIPHER_ALG_AES_192:
@@ -161,10 +190,9 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
             g_assert_not_reached();
         }
     }
-    if (err != 0) {
-        error_setg(errp, "Cannot set key: %s",
-                   gcry_strerror(err));
-        goto error;
+
+    if (cipher->mode == QCRYPTO_CIPHER_MODE_XTS) {
+        ctx->iv = g_new0(uint8_t, ctx->blocksize);
     }
 
     cipher->opaque = ctx;
@@ -172,6 +200,9 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
 
  error:
     gcry_cipher_close(ctx->handle);
+    if (cipher->mode == QCRYPTO_CIPHER_MODE_XTS) {
+        gcry_cipher_close(ctx->tweakhandle);
+    }
     g_free(ctx);
     g_free(cipher);
     return NULL;
@@ -186,10 +217,34 @@ void qcrypto_cipher_free(QCryptoCipher *cipher)
     }
     ctx = cipher->opaque;
     gcry_cipher_close(ctx->handle);
+    if (cipher->mode == QCRYPTO_CIPHER_MODE_XTS) {
+        gcry_cipher_close(ctx->tweakhandle);
+    }
+    g_free(ctx->iv);
     g_free(ctx);
     g_free(cipher);
 }
 
+
+static void qcrypto_gcrypt_xts_encrypt(const void *ctx,
+                                       size_t length,
+                                       uint8_t *dst,
+                                       const uint8_t *src)
+{
+    gcry_error_t err;
+    err = gcry_cipher_encrypt((gcry_cipher_hd_t)ctx, dst, length, src, length);
+    g_assert(err == 0);
+}
+
+static void qcrypto_gcrypt_xts_decrypt(const void *ctx,
+                                       size_t length,
+                                       uint8_t *dst,
+                                       const uint8_t *src)
+{
+    gcry_error_t err;
+    err = gcry_cipher_decrypt((gcry_cipher_hd_t)ctx, dst, length, src, length);
+    g_assert(err == 0);
+}
 
 int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
                            const void *in,
@@ -206,13 +261,20 @@ int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
         return -1;
     }
 
-    err = gcry_cipher_encrypt(ctx->handle,
-                              out, len,
-                              in, len);
-    if (err != 0) {
-        error_setg(errp, "Cannot encrypt data: %s",
-                   gcry_strerror(err));
-        return -1;
+    if (cipher->mode == QCRYPTO_CIPHER_MODE_XTS) {
+        xts_encrypt(ctx->handle, ctx->tweakhandle,
+                    qcrypto_gcrypt_xts_encrypt,
+                    qcrypto_gcrypt_xts_decrypt,
+                    ctx->iv, len, out, in);
+    } else {
+        err = gcry_cipher_encrypt(ctx->handle,
+                                  out, len,
+                                  in, len);
+        if (err != 0) {
+            error_setg(errp, "Cannot encrypt data: %s",
+                       gcry_strerror(err));
+            return -1;
+        }
     }
 
     return 0;
@@ -234,13 +296,20 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
         return -1;
     }
 
-    err = gcry_cipher_decrypt(ctx->handle,
-                              out, len,
-                              in, len);
-    if (err != 0) {
-        error_setg(errp, "Cannot decrypt data: %s",
-                   gcry_strerror(err));
-        return -1;
+    if (cipher->mode == QCRYPTO_CIPHER_MODE_XTS) {
+        xts_decrypt(ctx->handle, ctx->tweakhandle,
+                    qcrypto_gcrypt_xts_encrypt,
+                    qcrypto_gcrypt_xts_decrypt,
+                    ctx->iv, len, out, in);
+    } else {
+        err = gcry_cipher_decrypt(ctx->handle,
+                                  out, len,
+                                  in, len);
+        if (err != 0) {
+            error_setg(errp, "Cannot decrypt data: %s",
+                       gcry_strerror(err));
+            return -1;
+        }
     }
 
     return 0;
@@ -259,12 +328,16 @@ int qcrypto_cipher_setiv(QCryptoCipher *cipher,
         return -1;
     }
 
-    gcry_cipher_reset(ctx->handle);
-    err = gcry_cipher_setiv(ctx->handle, iv, niv);
-    if (err != 0) {
-        error_setg(errp, "Cannot set IV: %s",
+    if (ctx->iv) {
+        memcpy(ctx->iv, iv, niv);
+    } else {
+        gcry_cipher_reset(ctx->handle);
+        err = gcry_cipher_setiv(ctx->handle, iv, niv);
+        if (err != 0) {
+            error_setg(errp, "Cannot set IV: %s",
                    gcry_strerror(err));
-        return -1;
+            return -1;
+        }
     }
 
     return 0;

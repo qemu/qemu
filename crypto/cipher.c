@@ -53,6 +53,7 @@ static size_t alg_block_len[QCRYPTO_CIPHER_ALG__MAX] = {
 static bool mode_need_iv[QCRYPTO_CIPHER_MODE__MAX] = {
     [QCRYPTO_CIPHER_MODE_ECB] = false,
     [QCRYPTO_CIPHER_MODE_CBC] = true,
+    [QCRYPTO_CIPHER_MODE_XTS] = true,
 };
 
 
@@ -93,6 +94,7 @@ size_t qcrypto_cipher_get_iv_len(QCryptoCipherAlgorithm alg,
 
 static bool
 qcrypto_cipher_validate_key_length(QCryptoCipherAlgorithm alg,
+                                   QCryptoCipherMode mode,
                                    size_t nkey,
                                    Error **errp)
 {
@@ -102,10 +104,27 @@ qcrypto_cipher_validate_key_length(QCryptoCipherAlgorithm alg,
         return false;
     }
 
-    if (alg_key_len[alg] != nkey) {
-        error_setg(errp, "Cipher key length %zu should be %zu",
-                   nkey, alg_key_len[alg]);
-        return false;
+    if (mode == QCRYPTO_CIPHER_MODE_XTS) {
+        if (alg == QCRYPTO_CIPHER_ALG_DES_RFB) {
+            error_setg(errp, "XTS mode not compatible with DES-RFB");
+            return false;
+        }
+        if (nkey % 2) {
+            error_setg(errp, "XTS cipher key length should be a multiple of 2");
+            return false;
+        }
+
+        if (alg_key_len[alg] != (nkey / 2)) {
+            error_setg(errp, "Cipher key length %zu should be %zu",
+                       nkey, alg_key_len[alg] * 2);
+            return false;
+        }
+    } else {
+        if (alg_key_len[alg] != nkey) {
+            error_setg(errp, "Cipher key length %zu should be %zu",
+                       nkey, alg_key_len[alg]);
+            return false;
+        }
     }
     return true;
 }

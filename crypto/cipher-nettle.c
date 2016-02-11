@@ -19,6 +19,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "crypto/xts.h"
+
 #include <nettle/nettle-types.h>
 #include <nettle/aes.h>
 #include <nettle/des.h>
@@ -111,9 +113,14 @@ static void twofish_decrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
 
 typedef struct QCryptoCipherNettle QCryptoCipherNettle;
 struct QCryptoCipherNettle {
+    /* Primary cipher context for all modes */
     void *ctx;
+    /* Second cipher context for XTS mode only */
+    void *ctx_tweak;
+    /* Cipher callbacks for both contexts */
     nettle_cipher_func *alg_encrypt;
     nettle_cipher_func *alg_decrypt;
+
     uint8_t *iv;
     size_t blocksize;
 };
@@ -151,13 +158,14 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     switch (mode) {
     case QCRYPTO_CIPHER_MODE_ECB:
     case QCRYPTO_CIPHER_MODE_CBC:
+    case QCRYPTO_CIPHER_MODE_XTS:
         break;
     default:
         error_setg(errp, "Unsupported cipher mode %d", mode);
         return NULL;
     }
 
-    if (!qcrypto_cipher_validate_key_length(alg, nkey, errp)) {
+    if (!qcrypto_cipher_validate_key_length(alg, mode, nkey, errp)) {
         return NULL;
     }
 
@@ -185,8 +193,25 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     case QCRYPTO_CIPHER_ALG_AES_256:
         ctx->ctx = g_new0(QCryptoNettleAES, 1);
 
-        aes_set_encrypt_key(&((QCryptoNettleAES *)ctx->ctx)->enc, nkey, key);
-        aes_set_decrypt_key(&((QCryptoNettleAES *)ctx->ctx)->dec, nkey, key);
+        if (mode == QCRYPTO_CIPHER_MODE_XTS) {
+            ctx->ctx_tweak = g_new0(QCryptoNettleAES, 1);
+
+            nkey /= 2;
+            aes_set_encrypt_key(&((QCryptoNettleAES *)ctx->ctx)->enc,
+                                nkey, key);
+            aes_set_decrypt_key(&((QCryptoNettleAES *)ctx->ctx)->dec,
+                                nkey, key);
+
+            aes_set_encrypt_key(&((QCryptoNettleAES *)ctx->ctx_tweak)->enc,
+                                nkey, key + nkey);
+            aes_set_decrypt_key(&((QCryptoNettleAES *)ctx->ctx_tweak)->dec,
+                                nkey, key + nkey);
+        } else {
+            aes_set_encrypt_key(&((QCryptoNettleAES *)ctx->ctx)->enc,
+                                nkey, key);
+            aes_set_decrypt_key(&((QCryptoNettleAES *)ctx->ctx)->dec,
+                                nkey, key);
+        }
 
         ctx->alg_encrypt = aes_encrypt_wrapper;
         ctx->alg_decrypt = aes_decrypt_wrapper;
@@ -197,7 +222,15 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     case QCRYPTO_CIPHER_ALG_CAST5_128:
         ctx->ctx = g_new0(struct cast128_ctx, 1);
 
-        cast5_set_key(ctx->ctx, nkey, key);
+        if (mode == QCRYPTO_CIPHER_MODE_XTS) {
+            ctx->ctx_tweak = g_new0(struct cast128_ctx, 1);
+
+            nkey /= 2;
+            cast5_set_key(ctx->ctx, nkey, key);
+            cast5_set_key(ctx->ctx_tweak, nkey, key + nkey);
+        } else {
+            cast5_set_key(ctx->ctx, nkey, key);
+        }
 
         ctx->alg_encrypt = cast128_encrypt_wrapper;
         ctx->alg_decrypt = cast128_decrypt_wrapper;
@@ -210,7 +243,15 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     case QCRYPTO_CIPHER_ALG_SERPENT_256:
         ctx->ctx = g_new0(struct serpent_ctx, 1);
 
-        serpent_set_key(ctx->ctx, nkey, key);
+        if (mode == QCRYPTO_CIPHER_MODE_XTS) {
+            ctx->ctx_tweak = g_new0(struct serpent_ctx, 1);
+
+            nkey /= 2;
+            serpent_set_key(ctx->ctx, nkey, key);
+            serpent_set_key(ctx->ctx_tweak, nkey, key + nkey);
+        } else {
+            serpent_set_key(ctx->ctx, nkey, key);
+        }
 
         ctx->alg_encrypt = serpent_encrypt_wrapper;
         ctx->alg_decrypt = serpent_decrypt_wrapper;
@@ -223,7 +264,15 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     case QCRYPTO_CIPHER_ALG_TWOFISH_256:
         ctx->ctx = g_new0(struct twofish_ctx, 1);
 
-        twofish_set_key(ctx->ctx, nkey, key);
+        if (mode == QCRYPTO_CIPHER_MODE_XTS) {
+            ctx->ctx_tweak = g_new0(struct twofish_ctx, 1);
+
+            nkey /= 2;
+            twofish_set_key(ctx->ctx, nkey, key);
+            twofish_set_key(ctx->ctx_tweak, nkey, key + nkey);
+        } else {
+            twofish_set_key(ctx->ctx, nkey, key);
+        }
 
         ctx->alg_encrypt = twofish_encrypt_wrapper;
         ctx->alg_decrypt = twofish_decrypt_wrapper;
@@ -259,6 +308,7 @@ void qcrypto_cipher_free(QCryptoCipher *cipher)
     ctx = cipher->opaque;
     g_free(ctx->iv);
     g_free(ctx->ctx);
+    g_free(ctx->ctx_tweak);
     g_free(ctx);
     g_free(cipher);
 }
@@ -287,6 +337,12 @@ int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
         cbc_encrypt(ctx->ctx, ctx->alg_encrypt,
                     ctx->blocksize, ctx->iv,
                     len, out, in);
+        break;
+
+    case QCRYPTO_CIPHER_MODE_XTS:
+        xts_encrypt(ctx->ctx, ctx->ctx_tweak,
+                    ctx->alg_encrypt, ctx->alg_encrypt,
+                    ctx->iv, len, out, in);
         break;
 
     default:
@@ -321,6 +377,17 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
         cbc_decrypt(ctx->ctx, ctx->alg_decrypt,
                     ctx->blocksize, ctx->iv,
                     len, out, in);
+        break;
+
+    case QCRYPTO_CIPHER_MODE_XTS:
+        if (ctx->blocksize != XTS_BLOCK_SIZE) {
+            error_setg(errp, "Block size must be %d not %zu",
+                       XTS_BLOCK_SIZE, ctx->blocksize);
+            return -1;
+        }
+        xts_decrypt(ctx->ctx, ctx->ctx_tweak,
+                    ctx->alg_encrypt, ctx->alg_decrypt,
+                    ctx->iv, len, out, in);
         break;
 
     default:
