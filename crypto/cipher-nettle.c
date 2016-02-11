@@ -42,16 +42,23 @@ static nettle_cipher_func aes_decrypt_wrapper;
 static nettle_cipher_func des_encrypt_wrapper;
 static nettle_cipher_func des_decrypt_wrapper;
 
+typedef struct QCryptoNettleAES {
+    struct aes_ctx enc;
+    struct aes_ctx dec;
+} QCryptoNettleAES;
+
 static void aes_encrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
                                 uint8_t *dst, const uint8_t *src)
 {
-    aes_encrypt(ctx, length, dst, src);
+    const QCryptoNettleAES *aesctx = ctx;
+    aes_encrypt(&aesctx->enc, length, dst, src);
 }
 
 static void aes_decrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
                                 uint8_t *dst, const uint8_t *src)
 {
-    aes_decrypt(ctx, length, dst, src);
+    const QCryptoNettleAES *aesctx = ctx;
+    aes_decrypt(&aesctx->dec, length, dst, src);
 }
 
 static void des_encrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
@@ -104,8 +111,7 @@ static void twofish_decrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
 
 typedef struct QCryptoCipherNettle QCryptoCipherNettle;
 struct QCryptoCipherNettle {
-    void *ctx_encrypt;
-    void *ctx_decrypt;
+    void *ctx;
     nettle_cipher_func *alg_encrypt;
     nettle_cipher_func *alg_decrypt;
     uint8_t *iv;
@@ -163,10 +169,9 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
 
     switch (alg) {
     case QCRYPTO_CIPHER_ALG_DES_RFB:
-        ctx->ctx_encrypt = g_new0(struct des_ctx, 1);
-        ctx->ctx_decrypt = NULL; /* 1 ctx can do both */
+        ctx->ctx = g_new0(struct des_ctx, 1);
         rfbkey = qcrypto_cipher_munge_des_rfb_key(key, nkey);
-        des_set_key(ctx->ctx_encrypt, rfbkey);
+        des_set_key(ctx->ctx, rfbkey);
         g_free(rfbkey);
 
         ctx->alg_encrypt = des_encrypt_wrapper;
@@ -178,11 +183,10 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
     case QCRYPTO_CIPHER_ALG_AES_256:
-        ctx->ctx_encrypt = g_new0(struct aes_ctx, 1);
-        ctx->ctx_decrypt = g_new0(struct aes_ctx, 1);
+        ctx->ctx = g_new0(QCryptoNettleAES, 1);
 
-        aes_set_encrypt_key(ctx->ctx_encrypt, nkey, key);
-        aes_set_decrypt_key(ctx->ctx_decrypt, nkey, key);
+        aes_set_encrypt_key(&((QCryptoNettleAES *)ctx->ctx)->enc, nkey, key);
+        aes_set_decrypt_key(&((QCryptoNettleAES *)ctx->ctx)->dec, nkey, key);
 
         ctx->alg_encrypt = aes_encrypt_wrapper;
         ctx->alg_decrypt = aes_decrypt_wrapper;
@@ -191,10 +195,9 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         break;
 
     case QCRYPTO_CIPHER_ALG_CAST5_128:
-        ctx->ctx_encrypt = g_new0(struct cast128_ctx, 1);
-        ctx->ctx_decrypt = NULL; /* 1 ctx can do both */
+        ctx->ctx = g_new0(struct cast128_ctx, 1);
 
-        cast5_set_key(ctx->ctx_encrypt, nkey, key);
+        cast5_set_key(ctx->ctx, nkey, key);
 
         ctx->alg_encrypt = cast128_encrypt_wrapper;
         ctx->alg_decrypt = cast128_decrypt_wrapper;
@@ -205,10 +208,9 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     case QCRYPTO_CIPHER_ALG_SERPENT_128:
     case QCRYPTO_CIPHER_ALG_SERPENT_192:
     case QCRYPTO_CIPHER_ALG_SERPENT_256:
-        ctx->ctx_encrypt = g_new0(struct serpent_ctx, 1);
-        ctx->ctx_decrypt = NULL; /* 1 ctx can do both */
+        ctx->ctx = g_new0(struct serpent_ctx, 1);
 
-        serpent_set_key(ctx->ctx_encrypt, nkey, key);
+        serpent_set_key(ctx->ctx, nkey, key);
 
         ctx->alg_encrypt = serpent_encrypt_wrapper;
         ctx->alg_decrypt = serpent_decrypt_wrapper;
@@ -219,10 +221,9 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     case QCRYPTO_CIPHER_ALG_TWOFISH_128:
     case QCRYPTO_CIPHER_ALG_TWOFISH_192:
     case QCRYPTO_CIPHER_ALG_TWOFISH_256:
-        ctx->ctx_encrypt = g_new0(struct twofish_ctx, 1);
-        ctx->ctx_decrypt = NULL; /* 1 ctx can do both */
+        ctx->ctx = g_new0(struct twofish_ctx, 1);
 
-        twofish_set_key(ctx->ctx_encrypt, nkey, key);
+        twofish_set_key(ctx->ctx, nkey, key);
 
         ctx->alg_encrypt = twofish_encrypt_wrapper;
         ctx->alg_decrypt = twofish_decrypt_wrapper;
@@ -257,8 +258,7 @@ void qcrypto_cipher_free(QCryptoCipher *cipher)
 
     ctx = cipher->opaque;
     g_free(ctx->iv);
-    g_free(ctx->ctx_encrypt);
-    g_free(ctx->ctx_decrypt);
+    g_free(ctx->ctx);
     g_free(ctx);
     g_free(cipher);
 }
@@ -280,14 +280,15 @@ int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
 
     switch (cipher->mode) {
     case QCRYPTO_CIPHER_MODE_ECB:
-        ctx->alg_encrypt(ctx->ctx_encrypt, len, out, in);
+        ctx->alg_encrypt(ctx->ctx, len, out, in);
         break;
 
     case QCRYPTO_CIPHER_MODE_CBC:
-        cbc_encrypt(ctx->ctx_encrypt, ctx->alg_encrypt,
+        cbc_encrypt(ctx->ctx, ctx->alg_encrypt,
                     ctx->blocksize, ctx->iv,
                     len, out, in);
         break;
+
     default:
         error_setg(errp, "Unsupported cipher algorithm %d",
                    cipher->alg);
@@ -313,15 +314,15 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
 
     switch (cipher->mode) {
     case QCRYPTO_CIPHER_MODE_ECB:
-        ctx->alg_decrypt(ctx->ctx_decrypt ? ctx->ctx_decrypt : ctx->ctx_encrypt,
-                         len, out, in);
+        ctx->alg_decrypt(ctx->ctx, len, out, in);
         break;
 
     case QCRYPTO_CIPHER_MODE_CBC:
-        cbc_decrypt(ctx->ctx_decrypt ? ctx->ctx_decrypt : ctx->ctx_encrypt,
-                    ctx->alg_decrypt, ctx->blocksize, ctx->iv,
+        cbc_decrypt(ctx->ctx, ctx->alg_decrypt,
+                    ctx->blocksize, ctx->iv,
                     len, out, in);
         break;
+
     default:
         error_setg(errp, "Unsupported cipher algorithm %d",
                    cipher->alg);
