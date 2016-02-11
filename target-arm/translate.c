@@ -7184,19 +7184,19 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
             case 14:
                 if (is64) {
                     syndrome = syn_cp14_rrt_trap(1, 0xe, opc1, crm, rt, rt2,
-                                                 isread, s->thumb);
+                                                 isread, false);
                 } else {
                     syndrome = syn_cp14_rt_trap(1, 0xe, opc1, opc2, crn, crm,
-                                                rt, isread, s->thumb);
+                                                rt, isread, false);
                 }
                 break;
             case 15:
                 if (is64) {
                     syndrome = syn_cp15_rrt_trap(1, 0xe, opc1, crm, rt, rt2,
-                                                 isread, s->thumb);
+                                                 isread, false);
                 } else {
                     syndrome = syn_cp15_rt_trap(1, 0xe, opc1, opc2, crn, crm,
-                                                rt, isread, s->thumb);
+                                                rt, isread, false);
                 }
                 break;
             default:
