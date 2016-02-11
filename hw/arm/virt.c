@@ -1013,7 +1013,7 @@ static void machvirt_init(MachineState *machine)
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *secure_sysmem = NULL;
     int gic_version = vms->gic_version;
-    int n, max_cpus;
+    int n, virt_max_cpus;
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     const char *cpu_model = machine->cpu_model;
     VirtBoardInfo *vbi;
@@ -1051,15 +1051,15 @@ static void machvirt_init(MachineState *machine)
      * many redistributors we can fit into the memory map.
      */
     if (gic_version == 3) {
-        max_cpus = vbi->memmap[VIRT_GIC_REDIST].size / 0x20000;
+        virt_max_cpus = vbi->memmap[VIRT_GIC_REDIST].size / 0x20000;
     } else {
-        max_cpus = GIC_NCPU;
+        virt_max_cpus = GIC_NCPU;
     }
 
-    if (smp_cpus > max_cpus) {
+    if (max_cpus > virt_max_cpus) {
         error_report("Number of SMP CPUs requested (%d) exceeds max CPUs "
                      "supported by machine 'mach-virt' (%d)",
-                     smp_cpus, max_cpus);
+                     max_cpus, virt_max_cpus);
         exit(1);
     }
 
