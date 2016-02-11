@@ -3077,7 +3077,7 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
      */
     if (s->fp_excp_el) {
         gen_exception_insn(s, 4, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, s->thumb), s->fp_excp_el);
+                           syn_fp_access_trap(1, 0xe, false), s->fp_excp_el);
         return 0;
     }
 
@@ -4399,7 +4399,7 @@ static int disas_neon_ls_insn(DisasContext *s, uint32_t insn)
      */
     if (s->fp_excp_el) {
         gen_exception_insn(s, 4, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, s->thumb), s->fp_excp_el);
+                           syn_fp_access_trap(1, 0xe, false), s->fp_excp_el);
         return 0;
     }
 
@@ -5137,7 +5137,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
      */
     if (s->fp_excp_el) {
         gen_exception_insn(s, 4, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, s->thumb), s->fp_excp_el);
+                           syn_fp_access_trap(1, 0xe, false), s->fp_excp_el);
         return 0;
     }
 
