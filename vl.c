@@ -2863,6 +2863,10 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
     const char *maxmem_str, *slots_str;
     const ram_addr_t default_ram_size = mc->default_ram_size;
     QemuOpts *opts = qemu_find_opts_singleton("memory");
+    Location loc;
+
+    loc_push_none(&loc);
+    qemu_opts_loc_restore(opts);
 
     sz = 0;
     mem_str = qemu_opt_get(opts, "size");
@@ -2937,6 +2941,8 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
                 "'%s' option", slots_str ? "maxmem" : "slots");
         exit(EXIT_FAILURE);
     }
+
+    loc_pop(&loc);
 }
 
 int main(int argc, char **argv, char **envp)
