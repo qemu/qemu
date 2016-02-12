@@ -4008,14 +4008,17 @@ int main(int argc, char **argv, char **envp)
             }
         }
     }
+    /*
+     * Clear error location left behind by the loop.
+     * Best done right after the loop.  Do not insert code here!
+     */
+    loc_set_none();
 
     replay_configure(icount_opts);
 
     set_machine_options(&machine_class);
 
     set_memory_options(&ram_slots, &maxram_size, machine_class);
-
-    loc_set_none();
 
     os_daemonize();
 
