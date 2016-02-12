@@ -1050,7 +1050,6 @@ M: Andreas Färber <afaerber@suse.de>
 S: Supported
 F: qom/cpu.c
 F: include/qom/cpu.h
-F: target-i386/cpu.c
 
 ICC Bus
 M: Igor Mammedov <imammedo@redhat.com>
