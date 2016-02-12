@@ -56,7 +56,7 @@ struct XenDevice {
 /* ------------------------------------------------------------- */
 
 /* variables */
-extern XenXC xen_xc;
+extern xc_interface *xen_xc;
 extern xenforeignmemory_handle *xen_fmem;
 extern struct xs_handle *xenstore;
 extern const char *xen_protocol;

@@ -67,17 +67,6 @@ struct shared_vmport_iopage {
 typedef struct shared_vmport_iopage shared_vmport_iopage_t;
 #endif
 
-#if __XEN_LATEST_INTERFACE_VERSION__ < 0x0003020a
-static inline uint32_t xen_vcpu_eport(shared_iopage_t *shared_page, int i)
-{
-    return shared_page->vcpu_iodata[i].vp_eport;
-}
-static inline ioreq_t *xen_vcpu_ioreq(shared_iopage_t *shared_page, int vcpu)
-{
-    return &shared_page->vcpu_iodata[vcpu].vp_ioreq;
-}
-#  define FMT_ioreq_size PRIx64
-#else
 static inline uint32_t xen_vcpu_eport(shared_iopage_t *shared_page, int i)
 {
     return shared_page->vcpu_ioreq[i].vp_eport;
@@ -86,8 +75,6 @@ static inline ioreq_t *xen_vcpu_ioreq(shared_iopage_t *shared_page, int vcpu)
 {
     return &shared_page->vcpu_ioreq[vcpu];
 }
-#  define FMT_ioreq_size "u"
-#endif
 
 #define BUFFER_IO_MAX_DELAY  100
 
@@ -169,7 +156,7 @@ int xen_is_pirq_msi(uint32_t msi_data)
 
 void xen_hvm_inject_msi(uint64_t addr, uint32_t data)
 {
-    xen_xc_hvm_inject_msi(xen_xc, xen_domid, addr, data);
+    xc_hvm_inject_msi(xen_xc, xen_domid, addr, data);
 }
 
 static void xen_suspend_notifier(Notifier *notifier, void *data)
@@ -316,7 +303,6 @@ static hwaddr xen_phys_offset_to_gaddr(hwaddr start_addr,
     return start_addr;
 }
 
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION >= 340
 static int xen_add_to_physmap(XenIOState *state,
                               hwaddr start_addr,
                               ram_addr_t size,
@@ -450,24 +436,6 @@ static int xen_remove_from_physmap(XenIOState *state,
 
     return 0;
 }
-
-#else
-static int xen_add_to_physmap(XenIOState *state,
-                              hwaddr start_addr,
-                              ram_addr_t size,
-                              MemoryRegion *mr,
-                              hwaddr offset_within_region)
-{
-    return -ENOSYS;
-}
-
-static int xen_remove_from_physmap(XenIOState *state,
-                                   hwaddr start_addr,
-                                   ram_addr_t size)
-{
-    return -ENOSYS;
-}
-#endif
 
 static void xen_set_memory(struct MemoryListener *listener,
                            MemoryRegionSection *section,
@@ -707,7 +675,7 @@ static ioreq_t *cpu_get_ioreq_from_shared_memory(XenIOState *state, int vcpu)
     if (req->state != STATE_IOREQ_READY) {
         DPRINTF("I/O request not ready: "
                 "%x, ptr: %x, port: %"PRIx64", "
-                "data: %"PRIx64", count: %" FMT_ioreq_size ", size: %" FMT_ioreq_size "\n",
+                "data: %"PRIx64", count: %u, size: %u\n",
                 req->state, req->data_is_ptr, req->addr,
                 req->data, req->count, req->size);
         return NULL;
@@ -1069,9 +1037,7 @@ static void cpu_handle_ioreq(void *opaque)
         if (req->state != STATE_IOREQ_INPROCESS) {
             fprintf(stderr, "Badness in I/O request ... not in service?!: "
                     "%x, ptr: %x, port: %"PRIx64", "
-                    "data: %"PRIx64", count: %" FMT_ioreq_size
-                    ", size: %" FMT_ioreq_size
-                    ", type: %"FMT_ioreq_size"\n",
+                    "data: %"PRIx64", count: %u, size: %u, type: %u\n",
                     req->state, req->data_is_ptr, req->addr,
                     req->data, req->count, req->size, req->type);
             destroy_hvm_domain(false);
@@ -1243,7 +1209,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
                                    &ioreq_pfn, &bufioreq_pfn,
                                    &bufioreq_evtchn);
     if (rc < 0) {
-        error_report("failed to get ioreq server info: error %d handle=" XC_INTERFACE_FMT,
+        error_report("failed to get ioreq server info: error %d handle=%p",
                      errno, xen_xc);
         goto err;
     }
@@ -1256,7 +1222,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
                                               PROT_READ|PROT_WRITE,
                                               1, &ioreq_pfn, NULL);
     if (state->shared_page == NULL) {
-        error_report("map shared IO page returned error %d handle=" XC_INTERFACE_FMT,
+        error_report("map shared IO page returned error %d handle=%p",
                      errno, xen_xc);
         goto err;
     }
@@ -1268,8 +1234,8 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
             xenforeignmemory_map(xen_fmem, xen_domid, PROT_READ|PROT_WRITE,
                                  1, &ioreq_pfn, NULL);
         if (state->shared_vmport_page == NULL) {
-            error_report("map shared vmport IO page returned error %d handle="
-                         XC_INTERFACE_FMT, errno, xen_xc);
+            error_report("map shared vmport IO page returned error %d handle=%p",
+                         errno, xen_xc);
             goto err;
         }
     } else if (rc != -ENOSYS) {
@@ -1291,7 +1257,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
 
     rc = xen_set_ioreq_server_state(xen_xc, xen_domid, state->ioservid, true);
     if (rc < 0) {
-        error_report("failed to enable ioreq server info: error %d handle=" XC_INTERFACE_FMT,
+        error_report("failed to enable ioreq server info: error %d handle=%p",
                      errno, xen_xc);
         goto err;
     }
@@ -1352,11 +1318,11 @@ err:
 
 void destroy_hvm_domain(bool reboot)
 {
-    XenXC xc_handle;
+    xc_interface *xc_handle;
     int sts;
 
-    xc_handle = xen_xc_interface_open(0, 0, 0);
-    if (xc_handle == XC_HANDLER_INITIAL_VALUE) {
+    xc_handle = xc_interface_open(0, 0, 0);
+    if (xc_handle == NULL) {
         fprintf(stderr, "Cannot acquire xenctrl handle\n");
     } else {
         sts = xc_domain_shutdown(xc_handle, xen_domid,
