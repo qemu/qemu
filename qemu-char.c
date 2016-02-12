@@ -896,13 +896,13 @@ static int io_channel_send_full(QIOChannel *ioc,
             ioc, &iov, 1,
             fds, nfds, NULL);
         if (ret == QIO_CHANNEL_ERR_BLOCK) {
-            errno = EAGAIN;
-            return -1;
-        } else if (ret < 0) {
             if (offset) {
                 return offset;
             }
 
+            errno = EAGAIN;
+            return -1;
+        } else if (ret < 0) {
             errno = EINVAL;
             return -1;
         }
