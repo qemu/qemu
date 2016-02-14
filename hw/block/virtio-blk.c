@@ -21,7 +21,6 @@
 #include "sysemu/blockdev.h"
 #include "hw/virtio/virtio-blk.h"
 #include "dataplane/virtio-blk.h"
-#include "migration/migration.h"
 #include "block/scsi.h"
 #ifdef __linux__
 # include <scsi/sg.h>
@@ -45,8 +44,7 @@ void virtio_blk_free_request(VirtIOBlockReq *req)
     }
 }
 
-static void virtio_blk_complete_request(VirtIOBlockReq *req,
-                                        unsigned char status)
+static void virtio_blk_req_complete(VirtIOBlockReq *req, unsigned char status)
 {
     VirtIOBlock *s = req->dev;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
@@ -55,12 +53,11 @@ static void virtio_blk_complete_request(VirtIOBlockReq *req,
 
     stb_p(&req->in->status, status);
     virtqueue_push(s->vq, &req->elem, req->in_len);
-    virtio_notify(vdev, s->vq);
-}
-
-static void virtio_blk_req_complete(VirtIOBlockReq *req, unsigned char status)
-{
-    req->dev->complete_request(req, status);
+    if (s->dataplane) {
+        virtio_blk_data_plane_notify(s->dataplane);
+    } else {
+        virtio_notify(vdev, s->vq);
+    }
 }
 
 static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
@@ -852,36 +849,6 @@ static const BlockDevOps virtio_block_ops = {
     .resize_cb = virtio_blk_resize,
 };
 
-/* Disable dataplane thread during live migration since it does not
- * update the dirty memory bitmap yet.
- */
-static void virtio_blk_migration_state_changed(Notifier *notifier, void *data)
-{
-    VirtIOBlock *s = container_of(notifier, VirtIOBlock,
-                                  migration_state_notifier);
-    MigrationState *mig = data;
-    Error *err = NULL;
-
-    if (migration_in_setup(mig)) {
-        if (!s->dataplane) {
-            return;
-        }
-        virtio_blk_data_plane_destroy(s->dataplane);
-        s->dataplane = NULL;
-    } else if (migration_has_finished(mig) ||
-               migration_has_failed(mig)) {
-        if (s->dataplane) {
-            return;
-        }
-        blk_drain_all(); /* complete in-flight non-dataplane requests */
-        virtio_blk_data_plane_create(VIRTIO_DEVICE(s), &s->conf,
-                                     &s->dataplane, &err);
-        if (err != NULL) {
-            error_report_err(err);
-        }
-    }
-}
-
 static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -916,15 +883,12 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     s->sector_mask = (s->conf.conf.logical_block_size / BDRV_SECTOR_SIZE) - 1;
 
     s->vq = virtio_add_queue(vdev, 128, virtio_blk_handle_output);
-    s->complete_request = virtio_blk_complete_request;
     virtio_blk_data_plane_create(vdev, conf, &s->dataplane, &err);
     if (err != NULL) {
         error_propagate(errp, err);
         virtio_cleanup(vdev);
         return;
     }
-    s->migration_state_notifier.notify = virtio_blk_migration_state_changed;
-    add_migration_state_change_notifier(&s->migration_state_notifier);
 
     s->change = qemu_add_vm_change_state_handler(virtio_blk_dma_restart_cb, s);
     register_savevm(dev, "virtio-blk", virtio_blk_id++, 2,
@@ -940,7 +904,6 @@ static void virtio_blk_device_unrealize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBlock *s = VIRTIO_BLK(dev);
 
-    remove_migration_state_change_notifier(&s->migration_state_notifier);
     virtio_blk_data_plane_destroy(s->dataplane);
     s->dataplane = NULL;
     qemu_del_vm_change_state_handler(s->change);
