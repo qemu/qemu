@@ -1162,7 +1162,7 @@ void virtio_irq(VirtQueue *vq)
     virtio_notify_vector(vq->vdev, vq->vector);
 }
 
-static bool vring_notify(VirtIODevice *vdev, VirtQueue *vq)
+bool virtio_should_notify(VirtIODevice *vdev, VirtQueue *vq)
 {
     uint16_t old, new;
     bool v;
@@ -1187,7 +1187,7 @@ static bool vring_notify(VirtIODevice *vdev, VirtQueue *vq)
 
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq)
 {
-    if (!vring_notify(vdev, vq)) {
+    if (!virtio_should_notify(vdev, vq)) {
         return;
     }
 
