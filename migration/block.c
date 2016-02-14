@@ -54,17 +54,25 @@ typedef struct BlkMigDevState {
     int shared_base;
     int64_t total_sectors;
     QSIMPLEQ_ENTRY(BlkMigDevState) entry;
+    Error *blocker;
 
     /* Only used by migration thread.  Does not need a lock.  */
     int bulk_completed;
     int64_t cur_sector;
     int64_t cur_dirty;
 
-    /* Protected by block migration lock.  */
+    /* Data in the aio_bitmap is protected by block migration lock.
+     * Allocation and free happen during setup and cleanup respectively.
+     */
     unsigned long *aio_bitmap;
+
+    /* Protected by block migration lock.  */
     int64_t completed_sectors;
+
+    /* During migration this is protected by iothread lock / AioContext.
+     * Allocation and free happen during setup and cleanup respectively.
+     */
     BdrvDirtyBitmap *dirty_bitmap;
-    Error *blocker;
 } BlkMigDevState;
 
 typedef struct BlkMigBlock {
@@ -100,7 +108,7 @@ typedef struct BlkMigState {
     int prev_progress;
     int bulk_completed;
 
-    /* Lock must be taken _inside_ the iothread lock.  */
+    /* Lock must be taken _inside_ the iothread lock and any AioContexts.  */
     QemuMutex lock;
 } BlkMigState;
 
@@ -264,11 +272,13 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
 
     if (bmds->shared_base) {
         qemu_mutex_lock_iothread();
+        aio_context_acquire(bdrv_get_aio_context(bs));
         while (cur_sector < total_sectors &&
                !bdrv_is_allocated(bs, cur_sector, MAX_IS_ALLOCATED_SEARCH,
                                   &nr_sectors)) {
             cur_sector += nr_sectors;
         }
+        aio_context_release(bdrv_get_aio_context(bs));
         qemu_mutex_unlock_iothread();
     }
 
@@ -302,11 +312,21 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     block_mig_state.submitted++;
     blk_mig_unlock();
 
+    /* We do not know if bs is under the main thread (and thus does
+     * not acquire the AioContext when doing AIO) or rather under
+     * dataplane.  Thus acquire both the iothread mutex and the
+     * AioContext.
+     *
+     * This is ugly and will disappear when we make bdrv_* thread-safe,
+     * without the need to acquire the AioContext.
+     */
     qemu_mutex_lock_iothread();
+    aio_context_acquire(bdrv_get_aio_context(bmds->bs));
     blk->aiocb = bdrv_aio_readv(bs, cur_sector, &blk->qiov,
                                 nr_sectors, blk_mig_read_cb, blk);
 
     bdrv_reset_dirty_bitmap(bmds->dirty_bitmap, cur_sector, nr_sectors);
+    aio_context_release(bdrv_get_aio_context(bmds->bs));
     qemu_mutex_unlock_iothread();
 
     bmds->cur_sector = cur_sector + nr_sectors;
@@ -321,8 +341,10 @@ static int set_dirty_tracking(void)
     int ret;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
+        aio_context_acquire(bdrv_get_aio_context(bmds->bs));
         bmds->dirty_bitmap = bdrv_create_dirty_bitmap(bmds->bs, BLOCK_SIZE,
                                                       NULL, NULL);
+        aio_context_release(bdrv_get_aio_context(bmds->bs));
         if (!bmds->dirty_bitmap) {
             ret = -errno;
             goto fail;
@@ -333,18 +355,24 @@ static int set_dirty_tracking(void)
 fail:
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
         if (bmds->dirty_bitmap) {
+            aio_context_acquire(bdrv_get_aio_context(bmds->bs));
             bdrv_release_dirty_bitmap(bmds->bs, bmds->dirty_bitmap);
+            aio_context_release(bdrv_get_aio_context(bmds->bs));
         }
     }
     return ret;
 }
+
+/* Called with iothread lock taken.  */
 
 static void unset_dirty_tracking(void)
 {
     BlkMigDevState *bmds;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
+        aio_context_acquire(bdrv_get_aio_context(bmds->bs));
         bdrv_release_dirty_bitmap(bmds->bs, bmds->dirty_bitmap);
+        aio_context_release(bdrv_get_aio_context(bmds->bs));
     }
 }
 
@@ -444,7 +472,7 @@ static void blk_mig_reset_dirty_cursor(void)
     }
 }
 
-/* Called with iothread lock taken.  */
+/* Called with iothread lock and AioContext taken.  */
 
 static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
                                  int is_async)
@@ -527,7 +555,9 @@ static int blk_mig_save_dirty_block(QEMUFile *f, int is_async)
     int ret = 1;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
+        aio_context_acquire(bdrv_get_aio_context(bmds->bs));
         ret = mig_save_device_dirty(f, bmds, is_async);
+        aio_context_release(bdrv_get_aio_context(bmds->bs));
         if (ret <= 0) {
             break;
         }
@@ -585,7 +615,9 @@ static int64_t get_remaining_dirty(void)
     int64_t dirty = 0;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
+        aio_context_acquire(bdrv_get_aio_context(bmds->bs));
         dirty += bdrv_get_dirty_count(bmds->dirty_bitmap);
+        aio_context_release(bdrv_get_aio_context(bmds->bs));
     }
 
     return dirty << BDRV_SECTOR_BITS;
@@ -597,21 +629,28 @@ static void block_migration_cleanup(void *opaque)
 {
     BlkMigDevState *bmds;
     BlkMigBlock *blk;
+    AioContext *ctx;
 
     bdrv_drain_all();
 
     unset_dirty_tracking();
 
-    blk_mig_lock();
     while ((bmds = QSIMPLEQ_FIRST(&block_mig_state.bmds_list)) != NULL) {
         QSIMPLEQ_REMOVE_HEAD(&block_mig_state.bmds_list, entry);
         bdrv_op_unblock_all(bmds->bs, bmds->blocker);
         error_free(bmds->blocker);
+
+        /* Save ctx, because bmds->bs can disappear during bdrv_unref.  */
+        ctx = bdrv_get_aio_context(bmds->bs);
+        aio_context_acquire(ctx);
         bdrv_unref(bmds->bs);
+        aio_context_release(ctx);
+
         g_free(bmds->aio_bitmap);
         g_free(bmds);
     }
 
+    blk_mig_lock();
     while ((blk = QSIMPLEQ_FIRST(&block_mig_state.blk_list)) != NULL) {
         QSIMPLEQ_REMOVE_HEAD(&block_mig_state.blk_list, entry);
         g_free(blk->buf);
@@ -633,12 +672,11 @@ static int block_save_setup(QEMUFile *f, void *opaque)
     /* start track dirty blocks */
     ret = set_dirty_tracking();
 
+    qemu_mutex_unlock_iothread();
+
     if (ret) {
-        qemu_mutex_unlock_iothread();
         return ret;
     }
-
-    qemu_mutex_unlock_iothread();
 
     ret = flush_blks(f);
     blk_mig_reset_dirty_cursor();
@@ -761,17 +799,18 @@ static void block_save_pending(QEMUFile *f, void *opaque, uint64_t max_size,
     uint64_t pending;
 
     qemu_mutex_lock_iothread();
+    pending = get_remaining_dirty();
+    qemu_mutex_unlock_iothread();
+
     blk_mig_lock();
-    pending = get_remaining_dirty() +
-                       block_mig_state.submitted * BLOCK_SIZE +
-                       block_mig_state.read_done * BLOCK_SIZE;
+    pending += block_mig_state.submitted * BLOCK_SIZE +
+               block_mig_state.read_done * BLOCK_SIZE;
+    blk_mig_unlock();
 
     /* Report at least one block pending during bulk phase */
     if (pending <= max_size && !block_mig_state.bulk_completed) {
         pending = max_size + BLOCK_SIZE;
     }
-    blk_mig_unlock();
-    qemu_mutex_unlock_iothread();
 
     DPRINTF("Enter save live pending  %" PRIu64 "\n", pending);
     /* We don't do postcopy */
