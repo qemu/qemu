@@ -56,6 +56,7 @@ typedef struct VirtIOBlock {
     /* Function to push to vq and notify guest */
     void (*complete_request)(struct VirtIOBlockReq *req, unsigned char status);
     Notifier migration_state_notifier;
+    bool dataplane_started;
     struct VirtIOBlockDataPlane *dataplane;
 } VirtIOBlock;
 

@@ -589,7 +589,7 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     /* Some guests kick before setting VIRTIO_CONFIG_S_DRIVER_OK so start
      * dataplane here instead of waiting for .set_status().
      */
-    if (s->dataplane) {
+    if (s->dataplane && !s->dataplane_started) {
         virtio_blk_data_plane_start(s->dataplane);
         return;
     }
