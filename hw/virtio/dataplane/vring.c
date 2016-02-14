@@ -175,7 +175,7 @@ void vring_disable_notification(VirtIODevice *vdev, Vring *vring)
  *
  * Return true if the vring is empty, false if there are more requests.
  */
-bool vring_enable_notification(VirtIODevice *vdev, Vring *vring)
+void vring_enable_notification(VirtIODevice *vdev, Vring *vring)
 {
     if (virtio_vdev_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX)) {
         vring_avail_event(&vring->vr) = vring->vr.avail->idx;
@@ -183,7 +183,6 @@ bool vring_enable_notification(VirtIODevice *vdev, Vring *vring)
         vring_clear_used_flags(vdev, vring, VRING_USED_F_NO_NOTIFY);
     }
     smp_mb(); /* ensure update is seen before reading avail_idx */
-    return !vring_more_avail(vdev, vring);
 }
 
 /* This is stolen from linux/drivers/vhost/vhost.c:vhost_notify() */

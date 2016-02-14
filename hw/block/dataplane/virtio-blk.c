@@ -128,7 +128,8 @@ static void handle_notify(EventNotifier *e)
             /* Re-enable guest->host notifies and stop processing the vring.
              * But if the guest has snuck in more descriptors, keep processing.
              */
-            if (vring_enable_notification(s->vdev, &s->vring)) {
+            vring_enable_notification(s->vdev, &s->vring);
+            if (!vring_more_avail(s->vdev, &s->vring)) {
                 break;
             }
         } else { /* fatal error */
