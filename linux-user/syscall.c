@@ -5231,7 +5231,6 @@ static inline int target_to_host_mlockall_arg(int arg)
 }
 #endif
 
-#if defined(TARGET_NR_stat64) || defined(TARGET_NR_newfstatat)
 static inline abi_long host_to_target_stat64(void *cpu_env,
                                              abi_ulong target_addr,
                                              struct stat *host_st)
@@ -5294,7 +5293,6 @@ static inline abi_long host_to_target_stat64(void *cpu_env,
 
     return 0;
 }
-#endif
 
 /* ??? Using host futex calls even when target atomic operations
    are not really atomic probably breaks things.  However implementing
