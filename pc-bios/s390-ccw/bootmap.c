@@ -424,7 +424,7 @@ static void ipl_scsi(void)
     IPL_assert(magic_match(sec, ZIPL_MAGIC), "No zIPL magic");
 
     ns_end = sec + virtio_get_block_size();
-    for (ns = (sec + pte_len); (ns + pte_len) < ns_end; ns++) {
+    for (ns = (sec + pte_len); (ns + pte_len) < ns_end; ns += pte_len) {
         prog_table_entry = (ScsiBlockPtr *)ns;
         if (!prog_table_entry->blockno) {
             break;
