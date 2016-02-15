@@ -1855,13 +1855,16 @@ static int kvm_get_sregs(X86CPU *cpu)
        HF_OSFXSR_MASK | HF_LMA_MASK | HF_CS32_MASK | \
        HF_SS32_MASK | HF_CS64_MASK | HF_ADDSEG_MASK)
 
-    hflags = (env->segs[R_SS].flags >> DESC_DPL_SHIFT) & HF_CPL_MASK;
+    hflags = env->hflags & HFLAG_COPY_MASK;
+    hflags |= (env->segs[R_SS].flags >> DESC_DPL_SHIFT) & HF_CPL_MASK;
     hflags |= (env->cr[0] & CR0_PE_MASK) << (HF_PE_SHIFT - CR0_PE_SHIFT);
     hflags |= (env->cr[0] << (HF_MP_SHIFT - CR0_MP_SHIFT)) &
                 (HF_MP_MASK | HF_EM_MASK | HF_TS_MASK);
     hflags |= (env->eflags & (HF_TF_MASK | HF_VM_MASK | HF_IOPL_MASK));
-    hflags |= (env->cr[4] & CR4_OSFXSR_MASK) <<
-                (HF_OSFXSR_SHIFT - CR4_OSFXSR_SHIFT);
+
+    if (env->cr[4] & CR4_OSFXSR_MASK) {
+        hflags |= HF_OSFXSR_MASK;
+    }
 
     if (env->efer & MSR_EFER_LMA) {
         hflags |= HF_LMA_MASK;
@@ -1882,7 +1885,7 @@ static int kvm_get_sregs(X86CPU *cpu)
                         env->segs[R_SS].base) != 0) << HF_ADDSEG_SHIFT;
         }
     }
-    env->hflags = (env->hflags & HFLAG_COPY_MASK) | hflags;
+    env->hflags = hflags;
 
     return 0;
 }
@@ -2585,41 +2588,44 @@ int kvm_arch_get_registers(CPUState *cs)
 
     ret = kvm_getput_regs(cpu, 0);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = kvm_get_xsave(cpu);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = kvm_get_xcrs(cpu);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = kvm_get_sregs(cpu);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = kvm_get_msrs(cpu);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = kvm_get_mp_state(cpu);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = kvm_get_apic(cpu);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = kvm_get_vcpu_events(cpu);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = kvm_get_debugregs(cpu);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
-    return 0;
+    ret = 0;
+ out:
+    cpu_sync_bndcs_hflags(&cpu->env);
+    return ret;
 }
 
 void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)

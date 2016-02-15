@@ -1115,89 +1115,174 @@ void cpu_x86_frstor(CPUX86State *env, target_ulong ptr, int data32)
 }
 #endif
 
-static void do_fxsave(CPUX86State *env, target_ulong ptr, int data64,
-                      uintptr_t retaddr)
+static void do_xsave_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 {
-    int fpus, fptag, i, nb_xmm_regs;
-    floatx80 tmp;
+    int fpus, fptag, i;
     target_ulong addr;
-
-    /* The operand must be 16 byte aligned */
-    if (ptr & 0xf) {
-        raise_exception_ra(env, EXCP0D_GPF, retaddr);
-    }
 
     fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
     fptag = 0;
     for (i = 0; i < 8; i++) {
         fptag |= (env->fptags[i] << i);
     }
-    cpu_stw_data_ra(env, ptr, env->fpuc, retaddr);
-    cpu_stw_data_ra(env, ptr + 2, fpus, retaddr);
-    cpu_stw_data_ra(env, ptr + 4, fptag ^ 0xff, retaddr);
-#ifdef TARGET_X86_64
-    if (data64) {
-        cpu_stq_data_ra(env, ptr + 0x08, 0, retaddr); /* rip */
-        cpu_stq_data_ra(env, ptr + 0x10, 0, retaddr); /* rdp */
-    } else
-#endif
-    {
-        cpu_stl_data_ra(env, ptr + 0x08, 0, retaddr); /* eip */
-        cpu_stl_data_ra(env, ptr + 0x0c, 0, retaddr); /* sel  */
-        cpu_stl_data_ra(env, ptr + 0x10, 0, retaddr); /* dp */
-        cpu_stl_data_ra(env, ptr + 0x14, 0, retaddr); /* sel  */
-    }
+    cpu_stw_data_ra(env, ptr, env->fpuc, ra);
+    cpu_stw_data_ra(env, ptr + 2, fpus, ra);
+    cpu_stw_data_ra(env, ptr + 4, fptag ^ 0xff, ra);
+
+    /* In 32-bit mode this is eip, sel, dp, sel.
+       In 64-bit mode this is rip, rdp.
+       But in either case we don't write actual data, just zeros.  */
+    cpu_stq_data_ra(env, ptr + 0x08, 0, ra); /* eip+sel; rip */
+    cpu_stq_data_ra(env, ptr + 0x10, 0, ra); /* edp+sel; rdp */
 
     addr = ptr + 0x20;
     for (i = 0; i < 8; i++) {
-        tmp = ST(i);
-        helper_fstt(env, tmp, addr, retaddr);
+        floatx80 tmp = ST(i);
+        helper_fstt(env, tmp, addr, ra);
         addr += 16;
     }
+}
+
+static void do_xsave_mxcsr(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+{
+    cpu_stl_data_ra(env, ptr + 0x18, env->mxcsr, ra); /* mxcsr */
+    cpu_stl_data_ra(env, ptr + 0x1c, 0x0000ffff, ra); /* mxcsr_mask */
+}
+
+static void do_xsave_sse(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+{
+    int i, nb_xmm_regs;
+    target_ulong addr;
+
+    if (env->hflags & HF_CS64_MASK) {
+        nb_xmm_regs = 16;
+    } else {
+        nb_xmm_regs = 8;
+    }
+
+    addr = ptr + 0xa0;
+    for (i = 0; i < nb_xmm_regs; i++) {
+        cpu_stq_data_ra(env, addr, env->xmm_regs[i].ZMM_Q(0), ra);
+        cpu_stq_data_ra(env, addr + 8, env->xmm_regs[i].ZMM_Q(1), ra);
+        addr += 16;
+    }
+}
+
+static void do_xsave_bndregs(CPUX86State *env, target_ulong addr, uintptr_t ra)
+{
+    int i;
+
+    for (i = 0; i < 4; i++, addr += 16) {
+        cpu_stq_data_ra(env, addr, env->bnd_regs[i].lb, ra);
+        cpu_stq_data_ra(env, addr + 8, env->bnd_regs[i].ub, ra);
+    }
+}
+
+static void do_xsave_bndcsr(CPUX86State *env, target_ulong addr, uintptr_t ra)
+{
+    cpu_stq_data_ra(env, addr, env->bndcs_regs.cfgu, ra);
+    cpu_stq_data_ra(env, addr + 8, env->bndcs_regs.sts, ra);
+}
+
+void helper_fxsave(CPUX86State *env, target_ulong ptr)
+{
+    uintptr_t ra = GETPC();
+
+    /* The operand must be 16 byte aligned */
+    if (ptr & 0xf) {
+        raise_exception_ra(env, EXCP0D_GPF, ra);
+    }
+
+    do_xsave_fpu(env, ptr, ra);
 
     if (env->cr[4] & CR4_OSFXSR_MASK) {
-        /* XXX: finish it */
-        cpu_stl_data_ra(env, ptr + 0x18, env->mxcsr, retaddr); /* mxcsr */
-        cpu_stl_data_ra(env, ptr + 0x1c, 0x0000ffff, retaddr); /* mxcsr_mask */
-        if (env->hflags & HF_CS64_MASK) {
-            nb_xmm_regs = 16;
-        } else {
-            nb_xmm_regs = 8;
-        }
-        addr = ptr + 0xa0;
+        do_xsave_mxcsr(env, ptr, ra);
         /* Fast FXSAVE leaves out the XMM registers */
         if (!(env->efer & MSR_EFER_FFXSR)
             || (env->hflags & HF_CPL_MASK)
             || !(env->hflags & HF_LMA_MASK)) {
-            for (i = 0; i < nb_xmm_regs; i++) {
-                cpu_stq_data_ra(env, addr, env->xmm_regs[i].ZMM_Q(0), retaddr);
-                cpu_stq_data_ra(env, addr + 8, env->xmm_regs[i].ZMM_Q(1), retaddr);
-                addr += 16;
-            }
+            do_xsave_sse(env, ptr, ra);
         }
     }
 }
 
-void helper_fxsave(CPUX86State *env, target_ulong ptr, int data64)
+static uint64_t get_xinuse(CPUX86State *env)
 {
-    do_fxsave(env, ptr, data64, GETPC());
+    uint64_t inuse = -1;
+
+    /* For the most part, we don't track XINUSE.  We could calculate it
+       here for all components, but it's probably less work to simply
+       indicate in use.  That said, the state of BNDREGS is important
+       enough to track in HFLAGS, so we might as well use that here.  */
+    if ((env->hflags & HF_MPX_IU_MASK) == 0) {
+       inuse &= ~XSTATE_BNDREGS;
+    }
+    return inuse;
 }
 
-static void do_fxrstor(CPUX86State *env, target_ulong ptr, int data64,
-                       uintptr_t retaddr)
+static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
+                     uint64_t inuse, uint64_t opt, uintptr_t ra)
 {
-    int i, fpus, fptag, nb_xmm_regs;
-    floatx80 tmp;
-    target_ulong addr;
+    uint64_t old_bv, new_bv;
 
-    /* The operand must be 16 byte aligned */
-    if (ptr & 0xf) {
-        raise_exception_ra(env, EXCP0D_GPF, retaddr);
+    /* The OS must have enabled XSAVE.  */
+    if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
+        raise_exception_ra(env, EXCP06_ILLOP, ra);
     }
 
-    cpu_set_fpuc(env, cpu_lduw_data_ra(env, ptr, retaddr));
-    fpus = cpu_lduw_data_ra(env, ptr + 2, retaddr);
-    fptag = cpu_lduw_data_ra(env, ptr + 4, retaddr);
+    /* The operand must be 64 byte aligned.  */
+    if (ptr & 63) {
+        raise_exception_ra(env, EXCP0D_GPF, ra);
+    }
+
+    /* Never save anything not enabled by XCR0.  */
+    rfbm &= env->xcr0;
+    opt &= rfbm;
+
+    if (opt & XSTATE_FP) {
+        do_xsave_fpu(env, ptr, ra);
+    }
+    if (rfbm & XSTATE_SSE) {
+        /* Note that saving MXCSR is not suppressed by XSAVEOPT.  */
+        do_xsave_mxcsr(env, ptr, ra);
+    }
+    if (opt & XSTATE_SSE) {
+        do_xsave_sse(env, ptr, ra);
+    }
+    if (opt & XSTATE_BNDREGS) {
+        target_ulong off = x86_ext_save_areas[XSTATE_BNDREGS].offset;
+        do_xsave_bndregs(env, ptr + off, ra);
+    }
+    if (opt & XSTATE_BNDCSR) {
+        target_ulong off = x86_ext_save_areas[XSTATE_BNDCSR].offset;
+        do_xsave_bndcsr(env, ptr + off, ra);
+    }
+
+    /* Update the XSTATE_BV field.  */
+    old_bv = cpu_ldq_data_ra(env, ptr + 512, ra);
+    new_bv = (old_bv & ~rfbm) | (inuse & rfbm);
+    cpu_stq_data_ra(env, ptr + 512, new_bv, ra);
+}
+
+void helper_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
+{
+    do_xsave(env, ptr, rfbm, get_xinuse(env), -1, GETPC());
+}
+
+void helper_xsaveopt(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
+{
+    uint64_t inuse = get_xinuse(env);
+    do_xsave(env, ptr, rfbm, inuse, inuse, GETPC());
+}
+
+static void do_xrstor_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+{
+    int i, fpus, fptag;
+    target_ulong addr;
+
+    cpu_set_fpuc(env, cpu_lduw_data_ra(env, ptr, ra));
+    fpus = cpu_lduw_data_ra(env, ptr + 2, ra);
+    fptag = cpu_lduw_data_ra(env, ptr + 4, ra);
     env->fpstt = (fpus >> 11) & 7;
     env->fpus = fpus & ~0x3800;
     fptag ^= 0xff;
@@ -1207,37 +1292,206 @@ static void do_fxrstor(CPUX86State *env, target_ulong ptr, int data64,
 
     addr = ptr + 0x20;
     for (i = 0; i < 8; i++) {
-        tmp = helper_fldt(env, addr, retaddr);
+        floatx80 tmp = helper_fldt(env, addr, ra);
         ST(i) = tmp;
         addr += 16;
     }
+}
+
+static void do_xrstor_mxcsr(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+{
+    cpu_set_mxcsr(env, cpu_ldl_data_ra(env, ptr + 0x18, ra));
+}
+
+static void do_xrstor_sse(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+{
+    int i, nb_xmm_regs;
+    target_ulong addr;
+
+    if (env->hflags & HF_CS64_MASK) {
+        nb_xmm_regs = 16;
+    } else {
+        nb_xmm_regs = 8;
+    }
+
+    addr = ptr + 0xa0;
+    for (i = 0; i < nb_xmm_regs; i++) {
+        env->xmm_regs[i].ZMM_Q(0) = cpu_ldq_data_ra(env, addr, ra);
+        env->xmm_regs[i].ZMM_Q(1) = cpu_ldq_data_ra(env, addr + 8, ra);
+        addr += 16;
+    }
+}
+
+static void do_xrstor_bndregs(CPUX86State *env, target_ulong addr, uintptr_t ra)
+{
+    int i;
+
+    for (i = 0; i < 4; i++, addr += 16) {
+        env->bnd_regs[i].lb = cpu_ldq_data_ra(env, addr, ra);
+        env->bnd_regs[i].ub = cpu_ldq_data_ra(env, addr + 8, ra);
+    }
+}
+
+static void do_xrstor_bndcsr(CPUX86State *env, target_ulong addr, uintptr_t ra)
+{
+    /* FIXME: Extend highest implemented bit of linear address.  */
+    env->bndcs_regs.cfgu = cpu_ldq_data_ra(env, addr, ra);
+    env->bndcs_regs.sts = cpu_ldq_data_ra(env, addr + 8, ra);
+}
+
+void helper_fxrstor(CPUX86State *env, target_ulong ptr)
+{
+    uintptr_t ra = GETPC();
+
+    /* The operand must be 16 byte aligned */
+    if (ptr & 0xf) {
+        raise_exception_ra(env, EXCP0D_GPF, ra);
+    }
+
+    do_xrstor_fpu(env, ptr, ra);
 
     if (env->cr[4] & CR4_OSFXSR_MASK) {
-        /* XXX: finish it */
-        cpu_set_mxcsr(env, cpu_ldl_data_ra(env, ptr + 0x18, retaddr));
-        /* cpu_ldl_data_ra(env, ptr + 0x1c, retaddr); */
-        if (env->hflags & HF_CS64_MASK) {
-            nb_xmm_regs = 16;
-        } else {
-            nb_xmm_regs = 8;
-        }
-        addr = ptr + 0xa0;
-        /* Fast FXRESTORE leaves out the XMM registers */
+        do_xrstor_mxcsr(env, ptr, ra);
+        /* Fast FXRSTOR leaves out the XMM registers */
         if (!(env->efer & MSR_EFER_FFXSR)
             || (env->hflags & HF_CPL_MASK)
             || !(env->hflags & HF_LMA_MASK)) {
-            for (i = 0; i < nb_xmm_regs; i++) {
-                env->xmm_regs[i].ZMM_Q(0) = cpu_ldq_data_ra(env, addr, retaddr);
-                env->xmm_regs[i].ZMM_Q(1) = cpu_ldq_data_ra(env, addr + 8, retaddr);
-                addr += 16;
-            }
+            do_xrstor_sse(env, ptr, ra);
         }
     }
 }
 
-void helper_fxrstor(CPUX86State *env, target_ulong ptr, int data64)
+void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
 {
-    do_fxrstor(env, ptr, data64, GETPC());
+    uintptr_t ra = GETPC();
+    uint64_t xstate_bv, xcomp_bv0, xcomp_bv1;
+
+    rfbm &= env->xcr0;
+
+    /* The OS must have enabled XSAVE.  */
+    if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
+        raise_exception_ra(env, EXCP06_ILLOP, ra);
+    }
+
+    /* The operand must be 64 byte aligned.  */
+    if (ptr & 63) {
+        raise_exception_ra(env, EXCP0D_GPF, ra);
+    }
+
+    xstate_bv = cpu_ldq_data_ra(env, ptr + 512, ra);
+
+    if ((int64_t)xstate_bv < 0) {
+        /* FIXME: Compact form.  */
+        raise_exception_ra(env, EXCP0D_GPF, ra);
+    }
+
+    /* Standard form.  */
+
+    /* The XSTATE field must not set bits not present in XCR0.  */
+    if (xstate_bv & ~env->xcr0) {
+        raise_exception_ra(env, EXCP0D_GPF, ra);
+    }
+
+    /* The XCOMP field must be zero.  */
+    xcomp_bv0 = cpu_ldq_data_ra(env, ptr + 520, ra);
+    xcomp_bv1 = cpu_ldq_data_ra(env, ptr + 528, ra);
+    if (xcomp_bv0 || xcomp_bv1) {
+        raise_exception_ra(env, EXCP0D_GPF, ra);
+    }
+
+    if (rfbm & XSTATE_FP) {
+        if (xstate_bv & XSTATE_FP) {
+            do_xrstor_fpu(env, ptr, ra);
+        } else {
+            helper_fninit(env);
+            memset(env->fpregs, 0, sizeof(env->fpregs));
+        }
+    }
+    if (rfbm & XSTATE_SSE) {
+        /* Note that the standard form of XRSTOR loads MXCSR from memory
+           whether or not the XSTATE_BV bit is set.  */
+        do_xrstor_mxcsr(env, ptr, ra);
+        if (xstate_bv & XSTATE_SSE) {
+            do_xrstor_sse(env, ptr, ra);
+        } else {
+            /* ??? When AVX is implemented, we may have to be more
+               selective in the clearing.  */
+            memset(env->xmm_regs, 0, sizeof(env->xmm_regs));
+        }
+    }
+    if (rfbm & XSTATE_BNDREGS) {
+        if (xstate_bv & XSTATE_BNDREGS) {
+            target_ulong off = x86_ext_save_areas[XSTATE_BNDREGS].offset;
+            do_xrstor_bndregs(env, ptr + off, ra);
+            env->hflags |= HF_MPX_IU_MASK;
+        } else {
+            memset(env->bnd_regs, 0, sizeof(env->bnd_regs));
+            env->hflags &= ~HF_MPX_IU_MASK;
+        }
+    }
+    if (rfbm & XSTATE_BNDCSR) {
+        if (xstate_bv & XSTATE_BNDCSR) {
+            target_ulong off = x86_ext_save_areas[XSTATE_BNDCSR].offset;
+            do_xrstor_bndcsr(env, ptr + off, ra);
+        } else {
+            memset(&env->bndcs_regs, 0, sizeof(env->bndcs_regs));
+        }
+        cpu_sync_bndcs_hflags(env);
+    }
+}
+
+uint64_t helper_xgetbv(CPUX86State *env, uint32_t ecx)
+{
+    /* The OS must have enabled XSAVE.  */
+    if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
+        raise_exception_ra(env, EXCP06_ILLOP, GETPC());
+    }
+
+    switch (ecx) {
+    case 0:
+        return env->xcr0;
+    case 1:
+        if (env->features[FEAT_XSAVE] & CPUID_XSAVE_XGETBV1) {
+            return env->xcr0 & get_xinuse(env);
+        }
+        break;
+    }
+    raise_exception_ra(env, EXCP0D_GPF, GETPC());
+}
+
+void helper_xsetbv(CPUX86State *env, uint32_t ecx, uint64_t mask)
+{
+    uint32_t dummy, ena_lo, ena_hi;
+    uint64_t ena;
+
+    /* The OS must have enabled XSAVE.  */
+    if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
+        raise_exception_ra(env, EXCP06_ILLOP, GETPC());
+    }
+
+    /* Only XCR0 is defined at present; the FPU may not be disabled.  */
+    if (ecx != 0 || (mask & XSTATE_FP) == 0) {
+        goto do_gpf;
+    }
+
+    /* Disallow enabling unimplemented features.  */
+    cpu_x86_cpuid(env, 0x0d, 0, &ena_lo, &dummy, &dummy, &ena_hi);
+    ena = ((uint64_t)ena_hi << 32) | ena_lo;
+    if (mask & ~ena) {
+        goto do_gpf;
+    }
+
+    /* Disallow enabling only half of MPX.  */
+    if ((mask ^ (mask * (XSTATE_BNDCSR / XSTATE_BNDREGS))) & XSTATE_BNDCSR) {
+        goto do_gpf;
+    }
+
+    env->xcr0 = mask;
+    cpu_sync_bndcs_hflags(env);
+    return;
+
+ do_gpf:
+    raise_exception_ra(env, EXCP0D_GPF, GETPC());
 }
 
 void cpu_get_fp80(uint64_t *pmant, uint16_t *pexp, floatx80 f)

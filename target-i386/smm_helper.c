@@ -99,6 +99,10 @@ void do_smm_enter(X86CPU *cpu)
     x86_stl_phys(cs, sm_state + 0x7e94, env->tr.limit);
     x86_stw_phys(cs, sm_state + 0x7e92, (env->tr.flags >> 8) & 0xf0ff);
 
+    /* ??? Vol 1, 16.5.6 Intel MPX and SMM says that IA32_BNDCFGS
+       is saved at offset 7ED0.  Vol 3, 34.4.1.1, Table 32-2, has
+       7EA0-7ED7 as "reserved".  What's this, and what's really
+       supposed to happen?  */
     x86_stq_phys(cs, sm_state + 0x7ed0, env->efer);
 
     x86_stq_phys(cs, sm_state + 0x7ff8, env->regs[R_EAX]);

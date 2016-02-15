@@ -647,6 +647,7 @@ void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3)
 void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
 {
     X86CPU *cpu = x86_env_get_cpu(env);
+    uint32_t hflags;
 
 #if defined(DEBUG_MMU)
     printf("CR4 update: CR4=%08x\n", (uint32_t)env->cr[4]);
@@ -656,24 +657,29 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
          CR4_SMEP_MASK | CR4_SMAP_MASK)) {
         tlb_flush(CPU(cpu), 1);
     }
+
+    /* Clear bits we're going to recompute.  */
+    hflags = env->hflags & ~(HF_OSFXSR_MASK | HF_SMAP_MASK);
+
     /* SSE handling */
     if (!(env->features[FEAT_1_EDX] & CPUID_SSE)) {
         new_cr4 &= ~CR4_OSFXSR_MASK;
     }
-    env->hflags &= ~HF_OSFXSR_MASK;
     if (new_cr4 & CR4_OSFXSR_MASK) {
-        env->hflags |= HF_OSFXSR_MASK;
+        hflags |= HF_OSFXSR_MASK;
     }
 
     if (!(env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_SMAP)) {
         new_cr4 &= ~CR4_SMAP_MASK;
     }
-    env->hflags &= ~HF_SMAP_MASK;
     if (new_cr4 & CR4_SMAP_MASK) {
-        env->hflags |= HF_SMAP_MASK;
+        hflags |= HF_SMAP_MASK;
     }
 
     env->cr[4] = new_cr4;
+    env->hflags = hflags;
+
+    cpu_sync_bndcs_hflags(env);
 }
 
 #if defined(CONFIG_USER_ONLY)

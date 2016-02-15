@@ -331,14 +331,14 @@ static const char *cpuid_6_feature_name[] = {
 #define TCG_EXT_FEATURES (CPUID_EXT_SSE3 | CPUID_EXT_PCLMULQDQ | \
           CPUID_EXT_MONITOR | CPUID_EXT_SSSE3 | CPUID_EXT_CX16 | \
           CPUID_EXT_SSE41 | CPUID_EXT_SSE42 | CPUID_EXT_POPCNT | \
+          CPUID_EXT_XSAVE | /* CPUID_EXT_OSXSAVE is dynamic */   \
           CPUID_EXT_MOVBE | CPUID_EXT_AES | CPUID_EXT_HYPERVISOR)
           /* missing:
           CPUID_EXT_DTES64, CPUID_EXT_DSCPL, CPUID_EXT_VMX, CPUID_EXT_SMX,
           CPUID_EXT_EST, CPUID_EXT_TM2, CPUID_EXT_CID, CPUID_EXT_FMA,
           CPUID_EXT_XTPR, CPUID_EXT_PDCM, CPUID_EXT_PCID, CPUID_EXT_DCA,
-          CPUID_EXT_X2APIC, CPUID_EXT_TSC_DEADLINE_TIMER, CPUID_EXT_XSAVE,
-          CPUID_EXT_OSXSAVE, CPUID_EXT_AVX, CPUID_EXT_F16C,
-          CPUID_EXT_RDRAND */
+          CPUID_EXT_X2APIC, CPUID_EXT_TSC_DEADLINE_TIMER, CPUID_EXT_AVX,
+          CPUID_EXT_F16C, CPUID_EXT_RDRAND */
 
 #ifdef TARGET_X86_64
 #define TCG_EXT2_X86_64_FEATURES (CPUID_EXT2_SYSCALL | CPUID_EXT2_LM)
@@ -358,15 +358,17 @@ static const char *cpuid_6_feature_name[] = {
 #define TCG_7_0_EBX_FEATURES (CPUID_7_0_EBX_SMEP | CPUID_7_0_EBX_SMAP | \
           CPUID_7_0_EBX_BMI1 | CPUID_7_0_EBX_BMI2 | CPUID_7_0_EBX_ADX | \
           CPUID_7_0_EBX_PCOMMIT | CPUID_7_0_EBX_CLFLUSHOPT |            \
-          CPUID_7_0_EBX_CLWB)
+          CPUID_7_0_EBX_CLWB | CPUID_7_0_EBX_MPX | CPUID_7_0_EBX_FSGSBASE)
           /* missing:
-          CPUID_7_0_EBX_FSGSBASE, CPUID_7_0_EBX_HLE, CPUID_7_0_EBX_AVX2,
+          CPUID_7_0_EBX_HLE, CPUID_7_0_EBX_AVX2,
           CPUID_7_0_EBX_ERMS, CPUID_7_0_EBX_INVPCID, CPUID_7_0_EBX_RTM,
           CPUID_7_0_EBX_RDSEED */
 #define TCG_7_0_ECX_FEATURES 0
 #define TCG_APM_FEATURES 0
 #define TCG_6_EAX_FEATURES CPUID_6_EAX_ARAT
-
+#define TCG_XSAVE_FEATURES (CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XGETBV1)
+          /* missing:
+          CPUID_XSAVE_XSAVEC, CPUID_XSAVE_XSAVES */
 
 typedef struct FeatureWordInfo {
     const char **feat_names;
@@ -440,7 +442,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .cpuid_eax = 0xd,
         .cpuid_needs_ecx = true, .cpuid_ecx = 1,
         .cpuid_reg = R_EAX,
-        .tcg_features = 0,
+        .tcg_features = TCG_XSAVE_FEATURES,
     },
     [FEAT_6_EAX] = {
         .feat_names = cpuid_6_feature_name,
@@ -470,12 +472,7 @@ static const X86RegisterInfo32 x86_reg_info_32[CPU_NB_REGS32] = {
 };
 #undef REGISTER
 
-typedef struct ExtSaveArea {
-    uint32_t feature, bits;
-    uint32_t offset, size;
-} ExtSaveArea;
-
-static const ExtSaveArea ext_save_areas[] = {
+const ExtSaveArea x86_ext_save_areas[] = {
     [2] = { .feature = FEAT_1_ECX, .bits = CPUID_EXT_AVX,
             .offset = 0x240, .size = 0x100 },
     [3] = { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
@@ -2323,10 +2320,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ebx = (cpu->apic_id << 24) |
                8 << 8; /* CLFLUSH size in quad words, Linux wants it. */
         *ecx = env->features[FEAT_1_ECX];
+        if ((*ecx & CPUID_EXT_XSAVE) && (env->cr[4] & CR4_OSXSAVE_MASK)) {
+            *ecx |= CPUID_EXT_OSXSAVE;
+        }
         *edx = env->features[FEAT_1_EDX];
         if (cs->nr_cores * cs->nr_threads > 1) {
             *ebx |= (cs->nr_cores * cs->nr_threads) << 16;
-            *edx |= 1 << 28;    /* HTT bit */
+            *edx |= CPUID_HT;
         }
         break;
     case 2:
@@ -2450,7 +2450,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 0xD: {
         KVMState *s = cs->kvm_state;
-        uint64_t kvm_mask;
+        uint64_t ena_mask;
         int i;
 
         /* Processor Extended State */
@@ -2458,35 +2458,39 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ebx = 0;
         *ecx = 0;
         *edx = 0;
-        if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE) || !kvm_enabled()) {
+        if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE)) {
             break;
         }
-        kvm_mask =
-            kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EAX) |
-            ((uint64_t)kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EDX) << 32);
+        if (kvm_enabled()) {
+            ena_mask = kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EDX);
+            ena_mask <<= 32;
+            ena_mask |= kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EAX);
+        } else {
+            ena_mask = -1;
+        }
 
         if (count == 0) {
             *ecx = 0x240;
-            for (i = 2; i < ARRAY_SIZE(ext_save_areas); i++) {
-                const ExtSaveArea *esa = &ext_save_areas[i];
-                if ((env->features[esa->feature] & esa->bits) == esa->bits &&
-                    (kvm_mask & (1 << i)) != 0) {
+            for (i = 2; i < ARRAY_SIZE(x86_ext_save_areas); i++) {
+                const ExtSaveArea *esa = &x86_ext_save_areas[i];
+                if ((env->features[esa->feature] & esa->bits) == esa->bits
+                    && ((ena_mask >> i) & 1) != 0) {
                     if (i < 32) {
-                        *eax |= 1 << i;
+                        *eax |= 1u << i;
                     } else {
-                        *edx |= 1 << (i - 32);
+                        *edx |= 1u << (i - 32);
                     }
                     *ecx = MAX(*ecx, esa->offset + esa->size);
                 }
             }
-            *eax |= kvm_mask & (XSTATE_FP | XSTATE_SSE);
+            *eax |= ena_mask & (XSTATE_FP | XSTATE_SSE);
             *ebx = *ecx;
         } else if (count == 1) {
             *eax = env->features[FEAT_XSAVE];
-        } else if (count < ARRAY_SIZE(ext_save_areas)) {
-            const ExtSaveArea *esa = &ext_save_areas[count];
-            if ((env->features[esa->feature] & esa->bits) == esa->bits &&
-                (kvm_mask & (1 << count)) != 0) {
+        } else if (count < ARRAY_SIZE(x86_ext_save_areas)) {
+            const ExtSaveArea *esa = &x86_ext_save_areas[count];
+            if ((env->features[esa->feature] & esa->bits) == esa->bits
+                && ((ena_mask >> count) & 1) != 0) {
                 *eax = esa->size;
                 *ebx = esa->offset;
             }
@@ -2639,6 +2643,8 @@ static void x86_cpu_reset(CPUState *s)
     X86CPU *cpu = X86_CPU(s);
     X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
     CPUX86State *env = &cpu->env;
+    target_ulong cr4;
+    uint64_t xcr0;
     int i;
 
     xcc->parent_reset(s);
@@ -2698,7 +2704,8 @@ static void x86_cpu_reset(CPUState *s)
     cpu_set_fpuc(env, 0x37f);
 
     env->mxcsr = 0x1f80;
-    env->xstate_bv = XSTATE_FP | XSTATE_SSE;
+    /* All units are in INIT state.  */
+    env->xstate_bv = 0;
 
     env->pat = 0x0007040600070406ULL;
     env->msr_ia32_misc_enable = MSR_IA32_MISC_ENABLE_DEFAULT;
@@ -2709,7 +2716,27 @@ static void x86_cpu_reset(CPUState *s)
     cpu_breakpoint_remove_all(s, BP_CPU);
     cpu_watchpoint_remove_all(s, BP_CPU);
 
-    env->xcr0 = 1;
+    cr4 = 0;
+    xcr0 = XSTATE_FP;
+
+#ifdef CONFIG_USER_ONLY
+    /* Enable all the features for user-mode.  */
+    if (env->features[FEAT_1_EDX] & CPUID_SSE) {
+        xcr0 |= XSTATE_SSE;
+    }
+    if (env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_MPX) {
+        xcr0 |= XSTATE_BNDREGS | XSTATE_BNDCSR;
+    }
+    if (env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE) {
+        cr4 |= CR4_OSFXSR_MASK | CR4_OSXSAVE_MASK;
+    }
+    if (env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_FSGSBASE) {
+        cr4 |= CR4_FSGSBASE_MASK;
+    }
+#endif
+
+    env->xcr0 = xcr0;
+    cpu_x86_update_cr4(env, cr4);
 
     /*
      * SDM 11.11.5 requires:
