@@ -278,7 +278,7 @@
 #define TARGET_NR_epoll_pwait	309
 #define TARGET_NR_utimensat		310
 #define TARGET_NR_signalfd		311
-#define TARGET_NR_timerfd		312
+#define TARGET_NR_timerfd_create	312
 #define TARGET_NR_eventfd		313
 #define TARGET_NR_fallocate		314
 #define TARGET_NR_timerfd_settime	315
