@@ -79,6 +79,11 @@ typedef enum colo_conn_state {
                                   not yet from primary */
      COLO_CONN_PRI_IN_SYNACK,  /* Received syn/ack from both */
      COLO_CONN_PRI_IN_ESTABLISHED, /* Got the ACK */
+
+    /* States on the secondary: For incoming connection */
+     COLO_CONN_SEC_IN_SYNACK,      /* We sent a syn/ack */
+     COLO_CONN_SEC_IN_ACK,         /* Saw the ack but didn't yet see our syn/ack */
+     COLO_CONN_SEC_IN_ESTABLISHED, /* Got the ACK from the outside */
 } colo_conn_state;
 
 static const char *conn_state_str[] = {
@@ -87,7 +92,11 @@ static const char *conn_state_str[] = {
      "P:In PSynAck",
      "P:In SSynAck",
      "P:In SynAck",
-     "P:Established"
+     "P:Established",
+
+     "S:In SynAck",
+     "S:In Ack",
+     "S:Established"
 };
 
 typedef struct COLOProxyState {
@@ -148,6 +157,10 @@ typedef struct Connection {
     void *proto; /* tcp only now */
 
     colo_conn_state state;
+    tcp_seq  primary_seq;
+    tcp_seq  secondary_seq;
+
+    ConnectionKey ck; /* For easy debug */
 } Connection;
 
 enum {
@@ -170,9 +183,9 @@ static inline void colo_proxy_dump_packet(Packet *pkt)
 {
     int i;
     for (i = 0; i < pkt->size; i++) {
-        printf("%02x ", ((uint8_t *)pkt->data)[i]);
+        fprintf(stderr, "%02x ", ((uint8_t *)pkt->data)[i]);
     }
-    printf("\n");
+    fprintf(stderr, "\n");
 }
 
 static void info_packet(void *opaque, void *user_data)
@@ -198,9 +211,9 @@ static void info_hash(gpointer key, gpointer value, gpointer user_data)
     Connection *conn = value;
 
     monitor_printf(mon, "  (%4d), %s:%d -> ", ck->ip_proto, inet_ntoa(ck->src), ck->src_port);
-    monitor_printf(mon, "  %s:%d %s processing: %d\n ", inet_ntoa(ck->dst), ck->dst_port,
+    monitor_printf(mon, "  %s:%d %s processing: %d seq (p/s): %u/%u\n ", inet_ntoa(ck->dst), ck->dst_port,
                    conn_state_str[conn->state],
-                   conn->processing);
+                   conn->processing, conn->primary_seq, conn->secondary_seq);
 
     monitor_printf(mon, "  Primary list:\n");
     g_queue_foreach(&conn->primary_list, info_packet, mon);
@@ -253,8 +266,8 @@ static void connection_destroy(void *opaque)
 
 static Connection *connection_new(ConnectionKey *key)
 {
-    Connection *conn = g_slice_new(Connection);
-
+    Connection *conn = g_slice_new0(Connection);
+    conn->ck = *key;
     conn->ip_proto = key->ip_proto;
     conn->processing = false;
     g_queue_init(&conn->primary_list);
@@ -285,6 +298,25 @@ static void colo_flush_connection(void *opaque, void *user_data)
     }
 }
 
+static void colo_flush_secondary_connection(gpointer key, gpointer value, gpointer user_data)
+{
+    Connection *conn = value;
+    /* We could just empty the hash table at this point, but it's interesting
+     * to keep state so we can watch
+     */
+    switch (conn->state) {
+    case COLO_CONN_SEC_IN_SYNACK:
+    case COLO_CONN_SEC_IN_ACK:
+    case COLO_CONN_SEC_IN_ESTABLISHED:
+        fprintf(stderr, "%s: Flushing %p in state %d\n", __func__, conn, conn->state);
+        conn->state = COLO_CONN_IDLE;
+        break;
+
+    default:
+        break;
+    }
+}
+
 /*
  * Clear hashtable, stop this hash growing really huge
  */
@@ -308,6 +340,7 @@ static int colo_proxy_primary_checkpoint(COLOProxyState *s)
 
 static int colo_proxy_secondary_checkpoint(COLOProxyState *s)
 {
+    g_hash_table_foreach(colo_conn_hash, colo_flush_secondary_connection, NULL);
     return 0;
 }
 
@@ -397,7 +430,7 @@ static int parse_packet_early(Packet *pkt, ConnectionKey *key)
 static Packet *packet_new(COLOProxyState *s, void *data,
                           int size, ConnectionKey *key, NetClientState *sender)
 {
-    Packet *pkt = g_slice_new(Packet);
+    Packet *pkt = g_slice_new0(Packet);
 
     pkt->data = data;
     pkt->size = size;
@@ -443,6 +476,172 @@ static Connection *colo_proxy_get_conn(COLOProxyState *s,
     }
 
      return conn;
+}
+
+/* Handle incoming packets on the secondary side.
+ * It doesn't need to copy the data, but it does need to pull apart the
+ * header.
+ * Incoming connections: record the connection with the syn ?
+ * Outgoing connections: capture the syn/ack to get the primaries sequence
+ */
+static void secondary_from_net(NetFilterState *nf,
+                               const struct iovec *iov,
+                               int iovcnt,  bool from_guest)
+{
+    COLOProxyState *s = FILTER_COLO_PROXY(nf);
+    Packet pkt;
+    int network_length;
+    uint8_t buffer[128]; /* I think 128 should be enough for ether+TCP header */
+    size_t received, l2hdr_len;
+    uint16_t l3_proto;
+    ConnectionKey key;
+    Connection *conn;
+    struct tcphdr *tcp;
+    
+    pkt.data = buffer;
+    received = iov_to_buf(iov, iovcnt,
+                          12, /* dgilbert: virtio header skip */
+                          pkt.data, 128);
+#if 0
+    fprintf(stderr, "%s: received=%zd:", __func__, received);
+    for(i = 0; i < received; i++) {
+        fprintf(stderr, "%02x ", buffer[i]);
+    }
+    fprintf(stderr, "\n");
+#endif
+
+    if (received < sizeof(struct eth_header) + 2 * sizeof(struct vlan_header))
+    {
+        /* Not safe to try and grab the l2 header length? */
+        return;
+    }
+    l2hdr_len = eth_get_l2_hdr_length(pkt.data);
+    pkt.network_layer = buffer + ETH_HLEN;
+    l3_proto = eth_get_l3_proto(pkt.data, l2hdr_len);
+    //fprintf(stderr, "%s: l3_proto=%d\n", __func__, l3_proto);
+    if (l3_proto != ETH_P_IP) {
+        return;
+    }
+    network_length = pkt.ip->ip_hl * 4;
+    pkt.transport_layer = pkt.network_layer + network_length;
+    /* TODO: More packet length checks - although buffer should be enough ? */
+
+    key.ip_proto = pkt.ip->ip_p;
+    /* For the secondary always keep the key from the view of the outside,
+     * so dst is always the guest whichever direction.
+     */
+    if (!from_guest) {
+        key.src = pkt.ip->ip_src;
+        key.dst = pkt.ip->ip_dst;
+    } else {
+        key.dst = pkt.ip->ip_src;
+        key.src = pkt.ip->ip_dst;
+    }
+    //fprintf(stderr,"%s: IP packet src: %s proto: %d\n",
+    //               __func__, inet_ntoa(key.src), key.ip_proto);
+    if (key.ip_proto != IPPROTO_TCP) {
+        return;
+    }
+    tcp = (struct tcphdr *)pkt.transport_layer;
+    if (!from_guest) {
+        key.src_port = tcp->th_sport;
+        key.dst_port = tcp->th_dport;
+    } else {
+        key.dst_port = tcp->th_sport;
+        key.src_port = tcp->th_dport;
+    }
+    key.dst_port = ntohs(key.dst_port);
+    key.src_port = ntohs(key.src_port);
+    //fprintf(stderr,"%s: TCP packet src: %s flags: %x\n",
+    //               __func__, inet_ntoa(key.src), tcp->th_flags);
+    if (!from_guest) {
+        /* Packets from the primary via the socket */
+       conn = colo_proxy_get_conn(s, &key);
+        if ((tcp->th_flags & (TH_ACK | TH_SYN)) == TH_ACK) {
+            /* Incoming connection, this is the ACK from the outside */
+           fprintf(stderr, "W->G ACK; seqs: %u/%u dst-ip: %s ports (s/d): %d/%d state=%d\n",
+                   ntohl(tcp->th_seq), ntohl(tcp->th_ack), inet_ntoa(key.dst), key.src_port, key.dst_port,
+                   conn->state);
+           switch (conn->state) {
+           case COLO_CONN_IDLE:
+               /* Odd case; we see the response before our seq/ack */
+               conn->primary_seq = ntohl(tcp->th_ack) - 1;
+               conn->state = COLO_CONN_SEC_IN_ACK;
+               break;
+           case COLO_CONN_SEC_IN_SYNACK:
+               /* We have a full pair - so know the diff */
+               conn->primary_seq = ntohl(tcp->th_ack) - 1;
+               conn->state = COLO_CONN_SEC_IN_ESTABLISHED;
+               break;
+           default:
+               break;
+           }
+
+        }
+        if (conn->state == COLO_CONN_SEC_IN_ESTABLISHED) {
+            /* Fix up the incoming ack's to match the secondarys sent sequence numbers
+             * otherwise it can trigger resets
+             */
+            tcp_seq newseq = ntohl(tcp->th_ack);
+            size_t  offset;
+            newseq -= conn->primary_seq;
+            newseq += conn->secondary_seq;
+            offset = ((void *)&(tcp->th_ack) - pkt.data);
+            offset += 12; /* dgilbert: vhdr hack */
+            fprintf(stderr,"%s: Updating ack number from %u to %u offset=%zd\n",
+                    __func__, ntohl(tcp->th_ack), newseq, offset);
+            newseq = htonl(newseq);
+            /* Hmm - do I need to fixup sum? */
+            iov_from_buf(iov, iovcnt, offset, &newseq, sizeof(newseq));
+        }
+
+    } else {
+        /* Packets from the guest */
+        if ((tcp->th_flags & (TH_ACK | TH_SYN)) == (TH_ACK | TH_SYN)) {
+             /* Incoming connection, SYN/ACK from the guest in response
+              * to the syn from the outside.
+              */
+           conn = colo_proxy_get_conn(s, &key);
+           fprintf(stderr, "G->W SYN-ACK; seqs: %u/%u src-ip: %s ports (s/d): %d/%d state=%d\n",
+                   ntohl(tcp->th_seq), ntohl(tcp->th_ack), inet_ntoa(key.src), key.src_port, key.dst_port,
+                   conn->state);
+           switch (conn->state) {
+           case COLO_CONN_IDLE:
+               conn->secondary_seq = ntohl(tcp->th_seq);
+               conn->state = COLO_CONN_SEC_IN_SYNACK;
+               break;
+           case COLO_CONN_SEC_IN_ACK:
+               conn->secondary_seq = ntohl(tcp->th_seq);
+               /* We have a full pair - so know the diff */
+               conn->state = COLO_CONN_SEC_IN_ESTABLISHED;
+               break;
+           default:
+               break;
+           }
+        } else {
+            /* If we've got an existing established connection then tweak
+             * the sequence numbers to match the primary.
+             */
+            conn = colo_proxy_get_conn(s, &key);
+            fprintf(stderr, "G->W; seqs: %u/%u src-ip: %s ports (s/d): %d/%d flags=%x state=%d\n",
+                    ntohl(tcp->th_seq), ntohl(tcp->th_ack), inet_ntoa(key.src), key.src_port, key.dst_port,
+                    tcp->th_flags, conn->state);
+
+            if (conn->state == COLO_CONN_SEC_IN_ESTABLISHED) {
+                tcp_seq newseq = ntohl(tcp->th_seq);
+                size_t  offset;
+                newseq -= conn->secondary_seq;
+                newseq += conn->primary_seq;
+                offset = ((void *)&(tcp->th_seq) - pkt.data);
+                offset += 12; /* dgilbert: vhdr hack */
+                fprintf(stderr,"%s: Updating sequence number from %u to %u offset=%zd\n",
+                        __func__, ntohl(tcp->th_seq), newseq, offset);
+                newseq = htonl(newseq);
+                /* Hmm - do I need to fixup crc? */
+                iov_from_buf(iov, iovcnt, offset, &newseq, sizeof(newseq));
+            }
+        }
+    }
 }
 
 /* Primary: Outgoing packet */
@@ -541,6 +740,7 @@ static ssize_t colo_proxy_sock_send(NetFilterState *nf,
     tosend = size | ((uint64_t)checkpoint_num) << 32;
     ret = iov_send(s->sockfd, &sizeiov, 1, 0, sizeof(size));
     if (ret < 0) {
+        fprintf(stderr,"%s: Failed to send size with %zd\n", __func__, ret);
         return ret;
     }
     ret = iov_send(s->sockfd, iov, iovcnt, 0, size);
@@ -590,6 +790,7 @@ static void colo_proxy_sock_receive(void *opaque)
             /* The packets to the secondary come from the outside world,
              * so the checkpoint number is irrelevant for us
              */
+            secondary_from_net(nf, &iov, 1, false /* not from guest */ );
             qemu_net_queue_send(s->incoming_queue, nf->netdev,
                             0, (const uint8_t *)buf, len, NULL);
         }
@@ -662,13 +863,17 @@ static ssize_t colo_proxy_secondary_handler(NetFilterState *nf,
      */
     if (sender == nf->netdev) {
         /* This packet is sent by netdev itself */
-        /* ??? Incoming packet from net, ignore - we only pass the
-         * packets from the socket to the guest
+        /* Incoming packet from the net - but on the secondary all the packets
+         * to the guest are actually going to the primary, we don't see real ones.
+         * TODO: After failover we might need it.
          */
     } else {
         /* Outgoing packets from secondary guest - send to
          * primary for comparison
+         * TODO: [outgoing conn] when we see the syn create the connection record
+         * TODO: When we see the reset/fin mark as closed?
          */
+        secondary_from_net(nf, iov, iovcnt, true /* from guest */);
         ret = colo_proxy_sock_send(nf, iov, iovcnt);
     }
 
@@ -819,7 +1024,7 @@ static int colo_packet_compare_tcp(Packet *ppkt, Packet *spkt)
 {
     struct tcphdr *ptcp, *stcp;
     int res;
-    char *sdebug, *pdebug;
+    char *sdebug, *ddebug;
     ptrdiff_t offset;
 
     ptcp = (struct tcphdr *)ppkt->transport_layer;
@@ -843,14 +1048,22 @@ static int colo_packet_compare_tcp(Packet *ppkt, Packet *spkt)
 
     res = memcmp(ppkt->data + offset, spkt->data + offset,
                  (spkt->size - offset));
-    pdebug=strdup(inet_ntoa(ppkt->ip->ip_src));
-    sdebug=strdup(inet_ntoa(spkt->ip->ip_src));
-    fprintf(stderr,"%s: src: %s/%s offset=%zd p: seq/ack=%d/%d s: seq/ack=%d/%d res=%d flags=%x/%x\n", __func__,
-                   pdebug, sdebug, offset,
-                   ptcp->th_seq, ptcp->th_ack,
-                   stcp->th_seq, stcp->th_ack, res, ptcp->th_flags, stcp->th_flags);
-    g_free(pdebug);
-    g_free(sdebug);
+    if (res) {
+        sdebug=strdup(inet_ntoa(ppkt->ip->ip_src));
+        ddebug=strdup(inet_ntoa(ppkt->ip->ip_dst));
+        fprintf(stderr,"%s: src/dst: %s/%s offset=%zd p: seq/ack=%u/%u s: seq/ack=%u/%u res=%d flags=%x/%x\n", __func__,
+                   sdebug, ddebug, offset,
+                   ntohl(ptcp->th_seq), ntohl(ptcp->th_ack),
+                   ntohl(stcp->th_seq), ntohl(stcp->th_ack), res, ptcp->th_flags, stcp->th_flags);
+        if (res && (ptcp->th_seq == stcp->th_seq)) {
+            fprintf(stderr, "Primary len=%d: ", ppkt->size);
+            colo_proxy_dump_packet(ppkt);
+            fprintf(stderr, "Secondary len=%d: ", spkt->size);
+            colo_proxy_dump_packet(spkt);
+        }
+        g_free(sdebug);
+        g_free(ddebug);
+    }
     return res;
 }
 
@@ -861,7 +1074,7 @@ static int colo_packet_compare_tcp(Packet *ppkt, Packet *spkt)
  * return:    0  means packet same
  *            > 0 || < 0 means packet different
  */
-static int colo_packet_compare(Packet *ppkt, Packet *spkt)
+static int colo_packet_compare(Packet *spkt, Packet *ppkt)
 {
     trace_colo_proxy("colo_packet_compare data   ppkt");
     trace_colo_proxy_packet_size(ppkt->size);
@@ -875,11 +1088,21 @@ static int colo_packet_compare(Packet *ppkt, Packet *spkt)
     /*colo_proxy_dump_packet(spkt);*/
 
     if (ppkt->size == spkt->size) {
+        int res;
         if (ppkt->ip->ip_p == IPPROTO_TCP) {
             return colo_packet_compare_tcp(ppkt, spkt);
         }
-        return memcmp(ppkt->data, spkt->data, spkt->size - 12 /* dgilbert: vhdr hack! */);
+        res = memcmp(ppkt->data, spkt->data, spkt->size - 12 /* dgilbert: vhdr hack! */);
+        if (res) {
+            fprintf(stderr, "%s: non-TCP miscompare proto=%d:\n", __func__, ppkt->ip->ip_p);
+            fprintf(stderr, "Primary: ");
+            colo_proxy_dump_packet(ppkt);
+            fprintf(stderr, "Secondary: ");
+            colo_proxy_dump_packet(spkt);
+        }
+        return res;
     } else {
+        fprintf(stderr, "%s: Packet size difference %p/%p %d/%d\n", __func__, ppkt, spkt, ppkt->size, spkt->size);
         trace_colo_proxy("colo_packet_compare size not same");
         return -1;
     }
@@ -888,20 +1111,29 @@ static int colo_packet_compare(Packet *ppkt, Packet *spkt)
 static void colo_compare_connection(void *opaque, void *user_data)
 {
     Connection *conn = opaque;
-    Packet *pkt = NULL;
-    GList *result = NULL;
+    Packet *ppkt = NULL;
+    Packet *spkt = NULL;
+    int result;
 
     while (!g_queue_is_empty(&conn->primary_list) &&
                 !g_queue_is_empty(&conn->secondary_list)) {
-        pkt = g_queue_pop_head(&conn->primary_list);
-        result = g_queue_find_custom(&conn->secondary_list,
-                    pkt, (GCompareFunc)colo_packet_compare);
-        if (result) {
-            colo_send_primary_packet(pkt, NULL);
+        ppkt = g_queue_pop_head(&conn->primary_list);
+        spkt = g_queue_pop_head(&conn->secondary_list);
+        result = colo_packet_compare(spkt, ppkt);
+        if (!result) {
+            colo_send_primary_packet(ppkt, NULL);
             trace_colo_proxy("packet same and release packet");
         } else {
-            g_queue_push_tail(&conn->primary_list, pkt);
+            /* Leave it on the list since we're going to cause a checkpoint
+             * and flush and we need to send the packets out
+             */
+            g_queue_push_head(&conn->primary_list, ppkt);
+            packet_destroy(spkt, NULL);
             trace_colo_proxy("packet different");
+            fprintf(stderr, "%s: miscompare for %d conn: %s,%d:", __func__, checkpoint_num,
+                    inet_ntoa(conn->ck.src), conn->ck.src_port);
+            fprintf(stderr, "-> %s,%d\n",
+                    inet_ntoa(conn->ck.dst), conn->ck.dst_port);
             colo_proxy_notify_checkpoint();
             break;
         }
