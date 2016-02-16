@@ -156,4 +156,4 @@ static void gumstix_machine_init(void)
     type_register_static(&verdex_type);
 }
 
-machine_init(gumstix_machine_init)
+type_init(gumstix_machine_init)

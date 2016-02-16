@@ -294,7 +294,7 @@ static const TypeInfo ccw_machine_info = {
     {                                                                         \
         type_register_static(&ccw_machine_##suffix##_info);                   \
     }                                                                         \
-    machine_init(ccw_machine_register_##suffix)
+    type_init(ccw_machine_register_##suffix)
 
 #define CCW_COMPAT_2_5 \
         HW_COMPAT_2_5

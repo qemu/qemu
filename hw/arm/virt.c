@@ -1428,4 +1428,4 @@ static void machvirt_machine_init(void)
     type_register_static(&machvirt_info);
 }
 
-machine_init(machvirt_machine_init);
+type_init(machvirt_machine_init);

@@ -387,4 +387,4 @@ static void mips_jazz_machine_init(void)
     type_register_static(&mips_pica61_type);
 }
 
-machine_init(mips_jazz_machine_init)
+type_init(mips_jazz_machine_init)

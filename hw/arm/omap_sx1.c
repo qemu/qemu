@@ -252,4 +252,4 @@ static void sx1_machine_init(void)
     type_register_static(&sx1_machine_v2_type);
 }
 
-machine_init(sx1_machine_init)
+type_init(sx1_machine_init)

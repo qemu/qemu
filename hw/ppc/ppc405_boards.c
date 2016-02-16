@@ -658,4 +658,4 @@ static void ppc405_machine_init(void)
     type_register_static(&taihu_type);
 }
 
-machine_init(ppc405_machine_init)
+type_init(ppc405_machine_init)
