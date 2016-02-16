@@ -2279,7 +2279,7 @@ static bool cdc_zero(target_ulong *psw)
 static void save_context_upper(CPUTriCoreState *env, int ea)
 {
     cpu_stl_data(env, ea, env->PCXI);
-    cpu_stl_data(env, ea+4, env->PSW);
+    cpu_stl_data(env, ea+4, psw_read(env));
     cpu_stl_data(env, ea+8, env->gpr_a[10]);
     cpu_stl_data(env, ea+12, env->gpr_a[11]);
     cpu_stl_data(env, ea+16, env->gpr_d[8]);
