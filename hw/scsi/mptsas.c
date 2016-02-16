@@ -504,6 +504,7 @@ reply_maybe_async:
             reply_async->IOCLogInfo = count;
             return;
         }
+        g_free(reply_async);
         reply.TerminationCount = count;
         break;
 
