@@ -945,4 +945,4 @@ static void spice_register_config(void)
 {
     qemu_add_opts(&qemu_spice_opts);
 }
-machine_init(spice_register_config);
+opts_init(spice_register_config);
