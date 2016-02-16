@@ -916,8 +916,9 @@ static int rndis_query_response(USBNetState *s,
 
     bufoffs = le32_to_cpu(buf->InformationBufferOffset) + 8;
     buflen = le32_to_cpu(buf->InformationBufferLength);
-    if (bufoffs + buflen > length)
+    if (buflen > length || bufoffs >= length || bufoffs + buflen > length) {
         return USB_RET_STALL;
+    }
 
     infobuflen = ndis_query(s, le32_to_cpu(buf->OID),
                             bufoffs + (uint8_t *) buf, buflen, infobuf,
@@ -962,8 +963,9 @@ static int rndis_set_response(USBNetState *s,
 
     bufoffs = le32_to_cpu(buf->InformationBufferOffset) + 8;
     buflen = le32_to_cpu(buf->InformationBufferLength);
-    if (bufoffs + buflen > length)
+    if (buflen > length || bufoffs >= length || bufoffs + buflen > length) {
         return USB_RET_STALL;
+    }
 
     ret = ndis_set(s, le32_to_cpu(buf->OID),
                     bufoffs + (uint8_t *) buf, buflen);
@@ -1213,8 +1215,9 @@ static void usb_net_handle_dataout(USBNetState *s, USBPacket *p)
     if (le32_to_cpu(msg->MessageType) == RNDIS_PACKET_MSG) {
         uint32_t offs = 8 + le32_to_cpu(msg->DataOffset);
         uint32_t size = le32_to_cpu(msg->DataLength);
-        if (offs + size <= len)
+        if (offs < len && size < len && offs + size <= len) {
             qemu_send_packet(qemu_get_queue(s->nic), s->out_buf + offs, size);
+        }
     }
     s->out_ptr -= len;
     memmove(s->out_buf, &s->out_buf[len], s->out_ptr);
