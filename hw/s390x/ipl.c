@@ -129,7 +129,7 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
             /* Adjust ELF start address to final location */
             ipl->bios_start_addr += fwbase;
         } else {
-            /* Try to load non-ELF file (e.g. s390-ccw.img) */
+            /* Try to load non-ELF file */
             bios_size = load_image_targphys(bios_filename, ZIPL_IMAGE_START,
                                             4096);
             ipl->bios_start_addr = ZIPL_IMAGE_START;
