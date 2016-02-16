@@ -534,7 +534,7 @@ static void ipmi_init_sensors_from_sdrs(IPMIBmcSim *s)
             continue; /* Not a sensor SDR we set from */
         }
 
-        if (sdr->sensor_owner_number > MAX_SENSORS) {
+        if (sdr->sensor_owner_number >= MAX_SENSORS) {
             continue;
         }
         sens = s->sensors + sdr->sensor_owner_number;
@@ -1448,7 +1448,7 @@ static void set_sensor_evt_enable(IPMIBmcSim *ibs,
     IPMISensor *sens;
 
     IPMI_CHECK_CMD_LEN(4);
-    if ((cmd[2] > MAX_SENSORS) ||
+    if ((cmd[2] >= MAX_SENSORS) ||
             !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
         return;
@@ -1500,7 +1500,7 @@ static void get_sensor_evt_enable(IPMIBmcSim *ibs,
     IPMISensor *sens;
 
     IPMI_CHECK_CMD_LEN(3);
-    if ((cmd[2] > MAX_SENSORS) ||
+    if ((cmd[2] >= MAX_SENSORS) ||
         !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
         return;
@@ -1521,7 +1521,7 @@ static void rearm_sensor_evts(IPMIBmcSim *ibs,
     IPMISensor *sens;
 
     IPMI_CHECK_CMD_LEN(4);
-    if ((cmd[2] > MAX_SENSORS) ||
+    if ((cmd[2] >= MAX_SENSORS) ||
         !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
         return;
@@ -1543,7 +1543,7 @@ static void get_sensor_evt_status(IPMIBmcSim *ibs,
     IPMISensor *sens;
 
     IPMI_CHECK_CMD_LEN(3);
-    if ((cmd[2] > MAX_SENSORS) ||
+    if ((cmd[2] >= MAX_SENSORS) ||
         !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
         return;
@@ -1565,7 +1565,7 @@ static void get_sensor_reading(IPMIBmcSim *ibs,
     IPMISensor *sens;
 
     IPMI_CHECK_CMD_LEN(3);
-    if ((cmd[2] > MAX_SENSORS) ||
+    if ((cmd[2] >= MAX_SENSORS) ||
             !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
         return;
@@ -1588,7 +1588,7 @@ static void set_sensor_type(IPMIBmcSim *ibs,
 
 
     IPMI_CHECK_CMD_LEN(5);
-    if ((cmd[2] > MAX_SENSORS) ||
+    if ((cmd[2] >= MAX_SENSORS) ||
             !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
         return;
@@ -1607,7 +1607,7 @@ static void get_sensor_type(IPMIBmcSim *ibs,
 
 
     IPMI_CHECK_CMD_LEN(3);
-    if ((cmd[2] > MAX_SENSORS) ||
+    if ((cmd[2] >= MAX_SENSORS) ||
             !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
         rsp[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
         return;
