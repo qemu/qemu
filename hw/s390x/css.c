@@ -63,7 +63,17 @@ typedef struct ChannelSubSys {
     QTAILQ_HEAD(, IndAddr) indicator_addresses;
 } ChannelSubSys;
 
-static ChannelSubSys channel_subsys;
+static ChannelSubSys channel_subsys = {
+    .pending_crws = QTAILQ_HEAD_INITIALIZER(channel_subsys.pending_crws),
+    .do_crw_mchk = true,
+    .sei_pending = false,
+    .do_crw_mchk = true,
+    .crws_lost = false,
+    .chnmon_active = false,
+    .io_adapters = QTAILQ_HEAD_INITIALIZER(channel_subsys.io_adapters),
+    .indicator_addresses =
+        QTAILQ_HEAD_INITIALIZER(channel_subsys.indicator_addresses),
+};
 
 IndAddr *get_indicator(hwaddr ind_addr, int len)
 {
@@ -1575,19 +1585,6 @@ int subch_device_load(SubchDev *s, QEMUFile *f)
     }
     return 0;
 }
-
-
-static void css_init(void)
-{
-    QTAILQ_INIT(&channel_subsys.pending_crws);
-    channel_subsys.sei_pending = false;
-    channel_subsys.do_crw_mchk = true;
-    channel_subsys.crws_lost = false;
-    channel_subsys.chnmon_active = false;
-    QTAILQ_INIT(&channel_subsys.io_adapters);
-    QTAILQ_INIT(&channel_subsys.indicator_addresses);
-}
-machine_init(css_init);
 
 void css_reset_sch(SubchDev *sch)
 {
