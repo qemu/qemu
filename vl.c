@@ -2762,8 +2762,9 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
     return popt;
 }
 
-static void set_machine_options(MachineClass **machine_class)
+static MachineClass *select_machine(void)
 {
+    MachineClass *machine_class = find_default_machine();
     const char *optarg;
     QemuOpts *opts;
     Location loc;
@@ -2775,16 +2776,17 @@ static void set_machine_options(MachineClass **machine_class)
 
     optarg = qemu_opt_get(opts, "type");
     if (optarg) {
-        *machine_class = machine_parse(optarg);
+        machine_class = machine_parse(optarg);
     }
 
-    if (*machine_class == NULL) {
+    if (!machine_class) {
         error_report("No machine specified, and there is no default");
         error_printf("Use -machine help to list supported machines\n");
         exit(1);
     }
 
     loc_pop(&loc);
+    return machine_class;
 }
 
 static int machine_set_property(void *opaque,
@@ -3031,7 +3033,6 @@ int main(int argc, char **argv, char **envp)
     os_setup_early_signal_handling();
 
     module_call_init(MODULE_INIT_MACHINE);
-    machine_class = find_default_machine();
     cpu_model = NULL;
     snapshot = 0;
     cyls = heads = secs = 0;
@@ -4022,7 +4023,7 @@ int main(int argc, char **argv, char **envp)
 
     replay_configure(icount_opts);
 
-    set_machine_options(&machine_class);
+    machine_class = select_machine();
 
     set_memory_options(&ram_slots, &maxram_size, machine_class);
 
