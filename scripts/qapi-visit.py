@@ -293,7 +293,8 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
     case %(case)s:
 ''',
                      case=c_enum_const(variants.tag_member.type.name,
-                                       var.name))
+                                       var.name,
+                                       variants.tag_member.type.prefix))
         if simple_union_type:
             ret += mcgen('''
         visit_type_%(c_type)s(v, "data", &(*obj)->u.%(c_name)s, &err);

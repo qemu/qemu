@@ -73,14 +73,17 @@
   'base': 'UserDefZero',
   'data': { 'string': 'str', 'enum1': 'EnumOne' } }
 
+{ 'struct': 'UserDefUnionBase2',
+  'base': 'UserDefZero',
+  'data': { 'string': 'str', 'enum1': 'QEnumTwo' } }
+
 # this variant of UserDefFlatUnion defaults to a union that uses fields with
 # allocated types to test corner cases in the cleanup/dealloc visitor
 { 'union': 'UserDefFlatUnion2',
-  'base': 'UserDefUnionBase',
+  'base': 'UserDefUnionBase2',
   'discriminator': 'enum1',
   'data': { 'value1' : 'UserDefC', # intentional forward reference
-            'value2' : 'UserDefB',
-            'value3' : 'UserDefA' } }
+            'value2' : 'UserDefB' } }
 
 { 'alternate': 'UserDefAlternate',
   'data': { 'uda': 'UserDefA', 's': 'str', 'i': 'int' } }
