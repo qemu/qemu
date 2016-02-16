@@ -30,6 +30,7 @@
 #include "qapi/string-output-visitor.h"
 #include "qapi/util.h"
 #include "qapi-visit.h"
+#include "qom/object_interfaces.h"
 #include "ui/console.h"
 #include "block/qapi.h"
 #include "qemu-io.h"
@@ -1655,58 +1656,27 @@ void hmp_netdev_del(Monitor *mon, const QDict *qdict)
 void hmp_object_add(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
-    Error *err_end = NULL;
     QemuOpts *opts;
-    char *type = NULL;
-    char *id = NULL;
     OptsVisitor *ov;
-    QDict *pdict;
-    Visitor *v;
+    Object *obj = NULL;
 
     opts = qemu_opts_from_qdict(qemu_find_opts("object"), qdict, &err);
     if (err) {
-        goto out;
+        hmp_handle_error(mon, &err);
+        return;
     }
 
     ov = opts_visitor_new(opts);
-    pdict = qdict_clone_shallow(qdict);
-    v = opts_get_visitor(ov);
-
-    visit_start_struct(v, NULL, NULL, 0, &err);
-    if (err) {
-        goto out_clean;
-    }
-
-    qdict_del(pdict, "qom-type");
-    visit_type_str(v, "qom-type", &type, &err);
-    if (err) {
-        goto out_end;
-    }
-
-    qdict_del(pdict, "id");
-    visit_type_str(v, "id", &id, &err);
-    if (err) {
-        goto out_end;
-    }
-
-    object_add(type, id, pdict, v, &err);
-
-out_end:
-    visit_end_struct(v, &err_end);
-    if (!err && err_end) {
-        qmp_object_del(id, NULL);
-    }
-    error_propagate(&err, err_end);
-out_clean:
+    obj = user_creatable_add(qdict, opts_get_visitor(ov), &err);
     opts_visitor_cleanup(ov);
-
-    QDECREF(pdict);
     qemu_opts_del(opts);
-    g_free(id);
-    g_free(type);
 
-out:
-    hmp_handle_error(mon, &err);
+    if (err) {
+        hmp_handle_error(mon, &err);
+    }
+    if (obj) {
+        object_unref(obj);
+    }
 }
 
 void hmp_getfd(Monitor *mon, const QDict *qdict)
@@ -1823,7 +1793,7 @@ void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
         goto exit;
     }
 
-    qmp_nbd_server_start(addr, &local_err);
+    qmp_nbd_server_start(addr, false, NULL, &local_err);
     qapi_free_SocketAddress(addr);
     if (local_err != NULL) {
         goto exit;
@@ -1934,7 +1904,7 @@ void hmp_object_del(Monitor *mon, const QDict *qdict)
     const char *id = qdict_get_str(qdict, "id");
     Error *err = NULL;
 
-    qmp_object_del(id, &err);
+    user_creatable_del(id, &err);
     hmp_handle_error(mon, &err);
 }
 

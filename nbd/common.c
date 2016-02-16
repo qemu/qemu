@@ -19,47 +19,74 @@
 #include "qemu/osdep.h"
 #include "nbd-internal.h"
 
-ssize_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read)
+ssize_t nbd_wr_syncv(QIOChannel *ioc,
+                     struct iovec *iov,
+                     size_t niov,
+                     size_t offset,
+                     size_t length,
+                     bool do_read)
 {
-    size_t offset = 0;
-    int err;
+    ssize_t done = 0;
+    Error *local_err = NULL;
+    struct iovec *local_iov = g_new(struct iovec, niov);
+    struct iovec *local_iov_head = local_iov;
+    unsigned int nlocal_iov = niov;
 
-    if (qemu_in_coroutine()) {
-        if (do_read) {
-            return qemu_co_recv(fd, buffer, size);
-        } else {
-            return qemu_co_send(fd, buffer, size);
-        }
-    }
+    nlocal_iov = iov_copy(local_iov, nlocal_iov,
+                          iov, niov,
+                          offset, length);
 
-    while (offset < size) {
+    while (nlocal_iov > 0) {
         ssize_t len;
-
         if (do_read) {
-            len = qemu_recv(fd, buffer + offset, size - offset, 0);
+            len = qio_channel_readv(ioc, local_iov, nlocal_iov, &local_err);
         } else {
-            len = send(fd, buffer + offset, size - offset, 0);
+            len = qio_channel_writev(ioc, local_iov, nlocal_iov, &local_err);
         }
-
-        if (len < 0) {
-            err = socket_error();
-
-            /* recoverable error */
-            if (err == EINTR || (offset > 0 && (err == EAGAIN || err == EWOULDBLOCK))) {
-                continue;
+        if (len == QIO_CHANNEL_ERR_BLOCK) {
+            if (qemu_in_coroutine()) {
+                /* XXX figure out if we can create a variant on
+                 * qio_channel_yield() that works with AIO contexts
+                 * and consider using that in this branch */
+                qemu_coroutine_yield();
+            } else {
+                qio_channel_wait(ioc,
+                                 do_read ? G_IO_IN : G_IO_OUT);
             }
-
-            /* unrecoverable error */
-            return -err;
+            continue;
+        }
+        if (len < 0) {
+            TRACE("I/O error: %s", error_get_pretty(local_err));
+            error_free(local_err);
+            /* XXX handle Error objects */
+            done = -EIO;
+            goto cleanup;
         }
 
-        /* eof */
-        if (len == 0) {
+        if (do_read && len == 0) {
             break;
         }
 
-        offset += len;
+        iov_discard_front(&local_iov, &nlocal_iov, len);
+        done += len;
     }
 
-    return offset;
+ cleanup:
+    g_free(local_iov_head);
+    return done;
+}
+
+
+void nbd_tls_handshake(Object *src,
+                       Error *err,
+                       void *opaque)
+{
+    struct NBDTLSHandshakeData *data = opaque;
+
+    if (err) {
+        TRACE("TLS failed %s", error_get_pretty(err));
+        data->error = error_copy(err);
+    }
+    data->complete = true;
+    g_main_loop_quit(data->loop);
 }

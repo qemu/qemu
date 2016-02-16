@@ -3104,6 +3104,7 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
+    module_call_init(MODULE_INIT_QOM);
     bdrv_init();
     if (argc < 2) {
         error_exit("Not enough arguments");

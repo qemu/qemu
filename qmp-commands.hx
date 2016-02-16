@@ -3825,7 +3825,7 @@ EQMP
 
     {
         .name       = "nbd-server-start",
-        .args_type  = "addr:q",
+        .args_type  = "addr:q,tls-creds:s?",
         .mhandler.cmd_new = qmp_marshal_nbd_server_start,
     },
     {

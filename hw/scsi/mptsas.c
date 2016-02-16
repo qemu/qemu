@@ -504,6 +504,7 @@ reply_maybe_async:
             reply_async->IOCLogInfo = count;
             return;
         }
+        g_free(reply_async);
         reply.TerminationCount = count;
         break;
 
@@ -823,7 +824,7 @@ static uint32_t mptsas_doorbell_read(MPTSASState *s)
 {
     uint32_t ret;
 
-    ret = (s->who_init << MPI_DOORBELL_WHO_INIT_SHIFT) & MPI_DOORBELL_WHO_INIT_SHIFT;
+    ret = (s->who_init << MPI_DOORBELL_WHO_INIT_SHIFT) & MPI_DOORBELL_WHO_INIT_MASK;
     ret |= s->state;
     switch (s->doorbell_state) {
     case DOORBELL_NONE:

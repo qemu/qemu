@@ -11,8 +11,10 @@
 #define NBD_INTERNAL_H
 #include "block/nbd.h"
 #include "sysemu/block-backend.h"
+#include "io/channel-tls.h"
 
 #include "qemu/coroutine.h"
+#include "qemu/iov.h"
 
 #include <errno.h>
 #include <string.h>
@@ -29,7 +31,6 @@
 #include <linux/fs.h>
 #endif
 
-#include "qemu/sockets.h"
 #include "qemu/queue.h"
 #include "qemu/main-loop.h"
 
@@ -78,6 +79,8 @@
 #define NBD_OPT_EXPORT_NAME     (1)
 #define NBD_OPT_ABORT           (2)
 #define NBD_OPT_LIST            (3)
+#define NBD_OPT_PEEK_EXPORT     (4)
+#define NBD_OPT_STARTTLS        (5)
 
 /* NBD errors are based on errno numbers, so there is a 1:1 mapping,
  * but only a limited set of errno values is specified in the protocol.
@@ -90,24 +93,33 @@
 #define NBD_EINVAL     22
 #define NBD_ENOSPC     28
 
-static inline ssize_t read_sync(int fd, void *buffer, size_t size)
+static inline ssize_t read_sync(QIOChannel *ioc, void *buffer, size_t size)
 {
+    struct iovec iov = { .iov_base = buffer, .iov_len = size };
     /* Sockets are kept in blocking mode in the negotiation phase.  After
      * that, a non-readable socket simply means that another thread stole
      * our request/reply.  Synchronization is done with recv_coroutine, so
      * that this is coroutine-safe.
      */
-    return nbd_wr_sync(fd, buffer, size, true);
+    return nbd_wr_syncv(ioc, &iov, 1, 0, size, true);
 }
 
-static inline ssize_t write_sync(int fd, void *buffer, size_t size)
+static inline ssize_t write_sync(QIOChannel *ioc, void *buffer, size_t size)
 {
-    int ret;
-    do {
-        /* For writes, we do expect the socket to be writable.  */
-        ret = nbd_wr_sync(fd, buffer, size, false);
-    } while (ret == -EAGAIN);
-    return ret;
+    struct iovec iov = { .iov_base = buffer, .iov_len = size };
+
+    return nbd_wr_syncv(ioc, &iov, 1, 0, size, false);
 }
+
+struct NBDTLSHandshakeData {
+    GMainLoop *loop;
+    bool complete;
+    Error *error;
+};
+
+
+void nbd_tls_handshake(Object *src,
+                       Error *err,
+                       void *opaque);
 
 #endif

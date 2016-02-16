@@ -22,17 +22,17 @@
 #include "block/block_int.h"
 #include "block/nbd.h"
 #include "qemu/main-loop.h"
-#include "qemu/sockets.h"
 #include "qemu/error-report.h"
+#include "qemu/config-file.h"
 #include "block/snapshot.h"
 #include "qapi/util.h"
 #include "qapi/qmp/qstring.h"
+#include "qom/object_interfaces.h"
+#include "io/channel-socket.h"
 
 #include <getopt.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
+#include <sys/types.h>
+#include <signal.h>
 #include <libgen.h>
 #include <pthread.h>
 
@@ -41,8 +41,11 @@
 #define QEMU_NBD_OPT_AIO           2
 #define QEMU_NBD_OPT_DISCARD       3
 #define QEMU_NBD_OPT_DETECT_ZEROES 4
+#define QEMU_NBD_OPT_OBJECT        5
+#define QEMU_NBD_OPT_TLSCREDS      6
 
 static NBDExport *exp;
+static bool newproto;
 static int verbose;
 static char *srcpath;
 static SocketAddress *saddr;
@@ -50,7 +53,9 @@ static int persistent = 0;
 static enum { RUNNING, TERMINATE, TERMINATING, TERMINATED } state;
 static int shared = 1;
 static int nb_fds;
-static int server_fd;
+static QIOChannelSocket *server_ioc;
+static int server_watch = -1;
+static QCryptoTLSCreds *tlscreds;
 
 static void usage(const char *name)
 {
@@ -74,6 +79,9 @@ static void usage(const char *name)
 "  -o, --offset=OFFSET       offset into the image\n"
 "  -P, --partition=NUM       only expose partition NUM\n"
 "\n"
+"General purpose options:\n"
+"  --object type,id=ID,...   define an object such as 'secret' for providing\n"
+"                            passwords and/or encryption keys\n"
 #ifdef __linux__
 "Kernel NBD client support:\n"
 "  -c, --connect=DEV         connect FILE to the local NBD device DEV\n"
@@ -230,19 +238,22 @@ static void *nbd_client_thread(void *arg)
     char *device = arg;
     off_t size;
     uint32_t nbdflags;
-    int fd, sock;
+    QIOChannelSocket *sioc;
+    int fd;
     int ret;
     pthread_t show_parts_thread;
     Error *local_error = NULL;
 
-
-    sock = socket_connect(saddr, &local_error, NULL, NULL);
-    if (sock < 0) {
+    sioc = qio_channel_socket_new();
+    if (qio_channel_socket_connect_sync(sioc,
+                                        saddr,
+                                        &local_error) < 0) {
         error_report_err(local_error);
         goto out;
     }
 
-    ret = nbd_receive_negotiate(sock, NULL, &nbdflags,
+    ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), NULL, &nbdflags,
+                                NULL, NULL, NULL,
                                 &size, &local_error);
     if (ret < 0) {
         if (local_error) {
@@ -258,7 +269,7 @@ static void *nbd_client_thread(void *arg)
         goto out_socket;
     }
 
-    ret = nbd_init(fd, sock, nbdflags, size);
+    ret = nbd_init(fd, sioc, nbdflags, size);
     if (ret < 0) {
         goto out_fd;
     }
@@ -279,13 +290,14 @@ static void *nbd_client_thread(void *arg)
         goto out_fd;
     }
     close(fd);
+    object_unref(OBJECT(sioc));
     kill(getpid(), SIGTERM);
     return (void *) EXIT_SUCCESS;
 
 out_fd:
     close(fd);
 out_socket:
-    closesocket(sock);
+    object_unref(OBJECT(sioc));
 out:
     kill(getpid(), SIGTERM);
     return (void *) EXIT_FAILURE;
@@ -302,7 +314,7 @@ static void nbd_export_closed(NBDExport *exp)
     state = TERMINATED;
 }
 
-static void nbd_update_server_fd_handler(int fd);
+static void nbd_update_server_watch(void);
 
 static void nbd_client_closed(NBDClient *client)
 {
@@ -310,37 +322,48 @@ static void nbd_client_closed(NBDClient *client)
     if (nb_fds == 0 && !persistent && state == RUNNING) {
         state = TERMINATE;
     }
-    nbd_update_server_fd_handler(server_fd);
+    nbd_update_server_watch();
     nbd_client_put(client);
 }
 
-static void nbd_accept(void *opaque)
+static gboolean nbd_accept(QIOChannel *ioc, GIOCondition cond, gpointer opaque)
 {
-    struct sockaddr_in addr;
-    socklen_t addr_len = sizeof(addr);
+    QIOChannelSocket *cioc;
 
-    int fd = accept(server_fd, (struct sockaddr *)&addr, &addr_len);
-    if (fd < 0) {
-        perror("accept");
-        return;
+    cioc = qio_channel_socket_accept(QIO_CHANNEL_SOCKET(ioc),
+                                     NULL);
+    if (!cioc) {
+        return TRUE;
     }
 
     if (state >= TERMINATE) {
-        close(fd);
-        return;
+        object_unref(OBJECT(cioc));
+        return TRUE;
     }
 
     nb_fds++;
-    nbd_update_server_fd_handler(server_fd);
-    nbd_client_new(exp, fd, nbd_client_closed);
+    nbd_update_server_watch();
+    nbd_client_new(newproto ? NULL : exp, cioc,
+                   tlscreds, NULL, nbd_client_closed);
+    object_unref(OBJECT(cioc));
+
+    return TRUE;
 }
 
-static void nbd_update_server_fd_handler(int fd)
+static void nbd_update_server_watch(void)
 {
     if (nbd_can_accept()) {
-        qemu_set_fd_handler(fd, nbd_accept, NULL, (void *)(uintptr_t)fd);
+        if (server_watch == -1) {
+            server_watch = qio_channel_add_watch(QIO_CHANNEL(server_ioc),
+                                                 G_IO_IN,
+                                                 nbd_accept,
+                                                 NULL, NULL);
+        }
     } else {
-        qemu_set_fd_handler(fd, NULL, NULL, NULL);
+        if (server_watch != -1) {
+            g_source_remove(server_watch);
+            server_watch = -1;
+        }
     }
 }
 
@@ -371,6 +394,47 @@ static SocketAddress *nbd_build_socket_address(const char *sockpath,
 }
 
 
+static QemuOptsList qemu_object_opts = {
+    .name = "object",
+    .implied_opt_name = "qom-type",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_object_opts.head),
+    .desc = {
+        { }
+    },
+};
+
+
+
+static QCryptoTLSCreds *nbd_get_tls_creds(const char *id, Error **errp)
+{
+    Object *obj;
+    QCryptoTLSCreds *creds;
+
+    obj = object_resolve_path_component(
+        object_get_objects_root(), id);
+    if (!obj) {
+        error_setg(errp, "No TLS credentials with id '%s'",
+                   id);
+        return NULL;
+    }
+    creds = (QCryptoTLSCreds *)
+        object_dynamic_cast(obj, TYPE_QCRYPTO_TLS_CREDS);
+    if (!creds) {
+        error_setg(errp, "Object with id '%s' is not TLS credentials",
+                   id);
+        return NULL;
+    }
+
+    if (creds->endpoint != QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
+        error_setg(errp,
+                   "Expecting TLS credentials with a server endpoint");
+        return NULL;
+    }
+    object_ref(obj);
+    return creds;
+}
+
+
 int main(int argc, char **argv)
 {
     BlockBackend *blk;
@@ -385,7 +449,7 @@ int main(int argc, char **argv)
     off_t fd_size;
     QemuOpts *sn_opts = NULL;
     const char *sn_id_or_name = NULL;
-    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:";
+    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:";
     struct option lopt[] = {
         { "help", 0, NULL, 'h' },
         { "version", 0, NULL, 'V' },
@@ -408,6 +472,9 @@ int main(int argc, char **argv)
         { "format", 1, NULL, 'f' },
         { "persistent", 0, NULL, 't' },
         { "verbose", 0, NULL, 'v' },
+        { "object", 1, NULL, QEMU_NBD_OPT_OBJECT },
+        { "export-name", 1, NULL, 'x' },
+        { "tls-creds", 1, NULL, QEMU_NBD_OPT_TLSCREDS },
         { NULL, 0, NULL, 0 }
     };
     int ch;
@@ -416,7 +483,6 @@ int main(int argc, char **argv)
     int flags = BDRV_O_RDWR;
     int partition = -1;
     int ret = 0;
-    int fd;
     bool seen_cache = false;
     bool seen_discard = false;
     bool seen_aio = false;
@@ -425,6 +491,8 @@ int main(int argc, char **argv)
     Error *local_err = NULL;
     BlockdevDetectZeroesOptions detect_zeroes = BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF;
     QDict *options = NULL;
+    const char *export_name = NULL;
+    const char *tlscredsid = NULL;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
@@ -433,6 +501,8 @@ int main(int argc, char **argv)
     memset(&sa_sigterm, 0, sizeof(sa_sigterm));
     sa_sigterm.sa_handler = termsig_handler;
     sigaction(SIGTERM, &sa_sigterm, NULL);
+    module_call_init(MODULE_INIT_QOM);
+    qemu_add_opts(&qemu_object_opts);
     qemu_init_exec_dir(argv[0]);
 
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
@@ -574,6 +644,9 @@ int main(int argc, char **argv)
         case 't':
             persistent = 1;
             break;
+        case 'x':
+            export_name = optarg;
+            break;
         case 'v':
             verbose = 1;
             break;
@@ -588,6 +661,17 @@ int main(int argc, char **argv)
         case '?':
             error_report("Try `%s --help' for more information.", argv[0]);
             exit(EXIT_FAILURE);
+        case QEMU_NBD_OPT_OBJECT: {
+            QemuOpts *opts;
+            opts = qemu_opts_parse_noisily(&qemu_object_opts,
+                                           optarg, true);
+            if (!opts) {
+                exit(EXIT_FAILURE);
+            }
+        }   break;
+        case QEMU_NBD_OPT_TLSCREDS:
+            tlscredsid = optarg;
+            break;
         }
     }
 
@@ -597,16 +681,45 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
+    if (qemu_opts_foreach(&qemu_object_opts,
+                          user_creatable_add_opts_foreach,
+                          NULL, &local_err)) {
+        error_report_err(local_err);
+        exit(EXIT_FAILURE);
+    }
+
+    if (tlscredsid) {
+        if (sockpath) {
+            error_report("TLS is only supported with IPv4/IPv6");
+            exit(EXIT_FAILURE);
+        }
+        if (device) {
+            error_report("TLS is not supported with a host device");
+            exit(EXIT_FAILURE);
+        }
+        if (!export_name) {
+            /* Set the default NBD protocol export name, since
+             * we *must* use new style protocol for TLS */
+            export_name = "";
+        }
+        tlscreds = nbd_get_tls_creds(tlscredsid, &local_err);
+        if (local_err) {
+            error_report("Failed to get TLS creds %s",
+                         error_get_pretty(local_err));
+            exit(EXIT_FAILURE);
+        }
+    }
+
     if (disconnect) {
-        fd = open(argv[optind], O_RDWR);
-        if (fd < 0) {
+        int nbdfd = open(argv[optind], O_RDWR);
+        if (nbdfd < 0) {
             error_report("Cannot open %s: %s", argv[optind],
                          strerror(errno));
             exit(EXIT_FAILURE);
         }
-        nbd_disconnect(fd);
+        nbd_disconnect(nbdfd);
 
-        close(fd);
+        close(nbdfd);
 
         printf("%s disconnected\n", argv[optind]);
 
@@ -738,9 +851,14 @@ int main(int argc, char **argv)
         error_report_err(local_err);
         exit(EXIT_FAILURE);
     }
+    if (export_name) {
+        nbd_export_set_name(exp, export_name);
+        newproto = true;
+    }
 
-    fd = socket_listen(saddr, &local_err);
-    if (fd < 0) {
+    server_ioc = qio_channel_socket_new();
+    if (qio_channel_socket_listen_sync(server_ioc, saddr, &local_err) < 0) {
+        object_unref(OBJECT(server_ioc));
         error_report_err(local_err);
         return 1;
     }
@@ -758,8 +876,7 @@ int main(int argc, char **argv)
         memset(&client_thread, 0, sizeof(client_thread));
     }
 
-    server_fd = fd;
-    nbd_update_server_fd_handler(fd);
+    nbd_update_server_watch();
 
     /* now when the initialization is (almost) complete, chdir("/")
      * to free any busy filesystems */

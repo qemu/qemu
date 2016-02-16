@@ -579,6 +579,7 @@ static const RunStateTransition runstate_transitions_def[] = {
     /*     from      ->     to      */
     { RUN_STATE_DEBUG, RUN_STATE_RUNNING },
     { RUN_STATE_DEBUG, RUN_STATE_FINISH_MIGRATE },
+    { RUN_STATE_DEBUG, RUN_STATE_PRELAUNCH },
 
     { RUN_STATE_INMIGRATE, RUN_STATE_INTERNAL_ERROR },
     { RUN_STATE_INMIGRATE, RUN_STATE_IO_ERROR },
@@ -589,18 +590,24 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_INMIGRATE, RUN_STATE_WATCHDOG },
     { RUN_STATE_INMIGRATE, RUN_STATE_GUEST_PANICKED },
     { RUN_STATE_INMIGRATE, RUN_STATE_FINISH_MIGRATE },
+    { RUN_STATE_INMIGRATE, RUN_STATE_PRELAUNCH },
+    { RUN_STATE_INMIGRATE, RUN_STATE_POSTMIGRATE },
 
     { RUN_STATE_INTERNAL_ERROR, RUN_STATE_PAUSED },
     { RUN_STATE_INTERNAL_ERROR, RUN_STATE_FINISH_MIGRATE },
+    { RUN_STATE_INTERNAL_ERROR, RUN_STATE_PRELAUNCH },
 
     { RUN_STATE_IO_ERROR, RUN_STATE_RUNNING },
     { RUN_STATE_IO_ERROR, RUN_STATE_FINISH_MIGRATE },
+    { RUN_STATE_IO_ERROR, RUN_STATE_PRELAUNCH },
 
     { RUN_STATE_PAUSED, RUN_STATE_RUNNING },
     { RUN_STATE_PAUSED, RUN_STATE_FINISH_MIGRATE },
+    { RUN_STATE_PAUSED, RUN_STATE_PRELAUNCH },
 
     { RUN_STATE_POSTMIGRATE, RUN_STATE_RUNNING },
     { RUN_STATE_POSTMIGRATE, RUN_STATE_FINISH_MIGRATE },
+    { RUN_STATE_POSTMIGRATE, RUN_STATE_PRELAUNCH },
 
     { RUN_STATE_PRELAUNCH, RUN_STATE_RUNNING },
     { RUN_STATE_PRELAUNCH, RUN_STATE_FINISH_MIGRATE },
@@ -608,8 +615,10 @@ static const RunStateTransition runstate_transitions_def[] = {
 
     { RUN_STATE_FINISH_MIGRATE, RUN_STATE_RUNNING },
     { RUN_STATE_FINISH_MIGRATE, RUN_STATE_POSTMIGRATE },
+    { RUN_STATE_FINISH_MIGRATE, RUN_STATE_PRELAUNCH },
 
     { RUN_STATE_RESTORE_VM, RUN_STATE_RUNNING },
+    { RUN_STATE_RESTORE_VM, RUN_STATE_PRELAUNCH },
 
     { RUN_STATE_RUNNING, RUN_STATE_DEBUG },
     { RUN_STATE_RUNNING, RUN_STATE_INTERNAL_ERROR },
@@ -626,17 +635,21 @@ static const RunStateTransition runstate_transitions_def[] = {
 
     { RUN_STATE_SHUTDOWN, RUN_STATE_PAUSED },
     { RUN_STATE_SHUTDOWN, RUN_STATE_FINISH_MIGRATE },
+    { RUN_STATE_SHUTDOWN, RUN_STATE_PRELAUNCH },
 
     { RUN_STATE_DEBUG, RUN_STATE_SUSPENDED },
     { RUN_STATE_RUNNING, RUN_STATE_SUSPENDED },
     { RUN_STATE_SUSPENDED, RUN_STATE_RUNNING },
     { RUN_STATE_SUSPENDED, RUN_STATE_FINISH_MIGRATE },
+    { RUN_STATE_SUSPENDED, RUN_STATE_PRELAUNCH },
 
     { RUN_STATE_WATCHDOG, RUN_STATE_RUNNING },
     { RUN_STATE_WATCHDOG, RUN_STATE_FINISH_MIGRATE },
+    { RUN_STATE_WATCHDOG, RUN_STATE_PRELAUNCH },
 
     { RUN_STATE_GUEST_PANICKED, RUN_STATE_RUNNING },
     { RUN_STATE_GUEST_PANICKED, RUN_STATE_FINISH_MIGRATE },
+    { RUN_STATE_GUEST_PANICKED, RUN_STATE_PRELAUNCH },
 
     { RUN_STATE__MAX, RUN_STATE__MAX },
 };
@@ -1881,8 +1894,9 @@ static bool main_loop_should_exit(void)
         cpu_synchronize_all_states();
         qemu_system_reset(VMRESET_REPORT);
         resume_all_vcpus();
-        if (runstate_needs_reset()) {
-            runstate_set(RUN_STATE_PAUSED);
+        if (!runstate_check(RUN_STATE_RUNNING) &&
+                !runstate_check(RUN_STATE_INMIGRATE)) {
+            runstate_set(RUN_STATE_PRELAUNCH);
         }
     }
     if (qemu_wakeup_requested()) {
@@ -2815,64 +2829,6 @@ static bool object_create_delayed(const char *type)
     return !object_create_initial(type);
 }
 
-
-static int object_create(void *opaque, QemuOpts *opts, Error **errp)
-{
-    Error *err = NULL;
-    Error *err_end = NULL;
-    char *type = NULL;
-    char *id = NULL;
-    OptsVisitor *ov;
-    QDict *pdict;
-    bool (*type_predicate)(const char *) = opaque;
-    Visitor *v;
-
-    ov = opts_visitor_new(opts);
-    pdict = qemu_opts_to_qdict(opts, NULL);
-    v = opts_get_visitor(ov);
-
-    visit_start_struct(v, NULL, NULL, 0, &err);
-    if (err) {
-        goto out;
-    }
-
-    qdict_del(pdict, "qom-type");
-    visit_type_str(v, "qom-type", &type, &err);
-    if (err) {
-        goto out;
-    }
-    if (!type_predicate(type)) {
-        visit_end_struct(v, NULL);
-        goto out;
-    }
-
-    qdict_del(pdict, "id");
-    visit_type_str(v, "id", &id, &err);
-    if (err) {
-        goto out_end;
-    }
-
-    object_add(type, id, pdict, v, &err);
-
-out_end:
-    visit_end_struct(v, &err_end);
-    if (!err && err_end) {
-        qmp_object_del(id, NULL);
-    }
-    error_propagate(&err, err_end);
-
-out:
-    opts_visitor_cleanup(ov);
-
-    QDECREF(pdict);
-    g_free(id);
-    g_free(type);
-    if (err) {
-        error_report_err(err);
-        return -1;
-    }
-    return 0;
-}
 
 static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
                                MachineClass *mc)
@@ -4299,8 +4255,9 @@ int main(int argc, char **argv, char **envp)
     socket_init();
 
     if (qemu_opts_foreach(qemu_find_opts("object"),
-                          object_create,
-                          object_create_initial, NULL)) {
+                          user_creatable_add_opts_foreach,
+                          object_create_initial, &err)) {
+        error_report_err(err);
         exit(1);
     }
 
@@ -4417,8 +4374,9 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (qemu_opts_foreach(qemu_find_opts("object"),
-                          object_create,
-                          object_create_delayed, NULL)) {
+                          user_creatable_add_opts_foreach,
+                          object_create_delayed, &err)) {
+        error_report_err(err);
         exit(1);
     }
 

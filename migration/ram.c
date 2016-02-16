@@ -1920,6 +1920,9 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
         acct_clear();
     }
 
+    /* For memory_global_dirty_log_start below.  */
+    qemu_mutex_lock_iothread();
+
     qemu_mutex_lock_ramlist();
     rcu_read_lock();
     bytes_transferred = 0;
@@ -1944,6 +1947,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     memory_global_dirty_log_start();
     migration_bitmap_sync();
     qemu_mutex_unlock_ramlist();
+    qemu_mutex_unlock_iothread();
 
     qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
 
