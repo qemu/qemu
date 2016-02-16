@@ -568,7 +568,7 @@ static int interface_get_command(QXLInstance *sin, QXLCommandExt *ext)
 
 static int interface_req_cmd_notification(QXLInstance *sin)
 {
-    dprint(1, "%s/%d:\n", __func__, sin->id);
+    dprint(2, "%s/%d:\n", __func__, sin->id);
     return 1;
 }
 
@@ -621,7 +621,7 @@ static int interface_get_cursor_command(QXLInstance *sin, QXLCommandExt *ext)
 
 static int interface_req_cursor_notification(QXLInstance *sin)
 {
-    dprint(1, "%s:\n", __FUNCTION__);
+    dprint(2, "%s:\n", __func__);
     return 1;
 }
 
@@ -845,9 +845,11 @@ static void qemu_spice_gl_scanout(DisplayChangeListener *dcl,
             fprintf(stderr, "%s: failed to get fd for texture\n", __func__);
             return;
         }
+        dprint(1, "%s: %dx%d (stride %d, fourcc 0x%x)\n", __func__,
+               w, h, stride, fourcc);
+    } else {
+        dprint(1, "%s: no texture (no framebuffer)\n", __func__);
     }
-    dprint(0, "%s: %dx%d (stride %d, fourcc 0x%x)\n", __func__,
-           w, h, stride, fourcc);
 
     assert(!tex_id || fd >= 0);
 
@@ -864,7 +866,7 @@ static void qemu_spice_gl_update(DisplayChangeListener *dcl,
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
     uint64_t cookie;
 
-    dprint(1, "%s\n", __func__);
+    dprint(2, "%s: %dx%d+%d+%d\n", __func__, w, h, x, y);
     qemu_spice_gl_block(ssd, true);
     cookie = (uintptr_t)qxl_cookie_new(QXL_COOKIE_TYPE_GL_DRAW_DONE, 0);
     spice_qxl_gl_draw_async(&ssd->qxl, x, y, w, h, cookie);
