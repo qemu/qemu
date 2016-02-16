@@ -2391,6 +2391,7 @@ DEFINE_SPAPR_MACHINE(2_5, "2.5", false);
  * pseries-2.4
  */
 #define SPAPR_COMPAT_2_4 \
+        SPAPR_COMPAT_2_5 \
         HW_COMPAT_2_4
 
 static void spapr_machine_2_4_instance_options(MachineState *machine)
