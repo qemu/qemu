@@ -450,7 +450,8 @@ static int quorum_compute_hash(QuorumAIOCB *acb, int i, QuorumVoteValue *hash)
     return 0;
 }
 
-static QuorumVoteVersion *quorum_get_vote_winner(QuorumVotes *votes)
+static QuorumVoteVersion *quorum_get_vote_winner(QuorumVotes *votes,
+                                                 bool vote_error)
 {
     int max = 0;
     QuorumVoteVersion *candidate, *winner = NULL;
@@ -458,6 +459,12 @@ static QuorumVoteVersion *quorum_get_vote_winner(QuorumVotes *votes)
     QLIST_FOREACH(candidate, &votes->vote_list, next) {
         if (candidate->vote_count > max) {
             max = candidate->vote_count;
+            winner = candidate;
+            continue;
+        }
+        /* For 64 bit hash */
+        if (vote_error && candidate->vote_count == max
+            && candidate->value.l == 0) {
             winner = candidate;
         }
     }
@@ -548,7 +555,7 @@ static int quorum_vote_error(QuorumAIOCB *acb)
     }
 
     if (error) {
-        winner = quorum_get_vote_winner(&error_votes);
+        winner = quorum_get_vote_winner(&error_votes, false);
         ret = winner->value.l;
     }
 
@@ -613,7 +620,7 @@ static bool quorum_vote(QuorumAIOCB *acb)
     }
 
     /* vote to select the most represented version */
-    winner = quorum_get_vote_winner(&acb->votes);
+    winner = quorum_get_vote_winner(&acb->votes, false);
 
     /* if the winner count is smaller than threshold the read fails */
     if (winner->vote_count < s->threshold) {
@@ -773,7 +780,7 @@ static coroutine_fn int quorum_co_flush(BlockDriverState *bs)
         quorum_count_vote(&error_votes, &result_value, i);
     }
 
-    winner = quorum_get_vote_winner(&error_votes);
+    winner = quorum_get_vote_winner(&error_votes, true);
     result = winner->value.l;
 
     quorum_free_vote_list(&error_votes);
