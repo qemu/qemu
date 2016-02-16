@@ -127,9 +127,9 @@ uint32_t psw_read(CPUTriCoreState *env)
 void psw_write(CPUTriCoreState *env, uint32_t val)
 {
     env->PSW_USB_C = (val & MASK_USB_C);
-    env->PSW_USB_V = (val & MASK_USB_V << 1);
-    env->PSW_USB_SV = (val & MASK_USB_SV << 2);
-    env->PSW_USB_AV = ((val & MASK_USB_AV) << 3);
-    env->PSW_USB_SAV = ((val & MASK_USB_SAV) << 4);
+    env->PSW_USB_V = (val & MASK_USB_V) << 1;
+    env->PSW_USB_SV = (val & MASK_USB_SV) << 2;
+    env->PSW_USB_AV = (val & MASK_USB_AV) << 3;
+    env->PSW_USB_SAV = (val & MASK_USB_SAV) << 4;
     env->PSW = val;
 }
