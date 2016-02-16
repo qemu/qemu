@@ -41,6 +41,7 @@
 #define PRIMARY_MODE "primary"
 #define SECONDARY_MODE "secondary"
 
+
 /*
 
   |COLOProxyState++
@@ -139,6 +140,7 @@ static bool colo_do_checkpoint;
 static pthread_cond_t colo_proxy_signal_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t colo_proxy_signal_mutex = PTHREAD_MUTEX_INITIALIZER;
 static ssize_t hashtable_max_size;
+static unsigned int checkpoint_num = 0;
 
 static inline void colo_proxy_dump_packet(Packet *pkt)
 {
@@ -315,6 +317,7 @@ int colo_proxy_do_checkpoint(int mode)
     }
 
     colo_do_checkpoint = false;
+    checkpoint_num++;
     return 0;
 }
 
@@ -494,16 +497,21 @@ static ssize_t colo_proxy_sock_send(NetFilterState *nf,
 {
     COLOProxyState *s = FILTER_COLO_PROXY(nf);
     ssize_t ret = 0;
-    ssize_t size = 0;
+    uint64_t size = 0;
+    uint64_t tosend = 0;
     struct iovec sizeiov = {
-        .iov_base = &size,
-        .iov_len = sizeof(size)
+        .iov_base = &tosend,
+        .iov_len = sizeof(tosend)
     };
     size = iov_size(iov, iovcnt);
     if (!size) {
         return 0;
     }
-
+    /* The packets sent should always be smaller than 16bit anyway,
+     * store a sequence number at the top.
+     */
+    assert(size < (((uint64_t)1) << 32));
+    tosend = size | ((uint64_t)checkpoint_num) << 32;
     ret = iov_send(s->sockfd, &sizeiov, 1, 0, sizeof(size));
     if (ret < 0) {
         return ret;
@@ -521,13 +529,16 @@ static void colo_proxy_sock_receive(void *opaque)
 {
     NetFilterState *nf = opaque;
     COLOProxyState *s = FILTER_COLO_PROXY(nf);
-    ssize_t len = 0;
+    uint64_t len = 0;
+    uint32_t received_checkpoint_num;
     struct iovec sizeiov = {
         .iov_base = &len,
         .iov_len = sizeof(len)
     };
 
     iov_recv(s->sockfd, &sizeiov, 1, 0, sizeof(len));
+    received_checkpoint_num = len / (((uint64_t)1) << 32);
+    len &= 0xfffffffful;
     if (len > 0 && len < NET_BUFSIZE) {
         char *buf = g_malloc0(len);
         struct iovec iov = {
@@ -537,9 +548,21 @@ static void colo_proxy_sock_receive(void *opaque)
 
         iov_recv(s->sockfd, &iov, 1, 0, len);
         if (s->colo_mode == COLO_MODE_PRIMARY) {
+            /* I don't think this should happen given the sequencing of
+             * proxy flushing, however receiving an old packet would confuse
+             * stuff.
+             */
+            if (received_checkpoint_num != checkpoint_num) {
+                fprintf(stderr, "%s: discarding packet from wrong checkpoint %d, current=%d\n",
+                        __func__, received_checkpoint_num, checkpoint_num);
+               return;
+            }
             colo_proxy_enqueue_secondary_packet(nf, buf, len);
             /* buf will be release when pakcet destroy */
         } else {
+            /* The packets to the secondary come from the outside world,
+             * so the checkpoint number is irrelevant for us
+             */
             qemu_net_queue_send(s->incoming_queue, nf->netdev,
                             0, (const uint8_t *)buf, len, NULL);
         }
