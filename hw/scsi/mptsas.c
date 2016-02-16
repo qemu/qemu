@@ -824,7 +824,7 @@ static uint32_t mptsas_doorbell_read(MPTSASState *s)
 {
     uint32_t ret;
 
-    ret = (s->who_init << MPI_DOORBELL_WHO_INIT_SHIFT) & MPI_DOORBELL_WHO_INIT_SHIFT;
+    ret = (s->who_init << MPI_DOORBELL_WHO_INIT_SHIFT) & MPI_DOORBELL_WHO_INIT_MASK;
     ret |= s->state;
     switch (s->doorbell_state) {
     case DOORBELL_NONE:
