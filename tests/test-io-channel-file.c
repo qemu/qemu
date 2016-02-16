@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "io/channel-file.h"
+#include "io/channel-util.h"
 #include "io-channel-helpers.h"
 
 
@@ -47,6 +48,26 @@ static void test_io_channel_file(void)
     unlink(TEST_FILE);
     object_unref(OBJECT(src));
     object_unref(OBJECT(dst));
+}
+
+
+static void test_io_channel_fd(void)
+{
+    QIOChannel *ioc;
+    int fd = -1;
+
+#define TEST_FILE "tests/test-io-channel-file.txt"
+    fd = open(TEST_FILE, O_CREAT | O_TRUNC | O_WRONLY, 0600);
+    g_assert_cmpint(fd, >, -1);
+
+    ioc = qio_channel_new_fd(fd, &error_abort);
+
+    g_assert_cmpstr(object_get_typename(OBJECT(ioc)),
+                    ==,
+                    TYPE_QIO_CHANNEL_FILE);
+
+    unlink(TEST_FILE);
+    object_unref(OBJECT(ioc));
 }
 
 
@@ -93,6 +114,7 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     g_test_add_func("/io/channel/file", test_io_channel_file);
+    g_test_add_func("/io/channel/file/fd", test_io_channel_fd);
 #ifndef _WIN32
     g_test_add_func("/io/channel/pipe/sync", test_io_channel_pipe_sync);
     g_test_add_func("/io/channel/pipe/async", test_io_channel_pipe_async);

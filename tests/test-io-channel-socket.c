@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "io/channel-socket.h"
+#include "io/channel-util.h"
 #include "io-channel-helpers.h"
 #ifdef HAVE_IFADDRS_H
 #include <ifaddrs.h>
@@ -474,6 +475,24 @@ static void test_io_channel_unix_fd_pass(void)
 #endif /* _WIN32 */
 
 
+static void test_io_channel_ipv4_fd(void)
+{
+    QIOChannel *ioc;
+    int fd = -1;
+
+    fd = socket(AF_INET, SOCK_STREAM, 0);
+    g_assert_cmpint(fd, >, -1);
+
+    ioc = qio_channel_new_fd(fd, &error_abort);
+
+    g_assert_cmpstr(object_get_typename(OBJECT(ioc)),
+                    ==,
+                    TYPE_QIO_CHANNEL_SOCKET);
+
+    object_unref(OBJECT(ioc));
+}
+
+
 int main(int argc, char **argv)
 {
     bool has_ipv4, has_ipv6;
@@ -496,6 +515,8 @@ int main(int argc, char **argv)
                         test_io_channel_ipv4_sync);
         g_test_add_func("/io/channel/socket/ipv4-async",
                         test_io_channel_ipv4_async);
+        g_test_add_func("/io/channel/socket/ipv4-fd",
+                        test_io_channel_ipv4_fd);
     }
     if (has_ipv6) {
         g_test_add_func("/io/channel/socket/ipv6-sync",

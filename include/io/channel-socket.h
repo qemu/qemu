@@ -105,7 +105,9 @@ int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
  * Attempt to connect to the address @addr. This method
  * will run in the background so the caller will regain
  * execution control immediately. The function @callback
- * will be invoked on completion or failure.
+ * will be invoked on completion or failure. The @addr
+ * parameter will be copied, so may be freed as soon
+ * as this function returns without waiting for completion.
  */
 void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
                                       SocketAddress *addr,
@@ -140,7 +142,9 @@ int qio_channel_socket_listen_sync(QIOChannelSocket *ioc,
  * Attempt to listen to the address @addr. This method
  * will run in the background so the caller will regain
  * execution control immediately. The function @callback
- * will be invoked on completion or failure.
+ * will be invoked on completion or failure. The @addr
+ * parameter will be copied, so may be freed as soon
+ * as this function returns without waiting for completion.
  */
 void qio_channel_socket_listen_async(QIOChannelSocket *ioc,
                                      SocketAddress *addr,
@@ -181,6 +185,9 @@ int qio_channel_socket_dgram_sync(QIOChannelSocket *ioc,
  * This method will run in the background so the caller
  * will regain execution control immediately. The function
  * @callback will be invoked on completion or failure.
+ * The @localAddr and @remoteAddr parameters will be copied,
+ * so may be freed as soon as this function returns without
+ * waiting for completion.
  */
 void qio_channel_socket_dgram_async(QIOChannelSocket *ioc,
                                     SocketAddress *localAddr,
