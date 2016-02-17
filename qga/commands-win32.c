@@ -1303,7 +1303,8 @@ get_net_error_message(gint error)
     HMODULE module = NULL;
     gchar *retval = NULL;
     wchar_t *msg = NULL;
-    int flags, nchars;
+    int flags;
+    size_t nchars;
 
     flags = FORMAT_MESSAGE_ALLOCATE_BUFFER |
         FORMAT_MESSAGE_IGNORE_INSERTS |
