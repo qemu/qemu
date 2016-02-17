@@ -1305,9 +1305,9 @@ get_net_error_message(gint error)
     wchar_t *msg = NULL;
     int flags, nchars;
 
-    flags = FORMAT_MESSAGE_ALLOCATE_BUFFER
-        |FORMAT_MESSAGE_IGNORE_INSERTS
-        |FORMAT_MESSAGE_FROM_SYSTEM;
+    flags = FORMAT_MESSAGE_ALLOCATE_BUFFER |
+        FORMAT_MESSAGE_IGNORE_INSERTS |
+        FORMAT_MESSAGE_FROM_SYSTEM;
 
     if (error >= NERR_BASE && error <= MAX_NERR) {
         module = LoadLibraryExW(L"netmsg.dll", NULL, LOAD_LIBRARY_AS_DATAFILE);
