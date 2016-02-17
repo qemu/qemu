@@ -407,21 +407,21 @@ int main(int argc, char **argv)
     int readonly = 0;
     const char *sopt = "hVc:d:f:rsnmgkt:T:";
     const struct option lopt[] = {
-        { "help", 0, NULL, 'h' },
-        { "version", 0, NULL, 'V' },
-        { "offset", 1, NULL, 'o' },
-        { "cmd", 1, NULL, 'c' },
-        { "format", 1, NULL, 'f' },
-        { "read-only", 0, NULL, 'r' },
-        { "snapshot", 0, NULL, 's' },
-        { "nocache", 0, NULL, 'n' },
-        { "misalign", 0, NULL, 'm' },
-        { "native-aio", 0, NULL, 'k' },
-        { "discard", 1, NULL, 'd' },
-        { "cache", 1, NULL, 't' },
-        { "trace", 1, NULL, 'T' },
-        { "object", 1, NULL, OPTION_OBJECT },
-        { "image-opts", 0, NULL, OPTION_IMAGE_OPTS },
+        { "help", no_argument, NULL, 'h' },
+        { "version", no_argument, NULL, 'V' },
+        { "offset", required_argument, NULL, 'o' },
+        { "cmd", required_argument, NULL, 'c' },
+        { "format", required_argument, NULL, 'f' },
+        { "read-only", no_argument, NULL, 'r' },
+        { "snapshot", no_argument, NULL, 's' },
+        { "nocache", no_argument, NULL, 'n' },
+        { "misalign", no_argument, NULL, 'm' },
+        { "native-aio", no_argument, NULL, 'k' },
+        { "discard", required_argument, NULL, 'd' },
+        { "cache", required_argument, NULL, 't' },
+        { "trace", required_argument, NULL, 'T' },
+        { "object", required_argument, NULL, OPTION_OBJECT },
+        { "image-opts", no_argument, NULL, OPTION_IMAGE_OPTS },
         { NULL, 0, NULL, 0 }
     };
     int c;
