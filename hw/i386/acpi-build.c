@@ -1232,28 +1232,9 @@ static Aml *build_fdc_device_aml(void)
 {
     Aml *dev;
     Aml *crs;
-    Aml *method;
-    Aml *if_ctx;
-    Aml *else_ctx;
-    Aml *zero = aml_int(0);
-    Aml *is_present = aml_local(0);
 
     dev = aml_device("FDC0");
     aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0700")));
-
-    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
-    aml_append(method, aml_store(aml_name("FDEN"), is_present));
-    if_ctx = aml_if(aml_equal(is_present, zero));
-    {
-        aml_append(if_ctx, aml_return(aml_int(0x00)));
-    }
-    aml_append(method, if_ctx);
-    else_ctx = aml_else();
-    {
-        aml_append(else_ctx, aml_return(aml_int(0x0f)));
-    }
-    aml_append(method, else_ctx);
-    aml_append(dev, method);
 
     crs = aml_resource_template();
     aml_append(crs, aml_io(AML_DECODE16, 0x03F2, 0x03F2, 0x00, 0x04));
@@ -1412,7 +1393,9 @@ static void build_isa_devices_aml(Aml *table)
     aml_append(scope, build_rtc_device_aml());
     aml_append(scope, build_kbd_device_aml());
     aml_append(scope, build_mouse_device_aml());
-    aml_append(scope, build_fdc_device_aml());
+    if (pc_find_fdc0()) {
+        aml_append(scope, build_fdc_device_aml());
+    }
     aml_append(scope, build_lpt_device_aml());
     aml_append(scope, build_com_device_aml(1));
     aml_append(scope, build_com_device_aml(2));
@@ -1781,8 +1764,6 @@ static void build_q35_isa_bridge(Aml *table)
     aml_append(field, aml_named_field("COMB", 3));
     aml_append(field, aml_reserved_field(1));
     aml_append(field, aml_named_field("LPTD", 2));
-    aml_append(field, aml_reserved_field(2));
-    aml_append(field, aml_named_field("FDCD", 2));
     aml_append(dev, field);
 
     aml_append(dev, aml_operation_region("LPCE", AML_PCI_CONFIG,
@@ -1792,7 +1773,6 @@ static void build_q35_isa_bridge(Aml *table)
     aml_append(field, aml_named_field("CAEN", 1));
     aml_append(field, aml_named_field("CBEN", 1));
     aml_append(field, aml_named_field("LPEN", 1));
-    aml_append(field, aml_named_field("FDEN", 1));
     aml_append(dev, field);
 
     aml_append(scope, dev);
@@ -1840,7 +1820,6 @@ static void build_piix4_isa_bridge(Aml *table)
     aml_append(field, aml_reserved_field(3));
     aml_append(field, aml_named_field("CBEN", 1));
     aml_append(dev, field);
-    aml_append(dev, aml_name_decl("FDEN", aml_int(1)));
 
     aml_append(scope, dev);
     aml_append(table, scope);
