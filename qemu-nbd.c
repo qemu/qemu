@@ -43,6 +43,7 @@
 #define QEMU_NBD_OPT_DETECT_ZEROES 4
 #define QEMU_NBD_OPT_OBJECT        5
 #define QEMU_NBD_OPT_TLSCREDS      6
+#define QEMU_NBD_OPT_IMAGE_OPTS    7
 
 static NBDExport *exp;
 static bool newproto;
@@ -105,6 +106,7 @@ static void usage(const char *name)
 "      --aio=MODE            set AIO mode (native or threads)\n"
 "      --discard=MODE        set discard mode (ignore, unmap)\n"
 "      --detect-zeroes=MODE  set detect-zeroes mode (off, on, unmap)\n"
+"      --image-opts          treat FILE as a full set of image options\n"
 "\n"
 "Report bugs to <qemu-devel@nongnu.org>\n"
     , name, NBD_DEFAULT_PORT, "DEVICE");
@@ -394,6 +396,16 @@ static SocketAddress *nbd_build_socket_address(const char *sockpath,
 }
 
 
+static QemuOptsList file_opts = {
+    .name = "file",
+    .implied_opt_name = "file",
+    .head = QTAILQ_HEAD_INITIALIZER(file_opts.head),
+    .desc = {
+        /* no elements => accept any params */
+        { /* end of list */ }
+    },
+};
+
 static QemuOptsList qemu_object_opts = {
     .name = "object",
     .implied_opt_name = "qom-type",
@@ -475,6 +487,7 @@ int main(int argc, char **argv)
         { "object", 1, NULL, QEMU_NBD_OPT_OBJECT },
         { "export-name", 1, NULL, 'x' },
         { "tls-creds", 1, NULL, QEMU_NBD_OPT_TLSCREDS },
+        { "image-opts", 0, NULL, QEMU_NBD_OPT_IMAGE_OPTS },
         { NULL, 0, NULL, 0 }
     };
     int ch;
@@ -493,6 +506,7 @@ int main(int argc, char **argv)
     QDict *options = NULL;
     const char *export_name = NULL;
     const char *tlscredsid = NULL;
+    bool imageOpts = false;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
@@ -672,6 +686,9 @@ int main(int argc, char **argv)
         case QEMU_NBD_OPT_TLSCREDS:
             tlscredsid = optarg;
             break;
+        case QEMU_NBD_OPT_IMAGE_OPTS:
+            imageOpts = true;
+            break;
         }
     }
 
@@ -800,13 +817,29 @@ int main(int argc, char **argv)
     bdrv_init();
     atexit(bdrv_close_all);
 
-    if (fmt) {
-        options = qdict_new();
-        qdict_put(options, "driver", qstring_from_str(fmt));
+    srcpath = argv[optind];
+    if (imageOpts) {
+        QemuOpts *opts;
+        if (fmt) {
+            error_report("--image-opts and -f are mutually exclusive");
+            exit(EXIT_FAILURE);
+        }
+        opts = qemu_opts_parse_noisily(&file_opts, srcpath, true);
+        if (!opts) {
+            qemu_opts_reset(&file_opts);
+            exit(EXIT_FAILURE);
+        }
+        options = qemu_opts_to_qdict(opts, NULL);
+        qemu_opts_reset(&file_opts);
+        blk = blk_new_open("hda", NULL, NULL, options, flags, &local_err);
+    } else {
+        if (fmt) {
+            options = qdict_new();
+            qdict_put(options, "driver", qstring_from_str(fmt));
+        }
+        blk = blk_new_open("hda", srcpath, NULL, options, flags, &local_err);
     }
 
-    srcpath = argv[optind];
-    blk = blk_new_open("hda", srcpath, NULL, options, flags, &local_err);
     if (!blk) {
         error_reportf_err(local_err, "Failed to blk_new_open '%s': ",
                           argv[optind]);

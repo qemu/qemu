@@ -13,7 +13,8 @@ Export a QEMU disk image using the NBD protocol.
 @c man end
 
 @c man begin OPTIONS
-@var{filename} is a disk image filename.
+@var{filename} is a disk image filename, or a set of block
+driver options if @var{--image-opts} is specified.
 
 @var{dev} is an NBD device.
 
@@ -33,6 +34,10 @@ The offset into the image
 The interface to bind to (default @samp{0.0.0.0})
 @item -k, --socket=@var{path}
 Use a unix socket with path @var{path}
+@item --image-opts
+Treat @var{filename} as a set of image options, instead of a plain
+filename. If this flag is specified, the @var{-f} flag should
+not be used, instead the '@code{format=}' option should be set.
 @item -f, --format=@var{fmt}
 Force the use of the block driver for format @var{fmt} instead of
 auto-detecting
