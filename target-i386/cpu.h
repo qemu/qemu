@@ -405,16 +405,25 @@
 #define MSR_IA32_BNDCFGS                0x00000d90
 #define MSR_IA32_XSS                    0x00000da0
 
-#define XSTATE_FP                       (1ULL << 0)
-#define XSTATE_SSE                      (1ULL << 1)
-#define XSTATE_YMM                      (1ULL << 2)
-#define XSTATE_BNDREGS                  (1ULL << 3)
-#define XSTATE_BNDCSR                   (1ULL << 4)
-#define XSTATE_OPMASK                   (1ULL << 5)
-#define XSTATE_ZMM_Hi256                (1ULL << 6)
-#define XSTATE_Hi16_ZMM                 (1ULL << 7)
-#define XSTATE_PKRU                     (1ULL << 9)
+#define XSTATE_FP_BIT                   0
+#define XSTATE_SSE_BIT                  1
+#define XSTATE_YMM_BIT                  2
+#define XSTATE_BNDREGS_BIT              3
+#define XSTATE_BNDCSR_BIT               4
+#define XSTATE_OPMASK_BIT               5
+#define XSTATE_ZMM_Hi256_BIT            6
+#define XSTATE_Hi16_ZMM_BIT             7
+#define XSTATE_PKRU_BIT                 9
 
+#define XSTATE_FP_MASK                  (1ULL << XSTATE_FP_BIT)
+#define XSTATE_SSE_MASK                 (1ULL << XSTATE_SSE_BIT)
+#define XSTATE_YMM_MASK                 (1ULL << XSTATE_YMM_BIT)
+#define XSTATE_BNDREGS_MASK             (1ULL << XSTATE_BNDREGS_BIT)
+#define XSTATE_BNDCSR_MASK              (1ULL << XSTATE_BNDCSR_BIT)
+#define XSTATE_OPMASK_MASK              (1ULL << XSTATE_OPMASK_BIT)
+#define XSTATE_ZMM_Hi256_MASK           (1ULL << XSTATE_ZMM_Hi256_BIT)
+#define XSTATE_Hi16_ZMM_MASK            (1ULL << XSTATE_Hi16_ZMM_BIT)
+#define XSTATE_PKRU_MASK                (1ULL << XSTATE_PKRU_BIT)
 
 /* CPUID feature words */
 typedef enum FeatureWord {
