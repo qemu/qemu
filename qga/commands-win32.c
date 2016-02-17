@@ -1349,8 +1349,9 @@ void qmp_guest_set_user_password(const char *username,
     NET_API_STATUS nas;
     char *rawpasswddata = NULL;
     size_t rawpasswdlen;
-    wchar_t *user, *wpass;
+    wchar_t *user = NULL, *wpass = NULL;
     USER_INFO_1003 pi1003 = { 0, };
+    GError *gerr = NULL;
 
     if (crypted) {
         error_setg(errp, QERR_UNSUPPORTED);
@@ -1364,8 +1365,15 @@ void qmp_guest_set_user_password(const char *username,
     rawpasswddata = g_renew(char, rawpasswddata, rawpasswdlen + 1);
     rawpasswddata[rawpasswdlen] = '\0';
 
-    user = g_utf8_to_utf16(username, -1, NULL, NULL, NULL);
-    wpass = g_utf8_to_utf16(rawpasswddata, -1, NULL, NULL, NULL);
+    user = g_utf8_to_utf16(username, -1, NULL, NULL, &gerr);
+    if (!user) {
+        goto done;
+    }
+
+    wpass = g_utf8_to_utf16(rawpasswddata, -1, NULL, NULL, &gerr);
+    if (!wpass) {
+        goto done;
+    }
 
     pi1003.usri1003_password = wpass;
     nas = NetUserSetInfo(NULL, user,
@@ -1378,6 +1386,11 @@ void qmp_guest_set_user_password(const char *username,
         g_free(msg);
     }
 
+done:
+    if (gerr) {
+        error_setg(errp, QERR_QGA_COMMAND_FAILED, gerr->message);
+        g_error_free(gerr);
+    }
     g_free(user);
     g_free(wpass);
     g_free(rawpasswddata);
