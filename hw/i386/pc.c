@@ -199,7 +199,7 @@ static void pic_irq_request(void *opaque, int irq, int level)
 
 #define REG_EQUIPMENT_BYTE          0x14
 
-static int cmos_get_fd_drive_type(FloppyDriveType fd0)
+int cmos_get_fd_drive_type(FloppyDriveType fd0)
 {
     int val;
 
