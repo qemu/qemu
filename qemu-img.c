@@ -50,6 +50,7 @@ enum {
     OPTION_OUTPUT = 256,
     OPTION_BACKING_CHAIN = 257,
     OPTION_OBJECT = 258,
+    OPTION_IMAGE_OPTS = 259,
 };
 
 typedef enum OutputFormat {
@@ -170,6 +171,15 @@ static QemuOptsList qemu_object_opts = {
     },
 };
 
+static QemuOptsList qemu_source_opts = {
+    .name = "source",
+    .implied_opt_name = "file",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_source_opts.head),
+    .desc = {
+        { }
+    },
+};
+
 static int GCC_FMT_ATTR(2, 3) qprintf(bool quiet, const char *fmt, ...)
 {
     int ret = 0;
@@ -212,13 +222,56 @@ static int print_block_option_help(const char *filename, const char *fmt)
     return 0;
 }
 
-static BlockBackend *img_open(const char *id, const char *filename,
-                              const char *fmt, int flags,
-                              bool require_io, bool quiet)
+
+static int img_open_password(BlockBackend *blk, const char *filename,
+                             bool require_io, bool quiet)
 {
-    BlockBackend *blk;
     BlockDriverState *bs;
     char password[256];
+
+    bs = blk_bs(blk);
+    if (bdrv_is_encrypted(bs) && require_io) {
+        qprintf(quiet, "Disk image '%s' is encrypted.\n", filename);
+        if (qemu_read_password(password, sizeof(password)) < 0) {
+            error_report("No password given");
+            return -1;
+        }
+        if (bdrv_set_key(bs, password) < 0) {
+            error_report("invalid password");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+
+static BlockBackend *img_open_opts(const char *id,
+                                   const char *optstr,
+                                   QemuOpts *opts, int flags,
+                                   bool require_io, bool quiet)
+{
+    QDict *options;
+    Error *local_err = NULL;
+    BlockBackend *blk;
+    options = qemu_opts_to_qdict(opts, NULL);
+    blk = blk_new_open(id, NULL, NULL, options, flags, &local_err);
+    if (!blk) {
+        error_reportf_err(local_err, "Could not open '%s'", optstr);
+        return NULL;
+    }
+
+    if (img_open_password(blk, optstr, require_io, quiet) < 0) {
+        blk_unref(blk);
+        return NULL;
+    }
+    return blk;
+}
+
+static BlockBackend *img_open_file(const char *id, const char *filename,
+                                   const char *fmt, int flags,
+                                   bool require_io, bool quiet)
+{
+    BlockBackend *blk;
     Error *local_err = NULL;
     QDict *options = NULL;
 
@@ -230,26 +283,42 @@ static BlockBackend *img_open(const char *id, const char *filename,
     blk = blk_new_open(id, filename, NULL, options, flags, &local_err);
     if (!blk) {
         error_reportf_err(local_err, "Could not open '%s': ", filename);
-        goto fail;
+        return NULL;
     }
 
-    bs = blk_bs(blk);
-    if (bdrv_is_encrypted(bs) && require_io) {
-        qprintf(quiet, "Disk image '%s' is encrypted.\n", filename);
-        if (qemu_read_password(password, sizeof(password)) < 0) {
-            error_report("No password given");
-            goto fail;
-        }
-        if (bdrv_set_key(bs, password) < 0) {
-            error_report("invalid password");
-            goto fail;
-        }
+    if (img_open_password(blk, filename, require_io, quiet) < 0) {
+        blk_unref(blk);
+        return NULL;
     }
     return blk;
-fail:
-    blk_unref(blk);
-    return NULL;
 }
+
+
+static BlockBackend *img_open(const char *id,
+                              bool image_opts,
+                              const char *filename,
+                              const char *fmt, int flags,
+                              bool require_io, bool quiet)
+{
+    BlockBackend *blk;
+    if (image_opts) {
+        QemuOpts *opts;
+        if (fmt) {
+            error_report("--image-opts and --format are mutually exclusive");
+            return NULL;
+        }
+        opts = qemu_opts_parse_noisily(qemu_find_opts("source"),
+                                       filename, true);
+        if (!opts) {
+            return NULL;
+        }
+        blk = img_open_opts(id, filename, opts, flags, true, quiet);
+    } else {
+        blk = img_open_file(id, filename, fmt, flags, true, quiet);
+    }
+    return blk;
+}
+
 
 static int add_old_style_options(const char *fmt, QemuOpts *opts,
                                  const char *base_filename,
@@ -527,6 +596,7 @@ static int img_check(int argc, char **argv)
     ImageCheck *check;
     bool quiet = false;
     Error *local_err = NULL;
+    bool image_opts = false;
 
     fmt = NULL;
     output = NULL;
@@ -539,6 +609,7 @@ static int img_check(int argc, char **argv)
             {"repair", required_argument, 0, 'r'},
             {"output", required_argument, 0, OPTION_OUTPUT},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "hf:r:T:q",
@@ -583,6 +654,9 @@ static int img_check(int argc, char **argv)
                 return 1;
             }
         }   break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
         }
     }
     if (optind != argc - 1) {
@@ -612,7 +686,7 @@ static int img_check(int argc, char **argv)
         return 1;
     }
 
-    blk = img_open("image", filename, fmt, flags, true, quiet);
+    blk = img_open("image", image_opts, filename, fmt, flags, true, quiet);
     if (!blk) {
         return 1;
     }
@@ -724,6 +798,7 @@ static int img_commit(int argc, char **argv)
     bool progress = false, quiet = false, drop = false;
     Error *local_err = NULL;
     CommonBlockJobCBInfo cbi;
+    bool image_opts = false;
 
     fmt = NULL;
     cache = BDRV_DEFAULT_CACHE;
@@ -732,6 +807,7 @@ static int img_commit(int argc, char **argv)
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "f:ht:b:dpq",
@@ -772,6 +848,9 @@ static int img_commit(int argc, char **argv)
                 return 1;
             }
         }   break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
         }
     }
 
@@ -799,7 +878,7 @@ static int img_commit(int argc, char **argv)
         return 1;
     }
 
-    blk = img_open("image", filename, fmt, flags, true, quiet);
+    blk = img_open("image", image_opts, filename, fmt, flags, true, quiet);
     if (!blk) {
         return 1;
     }
@@ -1049,12 +1128,14 @@ static int img_compare(int argc, char **argv)
     int c, pnum;
     uint64_t progress_base;
     Error *local_err = NULL;
+    bool image_opts = false;
 
     cache = BDRV_DEFAULT_CACHE;
     for (;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "hf:F:T:pqs",
@@ -1094,6 +1175,9 @@ static int img_compare(int argc, char **argv)
                 goto out4;
             }
         }   break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
         }
     }
 
@@ -1128,18 +1212,18 @@ static int img_compare(int argc, char **argv)
         goto out3;
     }
 
-    blk1 = img_open("image_1", filename1, fmt1, flags, true, quiet);
+    blk1 = img_open("image_1", image_opts, filename1, fmt1, flags, true, quiet);
     if (!blk1) {
         ret = 2;
         goto out3;
     }
-    bs1 = blk_bs(blk1);
 
-    blk2 = img_open("image_2", filename2, fmt2, flags, true, quiet);
+    blk2 = img_open("image_2", image_opts, filename2, fmt2, flags, true, quiet);
     if (!blk2) {
         ret = 2;
         goto out2;
     }
+    bs1 = blk_bs(blk1);
     bs2 = blk_bs(blk2);
 
     buf1 = blk_blockalign(blk1, IO_BUF_SIZE);
@@ -1646,6 +1730,7 @@ static int img_convert(int argc, char **argv)
     Error *local_err = NULL;
     QemuOpts *sn_opts = NULL;
     ImgConvertState state;
+    bool image_opts = false;
 
     fmt = NULL;
     out_fmt = "raw";
@@ -1658,6 +1743,7 @@ static int img_convert(int argc, char **argv)
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "hf:O:B:ce6o:s:l:S:pt:T:qn",
@@ -1759,6 +1845,9 @@ static int img_convert(int argc, char **argv)
                 goto fail_getopt;
             }
             break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
         }
     }
 
@@ -1774,7 +1863,6 @@ static int img_convert(int argc, char **argv)
         progress = 0;
     }
     qemu_progress_init(progress, 1.0);
-
 
     bs_n = argc - optind - 1;
     out_filename = bs_n >= 1 ? argv[argc - 1] : NULL;
@@ -1813,8 +1901,8 @@ static int img_convert(int argc, char **argv)
     for (bs_i = 0; bs_i < bs_n; bs_i++) {
         char *id = bs_n > 1 ? g_strdup_printf("source_%d", bs_i)
                             : g_strdup("source");
-        blk[bs_i] = img_open(id, argv[optind + bs_i], fmt, src_flags,
-                             true, quiet);
+        blk[bs_i] = img_open(id, image_opts, argv[optind + bs_i],
+                             fmt, src_flags, true, quiet);
         g_free(id);
         if (!blk[bs_i]) {
             ret = -1;
@@ -1955,7 +2043,13 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
-    out_blk = img_open("target", out_filename, out_fmt, flags, true, quiet);
+    /* XXX we should allow --image-opts to trigger use of
+     * img_open() here, but then we have trouble with
+     * the bdrv_create() call which takes different params.
+     * Not critical right now, so fix can wait...
+     */
+    out_blk = img_open_file("target", out_filename,
+                            out_fmt, flags, true, quiet);
     if (!out_blk) {
         ret = -1;
         goto out;
@@ -2121,7 +2215,8 @@ static gboolean str_equal_func(gconstpointer a, gconstpointer b)
  * image file.  If there was an error a message will have been printed to
  * stderr.
  */
-static ImageInfoList *collect_image_info_list(const char *filename,
+static ImageInfoList *collect_image_info_list(bool image_opts,
+                                              const char *filename,
                                               const char *fmt,
                                               bool chain)
 {
@@ -2145,8 +2240,9 @@ static ImageInfoList *collect_image_info_list(const char *filename,
         }
         g_hash_table_insert(filenames, (gpointer)filename, NULL);
 
-        blk = img_open("image", filename, fmt,
-                       BDRV_O_FLAGS | BDRV_O_NO_BACKING, false, false);
+        blk = img_open("image", image_opts, filename, fmt,
+                       BDRV_O_FLAGS | BDRV_O_NO_BACKING,
+                       false, false);
         if (!blk) {
             goto err;
         }
@@ -2198,6 +2294,7 @@ static int img_info(int argc, char **argv)
     const char *filename, *fmt, *output;
     ImageInfoList *list;
     Error *local_err = NULL;
+    bool image_opts = false;
 
     fmt = NULL;
     output = NULL;
@@ -2209,6 +2306,7 @@ static int img_info(int argc, char **argv)
             {"output", required_argument, 0, OPTION_OUTPUT},
             {"backing-chain", no_argument, 0, OPTION_BACKING_CHAIN},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "f:h",
@@ -2238,6 +2336,9 @@ static int img_info(int argc, char **argv)
                 return 1;
             }
         }   break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
         }
     }
     if (optind != argc - 1) {
@@ -2261,7 +2362,7 @@ static int img_info(int argc, char **argv)
         return 1;
     }
 
-    list = collect_image_info_list(filename, fmt, chain);
+    list = collect_image_info_list(image_opts, filename, fmt, chain);
     if (!list) {
         return 1;
     }
@@ -2407,6 +2508,7 @@ static int img_map(int argc, char **argv)
     MapEntry curr = { .length = 0 }, next;
     int ret = 0;
     Error *local_err = NULL;
+    bool image_opts = false;
 
     fmt = NULL;
     output = NULL;
@@ -2417,6 +2519,7 @@ static int img_map(int argc, char **argv)
             {"format", required_argument, 0, 'f'},
             {"output", required_argument, 0, OPTION_OUTPUT},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "f:h",
@@ -2443,6 +2546,9 @@ static int img_map(int argc, char **argv)
                 return 1;
             }
         }   break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
         }
     }
     if (optind != argc - 1) {
@@ -2466,7 +2572,8 @@ static int img_map(int argc, char **argv)
         return 1;
     }
 
-    blk = img_open("image", filename, fmt, BDRV_O_FLAGS, true, false);
+    blk = img_open("image", image_opts, filename, fmt,
+                   BDRV_O_FLAGS, true, false);
     if (!blk) {
         return 1;
     }
@@ -2528,6 +2635,7 @@ static int img_snapshot(int argc, char **argv)
     qemu_timeval tv;
     bool quiet = false;
     Error *err = NULL;
+    bool image_opts = false;
 
     bdrv_oflags = BDRV_O_FLAGS | BDRV_O_RDWR;
     /* Parse commandline parameters */
@@ -2535,6 +2643,7 @@ static int img_snapshot(int argc, char **argv)
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "la:c:d:hq",
@@ -2590,6 +2699,9 @@ static int img_snapshot(int argc, char **argv)
                 return 1;
             }
         }   break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
         }
     }
 
@@ -2606,7 +2718,8 @@ static int img_snapshot(int argc, char **argv)
     }
 
     /* Open the image */
-    blk = img_open("image", filename, NULL, bdrv_oflags, true, quiet);
+    blk = img_open("image", image_opts, filename, NULL,
+                   bdrv_oflags, true, quiet);
     if (!blk) {
         return 1;
     }
@@ -2670,6 +2783,7 @@ static int img_rebase(int argc, char **argv)
     int progress = 0;
     bool quiet = false;
     Error *local_err = NULL;
+    bool image_opts = false;
 
     /* Parse commandline parameters */
     fmt = NULL;
@@ -2681,6 +2795,7 @@ static int img_rebase(int argc, char **argv)
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "hf:F:b:upt:T:q",
@@ -2725,6 +2840,9 @@ static int img_rebase(int argc, char **argv)
                 return 1;
             }
         }   break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
         }
     }
 
@@ -2770,7 +2888,7 @@ static int img_rebase(int argc, char **argv)
      * Ignore the old backing file for unsafe rebase in case we want to correct
      * the reference to a renamed or moved backing file.
      */
-    blk = img_open("image", filename, fmt, flags, true, quiet);
+    blk = img_open("image", image_opts, filename, fmt, flags, true, quiet);
     if (!blk) {
         ret = -1;
         goto out;
@@ -3022,6 +3140,7 @@ static int img_resize(int argc, char **argv)
             }
         },
     };
+    bool image_opts = false;
 
     /* Remove size from argv manually so that negative numbers are not treated
      * as options by getopt. */
@@ -3038,6 +3157,7 @@ static int img_resize(int argc, char **argv)
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "f:hq",
@@ -3064,6 +3184,9 @@ static int img_resize(int argc, char **argv)
                 return 1;
             }
         }   break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
         }
     }
     if (optind != argc - 1) {
@@ -3105,8 +3228,8 @@ static int img_resize(int argc, char **argv)
     n = qemu_opt_get_size(param, BLOCK_OPT_SIZE, 0);
     qemu_opts_del(param);
 
-    blk = img_open("image", filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR,
-                   true, quiet);
+    blk = img_open("image", image_opts, filename, fmt,
+                   BDRV_O_FLAGS | BDRV_O_RDWR, true, quiet);
     if (!blk) {
         ret = -1;
         goto out;
@@ -3166,12 +3289,14 @@ static int img_amend(int argc, char **argv)
     BlockBackend *blk = NULL;
     BlockDriverState *bs = NULL;
     Error *local_err = NULL;
+    bool image_opts = false;
 
     cache = BDRV_DEFAULT_CACHE;
     for (;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "ho:f:t:pq",
@@ -3219,6 +3344,9 @@ static int img_amend(int argc, char **argv)
                     goto out_no_progress;
                 }
                 break;
+            case OPTION_IMAGE_OPTS:
+                image_opts = true;
+                break;
         }
     }
 
@@ -3260,7 +3388,7 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
-    blk = img_open("image", filename, fmt, flags, true, quiet);
+    blk = img_open("image", image_opts, filename, fmt, flags, true, quiet);
     if (!blk) {
         ret = -1;
         goto out;
@@ -3358,6 +3486,7 @@ int main(int argc, char **argv)
     cmdname = argv[1];
 
     qemu_add_opts(&qemu_object_opts);
+    qemu_add_opts(&qemu_source_opts);
 
     /* find the command */
     for (cmd = img_cmds; cmd->name != NULL; cmd++) {
