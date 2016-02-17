@@ -102,7 +102,7 @@ LD_REL := $(CC) -nostdlib -Wl,-r
 modules:
 
 %$(EXESUF): %.o
-	$(call LINK,$^)
+	$(call LINK,$(filter %.o %.a %.mo, $^))
 
 %.a:
 	$(call quiet-command,rm -f $@ && $(AR) rcs $@ $^,"  AR    $(TARGET_DIR)$@")
