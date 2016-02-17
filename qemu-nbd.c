@@ -37,13 +37,13 @@
 #include <pthread.h>
 
 #define SOCKET_PATH                "/var/lock/qemu-nbd-%s"
-#define QEMU_NBD_OPT_CACHE         1
-#define QEMU_NBD_OPT_AIO           2
-#define QEMU_NBD_OPT_DISCARD       3
-#define QEMU_NBD_OPT_DETECT_ZEROES 4
-#define QEMU_NBD_OPT_OBJECT        5
-#define QEMU_NBD_OPT_TLSCREDS      6
-#define QEMU_NBD_OPT_IMAGE_OPTS    7
+#define QEMU_NBD_OPT_CACHE         256
+#define QEMU_NBD_OPT_AIO           257
+#define QEMU_NBD_OPT_DISCARD       258
+#define QEMU_NBD_OPT_DETECT_ZEROES 259
+#define QEMU_NBD_OPT_OBJECT        260
+#define QEMU_NBD_OPT_TLSCREDS      261
+#define QEMU_NBD_OPT_IMAGE_OPTS    262
 
 static NBDExport *exp;
 static bool newproto;
