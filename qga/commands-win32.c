@@ -1323,7 +1323,7 @@ get_net_error_message(gint error)
     if (msg != NULL) {
         nchars = wcslen(msg);
 
-        if (nchars > 2 &&
+        if (nchars >= 2 &&
             msg[nchars - 1] == L'\n' &&
             msg[nchars - 2] == L'\r') {
             msg[nchars - 2] = L'\0';
