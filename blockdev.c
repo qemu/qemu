@@ -414,6 +414,19 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
         throttle_cfg->buckets[THROTTLE_OPS_WRITE].max =
             qemu_opt_get_number(opts, "throttling.iops-write-max", 0);
 
+        throttle_cfg->buckets[THROTTLE_BPS_TOTAL].burst_length =
+            qemu_opt_get_number(opts, "throttling.bps-total-max-length", 1);
+        throttle_cfg->buckets[THROTTLE_BPS_READ].burst_length  =
+            qemu_opt_get_number(opts, "throttling.bps-read-max-length", 1);
+        throttle_cfg->buckets[THROTTLE_BPS_WRITE].burst_length =
+            qemu_opt_get_number(opts, "throttling.bps-write-max-length", 1);
+        throttle_cfg->buckets[THROTTLE_OPS_TOTAL].burst_length =
+            qemu_opt_get_number(opts, "throttling.iops-total-max-length", 1);
+        throttle_cfg->buckets[THROTTLE_OPS_READ].burst_length =
+            qemu_opt_get_number(opts, "throttling.iops-read-max-length", 1);
+        throttle_cfg->buckets[THROTTLE_OPS_WRITE].burst_length =
+            qemu_opt_get_number(opts, "throttling.iops-write-max-length", 1);
+
         throttle_cfg->op_size =
             qemu_opt_get_number(opts, "throttling.iops-size", 0);
 
@@ -4071,6 +4084,30 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "throttling.bps-write-max",
             .type = QEMU_OPT_NUMBER,
             .help = "total bytes write burst",
+        },{
+            .name = "throttling.iops-total-max-length",
+            .type = QEMU_OPT_NUMBER,
+            .help = "length of the iops-total-max burst period, in seconds",
+        },{
+            .name = "throttling.iops-read-max-length",
+            .type = QEMU_OPT_NUMBER,
+            .help = "length of the iops-read-max burst period, in seconds",
+        },{
+            .name = "throttling.iops-write-max-length",
+            .type = QEMU_OPT_NUMBER,
+            .help = "length of the iops-write-max burst period, in seconds",
+        },{
+            .name = "throttling.bps-total-max-length",
+            .type = QEMU_OPT_NUMBER,
+            .help = "length of the bps-total-max burst period, in seconds",
+        },{
+            .name = "throttling.bps-read-max-length",
+            .type = QEMU_OPT_NUMBER,
+            .help = "length of the bps-read-max burst period, in seconds",
+        },{
+            .name = "throttling.bps-write-max-length",
+            .type = QEMU_OPT_NUMBER,
+            .help = "length of the bps-write-max burst period, in seconds",
         },{
             .name = "throttling.iops-size",
             .type = QEMU_OPT_NUMBER,
