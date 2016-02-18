@@ -30,6 +30,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/qdev.h"
 #include "hw/hw.h"
 #include "sysemu/block-backend.h"
 #include "hw/sd/sd.h"
@@ -431,14 +432,41 @@ static void sd_reset(DeviceState *dev)
     sd->expecting_acmd = false;
 }
 
+static bool sd_get_inserted(SDState *sd)
+{
+    return blk_is_inserted(sd->blk);
+}
+
+static bool sd_get_readonly(SDState *sd)
+{
+    return sd->wp_switch;
+}
+
 static void sd_cardchange(void *opaque, bool load)
 {
     SDState *sd = opaque;
+    DeviceState *dev = DEVICE(sd);
+    SDBus *sdbus = SD_BUS(qdev_get_parent_bus(dev));
+    bool inserted = sd_get_inserted(sd);
+    bool readonly = sd_get_readonly(sd);
 
-    qemu_set_irq(sd->inserted_cb, blk_is_inserted(sd->blk));
-    if (blk_is_inserted(sd->blk)) {
-        sd_reset(DEVICE(sd));
-        qemu_set_irq(sd->readonly_cb, sd->wp_switch);
+    if (inserted) {
+        sd_reset(dev);
+    }
+
+    /* The IRQ notification is for legacy non-QOM SD controller devices;
+     * QOMified controllers use the SDBus APIs.
+     */
+    if (sdbus) {
+        sdbus_set_inserted(sdbus, inserted);
+        if (inserted) {
+            sdbus_set_readonly(sdbus, readonly);
+        }
+    } else {
+        qemu_set_irq(sd->inserted_cb, inserted);
+        if (inserted) {
+            qemu_set_irq(sd->readonly_cb, readonly);
+        }
     }
 }
 
@@ -1803,17 +1831,28 @@ static Property sd_properties[] = {
 static void sd_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    SDCardClass *sc = SD_CARD_CLASS(klass);
 
     dc->realize = sd_realize;
     dc->props = sd_properties;
     dc->vmsd = &sd_vmstate;
     dc->reset = sd_reset;
+    dc->bus_type = TYPE_SD_BUS;
+
+    sc->do_command = sd_do_command;
+    sc->write_data = sd_write_data;
+    sc->read_data = sd_read_data;
+    sc->data_ready = sd_data_ready;
+    sc->enable = sd_enable;
+    sc->get_inserted = sd_get_inserted;
+    sc->get_readonly = sd_get_readonly;
 }
 
 static const TypeInfo sd_info = {
     .name = TYPE_SD_CARD,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(SDState),
+    .class_size = sizeof(SDCardClass),
     .class_init = sd_class_init,
     .instance_init = sd_instance_init,
 };
