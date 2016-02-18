@@ -181,6 +181,7 @@ typedef struct DumpState {
 
     bool has_format;              /* whether format is provided */
     DumpGuestMemoryFormat format; /* valid only if has_format == true */
+    QemuThread dump_thread;       /* thread for detached dump */
 } DumpState;
 
 uint16_t cpu_to_dump16(DumpState *s, uint16_t val);

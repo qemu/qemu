@@ -1643,6 +1643,20 @@ static void dump_process(DumpState *s, Error **errp)
     dump_cleanup(s);
 }
 
+static void *dump_thread(void *data)
+{
+    Error *err = NULL;
+    DumpState *s = (DumpState *)data;
+
+    dump_process(s, &err);
+
+    if (err) {
+        /* TODO: notify user the error */
+        error_free(err);
+    }
+    return NULL;
+}
+
 void qmp_dump_guest_memory(bool paging, const char *file,
                            bool has_detach, bool detach,
                            bool has_begin, int64_t begin, bool has_length,
@@ -1653,6 +1667,7 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     int fd = -1;
     DumpState *s;
     Error *local_err = NULL;
+    bool detach_p = false;
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         error_setg(errp, "Dump not allowed during incoming migration.");
@@ -1683,6 +1698,9 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     if (!has_begin && has_length) {
         error_setg(errp, QERR_MISSING_PARAMETER, "begin");
         return;
+    }
+    if (has_detach) {
+        detach_p = detach;
     }
 
     /* check whether lzo/snappy is supported */
@@ -1733,7 +1751,14 @@ void qmp_dump_guest_memory(bool paging, const char *file,
         return;
     }
 
-    dump_process(s, errp);
+    if (detach_p) {
+        /* detached dump */
+        qemu_thread_create(&s->dump_thread, "dump_thread", dump_thread,
+                           s, QEMU_THREAD_DETACHED);
+    } else {
+        /* sync dump */
+        dump_process(s, errp);
+    }
 }
 
 DumpGuestMemoryCapability *qmp_query_dump_guest_memory_capability(Error **errp)
