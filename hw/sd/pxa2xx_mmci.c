@@ -511,6 +511,35 @@ void pxa2xx_mmci_handlers(PXA2xxMMCIState *s, qemu_irq readonly,
     pxa2xx_mmci_set_readonly(dev, sdbus_get_readonly(&s->sdbus));
 }
 
+static void pxa2xx_mmci_reset(DeviceState *d)
+{
+    PXA2xxMMCIState *s = PXA2XX_MMCI(d);
+
+    s->status = 0;
+    s->clkrt = 0;
+    s->spi = 0;
+    s->cmdat = 0;
+    s->resp_tout = 0;
+    s->read_tout = 0;
+    s->blklen = 0;
+    s->numblk = 0;
+    s->intmask = 0;
+    s->intreq = 0;
+    s->cmd = 0;
+    s->arg = 0;
+    s->active = 0;
+    s->bytesleft = 0;
+    s->tx_start = 0;
+    s->tx_len = 0;
+    s->rx_start = 0;
+    s->rx_len = 0;
+    s->resp_len = 0;
+    s->cmdreq = 0;
+    memset(s->tx_fifo, 0, sizeof(s->tx_fifo));
+    memset(s->rx_fifo, 0, sizeof(s->rx_fifo));
+    memset(s->resp_fifo, 0, sizeof(s->resp_fifo));
+}
+
 static void pxa2xx_mmci_instance_init(Object *obj)
 {
     PXA2xxMMCIState *s = PXA2XX_MMCI(obj);
@@ -533,6 +562,7 @@ static void pxa2xx_mmci_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_pxa2xx_mmci;
+    dc->reset = pxa2xx_mmci_reset;
 }
 
 static void pxa2xx_mmci_bus_class_init(ObjectClass *klass, void *data)
