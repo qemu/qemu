@@ -457,6 +457,43 @@ void HELPER(set_user_reg)(CPUARMState *env, uint32_t regno, uint32_t val)
     }
 }
 
+#if defined(CONFIG_USER_ONLY)
+void HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    cpu_abort(CPU(cpu), "banked r13 write\n");
+}
+
+uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    cpu_abort(CPU(cpu), "banked r13 read\n");
+    return 0;
+}
+
+#else
+
+void HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)
+{
+    if ((env->uncached_cpsr & CPSR_M) == mode) {
+        env->regs[13] = val;
+    } else {
+        env->banked_r13[bank_number(mode)] = val;
+    }
+}
+
+uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
+{
+    if ((env->uncached_cpsr & CPSR_M) == mode) {
+        return env->regs[13];
+    } else {
+        return env->banked_r13[bank_number(mode)];
+    }
+}
+#endif
+
 void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome,
                                  uint32_t isread)
 {

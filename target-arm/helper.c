@@ -5365,21 +5365,6 @@ void switch_mode(CPUARMState *env, int mode)
     }
 }
 
-void HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)
-{
-    ARMCPU *cpu = arm_env_get_cpu(env);
-
-    cpu_abort(CPU(cpu), "banked r13 write\n");
-}
-
-uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
-{
-    ARMCPU *cpu = arm_env_get_cpu(env);
-
-    cpu_abort(CPU(cpu), "banked r13 read\n");
-    return 0;
-}
-
 uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
                                  uint32_t cur_el, bool secure)
 {
@@ -7760,24 +7745,6 @@ hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
         return -1;
     }
     return phys_addr;
-}
-
-void HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)
-{
-    if ((env->uncached_cpsr & CPSR_M) == mode) {
-        env->regs[13] = val;
-    } else {
-        env->banked_r13[bank_number(mode)] = val;
-    }
-}
-
-uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
-{
-    if ((env->uncached_cpsr & CPSR_M) == mode) {
-        return env->regs[13];
-    } else {
-        return env->banked_r13[bank_number(mode)];
-    }
 }
 
 uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
