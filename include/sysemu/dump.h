@@ -182,6 +182,15 @@ typedef struct DumpState {
     bool has_format;              /* whether format is provided */
     DumpGuestMemoryFormat format; /* valid only if has_format == true */
     QemuThread dump_thread;       /* thread for detached dump */
+
+    int64_t total_size;          /* total memory size (in bytes) to
+                                  * be dumped. When filter is
+                                  * enabled, this will only count
+                                  * those to be written. */
+    int64_t written_size;        /* written memory size (in bytes),
+                                  * this could be used to calculate
+                                  * how much work we have
+                                  * finished. */
 } DumpState;
 
 uint16_t cpu_to_dump16(DumpState *s, uint16_t val);

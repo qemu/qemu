@@ -331,6 +331,8 @@ static void write_data(DumpState *s, void *buf, int length, Error **errp)
     ret = fd_write_vmcore(buf, length, s);
     if (ret < 0) {
         error_setg(errp, "dump: failed to save memory");
+    } else {
+        s->written_size += length;
     }
 }
 
@@ -1324,6 +1326,7 @@ static void write_dump_pages(DumpState *s, Error **errp)
                 goto out;
             }
         }
+        s->written_size += s->dump_info.page_size;
     }
 
     ret = write_cache(&page_desc, NULL, 0, true);
@@ -1456,6 +1459,30 @@ bool dump_in_progress(void)
     return (state->status == DUMP_STATUS_ACTIVE);
 }
 
+/* calculate total size of memory to be dumped (taking filter into
+ * acoount.) */
+static int64_t dump_calculate_size(DumpState *s)
+{
+    GuestPhysBlock *block;
+    int64_t size = 0, total = 0, left = 0, right = 0;
+
+    QTAILQ_FOREACH(block, &s->guest_phys_blocks.head, next) {
+        if (s->has_filter) {
+            /* calculate the overlapped region. */
+            left = MAX(s->begin, block->target_start);
+            right = MIN(s->begin + s->length, block->target_end);
+            size = right - left;
+            size = size > 0 ? size : 0;
+        } else {
+            /* count the whole region in */
+            size = (block->target_end - block->target_start);
+        }
+        total += size;
+    }
+
+    return total;
+}
+
 static void dump_init(DumpState *s, int fd, bool has_format,
                       DumpGuestMemoryFormat format, bool paging, bool has_filter,
                       int64_t begin, int64_t length, Error **errp)
@@ -1467,6 +1494,7 @@ static void dump_init(DumpState *s, int fd, bool has_format,
 
     s->has_format = has_format;
     s->format = format;
+    s->written_size = 0;
 
     /* kdump-compressed is conflict with paging and filter */
     if (has_format && format != DUMP_GUEST_MEMORY_FORMAT_ELF) {
@@ -1498,6 +1526,10 @@ static void dump_init(DumpState *s, int fd, bool has_format,
 
     guest_phys_blocks_init(&s->guest_phys_blocks);
     guest_phys_blocks_append(&s->guest_phys_blocks);
+    s->total_size = dump_calculate_size(s);
+#ifdef DEBUG_DUMP_GUEST_MEMORY
+    fprintf(stderr, "DUMP: total memory to dump: %lu\n", s->total_size);
+#endif
 
     s->start = get_start_block(s);
     if (s->start == -1) {
