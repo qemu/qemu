@@ -1321,7 +1321,7 @@
 #
 # @iops: total I/O operations per second
 #
-# @ops_rd: read I/O operations per second
+# @iops_rd: read I/O operations per second
 #
 # @iops_wr: write I/O operations per second
 #
