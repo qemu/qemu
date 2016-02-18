@@ -2196,7 +2196,8 @@
 #               is the fd's name.
 #
 # @detach: #optional if true, QMP will return immediately rather than
-#          waiting for the dump to finish. (since 2.6).
+#          waiting for the dump to finish. The user can track progress
+#          using "query-dump". (since 2.6).
 #
 # @begin: #optional if specified, the starting physical address.
 #
@@ -2235,6 +2236,35 @@
 ##
 { 'enum': 'DumpStatus',
   'data': [ 'none', 'active', 'completed', 'failed' ] }
+
+##
+# @DumpQueryResult
+#
+# The result format for 'query-dump'.
+#
+# @status: enum of @DumpStatus, which shows current dump status
+#
+# @completed: bytes written in latest dump (uncompressed)
+#
+# @total: total bytes to be written in latest dump (uncompressed)
+#
+# Since 2.6
+##
+{ 'struct': 'DumpQueryResult',
+  'data': { 'status': 'DumpStatus',
+            'completed': 'int',
+            'total': 'int' } }
+
+##
+# @query-dump
+#
+# Query latest dump status.
+#
+# Returns: A @DumpStatus object showing the dump status.
+#
+# Since: 2.6
+##
+{ 'command': 'query-dump', 'returns': 'DumpQueryResult' }
 
 ##
 # @DumpGuestMemoryCapability:

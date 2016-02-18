@@ -856,7 +856,8 @@ Arguments:
 - "protocol": destination file(started with "file:") or destination file
               descriptor (started with "fd:") (json-string)
 - "detach": if specified, command will return immediately, without waiting
-            for the dump to finish (json-bool)
+            for the dump to finish. The user can track progress using
+            "query-dump". (json-bool)
 - "begin": the starting physical address. It's optional, and should be specified
            with length together (json-int)
 - "length": the memory size, in bytes. It's optional, and should be specified
@@ -893,6 +894,30 @@ Example:
 -> { "execute": "query-dump-guest-memory-capability" }
 <- { "return": { "formats":
                     ["elf", "kdump-zlib", "kdump-lzo", "kdump-snappy"] }
+
+EQMP
+
+    {
+        .name       = "query-dump",
+        .args_type  = "",
+        .params     = "",
+        .help       = "query background dump status",
+        .mhandler.cmd_new = qmp_marshal_query_dump,
+    },
+
+SQMP
+query-dump
+----------
+
+Query background dump status.
+
+Arguments: None.
+
+Example:
+
+-> { "execute": "query-dump" }
+<- { "return": { "status": "active", "completed": 1024000,
+                 "total": 2048000 } }
 
 EQMP
 

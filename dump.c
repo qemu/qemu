@@ -1456,7 +1456,7 @@ static void dump_state_prepare(DumpState *s)
 bool dump_in_progress(void)
 {
     DumpState *state = &dump_state_global;
-    return (state->status == DUMP_STATUS_ACTIVE);
+    return (atomic_read(&state->status) == DUMP_STATUS_ACTIVE);
 }
 
 /* calculate total size of memory to be dumped (taking filter into
@@ -1669,9 +1669,12 @@ static void dump_process(DumpState *s, Error **errp)
         create_vmcore(s, &local_err);
     }
 
-    s->status = (local_err ? DUMP_STATUS_FAILED : DUMP_STATUS_COMPLETED);
-    error_propagate(errp, local_err);
+    /* make sure status is written after written_size updates */
+    smp_wmb();
+    atomic_set(&s->status,
+               (local_err ? DUMP_STATUS_FAILED : DUMP_STATUS_COMPLETED));
 
+    error_propagate(errp, local_err);
     dump_cleanup(s);
 }
 
@@ -1687,6 +1690,18 @@ static void *dump_thread(void *data)
         error_free(err);
     }
     return NULL;
+}
+
+DumpQueryResult *qmp_query_dump(Error **errp)
+{
+    DumpQueryResult *result = g_new(DumpQueryResult, 1);
+    DumpState *state = &dump_state_global;
+    result->status = atomic_read(&state->status);
+    /* make sure we are reading status and written_size in order */
+    smp_rmb();
+    result->completed = state->written_size;
+    result->total = state->total_size;
+    return result;
 }
 
 void qmp_dump_guest_memory(bool paging, const char *file,
@@ -1779,7 +1794,7 @@ void qmp_dump_guest_memory(bool paging, const char *file,
               begin, length, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        s->status = DUMP_STATUS_FAILED;
+        atomic_set(&s->status, DUMP_STATUS_FAILED);
         return;
     }
 
