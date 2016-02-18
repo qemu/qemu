@@ -311,13 +311,13 @@ static int parse_packet_early(Packet *pkt, ConnectionKey *key)
     case IPPROTO_SCTP:
     case IPPROTO_UDPLITE:
         tmp_ports = *(uint32_t *)(pkt->transport_layer);
-        key->src_port = tmp_ports & 0xffff;
-        key->dst_port = tmp_ports >> 16;
+        key->src_port = ntohs(tmp_ports & 0xffff);
+        key->dst_port = ntohs(tmp_ports >> 16);
         break;
     case IPPROTO_AH:
         tmp_ports = *(uint32_t *)(pkt->transport_layer + 4);
-        key->src_port = tmp_ports & 0xffff;
-        key->dst_port = tmp_ports >> 16;
+        key->src_port = ntohs(tmp_ports & 0xffff);
+        key->dst_port = ntohs(tmp_ports >> 16);
         break;
     default:
         break;
