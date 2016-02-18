@@ -249,15 +249,47 @@ static inline int kvmppc_enable_hwrng(void)
 #endif
 
 #ifndef CONFIG_KVM
+
 #define kvmppc_eieio() do { } while (0)
-#else
+
+static inline void kvmppc_dcbst_range(PowerPCCPU *cpu, uint8_t *addr, int len)
+{
+}
+
+static inline void kvmppc_icbi_range(PowerPCCPU *cpu, uint8_t *addr, int len)
+{
+}
+
+#else   /* CONFIG_KVM */
+
 #define kvmppc_eieio() \
     do {                                          \
         if (kvm_enabled()) {                          \
             asm volatile("eieio" : : : "memory"); \
         } \
     } while (0)
-#endif
+
+/* Store data cache blocks back to memory */
+static inline void kvmppc_dcbst_range(PowerPCCPU *cpu, uint8_t *addr, int len)
+{
+    uint8_t *p;
+
+    for (p = addr; p < addr + len; p += cpu->env.dcache_line_size) {
+        asm volatile("dcbst 0,%0" : : "r"(p) : "memory");
+    }
+}
+
+/* Invalidate instruction cache blocks */
+static inline void kvmppc_icbi_range(PowerPCCPU *cpu, uint8_t *addr, int len)
+{
+    uint8_t *p;
+
+    for (p = addr; p < addr + len; p += cpu->env.icache_line_size) {
+        asm volatile("icbi 0,%0" : : "r"(p));
+    }
+}
+
+#endif  /* CONFIG_KVM */
 
 #ifndef KVM_INTERRUPT_SET
 #define KVM_INTERRUPT_SET -1
