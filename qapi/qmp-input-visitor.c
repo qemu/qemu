@@ -143,14 +143,6 @@ static void qmp_input_end_struct(Visitor *v, Error **errp)
     qmp_input_pop(qiv, errp);
 }
 
-static void qmp_input_start_implicit_struct(Visitor *v, void **obj,
-                                            size_t size, Error **errp)
-{
-    if (obj) {
-        *obj = g_malloc0(size);
-    }
-}
-
 static void qmp_input_start_list(Visitor *v, const char *name, Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
@@ -202,19 +194,22 @@ static void qmp_input_end_list(Visitor *v)
     qmp_input_pop(qiv, &error_abort);
 }
 
-static void qmp_input_get_next_type(Visitor *v, const char *name, QType *type,
-                                    bool promote_int, Error **errp)
+static void qmp_input_start_alternate(Visitor *v, const char *name,
+                                      GenericAlternate **obj, size_t size,
+                                      bool promote_int, Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qmp_input_get_object(qiv, name, false);
 
     if (!qobj) {
+        *obj = NULL;
         error_setg(errp, QERR_MISSING_PARAMETER, name ? name : "null");
         return;
     }
-    *type = qobject_type(qobj);
-    if (promote_int && *type == QTYPE_QINT) {
-        *type = QTYPE_QFLOAT;
+    *obj = g_malloc0(size);
+    (*obj)->type = qobject_type(qobj);
+    if (promote_int && (*obj)->type == QTYPE_QINT) {
+        (*obj)->type = QTYPE_QFLOAT;
     }
 }
 
@@ -345,10 +340,10 @@ QmpInputVisitor *qmp_input_visitor_new(QObject *obj)
 
     v->visitor.start_struct = qmp_input_start_struct;
     v->visitor.end_struct = qmp_input_end_struct;
-    v->visitor.start_implicit_struct = qmp_input_start_implicit_struct;
     v->visitor.start_list = qmp_input_start_list;
     v->visitor.next_list = qmp_input_next_list;
     v->visitor.end_list = qmp_input_end_list;
+    v->visitor.start_alternate = qmp_input_start_alternate;
     v->visitor.type_enum = input_type_enum;
     v->visitor.type_int64 = qmp_input_type_int64;
     v->visitor.type_uint64 = qmp_input_type_uint64;
@@ -357,7 +352,6 @@ QmpInputVisitor *qmp_input_visitor_new(QObject *obj)
     v->visitor.type_number = qmp_input_type_number;
     v->visitor.type_any = qmp_input_type_any;
     v->visitor.optional = qmp_input_optional;
-    v->visitor.get_next_type = qmp_input_get_next_type;
 
     qmp_input_push(v, obj, NULL);
     qobject_incref(obj);

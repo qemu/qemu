@@ -76,16 +76,15 @@ static void qapi_dealloc_end_struct(Visitor *v, Error **errp)
     }
 }
 
-static void qapi_dealloc_start_implicit_struct(Visitor *v,
-                                               void **obj,
-                                               size_t size,
-                                               Error **errp)
+static void qapi_dealloc_start_alternate(Visitor *v, const char *name,
+                                         GenericAlternate **obj, size_t size,
+                                         bool promote_int, Error **errp)
 {
     QapiDeallocVisitor *qov = to_qov(v);
     qapi_dealloc_push(qov, obj);
 }
 
-static void qapi_dealloc_end_implicit_struct(Visitor *v)
+static void qapi_dealloc_end_alternate(Visitor *v)
 {
     QapiDeallocVisitor *qov = to_qov(v);
     void **obj = qapi_dealloc_pop(qov);
@@ -187,8 +186,8 @@ QapiDeallocVisitor *qapi_dealloc_visitor_new(void)
 
     v->visitor.start_struct = qapi_dealloc_start_struct;
     v->visitor.end_struct = qapi_dealloc_end_struct;
-    v->visitor.start_implicit_struct = qapi_dealloc_start_implicit_struct;
-    v->visitor.end_implicit_struct = qapi_dealloc_end_implicit_struct;
+    v->visitor.start_alternate = qapi_dealloc_start_alternate;
+    v->visitor.end_alternate = qapi_dealloc_end_alternate;
     v->visitor.start_list = qapi_dealloc_start_list;
     v->visitor.next_list = qapi_dealloc_next_list;
     v->visitor.end_list = qapi_dealloc_end_list;

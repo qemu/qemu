@@ -182,13 +182,10 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
 {
     Error *err = NULL;
 
-    visit_start_implicit_struct(v, (void**) obj, sizeof(%(c_name)s), &err);
+    visit_start_alternate(v, name, (GenericAlternate **)obj, sizeof(**obj),
+                          %(promote_int)s, &err);
     if (err) {
         goto out;
-    }
-    visit_get_next_type(v, name, &(*obj)->type, %(promote_int)s, &err);
-    if (err) {
-        goto out_obj;
     }
     switch ((*obj)->type) {
 ''',
@@ -227,8 +224,7 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
         error_setg(&err, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                    "%(name)s");
     }
-out_obj:
-    visit_end_implicit_struct(v);
+    visit_end_alternate(v);
 out:
     error_propagate(errp, err);
 }
