@@ -82,12 +82,6 @@ static int dump_cleanup(DumpState *s)
     return 0;
 }
 
-static void dump_error(DumpState *s, const char *reason, Error **errp)
-{
-    dump_cleanup(s);
-    error_setg(errp, "%s", reason);
-}
-
 static int fd_write_vmcore(const void *buf, size_t size, void *opaque)
 {
     DumpState *s = opaque;
@@ -128,7 +122,7 @@ static void write_elf64_header(DumpState *s, Error **errp)
 
     ret = fd_write_vmcore(&elf_header, sizeof(elf_header), s);
     if (ret < 0) {
-        dump_error(s, "dump: failed to write elf header", errp);
+        error_setg(errp, "dump: failed to write elf header");
     }
 }
 
@@ -159,7 +153,7 @@ static void write_elf32_header(DumpState *s, Error **errp)
 
     ret = fd_write_vmcore(&elf_header, sizeof(elf_header), s);
     if (ret < 0) {
-        dump_error(s, "dump: failed to write elf header", errp);
+        error_setg(errp, "dump: failed to write elf header");
     }
 }
 
@@ -182,7 +176,7 @@ static void write_elf64_load(DumpState *s, MemoryMapping *memory_mapping,
 
     ret = fd_write_vmcore(&phdr, sizeof(Elf64_Phdr), s);
     if (ret < 0) {
-        dump_error(s, "dump: failed to write program header table", errp);
+        error_setg(errp, "dump: failed to write program header table");
     }
 }
 
@@ -205,7 +199,7 @@ static void write_elf32_load(DumpState *s, MemoryMapping *memory_mapping,
 
     ret = fd_write_vmcore(&phdr, sizeof(Elf32_Phdr), s);
     if (ret < 0) {
-        dump_error(s, "dump: failed to write program header table", errp);
+        error_setg(errp, "dump: failed to write program header table");
     }
 }
 
@@ -225,7 +219,7 @@ static void write_elf64_note(DumpState *s, Error **errp)
 
     ret = fd_write_vmcore(&phdr, sizeof(Elf64_Phdr), s);
     if (ret < 0) {
-        dump_error(s, "dump: failed to write program header table", errp);
+        error_setg(errp, "dump: failed to write program header table");
     }
 }
 
@@ -245,7 +239,7 @@ static void write_elf64_notes(WriteCoreDumpFunction f, DumpState *s,
         id = cpu_index(cpu);
         ret = cpu_write_elf64_note(f, cpu, id, s);
         if (ret < 0) {
-            dump_error(s, "dump: failed to write elf notes", errp);
+            error_setg(errp, "dump: failed to write elf notes");
             return;
         }
     }
@@ -253,7 +247,7 @@ static void write_elf64_notes(WriteCoreDumpFunction f, DumpState *s,
     CPU_FOREACH(cpu) {
         ret = cpu_write_elf64_qemunote(f, cpu, s);
         if (ret < 0) {
-            dump_error(s, "dump: failed to write CPU status", errp);
+            error_setg(errp, "dump: failed to write CPU status");
             return;
         }
     }
@@ -275,7 +269,7 @@ static void write_elf32_note(DumpState *s, Error **errp)
 
     ret = fd_write_vmcore(&phdr, sizeof(Elf32_Phdr), s);
     if (ret < 0) {
-        dump_error(s, "dump: failed to write program header table", errp);
+        error_setg(errp, "dump: failed to write program header table");
     }
 }
 
@@ -290,7 +284,7 @@ static void write_elf32_notes(WriteCoreDumpFunction f, DumpState *s,
         id = cpu_index(cpu);
         ret = cpu_write_elf32_note(f, cpu, id, s);
         if (ret < 0) {
-            dump_error(s, "dump: failed to write elf notes", errp);
+            error_setg(errp, "dump: failed to write elf notes");
             return;
         }
     }
@@ -298,7 +292,7 @@ static void write_elf32_notes(WriteCoreDumpFunction f, DumpState *s,
     CPU_FOREACH(cpu) {
         ret = cpu_write_elf32_qemunote(f, cpu, s);
         if (ret < 0) {
-            dump_error(s, "dump: failed to write CPU status", errp);
+            error_setg(errp, "dump: failed to write CPU status");
             return;
         }
     }
@@ -326,7 +320,7 @@ static void write_elf_section(DumpState *s, int type, Error **errp)
 
     ret = fd_write_vmcore(&shdr, shdr_size, s);
     if (ret < 0) {
-        dump_error(s, "dump: failed to write section header table", errp);
+        error_setg(errp, "dump: failed to write section header table");
     }
 }
 
@@ -336,7 +330,7 @@ static void write_data(DumpState *s, void *buf, int length, Error **errp)
 
     ret = fd_write_vmcore(buf, length, s);
     if (ret < 0) {
-        dump_error(s, "dump: failed to save memory", errp);
+        error_setg(errp, "dump: failed to save memory");
     }
 }
 
@@ -568,11 +562,6 @@ static void dump_begin(DumpState *s, Error **errp)
     }
 }
 
-static void dump_completed(DumpState *s)
-{
-    dump_cleanup(s);
-}
-
 static int get_next_block(DumpState *s, GuestPhysBlock *block)
 {
     while (1) {
@@ -624,8 +613,6 @@ static void dump_iterate(DumpState *s, Error **errp)
         }
 
     } while (!get_next_block(s, block));
-
-    dump_completed(s);
 }
 
 static void create_vmcore(DumpState *s, Error **errp)
@@ -765,7 +752,7 @@ static void create_header32(DumpState *s, Error **errp)
     dh->status = cpu_to_dump32(s, status);
 
     if (write_buffer(s->fd, 0, dh, size) < 0) {
-        dump_error(s, "dump: failed to write disk dump header", errp);
+        error_setg(errp, "dump: failed to write disk dump header");
         goto out;
     }
 
@@ -784,7 +771,7 @@ static void create_header32(DumpState *s, Error **errp)
 
     if (write_buffer(s->fd, DISKDUMP_HEADER_BLOCKS *
                      block_size, kh, size) < 0) {
-        dump_error(s, "dump: failed to write kdump sub header", errp);
+        error_setg(errp, "dump: failed to write kdump sub header");
         goto out;
     }
 
@@ -800,7 +787,7 @@ static void create_header32(DumpState *s, Error **errp)
     }
     if (write_buffer(s->fd, offset_note, s->note_buf,
                      s->note_size) < 0) {
-        dump_error(s, "dump: failed to write notes", errp);
+        error_setg(errp, "dump: failed to write notes");
         goto out;
     }
 
@@ -865,7 +852,7 @@ static void create_header64(DumpState *s, Error **errp)
     dh->status = cpu_to_dump32(s, status);
 
     if (write_buffer(s->fd, 0, dh, size) < 0) {
-        dump_error(s, "dump: failed to write disk dump header", errp);
+        error_setg(errp, "dump: failed to write disk dump header");
         goto out;
     }
 
@@ -884,7 +871,7 @@ static void create_header64(DumpState *s, Error **errp)
 
     if (write_buffer(s->fd, DISKDUMP_HEADER_BLOCKS *
                      block_size, kh, size) < 0) {
-        dump_error(s, "dump: failed to write kdump sub header", errp);
+        error_setg(errp, "dump: failed to write kdump sub header");
         goto out;
     }
 
@@ -901,7 +888,7 @@ static void create_header64(DumpState *s, Error **errp)
 
     if (write_buffer(s->fd, offset_note, s->note_buf,
                      s->note_size) < 0) {
-        dump_error(s, "dump: failed to write notes", errp);
+        error_setg(errp, "dump: failed to write notes");
         goto out;
     }
 
@@ -1087,7 +1074,7 @@ static void write_dump_bitmap(DumpState *s, Error **errp)
     while (get_next_page(&block_iter, &pfn, NULL, s)) {
         ret = set_dump_bitmap(last_pfn, pfn, true, dump_bitmap_buf, s);
         if (ret < 0) {
-            dump_error(s, "dump: failed to set dump_bitmap", errp);
+            error_setg(errp, "dump: failed to set dump_bitmap");
             goto out;
         }
 
@@ -1104,7 +1091,7 @@ static void write_dump_bitmap(DumpState *s, Error **errp)
         ret = set_dump_bitmap(last_pfn, last_pfn + bits_per_buf, false,
                               dump_bitmap_buf, s);
         if (ret < 0) {
-            dump_error(s, "dump: failed to sync dump_bitmap", errp);
+            error_setg(errp, "dump: failed to sync dump_bitmap");
             goto out;
         }
     }
@@ -1237,7 +1224,7 @@ static void write_dump_pages(DumpState *s, Error **errp)
     ret = write_cache(&page_data, buf, s->dump_info.page_size, false);
     g_free(buf);
     if (ret < 0) {
-        dump_error(s, "dump: failed to write page data (zero page)", errp);
+        error_setg(errp, "dump: failed to write page data (zero page)");
         goto out;
     }
 
@@ -1253,7 +1240,7 @@ static void write_dump_pages(DumpState *s, Error **errp)
             ret = write_cache(&page_desc, &pd_zero, sizeof(PageDescriptor),
                               false);
             if (ret < 0) {
-                dump_error(s, "dump: failed to write page desc", errp);
+                error_setg(errp, "dump: failed to write page desc");
                 goto out;
             }
         } else {
@@ -1278,7 +1265,7 @@ static void write_dump_pages(DumpState *s, Error **errp)
 
                 ret = write_cache(&page_data, buf_out, size_out, false);
                 if (ret < 0) {
-                    dump_error(s, "dump: failed to write page data", errp);
+                    error_setg(errp, "dump: failed to write page data");
                     goto out;
                 }
 #ifdef CONFIG_LZO
@@ -1291,7 +1278,7 @@ static void write_dump_pages(DumpState *s, Error **errp)
 
                 ret = write_cache(&page_data, buf_out, size_out, false);
                 if (ret < 0) {
-                    dump_error(s, "dump: failed to write page data", errp);
+                    error_setg(errp, "dump: failed to write page data");
                     goto out;
                 }
 #endif
@@ -1305,7 +1292,7 @@ static void write_dump_pages(DumpState *s, Error **errp)
 
                 ret = write_cache(&page_data, buf_out, size_out, false);
                 if (ret < 0) {
-                    dump_error(s, "dump: failed to write page data", errp);
+                    error_setg(errp, "dump: failed to write page data");
                     goto out;
                 }
 #endif
@@ -1321,7 +1308,7 @@ static void write_dump_pages(DumpState *s, Error **errp)
                 ret = write_cache(&page_data, buf,
                                   s->dump_info.page_size, false);
                 if (ret < 0) {
-                    dump_error(s, "dump: failed to write page data", errp);
+                    error_setg(errp, "dump: failed to write page data");
                     goto out;
                 }
             }
@@ -1333,7 +1320,7 @@ static void write_dump_pages(DumpState *s, Error **errp)
 
             ret = write_cache(&page_desc, &pd, sizeof(PageDescriptor), false);
             if (ret < 0) {
-                dump_error(s, "dump: failed to write page desc", errp);
+                error_setg(errp, "dump: failed to write page desc");
                 goto out;
             }
         }
@@ -1341,12 +1328,12 @@ static void write_dump_pages(DumpState *s, Error **errp)
 
     ret = write_cache(&page_desc, NULL, 0, true);
     if (ret < 0) {
-        dump_error(s, "dump: failed to sync cache for page_desc", errp);
+        error_setg(errp, "dump: failed to sync cache for page_desc");
         goto out;
     }
     ret = write_cache(&page_data, NULL, 0, true);
     if (ret < 0) {
-        dump_error(s, "dump: failed to sync cache for page_data", errp);
+        error_setg(errp, "dump: failed to sync cache for page_data");
         goto out;
     }
 
@@ -1390,7 +1377,7 @@ static void create_kdump_vmcore(DumpState *s, Error **errp)
 
     ret = write_start_flat_header(s->fd);
     if (ret < 0) {
-        dump_error(s, "dump: failed to write start flat header", errp);
+        error_setg(errp, "dump: failed to write start flat header");
         return;
     }
 
@@ -1414,11 +1401,9 @@ static void create_kdump_vmcore(DumpState *s, Error **errp)
 
     ret = write_end_flat_header(s->fd);
     if (ret < 0) {
-        dump_error(s, "dump: failed to write end flat header", errp);
+        error_setg(errp, "dump: failed to write end flat header");
         return;
     }
-
-    dump_completed(s);
 }
 
 static ram_addr_t get_start_block(DumpState *s)
@@ -1706,6 +1691,7 @@ void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
         create_vmcore(s, errp);
     }
 
+    dump_cleanup(s);
     g_free(s);
 }
 
