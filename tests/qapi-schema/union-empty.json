@@ -1,2 +1,2 @@
-# FIXME - unions should not be empty
+# unions cannot be empty
 { 'union': 'Union', 'data': { } }

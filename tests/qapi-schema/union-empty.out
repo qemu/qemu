@@ -1,6 +1,0 @@
-object :empty
-enum QType ['none', 'qnull', 'qint', 'qstring', 'qdict', 'qlist', 'qfloat', 'qbool']
-    prefix QTYPE
-object Union
-    member type: UnionKind optional=False
-enum UnionKind []

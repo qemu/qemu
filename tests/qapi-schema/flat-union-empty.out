@@ -1,9 +1,0 @@
-object :empty
-object Base
-    member type: Empty optional=False
-enum Empty []
-enum QType ['none', 'qnull', 'qint', 'qstring', 'qdict', 'qlist', 'qfloat', 'qbool']
-    prefix QTYPE
-object Union
-    base Base
-    tag type

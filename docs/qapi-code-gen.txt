@@ -187,11 +187,11 @@ prevent incomplete include files.
 
 Usage: { 'struct': STRING, 'data': DICT, '*base': STRUCT-NAME }
 
-A struct is a dictionary containing a single 'data' key whose
-value is a dictionary.  This corresponds to a struct in C or an Object
-in JSON. Each value of the 'data' dictionary must be the name of a
-type, or a one-element array containing a type name.  An example of a
-struct is:
+A struct is a dictionary containing a single 'data' key whose value is
+a dictionary; the dictionary may be empty.  This corresponds to a
+struct in C or an Object in JSON. Each value of the 'data' dictionary
+must be the name of a type, or a one-element array containing a type
+name.  An example of a struct is:
 
  { 'struct': 'MyType',
    'data': { 'member1': 'str', 'member2': 'int', '*member3': 'str' } }
@@ -288,9 +288,10 @@ or:    { 'union': STRING, 'data': DICT, 'base': STRUCT-NAME,
 
 Union types are used to let the user choose between several different
 variants for an object.  There are two flavors: simple (no
-discriminator or base), flat (both discriminator and base).  A union
+discriminator or base), and flat (both discriminator and base).  A union
 type is defined using a data dictionary as explained in the following
-paragraphs.
+paragraphs.  The data dictionary for either type of union must not
+be empty.
 
 A simple union type defines a mapping from automatic discriminator
 values to data types like in this example:

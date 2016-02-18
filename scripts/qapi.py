@@ -590,7 +590,10 @@ def check_union(expr, expr_info):
                                 "Discriminator '%s' must be of enumeration "
                                 "type" % discriminator)
 
-    # Check every branch
+    # Check every branch; don't allow an empty union
+    if len(members) == 0:
+        raise QAPIExprError(expr_info,
+                            "Union '%s' cannot have empty 'data'" % name)
     for (key, value) in members.items():
         check_name(expr_info, "Member of union '%s'" % name, key)
 
@@ -613,7 +616,11 @@ def check_alternate(expr, expr_info):
     members = expr['data']
     types_seen = {}
 
-    # Check every branch
+    # Check every branch; require at least two branches
+    if len(members) < 2:
+        raise QAPIExprError(expr_info,
+                            "Alternate '%s' should have at least two branches "
+                            "in 'data'" % name)
     for (key, value) in members.items():
         check_name(expr_info, "Member of alternate '%s'" % name, key)
 
@@ -1059,6 +1066,7 @@ class QAPISchemaObjectTypeVariants(object):
         assert bool(tag_member) != bool(tag_name)
         assert (isinstance(tag_name, str) or
                 isinstance(tag_member, QAPISchemaObjectTypeMember))
+        assert len(variants) > 0
         for v in variants:
             assert isinstance(v, QAPISchemaObjectTypeVariant)
         self.tag_name = tag_name
