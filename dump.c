@@ -1654,6 +1654,11 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     DumpState *s;
     Error *local_err = NULL;
 
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        error_setg(errp, "Dump not allowed during incoming migration.");
+        return;
+    }
+
     /* if there is a dump in background, we should wait until the dump
      * finished */
     if (dump_in_progress()) {
