@@ -106,11 +106,7 @@ bool throttle_timers_are_initialized(ThrottleTimers *tt);
 /* configuration */
 bool throttle_enabled(ThrottleConfig *cfg);
 
-bool throttle_conflicting(ThrottleConfig *cfg, Error **errp);
-
 bool throttle_is_valid(ThrottleConfig *cfg, Error **errp);
-
-bool throttle_max_is_missing_limit(ThrottleConfig *cfg, Error **errp);
 
 void throttle_config(ThrottleState *ts,
                      ThrottleTimers *tt,

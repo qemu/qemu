@@ -257,31 +257,31 @@ static void test_conflicts_for_one_set(bool is_max,
                                        int write)
 {
     memset(&cfg, 0, sizeof(cfg));
-    g_assert(!throttle_conflicting(&cfg, NULL));
+    g_assert(throttle_is_valid(&cfg, NULL));
 
     set_cfg_value(is_max, total, 1);
     set_cfg_value(is_max, read,  1);
-    g_assert(throttle_conflicting(&cfg, NULL));
+    g_assert(!throttle_is_valid(&cfg, NULL));
 
     memset(&cfg, 0, sizeof(cfg));
     set_cfg_value(is_max, total, 1);
     set_cfg_value(is_max, write, 1);
-    g_assert(throttle_conflicting(&cfg, NULL));
+    g_assert(!throttle_is_valid(&cfg, NULL));
 
     memset(&cfg, 0, sizeof(cfg));
     set_cfg_value(is_max, total, 1);
     set_cfg_value(is_max, read,  1);
     set_cfg_value(is_max, write, 1);
-    g_assert(throttle_conflicting(&cfg, NULL));
+    g_assert(!throttle_is_valid(&cfg, NULL));
 
     memset(&cfg, 0, sizeof(cfg));
     set_cfg_value(is_max, total, 1);
-    g_assert(!throttle_conflicting(&cfg, NULL));
+    g_assert(throttle_is_valid(&cfg, NULL));
 
     memset(&cfg, 0, sizeof(cfg));
     set_cfg_value(is_max, read,  1);
     set_cfg_value(is_max, write, 1);
-    g_assert(!throttle_conflicting(&cfg, NULL));
+    g_assert(throttle_is_valid(&cfg, NULL));
 }
 
 static void test_conflicting_config(void)
@@ -340,15 +340,15 @@ static void test_max_is_missing_limit(void)
         memset(&cfg, 0, sizeof(cfg));
         cfg.buckets[i].max = 100;
         cfg.buckets[i].avg = 0;
-        g_assert(throttle_max_is_missing_limit(&cfg, NULL));
+        g_assert(!throttle_is_valid(&cfg, NULL));
 
         cfg.buckets[i].max = 0;
         cfg.buckets[i].avg = 0;
-        g_assert(!throttle_max_is_missing_limit(&cfg, NULL));
+        g_assert(throttle_is_valid(&cfg, NULL));
 
         cfg.buckets[i].max = 0;
         cfg.buckets[i].avg = 100;
-        g_assert(!throttle_max_is_missing_limit(&cfg, NULL));
+        g_assert(throttle_is_valid(&cfg, NULL));
     }
 }
 

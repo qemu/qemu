@@ -343,23 +343,6 @@ static bool parse_stats_intervals(BlockAcctStats *stats, QList *intervals,
     return true;
 }
 
-static bool check_throttle_config(ThrottleConfig *cfg, Error **errp)
-{
-    if (throttle_conflicting(cfg, errp)) {
-        return false;
-    }
-
-    if (!throttle_is_valid(cfg, errp)) {
-        return false;
-    }
-
-    if (throttle_max_is_missing_limit(cfg, errp)) {
-        return false;
-    }
-
-    return true;
-}
-
 typedef enum { MEDIA_DISK, MEDIA_CDROM } DriveMediaType;
 
 /* All parameters but @opts are optional and may be set to NULL. */
@@ -434,7 +417,7 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
         throttle_cfg->op_size =
             qemu_opt_get_number(opts, "throttling.iops-size", 0);
 
-        if (!check_throttle_config(throttle_cfg, errp)) {
+        if (!throttle_is_valid(throttle_cfg, errp)) {
             return;
         }
     }
@@ -2660,7 +2643,7 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
         cfg.op_size = iops_size;
     }
 
-    if (!check_throttle_config(&cfg, errp)) {
+    if (!throttle_is_valid(&cfg, errp)) {
         goto out;
     }
 

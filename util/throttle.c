@@ -248,14 +248,14 @@ bool throttle_enabled(ThrottleConfig *cfg)
     return false;
 }
 
-/* return true if any two throttling parameters conflicts
- *
+/* check if a throttling configuration is valid
  * @cfg: the throttling configuration to inspect
- * @ret: true if any conflict detected else false
+ * @ret: true if valid else false
  * @errp: error object
  */
-bool throttle_conflicting(ThrottleConfig *cfg, Error **errp)
+bool throttle_is_valid(ThrottleConfig *cfg, Error **errp)
 {
+    int i;
     bool bps_flag, ops_flag;
     bool bps_max_flag, ops_max_flag;
 
@@ -278,20 +278,8 @@ bool throttle_conflicting(ThrottleConfig *cfg, Error **errp)
     if (bps_flag || ops_flag || bps_max_flag || ops_max_flag) {
         error_setg(errp, "bps/iops/max total values and read/write values"
                    " cannot be used at the same time");
-        return true;
+        return false;
     }
-
-    return false;
-}
-
-/* check if a throttling configuration is valid
- * @cfg: the throttling configuration to inspect
- * @ret: true if valid else false
- * @errp: error object
- */
-bool throttle_is_valid(ThrottleConfig *cfg, Error **errp)
-{
-    int i;
 
     for (i = 0; i < BUCKETS_COUNT; i++) {
         if (cfg->buckets[i].avg < 0 ||
@@ -302,27 +290,15 @@ bool throttle_is_valid(ThrottleConfig *cfg, Error **errp)
                        THROTTLE_VALUE_MAX);
             return false;
         }
-    }
 
-    return true;
-}
-
-/* check if bps_max/iops_max is used without bps/iops
- * @cfg: the throttling configuration to inspect
- * @errp: error object
- */
-bool throttle_max_is_missing_limit(ThrottleConfig *cfg, Error **errp)
-{
-    int i;
-
-    for (i = 0; i < BUCKETS_COUNT; i++) {
         if (cfg->buckets[i].max && !cfg->buckets[i].avg) {
             error_setg(errp, "bps_max/iops_max require corresponding"
                        " bps/iops values");
-            return true;
+            return false;
         }
     }
-    return false;
+
+    return true;
 }
 
 /* fix bucket parameters */
