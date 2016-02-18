@@ -296,7 +296,6 @@ static void sp804_realize(DeviceState *dev, Error **errp)
     s->timer[1] = arm_timer_init(s->freq1);
     s->timer[0]->irq = qemu_allocate_irq(sp804_set_irq, s, 0);
     s->timer[1]->irq = qemu_allocate_irq(sp804_set_irq, s, 1);
-    vmstate_register(dev, -1, &vmstate_sp804, s);
 }
 
 /* Integrator/CP timer module.  */
@@ -390,6 +389,7 @@ static void sp804_class_init(ObjectClass *klass, void *data)
 
     k->realize = sp804_realize;
     k->props = sp804_properties;
+    k->vmsd = &vmstate_sp804;
 }
 
 static const TypeInfo sp804_info = {
