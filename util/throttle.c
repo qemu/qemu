@@ -171,10 +171,20 @@ void throttle_timers_attach_aio_context(ThrottleTimers *tt,
                                   tt->write_timer_cb, tt->timer_opaque);
 }
 
+/*
+ * Initialize the ThrottleConfig structure to a valid state
+ * @cfg: the config to initialize
+ */
+void throttle_config_init(ThrottleConfig *cfg)
+{
+    memset(cfg, 0, sizeof(*cfg));
+}
+
 /* To be called first on the ThrottleState */
 void throttle_init(ThrottleState *ts)
 {
     memset(ts, 0, sizeof(ThrottleState));
+    throttle_config_init(&ts->cfg);
 }
 
 /* To be called first on the ThrottleTimers */

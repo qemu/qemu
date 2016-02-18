@@ -387,7 +387,7 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
     }
 
     if (throttle_cfg) {
-        memset(throttle_cfg, 0, sizeof(*throttle_cfg));
+        throttle_config_init(throttle_cfg);
         throttle_cfg->buckets[THROTTLE_BPS_TOTAL].avg =
             qemu_opt_get_number(opts, "throttling.bps-total", 0);
         throttle_cfg->buckets[THROTTLE_BPS_READ].avg  =
@@ -2611,7 +2611,7 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
         goto out;
     }
 
-    memset(&cfg, 0, sizeof(cfg));
+    throttle_config_init(&cfg);
     cfg.buckets[THROTTLE_BPS_TOTAL].avg = bps;
     cfg.buckets[THROTTLE_BPS_READ].avg  = bps_rd;
     cfg.buckets[THROTTLE_BPS_WRITE].avg = bps_wr;

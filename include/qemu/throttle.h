@@ -114,6 +114,8 @@ void throttle_config(ThrottleState *ts,
 
 void throttle_get_config(ThrottleState *ts, ThrottleConfig *cfg);
 
+void throttle_config_init(ThrottleConfig *cfg);
+
 /* usage */
 bool throttle_schedule_timer(ThrottleState *ts,
                              ThrottleTimers *tt,
