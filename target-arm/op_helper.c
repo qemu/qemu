@@ -614,12 +614,14 @@ void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
     int cur_el = arm_current_el(env);
     bool secure = arm_is_secure(env);
     bool smd = env->cp15.scr_el3 & SCR_SMD;
-    /* On ARMv8 AArch32, SMD only applies to NS state.
-     * On ARMv7 SMD only applies to NS state and only if EL2 is available.
-     * For ARMv7 non EL2, we force SMD to zero so we don't need to re-check
-     * the EL2 condition here.
+    /* On ARMv8 with EL3 AArch64, SMD applies to both S and NS state.
+     * On ARMv8 with EL3 AArch32, or ARMv7 with the Virtualization
+     *  extensions, SMD only applies to NS state.
+     * On ARMv7 without the Virtualization extensions, the SMD bit
+     * doesn't exist, but we forbid the guest to set it to 1 in scr_write(),
+     * so we need not special case this here.
      */
-    bool undef = is_a64(env) ? smd : (!secure && smd);
+    bool undef = arm_feature(env, ARM_FEATURE_AARCH64) ? smd : smd && !secure;
 
     if (arm_is_psci_call(cpu, EXCP_SMC)) {
         /* If PSCI is enabled and this looks like a valid PSCI call then
