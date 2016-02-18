@@ -306,13 +306,16 @@ bool throttle_is_valid(ThrottleConfig *cfg)
 
 /* check if bps_max/iops_max is used without bps/iops
  * @cfg: the throttling configuration to inspect
+ * @errp: error object
  */
-bool throttle_max_is_missing_limit(ThrottleConfig *cfg)
+bool throttle_max_is_missing_limit(ThrottleConfig *cfg, Error **errp)
 {
     int i;
 
     for (i = 0; i < BUCKETS_COUNT; i++) {
         if (cfg->buckets[i].max && !cfg->buckets[i].avg) {
+            error_setg(errp, "bps_max/iops_max require corresponding"
+                       " bps/iops values");
             return true;
         }
     }

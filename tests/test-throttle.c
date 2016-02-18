@@ -338,15 +338,15 @@ static void test_max_is_missing_limit(void)
         memset(&cfg, 0, sizeof(cfg));
         cfg.buckets[i].max = 100;
         cfg.buckets[i].avg = 0;
-        g_assert(throttle_max_is_missing_limit(&cfg));
+        g_assert(throttle_max_is_missing_limit(&cfg, NULL));
 
         cfg.buckets[i].max = 0;
         cfg.buckets[i].avg = 0;
-        g_assert(!throttle_max_is_missing_limit(&cfg));
+        g_assert(!throttle_max_is_missing_limit(&cfg, NULL));
 
         cfg.buckets[i].max = 0;
         cfg.buckets[i].avg = 100;
-        g_assert(!throttle_max_is_missing_limit(&cfg));
+        g_assert(!throttle_max_is_missing_limit(&cfg, NULL));
     }
 }
 
