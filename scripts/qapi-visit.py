@@ -201,11 +201,14 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s *obj, Error 
 
 def gen_visit_alternate(name, variants):
     promote_int = 'true'
+    ret = ''
     for var in variants.variants:
         if var.type.alternate_qtype() == 'QTYPE_QINT':
             promote_int = 'false'
+        if isinstance(var.type, QAPISchemaObjectType):
+            ret += gen_visit_fields_decl(var.type)
 
-    ret = mcgen('''
+    ret += mcgen('''
 
 void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
 {
@@ -221,17 +224,35 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
     }
     switch ((*obj)->type) {
 ''',
-                c_name=c_name(name), promote_int=promote_int)
+                 c_name=c_name(name), promote_int=promote_int)
 
     for var in variants.variants:
         ret += mcgen('''
     case %(case)s:
-        visit_type_%(c_type)s(v, name, &(*obj)->u.%(c_name)s, &err);
-        break;
 ''',
-                     case=var.type.alternate_qtype(),
-                     c_type=var.type.c_name(),
-                     c_name=c_name(var.name))
+                     case=var.type.alternate_qtype())
+        if isinstance(var.type, QAPISchemaObjectType):
+            ret += mcgen('''
+        visit_start_struct(v, name, NULL, 0, &err);
+        if (err) {
+            break;
+        }
+        visit_type_%(c_type)s_fields(v, &(*obj)->u.%(c_name)s, &err);
+        error_propagate(errp, err);
+        err = NULL;
+        visit_end_struct(v, &err);
+''',
+                         c_type=var.type.c_name(),
+                         c_name=c_name(var.name))
+        else:
+            ret += mcgen('''
+        visit_type_%(c_type)s(v, name, &(*obj)->u.%(c_name)s, &err);
+''',
+                         c_type=var.type.c_name(),
+                         c_name=c_name(var.name))
+        ret += mcgen('''
+        break;
+''')
 
     ret += mcgen('''
     default:

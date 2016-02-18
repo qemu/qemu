@@ -824,7 +824,7 @@ class QAPISchemaVisitor(object):
 
 
 class QAPISchemaType(QAPISchemaEntity):
-    def c_type(self, is_param=False):
+    def c_type(self, is_param=False, is_unboxed=False):
         return c_name(self.name) + pointer_suffix
 
     def c_null(self):
@@ -857,7 +857,7 @@ class QAPISchemaBuiltinType(QAPISchemaType):
     def c_name(self):
         return self.name
 
-    def c_type(self, is_param=False):
+    def c_type(self, is_param=False, is_unboxed=False):
         if is_param and self.name == 'str':
             return 'const ' + self._c_type_name
         return self._c_type_name
@@ -891,7 +891,7 @@ class QAPISchemaEnumType(QAPISchemaType):
         # See QAPISchema._make_implicit_enum_type()
         return self.name.endswith('Kind')
 
-    def c_type(self, is_param=False):
+    def c_type(self, is_param=False, is_unboxed=False):
         return c_name(self.name)
 
     def member_names(self):
@@ -987,9 +987,11 @@ class QAPISchemaObjectType(QAPISchemaType):
         assert not self.is_implicit()
         return QAPISchemaType.c_name(self)
 
-    def c_type(self, is_param=False):
+    def c_type(self, is_param=False, is_unboxed=False):
         assert not self.is_implicit()
-        return QAPISchemaType.c_type(self)
+        if is_unboxed:
+            return c_name(self.name)
+        return c_name(self.name) + pointer_suffix
 
     def json_type(self):
         return 'object'

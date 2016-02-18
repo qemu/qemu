@@ -116,6 +116,14 @@ static inline %(base)s *qapi_%(c_name)s_base(const %(c_name)s *obj)
 
 
 def gen_variants(variants):
+    # HACK: Determine if this is an alternate (at least one variant
+    # is not an object); unions have all branches as objects.
+    unboxed = False
+    for v in variants.variants:
+        if not isinstance(v.type, QAPISchemaObjectType):
+            unboxed = True
+            break
+
     # FIXME: What purpose does data serve, besides preventing a union that
     # has a branch named 'data'? We use it in qapi-visit.py to decide
     # whether to bypass the switch statement if visiting the discriminator
@@ -136,7 +144,7 @@ def gen_variants(variants):
         ret += mcgen('''
         %(c_type)s %(c_name)s;
 ''',
-                     c_type=typ.c_type(),
+                     c_type=typ.c_type(is_unboxed=unboxed),
                      c_name=c_name(var.name))
 
     ret += mcgen('''
