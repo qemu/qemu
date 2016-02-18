@@ -124,6 +124,7 @@ struct MachineState {
     char *firmware;
     bool iommu;
     bool suppress_vmdesc;
+    bool enforce_config_section;
 
     ram_addr_t ram_size;
     ram_addr_t maxram_size;

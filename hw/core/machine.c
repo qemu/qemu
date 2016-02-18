@@ -283,6 +283,21 @@ static bool machine_get_suppress_vmdesc(Object *obj, Error **errp)
     return ms->suppress_vmdesc;
 }
 
+static void machine_set_enforce_config_section(Object *obj, bool value,
+                                             Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    ms->enforce_config_section = value;
+}
+
+static bool machine_get_enforce_config_section(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return ms->enforce_config_section;
+}
+
 static int error_on_sysbus_device(SysBusDevice *sbdev, void *opaque)
 {
     error_report("Option '-device %s' cannot be handled by this machine",
@@ -436,6 +451,12 @@ static void machine_initfn(Object *obj)
                              machine_set_suppress_vmdesc, NULL);
     object_property_set_description(obj, "suppress-vmdesc",
                                     "Set on to disable self-describing migration",
+                                    NULL);
+    object_property_add_bool(obj, "enforce-config-section",
+                             machine_get_enforce_config_section,
+                             machine_set_enforce_config_section, NULL);
+    object_property_set_description(obj, "enforce-config-section",
+                                    "Set on to enforce configuration section migration",
                                     NULL);
 
     /* Register notifier when init is done for sysbus sanity checks */

@@ -41,7 +41,8 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                igd-passthru=on|off controls IGD GFX passthrough support (default=off)\n"
     "                aes-key-wrap=on|off controls support for AES key wrapping (default=on)\n"
     "                dea-key-wrap=on|off controls support for DEA key wrapping (default=on)\n"
-    "                suppress-vmdesc=on|off disables self-describing migration (default=off)\n",
+    "                suppress-vmdesc=on|off disables self-describing migration (default=off)\n"
+    "                enforce-config-section=on|off enforce configuration section migration (default=off)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -machine [type=]@var{name}[,prop=@var{value}[,...]]
