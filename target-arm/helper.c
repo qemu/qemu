@@ -3011,10 +3011,10 @@ static CPAccessResult fpexc32_access(CPUARMState *env, const ARMCPRegInfo *ri,
                                      bool isread)
 {
     if ((env->cp15.cptr_el[2] & CPTR_TFP) && arm_current_el(env) == 2) {
-        return CP_ACCESS_TRAP_EL2;
+        return CP_ACCESS_TRAP_FP_EL2;
     }
     if (env->cp15.cptr_el[3] & CPTR_TFP) {
-        return CP_ACCESS_TRAP_EL3;
+        return CP_ACCESS_TRAP_FP_EL3;
     }
     return CP_ACCESS_OK;
 }
