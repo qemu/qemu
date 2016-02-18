@@ -12,16 +12,24 @@
 
 #include "qemu/osdep.h"
 #include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "hw/arm/pxa.h"
 #include "hw/sd/sd.h"
 #include "hw/qdev.h"
+#include "hw/qdev-properties.h"
+
+#define TYPE_PXA2XX_MMCI "pxa2xx-mmci"
+#define PXA2XX_MMCI(obj) OBJECT_CHECK(PXA2xxMMCIState, (obj), TYPE_PXA2XX_MMCI)
 
 struct PXA2xxMMCIState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq irq;
     qemu_irq rx_dma;
     qemu_irq tx_dma;
 
+    BlockBackend *blk;
     SDState *card;
 
     uint32_t status;
@@ -475,31 +483,61 @@ PXA2xxMMCIState *pxa2xx_mmci_init(MemoryRegion *sysmem,
                 BlockBackend *blk, qemu_irq irq,
                 qemu_irq rx_dma, qemu_irq tx_dma)
 {
+    DeviceState *dev;
+    SysBusDevice *sbd;
     PXA2xxMMCIState *s;
 
-    s = (PXA2xxMMCIState *) g_malloc0(sizeof(PXA2xxMMCIState));
-    s->irq = irq;
-    s->rx_dma = rx_dma;
-    s->tx_dma = tx_dma;
-
-    memory_region_init_io(&s->iomem, NULL, &pxa2xx_mmci_ops, s,
-                          "pxa2xx-mmci", 0x00100000);
-    memory_region_add_subregion(sysmem, base, &s->iomem);
-
-    /* Instantiate the actual storage */
-    s->card = sd_init(blk, false);
+    dev = qdev_create(NULL, TYPE_PXA2XX_MMCI);
+    s = PXA2XX_MMCI(dev);
+    /* Reach into the device and initialize the SD card. This is
+     * unclean but will vanish when we update to SDBus APIs.
+     */
+    s->card = sd_init(s->blk, false);
     if (s->card == NULL) {
         exit(1);
     }
-
-    register_savevm(NULL, "pxa2xx_mmci", 0, 0,
-                    pxa2xx_mmci_save, pxa2xx_mmci_load, s);
-
+    qdev_init_nofail(dev);
+    sbd = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(sbd, 0, base);
+    sysbus_connect_irq(sbd, 0, irq);
+    qdev_connect_gpio_out_named(dev, "rx-dma", 0, rx_dma);
+    qdev_connect_gpio_out_named(dev, "tx-dma", 0, tx_dma);
     return s;
 }
 
 void pxa2xx_mmci_handlers(PXA2xxMMCIState *s, qemu_irq readonly,
-                qemu_irq coverswitch)
+                          qemu_irq coverswitch)
 {
     sd_set_cb(s->card, readonly, coverswitch);
 }
+
+static void pxa2xx_mmci_instance_init(Object *obj)
+{
+    PXA2xxMMCIState *s = PXA2XX_MMCI(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    DeviceState *dev = DEVICE(obj);
+
+    memory_region_init_io(&s->iomem, obj, &pxa2xx_mmci_ops, s,
+                          "pxa2xx-mmci", 0x00100000);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
+    qdev_init_gpio_out_named(dev, &s->rx_dma, "rx-dma", 1);
+    qdev_init_gpio_out_named(dev, &s->tx_dma, "tx-dma", 1);
+
+    register_savevm(NULL, "pxa2xx_mmci", 0, 0,
+                    pxa2xx_mmci_save, pxa2xx_mmci_load, s);
+}
+
+static const TypeInfo pxa2xx_mmci_info = {
+    .name = TYPE_PXA2XX_MMCI,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PXA2xxMMCIState),
+    .instance_init = pxa2xx_mmci_instance_init,
+};
+
+static void pxa2xx_mmci_register_types(void)
+{
+    type_register_static(&pxa2xx_mmci_info);
+}
+
+type_init(pxa2xx_mmci_register_types)
