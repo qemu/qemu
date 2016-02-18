@@ -1283,6 +1283,15 @@ S: Maintained
 F: include/qemu/sockets.h
 F: util/qemu-sockets.c
 
+Throttling infrastructure
+M: Alberto Garcia <berto@igalia.com>
+S: Supported
+F: block/throttle-groups.c
+F: include/block/throttle-groups.h
+F: include/qemu/throttle.h
+F: util/throttle.c
+L: qemu-block@nongnu.org
+
 Usermode Emulation
 ------------------
 Overall
