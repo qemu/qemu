@@ -1297,16 +1297,17 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
 
     default:
     bad_cmd:
-        fprintf(stderr, "SD: Unknown CMD%i\n", req.cmd);
+        qemu_log_mask(LOG_GUEST_ERROR, "SD: Unknown CMD%i\n", req.cmd);
         return sd_illegal;
 
     unimplemented_cmd:
         /* Commands that are recognised but not yet implemented in SPI mode.  */
-        fprintf(stderr, "SD: CMD%i not implemented in SPI mode\n", req.cmd);
+        qemu_log_mask(LOG_UNIMP, "SD: CMD%i not implemented in SPI mode\n",
+                      req.cmd);
         return sd_illegal;
     }
 
-    fprintf(stderr, "SD: CMD%i in a wrong state\n", req.cmd);
+    qemu_log_mask(LOG_GUEST_ERROR, "SD: CMD%i in a wrong state\n", req.cmd);
     return sd_illegal;
 }
 
@@ -1438,7 +1439,7 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
         return sd_normal_command(sd, req);
     }
 
-    fprintf(stderr, "SD: ACMD%i in a wrong state\n", req.cmd);
+    qemu_log_mask(LOG_GUEST_ERROR, "SD: ACMD%i in a wrong state\n", req.cmd);
     return sd_illegal;
 }
 
@@ -1482,7 +1483,7 @@ int sd_do_command(SDState *sd, SDRequest *req,
         if (!cmd_valid_while_locked(sd, req)) {
             sd->card_status |= ILLEGAL_COMMAND;
             sd->expecting_acmd = false;
-            fprintf(stderr, "SD: Card is locked\n");
+            qemu_log_mask(LOG_GUEST_ERROR, "SD: Card is locked\n");
             rtype = sd_illegal;
             goto send_response;
         }
@@ -1640,7 +1641,8 @@ void sd_write_data(SDState *sd, uint8_t value)
         return;
 
     if (sd->state != sd_receivingdata_state) {
-        fprintf(stderr, "sd_write_data: not in Receiving-Data state\n");
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "sd_write_data: not in Receiving-Data state\n");
         return;
     }
 
@@ -1759,7 +1761,7 @@ void sd_write_data(SDState *sd, uint8_t value)
         break;
 
     default:
-        fprintf(stderr, "sd_write_data: unknown command\n");
+        qemu_log_mask(LOG_GUEST_ERROR, "sd_write_data: unknown command\n");
         break;
     }
 }
@@ -1774,7 +1776,8 @@ uint8_t sd_read_data(SDState *sd)
         return 0x00;
 
     if (sd->state != sd_sendingdata_state) {
-        fprintf(stderr, "sd_read_data: not in Sending-Data state\n");
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "sd_read_data: not in Sending-Data state\n");
         return 0x00;
     }
 
@@ -1885,7 +1888,7 @@ uint8_t sd_read_data(SDState *sd)
         break;
 
     default:
-        fprintf(stderr, "sd_read_data: unknown command\n");
+        qemu_log_mask(LOG_GUEST_ERROR, "sd_read_data: unknown command\n");
         return 0x00;
     }
 
