@@ -15,10 +15,6 @@
 from qapi import *
 import re
 
-# visit_type_FOO_implicit() is emitted as needed; track if it has already
-# been output.
-implicit_structs_seen = set()
-
 # visit_type_FOO_fields() is always emitted; track if a forward declaration
 # or implementation has already been output.
 struct_fields_seen = set()
@@ -45,31 +41,6 @@ static void visit_type_%(c_type)s_fields(Visitor *v, %(c_type)s *obj, Error **er
                  c_type=typ.c_name())
 
 
-def gen_visit_implicit_struct(typ):
-    if typ in implicit_structs_seen:
-        return ''
-    implicit_structs_seen.add(typ)
-
-    ret = gen_visit_fields_decl(typ)
-
-    ret += mcgen('''
-
-static void visit_type_implicit_%(c_type)s(Visitor *v, %(c_type)s **obj, Error **errp)
-{
-    Error *err = NULL;
-
-    visit_start_implicit_struct(v, (void **)obj, sizeof(%(c_type)s), &err);
-    if (!err) {
-        visit_type_%(c_type)s_fields(v, *obj, errp);
-        visit_end_implicit_struct(v);
-    }
-    error_propagate(errp, err);
-}
-''',
-                 c_type=typ.c_name())
-    return ret
-
-
 def gen_visit_struct_fields(name, base, members, variants):
     ret = ''
 
@@ -79,7 +50,7 @@ def gen_visit_struct_fields(name, base, members, variants):
         for var in variants.variants:
             # Ugly special case for simple union TODO get rid of it
             if not var.simple_union_type():
-                ret += gen_visit_implicit_struct(var.type)
+                ret += gen_visit_fields_decl(var.type)
 
     struct_fields_seen.add(name)
     ret += mcgen('''
@@ -102,9 +73,6 @@ static void visit_type_%(c_name)s_fields(Visitor *v, %(c_name)s *obj, Error **er
 
     if variants:
         ret += mcgen('''
-    if (!visit_start_union(v, !!obj->u.data, &err) || err) {
-        goto out;
-    }
     switch (obj->%(c_name)s) {
 ''',
                      c_name=c_name(variants.tag_member.name))
@@ -126,7 +94,7 @@ static void visit_type_%(c_name)s_fields(Visitor *v, %(c_name)s *obj, Error **er
                              c_name=c_name(var.name))
             else:
                 ret += mcgen('''
-        visit_type_implicit_%(c_type)s(v, &obj->u.%(c_name)s, &err);
+        visit_type_%(c_type)s_fields(v, &obj->u.%(c_name)s, &err);
 ''',
                              c_type=var.type.c_name(),
                              c_name=c_name(var.name))

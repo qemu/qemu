@@ -403,9 +403,8 @@ static void test_visitor_out_union_flat(TestOutputVisitorData *data,
     UserDefFlatUnion *tmp = g_malloc0(sizeof(UserDefFlatUnion));
     tmp->enum1 = ENUM_ONE_VALUE1;
     tmp->string = g_strdup("str");
-    tmp->u.value1 = g_malloc0(sizeof(UserDefA));
     tmp->integer = 41;
-    tmp->u.value1->boolean = true;
+    tmp->u.value1.boolean = true;
 
     visit_type_UserDefFlatUnion(data->ov, NULL, &tmp, &error_abort);
     arg = qmp_output_get_qobject(data->qov);
@@ -460,8 +459,7 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
     tmp->u.udfu.integer = 1;
     tmp->u.udfu.string = g_strdup("str");
     tmp->u.udfu.enum1 = ENUM_ONE_VALUE1;
-    tmp->u.udfu.u.value1 = g_new0(UserDefA, 1);
-    tmp->u.udfu.u.value1->boolean = true;
+    tmp->u.udfu.u.value1.boolean = true;
 
     visit_type_UserDefAlternate(data->ov, NULL, &tmp, &error_abort);
     arg = qmp_output_get_qobject(data->qov);

@@ -79,6 +79,5 @@ void visit_type_str(Visitor *v, const char *name, char **obj, Error **errp);
 void visit_type_number(Visitor *v, const char *name, double *obj,
                        Error **errp);
 void visit_type_any(Visitor *v, const char *name, QObject **obj, Error **errp);
-bool visit_start_union(Visitor *v, bool data_present, Error **errp);
 
 #endif

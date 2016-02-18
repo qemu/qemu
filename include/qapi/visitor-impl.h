@@ -58,8 +58,6 @@ struct Visitor
 
     /* May be NULL; most useful for input visitors. */
     void (*optional)(Visitor *v, const char *name, bool *present);
-
-    bool (*start_union)(Visitor *v, bool data_present, Error **errp);
 };
 
 void input_type_enum(Visitor *v, const char *name, int *obj,
