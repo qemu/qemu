@@ -68,6 +68,9 @@ typedef struct {
 
 typedef struct SDState SDState;
 
+#define TYPE_SD_CARD "sd-card"
+#define SD_CARD(obj) OBJECT_CHECK(SDState, (obj), TYPE_SD_CARD)
+
 SDState *sd_init(BlockBackend *bs, bool is_spi);
 int sd_do_command(SDState *sd, SDRequest *req,
                   uint8_t *response);

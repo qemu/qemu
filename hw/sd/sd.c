@@ -34,6 +34,8 @@
 #include "sysemu/block-backend.h"
 #include "hw/sd/sd.h"
 #include "qemu/bitmap.h"
+#include "hw/qdev-properties.h"
+#include "qemu/error-report.h"
 
 //#define DEBUG_SD 1
 
@@ -78,6 +80,8 @@ enum SDCardStates {
 };
 
 struct SDState {
+    DeviceState parent_obj;
+
     uint32_t mode;    /* current card mode, one of SDCardModes */
     int32_t state;    /* current card state, one of SDCardStates */
     uint32_t ocr;
@@ -473,34 +477,26 @@ static const VMStateDescription sd_vmstate = {
     }
 };
 
-/* We do not model the chip select pin, so allow the board to select
-   whether card should be in SSI or MMC/SD mode.  It is also up to the
-   board to ensure that ssi transfers only occur when the chip select
-   is asserted.  */
+/* Legacy initialization function for use by non-qdevified callers */
 SDState *sd_init(BlockBackend *blk, bool is_spi)
 {
-    SDState *sd;
+    DeviceState *dev;
+    Error *err = NULL;
 
-    if (blk && blk_is_read_only(blk)) {
-        fprintf(stderr, "sd_init: Cannot use read-only drive\n");
+    dev = qdev_create(NULL, TYPE_SD_CARD);
+    qdev_prop_set_drive(dev, "drive", blk, &err);
+    if (err) {
+        error_report("sd_init failed: %s", error_get_pretty(err));
+        return NULL;
+    }
+    qdev_prop_set_bit(dev, "spi", is_spi);
+    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    if (err) {
+        error_report("sd_init failed: %s", error_get_pretty(err));
         return NULL;
     }
 
-    sd = (SDState *) g_malloc0(sizeof(SDState));
-    sd->buf = blk_blockalign(blk, 512);
-    sd->spi = is_spi;
-    sd->enable = true;
-    sd->blk = blk;
-    sd_reset(sd);
-    if (sd->blk) {
-        /* Attach dev if not already attached.  (This call ignores an
-         * error return code if sd->blk is already attached.) */
-        /* FIXME ignoring blk_attach_dev() failure is dangerously brittle */
-        blk_attach_dev(sd->blk, sd);
-        blk_set_dev_ops(sd->blk, &sd_block_ops, sd);
-    }
-    vmstate_register(NULL, -1, &sd_vmstate, sd);
-    return sd;
+    return SD_CARD(dev);
 }
 
 void sd_set_cb(SDState *sd, qemu_irq readonly, qemu_irq insert)
@@ -1769,3 +1765,62 @@ void sd_enable(SDState *sd, bool enable)
 {
     sd->enable = enable;
 }
+
+static void sd_instance_init(Object *obj)
+{
+    SDState *sd = SD_CARD(obj);
+
+    sd->enable = true;
+}
+
+static void sd_realize(DeviceState *dev, Error **errp)
+{
+    SDState *sd = SD_CARD(dev);
+
+    if (sd->blk && blk_is_read_only(sd->blk)) {
+        error_setg(errp, "Cannot use read-only drive as SD card");
+        return;
+    }
+
+    sd->buf = blk_blockalign(sd->blk, 512);
+
+    if (sd->blk) {
+        blk_set_dev_ops(sd->blk, &sd_block_ops, sd);
+    }
+
+    sd_reset(sd);
+}
+
+static Property sd_properties[] = {
+    DEFINE_PROP_DRIVE("drive", SDState, blk),
+    /* We do not model the chip select pin, so allow the board to select
+     * whether card should be in SSI or MMC/SD mode.  It is also up to the
+     * board to ensure that ssi transfers only occur when the chip select
+     * is asserted.  */
+    DEFINE_PROP_BOOL("spi", SDState, spi, false),
+    DEFINE_PROP_END_OF_LIST()
+};
+
+static void sd_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = sd_realize;
+    dc->props = sd_properties;
+    dc->vmsd = &sd_vmstate;
+}
+
+static const TypeInfo sd_info = {
+    .name = TYPE_SD_CARD,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(SDState),
+    .class_init = sd_class_init,
+    .instance_init = sd_instance_init,
+};
+
+static void sd_register_types(void)
+{
+    type_register_static(&sd_info);
+}
+
+type_init(sd_register_types)
