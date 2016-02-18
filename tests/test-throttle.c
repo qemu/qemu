@@ -60,6 +60,22 @@ static void test_leak_bucket(void)
     g_assert(bkt.avg == 150);
     g_assert(bkt.max == 15);
     g_assert(double_cmp(bkt.level, 0));
+
+    /* check that burst_level leaks correctly */
+    bkt.burst_level = 6;
+    bkt.max = 250;
+    bkt.burst_length = 2; /* otherwise burst_level will not leak */
+    throttle_leak_bucket(&bkt, NANOSECONDS_PER_SECOND / 100);
+    g_assert(double_cmp(bkt.burst_level, 3.5));
+
+    throttle_leak_bucket(&bkt, NANOSECONDS_PER_SECOND / 100);
+    g_assert(double_cmp(bkt.burst_level, 1));
+
+    throttle_leak_bucket(&bkt, NANOSECONDS_PER_SECOND / 100);
+    g_assert(double_cmp(bkt.burst_level, 0));
+
+    throttle_leak_bucket(&bkt, NANOSECONDS_PER_SECOND / 100);
+    g_assert(double_cmp(bkt.burst_level, 0));
 }
 
 static void test_compute_wait(void)
