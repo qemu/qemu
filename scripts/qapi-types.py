@@ -2,7 +2,7 @@
 # QAPI types generator
 #
 # Copyright IBM, Corp. 2011
-# Copyright (c) 2013-2015 Red Hat Inc.
+# Copyright (c) 2013-2016 Red Hat Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
@@ -12,6 +12,11 @@
 # See the COPYING file in the top-level directory.
 
 from qapi import *
+
+
+# variants must be emitted before their container; track what has already
+# been output
+objects_seen = set()
 
 
 def gen_fwd_object_or_array(name):
@@ -49,11 +54,23 @@ def gen_struct_fields(members):
 
 
 def gen_object(name, base, members, variants):
-    ret = mcgen('''
+    if name in objects_seen:
+        return ''
+    objects_seen.add(name)
+
+    ret = ''
+    if variants:
+        for v in variants.variants:
+            if (isinstance(v.type, QAPISchemaObjectType) and
+                    not v.type.is_implicit()):
+                ret += gen_object(v.type.name, v.type.base,
+                                  v.type.local_members, v.type.variants)
+
+    ret += mcgen('''
 
 struct %(c_name)s {
 ''',
-                c_name=c_name(name))
+                 c_name=c_name(name))
 
     if base:
         ret += mcgen('''
