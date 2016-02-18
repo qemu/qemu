@@ -39,19 +39,20 @@ typedef struct QDevAlias
     uint32_t arch_mask;
 } QDevAlias;
 
+/* Please keep this table sorted by typename. */
 static const QDevAlias qdev_alias_table[] = {
-    { "virtio-blk-pci", "virtio-blk", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
-    { "virtio-net-pci", "virtio-net", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
-    { "virtio-serial-pci", "virtio-serial", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
+    { "e1000", "e1000-82540em" },
+    { "ich9-ahci", "ahci" },
+    { "kvm-pci-assign", "pci-assign" },
+    { "lsi53c895a", "lsi" },
     { "virtio-balloon-pci", "virtio-balloon",
             QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
     { "virtio-blk-ccw", "virtio-blk", QEMU_ARCH_S390X },
+    { "virtio-blk-pci", "virtio-blk", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
     { "virtio-net-ccw", "virtio-net", QEMU_ARCH_S390X },
+    { "virtio-net-pci", "virtio-net", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
     { "virtio-serial-ccw", "virtio-serial", QEMU_ARCH_S390X },
-    { "lsi53c895a", "lsi" },
-    { "ich9-ahci", "ahci" },
-    { "kvm-pci-assign", "pci-assign" },
-    { "e1000", "e1000-82540em" },
+    { "virtio-serial-pci", "virtio-serial", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
     { }
 };
 
