@@ -37,6 +37,7 @@
 #include "qemu/bitmap.h"
 #include "hw/qdev-properties.h"
 #include "qemu/error-report.h"
+#include "qemu/timer.h"
 
 //#define DEBUG_SD 1
 
@@ -47,7 +48,9 @@ do { fprintf(stderr, "SD: " fmt , ## __VA_ARGS__); } while (0)
 #define DPRINTF(fmt, ...) do {} while(0)
 #endif
 
-#define ACMD41_ENQUIRY_MASK 0x00ffffff
+#define ACMD41_ENQUIRY_MASK     0x00ffffff
+#define OCR_POWER_UP            0x80000000
+#define OCR_POWER_DELAY_NS      500000 /* 0.5ms */
 
 typedef enum {
     sd_r0 = 0,    /* no response */
@@ -86,6 +89,7 @@ struct SDState {
     uint32_t mode;    /* current card mode, one of SDCardModes */
     int32_t state;    /* current card state, one of SDCardStates */
     uint32_t ocr;
+    QEMUTimer *ocr_power_timer;
     uint8_t scr[8];
     uint8_t cid[16];
     uint8_t csd[16];
@@ -200,8 +204,17 @@ static uint16_t sd_crc16(void *message, size_t width)
 
 static void sd_set_ocr(SDState *sd)
 {
-    /* All voltages OK, card power-up OK, Standard Capacity SD Memory Card */
-    sd->ocr = 0x80ffff00;
+    /* All voltages OK, Standard Capacity SD Memory Card, not yet powered up */
+    sd->ocr = 0x00ffff00;
+}
+
+static void sd_ocr_powerup(void *opaque)
+{
+    SDState *sd = opaque;
+
+    /* Set powered up bit in OCR */
+    assert(!(sd->ocr & OCR_POWER_UP));
+    sd->ocr |= OCR_POWER_UP;
 }
 
 static void sd_set_scr(SDState *sd)
@@ -476,10 +489,44 @@ static const BlockDevOps sd_block_ops = {
     .change_media_cb = sd_cardchange,
 };
 
+static bool sd_ocr_vmstate_needed(void *opaque)
+{
+    SDState *sd = opaque;
+
+    /* Include the OCR state (and timer) if it is not yet powered up */
+    return !(sd->ocr & OCR_POWER_UP);
+}
+
+static const VMStateDescription sd_ocr_vmstate = {
+    .name = "sd-card/ocr-state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = sd_ocr_vmstate_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(ocr, SDState),
+        VMSTATE_TIMER_PTR(ocr_power_timer, SDState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static int sd_vmstate_pre_load(void *opaque)
+{
+    SDState *sd = opaque;
+
+    /* If the OCR state is not included (prior versions, or not
+     * needed), then the OCR must be set as powered up. If the OCR state
+     * is included, this will be replaced by the state restore.
+     */
+    sd_ocr_powerup(sd);
+
+    return 0;
+}
+
 static const VMStateDescription sd_vmstate = {
     .name = "sd-card",
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_load = sd_vmstate_pre_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(mode, SDState),
         VMSTATE_INT32(state, SDState),
@@ -506,7 +553,11 @@ static const VMStateDescription sd_vmstate = {
         VMSTATE_BUFFER_POINTER_UNSAFE(buf, SDState, 1, 512),
         VMSTATE_BOOL(enable, SDState),
         VMSTATE_END_OF_LIST()
-    }
+    },
+    .subsections = (const VMStateDescription*[]) {
+        &sd_ocr_vmstate,
+        NULL
+    },
 };
 
 /* Legacy initialization function for use by non-qdevified callers */
@@ -1323,9 +1374,28 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
         }
         switch (sd->state) {
         case sd_idle_state:
+            /* If it's the first ACMD41 since reset, we need to decide
+             * whether to power up. If this is not an enquiry ACMD41,
+             * we immediately report power on and proceed below to the
+             * ready state, but if it is, we set a timer to model a
+             * delay for power up. This works around a bug in EDK2
+             * UEFI, which sends an initial enquiry ACMD41, but
+             * assumes that the card is in ready state as soon as it
+             * sees the power up bit set. */
+            if (!(sd->ocr & OCR_POWER_UP)) {
+                if ((req.arg & ACMD41_ENQUIRY_MASK) != 0) {
+                    timer_del(sd->ocr_power_timer);
+                    sd_ocr_powerup(sd);
+                } else if (!timer_pending(sd->ocr_power_timer)) {
+                    timer_mod_ns(sd->ocr_power_timer,
+                                 (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)
+                                  + OCR_POWER_DELAY_NS));
+                }
+            }
+
             /* We accept any voltage.  10000 V is nothing.
              *
-             * We don't model init delay so just advance straight to ready state
+             * Once we're powered up, we advance straight to ready state
              * unless it's an enquiry ACMD41 (bits 23:0 == 0).
              */
             if (req.arg & ACMD41_ENQUIRY_MASK) {
@@ -1837,6 +1907,7 @@ static void sd_instance_init(Object *obj)
     SDState *sd = SD_CARD(obj);
 
     sd->enable = true;
+    sd->ocr_power_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sd_ocr_powerup, sd);
 }
 
 static void sd_realize(DeviceState *dev, Error **errp)
