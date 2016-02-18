@@ -282,10 +282,32 @@ static void pl061_write(void *opaque, hwaddr offset,
     pl061_update(s);
 }
 
-static void pl061_reset(PL061State *s)
+static void pl061_reset(DeviceState *dev)
 {
-  s->locked = 1;
-  s->cr = 0xff;
+    PL061State *s = PL061(dev);
+
+    /* reset values from PL061 TRM, Stellaris LM3S5P31 & LM3S8962 Data Sheet */
+    s->data = 0;
+    s->old_out_data = 0;
+    s->old_in_data = 0;
+    s->dir = 0;
+    s->isense = 0;
+    s->ibe = 0;
+    s->iev = 0;
+    s->im = 0;
+    s->istate = 0;
+    s->afsel = 0;
+    s->dr2r = 0xff;
+    s->dr4r = 0;
+    s->dr8r = 0;
+    s->odr = 0;
+    s->pur = 0;
+    s->pdr = 0;
+    s->slr = 0;
+    s->den = 0;
+    s->locked = 1;
+    s->cr = 0xff;
+    s->amsel = 0;
 }
 
 static void pl061_set_irq(void * opaque, int irq, int level)
@@ -318,7 +340,7 @@ static int pl061_initfn(SysBusDevice *sbd)
     sysbus_init_irq(sbd, &s->irq);
     qdev_init_gpio_in(dev, pl061_set_irq, 8);
     qdev_init_gpio_out(dev, s->out, 8);
-    pl061_reset(s);
+
     return 0;
 }
 
@@ -343,6 +365,7 @@ static void pl061_class_init(ObjectClass *klass, void *data)
 
     k->init = pl061_initfn;
     dc->vmsd = &vmstate_pl061;
+    dc->reset = &pl061_reset;
 }
 
 static const TypeInfo pl061_info = {
