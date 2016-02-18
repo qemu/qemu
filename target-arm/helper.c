@@ -1218,10 +1218,33 @@ static const ARMCPRegInfo v6k_cp_reginfo[] = {
 static CPAccessResult gt_cntfrq_access(CPUARMState *env, const ARMCPRegInfo *ri,
                                        bool isread)
 {
-    /* CNTFRQ: not visible from PL0 if both PL0PCTEN and PL0VCTEN are zero */
-    if (arm_current_el(env) == 0 && !extract32(env->cp15.c14_cntkctl, 0, 2)) {
-        return CP_ACCESS_TRAP;
+    /* CNTFRQ: not visible from PL0 if both PL0PCTEN and PL0VCTEN are zero.
+     * Writable only at the highest implemented exception level.
+     */
+    int el = arm_current_el(env);
+
+    switch (el) {
+    case 0:
+        if (!extract32(env->cp15.c14_cntkctl, 0, 2)) {
+            return CP_ACCESS_TRAP;
+        }
+        break;
+    case 1:
+        if (!isread && ri->state == ARM_CP_STATE_AA32 &&
+            arm_is_secure_below_el3(env)) {
+            /* Accesses from 32-bit Secure EL1 UNDEF (*not* trap to EL3!) */
+            return CP_ACCESS_TRAP_UNCATEGORIZED;
+        }
+        break;
+    case 2:
+    case 3:
+        break;
     }
+
+    if (!isread && el < arm_highest_el(env)) {
+        return CP_ACCESS_TRAP_UNCATEGORIZED;
+    }
+
     return CP_ACCESS_OK;
 }
 
