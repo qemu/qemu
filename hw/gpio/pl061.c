@@ -56,7 +56,6 @@ typedef struct PL061State {
     uint32_t slr;
     uint32_t den;
     uint32_t cr;
-    uint32_t float_high;
     uint32_t amsel;
     qemu_irq irq;
     qemu_irq out[8];
@@ -65,8 +64,8 @@ typedef struct PL061State {
 
 static const VMStateDescription vmstate_pl061 = {
     .name = "pl061",
-    .version_id = 3,
-    .minimum_version_id = 3,
+    .version_id = 4,
+    .minimum_version_id = 4,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(locked, PL061State),
         VMSTATE_UINT32(data, PL061State),
@@ -88,7 +87,6 @@ static const VMStateDescription vmstate_pl061 = {
         VMSTATE_UINT32(slr, PL061State),
         VMSTATE_UINT32(den, PL061State),
         VMSTATE_UINT32(cr, PL061State),
-        VMSTATE_UINT32(float_high, PL061State),
         VMSTATE_UINT32_V(amsel, PL061State, 2),
         VMSTATE_END_OF_LIST()
     }
