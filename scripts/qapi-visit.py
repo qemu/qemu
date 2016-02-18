@@ -39,7 +39,7 @@ def gen_visit_fields_decl(typ):
     if typ.name not in struct_fields_seen:
         ret += mcgen('''
 
-static void visit_type_%(c_type)s_fields(Visitor *v, %(c_type)s **obj, Error **errp);
+static void visit_type_%(c_type)s_fields(Visitor *v, %(c_type)s *obj, Error **errp);
 ''',
                      c_type=typ.c_name())
         struct_fields_seen.add(typ.name)
@@ -61,7 +61,7 @@ static void visit_type_implicit_%(c_type)s(Visitor *v, %(c_type)s **obj, Error *
 
     visit_start_implicit_struct(v, (void **)obj, sizeof(%(c_type)s), &err);
     if (!err) {
-        visit_type_%(c_type)s_fields(v, obj, errp);
+        visit_type_%(c_type)s_fields(v, *obj, errp);
         visit_end_implicit_struct(v);
     }
     error_propagate(errp, err);
@@ -85,7 +85,7 @@ def gen_visit_struct_fields(name, base, members, variants):
     struct_fields_seen.add(name)
     ret += mcgen('''
 
-static void visit_type_%(c_name)s_fields(Visitor *v, %(c_name)s **obj, Error **errp)
+static void visit_type_%(c_name)s_fields(Visitor *v, %(c_name)s *obj, Error **errp)
 {
     Error *err = NULL;
 
@@ -94,19 +94,19 @@ static void visit_type_%(c_name)s_fields(Visitor *v, %(c_name)s **obj, Error **e
 
     if base:
         ret += mcgen('''
-    visit_type_%(c_type)s_fields(v, (%(c_type)s **)obj, &err);
+    visit_type_%(c_type)s_fields(v, (%(c_type)s *)obj, &err);
 ''',
                      c_type=base.c_name())
         ret += gen_err_check()
 
-    ret += gen_visit_fields(members, prefix='(*obj)->')
+    ret += gen_visit_fields(members, prefix='obj->')
 
     if variants:
         ret += mcgen('''
-    if (!visit_start_union(v, !!(*obj)->u.data, &err) || err) {
+    if (!visit_start_union(v, !!obj->u.data, &err) || err) {
         goto out;
     }
-    switch ((*obj)->%(c_name)s) {
+    switch (obj->%(c_name)s) {
 ''',
                      c_name=c_name(variants.tag_member.name))
 
@@ -121,13 +121,13 @@ static void visit_type_%(c_name)s_fields(Visitor *v, %(c_name)s **obj, Error **e
                                            variants.tag_member.type.prefix))
             if simple_union_type:
                 ret += mcgen('''
-        visit_type_%(c_type)s(v, "data", &(*obj)->u.%(c_name)s, &err);
+        visit_type_%(c_type)s(v, "data", &obj->u.%(c_name)s, &err);
 ''',
                              c_type=simple_union_type.c_name(),
                              c_name=c_name(var.name))
             else:
                 ret += mcgen('''
-        visit_type_implicit_%(c_type)s(v, &(*obj)->u.%(c_name)s, &err);
+        visit_type_implicit_%(c_type)s(v, &obj->u.%(c_name)s, &err);
 ''',
                              c_type=var.type.c_name(),
                              c_name=c_name(var.name))
@@ -270,7 +270,7 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
     if (!*obj) {
         goto out_obj;
     }
-    visit_type_%(c_name)s_fields(v, obj, &err);
+    visit_type_%(c_name)s_fields(v, *obj, &err);
     error_propagate(errp, err);
     err = NULL;
 out_obj:
