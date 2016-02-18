@@ -49,7 +49,7 @@ _make_test_img 64k
 $QEMU_IO -c 'write -P 42 0 64k' "$TEST_IMG" | _filter_qemu_io
 
 keep_stderr=y \
-_launch_qemu -drive if=ide,media=cdrom,id=drv,file="$TEST_IMG",format=$IMGFMT \
+_launch_qemu -drive if=none,media=cdrom,id=drv,file="$TEST_IMG",format=$IMGFMT \
     2> >(_filter_nbd)
 
 _send_qemu_cmd $QEMU_HANDLE \
