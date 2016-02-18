@@ -2219,6 +2219,24 @@
             '*format': 'DumpGuestMemoryFormat'} }
 
 ##
+# @DumpStatus
+#
+# Describe the status of a long-running background guest memory dump.
+#
+# @none: no dump-guest-memory has started yet.
+#
+# @active: there is one dump running in background.
+#
+# @completed: the last dump has finished successfully.
+#
+# @failed: the last dump has failed.
+#
+# Since 2.6
+##
+{ 'enum': 'DumpStatus',
+  'data': [ 'none', 'active', 'completed', 'failed' ] }
+
+##
 # @DumpGuestMemoryCapability:
 #
 # A list of the available formats for dump-guest-memory

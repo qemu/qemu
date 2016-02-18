@@ -38,6 +38,7 @@
 
 #include "sysemu/dump-arch.h"
 #include "sysemu/memory_mapping.h"
+#include "qapi-types.h"
 
 typedef struct QEMU_PACKED MakedumpfileHeader {
     char signature[16];     /* = "makedumpfile" */
@@ -176,6 +177,7 @@ typedef struct DumpState {
     off_t offset_page;          /* offset of page part in vmcore */
     size_t num_dumpable;        /* number of page that can be dumped */
     uint32_t flag_compress;     /* indicate the compression format */
+    DumpStatus status;          /* current dump status */
 } DumpState;
 
 uint16_t cpu_to_dump16(DumpState *s, uint16_t val);

@@ -1442,6 +1442,14 @@ static void get_max_mapnr(DumpState *s)
     s->max_mapnr = dump_paddr_to_pfn(s, last_block->target_end);
 }
 
+static DumpState dump_state_global = { .status = DUMP_STATUS_NONE };
+
+static void dump_state_prepare(DumpState *s)
+{
+    /* zero the struct, setting status to active */
+    *s = (DumpState) { .status = DUMP_STATUS_ACTIVE };
+}
+
 static void dump_init(DumpState *s, int fd, bool has_format,
                       DumpGuestMemoryFormat format, bool paging, bool has_filter,
                       int64_t begin, int64_t length, Error **errp)
@@ -1676,24 +1684,27 @@ void qmp_dump_guest_memory(bool paging, const char *file,
         return;
     }
 
-    s = g_malloc0(sizeof(DumpState));
+    s = &dump_state_global;
+    dump_state_prepare(s);
 
     dump_init(s, fd, has_format, format, paging, has_begin,
               begin, length, &local_err);
     if (local_err) {
-        g_free(s);
         error_propagate(errp, local_err);
+        s->status = DUMP_STATUS_FAILED;
         return;
     }
 
     if (has_format && format != DUMP_GUEST_MEMORY_FORMAT_ELF) {
-        create_kdump_vmcore(s, errp);
+        create_kdump_vmcore(s, &local_err);
     } else {
-        create_vmcore(s, errp);
+        create_vmcore(s, &local_err);
     }
 
+    s->status = (local_err ? DUMP_STATUS_FAILED : DUMP_STATUS_COMPLETED);
+    error_propagate(errp, local_err);
+
     dump_cleanup(s);
-    g_free(s);
 }
 
 DumpGuestMemoryCapability *qmp_query_dump_guest_memory_capability(Error **errp)
