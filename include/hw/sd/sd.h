@@ -67,7 +67,51 @@ typedef struct {
 } SDRequest;
 
 typedef struct SDState SDState;
+typedef struct SDBus SDBus;
 
+#define TYPE_SD_CARD "sd-card"
+#define SD_CARD(obj) OBJECT_CHECK(SDState, (obj), TYPE_SD_CARD)
+#define SD_CARD_CLASS(klass) \
+    OBJECT_CLASS_CHECK(SDCardClass, (klass), TYPE_SD_CARD)
+#define SD_CARD_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(SDCardClass, (obj), TYPE_SD_CARD)
+
+typedef struct {
+    /*< private >*/
+    DeviceClass parent_class;
+    /*< public >*/
+
+    int (*do_command)(SDState *sd, SDRequest *req, uint8_t *response);
+    void (*write_data)(SDState *sd, uint8_t value);
+    uint8_t (*read_data)(SDState *sd);
+    bool (*data_ready)(SDState *sd);
+    void (*enable)(SDState *sd, bool enable);
+    bool (*get_inserted)(SDState *sd);
+    bool (*get_readonly)(SDState *sd);
+} SDCardClass;
+
+#define TYPE_SD_BUS "sd-bus"
+#define SD_BUS(obj) OBJECT_CHECK(SDBus, (obj), TYPE_SD_BUS)
+#define SD_BUS_CLASS(klass) OBJECT_CLASS_CHECK(SDBusClass, (klass), TYPE_SD_BUS)
+#define SD_BUS_GET_CLASS(obj) OBJECT_GET_CLASS(SDBusClass, (obj), TYPE_SD_BUS)
+
+struct SDBus {
+    BusState qbus;
+};
+
+typedef struct {
+    /*< private >*/
+    BusClass parent_class;
+    /*< public >*/
+
+    /* These methods are called by the SD device to notify the controller
+     * when the card insertion or readonly status changes
+     */
+    void (*set_inserted)(DeviceState *dev, bool inserted);
+    void (*set_readonly)(DeviceState *dev, bool readonly);
+} SDBusClass;
+
+/* Legacy functions to be used only by non-qdevified callers */
 SDState *sd_init(BlockBackend *bs, bool is_spi);
 int sd_do_command(SDState *sd, SDRequest *req,
                   uint8_t *response);
@@ -75,6 +119,27 @@ void sd_write_data(SDState *sd, uint8_t value);
 uint8_t sd_read_data(SDState *sd);
 void sd_set_cb(SDState *sd, qemu_irq readonly, qemu_irq insert);
 bool sd_data_ready(SDState *sd);
+/* sd_enable should not be used -- it is only used on the nseries boards,
+ * where it is part of a broken implementation of the MMC card slot switch
+ * (there should be two card slots which are multiplexed to a single MMC
+ * controller, but instead we model it with one card and controller and
+ * disable the card when the second slot is selected, so it looks like the
+ * second slot is always empty).
+ */
 void sd_enable(SDState *sd, bool enable);
+
+/* Functions to be used by qdevified callers (working via
+ * an SDBus rather than directly with SDState)
+ */
+int sdbus_do_command(SDBus *sd, SDRequest *req, uint8_t *response);
+void sdbus_write_data(SDBus *sd, uint8_t value);
+uint8_t sdbus_read_data(SDBus *sd);
+bool sdbus_data_ready(SDBus *sd);
+bool sdbus_get_inserted(SDBus *sd);
+bool sdbus_get_readonly(SDBus *sd);
+
+/* Functions to be used by SD devices to report back to qdevified controllers */
+void sdbus_set_inserted(SDBus *sd, bool inserted);
+void sdbus_set_readonly(SDBus *sd, bool inserted);
 
 #endif	/* __hw_sd_h */

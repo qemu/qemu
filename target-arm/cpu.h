@@ -595,6 +595,18 @@ void pmccntr_sync(CPUARMState *env);
 #define CPTR_TTA      (1U << 20)
 #define CPTR_TFP      (1U << 10)
 
+#define MDCR_EPMAD    (1U << 21)
+#define MDCR_EDAD     (1U << 20)
+#define MDCR_SPME     (1U << 17)
+#define MDCR_SDD      (1U << 16)
+#define MDCR_TDRA     (1U << 11)
+#define MDCR_TDOSA    (1U << 10)
+#define MDCR_TDA      (1U << 9)
+#define MDCR_TDE      (1U << 8)
+#define MDCR_HPME     (1U << 7)
+#define MDCR_TPM      (1U << 6)
+#define MDCR_TPMCR    (1U << 5)
+
 #define CPSR_M (0x1fU)
 #define CPSR_T (1U << 5)
 #define CPSR_F (1U << 6)
@@ -1255,6 +1267,18 @@ static inline bool cptype_valid(int cptype)
 #define PL1_RW (PL1_R | PL1_W)
 #define PL0_RW (PL0_R | PL0_W)
 
+/* Return the highest implemented Exception Level */
+static inline int arm_highest_el(CPUARMState *env)
+{
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        return 3;
+    }
+    if (arm_feature(env, ARM_FEATURE_EL2)) {
+        return 2;
+    }
+    return 1;
+}
+
 /* Return the current Exception Level (as per ARMv8; note that this differs
  * from the ARMv7 Privilege Level).
  */
@@ -1310,6 +1334,11 @@ typedef enum CPAccessResult {
     /* As CP_ACCESS_UNCATEGORIZED, but for traps directly to EL2 or EL3 */
     CP_ACCESS_TRAP_UNCATEGORIZED_EL2 = 5,
     CP_ACCESS_TRAP_UNCATEGORIZED_EL3 = 6,
+    /* Access fails and results in an exception syndrome for an FP access,
+     * trapped directly to EL2 or EL3
+     */
+    CP_ACCESS_TRAP_FP_EL2 = 7,
+    CP_ACCESS_TRAP_FP_EL3 = 8,
 } CPAccessResult;
 
 /* Access functions for coprocessor registers. These cannot fail and

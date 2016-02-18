@@ -192,12 +192,13 @@ static const MemoryRegionOps pl031_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int pl031_init(SysBusDevice *dev)
+static void pl031_init(Object *obj)
 {
-    PL031State *s = PL031(dev);
+    PL031State *s = PL031(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
     struct tm tm;
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &pl031_ops, s, "pl031", 0x1000);
+    memory_region_init_io(&s->iomem, obj, &pl031_ops, s, "pl031", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
 
     sysbus_init_irq(dev, &s->irq);
@@ -206,7 +207,6 @@ static int pl031_init(SysBusDevice *dev)
         qemu_clock_get_ns(rtc_clock) / get_ticks_per_sec();
 
     s->timer = timer_new_ns(rtc_clock, pl031_interrupt, s);
-    return 0;
 }
 
 static void pl031_pre_save(void *opaque)
@@ -249,9 +249,7 @@ static const VMStateDescription vmstate_pl031 = {
 static void pl031_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = pl031_init;
     dc->vmsd = &vmstate_pl031;
 }
 
@@ -259,6 +257,7 @@ static const TypeInfo pl031_info = {
     .name          = TYPE_PL031,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL031State),
+    .instance_init = pl031_init,
     .class_init    = pl031_class_init,
 };
 

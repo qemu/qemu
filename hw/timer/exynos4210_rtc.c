@@ -547,9 +547,10 @@ static const MemoryRegionOps exynos4210_rtc_ops = {
 /*
  * RTC timer initialization
  */
-static int exynos4210_rtc_init(SysBusDevice *dev)
+static void exynos4210_rtc_init(Object *obj)
 {
-    Exynos4210RTCState *s = EXYNOS4210_RTC(dev);
+    Exynos4210RTCState *s = EXYNOS4210_RTC(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
     QEMUBH *bh;
 
     bh = qemu_bh_new(exynos4210_rtc_tick, s);
@@ -564,19 +565,15 @@ static int exynos4210_rtc_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->alm_irq);
     sysbus_init_irq(dev, &s->tick_irq);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &exynos4210_rtc_ops, s,
+    memory_region_init_io(&s->iomem, obj, &exynos4210_rtc_ops, s,
                           "exynos4210-rtc", EXYNOS4210_RTC_REG_MEM_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
-
-    return 0;
 }
 
 static void exynos4210_rtc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = exynos4210_rtc_init;
     dc->reset = exynos4210_rtc_reset;
     dc->vmsd = &vmstate_exynos4210_rtc_state;
 }
@@ -585,6 +582,7 @@ static const TypeInfo exynos4210_rtc_info = {
     .name          = TYPE_EXYNOS4210_RTC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210RTCState),
+    .instance_init = exynos4210_rtc_init,
     .class_init    = exynos4210_rtc_class_init,
 };
 

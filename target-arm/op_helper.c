@@ -457,6 +457,32 @@ void HELPER(set_user_reg)(CPUARMState *env, uint32_t regno, uint32_t val)
     }
 }
 
+void HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)
+{
+    if ((env->uncached_cpsr & CPSR_M) == mode) {
+        env->regs[13] = val;
+    } else {
+        env->banked_r13[bank_number(mode)] = val;
+    }
+}
+
+uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
+{
+    if ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_SYS) {
+        /* SRS instruction is UNPREDICTABLE from System mode; we UNDEF.
+         * Other UNPREDICTABLE and UNDEF cases were caught at translate time.
+         */
+        raise_exception(env, EXCP_UDEF, syn_uncategorized(),
+                        exception_target_el(env));
+    }
+
+    if ((env->uncached_cpsr & CPSR_M) == mode) {
+        return env->regs[13];
+    } else {
+        return env->banked_r13[bank_number(mode)];
+    }
+}
+
 void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome,
                                  uint32_t isread)
 {
@@ -499,6 +525,19 @@ void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome,
     case CP_ACCESS_TRAP_UNCATEGORIZED_EL3:
         target_el = 3;
         syndrome = syn_uncategorized();
+        break;
+    case CP_ACCESS_TRAP_FP_EL2:
+        target_el = 2;
+        /* Since we are an implementation that takes exceptions on a trapped
+         * conditional insn only if the insn has passed its condition code
+         * check, we take the IMPDEF choice to always report CV=1 COND=0xe
+         * (which is also the required value for AArch64 traps).
+         */
+        syndrome = syn_fp_access_trap(1, 0xe, false);
+        break;
+    case CP_ACCESS_TRAP_FP_EL3:
+        target_el = 3;
+        syndrome = syn_fp_access_trap(1, 0xe, false);
         break;
     default:
         g_assert_not_reached();
@@ -614,12 +653,14 @@ void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
     int cur_el = arm_current_el(env);
     bool secure = arm_is_secure(env);
     bool smd = env->cp15.scr_el3 & SCR_SMD;
-    /* On ARMv8 AArch32, SMD only applies to NS state.
-     * On ARMv7 SMD only applies to NS state and only if EL2 is available.
-     * For ARMv7 non EL2, we force SMD to zero so we don't need to re-check
-     * the EL2 condition here.
+    /* On ARMv8 with EL3 AArch64, SMD applies to both S and NS state.
+     * On ARMv8 with EL3 AArch32, or ARMv7 with the Virtualization
+     *  extensions, SMD only applies to NS state.
+     * On ARMv7 without the Virtualization extensions, the SMD bit
+     * doesn't exist, but we forbid the guest to set it to 1 in scr_write(),
+     * so we need not special case this here.
      */
-    bool undef = is_a64(env) ? smd : (!secure && smd);
+    bool undef = arm_feature(env, ARM_FEATURE_AARCH64) ? smd : smd && !secure;
 
     if (arm_is_psci_call(cpu, EXCP_SMC)) {
         /* If PSCI is enabled and this looks like a valid PSCI call then

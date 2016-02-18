@@ -433,10 +433,10 @@ static int pxa25x_timer_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static int pxa2xx_timer_init(SysBusDevice *dev)
+static void pxa2xx_timer_init(Object *obj)
 {
-    PXA2xxTimerInfo *s = PXA2XX_TIMER(dev);
-    int i;
+    PXA2xxTimerInfo *s = PXA2XX_TIMER(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
     s->irq_enabled = 0;
     s->oldclock = 0;
@@ -444,16 +444,28 @@ static int pxa2xx_timer_init(SysBusDevice *dev)
     s->lastload = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     s->reset3 = 0;
 
+    memory_region_init_io(&s->iomem, obj, &pxa2xx_timer_ops, s,
+                          "pxa2xx-timer", 0x00001000);
+    sysbus_init_mmio(dev, &s->iomem);
+}
+
+static void pxa2xx_timer_realize(DeviceState *dev, Error **errp)
+{
+    PXA2xxTimerInfo *s = PXA2XX_TIMER(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    int i;
+
     for (i = 0; i < 4; i ++) {
         s->timer[i].value = 0;
-        sysbus_init_irq(dev, &s->timer[i].irq);
+        sysbus_init_irq(sbd, &s->timer[i].irq);
         s->timer[i].info = s;
         s->timer[i].num = i;
         s->timer[i].qtimer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                        pxa2xx_timer_tick, &s->timer[i]);
+                                          pxa2xx_timer_tick, &s->timer[i]);
     }
+
     if (s->flags & (1 << PXA2XX_TIMER_HAVE_TM4)) {
-        sysbus_init_irq(dev, &s->irq4);
+        sysbus_init_irq(sbd, &s->irq4);
 
         for (i = 0; i < 8; i ++) {
             s->tm4[i].tm.value = 0;
@@ -462,15 +474,9 @@ static int pxa2xx_timer_init(SysBusDevice *dev)
             s->tm4[i].freq = 0;
             s->tm4[i].control = 0x0;
             s->tm4[i].tm.qtimer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                        pxa2xx_timer_tick4, &s->tm4[i]);
+                                               pxa2xx_timer_tick4, &s->tm4[i]);
         }
     }
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &pxa2xx_timer_ops, s,
-                          "pxa2xx-timer", 0x00001000);
-    sysbus_init_mmio(dev, &s->iomem);
-
-    return 0;
 }
 
 static const VMStateDescription vmstate_pxa2xx_timer0_regs = {
@@ -573,9 +579,8 @@ static const TypeInfo pxa27x_timer_dev_info = {
 static void pxa2xx_timer_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(oc);
 
-    sdc->init = pxa2xx_timer_init;
+    dc->realize  = pxa2xx_timer_realize;
     dc->vmsd = &vmstate_pxa2xx_timer_regs;
 }
 
@@ -583,6 +588,7 @@ static const TypeInfo pxa2xx_timer_type_info = {
     .name          = TYPE_PXA2XX_TIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxTimerInfo),
+    .instance_init = pxa2xx_timer_init,
     .abstract      = true,
     .class_init    = pxa2xx_timer_class_init,
 };
