@@ -2351,3 +2351,20 @@ void hmp_rocker_of_dpa_groups(Monitor *mon, const QDict *qdict)
 
     qapi_free_RockerOfDpaGroupList(list);
 }
+
+void hmp_info_dump(Monitor *mon, const QDict *qdict)
+{
+    DumpQueryResult *result = qmp_query_dump(NULL);
+
+    assert(result && result->status < DUMP_STATUS__MAX);
+    monitor_printf(mon, "Status: %s\n", DumpStatus_lookup[result->status]);
+
+    if (result->status == DUMP_STATUS_ACTIVE) {
+        float percent = 0;
+        assert(result->total != 0);
+        percent = 100.0 * result->completed / result->total;
+        monitor_printf(mon, "Finished: %.2f %%\n", percent);
+    }
+
+    qapi_free_DumpQueryResult(result);
+}

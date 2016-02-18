@@ -786,6 +786,20 @@ STEXI
 Display the value of a storage key (s390 only)
 ETEXI
 
+    {
+        .name       = "dump",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Display the latest dump status",
+        .mhandler.cmd = hmp_info_dump,
+    },
+
+STEXI
+@item info dump
+@findex dump
+Display the latest dump status.
+ETEXI
+
 STEXI
 @end table
 ETEXI
