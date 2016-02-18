@@ -513,6 +513,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
     /* Synchronize sregs with kvm */
     ret = kvm_arch_sync_sregs(cpu);
     if (ret) {
+        if (ret == -EINVAL) {
+            error_report("Register sync failed... If you're using kvm-hv.ko,"
+                         " only \"-cpu host\" is possible");
+        }
         return ret;
     }
 
