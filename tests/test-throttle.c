@@ -80,6 +80,7 @@ static void test_leak_bucket(void)
 
 static void test_compute_wait(void)
 {
+    unsigned i;
     int64_t wait;
     int64_t result;
 
@@ -115,6 +116,27 @@ static void test_compute_wait(void)
     /* time required to do half an operation */
     result = (int64_t)  NANOSECONDS_PER_SECOND / 150 / 2;
     g_assert(wait == result);
+
+    /* Perform I/O for 2.2 seconds at a rate of bkt.max */
+    bkt.burst_length = 2;
+    bkt.level = 0;
+    bkt.avg = 10;
+    bkt.max = 200;
+    for (i = 0; i < 22; i++) {
+        double units = bkt.max / 10;
+        bkt.level += units;
+        bkt.burst_level += units;
+        throttle_leak_bucket(&bkt, NANOSECONDS_PER_SECOND / 10);
+        wait = throttle_compute_wait(&bkt);
+        g_assert(double_cmp(bkt.burst_level, 0));
+        g_assert(double_cmp(bkt.level, (i + 1) * (bkt.max - bkt.avg) / 10));
+        /* We can do bursts for the 2 seconds we have configured in
+         * burst_length. We have 100 extra miliseconds of burst
+         * because bkt.level has been leaking during this time.
+         * After that, we have to wait. */
+        result = i < 21 ? 0 : 1.8 * NANOSECONDS_PER_SECOND;
+        g_assert(wait == result);
+    }
 }
 
 /* functions to test ThrottleState initialization/destroy methods */
