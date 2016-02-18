@@ -875,6 +875,14 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
     /* Clear and discard previous events if any. */
     event_notifier_test_and_clear(&vq->masked_notifier);
 
+    /* Init vring in unmasked state, unless guest_notifier_mask
+     * will do it later.
+     */
+    if (!vdev->use_guest_notifier_mask) {
+        /* TODO: check and handle errors. */
+        vhost_virtqueue_mask(dev, vdev, idx, false);
+    }
+
     return 0;
 
 fail_kick:
@@ -1167,6 +1175,7 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
     struct vhost_vring_file file;
 
     if (mask) {
+        assert(vdev->use_guest_notifier_mask);
         file.fd = event_notifier_get_fd(&hdev->vqs[index].masked_notifier);
     } else {
         file.fd = event_notifier_get_fd(virtio_queue_get_guest_notifier(vvq));

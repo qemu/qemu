@@ -284,8 +284,19 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     }
 
     for (i = 0; i < total_queues; i++) {
-        vhost_net_set_vq_index(get_vhost_net(ncs[i].peer), i * 2);
-    }
+        struct vhost_net *net;
+
+        net = get_vhost_net(ncs[i].peer);
+        vhost_net_set_vq_index(net, i * 2);
+
+        /* Suppress the masking guest notifiers on vhost user
+         * because vhost user doesn't interrupt masking/unmasking
+         * properly.
+         */
+        if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER) {
+                dev->use_guest_notifier_mask = false;
+        }
+     }
 
     r = k->set_guest_notifiers(qbus->parent, total_queues * 2, true);
     if (r < 0) {
