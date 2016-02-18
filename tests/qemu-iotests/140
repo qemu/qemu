@@ -1,6 +1,10 @@
 #!/bin/bash
 #
-# Test case for ejecting a BB with an NBD server attached to it
+# Test case for ejecting a BlockBackend with an NBD server attached to it
+#
+# Verify that the NBD server stops offering the drive when ejecting a
+# BlockDriverState tree from a BlockBackend (that is, a medium from a
+# drive) exposed via an NBD server.
 #
 # Copyright (C) 2016 Red Hat, Inc.
 #
