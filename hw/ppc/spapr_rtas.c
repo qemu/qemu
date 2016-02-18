@@ -113,6 +113,7 @@ static void rtas_power_off(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         return;
     }
     qemu_system_shutdown_request();
+    cpu_stop_current();
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 

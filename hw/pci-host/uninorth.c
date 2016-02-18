@@ -120,7 +120,7 @@ static void unin_data_write(void *opaque, hwaddr addr,
 {
     UNINState *s = opaque;
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
-    UNIN_DPRINTF("write addr %" TARGET_FMT_plx " len %d val %"PRIx64"\n",
+    UNIN_DPRINTF("write addr " TARGET_FMT_plx " len %d val %"PRIx64"\n",
                  addr, len, val);
     pci_data_write(phb->bus,
                    unin_get_config_reg(phb->config_reg, addr),
@@ -137,7 +137,7 @@ static uint64_t unin_data_read(void *opaque, hwaddr addr,
     val = pci_data_read(phb->bus,
                         unin_get_config_reg(phb->config_reg, addr),
                         len);
-    UNIN_DPRINTF("read addr %" TARGET_FMT_plx " len %d val %x\n",
+    UNIN_DPRINTF("read addr " TARGET_FMT_plx " len %d val %x\n",
                  addr, len, val);
     return val;
 }

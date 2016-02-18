@@ -89,7 +89,7 @@ int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
 }
 
 /* XXX: move that to cuda ? */
-int adb_poll(ADBBusState *s, uint8_t *obuf)
+int adb_poll(ADBBusState *s, uint8_t *obuf, uint16_t poll_mask)
 {
     ADBDevice *d;
     int olen, i;
@@ -100,13 +100,15 @@ int adb_poll(ADBBusState *s, uint8_t *obuf)
         if (s->poll_index >= s->nb_devices)
             s->poll_index = 0;
         d = s->devices[s->poll_index];
-        buf[0] = ADB_READREG | (d->devaddr << 4);
-        olen = adb_request(s, obuf + 1, buf, 1);
-        /* if there is data, we poll again the same device */
-        if (olen > 0) {
-            obuf[0] = buf[0];
-            olen++;
-            break;
+        if ((1 << d->devaddr) & poll_mask) {
+            buf[0] = ADB_READREG | (d->devaddr << 4);
+            olen = adb_request(s, obuf + 1, buf, 1);
+            /* if there is data, we poll again the same device */
+            if (olen > 0) {
+                obuf[0] = buf[0];
+                olen++;
+                break;
+            }
         }
         s->poll_index++;
     }

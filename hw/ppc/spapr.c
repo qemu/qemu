@@ -1024,83 +1024,93 @@ static void emulate_spapr_hypercall(PowerPCCPU *cpu)
 #define CLEAN_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) &= tswap64(~HPTE64_V_HPTE_DIRTY))
 #define DIRTY_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) |= tswap64(HPTE64_V_HPTE_DIRTY))
 
-static void spapr_alloc_htab(sPAPRMachineState *spapr)
+/*
+ * Get the fd to access the kernel htab, re-opening it if necessary
+ */
+static int get_htab_fd(sPAPRMachineState *spapr)
 {
-    long shift;
-    int index;
+    if (spapr->htab_fd >= 0) {
+        return spapr->htab_fd;
+    }
 
-    /* allocate hash page table.  For now we always make this 16mb,
-     * later we should probably make it scale to the size of guest
-     * RAM */
+    spapr->htab_fd = kvmppc_get_htab_fd(false);
+    if (spapr->htab_fd < 0) {
+        error_report("Unable to open fd for reading hash table from KVM: %s",
+                     strerror(errno));
+    }
 
-    shift = kvmppc_reset_htab(spapr->htab_shift);
-    if (shift < 0) {
-        /*
-         * For HV KVM, host kernel will return -ENOMEM when requested
-         * HTAB size can't be allocated.
-         */
-        error_setg(&error_abort, "Failed to allocate HTAB of requested size, try with smaller maxmem");
-    } else if (shift > 0) {
-        /*
-         * Kernel handles htab, we don't need to allocate one
-         *
-         * Older kernels can fall back to lower HTAB shift values,
-         * but we don't allow booting of such guests.
-         */
-        if (shift != spapr->htab_shift) {
-            error_setg(&error_abort, "Failed to allocate HTAB of requested size, try with smaller maxmem");
+    return spapr->htab_fd;
+}
+
+static void close_htab_fd(sPAPRMachineState *spapr)
+{
+    if (spapr->htab_fd >= 0) {
+        close(spapr->htab_fd);
+    }
+    spapr->htab_fd = -1;
+}
+
+static int spapr_hpt_shift_for_ramsize(uint64_t ramsize)
+{
+    int shift;
+
+    /* We aim for a hash table of size 1/128 the size of RAM (rounded
+     * up).  The PAPR recommendation is actually 1/64 of RAM size, but
+     * that's much more than is needed for Linux guests */
+    shift = ctz64(pow2ceil(ramsize)) - 7;
+    shift = MAX(shift, 18); /* Minimum architected size */
+    shift = MIN(shift, 46); /* Maximum architected size */
+    return shift;
+}
+
+static void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
+                                 Error **errp)
+{
+    long rc;
+
+    /* Clean up any HPT info from a previous boot */
+    g_free(spapr->htab);
+    spapr->htab = NULL;
+    spapr->htab_shift = 0;
+    close_htab_fd(spapr);
+
+    rc = kvmppc_reset_htab(shift);
+    if (rc < 0) {
+        /* kernel-side HPT needed, but couldn't allocate one */
+        error_setg_errno(errp, errno,
+                         "Failed to allocate KVM HPT of order %d (try smaller maxmem?)",
+                         shift);
+        /* This is almost certainly fatal, but if the caller really
+         * wants to carry on with shift == 0, it's welcome to try */
+    } else if (rc > 0) {
+        /* kernel-side HPT allocated */
+        if (rc != shift) {
+            error_setg(errp,
+                       "Requested order %d HPT, but kernel allocated order %ld (try smaller maxmem?)",
+                       shift, rc);
         }
 
         spapr->htab_shift = shift;
         kvmppc_kern_htab = true;
     } else {
-        /* Allocate htab */
-        spapr->htab = qemu_memalign(HTAB_SIZE(spapr), HTAB_SIZE(spapr));
+        /* kernel-side HPT not needed, allocate in userspace instead */
+        size_t size = 1ULL << shift;
+        int i;
 
-        /* And clear it */
-        memset(spapr->htab, 0, HTAB_SIZE(spapr));
-
-        for (index = 0; index < HTAB_SIZE(spapr) / HASH_PTE_SIZE_64; index++) {
-            DIRTY_HPTE(HPTE(spapr->htab, index));
-        }
-    }
-}
-
-/*
- * Clear HTAB entries during reset.
- *
- * If host kernel has allocated HTAB, KVM_PPC_ALLOCATE_HTAB ioctl is
- * used to clear HTAB. Otherwise QEMU-allocated HTAB is cleared manually.
- */
-static void spapr_reset_htab(sPAPRMachineState *spapr)
-{
-    long shift;
-    int index;
-
-    shift = kvmppc_reset_htab(spapr->htab_shift);
-    if (shift < 0) {
-        error_setg(&error_abort, "Failed to reset HTAB");
-    } else if (shift > 0) {
-        if (shift != spapr->htab_shift) {
-            error_setg(&error_abort, "Requested HTAB allocation failed during reset");
+        spapr->htab = qemu_memalign(size, size);
+        if (!spapr->htab) {
+            error_setg_errno(errp, errno,
+                             "Could not allocate HPT of order %d", shift);
+            return;
         }
 
-        /* Tell readers to update their file descriptor */
-        if (spapr->htab_fd >= 0) {
-            spapr->htab_fd_stale = true;
-        }
-    } else {
-        memset(spapr->htab, 0, HTAB_SIZE(spapr));
+        memset(spapr->htab, 0, size);
+        spapr->htab_shift = shift;
+        kvmppc_kern_htab = false;
 
-        for (index = 0; index < HTAB_SIZE(spapr) / HASH_PTE_SIZE_64; index++) {
-            DIRTY_HPTE(HPTE(spapr->htab, index));
+        for (i = 0; i < size / HASH_PTE_SIZE_64; i++) {
+            DIRTY_HPTE(HPTE(spapr->htab, i));
         }
-    }
-
-    /* Update the RMA size if necessary */
-    if (spapr->vrma_adjust) {
-        spapr->rma_size = kvmppc_rma_size(spapr_node0_size(),
-                                          spapr->htab_shift);
     }
 }
 
@@ -1121,39 +1131,26 @@ static int find_unknown_sysbus_device(SysBusDevice *sbdev, void *opaque)
     return 0;
 }
 
-/*
- * A guest reset will cause spapr->htab_fd to become stale if being used.
- * Reopen the file descriptor to make sure the whole HTAB is properly read.
- */
-static int spapr_check_htab_fd(sPAPRMachineState *spapr)
-{
-    int rc = 0;
-
-    if (spapr->htab_fd_stale) {
-        close(spapr->htab_fd);
-        spapr->htab_fd = kvmppc_get_htab_fd(false);
-        if (spapr->htab_fd < 0) {
-            error_report("Unable to open fd for reading hash table from KVM: "
-                         "%s", strerror(errno));
-            rc = -1;
-        }
-        spapr->htab_fd_stale = false;
-    }
-
-    return rc;
-}
-
 static void ppc_spapr_reset(void)
 {
-    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    MachineState *machine = MACHINE(qdev_get_machine());
+    sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
     PowerPCCPU *first_ppc_cpu;
     uint32_t rtas_limit;
 
     /* Check for unknown sysbus devices */
     foreach_dynamic_sysbus_device(find_unknown_sysbus_device, NULL);
 
-    /* Reset the hash table & recalc the RMA */
-    spapr_reset_htab(spapr);
+    /* Allocate and/or reset the hash page table */
+    spapr_reallocate_hpt(spapr,
+                         spapr_hpt_shift_for_ramsize(machine->maxram_size),
+                         &error_fatal);
+
+    /* Update the RMA size if necessary */
+    if (spapr->vrma_adjust) {
+        spapr->rma_size = kvmppc_rma_size(spapr_node0_size(),
+                                          spapr->htab_shift);
+    }
 
     qemu_devices_reset();
 
@@ -1200,13 +1197,6 @@ static void spapr_cpu_reset(void *opaque)
     env->spr[SPR_HIOR] = 0;
 
     env->external_htab = (uint8_t *)spapr->htab;
-    if (kvm_enabled() && !env->external_htab) {
-        /*
-         * HV KVM, set external_htab to 1 so our ppc_hash64_load_hpte*
-         * functions do the right thing.
-         */
-        env->external_htab = (void *)1;
-    }
     env->htab_base = -1;
     /*
      * htab_mask is the mask used to normalize hash value to PTEG index.
@@ -1313,14 +1303,6 @@ static int htab_save_setup(QEMUFile *f, void *opaque)
         spapr->htab_first_pass = true;
     } else {
         assert(kvm_enabled());
-
-        spapr->htab_fd = kvmppc_get_htab_fd(false);
-        spapr->htab_fd_stale = false;
-        if (spapr->htab_fd < 0) {
-            fprintf(stderr, "Unable to open fd for reading hash table from KVM: %s\n",
-                    strerror(errno));
-            return -1;
-        }
     }
 
 
@@ -1330,6 +1312,7 @@ static int htab_save_setup(QEMUFile *f, void *opaque)
 static void htab_save_first_pass(QEMUFile *f, sPAPRMachineState *spapr,
                                  int64_t max_ns)
 {
+    bool has_timeout = max_ns != -1;
     int htabslots = HTAB_SIZE(spapr) / HASH_PTE_SIZE_64;
     int index = spapr->htab_save_index;
     int64_t starttime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
@@ -1363,7 +1346,8 @@ static void htab_save_first_pass(QEMUFile *f, sPAPRMachineState *spapr,
             qemu_put_buffer(f, HPTE(spapr->htab, chunkstart),
                             HASH_PTE_SIZE_64 * n_valid);
 
-            if ((qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - starttime) > max_ns) {
+            if (has_timeout &&
+                (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - starttime) > max_ns) {
                 break;
             }
         }
@@ -1460,6 +1444,7 @@ static int htab_save_later_pass(QEMUFile *f, sPAPRMachineState *spapr,
 static int htab_save_iterate(QEMUFile *f, void *opaque)
 {
     sPAPRMachineState *spapr = opaque;
+    int fd;
     int rc = 0;
 
     /* Iteration header */
@@ -1468,13 +1453,12 @@ static int htab_save_iterate(QEMUFile *f, void *opaque)
     if (!spapr->htab) {
         assert(kvm_enabled());
 
-        rc = spapr_check_htab_fd(spapr);
-        if (rc < 0) {
-            return rc;
+        fd = get_htab_fd(spapr);
+        if (fd < 0) {
+            return fd;
         }
 
-        rc = kvmppc_save_htab(f, spapr->htab_fd,
-                              MAX_KVM_BUF_SIZE, MAX_ITERATION_NS);
+        rc = kvmppc_save_htab(f, fd, MAX_KVM_BUF_SIZE, MAX_ITERATION_NS);
         if (rc < 0) {
             return rc;
         }
@@ -1495,6 +1479,7 @@ static int htab_save_iterate(QEMUFile *f, void *opaque)
 static int htab_save_complete(QEMUFile *f, void *opaque)
 {
     sPAPRMachineState *spapr = opaque;
+    int fd;
 
     /* Iteration header */
     qemu_put_be32(f, 0);
@@ -1504,18 +1489,20 @@ static int htab_save_complete(QEMUFile *f, void *opaque)
 
         assert(kvm_enabled());
 
-        rc = spapr_check_htab_fd(spapr);
-        if (rc < 0) {
-            return rc;
+        fd = get_htab_fd(spapr);
+        if (fd < 0) {
+            return fd;
         }
 
-        rc = kvmppc_save_htab(f, spapr->htab_fd, MAX_KVM_BUF_SIZE, -1);
+        rc = kvmppc_save_htab(f, fd, MAX_KVM_BUF_SIZE, -1);
         if (rc < 0) {
             return rc;
         }
-        close(spapr->htab_fd);
-        spapr->htab_fd = -1;
+        close_htab_fd(spapr);
     } else {
+        if (spapr->htab_first_pass) {
+            htab_save_first_pass(f, spapr, -1);
+        }
         htab_save_later_pass(f, spapr, -1);
     }
 
@@ -1541,10 +1528,12 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     section_hdr = qemu_get_be32(f);
 
     if (section_hdr) {
-        /* First section, just the hash shift */
-        if (spapr->htab_shift != section_hdr) {
-            error_report("htab_shift mismatch: source %d target %d",
-                         section_hdr, spapr->htab_shift);
+        Error *local_err;
+
+        /* First section gives the htab size */
+        spapr_reallocate_hpt(spapr, section_hdr, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
             return -EINVAL;
         }
         return 0;
@@ -1796,18 +1785,6 @@ static void ppc_spapr_init(MachineState *machine)
 
     /* Setup a load limit for the ramdisk leaving room for SLOF and FDT */
     load_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FW_OVERHEAD;
-
-    /* We aim for a hash table of size 1/128 the size of RAM.  The
-     * normal rule of thumb is 1/64 the size of RAM, but that's much
-     * more than needed for the Linux guests we support. */
-    spapr->htab_shift = 18; /* Minimum architected size */
-    while (spapr->htab_shift <= 46) {
-        if ((1ULL << (spapr->htab_shift + 7)) >= machine->maxram_size) {
-            break;
-        }
-        spapr->htab_shift++;
-    }
-    spapr_alloc_htab(spapr);
 
     /* Set up Interrupt Controller before we create the VCPUs */
     spapr->icp = xics_system_init(machine,
@@ -2125,6 +2102,9 @@ static void spapr_set_kvm_type(Object *obj, const char *value, Error **errp)
 
 static void spapr_machine_initfn(Object *obj)
 {
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    spapr->htab_fd = -1;
     object_property_add_str(obj, "kvm-type",
                             spapr_get_kvm_type, spapr_set_kvm_type, NULL);
     object_property_set_description(obj, "kvm-type",
@@ -2411,6 +2391,7 @@ DEFINE_SPAPR_MACHINE(2_5, "2.5", false);
  * pseries-2.4
  */
 #define SPAPR_COMPAT_2_4 \
+        SPAPR_COMPAT_2_5 \
         HW_COMPAT_2_4
 
 static void spapr_machine_2_4_instance_options(MachineState *machine)

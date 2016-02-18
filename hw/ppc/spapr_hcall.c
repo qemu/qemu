@@ -38,6 +38,12 @@ static void set_spr(CPUState *cs, int spr, target_ulong value,
     run_on_cpu(cs, do_spr_sync, &s);
 }
 
+static bool has_spr(PowerPCCPU *cpu, int spr)
+{
+    /* We can test whether the SPR is defined by checking for a valid name */
+    return cpu->env.spr_cb[spr].name != NULL;
+}
+
 static inline bool valid_pte_index(CPUPPCState *env, target_ulong pte_index)
 {
     /*
@@ -332,11 +338,52 @@ static target_ulong h_read(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_set_sprg0(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+                                target_ulong opcode, target_ulong *args)
+{
+    cpu_synchronize_state(CPU(cpu));
+    cpu->env.spr[SPR_SPRG0] = args[0];
+
+    return H_SUCCESS;
+}
+
 static target_ulong h_set_dabr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                target_ulong opcode, target_ulong *args)
 {
-    /* FIXME: actually implement this */
-    return H_HARDWARE;
+    if (!has_spr(cpu, SPR_DABR)) {
+        return H_HARDWARE;              /* DABR register not available */
+    }
+    cpu_synchronize_state(CPU(cpu));
+
+    if (has_spr(cpu, SPR_DABRX)) {
+        cpu->env.spr[SPR_DABRX] = 0x3;  /* Use Problem and Privileged state */
+    } else if (!(args[0] & 0x4)) {      /* Breakpoint Translation set? */
+        return H_RESERVED_DABR;
+    }
+
+    cpu->env.spr[SPR_DABR] = args[0];
+    return H_SUCCESS;
+}
+
+static target_ulong h_set_xdabr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+                                target_ulong opcode, target_ulong *args)
+{
+    target_ulong dabrx = args[1];
+
+    if (!has_spr(cpu, SPR_DABR) || !has_spr(cpu, SPR_DABRX)) {
+        return H_HARDWARE;
+    }
+
+    if ((dabrx & ~0xfULL) != 0 || (dabrx & H_DABRX_HYPERVISOR) != 0
+        || (dabrx & (H_DABRX_KERNEL | H_DABRX_USER)) == 0) {
+        return H_PARAMETER;
+    }
+
+    cpu_synchronize_state(CPU(cpu));
+    cpu->env.spr[SPR_DABRX] = dabrx;
+    cpu->env.spr[SPR_DABR] = args[0];
+
+    return H_SUCCESS;
 }
 
 #define FLAGS_REGISTER_VPA         0x0000200000000000ULL
@@ -990,12 +1037,15 @@ static void hypercall_register_types(void)
     /* hcall-bulk */
     spapr_register_hypercall(H_BULK_REMOVE, h_bulk_remove);
 
-    /* hcall-dabr */
-    spapr_register_hypercall(H_SET_DABR, h_set_dabr);
-
     /* hcall-splpar */
     spapr_register_hypercall(H_REGISTER_VPA, h_register_vpa);
     spapr_register_hypercall(H_CEDE, h_cede);
+
+    /* processor register resource access h-calls */
+    spapr_register_hypercall(H_SET_SPRG0, h_set_sprg0);
+    spapr_register_hypercall(H_SET_DABR, h_set_dabr);
+    spapr_register_hypercall(H_SET_XDABR, h_set_xdabr);
+    spapr_register_hypercall(H_SET_MODE, h_set_mode);
 
     /* "debugger" hcalls (also used by SLOF). Note: We do -not- differenciate
      * here between the "CI" and the "CACHE" variants, they will use whatever
@@ -1012,8 +1062,6 @@ static void hypercall_register_types(void)
 
     /* qemu/KVM-PPC specific hcalls */
     spapr_register_hypercall(KVMPPC_H_RTAS, h_rtas);
-
-    spapr_register_hypercall(H_SET_MODE, h_set_mode);
 
     /* ibm,client-architecture-support support */
     spapr_register_hypercall(KVMPPC_H_CAS, h_client_architecture_support);

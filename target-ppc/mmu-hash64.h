@@ -102,7 +102,7 @@ static inline target_ulong ppc_hash64_load_hpte0(PowerPCCPU *cpu,
     uint64_t addr;
 
     addr = token + (index * HASH_PTE_SIZE_64);
-    if (env->external_htab) {
+    if (kvmppc_kern_htab || env->external_htab) {
         return  ldq_p((const void *)(uintptr_t)addr);
     } else {
         return ldq_phys(CPU(cpu)->as, addr);
@@ -116,7 +116,7 @@ static inline target_ulong ppc_hash64_load_hpte1(PowerPCCPU *cpu,
     uint64_t addr;
 
     addr = token + (index * HASH_PTE_SIZE_64) + HASH_PTE_SIZE_64/2;
-    if (env->external_htab) {
+    if (kvmppc_kern_htab || env->external_htab) {
         return  ldq_p((const void *)(uintptr_t)addr);
     } else {
         return ldq_phys(CPU(cpu)->as, addr);
