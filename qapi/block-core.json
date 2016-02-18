@@ -273,17 +273,41 @@
 #
 # @image: the info of image used (since: 1.6)
 #
-# @bps_max: #optional total max in bytes (Since 1.7)
+# @bps_max: #optional total throughput limit during bursts,
+#                     in bytes (Since 1.7)
 #
-# @bps_rd_max: #optional read max in bytes (Since 1.7)
+# @bps_rd_max: #optional read throughput limit during bursts,
+#                        in bytes (Since 1.7)
 #
-# @bps_wr_max: #optional write max in bytes (Since 1.7)
+# @bps_wr_max: #optional write throughput limit during bursts,
+#                        in bytes (Since 1.7)
 #
-# @iops_max: #optional total I/O operations max (Since 1.7)
+# @iops_max: #optional total I/O operations per second during bursts,
+#                      in bytes (Since 1.7)
 #
-# @iops_rd_max: #optional read I/O operations max (Since 1.7)
+# @iops_rd_max: #optional read I/O operations per second during bursts,
+#                         in bytes (Since 1.7)
 #
-# @iops_wr_max: #optional write I/O operations max (Since 1.7)
+# @iops_wr_max: #optional write I/O operations per second during bursts,
+#                         in bytes (Since 1.7)
+#
+# @bps_max_length: #optional maximum length of the @bps_max burst
+#                            period, in seconds. (Since 2.6)
+#
+# @bps_rd_max_length: #optional maximum length of the @bps_rd_max
+#                               burst period, in seconds. (Since 2.6)
+#
+# @bps_wr_max_length: #optional maximum length of the @bps_wr_max
+#                               burst period, in seconds. (Since 2.6)
+#
+# @iops_max_length: #optional maximum length of the @iops burst
+#                             period, in seconds. (Since 2.6)
+#
+# @iops_rd_max_length: #optional maximum length of the @iops_rd_max
+#                                burst period, in seconds. (Since 2.6)
+#
+# @iops_wr_max_length: #optional maximum length of the @iops_wr_max
+#                                burst period, in seconds. (Since 2.6)
 #
 # @iops_size: #optional an I/O size in bytes (Since 1.7)
 #
@@ -308,6 +332,9 @@
             '*bps_max': 'int', '*bps_rd_max': 'int',
             '*bps_wr_max': 'int', '*iops_max': 'int',
             '*iops_rd_max': 'int', '*iops_wr_max': 'int',
+            '*bps_max_length': 'int', '*bps_rd_max_length': 'int',
+            '*bps_wr_max_length': 'int', '*iops_max_length': 'int',
+            '*iops_rd_max_length': 'int', '*iops_wr_max_length': 'int',
             '*iops_size': 'int', '*group': 'str', 'cache': 'BlockdevCacheInfo',
             'write_threshold': 'int' } }
 
