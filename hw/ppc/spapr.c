@@ -2327,6 +2327,7 @@ static void spapr_compat_2_3(Object *obj)
 {
     savevm_skip_section_footers();
     global_state_set_optional();
+    savevm_skip_configuration();
 }
 
 static void spapr_compat_2_2(Object *obj)
