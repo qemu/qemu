@@ -241,6 +241,7 @@ check-qtest-xtensaeb-y = $(check-qtest-xtensa-y)
 
 check-qtest-generic-y += tests/qom-test$(EXESUF)
 
+qapi-schema += alternate-any.json
 qapi-schema += alternate-array.json
 qapi-schema += alternate-base.json
 qapi-schema += alternate-clash.json

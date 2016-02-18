@@ -629,7 +629,10 @@ def check_alternate(expr, expr_info):
                    value,
                    allow_metas=['built-in', 'union', 'struct', 'enum'])
         qtype = find_alternate_member_qtype(value)
-        assert qtype
+        if not qtype:
+            raise QAPIExprError(expr_info,
+                                "Alternate '%s' member '%s' cannot use "
+                                "type '%s'" % (name, key, value))
         if qtype in types_seen:
             raise QAPIExprError(expr_info,
                                 "Alternate '%s' member '%s' can't "
