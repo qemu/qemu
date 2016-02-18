@@ -468,6 +468,14 @@ void HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)
 
 uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
 {
+    if ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_SYS) {
+        /* SRS instruction is UNPREDICTABLE from System mode; we UNDEF.
+         * Other UNPREDICTABLE and UNDEF cases were caught at translate time.
+         */
+        raise_exception(env, EXCP_UDEF, syn_uncategorized(),
+                        exception_target_el(env));
+    }
+
     if ((env->uncached_cpsr & CPSR_M) == mode) {
         return env->regs[13];
     } else {

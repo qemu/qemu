@@ -7590,10 +7590,7 @@ static void gen_srs(DisasContext *s,
      * -- not a valid mode number
      * -- a mode that's at a higher exception level
      * -- Monitor, if we are Non-secure
-     * For the UNPREDICTABLE cases we choose to UNDEF, except that for
-     * "current mode is System" we will write a garbage SPSR.
-     * (This is because we don't have access to our current mode here
-     * and would have to do a runtime check to UNDEF for System.)
+     * For the UNPREDICTABLE cases we choose to UNDEF.
      */
     if (s->current_el == 1 && !s->ns) {
         gen_exception_insn(s, 4, EXCP_UDEF, syn_uncategorized(), 3);
@@ -7639,6 +7636,9 @@ static void gen_srs(DisasContext *s,
 
     addr = tcg_temp_new_i32();
     tmp = tcg_const_i32(mode);
+    /* get_r13_banked() will raise an exception if called from System mode */
+    gen_set_condexec(s);
+    gen_set_pc_im(s, s->pc - 4);
     gen_helper_get_r13_banked(addr, cpu_env, tmp);
     tcg_temp_free_i32(tmp);
     switch (amode) {
@@ -7688,6 +7688,7 @@ static void gen_srs(DisasContext *s,
         tcg_temp_free_i32(tmp);
     }
     tcg_temp_free_i32(addr);
+    s->is_jmp = DISAS_UPDATE;
 }
 
 static void disas_arm_insn(DisasContext *s, unsigned int insn)
