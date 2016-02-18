@@ -35,15 +35,14 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_type)sobj, Error **
 
 
 def gen_visit_fields_decl(typ):
-    ret = ''
-    if typ.name not in struct_fields_seen:
-        ret += mcgen('''
+    if typ.name in struct_fields_seen:
+        return ''
+    struct_fields_seen.add(typ.name)
+    return mcgen('''
 
 static void visit_type_%(c_type)s_fields(Visitor *v, %(c_type)s *obj, Error **errp);
 ''',
-                     c_type=typ.c_name())
-        struct_fields_seen.add(typ.name)
-    return ret
+                 c_type=typ.c_name())
 
 
 def gen_visit_implicit_struct(typ):
