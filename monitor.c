@@ -51,7 +51,8 @@
 #include "sysemu/balloon.h"
 #include "qemu/timer.h"
 #include "sysemu/hw_accel.h"
-#include "qemu/acl.h"
+#include "authz/list.h"
+#include "qapi/util.h"
 #include "sysemu/tpm.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
@@ -2016,62 +2017,97 @@ static void hmp_wavcapture(Monitor *mon, const QDict *qdict)
     QLIST_INSERT_HEAD (&capture_head, s, entries);
 }
 
-static qemu_acl *find_acl(Monitor *mon, const char *name)
+static QAuthZList *find_auth(Monitor *mon, const char *name)
 {
-    qemu_acl *acl = qemu_acl_find(name);
+    Object *obj;
+    Object *container;
 
-    if (!acl) {
+    container = object_get_objects_root();
+    obj = object_resolve_path_component(container, name);
+    if (!obj) {
         monitor_printf(mon, "acl: unknown list '%s'\n", name);
+        return NULL;
     }
-    return acl;
+
+    return QAUTHZ_LIST(obj);
 }
 
 static void hmp_acl_show(Monitor *mon, const QDict *qdict)
 {
     const char *aclname = qdict_get_str(qdict, "aclname");
-    qemu_acl *acl = find_acl(mon, aclname);
-    qemu_acl_entry *entry;
-    int i = 0;
+    QAuthZList *auth = find_auth(mon, aclname);
+    QAuthZListRuleList *rules;
+    size_t i = 0;
 
-    if (acl) {
-        monitor_printf(mon, "policy: %s\n",
-                       acl->defaultDeny ? "deny" : "allow");
-        QTAILQ_FOREACH(entry, &acl->entries, next) {
-            i++;
-            monitor_printf(mon, "%d: %s %s\n", i,
-                           entry->deny ? "deny" : "allow", entry->match);
-        }
+    if (!auth) {
+        return;
+    }
+
+    monitor_printf(mon, "policy: %s\n",
+                   QAuthZListPolicy_str(auth->policy));
+
+    rules = auth->rules;
+    while (rules) {
+        QAuthZListRule *rule = rules->value;
+        i++;
+        monitor_printf(mon, "%zu: %s %s\n", i,
+                       QAuthZListPolicy_str(rule->policy),
+                       rule->match);
+        rules = rules->next;
     }
 }
 
 static void hmp_acl_reset(Monitor *mon, const QDict *qdict)
 {
     const char *aclname = qdict_get_str(qdict, "aclname");
-    qemu_acl *acl = find_acl(mon, aclname);
+    QAuthZList *auth = find_auth(mon, aclname);
 
-    if (acl) {
-        qemu_acl_reset(acl);
-        monitor_printf(mon, "acl: removed all rules\n");
+    if (!auth) {
+        return;
     }
+
+    auth->policy = QAUTHZ_LIST_POLICY_DENY;
+    qapi_free_QAuthZListRuleList(auth->rules);
+    auth->rules = NULL;
+    monitor_printf(mon, "acl: removed all rules\n");
 }
 
 static void hmp_acl_policy(Monitor *mon, const QDict *qdict)
 {
     const char *aclname = qdict_get_str(qdict, "aclname");
     const char *policy = qdict_get_str(qdict, "policy");
-    qemu_acl *acl = find_acl(mon, aclname);
+    QAuthZList *auth = find_auth(mon, aclname);
+    int val;
+    Error *err = NULL;
 
-    if (acl) {
-        if (strcmp(policy, "allow") == 0) {
-            acl->defaultDeny = 0;
+    if (!auth) {
+        return;
+    }
+
+    val = qapi_enum_parse(&QAuthZListPolicy_lookup,
+                          policy,
+                          QAUTHZ_LIST_POLICY_DENY,
+                          &err);
+    if (err) {
+        error_free(err);
+        monitor_printf(mon, "acl: unknown policy '%s', "
+                       "expected 'deny' or 'allow'\n", policy);
+    } else {
+        auth->policy = val;
+        if (auth->policy == QAUTHZ_LIST_POLICY_ALLOW) {
             monitor_printf(mon, "acl: policy set to 'allow'\n");
-        } else if (strcmp(policy, "deny") == 0) {
-            acl->defaultDeny = 1;
-            monitor_printf(mon, "acl: policy set to 'deny'\n");
         } else {
-            monitor_printf(mon, "acl: unknown policy '%s', "
-                           "expected 'deny' or 'allow'\n", policy);
+            monitor_printf(mon, "acl: policy set to 'deny'\n");
         }
+    }
+}
+
+static QAuthZListFormat hmp_acl_get_format(const char *match)
+{
+    if (strchr(match, '*')) {
+        return QAUTHZ_LIST_FORMAT_GLOB;
+    } else {
+        return QAUTHZ_LIST_FORMAT_EXACT;
     }
 }
 
@@ -2079,30 +2115,50 @@ static void hmp_acl_add(Monitor *mon, const QDict *qdict)
 {
     const char *aclname = qdict_get_str(qdict, "aclname");
     const char *match = qdict_get_str(qdict, "match");
-    const char *policy = qdict_get_str(qdict, "policy");
+    const char *policystr = qdict_get_str(qdict, "policy");
     int has_index = qdict_haskey(qdict, "index");
     int index = qdict_get_try_int(qdict, "index", -1);
-    qemu_acl *acl = find_acl(mon, aclname);
-    int deny, ret;
+    QAuthZList *auth = find_auth(mon, aclname);
+    Error *err = NULL;
+    QAuthZListPolicy policy;
+    QAuthZListFormat format;
+    size_t i = 0;
 
-    if (acl) {
-        if (strcmp(policy, "allow") == 0) {
-            deny = 0;
-        } else if (strcmp(policy, "deny") == 0) {
-            deny = 1;
-        } else {
-            monitor_printf(mon, "acl: unknown policy '%s', "
-                           "expected 'deny' or 'allow'\n", policy);
-            return;
-        }
-        if (has_index)
-            ret = qemu_acl_insert(acl, deny, match, index);
-        else
-            ret = qemu_acl_append(acl, deny, match);
-        if (ret < 0)
-            monitor_printf(mon, "acl: unable to add acl entry\n");
-        else
-            monitor_printf(mon, "acl: added rule at position %d\n", ret);
+    if (!auth) {
+        return;
+    }
+
+    policy = qapi_enum_parse(&QAuthZListPolicy_lookup,
+                             policystr,
+                             QAUTHZ_LIST_POLICY_DENY,
+                             &err);
+    if (err) {
+        error_free(err);
+        monitor_printf(mon, "acl: unknown policy '%s', "
+                       "expected 'deny' or 'allow'\n", policystr);
+        return;
+    }
+
+    format = hmp_acl_get_format(match);
+
+    if (has_index && index == 0) {
+        monitor_printf(mon, "acl: unable to add acl entry\n");
+        return;
+    }
+
+    if (has_index) {
+        i = qauthz_list_insert_rule(auth, match, policy,
+                                    format, index - 1, &err);
+    } else {
+        i = qauthz_list_append_rule(auth, match, policy,
+                                    format, &err);
+    }
+    if (err) {
+        monitor_printf(mon, "acl: unable to add rule: %s",
+                       error_get_pretty(err));
+        error_free(err);
+    } else {
+        monitor_printf(mon, "acl: added rule at position %zu\n", i + 1);
     }
 }
 
@@ -2110,15 +2166,18 @@ static void hmp_acl_remove(Monitor *mon, const QDict *qdict)
 {
     const char *aclname = qdict_get_str(qdict, "aclname");
     const char *match = qdict_get_str(qdict, "match");
-    qemu_acl *acl = find_acl(mon, aclname);
-    int ret;
+    QAuthZList *auth = find_auth(mon, aclname);
+    ssize_t i = 0;
 
-    if (acl) {
-        ret = qemu_acl_remove(acl, match);
-        if (ret < 0)
-            monitor_printf(mon, "acl: no matching acl entry\n");
-        else
-            monitor_printf(mon, "acl: removed rule at position %d\n", ret);
+    if (!auth) {
+        return;
+    }
+
+    i = qauthz_list_delete_rule(auth, match);
+    if (i >= 0) {
+        monitor_printf(mon, "acl: removed rule at position %zu\n", i + 1);
+    } else {
+        monitor_printf(mon, "acl: no matching acl entry\n");
     }
 }
 

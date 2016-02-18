@@ -33,7 +33,7 @@
 #include "qemu/option.h"
 #include "qemu/sockets.h"
 #include "qemu/timer.h"
-#include "qemu/acl.h"
+#include "authz/list.h"
 #include "qemu/config-file.h"
 #include "qapi/qapi-emit-events.h"
 #include "qapi/qapi-events-ui.h"
@@ -3229,12 +3229,24 @@ static void vnc_display_close(VncDisplay *vd)
         object_unparent(OBJECT(vd->tlscreds));
         vd->tlscreds = NULL;
     }
-    g_free(vd->tlsaclname);
-    vd->tlsaclname = NULL;
+    if (vd->tlsauthz) {
+        object_unparent(OBJECT(vd->tlsauthz));
+        vd->tlsauthz = NULL;
+    }
+    g_free(vd->tlsauthzid);
+    vd->tlsauthzid = NULL;
     if (vd->lock_key_sync) {
         qemu_remove_led_event_handler(vd->led);
         vd->led = NULL;
     }
+#ifdef CONFIG_VNC_SASL
+    if (vd->sasl.authz) {
+        object_unparent(OBJECT(vd->sasl.authz));
+        vd->sasl.authz = NULL;
+    }
+    g_free(vd->sasl.authzid);
+    vd->sasl.authzid = NULL;
+#endif
 }
 
 int vnc_display_password(const char *id, const char *password)
@@ -3887,23 +3899,24 @@ void vnc_display_open(const char *id, Error **errp)
 
     if (acl) {
         if (strcmp(vd->id, "default") == 0) {
-            vd->tlsaclname = g_strdup("vnc.x509dname");
+            vd->tlsauthzid = g_strdup("vnc.x509dname");
         } else {
-            vd->tlsaclname = g_strdup_printf("vnc.%s.x509dname", vd->id);
+            vd->tlsauthzid = g_strdup_printf("vnc.%s.x509dname", vd->id);
         }
-        qemu_acl_init(vd->tlsaclname);
+        vd->tlsauthz = QAUTHZ(qauthz_list_new(vd->tlsauthzid,
+                                              QAUTHZ_LIST_POLICY_DENY,
+                                              &error_abort));
     }
 #ifdef CONFIG_VNC_SASL
     if (acl && sasl) {
-        char *aclname;
-
         if (strcmp(vd->id, "default") == 0) {
-            aclname = g_strdup("vnc.username");
+            vd->sasl.authzid = g_strdup("vnc.username");
         } else {
-            aclname = g_strdup_printf("vnc.%s.username", vd->id);
+            vd->sasl.authzid = g_strdup_printf("vnc.%s.username", vd->id);
         }
-        vd->sasl.acl = qemu_acl_init(aclname);
-        g_free(aclname);
+        vd->sasl.authz = QAUTHZ(qauthz_list_new(vd->sasl.authzid,
+                                                QAUTHZ_LIST_POLICY_DENY,
+                                                &error_abort));
     }
 #endif
 

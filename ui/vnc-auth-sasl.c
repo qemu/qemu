@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "authz/base.h"
 #include "vnc.h"
 #include "trace.h"
 
@@ -146,13 +147,14 @@ size_t vnc_client_read_sasl(VncState *vs)
 static int vnc_auth_sasl_check_access(VncState *vs)
 {
     const void *val;
-    int err;
-    int allow;
+    int rv;
+    Error *err = NULL;
+    bool allow;
 
-    err = sasl_getprop(vs->sasl.conn, SASL_USERNAME, &val);
-    if (err != SASL_OK) {
+    rv = sasl_getprop(vs->sasl.conn, SASL_USERNAME, &val);
+    if (rv != SASL_OK) {
         trace_vnc_auth_fail(vs, vs->auth, "Cannot fetch SASL username",
-                            sasl_errstring(err, NULL, NULL));
+                            sasl_errstring(rv, NULL, NULL));
         return -1;
     }
     if (val == NULL) {
@@ -163,12 +165,19 @@ static int vnc_auth_sasl_check_access(VncState *vs)
     vs->sasl.username = g_strdup((const char*)val);
     trace_vnc_auth_sasl_username(vs, vs->sasl.username);
 
-    if (vs->vd->sasl.acl == NULL) {
+    if (vs->vd->sasl.authzid == NULL) {
         trace_vnc_auth_sasl_acl(vs, 1);
         return 0;
     }
 
-    allow = qemu_acl_party_is_allowed(vs->vd->sasl.acl, vs->sasl.username);
+    allow = qauthz_is_allowed_by_id(vs->vd->sasl.authzid,
+                                    vs->sasl.username, &err);
+    if (err) {
+        trace_vnc_auth_fail(vs, vs->auth, "Error from authz",
+                            error_get_pretty(err));
+        error_free(err);
+        return -1;
+    }
 
     trace_vnc_auth_sasl_acl(vs, allow);
     return allow ? 0 : -1;

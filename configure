@@ -3205,20 +3205,6 @@ if test "$xkbcommon" != "no" ; then
   fi
 fi
 
-##########################################
-# fnmatch() probe, used for ACL routines
-fnmatch="no"
-cat > $TMPC << EOF
-#include <fnmatch.h>
-int main(void)
-{
-    fnmatch("foo", "foo", 0);
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-   fnmatch="yes"
-fi
 
 ##########################################
 # xfsctl() probe, used for file-posix.c
@@ -6415,9 +6401,6 @@ fi
 if test "$xkbcommon" = "yes" ; then
   echo "XKBCOMMON_CFLAGS=$xkbcommon_cflags" >> $config_host_mak
   echo "XKBCOMMON_LIBS=$xkbcommon_libs" >> $config_host_mak
-fi
-if test "$fnmatch" = "yes" ; then
-  echo "CONFIG_FNMATCH=y" >> $config_host_mak
 fi
 if test "$xfs" = "yes" ; then
   echo "CONFIG_XFS=y" >> $config_host_mak

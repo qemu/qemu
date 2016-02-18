@@ -29,8 +29,8 @@
 #include "io-channel-helpers.h"
 #include "crypto/init.h"
 #include "crypto/tlscredsx509.h"
-#include "qemu/acl.h"
 #include "qapi/error.h"
+#include "authz/list.h"
 #include "qom/object_interfaces.h"
 
 #ifdef QCRYPTO_HAVE_TLS_TEST_SUPPORT
@@ -113,7 +113,7 @@ static void test_io_channel_tls(const void *opaque)
     QIOChannelTLS *serverChanTLS;
     QIOChannelSocket *clientChanSock;
     QIOChannelSocket *serverChanSock;
-    qemu_acl *acl;
+    QAuthZList *auth;
     const char * const *wildcards;
     int channel[2];
     struct QIOChannelTLSHandshakeData clientHandshake = { false, false };
@@ -161,11 +161,15 @@ static void test_io_channel_tls(const void *opaque)
         SERVER_CERT_DIR);
     g_assert(serverCreds != NULL);
 
-    acl = qemu_acl_init("channeltlsacl");
-    qemu_acl_reset(acl);
+    auth = qauthz_list_new("channeltlsacl",
+                           QAUTHZ_LIST_POLICY_DENY,
+                           &error_abort);
     wildcards = data->wildcards;
     while (wildcards && *wildcards) {
-        qemu_acl_append(acl, 0, *wildcards);
+        qauthz_list_append_rule(auth, *wildcards,
+                                QAUTHZ_LIST_POLICY_ALLOW,
+                                QAUTHZ_LIST_FORMAT_GLOB,
+                                &error_abort);
         wildcards++;
     }
 
@@ -252,6 +256,8 @@ static void test_io_channel_tls(const void *opaque)
 
     object_unref(OBJECT(serverChanSock));
     object_unref(OBJECT(clientChanSock));
+
+    object_unparent(OBJECT(auth));
 
     close(channel[0]);
     close(channel[1]);

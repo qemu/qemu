@@ -62,7 +62,7 @@ gboolean vncws_tls_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
     tls = qio_channel_tls_new_server(
         vs->ioc,
         vs->vd->tlscreds,
-        vs->vd->tlsaclname,
+        vs->vd->tlsauthzid,
         &err);
     if (!tls) {
         VNC_DEBUG("Failed to setup TLS %s\n", error_get_pretty(err));

@@ -537,8 +537,8 @@ test-qom-obj-y = $(qom-obj-y) $(test-util-obj-y)
 test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o \
 	tests/test-qapi-introspect.o \
 	$(test-qom-obj-y)
-benchmark-crypto-obj-y = $(crypto-obj-y) $(test-qom-obj-y)
-test-crypto-obj-y = $(crypto-obj-y) $(test-qom-obj-y)
+benchmark-crypto-obj-y = $(authz-obj-y) $(crypto-obj-y) $(test-qom-obj-y)
+test-crypto-obj-y = $(authz-obj-y) $(crypto-obj-y) $(test-qom-obj-y)
 test-io-obj-y = $(io-obj-y) $(test-crypto-obj-y)
 test-authz-obj-y = $(test-qom-obj-y) $(authz-obj-y)
 test-block-obj-y = $(block-obj-y) $(test-io-obj-y) tests/iothread.o
