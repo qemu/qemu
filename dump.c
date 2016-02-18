@@ -25,6 +25,7 @@
 #include "sysemu/cpus.h"
 #include "qapi/qmp/qerror.h"
 #include "qmp-commands.h"
+#include "qapi-event.h"
 
 #include <zlib.h>
 #ifdef CONFIG_LZO
@@ -1662,6 +1663,7 @@ cleanup:
 static void dump_process(DumpState *s, Error **errp)
 {
     Error *local_err = NULL;
+    DumpQueryResult *result = NULL;
 
     if (s->has_format && s->format != DUMP_GUEST_MEMORY_FORMAT_ELF) {
         create_kdump_vmcore(s, &local_err);
@@ -1674,6 +1676,15 @@ static void dump_process(DumpState *s, Error **errp)
     atomic_set(&s->status,
                (local_err ? DUMP_STATUS_FAILED : DUMP_STATUS_COMPLETED));
 
+    /* send DUMP_COMPLETED message (unconditionally) */
+    result = qmp_query_dump(NULL);
+    /* should never fail */
+    assert(result);
+    qapi_event_send_dump_completed(result, !!local_err, (local_err ? \
+                                   error_get_pretty(local_err) : NULL),
+                                   &error_abort);
+    qapi_free_DumpQueryResult(result);
+
     error_propagate(errp, local_err);
     dump_cleanup(s);
 }
@@ -1682,13 +1693,8 @@ static void *dump_thread(void *data)
 {
     Error *err = NULL;
     DumpState *s = (DumpState *)data;
-
     dump_process(s, &err);
-
-    if (err) {
-        /* TODO: notify user the error */
-        error_free(err);
-    }
+    error_free(err);
     return NULL;
 }
 
