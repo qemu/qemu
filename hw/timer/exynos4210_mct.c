@@ -1422,10 +1422,11 @@ static const MemoryRegionOps exynos4210_mct_ops = {
 };
 
 /* MCT init */
-static int exynos4210_mct_init(SysBusDevice *dev)
+static void exynos4210_mct_init(Object *obj)
 {
     int i;
-    Exynos4210MCTState *s = EXYNOS4210_MCT(dev);
+    Exynos4210MCTState *s = EXYNOS4210_MCT(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
     QEMUBH *bh[2];
 
     /* Global timer */
@@ -1450,19 +1451,15 @@ static int exynos4210_mct_init(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->l_timer[i].irq);
     }
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &exynos4210_mct_ops, s,
+    memory_region_init_io(&s->iomem, obj, &exynos4210_mct_ops, s,
                           "exynos4210-mct", MCT_SFR_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
-
-    return 0;
 }
 
 static void exynos4210_mct_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = exynos4210_mct_init;
     dc->reset = exynos4210_mct_reset;
     dc->vmsd = &vmstate_exynos4210_mct_state;
 }
@@ -1471,6 +1468,7 @@ static const TypeInfo exynos4210_mct_info = {
     .name          = TYPE_EXYNOS4210_MCT,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210MCTState),
+    .instance_init = exynos4210_mct_init,
     .class_init    = exynos4210_mct_class_init,
 };
 
