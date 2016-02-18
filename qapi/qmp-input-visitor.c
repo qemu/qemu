@@ -90,12 +90,6 @@ static void qmp_input_push(QmpInputVisitor *qiv, QObject *obj, Error **errp)
     qiv->nb_stack++;
 }
 
-/** Only for qmp_input_pop. */
-static gboolean always_true(gpointer key, gpointer val, gpointer user_pkey)
-{
-    *(const char **)user_pkey = (const char *)key;
-    return TRUE;
-}
 
 static void qmp_input_pop(QmpInputVisitor *qiv, Error **errp)
 {
@@ -104,9 +98,11 @@ static void qmp_input_pop(QmpInputVisitor *qiv, Error **errp)
     if (qiv->strict) {
         GHashTable * const top_ht = qiv->stack[qiv->nb_stack - 1].h;
         if (top_ht) {
-            if (g_hash_table_size(top_ht)) {
-                const char *key;
-                g_hash_table_find(top_ht, always_true, &key);
+            GHashTableIter iter;
+            const char *key;
+
+            g_hash_table_iter_init(&iter, top_ht);
+            if (g_hash_table_iter_next(&iter, (void **)&key, NULL)) {
                 error_setg(errp, QERR_QMP_EXTRA_MEMBER, key);
             }
             g_hash_table_unref(top_ht);
