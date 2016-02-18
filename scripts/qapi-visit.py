@@ -173,7 +173,7 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
     }
 
     for (prev = (GenericList **)obj;
-         !err && (i = visit_next_list(v, prev)) != NULL;
+         !err && (i = visit_next_list(v, prev, sizeof(**obj))) != NULL;
          prev = &i) {
         %(c_name)s *native_i = (%(c_name)s *)i;
         visit_type_%(c_elt_type)s(v, NULL, &native_i->value, &err);

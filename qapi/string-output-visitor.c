@@ -276,7 +276,7 @@ start_list(Visitor *v, const char *name, Error **errp)
     sov->head = true;
 }
 
-static GenericList *next_list(Visitor *v, GenericList **list)
+static GenericList *next_list(Visitor *v, GenericList **list, size_t size)
 {
     StringOutputVisitor *sov = to_sov(v);
     GenericList *ret = NULL;

@@ -19,13 +19,12 @@
 #include "qapi/error.h"
 #include <stdlib.h>
 
-typedef struct GenericList
-{
-    union {
-        void *value;
-        uint64_t padding;
-    };
+/* This struct is layout-compatible with all other *List structs
+ * created by the qapi generator.  It is used as a typical
+ * singly-linked list. */
+typedef struct GenericList {
     struct GenericList *next;
+    char padding[];
 } GenericList;
 
 void visit_start_struct(Visitor *v, const char *name, void **obj,
@@ -36,7 +35,7 @@ void visit_start_implicit_struct(Visitor *v, void **obj, size_t size,
 void visit_end_implicit_struct(Visitor *v);
 
 void visit_start_list(Visitor *v, const char *name, Error **errp);
-GenericList *visit_next_list(Visitor *v, GenericList **list);
+GenericList *visit_next_list(Visitor *v, GenericList **list, size_t size);
 void visit_end_list(Visitor *v);
 
 /**

@@ -165,7 +165,8 @@ static void qmp_input_start_list(Visitor *v, const char *name, Error **errp)
     qmp_input_push(qiv, qobj, errp);
 }
 
-static GenericList *qmp_input_next_list(Visitor *v, GenericList **list)
+static GenericList *qmp_input_next_list(Visitor *v, GenericList **list,
+                                        size_t size)
 {
     QmpInputVisitor *qiv = to_qiv(v);
     GenericList *entry;
@@ -184,7 +185,7 @@ static GenericList *qmp_input_next_list(Visitor *v, GenericList **list)
         return NULL;
     }
 
-    entry = g_malloc0(sizeof(*entry));
+    entry = g_malloc0(size);
     if (first) {
         *list = entry;
     } else {

@@ -29,7 +29,7 @@ struct Visitor
 
     void (*start_list)(Visitor *v, const char *name, Error **errp);
     /* Must be set */
-    GenericList *(*next_list)(Visitor *v, GenericList **list);
+    GenericList *(*next_list)(Visitor *v, GenericList **list, size_t size);
     /* Must be set */
     void (*end_list)(Visitor *v);
 

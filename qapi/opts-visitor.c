@@ -215,7 +215,7 @@ opts_start_list(Visitor *v, const char *name, Error **errp)
 
 
 static GenericList *
-opts_next_list(Visitor *v, GenericList **list)
+opts_next_list(Visitor *v, GenericList **list, size_t size)
 {
     OptsVisitor *ov = to_ov(v);
     GenericList **link;
@@ -258,7 +258,7 @@ opts_next_list(Visitor *v, GenericList **list)
         abort();
     }
 
-    *link = g_malloc0(sizeof **link);
+    *link = g_malloc0(size);
     return *link;
 }
 

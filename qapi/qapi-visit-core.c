@@ -50,9 +50,10 @@ void visit_start_list(Visitor *v, const char *name, Error **errp)
     v->start_list(v, name, errp);
 }
 
-GenericList *visit_next_list(Visitor *v, GenericList **list)
+GenericList *visit_next_list(Visitor *v, GenericList **list, size_t size)
 {
-    return v->next_list(v, list);
+    assert(list && size >= sizeof(GenericList));
+    return v->next_list(v, list, size);
 }
 
 void visit_end_list(Visitor *v)

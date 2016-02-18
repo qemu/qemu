@@ -100,7 +100,8 @@ static void qapi_dealloc_start_list(Visitor *v, const char *name, Error **errp)
     qapi_dealloc_push(qov, NULL);
 }
 
-static GenericList *qapi_dealloc_next_list(Visitor *v, GenericList **listp)
+static GenericList *qapi_dealloc_next_list(Visitor *v, GenericList **listp,
+                                           size_t size)
 {
     GenericList *list = *listp;
     QapiDeallocVisitor *qov = to_qov(v);

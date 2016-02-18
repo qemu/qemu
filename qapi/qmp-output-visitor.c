@@ -126,7 +126,8 @@ static void qmp_output_start_list(Visitor *v, const char *name, Error **errp)
     qmp_output_push(qov, list);
 }
 
-static GenericList *qmp_output_next_list(Visitor *v, GenericList **listp)
+static GenericList *qmp_output_next_list(Visitor *v, GenericList **listp,
+                                         size_t size)
 {
     GenericList *list = *listp;
     QmpOutputVisitor *qov = to_qov(v);
