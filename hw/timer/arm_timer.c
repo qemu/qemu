@@ -277,21 +277,26 @@ static const VMStateDescription vmstate_sp804 = {
     }
 };
 
-static int sp804_init(SysBusDevice *sbd)
+static void sp804_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    SP804State *s = SP804(dev);
+    SP804State *s = SP804(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     sysbus_init_irq(sbd, &s->irq);
+    memory_region_init_io(&s->iomem, obj, &sp804_ops, s,
+                          "sp804", 0x1000);
+    sysbus_init_mmio(sbd, &s->iomem);
+}
+
+static void sp804_realize(DeviceState *dev, Error **errp)
+{
+    SP804State *s = SP804(dev);
+
     s->timer[0] = arm_timer_init(s->freq0);
     s->timer[1] = arm_timer_init(s->freq1);
     s->timer[0]->irq = qemu_allocate_irq(sp804_set_irq, s, 0);
     s->timer[1]->irq = qemu_allocate_irq(sp804_set_irq, s, 1);
-    memory_region_init_io(&s->iomem, OBJECT(s), &sp804_ops, s,
-                          "sp804", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
     vmstate_register(dev, -1, &vmstate_sp804, s);
-    return 0;
 }
 
 /* Integrator/CP timer module.  */
@@ -344,9 +349,10 @@ static const MemoryRegionOps icp_pit_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int icp_pit_init(SysBusDevice *dev)
+static void icp_pit_init(Object *obj)
 {
-    icp_pit_state *s = INTEGRATOR_PIT(dev);
+    icp_pit_state *s = INTEGRATOR_PIT(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
     /* Timer 0 runs at the system clock speed (40MHz).  */
     s->timer[0] = arm_timer_init(40000000);
@@ -358,26 +364,18 @@ static int icp_pit_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->timer[1]->irq);
     sysbus_init_irq(dev, &s->timer[2]->irq);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &icp_pit_ops, s,
+    memory_region_init_io(&s->iomem, obj, &icp_pit_ops, s,
                           "icp_pit", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     /* This device has no state to save/restore.  The component timers will
        save themselves.  */
-    return 0;
-}
-
-static void icp_pit_class_init(ObjectClass *klass, void *data)
-{
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
-
-    sdc->init = icp_pit_init;
 }
 
 static const TypeInfo icp_pit_info = {
     .name          = TYPE_INTEGRATOR_PIT,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(icp_pit_state),
-    .class_init    = icp_pit_class_init,
+    .instance_init = icp_pit_init,
 };
 
 static Property sp804_properties[] = {
@@ -388,10 +386,9 @@ static Property sp804_properties[] = {
 
 static void sp804_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
     DeviceClass *k = DEVICE_CLASS(klass);
 
-    sdc->init = sp804_init;
+    k->realize = sp804_realize;
     k->props = sp804_properties;
 }
 
@@ -399,6 +396,7 @@ static const TypeInfo sp804_info = {
     .name          = TYPE_SP804,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SP804State),
+    .instance_init = sp804_init,
     .class_init    = sp804_class_init,
 };
 
