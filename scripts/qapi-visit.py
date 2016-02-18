@@ -155,40 +155,6 @@ out:
     return ret
 
 
-def gen_visit_struct(name, base, members):
-    ret = gen_visit_struct_fields(name, base, members, None)
-
-    # FIXME: if *obj is NULL on entry, and visit_start_struct() assigns to
-    # *obj, but then visit_type_FOO_fields() fails, we should clean up *obj
-    # rather than leaving it non-NULL. As currently written, the caller must
-    # call qapi_free_FOO() to avoid a memory leak of the partial FOO.
-    ret += mcgen('''
-
-void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
-{
-    Error *err = NULL;
-
-    visit_start_struct(v, name, (void **)obj, sizeof(%(c_name)s), &err);
-    if (err) {
-        goto out;
-    }
-    if (!*obj) {
-        goto out_obj;
-    }
-    visit_type_%(c_name)s_fields(v, obj, &err);
-    error_propagate(errp, err);
-    err = NULL;
-out_obj:
-    visit_end_struct(v, &err);
-out:
-    error_propagate(errp, err);
-}
-''',
-                 c_name=c_name(name))
-
-    return ret
-
-
 def gen_visit_list(name, element_type):
     # FIXME: if *obj is NULL on entry, and the first visit_next_list()
     # assigns to *obj, while a later one fails, we should clean up *obj
@@ -284,9 +250,13 @@ out:
     return ret
 
 
-def gen_visit_union(name, base, members, variants):
+def gen_visit_object(name, base, members, variants):
     ret = gen_visit_struct_fields(name, base, members, variants)
 
+    # FIXME: if *obj is NULL on entry, and visit_start_struct() assigns to
+    # *obj, but then visit_type_FOO_fields() fails, we should clean up *obj
+    # rather than leaving it non-NULL. As currently written, the caller must
+    # call qapi_free_FOO() to avoid a memory leak of the partial FOO.
     ret += mcgen('''
 
 void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
@@ -363,10 +333,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
 
     def visit_object_type(self, name, info, base, members, variants):
         self.decl += gen_visit_decl(name)
-        if variants:
-            self.defn += gen_visit_union(name, base, members, variants)
-        else:
-            self.defn += gen_visit_struct(name, base, members)
+        self.defn += gen_visit_object(name, base, members, variants)
 
     def visit_alternate_type(self, name, info, variants):
         self.decl += gen_visit_decl(name)
