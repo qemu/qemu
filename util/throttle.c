@@ -287,8 +287,9 @@ bool throttle_conflicting(ThrottleConfig *cfg, Error **errp)
 /* check if a throttling configuration is valid
  * @cfg: the throttling configuration to inspect
  * @ret: true if valid else false
+ * @errp: error object
  */
-bool throttle_is_valid(ThrottleConfig *cfg)
+bool throttle_is_valid(ThrottleConfig *cfg, Error **errp)
 {
     int i;
 
@@ -297,6 +298,8 @@ bool throttle_is_valid(ThrottleConfig *cfg)
             cfg->buckets[i].max < 0 ||
             cfg->buckets[i].avg > THROTTLE_VALUE_MAX ||
             cfg->buckets[i].max > THROTTLE_VALUE_MAX) {
+            error_setg(errp, "bps/iops/max values must be within [0, %lld]",
+                       THROTTLE_VALUE_MAX);
             return false;
         }
     }

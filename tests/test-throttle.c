@@ -315,7 +315,7 @@ static void test_is_valid_for_value(int value, bool should_be_valid)
         for (index = 0; index < BUCKETS_COUNT; index++) {
             memset(&cfg, 0, sizeof(cfg));
             set_cfg_value(is_max, index, value);
-            g_assert(throttle_is_valid(&cfg) == should_be_valid);
+            g_assert(throttle_is_valid(&cfg, NULL) == should_be_valid);
         }
     }
 }
