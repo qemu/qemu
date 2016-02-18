@@ -222,6 +222,8 @@ static void set_cfg_value(bool is_max, int index, int value)
 {
     if (is_max) {
         cfg.buckets[index].max = value;
+        /* If max is set, avg should never be 0 */
+        cfg.buckets[index].avg = MAX(cfg.buckets[index].avg, 1);
     } else {
         cfg.buckets[index].avg = value;
     }
