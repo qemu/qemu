@@ -42,6 +42,14 @@
         .driver   = "virtio-pci",\
         .property = "migrate-extra",\
         .value    = "off",\
+    },{\
+        .driver   = "fw_cfg_mem",\
+        .property = "dma_enabled",\
+        .value    = "off",\
+    },{\
+        .driver   = "fw_cfg_io",\
+        .property = "dma_enabled",\
+        .value    = "off",\
     },
 
 #define HW_COMPAT_2_3 \
