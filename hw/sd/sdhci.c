@@ -1296,29 +1296,6 @@ static void sdhci_sysbus_realize(DeviceState *dev, Error ** errp)
 {
     SDHCIState *s = SYSBUS_SDHCI(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    DriveInfo *di;
-    BlockBackend *blk;
-    DeviceState *carddev;
-    Error *err = NULL;
-
-    /* Create and plug in the sd card.
-     * FIXME: this should be done by the users of this device so we
-     * do not use drive_get_next() here.
-     */
-    di = drive_get_next(IF_SD);
-    blk = di ? blk_by_legacy_dinfo(di) : NULL;
-
-    carddev = qdev_create(qdev_get_child_bus(dev, "sd-bus"), TYPE_SD_CARD);
-    qdev_prop_set_drive(carddev, "drive", blk, &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
-    object_property_set_bool(OBJECT(carddev), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
 
     s->buf_maxsz = sdhci_get_fifolen(s);
     s->fifo_buffer = g_malloc0(s->buf_maxsz);
@@ -1335,8 +1312,6 @@ static void sdhci_sysbus_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &sdhci_vmstate;
     dc->props = sdhci_sysbus_properties;
     dc->realize = sdhci_sysbus_realize;
-    /* Reason: instance_init() method uses drive_get_next() */
-    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo sdhci_sysbus_info = {

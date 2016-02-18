@@ -59,6 +59,27 @@ static void xlnx_ep108_init(MachineState *machine)
 
     object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_fatal);
 
+    /* Create and plug in the SD cards */
+    for (i = 0; i < XLNX_ZYNQMP_NUM_SDHCI; i++) {
+        BusState *bus;
+        DriveInfo *di = drive_get_next(IF_SD);
+        BlockBackend *blk = di ? blk_by_legacy_dinfo(di) : NULL;
+        DeviceState *carddev;
+        char *bus_name;
+
+        bus_name = g_strdup_printf("sd-bus%d", i);
+        bus = qdev_get_child_bus(DEVICE(&s->soc), bus_name);
+        g_free(bus_name);
+        if (!bus) {
+            error_report("No SD bus found for SD card %d", i);
+            exit(1);
+        }
+        carddev = qdev_create(bus, TYPE_SD_CARD);
+        qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);
+        object_property_set_bool(OBJECT(carddev), true, "realized",
+                                 &error_fatal);
+    }
+
     for (i = 0; i < XLNX_ZYNQMP_NUM_SPIS; i++) {
         SSIBus *spi_bus;
         DeviceState *flash_dev;
