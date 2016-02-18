@@ -345,9 +345,7 @@ static bool parse_stats_intervals(BlockAcctStats *stats, QList *intervals,
 
 static bool check_throttle_config(ThrottleConfig *cfg, Error **errp)
 {
-    if (throttle_conflicting(cfg)) {
-        error_setg(errp, "bps/iops/max total values and read/write values"
-                         " cannot be used at the same time");
+    if (throttle_conflicting(cfg, errp)) {
         return false;
     }
 

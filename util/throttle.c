@@ -252,8 +252,9 @@ bool throttle_enabled(ThrottleConfig *cfg)
  *
  * @cfg: the throttling configuration to inspect
  * @ret: true if any conflict detected else false
+ * @errp: error object
  */
-bool throttle_conflicting(ThrottleConfig *cfg)
+bool throttle_conflicting(ThrottleConfig *cfg, Error **errp)
 {
     bool bps_flag, ops_flag;
     bool bps_max_flag, ops_max_flag;
@@ -274,7 +275,13 @@ bool throttle_conflicting(ThrottleConfig *cfg)
                    (cfg->buckets[THROTTLE_OPS_READ].max ||
                    cfg->buckets[THROTTLE_OPS_WRITE].max);
 
-    return bps_flag || ops_flag || bps_max_flag || ops_max_flag;
+    if (bps_flag || ops_flag || bps_max_flag || ops_max_flag) {
+        error_setg(errp, "bps/iops/max total values and read/write values"
+                   " cannot be used at the same time");
+        return true;
+    }
+
+    return false;
 }
 
 /* check if a throttling configuration is valid

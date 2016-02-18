@@ -255,31 +255,31 @@ static void test_conflicts_for_one_set(bool is_max,
                                        int write)
 {
     memset(&cfg, 0, sizeof(cfg));
-    g_assert(!throttle_conflicting(&cfg));
+    g_assert(!throttle_conflicting(&cfg, NULL));
 
     set_cfg_value(is_max, total, 1);
     set_cfg_value(is_max, read,  1);
-    g_assert(throttle_conflicting(&cfg));
+    g_assert(throttle_conflicting(&cfg, NULL));
 
     memset(&cfg, 0, sizeof(cfg));
     set_cfg_value(is_max, total, 1);
     set_cfg_value(is_max, write, 1);
-    g_assert(throttle_conflicting(&cfg));
+    g_assert(throttle_conflicting(&cfg, NULL));
 
     memset(&cfg, 0, sizeof(cfg));
     set_cfg_value(is_max, total, 1);
     set_cfg_value(is_max, read,  1);
     set_cfg_value(is_max, write, 1);
-    g_assert(throttle_conflicting(&cfg));
+    g_assert(throttle_conflicting(&cfg, NULL));
 
     memset(&cfg, 0, sizeof(cfg));
     set_cfg_value(is_max, total, 1);
-    g_assert(!throttle_conflicting(&cfg));
+    g_assert(!throttle_conflicting(&cfg, NULL));
 
     memset(&cfg, 0, sizeof(cfg));
     set_cfg_value(is_max, read,  1);
     set_cfg_value(is_max, write, 1);
-    g_assert(!throttle_conflicting(&cfg));
+    g_assert(!throttle_conflicting(&cfg, NULL));
 }
 
 static void test_conflicting_config(void)
