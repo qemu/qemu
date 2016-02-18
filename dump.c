@@ -1450,6 +1450,12 @@ static void dump_state_prepare(DumpState *s)
     *s = (DumpState) { .status = DUMP_STATUS_ACTIVE };
 }
 
+bool dump_in_progress(void)
+{
+    DumpState *state = &dump_state_global;
+    return (state->status == DUMP_STATUS_ACTIVE);
+}
+
 static void dump_init(DumpState *s, int fd, bool has_format,
                       DumpGuestMemoryFormat format, bool paging, bool has_filter,
                       int64_t begin, int64_t length, Error **errp)
@@ -1627,6 +1633,13 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     int fd = -1;
     DumpState *s;
     Error *local_err = NULL;
+
+    /* if there is a dump in background, we should wait until the dump
+     * finished */
+    if (dump_in_progress()) {
+        error_setg(errp, "There is a dump in process, please wait.");
+        return;
+    }
 
     /*
      * kdump-compressed format need the whole memory dumped, so paging or
