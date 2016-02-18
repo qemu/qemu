@@ -17,9 +17,13 @@
 #include "hw/sd/sd.h"
 #include "hw/qdev.h"
 #include "hw/qdev-properties.h"
+#include "qemu/error-report.h"
 
 #define TYPE_PXA2XX_MMCI "pxa2xx-mmci"
 #define PXA2XX_MMCI(obj) OBJECT_CHECK(PXA2xxMMCIState, (obj), TYPE_PXA2XX_MMCI)
+
+#define TYPE_PXA2XX_MMCI_BUS "pxa2xx-mmci-bus"
+#define PXA2XX_MMCI_BUS(obj) OBJECT_CHECK(SDBus, (obj), TYPE_PXA2XX_MMCI_BUS)
 
 struct PXA2xxMMCIState {
     SysBusDevice parent_obj;
@@ -28,9 +32,11 @@ struct PXA2xxMMCIState {
     qemu_irq irq;
     qemu_irq rx_dma;
     qemu_irq tx_dma;
+    qemu_irq inserted;
+    qemu_irq readonly;
 
     BlockBackend *blk;
-    SDState *card;
+    SDBus sdbus;
 
     uint32_t status;
     uint32_t clkrt;
@@ -130,7 +136,7 @@ static void pxa2xx_mmci_fifo_update(PXA2xxMMCIState *s)
 
     if (s->cmdat & CMDAT_WR_RD) {
         while (s->bytesleft && s->tx_len) {
-            sd_write_data(s->card, s->tx_fifo[s->tx_start ++]);
+            sdbus_write_data(&s->sdbus, s->tx_fifo[s->tx_start++]);
             s->tx_start &= 0x1f;
             s->tx_len --;
             s->bytesleft --;
@@ -140,7 +146,7 @@ static void pxa2xx_mmci_fifo_update(PXA2xxMMCIState *s)
     } else
         while (s->bytesleft && s->rx_len < 32) {
             s->rx_fifo[(s->rx_start + (s->rx_len ++)) & 0x1f] =
-                sd_read_data(s->card);
+                sdbus_read_data(&s->sdbus);
             s->bytesleft --;
             s->intreq |= INT_RXFIFO_REQ;
         }
@@ -174,7 +180,7 @@ static void pxa2xx_mmci_wakequeues(PXA2xxMMCIState *s)
     request.arg = s->arg;
     request.crc = 0;	/* FIXME */
 
-    rsplen = sd_do_command(s->card, &request, response);
+    rsplen = sdbus_do_command(&s->sdbus, &request, response);
     s->intreq |= INT_END_CMD;
 
     memset(s->resp_fifo, 0, sizeof(s->resp_fifo));
@@ -483,32 +489,59 @@ PXA2xxMMCIState *pxa2xx_mmci_init(MemoryRegion *sysmem,
                 BlockBackend *blk, qemu_irq irq,
                 qemu_irq rx_dma, qemu_irq tx_dma)
 {
-    DeviceState *dev;
+    DeviceState *dev, *carddev;
     SysBusDevice *sbd;
     PXA2xxMMCIState *s;
+    Error *err = NULL;
 
     dev = qdev_create(NULL, TYPE_PXA2XX_MMCI);
     s = PXA2XX_MMCI(dev);
-    /* Reach into the device and initialize the SD card. This is
-     * unclean but will vanish when we update to SDBus APIs.
-     */
-    s->card = sd_init(s->blk, false);
-    if (s->card == NULL) {
-        exit(1);
-    }
-    qdev_init_nofail(dev);
     sbd = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(sbd, 0, base);
     sysbus_connect_irq(sbd, 0, irq);
     qdev_connect_gpio_out_named(dev, "rx-dma", 0, rx_dma);
     qdev_connect_gpio_out_named(dev, "tx-dma", 0, tx_dma);
+
+    /* Create and plug in the sd card */
+    carddev = qdev_create(qdev_get_child_bus(dev, "sd-bus"), TYPE_SD_CARD);
+    qdev_prop_set_drive(carddev, "drive", blk, &err);
+    if (err) {
+        error_report("failed to init SD card: %s", error_get_pretty(err));
+        return NULL;
+    }
+    object_property_set_bool(OBJECT(carddev), true, "realized", &err);
+    if (err) {
+        error_report("failed to init SD card: %s", error_get_pretty(err));
+        return NULL;
+    }
+
     return s;
+}
+
+static void pxa2xx_mmci_set_inserted(DeviceState *dev, bool inserted)
+{
+    PXA2xxMMCIState *s = PXA2XX_MMCI(dev);
+
+    qemu_set_irq(s->inserted, inserted);
+}
+
+static void pxa2xx_mmci_set_readonly(DeviceState *dev, bool readonly)
+{
+    PXA2xxMMCIState *s = PXA2XX_MMCI(dev);
+
+    qemu_set_irq(s->readonly, readonly);
 }
 
 void pxa2xx_mmci_handlers(PXA2xxMMCIState *s, qemu_irq readonly,
                           qemu_irq coverswitch)
 {
-    sd_set_cb(s->card, readonly, coverswitch);
+    DeviceState *dev = DEVICE(s);
+
+    s->readonly = readonly;
+    s->inserted = coverswitch;
+
+    pxa2xx_mmci_set_inserted(dev, sdbus_get_inserted(&s->sdbus));
+    pxa2xx_mmci_set_readonly(dev, sdbus_get_readonly(&s->sdbus));
 }
 
 static void pxa2xx_mmci_instance_init(Object *obj)
@@ -526,6 +559,17 @@ static void pxa2xx_mmci_instance_init(Object *obj)
 
     register_savevm(NULL, "pxa2xx_mmci", 0, 0,
                     pxa2xx_mmci_save, pxa2xx_mmci_load, s);
+
+    qbus_create_inplace(&s->sdbus, sizeof(s->sdbus),
+                        TYPE_PXA2XX_MMCI_BUS, DEVICE(obj), "sd-bus");
+}
+
+static void pxa2xx_mmci_bus_class_init(ObjectClass *klass, void *data)
+{
+    SDBusClass *sbc = SD_BUS_CLASS(klass);
+
+    sbc->set_inserted = pxa2xx_mmci_set_inserted;
+    sbc->set_readonly = pxa2xx_mmci_set_readonly;
 }
 
 static const TypeInfo pxa2xx_mmci_info = {
@@ -535,9 +579,17 @@ static const TypeInfo pxa2xx_mmci_info = {
     .instance_init = pxa2xx_mmci_instance_init,
 };
 
+static const TypeInfo pxa2xx_mmci_bus_info = {
+    .name = TYPE_PXA2XX_MMCI_BUS,
+    .parent = TYPE_SD_BUS,
+    .instance_size = sizeof(SDBus),
+    .class_init = pxa2xx_mmci_bus_class_init,
+};
+
 static void pxa2xx_mmci_register_types(void)
 {
     type_register_static(&pxa2xx_mmci_info);
+    type_register_static(&pxa2xx_mmci_bus_info);
 }
 
 type_init(pxa2xx_mmci_register_types)
