@@ -5378,31 +5378,6 @@ void aarch64_sync_64_to_32(CPUARMState *env)
 
 #else
 
-/* Map CPU modes onto saved register banks.  */
-int bank_number(int mode)
-{
-    switch (mode) {
-    case ARM_CPU_MODE_USR:
-    case ARM_CPU_MODE_SYS:
-        return BANK_USRSYS;
-    case ARM_CPU_MODE_SVC:
-        return BANK_SVC;
-    case ARM_CPU_MODE_ABT:
-        return BANK_ABT;
-    case ARM_CPU_MODE_UND:
-        return BANK_UND;
-    case ARM_CPU_MODE_IRQ:
-        return BANK_IRQ;
-    case ARM_CPU_MODE_FIQ:
-        return BANK_FIQ;
-    case ARM_CPU_MODE_HYP:
-        return BANK_HYP;
-    case ARM_CPU_MODE_MON:
-        return BANK_MON;
-    }
-    g_assert_not_reached();
-}
-
 void switch_mode(CPUARMState *env, int mode)
 {
     int old_mode;

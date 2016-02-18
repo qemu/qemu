@@ -109,7 +109,31 @@ static inline unsigned int aarch64_banked_spsr_index(unsigned int el)
     return map[el];
 }
 
-int bank_number(int mode);
+/* Map CPU modes onto saved register banks.  */
+static inline int bank_number(int mode)
+{
+    switch (mode) {
+    case ARM_CPU_MODE_USR:
+    case ARM_CPU_MODE_SYS:
+        return BANK_USRSYS;
+    case ARM_CPU_MODE_SVC:
+        return BANK_SVC;
+    case ARM_CPU_MODE_ABT:
+        return BANK_ABT;
+    case ARM_CPU_MODE_UND:
+        return BANK_UND;
+    case ARM_CPU_MODE_IRQ:
+        return BANK_IRQ;
+    case ARM_CPU_MODE_FIQ:
+        return BANK_FIQ;
+    case ARM_CPU_MODE_HYP:
+        return BANK_HYP;
+    case ARM_CPU_MODE_MON:
+        return BANK_MON;
+    }
+    g_assert_not_reached();
+}
+
 void switch_mode(CPUARMState *, int);
 void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu);
 void arm_translate_init(void);
