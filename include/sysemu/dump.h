@@ -178,6 +178,9 @@ typedef struct DumpState {
     size_t num_dumpable;        /* number of page that can be dumped */
     uint32_t flag_compress;     /* indicate the compression format */
     DumpStatus status;          /* current dump status */
+
+    bool has_format;              /* whether format is provided */
+    DumpGuestMemoryFormat format; /* valid only if has_format == true */
 } DumpState;
 
 uint16_t cpu_to_dump16(DumpState *s, uint16_t val);

@@ -1465,6 +1465,9 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     Error *err = NULL;
     int ret;
 
+    s->has_format = has_format;
+    s->format = format;
+
     /* kdump-compressed is conflict with paging and filter */
     if (has_format && format != DUMP_GUEST_MEMORY_FORMAT_ELF) {
         assert(!paging && !has_filter);
@@ -1623,6 +1626,23 @@ cleanup:
     dump_cleanup(s);
 }
 
+/* this operation might be time consuming. */
+static void dump_process(DumpState *s, Error **errp)
+{
+    Error *local_err = NULL;
+
+    if (s->has_format && s->format != DUMP_GUEST_MEMORY_FORMAT_ELF) {
+        create_kdump_vmcore(s, &local_err);
+    } else {
+        create_vmcore(s, &local_err);
+    }
+
+    s->status = (local_err ? DUMP_STATUS_FAILED : DUMP_STATUS_COMPLETED);
+    error_propagate(errp, local_err);
+
+    dump_cleanup(s);
+}
+
 void qmp_dump_guest_memory(bool paging, const char *file,
                            bool has_detach, bool detach,
                            bool has_begin, int64_t begin, bool has_length,
@@ -1708,16 +1728,7 @@ void qmp_dump_guest_memory(bool paging, const char *file,
         return;
     }
 
-    if (has_format && format != DUMP_GUEST_MEMORY_FORMAT_ELF) {
-        create_kdump_vmcore(s, &local_err);
-    } else {
-        create_vmcore(s, &local_err);
-    }
-
-    s->status = (local_err ? DUMP_STATUS_FAILED : DUMP_STATUS_COMPLETED);
-    error_propagate(errp, local_err);
-
-    dump_cleanup(s);
+    dump_process(s, errp);
 }
 
 DumpGuestMemoryCapability *qmp_query_dump_guest_memory_capability(Error **errp)
