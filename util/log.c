@@ -56,12 +56,19 @@ void do_qemu_set_log(int log_flags, bool use_own_buffers)
 #ifdef CONFIG_TRACE_LOG
     qemu_loglevel |= LOG_TRACE;
 #endif
-    if (qemu_loglevel && !qemu_logfile) {
+    if ((qemu_loglevel || is_daemonized()) && !qemu_logfile) {
         if (logfilename) {
             qemu_logfile = fopen(logfilename, log_append ? "a" : "w");
             if (!qemu_logfile) {
                 perror(logfilename);
                 _exit(1);
+            }
+            /* In case we are a daemon redirect stderr to logfile */
+            if (is_daemonized()) {
+                dup2(fileno(qemu_logfile), STDERR_FILENO);
+                fclose(qemu_logfile);
+                /* This will skip closing logfile in qemu_log_close() */
+                qemu_logfile = stderr;
             }
         } else {
             /* Default to stderr if no log file specified */
@@ -82,7 +89,7 @@ void do_qemu_set_log(int log_flags, bool use_own_buffers)
             log_append = 1;
         }
     }
-    if (!qemu_loglevel && qemu_logfile) {
+    if (!qemu_loglevel && !is_daemonized() && qemu_logfile) {
         qemu_log_close();
     }
 }
