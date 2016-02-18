@@ -238,11 +238,8 @@ out:
     return ret
 
 
-def gen_visit_union(name, base, variants):
-    ret = ''
-
-    if base:
-        ret += gen_visit_fields_decl(base)
+def gen_visit_union(name, base, members, variants):
+    ret = gen_visit_struct_fields(name, base, members)
 
     for var in variants.variants:
         # Ugly special case for simple union TODO get rid of it
@@ -262,21 +259,9 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
     if (!*obj) {
         goto out_obj;
     }
+    visit_type_%(c_name)s_fields(v, obj, &err);
 ''',
                  c_name=c_name(name))
-
-    if base:
-        ret += mcgen('''
-    visit_type_%(c_name)s_fields(v, (%(c_name)s **)obj, &err);
-''',
-                     c_name=base.c_name())
-    else:
-        ret += mcgen('''
-    visit_type_%(c_type)s(v, "%(name)s", &(*obj)->%(c_name)s, &err);
-''',
-                     c_type=variants.tag_member.type.c_name(),
-                     c_name=c_name(variants.tag_member.name),
-                     name=variants.tag_member.name)
     ret += gen_err_check(label='out_obj')
     ret += mcgen('''
     if (!visit_start_union(v, !!(*obj)->u.data, &err) || err) {
@@ -377,11 +362,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
     def visit_object_type(self, name, info, base, members, variants):
         self.decl += gen_visit_decl(name)
         if variants:
-            if members:
-                # Members other than variants.tag_member not implemented
-                assert len(members) == 1
-                assert members[0] == variants.tag_member
-            self.defn += gen_visit_union(name, base, variants)
+            self.defn += gen_visit_union(name, base, members, variants)
         else:
             self.defn += gen_visit_struct(name, base, members)
 
