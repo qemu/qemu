@@ -85,8 +85,10 @@
   'data': { 'value1' : 'UserDefC', # intentional forward reference
             'value2' : 'UserDefB' } }
 
+{ 'struct': 'WrapAlternate',
+  'data': { 'alt': 'UserDefAlternate' } }
 { 'alternate': 'UserDefAlternate',
-  'data': { 'uda': 'UserDefA', 's': 'str', 'i': 'int' } }
+  'data': { 'udfu': 'UserDefFlatUnion', 's': 'str', 'i': 'int' } }
 
 { 'struct': 'UserDefC',
   'data': { 'string1': 'str', 'string2': 'str' } }
