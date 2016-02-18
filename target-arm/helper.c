@@ -4380,6 +4380,22 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 3, .opc2 = 2,
               .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->mvfr2 },
+            { .name = "PMCEID0", .state = ARM_CP_STATE_AA32,
+              .cp = 15, .opc1 = 0, .crn = 9, .crm = 12, .opc2 = 6,
+              .access = PL0_R, .accessfn = pmreg_access, .type = ARM_CP_CONST,
+              .resetvalue = cpu->pmceid0 },
+            { .name = "PMCEID0_EL0", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 3, .crn = 9, .crm = 12, .opc2 = 6,
+              .access = PL0_R, .accessfn = pmreg_access, .type = ARM_CP_CONST,
+              .resetvalue = cpu->pmceid0 },
+            { .name = "PMCEID1", .state = ARM_CP_STATE_AA32,
+              .cp = 15, .opc1 = 0, .crn = 9, .crm = 12, .opc2 = 7,
+              .access = PL0_R, .accessfn = pmreg_access, .type = ARM_CP_CONST,
+              .resetvalue = cpu->pmceid1 },
+            { .name = "PMCEID1_EL0", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 3, .crn = 9, .crm = 12, .opc2 = 7,
+              .access = PL0_R, .accessfn = pmreg_access, .type = ARM_CP_CONST,
+              .resetvalue = cpu->pmceid1 },
             REGINFO_SENTINEL
         };
         /* RVBAR_EL1 is only implemented if EL1 is the highest EL */
