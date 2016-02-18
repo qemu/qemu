@@ -1609,8 +1609,9 @@ cleanup:
     dump_cleanup(s);
 }
 
-void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
-                           int64_t begin, bool has_length,
+void qmp_dump_guest_memory(bool paging, const char *file,
+                           bool has_detach, bool detach,
+                           bool has_begin, int64_t begin, bool has_length,
                            int64_t length, bool has_format,
                            DumpGuestMemoryFormat format, Error **errp)
 {

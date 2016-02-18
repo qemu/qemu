@@ -838,8 +838,8 @@ EQMP
 
     {
         .name       = "dump-guest-memory",
-        .args_type  = "paging:b,protocol:s,begin:i?,end:i?,format:s?",
-        .params     = "-p protocol [begin] [length] [format]",
+        .args_type  = "paging:b,protocol:s,detach:b?,begin:i?,end:i?,format:s?",
+        .params     = "-p protocol [-d] [begin] [length] [format]",
         .help       = "dump guest memory to file",
         .mhandler.cmd_new = qmp_marshal_dump_guest_memory,
     },
@@ -855,6 +855,8 @@ Arguments:
 - "paging": do paging to get guest's memory mapping (json-bool)
 - "protocol": destination file(started with "file:") or destination file
               descriptor (started with "fd:") (json-string)
+- "detach": if specified, command will return immediately, without waiting
+            for the dump to finish (json-bool)
 - "begin": the starting physical address. It's optional, and should be specified
            with length together (json-int)
 - "length": the memory size, in bytes. It's optional, and should be specified

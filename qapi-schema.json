@@ -2195,6 +2195,9 @@
 #            2. fd: the protocol starts with "fd:", and the following string
 #               is the fd's name.
 #
+# @detach: #optional if true, QMP will return immediately rather than
+#          waiting for the dump to finish. (since 2.6).
+#
 # @begin: #optional if specified, the starting physical address.
 #
 # @length: #optional if specified, the memory size, in bytes. If you don't
@@ -2211,8 +2214,9 @@
 # Since: 1.2
 ##
 { 'command': 'dump-guest-memory',
-  'data': { 'paging': 'bool', 'protocol': 'str', '*begin': 'int',
-            '*length': 'int', '*format': 'DumpGuestMemoryFormat' } }
+  'data': { 'paging': 'bool', 'protocol': 'str', '*detach': 'bool',
+            '*begin': 'int', '*length': 'int',
+            '*format': 'DumpGuestMemoryFormat'} }
 
 ##
 # @DumpGuestMemoryCapability:
