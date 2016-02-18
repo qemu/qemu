@@ -84,12 +84,6 @@ void throttle_leak_bucket(LeakyBucket *bkt, int64_t delta);
 
 int64_t throttle_compute_wait(LeakyBucket *bkt);
 
-/* expose timer computation function for unit tests */
-bool throttle_compute_timer(ThrottleState *ts,
-                            bool is_write,
-                            int64_t now,
-                            int64_t *next_timestamp);
-
 /* init/destroy cycle */
 void throttle_init(ThrottleState *ts);
 

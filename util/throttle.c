@@ -137,10 +137,10 @@ static int64_t throttle_compute_wait_for(ThrottleState *ts,
  * @next_timestamp: the resulting timer
  * @ret:        true if a timer must be set
  */
-bool throttle_compute_timer(ThrottleState *ts,
-                            bool is_write,
-                            int64_t now,
-                            int64_t *next_timestamp)
+static bool throttle_compute_timer(ThrottleState *ts,
+                                   bool is_write,
+                                   int64_t now,
+                                   int64_t *next_timestamp)
 {
     int64_t wait;
 
