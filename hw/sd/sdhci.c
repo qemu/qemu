@@ -1220,12 +1220,6 @@ const VMStateDescription sdhci_vmstate = {
 /* Capabilities registers provide information on supported features of this
  * specific host controller implementation */
 static Property sdhci_pci_properties[] = {
-    /*
-     * We currently fuse controller and card into a single device
-     * model, but we intend to separate them.  For that purpose, the
-     * properties that belong to the card are marked as experimental.
-     */
-    DEFINE_PROP_DRIVE("x-drive", SDHCIState, blk),
     DEFINE_PROP_UINT32("capareg", SDHCIState, capareg,
             SDHC_CAPAB_REG_DEFAULT),
     DEFINE_PROP_UINT32("maxcurr", SDHCIState, maxcurr, 0),
