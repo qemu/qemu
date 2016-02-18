@@ -71,11 +71,16 @@ static void visit_type_implicit_%(c_type)s(Visitor *v, %(c_type)s **obj, Error *
     return ret
 
 
-def gen_visit_struct_fields(name, base, members):
+def gen_visit_struct_fields(name, base, members, variants):
     ret = ''
 
     if base:
         ret += gen_visit_fields_decl(base)
+    if variants:
+        for var in variants.variants:
+            # Ugly special case for simple union TODO get rid of it
+            if not var.simple_union_type():
+                ret += gen_visit_implicit_struct(var.type)
 
     struct_fields_seen.add(name)
     ret += mcgen('''
@@ -96,8 +101,49 @@ static void visit_type_%(c_name)s_fields(Visitor *v, %(c_name)s **obj, Error **e
 
     ret += gen_visit_fields(members, prefix='(*obj)->')
 
-    # 'goto out' produced for base, and by gen_visit_fields() for each member
-    if base or members:
+    if variants:
+        ret += mcgen('''
+    if (!visit_start_union(v, !!(*obj)->u.data, &err) || err) {
+        goto out;
+    }
+    switch ((*obj)->%(c_name)s) {
+''',
+                     c_name=c_name(variants.tag_member.name))
+
+        for var in variants.variants:
+            # TODO ugly special case for simple union
+            simple_union_type = var.simple_union_type()
+            ret += mcgen('''
+    case %(case)s:
+''',
+                         case=c_enum_const(variants.tag_member.type.name,
+                                           var.name,
+                                           variants.tag_member.type.prefix))
+            if simple_union_type:
+                ret += mcgen('''
+        visit_type_%(c_type)s(v, "data", &(*obj)->u.%(c_name)s, &err);
+''',
+                             c_type=simple_union_type.c_name(),
+                             c_name=c_name(var.name))
+            else:
+                ret += mcgen('''
+        visit_type_implicit_%(c_type)s(v, &(*obj)->u.%(c_name)s, &err);
+''',
+                             c_type=var.type.c_name(),
+                             c_name=c_name(var.name))
+            ret += mcgen('''
+        break;
+''')
+
+        ret += mcgen('''
+    default:
+        abort();
+    }
+''')
+
+    # 'goto out' produced for base, by gen_visit_fields() for each member,
+    # and if variants were present
+    if base or members or variants:
         ret += mcgen('''
 
 out:
@@ -110,7 +156,7 @@ out:
 
 
 def gen_visit_struct(name, base, members):
-    ret = gen_visit_struct_fields(name, base, members)
+    ret = gen_visit_struct_fields(name, base, members, None)
 
     # FIXME: if *obj is NULL on entry, and visit_start_struct() assigns to
     # *obj, but then visit_type_FOO_fields() fails, we should clean up *obj
@@ -239,12 +285,7 @@ out:
 
 
 def gen_visit_union(name, base, members, variants):
-    ret = gen_visit_struct_fields(name, base, members)
-
-    for var in variants.variants:
-        # Ugly special case for simple union TODO get rid of it
-        if not var.simple_union_type():
-            ret += gen_visit_implicit_struct(var.type)
+    ret = gen_visit_struct_fields(name, base, members, variants)
 
     ret += mcgen('''
 
@@ -260,54 +301,15 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
         goto out_obj;
     }
     visit_type_%(c_name)s_fields(v, obj, &err);
-''',
-                 c_name=c_name(name))
-    ret += gen_err_check(label='out_obj')
-    ret += mcgen('''
-    if (!visit_start_union(v, !!(*obj)->u.data, &err) || err) {
-        goto out_obj;
-    }
-    switch ((*obj)->%(c_name)s) {
-''',
-                 c_name=c_name(variants.tag_member.name))
-
-    for var in variants.variants:
-        # TODO ugly special case for simple union
-        simple_union_type = var.simple_union_type()
-        ret += mcgen('''
-    case %(case)s:
-''',
-                     case=c_enum_const(variants.tag_member.type.name,
-                                       var.name,
-                                       variants.tag_member.type.prefix))
-        if simple_union_type:
-            ret += mcgen('''
-        visit_type_%(c_type)s(v, "data", &(*obj)->u.%(c_name)s, &err);
-''',
-                         c_type=simple_union_type.c_name(),
-                         c_name=c_name(var.name))
-        else:
-            ret += mcgen('''
-        visit_type_implicit_%(c_type)s(v, &(*obj)->u.%(c_name)s, &err);
-''',
-                         c_type=var.type.c_name(),
-                         c_name=c_name(var.name))
-        ret += mcgen('''
-        break;
-''')
-
-    ret += mcgen('''
-    default:
-        abort();
-    }
-out_obj:
     error_propagate(errp, err);
     err = NULL;
+out_obj:
     visit_end_struct(v, &err);
 out:
     error_propagate(errp, err);
 }
-''')
+''',
+                 c_name=c_name(name))
 
     return ret
 
