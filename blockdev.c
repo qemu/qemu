@@ -2598,6 +2598,18 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
                                int64_t iops_rd_max,
                                bool has_iops_wr_max,
                                int64_t iops_wr_max,
+                               bool has_bps_max_length,
+                               int64_t bps_max_length,
+                               bool has_bps_rd_max_length,
+                               int64_t bps_rd_max_length,
+                               bool has_bps_wr_max_length,
+                               int64_t bps_wr_max_length,
+                               bool has_iops_max_length,
+                               int64_t iops_max_length,
+                               bool has_iops_rd_max_length,
+                               int64_t iops_rd_max_length,
+                               bool has_iops_wr_max_length,
+                               int64_t iops_wr_max_length,
                                bool has_iops_size,
                                int64_t iops_size,
                                bool has_group,
@@ -2650,6 +2662,25 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
     }
     if (has_iops_wr_max) {
         cfg.buckets[THROTTLE_OPS_WRITE].max = iops_wr_max;
+    }
+
+    if (has_bps_max_length) {
+        cfg.buckets[THROTTLE_BPS_TOTAL].burst_length = bps_max_length;
+    }
+    if (has_bps_rd_max_length) {
+        cfg.buckets[THROTTLE_BPS_READ].burst_length = bps_rd_max_length;
+    }
+    if (has_bps_wr_max_length) {
+        cfg.buckets[THROTTLE_BPS_WRITE].burst_length = bps_wr_max_length;
+    }
+    if (has_iops_max_length) {
+        cfg.buckets[THROTTLE_OPS_TOTAL].burst_length = iops_max_length;
+    }
+    if (has_iops_rd_max_length) {
+        cfg.buckets[THROTTLE_OPS_READ].burst_length = iops_rd_max_length;
+    }
+    if (has_iops_wr_max_length) {
+        cfg.buckets[THROTTLE_OPS_WRITE].burst_length = iops_wr_max_length;
     }
 
     if (has_iops_size) {

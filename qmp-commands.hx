@@ -2006,7 +2006,7 @@ EQMP
 
     {
         .name       = "block_set_io_throttle",
-        .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l,bps_max:l?,bps_rd_max:l?,bps_wr_max:l?,iops_max:l?,iops_rd_max:l?,iops_wr_max:l?,iops_size:l?,group:s?",
+        .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l,bps_max:l?,bps_rd_max:l?,bps_wr_max:l?,iops_max:l?,iops_rd_max:l?,iops_wr_max:l?,bps_max_length:l?,bps_rd_max_length:l?,bps_wr_max_length:l?,iops_max_length:l?,iops_rd_max_length:l?,iops_wr_max_length:l?,iops_size:l?,group:s?",
         .mhandler.cmd_new = qmp_marshal_block_set_io_throttle,
     },
 
@@ -2025,14 +2025,20 @@ Arguments:
 - "iops": total I/O operations per second (json-int)
 - "iops_rd": read I/O operations per second (json-int)
 - "iops_wr": write I/O operations per second (json-int)
-- "bps_max":  total max in bytes (json-int)
-- "bps_rd_max":  read max in bytes (json-int)
-- "bps_wr_max":  write max in bytes (json-int)
-- "iops_max":  total I/O operations max (json-int)
-- "iops_rd_max":  read I/O operations max (json-int)
-- "iops_wr_max":  write I/O operations max (json-int)
-- "iops_size":  I/O size in bytes when limiting (json-int)
-- "group": throttle group name (json-string)
+- "bps_max": total throughput limit during bursts, in bytes (json-int, optional)
+- "bps_rd_max": read throughput limit during bursts, in bytes (json-int, optional)
+- "bps_wr_max": write throughput limit during bursts, in bytes (json-int, optional)
+- "iops_max": total I/O operations per second during bursts (json-int, optional)
+- "iops_rd_max": read I/O operations per second during bursts (json-int, optional)
+- "iops_wr_max": write I/O operations per second during bursts (json-int, optional)
+- "bps_max_length": maximum length of the @bps_max burst period, in seconds (json-int, optional)
+- "bps_rd_max_length": maximum length of the @bps_rd_max burst period, in seconds (json-int, optional)
+- "bps_wr_max_length": maximum length of the @bps_wr_max burst period, in seconds (json-int, optional)
+- "iops_max_length": maximum length of the @iops_max burst period, in seconds (json-int, optional)
+- "iops_rd_max_length": maximum length of the @iops_rd_max burst period, in seconds (json-int, optional)
+- "iops_wr_max_length": maximum length of the @iops_wr_max burst period, in seconds (json-int, optional)
+- "iops_size":  I/O size in bytes when limiting (json-int, optional)
+- "group": throttle group name (json-string, optional)
 
 Example:
 
@@ -2049,6 +2055,7 @@ Example:
                                                "iops_max": 0,
                                                "iops_rd_max": 0,
                                                "iops_wr_max": 0,
+                                               "bps_max_length": 60,
                                                "iops_size": 0 } }
 <- { "return": {} }
 
