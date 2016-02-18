@@ -1528,7 +1528,7 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     section_hdr = qemu_get_be32(f);
 
     if (section_hdr) {
-        Error *local_err;
+        Error *local_err = NULL;
 
         /* First section gives the htab size */
         spapr_reallocate_hpt(spapr, section_hdr, &local_err);
