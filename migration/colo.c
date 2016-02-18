@@ -391,10 +391,12 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
      * otherwise we could send packets that if we were killed and the secondary
      * took over would get repeated
      */
+    qemu_mutex_lock_iothread();
     ret = colo_proxy_do_checkpoint(COLO_MODE_PRIMARY);
     if (ret < 0) {
         goto out;
     }
+    qemu_mutex_unlock_iothread();
 
     colo_get_check_cmd(s->rp_state.from_dst_file,
                        COLO_COMMAND_VMSTATE_LOADED, &local_err);

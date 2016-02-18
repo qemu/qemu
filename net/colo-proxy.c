@@ -146,6 +146,8 @@ typedef struct ConnectionKey {
 
 /* define one connection */
 typedef struct Connection {
+    QemuMutex list_lock;
+    /* These should probably become RCU lists */
     /* connection primary send queue: element type: Packet */
     GQueue primary_list;
     /* connection secondary send queue: element type: Packet */
@@ -215,11 +217,13 @@ static void info_hash(gpointer key, gpointer value, gpointer user_data)
                    conn_state_str[conn->state],
                    conn->processing, conn->primary_seq, conn->secondary_seq);
 
+    qemu_mutex_lock(&conn->list_lock);
     monitor_printf(mon, "  Primary list:\n");
     g_queue_foreach(&conn->primary_list, info_packet, mon);
 
     monitor_printf(mon, "  Secondary list:\n");
     g_queue_foreach(&conn->secondary_list, info_packet, mon);
+    qemu_mutex_unlock(&conn->list_lock);
 }
 
 void hmp_info_colo_proxy(Monitor *mon, const QDict *qdict)
@@ -257,10 +261,13 @@ static void connection_destroy(void *opaque)
 {
     Connection *conn = opaque;
 
+    qemu_mutex_lock(&conn->list_lock);
     g_queue_foreach(&conn->primary_list, packet_destroy, NULL);
     g_queue_free(&conn->primary_list);
     g_queue_foreach(&conn->secondary_list, packet_destroy, NULL);
     g_queue_free(&conn->secondary_list);
+    qemu_mutex_unlock(&conn->list_lock);
+    qemu_mutex_destroy(&conn->list_lock);
     g_slice_free(Connection, conn);
 }
 
@@ -268,6 +275,7 @@ static Connection *connection_new(ConnectionKey *key)
 {
     Connection *conn = g_slice_new0(Connection);
     conn->ck = *key;
+    qemu_mutex_init(&conn->list_lock);
     conn->ip_proto = key->ip_proto;
     conn->processing = false;
     g_queue_init(&conn->primary_list);
@@ -288,6 +296,7 @@ static void colo_flush_connection(void *opaque, void *user_data)
     Connection *conn = opaque;
     Packet *pkt = NULL;
 
+    qemu_mutex_lock(&conn->list_lock);
     while (!g_queue_is_empty(&conn->primary_list)) {
         pkt = g_queue_pop_head(&conn->primary_list);
         colo_send_primary_packet(pkt, NULL);
@@ -296,6 +305,7 @@ static void colo_flush_connection(void *opaque, void *user_data)
         pkt = g_queue_pop_head(&conn->secondary_list);
         packet_destroy(pkt, NULL);
     }
+    qemu_mutex_unlock(&conn->list_lock);
 }
 
 static void colo_flush_secondary_connection(gpointer key, gpointer value, gpointer user_data)
@@ -676,7 +686,9 @@ static ssize_t colo_proxy_enqueue_primary_packet(NetFilterState *nf,
         conn->processing = true;
     }
 
+    qemu_mutex_lock(&conn->list_lock);
     g_queue_push_tail(&conn->primary_list, pkt);
+    qemu_mutex_unlock(&conn->list_lock);
     qemu_event_set(&s->need_compare_ev);
     return 1;
 }
@@ -707,7 +719,9 @@ colo_proxy_enqueue_secondary_packet(NetFilterState *nf,
     }
 
     /* In primary notify compare thead */
+    qemu_mutex_lock(&conn->list_lock);
     g_queue_push_tail(&conn->secondary_list, pkt);
+    qemu_mutex_unlock(&conn->list_lock);
     qemu_event_set(&s->need_compare_ev);
     return 0;
 }
@@ -1117,8 +1131,10 @@ static void colo_compare_connection(void *opaque, void *user_data)
 
     while (!g_queue_is_empty(&conn->primary_list) &&
                 !g_queue_is_empty(&conn->secondary_list)) {
+        qemu_mutex_lock(&conn->list_lock);
         ppkt = g_queue_pop_head(&conn->primary_list);
         spkt = g_queue_pop_head(&conn->secondary_list);
+        qemu_mutex_unlock(&conn->list_lock);
         result = colo_packet_compare(spkt, ppkt);
         if (!result) {
             colo_send_primary_packet(ppkt, NULL);
@@ -1127,7 +1143,9 @@ static void colo_compare_connection(void *opaque, void *user_data)
             /* Leave it on the list since we're going to cause a checkpoint
              * and flush and we need to send the packets out
              */
+            qemu_mutex_lock(&conn->list_lock);
             g_queue_push_head(&conn->primary_list, ppkt);
+            qemu_mutex_unlock(&conn->list_lock);
             packet_destroy(spkt, NULL);
             trace_colo_proxy("packet different");
             fprintf(stderr, "%s: miscompare for %d conn: %s,%d:", __func__, checkpoint_num,
