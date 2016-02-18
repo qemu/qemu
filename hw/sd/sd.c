@@ -98,6 +98,7 @@ struct SDState {
     int32_t wpgrps_size;
     uint64_t size;
     uint32_t blk_len;
+    uint32_t multi_blk_cnt;
     uint32_t erase_start;
     uint32_t erase_end;
     uint8_t pwd[16];
@@ -430,6 +431,7 @@ static void sd_reset(DeviceState *dev)
     sd->blk_len = 0x200;
     sd->pwd_len = 0;
     sd->expecting_acmd = false;
+    sd->multi_blk_cnt = 0;
 }
 
 static bool sd_get_inserted(SDState *sd)
@@ -489,6 +491,7 @@ static const VMStateDescription sd_vmstate = {
         VMSTATE_UINT32(vhs, SDState),
         VMSTATE_BITMAP(wp_groups, SDState, 0, wpgrps_size),
         VMSTATE_UINT32(blk_len, SDState),
+        VMSTATE_UINT32(multi_blk_cnt, SDState),
         VMSTATE_UINT32(erase_start, SDState),
         VMSTATE_UINT32(erase_end, SDState),
         VMSTATE_UINT8_ARRAY(pwd, SDState, 16),
@@ -697,6 +700,12 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
     if (sd_cmd_type[req.cmd & 0x3F] == sd_ac
         || sd_cmd_type[req.cmd & 0x3F] == sd_adtc) {
         rca = req.arg >> 16;
+    }
+
+    /* CMD23 (set block count) must be immediately followed by CMD18 or CMD25
+     * if not, its effects are cancelled */
+    if (sd->multi_blk_cnt != 0 && !(req.cmd == 18 || req.cmd == 25)) {
+        sd->multi_blk_cnt = 0;
     }
 
     DPRINTF("CMD%d 0x%08x state %d\n", req.cmd, req.arg, sd->state);
@@ -987,6 +996,17 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
 
             if (sd->data_start + sd->blk_len > sd->size)
                 sd->card_status |= ADDRESS_ERROR;
+            return sd_r1;
+
+        default:
+            break;
+        }
+        break;
+
+    case 23:    /* CMD23: SET_BLOCK_COUNT */
+        switch (sd->state) {
+        case sd_transfer_state:
+            sd->multi_blk_cnt = req.arg;
             return sd_r1;
 
         default:
@@ -1594,6 +1614,14 @@ void sd_write_data(SDState *sd, uint8_t value)
             sd->csd[14] |= 0x40;
 
             /* Bzzzzzzztt .... Operation complete.  */
+            if (sd->multi_blk_cnt != 0) {
+                if (--sd->multi_blk_cnt == 0) {
+                    /* Stop! */
+                    sd->state = sd_transfer_state;
+                    break;
+                }
+            }
+
             sd->state = sd_receivingdata_state;
         }
         break;
@@ -1740,6 +1768,15 @@ uint8_t sd_read_data(SDState *sd)
         if (sd->data_offset >= io_len) {
             sd->data_start += io_len;
             sd->data_offset = 0;
+
+            if (sd->multi_blk_cnt != 0) {
+                if (--sd->multi_blk_cnt == 0) {
+                    /* Stop! */
+                    sd->state = sd_transfer_state;
+                    break;
+                }
+            }
+
             if (sd->data_start + io_len > sd->size) {
                 sd->card_status |= ADDRESS_ERROR;
                 break;
