@@ -84,6 +84,13 @@ F: include/exec/exec-all.h
 F: include/exec/helper*.h
 F: include/exec/tb-hash.h
 
+FPU emulation
+M: Aurelien Jarno <aurelien@aurel32.net>
+M: Peter Maydell <peter.maydell@linaro.org>
+S: Odd Fixes
+F: fpu/
+F: include/fpu/
+
 Alpha
 M: Richard Henderson <rth@twiddle.net>
 S: Maintained
