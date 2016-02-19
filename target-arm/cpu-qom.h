@@ -150,6 +150,7 @@ typedef struct ARMCPU {
     uint32_t id_mmfr1;
     uint32_t id_mmfr2;
     uint32_t id_mmfr3;
+    uint32_t id_mmfr4;
     uint32_t id_isar0;
     uint32_t id_isar1;
     uint32_t id_isar2;
