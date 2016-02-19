@@ -84,13 +84,6 @@ extern int daemon(int, int);
 
 #include "qapi/error.h"
 
-#if defined(CONFIG_SOLARIS) && CONFIG_SOLARIS_VERSION < 10
-/* [u]int_fast*_t not in <sys/int_types.h> */
-typedef unsigned char           uint_fast8_t;
-typedef unsigned int            uint_fast16_t;
-typedef signed int              int_fast16_t;
-#endif
-
 #ifndef O_LARGEFILE
 #define O_LARGEFILE 0
 #endif
