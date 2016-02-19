@@ -610,6 +610,10 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
             qdict_put(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, qstring_from_str("on"));
         }
 
+        if (runstate_check(RUN_STATE_INMIGRATE)) {
+            bdrv_flags |= BDRV_O_INACTIVE;
+        }
+
         blk = blk_new_open(qemu_opts_id(opts), file, NULL, bs_opts, bdrv_flags,
                            errp);
         if (!blk) {
@@ -686,6 +690,10 @@ static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
     if (local_error) {
         error_propagate(errp, local_error);
         goto fail;
+    }
+
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        bdrv_flags |= BDRV_O_INACTIVE;
     }
 
     bs = NULL;
