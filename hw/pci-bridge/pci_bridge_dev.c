@@ -53,10 +53,8 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
     PCIBridgeDev *bridge_dev = PCI_BRIDGE_DEV(dev);
     int err;
 
-    err = pci_bridge_initfn(dev, TYPE_PCI_BUS);
-    if (err) {
-        goto bridge_error;
-    }
+    pci_bridge_initfn(dev, TYPE_PCI_BUS);
+
     if (bridge_dev->flags & (1 << PCI_BRIDGE_DEV_F_SHPC_REQ)) {
         dev->config[PCI_INTERRUPT_PIN] = 0x1;
         memory_region_init(&bridge_dev->bar, OBJECT(dev), "shpc-bar",
@@ -95,7 +93,7 @@ slotid_error:
     }
 shpc_error:
     pci_bridge_exitfn(dev);
-bridge_error:
+
     return err;
 }
 

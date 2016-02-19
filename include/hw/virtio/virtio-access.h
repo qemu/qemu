@@ -19,27 +19,14 @@
 
 static inline bool virtio_access_is_big_endian(VirtIODevice *vdev)
 {
+#if defined(TARGET_IS_BIENDIAN)
+    return virtio_is_big_endian(vdev);
+#elif defined(TARGET_WORDS_BIGENDIAN)
     if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
         /* Devices conforming to VIRTIO 1.0 or later are always LE. */
         return false;
     }
-#if defined(TARGET_IS_BIENDIAN)
-    return virtio_is_big_endian(vdev);
-#elif defined(TARGET_WORDS_BIGENDIAN)
     return true;
-#else
-    return false;
-#endif
-}
-
-static inline bool virtio_legacy_is_cross_endian(VirtIODevice *vdev)
-{
-#ifdef TARGET_IS_BIENDIAN
-#ifdef HOST_WORDS_BIGENDIAN
-    return !virtio_is_big_endian(vdev);
-#else
-    return virtio_is_big_endian(vdev);
-#endif
 #else
     return false;
 #endif
@@ -141,15 +128,6 @@ static inline uint64_t virtio_ldq_p(VirtIODevice *vdev, const void *ptr)
     } else {
         return ldq_le_p(ptr);
     }
-}
-
-static inline bool virtio_needs_swap(VirtIODevice *vdev)
-{
-#ifdef HOST_WORDS_BIGENDIAN
-    return virtio_access_is_big_endian(vdev) ? false : true;
-#else
-    return virtio_access_is_big_endian(vdev) ? true : false;
-#endif
 }
 
 static inline uint16_t virtio_tswap16(VirtIODevice *vdev, uint16_t s)

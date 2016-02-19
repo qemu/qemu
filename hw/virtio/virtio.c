@@ -1677,6 +1677,7 @@ void virtio_init(VirtIODevice *vdev, const char *name,
     vdev->vmstate = qemu_add_vm_change_state_handler(virtio_vmstate_change,
                                                      vdev);
     vdev->device_endian = virtio_default_endian();
+    vdev->use_guest_notifier_mask = true;
 }
 
 hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n)

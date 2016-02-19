@@ -37,6 +37,7 @@
 #include <sys/eventfd.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <qemu/osdep.h>
 
 #include <linux/vhost.h>
 
@@ -176,6 +177,8 @@ typedef struct VubrVirtq {
 
 #define VHOST_MEMORY_MAX_NREGIONS    8
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
+/* v1.0 compliant. */
+#define VIRTIO_F_VERSION_1		32
 
 #define VHOST_LOG_PAGE 4096
 
@@ -284,6 +287,7 @@ typedef struct VubrDev {
     struct sockaddr_in backend_udp_dest;
     int ready;
     uint64_t features;
+    int hdrlen;
 } VubrDev;
 
 static const char *vubr_request_str[] = {
@@ -474,7 +478,8 @@ vubr_backend_udp_recvbuf(VubrDev *dev, uint8_t *buf, size_t buflen)
 static void
 vubr_consume_raw_packet(VubrDev *dev, uint8_t *buf, uint32_t len)
 {
-    int hdrlen = sizeof(struct virtio_net_hdr_v1);
+    int hdrlen = dev->hdrlen;
+    DPRINT("    hdrlen = %d\n", dev->hdrlen);
 
     if (VHOST_USER_BRIDGE_DEBUG) {
         print_buffer(buf, len);
@@ -536,6 +541,7 @@ vubr_post_buffer(VubrDev *dev, VubrVirtq *vq, uint8_t *buf, int32_t len)
     struct vring_avail *avail = vq->avail;
     struct vring_used *used = vq->used;
     uint64_t log_guest_addr = vq->log_guest_addr;
+    int32_t remaining_len = len;
 
     unsigned int size = vq->size;
 
@@ -550,36 +556,49 @@ vubr_post_buffer(VubrDev *dev, VubrVirtq *vq, uint8_t *buf, int32_t len)
     uint16_t d_index = avail->ring[a_index];
 
     int i = d_index;
+    uint32_t written_len = 0;
 
-    DPRINT("Post packet to guest on vq:\n");
-    DPRINT("    size             = %d\n", vq->size);
-    DPRINT("    last_avail_index = %d\n", vq->last_avail_index);
-    DPRINT("    last_used_index  = %d\n", vq->last_used_index);
-    DPRINT("    a_index = %d\n", a_index);
-    DPRINT("    u_index = %d\n", u_index);
-    DPRINT("    d_index = %d\n", d_index);
-    DPRINT("    desc[%d].addr    = 0x%016"PRIx64"\n", i, desc[i].addr);
-    DPRINT("    desc[%d].len     = %d\n", i, desc[i].len);
-    DPRINT("    desc[%d].flags   = %d\n", i, desc[i].flags);
-    DPRINT("    avail->idx = %d\n", avail_index);
-    DPRINT("    used->idx  = %d\n", used->idx);
+    do {
+        DPRINT("Post packet to guest on vq:\n");
+        DPRINT("    size             = %d\n", vq->size);
+        DPRINT("    last_avail_index = %d\n", vq->last_avail_index);
+        DPRINT("    last_used_index  = %d\n", vq->last_used_index);
+        DPRINT("    a_index = %d\n", a_index);
+        DPRINT("    u_index = %d\n", u_index);
+        DPRINT("    d_index = %d\n", d_index);
+        DPRINT("    desc[%d].addr    = 0x%016"PRIx64"\n", i, desc[i].addr);
+        DPRINT("    desc[%d].len     = %d\n", i, desc[i].len);
+        DPRINT("    desc[%d].flags   = %d\n", i, desc[i].flags);
+        DPRINT("    avail->idx = %d\n", avail_index);
+        DPRINT("    used->idx  = %d\n", used->idx);
 
-    if (!(desc[i].flags & VRING_DESC_F_WRITE)) {
-        /* FIXME: we should find writable descriptor. */
-        fprintf(stderr, "Error: descriptor is not writable. Exiting.\n");
-        exit(1);
-    }
+        if (!(desc[i].flags & VRING_DESC_F_WRITE)) {
+            /* FIXME: we should find writable descriptor. */
+            fprintf(stderr, "Error: descriptor is not writable. Exiting.\n");
+            exit(1);
+        }
 
-    void *chunk_start = (void *)gpa_to_va(dev, desc[i].addr);
-    uint32_t chunk_len = desc[i].len;
+        void *chunk_start = (void *)gpa_to_va(dev, desc[i].addr);
+        uint32_t chunk_len = desc[i].len;
+        uint32_t chunk_write_len = MIN(remaining_len, chunk_len);
 
-    if (len <= chunk_len) {
-        memcpy(chunk_start, buf, len);
-        vubr_log_write(dev, desc[i].addr, len);
-    } else {
-        fprintf(stderr,
-                "Received too long packet from the backend. Dropping...\n");
-        return;
+        memcpy(chunk_start, buf + written_len, chunk_write_len);
+        vubr_log_write(dev, desc[i].addr, chunk_write_len);
+        remaining_len -= chunk_write_len;
+        written_len += chunk_write_len;
+
+        if ((remaining_len == 0) || !(desc[i].flags & VRING_DESC_F_NEXT)) {
+            break;
+        }
+
+        i = desc[i].next;
+    } while (1);
+
+    if (remaining_len > 0) {
+            fprintf(stderr,
+                    "Too long packet for RX, remaining_len = %d, Dropping...\n",
+                    remaining_len);
+            return;
     }
 
     /* Add descriptor to the used ring. */
@@ -687,7 +706,7 @@ vubr_backend_recv_cb(int sock, void *ctx)
     VubrVirtq *rx_vq = &dev->vq[0];
     uint8_t buf[4096];
     struct virtio_net_hdr_v1 *hdr = (struct virtio_net_hdr_v1 *)buf;
-    int hdrlen = sizeof(struct virtio_net_hdr_v1);
+    int hdrlen = dev->hdrlen;
     int buflen = sizeof(buf);
     int len;
 
@@ -696,6 +715,7 @@ vubr_backend_recv_cb(int sock, void *ctx)
     }
 
     DPRINT("\n\n   ***   IN UDP RECEIVE CALLBACK    ***\n\n");
+    DPRINT("    hdrlen = %d\n", hdrlen);
 
     uint16_t avail_index = atomic_mb_read(&rx_vq->avail->idx);
 
@@ -707,10 +727,12 @@ vubr_backend_recv_cb(int sock, void *ctx)
         return;
     }
 
+    memset(buf, 0, hdrlen);
+    /* TODO: support mergeable buffers. */
+    if (hdrlen == 12)
+        hdr->num_buffers = 1;
     len = vubr_backend_udp_recvbuf(dev, buf + hdrlen, buflen - hdrlen);
 
-    *hdr = (struct virtio_net_hdr_v1) { };
-    hdr->num_buffers = 1;
     vubr_post_buffer(dev, rx_vq, buf, len + hdrlen);
 }
 
@@ -758,7 +780,15 @@ static int
 vubr_set_features_exec(VubrDev *dev, VhostUserMsg *vmsg)
 {
     DPRINT("u64: 0x%016"PRIx64"\n", vmsg->payload.u64);
+
     dev->features = vmsg->payload.u64;
+    if ((dev->features & (1ULL << VIRTIO_F_VERSION_1)) ||
+        (dev->features & (1ULL << VIRTIO_NET_F_MRG_RXBUF))) {
+        dev->hdrlen = 12;
+    } else {
+        dev->hdrlen = 10;
+    }
+
     return 0;
 }
 

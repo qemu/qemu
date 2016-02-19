@@ -52,9 +52,9 @@ static int dec_map_irq(PCIDevice *pci_dev, int irq_num)
     return irq_num;
 }
 
-static int dec_pci_bridge_initfn(PCIDevice *pci_dev)
+static void dec_pci_bridge_realize(PCIDevice *pci_dev, Error **errp)
 {
-    return pci_bridge_initfn(pci_dev, TYPE_PCI_BUS);
+    pci_bridge_initfn(pci_dev, TYPE_PCI_BUS);
 }
 
 static void dec_21154_pci_bridge_class_init(ObjectClass *klass, void *data)
@@ -62,7 +62,7 @@ static void dec_21154_pci_bridge_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = dec_pci_bridge_initfn;
+    k->realize = dec_pci_bridge_realize;
     k->exit = pci_bridge_exitfn;
     k->vendor_id = PCI_VENDOR_ID_DEC;
     k->device_id = PCI_DEVICE_ID_DEC_21154;

@@ -94,6 +94,7 @@ typedef struct VirtIONet {
     uint64_t curr_guest_offloads;
     QEMUTimer *announce_timer;
     int announce_counter;
+    bool needs_vnet_hdr_swap;
 } VirtIONet;
 
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,

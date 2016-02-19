@@ -333,7 +333,7 @@ void pci_bridge_reset(DeviceState *qdev)
 }
 
 /* default qdev initialization function for PCI-to-PCI bridge */
-int pci_bridge_initfn(PCIDevice *dev, const char *typename)
+void pci_bridge_initfn(PCIDevice *dev, const char *typename)
 {
     PCIBus *parent = dev->bus;
     PCIBridge *br = PCI_BRIDGE(dev);
@@ -379,7 +379,6 @@ int pci_bridge_initfn(PCIDevice *dev, const char *typename)
     br->windows = pci_bridge_region_init(br);
     QLIST_INIT(&sec_bus->child);
     QLIST_INSERT_HEAD(&parent->child, sec_bus, sibling);
-    return 0;
 }
 
 /* default qdev clean up function for PCI-to-PCI bridge */

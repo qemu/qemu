@@ -90,6 +90,7 @@ struct VirtIODevice
     VMChangeStateEntry *vmstate;
     char *bus_name;
     uint8_t device_endian;
+    bool use_guest_notifier_mask;
     QLIST_HEAD(, VirtQueue) *vector_queues;
 };
 

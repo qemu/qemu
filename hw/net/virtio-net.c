@@ -129,6 +129,13 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
     if (!n->vhost_started) {
         int r, i;
 
+        if (n->needs_vnet_hdr_swap) {
+            error_report("backend does not support %s vnet headers; "
+                         "falling back on userspace virtio",
+                         virtio_is_big_endian(vdev) ? "BE" : "LE");
+            return;
+        }
+
         /* Any packets outstanding? Purge them to avoid touching rings
          * when vhost is running.
          */
@@ -153,6 +160,59 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
     }
 }
 
+static int virtio_net_set_vnet_endian_one(VirtIODevice *vdev,
+                                          NetClientState *peer,
+                                          bool enable)
+{
+    if (virtio_is_big_endian(vdev)) {
+        return qemu_set_vnet_be(peer, enable);
+    } else {
+        return qemu_set_vnet_le(peer, enable);
+    }
+}
+
+static bool virtio_net_set_vnet_endian(VirtIODevice *vdev, NetClientState *ncs,
+                                       int queues, bool enable)
+{
+    int i;
+
+    for (i = 0; i < queues; i++) {
+        if (virtio_net_set_vnet_endian_one(vdev, ncs[i].peer, enable) < 0 &&
+            enable) {
+            while (--i >= 0) {
+                virtio_net_set_vnet_endian_one(vdev, ncs[i].peer, false);
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void virtio_net_vnet_endian_status(VirtIONet *n, uint8_t status)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    int queues = n->multiqueue ? n->max_queues : 1;
+
+    if (virtio_net_started(n, status)) {
+        /* Before using the device, we tell the network backend about the
+         * endianness to use when parsing vnet headers. If the backend
+         * can't do it, we fallback onto fixing the headers in the core
+         * virtio-net code.
+         */
+        n->needs_vnet_hdr_swap = virtio_net_set_vnet_endian(vdev, n->nic->ncs,
+                                                            queues, true);
+    } else if (virtio_net_started(n, vdev->status)) {
+        /* After using the device, we need to reset the network backend to
+         * the default (guest native endianness), otherwise the guest may
+         * lose network connectivity if it is rebooted into a different
+         * endianness.
+         */
+        virtio_net_set_vnet_endian(vdev, n->nic->ncs, queues, false);
+    }
+}
+
 static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
@@ -160,6 +220,7 @@ static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
     int i;
     uint8_t queue_status;
 
+    virtio_net_vnet_endian_status(n, status);
     virtio_net_vhost_status(n, status);
 
     for (i = 0; i < n->max_queues; i++) {
@@ -963,7 +1024,10 @@ static void receive_header(VirtIONet *n, const struct iovec *iov, int iov_cnt,
         void *wbuf = (void *)buf;
         work_around_broken_dhclient(wbuf, wbuf + n->host_hdr_len,
                                     size - n->host_hdr_len);
-        virtio_net_hdr_swap(VIRTIO_DEVICE(n), wbuf);
+
+        if (n->needs_vnet_hdr_swap) {
+            virtio_net_hdr_swap(VIRTIO_DEVICE(n), wbuf);
+        }
         iov_from_buf(iov, iov_cnt, 0, buf, sizeof(struct virtio_net_hdr));
     } else {
         struct virtio_net_hdr hdr = {
@@ -1184,7 +1248,7 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
                 error_report("virtio-net header incorrect");
                 exit(1);
             }
-            if (virtio_needs_swap(vdev)) {
+            if (n->needs_vnet_hdr_swap) {
                 virtio_net_hdr_swap(vdev, (void *) &mhdr);
                 sg2[0].iov_base = &mhdr;
                 sg2[0].iov_len = n->guest_hdr_len;

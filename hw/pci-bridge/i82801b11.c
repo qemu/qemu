@@ -62,10 +62,7 @@ static int i82801b11_bridge_initfn(PCIDevice *d)
 {
     int rc;
 
-    rc = pci_bridge_initfn(d, TYPE_PCI_BUS);
-    if (rc < 0) {
-        return rc;
-    }
+    pci_bridge_initfn(d, TYPE_PCI_BUS);
 
     rc = pci_bridge_ssvid_init(d, I82801ba_SSVID_OFFSET,
                                I82801ba_SSVID_SVID, I82801ba_SSVID_SSID);

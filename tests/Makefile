@@ -173,6 +173,7 @@ check-qtest-i386-y += tests/hd-geo-test$(EXESUF)
 gcov-files-i386-y += hw/block/hd-geometry.c
 check-qtest-i386-y += tests/boot-order-test$(EXESUF)
 check-qtest-i386-y += tests/bios-tables-test$(EXESUF)
+check-qtest-i386-y += tests/pxe-test$(EXESUF)
 check-qtest-i386-y += tests/rtc-test$(EXESUF)
 check-qtest-i386-y += tests/ipmi-kcs-test$(EXESUF)
 check-qtest-i386-y += tests/ipmi-bt-test$(EXESUF)
@@ -518,7 +519,9 @@ tests/ipmi-kcs-test$(EXESUF): tests/ipmi-kcs-test.o
 tests/ipmi-bt-test$(EXESUF): tests/ipmi-bt-test.o
 tests/hd-geo-test$(EXESUF): tests/hd-geo-test.o
 tests/boot-order-test$(EXESUF): tests/boot-order-test.o $(libqos-obj-y)
-tests/bios-tables-test$(EXESUF): tests/bios-tables-test.o $(libqos-obj-y)
+tests/bios-tables-test$(EXESUF): tests/bios-tables-test.o \
+	tests/boot-sector.o $(libqos-obj-y)
+tests/pxe-test$(EXESUF): tests/pxe-test.o tests/boot-sector.o $(libqos-obj-y)
 tests/tmp105-test$(EXESUF): tests/tmp105-test.o $(libqos-omap-obj-y)
 tests/ds1338-test$(EXESUF): tests/ds1338-test.o $(libqos-imx-obj-y)
 tests/i440fx-test$(EXESUF): tests/i440fx-test.o $(libqos-pc-obj-y)

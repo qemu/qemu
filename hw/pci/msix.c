@@ -80,10 +80,10 @@ static void msix_clr_pending(PCIDevice *dev, int vector)
 static bool msix_vector_masked(PCIDevice *dev, unsigned int vector, bool fmask)
 {
     unsigned offset = vector * PCI_MSIX_ENTRY_SIZE;
-    uint32_t *data = (uint32_t *)&dev->msix_table[offset + PCI_MSIX_ENTRY_DATA];
+    uint8_t *data = &dev->msix_table[offset + PCI_MSIX_ENTRY_DATA];
     /* MSIs on Xen can be remapped into pirqs. In those cases, masking
      * and unmasking go through the PV evtchn path. */
-    if (xen_is_pirq_msi(*data)) {
+    if (xen_enabled() && xen_is_pirq_msi(pci_get_long(data))) {
         return false;
     }
     return fmask || dev->msix_table[offset + PCI_MSIX_ENTRY_VECTOR_CTRL] &
