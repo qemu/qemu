@@ -1505,7 +1505,8 @@ static void vfio_unmap_bars(VFIOPCIDevice *vdev)
  */
 static uint8_t vfio_std_cap_max_size(PCIDevice *pdev, uint8_t pos)
 {
-    uint8_t tmp, next = 0xff;
+    uint8_t tmp;
+    uint16_t next = PCI_CONFIG_SPACE_SIZE;
 
     for (tmp = pdev->config[PCI_CAPABILITY_LIST]; tmp;
          tmp = pdev->config[tmp + 1]) {
