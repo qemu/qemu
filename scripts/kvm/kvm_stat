@@ -796,11 +796,12 @@ def check_access(options):
         sys.stderr.write("Please enable CONFIG_TRACING in your kernel "
                          "when using the option -t (default).\n"
                          "If it is enabled, make {0} readable by the "
-                         "current user.\n")
+                         "current user.\n"
+                         .format(PATH_DEBUGFS_TRACING))
         if options.tracepoints:
             sys.exit(1)
 
-        sys.stderr.write("Falling back to debugfs statistics!\n"
+        sys.stderr.write("Falling back to debugfs statistics!\n")
         options.debugfs = True
         sleep(5)
 
