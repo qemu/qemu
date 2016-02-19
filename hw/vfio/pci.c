@@ -1207,7 +1207,7 @@ static int vfio_msix_early_setup(VFIOPCIDevice *vdev)
     }
 
     if (pread(fd, &ctrl, sizeof(ctrl),
-              vdev->config_offset + pos + PCI_CAP_FLAGS) != sizeof(ctrl)) {
+              vdev->config_offset + pos + PCI_MSIX_FLAGS) != sizeof(ctrl)) {
         return -errno;
     }
 
@@ -1505,10 +1505,11 @@ static void vfio_unmap_bars(VFIOPCIDevice *vdev)
  */
 static uint8_t vfio_std_cap_max_size(PCIDevice *pdev, uint8_t pos)
 {
-    uint8_t tmp, next = 0xff;
+    uint8_t tmp;
+    uint16_t next = PCI_CONFIG_SPACE_SIZE;
 
     for (tmp = pdev->config[PCI_CAPABILITY_LIST]; tmp;
-         tmp = pdev->config[tmp + 1]) {
+         tmp = pdev->config[tmp + PCI_CAP_LIST_NEXT]) {
         if (tmp > pos && tmp < next) {
             next = tmp;
         }
@@ -1697,7 +1698,7 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos)
     int ret;
 
     cap_id = pdev->config[pos];
-    next = pdev->config[pos + 1];
+    next = pdev->config[pos + PCI_CAP_LIST_NEXT];
 
     /*
      * If it becomes important to configure capabilities to their actual
@@ -1711,7 +1712,7 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos)
      * pci_add_capability always inserts the new capability at the head
      * of the chain.  Therefore to end up with a chain that matches the
      * physical device, we insert from the end by making this recursive.
-     * This is also why we pre-caclulate size above as cached config space
+     * This is also why we pre-calculate size above as cached config space
      * will be changed as we unwind the stack.
      */
     if (next) {
@@ -1727,7 +1728,7 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos)
     }
 
     /* Use emulated next pointer to allow dropping caps */
-    pci_set_byte(vdev->emulated_config_bits + pos + 1, 0xff);
+    pci_set_byte(vdev->emulated_config_bits + pos + PCI_CAP_LIST_NEXT, 0xff);
 
     switch (cap_id) {
     case PCI_CAP_ID_MSI:
