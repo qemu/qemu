@@ -118,7 +118,7 @@ static inline uint32_t extractFloat16Frac(float16 a)
 | Returns the exponent bits of the half-precision floating-point value `a'.
 *----------------------------------------------------------------------------*/
 
-static inline int_fast16_t extractFloat16Exp(float16 a)
+static inline int extractFloat16Exp(float16 a)
 {
     return (float16_val(a) >> 10) & 0x1f;
 }
@@ -314,7 +314,7 @@ static inline uint32_t extractFloat32Frac( float32 a )
 | Returns the exponent bits of the single-precision floating-point value `a'.
 *----------------------------------------------------------------------------*/
 
-static inline int_fast16_t extractFloat32Exp(float32 a)
+static inline int extractFloat32Exp(float32 a)
 {
 
     return ( float32_val(a)>>23 ) & 0xFF;
@@ -355,7 +355,7 @@ float32 float32_squash_input_denormal(float32 a, float_status *status)
 *----------------------------------------------------------------------------*/
 
 static void
- normalizeFloat32Subnormal(uint32_t aSig, int_fast16_t *zExpPtr, uint32_t *zSigPtr)
+ normalizeFloat32Subnormal(uint32_t aSig, int *zExpPtr, uint32_t *zSigPtr)
 {
     int8_t shiftCount;
 
@@ -376,7 +376,7 @@ static void
 | significand.
 *----------------------------------------------------------------------------*/
 
-static inline float32 packFloat32(flag zSign, int_fast16_t zExp, uint32_t zSig)
+static inline float32 packFloat32(flag zSign, int zExp, uint32_t zSig)
 {
 
     return make_float32(
@@ -406,7 +406,7 @@ static inline float32 packFloat32(flag zSign, int_fast16_t zExp, uint32_t zSig)
 | Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float32 roundAndPackFloat32(flag zSign, int_fast16_t zExp, uint32_t zSig,
+static float32 roundAndPackFloat32(flag zSign, int zExp, uint32_t zSig,
                                    float_status *status)
 {
     int8_t roundingMode;
@@ -481,7 +481,7 @@ static float32 roundAndPackFloat32(flag zSign, int_fast16_t zExp, uint32_t zSig,
 *----------------------------------------------------------------------------*/
 
 static float32
- normalizeRoundAndPackFloat32(flag zSign, int_fast16_t zExp, uint32_t zSig,
+ normalizeRoundAndPackFloat32(flag zSign, int zExp, uint32_t zSig,
                               float_status *status)
 {
     int8_t shiftCount;
@@ -507,7 +507,7 @@ static inline uint64_t extractFloat64Frac( float64 a )
 | Returns the exponent bits of the double-precision floating-point value `a'.
 *----------------------------------------------------------------------------*/
 
-static inline int_fast16_t extractFloat64Exp(float64 a)
+static inline int extractFloat64Exp(float64 a)
 {
 
     return ( float64_val(a)>>52 ) & 0x7FF;
@@ -548,7 +548,7 @@ float64 float64_squash_input_denormal(float64 a, float_status *status)
 *----------------------------------------------------------------------------*/
 
 static void
- normalizeFloat64Subnormal(uint64_t aSig, int_fast16_t *zExpPtr, uint64_t *zSigPtr)
+ normalizeFloat64Subnormal(uint64_t aSig, int *zExpPtr, uint64_t *zSigPtr)
 {
     int8_t shiftCount;
 
@@ -569,7 +569,7 @@ static void
 | significand.
 *----------------------------------------------------------------------------*/
 
-static inline float64 packFloat64(flag zSign, int_fast16_t zExp, uint64_t zSig)
+static inline float64 packFloat64(flag zSign, int zExp, uint64_t zSig)
 {
 
     return make_float64(
@@ -599,12 +599,12 @@ static inline float64 packFloat64(flag zSign, int_fast16_t zExp, uint64_t zSig)
 | Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float64 roundAndPackFloat64(flag zSign, int_fast16_t zExp, uint64_t zSig,
+static float64 roundAndPackFloat64(flag zSign, int zExp, uint64_t zSig,
                                    float_status *status)
 {
     int8_t roundingMode;
     flag roundNearestEven;
-    int_fast16_t roundIncrement, roundBits;
+    int roundIncrement, roundBits;
     flag isTiny;
 
     roundingMode = status->float_rounding_mode;
@@ -673,7 +673,7 @@ static float64 roundAndPackFloat64(flag zSign, int_fast16_t zExp, uint64_t zSig,
 *----------------------------------------------------------------------------*/
 
 static float64
- normalizeRoundAndPackFloat64(flag zSign, int_fast16_t zExp, uint64_t zSig,
+ normalizeRoundAndPackFloat64(flag zSign, int zExp, uint64_t zSig,
                               float_status *status)
 {
     int8_t shiftCount;
@@ -1543,7 +1543,7 @@ float128 uint64_to_float128(uint64_t a, float_status *status)
 int32_t float32_to_int32(float32 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     int shiftCount;
     uint32_t aSig;
     uint64_t aSig64;
@@ -1575,7 +1575,7 @@ int32_t float32_to_int32(float32 a, float_status *status)
 int32_t float32_to_int32_round_to_zero(float32 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     int shiftCount;
     uint32_t aSig;
     int32_t z;
@@ -1621,7 +1621,7 @@ int32_t float32_to_int32_round_to_zero(float32 a, float_status *status)
 int16_t float32_to_int16_round_to_zero(float32 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     int shiftCount;
     uint32_t aSig;
     int32_t z;
@@ -1671,7 +1671,7 @@ int16_t float32_to_int16_round_to_zero(float32 a, float_status *status)
 int64_t float32_to_int64(float32 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     int shiftCount;
     uint32_t aSig;
     uint64_t aSig64, aSigExtra;
@@ -1711,7 +1711,7 @@ int64_t float32_to_int64(float32 a, float_status *status)
 uint64_t float32_to_uint64(float32 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     int shiftCount;
     uint32_t aSig;
     uint64_t aSig64, aSigExtra;
@@ -1776,7 +1776,7 @@ uint64_t float32_to_uint64_round_to_zero(float32 a, float_status *status)
 int64_t float32_to_int64_round_to_zero(float32 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     int shiftCount;
     uint32_t aSig;
     uint64_t aSig64;
@@ -1823,7 +1823,7 @@ int64_t float32_to_int64_round_to_zero(float32 a, float_status *status)
 float64 float32_to_float64(float32 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     uint32_t aSig;
     a = float32_squash_input_denormal(a, status);
 
@@ -1855,7 +1855,7 @@ float64 float32_to_float64(float32 a, float_status *status)
 floatx80 float32_to_floatx80(float32 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     uint32_t aSig;
 
     a = float32_squash_input_denormal(a, status);
@@ -1887,7 +1887,7 @@ floatx80 float32_to_floatx80(float32 a, float_status *status)
 float128 float32_to_float128(float32 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     uint32_t aSig;
 
     a = float32_squash_input_denormal(a, status);
@@ -1919,7 +1919,7 @@ float128 float32_to_float128(float32 a, float_status *status)
 float32 float32_round_to_int(float32 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     uint32_t lastBitMask, roundBitsMask;
     uint32_t z;
     a = float32_squash_input_denormal(a, status);
@@ -2001,9 +2001,9 @@ float32 float32_round_to_int(float32 a, float_status *status)
 static float32 addFloat32Sigs(float32 a, float32 b, flag zSign,
                               float_status *status)
 {
-    int_fast16_t aExp, bExp, zExp;
+    int aExp, bExp, zExp;
     uint32_t aSig, bSig, zSig;
-    int_fast16_t expDiff;
+    int expDiff;
 
     aSig = extractFloat32Frac( a );
     aExp = extractFloat32Exp( a );
@@ -2087,9 +2087,9 @@ static float32 addFloat32Sigs(float32 a, float32 b, flag zSign,
 static float32 subFloat32Sigs(float32 a, float32 b, flag zSign,
                               float_status *status)
 {
-    int_fast16_t aExp, bExp, zExp;
+    int aExp, bExp, zExp;
     uint32_t aSig, bSig, zSig;
-    int_fast16_t expDiff;
+    int expDiff;
 
     aSig = extractFloat32Frac( a );
     aExp = extractFloat32Exp( a );
@@ -2213,7 +2213,7 @@ float32 float32_sub(float32 a, float32 b, float_status *status)
 float32 float32_mul(float32 a, float32 b, float_status *status)
 {
     flag aSign, bSign, zSign;
-    int_fast16_t aExp, bExp, zExp;
+    int aExp, bExp, zExp;
     uint32_t aSig, bSig;
     uint64_t zSig64;
     uint32_t zSig;
@@ -2278,7 +2278,7 @@ float32 float32_mul(float32 a, float32 b, float_status *status)
 float32 float32_div(float32 a, float32 b, float_status *status)
 {
     flag aSign, bSign, zSign;
-    int_fast16_t aExp, bExp, zExp;
+    int aExp, bExp, zExp;
     uint32_t aSig, bSig, zSig;
     a = float32_squash_input_denormal(a, status);
     b = float32_squash_input_denormal(b, status);
@@ -2348,7 +2348,7 @@ float32 float32_div(float32 a, float32 b, float_status *status)
 float32 float32_rem(float32 a, float32 b, float_status *status)
 {
     flag aSign, zSign;
-    int_fast16_t aExp, bExp, expDiff;
+    int aExp, bExp, expDiff;
     uint32_t aSig, bSig;
     uint32_t q;
     uint64_t aSig64, bSig64, q64;
@@ -2456,7 +2456,7 @@ float32 float32_muladd(float32 a, float32 b, float32 c, int flags,
                        float_status *status)
 {
     flag aSign, bSign, cSign, zSign;
-    int_fast16_t aExp, bExp, cExp, pExp, zExp, expDiff;
+    int aExp, bExp, cExp, pExp, zExp, expDiff;
     uint32_t aSig, bSig, cSig;
     flag pInf, pZero, pSign;
     uint64_t pSig64, cSig64, zSig64;
@@ -2676,7 +2676,7 @@ float32 float32_muladd(float32 a, float32 b, float32 c, int flags,
 float32 float32_sqrt(float32 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp, zExp;
+    int aExp, zExp;
     uint32_t aSig, zSig;
     uint64_t rem, term;
     a = float32_squash_input_denormal(a, status);
@@ -2764,7 +2764,7 @@ static const float64 float32_exp2_coefficients[15] =
 float32 float32_exp2(float32 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     uint32_t aSig;
     float64 r, x, xn;
     int i;
@@ -2814,7 +2814,7 @@ float32 float32_exp2(float32 a, float_status *status)
 float32 float32_log2(float32 a, float_status *status)
 {
     flag aSign, zSign;
-    int_fast16_t aExp;
+    int aExp;
     uint32_t aSig, zSig, i;
 
     a = float32_squash_input_denormal(a, status);
@@ -3081,7 +3081,7 @@ int float32_unordered_quiet(float32 a, float32 b, float_status *status)
 int32_t float64_to_int32(float64 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     int shiftCount;
     uint64_t aSig;
     a = float64_squash_input_denormal(a, status);
@@ -3110,7 +3110,7 @@ int32_t float64_to_int32(float64 a, float_status *status)
 int32_t float64_to_int32_round_to_zero(float64 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     int shiftCount;
     uint64_t aSig, savedASig;
     int32_t z;
@@ -3160,7 +3160,7 @@ int32_t float64_to_int32_round_to_zero(float64 a, float_status *status)
 int16_t float64_to_int16_round_to_zero(float64 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     int shiftCount;
     uint64_t aSig, savedASig;
     int32_t z;
@@ -3212,7 +3212,7 @@ int16_t float64_to_int16_round_to_zero(float64 a, float_status *status)
 int64_t float64_to_int64(float64 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     int shiftCount;
     uint64_t aSig, aSigExtra;
     a = float64_squash_input_denormal(a, status);
@@ -3256,7 +3256,7 @@ int64_t float64_to_int64(float64 a, float_status *status)
 int64_t float64_to_int64_round_to_zero(float64 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     int shiftCount;
     uint64_t aSig;
     int64_t z;
@@ -3309,7 +3309,7 @@ int64_t float64_to_int64_round_to_zero(float64 a, float_status *status)
 float32 float64_to_float32(float64 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     uint64_t aSig;
     uint32_t zSig;
     a = float64_squash_input_denormal(a, status);
@@ -3344,7 +3344,7 @@ float32 float64_to_float32(float64 a, float_status *status)
 | than the desired result exponent whenever `zSig' is a complete, normalized
 | significand.
 *----------------------------------------------------------------------------*/
-static float16 packFloat16(flag zSign, int_fast16_t zExp, uint16_t zSig)
+static float16 packFloat16(flag zSign, int zExp, uint16_t zSig)
 {
     return make_float16(
         (((uint32_t)zSign) << 15) + (((uint32_t)zExp) << 10) + zSig);
@@ -3378,7 +3378,7 @@ static float16 packFloat16(flag zSign, int_fast16_t zExp, uint16_t zSig)
 | Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float16 roundAndPackFloat16(flag zSign, int_fast16_t zExp,
+static float16 roundAndPackFloat16(flag zSign, int zExp,
                                    uint32_t zSig, flag ieee,
                                    float_status *status)
 {
@@ -3465,7 +3465,7 @@ static float16 roundAndPackFloat16(flag zSign, int_fast16_t zExp,
     return packFloat16(zSign, zExp, zSig >> 13);
 }
 
-static void normalizeFloat16Subnormal(uint32_t aSig, int_fast16_t *zExpPtr,
+static void normalizeFloat16Subnormal(uint32_t aSig, int *zExpPtr,
                                       uint32_t *zSigPtr)
 {
     int8_t shiftCount = countLeadingZeros32(aSig) - 21;
@@ -3479,7 +3479,7 @@ static void normalizeFloat16Subnormal(uint32_t aSig, int_fast16_t *zExpPtr,
 float32 float16_to_float32(float16 a, flag ieee, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     uint32_t aSig;
 
     aSign = extractFloat16Sign(a);
@@ -3506,7 +3506,7 @@ float32 float16_to_float32(float16 a, flag ieee, float_status *status)
 float16 float32_to_float16(float32 a, flag ieee, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     uint32_t aSig;
 
     a = float32_squash_input_denormal(a, status);
@@ -3550,7 +3550,7 @@ float16 float32_to_float16(float32 a, flag ieee, float_status *status)
 float64 float16_to_float64(float16 a, flag ieee, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     uint32_t aSig;
 
     aSign = extractFloat16Sign(a);
@@ -3578,7 +3578,7 @@ float64 float16_to_float64(float16 a, flag ieee, float_status *status)
 float16 float64_to_float16(float64 a, flag ieee, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     uint64_t aSig;
     uint32_t zSig;
 
@@ -3632,7 +3632,7 @@ float16 float64_to_float16(float64 a, flag ieee, float_status *status)
 floatx80 float64_to_floatx80(float64 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     uint64_t aSig;
 
     a = float64_squash_input_denormal(a, status);
@@ -3665,7 +3665,7 @@ floatx80 float64_to_floatx80(float64 a, float_status *status)
 float128 float64_to_float128(float64 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     uint64_t aSig, zSig0, zSig1;
 
     a = float64_squash_input_denormal(a, status);
@@ -3698,7 +3698,7 @@ float128 float64_to_float128(float64 a, float_status *status)
 float64 float64_round_to_int(float64 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     uint64_t lastBitMask, roundBitsMask;
     uint64_t z;
     a = float64_squash_input_denormal(a, status);
@@ -3792,9 +3792,9 @@ float64 float64_trunc_to_int(float64 a, float_status *status)
 static float64 addFloat64Sigs(float64 a, float64 b, flag zSign,
                               float_status *status)
 {
-    int_fast16_t aExp, bExp, zExp;
+    int aExp, bExp, zExp;
     uint64_t aSig, bSig, zSig;
-    int_fast16_t expDiff;
+    int expDiff;
 
     aSig = extractFloat64Frac( a );
     aExp = extractFloat64Exp( a );
@@ -3878,9 +3878,9 @@ static float64 addFloat64Sigs(float64 a, float64 b, flag zSign,
 static float64 subFloat64Sigs(float64 a, float64 b, flag zSign,
                               float_status *status)
 {
-    int_fast16_t aExp, bExp, zExp;
+    int aExp, bExp, zExp;
     uint64_t aSig, bSig, zSig;
-    int_fast16_t expDiff;
+    int expDiff;
 
     aSig = extractFloat64Frac( a );
     aExp = extractFloat64Exp( a );
@@ -4004,7 +4004,7 @@ float64 float64_sub(float64 a, float64 b, float_status *status)
 float64 float64_mul(float64 a, float64 b, float_status *status)
 {
     flag aSign, bSign, zSign;
-    int_fast16_t aExp, bExp, zExp;
+    int aExp, bExp, zExp;
     uint64_t aSig, bSig, zSig0, zSig1;
 
     a = float64_squash_input_denormal(a, status);
@@ -4067,7 +4067,7 @@ float64 float64_mul(float64 a, float64 b, float_status *status)
 float64 float64_div(float64 a, float64 b, float_status *status)
 {
     flag aSign, bSign, zSign;
-    int_fast16_t aExp, bExp, zExp;
+    int aExp, bExp, zExp;
     uint64_t aSig, bSig, zSig;
     uint64_t rem0, rem1;
     uint64_t term0, term1;
@@ -4145,7 +4145,7 @@ float64 float64_div(float64 a, float64 b, float_status *status)
 float64 float64_rem(float64 a, float64 b, float_status *status)
 {
     flag aSign, zSign;
-    int_fast16_t aExp, bExp, expDiff;
+    int aExp, bExp, expDiff;
     uint64_t aSig, bSig;
     uint64_t q, alternateASig;
     int64_t sigMean;
@@ -4239,7 +4239,7 @@ float64 float64_muladd(float64 a, float64 b, float64 c, int flags,
                        float_status *status)
 {
     flag aSign, bSign, cSign, zSign;
-    int_fast16_t aExp, bExp, cExp, pExp, zExp, expDiff;
+    int aExp, bExp, cExp, pExp, zExp, expDiff;
     uint64_t aSig, bSig, cSig;
     flag pInf, pZero, pSign;
     uint64_t pSig0, pSig1, cSig0, cSig1, zSig0, zSig1;
@@ -4480,7 +4480,7 @@ float64 float64_muladd(float64 a, float64 b, float64 c, int flags,
 float64 float64_sqrt(float64 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp, zExp;
+    int aExp, zExp;
     uint64_t aSig, zSig, doubleZSig;
     uint64_t rem0, rem1, term0, term1;
     a = float64_squash_input_denormal(a, status);
@@ -4533,7 +4533,7 @@ float64 float64_sqrt(float64 a, float_status *status)
 float64 float64_log2(float64 a, float_status *status)
 {
     flag aSign, zSign;
-    int_fast16_t aExp;
+    int aExp;
     uint64_t aSig, aSig0, aSig1, zSig, i;
     a = float64_squash_input_denormal(a, status);
 
@@ -5016,7 +5016,7 @@ float64 floatx80_to_float64(floatx80 a, float_status *status)
 float128 floatx80_to_float128(floatx80 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     uint64_t aSig, zSig0, zSig1;
 
     aSig = extractFloatx80Frac( a );
@@ -7295,7 +7295,7 @@ uint16_t float64_to_uint16_round_to_zero(float64 a, float_status *status)
 uint64_t float64_to_uint64(float64 a, float_status *status)
 {
     flag aSign;
-    int_fast16_t aExp;
+    int aExp;
     int shiftCount;
     uint64_t aSig, aSigExtra;
     a = float64_squash_input_denormal(a, status);
