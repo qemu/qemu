@@ -84,6 +84,15 @@ Selector Register address: Base + 8 (2 bytes)
 Data Register address:     Base + 0 (8 bytes)
 DMA Address address:       Base + 16 (8 bytes)
 
+== ACPI Interface ==
+
+The fw_cfg device is defined with ACPI ID "QEMU0002". Since we expect
+ACPI tables to be passed into the guest through the fw_cfg device itself,
+the guest-side firmware can not use ACPI to find fw_cfg. However, once the
+firmware is finished setting up ACPI tables and hands control over to the
+guest kernel, the latter can use the fw_cfg ACPI node for a more accurate
+inventory of in-use IOport or MMIO regions.
+
 == Firmware Configuration Items ==
 
 === Signature (Key 0x0000, FW_CFG_SIGNATURE) ===
