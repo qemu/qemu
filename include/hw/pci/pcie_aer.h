@@ -102,5 +102,6 @@ void pcie_aer_root_write_config(PCIDevice *dev,
 
 /* error injection */
 int pcie_aer_inject_error(PCIDevice *dev, const PCIEAERErr *err);
+void pcie_aer_msg(PCIDevice *dev, const PCIEAERMsg *msg);
 
 #endif /* QEMU_PCIE_AER_H */

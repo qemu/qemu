@@ -371,7 +371,7 @@ static void pcie_aer_msg_root_port(PCIDevice *dev, const PCIEAERMsg *msg)
  *
  * Walk up the bus tree from the device, propagate the error message.
  */
-static void pcie_aer_msg(PCIDevice *dev, const PCIEAERMsg *msg)
+void pcie_aer_msg(PCIDevice *dev, const PCIEAERMsg *msg)
 {
     uint8_t type;
 
