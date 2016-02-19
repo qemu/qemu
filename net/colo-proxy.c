@@ -28,6 +28,7 @@
 #include "slirp/slirp.h"
 #include "slirp/slirp_config.h"
 #include "slirp/ip.h"
+#include "sysemu/sysemu.h"
 #include "net/net.h"
 #include "qemu/error-report.h"
 #include "net/colo-proxy.h"
@@ -120,7 +121,7 @@ typedef struct COLOProxyState {
     ssize_t hashtable_size; /* proxy current hash size */
     QemuEvent need_compare_ev;  /* notify compare thread */
     QemuThread thread; /* compare thread, a thread for each NIC */
-
+    VMChangeStateEntry *change_state_handler;
 } COLOProxyState;
 
 typedef struct Packet {
@@ -312,6 +313,19 @@ static void colo_send_primary_packet(void *opaque, void *user_data)
                     (const uint8_t *)pkt->data, pkt->size, NULL);
 }
 
+static void proxy_state_change_handler(void *opaque, int running,
+                                       RunState state)
+{
+    COLOProxyState *s = opaque;
+    if (running) {
+        qemu_net_queue_flush(s->incoming_queue);
+    }
+}
+
+/* Note the net layer wont let this out until the VM starts, that needs
+ * to be fixed really; we've got a change state handler that kicks our
+ * queue.
+ */
 static void colo_flush_connection(void *opaque, void *user_data)
 {
     Connection *conn = opaque;
@@ -960,6 +974,7 @@ static void colo_proxy_cleanup(NetFilterState *nf)
     COLOProxyState *s = FILTER_COLO_PROXY(nf);
     close(s->sockfd);
     s->sockfd = -1;
+    qemu_del_vm_change_state_handler(s->change_state_handler);
     qemu_event_destroy(&s->need_compare_ev);
 }
 
@@ -1324,6 +1339,8 @@ static void colo_proxy_setup(NetFilterState *nf, Error **errp)
 
     hashtable_max_size = hashtable_max_size * factor;
     s->incoming_queue = qemu_new_net_queue(qemu_netfilter_pass_to_next, nf);
+    s->change_state_handler =
+        qemu_add_vm_change_state_handler(proxy_state_change_handler, s);
     colo_conn_hash = g_hash_table_new_full(connection_key_hash,
                                            connection_key_equal,
                                            g_free,
