@@ -70,34 +70,6 @@ Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,if=none,id=disk -device virti
     }
 }
 {
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "DEVICE_DELETED",
-    "data": {
-        "path": "/machine/peripheral/virtio0/virtio-backend"
-    }
-}
-{
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "DEVICE_DELETED",
-    "data": {
-        "device": "virtio0",
-        "path": "/machine/peripheral/virtio0"
-    }
-}
-{
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "RESET"
-}
-{
     "return": [
     ]
 }
@@ -105,14 +77,6 @@ Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,if=none,id=disk -device virti
     "return": {
     }
 }
-{
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "SHUTDOWN"
-}
-
 
 === -drive/device_add and device_del ===
 
@@ -186,34 +150,6 @@ Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,if=none,id=disk
     }
 }
 {
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "DEVICE_DELETED",
-    "data": {
-        "path": "/machine/peripheral/virtio0/virtio-backend"
-    }
-}
-{
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "DEVICE_DELETED",
-    "data": {
-        "device": "virtio0",
-        "path": "/machine/peripheral/virtio0"
-    }
-}
-{
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "RESET"
-}
-{
     "return": [
     ]
 }
@@ -221,14 +157,6 @@ Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,if=none,id=disk
     "return": {
     }
 }
-{
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "SHUTDOWN"
-}
-
 
 === drive_add/device_add and device_del ===
 
@@ -305,34 +233,6 @@ Testing:
     }
 }
 {
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "DEVICE_DELETED",
-    "data": {
-        "path": "/machine/peripheral/virtio0/virtio-backend"
-    }
-}
-{
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "DEVICE_DELETED",
-    "data": {
-        "device": "virtio0",
-        "path": "/machine/peripheral/virtio0"
-    }
-}
-{
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "RESET"
-}
-{
     "return": [
     ]
 }
@@ -340,14 +240,6 @@ Testing:
     "return": {
     }
 }
-{
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "SHUTDOWN"
-}
-
 
 === blockdev_add/device_add and device_del ===
 
@@ -425,34 +317,6 @@ Testing:
     }
 }
 {
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "DEVICE_DELETED",
-    "data": {
-        "path": "/machine/peripheral/virtio0/virtio-backend"
-    }
-}
-{
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "DEVICE_DELETED",
-    "data": {
-        "device": "virtio0",
-        "path": "/machine/peripheral/virtio0"
-    }
-}
-{
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "RESET"
-}
-{
     "return": [
         {
             "io-status": "ok",
@@ -506,12 +370,4 @@ Testing:
     "return": {
     }
 }
-{
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "SHUTDOWN"
-}
-
 *** done

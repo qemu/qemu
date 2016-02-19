@@ -45,11 +45,20 @@ function do_run_qemu()
     echo
 }
 
+# Remove QMP events from (pretty-printed) output. Doesn't handle
+# nested dicts correctly, but we don't get any of those in this test.
+_filter_qmp_events()
+{
+    tr '\n' '\t' | sed -e \
+	's/{\s*"timestamp":\s*{[^}]*},\s*"event":[^,}]*\(,\s*"data":\s*{[^}]*}\)\?\s*}\s*//g' \
+	| tr '\t' '\n'
+}
+
 function run_qemu()
 {
     do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp | _filter_qemu \
                           | sed -e 's/\("actual-size":\s*\)[0-9]\+/\1SIZE/g' \
-                          | _filter_generated_node_ids
+                          | _filter_generated_node_ids | _filter_qmp_events
 }
 
 size=128M
