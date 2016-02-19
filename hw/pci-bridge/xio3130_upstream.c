@@ -78,7 +78,7 @@ static int xio3130_upstream_initfn(PCIDevice *d)
     }
     pcie_cap_flr_init(d);
     pcie_cap_deverr_init(d);
-    rc = pcie_aer_init(d, XIO3130_AER_OFFSET);
+    rc = pcie_aer_init(d, XIO3130_AER_OFFSET, PCI_ERR_SIZEOF);
     if (rc < 0) {
         goto err;
     }
