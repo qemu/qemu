@@ -99,7 +99,7 @@ this code that are retained.
 | The result is stored in the location pointed to by `zPtr'.
 *----------------------------------------------------------------------------*/
 
-static inline void shift32RightJamming(uint32_t a, int_fast16_t count, uint32_t *zPtr)
+static inline void shift32RightJamming(uint32_t a, int count, uint32_t *zPtr)
 {
     uint32_t z;
 
@@ -125,7 +125,7 @@ static inline void shift32RightJamming(uint32_t a, int_fast16_t count, uint32_t 
 | The result is stored in the location pointed to by `zPtr'.
 *----------------------------------------------------------------------------*/
 
-static inline void shift64RightJamming(uint64_t a, int_fast16_t count, uint64_t *zPtr)
+static inline void shift64RightJamming(uint64_t a, int count, uint64_t *zPtr)
 {
     uint64_t z;
 
@@ -161,7 +161,7 @@ static inline void shift64RightJamming(uint64_t a, int_fast16_t count, uint64_t 
 
 static inline void
  shift64ExtraRightJamming(
-     uint64_t a0, uint64_t a1, int_fast16_t count, uint64_t *z0Ptr, uint64_t *z1Ptr)
+     uint64_t a0, uint64_t a1, int count, uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
     uint64_t z0, z1;
     int8_t negCount = ( - count ) & 63;
@@ -198,7 +198,7 @@ static inline void
 
 static inline void
  shift128Right(
-     uint64_t a0, uint64_t a1, int_fast16_t count, uint64_t *z0Ptr, uint64_t *z1Ptr)
+     uint64_t a0, uint64_t a1, int count, uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
     uint64_t z0, z1;
     int8_t negCount = ( - count ) & 63;
@@ -233,7 +233,7 @@ static inline void
 
 static inline void
  shift128RightJamming(
-     uint64_t a0, uint64_t a1, int_fast16_t count, uint64_t *z0Ptr, uint64_t *z1Ptr)
+     uint64_t a0, uint64_t a1, int count, uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
     uint64_t z0, z1;
     int8_t negCount = ( - count ) & 63;
@@ -287,7 +287,7 @@ static inline void
      uint64_t a0,
      uint64_t a1,
      uint64_t a2,
-     int_fast16_t count,
+     int count,
      uint64_t *z0Ptr,
      uint64_t *z1Ptr,
      uint64_t *z2Ptr
@@ -342,7 +342,7 @@ static inline void
 
 static inline void
  shortShift128Left(
-     uint64_t a0, uint64_t a1, int_fast16_t count, uint64_t *z0Ptr, uint64_t *z1Ptr)
+     uint64_t a0, uint64_t a1, int count, uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
 
     *z1Ptr = a1<<count;
@@ -364,7 +364,7 @@ static inline void
      uint64_t a0,
      uint64_t a1,
      uint64_t a2,
-     int_fast16_t count,
+     int count,
      uint64_t *z0Ptr,
      uint64_t *z1Ptr,
      uint64_t *z2Ptr
