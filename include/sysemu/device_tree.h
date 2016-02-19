@@ -16,6 +16,14 @@
 
 void *create_device_tree(int *sizep);
 void *load_device_tree(const char *filename_path, int *sizep);
+#ifdef CONFIG_LINUX
+/**
+ * load_device_tree_from_sysfs: reads the device tree information in the
+ * /proc/device-tree directory and return the corresponding binary blob
+ * buffer pointer. Asserts in case of error.
+ */
+void *load_device_tree_from_sysfs(void);
+#endif
 
 int qemu_fdt_setprop(void *fdt, const char *node_path,
                      const char *property, const void *val, int size);
