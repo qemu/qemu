@@ -102,6 +102,12 @@ void helper_raise_exception_sync(CPUTriCoreState *env, uint32_t class,
     raise_exception_sync_internal(env, class, tin, 0, 0);
 }
 
+static void raise_exception_sync_helper(CPUTriCoreState *env, uint32_t class,
+                                        uint32_t tin, uintptr_t pc)
+{
+    raise_exception_sync_internal(env, class, tin, pc, 0);
+}
+
 /* Addressing mode helper */
 
 static uint16_t reverse16(uint16_t val)
@@ -2450,11 +2456,13 @@ void helper_call(CPUTriCoreState *env, uint32_t next_pc)
     /* if (FCX == 0) trap(FCU); */
     if (env->FCX == 0) {
         /* FCU trap */
+        raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_FCU, GETPC());
     }
     /* if (PSW.CDE) then if (cdc_increment()) then trap(CDO); */
     if (psw & MASK_PSW_CDE) {
         if (cdc_increment(&psw)) {
             /* CDO trap */
+            raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_CDO, GETPC());
         }
     }
     /* PSW.CDE = 1;*/
@@ -2490,6 +2498,7 @@ void helper_call(CPUTriCoreState *env, uint32_t next_pc)
     /* if (tmp_FCX == LCX) trap(FCD);*/
     if (tmp_FCX == env->LCX) {
         /* FCD trap */
+        raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_FCD, GETPC());
     }
     psw_write(env, psw);
 }
@@ -2502,18 +2511,25 @@ void helper_ret(CPUTriCoreState *env)
 
     psw = psw_read(env);
      /* if (PSW.CDE) then if (cdc_decrement()) then trap(CDU);*/
-    if (env->PSW & MASK_PSW_CDE) {
-        if (cdc_decrement(&(env->PSW))) {
+    if (psw & MASK_PSW_CDE) {
+        if (cdc_decrement(&psw)) {
             /* CDU trap */
+            psw_write(env, psw);
+            raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_CDU, GETPC());
         }
     }
     /*   if (PCXI[19: 0] == 0) then trap(CSU); */
     if ((env->PCXI & 0xfffff) == 0) {
         /* CSU trap */
+        psw_write(env, psw);
+        raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_CSU, GETPC());
     }
     /* if (PCXI.UL == 0) then trap(CTYP); */
     if ((env->PCXI & MASK_PCXI_UL) == 0) {
         /* CTYP trap */
+        cdc_increment(&psw); /* restore to the start of helper */
+        psw_write(env, psw);
+        raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_CTYP, GETPC());
     }
     /* PC = {A11 [31: 1], 1’b0}; */
     env->PC = env->gpr_a[11] & 0xfffffffe;
@@ -2548,6 +2564,7 @@ void helper_bisr(CPUTriCoreState *env, uint32_t const9)
 
     if (env->FCX == 0) {
         /* FCU trap */
+       raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_FCU, GETPC());
     }
 
     tmp_FCX = env->FCX;
@@ -2579,6 +2596,7 @@ void helper_bisr(CPUTriCoreState *env, uint32_t const9)
 
     if (tmp_FCX == env->LCX) {
         /* FCD trap */
+        raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_FCD, GETPC());
     }
 }
 
@@ -2590,14 +2608,17 @@ void helper_rfe(CPUTriCoreState *env)
     /* if (PCXI[19: 0] == 0) then trap(CSU); */
     if ((env->PCXI & 0xfffff) == 0) {
         /* raise csu trap */
+        raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_CSU, GETPC());
     }
     /* if (PCXI.UL == 0) then trap(CTYP); */
     if ((env->PCXI & MASK_PCXI_UL) == 0) {
         /* raise CTYP trap */
+        raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_CTYP, GETPC());
     }
     /* if (!cdc_zero() AND PSW.CDE) then trap(NEST); */
     if (!cdc_zero(&(env->PSW)) && (env->PSW & MASK_PSW_CDE)) {
-        /* raise MNG trap */
+        /* raise NEST trap */
+        raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_NEST, GETPC());
     }
     env->PC = env->gpr_a[11] & ~0x1;
     /* ICR.IE = PCXI.PIE; */
@@ -2673,6 +2694,7 @@ void helper_svlcx(CPUTriCoreState *env)
 
     if (env->FCX == 0) {
         /* FCU trap */
+        raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_FCU, GETPC());
     }
     /* tmp_FCX = FCX; */
     tmp_FCX = env->FCX;
@@ -2703,6 +2725,7 @@ void helper_svlcx(CPUTriCoreState *env)
     /* if (tmp_FCX == LCX) trap(FCD);*/
     if (tmp_FCX == env->LCX) {
         /* FCD trap */
+        raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_FCD, GETPC());
     }
 }
 
@@ -2714,6 +2737,7 @@ void helper_svucx(CPUTriCoreState *env)
 
     if (env->FCX == 0) {
         /* FCU trap */
+        raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_FCU, GETPC());
     }
     /* tmp_FCX = FCX; */
     tmp_FCX = env->FCX;
@@ -2744,6 +2768,7 @@ void helper_svucx(CPUTriCoreState *env)
     /* if (tmp_FCX == LCX) trap(FCD);*/
     if (tmp_FCX == env->LCX) {
         /* FCD trap */
+        raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_FCD, GETPC());
     }
 }
 
@@ -2754,10 +2779,12 @@ void helper_rslcx(CPUTriCoreState *env)
     /*   if (PCXI[19: 0] == 0) then trap(CSU); */
     if ((env->PCXI & 0xfffff) == 0) {
         /* CSU trap */
+        raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_CSU, GETPC());
     }
     /* if (PCXI.UL == 1) then trap(CTYP); */
     if ((env->PCXI & MASK_PCXI_UL) != 0) {
         /* CTYP trap */
+        raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_CTYP, GETPC());
     }
     /* EA = {PCXI.PCXS, 6'b0, PCXI.PCXO, 6'b0}; */
     ea = ((env->PCXI & MASK_PCXI_PCXS) << 12) +
