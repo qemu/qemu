@@ -117,6 +117,7 @@ struct SimpleSpiceDisplay {
 #ifdef HAVE_SPICE_GL
     /* opengl rendering */
     QEMUBH *gl_unblock_bh;
+    QEMUTimer *gl_unblock_timer;
     int dmabuf_fd;
 #endif
 };

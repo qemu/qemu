@@ -797,6 +797,15 @@ static const DisplayChangeListenerOps display_listener_ops = {
 
 static void qemu_spice_gl_block(SimpleSpiceDisplay *ssd, bool block)
 {
+    uint64_t timeout;
+
+    if (block) {
+        timeout = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+        timeout += 1000; /* one sec */
+        timer_mod(ssd->gl_unblock_timer, timeout);
+    } else {
+        timer_del(ssd->gl_unblock_timer);
+    }
     graphic_hw_gl_block(ssd->dcl.con, block);
 }
 
@@ -805,6 +814,11 @@ static void qemu_spice_gl_unblock_bh(void *opaque)
     SimpleSpiceDisplay *ssd = opaque;
 
     qemu_spice_gl_block(ssd, false);
+}
+
+static void qemu_spice_gl_block_timer(void *opaque)
+{
+    fprintf(stderr, "WARNING: spice: no gl-draw-done within one second\n");
 }
 
 static QEMUGLContext qemu_spice_gl_create_context(DisplayChangeListener *dcl,
@@ -888,6 +902,8 @@ static void qemu_spice_display_init_one(QemuConsole *con)
         ssd->dcl.ops = &display_listener_gl_ops;
         ssd->dmabuf_fd = -1;
         ssd->gl_unblock_bh = qemu_bh_new(qemu_spice_gl_unblock_bh, ssd);
+        ssd->gl_unblock_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
+                                             qemu_spice_gl_block_timer, ssd);
     }
 #endif
     ssd->dcl.con = con;
