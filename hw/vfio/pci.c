@@ -1207,7 +1207,7 @@ static int vfio_msix_early_setup(VFIOPCIDevice *vdev)
     }
 
     if (pread(fd, &ctrl, sizeof(ctrl),
-              vdev->config_offset + pos + PCI_CAP_FLAGS) != sizeof(ctrl)) {
+              vdev->config_offset + pos + PCI_MSIX_FLAGS) != sizeof(ctrl)) {
         return -errno;
     }
 
