@@ -157,17 +157,11 @@ opts_start_struct(Visitor *v, const char *name, void **obj,
 }
 
 
-static gboolean
-ghr_true(gpointer ign_key, gpointer ign_value, gpointer ign_user_data)
-{
-    return TRUE;
-}
-
-
 static void
 opts_end_struct(Visitor *v, Error **errp)
 {
     OptsVisitor *ov = to_ov(v);
+    GHashTableIter iter;
     GQueue *any;
 
     if (--ov->depth > 0) {
@@ -175,8 +169,8 @@ opts_end_struct(Visitor *v, Error **errp)
     }
 
     /* we should have processed all (distinct) QemuOpt instances */
-    any = g_hash_table_find(ov->unprocessed_opts, &ghr_true, NULL);
-    if (any) {
+    g_hash_table_iter_init(&iter, ov->unprocessed_opts);
+    if (g_hash_table_iter_next(&iter, NULL, (void **)&any)) {
         const QemuOpt *first;
 
         first = g_queue_peek_head(any);
@@ -221,7 +215,7 @@ opts_start_list(Visitor *v, const char *name, Error **errp)
 
 
 static GenericList *
-opts_next_list(Visitor *v, GenericList **list)
+opts_next_list(Visitor *v, GenericList **list, size_t size)
 {
     OptsVisitor *ov = to_ov(v);
     GenericList **link;
@@ -264,7 +258,7 @@ opts_next_list(Visitor *v, GenericList **list)
         abort();
     }
 
-    *link = g_malloc0(sizeof **link);
+    *link = g_malloc0(size);
     return *link;
 }
 

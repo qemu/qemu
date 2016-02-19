@@ -1,0 +1,1 @@
+tests/qapi-schema/flat-union-empty.json:4: Union 'Union' cannot have empty 'data'

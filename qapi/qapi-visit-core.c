@@ -30,29 +30,15 @@ void visit_end_struct(Visitor *v, Error **errp)
     v->end_struct(v, errp);
 }
 
-void visit_start_implicit_struct(Visitor *v, void **obj, size_t size,
-                                 Error **errp)
-{
-    if (v->start_implicit_struct) {
-        v->start_implicit_struct(v, obj, size, errp);
-    }
-}
-
-void visit_end_implicit_struct(Visitor *v)
-{
-    if (v->end_implicit_struct) {
-        v->end_implicit_struct(v);
-    }
-}
-
 void visit_start_list(Visitor *v, const char *name, Error **errp)
 {
     v->start_list(v, name, errp);
 }
 
-GenericList *visit_next_list(Visitor *v, GenericList **list)
+GenericList *visit_next_list(Visitor *v, GenericList **list, size_t size)
 {
-    return v->next_list(v, list);
+    assert(list && size >= sizeof(GenericList));
+    return v->next_list(v, list, size);
 }
 
 void visit_end_list(Visitor *v)
@@ -60,12 +46,21 @@ void visit_end_list(Visitor *v)
     v->end_list(v);
 }
 
-bool visit_start_union(Visitor *v, bool data_present, Error **errp)
+void visit_start_alternate(Visitor *v, const char *name,
+                           GenericAlternate **obj, size_t size,
+                           bool promote_int, Error **errp)
 {
-    if (v->start_union) {
-        return v->start_union(v, data_present, errp);
+    assert(obj && size >= sizeof(GenericAlternate));
+    if (v->start_alternate) {
+        v->start_alternate(v, name, obj, size, promote_int, errp);
     }
-    return true;
+}
+
+void visit_end_alternate(Visitor *v)
+{
+    if (v->end_alternate) {
+        v->end_alternate(v);
+    }
 }
 
 bool visit_optional(Visitor *v, const char *name, bool *present)
@@ -74,14 +69,6 @@ bool visit_optional(Visitor *v, const char *name, bool *present)
         v->optional(v, name, present);
     }
     return *present;
-}
-
-void visit_get_next_type(Visitor *v, const char *name, QType *type,
-                         bool promote_int, Error **errp)
-{
-    if (v->get_next_type) {
-        v->get_next_type(v, name, type, promote_int, errp);
-    }
 }
 
 void visit_type_enum(Visitor *v, const char *name, int *obj,

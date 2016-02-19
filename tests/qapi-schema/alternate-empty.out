@@ -1,5 +1,0 @@
-object :empty
-alternate Alt
-    case i: int
-enum QType ['none', 'qnull', 'qint', 'qstring', 'qdict', 'qlist', 'qfloat', 'qbool']
-    prefix QTYPE

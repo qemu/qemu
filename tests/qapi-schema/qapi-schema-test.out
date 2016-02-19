@@ -105,7 +105,7 @@ object UserDefA
     member boolean: bool optional=False
     member a_b: int optional=True
 alternate UserDefAlternate
-    case uda: UserDefA
+    case udfu: UserDefFlatUnion
     case s: str
     case i: int
 object UserDefB
@@ -121,11 +121,10 @@ object UserDefFlatUnion
     case value2: UserDefB
     case value3: UserDefB
 object UserDefFlatUnion2
-    base UserDefUnionBase
+    base UserDefUnionBase2
     tag enum1
     case value1: UserDefC
     case value2: UserDefB
-    case value3: UserDefA
 object UserDefNativeListUnion
     member type: UserDefNativeListUnionKind optional=False
     case integer: :obj-intList-wrapper
@@ -167,8 +166,14 @@ object UserDefUnionBase
     base UserDefZero
     member string: str optional=False
     member enum1: EnumOne optional=False
+object UserDefUnionBase2
+    base UserDefZero
+    member string: str optional=False
+    member enum1: QEnumTwo optional=False
 object UserDefZero
     member integer: int optional=False
+object WrapAlternate
+    member alt: UserDefAlternate optional=False
 event __ORG.QEMU_X-EVENT __org.qemu_x-Struct
 alternate __org.qemu_x-Alt
     case __org.qemu_x-branch: str

@@ -1,0 +1,1 @@
+tests/qapi-schema/alternate-empty.json:2: Alternate 'Alt' should have at least two branches in 'data'

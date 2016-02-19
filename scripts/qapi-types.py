@@ -2,7 +2,7 @@
 # QAPI types generator
 #
 # Copyright IBM, Corp. 2011
-# Copyright (c) 2013-2015 Red Hat Inc.
+# Copyright (c) 2013-2016 Red Hat Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
@@ -12,6 +12,11 @@
 # See the COPYING file in the top-level directory.
 
 from qapi import *
+
+
+# variants must be emitted before their container; track what has already
+# been output
+objects_seen = set()
 
 
 def gen_fwd_object_or_array(name):
@@ -26,11 +31,8 @@ def gen_array(name, element_type):
     return mcgen('''
 
 struct %(c_name)s {
-    union {
-        %(c_type)s value;
-        uint64_t padding;
-    };
     %(c_name)s *next;
+    %(c_type)s value;
 };
 ''',
                  c_name=c_name(name), c_type=element_type.c_type())
@@ -52,11 +54,23 @@ def gen_struct_fields(members):
 
 
 def gen_object(name, base, members, variants):
-    ret = mcgen('''
+    if name in objects_seen:
+        return ''
+    objects_seen.add(name)
+
+    ret = ''
+    if variants:
+        for v in variants.variants:
+            if (isinstance(v.type, QAPISchemaObjectType) and
+                    not v.type.is_implicit()):
+                ret += gen_object(v.type.name, v.type.base,
+                                  v.type.local_members, v.type.variants)
+
+    ret += mcgen('''
 
 struct %(c_name)s {
 ''',
-                c_name=c_name(name))
+                 c_name=c_name(name))
 
     if base:
         ret += mcgen('''
@@ -118,11 +132,12 @@ def gen_variants(variants):
 
     for var in variants.variants:
         # Ugly special case for simple union TODO get rid of it
-        typ = var.simple_union_type() or var.type
+        simple_union_type = var.simple_union_type()
+        typ = simple_union_type or var.type
         ret += mcgen('''
         %(c_type)s %(c_name)s;
 ''',
-                     c_type=typ.c_type(),
+                     c_type=typ.c_type(is_unboxed=not simple_union_type),
                      c_name=c_name(var.name))
 
     ret += mcgen('''

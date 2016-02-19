@@ -1,0 +1,1 @@
+tests/qapi-schema/alternate-any.json:2: Alternate 'Alt' member 'one' cannot use type 'any'

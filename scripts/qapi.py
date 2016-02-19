@@ -590,7 +590,10 @@ def check_union(expr, expr_info):
                                 "Discriminator '%s' must be of enumeration "
                                 "type" % discriminator)
 
-    # Check every branch
+    # Check every branch; don't allow an empty union
+    if len(members) == 0:
+        raise QAPIExprError(expr_info,
+                            "Union '%s' cannot have empty 'data'" % name)
     for (key, value) in members.items():
         check_name(expr_info, "Member of union '%s'" % name, key)
 
@@ -613,7 +616,11 @@ def check_alternate(expr, expr_info):
     members = expr['data']
     types_seen = {}
 
-    # Check every branch
+    # Check every branch; require at least two branches
+    if len(members) < 2:
+        raise QAPIExprError(expr_info,
+                            "Alternate '%s' should have at least two branches "
+                            "in 'data'" % name)
     for (key, value) in members.items():
         check_name(expr_info, "Member of alternate '%s'" % name, key)
 
@@ -622,7 +629,10 @@ def check_alternate(expr, expr_info):
                    value,
                    allow_metas=['built-in', 'union', 'struct', 'enum'])
         qtype = find_alternate_member_qtype(value)
-        assert qtype
+        if not qtype:
+            raise QAPIExprError(expr_info,
+                                "Alternate '%s' member '%s' cannot use "
+                                "type '%s'" % (name, key, value))
         if qtype in types_seen:
             raise QAPIExprError(expr_info,
                                 "Alternate '%s' member '%s' can't "
@@ -814,7 +824,7 @@ class QAPISchemaVisitor(object):
 
 
 class QAPISchemaType(QAPISchemaEntity):
-    def c_type(self, is_param=False):
+    def c_type(self, is_param=False, is_unboxed=False):
         return c_name(self.name) + pointer_suffix
 
     def c_null(self):
@@ -847,7 +857,7 @@ class QAPISchemaBuiltinType(QAPISchemaType):
     def c_name(self):
         return self.name
 
-    def c_type(self, is_param=False):
+    def c_type(self, is_param=False, is_unboxed=False):
         if is_param and self.name == 'str':
             return 'const ' + self._c_type_name
         return self._c_type_name
@@ -881,7 +891,7 @@ class QAPISchemaEnumType(QAPISchemaType):
         # See QAPISchema._make_implicit_enum_type()
         return self.name.endswith('Kind')
 
-    def c_type(self, is_param=False):
+    def c_type(self, is_param=False, is_unboxed=False):
         return c_name(self.name)
 
     def member_names(self):
@@ -977,9 +987,11 @@ class QAPISchemaObjectType(QAPISchemaType):
         assert not self.is_implicit()
         return QAPISchemaType.c_name(self)
 
-    def c_type(self, is_param=False):
+    def c_type(self, is_param=False, is_unboxed=False):
         assert not self.is_implicit()
-        return QAPISchemaType.c_type(self)
+        if is_unboxed:
+            return c_name(self.name)
+        return c_name(self.name) + pointer_suffix
 
     def json_type(self):
         return 'object'
@@ -1059,6 +1071,7 @@ class QAPISchemaObjectTypeVariants(object):
         assert bool(tag_member) != bool(tag_name)
         assert (isinstance(tag_name, str) or
                 isinstance(tag_member, QAPISchemaObjectTypeMember))
+        assert len(variants) > 0
         for v in variants:
             assert isinstance(v, QAPISchemaObjectTypeVariant)
         self.tag_name = tag_name
