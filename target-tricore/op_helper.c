@@ -21,6 +21,87 @@
 #include "exec/cpu_ldst.h"
 #include <zlib.h> /* for crc32 */
 
+
+/* Exception helpers */
+
+static void QEMU_NORETURN
+raise_exception_sync_internal(CPUTriCoreState *env, uint32_t class, int tin,
+                              uintptr_t pc, uint32_t fcd_pc)
+{
+    CPUState *cs = CPU(tricore_env_get_cpu(env));
+    /* in case we come from a helper-call we need to restore the PC */
+    if (pc) {
+        cpu_restore_state(cs, pc);
+    }
+
+    /* Tin is loaded into d[15] */
+    env->gpr_d[15] = tin;
+
+    if (class == TRAPC_CTX_MNG && tin == TIN3_FCU) {
+        /* upper context cannot be saved, if the context list is empty */
+    } else {
+        helper_svucx(env);
+    }
+
+    /* The return address in a[11] is updated */
+    if (class == TRAPC_CTX_MNG && tin == TIN3_FCD) {
+        env->SYSCON |= MASK_SYSCON_FCD_SF;
+        /* when we run out of CSAs after saving a context a FCD trap is taken
+           and the return address is the start of the trap handler which used
+           the last CSA */
+        env->gpr_a[11] = fcd_pc;
+    } else if (class == TRAPC_SYSCALL) {
+        env->gpr_a[11] = env->PC + 4;
+    } else {
+        env->gpr_a[11] = env->PC;
+    }
+    /* The stack pointer in A[10] is set to the Interrupt Stack Pointer (ISP)
+       when the processor was not previously using the interrupt stack
+       (in case of PSW.IS = 0). The stack pointer bit is set for using the
+       interrupt stack: PSW.IS = 1. */
+    if ((env->PSW & MASK_PSW_IS) == 0) {
+        env->gpr_a[10] = env->ISP;
+    }
+    env->PSW |= MASK_PSW_IS;
+    /* The I/O mode is set to Supervisor mode, which means all permissions
+       are enabled: PSW.IO = 10 B .*/
+    env->PSW |= (2 << 10);
+
+    /*The current Protection Register Set is set to 0: PSW.PRS = 00 B .*/
+    env->PSW &= ~MASK_PSW_PRS;
+
+    /* The Call Depth Counter (CDC) is cleared, and the call depth limit is
+       set for 64: PSW.CDC = 0000000 B .*/
+    env->PSW &= ~MASK_PSW_CDC;
+
+    /* Call Depth Counter is enabled, PSW.CDE = 1. */
+    env->PSW |= MASK_PSW_CDE;
+
+    /* Write permission to global registers A[0], A[1], A[8], A[9] is
+       disabled: PSW.GW = 0. */
+    env->PSW &= ~MASK_PSW_GW;
+
+    /*The interrupt system is globally disabled: ICR.IE = 0. The ‘old’
+      ICR.IE and ICR.CCPN are saved */
+
+    /* PCXI.PIE = ICR.IE */
+    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE) +
+                ((env->ICR & MASK_ICR_IE) << 15));
+    /* PCXI.PCPN = ICR.CCPN */
+    env->PCXI = (env->PCXI & 0xffffff) +
+                ((env->ICR & MASK_ICR_CCPN) << 24);
+    /* Update PC using the trap vector table */
+    env->PC = env->BTV | (class << 5);
+
+    cpu_loop_exit(cs);
+}
+
+void helper_raise_exception_sync(CPUTriCoreState *env, uint32_t class,
+                                 uint32_t tin)
+{
+    raise_exception_sync_internal(env, class, tin, 0, 0);
+}
+
 /* Addressing mode helper */
 
 static uint16_t reverse16(uint16_t val)
@@ -2613,6 +2694,47 @@ void helper_svlcx(CPUTriCoreState *env)
                 ((env->ICR & MASK_ICR_IE) << 15));
     /* PCXI.UL = 0; */
     env->PCXI &= ~MASK_PCXI_UL;
+
+    /* PCXI[19: 0] = FCX[19: 0]; */
+    env->PCXI = (env->PCXI & 0xfff00000) + (env->FCX & 0xfffff);
+    /* FCX[19: 0] = new_FCX[19: 0]; */
+    env->FCX = (env->FCX & 0xfff00000) + (new_FCX & 0xfffff);
+
+    /* if (tmp_FCX == LCX) trap(FCD);*/
+    if (tmp_FCX == env->LCX) {
+        /* FCD trap */
+    }
+}
+
+void helper_svucx(CPUTriCoreState *env)
+{
+    target_ulong tmp_FCX;
+    target_ulong ea;
+    target_ulong new_FCX;
+
+    if (env->FCX == 0) {
+        /* FCU trap */
+    }
+    /* tmp_FCX = FCX; */
+    tmp_FCX = env->FCX;
+    /* EA = {FCX.FCXS, 6'b0, FCX.FCXO, 6'b0}; */
+    ea = ((env->FCX & MASK_FCX_FCXS) << 12) +
+         ((env->FCX & MASK_FCX_FCXO) << 6);
+    /* new_FCX = M(EA, word); */
+    new_FCX = cpu_ldl_data(env, ea);
+    /* M(EA, 16 * word) = {PCXI, PSW, A[10], A[11], D[8], D[9], D[10], D[11],
+                           A[12], A[13], A[14], A[15], D[12], D[13], D[14],
+                           D[15]}; */
+    save_context_upper(env, ea);
+
+    /* PCXI.PCPN = ICR.CCPN; */
+    env->PCXI = (env->PCXI & 0xffffff) +
+                ((env->ICR & MASK_ICR_CCPN) << 24);
+    /* PCXI.PIE = ICR.IE; */
+    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE) +
+                ((env->ICR & MASK_ICR_IE) << 15));
+    /* PCXI.UL = 1; */
+    env->PCXI |= MASK_PCXI_UL;
 
     /* PCXI[19: 0] = FCX[19: 0]; */
     env->PCXI = (env->PCXI & 0xfff00000) + (env->FCX & 0xfffff);

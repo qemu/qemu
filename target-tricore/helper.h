@@ -132,6 +132,7 @@ DEF_HELPER_2(lducx, void, env, i32)
 DEF_HELPER_2(stlcx, void, env, i32)
 DEF_HELPER_2(stucx, void, env, i32)
 DEF_HELPER_1(svlcx, void, env)
+DEF_HELPER_1(svucx, void, env)
 DEF_HELPER_1(rslcx, void, env)
 /* Address mode helper */
 DEF_HELPER_1(br_update, i32, i32)
@@ -139,3 +140,5 @@ DEF_HELPER_2(circ_update, i32, i32, i32)
 /* PSW cache helper */
 DEF_HELPER_2(psw_write, void, env, i32)
 DEF_HELPER_1(psw_read, i32, env)
+/* Exceptions */
+DEF_HELPER_3(raise_exception_sync, noreturn, env, i32, i32)

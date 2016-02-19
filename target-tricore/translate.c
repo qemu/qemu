@@ -3244,6 +3244,19 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
     }
 }
 
+static void generate_trap(DisasContext *ctx, int class, int tin)
+{
+    TCGv_i32 classtemp = tcg_const_i32(class);
+    TCGv_i32 tintemp = tcg_const_i32(tin);
+
+    gen_save_pc(ctx->pc);
+    gen_helper_raise_exception_sync(cpu_env, classtemp, tintemp);
+    ctx->bstate = BS_EXCP;
+
+    tcg_temp_free(classtemp);
+    tcg_temp_free(tintemp);
+}
+
 static inline void gen_branch_cond(DisasContext *ctx, TCGCond cond, TCGv r1,
                                    TCGv r2, int16_t address)
 {
@@ -7910,10 +7923,16 @@ static void decode_sys_interrupts(CPUTriCoreState *env, DisasContext *ctx)
         } /* else raise illegal opcode trap */
         break;
     case OPC2_32_SYS_TRAPSV:
-        /* TODO: raise sticky overflow trap */
+        l1 = gen_new_label();
+        tcg_gen_brcondi_tl(TCG_COND_GE, cpu_PSW_SV, 0, l1);
+        generate_trap(ctx, TRAPC_ASSERT, TIN5_SOVF);
+        gen_set_label(l1);
         break;
     case OPC2_32_SYS_TRAPV:
-        /* TODO: raise overflow trap */
+        l1 = gen_new_label();
+        tcg_gen_brcondi_tl(TCG_COND_GE, cpu_PSW_V, 0, l1);
+        generate_trap(ctx, TRAPC_ASSERT, TIN5_OVF);
+        gen_set_label(l1);
         break;
     }
 }
