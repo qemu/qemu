@@ -10,6 +10,8 @@ common-obj-$(CONFIG_USB_EHCI_SYSBUS) += hcd-ehci-sysbus.o
 common-obj-$(CONFIG_USB_XHCI) += hcd-xhci.o
 common-obj-$(CONFIG_USB_MUSB) += hcd-musb.o
 
+obj-$(CONFIG_TUSB6010) += tusb6010.o
+
 # emulated usb devices
 common-obj-$(CONFIG_USB) += dev-hub.o
 common-obj-$(CONFIG_USB) += dev-hid.o

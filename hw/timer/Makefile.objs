@@ -25,7 +25,6 @@ obj-$(CONFIG_OMAP) += omap_gptimer.o
 obj-$(CONFIG_OMAP) += omap_synctimer.o
 obj-$(CONFIG_PXA2XX) += pxa2xx_timer.o
 obj-$(CONFIG_SH4) += sh_timer.o
-obj-$(CONFIG_TUSB6010) += tusb6010.o
 obj-$(CONFIG_DIGIC) += digic-timer.o
 
 obj-$(CONFIG_MC146818RTC) += mc146818rtc.o
