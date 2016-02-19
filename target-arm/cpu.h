@@ -598,6 +598,7 @@ void pmccntr_sync(CPUARMState *env);
 #define MDCR_EDAD     (1U << 20)
 #define MDCR_SPME     (1U << 17)
 #define MDCR_SDD      (1U << 16)
+#define MDCR_SPD      (3U << 14)
 #define MDCR_TDRA     (1U << 11)
 #define MDCR_TDOSA    (1U << 10)
 #define MDCR_TDA      (1U << 9)
@@ -605,6 +606,9 @@ void pmccntr_sync(CPUARMState *env);
 #define MDCR_HPME     (1U << 7)
 #define MDCR_TPM      (1U << 6)
 #define MDCR_TPMCR    (1U << 5)
+
+/* Not all of the MDCR_EL3 bits are present in the 32-bit SDCR */
+#define SDCR_VALID_MASK (MDCR_EPMAD | MDCR_EDAD | MDCR_SPME | MDCR_SPD)
 
 #define CPSR_M (0x1fU)
 #define CPSR_T (1U << 5)
