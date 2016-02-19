@@ -2762,6 +2762,33 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
     return popt;
 }
 
+static MachineClass *select_machine(void)
+{
+    MachineClass *machine_class = find_default_machine();
+    const char *optarg;
+    QemuOpts *opts;
+    Location loc;
+
+    loc_push_none(&loc);
+
+    opts = qemu_get_machine_opts();
+    qemu_opts_loc_restore(opts);
+
+    optarg = qemu_opt_get(opts, "type");
+    if (optarg) {
+        machine_class = machine_parse(optarg);
+    }
+
+    if (!machine_class) {
+        error_report("No machine specified, and there is no default");
+        error_printf("Use -machine help to list supported machines\n");
+        exit(1);
+    }
+
+    loc_pop(&loc);
+    return machine_class;
+}
+
 static int machine_set_property(void *opaque,
                                 const char *name, const char *value,
                                 Error **errp)
@@ -2838,6 +2865,10 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
     const char *maxmem_str, *slots_str;
     const ram_addr_t default_ram_size = mc->default_ram_size;
     QemuOpts *opts = qemu_find_opts_singleton("memory");
+    Location loc;
+
+    loc_push_none(&loc);
+    qemu_opts_loc_restore(opts);
 
     sz = 0;
     mem_str = qemu_opt_get(opts, "size");
@@ -2912,6 +2943,8 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
                 "'%s' option", slots_str ? "maxmem" : "slots");
         exit(EXIT_FAILURE);
     }
+
+    loc_pop(&loc);
 }
 
 int main(int argc, char **argv, char **envp)
@@ -3000,7 +3033,6 @@ int main(int argc, char **argv, char **envp)
     os_setup_early_signal_handling();
 
     module_call_init(MODULE_INIT_MACHINE);
-    machine_class = find_default_machine();
     cpu_model = NULL;
     snapshot = 0;
     cyls = heads = secs = 0;
@@ -3983,24 +4015,17 @@ int main(int argc, char **argv, char **envp)
             }
         }
     }
+    /*
+     * Clear error location left behind by the loop.
+     * Best done right after the loop.  Do not insert code here!
+     */
+    loc_set_none();
 
     replay_configure(icount_opts);
 
-    opts = qemu_get_machine_opts();
-    optarg = qemu_opt_get(opts, "type");
-    if (optarg) {
-        machine_class = machine_parse(optarg);
-    }
-
-    if (machine_class == NULL) {
-        error_report("No machine specified, and there is no default");
-        error_printf("Use -machine help to list supported machines\n");
-        exit(1);
-    }
+    machine_class = select_machine();
 
     set_memory_options(&ram_slots, &maxram_size, machine_class);
-
-    loc_set_none();
 
     os_daemonize();
 

@@ -262,6 +262,14 @@ void replay_configure(QemuOpts *opts)
     const char *fname;
     const char *rr;
     ReplayMode mode = REPLAY_MODE_NONE;
+    Location loc;
+
+    if (!opts) {
+        return;
+    }
+
+    loc_push_none(&loc);
+    qemu_opts_loc_restore(opts);
 
     rr = qemu_opt_get(opts, "rr");
     if (!rr) {
@@ -283,6 +291,8 @@ void replay_configure(QemuOpts *opts)
     }
 
     replay_enable(fname, mode);
+
+    loc_pop(&loc);
 }
 
 void replay_start(void)
