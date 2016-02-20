@@ -115,6 +115,16 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
                                     Error **errp);
 
 /**
+ * @qemu_chr_parse_common:
+ *
+ * Parse the common options available to all character backends.
+ *
+ * @opts the options that still need parsing
+ * @backend a new backend
+ */
+void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend);
+
+/**
  * @qemu_chr_new:
  *
  * Create a new character backend from a URI.
