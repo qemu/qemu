@@ -1400,8 +1400,6 @@ static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
     } else {
         return memory_region_is_ram(mr) || memory_region_is_romd(mr);
     }
-
-    return false;
 }
 
 /**
