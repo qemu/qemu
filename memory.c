@@ -1570,7 +1570,7 @@ void *memory_region_get_ram_ptr(MemoryRegion *mr)
         mr = mr->alias;
     }
     assert(mr->ram_addr != RAM_ADDR_INVALID);
-    ptr = qemu_get_ram_ptr(mr->ram_addr & TARGET_PAGE_MASK);
+    ptr = qemu_get_ram_ptr(mr->ram_block, mr->ram_addr & TARGET_PAGE_MASK);
     rcu_read_unlock();
 
     return ptr + offset;
