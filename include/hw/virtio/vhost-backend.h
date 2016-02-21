@@ -70,6 +70,9 @@ typedef int (*vhost_set_vring_enable_op)(struct vhost_dev *dev,
 typedef bool (*vhost_requires_shm_log_op)(struct vhost_dev *dev);
 typedef int (*vhost_migration_done_op)(struct vhost_dev *dev,
                                        char *mac_addr);
+typedef bool (*vhost_backend_can_merge_op)(struct vhost_dev *dev,
+                                           uint64_t start1, uint64_t size1,
+                                           uint64_t start2, uint64_t size2);
 
 typedef struct VhostOps {
     VhostBackendType backend_type;
@@ -97,6 +100,7 @@ typedef struct VhostOps {
     vhost_set_vring_enable_op vhost_set_vring_enable;
     vhost_requires_shm_log_op vhost_requires_shm_log;
     vhost_migration_done_op vhost_migration_done;
+    vhost_backend_can_merge_op vhost_backend_can_merge;
 } VhostOps;
 
 extern const VhostOps user_ops;
