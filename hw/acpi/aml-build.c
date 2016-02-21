@@ -1451,7 +1451,7 @@ build_header(GArray *linker, GArray *table_data,
     h->checksum = 0;
     /* Checksum to be filled in by Guest linker */
     bios_linker_loader_add_checksum(linker, ACPI_BUILD_TABLE_FILE,
-                                    table_data->data, h, len, &h->checksum);
+                                    table_data, h, len, &h->checksum);
 }
 
 void *acpi_data_push(GArray *table_data, unsigned size)
