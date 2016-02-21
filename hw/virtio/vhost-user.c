@@ -612,6 +612,25 @@ static int vhost_user_migration_done(struct vhost_dev *dev, char* mac_addr)
     return -1;
 }
 
+static bool vhost_user_can_merge(struct vhost_dev *dev,
+                                 uint64_t start1, uint64_t size1,
+                                 uint64_t start2, uint64_t size2)
+{
+    ram_addr_t ram_addr;
+    int mfd, rfd;
+    MemoryRegion *mr;
+
+    mr = qemu_ram_addr_from_host((void *)(uintptr_t)start1, &ram_addr);
+    assert(mr);
+    mfd = qemu_get_ram_fd(ram_addr);
+
+    mr = qemu_ram_addr_from_host((void *)(uintptr_t)start2, &ram_addr);
+    assert(mr);
+    rfd = qemu_get_ram_fd(ram_addr);
+
+    return mfd == rfd;
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_backend_init = vhost_user_init,
@@ -634,4 +653,5 @@ const VhostOps user_ops = {
         .vhost_set_vring_enable = vhost_user_set_vring_enable,
         .vhost_requires_shm_log = vhost_user_requires_shm_log,
         .vhost_migration_done = vhost_user_migration_done,
+        .vhost_backend_can_merge = vhost_user_can_merge,
 };

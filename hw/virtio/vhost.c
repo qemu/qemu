@@ -259,6 +259,13 @@ static void vhost_dev_assign_memory(struct vhost_dev *dev,
             continue;
         }
 
+        if (dev->vhost_ops->vhost_backend_can_merge &&
+            !dev->vhost_ops->vhost_backend_can_merge(dev, uaddr, size,
+                                                     reg->userspace_addr,
+                                                     reg->memory_size)) {
+            continue;
+        }
+
         if (merged) {
             --to;
             assert(to >= 0);
