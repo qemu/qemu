@@ -328,23 +328,10 @@ def qlist_foreach(head, field_str):
         yield var
 
 
-def qemu_get_ram_block(ram_addr):
-    """Returns the RAMBlock struct to which the given address belongs."""
-
-    ram_blocks = gdb.parse_and_eval("ram_list.blocks")
-
-    for block in qlist_foreach(ram_blocks, "next"):
-        if (ram_addr - block["offset"]) < block["used_length"]:
-            return block
-
-    raise gdb.GdbError("Bad ram offset %x" % ram_addr)
-
-
-def qemu_get_ram_ptr(ram_addr):
+def qemu_map_ram_ptr(block, offset):
     """Returns qemu vaddr for given guest physical address."""
 
-    block = qemu_get_ram_block(ram_addr)
-    return block["host"] + (ram_addr - block["offset"])
+    return block["host"] + offset
 
 
 def memory_region_get_ram_ptr(memory_region):
@@ -352,7 +339,7 @@ def memory_region_get_ram_ptr(memory_region):
         return (memory_region_get_ram_ptr(memory_region["alias"].dereference())
                 + memory_region["alias_offset"])
 
-    return qemu_get_ram_ptr(memory_region["ram_block"]["offset"])
+    return qemu_map_ram_ptr(memory_region["ram_block"], 0)
 
 
 def get_guest_phys_blocks():

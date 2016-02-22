@@ -1657,10 +1657,10 @@ void *memory_region_get_ram_ptr(MemoryRegion *mr)
         mr = mr->alias;
     }
     assert(mr->ram_block);
-    ptr = qemu_get_ram_ptr(mr->ram_block, memory_region_get_ram_addr(mr));
+    ptr = qemu_map_ram_ptr(mr->ram_block, offset);
     rcu_read_unlock();
 
-    return ptr + offset;
+    return ptr;
 }
 
 MemoryRegion *memory_region_from_host(void *ptr, ram_addr_t *offset)
