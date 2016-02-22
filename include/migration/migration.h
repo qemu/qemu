@@ -159,6 +159,8 @@ struct MigrationState
 
     /* Flag set once the migration has been asked to enter postcopy */
     bool start_postcopy;
+    /* Flag set after postcopy has sent the device state */
+    bool postcopy_after_devices;
 
     /* Flag set once the migration thread is running (and needs joining) */
     bool migration_thread_running;
@@ -212,6 +214,8 @@ bool migration_has_finished(MigrationState *);
 bool migration_has_failed(MigrationState *);
 /* True if outgoing migration has entered postcopy phase */
 bool migration_in_postcopy(MigrationState *);
+/* ...and after the device transmission */
+bool migration_in_postcopy_after_devices(MigrationState *);
 MigrationState *migrate_get_current(void);
 
 void migrate_compress_threads_create(void);
