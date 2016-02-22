@@ -176,21 +176,26 @@ static void timer_reset(DeviceState *d)
     ptimer_stop(s->ptimer);
 }
 
-static int lm32_timer_init(SysBusDevice *dev)
+static void lm32_timer_init(Object *obj)
 {
-    LM32TimerState *s = LM32_TIMER(dev);
+    LM32TimerState *s = LM32_TIMER(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
     sysbus_init_irq(dev, &s->irq);
 
     s->bh = qemu_bh_new(timer_hit, s);
     s->ptimer = ptimer_init(s->bh);
-    ptimer_set_freq(s->ptimer, s->freq_hz);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &timer_ops, s,
+    memory_region_init_io(&s->iomem, obj, &timer_ops, s,
                           "timer", R_MAX * 4);
     sysbus_init_mmio(dev, &s->iomem);
+}
 
-    return 0;
+static void lm32_timer_realize(DeviceState *dev, Error **errp)
+{
+    LM32TimerState *s = LM32_TIMER(dev);
+
+    ptimer_set_freq(s->ptimer, s->freq_hz);
 }
 
 static const VMStateDescription vmstate_lm32_timer = {
@@ -213,9 +218,8 @@ static Property lm32_timer_properties[] = {
 static void lm32_timer_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = lm32_timer_init;
+    dc->realize = lm32_timer_realize;
     dc->reset = timer_reset;
     dc->vmsd = &vmstate_lm32_timer;
     dc->props = lm32_timer_properties;
@@ -225,6 +229,7 @@ static const TypeInfo lm32_timer_info = {
     .name          = TYPE_LM32_TIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LM32TimerState),
+    .instance_init = lm32_timer_init,
     .class_init    = lm32_timer_class_init,
 };
 
