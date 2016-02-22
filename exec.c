@@ -1717,6 +1717,8 @@ ram_addr_t qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
         error_propagate(errp, local_err);
         return -1;
     }
+
+    mr->ram_block = new_block;
     return addr;
 }
 

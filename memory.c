@@ -912,6 +912,7 @@ void memory_region_init(MemoryRegion *mr,
     }
     mr->name = g_strdup(name);
     mr->owner = owner;
+    mr->ram_block = NULL;
 
     if (name) {
         char *escaped_name = memory_region_escape_name(name);
