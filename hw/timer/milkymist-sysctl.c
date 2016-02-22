@@ -270,9 +270,10 @@ static void milkymist_sysctl_reset(DeviceState *d)
     s->regs[R_GPIO_IN] = s->strappings;
 }
 
-static int milkymist_sysctl_init(SysBusDevice *dev)
+static void milkymist_sysctl_init(Object *obj)
 {
-    MilkymistSysctlState *s = MILKYMIST_SYSCTL(dev);
+    MilkymistSysctlState *s = MILKYMIST_SYSCTL(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
     sysbus_init_irq(dev, &s->gpio_irq);
     sysbus_init_irq(dev, &s->timer0_irq);
@@ -282,14 +283,18 @@ static int milkymist_sysctl_init(SysBusDevice *dev)
     s->bh1 = qemu_bh_new(timer1_hit, s);
     s->ptimer0 = ptimer_init(s->bh0);
     s->ptimer1 = ptimer_init(s->bh1);
-    ptimer_set_freq(s->ptimer0, s->freq_hz);
-    ptimer_set_freq(s->ptimer1, s->freq_hz);
 
-    memory_region_init_io(&s->regs_region, OBJECT(s), &sysctl_mmio_ops, s,
+    memory_region_init_io(&s->regs_region, obj, &sysctl_mmio_ops, s,
             "milkymist-sysctl", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
+}
 
-    return 0;
+static void milkymist_sysctl_realize(DeviceState *dev, Error **errp)
+{
+    MilkymistSysctlState *s = MILKYMIST_SYSCTL(dev);
+
+    ptimer_set_freq(s->ptimer0, s->freq_hz);
+    ptimer_set_freq(s->ptimer1, s->freq_hz);
 }
 
 static const VMStateDescription vmstate_milkymist_sysctl = {
@@ -319,9 +324,8 @@ static Property milkymist_sysctl_properties[] = {
 static void milkymist_sysctl_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = milkymist_sysctl_init;
+    dc->realize = milkymist_sysctl_realize;
     dc->reset = milkymist_sysctl_reset;
     dc->vmsd = &vmstate_milkymist_sysctl;
     dc->props = milkymist_sysctl_properties;
@@ -331,6 +335,7 @@ static const TypeInfo milkymist_sysctl_info = {
     .name          = TYPE_MILKYMIST_SYSCTL,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistSysctlState),
+    .instance_init = milkymist_sysctl_init,
     .class_init    = milkymist_sysctl_class_init,
 };
 
