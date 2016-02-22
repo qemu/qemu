@@ -601,6 +601,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         if (cpu->hyperv_crash && has_msr_hv_crash) {
             c->edx |= HV_X64_GUEST_CRASH_MSR_AVAILABLE;
         }
+        c->edx |= HV_X64_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
         if (cpu->hyperv_reset && has_msr_hv_reset) {
             c->eax |= HV_X64_MSR_RESET_AVAILABLE;
         }
