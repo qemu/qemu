@@ -786,6 +786,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
     int64_t addr;
     BlockDriverState *bs, *bs_prev = NULL;
     BlockBackend *blk;
+    Error *local_err = NULL;
     uint8_t *buf;
     int64_t total_sectors = 0;
     int nr_sectors;
@@ -822,6 +823,12 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
                 if (total_sectors <= 0) {
                     error_report("Error getting length of block device %s",
                                  device_name);
+                    return -EINVAL;
+                }
+
+                bdrv_invalidate_cache(bs, &local_err);
+                if (local_err) {
+                    error_report_err(local_err);
                     return -EINVAL;
                 }
             }

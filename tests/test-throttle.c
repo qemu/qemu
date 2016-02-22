@@ -35,6 +35,9 @@ static bool double_cmp(double x, double y)
 /* tests for single bucket operations */
 static void test_leak_bucket(void)
 {
+    throttle_config_init(&cfg);
+    bkt = cfg.buckets[THROTTLE_BPS_TOTAL];
+
     /* set initial value */
     bkt.avg = 150;
     bkt.max = 15;
@@ -57,12 +60,32 @@ static void test_leak_bucket(void)
     g_assert(bkt.avg == 150);
     g_assert(bkt.max == 15);
     g_assert(double_cmp(bkt.level, 0));
+
+    /* check that burst_level leaks correctly */
+    bkt.burst_level = 6;
+    bkt.max = 250;
+    bkt.burst_length = 2; /* otherwise burst_level will not leak */
+    throttle_leak_bucket(&bkt, NANOSECONDS_PER_SECOND / 100);
+    g_assert(double_cmp(bkt.burst_level, 3.5));
+
+    throttle_leak_bucket(&bkt, NANOSECONDS_PER_SECOND / 100);
+    g_assert(double_cmp(bkt.burst_level, 1));
+
+    throttle_leak_bucket(&bkt, NANOSECONDS_PER_SECOND / 100);
+    g_assert(double_cmp(bkt.burst_level, 0));
+
+    throttle_leak_bucket(&bkt, NANOSECONDS_PER_SECOND / 100);
+    g_assert(double_cmp(bkt.burst_level, 0));
 }
 
 static void test_compute_wait(void)
 {
+    unsigned i;
     int64_t wait;
     int64_t result;
+
+    throttle_config_init(&cfg);
+    bkt = cfg.buckets[THROTTLE_BPS_TOTAL];
 
     /* no operation limit set */
     bkt.avg = 0;
@@ -93,6 +116,27 @@ static void test_compute_wait(void)
     /* time required to do half an operation */
     result = (int64_t)  NANOSECONDS_PER_SECOND / 150 / 2;
     g_assert(wait == result);
+
+    /* Perform I/O for 2.2 seconds at a rate of bkt.max */
+    bkt.burst_length = 2;
+    bkt.level = 0;
+    bkt.avg = 10;
+    bkt.max = 200;
+    for (i = 0; i < 22; i++) {
+        double units = bkt.max / 10;
+        bkt.level += units;
+        bkt.burst_level += units;
+        throttle_leak_bucket(&bkt, NANOSECONDS_PER_SECOND / 10);
+        wait = throttle_compute_wait(&bkt);
+        g_assert(double_cmp(bkt.burst_level, 0));
+        g_assert(double_cmp(bkt.level, (i + 1) * (bkt.max - bkt.avg) / 10));
+        /* We can do bursts for the 2 seconds we have configured in
+         * burst_length. We have 100 extra miliseconds of burst
+         * because bkt.level has been leaking during this time.
+         * After that, we have to wait. */
+        result = i < 21 ? 0 : 1.8 * NANOSECONDS_PER_SECOND;
+        g_assert(wait == result);
+    }
 }
 
 /* functions to test ThrottleState initialization/destroy methods */
@@ -222,6 +266,8 @@ static void set_cfg_value(bool is_max, int index, int value)
 {
     if (is_max) {
         cfg.buckets[index].max = value;
+        /* If max is set, avg should never be 0 */
+        cfg.buckets[index].avg = MAX(cfg.buckets[index].avg, 1);
     } else {
         cfg.buckets[index].avg = value;
     }
@@ -231,17 +277,17 @@ static void test_enabled(void)
 {
     int i;
 
-    memset(&cfg, 0, sizeof(cfg));
+    throttle_config_init(&cfg);
     g_assert(!throttle_enabled(&cfg));
 
     for (i = 0; i < BUCKETS_COUNT; i++) {
-        memset(&cfg, 0, sizeof(cfg));
+        throttle_config_init(&cfg);
         set_cfg_value(false, i, 150);
         g_assert(throttle_enabled(&cfg));
     }
 
     for (i = 0; i < BUCKETS_COUNT; i++) {
-        memset(&cfg, 0, sizeof(cfg));
+        throttle_config_init(&cfg);
         set_cfg_value(false, i, -150);
         g_assert(!throttle_enabled(&cfg));
     }
@@ -254,32 +300,32 @@ static void test_conflicts_for_one_set(bool is_max,
                                        int read,
                                        int write)
 {
-    memset(&cfg, 0, sizeof(cfg));
-    g_assert(!throttle_conflicting(&cfg));
+    throttle_config_init(&cfg);
+    g_assert(throttle_is_valid(&cfg, NULL));
 
     set_cfg_value(is_max, total, 1);
     set_cfg_value(is_max, read,  1);
-    g_assert(throttle_conflicting(&cfg));
+    g_assert(!throttle_is_valid(&cfg, NULL));
 
-    memset(&cfg, 0, sizeof(cfg));
+    throttle_config_init(&cfg);
     set_cfg_value(is_max, total, 1);
     set_cfg_value(is_max, write, 1);
-    g_assert(throttle_conflicting(&cfg));
+    g_assert(!throttle_is_valid(&cfg, NULL));
 
-    memset(&cfg, 0, sizeof(cfg));
+    throttle_config_init(&cfg);
     set_cfg_value(is_max, total, 1);
     set_cfg_value(is_max, read,  1);
     set_cfg_value(is_max, write, 1);
-    g_assert(throttle_conflicting(&cfg));
+    g_assert(!throttle_is_valid(&cfg, NULL));
 
-    memset(&cfg, 0, sizeof(cfg));
+    throttle_config_init(&cfg);
     set_cfg_value(is_max, total, 1);
-    g_assert(!throttle_conflicting(&cfg));
+    g_assert(throttle_is_valid(&cfg, NULL));
 
-    memset(&cfg, 0, sizeof(cfg));
+    throttle_config_init(&cfg);
     set_cfg_value(is_max, read,  1);
     set_cfg_value(is_max, write, 1);
-    g_assert(!throttle_conflicting(&cfg));
+    g_assert(throttle_is_valid(&cfg, NULL));
 }
 
 static void test_conflicting_config(void)
@@ -313,9 +359,9 @@ static void test_is_valid_for_value(int value, bool should_be_valid)
     int is_max, index;
     for (is_max = 0; is_max < 2; is_max++) {
         for (index = 0; index < BUCKETS_COUNT; index++) {
-            memset(&cfg, 0, sizeof(cfg));
+            throttle_config_init(&cfg);
             set_cfg_value(is_max, index, value);
-            g_assert(throttle_is_valid(&cfg) == should_be_valid);
+            g_assert(throttle_is_valid(&cfg, NULL) == should_be_valid);
         }
     }
 }
@@ -335,18 +381,18 @@ static void test_max_is_missing_limit(void)
     int i;
 
     for (i = 0; i < BUCKETS_COUNT; i++) {
-        memset(&cfg, 0, sizeof(cfg));
+        throttle_config_init(&cfg);
         cfg.buckets[i].max = 100;
         cfg.buckets[i].avg = 0;
-        g_assert(throttle_max_is_missing_limit(&cfg));
+        g_assert(!throttle_is_valid(&cfg, NULL));
 
         cfg.buckets[i].max = 0;
         cfg.buckets[i].avg = 0;
-        g_assert(!throttle_max_is_missing_limit(&cfg));
+        g_assert(throttle_is_valid(&cfg, NULL));
 
         cfg.buckets[i].max = 0;
         cfg.buckets[i].avg = 100;
-        g_assert(!throttle_max_is_missing_limit(&cfg));
+        g_assert(throttle_is_valid(&cfg, NULL));
     }
 }
 
@@ -550,7 +596,7 @@ static void test_groups(void)
     g_assert(bdrv1->throttle_state == bdrv3->throttle_state);
 
     /* Setting the config of a group member affects the whole group */
-    memset(&cfg1, 0, sizeof(cfg1));
+    throttle_config_init(&cfg1);
     cfg1.buckets[THROTTLE_BPS_READ].avg  = 500000;
     cfg1.buckets[THROTTLE_BPS_WRITE].avg = 285000;
     cfg1.buckets[THROTTLE_OPS_READ].avg  = 20000;

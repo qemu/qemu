@@ -18,6 +18,7 @@
 #include "qemu/config-file.h"
 #include "qemu/readline.h"
 #include "qapi/qmp/qstring.h"
+#include "qom/object_interfaces.h"
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"
 #include "trace/control.h"
@@ -31,6 +32,7 @@ static BlockBackend *qemuio_blk;
 /* qemu-io commands passed using -c */
 static int ncmdline;
 static char **cmdline;
+static bool imageOpts;
 
 static ReadLineState *readline_state;
 
@@ -150,6 +152,10 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
             readonly = 1;
             break;
         case 'o':
+            if (imageOpts) {
+                printf("--image-opts and 'open -o' are mutually exclusive\n");
+                return 0;
+            }
             if (!qemu_opts_parse_noisily(&empty_opts, optarg, false)) {
                 qemu_opts_reset(&empty_opts);
                 return 0;
@@ -163,6 +169,14 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
 
     if (!readonly) {
         flags |= BDRV_O_RDWR;
+    }
+
+    if (imageOpts && (optind == argc - 1)) {
+        if (!qemu_opts_parse_noisily(&empty_opts, argv[optind], false)) {
+            qemu_opts_reset(&empty_opts);
+            return 0;
+        }
+        optind++;
     }
 
     qopts = qemu_opts_find(&empty_opts, NULL);
@@ -200,6 +214,8 @@ static void usage(const char *name)
 "Usage: %s [-h] [-V] [-rsnm] [-f FMT] [-c STRING] ... [file]\n"
 "QEMU Disk exerciser\n"
 "\n"
+"  --object OBJECTDEF   define an object such as 'secret' for\n"
+"                       passwords and/or encryption keys\n"
 "  -c, --cmd STRING     execute command with its arguments\n"
 "                       from the given string\n"
 "  -f, --format FMT     specifies the block driver to use\n"
@@ -361,24 +377,51 @@ static void reenable_tty_echo(void)
     qemu_set_tty_echo(STDIN_FILENO, true);
 }
 
+enum {
+    OPTION_OBJECT = 256,
+    OPTION_IMAGE_OPTS = 257,
+};
+
+static QemuOptsList qemu_object_opts = {
+    .name = "object",
+    .implied_opt_name = "qom-type",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_object_opts.head),
+    .desc = {
+        { }
+    },
+};
+
+
+static QemuOptsList file_opts = {
+    .name = "file",
+    .implied_opt_name = "file",
+    .head = QTAILQ_HEAD_INITIALIZER(file_opts.head),
+    .desc = {
+        /* no elements => accept any params */
+        { /* end of list */ }
+    },
+};
+
 int main(int argc, char **argv)
 {
     int readonly = 0;
     const char *sopt = "hVc:d:f:rsnmgkt:T:";
     const struct option lopt[] = {
-        { "help", 0, NULL, 'h' },
-        { "version", 0, NULL, 'V' },
-        { "offset", 1, NULL, 'o' },
-        { "cmd", 1, NULL, 'c' },
-        { "format", 1, NULL, 'f' },
-        { "read-only", 0, NULL, 'r' },
-        { "snapshot", 0, NULL, 's' },
-        { "nocache", 0, NULL, 'n' },
-        { "misalign", 0, NULL, 'm' },
-        { "native-aio", 0, NULL, 'k' },
-        { "discard", 1, NULL, 'd' },
-        { "cache", 1, NULL, 't' },
-        { "trace", 1, NULL, 'T' },
+        { "help", no_argument, NULL, 'h' },
+        { "version", no_argument, NULL, 'V' },
+        { "offset", required_argument, NULL, 'o' },
+        { "cmd", required_argument, NULL, 'c' },
+        { "format", required_argument, NULL, 'f' },
+        { "read-only", no_argument, NULL, 'r' },
+        { "snapshot", no_argument, NULL, 's' },
+        { "nocache", no_argument, NULL, 'n' },
+        { "misalign", no_argument, NULL, 'm' },
+        { "native-aio", no_argument, NULL, 'k' },
+        { "discard", required_argument, NULL, 'd' },
+        { "cache", required_argument, NULL, 't' },
+        { "trace", required_argument, NULL, 'T' },
+        { "object", required_argument, NULL, OPTION_OBJECT },
+        { "image-opts", no_argument, NULL, OPTION_IMAGE_OPTS },
         { NULL, 0, NULL, 0 }
     };
     int c;
@@ -386,6 +429,7 @@ int main(int argc, char **argv)
     int flags = BDRV_O_UNMAP;
     Error *local_error = NULL;
     QDict *opts = NULL;
+    const char *format = NULL;
 
 #ifdef CONFIG_POSIX
     signal(SIGPIPE, SIG_IGN);
@@ -395,6 +439,7 @@ int main(int argc, char **argv)
     qemu_init_exec_dir(argv[0]);
 
     module_call_init(MODULE_INIT_QOM);
+    qemu_add_opts(&qemu_object_opts);
     bdrv_init();
 
     while ((c = getopt_long(argc, argv, sopt, lopt, &opt_index)) != -1) {
@@ -412,10 +457,7 @@ int main(int argc, char **argv)
             }
             break;
         case 'f':
-            if (!opts) {
-                opts = qdict_new();
-            }
-            qdict_put(opts, "driver", qstring_from_str(optarg));
+            format = optarg;
             break;
         case 'c':
             add_user_command(optarg);
@@ -446,6 +488,17 @@ int main(int argc, char **argv)
         case 'h':
             usage(progname);
             exit(0);
+        case OPTION_OBJECT: {
+            QemuOpts *qopts;
+            qopts = qemu_opts_parse_noisily(&qemu_object_opts,
+                                            optarg, true);
+            if (!qopts) {
+                exit(1);
+            }
+        }   break;
+        case OPTION_IMAGE_OPTS:
+            imageOpts = true;
+            break;
         default:
             usage(progname);
             exit(1);
@@ -457,7 +510,19 @@ int main(int argc, char **argv)
         exit(1);
     }
 
+    if (format && imageOpts) {
+        error_report("--image-opts and -f are mutually exclusive");
+        exit(1);
+    }
+
     if (qemu_init_main_loop(&local_error)) {
+        error_report_err(local_error);
+        exit(1);
+    }
+
+    if (qemu_opts_foreach(&qemu_object_opts,
+                          user_creatable_add_opts_foreach,
+                          NULL, &local_error)) {
         error_report_err(local_error);
         exit(1);
     }
@@ -482,7 +547,21 @@ int main(int argc, char **argv)
     }
 
     if ((argc - optind) == 1) {
-        openfile(argv[optind], flags, opts);
+        if (imageOpts) {
+            QemuOpts *qopts = NULL;
+            qopts = qemu_opts_parse_noisily(&file_opts, argv[optind], false);
+            if (!qopts) {
+                exit(1);
+            }
+            opts = qemu_opts_to_qdict(qopts, NULL);
+            openfile(NULL, flags, opts);
+        } else {
+            if (format) {
+                opts = qdict_new();
+                qdict_put(opts, "driver", qstring_from_str(format));
+            }
+            openfile(argv[optind], flags, opts);
+        }
     }
     command_loop();
 

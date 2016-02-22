@@ -1191,10 +1191,6 @@ static int bdrv_fill_options(QDict **options, const char *filename,
         }
     }
 
-    if (runstate_check(RUN_STATE_INMIGRATE)) {
-        *flags |= BDRV_O_INACTIVE;
-    }
-
     return 0;
 }
 

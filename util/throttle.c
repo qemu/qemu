@@ -41,6 +41,14 @@ void throttle_leak_bucket(LeakyBucket *bkt, int64_t delta_ns)
 
     /* make the bucket leak */
     bkt->level = MAX(bkt->level - leak, 0);
+
+    /* if we allow bursts for more than one second we also need to
+     * keep track of bkt->burst_level so the bkt->max goal per second
+     * is attained */
+    if (bkt->burst_length > 1) {
+        leak = (bkt->max * (double) delta_ns) / NANOSECONDS_PER_SECOND;
+        bkt->burst_level = MAX(bkt->burst_level - leak, 0);
+    }
 }
 
 /* Calculate the time delta since last leak and make proportionals leaks
@@ -91,13 +99,24 @@ int64_t throttle_compute_wait(LeakyBucket *bkt)
         return 0;
     }
 
-    extra = bkt->level - bkt->max;
-
-    if (extra <= 0) {
-        return 0;
+    /* If the bucket is full then we have to wait */
+    extra = bkt->level - bkt->max * bkt->burst_length;
+    if (extra > 0) {
+        return throttle_do_compute_wait(bkt->avg, extra);
     }
 
-    return throttle_do_compute_wait(bkt->avg, extra);
+    /* If the bucket is not full yet we have to make sure that we
+     * fulfill the goal of bkt->max units per second. */
+    if (bkt->burst_length > 1) {
+        /* We use 1/10 of the max value to smooth the throttling.
+         * See throttle_fix_bucket() for more details. */
+        extra = bkt->burst_level - bkt->max / 10;
+        if (extra > 0) {
+            return throttle_do_compute_wait(bkt->max, extra);
+        }
+    }
+
+    return 0;
 }
 
 /* This function compute the time that must be waited while this IO
@@ -137,10 +156,10 @@ static int64_t throttle_compute_wait_for(ThrottleState *ts,
  * @next_timestamp: the resulting timer
  * @ret:        true if a timer must be set
  */
-bool throttle_compute_timer(ThrottleState *ts,
-                            bool is_write,
-                            int64_t now,
-                            int64_t *next_timestamp)
+static bool throttle_compute_timer(ThrottleState *ts,
+                                   bool is_write,
+                                   int64_t now,
+                                   int64_t *next_timestamp)
 {
     int64_t wait;
 
@@ -171,10 +190,24 @@ void throttle_timers_attach_aio_context(ThrottleTimers *tt,
                                   tt->write_timer_cb, tt->timer_opaque);
 }
 
+/*
+ * Initialize the ThrottleConfig structure to a valid state
+ * @cfg: the config to initialize
+ */
+void throttle_config_init(ThrottleConfig *cfg)
+{
+    unsigned i;
+    memset(cfg, 0, sizeof(*cfg));
+    for (i = 0; i < BUCKETS_COUNT; i++) {
+        cfg->buckets[i].burst_length = 1;
+    }
+}
+
 /* To be called first on the ThrottleState */
 void throttle_init(ThrottleState *ts)
 {
     memset(ts, 0, sizeof(ThrottleState));
+    throttle_config_init(&ts->cfg);
 }
 
 /* To be called first on the ThrottleTimers */
@@ -248,13 +281,14 @@ bool throttle_enabled(ThrottleConfig *cfg)
     return false;
 }
 
-/* return true if any two throttling parameters conflicts
- *
+/* check if a throttling configuration is valid
  * @cfg: the throttling configuration to inspect
- * @ret: true if any conflict detected else false
+ * @ret: true if valid else false
+ * @errp: error object
  */
-bool throttle_conflicting(ThrottleConfig *cfg)
+bool throttle_is_valid(ThrottleConfig *cfg, Error **errp)
 {
+    int i;
     bool bps_flag, ops_flag;
     bool bps_max_flag, ops_max_flag;
 
@@ -274,42 +308,40 @@ bool throttle_conflicting(ThrottleConfig *cfg)
                    (cfg->buckets[THROTTLE_OPS_READ].max ||
                    cfg->buckets[THROTTLE_OPS_WRITE].max);
 
-    return bps_flag || ops_flag || bps_max_flag || ops_max_flag;
-}
-
-/* check if a throttling configuration is valid
- * @cfg: the throttling configuration to inspect
- * @ret: true if valid else false
- */
-bool throttle_is_valid(ThrottleConfig *cfg)
-{
-    int i;
+    if (bps_flag || ops_flag || bps_max_flag || ops_max_flag) {
+        error_setg(errp, "bps/iops/max total values and read/write values"
+                   " cannot be used at the same time");
+        return false;
+    }
 
     for (i = 0; i < BUCKETS_COUNT; i++) {
         if (cfg->buckets[i].avg < 0 ||
             cfg->buckets[i].max < 0 ||
             cfg->buckets[i].avg > THROTTLE_VALUE_MAX ||
             cfg->buckets[i].max > THROTTLE_VALUE_MAX) {
+            error_setg(errp, "bps/iops/max values must be within [0, %lld]",
+                       THROTTLE_VALUE_MAX);
+            return false;
+        }
+
+        if (!cfg->buckets[i].burst_length) {
+            error_setg(errp, "the burst length cannot be 0");
+            return false;
+        }
+
+        if (cfg->buckets[i].burst_length > 1 && !cfg->buckets[i].max) {
+            error_setg(errp, "burst length set without burst rate");
+            return false;
+        }
+
+        if (cfg->buckets[i].max && !cfg->buckets[i].avg) {
+            error_setg(errp, "bps_max/iops_max require corresponding"
+                       " bps/iops values");
             return false;
         }
     }
 
     return true;
-}
-
-/* check if bps_max/iops_max is used without bps/iops
- * @cfg: the throttling configuration to inspect
- */
-bool throttle_max_is_missing_limit(ThrottleConfig *cfg)
-{
-    int i;
-
-    for (i = 0; i < BUCKETS_COUNT; i++) {
-        if (cfg->buckets[i].max && !cfg->buckets[i].avg) {
-            return true;
-        }
-    }
-    return false;
 }
 
 /* fix bucket parameters */
@@ -318,7 +350,7 @@ static void throttle_fix_bucket(LeakyBucket *bkt)
     double min;
 
     /* zero bucket level */
-    bkt->level = 0;
+    bkt->level = bkt->burst_level = 0;
 
     /* The following is done to cope with the Linux CFQ block scheduler
      * which regroup reads and writes by block of 100ms in the guest.
@@ -421,22 +453,36 @@ bool throttle_schedule_timer(ThrottleState *ts,
  */
 void throttle_account(ThrottleState *ts, bool is_write, uint64_t size)
 {
+    const BucketType bucket_types_size[2][2] = {
+        { THROTTLE_BPS_TOTAL, THROTTLE_BPS_READ },
+        { THROTTLE_BPS_TOTAL, THROTTLE_BPS_WRITE }
+    };
+    const BucketType bucket_types_units[2][2] = {
+        { THROTTLE_OPS_TOTAL, THROTTLE_OPS_READ },
+        { THROTTLE_OPS_TOTAL, THROTTLE_OPS_WRITE }
+    };
     double units = 1.0;
+    unsigned i;
 
     /* if cfg.op_size is defined and smaller than size we compute unit count */
     if (ts->cfg.op_size && size > ts->cfg.op_size) {
         units = (double) size / ts->cfg.op_size;
     }
 
-    ts->cfg.buckets[THROTTLE_BPS_TOTAL].level += size;
-    ts->cfg.buckets[THROTTLE_OPS_TOTAL].level += units;
+    for (i = 0; i < 2; i++) {
+        LeakyBucket *bkt;
 
-    if (is_write) {
-        ts->cfg.buckets[THROTTLE_BPS_WRITE].level += size;
-        ts->cfg.buckets[THROTTLE_OPS_WRITE].level += units;
-    } else {
-        ts->cfg.buckets[THROTTLE_BPS_READ].level += size;
-        ts->cfg.buckets[THROTTLE_OPS_READ].level += units;
+        bkt = &ts->cfg.buckets[bucket_types_size[is_write][i]];
+        bkt->level += size;
+        if (bkt->burst_length > 1) {
+            bkt->burst_level += size;
+        }
+
+        bkt = &ts->cfg.buckets[bucket_types_units[is_write][i]];
+        bkt->level += units;
+        if (bkt->burst_length > 1) {
+            bkt->burst_level += units;
+        }
     }
 }
 

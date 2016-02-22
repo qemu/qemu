@@ -92,6 +92,26 @@ BlockDeviceInfo *bdrv_block_device_info(BlockDriverState *bs, Error **errp)
         info->has_iops_wr_max = cfg.buckets[THROTTLE_OPS_WRITE].max;
         info->iops_wr_max     = cfg.buckets[THROTTLE_OPS_WRITE].max;
 
+        info->has_bps_max_length     = info->has_bps_max;
+        info->bps_max_length         =
+            cfg.buckets[THROTTLE_BPS_TOTAL].burst_length;
+        info->has_bps_rd_max_length  = info->has_bps_rd_max;
+        info->bps_rd_max_length      =
+            cfg.buckets[THROTTLE_BPS_READ].burst_length;
+        info->has_bps_wr_max_length  = info->has_bps_wr_max;
+        info->bps_wr_max_length      =
+            cfg.buckets[THROTTLE_BPS_WRITE].burst_length;
+
+        info->has_iops_max_length    = info->has_iops_max;
+        info->iops_max_length        =
+            cfg.buckets[THROTTLE_OPS_TOTAL].burst_length;
+        info->has_iops_rd_max_length = info->has_iops_rd_max;
+        info->iops_rd_max_length     =
+            cfg.buckets[THROTTLE_OPS_READ].burst_length;
+        info->has_iops_wr_max_length = info->has_iops_wr_max;
+        info->iops_wr_max_length     =
+            cfg.buckets[THROTTLE_OPS_WRITE].burst_length;
+
         info->has_iops_size = cfg.op_size;
         info->iops_size = cfg.op_size;
 

@@ -37,12 +37,13 @@
 #include <pthread.h>
 
 #define SOCKET_PATH                "/var/lock/qemu-nbd-%s"
-#define QEMU_NBD_OPT_CACHE         1
-#define QEMU_NBD_OPT_AIO           2
-#define QEMU_NBD_OPT_DISCARD       3
-#define QEMU_NBD_OPT_DETECT_ZEROES 4
-#define QEMU_NBD_OPT_OBJECT        5
-#define QEMU_NBD_OPT_TLSCREDS      6
+#define QEMU_NBD_OPT_CACHE         256
+#define QEMU_NBD_OPT_AIO           257
+#define QEMU_NBD_OPT_DISCARD       258
+#define QEMU_NBD_OPT_DETECT_ZEROES 259
+#define QEMU_NBD_OPT_OBJECT        260
+#define QEMU_NBD_OPT_TLSCREDS      261
+#define QEMU_NBD_OPT_IMAGE_OPTS    262
 
 static NBDExport *exp;
 static bool newproto;
@@ -105,6 +106,7 @@ static void usage(const char *name)
 "      --aio=MODE            set AIO mode (native or threads)\n"
 "      --discard=MODE        set discard mode (ignore, unmap)\n"
 "      --detect-zeroes=MODE  set detect-zeroes mode (off, on, unmap)\n"
+"      --image-opts          treat FILE as a full set of image options\n"
 "\n"
 "Report bugs to <qemu-devel@nongnu.org>\n"
     , name, NBD_DEFAULT_PORT, "DEVICE");
@@ -394,6 +396,16 @@ static SocketAddress *nbd_build_socket_address(const char *sockpath,
 }
 
 
+static QemuOptsList file_opts = {
+    .name = "file",
+    .implied_opt_name = "file",
+    .head = QTAILQ_HEAD_INITIALIZER(file_opts.head),
+    .desc = {
+        /* no elements => accept any params */
+        { /* end of list */ }
+    },
+};
+
 static QemuOptsList qemu_object_opts = {
     .name = "object",
     .implied_opt_name = "qom-type",
@@ -451,30 +463,32 @@ int main(int argc, char **argv)
     const char *sn_id_or_name = NULL;
     const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:";
     struct option lopt[] = {
-        { "help", 0, NULL, 'h' },
-        { "version", 0, NULL, 'V' },
-        { "bind", 1, NULL, 'b' },
-        { "port", 1, NULL, 'p' },
-        { "socket", 1, NULL, 'k' },
-        { "offset", 1, NULL, 'o' },
-        { "read-only", 0, NULL, 'r' },
-        { "partition", 1, NULL, 'P' },
-        { "connect", 1, NULL, 'c' },
-        { "disconnect", 0, NULL, 'd' },
-        { "snapshot", 0, NULL, 's' },
-        { "load-snapshot", 1, NULL, 'l' },
-        { "nocache", 0, NULL, 'n' },
-        { "cache", 1, NULL, QEMU_NBD_OPT_CACHE },
-        { "aio", 1, NULL, QEMU_NBD_OPT_AIO },
-        { "discard", 1, NULL, QEMU_NBD_OPT_DISCARD },
-        { "detect-zeroes", 1, NULL, QEMU_NBD_OPT_DETECT_ZEROES },
-        { "shared", 1, NULL, 'e' },
-        { "format", 1, NULL, 'f' },
-        { "persistent", 0, NULL, 't' },
-        { "verbose", 0, NULL, 'v' },
-        { "object", 1, NULL, QEMU_NBD_OPT_OBJECT },
-        { "export-name", 1, NULL, 'x' },
-        { "tls-creds", 1, NULL, QEMU_NBD_OPT_TLSCREDS },
+        { "help", no_argument, NULL, 'h' },
+        { "version", no_argument, NULL, 'V' },
+        { "bind", required_argument, NULL, 'b' },
+        { "port", required_argument, NULL, 'p' },
+        { "socket", required_argument, NULL, 'k' },
+        { "offset", required_argument, NULL, 'o' },
+        { "read-only", no_argument, NULL, 'r' },
+        { "partition", required_argument, NULL, 'P' },
+        { "connect", required_argument, NULL, 'c' },
+        { "disconnect", no_argument, NULL, 'd' },
+        { "snapshot", no_argument, NULL, 's' },
+        { "load-snapshot", required_argument, NULL, 'l' },
+        { "nocache", no_argument, NULL, 'n' },
+        { "cache", required_argument, NULL, QEMU_NBD_OPT_CACHE },
+        { "aio", required_argument, NULL, QEMU_NBD_OPT_AIO },
+        { "discard", required_argument, NULL, QEMU_NBD_OPT_DISCARD },
+        { "detect-zeroes", required_argument, NULL,
+          QEMU_NBD_OPT_DETECT_ZEROES },
+        { "shared", required_argument, NULL, 'e' },
+        { "format", required_argument, NULL, 'f' },
+        { "persistent", no_argument, NULL, 't' },
+        { "verbose", no_argument, NULL, 'v' },
+        { "object", required_argument, NULL, QEMU_NBD_OPT_OBJECT },
+        { "export-name", required_argument, NULL, 'x' },
+        { "tls-creds", required_argument, NULL, QEMU_NBD_OPT_TLSCREDS },
+        { "image-opts", no_argument, NULL, QEMU_NBD_OPT_IMAGE_OPTS },
         { NULL, 0, NULL, 0 }
     };
     int ch;
@@ -493,6 +507,7 @@ int main(int argc, char **argv)
     QDict *options = NULL;
     const char *export_name = NULL;
     const char *tlscredsid = NULL;
+    bool imageOpts = false;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
@@ -672,6 +687,9 @@ int main(int argc, char **argv)
         case QEMU_NBD_OPT_TLSCREDS:
             tlscredsid = optarg;
             break;
+        case QEMU_NBD_OPT_IMAGE_OPTS:
+            imageOpts = true;
+            break;
         }
     }
 
@@ -800,13 +818,29 @@ int main(int argc, char **argv)
     bdrv_init();
     atexit(bdrv_close_all);
 
-    if (fmt) {
-        options = qdict_new();
-        qdict_put(options, "driver", qstring_from_str(fmt));
+    srcpath = argv[optind];
+    if (imageOpts) {
+        QemuOpts *opts;
+        if (fmt) {
+            error_report("--image-opts and -f are mutually exclusive");
+            exit(EXIT_FAILURE);
+        }
+        opts = qemu_opts_parse_noisily(&file_opts, srcpath, true);
+        if (!opts) {
+            qemu_opts_reset(&file_opts);
+            exit(EXIT_FAILURE);
+        }
+        options = qemu_opts_to_qdict(opts, NULL);
+        qemu_opts_reset(&file_opts);
+        blk = blk_new_open("hda", NULL, NULL, options, flags, &local_err);
+    } else {
+        if (fmt) {
+            options = qdict_new();
+            qdict_put(options, "driver", qstring_from_str(fmt));
+        }
+        blk = blk_new_open("hda", srcpath, NULL, options, flags, &local_err);
     }
 
-    srcpath = argv[optind];
-    blk = blk_new_open("hda", srcpath, NULL, options, flags, &local_err);
     if (!blk) {
         error_reportf_err(local_err, "Failed to blk_new_open '%s': ",
                           argv[optind]);

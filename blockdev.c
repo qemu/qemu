@@ -343,29 +343,6 @@ static bool parse_stats_intervals(BlockAcctStats *stats, QList *intervals,
     return true;
 }
 
-static bool check_throttle_config(ThrottleConfig *cfg, Error **errp)
-{
-    if (throttle_conflicting(cfg)) {
-        error_setg(errp, "bps/iops/max total values and read/write values"
-                         " cannot be used at the same time");
-        return false;
-    }
-
-    if (!throttle_is_valid(cfg)) {
-        error_setg(errp, "bps/iops/max values must be within [0, %lld]",
-                   THROTTLE_VALUE_MAX);
-        return false;
-    }
-
-    if (throttle_max_is_missing_limit(cfg)) {
-        error_setg(errp, "bps_max/iops_max require corresponding"
-                         " bps/iops values");
-        return false;
-    }
-
-    return true;
-}
-
 typedef enum { MEDIA_DISK, MEDIA_CDROM } DriveMediaType;
 
 /* All parameters but @opts are optional and may be set to NULL. */
@@ -410,7 +387,7 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
     }
 
     if (throttle_cfg) {
-        memset(throttle_cfg, 0, sizeof(*throttle_cfg));
+        throttle_config_init(throttle_cfg);
         throttle_cfg->buckets[THROTTLE_BPS_TOTAL].avg =
             qemu_opt_get_number(opts, "throttling.bps-total", 0);
         throttle_cfg->buckets[THROTTLE_BPS_READ].avg  =
@@ -437,10 +414,23 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
         throttle_cfg->buckets[THROTTLE_OPS_WRITE].max =
             qemu_opt_get_number(opts, "throttling.iops-write-max", 0);
 
+        throttle_cfg->buckets[THROTTLE_BPS_TOTAL].burst_length =
+            qemu_opt_get_number(opts, "throttling.bps-total-max-length", 1);
+        throttle_cfg->buckets[THROTTLE_BPS_READ].burst_length  =
+            qemu_opt_get_number(opts, "throttling.bps-read-max-length", 1);
+        throttle_cfg->buckets[THROTTLE_BPS_WRITE].burst_length =
+            qemu_opt_get_number(opts, "throttling.bps-write-max-length", 1);
+        throttle_cfg->buckets[THROTTLE_OPS_TOTAL].burst_length =
+            qemu_opt_get_number(opts, "throttling.iops-total-max-length", 1);
+        throttle_cfg->buckets[THROTTLE_OPS_READ].burst_length =
+            qemu_opt_get_number(opts, "throttling.iops-read-max-length", 1);
+        throttle_cfg->buckets[THROTTLE_OPS_WRITE].burst_length =
+            qemu_opt_get_number(opts, "throttling.iops-write-max-length", 1);
+
         throttle_cfg->op_size =
             qemu_opt_get_number(opts, "throttling.iops-size", 0);
 
-        if (!check_throttle_config(throttle_cfg, errp)) {
+        if (!throttle_is_valid(throttle_cfg, errp)) {
             return;
         }
     }
@@ -610,6 +600,10 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
             qdict_put(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, qstring_from_str("on"));
         }
 
+        if (runstate_check(RUN_STATE_INMIGRATE)) {
+            bdrv_flags |= BDRV_O_INACTIVE;
+        }
+
         blk = blk_new_open(qemu_opts_id(opts), file, NULL, bs_opts, bdrv_flags,
                            errp);
         if (!blk) {
@@ -686,6 +680,10 @@ static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
     if (local_error) {
         error_propagate(errp, local_error);
         goto fail;
+    }
+
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        bdrv_flags |= BDRV_O_INACTIVE;
     }
 
     bs = NULL;
@@ -2515,6 +2513,8 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
     }
 
     bdrv_flags = blk_get_open_flags_from_root_state(blk);
+    bdrv_flags &= ~(BDRV_O_TEMPORARY | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING |
+        BDRV_O_PROTOCOL);
 
     if (!has_read_only) {
         read_only = BLOCKDEV_CHANGE_READ_ONLY_MODE_RETAIN;
@@ -2600,6 +2600,18 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
                                int64_t iops_rd_max,
                                bool has_iops_wr_max,
                                int64_t iops_wr_max,
+                               bool has_bps_max_length,
+                               int64_t bps_max_length,
+                               bool has_bps_rd_max_length,
+                               int64_t bps_rd_max_length,
+                               bool has_bps_wr_max_length,
+                               int64_t bps_wr_max_length,
+                               bool has_iops_max_length,
+                               int64_t iops_max_length,
+                               bool has_iops_rd_max_length,
+                               int64_t iops_rd_max_length,
+                               bool has_iops_wr_max_length,
+                               int64_t iops_wr_max_length,
                                bool has_iops_size,
                                int64_t iops_size,
                                bool has_group,
@@ -2626,7 +2638,7 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
         goto out;
     }
 
-    memset(&cfg, 0, sizeof(cfg));
+    throttle_config_init(&cfg);
     cfg.buckets[THROTTLE_BPS_TOTAL].avg = bps;
     cfg.buckets[THROTTLE_BPS_READ].avg  = bps_rd;
     cfg.buckets[THROTTLE_BPS_WRITE].avg = bps_wr;
@@ -2654,11 +2666,30 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
         cfg.buckets[THROTTLE_OPS_WRITE].max = iops_wr_max;
     }
 
+    if (has_bps_max_length) {
+        cfg.buckets[THROTTLE_BPS_TOTAL].burst_length = bps_max_length;
+    }
+    if (has_bps_rd_max_length) {
+        cfg.buckets[THROTTLE_BPS_READ].burst_length = bps_rd_max_length;
+    }
+    if (has_bps_wr_max_length) {
+        cfg.buckets[THROTTLE_BPS_WRITE].burst_length = bps_wr_max_length;
+    }
+    if (has_iops_max_length) {
+        cfg.buckets[THROTTLE_OPS_TOTAL].burst_length = iops_max_length;
+    }
+    if (has_iops_rd_max_length) {
+        cfg.buckets[THROTTLE_OPS_READ].burst_length = iops_rd_max_length;
+    }
+    if (has_iops_wr_max_length) {
+        cfg.buckets[THROTTLE_OPS_WRITE].burst_length = iops_wr_max_length;
+    }
+
     if (has_iops_size) {
         cfg.op_size = iops_size;
     }
 
-    if (!check_throttle_config(&cfg, errp)) {
+    if (!throttle_is_valid(&cfg, errp)) {
         goto out;
     }
 
@@ -4086,6 +4117,30 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "throttling.bps-write-max",
             .type = QEMU_OPT_NUMBER,
             .help = "total bytes write burst",
+        },{
+            .name = "throttling.iops-total-max-length",
+            .type = QEMU_OPT_NUMBER,
+            .help = "length of the iops-total-max burst period, in seconds",
+        },{
+            .name = "throttling.iops-read-max-length",
+            .type = QEMU_OPT_NUMBER,
+            .help = "length of the iops-read-max burst period, in seconds",
+        },{
+            .name = "throttling.iops-write-max-length",
+            .type = QEMU_OPT_NUMBER,
+            .help = "length of the iops-write-max burst period, in seconds",
+        },{
+            .name = "throttling.bps-total-max-length",
+            .type = QEMU_OPT_NUMBER,
+            .help = "length of the bps-total-max burst period, in seconds",
+        },{
+            .name = "throttling.bps-read-max-length",
+            .type = QEMU_OPT_NUMBER,
+            .help = "length of the bps-read-max burst period, in seconds",
+        },{
+            .name = "throttling.bps-write-max-length",
+            .type = QEMU_OPT_NUMBER,
+            .help = "length of the bps-write-max burst period, in seconds",
         },{
             .name = "throttling.iops-size",
             .type = QEMU_OPT_NUMBER,

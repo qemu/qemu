@@ -24,6 +24,20 @@ Command parameters:
 @table @var
 @item filename
  is a disk image filename
+
+@item --object @var{objectdef}
+
+is a QEMU user creatable object definition. See the @code{qemu(1)} manual
+page for a description of the object properties. The most common object
+type is a @code{secret}, which is used to supply passwords and/or encryption
+keys.
+
+@item --image-opts
+
+Indicates that the @var{filename} parameter is to be interpreted as a
+full option string, not a plain filename. This parameter is mutually
+exclusive with the @var{-f} and @var{-F} parameters.
+
 @item fmt
 is the disk image format. It is guessed automatically in most cases. See below
 for a description of the supported disk formats.

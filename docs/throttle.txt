@@ -1,0 +1,252 @@
+The QEMU throttling infrastructure
+==================================
+Copyright (C) 2016 Igalia, S.L.
+Author: Alberto Garcia <berto@igalia.com>
+
+This work is licensed under the terms of the GNU GPL, version 2 or
+later. See the COPYING file in the top-level directory.
+
+Introduction
+------------
+QEMU includes a throttling module that can be used to set limits to
+I/O operations. The code itself is generic and independent of the I/O
+units, but it is currenly used to limit the number of bytes per second
+and operations per second (IOPS) when performing disk I/O.
+
+This document explains how to use the throttling code in QEMU, and how
+it works internally. The implementation is in throttle.c.
+
+
+Using throttling to limit disk I/O
+----------------------------------
+Two aspects of the disk I/O can be limited: the number of bytes per
+second and the number of operations per second (IOPS). For each one of
+them the user can set a global limit or separate limits for read and
+write operations. This gives us a total of six different parameters.
+
+I/O limits can be set using the throttling.* parameters of -drive, or
+using the QMP 'block_set_io_throttle' command. These are the names of
+the parameters for both cases:
+
+|-----------------------+-----------------------|
+| -drive                | block_set_io_throttle |
+|-----------------------+-----------------------|
+| throttling.iops-total | iops                  |
+| throttling.iops-read  | iops_rd               |
+| throttling.iops-write | iops_wr               |
+| throttling.bps-total  | bps                   |
+| throttling.bps-read   | bps_rd                |
+| throttling.bps-write  | bps_wr                |
+|-----------------------+-----------------------|
+
+It is possible to set limits for both IOPS and bps and the same time,
+and for each case we can decide whether to have separate read and
+write limits or not, but note that if iops-total is set then neither
+iops-read nor iops-write can be set. The same applies to bps-total and
+bps-read/write.
+
+The default value of these parameters is 0, and it means 'unlimited'.
+
+In its most basic usage, the user can add a drive to QEMU with a limit
+of 100 IOPS with the following -drive line:
+
+   -drive file=hd0.qcow2,throttling.iops-total=100
+
+We can do the same using QMP. In this case all these parameters are
+mandatory, so we must set to 0 the ones that we don't want to limit:
+
+   { "execute": "block_set_io_throttle",
+     "arguments": {
+        "device": "virtio0",
+        "iops": 100,
+        "iops_rd": 0,
+        "iops_wr": 0,
+        "bps": 0,
+        "bps_rd": 0,
+        "bps_wr": 0
+     }
+   }
+
+
+I/O bursts
+----------
+In addition to the basic limits we have just seen, QEMU allows the
+user to do bursts of I/O for a configurable amount of time. A burst is
+an amount of I/O that can exceed the basic limit. Bursts are useful to
+allow better performance when there are peaks of activity (the OS
+boots, a service needs to be restarted) while keeping the average
+limits lower the rest of the time.
+
+Two parameters control bursts: their length and the maximum amount of
+I/O they allow. These two can be configured separately for each one of
+the six basic parameters described in the previous section, but in
+this section we'll use 'iops-total' as an example.
+
+The I/O limit during bursts is set using 'iops-total-max', and the
+maximum length (in seconds) is set with 'iops-total-max-length'. So if
+we want to configure a drive with a basic limit of 100 IOPS and allow
+bursts of 2000 IOPS for 60 seconds, we would do it like this (the line
+is split for clarity):
+
+   -drive file=hd0.qcow2,
+          throttling.iops-total=100,
+          throttling.iops-total-max=2000,
+          throttling.iops-total-max-length=60
+
+Or, with QMP:
+
+   { "execute": "block_set_io_throttle",
+     "arguments": {
+        "device": "virtio0",
+        "iops": 100,
+        "iops_rd": 0,
+        "iops_wr": 0,
+        "bps": 0,
+        "bps_rd": 0,
+        "bps_wr": 0,
+        "iops_max": 2000,
+        "iops_max_length": 60,
+     }
+   }
+
+With this, the user can perform I/O on hd0.qcow2 at a rate of 2000
+IOPS for 1 minute before it's throttled down to 100 IOPS.
+
+The user will be able to do bursts again if there's a sufficiently
+long period of time with unused I/O (see below for details).
+
+The default value for 'iops-total-max' is 0 and it means that bursts
+are not allowed. 'iops-total-max-length' can only be set if
+'iops-total-max' is set as well, and its default value is 1 second.
+
+Here's the complete list of parameters for configuring bursts:
+
+|----------------------------------+-----------------------|
+| -drive                           | block_set_io_throttle |
+|----------------------------------+-----------------------|
+| throttling.iops-total-max        | iops_max              |
+| throttling.iops-total-max-length | iops_max_length       |
+| throttling.iops-read-max         | iops_rd_max           |
+| throttling.iops-read-max-length  | iops_rd_max_length    |
+| throttling.iops-write-max        | iops_wr_max           |
+| throttling.iops-write-max-length | iops_wr_max_length    |
+| throttling.bps-total-max         | bps_max               |
+| throttling.bps-total-max-length  | bps_max_length        |
+| throttling.bps-read-max          | bps_rd_max            |
+| throttling.bps-read-max-length   | bps_rd_max_length     |
+| throttling.bps-write-max         | bps_wr_max            |
+| throttling.bps-write-max-length  | bps_wr_max_length     |
+|----------------------------------+-----------------------|
+
+
+Controlling the size of I/O operations
+--------------------------------------
+When applying IOPS limits all I/O operations are treated equally
+regardless of their size. This means that the user can take advantage
+of this in order to circumvent the limits and submit one huge I/O
+request instead of several smaller ones.
+
+QEMU provides a setting called throttling.iops-size to prevent this
+from happening. This setting specifies the size (in bytes) of an I/O
+request for accounting purposes. Larger requests will be counted
+proportionally to this size.
+
+For example, if iops-size is set to 4096 then an 8KB request will be
+counted as two, and a 6KB request will be counted as one and a
+half. This only applies to requests larger than iops-size: smaller
+requests will be always counted as one, no matter their size.
+
+The default value of iops-size is 0 and it means that the size of the
+requests is never taken into account when applying IOPS limits.
+
+
+Applying I/O limits to groups of disks
+--------------------------------------
+In all the examples so far we have seen how to apply limits to the I/O
+performed on individual drives, but QEMU allows grouping drives so
+they all share the same limits.
+
+The way it works is that each drive with I/O limits is assigned to a
+group named using the throttling.group parameter. If this parameter is
+not specified, then the device name (i.e. 'virtio0', 'ide0-hd0') will
+be used as the group name.
+
+Limits set using the throttling.* parameters discussed earlier in this
+document apply to the combined I/O of all members of a group.
+
+Consider this example:
+
+   -drive file=hd1.qcow2,throttling.iops-total=6000,throttling.group=foo
+   -drive file=hd2.qcow2,throttling.iops-total=6000,throttling.group=foo
+   -drive file=hd3.qcow2,throttling.iops-total=3000,throttling.group=bar
+   -drive file=hd4.qcow2,throttling.iops-total=6000,throttling.group=foo
+   -drive file=hd5.qcow2,throttling.iops-total=3000,throttling.group=bar
+   -drive file=hd6.qcow2,throttling.iops-total=5000
+
+Here hd1, hd2 and hd4 are all members of a group named 'foo' with a
+combined IOPS limit of 6000, and hd3 and hd5 are members of 'bar'. hd6
+is left alone (technically it is part of a 1-member group).
+
+Limits are applied in a round-robin fashion so if there are concurrent
+I/O requests on several drives of the same group they will be
+distributed evenly.
+
+When I/O limits are applied to an existing drive using the QMP command
+'block_set_io_throttle', the following things need to be taken into
+account:
+
+   - I/O limits are shared within the same group, so new values will
+     affect all members and overwrite the previous settings. In other
+     words: if different limits are applied to members of the same
+     group, the last one wins.
+
+   - If 'group' is unset it is assumed to be the current group of that
+     drive. If the drive is not in a group yet, it will be added to a
+     group named after the device name.
+
+   - If 'group' is set then the drive will be moved to that group if
+     it was member of a different one. In this case the limits
+     specified in the parameters will be applied to the new group
+     only.
+
+   - I/O limits can be disabled by setting all of them to 0. In this
+     case the device will be removed from its group and the rest of
+     its members will not be affected. The 'group' parameter is
+     ignored.
+
+
+The Leaky Bucket algorithm
+--------------------------
+I/O limits in QEMU are implemented using the leaky bucket algorithm
+(specifically the "Leaky bucket as a meter" variant).
+
+This algorithm uses the analogy of a bucket that leaks water
+constantly. The water that gets into the bucket represents the I/O
+that has been performed, and no more I/O is allowed once the bucket is
+full.
+
+To see the way this corresponds to the throttling parameters in QEMU,
+consider the following values:
+
+  iops-total=100
+  iops-total-max=2000
+  iops-total-max-length=60
+
+  - Water leaks from the bucket at a rate of 100 IOPS.
+  - Water can be added to the bucket at a rate of 2000 IOPS.
+  - The size of the bucket is 2000 x 60 = 120000
+  - If 'iops-total-max-length' is unset then the bucket size is 100.
+
+The bucket is initially empty, therefore water can be added until it's
+full at a rate of 2000 IOPS (the burst rate). Once the bucket is full
+we can only add as much water as it leaks, therefore the I/O rate is
+reduced to 100 IOPS. If we add less water than it leaks then the
+bucket will start to empty, allowing for bursts again.
+
+Note that since water is leaking from the bucket even during bursts,
+it will take a bit more than 60 seconds at 2000 IOPS to fill it
+up. After those 60 seconds the bucket will have leaked 60 x 100 =
+6000, allowing for 3 more seconds of I/O at 2000 IOPS.
+
+Also, due to the way the algorithm works, longer burst can be done at
+a lower I/O rate, e.g. 1000 IOPS during 120 seconds.

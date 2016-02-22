@@ -1414,6 +1414,18 @@ void hmp_block_set_io_throttle(Monitor *mon, const QDict *qdict)
                               0,
                               false,
                               0,
+                              false, /* no burst length via HMP */
+                              0,
+                              false,
+                              0,
+                              false,
+                              0,
+                              false,
+                              0,
+                              false,
+                              0,
+                              false,
+                              0,
                               false, /* No default I/O size */
                               0,
                               false,

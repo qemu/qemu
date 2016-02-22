@@ -103,7 +103,18 @@ in the description of a field.
                     write to an image with unknown auto-clear features if it
                     clears the respective bits from this field first.
 
-                    Bits 0-63:  Reserved (set to 0)
+                    Bit 0:      Bitmaps extension bit
+                                This bit indicates consistency for the bitmaps
+                                extension data.
+
+                                It is an error if this bit is set without the
+                                bitmaps extension present.
+
+                                If the bitmaps extension is present but this
+                                bit is unset, the bitmaps extension data must be
+                                considered inconsistent.
+
+                    Bits 1-63:  Reserved (set to 0)
 
          96 -  99:  refcount_order
                     Describes the width of a reference count block entry (width
@@ -123,6 +134,7 @@ be stored. Each extension has a structure like the following:
                         0x00000000 - End of the header extension area
                         0xE2792ACA - Backing file format name
                         0x6803f857 - Feature name table
+                        0x23852875 - Bitmaps extension
                         other      - Unknown header extension, can be safely
                                      ignored
 
@@ -164,6 +176,36 @@ the header extension data. Each entry look like this:
 
           2 - 47:   Feature name (padded with zeros, but not necessarily null
                     terminated if it has full length)
+
+
+== Bitmaps extension ==
+
+The bitmaps extension is an optional header extension. It provides the ability
+to store bitmaps related to a virtual disk. For now, there is only one bitmap
+type: the dirty tracking bitmap, which tracks virtual disk changes from some
+point in time.
+
+The data of the extension should be considered consistent only if the
+corresponding auto-clear feature bit is set, see autoclear_features above.
+
+The fields of the bitmaps extension are:
+
+    Byte  0 -  3:  nb_bitmaps
+                   The number of bitmaps contained in the image. Must be
+                   greater than or equal to 1.
+
+                   Note: Qemu currently only supports up to 65535 bitmaps per
+                   image.
+
+          4 -  7:  Reserved, must be zero.
+
+          8 - 15:  bitmap_directory_size
+                   Size of the bitmap directory in bytes. It is the cumulative
+                   size of all (nb_bitmaps) bitmap headers.
+
+         16 - 23:  bitmap_directory_offset
+                   Offset into the image file at which the bitmap directory
+                   starts. Must be aligned to a cluster boundary.
 
 
 == Host cluster management ==
@@ -360,3 +402,180 @@ Snapshot table entry:
 
         variable:   Padding to round up the snapshot table entry size to the
                     next multiple of 8.
+
+
+== Bitmaps ==
+
+As mentioned above, the bitmaps extension provides the ability to store bitmaps
+related to a virtual disk. This section describes how these bitmaps are stored.
+
+All stored bitmaps are related to the virtual disk stored in the same image, so
+each bitmap size is equal to the virtual disk size.
+
+Each bit of the bitmap is responsible for strictly defined range of the virtual
+disk. For bit number bit_nr the corresponding range (in bytes) will be:
+
+    [bit_nr * bitmap_granularity .. (bit_nr + 1) * bitmap_granularity - 1]
+
+Granularity is a property of the concrete bitmap, see below.
+
+
+=== Bitmap directory ===
+
+Each bitmap saved in the image is described in a bitmap directory entry. The
+bitmap directory is a contiguous area in the image file, whose starting offset
+and length are given by the header extension fields bitmap_directory_offset and
+bitmap_directory_size. The entries of the bitmap directory have variable
+length, depending on the lengths of the bitmap name and extra data. These
+entries are also called bitmap headers.
+
+Structure of a bitmap directory entry:
+
+    Byte 0 -  7:    bitmap_table_offset
+                    Offset into the image file at which the bitmap table
+                    (described below) for the bitmap starts. Must be aligned to
+                    a cluster boundary.
+
+         8 - 11:    bitmap_table_size
+                    Number of entries in the bitmap table of the bitmap.
+
+        12 - 15:    flags
+                    Bit
+                      0: in_use
+                         The bitmap was not saved correctly and may be
+                         inconsistent.
+
+                      1: auto
+                         The bitmap must reflect all changes of the virtual
+                         disk by any application that would write to this qcow2
+                         file (including writes, snapshot switching, etc.). The
+                         type of this bitmap must be 'dirty tracking bitmap'.
+
+                      2: extra_data_compatible
+                         This flags is meaningful when the extra data is
+                         unknown to the software (currently any extra data is
+                         unknown to Qemu).
+                         If it is set, the bitmap may be used as expected, extra
+                         data must be left as is.
+                         If it is not set, the bitmap must not be used, but
+                         both it and its extra data be left as is.
+
+                    Bits 3 - 31 are reserved and must be 0.
+
+             16:    type
+                    This field describes the sort of the bitmap.
+                    Values:
+                      1: Dirty tracking bitmap
+
+                    Values 0, 2 - 255 are reserved.
+
+             17:    granularity_bits
+                    Granularity bits. Valid values: 0 - 63.
+
+                    Note: Qemu currently doesn't support granularity_bits
+                    greater than 31.
+
+                    Granularity is calculated as
+                        granularity = 1 << granularity_bits
+
+                    A bitmap's granularity is how many bytes of the image
+                    accounts for one bit of the bitmap.
+
+        18 - 19:    name_size
+                    Size of the bitmap name. Must be non-zero.
+
+                    Note: Qemu currently doesn't support values greater than
+                    1023.
+
+        20 - 23:    extra_data_size
+                    Size of type-specific extra data.
+
+                    For now, as no extra data is defined, extra_data_size is
+                    reserved and should be zero. If it is non-zero the
+                    behavior is defined by extra_data_compatible flag.
+
+        variable:   extra_data
+                    Extra data for the bitmap, occupying extra_data_size bytes.
+                    Extra data must never contain references to clusters or in
+                    some other way allocate additional clusters.
+
+        variable:   name
+                    The name of the bitmap (not null terminated), occupying
+                    name_size bytes. Must be unique among all bitmap names
+                    within the bitmaps extension.
+
+        variable:   Padding to round up the bitmap directory entry size to the
+                    next multiple of 8. All bytes of the padding must be zero.
+
+
+=== Bitmap table ===
+
+Each bitmap is stored using a one-level structure (as opposed to two-level
+structures like for refcounts and guest clusters mapping) for the mapping of
+bitmap data to host clusters. This structure is called the bitmap table.
+
+Each bitmap table has a variable size (stored in the bitmap directory entry)
+and may use multiple clusters, however, it must be contiguous in the image
+file.
+
+Structure of a bitmap table entry:
+
+    Bit       0:    Reserved and must be zero if bits 9 - 55 are non-zero.
+                    If bits 9 - 55 are zero:
+                      0: Cluster should be read as all zeros.
+                      1: Cluster should be read as all ones.
+
+         1 -  8:    Reserved and must be zero.
+
+         9 - 55:    Bits 9 - 55 of the host cluster offset. Must be aligned to
+                    a cluster boundary. If the offset is 0, the cluster is
+                    unallocated; in that case, bit 0 determines how this
+                    cluster should be treated during reads.
+
+        56 - 63:    Reserved and must be zero.
+
+
+=== Bitmap data ===
+
+As noted above, bitmap data is stored in separate clusters, described by the
+bitmap table. Given an offset (in bytes) into the bitmap data, the offset into
+the image file can be obtained as follows:
+
+    image_offset(bitmap_data_offset) =
+        bitmap_table[bitmap_data_offset / cluster_size] +
+            (bitmap_data_offset % cluster_size)
+
+This offset is not defined if bits 9 - 55 of bitmap table entry are zero (see
+above).
+
+Given an offset byte_nr into the virtual disk and the bitmap's granularity, the
+bit offset into the image file to the corresponding bit of the bitmap can be
+calculated like this:
+
+    bit_offset(byte_nr) =
+        image_offset(byte_nr / granularity / 8) * 8 +
+            (byte_nr / granularity) % 8
+
+If the size of the bitmap data is not a multiple of the cluster size then the
+last cluster of the bitmap data contains some unused tail bits. These bits must
+be zero.
+
+
+=== Dirty tracking bitmaps ===
+
+Bitmaps with 'type' field equal to one are dirty tracking bitmaps.
+
+When the virtual disk is in use dirty tracking bitmap may be 'enabled' or
+'disabled'. While the bitmap is 'enabled', all writes to the virtual disk
+should be reflected in the bitmap. A set bit in the bitmap means that the
+corresponding range of the virtual disk (see above) was written to while the
+bitmap was 'enabled'. An unset bit means that this range was not written to.
+
+The software doesn't have to sync the bitmap in the image file with its
+representation in RAM after each write. Flag 'in_use' should be set while the
+bitmap is not synced.
+
+In the image file the 'enabled' state is reflected by the 'auto' flag. If this
+flag is set, the software must consider the bitmap as 'enabled' and start
+tracking virtual disk changes to this bitmap from the first write to the
+virtual disk. If this flag is not set then the bitmap is disabled.
