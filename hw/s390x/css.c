@@ -342,7 +342,8 @@ static CCW1 copy_ccw_from_guest(hwaddr addr, bool fmt1)
     return ret;
 }
 
-static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr)
+static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
+                             bool suspend_allowed)
 {
     int ret;
     bool check_len;
@@ -370,7 +371,7 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr)
     }
 
     if (ccw.flags & CCW_FLAG_SUSPEND) {
-        return -EINPROGRESS;
+        return suspend_allowed ? -EINPROGRESS : -EINVAL;
     }
 
     check_len = !((ccw.flags & CCW_FLAG_SLI) && !(ccw.flags & CCW_FLAG_DC));
@@ -468,6 +469,7 @@ static void sch_handle_start_func(SubchDev *sch, ORB *orb)
     SCSW *s = &sch->curr_status.scsw;
     int path;
     int ret;
+    bool suspend_allowed;
 
     /* Path management: In our simple css, we always choose the only path. */
     path = 0x80;
@@ -487,12 +489,15 @@ static void sch_handle_start_func(SubchDev *sch, ORB *orb)
         }
         sch->ccw_fmt_1 = !!(orb->ctrl0 & ORB_CTRL0_MASK_FMT);
         sch->ccw_no_data_cnt = 0;
+        suspend_allowed = !!(orb->ctrl0 & ORB_CTRL0_MASK_SPND);
     } else {
         s->ctrl &= ~(SCSW_ACTL_SUSP | SCSW_ACTL_RESUME_PEND);
+        /* The channel program had been suspended before. */
+        suspend_allowed = true;
     }
     sch->last_cmd_valid = false;
     do {
-        ret = css_interpret_ccw(sch, sch->channel_prog);
+        ret = css_interpret_ccw(sch, sch->channel_prog, suspend_allowed);
         switch (ret) {
         case -EAGAIN:
             /* ccw chain, continue processing */
