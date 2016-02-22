@@ -1347,16 +1347,6 @@ static void ohci_frame_boundary(void *opaque)
  */
 static int ohci_bus_start(OHCIState *ohci)
 {
-    ohci->eof_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                    ohci_frame_boundary,
-                    ohci);
-
-    if (ohci->eof_timer == NULL) {
-        trace_usb_ohci_bus_eof_timer_failed(ohci->name);
-        ohci_die(ohci);
-        return 0;
-    }
-
     trace_usb_ohci_start(ohci->name);
 
     /* Delay the first SOF event by one frame time as
@@ -1373,11 +1363,7 @@ static int ohci_bus_start(OHCIState *ohci)
 static void ohci_bus_stop(OHCIState *ohci)
 {
     trace_usb_ohci_stop(ohci->name);
-    if (ohci->eof_timer) {
-        timer_del(ohci->eof_timer);
-        timer_free(ohci->eof_timer);
-    }
-    ohci->eof_timer = NULL;
+    timer_del(ohci->eof_timer);
 }
 
 /* Sets a flag in a port status register but only set it if the port is
@@ -1907,6 +1893,9 @@ static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
     usb_packet_init(&ohci->usb_packet);
 
     ohci->async_td = 0;
+
+    ohci->eof_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                   ohci_frame_boundary, ohci);
 }
 
 #define TYPE_PCI_OHCI "pci-ohci"
@@ -1976,6 +1965,9 @@ static void usb_ohci_exit(PCIDevice *dev)
     if (!ohci->masterbus) {
         usb_bus_release(&s->bus);
     }
+
+    timer_del(s->eof_timer);
+    timer_free(s->eof_timer);
 }
 
 static void usb_ohci_reset_pci(DeviceState *d)
@@ -2041,23 +2033,13 @@ static bool ohci_eof_timer_needed(void *opaque)
 {
     OHCIState *ohci = opaque;
 
-    return ohci->eof_timer != NULL;
-}
-
-static int ohci_eof_timer_pre_load(void *opaque)
-{
-    OHCIState *ohci = opaque;
-
-    ohci_bus_start(ohci);
-
-    return 0;
+    return timer_pending(ohci->eof_timer);
 }
 
 static const VMStateDescription vmstate_ohci_eof_timer = {
     .name = "ohci-core/eof-timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_load = ohci_eof_timer_pre_load,
     .needed = ohci_eof_timer_needed,
     .fields = (VMStateField[]) {
         VMSTATE_TIMER_PTR(eof_timer, OHCIState),
