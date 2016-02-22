@@ -45,6 +45,11 @@ struct emu_t {
     struct emu_t *next;
 };
 
+struct slirp_quehead {
+    struct slirp_quehead *qh_link;
+    struct slirp_quehead *qh_rlink;
+};
+
 void slirp_insque(void *, void *);
 void slirp_remque(void *);
 int add_exec(struct ex_list **, int, char *, struct in_addr, int);

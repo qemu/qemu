@@ -29,16 +29,16 @@
 void
 m_init(Slirp *slirp)
 {
-    slirp->m_freelist.m_next = slirp->m_freelist.m_prev = &slirp->m_freelist;
-    slirp->m_usedlist.m_next = slirp->m_usedlist.m_prev = &slirp->m_usedlist;
+    slirp->m_freelist.qh_link = slirp->m_freelist.qh_rlink = &slirp->m_freelist;
+    slirp->m_usedlist.qh_link = slirp->m_usedlist.qh_rlink = &slirp->m_usedlist;
 }
 
 void m_cleanup(Slirp *slirp)
 {
     struct mbuf *m, *next;
 
-    m = slirp->m_usedlist.m_next;
-    while (m != &slirp->m_usedlist) {
+    m = (struct mbuf *) slirp->m_usedlist.qh_link;
+    while ((struct quehead *) m != &slirp->m_usedlist) {
         next = m->m_next;
         if (m->m_flags & M_EXT) {
             free(m->m_ext);
@@ -46,8 +46,8 @@ void m_cleanup(Slirp *slirp)
         free(m);
         m = next;
     }
-    m = slirp->m_freelist.m_next;
-    while (m != &slirp->m_freelist) {
+    m = (struct mbuf *) slirp->m_freelist.qh_link;
+    while ((struct quehead *) m != &slirp->m_freelist) {
         next = m->m_next;
         free(m);
         m = next;
@@ -70,7 +70,7 @@ m_get(Slirp *slirp)
 
 	DEBUG_CALL("m_get");
 
-	if (slirp->m_freelist.m_next == &slirp->m_freelist) {
+	if (slirp->m_freelist.qh_link == &slirp->m_freelist) {
 		m = (struct mbuf *)malloc(SLIRP_MSIZE);
 		if (m == NULL) goto end_error;
 		slirp->mbuf_alloced++;
@@ -78,7 +78,7 @@ m_get(Slirp *slirp)
 			flags = M_DOFREE;
 		m->slirp = slirp;
 	} else {
-		m = slirp->m_freelist.m_next;
+		m = (struct mbuf *) slirp->m_freelist.qh_link;
 		remque(m);
 	}
 
@@ -225,7 +225,8 @@ dtom(Slirp *slirp, void *dat)
 	DEBUG_ARG("dat = %p", dat);
 
 	/* bug corrected for M_EXT buffers */
-	for (m = slirp->m_usedlist.m_next; m != &slirp->m_usedlist;
+	for (m = (struct mbuf *) slirp->m_usedlist.qh_link;
+	     (struct quehead *) m != &slirp->m_usedlist;
 	     m = m->m_next) {
 	  if (m->m_flags & M_EXT) {
 	    if( (char *)dat>=m->m_ext && (char *)dat<(m->m_ext + m->m_size) )
