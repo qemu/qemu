@@ -27,7 +27,6 @@ typedef struct VhostUserState {
 typedef struct VhostUserChardevProps {
     bool is_socket;
     bool is_unix;
-    bool is_server;
 } VhostUserChardevProps;
 
 VHostNetState *vhost_user_get_vhost_net(NetClientState *nc)
@@ -240,7 +239,6 @@ static int net_vhost_chardev_opts(void *opaque,
     } else if (strcmp(name, "path") == 0) {
         props->is_unix = true;
     } else if (strcmp(name, "server") == 0) {
-        props->is_server = true;
     } else {
         error_setg(errp,
                    "vhost-user does not support a chardev with option %s=%s",
