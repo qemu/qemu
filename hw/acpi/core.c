@@ -26,7 +26,6 @@
 #include "hw/nvram/fw_cfg.h"
 #include "qemu/config-file.h"
 #include "qapi/opts-visitor.h"
-#include "qapi/dealloc-visitor.h"
 #include "qapi-visit.h"
 #include "qapi-event.h"
 
@@ -297,15 +296,7 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
 out:
     g_free(blob);
     g_strfreev(pathnames);
-
-    if (hdrs != NULL) {
-        QapiDeallocVisitor *dv;
-
-        dv = qapi_dealloc_visitor_new();
-        visit_type_AcpiTableOptions(qapi_dealloc_get_visitor(dv), NULL, &hdrs,
-                                    NULL);
-        qapi_dealloc_visitor_cleanup(dv);
-    }
+    qapi_free_AcpiTableOptions(hdrs);
 
     error_propagate(errp, err);
 }

@@ -42,7 +42,6 @@
 #include "qemu/main-loop.h"
 #include "qapi-visit.h"
 #include "qapi/opts-visitor.h"
-#include "qapi/dealloc-visitor.h"
 #include "sysemu/sysemu.h"
 #include "net/filter.h"
 #include "qapi/string-output-visitor.h"
@@ -1043,38 +1042,28 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
 }
 
 
-static void net_visit(Visitor *v, int is_netdev, void **object, Error **errp)
-{
-    if (is_netdev) {
-        visit_type_Netdev(v, NULL, (Netdev **)object, errp);
-    } else {
-        visit_type_NetLegacy(v, NULL, (NetLegacy **)object, errp);
-    }
-}
-
-
 int net_client_init(QemuOpts *opts, int is_netdev, Error **errp)
 {
     void *object = NULL;
     Error *err = NULL;
     int ret = -1;
+    OptsVisitor *ov = opts_visitor_new(opts);
+    Visitor *v = opts_get_visitor(ov);
 
-    {
-        OptsVisitor *ov = opts_visitor_new(opts);
-
-        net_visit(opts_get_visitor(ov), is_netdev, &object, &err);
-        opts_visitor_cleanup(ov);
+    if (is_netdev) {
+        visit_type_Netdev(v, NULL, (Netdev **)&object, &err);
+    } else {
+        visit_type_NetLegacy(v, NULL, (NetLegacy **)&object, &err);
     }
 
     if (!err) {
         ret = net_client_init1(object, is_netdev, &err);
     }
 
-    if (object) {
-        QapiDeallocVisitor *dv = qapi_dealloc_visitor_new();
-
-        net_visit(qapi_dealloc_get_visitor(dv), is_netdev, &object, NULL);
-        qapi_dealloc_visitor_cleanup(dv);
+    if (is_netdev) {
+        qapi_free_Netdev(object);
+    } else {
+        qapi_free_NetLegacy(object);
     }
 
     error_propagate(errp, err);

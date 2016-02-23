@@ -31,7 +31,6 @@
 #include "include/exec/cpu-common.h" /* for RAM_ADDR_FMT */
 #include "qapi-visit.h"
 #include "qapi/opts-visitor.h"
-#include "qapi/dealloc-visitor.h"
 #include "hw/boards.h"
 #include "sysemu/hostmem.h"
 #include "qmp-commands.h"
@@ -243,13 +242,7 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
 
 error:
     error_report_err(err);
-
-    if (object) {
-        QapiDeallocVisitor *dv = qapi_dealloc_visitor_new();
-        visit_type_NumaOptions(qapi_dealloc_get_visitor(dv), NULL, &object,
-                               NULL);
-        qapi_dealloc_visitor_cleanup(dv);
-    }
+    qapi_free_NumaOptions(object);
 
     return -1;
 }
