@@ -5214,6 +5214,9 @@ static int bad_mode_switch(CPUARMState *env, int mode)
     case ARM_CPU_MODE_UND:
     case ARM_CPU_MODE_IRQ:
     case ARM_CPU_MODE_FIQ:
+        /* Note that we don't implement the IMPDEF NSACR.RFR which in v7
+         * allows FIQ mode to be Secure-only. (In v8 this doesn't exist.)
+         */
         return 0;
     case ARM_CPU_MODE_MON:
         return !arm_is_secure(env);
