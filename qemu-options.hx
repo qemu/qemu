@@ -1051,6 +1051,7 @@ DEF("spice", HAS_ARG, QEMU_OPTION_spice,
     "       [,streaming-video=[off|all|filter]][,disable-copy-paste]\n"
     "       [,disable-agent-file-xfer][,agent-mouse=[on|off]]\n"
     "       [,playback-compression=[on|off]][,seamless-migration=[on|off]]\n"
+    "       [,gl=[on|off]]\n"
     "   enable spice\n"
     "   at least one of {port, tls-port} is mandatory\n",
     QEMU_ARCH_ALL)
@@ -1141,6 +1142,9 @@ Enable/disable audio stream compression (using celt 0.5.1).  Default is on.
 
 @item seamless-migration=[on|off]
 Enable/disable spice seamless migration. Default is off.
+
+@item gl=[on|off]
+Enable/disable OpenGL context. Default is off.
 
 @end table
 ETEXI

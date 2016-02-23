@@ -494,9 +494,14 @@ static QemuOptsList qemu_spice_opts = {
         },{
             .name = "playback-compression",
             .type = QEMU_OPT_BOOL,
-        }, {
+        },{
             .name = "seamless-migration",
             .type = QEMU_OPT_BOOL,
+#ifdef HAVE_SPICE_GL
+        },{
+            .name = "gl",
+            .type = QEMU_OPT_BOOL,
+#endif
         },
         { /* end of list */ }
     },
@@ -568,7 +573,8 @@ static void migration_state_notifier(Notifier *notifier, void *data)
 
     if (migration_in_setup(s)) {
         spice_server_migrate_start(spice_server);
-    } else if (migration_has_finished(s)) {
+    } else if (migration_has_finished(s) ||
+               migration_in_postcopy_after_devices(s)) {
         spice_server_migrate_end(spice_server, true);
         spice_have_target_host = false;
     } else if (migration_has_failed(s)) {
@@ -818,6 +824,14 @@ void qemu_spice_init(void)
 
 #if SPICE_SERVER_VERSION >= 0x000c02
     qemu_spice_register_ports();
+#endif
+
+#ifdef HAVE_SPICE_GL
+    if (qemu_opt_get_bool(opts, "gl", 0)) {
+        if (egl_rendernode_init() == 0) {
+            display_opengl = 1;
+        }
+    }
 #endif
 }
 
