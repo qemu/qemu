@@ -10,9 +10,8 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+#include "qemu/osdep.h"
 #include "boot-sector.h"
-#include <string.h>
-#include <stdio.h>
 #include "qemu-common.h"
 #include "libqtest.h"
 

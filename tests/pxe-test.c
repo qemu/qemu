@@ -11,8 +11,7 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include <string.h>
-#include <stdio.h>
+#include "qemu/osdep.h"
 #include <glib.h>
 #include <glib/gstdio.h>
 #include "qemu-common.h"

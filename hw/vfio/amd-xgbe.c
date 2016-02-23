@@ -11,6 +11,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/vfio/vfio-amd-xgbe.h"
 
 static void amd_xgbe_realize(DeviceState *dev, Error **errp)
