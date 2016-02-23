@@ -179,6 +179,8 @@ static void net_vhost_user_event(void *opaque, int event)
     queues = qemu_find_net_clients_except(name, ncs,
                                           NET_CLIENT_OPTIONS_KIND_NIC,
                                           MAX_QUEUE_NUM);
+    assert(queues < MAX_QUEUE_NUM);
+
     s = DO_UPCAST(VhostUserState, nc, ncs[0]);
     trace_vhost_user_event(s->chr->label, event);
     switch (event) {
@@ -207,6 +209,9 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
     VhostUserState *s;
     int i;
 
+    assert(name);
+    assert(queues > 0);
+
     for (i = 0; i < queues; i++) {
         nc = qemu_new_net_client(&net_vhost_user_info, peer, device, name);
 
@@ -219,7 +224,7 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
         s->chr = chr;
     }
 
-    qemu_chr_add_handlers(chr, NULL, NULL, net_vhost_user_event, (void*)name);
+    qemu_chr_add_handlers(chr, NULL, NULL, net_vhost_user_event, nc[0].name);
 
     return 0;
 }
