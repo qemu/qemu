@@ -136,8 +136,9 @@ for i in "$tmpdir"/include/linux/*virtio*.h "$tmpdir/include/linux/input.h" \
 done
 
 cat <<EOF >$output/include/standard-headers/linux/types.h
-#include <stdint.h>
-#include "qemu/compiler.h"
+/* For QEMU all types are already defined via osdep.h, so this
+ * header does not need to do anything.
+ */
 EOF
 cat <<EOF >$output/include/standard-headers/linux/if_ether.h
 #define ETH_ALEN    6
