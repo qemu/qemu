@@ -13,9 +13,6 @@
 #ifndef HW_9PFS_SYNTH_H
 #define HW_9PFS_SYNTH_H 1
 
-#include <unistd.h>
-#include <sys/types.h>
-#include <limits.h>
 
 typedef struct V9fsSynthNode V9fsSynthNode;
 typedef ssize_t (*v9fs_synth_read)(void *buf, int len, off_t offset,

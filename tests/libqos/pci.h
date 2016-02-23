@@ -13,7 +13,6 @@
 #ifndef LIBQOS_PCI_H
 #define LIBQOS_PCI_H
 
-#include <stdint.h>
 #include "libqtest.h"
 
 #define QPCI_DEVFN(dev, fn) (((dev) << 3) | (fn))

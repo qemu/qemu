@@ -14,7 +14,6 @@
 #define VSS_WIN32_H
 
 #define __MIDL_user_allocate_free_DEFINED__
-#include "config-host.h"
 #include <windows.h>
 #include <shlwapi.h>
 

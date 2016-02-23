@@ -25,9 +25,6 @@
  * THE SOFTWARE.
  */
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdbool.h>
 #include "libqos/libqos.h"
 #include "libqos/pci.h"
 #include "libqos/malloc-pc.h"

@@ -19,7 +19,6 @@
 #ifndef CPU_I386_H
 #define CPU_I386_H
 
-#include "config.h"
 #include "qemu-common.h"
 #include "standard-headers/asm-x86/hyperv.h"
 

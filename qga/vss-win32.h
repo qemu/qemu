@@ -13,7 +13,6 @@
 #ifndef VSS_WIN32_H
 #define VSS_WIN32_H
 
-#include "qapi/error.h"
 
 bool vss_init(bool init_requester);
 void vss_deinit(bool deinit_requester);

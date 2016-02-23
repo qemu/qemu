@@ -13,8 +13,6 @@
 #ifndef LIBQOS_MALLOC_H
 #define LIBQOS_MALLOC_H
 
-#include <stdint.h>
-#include <sys/types.h>
 #include "qemu/queue.h"
 
 typedef enum {

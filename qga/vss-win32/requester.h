@@ -14,7 +14,6 @@
 #define VSS_WIN32_REQUESTER_H
 
 #include <basetyps.h>           /* STDAPI */
-#include "qemu/compiler.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -40,7 +40,6 @@
 #if !defined(TCG_TARGET_H)
 #define TCG_TARGET_H
 
-#include "config-host.h"
 
 #define TCG_TARGET_INTERPRETER 1
 #define TCG_TARGET_INSN_UNIT_SIZE 1

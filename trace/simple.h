@@ -11,9 +11,6 @@
 #ifndef TRACE_SIMPLE_H
 #define TRACE_SIMPLE_H
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdio.h>
 
 #include "trace/generated-events.h"
 

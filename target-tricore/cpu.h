@@ -20,7 +20,6 @@
 #define __TRICORE_CPU_H__
 
 #include "tricore-defs.h"
-#include "config.h"
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat.h"

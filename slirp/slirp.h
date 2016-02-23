@@ -1,11 +1,9 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
-#include "config-host.h"
 #include "slirp_config.h"
 
 #ifdef _WIN32
-# include <inttypes.h>
 
 typedef char *caddr_t;
 
@@ -23,43 +21,31 @@ typedef char *caddr_t;
 # endif
 #endif
 
-#include <sys/types.h>
 #ifdef HAVE_SYS_BITYPES_H
 # include <sys/bitypes.h>
 #endif
 
-#include <sys/time.h>
 
 #ifdef HAVE_UNISTD_H
-# include <unistd.h>
 #endif
 
 #ifdef HAVE_STDLIB_H
-# include <stdlib.h>
 #endif
 
-#include <stdio.h>
-#include <errno.h>
 
 #ifndef HAVE_MEMMOVE
 #define memmove(x, y, z) bcopy(y, x, z)
 #endif
 
 #if TIME_WITH_SYS_TIME
-# include <sys/time.h>
-# include <time.h>
 #else
 # ifdef HAVE_SYS_TIME_H
-#  include <sys/time.h>
 # else
-#  include <time.h>
 # endif
 #endif
 
 #ifdef HAVE_STRING_H
-# include <string.h>
 #else
-# include <strings.h>
 #endif
 
 #ifndef _WIN32
@@ -82,11 +68,9 @@ void *malloc(size_t arg);
 void free(void *ptr);
 #endif
 
-#include <fcntl.h>
 #ifndef NO_UNIX_SOCKETS
 #include <sys/un.h>
 #endif
-#include <signal.h>
 #ifdef HAVE_SYS_SIGNAL_H
 # include <sys/signal.h>
 #endif
@@ -115,12 +99,10 @@ void free(void *ptr);
 #endif
 
 #ifdef __STDC__
-#include <stdarg.h>
 #else
 #include <varargs.h>
 #endif
 
-#include <sys/stat.h>
 
 /* Avoid conflicting with the libc insque() and remque(), which
    have different prototypes. */

@@ -1,9 +1,7 @@
 #ifndef _QEMU_9P_H
 #define _QEMU_9P_H
 
-#include <sys/types.h>
 #include <dirent.h>
-#include <sys/time.h>
 #include <utime.h>
 #include <sys/resource.h>
 #include <glib.h>

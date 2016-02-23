@@ -16,16 +16,12 @@
 #include "qemu/coroutine.h"
 #include "qemu/iov.h"
 
-#include <errno.h>
-#include <string.h>
 #ifndef _WIN32
 #include <sys/ioctl.h>
 #endif
 #if defined(__sun__) || defined(__HAIKU__)
 #include <sys/ioccom.h>
 #endif
-#include <ctype.h>
-#include <inttypes.h>
 
 #ifdef __linux__
 #include <linux/fs.h>

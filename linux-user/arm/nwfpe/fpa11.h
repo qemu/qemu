@@ -21,9 +21,6 @@
 #ifndef __FPA11_H__
 #define __FPA11_H__
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
 
 #include <cpu.h>
 

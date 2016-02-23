@@ -13,8 +13,6 @@
 #ifndef LIBQOS_FW_CFG_H
 #define LIBQOS_FW_CFG_H
 
-#include <stdint.h>
-#include <sys/types.h>
 
 typedef struct QFWCFG QFWCFG;
 

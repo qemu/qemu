@@ -10,7 +10,6 @@
 #ifndef TRACE__CONTROL_INTERNAL_H
 #define TRACE__CONTROL_INTERNAL_H
 
-#include <string.h>
 
 
 extern TraceEvent trace_events[];

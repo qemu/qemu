@@ -19,7 +19,6 @@
  * purposes.
  */
 
-#include <limits.h>
 #include <sys/select.h>
 
 #include "qemu/queue.h"

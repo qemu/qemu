@@ -19,7 +19,6 @@
 
 #define CPUArchState                struct CPUUniCore32State
 
-#include "config.h"
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat.h"

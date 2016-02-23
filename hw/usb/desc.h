@@ -1,7 +1,6 @@
 #ifndef QEMU_HW_USB_DESC_H
 #define QEMU_HW_USB_DESC_H
 
-#include <inttypes.h>
 #include <wchar.h>
 
 /* binary representation */

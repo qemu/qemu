@@ -19,7 +19,6 @@
 #ifndef _CPU_SH4_H
 #define _CPU_SH4_H
 
-#include "config.h"
 #include "qemu-common.h"
 
 #define TARGET_LONG_BITS 32

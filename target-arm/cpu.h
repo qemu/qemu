@@ -19,7 +19,6 @@
 #ifndef CPU_ARM_H
 #define CPU_ARM_H
 
-#include "config.h"
 
 #include "kvm-consts.h"
 

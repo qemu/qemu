@@ -17,13 +17,7 @@
 #ifndef LIBQTEST_H
 #define LIBQTEST_H
 
-#include <stddef.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdarg.h>
-#include <sys/types.h>
 #include "qapi/qmp/qdict.h"
-#include "glib-compat.h"
 
 typedef struct QTestState QTestState;
 

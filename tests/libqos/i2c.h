@@ -9,7 +9,6 @@
 #ifndef LIBQOS_I2C_H
 #define LIBQOS_I2C_H
 
-#include <stdint.h>
 
 typedef struct I2CAdapter I2CAdapter;
 struct I2CAdapter {

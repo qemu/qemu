@@ -26,10 +26,7 @@
  * associated to the ivshmem shared memory.
  */
 
-#include <limits.h>
 #include <sys/select.h>
-#include <stdint.h>
-#include <stdbool.h>
 
 #include "qemu/event_notifier.h"
 #include "qemu/queue.h"

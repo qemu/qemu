@@ -19,7 +19,6 @@
 #ifndef CPU_TILEGX_H
 #define CPU_TILEGX_H
 
-#include "config.h"
 #include "qemu-common.h"
 
 #define TARGET_LONG_BITS 64

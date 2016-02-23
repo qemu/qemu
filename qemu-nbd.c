@@ -31,8 +31,6 @@
 #include "io/channel-socket.h"
 
 #include <getopt.h>
-#include <sys/types.h>
-#include <signal.h>
 #include <libgen.h>
 #include <pthread.h>
 

@@ -34,7 +34,6 @@
  typedef signed char GUSchar;
  typedef signed short GUSsample;
 #else
- #include <stdint.h>
  typedef int8_t GUSchar;
  typedef uint8_t GUSbyte;
  typedef uint16_t GUSword;

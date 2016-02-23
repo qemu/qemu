@@ -24,7 +24,6 @@
 #ifndef _ETSEC_REGISTERS_H_
 #define _ETSEC_REGISTERS_H_
 
-#include <stdint.h>
 
 enum eTSEC_Register_Access_Type {
     ACC_RW      = 1,            /* Read/Write */

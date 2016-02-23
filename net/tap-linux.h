@@ -16,7 +16,6 @@
 #ifndef QEMU_TAP_LINUX_H
 #define QEMU_TAP_LINUX_H
 
-#include <stdint.h>
 #ifdef __linux__
 
 #include <linux/ioctl.h>

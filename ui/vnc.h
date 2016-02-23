@@ -38,7 +38,6 @@
 #include "io/channel-socket.h"
 #include "io/channel-tls.h"
 #include <zlib.h>
-#include <stdbool.h>
 
 #include "keymaps.h"
 #include "vnc-palette.h"

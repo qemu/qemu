@@ -15,7 +15,6 @@
 #define ARM_KVM_CONSTS_H
 
 #ifdef CONFIG_KVM
-#include "qemu/compiler.h"
 #include <linux/kvm.h>
 #include <linux/psci.h>
 

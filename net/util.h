@@ -25,7 +25,6 @@
 #ifndef QEMU_NET_UTIL_H
 #define QEMU_NET_UTIL_H
 
-#include <stdint.h>
 
 int net_parse_macaddr(uint8_t *macaddr, const char *p);
 

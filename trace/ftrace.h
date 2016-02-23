@@ -1,7 +1,6 @@
 #ifndef TRACE_FTRACE_H
 #define TRACE_FTRACE_H
 
-#include <stdbool.h>
 
 
 #define MAX_TRACE_STRLEN 512

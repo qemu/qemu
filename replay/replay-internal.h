@@ -12,7 +12,6 @@
  *
  */
 
-#include <stdio.h>
 
 enum ReplayEvents {
     /* for instruction event */

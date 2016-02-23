@@ -18,6 +18,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "io/channel-util.h"
 #include "io/channel-file.h"
 #include "io/channel-socket.h"

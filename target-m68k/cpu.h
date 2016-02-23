@@ -24,7 +24,6 @@
 
 #define CPUArchState struct CPUM68KState
 
-#include "config.h"
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
 

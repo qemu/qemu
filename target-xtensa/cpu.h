@@ -33,7 +33,6 @@
 
 #define CPUArchState struct CPUXtensaState
 
-#include "config.h"
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat.h"

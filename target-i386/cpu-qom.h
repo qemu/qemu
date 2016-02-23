@@ -22,7 +22,6 @@
 
 #include "qom/cpu.h"
 #include "cpu.h"
-#include "qapi/error.h"
 #include "qemu/notify.h"
 
 #ifdef TARGET_X86_64

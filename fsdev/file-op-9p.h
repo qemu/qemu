@@ -12,11 +12,8 @@
  */
 #ifndef _FILEOP_H
 #define _FILEOP_H
-#include <sys/types.h>
 #include <dirent.h>
-#include <sys/time.h>
 #include <utime.h>
-#include <sys/stat.h>
 #include <sys/uio.h>
 #include <sys/vfs.h>
 
