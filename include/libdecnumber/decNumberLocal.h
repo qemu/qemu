@@ -42,8 +42,6 @@
   #define DECVERSION	"decNumber 3.53" /* Package Version [16 max.] */
   #define DECNLAUTHOR	"Mike Cowlishaw"	      /* Who to blame */
 
-  #include <stdlib.h>	      /* for abs			      */
-  #include <string.h>	      /* for memset, strcpy		      */
   #include "libdecnumber/dconfig.h"
 
   /* Conditional code flag -- set this to match hardware platform     */

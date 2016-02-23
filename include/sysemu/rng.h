@@ -15,7 +15,6 @@
 
 #include "qom/object.h"
 #include "qemu-common.h"
-#include "qapi/error.h"
 
 #define TYPE_RNG_BACKEND "rng-backend"
 #define RNG_BACKEND(obj) \

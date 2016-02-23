@@ -11,7 +11,6 @@
 #define BLOCKDEV_H
 
 #include "block/block.h"
-#include "qapi/error.h"
 #include "qemu/queue.h"
 
 void blockdev_mark_auto_del(BlockBackend *blk);

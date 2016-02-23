@@ -16,7 +16,6 @@
 
 #include "qemu-common.h"
 #include "qapi/qmp/qlist.h"
-#include "qapi/error.h"
 
 QObject *json_parser_parse(GQueue *tokens, va_list *ap);
 QObject *json_parser_parse_err(GQueue *tokens, va_list *ap, Error **errp);

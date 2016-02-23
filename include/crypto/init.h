@@ -22,7 +22,6 @@
 #define QCRYPTO_INIT_H__
 
 #include "qemu-common.h"
-#include "qapi/error.h"
 
 int qcrypto_init(Error **errp);
 

@@ -1,7 +1,6 @@
 #ifndef SYSEMU_NUMA_H
 #define SYSEMU_NUMA_H
 
-#include <stdint.h>
 #include "qemu/bitmap.h"
 #include "qemu/option.h"
 #include "sysemu/sysemu.h"

@@ -1,8 +1,6 @@
 #ifndef QEMU_MEMFD_H
 #define QEMU_MEMFD_H
 
-#include "config-host.h"
-#include <stdbool.h>
 
 #ifndef F_LINUX_SPECIFIC_BASE
 #define F_LINUX_SPECIFIC_BASE 1024

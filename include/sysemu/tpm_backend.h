@@ -15,7 +15,6 @@
 
 #include "qom/object.h"
 #include "qemu-common.h"
-#include "qapi/error.h"
 #include "qapi-types.h"
 #include "qemu/option.h"
 #include "sysemu/tpm.h"

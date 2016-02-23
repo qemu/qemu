@@ -2,8 +2,6 @@
 #define FW_CFG_H
 
 #ifndef NO_QEMU_PROTOS
-#include <stdint.h>
-#include <stddef.h>
 
 #include "exec/hwaddr.h"
 #include "qemu/typedefs.h"

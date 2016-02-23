@@ -86,9 +86,6 @@ this code that are retained.
 #include <sunmath.h>
 #endif
 
-#include <inttypes.h>
-#include "config-host.h"
-#include "qemu/osdep.h"
 
 /* This 'flag' type must be able to hold at least 0 and 1. It should
  * probably be replaced with 'bool' but the uses would need to be audited

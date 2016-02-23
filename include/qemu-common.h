@@ -12,7 +12,6 @@
 #ifndef QEMU_COMMON_H
 #define QEMU_COMMON_H
 
-#include "qemu/osdep.h"
 #include "qemu/typedefs.h"
 #include "qemu/fprintf-fn.h"
 

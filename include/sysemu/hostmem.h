@@ -14,7 +14,6 @@
 
 #include "sysemu/sysemu.h" /* for MAX_NODES */
 #include "qom/object.h"
-#include "qapi/error.h"
 #include "exec/memory.h"
 #include "qemu/option.h"
 #include "qemu/bitmap.h"

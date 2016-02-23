@@ -1,9 +1,6 @@
 #ifndef INT128_H
 #define INT128_H
 
-#include <assert.h>
-#include <stdint.h>
-#include <stdbool.h>
 
 typedef struct Int128 Int128;
 

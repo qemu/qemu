@@ -1,9 +1,7 @@
 #ifndef QEMU_CONFIG_H
 #define QEMU_CONFIG_H
 
-#include <stdio.h>
 #include "qemu/option.h"
-#include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 
 QemuOptsList *qemu_find_opts(const char *group);

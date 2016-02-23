@@ -22,7 +22,6 @@
 #define QIO_CHANNEL_H__
 
 #include "qemu-common.h"
-#include "qapi/error.h"
 #include "qom/object.h"
 
 #define TYPE_QIO_CHANNEL "qio-channel"

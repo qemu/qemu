@@ -18,7 +18,6 @@
 #ifndef DEF_HELPER_H
 #define DEF_HELPER_H 1
 
-#include "qemu/osdep.h"
 
 #define HELPER(name) glue(helper_, name)
 

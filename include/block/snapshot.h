@@ -26,7 +26,6 @@
 #define SNAPSHOT_H
 
 #include "qemu-common.h"
-#include "qapi/error.h"
 #include "qemu/option.h"
 
 

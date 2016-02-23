@@ -19,7 +19,6 @@
 #ifndef NBD_H
 #define NBD_H
 
-#include <sys/types.h>
 
 #include "qemu-common.h"
 #include "qemu/option.h"

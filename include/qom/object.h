@@ -15,11 +15,8 @@
 #define QEMU_OBJECT_H
 
 #include <glib.h>
-#include <stdint.h>
-#include <stdbool.h>
 #include "qemu/queue.h"
 #include "qemu/typedefs.h"
-#include "qapi/error.h"
 
 struct TypeImpl;
 typedef struct TypeImpl *Type;

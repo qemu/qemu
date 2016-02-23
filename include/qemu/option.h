@@ -26,9 +26,7 @@
 #ifndef QEMU_OPTIONS_H
 #define QEMU_OPTIONS_H
 
-#include <stdint.h>
 #include "qemu/queue.h"
-#include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/typedefs.h"
 

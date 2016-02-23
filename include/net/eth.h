@@ -26,8 +26,6 @@
 #ifndef QEMU_ETH_H
 #define QEMU_ETH_H
 
-#include <sys/types.h>
-#include <string.h>
 #include "qemu/bswap.h"
 #include "qemu/iov.h"
 

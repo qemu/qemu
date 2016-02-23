@@ -15,7 +15,6 @@
 #define QTEST_H
 
 #include "qemu-common.h"
-#include "qapi/error.h"
 
 extern bool qtest_allowed;
 

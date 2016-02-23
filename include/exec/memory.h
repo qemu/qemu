@@ -21,8 +21,6 @@
 #define DIRTY_MEMORY_MIGRATION 2
 #define DIRTY_MEMORY_NUM       3        /* num of dirty bits */
 
-#include <stdint.h>
-#include <stdbool.h>
 #include "exec/cpu-common.h"
 #ifndef CONFIG_USER_ONLY
 #include "exec/hwaddr.h"
@@ -31,7 +29,6 @@
 #include "qemu/queue.h"
 #include "qemu/int128.h"
 #include "qemu/notify.h"
-#include "qapi/error.h"
 #include "qom/object.h"
 #include "qemu/rcu.h"
 

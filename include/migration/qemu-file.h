@@ -25,7 +25,6 @@
 #define QEMU_FILE_H 1
 #include "exec/cpu-common.h"
 
-#include <stdint.h>
 
 /* This function writes a chunk of data to a file at the given position.
  * The pos argument can be ignored if the file is only being used for

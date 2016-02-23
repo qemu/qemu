@@ -1,15 +1,10 @@
 #ifndef BSWAP_H
 #define BSWAP_H
 
-#include "config-host.h"
-#include <inttypes.h>
-#include <limits.h>
-#include <string.h>
 #include "fpu/softfloat.h"
 
 #ifdef CONFIG_MACHINE_BSWAP_H
 # include <sys/endian.h>
-# include <sys/types.h>
 # include <machine/bswap.h>
 #elif defined(__FreeBSD__)
 # include <sys/endian.h>

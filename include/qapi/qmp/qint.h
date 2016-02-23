@@ -13,7 +13,6 @@
 #ifndef QINT_H
 #define QINT_H
 
-#include <stdint.h>
 #include "qapi/qmp/qobject.h"
 
 typedef struct QInt {

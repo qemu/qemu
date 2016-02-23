@@ -16,7 +16,6 @@
 
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/error.h"
 
 typedef void (QmpCommandFunc)(QDict *, QObject **, Error **);
 

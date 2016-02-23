@@ -23,9 +23,6 @@
 #error cpu.h included from common code
 #endif
 
-#include "config.h"
-#include <inttypes.h>
-#include "qemu/osdep.h"
 #include "qemu/queue.h"
 #include "tcg-target.h"
 #ifndef CONFIG_USER_ONLY

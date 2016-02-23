@@ -1,10 +1,6 @@
 #ifndef QEMU_LOG_H
 #define QEMU_LOG_H
 
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include "qemu/compiler.h"
 
 /* Private global variables, don't use */
 extern FILE *qemu_logfile;

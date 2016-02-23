@@ -18,7 +18,6 @@
  * in /usr/include/sys, and don't have ENOATTR.
  */
 
-#include "config-host.h"
 
 #ifdef CONFIG_LIBATTR
 #  include <attr/xattr.h>

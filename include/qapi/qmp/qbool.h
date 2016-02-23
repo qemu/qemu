@@ -14,7 +14,6 @@
 #ifndef QBOOL_H
 #define QBOOL_H
 
-#include <stdbool.h>
 #include "qapi/qmp/qobject.h"
 
 typedef struct QBool {

@@ -22,7 +22,6 @@
 #define QCRYPTO_SECRET_H__
 
 #include "qemu-common.h"
-#include "qapi/error.h"
 #include "qom/object.h"
 
 #define TYPE_QCRYPTO_SECRET "secret"

@@ -6,7 +6,6 @@
 #include "hw/qdev.h"
 #include "exec/memory.h"
 #include "sysemu/dma.h"
-#include "qapi/error.h"
 
 /* PCI includes legacy ISA access.  */
 #include "hw/isa/isa.h"

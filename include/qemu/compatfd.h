@@ -14,7 +14,6 @@
 #ifndef QEMU_COMPATFD_H
 #define QEMU_COMPATFD_H
 
-#include <signal.h>
 
 struct qemu_signalfd_siginfo {
     uint32_t ssi_signo;   /* Signal number */

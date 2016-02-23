@@ -14,7 +14,6 @@
 #ifndef QEMU_MODULE_H
 #define QEMU_MODULE_H
 
-#include "qemu/osdep.h"
 
 #define DSO_STAMP_FUN         glue(qemu_stamp, CONFIG_STAMP)
 #define DSO_STAMP_FUN_STR     stringify(DSO_STAMP_FUN)

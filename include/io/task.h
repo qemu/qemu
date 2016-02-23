@@ -22,7 +22,6 @@
 #define QIO_TASK_H__
 
 #include "qemu-common.h"
-#include "qapi/error.h"
 #include "qom/object.h"
 
 typedef struct QIOTask QIOTask;

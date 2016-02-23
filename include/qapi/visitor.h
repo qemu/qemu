@@ -16,8 +16,6 @@
 
 #include "qemu/typedefs.h"
 #include "qapi/qmp/qobject.h"
-#include "qapi/error.h"
-#include <stdlib.h>
 
 /* This struct is layout-compatible with all other *List structs
  * created by the qapi generator.  It is used as a typical

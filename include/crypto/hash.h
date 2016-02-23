@@ -22,7 +22,6 @@
 #define QCRYPTO_HASH_H__
 
 #include "qemu-common.h"
-#include "qapi/error.h"
 
 /* See also "QCryptoHashAlgorithm" defined in qapi/crypto.json */
 

@@ -56,9 +56,6 @@
   #define DECCFULLNAME "Decimal Context Descriptor"   /* Verbose name */
   #define DECCAUTHOR   "Mike Cowlishaw"		      /* Who to blame */
 
-  #include <stdint.h>
-  #include <stdio.h>		   /* for printf, etc.		      */
-  #include <signal.h>		   /* for traps			      */
 
   /* Extended flags setting -- set this to 0 to use only IEEE flags   */
   #define DECEXTFLAG 1		   /* 1=enable extended flags	      */

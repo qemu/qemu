@@ -19,7 +19,6 @@
 #ifndef THUNK_H
 #define THUNK_H
 
-#include <inttypes.h>
 #include "cpu.h"
 
 /* types enums definitions */

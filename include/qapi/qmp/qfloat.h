@@ -14,7 +14,6 @@
 #ifndef QFLOAT_H
 #define QFLOAT_H
 
-#include <stdint.h>
 #include "qapi/qmp/qobject.h"
 
 typedef struct QFloat {

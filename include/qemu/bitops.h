@@ -12,8 +12,6 @@
 #ifndef BITOPS_H
 #define BITOPS_H
 
-#include <stdint.h>
-#include <assert.h>
 
 #include "host-utils.h"
 #include "atomic.h"

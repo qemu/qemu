@@ -14,7 +14,6 @@
 #ifndef QEMU_JSON_LEXER_H
 #define QEMU_JSON_LEXER_H
 
-#include "glib-compat.h"
 
 typedef enum json_token_type {
     JSON_MIN = 100,

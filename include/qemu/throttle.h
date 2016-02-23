@@ -25,7 +25,6 @@
 #ifndef THROTTLE_H
 #define THROTTLE_H
 
-#include <stdint.h>
 #include "qemu-common.h"
 #include "qemu/timer.h"
 

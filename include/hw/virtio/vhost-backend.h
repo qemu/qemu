@@ -11,7 +11,6 @@
 #ifndef VHOST_BACKEND_H_
 #define VHOST_BACKEND_H_
 
-#include <stdbool.h>
 
 typedef enum VhostBackendType {
     VHOST_BACKEND_TYPE_NONE = 0,

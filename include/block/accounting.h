@@ -25,8 +25,6 @@
 #ifndef BLOCK_ACCOUNTING_H
 #define BLOCK_ACCOUNTING_H
 
-#include <stdint.h>
-#include <stdbool.h>
 
 #include "qemu/typedefs.h"
 #include "qemu/timed-average.h"

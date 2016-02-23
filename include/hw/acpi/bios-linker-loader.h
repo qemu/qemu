@@ -2,8 +2,6 @@
 #define BIOS_LINKER_LOADER_H
 
 #include <glib.h>
-#include <stdbool.h>
-#include <inttypes.h>
 
 GArray *bios_linker_loader_init(void);
 

@@ -13,7 +13,6 @@ int inet_aton(const char *cp, struct in_addr *ia);
 
 #else
 
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -26,7 +25,6 @@ int inet_aton(const char *cp, struct in_addr *ia);
 
 #endif /* !_WIN32 */
 
-#include "qapi/error.h"
 #include "qapi-types.h"
 
 /* misc helpers */

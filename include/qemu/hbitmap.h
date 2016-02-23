@@ -12,9 +12,6 @@
 #ifndef HBITMAP_H
 #define HBITMAP_H 1
 
-#include <limits.h>
-#include <stdint.h>
-#include <stdbool.h>
 #include "bitops.h"
 #include "host-utils.h"
 

@@ -115,9 +115,6 @@
 #ifndef ERROR_H
 #define ERROR_H
 
-#include <stdarg.h>
-#include <stdbool.h>
-#include "qemu/compiler.h"
 #include "qapi-types.h"
 
 /*

@@ -18,7 +18,6 @@
 #ifndef QEMU_SPICE_H
 #define QEMU_SPICE_H
 
-#include "config-host.h"
 
 #ifdef CONFIG_SPICE
 

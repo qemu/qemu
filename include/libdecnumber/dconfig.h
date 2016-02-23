@@ -27,7 +27,6 @@
    Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
-#include "config-host.h"
 
 #if defined(HOST_WORDS_BIGENDIAN)
 #define WORDS_BIGENDIAN 1

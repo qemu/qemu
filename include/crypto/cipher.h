@@ -22,7 +22,6 @@
 #define QCRYPTO_CIPHER_H__
 
 #include "qemu-common.h"
-#include "qapi/error.h"
 
 typedef struct QCryptoCipher QCryptoCipher;
 

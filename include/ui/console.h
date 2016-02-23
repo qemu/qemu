@@ -7,7 +7,6 @@
 #include "qemu/notify.h"
 #include "qemu/typedefs.h"
 #include "qapi-types.h"
-#include "qapi/error.h"
 
 #ifdef CONFIG_OPENGL
 # include <epoxy/gl.h>

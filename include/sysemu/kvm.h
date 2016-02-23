@@ -14,8 +14,6 @@
 #ifndef QEMU_KVM_H
 #define QEMU_KVM_H
 
-#include <errno.h>
-#include "config-host.h"
 #include "qemu/queue.h"
 #include "qom/cpu.h"
 #include "exec/memattrs.h"

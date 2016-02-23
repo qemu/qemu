@@ -1,9 +1,7 @@
 #ifndef HW_ACPI_GEN_UTILS_H
 #define HW_ACPI_GEN_UTILS_H
 
-#include <stdint.h>
 #include <glib.h>
-#include "qemu/compiler.h"
 #include "hw/acpi/acpi-defs.h"
 
 /* Reserve RAM space for tables: add another order of magnitude. */

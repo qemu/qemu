@@ -3,7 +3,6 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
-#include "config-host.h"
 
 /*----------------------------------------------------------------------------
 | The macro QEMU_GNUC_PREREQ tests for minimum version of the GNU C compiler.

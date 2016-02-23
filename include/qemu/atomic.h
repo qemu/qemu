@@ -15,7 +15,6 @@
 #ifndef __QEMU_ATOMIC_H
 #define __QEMU_ATOMIC_H 1
 
-#include "qemu/compiler.h"
 
 
 /* Compiler barrier */

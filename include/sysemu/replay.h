@@ -12,10 +12,7 @@
  *
  */
 
-#include <stdbool.h>
-#include <stdint.h>
 #include "qapi-types.h"
-#include "qapi/error.h"
 #include "qemu/typedefs.h"
 
 /* replay clock kinds */

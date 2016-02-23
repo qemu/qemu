@@ -25,10 +25,7 @@
 #ifndef HOST_UTILS_H
 #define HOST_UTILS_H 1
 
-#include "qemu/compiler.h"   /* QEMU_GNUC_PREREQ */
 #include "qemu/bswap.h"
-#include <limits.h>
-#include <stdbool.h>
 
 #ifdef CONFIG_INT128
 static inline void mulu64(uint64_t *plow, uint64_t *phigh,

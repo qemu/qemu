@@ -10,7 +10,6 @@
 #ifndef DMA_H
 #define DMA_H
 
-#include <stdio.h>
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #include "hw/hw.h"
