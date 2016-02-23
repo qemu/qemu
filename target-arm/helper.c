@@ -5200,12 +5200,20 @@ void arm_cp_reset_ignore(CPUARMState *env, const ARMCPRegInfo *opaque)
     /* Helper coprocessor reset function for do-nothing-on-reset registers */
 }
 
-static int bad_mode_switch(CPUARMState *env, int mode)
+static int bad_mode_switch(CPUARMState *env, int mode, CPSRWriteType write_type)
 {
     /* Return true if it is not valid for us to switch to
      * this CPU mode (ie all the UNPREDICTABLE cases in
      * the ARM ARM CPSRWriteByInstr pseudocode).
      */
+
+    /* Changes to or from Hyp via MSR and CPS are illegal. */
+    if (write_type == CPSRWriteByInstr &&
+        ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_HYP ||
+         mode == ARM_CPU_MODE_HYP)) {
+        return 1;
+    }
+
     switch (mode) {
     case ARM_CPU_MODE_USR:
     case ARM_CPU_MODE_SYS:
@@ -5324,7 +5332,7 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask,
     if (write_type != CPSRWriteRaw &&
         (env->uncached_cpsr & CPSR_M) != CPSR_USER &&
         ((env->uncached_cpsr ^ val) & mask & CPSR_M)) {
-        if (bad_mode_switch(env, val & CPSR_M)) {
+        if (bad_mode_switch(env, val & CPSR_M, write_type)) {
             /* Attempt to switch to an invalid mode: this is UNPREDICTABLE in
              * v7, and has defined behaviour in v8:
              *  + leave CPSR.M untouched
