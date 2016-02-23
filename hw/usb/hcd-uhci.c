@@ -773,8 +773,22 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
     bool spd;
     bool queuing = (q != NULL);
     uint8_t pid = td->token & 0xff;
-    UHCIAsync *async = uhci_async_find_td(s, td_addr);
+    UHCIAsync *async;
 
+    switch (pid) {
+    case USB_TOKEN_OUT:
+    case USB_TOKEN_SETUP:
+    case USB_TOKEN_IN:
+        break;
+    default:
+        /* invalid pid : frame interrupted */
+        s->status |= UHCI_STS_HCPERR;
+        s->cmd &= ~UHCI_CMD_RS;
+        uhci_update_irq(s);
+        return TD_RESULT_STOP_FRAME;
+    }
+
+    async = uhci_async_find_td(s, td_addr);
     if (async) {
         if (uhci_queue_verify(async->queue, qh_addr, td, td_addr, queuing)) {
             assert(q == NULL || q == async->queue);
@@ -880,11 +894,7 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
         break;
 
     default:
-        /* invalid pid : frame interrupted */
-        uhci_async_free(async);
-        s->status |= UHCI_STS_HCPERR;
-        uhci_update_irq(s);
-        return TD_RESULT_STOP_FRAME;
+        abort(); /* Never to execute */
     }
 
     if (async->packet.status == USB_RET_ASYNC) {
