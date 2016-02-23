@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 
-#include "qemu/osdep.h"
 #include "tcg-be-ldst.h"
 
 #if defined _CALL_DARWIN || defined __APPLE__
