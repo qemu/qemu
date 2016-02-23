@@ -425,6 +425,12 @@ void HELPER(cpsr_write)(CPUARMState *env, uint32_t val, uint32_t mask)
     cpsr_write(env, val, mask);
 }
 
+/* Write the CPSR for a 32-bit exception return */
+void HELPER(cpsr_write_eret)(CPUARMState *env, uint32_t val)
+{
+    cpsr_write(env, val, CPSR_ERET_MASK);
+}
+
 /* Access to user mode registers from privileged modes.  */
 uint32_t HELPER(get_user_reg)(CPUARMState *env, uint32_t regno)
 {
