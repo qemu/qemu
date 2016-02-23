@@ -5216,6 +5216,7 @@ static int bad_mode_switch(CPUARMState *env, int mode, CPSRWriteType write_type)
 
     switch (mode) {
     case ARM_CPU_MODE_USR:
+        return 0;
     case ARM_CPU_MODE_SYS:
     case ARM_CPU_MODE_SVC:
     case ARM_CPU_MODE_ABT:
@@ -5225,6 +5226,15 @@ static int bad_mode_switch(CPUARMState *env, int mode, CPSRWriteType write_type)
         /* Note that we don't implement the IMPDEF NSACR.RFR which in v7
          * allows FIQ mode to be Secure-only. (In v8 this doesn't exist.)
          */
+        /* If HCR.TGE is set then changes from Monitor to NS PL1 via MSR
+         * and CPS are treated as illegal mode changes.
+         */
+        if (write_type == CPSRWriteByInstr &&
+            (env->cp15.hcr_el2 & HCR_TGE) &&
+            (env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_MON &&
+            !arm_is_secure_below_el3(env)) {
+            return 1;
+        }
         return 0;
     case ARM_CPU_MODE_HYP:
         return !arm_feature(env, ARM_FEATURE_EL2)
