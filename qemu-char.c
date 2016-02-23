@@ -2697,6 +2697,7 @@ static int tcp_set_msgfds(CharDriverState *chr, int *fds, int num)
     }
     /* clear old pending fd array */
     g_free(s->write_msgfds);
+    s->write_msgfds = NULL;
 
     if (num) {
         s->write_msgfds = g_new(int, num);
