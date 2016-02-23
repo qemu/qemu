@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 
-#include "qemu/osdep.h"
 #include "elf.h"
 #include "tcg-be-ldst.h"
 

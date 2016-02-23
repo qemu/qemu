@@ -94,6 +94,11 @@ EOT
 
 for f in "$@"; do
   case "$f" in
+    *.inc.c)
+      # These aren't standalone C source files
+      echo "SKIPPING $f (not a standalone source file)"
+      continue
+      ;;
     *.c)
       MODE=c
       ;;

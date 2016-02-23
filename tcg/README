@@ -460,8 +460,9 @@ function tcg_gen_xxx(args).
 
 4) Backend
 
-tcg-target.h contains the target specific definitions. tcg-target.c
-contains the target specific code.
+tcg-target.h contains the target specific definitions. tcg-target.inc.c
+contains the target specific code; it is #included by tcg/tcg.c, rather
+than being a standalone C file.
 
 4.1) Assumptions
 

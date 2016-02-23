@@ -10,7 +10,6 @@
  * See the COPYING file in the top-level directory for details.
  */
 
-#include "qemu/osdep.h"
 #include "tcg-be-ldst.h"
 #include "qemu/bitops.h"
 

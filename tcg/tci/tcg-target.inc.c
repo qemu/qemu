@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 
-#include "qemu/osdep.h"
 #include "tcg-be-null.h"
 
 /* TODO list:

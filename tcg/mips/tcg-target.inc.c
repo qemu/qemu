@@ -24,7 +24,6 @@
  * THE SOFTWARE.
  */
 
-#include "qemu/osdep.h"
 #include "tcg-be-ldst.h"
 
 #ifdef HOST_WORDS_BIGENDIAN
