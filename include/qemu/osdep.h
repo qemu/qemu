@@ -28,6 +28,20 @@
 #include "config-host.h"
 #include "qemu/compiler.h"
 
+/* Older versions of C++ don't get definitions of various macros from
+ * stdlib.h unless we define these macros before first inclusion of
+ * that system header.
+ */
+#ifndef __STDC_CONSTANT_MACROS
+#define __STDC_CONSTANT_MACROS
+#endif
+#ifndef __STDC_LIMIT_MACROS
+#define __STDC_LIMIT_MACROS
+#endif
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
+
 /* The following block of code temporarily renames the daemon() function so the
  * compiler does not see the warning associated with it in stdlib.h on OSX
  */
