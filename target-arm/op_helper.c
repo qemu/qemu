@@ -779,7 +779,10 @@ void HELPER(exception_return)(CPUARMState *env)
 
     if (!return_to_aa64) {
         env->aarch64 = 0;
-        env->uncached_cpsr = spsr & CPSR_M;
+        /* We do a raw CPSR write because aarch64_sync_64_to_32()
+         * will sort the register banks out for us, and we've already
+         * caught all the bad-mode cases in el_from_spsr().
+         */
         cpsr_write(env, spsr, ~0, CPSRWriteRaw);
         if (!arm_singlestep_active(env)) {
             env->uncached_cpsr &= ~PSTATE_SS;

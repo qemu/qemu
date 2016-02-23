@@ -722,7 +722,6 @@ int kvm_arch_get_registers(CPUState *cs)
     if (is_a64(env)) {
         pstate_write(env, val);
     } else {
-        env->uncached_cpsr = val & CPSR_M;
         cpsr_write(env, val, 0xffffffff, CPSRWriteRaw);
     }
 

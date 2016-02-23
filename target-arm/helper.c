@@ -5268,7 +5268,7 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask,
      * In a V8 implementation, it is permitted for privileged software to
      * change the CPSR A/F bits regardless of the SCR.AW/FW bits.
      */
-    if (!arm_feature(env, ARM_FEATURE_V8) &&
+    if (write_type != CPSRWriteRaw && !arm_feature(env, ARM_FEATURE_V8) &&
         arm_feature(env, ARM_FEATURE_EL3) &&
         !arm_feature(env, ARM_FEATURE_EL2) &&
         !arm_is_secure(env)) {
@@ -5315,7 +5315,8 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask,
     env->daif &= ~(CPSR_AIF & mask);
     env->daif |= val & CPSR_AIF & mask;
 
-    if ((env->uncached_cpsr ^ val) & mask & CPSR_M) {
+    if (write_type != CPSRWriteRaw &&
+        ((env->uncached_cpsr ^ val) & mask & CPSR_M)) {
         if (bad_mode_switch(env, val & CPSR_M)) {
             /* Attempt to switch to an invalid mode: this is UNPREDICTABLE.
              * We choose to ignore the attempt and leave the CPSR M field
