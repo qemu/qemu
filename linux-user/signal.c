@@ -1611,7 +1611,7 @@ setup_return(CPUARMState *env, struct target_sigaction *ka,
 	env->regs[13] = frame_addr;
 	env->regs[14] = retcode;
 	env->regs[15] = handler & (thumb ? ~1 : ~3);
-        cpsr_write(env, cpsr, 0xffffffff, CPSRWriteByInstr);
+        cpsr_write(env, cpsr, CPSR_IT | CPSR_T, CPSRWriteByInstr);
 }
 
 static abi_ulong *setup_sigframe_v2_vfp(abi_ulong *regspace, CPUARMState *env)
