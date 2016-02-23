@@ -24,26 +24,8 @@ typedef char *caddr_t;
 #endif
 
 
-#ifdef HAVE_UNISTD_H
-#endif
-
-#ifdef HAVE_STDLIB_H
-#endif
-
-
 #ifndef HAVE_MEMMOVE
 #define memmove(x, y, z) bcopy(y, x, z)
-#endif
-
-#if TIME_WITH_SYS_TIME
-#else
-# ifdef HAVE_SYS_TIME_H
-# else
-# endif
-#endif
-
-#ifdef HAVE_STRING_H
-#else
 #endif
 
 #ifndef _WIN32
@@ -95,12 +77,6 @@ void free(void *ptr);
 #ifdef USE_PPP
 #include <ppp/slirppp.h>
 #endif
-
-#ifdef __STDC__
-#else
-#include <varargs.h>
-#endif
-
 
 /* Avoid conflicting with the libc insque() and remque(), which
    have different prototypes. */
