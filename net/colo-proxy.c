@@ -945,7 +945,7 @@ static void colo_proxy_start_one(NetFilterState *nf,
         }
 
         s->status = COLO_PROXY_RUNNING;
-        sprintf(thread_name, "proxy compare %s", nf->netdev_id);
+        sprintf(thread_name, "proxy:%s", nf->netdev_id);
         qemu_thread_create(&s->thread, thread_name,
                                 colo_proxy_compare_thread, s,
                                 QEMU_THREAD_JOINABLE);
