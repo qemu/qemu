@@ -26,6 +26,9 @@
 #define QEMU_OSDEP_H
 
 #include "config-host.h"
+#ifdef NEED_CPU_H
+#include "config-target.h"
+#endif
 #include "qemu/compiler.h"
 
 /* Older versions of C++ don't get definitions of various macros from
