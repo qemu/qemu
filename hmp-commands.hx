@@ -1201,8 +1201,8 @@ ETEXI
 
     {
         .name       = "drive_add",
-        .args_type  = "pci_addr:s,opts:s",
-        .params     = "[[<domain>:]<bus>:]<slot>\n"
+        .args_type  = "node:-n,pci_addr:s,opts:s",
+        .params     = "[-n] [[<domain>:]<bus>:]<slot>\n"
                       "[file=file][,if=type][,bus=n]\n"
                       "[,unit=m][,media=d][,index=i]\n"
                       "[,cyls=c,heads=h,secs=s[,trans=t]]\n"

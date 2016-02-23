@@ -30,6 +30,7 @@
 #include "qemu/config-file.h"
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
+#include "block/block_int.h"
 
 static DriveInfo *add_init_drive(const char *optstr)
 {
@@ -55,6 +56,12 @@ void hmp_drive_add(Monitor *mon, const QDict *qdict)
 {
     DriveInfo *dinfo = NULL;
     const char *opts = qdict_get_str(qdict, "opts");
+    bool node = qdict_get_try_bool(qdict, "node", false);
+
+    if (node) {
+        hmp_drive_add_node(mon, opts);
+        return;
+    }
 
     dinfo = add_init_drive(opts);
     if (!dinfo) {
