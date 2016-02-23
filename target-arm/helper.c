@@ -5222,7 +5222,7 @@ static int bad_mode_switch(CPUARMState *env, int mode)
         return !arm_feature(env, ARM_FEATURE_EL2)
             || arm_current_el(env) < 2 || arm_is_secure(env);
     case ARM_CPU_MODE_MON:
-        return !arm_is_secure(env);
+        return arm_current_el(env) < 3;
     default:
         return 1;
     }
