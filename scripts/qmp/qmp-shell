@@ -70,7 +70,6 @@ import json
 import ast
 import readline
 import sys
-import pprint
 
 class QMPCompleter(list):
     def complete(self, text, state):
@@ -103,11 +102,11 @@ class FuzzyJSON(ast.NodeTransformer):
 # TODO: QMPShell's interface is a bit ugly (eg. _fill_completion() and
 #       _execute_cmd()). Let's design a better one.
 class QMPShell(qmp.QEMUMonitorProtocol):
-    def __init__(self, address, pp=None):
+    def __init__(self, address, pretty=False):
         qmp.QEMUMonitorProtocol.__init__(self, self.__get_address(address))
         self._greeting = None
         self._completer = None
-        self._pp = pp
+        self._pretty = pretty
         self._transmode = False
         self._actions = list()
 
@@ -231,11 +230,11 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         return qmpcmd
 
     def _print(self, qmp):
-        jsobj = json.dumps(qmp)
-        if self._pp is not None:
-            self._pp.pprint(jsobj)
-        else:
-            print str(jsobj)
+        indent = None
+        if self._pretty:
+            indent = 4
+        jsobj = json.dumps(qmp, indent=indent)
+        print str(jsobj)
 
     def _execute_cmd(self, cmdline):
         try:
@@ -377,7 +376,7 @@ def main():
     addr = ''
     qemu = None
     hmp = False
-    pp = None
+    pretty = False
     verbose = False
 
     try:
@@ -387,9 +386,7 @@ def main():
                     fail_cmdline(arg)
                 hmp = True
             elif arg == "-p":
-                if pp is not None:
-                    fail_cmdline(arg)
-                pp = pprint.PrettyPrinter(indent=4)
+                pretty = True
             elif arg == "-v":
                 verbose = True
             else:
@@ -398,7 +395,7 @@ def main():
                 if hmp:
                     qemu = HMPShell(arg)
                 else:
-                    qemu = QMPShell(arg, pp)
+                    qemu = QMPShell(arg, pretty)
                 addr = arg
 
         if qemu is None:
