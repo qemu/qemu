@@ -5316,6 +5316,7 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask,
     env->daif |= val & CPSR_AIF & mask;
 
     if (write_type != CPSRWriteRaw &&
+        (env->uncached_cpsr & CPSR_M) != CPSR_USER &&
         ((env->uncached_cpsr ^ val) & mask & CPSR_M)) {
         if (bad_mode_switch(env, val & CPSR_M)) {
             /* Attempt to switch to an invalid mode: this is UNPREDICTABLE.
