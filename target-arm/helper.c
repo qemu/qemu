@@ -5325,11 +5325,20 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask,
         (env->uncached_cpsr & CPSR_M) != CPSR_USER &&
         ((env->uncached_cpsr ^ val) & mask & CPSR_M)) {
         if (bad_mode_switch(env, val & CPSR_M)) {
-            /* Attempt to switch to an invalid mode: this is UNPREDICTABLE.
-             * We choose to ignore the attempt and leave the CPSR M field
-             * untouched.
+            /* Attempt to switch to an invalid mode: this is UNPREDICTABLE in
+             * v7, and has defined behaviour in v8:
+             *  + leave CPSR.M untouched
+             *  + allow changes to the other CPSR fields
+             *  + set PSTATE.IL
+             * For user changes via the GDB stub, we don't set PSTATE.IL,
+             * as this would be unnecessarily harsh for a user error.
              */
             mask &= ~CPSR_M;
+            if (write_type != CPSRWriteByGDBStub &&
+                arm_feature(env, ARM_FEATURE_V8)) {
+                mask |= CPSR_IL;
+                val |= CPSR_IL;
+            }
         } else {
             switch_mode(env, val & CPSR_M);
         }
