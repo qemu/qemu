@@ -2824,6 +2824,15 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
     AioContext *aio_context;
     Error *local_err = NULL;
 
+    bs = bdrv_find_node(id);
+    if (bs) {
+        qmp_x_blockdev_del(false, NULL, true, id, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+        }
+        return;
+    }
+
     blk = blk_by_name(id);
     if (!blk) {
         error_report("Device '%s' not found", id);
