@@ -15,11 +15,17 @@
 
 # Usage:
 #   clean-includes [--git subjectprefix] file ...
+# or
+#   clean-includes [--git subjectprefix] --all
 #
 # If the --git subjectprefix option is given, then after making
 # the changes to the files this script will create a git commit
 # with the subject line "subjectprefix: Clean up includes"
 # and a boilerplate commit message.
+#
+# Using --all will cause clean-includes to run on the whole source
+# tree (excluding certain directories which are known not to need
+# handling).
 
 # This script requires Coccinelle to be installed.
 
@@ -40,6 +46,9 @@
 
 GIT=no
 
+# Extended regular expression defining files to ignore when using --all
+XDIRREGEX='^(tests/tcg|tests/multiboot|pc-bios|disas/libvixl)'
+
 if [ $# -ne 0 ] && [ "$1" = "--git" ]; then
     if [ $# -eq 1 ]; then
         echo "--git option requires an argument"
@@ -52,9 +61,14 @@ if [ $# -ne 0 ] && [ "$1" = "--git" ]; then
 fi
 
 if [ $# -eq 0 ]; then
-    echo "Usage: clean-includes [--git subjectprefix] foo.c ..."
+    echo "Usage: clean-includes [--git subjectprefix] [--all | foo.c ...]"
     echo "(modifies the files in place)"
     exit 1
+fi
+
+if [ "$1" = "--all" ]; then
+    # We assume there are no files in the tree with spaces in their name
+    set -- $(git ls-files '*.[ch]' | grep -E -v "$XDIRREGEX")
 fi
 
 # Annoyingly coccinelle won't read a scriptfile unless its
