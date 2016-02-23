@@ -2769,6 +2769,10 @@ static void tcp_chr_disconnect(CharDriverState *chr)
 {
     TCPCharDriver *s = chr->opaque;
 
+    if (!s->connected) {
+        return;
+    }
+
     s->connected = 0;
     if (s->listen_ioc) {
         s->listen_tag = qio_channel_add_watch(
