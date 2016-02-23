@@ -14,7 +14,7 @@
 #include <dirent.h>
 
 #include <sys/statvfs.h>
-#ifdef __linux__
+#ifdef CONFIG_INOTIFY1
 #include <sys/inotify.h>
 #include "qemu/main-loop.h"
 #endif
@@ -92,7 +92,7 @@ enum {
     EP_EVENT,
 };
 
-#ifdef __linux__
+#ifdef CONFIG_INOTIFY1
 typedef struct MTPMonEntry MTPMonEntry;
 
 struct MTPMonEntry {
@@ -127,7 +127,7 @@ struct MTPObject {
     char         *name;
     char         *path;
     struct stat  stat;
-#ifdef __linux__
+#ifdef CONFIG_INOTIFY1
     /* inotify watch cookie */
     int          watchfd;
 #endif
@@ -152,7 +152,7 @@ struct MTPState {
     uint32_t     next_handle;
 
     QTAILQ_HEAD(, MTPObject) objects;
-#ifdef __linux__
+#ifdef CONFIG_INOTIFY1
     /* inotify descriptor */
     int          inotifyfd;
     QTAILQ_HEAD(events, MTPMonEntry) events;
@@ -400,7 +400,7 @@ static MTPObject *usb_mtp_add_child(MTPState *s, MTPObject *o,
     return child;
 }
 
-#ifdef __linux__
+#ifdef CONFIG_INOTIFY1
 static MTPObject *usb_mtp_object_lookup_name(MTPObject *parent,
                                              char *name, int len)
 {
@@ -592,7 +592,7 @@ static void usb_mtp_object_readdir(MTPState *s, MTPObject *o)
     if (!dir) {
         return;
     }
-#ifdef __linux__
+#ifdef CONFIG_INOTIFY1
     int watchfd = usb_mtp_add_watch(s->inotifyfd, o->path);
     if (watchfd == -1) {
         fprintf(stderr, "usb-mtp: failed to add watch for %s\n", o->path);
@@ -996,7 +996,7 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         trace_usb_mtp_op_open_session(s->dev.addr);
         s->session = c->argv[0];
         usb_mtp_object_alloc(s, s->next_handle++, NULL, s->root);
-#ifdef __linux__
+#ifdef CONFIG_INOTIFY1
         if (usb_mtp_inotify_init(s)) {
             fprintf(stderr, "usb-mtp: file monitoring init failed\n");
         }
@@ -1006,7 +1006,7 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         trace_usb_mtp_op_close_session(s->dev.addr);
         s->session = 0;
         s->next_handle = 0;
-#ifdef __linux__
+#ifdef CONFIG_INOTIFY1
         usb_mtp_inotify_cleanup(s);
 #endif
         usb_mtp_object_free(s, QTAILQ_FIRST(&s->objects));
@@ -1134,7 +1134,7 @@ static void usb_mtp_handle_reset(USBDevice *dev)
 
     trace_usb_mtp_reset(s->dev.addr);
 
-#ifdef __linux__
+#ifdef CONFIG_INOTIFY1
     usb_mtp_inotify_cleanup(s);
 #endif
     usb_mtp_object_free(s, QTAILQ_FIRST(&s->objects));
@@ -1297,7 +1297,7 @@ static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
         }
         break;
     case EP_EVENT:
-#ifdef __linux__
+#ifdef CONFIG_INOTIFY1
         if (!QTAILQ_EMPTY(&s->events)) {
             struct MTPMonEntry *e = QTAILQ_LAST(&s->events, events);
             uint32_t handle;
