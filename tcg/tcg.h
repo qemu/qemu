@@ -568,7 +568,7 @@ struct TCGContext {
 
     TBContext tb_ctx;
 
-    /* The TCGBackendData structure is private to tcg-target.c.  */
+    /* The TCGBackendData structure is private to tcg-target.inc.c.  */
     struct TCGBackendData *be;
 
     TCGTempSet free_temps[TCG_TYPE_COUNT * 2];

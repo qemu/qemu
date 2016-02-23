@@ -21,7 +21,7 @@ This is what TCI (Tiny Code Interpreter) does.
 2) Implementation
 
 Like each TCG host frontend, TCI implements the code generator in
-tcg-target.c, tcg-target.h. Both files are in directory tcg/tci.
+tcg-target.inc.c, tcg-target.h. Both files are in directory tcg/tci.
 
 The additional file tcg/tci.c adds the interpreter.
 
@@ -123,7 +123,7 @@ u1 = linux-user-test works
   would also improve speed for hosts which support byte alignment).
 
 * A better disassembler for the pseudo code would be nice (a very primitive
-  disassembler is included in tcg-target.c).
+  disassembler is included in tcg-target.inc.c).
 
 * It might be useful to have a runtime option which selects the native TCG
   or TCI, so QEMU would have to include two TCGs. Today, selecting TCI
