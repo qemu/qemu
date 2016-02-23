@@ -175,7 +175,7 @@ static int get_cpsr(QEMUFile *f, void *opaque, size_t size)
 
     /* Avoid mode switch when restoring CPSR */
     env->uncached_cpsr = val & CPSR_M;
-    cpsr_write(env, val, 0xffffffff);
+    cpsr_write(env, val, 0xffffffff, CPSRWriteRaw);
     return 0;
 }
 

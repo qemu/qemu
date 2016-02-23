@@ -94,7 +94,7 @@ int arm_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         return 4;
     case 25:
         /* CPSR */
-        cpsr_write(env, tmp, 0xffffffff);
+        cpsr_write(env, tmp, 0xffffffff, CPSRWriteByGDBStub);
         return 4;
     }
     /* Unknown register.  */

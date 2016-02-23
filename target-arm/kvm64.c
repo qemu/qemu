@@ -723,7 +723,7 @@ int kvm_arch_get_registers(CPUState *cs)
         pstate_write(env, val);
     } else {
         env->uncached_cpsr = val & CPSR_M;
-        cpsr_write(env, val, 0xffffffff);
+        cpsr_write(env, val, 0xffffffff, CPSRWriteRaw);
     }
 
     /* KVM puts SP_EL0 in regs.sp and SP_EL1 in regs.sp_el1. On the

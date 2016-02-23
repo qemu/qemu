@@ -5233,7 +5233,8 @@ uint32_t cpsr_read(CPUARMState *env)
         | (env->GE << 16) | (env->daif & CPSR_AIF);
 }
 
-void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
+void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask,
+                CPSRWriteType write_type)
 {
     uint32_t changed_daif;
 
