@@ -317,9 +317,10 @@ int net_init_vhost_user(const NetClientOptions *opts, const char *name,
     }
 
     queues = vhost_user_opts->has_queues ? vhost_user_opts->queues : 1;
-    if (queues < 1) {
+    if (queues < 1 || queues > MAX_QUEUE_NUM) {
         error_setg(errp,
-                   "vhost-user number of queues must be bigger than zero");
+                   "vhost-user number of queues must be in range [1, %d]",
+                   MAX_QUEUE_NUM);
         return -1;
     }
 
