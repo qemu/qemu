@@ -42,6 +42,7 @@
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
 #include "crypto/hash.h"
+#include "sysemu/sysemu.h"
 
 #ifdef DEBUG_MIGRATION_RAM
 #define DPRINTF(fmt, ...) \
@@ -616,18 +617,18 @@ static inline bool migration_bitmap_clear_dirty(ram_addr_t addr)
     ret = test_and_clear_bit(nr, bitmap);
 
     if (ret) {
-        migration_dirty_pages--;
+        atomic_dec(&migration_dirty_pages);
     }
     return ret;
 }
 
 static inline
 ram_addr_t ramlist_bitmap_find_and_reset_dirty(RAMBlock *rb,
-                                               ram_addr_t start)
+                                               ram_addr_t start,
+                                               uint64_t rb_size)
 {
     unsigned long base = rb->offset >> TARGET_PAGE_BITS;
     unsigned long nr = base + (start >> TARGET_PAGE_BITS);
-    uint64_t rb_size = rb->used_length;
     unsigned long size = base + (rb_size >> TARGET_PAGE_BITS);
     unsigned long next;
 
@@ -2721,6 +2722,141 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     return ret;
 }
 
+/* For parallel flushing of colo ram cache; it has 'n' threads,
+ * trying 'n'==number of cpus, but might be smarter to do something NUMA
+ * Each thread waits for 'triggers' and signals 'completes'.
+ */
+typedef struct ram_cache_threads {
+    QemuThread *threads;
+    QemuEvent  *triggers;
+    QemuEvent  *completes;
+    bool        quit;
+} ColoRamCacheThreads;
+
+static ColoRamCacheThreads colo_flush_threads;
+
+/*
+ * Helper for colo_flush_thread.
+ * Given the current block and the bounds of ram (in pages)
+ * that we're dealing with, then find our next useable block,
+ * and set offset_out/used_out to the limits we're interested in.
+ * Result is NULL when we run out of blocks.
+ */
+static RAMBlock *flush_find_next_block(RAMBlock *block,
+                                       ram_addr_t lower_bound,
+                                       ram_addr_t upper_bound,
+                                       ram_addr_t *offset_out,
+                                       ram_addr_t *used_out)
+{
+    do {
+        if (!block) {
+            block = QLIST_FIRST_RCU(&ram_list.blocks);
+        } else {
+            block = QLIST_NEXT_RCU(block, next);
+        }
+        if (block &&
+            (block->offset + block->used_length) >= lower_bound &&
+            (block->offset < upper_bound)) {
+            /* OK, good, the block is at least partially within our bounds */
+            if (block->offset <= lower_bound) {
+                *offset_out = lower_bound - block->offset;
+            } else {
+                *offset_out = 0;
+            }
+            if ((block->offset + block->used_length) >= upper_bound) {
+                *used_out = upper_bound - block->offset;
+            } else {
+                *used_out = block->used_length;
+            }
+            break;
+        }
+    } while (block);
+
+    return block;
+}
+
+/* Flush thread for COLO ram cache, synchronises a proportion of the
+ * ram cache.
+ */
+static void *colo_flush_thread(void *opaque)
+{
+    int i = (int)(intptr_t)opaque;
+    int64_t ram_cache_pages = last_ram_offset() >> TARGET_PAGE_BITS;
+    ram_addr_t lower, upper;
+    /* work out our range, lower..upper-1
+     * want to avoid SMP issues on the dirty bitmap, so make sure
+     * our limits never land on the same 64bit word
+     */
+    ram_addr_t chunk_size = (ram_cache_pages / smp_cpus) & ~63ul;
+
+    lower = i * chunk_size;
+
+    if (i != (smp_cpus - 1)) {
+        upper = (i + 1) * chunk_size;
+    } else {
+        /* Last thread gets deals with extra few pages due to rounding */
+        upper = ram_cache_pages;
+    }
+    lower <<= TARGET_PAGE_BITS;
+    upper <<= TARGET_PAGE_BITS;
+
+    while (true) {
+        RAMBlock *block = NULL;
+        void *dst_host;
+        void *src_host;
+        ram_addr_t offset = ~0, host_off = 0, cache_off = 0, used_length = 0;
+        uint64_t host_dirty = 0, both_dirty = 0;
+
+        /* Wait for work */
+        qemu_event_wait(&colo_flush_threads.triggers[i]);
+        qemu_event_reset(&colo_flush_threads.triggers[i]);
+        if (colo_flush_threads.quit) {
+            break;
+        }
+
+        rcu_read_lock();
+        /* note offset is initialised to ~0 so 1st time through we drop
+         * through to finding a block
+         */
+        do {
+            ram_addr_t ram_addr_abs;
+            if (cache_off == offset) { /* walk ramblock->colo_cache */
+                cache_off = migration_bitmap_find_dirty(block,
+                                                        offset, &ram_addr_abs);
+                if (cache_off < used_length) {
+                    migration_bitmap_clear_dirty(ram_addr_abs);
+                }
+            }
+            if (host_off == offset) { /* walk ramblock->host */
+                host_off = ramlist_bitmap_find_and_reset_dirty(block, offset,
+                               used_length);
+            }
+            if (!block || (host_off >= used_length &&
+                cache_off >= used_length)) {
+                block = flush_find_next_block(block, lower, upper,
+                                              &offset, &used_length);
+                cache_off = host_off = offset;
+            } else {
+                if (host_off <= cache_off) {
+                    offset = host_off;
+                    host_dirty++;
+                    both_dirty += (host_off == cache_off);
+                } else {
+                    offset = cache_off;
+                }
+                dst_host = block->host + offset;
+                src_host = block->colo_cache + offset;
+                memcpy(dst_host, src_host, TARGET_PAGE_SIZE);
+            }
+        } while (block);
+        rcu_read_unlock();
+        trace_colo_flush_ram_cache_end(host_dirty, both_dirty);
+
+        qemu_event_set(&colo_flush_threads.completes[i]);
+    }
+
+    return NULL;
+}
 /*
  * colo cache: this is for secondary VM, we cache the whole
  * memory of the secondary VM, it will be called after first migration.
@@ -2729,6 +2865,7 @@ int colo_init_ram_cache(void)
 {
     RAMBlock *block;
     int64_t ram_cache_pages = last_ram_offset() >> TARGET_PAGE_BITS;
+    int i;
 
     rcu_read_lock();
     QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
@@ -2753,6 +2890,20 @@ int colo_init_ram_cache(void)
     migration_dirty_pages = 0;
     memory_global_dirty_log_start();
 
+    colo_flush_threads.threads = g_new0(QemuThread, smp_cpus);
+    colo_flush_threads.triggers = g_new0(QemuEvent, smp_cpus);
+    colo_flush_threads.completes = g_new0(QemuEvent, smp_cpus);
+    colo_flush_threads.quit = false;
+    for (i = 0; i < smp_cpus; i++) {
+        char name[32];
+        qemu_event_init(&colo_flush_threads.triggers[i], false);
+        qemu_event_init(&colo_flush_threads.completes[i], false);
+        sprintf(name, "colofl: %d", i);
+        qemu_thread_create(&colo_flush_threads.threads[i], name,
+                           colo_flush_thread,
+                           (void *)(intptr_t)i,
+                           QEMU_THREAD_JOINABLE);
+    }
     return 0;
 
 out_locked:
@@ -2771,8 +2922,18 @@ void colo_release_ram_cache(void)
 {
     RAMBlock *block;
     struct BitmapRcu *bitmap = migration_bitmap_rcu;
+    int i;
 
     ram_cache_enable = false;
+
+    colo_flush_threads.quit = true;
+    for (i = 0; i < smp_cpus; i++) {
+        qemu_event_set(&colo_flush_threads.triggers[i]);
+        qemu_thread_join(&colo_flush_threads.threads[i]);
+    }
+    g_free(colo_flush_threads.threads);
+    g_free(colo_flush_threads.triggers);
+    g_free(colo_flush_threads.completes);
 
     atomic_rcu_set(&migration_bitmap_rcu, NULL);
     if (bitmap) {
@@ -2795,47 +2956,19 @@ void colo_release_ram_cache(void)
  */
 void colo_flush_ram_cache(void)
 {
-    RAMBlock *block = NULL;
-    void *dst_host;
-    void *src_host;
-    ram_addr_t offset = 0, host_off = 0, cache_off = 0;
-    uint64_t host_dirty = 0, both_dirty = 0;
-
+    int i;
     trace_colo_flush_ram_cache_begin(migration_dirty_pages);
     address_space_sync_dirty_bitmap(&address_space_memory);
-    rcu_read_lock();
-    block = QLIST_FIRST_RCU(&ram_list.blocks);
-    while (block) {
-        ram_addr_t ram_addr_abs;
-        if (cache_off == offset) { /* walk ramblock->colo_cache */
-            cache_off = migration_bitmap_find_dirty(block,
-                                                    offset, &ram_addr_abs);
-            if (cache_off < block->used_length) {
-                migration_bitmap_clear_dirty(ram_addr_abs);
-            }
-        }
-        if (host_off == offset) { /* walk ramblock->host */
-            host_off = ramlist_bitmap_find_and_reset_dirty(block, offset);
-        }
-        if (host_off >= block->used_length &&
-            cache_off >= block->used_length) {
-            cache_off = host_off = offset = 0;
-            block = QLIST_NEXT_RCU(block, next);
-        } else {
-            if (host_off <= cache_off) {
-                offset = host_off;
-                host_dirty++;
-                both_dirty += (host_off == cache_off);
-            } else {
-                offset = cache_off;
-            }
-            dst_host = block->host + offset;
-            src_host = block->colo_cache + offset;
-            memcpy(dst_host, src_host, TARGET_PAGE_SIZE);
-        }
+
+    /* Kick all the flush threads to start work */
+    for (i = 0; i < smp_cpus; i++) {
+        qemu_event_reset(&colo_flush_threads.completes[i]);
+        qemu_event_set(&colo_flush_threads.triggers[i]);
     }
-    rcu_read_unlock();
-    trace_colo_flush_ram_cache_end(host_dirty, both_dirty);
+    /* ...and wait for them to finish */
+    for (i = 0; i < smp_cpus; i++) {
+        qemu_event_wait(&colo_flush_threads.completes[i]);
+    }
     assert(migration_dirty_pages == 0);
 }
 
