@@ -323,30 +323,8 @@ static void netmap_cleanup(NetClientState *nc)
 }
 
 /* Offloading manipulation support callbacks. */
-static bool netmap_has_ufo(NetClientState *nc)
+static int netmap_fd_set_vnet_hdr_len(NetmapState *s, int len)
 {
-    return true;
-}
-
-static bool netmap_has_vnet_hdr(NetClientState *nc)
-{
-    return true;
-}
-
-static bool netmap_has_vnet_hdr_len(NetClientState *nc, int len)
-{
-    return len == 0 || len == sizeof(struct virtio_net_hdr) ||
-                len == sizeof(struct virtio_net_hdr_mrg_rxbuf);
-}
-
-static void netmap_using_vnet_hdr(NetClientState *nc, bool enable)
-{
-}
-
-static void netmap_set_vnet_hdr_len(NetClientState *nc, int len)
-{
-    NetmapState *s = DO_UPCAST(NetmapState, nc, nc);
-    int err;
     struct nmreq req;
 
     /* Issue a NETMAP_BDG_VNET_HDR command to change the virtio-net header
@@ -357,10 +335,50 @@ static void netmap_set_vnet_hdr_len(NetClientState *nc, int len)
     req.nr_version = NETMAP_API;
     req.nr_cmd = NETMAP_BDG_VNET_HDR;
     req.nr_arg1 = len;
-    err = ioctl(s->nmd->fd, NIOCREGIF, &req);
+
+    return ioctl(s->nmd->fd, NIOCREGIF, &req);
+}
+
+static bool netmap_has_vnet_hdr_len(NetClientState *nc, int len)
+{
+    NetmapState *s = DO_UPCAST(NetmapState, nc, nc);
+    int prev_len = s->vnet_hdr_len;
+
+    /* Check that we can set the new length. */
+    if (netmap_fd_set_vnet_hdr_len(s, len)) {
+        return false;
+    }
+
+    /* Restore the previous length. */
+    if (netmap_fd_set_vnet_hdr_len(s, prev_len)) {
+        error_report("Failed to restore vnet-hdr length %d on %s: %s",
+                     prev_len, s->ifname, strerror(errno));
+        abort();
+    }
+
+    return true;
+}
+
+/* A netmap interface that supports virtio-net headers always
+ * supports UFO, so we use this callback also for the has_ufo hook. */
+static bool netmap_has_vnet_hdr(NetClientState *nc)
+{
+    return netmap_has_vnet_hdr_len(nc, sizeof(struct virtio_net_hdr));
+}
+
+static void netmap_using_vnet_hdr(NetClientState *nc, bool enable)
+{
+}
+
+static void netmap_set_vnet_hdr_len(NetClientState *nc, int len)
+{
+    NetmapState *s = DO_UPCAST(NetmapState, nc, nc);
+    int err;
+
+    err = netmap_fd_set_vnet_hdr_len(s, len);
     if (err) {
-        error_report("Unable to execute NETMAP_BDG_VNET_HDR on %s: %s",
-                     s->ifname, strerror(errno));
+        error_report("Unable to set vnet-hdr length %d on %s: %s",
+                     len, s->ifname, strerror(errno));
     } else {
         /* Keep track of the current length. */
         s->vnet_hdr_len = len;
@@ -373,8 +391,7 @@ static void netmap_set_offload(NetClientState *nc, int csum, int tso4, int tso6,
     NetmapState *s = DO_UPCAST(NetmapState, nc, nc);
 
     /* Setting a virtio-net header length greater than zero automatically
-     * enables the offloadings.
-     */
+     * enables the offloadings. */
     if (!s->vnet_hdr_len) {
         netmap_set_vnet_hdr_len(nc, sizeof(struct virtio_net_hdr));
     }
@@ -388,7 +405,7 @@ static NetClientInfo net_netmap_info = {
     .receive_iov = netmap_receive_iov,
     .poll = netmap_poll,
     .cleanup = netmap_cleanup,
-    .has_ufo = netmap_has_ufo,
+    .has_ufo = netmap_has_vnet_hdr,
     .has_vnet_hdr = netmap_has_vnet_hdr,
     .has_vnet_hdr_len = netmap_has_vnet_hdr_len,
     .using_vnet_hdr = netmap_using_vnet_hdr,
