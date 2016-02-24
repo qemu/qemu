@@ -914,10 +914,16 @@ int rom_add_file(const char *file, const char *fw_dir,
 err:
     if (fd != -1)
         close(fd);
+
     g_free(rom->data);
     g_free(rom->path);
     g_free(rom->name);
+    if (fw_dir) {
+        g_free(rom->fw_dir);
+        g_free(rom->fw_file);
+    }
     g_free(rom);
+
     return -1;
 }
 
