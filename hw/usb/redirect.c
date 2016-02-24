@@ -447,7 +447,7 @@ static USBPacket *usbredir_find_packet_by_id(USBRedirDevice *dev,
     return p;
 }
 
-static void bufp_alloc(USBRedirDevice *dev, uint8_t *data, uint16_t len,
+static int bufp_alloc(USBRedirDevice *dev, uint8_t *data, uint16_t len,
     uint8_t status, uint8_t ep, void *free_on_destroy)
 {
     struct buf_packet *bufp;
@@ -464,7 +464,7 @@ static void bufp_alloc(USBRedirDevice *dev, uint8_t *data, uint16_t len,
         if (dev->endpoint[EP2I(ep)].bufpq_size >
                 dev->endpoint[EP2I(ep)].bufpq_target_size) {
             free(data);
-            return;
+            return -1;
         }
         dev->endpoint[EP2I(ep)].bufpq_dropping_packets = 0;
     }
@@ -477,6 +477,7 @@ static void bufp_alloc(USBRedirDevice *dev, uint8_t *data, uint16_t len,
     bufp->free_on_destroy = free_on_destroy;
     QTAILQ_INSERT_TAIL(&dev->endpoint[EP2I(ep)].bufpq, bufp, next);
     dev->endpoint[EP2I(ep)].bufpq_size++;
+    return 0;
 }
 
 static void bufp_free(USBRedirDevice *dev, struct buf_packet *bufp,
@@ -2082,13 +2083,17 @@ static void usbredir_buffered_bulk_packet(void *priv, uint64_t id,
     status = usb_redir_success;
     free_on_destroy = NULL;
     for (i = 0; i < data_len; i += len) {
+        int r;
         if (len >= (data_len - i)) {
             len = data_len - i;
             status = buffered_bulk_packet->status;
             free_on_destroy = data;
         }
         /* bufp_alloc also adds the packet to the ep queue */
-        bufp_alloc(dev, data + i, len, status, ep, free_on_destroy);
+        r = bufp_alloc(dev, data + i, len, status, ep, free_on_destroy);
+        if (r) {
+            break;
+        }
     }
 
     if (dev->endpoint[EP2I(ep)].pending_async_packet) {
