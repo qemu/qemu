@@ -133,6 +133,7 @@ BlockBackend *blk_new_with_bs(Error **errp)
 
     bs = bdrv_new_root();
     blk->root = bdrv_root_attach_child(bs, "root", &child_root);
+    blk->root->opaque = blk;
     bs->blk = blk;
     return blk;
 }
@@ -458,6 +459,7 @@ void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
     assert(!blk->root && !bs->blk);
     bdrv_ref(bs);
     blk->root = bdrv_root_attach_child(bs, "root", &child_root);
+    blk->root->opaque = blk;
     bs->blk = blk;
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);

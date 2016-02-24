@@ -373,6 +373,7 @@ struct BdrvChild {
     BlockDriverState *bs;
     char *name;
     const BdrvChildRole *role;
+    void *opaque;
     QLIST_ENTRY(BdrvChild) next;
     QLIST_ENTRY(BdrvChild) next_parent;
 };
