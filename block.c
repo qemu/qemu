@@ -1214,6 +1214,27 @@ void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
     bdrv_root_unref_child(child);
 }
 
+
+static void bdrv_parent_cb_change_media(BlockDriverState *bs, bool load)
+{
+    BdrvChild *c;
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
+        if (c->role->change_media) {
+            c->role->change_media(c, load);
+        }
+    }
+}
+
+static void bdrv_parent_cb_resize(BlockDriverState *bs)
+{
+    BdrvChild *c;
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
+        if (c->role->resize) {
+            c->role->resize(c);
+        }
+    }
+}
+
 /*
  * Sets the backing file link of a BDS. A new reference is created; callers
  * which don't need their own reference any more must call bdrv_unref().
@@ -1673,9 +1694,7 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
     }
 
     if (!bdrv_key_required(bs)) {
-        if (bs->blk) {
-            blk_dev_change_media_cb(bs->blk, true);
-        }
+        bdrv_parent_cb_change_media(bs, true);
     } else if (!runstate_check(RUN_STATE_PRELAUNCH)
                && !runstate_check(RUN_STATE_INMIGRATE)
                && !runstate_check(RUN_STATE_PAUSED)) { /* HACK */
@@ -2121,9 +2140,7 @@ static void bdrv_close(BlockDriverState *bs)
     bdrv_release_named_dirty_bitmaps(bs);
     assert(QLIST_EMPTY(&bs->dirty_bitmaps));
 
-    if (bs->blk) {
-        blk_dev_change_media_cb(bs->blk, false);
-    }
+    bdrv_parent_cb_change_media(bs, false);
 
     if (bs->drv) {
         BdrvChild *child, *next;
@@ -2574,9 +2591,7 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset)
     if (ret == 0) {
         ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
         bdrv_dirty_bitmap_truncate(bs);
-        if (bs->blk) {
-            blk_dev_resize_cb(bs->blk);
-        }
+        bdrv_parent_cb_resize(bs);
     }
     return ret;
 }
@@ -2686,11 +2701,9 @@ int bdrv_set_key(BlockDriverState *bs, const char *key)
     if (ret < 0) {
         bs->valid_key = 0;
     } else if (!bs->valid_key) {
+        /* call the change callback now, we skipped it on open */
         bs->valid_key = 1;
-        if (bs->blk) {
-            /* call the change callback now, we skipped it on open */
-            blk_dev_change_media_cb(bs->blk, true);
-        }
+        bdrv_parent_cb_change_media(bs, true);
     }
     return ret;
 }

@@ -94,8 +94,14 @@ static void blk_root_inherit_options(int *child_flags, QDict *child_options,
 static void blk_root_drained_begin(BdrvChild *child);
 static void blk_root_drained_end(BdrvChild *child);
 
+static void blk_root_change_media(BdrvChild *child, bool load);
+static void blk_root_resize(BdrvChild *child);
+
 static const BdrvChildRole child_root = {
     .inherit_options    = blk_root_inherit_options,
+
+    .change_media       = blk_root_change_media,
+    .resize             = blk_root_resize,
 
     .drained_begin      = blk_root_drained_begin,
     .drained_end        = blk_root_drained_end,
@@ -556,6 +562,11 @@ void blk_dev_change_media_cb(BlockBackend *blk, bool load)
     }
 }
 
+static void blk_root_change_media(BdrvChild *child, bool load)
+{
+    blk_dev_change_media_cb(child->opaque, load);
+}
+
 /*
  * Does @blk's attached device model have removable media?
  * %true if no device model is attached.
@@ -610,8 +621,10 @@ bool blk_dev_is_medium_locked(BlockBackend *blk)
 /*
  * Notify @blk's attached device model of a backend size change.
  */
-void blk_dev_resize_cb(BlockBackend *blk)
+static void blk_root_resize(BdrvChild *child)
 {
+    BlockBackend *blk = child->opaque;
+
     if (blk->dev_ops && blk->dev_ops->resize_cb) {
         blk->dev_ops->resize_cb(blk->dev_opaque);
     }
