@@ -163,7 +163,8 @@ class Event(object):
 
     _VALID_PROPS = set(["disable", "tcg", "tcg-trans", "tcg-exec", "vcpu"])
 
-    def __init__(self, name, props, fmt, args, orig=None):
+    def __init__(self, name, props, fmt, args, orig=None,
+                 event_trans=None, event_exec=None):
         """
         Parameters
         ----------
@@ -176,13 +177,19 @@ class Event(object):
         args : Arguments
             Event arguments.
         orig : Event or None
-            Original Event before transformation.
+            Original Event before transformation/generation.
+        event_trans : Event or None
+            Generated translation-time event ("tcg" property).
+        event_exec : Event or None
+            Generated execution-time event ("tcg" property).
 
         """
         self.name = name
         self.properties = props
         self.fmt = fmt
         self.args = args
+        self.event_trans = event_trans
+        self.event_exec = event_exec
 
         if orig is None:
             self.original = weakref.ref(self)
@@ -198,7 +205,7 @@ class Event(object):
     def copy(self):
         """Create a new copy."""
         return Event(self.name, list(self.properties), self.fmt,
-                     self.args.copy(), self)
+                     self.args.copy(), self, self.event_trans, self.event_exec)
 
     @staticmethod
     def build(line_str):
