@@ -400,7 +400,13 @@ static int cmd_set_port_settings(Rocker *r,
 
     if (tlvs[ROCKER_TLV_CMD_PORT_SETTINGS_MODE]) {
         mode = rocker_tlv_get_u8(tlvs[ROCKER_TLV_CMD_PORT_SETTINGS_MODE]);
-        fp_port_set_world(fp_port, r->worlds[mode]);
+        if (mode >= ROCKER_WORLD_TYPE_MAX) {
+            return -ROCKER_EINVAL;
+        }
+        /* We don't support world change. */
+        if (!fp_port_check_world(fp_port, r->worlds[mode])) {
+            return -ROCKER_EINVAL;
+        }
     }
 
     if (tlvs[ROCKER_TLV_CMD_PORT_SETTINGS_LEARNING]) {

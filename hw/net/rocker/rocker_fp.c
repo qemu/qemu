@@ -186,6 +186,11 @@ void fp_port_set_world(FpPort *port, World *world)
     port->world = world;
 }
 
+bool fp_port_check_world(FpPort *port, World *world)
+{
+    return port->world == world;
+}
+
 bool fp_port_enabled(FpPort *port)
 {
     return port->enabled;
