@@ -342,6 +342,10 @@ static void i8257_channel_run(I8257State *d, int ichan)
                              r->now[COUNT], (r->base[COUNT] + 1) << ncont);
     r->now[COUNT] = n;
     ldebug ("dma_pos %d size %d\n", n, (r->base[COUNT] + 1) << ncont);
+    if (n == (r->base[COUNT] + 1) << ncont) {
+        ldebug("transfer done\n");
+        d->status |= (1 << ichan);
+    }
 }
 
 static void i8257_dma_run(void *opaque)
