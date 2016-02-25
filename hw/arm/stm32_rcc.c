@@ -871,6 +871,7 @@ static void stm32_rcc_init_clk(Stm32Rcc *s)
     s->PERIPHCLK[STM32_ADC1] = clktree_create_clk("ADC1", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
     s->PERIPHCLK[STM32_RTC]  = clktree_create_clk("RTC", 1, 1, false, CLKTREE_NO_MAX_FREQ,-1,
                               s->LSECLK,s->LSICLK,s->HSE_DIV128, NULL);
+    s->PERIPHCLK[STM32_DAC]  = clktree_create_clk("DAC", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
 }
 
 

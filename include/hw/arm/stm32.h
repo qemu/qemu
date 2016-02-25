@@ -297,6 +297,11 @@ typedef struct Stm32Rtc Stm32Rtc;
 #define TYPE_STM32_RTC "stm32-rtc"
 #define STM32_Rtc(obj) OBJECT_CHECK(Stm32Rtc, (obj), TYPE_STM32_RTC)
 
+/*DAC*/
+
+typedef struct Stm32Dac Stm32Dac;
+#define TYPE_STM32_DAC "stm32-dac"
+#define STM32_Dac(obj) OBJECT_CHECK(Stm32Dac, (obj), TYPE_STM32_DAC)
 
 /* UART */
 #define STM32_UART_COUNT 5
