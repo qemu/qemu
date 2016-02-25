@@ -663,7 +663,6 @@ M: Alexander Graf <agraf@suse.de>
 S: Supported
 F: hw/char/sclp*.[hc]
 F: hw/s390x/
-X: hw/s390x/s390-virtio-bus.[ch]
 F: include/hw/s390x/
 F: pc-bios/s390-ccw/
 F: hw/watchdog/wdt_diag288.c
