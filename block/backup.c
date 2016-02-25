@@ -501,6 +501,8 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
                   BlockJobTxn *txn, Error **errp)
 {
     int64_t len;
+    BlockDriverInfo bdi;
+    int ret;
 
     assert(bs);
     assert(target);
@@ -570,15 +572,32 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
         goto error;
     }
 
-    bdrv_op_block_all(target, job->common.blocker);
-
     job->on_source_error = on_source_error;
     job->on_target_error = on_target_error;
     job->target = target;
     job->sync_mode = sync_mode;
     job->sync_bitmap = sync_mode == MIRROR_SYNC_MODE_INCREMENTAL ?
                        sync_bitmap : NULL;
-    job->cluster_size = BACKUP_CLUSTER_SIZE_DEFAULT;
+
+    /* If there is no backing file on the target, we cannot rely on COW if our
+     * backup cluster size is smaller than the target cluster size. Even for
+     * targets with a backing file, try to avoid COW if possible. */
+    ret = bdrv_get_info(job->target, &bdi);
+    if (ret < 0 && !target->backing) {
+        error_setg_errno(errp, -ret,
+            "Couldn't determine the cluster size of the target image, "
+            "which has no backing file");
+        error_append_hint(errp,
+            "Aborting, since this may create an unusable destination image\n");
+        goto error;
+    } else if (ret < 0 && target->backing) {
+        /* Not fatal; just trudge on ahead. */
+        job->cluster_size = BACKUP_CLUSTER_SIZE_DEFAULT;
+    } else {
+        job->cluster_size = MAX(BACKUP_CLUSTER_SIZE_DEFAULT, bdi.cluster_size);
+    }
+
+    bdrv_op_block_all(target, job->common.blocker);
     job->common.len = len;
     job->common.co = qemu_coroutine_create(backup_run);
     block_job_txn_add_job(txn, &job->common);
