@@ -2166,8 +2166,49 @@ All devices must have an id, which can be any string up to 127 characters long.
 It is used to uniquely identify this device in other command line directives.
 
 A character device may be used in multiplexing mode by multiple front-ends.
-The key sequence of @key{Control-a} and @key{c} will rotate the input focus
-between attached front-ends. Specify @option{mux=on} to enable this mode.
+Specify @option{mux=on} to enable this mode.
+A multiplexer is a "1:N" device, and here the "1" end is your specified chardev
+backend, and the "N" end is the various parts of QEMU that can talk to a chardev.
+If you create a chardev with @option{id=myid} and @option{mux=on}, QEMU will
+create a multiplexer with your specified ID, and you can then configure multiple
+front ends to use that chardev ID for their input/output. Up to four different
+front ends can be connected to a single multiplexed chardev. (Without
+multiplexing enabled, a chardev can only be used by a single front end.)
+For instance you could use this to allow a single stdio chardev to be used by
+two serial ports and the QEMU monitor:
+
+@example
+-chardev stdio,mux=on,id=char0 \
+-mon chardev=char0,mode=readline,default \
+-serial chardev:char0 \
+-serial chardev:char0
+@end example
+
+You can have more than one multiplexer in a system configuration; for instance
+you could have a TCP port multiplexed between UART 0 and UART 1, and stdio
+multiplexed between the QEMU monitor and a parallel port:
+
+@example
+-chardev stdio,mux=on,id=char0 \
+-mon chardev=char0,mode=readline,default \
+-parallel chardev:char0 \
+-chardev tcp,...,mux=on,id=char1 \
+-serial chardev:char1 \
+-serial chardev:char1
+@end example
+
+When you're using a multiplexed character device, some escape sequences are
+interpreted in the input. @xref{mux_keys, Keys in the character backend
+multiplexer}.
+
+Note that some other command line options may implicitly create multiplexed
+character backends; for instance @option{-serial mon:stdio} creates a
+multiplexed stdio backend connected to the serial port and the QEMU monitor,
+and @option{-nographic} also multiplexes the console and the monitor to
+stdio.
+
+There is currently no support for multiplexing in the other direction
+(where a single QEMU front end takes input and output from multiple chardevs).
 
 Every backend supports the @option{logfile} option, which supplies the path
 to a file to record all data transmitted via the backend. The @option{logappend}

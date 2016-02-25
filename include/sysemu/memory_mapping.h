@@ -16,6 +16,7 @@
 
 #include "qemu/queue.h"
 #include "qemu/typedefs.h"
+#include "exec/memory.h"
 
 typedef struct GuestPhysBlock {
     /* visible to guest, reflects PCI hole, etc */
@@ -26,6 +27,9 @@ typedef struct GuestPhysBlock {
 
     /* points into host memory */
     uint8_t *host_addr;
+
+    /* points to the MemoryRegion that this block belongs to */
+    MemoryRegion *mr;
 
     QTAILQ_ENTRY(GuestPhysBlock) next;
 } GuestPhysBlock;

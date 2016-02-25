@@ -369,3 +369,19 @@
 ##
 { 'event': 'MEM_UNPLUG_ERROR',
   'data': { 'device': 'str', 'msg': 'str' } }
+
+##
+# @DUMP_COMPLETED
+#
+# Emitted when background dump has completed
+#
+# @result: DumpQueryResult type described in qapi-schema.json.
+#
+# @error: #optional human-readable error string that provides
+#         hint on why dump failed. Only presents on failure. The
+#         user should not try to interpret the error string.
+#
+# Since: 2.6
+##
+{ 'event': 'DUMP_COMPLETED' ,
+  'data': { 'result': 'DumpQueryResult', '*error': 'str' } }

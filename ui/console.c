@@ -2060,31 +2060,33 @@ static void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend,
                               Error **errp)
 {
     int val;
+    ChardevVC *vc;
 
-    backend->u.vc = g_new0(ChardevVC, 1);
+    vc = backend->u.vc = g_new0(ChardevVC, 1);
+    qemu_chr_parse_common(opts, qapi_ChardevVC_base(vc));
 
     val = qemu_opt_get_number(opts, "width", 0);
     if (val != 0) {
-        backend->u.vc->has_width = true;
-        backend->u.vc->width = val;
+        vc->has_width = true;
+        vc->width = val;
     }
 
     val = qemu_opt_get_number(opts, "height", 0);
     if (val != 0) {
-        backend->u.vc->has_height = true;
-        backend->u.vc->height = val;
+        vc->has_height = true;
+        vc->height = val;
     }
 
     val = qemu_opt_get_number(opts, "cols", 0);
     if (val != 0) {
-        backend->u.vc->has_cols = true;
-        backend->u.vc->cols = val;
+        vc->has_cols = true;
+        vc->cols = val;
     }
 
     val = qemu_opt_get_number(opts, "rows", 0);
     if (val != 0) {
-        backend->u.vc->has_rows = true;
-        backend->u.vc->rows = val;
+        vc->has_rows = true;
+        vc->rows = val;
     }
 }
 

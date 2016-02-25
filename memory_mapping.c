@@ -178,6 +178,7 @@ void guest_phys_blocks_free(GuestPhysBlockList *list)
 
     QTAILQ_FOREACH_SAFE(p, &list->head, next, q) {
         QTAILQ_REMOVE(&list->head, p, next);
+        memory_region_unref(p->mr);
         g_free(p);
     }
     list->num = 0;
@@ -241,6 +242,8 @@ static void guest_phys_blocks_region_add(MemoryListener *listener,
         block->target_start = target_start;
         block->target_end   = target_end;
         block->host_addr    = host_addr;
+        block->mr           = section->mr;
+        memory_region_ref(section->mr);
 
         QTAILQ_INSERT_TAIL(&g->list->head, block, next);
         ++g->list->num;

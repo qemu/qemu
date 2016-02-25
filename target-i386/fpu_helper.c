@@ -1215,7 +1215,7 @@ static uint64_t get_xinuse(CPUX86State *env)
        indicate in use.  That said, the state of BNDREGS is important
        enough to track in HFLAGS, so we might as well use that here.  */
     if ((env->hflags & HF_MPX_IU_MASK) == 0) {
-       inuse &= ~XSTATE_BNDREGS;
+       inuse &= ~XSTATE_BNDREGS_MASK;
     }
     return inuse;
 }
@@ -1239,22 +1239,22 @@ static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
     rfbm &= env->xcr0;
     opt &= rfbm;
 
-    if (opt & XSTATE_FP) {
+    if (opt & XSTATE_FP_MASK) {
         do_xsave_fpu(env, ptr, ra);
     }
-    if (rfbm & XSTATE_SSE) {
+    if (rfbm & XSTATE_SSE_MASK) {
         /* Note that saving MXCSR is not suppressed by XSAVEOPT.  */
         do_xsave_mxcsr(env, ptr, ra);
     }
-    if (opt & XSTATE_SSE) {
+    if (opt & XSTATE_SSE_MASK) {
         do_xsave_sse(env, ptr, ra);
     }
-    if (opt & XSTATE_BNDREGS) {
-        target_ulong off = x86_ext_save_areas[XSTATE_BNDREGS].offset;
+    if (opt & XSTATE_BNDREGS_MASK) {
+        target_ulong off = x86_ext_save_areas[XSTATE_BNDREGS_BIT].offset;
         do_xsave_bndregs(env, ptr + off, ra);
     }
-    if (opt & XSTATE_BNDCSR) {
-        target_ulong off = x86_ext_save_areas[XSTATE_BNDCSR].offset;
+    if (opt & XSTATE_BNDCSR_MASK) {
+        target_ulong off = x86_ext_save_areas[XSTATE_BNDCSR_BIT].offset;
         do_xsave_bndcsr(env, ptr + off, ra);
     }
 
@@ -1399,19 +1399,19 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
         raise_exception_ra(env, EXCP0D_GPF, ra);
     }
 
-    if (rfbm & XSTATE_FP) {
-        if (xstate_bv & XSTATE_FP) {
+    if (rfbm & XSTATE_FP_MASK) {
+        if (xstate_bv & XSTATE_FP_MASK) {
             do_xrstor_fpu(env, ptr, ra);
         } else {
             helper_fninit(env);
             memset(env->fpregs, 0, sizeof(env->fpregs));
         }
     }
-    if (rfbm & XSTATE_SSE) {
+    if (rfbm & XSTATE_SSE_MASK) {
         /* Note that the standard form of XRSTOR loads MXCSR from memory
            whether or not the XSTATE_BV bit is set.  */
         do_xrstor_mxcsr(env, ptr, ra);
-        if (xstate_bv & XSTATE_SSE) {
+        if (xstate_bv & XSTATE_SSE_MASK) {
             do_xrstor_sse(env, ptr, ra);
         } else {
             /* ??? When AVX is implemented, we may have to be more
@@ -1419,9 +1419,9 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
             memset(env->xmm_regs, 0, sizeof(env->xmm_regs));
         }
     }
-    if (rfbm & XSTATE_BNDREGS) {
-        if (xstate_bv & XSTATE_BNDREGS) {
-            target_ulong off = x86_ext_save_areas[XSTATE_BNDREGS].offset;
+    if (rfbm & XSTATE_BNDREGS_MASK) {
+        if (xstate_bv & XSTATE_BNDREGS_MASK) {
+            target_ulong off = x86_ext_save_areas[XSTATE_BNDREGS_BIT].offset;
             do_xrstor_bndregs(env, ptr + off, ra);
             env->hflags |= HF_MPX_IU_MASK;
         } else {
@@ -1429,9 +1429,9 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
             env->hflags &= ~HF_MPX_IU_MASK;
         }
     }
-    if (rfbm & XSTATE_BNDCSR) {
-        if (xstate_bv & XSTATE_BNDCSR) {
-            target_ulong off = x86_ext_save_areas[XSTATE_BNDCSR].offset;
+    if (rfbm & XSTATE_BNDCSR_MASK) {
+        if (xstate_bv & XSTATE_BNDCSR_MASK) {
+            target_ulong off = x86_ext_save_areas[XSTATE_BNDCSR_BIT].offset;
             do_xrstor_bndcsr(env, ptr + off, ra);
         } else {
             memset(&env->bndcs_regs, 0, sizeof(env->bndcs_regs));
@@ -1470,7 +1470,7 @@ void helper_xsetbv(CPUX86State *env, uint32_t ecx, uint64_t mask)
     }
 
     /* Only XCR0 is defined at present; the FPU may not be disabled.  */
-    if (ecx != 0 || (mask & XSTATE_FP) == 0) {
+    if (ecx != 0 || (mask & XSTATE_FP_MASK) == 0) {
         goto do_gpf;
     }
 
@@ -1482,7 +1482,8 @@ void helper_xsetbv(CPUX86State *env, uint32_t ecx, uint64_t mask)
     }
 
     /* Disallow enabling only half of MPX.  */
-    if ((mask ^ (mask * (XSTATE_BNDCSR / XSTATE_BNDREGS))) & XSTATE_BNDCSR) {
+    if ((mask ^ (mask * (XSTATE_BNDCSR_MASK / XSTATE_BNDREGS_MASK)))
+        & XSTATE_BNDCSR_MASK) {
         goto do_gpf;
     }
 

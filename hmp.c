@@ -1599,8 +1599,10 @@ void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
     const char *file = qdict_get_str(qdict, "filename");
     bool has_begin = qdict_haskey(qdict, "begin");
     bool has_length = qdict_haskey(qdict, "length");
+    bool has_detach = qdict_haskey(qdict, "detach");
     int64_t begin = 0;
     int64_t length = 0;
+    bool detach = false;
     enum DumpGuestMemoryFormat dump_format = DUMP_GUEST_MEMORY_FORMAT_ELF;
     char *prot;
 
@@ -1628,11 +1630,14 @@ void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
     if (has_length) {
         length = qdict_get_int(qdict, "length");
     }
+    if (has_detach) {
+        detach = qdict_get_bool(qdict, "detach");
+    }
 
     prot = g_strconcat("file:", file, NULL);
 
-    qmp_dump_guest_memory(paging, prot, has_begin, begin, has_length, length,
-                          true, dump_format, &err);
+    qmp_dump_guest_memory(paging, prot, true, detach, has_begin, begin,
+                          has_length, length, true, dump_format, &err);
     hmp_handle_error(mon, &err);
     g_free(prot);
 }
@@ -2357,4 +2362,21 @@ void hmp_rocker_of_dpa_groups(Monitor *mon, const QDict *qdict)
     }
 
     qapi_free_RockerOfDpaGroupList(list);
+}
+
+void hmp_info_dump(Monitor *mon, const QDict *qdict)
+{
+    DumpQueryResult *result = qmp_query_dump(NULL);
+
+    assert(result && result->status < DUMP_STATUS__MAX);
+    monitor_printf(mon, "Status: %s\n", DumpStatus_lookup[result->status]);
+
+    if (result->status == DUMP_STATUS_ACTIVE) {
+        float percent = 0;
+        assert(result->total != 0);
+        percent = 100.0 * result->completed / result->total;
+        monitor_printf(mon, "Finished: %.2f %%\n", percent);
+    }
+
+    qapi_free_DumpQueryResult(result);
 }

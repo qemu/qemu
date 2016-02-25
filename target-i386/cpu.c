@@ -470,19 +470,26 @@ static const X86RegisterInfo32 x86_reg_info_32[CPU_NB_REGS32] = {
 #undef REGISTER
 
 const ExtSaveArea x86_ext_save_areas[] = {
-    [2] = { .feature = FEAT_1_ECX, .bits = CPUID_EXT_AVX,
+    [XSTATE_YMM_BIT] =
+          { .feature = FEAT_1_ECX, .bits = CPUID_EXT_AVX,
             .offset = 0x240, .size = 0x100 },
-    [3] = { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
+    [XSTATE_BNDREGS_BIT] =
+          { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
             .offset = 0x3c0, .size = 0x40  },
-    [4] = { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
+    [XSTATE_BNDCSR_BIT] =
+          { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
             .offset = 0x400, .size = 0x40  },
-    [5] = { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
+    [XSTATE_OPMASK_BIT] =
+          { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
             .offset = 0x440, .size = 0x40 },
-    [6] = { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
+    [XSTATE_ZMM_Hi256_BIT] =
+          { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
             .offset = 0x480, .size = 0x200 },
-    [7] = { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
+    [XSTATE_Hi16_ZMM_BIT] =
+          { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
             .offset = 0x680, .size = 0x400 },
-    [9] = { .feature = FEAT_7_0_ECX, .bits = CPUID_7_0_ECX_PKU,
+    [XSTATE_PKRU_BIT] =
+          { .feature = FEAT_7_0_ECX, .bits = CPUID_7_0_ECX_PKU,
             .offset = 0xA80, .size = 0x8 },
 };
 
@@ -2480,7 +2487,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                     *ecx = MAX(*ecx, esa->offset + esa->size);
                 }
             }
-            *eax |= ena_mask & (XSTATE_FP | XSTATE_SSE);
+            *eax |= ena_mask & (XSTATE_FP_MASK | XSTATE_SSE_MASK);
             *ebx = *ecx;
         } else if (count == 1) {
             *eax = env->features[FEAT_XSAVE];
@@ -2714,15 +2721,15 @@ static void x86_cpu_reset(CPUState *s)
     cpu_watchpoint_remove_all(s, BP_CPU);
 
     cr4 = 0;
-    xcr0 = XSTATE_FP;
+    xcr0 = XSTATE_FP_MASK;
 
 #ifdef CONFIG_USER_ONLY
     /* Enable all the features for user-mode.  */
     if (env->features[FEAT_1_EDX] & CPUID_SSE) {
-        xcr0 |= XSTATE_SSE;
+        xcr0 |= XSTATE_SSE_MASK;
     }
     if (env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_MPX) {
-        xcr0 |= XSTATE_BNDREGS | XSTATE_BNDCSR;
+        xcr0 |= XSTATE_BNDREGS_MASK | XSTATE_BNDCSR_MASK;
     }
     if (env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE) {
         cr4 |= CR4_OSFXSR_MASK | CR4_OSXSAVE_MASK;

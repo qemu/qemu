@@ -3490,7 +3490,7 @@ fail:
     return NULL;
 }
 
-static void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend)
+void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend)
 {
     const char *logfile = qemu_opt_get(opts, "logfile");
 

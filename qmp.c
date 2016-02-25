@@ -103,6 +103,13 @@ void qmp_quit(Error **errp)
 
 void qmp_stop(Error **errp)
 {
+    /* if there is a dump in background, we should wait until the dump
+     * finished */
+    if (dump_in_progress()) {
+        error_setg(errp, "There is a dump in process, please wait.");
+        return;
+    }
+
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         autostart = 0;
     } else {
@@ -174,6 +181,13 @@ void qmp_cont(Error **errp)
     Error *local_err = NULL;
     BlockBackend *blk;
     BlockDriverState *bs;
+
+    /* if there is a dump in background, we should wait until the dump
+     * finished */
+    if (dump_in_progress()) {
+        error_setg(errp, "There is a dump in process, please wait.");
+        return;
+    }
 
     if (runstate_needs_reset()) {
         error_setg(errp, "Resetting the Virtual Machine is required");

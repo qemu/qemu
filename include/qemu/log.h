@@ -90,12 +90,6 @@ static inline void qemu_log_close(void)
     }
 }
 
-/* Set up a new log file */
-static inline void qemu_log_set_file(FILE *f)
-{
-    qemu_logfile = f;
-}
-
 /* define log items */
 typedef struct QEMULogItem {
     int mask;

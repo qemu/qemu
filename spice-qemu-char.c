@@ -366,26 +366,30 @@ static void qemu_chr_parse_spice_vmc(QemuOpts *opts, ChardevBackend *backend,
                                      Error **errp)
 {
     const char *name = qemu_opt_get(opts, "name");
+    ChardevSpiceChannel *spicevmc;
 
     if (name == NULL) {
         error_setg(errp, "chardev: spice channel: no name given");
         return;
     }
-    backend->u.spicevmc = g_new0(ChardevSpiceChannel, 1);
-    backend->u.spicevmc->type = g_strdup(name);
+    spicevmc = backend->u.spicevmc = g_new0(ChardevSpiceChannel, 1);
+    qemu_chr_parse_common(opts, qapi_ChardevSpiceChannel_base(spicevmc));
+    spicevmc->type = g_strdup(name);
 }
 
 static void qemu_chr_parse_spice_port(QemuOpts *opts, ChardevBackend *backend,
                                       Error **errp)
 {
     const char *name = qemu_opt_get(opts, "name");
+    ChardevSpicePort *spiceport;
 
     if (name == NULL) {
         error_setg(errp, "chardev: spice port: no name given");
         return;
     }
-    backend->u.spiceport = g_new0(ChardevSpicePort, 1);
-    backend->u.spiceport->fqdn = g_strdup(name);
+    spiceport = backend->u.spiceport = g_new0(ChardevSpicePort, 1);
+    qemu_chr_parse_common(opts, qapi_ChardevSpicePort_base(spiceport));
+    spiceport->fqdn = g_strdup(name);
 }
 
 static void register_types(void)

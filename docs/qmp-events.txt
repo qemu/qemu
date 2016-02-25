@@ -220,6 +220,24 @@ Data:
   },
   "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 
+DUMP_COMPLETED
+--------------
+
+Emitted when the guest has finished one memory dump.
+
+Data:
+
+- "result": DumpQueryResult type described in qapi-schema.json
+- "error": Error message when dump failed. This is only a
+  human-readable string provided when dump failed. It should not be
+  parsed in any way (json-string, optional)
+
+Example:
+
+{ "event": "DUMP_COMPLETED",
+  "data": {"result": {"total": 1090650112, "status": "completed",
+                      "completed": 1090650112} } }
+
 GUEST_PANICKED
 --------------
 

@@ -2195,6 +2195,10 @@
 #            2. fd: the protocol starts with "fd:", and the following string
 #               is the fd's name.
 #
+# @detach: #optional if true, QMP will return immediately rather than
+#          waiting for the dump to finish. The user can track progress
+#          using "query-dump". (since 2.6).
+#
 # @begin: #optional if specified, the starting physical address.
 #
 # @length: #optional if specified, the memory size, in bytes. If you don't
@@ -2211,8 +2215,56 @@
 # Since: 1.2
 ##
 { 'command': 'dump-guest-memory',
-  'data': { 'paging': 'bool', 'protocol': 'str', '*begin': 'int',
-            '*length': 'int', '*format': 'DumpGuestMemoryFormat' } }
+  'data': { 'paging': 'bool', 'protocol': 'str', '*detach': 'bool',
+            '*begin': 'int', '*length': 'int',
+            '*format': 'DumpGuestMemoryFormat'} }
+
+##
+# @DumpStatus
+#
+# Describe the status of a long-running background guest memory dump.
+#
+# @none: no dump-guest-memory has started yet.
+#
+# @active: there is one dump running in background.
+#
+# @completed: the last dump has finished successfully.
+#
+# @failed: the last dump has failed.
+#
+# Since 2.6
+##
+{ 'enum': 'DumpStatus',
+  'data': [ 'none', 'active', 'completed', 'failed' ] }
+
+##
+# @DumpQueryResult
+#
+# The result format for 'query-dump'.
+#
+# @status: enum of @DumpStatus, which shows current dump status
+#
+# @completed: bytes written in latest dump (uncompressed)
+#
+# @total: total bytes to be written in latest dump (uncompressed)
+#
+# Since 2.6
+##
+{ 'struct': 'DumpQueryResult',
+  'data': { 'status': 'DumpStatus',
+            'completed': 'int',
+            'total': 'int' } }
+
+##
+# @query-dump
+#
+# Query latest dump status.
+#
+# Returns: A @DumpStatus object showing the dump status.
+#
+# Since: 2.6
+##
+{ 'command': 'query-dump', 'returns': 'DumpQueryResult' }
 
 ##
 # @DumpGuestMemoryCapability:

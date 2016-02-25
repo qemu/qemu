@@ -31,6 +31,7 @@
 #include "qemu/notify.h"
 #include "qom/object.h"
 #include "qemu/rcu.h"
+#include "qemu/typedefs.h"
 
 #define MAX_PHYS_ADDR_SPACE_BITS 62
 #define MAX_PHYS_ADDR            (((hwaddr)1 << MAX_PHYS_ADDR_SPACE_BITS) - 1)
@@ -169,6 +170,7 @@ struct MemoryRegion {
     bool global_locking;
     uint8_t dirty_log_mask;
     ram_addr_t ram_addr;
+    RAMBlock *ram_block;
     Object *owner;
     const MemoryRegionIOMMUOps *iommu_ops;
 
@@ -1386,7 +1388,7 @@ MemTxResult address_space_read_continue(AddressSpace *as, hwaddr addr,
 					MemoryRegion *mr);
 MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
                                     MemTxAttrs attrs, uint8_t *buf, int len);
-void *qemu_get_ram_ptr(ram_addr_t addr);
+void *qemu_get_ram_ptr(RAMBlock *ram_block, ram_addr_t addr);
 
 static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
 {
@@ -1395,8 +1397,6 @@ static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
     } else {
         return memory_region_is_ram(mr) || memory_region_is_romd(mr);
     }
-
-    return false;
 }
 
 /**
@@ -1427,7 +1427,7 @@ MemTxResult address_space_read(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
             mr = address_space_translate(as, addr, &addr1, &l, false);
             if (len == l && memory_access_is_direct(mr, false)) {
                 addr1 += memory_region_get_ram_addr(mr);
-                ptr = qemu_get_ram_ptr(addr1);
+                ptr = qemu_get_ram_ptr(mr->ram_block, addr1);
                 memcpy(buf, ptr, len);
             } else {
                 result = address_space_read_continue(as, addr, attrs, buf, len,

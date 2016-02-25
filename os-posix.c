@@ -37,6 +37,7 @@
 #include "qemu-options.h"
 #include "qemu/rcu.h"
 #include "qemu/error-report.h"
+#include "qemu/log.h"
 
 #ifdef CONFIG_LINUX
 #include <sys/prctl.h>
@@ -275,7 +276,10 @@ void os_setup_post(void)
 
         dup2(fd, 0);
         dup2(fd, 1);
-        dup2(fd, 2);
+        /* In case -D is given do not redirect stderr to /dev/null */
+        if (!qemu_logfile) {
+            dup2(fd, 2);
+        }
 
         close(fd);
 
