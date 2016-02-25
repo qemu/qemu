@@ -50,9 +50,14 @@ class Arguments:
         Parameters
         ----------
         args :
-            List of (type, name) tuples.
+            List of (type, name) tuples or Arguments objects.
         """
-        self._args = args
+        self._args = []
+        for arg in args:
+            if isinstance(arg, Arguments):
+                self._args.extend(arg._args)
+            else:
+                self._args.append(arg)
 
     def copy(self):
         """Create a new copy."""
@@ -82,6 +87,12 @@ class Arguments:
 
             res.append((arg_type, identifier))
         return Arguments(res)
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return Arguments(self._args[index])
+        else:
+            return self._args[index]
 
     def __iter__(self):
         """Iterate over the (type, name) pairs."""
