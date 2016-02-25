@@ -41,7 +41,7 @@
 
   <Product
     Name="QEMU guest agent"
-    Id="*"
+    Id="{DF9974AD-E41A-4304-81AD-69AA8F299766}"
     UpgradeCode="{EB6B8302-C06E-4BEC-ADAC-932C68A3A98D}"
     Manufacturer="$(env.QEMU_GA_MANUFACTURER)"
     Version="$(env.QEMU_GA_VERSION)"

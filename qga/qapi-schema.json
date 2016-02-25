@@ -314,6 +314,34 @@
   'data': { 'position': 'int', 'eof': 'bool' } }
 
 ##
+# @QGASeek:
+#
+# Symbolic names for use in @guest-file-seek
+#
+# @set: Set to the specified offset (same effect as 'whence':0)
+# @cur: Add offset to the current location (same effect as 'whence':1)
+# @end: Add offset to the end of the file (same effect as 'whence':2)
+#
+# Since: 2.6
+##
+{ 'enum': 'QGASeek', 'data': [ 'set', 'cur', 'end' ] }
+
+##
+# @GuestFileWhence:
+#
+# Controls the meaning of offset to @guest-file-seek.
+#
+# @value: Integral value (0 for set, 1 for cur, 2 for end), available
+#         for historical reasons, and might differ from the host's or
+#         guest's SEEK_* values (since: 0.15)
+# @name: Symbolic name, and preferred interface
+#
+# Since: 2.6
+##
+{ 'alternate': 'GuestFileWhence',
+  'data': { 'value': 'int', 'name': 'QGASeek' } }
+
+##
 # @guest-file-seek:
 #
 # Seek to a position in the file, as with fseek(), and return the
@@ -324,14 +352,15 @@
 #
 # @offset: bytes to skip over in the file stream
 #
-# @whence: 0 for SEEK_SET, 1 for SEEK_CUR, or 2 for SEEK_END
+# @whence: Symbolic or numeric code for interpreting offset
 #
 # Returns: @GuestFileSeek on success.
 #
 # Since: 0.15.0
 ##
 { 'command': 'guest-file-seek',
-  'data':    { 'handle': 'int', 'offset': 'int', 'whence': 'int' },
+  'data':    { 'handle': 'int', 'offset': 'int',
+               'whence': 'GuestFileWhence' },
   'returns': 'GuestFileSeek' }
 
 ##

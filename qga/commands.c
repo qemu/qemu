@@ -473,3 +473,24 @@ done:
 
     return ge;
 }
+
+/* Convert GuestFileWhence (either a raw integer or an enum value) into
+ * the guest's SEEK_ constants.  */
+int ga_parse_whence(GuestFileWhence *whence, Error **errp)
+{
+    /* Exploit the fact that we picked values to match QGA_SEEK_*. */
+    if (whence->type == QTYPE_QSTRING) {
+        whence->type = QTYPE_QINT;
+        whence->u.value = whence->u.name;
+    }
+    switch (whence->u.value) {
+    case QGA_SEEK_SET:
+        return SEEK_SET;
+    case QGA_SEEK_CUR:
+        return SEEK_CUR;
+    case QGA_SEEK_END:
+        return SEEK_END;
+    }
+    error_setg(errp, "invalid whence code %"PRId64, whence->u.value);
+    return -1;
+}

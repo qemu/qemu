@@ -12,15 +12,9 @@
  */
 #include "qapi/qmp/dispatch.h"
 #include "qemu-common.h"
+#include "qga-qmp-commands.h"
 
 #define QGA_READ_COUNT_DEFAULT 4096
-
-/* Mapping of whence codes used by guest-file-seek. */
-enum {
-    QGA_SEEK_SET = 0,
-    QGA_SEEK_CUR = 1,
-    QGA_SEEK_END = 2,
-};
 
 typedef struct GAState GAState;
 typedef struct GACommandState GACommandState;
@@ -44,6 +38,7 @@ void ga_set_frozen(GAState *s);
 void ga_unset_frozen(GAState *s);
 const char *ga_fsfreeze_hook(GAState *s);
 int64_t ga_get_fd_handle(GAState *s, Error **errp);
+int ga_parse_whence(GuestFileWhence *whence, Error **errp);
 
 #ifndef _WIN32
 void reopen_fd_to_null(int fd);

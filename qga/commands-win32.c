@@ -385,7 +385,8 @@ done:
 }
 
 GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
-                                   int64_t whence_code, Error **errp)
+                                   GuestFileWhence *whence_code,
+                                   Error **errp)
 {
     GuestFileHandle *gfh;
     GuestFileSeek *seek_data;
@@ -394,6 +395,7 @@ GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
     off_pos.QuadPart = offset;
     BOOL res;
     int whence;
+    Error *err = NULL;
 
     gfh = guest_file_handle_find(handle, errp);
     if (!gfh) {
@@ -401,18 +403,9 @@ GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
     }
 
     /* We stupidly exposed 'whence':'int' in our qapi */
-    switch (whence_code) {
-    case QGA_SEEK_SET:
-        whence = SEEK_SET;
-        break;
-    case QGA_SEEK_CUR:
-        whence = SEEK_CUR;
-        break;
-    case QGA_SEEK_END:
-        whence = SEEK_END;
-        break;
-    default:
-        error_setg(errp, "invalid whence code %"PRId64, whence_code);
+    whence = ga_parse_whence(whence_code, &err);
+    if (err) {
+        error_propagate(errp, err);
         return NULL;
     }
 
@@ -1230,7 +1223,71 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 
 GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
 {
-    error_setg(errp, QERR_UNSUPPORTED);
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION pslpi, ptr;
+    DWORD length;
+    GuestLogicalProcessorList *head, **link;
+    Error *local_err = NULL;
+    int64_t current;
+
+    ptr = pslpi = NULL;
+    length = 0;
+    current = 0;
+    head = NULL;
+    link = &head;
+
+    if ((GetLogicalProcessorInformation(pslpi, &length) == FALSE) &&
+        (GetLastError() == ERROR_INSUFFICIENT_BUFFER) &&
+        (length > sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION))) {
+        ptr = pslpi = g_malloc0(length);
+        if (GetLogicalProcessorInformation(pslpi, &length) == FALSE) {
+            error_setg(&local_err, "Failed to get processor information: %d",
+                       (int)GetLastError());
+        }
+    } else {
+        error_setg(&local_err,
+                   "Failed to get processor information buffer length: %d",
+                   (int)GetLastError());
+    }
+
+    while ((local_err == NULL) && (length > 0)) {
+        if (pslpi->Relationship == RelationProcessorCore) {
+            ULONG_PTR cpu_bits = pslpi->ProcessorMask;
+
+            while (cpu_bits > 0) {
+                if (!!(cpu_bits & 1)) {
+                    GuestLogicalProcessor *vcpu;
+                    GuestLogicalProcessorList *entry;
+
+                    vcpu = g_malloc0(sizeof *vcpu);
+                    vcpu->logical_id = current++;
+                    vcpu->online = true;
+                    vcpu->has_can_offline = false;
+
+                    entry = g_malloc0(sizeof *entry);
+                    entry->value = vcpu;
+
+                    *link = entry;
+                    link = &entry->next;
+                }
+                cpu_bits >>= 1;
+            }
+        }
+        length -= sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+        pslpi++; /* next entry */
+    }
+
+    g_free(ptr);
+
+    if (local_err == NULL) {
+        if (head != NULL) {
+            return head;
+        }
+        /* there's no guest with zero VCPUs */
+        error_setg(&local_err, "Guest reported zero VCPUs");
+    }
+
+    qapi_free_GuestLogicalProcessorList(head);
+    error_propagate(errp, local_err);
     return NULL;
 }
 
@@ -1246,11 +1303,12 @@ get_net_error_message(gint error)
     HMODULE module = NULL;
     gchar *retval = NULL;
     wchar_t *msg = NULL;
-    int flags, nchars;
+    int flags;
+    size_t nchars;
 
-    flags = FORMAT_MESSAGE_ALLOCATE_BUFFER
-        |FORMAT_MESSAGE_IGNORE_INSERTS
-        |FORMAT_MESSAGE_FROM_SYSTEM;
+    flags = FORMAT_MESSAGE_ALLOCATE_BUFFER |
+        FORMAT_MESSAGE_IGNORE_INSERTS |
+        FORMAT_MESSAGE_FROM_SYSTEM;
 
     if (error >= NERR_BASE && error <= MAX_NERR) {
         module = LoadLibraryExW(L"netmsg.dll", NULL, LOAD_LIBRARY_AS_DATAFILE);
@@ -1265,8 +1323,10 @@ get_net_error_message(gint error)
     if (msg != NULL) {
         nchars = wcslen(msg);
 
-        if (nchars > 2 && msg[nchars-1] == '\n' && msg[nchars-2] == '\r') {
-            msg[nchars-2] = '\0';
+        if (nchars >= 2 &&
+            msg[nchars - 1] == L'\n' &&
+            msg[nchars - 2] == L'\r') {
+            msg[nchars - 2] = L'\0';
         }
 
         retval = g_utf16_to_utf8(msg, -1, NULL, NULL, NULL);
@@ -1289,8 +1349,9 @@ void qmp_guest_set_user_password(const char *username,
     NET_API_STATUS nas;
     char *rawpasswddata = NULL;
     size_t rawpasswdlen;
-    wchar_t *user, *wpass;
+    wchar_t *user = NULL, *wpass = NULL;
     USER_INFO_1003 pi1003 = { 0, };
+    GError *gerr = NULL;
 
     if (crypted) {
         error_setg(errp, QERR_UNSUPPORTED);
@@ -1304,8 +1365,15 @@ void qmp_guest_set_user_password(const char *username,
     rawpasswddata = g_renew(char, rawpasswddata, rawpasswdlen + 1);
     rawpasswddata[rawpasswdlen] = '\0';
 
-    user = g_utf8_to_utf16(username, -1, NULL, NULL, NULL);
-    wpass = g_utf8_to_utf16(rawpasswddata, -1, NULL, NULL, NULL);
+    user = g_utf8_to_utf16(username, -1, NULL, NULL, &gerr);
+    if (!user) {
+        goto done;
+    }
+
+    wpass = g_utf8_to_utf16(rawpasswddata, -1, NULL, NULL, &gerr);
+    if (!wpass) {
+        goto done;
+    }
 
     pi1003.usri1003_password = wpass;
     nas = NetUserSetInfo(NULL, user,
@@ -1318,6 +1386,11 @@ void qmp_guest_set_user_password(const char *username,
         g_free(msg);
     }
 
+done:
+    if (gerr) {
+        error_setg(errp, QERR_QGA_COMMAND_FAILED, gerr->message);
+        g_error_free(gerr);
+    }
     g_free(user);
     g_free(wpass);
     g_free(rawpasswddata);
@@ -1347,7 +1420,7 @@ GList *ga_command_blacklist_init(GList *blacklist)
 {
     const char *list_unsupported[] = {
         "guest-suspend-hybrid",
-        "guest-get-vcpus", "guest-set-vcpus",
+        "guest-set-vcpus",
         "guest-get-memory-blocks", "guest-set-memory-blocks",
         "guest-get-memory-block-size",
         "guest-fsfreeze-freeze-list",

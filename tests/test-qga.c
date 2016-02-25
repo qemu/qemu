@@ -6,7 +6,6 @@
 #include <sys/un.h>
 
 #include "libqtest.h"
-#include "qga/guest-agent-core.h"
 
 typedef struct {
     char *test_dir;
@@ -450,8 +449,8 @@ static void test_qga_file_ops(gconstpointer fix)
     /* seek */
     cmd = g_strdup_printf("{'execute': 'guest-file-seek',"
                           " 'arguments': { 'handle': %" PRId64 ", "
-                          " 'offset': %d, 'whence': %d } }",
-                          id, 6, QGA_SEEK_SET);
+                          " 'offset': %d, 'whence': '%s' } }",
+                          id, 6, "set");
     ret = qmp_fd(fixture->fd, cmd);
     qmp_assert_no_error(ret);
     val = qdict_get_qdict(ret, "return");
@@ -543,8 +542,8 @@ static void test_qga_file_write_read(gconstpointer fix)
     /* seek to 0 */
     cmd = g_strdup_printf("{'execute': 'guest-file-seek',"
                           " 'arguments': { 'handle': %" PRId64 ", "
-                          " 'offset': %d, 'whence': %d } }",
-                          id, 0, QGA_SEEK_SET);
+                          " 'offset': %d, 'whence': '%s' } }",
+                          id, 0, "set");
     ret = qmp_fd(fixture->fd, cmd);
     qmp_assert_no_error(ret);
     val = qdict_get_qdict(ret, "return");
