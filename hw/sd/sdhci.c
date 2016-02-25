@@ -198,11 +198,9 @@ static void sdhci_reset(SDHCIState *s)
      * initialization */
     memset(&s->sdmasysad, 0, (uintptr_t)&s->capareg - (uintptr_t)&s->sdmasysad);
 
-    if (!s->noeject_quirk) {
-        /* Reset other state based on current card insertion/readonly status */
-        sdhci_set_inserted(dev, sdbus_get_inserted(&s->sdbus));
-        sdhci_set_readonly(dev, sdbus_get_readonly(&s->sdbus));
-    }
+    /* Reset other state based on current card insertion/readonly status */
+    sdhci_set_inserted(dev, sdbus_get_inserted(&s->sdbus));
+    sdhci_set_readonly(dev, sdbus_get_readonly(&s->sdbus));
 
     s->data_count = 0;
     s->stopped_state = sdhc_not_stopped;
@@ -1275,7 +1273,6 @@ static Property sdhci_sysbus_properties[] = {
     DEFINE_PROP_UINT32("capareg", SDHCIState, capareg,
             SDHC_CAPAB_REG_DEFAULT),
     DEFINE_PROP_UINT32("maxcurr", SDHCIState, maxcurr, 0),
-    DEFINE_PROP_BOOL("noeject-quirk", SDHCIState, noeject_quirk, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
