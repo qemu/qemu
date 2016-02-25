@@ -662,7 +662,7 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
         options.backend_type = VHOST_BACKEND_TYPE_KERNEL;
         options.net_backend = &s->nc;
 
-        if (tap->has_vhostfd || tap->has_vhostfds) {
+        if (vhostfdname) {
             vhostfd = monitor_fd_param(cur_mon, vhostfdname, &err);
             if (vhostfd == -1) {
                 error_propagate(errp, err);
@@ -684,7 +684,7 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
                        "vhost-net requested but could not be initialized");
             return;
         }
-    } else if (tap->has_vhostfd || tap->has_vhostfds) {
+    } else if (vhostfdname) {
         error_setg(errp, "vhostfd= is not valid without vhost");
     }
 }
