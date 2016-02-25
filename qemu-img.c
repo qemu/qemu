@@ -2775,6 +2775,8 @@ static int img_snapshot(int argc, char **argv)
 static int img_rebase(int argc, char **argv)
 {
     BlockBackend *blk = NULL, *blk_old_backing = NULL, *blk_new_backing = NULL;
+    uint8_t *buf_old = NULL;
+    uint8_t *buf_new = NULL;
     BlockDriverState *bs = NULL;
     char *filename;
     const char *fmt, *cache, *src_cache, *out_basefmt, *out_baseimg;
@@ -2957,8 +2959,6 @@ static int img_rebase(int argc, char **argv)
         int64_t new_backing_num_sectors = 0;
         uint64_t sector;
         int n;
-        uint8_t * buf_old;
-        uint8_t * buf_new;
         float local_progress = 0;
 
         buf_old = blk_blockalign(blk, IO_BUF_SIZE);
@@ -3070,9 +3070,6 @@ static int img_rebase(int argc, char **argv)
             }
             qemu_progress_print(local_progress, 100);
         }
-
-        qemu_vfree(buf_old);
-        qemu_vfree(buf_new);
     }
 
     /*
@@ -3108,6 +3105,8 @@ out:
         blk_unref(blk_old_backing);
         blk_unref(blk_new_backing);
     }
+    qemu_vfree(buf_old);
+    qemu_vfree(buf_new);
 
     blk_unref(blk);
     if (ret) {
