@@ -557,11 +557,13 @@ void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
 
     DBDMA_DPRINTF("DBDMA_register_channel 0x%x\n", nchan);
 
+    assert(rw);
+    assert(flush);
+
     ch->irq = irq;
     ch->rw = rw;
     ch->flush = flush;
     ch->io.opaque = opaque;
-    ch->io.channel = ch;
 }
 
 static void
@@ -775,6 +777,20 @@ static void dbdma_reset(void *opaque)
         memset(s->channels[i].regs, 0, DBDMA_SIZE);
 }
 
+static void dbdma_unassigned_rw(DBDMA_io *io)
+{
+    DBDMA_channel *ch = io->channel;
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: use of unassigned channel %d\n",
+                  __func__, ch->channel);
+}
+
+static void dbdma_unassigned_flush(DBDMA_io *io)
+{
+    DBDMA_channel *ch = io->channel;
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: use of unassigned channel %d\n",
+                  __func__, ch->channel);
+}
+
 void* DBDMA_init (MemoryRegion **dbdma_mem)
 {
     DBDMAState *s;
@@ -784,8 +800,13 @@ void* DBDMA_init (MemoryRegion **dbdma_mem)
 
     for (i = 0; i < DBDMA_CHANNELS; i++) {
         DBDMA_io *io = &s->channels[i].io;
+        DBDMA_channel *ch = &s->channels[i];
         qemu_iovec_init(&io->iov, 1);
-        s->channels[i].channel = i;
+
+        ch->rw = dbdma_unassigned_rw;
+        ch->flush = dbdma_unassigned_flush;
+        ch->channel = i;
+        ch->io.channel = ch;
     }
 
     memory_region_init_io(&s->mem, NULL, &dbdma_ops, s, "dbdma", 0x1000);
