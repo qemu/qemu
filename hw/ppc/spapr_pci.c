@@ -305,9 +305,10 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         return;
     }
 
+    msi = (spapr_pci_msi *) g_hash_table_lookup(phb->msi, &config_addr);
+
     /* Releasing MSIs */
     if (!req_num) {
-        msi = (spapr_pci_msi *) g_hash_table_lookup(phb->msi, &config_addr);
         if (!msi) {
             trace_spapr_pci_msi("Releasing wrong config", config_addr);
             rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
@@ -358,6 +359,12 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         error_report("Cannot allocate MSIs for device %x", config_addr);
         rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
         return;
+    }
+
+    /* Release previous MSIs */
+    if (msi) {
+        xics_free(spapr->icp, msi->first_irq, msi->num);
+        g_hash_table_remove(phb->msi, &config_addr);
     }
 
     /* Setup MSI/MSIX vectors in the device (via cfgspace or MSIX BAR) */
