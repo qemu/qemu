@@ -23,6 +23,7 @@
 #include <linux/kvm.h>
 
 #include "qemu-common.h"
+#include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
@@ -512,6 +513,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
     /* Synchronize sregs with kvm */
     ret = kvm_arch_sync_sregs(cpu);
     if (ret) {
+        if (ret == -EINVAL) {
+            error_report("Register sync failed... If you're using kvm-hv.ko,"
+                         " only \"-cpu host\" is possible");
+        }
         return ret;
     }
 
@@ -1993,7 +1998,8 @@ void kvmppc_set_papr(PowerPCCPU *cpu)
 
     ret = kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_PAPR, 0);
     if (ret) {
-        cpu_abort(cs, "This KVM version does not support PAPR\n");
+        error_report("This vCPU type or KVM version does not support PAPR");
+        exit(1);
     }
 
     /* Update the capability flag so we sync the right information
@@ -2013,7 +2019,8 @@ void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
 
     ret = kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_EPR, 0, mpic_proxy);
     if (ret && mpic_proxy) {
-        cpu_abort(cs, "This KVM version does not support EPR\n");
+        error_report("This KVM version does not support EPR");
+        exit(1);
     }
 }
 
