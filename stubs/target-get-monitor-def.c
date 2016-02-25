@@ -20,9 +20,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/typedefs.h"
 #include "stdint.h"
-
-typedef struct CPUState CPUState;
 
 int target_get_monitor_def(CPUState *cs, const char *name, uint64_t *pval);
 
