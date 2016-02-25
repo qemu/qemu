@@ -275,7 +275,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     unsigned int req_num = rtas_ld(args, 4); /* 0 == remove all */
     unsigned int seq_num = rtas_ld(args, 5);
     unsigned int ret_intr_type;
-    unsigned int irq, max_irqs = 0, num = 0;
+    unsigned int irq, max_irqs = 0;
     sPAPRPHBState *phb = NULL;
     PCIDevice *pdev = NULL;
     spapr_pci_msi *msi;
@@ -316,10 +316,10 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
         xics_free(spapr->icp, msi->first_irq, msi->num);
         if (msi_present(pdev)) {
-            spapr_msi_setmsg(pdev, 0, false, 0, num);
+            spapr_msi_setmsg(pdev, 0, false, 0, 0);
         }
         if (msix_present(pdev)) {
-            spapr_msi_setmsg(pdev, 0, true, 0, num);
+            spapr_msi_setmsg(pdev, 0, true, 0, 0);
         }
         g_hash_table_remove(phb->msi, &config_addr);
 
