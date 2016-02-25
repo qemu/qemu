@@ -877,6 +877,7 @@ M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
 F: hw/*/virtio*
 F: net/vhost-user.c
+F: include/hw/virtio/
 
 virtio-9p
 M: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
