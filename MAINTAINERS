@@ -1241,6 +1241,7 @@ F: include/migration/
 F: migration/
 F: scripts/vmstate-static-checker.py
 F: tests/vmstate-static-checker-data/
+F: docs/migration.txt
 
 Seccomp
 M: Eduardo Otubo <eduardo.otubo@profitbricks.com>
