@@ -434,7 +434,7 @@ static int stm32_timer_init(SysBusDevice *dev)
     s->stm32_gpio = (Stm32Gpio **)s->stm32_gpio_prop;
     s->stm32_afio = (Stm32Afio *)s->stm32_afio_prop;
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &stm32_timer_ops, s, "stm32-timer", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &stm32_timer_ops, s, "stm32-timer", 0x3ff);
     sysbus_init_mmio(dev, &s->iomem);
 
     sysbus_init_irq(dev, &s->irq);

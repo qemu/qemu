@@ -109,10 +109,13 @@ static void stm32_p103_init(MachineState *machine)
     DeviceState *gpio_a = DEVICE(object_resolve_path("/machine/stm32/gpio[a]", NULL));
     DeviceState *gpio_c = DEVICE(object_resolve_path("/machine/stm32/gpio[c]", NULL));
     DeviceState *uart2 = DEVICE(object_resolve_path("/machine/stm32/uart[2]", NULL));
-
+    DeviceState *uart1 = DEVICE(object_resolve_path("/machine/stm32/uart[1]", NULL));
+    DeviceState *uart3 = DEVICE(object_resolve_path("/machine/stm32/uart[3]", NULL));
     assert(gpio_a);
     assert(gpio_c);
     assert(uart2);
+    assert(uart1);
+    assert(uart3);
 
     /* Connect LED to GPIO C pin 12 */
     led_irq = qemu_allocate_irqs(led_irq_handler, NULL, 1);
@@ -127,6 +130,16 @@ static void stm32_p103_init(MachineState *machine)
             (Stm32Uart *)uart2,
             serial_hds[0],
             STM32_USART2_NO_REMAP);
+    
+    stm32_uart_connect(
+            (Stm32Uart *)uart1,
+            serial_hds[0],
+            STM32_USART1_NO_REMAP);
+    
+    stm32_uart_connect(
+            (Stm32Uart *)uart3,
+            serial_hds[0],
+            STM32_USART3_NO_REMAP);
  }
 
 static QEMUMachine stm32_p103_machine = {

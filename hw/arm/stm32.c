@@ -84,7 +84,11 @@ const char *stm32_periph_name_arr[] =
      "USB",
      "SPI1",
      "SPI2",
-     "SPI3"};
+     "SPI3",
+     "EXTI",
+     "SDIO",
+     "FSMC",
+     "RTC"};
 
 const char *stm32_periph_name(stm32_periph_t periph)
 {
@@ -180,6 +184,24 @@ static void stm32_create_adc_dev(
     snprintf(child_name, sizeof(child_name), "adc[%i]", adc_num);
     object_property_add_child(stm32_container, child_name, OBJECT(adc_dev), NULL);
     stm32_init_periph(adc_dev, periph, addr, irq);
+    
+}
+
+static void stm32_create_rtc_dev(
+        Object *stm32_container,
+        stm32_periph_t periph,
+        int rtc_num,
+        DeviceState *rcc_dev,
+        hwaddr addr,
+        qemu_irq irq)
+{
+    char child_name[8];
+    DeviceState *rtc_dev = qdev_create(NULL, "stm32-rtc");
+    QDEV_PROP_SET_PERIPH_T(rtc_dev, "periph", periph);
+    qdev_prop_set_ptr(rtc_dev, "stm32_rcc", rcc_dev);      // jmf : pourquoi ?
+    snprintf(child_name, sizeof(child_name), "rtc[%i]", rtc_num);
+    object_property_add_child(stm32_container, child_name, OBJECT(rtc_dev), NULL);
+    stm32_init_periph(rtc_dev, periph, addr, irq);
     
 }
 
@@ -285,4 +307,5 @@ void stm32_init(
     stm32_create_timer_dev(stm32_container, STM32_TIM4, 1, rcc_dev, gpio_dev, afio_dev, 0x40000800, &pic[TIM4_IRQn], 1);
     stm32_create_timer_dev(stm32_container, STM32_TIM5, 1, rcc_dev, gpio_dev, afio_dev, 0x40000C00, &pic[TIM5_IRQn], 1);
     stm32_create_adc_dev(stm32_container, STM32_ADC1, 1, rcc_dev, gpio_dev, 0x40012400,0 );
+    stm32_create_rtc_dev(stm32_container,STM32_RTC, 1, rcc_dev, 0x40002800,pic[STM32_RTC_IRQ]);
 }

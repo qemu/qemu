@@ -103,7 +103,8 @@ typedef int32_t stm32_periph_t;
 #define STM32_EXTI_PERIPH 40
 #define STM32_SDIO 41
 #define STM32_FSMC 42
-#define STM32_PERIPH_COUNT 43
+#define STM32_RTC 43
+#define STM32_PERIPH_COUNT 44
 
 const char *stm32_periph_name(stm32_periph_t periph);
 
@@ -131,6 +132,7 @@ const char *stm32_periph_name(stm32_periph_t periph);
 
 
 /* IRQs */
+#define STM32_RTC_IRQ 3         /* RTC global interrupt */
 #define STM32_RCC_IRQ 5
 
 
@@ -264,6 +266,10 @@ uint32_t stm32_rcc_get_periph_freq(
         Stm32Rcc *s,
         stm32_periph_t periph);
 
+uint32_t stm32_rcc_get_rtc_freq(
+        Stm32Rcc *s);
+
+
 /* ADC */
 
 #define STM32_ADC_COUNT 2
@@ -285,7 +291,11 @@ void stm32_adc_connect(Stm32Adc *s, CharDriverState *chr,
 #define STM32_ADC3_NO_REMAP 0
 #define STM32_ADC3_REMAP 1
 
+/*RTC*/
 
+typedef struct Stm32Rtc Stm32Rtc;
+#define TYPE_STM32_RTC "stm32-rtc"
+#define STM32_Rtc(obj) OBJECT_CHECK(Stm32Rtc, (obj), TYPE_STM32_RTC)
 
 
 /* UART */
