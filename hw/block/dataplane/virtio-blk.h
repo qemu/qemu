@@ -26,5 +26,6 @@ void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s);
 void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s);
 void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s);
 void virtio_blk_data_plane_drain(VirtIOBlockDataPlane *s);
+void virtio_blk_data_plane_notify(VirtIOBlockDataPlane *s);
 
 #endif /* HW_DATAPLANE_VIRTIO_BLK_H */

@@ -2532,7 +2532,8 @@ build_rsdp(GArray *rsdp_table, GArray *linker, unsigned rsdt)
     rsdp->checksum = 0;
     /* Checksum to be filled by Guest linker */
     bios_linker_loader_add_checksum(linker, ACPI_BUILD_RSDP_FILE,
-                                    rsdp, rsdp, sizeof *rsdp, &rsdp->checksum);
+                                    rsdp_table, rsdp, sizeof *rsdp,
+                                    &rsdp->checksum);
 
     return rsdp_table;
 }

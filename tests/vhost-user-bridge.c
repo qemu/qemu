@@ -414,7 +414,7 @@ vubr_message_read(int conn_fd, VhostUserMsg *vmsg)
     if (vmsg->size > sizeof(vmsg->payload)) {
         fprintf(stderr,
                 "Error: too big message request: %d, size: vmsg->size: %u, "
-                "while sizeof(vmsg->payload) = %lu\n",
+                "while sizeof(vmsg->payload) = %zu\n",
                 vmsg->request, vmsg->size, sizeof(vmsg->payload));
         exit(1);
     }
@@ -578,7 +578,7 @@ vubr_post_buffer(VubrDev *dev, VubrVirtq *vq, uint8_t *buf, int32_t len)
             exit(1);
         }
 
-        void *chunk_start = (void *)gpa_to_va(dev, desc[i].addr);
+        void *chunk_start = (void *)(uintptr_t)gpa_to_va(dev, desc[i].addr);
         uint32_t chunk_len = desc[i].len;
         uint32_t chunk_write_len = MIN(remaining_len, chunk_len);
 
@@ -641,7 +641,7 @@ vubr_process_desc(VubrDev *dev, VubrVirtq *vq)
     DPRINT("Chunks: ");
     i = d_index;
     do {
-        void *chunk_start = (void *)gpa_to_va(dev, desc[i].addr);
+        void *chunk_start = (void *)(uintptr_t)gpa_to_va(dev, desc[i].addr);
         uint32_t chunk_len = desc[i].len;
 
         assert(!(desc[i].flags & VRING_DESC_F_WRITE));
@@ -861,7 +861,7 @@ vubr_set_mem_table_exec(VubrDev *dev, VhostUserMsg *vmsg)
         if (mmap_addr == MAP_FAILED) {
             vubr_die("mmap");
         }
-        dev_region->mmap_addr = (uint64_t) mmap_addr;
+        dev_region->mmap_addr = (uint64_t)(uintptr_t)mmap_addr;
         DPRINT("    mmap_addr:       0x%016"PRIx64"\n", dev_region->mmap_addr);
 
         close(vmsg->fds[i]);
@@ -935,9 +935,9 @@ vubr_set_vring_addr_exec(VubrDev *dev, VhostUserMsg *vmsg)
     DPRINT("    avail_user_addr:  0x%016llx\n", vra->avail_user_addr);
     DPRINT("    log_guest_addr:   0x%016llx\n", vra->log_guest_addr);
 
-    vq->desc = (struct vring_desc *)qva_to_va(dev, vra->desc_user_addr);
-    vq->used = (struct vring_used *)qva_to_va(dev, vra->used_user_addr);
-    vq->avail = (struct vring_avail *)qva_to_va(dev, vra->avail_user_addr);
+    vq->desc = (struct vring_desc *)(uintptr_t)qva_to_va(dev, vra->desc_user_addr);
+    vq->used = (struct vring_used *)(uintptr_t)qva_to_va(dev, vra->used_user_addr);
+    vq->avail = (struct vring_avail *)(uintptr_t)qva_to_va(dev, vra->avail_user_addr);
     vq->log_guest_addr = vra->log_guest_addr;
 
     DPRINT("Setting virtq addresses:\n");

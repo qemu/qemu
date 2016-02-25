@@ -11,7 +11,7 @@ void bios_linker_loader_alloc(GArray *linker,
                               bool alloc_fseg);
 
 void bios_linker_loader_add_checksum(GArray *linker, const char *file,
-                                     void *table,
+                                     GArray *table,
                                      void *start, unsigned size,
                                      uint8_t *checksum);
 
