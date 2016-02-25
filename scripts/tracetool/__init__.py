@@ -6,7 +6,7 @@ Machinery for generating tracing-related intermediate files.
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2016, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -288,13 +288,12 @@ def _read_events(fobj):
                 if atrans == aorig:
                     args_trans.append(atrans)
             event_trans.args = Arguments(args_trans)
-            event_trans = event_trans.copy()
 
             event_exec = event.copy()
             event_exec.name += "_exec"
             event_exec.properties += ["tcg-exec"]
             event_exec.fmt = event.fmt[1]
-            event_exec = event_exec.transform(tracetool.transform.TCG_2_HOST)
+            event_exec.args = event_exec.args.transform(tracetool.transform.TCG_2_HOST)
 
             new_event = [event_trans, event_exec]
             event.event_trans, event.event_exec = new_event

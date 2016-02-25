@@ -6,7 +6,7 @@ Generate .h file for TCG code generation.
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2016, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -36,7 +36,7 @@ def generate(events, backend):
             continue
 
         # get the original event definition
-        e = e.original.original
+        e = e.original
 
         out('static inline void %(name_tcg)s(%(args)s)',
             '{',
