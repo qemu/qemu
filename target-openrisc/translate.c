@@ -53,7 +53,7 @@ typedef struct DisasContext {
     uint32_t delayed_branch;
 } DisasContext;
 
-static TCGv_ptr cpu_env;
+static TCGv_env cpu_env;
 static TCGv cpu_sr;
 static TCGv cpu_R[32];
 static TCGv cpu_pc;

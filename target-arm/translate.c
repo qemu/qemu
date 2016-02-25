@@ -56,7 +56,7 @@
 #define IS_USER(s) (s->user)
 #endif
 
-TCGv_ptr cpu_env;
+TCGv_env cpu_env;
 /* We reuse the same 64-bit temporaries for efficiency.  */
 static TCGv_i64 cpu_V0, cpu_V1, cpu_M0;
 static TCGv_i32 cpu_R[16];

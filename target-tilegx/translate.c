@@ -32,7 +32,7 @@
 
 #define FMT64X                          "%016" PRIx64
 
-static TCGv_ptr cpu_env;
+static TCGv_env cpu_env;
 static TCGv cpu_pc;
 static TCGv cpu_regs[TILEGX_R_COUNT];
 

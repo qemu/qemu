@@ -46,7 +46,7 @@
             (((src) >> start) & ((1 << (end - start + 1)) - 1))
 
 static TCGv env_debug;
-static TCGv_ptr cpu_env;
+static TCGv_env cpu_env;
 static TCGv cpu_R[32];
 static TCGv cpu_SR[18];
 static TCGv env_imm;

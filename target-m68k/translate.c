@@ -50,7 +50,7 @@
 static TCGv_i32 cpu_halted;
 static TCGv_i32 cpu_exception_index;
 
-static TCGv_ptr cpu_env;
+static TCGv_env cpu_env;
 
 static char cpu_reg_names[3*8*3 + 5*4];
 static TCGv cpu_dregs[8];
