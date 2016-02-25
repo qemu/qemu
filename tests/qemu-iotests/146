@@ -108,6 +108,57 @@ echo
 
 ${QEMU_IO} -c "open -o driver=vpc,force_size_calc=chs ${TEST_IMG}" -c 'map'
 
+_cleanup_test_img
+
+echo
+echo === Testing Image create, default ===
+echo
+
+TEST_IMG="${TEST_DIR}/vpc-create-test.vpc"
+
+_make_test_img 4G
+
+echo
+echo === Read created image, default opts ====
+echo
+
+${QEMU_IO} -c "open -o driver=vpc ${TEST_IMG}" -c 'map'
+
+echo
+echo === Read created image, force_size_calc=chs ====
+echo
+
+${QEMU_IO} -c "open -o driver=vpc,force_size_calc=chs ${TEST_IMG}" -c 'map'
+
+echo
+echo === Read created image, force_size_calc=current_size ====
+echo
+
+${QEMU_IO} -c "open -o driver=vpc,force_size_calc=current_size ${TEST_IMG}" -c 'map'
+
+echo
+echo === Testing Image create, force_size ===
+echo
+
+_make_test_img -o force_size 4G
+
+echo
+echo === Read created image, default opts ====
+echo
+
+${QEMU_IO} -c "open -o driver=vpc ${TEST_IMG}" -c 'map'
+
+echo
+echo === Read created image, force_size_calc=chs ====
+echo
+
+${QEMU_IO} -c "open -o driver=vpc,force_size_calc=chs ${TEST_IMG}" -c 'map'
+
+echo
+echo === Read created image, force_size_calc=current_size ====
+echo
+
+${QEMU_IO} -c "open -o driver=vpc,force_size_calc=current_size ${TEST_IMG}" -c 'map'
 
 echo "*** done"
 rm -f $seq.full
