@@ -363,6 +363,7 @@ M: Dmitry Solodkiy <d.solodkiy@samsung.com>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/exynos*
+F: include/hw/arm/exynos4210.h
 
 Calxeda Highbank
 M: Rob Herring <robh@kernel.org>
@@ -390,6 +391,7 @@ L: qemu-arm@nongnu.org
 S: Odd fixes
 F: hw/*/imx*
 F: hw/arm/kzm.c
+F: include/hw/arm/fsl-imx31.h
 
 Integrator CP
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -432,6 +434,7 @@ F: hw/arm/spitz.c
 F: hw/arm/tosa.c
 F: hw/arm/z2.c
 F: hw/*/pxa2xx*
+F: include/hw/arm/pxa.h
 
 Stellaris
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -768,6 +771,7 @@ OMAP
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/*/omap*
+F: include/hw/arm/omap.h
 
 IPack
 M: Alberto Garcia <berto@igalia.com>
