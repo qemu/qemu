@@ -1301,6 +1301,7 @@ static int pci_rocker_init(PCIDevice *dev)
 
     for (i = 0; i < ROCKER_WORLD_TYPE_MAX; i++) {
         if (!r->worlds[i]) {
+            err = -ENOMEM;
             goto err_world_alloc;
         }
     }
