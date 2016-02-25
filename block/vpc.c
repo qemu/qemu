@@ -128,6 +128,8 @@ typedef struct BDRVVPCState {
 
     uint32_t block_size;
     uint32_t bitmap_size;
+    bool force_use_chs;
+    bool force_use_sz;
 
 #ifdef CACHE
     uint8_t *pageentry_u8;
@@ -139,6 +141,22 @@ typedef struct BDRVVPCState {
 
     Error *migration_blocker;
 } BDRVVPCState;
+
+#define VPC_OPT_SIZE_CALC "force_size_calc"
+static QemuOptsList vpc_runtime_opts = {
+    .name = "vpc-runtime-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(vpc_runtime_opts.head),
+    .desc = {
+        {
+            .name = VPC_OPT_SIZE_CALC,
+            .type = QEMU_OPT_STRING,
+            .help = "Force disk size calculation to use either CHS geometry, "
+                    "or use the disk current_size specified in the VHD footer. "
+                    "{chs, current_size}"
+        },
+        { /* end of list */ }
+    }
+};
 
 static uint32_t vpc_checksum(uint8_t* buf, size_t size)
 {
@@ -159,6 +177,25 @@ static int vpc_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 0;
 }
 
+static void vpc_parse_options(BlockDriverState *bs, QemuOpts *opts,
+                              Error **errp)
+{
+    BDRVVPCState *s = bs->opaque;
+    const char *size_calc;
+
+    size_calc = qemu_opt_get(opts, VPC_OPT_SIZE_CALC);
+
+    if (!size_calc) {
+       /* no override, use autodetect only */
+    } else if (!strcmp(size_calc, "current_size")) {
+        s->force_use_sz = true;
+    } else if (!strcmp(size_calc, "chs")) {
+        s->force_use_chs = true;
+    } else {
+        error_setg(errp, "Invalid size calculation mode: '%s'", size_calc);
+    }
+}
+
 static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
@@ -166,12 +203,30 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     int i;
     VHDFooter *footer;
     VHDDynDiskHeader *dyndisk_header;
+    QemuOpts *opts = NULL;
+    Error *local_err = NULL;
+    bool use_chs;
     uint8_t buf[HEADER_SIZE];
     uint32_t checksum;
     uint64_t computed_size;
     uint64_t pagetable_size;
     int disk_type = VHD_DYNAMIC;
     int ret;
+
+    opts = qemu_opts_create(&vpc_runtime_opts, NULL, 0, &error_abort);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    vpc_parse_options(bs, opts, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
 
     ret = bdrv_pread(bs->file->bs, 0, s->footer_buf, HEADER_SIZE);
     if (ret < 0) {
@@ -218,12 +273,34 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     bs->total_sectors = (int64_t)
         be16_to_cpu(footer->cyls) * footer->heads * footer->secs_per_cyl;
 
-    /* Images that have exactly the maximum geometry are probably bigger and
-     * would be truncated if we adhered to the geometry for them. Rely on
-     * footer->current_size for them. */
-    if (bs->total_sectors == VHD_MAX_GEOMETRY) {
+    /* Microsoft Virtual PC and Microsoft Hyper-V produce and read
+     * VHD image sizes differently.  VPC will rely on CHS geometry,
+     * while Hyper-V and disk2vhd use the size specified in the footer.
+     *
+     * We use a couple of approaches to try and determine the correct method:
+     * look at the Creator App field, and look for images that have CHS
+     * geometry that is the maximum value.
+     *
+     * If the CHS geometry is the maximum CHS geometry, then we assume that
+     * the size is the footer->current_size to avoid truncation.  Otherwise,
+     * we follow the table based on footer->creator_app:
+     *
+     *  Known creator apps:
+     *      'vpc '  :  CHS              Virtual PC (uses disk geometry)
+     *      'qemu'  :  CHS              QEMU (uses disk geometry)
+     *      'win '  :  current_size     Hyper-V
+     *      'd2v '  :  current_size     Disk2vhd
+     *
+     *  The user can override the table values via drive options, however
+     *  even with an override we will still use current_size for images
+     *  that have CHS geometry of the maximum size.
+     */
+    use_chs = (!!strncmp(footer->creator_app, "win ", 4) &&
+               !!strncmp(footer->creator_app, "d2v ", 4)) || s->force_use_chs;
+
+    if (!use_chs || bs->total_sectors == VHD_MAX_GEOMETRY || s->force_use_sz) {
         bs->total_sectors = be64_to_cpu(footer->current_size) /
-                            BDRV_SECTOR_SIZE;
+                                        BDRV_SECTOR_SIZE;
     }
 
     /* Allow a maximum disk size of approximately 2 TB */
