@@ -470,6 +470,8 @@ static void stm32_rcc_RCC_CFGR_write(Stm32Rcc *s, uint32_t new_value, bool init)
 static void stm32_rcc_RCC_APB2ENR_write(Stm32Rcc *s, uint32_t new_value,
                                         bool init)
 {
+    stm32_rcc_periph_enable(s, new_value, init, STM32_ADC1,
+                            RCC_APB2ENR_ADC1EN_BIT);
     stm32_rcc_periph_enable(s, new_value, init, STM32_UART1,
                             RCC_APB2ENR_USART1EN_BIT);
     stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOE,
@@ -858,6 +860,7 @@ static void stm32_rcc_init_clk(Stm32Rcc *s)
     s->PERIPHCLK[STM32_TIM6] = clktree_create_clk("TIM6", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
     s->PERIPHCLK[STM32_TIM7] = clktree_create_clk("TIM7", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
     s->PERIPHCLK[STM32_TIM8] = clktree_create_clk("TIM8", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
+    s->PERIPHCLK[STM32_ADC1] = clktree_create_clk("ADC1", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
 }
 
 

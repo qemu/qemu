@@ -51,6 +51,8 @@ void stm32_hw_warn(const char *fmt, ...)
 #define STM32_UART4_INDEX 3
 #define STM32_UART5_INDEX 4
 
+#define STM32_ADC1_INDEX 0
+#define STM32_ADC2_INDEX 1
 /* Used for uniquely identifying a peripheral */
 typedef int32_t stm32_periph_t;
 
@@ -130,6 +132,9 @@ const char *stm32_periph_name(stm32_periph_t periph);
 
 /* IRQs */
 #define STM32_RCC_IRQ 5
+
+
+#define STM32_ADC1_2_IRQ 18
 
 #define STM32_UART1_IRQ 37
 #define STM32_UART2_IRQ 38
@@ -259,10 +264,26 @@ uint32_t stm32_rcc_get_periph_freq(
         Stm32Rcc *s,
         stm32_periph_t periph);
 
+/* ADC */
 
+#define STM32_ADC_COUNT 2
 
+typedef struct Stm32Adc Stm32Adc;
 
+void stm32_adc_connect(Stm32Adc *s, CharDriverState *chr,
+                        uint32_t afio_board_map);
 
+#define TYPE_STM32_ADC "stm32-adc"
+#define STM32_ADC(obj) OBJECT_CHECK(Stm32Adc, (obj), TYPE_STM32_ADC)
+
+#define STM32_ADC1_NO_REMAP 0
+#define STM32_ADC1_REMAP 1
+
+#define STM32_ADC2_NO_REMAP 0
+#define STM32_ADC2_REMAP 1
+
+#define STM32_ADC3_NO_REMAP 0
+#define STM32_ADC3_REMAP 1
 
 
 

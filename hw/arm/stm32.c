@@ -163,6 +163,25 @@ static void stm32_create_timer_dev(
     }
 }
 
+static void stm32_create_adc_dev(
+        Object *stm32_container,
+        stm32_periph_t periph,
+        int adc_num,
+        DeviceState *rcc_dev,
+        DeviceState **gpio_dev,
+        hwaddr addr,
+        qemu_irq irq)
+{
+    char child_name[8];
+    DeviceState *adc_dev = qdev_create(NULL, "stm32-adc");
+    QDEV_PROP_SET_PERIPH_T(adc_dev, "periph", periph);
+    qdev_prop_set_ptr(adc_dev, "stm32_rcc", rcc_dev);      // jmf : pourquoi ?
+    qdev_prop_set_ptr(adc_dev, "stm32_gpio", gpio_dev);
+    snprintf(child_name, sizeof(child_name), "adc[%i]", adc_num);
+    object_property_add_child(stm32_container, child_name, OBJECT(adc_dev), NULL);
+    stm32_init_periph(adc_dev, periph, addr, irq);
+    
+}
 
 void stm32_init(
             ram_addr_t flash_size,
@@ -265,4 +284,5 @@ void stm32_init(
     stm32_create_timer_dev(stm32_container, STM32_TIM3, 1, rcc_dev, gpio_dev, afio_dev, 0x40000400, &pic[TIM3_IRQn], 1);
     stm32_create_timer_dev(stm32_container, STM32_TIM4, 1, rcc_dev, gpio_dev, afio_dev, 0x40000800, &pic[TIM4_IRQn], 1);
     stm32_create_timer_dev(stm32_container, STM32_TIM5, 1, rcc_dev, gpio_dev, afio_dev, 0x40000C00, &pic[TIM5_IRQn], 1);
+    stm32_create_adc_dev(stm32_container, STM32_ADC1, 1, rcc_dev, gpio_dev, 0x40012400,0 );
 }
