@@ -204,6 +204,7 @@ static void sdhci_reset(SDHCIState *s)
 
     s->data_count = 0;
     s->stopped_state = sdhc_not_stopped;
+    s->pending_insert_state = false;
 }
 
 static void sdhci_data_transfer(void *opaque);
@@ -1095,6 +1096,13 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
         } else {
             s->norintsts &= ~SDHC_NIS_ERR;
         }
+        /* Quirk for Raspberry Pi: pending card insert interrupt
+         * appears when first enabled after power on */
+        if ((s->norintstsen & SDHC_NISEN_INSERT) && s->pending_insert_state) {
+            assert(s->pending_insert_quirk);
+            s->norintsts |= SDHC_NIS_INSERT;
+            s->pending_insert_state = false;
+        }
         sdhci_update_irq(s);
         break;
     case SDHC_NORINTSIGEN:
@@ -1181,6 +1189,24 @@ static void sdhci_uninitfn(SDHCIState *s)
     s->fifo_buffer = NULL;
 }
 
+static bool sdhci_pending_insert_vmstate_needed(void *opaque)
+{
+    SDHCIState *s = opaque;
+
+    return s->pending_insert_state;
+}
+
+static const VMStateDescription sdhci_pending_insert_vmstate = {
+    .name = "sdhci/pending-insert",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = sdhci_pending_insert_vmstate_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(pending_insert_state, SDHCIState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 const VMStateDescription sdhci_vmstate = {
     .name = "sdhci",
     .version_id = 1,
@@ -1215,7 +1241,11 @@ const VMStateDescription sdhci_vmstate = {
         VMSTATE_TIMER_PTR(insert_timer, SDHCIState),
         VMSTATE_TIMER_PTR(transfer_timer, SDHCIState),
         VMSTATE_END_OF_LIST()
-    }
+    },
+    .subsections = (const VMStateDescription*[]) {
+        &sdhci_pending_insert_vmstate,
+        NULL
+    },
 };
 
 /* Capabilities registers provide information on supported features of this
@@ -1273,6 +1303,8 @@ static Property sdhci_sysbus_properties[] = {
     DEFINE_PROP_UINT32("capareg", SDHCIState, capareg,
             SDHC_CAPAB_REG_DEFAULT),
     DEFINE_PROP_UINT32("maxcurr", SDHCIState, maxcurr, 0),
+    DEFINE_PROP_BOOL("pending-insert-quirk", SDHCIState, pending_insert_quirk,
+                     false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1300,6 +1332,10 @@ static void sdhci_sysbus_realize(DeviceState *dev, Error ** errp)
     memory_region_init_io(&s->iomem, OBJECT(s), &sdhci_mmio_ops, s, "sdhci",
             SDHC_REGISTERS_MAP_SIZE);
     sysbus_init_mmio(sbd, &s->iomem);
+
+    if (s->pending_insert_quirk) {
+        s->pending_insert_state = true;
+    }
 }
 
 static void sdhci_sysbus_class_init(ObjectClass *klass, void *data)
