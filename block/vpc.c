@@ -46,8 +46,14 @@ enum vhd_type {
 // Seconds since Jan 1, 2000 0:00:00 (UTC)
 #define VHD_TIMESTAMP_BASE 946684800
 
+#define VHD_CHS_MAX_C   65535LL
+#define VHD_CHS_MAX_H   16
+#define VHD_CHS_MAX_S   255
+
 #define VHD_MAX_SECTORS       (65535LL * 255 * 255)
-#define VHD_MAX_GEOMETRY      (65535LL *  16 * 255)
+#define VHD_MAX_GEOMETRY      (VHD_CHS_MAX_C * VHD_CHS_MAX_H * VHD_CHS_MAX_S)
+
+#define VPC_OPT_FORCE_SIZE "force_size"
 
 // always big-endian
 typedef struct vhd_footer {
@@ -288,6 +294,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
      *  Known creator apps:
      *      'vpc '  :  CHS              Virtual PC (uses disk geometry)
      *      'qemu'  :  CHS              QEMU (uses disk geometry)
+     *      'qem2'  :  current_size     QEMU (uses current_size)
      *      'win '  :  current_size     Hyper-V
      *      'd2v '  :  current_size     Disk2vhd
      *
@@ -296,6 +303,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
      *  that have CHS geometry of the maximum size.
      */
     use_chs = (!!strncmp(footer->creator_app, "win ", 4) &&
+               !!strncmp(footer->creator_app, "qem2", 4) &&
                !!strncmp(footer->creator_app, "d2v ", 4)) || s->force_use_chs;
 
     if (!use_chs || bs->total_sectors == VHD_MAX_GEOMETRY || s->force_use_sz) {
@@ -850,6 +858,7 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     int64_t total_size;
     int disk_type;
     int ret = -EIO;
+    bool force_size;
     Error *local_err = NULL;
     BlockDriverState *bs = NULL;
 
@@ -870,6 +879,8 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
         disk_type = VHD_DYNAMIC;
     }
 
+    force_size = qemu_opt_get_bool_del(opts, VPC_OPT_FORCE_SIZE, false);
+
     ret = bdrv_create_file(filename, opts, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
@@ -887,13 +898,20 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
      * sectors requested until we get enough (or fail). This ensures that
      * qemu-img convert doesn't truncate images, but rather rounds up.
      *
-     * If the image size can't be represented by a spec conform CHS geometry,
+     * If the image size can't be represented by a spec conformant CHS geometry,
      * we set the geometry to 65535 x 16 x 255 (CxHxS) sectors and use
      * the image size from the VHD footer to calculate total_sectors.
      */
-    total_sectors = MIN(VHD_MAX_GEOMETRY, total_size / BDRV_SECTOR_SIZE);
-    for (i = 0; total_sectors > (int64_t)cyls * heads * secs_per_cyl; i++) {
-        calculate_geometry(total_sectors + i, &cyls, &heads, &secs_per_cyl);
+    if (force_size) {
+        /* This will force the use of total_size for sector count, below */
+        cyls         = VHD_CHS_MAX_C;
+        heads        = VHD_CHS_MAX_H;
+        secs_per_cyl = VHD_CHS_MAX_S;
+    } else {
+        total_sectors = MIN(VHD_MAX_GEOMETRY, total_size / BDRV_SECTOR_SIZE);
+        for (i = 0; total_sectors > (int64_t)cyls * heads * secs_per_cyl; i++) {
+            calculate_geometry(total_sectors + i, &cyls, &heads, &secs_per_cyl);
+        }
     }
 
     if ((int64_t)cyls * heads * secs_per_cyl == VHD_MAX_GEOMETRY) {
@@ -912,8 +930,11 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     memset(buf, 0, 1024);
 
     memcpy(footer->creator, "conectix", 8);
-    /* TODO Check if "qemu" creator_app is ok for VPC */
-    memcpy(footer->creator_app, "qemu", 4);
+    if (force_size) {
+        memcpy(footer->creator_app, "qem2", 4);
+    } else {
+        memcpy(footer->creator_app, "qemu", 4);
+    }
     memcpy(footer->creator_os, "Wi2k", 4);
 
     footer->features = cpu_to_be32(0x02);
@@ -993,6 +1014,13 @@ static QemuOptsList vpc_create_opts = {
             .help =
                 "Type of virtual hard disk format. Supported formats are "
                 "{dynamic (default) | fixed} "
+        },
+        {
+            .name = VPC_OPT_FORCE_SIZE,
+            .type = QEMU_OPT_BOOL,
+            .help = "Force disk size calculation to use the actual size "
+                    "specified, rather than using the nearest CHS-based "
+                    "calculation"
         },
         { /* end of list */ }
     }
