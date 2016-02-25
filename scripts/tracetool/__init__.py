@@ -121,6 +121,10 @@ class Arguments:
         """List of argument types."""
         return [ type_ for type_, _ in self._args ]
 
+    def casted(self):
+        """List of argument names casted to their type."""
+        return ["(%s)%s" % (type_, name) for type_, name in self._args]
+
     def transform(self, *trans):
         """Return a new Arguments instance with transformed types.
 
