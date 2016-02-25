@@ -656,12 +656,6 @@ F: hw/*/grlib*
 
 S390 Machines
 -------------
-S390 Virtio
-M: Alexander Graf <agraf@suse.de>
-S: Maintained
-F: hw/s390x/s390-*.c
-X: hw/s390x/*pci*.[hc]
-
 S390 Virtio-ccw
 M: Cornelia Huck <cornelia.huck@de.ibm.com>
 M: Christian Borntraeger <borntraeger@de.ibm.com>
