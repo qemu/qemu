@@ -249,6 +249,9 @@ _syscall2(int, ioprio_get, int, which, int, who)
 #if defined(TARGET_NR_ioprio_set) && defined(__NR_ioprio_set)
 _syscall3(int, ioprio_set, int, which, int, who, int, ioprio)
 #endif
+#if defined(TARGET_NR_getrandom) && defined(__NR_getrandom)
+_syscall3(int, getrandom, void *, buf, size_t, buflen, unsigned int, flags)
+#endif
 
 static bitmask_transtbl fcntl_flags_tbl[] = {
   { TARGET_O_ACCMODE,   TARGET_O_WRONLY,    O_ACCMODE,   O_WRONLY,    },
@@ -318,8 +321,8 @@ static void fd_trans_register(int fd, TargetFdTrans *trans)
     if (fd >= target_fd_max) {
         oldmax = target_fd_max;
         target_fd_max = ((fd >> 6) + 1) << 6; /* by slice of 64 entries */
-        target_fd_trans = g_realloc(target_fd_trans,
-                                    target_fd_max * sizeof(TargetFdTrans));
+        target_fd_trans = g_renew(TargetFdTrans *,
+                                  target_fd_trans, target_fd_max);
         memset((void *)(target_fd_trans + oldmax), 0,
                (target_fd_max - oldmax) * sizeof(TargetFdTrans *));
     }
@@ -2598,8 +2601,9 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
 #define N_SHM_REGIONS	32
 
 static struct shm_region {
-    abi_ulong	start;
-    abi_ulong	size;
+    abi_ulong start;
+    abi_ulong size;
+    bool in_use;
 } shm_regions[N_SHM_REGIONS];
 
 struct target_semid_ds
@@ -3291,7 +3295,8 @@ static inline abi_ulong do_shmat(int shmid, abi_ulong shmaddr, int shmflg)
                    ((shmflg & SHM_RDONLY)? 0 : PAGE_WRITE));
 
     for (i = 0; i < N_SHM_REGIONS; i++) {
-        if (shm_regions[i].start == 0) {
+        if (!shm_regions[i].in_use) {
+            shm_regions[i].in_use = true;
             shm_regions[i].start = raddr;
             shm_regions[i].size = shm_info.shm_segsz;
             break;
@@ -3308,8 +3313,8 @@ static inline abi_long do_shmdt(abi_ulong shmaddr)
     int i;
 
     for (i = 0; i < N_SHM_REGIONS; ++i) {
-        if (shm_regions[i].start == shmaddr) {
-            shm_regions[i].start = 0;
+        if (shm_regions[i].in_use && shm_regions[i].start == shmaddr) {
+            shm_regions[i].in_use = false;
             page_set_flags(shmaddr, shmaddr + shm_regions[i].size, 0);
             break;
         }
@@ -5229,7 +5234,6 @@ static inline int target_to_host_mlockall_arg(int arg)
 }
 #endif
 
-#if defined(TARGET_NR_stat64) || defined(TARGET_NR_newfstatat)
 static inline abi_long host_to_target_stat64(void *cpu_env,
                                              abi_ulong target_addr,
                                              struct stat *host_st)
@@ -5292,7 +5296,6 @@ static inline abi_long host_to_target_stat64(void *cpu_env,
 
     return 0;
 }
-#endif
 
 /* ??? Using host futex calls even when target atomic operations
    are not really atomic probably breaks things.  However implementing
@@ -7539,6 +7542,16 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR_shutdown
     case TARGET_NR_shutdown:
         ret = get_errno(shutdown(arg1, arg2));
+        break;
+#endif
+#if defined(TARGET_NR_getrandom) && defined(__NR_getrandom)
+    case TARGET_NR_getrandom:
+        p = lock_user(VERIFY_WRITE, arg1, arg2, 0);
+        if (!p) {
+            goto efault;
+        }
+        ret = get_errno(getrandom(p, arg2, arg3));
+        unlock_user(p, arg1, ret);
         break;
 #endif
 #ifdef TARGET_NR_socket

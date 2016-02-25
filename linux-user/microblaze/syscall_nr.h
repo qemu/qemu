@@ -382,3 +382,11 @@
 #define TARGET_NR_process_vm_writev     378
 #define TARGET_NR_kcmp                  379
 #define TARGET_NR_finit_module          380
+#define TARGET_NR_sched_setattr         381
+#define TARGET_NR_sched_getattr         382
+#define TARGET_NR_renameat2             383
+#define TARGET_NR_seccomp               384
+#define TARGET_NR_getrandom             385
+#define TARGET_NR_memfd_create          386
+#define TARGET_NR_bpf                   387
+#define TARGET_NR_execveat              388

@@ -444,3 +444,9 @@
 #define TARGET_NR_process_vm_writev             505
 #define TARGET_NR_kcmp                          506
 #define TARGET_NR_finit_module                  507
+#define TARGET_NR_sched_setattr                 508
+#define TARGET_NR_sched_getattr                 509
+#define TARGET_NR_renameat2                     510
+#define TARGET_NR_getrandom                     511
+#define TARGET_NR_memfd_create                  512
+#define TARGET_NR_execveat                      513

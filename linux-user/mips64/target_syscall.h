@@ -1,21 +1,20 @@
+#ifndef TARGET_SYSCALL_H
+#define TARGET_SYSCALL_H
 
 /* this struct defines the way the registers are stored on the
    stack during a system call. */
 
 struct target_pt_regs {
-	/* Pad bytes for argument save space on the stack. */
-	abi_ulong pad0[6];
+        /* Saved main processor registers. */
+        target_ulong regs[32];
 
-	/* Saved main processor registers. */
-	abi_ulong regs[32];
-
-	/* Saved special registers. */
-	abi_ulong cp0_status;
-	abi_ulong lo;
-	abi_ulong hi;
-	abi_ulong cp0_badvaddr;
-	abi_ulong cp0_cause;
-	abi_ulong cp0_epc;
+        /* Saved special registers. */
+        target_ulong cp0_status;
+        target_ulong lo;
+        target_ulong hi;
+        target_ulong cp0_badvaddr;
+        target_ulong cp0_cause;
+        target_ulong cp0_epc;
 };
 
 /* Target errno definitions taken from asm-mips/errno.h */
@@ -221,13 +220,15 @@ struct target_pt_regs {
 
 
 
-/* Nasty hack: define a fake errno value for use by sigreturn.  */
+/* Nasty hack: define a fake errno value for use by sigreturn. */
 #define TARGET_QEMU_ESIGRETURN 255
 
-#define UNAME_MACHINE "mips"
+#define UNAME_MACHINE "mips64"
 #define UNAME_MINIMUM_RELEASE "2.6.32"
 
 #define TARGET_CLONE_BACKWARDS
-#define TARGET_MINSIGSTKSZ 2048
+#define TARGET_MINSIGSTKSZ      2048
 #define TARGET_MLOCKALL_MCL_CURRENT 1
 #define TARGET_MLOCKALL_MCL_FUTURE  2
+
+#endif  /* TARGET_SYSCALL_H */

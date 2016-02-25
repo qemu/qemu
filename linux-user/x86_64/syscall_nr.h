@@ -281,7 +281,7 @@
 #define TARGET_NR_utimensat		280
 #define TARGET_NR_epoll_pwait	281
 #define TARGET_NR_signalfd		282
-#define TARGET_NR_timerfd		283
+#define TARGET_NR_timerfd_create	283
 #define TARGET_NR_eventfd		284
 #define TARGET_NR_fallocate		285
 #define TARGET_NR_timerfd_settime	286
@@ -312,3 +312,16 @@
 #define TARGET_NR_process_vm_writev     311
 #define TARGET_NR_kcmp                  312
 #define TARGET_NR_finit_module          313
+#define TARGET_NR_sched_setattr         314
+#define TARGET_NR_sched_getattr         315
+#define TARGET_NR_renameat2             316
+#define TARGET_NR_seccomp               317
+#define TARGET_NR_getrandom             318
+#define TARGET_NR_memfd_create          319
+#define TARGET_NR_kexec_file_load       320
+#define TARGET_NR_bpf                   321
+#define TARGET_NR_execveat              322
+#define TARGET_NR_userfaultfd           323
+#define TARGET_NR_membarrier            324
+#define TARGET_NR_mlock2                325
+#define TARGET_NR_copy_file_range       326

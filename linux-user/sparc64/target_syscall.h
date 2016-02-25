@@ -1,3 +1,6 @@
+#ifndef TARGET_SYSCALL_H
+#define TARGET_SYSCALL_H
+
 struct target_pt_regs {
 	abi_ulong u_regs[16];
 	abi_ulong tstate;
@@ -19,3 +22,5 @@ struct target_pt_regs {
 #define TARGET_MINSIGSTKSZ      4096
 #define TARGET_MLOCKALL_MCL_CURRENT 0x2000
 #define TARGET_MLOCKALL_MCL_FUTURE  0x4000
+
+#endif  /* TARGET_SYSCALL_H */
