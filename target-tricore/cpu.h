@@ -270,6 +270,7 @@ enum {
     TRAPC_ASSERT   = 5,
     TRAPC_SYSCALL  = 6,
     TRAPC_NMI      = 7,
+    TRAPC_IRQ      = 8
 };
 
 /* Class 0 TIN */
