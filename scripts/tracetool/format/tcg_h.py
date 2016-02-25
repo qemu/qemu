@@ -13,7 +13,18 @@ __maintainer__ = "Stefan Hajnoczi"
 __email__      = "stefanha@linux.vnet.ibm.com"
 
 
-from tracetool import out
+from tracetool import out, Arguments
+import tracetool.vcpu
+
+
+def vcpu_transform_args(args):
+    assert len(args) == 1
+    return Arguments([
+        args,
+        # NOTE: this name must be kept in sync with the one in "tcg_h"
+        # NOTE: Current helper code uses TCGv_env (CPUArchState*)
+        ("TCGv_env", "__tcg_" + args.names()[0]),
+    ])
 
 
 def generate(events, backend):
@@ -35,21 +46,21 @@ def generate(events, backend):
         if "tcg-trans" not in e.properties:
             continue
 
-        # get the original event definition
-        e = e.original
-
         out('static inline void %(name_tcg)s(%(args)s)',
             '{',
-            name_tcg=e.api(e.QEMU_TRACE_TCG),
-            args=e.args)
+            name_tcg=e.original.api(e.QEMU_TRACE_TCG),
+            args=tracetool.vcpu.transform_args("tcg_h", e.original))
 
         if "disable" not in e.properties:
+            args_trans = e.original.event_trans.args
+            args_exec = tracetool.vcpu.transform_args(
+                "tcg_helper_c", e.original.event_exec, "wrapper")
             out('    %(name_trans)s(%(argnames_trans)s);',
                 '    gen_helper_%(name_exec)s(%(argnames_exec)s);',
-                name_trans=e.event_trans.api(e.QEMU_TRACE),
-                name_exec=e.event_exec.api(e.QEMU_TRACE),
-                argnames_trans=", ".join(e.event_trans.args.names()),
-                argnames_exec=", ".join(e.event_exec.args.names()))
+                name_trans=e.original.event_trans.api(e.QEMU_TRACE),
+                name_exec=e.original.event_exec.api(e.QEMU_TRACE),
+                argnames_trans=", ".join(args_trans.names()),
+                argnames_exec=", ".join(args_exec.names()))
 
         out('}')
 

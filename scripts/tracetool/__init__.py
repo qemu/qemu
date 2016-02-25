@@ -161,7 +161,7 @@ class Event(object):
                       "(?:(?:(?P<fmt_trans>\".+),)?\s*(?P<fmt>\".+))?"
                       "\s*")
 
-    _VALID_PROPS = set(["disable", "tcg", "tcg-trans", "tcg-exec"])
+    _VALID_PROPS = set(["disable", "tcg", "tcg-trans", "tcg-exec", "vcpu"])
 
     def __init__(self, name, props, fmt, args, orig=None):
         """
@@ -230,7 +230,13 @@ class Event(object):
         if "tcg" in props and isinstance(fmt, str):
             raise ValueError("Events with 'tcg' property must have two formats")
 
-        return Event(name, props, fmt, args)
+        event = Event(name, props, fmt, args)
+
+        # add implicit arguments when using the 'vcpu' property
+        import tracetool.vcpu
+        event = tracetool.vcpu.transform_event(event)
+
+        return event
 
     def __repr__(self):
         """Evaluable string representation for this object."""
@@ -285,6 +291,7 @@ def _read_events(fobj):
             event_trans.name += "_trans"
             event_trans.properties += ["tcg-trans"]
             event_trans.fmt = event.fmt[0]
+            # ignore TCG arguments
             args_trans = []
             for atrans, aorig in zip(
                     event_trans.transform(tracetool.transform.TCG_2_HOST).args,

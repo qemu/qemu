@@ -6,7 +6,7 @@ trace/generated-tracers.h
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2016, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -23,6 +23,7 @@ def generate(events, backend):
         '#define TRACE__GENERATED_TRACERS_H',
         '',
         '#include "qemu-common.h"',
+        '#include "qemu/typedefs.h"',
         '')
 
     backend.generate_begin(events)

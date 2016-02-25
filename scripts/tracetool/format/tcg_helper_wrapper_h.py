@@ -6,7 +6,7 @@ Generate trace/generated-helpers-wrappers.h.
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2016, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -15,6 +15,7 @@ __email__      = "stefanha@linux.vnet.ibm.com"
 
 from tracetool import out
 from tracetool.transform import *
+import tracetool.vcpu
 
 
 def generate(events, backend):
@@ -33,7 +34,7 @@ def generate(events, backend):
             continue
 
         # tracetool.generate always transforms types to host
-        e_args = e.original.args
+        e_args = tracetool.vcpu.transform_args("tcg_helper_c", e.original, "wrapper")
 
         # mixed-type to TCG helper bridge
         args_tcg_compat = e_args.transform(HOST_2_TCG_COMPAT)

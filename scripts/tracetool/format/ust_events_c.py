@@ -32,4 +32,5 @@ def generate(events, backend):
         ' */',
         '#pragma GCC diagnostic ignored "-Wredundant-decls"',
         '',
+        '#include "qemu/typedefs.h"',
         '#include "generated-ust-provider.h"')

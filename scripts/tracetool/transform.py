@@ -6,7 +6,7 @@ Type-transformation rules.
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2016, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -98,6 +98,7 @@ HOST_2_TCG = {
     "uint32_t": "TCGv_i32",
     "uint64_t": "TCGv_i64",
     "void *"  : "TCGv_ptr",
+    "CPUArchState *": "TCGv_env",
     None: _host_2_tcg,
     }
 
@@ -130,6 +131,7 @@ TCG_2_TCG_HELPER_DECL = {
     "TCGv_ptr": "ptr",
     "TCGv_i32": "i32",
     "TCGv_i64": "i64",
+    "TCGv_env": "env",
     None: _tcg_2_tcg_helper_decl_error,
     }
 
