@@ -309,6 +309,13 @@ typedef struct TCGv_i32_d *TCGv_i32;
 typedef struct TCGv_i64_d *TCGv_i64;
 typedef struct TCGv_ptr_d *TCGv_ptr;
 typedef TCGv_ptr TCGv_env;
+#if TARGET_LONG_BITS == 32
+#define TCGv TCGv_i32
+#elif TARGET_LONG_BITS == 64
+#define TCGv TCGv_i64
+#else
+#error Unhandled TARGET_LONG_BITS value
+#endif
 
 static inline TCGv_i32 QEMU_ARTIFICIAL MAKE_TCGV_I32(intptr_t i)
 {
