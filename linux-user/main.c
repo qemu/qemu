@@ -513,7 +513,7 @@ static void arm_kernel_cmpxchg64_helper(CPUARMState *env)
         env->regs[0] = -1;
         cpsr &= ~CPSR_C;
     }
-    cpsr_write(env, cpsr, CPSR_C);
+    cpsr_write(env, cpsr, CPSR_C, CPSRWriteByInstr);
     end_exclusive();
     return;
 
@@ -562,7 +562,7 @@ do_kernel_trap(CPUARMState *env)
             env->regs[0] = -1;
             cpsr &= ~CPSR_C;
         }
-        cpsr_write(env, cpsr, CPSR_C);
+        cpsr_write(env, cpsr, CPSR_C, CPSRWriteByInstr);
         end_exclusive();
         break;
     case 0xffff0fe0: /* __kernel_get_tls */
@@ -4446,7 +4446,8 @@ int main(int argc, char **argv, char **envp)
 #elif defined(TARGET_ARM)
     {
         int i;
-        cpsr_write(env, regs->uregs[16], 0xffffffff);
+        cpsr_write(env, regs->uregs[16], CPSR_USER | CPSR_EXEC,
+                   CPSRWriteByInstr);
         for(i = 0; i < 16; i++) {
             env->regs[i] = regs->uregs[i];
         }

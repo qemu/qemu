@@ -4094,7 +4094,7 @@ static void gen_exception_return(DisasContext *s, TCGv_i32 pc)
     TCGv_i32 tmp;
     store_reg(s, 15, pc);
     tmp = load_cpu_field(spsr);
-    gen_set_cpsr(tmp, CPSR_ERET_MASK);
+    gen_helper_cpsr_write_eret(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
     s->is_jmp = DISAS_JUMP;
 }
@@ -4102,7 +4102,7 @@ static void gen_exception_return(DisasContext *s, TCGv_i32 pc)
 /* Generate a v6 exception return.  Marks both values as dead.  */
 static void gen_rfe(DisasContext *s, TCGv_i32 pc, TCGv_i32 cpsr)
 {
-    gen_set_cpsr(cpsr, CPSR_ERET_MASK);
+    gen_helper_cpsr_write_eret(cpu_env, cpsr);
     tcg_temp_free_i32(cpsr);
     store_reg(s, 15, pc);
     s->is_jmp = DISAS_JUMP;
@@ -9094,7 +9094,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 if (exc_return) {
                     /* Restore CPSR from SPSR.  */
                     tmp = load_cpu_field(spsr);
-                    gen_set_cpsr(tmp, CPSR_ERET_MASK);
+                    gen_helper_cpsr_write_eret(cpu_env, tmp);
                     tcg_temp_free_i32(tmp);
                     s->is_jmp = DISAS_JUMP;
                 }

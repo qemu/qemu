@@ -439,6 +439,24 @@ static CPAccessResult access_tda(CPUARMState *env, const ARMCPRegInfo *ri,
     return CP_ACCESS_OK;
 }
 
+/* Check for traps to performance monitor registers, which are controlled
+ * by MDCR_EL2.TPM for EL2 and MDCR_EL3.TPM for EL3.
+ */
+static CPAccessResult access_tpm(CPUARMState *env, const ARMCPRegInfo *ri,
+                                 bool isread)
+{
+    int el = arm_current_el(env);
+
+    if (el < 2 && (env->cp15.mdcr_el2 & MDCR_TPM)
+        && !arm_is_secure_below_el3(env)) {
+        return CP_ACCESS_TRAP_EL2;
+    }
+    if (el < 3 && (env->cp15.mdcr_el3 & MDCR_TPM)) {
+        return CP_ACCESS_TRAP_EL3;
+    }
+    return CP_ACCESS_OK;
+}
+
 static void dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
@@ -774,11 +792,22 @@ static CPAccessResult pmreg_access(CPUARMState *env, const ARMCPRegInfo *ri,
                                    bool isread)
 {
     /* Performance monitor registers user accessibility is controlled
-     * by PMUSERENR.
+     * by PMUSERENR. MDCR_EL2.TPM and MDCR_EL3.TPM allow configurable
+     * trapping to EL2 or EL3 for other accesses.
      */
-    if (arm_current_el(env) == 0 && !env->cp15.c9_pmuserenr) {
+    int el = arm_current_el(env);
+
+    if (el == 0 && !env->cp15.c9_pmuserenr) {
         return CP_ACCESS_TRAP;
     }
+    if (el < 2 && (env->cp15.mdcr_el2 & MDCR_TPM)
+        && !arm_is_secure_below_el3(env)) {
+        return CP_ACCESS_TRAP_EL2;
+    }
+    if (el < 3 && (env->cp15.mdcr_el3 & MDCR_TPM)) {
+        return CP_ACCESS_TRAP_EL3;
+    }
+
     return CP_ACCESS_OK;
 }
 
@@ -1101,28 +1130,28 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0,
       .accessfn = pmreg_access },
     { .name = "PMUSERENR", .cp = 15, .crn = 9, .crm = 14, .opc1 = 0, .opc2 = 0,
-      .access = PL0_R | PL1_RW,
+      .access = PL0_R | PL1_RW, .accessfn = access_tpm,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pmuserenr),
       .resetvalue = 0,
       .writefn = pmuserenr_write, .raw_writefn = raw_write },
     { .name = "PMUSERENR_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 9, .crm = 14, .opc2 = 0,
-      .access = PL0_R | PL1_RW, .type = ARM_CP_ALIAS,
+      .access = PL0_R | PL1_RW, .accessfn = access_tpm, .type = ARM_CP_ALIAS,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pmuserenr),
       .resetvalue = 0,
       .writefn = pmuserenr_write, .raw_writefn = raw_write },
     { .name = "PMINTENSET", .cp = 15, .crn = 9, .crm = 14, .opc1 = 0, .opc2 = 1,
-      .access = PL1_RW,
+      .access = PL1_RW, .accessfn = access_tpm,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pminten),
       .resetvalue = 0,
       .writefn = pmintenset_write, .raw_writefn = raw_write },
     { .name = "PMINTENCLR", .cp = 15, .crn = 9, .crm = 14, .opc1 = 0, .opc2 = 2,
-      .access = PL1_RW, .type = ARM_CP_ALIAS,
+      .access = PL1_RW, .accessfn = access_tpm, .type = ARM_CP_ALIAS,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pminten),
       .writefn = pmintenclr_write, },
     { .name = "PMINTENCLR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 9, .crm = 14, .opc2 = 2,
-      .access = PL1_RW, .type = ARM_CP_ALIAS,
+      .access = PL1_RW, .accessfn = access_tpm, .type = ARM_CP_ALIAS,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pminten),
       .writefn = pmintenclr_write },
     { .name = "VBAR", .state = ARM_CP_STATE_BOTH,
@@ -3037,6 +3066,12 @@ static CPAccessResult fpexc32_access(CPUARMState *env, const ARMCPRegInfo *ri,
     return CP_ACCESS_OK;
 }
 
+static void sdcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                       uint64_t value)
+{
+    env->cp15.mdcr_el3 = value & SDCR_VALID_MASK;
+}
+
 static const ARMCPRegInfo v8_cp_reginfo[] = {
     /* Minimal set of EL0-visible registers. This will need to be expanded
      * significantly for system emulation of AArch64 CPUs.
@@ -3331,6 +3366,15 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 3, .opc2 = 3,
       .access = PL2_RW,
       .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_FIQ]) },
+    { .name = "MDCR_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 1, .crm = 3, .opc2 = 1,
+      .resetvalue = 0,
+      .access = PL3_RW, .fieldoffset = offsetof(CPUARMState, cp15.mdcr_el3) },
+    { .name = "SDCR", .type = ARM_CP_ALIAS,
+      .cp = 15, .opc1 = 0, .crn = 1, .crm = 3, .opc2 = 1,
+      .access = PL1_RW, .accessfn = access_trap_aa32s_el1,
+      .writefn = sdcr_write,
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.mdcr_el3) },
     REGINFO_SENTINEL
 };
 
@@ -3628,7 +3672,7 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .writefn = gt_hyp_cval_write, .raw_writefn = raw_write },
     { .name = "CNTHP_TVAL_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 2, .opc2 = 0,
-      .type = ARM_CP_IO, .access = PL2_RW,
+      .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL2_RW,
       .resetfn = gt_hyp_timer_reset,
       .readfn = gt_hyp_tval_read, .writefn = gt_hyp_tval_write },
     { .name = "CNTHP_CTL_EL2", .state = ARM_CP_STATE_BOTH,
@@ -3688,14 +3732,6 @@ static const ARMCPRegInfo el3_cp_reginfo[] = {
       .access = PL1_RW, .accessfn = access_trap_aa32s_el1,
       .fieldoffset = offsetoflow32(CPUARMState, cp15.scr_el3),
       .writefn = scr_write },
-    { .name = "MDCR_EL3", .state = ARM_CP_STATE_AA64,
-      .opc0 = 3, .opc1 = 6, .crn = 1, .crm = 3, .opc2 = 1,
-      .resetvalue = 0,
-      .access = PL3_RW, .fieldoffset = offsetof(CPUARMState, cp15.mdcr_el3) },
-    { .name = "SDCR", .type = ARM_CP_ALIAS,
-      .cp = 15, .opc1 = 0, .crn = 1, .crm = 3, .opc2 = 1,
-      .access = PL1_RW, .accessfn = access_trap_aa32s_el1,
-      .fieldoffset = offsetoflow32(CPUARMState, cp15.mdcr_el3) },
     { .name = "SDER32_EL3", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 6, .crn = 1, .crm = 1, .opc2 = 1,
       .access = PL3_RW, .resetvalue = 0,
@@ -4280,12 +4316,14 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 2, .opc2 = 5,
               .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_isar5 },
-            /* 6..7 are as yet unallocated and must RAZ */
-            { .name = "ID_ISAR6", .cp = 15, .crn = 0, .crm = 2,
-              .opc1 = 0, .opc2 = 6, .access = PL1_R, .type = ARM_CP_CONST,
-              .resetvalue = 0 },
-            { .name = "ID_ISAR7", .cp = 15, .crn = 0, .crm = 2,
-              .opc1 = 0, .opc2 = 7, .access = PL1_R, .type = ARM_CP_CONST,
+            { .name = "ID_MMFR4", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 2, .opc2 = 6,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_mmfr4 },
+            /* 7 is as yet unallocated and must RAZ */
+            { .name = "ID_ISAR7_RESERVED", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 2, .opc2 = 7,
+              .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = 0 },
             REGINFO_SENTINEL
         };
@@ -4339,7 +4377,11 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_arm_cp_regs(cpu, not_v7_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_V8)) {
-        /* AArch64 ID registers, which all have impdef reset values */
+        /* AArch64 ID registers, which all have impdef reset values.
+         * Note that within the ID register ranges the unused slots
+         * must all RAZ, not UNDEF; future architecture versions may
+         * define new registers here.
+         */
         ARMCPRegInfo v8_idregs[] = {
             { .name = "ID_AA64PFR0_EL1", .state = ARM_CP_STATE_AA64,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 4, .opc2 = 0,
@@ -4349,6 +4391,30 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 4, .opc2 = 1,
               .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_aa64pfr1},
+            { .name = "ID_AA64PFR2_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 4, .opc2 = 2,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64PFR3_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 4, .opc2 = 3,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64PFR4_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 4, .opc2 = 4,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64PFR5_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 4, .opc2 = 5,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64PFR6_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 4, .opc2 = 6,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64PFR7_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 4, .opc2 = 7,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
             { .name = "ID_AA64DFR0_EL1", .state = ARM_CP_STATE_AA64,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 5, .opc2 = 0,
               .access = PL1_R, .type = ARM_CP_CONST,
@@ -4362,6 +4428,14 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 5, .opc2 = 1,
               .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_aa64dfr1 },
+            { .name = "ID_AA64DFR2_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 5, .opc2 = 2,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64DFR3_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 5, .opc2 = 3,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
             { .name = "ID_AA64AFR0_EL1", .state = ARM_CP_STATE_AA64,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 5, .opc2 = 4,
               .access = PL1_R, .type = ARM_CP_CONST,
@@ -4370,6 +4444,14 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 5, .opc2 = 5,
               .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_aa64afr1 },
+            { .name = "ID_AA64AFR2_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 5, .opc2 = 6,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64AFR3_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 5, .opc2 = 7,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
             { .name = "ID_AA64ISAR0_EL1", .state = ARM_CP_STATE_AA64,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 6, .opc2 = 0,
               .access = PL1_R, .type = ARM_CP_CONST,
@@ -4378,6 +4460,30 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 6, .opc2 = 1,
               .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_aa64isar1 },
+            { .name = "ID_AA64ISAR2_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 6, .opc2 = 2,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64ISAR3_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 6, .opc2 = 3,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64ISAR4_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 6, .opc2 = 4,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64ISAR5_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 6, .opc2 = 5,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64ISAR6_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 6, .opc2 = 6,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64ISAR7_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 6, .opc2 = 7,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
             { .name = "ID_AA64MMFR0_EL1", .state = ARM_CP_STATE_AA64,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 7, .opc2 = 0,
               .access = PL1_R, .type = ARM_CP_CONST,
@@ -4386,6 +4492,30 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 7, .opc2 = 1,
               .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_aa64mmfr1 },
+            { .name = "ID_AA64MMFR2_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 7, .opc2 = 2,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64MMFR3_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 7, .opc2 = 3,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64MMFR4_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 7, .opc2 = 4,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64MMFR5_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 7, .opc2 = 5,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64MMFR6_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 7, .opc2 = 6,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_AA64MMFR7_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 7, .opc2 = 7,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
             { .name = "MVFR0_EL1", .state = ARM_CP_STATE_AA64,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 3, .opc2 = 0,
               .access = PL1_R, .type = ARM_CP_CONST,
@@ -4398,6 +4528,26 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 3, .opc2 = 2,
               .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->mvfr2 },
+            { .name = "MVFR3_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 3, .opc2 = 3,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "MVFR4_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 3, .opc2 = 4,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "MVFR5_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 3, .opc2 = 5,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "MVFR6_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 3, .opc2 = 6,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "MVFR7_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 3, .opc2 = 7,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
             { .name = "PMCEID0", .state = ARM_CP_STATE_AA32,
               .cp = 15, .opc1 = 0, .crn = 9, .crm = 12, .opc2 = 6,
               .access = PL0_R, .accessfn = pmreg_access, .type = ARM_CP_CONST,
@@ -5200,23 +5350,47 @@ void arm_cp_reset_ignore(CPUARMState *env, const ARMCPRegInfo *opaque)
     /* Helper coprocessor reset function for do-nothing-on-reset registers */
 }
 
-static int bad_mode_switch(CPUARMState *env, int mode)
+static int bad_mode_switch(CPUARMState *env, int mode, CPSRWriteType write_type)
 {
     /* Return true if it is not valid for us to switch to
      * this CPU mode (ie all the UNPREDICTABLE cases in
      * the ARM ARM CPSRWriteByInstr pseudocode).
      */
+
+    /* Changes to or from Hyp via MSR and CPS are illegal. */
+    if (write_type == CPSRWriteByInstr &&
+        ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_HYP ||
+         mode == ARM_CPU_MODE_HYP)) {
+        return 1;
+    }
+
     switch (mode) {
     case ARM_CPU_MODE_USR:
+        return 0;
     case ARM_CPU_MODE_SYS:
     case ARM_CPU_MODE_SVC:
     case ARM_CPU_MODE_ABT:
     case ARM_CPU_MODE_UND:
     case ARM_CPU_MODE_IRQ:
     case ARM_CPU_MODE_FIQ:
+        /* Note that we don't implement the IMPDEF NSACR.RFR which in v7
+         * allows FIQ mode to be Secure-only. (In v8 this doesn't exist.)
+         */
+        /* If HCR.TGE is set then changes from Monitor to NS PL1 via MSR
+         * and CPS are treated as illegal mode changes.
+         */
+        if (write_type == CPSRWriteByInstr &&
+            (env->cp15.hcr_el2 & HCR_TGE) &&
+            (env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_MON &&
+            !arm_is_secure_below_el3(env)) {
+            return 1;
+        }
         return 0;
+    case ARM_CPU_MODE_HYP:
+        return !arm_feature(env, ARM_FEATURE_EL2)
+            || arm_current_el(env) < 2 || arm_is_secure(env);
     case ARM_CPU_MODE_MON:
-        return !arm_is_secure(env);
+        return arm_current_el(env) < 3;
     default:
         return 1;
     }
@@ -5233,7 +5407,8 @@ uint32_t cpsr_read(CPUARMState *env)
         | (env->GE << 16) | (env->daif & CPSR_AIF);
 }
 
-void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
+void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask,
+                CPSRWriteType write_type)
 {
     uint32_t changed_daif;
 
@@ -5267,7 +5442,7 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
      * In a V8 implementation, it is permitted for privileged software to
      * change the CPSR A/F bits regardless of the SCR.AW/FW bits.
      */
-    if (!arm_feature(env, ARM_FEATURE_V8) &&
+    if (write_type != CPSRWriteRaw && !arm_feature(env, ARM_FEATURE_V8) &&
         arm_feature(env, ARM_FEATURE_EL3) &&
         !arm_feature(env, ARM_FEATURE_EL2) &&
         !arm_is_secure(env)) {
@@ -5314,13 +5489,24 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
     env->daif &= ~(CPSR_AIF & mask);
     env->daif |= val & CPSR_AIF & mask;
 
-    if ((env->uncached_cpsr ^ val) & mask & CPSR_M) {
-        if (bad_mode_switch(env, val & CPSR_M)) {
-            /* Attempt to switch to an invalid mode: this is UNPREDICTABLE.
-             * We choose to ignore the attempt and leave the CPSR M field
-             * untouched.
+    if (write_type != CPSRWriteRaw &&
+        (env->uncached_cpsr & CPSR_M) != CPSR_USER &&
+        ((env->uncached_cpsr ^ val) & mask & CPSR_M)) {
+        if (bad_mode_switch(env, val & CPSR_M, write_type)) {
+            /* Attempt to switch to an invalid mode: this is UNPREDICTABLE in
+             * v7, and has defined behaviour in v8:
+             *  + leave CPSR.M untouched
+             *  + allow changes to the other CPSR fields
+             *  + set PSTATE.IL
+             * For user changes via the GDB stub, we don't set PSTATE.IL,
+             * as this would be unnecessarily harsh for a user error.
              */
             mask &= ~CPSR_M;
+            if (write_type != CPSRWriteByGDBStub &&
+                arm_feature(env, ARM_FEATURE_V8)) {
+                mask |= CPSR_IL;
+                val |= CPSR_IL;
+            }
         } else {
             switch_mode(env, val & CPSR_M);
         }

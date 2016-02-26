@@ -60,6 +60,7 @@ typedef struct PL061State {
     qemu_irq irq;
     qemu_irq out[8];
     const unsigned char *id;
+    uint32_t rsvd_start; /* reserved area: [rsvd_start, 0xfcc] */
 } PL061State;
 
 static const VMStateDescription vmstate_pl061 = {
@@ -152,11 +153,14 @@ static uint64_t pl061_read(void *opaque, hwaddr offset,
 {
     PL061State *s = (PL061State *)opaque;
 
-    if (offset >= 0xfd0 && offset < 0x1000) {
-        return s->id[(offset - 0xfd0) >> 2];
-    }
     if (offset < 0x400) {
         return s->data & (offset >> 2);
+    }
+    if (offset >= s->rsvd_start && offset <= 0xfcc) {
+        goto err_out;
+    }
+    if (offset >= 0xfd0 && offset < 0x1000) {
+        return s->id[(offset - 0xfd0) >> 2];
     }
     switch (offset) {
     case 0x400: /* Direction */
@@ -198,10 +202,12 @@ static uint64_t pl061_read(void *opaque, hwaddr offset,
     case 0x528: /* Analog mode select */
         return s->amsel;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "pl061_read: Bad offset %x\n", (int)offset);
-        return 0;
+        break;
     }
+err_out:
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "pl061_read: Bad offset %x\n", (int)offset);
+    return 0;
 }
 
 static void pl061_write(void *opaque, hwaddr offset,
@@ -215,6 +221,9 @@ static void pl061_write(void *opaque, hwaddr offset,
         s->data = (s->data & ~mask) | (value & mask);
         pl061_update(s);
         return;
+    }
+    if (offset >= s->rsvd_start) {
+        goto err_out;
     }
     switch (offset) {
     case 0x400: /* Direction */
@@ -274,10 +283,13 @@ static void pl061_write(void *opaque, hwaddr offset,
         s->amsel = value & 0xff;
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "pl061_write: Bad offset %x\n", (int)offset);
+        goto err_out;
     }
     pl061_update(s);
+    return;
+err_out:
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "pl061_write: Bad offset %x\n", (int)offset);
 }
 
 static void pl061_reset(DeviceState *dev)
@@ -347,6 +359,7 @@ static void pl061_luminary_init(Object *obj)
     PL061State *s = PL061(obj);
 
     s->id = pl061_id_luminary;
+    s->rsvd_start = 0x52c;
 }
 
 static void pl061_init(Object *obj)
@@ -354,6 +367,7 @@ static void pl061_init(Object *obj)
     PL061State *s = PL061(obj);
 
     s->id = pl061_id;
+    s->rsvd_start = 0x424;
 }
 
 static void pl061_class_init(ObjectClass *klass, void *data)
