@@ -76,10 +76,6 @@
 #define ACPI_BUILD_DPRINTF(fmt, ...)
 #endif
 
-typedef struct AcpiCpuInfo {
-    DECLARE_BITMAP(found_cpus, ACPI_CPU_HOTPLUG_ID_LIMIT);
-} AcpiCpuInfo;
-
 typedef struct AcpiMcfgInfo {
     uint64_t mcfg_base;
     uint32_t mcfg_size;
@@ -120,31 +116,6 @@ typedef struct AcpiBuildPciBusHotplugState {
     struct AcpiBuildPciBusHotplugState *parent;
     bool pcihp_bridge_en;
 } AcpiBuildPciBusHotplugState;
-
-static
-int acpi_add_cpu_info(Object *o, void *opaque)
-{
-    AcpiCpuInfo *cpu = opaque;
-    uint64_t apic_id;
-
-    if (object_dynamic_cast(o, TYPE_CPU)) {
-        apic_id = object_property_get_int(o, "apic-id", NULL);
-        assert(apic_id < ACPI_CPU_HOTPLUG_ID_LIMIT);
-
-        set_bit(apic_id, cpu->found_cpus);
-    }
-
-    object_child_foreach(o, acpi_add_cpu_info, opaque);
-    return 0;
-}
-
-static void acpi_get_cpu_info(AcpiCpuInfo *cpu)
-{
-    Object *root = object_get_root();
-
-    memset(cpu->found_cpus, 0, sizeof cpu->found_cpus);
-    object_child_foreach(root, acpi_add_cpu_info, cpu);
-}
 
 static void acpi_get_pm_info(AcpiPmInfo *pm)
 {
@@ -966,9 +937,9 @@ static Aml *build_crs(PCIHostState *host,
 }
 
 static void build_processor_devices(Aml *sb_scope, MachineState *machine,
-                                    AcpiCpuInfo *cpu, AcpiPmInfo *pm)
+                                    AcpiPmInfo *pm)
 {
-    int i;
+    int i, apic_idx;
     Aml *dev;
     Aml *crs;
     Aml *pkg;
@@ -1011,6 +982,7 @@ static void build_processor_devices(Aml *sb_scope, MachineState *machine,
         int apic_id = apic_ids->cpus[i].arch_id;
 
         assert(apic_id < ACPI_CPU_HOTPLUG_ID_LIMIT);
+
         dev = aml_processor(apic_id, 0, 0, "CP%.02X", apic_id);
 
         method = aml_method("_MAT", 0, AML_NOTSERIALIZED);
@@ -1059,9 +1031,14 @@ static void build_processor_devices(Aml *sb_scope, MachineState *machine,
     pkg = pcms->apic_id_limit <= 255 ? aml_package(pcms->apic_id_limit) :
                                        aml_varpackage(pcms->apic_id_limit);
 
-    for (i = 0; i < pcms->apic_id_limit; i++) {
-        uint8_t b = test_bit(i, cpu->found_cpus) ? 0x01 : 0x00;
-        aml_append(pkg, aml_int(b));
+    for (i = 0, apic_idx = 0; i < apic_ids->len; i++) {
+        int apic_id = apic_ids->cpus[i].arch_id;
+
+        for (; apic_idx < apic_id; apic_idx++) {
+            aml_append(pkg, aml_int(0));
+        }
+        aml_append(pkg, aml_int(apic_ids->cpus[i].cpu ? 1 : 0));
+        apic_idx = apic_id + 1;
     }
     aml_append(sb_scope, aml_name_decl(CPU_ON_BITMAP, pkg));
     g_free(apic_ids);
@@ -2000,7 +1977,7 @@ static Aml *build_q35_osc_method(void)
 
 static void
 build_dsdt(GArray *table_data, GArray *linker,
-           AcpiCpuInfo *cpu, AcpiPmInfo *pm, AcpiMiscInfo *misc,
+           AcpiPmInfo *pm, AcpiMiscInfo *misc,
            PcPciInfo *pci, MachineState *machine)
 {
     CrsRangeEntry *entry;
@@ -2337,7 +2314,7 @@ build_dsdt(GArray *table_data, GArray *linker,
 
     sb_scope = aml_scope("\\_SB");
     {
-        build_processor_devices(sb_scope, machine, cpu, pm);
+        build_processor_devices(sb_scope, machine, pm);
 
         build_memory_devices(sb_scope, nr_mem, pm->mem_hp_io_base,
                              pm->mem_hp_io_len);
@@ -2683,7 +2660,6 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
     GArray *table_offsets;
     unsigned facs, dsdt, rsdt, fadt;
-    AcpiCpuInfo cpu;
     AcpiPmInfo pm;
     AcpiMiscInfo misc;
     AcpiMcfgInfo mcfg;
@@ -2693,7 +2669,6 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     GArray *tables_blob = tables->table_data;
     AcpiSlicOem slic_oem = { .id = NULL, .table_id = NULL };
 
-    acpi_get_cpu_info(&cpu);
     acpi_get_pm_info(&pm);
     acpi_get_misc_info(&misc);
     acpi_get_pci_info(&pci);
@@ -2717,7 +2692,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
 
     /* DSDT is pointed to by FADT */
     dsdt = tables_blob->len;
-    build_dsdt(tables_blob, tables->linker, &cpu, &pm, &misc, &pci, machine);
+    build_dsdt(tables_blob, tables->linker, &pm, &misc, &pci, machine);
 
     /* Count the size of the DSDT and SSDT, we will need it for legacy
      * sizing of ACPI tables.
