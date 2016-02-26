@@ -712,7 +712,7 @@ static int ics_find_free_block(ICSState *ics, int num, int alignnum)
     return -1;
 }
 
-int xics_alloc(XICSState *icp, int src, int irq_hint, bool lsi)
+int xics_alloc(XICSState *icp, int src, int irq_hint, bool lsi, Error **errp)
 {
     ICSState *ics = &icp->ics[src];
     int irq;
@@ -720,14 +720,14 @@ int xics_alloc(XICSState *icp, int src, int irq_hint, bool lsi)
     if (irq_hint) {
         assert(src == xics_find_source(icp, irq_hint));
         if (!ICS_IRQ_FREE(ics, irq_hint - ics->offset)) {
-            trace_xics_alloc_failed_hint(src, irq_hint);
+            error_setg(errp, "can't allocate IRQ %d: already in use", irq_hint);
             return -1;
         }
         irq = irq_hint;
     } else {
         irq = ics_find_free_block(ics, 1, 1);
         if (irq < 0) {
-            trace_xics_alloc_failed_no_left(src);
+            error_setg(errp, "can't allocate IRQ: no IRQ left");
             return -1;
         }
         irq += ics->offset;
@@ -743,7 +743,8 @@ int xics_alloc(XICSState *icp, int src, int irq_hint, bool lsi)
  * Allocate block of consecutive IRQs, and return the number of the first IRQ in the block.
  * If align==true, aligns the first IRQ number to num.
  */
-int xics_alloc_block(XICSState *icp, int src, int num, bool lsi, bool align)
+int xics_alloc_block(XICSState *icp, int src, int num, bool lsi, bool align,
+                     Error **errp)
 {
     int i, first = -1;
     ICSState *ics = &icp->ics[src];
@@ -762,6 +763,10 @@ int xics_alloc_block(XICSState *icp, int src, int num, bool lsi, bool align)
         first = ics_find_free_block(ics, num, num);
     } else {
         first = ics_find_free_block(ics, num, 1);
+    }
+    if (first < 0) {
+        error_setg(errp, "can't find a free %d-IRQ block", num);
+        return -1;
     }
 
     if (first >= 0) {

@@ -280,6 +280,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     PCIDevice *pdev = NULL;
     spapr_pci_msi *msi;
     int *config_addr_key;
+    Error *err = NULL;
 
     switch (func) {
     case RTAS_CHANGE_MSI_FN:
@@ -354,9 +355,10 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     /* Allocate MSIs */
     irq = xics_alloc_block(spapr->icp, 0, req_num, false,
-                           ret_intr_type == RTAS_TYPE_MSI);
-    if (!irq) {
-        error_report("Cannot allocate MSIs for device %x", config_addr);
+                           ret_intr_type == RTAS_TYPE_MSI, &err);
+    if (err) {
+        error_reportf_err(err, "Can't allocate MSIs for device %x: ",
+                          config_addr);
         rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
         return;
     }
@@ -1367,10 +1369,12 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     /* Initialize the LSI table */
     for (i = 0; i < PCI_NUM_PINS; i++) {
         uint32_t irq;
+        Error *local_err = NULL;
 
-        irq = xics_alloc_block(spapr->icp, 0, 1, true, false);
-        if (!irq) {
-            error_setg(errp, "spapr_allocate_lsi failed");
+        irq = xics_alloc_block(spapr->icp, 0, 1, true, false, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_prepend(errp, "can't allocate LSIs: ");
             return;
         }
 
