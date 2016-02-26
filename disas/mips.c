@@ -1405,6 +1405,10 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"cmp.sor.d",  "D,S,T", 0x46a00019, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
 {"cmp.sune.d", "D,S,T", 0x46a0001a, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
 {"cmp.sne.d",  "D,S,T", 0x46a0001b, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"dvp",        "",      0x41600024, 0xffffffff, TRAP,                 0, I32R6},
+{"dvp",        "t",     0x41600024, 0xffe0ffff, TRAP|WR_t,            0, I32R6},
+{"evp",        "",      0x41600004, 0xffffffff, TRAP,                 0, I32R6},
+{"evp",        "t",     0x41600004, 0xffe0ffff, TRAP|WR_t,            0, I32R6},
 
 /* MSA */
 {"sll.b",   "+d,+e,+f", 0x7800000d, 0xffe0003f, WR_VD|RD_VS|RD_VT,  0, MSA},
