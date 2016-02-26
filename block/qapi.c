@@ -355,6 +355,9 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
     qapi_free_BlockInfo(info);
 }
 
+static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
+                                    bool query_backing);
+
 static void bdrv_query_blk_stats(BlockStats *s, BlockBackend *blk)
 {
     BlockAcctStats *stats = blk_get_stats(blk);
@@ -422,13 +425,9 @@ static void bdrv_query_blk_stats(BlockStats *s, BlockBackend *blk)
     }
 }
 
-static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
-                                    bool query_backing)
+static void bdrv_query_bds_stats(BlockStats *s, const BlockDriverState *bs,
+                                 bool query_backing)
 {
-    BlockStats *s;
-
-    s = g_malloc0(sizeof(*s));
-
     if (bdrv_get_device_name(bs)[0]) {
         s->has_device = true;
         s->device = g_strdup(bdrv_get_device_name(bs));
@@ -437,11 +436,6 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
     if (bdrv_get_node_name(bs)[0]) {
         s->has_node_name = true;
         s->node_name = g_strdup(bdrv_get_node_name(bs));
-    }
-
-    s->stats = g_malloc0(sizeof(*s->stats));
-    if (bs->blk) {
-        bdrv_query_blk_stats(s, bs->blk);
     }
 
     s->stats->wr_highest_offset = bs->wr_highest_offset;
@@ -455,6 +449,21 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
         s->has_backing = true;
         s->backing = bdrv_query_stats(bs->backing->bs, query_backing);
     }
+
+}
+
+static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
+                                    bool query_backing)
+{
+    BlockStats *s;
+
+    s = g_malloc0(sizeof(*s));
+    s->stats = g_malloc0(sizeof(*s->stats));
+
+    if (bs->blk) {
+        bdrv_query_blk_stats(s, bs->blk);
+    }
+    bdrv_query_bds_stats(s, bs, query_backing);
 
     return s;
 }
