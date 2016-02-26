@@ -360,6 +360,12 @@ build_madt(GArray *table_data, GArray *linker, PCMachineState *pcms)
         if (apic_ids->cpus[i].cpu != NULL) {
             apic->flags = cpu_to_le32(1);
         } else {
+            /* ACPI spec says that LAPIC entry for non present
+             * CPU may be omitted from MADT or it must be marked
+             * as disabled. However omitting non present CPU from
+             * MADT breaks hotplug on linux. So possible CPUs
+             * should be put in MADT but kept disabled.
+             */
             apic->flags = cpu_to_le32(0);
         }
     }
