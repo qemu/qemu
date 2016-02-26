@@ -329,7 +329,7 @@ void bdrv_aio_cancel(BlockAIOCB *acb);
 void bdrv_aio_cancel_async(BlockAIOCB *acb);
 
 typedef struct BlockRequest {
-    /* Fields to be filled by multiwrite caller */
+    /* Fields to be filled by caller */
     union {
         struct {
             int64_t sector;
@@ -345,12 +345,9 @@ typedef struct BlockRequest {
     BlockCompletionFunc *cb;
     void *opaque;
 
-    /* Filled by multiwrite implementation */
+    /* Filled by block layer */
     int error;
 } BlockRequest;
-
-int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs,
-    int num_reqs);
 
 /* sg packet commands */
 int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf);

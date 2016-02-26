@@ -248,14 +248,6 @@ sector = "%d"
         if failed_wr_ops > 0:
             highest_offset = max(highest_offset, bad_offset + 512)
 
-        for i in range(wr_merged):
-            first = i * wr_size * 2
-            second = first + wr_size
-            ops.append("multiwrite %d %d ; %d %d" %
-                       (first, wr_size, second, wr_size))
-
-        highest_offset = max(highest_offset, wr_merged * wr_size * 2)
-
         # Now perform all operations
         for op in ops:
             self.vm.hmp_qemu_io("drive0", op)
@@ -309,19 +301,15 @@ sector = "%d"
     def test_flush(self):
         self.do_test_stats(flush_ops = 8)
 
-    def test_merged(self):
-        for i in range(5):
-            self.do_test_stats(wr_merged = i * 3)
-
     def test_all(self):
         # rd_size, rd_ops, wr_size, wr_ops, flush_ops
         # invalid_rd_ops,  invalid_wr_ops,
         # failed_rd_ops,   failed_wr_ops
         # wr_merged
-        test_values = [[512,    1, 512,   1, 1, 4, 7, 5, 2, 1],
-                       [65536,  1, 2048, 12, 7, 7, 5, 2, 5, 5],
-                       [32768,  9, 8192,  1, 4, 3, 2, 4, 6, 4],
-                       [16384, 11, 3584, 16, 9, 8, 6, 7, 3, 4]]
+        test_values = [[512,    1, 512,   1, 1, 4, 7, 5, 2, 0],
+                       [65536,  1, 2048, 12, 7, 7, 5, 2, 5, 0],
+                       [32768,  9, 8192,  1, 4, 3, 2, 4, 6, 0],
+                       [16384, 11, 3584, 16, 9, 8, 6, 7, 3, 0]]
         for i in test_values:
             self.do_test_stats(*i)
 

@@ -1067,20 +1067,6 @@ void blk_aio_cancel_async(BlockAIOCB *acb)
     bdrv_aio_cancel_async(acb);
 }
 
-int blk_aio_multiwrite(BlockBackend *blk, BlockRequest *reqs, int num_reqs)
-{
-    int i, ret;
-
-    for (i = 0; i < num_reqs; i++) {
-        ret = blk_check_request(blk, reqs[i].sector, reqs[i].nb_sectors);
-        if (ret < 0) {
-            return ret;
-        }
-    }
-
-    return bdrv_aio_multiwrite(blk_bs(blk), reqs, num_reqs);
-}
-
 int blk_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
 {
     if (!blk_is_available(blk)) {

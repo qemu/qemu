@@ -106,7 +106,7 @@
 097 rw auto backing
 098 rw auto backing quick
 099 rw auto quick
-100 rw auto quick
+# 100 was removed, do not reuse
 101 rw auto quick
 102 rw auto quick
 103 rw auto quick

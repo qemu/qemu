@@ -138,7 +138,6 @@ BlockAIOCB *blk_aio_discard(BlockBackend *blk,
                             BlockCompletionFunc *cb, void *opaque);
 void blk_aio_cancel(BlockAIOCB *acb);
 void blk_aio_cancel_async(BlockAIOCB *acb);
-int blk_aio_multiwrite(BlockBackend *blk, BlockRequest *reqs, int num_reqs);
 int blk_ioctl(BlockBackend *blk, unsigned long int req, void *buf);
 BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
                           BlockCompletionFunc *cb, void *opaque);
