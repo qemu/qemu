@@ -362,9 +362,10 @@ build_fadt(GArray *table_data, GArray *linker, AcpiPmInfo *pm,
 }
 
 static void
-build_madt(GArray *table_data, GArray *linker, PCMachineState *pcms,
-           AcpiCpuInfo *cpu)
+build_madt(GArray *table_data, GArray *linker, PCMachineState *pcms)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(pcms);
+    CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(MACHINE(pcms));
     int madt_start = table_data->len;
 
     AcpiMultipleApicTable *madt;
@@ -377,18 +378,22 @@ build_madt(GArray *table_data, GArray *linker, PCMachineState *pcms,
     madt->local_apic_address = cpu_to_le32(APIC_DEFAULT_ADDRESS);
     madt->flags = cpu_to_le32(1);
 
-    for (i = 0; i < pcms->apic_id_limit; i++) {
+    for (i = 0; i < apic_ids->len; i++) {
         AcpiMadtProcessorApic *apic = acpi_data_push(table_data, sizeof *apic);
+        int apic_id = apic_ids->cpus[i].arch_id;
+
         apic->type = ACPI_APIC_PROCESSOR;
         apic->length = sizeof(*apic);
-        apic->processor_id = i;
-        apic->local_apic_id = i;
-        if (test_bit(i, cpu->found_cpus)) {
+        apic->processor_id = apic_id;
+        apic->local_apic_id = apic_id;
+        if (apic_ids->cpus[i].cpu != NULL) {
             apic->flags = cpu_to_le32(1);
         } else {
             apic->flags = cpu_to_le32(0);
         }
     }
+    g_free(apic_ids);
+
     io_apic = acpi_data_push(table_data, sizeof *io_apic);
     io_apic->type = ACPI_APIC_IO;
     io_apic->length = sizeof(*io_apic);
@@ -2717,7 +2722,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     aml_len += tables_blob->len - fadt;
 
     acpi_add_table(table_offsets, tables_blob);
-    build_madt(tables_blob, tables->linker, pcms, &cpu);
+    build_madt(tables_blob, tables->linker, pcms);
 
     if (misc.has_hpet) {
         acpi_add_table(table_offsets, tables_blob);
