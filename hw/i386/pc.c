@@ -699,18 +699,6 @@ static uint32_t x86_cpu_apic_id_from_index(unsigned int cpu_index)
     }
 }
 
-/* Calculates the limit to CPU APIC ID values
- *
- * This function returns the limit for the APIC ID value, so that all
- * CPU APIC IDs are < pc_apic_id_limit().
- *
- * This is used for FW_CFG_MAX_CPUS. See comments on bochs_bios_init().
- */
-static unsigned int pc_apic_id_limit(unsigned int max_cpus)
-{
-    return x86_cpu_apic_id_from_index(max_cpus - 1) + 1;
-}
-
 static void pc_build_smbios(FWCfgState *fw_cfg)
 {
     uint8_t *smbios_tables, *smbios_anchor;
@@ -748,12 +736,11 @@ static void pc_build_smbios(FWCfgState *fw_cfg)
     }
 }
 
-static FWCfgState *bochs_bios_init(AddressSpace *as)
+static FWCfgState *bochs_bios_init(AddressSpace *as, PCMachineState *pcms)
 {
     FWCfgState *fw_cfg;
     uint64_t *numa_fw_cfg;
     int i, j;
-    unsigned int apic_id_limit = pc_apic_id_limit(max_cpus);
 
     fw_cfg = fw_cfg_init_io_dma(FW_CFG_IO_BASE, FW_CFG_IO_BASE + 4, as);
 
@@ -771,7 +758,7 @@ static FWCfgState *bochs_bios_init(AddressSpace *as)
      * [1] The only kind of "CPU identifier" used between SeaBIOS and QEMU is
      *     the APIC ID, not the "CPU index"
      */
-    fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, (uint16_t)apic_id_limit);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, (uint16_t)pcms->apic_id_limit);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
     fw_cfg_add_bytes(fw_cfg, FW_CFG_ACPI_TABLES,
                      acpi_tables, acpi_tables_len);
@@ -789,11 +776,11 @@ static FWCfgState *bochs_bios_init(AddressSpace *as)
      * of nodes, one word for each VCPU->node and one word for each node to
      * hold the amount of memory.
      */
-    numa_fw_cfg = g_new0(uint64_t, 1 + apic_id_limit + nb_numa_nodes);
+    numa_fw_cfg = g_new0(uint64_t, 1 + pcms->apic_id_limit + nb_numa_nodes);
     numa_fw_cfg[0] = cpu_to_le64(nb_numa_nodes);
     for (i = 0; i < max_cpus; i++) {
         unsigned int apic_id = x86_cpu_apic_id_from_index(i);
-        assert(apic_id < apic_id_limit);
+        assert(apic_id < pcms->apic_id_limit);
         for (j = 0; j < nb_numa_nodes; j++) {
             if (test_bit(i, numa_info[j].node_cpu)) {
                 numa_fw_cfg[apic_id + 1] = cpu_to_le64(j);
@@ -802,10 +789,11 @@ static FWCfgState *bochs_bios_init(AddressSpace *as)
         }
     }
     for (i = 0; i < nb_numa_nodes; i++) {
-        numa_fw_cfg[apic_id_limit + 1 + i] = cpu_to_le64(numa_info[i].node_mem);
+        numa_fw_cfg[pcms->apic_id_limit + 1 + i] =
+            cpu_to_le64(numa_info[i].node_mem);
     }
     fw_cfg_add_bytes(fw_cfg, FW_CFG_NUMA, numa_fw_cfg,
-                     (1 + apic_id_limit + nb_numa_nodes) *
+                     (1 + pcms->apic_id_limit + nb_numa_nodes) *
                      sizeof(*numa_fw_cfg));
 
     return fw_cfg;
@@ -1119,7 +1107,6 @@ void pc_cpus_init(PCMachineState *pcms)
     int i;
     X86CPU *cpu = NULL;
     MachineState *machine = MACHINE(pcms);
-    unsigned long apic_id_limit;
 
     /* init CPUs */
     if (machine->cpu_model == NULL) {
@@ -1130,10 +1117,17 @@ void pc_cpus_init(PCMachineState *pcms)
 #endif
     }
 
-    apic_id_limit = pc_apic_id_limit(max_cpus);
-    if (apic_id_limit > ACPI_CPU_HOTPLUG_ID_LIMIT) {
-        error_report("max_cpus is too large. APIC ID of last CPU is %lu",
-                     apic_id_limit - 1);
+    /* Calculates the limit to CPU APIC ID values
+     *
+     * Limit for the APIC ID value, so that all
+     * CPU APIC IDs are < pcms->apic_id_limit.
+     *
+     * This is used for FW_CFG_MAX_CPUS. See comments on bochs_bios_init().
+     */
+    pcms->apic_id_limit = x86_cpu_apic_id_from_index(max_cpus - 1) + 1;
+    if (pcms->apic_id_limit > ACPI_CPU_HOTPLUG_ID_LIMIT) {
+        error_report("max_cpus is too large. APIC ID of last CPU is %u",
+                     pcms->apic_id_limit - 1);
         exit(1);
     }
 
@@ -1186,7 +1180,6 @@ void pc_guest_info_init(PCMachineState *pcms)
 {
     int i, j;
 
-    pcms->apic_id_limit = pc_apic_id_limit(max_cpus);
     pcms->apic_xrupt_override = kvm_allows_irq0_override();
     pcms->numa_nodes = nb_numa_nodes;
     pcms->node_mem = g_malloc0(pcms->numa_nodes *
@@ -1371,7 +1364,7 @@ void pc_memory_init(PCMachineState *pcms,
                                         option_rom_mr,
                                         1);
 
-    fw_cfg = bochs_bios_init(&address_space_memory);
+    fw_cfg = bochs_bios_init(&address_space_memory, pcms);
 
     rom_set_fw(fw_cfg);
 
