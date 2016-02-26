@@ -3276,7 +3276,7 @@ re-inject them.
 ETEXI
 
 DEF("icount", HAS_ARG, QEMU_OPTION_icount, \
-    "-icount [shift=N|auto][,align=on|off][,sleep=no,rr=record|replay,rrfile=<filename>]\n" \
+    "-icount [shift=N|auto][,align=on|off][,sleep=on|off,rr=record|replay,rrfile=<filename>]\n" \
     "                enable virtual instruction counter with 2^N clock ticks per\n" \
     "                instruction, enable aligning the host and virtual clocks\n" \
     "                or disable real time cpu sleeping\n", QEMU_ARCH_ALL)
@@ -3289,8 +3289,8 @@ then the virtual cpu speed will be automatically adjusted to keep virtual
 time within a few seconds of real time.
 
 When the virtual cpu is sleeping, the virtual time will advance at default
-speed unless @option{sleep=no} is specified.
-With @option{sleep=no}, the virtual time will jump to the next timer deadline
+speed unless @option{sleep=on|off} is specified.
+With @option{sleep=on|off}, the virtual time will jump to the next timer deadline
 instantly whenever the virtual cpu goes to sleep mode and will not advance
 if no timer is enabled. This behavior give deterministic execution times from
 the guest point of view.

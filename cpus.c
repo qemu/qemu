@@ -630,7 +630,7 @@ void configure_icount(QemuOpts *opts, Error **errp)
     icount_align_option = qemu_opt_get_bool(opts, "align", false);
 
     if (icount_align_option && !icount_sleep) {
-        error_setg(errp, "align=on and sleep=no are incompatible");
+        error_setg(errp, "align=on and sleep=off are incompatible");
     }
     if (strcmp(option, "auto") != 0) {
         errno = 0;
@@ -643,7 +643,7 @@ void configure_icount(QemuOpts *opts, Error **errp)
     } else if (icount_align_option) {
         error_setg(errp, "shift=auto and align=on are incompatible");
     } else if (!icount_sleep) {
-        error_setg(errp, "shift=auto and sleep=no are incompatible");
+        error_setg(errp, "shift=auto and sleep=off are incompatible");
     }
 
     use_icount = 2;
