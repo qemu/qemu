@@ -2894,10 +2894,28 @@ const char *bdrv_get_node_name(const BlockDriverState *bs)
     return bs->node_name;
 }
 
+static const char *bdrv_get_parent_name(const BlockDriverState *bs)
+{
+    BdrvChild *c;
+    const char *name;
+
+    /* If multiple parents have a name, just pick the first one. */
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
+        if (c->role->get_name) {
+            name = c->role->get_name(c);
+            if (name && *name) {
+                return name;
+            }
+        }
+    }
+
+    return NULL;
+}
+
 /* TODO check what callers really want: bs->node_name or blk_name() */
 const char *bdrv_get_device_name(const BlockDriverState *bs)
 {
-    return bs->blk ? blk_name(bs->blk) : "";
+    return bdrv_get_parent_name(bs) ?: "";
 }
 
 /* This can be used to identify nodes that might not have a device
@@ -2906,7 +2924,7 @@ const char *bdrv_get_device_name(const BlockDriverState *bs)
  * absent, then this returns an empty (non-null) string. */
 const char *bdrv_get_device_or_node_name(const BlockDriverState *bs)
 {
-    return bs->blk ? blk_name(bs->blk) : bs->node_name;
+    return bdrv_get_parent_name(bs) ?: bs->node_name;
 }
 
 int bdrv_get_flags(BlockDriverState *bs)

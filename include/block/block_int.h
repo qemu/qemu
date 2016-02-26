@@ -368,6 +368,11 @@ struct BdrvChildRole {
     void (*change_media)(BdrvChild *child, bool load);
     void (*resize)(BdrvChild *child);
 
+    /* Returns a name that is supposedly more useful for human users than the
+     * node name for identifying the node in question (in particular, a BB
+     * name), or NULL if the parent can't provide a better name. */
+    const char* (*get_name)(BdrvChild *child);
+
     /*
      * If this pair of functions is implemented, the parent doesn't issue new
      * requests after returning from .drained_begin() until .drained_end() is

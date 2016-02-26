@@ -97,11 +97,17 @@ static void blk_root_drained_end(BdrvChild *child);
 static void blk_root_change_media(BdrvChild *child, bool load);
 static void blk_root_resize(BdrvChild *child);
 
+static const char *blk_root_get_name(BdrvChild *child)
+{
+    return blk_name(child->opaque);
+}
+
 static const BdrvChildRole child_root = {
     .inherit_options    = blk_root_inherit_options,
 
     .change_media       = blk_root_change_media,
     .resize             = blk_root_resize,
+    .get_name           = blk_root_get_name,
 
     .drained_begin      = blk_root_drained_begin,
     .drained_end        = blk_root_drained_end,
