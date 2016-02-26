@@ -180,8 +180,8 @@ aliases that leave holes then the lower priority region will appear in these
 holes too.)
 
 For example, suppose we have a container A of size 0x8000 with two subregions
-B and C. B is a container mapped at 0x2000, size 0x4000, priority 1; C is
-an MMIO region mapped at 0x0, size 0x6000, priority 2. B currently has two
+B and C. B is a container mapped at 0x2000, size 0x4000, priority 2; C is
+an MMIO region mapped at 0x0, size 0x6000, priority 1. B currently has two
 of its own subregions: D of size 0x1000 at offset 0 and E of size 0x1000 at
 offset 0x2000. As a diagram:
 
