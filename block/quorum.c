@@ -767,19 +767,30 @@ static coroutine_fn int quorum_co_flush(BlockDriverState *bs)
     QuorumVoteValue result_value;
     int i;
     int result = 0;
+    int success_count = 0;
 
     QLIST_INIT(&error_votes.vote_list);
     error_votes.compare = quorum_64bits_compare;
 
     for (i = 0; i < s->num_children; i++) {
         result = bdrv_co_flush(s->children[i]->bs);
-        result_value.l = result;
-        quorum_count_vote(&error_votes, &result_value, i);
+        if (result) {
+            quorum_report_bad(QUORUM_OP_TYPE_FLUSH, 0,
+                              bdrv_nb_sectors(s->children[i]->bs),
+                              s->children[i]->bs->node_name, result);
+            result_value.l = result;
+            quorum_count_vote(&error_votes, &result_value, i);
+        } else {
+            success_count++;
+        }
     }
 
-    winner = quorum_get_vote_winner(&error_votes);
-    result = winner->value.l;
-
+    if (success_count >= s->threshold) {
+        result = 0;
+    } else {
+        winner = quorum_get_vote_winner(&error_votes);
+        result = winner->value.l;
+    }
     quorum_free_vote_list(&error_votes);
 
     return result;
