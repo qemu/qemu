@@ -337,7 +337,7 @@ Data:
 Example:
 
 { "event": "QUORUM_REPORT_BAD",
-     "data": { "node-name": "1.raw", "sector-num": 345435, "sectors-count": 5 },
+     "data": { "node-name": "node0", "sector-num": 345435, "sectors-count": 5 },
      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
 
 Note: this event is rate-limited.
