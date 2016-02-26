@@ -215,14 +215,16 @@ static QuorumAIOCB *quorum_aio_get(BDRVQuorumState *s,
     return acb;
 }
 
-static void quorum_report_bad(QuorumAIOCB *acb, char *node_name, int ret)
+static void quorum_report_bad(QuorumOpType type, uint64_t sector_num,
+                              int nb_sectors, char *node_name, int ret)
 {
     const char *msg = NULL;
     if (ret < 0) {
         msg = strerror(-ret);
     }
-    qapi_event_send_quorum_report_bad(!!msg, msg, node_name,
-                                      acb->sector_num, acb->nb_sectors, &error_abort);
+
+    qapi_event_send_quorum_report_bad(type, !!msg, msg, node_name,
+                                      sector_num, nb_sectors, &error_abort);
 }
 
 static void quorum_report_failure(QuorumAIOCB *acb)
@@ -282,6 +284,7 @@ static void quorum_aio_cb(void *opaque, int ret)
     QuorumChildRequest *sacb = opaque;
     QuorumAIOCB *acb = sacb->parent;
     BDRVQuorumState *s = acb->common.bs->opaque;
+    QuorumOpType type;
     bool rewrite = false;
 
     if (acb->is_read && s->read_pattern == QUORUM_READ_PATTERN_FIFO) {
@@ -300,12 +303,14 @@ static void quorum_aio_cb(void *opaque, int ret)
         return;
     }
 
+    type = acb->is_read ? QUORUM_OP_TYPE_READ : QUORUM_OP_TYPE_WRITE;
     sacb->ret = ret;
     acb->count++;
     if (ret == 0) {
         acb->success_count++;
     } else {
-        quorum_report_bad(acb, sacb->aiocb->bs->node_name, ret);
+        quorum_report_bad(type, acb->sector_num, acb->nb_sectors,
+                          sacb->aiocb->bs->node_name, ret);
     }
     assert(acb->count <= s->num_children);
     assert(acb->success_count <= s->num_children);
@@ -338,7 +343,9 @@ static void quorum_report_bad_versions(BDRVQuorumState *s,
             continue;
         }
         QLIST_FOREACH(item, &version->items, next) {
-            quorum_report_bad(acb, s->children[item->index]->bs->node_name, 0);
+            quorum_report_bad(QUORUM_OP_TYPE_READ, acb->sector_num,
+                              acb->nb_sectors,
+                              s->children[item->index]->bs->node_name, 0);
         }
     }
 }

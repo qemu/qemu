@@ -325,6 +325,8 @@
 #
 # Emitted to report a corruption of a Quorum file
 #
+# @type: quorum operation type (Since 2.6)
+#
 # @error: #optional, error message. Only present on failure. This field
 #         contains a human-readable error message. There are no semantics other
 #         than that the block layer reported an error and clients should not
@@ -339,7 +341,7 @@
 # Since: 2.0
 ##
 { 'event': 'QUORUM_REPORT_BAD',
-  'data': { '*error': 'str', 'node-name': 'str',
+  'data': { 'type': 'QuorumOpType', '*error': 'str', 'node-name': 'str',
             'sector-num': 'int', 'sectors-count': 'int' } }
 
 ##

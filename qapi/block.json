@@ -196,3 +196,19 @@
 ##
 { 'event': 'DEVICE_TRAY_MOVED',
   'data': { 'device': 'str', 'tray-open': 'bool' } }
+
+##
+# @QuorumOpType
+#
+# An enumeration of the quorum operation types
+#
+# @read: read operation
+#
+# @write: write operation
+#
+# @flush: flush operation
+#
+# Since: 2.6
+##
+{ 'enum': 'QuorumOpType',
+  'data': [ 'read', 'write', 'flush' ] }
