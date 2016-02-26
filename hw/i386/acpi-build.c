@@ -362,9 +362,9 @@ build_fadt(GArray *table_data, GArray *linker, AcpiPmInfo *pm,
 }
 
 static void
-build_madt(GArray *table_data, GArray *linker, AcpiCpuInfo *cpu)
+build_madt(GArray *table_data, GArray *linker, PCMachineState *pcms,
+           AcpiCpuInfo *cpu)
 {
-    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
     int madt_start = table_data->len;
 
     AcpiMultipleApicTable *madt;
@@ -1986,13 +1986,12 @@ static Aml *build_q35_osc_method(void)
 static void
 build_dsdt(GArray *table_data, GArray *linker,
            AcpiCpuInfo *cpu, AcpiPmInfo *pm, AcpiMiscInfo *misc,
-           PcPciInfo *pci)
+           PcPciInfo *pci, MachineState *machine)
 {
     CrsRangeEntry *entry;
     Aml *dsdt, *sb_scope, *scope, *dev, *method, *field, *pkg, *crs;
     GPtrArray *mem_ranges = g_ptr_array_new_with_free_func(crs_range_free);
     GPtrArray *io_ranges = g_ptr_array_new_with_free_func(crs_range_free);
-    MachineState *machine = MACHINE(qdev_get_machine());
     PCMachineState *pcms = PC_MACHINE(machine);
     uint32_t nr_mem = machine->ram_slots;
     int root_bus_limit = 0xFF;
@@ -2444,7 +2443,7 @@ acpi_build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
 }
 
 static void
-build_srat(GArray *table_data, GArray *linker)
+build_srat(GArray *table_data, GArray *linker, MachineState *machine)
 {
     AcpiSystemResourceAffinityTable *srat;
     AcpiSratProcessorAffinity *core;
@@ -2454,7 +2453,7 @@ build_srat(GArray *table_data, GArray *linker)
     uint64_t curnode;
     int srat_start, numa_start, slots;
     uint64_t mem_len, mem_base, next_base;
-    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+    PCMachineState *pcms = PC_MACHINE(machine);
     ram_addr_t hotplugabble_address_space_size =
         object_property_get_int(OBJECT(pcms), PC_MACHINE_MEMHP_REGION_SIZE,
                                 NULL);
@@ -2658,9 +2657,9 @@ static bool acpi_has_iommu(void)
 }
 
 static
-void acpi_build(AcpiBuildTables *tables)
+void acpi_build(AcpiBuildTables *tables, MachineState *machine)
 {
-    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+    PCMachineState *pcms = PC_MACHINE(machine);
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
     GArray *table_offsets;
     unsigned facs, dsdt, rsdt, fadt;
@@ -2698,7 +2697,7 @@ void acpi_build(AcpiBuildTables *tables)
 
     /* DSDT is pointed to by FADT */
     dsdt = tables_blob->len;
-    build_dsdt(tables_blob, tables->linker, &cpu, &pm, &misc, &pci);
+    build_dsdt(tables_blob, tables->linker, &cpu, &pm, &misc, &pci, machine);
 
     /* Count the size of the DSDT and SSDT, we will need it for legacy
      * sizing of ACPI tables.
@@ -2713,7 +2712,7 @@ void acpi_build(AcpiBuildTables *tables)
     aml_len += tables_blob->len - fadt;
 
     acpi_add_table(table_offsets, tables_blob);
-    build_madt(tables_blob, tables->linker, &cpu);
+    build_madt(tables_blob, tables->linker, pcms, &cpu);
 
     if (misc.has_hpet) {
         acpi_add_table(table_offsets, tables_blob);
@@ -2730,7 +2729,7 @@ void acpi_build(AcpiBuildTables *tables)
     }
     if (pcms->numa_nodes) {
         acpi_add_table(table_offsets, tables_blob);
-        build_srat(tables_blob, tables->linker);
+        build_srat(tables_blob, tables->linker, machine);
     }
     if (acpi_get_mcfg(&mcfg)) {
         acpi_add_table(table_offsets, tables_blob);
@@ -2740,7 +2739,6 @@ void acpi_build(AcpiBuildTables *tables)
         acpi_add_table(table_offsets, tables_blob);
         build_dmar_q35(tables_blob, tables->linker);
     }
-
     if (pcms->acpi_nvdimm_state.is_enabled) {
         nvdimm_build_acpi(table_offsets, tables_blob, tables->linker);
     }
@@ -2835,7 +2833,7 @@ static void acpi_build_update(void *build_opaque)
 
     acpi_build_tables_init(&tables);
 
-    acpi_build(&tables);
+    acpi_build(&tables, MACHINE(qdev_get_machine()));
 
     acpi_ram_update(build_state->table_mr, tables.table_data);
 
@@ -2900,7 +2898,7 @@ void acpi_setup(void)
     acpi_set_pci_info();
 
     acpi_build_tables_init(&tables);
-    acpi_build(&tables);
+    acpi_build(&tables, MACHINE(pcms));
 
     /* Now expose it all to Guest */
     build_state->table_mr = acpi_add_rom_blob(build_state, tables.table_data,
