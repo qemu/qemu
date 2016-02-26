@@ -355,13 +355,17 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
     qapi_free_BlockInfo(info);
 }
 
-static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
+static BlockStats *bdrv_query_stats(BlockBackend *blk,
+                                    const BlockDriverState *bs,
                                     bool query_backing);
 
 static void bdrv_query_blk_stats(BlockStats *s, BlockBackend *blk)
 {
     BlockAcctStats *stats = blk_get_stats(blk);
     BlockAcctTimedStats *ts = NULL;
+
+    s->has_device = true;
+    s->device = g_strdup(blk_name(blk));
 
     s->stats->rd_bytes = stats->nr_bytes[BLOCK_ACCT_READ];
     s->stats->wr_bytes = stats->nr_bytes[BLOCK_ACCT_WRITE];
@@ -428,11 +432,6 @@ static void bdrv_query_blk_stats(BlockStats *s, BlockBackend *blk)
 static void bdrv_query_bds_stats(BlockStats *s, const BlockDriverState *bs,
                                  bool query_backing)
 {
-    if (bdrv_get_device_name(bs)[0]) {
-        s->has_device = true;
-        s->device = g_strdup(bdrv_get_device_name(bs));
-    }
-
     if (bdrv_get_node_name(bs)[0]) {
         s->has_node_name = true;
         s->node_name = g_strdup(bdrv_get_node_name(bs));
@@ -442,17 +441,18 @@ static void bdrv_query_bds_stats(BlockStats *s, const BlockDriverState *bs,
 
     if (bs->file) {
         s->has_parent = true;
-        s->parent = bdrv_query_stats(bs->file->bs, query_backing);
+        s->parent = bdrv_query_stats(NULL, bs->file->bs, query_backing);
     }
 
     if (query_backing && bs->backing) {
         s->has_backing = true;
-        s->backing = bdrv_query_stats(bs->backing->bs, query_backing);
+        s->backing = bdrv_query_stats(NULL, bs->backing->bs, query_backing);
     }
 
 }
 
-static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
+static BlockStats *bdrv_query_stats(BlockBackend *blk,
+                                    const BlockDriverState *bs,
                                     bool query_backing)
 {
     BlockStats *s;
@@ -460,10 +460,12 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
     s = g_malloc0(sizeof(*s));
     s->stats = g_malloc0(sizeof(*s->stats));
 
-    if (bs->blk) {
-        bdrv_query_blk_stats(s, bs->blk);
+    if (blk) {
+        bdrv_query_blk_stats(s, blk);
     }
-    bdrv_query_bds_stats(s, bs, query_backing);
+    if (bs) {
+        bdrv_query_bds_stats(s, bs, query_backing);
+    }
 
     return s;
 }
@@ -491,22 +493,38 @@ BlockInfoList *qmp_query_block(Error **errp)
     return head;
 }
 
+static bool next_query_bds(BlockBackend **blk, BlockDriverState **bs,
+                           bool query_nodes)
+{
+    if (query_nodes) {
+        *bs = bdrv_next_node(*bs);
+        return !!*bs;
+    }
+
+    *blk = blk_next(*blk);
+    *bs = *blk ? blk_bs(*blk) : NULL;
+
+    return !!*blk;
+}
+
 BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
                                      bool query_nodes,
                                      Error **errp)
 {
     BlockStatsList *head = NULL, **p_next = &head;
+    BlockBackend *blk = NULL;
     BlockDriverState *bs = NULL;
 
     /* Just to be safe if query_nodes is not always initialized */
     query_nodes = has_query_nodes && query_nodes;
 
-    while ((bs = query_nodes ? bdrv_next_node(bs) : bdrv_next(bs))) {
+    while (next_query_bds(&blk, &bs, query_nodes)) {
         BlockStatsList *info = g_malloc0(sizeof(*info));
-        AioContext *ctx = bdrv_get_aio_context(bs);
+        AioContext *ctx = blk ? blk_get_aio_context(blk)
+                              : bdrv_get_aio_context(bs);
 
         aio_context_acquire(ctx);
-        info->value = bdrv_query_stats(bs, !query_nodes);
+        info->value = bdrv_query_stats(blk, bs, !query_nodes);
         aio_context_release(ctx);
 
         *p_next = info;
