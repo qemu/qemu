@@ -26,6 +26,8 @@
 
 #include <hw/s390x/s390_flic.h>
 #include <hw/s390x/css.h>
+#include "ccw-device.h"
+#include "hw/s390x/css-bridge.h"
 
 #define VIRTIO_CCW_CU_TYPE 0x3832
 #define VIRTIO_CCW_CHPID_TYPE 0x32
@@ -65,7 +67,7 @@ typedef struct VirtioBusClass VirtioCcwBusClass;
 typedef struct VirtioCcwDevice VirtioCcwDevice;
 
 typedef struct VirtIOCCWDeviceClass {
-    DeviceClass parent_class;
+    CCWDeviceClass parent_class;
     void (*realize)(VirtioCcwDevice *dev, Error **errp);
     int (*exit)(VirtioCcwDevice *dev);
 } VirtIOCCWDeviceClass;
@@ -76,9 +78,7 @@ typedef struct VirtIOCCWDeviceClass {
 #define VIRTIO_CCW_FLAG_USE_IOEVENTFD   (1 << VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT)
 
 struct VirtioCcwDevice {
-    DeviceState parent_obj;
-    SubchDev *sch;
-    CssDevId bus_id;
+    CcwDevice parent_obj;
     int revision;
     uint32_t max_rev;
     VirtioBusState bus;
@@ -100,9 +100,6 @@ static inline int virtio_ccw_rev_max(VirtioCcwDevice *dev)
 {
     return dev->max_rev;
 }
-
-void virtio_ccw_busdev_unplug(HotplugHandler *hotplug_dev,
-                              DeviceState *dev, Error **errp);
 
 /* virtio-scsi-ccw */
 

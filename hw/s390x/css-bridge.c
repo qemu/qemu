@@ -11,12 +11,47 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "virtio-ccw.h"
 #include "hw/hotplug.h"
 #include "hw/sysbus.h"
 #include "qemu/bitops.h"
 #include "hw/s390x/css.h"
+#include "ccw-device.h"
 #include "hw/s390x/css-bridge.h"
+
+/*
+ * Invoke device-specific unplug handler, disable the subchannel
+ * (including sending a channel report to the guest) and remove the
+ * device from the virtual css bus.
+ */
+static void ccw_device_unplug(HotplugHandler *hotplug_dev,
+                              DeviceState *dev, Error **errp)
+{
+    CcwDevice *ccw_dev = CCW_DEVICE(dev);
+    CCWDeviceClass *k = CCW_DEVICE_GET_CLASS(ccw_dev);
+    SubchDev *sch = ccw_dev->sch;
+    Error *err = NULL;
+
+    if (k->unplug) {
+        k->unplug(hotplug_dev, dev, &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+    }
+
+    /*
+     * We should arrive here only for device_del, since we don't support
+     * direct hot(un)plug of channels.
+     */
+    assert(sch != NULL);
+    /* Subchannel is now disabled and no longer valid. */
+    sch->curr_status.pmcw.flags &= ~(PMCW_FLAGS_MASK_ENA |
+                                     PMCW_FLAGS_MASK_DNV);
+
+    css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid, 1, 0);
+
+    object_unparent(OBJECT(dev));
+}
 
 static void virtual_css_bus_reset(BusState *qbus)
 {
@@ -65,7 +100,7 @@ static void virtual_css_bridge_class_init(ObjectClass *klass, void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    hc->unplug = virtio_ccw_busdev_unplug;
+    hc->unplug = ccw_device_unplug;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
