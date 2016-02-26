@@ -104,6 +104,8 @@ struct MigrationIncomingState {
     QemuMutex rp_mutex;    /* We send replies from multiple threads */
     void     *postcopy_tmp_page;
 
+    QEMUBH *bh;
+
     int state;
     /* See savevm.c */
     LoadStateEntry_Head loadvm_handlers;

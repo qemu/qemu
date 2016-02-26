@@ -1088,12 +1088,11 @@ void qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only)
         json_prop_int(vmdesc, "instance_id", se->instance_id);
 
         save_section_header(f, se, QEMU_VM_SECTION_FULL);
-
         vmstate_save(f, se, vmdesc);
-
-        json_end_object(vmdesc);
         trace_savevm_section_end(se->idstr, se->section_id, 0);
         save_section_footer(f, se);
+
+        json_end_object(vmdesc);
     }
 
     if (!in_postcopy) {
@@ -1496,17 +1495,10 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
     return 0;
 }
 
-/* After all discards we can start running and asking for pages */
-static int loadvm_postcopy_handle_run(MigrationIncomingState *mis)
+static void loadvm_postcopy_handle_run_bh(void *opaque)
 {
-    PostcopyState ps = postcopy_state_set(POSTCOPY_INCOMING_RUNNING);
     Error *local_err = NULL;
-
-    trace_loadvm_postcopy_handle_run();
-    if (ps != POSTCOPY_INCOMING_LISTENING) {
-        error_report("CMD_POSTCOPY_RUN in wrong postcopy state (%d)", ps);
-        return -1;
-    }
+    MigrationIncomingState *mis = opaque;
 
     /* TODO we should move all of this lot into postcopy_ram.c or a shared code
      * in migration.c
@@ -1519,7 +1511,6 @@ static int loadvm_postcopy_handle_run(MigrationIncomingState *mis)
     bdrv_invalidate_cache_all(&local_err);
     if (local_err) {
         error_report_err(local_err);
-        return -1;
     }
 
     trace_loadvm_postcopy_handle_run_cpu_sync();
@@ -1534,6 +1525,23 @@ static int loadvm_postcopy_handle_run(MigrationIncomingState *mis)
         /* leave it paused and let management decide when to start the CPU */
         runstate_set(RUN_STATE_PAUSED);
     }
+
+    qemu_bh_delete(mis->bh);
+}
+
+/* After all discards we can start running and asking for pages */
+static int loadvm_postcopy_handle_run(MigrationIncomingState *mis)
+{
+    PostcopyState ps = postcopy_state_set(POSTCOPY_INCOMING_RUNNING);
+
+    trace_loadvm_postcopy_handle_run();
+    if (ps != POSTCOPY_INCOMING_LISTENING) {
+        error_report("CMD_POSTCOPY_RUN in wrong postcopy state (%d)", ps);
+        return -1;
+    }
+
+    mis->bh = qemu_bh_new(loadvm_postcopy_handle_run_bh, NULL);
+    qemu_bh_schedule(mis->bh);
 
     /* We need to finish reading the stream from the package
      * and also stop reading anything more from the stream that loaded the

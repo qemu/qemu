@@ -52,14 +52,14 @@ struct PostcopyDiscardState {
 #if defined(__linux__)
 
 #include <poll.h>
-#include <sys/eventfd.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
 #include <asm/types.h> /* for __u64 */
 #endif
 
-#if defined(__linux__) && defined(__NR_userfaultfd)
+#if defined(__linux__) && defined(__NR_userfaultfd) && defined(CONFIG_EVENTFD)
+#include <sys/eventfd.h>
 #include <linux/userfaultfd.h>
 
 static bool ufd_version_check(int ufd)
