@@ -88,21 +88,101 @@ struct VMStateInfo {
 };
 
 enum VMStateFlags {
+    /* Ignored */
     VMS_SINGLE           = 0x001,
+
+    /* The struct member at opaque + VMStateField.offset is a pointer
+     * to the actual field (e.g. struct a { uint8_t *b;
+     * }). Dereference the pointer before using it as basis for
+     * further pointer arithmetic (see e.g. VMS_ARRAY). Does not
+     * affect the meaning of VMStateField.num_offset or
+     * VMStateField.size_offset; see VMS_VARRAY* and VMS_VBUFFER for
+     * those. */
     VMS_POINTER          = 0x002,
+
+    /* The field is an array of fixed size. VMStateField.num contains
+     * the number of entries in the array. The size of each entry is
+     * given by VMStateField.size and / or opaque +
+     * VMStateField.size_offset; see VMS_VBUFFER and
+     * VMS_MULTIPLY. Each array entry will be processed individually
+     * (VMStateField.info.get()/put() if VMS_STRUCT is not set,
+     * recursion into VMStateField.vmsd if VMS_STRUCT is set). May not
+     * be combined with VMS_VARRAY*. */
     VMS_ARRAY            = 0x004,
+
+    /* The field is itself a struct, containing one or more
+     * fields. Recurse into VMStateField.vmsd. Most useful in
+     * combination with VMS_ARRAY / VMS_VARRAY*, recursing into each
+     * array entry. */
     VMS_STRUCT           = 0x008,
-    VMS_VARRAY_INT32     = 0x010,  /* Array with size in int32_t field*/
-    VMS_BUFFER           = 0x020,  /* static sized buffer */
+
+    /* The field is an array of variable size. The int32_t at opaque +
+     * VMStateField.num_offset contains the number of entries in the
+     * array. See the VMS_ARRAY description regarding array handling
+     * in general. May not be combined with VMS_ARRAY or any other
+     * VMS_VARRAY*. */
+    VMS_VARRAY_INT32     = 0x010,
+
+    /* Ignored */
+    VMS_BUFFER           = 0x020,
+
+    /* The field is a (fixed-size or variable-size) array of pointers
+     * (e.g. struct a { uint8_t *b[]; }). Dereference each array entry
+     * before using it. Note: Does not imply any one of VMS_ARRAY /
+     * VMS_VARRAY*; these need to be set explicitly. */
     VMS_ARRAY_OF_POINTER = 0x040,
-    VMS_VARRAY_UINT16    = 0x080,  /* Array with size in uint16_t field */
-    VMS_VBUFFER          = 0x100,  /* Buffer with size in int32_t field */
-    VMS_MULTIPLY         = 0x200,  /* multiply "size" field by field_size */
-    VMS_VARRAY_UINT8     = 0x400,  /* Array with size in uint8_t field*/
-    VMS_VARRAY_UINT32    = 0x800,  /* Array with size in uint32_t field*/
-    VMS_MUST_EXIST       = 0x1000, /* Field must exist in input */
-    VMS_ALLOC            = 0x2000, /* Alloc a buffer on the destination */
-    VMS_MULTIPLY_ELEMENTS = 0x4000, /* multiply varray size by field->num */
+
+    /* The field is an array of variable size. The uint16_t at opaque
+     * + VMStateField.num_offset (subject to VMS_MULTIPLY_ELEMENTS)
+     * contains the number of entries in the array. See the VMS_ARRAY
+     * description regarding array handling in general. May not be
+     * combined with VMS_ARRAY or any other VMS_VARRAY*. */
+    VMS_VARRAY_UINT16    = 0x080,
+
+    /* The size of the individual entries (a single array entry if
+     * VMS_ARRAY or any of VMS_VARRAY* are set, or the field itself if
+     * neither is set) is variable (i.e. not known at compile-time),
+     * but the same for all entries. Use the int32_t at opaque +
+     * VMStateField.size_offset (subject to VMS_MULTIPLY) to determine
+     * the size of each (and every) entry. */
+    VMS_VBUFFER          = 0x100,
+
+    /* Multiply the entry size given by the int32_t at opaque +
+     * VMStateField.size_offset (see VMS_VBUFFER description) with
+     * VMStateField.size to determine the number of bytes to be
+     * allocated. Only valid in combination with VMS_VBUFFER. */
+    VMS_MULTIPLY         = 0x200,
+
+    /* The field is an array of variable size. The uint8_t at opaque +
+     * VMStateField.num_offset (subject to VMS_MULTIPLY_ELEMENTS)
+     * contains the number of entries in the array. See the VMS_ARRAY
+     * description regarding array handling in general. May not be
+     * combined with VMS_ARRAY or any other VMS_VARRAY*. */
+    VMS_VARRAY_UINT8     = 0x400,
+
+    /* The field is an array of variable size. The uint32_t at opaque
+     * + VMStateField.num_offset (subject to VMS_MULTIPLY_ELEMENTS)
+     * contains the number of entries in the array. See the VMS_ARRAY
+     * description regarding array handling in general. May not be
+     * combined with VMS_ARRAY or any other VMS_VARRAY*. */
+    VMS_VARRAY_UINT32    = 0x800,
+
+    /* Fail loading the serialised VM state if this field is missing
+     * from the input. */
+    VMS_MUST_EXIST       = 0x1000,
+
+    /* When loading serialised VM state, allocate memory for the
+     * (entire) field. Only valid in combination with
+     * VMS_POINTER. Note: Not all combinations with other flags are
+     * currently supported, e.g. VMS_ALLOC|VMS_ARRAY_OF_POINTER won't
+     * cause the individual entries to be allocated. */
+    VMS_ALLOC            = 0x2000,
+
+    /* Multiply the number of entries given by the integer at opaque +
+     * VMStateField.num_offset (see VMS_VARRAY*) with VMStateField.num
+     * to determine the number of entries in the array. Only valid in
+     * combination with one of VMS_VARRAY*. */
+    VMS_MULTIPLY_ELEMENTS = 0x4000,
 };
 
 typedef struct {
