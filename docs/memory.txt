@@ -297,8 +297,9 @@ various constraints can be supplied to control how these callbacks are called:
  - .valid.min_access_size, .valid.max_access_size define the access sizes
    (in bytes) which the device accepts; accesses outside this range will
    have device and bus specific behaviour (ignored, or machine check)
- - .valid.aligned specifies that the device only accepts naturally aligned
-   accesses.  Unaligned accesses invoke device and bus specific behaviour.
+ - .valid.unaligned specifies that the *device being modelled* supports
+    unaligned accesses; if false, unaligned accesses will invoke the
+    appropriate bus or CPU specific behaviour.
  - .impl.min_access_size, .impl.max_access_size define the access sizes
    (in bytes) supported by the *implementation*; other access sizes will be
    emulated using the ones available.  For example a 4-byte write will be
@@ -306,5 +307,5 @@ various constraints can be supplied to control how these callbacks are called:
  - .impl.unaligned specifies that the *implementation* supports unaligned
    accesses; if false, unaligned accesses will be emulated by two aligned
    accesses.
- - .old_mmio can be used to ease porting from code using
+ - .old_mmio eases the porting of code that was formerly using
    cpu_register_io_memory(). It should not be used in new code.
