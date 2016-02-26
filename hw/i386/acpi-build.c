@@ -2453,6 +2453,8 @@ build_srat(GArray *table_data, GArray *linker, MachineState *machine)
     uint64_t curnode;
     int srat_start, numa_start, slots;
     uint64_t mem_len, mem_base, next_base;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(machine);
     PCMachineState *pcms = PC_MACHINE(machine);
     ram_addr_t hotplugabble_address_space_size =
         object_property_get_int(OBJECT(pcms), PC_MACHINE_MEMHP_REGION_SIZE,
@@ -2463,12 +2465,14 @@ build_srat(GArray *table_data, GArray *linker, MachineState *machine)
     srat = acpi_data_push(table_data, sizeof *srat);
     srat->reserved1 = cpu_to_le32(1);
 
-    for (i = 0; i < pcms->apic_id_limit; ++i) {
+    for (i = 0; i < apic_ids->len; i++) {
+        int apic_id = apic_ids->cpus[i].arch_id;
+
         core = acpi_data_push(table_data, sizeof *core);
         core->type = ACPI_SRAT_PROCESSOR;
         core->length = sizeof(*core);
-        core->local_apic_id = i;
-        curnode = pcms->node_cpu[i];
+        core->local_apic_id = apic_id;
+        curnode = pcms->node_cpu[apic_id];
         core->proximity_lo = curnode;
         memset(core->proximity_hi, 0, 3);
         core->local_sapic_eid = 0;
@@ -2533,6 +2537,7 @@ build_srat(GArray *table_data, GArray *linker, MachineState *machine)
                  (void *)(table_data->data + srat_start),
                  "SRAT",
                  table_data->len - srat_start, 1, NULL, NULL);
+    g_free(apic_ids);
 }
 
 static void
