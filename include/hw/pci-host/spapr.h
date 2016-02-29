@@ -32,19 +32,7 @@
 #define SPAPR_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(sPAPRPHBState, (obj), TYPE_SPAPR_PCI_HOST_BRIDGE)
 
-#define SPAPR_PCI_HOST_BRIDGE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(sPAPRPHBClass, (klass), TYPE_SPAPR_PCI_HOST_BRIDGE)
-#define SPAPR_PCI_HOST_BRIDGE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(sPAPRPHBClass, (obj), TYPE_SPAPR_PCI_HOST_BRIDGE)
-
-typedef struct sPAPRPHBClass sPAPRPHBClass;
 typedef struct sPAPRPHBState sPAPRPHBState;
-
-struct sPAPRPHBClass {
-    PCIHostBridgeClass parent_class;
-
-    void (*finish_realize)(sPAPRPHBState *sphb, Error **errp);
-};
 
 typedef struct spapr_pci_msi {
     uint32_t first_irq;
