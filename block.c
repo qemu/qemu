@@ -2250,9 +2250,6 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
 
     /* dev info */
     bs_dest->enable_write_cache = bs_src->enable_write_cache;
-
-    /* dirty bitmap */
-    bs_dest->dirty_bitmaps      = bs_src->dirty_bitmaps;
 }
 
 static void change_parent_backing_link(BlockDriverState *from,
