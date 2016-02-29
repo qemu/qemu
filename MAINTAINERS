@@ -1087,6 +1087,7 @@ SPICE
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Supported
 F: include/ui/qemu-spice.h
+F: include/ui/spice-display.h
 F: ui/spice-*.c
 F: audio/spiceaudio.c
 F: hw/display/qxl*
@@ -1095,6 +1096,7 @@ Graphics
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Odd Fixes
 F: ui/
+F: include/ui/
 
 Cocoa graphics
 M: Andreas Färber <andreas.faerber@web.de>
