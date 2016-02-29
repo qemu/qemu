@@ -1409,8 +1409,6 @@ xics_ics_write_xive(int nr, int srcno, int server, uint8_t priority) "ics_write_
 xics_ics_reject(int nr, int srcno) "reject irq %#x [src %d]"
 xics_ics_eoi(int nr) "ics_eoi: irq %#x"
 xics_alloc(int src, int irq) "source#%d, irq %d"
-xics_alloc_failed_hint(int src, int irq) "source#%d, irq %d is already in use"
-xics_alloc_failed_no_left(int src) "source#%d, no irq left"
 xics_alloc_block(int src, int first, int num, bool lsi, int align) "source#%d, first irq %d, %d irqs, lsi=%d, alignnum %d"
 xics_ics_free(int src, int irq, int num) "Source#%d, first irq %d, %d irqs"
 xics_ics_free_warn(int src, int irq) "Source#%d, irq %d is already free"

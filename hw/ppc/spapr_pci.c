@@ -275,11 +275,12 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     unsigned int req_num = rtas_ld(args, 4); /* 0 == remove all */
     unsigned int seq_num = rtas_ld(args, 5);
     unsigned int ret_intr_type;
-    unsigned int irq, max_irqs = 0, num = 0;
+    unsigned int irq, max_irqs = 0;
     sPAPRPHBState *phb = NULL;
     PCIDevice *pdev = NULL;
     spapr_pci_msi *msi;
     int *config_addr_key;
+    Error *err = NULL;
 
     switch (func) {
     case RTAS_CHANGE_MSI_FN:
@@ -305,9 +306,10 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         return;
     }
 
+    msi = (spapr_pci_msi *) g_hash_table_lookup(phb->msi, &config_addr);
+
     /* Releasing MSIs */
     if (!req_num) {
-        msi = (spapr_pci_msi *) g_hash_table_lookup(phb->msi, &config_addr);
         if (!msi) {
             trace_spapr_pci_msi("Releasing wrong config", config_addr);
             rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
@@ -316,10 +318,10 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
         xics_free(spapr->icp, msi->first_irq, msi->num);
         if (msi_present(pdev)) {
-            spapr_msi_setmsg(pdev, 0, false, 0, num);
+            spapr_msi_setmsg(pdev, 0, false, 0, 0);
         }
         if (msix_present(pdev)) {
-            spapr_msi_setmsg(pdev, 0, true, 0, num);
+            spapr_msi_setmsg(pdev, 0, true, 0, 0);
         }
         g_hash_table_remove(phb->msi, &config_addr);
 
@@ -353,11 +355,18 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     /* Allocate MSIs */
     irq = xics_alloc_block(spapr->icp, 0, req_num, false,
-                           ret_intr_type == RTAS_TYPE_MSI);
-    if (!irq) {
-        error_report("Cannot allocate MSIs for device %x", config_addr);
+                           ret_intr_type == RTAS_TYPE_MSI, &err);
+    if (err) {
+        error_reportf_err(err, "Can't allocate MSIs for device %x: ",
+                          config_addr);
         rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
         return;
+    }
+
+    /* Release previous MSIs */
+    if (msi) {
+        xics_free(spapr->icp, msi->first_irq, msi->num);
+        g_hash_table_remove(phb->msi, &config_addr);
     }
 
     /* Setup MSI/MSIX vectors in the device (via cfgspace or MSIX BAR) */
@@ -1360,10 +1369,12 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     /* Initialize the LSI table */
     for (i = 0; i < PCI_NUM_PINS; i++) {
         uint32_t irq;
+        Error *local_err = NULL;
 
-        irq = xics_alloc_block(spapr->icp, 0, 1, true, false);
-        if (!irq) {
-            error_setg(errp, "spapr_allocate_lsi failed");
+        irq = xics_alloc_block(spapr->icp, 0, 1, true, false, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_prepend(errp, "can't allocate LSIs: ");
             return;
         }
 
