@@ -2210,13 +2210,6 @@ void bdrv_close_all(void)
     }
 }
 
-/* Fields that need to stay with the top-level BDS */
-static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
-                                     BlockDriverState *bs_src)
-{
-    /* move some fields that need to stay attached to the device */
-}
-
 static void change_parent_backing_link(BlockDriverState *from,
                                        BlockDriverState *to)
 {
@@ -2238,16 +2231,6 @@ static void change_parent_backing_link(BlockDriverState *from,
         bdrv_ref(to);
         bdrv_unref(from);
     }
-}
-
-static void swap_feature_fields(BlockDriverState *bs_top,
-                                BlockDriverState *bs_new)
-{
-    BlockDriverState tmp;
-
-    bdrv_move_feature_fields(&tmp, bs_top);
-    bdrv_move_feature_fields(bs_top, bs_new);
-    bdrv_move_feature_fields(bs_new, &tmp);
 }
 
 /*
@@ -2273,9 +2256,6 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
 
     bdrv_ref(bs_top);
 
-    /* Some fields always stay on top of the backing file chain */
-    swap_feature_fields(bs_top, bs_new);
-
     change_parent_backing_link(bs_top, bs_new);
     bdrv_set_backing_hd(bs_new, bs_top);
     bdrv_unref(bs_top);
@@ -2292,16 +2272,6 @@ void bdrv_replace_in_backing_chain(BlockDriverState *old, BlockDriverState *new)
 
     bdrv_ref(old);
 
-    if (old->blk) {
-        /* As long as these fields aren't in BlockBackend, but in the top-level
-         * BlockDriverState, it's not possible for a BDS to have two BBs.
-         *
-         * We really want to copy the fields from old to new, but we go for a
-         * swap instead so that pointers aren't duplicated and cause trouble.
-         * (Also, bdrv_swap() used to do the same.) */
-        assert(!new->blk);
-        swap_feature_fields(old, new);
-    }
     change_parent_backing_link(old, new);
 
     /* Change backing files if a previously independent node is added to the
