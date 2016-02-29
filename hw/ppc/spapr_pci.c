@@ -92,6 +92,13 @@ PCIDevice *spapr_pci_find_dev(sPAPRMachineState *spapr, uint64_t buid,
     return pci_find_device(phb->bus, bus_num, devfn);
 }
 
+static bool spapr_phb_eeh_available(sPAPRPHBState *sphb)
+{
+    sPAPRPHBClass *spc = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(sphb);
+
+    return spc->eeh_available;
+}
+
 static uint32_t rtas_pci_cfgaddr(uint32_t arg)
 {
     /* This handles the encoding of extended config space addresses */
@@ -440,7 +447,6 @@ static void rtas_ibm_set_eeh_option(PowerPCCPU *cpu,
                                     target_ulong rets)
 {
     sPAPRPHBState *sphb;
-    sPAPRPHBClass *spc;
     uint32_t addr, option;
     uint64_t buid;
     int ret;
@@ -458,12 +464,11 @@ static void rtas_ibm_set_eeh_option(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    spc = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(sphb);
-    if (!spc->eeh_set_option) {
+    if (!spapr_phb_eeh_available(sphb)) {
         goto param_error_exit;
     }
 
-    ret = spc->eeh_set_option(sphb, addr, option);
+    ret = spapr_phb_vfio_eeh_set_option(sphb, addr, option);
     rtas_st(rets, 0, ret);
     return;
 
@@ -478,7 +483,6 @@ static void rtas_ibm_get_config_addr_info2(PowerPCCPU *cpu,
                                            target_ulong rets)
 {
     sPAPRPHBState *sphb;
-    sPAPRPHBClass *spc;
     PCIDevice *pdev;
     uint32_t addr, option;
     uint64_t buid;
@@ -493,8 +497,7 @@ static void rtas_ibm_get_config_addr_info2(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    spc = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(sphb);
-    if (!spc->eeh_set_option) {
+    if (!spapr_phb_eeh_available(sphb)) {
         goto param_error_exit;
     }
 
@@ -534,7 +537,6 @@ static void rtas_ibm_read_slot_reset_state2(PowerPCCPU *cpu,
                                             target_ulong rets)
 {
     sPAPRPHBState *sphb;
-    sPAPRPHBClass *spc;
     uint64_t buid;
     int state, ret;
 
@@ -548,12 +550,11 @@ static void rtas_ibm_read_slot_reset_state2(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    spc = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(sphb);
-    if (!spc->eeh_get_state) {
+    if (!spapr_phb_eeh_available(sphb)) {
         goto param_error_exit;
     }
 
-    ret = spc->eeh_get_state(sphb, &state);
+    ret = spapr_phb_vfio_eeh_get_state(sphb, &state);
     rtas_st(rets, 0, ret);
     if (ret != RTAS_OUT_SUCCESS) {
         return;
@@ -578,7 +579,6 @@ static void rtas_ibm_set_slot_reset(PowerPCCPU *cpu,
                                     target_ulong rets)
 {
     sPAPRPHBState *sphb;
-    sPAPRPHBClass *spc;
     uint32_t option;
     uint64_t buid;
     int ret;
@@ -594,12 +594,11 @@ static void rtas_ibm_set_slot_reset(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    spc = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(sphb);
-    if (!spc->eeh_reset) {
+    if (!spapr_phb_eeh_available(sphb)) {
         goto param_error_exit;
     }
 
-    ret = spc->eeh_reset(sphb, option);
+    ret = spapr_phb_vfio_eeh_reset(sphb, option);
     rtas_st(rets, 0, ret);
     return;
 
@@ -614,7 +613,6 @@ static void rtas_ibm_configure_pe(PowerPCCPU *cpu,
                                   target_ulong rets)
 {
     sPAPRPHBState *sphb;
-    sPAPRPHBClass *spc;
     uint64_t buid;
     int ret;
 
@@ -628,12 +626,11 @@ static void rtas_ibm_configure_pe(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    spc = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(sphb);
-    if (!spc->eeh_configure) {
+    if (!spapr_phb_eeh_available(sphb)) {
         goto param_error_exit;
     }
 
-    ret = spc->eeh_configure(sphb);
+    ret = spapr_phb_vfio_eeh_configure(sphb);
     rtas_st(rets, 0, ret);
     return;
 
@@ -649,7 +646,6 @@ static void rtas_ibm_slot_error_detail(PowerPCCPU *cpu,
                                        target_ulong rets)
 {
     sPAPRPHBState *sphb;
-    sPAPRPHBClass *spc;
     int option;
     uint64_t buid;
 
@@ -663,8 +659,7 @@ static void rtas_ibm_slot_error_detail(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    spc = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(sphb);
-    if (!spc->eeh_set_option) {
+    if (!spapr_phb_eeh_available(sphb)) {
         goto param_error_exit;
     }
 
@@ -1513,6 +1508,10 @@ static void spapr_phb_reset(DeviceState *qdev)
 {
     /* Reset the IOMMU state */
     object_child_foreach(OBJECT(qdev), spapr_phb_children_reset, NULL);
+
+    if (spapr_phb_eeh_available(SPAPR_PCI_HOST_BRIDGE(qdev))) {
+        spapr_phb_vfio_reset(qdev);
+    }
 }
 
 static Property spapr_phb_properties[] = {
@@ -1643,6 +1642,7 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->cannot_instantiate_with_device_add_yet = false;
     spc->finish_realize = spapr_phb_finish_realize;
+    spc->eeh_available = false;
     hp->plug = spapr_phb_hot_plug_child;
     hp->unplug = spapr_phb_hot_unplug_child;
 }

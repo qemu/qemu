@@ -78,7 +78,7 @@ static void spapr_phb_vfio_eeh_reenable(sPAPRPHBState *sphb)
     vfio_eeh_as_op(&sphb->iommu_as, VFIO_EEH_PE_ENABLE);
 }
 
-static void spapr_phb_vfio_reset(DeviceState *qdev)
+void spapr_phb_vfio_reset(DeviceState *qdev)
 {
     /*
      * The PE might be in frozen state. To reenable the EEH
@@ -89,8 +89,8 @@ static void spapr_phb_vfio_reset(DeviceState *qdev)
     spapr_phb_vfio_eeh_reenable(SPAPR_PCI_HOST_BRIDGE(qdev));
 }
 
-static int spapr_phb_vfio_eeh_set_option(sPAPRPHBState *sphb,
-                                         unsigned int addr, int option)
+int spapr_phb_vfio_eeh_set_option(sPAPRPHBState *sphb,
+                                  unsigned int addr, int option)
 {
     uint32_t op;
     int ret;
@@ -136,7 +136,7 @@ static int spapr_phb_vfio_eeh_set_option(sPAPRPHBState *sphb,
     return RTAS_OUT_SUCCESS;
 }
 
-static int spapr_phb_vfio_eeh_get_state(sPAPRPHBState *sphb, int *state)
+int spapr_phb_vfio_eeh_get_state(sPAPRPHBState *sphb, int *state)
 {
     int ret;
 
@@ -192,7 +192,7 @@ static void spapr_phb_vfio_eeh_pre_reset(sPAPRPHBState *sphb)
        pci_for_each_bus(phb->bus, spapr_phb_vfio_eeh_clear_bus_msix, NULL);
 }
 
-static int spapr_phb_vfio_eeh_reset(sPAPRPHBState *sphb, int option)
+int spapr_phb_vfio_eeh_reset(sPAPRPHBState *sphb, int option)
 {
     uint32_t op;
     int ret;
@@ -221,7 +221,7 @@ static int spapr_phb_vfio_eeh_reset(sPAPRPHBState *sphb, int option)
     return RTAS_OUT_SUCCESS;
 }
 
-static int spapr_phb_vfio_eeh_configure(sPAPRPHBState *sphb)
+int spapr_phb_vfio_eeh_configure(sPAPRPHBState *sphb)
 {
     int ret;
 
@@ -239,12 +239,8 @@ static void spapr_phb_vfio_class_init(ObjectClass *klass, void *data)
     sPAPRPHBClass *spc = SPAPR_PCI_HOST_BRIDGE_CLASS(klass);
 
     dc->props = spapr_phb_vfio_properties;
-    dc->reset = spapr_phb_vfio_reset;
     spc->finish_realize = spapr_phb_vfio_finish_realize;
-    spc->eeh_set_option = spapr_phb_vfio_eeh_set_option;
-    spc->eeh_get_state = spapr_phb_vfio_eeh_get_state;
-    spc->eeh_reset = spapr_phb_vfio_eeh_reset;
-    spc->eeh_configure = spapr_phb_vfio_eeh_configure;
+    spc->eeh_available = true;
 }
 
 static const TypeInfo spapr_phb_vfio_info = {

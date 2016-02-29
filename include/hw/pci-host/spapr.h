@@ -49,10 +49,7 @@ struct sPAPRPHBClass {
     PCIHostBridgeClass parent_class;
 
     void (*finish_realize)(sPAPRPHBState *sphb, Error **errp);
-    int (*eeh_set_option)(sPAPRPHBState *sphb, unsigned int addr, int option);
-    int (*eeh_get_state)(sPAPRPHBState *sphb, int *state);
-    int (*eeh_reset)(sPAPRPHBState *sphb, int option);
-    int (*eeh_configure)(sPAPRPHBState *sphb);
+    bool eeh_available;
 };
 
 typedef struct spapr_pci_msi {
@@ -136,5 +133,37 @@ void spapr_pci_rtas_init(void);
 sPAPRPHBState *spapr_pci_find_phb(sPAPRMachineState *spapr, uint64_t buid);
 PCIDevice *spapr_pci_find_dev(sPAPRMachineState *spapr, uint64_t buid,
                               uint32_t config_addr);
+
+/* VFIO EEH hooks */
+#ifdef CONFIG_LINUX
+int spapr_phb_vfio_eeh_set_option(sPAPRPHBState *sphb,
+                                  unsigned int addr, int option);
+int spapr_phb_vfio_eeh_get_state(sPAPRPHBState *sphb, int *state);
+int spapr_phb_vfio_eeh_reset(sPAPRPHBState *sphb, int option);
+int spapr_phb_vfio_eeh_configure(sPAPRPHBState *sphb);
+void spapr_phb_vfio_reset(DeviceState *qdev);
+#else
+static inline int spapr_phb_vfio_eeh_set_option(sPAPRPHBState *sphb,
+                                                unsigned int addr, int option)
+{
+    return RTAS_OUT_HW_ERROR;
+}
+static inline int spapr_phb_vfio_eeh_get_state(sPAPRPHBState *sphb,
+                                               int *state)
+{
+    return RTAS_OUT_HW_ERROR;
+}
+static inline int spapr_phb_vfio_eeh_reset(sPAPRPHBState *sphb, int option)
+{
+    return RTAS_OUT_HW_ERROR;
+}
+static inline int spapr_phb_vfio_eeh_configure(sPAPRPHBState *sphb)
+{
+    return RTAS_OUT_HW_ERROR;
+}
+static inline void spapr_phb_vfio_reset(DeviceState *qdev)
+{
+}
+#endif
 
 #endif /* __HW_SPAPR_PCI_H__ */
