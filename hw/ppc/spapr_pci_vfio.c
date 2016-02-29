@@ -73,6 +73,11 @@ static void spapr_phb_vfio_finish_realize(sPAPRPHBState *sphb, Error **errp)
                                 spapr_tce_get_iommu(tcet));
 }
 
+bool spapr_phb_eeh_available(sPAPRPHBState *sphb)
+{
+    return vfio_eeh_as_ok(&sphb->iommu_as);
+}
+
 static void spapr_phb_vfio_eeh_reenable(sPAPRPHBState *sphb)
 {
     vfio_eeh_as_op(&sphb->iommu_as, VFIO_EEH_PE_ENABLE);
@@ -240,7 +245,6 @@ static void spapr_phb_vfio_class_init(ObjectClass *klass, void *data)
 
     dc->props = spapr_phb_vfio_properties;
     spc->finish_realize = spapr_phb_vfio_finish_realize;
-    spc->eeh_available = true;
 }
 
 static const TypeInfo spapr_phb_vfio_info = {
