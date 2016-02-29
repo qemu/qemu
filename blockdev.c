@@ -1743,6 +1743,7 @@ static void external_snapshot_prepare(BlkActionState *common,
         }
 
         flags = state->old_bs->open_flags;
+        flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_COPY_ON_READ);
 
         /* create new image w/backing file */
         mode = s->has_mode ? s->mode : NEW_IMAGE_MODE_ABSOLUTE_PATHS;
@@ -1813,8 +1814,10 @@ static void external_snapshot_commit(BlkActionState *common)
     /* We don't need (or want) to use the transactional
      * bdrv_reopen_multiple() across all the entries at once, because we
      * don't want to abort all of them if one of them fails the reopen */
-    bdrv_reopen(state->old_bs, state->old_bs->open_flags & ~BDRV_O_RDWR,
-                NULL);
+    if (!state->old_bs->copy_on_read) {
+        bdrv_reopen(state->old_bs, state->old_bs->open_flags & ~BDRV_O_RDWR,
+                    NULL);
+    }
 }
 
 static void external_snapshot_abort(BlkActionState *common)

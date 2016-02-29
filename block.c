@@ -2249,8 +2249,6 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
     /* move some fields that need to stay attached to the device */
 
     /* dev info */
-    bs_dest->copy_on_read       = bs_src->copy_on_read;
-
     bs_dest->enable_write_cache = bs_src->enable_write_cache;
 
     /* dirty bitmap */
