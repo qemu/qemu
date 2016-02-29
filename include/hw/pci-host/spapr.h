@@ -28,13 +28,9 @@
 #include "hw/ppc/xics.h"
 
 #define TYPE_SPAPR_PCI_HOST_BRIDGE "spapr-pci-host-bridge"
-#define TYPE_SPAPR_PCI_VFIO_HOST_BRIDGE "spapr-pci-vfio-host-bridge"
 
 #define SPAPR_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(sPAPRPHBState, (obj), TYPE_SPAPR_PCI_HOST_BRIDGE)
-
-#define SPAPR_PCI_VFIO_HOST_BRIDGE(obj) \
-    OBJECT_CHECK(sPAPRPHBVFIOState, (obj), TYPE_SPAPR_PCI_VFIO_HOST_BRIDGE)
 
 #define SPAPR_PCI_HOST_BRIDGE_CLASS(klass) \
      OBJECT_CLASS_CHECK(sPAPRPHBClass, (klass), TYPE_SPAPR_PCI_HOST_BRIDGE)
@@ -43,7 +39,6 @@
 
 typedef struct sPAPRPHBClass sPAPRPHBClass;
 typedef struct sPAPRPHBState sPAPRPHBState;
-typedef struct sPAPRPHBVFIOState sPAPRPHBVFIOState;
 
 struct sPAPRPHBClass {
     PCIHostBridgeClass parent_class;
@@ -88,12 +83,6 @@ struct sPAPRPHBState {
     spapr_pci_msi_mig *msi_devs;
 
     QLIST_ENTRY(sPAPRPHBState) list;
-};
-
-struct sPAPRPHBVFIOState {
-    sPAPRPHBState phb;
-
-    int32_t iommugroupid;
 };
 
 #define SPAPR_PCI_MAX_INDEX          255

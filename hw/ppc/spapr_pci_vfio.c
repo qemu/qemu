@@ -23,54 +23,29 @@
 #include "hw/pci/msix.h"
 #include "linux/vfio.h"
 #include "hw/vfio/vfio.h"
+#include "qemu/error-report.h"
+
+#define TYPE_SPAPR_PCI_VFIO_HOST_BRIDGE "spapr-pci-vfio-host-bridge"
+
+#define SPAPR_PCI_VFIO_HOST_BRIDGE(obj) \
+    OBJECT_CHECK(sPAPRPHBVFIOState, (obj), TYPE_SPAPR_PCI_VFIO_HOST_BRIDGE)
+
+typedef struct sPAPRPHBVFIOState sPAPRPHBVFIOState;
+
+struct sPAPRPHBVFIOState {
+    sPAPRPHBState phb;
+
+    int32_t iommugroupid;
+};
 
 static Property spapr_phb_vfio_properties[] = {
     DEFINE_PROP_INT32("iommu", sPAPRPHBVFIOState, iommugroupid, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void spapr_phb_vfio_finish_realize(sPAPRPHBState *sphb, Error **errp)
+static void spapr_phb_vfio_instance_init(Object *obj)
 {
-    sPAPRPHBVFIOState *svphb = SPAPR_PCI_VFIO_HOST_BRIDGE(sphb);
-    struct vfio_iommu_spapr_tce_info info = { .argsz = sizeof(info) };
-    int ret;
-    sPAPRTCETable *tcet;
-    uint32_t liobn = svphb->phb.dma_liobn;
-
-    if (svphb->iommugroupid == -1) {
-        error_setg(errp, "Wrong IOMMU group ID %d", svphb->iommugroupid);
-        return;
-    }
-
-    ret = vfio_container_ioctl(&svphb->phb.iommu_as, svphb->iommugroupid,
-                               VFIO_CHECK_EXTENSION,
-                               (void *) VFIO_SPAPR_TCE_IOMMU);
-    if (ret != 1) {
-        error_setg_errno(errp, -ret,
-                         "spapr-vfio: SPAPR extension is not supported");
-        return;
-    }
-
-    ret = vfio_container_ioctl(&svphb->phb.iommu_as, svphb->iommugroupid,
-                               VFIO_IOMMU_SPAPR_TCE_GET_INFO, &info);
-    if (ret) {
-        error_setg_errno(errp, -ret,
-                         "spapr-vfio: get info from container failed");
-        return;
-    }
-
-    tcet = spapr_tce_new_table(DEVICE(sphb), liobn, info.dma32_window_start,
-                               SPAPR_TCE_PAGE_SHIFT,
-                               info.dma32_window_size >> SPAPR_TCE_PAGE_SHIFT,
-                               true);
-    if (!tcet) {
-        error_setg(errp, "spapr-vfio: failed to create VFIO TCE table");
-        return;
-    }
-
-    /* Register default 32bit DMA window */
-    memory_region_add_subregion(&sphb->iommu_root, tcet->bus_offset,
-                                spapr_tce_get_iommu(tcet));
+    error_report("spapr-pci-vfio-host-bridge is deprecated");
 }
 
 bool spapr_phb_eeh_available(sPAPRPHBState *sphb)
@@ -241,18 +216,16 @@ int spapr_phb_vfio_eeh_configure(sPAPRPHBState *sphb)
 static void spapr_phb_vfio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    sPAPRPHBClass *spc = SPAPR_PCI_HOST_BRIDGE_CLASS(klass);
 
     dc->props = spapr_phb_vfio_properties;
-    spc->finish_realize = spapr_phb_vfio_finish_realize;
 }
 
 static const TypeInfo spapr_phb_vfio_info = {
     .name          = TYPE_SPAPR_PCI_VFIO_HOST_BRIDGE,
     .parent        = TYPE_SPAPR_PCI_HOST_BRIDGE,
     .instance_size = sizeof(sPAPRPHBVFIOState),
+    .instance_init = spapr_phb_vfio_instance_init,
     .class_init    = spapr_phb_vfio_class_init,
-    .class_size    = sizeof(sPAPRPHBClass),
 };
 
 static void spapr_pci_vfio_register_types(void)
