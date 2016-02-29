@@ -99,6 +99,7 @@ BlockBackend *blk_by_public(BlockBackendPublic *public);
 BlockDriverState *blk_bs(BlockBackend *blk);
 void blk_remove_bs(BlockBackend *blk);
 void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs);
+bool bdrv_has_blk(BlockDriverState *bs);
 
 void blk_set_allow_write_beyond_eof(BlockBackend *blk, bool allow);
 void blk_iostatus_enable(BlockBackend *blk);

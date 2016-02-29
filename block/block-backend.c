@@ -395,6 +395,23 @@ BlockDriverState *blk_bs(BlockBackend *blk)
 }
 
 /*
+ * Returns true if @bs has an associated BlockBackend.
+ */
+bool bdrv_has_blk(BlockDriverState *bs)
+{
+    BdrvChild *child;
+    QLIST_FOREACH(child, &bs->parents, next_parent) {
+        if (child->role == &child_root) {
+            assert(bs->blk);
+            return true;
+        }
+    }
+
+    assert(!bs->blk);
+    return false;
+}
+
+/*
  * Return @blk's DriveInfo if any, else null.
  */
 DriveInfo *blk_legacy_dinfo(BlockBackend *blk)
