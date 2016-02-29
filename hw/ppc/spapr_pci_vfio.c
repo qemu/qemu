@@ -73,15 +73,9 @@ static void spapr_phb_vfio_finish_realize(sPAPRPHBState *sphb, Error **errp)
                                 spapr_tce_get_iommu(tcet));
 }
 
-static void spapr_phb_vfio_eeh_reenable(sPAPRPHBVFIOState *svphb)
+static void spapr_phb_vfio_eeh_reenable(sPAPRPHBState *sphb)
 {
-    struct vfio_eeh_pe_op op = {
-        .argsz = sizeof(op),
-        .op    = VFIO_EEH_PE_ENABLE
-    };
-
-    vfio_container_ioctl(&svphb->phb.iommu_as,
-                         svphb->iommugroupid, VFIO_EEH_PE_OP, &op);
+    vfio_eeh_as_op(&sphb->iommu_as, VFIO_EEH_PE_ENABLE);
 }
 
 static void spapr_phb_vfio_reset(DeviceState *qdev)
@@ -92,19 +86,18 @@ static void spapr_phb_vfio_reset(DeviceState *qdev)
      * ensures that the contained PCI devices will work properly
      * after reboot.
      */
-    spapr_phb_vfio_eeh_reenable(SPAPR_PCI_VFIO_HOST_BRIDGE(qdev));
+    spapr_phb_vfio_eeh_reenable(SPAPR_PCI_HOST_BRIDGE(qdev));
 }
 
 static int spapr_phb_vfio_eeh_set_option(sPAPRPHBState *sphb,
                                          unsigned int addr, int option)
 {
-    sPAPRPHBVFIOState *svphb = SPAPR_PCI_VFIO_HOST_BRIDGE(sphb);
-    struct vfio_eeh_pe_op op = { .argsz = sizeof(op) };
+    uint32_t op;
     int ret;
 
     switch (option) {
     case RTAS_EEH_DISABLE:
-        op.op = VFIO_EEH_PE_DISABLE;
+        op = VFIO_EEH_PE_DISABLE;
         break;
     case RTAS_EEH_ENABLE: {
         PCIHostState *phb;
@@ -122,21 +115,20 @@ static int spapr_phb_vfio_eeh_set_option(sPAPRPHBState *sphb,
             return RTAS_OUT_PARAM_ERROR;
         }
 
-        op.op = VFIO_EEH_PE_ENABLE;
+        op = VFIO_EEH_PE_ENABLE;
         break;
     }
     case RTAS_EEH_THAW_IO:
-        op.op = VFIO_EEH_PE_UNFREEZE_IO;
+        op = VFIO_EEH_PE_UNFREEZE_IO;
         break;
     case RTAS_EEH_THAW_DMA:
-        op.op = VFIO_EEH_PE_UNFREEZE_DMA;
+        op = VFIO_EEH_PE_UNFREEZE_DMA;
         break;
     default:
         return RTAS_OUT_PARAM_ERROR;
     }
 
-    ret = vfio_container_ioctl(&svphb->phb.iommu_as, svphb->iommugroupid,
-                               VFIO_EEH_PE_OP, &op);
+    ret = vfio_eeh_as_op(&sphb->iommu_as, op);
     if (ret < 0) {
         return RTAS_OUT_HW_ERROR;
     }
@@ -146,13 +138,9 @@ static int spapr_phb_vfio_eeh_set_option(sPAPRPHBState *sphb,
 
 static int spapr_phb_vfio_eeh_get_state(sPAPRPHBState *sphb, int *state)
 {
-    sPAPRPHBVFIOState *svphb = SPAPR_PCI_VFIO_HOST_BRIDGE(sphb);
-    struct vfio_eeh_pe_op op = { .argsz = sizeof(op) };
     int ret;
 
-    op.op = VFIO_EEH_PE_GET_STATE;
-    ret = vfio_container_ioctl(&svphb->phb.iommu_as, svphb->iommugroupid,
-                               VFIO_EEH_PE_OP, &op);
+    ret = vfio_eeh_as_op(&sphb->iommu_as, VFIO_EEH_PE_GET_STATE);
     if (ret < 0) {
         return RTAS_OUT_PARAM_ERROR;
     }
@@ -206,28 +194,26 @@ static void spapr_phb_vfio_eeh_pre_reset(sPAPRPHBState *sphb)
 
 static int spapr_phb_vfio_eeh_reset(sPAPRPHBState *sphb, int option)
 {
-    sPAPRPHBVFIOState *svphb = SPAPR_PCI_VFIO_HOST_BRIDGE(sphb);
-    struct vfio_eeh_pe_op op = { .argsz = sizeof(op) };
+    uint32_t op;
     int ret;
 
     switch (option) {
     case RTAS_SLOT_RESET_DEACTIVATE:
-        op.op = VFIO_EEH_PE_RESET_DEACTIVATE;
+        op = VFIO_EEH_PE_RESET_DEACTIVATE;
         break;
     case RTAS_SLOT_RESET_HOT:
         spapr_phb_vfio_eeh_pre_reset(sphb);
-        op.op = VFIO_EEH_PE_RESET_HOT;
+        op = VFIO_EEH_PE_RESET_HOT;
         break;
     case RTAS_SLOT_RESET_FUNDAMENTAL:
         spapr_phb_vfio_eeh_pre_reset(sphb);
-        op.op = VFIO_EEH_PE_RESET_FUNDAMENTAL;
+        op = VFIO_EEH_PE_RESET_FUNDAMENTAL;
         break;
     default:
         return RTAS_OUT_PARAM_ERROR;
     }
 
-    ret = vfio_container_ioctl(&svphb->phb.iommu_as, svphb->iommugroupid,
-                               VFIO_EEH_PE_OP, &op);
+    ret = vfio_eeh_as_op(&sphb->iommu_as, op);
     if (ret < 0) {
         return RTAS_OUT_HW_ERROR;
     }
@@ -237,13 +223,9 @@ static int spapr_phb_vfio_eeh_reset(sPAPRPHBState *sphb, int option)
 
 static int spapr_phb_vfio_eeh_configure(sPAPRPHBState *sphb)
 {
-    sPAPRPHBVFIOState *svphb = SPAPR_PCI_VFIO_HOST_BRIDGE(sphb);
-    struct vfio_eeh_pe_op op = { .argsz = sizeof(op) };
     int ret;
 
-    op.op = VFIO_EEH_PE_CONFIGURE;
-    ret = vfio_container_ioctl(&svphb->phb.iommu_as, svphb->iommugroupid,
-                               VFIO_EEH_PE_OP, &op);
+    ret = vfio_eeh_as_op(&sphb->iommu_as, VFIO_EEH_PE_CONFIGURE);
     if (ret < 0) {
         return RTAS_OUT_PARAM_ERROR;
     }
