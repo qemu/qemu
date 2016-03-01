@@ -1628,7 +1628,7 @@ int memory_region_get_fd(MemoryRegion *mr)
 
     assert(mr->ram_block);
 
-    return qemu_get_ram_fd(memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK);
+    return qemu_get_ram_fd(memory_region_get_ram_addr(mr));
 }
 
 void *memory_region_get_ram_ptr(MemoryRegion *mr)
@@ -1642,8 +1642,7 @@ void *memory_region_get_ram_ptr(MemoryRegion *mr)
         mr = mr->alias;
     }
     assert(mr->ram_block);
-    ptr = qemu_get_ram_ptr(mr->ram_block,
-                           memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK);
+    ptr = qemu_get_ram_ptr(mr->ram_block, memory_region_get_ram_addr(mr));
     rcu_read_unlock();
 
     return ptr + offset;
