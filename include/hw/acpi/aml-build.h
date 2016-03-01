@@ -353,6 +353,7 @@ Aml *aml_touuid(const char *uuid);
 Aml *aml_unicode(const char *str);
 Aml *aml_derefof(Aml *arg);
 Aml *aml_sizeof(Aml *arg);
+Aml *aml_concatenate(Aml *source1, Aml *source2, Aml *target);
 
 void
 build_header(GArray *linker, GArray *table_data,

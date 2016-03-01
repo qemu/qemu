@@ -1437,6 +1437,13 @@ Aml *aml_alias(const char *source_object, const char *alias_object)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefConcat */
+Aml *aml_concatenate(Aml *source1, Aml *source2, Aml *target)
+{
+    return build_opcode_2arg_dst(0x73 /* ConcatOp */, source1, source2,
+                                 target);
+}
+
 void
 build_header(GArray *linker, GArray *table_data,
              AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
