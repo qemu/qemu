@@ -368,4 +368,7 @@ void
 build_rsdt(GArray *table_data, GArray *linker, GArray *table_offsets,
            const char *oem_id, const char *oem_table_id);
 
+int
+build_append_named_dword(GArray *array, const char *name_format, ...);
+
 #endif
