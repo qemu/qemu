@@ -264,10 +264,10 @@ static void vhdx_region_unregister_all(BDRVVHDXState *s)
 
 static void vhdx_set_shift_bits(BDRVVHDXState *s)
 {
-    s->logical_sector_size_bits = 31 - clz32(s->logical_sector_size);
-    s->sectors_per_block_bits =   31 - clz32(s->sectors_per_block);
-    s->chunk_ratio_bits =         63 - clz64(s->chunk_ratio);
-    s->block_size_bits =          31 - clz32(s->block_size);
+    s->logical_sector_size_bits = ctz32(s->logical_sector_size);
+    s->sectors_per_block_bits =   ctz32(s->sectors_per_block);
+    s->chunk_ratio_bits =         ctz64(s->chunk_ratio);
+    s->block_size_bits =          ctz32(s->block_size);
 }
 
 /*
@@ -857,14 +857,8 @@ static void vhdx_calc_bat_entries(BDRVVHDXState *s)
 {
     uint32_t data_blocks_cnt, bitmap_blocks_cnt;
 
-    data_blocks_cnt = s->virtual_disk_size >> s->block_size_bits;
-    if (s->virtual_disk_size - (data_blocks_cnt << s->block_size_bits)) {
-        data_blocks_cnt++;
-    }
-    bitmap_blocks_cnt = data_blocks_cnt >> s->chunk_ratio_bits;
-    if (data_blocks_cnt - (bitmap_blocks_cnt << s->chunk_ratio_bits)) {
-        bitmap_blocks_cnt++;
-    }
+    data_blocks_cnt = DIV_ROUND_UP(s->virtual_disk_size, s->block_size);
+    bitmap_blocks_cnt = DIV_ROUND_UP(data_blocks_cnt, s->chunk_ratio);
 
     if (s->parent_entries) {
         s->bat_entries = bitmap_blocks_cnt * (s->chunk_ratio + 1);

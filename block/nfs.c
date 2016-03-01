@@ -36,6 +36,7 @@
 #include <nfsc/libnfs.h>
 
 #define QEMU_NFS_MAX_READAHEAD_SIZE 1048576
+#define QEMU_NFS_MAX_DEBUG_LEVEL 2
 
 typedef struct NFSClient {
     struct nfs_context *context;
@@ -333,6 +334,17 @@ static int64_t nfs_client_open(NFSClient *client, const char *filename,
                 val = QEMU_NFS_MAX_READAHEAD_SIZE;
             }
             nfs_set_readahead(client->context, val);
+#endif
+#ifdef LIBNFS_FEATURE_DEBUG
+        } else if (!strcmp(qp->p[i].name, "debug")) {
+            /* limit the maximum debug level to avoid potential flooding
+             * of our log files. */
+            if (val > QEMU_NFS_MAX_DEBUG_LEVEL) {
+                error_report("NFS Warning: Limiting NFS debug level"
+                             " to %d", QEMU_NFS_MAX_DEBUG_LEVEL);
+                val = QEMU_NFS_MAX_DEBUG_LEVEL;
+            }
+            nfs_set_debug(client->context, val);
 #endif
         } else {
             error_setg(errp, "Unknown NFS parameter name: %s",

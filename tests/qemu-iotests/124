@@ -132,14 +132,16 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
 
 
     def img_create(self, img, fmt=iotests.imgfmt, size='64M',
-                   parent=None, parentFormat=None):
+                   parent=None, parentFormat=None, **kwargs):
+        optargs = []
+        for k,v in kwargs.iteritems():
+            optargs = optargs + ['-o', '%s=%s' % (k,v)]
+        args = ['create', '-f', fmt] + optargs + [img, size]
         if parent:
             if parentFormat is None:
                 parentFormat = fmt
-            iotests.qemu_img('create', '-f', fmt, img, size,
-                             '-b', parent, '-F', parentFormat)
-        else:
-            iotests.qemu_img('create', '-f', fmt, img, size)
+            args = args + ['-b', parent, '-F', parentFormat]
+        iotests.qemu_img(*args)
         self.files.append(img)
 
 
@@ -305,6 +307,52 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
         of 128KiB instead of the present default of 64KiB.
         '''
         return self.do_incremental_simple(granularity=131072)
+
+
+    def test_larger_cluster_target(self):
+        '''
+        Test: Create and verify backups made to a larger cluster size target.
+
+        With a default granularity of 64KiB, verify that backups made to a
+        larger cluster size target of 128KiB without a backing file works.
+        '''
+        drive0 = self.drives[0]
+
+        # Create a cluster_size=128k full backup / "anchor" backup
+        self.img_create(drive0['backup'], cluster_size='128k')
+        self.assertTrue(self.do_qmp_backup(device=drive0['id'], sync='full',
+                                           format=drive0['fmt'],
+                                           target=drive0['backup'],
+                                           mode='existing'))
+
+        # Create bitmap and dirty it with some new writes.
+        # overwrite [32736, 32799] which will dirty bitmap clusters at
+        # 32M-64K and 32M. 32M+64K will be left undirtied.
+        bitmap0 = self.add_bitmap('bitmap0', drive0)
+        self.hmp_io_writes(drive0['id'],
+                           (('0xab', 0, 512),
+                            ('0xfe', '16M', '256k'),
+                            ('0x64', '32736k', '64k')))
+
+
+        # Prepare a cluster_size=128k backup target without a backing file.
+        (target, _) = bitmap0.new_target()
+        self.img_create(target, bitmap0.drive['fmt'], cluster_size='128k')
+
+        # Perform Incremental Backup
+        self.assertTrue(self.do_qmp_backup(device=bitmap0.drive['id'],
+                                           sync='incremental',
+                                           bitmap=bitmap0.name,
+                                           format=bitmap0.drive['fmt'],
+                                           target=target,
+                                           mode='existing'))
+        self.make_reference_backup(bitmap0)
+
+        # Add the backing file, then compare and exit.
+        iotests.qemu_img('rebase', '-f', drive0['fmt'], '-u', '-b',
+                         drive0['backup'], '-F', drive0['fmt'], target)
+        self.vm.shutdown()
+        self.check_backups()
 
 
     def test_incremental_transaction(self):
