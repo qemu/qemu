@@ -24,8 +24,8 @@ A detailed command line would be:
 -object memory-backend-ram,size=1024M,policy=bind,host-nodes=0,id=ram-node0 -numa node,nodeid=0,cpus=0,memdev=ram-node0
 -object memory-backend-ram,size=1024M,policy=bind,host-nodes=1,id=ram-node1 -numa node,nodeid=1,cpus=1,memdev=ram-node1
 -device pxb,id=bridge1,bus=pci.0,numa_node=1,bus_nr=4 -netdev user,id=nd -device e1000,bus=bridge1,addr=0x4,netdev=nd
--device pxb,id=bridge2,bus=pci.0,numa_node=0,bus_nr=8, -device e1000,bus=bridge2,addr=0x3
--device pxb,id=bridge3,bus=pci.0,bus_nr=40, -drive if=none,id=drive0,file=[img] -device virtio-blk-pci,drive=drive0,scsi=off,bus=bridge3,addr=1
+-device pxb,id=bridge2,bus=pci.0,numa_node=0,bus_nr=8 -device e1000,bus=bridge2,addr=0x3
+-device pxb,id=bridge3,bus=pci.0,bus_nr=40 -drive if=none,id=drive0,file=[img] -device virtio-blk-pci,drive=drive0,scsi=off,bus=bridge3,addr=1
 
 Here you have:
  - 2 NUMA nodes for the guest, 0 and 1. (both mapped to the same NUMA node in host, but you can and should put it in different host NUMA nodes)
@@ -43,7 +43,7 @@ Implementation
 ==============
 The PXB is composed by:
 - HostBridge (TYPE_PXB_HOST)
-  The host bridge allows to register and query the PXB's rPCI root bus in QEMU.
+  The host bridge allows to register and query the PXB's PCI root bus in QEMU.
 - PXBDev(TYPE_PXB_DEVICE)
   It is a regular PCI Device that resides on the piix host-bridge bus and its bus uses the same PCI domain.
   However, the bus behind is exposed through ACPI as a primary PCI bus and starts a new PCI hierarchy.

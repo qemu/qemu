@@ -283,7 +283,7 @@ static void pxb_dev_exitfn(PCIDevice *pci_dev)
 }
 
 static Property pxb_dev_properties[] = {
-    /* Note: 0 is not a legal a PXB bus number. */
+    /* Note: 0 is not a legal PXB bus number. */
     DEFINE_PROP_UINT8("bus_nr", PXBDev, bus_nr, 0),
     DEFINE_PROP_UINT16("numa_node", PXBDev, numa_node, NUMA_NODE_UNASSIGNED),
     DEFINE_PROP_END_OF_LIST(),
