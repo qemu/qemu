@@ -143,8 +143,8 @@ static const unsigned int keymap_button[INPUT_BUTTON__MAX] = {
     [INPUT_BUTTON_LEFT]              = BTN_LEFT,
     [INPUT_BUTTON_RIGHT]             = BTN_RIGHT,
     [INPUT_BUTTON_MIDDLE]            = BTN_MIDDLE,
-    [INPUT_BUTTON_WHEELUP]           = BTN_GEAR_UP,
-    [INPUT_BUTTON_WHEELDOWN]         = BTN_GEAR_DOWN,
+    [INPUT_BUTTON_WHEEL_UP]          = BTN_GEAR_UP,
+    [INPUT_BUTTON_WHEEL_DOWN]        = BTN_GEAR_DOWN,
 };
 
 static const unsigned int axismap_rel[INPUT_AXIS__MAX] = {

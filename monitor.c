@@ -1375,7 +1375,7 @@ static void hmp_mouse_move(Monitor *mon, const QDict *qdict)
     if (dz_str) {
         dz = strtol(dz_str, NULL, 0);
         if (dz != 0) {
-            button = (dz > 0) ? INPUT_BUTTON_WHEELUP : INPUT_BUTTON_WHEELDOWN;
+            button = (dz > 0) ? INPUT_BUTTON_WHEEL_UP : INPUT_BUTTON_WHEEL_DOWN;
             qemu_input_queue_btn(NULL, button, true);
             qemu_input_event_sync();
             qemu_input_queue_btn(NULL, button, false);

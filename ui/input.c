@@ -82,19 +82,12 @@ void qemu_input_handler_bind(QemuInputHandlerState *s,
                              const char *device_id, int head,
                              Error **errp)
 {
-    DeviceState *dev;
     QemuConsole *con;
+    Error *err = NULL;
 
-    dev = qdev_find_recursive(sysbus_get_default(), device_id);
-    if (dev == NULL) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device_id);
-        return;
-    }
-
-    con = qemu_console_lookup_by_device(dev, head);
-    if (con == NULL) {
-        error_setg(errp, "Device %s is not bound to a QemuConsole", device_id);
+    con = qemu_console_lookup_by_device_name(device_id, head, &err);
+    if (err) {
+        error_propagate(errp, err);
         return;
     }
 
@@ -126,17 +119,22 @@ qemu_input_find_handler(uint32_t mask, QemuConsole *con)
     return NULL;
 }
 
-void qmp_x_input_send_event(bool has_console, int64_t console,
-                            InputEventList *events, Error **errp)
+void qmp_input_send_event(bool has_device, const char *device,
+                          bool has_head, int64_t head,
+                          InputEventList *events, Error **errp)
 {
     InputEventList *e;
     QemuConsole *con;
+    Error *err = NULL;
 
     con = NULL;
-    if (has_console) {
-        con = qemu_console_lookup_by_index(console);
-        if (!con) {
-            error_setg(errp, "console %" PRId64 " not found", console);
+    if (has_device) {
+        if (!has_head) {
+            head = 0;
+        }
+        con = qemu_console_lookup_by_device_name(device, head, &err);
+        if (err) {
+            error_propagate(errp, err);
             return;
         }
     }

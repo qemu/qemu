@@ -1790,6 +1790,29 @@ QemuConsole *qemu_console_lookup_by_device(DeviceState *dev, uint32_t head)
     return NULL;
 }
 
+QemuConsole *qemu_console_lookup_by_device_name(const char *device_id,
+                                                uint32_t head, Error **errp)
+{
+    DeviceState *dev;
+    QemuConsole *con;
+
+    dev = qdev_find_recursive(sysbus_get_default(), device_id);
+    if (dev == NULL) {
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device_id);
+        return NULL;
+    }
+
+    con = qemu_console_lookup_by_device(dev, head);
+    if (con == NULL) {
+        error_setg(errp, "Device %s (head %d) is not bound to a QemuConsole",
+                   device_id, head);
+        return NULL;
+    }
+
+    return con;
+}
+
 bool qemu_console_is_visible(QemuConsole *con)
 {
     return (con == active_console) || (con->dcls > 0);

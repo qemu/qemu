@@ -4658,21 +4658,22 @@ Example:
 EQMP
 
     {
-        .name       = "x-input-send-event",
+        .name       = "input-send-event",
         .args_type  = "console:i?,events:q",
-        .mhandler.cmd_new = qmp_marshal_x_input_send_event,
+        .mhandler.cmd_new = qmp_marshal_input_send_event,
     },
 
 SQMP
-@x-input-send-event
+@input-send-event
 -----------------
 
 Send input event to guest.
 
 Arguments:
 
-- "console": console index. (json-int, optional)
-- "events": list of input events.
+- "device": display device (json-string, optional)
+- "head": display head (json-int, optional)
+- "events": list of input events
 
 The consoles are visible in the qom tree, under
 /backend/console[$index]. They have a device link and head property, so
@@ -4684,24 +4685,24 @@ Example (1):
 
 Press left mouse button.
 
--> { "execute": "x-input-send-event",
-    "arguments": { "console": 0,
+-> { "execute": "input-send-event",
+    "arguments": { "device": "video0",
                    "events": [ { "type": "btn",
-                    "data" : { "down": true, "button": "Left" } } ] } }
+                   "data" : { "down": true, "button": "left" } } ] } }
 <- { "return": {} }
 
--> { "execute": "x-input-send-event",
-    "arguments": { "console": 0,
+-> { "execute": "input-send-event",
+    "arguments": { "device": "video0",
                    "events": [ { "type": "btn",
-                    "data" : { "down": false, "button": "Left" } } ] } }
+                   "data" : { "down": false, "button": "left" } } ] } }
 <- { "return": {} }
 
 Example (2):
 
 Press ctrl-alt-del.
 
--> { "execute": "x-input-send-event",
-     "arguments": { "console": 0, "events": [
+-> { "execute": "input-send-event",
+     "arguments": { "events": [
         { "type": "key", "data" : { "down": true,
           "key": {"type": "qcode", "data": "ctrl" } } },
         { "type": "key", "data" : { "down": true,
@@ -4714,10 +4715,10 @@ Example (3):
 
 Move mouse pointer to absolute coordinates (20000, 400).
 
--> { "execute": "x-input-send-event" ,
-  "arguments": { "console": 0, "events": [
-               { "type": "abs", "data" : { "axis": "X", "value" : 20000 } },
-               { "type": "abs", "data" : { "axis": "Y", "value" : 400 } } ] } }
+-> { "execute": "input-send-event" ,
+  "arguments": { "events": [
+               { "type": "abs", "data" : { "axis": "x", "value" : 20000 } },
+               { "type": "abs", "data" : { "axis": "y", "value" : 400 } } ] } }
 <- { "return": {} }
 
 EQMP
