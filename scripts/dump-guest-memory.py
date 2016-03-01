@@ -352,7 +352,7 @@ def memory_region_get_ram_ptr(memory_region):
         return (memory_region_get_ram_ptr(memory_region["alias"].dereference())
                 + memory_region["alias_offset"])
 
-    return qemu_get_ram_ptr(memory_region["ram_addr"] & TARGET_PAGE_MASK)
+    return qemu_get_ram_ptr(memory_region["ram_block"]["offset"])
 
 
 def get_guest_phys_blocks():

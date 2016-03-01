@@ -416,8 +416,8 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
             /* Write access calls the I/O callback.  */
             te->addr_write = address | TLB_MMIO;
         } else if (memory_region_is_ram(section->mr)
-                   && cpu_physical_memory_is_clean(section->mr->ram_addr
-                                                   + xlat)) {
+                   && cpu_physical_memory_is_clean(
+                        memory_region_get_ram_addr(section->mr) + xlat)) {
             te->addr_write = address | TLB_NOTDIRTY;
         } else {
             te->addr_write = address;

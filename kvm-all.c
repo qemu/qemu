@@ -366,7 +366,8 @@ static void kvm_log_stop(MemoryListener *listener,
 static int kvm_get_dirty_pages_log_range(MemoryRegionSection *section,
                                          unsigned long *bitmap)
 {
-    ram_addr_t start = section->offset_within_region + section->mr->ram_addr;
+    ram_addr_t start = section->offset_within_region +
+                       memory_region_get_ram_addr(section->mr);
     ram_addr_t pages = int128_get64(section->size) / getpagesize();
 
     cpu_physical_memory_set_dirty_lebitmap(bitmap, start, pages);

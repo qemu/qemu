@@ -400,7 +400,7 @@ static int create_shared_memory_BAR(IVShmemState *s, int fd, uint8_t attr,
 
     memory_region_init_ram_ptr(&s->ivshmem, OBJECT(s), "ivshmem.bar2",
                                s->ivshmem_size, ptr);
-    qemu_set_ram_fd(s->ivshmem.ram_addr, fd);
+    qemu_set_ram_fd(memory_region_get_ram_addr(&s->ivshmem), fd);
     vmstate_register_ram(&s->ivshmem, DEVICE(s));
     memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
 
@@ -661,7 +661,8 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
         }
         memory_region_init_ram_ptr(&s->ivshmem, OBJECT(s),
                                    "ivshmem.bar2", s->ivshmem_size, map_ptr);
-        qemu_set_ram_fd(s->ivshmem.ram_addr, incoming_fd);
+        qemu_set_ram_fd(memory_region_get_ram_addr(&s->ivshmem),
+                        incoming_fd);
         vmstate_register_ram(&s->ivshmem, DEVICE(s));
 
         IVSHMEM_DPRINTF("guest h/w addr = %p, size = %" PRIu64 "\n",
@@ -996,8 +997,10 @@ static void pci_ivshmem_exit(PCIDevice *dev)
                              strerror(errno));
             }
 
-            if ((fd = qemu_get_ram_fd(s->ivshmem.ram_addr)) != -1)
+            fd = qemu_get_ram_fd(memory_region_get_ram_addr(&s->ivshmem));
+            if (fd != -1) {
                 close(fd);
+            }
         }
 
         vmstate_unregister_ram(&s->ivshmem, DEVICE(dev));
