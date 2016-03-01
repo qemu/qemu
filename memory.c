@@ -902,12 +902,12 @@ static void memory_region_destructor_none(MemoryRegion *mr)
 
 static void memory_region_destructor_ram(MemoryRegion *mr)
 {
-    qemu_ram_free(memory_region_get_ram_addr(mr));
+    qemu_ram_free(mr->ram_block);
 }
 
 static void memory_region_destructor_rom_device(MemoryRegion *mr)
 {
-    qemu_ram_free(memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK);
+    qemu_ram_free(mr->ram_block);
 }
 
 static bool memory_region_need_escape(char c)

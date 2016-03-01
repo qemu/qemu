@@ -1751,22 +1751,15 @@ static void reclaim_ramblock(RAMBlock *block)
     g_free(block);
 }
 
-void qemu_ram_free(ram_addr_t addr)
+void qemu_ram_free(RAMBlock *block)
 {
-    RAMBlock *block;
-
     qemu_mutex_lock_ramlist();
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
-        if (addr == block->offset) {
-            QLIST_REMOVE_RCU(block, next);
-            ram_list.mru_block = NULL;
-            /* Write list before version */
-            smp_wmb();
-            ram_list.version++;
-            call_rcu(block, reclaim_ramblock, rcu);
-            break;
-        }
-    }
+    QLIST_REMOVE_RCU(block, next);
+    ram_list.mru_block = NULL;
+    /* Write list before version */
+    smp_wmb();
+    ram_list.version++;
+    call_rcu(block, reclaim_ramblock, rcu);
     qemu_mutex_unlock_ramlist();
 }
 
