@@ -12,6 +12,8 @@
 #ifndef CSS_H
 #define CSS_H
 
+#include "hw/s390x/adapter.h"
+#include "hw/s390x/s390_flic.h"
 #include "ioinst.h"
 
 /* Channel subsystem constants. */
@@ -85,6 +87,18 @@ struct SubchDev {
     SenseId id;
     void *driver_data;
 };
+
+typedef struct IndAddr {
+    hwaddr addr;
+    uint64_t map;
+    unsigned long refcnt;
+    int len;
+    QTAILQ_ENTRY(IndAddr) sibling;
+} IndAddr;
+
+IndAddr *get_indicator(hwaddr ind_addr, int len);
+void release_indicator(AdapterInfo *adapter, IndAddr *indicator);
+int map_indicator(AdapterInfo *adapter, IndAddr *indicator);
 
 typedef SubchDev *(*css_subch_cb_func)(uint8_t m, uint8_t cssid, uint8_t ssid,
                                        uint16_t schid);

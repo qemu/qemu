@@ -23,7 +23,8 @@
 #include <hw/virtio/virtio-balloon.h>
 #include <hw/virtio/virtio-rng.h>
 #include <hw/virtio/virtio-bus.h>
-#include <hw/s390x/s390_flic.h>
+
+#include "css.h"
 
 #define VIRTUAL_CSSID 0xfe
 
@@ -74,14 +75,6 @@ typedef struct VirtIOCCWDeviceClass {
  * vcpu thread using ioeventfd for some devices. */
 #define VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT 1
 #define VIRTIO_CCW_FLAG_USE_IOEVENTFD   (1 << VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT)
-
-typedef struct IndAddr {
-    hwaddr addr;
-    uint64_t map;
-    unsigned long refcnt;
-    int len;
-    QTAILQ_ENTRY(IndAddr) sibling;
-} IndAddr;
 
 struct VirtioCcwDevice {
     DeviceState parent_obj;

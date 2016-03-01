@@ -524,7 +524,7 @@ static int s390_pcihost_setup_msix(S390PCIBusDevice *pbdev)
         return 0;
     }
 
-    ctrl = pci_host_config_read_common(pbdev->pdev, pos + PCI_CAP_FLAGS,
+    ctrl = pci_host_config_read_common(pbdev->pdev, pos + PCI_MSIX_FLAGS,
              pci_config_size(pbdev->pdev), sizeof(ctrl));
     table = pci_host_config_read_common(pbdev->pdev, pos + PCI_MSIX_TABLE,
              pci_config_size(pbdev->pdev), sizeof(table));

@@ -28,17 +28,6 @@ void s390_sclp_extint(uint32_t parm)
     }
 }
 
-void s390_virtio_irq(int config_change, uint64_t token)
-{
-    if (kvm_enabled()) {
-        kvm_s390_virtio_irq(config_change, token);
-    } else {
-        S390CPU *dummy_cpu = s390_cpu_addr2state(0);
-
-        cpu_inject_ext(dummy_cpu, EXT_VIRTIO, config_change, token);
-    }
-}
-
 void s390_io_interrupt(uint16_t subchannel_id, uint16_t subchannel_nr,
                        uint32_t io_int_parm, uint32_t io_int_word)
 {

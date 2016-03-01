@@ -54,8 +54,6 @@
 #endif
 
 #define MAX_BLK_DEVS                    10
-#define S390_MACHINE                    "s390-virtio"
-#define TYPE_S390_MACHINE               MACHINE_TYPE_NAME(S390_MACHINE)
 
 #define S390_TOD_CLOCK_VALUE_MISSING    0x00
 #define S390_TOD_CLOCK_VALUE_PRESENT    0x01

@@ -233,6 +233,8 @@ typedef struct S390PCIBusDevice {
     AddressSpace as;
     MemoryRegion mr;
     MemoryRegion iommu_mr;
+    IndAddr *summary_ind;
+    IndAddr *indicator;
 } S390PCIBusDevice;
 
 typedef struct S390pciState {
