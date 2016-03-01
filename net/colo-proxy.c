@@ -1103,6 +1103,19 @@ static int colo_packet_compare_tcp(Packet *ppkt, Packet *spkt)
     assert(offset > 0);
     assert(spkt->size > offset);
 
+    /* The 'identification' field in the IP header is *very* random
+     * it almost never matches.  Fudge this by ignoring differences in
+     * unfragmented packets; they'll normally sort themselves out if different
+     * anyway, and it should recover at the TCP level.
+     * An alternative would be to get both the primary and secondary to rewrite
+     * somehow; but that would need some sync traffic to sync the state
+     */
+    if (ntohs(ppkt->ip->ip_off) & IP_DF) {
+        spkt->ip->ip_id = ppkt->ip->ip_id;
+        /* and the sum will be different if the IDs were different */
+        spkt->ip->ip_sum = ppkt->ip->ip_sum;
+    }
+
     res = memcmp(ppkt->data + offset, spkt->data + offset,
                  (spkt->size - offset));
     if (trace_event_get_state(TRACE_COLO_PROXY_MISCOMPARE) && res) {
