@@ -5099,6 +5099,40 @@ static inline int tswapid(int id)
 
 #endif /* USE_UID16 */
 
+/* We must do direct syscalls for setting UID/GID, because we want to
+ * implement the Linux system call semantics of "change only for this thread",
+ * not the libc/POSIX semantics of "change for all threads in process".
+ * (See http://ewontfix.com/17/ for more details.)
+ * We use the 32-bit version of the syscalls if present; if it is not
+ * then either the host architecture supports 32-bit UIDs natively with
+ * the standard syscall, or the 16-bit UID is the best we can do.
+ */
+#ifdef __NR_setuid32
+#define __NR_sys_setuid __NR_setuid32
+#else
+#define __NR_sys_setuid __NR_setuid
+#endif
+#ifdef __NR_setgid32
+#define __NR_sys_setgid __NR_setgid32
+#else
+#define __NR_sys_setgid __NR_setgid
+#endif
+#ifdef __NR_setresuid32
+#define __NR_sys_setresuid __NR_setresuid32
+#else
+#define __NR_sys_setresuid __NR_setresuid
+#endif
+#ifdef __NR_setresgid32
+#define __NR_sys_setresgid __NR_setresgid32
+#else
+#define __NR_sys_setresgid __NR_setresgid
+#endif
+
+_syscall1(int, sys_setuid, uid_t, uid)
+_syscall1(int, sys_setgid, gid_t, gid)
+_syscall3(int, sys_setresuid, uid_t, ruid, uid_t, euid, uid_t, suid)
+_syscall3(int, sys_setresgid, gid_t, rgid, gid_t, egid, gid_t, sgid)
+
 void syscall_init(void)
 {
     IOCTLEntry *ie;
@@ -8834,9 +8868,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_setresuid
     case TARGET_NR_setresuid:
-        ret = get_errno(setresuid(low2highuid(arg1),
-                                  low2highuid(arg2),
-                                  low2highuid(arg3)));
+        ret = get_errno(sys_setresuid(low2highuid(arg1),
+                                      low2highuid(arg2),
+                                      low2highuid(arg3)));
         break;
 #endif
 #ifdef TARGET_NR_getresuid
@@ -8855,9 +8889,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_getresgid
     case TARGET_NR_setresgid:
-        ret = get_errno(setresgid(low2highgid(arg1),
-                                  low2highgid(arg2),
-                                  low2highgid(arg3)));
+        ret = get_errno(sys_setresgid(low2highgid(arg1),
+                                      low2highgid(arg2),
+                                      low2highgid(arg3)));
         break;
 #endif
 #ifdef TARGET_NR_getresgid
@@ -8883,10 +8917,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
     case TARGET_NR_setuid:
-        ret = get_errno(setuid(low2highuid(arg1)));
+        ret = get_errno(sys_setuid(low2highuid(arg1)));
         break;
     case TARGET_NR_setgid:
-        ret = get_errno(setgid(low2highgid(arg1)));
+        ret = get_errno(sys_setgid(low2highgid(arg1)));
         break;
     case TARGET_NR_setfsuid:
         ret = get_errno(setfsuid(arg1));
@@ -9168,7 +9202,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_setresuid32
     case TARGET_NR_setresuid32:
-        ret = get_errno(setresuid(arg1, arg2, arg3));
+        ret = get_errno(sys_setresuid(arg1, arg2, arg3));
         break;
 #endif
 #ifdef TARGET_NR_getresuid32
@@ -9187,7 +9221,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_setresgid32
     case TARGET_NR_setresgid32:
-        ret = get_errno(setresgid(arg1, arg2, arg3));
+        ret = get_errno(sys_setresgid(arg1, arg2, arg3));
         break;
 #endif
 #ifdef TARGET_NR_getresgid32
@@ -9214,12 +9248,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_setuid32
     case TARGET_NR_setuid32:
-        ret = get_errno(setuid(arg1));
+        ret = get_errno(sys_setuid(arg1));
         break;
 #endif
 #ifdef TARGET_NR_setgid32
     case TARGET_NR_setgid32:
-        ret = get_errno(setgid(arg1));
+        ret = get_errno(sys_setgid(arg1));
         break;
 #endif
 #ifdef TARGET_NR_setfsuid32
