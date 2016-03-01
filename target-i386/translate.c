@@ -7282,12 +7282,14 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
 
         CASE_MODRM_OP(4): /* smsw */
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_READ_CR0);
-#if defined TARGET_X86_64 && defined HOST_WORDS_BIGENDIAN
-            tcg_gen_ld32u_tl(cpu_T0, cpu_env, offsetof(CPUX86State, cr[0]) + 4);
-#else
-            tcg_gen_ld32u_tl(cpu_T0, cpu_env, offsetof(CPUX86State, cr[0]));
-#endif
-            gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 1);
+            tcg_gen_ld_tl(cpu_T0, cpu_env, offsetof(CPUX86State, cr[0]));
+            if (CODE64(s)) {
+                mod = (modrm >> 6) & 3;
+                ot = (mod != 3 ? MO_16 : s->dflag);
+            } else {
+                ot = MO_16;
+            }
+            gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 1);
             break;
 
         CASE_MODRM_OP(6): /* lmsw */
