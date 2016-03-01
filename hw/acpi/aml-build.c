@@ -997,6 +997,20 @@ Aml *create_field_common(int opcode, Aml *srcbuf, Aml *index, const char *name)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefCreateField */
+Aml *aml_create_field(Aml *srcbuf, Aml *bit_index, Aml *num_bits,
+                      const char *name)
+{
+    Aml *var = aml_alloc();
+    build_append_byte(var->buf, 0x5B); /* ExtOpPrefix */
+    build_append_byte(var->buf, 0x13); /* CreateFieldOp */
+    aml_append(var, srcbuf);
+    aml_append(var, bit_index);
+    aml_append(var, num_bits);
+    build_append_namestring(var->buf, "%s", name);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefCreateDWordField */
 Aml *aml_create_dword_field(Aml *srcbuf, Aml *index, const char *name)
 {
