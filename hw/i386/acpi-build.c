@@ -993,7 +993,7 @@ static void build_processor_devices(Aml *sb_scope, unsigned acpi_cpus,
     aml_append(sb_scope, dev);
     /* declare CPU hotplug MMIO region and PRS field to access it */
     aml_append(sb_scope, aml_operation_region(
-        "PRST", AML_SYSTEM_IO, pm->cpu_hp_io_base, pm->cpu_hp_io_len));
+        "PRST", AML_SYSTEM_IO, aml_int(pm->cpu_hp_io_base), pm->cpu_hp_io_len));
     field = aml_field("PRST", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
     aml_append(field, aml_named_field("PRS", 256));
     aml_append(sb_scope, field);
@@ -1078,7 +1078,7 @@ static void build_memory_devices(Aml *sb_scope, int nr_mem,
 
     aml_append(scope, aml_operation_region(
         MEMORY_HOTPLUG_IO_REGION, AML_SYSTEM_IO,
-        io_base, io_len)
+        aml_int(io_base), io_len)
     );
 
     field = aml_field(MEMORY_HOTPLUG_IO_REGION, AML_DWORD_ACC,
@@ -1192,7 +1192,8 @@ static void build_hpet_aml(Aml *table)
     aml_append(dev, aml_name_decl("_UID", zero));
 
     aml_append(dev,
-        aml_operation_region("HPTM", AML_SYSTEM_MEMORY, HPET_BASE, HPET_LEN));
+        aml_operation_region("HPTM", AML_SYSTEM_MEMORY, aml_int(HPET_BASE),
+                             HPET_LEN));
     field = aml_field("HPTM", AML_DWORD_ACC, AML_LOCK, AML_PRESERVE);
     aml_append(field, aml_named_field("VEND", 32));
     aml_append(field, aml_named_field("PRD", 32));
@@ -1430,7 +1431,7 @@ static void build_dbg_aml(Aml *table)
     Aml *idx = aml_local(2);
 
     aml_append(scope,
-       aml_operation_region("DBG", AML_SYSTEM_IO, 0x0402, 0x01));
+       aml_operation_region("DBG", AML_SYSTEM_IO, aml_int(0x0402), 0x01));
     field = aml_field("DBG", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
     aml_append(field, aml_named_field("DBGB", 8));
     aml_append(scope, field);
@@ -1770,10 +1771,10 @@ static void build_q35_isa_bridge(Aml *table)
 
     /* ICH9 PCI to ISA irq remapping */
     aml_append(dev, aml_operation_region("PIRQ", AML_PCI_CONFIG,
-                                         0x60, 0x0C));
+                                         aml_int(0x60), 0x0C));
 
     aml_append(dev, aml_operation_region("LPCD", AML_PCI_CONFIG,
-                                         0x80, 0x02));
+                                         aml_int(0x80), 0x02));
     field = aml_field("LPCD", AML_ANY_ACC, AML_NOLOCK, AML_PRESERVE);
     aml_append(field, aml_named_field("COMA", 3));
     aml_append(field, aml_reserved_field(1));
@@ -1785,7 +1786,7 @@ static void build_q35_isa_bridge(Aml *table)
     aml_append(dev, field);
 
     aml_append(dev, aml_operation_region("LPCE", AML_PCI_CONFIG,
-                                         0x82, 0x02));
+                                         aml_int(0x82), 0x02));
     /* enable bits */
     field = aml_field("LPCE", AML_ANY_ACC, AML_NOLOCK, AML_PRESERVE);
     aml_append(field, aml_named_field("CAEN", 1));
@@ -1808,7 +1809,7 @@ static void build_piix4_pm(Aml *table)
     aml_append(dev, aml_name_decl("_ADR", aml_int(0x00010003)));
 
     aml_append(dev, aml_operation_region("P13C", AML_PCI_CONFIG,
-                                         0x00, 0xff));
+                                         aml_int(0x00), 0xff));
     aml_append(scope, dev);
     aml_append(table, scope);
 }
@@ -1825,7 +1826,7 @@ static void build_piix4_isa_bridge(Aml *table)
 
     /* PIIX PCI to ISA irq remapping */
     aml_append(dev, aml_operation_region("P40C", AML_PCI_CONFIG,
-                                         0x60, 0x04));
+                                         aml_int(0x60), 0x04));
     /* enable bits */
     field = aml_field("^PX13.P13C", AML_ANY_ACC, AML_NOLOCK, AML_PRESERVE);
     /* Offset(0x5f),, 7, */
@@ -1854,20 +1855,20 @@ static void build_piix4_pci_hotplug(Aml *table)
     scope =  aml_scope("_SB.PCI0");
 
     aml_append(scope,
-        aml_operation_region("PCST", AML_SYSTEM_IO, 0xae00, 0x08));
+        aml_operation_region("PCST", AML_SYSTEM_IO, aml_int(0xae00), 0x08));
     field = aml_field("PCST", AML_DWORD_ACC, AML_NOLOCK, AML_WRITE_AS_ZEROS);
     aml_append(field, aml_named_field("PCIU", 32));
     aml_append(field, aml_named_field("PCID", 32));
     aml_append(scope, field);
 
     aml_append(scope,
-        aml_operation_region("SEJ", AML_SYSTEM_IO, 0xae08, 0x04));
+        aml_operation_region("SEJ", AML_SYSTEM_IO, aml_int(0xae08), 0x04));
     field = aml_field("SEJ", AML_DWORD_ACC, AML_NOLOCK, AML_WRITE_AS_ZEROS);
     aml_append(field, aml_named_field("B0EJ", 32));
     aml_append(scope, field);
 
     aml_append(scope,
-        aml_operation_region("BNMR", AML_SYSTEM_IO, 0xae10, 0x04));
+        aml_operation_region("BNMR", AML_SYSTEM_IO, aml_int(0xae10), 0x04));
     field = aml_field("BNMR", AML_DWORD_ACC, AML_NOLOCK, AML_WRITE_AS_ZEROS);
     aml_append(field, aml_named_field("BNUM", 32));
     aml_append(scope, field);
@@ -1975,9 +1976,9 @@ build_dsdt(GArray *table_data, GArray *linker,
     } else {
         sb_scope = aml_scope("_SB");
         aml_append(sb_scope,
-            aml_operation_region("PCST", AML_SYSTEM_IO, 0xae00, 0x0c));
+            aml_operation_region("PCST", AML_SYSTEM_IO, aml_int(0xae00), 0x0c));
         aml_append(sb_scope,
-            aml_operation_region("PCSB", AML_SYSTEM_IO, 0xae0c, 0x01));
+            aml_operation_region("PCSB", AML_SYSTEM_IO, aml_int(0xae0c), 0x01));
         field = aml_field("PCSB", AML_ANY_ACC, AML_NOLOCK, AML_WRITE_AS_ZEROS);
         aml_append(field, aml_named_field("PCIB", 8));
         aml_append(sb_scope, field);
@@ -2252,7 +2253,7 @@ build_dsdt(GArray *table_data, GArray *linker,
         aml_append(dev, aml_name_decl("_CRS", crs));
 
         aml_append(dev, aml_operation_region("PEOR", AML_SYSTEM_IO,
-                                              misc->pvpanic_port, 1));
+                                              aml_int(misc->pvpanic_port), 1));
         field = aml_field("PEOR", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
         aml_append(field, aml_named_field("PEPT", 8));
         aml_append(dev, field);

@@ -942,14 +942,14 @@ Aml *aml_package(uint8_t num_elements)
 
 /* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefOpRegion */
 Aml *aml_operation_region(const char *name, AmlRegionSpace rs,
-                          uint32_t offset, uint32_t len)
+                          Aml *offset, uint32_t len)
 {
     Aml *var = aml_alloc();
     build_append_byte(var->buf, 0x5B); /* ExtOpPrefix */
     build_append_byte(var->buf, 0x80); /* OpRegionOp */
     build_append_namestring(var->buf, "%s", name);
     build_append_byte(var->buf, rs);
-    build_append_int(var->buf, offset);
+    aml_append(var, offset);
     build_append_int(var->buf, len);
     return var;
 }

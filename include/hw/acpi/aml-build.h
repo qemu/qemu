@@ -285,7 +285,7 @@ Aml *aml_interrupt(AmlConsumerAndProducer con_and_pro,
 Aml *aml_io(AmlIODecode dec, uint16_t min_base, uint16_t max_base,
             uint8_t aln, uint8_t len);
 Aml *aml_operation_region(const char *name, AmlRegionSpace rs,
-                          uint32_t offset, uint32_t len);
+                          Aml *offset, uint32_t len);
 Aml *aml_irq_no_flags(uint8_t irq);
 Aml *aml_named_field(const char *name, unsigned length);
 Aml *aml_reserved_field(unsigned length);
