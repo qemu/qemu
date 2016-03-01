@@ -1640,6 +1640,11 @@ void *memory_region_get_ram_ptr(MemoryRegion *mr)
     return ptr + offset;
 }
 
+ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr)
+{
+    return mr->ram_block ? mr->ram_block->offset : RAM_ADDR_INVALID;
+}
+
 void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize, Error **errp)
 {
     assert(mr->ram_addr != RAM_ADDR_INVALID);
