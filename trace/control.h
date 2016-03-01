@@ -1,7 +1,7 @@
 /*
  * Interface for configuring and controlling the state of tracing events.
  *
- * Copyright (C) 2011-2014 Lluís Vilanova <vilanova@ac.upc.edu>
+ * Copyright (C) 2011-2016 Lluís Vilanova <vilanova@ac.upc.edu>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -11,6 +11,7 @@
 #define TRACE__CONTROL_H
 
 #include "qemu-common.h"
+#include "qemu/typedefs.h"
 #include "trace/generated-events.h"
 
 

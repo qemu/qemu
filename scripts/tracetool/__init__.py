@@ -6,7 +6,7 @@ Machinery for generating tracing-related intermediate files.
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2016, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -50,9 +50,14 @@ class Arguments:
         Parameters
         ----------
         args :
-            List of (type, name) tuples.
+            List of (type, name) tuples or Arguments objects.
         """
-        self._args = args
+        self._args = []
+        for arg in args:
+            if isinstance(arg, Arguments):
+                self._args.extend(arg._args)
+            else:
+                self._args.append(arg)
 
     def copy(self):
         """Create a new copy."""
@@ -83,6 +88,12 @@ class Arguments:
             res.append((arg_type, identifier))
         return Arguments(res)
 
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return Arguments(self._args[index])
+        else:
+            return self._args[index]
+
     def __iter__(self):
         """Iterate over the (type, name) pairs."""
         return iter(self._args)
@@ -109,6 +120,10 @@ class Arguments:
     def types(self):
         """List of argument types."""
         return [ type_ for type_, _ in self._args ]
+
+    def casted(self):
+        """List of argument names casted to their type."""
+        return ["(%s)%s" % (type_, name) for type_, name in self._args]
 
     def transform(self, *trans):
         """Return a new Arguments instance with transformed types.
@@ -146,9 +161,10 @@ class Event(object):
                       "(?:(?:(?P<fmt_trans>\".+),)?\s*(?P<fmt>\".+))?"
                       "\s*")
 
-    _VALID_PROPS = set(["disable", "tcg", "tcg-trans", "tcg-exec"])
+    _VALID_PROPS = set(["disable", "tcg", "tcg-trans", "tcg-exec", "vcpu"])
 
-    def __init__(self, name, props, fmt, args, orig=None):
+    def __init__(self, name, props, fmt, args, orig=None,
+                 event_trans=None, event_exec=None):
         """
         Parameters
         ----------
@@ -161,13 +177,19 @@ class Event(object):
         args : Arguments
             Event arguments.
         orig : Event or None
-            Original Event before transformation.
+            Original Event before transformation/generation.
+        event_trans : Event or None
+            Generated translation-time event ("tcg" property).
+        event_exec : Event or None
+            Generated execution-time event ("tcg" property).
 
         """
         self.name = name
         self.properties = props
         self.fmt = fmt
         self.args = args
+        self.event_trans = event_trans
+        self.event_exec = event_exec
 
         if orig is None:
             self.original = weakref.ref(self)
@@ -183,7 +205,7 @@ class Event(object):
     def copy(self):
         """Create a new copy."""
         return Event(self.name, list(self.properties), self.fmt,
-                     self.args.copy(), self)
+                     self.args.copy(), self, self.event_trans, self.event_exec)
 
     @staticmethod
     def build(line_str):
@@ -215,7 +237,13 @@ class Event(object):
         if "tcg" in props and isinstance(fmt, str):
             raise ValueError("Events with 'tcg' property must have two formats")
 
-        return Event(name, props, fmt, args)
+        event = Event(name, props, fmt, args)
+
+        # add implicit arguments when using the 'vcpu' property
+        import tracetool.vcpu
+        event = tracetool.vcpu.transform_event(event)
+
+        return event
 
     def __repr__(self):
         """Evaluable string representation for this object."""
@@ -270,6 +298,7 @@ def _read_events(fobj):
             event_trans.name += "_trans"
             event_trans.properties += ["tcg-trans"]
             event_trans.fmt = event.fmt[0]
+            # ignore TCG arguments
             args_trans = []
             for atrans, aorig in zip(
                     event_trans.transform(tracetool.transform.TCG_2_HOST).args,
@@ -277,13 +306,12 @@ def _read_events(fobj):
                 if atrans == aorig:
                     args_trans.append(atrans)
             event_trans.args = Arguments(args_trans)
-            event_trans = event_trans.copy()
 
             event_exec = event.copy()
             event_exec.name += "_exec"
             event_exec.properties += ["tcg-exec"]
             event_exec.fmt = event.fmt[1]
-            event_exec = event_exec.transform(tracetool.transform.TCG_2_HOST)
+            event_exec.args = event_exec.args.transform(tracetool.transform.TCG_2_HOST)
 
             new_event = [event_trans, event_exec]
             event.event_trans, event.event_exec = new_event

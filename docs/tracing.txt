@@ -172,9 +172,6 @@ source tree.  It may not be as powerful as platform-specific or third-party
 trace backends but it is portable.  This is the recommended trace backend
 unless you have specific needs for more advanced backends.
 
-The "simple" backend currently does not capture string arguments, it simply
-records the char* pointer value instead of the string that is pointed to.
-
 === Ftrace ===
 
 The "ftrace" backend writes trace data to ftrace marker. This effectively
@@ -347,3 +344,44 @@ This will immediately call:
 and will generate the TCG code to call:
 
     void trace_foo(uint8_t a1, uint32_t a2);
+
+=== "vcpu" ===
+
+Identifies events that trace vCPU-specific information. It implicitly adds a
+"CPUState*" argument, and extends the tracing print format to show the vCPU
+information. If used together with the "tcg" property, it adds a second
+"TCGv_env" argument that must point to the per-target global TCG register that
+points to the vCPU when guest code is executed (usually the "cpu_env" variable).
+
+The following example events:
+
+    foo(uint32_t a) "a=%x"
+    vcpu bar(uint32_t a) "a=%x"
+    tcg vcpu baz(uint32_t a) "a=%x", "a=%x"
+
+Can be used as:
+
+    #include "trace-tcg.h"
+    
+    CPUArchState *env;
+    TCGv_ptr cpu_env;
+    
+    void some_disassembly_func(...)
+    {
+        /* trace emitted at this point */
+        trace_foo(0xd1);
+        /* trace emitted at this point */
+        trace_bar(ENV_GET_CPU(env), 0xd2);
+        /* trace emitted at this point (env) and when guest code is executed (cpu_env) */
+        trace_baz_tcg(ENV_GET_CPU(env), cpu_env, 0xd3);
+    }
+
+If the translating vCPU has address 0xc1 and code is later executed by vCPU
+0xc2, this would be an example output:
+
+    // at guest code translation
+    foo a=0xd1
+    bar cpu=0xc1 a=0xd2
+    baz_trans cpu=0xc1 a=0xd3
+    // at guest code execution
+    baz_exec cpu=0xc2 a=0xd3

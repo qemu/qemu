@@ -6,7 +6,7 @@ trace/generated-events.h
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2016, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -43,7 +43,7 @@ def generate(events, backend):
         if "tcg-trans" in e.properties:
             # a single define for the two "sub-events"
             out('#define TRACE_%(name)s_ENABLED %(enabled)d',
-                name=e.original.original.name.upper(),
+                name=e.original.name.upper(),
                 enabled=enabled)
         out('#define TRACE_%s_ENABLED %d' % (e.name.upper(), enabled))
 
