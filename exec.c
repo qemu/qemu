@@ -307,6 +307,17 @@ static void phys_page_compact_all(AddressSpaceDispatch *d, int nodes_nb)
     }
 }
 
+static inline bool section_covers_addr(const MemoryRegionSection *section,
+                                       hwaddr addr)
+{
+    /* Memory topology clips a memory region to [0, 2^64); size.hi > 0 means
+     * the section must cover the entire address space.
+     */
+    return section->size.hi ||
+           range_covers_byte(section->offset_within_address_space,
+                             section->size.lo, addr);
+}
+
 static MemoryRegionSection *phys_page_find(PhysPageEntry lp, hwaddr addr,
                                            Node *nodes, MemoryRegionSection *sections)
 {
@@ -322,9 +333,7 @@ static MemoryRegionSection *phys_page_find(PhysPageEntry lp, hwaddr addr,
         lp = p[(index >> (i * P_L2_BITS)) & (P_L2_SIZE - 1)];
     }
 
-    if (sections[lp.ptr].size.hi ||
-        range_covers_byte(sections[lp.ptr].offset_within_address_space,
-                          sections[lp.ptr].size.lo, addr)) {
+    if (section_covers_addr(&sections[lp.ptr], addr)) {
         return &sections[lp.ptr];
     } else {
         return &sections[PHYS_SECTION_UNASSIGNED];
