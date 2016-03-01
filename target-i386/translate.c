@@ -57,10 +57,16 @@
 #endif
 
 /* For a switch indexed by MODRM, match all memory operands for a given OP.  */
-#define CASE_MEM_OP(OP) \
+#define CASE_MODRM_MEM_OP(OP) \
     case (0 << 6) | (OP << 3) | 0 ... (0 << 6) | (OP << 3) | 7: \
     case (1 << 6) | (OP << 3) | 0 ... (1 << 6) | (OP << 3) | 7: \
     case (2 << 6) | (OP << 3) | 0 ... (2 << 6) | (OP << 3) | 7
+
+#define CASE_MODRM_OP(OP) \
+    case (0 << 6) | (OP << 3) | 0 ... (0 << 6) | (OP << 3) | 7: \
+    case (1 << 6) | (OP << 3) | 0 ... (1 << 6) | (OP << 3) | 7: \
+    case (2 << 6) | (OP << 3) | 0 ... (2 << 6) | (OP << 3) | 7: \
+    case (3 << 6) | (OP << 3) | 0 ... (3 << 6) | (OP << 3) | 7
 
 //#define MACRO_TEST   1
 
@@ -7038,7 +7044,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x101:
         modrm = cpu_ldub_code(env, s->pc++);
         switch (modrm) {
-        CASE_MEM_OP(0): /* sgdt */
+        CASE_MODRM_MEM_OP(0): /* sgdt */
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_GDTR_READ);
             gen_lea_modrm(env, s, modrm);
             tcg_gen_ld32u_tl(cpu_T0,
@@ -7094,7 +7100,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_eob(s);
             break;
 
-        CASE_MEM_OP(1): /* sidt */
+        CASE_MODRM_MEM_OP(1): /* sidt */
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_IDTR_READ);
             gen_lea_modrm(env, s, modrm);
             tcg_gen_ld32u_tl(cpu_T0, cpu_env, offsetof(CPUX86State, idt.limit));
@@ -7240,7 +7246,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_helper_invlpga(cpu_env, tcg_const_i32(s->aflag - 1));
             break;
 
-        CASE_MEM_OP(2): /* lgdt */
+        CASE_MODRM_MEM_OP(2): /* lgdt */
             if (s->cpl != 0) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                 break;
@@ -7257,7 +7263,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             tcg_gen_st32_tl(cpu_T1, cpu_env, offsetof(CPUX86State, gdt.limit));
             break;
 
-        CASE_MEM_OP(3): /* lidt */
+        CASE_MODRM_MEM_OP(3): /* lidt */
             if (s->cpl != 0) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                 break;
@@ -7274,7 +7280,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             tcg_gen_st32_tl(cpu_T1, cpu_env, offsetof(CPUX86State, idt.limit));
             break;
 
-        CASE_MEM_OP(4): /* smsw */
+        CASE_MODRM_OP(4): /* smsw */
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_READ_CR0);
 #if defined TARGET_X86_64 && defined HOST_WORDS_BIGENDIAN
             tcg_gen_ld32u_tl(cpu_T0, cpu_env, offsetof(CPUX86State, cr[0]) + 4);
@@ -7284,7 +7290,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 1);
             break;
 
-        CASE_MEM_OP(6): /* lmsw */
+        CASE_MODRM_OP(6): /* lmsw */
             if (s->cpl != 0) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                 break;
@@ -7296,7 +7302,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_eob(s);
             break;
 
-        CASE_MEM_OP(7): /* invlpg */
+        CASE_MODRM_MEM_OP(7): /* invlpg */
             if (s->cpl != 0) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                 break;
@@ -7778,7 +7784,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x1ae:
         modrm = cpu_ldub_code(env, s->pc++);
         switch (modrm) {
-        CASE_MEM_OP(0): /* fxsave */
+        CASE_MODRM_MEM_OP(0): /* fxsave */
             if (!(s->cpuid_features & CPUID_FXSR)
                 || (prefixes & PREFIX_LOCK)) {
                 goto illegal_op;
@@ -7791,7 +7797,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_helper_fxsave(cpu_env, cpu_A0);
             break;
 
-        CASE_MEM_OP(1): /* fxrstor */
+        CASE_MODRM_MEM_OP(1): /* fxrstor */
             if (!(s->cpuid_features & CPUID_FXSR)
                 || (prefixes & PREFIX_LOCK)) {
                 goto illegal_op;
@@ -7804,7 +7810,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_helper_fxrstor(cpu_env, cpu_A0);
             break;
 
-        CASE_MEM_OP(2): /* ldmxcsr */
+        CASE_MODRM_MEM_OP(2): /* ldmxcsr */
             if ((s->flags & HF_EM_MASK) || !(s->flags & HF_OSFXSR_MASK)) {
                 goto illegal_op;
             }
@@ -7817,7 +7823,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_helper_ldmxcsr(cpu_env, cpu_tmp2_i32);
             break;
 
-        CASE_MEM_OP(3): /* stmxcsr */
+        CASE_MODRM_MEM_OP(3): /* stmxcsr */
             if ((s->flags & HF_EM_MASK) || !(s->flags & HF_OSFXSR_MASK)) {
                 goto illegal_op;
             }
@@ -7830,7 +7836,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_op_st_v(s, MO_32, cpu_T0, cpu_A0);
             break;
 
-        CASE_MEM_OP(4): /* xsave */
+        CASE_MODRM_MEM_OP(4): /* xsave */
             if ((s->cpuid_ext_features & CPUID_EXT_XSAVE) == 0
                 || (prefixes & (PREFIX_LOCK | PREFIX_DATA
                                 | PREFIX_REPZ | PREFIX_REPNZ))) {
@@ -7842,7 +7848,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_helper_xsave(cpu_env, cpu_A0, cpu_tmp1_i64);
             break;
 
-        CASE_MEM_OP(5): /* xrstor */
+        CASE_MODRM_MEM_OP(5): /* xrstor */
             if ((s->cpuid_ext_features & CPUID_EXT_XSAVE) == 0
                 || (prefixes & (PREFIX_LOCK | PREFIX_DATA
                                 | PREFIX_REPZ | PREFIX_REPNZ))) {
@@ -7859,7 +7865,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_eob(s);
             break;
 
-        CASE_MEM_OP(6): /* xsaveopt / clwb */
+        CASE_MODRM_MEM_OP(6): /* xsaveopt / clwb */
             if (prefixes & PREFIX_LOCK) {
                 goto illegal_op;
             }
@@ -7883,7 +7889,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             }
             break;
 
-        CASE_MEM_OP(7): /* clflush / clflushopt */
+        CASE_MODRM_MEM_OP(7): /* clflush / clflushopt */
             if (prefixes & PREFIX_LOCK) {
                 goto illegal_op;
             }
