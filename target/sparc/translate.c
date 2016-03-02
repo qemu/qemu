@@ -3429,6 +3429,17 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 case 0x19: /* System tick compare */
                     gen_store_gpr(dc, rd, cpu_stick_cmpr);
                     break;
+                case 0x1a: /* UltraSPARC-T1 Strand status */
+                    /* XXX HYPV check maybe not enough, UA2005 & UA2007 describe
+                     * this ASR as impl. dep
+                     */
+                    CHECK_IU_FEATURE(dc, HYPV);
+                    {
+                        TCGv t = gen_dest_gpr(dc, rd);
+                        tcg_gen_movi_tl(t, 1UL);
+                        gen_store_gpr(dc, rd, t);
+                    }
+                    break;
                 case 0x10: /* Performance Control */
                 case 0x11: /* Performance Instrumentation Counter */
                 case 0x12: /* Dispatch Control */
