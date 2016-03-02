@@ -360,47 +360,47 @@ static BlockStats *bdrv_query_stats(BlockBackend *blk,
                                     const BlockDriverState *bs,
                                     bool query_backing);
 
-static void bdrv_query_blk_stats(BlockStats *s, BlockBackend *blk)
+static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
 {
     BlockAcctStats *stats = blk_get_stats(blk);
     BlockAcctTimedStats *ts = NULL;
 
-    s->stats->rd_bytes = stats->nr_bytes[BLOCK_ACCT_READ];
-    s->stats->wr_bytes = stats->nr_bytes[BLOCK_ACCT_WRITE];
-    s->stats->rd_operations = stats->nr_ops[BLOCK_ACCT_READ];
-    s->stats->wr_operations = stats->nr_ops[BLOCK_ACCT_WRITE];
+    ds->rd_bytes = stats->nr_bytes[BLOCK_ACCT_READ];
+    ds->wr_bytes = stats->nr_bytes[BLOCK_ACCT_WRITE];
+    ds->rd_operations = stats->nr_ops[BLOCK_ACCT_READ];
+    ds->wr_operations = stats->nr_ops[BLOCK_ACCT_WRITE];
 
-    s->stats->failed_rd_operations = stats->failed_ops[BLOCK_ACCT_READ];
-    s->stats->failed_wr_operations = stats->failed_ops[BLOCK_ACCT_WRITE];
-    s->stats->failed_flush_operations = stats->failed_ops[BLOCK_ACCT_FLUSH];
+    ds->failed_rd_operations = stats->failed_ops[BLOCK_ACCT_READ];
+    ds->failed_wr_operations = stats->failed_ops[BLOCK_ACCT_WRITE];
+    ds->failed_flush_operations = stats->failed_ops[BLOCK_ACCT_FLUSH];
 
-    s->stats->invalid_rd_operations = stats->invalid_ops[BLOCK_ACCT_READ];
-    s->stats->invalid_wr_operations = stats->invalid_ops[BLOCK_ACCT_WRITE];
-    s->stats->invalid_flush_operations =
+    ds->invalid_rd_operations = stats->invalid_ops[BLOCK_ACCT_READ];
+    ds->invalid_wr_operations = stats->invalid_ops[BLOCK_ACCT_WRITE];
+    ds->invalid_flush_operations =
         stats->invalid_ops[BLOCK_ACCT_FLUSH];
 
-    s->stats->rd_merged = stats->merged[BLOCK_ACCT_READ];
-    s->stats->wr_merged = stats->merged[BLOCK_ACCT_WRITE];
-    s->stats->flush_operations = stats->nr_ops[BLOCK_ACCT_FLUSH];
-    s->stats->wr_total_time_ns = stats->total_time_ns[BLOCK_ACCT_WRITE];
-    s->stats->rd_total_time_ns = stats->total_time_ns[BLOCK_ACCT_READ];
-    s->stats->flush_total_time_ns = stats->total_time_ns[BLOCK_ACCT_FLUSH];
+    ds->rd_merged = stats->merged[BLOCK_ACCT_READ];
+    ds->wr_merged = stats->merged[BLOCK_ACCT_WRITE];
+    ds->flush_operations = stats->nr_ops[BLOCK_ACCT_FLUSH];
+    ds->wr_total_time_ns = stats->total_time_ns[BLOCK_ACCT_WRITE];
+    ds->rd_total_time_ns = stats->total_time_ns[BLOCK_ACCT_READ];
+    ds->flush_total_time_ns = stats->total_time_ns[BLOCK_ACCT_FLUSH];
 
-    s->stats->has_idle_time_ns = stats->last_access_time_ns > 0;
-    if (s->stats->has_idle_time_ns) {
-        s->stats->idle_time_ns = block_acct_idle_time_ns(stats);
+    ds->has_idle_time_ns = stats->last_access_time_ns > 0;
+    if (ds->has_idle_time_ns) {
+        ds->idle_time_ns = block_acct_idle_time_ns(stats);
     }
 
-    s->stats->account_invalid = stats->account_invalid;
-    s->stats->account_failed = stats->account_failed;
+    ds->account_invalid = stats->account_invalid;
+    ds->account_failed = stats->account_failed;
 
     while ((ts = block_acct_interval_next(stats, ts))) {
         BlockDeviceTimedStatsList *timed_stats =
             g_malloc0(sizeof(*timed_stats));
         BlockDeviceTimedStats *dev_stats = g_malloc0(sizeof(*dev_stats));
-        timed_stats->next = s->stats->timed_stats;
+        timed_stats->next = ds->timed_stats;
         timed_stats->value = dev_stats;
-        s->stats->timed_stats = timed_stats;
+        ds->timed_stats = timed_stats;
 
         TimedAverage *rd = &ts->latency[BLOCK_ACCT_READ];
         TimedAverage *wr = &ts->latency[BLOCK_ACCT_WRITE];
@@ -461,7 +461,7 @@ static BlockStats *bdrv_query_stats(BlockBackend *blk,
     if (blk) {
         s->has_device = true;
         s->device = g_strdup(blk_name(blk));
-        bdrv_query_blk_stats(s, blk);
+        bdrv_query_blk_stats(s->stats, blk);
     }
     if (bs) {
         bdrv_query_bds_stats(s, bs, query_backing);
