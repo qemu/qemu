@@ -7475,7 +7475,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         case 3: /* prefetchnt0 */
             if (mod == 3)
                 goto illegal_op;
-            gen_lea_modrm(env, s, modrm);
+            gen_nop_modrm(env, s, modrm);
             /* nothing more to do */
             break;
         default: /* nop (multi byte) */
@@ -7973,8 +7973,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         mod = (modrm >> 6) & 3;
         if (mod == 3)
             goto illegal_op;
-        gen_lea_modrm(env, s, modrm);
-        /* ignore for now */
+        gen_nop_modrm(env, s, modrm);
         break;
     case 0x1aa: /* rsm */
         gen_svm_check_intercept(s, pc_start, SVM_EXIT_RSM);
