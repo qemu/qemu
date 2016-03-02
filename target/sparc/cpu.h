@@ -719,10 +719,10 @@ static inline int cpu_mmu_index(CPUSPARCState *env, bool ifetch)
         ? (env->lsu & IMMU_E) == 0 || (env->pstate & PS_RED) != 0
         : (env->lsu & DMMU_E) == 0) {
         return MMU_PHYS_IDX;
-    } else if (env->tl > 0) {
-        return MMU_NUCLEUS_IDX;
     } else if (cpu_hypervisor_mode(env)) {
         return MMU_HYPV_IDX;
+    } else if (env->tl > 0) {
+        return MMU_NUCLEUS_IDX;
     } else if (cpu_supervisor_mode(env)) {
         return MMU_KERNEL_IDX;
     } else {

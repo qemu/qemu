@@ -2142,7 +2142,11 @@ static DisasASI get_asi(DisasContext *dc, int insn, TCGMemOp memop)
         case ASI_TWINX_NL:
         case ASI_NUCLEUS_QUAD_LDD:
         case ASI_NUCLEUS_QUAD_LDD_L:
-            mem_idx = MMU_NUCLEUS_IDX;
+            if (hypervisor(dc)) {
+                mem_idx = MMU_HYPV_IDX;
+            } else {
+                mem_idx = MMU_NUCLEUS_IDX;
+            }
             break;
         case ASI_AIUP:  /* As if user primary */
         case ASI_AIUPL: /* As if user primary LE */
