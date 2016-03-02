@@ -1098,6 +1098,12 @@ F: hw/nvram/chrp_nvram.c
 F: include/hw/nvram/chrp_nvram.h
 F: tests/prom-env-test.c
 
+sun4v RTC
+M: Artyom Tarasenko <atar4qemu@gmail.com>
+S: Maintained
+F: hw/timer/sun4v-rtc.c
+F: include/hw/timer/sun4v-rtc.h
+
 Subsystems
 ----------
 Audio
