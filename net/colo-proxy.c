@@ -600,9 +600,12 @@ static void secondary_from_net(NetFilterState *nf,
     //fprintf(stderr,"%s: TCP packet src: %s flags: %x\n",
     //               __func__, inet_ntoa(key.src), tcp->th_flags);
     if (!from_guest) {
-        /* Packets from the primary via the socket */
+        /* Packets from the primary via the socket or
+         * after failover form the real network
+         */
        conn = colo_proxy_get_conn(s, &key);
-        if ((tcp->th_flags & (TH_ACK | TH_SYN)) == TH_ACK) {
+        if (((tcp->th_flags & (TH_ACK | TH_SYN)) == TH_ACK) &&
+           (s->status == COLO_PROXY_RUNNING)) {
             /* Incoming connection, this is the ACK from the outside */
            //fprintf(stderr, "W->G ACK; seqs: %u/%u dst-ip: %s ports (s/d): %d/%d state=%d\n",
            //        ntohl(tcp->th_seq), ntohl(tcp->th_ack), inet_ntoa(key.dst), key.src_port, key.dst_port,
@@ -642,9 +645,11 @@ static void secondary_from_net(NetFilterState *nf,
 
     } else {
         /* Packets from the guest */
-        if ((tcp->th_flags & (TH_ACK | TH_SYN)) == (TH_ACK | TH_SYN)) {
+        if ((tcp->th_flags & (TH_ACK | TH_SYN)) == (TH_ACK | TH_SYN) &&
+            (s->status == COLO_PROXY_RUNNING)) {
              /* Incoming connection, SYN/ACK from the guest in response
               * to the syn from the outside.
+              * Only record new connections in running mode
               */
            conn = colo_proxy_get_conn(s, &key);
            //fprintf(stderr, "G->W SYN-ACK; seqs: %u/%u src-ip: %s ports (s/d): %d/%d state=%d\n",
@@ -690,6 +695,7 @@ static void secondary_from_net(NetFilterState *nf,
 }
 
 /* Primary: Outgoing packet */
+/* Note: 0=failure, !0 is success */
 static ssize_t colo_proxy_enqueue_primary_packet(NetFilterState *nf,
                                          NetClientState *sender,
                                          unsigned flags,
@@ -730,6 +736,7 @@ static ssize_t colo_proxy_enqueue_primary_packet(NetFilterState *nf,
     return 1;
 }
 
+/* 0 is success, -1 is failure */
 static ssize_t
 colo_proxy_enqueue_secondary_packet(NetFilterState *nf,
                                     char *buf, int len)
@@ -851,7 +858,8 @@ static void colo_proxy_sock_receive(void *opaque)
 /*
  * colo primary handle host's normal send and
  * recv packets to primary guest
- * return:          >= 0      success
+ * return:          > 0       success (don't pass the packet further)
+ *                  0         success, pass the packet on
  *                  < 0       failed
  */
 static ssize_t colo_proxy_primary_handler(NetFilterState *nf,
@@ -861,7 +869,13 @@ static ssize_t colo_proxy_primary_handler(NetFilterState *nf,
                                          int iovcnt,
                                          NetPacketSent *sent_cb)
 {
+    COLOProxyState *s = FILTER_COLO_PROXY(nf);
     ssize_t ret = 0;
+
+    if (s->status != COLO_PROXY_RUNNING) {
+        /* proxy is not started or failovered */
+        return 0;
+    }
 
     /*
      * if packet's direction=rx
@@ -892,7 +906,8 @@ static ssize_t colo_proxy_primary_handler(NetFilterState *nf,
 /*
  * colo secondary handle host's normal send and
  * recv packets to secondary guest
- * return:          >= 0      success
+ * return:          > 0       success (don't pass the packet further)
+ *                  0         success, pass the packet on
  *                  < 0       failed
  */
 static ssize_t colo_proxy_secondary_handler(NetFilterState *nf,
@@ -902,6 +917,7 @@ static ssize_t colo_proxy_secondary_handler(NetFilterState *nf,
                                          int iovcnt,
                                          NetPacketSent *sent_cb)
 {
+    COLOProxyState *s = FILTER_COLO_PROXY(nf);
     ssize_t ret = 0;
 
     /*
@@ -916,8 +932,13 @@ static ssize_t colo_proxy_secondary_handler(NetFilterState *nf,
         /* This packet is sent by netdev itself */
         /* Incoming packet from the net - but on the secondary all the packets
          * to the guest are actually going to the primary, we don't see real ones.
-         * TODO: After failover we might need it.
          */
+        if (s->status == COLO_PROXY_DONE) {
+            /* But after failover we have to continue updating the sequence
+             * numbers of existing connections.
+             */
+            secondary_from_net(nf, iov, iovcnt, false /* from net */);
+        }
     } else {
         /* Outgoing packets from secondary guest - send to
          * primary for comparison
@@ -925,12 +946,17 @@ static ssize_t colo_proxy_secondary_handler(NetFilterState *nf,
          * TODO: When we see the reset/fin mark as closed?
          */
         secondary_from_net(nf, iov, iovcnt, true /* from guest */);
-        ret = colo_proxy_sock_send(nf, iov, iovcnt);
+        if (s->status == COLO_PROXY_RUNNING) {
+            ret = colo_proxy_sock_send(nf, iov, iovcnt);
+        }
     }
 
     return ret;
 }
 
+/* Return 0: send it to the rest of the filters
+ *      !=0: Doesn't get sent???
+ */
 static ssize_t colo_proxy_receive_iov(NetFilterState *nf,
                                          NetClientState *sender,
                                          unsigned flags,
@@ -946,21 +972,16 @@ static ssize_t colo_proxy_receive_iov(NetFilterState *nf,
     COLOProxyState *s = FILTER_COLO_PROXY(nf);
     ssize_t ret = 0;
 
-    if (s->status != COLO_PROXY_RUNNING) {
-        /* proxy is not started or failovered */
-        return 0;
-    }
-
     if (s->colo_mode == COLO_MODE_PRIMARY) {
         ret = colo_proxy_primary_handler(nf, sender, flags,
                     iov, iovcnt, sent_cb);
-        if (ret == 0) {
-            /* We've queued this packet and will release it ourselves later */
-            return 0;
-        }
     } else {
         ret = colo_proxy_secondary_handler(nf, sender, flags,
                     iov, iovcnt, sent_cb);
+    }
+    if (ret == 0) {
+        /* We've queued this packet and will release it ourselves later */
+        return 0;
     }
     if (ret < 0) {
         trace_colo_proxy("colo_proxy_receive_iov running failed");
@@ -1304,7 +1325,9 @@ static void colo_proxy_stop_one(NetFilterState *nf,
         qemu_event_set(&s->need_compare_ev);
         qemu_thread_join(&s->thread);
     } else {
-        colo_proxy_secondary_checkpoint(s);
+        /* Let the secondary proxy carry on, it has to keep updating sequence
+         * numbers for connections that are open.
+         */
     }
 }
 
