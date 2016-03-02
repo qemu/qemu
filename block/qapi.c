@@ -365,9 +365,6 @@ static void bdrv_query_blk_stats(BlockStats *s, BlockBackend *blk)
     BlockAcctStats *stats = blk_get_stats(blk);
     BlockAcctTimedStats *ts = NULL;
 
-    s->has_device = true;
-    s->device = g_strdup(blk_name(blk));
-
     s->stats->rd_bytes = stats->nr_bytes[BLOCK_ACCT_READ];
     s->stats->wr_bytes = stats->nr_bytes[BLOCK_ACCT_WRITE];
     s->stats->rd_operations = stats->nr_ops[BLOCK_ACCT_READ];
@@ -462,6 +459,8 @@ static BlockStats *bdrv_query_stats(BlockBackend *blk,
     s->stats = g_malloc0(sizeof(*s->stats));
 
     if (blk) {
+        s->has_device = true;
+        s->device = g_strdup(blk_name(blk));
         bdrv_query_blk_stats(s, blk);
     }
     if (bs) {
