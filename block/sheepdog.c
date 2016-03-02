@@ -2549,7 +2549,7 @@ static int sd_snapshot_delete(BlockDriverState *bs,
                               const char *name,
                               Error **errp)
 {
-    uint32_t snap_id = 0;
+    unsigned long snap_id = 0;
     char snap_tag[SD_MAX_VDI_TAG_LEN];
     Error *local_err = NULL;
     int fd, ret;
@@ -2571,12 +2571,15 @@ static int sd_snapshot_delete(BlockDriverState *bs,
     memset(buf, 0, sizeof(buf));
     memset(snap_tag, 0, sizeof(snap_tag));
     pstrcpy(buf, SD_MAX_VDI_LEN, s->name);
-    if (qemu_strtoul(snapshot_id, NULL, 10, (unsigned long *)&snap_id)) {
-        return -1;
+    ret = qemu_strtoul(snapshot_id, NULL, 10, &snap_id);
+    if (ret || snap_id > UINT32_MAX) {
+        error_setg(errp, "Invalid snapshot ID: %s",
+                         snapshot_id ? snapshot_id : "<null>");
+        return -EINVAL;
     }
 
     if (snap_id) {
-        hdr.snapid = snap_id;
+        hdr.snapid = (uint32_t) snap_id;
     } else {
         pstrcpy(snap_tag, sizeof(snap_tag), snapshot_id);
         pstrcpy(buf + SD_MAX_VDI_LEN, SD_MAX_VDI_TAG_LEN, snap_tag);
