@@ -523,6 +523,7 @@ struct CPUSPARCState {
     uint32_t gl; // UA2005
     /* UA 2005 hyperprivileged registers */
     uint64_t hpstate, htstate[MAXTL_MAX], hintp, htba, hver, hstick_cmpr, ssr;
+    uint64_t scratch[8];
     CPUTimer *hstick; // UA 2005
     /* Interrupt vector registers */
     uint64_t ivec_status;
