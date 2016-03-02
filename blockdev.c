@@ -1732,10 +1732,15 @@ static void external_snapshot_prepare(BlkActionState *common,
         /* create new image w/backing file */
         mode = s->has_mode ? s->mode : NEW_IMAGE_MODE_ABSOLUTE_PATHS;
         if (mode != NEW_IMAGE_MODE_EXISTING) {
+            int64_t size = bdrv_getlength(state->old_bs);
+            if (size < 0) {
+                error_setg_errno(errp, -size, "bdrv_getlength failed");
+                return;
+            }
             bdrv_img_create(new_image_file, format,
                             state->old_bs->filename,
                             state->old_bs->drv->format_name,
-                            NULL, -1, flags, &local_err, false);
+                            NULL, size, flags, &local_err, false);
             if (local_err) {
                 error_propagate(errp, local_err);
                 return;
