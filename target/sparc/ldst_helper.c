@@ -127,9 +127,8 @@ static void replace_tlb_entry(SparcTLBEntry *tlb,
     if (TTE_IS_VALID(tlb->tte)) {
         CPUState *cs = CPU(sparc_env_get_cpu(env1));
 
-        mask = 0xffffffffffffe000ULL;
-        mask <<= 3 * ((tlb->tte >> 61) & 3);
-        size = ~mask + 1;
+        size = 8192ULL << 3 * TTE_PGSIZE(tlb->tte);
+        mask = 1ULL + ~size;
 
         va = tlb->tag & mask;
 
