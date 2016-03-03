@@ -2425,12 +2425,19 @@ static void gen_bnd_jmp(DisasContext *s)
     }
 }
 
-/* generate a generic end of block. Trace exception is also generated
-   if needed */
-static void gen_eob(DisasContext *s)
+/* Generate an end of block. Trace exception is also generated if needed.
+   If IIM, set HF_INHIBIT_IRQ_MASK if it isn't already set.  */
+static void gen_eob_inhibit_irq(DisasContext *s, bool inhibit)
 {
     gen_update_cc_op(s);
-    gen_reset_hflag(s, HF_INHIBIT_IRQ_MASK);
+
+    /* If several instructions disable interrupts, only the first does it.  */
+    if (inhibit && !(s->flags & HF_INHIBIT_IRQ_MASK)) {
+        gen_set_hflag(s, HF_INHIBIT_IRQ_MASK);
+    } else {
+        gen_reset_hflag(s, HF_INHIBIT_IRQ_MASK);
+    }
+
     if (s->tb->flags & HF_RF_MASK) {
         gen_helper_reset_rf(cpu_env);
     }
@@ -2442,6 +2449,12 @@ static void gen_eob(DisasContext *s)
         tcg_gen_exit_tb(0);
     }
     s->is_jmp = DISAS_TB_JUMP;
+}
+
+/* End of block, resetting the inhibit irq flag.  */
+static void gen_eob(DisasContext *s)
+{
+    gen_eob_inhibit_irq(s, false);
 }
 
 /* generate a jump to eip. No segment change must happen before as a
@@ -5177,16 +5190,15 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         ot = gen_pop_T0(s);
         gen_movl_seg_T0(s, reg);
         gen_pop_update(s, ot);
-        if (reg == R_SS) {
-            /* if reg == SS, inhibit interrupts/trace. */
-            /* If several instructions disable interrupts, only the
-               _first_ does it */
-            gen_set_hflag(s, HF_INHIBIT_IRQ_MASK);
-            s->tf = 0;
-        }
+        /* Note that reg == R_SS in gen_movl_seg_T0 always sets is_jmp.  */
         if (s->is_jmp) {
             gen_jmp_im(s->pc - s->cs_base);
-            gen_eob(s);
+            if (reg == R_SS) {
+                s->tf = 0;
+                gen_eob_inhibit_irq(s, true);
+            } else {
+                gen_eob(s);
+            }
         }
         break;
     case 0x1a1: /* pop fs */
@@ -5244,16 +5256,15 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             goto illegal_op;
         gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
         gen_movl_seg_T0(s, reg);
-        if (reg == R_SS) {
-            /* if reg == SS, inhibit interrupts/trace */
-            /* If several instructions disable interrupts, only the
-               _first_ does it */
-            gen_set_hflag(s, HF_INHIBIT_IRQ_MASK);
-            s->tf = 0;
-        }
+        /* Note that reg == R_SS in gen_movl_seg_T0 always sets is_jmp.  */
         if (s->is_jmp) {
             gen_jmp_im(s->pc - s->cs_base);
-            gen_eob(s);
+            if (reg == R_SS) {
+                s->tf = 0;
+                gen_eob_inhibit_irq(s, true);
+            } else {
+                gen_eob(s);
+            }
         }
         break;
     case 0x8c: /* mov Gv, seg */
@@ -6779,26 +6790,13 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         }
         break;
     case 0xfb: /* sti */
-        if (!s->vm86) {
-            if (s->cpl <= s->iopl) {
-            gen_sti:
-                gen_helper_sti(cpu_env);
-                /* interruptions are enabled only the first insn after sti */
-                /* If several instructions disable interrupts, only the
-                   _first_ does it */
-                gen_set_hflag(s, HF_INHIBIT_IRQ_MASK);
-                /* give a chance to handle pending irqs */
-                gen_jmp_im(s->pc - s->cs_base);
-                gen_eob(s);
-            } else {
-                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-            }
+        if (s->vm86 ? s->iopl == 3 : s->cpl <= s->iopl) {
+            gen_helper_sti(cpu_env);
+            /* interruptions are enabled only the first insn after sti */
+            gen_jmp_im(s->pc - s->cs_base);
+            gen_eob_inhibit_irq(s, true);
         } else {
-            if (s->iopl == 3) {
-                goto gen_sti;
-            } else {
-                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-            }
+            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         }
         break;
     case 0x62: /* bound */
