@@ -116,17 +116,8 @@ static inline %(base)s *qapi_%(c_name)s_base(const %(c_name)s *obj)
 
 
 def gen_variants(variants):
-    # FIXME: What purpose does data serve, besides preventing a union that
-    # has a branch named 'data'? We use it in qapi-visit.py to decide
-    # whether to bypass the switch statement if visiting the discriminator
-    # failed; but since we 0-initialize structs, and cannot tell what
-    # branch of the union is in use if the discriminator is invalid, there
-    # should not be any data leaks even without a data pointer.  Or, if
-    # 'data' is merely added to guarantee we don't have an empty union,
-    # shouldn't we enforce that at .json parse time?
     ret = mcgen('''
     union { /* union tag is @%(c_name)s */
-        void *data;
 ''',
                 c_name=c_name(variants.tag_member.name))
 

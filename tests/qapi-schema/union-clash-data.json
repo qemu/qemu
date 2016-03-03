@@ -1,7 +1,0 @@
-# Union branch 'data'
-# FIXME: this parses, but then fails to compile due to a duplicate 'data'
-# (one from the branch name, another as a filler to avoid an empty union).
-# we should either detect the collision at parse time, or change the
-# generated struct to allow this to compile.
-{ 'union': 'TestUnion',
-  'data': { 'data': 'int' } }
