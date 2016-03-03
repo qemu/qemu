@@ -2463,7 +2463,6 @@ build_srat(GArray *table_data, GArray *linker)
 
     srat = acpi_data_push(table_data, sizeof *srat);
     srat->reserved1 = cpu_to_le32(1);
-    core = (void *)(srat + 1);
 
     for (i = 0; i < pcms->apic_id_limit; ++i) {
         core = acpi_data_push(table_data, sizeof *core);
