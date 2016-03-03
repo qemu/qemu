@@ -456,23 +456,7 @@ static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
                                        uint64_t address, uint64_t context,
                                        hwaddr *physical)
 {
-    uint64_t mask;
-
-    switch (TTE_PGSIZE(tlb->tte)) {
-    default:
-    case 0x0: /* 8k */
-        mask = 0xffffffffffffe000ULL;
-        break;
-    case 0x1: /* 64k */
-        mask = 0xffffffffffff0000ULL;
-        break;
-    case 0x2: /* 512k */
-        mask = 0xfffffffffff80000ULL;
-        break;
-    case 0x3: /* 4M */
-        mask = 0xffffffffffc00000ULL;
-        break;
-    }
+    uint64_t mask = -(8192ULL << 3 * TTE_PGSIZE(tlb->tte));
 
     /* valid, context match, virtual address match? */
     if (TTE_IS_VALID(tlb->tte) &&
