@@ -25,18 +25,7 @@ typedef struct RngEgd
 
     CharDriverState *chr;
     char *chr_name;
-
-    GSList *requests;
 } RngEgd;
-
-typedef struct RngRequest
-{
-    EntropyReceiveFunc *receive_entropy;
-    uint8_t *data;
-    void *opaque;
-    size_t offset;
-    size_t size;
-} RngRequest;
 
 static void rng_egd_request_entropy(RngBackend *b, size_t size,
                                     EntropyReceiveFunc *receive_entropy,
@@ -66,7 +55,7 @@ static void rng_egd_request_entropy(RngBackend *b, size_t size,
         size -= len;
     }
 
-    s->requests = g_slist_append(s->requests, req);
+    s->parent.requests = g_slist_append(s->parent.requests, req);
 }
 
 static void rng_egd_free_request(RngRequest *req)
@@ -81,7 +70,7 @@ static int rng_egd_chr_can_read(void *opaque)
     GSList *i;
     int size = 0;
 
-    for (i = s->requests; i; i = i->next) {
+    for (i = s->parent.requests; i; i = i->next) {
         RngRequest *req = i->data;
         size += req->size - req->offset;
     }
@@ -94,8 +83,8 @@ static void rng_egd_chr_read(void *opaque, const uint8_t *buf, int size)
     RngEgd *s = RNG_EGD(opaque);
     size_t buf_offset = 0;
 
-    while (size > 0 && s->requests) {
-        RngRequest *req = s->requests->data;
+    while (size > 0 && s->parent.requests) {
+        RngRequest *req = s->parent.requests->data;
         int len = MIN(size, req->size - req->offset);
 
         memcpy(req->data + req->offset, buf + buf_offset, len);
@@ -104,7 +93,8 @@ static void rng_egd_chr_read(void *opaque, const uint8_t *buf, int size)
         size -= len;
 
         if (req->offset == req->size) {
-            s->requests = g_slist_remove_link(s->requests, s->requests);
+            s->parent.requests = g_slist_remove_link(s->parent.requests,
+                                                     s->parent.requests);
 
             req->receive_entropy(req->opaque, req->data, req->size);
 
@@ -117,12 +107,12 @@ static void rng_egd_free_requests(RngEgd *s)
 {
     GSList *i;
 
-    for (i = s->requests; i; i = i->next) {
+    for (i = s->parent.requests; i; i = i->next) {
         rng_egd_free_request(i->data);
     }
 
-    g_slist_free(s->requests);
-    s->requests = NULL;
+    g_slist_free(s->parent.requests);
+    s->parent.requests = NULL;
 }
 
 static void rng_egd_opened(RngBackend *b, Error **errp)
