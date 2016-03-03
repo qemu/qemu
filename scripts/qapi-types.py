@@ -92,7 +92,7 @@ struct %(c_name)s {
     # struct is size 1).
     if not (base and base.members) and not members and not variants:
         ret += mcgen('''
-    char qapi_dummy_field_for_empty_struct;
+    char qapi_dummy_for_empty_struct;
 ''')
 
     ret += mcgen('''
