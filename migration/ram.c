@@ -2950,6 +2950,50 @@ void colo_release_ram_cache(void)
     rcu_read_unlock();
 }
 
+/* Just for measurement, the single threaded version */
+static void colo_flush_ram_cache_singlethread(void)
+{
+    RAMBlock *block = NULL;
+    void *dst_host;
+    void *src_host;
+    ram_addr_t offset = 0, host_off = 0, cache_off = 0;
+    uint64_t host_dirty = 0, both_dirty = 0;
+
+    rcu_read_lock();
+    block = QLIST_FIRST_RCU(&ram_list.blocks);
+    while (block) {
+        ram_addr_t ram_addr_abs;
+        if (cache_off == offset) { /* walk ramblock->colo_cache */
+            cache_off = migration_bitmap_find_dirty(block,
+                                                    offset, &ram_addr_abs);
+            if (cache_off < block->used_length) {
+                migration_bitmap_clear_dirty(ram_addr_abs);
+            }
+        }
+        if (host_off == offset) { /* walk ramblock->host */
+            host_off = ramlist_bitmap_find_and_reset_dirty(block, offset, block->used_length);
+        }
+        if (host_off >= block->used_length &&
+            cache_off >= block->used_length) {
+            cache_off = host_off = offset = 0;
+            block = QLIST_NEXT_RCU(block, next);
+        } else {
+            if (host_off <= cache_off) {
+                offset = host_off;
+                host_dirty++;
+                both_dirty += (host_off == cache_off);
+            } else {
+                offset = cache_off;
+            }
+            dst_host = block->host + offset;
+            src_host = block->colo_cache + offset;
+            memcpy(dst_host, src_host, TARGET_PAGE_SIZE);
+        }
+    }
+    rcu_read_unlock();
+    trace_colo_flush_ram_cache_end(host_dirty, both_dirty);
+}
+
 /*
  * Flush content of RAM cache into SVM's memory.
  * Only flush the pages that be dirtied by PVM or SVM or both.
@@ -2959,6 +3003,12 @@ void colo_flush_ram_cache(void)
     int i;
     trace_colo_flush_ram_cache_begin(migration_dirty_pages);
     address_space_sync_dirty_bitmap(&address_space_memory);
+
+    /* Just for measurement */
+    if (migrate_use_colo_flush_singlethread()) {
+        colo_flush_ram_cache_singlethread();
+        return;
+    }
 
     /* Kick all the flush threads to start work */
     for (i = 0; i < smp_cpus; i++) {

@@ -858,6 +858,7 @@ void *colo_process_incoming_thread(void *opaque)
     }
     while (mis->state == MIGRATION_STATUS_COLO) {
         int request;
+        bool lock_memory = !migrate_use_colo_no_locked_reset();
 
         COLOCommand mode = colo_wait_handle_cmd(mis->from_src_file,
                                                 &request, &local_err);
@@ -935,7 +936,7 @@ void *colo_process_incoming_thread(void *opaque)
 
         stage_time_start = qemu_clock_get_us(QEMU_CLOCK_HOST);
         qemu_mutex_lock_iothread();
-        memory_region_transaction_begin();
+        if (lock_memory) memory_region_transaction_begin();
         qemu_system_reset(VMRESET_SILENT);
         stage_time_end = qemu_clock_get_us(QEMU_CLOCK_HOST);
         timed_average_account(&mis->colo_state.time_reset,
@@ -949,7 +950,7 @@ void *colo_process_incoming_thread(void *opaque)
                           stage_time_end - stage_time_start);
         stage_time_start = stage_time_end;
         ret = qemu_load_device_state(fb);
-        memory_region_transaction_commit();
+        if (lock_memory) memory_region_transaction_commit();
         if (ret < 0) {
             error_report("COLO: load device state failed\n");
             vmstate_loading = false;

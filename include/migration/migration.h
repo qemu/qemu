@@ -322,6 +322,9 @@ int migrate_compress_level(void);
 int migrate_compress_threads(void);
 int migrate_decompress_threads(void);
 bool migrate_use_events(void);
+bool migrate_use_colo_no_locked_reset(void);
+bool migrate_use_colo_flush_singlethread(void);
+
 
 /* Sending on the return path - generic and then for each message type */
 void migrate_send_rp_message(MigrationIncomingState *mis,

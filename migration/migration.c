@@ -1378,6 +1378,25 @@ int migrate_use_xbzrle(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_XBZRLE];
 }
 
+/* Just for performance measurement */
+bool migrate_use_colo_no_locked_reset(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_X_COLO_NO_LOCKED_RESET];
+}
+
+bool migrate_use_colo_flush_singlethread(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_X_COLO_FLUSH_SINGLETHREAD];
+}
+
 int64_t migrate_xbzrle_cache_size(void)
 {
     MigrationState *s;

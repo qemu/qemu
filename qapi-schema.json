@@ -663,7 +663,8 @@
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
-           'compress', 'events', 'x-postcopy-ram', 'x-colo'] }
+           'compress', 'events', 'x-postcopy-ram', 'x-colo',
+           'x-colo-no-locked-reset', 'x-colo-flush-singlethread'] }
 
 ##
 # @MigrationCapabilityStatus
