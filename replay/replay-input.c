@@ -47,20 +47,24 @@ static InputEvent *qapi_clone_InputEvent(InputEvent *src)
 
 void replay_save_input_event(InputEvent *evt)
 {
+    InputKeyEvent *key;
+    InputBtnEvent *btn;
+    InputMoveEvent *move;
     replay_put_dword(evt->type);
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
-        replay_put_dword(evt->u.key->key->type);
+        key = evt->u.key;
+        replay_put_dword(key->key->type);
 
-        switch (evt->u.key->key->type) {
+        switch (key->key->type) {
         case KEY_VALUE_KIND_NUMBER:
-            replay_put_qword(evt->u.key->key->u.number);
-            replay_put_byte(evt->u.key->down);
+            replay_put_qword(key->key->u.number);
+            replay_put_byte(key->down);
             break;
         case KEY_VALUE_KIND_QCODE:
-            replay_put_dword(evt->u.key->key->u.qcode);
-            replay_put_byte(evt->u.key->down);
+            replay_put_dword(key->key->u.qcode);
+            replay_put_byte(key->down);
             break;
         case KEY_VALUE_KIND__MAX:
             /* keep gcc happy */
@@ -68,16 +72,19 @@ void replay_save_input_event(InputEvent *evt)
         }
         break;
     case INPUT_EVENT_KIND_BTN:
-        replay_put_dword(evt->u.btn->button);
-        replay_put_byte(evt->u.btn->down);
+        btn = evt->u.btn;
+        replay_put_dword(btn->button);
+        replay_put_byte(btn->down);
         break;
     case INPUT_EVENT_KIND_REL:
-        replay_put_dword(evt->u.rel->axis);
-        replay_put_qword(evt->u.rel->value);
+        move = evt->u.rel;
+        replay_put_dword(move->axis);
+        replay_put_qword(move->value);
         break;
     case INPUT_EVENT_KIND_ABS:
-        replay_put_dword(evt->u.abs->axis);
-        replay_put_qword(evt->u.abs->value);
+        move = evt->u.abs;
+        replay_put_dword(move->axis);
+        replay_put_qword(move->value);
         break;
     case INPUT_EVENT_KIND__MAX:
         /* keep gcc happy */

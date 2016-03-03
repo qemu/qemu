@@ -191,46 +191,53 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
     VirtIOInput *vinput = VIRTIO_INPUT(dev);
     virtio_input_event event;
     int qcode;
+    InputKeyEvent *key;
+    InputMoveEvent *move;
+    InputBtnEvent *btn;
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
-        qcode = qemu_input_key_value_to_qcode(evt->u.key->key);
+        key = evt->u.key;
+        qcode = qemu_input_key_value_to_qcode(key->key);
         if (qcode && keymap_qcode[qcode]) {
             event.type  = cpu_to_le16(EV_KEY);
             event.code  = cpu_to_le16(keymap_qcode[qcode]);
-            event.value = cpu_to_le32(evt->u.key->down ? 1 : 0);
+            event.value = cpu_to_le32(key->down ? 1 : 0);
             virtio_input_send(vinput, &event);
         } else {
-            if (evt->u.key->down) {
+            if (key->down) {
                 fprintf(stderr, "%s: unmapped key: %d [%s]\n", __func__,
                         qcode, QKeyCode_lookup[qcode]);
             }
         }
         break;
     case INPUT_EVENT_KIND_BTN:
-        if (keymap_button[evt->u.btn->button]) {
+        btn = evt->u.btn;
+        if (keymap_button[btn->button]) {
             event.type  = cpu_to_le16(EV_KEY);
-            event.code  = cpu_to_le16(keymap_button[evt->u.btn->button]);
-            event.value = cpu_to_le32(evt->u.btn->down ? 1 : 0);
+            event.code  = cpu_to_le16(keymap_button[btn->button]);
+            event.value = cpu_to_le32(btn->down ? 1 : 0);
             virtio_input_send(vinput, &event);
         } else {
-            if (evt->u.btn->down) {
+            if (btn->down) {
                 fprintf(stderr, "%s: unmapped button: %d [%s]\n", __func__,
-                        evt->u.btn->button,
-                        InputButton_lookup[evt->u.btn->button]);
+                        btn->button,
+                        InputButton_lookup[btn->button]);
             }
         }
         break;
     case INPUT_EVENT_KIND_REL:
+        move = evt->u.rel;
         event.type  = cpu_to_le16(EV_REL);
-        event.code  = cpu_to_le16(axismap_rel[evt->u.rel->axis]);
-        event.value = cpu_to_le32(evt->u.rel->value);
+        event.code  = cpu_to_le16(axismap_rel[move->axis]);
+        event.value = cpu_to_le32(move->value);
         virtio_input_send(vinput, &event);
         break;
     case INPUT_EVENT_KIND_ABS:
+        move = evt->u.abs;
         event.type  = cpu_to_le16(EV_ABS);
-        event.code  = cpu_to_le16(axismap_abs[evt->u.abs->axis]);
-        event.value = cpu_to_le32(evt->u.abs->value);
+        event.code  = cpu_to_le16(axismap_abs[move->axis]);
+        event.value = cpu_to_le32(move->value);
         virtio_input_send(vinput, &event);
         break;
     default:
