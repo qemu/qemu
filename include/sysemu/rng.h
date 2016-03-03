@@ -24,6 +24,7 @@
 #define RNG_BACKEND_CLASS(klass) \
     OBJECT_CLASS_CHECK(RngBackendClass, (klass), TYPE_RNG_BACKEND)
 
+typedef struct RngRequest RngRequest;
 typedef struct RngBackendClass RngBackendClass;
 typedef struct RngBackend RngBackend;
 
@@ -31,13 +32,20 @@ typedef void (EntropyReceiveFunc)(void *opaque,
                                   const void *data,
                                   size_t size);
 
+struct RngRequest
+{
+    EntropyReceiveFunc *receive_entropy;
+    uint8_t *data;
+    void *opaque;
+    size_t offset;
+    size_t size;
+};
+
 struct RngBackendClass
 {
     ObjectClass parent_class;
 
-    void (*request_entropy)(RngBackend *s, size_t size,
-                            EntropyReceiveFunc *receive_entropy, void *opaque);
-    void (*cancel_requests)(RngBackend *s);
+    void (*request_entropy)(RngBackend *s, RngRequest *req);
 
     void (*opened)(RngBackend *s, Error **errp);
 };
@@ -48,7 +56,9 @@ struct RngBackend
 
     /*< protected >*/
     bool opened;
+    GSList *requests;
 };
+
 
 /**
  * rng_backend_request_entropy:
@@ -70,12 +80,13 @@ void rng_backend_request_entropy(RngBackend *s, size_t size,
                                  void *opaque);
 
 /**
- * rng_backend_cancel_requests:
- * @s: the backend to cancel all pending requests in
+ * rng_backend_free_request:
+ * @s: the backend that created the request
+ * @req: the request to finalize
  *
- * Cancels all pending requests submitted by @rng_backend_request_entropy.  This
- * should be used by a device during reset or in preparation for live migration
- * to stop tracking any request.
+ * Used by child rng backend classes to finalize requests once they've been
+ * processed. The request is removed from the list of active requests and
+ * deleted.
  */
-void rng_backend_cancel_requests(RngBackend *s);
+void rng_backend_finalize_request(RngBackend *s, RngRequest *req);
 #endif

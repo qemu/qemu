@@ -921,6 +921,7 @@ M: Amit Shah <amit.shah@redhat.com>
 S: Supported
 F: hw/virtio/virtio-rng.c
 F: include/hw/virtio/virtio-rng.h
+F: include/sysemu/rng*.h
 F: backends/rng*.c
 
 nvme

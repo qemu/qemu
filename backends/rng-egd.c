@@ -25,33 +25,12 @@ typedef struct RngEgd
 
     CharDriverState *chr;
     char *chr_name;
-
-    GSList *requests;
 } RngEgd;
 
-typedef struct RngRequest
-{
-    EntropyReceiveFunc *receive_entropy;
-    uint8_t *data;
-    void *opaque;
-    size_t offset;
-    size_t size;
-} RngRequest;
-
-static void rng_egd_request_entropy(RngBackend *b, size_t size,
-                                    EntropyReceiveFunc *receive_entropy,
-                                    void *opaque)
+static void rng_egd_request_entropy(RngBackend *b, RngRequest *req)
 {
     RngEgd *s = RNG_EGD(b);
-    RngRequest *req;
-
-    req = g_malloc(sizeof(*req));
-
-    req->offset = 0;
-    req->size = size;
-    req->receive_entropy = receive_entropy;
-    req->opaque = opaque;
-    req->data = g_malloc(req->size);
+    size_t size = req->size;
 
     while (size > 0) {
         uint8_t header[2];
@@ -65,14 +44,6 @@ static void rng_egd_request_entropy(RngBackend *b, size_t size,
 
         size -= len;
     }
-
-    s->requests = g_slist_append(s->requests, req);
-}
-
-static void rng_egd_free_request(RngRequest *req)
-{
-    g_free(req->data);
-    g_free(req);
 }
 
 static int rng_egd_chr_can_read(void *opaque)
@@ -81,7 +52,7 @@ static int rng_egd_chr_can_read(void *opaque)
     GSList *i;
     int size = 0;
 
-    for (i = s->requests; i; i = i->next) {
+    for (i = s->parent.requests; i; i = i->next) {
         RngRequest *req = i->data;
         size += req->size - req->offset;
     }
@@ -94,8 +65,8 @@ static void rng_egd_chr_read(void *opaque, const uint8_t *buf, int size)
     RngEgd *s = RNG_EGD(opaque);
     size_t buf_offset = 0;
 
-    while (size > 0 && s->requests) {
-        RngRequest *req = s->requests->data;
+    while (size > 0 && s->parent.requests) {
+        RngRequest *req = s->parent.requests->data;
         int len = MIN(size, req->size - req->offset);
 
         memcpy(req->data + req->offset, buf + buf_offset, len);
@@ -104,36 +75,11 @@ static void rng_egd_chr_read(void *opaque, const uint8_t *buf, int size)
         size -= len;
 
         if (req->offset == req->size) {
-            s->requests = g_slist_remove_link(s->requests, s->requests);
-
             req->receive_entropy(req->opaque, req->data, req->size);
 
-            rng_egd_free_request(req);
+            rng_backend_finalize_request(&s->parent, req);
         }
     }
-}
-
-static void rng_egd_free_requests(RngEgd *s)
-{
-    GSList *i;
-
-    for (i = s->requests; i; i = i->next) {
-        rng_egd_free_request(i->data);
-    }
-
-    g_slist_free(s->requests);
-    s->requests = NULL;
-}
-
-static void rng_egd_cancel_requests(RngBackend *b)
-{
-    RngEgd *s = RNG_EGD(b);
-
-    /* We simply delete the list of pending requests.  If there is data in the 
-     * queue waiting to be read, this is okay, because there will always be
-     * more data than we requested originally
-     */
-    rng_egd_free_requests(s);
 }
 
 static void rng_egd_opened(RngBackend *b, Error **errp)
@@ -204,8 +150,6 @@ static void rng_egd_finalize(Object *obj)
     }
 
     g_free(s->chr_name);
-
-    rng_egd_free_requests(s);
 }
 
 static void rng_egd_class_init(ObjectClass *klass, void *data)
@@ -213,7 +157,6 @@ static void rng_egd_class_init(ObjectClass *klass, void *data)
     RngBackendClass *rbc = RNG_BACKEND_CLASS(klass);
 
     rbc->request_entropy = rng_egd_request_entropy;
-    rbc->cancel_requests = rng_egd_cancel_requests;
     rbc->opened = rng_egd_opened;
 }
 
