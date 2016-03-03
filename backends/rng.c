@@ -26,15 +26,6 @@ void rng_backend_request_entropy(RngBackend *s, size_t size,
     }
 }
 
-void rng_backend_cancel_requests(RngBackend *s)
-{
-    RngBackendClass *k = RNG_BACKEND_GET_CLASS(s);
-
-    if (k->cancel_requests) {
-        k->cancel_requests(s);
-    }
-}
-
 static bool rng_backend_prop_get_opened(Object *obj, Error **errp)
 {
     RngBackend *s = RNG_BACKEND(obj);

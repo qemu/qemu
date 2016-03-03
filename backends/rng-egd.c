@@ -125,17 +125,6 @@ static void rng_egd_free_requests(RngEgd *s)
     s->requests = NULL;
 }
 
-static void rng_egd_cancel_requests(RngBackend *b)
-{
-    RngEgd *s = RNG_EGD(b);
-
-    /* We simply delete the list of pending requests.  If there is data in the 
-     * queue waiting to be read, this is okay, because there will always be
-     * more data than we requested originally
-     */
-    rng_egd_free_requests(s);
-}
-
 static void rng_egd_opened(RngBackend *b, Error **errp)
 {
     RngEgd *s = RNG_EGD(b);
@@ -213,7 +202,6 @@ static void rng_egd_class_init(ObjectClass *klass, void *data)
     RngBackendClass *rbc = RNG_BACKEND_CLASS(klass);
 
     rbc->request_entropy = rng_egd_request_entropy;
-    rbc->cancel_requests = rng_egd_cancel_requests;
     rbc->opened = rng_egd_opened;
 }
 

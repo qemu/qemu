@@ -37,7 +37,6 @@ struct RngBackendClass
 
     void (*request_entropy)(RngBackend *s, size_t size,
                             EntropyReceiveFunc *receive_entropy, void *opaque);
-    void (*cancel_requests)(RngBackend *s);
 
     void (*opened)(RngBackend *s, Error **errp);
 };
@@ -68,14 +67,4 @@ struct RngBackend
 void rng_backend_request_entropy(RngBackend *s, size_t size,
                                  EntropyReceiveFunc *receive_entropy,
                                  void *opaque);
-
-/**
- * rng_backend_cancel_requests:
- * @s: the backend to cancel all pending requests in
- *
- * Cancels all pending requests submitted by @rng_backend_request_entropy.  This
- * should be used by a device during reset or in preparation for live migration
- * to stop tracking any request.
- */
-void rng_backend_cancel_requests(RngBackend *s);
 #endif
