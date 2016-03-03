@@ -20,9 +20,20 @@ void rng_backend_request_entropy(RngBackend *s, size_t size,
                                  void *opaque)
 {
     RngBackendClass *k = RNG_BACKEND_GET_CLASS(s);
+    RngRequest *req;
 
     if (k->request_entropy) {
-        k->request_entropy(s, size, receive_entropy, opaque);
+        req = g_malloc(sizeof(*req));
+
+        req->offset = 0;
+        req->size = size;
+        req->receive_entropy = receive_entropy;
+        req->opaque = opaque;
+        req->data = g_malloc(req->size);
+
+        k->request_entropy(s, req);
+
+        s->requests = g_slist_append(s->requests, req);
     }
 }
 

@@ -45,8 +45,7 @@ struct RngBackendClass
 {
     ObjectClass parent_class;
 
-    void (*request_entropy)(RngBackend *s, size_t size,
-                            EntropyReceiveFunc *receive_entropy, void *opaque);
+    void (*request_entropy)(RngBackend *s, RngRequest *req);
 
     void (*opened)(RngBackend *s, Error **errp);
 };
