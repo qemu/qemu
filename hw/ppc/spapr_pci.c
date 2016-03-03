@@ -1142,14 +1142,21 @@ static void spapr_phb_remove_pci_device(sPAPRDRConnector *drc,
     drck->detach(drc, DEVICE(pdev), spapr_phb_remove_pci_device_cb, phb, errp);
 }
 
+static sPAPRDRConnector *spapr_phb_get_pci_func_drc(sPAPRPHBState *phb,
+                                                    uint32_t busnr,
+                                                    int32_t devfn)
+{
+    return spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_PCI,
+                                    (phb->index << 16) |
+                                    (busnr << 8) |
+                                    devfn);
+}
+
 static sPAPRDRConnector *spapr_phb_get_pci_drc(sPAPRPHBState *phb,
                                                PCIDevice *pdev)
 {
     uint32_t busnr = pci_bus_num(PCI_BUS(qdev_get_parent_bus(DEVICE(pdev))));
-    return spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_PCI,
-                                    (phb->index << 16) |
-                                    (busnr << 8) |
-                                    pdev->devfn);
+    return spapr_phb_get_pci_func_drc(phb, busnr, pdev->devfn);
 }
 
 static uint32_t spapr_phb_get_pci_drc_index(sPAPRPHBState *phb,
@@ -1173,6 +1180,8 @@ static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,
     PCIDevice *pdev = PCI_DEVICE(plugged_dev);
     sPAPRDRConnector *drc = spapr_phb_get_pci_drc(phb, pdev);
     Error *local_err = NULL;
+    PCIBus *bus = PCI_BUS(qdev_get_parent_bus(DEVICE(pdev)));
+    uint32_t slotnr = PCI_SLOT(pdev->devfn);
 
     /* if DR is disabled we don't need to do anything in the case of
      * hotplug or coldplug callbacks
@@ -1190,13 +1199,44 @@ static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,
 
     g_assert(drc);
 
+    /* Following the QEMU convention used for PCIe multifunction
+     * hotplug, we do not allow functions to be hotplugged to a
+     * slot that already has function 0 present
+     */
+    if (plugged_dev->hotplugged && bus->devices[PCI_DEVFN(slotnr, 0)] &&
+        PCI_FUNC(pdev->devfn) != 0) {
+        error_setg(errp, "PCI: slot %d function 0 already ocuppied by %s,"
+                   " additional functions can no longer be exposed to guest.",
+                   slotnr, bus->devices[PCI_DEVFN(slotnr, 0)]->name);
+        return;
+    }
+
     spapr_phb_add_pci_device(drc, phb, pdev, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
-    if (plugged_dev->hotplugged) {
-        spapr_hotplug_req_add_by_index(drc);
+
+    /* If this is function 0, signal hotplug for all the device functions.
+     * Otherwise defer sending the hotplug event.
+     */
+    if (plugged_dev->hotplugged && PCI_FUNC(pdev->devfn) == 0) {
+        int i;
+
+        for (i = 0; i < 8; i++) {
+            sPAPRDRConnector *func_drc;
+            sPAPRDRConnectorClass *func_drck;
+            sPAPRDREntitySense state;
+
+            func_drc = spapr_phb_get_pci_func_drc(phb, pci_bus_num(bus),
+                                                  PCI_DEVFN(slotnr, i));
+            func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
+            func_drck->entity_sense(func_drc, &state);
+
+            if (state == SPAPR_DR_ENTITY_SENSE_PRESENT) {
+                spapr_hotplug_req_add_by_index(func_drc);
+            }
+        }
     }
 }
 
@@ -1219,12 +1259,51 @@ static void spapr_phb_hot_unplug_child(HotplugHandler *plug_handler,
 
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     if (!drck->release_pending(drc)) {
+        PCIBus *bus = PCI_BUS(qdev_get_parent_bus(DEVICE(pdev)));
+        uint32_t slotnr = PCI_SLOT(pdev->devfn);
+        sPAPRDRConnector *func_drc;
+        sPAPRDRConnectorClass *func_drck;
+        sPAPRDREntitySense state;
+        int i;
+
+        /* ensure any other present functions are pending unplug */
+        if (PCI_FUNC(pdev->devfn) == 0) {
+            for (i = 1; i < 8; i++) {
+                func_drc = spapr_phb_get_pci_func_drc(phb, pci_bus_num(bus),
+                                                      PCI_DEVFN(slotnr, i));
+                func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
+                func_drck->entity_sense(func_drc, &state);
+                if (state == SPAPR_DR_ENTITY_SENSE_PRESENT
+                    && !func_drck->release_pending(func_drc)) {
+                    error_setg(errp,
+                               "PCI: slot %d, function %d still present. "
+                               "Must unplug all non-0 functions first.",
+                               slotnr, i);
+                    return;
+                }
+            }
+        }
+
         spapr_phb_remove_pci_device(drc, phb, pdev, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
         }
-        spapr_hotplug_req_remove_by_index(drc);
+
+        /* if this isn't func 0, defer unplug event. otherwise signal removal
+         * for all present functions
+         */
+        if (PCI_FUNC(pdev->devfn) == 0) {
+            for (i = 7; i >= 0; i--) {
+                func_drc = spapr_phb_get_pci_func_drc(phb, pci_bus_num(bus),
+                                                      PCI_DEVFN(slotnr, i));
+                func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
+                func_drck->entity_sense(func_drc, &state);
+                if (state == SPAPR_DR_ENTITY_SENSE_PRESENT) {
+                    spapr_hotplug_req_remove_by_index(func_drc);
+                }
+            }
+        }
     }
 }
 
