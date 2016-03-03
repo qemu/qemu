@@ -111,7 +111,7 @@ def gen_marshal_input_visit(arg_type, dealloc=False):
     v = qmp_input_get_visitor(qiv);
 ''')
 
-    ret += gen_visit_fields(arg_type.members, skiperr=dealloc)
+    ret += gen_visit_members(arg_type.members, skiperr=dealloc)
 
     if dealloc:
         ret += mcgen('''
@@ -175,7 +175,7 @@ def gen_marshal(name, arg_type, ret_type):
     ret += gen_marshal_input_visit(arg_type)
     ret += gen_call(name, arg_type, ret_type)
 
-    # 'goto out' produced by gen_marshal_input_visit->gen_visit_fields()
+    # 'goto out' produced by gen_marshal_input_visit->gen_visit_members()
     # for each arg_type member, and by gen_call() for ret_type
     if (arg_type and arg_type.members) or ret_type:
         ret += mcgen('''

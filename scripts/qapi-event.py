@@ -67,8 +67,8 @@ def gen_event_send(name, arg_type):
 ''',
                      name=name)
         ret += gen_err_check()
-        ret += gen_visit_fields(arg_type.members, need_cast=True,
-                                label='out_obj')
+        ret += gen_visit_members(arg_type.members, need_cast=True,
+                                 label='out_obj')
         ret += mcgen('''
 out_obj:
     visit_end_struct(v, err ? NULL : &err);
