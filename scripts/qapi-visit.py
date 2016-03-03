@@ -15,10 +15,6 @@
 from qapi import *
 import re
 
-# visit_type_FOO_members() is always emitted; track if a forward declaration
-# or implementation has already been output.
-object_members_seen = set()
-
 
 def gen_visit_decl(name, scalar=False):
     c_type = c_name(name) + ' *'
@@ -30,37 +26,23 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_type)sobj, Error **
                  c_name=c_name(name), c_type=c_type)
 
 
-def gen_visit_members_decl(typ):
-    if typ.name in object_members_seen:
-        return ''
-    object_members_seen.add(typ.name)
+def gen_visit_members_decl(name):
     return mcgen('''
 
-static void visit_type_%(c_type)s_members(Visitor *v, %(c_type)s *obj, Error **errp);
+void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp);
 ''',
-                 c_type=typ.c_name())
+                 c_name=c_name(name))
 
 
 def gen_visit_object_members(name, base, members, variants):
-    ret = ''
+    ret = mcgen('''
 
-    if base:
-        ret += gen_visit_members_decl(base)
-    if variants:
-        for var in variants.variants:
-            # Ugly special case for simple union TODO get rid of it
-            if not var.simple_union_type():
-                ret += gen_visit_members_decl(var.type)
-
-    object_members_seen.add(name)
-    ret += mcgen('''
-
-static void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
+void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 {
     Error *err = NULL;
 
 ''',
-                 c_name=c_name(name))
+                c_name=c_name(name))
 
     if base:
         ret += mcgen('''
@@ -173,8 +155,6 @@ def gen_visit_alternate(name, variants):
     for var in variants.variants:
         if var.type.alternate_qtype() == 'QTYPE_QINT':
             promote_int = 'false'
-        if isinstance(var.type, QAPISchemaObjectType):
-            ret += gen_visit_members_decl(var.type)
 
     ret += mcgen('''
 
@@ -316,6 +296,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
             self.defn += defn
 
     def visit_object_type(self, name, info, base, members, variants):
+        self.decl += gen_visit_members_decl(name)
         self.decl += gen_visit_decl(name)
         self.defn += gen_visit_object(name, base, members, variants)
 
