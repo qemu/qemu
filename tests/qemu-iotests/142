@@ -134,7 +134,8 @@ echo
 
 # First check the inherited cache mode after opening the image.
 
-hmp_cmds="info block image
+hmp_cmds="info block none0
+info block image
 info block file
 info block backing
 info block backing-file"
@@ -164,6 +165,7 @@ echo
 # new cache mode is specified in the flags, not as an option.
 
 hmp_cmds='qemu-io none0 "reopen -c none"
+info block none0
 info block image
 info block file
 info block backing
@@ -179,6 +181,7 @@ echo
 # new cache mode is specified as an option, not in the flags.
 
 hmp_cmds='qemu-io none0 "reopen -o cache.direct=on"
+info block none0
 info block image
 info block file
 info block backing
@@ -214,6 +217,7 @@ echo
 # options from its parent node.
 
 hmp_cmds="qemu-io none0 \"reopen -o cache.writeback=off,cache.direct=on,cache.no-flush=on\"
+info block none0
 info block image
 info block blkdebug
 info block file"
@@ -321,6 +325,7 @@ echo "--- Basic reopen ---"
 echo
 
 hmp_cmds='qemu-io none0 "reopen -o backing.cache.direct=on"
+info block none0
 info block image
 info block file
 info block backing

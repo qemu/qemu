@@ -2917,7 +2917,7 @@ BlockDeviceInfoList *bdrv_named_nodes_list(Error **errp)
 
     list = NULL;
     QTAILQ_FOREACH(bs, &graph_bdrv_states, node_list) {
-        BlockDeviceInfo *info = bdrv_block_device_info(bs, errp);
+        BlockDeviceInfo *info = bdrv_block_device_info(NULL, bs, errp);
         if (!info) {
             qapi_free_BlockDeviceInfoList(list);
             return NULL;
