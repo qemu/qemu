@@ -60,6 +60,7 @@ struct RngBackend
     GSList *requests;
 };
 
+
 /**
  * rng_backend_request_entropy:
  * @s: the backend to request entropy from
@@ -78,4 +79,15 @@ struct RngBackend
 void rng_backend_request_entropy(RngBackend *s, size_t size,
                                  EntropyReceiveFunc *receive_entropy,
                                  void *opaque);
+
+/**
+ * rng_backend_free_request:
+ * @s: the backend that created the request
+ * @req: the request to finalize
+ *
+ * Used by child rng backend classes to finalize requests once they've been
+ * processed. The request is removed from the list of active requests and
+ * deleted.
+ */
+void rng_backend_finalize_request(RngBackend *s, RngRequest *req);
 #endif

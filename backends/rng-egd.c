@@ -58,12 +58,6 @@ static void rng_egd_request_entropy(RngBackend *b, size_t size,
     s->parent.requests = g_slist_append(s->parent.requests, req);
 }
 
-static void rng_egd_free_request(RngRequest *req)
-{
-    g_free(req->data);
-    g_free(req);
-}
-
 static int rng_egd_chr_can_read(void *opaque)
 {
     RngEgd *s = RNG_EGD(opaque);
@@ -93,26 +87,11 @@ static void rng_egd_chr_read(void *opaque, const uint8_t *buf, int size)
         size -= len;
 
         if (req->offset == req->size) {
-            s->parent.requests = g_slist_remove_link(s->parent.requests,
-                                                     s->parent.requests);
-
             req->receive_entropy(req->opaque, req->data, req->size);
 
-            rng_egd_free_request(req);
+            rng_backend_finalize_request(&s->parent, req);
         }
     }
-}
-
-static void rng_egd_free_requests(RngEgd *s)
-{
-    GSList *i;
-
-    for (i = s->parent.requests; i; i = i->next) {
-        rng_egd_free_request(i->data);
-    }
-
-    g_slist_free(s->parent.requests);
-    s->parent.requests = NULL;
 }
 
 static void rng_egd_opened(RngBackend *b, Error **errp)
@@ -183,8 +162,6 @@ static void rng_egd_finalize(Object *obj)
     }
 
     g_free(s->chr_name);
-
-    rng_egd_free_requests(s);
 }
 
 static void rng_egd_class_init(ObjectClass *klass, void *data)
