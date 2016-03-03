@@ -39,6 +39,7 @@ struct RngRequest
     void *opaque;
     size_t offset;
     size_t size;
+    QSIMPLEQ_ENTRY(RngRequest) next;
 };
 
 struct RngBackendClass
@@ -56,7 +57,7 @@ struct RngBackend
 
     /*< protected >*/
     bool opened;
-    GSList *requests;
+    QSIMPLEQ_HEAD(requests, RngRequest) requests;
 };
 
 
