@@ -2208,6 +2208,10 @@ static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
         if (*errp) {
             return;
         }
+        if (node < 0 || node >= MAX_NODES) {
+            error_setg(errp, "Invaild node %d", node);
+            return;
+        }
 
         /*
          * Currently PowerPC kernel doesn't allow hot-adding memory to
