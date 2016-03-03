@@ -1003,6 +1003,7 @@ socket_sockaddr_to_address_inet(struct sockaddr_storage *sa,
     char host[NI_MAXHOST];
     char serv[NI_MAXSERV];
     SocketAddress *addr;
+    InetSocketAddress *inet;
     int ret;
 
     ret = getnameinfo((struct sockaddr *)sa, salen,
@@ -1017,13 +1018,13 @@ socket_sockaddr_to_address_inet(struct sockaddr_storage *sa,
 
     addr = g_new0(SocketAddress, 1);
     addr->type = SOCKET_ADDRESS_KIND_INET;
-    addr->u.inet = g_new0(InetSocketAddress, 1);
-    addr->u.inet->host = g_strdup(host);
-    addr->u.inet->port = g_strdup(serv);
+    inet = addr->u.inet = g_new0(InetSocketAddress, 1);
+    inet->host = g_strdup(host);
+    inet->port = g_strdup(serv);
     if (sa->ss_family == AF_INET) {
-        addr->u.inet->has_ipv4 = addr->u.inet->ipv4 = true;
+        inet->has_ipv4 = inet->ipv4 = true;
     } else {
-        addr->u.inet->has_ipv6 = addr->u.inet->ipv6 = true;
+        inet->has_ipv6 = inet->ipv6 = true;
     }
 
     return addr;

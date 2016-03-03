@@ -3659,20 +3659,23 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
 
     addr = g_new0(SocketAddress, 1);
     if (path) {
+        UnixSocketAddress *q_unix;
         addr->type = SOCKET_ADDRESS_KIND_UNIX;
-        addr->u.q_unix = g_new0(UnixSocketAddress, 1);
-        addr->u.q_unix->path = g_strdup(path);
+        q_unix = addr->u.q_unix = g_new0(UnixSocketAddress, 1);
+        q_unix->path = g_strdup(path);
     } else {
         addr->type = SOCKET_ADDRESS_KIND_INET;
-        addr->u.inet = g_new0(InetSocketAddress, 1);
-        addr->u.inet->host = g_strdup(host);
-        addr->u.inet->port = g_strdup(port);
-        addr->u.inet->has_to = qemu_opt_get(opts, "to");
-        addr->u.inet->to = qemu_opt_get_number(opts, "to", 0);
-        addr->u.inet->has_ipv4 = qemu_opt_get(opts, "ipv4");
-        addr->u.inet->ipv4 = qemu_opt_get_bool(opts, "ipv4", 0);
-        addr->u.inet->has_ipv6 = qemu_opt_get(opts, "ipv6");
-        addr->u.inet->ipv6 = qemu_opt_get_bool(opts, "ipv6", 0);
+        addr->u.inet = g_new(InetSocketAddress, 1);
+        *addr->u.inet = (InetSocketAddress) {
+            .host = g_strdup(host),
+            .port = g_strdup(port),
+            .has_to = qemu_opt_get(opts, "to"),
+            .to = qemu_opt_get_number(opts, "to", 0),
+            .has_ipv4 = qemu_opt_get(opts, "ipv4"),
+            .ipv4 = qemu_opt_get_bool(opts, "ipv4", 0),
+            .has_ipv6 = qemu_opt_get(opts, "ipv6"),
+            .ipv6 = qemu_opt_get_bool(opts, "ipv6", 0),
+        };
     }
     sock->addr = addr;
 }
@@ -3711,22 +3714,26 @@ static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
 
     addr = g_new0(SocketAddress, 1);
     addr->type = SOCKET_ADDRESS_KIND_INET;
-    addr->u.inet = g_new0(InetSocketAddress, 1);
-    addr->u.inet->host = g_strdup(host);
-    addr->u.inet->port = g_strdup(port);
-    addr->u.inet->has_ipv4 = qemu_opt_get(opts, "ipv4");
-    addr->u.inet->ipv4 = qemu_opt_get_bool(opts, "ipv4", 0);
-    addr->u.inet->has_ipv6 = qemu_opt_get(opts, "ipv6");
-    addr->u.inet->ipv6 = qemu_opt_get_bool(opts, "ipv6", 0);
+    addr->u.inet = g_new(InetSocketAddress, 1);
+    *addr->u.inet = (InetSocketAddress) {
+        .host = g_strdup(host),
+        .port = g_strdup(port),
+        .has_ipv4 = qemu_opt_get(opts, "ipv4"),
+        .ipv4 = qemu_opt_get_bool(opts, "ipv4", 0),
+        .has_ipv6 = qemu_opt_get(opts, "ipv6"),
+        .ipv6 = qemu_opt_get_bool(opts, "ipv6", 0),
+    };
     udp->remote = addr;
 
     if (has_local) {
         udp->has_local = true;
         addr = g_new0(SocketAddress, 1);
         addr->type = SOCKET_ADDRESS_KIND_INET;
-        addr->u.inet = g_new0(InetSocketAddress, 1);
-        addr->u.inet->host = g_strdup(localaddr);
-        addr->u.inet->port = g_strdup(localport);
+        addr->u.inet = g_new(InetSocketAddress, 1);
+        *addr->u.inet = (InetSocketAddress) {
+            .host = g_strdup(localaddr),
+            .port = g_strdup(localport),
+        };
         udp->local = addr;
     }
 }

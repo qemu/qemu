@@ -204,18 +204,20 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QDict *options, char **export,
     saddr = g_new0(SocketAddress, 1);
 
     if (qdict_haskey(options, "path")) {
+        UnixSocketAddress *q_unix;
         saddr->type = SOCKET_ADDRESS_KIND_UNIX;
-        saddr->u.q_unix = g_new0(UnixSocketAddress, 1);
-        saddr->u.q_unix->path = g_strdup(qdict_get_str(options, "path"));
+        q_unix = saddr->u.q_unix = g_new0(UnixSocketAddress, 1);
+        q_unix->path = g_strdup(qdict_get_str(options, "path"));
         qdict_del(options, "path");
     } else {
+        InetSocketAddress *inet;
         saddr->type = SOCKET_ADDRESS_KIND_INET;
-        saddr->u.inet = g_new0(InetSocketAddress, 1);
-        saddr->u.inet->host = g_strdup(qdict_get_str(options, "host"));
+        inet = saddr->u.inet = g_new0(InetSocketAddress, 1);
+        inet->host = g_strdup(qdict_get_str(options, "host"));
         if (!qdict_get_try_str(options, "port")) {
-            saddr->u.inet->port = g_strdup_printf("%d", NBD_DEFAULT_PORT);
+            inet->port = g_strdup_printf("%d", NBD_DEFAULT_PORT);
         } else {
-            saddr->u.inet->port = g_strdup(qdict_get_str(options, "port"));
+            inet->port = g_strdup(qdict_get_str(options, "port"));
         }
         qdict_del(options, "host");
         qdict_del(options, "port");

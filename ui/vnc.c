@@ -3530,12 +3530,13 @@ void vnc_display_open(const char *id, Error **errp)
             }
         } else {
             unsigned long long baseport;
+            InetSocketAddress *inet;
             saddr->type = SOCKET_ADDRESS_KIND_INET;
-            saddr->u.inet = g_new0(InetSocketAddress, 1);
+            inet = saddr->u.inet = g_new0(InetSocketAddress, 1);
             if (vnc[0] == '[' && vnc[hlen - 1] == ']') {
-                saddr->u.inet->host = g_strndup(vnc + 1, hlen - 2);
+                inet->host = g_strndup(vnc + 1, hlen - 2);
             } else {
-                saddr->u.inet->host = g_strndup(vnc, hlen);
+                inet->host = g_strndup(vnc, hlen);
             }
             if (parse_uint_full(h + 1, &baseport, 10) < 0) {
                 error_setg(errp, "can't convert to a number: %s", h + 1);
@@ -3546,32 +3547,32 @@ void vnc_display_open(const char *id, Error **errp)
                 error_setg(errp, "port %s out of range", h + 1);
                 goto fail;
             }
-            saddr->u.inet->port = g_strdup_printf(
+            inet->port = g_strdup_printf(
                 "%d", (int)baseport + 5900);
 
             if (to) {
-                saddr->u.inet->has_to = true;
-                saddr->u.inet->to = to + 5900;
+                inet->has_to = true;
+                inet->to = to + 5900;
             }
-            saddr->u.inet->ipv4 = ipv4;
-            saddr->u.inet->has_ipv4 = has_ipv4;
-            saddr->u.inet->ipv6 = ipv6;
-            saddr->u.inet->has_ipv6 = has_ipv6;
+            inet->ipv4 = ipv4;
+            inet->has_ipv4 = has_ipv4;
+            inet->ipv6 = ipv6;
+            inet->has_ipv6 = has_ipv6;
 
             if (vs->ws_enabled) {
                 wsaddr->type = SOCKET_ADDRESS_KIND_INET;
-                wsaddr->u.inet = g_new0(InetSocketAddress, 1);
-                wsaddr->u.inet->host = g_strdup(saddr->u.inet->host);
-                wsaddr->u.inet->port = g_strdup(websocket);
+                inet = wsaddr->u.inet = g_new0(InetSocketAddress, 1);
+                inet->host = g_strdup(saddr->u.inet->host);
+                inet->port = g_strdup(websocket);
 
                 if (to) {
-                    wsaddr->u.inet->has_to = true;
-                    wsaddr->u.inet->to = to;
+                    inet->has_to = true;
+                    inet->to = to;
                 }
-                wsaddr->u.inet->ipv4 = ipv4;
-                wsaddr->u.inet->has_ipv4 = has_ipv4;
-                wsaddr->u.inet->ipv6 = ipv6;
-                wsaddr->u.inet->has_ipv6 = has_ipv6;
+                inet->ipv4 = ipv4;
+                inet->has_ipv4 = has_ipv4;
+                inet->ipv6 = ipv6;
+                inet->has_ipv6 = has_ipv6;
             }
         }
     } else {
