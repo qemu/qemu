@@ -67,6 +67,7 @@ struct PCMachineState {
     /* CPU and apic information: */
     bool apic_xrupt_override;
     unsigned apic_id_limit;
+    CPUArchIdList *possible_cpus;
 
     /* NUMA information: */
     uint64_t numa_nodes;

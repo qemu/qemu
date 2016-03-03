@@ -8,6 +8,7 @@
 #include "sysemu/accel.h"
 #include "hw/qdev.h"
 #include "qom/object.h"
+#include "qom/cpu.h"
 
 void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
                                           const char *name,
@@ -42,6 +43,26 @@ bool machine_dump_guest_core(MachineState *machine);
 bool machine_mem_merge(MachineState *machine);
 
 /**
+ * CPUArchId:
+ * @arch_id - architecture-dependent CPU ID of present or possible CPU
+ * @cpu - pointer to corresponding CPU object if it's present on NULL otherwise
+ */
+typedef struct {
+    uint64_t arch_id;
+    struct CPUState *cpu;
+} CPUArchId;
+
+/**
+ * CPUArchIdList:
+ * @len - number of @CPUArchId items in @cpus array
+ * @cpus - array of present or possible CPUs for current machine configuration
+ */
+typedef struct {
+    int len;
+    CPUArchId cpus[0];
+} CPUArchIdList;
+
+/**
  * MachineClass:
  * @get_hotplug_handler: this function is called during bus-less
  *    device hotplug. If defined it returns pointer to an instance
@@ -57,6 +78,10 @@ bool machine_mem_merge(MachineState *machine);
  *    Set only by old machines because they need to keep
  *    compatibility on code that exposed QEMU_VERSION to guests in
  *    the past (and now use qemu_hw_version()).
+ * @possible_cpu_arch_ids:
+ *    Returns an array of @CPUArchId architecture-dependent CPU IDs
+ *    which includes CPU IDs for present and possible to hotplug CPUs.
+ *    Caller is responsible for freeing returned list.
  */
 struct MachineClass {
     /*< private >*/
@@ -98,6 +123,7 @@ struct MachineClass {
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
     unsigned (*cpu_index_to_socket_id)(unsigned cpu_index);
+    CPUArchIdList *(*possible_cpu_arch_ids)(MachineState *machine);
 };
 
 /**

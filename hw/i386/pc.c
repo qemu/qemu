@@ -1131,10 +1131,17 @@ void pc_cpus_init(PCMachineState *pcms)
         exit(1);
     }
 
-    for (i = 0; i < smp_cpus; i++) {
-        cpu = pc_new_cpu(machine->cpu_model, x86_cpu_apic_id_from_index(i),
-                         &error_fatal);
-        object_unref(OBJECT(cpu));
+    pcms->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
+                                    sizeof(CPUArchId) * max_cpus);
+    for (i = 0; i < max_cpus; i++) {
+        pcms->possible_cpus->cpus[i].arch_id = x86_cpu_apic_id_from_index(i);
+        pcms->possible_cpus->len++;
+        if (i < smp_cpus) {
+            cpu = pc_new_cpu(machine->cpu_model, x86_cpu_apic_id_from_index(i),
+                             &error_fatal);
+            pcms->possible_cpus->cpus[i].cpu = CPU(cpu);
+            object_unref(OBJECT(cpu));
+        }
     }
 
     /* tell smbios about cpuid version and features */
@@ -1657,9 +1664,19 @@ static void pc_dimm_unplug(HotplugHandler *hotplug_dev,
     error_propagate(errp, local_err);
 }
 
+static int pc_apic_cmp(const void *a, const void *b)
+{
+   CPUArchId *apic_a = (CPUArchId *)a;
+   CPUArchId *apic_b = (CPUArchId *)b;
+
+   return apic_a->arch_id - apic_b->arch_id;
+}
+
 static void pc_cpu_plug(HotplugHandler *hotplug_dev,
                         DeviceState *dev, Error **errp)
 {
+    CPUClass *cc = CPU_GET_CLASS(dev);
+    CPUArchId apic_id, *found_cpu;
     HotplugHandlerClass *hhc;
     Error *local_err = NULL;
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
@@ -1682,6 +1699,13 @@ static void pc_cpu_plug(HotplugHandler *hotplug_dev,
 
     /* increment the number of CPUs */
     rtc_set_memory(pcms->rtc, 0x5f, rtc_get_memory(pcms->rtc, 0x5f) + 1);
+
+    apic_id.arch_id = cc->get_arch_id(CPU(dev));
+    found_cpu = bsearch(&apic_id, pcms->possible_cpus->cpus,
+        pcms->possible_cpus->len, sizeof(*pcms->possible_cpus->cpus),
+        pc_apic_cmp);
+    assert(found_cpu);
+    found_cpu->cpu = CPU(dev);
 out:
     error_propagate(errp, local_err);
 }
@@ -1924,6 +1948,17 @@ static unsigned pc_cpu_index_to_socket_id(unsigned cpu_index)
     return topo.pkg_id;
 }
 
+static CPUArchIdList *pc_possible_cpu_arch_ids(MachineState *machine)
+{
+    PCMachineState *pcms = PC_MACHINE(machine);
+    int len = sizeof(CPUArchIdList) +
+              sizeof(CPUArchId) * (pcms->possible_cpus->len);
+    CPUArchIdList *list = g_malloc(len);
+
+    memcpy(list, pcms->possible_cpus, len);
+    return list;
+}
+
 static void pc_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1946,6 +1981,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     pcmc->save_tsc_khz = true;
     mc->get_hotplug_handler = pc_get_hotpug_handler;
     mc->cpu_index_to_socket_id = pc_cpu_index_to_socket_id;
+    mc->possible_cpu_arch_ids = pc_possible_cpu_arch_ids;
     mc->default_boot_order = "cad";
     mc->hot_add_cpu = pc_hot_add_cpu;
     mc->max_cpus = 255;
