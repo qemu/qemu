@@ -73,6 +73,7 @@ typedef struct VirtBoardInfo {
     uint32_t clock_phandle;
     uint32_t gic_phandle;
     uint32_t v2m_phandle;
+    bool using_psci;
 } VirtBoardInfo;
 
 typedef struct {
@@ -248,6 +249,10 @@ static void fdt_add_psci_node(const VirtBoardInfo *vbi)
     void *fdt = vbi->fdt;
     ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(0));
 
+    if (!vbi->using_psci) {
+        return;
+    }
+
     qemu_fdt_add_subnode(fdt, "/psci");
     if (armcpu->psci_version == 2) {
         const char comp[] = "arm,psci-0.2\0arm,psci";
@@ -359,7 +364,7 @@ static void fdt_add_cpu_nodes(const VirtBoardInfo *vbi)
         qemu_fdt_setprop_string(vbi->fdt, nodename, "compatible",
                                     armcpu->dtb_compatible);
 
-        if (vbi->smp_cpus > 1) {
+        if (vbi->using_psci && vbi->smp_cpus > 1) {
             qemu_fdt_setprop_string(vbi->fdt, nodename,
                                         "enable-method", "psci");
         }
@@ -1095,6 +1100,7 @@ static void machvirt_init(MachineState *machine)
     VirtGuestInfoState *guest_info_state = g_malloc0(sizeof *guest_info_state);
     VirtGuestInfo *guest_info = &guest_info_state->info;
     char **cpustr;
+    bool firmware_loaded = bios_name || drive_get(IF_PFLASH, 0, 0);
 
     if (!cpu_model) {
         cpu_model = "cortex-a15";
@@ -1121,6 +1127,15 @@ static void machvirt_init(MachineState *machine)
         error_report("mach-virt: CPU %s not supported", cpustr[0]);
         exit(1);
     }
+
+    /* If we have an EL3 boot ROM then the assumption is that it will
+     * implement PSCI itself, so disable QEMU's internal implementation
+     * so it doesn't get in the way. Instead of starting secondary
+     * CPUs in PSCI powerdown state we will start them all running and
+     * let the boot ROM sort them out.
+     * The usual case is that we do use QEMU's PSCI implementation.
+     */
+    vbi->using_psci = !(vms->secure && firmware_loaded);
 
     /* The maximum number of CPUs depends on the GIC version, or on how
      * many redistributors we can fit into the memory map.
@@ -1189,12 +1204,15 @@ static void machvirt_init(MachineState *machine)
             object_property_set_bool(cpuobj, false, "has_el3", NULL);
         }
 
-        object_property_set_int(cpuobj, QEMU_PSCI_CONDUIT_HVC, "psci-conduit",
-                                NULL);
+        if (vbi->using_psci) {
+            object_property_set_int(cpuobj, QEMU_PSCI_CONDUIT_HVC,
+                                    "psci-conduit", NULL);
 
-        /* Secondary CPUs start in PSCI powered-down state */
-        if (n > 0) {
-            object_property_set_bool(cpuobj, true, "start-powered-off", NULL);
+            /* Secondary CPUs start in PSCI powered-down state */
+            if (n > 0) {
+                object_property_set_bool(cpuobj, true,
+                                         "start-powered-off", NULL);
+            }
         }
 
         if (object_property_find(cpuobj, "reset-cbar", NULL)) {
@@ -1263,7 +1281,7 @@ static void machvirt_init(MachineState *machine)
     vbi->bootinfo.board_id = -1;
     vbi->bootinfo.loader_start = vbi->memmap[VIRT_MEM].base;
     vbi->bootinfo.get_dtb = machvirt_dtb;
-    vbi->bootinfo.firmware_loaded = bios_name || drive_get(IF_PFLASH, 0, 0);
+    vbi->bootinfo.firmware_loaded = firmware_loaded;
     arm_load_kernel(ARM_CPU(first_cpu), &vbi->bootinfo);
 
     /*
