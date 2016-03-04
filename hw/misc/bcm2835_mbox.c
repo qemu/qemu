@@ -98,7 +98,7 @@ static void bcm2835_mbox_update(BCM2835MboxState *s)
      */
     for (n = 0; n < MBOX_CHAN_COUNT; n++) {
         while (s->available[n] && !(s->mbox[0].status & ARM_MS_FULL)) {
-            value = ldl_phys(&s->mbox_as, n << MBOX_AS_CHAN_SHIFT);
+            value = ldl_le_phys(&s->mbox_as, n << MBOX_AS_CHAN_SHIFT);
             assert(value != MBOX_INVALID_DATA); /* Pending interrupt but no data */
             mbox_push(&s->mbox[0], value);
         }
@@ -207,12 +207,12 @@ static void bcm2835_mbox_write(void *opaque, hwaddr offset,
             ch = value & 0xf;
             if (ch < MBOX_CHAN_COUNT) {
                 childaddr = ch << MBOX_AS_CHAN_SHIFT;
-                if (ldl_phys(&s->mbox_as, childaddr + MBOX_AS_PENDING)) {
+                if (ldl_le_phys(&s->mbox_as, childaddr + MBOX_AS_PENDING)) {
                     /* Child busy, push delayed. Push it in the arm->vc mbox */
                     mbox_push(&s->mbox[1], value);
                 } else {
                     /* Push it directly to the child device */
-                    stl_phys(&s->mbox_as, childaddr, value);
+                    stl_le_phys(&s->mbox_as, childaddr, value);
                 }
             } else {
                 /* Invalid channel number */
