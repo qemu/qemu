@@ -755,7 +755,7 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
     /* Assume that raw images are linux kernels, and ELF images are not.  */
     kernel_size = load_elf(info->kernel_filename, NULL, NULL, &elf_entry,
                            &elf_low_addr, &elf_high_addr, big_endian,
-                           elf_machine, 1);
+                           elf_machine, 1, 0);
     if (kernel_size > 0 && have_dtb(info)) {
         /* If there is still some room left at the base of RAM, try and put
          * the DTB there like we do for images loaded with -bios or -pflash.

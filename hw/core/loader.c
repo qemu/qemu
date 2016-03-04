@@ -412,7 +412,8 @@ fail:
 /* return < 0 if error, otherwise the number of bytes loaded in memory */
 int load_elf(const char *filename, uint64_t (*translate_fn)(void *, uint64_t),
              void *translate_opaque, uint64_t *pentry, uint64_t *lowaddr,
-             uint64_t *highaddr, int big_endian, int elf_machine, int clear_lsb)
+             uint64_t *highaddr, int big_endian, int elf_machine,
+             int clear_lsb, int data_swab)
 {
     int fd, data_order, target_data_order, must_swab, ret = ELF_LOAD_FAILED;
     uint8_t e_ident[EI_NIDENT];
@@ -451,10 +452,12 @@ int load_elf(const char *filename, uint64_t (*translate_fn)(void *, uint64_t),
     lseek(fd, 0, SEEK_SET);
     if (e_ident[EI_CLASS] == ELFCLASS64) {
         ret = load_elf64(filename, fd, translate_fn, translate_opaque, must_swab,
-                         pentry, lowaddr, highaddr, elf_machine, clear_lsb);
+                         pentry, lowaddr, highaddr, elf_machine, clear_lsb,
+                         data_swab);
     } else {
         ret = load_elf32(filename, fd, translate_fn, translate_opaque, must_swab,
-                         pentry, lowaddr, highaddr, elf_machine, clear_lsb);
+                         pentry, lowaddr, highaddr, elf_machine, clear_lsb,
+                         data_swab);
     }
 
  fail:

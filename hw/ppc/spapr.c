@@ -1942,11 +1942,13 @@ static void ppc_spapr_init(MachineState *machine)
         uint64_t lowaddr = 0;
 
         kernel_size = load_elf(kernel_filename, translate_kernel_address, NULL,
-                               NULL, &lowaddr, NULL, 1, PPC_ELF_MACHINE, 0);
+                               NULL, &lowaddr, NULL, 1, PPC_ELF_MACHINE,
+                               0, 0);
         if (kernel_size == ELF_LOAD_WRONG_ENDIAN) {
             kernel_size = load_elf(kernel_filename,
                                    translate_kernel_address, NULL,
-                                   NULL, &lowaddr, NULL, 0, PPC_ELF_MACHINE, 0);
+                                   NULL, &lowaddr, NULL, 0, PPC_ELF_MACHINE,
+                                   0, 0);
             kernel_le = kernel_size > 0;
         }
         if (kernel_size < 0) {

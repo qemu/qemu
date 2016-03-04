@@ -117,7 +117,7 @@ static int64_t load_kernel (CPUMIPSState *env)
 
     if (load_elf(loaderparams.kernel_filename, cpu_mips_kseg0_to_phys, NULL,
                  (uint64_t *)&kernel_entry, (uint64_t *)&kernel_low,
-                 (uint64_t *)&kernel_high, 0, EM_MIPS, 1) < 0) {
+                 (uint64_t *)&kernel_high, 0, EM_MIPS, 1, 0) < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 loaderparams.kernel_filename);
         exit(1);

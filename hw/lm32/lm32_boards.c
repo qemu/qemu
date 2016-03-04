@@ -143,7 +143,7 @@ static void lm32_evr_init(MachineState *machine)
         int kernel_size;
 
         kernel_size = load_elf(kernel_filename, NULL, NULL, &entry, NULL, NULL,
-                               1, EM_LATTICEMICO32, 0);
+                               1, EM_LATTICEMICO32, 0, 0);
         reset_info->bootstrap_pc = entry;
 
         if (kernel_size < 0) {
@@ -245,7 +245,7 @@ static void lm32_uclinux_init(MachineState *machine)
         int kernel_size;
 
         kernel_size = load_elf(kernel_filename, NULL, NULL, &entry, NULL, NULL,
-                               1, EM_LATTICEMICO32, 0);
+                               1, EM_LATTICEMICO32, 0, 0);
         reset_info->bootstrap_pc = entry;
 
         if (kernel_size < 0) {
