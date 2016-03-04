@@ -2033,9 +2033,8 @@ static inline bool bswap_code(bool sctlr_b)
 #endif
         sctlr_b;
 #else
-    /* We do not implement BE32 mode for system-mode emulation, but
-     * anyway it would always do little-endian accesses with
-     * TARGET_WORDS_BIGENDIAN = 0.
+    /* All code access in ARM is little endian, and there are no loaders
+     * doing swaps that need to be reversed
      */
     return 0;
 #endif

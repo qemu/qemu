@@ -911,6 +911,12 @@ static inline void store_reg_from_load(DisasContext *s, int reg, TCGv_i32 var)
     }
 }
 
+#ifdef CONFIG_USER_ONLY
+#define IS_USER_ONLY 1
+#else
+#define IS_USER_ONLY 0
+#endif
+
 /* Abstractions of "generate code to do a guest load/store for
  * AArch32", where a vaddr is always 32 bits (and is zero
  * extended if we're a 64 bit core) and  data is also
@@ -920,19 +926,35 @@ static inline void store_reg_from_load(DisasContext *s, int reg, TCGv_i32 var)
  */
 #if TARGET_LONG_BITS == 32
 
-#define DO_GEN_LD(SUFF, OPC)                                             \
+#define DO_GEN_LD(SUFF, OPC, BE32_XOR)                                   \
 static inline void gen_aa32_ld##SUFF(DisasContext *s, TCGv_i32 val,      \
                                      TCGv_i32 addr, int index)           \
 {                                                                        \
     TCGMemOp opc = (OPC) | s->be_data;                                   \
+    /* Not needed for user-mode BE32, where we use MO_BE instead.  */    \
+    if (!IS_USER_ONLY && s->sctlr_b && BE32_XOR) {                       \
+        TCGv addr_be = tcg_temp_new();                                   \
+        tcg_gen_xori_i32(addr_be, addr, BE32_XOR);                       \
+        tcg_gen_qemu_ld_i32(val, addr_be, index, opc);                   \
+        tcg_temp_free(addr_be);                                          \
+        return;                                                          \
+    }                                                                    \
     tcg_gen_qemu_ld_i32(val, addr, index, opc);                          \
 }
 
-#define DO_GEN_ST(SUFF, OPC)                                             \
+#define DO_GEN_ST(SUFF, OPC, BE32_XOR)                                   \
 static inline void gen_aa32_st##SUFF(DisasContext *s, TCGv_i32 val,      \
                                      TCGv_i32 addr, int index)           \
 {                                                                        \
     TCGMemOp opc = (OPC) | s->be_data;                                   \
+    /* Not needed for user-mode BE32, where we use MO_BE instead.  */    \
+    if (!IS_USER_ONLY && s->sctlr_b && BE32_XOR) {                       \
+        TCGv addr_be = tcg_temp_new();                                   \
+        tcg_gen_xori_i32(addr_be, addr, BE32_XOR);                       \
+        tcg_gen_qemu_st_i32(val, addr_be, index, opc);                   \
+        tcg_temp_free(addr_be);                                          \
+        return;                                                          \
+    }                                                                    \
     tcg_gen_qemu_st_i32(val, addr, index, opc);                          \
 }
 
@@ -941,35 +963,55 @@ static inline void gen_aa32_ld64(DisasContext *s, TCGv_i64 val,
 {
     TCGMemOp opc = MO_Q | s->be_data;
     tcg_gen_qemu_ld_i64(val, addr, index, opc);
+    /* Not needed for user-mode BE32, where we use MO_BE instead.  */
+    if (!IS_USER_ONLY && s->sctlr_b) {
+        tcg_gen_rotri_i64(val, val, 32);
+    }
 }
 
 static inline void gen_aa32_st64(DisasContext *s, TCGv_i64 val,
                                  TCGv_i32 addr, int index)
 {
     TCGMemOp opc = MO_Q | s->be_data;
+    /* Not needed for user-mode BE32, where we use MO_BE instead.  */
+    if (!IS_USER_ONLY && s->sctlr_b) {
+        TCGv_i64 tmp = tcg_temp_new_i64();
+        tcg_gen_rotri_i64(tmp, val, 32);
+        tcg_gen_qemu_st_i64(tmp, addr, index, opc);
+        tcg_temp_free_i64(tmp);
+        return;
+    }
     tcg_gen_qemu_st_i64(val, addr, index, opc);
 }
 
 #else
 
-#define DO_GEN_LD(SUFF, OPC)                                             \
+#define DO_GEN_LD(SUFF, OPC, BE32_XOR)                                   \
 static inline void gen_aa32_ld##SUFF(DisasContext *s, TCGv_i32 val,      \
                                      TCGv_i32 addr, int index)           \
 {                                                                        \
     TCGMemOp opc = (OPC) | s->be_data;                                   \
     TCGv addr64 = tcg_temp_new();                                        \
     tcg_gen_extu_i32_i64(addr64, addr);                                  \
+    /* Not needed for user-mode BE32, where we use MO_BE instead.  */    \
+    if (!IS_USER_ONLY && s->sctlr_b && BE32_XOR) {                       \
+        tcg_gen_xori_i64(addr64, addr64, BE32_XOR);                      \
+    }                                                                    \
     tcg_gen_qemu_ld_i32(val, addr64, index, opc);                        \
     tcg_temp_free(addr64);                                               \
 }
 
-#define DO_GEN_ST(SUFF, OPC)                                             \
+#define DO_GEN_ST(SUFF, OPC, BE32_XOR)                                   \
 static inline void gen_aa32_st##SUFF(DisasContext *s, TCGv_i32 val,      \
                                      TCGv_i32 addr, int index)           \
 {                                                                        \
     TCGMemOp opc = (OPC) | s->be_data;                                   \
     TCGv addr64 = tcg_temp_new();                                        \
     tcg_gen_extu_i32_i64(addr64, addr);                                  \
+    /* Not needed for user-mode BE32, where we use MO_BE instead.  */    \
+    if (!IS_USER_ONLY && s->sctlr_b && BE32_XOR) {                       \
+        tcg_gen_xori_i64(addr64, addr64, BE32_XOR);                      \
+    }                                                                    \
     tcg_gen_qemu_st_i32(val, addr64, index, opc);                        \
     tcg_temp_free(addr64);                                               \
 }
@@ -981,6 +1023,11 @@ static inline void gen_aa32_ld64(DisasContext *s, TCGv_i64 val,
     TCGv addr64 = tcg_temp_new();
     tcg_gen_extu_i32_i64(addr64, addr);
     tcg_gen_qemu_ld_i64(val, addr64, index, opc);
+
+    /* Not needed for user-mode BE32, where we use MO_BE instead.  */
+    if (!IS_USER_ONLY && s->sctlr_b) {
+        tcg_gen_rotri_i64(val, val, 32);
+    }
     tcg_temp_free(addr64);
 }
 
@@ -990,23 +1037,32 @@ static inline void gen_aa32_st64(DisasContext *s, TCGv_i64 val,
     TCGMemOp opc = MO_Q | s->be_data;
     TCGv addr64 = tcg_temp_new();
     tcg_gen_extu_i32_i64(addr64, addr);
-    tcg_gen_qemu_st_i64(val, addr64, index, opc);
+
+    /* Not needed for user-mode BE32, where we use MO_BE instead.  */
+    if (!IS_USER_ONLY && s->sctlr_b) {
+        TCGv tmp = tcg_temp_new();
+        tcg_gen_rotri_i64(tmp, val, 32);
+        tcg_gen_qemu_st_i64(tmp, addr64, index, opc);
+        tcg_temp_free(tmp);
+    } else {
+        tcg_gen_qemu_st_i64(val, addr64, index, opc);
+    }
     tcg_temp_free(addr64);
 }
 
 #endif
 
-DO_GEN_LD(8s, MO_SB)
-DO_GEN_LD(8u, MO_UB)
-DO_GEN_LD(16s, MO_SW)
-DO_GEN_LD(16u, MO_UW)
-DO_GEN_LD(32u, MO_UL)
+DO_GEN_LD(8s, MO_SB, 3)
+DO_GEN_LD(8u, MO_UB, 3)
+DO_GEN_LD(16s, MO_SW, 2)
+DO_GEN_LD(16u, MO_UW, 2)
+DO_GEN_LD(32u, MO_UL, 0)
 /* 'a' variants include an alignment check */
-DO_GEN_LD(16ua, MO_UW | MO_ALIGN)
-DO_GEN_LD(32ua, MO_UL | MO_ALIGN)
-DO_GEN_ST(8, MO_UB)
-DO_GEN_ST(16, MO_UW)
-DO_GEN_ST(32, MO_UL)
+DO_GEN_LD(16ua, MO_UW | MO_ALIGN, 2)
+DO_GEN_LD(32ua, MO_UL | MO_ALIGN, 0)
+DO_GEN_ST(8, MO_UB, 3)
+DO_GEN_ST(16, MO_UW, 2)
+DO_GEN_ST(32, MO_UL, 0)
 
 static inline void gen_set_pc_im(DisasContext *s, target_ulong val)
 {
