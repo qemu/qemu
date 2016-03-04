@@ -2102,6 +2102,17 @@ static inline int fp_exception_el(CPUARMState *env)
     return 0;
 }
 
+#ifdef CONFIG_USER_ONLY
+static inline bool arm_cpu_bswap_data(CPUARMState *env)
+{
+    return
+#ifdef TARGET_WORDS_BIGENDIAN
+       1 ^
+#endif
+       arm_cpu_data_is_big_endian(env);
+}
+#endif
+
 static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
