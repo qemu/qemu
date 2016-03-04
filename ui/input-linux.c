@@ -132,6 +132,7 @@ typedef struct InputLinux InputLinux;
 struct InputLinux {
     const char  *evdev;
     int         fd;
+    bool        repeat;
     bool        grab_request;
     bool        grab_active;
     bool        grab_all;
@@ -188,7 +189,7 @@ static void input_linux_event_keyboard(void *opaque)
 
         switch (event.type) {
         case EV_KEY:
-            if (event.value > 1) {
+            if (event.value > 2 || (event.value > 1 && !il->repeat)) {
                 /*
                  * ignore autorepeat + unknown key events
                  * 0 == up, 1 == down, 2 == autorepeat, other == undefined
@@ -316,6 +317,7 @@ int input_linux_init(void *opaque, QemuOpts *opts, Error **errp)
 
     il->evdev = qemu_opt_get(opts, "evdev");
     il->grab_all = qemu_opt_get_bool(opts, "grab-all", false);
+    il->repeat = qemu_opt_get_bool(opts, "repeat", false);
 
     if (!il->evdev) {
         error_setg(errp, "no input device specified");
@@ -373,6 +375,9 @@ static QemuOptsList qemu_input_linux_opts = {
             .type = QEMU_OPT_STRING,
         },{
             .name = "grab-all",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "repeat",
             .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
