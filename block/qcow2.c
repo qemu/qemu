@@ -2173,7 +2173,8 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     }
 
     bs = NULL;
-    ret = bdrv_open(&bs, filename, NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
+    ret = bdrv_open(&bs, filename, NULL, NULL,
+                    BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
                     &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
