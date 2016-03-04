@@ -58,15 +58,16 @@
 #define S390_TOD_CLOCK_VALUE_MISSING    0x00
 #define S390_TOD_CLOCK_VALUE_PRESENT    0x01
 
-static S390CPU **ipi_states;
+static S390CPU **cpu_states;
 
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
 {
-    if (cpu_addr >= smp_cpus) {
+    if (cpu_addr >= max_cpus) {
         return NULL;
     }
 
-    return ipi_states[cpu_addr];
+    /* Fast lookup via CPU ID */
+    return cpu_states[cpu_addr];
 }
 
 void s390_init_ipl_dev(const char *kernel_filename,
@@ -101,14 +102,14 @@ void s390_init_cpus(MachineState *machine)
         machine->cpu_model = "host";
     }
 
-    ipi_states = g_malloc(sizeof(S390CPU *) * smp_cpus);
+    cpu_states = g_malloc0(sizeof(S390CPU *) * max_cpus);
 
     for (i = 0; i < smp_cpus; i++) {
         S390CPU *cpu;
 
         cpu = cpu_s390x_init(machine->cpu_model);
 
-        ipi_states[i] = cpu;
+        cpu_states[i] = cpu;
     }
 }
 
