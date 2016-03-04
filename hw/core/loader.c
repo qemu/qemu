@@ -147,6 +147,28 @@ int load_image_targphys(const char *filename,
     return size;
 }
 
+int load_image_mr(const char *filename, MemoryRegion *mr)
+{
+    int size;
+
+    if (!memory_access_is_direct(mr, false)) {
+        /* Can only load an image into RAM or ROM */
+        return -1;
+    }
+
+    size = get_image_size(filename);
+
+    if (size > memory_region_size(mr)) {
+        return -1;
+    }
+    if (size > 0) {
+        if (rom_add_file_mr(filename, mr, -1) < 0) {
+            return -1;
+        }
+    }
+    return size;
+}
+
 void pstrcpy_targphys(const char *name, hwaddr dest, int buf_size,
                       const char *source)
 {
@@ -751,7 +773,7 @@ static void *rom_set_mr(Rom *rom, Object *owner, const char *name)
 
 int rom_add_file(const char *file, const char *fw_dir,
                  hwaddr addr, int32_t bootindex,
-                 bool option_rom)
+                 bool option_rom, MemoryRegion *mr)
 {
     MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
     Rom *rom;
@@ -818,7 +840,12 @@ int rom_add_file(const char *file, const char *fw_dir,
 
         fw_cfg_add_file(fw_cfg, fw_file_name, data, rom->romsize);
     } else {
-        snprintf(devpath, sizeof(devpath), "/rom@" TARGET_FMT_plx, addr);
+        if (mr) {
+            rom->mr = mr;
+            snprintf(devpath, sizeof(devpath), "/rom@%s", file);
+        } else {
+            snprintf(devpath, sizeof(devpath), "/rom@" TARGET_FMT_plx, addr);
+        }
     }
 
     add_boot_device_path(bootindex, NULL, devpath);
@@ -892,12 +919,12 @@ int rom_add_elf_program(const char *name, void *data, size_t datasize,
 
 int rom_add_vga(const char *file)
 {
-    return rom_add_file(file, "vgaroms", 0, -1, true);
+    return rom_add_file(file, "vgaroms", 0, -1, true, NULL);
 }
 
 int rom_add_option(const char *file, int32_t bootindex)
 {
-    return rom_add_file(file, "genroms", 0, bootindex, true);
+    return rom_add_file(file, "genroms", 0, bootindex, true, NULL);
 }
 
 static void rom_reset(void *unused)

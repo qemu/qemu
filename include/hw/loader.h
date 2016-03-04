@@ -16,6 +16,18 @@ int load_image(const char *filename, uint8_t *addr); /* deprecated */
 ssize_t load_image_size(const char *filename, void *addr, size_t size);
 int load_image_targphys(const char *filename, hwaddr,
                         uint64_t max_sz);
+/**
+ * load_image_mr: load an image into a memory region
+ * @filename: Path to the image file
+ * @mr: Memory Region to load into
+ *
+ * Load the specified file into the memory region.
+ * The file loaded is registered as a ROM, so its contents will be
+ * reinstated whenever the system is reset.
+ * If the file is larger than the memory region's size the call will fail.
+ * Returns -1 on failure, or the size of the file.
+ */
+int load_image_mr(const char *filename, MemoryRegion *mr);
 
 /* This is the limit on the maximum uncompressed image size that
  * load_image_gzipped_buffer() and load_image_gzipped() will read. It prevents
@@ -67,7 +79,7 @@ extern bool rom_file_has_mr;
 
 int rom_add_file(const char *file, const char *fw_dir,
                  hwaddr addr, int32_t bootindex,
-                 bool option_rom);
+                 bool option_rom, MemoryRegion *mr);
 MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,
                            size_t max_len, hwaddr addr,
                            const char *fw_file_name,
@@ -82,9 +94,11 @@ void *rom_ptr(hwaddr addr);
 void hmp_info_roms(Monitor *mon, const QDict *qdict);
 
 #define rom_add_file_fixed(_f, _a, _i)          \
-    rom_add_file(_f, NULL, _a, _i, false)
+    rom_add_file(_f, NULL, _a, _i, false, NULL)
 #define rom_add_blob_fixed(_f, _b, _l, _a)      \
     rom_add_blob(_f, _b, _l, _l, _a, NULL, NULL, NULL)
+#define rom_add_file_mr(_f, _mr, _i)            \
+    rom_add_file(_f, NULL, 0, _i, false, mr)
 
 #define PC_ROM_MIN_VGA     0xc0000
 #define PC_ROM_MIN_OPTION  0xc8000
