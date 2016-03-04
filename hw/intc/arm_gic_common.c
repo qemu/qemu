@@ -121,7 +121,7 @@ void gic_init_irqs_and_mmio(GICState *s, qemu_irq_handler handler,
          * neither it can use KVM.
          */
         memory_region_init_io(&s->cpuiomem[0], OBJECT(s), ops ? &ops[1] : NULL,
-                              s, "gic_cpu", s->revision == 2 ? 0x1000 : 0x100);
+                              s, "gic_cpu", s->revision == 2 ? 0x2000 : 0x100);
         sysbus_init_mmio(sbd, &s->cpuiomem[0]);
     }
 }

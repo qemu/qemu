@@ -500,6 +500,41 @@ static uint8_t gic_get_running_priority(GICState *s, int cpu, MemTxAttrs attrs)
     }
 }
 
+/* Return true if we should split priority drop and interrupt deactivation,
+ * ie whether the relevant EOIMode bit is set.
+ */
+static bool gic_eoi_split(GICState *s, int cpu, MemTxAttrs attrs)
+{
+    if (s->revision != 2) {
+        /* Before GICv2 prio-drop and deactivate are not separable */
+        return false;
+    }
+    if (s->security_extn && !attrs.secure) {
+        return s->cpu_ctlr[cpu] & GICC_CTLR_EOIMODE_NS;
+    }
+    return s->cpu_ctlr[cpu] & GICC_CTLR_EOIMODE;
+}
+
+static void gic_deactivate_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
+{
+    int cm = 1 << cpu;
+    int group = gic_has_groups(s) && GIC_TEST_GROUP(irq, cm);
+
+    if (!gic_eoi_split(s, cpu, attrs)) {
+        /* This is UNPREDICTABLE; we choose to ignore it */
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "gic_deactivate_irq: GICC_DIR write when EOIMode clear");
+        return;
+    }
+
+    if (s->security_extn && !attrs.secure && !group) {
+        DPRINTF("Non-secure DI for Group0 interrupt %d ignored\n", irq);
+        return;
+    }
+
+    GIC_CLEAR_ACTIVE(irq, cm);
+}
+
 void gic_complete_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
 {
     int cm = 1 << cpu;
@@ -544,7 +579,11 @@ void gic_complete_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
      */
 
     gic_drop_prio(s, cpu, group);
-    GIC_CLEAR_ACTIVE(irq, cm);
+
+    /* In GICv2 the guest can choose to split priority-drop and deactivate */
+    if (!gic_eoi_split(s, cpu, attrs)) {
+        GIC_CLEAR_ACTIVE(irq, cm);
+    }
     gic_update(s);
 }
 
@@ -1210,6 +1249,10 @@ static MemTxResult gic_cpu_write(GICState *s, int cpu, int offset,
         s->nsapr[regno][cpu] = value;
         break;
     }
+    case 0x1000:
+        /* GICC_DIR */
+        gic_deactivate_irq(s, cpu, value & 0x3ff, attrs);
+        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gic_cpu_write: Bad offset %x\n", (int)offset);
