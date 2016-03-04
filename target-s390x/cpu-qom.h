@@ -47,6 +47,8 @@ typedef struct S390CPUClass {
     CPUClass parent_class;
     /*< public >*/
 
+    int64_t next_cpu_id;
+
     DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
     void (*load_normal)(CPUState *cpu);

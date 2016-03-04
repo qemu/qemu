@@ -195,7 +195,20 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     S390CPUClass *scc = S390_CPU_GET_CLASS(dev);
+    S390CPU *cpu = S390_CPU(dev);
+    CPUS390XState *env = &cpu->env;
+    Error *err = NULL;
 
+    cpu_exec_init(cs, &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+
+#if !defined(CONFIG_USER_ONLY)
+    qemu_register_reset(s390_cpu_machine_reset_cb, cpu);
+#endif
+    env->cpu_num = scc->next_cpu_id++;
     s390_cpu_gdb_init(cs);
     qemu_init_vcpu(cs);
 #if !defined(CONFIG_USER_ONLY)
@@ -213,7 +226,6 @@ static void s390_cpu_initfn(Object *obj)
     S390CPU *cpu = S390_CPU(obj);
     CPUS390XState *env = &cpu->env;
     static bool inited;
-    static int cpu_num = 0;
 #if !defined(CONFIG_USER_ONLY)
     struct tm tm;
 #endif
@@ -221,9 +233,7 @@ static void s390_cpu_initfn(Object *obj)
     cs->env_ptr = env;
     cs->halted = 1;
     cs->exception_index = EXCP_HLT;
-    cpu_exec_init(cs, &error_abort);
 #if !defined(CONFIG_USER_ONLY)
-    qemu_register_reset(s390_cpu_machine_reset_cb, cpu);
     qemu_get_timedate(&tm, 0);
     env->tod_offset = TOD_UNIX_EPOCH +
                       (time2tod(mktimegm(&tm)) * 1000000000ULL);
@@ -232,7 +242,6 @@ static void s390_cpu_initfn(Object *obj)
     env->cpu_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_cpu_timer, cpu);
     s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
 #endif
-    env->cpu_num = cpu_num++;
 
     if (tcg_enabled() && !inited) {
         inited = true;
@@ -339,6 +348,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     CPUClass *cc = CPU_CLASS(scc);
     DeviceClass *dc = DEVICE_CLASS(oc);
 
+    scc->next_cpu_id = 0;
     scc->parent_realize = dc->realize;
     dc->realize = s390_cpu_realizefn;
 
@@ -371,7 +381,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_arch_name = s390_gdb_arch_name;
 
     /*
-     * Reason: s390_cpu_initfn() calls cpu_exec_init(), which saves
+     * Reason: s390_cpu_realizefn() calls cpu_exec_init(), which saves
      * the object in cpus -> dangling pointer after final
      * object_unref().
      */
