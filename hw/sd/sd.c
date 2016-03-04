@@ -449,7 +449,7 @@ static void sd_reset(DeviceState *dev)
 
 static bool sd_get_inserted(SDState *sd)
 {
-    return blk_is_inserted(sd->blk);
+    return sd->blk && blk_is_inserted(sd->blk);
 }
 
 static bool sd_get_readonly(SDState *sd)
