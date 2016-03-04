@@ -16,6 +16,13 @@
 #include "qemu/notify.h"
 #include "cpu.h"
 
+typedef enum {
+    ARM_ENDIANNESS_UNKNOWN = 0,
+    ARM_ENDIANNESS_LE,
+    ARM_ENDIANNESS_BE8,
+    ARM_ENDIANNESS_BE32,
+} arm_endianness;
+
 /* armv7m.c */
 DeviceState *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,
                       const char *kernel_filename, const char *cpu_model);
@@ -103,6 +110,8 @@ struct arm_boot_info {
      * changing to non-secure state if implementing a non-secure boot
      */
     bool secure_board_setup;
+
+    arm_endianness endianness;
 };
 
 /**
