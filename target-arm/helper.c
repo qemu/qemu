@@ -6241,6 +6241,11 @@ static void arm_cpu_do_interrupt_aarch32(CPUState *cs)
     env->condexec_bits = 0;
     /* Switch to the new mode, and to the correct instruction set.  */
     env->uncached_cpsr = (env->uncached_cpsr & ~CPSR_M) | new_mode;
+    /* Set new mode endianness */
+    env->uncached_cpsr &= ~CPSR_E;
+    if (env->cp15.sctlr_el[arm_current_el(env)] & SCTLR_EE) {
+        env->uncached_cpsr |= ~CPSR_E;
+    }
     env->daif |= mask;
     /* this is a lie, as the was no c1_sys on V4T/V5, but who cares
      * and we should just guard the thumb mode on V4 */
@@ -6525,6 +6530,12 @@ static inline bool regime_translation_disabled(CPUARMState *env,
         return (env->cp15.hcr_el2 & HCR_VM) == 0;
     }
     return (regime_sctlr(env, mmu_idx) & SCTLR_M) == 0;
+}
+
+static inline bool regime_translation_big_endian(CPUARMState *env,
+                                                 ARMMMUIdx mmu_idx)
+{
+    return (regime_sctlr(env, mmu_idx) & SCTLR_EE) != 0;
 }
 
 /* Return the TCR controlling this translation regime */
@@ -6849,7 +6860,11 @@ static uint32_t arm_ldl_ptw(CPUState *cs, hwaddr addr, bool is_secure,
     if (fi->s1ptw) {
         return 0;
     }
-    return address_space_ldl(as, addr, attrs, NULL);
+    if (regime_translation_big_endian(env, mmu_idx)) {
+        return address_space_ldl_be(as, addr, attrs, NULL);
+    } else {
+        return address_space_ldl_le(as, addr, attrs, NULL);
+    }
 }
 
 static uint64_t arm_ldq_ptw(CPUState *cs, hwaddr addr, bool is_secure,
@@ -6867,7 +6882,11 @@ static uint64_t arm_ldq_ptw(CPUState *cs, hwaddr addr, bool is_secure,
     if (fi->s1ptw) {
         return 0;
     }
-    return address_space_ldq(as, addr, attrs, NULL);
+    if (regime_translation_big_endian(env, mmu_idx)) {
+        return address_space_ldq_be(as, addr, attrs, NULL);
+    } else {
+        return address_space_ldq_le(as, addr, attrs, NULL);
+    }
 }
 
 static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
