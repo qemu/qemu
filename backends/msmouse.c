@@ -68,7 +68,7 @@ static CharDriverState *qemu_chr_open_msmouse(const char *id,
                                               ChardevReturn *ret,
                                               Error **errp)
 {
-    ChardevCommon *common = qapi_ChardevDummy_base(backend->u.msmouse);
+    ChardevCommon *common = backend->u.msmouse;
     CharDriverState *chr;
 
     chr = qemu_chr_alloc(common, errp);

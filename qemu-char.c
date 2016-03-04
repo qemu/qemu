@@ -420,7 +420,7 @@ static CharDriverState *qemu_chr_open_null(const char *id,
                                            Error **errp)
 {
     CharDriverState *chr;
-    ChardevCommon *common = qapi_ChardevDummy_base(backend->u.null);
+    ChardevCommon *common = backend->u.null;
 
     chr = qemu_chr_alloc(common, errp);
     if (!chr) {
@@ -1366,7 +1366,7 @@ static CharDriverState *qemu_chr_open_pty(const char *id,
     PtyCharDriver *s;
     int master_fd, slave_fd;
     char pty_name[PATH_MAX];
-    ChardevCommon *common = qapi_ChardevDummy_base(backend->u.pty);
+    ChardevCommon *common = backend->u.pty;
 
     master_fd = qemu_openpty_raw(&slave_fd, pty_name);
     if (master_fd < 0) {
@@ -2183,7 +2183,7 @@ static CharDriverState *qemu_chr_open_win_con(const char *id,
                                               ChardevReturn *ret,
                                               Error **errp)
 {
-    ChardevCommon *common = qapi_ChardevDummy_base(backend->u.console);
+    ChardevCommon *common = backend->u.console;
     return qemu_chr_open_win_file(GetStdHandle(STD_OUTPUT_HANDLE),
                                   common, errp);
 }
@@ -3817,7 +3817,7 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
     } else {
         ChardevCommon *cc = g_new0(ChardevCommon, 1);
         qemu_chr_parse_common(opts, cc);
-        backend->u.data = cc;
+        backend->u.null = cc; /* Any ChardevCommon member would work */
     }
 
     ret = qmp_chardev_add(bid ? bid : id, backend, errp);
