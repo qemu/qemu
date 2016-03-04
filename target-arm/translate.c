@@ -7655,6 +7655,7 @@ static void gen_srs(DisasContext *s,
 
     /* SRS is:
      * - trapped to EL3 if EL3 is AArch64 and we are at Secure EL1
+     *   and specified mode is monitor mode
      * - UNDEFINED in Hyp mode
      * - UNPREDICTABLE in User or System mode
      * - UNPREDICTABLE if the specified mode is:
@@ -7664,7 +7665,7 @@ static void gen_srs(DisasContext *s,
      * -- Monitor, if we are Non-secure
      * For the UNPREDICTABLE cases we choose to UNDEF.
      */
-    if (s->current_el == 1 && !s->ns) {
+    if (s->current_el == 1 && !s->ns && mode == ARM_CPU_MODE_MON) {
         gen_exception_insn(s, 4, EXCP_UDEF, syn_uncategorized(), 3);
         return;
     }
