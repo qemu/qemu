@@ -25,6 +25,14 @@
 
 #include "hw/mem/pc-dimm.h"
 
+#define NVDIMM_DEBUG 0
+#define nvdimm_debug(fmt, ...)                                \
+    do {                                                      \
+        if (NVDIMM_DEBUG) {                                   \
+            fprintf(stderr, "nvdimm: " fmt, ## __VA_ARGS__);  \
+        }                                                     \
+    } while (0)
+
 #define TYPE_NVDIMM             "nvdimm"
 
 #define NVDIMM_DSM_MEM_FILE     "etc/acpi/nvdimm-mem"
