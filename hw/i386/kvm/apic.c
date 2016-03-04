@@ -186,7 +186,7 @@ static void kvm_apic_realize(DeviceState *dev, Error **errp)
                           APIC_SPACE_SIZE);
 
     if (kvm_has_gsi_routing()) {
-        msi_supported = true;
+        msi_nonbroken = true;
     }
 }
 

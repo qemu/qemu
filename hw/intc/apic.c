@@ -874,7 +874,7 @@ static void apic_realize(DeviceState *dev, Error **errp)
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, apic_timer, s);
     local_apics[s->idx] = s;
 
-    msi_supported = true;
+    msi_nonbroken = true;
 }
 
 static void apic_class_init(ObjectClass *klass, void *data)

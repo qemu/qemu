@@ -249,7 +249,7 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
     uint8_t *config;
 
     /* Nothing to do if MSI is not supported by interrupt controller */
-    if (!msi_supported) {
+    if (!msi_nonbroken) {
         return -ENOTSUP;
     }
 

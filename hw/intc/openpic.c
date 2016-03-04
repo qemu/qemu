@@ -1375,7 +1375,7 @@ static void fsl_common_init(OpenPICState *opp)
 
     opp->irq_msi = 224;
 
-    msi_supported = true;
+    msi_nonbroken = true;
     for (i = 0; i < opp->fsl->max_ext; i++) {
         opp->src[i].level = false;
     }

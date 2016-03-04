@@ -34,8 +34,21 @@
 
 #define PCI_MSI_VECTORS_MAX     32
 
-/* Flag for interrupt controller to declare MSI/MSI-X support */
-bool msi_supported;
+/*
+ * Flag for interrupt controllers to declare broken MSI/MSI-X support.
+ * values: false - broken; true - non-broken.
+ *
+ * Setting this flag to false will remove MSI/MSI-X capability from all devices.
+ *
+ * It is preferrable for controllers to set this to true (non-broken) even if
+ * they do not actually support MSI/MSI-X: guests normally probe the controller
+ * type and do not attempt to enable MSI/MSI-X with interrupt controllers not
+ * supporting such, so removing the capability is not required, and
+ * it seems cleaner to have a given device look the same for all boards.
+ *
+ * TODO: some existing controllers violate the above rule. Identify and fix them.
+ */
+bool msi_nonbroken;
 
 /* If we get rid of cap allocator, we won't need this. */
 static inline uint8_t msi_cap_sizeof(uint16_t flags)
@@ -160,7 +173,7 @@ int msi_init(struct PCIDevice *dev, uint8_t offset,
     uint8_t cap_size;
     int config_offset;
 
-    if (!msi_supported) {
+    if (!msi_nonbroken) {
         return -ENOTSUP;
     }
 

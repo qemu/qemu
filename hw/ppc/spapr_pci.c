@@ -1790,7 +1790,7 @@ void spapr_pci_rtas_init(void)
                         rtas_ibm_read_pci_config);
     spapr_rtas_register(RTAS_IBM_WRITE_PCI_CONFIG, "ibm,write-pci-config",
                         rtas_ibm_write_pci_config);
-    if (msi_supported) {
+    if (msi_nonbroken) {
         spapr_rtas_register(RTAS_IBM_QUERY_INTERRUPT_SOURCE_NUMBER,
                             "ibm,query-interrupt-source-number",
                             rtas_ibm_query_interrupt_source_number);

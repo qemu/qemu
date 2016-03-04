@@ -239,7 +239,7 @@ static void kvm_openpic_realize(DeviceState *dev, Error **errp)
     memory_listener_register(&opp->mem_listener, &address_space_memory);
 
     /* indicate pic capabilities */
-    msi_supported = true;
+    msi_nonbroken = true;
     kvm_kernel_irqchip = true;
     kvm_async_interrupts_allowed = true;
 
