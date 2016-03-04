@@ -93,12 +93,12 @@ void s390_init_ipl_dev(const char *kernel_filename,
     qdev_init_nofail(dev);
 }
 
-void s390_init_cpus(const char *cpu_model)
+void s390_init_cpus(MachineState *machine)
 {
     int i;
 
-    if (cpu_model == NULL) {
-        cpu_model = "host";
+    if (machine->cpu_model == NULL) {
+        machine->cpu_model = "host";
     }
 
     ipi_states = g_malloc(sizeof(S390CPU *) * smp_cpus);
@@ -107,7 +107,7 @@ void s390_init_cpus(const char *cpu_model)
         S390CPU *cpu;
         CPUState *cs;
 
-        cpu = cpu_s390x_init(cpu_model);
+        cpu = cpu_s390x_init(machine->cpu_model);
         cs = CPU(cpu);
 
         ipi_states[i] = cpu;
