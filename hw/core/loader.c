@@ -147,6 +147,28 @@ int load_image_targphys(const char *filename,
     return size;
 }
 
+int load_image_mr(const char *filename, MemoryRegion *mr)
+{
+    int size;
+
+    if (!memory_access_is_direct(mr, false)) {
+        /* Can only load an image into RAM or ROM */
+        return -1;
+    }
+
+    size = get_image_size(filename);
+
+    if (size > memory_region_size(mr)) {
+        return -1;
+    }
+    if (size > 0) {
+        if (rom_add_file_mr(filename, mr, -1) < 0) {
+            return -1;
+        }
+    }
+    return size;
+}
+
 void pstrcpy_targphys(const char *name, hwaddr dest, int buf_size,
                       const char *source)
 {
@@ -332,10 +354,66 @@ const char *load_elf_strerror(int error)
     }
 }
 
+void load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp)
+{
+    int fd;
+    uint8_t e_ident_local[EI_NIDENT];
+    uint8_t *e_ident;
+    size_t hdr_size, off;
+    bool is64l;
+
+    if (!hdr) {
+        hdr = e_ident_local;
+    }
+    e_ident = hdr;
+
+    fd = open(filename, O_RDONLY | O_BINARY);
+    if (fd < 0) {
+        error_setg_errno(errp, errno, "Failed to open file: %s", filename);
+        return;
+    }
+    if (read(fd, hdr, EI_NIDENT) != EI_NIDENT) {
+        error_setg_errno(errp, errno, "Failed to read file: %s", filename);
+        goto fail;
+    }
+    if (e_ident[0] != ELFMAG0 ||
+        e_ident[1] != ELFMAG1 ||
+        e_ident[2] != ELFMAG2 ||
+        e_ident[3] != ELFMAG3) {
+        error_setg(errp, "Bad ELF magic");
+        goto fail;
+    }
+
+    is64l = e_ident[EI_CLASS] == ELFCLASS64;
+    hdr_size = is64l ? sizeof(Elf64_Ehdr) : sizeof(Elf32_Ehdr);
+    if (is64) {
+        *is64 = is64l;
+    }
+
+    off = EI_NIDENT;
+    while (hdr != e_ident_local && off < hdr_size) {
+        size_t br = read(fd, hdr + off, hdr_size - off);
+        switch (br) {
+        case 0:
+            error_setg(errp, "File too short: %s", filename);
+            goto fail;
+        case -1:
+            error_setg_errno(errp, errno, "Failed to read file: %s",
+                             filename);
+            goto fail;
+        }
+        off += br;
+    }
+
+fail:
+    close(fd);
+}
+
 /* return < 0 if error, otherwise the number of bytes loaded in memory */
 int load_elf(const char *filename, uint64_t (*translate_fn)(void *, uint64_t),
              void *translate_opaque, uint64_t *pentry, uint64_t *lowaddr,
-             uint64_t *highaddr, int big_endian, int elf_machine, int clear_lsb)
+             uint64_t *highaddr, int big_endian, int elf_machine,
+             int clear_lsb, int data_swab)
 {
     int fd, data_order, target_data_order, must_swab, ret = ELF_LOAD_FAILED;
     uint8_t e_ident[EI_NIDENT];
@@ -374,10 +452,12 @@ int load_elf(const char *filename, uint64_t (*translate_fn)(void *, uint64_t),
     lseek(fd, 0, SEEK_SET);
     if (e_ident[EI_CLASS] == ELFCLASS64) {
         ret = load_elf64(filename, fd, translate_fn, translate_opaque, must_swab,
-                         pentry, lowaddr, highaddr, elf_machine, clear_lsb);
+                         pentry, lowaddr, highaddr, elf_machine, clear_lsb,
+                         data_swab);
     } else {
         ret = load_elf32(filename, fd, translate_fn, translate_opaque, must_swab,
-                         pentry, lowaddr, highaddr, elf_machine, clear_lsb);
+                         pentry, lowaddr, highaddr, elf_machine, clear_lsb,
+                         data_swab);
     }
 
  fail:
@@ -751,7 +831,7 @@ static void *rom_set_mr(Rom *rom, Object *owner, const char *name)
 
 int rom_add_file(const char *file, const char *fw_dir,
                  hwaddr addr, int32_t bootindex,
-                 bool option_rom)
+                 bool option_rom, MemoryRegion *mr)
 {
     MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
     Rom *rom;
@@ -818,7 +898,12 @@ int rom_add_file(const char *file, const char *fw_dir,
 
         fw_cfg_add_file(fw_cfg, fw_file_name, data, rom->romsize);
     } else {
-        snprintf(devpath, sizeof(devpath), "/rom@" TARGET_FMT_plx, addr);
+        if (mr) {
+            rom->mr = mr;
+            snprintf(devpath, sizeof(devpath), "/rom@%s", file);
+        } else {
+            snprintf(devpath, sizeof(devpath), "/rom@" TARGET_FMT_plx, addr);
+        }
     }
 
     add_boot_device_path(bootindex, NULL, devpath);
@@ -892,12 +977,12 @@ int rom_add_elf_program(const char *name, void *data, size_t datasize,
 
 int rom_add_vga(const char *file)
 {
-    return rom_add_file(file, "vgaroms", 0, -1, true);
+    return rom_add_file(file, "vgaroms", 0, -1, true, NULL);
 }
 
 int rom_add_option(const char *file, int32_t bootindex)
 {
-    return rom_add_file(file, "genroms", 0, bootindex, true);
+    return rom_add_file(file, "genroms", 0, bootindex, true, NULL);
 }
 
 static void rom_reset(void *unused)

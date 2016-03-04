@@ -296,6 +296,11 @@ uint32_t HELPER(usat16)(CPUARMState *env, uint32_t x, uint32_t shift)
     return res;
 }
 
+void HELPER(setend)(CPUARMState *env)
+{
+    env->uncached_cpsr ^= CPSR_E;
+}
+
 /* Function checks whether WFx (WFI/WFE) instructions are set up to be trapped.
  * The function returns the target EL (1-3) if the instruction is to be trapped;
  * otherwise it returns 0 indicating it is not trapped.

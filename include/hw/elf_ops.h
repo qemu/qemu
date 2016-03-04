@@ -263,7 +263,7 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                               void *translate_opaque,
                               int must_swab, uint64_t *pentry,
                               uint64_t *lowaddr, uint64_t *highaddr,
-                              int elf_machine, int clear_lsb)
+                              int elf_machine, int clear_lsb, int data_swab)
 {
     struct elfhdr ehdr;
     struct elf_phdr *phdr = NULL, *ph;
@@ -364,6 +364,26 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                                     translate_opaque, data, ph, elf_machine);
             } else {
                 addr = ph->p_paddr;
+            }
+
+            if (data_swab) {
+                int j;
+                for (j = 0; j < file_size; j += (1 << data_swab)) {
+                    uint8_t *dp = data + j;
+                    switch (data_swab) {
+                    case (1):
+                        *(uint16_t *)dp = bswap16(*(uint16_t *)dp);
+                        break;
+                    case (2):
+                        *(uint32_t *)dp = bswap32(*(uint32_t *)dp);
+                        break;
+                    case (3):
+                        *(uint64_t *)dp = bswap64(*(uint64_t *)dp);
+                        break;
+                    default:
+                        g_assert_not_reached();
+                    }
+                }
             }
 
             /* the entry pointer in the ELF header is a virtual

@@ -111,7 +111,7 @@ static void clipper_init(MachineState *machine)
     }
     size = load_elf(palcode_filename, cpu_alpha_superpage_to_phys,
                     NULL, &palcode_entry, &palcode_low, &palcode_high,
-                    0, EM_ALPHA, 0);
+                    0, EM_ALPHA, 0, 0);
     if (size < 0) {
         error_report("could not load palcode '%s'", palcode_filename);
         exit(1);
@@ -131,7 +131,7 @@ static void clipper_init(MachineState *machine)
 
         size = load_elf(kernel_filename, cpu_alpha_superpage_to_phys,
                         NULL, &kernel_entry, &kernel_low, &kernel_high,
-                        0, EM_ALPHA, 0);
+                        0, EM_ALPHA, 0, 0);
         if (size < 0) {
             error_report("could not load kernel '%s'", kernel_filename);
             exit(1);

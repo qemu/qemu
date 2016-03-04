@@ -355,7 +355,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
         uint64_t elf_entry;
         uint64_t elf_lowaddr;
         int success = load_elf(kernel_filename, translate_phys_addr, cpu,
-                &elf_entry, &elf_lowaddr, NULL, be, EM_XTENSA, 0);
+                &elf_entry, &elf_lowaddr, NULL, be, EM_XTENSA, 0, 0);
         if (success > 0) {
             entry_point = elf_entry;
         } else {

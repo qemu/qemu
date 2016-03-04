@@ -5490,9 +5490,16 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask,
     env->daif |= val & CPSR_AIF & mask;
 
     if (write_type != CPSRWriteRaw &&
-        (env->uncached_cpsr & CPSR_M) != CPSR_USER &&
         ((env->uncached_cpsr ^ val) & mask & CPSR_M)) {
-        if (bad_mode_switch(env, val & CPSR_M, write_type)) {
+        if ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_USR) {
+            /* Note that we can only get here in USR mode if this is a
+             * gdb stub write; for this case we follow the architectural
+             * behaviour for guest writes in USR mode of ignoring an attempt
+             * to switch mode. (Those are caught by translate.c for writes
+             * triggered by guest instructions.)
+             */
+            mask &= ~CPSR_M;
+        } else if (bad_mode_switch(env, val & CPSR_M, write_type)) {
             /* Attempt to switch to an invalid mode: this is UNPREDICTABLE in
              * v7, and has defined behaviour in v8:
              *  + leave CPSR.M untouched
@@ -5841,7 +5848,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     case EXCP_BKPT:
         if (semihosting_enabled()) {
             int nr;
-            nr = arm_lduw_code(env, env->regs[15], env->bswap_code) & 0xff;
+            nr = arm_lduw_code(env, env->regs[15], arm_sctlr_b(env)) & 0xff;
             if (nr == 0xab) {
                 env->regs[15] += 2;
                 qemu_log_mask(CPU_LOG_INT,
@@ -6234,6 +6241,11 @@ static void arm_cpu_do_interrupt_aarch32(CPUState *cs)
     env->condexec_bits = 0;
     /* Switch to the new mode, and to the correct instruction set.  */
     env->uncached_cpsr = (env->uncached_cpsr & ~CPSR_M) | new_mode;
+    /* Set new mode endianness */
+    env->uncached_cpsr &= ~CPSR_E;
+    if (env->cp15.sctlr_el[arm_current_el(env)] & SCTLR_EE) {
+        env->uncached_cpsr |= ~CPSR_E;
+    }
     env->daif |= mask;
     /* this is a lie, as the was no c1_sys on V4T/V5, but who cares
      * and we should just guard the thumb mode on V4 */
@@ -6379,13 +6391,13 @@ static inline bool check_for_semihosting(CPUState *cs)
         case EXCP_SWI:
             /* Check for semihosting interrupt.  */
             if (env->thumb) {
-                imm = arm_lduw_code(env, env->regs[15] - 2, env->bswap_code)
+                imm = arm_lduw_code(env, env->regs[15] - 2, arm_sctlr_b(env))
                     & 0xff;
                 if (imm == 0xab) {
                     break;
                 }
             } else {
-                imm = arm_ldl_code(env, env->regs[15] - 4, env->bswap_code)
+                imm = arm_ldl_code(env, env->regs[15] - 4, arm_sctlr_b(env))
                     & 0xffffff;
                 if (imm == 0x123456) {
                     break;
@@ -6395,7 +6407,7 @@ static inline bool check_for_semihosting(CPUState *cs)
         case EXCP_BKPT:
             /* See if this is a semihosting syscall.  */
             if (env->thumb) {
-                imm = arm_lduw_code(env, env->regs[15], env->bswap_code)
+                imm = arm_lduw_code(env, env->regs[15], arm_sctlr_b(env))
                     & 0xff;
                 if (imm == 0xab) {
                     env->regs[15] += 2;
@@ -6518,6 +6530,12 @@ static inline bool regime_translation_disabled(CPUARMState *env,
         return (env->cp15.hcr_el2 & HCR_VM) == 0;
     }
     return (regime_sctlr(env, mmu_idx) & SCTLR_M) == 0;
+}
+
+static inline bool regime_translation_big_endian(CPUARMState *env,
+                                                 ARMMMUIdx mmu_idx)
+{
+    return (regime_sctlr(env, mmu_idx) & SCTLR_EE) != 0;
 }
 
 /* Return the TCR controlling this translation regime */
@@ -6842,7 +6860,11 @@ static uint32_t arm_ldl_ptw(CPUState *cs, hwaddr addr, bool is_secure,
     if (fi->s1ptw) {
         return 0;
     }
-    return address_space_ldl(as, addr, attrs, NULL);
+    if (regime_translation_big_endian(env, mmu_idx)) {
+        return address_space_ldl_be(as, addr, attrs, NULL);
+    } else {
+        return address_space_ldl_le(as, addr, attrs, NULL);
+    }
 }
 
 static uint64_t arm_ldq_ptw(CPUState *cs, hwaddr addr, bool is_secure,
@@ -6860,7 +6882,11 @@ static uint64_t arm_ldq_ptw(CPUState *cs, hwaddr addr, bool is_secure,
     if (fi->s1ptw) {
         return 0;
     }
-    return address_space_ldq(as, addr, attrs, NULL);
+    if (regime_translation_big_endian(env, mmu_idx)) {
+        return address_space_ldq_be(as, addr, attrs, NULL);
+    } else {
+        return address_space_ldq_le(as, addr, attrs, NULL);
+    }
 }
 
 static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
