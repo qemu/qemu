@@ -747,9 +747,9 @@ int bdrv_pwrite_sync(BlockDriverState *bs, int64_t offset,
         return ret;
     }
 
-    /* No flush needed for cache modes that already do it */
-    if (bs->enable_write_cache) {
-        bdrv_flush(bs);
+    ret = bdrv_flush(bs);
+    if (ret < 0) {
+        return ret;
     }
 
     return 0;
