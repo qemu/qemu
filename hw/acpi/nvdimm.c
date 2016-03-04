@@ -29,6 +29,7 @@
 #include "qemu/osdep.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/aml-build.h"
+#include "hw/acpi/bios-linker-loader.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/mem/nvdimm.h"
 
@@ -406,6 +407,7 @@ void nvdimm_init_acpi_state(AcpiNVDIMMState *state, MemoryRegion *io,
 }
 
 #define NVDIMM_COMMON_DSM      "NCAL"
+#define NVDIMM_ACPI_MEM_ADDR   "MEMA"
 
 static void nvdimm_build_common_dsm(Aml *dev)
 {
@@ -471,6 +473,7 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
                               GArray *table_data, GArray *linker)
 {
     Aml *ssdt, *sb_scope, *dev;
+    int mem_addr_offset, nvdimm_ssdt;
 
     acpi_add_table(table_offsets, table_data);
 
@@ -500,13 +503,24 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
     nvdimm_build_nvdimm_devices(device_list, dev);
 
     aml_append(sb_scope, dev);
-
     aml_append(ssdt, sb_scope);
+
+    nvdimm_ssdt = table_data->len;
+
     /* copy AML table into ACPI tables blob and patch header there */
     g_array_append_vals(table_data, ssdt->buf->data, ssdt->buf->len);
+    mem_addr_offset = build_append_named_dword(table_data,
+                                               NVDIMM_ACPI_MEM_ADDR);
+
+    bios_linker_loader_alloc(linker, NVDIMM_DSM_MEM_FILE, TARGET_PAGE_SIZE,
+                             false /* high memory */);
+    bios_linker_loader_add_pointer(linker, ACPI_BUILD_TABLE_FILE,
+                                   NVDIMM_DSM_MEM_FILE, table_data,
+                                   table_data->data + mem_addr_offset,
+                                   sizeof(uint32_t));
     build_header(linker, table_data,
-        (void *)(table_data->data + table_data->len - ssdt->buf->len),
-        "SSDT", ssdt->buf->len, 1, NULL, "NVDIMM");
+        (void *)(table_data->data + nvdimm_ssdt),
+        "SSDT", table_data->len - nvdimm_ssdt, 1, NULL, "NVDIMM");
     free_aml_allocator();
 }
 
