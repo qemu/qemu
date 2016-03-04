@@ -134,14 +134,19 @@ struct InputLinux {
     int         fd;
     bool        grab_request;
     bool        grab_active;
+    bool        grab_all;
     bool        keydown[KEY_CNT];
     int         keycount;
     int         wheel;
+    QTAILQ_ENTRY(InputLinux) next;
 };
+
+static QTAILQ_HEAD(, InputLinux) inputs = QTAILQ_HEAD_INITIALIZER(inputs);
 
 static void input_linux_toggle_grab(InputLinux *il)
 {
     intptr_t request = !il->grab_active;
+    InputLinux *item;
     int rc;
 
     rc = ioctl(il->fd, EVIOCGRAB, request);
@@ -149,6 +154,19 @@ static void input_linux_toggle_grab(InputLinux *il)
         return;
     }
     il->grab_active = !il->grab_active;
+
+    if (!il->grab_all) {
+        return;
+    }
+    QTAILQ_FOREACH(item, &inputs, next) {
+        if (item == il || item->grab_all) {
+            /* avoid endless loops */
+            continue;
+        }
+        if (item->grab_active != il->grab_active) {
+            input_linux_toggle_grab(item);
+        }
+    }
 }
 
 static void input_linux_event_keyboard(void *opaque)
@@ -238,6 +256,11 @@ static void input_linux_event_mouse(void *opaque)
             break;
         }
 
+        /* only send event to guest when grab is active */
+        if (!il->grab_active) {
+            continue;
+        }
+
         switch (event.type) {
         case EV_KEY:
             switch (event.code) {
@@ -292,6 +315,8 @@ int input_linux_init(void *opaque, QemuOpts *opts, Error **errp)
     int rc, ver;
 
     il->evdev = qemu_opt_get(opts, "evdev");
+    il->grab_all = qemu_opt_get_bool(opts, "grab-all", false);
+
     if (!il->evdev) {
         error_setg(errp, "no input device specified");
         goto err_free;
@@ -328,6 +353,7 @@ int input_linux_init(void *opaque, QemuOpts *opts, Error **errp)
         goto err_close;
     }
     input_linux_toggle_grab(il);
+    QTAILQ_INSERT_TAIL(&inputs, il, next);
     return 0;
 
 err_close:
@@ -345,6 +371,9 @@ static QemuOptsList qemu_input_linux_opts = {
         {
             .name = "evdev",
             .type = QEMU_OPT_STRING,
+        },{
+            .name = "grab-all",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
     },
