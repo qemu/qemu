@@ -696,13 +696,14 @@ static void create_virtio_devices(const VirtBoardInfo *vbi, qemu_irq *pic)
 }
 
 static void create_one_flash(const char *name, hwaddr flashbase,
-                             hwaddr flashsize)
+                             hwaddr flashsize, const char *file)
 {
     /* Create and map a single flash device. We use the same
      * parameters as the flash devices on the Versatile Express board.
      */
     DriveInfo *dinfo = drive_get_next(IF_PFLASH);
     DeviceState *dev = qdev_create(NULL, "cfi.pflash01");
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     const uint64_t sectorlength = 256 * 1024;
 
     if (dinfo) {
@@ -722,7 +723,30 @@ static void create_one_flash(const char *name, hwaddr flashbase,
     qdev_prop_set_string(dev, "name", name);
     qdev_init_nofail(dev);
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, flashbase);
+    sysbus_mmio_map(sbd, 0, flashbase);
+
+    if (file) {
+        char *fn;
+        int image_size;
+
+        if (drive_get(IF_PFLASH, 0, 0)) {
+            error_report("The contents of the first flash device may be "
+                         "specified with -bios or with -drive if=pflash... "
+                         "but you cannot use both options at once");
+            exit(1);
+        }
+        fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, file);
+        if (!fn) {
+            error_report("Could not find ROM image '%s'", file);
+            exit(1);
+        }
+        image_size = load_image_mr(fn, sysbus_mmio_get_region(sbd, 0));
+        g_free(fn);
+        if (image_size < 0) {
+            error_report("Could not load ROM image '%s'", file);
+            exit(1);
+        }
+    }
 }
 
 static void create_flash(const VirtBoardInfo *vbi)
@@ -734,31 +758,8 @@ static void create_flash(const VirtBoardInfo *vbi)
     hwaddr flashbase = vbi->memmap[VIRT_FLASH].base;
     char *nodename;
 
-    if (bios_name) {
-        char *fn;
-        int image_size;
-
-        if (drive_get(IF_PFLASH, 0, 0)) {
-            error_report("The contents of the first flash device may be "
-                         "specified with -bios or with -drive if=pflash... "
-                         "but you cannot use both options at once");
-            exit(1);
-        }
-        fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-        if (!fn) {
-            error_report("Could not find ROM image '%s'", bios_name);
-            exit(1);
-        }
-        image_size = load_image_targphys(fn, flashbase, flashsize);
-        g_free(fn);
-        if (image_size < 0) {
-            error_report("Could not load ROM image '%s'", bios_name);
-            exit(1);
-        }
-    }
-
-    create_one_flash("virt.flash0", flashbase, flashsize);
-    create_one_flash("virt.flash1", flashbase + flashsize, flashsize);
+    create_one_flash("virt.flash0", flashbase, flashsize, bios_name);
+    create_one_flash("virt.flash1", flashbase + flashsize, flashsize, NULL);
 
     nodename = g_strdup_printf("/flash@%" PRIx64, flashbase);
     qemu_fdt_add_subnode(vbi->fdt, nodename);
