@@ -186,6 +186,15 @@ static HotplugHandler *s390_get_hotplug_handler(MachineState *machine,
     return NULL;
 }
 
+static void s390_hot_add_cpu(const int64_t id, Error **errp)
+{
+    MachineState *machine = MACHINE(qdev_get_machine());
+    Error *err = NULL;
+
+    s390x_new_cpu(machine->cpu_model, id, &err);
+    error_propagate(errp, err);
+}
+
 static void ccw_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -194,6 +203,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
 
     mc->init = ccw_init;
     mc->reset = s390_machine_reset;
+    mc->hot_add_cpu = s390_hot_add_cpu;
     mc->block_default_type = IF_VIRTIO;
     mc->no_cdrom = 1;
     mc->no_floppy = 1;

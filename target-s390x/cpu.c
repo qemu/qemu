@@ -34,6 +34,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/arch_init.h"
 #include "sysemu/sysemu.h"
+#include "hw/s390x/sclp.h"
 #endif
 
 #define CR0_RESET       0xE0UL
@@ -239,6 +240,12 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
 #endif
 
     scc->parent_realize(dev, &err);
+
+#if !defined(CONFIG_USER_ONLY)
+    if (dev->hotplugged) {
+        raise_irq_cpu_hotplug();
+    }
+#endif
 
 out:
     error_propagate(errp, err);
