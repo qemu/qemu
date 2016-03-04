@@ -5848,7 +5848,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     case EXCP_BKPT:
         if (semihosting_enabled()) {
             int nr;
-            nr = arm_lduw_code(env, env->regs[15], env->bswap_code) & 0xff;
+            nr = arm_lduw_code(env, env->regs[15], arm_sctlr_b(env)) & 0xff;
             if (nr == 0xab) {
                 env->regs[15] += 2;
                 qemu_log_mask(CPU_LOG_INT,
@@ -6386,13 +6386,13 @@ static inline bool check_for_semihosting(CPUState *cs)
         case EXCP_SWI:
             /* Check for semihosting interrupt.  */
             if (env->thumb) {
-                imm = arm_lduw_code(env, env->regs[15] - 2, env->bswap_code)
+                imm = arm_lduw_code(env, env->regs[15] - 2, arm_sctlr_b(env))
                     & 0xff;
                 if (imm == 0xab) {
                     break;
                 }
             } else {
-                imm = arm_ldl_code(env, env->regs[15] - 4, env->bswap_code)
+                imm = arm_ldl_code(env, env->regs[15] - 4, arm_sctlr_b(env))
                     & 0xffffff;
                 if (imm == 0x123456) {
                     break;
@@ -6402,7 +6402,7 @@ static inline bool check_for_semihosting(CPUState *cs)
         case EXCP_BKPT:
             /* See if this is a semihosting syscall.  */
             if (env->thumb) {
-                imm = arm_lduw_code(env, env->regs[15], env->bswap_code)
+                imm = arm_lduw_code(env, env->regs[15], arm_sctlr_b(env))
                     & 0xff;
                 if (imm == 0xab) {
                     env->regs[15] += 2;
