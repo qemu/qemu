@@ -144,6 +144,7 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_MMIO] =               { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     [VIRT_PLATFORM_BUS] =       { 0x0c000000, 0x02000000 },
+    [VIRT_SECURE_MEM] =         { 0x0e000000, 0x01000000 },
     [VIRT_PCIE_MMIO] =          { 0x10000000, 0x2eff0000 },
     [VIRT_PCIE_PIO] =           { 0x3eff0000, 0x00010000 },
     [VIRT_PCIE_ECAM] =          { 0x3f000000, 0x01000000 },
@@ -977,6 +978,27 @@ static void create_platform_bus(VirtBoardInfo *vbi, qemu_irq *pic)
                                 sysbus_mmio_get_region(s, 0));
 }
 
+static void create_secure_ram(VirtBoardInfo *vbi, MemoryRegion *secure_sysmem)
+{
+    MemoryRegion *secram = g_new(MemoryRegion, 1);
+    char *nodename;
+    hwaddr base = vbi->memmap[VIRT_SECURE_MEM].base;
+    hwaddr size = vbi->memmap[VIRT_SECURE_MEM].size;
+
+    memory_region_init_ram(secram, NULL, "virt.secure-ram", size, &error_fatal);
+    vmstate_register_ram_global(secram);
+    memory_region_add_subregion(secure_sysmem, base, secram);
+
+    nodename = g_strdup_printf("/secram@%" PRIx64, base);
+    qemu_fdt_add_subnode(vbi->fdt, nodename);
+    qemu_fdt_setprop_string(vbi->fdt, nodename, "device_type", "memory");
+    qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg", 2, base, 2, size);
+    qemu_fdt_setprop_string(vbi->fdt, nodename, "status", "disabled");
+    qemu_fdt_setprop_string(vbi->fdt, nodename, "secure-status", "okay");
+
+    g_free(nodename);
+}
+
 static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
 {
     const VirtBoardInfo *board = (const VirtBoardInfo *)binfo;
@@ -1169,6 +1191,7 @@ static void machvirt_init(MachineState *machine)
     create_uart(vbi, pic, VIRT_UART, sysmem);
 
     if (vms->secure) {
+        create_secure_ram(vbi, secure_sysmem);
         create_uart(vbi, pic, VIRT_SECURE_UART, secure_sysmem);
     }
 
