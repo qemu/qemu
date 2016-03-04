@@ -696,7 +696,8 @@ static void create_virtio_devices(const VirtBoardInfo *vbi, qemu_irq *pic)
 }
 
 static void create_one_flash(const char *name, hwaddr flashbase,
-                             hwaddr flashsize, const char *file)
+                             hwaddr flashsize, const char *file,
+                             MemoryRegion *sysmem)
 {
     /* Create and map a single flash device. We use the same
      * parameters as the flash devices on the Versatile Express board.
@@ -723,7 +724,8 @@ static void create_one_flash(const char *name, hwaddr flashbase,
     qdev_prop_set_string(dev, "name", name);
     qdev_init_nofail(dev);
 
-    sysbus_mmio_map(sbd, 0, flashbase);
+    memory_region_add_subregion(sysmem, flashbase,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
 
     if (file) {
         char *fn;
@@ -749,26 +751,59 @@ static void create_one_flash(const char *name, hwaddr flashbase,
     }
 }
 
-static void create_flash(const VirtBoardInfo *vbi)
+static void create_flash(const VirtBoardInfo *vbi,
+                         MemoryRegion *sysmem,
+                         MemoryRegion *secure_sysmem)
 {
     /* Create two flash devices to fill the VIRT_FLASH space in the memmap.
      * Any file passed via -bios goes in the first of these.
+     * sysmem is the system memory space. secure_sysmem is the secure view
+     * of the system, and the first flash device should be made visible only
+     * there. The second flash device is visible to both secure and nonsecure.
+     * If sysmem == secure_sysmem this means there is no separate Secure
+     * address space and both flash devices are generally visible.
      */
     hwaddr flashsize = vbi->memmap[VIRT_FLASH].size / 2;
     hwaddr flashbase = vbi->memmap[VIRT_FLASH].base;
     char *nodename;
 
-    create_one_flash("virt.flash0", flashbase, flashsize, bios_name);
-    create_one_flash("virt.flash1", flashbase + flashsize, flashsize, NULL);
+    create_one_flash("virt.flash0", flashbase, flashsize,
+                     bios_name, secure_sysmem);
+    create_one_flash("virt.flash1", flashbase + flashsize, flashsize,
+                     NULL, sysmem);
 
-    nodename = g_strdup_printf("/flash@%" PRIx64, flashbase);
-    qemu_fdt_add_subnode(vbi->fdt, nodename);
-    qemu_fdt_setprop_string(vbi->fdt, nodename, "compatible", "cfi-flash");
-    qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg",
-                                 2, flashbase, 2, flashsize,
-                                 2, flashbase + flashsize, 2, flashsize);
-    qemu_fdt_setprop_cell(vbi->fdt, nodename, "bank-width", 4);
-    g_free(nodename);
+    if (sysmem == secure_sysmem) {
+        /* Report both flash devices as a single node in the DT */
+        nodename = g_strdup_printf("/flash@%" PRIx64, flashbase);
+        qemu_fdt_add_subnode(vbi->fdt, nodename);
+        qemu_fdt_setprop_string(vbi->fdt, nodename, "compatible", "cfi-flash");
+        qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg",
+                                     2, flashbase, 2, flashsize,
+                                     2, flashbase + flashsize, 2, flashsize);
+        qemu_fdt_setprop_cell(vbi->fdt, nodename, "bank-width", 4);
+        g_free(nodename);
+    } else {
+        /* Report the devices as separate nodes so we can mark one as
+         * only visible to the secure world.
+         */
+        nodename = g_strdup_printf("/secflash@%" PRIx64, flashbase);
+        qemu_fdt_add_subnode(vbi->fdt, nodename);
+        qemu_fdt_setprop_string(vbi->fdt, nodename, "compatible", "cfi-flash");
+        qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg",
+                                     2, flashbase, 2, flashsize);
+        qemu_fdt_setprop_cell(vbi->fdt, nodename, "bank-width", 4);
+        qemu_fdt_setprop_string(vbi->fdt, nodename, "status", "disabled");
+        qemu_fdt_setprop_string(vbi->fdt, nodename, "secure-status", "okay");
+        g_free(nodename);
+
+        nodename = g_strdup_printf("/flash@%" PRIx64, flashbase);
+        qemu_fdt_add_subnode(vbi->fdt, nodename);
+        qemu_fdt_setprop_string(vbi->fdt, nodename, "compatible", "cfi-flash");
+        qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg",
+                                     2, flashbase + flashsize, 2, flashsize);
+        qemu_fdt_setprop_cell(vbi->fdt, nodename, "bank-width", 4);
+        g_free(nodename);
+    }
 }
 
 static void create_fw_cfg(const VirtBoardInfo *vbi, AddressSpace *as)
@@ -1185,7 +1220,7 @@ static void machvirt_init(MachineState *machine)
                                          machine->ram_size);
     memory_region_add_subregion(sysmem, vbi->memmap[VIRT_MEM].base, ram);
 
-    create_flash(vbi);
+    create_flash(vbi, sysmem, secure_sysmem ? secure_sysmem : sysmem);
 
     create_gic(vbi, pic, gic_version, vms->secure);
 
