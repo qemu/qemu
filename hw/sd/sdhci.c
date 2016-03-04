@@ -207,6 +207,21 @@ static void sdhci_reset(SDHCIState *s)
     s->pending_insert_state = false;
 }
 
+static void sdhci_poweron_reset(DeviceState *dev)
+{
+    /* QOM (ie power-on) reset. This is identical to reset
+     * commanded via device register apart from handling of the
+     * 'pending insert on powerup' quirk.
+     */
+    SDHCIState *s = (SDHCIState *)dev;
+
+    sdhci_reset(s);
+
+    if (s->pending_insert_quirk) {
+        s->pending_insert_state = true;
+    }
+}
+
 static void sdhci_data_transfer(void *opaque);
 
 static void sdhci_send_command(SDHCIState *s)
@@ -1290,6 +1305,7 @@ static void sdhci_pci_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->vmsd = &sdhci_vmstate;
     dc->props = sdhci_pci_properties;
+    dc->reset = sdhci_poweron_reset;
 }
 
 static const TypeInfo sdhci_pci_info = {
@@ -1332,10 +1348,6 @@ static void sdhci_sysbus_realize(DeviceState *dev, Error ** errp)
     memory_region_init_io(&s->iomem, OBJECT(s), &sdhci_mmio_ops, s, "sdhci",
             SDHC_REGISTERS_MAP_SIZE);
     sysbus_init_mmio(sbd, &s->iomem);
-
-    if (s->pending_insert_quirk) {
-        s->pending_insert_state = true;
-    }
 }
 
 static void sdhci_sysbus_class_init(ObjectClass *klass, void *data)
@@ -1345,6 +1357,7 @@ static void sdhci_sysbus_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &sdhci_vmstate;
     dc->props = sdhci_sysbus_properties;
     dc->realize = sdhci_sysbus_realize;
+    dc->reset = sdhci_poweron_reset;
 }
 
 static const TypeInfo sdhci_sysbus_info = {
