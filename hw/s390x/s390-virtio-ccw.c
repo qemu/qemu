@@ -156,10 +156,41 @@ static void ccw_init(MachineState *machine)
                     gtod_save, gtod_load, kvm_state);
 }
 
+static void s390_cpu_plug(HotplugHandler *hotplug_dev,
+                        DeviceState *dev, Error **errp)
+{
+    gchar *name;
+    S390CPU *cpu = S390_CPU(dev);
+    CPUState *cs = CPU(dev);
+
+    name = g_strdup_printf("cpu[%i]", cpu->env.cpu_num);
+    object_property_set_link(OBJECT(hotplug_dev), OBJECT(cs), name,
+                             errp);
+    g_free(name);
+}
+
+static void s390_machine_device_plug(HotplugHandler *hotplug_dev,
+                                     DeviceState *dev, Error **errp)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+        s390_cpu_plug(hotplug_dev, dev, errp);
+    }
+}
+
+static HotplugHandler *s390_get_hotplug_handler(MachineState *machine,
+                                                DeviceState *dev)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+        return HOTPLUG_HANDLER(machine);
+    }
+    return NULL;
+}
+
 static void ccw_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
     mc->init = ccw_init;
     mc->reset = s390_machine_reset;
@@ -171,6 +202,8 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     mc->no_sdcard = 1;
     mc->use_sclp = 1;
     mc->max_cpus = 255;
+    mc->get_hotplug_handler = s390_get_hotplug_handler;
+    hc->plug = s390_machine_device_plug;
     nc->nmi_monitor_handler = s390_nmi;
 }
 
@@ -232,6 +265,7 @@ static const TypeInfo ccw_machine_info = {
     .class_init    = ccw_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_NMI },
+        { TYPE_HOTPLUG_HANDLER},
         { }
     },
 };
