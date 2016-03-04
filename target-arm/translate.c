@@ -7786,10 +7786,9 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
         if ((insn & 0x0ffffdff) == 0x01010000) {
             ARCH(6);
             /* setend */
-            if (((insn >> 9) & 1) != bswap_code(s->sctlr_b)) {
-                /* Dynamic endianness switching not implemented. */
-                qemu_log_mask(LOG_UNIMP, "arm: unimplemented setend\n");
-                goto illegal_op;
+            if (((insn >> 9) & 1) != !!(s->be_data == MO_BE)) {
+                gen_helper_setend(cpu_env);
+                s->is_jmp = DISAS_UPDATE;
             }
             return;
         } else if ((insn & 0x0fffff00) == 0x057ff000) {
@@ -11121,10 +11120,9 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
             case 2:
                 /* setend */
                 ARCH(6);
-                if (((insn >> 3) & 1) != bswap_code(s->sctlr_b)) {
-                    /* Dynamic endianness switching not implemented. */
-                    qemu_log_mask(LOG_UNIMP, "arm: unimplemented setend\n");
-                    goto illegal_op;
+                if (((insn >> 3) & 1) != !!(s->be_data == MO_BE)) {
+                    gen_helper_setend(cpu_env);
+                    s->is_jmp = DISAS_UPDATE;
                 }
                 break;
             case 3:
