@@ -1160,7 +1160,7 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
     }
     bdrv_debug_event(bs, BLKDBG_PWRITEV_DONE);
 
-    if (ret == 0 && !bs->enable_write_cache) {
+    if (ret == 0 && (flags & BDRV_REQ_FUA)) {
         ret = bdrv_co_flush(bs);
     }
 

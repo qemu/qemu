@@ -476,7 +476,7 @@ static int coroutine_fn iscsi_co_writev(BlockDriverState *bs,
     num_sectors = sector_qemu2lun(nb_sectors, iscsilun);
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
-    fua = iscsilun->dpofua && !bs->enable_write_cache;
+    fua = iscsilun->dpofua && !bdrv_enable_write_cache(bs);
     iTask.force_next_flush = !fua;
     if (iscsilun->use_16_for_rw) {
         iTask.task = iscsi_write16_task(iscsilun->iscsi, iscsilun->lun, lba,

@@ -2038,6 +2038,11 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
             goto error;
         }
     }
+    if (!reopen_state->bs->blk && !(reopen_state->flags & BDRV_O_CACHE_WB)) {
+        error_setg(errp, "Cannot disable cache.writeback: No BlockBackend");
+        ret = -EINVAL;
+        goto error;
+    }
 
     /* node-name and driver must be unchanged. Put them back into the QDict, so
      * that they are checked at the end of this function. */
@@ -2138,10 +2143,10 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state)
 
     reopen_state->bs->explicit_options   = reopen_state->explicit_options;
     reopen_state->bs->open_flags         = reopen_state->flags;
-    reopen_state->bs->enable_write_cache = !!(reopen_state->flags &
-                                              BDRV_O_CACHE_WB);
     reopen_state->bs->read_only = !(reopen_state->flags & BDRV_O_RDWR);
 
+    bdrv_set_enable_write_cache(reopen_state->bs,
+                                !!(reopen_state->flags & BDRV_O_CACHE_WB));
     bdrv_refresh_limits(reopen_state->bs, NULL);
 }
 
@@ -2271,9 +2276,6 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
                                      BlockDriverState *bs_src)
 {
     /* move some fields that need to stay attached to the device */
-
-    /* dev info */
-    bs_dest->enable_write_cache = bs_src->enable_write_cache;
 }
 
 static void change_parent_backing_link(BlockDriverState *from,
@@ -2753,12 +2755,18 @@ int bdrv_is_sg(BlockDriverState *bs)
 
 int bdrv_enable_write_cache(BlockDriverState *bs)
 {
-    return bs->enable_write_cache;
+    if (bs->blk) {
+        return blk_enable_write_cache(bs->blk);
+    } else {
+        return true;
+    }
 }
 
 void bdrv_set_enable_write_cache(BlockDriverState *bs, bool wce)
 {
-    bs->enable_write_cache = wce;
+    if (bs->blk) {
+        blk_set_enable_write_cache(bs->blk, wce);
+    }
 
     /* so a reopen() will preserve wce */
     if (wce) {
@@ -3618,8 +3626,8 @@ void bdrv_img_create(const char *filename, const char *fmt,
             }
 
             /* backing files always opened read-only */
-            back_flags =
-                flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+            back_flags = flags | BDRV_O_CACHE_WB;
+            back_flags &= ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
 
             if (backing_fmt) {
                 backing_options = qdict_new();

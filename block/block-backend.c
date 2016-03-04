@@ -47,6 +47,8 @@ struct BlockBackend {
      * can be used to restore those options in the new BDS on insert) */
     BlockBackendRootState root_state;
 
+    bool enable_write_cache;
+
     /* I/O stats (display with "info blockstats"). */
     BlockAcctStats stats;
 
@@ -699,9 +701,15 @@ static int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
                                       unsigned int bytes, QEMUIOVector *qiov,
                                       BdrvRequestFlags flags)
 {
-    int ret = blk_check_byte_request(blk, offset, bytes);
+    int ret;
+
+    ret = blk_check_byte_request(blk, offset, bytes);
     if (ret < 0) {
         return ret;
+    }
+
+    if (!blk->enable_write_cache) {
+        flags |= BDRV_REQ_FUA;
     }
 
     return bdrv_co_do_pwritev(blk_bs(blk), offset, bytes, qiov, flags);
@@ -1210,26 +1218,19 @@ int blk_is_sg(BlockBackend *blk)
 
 int blk_enable_write_cache(BlockBackend *blk)
 {
-    BlockDriverState *bs = blk_bs(blk);
-
-    if (bs) {
-        return bdrv_enable_write_cache(bs);
-    } else {
-        return !!(blk->root_state.open_flags & BDRV_O_CACHE_WB);
-    }
+    return blk->enable_write_cache;
 }
 
 void blk_set_enable_write_cache(BlockBackend *blk, bool wce)
 {
-    BlockDriverState *bs = blk_bs(blk);
+    blk->enable_write_cache = wce;
 
-    if (bs) {
-        bdrv_set_enable_write_cache(bs, wce);
-    } else {
+    /* TODO Remove this when BDRV_O_CACHE_WB isn't used any more */
+    if (blk->root) {
         if (wce) {
-            blk->root_state.open_flags |= BDRV_O_CACHE_WB;
+            blk->root->bs->open_flags |= BDRV_O_CACHE_WB;
         } else {
-            blk->root_state.open_flags &= ~BDRV_O_CACHE_WB;
+            blk->root->bs->open_flags &= ~BDRV_O_CACHE_WB;
         }
     }
 }
@@ -1492,11 +1493,22 @@ int blk_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors)
 int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
                      int64_t pos, int size)
 {
+    int ret;
+
     if (!blk_is_available(blk)) {
         return -ENOMEDIUM;
     }
 
-    return bdrv_save_vmstate(blk_bs(blk), buf, pos, size);
+    ret = bdrv_save_vmstate(blk_bs(blk), buf, pos, size);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (ret == size && !blk->enable_write_cache) {
+        ret = bdrv_flush(blk_bs(blk));
+    }
+
+    return ret < 0 ? ret : size;
 }
 
 int blk_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size)

@@ -442,9 +442,6 @@ struct BlockDriverState {
     /* Alignment requirement for offset/length of I/O requests */
     unsigned int request_alignment;
 
-    /* do we need to tell the quest if we have a volatile write cache? */
-    int enable_write_cache;
-
     /* the following member gives a name to every node on the bs graph. */
     char node_name[32];
     /* element of the list of named nodes building the graph */

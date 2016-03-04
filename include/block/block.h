@@ -64,6 +64,7 @@ typedef enum {
      */
     BDRV_REQ_MAY_UNMAP          = 0x4,
     BDRV_REQ_NO_SERIALISING     = 0x8,
+    BDRV_REQ_FUA                = 0x10,
 } BdrvRequestFlags;
 
 typedef struct BlockSizes {

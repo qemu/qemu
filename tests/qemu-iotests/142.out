@@ -132,7 +132,7 @@ cache.direct=on on backing-file
 
 cache.writeback=off on none0
     Cache mode:       writethrough
-    Cache mode:       writethrough
+    Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
@@ -342,7 +342,7 @@ cache.direct=on on backing-file
 
 cache.writeback=off on none0
     Cache mode:       writeback, direct
-    Cache mode:       writethrough
+    Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
@@ -503,7 +503,7 @@ cache.direct=on on backing-file
 
 cache.writeback=off on blk
     Cache mode:       writethrough
-    Cache mode:       writethrough
+    Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
@@ -707,7 +707,7 @@ cache.no-flush=on on backing-file
 --- Change cache mode after reopening child ---
 
     Cache mode:       writeback, direct
-    Cache mode:       writethrough
+    Cache mode:       writeback
     Cache mode:       writeback, direct
     Cache mode:       writeback, ignore flushes
 *** done

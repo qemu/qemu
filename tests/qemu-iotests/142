@@ -338,8 +338,8 @@ echo
 # TODO Implement node-name support for 'qemu-io' HMP command for -c
 # Can use only -o to access child node options for now
 
-hmp_cmds="qemu-io none0 \"reopen -o file.cache.writeback=off,file.cache.direct=off,file.cache.no-flush=off\"
-qemu-io none0 \"reopen -o backing.file.cache.writeback=on,backing.file.cache.direct=off,backing.file.cache.no-flush=on\"
+hmp_cmds="qemu-io none0 \"reopen -o file.cache.direct=off,file.cache.no-flush=off\"
+qemu-io none0 \"reopen -o backing.file.cache.direct=off,backing.file.cache.no-flush=on\"
 qemu-io none0 \"reopen -c none\"
 info block image
 info block file
