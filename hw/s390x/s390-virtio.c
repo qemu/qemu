@@ -105,14 +105,10 @@ void s390_init_cpus(MachineState *machine)
 
     for (i = 0; i < smp_cpus; i++) {
         S390CPU *cpu;
-        CPUState *cs;
 
         cpu = cpu_s390x_init(machine->cpu_model);
-        cs = CPU(cpu);
 
         ipi_states[i] = cpu;
-        cs->halted = 1;
-        cs->exception_index = EXCP_HLT;
     }
 }
 
