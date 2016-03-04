@@ -62,7 +62,7 @@ cache.direct=on on backing-file
 cache.writeback=off on none0
     Cache mode:       writethrough
     Cache mode:       writeback
-    Cache mode:       writethrough
+    Cache mode:       writeback
     Cache mode:       writeback
 
 cache.writeback=off on file
@@ -143,7 +143,7 @@ cache.writeback=off on none0
     Cache mode:       writethrough
     Cache mode:       writethrough
     Cache mode:       writeback
-    Cache mode:       writethrough
+    Cache mode:       writeback
     Cache mode:       writeback
 
 cache.writeback=off on file
@@ -302,7 +302,7 @@ cache.direct=on on backing-file
 cache.writeback=off on none0
     Cache mode:       writethrough, direct
     Cache mode:       writeback, direct
-    Cache mode:       writethrough, direct
+    Cache mode:       writeback, direct
     Cache mode:       writeback, direct
 
 cache.writeback=off on file
@@ -383,7 +383,7 @@ cache.writeback=off on none0
     Cache mode:       writeback, direct
     Cache mode:       writethrough
     Cache mode:       writeback
-    Cache mode:       writethrough
+    Cache mode:       writeback
     Cache mode:       writeback
 
 cache.writeback=off on file
@@ -718,7 +718,7 @@ cache.direct=on on backing-file
 cache.writeback=off on none0
     Cache mode:       writethrough
     Cache mode:       writeback
-    Cache mode:       writethrough, direct
+    Cache mode:       writeback, direct
     Cache mode:       writeback, direct
 
 cache.writeback=off on file

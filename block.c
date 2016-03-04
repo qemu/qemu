@@ -738,8 +738,9 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
 {
     int flags = parent_flags;
 
-    /* The cache mode is inherited unmodified for backing files */
-    qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_WB);
+    /* The cache mode is inherited unmodified for backing files; except WCE,
+     * which is only applied on the top level (BlockBackend) */
+    qdict_set_default_str(child_options, BDRV_OPT_CACHE_WB, "on");
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_DIRECT);
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_NO_FLUSH);
 
