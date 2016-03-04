@@ -48,6 +48,19 @@ int load_elf(const char *filename, uint64_t (*translate_fn)(void *, uint64_t),
              void *translate_opaque, uint64_t *pentry, uint64_t *lowaddr,
              uint64_t *highaddr, int big_endian, int elf_machine,
              int clear_lsb);
+
+/** load_elf_hdr:
+ * @filename: Path of ELF file
+ * @hdr: Buffer to populate with header data. Header data will not be
+ * filled if set to NULL.
+ * @is64: Set to true if the ELF is 64bit. Ignored if set to NULL
+ * @errp: Populated with an error in failure cases
+ *
+ * Inspect an ELF file's header. Read its full header contents into a
+ * buffer and/or determine if the ELF is 64bit.
+ */
+void load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp);
+
 int load_aout(const char *filename, hwaddr addr, int max_sz,
               int bswap_needed, hwaddr target_page_size);
 int load_uimage(const char *filename, hwaddr *ep,
