@@ -68,6 +68,7 @@ typedef struct S390CPU {
     /*< public >*/
 
     CPUS390XState env;
+    int64_t id;
     /* needed for live migration */
     void *irqstate;
     uint32_t irqstate_saved_size;

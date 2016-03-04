@@ -116,7 +116,7 @@ void s390_init_cpus(MachineState *machine)
     }
 
     for (i = 0; i < smp_cpus; i++) {
-        cpu_s390x_init(machine->cpu_model);
+        s390x_new_cpu(machine->cpu_model, i, &error_fatal);
     }
 }
 

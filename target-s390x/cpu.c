@@ -30,8 +30,10 @@
 #include "qemu/error-report.h"
 #include "hw/hw.h"
 #include "trace.h"
+#include "qapi/visitor.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/arch_init.h"
+#include "sysemu/sysemu.h"
 #endif
 
 #define CR0_RESET       0xE0UL
@@ -199,16 +201,35 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     CPUS390XState *env = &cpu->env;
     Error *err = NULL;
 
+#if !defined(CONFIG_USER_ONLY)
+    if (cpu->id >= max_cpus) {
+        error_setg(&err, "Unable to add CPU: %" PRIi64
+                   ", max allowed: %d", cpu->id, max_cpus - 1);
+        goto out;
+    }
+#endif
+    if (cpu_exists(cpu->id)) {
+        error_setg(&err, "Unable to add CPU: %" PRIi64
+                   ", it already exists", cpu->id);
+        goto out;
+    }
+    if (cpu->id != scc->next_cpu_id) {
+        error_setg(&err, "Unable to add CPU: %" PRIi64
+                   ", The next available id is %" PRIi64, cpu->id,
+                   scc->next_cpu_id);
+        goto out;
+    }
+
     cpu_exec_init(cs, &err);
     if (err != NULL) {
-        error_propagate(errp, err);
-        return;
+        goto out;
     }
+    scc->next_cpu_id++;
 
 #if !defined(CONFIG_USER_ONLY)
     qemu_register_reset(s390_cpu_machine_reset_cb, cpu);
 #endif
-    env->cpu_num = scc->next_cpu_id++;
+    env->cpu_num = cpu->id;
     s390_cpu_gdb_init(cs);
     qemu_init_vcpu(cs);
 #if !defined(CONFIG_USER_ONLY)
@@ -217,7 +238,49 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     cpu_reset(cs);
 #endif
 
-    scc->parent_realize(dev, errp);
+    scc->parent_realize(dev, &err);
+
+out:
+    error_propagate(errp, err);
+}
+
+static void s390x_cpu_get_id(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
+{
+    S390CPU *cpu = S390_CPU(obj);
+    int64_t value = cpu->id;
+
+    visit_type_int(v, name, &value, errp);
+}
+
+static void s390x_cpu_set_id(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
+{
+    S390CPU *cpu = S390_CPU(obj);
+    DeviceState *dev = DEVICE(obj);
+    const int64_t min = 0;
+    const int64_t max = UINT32_MAX;
+    Error *err = NULL;
+    int64_t value;
+
+    if (dev->realized) {
+        error_setg(errp, "Attempt to set property '%s' on '%s' after "
+                   "it was realized", name, object_get_typename(obj));
+        return;
+    }
+
+    visit_type_int(v, name, &value, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    if (value < min || value > max) {
+        error_setg(errp, "Property %s.%s doesn't take value %" PRId64
+                   " (minimum: %" PRId64 ", maximum: %" PRId64 ")" ,
+                   object_get_typename(obj), name, value, min, max);
+        return;
+    }
+    cpu->id = value;
 }
 
 static void s390_cpu_initfn(Object *obj)
@@ -233,6 +296,8 @@ static void s390_cpu_initfn(Object *obj)
     cs->env_ptr = env;
     cs->halted = 1;
     cs->exception_index = EXCP_HLT;
+    object_property_add(OBJECT(cpu), "id", "int64_t", s390x_cpu_get_id,
+                        s390x_cpu_set_id, NULL, NULL, NULL);
 #if !defined(CONFIG_USER_ONLY)
     qemu_get_timedate(&tm, 0);
     env->tod_offset = TOD_UNIX_EPOCH +
