@@ -17,6 +17,7 @@ typedef struct DisasContext {
     int singlestep_enabled;
     int thumb;
     int sctlr_b;
+    TCGMemOp be_data;
 #if !defined(CONFIG_USER_ONLY)
     int user;
 #endif
