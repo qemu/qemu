@@ -1536,82 +1536,84 @@ static void
 setup_sigcontext(struct target_sigcontext *sc, /*struct _fpstate *fpstate,*/
                  CPUARMState *env, abi_ulong mask)
 {
-	__put_user(env->regs[0], &sc->arm_r0);
-	__put_user(env->regs[1], &sc->arm_r1);
-	__put_user(env->regs[2], &sc->arm_r2);
-	__put_user(env->regs[3], &sc->arm_r3);
-	__put_user(env->regs[4], &sc->arm_r4);
-	__put_user(env->regs[5], &sc->arm_r5);
-	__put_user(env->regs[6], &sc->arm_r6);
-	__put_user(env->regs[7], &sc->arm_r7);
-	__put_user(env->regs[8], &sc->arm_r8);
-	__put_user(env->regs[9], &sc->arm_r9);
-	__put_user(env->regs[10], &sc->arm_r10);
-	__put_user(env->regs[11], &sc->arm_fp);
-	__put_user(env->regs[12], &sc->arm_ip);
-	__put_user(env->regs[13], &sc->arm_sp);
-	__put_user(env->regs[14], &sc->arm_lr);
-	__put_user(env->regs[15], &sc->arm_pc);
+    __put_user(env->regs[0], &sc->arm_r0);
+    __put_user(env->regs[1], &sc->arm_r1);
+    __put_user(env->regs[2], &sc->arm_r2);
+    __put_user(env->regs[3], &sc->arm_r3);
+    __put_user(env->regs[4], &sc->arm_r4);
+    __put_user(env->regs[5], &sc->arm_r5);
+    __put_user(env->regs[6], &sc->arm_r6);
+    __put_user(env->regs[7], &sc->arm_r7);
+    __put_user(env->regs[8], &sc->arm_r8);
+    __put_user(env->regs[9], &sc->arm_r9);
+    __put_user(env->regs[10], &sc->arm_r10);
+    __put_user(env->regs[11], &sc->arm_fp);
+    __put_user(env->regs[12], &sc->arm_ip);
+    __put_user(env->regs[13], &sc->arm_sp);
+    __put_user(env->regs[14], &sc->arm_lr);
+    __put_user(env->regs[15], &sc->arm_pc);
 #ifdef TARGET_CONFIG_CPU_32
-	__put_user(cpsr_read(env), &sc->arm_cpsr);
+    __put_user(cpsr_read(env), &sc->arm_cpsr);
 #endif
 
-	__put_user(/* current->thread.trap_no */ 0, &sc->trap_no);
-	__put_user(/* current->thread.error_code */ 0, &sc->error_code);
-	__put_user(/* current->thread.address */ 0, &sc->fault_address);
-	__put_user(mask, &sc->oldmask);
+    __put_user(/* current->thread.trap_no */ 0, &sc->trap_no);
+    __put_user(/* current->thread.error_code */ 0, &sc->error_code);
+    __put_user(/* current->thread.address */ 0, &sc->fault_address);
+    __put_user(mask, &sc->oldmask);
 }
 
 static inline abi_ulong
 get_sigframe(struct target_sigaction *ka, CPUARMState *regs, int framesize)
 {
-	unsigned long sp = regs->regs[13];
+    unsigned long sp = regs->regs[13];
 
-	/*
-	 * This is the X/Open sanctioned signal stack switching.
-	 */
-	if ((ka->sa_flags & TARGET_SA_ONSTACK) && !sas_ss_flags(sp))
-            sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
-	/*
-	 * ATPCS B01 mandates 8-byte alignment
-	 */
-	return (sp - framesize) & ~7;
+    /*
+     * This is the X/Open sanctioned signal stack switching.
+     */
+    if ((ka->sa_flags & TARGET_SA_ONSTACK) && !sas_ss_flags(sp)) {
+        sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
+    }
+    /*
+     * ATPCS B01 mandates 8-byte alignment
+     */
+    return (sp - framesize) & ~7;
 }
 
 static void
 setup_return(CPUARMState *env, struct target_sigaction *ka,
 	     abi_ulong *rc, abi_ulong frame_addr, int usig, abi_ulong rc_addr)
 {
-	abi_ulong handler = ka->_sa_handler;
-	abi_ulong retcode;
-	int thumb = handler & 1;
-	uint32_t cpsr = cpsr_read(env);
+    abi_ulong handler = ka->_sa_handler;
+    abi_ulong retcode;
+    int thumb = handler & 1;
+    uint32_t cpsr = cpsr_read(env);
 
-	cpsr &= ~CPSR_IT;
-	if (thumb) {
-		cpsr |= CPSR_T;
-	} else {
-		cpsr &= ~CPSR_T;
-	}
+    cpsr &= ~CPSR_IT;
+    if (thumb) {
+        cpsr |= CPSR_T;
+    } else {
+        cpsr &= ~CPSR_T;
+    }
 
-	if (ka->sa_flags & TARGET_SA_RESTORER) {
-		retcode = ka->sa_restorer;
-	} else {
-		unsigned int idx = thumb;
+    if (ka->sa_flags & TARGET_SA_RESTORER) {
+        retcode = ka->sa_restorer;
+    } else {
+        unsigned int idx = thumb;
 
-		if (ka->sa_flags & TARGET_SA_SIGINFO)
-			idx += 2;
+        if (ka->sa_flags & TARGET_SA_SIGINFO) {
+            idx += 2;
+        }
 
         __put_user(retcodes[idx], rc);
 
-		retcode = rc_addr + thumb;
-	}
+        retcode = rc_addr + thumb;
+    }
 
-	env->regs[0] = usig;
-	env->regs[13] = frame_addr;
-	env->regs[14] = retcode;
-	env->regs[15] = handler & (thumb ? ~1 : ~3);
-        cpsr_write(env, cpsr, CPSR_IT | CPSR_T, CPSRWriteByInstr);
+    env->regs[0] = usig;
+    env->regs[13] = frame_addr;
+    env->regs[14] = retcode;
+    env->regs[15] = handler & (thumb ? ~1 : ~3);
+    cpsr_write(env, cpsr, CPSR_IT | CPSR_T, CPSRWriteByInstr);
 }
 
 static abi_ulong *setup_sigframe_v2_vfp(abi_ulong *regspace, CPUARMState *env)
