@@ -1853,14 +1853,14 @@ static bool pc_machine_get_nvdimm(Object *obj, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    return pcms->nvdimm;
+    return pcms->acpi_nvdimm_state.is_enabled;
 }
 
 static void pc_machine_set_nvdimm(Object *obj, bool value, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    pcms->nvdimm = value;
+    pcms->acpi_nvdimm_state.is_enabled = value;
 }
 
 static void pc_machine_initfn(Object *obj)
@@ -1899,7 +1899,7 @@ static void pc_machine_initfn(Object *obj)
                                     &error_abort);
 
     /* nvdimm is disabled on default. */
-    pcms->nvdimm = false;
+    pcms->acpi_nvdimm_state.is_enabled = false;
     object_property_add_bool(obj, PC_MACHINE_NVDIMM, pc_machine_get_nvdimm,
                              pc_machine_set_nvdimm, &error_abort);
 }

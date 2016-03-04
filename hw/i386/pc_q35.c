@@ -61,6 +61,7 @@ static void pc_q35_init(MachineState *machine)
     PCIDevice *lpc;
     BusState *idebus[MAX_SATA_PORTS];
     ISADevice *rtc_state;
+    MemoryRegion *system_io = get_system_io();
     MemoryRegion *pci_memory;
     MemoryRegion *rom_memory;
     MemoryRegion *ram_memory;
@@ -160,7 +161,7 @@ static void pc_q35_init(MachineState *machine)
     q35_host->mch.ram_memory = ram_memory;
     q35_host->mch.pci_address_space = pci_memory;
     q35_host->mch.system_memory = get_system_memory();
-    q35_host->mch.address_space_io = get_system_io();
+    q35_host->mch.address_space_io = system_io;
     q35_host->mch.below_4g_mem_size = pcms->below_4g_mem_size;
     q35_host->mch.above_4g_mem_size = pcms->above_4g_mem_size;
     /* pci */
@@ -250,6 +251,11 @@ static void pc_q35_init(MachineState *machine)
     pc_nic_init(isa_bus, host_bus);
     if (pcmc->pci_enabled) {
         pc_pci_device_init(host_bus);
+    }
+
+    if (pcms->acpi_nvdimm_state.is_enabled) {
+        nvdimm_init_acpi_state(&pcms->acpi_nvdimm_state, system_io,
+                               pcms->fw_cfg, OBJECT(pcms));
     }
 }
 

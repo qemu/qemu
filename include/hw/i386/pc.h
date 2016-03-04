@@ -17,6 +17,7 @@
 #include "hw/boards.h"
 #include "hw/compat.h"
 #include "hw/mem/pc-dimm.h"
+#include "hw/mem/nvdimm.h"
 
 #define HPET_INTCAP "hpet-intcap"
 
@@ -57,7 +58,8 @@ struct PCMachineState {
     uint64_t max_ram_below_4g;
     OnOffAuto vmport;
     OnOffAuto smm;
-    bool nvdimm;
+
+    AcpiNVDIMMState acpi_nvdimm_state;
 
     /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;

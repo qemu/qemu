@@ -39,7 +39,6 @@
 #include "hw/isa/isa.h"
 #include "hw/block/fdc.h"
 #include "hw/acpi/memory_hotplug.h"
-#include "hw/mem/nvdimm.h"
 #include "sysemu/tpm.h"
 #include "hw/acpi/tpm.h"
 #include "sysemu/tpm_backend.h"
@@ -2659,13 +2658,6 @@ static bool acpi_has_iommu(void)
     return intel_iommu && !ambiguous;
 }
 
-static bool acpi_has_nvdimm(void)
-{
-    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
-
-    return pcms->nvdimm;
-}
-
 static
 void acpi_build(AcpiBuildTables *tables)
 {
@@ -2750,7 +2742,7 @@ void acpi_build(AcpiBuildTables *tables)
         build_dmar_q35(tables_blob, tables->linker);
     }
 
-    if (acpi_has_nvdimm()) {
+    if (pcms->acpi_nvdimm_state.is_enabled) {
         nvdimm_build_acpi(table_offsets, tables_blob, tables->linker);
     }
 

@@ -29,6 +29,7 @@
 #include "qemu/osdep.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/aml-build.h"
+#include "hw/nvram/fw_cfg.h"
 #include "hw/mem/nvdimm.h"
 
 static int nvdimm_plugged_device_list(Object *obj, void *opaque)
@@ -368,6 +369,40 @@ static void nvdimm_build_nfit(GSList *device_list, GArray *table_offsets,
                  (void *)(table_data->data + header), "NFIT",
                  sizeof(NvdimmNfitHeader) + structures->len, 1, NULL, NULL);
     g_array_free(structures, true);
+}
+
+static uint64_t
+nvdimm_dsm_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0;
+}
+
+static void
+nvdimm_dsm_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
+{
+}
+
+static const MemoryRegionOps nvdimm_dsm_ops = {
+    .read = nvdimm_dsm_read,
+    .write = nvdimm_dsm_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+void nvdimm_init_acpi_state(AcpiNVDIMMState *state, MemoryRegion *io,
+                            FWCfgState *fw_cfg, Object *owner)
+{
+    memory_region_init_io(&state->io_mr, owner, &nvdimm_dsm_ops, state,
+                          "nvdimm-acpi-io", NVDIMM_ACPI_IO_LEN);
+    memory_region_add_subregion(io, NVDIMM_ACPI_IO_BASE, &state->io_mr);
+
+    state->dsm_mem = g_array_new(false, true /* clear */, 1);
+    acpi_data_push(state->dsm_mem, TARGET_PAGE_SIZE);
+    fw_cfg_add_file(fw_cfg, NVDIMM_DSM_MEM_FILE, state->dsm_mem->data,
+                    state->dsm_mem->len);
 }
 
 #define NVDIMM_COMMON_DSM      "NCAL"
