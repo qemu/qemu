@@ -4453,7 +4453,8 @@ int main(int argc, char **argv, char **envp)
         /* Enable BE8.  */
         if (EF_ARM_EABI_VERSION(info->elf_flags) >= EF_ARM_EABI_VER4
             && (info->elf_flags & EF_ARM_BE8)) {
-            /* nothing for now, CPSR.E not emulated yet */
+            env->uncached_cpsr |= CPSR_E;
+            env->cp15.sctlr_el[1] |= SCTLR_E0E;
         } else {
             env->cp15.sctlr_el[1] |= SCTLR_B;
         }
