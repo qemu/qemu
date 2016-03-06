@@ -89,7 +89,7 @@ struct KVMState
 #ifdef KVM_CAP_IRQ_ROUTING
     struct kvm_irq_routing *irq_routes;
     int nr_allocated_irq_routes;
-    uint32_t *used_gsi_bitmap;
+    unsigned long *used_gsi_bitmap;
     unsigned int gsi_count;
     QTAILQ_HEAD(msi_hashtab, KVMMSIRoute) msi_hashtab[KVM_MSI_HASHTAB_SIZE];
 #endif
@@ -951,12 +951,12 @@ typedef struct KVMMSIRoute {
 
 static void set_gsi(KVMState *s, unsigned int gsi)
 {
-    s->used_gsi_bitmap[gsi / 32] |= 1U << (gsi % 32);
+    set_bit(gsi, s->used_gsi_bitmap);
 }
 
 static void clear_gsi(KVMState *s, unsigned int gsi)
 {
-    s->used_gsi_bitmap[gsi / 32] &= ~(1U << (gsi % 32));
+    clear_bit(gsi, s->used_gsi_bitmap);
 }
 
 void kvm_init_irq_routing(KVMState *s)
@@ -965,17 +965,9 @@ void kvm_init_irq_routing(KVMState *s)
 
     gsi_count = kvm_check_extension(s, KVM_CAP_IRQ_ROUTING) - 1;
     if (gsi_count > 0) {
-        unsigned int gsi_bits, i;
-
         /* Round up so we can search ints using ffs */
-        gsi_bits = ALIGN(gsi_count, 32);
-        s->used_gsi_bitmap = g_malloc0(gsi_bits / 8);
+        s->used_gsi_bitmap = bitmap_new(gsi_count);
         s->gsi_count = gsi_count;
-
-        /* Mark any over-allocated bits as already in use */
-        for (i = gsi_count; i < gsi_bits; i++) {
-            set_gsi(s, i);
-        }
     }
 
     s->irq_routes = g_malloc0(sizeof(*s->irq_routes));
@@ -1105,9 +1097,7 @@ static void kvm_flush_dynamic_msi_routes(KVMState *s)
 
 static int kvm_irqchip_get_virq(KVMState *s)
 {
-    uint32_t *word = s->used_gsi_bitmap;
-    int max_words = ALIGN(s->gsi_count, 32) / 32;
-    int i, zeroes;
+    int next_virq;
 
     /*
      * PIC and IOAPIC share the first 16 GSI numbers, thus the available
@@ -1120,16 +1110,12 @@ static int kvm_irqchip_get_virq(KVMState *s)
     }
 
     /* Return the lowest unused GSI in the bitmap */
-    for (i = 0; i < max_words; i++) {
-        zeroes = ctz32(~word[i]);
-        if (zeroes == 32) {
-            continue;
-        }
-
-        return zeroes + i * 32;
+    next_virq = find_first_zero_bit(s->used_gsi_bitmap, s->gsi_count);
+    if (next_virq >= s->gsi_count) {
+        return -ENOSPC;
+    } else {
+        return next_virq;
     }
-    return -ENOSPC;
-
 }
 
 static KVMMSIRoute *kvm_lookup_msi_route(KVMState *s, MSIMessage msg)
