@@ -326,7 +326,7 @@ class QAPISchemaParser(object):
 #
 
 
-def find_base_fields(base):
+def find_base_members(base):
     base_struct_define = find_struct(base)
     if not base_struct_define:
         return None
@@ -355,11 +355,11 @@ def discriminator_find_enum_define(expr):
     if not (discriminator and base):
         return None
 
-    base_fields = find_base_fields(base)
-    if not base_fields:
+    base_members = find_base_members(base)
+    if not base_members:
         return None
 
-    discriminator_type = base_fields.get(discriminator)
+    discriminator_type = base_members.get(discriminator)
     if not discriminator_type:
         return None
 
@@ -567,14 +567,14 @@ def check_union(expr, expr_info):
             raise QAPIExprError(expr_info,
                                 "Flat union '%s' must have a base"
                                 % name)
-        base_fields = find_base_fields(base)
-        assert base_fields
+        base_members = find_base_members(base)
+        assert base_members
 
         # The value of member 'discriminator' must name a non-optional
         # member of the base struct.
         check_name(expr_info, "Discriminator of flat union '%s'" % name,
                    discriminator)
-        discriminator_type = base_fields.get(discriminator)
+        discriminator_type = base_members.get(discriminator)
         if not discriminator_type:
             raise QAPIExprError(expr_info,
                                 "Discriminator '%s' is not a member of base "
@@ -969,7 +969,7 @@ class QAPISchemaObjectType(QAPISchemaType):
             assert self.variants.tag_member in self.members
             self.variants.check_clash(schema, self.info, seen)
 
-    # Check that the members of this type do not cause duplicate JSON fields,
+    # Check that the members of this type do not cause duplicate JSON members,
     # and update seen to track the members seen so far. Report any errors
     # on behalf of info, which is not necessarily self.info
     def check_clash(self, schema, info, seen):
@@ -1647,8 +1647,8 @@ def gen_err_check(label='out', skiperr=False):
                  label=label)
 
 
-def gen_visit_fields(members, prefix='', need_cast=False, skiperr=False,
-                     label='out'):
+def gen_visit_members(members, prefix='', need_cast=False, skiperr=False,
+                      label='out'):
     ret = ''
     if skiperr:
         errparg = 'NULL'

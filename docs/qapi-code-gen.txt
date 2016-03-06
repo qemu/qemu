@@ -1,7 +1,7 @@
 = How to use the QAPI code generator =
 
 Copyright IBM Corp. 2011
-Copyright (C) 2012-2015 Red Hat, Inc.
+Copyright (C) 2012-2016 Red Hat, Inc.
 
 This work is licensed under the terms of the GNU GPL, version 2 or
 later. See the COPYING file in the top-level directory.
@@ -52,7 +52,7 @@ schema.  The documentation is delimited between two lines of ##, then
 the first line names the expression, an optional overview is provided,
 then individual documentation about each member of 'data' is provided,
 and finally, a 'Since: x.y.z' tag lists the release that introduced
-the expression.  Optional fields are tagged with the phrase
+the expression.  Optional members are tagged with the phrase
 '#optional', often with their default value; and extensions added
 after the expression was first released are also given a '(since
 x.y.z)' comment.  For example:
@@ -108,15 +108,15 @@ user-defined type names, while built-in types are lowercase. Type
 definitions should not end in 'Kind', as this namespace is used for
 creating implicit C enums for visiting union types, or in 'List', as
 this namespace is used for creating array types.  Command names,
-and field names within a type, should be all lower case with words
+and member names within a type, should be all lower case with words
 separated by a hyphen.  However, some existing older commands and
 complex types use underscore; when extending such expressions,
 consistency is preferred over blindly avoiding underscore.  Event
-names should be ALL_CAPS with words separated by underscore.  Field
+names should be ALL_CAPS with words separated by underscore.  Member
 names cannot start with 'has-' or 'has_', as this is reserved for
-tracking optional fields.
+tracking optional members.
 
-Any name (command, event, type, field, or enum value) beginning with
+Any name (command, event, type, member, or enum value) beginning with
 "x-" is marked experimental, and may be withdrawn or changed
 incompatibly in a future release.  All names must begin with a letter,
 and contain only ASCII letters, digits, dash, and underscore.  There
@@ -127,7 +127,7 @@ the vendor), even if the rest of the name uses dash (example:
 __com.redhat_drive-mirror).  Names beginning with 'q_' are reserved
 for the generator: QMP names that resemble C keywords or other
 problematic strings will be munged in C to use this prefix.  For
-example, a field named "default" in qapi becomes "q_default" in the
+example, a member named "default" in qapi becomes "q_default" in the
 generated C code.
 
 In the rest of this document, usage lines are given for each
@@ -217,17 +217,18 @@ and must continue to work).
 
 On output structures (only mentioned in the 'returns' side of a command),
 changing from mandatory to optional is in general unsafe (older clients may be
-expecting the field, and could crash if it is missing), although it can be done
-if the only way that the optional argument will be omitted is when it is
-triggered by the presence of a new input flag to the command that older clients
-don't know to send.  Changing from optional to mandatory is safe.
+expecting the member, and could crash if it is missing), although it
+can be done if the only way that the optional argument will be omitted
+is when it is triggered by the presence of a new input flag to the
+command that older clients don't know to send.  Changing from optional
+to mandatory is safe.
 
 A structure that is used in both input and output of various commands
 must consider the backwards compatibility constraints of both directions
 of use.
 
 A struct definition can specify another struct as its base.
-In this case, the fields of the base type are included as top-level fields
+In this case, the members of the base type are included as top-level members
 of the new struct's dictionary in the Client JSON Protocol wire
 format. An example definition is:
 
@@ -237,7 +238,7 @@ format. An example definition is:
    'data': { '*backing': 'str' } }
 
 An example BlockdevOptionsGenericCOWFormat object on the wire could use
-both fields like this:
+both members like this:
 
  { "file": "/some/place/my-image",
    "backing": "/some/place/my-backing-file" }
@@ -262,7 +263,7 @@ The enum constants will be named by using a heuristic to turn the
 type name into a set of underscore separated words. For the example
 above, 'MyEnum' will turn into 'MY_ENUM' giving a constant name
 of 'MY_ENUM_VALUE1' for the first value. If the default heuristic
-does not result in a desirable name, the optional 'prefix' field
+does not result in a desirable name, the optional 'prefix' member
 can be used when defining the enum.
 
 The enumeration values are passed as strings over the Client JSON
@@ -275,9 +276,9 @@ converting between strings and enum values.  Since the wire format
 always passes by name, it is acceptable to reorder or add new
 enumeration members in any location without breaking clients of Client
 JSON Protocol; however, removing enum values would break
-compatibility.  For any struct that has a field that will only contain
-a finite set of string values, using an enum type for that field is
-better than open-coding the field to be type 'str'.
+compatibility.  For any struct that has a member that will only contain
+a finite set of string values, using an enum type for that member is
+better than open-coding the member to be type 'str'.
 
 
 === Union types ===
@@ -305,8 +306,8 @@ values to data types like in this example:
              'qcow2': 'Qcow2Options' } }
 
 In the Client JSON Protocol, a simple union is represented by a
-dictionary that contains the 'type' field as a discriminator, and a
-'data' field that is of the specified data type corresponding to the
+dictionary that contains the 'type' member as a discriminator, and a
+'data' member that is of the specified data type corresponding to the
 discriminator value, as in these examples:
 
  { "type": "file", "data" : { "filename": "/some/place/my-image" } }
@@ -321,14 +322,14 @@ enum.  The value for each branch can be of any type.
 
 A flat union definition specifies a struct as its base, and
 avoids nesting on the wire.  All branches of the union must be
-complex types, and the top-level fields of the union dictionary on
-the wire will be combination of fields from both the base type and the
+complex types, and the top-level members of the union dictionary on
+the wire will be combination of members from both the base type and the
 appropriate branch type (when merging two dictionaries, there must be
-no keys in common).  The 'discriminator' field must be the name of an
+no keys in common).  The 'discriminator' member must be the name of an
 enum-typed member of the base struct.
 
 The following example enhances the above simple union example by
-adding a common field 'readonly', renaming the discriminator to
+adding a common member 'readonly', renaming the discriminator to
 something more applicable, and reducing the number of {} required on
 the wire:
 
@@ -353,8 +354,8 @@ the user, but because it must map to a base member with enum type, the
 code generator can ensure that branches exist for all values of the
 enum (although the order of the keys need not match the declaration of
 the enum).  In the resulting generated C data types, a flat union is
-represented as a struct with the base member fields included directly,
-and then a union of structures for each branch of the struct.
+represented as a struct with the base members included directly, and
+then a union of structures for each branch of the struct.
 
 A simple union can always be re-written as a flat union where the base
 class has a single member named 'type', and where each branch of the
@@ -424,10 +425,10 @@ string name of a complex type, or a dictionary that declares an
 anonymous type with the same semantics as a 'struct' expression, with
 one exception noted below when 'gen' is used.
 
-The 'returns' member describes what will appear in the "return" field
+The 'returns' member describes what will appear in the "return" member
 of a Client JSON Protocol reply on successful completion of a command.
 The member is optional from the command declaration; if absent, the
-"return" field will be an empty dictionary.  If 'returns' is present,
+"return" member will be an empty dictionary.  If 'returns' is present,
 it must be the string name of a complex or built-in type, a
 one-element array containing the name of a complex or built-in type,
 with one exception noted below when 'gen' is used.  Although it is
@@ -435,7 +436,7 @@ permitted to have the 'returns' member name a built-in type or an
 array of built-in types, any command that does this cannot be extended
 to return additional information in the future; thus, new commands
 should strongly consider returning a dictionary-based type or an array
-of dictionaries, even if the dictionary only contains one field at the
+of dictionaries, even if the dictionary only contains one member at the
 present.
 
 All commands in Client JSON Protocol use a dictionary to report
@@ -478,7 +479,7 @@ response is not possible (although the command will still return a
 normal dictionary error on failure).  When a successful reply is not
 possible, the command expression should include the optional key
 'success-response' with boolean value false.  So far, only QGA makes
-use of this field.
+use of this member.
 
 
 === Events ===
@@ -656,7 +657,7 @@ Union types
 
     { "name": "BlockdevOptions", "meta-type": "object",
       "members": [
-          { "name": "kind", "type": "BlockdevOptionsKind" } ],
+          { "name": "type", "type": "BlockdevOptionsKind" } ],
       "tag": "type",
       "variants": [
           { "case": "file", "type": ":obj-FileOptions-wrapper" },
@@ -722,33 +723,38 @@ the names of built-in types.  Clients should examine member
 
 == Code generation ==
 
-Schemas are fed into four scripts to generate all the code/files that,
+Schemas are fed into five scripts to generate all the code/files that,
 paired with the core QAPI libraries, comprise everything required to
 take JSON commands read in by a Client JSON Protocol server, unmarshal
 the arguments into the underlying C types, call into the corresponding
-C function, and map the response back to a Client JSON Protocol
-response to be returned to the user.
+C function, map the response back to a Client JSON Protocol response
+to be returned to the user, and introspect the commands.
 
-As an example, we'll use the following schema, which describes a single
-complex user-defined type (which will produce a C struct, along with a list
-node structure that can be used to chain together a list of such types in
-case we want to accept/return a list of this type with a command), and a
-command which takes that type as a parameter and returns the same type:
+As an example, we'll use the following schema, which describes a
+single complex user-defined type, along with command which takes a
+list of that type as a parameter, and returns a single element of that
+type.  The user is responsible for writing the implementation of
+qmp_my_command(); everything else is produced by the generator.
 
     $ cat example-schema.json
     { 'struct': 'UserDefOne',
-      'data': { 'integer': 'int', 'string': 'str' } }
+      'data': { 'integer': 'int', '*string': 'str' } }
 
     { 'command': 'my-command',
-      'data':    {'arg1': 'UserDefOne'},
+      'data': { 'arg1': ['UserDefOne'] },
       'returns': 'UserDefOne' }
 
     { 'event': 'MY_EVENT' }
 
+For a more thorough look at generated code, the testsuite includes
+tests/qapi-schema/qapi-schema-tests.json that covers more examples of
+what the generator will accept, and compiles the resulting C code as
+part of 'make check-unit'.
+
 === scripts/qapi-types.py ===
 
-Used to generate the C types defined by a schema. The following files are
-created:
+Used to generate the C types defined by a schema, along with
+supporting code. The following files are created:
 
 $(prefix)qapi-types.h - C types corresponding to types defined in
                         the schema you pass in
@@ -763,38 +769,6 @@ Example:
 
     $ python scripts/qapi-types.py --output-dir="qapi-generated" \
     --prefix="example-" example-schema.json
-    $ cat qapi-generated/example-qapi-types.c
-[Uninteresting stuff omitted...]
-
-    void qapi_free_UserDefOne(UserDefOne *obj)
-    {
-        QapiDeallocVisitor *qdv;
-        Visitor *v;
-
-        if (!obj) {
-            return;
-        }
-
-        qdv = qapi_dealloc_visitor_new();
-        v = qapi_dealloc_get_visitor(qdv);
-        visit_type_UserDefOne(v, &obj, NULL, NULL);
-        qapi_dealloc_visitor_cleanup(qdv);
-    }
-
-    void qapi_free_UserDefOneList(UserDefOneList *obj)
-    {
-        QapiDeallocVisitor *qdv;
-        Visitor *v;
-
-        if (!obj) {
-            return;
-        }
-
-        qdv = qapi_dealloc_visitor_new();
-        v = qapi_dealloc_get_visitor(qdv);
-        visit_type_UserDefOneList(v, &obj, NULL, NULL);
-        qapi_dealloc_visitor_cleanup(qdv);
-    }
     $ cat qapi-generated/example-qapi-types.h
 [Uninteresting stuff omitted...]
 
@@ -809,29 +783,59 @@ Example:
 
     struct UserDefOne {
         int64_t integer;
+        bool has_string;
         char *string;
     };
 
     void qapi_free_UserDefOne(UserDefOne *obj);
 
     struct UserDefOneList {
-        union {
-            UserDefOne *value;
-            uint64_t padding;
-        };
         UserDefOneList *next;
+        UserDefOne *value;
     };
 
     void qapi_free_UserDefOneList(UserDefOneList *obj);
 
     #endif
+    $ cat qapi-generated/example-qapi-types.c
+[Uninteresting stuff omitted...]
+
+    void qapi_free_UserDefOne(UserDefOne *obj)
+    {
+        QapiDeallocVisitor *qdv;
+        Visitor *v;
+
+        if (!obj) {
+            return;
+        }
+
+        qdv = qapi_dealloc_visitor_new();
+        v = qapi_dealloc_get_visitor(qdv);
+        visit_type_UserDefOne(v, NULL, &obj, NULL);
+        qapi_dealloc_visitor_cleanup(qdv);
+    }
+
+    void qapi_free_UserDefOneList(UserDefOneList *obj)
+    {
+        QapiDeallocVisitor *qdv;
+        Visitor *v;
+
+        if (!obj) {
+            return;
+        }
+
+        qdv = qapi_dealloc_visitor_new();
+        v = qapi_dealloc_get_visitor(qdv);
+        visit_type_UserDefOneList(v, NULL, &obj, NULL);
+        qapi_dealloc_visitor_cleanup(qdv);
+    }
 
 === scripts/qapi-visit.py ===
 
-Used to generate the visitor functions used to walk through and convert
-a QObject (as provided by QMP) to a native C data structure and
-vice-versa, as well as the visitor function used to dealloc a complex
-schema-defined C type.
+Used to generate the visitor functions used to walk through and
+convert between a native QAPI C data structure and some other format
+(such as QObject); the generated functions are named visit_type_FOO()
+and visit_type_FOO_members().
 
 The following files are generated:
 
@@ -848,41 +852,62 @@ Example:
 
     $ python scripts/qapi-visit.py --output-dir="qapi-generated"
     --prefix="example-" example-schema.json
+    $ cat qapi-generated/example-qapi-visit.h
+[Uninteresting stuff omitted...]
+
+    #ifndef EXAMPLE_QAPI_VISIT_H
+    #define EXAMPLE_QAPI_VISIT_H
+
+[Visitors for built-in types omitted...]
+
+    void visit_type_UserDefOne_members(Visitor *v, UserDefOne *obj, Error **errp);
+    void visit_type_UserDefOne(Visitor *v, const char *name, UserDefOne **obj, Error **errp);
+    void visit_type_UserDefOneList(Visitor *v, const char *name, UserDefOneList **obj, Error **errp);
+
+    #endif
     $ cat qapi-generated/example-qapi-visit.c
 [Uninteresting stuff omitted...]
 
-    static void visit_type_UserDefOne_fields(Visitor *v, UserDefOne **obj, Error **errp)
+    void visit_type_UserDefOne_members(Visitor *v, UserDefOne *obj, Error **errp)
     {
         Error *err = NULL;
 
-        visit_type_int(v, &(*obj)->integer, "integer", &err);
+        visit_type_int(v, "integer", &obj->integer, &err);
         if (err) {
             goto out;
         }
-        visit_type_str(v, &(*obj)->string, "string", &err);
-        if (err) {
-            goto out;
+        if (visit_optional(v, "string", &obj->has_string)) {
+            visit_type_str(v, "string", &obj->string, &err);
+            if (err) {
+                goto out;
+            }
         }
 
     out:
         error_propagate(errp, err);
     }
 
-    void visit_type_UserDefOne(Visitor *v, UserDefOne **obj, const char *name, Error **errp)
+    void visit_type_UserDefOne(Visitor *v, const char *name, UserDefOne **obj, Error **errp)
     {
         Error *err = NULL;
 
-        visit_start_struct(v, (void **)obj, "UserDefOne", name, sizeof(UserDefOne), &err);
-        if (!err) {
-            if (*obj) {
-                visit_type_UserDefOne_fields(v, obj, errp);
-            }
-            visit_end_struct(v, &err);
+        visit_start_struct(v, name, (void **)obj, sizeof(UserDefOne), &err);
+        if (err) {
+            goto out;
         }
+        if (!*obj) {
+            goto out_obj;
+        }
+        visit_type_UserDefOne_members(v, *obj, &err);
+        error_propagate(errp, err);
+        err = NULL;
+    out_obj:
+        visit_end_struct(v, &err);
+    out:
         error_propagate(errp, err);
     }
 
-    void visit_type_UserDefOneList(Visitor *v, UserDefOneList **obj, const char *name, Error **errp)
+    void visit_type_UserDefOneList(Visitor *v, const char *name, UserDefOneList **obj, Error **errp)
     {
         Error *err = NULL;
         GenericList *i, **prev;
@@ -893,35 +918,24 @@ Example:
         }
 
         for (prev = (GenericList **)obj;
-             !err && (i = visit_next_list(v, prev, &err)) != NULL;
+             !err && (i = visit_next_list(v, prev, sizeof(**obj))) != NULL;
              prev = &i) {
             UserDefOneList *native_i = (UserDefOneList *)i;
-            visit_type_UserDefOne(v, &native_i->value, NULL, &err);
+            visit_type_UserDefOne(v, NULL, &native_i->value, &err);
         }
 
-        error_propagate(errp, err);
-        err = NULL;
-        visit_end_list(v, &err);
+        visit_end_list(v);
     out:
         error_propagate(errp, err);
     }
-    $ cat qapi-generated/example-qapi-visit.h
-[Uninteresting stuff omitted...]
-
-    #ifndef EXAMPLE_QAPI_VISIT_H
-    #define EXAMPLE_QAPI_VISIT_H
-
-[Visitors for built-in types omitted...]
-
-    void visit_type_UserDefOne(Visitor *v, UserDefOne **obj, const char *name, Error **errp);
-    void visit_type_UserDefOneList(Visitor *v, UserDefOneList **obj, const char *name, Error **errp);
-
-    #endif
 
 === scripts/qapi-commands.py ===
 
-Used to generate the marshaling/dispatch functions for the commands defined
-in the schema. The following files are generated:
+Used to generate the marshaling/dispatch functions for the commands
+defined in the schema. The generated code implements
+qmp_marshal_COMMAND() (mentioned in qmp-commands.hx, and registered
+automatically), and declares qmp_COMMAND() that the user must
+implement.  The following files are generated:
 
 $(prefix)qmp-marshal.c: command marshal/dispatch functions for each
                         QMP command defined in the schema. Functions
@@ -939,6 +953,19 @@ Example:
 
     $ python scripts/qapi-commands.py --output-dir="qapi-generated"
     --prefix="example-" example-schema.json
+    $ cat qapi-generated/example-qmp-commands.h
+[Uninteresting stuff omitted...]
+
+    #ifndef EXAMPLE_QMP_COMMANDS_H
+    #define EXAMPLE_QMP_COMMANDS_H
+
+    #include "example-qapi-types.h"
+    #include "qapi/qmp/qdict.h"
+    #include "qapi/error.h"
+
+    UserDefOne *qmp_my_command(UserDefOneList *arg1, Error **errp);
+
+    #endif
     $ cat qapi-generated/example-qmp-marshal.c
 [Uninteresting stuff omitted...]
 
@@ -950,7 +977,7 @@ Example:
         Visitor *v;
 
         v = qmp_output_get_visitor(qov);
-        visit_type_UserDefOne(v, &ret_in, "unused", &err);
+        visit_type_UserDefOne(v, "unused", &ret_in, &err);
         if (err) {
             goto out;
         }
@@ -961,7 +988,7 @@ Example:
         qmp_output_visitor_cleanup(qov);
         qdv = qapi_dealloc_visitor_new();
         v = qapi_dealloc_get_visitor(qdv);
-        visit_type_UserDefOne(v, &ret_in, "unused", NULL);
+        visit_type_UserDefOne(v, "unused", &ret_in, NULL);
         qapi_dealloc_visitor_cleanup(qdv);
     }
 
@@ -972,10 +999,10 @@ Example:
         QmpInputVisitor *qiv = qmp_input_visitor_new_strict(QOBJECT(args));
         QapiDeallocVisitor *qdv;
         Visitor *v;
-        UserDefOne *arg1 = NULL;
+        UserDefOneList *arg1 = NULL;
 
         v = qmp_input_get_visitor(qiv);
-        visit_type_UserDefOne(v, &arg1, "arg1", &err);
+        visit_type_UserDefOneList(v, "arg1", &arg1, &err);
         if (err) {
             goto out;
         }
@@ -992,7 +1019,7 @@ Example:
         qmp_input_visitor_cleanup(qiv);
         qdv = qapi_dealloc_visitor_new();
         v = qapi_dealloc_get_visitor(qdv);
-        visit_type_UserDefOne(v, &arg1, "arg1", NULL);
+        visit_type_UserDefOneList(v, "arg1", &arg1, NULL);
         qapi_dealloc_visitor_cleanup(qdv);
     }
 
@@ -1002,24 +1029,12 @@ Example:
     }
 
     qapi_init(qmp_init_marshal);
-    $ cat qapi-generated/example-qmp-commands.h
-[Uninteresting stuff omitted...]
-
-    #ifndef EXAMPLE_QMP_COMMANDS_H
-    #define EXAMPLE_QMP_COMMANDS_H
-
-    #include "example-qapi-types.h"
-    #include "qapi/qmp/qdict.h"
-    #include "qapi/error.h"
-
-    UserDefOne *qmp_my_command(UserDefOne *arg1, Error **errp);
-
-    #endif
 
 === scripts/qapi-event.py ===
 
-Used to generate the event-related C code defined by a schema. The
-following files are created:
+Used to generate the event-related C code defined by a schema, with
+implementations for qapi_event_send_FOO(). The following files are
+created:
 
 $(prefix)qapi-event.h - Function prototypes for each event type, plus an
                         enumeration of all event names
@@ -1029,6 +1044,27 @@ Example:
 
     $ python scripts/qapi-event.py --output-dir="qapi-generated"
     --prefix="example-" example-schema.json
+    $ cat qapi-generated/example-qapi-event.h
+[Uninteresting stuff omitted...]
+
+    #ifndef EXAMPLE_QAPI_EVENT_H
+    #define EXAMPLE_QAPI_EVENT_H
+
+    #include "qapi/error.h"
+    #include "qapi/qmp/qdict.h"
+    #include "example-qapi-types.h"
+
+
+    void qapi_event_send_my_event(Error **errp);
+
+    typedef enum example_QAPIEvent {
+        EXAMPLE_QAPI_EVENT_MY_EVENT = 0,
+        EXAMPLE_QAPI_EVENT__MAX = 1,
+    } example_QAPIEvent;
+
+    extern const char *const example_QAPIEvent_lookup[];
+
+    #endif
     $ cat qapi-generated/example-qapi-event.c
 [Uninteresting stuff omitted...]
 
@@ -1054,27 +1090,6 @@ Example:
         [EXAMPLE_QAPI_EVENT_MY_EVENT] = "MY_EVENT",
         [EXAMPLE_QAPI_EVENT__MAX] = NULL,
     };
-    $ cat qapi-generated/example-qapi-event.h
-[Uninteresting stuff omitted...]
-
-    #ifndef EXAMPLE_QAPI_EVENT_H
-    #define EXAMPLE_QAPI_EVENT_H
-
-    #include "qapi/error.h"
-    #include "qapi/qmp/qdict.h"
-    #include "example-qapi-types.h"
-
-
-    void qapi_event_send_my_event(Error **errp);
-
-    typedef enum example_QAPIEvent {
-        EXAMPLE_QAPI_EVENT_MY_EVENT = 0,
-        EXAMPLE_QAPI_EVENT__MAX = 1,
-    } example_QAPIEvent;
-
-    extern const char *const example_QAPIEvent_lookup[];
-
-    #endif
 
 === scripts/qapi-introspect.py ===
 
@@ -1089,17 +1104,6 @@ Example:
 
     $ python scripts/qapi-introspect.py --output-dir="qapi-generated"
     --prefix="example-" example-schema.json
-    $ cat qapi-generated/example-qmp-introspect.c
-[Uninteresting stuff omitted...]
-
-    const char example_qmp_schema_json[] = "["
-        "{\"arg-type\": \"0\", \"meta-type\": \"event\", \"name\": \"MY_EVENT\"}, "
-        "{\"arg-type\": \"1\", \"meta-type\": \"command\", \"name\": \"my-command\", \"ret-type\": \"2\"}, "
-        "{\"members\": [], \"meta-type\": \"object\", \"name\": \"0\"}, "
-        "{\"members\": [{\"name\": \"arg1\", \"type\": \"2\"}], \"meta-type\": \"object\", \"name\": \"1\"}, "
-        "{\"members\": [{\"name\": \"integer\", \"type\": \"int\"}, {\"name\": \"string\", \"type\": \"str\"}], \"meta-type\": \"object\", \"name\": \"2\"}, "
-        "{\"json-type\": \"int\", \"meta-type\": \"builtin\", \"name\": \"int\"}, "
-        "{\"json-type\": \"string\", \"meta-type\": \"builtin\", \"name\": \"str\"}]";
     $ cat qapi-generated/example-qmp-introspect.h
 [Uninteresting stuff omitted...]
 
@@ -1109,3 +1113,15 @@ Example:
     extern const char example_qmp_schema_json[];
 
     #endif
+    $ cat qapi-generated/example-qmp-introspect.c
+[Uninteresting stuff omitted...]
+
+    const char example_qmp_schema_json[] = "["
+        "{\"arg-type\": \"0\", \"meta-type\": \"event\", \"name\": \"MY_EVENT\"}, "
+        "{\"arg-type\": \"1\", \"meta-type\": \"command\", \"name\": \"my-command\", \"ret-type\": \"2\"}, "
+        "{\"members\": [], \"meta-type\": \"object\", \"name\": \"0\"}, "
+        "{\"members\": [{\"name\": \"arg1\", \"type\": \"[2]\"}], \"meta-type\": \"object\", \"name\": \"1\"}, "
+        "{\"members\": [{\"name\": \"integer\", \"type\": \"int\"}, {\"default\": null, \"name\": \"string\", \"type\": \"str\"}], \"meta-type\": \"object\", \"name\": \"2\"}, "
+        "{\"element-type\": \"2\", \"meta-type\": \"array\", \"name\": \"[2]\"}, "
+        "{\"json-type\": \"int\", \"meta-type\": \"builtin\", \"name\": \"int\"}, "
+        "{\"json-type\": \"string\", \"meta-type\": \"builtin\", \"name\": \"str\"}]";

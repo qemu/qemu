@@ -182,10 +182,11 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
 {
     PS2KbdState *s = (PS2KbdState *)dev;
     int scancodes[3], i, count;
+    InputKeyEvent *key = evt->u.key;
 
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
-    count = qemu_input_key_value_to_scancode(evt->u.key->key,
-                                             evt->u.key->down,
+    count = qemu_input_key_value_to_scancode(key->key,
+                                             key->down,
                                              scancodes);
     for (i = 0; i < count; i++) {
         ps2_put_keycode(s, scancodes[i]);
@@ -389,6 +390,8 @@ static void ps2_mouse_event(DeviceState *dev, QemuConsole *src,
         [INPUT_BUTTON_RIGHT]  = MOUSE_EVENT_RBUTTON,
     };
     PS2MouseState *s = (PS2MouseState *)dev;
+    InputMoveEvent *move;
+    InputBtnEvent *btn;
 
     /* check if deltas are recorded when disabled */
     if (!(s->mouse_status & MOUSE_STATUS_ENABLED))
@@ -396,23 +399,25 @@ static void ps2_mouse_event(DeviceState *dev, QemuConsole *src,
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_REL:
-        if (evt->u.rel->axis == INPUT_AXIS_X) {
-            s->mouse_dx += evt->u.rel->value;
-        } else if (evt->u.rel->axis == INPUT_AXIS_Y) {
-            s->mouse_dy -= evt->u.rel->value;
+        move = evt->u.rel;
+        if (move->axis == INPUT_AXIS_X) {
+            s->mouse_dx += move->value;
+        } else if (move->axis == INPUT_AXIS_Y) {
+            s->mouse_dy -= move->value;
         }
         break;
 
     case INPUT_EVENT_KIND_BTN:
-        if (evt->u.btn->down) {
-            s->mouse_buttons |= bmap[evt->u.btn->button];
-            if (evt->u.btn->button == INPUT_BUTTON_WHEEL_UP) {
+        btn = evt->u.btn;
+        if (btn->down) {
+            s->mouse_buttons |= bmap[btn->button];
+            if (btn->button == INPUT_BUTTON_WHEEL_UP) {
                 s->mouse_dz--;
-            } else if (evt->u.btn->button == INPUT_BUTTON_WHEEL_DOWN) {
+            } else if (btn->button == INPUT_BUTTON_WHEEL_DOWN) {
                 s->mouse_dz++;
             }
         } else {
-            s->mouse_buttons &= ~bmap[evt->u.btn->button];
+            s->mouse_buttons &= ~bmap[btn->button];
         }
         break;
 

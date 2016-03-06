@@ -358,7 +358,6 @@ qapi-schema += unicode-str.json
 qapi-schema += union-base-no-discriminator.json
 qapi-schema += union-branch-case.json
 qapi-schema += union-clash-branches.json
-qapi-schema += union-clash-data.json
 qapi-schema += union-empty.json
 qapi-schema += union-invalid-base.json
 qapi-schema += union-optional-branch.json

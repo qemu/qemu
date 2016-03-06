@@ -567,7 +567,7 @@ static CharDriverState *chr_baum_init(const char *id,
                                       ChardevReturn *ret,
                                       Error **errp)
 {
-    ChardevCommon *common = qapi_ChardevDummy_base(backend->u.braille);
+    ChardevCommon *common = backend->u.braille;
     BaumDriverState *baum;
     CharDriverState *chr;
     brlapi_handle_t *handle;

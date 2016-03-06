@@ -3323,23 +3323,20 @@
 #
 # Since: 1.4 (testdev since 2.2)
 ##
-{ 'struct': 'ChardevDummy', 'data': { },
-  'base': 'ChardevCommon' }
-
 { 'union': 'ChardevBackend', 'data': { 'file'   : 'ChardevFile',
                                        'serial' : 'ChardevHostdev',
                                        'parallel': 'ChardevHostdev',
                                        'pipe'   : 'ChardevHostdev',
                                        'socket' : 'ChardevSocket',
                                        'udp'    : 'ChardevUdp',
-                                       'pty'    : 'ChardevDummy',
-                                       'null'   : 'ChardevDummy',
+                                       'pty'    : 'ChardevCommon',
+                                       'null'   : 'ChardevCommon',
                                        'mux'    : 'ChardevMux',
-                                       'msmouse': 'ChardevDummy',
-                                       'braille': 'ChardevDummy',
-                                       'testdev': 'ChardevDummy',
+                                       'msmouse': 'ChardevCommon',
+                                       'braille': 'ChardevCommon',
+                                       'testdev': 'ChardevCommon',
                                        'stdio'  : 'ChardevStdio',
-                                       'console': 'ChardevDummy',
+                                       'console': 'ChardevCommon',
                                        'spicevmc' : 'ChardevSpiceChannel',
                                        'spiceport' : 'ChardevSpicePort',
                                        'vc'     : 'ChardevVC',

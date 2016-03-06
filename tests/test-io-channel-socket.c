@@ -1,7 +1,7 @@
 /*
  * QEMU I/O channel sockets test
  *
- * Copyright (c) 2015 Red Hat, Inc.
+ * Copyright (c) 2015-2016 Red Hat, Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -283,14 +283,18 @@ static void test_io_channel_ipv4(bool async)
     SocketAddress *connect_addr = g_new0(SocketAddress, 1);
 
     listen_addr->type = SOCKET_ADDRESS_KIND_INET;
-    listen_addr->u.inet = g_new0(InetSocketAddress, 1);
-    listen_addr->u.inet->host = g_strdup("127.0.0.1");
-    listen_addr->u.inet->port = NULL; /* Auto-select */
+    listen_addr->u.inet = g_new(InetSocketAddress, 1);
+    *listen_addr->u.inet = (InetSocketAddress) {
+        .host = g_strdup("127.0.0.1"),
+        .port = NULL, /* Auto-select */
+    };
 
     connect_addr->type = SOCKET_ADDRESS_KIND_INET;
-    connect_addr->u.inet = g_new0(InetSocketAddress, 1);
-    connect_addr->u.inet->host = g_strdup("127.0.0.1");
-    connect_addr->u.inet->port = NULL; /* Filled in later */
+    connect_addr->u.inet = g_new(InetSocketAddress, 1);
+    *connect_addr->u.inet = (InetSocketAddress) {
+        .host = g_strdup("127.0.0.1"),
+        .port = NULL, /* Filled in later */
+    };
 
     test_io_channel(async, listen_addr, connect_addr, false);
 
@@ -317,14 +321,18 @@ static void test_io_channel_ipv6(bool async)
     SocketAddress *connect_addr = g_new0(SocketAddress, 1);
 
     listen_addr->type = SOCKET_ADDRESS_KIND_INET;
-    listen_addr->u.inet = g_new0(InetSocketAddress, 1);
-    listen_addr->u.inet->host = g_strdup("::1");
-    listen_addr->u.inet->port = NULL; /* Auto-select */
+    listen_addr->u.inet = g_new(InetSocketAddress, 1);
+    *listen_addr->u.inet = (InetSocketAddress) {
+        .host = g_strdup("::1"),
+        .port = NULL, /* Auto-select */
+    };
 
     connect_addr->type = SOCKET_ADDRESS_KIND_INET;
-    connect_addr->u.inet = g_new0(InetSocketAddress, 1);
-    connect_addr->u.inet->host = g_strdup("::1");
-    connect_addr->u.inet->port = NULL; /* Filled in later */
+    connect_addr->u.inet = g_new(InetSocketAddress, 1);
+    *connect_addr->u.inet = (InetSocketAddress) {
+        .host = g_strdup("::1"),
+        .port = NULL, /* Filled in later */
+    };
 
     test_io_channel(async, listen_addr, connect_addr, false);
 

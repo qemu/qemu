@@ -380,13 +380,14 @@ static SocketAddress *nbd_build_socket_address(const char *sockpath,
         saddr->u.q_unix = g_new0(UnixSocketAddress, 1);
         saddr->u.q_unix->path = g_strdup(sockpath);
     } else {
+        InetSocketAddress *inet;
         saddr->type = SOCKET_ADDRESS_KIND_INET;
-        saddr->u.inet = g_new0(InetSocketAddress, 1);
-        saddr->u.inet->host = g_strdup(bindto);
+        inet = saddr->u.inet = g_new0(InetSocketAddress, 1);
+        inet->host = g_strdup(bindto);
         if (port) {
-            saddr->u.inet->port = g_strdup(port);
+            inet->port = g_strdup(port);
         } else  {
-            saddr->u.inet->port = g_strdup_printf("%d", NBD_DEFAULT_PORT);
+            inet->port = g_strdup_printf("%d", NBD_DEFAULT_PORT);
         }
     }
 

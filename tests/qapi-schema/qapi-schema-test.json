@@ -77,7 +77,7 @@
   'base': 'UserDefZero',
   'data': { 'string': 'str', 'enum1': 'QEnumTwo' } }
 
-# this variant of UserDefFlatUnion defaults to a union that uses fields with
+# this variant of UserDefFlatUnion defaults to a union that uses members with
 # allocated types to test corner cases in the cleanup/dealloc visitor
 { 'union': 'UserDefFlatUnion2',
   'base': 'UserDefUnionBase2',

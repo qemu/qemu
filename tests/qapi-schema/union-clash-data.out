@@ -1,9 +1,0 @@
-object :empty
-object :obj-int-wrapper
-    member data: int optional=False
-enum QType ['none', 'qnull', 'qint', 'qstring', 'qdict', 'qlist', 'qfloat', 'qbool']
-    prefix QTYPE
-object TestUnion
-    member type: TestUnionKind optional=False
-    case data: :obj-int-wrapper
-enum TestUnionKind ['data']

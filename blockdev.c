@@ -1202,15 +1202,11 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void blockdev_do_action(TransactionActionKind type, void *data,
-                               Error **errp)
+static void blockdev_do_action(TransactionAction *action, Error **errp)
 {
-    TransactionAction action;
     TransactionActionList list;
 
-    action.type = type;
-    action.u.data = data;
-    list.value = &action;
+    list.value = action;
     list.next = NULL;
     qmp_transaction(&list, false, NULL, errp);
 }
@@ -1236,8 +1232,11 @@ void qmp_blockdev_snapshot_sync(bool has_device, const char *device,
         .has_mode = has_mode,
         .mode = mode,
     };
-    blockdev_do_action(TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC,
-                       &snapshot, errp);
+    TransactionAction action = {
+        .type = TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC,
+        .u.blockdev_snapshot_sync = &snapshot,
+    };
+    blockdev_do_action(&action, errp);
 }
 
 void qmp_blockdev_snapshot(const char *node, const char *overlay,
@@ -1247,9 +1246,11 @@ void qmp_blockdev_snapshot(const char *node, const char *overlay,
         .node = (char *) node,
         .overlay = (char *) overlay
     };
-
-    blockdev_do_action(TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT,
-                       &snapshot_data, errp);
+    TransactionAction action = {
+        .type = TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT,
+        .u.blockdev_snapshot = &snapshot_data,
+    };
+    blockdev_do_action(&action, errp);
 }
 
 void qmp_blockdev_snapshot_internal_sync(const char *device,
@@ -1260,9 +1261,11 @@ void qmp_blockdev_snapshot_internal_sync(const char *device,
         .device = (char *) device,
         .name = (char *) name
     };
-
-    blockdev_do_action(TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_INTERNAL_SYNC,
-                       &snapshot, errp);
+    TransactionAction action = {
+        .type = TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_INTERNAL_SYNC,
+        .u.blockdev_snapshot_internal_sync = &snapshot,
+    };
+    blockdev_do_action(&action, errp);
 }
 
 SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,

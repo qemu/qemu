@@ -116,37 +116,42 @@ static void hid_pointer_event(DeviceState *dev, QemuConsole *src,
     };
     HIDState *hs = (HIDState *)dev;
     HIDPointerEvent *e;
+    InputMoveEvent *move;
+    InputBtnEvent *btn;
 
     assert(hs->n < QUEUE_LENGTH);
     e = &hs->ptr.queue[(hs->head + hs->n) & QUEUE_MASK];
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_REL:
-        if (evt->u.rel->axis == INPUT_AXIS_X) {
-            e->xdx += evt->u.rel->value;
-        } else if (evt->u.rel->axis == INPUT_AXIS_Y) {
-            e->ydy += evt->u.rel->value;
+        move = evt->u.rel;
+        if (move->axis == INPUT_AXIS_X) {
+            e->xdx += move->value;
+        } else if (move->axis == INPUT_AXIS_Y) {
+            e->ydy += move->value;
         }
         break;
 
     case INPUT_EVENT_KIND_ABS:
-        if (evt->u.rel->axis == INPUT_AXIS_X) {
-            e->xdx = evt->u.rel->value;
-        } else if (evt->u.rel->axis == INPUT_AXIS_Y) {
-            e->ydy = evt->u.rel->value;
+        move = evt->u.abs;
+        if (move->axis == INPUT_AXIS_X) {
+            e->xdx = move->value;
+        } else if (move->axis == INPUT_AXIS_Y) {
+            e->ydy = move->value;
         }
         break;
 
     case INPUT_EVENT_KIND_BTN:
-        if (evt->u.btn->down) {
-            e->buttons_state |= bmap[evt->u.btn->button];
-            if (evt->u.btn->button == INPUT_BUTTON_WHEEL_UP) {
+        btn = evt->u.btn;
+        if (btn->down) {
+            e->buttons_state |= bmap[btn->button];
+            if (btn->button == INPUT_BUTTON_WHEEL_UP) {
                 e->dz--;
-            } else if (evt->u.btn->button == INPUT_BUTTON_WHEEL_DOWN) {
+            } else if (btn->button == INPUT_BUTTON_WHEEL_DOWN) {
                 e->dz++;
             }
         } else {
-            e->buttons_state &= ~bmap[evt->u.btn->button];
+            e->buttons_state &= ~bmap[btn->button];
         }
         break;
 
@@ -223,9 +228,10 @@ static void hid_keyboard_event(DeviceState *dev, QemuConsole *src,
     HIDState *hs = (HIDState *)dev;
     int scancodes[3], i, count;
     int slot;
+    InputKeyEvent *key = evt->u.key;
 
-    count = qemu_input_key_value_to_scancode(evt->u.key->key,
-                                             evt->u.key->down,
+    count = qemu_input_key_value_to_scancode(key->key,
+                                             key->down,
                                              scancodes);
     if (hs->n + count > QUEUE_LENGTH) {
         fprintf(stderr, "usb-kbd: warning: key event queue full\n");

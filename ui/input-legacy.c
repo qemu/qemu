@@ -110,12 +110,13 @@ static void legacy_kbd_event(DeviceState *dev, QemuConsole *src,
 {
     QEMUPutKbdEntry *entry = (QEMUPutKbdEntry *)dev;
     int scancodes[3], i, count;
+    InputKeyEvent *key = evt->u.key;
 
     if (!entry || !entry->put_kbd) {
         return;
     }
-    count = qemu_input_key_value_to_scancode(evt->u.key->key,
-                                             evt->u.key->down,
+    count = qemu_input_key_value_to_scancode(key->key,
+                                             key->down,
                                              scancodes);
     for (i = 0; i < count; i++) {
         entry->put_kbd(entry->opaque, scancodes[i]);
@@ -150,23 +151,25 @@ static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
         [INPUT_BUTTON_RIGHT]  = MOUSE_EVENT_RBUTTON,
     };
     QEMUPutMouseEntry *s = (QEMUPutMouseEntry *)dev;
+    InputBtnEvent *btn;
+    InputMoveEvent *move;
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_BTN:
-        if (evt->u.btn->down) {
-            s->buttons |= bmap[evt->u.btn->button];
+        btn = evt->u.btn;
+        if (btn->down) {
+            s->buttons |= bmap[btn->button];
         } else {
-            s->buttons &= ~bmap[evt->u.btn->button];
+            s->buttons &= ~bmap[btn->button];
         }
-        if (evt->u.btn->down && evt->u.btn->button == INPUT_BUTTON_WHEEL_UP) {
+        if (btn->down && btn->button == INPUT_BUTTON_WHEEL_UP) {
             s->qemu_put_mouse_event(s->qemu_put_mouse_event_opaque,
                                     s->axis[INPUT_AXIS_X],
                                     s->axis[INPUT_AXIS_Y],
                                     -1,
                                     s->buttons);
         }
-        if (evt->u.btn->down &&
-            evt->u.btn->button == INPUT_BUTTON_WHEEL_DOWN) {
+        if (btn->down && btn->button == INPUT_BUTTON_WHEEL_DOWN) {
             s->qemu_put_mouse_event(s->qemu_put_mouse_event_opaque,
                                     s->axis[INPUT_AXIS_X],
                                     s->axis[INPUT_AXIS_Y],
@@ -175,10 +178,12 @@ static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
         }
         break;
     case INPUT_EVENT_KIND_ABS:
-        s->axis[evt->u.abs->axis] = evt->u.abs->value;
+        move = evt->u.abs;
+        s->axis[move->axis] = move->value;
         break;
     case INPUT_EVENT_KIND_REL:
-        s->axis[evt->u.rel->axis] += evt->u.rel->value;
+        move = evt->u.rel;
+        s->axis[move->axis] += move->value;
         break;
     default:
         break;

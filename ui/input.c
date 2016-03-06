@@ -166,24 +166,25 @@ void qmp_input_send_event(bool has_device, const char *device,
 
 static void qemu_input_transform_abs_rotate(InputEvent *evt)
 {
+    InputMoveEvent *move = evt->u.abs;
     switch (graphic_rotate) {
     case 90:
-        if (evt->u.abs->axis == INPUT_AXIS_X) {
-            evt->u.abs->axis = INPUT_AXIS_Y;
-        } else if (evt->u.abs->axis == INPUT_AXIS_Y) {
-            evt->u.abs->axis = INPUT_AXIS_X;
-            evt->u.abs->value = INPUT_EVENT_ABS_SIZE - 1 - evt->u.abs->value;
+        if (move->axis == INPUT_AXIS_X) {
+            move->axis = INPUT_AXIS_Y;
+        } else if (move->axis == INPUT_AXIS_Y) {
+            move->axis = INPUT_AXIS_X;
+            move->value = INPUT_EVENT_ABS_SIZE - 1 - move->value;
         }
         break;
     case 180:
-        evt->u.abs->value = INPUT_EVENT_ABS_SIZE - 1 - evt->u.abs->value;
+        move->value = INPUT_EVENT_ABS_SIZE - 1 - move->value;
         break;
     case 270:
-        if (evt->u.abs->axis == INPUT_AXIS_X) {
-            evt->u.abs->axis = INPUT_AXIS_Y;
-            evt->u.abs->value = INPUT_EVENT_ABS_SIZE - 1 - evt->u.abs->value;
-        } else if (evt->u.abs->axis == INPUT_AXIS_Y) {
-            evt->u.abs->axis = INPUT_AXIS_X;
+        if (move->axis == INPUT_AXIS_X) {
+            move->axis = INPUT_AXIS_Y;
+            move->value = INPUT_EVENT_ABS_SIZE - 1 - move->value;
+        } else if (move->axis == INPUT_AXIS_Y) {
+            move->axis = INPUT_AXIS_X;
         }
         break;
     }
@@ -193,22 +194,26 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
 {
     const char *name;
     int qcode, idx = -1;
+    InputKeyEvent *key;
+    InputBtnEvent *btn;
+    InputMoveEvent *move;
 
     if (src) {
         idx = qemu_console_get_index(src);
     }
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
-        switch (evt->u.key->key->type) {
+        key = evt->u.key;
+        switch (key->key->type) {
         case KEY_VALUE_KIND_NUMBER:
-            qcode = qemu_input_key_number_to_qcode(evt->u.key->key->u.number);
+            qcode = qemu_input_key_number_to_qcode(key->key->u.number);
             name = QKeyCode_lookup[qcode];
-            trace_input_event_key_number(idx, evt->u.key->key->u.number,
-                                         name, evt->u.key->down);
+            trace_input_event_key_number(idx, key->key->u.number,
+                                         name, key->down);
             break;
         case KEY_VALUE_KIND_QCODE:
-            name = QKeyCode_lookup[evt->u.key->key->u.qcode];
-            trace_input_event_key_qcode(idx, name, evt->u.key->down);
+            name = QKeyCode_lookup[key->key->u.qcode];
+            trace_input_event_key_qcode(idx, name, key->down);
             break;
         case KEY_VALUE_KIND__MAX:
             /* keep gcc happy */
@@ -216,16 +221,19 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
         }
         break;
     case INPUT_EVENT_KIND_BTN:
-        name = InputButton_lookup[evt->u.btn->button];
-        trace_input_event_btn(idx, name, evt->u.btn->down);
+        btn = evt->u.btn;
+        name = InputButton_lookup[btn->button];
+        trace_input_event_btn(idx, name, btn->down);
         break;
     case INPUT_EVENT_KIND_REL:
-        name = InputAxis_lookup[evt->u.rel->axis];
-        trace_input_event_rel(idx, name, evt->u.rel->value);
+        move = evt->u.rel;
+        name = InputAxis_lookup[move->axis];
+        trace_input_event_rel(idx, name, move->value);
         break;
     case INPUT_EVENT_KIND_ABS:
-        name = InputAxis_lookup[evt->u.abs->axis];
-        trace_input_event_abs(idx, name, evt->u.abs->value);
+        move = evt->u.abs;
+        name = InputAxis_lookup[move->axis];
+        trace_input_event_abs(idx, name, move->value);
         break;
     case INPUT_EVENT_KIND__MAX:
         /* keep gcc happy */
@@ -462,7 +470,7 @@ InputEvent *qemu_input_event_new_move(InputEventKind kind,
     InputMoveEvent *move = g_new0(InputMoveEvent, 1);
 
     evt->type = kind;
-    evt->u.data = move;
+    evt->u.rel = move; /* evt->u.rel is the same as evt->u.abs */
     move->axis = axis;
     move->value = value;
     return evt;
