@@ -675,6 +675,13 @@ static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
         goto fail;
     }
 
+    /* bdrv_open() defaults to the values in bdrv_flags (for compatibility
+     * with other callers) rather than what we want as the real defaults.
+     * Apply the defaults here instead. */
+    qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_WB, "on");
+    qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
+    qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, "off");
+
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         bdrv_flags |= BDRV_O_INACTIVE;
     }
