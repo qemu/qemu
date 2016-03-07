@@ -39,6 +39,7 @@
 #include "hw/kvm/clock.h"
 #include "hw/pci-host/q35.h"
 #include "exec/address-spaces.h"
+#include "hw/i386/pc.h"
 #include "hw/i386/ich9.h"
 #include "hw/smbios/smbios.h"
 #include "hw/ide/pci.h"
@@ -146,7 +147,7 @@ static void pc_q35_init(MachineState *machine)
 
     /* irq lines */
     gsi_state = g_malloc0(sizeof(*gsi_state));
-    if (kvm_irqchip_in_kernel()) {
+    if (kvm_ioapic_in_kernel()) {
         kvm_pc_setup_irq_routing(pcmc->pci_enabled);
         gsi = qemu_allocate_irqs(kvm_pc_gsi_handler, gsi_state,
                                  GSI_NUM_PINS);
@@ -193,7 +194,7 @@ static void pc_q35_init(MachineState *machine)
     /*end early*/
     isa_bus_irqs(isa_bus, gsi);
 
-    if (kvm_irqchip_in_kernel()) {
+    if (kvm_pic_in_kernel()) {
         i8259 = kvm_i8259_init(isa_bus);
     } else if (xen_enabled()) {
         i8259 = xen_interrupt_controller_init();
