@@ -40,8 +40,6 @@ void os_daemonize(void);
 void os_setup_post(void);
 int os_mlock(void);
 
-#define socket_error() errno
-
 #define closesocket(s) close(s)
 #define ioctlsocket(s, r, v) ioctl(s, r, v)
 

@@ -145,15 +145,14 @@ static void net_socket_send_completed(NetClientState *nc, ssize_t len)
 static void net_socket_send(void *opaque)
 {
     NetSocketState *s = opaque;
-    int size, err;
+    int size;
     unsigned l;
     uint8_t buf1[NET_BUFSIZE];
     const uint8_t *buf;
 
     size = qemu_recv(s->fd, buf1, sizeof(buf1), 0);
     if (size < 0) {
-        err = socket_error();
-        if (err != EWOULDBLOCK)
+        if (errno != EWOULDBLOCK)
             goto eoc;
     } else if (size == 0) {
         /* end of connection */
@@ -566,7 +565,7 @@ static int net_socket_connect_init(NetClientState *peer,
                                    const char *host_str)
 {
     NetSocketState *s;
-    int fd, connected, ret, err;
+    int fd, connected, ret;
     struct sockaddr_in saddr;
 
     if (parse_host_port(&saddr, host_str) < 0)
@@ -583,14 +582,12 @@ static int net_socket_connect_init(NetClientState *peer,
     for(;;) {
         ret = connect(fd, (struct sockaddr *)&saddr, sizeof(saddr));
         if (ret < 0) {
-            err = socket_error();
-            if (err == EINTR || err == EWOULDBLOCK) {
-            } else if (err == EINPROGRESS) {
+            if (errno == EINTR || errno == EWOULDBLOCK) {
+                /* continue */
+            } else if (errno == EINPROGRESS ||
+                       errno == EALREADY ||
+                       errno == EINVAL) {
                 break;
-#ifdef _WIN32
-            } else if (err == WSAEALREADY || err == WSAEINVAL) {
-                break;
-#endif
             } else {
                 perror("connect");
                 closesocket(fd);

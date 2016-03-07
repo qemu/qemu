@@ -586,11 +586,7 @@ findso:
 	  }
 
 	  if ((tcp_fconnect(so, so->so_ffamily) == -1) &&
-#if defined(_WIN32)
-              socket_error() != WSAEWOULDBLOCK
-#else
               (errno != EINPROGRESS) && (errno != EWOULDBLOCK)
-#endif
           ) {
 	    u_char code=ICMP_UNREACH_NET;
 	    DEBUG_MISC((dfd, " tcp fconnect errno = %d-%s\n",

@@ -145,7 +145,7 @@ int socket_set_fast_reuse(int fd)
 }
 
 
-int socket_error(void)
+static int socket_error(void)
 {
     switch (WSAGetLastError()) {
     case 0:

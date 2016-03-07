@@ -59,12 +59,11 @@ static void tcp_accept_incoming_migration(void *opaque)
     socklen_t addrlen = sizeof(addr);
     int s = (intptr_t)opaque;
     QEMUFile *f;
-    int c, err;
+    int c;
 
     do {
         c = qemu_accept(s, (struct sockaddr *)&addr, &addrlen);
-        err = socket_error();
-    } while (c < 0 && err == EINTR);
+    } while (c < 0 && errno == EINTR);
     qemu_set_fd_handler(s, NULL, NULL, NULL);
     closesocket(s);
 
@@ -72,7 +71,7 @@ static void tcp_accept_incoming_migration(void *opaque)
 
     if (c < 0) {
         error_report("could not accept migration connection (%s)",
-                     strerror(err));
+                     strerror(errno));
         return;
     }
 
