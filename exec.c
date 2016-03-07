@@ -1233,19 +1233,17 @@ void qemu_mutex_unlock_ramlist(void)
 
 #define HUGETLBFS_MAGIC       0x958458f6
 
-static long gethugepagesize(const char *path, Error **errp)
+static long gethugepagesize(int fd)
 {
     struct statfs fs;
     int ret;
 
     do {
-        ret = statfs(path, &fs);
+        ret = fstatfs(fd, &fs);
     } while (ret != 0 && errno == EINTR);
 
     if (ret != 0) {
-        error_setg_errno(errp, errno, "failed to get page size of file %s",
-                         path);
-        return 0;
+        return -1;
     }
 
     return fs.f_bsize;
@@ -1256,60 +1254,79 @@ static void *file_ram_alloc(RAMBlock *block,
                             const char *path,
                             Error **errp)
 {
-    struct stat st;
+    bool unlink_on_error = false;
     char *filename;
     char *sanitized_name;
     char *c;
     void *area;
     int fd;
-    uint64_t hpagesize;
-    Error *local_err = NULL;
+    int64_t hpagesize;
 
-    hpagesize = gethugepagesize(path, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (kvm_enabled() && !kvm_has_sync_mmu()) {
+        error_setg(errp,
+                   "host lacks kvm mmu notifiers, -mem-path unsupported");
+        return NULL;
+    }
+
+    for (;;) {
+        fd = open(path, O_RDWR);
+        if (fd >= 0) {
+            /* @path names an existing file, use it */
+            break;
+        }
+        if (errno == ENOENT) {
+            /* @path names a file that doesn't exist, create it */
+            fd = open(path, O_RDWR | O_CREAT | O_EXCL, 0644);
+            if (fd >= 0) {
+                unlink_on_error = true;
+                break;
+            }
+        } else if (errno == EISDIR) {
+            /* @path names a directory, create a file there */
+            /* Make name safe to use with mkstemp by replacing '/' with '_'. */
+            sanitized_name = g_strdup(memory_region_name(block->mr));
+            for (c = sanitized_name; *c != '\0'; c++) {
+                if (*c == '/') {
+                    *c = '_';
+                }
+            }
+
+            filename = g_strdup_printf("%s/qemu_back_mem.%s.XXXXXX", path,
+                                       sanitized_name);
+            g_free(sanitized_name);
+
+            fd = mkstemp(filename);
+            if (fd >= 0) {
+                unlink(filename);
+                g_free(filename);
+                break;
+            }
+            g_free(filename);
+        }
+        if (errno != EEXIST && errno != EINTR) {
+            error_setg_errno(errp, errno,
+                             "can't open backing store %s for guest RAM",
+                             path);
+            goto error;
+        }
+        /*
+         * Try again on EINTR and EEXIST.  The latter happens when
+         * something else creates the file between our two open().
+         */
+    }
+
+    hpagesize = gethugepagesize(fd);
+    if (hpagesize < 0) {
+        error_setg_errno(errp, errno, "can't get page size for %s",
+                         path);
         goto error;
     }
     block->mr->align = hpagesize;
 
     if (memory < hpagesize) {
         error_setg(errp, "memory size 0x" RAM_ADDR_FMT " must be equal to "
-                   "or larger than huge page size 0x%" PRIx64,
+                   "or larger than page size 0x%" PRIx64,
                    memory, hpagesize);
-        goto error;
-    }
-
-    if (kvm_enabled() && !kvm_has_sync_mmu()) {
-        error_setg(errp,
-                   "host lacks kvm mmu notifiers, -mem-path unsupported");
-        goto error;
-    }
-
-    if (!stat(path, &st) && S_ISDIR(st.st_mode)) {
-        /* Make name safe to use with mkstemp by replacing '/' with '_'. */
-        sanitized_name = g_strdup(memory_region_name(block->mr));
-        for (c = sanitized_name; *c != '\0'; c++) {
-            if (*c == '/') {
-                *c = '_';
-            }
-        }
-
-        filename = g_strdup_printf("%s/qemu_back_mem.%s.XXXXXX", path,
-                                   sanitized_name);
-        g_free(sanitized_name);
-
-        fd = mkstemp(filename);
-        if (fd >= 0) {
-            unlink(filename);
-        }
-        g_free(filename);
-    } else {
-        fd = open(path, O_RDWR | O_CREAT, 0644);
-    }
-
-    if (fd < 0) {
-        error_setg_errno(errp, errno,
-                         "unable to create backing store for hugepages");
         goto error;
     }
 
@@ -1328,7 +1345,7 @@ static void *file_ram_alloc(RAMBlock *block,
     area = qemu_ram_mmap(fd, memory, hpagesize, block->flags & RAM_SHARED);
     if (area == MAP_FAILED) {
         error_setg_errno(errp, errno,
-                         "unable to map backing store for hugepages");
+                         "unable to map backing store for guest RAM");
         close(fd);
         goto error;
     }
@@ -1341,6 +1358,10 @@ static void *file_ram_alloc(RAMBlock *block,
     return area;
 
 error:
+    if (unlink_on_error) {
+        unlink(path);
+    }
+    close(fd);
     return NULL;
 }
 #endif
