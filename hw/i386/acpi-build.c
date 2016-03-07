@@ -1556,6 +1556,12 @@ static Aml *build_gsi_link_dev(const char *name, uint8_t uid, uint8_t gsi)
 
     aml_append(dev, aml_name_decl("_CRS", crs));
 
+    /*
+     * _DIS can be no-op because the interrupt cannot be disabled.
+     */
+    method = aml_method("_DIS", 0, AML_NOTSERIALIZED);
+    aml_append(dev, method);
+
     method = aml_method("_SRS", 1, AML_NOTSERIALIZED);
     aml_append(dev, method);
 
