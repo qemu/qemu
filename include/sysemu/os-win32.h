@@ -29,32 +29,6 @@
 #include <winsock2.h>
 #include <windows.h>
 
-/* Workaround for older versions of MinGW. */
-#ifndef ECONNREFUSED
-# define ECONNREFUSED WSAECONNREFUSED
-#endif
-#ifndef EINPROGRESS
-# define EINPROGRESS  WSAEINPROGRESS
-#endif
-#ifndef EHOSTUNREACH
-# define EHOSTUNREACH WSAEHOSTUNREACH
-#endif
-#ifndef EINTR
-# define EINTR        WSAEINTR
-#endif
-#ifndef EINPROGRESS
-# define EINPROGRESS  WSAEINPROGRESS
-#endif
-#ifndef ENETUNREACH
-# define ENETUNREACH  WSAENETUNREACH
-#endif
-#ifndef ENOTCONN
-# define ENOTCONN     WSAENOTCONN
-#endif
-#ifndef EWOULDBLOCK
-# define EWOULDBLOCK  WSAEWOULDBLOCK
-#endif
-
 #if defined(_WIN64)
 /* On w64, setjmp is implemented by _setjmp which needs a second parameter.
  * If this parameter is NULL, longjump does no stack unwinding.
@@ -80,6 +54,7 @@ struct tm *gmtime_r(const time_t *timep, struct tm *result);
 struct tm *localtime_r(const time_t *timep, struct tm *result);
 #endif /* CONFIG_LOCALTIME_R */
 
+int socket_error(void);
 
 static inline void os_setup_signal_handling(void) {}
 static inline void os_daemonize(void) {}

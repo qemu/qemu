@@ -34,6 +34,8 @@ void os_daemonize(void);
 void os_setup_post(void);
 int os_mlock(void);
 
+#define socket_error() errno
+
 typedef struct timeval qemu_timeval;
 #define qemu_gettimeofday(tp) gettimeofday(tp, NULL)
 

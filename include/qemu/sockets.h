@@ -7,8 +7,6 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
-#define socket_error() WSAGetLastError()
-
 int inet_aton(const char *cp, struct in_addr *ia);
 
 #else
@@ -20,7 +18,6 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #include <netdb.h>
 #include <sys/un.h>
 
-#define socket_error() errno
 #define closesocket(s) close(s)
 
 #endif /* !_WIN32 */
