@@ -252,6 +252,7 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
 #ifdef HAVE_CACHEFLUSH
     { SCMP_SYS(cacheflush), 240 },
 #endif
+    { SCMP_SYS(sysinfo), 240 },
 };
 
 int seccomp_start(void)
