@@ -22,20 +22,7 @@
 #include "s390-pci-bus.h"
 #include "hw/s390x/storage-keys.h"
 #include "hw/compat.h"
-
-#define TYPE_S390_CCW_MACHINE               "s390-ccw-machine"
-
-#define S390_CCW_MACHINE(obj) \
-    OBJECT_CHECK(S390CcwMachineState, (obj), TYPE_S390_CCW_MACHINE)
-
-typedef struct S390CcwMachineState {
-    /*< private >*/
-    MachineState parent_obj;
-
-    /*< public >*/
-    bool aes_key_wrap;
-    bool dea_key_wrap;
-} S390CcwMachineState;
+#include "hw/s390x/s390-virtio-ccw.h"
 
 static const char *const reset_dev_types[] = {
     "virtual-css-bridge",
