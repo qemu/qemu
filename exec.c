@@ -1228,27 +1228,6 @@ void qemu_mutex_unlock_ramlist(void)
 }
 
 #ifdef __linux__
-
-#include <sys/vfs.h>
-
-#define HUGETLBFS_MAGIC       0x958458f6
-
-static long gethugepagesize(int fd)
-{
-    struct statfs fs;
-    int ret;
-
-    do {
-        ret = fstatfs(fd, &fs);
-    } while (ret != 0 && errno == EINTR);
-
-    if (ret != 0) {
-        return -1;
-    }
-
-    return fs.f_bsize;
-}
-
 static void *file_ram_alloc(RAMBlock *block,
                             ram_addr_t memory,
                             const char *path,
@@ -1260,7 +1239,7 @@ static void *file_ram_alloc(RAMBlock *block,
     char *c;
     void *area;
     int fd;
-    int64_t hpagesize;
+    int64_t page_size;
 
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
         error_setg(errp,
@@ -1315,22 +1294,17 @@ static void *file_ram_alloc(RAMBlock *block,
          */
     }
 
-    hpagesize = gethugepagesize(fd);
-    if (hpagesize < 0) {
-        error_setg_errno(errp, errno, "can't get page size for %s",
-                         path);
-        goto error;
-    }
-    block->mr->align = hpagesize;
+    page_size = qemu_fd_getpagesize(fd);
+    block->mr->align = page_size;
 
-    if (memory < hpagesize) {
+    if (memory < page_size) {
         error_setg(errp, "memory size 0x" RAM_ADDR_FMT " must be equal to "
                    "or larger than page size 0x%" PRIx64,
-                   memory, hpagesize);
+                   memory, page_size);
         goto error;
     }
 
-    memory = ROUND_UP(memory, hpagesize);
+    memory = ROUND_UP(memory, page_size);
 
     /*
      * ftruncate is not supported by hugetlbfs in older
@@ -1342,7 +1316,7 @@ static void *file_ram_alloc(RAMBlock *block,
         perror("ftruncate");
     }
 
-    area = qemu_ram_mmap(fd, memory, hpagesize, block->flags & RAM_SHARED);
+    area = qemu_ram_mmap(fd, memory, page_size, block->flags & RAM_SHARED);
     if (area == MAP_FAILED) {
         error_setg_errno(errp, errno,
                          "unable to map backing store for guest RAM");
