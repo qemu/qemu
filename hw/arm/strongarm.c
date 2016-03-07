@@ -179,19 +179,18 @@ static const MemoryRegionOps strongarm_pic_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int strongarm_pic_initfn(SysBusDevice *sbd)
+static void strongarm_pic_initfn(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    StrongARMPICState *s = STRONGARM_PIC(dev);
+    DeviceState *dev = DEVICE(obj);
+    StrongARMPICState *s = STRONGARM_PIC(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     qdev_init_gpio_in(dev, strongarm_pic_set_irq, SA_PIC_SRCS);
-    memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_pic_ops, s,
+    memory_region_init_io(&s->iomem, obj, &strongarm_pic_ops, s,
                           "pic", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
     sysbus_init_irq(sbd, &s->fiq);
-
-    return 0;
 }
 
 static int strongarm_pic_post_load(void *opaque, int version_id)
@@ -217,9 +216,7 @@ static VMStateDescription vmstate_strongarm_pic_regs = {
 static void strongarm_pic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = strongarm_pic_initfn;
     dc->desc = "StrongARM PIC";
     dc->vmsd = &vmstate_strongarm_pic_regs;
 }
@@ -228,6 +225,7 @@ static const TypeInfo strongarm_pic_info = {
     .name          = TYPE_STRONGARM_PIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMPICState),
+    .instance_init = strongarm_pic_initfn,
     .class_init    = strongarm_pic_class_init,
 };
 
@@ -381,9 +379,10 @@ static const MemoryRegionOps strongarm_rtc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int strongarm_rtc_init(SysBusDevice *dev)
+static void strongarm_rtc_init(Object *obj)
 {
-    StrongARMRTCState *s = STRONGARM_RTC(dev);
+    StrongARMRTCState *s = STRONGARM_RTC(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
     struct tm tm;
 
     s->rttr = 0x0;
@@ -400,11 +399,9 @@ static int strongarm_rtc_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->rtc_irq);
     sysbus_init_irq(dev, &s->rtc_hz_irq);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_rtc_ops, s,
+    memory_region_init_io(&s->iomem, obj, &strongarm_rtc_ops, s,
                           "rtc", 0x10000);
     sysbus_init_mmio(dev, &s->iomem);
-
-    return 0;
 }
 
 static void strongarm_rtc_pre_save(void *opaque)
@@ -443,9 +440,7 @@ static const VMStateDescription vmstate_strongarm_rtc_regs = {
 static void strongarm_rtc_sysbus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = strongarm_rtc_init;
     dc->desc = "StrongARM RTC Controller";
     dc->vmsd = &vmstate_strongarm_rtc_regs;
 }
@@ -454,6 +449,7 @@ static const TypeInfo strongarm_rtc_sysbus_info = {
     .name          = TYPE_STRONGARM_RTC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMRTCState),
+    .instance_init = strongarm_rtc_init,
     .class_init    = strongarm_rtc_sysbus_class_init,
 };
 
@@ -646,16 +642,17 @@ static DeviceState *strongarm_gpio_init(hwaddr base,
     return dev;
 }
 
-static int strongarm_gpio_initfn(SysBusDevice *sbd)
+static void strongarm_gpio_initfn(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    StrongARMGPIOInfo *s = STRONGARM_GPIO(dev);
+    DeviceState *dev = DEVICE(obj);
+    StrongARMGPIOInfo *s = STRONGARM_GPIO(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     int i;
 
     qdev_init_gpio_in(dev, strongarm_gpio_set, 28);
     qdev_init_gpio_out(dev, s->handler, 28);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_gpio_ops, s,
+    memory_region_init_io(&s->iomem, obj, &strongarm_gpio_ops, s,
                           "gpio", 0x1000);
 
     sysbus_init_mmio(sbd, &s->iomem);
@@ -663,8 +660,6 @@ static int strongarm_gpio_initfn(SysBusDevice *sbd)
         sysbus_init_irq(sbd, &s->irqs[i]);
     }
     sysbus_init_irq(sbd, &s->irqX);
-
-    return 0;
 }
 
 static const VMStateDescription vmstate_strongarm_gpio_regs = {
@@ -687,9 +682,7 @@ static const VMStateDescription vmstate_strongarm_gpio_regs = {
 static void strongarm_gpio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = strongarm_gpio_initfn;
     dc->desc = "StrongARM GPIO controller";
     dc->vmsd = &vmstate_strongarm_gpio_regs;
 }
@@ -698,6 +691,7 @@ static const TypeInfo strongarm_gpio_info = {
     .name          = TYPE_STRONGARM_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMGPIOInfo),
+    .instance_init = strongarm_gpio_initfn,
     .class_init    = strongarm_gpio_class_init,
 };
 
@@ -824,20 +818,19 @@ static const MemoryRegionOps strongarm_ppc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int strongarm_ppc_init(SysBusDevice *sbd)
+static void strongarm_ppc_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    StrongARMPPCInfo *s = STRONGARM_PPC(dev);
+    DeviceState *dev = DEVICE(obj);
+    StrongARMPPCInfo *s = STRONGARM_PPC(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     qdev_init_gpio_in(dev, strongarm_ppc_set, 22);
     qdev_init_gpio_out(dev, s->handler, 22);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_ppc_ops, s,
+    memory_region_init_io(&s->iomem, obj, &strongarm_ppc_ops, s,
                           "ppc", 0x1000);
 
     sysbus_init_mmio(sbd, &s->iomem);
-
-    return 0;
 }
 
 static const VMStateDescription vmstate_strongarm_ppc_regs = {
@@ -859,9 +852,7 @@ static const VMStateDescription vmstate_strongarm_ppc_regs = {
 static void strongarm_ppc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = strongarm_ppc_init;
     dc->desc = "StrongARM PPC controller";
     dc->vmsd = &vmstate_strongarm_ppc_regs;
 }
@@ -870,6 +861,7 @@ static const TypeInfo strongarm_ppc_info = {
     .name          = TYPE_STRONGARM_PPC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMPPCInfo),
+    .instance_init = strongarm_ppc_init,
     .class_init    = strongarm_ppc_class_init,
 };
 
@@ -1231,11 +1223,12 @@ static const MemoryRegionOps strongarm_uart_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int strongarm_uart_init(SysBusDevice *dev)
+static void strongarm_uart_init(Object *obj)
 {
-    StrongARMUARTState *s = STRONGARM_UART(dev);
+    StrongARMUARTState *s = STRONGARM_UART(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_uart_ops, s,
+    memory_region_init_io(&s->iomem, obj, &strongarm_uart_ops, s,
                           "uart", 0x10000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
@@ -1250,8 +1243,6 @@ static int strongarm_uart_init(SysBusDevice *dev)
                         strongarm_uart_event,
                         s);
     }
-
-    return 0;
 }
 
 static void strongarm_uart_reset(DeviceState *dev)
@@ -1321,9 +1312,7 @@ static Property strongarm_uart_properties[] = {
 static void strongarm_uart_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = strongarm_uart_init;
     dc->desc = "StrongARM UART controller";
     dc->reset = strongarm_uart_reset;
     dc->vmsd = &vmstate_strongarm_uart_regs;
@@ -1334,6 +1323,7 @@ static const TypeInfo strongarm_uart_info = {
     .name          = TYPE_STRONGARM_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMUARTState),
+    .instance_init = strongarm_uart_init,
     .class_init    = strongarm_uart_class_init,
 };
 
