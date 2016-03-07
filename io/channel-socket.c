@@ -55,6 +55,10 @@ qio_channel_socket_new(void)
     ioc = QIO_CHANNEL(sioc);
     ioc->features |= (1 << QIO_CHANNEL_FEATURE_SHUTDOWN);
 
+#ifdef WIN32
+    ioc->event = CreateEvent(NULL, FALSE, FALSE, NULL);
+#endif
+
     trace_qio_channel_socket_new(sioc);
 
     return sioc;
@@ -341,6 +345,11 @@ qio_channel_socket_accept(QIOChannelSocket *ioc,
     cioc->remoteAddrLen = sizeof(ioc->remoteAddr);
     cioc->localAddrLen = sizeof(ioc->localAddr);
 
+#ifdef WIN32
+    QIO_CHANNEL(cioc)->event = CreateEvent(NULL, FALSE, FALSE, NULL);
+#endif
+
+
  retry:
     trace_qio_channel_socket_accept(ioc);
     cioc->fd = qemu_accept(ioc->fd, (struct sockaddr *)&cioc->remoteAddr,
@@ -384,7 +393,10 @@ static void qio_channel_socket_finalize(Object *obj)
 {
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(obj);
     if (ioc->fd != -1) {
-        close(ioc->fd);
+#ifdef WIN32
+        WSAEventSelect(ioc->fd, NULL, 0);
+#endif
+        closesocket(ioc->fd);
         ioc->fd = -1;
     }
 }
@@ -634,6 +646,11 @@ qio_channel_socket_set_blocking(QIOChannel *ioc,
         qemu_set_block(sioc->fd);
     } else {
         qemu_set_nonblock(sioc->fd);
+#ifdef WIN32
+        WSAEventSelect(sioc->fd, ioc->event,
+                       FD_READ | FD_ACCEPT | FD_CLOSE |
+                       FD_CONNECT | FD_WRITE | FD_OOB);
+#endif
     }
     return 0;
 }
@@ -669,13 +686,18 @@ qio_channel_socket_close(QIOChannel *ioc,
 {
     QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
 
-    if (closesocket(sioc->fd) < 0) {
+    if (sioc->fd != -1) {
+#ifdef WIN32
+        WSAEventSelect(sioc->fd, NULL, 0);
+#endif
+        if (closesocket(sioc->fd) < 0) {
+            sioc->fd = -1;
+            error_setg_errno(errp, socket_error(),
+                             "Unable to close socket");
+            return -1;
+        }
         sioc->fd = -1;
-        error_setg_errno(errp, socket_error(),
-                         "Unable to close socket");
-        return -1;
     }
-    sioc->fd = -1;
     return 0;
 }
 

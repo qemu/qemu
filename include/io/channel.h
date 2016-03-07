@@ -78,6 +78,9 @@ typedef gboolean (*QIOChannelFunc)(QIOChannel *ioc,
 struct QIOChannel {
     Object parent;
     unsigned int features; /* bitmask of QIOChannelFeatures */
+#ifdef _WIN32
+    HANDLE event; /* For use with GSource on Win32 */
+#endif
 };
 
 /**

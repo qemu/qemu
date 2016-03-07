@@ -274,10 +274,24 @@ void qio_channel_wait(QIOChannel *ioc,
 }
 
 
+#ifdef _WIN32
+static void qio_channel_finalize(Object *obj)
+{
+    QIOChannel *ioc = QIO_CHANNEL(obj);
+
+    if (ioc->event) {
+        CloseHandle(ioc->event);
+    }
+}
+#endif
+
 static const TypeInfo qio_channel_info = {
     .parent = TYPE_OBJECT,
     .name = TYPE_QIO_CHANNEL,
     .instance_size = sizeof(QIOChannel),
+#ifdef _WIN32
+    .instance_finalize = qio_channel_finalize,
+#endif
     .abstract = true,
     .class_size = sizeof(QIOChannelClass),
 };
