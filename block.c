@@ -687,13 +687,19 @@ int bdrv_parse_cache_flags(const char *mode, int *flags)
 }
 
 /*
- * Returns the flags that a temporary snapshot should get, based on the
- * originally requested flags (the originally requested image will have flags
- * like a backing file)
+ * Returns the options and flags that a temporary snapshot should get, based on
+ * the originally requested flags (the originally requested image will have
+ * flags like a backing file)
  */
-static int bdrv_temp_snapshot_flags(int flags)
+static void bdrv_temp_snapshot_options(int *child_flags, QDict *child_options,
+                                       int parent_flags, QDict *parent_options)
 {
-    return (flags & ~BDRV_O_SNAPSHOT) | BDRV_O_TEMPORARY;
+    *child_flags = (parent_flags & ~BDRV_O_SNAPSHOT) | BDRV_O_TEMPORARY;
+
+    /* For temporary files, unconditional cache=unsafe is fine */
+    qdict_set_default_str(child_options, BDRV_OPT_CACHE_WB, "on");
+    qdict_set_default_str(child_options, BDRV_OPT_CACHE_DIRECT, "off");
+    qdict_set_default_str(child_options, BDRV_OPT_CACHE_NO_FLUSH, "on");
 }
 
 /*
@@ -1424,13 +1430,13 @@ done:
     return c;
 }
 
-int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
+static int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags,
+                                     QDict *snapshot_options, Error **errp)
 {
     /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
     char *tmp_filename = g_malloc0(PATH_MAX + 1);
     int64_t total_size;
     QemuOpts *opts = NULL;
-    QDict *snapshot_options;
     BlockDriverState *bs_snapshot;
     Error *local_err = NULL;
     int ret;
@@ -1464,8 +1470,7 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
         goto out;
     }
 
-    /* Prepare a new options QDict for the temporary file */
-    snapshot_options = qdict_new();
+    /* Prepare options QDict for the temporary file */
     qdict_put(snapshot_options, "file.driver",
               qstring_from_str("file"));
     qdict_put(snapshot_options, "file.filename",
@@ -1477,6 +1482,7 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
 
     ret = bdrv_open(&bs_snapshot, NULL, NULL, snapshot_options,
                     flags, &local_err);
+    snapshot_options = NULL;
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto out;
@@ -1485,6 +1491,7 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     bdrv_append(bs_snapshot, bs);
 
 out:
+    QDECREF(snapshot_options);
     g_free(tmp_filename);
     return ret;
 }
@@ -1516,6 +1523,7 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
     const char *drvname;
     const char *backing;
     Error *local_err = NULL;
+    QDict *snapshot_options = NULL;
     int snapshot_flags = 0;
 
     assert(pbs);
@@ -1607,7 +1615,9 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
             flags |= BDRV_O_ALLOW_RDWR;
         }
         if (flags & BDRV_O_SNAPSHOT) {
-            snapshot_flags = bdrv_temp_snapshot_flags(flags);
+            snapshot_options = qdict_new();
+            bdrv_temp_snapshot_options(&snapshot_flags, snapshot_options,
+                                       flags, options);
             bdrv_backing_options(&flags, options, flags, options);
         }
 
@@ -1709,7 +1719,9 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
     /* For snapshot=on, create a temporary qcow2 overlay. bs points to the
      * temporary snapshot afterwards. */
     if (snapshot_flags) {
-        ret = bdrv_append_temp_snapshot(bs, snapshot_flags, &local_err);
+        ret = bdrv_append_temp_snapshot(bs, snapshot_flags, snapshot_options,
+                                        &local_err);
+        snapshot_options = NULL;
         if (local_err) {
             goto close_and_fail;
         }
@@ -1721,6 +1733,7 @@ fail:
     if (file != NULL) {
         bdrv_unref_child(bs, file);
     }
+    QDECREF(snapshot_options);
     QDECREF(bs->explicit_options);
     QDECREF(bs->options);
     QDECREF(options);
@@ -1743,6 +1756,7 @@ close_and_fail:
     } else {
         bdrv_unref(bs);
     }
+    QDECREF(snapshot_options);
     QDECREF(options);
     if (local_err) {
         error_propagate(errp, local_err);

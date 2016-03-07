@@ -215,7 +215,6 @@ BdrvChild *bdrv_open_child(const char *filename,
 void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd);
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
                            const char *bdref_key, Error **errp);
-int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp);
 int bdrv_open(BlockDriverState **pbs, const char *filename,
               const char *reference, QDict *options, int flags, Error **errp);
 BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
