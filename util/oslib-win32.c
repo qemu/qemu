@@ -581,3 +581,204 @@ pid_t qemu_fork(Error **errp)
                      "cannot fork child process");
     return -1;
 }
+
+
+#undef connect
+int qemu_connect_wrap(int sockfd, const struct sockaddr *addr,
+                      socklen_t addrlen)
+{
+    int ret;
+    ret = connect(sockfd, addr, addrlen);
+    if (ret < 0) {
+        errno = socket_error();
+    }
+    return ret;
+}
+
+
+#undef listen
+int qemu_listen_wrap(int sockfd, int backlog)
+{
+    int ret;
+    ret = listen(sockfd, backlog);
+    if (ret < 0) {
+        errno = socket_error();
+    }
+    return ret;
+}
+
+
+#undef bind
+int qemu_bind_wrap(int sockfd, const struct sockaddr *addr,
+                   socklen_t addrlen)
+{
+    int ret;
+    ret = bind(sockfd, addr, addrlen);
+    if (ret < 0) {
+        errno = socket_error();
+    }
+    return ret;
+}
+
+
+#undef socket
+int qemu_socket_wrap(int domain, int type, int protocol)
+{
+    int ret;
+    ret = socket(domain, type, protocol);
+    if (ret < 0) {
+        errno = socket_error();
+    }
+    return ret;
+}
+
+
+#undef accept
+int qemu_accept_wrap(int sockfd, struct sockaddr *addr,
+                     socklen_t *addrlen)
+{
+    int ret;
+    ret = accept(sockfd, addr, addrlen);
+    if (ret < 0) {
+        errno = socket_error();
+    }
+    return ret;
+}
+
+
+#undef shutdown
+int qemu_shutdown_wrap(int sockfd, int how)
+{
+    int ret;
+    ret = shutdown(sockfd, how);
+    if (ret < 0) {
+        errno = socket_error();
+    }
+    return ret;
+}
+
+
+#undef ioctlsocket
+int qemu_ioctlsocket_wrap(int fd, int req, void *val)
+{
+    int ret;
+    ret = ioctlsocket(fd, req, val);
+    if (ret < 0) {
+        errno = socket_error();
+    }
+    return ret;
+}
+
+
+#undef closesocket
+int qemu_closesocket_wrap(int fd)
+{
+    int ret;
+    ret = closesocket(fd);
+    if (ret < 0) {
+        errno = socket_error();
+    }
+    return ret;
+}
+
+
+#undef getsockopt
+int qemu_getsockopt_wrap(int sockfd, int level, int optname,
+                         void *optval, socklen_t *optlen)
+{
+    int ret;
+    ret = getsockopt(sockfd, level, optname, optval, optlen);
+    if (ret < 0) {
+        errno = socket_error();
+    }
+    return ret;
+}
+
+
+#undef setsockopt
+int qemu_setsockopt_wrap(int sockfd, int level, int optname,
+                         const void *optval, socklen_t optlen)
+{
+    int ret;
+    ret = setsockopt(sockfd, level, optname, optval, optlen);
+    if (ret < 0) {
+        errno = socket_error();
+    }
+    return ret;
+}
+
+
+#undef getpeername
+int qemu_getpeername_wrap(int sockfd, struct sockaddr *addr,
+                          socklen_t *addrlen)
+{
+    int ret;
+    ret = getpeername(sockfd, addr, addrlen);
+    if (ret < 0) {
+        errno = socket_error();
+    }
+    return ret;
+}
+
+
+#undef getsockname
+int qemu_getsockname_wrap(int sockfd, struct sockaddr *addr,
+                          socklen_t *addrlen)
+{
+    int ret;
+    ret = getsockname(sockfd, addr, addrlen);
+    if (ret < 0) {
+        errno = socket_error();
+    }
+    return ret;
+}
+
+
+#undef send
+ssize_t qemu_send_wrap(int sockfd, const void *buf, size_t len, int flags)
+{
+    int ret;
+    ret = send(sockfd, buf, len, flags);
+    if (ret < 0) {
+        errno = socket_error();
+    }
+    return ret;
+}
+
+
+#undef sendto
+ssize_t qemu_sendto_wrap(int sockfd, const void *buf, size_t len, int flags,
+                         const struct sockaddr *addr, socklen_t addrlen)
+{
+    int ret;
+    ret = sendto(sockfd, buf, len, flags, addr, addrlen);
+    if (ret < 0) {
+        errno = socket_error();
+    }
+    return ret;
+}
+
+
+#undef recv
+ssize_t qemu_recv_wrap(int sockfd, void *buf, size_t len, int flags)
+{
+    int ret;
+    ret = recv(sockfd, buf, len, flags);
+    if (ret < 0) {
+        errno = socket_error();
+    }
+    return ret;
+}
+
+
+#undef recvfrom
+ssize_t qemu_recvfrom_wrap(int sockfd, void *buf, size_t len, int flags,
+                           struct sockaddr *addr, socklen_t *addrlen)
+{
+    int ret;
+    ret = recvfrom(sockfd, buf, len, flags, addr, addrlen);
+    if (ret < 0) {
+        errno = socket_error();
+    }
+    return ret;
+}

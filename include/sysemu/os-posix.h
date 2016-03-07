@@ -26,6 +26,12 @@
 #ifndef QEMU_OS_POSIX_H
 #define QEMU_OS_POSIX_H
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <sys/un.h>
 
 void os_set_line_buffering(void);
 void os_set_proc_name(const char *s);
@@ -35,6 +41,9 @@ void os_setup_post(void);
 int os_mlock(void);
 
 #define socket_error() errno
+
+#define closesocket(s) close(s)
+#define ioctlsocket(s, r, v) ioctl(s, r, v)
 
 typedef struct timeval qemu_timeval;
 #define qemu_gettimeofday(tp) gettimeofday(tp, NULL)

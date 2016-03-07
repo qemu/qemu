@@ -38,7 +38,6 @@
 
 #include "qemu.h"
 #include "flat.h"
-#define ntohl(x) be32_to_cpu(x)
 #include <target_flat.h>
 
 //#define DEBUG
