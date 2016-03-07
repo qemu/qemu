@@ -172,6 +172,21 @@ GSource *qio_channel_create_fd_watch(QIOChannel *ioc,
     return source;
 }
 
+#ifdef CONFIG_WIN32
+GSource *qio_channel_create_socket_watch(QIOChannel *ioc,
+                                         int socket,
+                                         GIOCondition condition)
+{
+    abort();
+}
+#else
+GSource *qio_channel_create_socket_watch(QIOChannel *ioc,
+                                         int socket,
+                                         GIOCondition condition)
+{
+    return qio_channel_create_fd_watch(ioc, socket, condition);
+}
+#endif
 
 GSource *qio_channel_create_fd_pair_watch(QIOChannel *ioc,
                                           int fdread,

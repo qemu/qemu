@@ -39,13 +39,31 @@
  * monitor the file descriptor @fd for the
  * I/O conditions in @condition. This is able
  * monitor block devices, character devices,
- * sockets, pipes but not plain files.
+ * pipes but not plain files or, on Win32, sockets.
  *
  * Returns: the new main loop source
  */
 GSource *qio_channel_create_fd_watch(QIOChannel *ioc,
                                      int fd,
                                      GIOCondition condition);
+
+/**
+ * qio_channel_create_socket_watch:
+ * @ioc: the channel object
+ * @fd: the file descriptor
+ * @condition: the I/O condition
+ *
+ * Create a new main loop source that is able to
+ * monitor the file descriptor @fd for the
+ * I/O conditions in @condition. This is equivalent
+ * to qio_channel_create_fd_watch on POSIX systems
+ * but not on Windows.
+ *
+ * Returns: the new main loop source
+ */
+GSource *qio_channel_create_socket_watch(QIOChannel *ioc,
+                                         int fd,
+                                         GIOCondition condition);
 
 /**
  * qio_channel_create_fd_pair_watch:

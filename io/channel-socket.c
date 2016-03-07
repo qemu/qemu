@@ -714,9 +714,9 @@ static GSource *qio_channel_socket_create_watch(QIOChannel *ioc,
                                                 GIOCondition condition)
 {
     QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
-    return qio_channel_create_fd_watch(ioc,
-                                       sioc->fd,
-                                       condition);
+    return qio_channel_create_socket_watch(ioc,
+                                           sioc->fd,
+                                           condition);
 }
 
 static void qio_channel_socket_class_init(ObjectClass *klass,
