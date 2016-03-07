@@ -989,7 +989,6 @@ static int scsi_req_xfer(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
         }
         /* fall through */
     case READ_10:
-    case RECOVER_BUFFERED_DATA:
     case READ_12:
     case READ_16:
         cmd->xfer *= dev->blocksize;
