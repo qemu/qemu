@@ -160,7 +160,11 @@ GSource *qio_channel_create_fd_watch(QIOChannel *ioc,
 
     ssource->condition = condition;
 
+#ifdef CONFIG_WIN32
+    ssource->fd.fd = (gint64)_get_osfhandle(fd);
+#else
     ssource->fd.fd = fd;
+#endif
     ssource->fd.events = condition;
 
     g_source_add_poll(source, &ssource->fd);
@@ -186,10 +190,15 @@ GSource *qio_channel_create_fd_pair_watch(QIOChannel *ioc,
 
     ssource->condition = condition;
 
+#ifdef CONFIG_WIN32
+    ssource->fdread.fd = (gint64)_get_osfhandle(fdread);
+    ssource->fdwrite.fd = (gint64)_get_osfhandle(fdwrite);
+#else
     ssource->fdread.fd = fdread;
-    ssource->fdread.events = condition & G_IO_IN;
-
     ssource->fdwrite.fd = fdwrite;
+#endif
+
+    ssource->fdread.events = condition & G_IO_IN;
     ssource->fdwrite.events = condition & G_IO_OUT;
 
     g_source_add_poll(source, &ssource->fdread);
