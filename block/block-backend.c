@@ -744,7 +744,8 @@ static void blk_write_entry(void *opaque)
 }
 
 static int blk_rw(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
-                  int nb_sectors, CoroutineEntry co_entry)
+                  int nb_sectors, CoroutineEntry co_entry,
+                  BdrvRequestFlags flags)
 {
     AioContext *aio_context;
     QEMUIOVector qiov;
@@ -766,6 +767,7 @@ static int blk_rw(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
         .blk    = blk,
         .offset = sector_num << BDRV_SECTOR_BITS,
         .qiov   = &qiov,
+        .flags  = flags,
         .ret    = NOT_DONE,
     };
 
@@ -783,7 +785,7 @@ static int blk_rw(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
 int blk_read(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
              int nb_sectors)
 {
-    return blk_rw(blk, sector_num, buf, nb_sectors, blk_read_entry);
+    return blk_rw(blk, sector_num, buf, nb_sectors, blk_read_entry, 0);
 }
 
 int blk_read_unthrottled(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
@@ -808,18 +810,15 @@ int blk_read_unthrottled(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
 int blk_write(BlockBackend *blk, int64_t sector_num, const uint8_t *buf,
               int nb_sectors)
 {
-    return blk_rw(blk, sector_num, (uint8_t*) buf, nb_sectors, blk_write_entry);
+    return blk_rw(blk, sector_num, (uint8_t*) buf, nb_sectors,
+                  blk_write_entry, 0);
 }
 
 int blk_write_zeroes(BlockBackend *blk, int64_t sector_num,
                      int nb_sectors, BdrvRequestFlags flags)
 {
-    int ret = blk_check_request(blk, sector_num, nb_sectors);
-    if (ret < 0) {
-        return ret;
-    }
-
-    return bdrv_write_zeroes(blk_bs(blk), sector_num, nb_sectors, flags);
+    return blk_rw(blk, sector_num, NULL, nb_sectors, blk_write_entry,
+                  BDRV_REQ_ZERO_WRITE);
 }
 
 static void error_callback_bh(void *opaque)
