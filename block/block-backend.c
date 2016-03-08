@@ -789,12 +789,20 @@ int blk_read(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
 int blk_read_unthrottled(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
                          int nb_sectors)
 {
-    int ret = blk_check_request(blk, sector_num, nb_sectors);
+    BlockDriverState *bs = blk_bs(blk);
+    bool enabled;
+    int ret;
+
+    ret = blk_check_request(blk, sector_num, nb_sectors);
     if (ret < 0) {
         return ret;
     }
 
-    return bdrv_read_unthrottled(blk_bs(blk), sector_num, buf, nb_sectors);
+    enabled = bs->io_limits_enabled;
+    bs->io_limits_enabled = false;
+    ret = blk_read(blk, sector_num, buf, nb_sectors);
+    bs->io_limits_enabled = enabled;
+    return ret;
 }
 
 int blk_write(BlockBackend *blk, int64_t sector_num, const uint8_t *buf,

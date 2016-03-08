@@ -615,20 +615,6 @@ int bdrv_read(BlockDriverState *bs, int64_t sector_num,
     return bdrv_rw_co(bs, sector_num, buf, nb_sectors, false, 0);
 }
 
-/* Just like bdrv_read(), but with I/O throttling temporarily disabled */
-int bdrv_read_unthrottled(BlockDriverState *bs, int64_t sector_num,
-                          uint8_t *buf, int nb_sectors)
-{
-    bool enabled;
-    int ret;
-
-    enabled = bs->io_limits_enabled;
-    bs->io_limits_enabled = false;
-    ret = bdrv_read(bs, sector_num, buf, nb_sectors);
-    bs->io_limits_enabled = enabled;
-    return ret;
-}
-
 /* Return < 0 if error. Important errors are:
   -EIO         generic I/O error (may happen for all errors)
   -ENOMEDIUM   No media inserted.
