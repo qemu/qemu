@@ -569,7 +569,7 @@ static ssize_t qio_channel_socket_readv(QIOChannel *ioc,
                 goto retry;
             } else {
                 error_setg_errno(errp, socket_error(),
-                                 "Unable to write to socket");
+                                 "Unable to read from socket");
                 return -1;
             }
         }
