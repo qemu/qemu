@@ -743,9 +743,9 @@ static void blk_write_entry(void *opaque)
                                rwco->qiov, rwco->flags);
 }
 
-static int blk_rw(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
-                  int nb_sectors, CoroutineEntry co_entry,
-                  BdrvRequestFlags flags)
+static int blk_prw(BlockBackend *blk, int64_t offset, uint8_t *buf,
+                   int64_t bytes, CoroutineEntry co_entry,
+                   BdrvRequestFlags flags)
 {
     AioContext *aio_context;
     QEMUIOVector qiov;
@@ -753,19 +753,15 @@ static int blk_rw(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
     Coroutine *co;
     BlkRwCo rwco;
 
-    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
-        return -EINVAL;
-    }
-
     iov = (struct iovec) {
         .iov_base = buf,
-        .iov_len = nb_sectors * BDRV_SECTOR_SIZE,
+        .iov_len = bytes,
     };
     qemu_iovec_init_external(&qiov, &iov, 1);
 
     rwco = (BlkRwCo) {
         .blk    = blk,
-        .offset = sector_num << BDRV_SECTOR_BITS,
+        .offset = offset,
         .qiov   = &qiov,
         .flags  = flags,
         .ret    = NOT_DONE,
@@ -780,6 +776,18 @@ static int blk_rw(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
     }
 
     return rwco.ret;
+}
+
+static int blk_rw(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
+                  int nb_sectors, CoroutineEntry co_entry,
+                  BdrvRequestFlags flags)
+{
+    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
+        return -EINVAL;
+    }
+
+    return blk_prw(blk, sector_num << BDRV_SECTOR_BITS, buf,
+                   nb_sectors << BDRV_SECTOR_BITS, co_entry, flags);
 }
 
 int blk_read(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
@@ -862,22 +870,20 @@ BlockAIOCB *blk_aio_write_zeroes(BlockBackend *blk, int64_t sector_num,
 
 int blk_pread(BlockBackend *blk, int64_t offset, void *buf, int count)
 {
-    int ret = blk_check_byte_request(blk, offset, count);
+    int ret = blk_prw(blk, offset, buf, count, blk_read_entry, 0);
     if (ret < 0) {
         return ret;
     }
-
-    return bdrv_pread(blk_bs(blk), offset, buf, count);
+    return count;
 }
 
 int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count)
 {
-    int ret = blk_check_byte_request(blk, offset, count);
+    int ret = blk_prw(blk, offset, (void*) buf, count, blk_write_entry, 0);
     if (ret < 0) {
         return ret;
     }
-
-    return bdrv_pwrite(blk_bs(blk), offset, buf, count);
+    return count;
 }
 
 int64_t blk_getlength(BlockBackend *blk)
