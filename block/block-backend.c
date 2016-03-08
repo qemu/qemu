@@ -22,6 +22,8 @@
 /* Number of coroutines to reserve per attached device model */
 #define COROUTINE_POOL_RESERVATION 64
 
+#define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
+
 static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb);
 
 struct BlockBackend {
@@ -693,15 +695,69 @@ static int blk_check_request(BlockBackend *blk, int64_t sector_num,
                                   nb_sectors * BDRV_SECTOR_SIZE);
 }
 
-int blk_read(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
-             int nb_sectors)
+static int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
+                                      unsigned int bytes, QEMUIOVector *qiov,
+                                      BdrvRequestFlags flags)
 {
-    int ret = blk_check_request(blk, sector_num, nb_sectors);
+    int ret = blk_check_byte_request(blk, offset, bytes);
     if (ret < 0) {
         return ret;
     }
 
-    return bdrv_read(blk_bs(blk), sector_num, buf, nb_sectors);
+    return bdrv_co_do_preadv(blk_bs(blk), offset, bytes, qiov, flags);
+}
+
+typedef struct BlkRwCo {
+    BlockBackend *blk;
+    int64_t offset;
+    QEMUIOVector *qiov;
+    int ret;
+    BdrvRequestFlags flags;
+} BlkRwCo;
+
+static void blk_read_entry(void *opaque)
+{
+    BlkRwCo *rwco = opaque;
+
+    rwco->ret = blk_co_preadv(rwco->blk, rwco->offset, rwco->qiov->size,
+                              rwco->qiov, rwco->flags);
+}
+
+int blk_read(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
+             int nb_sectors)
+{
+    AioContext *aio_context;
+    QEMUIOVector qiov;
+    struct iovec iov;
+    Coroutine *co;
+    BlkRwCo rwco;
+
+    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
+        return -EINVAL;
+    }
+
+    iov = (struct iovec) {
+        .iov_base = buf,
+        .iov_len = nb_sectors * BDRV_SECTOR_SIZE,
+    };
+    qemu_iovec_init_external(&qiov, &iov, 1);
+
+    rwco = (BlkRwCo) {
+        .blk    = blk,
+        .offset = sector_num << BDRV_SECTOR_BITS,
+        .qiov   = &qiov,
+        .ret    = NOT_DONE,
+    };
+
+    co = qemu_coroutine_create(blk_read_entry);
+    qemu_coroutine_enter(co, &rwco);
+
+    aio_context = blk_get_aio_context(blk);
+    while (rwco.ret == NOT_DONE) {
+        aio_poll(aio_context, true);
+    }
+
+    return rwco.ret;
 }
 
 int blk_read_unthrottled(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
