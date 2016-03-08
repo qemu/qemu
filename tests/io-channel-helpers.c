@@ -132,7 +132,7 @@ static gpointer test_io_thread_reader(gpointer opaque)
 
         if (ret == QIO_CHANNEL_ERR_BLOCK) {
             if (data->blocking) {
-                error_setg(&data->writeerr,
+                error_setg(&data->readerr,
                            "Unexpected I/O blocking");
                 break;
             } else {
