@@ -1462,12 +1462,13 @@ void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,
 int coroutine_fn blk_co_write_zeroes(BlockBackend *blk, int64_t sector_num,
                                      int nb_sectors, BdrvRequestFlags flags)
 {
-    int ret = blk_check_request(blk, sector_num, nb_sectors);
-    if (ret < 0) {
-        return ret;
+    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
+        return -EINVAL;
     }
 
-    return bdrv_co_write_zeroes(blk_bs(blk), sector_num, nb_sectors, flags);
+    return blk_co_pwritev(blk, sector_num << BDRV_SECTOR_BITS,
+                          nb_sectors << BDRV_SECTOR_BITS, NULL,
+                          BDRV_REQ_ZERO_WRITE);
 }
 
 int blk_write_compressed(BlockBackend *blk, int64_t sector_num,
