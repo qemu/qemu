@@ -52,6 +52,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "block/block_int.h"
+#include "sysemu/block-backend.h"
 #include "qemu/module.h"
 #include "migration/migration.h"
 #include "qemu/coroutine.h"
@@ -733,7 +734,7 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
     size_t bmap_size;
     int64_t offset = 0;
     Error *local_err = NULL;
-    BlockDriverState *bs = NULL;
+    BlockBackend *blk = NULL;
     uint32_t *bmap = NULL;
 
     logout("\n");
@@ -766,13 +767,17 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
         error_propagate(errp, local_err);
         goto exit;
     }
-    ret = bdrv_open(&bs, filename, NULL, NULL,
-                    BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
-                    &local_err);
-    if (ret < 0) {
+
+    blk = blk_new_open("image", filename, NULL, NULL,
+                       BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
+                       &local_err);
+    if (blk == NULL) {
         error_propagate(errp, local_err);
+        ret = -EIO;
         goto exit;
     }
+
+    blk_set_allow_write_beyond_eof(blk, true);
 
     /* We need enough blocks to store the given disk size,
        so always round up. */
@@ -803,7 +808,7 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
     vdi_header_print(&header);
 #endif
     vdi_header_to_le(&header);
-    ret = bdrv_pwrite_sync(bs, offset, &header, sizeof(header));
+    ret = blk_pwrite(blk, offset, &header, sizeof(header));
     if (ret < 0) {
         error_setg(errp, "Error writing header to %s", filename);
         goto exit;
@@ -824,7 +829,7 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
                 bmap[i] = VDI_UNALLOCATED;
             }
         }
-        ret = bdrv_pwrite_sync(bs, offset, bmap, bmap_size);
+        ret = blk_pwrite(blk, offset, bmap, bmap_size);
         if (ret < 0) {
             error_setg(errp, "Error writing bmap to %s", filename);
             goto exit;
@@ -833,7 +838,7 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     if (image_type == VDI_TYPE_STATIC) {
-        ret = bdrv_truncate(bs, offset + blocks * block_size);
+        ret = blk_truncate(blk, offset + blocks * block_size);
         if (ret < 0) {
             error_setg(errp, "Failed to statically allocate %s", filename);
             goto exit;
@@ -841,7 +846,7 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
 exit:
-    bdrv_unref(bs);
+    blk_unref(blk);
     g_free(bmap);
     return ret;
 }
