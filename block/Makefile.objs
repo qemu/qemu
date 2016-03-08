@@ -20,7 +20,7 @@ block-obj-$(CONFIG_RBD) += rbd.o
 block-obj-$(CONFIG_GLUSTERFS) += gluster.o
 block-obj-$(CONFIG_ARCHIPELAGO) += archipelago.o
 block-obj-$(CONFIG_LIBSSH2) += ssh.o
-block-obj-y += accounting.o
+block-obj-y += accounting.o dirty-bitmap.o
 block-obj-y += write-threshold.o
 
 common-obj-y += stream.o
