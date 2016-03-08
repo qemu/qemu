@@ -56,7 +56,8 @@ void do_qemu_set_log(int log_flags, bool use_own_buffers)
 #ifdef CONFIG_TRACE_LOG
     qemu_loglevel |= LOG_TRACE;
 #endif
-    if ((qemu_loglevel || is_daemonized()) && !qemu_logfile) {
+    if (!qemu_logfile &&
+        (is_daemonized() ? logfilename != NULL : qemu_loglevel)) {
         if (logfilename) {
             qemu_logfile = fopen(logfilename, log_append ? "a" : "w");
             if (!qemu_logfile) {
@@ -72,6 +73,7 @@ void do_qemu_set_log(int log_flags, bool use_own_buffers)
             }
         } else {
             /* Default to stderr if no log file specified */
+            assert(!is_daemonized());
             qemu_logfile = stderr;
         }
         /* must avoid mmap() usage of glibc by setting a buffer "by hand" */
@@ -89,7 +91,8 @@ void do_qemu_set_log(int log_flags, bool use_own_buffers)
             log_append = 1;
         }
     }
-    if (!qemu_loglevel && !is_daemonized() && qemu_logfile) {
+    if (qemu_logfile &&
+        (is_daemonized() ? logfilename == NULL : !qemu_loglevel)) {
         qemu_log_close();
     }
 }

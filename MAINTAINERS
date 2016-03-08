@@ -234,6 +234,7 @@ L: kvm@vger.kernel.org
 S: Supported
 F: kvm-*
 F: */kvm.*
+F: include/sysemu/kvm*.h
 
 ARM
 M: Peter Maydell <peter.maydell@linaro.org>

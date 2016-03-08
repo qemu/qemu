@@ -169,7 +169,6 @@ struct MemoryRegion {
     bool flush_coalesced_mmio;
     bool global_locking;
     uint8_t dirty_log_mask;
-    ram_addr_t ram_addr;
     RAMBlock *ram_block;
     Object *owner;
     const MemoryRegionIOMMUOps *iommu_ops;
@@ -978,14 +977,8 @@ void memory_region_add_subregion_overlap(MemoryRegion *mr,
 /**
  * memory_region_get_ram_addr: Get the ram address associated with a memory
  *                             region
- *
- * DO NOT USE THIS FUNCTION.  This is a temporary workaround while the Xen
- * code is being reworked.
  */
-static inline ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr)
-{
-    return mr->ram_addr;
-}
+ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr);
 
 uint64_t memory_region_get_alignment(const MemoryRegion *mr);
 /**
