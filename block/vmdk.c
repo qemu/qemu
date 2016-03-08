@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "block/block_int.h"
+#include "sysemu/block-backend.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
@@ -1650,7 +1651,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
                               QemuOpts *opts, Error **errp)
 {
     int ret, i;
-    BlockDriverState *bs = NULL;
+    BlockBackend *blk = NULL;
     VMDK4Header header;
     Error *local_err = NULL;
     uint32_t tmp, magic, grains, gd_sectors, gt_size, gt_count;
@@ -1663,17 +1664,19 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
         goto exit;
     }
 
-    assert(bs == NULL);
-    ret = bdrv_open(&bs, filename, NULL, NULL,
-                    BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
-                    &local_err);
-    if (ret < 0) {
+    blk = blk_new_open("extent", filename, NULL, NULL,
+                       BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
+                       &local_err);
+    if (blk == NULL) {
         error_propagate(errp, local_err);
+        ret = -EIO;
         goto exit;
     }
 
+    blk_set_allow_write_beyond_eof(blk, true);
+
     if (flat) {
-        ret = bdrv_truncate(bs, filesize);
+        ret = blk_truncate(blk, filesize);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not truncate file");
         }
@@ -1728,18 +1731,18 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     header.check_bytes[3] = 0xa;
 
     /* write all the data */
-    ret = bdrv_pwrite(bs, 0, &magic, sizeof(magic));
+    ret = blk_pwrite(blk, 0, &magic, sizeof(magic));
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
         goto exit;
     }
-    ret = bdrv_pwrite(bs, sizeof(magic), &header, sizeof(header));
+    ret = blk_pwrite(blk, sizeof(magic), &header, sizeof(header));
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
         goto exit;
     }
 
-    ret = bdrv_truncate(bs, le64_to_cpu(header.grain_offset) << 9);
+    ret = blk_truncate(blk, le64_to_cpu(header.grain_offset) << 9);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not truncate file");
         goto exit;
@@ -1752,8 +1755,8 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
          i < gt_count; i++, tmp += gt_size) {
         gd_buf[i] = cpu_to_le32(tmp);
     }
-    ret = bdrv_pwrite(bs, le64_to_cpu(header.rgd_offset) * BDRV_SECTOR_SIZE,
-                      gd_buf, gd_buf_size);
+    ret = blk_pwrite(blk, le64_to_cpu(header.rgd_offset) * BDRV_SECTOR_SIZE,
+                     gd_buf, gd_buf_size);
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
         goto exit;
@@ -1764,8 +1767,8 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
          i < gt_count; i++, tmp += gt_size) {
         gd_buf[i] = cpu_to_le32(tmp);
     }
-    ret = bdrv_pwrite(bs, le64_to_cpu(header.gd_offset) * BDRV_SECTOR_SIZE,
-                      gd_buf, gd_buf_size);
+    ret = blk_pwrite(blk, le64_to_cpu(header.gd_offset) * BDRV_SECTOR_SIZE,
+                     gd_buf, gd_buf_size);
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
         goto exit;
@@ -1773,8 +1776,8 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
 
     ret = 0;
 exit:
-    if (bs) {
-        bdrv_unref(bs);
+    if (blk) {
+        blk_unref(blk);
     }
     g_free(gd_buf);
     return ret;
@@ -1823,7 +1826,7 @@ static int filename_decompose(const char *filename, char *path, char *prefix,
 static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     int idx = 0;
-    BlockDriverState *new_bs = NULL;
+    BlockBackend *new_blk = NULL;
     Error *local_err = NULL;
     char *desc = NULL;
     int64_t total_size = 0, filesize;
@@ -1934,7 +1937,7 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
         goto exit;
     }
     if (backing_file) {
-        BlockDriverState *bs = NULL;
+        BlockBackend *blk;
         char *full_backing = g_new0(char, PATH_MAX);
         bdrv_get_full_backing_filename_from_filename(filename, backing_file,
                                                      full_backing, PATH_MAX,
@@ -1945,19 +1948,21 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
             ret = -ENOENT;
             goto exit;
         }
-        ret = bdrv_open(&bs, full_backing, NULL, NULL,
-                        BDRV_O_NO_BACKING | BDRV_O_CACHE_WB, errp);
+
+        blk = blk_new_open("backing", full_backing, NULL, NULL,
+                           BDRV_O_NO_BACKING | BDRV_O_CACHE_WB, errp);
         g_free(full_backing);
-        if (ret != 0) {
+        if (blk == NULL) {
+            ret = -EIO;
             goto exit;
         }
-        if (strcmp(bs->drv->format_name, "vmdk")) {
-            bdrv_unref(bs);
+        if (strcmp(blk_bs(blk)->drv->format_name, "vmdk")) {
+            blk_unref(blk);
             ret = -EINVAL;
             goto exit;
         }
-        parent_cid = vmdk_read_cid(bs, 0);
-        bdrv_unref(bs);
+        parent_cid = vmdk_read_cid(blk_bs(blk), 0);
+        blk_unref(blk);
         snprintf(parent_desc_line, BUF_SIZE,
                 "parentFileNameHint=\"%s\"", backing_file);
     }
@@ -2015,15 +2020,19 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
             goto exit;
         }
     }
-    assert(new_bs == NULL);
-    ret = bdrv_open(&new_bs, filename, NULL, NULL,
-                    BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
-                    &local_err);
-    if (ret < 0) {
+
+    new_blk = blk_new_open("descriptor", filename, NULL, NULL,
+                           BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
+                           &local_err);
+    if (new_blk == NULL) {
         error_propagate(errp, local_err);
+        ret = -EIO;
         goto exit;
     }
-    ret = bdrv_pwrite(new_bs, desc_offset, desc, desc_len);
+
+    blk_set_allow_write_beyond_eof(new_blk, true);
+
+    ret = blk_pwrite(new_blk, desc_offset, desc, desc_len);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not write description");
         goto exit;
@@ -2031,14 +2040,14 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
     /* bdrv_pwrite write padding zeros to align to sector, we don't need that
      * for description file */
     if (desc_offset == 0) {
-        ret = bdrv_truncate(new_bs, desc_len);
+        ret = blk_truncate(new_blk, desc_len);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not truncate file");
         }
     }
 exit:
-    if (new_bs) {
-        bdrv_unref(new_bs);
+    if (new_blk) {
+        blk_unref(new_blk);
     }
     g_free(adapter_type);
     g_free(backing_file);
