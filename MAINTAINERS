@@ -1123,6 +1123,7 @@ Network device backends
 M: Jason Wang <jasowang@redhat.com>
 S: Maintained
 F: net/
+F: include/net/
 T: git git://github.com/jasowang/qemu.git net
 
 Netmap network backend
@@ -1222,6 +1223,7 @@ M: Jan Kiszka <jan.kiszka@siemens.com>
 S: Maintained
 F: slirp/
 F: net/slirp.c
+F: include/net/slirp.h
 T: git git://git.kiszka.org/qemu.git queues/slirp
 
 Tracing

@@ -40,6 +40,7 @@ int fp_port_set_settings(FpPort *port, uint32_t speed,
 bool fp_port_from_pport(uint32_t pport, uint32_t *port);
 World *fp_port_get_world(FpPort *port);
 void fp_port_set_world(FpPort *port, World *world);
+bool fp_port_check_world(FpPort *port, World *world);
 bool fp_port_enabled(FpPort *port);
 void fp_port_enable(FpPort *port);
 void fp_port_disable(FpPort *port);

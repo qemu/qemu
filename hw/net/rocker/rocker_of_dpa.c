@@ -2614,6 +2614,7 @@ RockerOfDpaGroupList *qmp_query_rocker_of_dpa_groups(const char *name,
 }
 
 static WorldOps of_dpa_ops = {
+    .name = "ofdpa",
     .init = of_dpa_init,
     .uninit = of_dpa_uninit,
     .ig = of_dpa_ig,

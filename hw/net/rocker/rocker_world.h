@@ -33,6 +33,7 @@ typedef int (world_cmd)(World *world, DescInfo *info,
                         RockerTlv *cmd_info_tlv);
 
 typedef struct world_ops {
+    const char *name;
     world_init *init;
     world_uninit *uninit;
     world_ig *ig;
