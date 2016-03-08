@@ -470,9 +470,19 @@ static void test_io_channel_ipv4_fd(void)
 {
     QIOChannel *ioc;
     int fd = -1;
+    struct sockaddr_in sa = {
+        .sin_family = AF_INET,
+        .sin_addr = {
+            .s_addr =  htonl(INADDR_LOOPBACK),
+        }
+        /* Leave port unset for auto-assign */
+    };
+    socklen_t salen = sizeof(sa);
 
     fd = socket(AF_INET, SOCK_STREAM, 0);
     g_assert_cmpint(fd, >, -1);
+
+    g_assert_cmpint(bind(fd, (struct sockaddr *)&sa, salen), ==, 0);
 
     ioc = qio_channel_new_fd(fd, &error_abort);
 
