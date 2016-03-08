@@ -242,15 +242,17 @@ static void vmdk_free_last_extent(BlockDriverState *bs)
 
 static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
 {
-    char desc[DESC_SIZE];
+    char *desc;
     uint32_t cid = 0xffffffff;
     const char *p_name, *cid_str;
     size_t cid_str_size;
     BDRVVmdkState *s = bs->opaque;
     int ret;
 
+    desc = g_malloc0(DESC_SIZE);
     ret = bdrv_pread(bs->file->bs, s->desc_offset, desc, DESC_SIZE);
     if (ret < 0) {
+        g_free(desc);
         return 0;
     }
 
@@ -269,6 +271,7 @@ static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
         sscanf(p_name, "%" SCNx32, &cid);
     }
 
+    g_free(desc);
     return cid;
 }
 
