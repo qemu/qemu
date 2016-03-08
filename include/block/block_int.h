@@ -511,6 +511,9 @@ void bdrv_setup_io_funcs(BlockDriver *bdrv);
 int coroutine_fn bdrv_co_do_preadv(BlockDriverState *bs,
     int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags);
+int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
+    int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
+    BdrvRequestFlags flags);
 
 int get_tmp_filename(char *filename, int size);
 BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,

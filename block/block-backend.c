@@ -707,6 +707,18 @@ static int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
     return bdrv_co_do_preadv(blk_bs(blk), offset, bytes, qiov, flags);
 }
 
+static int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
+                                      unsigned int bytes, QEMUIOVector *qiov,
+                                      BdrvRequestFlags flags)
+{
+    int ret = blk_check_byte_request(blk, offset, bytes);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return bdrv_co_do_pwritev(blk_bs(blk), offset, bytes, qiov, flags);
+}
+
 typedef struct BlkRwCo {
     BlockBackend *blk;
     int64_t offset;
@@ -723,8 +735,16 @@ static void blk_read_entry(void *opaque)
                               rwco->qiov, rwco->flags);
 }
 
-int blk_read(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
-             int nb_sectors)
+static void blk_write_entry(void *opaque)
+{
+    BlkRwCo *rwco = opaque;
+
+    rwco->ret = blk_co_pwritev(rwco->blk, rwco->offset, rwco->qiov->size,
+                               rwco->qiov, rwco->flags);
+}
+
+static int blk_rw(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
+                  int nb_sectors, CoroutineEntry co_entry)
 {
     AioContext *aio_context;
     QEMUIOVector qiov;
@@ -749,7 +769,7 @@ int blk_read(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
         .ret    = NOT_DONE,
     };
 
-    co = qemu_coroutine_create(blk_read_entry);
+    co = qemu_coroutine_create(co_entry);
     qemu_coroutine_enter(co, &rwco);
 
     aio_context = blk_get_aio_context(blk);
@@ -758,6 +778,12 @@ int blk_read(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
     }
 
     return rwco.ret;
+}
+
+int blk_read(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
+             int nb_sectors)
+{
+    return blk_rw(blk, sector_num, buf, nb_sectors, blk_read_entry);
 }
 
 int blk_read_unthrottled(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
@@ -774,12 +800,7 @@ int blk_read_unthrottled(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
 int blk_write(BlockBackend *blk, int64_t sector_num, const uint8_t *buf,
               int nb_sectors)
 {
-    int ret = blk_check_request(blk, sector_num, nb_sectors);
-    if (ret < 0) {
-        return ret;
-    }
-
-    return bdrv_write(blk_bs(blk), sector_num, buf, nb_sectors);
+    return blk_rw(blk, sector_num, (uint8_t*) buf, nb_sectors, blk_write_entry);
 }
 
 int blk_write_zeroes(BlockBackend *blk, int64_t sector_num,
