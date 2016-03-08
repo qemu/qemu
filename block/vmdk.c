@@ -343,15 +343,16 @@ static int vmdk_reopen_prepare(BDRVReopenState *state,
 static int vmdk_parent_open(BlockDriverState *bs)
 {
     char *p_name;
-    char desc[DESC_SIZE + 1];
+    char *desc;
     BDRVVmdkState *s = bs->opaque;
     int ret;
 
-    desc[DESC_SIZE] = '\0';
+    desc = g_malloc0(DESC_SIZE + 1);
     ret = bdrv_pread(bs->file->bs, s->desc_offset, desc, DESC_SIZE);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
+    ret = 0;
 
     p_name = strstr(desc, "parentFileNameHint");
     if (p_name != NULL) {
@@ -360,16 +361,20 @@ static int vmdk_parent_open(BlockDriverState *bs)
         p_name += sizeof("parentFileNameHint") + 1;
         end_name = strchr(p_name, '\"');
         if (end_name == NULL) {
-            return -EINVAL;
+            ret = -EINVAL;
+            goto out;
         }
         if ((end_name - p_name) > sizeof(bs->backing_file) - 1) {
-            return -EINVAL;
+            ret = -EINVAL;
+            goto out;
         }
 
         pstrcpy(bs->backing_file, end_name - p_name + 1, p_name);
     }
 
-    return 0;
+out:
+    g_free(desc);
+    return ret;
 }
 
 /* Create and append extent to the extent array. Return the added VmdkExtent
