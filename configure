@@ -280,6 +280,7 @@ libusb=""
 usb_redir=""
 opengl=""
 opengl_dmabuf="no"
+avx2_opt="no"
 zlib="yes"
 lzo=""
 snappy=""
@@ -1773,6 +1774,21 @@ EOF
 fi
 
 ##########################################
+# avx2 optimization requirement check
+
+cat > $TMPC << EOF
+static void bar(void) {}
+static void *bar_ifunc(void) {return (void*) bar;}
+static void foo(void) __attribute__((ifunc("bar_ifunc")));
+int main(void) { foo(); return 0; }
+EOF
+if compile_prog "-mavx2" "" ; then
+    if readelf --syms $TMPE |grep "IFUNC.*foo" >/dev/null 2>&1; then
+        avx2_opt="yes"
+    fi
+fi
+
+#########################################
 # zlib check
 
 if test "$zlib" != "no" ; then
@@ -4790,6 +4806,7 @@ echo "bzip2 support     $bzip2"
 echo "NUMA host support $numa"
 echo "tcmalloc support  $tcmalloc"
 echo "jemalloc support  $jemalloc"
+echo "avx2 optimization $avx2_opt"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -5176,6 +5193,10 @@ if test "$opengl" = "yes" ; then
   if test "$opengl_dmabuf" = "yes" ; then
     echo "CONFIG_OPENGL_DMABUF=y" >> $config_host_mak
   fi
+fi
+
+if test "$avx2_opt" = "yes" ; then
+  echo "CONFIG_AVX2_OPT=y" >> $config_host_mak
 fi
 
 if test "$lzo" = "yes" ; then
