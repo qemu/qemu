@@ -489,6 +489,7 @@ int main(int argc, char **argv)
     bool has_ipv4, has_ipv6;
 
     module_call_init(MODULE_INIT_QOM);
+    socket_init();
 
     g_test_init(&argc, &argv, NULL);
 
