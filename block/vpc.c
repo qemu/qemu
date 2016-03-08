@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "block/block_int.h"
+#include "sysemu/block-backend.h"
 #include "qemu/module.h"
 #include "migration/migration.h"
 #if defined(CONFIG_UUID)
@@ -758,7 +759,7 @@ static int calculate_geometry(int64_t total_sectors, uint16_t* cyls,
     return 0;
 }
 
-static int create_dynamic_disk(BlockDriverState *bs, uint8_t *buf,
+static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
                                int64_t total_sectors)
 {
     VHDDynDiskHeader *dyndisk_header =
@@ -772,13 +773,13 @@ static int create_dynamic_disk(BlockDriverState *bs, uint8_t *buf,
     block_size = 0x200000;
     num_bat_entries = (total_sectors + block_size / 512) / (block_size / 512);
 
-    ret = bdrv_pwrite_sync(bs, offset, buf, HEADER_SIZE);
+    ret = blk_pwrite(blk, offset, buf, HEADER_SIZE);
     if (ret) {
         goto fail;
     }
 
     offset = 1536 + ((num_bat_entries * 4 + 511) & ~511);
-    ret = bdrv_pwrite_sync(bs, offset, buf, HEADER_SIZE);
+    ret = blk_pwrite(blk, offset, buf, HEADER_SIZE);
     if (ret < 0) {
         goto fail;
     }
@@ -788,7 +789,7 @@ static int create_dynamic_disk(BlockDriverState *bs, uint8_t *buf,
 
     memset(buf, 0xFF, 512);
     for (i = 0; i < (num_bat_entries * 4 + 511) / 512; i++) {
-        ret = bdrv_pwrite_sync(bs, offset, buf, 512);
+        ret = blk_pwrite(blk, offset, buf, 512);
         if (ret < 0) {
             goto fail;
         }
@@ -815,7 +816,7 @@ static int create_dynamic_disk(BlockDriverState *bs, uint8_t *buf,
     // Write the header
     offset = 512;
 
-    ret = bdrv_pwrite_sync(bs, offset, buf, 1024);
+    ret = blk_pwrite(blk, offset, buf, 1024);
     if (ret < 0) {
         goto fail;
     }
@@ -824,7 +825,7 @@ static int create_dynamic_disk(BlockDriverState *bs, uint8_t *buf,
     return ret;
 }
 
-static int create_fixed_disk(BlockDriverState *bs, uint8_t *buf,
+static int create_fixed_disk(BlockBackend *blk, uint8_t *buf,
                              int64_t total_size)
 {
     int ret;
@@ -832,12 +833,12 @@ static int create_fixed_disk(BlockDriverState *bs, uint8_t *buf,
     /* Add footer to total size */
     total_size += HEADER_SIZE;
 
-    ret = bdrv_truncate(bs, total_size);
+    ret = blk_truncate(blk, total_size);
     if (ret < 0) {
         return ret;
     }
 
-    ret = bdrv_pwrite_sync(bs, total_size - HEADER_SIZE, buf, HEADER_SIZE);
+    ret = blk_pwrite(blk, total_size - HEADER_SIZE, buf, HEADER_SIZE);
     if (ret < 0) {
         return ret;
     }
@@ -860,7 +861,7 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     int ret = -EIO;
     bool force_size;
     Error *local_err = NULL;
-    BlockDriverState *bs = NULL;
+    BlockBackend *blk = NULL;
 
     /* Read out options */
     total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
@@ -886,13 +887,17 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
         error_propagate(errp, local_err);
         goto out;
     }
-    ret = bdrv_open(&bs, filename, NULL, NULL,
-                    BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
-                    &local_err);
-    if (ret < 0) {
+
+    blk = blk_new_open("image", filename, NULL, NULL,
+                       BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
+                       &local_err);
+    if (blk == NULL) {
         error_propagate(errp, local_err);
+        ret = -EIO;
         goto out;
     }
+
+    blk_set_allow_write_beyond_eof(blk, true);
 
     /*
      * Calculate matching total_size and geometry. Increase the number of
@@ -965,13 +970,13 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     footer->checksum = cpu_to_be32(vpc_checksum(buf, HEADER_SIZE));
 
     if (disk_type == VHD_DYNAMIC) {
-        ret = create_dynamic_disk(bs, buf, total_sectors);
+        ret = create_dynamic_disk(blk, buf, total_sectors);
     } else {
-        ret = create_fixed_disk(bs, buf, total_size);
+        ret = create_fixed_disk(blk, buf, total_size);
     }
 
 out:
-    bdrv_unref(bs);
+    blk_unref(blk);
     g_free(disk_type_param);
     return ret;
 }
