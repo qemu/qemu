@@ -321,8 +321,6 @@ BlockDriverState *check_to_replace_node(BlockDriverState *parent_bs,
                                         const char *node_name, Error **errp);
 
 /* async block I/O */
-typedef void BlockDriverDirtyHandler(BlockDriverState *bs, int64_t sector,
-                                     int sector_num);
 BlockAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
                            QEMUIOVector *iov, int nb_sectors,
                            BlockCompletionFunc *cb, void *opaque);
