@@ -114,6 +114,7 @@ static void test_io_channel_setup_sync(SocketAddress *listen_addr,
         QIO_CHANNEL_SOCKET(*src), connect_addr, &error_abort);
     qio_channel_set_delay(*src, false);
 
+    qio_channel_wait(QIO_CHANNEL(lioc), G_IO_IN);
     *dst = QIO_CHANNEL(qio_channel_socket_accept(lioc, &error_abort));
     g_assert(*dst);
 
@@ -181,6 +182,7 @@ static void test_io_channel_setup_async(SocketAddress *listen_addr,
 
     g_assert(!data.err);
 
+    qio_channel_wait(QIO_CHANNEL(lioc), G_IO_IN);
     *dst = QIO_CHANNEL(qio_channel_socket_accept(lioc, &error_abort));
     g_assert(*dst);
 
