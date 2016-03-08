@@ -377,18 +377,6 @@ static void bdrv_qed_attach_aio_context(BlockDriverState *bs,
     }
 }
 
-static void bdrv_qed_drain(BlockDriverState *bs)
-{
-    BDRVQEDState *s = bs->opaque;
-
-    /* Cancel timer and start doing I/O that were meant to happen as if it
-     * fired, that way we get bdrv_drain() taking care of the ongoing requests
-     * correctly. */
-    qed_cancel_need_check_timer(s);
-    qed_plug_allocating_write_reqs(s);
-    bdrv_aio_flush(s->bs, qed_clear_need_check, s);
-}
-
 static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
                          Error **errp)
 {
@@ -1694,7 +1682,6 @@ static BlockDriver bdrv_qed = {
     .bdrv_check               = bdrv_qed_check,
     .bdrv_detach_aio_context  = bdrv_qed_detach_aio_context,
     .bdrv_attach_aio_context  = bdrv_qed_attach_aio_context,
-    .bdrv_drain               = bdrv_qed_drain,
 };
 
 static void bdrv_qed_init(void)
