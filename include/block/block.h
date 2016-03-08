@@ -8,6 +8,7 @@
 #include "block/accounting.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi-types.h"
+#include "qemu/hbitmap.h"
 
 /* block.c */
 typedef struct BlockDriver BlockDriver;
@@ -474,7 +475,6 @@ void *qemu_try_blockalign(BlockDriverState *bs, size_t size);
 void *qemu_try_blockalign0(BlockDriverState *bs, size_t size);
 bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov);
 
-struct HBitmapIter;
 typedef struct BdrvDirtyBitmap BdrvDirtyBitmap;
 BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
                                           uint32_t granularity,
