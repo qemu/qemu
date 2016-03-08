@@ -274,36 +274,39 @@ static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
 
 static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
 {
-    char desc[DESC_SIZE], tmp_desc[DESC_SIZE];
+    char *desc, *tmp_desc;
     char *p_name, *tmp_str;
     BDRVVmdkState *s = bs->opaque;
-    int ret;
+    int ret = 0;
 
+    desc = g_malloc0(DESC_SIZE);
+    tmp_desc = g_malloc0(DESC_SIZE);
     ret = bdrv_pread(bs->file->bs, s->desc_offset, desc, DESC_SIZE);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
 
     desc[DESC_SIZE - 1] = '\0';
     tmp_str = strstr(desc, "parentCID");
     if (tmp_str == NULL) {
-        return -EINVAL;
+        ret = -EINVAL;
+        goto out;
     }
 
-    pstrcpy(tmp_desc, sizeof(tmp_desc), tmp_str);
+    pstrcpy(tmp_desc, DESC_SIZE, tmp_str);
     p_name = strstr(desc, "CID");
     if (p_name != NULL) {
         p_name += sizeof("CID");
-        snprintf(p_name, sizeof(desc) - (p_name - desc), "%" PRIx32 "\n", cid);
-        pstrcat(desc, sizeof(desc), tmp_desc);
+        snprintf(p_name, DESC_SIZE - (p_name - desc), "%" PRIx32 "\n", cid);
+        pstrcat(desc, DESC_SIZE, tmp_desc);
     }
 
     ret = bdrv_pwrite_sync(bs->file->bs, s->desc_offset, desc, DESC_SIZE);
-    if (ret < 0) {
-        return ret;
-    }
 
-    return 0;
+out:
+    g_free(desc);
+    g_free(tmp_desc);
+    return ret;
 }
 
 static int vmdk_is_cid_valid(BlockDriverState *bs)
