@@ -18,6 +18,7 @@
 #include "qed.h"
 #include "qapi/qmp/qerror.h"
 #include "migration/migration.h"
+#include "sysemu/block-backend.h"
 
 static const AIOCBInfo qed_aiocb_info = {
     .aiocb_size         = sizeof(QEDAIOCB),
@@ -580,7 +581,7 @@ static int qed_create(const char *filename, uint32_t cluster_size,
     size_t l1_size = header.cluster_size * header.table_size;
     Error *local_err = NULL;
     int ret = 0;
-    BlockDriverState *bs;
+    BlockBackend *blk;
 
     ret = bdrv_create_file(filename, opts, &local_err);
     if (ret < 0) {
@@ -588,17 +589,18 @@ static int qed_create(const char *filename, uint32_t cluster_size,
         return ret;
     }
 
-    bs = NULL;
-    ret = bdrv_open(&bs, filename, NULL, NULL,
-                    BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
-                    &local_err);
-    if (ret < 0) {
+    blk = blk_new_open("image", filename, NULL, NULL,
+                       BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
+                       &local_err);
+    if (blk == NULL) {
         error_propagate(errp, local_err);
-        return ret;
+        return -EIO;
     }
 
+    blk_set_allow_write_beyond_eof(blk, true);
+
     /* File must start empty and grow, check truncate is supported */
-    ret = bdrv_truncate(bs, 0);
+    ret = blk_truncate(blk, 0);
     if (ret < 0) {
         goto out;
     }
@@ -614,18 +616,18 @@ static int qed_create(const char *filename, uint32_t cluster_size,
     }
 
     qed_header_cpu_to_le(&header, &le_header);
-    ret = bdrv_pwrite(bs, 0, &le_header, sizeof(le_header));
+    ret = blk_pwrite(blk, 0, &le_header, sizeof(le_header));
     if (ret < 0) {
         goto out;
     }
-    ret = bdrv_pwrite(bs, sizeof(le_header), backing_file,
-                      header.backing_filename_size);
+    ret = blk_pwrite(blk, sizeof(le_header), backing_file,
+                     header.backing_filename_size);
     if (ret < 0) {
         goto out;
     }
 
     l1_table = g_malloc0(l1_size);
-    ret = bdrv_pwrite(bs, header.l1_table_offset, l1_table, l1_size);
+    ret = blk_pwrite(blk, header.l1_table_offset, l1_table, l1_size);
     if (ret < 0) {
         goto out;
     }
@@ -633,7 +635,7 @@ static int qed_create(const char *filename, uint32_t cluster_size,
     ret = 0; /* success */
 out:
     g_free(l1_table);
-    bdrv_unref(bs);
+    blk_unref(blk);
     return ret;
 }
 
