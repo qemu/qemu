@@ -22,66 +22,49 @@
 #include "io/channel-socket.h"
 #include "io/channel-util.h"
 #include "io-channel-helpers.h"
-#ifdef HAVE_IFADDRS_H
-#include <ifaddrs.h>
-#endif
 
-static int check_protocol_support(bool *has_ipv4, bool *has_ipv6)
+static int check_bind(struct sockaddr *sa, socklen_t salen, bool *has_proto)
 {
-#ifdef HAVE_IFADDRS_H
-    struct ifaddrs *ifaddr = NULL, *ifa;
-    struct addrinfo hints = { 0 };
-    struct addrinfo *ai = NULL;
-    int gaierr;
+    int fd;
 
-    *has_ipv4 = *has_ipv6 = false;
-
-    if (getifaddrs(&ifaddr) < 0) {
-        g_printerr("Failed to lookup interface addresses: %s\n",
-                   strerror(errno));
+    fd = socket(sa->sa_family, SOCK_STREAM, 0);
+    if (fd < 0) {
         return -1;
     }
 
-    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-        if (!ifa->ifa_addr) {
-            continue;
+    if (bind(fd, sa, salen) < 0) {
+        close(fd);
+        if (errno == EADDRNOTAVAIL) {
+            *has_proto = false;
+            return 0;
         }
-
-        if (ifa->ifa_addr->sa_family == AF_INET) {
-            *has_ipv4 = true;
-        }
-        if (ifa->ifa_addr->sa_family == AF_INET6) {
-            *has_ipv6 = true;
-        }
+        return -1;
     }
 
-    freeifaddrs(ifaddr);
+    close(fd);
+    *has_proto = true;
+    return 0;
+}
 
-    hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG;
-    hints.ai_family = AF_INET6;
-    hints.ai_socktype = SOCK_STREAM;
+static int check_protocol_support(bool *has_ipv4, bool *has_ipv6)
+{
+    struct sockaddr_in sin = {
+        .sin_family = AF_INET,
+        .sin_addr = { .s_addr = htonl(INADDR_LOOPBACK) },
+    };
+    struct sockaddr_in6 sin6 = {
+        .sin6_family = AF_INET6,
+        .sin6_addr = IN6ADDR_LOOPBACK_INIT,
+    };
 
-    gaierr = getaddrinfo("::1", NULL, &hints, &ai);
-    if (gaierr != 0) {
-        if (gaierr == EAI_ADDRFAMILY ||
-            gaierr == EAI_FAMILY ||
-            gaierr == EAI_NONAME) {
-            *has_ipv6 = false;
-        } else {
-            g_printerr("Failed to resolve ::1 address: %s\n",
-                       gai_strerror(gaierr));
-            return -1;
-        }
+    if (check_bind((struct sockaddr *)&sin, sizeof(sin), has_ipv4) < 0) {
+        return -1;
     }
-
-    freeaddrinfo(ai);
+    if (check_bind((struct sockaddr *)&sin6, sizeof(sin6), has_ipv6) < 0) {
+        return -1;
+    }
 
     return 0;
-#else
-    *has_ipv4 = *has_ipv6 = false;
-
-    return -1;
-#endif
 }
 
 
