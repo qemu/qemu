@@ -1091,7 +1091,7 @@ static void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
         }
 
         spapr->htab_shift = shift;
-        kvmppc_kern_htab = true;
+        spapr->htab = NULL;
     } else {
         /* kernel-side HPT not needed, allocate in userspace instead */
         size_t size = 1ULL << shift;
@@ -1106,7 +1106,6 @@ static void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
 
         memset(spapr->htab, 0, size);
         spapr->htab_shift = shift;
-        kvmppc_kern_htab = false;
 
         for (i = 0; i < size / HASH_PTE_SIZE_64; i++) {
             DIRTY_HPTE(HPTE(spapr->htab, i));

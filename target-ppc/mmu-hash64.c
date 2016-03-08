@@ -36,10 +36,11 @@
 #endif
 
 /*
- * Used to indicate whether we have allocated htab in the
- * host kernel
+ * Used to indicate that a CPU has its hash page table (HPT) managed
+ * within the host kernel
  */
-bool kvmppc_kern_htab;
+#define MMU_HASH64_KVM_MANAGED_HPT      ((void *)-1)
+
 /*
  * SLB handling
  */
@@ -283,7 +284,11 @@ void ppc_hash64_set_external_hpt(PowerPCCPU *cpu, void *hpt, int shift,
 
     cpu_synchronize_state(CPU(cpu));
 
-    env->external_htab = hpt;
+    if (hpt) {
+        env->external_htab = hpt;
+    } else {
+        env->external_htab = MMU_HASH64_KVM_MANAGED_HPT;
+    }
     ppc_hash64_set_sdr1(cpu, (target_ulong)(uintptr_t)hpt | (shift - 18),
                         &local_err);
     if (local_err) {
@@ -396,25 +401,16 @@ uint64_t ppc_hash64_start_access(PowerPCCPU *cpu, target_ulong pte_index)
     hwaddr pte_offset;
 
     pte_offset = pte_index * HASH_PTE_SIZE_64;
-    if (kvmppc_kern_htab) {
+    if (cpu->env.external_htab == MMU_HASH64_KVM_MANAGED_HPT) {
         /*
          * HTAB is controlled by KVM. Fetch the PTEG into a new buffer.
          */
         token = kvmppc_hash64_read_pteg(cpu, pte_index);
-        if (token) {
-            return token;
-        }
+    } else if (cpu->env.external_htab) {
         /*
-         * pteg read failed, even though we have allocated htab via
-         * kvmppc_reset_htab.
+         * HTAB is controlled by QEMU. Just point to the internally
+         * accessible PTEG.
          */
-        return 0;
-    }
-    /*
-     * HTAB is controlled by QEMU. Just point to the internally
-     * accessible PTEG.
-     */
-    if (cpu->env.external_htab) {
         token = (uint64_t)(uintptr_t) cpu->env.external_htab + pte_offset;
     } else if (cpu->env.htab_base) {
         token = cpu->env.htab_base + pte_offset;
@@ -422,9 +418,9 @@ uint64_t ppc_hash64_start_access(PowerPCCPU *cpu, target_ulong pte_index)
     return token;
 }
 
-void ppc_hash64_stop_access(uint64_t token)
+void ppc_hash64_stop_access(PowerPCCPU *cpu, uint64_t token)
 {
-    if (kvmppc_kern_htab) {
+    if (cpu->env.external_htab == MMU_HASH64_KVM_MANAGED_HPT) {
         kvmppc_hash64_free_pteg(token);
     }
 }
@@ -453,11 +449,11 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
             && HPTE64_V_COMPARE(pte0, ptem)) {
             pte->pte0 = pte0;
             pte->pte1 = pte1;
-            ppc_hash64_stop_access(token);
+            ppc_hash64_stop_access(cpu, token);
             return (pte_index + i) * HASH_PTE_SIZE_64;
         }
     }
-    ppc_hash64_stop_access(token);
+    ppc_hash64_stop_access(cpu, token);
     /*
      * We didn't find a valid entry.
      */
@@ -772,7 +768,7 @@ void ppc_hash64_store_hpte(PowerPCCPU *cpu,
 {
     CPUPPCState *env = &cpu->env;
 
-    if (kvmppc_kern_htab) {
+    if (env->external_htab == MMU_HASH64_KVM_MANAGED_HPT) {
         kvmppc_hash64_write_pte(env, pte_index, pte0, pte1);
         return;
     }
