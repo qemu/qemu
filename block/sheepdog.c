@@ -18,6 +18,7 @@
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "block/block_int.h"
+#include "sysemu/block-backend.h"
 #include "qemu/bitops.h"
 
 #define SD_PROTO_VER 0x01
@@ -1636,7 +1637,7 @@ static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot,
 
 static int sd_prealloc(const char *filename, Error **errp)
 {
-    BlockDriverState *bs = NULL;
+    BlockBackend *blk = NULL;
     BDRVSheepdogState *base = NULL;
     unsigned long buf_size;
     uint32_t idx, max_idx;
@@ -1645,20 +1646,23 @@ static int sd_prealloc(const char *filename, Error **errp)
     void *buf = NULL;
     int ret;
 
-    ret = bdrv_open(&bs, filename, NULL, NULL,
-                    BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
-                    errp);
-    if (ret < 0) {
+    blk = blk_new_open("image-prealloc", filename, NULL, NULL,
+                       BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
+                       errp);
+    if (blk == NULL) {
+        ret = -EIO;
         goto out_with_err_set;
     }
 
-    vdi_size = bdrv_getlength(bs);
+    blk_set_allow_write_beyond_eof(blk, true);
+
+    vdi_size = blk_getlength(blk);
     if (vdi_size < 0) {
         ret = vdi_size;
         goto out;
     }
 
-    base = bs->opaque;
+    base = blk_bs(blk)->opaque;
     object_size = (UINT32_C(1) << base->inode.block_size_shift);
     buf_size = MIN(object_size, SD_DATA_OBJ_SIZE);
     buf = g_malloc0(buf_size);
@@ -1670,23 +1674,24 @@ static int sd_prealloc(const char *filename, Error **errp)
          * The created image can be a cloned image, so we need to read
          * a data from the source image.
          */
-        ret = bdrv_pread(bs, idx * buf_size, buf, buf_size);
+        ret = blk_pread(blk, idx * buf_size, buf, buf_size);
         if (ret < 0) {
             goto out;
         }
-        ret = bdrv_pwrite(bs, idx * buf_size, buf, buf_size);
+        ret = blk_pwrite(blk, idx * buf_size, buf, buf_size);
         if (ret < 0) {
             goto out;
         }
     }
 
+    ret = 0;
 out:
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Can't pre-allocate");
     }
 out_with_err_set:
-    if (bs) {
-        bdrv_unref(bs);
+    if (blk) {
+        blk_unref(blk);
     }
     g_free(buf);
 
@@ -1826,7 +1831,7 @@ static int sd_create(const char *filename, QemuOpts *opts,
     }
 
     if (backing_file) {
-        BlockDriverState *bs;
+        BlockBackend *blk;
         BDRVSheepdogState *base;
         BlockDriver *drv;
 
@@ -1838,23 +1843,23 @@ static int sd_create(const char *filename, QemuOpts *opts,
             goto out;
         }
 
-        bs = NULL;
-        ret = bdrv_open(&bs, backing_file, NULL, NULL,
-                        BDRV_O_PROTOCOL | BDRV_O_CACHE_WB, errp);
-        if (ret < 0) {
+        blk = blk_new_open("backing", backing_file, NULL, NULL,
+                           BDRV_O_PROTOCOL | BDRV_O_CACHE_WB, errp);
+        if (blk == NULL) {
+            ret = -EIO;
             goto out;
         }
 
-        base = bs->opaque;
+        base = blk_bs(blk)->opaque;
 
         if (!is_snapshot(&base->inode)) {
             error_setg(errp, "cannot clone from a non snapshot vdi");
-            bdrv_unref(bs);
+            blk_unref(blk);
             ret = -EINVAL;
             goto out;
         }
         s->inode.vdi_id = base->inode.vdi_id;
-        bdrv_unref(bs);
+        blk_unref(blk);
     }
 
     s->aio_context = qemu_get_aio_context();
