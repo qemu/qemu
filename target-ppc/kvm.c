@@ -867,7 +867,7 @@ static int kvm_put_vpa(CPUState *cs)
 }
 #endif /* TARGET_PPC64 */
 
-static int kvmppc_put_books_sregs(PowerPCCPU *cpu)
+int kvmppc_put_books_sregs(PowerPCCPU *cpu)
 {
     CPUPPCState *env = &cpu->env;
     struct kvm_sregs sregs;

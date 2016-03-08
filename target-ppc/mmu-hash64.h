@@ -92,6 +92,12 @@ unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
 
 
 extern bool kvmppc_kern_htab;
+
+void ppc_hash64_set_sdr1(PowerPCCPU *cpu, target_ulong value,
+                         Error **errp);
+void ppc_hash64_set_external_hpt(PowerPCCPU *cpu, void *hpt, int shift,
+                                 Error **errp);
+
 uint64_t ppc_hash64_start_access(PowerPCCPU *cpu, target_ulong pte_index);
 void ppc_hash64_stop_access(uint64_t token);
 

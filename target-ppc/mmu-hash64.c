@@ -258,6 +258,49 @@ target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
 /*
  * 64-bit hash table MMU handling
  */
+void ppc_hash64_set_sdr1(PowerPCCPU *cpu, target_ulong value,
+                         Error **errp)
+{
+    CPUPPCState *env = &cpu->env;
+    target_ulong htabsize = value & SDR_64_HTABSIZE;
+
+    env->spr[SPR_SDR1] = value;
+    if (htabsize > 28) {
+        error_setg(errp,
+                   "Invalid HTABSIZE 0x" TARGET_FMT_lx" stored in SDR1",
+                   htabsize);
+        htabsize = 28;
+    }
+    env->htab_mask = (1ULL << (htabsize + 18 - 7)) - 1;
+    env->htab_base = value & SDR_64_HTABORG;
+}
+
+void ppc_hash64_set_external_hpt(PowerPCCPU *cpu, void *hpt, int shift,
+                                 Error **errp)
+{
+    CPUPPCState *env = &cpu->env;
+    Error *local_err = NULL;
+
+    cpu_synchronize_state(CPU(cpu));
+
+    env->external_htab = hpt;
+    ppc_hash64_set_sdr1(cpu, (target_ulong)(uintptr_t)hpt | (shift - 18),
+                        &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /* Not strictly necessary, but makes it clearer that an external
+     * htab is in use when debugging */
+    env->htab_base = -1;
+
+    if (kvm_enabled()) {
+        if (kvmppc_put_books_sregs(cpu) < 0) {
+            error_setg(errp, "Unable to update SDR1 in KVM");
+        }
+    }
+}
 
 static int ppc_hash64_pte_prot(PowerPCCPU *cpu,
                                ppc_slb_t *slb, ppc_hash_pte64_t pte)
