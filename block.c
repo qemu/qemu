@@ -1175,10 +1175,9 @@ static int bdrv_fill_options(QDict **options, const char *filename,
     return 0;
 }
 
-static BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
-                                    BlockDriverState *child_bs,
-                                    const char *child_name,
-                                    const BdrvChildRole *child_role)
+BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
+                                  const char *child_name,
+                                  const BdrvChildRole *child_role)
 {
     BdrvChild *child = g_new(BdrvChild, 1);
     *child = (BdrvChild) {
@@ -1187,24 +1186,43 @@ static BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
         .role   = child_role,
     };
 
-    QLIST_INSERT_HEAD(&parent_bs->children, child, next);
     QLIST_INSERT_HEAD(&child_bs->parents, child, next_parent);
 
     return child;
 }
 
+static BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
+                                    BlockDriverState *child_bs,
+                                    const char *child_name,
+                                    const BdrvChildRole *child_role)
+{
+    BdrvChild *child = bdrv_root_attach_child(child_bs, child_name, child_role);
+    QLIST_INSERT_HEAD(&parent_bs->children, child, next);
+    return child;
+}
+
 static void bdrv_detach_child(BdrvChild *child)
 {
-    QLIST_REMOVE(child, next);
+    if (child->next.le_prev) {
+        QLIST_REMOVE(child, next);
+        child->next.le_prev = NULL;
+    }
     QLIST_REMOVE(child, next_parent);
     g_free(child->name);
     g_free(child);
 }
 
-void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
+void bdrv_root_unref_child(BdrvChild *child)
 {
     BlockDriverState *child_bs;
 
+    child_bs = child->bs;
+    bdrv_detach_child(child);
+    bdrv_unref(child_bs);
+}
+
+void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
+{
     if (child == NULL) {
         return;
     }
@@ -1213,9 +1231,7 @@ void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
         child->bs->inherits_from = NULL;
     }
 
-    child_bs = child->bs;
-    bdrv_detach_child(child);
-    bdrv_unref(child_bs);
+    bdrv_root_unref_child(child);
 }
 
 /*
@@ -2255,6 +2271,14 @@ static void change_parent_backing_link(BlockDriverState *from,
 {
     BdrvChild *c, *next;
 
+    if (from->blk) {
+        /* FIXME We bypass blk_set_bs(), so we need to make these updates
+         * manually. The root problem is not in this change function, but the
+         * existence of BlockDriverState.blk. */
+        to->blk = from->blk;
+        from->blk = NULL;
+    }
+
     QLIST_FOREACH_SAFE(c, &from->parents, next_parent, next) {
         assert(c->role != &child_backing);
         c->bs = to;
@@ -2262,9 +2286,6 @@ static void change_parent_backing_link(BlockDriverState *from,
         QLIST_INSERT_HEAD(&to->parents, c, next_parent);
         bdrv_ref(to);
         bdrv_unref(from);
-    }
-    if (from->blk) {
-        blk_set_bs(from->blk, to);
     }
 }
 

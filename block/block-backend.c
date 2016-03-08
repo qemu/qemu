@@ -27,7 +27,7 @@ static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb);
 struct BlockBackend {
     char *name;
     int refcnt;
-    BlockDriverState *bs;
+    BdrvChild *root;
     DriveInfo *legacy_dinfo;    /* null unless created by drive_new() */
     QTAILQ_ENTRY(BlockBackend) link;         /* for block_backends */
     QTAILQ_ENTRY(BlockBackend) monitor_link; /* for monitor_block_backends */
@@ -79,6 +79,17 @@ static QTAILQ_HEAD(, BlockBackend) block_backends =
 static QTAILQ_HEAD(, BlockBackend) monitor_block_backends =
     QTAILQ_HEAD_INITIALIZER(monitor_block_backends);
 
+static void blk_root_inherit_options(int *child_flags, QDict *child_options,
+                                     int parent_flags, QDict *parent_options)
+{
+    /* We're not supposed to call this function for root nodes */
+    abort();
+}
+
+static const BdrvChildRole child_root = {
+    .inherit_options = blk_root_inherit_options,
+};
+
 /*
  * Create a new BlockBackend with a reference count of one.
  * Store an error through @errp on failure, unless it's null.
@@ -111,7 +122,7 @@ BlockBackend *blk_new_with_bs(Error **errp)
     }
 
     bs = bdrv_new_root();
-    blk->bs = bs;
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root);
     bs->blk = blk;
     return blk;
 }
@@ -140,7 +151,7 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
         return NULL;
     }
 
-    ret = bdrv_open(&blk->bs, filename, reference, options, flags, errp);
+    ret = bdrv_open(&blk->root->bs, filename, reference, options, flags, errp);
     if (ret < 0) {
         blk_unref(blk);
         return NULL;
@@ -154,7 +165,7 @@ static void blk_delete(BlockBackend *blk)
     assert(!blk->refcnt);
     assert(!blk->name);
     assert(!blk->dev);
-    if (blk->bs) {
+    if (blk->root) {
         blk_remove_bs(blk);
     }
     assert(QLIST_EMPTY(&blk->remove_bs_notifiers.notifiers));
@@ -226,7 +237,7 @@ void blk_remove_all_bs(void)
         AioContext *ctx = blk_get_aio_context(blk);
 
         aio_context_acquire(ctx);
-        if (blk->bs) {
+        if (blk->root) {
             blk_remove_bs(blk);
         }
         aio_context_release(ctx);
@@ -268,9 +279,9 @@ BlockDriverState *blk_next_root_bs(BlockDriverState *bs)
 
     do {
         blk = blk_all_next(blk);
-    } while (blk && !blk->bs);
+    } while (blk && !blk->root);
 
-    return blk ? blk->bs : NULL;
+    return blk ? blk->root->bs : NULL;
 }
 
 /*
@@ -354,7 +365,7 @@ BlockBackend *blk_by_name(const char *name)
  */
 BlockDriverState *blk_bs(BlockBackend *blk)
 {
-    return blk->bs;
+    return blk->root ? blk->root->bs : NULL;
 }
 
 /*
@@ -364,13 +375,13 @@ void blk_set_bs(BlockBackend *blk, BlockDriverState *bs)
 {
     bdrv_ref(bs);
 
-    if (blk->bs) {
-        blk->bs->blk = NULL;
-        bdrv_unref(blk->bs);
+    if (blk->root) {
+        blk->root->bs->blk = NULL;
+        bdrv_root_unref_child(blk->root);
     }
     assert(bs->blk == NULL);
 
-    blk->bs = bs;
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root);
     bs->blk = blk;
 }
 
@@ -414,15 +425,15 @@ BlockBackend *blk_by_legacy_dinfo(DriveInfo *dinfo)
  */
 void blk_remove_bs(BlockBackend *blk)
 {
-    assert(blk->bs->blk == blk);
+    assert(blk->root->bs->blk == blk);
 
     notifier_list_notify(&blk->remove_bs_notifiers, blk);
 
     blk_update_root_state(blk);
 
-    blk->bs->blk = NULL;
-    bdrv_unref(blk->bs);
-    blk->bs = NULL;
+    blk->root->bs->blk = NULL;
+    bdrv_root_unref_child(blk->root);
+    blk->root = NULL;
 }
 
 /*
@@ -430,9 +441,9 @@ void blk_remove_bs(BlockBackend *blk)
  */
 void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
 {
-    assert(!blk->bs && !bs->blk);
+    assert(!blk->root && !bs->blk);
     bdrv_ref(bs);
-    blk->bs = bs;
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root);
     bs->blk = blk;
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);
@@ -614,9 +625,10 @@ void blk_iostatus_disable(BlockBackend *blk)
 void blk_iostatus_reset(BlockBackend *blk)
 {
     if (blk_iostatus_is_enabled(blk)) {
+        BlockDriverState *bs = blk_bs(blk);
         blk->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
-        if (blk->bs && blk->bs->job) {
-            block_job_iostatus_reset(blk->bs->job);
+        if (bs && bs->job) {
+            block_job_iostatus_reset(bs->job);
         }
     }
 }
@@ -689,7 +701,7 @@ int blk_read(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
         return ret;
     }
 
-    return bdrv_read(blk->bs, sector_num, buf, nb_sectors);
+    return bdrv_read(blk_bs(blk), sector_num, buf, nb_sectors);
 }
 
 int blk_read_unthrottled(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
@@ -700,7 +712,7 @@ int blk_read_unthrottled(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
         return ret;
     }
 
-    return bdrv_read_unthrottled(blk->bs, sector_num, buf, nb_sectors);
+    return bdrv_read_unthrottled(blk_bs(blk), sector_num, buf, nb_sectors);
 }
 
 int blk_write(BlockBackend *blk, int64_t sector_num, const uint8_t *buf,
@@ -711,7 +723,7 @@ int blk_write(BlockBackend *blk, int64_t sector_num, const uint8_t *buf,
         return ret;
     }
 
-    return bdrv_write(blk->bs, sector_num, buf, nb_sectors);
+    return bdrv_write(blk_bs(blk), sector_num, buf, nb_sectors);
 }
 
 int blk_write_zeroes(BlockBackend *blk, int64_t sector_num,
@@ -722,7 +734,7 @@ int blk_write_zeroes(BlockBackend *blk, int64_t sector_num,
         return ret;
     }
 
-    return bdrv_write_zeroes(blk->bs, sector_num, nb_sectors, flags);
+    return bdrv_write_zeroes(blk_bs(blk), sector_num, nb_sectors, flags);
 }
 
 static void error_callback_bh(void *opaque)
@@ -760,7 +772,7 @@ BlockAIOCB *blk_aio_write_zeroes(BlockBackend *blk, int64_t sector_num,
         return blk_abort_aio_request(blk, cb, opaque, ret);
     }
 
-    return bdrv_aio_write_zeroes(blk->bs, sector_num, nb_sectors, flags,
+    return bdrv_aio_write_zeroes(blk_bs(blk), sector_num, nb_sectors, flags,
                                  cb, opaque);
 }
 
@@ -771,7 +783,7 @@ int blk_pread(BlockBackend *blk, int64_t offset, void *buf, int count)
         return ret;
     }
 
-    return bdrv_pread(blk->bs, offset, buf, count);
+    return bdrv_pread(blk_bs(blk), offset, buf, count);
 }
 
 int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count)
@@ -781,7 +793,7 @@ int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count)
         return ret;
     }
 
-    return bdrv_pwrite(blk->bs, offset, buf, count);
+    return bdrv_pwrite(blk_bs(blk), offset, buf, count);
 }
 
 int64_t blk_getlength(BlockBackend *blk)
@@ -790,15 +802,15 @@ int64_t blk_getlength(BlockBackend *blk)
         return -ENOMEDIUM;
     }
 
-    return bdrv_getlength(blk->bs);
+    return bdrv_getlength(blk_bs(blk));
 }
 
 void blk_get_geometry(BlockBackend *blk, uint64_t *nb_sectors_ptr)
 {
-    if (!blk->bs) {
+    if (!blk_bs(blk)) {
         *nb_sectors_ptr = 0;
     } else {
-        bdrv_get_geometry(blk->bs, nb_sectors_ptr);
+        bdrv_get_geometry(blk_bs(blk), nb_sectors_ptr);
     }
 }
 
@@ -808,7 +820,7 @@ int64_t blk_nb_sectors(BlockBackend *blk)
         return -ENOMEDIUM;
     }
 
-    return bdrv_nb_sectors(blk->bs);
+    return bdrv_nb_sectors(blk_bs(blk));
 }
 
 BlockAIOCB *blk_aio_readv(BlockBackend *blk, int64_t sector_num,
@@ -820,7 +832,7 @@ BlockAIOCB *blk_aio_readv(BlockBackend *blk, int64_t sector_num,
         return blk_abort_aio_request(blk, cb, opaque, ret);
     }
 
-    return bdrv_aio_readv(blk->bs, sector_num, iov, nb_sectors, cb, opaque);
+    return bdrv_aio_readv(blk_bs(blk), sector_num, iov, nb_sectors, cb, opaque);
 }
 
 BlockAIOCB *blk_aio_writev(BlockBackend *blk, int64_t sector_num,
@@ -832,7 +844,7 @@ BlockAIOCB *blk_aio_writev(BlockBackend *blk, int64_t sector_num,
         return blk_abort_aio_request(blk, cb, opaque, ret);
     }
 
-    return bdrv_aio_writev(blk->bs, sector_num, iov, nb_sectors, cb, opaque);
+    return bdrv_aio_writev(blk_bs(blk), sector_num, iov, nb_sectors, cb, opaque);
 }
 
 BlockAIOCB *blk_aio_flush(BlockBackend *blk,
@@ -842,7 +854,7 @@ BlockAIOCB *blk_aio_flush(BlockBackend *blk,
         return blk_abort_aio_request(blk, cb, opaque, -ENOMEDIUM);
     }
 
-    return bdrv_aio_flush(blk->bs, cb, opaque);
+    return bdrv_aio_flush(blk_bs(blk), cb, opaque);
 }
 
 BlockAIOCB *blk_aio_discard(BlockBackend *blk,
@@ -854,7 +866,7 @@ BlockAIOCB *blk_aio_discard(BlockBackend *blk,
         return blk_abort_aio_request(blk, cb, opaque, ret);
     }
 
-    return bdrv_aio_discard(blk->bs, sector_num, nb_sectors, cb, opaque);
+    return bdrv_aio_discard(blk_bs(blk), sector_num, nb_sectors, cb, opaque);
 }
 
 void blk_aio_cancel(BlockAIOCB *acb)
@@ -878,7 +890,7 @@ int blk_aio_multiwrite(BlockBackend *blk, BlockRequest *reqs, int num_reqs)
         }
     }
 
-    return bdrv_aio_multiwrite(blk->bs, reqs, num_reqs);
+    return bdrv_aio_multiwrite(blk_bs(blk), reqs, num_reqs);
 }
 
 int blk_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
@@ -887,7 +899,7 @@ int blk_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
         return -ENOMEDIUM;
     }
 
-    return bdrv_ioctl(blk->bs, req, buf);
+    return bdrv_ioctl(blk_bs(blk), req, buf);
 }
 
 BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
@@ -897,7 +909,7 @@ BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
         return blk_abort_aio_request(blk, cb, opaque, -ENOMEDIUM);
     }
 
-    return bdrv_aio_ioctl(blk->bs, req, buf, cb, opaque);
+    return bdrv_aio_ioctl(blk_bs(blk), req, buf, cb, opaque);
 }
 
 int blk_co_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors)
@@ -907,7 +919,7 @@ int blk_co_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors)
         return ret;
     }
 
-    return bdrv_co_discard(blk->bs, sector_num, nb_sectors);
+    return bdrv_co_discard(blk_bs(blk), sector_num, nb_sectors);
 }
 
 int blk_co_flush(BlockBackend *blk)
@@ -916,7 +928,7 @@ int blk_co_flush(BlockBackend *blk)
         return -ENOMEDIUM;
     }
 
-    return bdrv_co_flush(blk->bs);
+    return bdrv_co_flush(blk_bs(blk));
 }
 
 int blk_flush(BlockBackend *blk)
@@ -925,13 +937,13 @@ int blk_flush(BlockBackend *blk)
         return -ENOMEDIUM;
     }
 
-    return bdrv_flush(blk->bs);
+    return bdrv_flush(blk_bs(blk));
 }
 
 void blk_drain(BlockBackend *blk)
 {
-    if (blk->bs) {
-        bdrv_drain(blk->bs);
+    if (blk_bs(blk)) {
+        bdrv_drain(blk_bs(blk));
     }
 }
 
@@ -1019,8 +1031,10 @@ void blk_error_action(BlockBackend *blk, BlockErrorAction action,
 
 int blk_is_read_only(BlockBackend *blk)
 {
-    if (blk->bs) {
-        return bdrv_is_read_only(blk->bs);
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        return bdrv_is_read_only(bs);
     } else {
         return blk->root_state.read_only;
     }
@@ -1028,17 +1042,21 @@ int blk_is_read_only(BlockBackend *blk)
 
 int blk_is_sg(BlockBackend *blk)
 {
-    if (!blk->bs) {
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (!bs) {
         return 0;
     }
 
-    return bdrv_is_sg(blk->bs);
+    return bdrv_is_sg(bs);
 }
 
 int blk_enable_write_cache(BlockBackend *blk)
 {
-    if (blk->bs) {
-        return bdrv_enable_write_cache(blk->bs);
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        return bdrv_enable_write_cache(bs);
     } else {
         return !!(blk->root_state.open_flags & BDRV_O_CACHE_WB);
     }
@@ -1046,8 +1064,10 @@ int blk_enable_write_cache(BlockBackend *blk)
 
 void blk_set_enable_write_cache(BlockBackend *blk, bool wce)
 {
-    if (blk->bs) {
-        bdrv_set_enable_write_cache(blk->bs, wce);
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        bdrv_set_enable_write_cache(bs, wce);
     } else {
         if (wce) {
             blk->root_state.open_flags |= BDRV_O_CACHE_WB;
@@ -1059,17 +1079,21 @@ void blk_set_enable_write_cache(BlockBackend *blk, bool wce)
 
 void blk_invalidate_cache(BlockBackend *blk, Error **errp)
 {
-    if (!blk->bs) {
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (!bs) {
         error_setg(errp, "Device '%s' has no medium", blk->name);
         return;
     }
 
-    bdrv_invalidate_cache(blk->bs, errp);
+    bdrv_invalidate_cache(bs, errp);
 }
 
 bool blk_is_inserted(BlockBackend *blk)
 {
-    return blk->bs && bdrv_is_inserted(blk->bs);
+    BlockDriverState *bs = blk_bs(blk);
+
+    return bs && bdrv_is_inserted(bs);
 }
 
 bool blk_is_available(BlockBackend *blk)
@@ -1079,22 +1103,28 @@ bool blk_is_available(BlockBackend *blk)
 
 void blk_lock_medium(BlockBackend *blk, bool locked)
 {
-    if (blk->bs) {
-        bdrv_lock_medium(blk->bs, locked);
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        bdrv_lock_medium(bs, locked);
     }
 }
 
 void blk_eject(BlockBackend *blk, bool eject_flag)
 {
-    if (blk->bs) {
-        bdrv_eject(blk->bs, eject_flag);
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        bdrv_eject(bs, eject_flag);
     }
 }
 
 int blk_get_flags(BlockBackend *blk)
 {
-    if (blk->bs) {
-        return bdrv_get_flags(blk->bs);
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        return bdrv_get_flags(bs);
     } else {
         return blk->root_state.open_flags;
     }
@@ -1102,8 +1132,10 @@ int blk_get_flags(BlockBackend *blk)
 
 int blk_get_max_transfer_length(BlockBackend *blk)
 {
-    if (blk->bs) {
-        return blk->bs->bl.max_transfer_length;
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        return bs->bl.max_transfer_length;
     } else {
         return 0;
     }
@@ -1111,7 +1143,7 @@ int blk_get_max_transfer_length(BlockBackend *blk)
 
 int blk_get_max_iov(BlockBackend *blk)
 {
-    return blk->bs->bl.max_iov;
+    return blk->root->bs->bl.max_iov;
 }
 
 void blk_set_guest_block_size(BlockBackend *blk, int align)
@@ -1121,48 +1153,58 @@ void blk_set_guest_block_size(BlockBackend *blk, int align)
 
 void *blk_try_blockalign(BlockBackend *blk, size_t size)
 {
-    return qemu_try_blockalign(blk ? blk->bs : NULL, size);
+    return qemu_try_blockalign(blk ? blk_bs(blk) : NULL, size);
 }
 
 void *blk_blockalign(BlockBackend *blk, size_t size)
 {
-    return qemu_blockalign(blk ? blk->bs : NULL, size);
+    return qemu_blockalign(blk ? blk_bs(blk) : NULL, size);
 }
 
 bool blk_op_is_blocked(BlockBackend *blk, BlockOpType op, Error **errp)
 {
-    if (!blk->bs) {
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (!bs) {
         return false;
     }
 
-    return bdrv_op_is_blocked(blk->bs, op, errp);
+    return bdrv_op_is_blocked(bs, op, errp);
 }
 
 void blk_op_unblock(BlockBackend *blk, BlockOpType op, Error *reason)
 {
-    if (blk->bs) {
-        bdrv_op_unblock(blk->bs, op, reason);
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        bdrv_op_unblock(bs, op, reason);
     }
 }
 
 void blk_op_block_all(BlockBackend *blk, Error *reason)
 {
-    if (blk->bs) {
-        bdrv_op_block_all(blk->bs, reason);
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        bdrv_op_block_all(bs, reason);
     }
 }
 
 void blk_op_unblock_all(BlockBackend *blk, Error *reason)
 {
-    if (blk->bs) {
-        bdrv_op_unblock_all(blk->bs, reason);
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        bdrv_op_unblock_all(bs, reason);
     }
 }
 
 AioContext *blk_get_aio_context(BlockBackend *blk)
 {
-    if (blk->bs) {
-        return bdrv_get_aio_context(blk->bs);
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        return bdrv_get_aio_context(bs);
     } else {
         return qemu_get_aio_context();
     }
@@ -1176,8 +1218,10 @@ static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb)
 
 void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
 {
-    if (blk->bs) {
-        bdrv_set_aio_context(blk->bs, new_context);
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        bdrv_set_aio_context(bs, new_context);
     }
 }
 
@@ -1185,8 +1229,10 @@ void blk_add_aio_context_notifier(BlockBackend *blk,
         void (*attached_aio_context)(AioContext *new_context, void *opaque),
         void (*detach_aio_context)(void *opaque), void *opaque)
 {
-    if (blk->bs) {
-        bdrv_add_aio_context_notifier(blk->bs, attached_aio_context,
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        bdrv_add_aio_context_notifier(bs, attached_aio_context,
                                       detach_aio_context, opaque);
     }
 }
@@ -1197,8 +1243,10 @@ void blk_remove_aio_context_notifier(BlockBackend *blk,
                                      void (*detach_aio_context)(void *),
                                      void *opaque)
 {
-    if (blk->bs) {
-        bdrv_remove_aio_context_notifier(blk->bs, attached_aio_context,
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        bdrv_remove_aio_context_notifier(bs, attached_aio_context,
                                          detach_aio_context, opaque);
     }
 }
@@ -1215,15 +1263,19 @@ void blk_add_insert_bs_notifier(BlockBackend *blk, Notifier *notify)
 
 void blk_io_plug(BlockBackend *blk)
 {
-    if (blk->bs) {
-        bdrv_io_plug(blk->bs);
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        bdrv_io_plug(bs);
     }
 }
 
 void blk_io_unplug(BlockBackend *blk)
 {
-    if (blk->bs) {
-        bdrv_io_unplug(blk->bs);
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        bdrv_io_unplug(bs);
     }
 }
 
@@ -1246,7 +1298,7 @@ int coroutine_fn blk_co_write_zeroes(BlockBackend *blk, int64_t sector_num,
         return ret;
     }
 
-    return bdrv_co_write_zeroes(blk->bs, sector_num, nb_sectors, flags);
+    return bdrv_co_write_zeroes(blk_bs(blk), sector_num, nb_sectors, flags);
 }
 
 int blk_write_compressed(BlockBackend *blk, int64_t sector_num,
@@ -1257,7 +1309,7 @@ int blk_write_compressed(BlockBackend *blk, int64_t sector_num,
         return ret;
     }
 
-    return bdrv_write_compressed(blk->bs, sector_num, buf, nb_sectors);
+    return bdrv_write_compressed(blk_bs(blk), sector_num, buf, nb_sectors);
 }
 
 int blk_truncate(BlockBackend *blk, int64_t offset)
@@ -1266,7 +1318,7 @@ int blk_truncate(BlockBackend *blk, int64_t offset)
         return -ENOMEDIUM;
     }
 
-    return bdrv_truncate(blk->bs, offset);
+    return bdrv_truncate(blk_bs(blk), offset);
 }
 
 int blk_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors)
@@ -1276,7 +1328,7 @@ int blk_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors)
         return ret;
     }
 
-    return bdrv_discard(blk->bs, sector_num, nb_sectors);
+    return bdrv_discard(blk_bs(blk), sector_num, nb_sectors);
 }
 
 int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
@@ -1286,7 +1338,7 @@ int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
         return -ENOMEDIUM;
     }
 
-    return bdrv_save_vmstate(blk->bs, buf, pos, size);
+    return bdrv_save_vmstate(blk_bs(blk), buf, pos, size);
 }
 
 int blk_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size)
@@ -1295,7 +1347,7 @@ int blk_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size)
         return -ENOMEDIUM;
     }
 
-    return bdrv_load_vmstate(blk->bs, buf, pos, size);
+    return bdrv_load_vmstate(blk_bs(blk), buf, pos, size);
 }
 
 int blk_probe_blocksizes(BlockBackend *blk, BlockSizes *bsz)
@@ -1304,7 +1356,7 @@ int blk_probe_blocksizes(BlockBackend *blk, BlockSizes *bsz)
         return -ENOMEDIUM;
     }
 
-    return bdrv_probe_blocksizes(blk->bs, bsz);
+    return bdrv_probe_blocksizes(blk_bs(blk), bsz);
 }
 
 int blk_probe_geometry(BlockBackend *blk, HDGeometry *geo)
@@ -1313,7 +1365,7 @@ int blk_probe_geometry(BlockBackend *blk, HDGeometry *geo)
         return -ENOMEDIUM;
     }
 
-    return bdrv_probe_geometry(blk->bs, geo);
+    return bdrv_probe_geometry(blk_bs(blk), geo);
 }
 
 /*
@@ -1322,18 +1374,18 @@ int blk_probe_geometry(BlockBackend *blk, HDGeometry *geo)
  */
 void blk_update_root_state(BlockBackend *blk)
 {
-    assert(blk->bs);
+    assert(blk->root);
 
-    blk->root_state.open_flags    = blk->bs->open_flags;
-    blk->root_state.read_only     = blk->bs->read_only;
-    blk->root_state.detect_zeroes = blk->bs->detect_zeroes;
+    blk->root_state.open_flags    = blk->root->bs->open_flags;
+    blk->root_state.read_only     = blk->root->bs->read_only;
+    blk->root_state.detect_zeroes = blk->root->bs->detect_zeroes;
 
     if (blk->root_state.throttle_group) {
         g_free(blk->root_state.throttle_group);
         throttle_group_unref(blk->root_state.throttle_state);
     }
-    if (blk->bs->throttle_state) {
-        const char *name = throttle_group_get_name(blk->bs);
+    if (blk->root->bs->throttle_state) {
+        const char *name = throttle_group_get_name(blk->root->bs);
         blk->root_state.throttle_group = g_strdup(name);
         blk->root_state.throttle_state = throttle_group_incref(name);
     } else {
@@ -1382,8 +1434,8 @@ int blk_commit_all(void)
         AioContext *aio_context = blk_get_aio_context(blk);
 
         aio_context_acquire(aio_context);
-        if (blk_is_inserted(blk) && blk->bs->backing) {
-            int ret = bdrv_commit(blk->bs);
+        if (blk_is_inserted(blk) && blk->root->bs->backing) {
+            int ret = bdrv_commit(blk->root->bs);
             if (ret < 0) {
                 aio_context_release(aio_context);
                 return ret;

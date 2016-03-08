@@ -692,6 +692,11 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
 
 void hmp_drive_add_node(Monitor *mon, const char *optstr);
 
+BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
+                                  const char *child_name,
+                                  const BdrvChildRole *child_role);
+void bdrv_root_unref_child(BdrvChild *child);
+
 void blk_set_bs(BlockBackend *blk, BlockDriverState *bs);
 
 void blk_dev_change_media_cb(BlockBackend *blk, bool load);
