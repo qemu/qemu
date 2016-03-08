@@ -18,6 +18,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "block/block_int.h"
+#include "sysemu/block-backend.h"
 #include "qemu/module.h"
 #include "qemu/crc32c.h"
 #include "block/vhdx.h"
@@ -1772,7 +1773,7 @@ static int vhdx_create(const char *filename, QemuOpts *opts, Error **errp)
 
     gunichar2 *creator = NULL;
     glong creator_items;
-    BlockDriverState *bs;
+    BlockBackend *blk;
     char *type = NULL;
     VHDXImageType image_type;
     Error *local_err = NULL;
@@ -1837,14 +1838,16 @@ static int vhdx_create(const char *filename, QemuOpts *opts, Error **errp)
         goto exit;
     }
 
-    bs = NULL;
-    ret = bdrv_open(&bs, filename, NULL, NULL,
-                    BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
-                    &local_err);
-    if (ret < 0) {
+    blk = blk_new_open("image", filename, NULL, NULL,
+                       BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
+                       &local_err);
+    if (blk == NULL) {
         error_propagate(errp, local_err);
+        ret = -EIO;
         goto exit;
     }
+
+    blk_set_allow_write_beyond_eof(blk, true);
 
     /* Create (A) */
 
@@ -1853,13 +1856,13 @@ static int vhdx_create(const char *filename, QemuOpts *opts, Error **errp)
     creator = g_utf8_to_utf16("QEMU v" QEMU_VERSION, -1, NULL,
                               &creator_items, NULL);
     signature = cpu_to_le64(VHDX_FILE_SIGNATURE);
-    ret = bdrv_pwrite(bs, VHDX_FILE_ID_OFFSET, &signature, sizeof(signature));
+    ret = blk_pwrite(blk, VHDX_FILE_ID_OFFSET, &signature, sizeof(signature));
     if (ret < 0) {
         goto delete_and_exit;
     }
     if (creator) {
-        ret = bdrv_pwrite(bs, VHDX_FILE_ID_OFFSET + sizeof(signature),
-                          creator, creator_items * sizeof(gunichar2));
+        ret = blk_pwrite(blk, VHDX_FILE_ID_OFFSET + sizeof(signature),
+                         creator, creator_items * sizeof(gunichar2));
         if (ret < 0) {
             goto delete_and_exit;
         }
@@ -1867,13 +1870,13 @@ static int vhdx_create(const char *filename, QemuOpts *opts, Error **errp)
 
 
     /* Creates (B),(C) */
-    ret = vhdx_create_new_headers(bs, image_size, log_size);
+    ret = vhdx_create_new_headers(blk_bs(blk), image_size, log_size);
     if (ret < 0) {
         goto delete_and_exit;
     }
 
     /* Creates (D),(E),(G) explicitly. (F) created as by-product */
-    ret = vhdx_create_new_region_table(bs, image_size, block_size, 512,
+    ret = vhdx_create_new_region_table(blk_bs(blk), image_size, block_size, 512,
                                        log_size, use_zero_blocks, image_type,
                                        &metadata_offset);
     if (ret < 0) {
@@ -1881,7 +1884,7 @@ static int vhdx_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     /* Creates (H) */
-    ret = vhdx_create_new_metadata(bs, image_size, block_size, 512,
+    ret = vhdx_create_new_metadata(blk_bs(blk), image_size, block_size, 512,
                                    metadata_offset, image_type);
     if (ret < 0) {
         goto delete_and_exit;
@@ -1889,7 +1892,7 @@ static int vhdx_create(const char *filename, QemuOpts *opts, Error **errp)
 
 
 delete_and_exit:
-    bdrv_unref(bs);
+    blk_unref(blk);
 exit:
     g_free(type);
     g_free(creator);
