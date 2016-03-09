@@ -303,10 +303,6 @@ int qemu_openpty_raw(int *aslave, char *pty_name);
     sendto(sockfd, buf, len, flags, destaddr, addrlen)
 #endif
 
-/* Error handling.  */
-
-void QEMU_NORETURN hw_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
-
 struct ParallelIOArg {
     void *buffer;
     int count;
