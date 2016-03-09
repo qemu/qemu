@@ -310,15 +310,6 @@ struct ParallelIOArg {
 
 typedef int (*DMA_transfer_handler) (void *opaque, int nchan, int pos, int size);
 
-typedef uint64_t pcibus_t;
-
-typedef struct PCIHostDeviceAddress {
-    unsigned int domain;
-    unsigned int bus;
-    unsigned int slot;
-    unsigned int function;
-} PCIHostDeviceAddress;
-
 void tcg_exec_init(unsigned long tb_size);
 bool tcg_enabled(void);
 
