@@ -11,7 +11,7 @@ typedef struct I8257Regs {
     uint8_t pageh;
     uint8_t dack;
     uint8_t eop;
-    DMA_transfer_handler transfer_handler;
+    IsaDmaTransferHandler transfer_handler;
     void *opaque;
 } I8257Regs;
 

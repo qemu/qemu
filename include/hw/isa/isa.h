@@ -54,6 +54,9 @@ typedef enum {
     ISADMA_TRANSFER_ILLEGAL,
 } IsaDmaTransferMode;
 
+typedef int (*IsaDmaTransferHandler)(void *opaque, int nchan, int pos,
+                                     int size);
+
 typedef struct IsaDmaClass {
     InterfaceClass parent;
 
@@ -65,7 +68,7 @@ typedef struct IsaDmaClass {
     void (*release_DREQ)(IsaDma *obj, int nchan);
     void (*schedule)(IsaDma *obj);
     void (*register_channel)(IsaDma *obj, int nchan,
-                             DMA_transfer_handler transfer_handler,
+                             IsaDmaTransferHandler transfer_handler,
                              void *opaque);
 } IsaDmaClass;
 

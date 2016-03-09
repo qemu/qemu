@@ -294,8 +294,6 @@ int qemu_openpty_raw(int *aslave, char *pty_name);
     sendto(sockfd, buf, len, flags, destaddr, addrlen)
 #endif
 
-typedef int (*DMA_transfer_handler) (void *opaque, int nchan, int pos, int size);
-
 void tcg_exec_init(unsigned long tb_size);
 bool tcg_enabled(void);
 

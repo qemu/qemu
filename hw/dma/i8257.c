@@ -381,7 +381,7 @@ out:
 }
 
 static void i8257_dma_register_channel(IsaDma *obj, int nchan,
-                                       DMA_transfer_handler transfer_handler,
+                                       IsaDmaTransferHandler transfer_handler,
                                        void *opaque)
 {
     I8257State *d = I8257(obj);
