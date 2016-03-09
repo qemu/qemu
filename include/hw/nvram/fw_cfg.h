@@ -44,6 +44,9 @@
 
 #define FW_CFG_INVALID          0xffff
 
+/* width in bytes of fw_cfg control register */
+#define FW_CFG_CTL_SIZE         0x02
+
 #define FW_CFG_MAX_FILE_PATH    56
 
 #ifndef NO_QEMU_PROTOS

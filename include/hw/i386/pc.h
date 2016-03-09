@@ -266,6 +266,8 @@ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name);
 
 ISADevice *pc_find_fdc0(void);
 
+#define FW_CFG_IO_BASE     0x510
+
 /* acpi_piix.c */
 
 I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
