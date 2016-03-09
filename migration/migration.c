@@ -1269,8 +1269,7 @@ static void *source_return_path_thread(void *opaque)
     MigrationState *ms = opaque;
     QEMUFile *rp = ms->rp_state.from_dst_file;
     uint16_t header_len, header_type;
-    const int max_len = 512;
-    uint8_t buf[max_len];
+    uint8_t buf[512];
     uint32_t tmp32, sibling_error;
     ram_addr_t start = 0; /* =0 to silence warning */
     size_t  len = 0, expected_len;
@@ -1293,7 +1292,7 @@ static void *source_return_path_thread(void *opaque)
 
         if ((rp_cmd_args[header_type].len != -1 &&
             header_len != rp_cmd_args[header_type].len) ||
-            header_len > max_len) {
+            header_len > sizeof(buf)) {
             error_report("RP: Received '%s' message (0x%04x) with"
                     "incorrect length %d expecting %zu",
                     rp_cmd_args[header_type].name, header_type, header_len,
