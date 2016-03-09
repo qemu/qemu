@@ -46,6 +46,7 @@
 #include "hw/s390x/ipl.h"
 #include "hw/s390x/ebcdic.h"
 #include "exec/memattrs.h"
+#include "hw/s390x/s390-virtio-ccw.h"
 
 /* #define DEBUG_KVM */
 
@@ -135,6 +136,7 @@ static int cap_sync_regs;
 static int cap_async_pf;
 static int cap_mem_op;
 static int cap_s390_irq;
+static int cap_ri;
 
 static void *legacy_s390_alloc(size_t size, uint64_t *align);
 
@@ -270,6 +272,11 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_SIGP, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_VECTOR_REGISTERS, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_STSI, 0);
+    if (ri_allowed()) {
+        if (kvm_vm_enable_cap(s, KVM_CAP_S390_RI, 0) == 0) {
+            cap_ri = 1;
+        }
+    }
 
     return 0;
 }
@@ -384,6 +391,11 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         kvm_set_one_reg(cs, KVM_REG_S390_TODPR, &env->todpr);
         kvm_set_one_reg(cs, KVM_REG_S390_GBEA, &env->gbea);
         kvm_set_one_reg(cs, KVM_REG_S390_PP, &env->pp);
+    }
+
+    if (can_sync_regs(cs, KVM_SYNC_RICCB)) {
+        memcpy(cs->kvm_run->s.regs.riccb, env->riccb, 64);
+        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_RICCB;
     }
 
     /* pfault parameters */
@@ -526,6 +538,10 @@ int kvm_arch_get_registers(CPUState *cs)
         kvm_get_one_reg(cs, KVM_REG_S390_TODPR, &env->todpr);
         kvm_get_one_reg(cs, KVM_REG_S390_GBEA, &env->gbea);
         kvm_get_one_reg(cs, KVM_REG_S390_PP, &env->pp);
+    }
+
+    if (can_sync_regs(cs, KVM_SYNC_RICCB)) {
+        memcpy(env->riccb, cs->kvm_run->s.regs.riccb, 64);
     }
 
     /* pfault parameters */
@@ -2134,6 +2150,11 @@ int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
 int kvm_s390_get_memslot_count(KVMState *s)
 {
     return kvm_check_extension(s, KVM_CAP_NR_MEMSLOTS);
+}
+
+int kvm_s390_get_ri(void)
+{
+    return cap_ri;
 }
 
 int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state)

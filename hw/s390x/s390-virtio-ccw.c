@@ -190,7 +190,9 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
+    S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
 
+    s390mc->ri_allowed = true;
     mc->init = ccw_init;
     mc->reset = s390_machine_reset;
     mc->hot_add_cpu = s390_hot_add_cpu;
@@ -237,6 +239,20 @@ static inline void machine_set_dea_key_wrap(Object *obj, bool value,
     ms->dea_key_wrap = value;
 }
 
+bool ri_allowed(void)
+{
+    if (kvm_enabled()) {
+        MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+        if (object_class_dynamic_cast(OBJECT_CLASS(mc),
+                                      TYPE_S390_CCW_MACHINE)) {
+            S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+
+            return s390mc->ri_allowed;
+        }
+    }
+    return 0;
+}
+
 static inline void s390_machine_initfn(Object *obj)
 {
     object_property_add_bool(obj, "aes-key-wrap",
@@ -262,6 +278,7 @@ static const TypeInfo ccw_machine_info = {
     .abstract      = true,
     .instance_size = sizeof(S390CcwMachineState),
     .instance_init = s390_machine_initfn,
+    .class_size = sizeof(S390CcwMachineClass),
     .class_init    = ccw_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_NMI },
@@ -363,6 +380,9 @@ static void ccw_machine_2_6_instance_options(MachineState *machine)
 
 static void ccw_machine_2_6_class_options(MachineClass *mc)
 {
+    S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+
+    s390mc->ri_allowed = false;
     ccw_machine_2_7_class_options(mc);
     SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_6);
 }
