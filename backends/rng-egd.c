@@ -49,11 +49,10 @@ static void rng_egd_request_entropy(RngBackend *b, RngRequest *req)
 static int rng_egd_chr_can_read(void *opaque)
 {
     RngEgd *s = RNG_EGD(opaque);
-    GSList *i;
+    RngRequest *req;
     int size = 0;
 
-    for (i = s->parent.requests; i; i = i->next) {
-        RngRequest *req = i->data;
+    QSIMPLEQ_FOREACH(req, &s->parent.requests, next) {
         size += req->size - req->offset;
     }
 
@@ -65,8 +64,8 @@ static void rng_egd_chr_read(void *opaque, const uint8_t *buf, int size)
     RngEgd *s = RNG_EGD(opaque);
     size_t buf_offset = 0;
 
-    while (size > 0 && s->parent.requests) {
-        RngRequest *req = s->parent.requests->data;
+    while (size > 0 && !QSIMPLEQ_EMPTY(&s->parent.requests)) {
+        RngRequest *req = QSIMPLEQ_FIRST(&s->parent.requests);
         int len = MIN(size, req->size - req->offset);
 
         memcpy(req->data + req->offset, buf + buf_offset, len);

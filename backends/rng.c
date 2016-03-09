@@ -33,7 +33,7 @@ void rng_backend_request_entropy(RngBackend *s, size_t size,
 
         k->request_entropy(s, req);
 
-        s->requests = g_slist_append(s->requests, req);
+        QSIMPLEQ_INSERT_TAIL(&s->requests, req, next);
     }
 }
 
@@ -83,24 +83,27 @@ static void rng_backend_free_request(RngRequest *req)
 
 static void rng_backend_free_requests(RngBackend *s)
 {
-    GSList *i;
+    RngRequest *req, *next;
 
-    for (i = s->requests; i; i = i->next) {
-        rng_backend_free_request(i->data);
+    QSIMPLEQ_FOREACH_SAFE(req, &s->requests, next, next) {
+        rng_backend_free_request(req);
     }
 
-    g_slist_free(s->requests);
-    s->requests = NULL;
+    QSIMPLEQ_INIT(&s->requests);
 }
 
 void rng_backend_finalize_request(RngBackend *s, RngRequest *req)
 {
-    s->requests = g_slist_remove(s->requests, req);
+    QSIMPLEQ_REMOVE(&s->requests, req, RngRequest, next);
     rng_backend_free_request(req);
 }
 
 static void rng_backend_init(Object *obj)
 {
+    RngBackend *s = RNG_BACKEND(obj);
+
+    QSIMPLEQ_INIT(&s->requests);
+
     object_property_add_bool(obj, "opened",
                              rng_backend_prop_get_opened,
                              rng_backend_prop_set_opened,

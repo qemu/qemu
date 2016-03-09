@@ -35,8 +35,8 @@ static void entropy_available(void *opaque)
 {
     RndRandom *s = RNG_RANDOM(opaque);
 
-    while (s->parent.requests != NULL) {
-        RngRequest *req = s->parent.requests->data;
+    while (!QSIMPLEQ_EMPTY(&s->parent.requests)) {
+        RngRequest *req = QSIMPLEQ_FIRST(&s->parent.requests);
         ssize_t len;
 
         len = read(s->fd, req->data, req->size);
@@ -58,7 +58,7 @@ static void rng_random_request_entropy(RngBackend *b, RngRequest *req)
 {
     RndRandom *s = RNG_RANDOM(b);
 
-    if (s->parent.requests == NULL) {
+    if (QSIMPLEQ_EMPTY(&s->parent.requests)) {
         /* If there are no pending requests yet, we need to
          * install our fd handler. */
         qemu_set_fd_handler(s->fd, entropy_available, NULL, s);
