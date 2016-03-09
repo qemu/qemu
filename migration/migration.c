@@ -635,6 +635,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->ram->normal_bytes = norm_mig_bytes_transferred();
         info->ram->dirty_pages_rate = s->dirty_pages_rate;
         info->ram->mbps = s->mbps;
+        info->ram->dirty_sync_count = s->dirty_sync_count;
 
         if (blk_mig_active()) {
             info->has_disk = true;
