@@ -44,7 +44,8 @@ static void error_handle_fatal(Error **errp, Error *err)
 
 static void error_setv(Error **errp,
                        const char *src, int line, const char *func,
-                       ErrorClass err_class, const char *fmt, va_list ap)
+                       ErrorClass err_class, const char *fmt, va_list ap,
+                       const char *suffix)
 {
     Error *err;
     int saved_errno = errno;
@@ -56,6 +57,11 @@ static void error_setv(Error **errp,
 
     err = g_malloc0(sizeof(*err));
     err->msg = g_strdup_vprintf(fmt, ap);
+    if (suffix) {
+        char *msg = err->msg;
+        err->msg = g_strdup_printf("%s: %s", msg, suffix);
+        g_free(msg);
+    }
     err->err_class = err_class;
     err->src = src;
     err->line = line;
@@ -74,7 +80,7 @@ void error_set_internal(Error **errp,
     va_list ap;
 
     va_start(ap, fmt);
-    error_setv(errp, src, line, func, err_class, fmt, ap);
+    error_setv(errp, src, line, func, err_class, fmt, ap, NULL);
     va_end(ap);
 }
 
@@ -85,7 +91,7 @@ void error_setg_internal(Error **errp,
     va_list ap;
 
     va_start(ap, fmt);
-    error_setv(errp, src, line, func, ERROR_CLASS_GENERIC_ERROR, fmt, ap);
+    error_setv(errp, src, line, func, ERROR_CLASS_GENERIC_ERROR, fmt, ap, NULL);
     va_end(ap);
 }
 
@@ -94,7 +100,6 @@ void error_setg_errno_internal(Error **errp,
                                int os_errno, const char *fmt, ...)
 {
     va_list ap;
-    char *msg;
     int saved_errno = errno;
 
     if (errp == NULL) {
@@ -102,14 +107,9 @@ void error_setg_errno_internal(Error **errp,
     }
 
     va_start(ap, fmt);
-    error_setv(errp, src, line, func, ERROR_CLASS_GENERIC_ERROR, fmt, ap);
+    error_setv(errp, src, line, func, ERROR_CLASS_GENERIC_ERROR, fmt, ap,
+               os_errno != 0 ? strerror(os_errno) : NULL);
     va_end(ap);
-
-    if (os_errno != 0) {
-        msg = (*errp)->msg;
-        (*errp)->msg = g_strdup_printf("%s: %s", msg, strerror(os_errno));
-        g_free(msg);
-    }
 
     errno = saved_errno;
 }
@@ -174,24 +174,22 @@ void error_setg_win32_internal(Error **errp,
                                int win32_err, const char *fmt, ...)
 {
     va_list ap;
-    char *msg1, *msg2;
+    char *suffix = NULL;
 
     if (errp == NULL) {
         return;
     }
 
+    if (win32_err != 0) {
+        suffix = g_win32_error_message(win32_err);
+    }
+
     va_start(ap, fmt);
-    error_setv(errp, src, line, func, ERROR_CLASS_GENERIC_ERROR, fmt, ap);
+    error_setv(errp, src, line, func, ERROR_CLASS_GENERIC_ERROR,
+               fmt, ap, suffix);
     va_end(ap);
 
-    if (win32_err != 0) {
-        msg1 = (*errp)->msg;
-        msg2 = g_win32_error_message(win32_err);
-        (*errp)->msg = g_strdup_printf("%s: %s (error: %x)", msg1, msg2,
-                                       (unsigned)win32_err);
-        g_free(msg2);
-        g_free(msg1);
-    }
+    g_free(suffix);
 }
 
 #endif
