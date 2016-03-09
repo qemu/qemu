@@ -433,12 +433,11 @@ static void inotify_watchfn(void *arg)
     MTPState *s = arg;
     ssize_t bytes;
     /* From the man page: atleast one event can be read */
-    int len = sizeof(struct inotify_event) + NAME_MAX + 1;
     int pos;
-    char buf[len];
+    char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
 
     for (;;) {
-        bytes = read(s->inotifyfd, buf, len);
+        bytes = read(s->inotifyfd, buf, sizeof(buf));
         pos = 0;
 
         if (bytes <= 0) {
