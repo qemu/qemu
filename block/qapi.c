@@ -669,7 +669,7 @@ static void dump_qdict(fprintf_function func_fprintf, void *f, int indentation,
     for (entry = qdict_first(dict); entry; entry = qdict_next(dict, entry)) {
         QType type = qobject_type(entry->value);
         bool composite = (type == QTYPE_QDICT || type == QTYPE_QLIST);
-        char key[strlen(entry->key) + 1];
+        char *key = g_malloc(strlen(entry->key) + 1);
         int i;
 
         /* replace dashes with spaces in key (variable) names */
@@ -683,6 +683,7 @@ static void dump_qdict(fprintf_function func_fprintf, void *f, int indentation,
         if (!composite) {
             func_fprintf(f, "\n");
         }
+        g_free(key);
     }
 }
 
