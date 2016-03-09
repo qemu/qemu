@@ -1589,6 +1589,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
             if (err) {
                 error_propagate(errp, err);
                 qemu_mutex_unlock_ramlist();
+                return;
             }
         } else {
             new_block->host = phys_mem_alloc(new_block->max_length,
@@ -1598,6 +1599,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
                                  "cannot set up guest memory '%s'",
                                  memory_region_name(new_block->mr));
                 qemu_mutex_unlock_ramlist();
+                return;
             }
             memory_try_enable_merging(new_block->host, new_block->max_length);
         }
