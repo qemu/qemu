@@ -15,6 +15,8 @@
 #ifndef QEMU_RAW_AIO_H
 #define QEMU_RAW_AIO_H
 
+#include "qemu/iov.h"
+
 /* AIO request types */
 #define QEMU_AIO_READ         0x0001
 #define QEMU_AIO_WRITE        0x0002

@@ -2,7 +2,7 @@
 #define BLOCK_H
 
 #include "block/aio.h"
-#include "qemu-common.h"
+#include "qemu/iov.h"
 #include "qemu/option.h"
 #include "qemu/coroutine.h"
 #include "block/accounting.h"

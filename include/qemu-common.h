@@ -364,34 +364,6 @@ ssize_t qemu_co_send_recv(int sockfd, void *buf, size_t bytes, bool do_send);
 #define qemu_co_send(sockfd, buf, bytes) \
   qemu_co_send_recv(sockfd, buf, bytes, true)
 
-typedef struct QEMUIOVector {
-    struct iovec *iov;
-    int niov;
-    int nalloc;
-    size_t size;
-} QEMUIOVector;
-
-void qemu_iovec_init(QEMUIOVector *qiov, int alloc_hint);
-void qemu_iovec_init_external(QEMUIOVector *qiov, struct iovec *iov, int niov);
-void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len);
-void qemu_iovec_concat(QEMUIOVector *dst,
-                       QEMUIOVector *src, size_t soffset, size_t sbytes);
-size_t qemu_iovec_concat_iov(QEMUIOVector *dst,
-                             struct iovec *src_iov, unsigned int src_cnt,
-                             size_t soffset, size_t sbytes);
-bool qemu_iovec_is_zero(QEMUIOVector *qiov);
-void qemu_iovec_destroy(QEMUIOVector *qiov);
-void qemu_iovec_reset(QEMUIOVector *qiov);
-size_t qemu_iovec_to_buf(QEMUIOVector *qiov, size_t offset,
-                         void *buf, size_t bytes);
-size_t qemu_iovec_from_buf(QEMUIOVector *qiov, size_t offset,
-                           const void *buf, size_t bytes);
-size_t qemu_iovec_memset(QEMUIOVector *qiov, size_t offset,
-                         int fillc, size_t bytes);
-ssize_t qemu_iovec_compare(QEMUIOVector *a, QEMUIOVector *b);
-void qemu_iovec_clone(QEMUIOVector *dest, const QEMUIOVector *src, void *buf);
-void qemu_iovec_discard_back(QEMUIOVector *qiov, size_t bytes);
-
 bool buffer_is_zero(const void *buf, size_t len);
 
 void qemu_progress_init(int enabled, float min_skip);
