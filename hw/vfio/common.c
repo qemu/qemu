@@ -1093,51 +1093,6 @@ int vfio_get_region_info(VFIODevice *vbasedev, int index,
     return 0;
 }
 
-static int vfio_container_do_ioctl(AddressSpace *as, int32_t groupid,
-                                   int req, void *param)
-{
-    VFIOGroup *group;
-    VFIOContainer *container;
-    int ret = -1;
-
-    group = vfio_get_group(groupid, as);
-    if (!group) {
-        error_report("vfio: group %d not registered", groupid);
-        return ret;
-    }
-
-    container = group->container;
-    if (group->container) {
-        ret = ioctl(container->fd, req, param);
-        if (ret < 0) {
-            error_report("vfio: failed to ioctl %d to container: ret=%d, %s",
-                         _IOC_NR(req) - VFIO_BASE, ret, strerror(errno));
-        }
-    }
-
-    vfio_put_group(group);
-
-    return ret;
-}
-
-int vfio_container_ioctl(AddressSpace *as, int32_t groupid,
-                         int req, void *param)
-{
-    /* We allow only certain ioctls to the container */
-    switch (req) {
-    case VFIO_CHECK_EXTENSION:
-    case VFIO_IOMMU_SPAPR_TCE_GET_INFO:
-    case VFIO_EEH_PE_OP:
-        break;
-    default:
-        /* Return an error on unknown requests */
-        error_report("vfio: unsupported ioctl %X", req);
-        return -1;
-    }
-
-    return vfio_container_do_ioctl(as, groupid, req, param);
-}
-
 /*
  * Interfaces for IBM EEH (Enhanced Error Handling)
  */
