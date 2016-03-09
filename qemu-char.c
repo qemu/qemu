@@ -3121,10 +3121,6 @@ static bool qemu_chr_open_socket_fd(CharDriverState *chr, Error **errp)
         s->listen_ioc = sioc;
         s->listen_tag = qio_channel_add_watch(
             QIO_CHANNEL(s->listen_ioc), G_IO_IN, tcp_chr_accept, chr, NULL);
-    } else if (s->reconnect_time) {
-        qio_channel_socket_connect_async(sioc, s->addr,
-                                         qemu_chr_socket_connected,
-                                         chr, NULL);
     } else {
         if (qio_channel_socket_connect_sync(sioc, s->addr, errp) < 0) {
             goto fail;
@@ -4248,19 +4244,11 @@ static CharDriverState *qmp_chardev_open_parallel(const char *id,
 
 #endif /* WIN32 */
 
-static void socket_try_connect(CharDriverState *chr)
-{
-    Error *err = NULL;
-
-    if (!qemu_chr_open_socket_fd(chr, &err)) {
-        check_report_connect_error(chr, err);
-    }
-}
-
 static gboolean socket_reconnect_timeout(gpointer opaque)
 {
     CharDriverState *chr = opaque;
     TCPCharDriver *s = chr->opaque;
+    QIOChannelSocket *sioc;
 
     s->reconnect_timer = 0;
 
@@ -4268,7 +4256,10 @@ static gboolean socket_reconnect_timeout(gpointer opaque)
         return false;
     }
 
-    socket_try_connect(chr);
+    sioc = qio_channel_socket_new();
+    qio_channel_socket_connect_async(sioc, s->addr,
+                                     qemu_chr_socket_connected,
+                                     chr, NULL);
 
     return false;
 }
@@ -4288,6 +4279,7 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
     bool is_waitconnect = sock->has_wait    ? sock->wait    : false;
     int64_t reconnect   = sock->has_reconnect ? sock->reconnect : 0;
     ChardevCommon *common = qapi_ChardevSocket_base(sock);
+    QIOChannelSocket *sioc = NULL;
 
     chr = qemu_chr_alloc(common, errp);
     if (!chr) {
@@ -4358,7 +4350,10 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
     }
 
     if (s->reconnect_time) {
-        socket_try_connect(chr);
+        sioc = qio_channel_socket_new();
+        qio_channel_socket_connect_async(sioc, s->addr,
+                                         qemu_chr_socket_connected,
+                                         chr, NULL);
     } else if (!qemu_chr_open_socket_fd(chr, errp)) {
         goto error;
     }
