@@ -1219,6 +1219,7 @@ F: scripts/qmp/
 T: git git://repo.or.cz/qemu/armbru.git qapi-next
 
 SLIRP
+M: Samuel Thibault <samuel.thibault@ens-lyon.org>
 M: Jan Kiszka <jan.kiszka@siemens.com>
 S: Maintained
 F: slirp/
