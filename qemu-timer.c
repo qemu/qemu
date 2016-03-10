@@ -394,7 +394,9 @@ static bool timer_mod_ns_locked(QEMUTimerList *timer_list,
 static void timerlist_rearm(QEMUTimerList *timer_list)
 {
     /* Interrupt execution to force deadline recalculation.  */
-    qemu_clock_warp(timer_list->clock->type);
+    if (timer_list->clock->type == QEMU_CLOCK_VIRTUAL) {
+        qemu_start_warp_timer();
+    }
     timerlist_notify(timer_list);
 }
 

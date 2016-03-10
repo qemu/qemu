@@ -370,9 +370,12 @@ static void icount_warp_rt(void)
     }
 }
 
-static void icount_dummy_timer(void *opaque)
+static void icount_timer_cb(void *opaque)
 {
-    (void)opaque;
+    /* No need for a checkpoint because the timer already synchronizes
+     * with CHECKPOINT_CLOCK_VIRTUAL_RT.
+     */
+    icount_warp_rt();
 }
 
 void qtest_clock_warp(int64_t dest)
@@ -396,17 +399,12 @@ void qtest_clock_warp(int64_t dest)
     qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
 }
 
-void qemu_clock_warp(QEMUClockType type)
+void qemu_start_warp_timer(void)
 {
     int64_t clock;
     int64_t deadline;
 
-    /*
-     * There are too many global variables to make the "warp" behavior
-     * applicable to other clocks.  But a clock argument removes the
-     * need for if statements all over the place.
-     */
-    if (type != QEMU_CLOCK_VIRTUAL || !use_icount) {
+    if (!use_icount) {
         return;
     }
 
@@ -418,29 +416,17 @@ void qemu_clock_warp(QEMUClockType type)
     }
 
     /* warp clock deterministically in record/replay mode */
-    if (!replay_checkpoint(CHECKPOINT_CLOCK_WARP)) {
+    if (!replay_checkpoint(CHECKPOINT_CLOCK_WARP_START)) {
         return;
     }
 
-    if (icount_sleep) {
-        /*
-         * If the CPUs have been sleeping, advance QEMU_CLOCK_VIRTUAL timer now.
-         * This ensures that the deadline for the timer is computed correctly
-         * below.
-         * This also makes sure that the insn counter is synchronized before
-         * the CPU starts running, in case the CPU is woken by an event other
-         * than the earliest QEMU_CLOCK_VIRTUAL timer.
-         */
-        icount_warp_rt();
-        timer_del(icount_warp_timer);
-    }
     if (!all_cpu_threads_idle()) {
         return;
     }
 
     if (qtest_enabled()) {
         /* When testing, qtest commands advance icount.  */
-	return;
+        return;
     }
 
     /* We want to use the earliest deadline from ALL vm_clocks */
@@ -494,6 +480,28 @@ void qemu_clock_warp(QEMUClockType type)
     } else if (deadline == 0) {
         qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
     }
+}
+
+static void qemu_account_warp_timer(void)
+{
+    if (!use_icount || !icount_sleep) {
+        return;
+    }
+
+    /* Nothing to do if the VM is stopped: QEMU_CLOCK_VIRTUAL timers
+     * do not fire, so computing the deadline does not make sense.
+     */
+    if (!runstate_is_running()) {
+        return;
+    }
+
+    /* warp clock deterministically in record/replay mode */
+    if (!replay_checkpoint(CHECKPOINT_CLOCK_WARP_ACCOUNT)) {
+        return;
+    }
+
+    timer_del(icount_warp_timer);
+    icount_warp_rt();
 }
 
 static bool icount_state_needed(void *opaque)
@@ -624,7 +632,7 @@ void configure_icount(QemuOpts *opts, Error **errp)
     icount_sleep = qemu_opt_get_bool(opts, "sleep", true);
     if (icount_sleep) {
         icount_warp_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL_RT,
-                                         icount_dummy_timer, NULL);
+                                         icount_timer_cb, NULL);
     }
 
     icount_align_option = qemu_opt_get_bool(opts, "align", false);
@@ -1496,7 +1504,7 @@ static void tcg_exec_all(void)
     int r;
 
     /* Account partial waits to QEMU_CLOCK_VIRTUAL.  */
-    qemu_clock_warp(QEMU_CLOCK_VIRTUAL);
+    qemu_account_warp_timer();
 
     if (next_cpu == NULL) {
         next_cpu = first_cpu;

@@ -210,12 +210,11 @@ void qemu_clock_notify(QEMUClockType type);
 void qemu_clock_enable(QEMUClockType type, bool enabled);
 
 /**
- * qemu_clock_warp:
- * @type: the clock type
+ * qemu_start_warp_timer:
  *
- * Warp a clock to a new value
+ * Starts a timer for virtual clock update
  */
-void qemu_clock_warp(QEMUClockType type);
+void qemu_start_warp_timer(void);
 
 /**
  * qemu_clock_register_reset_notifier:

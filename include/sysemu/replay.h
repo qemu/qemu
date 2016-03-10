@@ -27,7 +27,8 @@ typedef enum ReplayClockKind ReplayClockKind;
 
 /* IDs of the checkpoints */
 enum ReplayCheckpoint {
-    CHECKPOINT_CLOCK_WARP,
+    CHECKPOINT_CLOCK_WARP_START,
+    CHECKPOINT_CLOCK_WARP_ACCOUNT,
     CHECKPOINT_RESET_REQUESTED,
     CHECKPOINT_SUSPEND_REQUESTED,
     CHECKPOINT_CLOCK_VIRTUAL,
