@@ -14,8 +14,7 @@
 #include "libqos/malloc-pc.h"
 #include "libqos/fw_cfg.h"
 
-#define NO_QEMU_PROTOS
-#include "hw/nvram/fw_cfg.h"
+#include "hw/nvram/fw_cfg_keys.h"
 
 #include "qemu-common.h"
 #include <glib.h>
