@@ -466,8 +466,7 @@ static ssize_t qio_channel_socket_readv(QIOChannel *ioc,
  retry:
     ret = recvmsg(sioc->fd, &msg, sflags);
     if (ret < 0) {
-        if (socket_error() == EAGAIN ||
-            socket_error() == EWOULDBLOCK) {
+        if (socket_error() == EAGAIN) {
             return QIO_CHANNEL_ERR_BLOCK;
         }
         if (socket_error() == EINTR) {
@@ -526,8 +525,7 @@ static ssize_t qio_channel_socket_writev(QIOChannel *ioc,
  retry:
     ret = sendmsg(sioc->fd, &msg, 0);
     if (ret <= 0) {
-        if (socket_error() == EAGAIN ||
-            socket_error() == EWOULDBLOCK) {
+        if (socket_error() == EAGAIN) {
             return QIO_CHANNEL_ERR_BLOCK;
         }
         if (socket_error() == EINTR) {
