@@ -1690,34 +1690,27 @@ static const uint8_t init_sdrs[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc8,
     'W',  'a',  't',  'c',  'h',  'd',  'o',  'g',
-    /* End */
-    0xff, 0xff, 0x00, 0x00, 0x00
 };
 
 static void ipmi_sdr_init(IPMIBmcSim *ibs)
 {
     unsigned int i;
-    unsigned int recid;
+    int len;
 
-    for (i = 0;;) {
+    for (i = 0; i < sizeof(init_sdrs); i += len) {
         struct ipmi_sdr_header *sdrh;
-        int len;
+
         if ((i + IPMI_SDR_HEADER_SIZE) > sizeof(init_sdrs)) {
             error_report("Problem with recid 0x%4.4x", i);
             return;
         }
         sdrh = (struct ipmi_sdr_header *) &init_sdrs[i];
         len = ipmi_sdr_length(sdrh);
-        recid = ipmi_sdr_recid(sdrh);
-        if (recid == 0xffff) {
-            break;
-        }
         if ((i + len) > sizeof(init_sdrs)) {
             error_report("Problem with recid 0x%4.4x", i);
             return;
         }
         sdr_add_entry(ibs, sdrh, len, NULL);
-        i += len;
     }
 }
 
