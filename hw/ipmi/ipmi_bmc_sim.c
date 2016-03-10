@@ -270,11 +270,16 @@ struct RspBuffer {
 
 #define RSP_BUFFER_INITIALIZER { }
 
+static inline void rsp_buffer_set_error(RspBuffer *rsp, uint8_t byte)
+{
+    rsp->buffer[2] = byte;
+}
+
 /* Add a byte to the response. */
 static inline void rsp_buffer_push(RspBuffer *rsp, uint8_t byte)
 {
     if (rsp->len >= sizeof(rsp->buffer)) {
-        rsp->buffer[2] = IPMI_CC_REQUEST_DATA_TRUNCATED;
+        rsp_buffer_set_error(rsp, IPMI_CC_REQUEST_DATA_TRUNCATED);
         return;
     }
     rsp->buffer[rsp->len++] = byte;
@@ -284,7 +289,7 @@ static inline void rsp_buffer_pushmore(RspBuffer *rsp, uint8_t *bytes,
                                        unsigned int n)
 {
     if (rsp->len + n >= sizeof(rsp->buffer)) {
-        rsp->buffer[2] = IPMI_CC_REQUEST_DATA_TRUNCATED;
+        rsp_buffer_set_error(rsp, IPMI_CC_REQUEST_DATA_TRUNCATED);
         return;
     }
 
@@ -620,7 +625,7 @@ static void ipmi_sim_handle_command(IPMIBmc *b,
     /* Set up the response, set the low bit of NETFN. */
     /* Note that max_rsp_len must be at least 3 */
     if (sizeof(rsp.buffer) < 3) {
-        rsp.buffer[2] = IPMI_CC_REQUEST_DATA_TRUNCATED;
+        rsp_buffer_set_error(&rsp, IPMI_CC_REQUEST_DATA_TRUNCATED);
         goto out;
     }
 
@@ -630,28 +635,28 @@ static void ipmi_sim_handle_command(IPMIBmc *b,
 
     /* If it's too short or it was truncated, return an error. */
     if (cmd_len < 2) {
-        rsp.buffer[2] = IPMI_CC_REQUEST_DATA_LENGTH_INVALID;
+        rsp_buffer_set_error(&rsp, IPMI_CC_REQUEST_DATA_LENGTH_INVALID);
         goto out;
     }
     if (cmd_len > max_cmd_len) {
-        rsp.buffer[2] = IPMI_CC_REQUEST_DATA_TRUNCATED;
+        rsp_buffer_set_error(&rsp, IPMI_CC_REQUEST_DATA_TRUNCATED);
         goto out;
     }
 
     if ((cmd[0] & 0x03) != 0) {
         /* Only have stuff on LUN 0 */
-        rsp.buffer[2] = IPMI_CC_COMMAND_INVALID_FOR_LUN;
+        rsp_buffer_set_error(&rsp, IPMI_CC_COMMAND_INVALID_FOR_LUN);
         goto out;
     }
 
     hdl = ipmi_get_handler(ibs, cmd[0] >> 2, cmd[1]);
     if (!hdl) {
-        rsp.buffer[2] = IPMI_CC_INVALID_CMD;
+        rsp_buffer_set_error(&rsp, IPMI_CC_INVALID_CMD);
         goto out;
     }
 
     if (cmd_len < hdl->cmd_len_min) {
-        rsp.buffer[2] = IPMI_CC_REQUEST_DATA_LENGTH_INVALID;
+        rsp_buffer_set_error(&rsp, IPMI_CC_REQUEST_DATA_LENGTH_INVALID);
         goto out;
     }
 
@@ -761,26 +766,26 @@ static void chassis_control(IPMIBmcSim *ibs,
 
     switch (cmd[2] & 0xf) {
     case 0: /* power down */
-        rsp->buffer[2] = k->do_hw_op(s, IPMI_POWEROFF_CHASSIS, 0);
+        rsp_buffer_set_error(rsp, k->do_hw_op(s, IPMI_POWEROFF_CHASSIS, 0));
         break;
     case 1: /* power up */
-        rsp->buffer[2] = k->do_hw_op(s, IPMI_POWERON_CHASSIS, 0);
+        rsp_buffer_set_error(rsp, k->do_hw_op(s, IPMI_POWERON_CHASSIS, 0));
         break;
     case 2: /* power cycle */
-        rsp->buffer[2] = k->do_hw_op(s, IPMI_POWERCYCLE_CHASSIS, 0);
+        rsp_buffer_set_error(rsp, k->do_hw_op(s, IPMI_POWERCYCLE_CHASSIS, 0));
         break;
     case 3: /* hard reset */
-        rsp->buffer[2] = k->do_hw_op(s, IPMI_RESET_CHASSIS, 0);
+        rsp_buffer_set_error(rsp, k->do_hw_op(s, IPMI_RESET_CHASSIS, 0));
         break;
     case 4: /* pulse diagnostic interrupt */
-        rsp->buffer[2] = k->do_hw_op(s, IPMI_PULSE_DIAG_IRQ, 0);
+        rsp_buffer_set_error(rsp, k->do_hw_op(s, IPMI_PULSE_DIAG_IRQ, 0));
         break;
     case 5: /* soft shutdown via ACPI by overtemp emulation */
-        rsp->buffer[2] = k->do_hw_op(s,
-                             IPMI_SHUTDOWN_VIA_ACPI_OVERTEMP, 0);
+        rsp_buffer_set_error(rsp, k->do_hw_op(s,
+                                          IPMI_SHUTDOWN_VIA_ACPI_OVERTEMP, 0));
         break;
     default:
-        rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
         return;
     }
 }
@@ -919,7 +924,7 @@ static void read_evt_msg_buf(IPMIBmcSim *ibs,
     unsigned int i;
 
     if (!(ibs->msg_flags & IPMI_BMC_MSG_FLAG_EVT_BUF_FULL)) {
-        rsp->buffer[2] = 0x80;
+        rsp_buffer_set_error(rsp, 0x80);
         return;
     }
     for (i = 0; i < 16; i++) {
@@ -937,7 +942,7 @@ static void get_msg(IPMIBmcSim *ibs,
 
     qemu_mutex_lock(&ibs->lock);
     if (QTAILQ_EMPTY(&ibs->rcvbufs)) {
-        rsp->buffer[2] = 0x80; /* Queue empty */
+        rsp_buffer_set_error(rsp, 0x80); /* Queue empty */
         goto out;
     }
     rsp_buffer_push(rsp, 0); /* Channel 0 */
@@ -981,18 +986,18 @@ static void send_msg(IPMIBmcSim *ibs,
 
     if (cmd[2] != 0) {
         /* We only handle channel 0 with no options */
-        rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
         return;
     }
 
     if (cmd_len < 10) {
-        rsp->buffer[2] = IPMI_CC_REQUEST_DATA_LENGTH_INVALID;
+        rsp_buffer_set_error(rsp, IPMI_CC_REQUEST_DATA_LENGTH_INVALID);
         return;
     }
 
     if (cmd[3] != 0x40) {
         /* We only emulate a MC at address 0x40. */
-        rsp->buffer[2] = 0x83; /* NAK on write */
+        rsp_buffer_set_error(rsp, 0x83); /* NAK on write */
         return;
     }
 
@@ -1081,7 +1086,7 @@ static void reset_watchdog_timer(IPMIBmcSim *ibs,
                                  RspBuffer *rsp)
 {
     if (!ibs->watchdog_initialized) {
-        rsp->buffer[2] = 0x80;
+        rsp_buffer_set_error(rsp, 0x80);
         return;
     }
     do_watchdog_reset(ibs);
@@ -1097,7 +1102,7 @@ static void set_watchdog_timer(IPMIBmcSim *ibs,
 
     val = cmd[2] & 0x7; /* Validate use */
     if (val == 0 || val > 5) {
-        rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
         return;
     }
     val = cmd[3] & 0x7; /* Validate action */
@@ -1106,22 +1111,22 @@ static void set_watchdog_timer(IPMIBmcSim *ibs,
         break;
 
     case IPMI_BMC_WATCHDOG_ACTION_RESET:
-        rsp->buffer[2] = k->do_hw_op(s, IPMI_RESET_CHASSIS, 1);
+        rsp_buffer_set_error(rsp, k->do_hw_op(s, IPMI_RESET_CHASSIS, 1));
         break;
 
     case IPMI_BMC_WATCHDOG_ACTION_POWER_DOWN:
-        rsp->buffer[2] = k->do_hw_op(s, IPMI_POWEROFF_CHASSIS, 1);
+        rsp_buffer_set_error(rsp, k->do_hw_op(s, IPMI_POWEROFF_CHASSIS, 1));
         break;
 
     case IPMI_BMC_WATCHDOG_ACTION_POWER_CYCLE:
-        rsp->buffer[2] = k->do_hw_op(s, IPMI_POWERCYCLE_CHASSIS, 1);
+        rsp_buffer_set_error(rsp, k->do_hw_op(s, IPMI_POWERCYCLE_CHASSIS, 1));
         break;
 
     default:
-        rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
     }
     if (rsp->buffer[2]) {
-        rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
         return;
     }
 
@@ -1134,14 +1139,14 @@ static void set_watchdog_timer(IPMIBmcSim *ibs,
     case IPMI_BMC_WATCHDOG_PRE_NMI:
         if (!k->do_hw_op(s, IPMI_SEND_NMI, 1)) {
             /* NMI not supported. */
-            rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
+            rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
             return;
         }
         break;
 
     default:
         /* We don't support PRE_SMI */
-        rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
         return;
     }
 
@@ -1217,7 +1222,7 @@ static void get_sdr(IPMIBmcSim *ibs,
 
     if (cmd[6]) {
         if ((cmd[2] | (cmd[3] << 8)) != ibs->sdr.reservation) {
-            rsp->buffer[2] = IPMI_CC_INVALID_RESERVATION;
+            rsp_buffer_set_error(rsp, IPMI_CC_INVALID_RESERVATION);
             return;
         }
     }
@@ -1225,14 +1230,14 @@ static void get_sdr(IPMIBmcSim *ibs,
     pos = 0;
     if (sdr_find_entry(&ibs->sdr, cmd[4] | (cmd[5] << 8),
                        &pos, &nextrec)) {
-        rsp->buffer[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
+        rsp_buffer_set_error(rsp, IPMI_CC_REQ_ENTRY_NOT_PRESENT);
         return;
     }
 
     sdrh = (struct ipmi_sdr_header *) &ibs->sdr.sdr[pos];
 
     if (cmd[6] > ipmi_sdr_length(sdrh)) {
-        rsp->buffer[2] = IPMI_CC_PARM_OUT_OF_RANGE;
+        rsp_buffer_set_error(rsp, IPMI_CC_PARM_OUT_OF_RANGE);
         return;
     }
 
@@ -1244,7 +1249,7 @@ static void get_sdr(IPMIBmcSim *ibs,
     }
 
     if ((cmd[7] + rsp->len) > sizeof(rsp->buffer)) {
-        rsp->buffer[2] = IPMI_CC_CANNOT_RETURN_REQ_NUM_BYTES;
+        rsp_buffer_set_error(rsp, IPMI_CC_CANNOT_RETURN_REQ_NUM_BYTES);
         return;
     }
 
@@ -1259,7 +1264,7 @@ static void add_sdr(IPMIBmcSim *ibs,
     struct ipmi_sdr_header *sdrh = (struct ipmi_sdr_header *) cmd + 2;
 
     if (sdr_add_entry(ibs, sdrh, cmd_len - 2, &recid)) {
-        rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
         return;
     }
     rsp_buffer_push(rsp, recid & 0xff);
@@ -1271,12 +1276,12 @@ static void clear_sdr_rep(IPMIBmcSim *ibs,
                           RspBuffer *rsp)
 {
     if ((cmd[2] | (cmd[3] << 8)) != ibs->sdr.reservation) {
-        rsp->buffer[2] = IPMI_CC_INVALID_RESERVATION;
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_RESERVATION);
         return;
     }
 
     if (cmd[4] != 'C' || cmd[5] != 'L' || cmd[6] != 'R') {
-        rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
         return;
     }
     if (cmd[7] == 0xaa) {
@@ -1288,7 +1293,7 @@ static void clear_sdr_rep(IPMIBmcSim *ibs,
     } else if (cmd[7] == 0) {
         rsp_buffer_push(rsp, 1); /* Erasure complete */
     } else {
-        rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
         return;
     }
 }
@@ -1331,22 +1336,22 @@ static void get_sel_entry(IPMIBmcSim *ibs,
 
     if (cmd[6]) {
         if ((cmd[2] | (cmd[3] << 8)) != ibs->sel.reservation) {
-            rsp->buffer[2] = IPMI_CC_INVALID_RESERVATION;
+            rsp_buffer_set_error(rsp, IPMI_CC_INVALID_RESERVATION);
             return;
         }
     }
     if (ibs->sel.next_free == 0) {
-        rsp->buffer[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
+        rsp_buffer_set_error(rsp, IPMI_CC_REQ_ENTRY_NOT_PRESENT);
         return;
     }
     if (cmd[6] > 15) {
-        rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
         return;
     }
     if (cmd[7] == 0xff) {
         cmd[7] = 16;
     } else if ((cmd[7] + cmd[6]) > 16) {
-        rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
         return;
     } else {
         cmd[7] += cmd[6];
@@ -1356,7 +1361,7 @@ static void get_sel_entry(IPMIBmcSim *ibs,
     if (val == 0xffff) {
         val = ibs->sel.next_free - 1;
     } else if (val >= ibs->sel.next_free) {
-        rsp->buffer[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
+        rsp_buffer_set_error(rsp, IPMI_CC_REQ_ENTRY_NOT_PRESENT);
         return;
     }
     if ((val + 1) == ibs->sel.next_free) {
@@ -1376,7 +1381,7 @@ static void add_sel_entry(IPMIBmcSim *ibs,
                           RspBuffer *rsp)
 {
     if (sel_add_event(ibs, cmd + 2)) {
-        rsp->buffer[2] = IPMI_CC_OUT_OF_SPACE;
+        rsp_buffer_set_error(rsp, IPMI_CC_OUT_OF_SPACE);
         return;
     }
     /* sel_add_event fills in the record number. */
@@ -1389,12 +1394,12 @@ static void clear_sel(IPMIBmcSim *ibs,
                       RspBuffer *rsp)
 {
     if ((cmd[2] | (cmd[3] << 8)) != ibs->sel.reservation) {
-        rsp->buffer[2] = IPMI_CC_INVALID_RESERVATION;
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_RESERVATION);
         return;
     }
 
     if (cmd[4] != 'C' || cmd[5] != 'L' || cmd[6] != 'R') {
-        rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
         return;
     }
     if (cmd[7] == 0xaa) {
@@ -1406,7 +1411,7 @@ static void clear_sel(IPMIBmcSim *ibs,
     } else if (cmd[7] == 0) {
         rsp_buffer_push(rsp, 1); /* Erasure complete */
     } else {
-        rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
         return;
     }
 }
@@ -1446,7 +1451,7 @@ static void set_sensor_evt_enable(IPMIBmcSim *ibs,
 
     if ((cmd[2] >= MAX_SENSORS) ||
             !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
-        rsp->buffer[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
+        rsp_buffer_set_error(rsp, IPMI_CC_REQ_ENTRY_NOT_PRESENT);
         return;
     }
     sens = ibs->sensors + cmd[2];
@@ -1482,7 +1487,7 @@ static void set_sensor_evt_enable(IPMIBmcSim *ibs,
         }
         break;
     case 3:
-        rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
         return;
     }
     IPMI_SENSOR_SET_RET_STATUS(sens, cmd[3]);
@@ -1496,7 +1501,7 @@ static void get_sensor_evt_enable(IPMIBmcSim *ibs,
 
     if ((cmd[2] >= MAX_SENSORS) ||
         !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
-        rsp->buffer[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
+        rsp_buffer_set_error(rsp, IPMI_CC_REQ_ENTRY_NOT_PRESENT);
         return;
     }
     sens = ibs->sensors + cmd[2];
@@ -1515,7 +1520,7 @@ static void rearm_sensor_evts(IPMIBmcSim *ibs,
 
     if ((cmd[2] >= MAX_SENSORS) ||
         !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
-        rsp->buffer[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
+        rsp_buffer_set_error(rsp, IPMI_CC_REQ_ENTRY_NOT_PRESENT);
         return;
     }
     sens = ibs->sensors + cmd[2];
@@ -1535,7 +1540,7 @@ static void get_sensor_evt_status(IPMIBmcSim *ibs,
 
     if ((cmd[2] >= MAX_SENSORS) ||
         !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
-        rsp->buffer[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
+        rsp_buffer_set_error(rsp, IPMI_CC_REQ_ENTRY_NOT_PRESENT);
         return;
     }
     sens = ibs->sensors + cmd[2];
@@ -1555,7 +1560,7 @@ static void get_sensor_reading(IPMIBmcSim *ibs,
 
     if ((cmd[2] >= MAX_SENSORS) ||
             !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
-        rsp->buffer[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
+        rsp_buffer_set_error(rsp, IPMI_CC_REQ_ENTRY_NOT_PRESENT);
         return;
     }
     sens = ibs->sensors + cmd[2];
@@ -1576,7 +1581,7 @@ static void set_sensor_type(IPMIBmcSim *ibs,
 
     if ((cmd[2] >= MAX_SENSORS) ||
             !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
-        rsp->buffer[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
+        rsp_buffer_set_error(rsp, IPMI_CC_REQ_ENTRY_NOT_PRESENT);
         return;
     }
     sens = ibs->sensors + cmd[2];
@@ -1593,7 +1598,7 @@ static void get_sensor_type(IPMIBmcSim *ibs,
 
     if ((cmd[2] >= MAX_SENSORS) ||
             !IPMI_SENSOR_GET_PRESENT(ibs->sensors + cmd[2])) {
-        rsp->buffer[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
+        rsp_buffer_set_error(rsp, IPMI_CC_REQ_ENTRY_NOT_PRESENT);
         return;
     }
     sens = ibs->sensors + cmd[2];
