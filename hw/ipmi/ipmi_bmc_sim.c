@@ -1683,7 +1683,7 @@ static void register_cmds(IPMIBmcSim *s)
     ipmi_register_netfn(s, IPMI_NETFN_STORAGE, &storage_netfn);
 }
 
-static const uint8_t init_sdrs[] = {
+static uint8_t init_sdrs[] = {
     /* Watchdog device */
     0x00, 0x00, 0x51, 0x02,   35, 0x20, 0x00, 0x00,
     0x23, 0x01, 0x63, 0x00, 0x23, 0x6f, 0x0f, 0x01,
@@ -1696,17 +1696,22 @@ static void ipmi_sdr_init(IPMIBmcSim *ibs)
 {
     unsigned int i;
     int len;
+    size_t sdrs_size;
+    uint8_t *sdrs;
 
-    for (i = 0; i < sizeof(init_sdrs); i += len) {
+    sdrs_size = sizeof(init_sdrs);
+    sdrs = init_sdrs;
+
+    for (i = 0; i < sdrs_size; i += len) {
         struct ipmi_sdr_header *sdrh;
 
-        if ((i + IPMI_SDR_HEADER_SIZE) > sizeof(init_sdrs)) {
+        if (i + IPMI_SDR_HEADER_SIZE > sdrs_size) {
             error_report("Problem with recid 0x%4.4x", i);
             return;
         }
-        sdrh = (struct ipmi_sdr_header *) &init_sdrs[i];
+        sdrh = (struct ipmi_sdr_header *) &sdrs[i];
         len = ipmi_sdr_length(sdrh);
-        if ((i + len) > sizeof(init_sdrs)) {
+        if (i + len > sdrs_size) {
             error_report("Problem with recid 0x%4.4x", i);
             return;
         }
