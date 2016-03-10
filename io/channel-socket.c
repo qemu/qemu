@@ -343,8 +343,8 @@ qio_channel_socket_accept(QIOChannelSocket *ioc,
 
  retry:
     trace_qio_channel_socket_accept(ioc);
-    cioc->fd = accept(ioc->fd, (struct sockaddr *)&cioc->remoteAddr,
-                      &cioc->remoteAddrLen);
+    cioc->fd = qemu_accept(ioc->fd, (struct sockaddr *)&cioc->remoteAddr,
+                           &cioc->remoteAddrLen);
     if (cioc->fd < 0) {
         trace_qio_channel_socket_accept_fail(ioc);
         if (socket_error() == EINTR) {
