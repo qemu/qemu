@@ -292,16 +292,6 @@ static inline void rsp_buffer_pushmore(RspBuffer *rsp, uint8_t *bytes,
     rsp->len += n;
 }
 
-/* Check that the reservation in the command is valid. */
-#define IPMI_CHECK_RESERVATION(off, r) \
-    do {                                                   \
-        if ((cmd[off] | (cmd[off + 1] << 8)) != r) {       \
-            rsp->buffer[2] = IPMI_CC_INVALID_RESERVATION;     \
-            return;                                        \
-        }                                                  \
-    } while (0)
-
-
 static void ipmi_sim_handle_timeout(IPMIBmcSim *ibs);
 
 static void ipmi_gettime(struct ipmi_time *time)
@@ -1226,8 +1216,12 @@ static void get_sdr(IPMIBmcSim *ibs,
     struct ipmi_sdr_header *sdrh;
 
     if (cmd[6]) {
-        IPMI_CHECK_RESERVATION(2, ibs->sdr.reservation);
+        if ((cmd[2] | (cmd[3] << 8)) != ibs->sdr.reservation) {
+            rsp->buffer[2] = IPMI_CC_INVALID_RESERVATION;
+            return;
+        }
     }
+
     pos = 0;
     if (sdr_find_entry(&ibs->sdr, cmd[4] | (cmd[5] << 8),
                        &pos, &nextrec)) {
@@ -1276,7 +1270,11 @@ static void clear_sdr_rep(IPMIBmcSim *ibs,
                           uint8_t *cmd, unsigned int cmd_len,
                           RspBuffer *rsp)
 {
-    IPMI_CHECK_RESERVATION(2, ibs->sdr.reservation);
+    if ((cmd[2] | (cmd[3] << 8)) != ibs->sdr.reservation) {
+        rsp->buffer[2] = IPMI_CC_INVALID_RESERVATION;
+        return;
+    }
+
     if (cmd[4] != 'C' || cmd[5] != 'L' || cmd[6] != 'R') {
         rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
         return;
@@ -1332,7 +1330,10 @@ static void get_sel_entry(IPMIBmcSim *ibs,
     unsigned int val;
 
     if (cmd[6]) {
-        IPMI_CHECK_RESERVATION(2, ibs->sel.reservation);
+        if ((cmd[2] | (cmd[3] << 8)) != ibs->sel.reservation) {
+            rsp->buffer[2] = IPMI_CC_INVALID_RESERVATION;
+            return;
+        }
     }
     if (ibs->sel.next_free == 0) {
         rsp->buffer[2] = IPMI_CC_REQ_ENTRY_NOT_PRESENT;
@@ -1387,7 +1388,11 @@ static void clear_sel(IPMIBmcSim *ibs,
                       uint8_t *cmd, unsigned int cmd_len,
                       RspBuffer *rsp)
 {
-    IPMI_CHECK_RESERVATION(2, ibs->sel.reservation);
+    if ((cmd[2] | (cmd[3] << 8)) != ibs->sel.reservation) {
+        rsp->buffer[2] = IPMI_CC_INVALID_RESERVATION;
+        return;
+    }
+
     if (cmd[4] != 'C' || cmd[5] != 'L' || cmd[6] != 'R') {
         rsp->buffer[2] = IPMI_CC_INVALID_DATA_FIELD;
         return;
