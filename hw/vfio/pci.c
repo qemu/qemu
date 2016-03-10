@@ -832,6 +832,36 @@ static void vfio_pci_load_rom(VFIOPCIDevice *vdev)
             break;
         }
     }
+
+    /*
+     * Test the ROM signature against our device, if the vendor is correct
+     * but the device ID doesn't match, store the correct device ID and
+     * recompute the checksum.  Intel IGD devices need this and are known
+     * to have bogus checksums so we can't simply adjust the checksum.
+     */
+    if (pci_get_word(vdev->rom) == 0xaa55 &&
+        pci_get_word(vdev->rom + 0x18) + 8 < vdev->rom_size &&
+        !memcmp(vdev->rom + pci_get_word(vdev->rom + 0x18), "PCIR", 4)) {
+        uint16_t vid, did;
+
+        vid = pci_get_word(vdev->rom + pci_get_word(vdev->rom + 0x18) + 4);
+        did = pci_get_word(vdev->rom + pci_get_word(vdev->rom + 0x18) + 6);
+
+        if (vid == vdev->vendor_id && did != vdev->device_id) {
+            int i;
+            uint8_t csum, *data = vdev->rom;
+
+            pci_set_word(vdev->rom + pci_get_word(vdev->rom + 0x18) + 6,
+                         vdev->device_id);
+            data[6] = 0;
+
+            for (csum = 0, i = 0; i < vdev->rom_size; i++) {
+                csum += data[i];
+            }
+
+            data[6] = -csum;
+        }
+    }
 }
 
 static uint64_t vfio_rom_read(void *opaque, hwaddr addr, unsigned size)
