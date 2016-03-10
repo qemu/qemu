@@ -560,38 +560,45 @@ static int vfio_base_device_init(VFIODevice *vbasedev)
 {
     VFIOGroup *group;
     VFIODevice *vbasedev_iter;
-    char path[PATH_MAX], iommu_group_path[PATH_MAX], *group_name;
+    char *tmp, group_path[PATH_MAX], *group_name;
     ssize_t len;
     struct stat st;
     int groupid;
     int ret;
 
-    /* name must be set prior to the call */
-    if (!vbasedev->name || strchr(vbasedev->name, '/')) {
-        return -EINVAL;
+    /* @sysfsdev takes precedence over @host */
+    if (vbasedev->sysfsdev) {
+        g_free(vbasedev->name);
+        vbasedev->name = g_strdup(basename(vbasedev->sysfsdev));
+    } else {
+        if (!vbasedev->name || strchr(vbasedev->name, '/')) {
+            return -EINVAL;
+        }
+
+        vbasedev->sysfsdev = g_strdup_printf("/sys/bus/platform/devices/%s",
+                                             vbasedev->name);
     }
 
-    /* Check that the host device exists */
-    g_snprintf(path, sizeof(path), "/sys/bus/platform/devices/%s/",
-               vbasedev->name);
-
-    if (stat(path, &st) < 0) {
-        error_report("vfio: error: no such host device: %s", path);
+    if (stat(vbasedev->sysfsdev, &st) < 0) {
+        error_report("vfio: error: no such host device: %s",
+                     vbasedev->sysfsdev);
         return -errno;
     }
 
-    g_strlcat(path, "iommu_group", sizeof(path));
-    len = readlink(path, iommu_group_path, sizeof(iommu_group_path));
-    if (len < 0 || len >= sizeof(iommu_group_path)) {
+    tmp = g_strdup_printf("%s/iommu_group", vbasedev->sysfsdev);
+    len = readlink(tmp, group_path, sizeof(group_path));
+    g_free(tmp);
+
+    if (len < 0 || len >= sizeof(group_path)) {
         error_report("vfio: error no iommu_group for device");
         return len < 0 ? -errno : -ENAMETOOLONG;
     }
 
-    iommu_group_path[len] = 0;
-    group_name = basename(iommu_group_path);
+    group_path[len] = 0;
 
+    group_name = basename(group_path);
     if (sscanf(group_name, "%d", &groupid) != 1) {
-        error_report("vfio: error reading %s: %m", path);
+        error_report("vfio: error reading %s: %m", group_path);
         return -errno;
     }
 
@@ -603,25 +610,24 @@ static int vfio_base_device_init(VFIODevice *vbasedev)
         return -ENOENT;
     }
 
-    g_snprintf(path, sizeof(path), "%s", vbasedev->name);
-
     QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
         if (strcmp(vbasedev_iter->name, vbasedev->name) == 0) {
-            error_report("vfio: error: device %s is already attached", path);
+            error_report("vfio: error: device %s is already attached",
+                         vbasedev->name);
             vfio_put_group(group);
             return -EBUSY;
         }
     }
-    ret = vfio_get_device(group, path, vbasedev);
+    ret = vfio_get_device(group, vbasedev->name, vbasedev);
     if (ret) {
-        error_report("vfio: failed to get device %s", path);
+        error_report("vfio: failed to get device %s", vbasedev->name);
         vfio_put_group(group);
         return ret;
     }
 
     ret = vfio_populate_device(vbasedev);
     if (ret) {
-        error_report("vfio: failed to populate device %s", path);
+        error_report("vfio: failed to populate device %s", vbasedev->name);
         vfio_put_group(group);
     }
 
@@ -681,7 +687,9 @@ static void vfio_platform_realize(DeviceState *dev, Error **errp)
     vbasedev->type = VFIO_DEVICE_TYPE_PLATFORM;
     vbasedev->ops = &vfio_platform_ops;
 
-    trace_vfio_platform_realize(vbasedev->name, vdev->compat);
+    trace_vfio_platform_realize(vbasedev->sysfsdev ?
+                                vbasedev->sysfsdev : vbasedev->name,
+                                vdev->compat);
 
     ret = vfio_base_device_init(vbasedev);
     if (ret) {
@@ -703,6 +711,7 @@ static const VMStateDescription vfio_platform_vmstate = {
 
 static Property vfio_platform_dev_properties[] = {
     DEFINE_PROP_STRING("host", VFIOPlatformDevice, vbasedev.name),
+    DEFINE_PROP_STRING("sysfsdev", VFIOPlatformDevice, vbasedev.sysfsdev),
     DEFINE_PROP_BOOL("x-no-mmap", VFIOPlatformDevice, vbasedev.no_mmap, false),
     DEFINE_PROP_UINT32("mmap-timeout-ms", VFIOPlatformDevice,
                        mmap_timeout, 1100),

@@ -89,6 +89,7 @@ typedef struct VFIODeviceOps VFIODeviceOps;
 typedef struct VFIODevice {
     QLIST_ENTRY(VFIODevice) next;
     struct VFIOGroup *group;
+    char *sysfsdev;
     char *name;
     int fd;
     int type;

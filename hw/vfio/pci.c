@@ -895,12 +895,8 @@ static void vfio_pci_size_rom(VFIOPCIDevice *vdev)
     if (vdev->pdev.romfile || !vdev->pdev.rom_bar) {
         /* Since pci handles romfile, just print a message and return */
         if (vfio_blacklist_opt_rom(vdev) && vdev->pdev.romfile) {
-            error_printf("Warning : Device at %04x:%02x:%02x.%x "
-                         "is known to cause system instability issues during "
-                         "option rom execution. "
-                         "Proceeding anyway since user specified romfile\n",
-                         vdev->host.domain, vdev->host.bus, vdev->host.slot,
-                         vdev->host.function);
+            error_printf("Warning : Device at %s is known to cause system instability issues during option rom execution. Proceeding anyway since user specified romfile\n",
+                         vdev->vbasedev.name);
         }
         return;
     }
@@ -913,9 +909,7 @@ static void vfio_pci_size_rom(VFIOPCIDevice *vdev)
         pwrite(fd, &size, 4, offset) != 4 ||
         pread(fd, &size, 4, offset) != 4 ||
         pwrite(fd, &orig, 4, offset) != 4) {
-        error_report("%s(%04x:%02x:%02x.%x) failed: %m",
-                     __func__, vdev->host.domain, vdev->host.bus,
-                     vdev->host.slot, vdev->host.function);
+        error_report("%s(%s) failed: %m", __func__, vdev->vbasedev.name);
         return;
     }
 
@@ -927,29 +921,18 @@ static void vfio_pci_size_rom(VFIOPCIDevice *vdev)
 
     if (vfio_blacklist_opt_rom(vdev)) {
         if (dev->opts && qemu_opt_get(dev->opts, "rombar")) {
-            error_printf("Warning : Device at %04x:%02x:%02x.%x "
-                         "is known to cause system instability issues during "
-                         "option rom execution. "
-                         "Proceeding anyway since user specified non zero value for "
-                         "rombar\n",
-                         vdev->host.domain, vdev->host.bus, vdev->host.slot,
-                         vdev->host.function);
+            error_printf("Warning : Device at %s is known to cause system instability issues during option rom execution. Proceeding anyway since user specified non zero value for rombar\n",
+                         vdev->vbasedev.name);
         } else {
-            error_printf("Warning : Rom loading for device at "
-                         "%04x:%02x:%02x.%x has been disabled due to "
-                         "system instability issues. "
-                         "Specify rombar=1 or romfile to force\n",
-                         vdev->host.domain, vdev->host.bus, vdev->host.slot,
-                         vdev->host.function);
+            error_printf("Warning : Rom loading for device at %s has been disabled due to system instability issues. Specify rombar=1 or romfile to force\n",
+                         vdev->vbasedev.name);
             return;
         }
     }
 
     trace_vfio_pci_size_rom(vdev->vbasedev.name, size);
 
-    snprintf(name, sizeof(name), "vfio[%04x:%02x:%02x.%x].rom",
-             vdev->host.domain, vdev->host.bus, vdev->host.slot,
-             vdev->host.function);
+    snprintf(name, sizeof(name), "vfio[%s].rom", vdev->vbasedev.name);
 
     memory_region_init_io(&vdev->pdev.rom, OBJECT(vdev),
                           &vfio_rom_ops, vdev, name, size);
@@ -1063,9 +1046,8 @@ uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len)
         ret = pread(vdev->vbasedev.fd, &phys_val, len,
                     vdev->config_offset + addr);
         if (ret != len) {
-            error_report("%s(%04x:%02x:%02x.%x, 0x%x, 0x%x) failed: %m",
-                         __func__, vdev->host.domain, vdev->host.bus,
-                         vdev->host.slot, vdev->host.function, addr, len);
+            error_report("%s(%s, 0x%x, 0x%x) failed: %m",
+                         __func__, vdev->vbasedev.name, addr, len);
             return -errno;
         }
         phys_val = le32_to_cpu(phys_val);
@@ -1089,9 +1071,8 @@ void vfio_pci_write_config(PCIDevice *pdev,
     /* Write everything to VFIO, let it filter out what we can't write */
     if (pwrite(vdev->vbasedev.fd, &val_le, len, vdev->config_offset + addr)
                 != len) {
-        error_report("%s(%04x:%02x:%02x.%x, 0x%x, 0x%x, 0x%x) failed: %m",
-                     __func__, vdev->host.domain, vdev->host.bus,
-                     vdev->host.slot, vdev->host.function, addr, val, len);
+        error_report("%s(%s, 0x%x, 0x%x, 0x%x) failed: %m",
+                     __func__, vdev->vbasedev.name, addr, val, len);
     }
 
     /* MSI/MSI-X Enabling/Disabling */
@@ -1383,9 +1364,7 @@ static void vfio_map_bar(VFIOPCIDevice *vdev, int nr)
         return;
     }
 
-    snprintf(name, sizeof(name), "VFIO %04x:%02x:%02x.%x BAR %d",
-             vdev->host.domain, vdev->host.bus, vdev->host.slot,
-             vdev->host.function, nr);
+    snprintf(name, sizeof(name), "VFIO %s BAR %d", vdev->vbasedev.name, nr);
 
     /* Determine what type of BAR this is for registration */
     ret = pread(vdev->vbasedev.fd, &pci_bar, sizeof(pci_bar),
@@ -1756,9 +1735,8 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos)
     }
 
     if (ret < 0) {
-        error_report("vfio: %04x:%02x:%02x.%x Error adding PCI capability "
-                     "0x%x[0x%x]@0x%x: %d", vdev->host.domain,
-                     vdev->host.bus, vdev->host.slot, vdev->host.function,
+        error_report("vfio: %s Error adding PCI capability "
+                     "0x%x[0x%x]@0x%x: %d", vdev->vbasedev.name,
                      cap_id, size, pos, ret);
         return ret;
     }
@@ -1820,11 +1798,14 @@ static void vfio_pci_post_reset(VFIOPCIDevice *vdev)
     vfio_intx_enable(vdev);
 }
 
-static bool vfio_pci_host_match(PCIHostDeviceAddress *host1,
-                                PCIHostDeviceAddress *host2)
+static bool vfio_pci_host_match(PCIHostDeviceAddress *addr, const char *name)
 {
-    return (host1->domain == host2->domain && host1->bus == host2->bus &&
-            host1->slot == host2->slot && host1->function == host2->function);
+    char tmp[13];
+
+    sprintf(tmp, "%04x:%02x:%02x.%1x", addr->domain,
+            addr->bus, addr->slot, addr->function);
+
+    return (strcmp(tmp, name) == 0);
 }
 
 static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
@@ -1849,9 +1830,8 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
     if (ret && errno != ENOSPC) {
         ret = -errno;
         if (!vdev->has_pm_reset) {
-            error_report("vfio: Cannot reset device %04x:%02x:%02x.%x, "
-                         "no available reset mechanism.", vdev->host.domain,
-                         vdev->host.bus, vdev->host.slot, vdev->host.function);
+            error_report("vfio: Cannot reset device %s, "
+                         "no available reset mechanism.", vdev->vbasedev.name);
         }
         goto out_single;
     }
@@ -1884,7 +1864,7 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
         trace_vfio_pci_hot_reset_dep_devices(host.domain,
                 host.bus, host.slot, host.function, devices[i].group_id);
 
-        if (vfio_pci_host_match(&host, &vdev->host)) {
+        if (vfio_pci_host_match(&host, vdev->vbasedev.name)) {
             continue;
         }
 
@@ -1910,7 +1890,7 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
                 continue;
             }
             tmp = container_of(vbasedev_iter, VFIOPCIDevice, vbasedev);
-            if (vfio_pci_host_match(&host, &tmp->host)) {
+            if (vfio_pci_host_match(&host, tmp->vbasedev.name)) {
                 if (single) {
                     ret = -EINVAL;
                     goto out_single;
@@ -1972,7 +1952,7 @@ out:
         host.slot = PCI_SLOT(devices[i].devfn);
         host.function = PCI_FUNC(devices[i].devfn);
 
-        if (vfio_pci_host_match(&host, &vdev->host)) {
+        if (vfio_pci_host_match(&host, vdev->vbasedev.name)) {
             continue;
         }
 
@@ -1991,7 +1971,7 @@ out:
                 continue;
             }
             tmp = container_of(vbasedev_iter, VFIOPCIDevice, vbasedev);
-            if (vfio_pci_host_match(&host, &tmp->host)) {
+            if (vfio_pci_host_match(&host, tmp->vbasedev.name)) {
                 vfio_pci_post_reset(tmp);
                 break;
             }
@@ -2197,10 +2177,7 @@ static void vfio_err_notifier_handler(void *opaque)
      * guest to contain the error.
      */
 
-    error_report("%s(%04x:%02x:%02x.%x) Unrecoverable error detected.  "
-                 "Please collect any data possible and then kill the guest",
-                 __func__, vdev->host.domain, vdev->host.bus,
-                 vdev->host.slot, vdev->host.function);
+    error_report("%s(%s) Unrecoverable error detected. Please collect any data possible and then kill the guest", __func__, vdev->vbasedev.name);
 
     vm_stop(RUN_STATE_INTERNAL_ERROR);
 }
@@ -2381,42 +2358,43 @@ static int vfio_initfn(PCIDevice *pdev)
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
     VFIODevice *vbasedev_iter;
     VFIOGroup *group;
-    char path[PATH_MAX], iommu_group_path[PATH_MAX], *group_name;
+    char *tmp, group_path[PATH_MAX], *group_name;
     ssize_t len;
     struct stat st;
     int groupid;
     int ret;
 
-    /* Check that the host device exists */
-    snprintf(path, sizeof(path),
-             "/sys/bus/pci/devices/%04x:%02x:%02x.%01x/",
-             vdev->host.domain, vdev->host.bus, vdev->host.slot,
-             vdev->host.function);
-    if (stat(path, &st) < 0) {
-        error_report("vfio: error: no such host device: %s", path);
+    if (!vdev->vbasedev.sysfsdev) {
+        vdev->vbasedev.sysfsdev =
+            g_strdup_printf("/sys/bus/pci/devices/%04x:%02x:%02x.%01x",
+                            vdev->host.domain, vdev->host.bus,
+                            vdev->host.slot, vdev->host.function);
+    }
+
+    if (stat(vdev->vbasedev.sysfsdev, &st) < 0) {
+        error_report("vfio: error: no such host device: %s",
+                     vdev->vbasedev.sysfsdev);
         return -errno;
     }
 
+    vdev->vbasedev.name = g_strdup(basename(vdev->vbasedev.sysfsdev));
     vdev->vbasedev.ops = &vfio_pci_ops;
-
     vdev->vbasedev.type = VFIO_DEVICE_TYPE_PCI;
-    vdev->vbasedev.name = g_strdup_printf("%04x:%02x:%02x.%01x",
-                                          vdev->host.domain, vdev->host.bus,
-                                          vdev->host.slot, vdev->host.function);
 
-    strncat(path, "iommu_group", sizeof(path) - strlen(path) - 1);
+    tmp = g_strdup_printf("%s/iommu_group", vdev->vbasedev.sysfsdev);
+    len = readlink(tmp, group_path, sizeof(group_path));
+    g_free(tmp);
 
-    len = readlink(path, iommu_group_path, sizeof(path));
-    if (len <= 0 || len >= sizeof(path)) {
+    if (len <= 0 || len >= sizeof(group_path)) {
         error_report("vfio: error no iommu_group for device");
         return len < 0 ? -errno : -ENAMETOOLONG;
     }
 
-    iommu_group_path[len] = 0;
-    group_name = basename(iommu_group_path);
+    group_path[len] = 0;
 
+    group_name = basename(group_path);
     if (sscanf(group_name, "%d", &groupid) != 1) {
-        error_report("vfio: error reading %s: %m", path);
+        error_report("vfio: error reading %s: %m", group_path);
         return -errno;
     }
 
@@ -2428,21 +2406,18 @@ static int vfio_initfn(PCIDevice *pdev)
         return -ENOENT;
     }
 
-    snprintf(path, sizeof(path), "%04x:%02x:%02x.%01x",
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function);
-
     QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
         if (strcmp(vbasedev_iter->name, vdev->vbasedev.name) == 0) {
-            error_report("vfio: error: device %s is already attached", path);
+            error_report("vfio: error: device %s is already attached",
+                         vdev->vbasedev.name);
             vfio_put_group(group);
             return -EBUSY;
         }
     }
 
-    ret = vfio_get_device(group, path, &vdev->vbasedev);
+    ret = vfio_get_device(group, vdev->vbasedev.name, &vdev->vbasedev);
     if (ret) {
-        error_report("vfio: failed to get device %s", path);
+        error_report("vfio: failed to get device %s", vdev->vbasedev.name);
         vfio_put_group(group);
         return ret;
     }
@@ -2659,6 +2634,7 @@ static void vfio_instance_init(Object *obj)
 
 static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_PCI_HOST_DEVADDR("host", VFIOPCIDevice, host),
+    DEFINE_PROP_STRING("sysfsdev", VFIOPCIDevice, vbasedev.sysfsdev),
     DEFINE_PROP_UINT32("x-intx-mmap-timeout-ms", VFIOPCIDevice,
                        intx.mmap_timeout, 1100),
     DEFINE_PROP_BIT("x-vga", VFIOPCIDevice, features,
