@@ -1154,13 +1154,20 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
     } else if (flags & BDRV_REQ_ZERO_WRITE) {
         bdrv_debug_event(bs, BLKDBG_PWRITEV_ZERO);
         ret = bdrv_co_do_write_zeroes(bs, sector_num, nb_sectors, flags);
+    } else if (drv->bdrv_co_writev_flags) {
+        bdrv_debug_event(bs, BLKDBG_PWRITEV);
+        ret = drv->bdrv_co_writev_flags(bs, sector_num, nb_sectors, qiov,
+                                        flags);
     } else {
+        assert(drv->supported_write_flags == 0);
         bdrv_debug_event(bs, BLKDBG_PWRITEV);
         ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
     }
     bdrv_debug_event(bs, BLKDBG_PWRITEV_DONE);
 
-    if (ret == 0 && (flags & BDRV_REQ_FUA)) {
+    if (ret == 0 && (flags & BDRV_REQ_FUA) &&
+        !(drv->supported_write_flags & BDRV_REQ_FUA))
+    {
         ret = bdrv_co_flush(bs);
     }
 
