@@ -24,6 +24,7 @@ typedef struct GlusterAIOCB {
 typedef struct BDRVGlusterState {
     struct glfs *glfs;
     struct glfs_fd *fd;
+    bool supports_seek_data;
 } BDRVGlusterState;
 
 typedef struct GlusterConf {
@@ -287,6 +288,28 @@ static void qemu_gluster_parse_flags(int bdrv_flags, int *open_flags)
     }
 }
 
+/*
+ * Do SEEK_DATA/HOLE to detect if it is functional. Older broken versions of
+ * gfapi incorrectly return the current offset when SEEK_DATA/HOLE is used.
+ * - Corrected versions return -1 and set errno to EINVAL.
+ * - Versions that support SEEK_DATA/HOLE correctly, will return -1 and set
+ *   errno to ENXIO when SEEK_DATA is called with a position of EOF.
+ */
+static bool qemu_gluster_test_seek(struct glfs_fd *fd)
+{
+    off_t ret, eof;
+
+    eof = glfs_lseek(fd, 0, SEEK_END);
+    if (eof < 0) {
+        /* this should never occur */
+        return false;
+    }
+
+    /* this should always fail with ENXIO if SEEK_DATA is supported */
+    ret = glfs_lseek(fd, eof, SEEK_DATA);
+    return (ret < 0) && (errno == ENXIO);
+}
+
 static int qemu_gluster_open(BlockDriverState *bs,  QDict *options,
                              int bdrv_flags, Error **errp)
 {
@@ -337,6 +360,8 @@ static int qemu_gluster_open(BlockDriverState *bs,  QDict *options,
     if (!s->fd) {
         ret = -errno;
     }
+
+    s->supports_seek_data = qemu_gluster_test_seek(s->fd);
 
 out:
     qemu_opts_del(opts);
@@ -727,6 +752,159 @@ static int qemu_gluster_has_zero_init(BlockDriverState *bs)
     return 0;
 }
 
+/*
+ * Find allocation range in @bs around offset @start.
+ * May change underlying file descriptor's file offset.
+ * If @start is not in a hole, store @start in @data, and the
+ * beginning of the next hole in @hole, and return 0.
+ * If @start is in a non-trailing hole, store @start in @hole and the
+ * beginning of the next non-hole in @data, and return 0.
+ * If @start is in a trailing hole or beyond EOF, return -ENXIO.
+ * If we can't find out, return a negative errno other than -ENXIO.
+ *
+ * (Shamefully copied from raw-posix.c, only miniscule adaptions.)
+ */
+static int find_allocation(BlockDriverState *bs, off_t start,
+                           off_t *data, off_t *hole)
+{
+    BDRVGlusterState *s = bs->opaque;
+    off_t offs;
+
+    if (!s->supports_seek_data) {
+        return -ENOTSUP;
+    }
+
+    /*
+     * SEEK_DATA cases:
+     * D1. offs == start: start is in data
+     * D2. offs > start: start is in a hole, next data at offs
+     * D3. offs < 0, errno = ENXIO: either start is in a trailing hole
+     *                              or start is beyond EOF
+     *     If the latter happens, the file has been truncated behind
+     *     our back since we opened it.  All bets are off then.
+     *     Treating like a trailing hole is simplest.
+     * D4. offs < 0, errno != ENXIO: we learned nothing
+     */
+    offs = glfs_lseek(s->fd, start, SEEK_DATA);
+    if (offs < 0) {
+        return -errno;          /* D3 or D4 */
+    }
+    assert(offs >= start);
+
+    if (offs > start) {
+        /* D2: in hole, next data at offs */
+        *hole = start;
+        *data = offs;
+        return 0;
+    }
+
+    /* D1: in data, end not yet known */
+
+    /*
+     * SEEK_HOLE cases:
+     * H1. offs == start: start is in a hole
+     *     If this happens here, a hole has been dug behind our back
+     *     since the previous lseek().
+     * H2. offs > start: either start is in data, next hole at offs,
+     *                   or start is in trailing hole, EOF at offs
+     *     Linux treats trailing holes like any other hole: offs ==
+     *     start.  Solaris seeks to EOF instead: offs > start (blech).
+     *     If that happens here, a hole has been dug behind our back
+     *     since the previous lseek().
+     * H3. offs < 0, errno = ENXIO: start is beyond EOF
+     *     If this happens, the file has been truncated behind our
+     *     back since we opened it.  Treat it like a trailing hole.
+     * H4. offs < 0, errno != ENXIO: we learned nothing
+     *     Pretend we know nothing at all, i.e. "forget" about D1.
+     */
+    offs = glfs_lseek(s->fd, start, SEEK_HOLE);
+    if (offs < 0) {
+        return -errno;          /* D1 and (H3 or H4) */
+    }
+    assert(offs >= start);
+
+    if (offs > start) {
+        /*
+         * D1 and H2: either in data, next hole at offs, or it was in
+         * data but is now in a trailing hole.  In the latter case,
+         * all bets are off.  Treating it as if it there was data all
+         * the way to EOF is safe, so simply do that.
+         */
+        *data = start;
+        *hole = offs;
+        return 0;
+    }
+
+    /* D1 and H1 */
+    return -EBUSY;
+}
+
+/*
+ * Returns the allocation status of the specified sectors.
+ *
+ * If 'sector_num' is beyond the end of the disk image the return value is 0
+ * and 'pnum' is set to 0.
+ *
+ * 'pnum' is set to the number of sectors (including and immediately following
+ * the specified sector) that are known to be in the same
+ * allocated/unallocated state.
+ *
+ * 'nb_sectors' is the max value 'pnum' should be set to.  If nb_sectors goes
+ * beyond the end of the disk image it will be clamped.
+ *
+ * (Based on raw_co_get_block_status() from raw-posix.c.)
+ */
+static int64_t coroutine_fn qemu_gluster_co_get_block_status(
+        BlockDriverState *bs, int64_t sector_num, int nb_sectors, int *pnum,
+        BlockDriverState **file)
+{
+    BDRVGlusterState *s = bs->opaque;
+    off_t start, data = 0, hole = 0;
+    int64_t total_size;
+    int ret = -EINVAL;
+
+    if (!s->fd) {
+        return ret;
+    }
+
+    start = sector_num * BDRV_SECTOR_SIZE;
+    total_size = bdrv_getlength(bs);
+    if (total_size < 0) {
+        return total_size;
+    } else if (start >= total_size) {
+        *pnum = 0;
+        return 0;
+    } else if (start + nb_sectors * BDRV_SECTOR_SIZE > total_size) {
+        nb_sectors = DIV_ROUND_UP(total_size - start, BDRV_SECTOR_SIZE);
+    }
+
+    ret = find_allocation(bs, start, &data, &hole);
+    if (ret == -ENXIO) {
+        /* Trailing hole */
+        *pnum = nb_sectors;
+        ret = BDRV_BLOCK_ZERO;
+    } else if (ret < 0) {
+        /* No info available, so pretend there are no holes */
+        *pnum = nb_sectors;
+        ret = BDRV_BLOCK_DATA;
+    } else if (data == start) {
+        /* On a data extent, compute sectors to the end of the extent,
+         * possibly including a partial sector at EOF. */
+        *pnum = MIN(nb_sectors, DIV_ROUND_UP(hole - start, BDRV_SECTOR_SIZE));
+        ret = BDRV_BLOCK_DATA;
+    } else {
+        /* On a hole, compute sectors to the beginning of the next extent.  */
+        assert(hole == start);
+        *pnum = MIN(nb_sectors, (data - start) / BDRV_SECTOR_SIZE);
+        ret = BDRV_BLOCK_ZERO;
+    }
+
+    *file = bs;
+
+    return ret | BDRV_BLOCK_OFFSET_VALID | start;
+}
+
+
 static QemuOptsList qemu_gluster_create_opts = {
     .name = "qemu-gluster-create-opts",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_gluster_create_opts.head),
@@ -769,6 +947,7 @@ static BlockDriver bdrv_gluster = {
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
     .bdrv_co_pwrite_zeroes        = qemu_gluster_co_pwrite_zeroes,
 #endif
+    .bdrv_co_get_block_status     = qemu_gluster_co_get_block_status,
     .create_opts                  = &qemu_gluster_create_opts,
 };
 
@@ -796,6 +975,7 @@ static BlockDriver bdrv_gluster_tcp = {
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
     .bdrv_co_pwrite_zeroes        = qemu_gluster_co_pwrite_zeroes,
 #endif
+    .bdrv_co_get_block_status     = qemu_gluster_co_get_block_status,
     .create_opts                  = &qemu_gluster_create_opts,
 };
 
@@ -823,6 +1003,7 @@ static BlockDriver bdrv_gluster_unix = {
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
     .bdrv_co_pwrite_zeroes        = qemu_gluster_co_pwrite_zeroes,
 #endif
+    .bdrv_co_get_block_status     = qemu_gluster_co_get_block_status,
     .create_opts                  = &qemu_gluster_create_opts,
 };
 
@@ -850,6 +1031,7 @@ static BlockDriver bdrv_gluster_rdma = {
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
     .bdrv_co_pwrite_zeroes        = qemu_gluster_co_pwrite_zeroes,
 #endif
+    .bdrv_co_get_block_status     = qemu_gluster_co_get_block_status,
     .create_opts                  = &qemu_gluster_create_opts,
 };
 
