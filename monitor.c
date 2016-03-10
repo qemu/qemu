@@ -572,6 +572,10 @@ static unsigned int qapi_event_throttle_hash(const void *key)
         hash += g_str_hash(qdict_get_str(evstate->data, "id"));
     }
 
+    if (evstate->event == QAPI_EVENT_QUORUM_REPORT_BAD) {
+        hash += g_str_hash(qdict_get_str(evstate->data, "node-name"));
+    }
+
     return hash;
 }
 
@@ -587,6 +591,11 @@ static gboolean qapi_event_throttle_equal(const void *a, const void *b)
     if (eva->event == QAPI_EVENT_VSERPORT_CHANGE) {
         return !strcmp(qdict_get_str(eva->data, "id"),
                        qdict_get_str(evb->data, "id"));
+    }
+
+    if (eva->event == QAPI_EVENT_QUORUM_REPORT_BAD) {
+        return !strcmp(qdict_get_str(eva->data, "node-name"),
+                       qdict_get_str(evb->data, "node-name"));
     }
 
     return TRUE;
