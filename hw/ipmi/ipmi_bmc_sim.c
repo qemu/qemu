@@ -1722,9 +1722,9 @@ static const VMStateDescription vmstate_ipmi_sim = {
     }
 };
 
-static void ipmi_sim_init(Object *obj)
+static void ipmi_sim_realize(DeviceState *dev, Error **errp)
 {
-    IPMIBmc *b = IPMI_BMC(obj);
+    IPMIBmc *b = IPMI_BMC(dev);
     unsigned int i;
     unsigned int recid;
     IPMIBmcSim *ibs = IPMI_BMC_SIMULATOR(b);
@@ -1783,8 +1783,10 @@ static void ipmi_sim_init(Object *obj)
 
 static void ipmi_sim_class_init(ObjectClass *oc, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(oc);
     IPMIBmcClass *bk = IPMI_BMC_CLASS(oc);
 
+    dc->realize = ipmi_sim_realize;
     bk->handle_command = ipmi_sim_handle_command;
 }
 
@@ -1792,7 +1794,6 @@ static const TypeInfo ipmi_sim_type = {
     .name          = TYPE_IPMI_BMC_SIMULATOR,
     .parent        = TYPE_IPMI_BMC,
     .instance_size = sizeof(IPMIBmcSim),
-    .instance_init = ipmi_sim_init,
     .class_init    = ipmi_sim_class_init,
 };
 
