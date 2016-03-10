@@ -337,14 +337,14 @@ static void vfio_probe_ati_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     memory_region_init_io(window->addr_mem, OBJECT(vdev),
                           &vfio_generic_window_address_quirk, window,
                           "vfio-ati-bar4-window-address-quirk", 4);
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
+    memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
                                         window->address_offset,
                                         window->addr_mem, 1);
 
     memory_region_init_io(window->data_mem, OBJECT(vdev),
                           &vfio_generic_window_data_quirk, window,
                           "vfio-ati-bar4-window-data-quirk", 4);
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
+    memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
                                         window->data_offset,
                                         window->data_mem, 1);
 
@@ -378,7 +378,7 @@ static void vfio_probe_ati_bar2_quirk(VFIOPCIDevice *vdev, int nr)
     memory_region_init_io(mirror->mem, OBJECT(vdev),
                           &vfio_generic_mirror_quirk, mirror,
                           "vfio-ati-bar2-4000-quirk", PCI_CONFIG_SPACE_SIZE);
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
+    memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
                                         mirror->offset, mirror->mem, 1);
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
@@ -683,7 +683,7 @@ static void vfio_probe_nvidia_bar5_quirk(VFIOPCIDevice *vdev, int nr)
     memory_region_init_io(window->addr_mem, OBJECT(vdev),
                           &vfio_generic_window_address_quirk, window,
                           "vfio-nvidia-bar5-window-address-quirk", 4);
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
+    memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
                                         window->address_offset,
                                         window->addr_mem, 1);
     memory_region_set_enabled(window->addr_mem, false);
@@ -691,7 +691,7 @@ static void vfio_probe_nvidia_bar5_quirk(VFIOPCIDevice *vdev, int nr)
     memory_region_init_io(window->data_mem, OBJECT(vdev),
                           &vfio_generic_window_data_quirk, window,
                           "vfio-nvidia-bar5-window-data-quirk", 4);
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
+    memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
                                         window->data_offset,
                                         window->data_mem, 1);
     memory_region_set_enabled(window->data_mem, false);
@@ -699,13 +699,13 @@ static void vfio_probe_nvidia_bar5_quirk(VFIOPCIDevice *vdev, int nr)
     memory_region_init_io(&quirk->mem[2], OBJECT(vdev),
                           &vfio_nvidia_bar5_quirk_master, bar5,
                           "vfio-nvidia-bar5-master-quirk", 4);
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
+    memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
                                         0, &quirk->mem[2], 1);
 
     memory_region_init_io(&quirk->mem[3], OBJECT(vdev),
                           &vfio_nvidia_bar5_quirk_enable, bar5,
                           "vfio-nvidia-bar5-enable-quirk", 4);
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
+    memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
                                         4, &quirk->mem[3], 1);
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
@@ -767,7 +767,7 @@ static void vfio_probe_nvidia_bar0_quirk(VFIOPCIDevice *vdev, int nr)
                           &vfio_nvidia_mirror_quirk, mirror,
                           "vfio-nvidia-bar0-88000-mirror-quirk",
                           vdev->config_size);
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
+    memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
                                         mirror->offset, mirror->mem, 1);
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
@@ -786,7 +786,7 @@ static void vfio_probe_nvidia_bar0_quirk(VFIOPCIDevice *vdev, int nr)
                               &vfio_nvidia_mirror_quirk, mirror,
                               "vfio-nvidia-bar0-1800-mirror-quirk",
                               PCI_CONFIG_SPACE_SIZE);
-        memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
+        memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
                                             mirror->offset, mirror->mem, 1);
 
         QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
@@ -947,13 +947,13 @@ static void vfio_probe_rtl8168_bar2_quirk(VFIOPCIDevice *vdev, int nr)
     memory_region_init_io(&quirk->mem[0], OBJECT(vdev),
                           &vfio_rtl_address_quirk, rtl,
                           "vfio-rtl8168-window-address-quirk", 4);
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
+    memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
                                         0x74, &quirk->mem[0], 1);
 
     memory_region_init_io(&quirk->mem[1], OBJECT(vdev),
                           &vfio_rtl_data_quirk, rtl,
                           "vfio-rtl8168-window-data-quirk", 4);
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
+    memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
                                         0x70, &quirk->mem[1], 1);
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
@@ -1020,7 +1020,7 @@ void vfio_bar_quirk_teardown(VFIOPCIDevice *vdev, int nr)
 
     QLIST_FOREACH(quirk, &bar->quirks, next) {
         for (i = 0; i < quirk->nr_mem; i++) {
-            memory_region_del_subregion(&bar->region.mem, &quirk->mem[i]);
+            memory_region_del_subregion(bar->region.mem, &quirk->mem[i]);
         }
     }
 }

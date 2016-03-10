@@ -493,46 +493,162 @@ static void vfio_listener_release(VFIOContainer *container)
     memory_listener_unregister(&container->listener);
 }
 
-int vfio_mmap_region(Object *obj, VFIORegion *region,
-                     MemoryRegion *mem, MemoryRegion *submem,
-                     void **map, size_t size, off_t offset,
-                     const char *name)
+int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
+                      int index, const char *name)
 {
-    int ret = 0;
-    VFIODevice *vbasedev = region->vbasedev;
+    struct vfio_region_info *info;
+    int ret;
 
-    if (!vbasedev->no_mmap && size && region->flags &
-        VFIO_REGION_INFO_FLAG_MMAP) {
-        int prot = 0;
-
-        if (region->flags & VFIO_REGION_INFO_FLAG_READ) {
-            prot |= PROT_READ;
-        }
-
-        if (region->flags & VFIO_REGION_INFO_FLAG_WRITE) {
-            prot |= PROT_WRITE;
-        }
-
-        *map = mmap(NULL, size, prot, MAP_SHARED,
-                    vbasedev->fd,
-                    region->fd_offset + offset);
-        if (*map == MAP_FAILED) {
-            *map = NULL;
-            ret = -errno;
-            goto empty_region;
-        }
-
-        memory_region_init_ram_ptr(submem, obj, name, size, *map);
-        memory_region_set_skip_dump(submem);
-    } else {
-empty_region:
-        /* Create a zero sized sub-region to make cleanup easy. */
-        memory_region_init(submem, obj, name, 0);
+    ret = vfio_get_region_info(vbasedev, index, &info);
+    if (ret) {
+        return ret;
     }
 
-    memory_region_add_subregion(mem, offset, submem);
+    region->vbasedev = vbasedev;
+    region->flags = info->flags;
+    region->size = info->size;
+    region->fd_offset = info->offset;
+    region->nr = index;
 
-    return ret;
+    if (region->size) {
+        region->mem = g_new0(MemoryRegion, 1);
+        memory_region_init_io(region->mem, obj, &vfio_region_ops,
+                              region, name, region->size);
+
+        if (!vbasedev->no_mmap &&
+            region->flags & VFIO_REGION_INFO_FLAG_MMAP &&
+            !(region->size & ~qemu_real_host_page_mask)) {
+
+            region->nr_mmaps = 1;
+            region->mmaps = g_new0(VFIOMmap, region->nr_mmaps);
+
+            region->mmaps[0].offset = 0;
+            region->mmaps[0].size = region->size;
+        }
+    }
+
+    g_free(info);
+
+    trace_vfio_region_setup(vbasedev->name, index, name,
+                            region->flags, region->fd_offset, region->size);
+    return 0;
+}
+
+int vfio_region_mmap(VFIORegion *region)
+{
+    int i, prot = 0;
+    char *name;
+
+    if (!region->mem) {
+        return 0;
+    }
+
+    prot |= region->flags & VFIO_REGION_INFO_FLAG_READ ? PROT_READ : 0;
+    prot |= region->flags & VFIO_REGION_INFO_FLAG_WRITE ? PROT_WRITE : 0;
+
+    for (i = 0; i < region->nr_mmaps; i++) {
+        region->mmaps[i].mmap = mmap(NULL, region->mmaps[i].size, prot,
+                                     MAP_SHARED, region->vbasedev->fd,
+                                     region->fd_offset +
+                                     region->mmaps[i].offset);
+        if (region->mmaps[i].mmap == MAP_FAILED) {
+            int ret = -errno;
+
+            trace_vfio_region_mmap_fault(memory_region_name(region->mem), i,
+                                         region->fd_offset +
+                                         region->mmaps[i].offset,
+                                         region->fd_offset +
+                                         region->mmaps[i].offset +
+                                         region->mmaps[i].size - 1, ret);
+
+            region->mmaps[i].mmap = NULL;
+
+            for (i--; i >= 0; i--) {
+                memory_region_del_subregion(region->mem, &region->mmaps[i].mem);
+                munmap(region->mmaps[i].mmap, region->mmaps[i].size);
+                object_unparent(OBJECT(&region->mmaps[i].mem));
+                region->mmaps[i].mmap = NULL;
+            }
+
+            return ret;
+        }
+
+        name = g_strdup_printf("%s mmaps[%d]",
+                               memory_region_name(region->mem), i);
+        memory_region_init_ram_ptr(&region->mmaps[i].mem,
+                                   memory_region_owner(region->mem),
+                                   name, region->mmaps[i].size,
+                                   region->mmaps[i].mmap);
+        g_free(name);
+        memory_region_set_skip_dump(&region->mmaps[i].mem);
+        memory_region_add_subregion(region->mem, region->mmaps[i].offset,
+                                    &region->mmaps[i].mem);
+
+        trace_vfio_region_mmap(memory_region_name(&region->mmaps[i].mem),
+                               region->mmaps[i].offset,
+                               region->mmaps[i].offset +
+                               region->mmaps[i].size - 1);
+    }
+
+    return 0;
+}
+
+void vfio_region_exit(VFIORegion *region)
+{
+    int i;
+
+    if (!region->mem) {
+        return;
+    }
+
+    for (i = 0; i < region->nr_mmaps; i++) {
+        if (region->mmaps[i].mmap) {
+            memory_region_del_subregion(region->mem, &region->mmaps[i].mem);
+        }
+    }
+
+    trace_vfio_region_exit(region->vbasedev->name, region->nr);
+}
+
+void vfio_region_finalize(VFIORegion *region)
+{
+    int i;
+
+    if (!region->mem) {
+        return;
+    }
+
+    for (i = 0; i < region->nr_mmaps; i++) {
+        if (region->mmaps[i].mmap) {
+            munmap(region->mmaps[i].mmap, region->mmaps[i].size);
+            object_unparent(OBJECT(&region->mmaps[i].mem));
+        }
+    }
+
+    object_unparent(OBJECT(region->mem));
+
+    g_free(region->mem);
+    g_free(region->mmaps);
+
+    trace_vfio_region_finalize(region->vbasedev->name, region->nr);
+}
+
+void vfio_region_mmaps_set_enabled(VFIORegion *region, bool enabled)
+{
+    int i;
+
+    if (!region->mem) {
+        return;
+    }
+
+    for (i = 0; i < region->nr_mmaps; i++) {
+        if (region->mmaps[i].mmap) {
+            memory_region_set_enabled(&region->mmaps[i].mem, enabled);
+        }
+    }
+
+    trace_vfio_region_mmaps_set_enabled(memory_region_name(region->mem),
+                                        enabled);
 }
 
 void vfio_reset_handler(void *opaque)

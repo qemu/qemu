@@ -143,12 +143,8 @@ static void vfio_mmap_set_enabled(VFIOPlatformDevice *vdev, bool enabled)
 {
     int i;
 
-    trace_vfio_platform_mmap_set_enabled(enabled);
-
     for (i = 0; i < vdev->vbasedev.num_regions; i++) {
-        VFIORegion *region = vdev->regions[i];
-
-        memory_region_set_enabled(&region->mmap_mem, enabled);
+        vfio_region_mmaps_set_enabled(vdev->regions[i], enabled);
     }
 }
 
@@ -476,29 +472,16 @@ static int vfio_populate_device(VFIODevice *vbasedev)
     vdev->regions = g_new0(VFIORegion *, vbasedev->num_regions);
 
     for (i = 0; i < vbasedev->num_regions; i++) {
-        struct vfio_region_info *reg_info;
-        VFIORegion *ptr;
+        char *name = g_strdup_printf("VFIO %s region %d\n", vbasedev->name, i);
 
         vdev->regions[i] = g_new0(VFIORegion, 1);
-        ptr = vdev->regions[i];
-        ret = vfio_get_region_info(vbasedev, i, &reg_info);
+        ret = vfio_region_setup(OBJECT(vdev), vbasedev,
+                                vdev->regions[i], i, name);
+        g_free(name);
         if (ret) {
             error_report("vfio: Error getting region %d info: %m", i);
             goto reg_error;
         }
-        ptr->flags = reg_info->flags;
-        ptr->size = reg_info->size;
-        ptr->fd_offset = reg_info->offset;
-        ptr->nr = i;
-        ptr->vbasedev = vbasedev;
-
-        g_free(reg_info);
-
-        trace_vfio_platform_populate_regions(ptr->nr,
-                            (unsigned long)ptr->flags,
-                            (unsigned long)ptr->size,
-                            ptr->vbasedev->fd,
-                            (unsigned long)ptr->fd_offset);
     }
 
     vdev->mmap_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
@@ -535,6 +518,9 @@ irq_err:
     }
 reg_error:
     for (i = 0; i < vbasedev->num_regions; i++) {
+        if (vdev->regions[i]) {
+            vfio_region_finalize(vdev->regions[i]);
+        }
         g_free(vdev->regions[i]);
     }
     g_free(vdev->regions);
@@ -636,41 +622,6 @@ static int vfio_base_device_init(VFIODevice *vbasedev)
 }
 
 /**
- * vfio_map_region - initialize the 2 memory regions for a given
- * MMIO region index
- * @vdev: the VFIO platform device handle
- * @nr: the index of the region
- *
- * Init the top memory region and the mmapped memory region beneath
- * VFIOPlatformDevice is used since VFIODevice is not a QOM Object
- * and could not be passed to memory region functions
-*/
-static void vfio_map_region(VFIOPlatformDevice *vdev, int nr)
-{
-    VFIORegion *region = vdev->regions[nr];
-    uint64_t size = region->size;
-    char name[64];
-
-    if (!size) {
-        return;
-    }
-
-    g_snprintf(name, sizeof(name), "VFIO %s region %d",
-               vdev->vbasedev.name, nr);
-
-    /* A "slow" read/write mapping underlies all regions */
-    memory_region_init_io(&region->mem, OBJECT(vdev), &vfio_region_ops,
-                          region, name, size);
-
-    g_strlcat(name, " mmap", sizeof(name));
-
-    if (vfio_mmap_region(OBJECT(vdev), region, &region->mem,
-                         &region->mmap_mem, &region->mmap, size, 0, name)) {
-        error_report("%s unsupported. Performance may be slow", name);
-    }
-}
-
-/**
  * vfio_platform_realize  - the device realize function
  * @dev: device state pointer
  * @errp: error
@@ -700,8 +651,11 @@ static void vfio_platform_realize(DeviceState *dev, Error **errp)
     }
 
     for (i = 0; i < vbasedev->num_regions; i++) {
-        vfio_map_region(vdev, i);
-        sysbus_init_mmio(sbdev, &vdev->regions[i]->mem);
+        if (vfio_region_mmap(vdev->regions[i])) {
+            error_report("%s mmap unsupported. Performance may be slow",
+                         memory_region_name(vdev->regions[i]->mem));
+        }
+        sysbus_init_mmio(sbdev, vdev->regions[i]->mem);
     }
 }
 
