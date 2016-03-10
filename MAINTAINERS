@@ -1016,7 +1016,7 @@ F: blockjob.c
 F: include/block/blockjob.h
 F: block/backup.c
 F: block/commit.c
-F: block/stream.h
+F: block/stream.c
 F: block/mirror.c
 T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
