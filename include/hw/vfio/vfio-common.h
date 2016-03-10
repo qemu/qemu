@@ -25,6 +25,9 @@
 #include "exec/memory.h"
 #include "qemu/queue.h"
 #include "qemu/notify.h"
+#ifdef CONFIG_LINUX
+#include <linux/vfio.h>
+#endif
 
 /*#define DEBUG_VFIO*/
 #ifdef DEBUG_VFIO
@@ -139,4 +142,8 @@ extern const MemoryRegionOps vfio_region_ops;
 extern QLIST_HEAD(vfio_group_head, VFIOGroup) vfio_group_list;
 extern QLIST_HEAD(vfio_as_head, VFIOAddressSpace) vfio_address_spaces;
 
+#ifdef CONFIG_LINUX
+int vfio_get_region_info(VFIODevice *vbasedev, int index,
+                         struct vfio_region_info **info);
+#endif
 #endif /* !HW_VFIO_VFIO_COMMON_H */

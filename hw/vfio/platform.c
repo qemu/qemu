@@ -476,22 +476,23 @@ static int vfio_populate_device(VFIODevice *vbasedev)
     vdev->regions = g_new0(VFIORegion *, vbasedev->num_regions);
 
     for (i = 0; i < vbasedev->num_regions; i++) {
-        struct vfio_region_info reg_info = { .argsz = sizeof(reg_info) };
+        struct vfio_region_info *reg_info;
         VFIORegion *ptr;
 
         vdev->regions[i] = g_new0(VFIORegion, 1);
         ptr = vdev->regions[i];
-        reg_info.index = i;
-        ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_REGION_INFO, &reg_info);
+        ret = vfio_get_region_info(vbasedev, i, &reg_info);
         if (ret) {
             error_report("vfio: Error getting region %d info: %m", i);
             goto reg_error;
         }
-        ptr->flags = reg_info.flags;
-        ptr->size = reg_info.size;
-        ptr->fd_offset = reg_info.offset;
+        ptr->flags = reg_info->flags;
+        ptr->size = reg_info->size;
+        ptr->fd_offset = reg_info->offset;
         ptr->nr = i;
         ptr->vbasedev = vbasedev;
+
+        g_free(reg_info);
 
         trace_vfio_platform_populate_regions(ptr->nr,
                             (unsigned long)ptr->flags,

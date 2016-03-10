@@ -783,25 +783,25 @@ static void vfio_update_msi(VFIOPCIDevice *vdev)
 
 static void vfio_pci_load_rom(VFIOPCIDevice *vdev)
 {
-    struct vfio_region_info reg_info = {
-        .argsz = sizeof(reg_info),
-        .index = VFIO_PCI_ROM_REGION_INDEX
-    };
+    struct vfio_region_info *reg_info;
     uint64_t size;
     off_t off = 0;
     ssize_t bytes;
 
-    if (ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_REGION_INFO, &reg_info)) {
+    if (vfio_get_region_info(&vdev->vbasedev,
+                             VFIO_PCI_ROM_REGION_INDEX, &reg_info)) {
         error_report("vfio: Error getting ROM info: %m");
         return;
     }
 
-    trace_vfio_pci_load_rom(vdev->vbasedev.name, (unsigned long)reg_info.size,
-                            (unsigned long)reg_info.offset,
-                            (unsigned long)reg_info.flags);
+    trace_vfio_pci_load_rom(vdev->vbasedev.name, (unsigned long)reg_info->size,
+                            (unsigned long)reg_info->offset,
+                            (unsigned long)reg_info->flags);
 
-    vdev->rom_size = size = reg_info.size;
-    vdev->rom_offset = reg_info.offset;
+    vdev->rom_size = size = reg_info->size;
+    vdev->rom_offset = reg_info->offset;
+
+    g_free(reg_info);
 
     if (!vdev->rom_size) {
         vdev->rom_read_failed = true;
@@ -2027,7 +2027,7 @@ static VFIODeviceOps vfio_pci_ops = {
 static int vfio_populate_device(VFIOPCIDevice *vdev)
 {
     VFIODevice *vbasedev = &vdev->vbasedev;
-    struct vfio_region_info reg_info = { .argsz = sizeof(reg_info) };
+    struct vfio_region_info *reg_info;
     struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info) };
     int i, ret = -1;
 
@@ -2049,71 +2049,72 @@ static int vfio_populate_device(VFIOPCIDevice *vdev)
     }
 
     for (i = VFIO_PCI_BAR0_REGION_INDEX; i < VFIO_PCI_ROM_REGION_INDEX; i++) {
-        reg_info.index = i;
-
-        ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_REGION_INFO, &reg_info);
+        ret = vfio_get_region_info(vbasedev, i, &reg_info);
         if (ret) {
             error_report("vfio: Error getting region %d info: %m", i);
             goto error;
         }
 
         trace_vfio_populate_device_region(vbasedev->name, i,
-                                          (unsigned long)reg_info.size,
-                                          (unsigned long)reg_info.offset,
-                                          (unsigned long)reg_info.flags);
+                                          (unsigned long)reg_info->size,
+                                          (unsigned long)reg_info->offset,
+                                          (unsigned long)reg_info->flags);
 
         vdev->bars[i].region.vbasedev = vbasedev;
-        vdev->bars[i].region.flags = reg_info.flags;
-        vdev->bars[i].region.size = reg_info.size;
-        vdev->bars[i].region.fd_offset = reg_info.offset;
+        vdev->bars[i].region.flags = reg_info->flags;
+        vdev->bars[i].region.size = reg_info->size;
+        vdev->bars[i].region.fd_offset = reg_info->offset;
         vdev->bars[i].region.nr = i;
         QLIST_INIT(&vdev->bars[i].quirks);
+
+        g_free(reg_info);
     }
 
-    reg_info.index = VFIO_PCI_CONFIG_REGION_INDEX;
-
-    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_REGION_INFO, &reg_info);
+    ret = vfio_get_region_info(vbasedev,
+                               VFIO_PCI_CONFIG_REGION_INDEX, &reg_info);
     if (ret) {
         error_report("vfio: Error getting config info: %m");
         goto error;
     }
 
     trace_vfio_populate_device_config(vdev->vbasedev.name,
-                                      (unsigned long)reg_info.size,
-                                      (unsigned long)reg_info.offset,
-                                      (unsigned long)reg_info.flags);
+                                      (unsigned long)reg_info->size,
+                                      (unsigned long)reg_info->offset,
+                                      (unsigned long)reg_info->flags);
 
-    vdev->config_size = reg_info.size;
+    vdev->config_size = reg_info->size;
     if (vdev->config_size == PCI_CONFIG_SPACE_SIZE) {
         vdev->pdev.cap_present &= ~QEMU_PCI_CAP_EXPRESS;
     }
-    vdev->config_offset = reg_info.offset;
+    vdev->config_offset = reg_info->offset;
+
+    g_free(reg_info);
 
     if ((vdev->features & VFIO_FEATURE_ENABLE_VGA) &&
         vbasedev->num_regions > VFIO_PCI_VGA_REGION_INDEX) {
-        struct vfio_region_info vga_info = {
-            .argsz = sizeof(vga_info),
-            .index = VFIO_PCI_VGA_REGION_INDEX,
-         };
-
-        ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_REGION_INFO, &vga_info);
+        ret = vfio_get_region_info(vbasedev,
+                                   VFIO_PCI_VGA_REGION_INDEX, &reg_info);
         if (ret) {
             error_report(
                 "vfio: Device does not support requested feature x-vga");
             goto error;
         }
 
-        if (!(vga_info.flags & VFIO_REGION_INFO_FLAG_READ) ||
-            !(vga_info.flags & VFIO_REGION_INFO_FLAG_WRITE) ||
-            vga_info.size < 0xbffff + 1) {
+        if (!(reg_info->flags & VFIO_REGION_INFO_FLAG_READ) ||
+            !(reg_info->flags & VFIO_REGION_INFO_FLAG_WRITE) ||
+            reg_info->size < 0xbffff + 1) {
             error_report("vfio: Unexpected VGA info, flags 0x%lx, size 0x%lx",
-                         (unsigned long)vga_info.flags,
-                         (unsigned long)vga_info.size);
+                         (unsigned long)reg_info->flags,
+                         (unsigned long)reg_info->size);
+            g_free(reg_info);
+            ret = -1;
             goto error;
         }
 
-        vdev->vga.fd_offset = vga_info.offset;
+        vdev->vga.fd_offset = reg_info->offset;
         vdev->vga.fd = vdev->vbasedev.fd;
+
+        g_free(reg_info);
 
         vdev->vga.region[QEMU_PCI_VGA_MEM].offset = QEMU_PCI_VGA_MEM_BASE;
         vdev->vga.region[QEMU_PCI_VGA_MEM].nr = QEMU_PCI_VGA_MEM;
