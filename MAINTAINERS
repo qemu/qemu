@@ -866,6 +866,7 @@ VFIO
 M: Alex Williamson <alex.williamson@redhat.com>
 S: Supported
 F: hw/vfio/*
+F: include/hw/vfio/
 
 vhost
 M: Michael S. Tsirkin <mst@redhat.com>
