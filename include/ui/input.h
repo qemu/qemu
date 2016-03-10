@@ -65,4 +65,6 @@ void qemu_input_check_mode_change(void);
 void qemu_add_mouse_mode_change_notifier(Notifier *notify);
 void qemu_remove_mouse_mode_change_notifier(Notifier *notify);
 
+int input_linux_init(void *opaque, QemuOpts *opts, Error **errp);
+
 #endif /* INPUT_H */

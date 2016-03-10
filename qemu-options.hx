@@ -1226,6 +1226,15 @@ STEXI
 Set the initial graphical resolution and depth (PPC, SPARC only).
 ETEXI
 
+DEF("input-linux", 1, QEMU_OPTION_input_linux,
+    "-input-linux <evdev>\n"
+    "                Use input device.\n", QEMU_ARCH_ALL)
+STEXI
+@item -input-linux @var{dev}
+@findex -input-linux
+Use input device.
+ETEXI
+
 DEF("vnc", HAS_ARG, QEMU_OPTION_vnc ,
     "-vnc display    start a VNC server on display\n", QEMU_ARCH_ALL)
 STEXI
