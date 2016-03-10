@@ -718,7 +718,7 @@ static void usb_mtp_add_wstr(MTPData *data, const wchar_t *str)
 static void usb_mtp_add_str(MTPData *data, const char *str)
 {
     uint32_t len = strlen(str)+1;
-    wchar_t wstr[len];
+    wchar_t *wstr = g_new(wchar_t, len);
     size_t ret;
 
     ret = mbstowcs(wstr, str, len);
@@ -727,6 +727,8 @@ static void usb_mtp_add_str(MTPData *data, const char *str)
     } else {
         usb_mtp_add_wstr(data, wstr);
     }
+
+    g_free(wstr);
 }
 
 static void usb_mtp_add_time(MTPData *data, time_t time)
