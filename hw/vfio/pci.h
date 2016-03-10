@@ -114,7 +114,7 @@ typedef struct VFIOPCIDevice {
     int nr_vectors; /* Number of MSI/MSIX vectors currently in use */
     int interrupt; /* Current interrupt type */
     VFIOBAR bars[PCI_NUM_REGIONS - 1]; /* No ROM */
-    VFIOVGA vga; /* 0xa0000, 0x3b0, 0x3c0 */
+    VFIOVGA *vga; /* 0xa0000, 0x3b0, 0x3c0 */
     PCIHostDeviceAddress host;
     EventNotifier err_notifier;
     EventNotifier req_notifier;
@@ -150,11 +150,11 @@ void vfio_vga_write(void *opaque, hwaddr addr, uint64_t data, unsigned size);
 
 bool vfio_blacklist_opt_rom(VFIOPCIDevice *vdev);
 void vfio_vga_quirk_setup(VFIOPCIDevice *vdev);
-void vfio_vga_quirk_teardown(VFIOPCIDevice *vdev);
-void vfio_vga_quirk_free(VFIOPCIDevice *vdev);
+void vfio_vga_quirk_exit(VFIOPCIDevice *vdev);
+void vfio_vga_quirk_finalize(VFIOPCIDevice *vdev);
 void vfio_bar_quirk_setup(VFIOPCIDevice *vdev, int nr);
-void vfio_bar_quirk_teardown(VFIOPCIDevice *vdev, int nr);
-void vfio_bar_quirk_free(VFIOPCIDevice *vdev, int nr);
+void vfio_bar_quirk_exit(VFIOPCIDevice *vdev, int nr);
+void vfio_bar_quirk_finalize(VFIOPCIDevice *vdev, int nr);
 void vfio_setup_resetfn_quirk(VFIOPCIDevice *vdev);
 
 #endif /* HW_VFIO_VFIO_PCI_H */

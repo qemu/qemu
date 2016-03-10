@@ -290,10 +290,10 @@ static void vfio_vga_probe_ati_3c3_quirk(VFIOPCIDevice *vdev)
 
     memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_ati_3c3_quirk, vdev,
                           "vfio-ati-3c3-quirk", 1);
-    memory_region_add_subregion(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem,
+    memory_region_add_subregion(&vdev->vga->region[QEMU_PCI_VGA_IO_HI].mem,
                                 3 /* offset 3 bytes from 0x3c0 */, quirk->mem);
 
-    QLIST_INSERT_HEAD(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].quirks,
+    QLIST_INSERT_HEAD(&vdev->vga->region[QEMU_PCI_VGA_IO_HI].quirks,
                       quirk, next);
 
     trace_vfio_quirk_ati_3c3_probe(vdev->vbasedev.name);
@@ -428,7 +428,7 @@ static uint64_t vfio_nvidia_3d4_quirk_read(void *opaque,
 
     quirk->state = NONE;
 
-    return vfio_vga_read(&vdev->vga.region[QEMU_PCI_VGA_IO_HI],
+    return vfio_vga_read(&vdev->vga->region[QEMU_PCI_VGA_IO_HI],
                          addr + 0x14, size);
 }
 
@@ -465,7 +465,7 @@ static void vfio_nvidia_3d4_quirk_write(void *opaque, hwaddr addr,
         break;
     }
 
-    vfio_vga_write(&vdev->vga.region[QEMU_PCI_VGA_IO_HI],
+    vfio_vga_write(&vdev->vga->region[QEMU_PCI_VGA_IO_HI],
                    addr + 0x14, data, size);
 }
 
@@ -481,7 +481,7 @@ static uint64_t vfio_nvidia_3d0_quirk_read(void *opaque,
     VFIONvidia3d0Quirk *quirk = opaque;
     VFIOPCIDevice *vdev = quirk->vdev;
     VFIONvidia3d0State old_state = quirk->state;
-    uint64_t data = vfio_vga_read(&vdev->vga.region[QEMU_PCI_VGA_IO_HI],
+    uint64_t data = vfio_vga_read(&vdev->vga->region[QEMU_PCI_VGA_IO_HI],
                                   addr + 0x10, size);
 
     quirk->state = NONE;
@@ -523,7 +523,7 @@ static void vfio_nvidia_3d0_quirk_write(void *opaque, hwaddr addr,
         }
     }
 
-    vfio_vga_write(&vdev->vga.region[QEMU_PCI_VGA_IO_HI],
+    vfio_vga_write(&vdev->vga->region[QEMU_PCI_VGA_IO_HI],
                    addr + 0x10, data, size);
 }
 
@@ -551,15 +551,15 @@ static void vfio_vga_probe_nvidia_3d0_quirk(VFIOPCIDevice *vdev)
 
     memory_region_init_io(&quirk->mem[0], OBJECT(vdev), &vfio_nvidia_3d4_quirk,
                           data, "vfio-nvidia-3d4-quirk", 2);
-    memory_region_add_subregion(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem,
+    memory_region_add_subregion(&vdev->vga->region[QEMU_PCI_VGA_IO_HI].mem,
                                 0x14 /* 0x3c0 + 0x14 */, &quirk->mem[0]);
 
     memory_region_init_io(&quirk->mem[1], OBJECT(vdev), &vfio_nvidia_3d0_quirk,
                           data, "vfio-nvidia-3d0-quirk", 2);
-    memory_region_add_subregion(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem,
+    memory_region_add_subregion(&vdev->vga->region[QEMU_PCI_VGA_IO_HI].mem,
                                 0x10 /* 0x3c0 + 0x10 */, &quirk->mem[1]);
 
-    QLIST_INSERT_HEAD(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].quirks,
+    QLIST_INSERT_HEAD(&vdev->vga->region[QEMU_PCI_VGA_IO_HI].quirks,
                       quirk, next);
 
     trace_vfio_quirk_nvidia_3d0_probe(vdev->vbasedev.name);
@@ -970,28 +970,28 @@ void vfio_vga_quirk_setup(VFIOPCIDevice *vdev)
     vfio_vga_probe_nvidia_3d0_quirk(vdev);
 }
 
-void vfio_vga_quirk_teardown(VFIOPCIDevice *vdev)
+void vfio_vga_quirk_exit(VFIOPCIDevice *vdev)
 {
     VFIOQuirk *quirk;
     int i, j;
 
-    for (i = 0; i < ARRAY_SIZE(vdev->vga.region); i++) {
-        QLIST_FOREACH(quirk, &vdev->vga.region[i].quirks, next) {
+    for (i = 0; i < ARRAY_SIZE(vdev->vga->region); i++) {
+        QLIST_FOREACH(quirk, &vdev->vga->region[i].quirks, next) {
             for (j = 0; j < quirk->nr_mem; j++) {
-                memory_region_del_subregion(&vdev->vga.region[i].mem,
+                memory_region_del_subregion(&vdev->vga->region[i].mem,
                                             &quirk->mem[j]);
             }
         }
     }
 }
 
-void vfio_vga_quirk_free(VFIOPCIDevice *vdev)
+void vfio_vga_quirk_finalize(VFIOPCIDevice *vdev)
 {
     int i, j;
 
-    for (i = 0; i < ARRAY_SIZE(vdev->vga.region); i++) {
-        while (!QLIST_EMPTY(&vdev->vga.region[i].quirks)) {
-            VFIOQuirk *quirk = QLIST_FIRST(&vdev->vga.region[i].quirks);
+    for (i = 0; i < ARRAY_SIZE(vdev->vga->region); i++) {
+        while (!QLIST_EMPTY(&vdev->vga->region[i].quirks)) {
+            VFIOQuirk *quirk = QLIST_FIRST(&vdev->vga->region[i].quirks);
             QLIST_REMOVE(quirk, next);
             for (j = 0; j < quirk->nr_mem; j++) {
                 object_unparent(OBJECT(&quirk->mem[j]));
@@ -1012,7 +1012,7 @@ void vfio_bar_quirk_setup(VFIOPCIDevice *vdev, int nr)
     vfio_probe_rtl8168_bar2_quirk(vdev, nr);
 }
 
-void vfio_bar_quirk_teardown(VFIOPCIDevice *vdev, int nr)
+void vfio_bar_quirk_exit(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
     VFIOQuirk *quirk;
@@ -1025,7 +1025,7 @@ void vfio_bar_quirk_teardown(VFIOPCIDevice *vdev, int nr)
     }
 }
 
-void vfio_bar_quirk_free(VFIOPCIDevice *vdev, int nr)
+void vfio_bar_quirk_finalize(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
     int i;

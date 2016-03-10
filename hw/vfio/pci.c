@@ -1377,42 +1377,16 @@ static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled)
     }
 }
 
-static void vfio_unregister_bar(VFIOPCIDevice *vdev, int nr)
+static void vfio_bar_setup(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
 
-    if (!bar->region.size) {
-        return;
-    }
-
-    vfio_bar_quirk_teardown(vdev, nr);
-
-    vfio_region_exit(&bar->region);
-}
-
-static void vfio_unmap_bar(VFIOPCIDevice *vdev, int nr)
-{
-    VFIOBAR *bar = &vdev->bars[nr];
-
-    if (!bar->region.size) {
-        return;
-    }
-
-    vfio_bar_quirk_free(vdev, nr);
-
-    vfio_region_finalize(&bar->region);
-}
-
-static void vfio_map_bar(VFIOPCIDevice *vdev, int nr)
-{
-    VFIOBAR *bar = &vdev->bars[nr];
-    uint64_t size = bar->region.size;
     uint32_t pci_bar;
     uint8_t type;
     int ret;
 
     /* Skip both unimplemented BARs and the upper half of 64bit BARS. */
-    if (!size) {
+    if (!bar->region.size) {
         return;
     }
 
@@ -1430,72 +1404,78 @@ static void vfio_map_bar(VFIOPCIDevice *vdev, int nr)
     type = pci_bar & (bar->ioport ? ~PCI_BASE_ADDRESS_IO_MASK :
                                     ~PCI_BASE_ADDRESS_MEM_MASK);
 
-    pci_register_bar(&vdev->pdev, nr, type, bar->region.mem);
-
     if (vfio_region_mmap(&bar->region)) {
         error_report("Failed to mmap %s BAR %d. Performance may be slow",
                      vdev->vbasedev.name, nr);
     }
 
     vfio_bar_quirk_setup(vdev, nr);
+
+    pci_register_bar(&vdev->pdev, nr, type, bar->region.mem);
 }
 
-static void vfio_map_bars(VFIOPCIDevice *vdev)
+static void vfio_bars_setup(VFIOPCIDevice *vdev)
 {
     int i;
 
     for (i = 0; i < PCI_ROM_SLOT; i++) {
-        vfio_map_bar(vdev, i);
+        vfio_bar_setup(vdev, i);
     }
 
-    if (vdev->has_vga) {
-        memory_region_init_io(&vdev->vga.region[QEMU_PCI_VGA_MEM].mem,
+    if (vdev->vga) {
+        memory_region_init_io(&vdev->vga->region[QEMU_PCI_VGA_MEM].mem,
                               OBJECT(vdev), &vfio_vga_ops,
-                              &vdev->vga.region[QEMU_PCI_VGA_MEM],
+                              &vdev->vga->region[QEMU_PCI_VGA_MEM],
                               "vfio-vga-mmio@0xa0000",
                               QEMU_PCI_VGA_MEM_SIZE);
-        memory_region_init_io(&vdev->vga.region[QEMU_PCI_VGA_IO_LO].mem,
+        memory_region_init_io(&vdev->vga->region[QEMU_PCI_VGA_IO_LO].mem,
                               OBJECT(vdev), &vfio_vga_ops,
-                              &vdev->vga.region[QEMU_PCI_VGA_IO_LO],
+                              &vdev->vga->region[QEMU_PCI_VGA_IO_LO],
                               "vfio-vga-io@0x3b0",
                               QEMU_PCI_VGA_IO_LO_SIZE);
-        memory_region_init_io(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem,
+        memory_region_init_io(&vdev->vga->region[QEMU_PCI_VGA_IO_HI].mem,
                               OBJECT(vdev), &vfio_vga_ops,
-                              &vdev->vga.region[QEMU_PCI_VGA_IO_HI],
+                              &vdev->vga->region[QEMU_PCI_VGA_IO_HI],
                               "vfio-vga-io@0x3c0",
                               QEMU_PCI_VGA_IO_HI_SIZE);
 
-        pci_register_vga(&vdev->pdev, &vdev->vga.region[QEMU_PCI_VGA_MEM].mem,
-                         &vdev->vga.region[QEMU_PCI_VGA_IO_LO].mem,
-                         &vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem);
+        pci_register_vga(&vdev->pdev, &vdev->vga->region[QEMU_PCI_VGA_MEM].mem,
+                         &vdev->vga->region[QEMU_PCI_VGA_IO_LO].mem,
+                         &vdev->vga->region[QEMU_PCI_VGA_IO_HI].mem);
         vfio_vga_quirk_setup(vdev);
     }
 }
 
-static void vfio_unregister_bars(VFIOPCIDevice *vdev)
+static void vfio_bars_exit(VFIOPCIDevice *vdev)
 {
     int i;
 
     for (i = 0; i < PCI_ROM_SLOT; i++) {
-        vfio_unregister_bar(vdev, i);
+        vfio_bar_quirk_exit(vdev, i);
+        vfio_region_exit(&vdev->bars[i].region);
     }
 
-    if (vdev->has_vga) {
-        vfio_vga_quirk_teardown(vdev);
+    if (vdev->vga) {
         pci_unregister_vga(&vdev->pdev);
+        vfio_vga_quirk_exit(vdev);
     }
 }
 
-static void vfio_unmap_bars(VFIOPCIDevice *vdev)
+static void vfio_bars_finalize(VFIOPCIDevice *vdev)
 {
     int i;
 
     for (i = 0; i < PCI_ROM_SLOT; i++) {
-        vfio_unmap_bar(vdev, i);
+        vfio_bar_quirk_finalize(vdev, i);
+        vfio_region_finalize(&vdev->bars[i].region);
     }
 
-    if (vdev->has_vga) {
-        vfio_vga_quirk_free(vdev);
+    if (vdev->vga) {
+        vfio_vga_quirk_finalize(vdev);
+        for (i = 0; i < ARRAY_SIZE(vdev->vga->region); i++) {
+            object_unparent(OBJECT(&vdev->vga->region[i].mem));
+        }
+        g_free(vdev->vga);
     }
 }
 
@@ -2124,24 +2104,24 @@ static int vfio_populate_device(VFIOPCIDevice *vdev)
             goto error;
         }
 
-        vdev->vga.fd_offset = reg_info->offset;
-        vdev->vga.fd = vdev->vbasedev.fd;
+        vdev->vga = g_new0(VFIOVGA, 1);
+
+        vdev->vga->fd_offset = reg_info->offset;
+        vdev->vga->fd = vdev->vbasedev.fd;
 
         g_free(reg_info);
 
-        vdev->vga.region[QEMU_PCI_VGA_MEM].offset = QEMU_PCI_VGA_MEM_BASE;
-        vdev->vga.region[QEMU_PCI_VGA_MEM].nr = QEMU_PCI_VGA_MEM;
-        QLIST_INIT(&vdev->vga.region[QEMU_PCI_VGA_MEM].quirks);
+        vdev->vga->region[QEMU_PCI_VGA_MEM].offset = QEMU_PCI_VGA_MEM_BASE;
+        vdev->vga->region[QEMU_PCI_VGA_MEM].nr = QEMU_PCI_VGA_MEM;
+        QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_MEM].quirks);
 
-        vdev->vga.region[QEMU_PCI_VGA_IO_LO].offset = QEMU_PCI_VGA_IO_LO_BASE;
-        vdev->vga.region[QEMU_PCI_VGA_IO_LO].nr = QEMU_PCI_VGA_IO_LO;
-        QLIST_INIT(&vdev->vga.region[QEMU_PCI_VGA_IO_LO].quirks);
+        vdev->vga->region[QEMU_PCI_VGA_IO_LO].offset = QEMU_PCI_VGA_IO_LO_BASE;
+        vdev->vga->region[QEMU_PCI_VGA_IO_LO].nr = QEMU_PCI_VGA_IO_LO;
+        QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_IO_LO].quirks);
 
-        vdev->vga.region[QEMU_PCI_VGA_IO_HI].offset = QEMU_PCI_VGA_IO_HI_BASE;
-        vdev->vga.region[QEMU_PCI_VGA_IO_HI].nr = QEMU_PCI_VGA_IO_HI;
-        QLIST_INIT(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].quirks);
-
-        vdev->has_vga = true;
+        vdev->vga->region[QEMU_PCI_VGA_IO_HI].offset = QEMU_PCI_VGA_IO_HI_BASE;
+        vdev->vga->region[QEMU_PCI_VGA_IO_HI].nr = QEMU_PCI_VGA_IO_HI;
+        QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_IO_HI].quirks);
     }
 
     irq_info.index = VFIO_PCI_ERR_IRQ_INDEX;
@@ -2528,7 +2508,7 @@ static int vfio_initfn(PCIDevice *pdev)
         return ret;
     }
 
-    vfio_map_bars(vdev);
+    vfio_bars_setup(vdev);
 
     ret = vfio_add_capabilities(vdev);
     if (ret) {
@@ -2565,7 +2545,7 @@ static int vfio_initfn(PCIDevice *pdev)
 out_teardown:
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
     vfio_teardown_msi(vdev);
-    vfio_unregister_bars(vdev);
+    vfio_bars_exit(vdev);
     return ret;
 }
 
@@ -2575,7 +2555,7 @@ static void vfio_instance_finalize(Object *obj)
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pci_dev);
     VFIOGroup *group = vdev->vbasedev.group;
 
-    vfio_unmap_bars(vdev);
+    vfio_bars_finalize(vdev);
     g_free(vdev->emulated_config_bits);
     g_free(vdev->rom);
     vfio_put_device(vdev);
@@ -2594,7 +2574,7 @@ static void vfio_exitfn(PCIDevice *pdev)
         timer_free(vdev->intx.mmap_timer);
     }
     vfio_teardown_msi(vdev);
-    vfio_unregister_bars(vdev);
+    vfio_bars_exit(vdev);
 }
 
 static void vfio_pci_reset(DeviceState *dev)
