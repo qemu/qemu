@@ -919,7 +919,7 @@ static void vfio_pci_size_rom(VFIOPCIDevice *vdev)
     uint32_t orig, size = cpu_to_le32((uint32_t)PCI_ROM_ADDRESS_MASK);
     off_t offset = vdev->config_offset + PCI_ROM_ADDRESS;
     DeviceState *dev = DEVICE(vdev);
-    char name[32];
+    char *name;
     int fd = vdev->vbasedev.fd;
 
     if (vdev->pdev.romfile || !vdev->pdev.rom_bar) {
@@ -962,10 +962,11 @@ static void vfio_pci_size_rom(VFIOPCIDevice *vdev)
 
     trace_vfio_pci_size_rom(vdev->vbasedev.name, size);
 
-    snprintf(name, sizeof(name), "vfio[%s].rom", vdev->vbasedev.name);
+    name = g_strdup_printf("vfio[%s].rom", vdev->vbasedev.name);
 
     memory_region_init_io(&vdev->pdev.rom, OBJECT(vdev),
                           &vfio_rom_ops, vdev, name, size);
+    g_free(name);
 
     pci_register_bar(&vdev->pdev, PCI_ROM_SLOT,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &vdev->pdev.rom);
