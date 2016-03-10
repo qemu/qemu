@@ -103,7 +103,7 @@ void s390_init_cpus(MachineState *machine)
         machine->cpu_model = "host";
     }
 
-    cpu_states = g_malloc0(sizeof(S390CPU *) * max_cpus);
+    cpu_states = g_new0(S390CPU *, max_cpus);
 
     for (i = 0; i < max_cpus; i++) {
         name = g_strdup_printf("cpu[%i]", i);
