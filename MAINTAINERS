@@ -717,6 +717,12 @@ F: hw/timer/hpet*
 F: hw/timer/i8254*
 F: hw/timer/mc146818rtc*
 
+Machine core
+M: Eduardo Habkost <ehabkost@redhat.com>
+M: Marcel Apfelbaum <marcel@redhat.com>
+S: Supported
+F: hw/core/machine.c
+F: include/hw/boards.h
 
 Xtensa Machines
 ---------------
