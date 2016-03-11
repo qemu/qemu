@@ -127,6 +127,15 @@ extern int daemon(int, int);
 #define TIME_MAX LONG_MAX
 #endif
 
+/* HOST_LONG_BITS is the size of a native pointer in bits. */
+#if UINTPTR_MAX == UINT32_MAX
+# define HOST_LONG_BITS 32
+#elif UINTPTR_MAX == UINT64_MAX
+# define HOST_LONG_BITS 64
+#else
+# error Unknown pointer size
+#endif
+
 #ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif

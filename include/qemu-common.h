@@ -23,15 +23,6 @@
 #include "qemu/option.h"
 #include "qemu/host-utils.h"
 
-/* HOST_LONG_BITS is the size of a native pointer in bits. */
-#if UINTPTR_MAX == UINT32_MAX
-# define HOST_LONG_BITS 32
-#elif UINTPTR_MAX == UINT64_MAX
-# define HOST_LONG_BITS 64
-#else
-# error Unknown pointer size
-#endif
-
 void cpu_ticks_init(void);
 
 /* icount */
