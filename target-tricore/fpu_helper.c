@@ -47,7 +47,7 @@ static inline bool f_is_denormal(float32 arg)
     return float32_is_zero_or_denormal(arg) && !float32_is_zero(arg);
 }
 
-static inline void f_update_psw_flags(CPUTriCoreState *env, uint8_t flags)
+static void f_update_psw_flags(CPUTriCoreState *env, uint8_t flags)
 {
     uint8_t some_excp = 0;
     set_float_exception_flags(0, &env->fp_status);
@@ -79,3 +79,30 @@ static inline void f_update_psw_flags(CPUTriCoreState *env, uint8_t flags)
 
     env->FPU_FS = some_excp;
 }
+
+#define FADD_SUB(op)                                                           \
+uint32_t helper_f##op(CPUTriCoreState *env, uint32_t r1, uint32_t r2)          \
+{                                                                              \
+    float32 arg1 = make_float32(r1);                                           \
+    float32 arg2 = make_float32(r2);                                           \
+    uint32_t flags;                                                            \
+    float32 f_result;                                                          \
+                                                                               \
+    f_result = float32_##op(arg2, arg1, &env->fp_status);                      \
+    flags = f_get_excp_flags(env);                                             \
+    if (flags) {                                                               \
+        /* If the output is a NaN, but the inputs aren't,                      \
+           we return a unique value.  */                                       \
+        if ((flags & float_flag_invalid)                                       \
+            && !float32_is_any_nan(arg1)                                       \
+            && !float32_is_any_nan(arg2)) {                                    \
+            f_result = ADD_NAN;                                                \
+        }                                                                      \
+        f_update_psw_flags(env, flags);                                        \
+    } else {                                                                   \
+        env->FPU_FS = 0;                                                       \
+    }                                                                          \
+    return (uint32_t)f_result;                                                 \
+}
+FADD_SUB(add)
+FADD_SUB(sub)
