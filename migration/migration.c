@@ -706,7 +706,7 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
              */
             error_report("Postcopy is not currently compatible with "
                          "compression");
-            s->enabled_capabilities[MIGRATION_CAPABILITY_X_POSTCOPY_RAM] =
+            s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_RAM] =
                 false;
         }
     }
@@ -1125,7 +1125,7 @@ bool migrate_postcopy_ram(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_X_POSTCOPY_RAM];
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_RAM];
 }
 
 bool migrate_auto_converge(void)

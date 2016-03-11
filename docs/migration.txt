@@ -333,7 +333,7 @@ doesn't finish in a given time the switch is made to postcopy.
 To enable postcopy, issue this command on the monitor prior to the
 start of migration:
 
-migrate_set_capability x-postcopy-ram on
+migrate_set_capability postcopy-ram on
 
 The normal commands are then used to start a migration, which is still
 started in precopy mode.  Issuing:

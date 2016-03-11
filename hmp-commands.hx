@@ -1026,7 +1026,7 @@ ETEXI
         .args_type  = "",
         .params     = "",
         .help       = "Followup to a migration command to switch the migration"
-                      " to postcopy mode. The x-postcopy-ram capability must "
+                      " to postcopy mode. The postcopy-ram capability must "
                       "be set before the original migration command.",
         .mhandler.cmd = hmp_migrate_start_postcopy,
     },
