@@ -68,6 +68,10 @@ static void test_hash_alloc(void)
         int ret;
         size_t j;
 
+        if (!qcrypto_hash_supports(i)) {
+            continue;
+        }
+
         ret = qcrypto_hash_bytes(i,
                                  INPUT_TEXT,
                                  strlen(INPUT_TEXT),
@@ -97,6 +101,10 @@ static void test_hash_prealloc(void)
         size_t resultlen;
         int ret;
         size_t j;
+
+        if (!qcrypto_hash_supports(i)) {
+            continue;
+        }
 
         resultlen = expected_lens[i];
         result = g_new0(uint8_t, resultlen);
@@ -137,6 +145,10 @@ static void test_hash_iov(void)
         int ret;
         size_t j;
 
+        if (!qcrypto_hash_supports(i)) {
+            continue;
+        }
+
         ret = qcrypto_hash_bytesv(i,
                                   iov, 3,
                                   &result,
@@ -165,6 +177,10 @@ static void test_hash_digest(void)
         char *digest;
         size_t digestsize;
 
+        if (!qcrypto_hash_supports(i)) {
+            continue;
+        }
+
         digestsize = qcrypto_hash_digest_len(i);
 
         g_assert_cmpint(digestsize * 2, ==, strlen(expected_outputs[i]));
@@ -175,7 +191,7 @@ static void test_hash_digest(void)
                                   &digest,
                                   NULL);
         g_assert(ret == 0);
-        g_assert(g_str_equal(digest, expected_outputs[i]));
+        g_assert_cmpstr(digest, ==, expected_outputs[i]);
         g_free(digest);
     }
 }
@@ -191,13 +207,17 @@ static void test_hash_base64(void)
         int ret;
         char *digest;
 
+        if (!qcrypto_hash_supports(i)) {
+            continue;
+        }
+
         ret = qcrypto_hash_base64(i,
                                   INPUT_TEXT,
                                   strlen(INPUT_TEXT),
                                   &digest,
                                   NULL);
         g_assert(ret == 0);
-        g_assert(g_str_equal(digest, expected_outputs_b64[i]));
+        g_assert_cmpstr(digest, ==, expected_outputs_b64[i]);
         g_free(digest);
     }
 }
