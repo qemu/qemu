@@ -181,3 +181,37 @@ uint32_t helper_fcmp(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
     set_flush_inputs_to_zero(1, &env->fp_status);
     return result;
 }
+
+uint32_t helper_ftoi(CPUTriCoreState *env, uint32_t arg)
+{
+    float32 f_arg = make_float32(arg);
+    int32_t result, flags;
+
+    result = float32_to_int32(f_arg, &env->fp_status);
+
+    flags = f_get_excp_flags(env);
+    if (flags) {
+        if (float32_is_any_nan(f_arg)) {
+            result = 0;
+        }
+        f_update_psw_flags(env, flags);
+    } else {
+        env->FPU_FS = 0;
+    }
+    return (uint32_t)result;
+}
+
+uint32_t helper_itof(CPUTriCoreState *env, uint32_t arg)
+{
+    float32 f_result;
+    uint32_t flags;
+    f_result = int32_to_float32(arg, &env->fp_status);
+
+    flags = f_get_excp_flags(env);
+    if (flags) {
+        f_update_psw_flags(env, flags);
+    } else {
+        env->FPU_FS = 0;
+    }
+    return (uint32_t)f_result;
+}

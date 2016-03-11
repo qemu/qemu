@@ -6681,6 +6681,12 @@ static void decode_rr_divide(CPUTriCoreState *env, DisasContext *ctx)
     case OPC2_32_RR_CMP_F:
         gen_helper_fcmp(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1], cpu_gpr_d[r2]);
         break;
+    case OPC2_32_RR_FTOI:
+        gen_helper_ftoi(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1]);
+        break;
+    case OPC2_32_RR_ITOF:
+        gen_helper_itof(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1]);
+        break;
     default:
         generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
     }
