@@ -30,27 +30,56 @@
 
 #define OUTPUT_MD5 "628d206371563035ab8ef62f492bdec9"
 #define OUTPUT_SHA1 "b2e74f26758a3a421e509cee045244b78753cc02"
+#define OUTPUT_SHA224 "e2f7415aad33ef79f6516b0986d7175f" \
+                      "9ca3389a85bf6cfed078737b"
 #define OUTPUT_SHA256 "bc757abb0436586f392b437e5dd24096" \
                       "f7f224de6b74d4d86e2abc6121b160d0"
+#define OUTPUT_SHA384 "887ce52efb4f46700376356583b7e279" \
+                      "4f612bd024e4495087ddb946c448c69d" \
+                      "56dbf7152a94a5e63a80f3ba9f0eed78"
+#define OUTPUT_SHA512 "3a90d79638235ec6c4c11bebd84d83c0" \
+                      "549bc1e84edc4b6ec7086487641256cb" \
+                      "63b54e4cb2d2032b393994aa263c0dbb" \
+                      "e00a9f2fe9ef6037352232a1eec55ee7"
+#define OUTPUT_RIPEMD160 "f3d658fad3fdfb2b52c9369cf0d441249ddfa8a0"
 
 #define OUTPUT_MD5_B64 "Yo0gY3FWMDWrjvYvSSveyQ=="
 #define OUTPUT_SHA1_B64 "sudPJnWKOkIeUJzuBFJEt4dTzAI="
+#define OUTPUT_SHA224_B64 "4vdBWq0z73n2UWsJhtcXX5yjOJqFv2z+0Hhzew=="
 #define OUTPUT_SHA256_B64 "vHV6uwQ2WG85K0N+XdJAlvfyJN5rdNTYbiq8YSGxYNA="
+#define OUTPUT_SHA384_B64 "iHzlLvtPRnADdjVlg7fieU9hK9Ak5ElQh925RsRI" \
+                          "xp1W2/cVKpSl5jqA87qfDu14"
+#define OUTPUT_SHA512_B64 "OpDXljgjXsbEwRvr2E2DwFSbwehO3Etuxwhkh2QS" \
+                          "VstjtU5MstIDKzk5lKomPA274AqfL+nvYDc1IjKh" \
+                          "7sVe5w=="
+#define OUTPUT_RIPEMD160_B64 "89ZY+tP9+ytSyTac8NRBJJ3fqKA="
 
 static const char *expected_outputs[] = {
     [QCRYPTO_HASH_ALG_MD5] = OUTPUT_MD5,
     [QCRYPTO_HASH_ALG_SHA1] = OUTPUT_SHA1,
+    [QCRYPTO_HASH_ALG_SHA224] = OUTPUT_SHA224,
     [QCRYPTO_HASH_ALG_SHA256] = OUTPUT_SHA256,
+    [QCRYPTO_HASH_ALG_SHA384] = OUTPUT_SHA384,
+    [QCRYPTO_HASH_ALG_SHA512] = OUTPUT_SHA512,
+    [QCRYPTO_HASH_ALG_RIPEMD160] = OUTPUT_RIPEMD160,
 };
 static const char *expected_outputs_b64[] = {
     [QCRYPTO_HASH_ALG_MD5] = OUTPUT_MD5_B64,
     [QCRYPTO_HASH_ALG_SHA1] = OUTPUT_SHA1_B64,
+    [QCRYPTO_HASH_ALG_SHA224] = OUTPUT_SHA224_B64,
     [QCRYPTO_HASH_ALG_SHA256] = OUTPUT_SHA256_B64,
+    [QCRYPTO_HASH_ALG_SHA384] = OUTPUT_SHA384_B64,
+    [QCRYPTO_HASH_ALG_SHA512] = OUTPUT_SHA512_B64,
+    [QCRYPTO_HASH_ALG_RIPEMD160] = OUTPUT_RIPEMD160_B64,
 };
 static const int expected_lens[] = {
     [QCRYPTO_HASH_ALG_MD5] = 16,
     [QCRYPTO_HASH_ALG_SHA1] = 20,
+    [QCRYPTO_HASH_ALG_SHA224] = 28,
     [QCRYPTO_HASH_ALG_SHA256] = 32,
+    [QCRYPTO_HASH_ALG_SHA384] = 48,
+    [QCRYPTO_HASH_ALG_SHA512] = 64,
+    [QCRYPTO_HASH_ALG_RIPEMD160] = 20,
 };
 
 static const char hex[] = "0123456789abcdef";

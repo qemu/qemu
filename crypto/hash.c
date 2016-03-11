@@ -25,7 +25,11 @@
 static size_t qcrypto_hash_alg_size[QCRYPTO_HASH_ALG__MAX] = {
     [QCRYPTO_HASH_ALG_MD5] = 16,
     [QCRYPTO_HASH_ALG_SHA1] = 20,
+    [QCRYPTO_HASH_ALG_SHA224] = 28,
     [QCRYPTO_HASH_ALG_SHA256] = 32,
+    [QCRYPTO_HASH_ALG_SHA384] = 48,
+    [QCRYPTO_HASH_ALG_SHA512] = 64,
+    [QCRYPTO_HASH_ALG_RIPEMD160] = 20,
 };
 
 size_t qcrypto_hash_digest_len(QCryptoHashAlgorithm alg)

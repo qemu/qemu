@@ -23,6 +23,7 @@
 #include "crypto/hash.h"
 #include <nettle/md5.h>
 #include <nettle/sha.h>
+#include <nettle/ripemd160.h>
 
 typedef void (*qcrypto_nettle_init)(void *ctx);
 typedef void (*qcrypto_nettle_write)(void *ctx,
@@ -35,7 +36,11 @@ typedef void (*qcrypto_nettle_result)(void *ctx,
 union qcrypto_hash_ctx {
     struct md5_ctx md5;
     struct sha1_ctx sha1;
+    struct sha224_ctx sha224;
     struct sha256_ctx sha256;
+    struct sha384_ctx sha384;
+    struct sha512_ctx sha512;
+    struct ripemd160_ctx ripemd160;
 };
 
 struct qcrypto_hash_alg {
@@ -56,11 +61,35 @@ struct qcrypto_hash_alg {
         .result = (qcrypto_nettle_result)sha1_digest,
         .len = SHA1_DIGEST_SIZE,
     },
+    [QCRYPTO_HASH_ALG_SHA224] = {
+        .init = (qcrypto_nettle_init)sha224_init,
+        .write = (qcrypto_nettle_write)sha224_update,
+        .result = (qcrypto_nettle_result)sha224_digest,
+        .len = SHA224_DIGEST_SIZE,
+    },
     [QCRYPTO_HASH_ALG_SHA256] = {
         .init = (qcrypto_nettle_init)sha256_init,
         .write = (qcrypto_nettle_write)sha256_update,
         .result = (qcrypto_nettle_result)sha256_digest,
         .len = SHA256_DIGEST_SIZE,
+    },
+    [QCRYPTO_HASH_ALG_SHA384] = {
+        .init = (qcrypto_nettle_init)sha384_init,
+        .write = (qcrypto_nettle_write)sha384_update,
+        .result = (qcrypto_nettle_result)sha384_digest,
+        .len = SHA384_DIGEST_SIZE,
+    },
+    [QCRYPTO_HASH_ALG_SHA512] = {
+        .init = (qcrypto_nettle_init)sha512_init,
+        .write = (qcrypto_nettle_write)sha512_update,
+        .result = (qcrypto_nettle_result)sha512_digest,
+        .len = SHA512_DIGEST_SIZE,
+    },
+    [QCRYPTO_HASH_ALG_RIPEMD160] = {
+        .init = (qcrypto_nettle_init)ripemd160_init,
+        .write = (qcrypto_nettle_write)ripemd160_update,
+        .result = (qcrypto_nettle_result)ripemd160_digest,
+        .len = RIPEMD160_DIGEST_SIZE,
     },
 };
 
