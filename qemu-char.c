@@ -2799,6 +2799,13 @@ static ssize_t tcp_chr_recv(CharDriverState *chr, char *buf, size_t len)
                                      NULL);
     }
 
+    if (ret == QIO_CHANNEL_ERR_BLOCK) {
+        errno = EAGAIN;
+        ret = -1;
+    } else if (ret == -1) {
+        errno = EIO;
+    }
+
     if (msgfds_num) {
         /* close and clean read_msgfds */
         for (i = 0; i < s->read_msgfds_num; i++) {
