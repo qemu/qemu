@@ -149,6 +149,12 @@ extern int daemon(int, int);
 #define MIN_NON_ZERO(a, b) (((a) != 0 && (a) < (b)) ? (a) : (b))
 #endif
 
+/* Round number down to multiple */
+#define QEMU_ALIGN_DOWN(n, m) ((n) / (m) * (m))
+
+/* Round number up to multiple */
+#define QEMU_ALIGN_UP(n, m) QEMU_ALIGN_DOWN((n) + (m) - 1, (m))
+
 #ifndef ROUND_UP
 #define ROUND_UP(n,d) (((n) + (d) - 1) & -(d))
 #endif
