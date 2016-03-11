@@ -8773,6 +8773,7 @@ void cpu_state_reset(CPUTriCoreState *env)
 {
     /* Reset Regs to Default Value */
     env->PSW = 0xb80;
+    fpu_set_state(env);
 }
 
 static void tricore_tcg_init_csfr(void)

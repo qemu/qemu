@@ -110,6 +110,14 @@ void tricore_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     g_slist_free(list);
 }
 
+void fpu_set_state(CPUTriCoreState *env)
+{
+    set_float_rounding_mode(env->PSW & MASK_PSW_FPU_RM, &env->fp_status);
+    set_flush_inputs_to_zero(1, &env->fp_status);
+    set_flush_to_zero(1, &env->fp_status);
+    set_default_nan_mode(1, &env->fp_status);
+}
+
 uint32_t psw_read(CPUTriCoreState *env)
 {
     /* clear all USB bits */
@@ -132,4 +140,6 @@ void psw_write(CPUTriCoreState *env, uint32_t val)
     env->PSW_USB_AV = (val & MASK_USB_AV) << 3;
     env->PSW_USB_SAV = (val & MASK_USB_SAV) << 4;
     env->PSW = val;
+
+    fpu_set_state(env);
 }

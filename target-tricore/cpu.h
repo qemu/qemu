@@ -183,8 +183,7 @@ struct CPUTriCoreState {
     uint32_t M2CNT;
     uint32_t M3CNT;
     /* Floating Point Registers */
-    /* XXX: */
-
+    float_status fp_status;
     /* QEMU */
     int error_code;
     uint32_t hflags;    /* CPU State */
@@ -217,6 +216,7 @@ struct CPUTriCoreState {
 #define MASK_PSW_GW  0x00000100
 #define MASK_PSW_CDE 0x00000080
 #define MASK_PSW_CDC 0x0000007f
+#define MASK_PSW_FPU_RM 0x3000000
 
 #define MASK_SYSCON_PRO_TEN 0x2
 #define MASK_SYSCON_FCD_SF  0x1
@@ -338,6 +338,8 @@ enum {
 
 uint32_t psw_read(CPUTriCoreState *env);
 void psw_write(CPUTriCoreState *env, uint32_t val);
+
+void fpu_set_state(CPUTriCoreState *env);
 
 #include "cpu-qom.h"
 #define MMU_USER_IDX 2
