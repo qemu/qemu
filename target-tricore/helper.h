@@ -108,6 +108,7 @@ DEF_HELPER_1(unpack, i64, i32)
 DEF_HELPER_3(fadd, i32, env, i32, i32)
 DEF_HELPER_3(fsub, i32, env, i32, i32)
 DEF_HELPER_3(fmul, i32, env, i32, i32)
+DEF_HELPER_3(fdiv, i32, env, i32, i32)
 /* dvinit */
 DEF_HELPER_3(dvinit_b_13, i64, env, i32, i32)
 DEF_HELPER_3(dvinit_b_131, i64, env, i32, i32)
