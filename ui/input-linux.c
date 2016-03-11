@@ -10,6 +10,7 @@
 #include "qemu/sockets.h"
 #include "sysemu/sysemu.h"
 #include "ui/input.h"
+#include "qom/object_interfaces.h"
 
 #include <sys/ioctl.h>
 #include "standard-headers/linux/input.h"
@@ -127,10 +128,21 @@ static int qemu_input_linux_to_qcode(unsigned int lnx)
     return linux_to_qcode[lnx];
 }
 
+#define TYPE_INPUT_LINUX "input-linux"
+#define INPUT_LINUX(obj) \
+    OBJECT_CHECK(InputLinux, (obj), TYPE_INPUT_LINUX)
+#define INPUT_LINUX_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(InputLinuxClass, (obj), TYPE_INPUT_LINUX)
+#define INPUT_LINUX_CLASS(klass) \
+    OBJECT_CLASS_CHECK(InputLinuxClass, (klass), TYPE_INPUT_LINUX)
+
 typedef struct InputLinux InputLinux;
+typedef struct InputLinuxClass InputLinuxClass;
 
 struct InputLinux {
-    const char  *evdev;
+    Object parent;
+
+    char        *evdev;
     int         fd;
     bool        repeat;
     bool        grab_request;
@@ -139,7 +151,12 @@ struct InputLinux {
     bool        keydown[KEY_CNT];
     int         keycount;
     int         wheel;
+    bool        initialized;
     QTAILQ_ENTRY(InputLinux) next;
+};
+
+struct InputLinuxClass {
+    ObjectClass parent_class;
 };
 
 static QTAILQ_HEAD(, InputLinux) inputs = QTAILQ_HEAD_INITIALIZER(inputs);
@@ -309,25 +326,21 @@ static void input_linux_event_mouse(void *opaque)
     }
 }
 
-int input_linux_init(void *opaque, QemuOpts *opts, Error **errp)
+static void input_linux_complete(UserCreatable *uc, Error **errp)
 {
-    InputLinux *il = g_new0(InputLinux, 1);
+    InputLinux *il = INPUT_LINUX(uc);
     uint32_t evtmap;
     int rc, ver;
 
-    il->evdev = qemu_opt_get(opts, "evdev");
-    il->grab_all = qemu_opt_get_bool(opts, "grab-all", false);
-    il->repeat = qemu_opt_get_bool(opts, "repeat", false);
-
     if (!il->evdev) {
         error_setg(errp, "no input device specified");
-        goto err_free;
+        return;
     }
 
     il->fd = open(il->evdev, O_RDWR);
     if (il->fd < 0)  {
         error_setg_file_open(errp, errno, il->evdev);
-        goto err_free;
+        return;
     }
     qemu_set_nonblock(il->fd);
 
@@ -356,36 +369,111 @@ int input_linux_init(void *opaque, QemuOpts *opts, Error **errp)
     }
     input_linux_toggle_grab(il);
     QTAILQ_INSERT_TAIL(&inputs, il, next);
-    return 0;
+    il->initialized = true;
+    return;
 
 err_close:
     close(il->fd);
-err_free:
-    g_free(il);
-    return -1;
+    return;
 }
 
-static QemuOptsList qemu_input_linux_opts = {
-    .name = "input-linux",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_input_linux_opts.head),
-    .implied_opt_name = "evdev",
-    .desc = {
-        {
-            .name = "evdev",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "grab-all",
-            .type = QEMU_OPT_BOOL,
-        },{
-            .name = "repeat",
-            .type = QEMU_OPT_BOOL,
-        },
-        { /* end of list */ }
-    },
+static void input_linux_instance_finalize(Object *obj)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+
+    if (il->initialized) {
+        QTAILQ_REMOVE(&inputs, il, next);
+        close(il->fd);
+    }
+    g_free(il->evdev);
+}
+
+static char *input_linux_get_evdev(Object *obj, Error **errp)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+
+    return g_strdup(il->evdev);
+}
+
+static void input_linux_set_evdev(Object *obj, const char *value,
+                                  Error **errp)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+
+    if (il->evdev) {
+        error_setg(errp, "evdev property already set");
+        return;
+    }
+    il->evdev = g_strdup(value);
+}
+
+static bool input_linux_get_grab_all(Object *obj, Error **errp)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+
+    return il->grab_all;
+}
+
+static void input_linux_set_grab_all(Object *obj, bool value,
+                                   Error **errp)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+
+    il->grab_all = value;
+}
+
+static bool input_linux_get_repeat(Object *obj, Error **errp)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+
+    return il->repeat;
+}
+
+static void input_linux_set_repeat(Object *obj, bool value,
+                                   Error **errp)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+
+    il->repeat = value;
+}
+
+static void input_linux_instance_init(Object *obj)
+{
+    object_property_add_str(obj, "evdev",
+                            input_linux_get_evdev,
+                            input_linux_set_evdev, NULL);
+    object_property_add_bool(obj, "grab_all",
+                             input_linux_get_grab_all,
+                             input_linux_set_grab_all, NULL);
+    object_property_add_bool(obj, "repeat",
+                             input_linux_get_repeat,
+                             input_linux_set_repeat, NULL);
+}
+
+static void input_linux_class_init(ObjectClass *oc, void *data)
+{
+    UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
+
+    ucc->complete = input_linux_complete;
+}
+
+static const TypeInfo input_linux_info = {
+    .name = TYPE_INPUT_LINUX,
+    .parent = TYPE_OBJECT,
+    .class_size = sizeof(InputLinuxClass),
+    .class_init = input_linux_class_init,
+    .instance_size = sizeof(InputLinux),
+    .instance_init = input_linux_instance_init,
+    .instance_finalize = input_linux_instance_finalize,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_USER_CREATABLE },
+        { }
+    }
 };
 
-static void input_linux_register_config(void)
+static void register_types(void)
 {
-    qemu_add_opts(&qemu_input_linux_opts);
+    type_register_static(&input_linux_info);
 }
-opts_init(input_linux_register_config);
+
+type_init(register_types);

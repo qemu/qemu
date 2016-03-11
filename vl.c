@@ -3729,12 +3729,6 @@ int main(int argc, char **argv, char **envp)
 #endif
                 break;
             }
-            case QEMU_OPTION_input_linux:
-                if (!qemu_opts_parse_noisily(qemu_find_opts("input-linux"),
-                                             optarg, true)) {
-                    exit(1);
-                }
-                break;
             case QEMU_OPTION_no_acpi:
                 acpi_enabled = 0;
                 break;
@@ -4597,10 +4591,6 @@ int main(int argc, char **argv, char **envp)
     if (using_spice) {
         qemu_spice_display_init();
     }
-#endif
-#ifdef CONFIG_LINUX
-    qemu_opts_foreach(qemu_find_opts("input-linux"),
-                      input_linux_init, NULL, &error_fatal);
 #endif
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {
