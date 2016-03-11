@@ -1494,7 +1494,7 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
     qemu_sem_init(&mis->listen_thread_sem, 0);
     qemu_thread_create(&mis->listen_thread, "postcopy/listen",
                        postcopy_ram_listen_thread, mis->from_src_file,
-                       QEMU_THREAD_JOINABLE);
+                       QEMU_THREAD_DETACHED);
     qemu_sem_wait(&mis->listen_thread_sem);
     qemu_sem_destroy(&mis->listen_thread_sem);
 
