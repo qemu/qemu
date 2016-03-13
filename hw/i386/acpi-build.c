@@ -1792,18 +1792,14 @@ static void build_q35_pci0_int(Aml *table)
     aml_append(sb_scope, build_link_dev("LNKG", 6, aml_name("PRQG")));
     aml_append(sb_scope, build_link_dev("LNKH", 7, aml_name("PRQH")));
 
-    /*
-     * TODO: UID probably shouldn't be the same for GSIx devices
-     * but that's how it was in original ASL so keep it for now
-     */
-    aml_append(sb_scope, build_gsi_link_dev("GSIA", 0, 0x10));
-    aml_append(sb_scope, build_gsi_link_dev("GSIB", 0, 0x11));
-    aml_append(sb_scope, build_gsi_link_dev("GSIC", 0, 0x12));
-    aml_append(sb_scope, build_gsi_link_dev("GSID", 0, 0x13));
-    aml_append(sb_scope, build_gsi_link_dev("GSIE", 0, 0x14));
-    aml_append(sb_scope, build_gsi_link_dev("GSIF", 0, 0x15));
-    aml_append(sb_scope, build_gsi_link_dev("GSIG", 0, 0x16));
-    aml_append(sb_scope, build_gsi_link_dev("GSIH", 0, 0x17));
+    aml_append(sb_scope, build_gsi_link_dev("GSIA", 0x10, 0x10));
+    aml_append(sb_scope, build_gsi_link_dev("GSIB", 0x11, 0x11));
+    aml_append(sb_scope, build_gsi_link_dev("GSIC", 0x12, 0x12));
+    aml_append(sb_scope, build_gsi_link_dev("GSID", 0x13, 0x13));
+    aml_append(sb_scope, build_gsi_link_dev("GSIE", 0x14, 0x14));
+    aml_append(sb_scope, build_gsi_link_dev("GSIF", 0x15, 0x15));
+    aml_append(sb_scope, build_gsi_link_dev("GSIG", 0x16, 0x16));
+    aml_append(sb_scope, build_gsi_link_dev("GSIH", 0x17, 0x17));
 
     aml_append(table, sb_scope);
 }
