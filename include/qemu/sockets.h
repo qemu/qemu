@@ -3,25 +3,8 @@
 #define QEMU_SOCKET_H
 
 #ifdef _WIN32
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-
-#define socket_error() WSAGetLastError()
 
 int inet_aton(const char *cp, struct in_addr *ia);
-
-#else
-
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <sys/un.h>
-
-#define socket_error() errno
-#define closesocket(s) close(s)
 
 #endif /* !_WIN32 */
 

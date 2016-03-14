@@ -3091,20 +3091,6 @@ static void tcp_chr_close(CharDriverState *chr)
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
 
-static void qemu_chr_finish_socket_connection(CharDriverState *chr,
-                                              QIOChannelSocket *sioc)
-{
-    TCPCharDriver *s = chr->opaque;
-
-    if (s->is_listen) {
-        s->listen_ioc = sioc;
-        s->listen_tag = qio_channel_add_watch(
-            QIO_CHANNEL(s->listen_ioc), G_IO_IN, tcp_chr_accept, chr, NULL);
-    } else {
-        tcp_chr_new_client(chr, sioc);
-        object_unref(OBJECT(sioc));
-    }
-}
 
 static void qemu_chr_socket_connected(Object *src, Error *err, void *opaque)
 {
@@ -3119,36 +3105,10 @@ static void qemu_chr_socket_connected(Object *src, Error *err, void *opaque)
     }
 
     s->connect_err_reported = false;
-    qemu_chr_finish_socket_connection(chr, sioc);
-}
-
-static bool qemu_chr_open_socket_fd(CharDriverState *chr, Error **errp)
-{
-    TCPCharDriver *s = chr->opaque;
-    QIOChannelSocket *sioc = qio_channel_socket_new();
-
-    if (s->is_listen) {
-        if (qio_channel_socket_listen_sync(sioc, s->addr, errp) < 0) {
-            goto fail;
-        }
-        qemu_chr_finish_socket_connection(chr, sioc);
-    } else if (s->reconnect_time) {
-        qio_channel_socket_connect_async(sioc, s->addr,
-                                         qemu_chr_socket_connected,
-                                         chr, NULL);
-    } else {
-        if (qio_channel_socket_connect_sync(sioc, s->addr, errp) < 0) {
-            goto fail;
-        }
-        qemu_chr_finish_socket_connection(chr, sioc);
-    }
-
-    return true;
-
- fail:
+    tcp_chr_new_client(chr, sioc);
     object_unref(OBJECT(sioc));
-    return false;
 }
+
 
 /*********************************************************/
 /* Ring buffer chardev */
@@ -4258,19 +4218,11 @@ static CharDriverState *qmp_chardev_open_parallel(const char *id,
 
 #endif /* WIN32 */
 
-static void socket_try_connect(CharDriverState *chr)
-{
-    Error *err = NULL;
-
-    if (!qemu_chr_open_socket_fd(chr, &err)) {
-        check_report_connect_error(chr, err);
-    }
-}
-
 static gboolean socket_reconnect_timeout(gpointer opaque)
 {
     CharDriverState *chr = opaque;
     TCPCharDriver *s = chr->opaque;
+    QIOChannelSocket *sioc;
 
     s->reconnect_timer = 0;
 
@@ -4278,7 +4230,10 @@ static gboolean socket_reconnect_timeout(gpointer opaque)
         return false;
     }
 
-    socket_try_connect(chr);
+    sioc = qio_channel_socket_new();
+    qio_channel_socket_connect_async(sioc, s->addr,
+                                     qemu_chr_socket_connected,
+                                     chr, NULL);
 
     return false;
 }
@@ -4298,6 +4253,7 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
     bool is_waitconnect = sock->has_wait    ? sock->wait    : false;
     int64_t reconnect   = sock->has_reconnect ? sock->reconnect : 0;
     ChardevCommon *common = qapi_ChardevSocket_base(sock);
+    QIOChannelSocket *sioc = NULL;
 
     chr = qemu_chr_alloc(common, errp);
     if (!chr) {
@@ -4367,22 +4323,40 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
         s->reconnect_time = reconnect;
     }
 
+    sioc = qio_channel_socket_new();
     if (s->reconnect_time) {
-        socket_try_connect(chr);
-    } else if (!qemu_chr_open_socket_fd(chr, errp)) {
-        goto error;
-    }
-
-    if (is_listen && is_waitconnect) {
-        fprintf(stderr, "QEMU waiting for connection on: %s\n",
-                chr->filename);
-        tcp_chr_accept(QIO_CHANNEL(s->listen_ioc), G_IO_IN, chr);
+        qio_channel_socket_connect_async(sioc, s->addr,
+                                         qemu_chr_socket_connected,
+                                         chr, NULL);
+    } else if (s->is_listen) {
+        if (qio_channel_socket_listen_sync(sioc, s->addr, errp) < 0) {
+            goto error;
+        }
+        s->listen_ioc = sioc;
+        if (is_waitconnect) {
+            fprintf(stderr, "QEMU waiting for connection on: %s\n",
+                    chr->filename);
+            tcp_chr_accept(QIO_CHANNEL(s->listen_ioc), G_IO_IN, chr);
+        }
         qio_channel_set_blocking(QIO_CHANNEL(s->listen_ioc), false, NULL);
+        if (!s->ioc) {
+            s->listen_tag = qio_channel_add_watch(
+                QIO_CHANNEL(s->listen_ioc), G_IO_IN, tcp_chr_accept, chr, NULL);
+        }
+    } else {
+        if (qio_channel_socket_connect_sync(sioc, s->addr, errp) < 0) {
+            goto error;
+        }
+        tcp_chr_new_client(chr, sioc);
+        object_unref(OBJECT(sioc));
     }
 
     return chr;
 
  error:
+    if (sioc) {
+        object_unref(OBJECT(sioc));
+    }
     if (s->tls_creds) {
         object_unref(OBJECT(s->tls_creds));
     }

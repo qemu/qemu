@@ -30,6 +30,20 @@ struct QIOChannelFDSource {
 };
 
 
+#ifdef CONFIG_WIN32
+typedef struct QIOChannelSocketSource QIOChannelSocketSource;
+struct QIOChannelSocketSource {
+    GSource parent;
+    GPollFD fd;
+    QIOChannel *ioc;
+    SOCKET socket;
+    int revents;
+    GIOCondition condition;
+};
+
+#endif
+
+
 typedef struct QIOChannelFDPairSource QIOChannelFDPairSource;
 struct QIOChannelFDPairSource {
     GSource parent;
@@ -80,6 +94,97 @@ qio_channel_fd_source_finalize(GSource *source)
 
     object_unref(OBJECT(ssource->ioc));
 }
+
+
+#ifdef CONFIG_WIN32
+static gboolean
+qio_channel_socket_source_prepare(GSource *source G_GNUC_UNUSED,
+                                  gint *timeout)
+{
+    *timeout = -1;
+
+    return FALSE;
+}
+
+
+/*
+ * NB, this impl only works when the socket is in non-blocking
+ * mode on Win32
+ */
+static gboolean
+qio_channel_socket_source_check(GSource *source)
+{
+    static struct timeval tv0;
+
+    QIOChannelSocketSource *ssource = (QIOChannelSocketSource *)source;
+    WSANETWORKEVENTS ev;
+    fd_set rfds, wfds, xfds;
+
+    if (!ssource->condition) {
+        return 0;
+    }
+
+    WSAEnumNetworkEvents(ssource->socket, ssource->ioc->event, &ev);
+
+    FD_ZERO(&rfds);
+    FD_ZERO(&wfds);
+    FD_ZERO(&xfds);
+    if (ssource->condition & G_IO_IN) {
+        FD_SET((SOCKET)ssource->socket, &rfds);
+    }
+    if (ssource->condition & G_IO_OUT) {
+        FD_SET((SOCKET)ssource->socket, &wfds);
+    }
+    if (ssource->condition & G_IO_PRI) {
+        FD_SET((SOCKET)ssource->socket, &xfds);
+    }
+    ssource->revents = 0;
+    if (select(0, &rfds, &wfds, &xfds, &tv0) == 0) {
+        return 0;
+    }
+
+    if (FD_ISSET(ssource->socket, &rfds)) {
+        ssource->revents |= G_IO_IN;
+    }
+    if (FD_ISSET(ssource->socket, &wfds)) {
+        ssource->revents |= G_IO_OUT;
+    }
+    if (FD_ISSET(ssource->socket, &xfds)) {
+        ssource->revents |= G_IO_PRI;
+    }
+
+    return ssource->revents;
+}
+
+
+static gboolean
+qio_channel_socket_source_dispatch(GSource *source,
+                                   GSourceFunc callback,
+                                   gpointer user_data)
+{
+    QIOChannelFunc func = (QIOChannelFunc)callback;
+    QIOChannelSocketSource *ssource = (QIOChannelSocketSource *)source;
+
+    return (*func)(ssource->ioc, ssource->revents, user_data);
+}
+
+
+static void
+qio_channel_socket_source_finalize(GSource *source)
+{
+    QIOChannelSocketSource *ssource = (QIOChannelSocketSource *)source;
+
+    object_unref(OBJECT(ssource->ioc));
+}
+
+
+GSourceFuncs qio_channel_socket_source_funcs = {
+    qio_channel_socket_source_prepare,
+    qio_channel_socket_source_check,
+    qio_channel_socket_source_dispatch,
+    qio_channel_socket_source_finalize
+};
+#endif
 
 
 static gboolean
@@ -160,7 +265,11 @@ GSource *qio_channel_create_fd_watch(QIOChannel *ioc,
 
     ssource->condition = condition;
 
+#ifdef CONFIG_WIN32
+    ssource->fd.fd = (gint64)_get_osfhandle(fd);
+#else
     ssource->fd.fd = fd;
+#endif
     ssource->fd.events = condition;
 
     g_source_add_poll(source, &ssource->fd);
@@ -168,6 +277,40 @@ GSource *qio_channel_create_fd_watch(QIOChannel *ioc,
     return source;
 }
 
+#ifdef CONFIG_WIN32
+GSource *qio_channel_create_socket_watch(QIOChannel *ioc,
+                                         int socket,
+                                         GIOCondition condition)
+{
+    GSource *source;
+    QIOChannelSocketSource *ssource;
+
+    source = g_source_new(&qio_channel_socket_source_funcs,
+                          sizeof(QIOChannelSocketSource));
+    ssource = (QIOChannelSocketSource *)source;
+
+    ssource->ioc = ioc;
+    object_ref(OBJECT(ioc));
+
+    ssource->condition = condition;
+    ssource->socket = socket;
+    ssource->revents = 0;
+
+    ssource->fd.fd = (gintptr)ioc->event;
+    ssource->fd.events = G_IO_IN;
+
+    g_source_add_poll(source, &ssource->fd);
+
+    return source;
+}
+#else
+GSource *qio_channel_create_socket_watch(QIOChannel *ioc,
+                                         int socket,
+                                         GIOCondition condition)
+{
+    return qio_channel_create_fd_watch(ioc, socket, condition);
+}
+#endif
 
 GSource *qio_channel_create_fd_pair_watch(QIOChannel *ioc,
                                           int fdread,
@@ -186,10 +329,15 @@ GSource *qio_channel_create_fd_pair_watch(QIOChannel *ioc,
 
     ssource->condition = condition;
 
+#ifdef CONFIG_WIN32
+    ssource->fdread.fd = (gint64)_get_osfhandle(fdread);
+    ssource->fdwrite.fd = (gint64)_get_osfhandle(fdwrite);
+#else
     ssource->fdread.fd = fdread;
-    ssource->fdread.events = condition & G_IO_IN;
-
     ssource->fdwrite.fd = fdwrite;
+#endif
+
+    ssource->fdread.events = condition & G_IO_IN;
     ssource->fdwrite.events = condition & G_IO_OUT;
 
     g_source_add_poll(source, &ssource->fdread);

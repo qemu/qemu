@@ -615,14 +615,13 @@ static coroutine_fn int send_co_req(int sockfd, SheepdogReq *hdr, void *data,
     ret = qemu_co_send(sockfd, hdr, sizeof(*hdr));
     if (ret != sizeof(*hdr)) {
         error_report("failed to send a req, %s", strerror(errno));
-        ret = -socket_error();
-        return ret;
+        return -errno;
     }
 
     ret = qemu_co_send(sockfd, data, *wlen);
     if (ret != *wlen) {
-        ret = -socket_error();
         error_report("failed to send a req, %s", strerror(errno));
+        return -errno;
     }
 
     return ret;

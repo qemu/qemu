@@ -28,32 +28,7 @@
 
 #include <winsock2.h>
 #include <windows.h>
-
-/* Workaround for older versions of MinGW. */
-#ifndef ECONNREFUSED
-# define ECONNREFUSED WSAECONNREFUSED
-#endif
-#ifndef EINPROGRESS
-# define EINPROGRESS  WSAEINPROGRESS
-#endif
-#ifndef EHOSTUNREACH
-# define EHOSTUNREACH WSAEHOSTUNREACH
-#endif
-#ifndef EINTR
-# define EINTR        WSAEINTR
-#endif
-#ifndef EINPROGRESS
-# define EINPROGRESS  WSAEINPROGRESS
-#endif
-#ifndef ENETUNREACH
-# define ENETUNREACH  WSAENETUNREACH
-#endif
-#ifndef ENOTCONN
-# define ENOTCONN     WSAENOTCONN
-#endif
-#ifndef EWOULDBLOCK
-# define EWOULDBLOCK  WSAEWOULDBLOCK
-#endif
+#include <ws2tcpip.h>
 
 #if defined(_WIN64)
 /* On w64, setjmp is implemented by _setjmp which needs a second parameter.
@@ -79,7 +54,6 @@ struct tm *gmtime_r(const time_t *timep, struct tm *result);
 #undef localtime_r
 struct tm *localtime_r(const time_t *timep, struct tm *result);
 #endif /* CONFIG_LOCALTIME_R */
-
 
 static inline void os_setup_signal_handling(void) {}
 static inline void os_daemonize(void) {}
@@ -128,5 +102,83 @@ static inline char *realpath(const char *path, char *resolved_path)
     _fullpath(resolved_path, path, _MAX_PATH);
     return resolved_path;
 }
+
+
+/* We wrap all the sockets functions so that we can
+ * set errno based on WSAGetLastError()
+ */
+
+#undef connect
+#define connect qemu_connect_wrap
+int qemu_connect_wrap(int sockfd, const struct sockaddr *addr,
+                      socklen_t addrlen);
+
+#undef listen
+#define listen qemu_listen_wrap
+int qemu_listen_wrap(int sockfd, int backlog);
+
+#undef bind
+#define bind qemu_bind_wrap
+int qemu_bind_wrap(int sockfd, const struct sockaddr *addr,
+                   socklen_t addrlen);
+
+#undef socket
+#define socket qemu_socket_wrap
+int qemu_socket_wrap(int domain, int type, int protocol);
+
+#undef accept
+#define accept qemu_accept_wrap
+int qemu_accept_wrap(int sockfd, struct sockaddr *addr,
+                     socklen_t *addrlen);
+
+#undef shutdown
+#define shutdown qemu_shutdown_wrap
+int qemu_shutdown_wrap(int sockfd, int how);
+
+#undef ioctlsocket
+#define ioctlsocket qemu_ioctlsocket_wrap
+int qemu_ioctlsocket_wrap(int fd, int req, void *val);
+
+#undef closesocket
+#define closesocket qemu_closesocket_wrap
+int qemu_closesocket_wrap(int fd);
+
+#undef getsockopt
+#define getsockopt qemu_getsockopt_wrap
+int qemu_getsockopt_wrap(int sockfd, int level, int optname,
+                         void *optval, socklen_t *optlen);
+
+#undef setsockopt
+#define setsockopt qemu_setsockopt_wrap
+int qemu_setsockopt_wrap(int sockfd, int level, int optname,
+                         const void *optval, socklen_t optlen);
+
+#undef getpeername
+#define getpeername qemu_getpeername_wrap
+int qemu_getpeername_wrap(int sockfd, struct sockaddr *addr,
+                          socklen_t *addrlen);
+
+#undef getsockname
+#define getsockname qemu_getsockname_wrap
+int qemu_getsockname_wrap(int sockfd, struct sockaddr *addr,
+                          socklen_t *addrlen);
+
+#undef send
+#define send qemu_send_wrap
+ssize_t qemu_send_wrap(int sockfd, const void *buf, size_t len, int flags);
+
+#undef sendto
+#define sendto qemu_sendto_wrap
+ssize_t qemu_sendto_wrap(int sockfd, const void *buf, size_t len, int flags,
+                         const struct sockaddr *addr, socklen_t addrlen);
+
+#undef recv
+#define recv qemu_recv_wrap
+ssize_t qemu_recv_wrap(int sockfd, void *buf, size_t len, int flags);
+
+#undef recvfrom
+#define recvfrom qemu_recvfrom_wrap
+ssize_t qemu_recvfrom_wrap(int sockfd, void *buf, size_t len, int flags,
+                           struct sockaddr *addr, socklen_t *addrlen);
 
 #endif

@@ -96,8 +96,7 @@ static ssize_t qio_channel_file_readv(QIOChannel *ioc,
  retry:
     ret = readv(fioc->fd, iov, niov);
     if (ret < 0) {
-        if (errno == EAGAIN ||
-            errno == EWOULDBLOCK) {
+        if (errno == EAGAIN) {
             return QIO_CHANNEL_ERR_BLOCK;
         }
         if (errno == EINTR) {
@@ -125,8 +124,7 @@ static ssize_t qio_channel_file_writev(QIOChannel *ioc,
  retry:
     ret = writev(fioc->fd, iov, niov);
     if (ret <= 0) {
-        if (errno == EAGAIN ||
-            errno == EWOULDBLOCK) {
+        if (errno == EAGAIN) {
             return QIO_CHANNEL_ERR_BLOCK;
         }
         if (errno == EINTR) {
