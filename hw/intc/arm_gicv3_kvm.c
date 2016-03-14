@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/sysbus.h"
 #include "sysemu/kvm.h"

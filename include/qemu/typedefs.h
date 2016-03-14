@@ -26,6 +26,7 @@ typedef struct DisplayChangeListener DisplayChangeListener;
 typedef struct DisplayState DisplayState;
 typedef struct DisplaySurface DisplaySurface;
 typedef struct DriveInfo DriveInfo;
+typedef struct Error Error;
 typedef struct EventNotifier EventNotifier;
 typedef struct FWCfgIoState FWCfgIoState;
 typedef struct FWCfgMemState FWCfgMemState;

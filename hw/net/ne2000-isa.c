@@ -29,6 +29,7 @@
 #include "net/net.h"
 #include "ne2000.h"
 #include "exec/address-spaces.h"
+#include "qapi/error.h"
 #include "qapi/visitor.h"
 
 #define TYPE_ISA_NE2000 "ne2k_isa"

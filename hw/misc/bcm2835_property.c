@@ -4,6 +4,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/misc/bcm2835_property.h"
 #include "hw/misc/bcm2835_mbox_defs.h"
 #include "sysemu/dma.h"

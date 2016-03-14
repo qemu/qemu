@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "sysemu/qtest.h"
 #include "hw/qdev.h"
 #include "sysemu/char.h"

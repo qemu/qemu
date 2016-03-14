@@ -21,6 +21,7 @@
  *  Copyright (C) 2008, IBM, Muli Ben-Yehuda (muli@il.ibm.com)
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include <sys/mman.h>
 #include "hw/hw.h"
 #include "hw/i386/pc.h"

@@ -28,6 +28,7 @@
 #include <libssh2_sftp.h>
 
 #include "block/block_int.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "qemu/uri.h"

@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "hw/char/serial.h"
 #include "sysemu/char.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"

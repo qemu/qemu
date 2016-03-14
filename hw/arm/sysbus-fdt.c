@@ -22,6 +22,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include <libfdt.h>
 #include "qemu-common.h"
 #ifdef CONFIG_LINUX

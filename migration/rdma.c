@@ -12,6 +12,7 @@
  *
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "migration/migration.h"
 #include "migration/qemu-file.h"

@@ -15,6 +15,7 @@
 #define QEMU_OBJECT_H
 
 #include <glib.h>
+#include "qapi-types.h"
 #include "qemu/queue.h"
 #include "qemu/typedefs.h"
 

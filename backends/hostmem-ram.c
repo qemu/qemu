@@ -11,6 +11,7 @@
  */
 #include "qemu/osdep.h"
 #include "sysemu/hostmem.h"
+#include "qapi/error.h"
 #include "qom/object_interfaces.h"
 
 #define TYPE_MEMORY_BACKEND_RAM "memory-backend-ram"

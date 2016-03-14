@@ -31,6 +31,7 @@
 #include "hw/i386/pc.h"
 #include "hw/pci/pci_ids.h"
 #include "tpm_tis.h"
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/main-loop.h"
 #include "sysemu/tpm_backend.h"

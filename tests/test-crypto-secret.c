@@ -23,6 +23,7 @@
 
 #include "crypto/init.h"
 #include "crypto/secret.h"
+#include "qapi/error.h"
 
 static void test_secret_direct(void)
 {

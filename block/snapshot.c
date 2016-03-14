@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "block/snapshot.h"
 #include "block/block_int.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 
 QemuOptsList internal_snapshot_opts = {

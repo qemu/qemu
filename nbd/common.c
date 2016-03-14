@@ -17,6 +17,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "nbd-internal.h"
 
 ssize_t nbd_wr_syncv(QIOChannel *ioc,

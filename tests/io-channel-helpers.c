@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "io-channel-helpers.h"
+#include "qapi/error.h"
 
 struct QIOChannelTest {
     QIOChannel *src;

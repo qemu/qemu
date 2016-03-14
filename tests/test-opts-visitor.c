@@ -15,6 +15,7 @@
 
 #include "qemu/config-file.h"     /* qemu_add_opts() */
 #include "qemu/option.h"          /* qemu_opts_parse() */
+#include "qapi/error.h"
 #include "qapi/opts-visitor.h"    /* opts_visitor_new() */
 #include "test-qapi-visit.h"      /* visit_type_UserDefOptions() */
 

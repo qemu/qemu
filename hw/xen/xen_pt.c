@@ -53,6 +53,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include <sys/ioctl.h>
 
 #include "hw/pci/pci.h"

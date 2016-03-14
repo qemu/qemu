@@ -19,6 +19,7 @@
 
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/devices.h"
 #include "net/net.h"

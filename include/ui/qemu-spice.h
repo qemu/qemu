@@ -18,11 +18,11 @@
 #ifndef QEMU_SPICE_H
 #define QEMU_SPICE_H
 
+#include "qapi/error.h"
 
 #ifdef CONFIG_SPICE
 
 #include <spice.h>
-
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 

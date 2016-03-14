@@ -21,6 +21,7 @@
 #include "hw/sysbus.h"
 #include "hw/devices.h"
 #include "net/net.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 #include <zlib.h>
 

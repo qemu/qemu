@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/arm/fsl-imx31.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"

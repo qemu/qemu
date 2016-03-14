@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "tap_int.h"
 
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr,

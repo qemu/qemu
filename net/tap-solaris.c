@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "tap_int.h"
 #include "sysemu/sysemu.h"
 

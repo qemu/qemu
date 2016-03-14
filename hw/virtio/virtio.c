@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 
 #include "trace.h"
 #include "exec/address-spaces.h"

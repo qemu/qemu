@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "crypto/tlscredsanon.h"
 #include "crypto/tlscredspriv.h"
+#include "qapi/error.h"
 #include "qom/object_interfaces.h"
 #include "trace.h"
 

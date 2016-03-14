@@ -2,6 +2,7 @@
 #include "hw/hw.h"
 #include "hw/usb.h"
 #include "hw/qdev.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"

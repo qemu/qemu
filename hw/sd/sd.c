@@ -34,6 +34,7 @@
 #include "hw/hw.h"
 #include "sysemu/block-backend.h"
 #include "hw/sd/sd.h"
+#include "qapi/error.h"
 #include "qemu/bitmap.h"
 #include "hw/qdev-properties.h"
 #include "qemu/error-report.h"

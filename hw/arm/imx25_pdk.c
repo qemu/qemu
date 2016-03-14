@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/arm/fsl-imx25.h"
 #include "hw/boards.h"
 #include "qemu/error-report.h"

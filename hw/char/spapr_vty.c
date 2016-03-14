@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/qdev.h"
 #include "sysemu/char.h"
 #include "hw/ppc/spapr.h"

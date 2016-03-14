@@ -26,6 +26,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/hw.h"
 #include "trace.h"
 #include "hw/ppc/spapr.h"

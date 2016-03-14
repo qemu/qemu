@@ -27,6 +27,7 @@
 #include "ui/console.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "hw/input/hid.h"
 

@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/ppc/spapr_drc.h"
 #include "qom/object.h"
 #include "hw/qdev.h"

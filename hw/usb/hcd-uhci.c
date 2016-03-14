@@ -30,6 +30,7 @@
 #include "hw/usb.h"
 #include "hw/usb/uhci-regs.h"
 #include "hw/pci/pci.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "qemu/iov.h"
 #include "sysemu/dma.h"

@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu/sockets.h" /* for EINPROGRESS on Windows */
 #include "block/block_int.h"
 #include "qapi/qmp/qdict.h"

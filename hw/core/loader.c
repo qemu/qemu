@@ -43,6 +43,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/hw.h"
 #include "disas/disas.h"
 #include "monitor/monitor.h"

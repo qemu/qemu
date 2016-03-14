@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/char/serial.h"
 #include "hw/isa/isa.h"
 

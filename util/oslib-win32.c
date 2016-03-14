@@ -32,6 +32,7 @@
 #include "qemu/osdep.h"
 #include <windows.h>
 #include <glib.h>
+#include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "qemu/main-loop.h"
 #include "trace.h"

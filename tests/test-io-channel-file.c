@@ -22,7 +22,7 @@
 #include "io/channel-file.h"
 #include "io/channel-util.h"
 #include "io-channel-helpers.h"
-
+#include "qapi/error.h"
 
 static void test_io_channel_file(void)
 {

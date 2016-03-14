@@ -28,6 +28,7 @@
 
 #include "qemu/osdep.h"
 #include "block/nbd-client.h"
+#include "qapi/error.h"
 #include "qemu/uri.h"
 #include "block/block_int.h"
 #include "qemu/module.h"

@@ -22,6 +22,7 @@
 #include "io/channel-socket.h"
 #include "io/channel-util.h"
 #include "io-channel-helpers.h"
+#include "qapi/error.h"
 
 #ifndef AI_ADDRCONFIG
 # define AI_ADDRCONFIG 0

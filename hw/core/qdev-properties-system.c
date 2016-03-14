@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "net/net.h"
 #include "hw/qdev.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"

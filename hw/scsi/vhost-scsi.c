@@ -15,6 +15,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include <sys/ioctl.h>
 #include "qemu/error-report.h"
 #include "qemu/queue.h"

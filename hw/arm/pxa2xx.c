@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "hw/arm/pxa.h"
 #include "sysemu/sysemu.h"

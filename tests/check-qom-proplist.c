@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include <glib.h>
 
+#include "qapi/error.h"
 #include "qom/object.h"
 #include "qemu/module.h"
 

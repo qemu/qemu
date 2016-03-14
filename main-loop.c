@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/timer.h"
 #include "qemu/sockets.h"	// struct in_addr needed for libslirp.h

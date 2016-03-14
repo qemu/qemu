@@ -17,6 +17,7 @@
 #include <dirent.h>
 #endif
 
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "sysemu/device_tree.h"

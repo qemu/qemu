@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "io/channel.h"
+#include "qapi/error.h"
 #include "qemu/coroutine.h"
 
 bool qio_channel_has_feature(QIOChannel *ioc,

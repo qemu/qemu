@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 #include <hw/hw.h>
 #include "sysemu/dma.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include <hw/ide/internal.h>
 #include "sysemu/block-backend.h"

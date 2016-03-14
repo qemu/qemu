@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/ppc/spapr.h"
 #include "hw/pci-host/spapr.h"
 #include "hw/pci/msix.h"

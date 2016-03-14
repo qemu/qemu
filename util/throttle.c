@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu/throttle.h"
 #include "qemu/timer.h"
 #include "block/aio.h"

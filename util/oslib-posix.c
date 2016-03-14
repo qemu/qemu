@@ -46,6 +46,7 @@
 
 #include "sysemu/sysemu.h"
 #include "trace.h"
+#include "qapi/error.h"
 #include "qemu/sockets.h"
 #include <sys/mman.h>
 #include <libgen.h>

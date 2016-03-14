@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/boards.h"
 #include "hw/hw.h"
 #include "hw/arm/arm.h"

@@ -4,6 +4,7 @@
 #include "block/aio.h"
 #include "block/thread-pool.h"
 #include "block/block.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
 

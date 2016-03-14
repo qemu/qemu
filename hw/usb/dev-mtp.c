@@ -10,12 +10,14 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include <wchar.h>
 #include <dirent.h>
 
 #include <sys/statvfs.h>
 #ifdef __linux__
 #include <sys/inotify.h>
+#include "qapi/error.h"
 #include "qemu/main-loop.h"
 #endif
 

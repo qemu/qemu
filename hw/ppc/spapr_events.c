@@ -25,6 +25,7 @@
  *
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "cpu.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/char.h"

@@ -27,6 +27,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "hw/arm/virt-acpi-build.h"
 #include "qemu/bitmap.h"

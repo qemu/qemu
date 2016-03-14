@@ -14,6 +14,7 @@
 #include <glib.h>
 
 #include "qemu-common.h"
+#include "qapi/error.h"
 #include "qapi/string-output-visitor.h"
 #include "test-qapi-types.h"
 #include "test-qapi-visit.h"

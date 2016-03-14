@@ -23,6 +23,7 @@
 #include "hw/block/flash.h"
 #include "sysemu/block-backend.h"
 #include "hw/qdev.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 
 # define NAND_CMD_READ0		0x00

@@ -1,5 +1,6 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/scsi/scsi.h"
 #include "block/scsi.h"

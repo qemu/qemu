@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "hw/xen/xen_backend.h"
 #include "xen_pt.h"

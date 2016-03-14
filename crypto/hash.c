@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "crypto/hash.h"
 
 #ifdef CONFIG_GNUTLS_HASH

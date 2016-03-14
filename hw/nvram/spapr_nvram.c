@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include <libfdt.h>
 
 #include "sysemu/block-backend.h"

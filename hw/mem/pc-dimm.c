@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/mem/pc-dimm.h"
+#include "qapi/error.h"
 #include "qemu/config-file.h"
 #include "qapi/visitor.h"
 #include "qemu/range.h"

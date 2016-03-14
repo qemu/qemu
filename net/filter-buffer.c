@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 #include "net/filter.h"
 #include "net/queue.h"
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/timer.h"
 #include "qemu/iov.h"

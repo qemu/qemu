@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "crypto/pbkdf.h"
 
 bool qcrypto_pbkdf2_supports(QCryptoHashAlgorithm hash G_GNUC_UNUSED)

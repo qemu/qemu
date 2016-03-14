@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/main-loop.h"
 #include "qemu/sockets.h"

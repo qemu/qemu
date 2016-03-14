@@ -28,6 +28,7 @@
 
 #include "qemu/osdep.h"
 #include "block/block_int.h"
+#include "qapi/error.h"
 #include "qemu/option.h"
 
 static QemuOptsList raw_create_opts = {

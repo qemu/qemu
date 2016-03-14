@@ -21,8 +21,8 @@
 #include "qemu/osdep.h"
 #include <glib.h>
 
+#include "qapi/error.h"
 #include "qemu/base64.h"
-
 
 static void test_base64_good(void)
 {

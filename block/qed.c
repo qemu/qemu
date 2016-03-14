@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "trace.h"
 #include "qed.h"

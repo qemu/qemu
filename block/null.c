@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "block/block_int.h"
 
 #define NULL_OPT_LATENCY "latency-ns"

@@ -22,6 +22,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "cpu.h"
 #include "qemu-common.h"
 #include "hw/qdev-properties.h"

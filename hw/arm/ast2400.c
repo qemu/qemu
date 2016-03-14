@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "exec/address-spaces.h"
 #include "hw/arm/ast2400.h"
 #include "hw/char/serial.h"

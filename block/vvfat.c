@@ -24,6 +24,7 @@
  */
 #include "qemu/osdep.h"
 #include <dirent.h>
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "block/block_int.h"
 #include "qemu/module.h"

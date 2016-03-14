@@ -7,8 +7,10 @@
  *
  * To avoid getting into possible circular include dependencies, this
  * file should not include any other QEMU headers, with the exceptions
- * of config-host.h, compiler.h, os-posix.h and os-win32.h, all of which
- * are doing a similar job to this file and are under similar constraints.
+ * of config-host.h, config-target.h, qemu/compiler.h,
+ * sysemu/os-posix.h, sysemu/os-win32.h, glib-compat.h and
+ * qemu/typedefs.h, all of which are doing a similar job to this file
+ * and are under similar constraints.
  *
  * This header also contains prototypes for functions defined in
  * os-*.c and util/oslib-*.c; those would probably be better split
@@ -98,8 +100,7 @@ extern int daemon(int, int);
 #endif
 
 #include "glib-compat.h"
-
-#include "qapi/error.h"
+#include "qemu/typedefs.h"
 
 #ifndef O_LARGEFILE
 #define O_LARGEFILE 0

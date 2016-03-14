@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/device_tree.h"

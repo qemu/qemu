@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "crypto/ivgen-plain.h"
 
 static int qcrypto_ivgen_plain_init(QCryptoIVGen *ivgen,

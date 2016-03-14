@@ -32,6 +32,7 @@
 #include <sys/ioctl.h>
 
 #include "sysemu/sysemu.h"
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 
