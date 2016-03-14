@@ -93,7 +93,7 @@ NetworkAddressFamily inet_netfamily(int family)
  *   t     f       PF_INET
  *   t     t       PF_INET6
  *
- * NB, this matrix is only about getting the neccessary results
+ * NB, this matrix is only about getting the necessary results
  * from getaddrinfo(). Some of the cases require further work
  * after reading results from getaddrinfo in order to fully
  * apply the logic the end user wants. eg with the last case
