@@ -67,7 +67,6 @@
 
 #endif /* CONFIG_LINUX */
 
-static CPUState *next_cpu;
 int64_t max_delay;
 int64_t max_advance;
 
@@ -1109,7 +1108,7 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
 #endif
 }
 
-static void tcg_exec_all(void);
+static int tcg_cpu_exec(CPUState *cpu);
 
 static void *qemu_tcg_cpu_thread_fn(void *arg)
 {
@@ -1140,8 +1139,35 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     /* process any pending work */
     atomic_mb_set(&exit_request, 1);
 
+    cpu = first_cpu;
+
     while (1) {
-        tcg_exec_all();
+        /* Account partial waits to QEMU_CLOCK_VIRTUAL.  */
+        qemu_account_warp_timer();
+
+        if (!cpu) {
+            cpu = first_cpu;
+        }
+
+        for (; cpu != NULL && !exit_request; cpu = CPU_NEXT(cpu)) {
+
+            qemu_clock_enable(QEMU_CLOCK_VIRTUAL,
+                              (cpu->singlestep_enabled & SSTEP_NOTIMER) == 0);
+
+            if (cpu_can_run(cpu)) {
+                int r = tcg_cpu_exec(cpu);
+                if (r == EXCP_DEBUG) {
+                    cpu_handle_guest_debug(cpu);
+                    break;
+                }
+            } else if (cpu->stop || cpu->stopped) {
+                break;
+            }
+
+        } /* for cpu.. */
+
+        /* Pairs with smp_wmb in qemu_cpu_kick.  */
+        atomic_mb_set(&exit_request, 0);
 
         if (use_icount) {
             int64_t deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
@@ -1498,37 +1524,6 @@ static int tcg_cpu_exec(CPUState *cpu)
         replay_account_executed_instructions();
     }
     return ret;
-}
-
-static void tcg_exec_all(void)
-{
-    int r;
-
-    /* Account partial waits to QEMU_CLOCK_VIRTUAL.  */
-    qemu_account_warp_timer();
-
-    if (next_cpu == NULL) {
-        next_cpu = first_cpu;
-    }
-    for (; next_cpu != NULL && !exit_request; next_cpu = CPU_NEXT(next_cpu)) {
-        CPUState *cpu = next_cpu;
-
-        qemu_clock_enable(QEMU_CLOCK_VIRTUAL,
-                          (cpu->singlestep_enabled & SSTEP_NOTIMER) == 0);
-
-        if (cpu_can_run(cpu)) {
-            r = tcg_cpu_exec(cpu);
-            if (r == EXCP_DEBUG) {
-                cpu_handle_guest_debug(cpu);
-                break;
-            }
-        } else if (cpu->stop || cpu->stopped) {
-            break;
-        }
-    }
-
-    /* Pairs with smp_wmb in qemu_cpu_kick.  */
-    atomic_mb_set(&exit_request, 0);
 }
 
 void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg)
