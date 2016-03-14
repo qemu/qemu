@@ -2333,6 +2333,13 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
     }
 
     tracked_request_begin(&req, bs, 0, 0, BDRV_TRACKED_FLUSH);
+
+    /* Write back all layers by calling one driver function */
+    if (bs->drv->bdrv_co_flush) {
+        ret = bs->drv->bdrv_co_flush(bs);
+        goto out;
+    }
+
     /* Write back cached data to the OS even with cache=unsafe */
     BLKDBG_EVENT(bs->file, BLKDBG_FLUSH_TO_OS);
     if (bs->drv->bdrv_co_flush_to_os) {

@@ -176,6 +176,13 @@ struct BlockDriver {
     int (*bdrv_inactivate)(BlockDriverState *bs);
 
     /*
+     * Flushes all data for all layers by calling bdrv_co_flush for underlying
+     * layers, if needed. This function is needed for deterministic
+     * synchronization of the flush finishing callback.
+     */
+    int coroutine_fn (*bdrv_co_flush)(BlockDriverState *bs);
+
+    /*
      * Flushes all data that was already written to the OS all the way down to
      * the disk (for example raw-posix calls fsync()).
      */
