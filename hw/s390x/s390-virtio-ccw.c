@@ -22,20 +22,7 @@
 #include "s390-pci-bus.h"
 #include "hw/s390x/storage-keys.h"
 #include "hw/compat.h"
-
-#define TYPE_S390_CCW_MACHINE               "s390-ccw-machine"
-
-#define S390_CCW_MACHINE(obj) \
-    OBJECT_CHECK(S390CcwMachineState, (obj), TYPE_S390_CCW_MACHINE)
-
-typedef struct S390CcwMachineState {
-    /*< private >*/
-    MachineState parent_obj;
-
-    /*< public >*/
-    bool aes_key_wrap;
-    bool dea_key_wrap;
-} S390CcwMachineState;
+#include "hw/s390x/s390-virtio-ccw.h"
 
 static const char *const reset_dev_types[] = {
     "virtual-css-bridge",
@@ -136,7 +123,7 @@ static void ccw_init(MachineState *machine)
     virtio_ccw_register_hcalls();
 
     /* init CPUs */
-    s390_init_cpus(machine->cpu_model);
+    s390_init_cpus(machine);
 
     if (kvm_enabled()) {
         kvm_s390_enable_css_support(s390_cpu_addr2state(0));
@@ -156,13 +143,54 @@ static void ccw_init(MachineState *machine)
                     gtod_save, gtod_load, kvm_state);
 }
 
+static void s390_cpu_plug(HotplugHandler *hotplug_dev,
+                        DeviceState *dev, Error **errp)
+{
+    gchar *name;
+    S390CPU *cpu = S390_CPU(dev);
+    CPUState *cs = CPU(dev);
+
+    name = g_strdup_printf("cpu[%i]", cpu->env.cpu_num);
+    object_property_set_link(OBJECT(hotplug_dev), OBJECT(cs), name,
+                             errp);
+    g_free(name);
+}
+
+static void s390_machine_device_plug(HotplugHandler *hotplug_dev,
+                                     DeviceState *dev, Error **errp)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+        s390_cpu_plug(hotplug_dev, dev, errp);
+    }
+}
+
+static HotplugHandler *s390_get_hotplug_handler(MachineState *machine,
+                                                DeviceState *dev)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+        return HOTPLUG_HANDLER(machine);
+    }
+    return NULL;
+}
+
+static void s390_hot_add_cpu(const int64_t id, Error **errp)
+{
+    MachineState *machine = MACHINE(qdev_get_machine());
+    Error *err = NULL;
+
+    s390x_new_cpu(machine->cpu_model, id, &err);
+    error_propagate(errp, err);
+}
+
 static void ccw_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
     mc->init = ccw_init;
     mc->reset = s390_machine_reset;
+    mc->hot_add_cpu = s390_hot_add_cpu;
     mc->block_default_type = IF_VIRTIO;
     mc->no_cdrom = 1;
     mc->no_floppy = 1;
@@ -171,6 +199,8 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     mc->no_sdcard = 1;
     mc->use_sclp = 1;
     mc->max_cpus = 255;
+    mc->get_hotplug_handler = s390_get_hotplug_handler;
+    hc->plug = s390_machine_device_plug;
     nc->nmi_monitor_handler = s390_nmi;
 }
 
@@ -232,9 +262,39 @@ static const TypeInfo ccw_machine_info = {
     .class_init    = ccw_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_NMI },
+        { TYPE_HOTPLUG_HANDLER},
         { }
     },
 };
+
+#define DEFINE_CCW_MACHINE(suffix, verstr, latest)                            \
+    static void ccw_machine_##suffix##_class_init(ObjectClass *oc,            \
+                                                  void *data)                 \
+    {                                                                         \
+        MachineClass *mc = MACHINE_CLASS(oc);                                 \
+        ccw_machine_##suffix##_class_options(mc);                             \
+        mc->desc = "VirtIO-ccw based S390 machine v" verstr;                  \
+        if (latest) {                                                         \
+            mc->alias = "s390-ccw-virtio";                                    \
+            mc->is_default = 1;                                               \
+        }                                                                     \
+    }                                                                         \
+    static void ccw_machine_##suffix##_instance_init(Object *obj)             \
+    {                                                                         \
+        MachineState *machine = MACHINE(obj);                                 \
+        ccw_machine_##suffix##_instance_options(machine);                     \
+    }                                                                         \
+    static const TypeInfo ccw_machine_##suffix##_info = {                     \
+        .name = MACHINE_TYPE_NAME("s390-ccw-virtio-" verstr),                 \
+        .parent = TYPE_S390_CCW_MACHINE,                                      \
+        .class_init = ccw_machine_##suffix##_class_init,                      \
+        .instance_init = ccw_machine_##suffix##_instance_init,                \
+    };                                                                        \
+    static void ccw_machine_register_##suffix(void)                           \
+    {                                                                         \
+        type_register_static(&ccw_machine_##suffix##_info);                   \
+    }                                                                         \
+    machine_init(ccw_machine_register_##suffix)
 
 #define CCW_COMPAT_2_5 \
         HW_COMPAT_2_5
@@ -280,63 +340,39 @@ static const TypeInfo ccw_machine_info = {
             .value    = "0",\
         },
 
-static void ccw_machine_2_4_class_init(ObjectClass *oc, void *data)
+static void ccw_machine_2_6_instance_options(MachineState *machine)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    static GlobalProperty compat_props[] = {
-        CCW_COMPAT_2_4
-        { /* end of list */ }
-    };
-
-    mc->desc = "VirtIO-ccw based S390 machine v2.4";
-    mc->compat_props = compat_props;
 }
 
-static const TypeInfo ccw_machine_2_4_info = {
-    .name          = MACHINE_TYPE_NAME("s390-ccw-virtio-2.4"),
-    .parent        = TYPE_S390_CCW_MACHINE,
-    .class_init    = ccw_machine_2_4_class_init,
-};
-
-static void ccw_machine_2_5_class_init(ObjectClass *oc, void *data)
+static void ccw_machine_2_6_class_options(MachineClass *mc)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    static GlobalProperty compat_props[] = {
-        CCW_COMPAT_2_5
-        { /* end of list */ }
-    };
+}
+DEFINE_CCW_MACHINE(2_6, "2.6", true);
 
-    mc->desc = "VirtIO-ccw based S390 machine v2.5";
-    mc->compat_props = compat_props;
+static void ccw_machine_2_5_instance_options(MachineState *machine)
+{
 }
 
-static const TypeInfo ccw_machine_2_5_info = {
-    .name          = MACHINE_TYPE_NAME("s390-ccw-virtio-2.5"),
-    .parent        = TYPE_S390_CCW_MACHINE,
-    .class_init    = ccw_machine_2_5_class_init,
-};
-
-static void ccw_machine_2_6_class_init(ObjectClass *oc, void *data)
+static void ccw_machine_2_5_class_options(MachineClass *mc)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
+    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_5);
+}
+DEFINE_CCW_MACHINE(2_5, "2.5", false);
 
-    mc->alias = "s390-ccw-virtio";
-    mc->desc = "VirtIO-ccw based S390 machine v2.6";
-    mc->is_default = 1;
+static void ccw_machine_2_4_instance_options(MachineState *machine)
+{
+    ccw_machine_2_5_instance_options(machine);
 }
 
-static const TypeInfo ccw_machine_2_6_info = {
-    .name          = MACHINE_TYPE_NAME("s390-ccw-virtio-2.6"),
-    .parent        = TYPE_S390_CCW_MACHINE,
-    .class_init    = ccw_machine_2_6_class_init,
-};
+static void ccw_machine_2_4_class_options(MachineClass *mc)
+{
+    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_4);
+}
+DEFINE_CCW_MACHINE(2_4, "2.4", false);
 
 static void ccw_machine_register_types(void)
 {
     type_register_static(&ccw_machine_info);
-    type_register_static(&ccw_machine_2_4_info);
-    type_register_static(&ccw_machine_2_5_info);
-    type_register_static(&ccw_machine_2_6_info);
 }
 
 type_init(ccw_machine_register_types)

@@ -65,14 +65,51 @@ void s390x_cpu_timer(void *opaque)
 }
 #endif
 
-S390CPU *cpu_s390x_init(const char *cpu_model)
+S390CPU *cpu_s390x_create(const char *cpu_model, Error **errp)
 {
     S390CPU *cpu;
 
     cpu = S390_CPU(object_new(TYPE_S390_CPU));
 
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
+    return cpu;
+}
 
+S390CPU *s390x_new_cpu(const char *cpu_model, int64_t id, Error **errp)
+{
+    S390CPU *cpu;
+    Error *err = NULL;
+
+    cpu = cpu_s390x_create(cpu_model, &err);
+    if (err != NULL) {
+        goto out;
+    }
+
+    object_property_set_int(OBJECT(cpu), id, "id", &err);
+    if (err != NULL) {
+        goto out;
+    }
+    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
+
+out:
+    if (err) {
+        error_propagate(errp, err);
+        object_unref(OBJECT(cpu));
+        cpu = NULL;
+    }
+    return cpu;
+}
+
+S390CPU *cpu_s390x_init(const char *cpu_model)
+{
+    Error *err = NULL;
+    S390CPU *cpu;
+    /* Use to track CPU ID for linux-user only */
+    static int64_t next_cpu_id;
+
+    cpu = s390x_new_cpu(cpu_model, next_cpu_id++, &err);
+    if (err) {
+        error_report_err(err);
+    }
     return cpu;
 }
 

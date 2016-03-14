@@ -47,6 +47,8 @@ typedef struct S390CPUClass {
     CPUClass parent_class;
     /*< public >*/
 
+    int64_t next_cpu_id;
+
     DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
     void (*load_normal)(CPUState *cpu);
@@ -66,6 +68,7 @@ typedef struct S390CPU {
     /*< public >*/
 
     CPUS390XState env;
+    int64_t id;
     /* needed for live migration */
     void *irqstate;
     uint32_t irqstate_saved_size;
