@@ -667,6 +667,23 @@ int bdrv_parse_cache_flags(const char *mode, int *flags)
     return 0;
 }
 
+int bdrv_parse_cache_mode(const char *mode, int *flags, bool *writethrough)
+{
+    int ret = bdrv_parse_cache_flags(mode, flags);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (*flags & BDRV_O_CACHE_WB) {
+        *flags &= ~BDRV_O_CACHE_WB;
+        *writethrough = false;
+    } else {
+        *writethrough = true;
+    }
+
+    return 0;
+}
+
 /*
  * Returns the options and flags that a temporary snapshot should get, based on
  * the originally requested flags (the originally requested image will have
