@@ -175,7 +175,7 @@ static void replay_save_event(Event *event, int checkpoint)
             replay_event_char_read_save(event->opaque);
             break;
         default:
-            error_report("Unknown ID %d of replay event", read_event_kind);
+            error_report("Unknown ID %" PRId64 " of replay event", event->id);
             exit(1);
         }
     }
