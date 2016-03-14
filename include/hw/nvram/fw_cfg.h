@@ -4,7 +4,6 @@
 #ifndef NO_QEMU_PROTOS
 
 #include "exec/hwaddr.h"
-#include "qemu/typedefs.h"
 #endif
 
 #define FW_CFG_SIGNATURE        0x00

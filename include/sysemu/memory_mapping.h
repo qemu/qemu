@@ -15,7 +15,6 @@
 #define MEMORY_MAPPING_H
 
 #include "qemu/queue.h"
-#include "qemu/typedefs.h"
 #include "exec/memory.h"
 
 typedef struct GuestPhysBlock {

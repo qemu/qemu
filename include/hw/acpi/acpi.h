@@ -19,7 +19,6 @@
  * <http://www.gnu.org/licenses/>.
  */
 
-#include "qemu/typedefs.h"
 #include "qemu/notify.h"
 #include "qemu/option.h"
 #include "exec/memory.h"

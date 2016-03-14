@@ -11,7 +11,6 @@
 #define TRACE__CONTROL_H
 
 #include "qemu-common.h"
-#include "qemu/typedefs.h"
 #include "trace/generated-events.h"
 
 

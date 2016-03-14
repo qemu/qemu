@@ -19,7 +19,6 @@
 #define HW_CHAR_DIGIC_UART_H
 
 #include "hw/sysbus.h"
-#include "qemu/typedefs.h"
 
 #define TYPE_DIGIC_UART "digic-uart"
 #define DIGIC_UART(obj) \

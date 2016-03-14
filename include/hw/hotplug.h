@@ -13,7 +13,6 @@
 #define HOTPLUG_H
 
 #include "qom/object.h"
-#include "qemu/typedefs.h"
 
 #define TYPE_HOTPLUG_HANDLER "hotplug-handler"
 

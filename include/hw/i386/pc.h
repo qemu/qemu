@@ -2,7 +2,6 @@
 #define HW_PC_H
 
 #include "qemu-common.h"
-#include "qemu/typedefs.h"
 #include "exec/memory.h"
 #include "hw/boards.h"
 #include "hw/isa/isa.h"

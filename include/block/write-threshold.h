@@ -12,8 +12,6 @@
 #ifndef BLOCK_WRITE_THRESHOLD_H
 #define BLOCK_WRITE_THRESHOLD_H
 
-
-#include "qemu/typedefs.h"
 #include "qemu-common.h"
 
 /*

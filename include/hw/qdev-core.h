@@ -3,7 +3,6 @@
 
 #include "qemu/queue.h"
 #include "qemu/option.h"
-#include "qemu/typedefs.h"
 #include "qemu/bitmap.h"
 #include "qom/object.h"
 #include "hw/irq.h"
