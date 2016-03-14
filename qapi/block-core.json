@@ -1614,7 +1614,6 @@
 #
 # Includes cache-related options for block devices
 #
-# @writeback:   #optional enables writeback mode for any caches (default: true)
 # @direct:      #optional enables use of O_DIRECT (bypass the host page cache;
 #               default: false)
 # @no-flush:    #optional ignore any flush requests for the device (default:
@@ -1623,8 +1622,7 @@
 # Since: 1.7
 ##
 { 'struct': 'BlockdevCacheOptions',
-  'data': { '*writeback': 'bool',
-            '*direct': 'bool',
+  'data': { '*direct': 'bool',
             '*no-flush': 'bool' } }
 
 ##
