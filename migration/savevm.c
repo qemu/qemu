@@ -1494,17 +1494,22 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
     qemu_sem_init(&mis->listen_thread_sem, 0);
     qemu_thread_create(&mis->listen_thread, "postcopy/listen",
                        postcopy_ram_listen_thread, mis->from_src_file,
-                       QEMU_THREAD_JOINABLE);
+                       QEMU_THREAD_DETACHED);
     qemu_sem_wait(&mis->listen_thread_sem);
     qemu_sem_destroy(&mis->listen_thread_sem);
 
     return 0;
 }
 
+
+typedef struct {
+    QEMUBH *bh;
+} HandleRunBhData;
+
 static void loadvm_postcopy_handle_run_bh(void *opaque)
 {
     Error *local_err = NULL;
-    MigrationIncomingState *mis = opaque;
+    HandleRunBhData *data = opaque;
 
     /* TODO we should move all of this lot into postcopy_ram.c or a shared code
      * in migration.c
@@ -1532,13 +1537,15 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
         runstate_set(RUN_STATE_PAUSED);
     }
 
-    qemu_bh_delete(mis->bh);
+    qemu_bh_delete(data->bh);
+    g_free(data);
 }
 
 /* After all discards we can start running and asking for pages */
 static int loadvm_postcopy_handle_run(MigrationIncomingState *mis)
 {
     PostcopyState ps = postcopy_state_set(POSTCOPY_INCOMING_RUNNING);
+    HandleRunBhData *data;
 
     trace_loadvm_postcopy_handle_run();
     if (ps != POSTCOPY_INCOMING_LISTENING) {
@@ -1546,8 +1553,9 @@ static int loadvm_postcopy_handle_run(MigrationIncomingState *mis)
         return -1;
     }
 
-    mis->bh = qemu_bh_new(loadvm_postcopy_handle_run_bh, NULL);
-    qemu_bh_schedule(mis->bh);
+    data = g_new(HandleRunBhData, 1);
+    data->bh = qemu_bh_new(loadvm_postcopy_handle_run_bh, data);
+    qemu_bh_schedule(data->bh);
 
     /* We need to finish reading the stream from the package
      * and also stop reading anything more from the stream that loaded the

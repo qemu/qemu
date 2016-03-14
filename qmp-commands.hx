@@ -3683,7 +3683,7 @@ Enable/Disable migration capabilities
 - "zero-blocks": compress zero blocks during block migration
 - "compress": use multiple compression threads to accelerate live migration
 - "events": generate events for each migration state change
-- "x-postcopy-ram": postcopy mode for live migration
+- "postcopy-ram": postcopy mode for live migration
 
 Arguments:
 
@@ -3713,7 +3713,7 @@ Query current migration capabilities
          - "zero-blocks" : Zero Blocks state (json-bool)
          - "compress": Multiple compression threads state (json-bool)
          - "events": Migration state change event state (json-bool)
-         - "x-postcopy-ram": postcopy ram state (json-bool)
+         - "postcopy-ram": postcopy ram state (json-bool)
 
 Arguments:
 
@@ -3727,7 +3727,7 @@ Example:
      {"state": false, "capability": "zero-blocks"},
      {"state": false, "capability": "compress"},
      {"state": true, "capability": "events"},
-     {"state": false, "capability": "x-postcopy-ram"}
+     {"state": false, "capability": "postcopy-ram"}
    ]}
 
 EQMP
