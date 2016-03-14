@@ -48,6 +48,9 @@ static void replay_run_event(Event *event)
     case REPLAY_ASYNC_EVENT_INPUT_SYNC:
         qemu_input_event_sync_impl();
         break;
+    case REPLAY_ASYNC_EVENT_CHAR_READ:
+        replay_event_char_read_run(event->opaque);
+        break;
     default:
         error_report("Replay: invalid async event ID (%d) in the queue",
                     event->event_kind);
@@ -102,9 +105,9 @@ void replay_clear_events(void)
 }
 
 /*! Adds specified async event to the queue */
-static void replay_add_event(ReplayAsyncEventKind event_kind,
-                             void *opaque,
-                             void *opaque2, uint64_t id)
+void replay_add_event(ReplayAsyncEventKind event_kind,
+                      void *opaque,
+                      void *opaque2, uint64_t id)
 {
     assert(event_kind < REPLAY_ASYNC_COUNT);
 
@@ -168,6 +171,9 @@ static void replay_save_event(Event *event, int checkpoint)
             break;
         case REPLAY_ASYNC_EVENT_INPUT_SYNC:
             break;
+        case REPLAY_ASYNC_EVENT_CHAR_READ:
+            replay_event_char_read_save(event->opaque);
+            break;
         default:
             error_report("Unknown ID %d of replay event", read_event_kind);
             exit(1);
@@ -220,6 +226,11 @@ static Event *replay_read_event(int checkpoint)
         event = g_malloc0(sizeof(Event));
         event->event_kind = read_event_kind;
         event->opaque = 0;
+        return event;
+    case REPLAY_ASYNC_EVENT_CHAR_READ:
+        event = g_malloc0(sizeof(Event));
+        event->event_kind = read_event_kind;
+        event->opaque = replay_event_char_read_load();
         return event;
     default:
         error_report("Unknown ID %d of replay event", read_event_kind);
