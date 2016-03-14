@@ -975,6 +975,13 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
 
     /* Apply cache mode options */
     update_flags_from_options(&bs->open_flags, opts);
+
+    if (!bs->blk && (bs->open_flags & BDRV_O_CACHE_WB) == 0) {
+        error_setg(errp, "Can't set writethrough mode except for the root");
+        ret = -EINVAL;
+        goto free_and_fail;
+    }
+
     bdrv_set_enable_write_cache(bs, bs->open_flags & BDRV_O_CACHE_WB);
 
     /* Open the image, either directly or using a protocol */

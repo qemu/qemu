@@ -96,36 +96,36 @@ function check_cache_all()
     # bs->backing
 
     echo -e "cache.direct=on on none0"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",cache.direct=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",cache.direct=on | grep -e "Cache" -e "[Cc]annot|[Cc]ould not|[Cc]an't"
     echo -e "\ncache.direct=on on file"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.direct=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.direct=on | grep -e "Cache" -e "[Cc]annot|[Cc]ould not|[Cc]an't"
     echo -e "\ncache.direct=on on backing"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.direct=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.direct=on | grep -e "Cache" -e "[Cc]annot|[Cc]ould not|[Cc]an't"
     echo -e "\ncache.direct=on on backing-file"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.direct=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.direct=on | grep -e "Cache" -e "[Cc]annot|[Cc]ould not|[Cc]an't"
 
     # cache.writeback is supposed to be inherited by bs->backing; bs->file
     # always gets cache.writeback=on
 
     echo -e "\n\ncache.writeback=off on none0"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",cache.writeback=off | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",cache.writeback=off | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.writeback=off on file"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.writeback=off | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.writeback=off | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.writeback=off on backing"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.writeback=off | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.writeback=off | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.writeback=off on backing-file"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.writeback=off | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.writeback=off | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
 
     # cache.no-flush is supposed to be inherited by both bs->file and bs->backing
 
     echo -e "\n\ncache.no-flush=on on none0"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",cache.no-flush=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",cache.no-flush=on | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.no-flush=on on file"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.no-flush=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.no-flush=on | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.no-flush=on on backing"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.no-flush=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.no-flush=on | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.no-flush=on on backing-file"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.no-flush=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.no-flush=on | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
 }
 
 echo
@@ -218,7 +218,7 @@ info block image
 info block blkdebug
 info block file"
 
-echo "$hmp_cmds" | run_qemu -drive if=none,file="blkdebug::json:{\"filename\":\"$TEST_IMG\",,\"cache\":{\"writeback\":false,,\"direct\":false}}",node-name=image,file.node-name=blkdebug,file.image.node-name=file | grep "Cache"
+echo "$hmp_cmds" | run_qemu -drive if=none,file="blkdebug::json:{\"filename\":\"$TEST_IMG\",,\"cache\":{\"direct\":false}}",node-name=image,file.node-name=blkdebug,file.image.node-name=file | grep "Cache"
 
 echo
 echo "=== Check that referenced BDSes don't inherit ==="
@@ -234,35 +234,35 @@ function check_cache_all_separate()
     # Check cache.direct
 
     echo -e "cache.direct=on on blk"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img",cache.direct=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img",cache.direct=on | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.direct=on on file"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file",cache.direct=on -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file",cache.direct=on -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.direct=on on backing"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk",cache.direct=on -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk",cache.direct=on -drive "$drv_file" -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.direct=on on backing-file"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile",cache.direct=on -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile",cache.direct=on -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
 
     # Check cache.writeback
 
     echo -e "\n\ncache.writeback=off on blk"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img",cache.writeback=off | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img",cache.writeback=off | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.writeback=off on file"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file",cache.writeback=off -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file",cache.writeback=off -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.writeback=off on backing"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk",cache.writeback=off -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk",cache.writeback=off -drive "$drv_file" -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.writeback=off on backing-file"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile",cache.writeback=off -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile",cache.writeback=off -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
 
     # Check cache.no-flush
 
     echo -e "\n\ncache.no-flush=on on blk"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img",cache.no-flush=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img",cache.no-flush=on | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.no-flush=on on file"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file",cache.no-flush=on -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file",cache.no-flush=on -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.no-flush=on on backing"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk",cache.no-flush=on -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk",cache.no-flush=on -drive "$drv_file" -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.no-flush=on on backing-file"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile",cache.no-flush=on -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile",cache.no-flush=on -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
 }
 
 echo
