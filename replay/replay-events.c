@@ -51,6 +51,9 @@ static void replay_run_event(Event *event)
     case REPLAY_ASYNC_EVENT_CHAR_READ:
         replay_event_char_read_run(event->opaque);
         break;
+    case REPLAY_ASYNC_EVENT_BLOCK:
+        aio_bh_call(event->opaque);
+        break;
     default:
         error_report("Replay: invalid async event ID (%d) in the queue",
                     event->event_kind);
@@ -153,6 +156,15 @@ void replay_add_input_sync_event(void)
     replay_add_event(REPLAY_ASYNC_EVENT_INPUT_SYNC, NULL, NULL, 0);
 }
 
+void replay_block_event(QEMUBH *bh, uint64_t id)
+{
+    if (replay_mode != REPLAY_MODE_NONE && events_enabled) {
+        replay_add_event(REPLAY_ASYNC_EVENT_BLOCK, bh, NULL, id);
+    } else {
+        qemu_bh_schedule(bh);
+    }
+}
+
 static void replay_save_event(Event *event, int checkpoint)
 {
     if (replay_mode != REPLAY_MODE_PLAY) {
@@ -173,6 +185,9 @@ static void replay_save_event(Event *event, int checkpoint)
             break;
         case REPLAY_ASYNC_EVENT_CHAR_READ:
             replay_event_char_read_save(event->opaque);
+            break;
+        case REPLAY_ASYNC_EVENT_BLOCK:
+            replay_put_qword(event->id);
             break;
         default:
             error_report("Unknown ID %" PRId64 " of replay event", event->id);
@@ -232,6 +247,11 @@ static Event *replay_read_event(int checkpoint)
         event->event_kind = read_event_kind;
         event->opaque = replay_event_char_read_load();
         return event;
+    case REPLAY_ASYNC_EVENT_BLOCK:
+        if (read_id == -1) {
+            read_id = replay_get_qword();
+        }
+        break;
     default:
         error_report("Unknown ID %d of replay event", read_event_kind);
         exit(1);
