@@ -23,44 +23,72 @@
 #include "io/channel-util.h"
 #include "io-channel-helpers.h"
 
-static int check_bind(struct sockaddr *sa, socklen_t salen, bool *has_proto)
-{
-    int fd;
+#ifndef AI_ADDRCONFIG
+# define AI_ADDRCONFIG 0
+#endif
+#ifndef AI_V4MAPPED
+# define AI_V4MAPPED 0
+#endif
+#ifndef EAI_ADDRFAMILY
+# define EAI_ADDRFAMILY 0
+#endif
 
-    fd = socket(sa->sa_family, SOCK_STREAM, 0);
-    if (fd < 0) {
-        return -1;
+static int check_bind(const char *hostname, bool *has_proto)
+{
+    int fd = -1;
+    struct addrinfo ai, *res = NULL;
+    int rc;
+    int ret = -1;
+
+    memset(&ai, 0, sizeof(ai));
+    ai.ai_flags = AI_CANONNAME | AI_V4MAPPED | AI_ADDRCONFIG;
+    ai.ai_family = AF_UNSPEC;
+    ai.ai_socktype = SOCK_STREAM;
+
+    /* lookup */
+    rc = getaddrinfo(hostname, NULL, &ai, &res);
+    if (rc != 0) {
+        if (rc == EAI_ADDRFAMILY ||
+            rc == EAI_FAMILY) {
+            *has_proto = false;
+            goto done;
+        }
+        goto cleanup;
     }
 
-    if (bind(fd, sa, salen) < 0) {
-        close(fd);
+    fd = qemu_socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if (fd < 0) {
+        goto cleanup;
+    }
+
+    if (bind(fd, res->ai_addr, res->ai_addrlen) < 0) {
         if (errno == EADDRNOTAVAIL) {
             *has_proto = false;
-            return 0;
+            goto done;
         }
-        return -1;
+        goto cleanup;
     }
 
-    close(fd);
     *has_proto = true;
-    return 0;
+ done:
+    ret = 0;
+
+ cleanup:
+    if (fd != -1) {
+        close(fd);
+    }
+    if (res) {
+        freeaddrinfo(res);
+    }
+    return ret;
 }
 
 static int check_protocol_support(bool *has_ipv4, bool *has_ipv6)
 {
-    struct sockaddr_in sin = {
-        .sin_family = AF_INET,
-        .sin_addr = { .s_addr = htonl(INADDR_LOOPBACK) },
-    };
-    struct sockaddr_in6 sin6 = {
-        .sin6_family = AF_INET6,
-        .sin6_addr = IN6ADDR_LOOPBACK_INIT,
-    };
-
-    if (check_bind((struct sockaddr *)&sin, sizeof(sin), has_ipv4) < 0) {
+    if (check_bind("127.0.0.1", has_ipv4) < 0) {
         return -1;
     }
-    if (check_bind((struct sockaddr *)&sin6, sizeof(sin6), has_ipv6) < 0) {
+    if (check_bind("::1", has_ipv6) < 0) {
         return -1;
     }
 
