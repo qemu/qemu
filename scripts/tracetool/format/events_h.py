@@ -21,8 +21,6 @@ def generate(events, backend):
         '',
         '#ifndef TRACE__GENERATED_EVENTS_H',
         '#define TRACE__GENERATED_EVENTS_H',
-        '',
-        '#include <stdbool.h>',
         '')
 
     # event identifiers

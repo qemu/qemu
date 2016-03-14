@@ -13,7 +13,6 @@
 #include "qemu/osdep.h"
 #include "vss-common.h"
 #include "requester.h"
-#include "assert.h"
 #include "inc/win2003/vswriter.h"
 #include "inc/win2003/vsbackup.h"
 
