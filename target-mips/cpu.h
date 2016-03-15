@@ -395,6 +395,7 @@ struct CPUMIPSState {
     target_ulong CP0_EPC;
     int32_t CP0_PRid;
     int32_t CP0_EBase;
+    target_ulong CP0_CMGCRBase;
     int32_t CP0_Config0;
 #define CP0C0_M    31
 #define CP0C0_K23  28
@@ -437,7 +438,7 @@ struct CPUMIPSState {
     int32_t CP0_Config3;
 #define CP0C3_M    31
 #define CP0C3_BPG  30
-#define CP0C3_CMCGR 29
+#define CP0C3_CMGCR 29
 #define CP0C3_MSAP  28
 #define CP0C3_BP 27
 #define CP0C3_BI 26
