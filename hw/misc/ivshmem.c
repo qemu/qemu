@@ -349,7 +349,7 @@ static void watch_vector_notifier(IVShmemState *s, EventNotifier *n,
 {
     int eventfd = event_notifier_get_fd(n);
 
-    /* if MSI is supported we need multiple interrupts */
+    assert(!s->msi_vectors[vector].pdev);
     s->msi_vectors[vector].pdev = PCI_DEVICE(s);
 
     qemu_set_fd_handler(eventfd, ivshmem_vector_notify,
@@ -535,10 +535,7 @@ static int ivshmem_add_kvm_msi_virq(IVShmemState *s, int vector)
     int ret;
 
     IVSHMEM_DPRINTF("ivshmem_add_kvm_msi_virq vector:%d\n", vector);
-
-    if (s->msi_vectors[vector].pdev != NULL) {
-        return 0;
-    }
+    assert(!s->msi_vectors[vector].pdev);
 
     ret = kvm_irqchip_add_msi_route(kvm_state, msg, pdev);
     if (ret < 0) {
