@@ -37,15 +37,32 @@
  * Tcp+ip header, after ip options removed.
  */
 struct tcpiphdr {
-	struct 	ipovly ti_i;		/* overlaid ip structure */
-	struct	tcphdr ti_t;		/* tcp header */
+    struct mbuf_ptr ih_mbuf;	/* backpointer to mbuf */
+    union {
+        struct {
+            struct  in_addr ih_src; /* source internet address */
+            struct  in_addr ih_dst; /* destination internet address */
+            uint8_t ih_x1;          /* (unused) */
+            uint8_t ih_pr;          /* protocol */
+        } ti_i4;
+        struct {
+            struct  in6_addr ih_src;
+            struct  in6_addr ih_dst;
+            uint8_t ih_x1;
+            uint8_t ih_nh;
+        } ti_i6;
+    } ti;
+    uint16_t    ti_x0;
+    uint16_t    ti_len;             /* protocol length */
+    struct      tcphdr ti_t;        /* tcp header */
 };
-#define	ti_mbuf		ti_i.ih_mbuf.mptr
-#define	ti_x1		ti_i.ih_x1
-#define	ti_pr		ti_i.ih_pr
-#define	ti_len		ti_i.ih_len
-#define	ti_src		ti_i.ih_src
-#define	ti_dst		ti_i.ih_dst
+#define	ti_mbuf		ih_mbuf.mptr
+#define	ti_pr		ti.ti_i4.ih_pr
+#define	ti_src		ti.ti_i4.ih_src
+#define	ti_dst		ti.ti_i4.ih_dst
+#define	ti_src6		ti.ti_i6.ih_src
+#define	ti_dst6		ti.ti_i6.ih_dst
+#define	ti_nh6		ti.ti_i6.ih_nh
 #define	ti_sport	ti_t.th_sport
 #define	ti_dport	ti_t.th_dport
 #define	ti_seq		ti_t.th_seq
@@ -64,6 +81,13 @@ struct tcpiphdr {
 #define tcpfrag_list_first(T) qlink2tcpiphdr((T)->seg_next)
 #define tcpfrag_list_end(F, T) (tcpiphdr2qlink(F) == (struct qlink*)(T))
 #define tcpfrag_list_empty(T) ((T)->seg_next == (struct tcpiphdr*)(T))
+
+/* This is the difference between the size of a tcpiphdr structure, and the
+ * size of actual ip+tcp headers, rounded up since we need to align data.  */
+#define TCPIPHDR_DELTA\
+    (max(0,\
+         (sizeof(struct tcpiphdr)\
+          - sizeof(struct ip) - sizeof(struct tcphdr) + 3) & ~3))
 
 /*
  * Just a clean way to get to the first byte

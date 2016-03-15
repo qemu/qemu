@@ -76,13 +76,30 @@ tcp_template(struct tcpcb *tp)
 	register struct tcpiphdr *n = &tp->t_template;
 
 	n->ti_mbuf = NULL;
-	n->ti_x1 = 0;
-	n->ti_pr = IPPROTO_TCP;
-	n->ti_len = htons(sizeof (struct tcpiphdr) - sizeof (struct ip));
-	n->ti_src = so->so_faddr;
-	n->ti_dst = so->so_laddr;
-	n->ti_sport = so->so_fport;
-	n->ti_dport = so->so_lport;
+	memset(&n->ti, 0, sizeof(n->ti));
+	n->ti_x0 = 0;
+	switch (so->so_ffamily) {
+	case AF_INET:
+	    n->ti_pr = IPPROTO_TCP;
+	    n->ti_len = htons(sizeof(struct tcphdr));
+	    n->ti_src = so->so_faddr;
+	    n->ti_dst = so->so_laddr;
+	    n->ti_sport = so->so_fport;
+	    n->ti_dport = so->so_lport;
+	    break;
+
+	case AF_INET6:
+	    n->ti_nh6 = IPPROTO_TCP;
+	    n->ti_len = htons(sizeof(struct tcphdr));
+	    n->ti_src6 = so->so_faddr6;
+	    n->ti_dst6 = so->so_laddr6;
+	    n->ti_sport = so->so_fport6;
+	    n->ti_dport = so->so_lport6;
+	    break;
+
+	default:
+	    g_assert_not_reached();
+	}
 
 	n->ti_seq = 0;
 	n->ti_ack = 0;
@@ -109,7 +126,7 @@ tcp_template(struct tcpcb *tp)
  */
 void
 tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
-            tcp_seq ack, tcp_seq seq, int flags)
+            tcp_seq ack, tcp_seq seq, int flags, unsigned short af)
 {
 	register int tlen;
 	int win = 0;
@@ -131,6 +148,7 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 		m->m_data += IF_MAXLINKHDR;
 		*mtod(m, struct tcpiphdr *) = *ti;
 		ti = mtod(m, struct tcpiphdr *);
+		memset(&ti->ti, 0, sizeof(ti->ti));
 		flags = TH_ACK;
 	} else {
 		/*
@@ -142,16 +160,26 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 		m->m_len = sizeof (struct tcpiphdr);
 		tlen = 0;
 #define xchg(a,b,type) { type t; t=a; a=b; b=t; }
-		xchg(ti->ti_dst.s_addr, ti->ti_src.s_addr, uint32_t);
-		xchg(ti->ti_dport, ti->ti_sport, uint16_t);
+		switch (af) {
+		case AF_INET:
+		    xchg(ti->ti_dst.s_addr, ti->ti_src.s_addr, uint32_t);
+		    xchg(ti->ti_dport, ti->ti_sport, uint16_t);
+		    break;
+		case AF_INET6:
+		    xchg(ti->ti_dst6, ti->ti_src6, struct in6_addr);
+		    xchg(ti->ti_dport, ti->ti_sport, uint16_t);
+		    break;
+		default:
+		    g_assert_not_reached();
+		}
 #undef xchg
 	}
 	ti->ti_len = htons((u_short)(sizeof (struct tcphdr) + tlen));
 	tlen += sizeof (struct tcpiphdr);
 	m->m_len = tlen;
 
-        ti->ti_mbuf = NULL;
-	ti->ti_x1 = 0;
+	ti->ti_mbuf = NULL;
+	ti->ti_x0 = 0;
 	ti->ti_seq = htonl(seq);
 	ti->ti_ack = htonl(ack);
 	ti->ti_x2 = 0;
@@ -164,14 +192,49 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 	ti->ti_urp = 0;
 	ti->ti_sum = 0;
 	ti->ti_sum = cksum(m, tlen);
-	((struct ip *)ti)->ip_len = tlen;
 
-	if(flags & TH_RST)
-	  ((struct ip *)ti)->ip_ttl = MAXTTL;
-	else
-	  ((struct ip *)ti)->ip_ttl = IPDEFTTL;
+	struct tcpiphdr tcpiph_save = *(mtod(m, struct tcpiphdr *));
+	struct ip *ip;
+	struct ip6 *ip6;
 
-	(void) ip_output((struct socket *)0, m);
+	switch (af) {
+	case AF_INET:
+	    m->m_data += sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
+	                                         - sizeof(struct ip);
+	    m->m_len  -= sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
+	                                         - sizeof(struct ip);
+	    ip = mtod(m, struct ip *);
+	    ip->ip_len = tlen;
+	    ip->ip_dst = tcpiph_save.ti_dst;
+	    ip->ip_src = tcpiph_save.ti_src;
+	    ip->ip_p = tcpiph_save.ti_pr;
+
+	    if (flags & TH_RST) {
+	        ip->ip_ttl = MAXTTL;
+	    } else {
+	        ip->ip_ttl = IPDEFTTL;
+	    }
+
+	    ip_output(NULL, m);
+	    break;
+
+	case AF_INET6:
+	    m->m_data += sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
+	                                         - sizeof(struct ip6);
+	    m->m_len  -= sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
+	                                         - sizeof(struct ip6);
+	    ip6 = mtod(m, struct ip6 *);
+	    ip6->ip_pl = tlen;
+	    ip6->ip_dst = tcpiph_save.ti_dst6;
+	    ip6->ip_src = tcpiph_save.ti_src6;
+	    ip6->ip_nh = tcpiph_save.ti_nh6;
+
+	    ip6_output(NULL, m, 0);
+	    break;
+
+	default:
+	    g_assert_not_reached();
+	}
 }
 
 /*
@@ -190,7 +253,7 @@ tcp_newtcpcb(struct socket *so)
 
 	memset((char *) tp, 0, sizeof(struct tcpcb));
 	tp->seg_next = tp->seg_prev = (struct tcpiphdr*)tp;
-	tp->t_maxseg = TCP_MSS;
+	tp->t_maxseg = (so->so_ffamily == AF_INET) ? TCP_MSS : TCP6_MSS;
 
 	tp->t_flags = TCP_DO_RFC1323 ? (TF_REQ_SCALE|TF_REQ_TSTMP) : 0;
 	tp->t_socket = so;
@@ -375,8 +438,8 @@ void tcp_connect(struct socket *inso)
 {
     Slirp *slirp = inso->slirp;
     struct socket *so;
-    struct sockaddr_in addr;
-    socklen_t addrlen = sizeof(struct sockaddr_in);
+    struct sockaddr_storage addr;
+    socklen_t addrlen = sizeof(struct sockaddr_storage);
     struct tcpcb *tp;
     int s, opt;
 
@@ -401,9 +464,8 @@ void tcp_connect(struct socket *inso)
             free(so); /* NOT sofree */
             return;
         }
-        so->so_lfamily = AF_INET;
-        so->so_laddr = inso->so_laddr;
-        so->so_lport = inso->so_lport;
+        so->lhost = inso->lhost;
+        so->so_ffamily = inso->so_ffamily;
     }
 
     tcp_mss(sototcpcb(so), 0);
@@ -419,7 +481,7 @@ void tcp_connect(struct socket *inso)
     qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
     socket_set_nodelay(s);
 
-    so->fhost.sin = addr;
+    so->fhost.ss = addr;
     sotranslate_accept(so);
 
     /* Close the accept() socket, set right state */

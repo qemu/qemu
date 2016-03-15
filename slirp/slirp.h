@@ -111,6 +111,8 @@ void free(void *ptr);
 #include <sys/stropts.h>
 #endif
 
+#include <glib.h>
+
 #include "debug.h"
 
 #include "qemu/queue.h"
@@ -119,12 +121,14 @@ void free(void *ptr);
 
 #include "libslirp.h"
 #include "ip.h"
+#include "ip6.h"
 #include "tcp.h"
 #include "tcp_timer.h"
 #include "tcp_var.h"
 #include "tcpip.h"
 #include "udp.h"
 #include "ip_icmp.h"
+#include "ip6_icmp.h"
 #include "mbuf.h"
 #include "sbuf.h"
 #include "socket.h"
@@ -176,6 +180,23 @@ void arp_table_add(Slirp *slirp, uint32_t ip_addr, uint8_t ethaddr[ETH_ALEN]);
 bool arp_table_search(Slirp *slirp, uint32_t ip_addr,
                       uint8_t out_ethaddr[ETH_ALEN]);
 
+struct ndpentry {
+    unsigned char   eth_addr[ETH_ALEN];     /* sender hardware address */
+    struct in6_addr ip_addr;                /* sender IP address       */
+} QEMU_PACKED;
+
+#define NDP_TABLE_SIZE 16
+
+typedef struct NdpTable {
+    struct ndpentry table[NDP_TABLE_SIZE];
+    int next_victim;
+} NdpTable;
+
+void ndp_table_add(Slirp *slirp, struct in6_addr ip_addr,
+                   uint8_t ethaddr[ETH_ALEN]);
+bool ndp_table_search(Slirp *slirp, struct in6_addr ip_addr,
+                      uint8_t out_ethaddr[ETH_ALEN]);
+
 struct Slirp {
     QTAILQ_ENTRY(Slirp) entry;
     u_int time_fasttimo;
@@ -186,8 +207,12 @@ struct Slirp {
     struct in_addr vnetwork_addr;
     struct in_addr vnetwork_mask;
     struct in_addr vhost_addr;
+    struct in6_addr vprefix_addr6;
+    uint8_t vprefix_len;
+    struct in6_addr vhost_addr6;
     struct in_addr vdhcp_startaddr;
     struct in_addr vnameserver_addr;
+    struct in6_addr vnameserver_addr6;
 
     struct in_addr client_ipaddr;
     char client_hostname[33];
@@ -234,6 +259,10 @@ struct Slirp {
     struct tftp_session tftp_sessions[TFTP_SESSIONS_MAX];
 
     ArpTable arp_table;
+    NdpTable ndp_table;
+
+    GRand *grand;
+    QEMUTimer *ra_timer;
 
     void *opaque;
 };
@@ -276,6 +305,7 @@ int translate_dnssearch(Slirp *s, const char ** names);
 
 /* cksum.c */
 int cksum(struct mbuf *m, int len);
+int ip6_cksum(struct mbuf *m);
 
 /* if.c */
 void if_init(Slirp *);
@@ -291,8 +321,16 @@ void ip_stripoptions(register struct mbuf *, struct mbuf *);
 /* ip_output.c */
 int ip_output(struct socket *, struct mbuf *);
 
+/* ip6_input.c */
+void ip6_init(Slirp *);
+void ip6_cleanup(Slirp *);
+void ip6_input(struct mbuf *);
+
+/* ip6_output */
+int ip6_output(struct socket *, struct mbuf *, int fast);
+
 /* tcp_input.c */
-void tcp_input(register struct mbuf *, int, struct socket *);
+void tcp_input(register struct mbuf *, int, struct socket *, unsigned short af);
 int tcp_mss(register struct tcpcb *, u_int);
 
 /* tcp_output.c */
@@ -303,7 +341,8 @@ void tcp_setpersist(register struct tcpcb *);
 void tcp_init(Slirp *);
 void tcp_cleanup(Slirp *);
 void tcp_template(struct tcpcb *);
-void tcp_respond(struct tcpcb *, register struct tcpiphdr *, register struct mbuf *, tcp_seq, tcp_seq, int);
+void tcp_respond(struct tcpcb *, register struct tcpiphdr *,
+        register struct mbuf *, tcp_seq, tcp_seq, int, unsigned short);
 struct tcpcb * tcp_newtcpcb(struct socket *);
 struct tcpcb * tcp_close(register struct tcpcb *);
 void tcp_sockclosed(struct tcpcb *);

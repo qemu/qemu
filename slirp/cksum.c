@@ -138,3 +138,28 @@ cont:
 	REDUCE;
 	return (~sum & 0xffff);
 }
+
+int ip6_cksum(struct mbuf *m)
+{
+    /* TODO: Optimize this by being able to pass the ip6_pseudohdr to cksum
+     * separately from the mbuf */
+    struct ip6 save_ip, *ip = mtod(m, struct ip6 *);
+    struct ip6_pseudohdr *ih = mtod(m, struct ip6_pseudohdr *);
+    int sum;
+
+    save_ip = *ip;
+
+    ih->ih_src = save_ip.ip_src;
+    ih->ih_dst = save_ip.ip_dst;
+    ih->ih_pl = htonl((uint32_t)ntohs(save_ip.ip_pl));
+    ih->ih_zero_hi = 0;
+    ih->ih_zero_lo = 0;
+    ih->ih_nh = save_ip.ip_nh;
+
+    sum = cksum(m, ((int)sizeof(struct ip6_pseudohdr))
+                    + ntohl(ih->ih_pl));
+
+    *ip = save_ip;
+
+    return sum;
+}

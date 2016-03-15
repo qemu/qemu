@@ -83,4 +83,9 @@ struct socket * udp_listen(Slirp *, uint32_t, u_int, uint32_t, u_int,
 int udp_output(struct socket *so, struct mbuf *m,
                 struct sockaddr_in *saddr, struct sockaddr_in *daddr,
                 int iptos);
+
+void udp6_input(register struct mbuf *);
+int udp6_output(struct socket *so, struct mbuf *m,
+                struct sockaddr_in6 *saddr, struct sockaddr_in6 *daddr);
+
 #endif

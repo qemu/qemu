@@ -214,9 +214,10 @@ present:
  * protocol specification dated September, 1981 very closely.
  */
 void
-tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
+tcp_input(struct mbuf *m, int iphlen, struct socket *inso, unsigned short af)
 {
-  	struct ip save_ip, *ip;
+	struct ip save_ip, *ip;
+	struct ip6 save_ip6, *ip6;
 	register struct tcpiphdr *ti;
 	caddr_t optp = NULL;
 	int optlen = 0;
@@ -230,6 +231,7 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 	int ret;
 	struct sockaddr_storage lhost, fhost;
 	struct sockaddr_in *lhost4, *fhost4;
+	struct sockaddr_in6 *lhost6, *fhost6;
     struct ex_list *ex_ptr;
     Slirp *slirp;
 
@@ -256,37 +258,83 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 	}
 	slirp = m->slirp;
 
-	/*
-	 * Get IP and TCP header together in first mbuf.
-	 * Note: IP leaves IP header in first mbuf.
-	 */
-	ti = mtod(m, struct tcpiphdr *);
-	if (iphlen > sizeof(struct ip )) {
-	  ip_stripoptions(m, (struct mbuf *)0);
-	  iphlen=sizeof(struct ip );
+	ip = mtod(m, struct ip *);
+	ip6 = mtod(m, struct ip6 *);
+
+	switch (af) {
+	case AF_INET:
+	    if (iphlen > sizeof(struct ip)) {
+	        ip_stripoptions(m, (struct mbuf *)0);
+	        iphlen = sizeof(struct ip);
+	    }
+	    /* XXX Check if too short */
+
+
+	    /*
+	     * Save a copy of the IP header in case we want restore it
+	     * for sending an ICMP error message in response.
+	     */
+	    save_ip = *ip;
+	    save_ip.ip_len += iphlen;
+
+	    /*
+	     * Get IP and TCP header together in first mbuf.
+	     * Note: IP leaves IP header in first mbuf.
+	     */
+	    m->m_data -= sizeof(struct tcpiphdr) - sizeof(struct ip)
+	                                         - sizeof(struct tcphdr);
+	    m->m_len += sizeof(struct tcpiphdr) - sizeof(struct ip)
+	                                        - sizeof(struct tcphdr);
+	    ti = mtod(m, struct tcpiphdr *);
+
+	    /*
+	     * Checksum extended TCP header and data.
+	     */
+	    tlen = ip->ip_len;
+	    tcpiphdr2qlink(ti)->next = tcpiphdr2qlink(ti)->prev = NULL;
+	    memset(&ti->ih_mbuf, 0 , sizeof(struct mbuf_ptr));
+	    memset(&ti->ti, 0, sizeof(ti->ti));
+	    ti->ti_x0 = 0;
+	    ti->ti_src = save_ip.ip_src;
+	    ti->ti_dst = save_ip.ip_dst;
+	    ti->ti_pr = save_ip.ip_p;
+	    ti->ti_len = htons((uint16_t)tlen);
+	    break;
+
+	case AF_INET6:
+	    /*
+	     * Save a copy of the IP header in case we want restore it
+	     * for sending an ICMP error message in response.
+	     */
+	    save_ip6 = *ip6;
+	    /*
+	     * Get IP and TCP header together in first mbuf.
+	     * Note: IP leaves IP header in first mbuf.
+	     */
+	    m->m_data -= sizeof(struct tcpiphdr) - (sizeof(struct ip6)
+	                                         + sizeof(struct tcphdr));
+	    m->m_len  += sizeof(struct tcpiphdr) - (sizeof(struct ip6)
+	                                         + sizeof(struct tcphdr));
+	    ti = mtod(m, struct tcpiphdr *);
+
+	    tlen = ip6->ip_pl;
+	    tcpiphdr2qlink(ti)->next = tcpiphdr2qlink(ti)->prev = NULL;
+	    memset(&ti->ih_mbuf, 0 , sizeof(struct mbuf_ptr));
+	    memset(&ti->ti, 0, sizeof(ti->ti));
+	    ti->ti_x0 = 0;
+	    ti->ti_src6 = save_ip6.ip_src;
+	    ti->ti_dst6 = save_ip6.ip_dst;
+	    ti->ti_nh6 = save_ip6.ip_nh;
+	    ti->ti_len = htons((uint16_t)tlen);
+	    break;
+
+	default:
+	    g_assert_not_reached();
 	}
-	/* XXX Check if too short */
 
-
-	/*
-	 * Save a copy of the IP header in case we want restore it
-	 * for sending an ICMP error message in response.
-	 */
-	ip=mtod(m, struct ip *);
-	save_ip = *ip;
-	save_ip.ip_len+= iphlen;
-
-	/*
-	 * Checksum extended TCP header and data.
-	 */
-	tlen = ((struct ip *)ti)->ip_len;
-        tcpiphdr2qlink(ti)->next = tcpiphdr2qlink(ti)->prev = NULL;
-        memset(&ti->ti_i.ih_mbuf, 0 , sizeof(struct mbuf_ptr));
-	ti->ti_x1 = 0;
-	ti->ti_len = htons((uint16_t)tlen);
-	len = sizeof(struct ip ) + tlen;
-	if(cksum(m, len)) {
-	  goto drop;
+	len = ((sizeof(struct tcpiphdr) - sizeof(struct tcphdr)) + tlen);
+	if (cksum(m, len)) {
+	    goto drop;
 	}
 
 	/*
@@ -323,14 +371,28 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 	 * Locate pcb for segment.
 	 */
 findso:
-	lhost.ss_family = AF_INET;
-	lhost4 = (struct sockaddr_in *) &lhost;
-	lhost4->sin_addr = ti->ti_src;
-	lhost4->sin_port = ti->ti_sport;
-	fhost.ss_family = AF_INET;
-	fhost4 = (struct sockaddr_in *) &fhost;
-	fhost4->sin_addr = ti->ti_dst;
-	fhost4->sin_port = ti->ti_dport;
+	lhost.ss_family = af;
+	fhost.ss_family = af;
+	switch (af) {
+	case AF_INET:
+	    lhost4 = (struct sockaddr_in *) &lhost;
+	    lhost4->sin_addr = ti->ti_src;
+	    lhost4->sin_port = ti->ti_sport;
+	    fhost4 = (struct sockaddr_in *) &fhost;
+	    fhost4->sin_addr = ti->ti_dst;
+	    fhost4->sin_port = ti->ti_dport;
+	    break;
+	case AF_INET6:
+	    lhost6 = (struct sockaddr_in6 *) &lhost;
+	    lhost6->sin6_addr = ti->ti_src6;
+	    lhost6->sin6_port = ti->ti_sport;
+	    fhost6 = (struct sockaddr_in6 *) &fhost;
+	    fhost6->sin6_addr = ti->ti_dst6;
+	    fhost6->sin6_port = ti->ti_dport;
+	    break;
+	default:
+	    g_assert_not_reached();
+	}
 
 	so = solookup(&slirp->tcp_last_so, &slirp->tcb, &lhost, &fhost);
 
@@ -380,8 +442,18 @@ findso:
 	  so->lhost.ss = lhost;
 	  so->fhost.ss = fhost;
 
-	  if ((so->so_iptos = tcp_tos(so)) == 0)
-	    so->so_iptos = ((struct ip *)ti)->ip_tos;
+	  so->so_iptos = tcp_tos(so);
+	  if (so->so_iptos == 0) {
+	      switch (af) {
+	      case AF_INET:
+	          so->so_iptos = ((struct ip *)ti)->ip_tos;
+	          break;
+	      case AF_INET6:
+	          break;
+	      default:
+	          g_assert_not_reached();
+	      }
+	  }
 
 	  tp = sototcpcb(so);
 	  tp->t_state = TCPS_LISTEN;
@@ -560,8 +632,9 @@ findso:
 	   * If this is destined for the control address, then flag to
 	   * tcp_ctl once connected, otherwise connect
 	   */
-	  if ((so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
-	      slirp->vnetwork_addr.s_addr) {
+	  if (af == AF_INET &&
+	         (so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
+	         slirp->vnetwork_addr.s_addr) {
 	    if (so->so_faddr.s_addr != slirp->vhost_addr.s_addr &&
 		so->so_faddr.s_addr != slirp->vnameserver_addr.s_addr) {
 		/* May be an add exec */
@@ -588,23 +661,56 @@ findso:
 	  if ((tcp_fconnect(so, so->so_ffamily) == -1) &&
               (errno != EINPROGRESS) && (errno != EWOULDBLOCK)
           ) {
-	    u_char code=ICMP_UNREACH_NET;
+	    uint8_t code;
 	    DEBUG_MISC((dfd, " tcp fconnect errno = %d-%s\n",
 			errno,strerror(errno)));
 	    if(errno == ECONNREFUSED) {
 	      /* ACK the SYN, send RST to refuse the connection */
-	      tcp_respond(tp, ti, m, ti->ti_seq+1, (tcp_seq)0,
-			  TH_RST|TH_ACK);
+	      tcp_respond(tp, ti, m, ti->ti_seq + 1, (tcp_seq) 0,
+			  TH_RST | TH_ACK, af);
 	    } else {
-	      if(errno == EHOSTUNREACH) code=ICMP_UNREACH_HOST;
+	      switch (af) {
+	      case AF_INET:
+		code = ICMP_UNREACH_NET;
+		if (errno == EHOSTUNREACH) {
+		  code = ICMP_UNREACH_HOST;
+		}
+		break;
+	      case AF_INET6:
+		code = ICMP6_UNREACH_NO_ROUTE;
+		if (errno == EHOSTUNREACH) {
+		  code = ICMP6_UNREACH_ADDRESS;
+		}
+		break;
+	      default:
+		g_assert_not_reached();
+	      }
 	      HTONL(ti->ti_seq);             /* restore tcp header */
 	      HTONL(ti->ti_ack);
 	      HTONS(ti->ti_win);
 	      HTONS(ti->ti_urp);
 	      m->m_data -= sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
 	      m->m_len  += sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
-	      *ip=save_ip;
-	      icmp_error(m, ICMP_UNREACH,code, 0,strerror(errno));
+	      switch (af) {
+	      case AF_INET:
+		m->m_data += sizeof(struct tcpiphdr) - sizeof(struct ip)
+						     - sizeof(struct tcphdr);
+		m->m_len  -= sizeof(struct tcpiphdr) - sizeof(struct ip)
+						     - sizeof(struct tcphdr);
+		*ip = save_ip;
+		icmp_send_error(m, ICMP_UNREACH, code, 0, strerror(errno));
+		break;
+	      case AF_INET6:
+		m->m_data += sizeof(struct tcpiphdr) - (sizeof(struct ip6)
+						     + sizeof(struct tcphdr));
+		m->m_len  -= sizeof(struct tcpiphdr) - (sizeof(struct ip6)
+						     + sizeof(struct tcphdr));
+		*ip6 = save_ip6;
+		icmp6_send_error(m, ICMP6_UNREACH, code);
+		break;
+	      default:
+		g_assert_not_reached();
+	      }
 	    }
             tcp_close(tp);
 	    m_free(m);
@@ -1276,11 +1382,11 @@ dropafterack:
 dropwithreset:
 	/* reuses m if m!=NULL, m_free() unnecessary */
 	if (tiflags & TH_ACK)
-		tcp_respond(tp, ti, m, (tcp_seq)0, ti->ti_ack, TH_RST);
+		tcp_respond(tp, ti, m, (tcp_seq)0, ti->ti_ack, TH_RST, af);
 	else {
 		if (tiflags & TH_SYN) ti->ti_len++;
-		tcp_respond(tp, ti, m, ti->ti_seq+ti->ti_len, (tcp_seq)0,
-		    TH_RST|TH_ACK);
+		tcp_respond(tp, ti, m, ti->ti_seq + ti->ti_len, (tcp_seq) 0,
+		    TH_RST | TH_ACK, af);
 	}
 
 	return;
@@ -1471,7 +1577,19 @@ tcp_mss(struct tcpcb *tp, u_int offer)
 	DEBUG_ARG("tp = %p", tp);
 	DEBUG_ARG("offer = %d", offer);
 
-	mss = min(IF_MTU, IF_MRU) - sizeof(struct tcpiphdr);
+	switch (so->so_ffamily) {
+	case AF_INET:
+	    mss = min(IF_MTU, IF_MRU) - sizeof(struct tcphdr)
+	                              + sizeof(struct ip);
+	    break;
+	case AF_INET6:
+	    mss = min(IF_MTU, IF_MRU) - sizeof(struct tcphdr)
+	                              + sizeof(struct ip6);
+	    break;
+	default:
+	    g_assert_not_reached();
+	}
+
 	if (offer)
 		mss = min(mss, offer);
 	mss = max(mss, 32);

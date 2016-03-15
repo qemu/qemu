@@ -17,7 +17,7 @@
 #define IF_MRU 1500
 #define	IF_COMP IF_AUTOCOMP	/* Flags for compression */
 
-/* 2 for alignment, 14 for ethernet, 40 for TCP/IP */
-#define IF_MAXLINKHDR (2 + 14 + 40)
+/* 2 for alignment, 14 for ethernet */
+#define IF_MAXLINKHDR (2 + ETH_HLEN)
 
 #endif

@@ -16,7 +16,6 @@
 #define TFTP_FILENAME_MAX 512
 
 struct tftp_t {
-  struct ip ip;
   struct udphdr udp;
   uint16_t tp_op;
   union {
@@ -30,20 +29,20 @@ struct tftp_t {
     } tp_error;
     char tp_buf[512 + 2];
   } x;
-};
+} __attribute__((packed));
 
 struct tftp_session {
     Slirp *slirp;
     char *filename;
     int fd;
 
-    struct in_addr client_ip;
+    struct sockaddr_storage client_addr;
     uint16_t client_port;
     uint32_t block_nr;
 
     int timestamp;
 };
 
-void tftp_input(struct mbuf *m);
+void tftp_input(struct sockaddr_storage *srcsas, struct mbuf *m);
 
 #endif

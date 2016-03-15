@@ -128,6 +128,11 @@ udp_input(register struct mbuf *m, int iphlen)
 	  }
 	}
 
+	lhost.ss_family = AF_INET;
+	lhost4 = (struct sockaddr_in *) &lhost;
+	lhost4->sin_addr = ip->ip_src;
+	lhost4->sin_port = uh->uh_sport;
+
         /*
          *  handle DHCP/BOOTP
          */
@@ -143,7 +148,11 @@ udp_input(register struct mbuf *m, int iphlen)
          */
         if (ntohs(uh->uh_dport) == TFTP_SERVER &&
             ip->ip_dst.s_addr == slirp->vhost_addr.s_addr) {
-            tftp_input(m);
+            m->m_data += iphlen;
+            m->m_len -= iphlen;
+            tftp_input(&lhost, m);
+            m->m_data -= iphlen;
+            m->m_len += iphlen;
             goto bad;
         }
 
@@ -154,11 +163,6 @@ udp_input(register struct mbuf *m, int iphlen)
 	/*
 	 * Locate pcb for datagram.
 	 */
-	lhost.ss_family = AF_INET;
-	lhost4 = (struct sockaddr_in *) &lhost;
-	lhost4->sin_addr = ip->ip_src;
-	lhost4->sin_port = uh->uh_sport;
-
 	so = solookup(&slirp->udp_last_so, &slirp->udb, &lhost, NULL);
 
 	if (so == NULL) {
@@ -209,7 +213,8 @@ udp_input(register struct mbuf *m, int iphlen)
 	  m->m_data -= iphlen;
 	  *ip=save_ip;
 	  DEBUG_MISC((dfd,"udp tx errno = %d-%s\n",errno,strerror(errno)));
-	  icmp_error(m, ICMP_UNREACH,ICMP_UNREACH_NET, 0,strerror(errno));
+	  icmp_send_error(m, ICMP_UNREACH, ICMP_UNREACH_NET, 0,
+	                  strerror(errno));
 	  goto bad;
 	}
 

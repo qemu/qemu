@@ -201,19 +201,23 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id);
 
 Slirp *slirp_init(int restricted, struct in_addr vnetwork,
                   struct in_addr vnetmask, struct in_addr vhost,
-                  const char *vhostname, const char *tftp_path,
-                  const char *bootfile, struct in_addr vdhcp_start,
-                  struct in_addr vnameserver, const char **vdnssearch,
+                  struct in6_addr vprefix_addr6, uint8_t vprefix_len,
+                  struct in6_addr vhost6, const char *vhostname,
+                  const char *tftp_path, const char *bootfile,
+                  struct in_addr vdhcp_start, struct in_addr vnameserver,
+                  struct in6_addr vnameserver6, const char **vdnssearch,
                   void *opaque)
 {
     Slirp *slirp = g_malloc0(sizeof(Slirp));
 
     slirp_init_once();
 
+    slirp->grand = g_rand_new();
     slirp->restricted = restricted;
 
     if_init(slirp);
     ip_init(slirp);
+    ip6_init(slirp);
 
     /* Initialise mbufs *after* setting the MTU */
     m_init(slirp);
@@ -221,6 +225,9 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
     slirp->vnetwork_addr = vnetwork;
     slirp->vnetwork_mask = vnetmask;
     slirp->vhost_addr = vhost;
+    slirp->vprefix_addr6 = vprefix_addr6;
+    slirp->vprefix_len = vprefix_len;
+    slirp->vhost_addr6 = vhost6;
     if (vhostname) {
         pstrcpy(slirp->client_hostname, sizeof(slirp->client_hostname),
                 vhostname);
@@ -229,6 +236,7 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
     slirp->bootp_filename = g_strdup(bootfile);
     slirp->vdhcp_startaddr = vdhcp_start;
     slirp->vnameserver_addr = vnameserver;
+    slirp->vnameserver_addr6 = vnameserver6;
 
     if (vdnssearch) {
         translate_dnssearch(slirp, vdnssearch);
@@ -251,7 +259,10 @@ void slirp_cleanup(Slirp *slirp)
     unregister_savevm(NULL, "slirp", slirp);
 
     ip_cleanup(slirp);
+    ip6_cleanup(slirp);
     m_cleanup(slirp);
+
+    g_rand_free(slirp->grand);
 
     g_free(slirp->vdnssearch);
     g_free(slirp->tftp_prefix);
@@ -568,7 +579,8 @@ void slirp_pollfds_poll(GArray *pollfds, int select_error)
                         /*
                          * Continue tcp_input
                          */
-                        tcp_input((struct mbuf *)NULL, sizeof(struct ip), so);
+                        tcp_input((struct mbuf *)NULL, sizeof(struct ip), so,
+                                  so->so_ffamily);
                         /* continue; */
                     } else {
                         ret = sowrite(so);
@@ -617,7 +629,8 @@ void slirp_pollfds_poll(GArray *pollfds, int select_error)
                         }
 
                     }
-                    tcp_input((struct mbuf *)NULL, sizeof(struct ip), so);
+                    tcp_input((struct mbuf *)NULL, sizeof(struct ip), so,
+                              so->so_ffamily);
                 } /* SS_ISFCONNECTING */
 #endif
             }
@@ -744,21 +757,28 @@ void slirp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
         arp_input(slirp, pkt, pkt_len);
         break;
     case ETH_P_IP:
+    case ETH_P_IPV6:
         m = m_get(slirp);
         if (!m)
             return;
-        /* Note: we add to align the IP header */
-        if (M_FREEROOM(m) < pkt_len + 2) {
-            m_inc(m, pkt_len + 2);
+        /* Note: we add 2 to align the IP header on 4 bytes,
+         * and add the margin for the tcpiphdr overhead  */
+        if (M_FREEROOM(m) < pkt_len + TCPIPHDR_DELTA + 2) {
+            m_inc(m, pkt_len + TCPIPHDR_DELTA + 2);
         }
-        m->m_len = pkt_len + 2;
-        memcpy(m->m_data + 2, pkt, pkt_len);
+        m->m_len = pkt_len + TCPIPHDR_DELTA + 2;
+        memcpy(m->m_data + TCPIPHDR_DELTA + 2, pkt, pkt_len);
 
-        m->m_data += 2 + ETH_HLEN;
-        m->m_len -= 2 + ETH_HLEN;
+        m->m_data += TCPIPHDR_DELTA + 2 + ETH_HLEN;
+        m->m_len -= TCPIPHDR_DELTA + 2 + ETH_HLEN;
 
-        ip_input(m);
+        if (proto == ETH_P_IP) {
+            ip_input(m);
+        } else if (proto == ETH_P_IPV6) {
+            ip6_input(m);
+        }
         break;
+
     default:
         break;
     }
@@ -826,6 +846,31 @@ static int if_encap4(Slirp *slirp, struct mbuf *ifm, struct ethhdr *eh,
     }
 }
 
+/* Prepare the IPv6 packet to be sent to the ethernet device. Returns 1 if no
+ * packet should be sent, 0 if the packet must be re-queued, 2 if the packet
+ * is ready to go.
+ */
+static int if_encap6(Slirp *slirp, struct mbuf *ifm, struct ethhdr *eh,
+        uint8_t ethaddr[ETH_ALEN])
+{
+    const struct ip6 *ip6h = mtod(ifm, const struct ip6 *);
+    if (!ndp_table_search(slirp, ip6h->ip_dst, ethaddr)) {
+        if (!ifm->resolution_requested) {
+            ndp_send_ns(slirp, ip6h->ip_dst);
+            ifm->resolution_requested = true;
+            ifm->expiration_date =
+                qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + 1000000000ULL;
+        }
+        return 0;
+    } else {
+        eh->h_proto = htons(ETH_P_IPV6);
+        in6_compute_ethaddr(ip6h->ip_src, eh->h_source);
+
+        /* Send this */
+        return 2;
+    }
+}
+
 /* Output the IP packet to the ethernet device. Returns 0 if the packet must be
  * re-queued.
  */
@@ -849,9 +894,15 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
         }
         break;
 
+    case IP6VERSION:
+        ret = if_encap6(slirp, ifm, eh, ethaddr);
+        if (ret < 2) {
+            return ret;
+        }
+        break;
+
     default:
-        /* Do not assert while we don't manage IP6VERSION */
-        /* assert(0); */
+        g_assert_not_reached();
         break;
     }
 

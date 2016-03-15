@@ -156,8 +156,8 @@ struct icmp {
 void icmp_init(Slirp *slirp);
 void icmp_cleanup(Slirp *slirp);
 void icmp_input(struct mbuf *, int);
-void icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
-                const char *message);
+void icmp_send_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
+                     const char *message);
 void icmp_reflect(struct mbuf *);
 void icmp_receive(struct socket *so);
 void icmp_detach(struct socket *so);

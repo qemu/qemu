@@ -132,9 +132,9 @@ ip_input(struct mbuf *m)
 	   m_adj(m, ip->ip_len - m->m_len);
 
 	/* check ip_ttl for a correct ICMP reply */
-	if(ip->ip_ttl==0) {
-	  icmp_error(m, ICMP_TIMXCEED,ICMP_TIMXCEED_INTRANS, 0,"ttl");
-	  goto bad;
+	if (ip->ip_ttl == 0) {
+	    icmp_send_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS, 0, "ttl");
+	    goto bad;
 	}
 
 	/*
@@ -200,7 +200,7 @@ ip_input(struct mbuf *m)
 	 */
 	switch (ip->ip_p) {
 	 case IPPROTO_TCP:
-		tcp_input(m, hlen, (struct socket *)NULL);
+		tcp_input(m, hlen, (struct socket *)NULL, AF_INET);
 		break;
 	 case IPPROTO_UDP:
 		udp_input(m, hlen);
@@ -637,7 +637,7 @@ typedef uint32_t n_time;
 	}
 	return (0);
 bad:
- 	icmp_error(m, type, code, 0, 0);
+	icmp_send_error(m, type, code, 0, 0);
 
 	return (1);
 }

@@ -463,7 +463,7 @@ sorecvfrom(struct socket *so)
 
 	    DEBUG_MISC((dfd," udp icmp rx errno = %d-%s\n",
 			errno,strerror(errno)));
-	    icmp_error(so->so_m, ICMP_UNREACH,code, 0,strerror(errno));
+	    icmp_send_error(so->so_m, ICMP_UNREACH, code, 0, strerror(errno));
 	  } else {
 	    icmp_reflect(so->so_m);
             so->so_m = NULL; /* Don't m_free() it again! */
@@ -483,7 +483,18 @@ sorecvfrom(struct socket *so)
 	  if (!m) {
 	      return;
 	  }
-	  m->m_data += IF_MAXLINKHDR;
+	  switch (so->so_ffamily) {
+	  case AF_INET:
+	      m->m_data += IF_MAXLINKHDR + sizeof(struct udpiphdr);
+	      break;
+	  case AF_INET6:
+	      m->m_data += IF_MAXLINKHDR + sizeof(struct ip6)
+	                                 + sizeof(struct udphdr);
+	      break;
+	  default:
+	      g_assert_not_reached();
+	      break;
+	  }
 
 	  /*
 	   * XXX Shouldn't FIONREAD packets destined for port 53,
@@ -505,13 +516,37 @@ sorecvfrom(struct socket *so)
 	  DEBUG_MISC((dfd, " did recvfrom %d, errno = %d-%s\n",
 		      m->m_len, errno,strerror(errno)));
 	  if(m->m_len<0) {
-	    u_char code=ICMP_UNREACH_PORT;
+	    /* Report error as ICMP */
+	    switch (so->so_lfamily) {
+	    uint8_t code;
+	    case AF_INET:
+	      code = ICMP_UNREACH_PORT;
 
-	    if(errno == EHOSTUNREACH) code=ICMP_UNREACH_HOST;
-	    else if(errno == ENETUNREACH) code=ICMP_UNREACH_NET;
+	      if (errno == EHOSTUNREACH) {
+		code = ICMP_UNREACH_HOST;
+	      } else if (errno == ENETUNREACH) {
+		code = ICMP_UNREACH_NET;
+	      }
 
-	    DEBUG_MISC((dfd," rx error, tx icmp ICMP_UNREACH:%i\n", code));
-	    icmp_error(so->so_m, ICMP_UNREACH,code, 0,strerror(errno));
+	      DEBUG_MISC((dfd, " rx error, tx icmp ICMP_UNREACH:%i\n", code));
+	      icmp_send_error(so->so_m, ICMP_UNREACH, code, 0, strerror(errno));
+	      break;
+	    case AF_INET6:
+	      code = ICMP6_UNREACH_PORT;
+
+	      if (errno == EHOSTUNREACH) {
+		code = ICMP6_UNREACH_ADDRESS;
+	      } else if (errno == ENETUNREACH) {
+		code = ICMP6_UNREACH_NO_ROUTE;
+	      }
+
+	      DEBUG_MISC((dfd, " rx error, tx icmp6 ICMP_UNREACH:%i\n", code));
+	      icmp6_send_error(so->so_m, ICMP6_UNREACH, code);
+	      break;
+	    default:
+	      g_assert_not_reached();
+	      break;
+	    }
 	    m_free(m);
 	  } else {
 	  /*
@@ -541,7 +576,12 @@ sorecvfrom(struct socket *so)
 	                   (struct sockaddr_in *) &daddr,
 	                   so->so_iptos);
 	        break;
+	    case AF_INET6:
+	        udp6_output(so, m, (struct sockaddr_in6 *) &saddr,
+	                    (struct sockaddr_in6 *) &daddr);
+	        break;
 	    default:
+	        g_assert_not_reached();
 	        break;
 	    }
 	  } /* rx error */
@@ -731,6 +771,7 @@ void sotranslate_out(struct socket *so, struct sockaddr_storage *addr)
 {
     Slirp *slirp = so->slirp;
     struct sockaddr_in *sin = (struct sockaddr_in *)addr;
+    struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)addr;
 
     switch (addr->ss_family) {
     case AF_INET:
@@ -751,6 +792,19 @@ void sotranslate_out(struct socket *so, struct sockaddr_storage *addr)
             ntohs(sin->sin_port), inet_ntoa(sin->sin_addr)));
         break;
 
+    case AF_INET6:
+        if (in6_equal_net(&so->so_faddr6, &slirp->vprefix_addr6,
+                    slirp->vprefix_len)) {
+            if (in6_equal(&so->so_faddr6, &slirp->vnameserver_addr6)) {
+                /*if (get_dns_addr(&addr) < 0) {*/ /* TODO */
+                    sin6->sin6_addr = in6addr_loopback;
+                /*}*/
+            } else {
+                sin6->sin6_addr = in6addr_loopback;
+            }
+        }
+        break;
+
     default:
         break;
     }
@@ -760,6 +814,7 @@ void sotranslate_in(struct socket *so, struct sockaddr_storage *addr)
 {
     Slirp *slirp = so->slirp;
     struct sockaddr_in *sin = (struct sockaddr_in *)addr;
+    struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)addr;
 
     switch (addr->ss_family) {
     case AF_INET:
@@ -772,6 +827,16 @@ void sotranslate_in(struct socket *so, struct sockaddr_storage *addr)
             } else if (sin->sin_addr.s_addr == loopback_addr.s_addr ||
                        so->so_faddr.s_addr != slirp->vhost_addr.s_addr) {
                 sin->sin_addr = so->so_faddr;
+            }
+        }
+        break;
+
+    case AF_INET6:
+        if (in6_equal_net(&so->so_faddr6, &slirp->vprefix_addr6,
+                    slirp->vprefix_len)) {
+            if (in6_equal(&sin6->sin6_addr, &in6addr_loopback)
+                    || !in6_equal(&so->so_faddr6, &slirp->vhost_addr6)) {
+                sin6->sin6_addr = so->so_faddr6;
             }
         }
         break;
@@ -794,6 +859,13 @@ void sotranslate_accept(struct socket *so)
             (so->so_faddr.s_addr & loopback_mask) ==
             (loopback_addr.s_addr & loopback_mask)) {
            so->so_faddr = slirp->vhost_addr;
+        }
+        break;
+
+   case AF_INET6:
+        if (in6_equal(&so->so_faddr6, &in6addr_any) ||
+                in6_equal(&so->so_faddr6, &in6addr_loopback)) {
+           so->so_faddr6 = slirp->vhost_addr6;
         }
         break;
 

@@ -36,6 +36,7 @@
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "slirp/libslirp.h"
+#include "slirp/ip6.h"
 #include "sysemu/char.h"
 
 static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
@@ -135,10 +136,13 @@ static NetClientInfo net_slirp_info = {
 static int net_slirp_init(NetClientState *peer, const char *model,
                           const char *name, int restricted,
                           const char *vnetwork, const char *vhost,
+                          const char *vprefix6, int vprefix6_len,
+                          const char *vhost6,
                           const char *vhostname, const char *tftp_export,
                           const char *bootfile, const char *vdhcp_start,
-                          const char *vnameserver, const char *smb_export,
-                          const char *vsmbserver, const char **dnssearch)
+                          const char *vnameserver, const char *vnameserver6,
+                          const char *smb_export, const char *vsmbserver,
+                          const char **dnssearch)
 {
     /* default settings according to historic slirp */
     struct in_addr net  = { .s_addr = htonl(0x0a000200) }; /* 10.0.2.0 */
@@ -146,6 +150,9 @@ static int net_slirp_init(NetClientState *peer, const char *model,
     struct in_addr host = { .s_addr = htonl(0x0a000202) }; /* 10.0.2.2 */
     struct in_addr dhcp = { .s_addr = htonl(0x0a00020f) }; /* 10.0.2.15 */
     struct in_addr dns  = { .s_addr = htonl(0x0a000203) }; /* 10.0.2.3 */
+    struct in6_addr ip6_prefix;
+    struct in6_addr ip6_host;
+    struct in6_addr ip6_dns;
 #ifndef _WIN32
     struct in_addr smbsrv = { .s_addr = 0 };
 #endif
@@ -235,6 +242,64 @@ static int net_slirp_init(NetClientState *peer, const char *model,
     }
 #endif
 
+#if defined(_WIN32) && (_WIN32_WINNT < 0x0600)
+    /* No inet_pton helper before Vista... */
+    if (vprefix6) {
+        /* Unsupported */
+        return -1;
+    }
+    memset(&ip6_prefix, 0, sizeof(ip6_prefix));
+    ip6_prefix.s6_addr[0] = 0xfe;
+    ip6_prefix.s6_addr[1] = 0xc0;
+#else
+    if (!vprefix6) {
+        vprefix6 = "fec0::";
+    }
+    if (!inet_pton(AF_INET6, vprefix6, &ip6_prefix)) {
+        return -1;
+    }
+#endif
+
+    if (!vprefix6_len) {
+        vprefix6_len = 64;
+    }
+    if (vprefix6_len < 0 || vprefix6_len > 126) {
+        return -1;
+    }
+
+    if (vhost6) {
+#if defined(_WIN32) && (_WIN32_WINNT < 0x0600)
+        return -1;
+#else
+        if (!inet_pton(AF_INET6, vhost6, &ip6_host)) {
+            return -1;
+        }
+        if (!in6_equal_net(&ip6_prefix, &ip6_host, vprefix6_len)) {
+            return -1;
+        }
+#endif
+    } else {
+        ip6_host = ip6_prefix;
+        ip6_host.s6_addr[15] |= 2;
+    }
+
+    if (vnameserver6) {
+#if defined(_WIN32) && (_WIN32_WINNT < 0x0600)
+        return -1;
+#else
+        if (!inet_pton(AF_INET6, vnameserver6, &ip6_dns)) {
+            return -1;
+        }
+        if (!in6_equal_net(&ip6_prefix, &ip6_dns, vprefix6_len)) {
+            return -1;
+        }
+#endif
+    } else {
+        ip6_dns = ip6_prefix;
+        ip6_dns.s6_addr[15] |= 3;
+    }
+
+
     nc = qemu_new_net_client(&net_slirp_info, peer, model, name);
 
     snprintf(nc->info_str, sizeof(nc->info_str),
@@ -243,8 +308,10 @@ static int net_slirp_init(NetClientState *peer, const char *model,
 
     s = DO_UPCAST(SlirpState, nc, nc);
 
-    s->slirp = slirp_init(restricted, net, mask, host, vhostname,
-                          tftp_export, bootfile, dhcp, dns, dnssearch, s);
+    s->slirp = slirp_init(restricted, net, mask, host,
+                          ip6_prefix, vprefix6_len, ip6_host,
+                          vhostname, tftp_export, bootfile, dhcp,
+                          dns, ip6_dns, dnssearch, s);
     QTAILQ_INSERT_TAIL(&slirp_stacks, s, entry);
 
     for (config = slirp_configs; config; config = config->next) {
@@ -761,8 +828,10 @@ int net_init_slirp(const NetClientOptions *opts, const char *name,
     net_init_slirp_configs(user->guestfwd, 0);
 
     ret = net_slirp_init(peer, "user", name, user->q_restrict, vnet,
-                         user->host, user->hostname, user->tftp,
-                         user->bootfile, user->dhcpstart, user->dns, user->smb,
+                         user->host, user->ip6_prefix, user->ip6_prefixlen,
+                         user->ip6_host, user->hostname, user->tftp,
+                         user->bootfile, user->dhcpstart,
+                         user->dns, user->ip6_dns, user->smb,
                          user->smbserver, dnssearch);
 
     while (slirp_configs) {

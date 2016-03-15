@@ -278,7 +278,8 @@ tcp_timers(register struct tcpcb *tp, int timer)
 			 * correspondent TCP to respond.
 			 */
 			tcp_respond(tp, &tp->t_template, (struct mbuf *)NULL,
-			    tp->rcv_nxt, tp->snd_una - 1, 0);
+			    tp->rcv_nxt, tp->snd_una - 1, 0,
+			    tp->t_socket->so_ffamily);
 			tp->t_timer[TCPT_KEEP] = TCPTV_KEEPINTVL;
 		} else
 			tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_IDLE;
