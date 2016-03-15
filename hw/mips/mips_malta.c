@@ -908,12 +908,45 @@ static void main_cpu_reset(void *opaque)
     }
 }
 
+static void create_cpu(const char *cpu_model,
+                       qemu_irq *cbus_irq, qemu_irq *i8259_irq)
+{
+    CPUMIPSState *env;
+    MIPSCPU *cpu;
+    int i;
+    if (cpu_model == NULL) {
+#ifdef TARGET_MIPS64
+        cpu_model = "20Kc";
+#else
+        cpu_model = "24Kf";
+#endif
+    }
+
+    for (i = 0; i < smp_cpus; i++) {
+        cpu = cpu_mips_init(cpu_model);
+        if (cpu == NULL) {
+            fprintf(stderr, "Unable to find CPU definition\n");
+            exit(1);
+        }
+        env = &cpu->env;
+
+        /* Init internal devices */
+        cpu_mips_irq_init_cpu(env);
+        cpu_mips_clock_init(env);
+        qemu_register_reset(main_cpu_reset, cpu);
+    }
+
+    cpu = MIPS_CPU(first_cpu);
+    env = &cpu->env;
+    *i8259_irq = env->irq[2];
+    *cbus_irq = env->irq[4];
+}
+
 static
 void mips_malta_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
     ram_addr_t ram_low_size;
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -930,9 +963,8 @@ void mips_malta_init(MachineState *machine)
     int64_t kernel_entry, bootloader_run_addr;
     PCIBus *pci_bus;
     ISABus *isa_bus;
-    MIPSCPU *cpu;
-    CPUMIPSState *env;
     qemu_irq *isa_irq;
+    qemu_irq cbus_irq, i8259_irq;
     int piix4_devfn;
     I2CBus *smbus;
     int i;
@@ -962,30 +994,8 @@ void mips_malta_init(MachineState *machine)
         }
     }
 
-    /* init CPUs */
-    if (cpu_model == NULL) {
-#ifdef TARGET_MIPS64
-        cpu_model = "20Kc";
-#else
-        cpu_model = "24Kf";
-#endif
-    }
-
-    for (i = 0; i < smp_cpus; i++) {
-        cpu = cpu_mips_init(cpu_model);
-        if (cpu == NULL) {
-            fprintf(stderr, "Unable to find CPU definition\n");
-            exit(1);
-        }
-        env = &cpu->env;
-
-        /* Init internal devices */
-        cpu_mips_irq_init_cpu(env);
-        cpu_mips_clock_init(env);
-        qemu_register_reset(main_cpu_reset, cpu);
-    }
-    cpu = MIPS_CPU(first_cpu);
-    env = &cpu->env;
+    /* create CPUs */
+    create_cpu(machine->cpu_model, &cbus_irq, &i8259_irq);
 
     /* allocate RAM */
     if (ram_size > (2048u << 20)) {
@@ -1026,7 +1036,7 @@ void mips_malta_init(MachineState *machine)
 #endif
     /* FPGA */
     /* The CBUS UART is attached to the MIPS CPU INT2 pin, ie interrupt 4 */
-    malta_fpga_init(system_memory, FPGA_ADDRESS, env->irq[4], serial_hds[2]);
+    malta_fpga_init(system_memory, FPGA_ADDRESS, cbus_irq, serial_hds[2]);
 
     /* Load firmware in flash / BIOS. */
     dinfo = drive_get(IF_PFLASH, 0, fl_idx);
@@ -1154,7 +1164,7 @@ void mips_malta_init(MachineState *machine)
 
     /* Interrupt controller */
     /* The 8259 is attached to the MIPS CPU INT0 pin, ie interrupt 2 */
-    s->i8259 = i8259_init(isa_bus, env->irq[2]);
+    s->i8259 = i8259_init(isa_bus, i8259_irq);
 
     isa_bus_irqs(isa_bus, s->i8259);
     pci_piix4_ide_init(pci_bus, hd, piix4_devfn + 1);
