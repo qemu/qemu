@@ -1120,7 +1120,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
        the tcg optimization currently hidden inside tcg_gen_code.  All
        that should be required is to flush the TBs, allocate a new TB,
        re-initialize it per above, and re-do the actual code generation.  */
-    gen_code_size = tcg_gen_code(&tcg_ctx, gen_code_buf);
+    gen_code_size = tcg_gen_code(&tcg_ctx, tb);
     if (unlikely(gen_code_size < 0)) {
         goto buffer_overflow;
     }
