@@ -675,27 +675,45 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     process_msg(s, msg, fd);
 }
 
-static void ivshmem_check_version(void *opaque, const uint8_t * buf, int size)
+static int64_t ivshmem_recv_msg(IVShmemState *s, int *pfd)
 {
-    IVShmemState *s = opaque;
-    int tmp;
-    int64_t version;
+    int64_t msg;
+    int n, ret;
 
-    if (!fifo_update_and_get_i64(s, buf, size, &version)) {
-        return;
-    }
+    n = 0;
+    do {
+        ret = qemu_chr_fe_read_all(s->server_chr, (uint8_t *)&msg + n,
+                                 sizeof(msg) - n);
+        if (ret < 0 && ret != -EINTR) {
+            /* TODO error handling */
+            return INT64_MIN;
+        }
+        n += ret;
+    } while (n < sizeof(msg));
 
-    tmp = qemu_chr_fe_get_msgfd(s->server_chr);
-    if (tmp != -1 || version != IVSHMEM_PROTOCOL_VERSION) {
+    *pfd = qemu_chr_fe_get_msgfd(s->server_chr);
+    return msg;
+}
+
+static void ivshmem_recv_setup(IVShmemState *s)
+{
+    int64_t msg;
+    int fd;
+
+    msg = ivshmem_recv_msg(s, &fd);
+    if (fd != -1 || msg != IVSHMEM_PROTOCOL_VERSION) {
         fprintf(stderr, "incompatible version, you are connecting to a ivshmem-"
                 "server using a different protocol please check your setup\n");
-        qemu_chr_add_handlers(s->server_chr, NULL, NULL, NULL, s);
         return;
     }
 
-    IVSHMEM_DPRINTF("version check ok, switch to real chardev handler\n");
-    qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive, ivshmem_read,
-                          NULL, s);
+    /*
+     * Receive more messages until we got shared memory.
+     */
+    do {
+        msg = ivshmem_recv_msg(s, &fd);
+        process_msg(s, msg, fd);
+    } while (msg != -1);
 }
 
 /* Select the MSI-X vectors used by device.
@@ -900,19 +918,29 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         IVSHMEM_DPRINTF("using shared memory server (socket = %s)\n",
                         s->server_chr->filename);
 
-        if (ivshmem_setup_interrupts(s) < 0) {
-            error_setg(errp, "failed to initialize interrupts");
-            return;
-        }
-
         /* we allocate enough space for 16 peers and grow as needed */
         resize_peers(s, 16);
         s->vm_id = -1;
 
         pci_register_bar(dev, 2, attr, &s->bar);
 
-        qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive,
-                              ivshmem_check_version, NULL, s);
+        /*
+         * Receive setup messages from server synchronously.
+         * Older versions did it asynchronously, but that creates a
+         * number of entertaining race conditions.
+         * TODO Propagate errors!  Without that, we still have races
+         * on errors.
+         */
+        ivshmem_recv_setup(s);
+        if (memory_region_is_mapped(&s->ivshmem)) {
+            qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive,
+                                  ivshmem_read, NULL, s);
+        }
+
+        if (ivshmem_setup_interrupts(s) < 0) {
+            error_setg(errp, "failed to initialize interrupts");
+            return;
+        }
     } else {
         /* just map the file immediately, we're not using a server */
         int fd;

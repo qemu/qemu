@@ -309,35 +309,23 @@ static void test_ivshmem_server(bool msi)
     ret = ivshmem_server_start(&server);
     g_assert_cmpint(ret, ==, 0);
 
-    setup_vm_with_server(&state1, nvectors, msi);
-    s1 = &state1;
-    setup_vm_with_server(&state2, nvectors, msi);
-    s2 = &state2;
-
-    /* check state before server sends stuff */
-    g_assert_cmpuint(in_reg(s1, IVPOSITION), ==, 0xffffffff);
-    g_assert_cmpuint(in_reg(s2, IVPOSITION), ==, 0xffffffff);
-    g_assert_cmpuint(qtest_readb(s1->qtest, (uintptr_t)s1->mem_base), ==, 0x00);
-
     thread.server = &server;
     ret = pipe(thread.pipe);
     g_assert_cmpint(ret, ==, 0);
     thread.thread = g_thread_new("ivshmem-server", server_thread, &thread);
     g_assert(thread.thread != NULL);
 
-    /* waiting for devices to become operational */
-    while (g_get_monotonic_time() < end_time) {
-        g_usleep(1000);
-        if ((int)in_reg(s1, IVPOSITION) >= 0 &&
-            (int)in_reg(s2, IVPOSITION) >= 0) {
-            break;
-        }
-    }
+    setup_vm_with_server(&state1, nvectors, msi);
+    s1 = &state1;
+    setup_vm_with_server(&state2, nvectors, msi);
+    s2 = &state2;
 
     /* check got different VM ids */
     vm1 = in_reg(s1, IVPOSITION);
     vm2 = in_reg(s2, IVPOSITION);
-    g_assert_cmpuint(vm1, !=, vm2);
+    g_assert_cmpint(vm1, >=, 0);
+    g_assert_cmpint(vm2, >=, 0);
+    g_assert_cmpint(vm1, !=, vm2);
 
     /* check number of MSI-X vectors */
     global_qtest = s1->qtest;
