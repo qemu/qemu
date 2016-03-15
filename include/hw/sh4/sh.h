@@ -3,6 +3,7 @@
 /* Definitions for SH board emulation.  */
 
 #include "hw/sh4/sh_intc.h"
+#include "target-sh4/cpu-qom.h"
 
 #define A7ADDR(x) ((x) & 0x1fffffff)
 #define P4ADDR(x) ((x) | 0xe0000000)
