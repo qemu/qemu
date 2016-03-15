@@ -23,6 +23,7 @@
 #define CPU_S390X_H
 
 #include "qemu-common.h"
+#include "cpu-qom.h"
 
 #define TARGET_LONG_BITS 64
 
@@ -173,7 +174,51 @@ static inline CPU_DoubleU *get_freg(CPUS390XState *cs, int nr)
     return &cs->vregs[nr][0];
 }
 
-#include "cpu-qom.h"
+/**
+ * S390CPU:
+ * @env: #CPUS390XState.
+ *
+ * An S/390 CPU.
+ */
+struct S390CPU {
+    /*< private >*/
+    CPUState parent_obj;
+    /*< public >*/
+
+    CPUS390XState env;
+    int64_t id;
+    /* needed for live migration */
+    void *irqstate;
+    uint32_t irqstate_saved_size;
+};
+
+static inline S390CPU *s390_env_get_cpu(CPUS390XState *env)
+{
+    return container_of(env, S390CPU, env);
+}
+
+#define ENV_GET_CPU(e) CPU(s390_env_get_cpu(e))
+
+#define ENV_OFFSET offsetof(S390CPU, env)
+
+#ifndef CONFIG_USER_ONLY
+extern const struct VMStateDescription vmstate_s390_cpu;
+#endif
+
+void s390_cpu_do_interrupt(CPUState *cpu);
+bool s390_cpu_exec_interrupt(CPUState *cpu, int int_req);
+void s390_cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                         int flags);
+int s390_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
+                              int cpuid, void *opaque);
+
+hwaddr s390_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+hwaddr s390_cpu_get_phys_addr_debug(CPUState *cpu, vaddr addr);
+int s390_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int s390_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+void s390_cpu_gdb_init(CPUState *cs);
+void s390x_cpu_debug_excp_handler(CPUState *cs);
+
 #include <sysemu/kvm.h>
 
 /* distinguish between 24 bit and 31 bit addressing */
