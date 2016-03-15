@@ -568,10 +568,10 @@ static void setup_interrupt(IVShmemState *s, int vector)
     IVSHMEM_DPRINTF("setting up interrupt for vector: %d\n", vector);
 
     if (!with_irqfd) {
-        IVSHMEM_DPRINTF("with eventfd");
+        IVSHMEM_DPRINTF("with eventfd\n");
         watch_vector_notifier(s, n, vector);
     } else if (msix_enabled(pdev)) {
-        IVSHMEM_DPRINTF("with irqfd");
+        IVSHMEM_DPRINTF("with irqfd\n");
         if (ivshmem_add_kvm_msi_virq(s, vector) < 0) {
             return;
         }
@@ -582,7 +582,7 @@ static void setup_interrupt(IVShmemState *s, int vector)
         }
     } else {
         /* it will be delayed until msix is enabled, in write_config */
-        IVSHMEM_DPRINTF("with irqfd, delayed until msix enabled");
+        IVSHMEM_DPRINTF("with irqfd, delayed until msix enabled\n");
     }
 }
 
