@@ -79,7 +79,6 @@ typedef struct IVShmemState {
     uint32_t intrmask;
     uint32_t intrstatus;
 
-    CharDriverState **eventfd_chr;
     CharDriverState *server_chr;
     Fifo8 incoming_fifo;
     MemoryRegion ivshmem_mmio;
@@ -942,8 +941,6 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
 
         pci_register_bar(dev, 2, attr, &s->bar);
 
-        s->eventfd_chr = g_malloc0(s->vectors * sizeof(CharDriverState *));
-
         qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive,
                               ivshmem_check_version, ivshmem_event, s);
     } else {
@@ -1005,15 +1002,6 @@ static void pci_ivshmem_exit(PCIDevice *dev)
 
         vmstate_unregister_ram(&s->ivshmem, DEVICE(dev));
         memory_region_del_subregion(&s->bar, &s->ivshmem);
-    }
-
-    if (s->eventfd_chr) {
-        for (i = 0; i < s->vectors; i++) {
-            if (s->eventfd_chr[i]) {
-                qemu_chr_free(s->eventfd_chr[i]);
-            }
-        }
-        g_free(s->eventfd_chr);
     }
 
     if (s->peers) {
