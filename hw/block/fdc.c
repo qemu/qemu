@@ -2557,6 +2557,29 @@ FloppyDriveType isa_fdc_get_drive_type(ISADevice *fdc, int i)
     return isa->state.drives[i].drive;
 }
 
+void isa_fdc_get_drive_max_chs(FloppyDriveType type,
+                               uint8_t *maxc, uint8_t *maxh, uint8_t *maxs)
+{
+    const FDFormat *fdf;
+
+    *maxc = *maxh = *maxs = 0;
+    for (fdf = fd_formats; fdf->drive != FLOPPY_DRIVE_TYPE_NONE; fdf++) {
+        if (fdf->drive != type) {
+            continue;
+        }
+        if (*maxc < fdf->max_track) {
+            *maxc = fdf->max_track;
+        }
+        if (*maxh < fdf->max_head) {
+            *maxh = fdf->max_head;
+        }
+        if (*maxs < fdf->last_sect) {
+            *maxs = fdf->last_sect;
+        }
+    }
+    (*maxc)--;
+}
+
 static const VMStateDescription vmstate_isa_fdc ={
     .name = "fdc",
     .version_id = 2,

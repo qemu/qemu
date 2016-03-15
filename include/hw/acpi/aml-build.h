@@ -285,7 +285,7 @@ Aml *aml_interrupt(AmlConsumerAndProducer con_and_pro,
 Aml *aml_io(AmlIODecode dec, uint16_t min_base, uint16_t max_base,
             uint8_t aln, uint8_t len);
 Aml *aml_operation_region(const char *name, AmlRegionSpace rs,
-                          uint32_t offset, uint32_t len);
+                          Aml *offset, uint32_t len);
 Aml *aml_irq_no_flags(uint8_t irq);
 Aml *aml_named_field(const char *name, unsigned length);
 Aml *aml_reserved_field(unsigned length);
@@ -344,6 +344,8 @@ Aml *aml_mutex(const char *name, uint8_t sync_level);
 Aml *aml_acquire(Aml *mutex, uint16_t timeout);
 Aml *aml_release(Aml *mutex);
 Aml *aml_alias(const char *source_object, const char *alias_object);
+Aml *aml_create_field(Aml *srcbuf, Aml *bit_index, Aml *num_bits,
+                      const char *name);
 Aml *aml_create_dword_field(Aml *srcbuf, Aml *index, const char *name);
 Aml *aml_create_qword_field(Aml *srcbuf, Aml *index, const char *name);
 Aml *aml_varpackage(uint32_t num_elements);
@@ -351,6 +353,7 @@ Aml *aml_touuid(const char *uuid);
 Aml *aml_unicode(const char *str);
 Aml *aml_derefof(Aml *arg);
 Aml *aml_sizeof(Aml *arg);
+Aml *aml_concatenate(Aml *source1, Aml *source2, Aml *target);
 
 void
 build_header(GArray *linker, GArray *table_data,
@@ -364,5 +367,8 @@ void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre);
 void
 build_rsdt(GArray *table_data, GArray *linker, GArray *table_offsets,
            const char *oem_id, const char *oem_table_id);
+
+int
+build_append_named_dword(GArray *array, const char *name_format, ...);
 
 #endif

@@ -17,6 +17,7 @@
 #include "hw/boards.h"
 #include "hw/compat.h"
 #include "hw/mem/pc-dimm.h"
+#include "hw/mem/nvdimm.h"
 
 #define HPET_INTCAP "hpet-intcap"
 
@@ -57,7 +58,8 @@ struct PCMachineState {
     uint64_t max_ram_below_4g;
     OnOffAuto vmport;
     OnOffAuto smm;
-    bool nvdimm;
+
+    AcpiNVDIMMState acpi_nvdimm_state;
 
     /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
@@ -65,6 +67,7 @@ struct PCMachineState {
     /* CPU and apic information: */
     bool apic_xrupt_override;
     unsigned apic_id_limit;
+    CPUArchIdList *possible_cpus;
 
     /* NUMA information: */
     uint64_t numa_nodes;
@@ -265,6 +268,7 @@ typedef void (*cpu_set_smm_t)(int smm, void *arg);
 void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name);
 
 ISADevice *pc_find_fdc0(void);
+int cmos_get_fd_drive_type(FloppyDriveType fd0);
 
 #define FW_CFG_IO_BASE     0x510
 

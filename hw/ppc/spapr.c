@@ -439,7 +439,7 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     _FDT((fdt_property_cell(fdt, "rtas-event-scan-rate",
                             RTAS_EVENT_SCAN_RATE)));
 
-    if (msi_supported) {
+    if (msi_nonbroken) {
         _FDT((fdt_property(fdt, "ibm,change-msix-capable", NULL, 0)));
     }
 
@@ -1743,7 +1743,7 @@ static void ppc_spapr_init(MachineState *machine)
     bool kernel_le = false;
     char *filename;
 
-    msi_supported = true;
+    msi_nonbroken = true;
 
     QLIST_INIT(&spapr->phbs);
 

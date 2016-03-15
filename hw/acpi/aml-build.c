@@ -258,6 +258,34 @@ static void build_append_int(GArray *table, uint64_t value)
     }
 }
 
+/*
+ * Build NAME(XXXX, 0x00000000) where 0x00000000 is encoded as a dword,
+ * and return the offset to 0x00000000 for runtime patching.
+ *
+ * Warning: runtime patching is best avoided. Only use this as
+ * a replacement for DataTableRegion (for guests that don't
+ * support it).
+ */
+int
+build_append_named_dword(GArray *array, const char *name_format, ...)
+{
+    int offset;
+    va_list ap;
+
+    build_append_byte(array, 0x08); /* NameOp */
+    va_start(ap, name_format);
+    build_append_namestringv(array, name_format, ap);
+    va_end(ap);
+
+    build_append_byte(array, 0x0C); /* DWordPrefix */
+
+    offset = array->len;
+    build_append_int_noprefix(array, 0x00000000, 4);
+    assert(array->len == offset + 4);
+
+    return offset;
+}
+
 static GPtrArray *alloc_list;
 
 static Aml *aml_alloc(void)
@@ -942,14 +970,14 @@ Aml *aml_package(uint8_t num_elements)
 
 /* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefOpRegion */
 Aml *aml_operation_region(const char *name, AmlRegionSpace rs,
-                          uint32_t offset, uint32_t len)
+                          Aml *offset, uint32_t len)
 {
     Aml *var = aml_alloc();
     build_append_byte(var->buf, 0x5B); /* ExtOpPrefix */
     build_append_byte(var->buf, 0x80); /* OpRegionOp */
     build_append_namestring(var->buf, "%s", name);
     build_append_byte(var->buf, rs);
-    build_append_int(var->buf, offset);
+    aml_append(var, offset);
     build_append_int(var->buf, len);
     return var;
 }
@@ -993,6 +1021,20 @@ Aml *create_field_common(int opcode, Aml *srcbuf, Aml *index, const char *name)
     Aml *var = aml_opcode(opcode);
     aml_append(var, srcbuf);
     aml_append(var, index);
+    build_append_namestring(var->buf, "%s", name);
+    return var;
+}
+
+/* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefCreateField */
+Aml *aml_create_field(Aml *srcbuf, Aml *bit_index, Aml *num_bits,
+                      const char *name)
+{
+    Aml *var = aml_alloc();
+    build_append_byte(var->buf, 0x5B); /* ExtOpPrefix */
+    build_append_byte(var->buf, 0x13); /* CreateFieldOp */
+    aml_append(var, srcbuf);
+    aml_append(var, bit_index);
+    aml_append(var, num_bits);
     build_append_namestring(var->buf, "%s", name);
     return var;
 }
@@ -1421,6 +1463,13 @@ Aml *aml_alias(const char *source_object, const char *alias_object)
     aml_append(var, aml_name("%s", source_object));
     aml_append(var, aml_name("%s", alias_object));
     return var;
+}
+
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefConcat */
+Aml *aml_concatenate(Aml *source1, Aml *source2, Aml *target)
+{
+    return build_opcode_2arg_dst(0x73 /* ConcatOp */, source1, source2,
+                                 target);
 }
 
 void

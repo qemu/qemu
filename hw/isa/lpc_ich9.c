@@ -409,18 +409,18 @@ ich9_lpc_pmbase_update(ICH9LPCState *lpc)
     ich9_pm_iospace_update(&lpc->pm, pm_io_base);
 }
 
-/* config:RBCA */
-static void ich9_lpc_rcba_update(ICH9LPCState *lpc, uint32_t rbca_old)
+/* config:RCBA */
+static void ich9_lpc_rcba_update(ICH9LPCState *lpc, uint32_t rcba_old)
 {
-    uint32_t rbca = pci_get_long(lpc->d.config + ICH9_LPC_RCBA);
+    uint32_t rcba = pci_get_long(lpc->d.config + ICH9_LPC_RCBA);
 
-    if (rbca_old & ICH9_LPC_RCBA_EN) {
-            memory_region_del_subregion(get_system_memory(), &lpc->rbca_mem);
+    if (rcba_old & ICH9_LPC_RCBA_EN) {
+        memory_region_del_subregion(get_system_memory(), &lpc->rcrb_mem);
     }
-    if (rbca & ICH9_LPC_RCBA_EN) {
-            memory_region_add_subregion_overlap(get_system_memory(),
-                                                rbca & ICH9_LPC_RCBA_BA_MASK,
-                                                &lpc->rbca_mem, 1);
+    if (rcba & ICH9_LPC_RCBA_EN) {
+        memory_region_add_subregion_overlap(get_system_memory(),
+                                            rcba & ICH9_LPC_RCBA_BA_MASK,
+                                            &lpc->rcrb_mem, 1);
     }
 }
 
@@ -444,7 +444,7 @@ static int ich9_lpc_post_load(void *opaque, int version_id)
     ICH9LPCState *lpc = opaque;
 
     ich9_lpc_pmbase_update(lpc);
-    ich9_lpc_rcba_update(lpc, 0 /* disabled ICH9_LPC_RBCA_EN */);
+    ich9_lpc_rcba_update(lpc, 0 /* disabled ICH9_LPC_RCBA_EN */);
     ich9_lpc_pmcon_update(lpc);
     return 0;
 }
@@ -453,14 +453,14 @@ static void ich9_lpc_config_write(PCIDevice *d,
                                   uint32_t addr, uint32_t val, int len)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(d);
-    uint32_t rbca_old = pci_get_long(d->config + ICH9_LPC_RCBA);
+    uint32_t rcba_old = pci_get_long(d->config + ICH9_LPC_RCBA);
 
     pci_default_write_config(d, addr, val, len);
     if (ranges_overlap(addr, len, ICH9_LPC_PMBASE, 4)) {
         ich9_lpc_pmbase_update(lpc);
     }
     if (ranges_overlap(addr, len, ICH9_LPC_RCBA, 4)) {
-        ich9_lpc_rcba_update(lpc, rbca_old);
+        ich9_lpc_rcba_update(lpc, rcba_old);
     }
     if (ranges_overlap(addr, len, ICH9_LPC_PIRQA_ROUT, 4)) {
         pci_bus_fire_intx_routing_notifier(lpc->d.bus);
@@ -477,7 +477,7 @@ static void ich9_lpc_reset(DeviceState *qdev)
 {
     PCIDevice *d = PCI_DEVICE(qdev);
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(d);
-    uint32_t rbca_old = pci_get_long(d->config + ICH9_LPC_RCBA);
+    uint32_t rcba_old = pci_get_long(d->config + ICH9_LPC_RCBA);
     int i;
 
     for (i = 0; i < 4; i++) {
@@ -496,13 +496,14 @@ static void ich9_lpc_reset(DeviceState *qdev)
     ich9_cc_reset(lpc);
 
     ich9_lpc_pmbase_update(lpc);
-    ich9_lpc_rcba_update(lpc, rbca_old);
+    ich9_lpc_rcba_update(lpc, rcba_old);
 
     lpc->sci_level = 0;
     lpc->rst_cnt = 0;
 }
 
-static const MemoryRegionOps rbca_mmio_ops = {
+/* root complex register block is mapped into memory space */
+static const MemoryRegionOps rcrb_mmio_ops = {
     .read = ich9_cc_read,
     .write = ich9_cc_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
@@ -616,8 +617,8 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
     pci_set_long(d->wmask + ICH9_LPC_PMBASE,
                  ICH9_LPC_PMBASE_BASE_ADDRESS_MASK);
 
-    memory_region_init_io(&lpc->rbca_mem, OBJECT(d), &rbca_mmio_ops, lpc,
-                            "lpc-rbca-mmio", ICH9_CC_SIZE);
+    memory_region_init_io(&lpc->rcrb_mem, OBJECT(d), &rcrb_mmio_ops, lpc,
+                          "lpc-rcrb-mmio", ICH9_CC_SIZE);
 
     lpc->isa_bus = isa_bus;
 

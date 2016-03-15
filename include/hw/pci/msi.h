@@ -29,7 +29,7 @@ struct MSIMessage {
     uint32_t data;
 };
 
-extern bool msi_supported;
+extern bool msi_nonbroken;
 
 void msi_set_message(PCIDevice *dev, MSIMessage msg);
 MSIMessage msi_get_message(PCIDevice *dev, unsigned int vector);

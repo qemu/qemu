@@ -44,7 +44,7 @@ static void xen_apic_realize(DeviceState *dev, Error **errp)
     s->vapic_control = 0;
     memory_region_init_io(&s->io_memory, OBJECT(s), &xen_apic_io_ops, s,
                           "xen-apic-msi", APIC_SPACE_SIZE);
-    msi_supported = true;
+    msi_nonbroken = true;
 }
 
 static void xen_apic_set_base(APICCommonState *s, uint64_t val)

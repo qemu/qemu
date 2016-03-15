@@ -2697,6 +2697,7 @@ static int tcp_set_msgfds(CharDriverState *chr, int *fds, int num)
     }
     /* clear old pending fd array */
     g_free(s->write_msgfds);
+    s->write_msgfds = NULL;
 
     if (num) {
         s->write_msgfds = g_new(int, num);
@@ -2768,11 +2769,16 @@ static void tcp_chr_disconnect(CharDriverState *chr)
 {
     TCPCharDriver *s = chr->opaque;
 
+    if (!s->connected) {
+        return;
+    }
+
     s->connected = 0;
     if (s->listen_ioc) {
         s->listen_tag = qio_channel_add_watch(
             QIO_CHANNEL(s->listen_ioc), G_IO_IN, tcp_chr_accept, chr, NULL);
     }
+    tcp_set_msgfds(chr, NULL, 0);
     remove_fd_in_watch(chr);
     object_unref(OBJECT(s->sioc));
     s->sioc = NULL;
