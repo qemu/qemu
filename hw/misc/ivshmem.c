@@ -842,7 +842,7 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
             g_warning("size argument ignored with hostmem");
         }
 
-        mr = host_memory_backend_get_memory(s->hostmem, errp);
+        mr = host_memory_backend_get_memory(s->hostmem, &error_abort);
         s->ivshmem_size = memory_region_size(mr);
     } else if (s->sizearg == NULL) {
         s->ivshmem_size = 4 << 20; /* 4 MB default */
@@ -907,7 +907,8 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
 
         IVSHMEM_DPRINTF("using hostmem\n");
 
-        mr = host_memory_backend_get_memory(MEMORY_BACKEND(s->hostmem), errp);
+        mr = host_memory_backend_get_memory(MEMORY_BACKEND(s->hostmem),
+                                            &error_abort);
         vmstate_register_ram(mr, DEVICE(s));
         memory_region_add_subregion(&s->bar, 0, mr);
         pci_register_bar(PCI_DEVICE(s), 2, attr, &s->bar);
@@ -1134,7 +1135,7 @@ static void ivshmem_check_memdev_is_busy(Object *obj, const char *name,
 {
     MemoryRegion *mr;
 
-    mr = host_memory_backend_get_memory(MEMORY_BACKEND(val), errp);
+    mr = host_memory_backend_get_memory(MEMORY_BACKEND(val), &error_abort);
     if (memory_region_is_mapped(mr)) {
         char *path = object_get_canonical_path_component(val);
         error_setg(errp, "can't use already busy memdev: %s", path);
