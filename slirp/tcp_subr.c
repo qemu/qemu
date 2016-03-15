@@ -80,12 +80,12 @@ tcp_template(struct tcpcb *tp)
 	n->ti_x0 = 0;
 	switch (so->so_ffamily) {
 	case AF_INET:
-	n->ti_pr = IPPROTO_TCP;
-	n->ti_len = htons(sizeof(struct tcphdr));
-	n->ti_src = so->so_faddr;
-	n->ti_dst = so->so_laddr;
-	n->ti_sport = so->so_fport;
-	n->ti_dport = so->so_lport;
+	    n->ti_pr = IPPROTO_TCP;
+	    n->ti_len = htons(sizeof(struct tcphdr));
+	    n->ti_src = so->so_faddr;
+	    n->ti_dst = so->so_laddr;
+	    n->ti_sport = so->so_fport;
+	    n->ti_dport = so->so_lport;
 	    break;
 
 	default:
@@ -153,8 +153,8 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 #define xchg(a,b,type) { type t; t=a; a=b; b=t; }
 		switch (af) {
 		case AF_INET:
-		xchg(ti->ti_dst.s_addr, ti->ti_src.s_addr, uint32_t);
-		xchg(ti->ti_dport, ti->ti_sport, uint16_t);
+		    xchg(ti->ti_dst.s_addr, ti->ti_src.s_addr, uint32_t);
+		    xchg(ti->ti_dport, ti->ti_sport, uint16_t);
 		    break;
 		default:
 		    g_assert_not_reached();
@@ -185,23 +185,23 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 
 	switch (af) {
 	case AF_INET:
-	m->m_data += sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
-	                                     - sizeof(struct ip);
-	m->m_len  -= sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
-	                                     - sizeof(struct ip);
-	ip = mtod(m, struct ip *);
-	ip->ip_len = tlen;
-	ip->ip_dst = tcpiph_save.ti_dst;
-	ip->ip_src = tcpiph_save.ti_src;
-	ip->ip_p = tcpiph_save.ti_pr;
+	    m->m_data += sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
+	                                         - sizeof(struct ip);
+	    m->m_len  -= sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
+	                                         - sizeof(struct ip);
+	    ip = mtod(m, struct ip *);
+	    ip->ip_len = tlen;
+	    ip->ip_dst = tcpiph_save.ti_dst;
+	    ip->ip_src = tcpiph_save.ti_src;
+	    ip->ip_p = tcpiph_save.ti_pr;
 
-	if (flags & TH_RST) {
-		ip->ip_ttl = MAXTTL;
-	} else {
-		ip->ip_ttl = IPDEFTTL;
-	}
+	    if (flags & TH_RST) {
+	        ip->ip_ttl = MAXTTL;
+	    } else {
+	        ip->ip_ttl = IPDEFTTL;
+	    }
 
-	(void) ip_output((struct socket *)0, m);
+	    (void) ip_output((struct socket *)0, m);
 	    break;
 
 	default:

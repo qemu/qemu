@@ -452,21 +452,20 @@ send:
 
 	switch (so->so_ffamily) {
 	case AF_INET:
-	m->m_data += sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
-	                                     - sizeof(struct ip);
-	m->m_len  -= sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
-	                                     - sizeof(struct ip);
-	ip = mtod(m, struct ip *);
+	    m->m_data += sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
+	                                         - sizeof(struct ip);
+	    m->m_len  -= sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
+	                                         - sizeof(struct ip);
+	    ip = mtod(m, struct ip *);
 
-	ip->ip_len = m->m_len;
-	ip->ip_dst = tcpiph_save.ti_dst;
-	ip->ip_src = tcpiph_save.ti_src;
-	ip->ip_p = tcpiph_save.ti_pr;
+	    ip->ip_len = m->m_len;
+	    ip->ip_dst = tcpiph_save.ti_dst;
+	    ip->ip_src = tcpiph_save.ti_src;
+	    ip->ip_p = tcpiph_save.ti_pr;
 
-	ip->ip_ttl = IPDEFTTL;
-	ip->ip_tos = so->so_iptos;
-
-	error = ip_output(so, m);
+	    ip->ip_ttl = IPDEFTTL;
+	    ip->ip_tos = so->so_iptos;
+	    error = ip_output(so, m);
 	    break;
 
 	default:
