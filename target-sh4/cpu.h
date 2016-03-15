@@ -20,6 +20,7 @@
 #define _CPU_SH4_H
 
 #include "qemu-common.h"
+#include "cpu-qom.h"
 
 #define TARGET_LONG_BITS 32
 
@@ -187,7 +188,36 @@ typedef struct CPUSH4State {
     memory_content **movcal_backup_tail;
 } CPUSH4State;
 
-#include "cpu-qom.h"
+/**
+ * SuperHCPU:
+ * @env: #CPUSH4State
+ *
+ * A SuperH CPU.
+ */
+struct SuperHCPU {
+    /*< private >*/
+    CPUState parent_obj;
+    /*< public >*/
+
+    CPUSH4State env;
+};
+
+static inline SuperHCPU *sh_env_get_cpu(CPUSH4State *env)
+{
+    return container_of(env, SuperHCPU, env);
+}
+
+#define ENV_GET_CPU(e) CPU(sh_env_get_cpu(e))
+
+#define ENV_OFFSET offsetof(SuperHCPU, env)
+
+void superh_cpu_do_interrupt(CPUState *cpu);
+bool superh_cpu_exec_interrupt(CPUState *cpu, int int_req);
+void superh_cpu_dump_state(CPUState *cpu, FILE *f,
+                           fprintf_function cpu_fprintf, int flags);
+hwaddr superh_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+int superh_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int superh_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 
 void sh4_translate_init(void);
 SuperHCPU *cpu_sh4_init(const char *cpu_model);
