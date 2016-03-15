@@ -43,9 +43,6 @@
 #define IVSHMEM_IOEVENTFD   0
 #define IVSHMEM_MSI     1
 
-#define IVSHMEM_PEER    0
-#define IVSHMEM_MASTER  1
-
 #define IVSHMEM_REG_BAR_SIZE 0x100
 
 #define IVSHMEM_DEBUG 0
@@ -97,12 +94,12 @@ typedef struct IVShmemState {
     uint64_t msg_buf;           /* buffer for receiving server messages */
     int msg_buffered_bytes;     /* #bytes in @msg_buf */
 
+    OnOffAuto master;
     Error *migration_blocker;
 
     char * shmobj;
     char * sizearg;
     char * role;
-    int role_val;   /* scalar to avoid multiple string comparisons */
 } IVShmemState;
 
 /* registers for the Inter-VM shared memory device */
@@ -116,6 +113,12 @@ enum ivshmem_registers {
 static inline uint32_t ivshmem_has_feature(IVShmemState *ivs,
                                                     unsigned int feature) {
     return (ivs->features & (1 << feature));
+}
+
+static inline bool ivshmem_is_master(IVShmemState *s)
+{
+    assert(s->master != ON_OFF_AUTO_AUTO);
+    return s->master == ON_OFF_AUTO_ON;
 }
 
 static void ivshmem_update_irq(IVShmemState *s)
@@ -856,15 +859,15 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
     /* check that role is reasonable */
     if (s->role) {
         if (strncmp(s->role, "peer", 5) == 0) {
-            s->role_val = IVSHMEM_PEER;
+            s->master = ON_OFF_AUTO_OFF;
         } else if (strncmp(s->role, "master", 7) == 0) {
-            s->role_val = IVSHMEM_MASTER;
+            s->master = ON_OFF_AUTO_ON;
         } else {
             error_setg(errp, "'role' must be 'peer' or 'master'");
             return;
         }
     } else {
-        s->role_val = IVSHMEM_MASTER; /* default */
+        s->master = ON_OFF_AUTO_AUTO;
     }
 
     pci_conf = dev->config;
@@ -926,7 +929,11 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
     vmstate_register_ram(s->ivshmem_bar2, DEVICE(s));
     pci_register_bar(PCI_DEVICE(s), 2, attr, s->ivshmem_bar2);
 
-    if (s->role_val == IVSHMEM_PEER) {
+    if (s->master == ON_OFF_AUTO_AUTO) {
+        s->master = s->vm_id == 0 ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+    }
+
+    if (!ivshmem_is_master(s)) {
         error_setg(&s->migration_blocker,
                    "Migration is disabled when using feature 'peer mode' in device 'ivshmem'");
         migrate_add_blocker(s->migration_blocker);
@@ -990,7 +997,7 @@ static int ivshmem_pre_load(void *opaque)
 {
     IVShmemState *s = opaque;
 
-    if (s->role_val == IVSHMEM_PEER) {
+    if (!ivshmem_is_master(s)) {
         error_report("'peer' devices are not migratable");
         return -EINVAL;
     }
@@ -1020,9 +1027,9 @@ static int ivshmem_load_old(QEMUFile *f, void *opaque, int version_id)
         return -EINVAL;
     }
 
-    if (s->role_val == IVSHMEM_PEER) {
-        error_report("'peer' devices are not migratable");
-        return -EINVAL;
+    ret = ivshmem_pre_load(s);
+    if (ret) {
+        return ret;
     }
 
     ret = pci_device_load(pdev, f);
