@@ -516,6 +516,16 @@ PropertyInfo qdev_prop_macaddr = {
     .set   = set_mac,
 };
 
+/* --- on/off/auto --- */
+
+PropertyInfo qdev_prop_on_off_auto = {
+    .name = "OnOffAuto",
+    .description = "on/off/auto",
+    .enum_table = OnOffAuto_lookup,
+    .get = get_enum,
+    .set = set_enum,
+};
+
 /* --- lost tick policy --- */
 
 QEMU_BUILD_BUG_ON(sizeof(LostTickPolicy) != sizeof(int));
