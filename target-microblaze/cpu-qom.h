@@ -47,48 +47,6 @@ typedef struct MicroBlazeCPUClass {
     void (*parent_reset)(CPUState *cpu);
 } MicroBlazeCPUClass;
 
-/**
- * MicroBlazeCPU:
- * @env: #CPUMBState
- *
- * A MicroBlaze CPU.
- */
-typedef struct MicroBlazeCPU {
-    /*< private >*/
-    CPUState parent_obj;
-
-    /*< public >*/
-
-    /* Microblaze Configuration Settings */
-    struct {
-        bool stackprot;
-        uint32_t base_vectors;
-        uint8_t use_fpu;
-        bool use_mmu;
-        bool dcache_writeback;
-        bool endi;
-        char *version;
-        uint8_t pvr;
-    } cfg;
-
-    CPUMBState env;
-} MicroBlazeCPU;
-
-static inline MicroBlazeCPU *mb_env_get_cpu(CPUMBState *env)
-{
-    return container_of(env, MicroBlazeCPU, env);
-}
-
-#define ENV_GET_CPU(e) CPU(mb_env_get_cpu(e))
-
-#define ENV_OFFSET offsetof(MicroBlazeCPU, env)
-
-void mb_cpu_do_interrupt(CPUState *cs);
-bool mb_cpu_exec_interrupt(CPUState *cs, int int_req);
-void mb_cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
-                       int flags);
-hwaddr mb_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
-int mb_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
-int mb_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+typedef struct MicroBlazeCPU MicroBlazeCPU;
 
 #endif
