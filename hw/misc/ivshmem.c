@@ -121,12 +121,10 @@ static inline uint32_t ivshmem_has_feature(IVShmemState *ivs,
     return (ivs->features & (1 << feature));
 }
 
-/* accessing registers - based on rtl8139 */
 static void ivshmem_update_irq(IVShmemState *s)
 {
     PCIDevice *d = PCI_DEVICE(s);
-    int isr;
-    isr = (s->intrstatus & s->intrmask) & 0xffffffff;
+    uint32_t isr = s->intrstatus & s->intrmask;
 
     /* don't print ISR resets */
     if (isr) {
@@ -134,7 +132,7 @@ static void ivshmem_update_irq(IVShmemState *s)
                         isr ? 1 : 0, s->intrstatus, s->intrmask);
     }
 
-    pci_set_irq(d, (isr != 0));
+    pci_set_irq(d, isr != 0);
 }
 
 static void ivshmem_IntrMask_write(IVShmemState *s, uint32_t val)
@@ -142,7 +140,6 @@ static void ivshmem_IntrMask_write(IVShmemState *s, uint32_t val)
     IVSHMEM_DPRINTF("IntrMask write(w) val = 0x%04x\n", val);
 
     s->intrmask = val;
-
     ivshmem_update_irq(s);
 }
 
@@ -151,7 +148,6 @@ static uint32_t ivshmem_IntrMask_read(IVShmemState *s)
     uint32_t ret = s->intrmask;
 
     IVSHMEM_DPRINTF("intrmask read(w) val = 0x%04x\n", ret);
-
     return ret;
 }
 
@@ -160,7 +156,6 @@ static void ivshmem_IntrStatus_write(IVShmemState *s, uint32_t val)
     IVSHMEM_DPRINTF("IntrStatus write(w) val = 0x%04x\n", val);
 
     s->intrstatus = val;
-
     ivshmem_update_irq(s);
 }
 
@@ -170,9 +165,7 @@ static uint32_t ivshmem_IntrStatus_read(IVShmemState *s)
 
     /* reading ISR clears all interrupts */
     s->intrstatus = 0;
-
     ivshmem_update_irq(s);
-
     return ret;
 }
 
