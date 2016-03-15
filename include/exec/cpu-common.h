@@ -7,10 +7,6 @@
 #include "exec/hwaddr.h"
 #endif
 
-#ifndef NEED_CPU_H
-#include "exec/poison.h"
-#endif
-
 #include "qemu/bswap.h"
 #include "qemu/queue.h"
 #include "qemu/fprintf-fn.h"
