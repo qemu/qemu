@@ -4221,7 +4221,7 @@ QemuOptsList qemu_common_drive_opts = {
 
 static QemuOptsList qemu_root_bds_opts = {
     .name = "root-bds",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_common_drive_opts.head),
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_root_bds_opts.head),
     .desc = {
         {
             .name = "discard",
