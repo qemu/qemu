@@ -184,7 +184,9 @@ static void *qpci_pc_iomap(QPCIBus *bus, QPCIDevice *dev, int barno, uint64_t *s
     if (io_type == PCI_BASE_ADDRESS_SPACE_IO) {
         uint16_t loc;
 
-        g_assert((s->pci_iohole_alloc + size) <= s->pci_iohole_size);
+        g_assert(QEMU_ALIGN_UP(s->pci_iohole_alloc, size) + size
+                 <= s->pci_iohole_size);
+        s->pci_iohole_alloc = QEMU_ALIGN_UP(s->pci_iohole_alloc, size);
         loc = s->pci_iohole_start + s->pci_iohole_alloc;
         s->pci_iohole_alloc += size;
 
@@ -194,7 +196,9 @@ static void *qpci_pc_iomap(QPCIBus *bus, QPCIDevice *dev, int barno, uint64_t *s
     } else {
         uint64_t loc;
 
-        g_assert((s->pci_hole_alloc + size) <= s->pci_hole_size);
+        g_assert(QEMU_ALIGN_UP(s->pci_hole_alloc, size) + size
+                 <= s->pci_hole_size);
+        s->pci_hole_alloc = QEMU_ALIGN_UP(s->pci_hole_alloc, size);
         loc = s->pci_hole_start + s->pci_hole_alloc;
         s->pci_hole_alloc += size;
 
