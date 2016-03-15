@@ -58,7 +58,7 @@ void ip6_input(struct mbuf *m)
         icmp6_send_error(m, ICMP6_UNREACH, ICMP6_UNREACH_NO_ROUTE);
         break;
     case IPPROTO_UDP:
-        icmp6_send_error(m, ICMP6_UNREACH, ICMP6_UNREACH_NO_ROUTE);
+        udp6_input(m);
         break;
     case IPPROTO_ICMPV6:
         icmp6_input(m);

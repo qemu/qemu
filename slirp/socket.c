@@ -505,13 +505,37 @@ sorecvfrom(struct socket *so)
 	  DEBUG_MISC((dfd, " did recvfrom %d, errno = %d-%s\n",
 		      m->m_len, errno,strerror(errno)));
 	  if(m->m_len<0) {
-	    u_char code=ICMP_UNREACH_PORT;
+	    /* Report error as ICMP */
+	    switch (so->so_lfamily) {
+	    uint8_t code;
+	    case AF_INET:
+	      code = ICMP_UNREACH_PORT;
 
-	    if(errno == EHOSTUNREACH) code=ICMP_UNREACH_HOST;
-	    else if(errno == ENETUNREACH) code=ICMP_UNREACH_NET;
+	      if (errno == EHOSTUNREACH) {
+		code = ICMP_UNREACH_HOST;
+	      } else if (errno == ENETUNREACH) {
+		code = ICMP_UNREACH_NET;
+	      }
 
-	    DEBUG_MISC((dfd," rx error, tx icmp ICMP_UNREACH:%i\n", code));
-	    icmp_send_error(so->so_m, ICMP_UNREACH, code, 0, strerror(errno));
+	      DEBUG_MISC((dfd, " rx error, tx icmp ICMP_UNREACH:%i\n", code));
+	      icmp_send_error(so->so_m, ICMP_UNREACH, code, 0, strerror(errno));
+	      break;
+	    case AF_INET6:
+	      code = ICMP6_UNREACH_PORT;
+
+	      if (errno == EHOSTUNREACH) {
+		code = ICMP6_UNREACH_ADDRESS;
+	      } else if (errno == ENETUNREACH) {
+		code = ICMP6_UNREACH_NO_ROUTE;
+	      }
+
+	      DEBUG_MISC((dfd, " rx error, tx icmp6 ICMP_UNREACH:%i\n", code));
+	      icmp6_send_error(so->so_m, ICMP6_UNREACH, code);
+	      break;
+	    default:
+	      g_assert_not_reached();
+	      break;
+	    }
 	    m_free(m);
 	  } else {
 	  /*
@@ -541,7 +565,12 @@ sorecvfrom(struct socket *so)
 	                   (struct sockaddr_in *) &daddr,
 	                   so->so_iptos);
 	        break;
+	    case AF_INET6:
+	        udp6_output(so, m, (struct sockaddr_in6 *) &saddr,
+	                    (struct sockaddr_in6 *) &daddr);
+	        break;
 	    default:
+	        g_assert_not_reached();
 	        break;
 	    }
 	  } /* rx error */
