@@ -20,6 +20,7 @@
 #define CPUArchState                struct CPUUniCore32State
 
 #include "qemu-common.h"
+#include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat.h"
 
@@ -70,6 +71,35 @@ typedef struct CPUUniCore32State {
     uint32_t features;
 
 } CPUUniCore32State;
+
+/**
+ * UniCore32CPU:
+ * @env: #CPUUniCore32State
+ *
+ * A UniCore32 CPU.
+ */
+struct UniCore32CPU {
+    /*< private >*/
+    CPUState parent_obj;
+    /*< public >*/
+
+    CPUUniCore32State env;
+};
+
+static inline UniCore32CPU *uc32_env_get_cpu(CPUUniCore32State *env)
+{
+    return container_of(env, UniCore32CPU, env);
+}
+
+#define ENV_GET_CPU(e) CPU(uc32_env_get_cpu(e))
+
+#define ENV_OFFSET offsetof(UniCore32CPU, env)
+
+void uc32_cpu_do_interrupt(CPUState *cpu);
+bool uc32_cpu_exec_interrupt(CPUState *cpu, int int_req);
+void uc32_cpu_dump_state(CPUState *cpu, FILE *f,
+                         fprintf_function cpu_fprintf, int flags);
+hwaddr uc32_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 
 #define ASR_M                   (0x1f)
 #define ASR_MODE_USER           (0x10)
@@ -134,7 +164,6 @@ static inline int cpu_mmu_index(CPUUniCore32State *env, bool ifetch)
 }
 
 #include "exec/cpu-all.h"
-#include "cpu-qom.h"
 #include "exec/exec-all.h"
 
 int uc32_cpu_exec(CPUState *s);
