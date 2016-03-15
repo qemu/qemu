@@ -267,8 +267,8 @@ void mips_r4k_init(MachineState *machine)
     }
 
     /* Init CPU internal devices */
-    cpu_mips_irq_init_cpu(env);
-    cpu_mips_clock_init(env);
+    cpu_mips_irq_init_cpu(cpu);
+    cpu_mips_clock_init(cpu);
 
     /* ISA bus: IO space at 0x14000000, mem space at 0x10000000 */
     memory_region_init_alias(isa_io, NULL, "isa-io",
