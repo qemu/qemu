@@ -469,6 +469,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     int bdrv_flags = 0;
     int on_read_error, on_write_error;
     bool account_invalid, account_failed;
+    bool writethrough;
     BlockBackend *blk;
     BlockDriverState *bs;
     ThrottleConfig cfg;
@@ -506,6 +507,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     account_invalid = qemu_opt_get_bool(opts, "stats-account-invalid", true);
     account_failed = qemu_opt_get_bool(opts, "stats-account-failed", true);
+
+    writethrough = !qemu_opt_get_bool(opts, BDRV_OPT_CACHE_WB, true);
 
     qdict_extract_subqdict(bs_opts, &interval_dict, "stats-intervals.");
     qdict_array_split(interval_dict, &interval_list);
@@ -592,7 +595,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         /* bdrv_open() defaults to the values in bdrv_flags (for compatibility
          * with other callers) rather than what we want as the real defaults.
          * Apply the defaults here instead. */
-        qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_WB, "on");
+        qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_WB, writethrough ? "off" : "on");
         qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
         qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, "off");
 
@@ -630,6 +633,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         }
     }
 
+    blk_set_enable_write_cache(blk, !writethrough);
     blk_set_on_error(blk, on_read_error, on_write_error);
 
     if (!monitor_add_blk(blk, qemu_opts_id(opts), errp)) {
@@ -4130,6 +4134,10 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "aio",
             .type = QEMU_OPT_STRING,
             .help = "host AIO implementation (threads, native)",
+        },{
+            .name = BDRV_OPT_CACHE_WB,
+            .type = QEMU_OPT_BOOL,
+            .help = "Enable writeback mode",
         },{
             .name = "format",
             .type = QEMU_OPT_STRING,
