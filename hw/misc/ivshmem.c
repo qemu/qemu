@@ -82,12 +82,8 @@ typedef struct IVShmemState {
     CharDriverState *server_chr;
     MemoryRegion ivshmem_mmio;
 
-    /* We might need to register the BAR before we actually have the memory.
-     * So prepare a container MemoryRegion for the BAR immediately and
-     * add a subregion when we have the memory.
-     */
-    MemoryRegion bar;
-    MemoryRegion ivshmem;
+    MemoryRegion *ivshmem_bar2; /* BAR 2 (shared memory) */
+    MemoryRegion server_bar2;   /* used with server_chr */
     size_t ivshmem_size; /* size of shared memory region */
     uint32_t ivshmem_64bit;
 
@@ -487,7 +483,7 @@ static void process_msg_shmem(IVShmemState *s, int fd, Error **errp)
     Error *err = NULL;
     void *ptr;
 
-    if (memory_region_is_mapped(&s->ivshmem)) {
+    if (s->ivshmem_bar2) {
         error_setg(errp, "server sent unexpected shared memory message");
         close(fd);
         return;
@@ -506,11 +502,10 @@ static void process_msg_shmem(IVShmemState *s, int fd, Error **errp)
         close(fd);
         return;
     }
-    memory_region_init_ram_ptr(&s->ivshmem, OBJECT(s),
+    memory_region_init_ram_ptr(&s->server_bar2, OBJECT(s),
                                "ivshmem.bar2", s->ivshmem_size, ptr);
-    qemu_set_ram_fd(memory_region_get_ram_addr(&s->ivshmem), fd);
-    vmstate_register_ram(&s->ivshmem, DEVICE(s));
-    memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
+    qemu_set_ram_fd(memory_region_get_ram_addr(&s->server_bar2), fd);
+    s->ivshmem_bar2 = &s->server_bar2;
 }
 
 static void process_msg_disconnect(IVShmemState *s, uint16_t posn,
@@ -702,7 +697,7 @@ static void ivshmem_recv_setup(IVShmemState *s, Error **errp)
      * successfully processed the server's shared memory message.
      * Assert that actually mapped the shared memory:
      */
-    assert(memory_region_is_mapped(&s->ivshmem));
+    assert(s->ivshmem_bar2);
 }
 
 /* Select the MSI-X vectors used by device.
@@ -903,7 +898,6 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
                      &s->ivshmem_mmio);
 
-    memory_region_init(&s->bar, OBJECT(s), "ivshmem-bar2-container", s->ivshmem_size);
     if (s->ivshmem_64bit) {
         attr |= PCI_BASE_ADDRESS_MEM_TYPE_64;
     }
@@ -913,23 +907,16 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
     }
 
     if (s->hostmem != NULL) {
-        MemoryRegion *mr;
-
         IVSHMEM_DPRINTF("using hostmem\n");
 
-        mr = host_memory_backend_get_memory(MEMORY_BACKEND(s->hostmem),
-                                            &error_abort);
-        vmstate_register_ram(mr, DEVICE(s));
-        memory_region_add_subregion(&s->bar, 0, mr);
-        pci_register_bar(PCI_DEVICE(s), 2, attr, &s->bar);
+        s->ivshmem_bar2 = host_memory_backend_get_memory(s->hostmem,
+                                                         &error_abort);
     } else {
         IVSHMEM_DPRINTF("using shared memory server (socket = %s)\n",
                         s->server_chr->filename);
 
         /* we allocate enough space for 16 peers and grow as needed */
         resize_peers(s, 16);
-
-        pci_register_bar(dev, 2, attr, &s->bar);
 
         /*
          * Receive setup messages from server synchronously.
@@ -951,6 +938,9 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         }
     }
 
+    vmstate_register_ram(s->ivshmem_bar2, DEVICE(s));
+    pci_register_bar(PCI_DEVICE(s), 2, attr, s->ivshmem_bar2);
+
     if (s->role_val == IVSHMEM_PEER) {
         error_setg(&s->migration_blocker,
                    "Migration is disabled when using feature 'peer mode' in device 'ivshmem'");
@@ -968,9 +958,9 @@ static void pci_ivshmem_exit(PCIDevice *dev)
         error_free(s->migration_blocker);
     }
 
-    if (memory_region_is_mapped(&s->ivshmem)) {
+    if (memory_region_is_mapped(s->ivshmem_bar2)) {
         if (!s->hostmem) {
-            void *addr = memory_region_get_ram_ptr(&s->ivshmem);
+            void *addr = memory_region_get_ram_ptr(s->ivshmem_bar2);
             int fd;
 
             if (munmap(addr, s->ivshmem_size) == -1) {
@@ -978,14 +968,11 @@ static void pci_ivshmem_exit(PCIDevice *dev)
                              strerror(errno));
             }
 
-            fd = qemu_get_ram_fd(memory_region_get_ram_addr(&s->ivshmem));
-            if (fd != -1) {
-                close(fd);
-            }
+            fd = qemu_get_ram_fd(memory_region_get_ram_addr(s->ivshmem_bar2));
+            close(fd);
         }
 
-        vmstate_unregister_ram(&s->ivshmem, DEVICE(dev));
-        memory_region_del_subregion(&s->bar, &s->ivshmem);
+        vmstate_unregister_ram(s->ivshmem_bar2, DEVICE(dev));
     }
 
     if (s->peers) {
