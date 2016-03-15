@@ -274,7 +274,9 @@ static void ivshmem_vector_notify(void *opaque)
 
     IVSHMEM_DPRINTF("interrupt on vector %p %d\n", pdev, vector);
     if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
-        msix_notify(pdev, vector);
+        if (msix_enabled(pdev)) {
+            msix_notify(pdev, vector);
+        }
     } else {
         ivshmem_IntrStatus_write(s, 1);
     }
@@ -713,15 +715,10 @@ static void ivshmem_check_version(void *opaque, const uint8_t * buf, int size)
 /* Select the MSI-X vectors used by device.
  * ivshmem maps events to vectors statically, so
  * we just enable all vectors on init and after reset. */
-static void ivshmem_use_msix(IVShmemState * s)
+static void ivshmem_msix_vector_use(IVShmemState *s)
 {
     PCIDevice *d = PCI_DEVICE(s);
     int i;
-
-    IVSHMEM_DPRINTF("%s, msix present: %d\n", __func__, msix_present(d));
-    if (!msix_present(d)) {
-        return;
-    }
 
     for (i = 0; i < s->vectors; i++) {
         msix_vector_use(d, i);
@@ -734,7 +731,9 @@ static void ivshmem_reset(DeviceState *d)
 
     s->intrstatus = 0;
     s->intrmask = 0;
-    ivshmem_use_msix(s);
+    if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
+        ivshmem_msix_vector_use(s);
+    }
 }
 
 static int ivshmem_setup_interrupts(IVShmemState *s)
@@ -748,7 +747,7 @@ static int ivshmem_setup_interrupts(IVShmemState *s)
         }
 
         IVSHMEM_DPRINTF("msix initialized (%d vectors)\n", s->vectors);
-        ivshmem_use_msix(s);
+        ivshmem_msix_vector_use(s);
     }
 
     return 0;
@@ -1040,9 +1039,8 @@ static int ivshmem_post_load(void *opaque, int version_id)
     IVShmemState *s = opaque;
 
     if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
-        ivshmem_use_msix(s);
+        ivshmem_msix_vector_use(s);
     }
-
     return 0;
 }
 
@@ -1070,7 +1068,7 @@ static int ivshmem_load_old(QEMUFile *f, void *opaque, int version_id)
 
     if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
         msix_load(pdev, f);
-        ivshmem_use_msix(s);
+        ivshmem_msix_vector_use(s);
     } else {
         s->intrstatus = qemu_get_be32(f);
         s->intrmask = qemu_get_be32(f);
