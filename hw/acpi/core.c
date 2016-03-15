@@ -491,6 +491,12 @@ void acpi_pm_tmr_update(ACPIREGS *ar, bool enable)
     }
 }
 
+static inline int64_t acpi_pm_tmr_get_clock(void)
+{
+    return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), PM_TIMER_FREQUENCY,
+                    NANOSECONDS_PER_SECOND);
+}
+
 void acpi_pm_tmr_calc_overflow_time(ACPIREGS *ar)
 {
     int64_t d = acpi_pm_tmr_get_clock();

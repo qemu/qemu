@@ -7,6 +7,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/host-utils.h"
 #include "qemu/sockets.h"
 
 #include <sys/mman.h>

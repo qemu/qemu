@@ -23,6 +23,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/host-utils.h"
 #include "audio.h"
 #include "qemu/timer.h"
 

@@ -21,7 +21,6 @@
 #define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
 #include "qemu/option.h"
-#include "qemu/host-utils.h"
 
 /* FIXME: Remove NEED_CPU_H.  */
 #ifdef NEED_CPU_H

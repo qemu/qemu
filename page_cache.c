@@ -16,6 +16,7 @@
 #include <glib.h>
 
 #include "qemu-common.h"
+#include "qemu/host-utils.h"
 #include "migration/page_cache.h"
 
 #ifdef DEBUG_CACHE

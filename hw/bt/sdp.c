@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/host-utils.h"
 #include "hw/bt.h"
 
 struct bt_l2cap_sdp_state_s {
