@@ -122,6 +122,8 @@ static inline void qemu_set_log(int log_flags)
 }
 
 void qemu_set_log_filename(const char *filename);
+void qemu_set_dfilter_ranges(const char *ranges);
+bool qemu_log_in_addr_range(uint64_t addr);
 int qemu_str_to_log_mask(const char *str);
 
 /* Print a usage message listing all the valid logging categories
