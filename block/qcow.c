@@ -804,8 +804,7 @@ static int qcow_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     qcow_blk = blk_new_open(filename, NULL, NULL,
-                            BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
-                            &local_err);
+                            BDRV_O_RDWR | BDRV_O_PROTOCOL, &local_err);
     if (qcow_blk == NULL) {
         error_propagate(errp, local_err);
         ret = -EIO;

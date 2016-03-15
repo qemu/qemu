@@ -148,6 +148,8 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
     BlockBackend *blk;
     int ret;
 
+    assert((flags & BDRV_O_CACHE_WB) == 0);
+
     blk = blk_new_with_bs(errp);
     if (!blk) {
         QDECREF(options);
@@ -159,6 +161,8 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
         blk_unref(blk);
         return NULL;
     }
+
+    blk_set_enable_write_cache(blk, true);
 
     return blk;
 }

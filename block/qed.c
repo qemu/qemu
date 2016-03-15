@@ -576,8 +576,7 @@ static int qed_create(const char *filename, uint32_t cluster_size,
     }
 
     blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
-                       &local_err);
+                       BDRV_O_RDWR | BDRV_O_PROTOCOL, &local_err);
     if (blk == NULL) {
         error_propagate(errp, local_err);
         return -EIO;

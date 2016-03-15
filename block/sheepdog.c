@@ -1648,8 +1648,7 @@ static int sd_prealloc(const char *filename, Error **errp)
     int ret;
 
     blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
-                       errp);
+                       BDRV_O_RDWR | BDRV_O_PROTOCOL, errp);
     if (blk == NULL) {
         ret = -EIO;
         goto out_with_err_set;
@@ -1845,7 +1844,7 @@ static int sd_create(const char *filename, QemuOpts *opts,
         }
 
         blk = blk_new_open(backing_file, NULL, NULL,
-                           BDRV_O_PROTOCOL | BDRV_O_CACHE_WB, errp);
+                           BDRV_O_PROTOCOL, errp);
         if (blk == NULL) {
             ret = -EIO;
             goto out;

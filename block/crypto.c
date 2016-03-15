@@ -121,8 +121,7 @@ static ssize_t block_crypto_init_func(QCryptoBlock *block,
     }
 
     data->blk = blk_new_open(data->filename, NULL, NULL,
-                             BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
-                             errp);
+                             BDRV_O_RDWR | BDRV_O_PROTOCOL, errp);
     if (!data->blk) {
         return -1;
     }
