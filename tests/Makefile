@@ -161,7 +161,7 @@ gcov-files-pci-y += hw/display/virtio-gpu-pci.c
 gcov-files-pci-$(CONFIG_VIRTIO_VGA) += hw/display/virtio-vga.c
 check-qtest-pci-y += tests/intel-hda-test$(EXESUF)
 gcov-files-pci-y += hw/audio/intel-hda.c hw/audio/hda-codec.c
-check-qtest-pci-$(CONFIG_POSIX) += tests/ivshmem-test$(EXESUF)
+check-qtest-pci-$(CONFIG_EVENTFD) += tests/ivshmem-test$(EXESUF)
 gcov-files-pci-y += hw/misc/ivshmem.c
 
 check-qtest-i386-y = tests/endianness-test$(EXESUF)
