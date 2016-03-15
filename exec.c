@@ -24,6 +24,7 @@
 
 #include "qemu/cutils.h"
 #include "cpu.h"
+#include "exec/exec-all.h"
 #include "tcg.h"
 #include "hw/qdev-core.h"
 #if !defined(CONFIG_USER_ONLY)

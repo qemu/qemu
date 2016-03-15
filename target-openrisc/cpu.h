@@ -410,6 +410,4 @@ static inline int cpu_mmu_index(CPUOpenRISCState *env, bool ifetch)
 
 #define CPU_INTERRUPT_TIMER   CPU_INTERRUPT_TGT_INT_0
 
-#include "exec/exec-all.h"
-
 #endif /* CPU_OPENRISC_H */

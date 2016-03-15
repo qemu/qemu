@@ -35,6 +35,7 @@
 #include "qemu/sockets.h"
 #include "sysemu/kvm.h"
 #include "exec/semihost.h"
+#include "exec/exec-all.h"
 
 #ifdef CONFIG_USER_ONLY
 #define GDB_ATTACHED "0"

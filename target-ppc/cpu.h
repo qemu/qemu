@@ -2366,8 +2366,6 @@ static inline bool lsw_reg_in_range(int start, int nregs, int rx)
 
 extern void (*cpu_ppc_hypercall)(PowerPCCPU *);
 
-#include "exec/exec-all.h"
-
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env);
 
 /**

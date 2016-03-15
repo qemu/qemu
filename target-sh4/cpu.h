@@ -389,6 +389,4 @@ static inline void cpu_get_tb_cpu_state(CPUSH4State *env, target_ulong *pc,
             | (env->movcal_backup ? TB_FLAG_PENDING_MOVCA : 0); /* Bit 4 */
 }
 
-#include "exec/exec-all.h"
-
 #endif				/* _CPU_SH4_H */

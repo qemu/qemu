@@ -422,6 +422,4 @@ int cpu_tricore_handle_mmu_fault(CPUState *cpu, target_ulong address,
                                  int rw, int mmu_idx);
 #define cpu_handle_mmu_fault cpu_tricore_handle_mmu_fault
 
-#include "exec/exec-all.h"
-
 #endif /*__TRICORE_CPU_H__ */

@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
+#include "exec/exec-all.h"
 
 
 void cpu_sync_bndcs_hflags(CPUX86State *env)

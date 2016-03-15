@@ -1362,8 +1362,6 @@ void tcg_x86_init(void);
 #include "hw/i386/apic.h"
 #endif
 
-#include "exec/exec-all.h"
-
 static inline void cpu_get_tb_cpu_state(CPUX86State *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {

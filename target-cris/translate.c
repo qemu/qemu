@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "disas/disas.h"
+#include "exec/exec-all.h"
 #include "tcg-op.h"
 #include "exec/helper-proto.h"
 #include "mmu.h"

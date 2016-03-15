@@ -20,6 +20,7 @@
 
 #include "cpu.h"
 #include "sysemu/kvm.h"
+#include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "exec/log.h"
 

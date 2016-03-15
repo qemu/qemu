@@ -81,15 +81,6 @@ void cpu_reloading_memory_map(void);
  * Note that with KVM only one address space is supported.
  */
 void cpu_address_space_init(CPUState *cpu, AddressSpace *as, int asidx);
-/**
- * cpu_get_address_space:
- * @cpu: CPU to get address space from
- * @asidx: index identifying which address space to get
- *
- * Return the requested address space of this CPU. @asidx
- * specifies which address space to read.
- */
-AddressSpace *cpu_get_address_space(CPUState *cpu, int asidx);
 /* cputlb.c */
 /**
  * tlb_flush_page:

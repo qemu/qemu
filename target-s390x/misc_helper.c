@@ -29,6 +29,7 @@
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>
 #endif
+#include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 
 #if !defined(CONFIG_USER_ONLY)

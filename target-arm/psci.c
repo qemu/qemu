@@ -22,6 +22,7 @@
 #include <sysemu/sysemu.h>
 #include "internals.h"
 #include "arm-powerctl.h"
+#include "exec/exec-all.h"
 
 bool arm_is_psci_call(ARMCPU *cpu, int excp_type)
 {

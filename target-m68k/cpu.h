@@ -271,6 +271,4 @@ static inline void cpu_get_tb_cpu_state(CPUM68KState *env, target_ulong *pc,
             | ((env->macsr >> 4) & 0xf);        /* Bits 0-3 */
 }
 
-#include "exec/exec-all.h"
-
 #endif

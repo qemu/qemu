@@ -28,6 +28,7 @@
 
 #include "exec/memory-internal.h"
 #include "exec/ram_addr.h"
+#include "exec/exec-all.h"
 #include "tcg/tcg.h"
 
 /* DEBUG defines, enable DEBUG_TLB_LOG to log to the CPU_LOG_MMU target */

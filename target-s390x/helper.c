@@ -23,6 +23,7 @@
 #include "cpu.h"
 #include "exec/gdbstub.h"
 #include "qemu/timer.h"
+#include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "hw/s390x/ioinst.h"
 #ifndef CONFIG_USER_ONLY

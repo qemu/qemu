@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "disas/bfd.h"
+#include "exec/exec-all.h"
 #include "tcg/tcg.h"
 
 /* Disassemble TCI bytecode. */

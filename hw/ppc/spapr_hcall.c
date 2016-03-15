@@ -3,6 +3,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"
 #include "cpu.h"
+#include "exec/exec-all.h"
 #include "helper_regs.h"
 #include "hw/ppc/spapr.h"
 #include "mmu-hash64.h"

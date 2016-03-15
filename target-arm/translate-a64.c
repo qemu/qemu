@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 
 #include "cpu.h"
+#include "exec/exec-all.h"
 #include "tcg-op.h"
 #include "qemu/log.h"
 #include "arm_ldst.h"

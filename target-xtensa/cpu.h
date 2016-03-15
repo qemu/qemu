@@ -584,6 +584,5 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
 }
 
 #include "exec/cpu-all.h"
-#include "exec/exec-all.h"
 
 #endif

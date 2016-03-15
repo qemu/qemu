@@ -20,6 +20,7 @@
 #ifndef ARM_LDST_H
 #define ARM_LDST_H
 
+#include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "qemu/bswap.h"
 

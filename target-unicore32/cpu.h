@@ -164,7 +164,6 @@ static inline int cpu_mmu_index(CPUUniCore32State *env, bool ifetch)
 }
 
 #include "exec/cpu-all.h"
-#include "exec/exec-all.h"
 
 int uc32_cpu_exec(CPUState *s);
 

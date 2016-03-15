@@ -25,6 +25,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "linux-user/syscall_defs.h"
+#include "exec/exec-all.h"
 
 static void tilegx_cpu_dump_state(CPUState *cs, FILE *f,
                                   fprintf_function cpu_fprintf, int flags)

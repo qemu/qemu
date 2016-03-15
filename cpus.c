@@ -35,6 +35,7 @@
 #include "sysemu/dma.h"
 #include "sysemu/kvm.h"
 #include "qmp-commands.h"
+#include "exec/exec-all.h"
 
 #include "qemu/thread.h"
 #include "sysemu/cpus.h"

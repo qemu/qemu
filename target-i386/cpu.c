@@ -20,6 +20,7 @@
 #include "qemu/cutils.h"
 
 #include "cpu.h"
+#include "exec/exec-all.h"
 #include "sysemu/kvm.h"
 #include "sysemu/cpus.h"
 #include "kvm_i386.h"

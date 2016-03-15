@@ -934,8 +934,6 @@ static inline int mips_vp_active(CPUMIPSState *env)
     return 1;
 }
 
-#include "exec/exec-all.h"
-
 static inline void compute_hflags(CPUMIPSState *env)
 {
     env->hflags &= ~(MIPS_HFLAG_COP1X | MIPS_HFLAG_64 | MIPS_HFLAG_CP0 |

@@ -768,6 +768,4 @@ static inline bool tb_am_enabled(int tb_flags)
 #endif
 }
 
-#include "exec/exec-all.h"
-
 #endif

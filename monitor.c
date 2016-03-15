@@ -71,6 +71,7 @@
 #include "trace/simple.h"
 #endif
 #include "exec/memory.h"
+#include "exec/exec-all.h"
 #include "qemu/log.h"
 #include "qmp-commands.h"
 #include "hmp.h"

@@ -525,6 +525,4 @@ static inline void cpu_get_tb_cpu_state(CPUAlphaState *env, target_ulong *pc,
     *pflags = flags;
 }
 
-#include "exec/exec-all.h"
-
 #endif /* !defined (__CPU_ALPHA_H__) */

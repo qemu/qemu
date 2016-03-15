@@ -379,6 +379,4 @@ void mb_cpu_unassigned_access(CPUState *cpu, hwaddr addr,
                               unsigned size);
 #endif
 
-#include "exec/exec-all.h"
-
 #endif

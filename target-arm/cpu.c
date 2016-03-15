@@ -23,6 +23,7 @@
 #include "cpu.h"
 #include "internals.h"
 #include "qemu-common.h"
+#include "exec/exec-all.h"
 #include "hw/qdev-properties.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"

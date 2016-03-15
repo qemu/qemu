@@ -1,12 +1,15 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "cpu.h"
+#include "exec/exec-all.h"
 #include "hw/hw.h"
 #include "hw/boards.h"
 #include "qemu/timer.h"
 
 #include "cpu.h"
+#include "exec/exec-all.h"
 #include "migration/cpu.h"
+#include "exec/exec-all.h"
 
 #ifdef TARGET_SPARC64
 static const VMStateDescription vmstate_cpu_timer = {
