@@ -325,6 +325,7 @@ Emitted to report a corruption of a Quorum file.
 
 Data:
 
+- "type":          Quorum operation type
 - "error":         Error message (json-string, optional)
                    Only present on failure.  This field contains a human-readable
                    error message.  There are no semantics other than that the
@@ -336,9 +337,17 @@ Data:
 
 Example:
 
+Read operation:
 { "event": "QUORUM_REPORT_BAD",
-     "data": { "node-name": "1.raw", "sector-num": 345435, "sectors-count": 5 },
+     "data": { "node-name": "node0", "sector-num": 345435, "sectors-count": 5,
+               "type": "read" },
      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
+
+Flush operation:
+{ "event": "QUORUM_REPORT_BAD",
+     "data": { "node-name": "node0", "sector-num": 0, "sectors-count": 2097120,
+               "type": "flush", "error": "Broken pipe" },
+     "timestamp": { "seconds": 1456406829, "microseconds": 291763 } }
 
 Note: this event is rate-limited.
 

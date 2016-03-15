@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "block/block_int.h"
+#include "sysemu/block-backend.h"
 #include "qemu/module.h"
 #include "migration/migration.h"
 #if defined(CONFIG_UUID)
@@ -46,8 +47,14 @@ enum vhd_type {
 // Seconds since Jan 1, 2000 0:00:00 (UTC)
 #define VHD_TIMESTAMP_BASE 946684800
 
+#define VHD_CHS_MAX_C   65535LL
+#define VHD_CHS_MAX_H   16
+#define VHD_CHS_MAX_S   255
+
 #define VHD_MAX_SECTORS       (65535LL * 255 * 255)
-#define VHD_MAX_GEOMETRY      (65535LL *  16 * 255)
+#define VHD_MAX_GEOMETRY      (VHD_CHS_MAX_C * VHD_CHS_MAX_H * VHD_CHS_MAX_S)
+
+#define VPC_OPT_FORCE_SIZE "force_size"
 
 // always big-endian
 typedef struct vhd_footer {
@@ -128,6 +135,8 @@ typedef struct BDRVVPCState {
 
     uint32_t block_size;
     uint32_t bitmap_size;
+    bool force_use_chs;
+    bool force_use_sz;
 
 #ifdef CACHE
     uint8_t *pageentry_u8;
@@ -139,6 +148,22 @@ typedef struct BDRVVPCState {
 
     Error *migration_blocker;
 } BDRVVPCState;
+
+#define VPC_OPT_SIZE_CALC "force_size_calc"
+static QemuOptsList vpc_runtime_opts = {
+    .name = "vpc-runtime-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(vpc_runtime_opts.head),
+    .desc = {
+        {
+            .name = VPC_OPT_SIZE_CALC,
+            .type = QEMU_OPT_STRING,
+            .help = "Force disk size calculation to use either CHS geometry, "
+                    "or use the disk current_size specified in the VHD footer. "
+                    "{chs, current_size}"
+        },
+        { /* end of list */ }
+    }
+};
 
 static uint32_t vpc_checksum(uint8_t* buf, size_t size)
 {
@@ -159,6 +184,25 @@ static int vpc_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 0;
 }
 
+static void vpc_parse_options(BlockDriverState *bs, QemuOpts *opts,
+                              Error **errp)
+{
+    BDRVVPCState *s = bs->opaque;
+    const char *size_calc;
+
+    size_calc = qemu_opt_get(opts, VPC_OPT_SIZE_CALC);
+
+    if (!size_calc) {
+       /* no override, use autodetect only */
+    } else if (!strcmp(size_calc, "current_size")) {
+        s->force_use_sz = true;
+    } else if (!strcmp(size_calc, "chs")) {
+        s->force_use_chs = true;
+    } else {
+        error_setg(errp, "Invalid size calculation mode: '%s'", size_calc);
+    }
+}
+
 static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
@@ -166,12 +210,30 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     int i;
     VHDFooter *footer;
     VHDDynDiskHeader *dyndisk_header;
+    QemuOpts *opts = NULL;
+    Error *local_err = NULL;
+    bool use_chs;
     uint8_t buf[HEADER_SIZE];
     uint32_t checksum;
     uint64_t computed_size;
     uint64_t pagetable_size;
     int disk_type = VHD_DYNAMIC;
     int ret;
+
+    opts = qemu_opts_create(&vpc_runtime_opts, NULL, 0, &error_abort);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    vpc_parse_options(bs, opts, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
 
     ret = bdrv_pread(bs->file->bs, 0, s->footer_buf, HEADER_SIZE);
     if (ret < 0) {
@@ -218,12 +280,36 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     bs->total_sectors = (int64_t)
         be16_to_cpu(footer->cyls) * footer->heads * footer->secs_per_cyl;
 
-    /* Images that have exactly the maximum geometry are probably bigger and
-     * would be truncated if we adhered to the geometry for them. Rely on
-     * footer->current_size for them. */
-    if (bs->total_sectors == VHD_MAX_GEOMETRY) {
+    /* Microsoft Virtual PC and Microsoft Hyper-V produce and read
+     * VHD image sizes differently.  VPC will rely on CHS geometry,
+     * while Hyper-V and disk2vhd use the size specified in the footer.
+     *
+     * We use a couple of approaches to try and determine the correct method:
+     * look at the Creator App field, and look for images that have CHS
+     * geometry that is the maximum value.
+     *
+     * If the CHS geometry is the maximum CHS geometry, then we assume that
+     * the size is the footer->current_size to avoid truncation.  Otherwise,
+     * we follow the table based on footer->creator_app:
+     *
+     *  Known creator apps:
+     *      'vpc '  :  CHS              Virtual PC (uses disk geometry)
+     *      'qemu'  :  CHS              QEMU (uses disk geometry)
+     *      'qem2'  :  current_size     QEMU (uses current_size)
+     *      'win '  :  current_size     Hyper-V
+     *      'd2v '  :  current_size     Disk2vhd
+     *
+     *  The user can override the table values via drive options, however
+     *  even with an override we will still use current_size for images
+     *  that have CHS geometry of the maximum size.
+     */
+    use_chs = (!!strncmp(footer->creator_app, "win ", 4) &&
+               !!strncmp(footer->creator_app, "qem2", 4) &&
+               !!strncmp(footer->creator_app, "d2v ", 4)) || s->force_use_chs;
+
+    if (!use_chs || bs->total_sectors == VHD_MAX_GEOMETRY || s->force_use_sz) {
         bs->total_sectors = be64_to_cpu(footer->current_size) /
-                            BDRV_SECTOR_SIZE;
+                                        BDRV_SECTOR_SIZE;
     }
 
     /* Allow a maximum disk size of approximately 2 TB */
@@ -673,7 +759,7 @@ static int calculate_geometry(int64_t total_sectors, uint16_t* cyls,
     return 0;
 }
 
-static int create_dynamic_disk(BlockDriverState *bs, uint8_t *buf,
+static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
                                int64_t total_sectors)
 {
     VHDDynDiskHeader *dyndisk_header =
@@ -687,13 +773,13 @@ static int create_dynamic_disk(BlockDriverState *bs, uint8_t *buf,
     block_size = 0x200000;
     num_bat_entries = (total_sectors + block_size / 512) / (block_size / 512);
 
-    ret = bdrv_pwrite_sync(bs, offset, buf, HEADER_SIZE);
+    ret = blk_pwrite(blk, offset, buf, HEADER_SIZE);
     if (ret) {
         goto fail;
     }
 
     offset = 1536 + ((num_bat_entries * 4 + 511) & ~511);
-    ret = bdrv_pwrite_sync(bs, offset, buf, HEADER_SIZE);
+    ret = blk_pwrite(blk, offset, buf, HEADER_SIZE);
     if (ret < 0) {
         goto fail;
     }
@@ -703,7 +789,7 @@ static int create_dynamic_disk(BlockDriverState *bs, uint8_t *buf,
 
     memset(buf, 0xFF, 512);
     for (i = 0; i < (num_bat_entries * 4 + 511) / 512; i++) {
-        ret = bdrv_pwrite_sync(bs, offset, buf, 512);
+        ret = blk_pwrite(blk, offset, buf, 512);
         if (ret < 0) {
             goto fail;
         }
@@ -730,7 +816,7 @@ static int create_dynamic_disk(BlockDriverState *bs, uint8_t *buf,
     // Write the header
     offset = 512;
 
-    ret = bdrv_pwrite_sync(bs, offset, buf, 1024);
+    ret = blk_pwrite(blk, offset, buf, 1024);
     if (ret < 0) {
         goto fail;
     }
@@ -739,7 +825,7 @@ static int create_dynamic_disk(BlockDriverState *bs, uint8_t *buf,
     return ret;
 }
 
-static int create_fixed_disk(BlockDriverState *bs, uint8_t *buf,
+static int create_fixed_disk(BlockBackend *blk, uint8_t *buf,
                              int64_t total_size)
 {
     int ret;
@@ -747,12 +833,12 @@ static int create_fixed_disk(BlockDriverState *bs, uint8_t *buf,
     /* Add footer to total size */
     total_size += HEADER_SIZE;
 
-    ret = bdrv_truncate(bs, total_size);
+    ret = blk_truncate(blk, total_size);
     if (ret < 0) {
         return ret;
     }
 
-    ret = bdrv_pwrite_sync(bs, total_size - HEADER_SIZE, buf, HEADER_SIZE);
+    ret = blk_pwrite(blk, total_size - HEADER_SIZE, buf, HEADER_SIZE);
     if (ret < 0) {
         return ret;
     }
@@ -773,8 +859,9 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     int64_t total_size;
     int disk_type;
     int ret = -EIO;
+    bool force_size;
     Error *local_err = NULL;
-    BlockDriverState *bs = NULL;
+    BlockBackend *blk = NULL;
 
     /* Read out options */
     total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
@@ -793,30 +880,44 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
         disk_type = VHD_DYNAMIC;
     }
 
+    force_size = qemu_opt_get_bool_del(opts, VPC_OPT_FORCE_SIZE, false);
+
     ret = bdrv_create_file(filename, opts, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto out;
     }
-    ret = bdrv_open(&bs, filename, NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
-                    &local_err);
-    if (ret < 0) {
+
+    blk = blk_new_open("image", filename, NULL, NULL,
+                       BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
+                       &local_err);
+    if (blk == NULL) {
         error_propagate(errp, local_err);
+        ret = -EIO;
         goto out;
     }
+
+    blk_set_allow_write_beyond_eof(blk, true);
 
     /*
      * Calculate matching total_size and geometry. Increase the number of
      * sectors requested until we get enough (or fail). This ensures that
      * qemu-img convert doesn't truncate images, but rather rounds up.
      *
-     * If the image size can't be represented by a spec conform CHS geometry,
+     * If the image size can't be represented by a spec conformant CHS geometry,
      * we set the geometry to 65535 x 16 x 255 (CxHxS) sectors and use
      * the image size from the VHD footer to calculate total_sectors.
      */
-    total_sectors = MIN(VHD_MAX_GEOMETRY, total_size / BDRV_SECTOR_SIZE);
-    for (i = 0; total_sectors > (int64_t)cyls * heads * secs_per_cyl; i++) {
-        calculate_geometry(total_sectors + i, &cyls, &heads, &secs_per_cyl);
+    if (force_size) {
+        /* This will force the use of total_size for sector count, below */
+        cyls         = VHD_CHS_MAX_C;
+        heads        = VHD_CHS_MAX_H;
+        secs_per_cyl = VHD_CHS_MAX_S;
+    } else {
+        total_sectors = MIN(VHD_MAX_GEOMETRY, total_size / BDRV_SECTOR_SIZE);
+        for (i = 0; total_sectors > (int64_t)cyls * heads * secs_per_cyl; i++) {
+            calculate_geometry(total_sectors + i, &cyls, &heads, &secs_per_cyl);
+        }
     }
 
     if ((int64_t)cyls * heads * secs_per_cyl == VHD_MAX_GEOMETRY) {
@@ -835,8 +936,11 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     memset(buf, 0, 1024);
 
     memcpy(footer->creator, "conectix", 8);
-    /* TODO Check if "qemu" creator_app is ok for VPC */
-    memcpy(footer->creator_app, "qemu", 4);
+    if (force_size) {
+        memcpy(footer->creator_app, "qem2", 4);
+    } else {
+        memcpy(footer->creator_app, "qemu", 4);
+    }
     memcpy(footer->creator_os, "Wi2k", 4);
 
     footer->features = cpu_to_be32(0x02);
@@ -866,13 +970,13 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     footer->checksum = cpu_to_be32(vpc_checksum(buf, HEADER_SIZE));
 
     if (disk_type == VHD_DYNAMIC) {
-        ret = create_dynamic_disk(bs, buf, total_sectors);
+        ret = create_dynamic_disk(blk, buf, total_sectors);
     } else {
-        ret = create_fixed_disk(bs, buf, total_size);
+        ret = create_fixed_disk(blk, buf, total_size);
     }
 
 out:
-    bdrv_unref(bs);
+    blk_unref(blk);
     g_free(disk_type_param);
     return ret;
 }
@@ -916,6 +1020,13 @@ static QemuOptsList vpc_create_opts = {
             .help =
                 "Type of virtual hard disk format. Supported formats are "
                 "{dynamic (default) | fixed} "
+        },
+        {
+            .name = VPC_OPT_FORCE_SIZE,
+            .type = QEMU_OPT_BOOL,
+            .help = "Force disk size calculation to use the actual size "
+                    "specified, rather than using the nearest CHS-based "
+                    "calculation"
         },
         { /* end of list */ }
     }

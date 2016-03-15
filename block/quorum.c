@@ -215,14 +215,16 @@ static QuorumAIOCB *quorum_aio_get(BDRVQuorumState *s,
     return acb;
 }
 
-static void quorum_report_bad(QuorumAIOCB *acb, char *node_name, int ret)
+static void quorum_report_bad(QuorumOpType type, uint64_t sector_num,
+                              int nb_sectors, char *node_name, int ret)
 {
     const char *msg = NULL;
     if (ret < 0) {
         msg = strerror(-ret);
     }
-    qapi_event_send_quorum_report_bad(!!msg, msg, node_name,
-                                      acb->sector_num, acb->nb_sectors, &error_abort);
+
+    qapi_event_send_quorum_report_bad(type, !!msg, msg, node_name,
+                                      sector_num, nb_sectors, &error_abort);
 }
 
 static void quorum_report_failure(QuorumAIOCB *acb)
@@ -282,6 +284,7 @@ static void quorum_aio_cb(void *opaque, int ret)
     QuorumChildRequest *sacb = opaque;
     QuorumAIOCB *acb = sacb->parent;
     BDRVQuorumState *s = acb->common.bs->opaque;
+    QuorumOpType type;
     bool rewrite = false;
 
     if (acb->is_read && s->read_pattern == QUORUM_READ_PATTERN_FIFO) {
@@ -300,12 +303,14 @@ static void quorum_aio_cb(void *opaque, int ret)
         return;
     }
 
+    type = acb->is_read ? QUORUM_OP_TYPE_READ : QUORUM_OP_TYPE_WRITE;
     sacb->ret = ret;
     acb->count++;
     if (ret == 0) {
         acb->success_count++;
     } else {
-        quorum_report_bad(acb, sacb->aiocb->bs->node_name, ret);
+        quorum_report_bad(type, acb->sector_num, acb->nb_sectors,
+                          sacb->aiocb->bs->node_name, ret);
     }
     assert(acb->count <= s->num_children);
     assert(acb->success_count <= s->num_children);
@@ -338,7 +343,9 @@ static void quorum_report_bad_versions(BDRVQuorumState *s,
             continue;
         }
         QLIST_FOREACH(item, &version->items, next) {
-            quorum_report_bad(acb, s->children[item->index]->bs->node_name, 0);
+            quorum_report_bad(QUORUM_OP_TYPE_READ, acb->sector_num,
+                              acb->nb_sectors,
+                              s->children[item->index]->bs->node_name, 0);
         }
     }
 }
@@ -648,8 +655,9 @@ static BlockAIOCB *read_quorum_children(QuorumAIOCB *acb)
     }
 
     for (i = 0; i < s->num_children; i++) {
-        bdrv_aio_readv(s->children[i]->bs, acb->sector_num, &acb->qcrs[i].qiov,
-                       acb->nb_sectors, quorum_aio_cb, &acb->qcrs[i]);
+        acb->qcrs[i].aiocb = bdrv_aio_readv(s->children[i]->bs, acb->sector_num,
+                                            &acb->qcrs[i].qiov, acb->nb_sectors,
+                                            quorum_aio_cb, &acb->qcrs[i]);
     }
 
     return &acb->common;
@@ -664,9 +672,10 @@ static BlockAIOCB *read_fifo_child(QuorumAIOCB *acb)
     qemu_iovec_init(&acb->qcrs[acb->child_iter].qiov, acb->qiov->niov);
     qemu_iovec_clone(&acb->qcrs[acb->child_iter].qiov, acb->qiov,
                      acb->qcrs[acb->child_iter].buf);
-    bdrv_aio_readv(s->children[acb->child_iter]->bs, acb->sector_num,
-                   &acb->qcrs[acb->child_iter].qiov, acb->nb_sectors,
-                   quorum_aio_cb, &acb->qcrs[acb->child_iter]);
+    acb->qcrs[acb->child_iter].aiocb =
+        bdrv_aio_readv(s->children[acb->child_iter]->bs, acb->sector_num,
+                       &acb->qcrs[acb->child_iter].qiov, acb->nb_sectors,
+                       quorum_aio_cb, &acb->qcrs[acb->child_iter]);
 
     return &acb->common;
 }
@@ -760,19 +769,30 @@ static coroutine_fn int quorum_co_flush(BlockDriverState *bs)
     QuorumVoteValue result_value;
     int i;
     int result = 0;
+    int success_count = 0;
 
     QLIST_INIT(&error_votes.vote_list);
     error_votes.compare = quorum_64bits_compare;
 
     for (i = 0; i < s->num_children; i++) {
         result = bdrv_co_flush(s->children[i]->bs);
-        result_value.l = result;
-        quorum_count_vote(&error_votes, &result_value, i);
+        if (result) {
+            quorum_report_bad(QUORUM_OP_TYPE_FLUSH, 0,
+                              bdrv_nb_sectors(s->children[i]->bs),
+                              s->children[i]->bs->node_name, result);
+            result_value.l = result;
+            quorum_count_vote(&error_votes, &result_value, i);
+        } else {
+            success_count++;
+        }
     }
 
-    winner = quorum_get_vote_winner(&error_votes);
-    result = winner->value.l;
-
+    if (success_count >= s->threshold) {
+        result = 0;
+    } else {
+        winner = quorum_get_vote_winner(&error_votes);
+        result = winner->value.l;
+    }
     quorum_free_vote_list(&error_votes);
 
     return result;

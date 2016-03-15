@@ -593,13 +593,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
         qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, "off");
 
-        if (snapshot) {
-            /* always use cache=unsafe with snapshot */
-            qdict_put(bs_opts, BDRV_OPT_CACHE_WB, qstring_from_str("on"));
-            qdict_put(bs_opts, BDRV_OPT_CACHE_DIRECT, qstring_from_str("off"));
-            qdict_put(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, qstring_from_str("on"));
-        }
-
         if (runstate_check(RUN_STATE_INMIGRATE)) {
             bdrv_flags |= BDRV_O_INACTIVE;
         }
@@ -681,6 +674,13 @@ static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
         error_propagate(errp, local_error);
         goto fail;
     }
+
+    /* bdrv_open() defaults to the values in bdrv_flags (for compatibility
+     * with other callers) rather than what we want as the real defaults.
+     * Apply the defaults here instead. */
+    qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_WB, "on");
+    qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
+    qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, "off");
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         bdrv_flags |= BDRV_O_INACTIVE;
@@ -1732,10 +1732,15 @@ static void external_snapshot_prepare(BlkActionState *common,
         /* create new image w/backing file */
         mode = s->has_mode ? s->mode : NEW_IMAGE_MODE_ABSOLUTE_PATHS;
         if (mode != NEW_IMAGE_MODE_EXISTING) {
+            int64_t size = bdrv_getlength(state->old_bs);
+            if (size < 0) {
+                error_setg_errno(errp, -size, "bdrv_getlength failed");
+                return;
+            }
             bdrv_img_create(new_image_file, format,
                             state->old_bs->filename,
                             state->old_bs->drv->format_name,
-                            NULL, -1, flags, &local_err, false);
+                            NULL, size, flags, &local_err, false);
             if (local_err) {
                 error_propagate(errp, local_err);
                 return;
@@ -2819,6 +2824,15 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
     AioContext *aio_context;
     Error *local_err = NULL;
 
+    bs = bdrv_find_node(id);
+    if (bs) {
+        qmp_x_blockdev_del(false, NULL, true, id, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+        }
+        return;
+    }
+
     blk = blk_by_name(id);
     if (!blk) {
         error_report("Device '%s' not found", id);
@@ -3868,6 +3882,36 @@ void qmp_change_backing_file(const char *device,
 
 out:
     aio_context_release(aio_context);
+}
+
+void hmp_drive_add_node(Monitor *mon, const char *optstr)
+{
+    QemuOpts *opts;
+    QDict *qdict;
+    Error *local_err = NULL;
+
+    opts = qemu_opts_parse_noisily(&qemu_drive_opts, optstr, false);
+    if (!opts) {
+        return;
+    }
+
+    qdict = qemu_opts_to_qdict(opts, NULL);
+
+    if (!qdict_get_try_str(qdict, "node-name")) {
+        error_report("'node-name' needs to be specified");
+        goto out;
+    }
+
+    BlockDriverState *bs = bds_tree_init(qdict, &local_err);
+    if (!bs) {
+        error_report_err(local_err);
+        goto out;
+    }
+
+    QTAILQ_INSERT_TAIL(&monitor_bdrv_states, bs, monitor_list);
+
+out:
+    qemu_opts_del(opts);
 }
 
 void qmp_blockdev_add(BlockdevOptions *options, Error **errp)

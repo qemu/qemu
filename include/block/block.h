@@ -6,8 +6,10 @@
 #include "qemu/option.h"
 #include "qemu/coroutine.h"
 #include "block/accounting.h"
+#include "block/dirty-bitmap.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi-types.h"
+#include "qemu/hbitmap.h"
 
 /* block.c */
 typedef struct BlockDriver BlockDriver;
@@ -215,7 +217,6 @@ BdrvChild *bdrv_open_child(const char *filename,
 void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd);
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
                            const char *bdref_key, Error **errp);
-int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp);
 int bdrv_open(BlockDriverState **pbs, const char *filename,
               const char *reference, QDict *options, int flags, Error **errp);
 BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
@@ -320,8 +321,6 @@ BlockDriverState *check_to_replace_node(BlockDriverState *parent_bs,
                                         const char *node_name, Error **errp);
 
 /* async block I/O */
-typedef void BlockDriverDirtyHandler(BlockDriverState *bs, int64_t sector,
-                                     int sector_num);
 BlockAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
                            QEMUIOVector *iov, int nb_sectors,
                            BlockCompletionFunc *cb, void *opaque);
@@ -474,42 +473,6 @@ void *qemu_blockalign0(BlockDriverState *bs, size_t size);
 void *qemu_try_blockalign(BlockDriverState *bs, size_t size);
 void *qemu_try_blockalign0(BlockDriverState *bs, size_t size);
 bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov);
-
-struct HBitmapIter;
-typedef struct BdrvDirtyBitmap BdrvDirtyBitmap;
-BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
-                                          uint32_t granularity,
-                                          const char *name,
-                                          Error **errp);
-int bdrv_dirty_bitmap_create_successor(BlockDriverState *bs,
-                                       BdrvDirtyBitmap *bitmap,
-                                       Error **errp);
-BdrvDirtyBitmap *bdrv_dirty_bitmap_abdicate(BlockDriverState *bs,
-                                            BdrvDirtyBitmap *bitmap,
-                                            Error **errp);
-BdrvDirtyBitmap *bdrv_reclaim_dirty_bitmap(BlockDriverState *bs,
-                                           BdrvDirtyBitmap *bitmap,
-                                           Error **errp);
-BdrvDirtyBitmap *bdrv_find_dirty_bitmap(BlockDriverState *bs,
-                                        const char *name);
-void bdrv_dirty_bitmap_make_anon(BdrvDirtyBitmap *bitmap);
-void bdrv_release_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap);
-void bdrv_disable_dirty_bitmap(BdrvDirtyBitmap *bitmap);
-void bdrv_enable_dirty_bitmap(BdrvDirtyBitmap *bitmap);
-BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs);
-uint32_t bdrv_get_default_bitmap_granularity(BlockDriverState *bs);
-uint32_t bdrv_dirty_bitmap_granularity(BdrvDirtyBitmap *bitmap);
-bool bdrv_dirty_bitmap_enabled(BdrvDirtyBitmap *bitmap);
-bool bdrv_dirty_bitmap_frozen(BdrvDirtyBitmap *bitmap);
-DirtyBitmapStatus bdrv_dirty_bitmap_status(BdrvDirtyBitmap *bitmap);
-int bdrv_get_dirty(BlockDriverState *bs, BdrvDirtyBitmap *bitmap, int64_t sector);
-void bdrv_set_dirty_bitmap(BdrvDirtyBitmap *bitmap,
-                           int64_t cur_sector, int nr_sectors);
-void bdrv_reset_dirty_bitmap(BdrvDirtyBitmap *bitmap,
-                             int64_t cur_sector, int nr_sectors);
-void bdrv_dirty_iter_init(BdrvDirtyBitmap *bitmap, struct HBitmapIter *hbi);
-void bdrv_set_dirty_iter(struct HBitmapIter *hbi, int64_t offset);
-int64_t bdrv_get_dirty_count(BdrvDirtyBitmap *bitmap);
 
 void bdrv_enable_copy_on_read(BlockDriverState *bs);
 void bdrv_disable_copy_on_read(BlockDriverState *bs);

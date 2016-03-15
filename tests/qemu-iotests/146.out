@@ -1,0 +1,70 @@
+QA output created by 146
+
+=== Testing VPC Autodetect ===
+
+[                       0]  266334240/ 266334240 sectors not allocated at offset 0 bytes (0)
+
+=== Testing VPC with current_size force ===
+
+[                       0]  266338304/ 266338304 sectors not allocated at offset 0 bytes (0)
+
+=== Testing VPC with chs force ===
+
+[                       0]  266334240/ 266334240 sectors not allocated at offset 0 bytes (0)
+
+=== Testing Hyper-V Autodetect ===
+
+[                       0]  266338304/ 266338304 sectors not allocated at offset 0 bytes (0)
+
+=== Testing Hyper-V with current_size force ===
+
+[                       0]  266338304/ 266338304 sectors not allocated at offset 0 bytes (0)
+
+=== Testing Hyper-V with chs force ===
+
+[                       0]  266334240/ 266334240 sectors not allocated at offset 0 bytes (0)
+
+=== Testing d2v Autodetect ===
+
+[                       0]   514560/  514560 sectors     allocated at offset 0 bytes (1)
+
+=== Testing d2v with current_size force ===
+
+[                       0]   514560/  514560 sectors     allocated at offset 0 bytes (1)
+
+=== Testing d2v with chs force ===
+
+[                       0]   514560/  514560 sectors     allocated at offset 0 bytes (1)
+
+=== Testing Image create, default ===
+
+Formatting 'TEST_DIR/IMGFMT-create-test.IMGFMT', fmt=IMGFMT size=4294967296
+
+=== Read created image, default opts ====
+
+[                       0]  8389584/ 8389584 sectors not allocated at offset 0 bytes (0)
+
+=== Read created image, force_size_calc=chs ====
+
+[                       0]  8389584/ 8389584 sectors not allocated at offset 0 bytes (0)
+
+=== Read created image, force_size_calc=current_size ====
+
+[                       0]  8389584/ 8389584 sectors not allocated at offset 0 bytes (0)
+
+=== Testing Image create, force_size ===
+
+Formatting 'TEST_DIR/IMGFMT-create-test.IMGFMT', fmt=IMGFMT size=4294967296 force_size=on
+
+=== Read created image, default opts ====
+
+[                       0]  8388608/ 8388608 sectors not allocated at offset 0 bytes (0)
+
+=== Read created image, force_size_calc=chs ====
+
+[                       0]  8388608/ 8388608 sectors not allocated at offset 0 bytes (0)
+
+=== Read created image, force_size_calc=current_size ====
+
+[                       0]  8388608/ 8388608 sectors not allocated at offset 0 bytes (0)
+*** done

@@ -20,6 +20,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qemu/ratelimit.h"
 #include "sysemu/block-backend.h"
+#include "qemu/bitmap.h"
 
 #define BACKUP_CLUSTER_SIZE_DEFAULT (1 << 16)
 #define SLICE_TIME 100000000ULL /* ns */
@@ -42,7 +43,7 @@ typedef struct BackupBlockJob {
     BlockdevOnError on_target_error;
     CoRwlock flush_rwlock;
     uint64_t sectors_read;
-    HBitmap *bitmap;
+    unsigned long *done_bitmap;
     int64_t cluster_size;
     QLIST_HEAD(, CowRequest) inflight_reqs;
 } BackupBlockJob;
@@ -116,7 +117,7 @@ static int coroutine_fn backup_do_cow(BlockDriverState *bs,
     cow_request_begin(&cow_request, job, start, end);
 
     for (; start < end; start++) {
-        if (hbitmap_get(job->bitmap, start)) {
+        if (test_bit(start, job->done_bitmap)) {
             trace_backup_do_cow_skip(job, start);
             continue; /* already copied */
         }
@@ -167,7 +168,7 @@ static int coroutine_fn backup_do_cow(BlockDriverState *bs,
             goto out;
         }
 
-        hbitmap_set(job->bitmap, start, 1);
+        set_bit(start, job->done_bitmap);
 
         /* Publish progress, guest I/O counts as progress too.  Note that the
          * offset field is an opaque progress value, it is not a disk offset.
@@ -399,7 +400,7 @@ static void coroutine_fn backup_run(void *opaque)
     start = 0;
     end = DIV_ROUND_UP(job->common.len, job->cluster_size);
 
-    job->bitmap = hbitmap_alloc(end, 0);
+    job->done_bitmap = bitmap_new(end);
 
     bdrv_set_enable_write_cache(target, true);
     if (target->blk) {
@@ -480,7 +481,7 @@ static void coroutine_fn backup_run(void *opaque)
     /* wait until pending backup_do_cow() calls have completed */
     qemu_co_rwlock_wrlock(&job->flush_rwlock);
     qemu_co_rwlock_unlock(&job->flush_rwlock);
-    hbitmap_free(job->bitmap);
+    g_free(job->done_bitmap);
 
     if (target->blk) {
         blk_iostatus_disable(target->blk);

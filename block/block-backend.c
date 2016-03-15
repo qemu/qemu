@@ -50,6 +50,8 @@ struct BlockBackend {
     bool iostatus_enabled;
     BlockDeviceIoStatus iostatus;
 
+    bool allow_write_beyond_eof;
+
     NotifierList remove_bs_notifiers, insert_bs_notifiers;
 };
 
@@ -579,6 +581,11 @@ void blk_iostatus_set_err(BlockBackend *blk, int error)
     }
 }
 
+void blk_set_allow_write_beyond_eof(BlockBackend *blk, bool allow)
+{
+    blk->allow_write_beyond_eof = allow;
+}
+
 static int blk_check_byte_request(BlockBackend *blk, int64_t offset,
                                   size_t size)
 {
@@ -592,17 +599,19 @@ static int blk_check_byte_request(BlockBackend *blk, int64_t offset,
         return -ENOMEDIUM;
     }
 
-    len = blk_getlength(blk);
-    if (len < 0) {
-        return len;
-    }
-
     if (offset < 0) {
         return -EIO;
     }
 
-    if (offset > len || len - offset < size) {
-        return -EIO;
+    if (!blk->allow_write_beyond_eof) {
+        len = blk_getlength(blk);
+        if (len < 0) {
+            return len;
+        }
+
+        if (offset > len || len - offset < size) {
+            return -EIO;
+        }
     }
 
     return 0;

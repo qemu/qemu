@@ -1,0 +1,165 @@
+#!/bin/bash
+#
+# Test VHD image format creator detection and override
+#
+# Copyright (C) 2016 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=jcody@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+status=1    # failure is the default!
+
+_cleanup()
+{
+    _cleanup_qemu
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt vpc
+_supported_proto file
+_supported_os Linux
+
+
+qemu_comm_method="monitor"
+silent=
+
+echo
+echo === Testing VPC Autodetect ===
+echo
+_use_sample_img virtualpc-dynamic.vhd.bz2
+
+${QEMU_IO} -c "open -o driver=vpc ${TEST_IMG}" -c 'map'
+
+echo
+echo === Testing VPC with current_size force ===
+echo
+
+${QEMU_IO} -c "open -o driver=vpc,force_size_calc=current_size ${TEST_IMG}" -c 'map'
+
+echo
+echo === Testing VPC with chs force ===
+echo
+
+${QEMU_IO} -c "open -o driver=vpc,force_size_calc=chs ${TEST_IMG}" -c 'map'
+
+_cleanup_test_img
+
+echo
+echo === Testing Hyper-V Autodetect ===
+echo
+_use_sample_img hyperv2012r2-dynamic.vhd.bz2
+
+${QEMU_IO} -c "open -o driver=vpc ${TEST_IMG}" -c 'map'
+
+echo
+echo === Testing Hyper-V with current_size force ===
+echo
+
+${QEMU_IO} -c "open -o driver=vpc,force_size_calc=current_size ${TEST_IMG}" -c 'map'
+
+echo
+echo === Testing Hyper-V with chs force ===
+echo
+
+${QEMU_IO} -c "open -o driver=vpc,force_size_calc=chs ${TEST_IMG}" -c 'map'
+
+_cleanup_test_img
+
+echo
+echo === Testing d2v Autodetect ===
+echo
+_use_sample_img d2v-zerofilled.vhd.bz2
+
+${QEMU_IO} -c "open -o driver=vpc ${TEST_IMG}" -c 'map'
+
+echo
+echo === Testing d2v with current_size force ===
+echo
+
+${QEMU_IO} -c "open -o driver=vpc,force_size_calc=current_size ${TEST_IMG}" -c 'map'
+
+echo
+echo === Testing d2v with chs force ===
+echo
+
+${QEMU_IO} -c "open -o driver=vpc,force_size_calc=chs ${TEST_IMG}" -c 'map'
+
+_cleanup_test_img
+
+echo
+echo === Testing Image create, default ===
+echo
+
+TEST_IMG="${TEST_DIR}/vpc-create-test.vpc"
+
+_make_test_img 4G
+
+echo
+echo === Read created image, default opts ====
+echo
+
+${QEMU_IO} -c "open -o driver=vpc ${TEST_IMG}" -c 'map'
+
+echo
+echo === Read created image, force_size_calc=chs ====
+echo
+
+${QEMU_IO} -c "open -o driver=vpc,force_size_calc=chs ${TEST_IMG}" -c 'map'
+
+echo
+echo === Read created image, force_size_calc=current_size ====
+echo
+
+${QEMU_IO} -c "open -o driver=vpc,force_size_calc=current_size ${TEST_IMG}" -c 'map'
+
+echo
+echo === Testing Image create, force_size ===
+echo
+
+_make_test_img -o force_size 4G
+
+echo
+echo === Read created image, default opts ====
+echo
+
+${QEMU_IO} -c "open -o driver=vpc ${TEST_IMG}" -c 'map'
+
+echo
+echo === Read created image, force_size_calc=chs ====
+echo
+
+${QEMU_IO} -c "open -o driver=vpc,force_size_calc=chs ${TEST_IMG}" -c 'map'
+
+echo
+echo === Read created image, force_size_calc=current_size ====
+echo
+
+${QEMU_IO} -c "open -o driver=vpc,force_size_calc=current_size ${TEST_IMG}" -c 'map'
+
+echo "*** done"
+rm -f $seq.full
+status=0

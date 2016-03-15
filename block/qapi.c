@@ -355,100 +355,116 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
     qapi_free_BlockInfo(info);
 }
 
-static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
-                                    bool query_backing)
+static BlockStats *bdrv_query_stats(BlockBackend *blk,
+                                    const BlockDriverState *bs,
+                                    bool query_backing);
+
+static void bdrv_query_blk_stats(BlockStats *s, BlockBackend *blk)
 {
-    BlockStats *s;
+    BlockAcctStats *stats = blk_get_stats(blk);
+    BlockAcctTimedStats *ts = NULL;
 
-    s = g_malloc0(sizeof(*s));
+    s->has_device = true;
+    s->device = g_strdup(blk_name(blk));
 
-    if (bdrv_get_device_name(bs)[0]) {
-        s->has_device = true;
-        s->device = g_strdup(bdrv_get_device_name(bs));
+    s->stats->rd_bytes = stats->nr_bytes[BLOCK_ACCT_READ];
+    s->stats->wr_bytes = stats->nr_bytes[BLOCK_ACCT_WRITE];
+    s->stats->rd_operations = stats->nr_ops[BLOCK_ACCT_READ];
+    s->stats->wr_operations = stats->nr_ops[BLOCK_ACCT_WRITE];
+
+    s->stats->failed_rd_operations = stats->failed_ops[BLOCK_ACCT_READ];
+    s->stats->failed_wr_operations = stats->failed_ops[BLOCK_ACCT_WRITE];
+    s->stats->failed_flush_operations = stats->failed_ops[BLOCK_ACCT_FLUSH];
+
+    s->stats->invalid_rd_operations = stats->invalid_ops[BLOCK_ACCT_READ];
+    s->stats->invalid_wr_operations = stats->invalid_ops[BLOCK_ACCT_WRITE];
+    s->stats->invalid_flush_operations =
+        stats->invalid_ops[BLOCK_ACCT_FLUSH];
+
+    s->stats->rd_merged = stats->merged[BLOCK_ACCT_READ];
+    s->stats->wr_merged = stats->merged[BLOCK_ACCT_WRITE];
+    s->stats->flush_operations = stats->nr_ops[BLOCK_ACCT_FLUSH];
+    s->stats->wr_total_time_ns = stats->total_time_ns[BLOCK_ACCT_WRITE];
+    s->stats->rd_total_time_ns = stats->total_time_ns[BLOCK_ACCT_READ];
+    s->stats->flush_total_time_ns = stats->total_time_ns[BLOCK_ACCT_FLUSH];
+
+    s->stats->has_idle_time_ns = stats->last_access_time_ns > 0;
+    if (s->stats->has_idle_time_ns) {
+        s->stats->idle_time_ns = block_acct_idle_time_ns(stats);
     }
 
+    s->stats->account_invalid = stats->account_invalid;
+    s->stats->account_failed = stats->account_failed;
+
+    while ((ts = block_acct_interval_next(stats, ts))) {
+        BlockDeviceTimedStatsList *timed_stats =
+            g_malloc0(sizeof(*timed_stats));
+        BlockDeviceTimedStats *dev_stats = g_malloc0(sizeof(*dev_stats));
+        timed_stats->next = s->stats->timed_stats;
+        timed_stats->value = dev_stats;
+        s->stats->timed_stats = timed_stats;
+
+        TimedAverage *rd = &ts->latency[BLOCK_ACCT_READ];
+        TimedAverage *wr = &ts->latency[BLOCK_ACCT_WRITE];
+        TimedAverage *fl = &ts->latency[BLOCK_ACCT_FLUSH];
+
+        dev_stats->interval_length = ts->interval_length;
+
+        dev_stats->min_rd_latency_ns = timed_average_min(rd);
+        dev_stats->max_rd_latency_ns = timed_average_max(rd);
+        dev_stats->avg_rd_latency_ns = timed_average_avg(rd);
+
+        dev_stats->min_wr_latency_ns = timed_average_min(wr);
+        dev_stats->max_wr_latency_ns = timed_average_max(wr);
+        dev_stats->avg_wr_latency_ns = timed_average_avg(wr);
+
+        dev_stats->min_flush_latency_ns = timed_average_min(fl);
+        dev_stats->max_flush_latency_ns = timed_average_max(fl);
+        dev_stats->avg_flush_latency_ns = timed_average_avg(fl);
+
+        dev_stats->avg_rd_queue_depth =
+            block_acct_queue_depth(ts, BLOCK_ACCT_READ);
+        dev_stats->avg_wr_queue_depth =
+            block_acct_queue_depth(ts, BLOCK_ACCT_WRITE);
+    }
+}
+
+static void bdrv_query_bds_stats(BlockStats *s, const BlockDriverState *bs,
+                                 bool query_backing)
+{
     if (bdrv_get_node_name(bs)[0]) {
         s->has_node_name = true;
         s->node_name = g_strdup(bdrv_get_node_name(bs));
-    }
-
-    s->stats = g_malloc0(sizeof(*s->stats));
-    if (bs->blk) {
-        BlockAcctStats *stats = blk_get_stats(bs->blk);
-        BlockAcctTimedStats *ts = NULL;
-
-        s->stats->rd_bytes = stats->nr_bytes[BLOCK_ACCT_READ];
-        s->stats->wr_bytes = stats->nr_bytes[BLOCK_ACCT_WRITE];
-        s->stats->rd_operations = stats->nr_ops[BLOCK_ACCT_READ];
-        s->stats->wr_operations = stats->nr_ops[BLOCK_ACCT_WRITE];
-
-        s->stats->failed_rd_operations = stats->failed_ops[BLOCK_ACCT_READ];
-        s->stats->failed_wr_operations = stats->failed_ops[BLOCK_ACCT_WRITE];
-        s->stats->failed_flush_operations = stats->failed_ops[BLOCK_ACCT_FLUSH];
-
-        s->stats->invalid_rd_operations = stats->invalid_ops[BLOCK_ACCT_READ];
-        s->stats->invalid_wr_operations = stats->invalid_ops[BLOCK_ACCT_WRITE];
-        s->stats->invalid_flush_operations =
-            stats->invalid_ops[BLOCK_ACCT_FLUSH];
-
-        s->stats->rd_merged = stats->merged[BLOCK_ACCT_READ];
-        s->stats->wr_merged = stats->merged[BLOCK_ACCT_WRITE];
-        s->stats->flush_operations = stats->nr_ops[BLOCK_ACCT_FLUSH];
-        s->stats->wr_total_time_ns = stats->total_time_ns[BLOCK_ACCT_WRITE];
-        s->stats->rd_total_time_ns = stats->total_time_ns[BLOCK_ACCT_READ];
-        s->stats->flush_total_time_ns = stats->total_time_ns[BLOCK_ACCT_FLUSH];
-
-        s->stats->has_idle_time_ns = stats->last_access_time_ns > 0;
-        if (s->stats->has_idle_time_ns) {
-            s->stats->idle_time_ns = block_acct_idle_time_ns(stats);
-        }
-
-        s->stats->account_invalid = stats->account_invalid;
-        s->stats->account_failed = stats->account_failed;
-
-        while ((ts = block_acct_interval_next(stats, ts))) {
-            BlockDeviceTimedStatsList *timed_stats =
-                g_malloc0(sizeof(*timed_stats));
-            BlockDeviceTimedStats *dev_stats = g_malloc0(sizeof(*dev_stats));
-            timed_stats->next = s->stats->timed_stats;
-            timed_stats->value = dev_stats;
-            s->stats->timed_stats = timed_stats;
-
-            TimedAverage *rd = &ts->latency[BLOCK_ACCT_READ];
-            TimedAverage *wr = &ts->latency[BLOCK_ACCT_WRITE];
-            TimedAverage *fl = &ts->latency[BLOCK_ACCT_FLUSH];
-
-            dev_stats->interval_length = ts->interval_length;
-
-            dev_stats->min_rd_latency_ns = timed_average_min(rd);
-            dev_stats->max_rd_latency_ns = timed_average_max(rd);
-            dev_stats->avg_rd_latency_ns = timed_average_avg(rd);
-
-            dev_stats->min_wr_latency_ns = timed_average_min(wr);
-            dev_stats->max_wr_latency_ns = timed_average_max(wr);
-            dev_stats->avg_wr_latency_ns = timed_average_avg(wr);
-
-            dev_stats->min_flush_latency_ns = timed_average_min(fl);
-            dev_stats->max_flush_latency_ns = timed_average_max(fl);
-            dev_stats->avg_flush_latency_ns = timed_average_avg(fl);
-
-            dev_stats->avg_rd_queue_depth =
-                block_acct_queue_depth(ts, BLOCK_ACCT_READ);
-            dev_stats->avg_wr_queue_depth =
-                block_acct_queue_depth(ts, BLOCK_ACCT_WRITE);
-        }
     }
 
     s->stats->wr_highest_offset = bs->wr_highest_offset;
 
     if (bs->file) {
         s->has_parent = true;
-        s->parent = bdrv_query_stats(bs->file->bs, query_backing);
+        s->parent = bdrv_query_stats(NULL, bs->file->bs, query_backing);
     }
 
     if (query_backing && bs->backing) {
         s->has_backing = true;
-        s->backing = bdrv_query_stats(bs->backing->bs, query_backing);
+        s->backing = bdrv_query_stats(NULL, bs->backing->bs, query_backing);
+    }
+
+}
+
+static BlockStats *bdrv_query_stats(BlockBackend *blk,
+                                    const BlockDriverState *bs,
+                                    bool query_backing)
+{
+    BlockStats *s;
+
+    s = g_malloc0(sizeof(*s));
+    s->stats = g_malloc0(sizeof(*s->stats));
+
+    if (blk) {
+        bdrv_query_blk_stats(s, blk);
+    }
+    if (bs) {
+        bdrv_query_bds_stats(s, bs, query_backing);
     }
 
     return s;
@@ -477,22 +493,38 @@ BlockInfoList *qmp_query_block(Error **errp)
     return head;
 }
 
+static bool next_query_bds(BlockBackend **blk, BlockDriverState **bs,
+                           bool query_nodes)
+{
+    if (query_nodes) {
+        *bs = bdrv_next_node(*bs);
+        return !!*bs;
+    }
+
+    *blk = blk_next(*blk);
+    *bs = *blk ? blk_bs(*blk) : NULL;
+
+    return !!*blk;
+}
+
 BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
                                      bool query_nodes,
                                      Error **errp)
 {
     BlockStatsList *head = NULL, **p_next = &head;
+    BlockBackend *blk = NULL;
     BlockDriverState *bs = NULL;
 
     /* Just to be safe if query_nodes is not always initialized */
     query_nodes = has_query_nodes && query_nodes;
 
-    while ((bs = query_nodes ? bdrv_next_node(bs) : bdrv_next(bs))) {
+    while (next_query_bds(&blk, &bs, query_nodes)) {
         BlockStatsList *info = g_malloc0(sizeof(*info));
-        AioContext *ctx = bdrv_get_aio_context(bs);
+        AioContext *ctx = blk ? blk_get_aio_context(blk)
+                              : bdrv_get_aio_context(bs);
 
         aio_context_acquire(ctx);
-        info->value = bdrv_query_stats(bs, !query_nodes);
+        info->value = bdrv_query_stats(blk, bs, !query_nodes);
         aio_context_release(ctx);
 
         *p_next = info;
