@@ -21,6 +21,7 @@
 #define MIPS_CPS_H
 
 #include "hw/sysbus.h"
+#include "hw/misc/mips_cmgcr.h"
 
 #define TYPE_MIPS_CPS "mips-cps"
 #define MIPS_CPS(obj) OBJECT_CHECK(MIPSCPSState, (obj), TYPE_MIPS_CPS)
@@ -33,6 +34,7 @@ typedef struct MIPSCPSState {
     char *cpu_model;
 
     MemoryRegion container;
+    MIPSGCRState gcr;
 } MIPSCPSState;
 
 qemu_irq get_cps_irq(MIPSCPSState *cps, int pin_number);
