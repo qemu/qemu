@@ -82,6 +82,21 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
     cpu = MIPS_CPU(first_cpu);
     env = &cpu->env;
 
+    /* Cluster Power Controller */
+    object_initialize(&s->cpc, sizeof(s->cpc), TYPE_MIPS_CPC);
+    qdev_set_parent_bus(DEVICE(&s->cpc), sysbus_get_default());
+
+    object_property_set_int(OBJECT(&s->cpc), s->num_vp, "num-vp", &err);
+    object_property_set_int(OBJECT(&s->cpc), 1, "vp-start-running", &err);
+    object_property_set_bool(OBJECT(&s->cpc), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    memory_region_add_subregion(&s->container, 0,
+                            sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->cpc), 0));
+
     /* Global Configuration Registers */
     gcr_base = env->CP0_CMGCRBase << 4;
 
@@ -91,6 +106,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
     object_property_set_int(OBJECT(&s->gcr), s->num_vp, "num-vp", &err);
     object_property_set_int(OBJECT(&s->gcr), 0x800, "gcr-rev", &err);
     object_property_set_int(OBJECT(&s->gcr), gcr_base, "gcr-base", &err);
+    object_property_set_link(OBJECT(&s->gcr), OBJECT(&s->cpc.mr), "cpc", &err);
     object_property_set_bool(OBJECT(&s->gcr), true, "realized", &err);
     if (err != NULL) {
         error_propagate(errp, err);

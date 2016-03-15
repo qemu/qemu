@@ -15,6 +15,25 @@
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "hw/misc/mips_cmgcr.h"
+#include "hw/misc/mips_cpc.h"
+
+static inline bool is_cpc_connected(MIPSGCRState *s)
+{
+    return s->cpc_mr != NULL;
+}
+
+static inline void update_cpc_base(MIPSGCRState *gcr, uint64_t val)
+{
+    if (is_cpc_connected(gcr)) {
+        gcr->cpc_base = val & GCR_CPC_BASE_MSK;
+        memory_region_transaction_begin();
+        memory_region_set_address(gcr->cpc_mr,
+                                  gcr->cpc_base & GCR_CPC_BASE_CPCBASE_MSK);
+        memory_region_set_enabled(gcr->cpc_mr,
+                                  gcr->cpc_base & GCR_CPC_BASE_CPCEN_MSK);
+        memory_region_transaction_commit();
+    }
+}
 
 /* Read GCR registers */
 static uint64_t gcr_read(void *opaque, hwaddr addr, unsigned size)
@@ -30,6 +49,10 @@ static uint64_t gcr_read(void *opaque, hwaddr addr, unsigned size)
         return gcr->gcr_base;
     case GCR_REV_OFS:
         return gcr->gcr_rev;
+    case GCR_CPC_BASE_OFS:
+        return gcr->cpc_base;
+    case GCR_CPC_STATUS_OFS:
+        return is_cpc_connected(gcr);
     case GCR_L2_CONFIG_OFS:
         /* L2 BYPASS */
         return GCR_L2_CONFIG_BYPASS_MSK;
@@ -51,7 +74,12 @@ static uint64_t gcr_read(void *opaque, hwaddr addr, unsigned size)
 /* Write GCR registers */
 static void gcr_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
+    MIPSGCRState *gcr = (MIPSGCRState *)opaque;
+
     switch (addr) {
+    case GCR_CPC_BASE_OFS:
+        update_cpc_base(gcr, data);
+        break;
     default:
         qemu_log_mask(LOG_UNIMP, "Write %d bytes at GCR offset 0x%" HWADDR_PRIx
                       " 0x%" PRIx64 "\n", size, addr, data);
@@ -73,10 +101,33 @@ static void mips_gcr_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     MIPSGCRState *s = MIPS_GCR(obj);
 
+    object_property_add_link(obj, "cpc", TYPE_MEMORY_REGION,
+                             (Object **)&s->cpc_mr,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &error_abort);
+
     memory_region_init_io(&s->iomem, OBJECT(s), &gcr_ops, s,
                           "mips-gcr", GCR_ADDRSPACE_SZ);
     sysbus_init_mmio(sbd, &s->iomem);
 }
+
+static void mips_gcr_reset(DeviceState *dev)
+{
+    MIPSGCRState *s = MIPS_GCR(dev);
+
+    update_cpc_base(s, 0);
+}
+
+static const VMStateDescription vmstate_mips_gcr = {
+    .name = "mips-gcr",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(cpc_base, MIPSGCRState),
+        VMSTATE_END_OF_LIST()
+    },
+};
 
 static Property mips_gcr_properties[] = {
     DEFINE_PROP_INT32("num-vp", MIPSGCRState, num_vps, 1),
@@ -89,6 +140,8 @@ static void mips_gcr_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->props = mips_gcr_properties;
+    dc->vmsd = &vmstate_mips_gcr;
+    dc->reset = mips_gcr_reset;
 }
 
 static const TypeInfo mips_gcr_info = {
