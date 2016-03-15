@@ -26,6 +26,7 @@
 #include "migration/migration.h"
 #include "qemu/error-report.h"
 #include "qemu/event_notifier.h"
+#include "qom/object_interfaces.h"
 #include "sysemu/char.h"
 #include "sysemu/hostmem.h"
 #include "qapi/visitor.h"
@@ -367,31 +368,6 @@ static int check_shm_size(IVShmemState *s, int fd, Error **errp)
     } else {
         return 0;
     }
-}
-
-/* create the shared memory BAR when we are not using the server, so we can
- * create the BAR and map the memory immediately */
-static int create_shared_memory_BAR(IVShmemState *s, int fd, uint8_t attr,
-                                    Error **errp)
-{
-    void * ptr;
-
-    ptr = mmap(0, s->ivshmem_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
-    if (ptr == MAP_FAILED) {
-        error_setg_errno(errp, errno, "Failed to mmap shared memory");
-        return -1;
-    }
-
-    memory_region_init_ram_ptr(&s->ivshmem, OBJECT(s), "ivshmem.bar2",
-                               s->ivshmem_size, ptr);
-    qemu_set_ram_fd(memory_region_get_ram_addr(&s->ivshmem), fd);
-    vmstate_register_ram(&s->ivshmem, DEVICE(s));
-    memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
-
-    /* region for shared memory */
-    pci_register_bar(PCI_DEVICE(s), 2, attr, &s->bar);
-
-    return 0;
 }
 
 static void ivshmem_add_eventfd(IVShmemState *s, int posn, int i)
@@ -837,6 +813,23 @@ static void ivshmem_write_config(PCIDevice *pdev, uint32_t address,
     }
 }
 
+static void desugar_shm(IVShmemState *s)
+{
+    Object *obj;
+    char *path;
+
+    obj = object_new("memory-backend-file");
+    path = g_strdup_printf("/dev/shm/%s", s->shmobj);
+    object_property_set_str(obj, path, "mem-path", &error_abort);
+    g_free(path);
+    object_property_set_int(obj, s->ivshmem_size, "size", &error_abort);
+    object_property_set_bool(obj, true, "share", &error_abort);
+    object_property_add_child(OBJECT(s), "internal-shm-backend", obj,
+                              &error_abort);
+    user_creatable_complete(obj, &error_abort);
+    s->hostmem = MEMORY_BACKEND(obj);
+}
+
 static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
 {
     IVShmemState *s = IVSHMEM(dev);
@@ -915,6 +908,10 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         attr |= PCI_BASE_ADDRESS_MEM_TYPE_64;
     }
 
+    if (s->shmobj) {
+        desugar_shm(s);
+    }
+
     if (s->hostmem != NULL) {
         MemoryRegion *mr;
 
@@ -925,7 +922,7 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         vmstate_register_ram(mr, DEVICE(s));
         memory_region_add_subregion(&s->bar, 0, mr);
         pci_register_bar(PCI_DEVICE(s), 2, attr, &s->bar);
-    } else if (s->server_chr != NULL) {
+    } else {
         IVSHMEM_DPRINTF("using shared memory server (socket = %s)\n",
                         s->server_chr->filename);
 
@@ -950,36 +947,6 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
 
         if (ivshmem_setup_interrupts(s) < 0) {
             error_setg(errp, "failed to initialize interrupts");
-            return;
-        }
-    } else {
-        /* just map the file immediately, we're not using a server */
-        int fd;
-
-        IVSHMEM_DPRINTF("using shm_open (shm object = %s)\n", s->shmobj);
-
-        /* try opening with O_EXCL and if it succeeds zero the memory
-         * by truncating to 0 */
-        if ((fd = shm_open(s->shmobj, O_CREAT|O_RDWR|O_EXCL,
-                        S_IRWXU|S_IRWXG|S_IRWXO)) > 0) {
-           /* truncate file to length PCI device's memory */
-            if (ftruncate(fd, s->ivshmem_size) != 0) {
-                error_report("could not truncate shared file");
-            }
-
-        } else if ((fd = shm_open(s->shmobj, O_CREAT|O_RDWR,
-                        S_IRWXU|S_IRWXG|S_IRWXO)) < 0) {
-            error_setg(errp, "could not open shared file");
-            return;
-        }
-
-        if (check_shm_size(s, fd, errp) == -1) {
-            return;
-        }
-
-        create_shared_memory_BAR(s, fd, attr, &err);
-        if (err) {
-            error_propagate(errp, err);
             return;
         }
     }
