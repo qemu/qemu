@@ -76,7 +76,7 @@
 #define CPUArchState struct CPUPPCState
 
 #include "exec/cpu-defs.h"
-
+#include "cpu-qom.h"
 #include "fpu/softfloat.h"
 
 #if defined (TARGET_PPC64)
@@ -84,93 +84,6 @@
 #else
 #define PPC_ELF_MACHINE     EM_PPC
 #endif
-
-/*****************************************************************************/
-/* MMU model                                                                 */
-typedef enum powerpc_mmu_t powerpc_mmu_t;
-enum powerpc_mmu_t {
-    POWERPC_MMU_UNKNOWN    = 0x00000000,
-    /* Standard 32 bits PowerPC MMU                            */
-    POWERPC_MMU_32B        = 0x00000001,
-    /* PowerPC 6xx MMU with software TLB                       */
-    POWERPC_MMU_SOFT_6xx   = 0x00000002,
-    /* PowerPC 74xx MMU with software TLB                      */
-    POWERPC_MMU_SOFT_74xx  = 0x00000003,
-    /* PowerPC 4xx MMU with software TLB                       */
-    POWERPC_MMU_SOFT_4xx   = 0x00000004,
-    /* PowerPC 4xx MMU with software TLB and zones protections */
-    POWERPC_MMU_SOFT_4xx_Z = 0x00000005,
-    /* PowerPC MMU in real mode only                           */
-    POWERPC_MMU_REAL       = 0x00000006,
-    /* Freescale MPC8xx MMU model                              */
-    POWERPC_MMU_MPC8xx     = 0x00000007,
-    /* BookE MMU model                                         */
-    POWERPC_MMU_BOOKE      = 0x00000008,
-    /* BookE 2.06 MMU model                                    */
-    POWERPC_MMU_BOOKE206   = 0x00000009,
-    /* PowerPC 601 MMU model (specific BATs format)            */
-    POWERPC_MMU_601        = 0x0000000A,
-#if defined(TARGET_PPC64)
-#define POWERPC_MMU_64       0x00010000
-#define POWERPC_MMU_1TSEG    0x00020000
-#define POWERPC_MMU_AMR      0x00040000
-    /* 64 bits PowerPC MMU                                     */
-    POWERPC_MMU_64B        = POWERPC_MMU_64 | 0x00000001,
-    /* Architecture 2.03 and later (has LPCR) */
-    POWERPC_MMU_2_03       = POWERPC_MMU_64 | 0x00000002,
-    /* Architecture 2.06 variant                               */
-    POWERPC_MMU_2_06       = POWERPC_MMU_64 | POWERPC_MMU_1TSEG
-                             | POWERPC_MMU_AMR | 0x00000003,
-    /* Architecture 2.06 "degraded" (no 1T segments)           */
-    POWERPC_MMU_2_06a      = POWERPC_MMU_64 | POWERPC_MMU_AMR
-                             | 0x00000003,
-    /* Architecture 2.07 variant                               */
-    POWERPC_MMU_2_07       = POWERPC_MMU_64 | POWERPC_MMU_1TSEG
-                             | POWERPC_MMU_AMR | 0x00000004,
-    /* Architecture 2.07 "degraded" (no 1T segments)           */
-    POWERPC_MMU_2_07a      = POWERPC_MMU_64 | POWERPC_MMU_AMR
-                             | 0x00000004,
-#endif /* defined(TARGET_PPC64) */
-};
-
-/*****************************************************************************/
-/* Exception model                                                           */
-typedef enum powerpc_excp_t powerpc_excp_t;
-enum powerpc_excp_t {
-    POWERPC_EXCP_UNKNOWN   = 0,
-    /* Standard PowerPC exception model */
-    POWERPC_EXCP_STD,
-    /* PowerPC 40x exception model      */
-    POWERPC_EXCP_40x,
-    /* PowerPC 601 exception model      */
-    POWERPC_EXCP_601,
-    /* PowerPC 602 exception model      */
-    POWERPC_EXCP_602,
-    /* PowerPC 603 exception model      */
-    POWERPC_EXCP_603,
-    /* PowerPC 603e exception model     */
-    POWERPC_EXCP_603E,
-    /* PowerPC G2 exception model       */
-    POWERPC_EXCP_G2,
-    /* PowerPC 604 exception model      */
-    POWERPC_EXCP_604,
-    /* PowerPC 7x0 exception model      */
-    POWERPC_EXCP_7x0,
-    /* PowerPC 7x5 exception model      */
-    POWERPC_EXCP_7x5,
-    /* PowerPC 74xx exception model     */
-    POWERPC_EXCP_74xx,
-    /* BookE exception model            */
-    POWERPC_EXCP_BOOKE,
-#if defined(TARGET_PPC64)
-    /* PowerPC 970 exception model      */
-    POWERPC_EXCP_970,
-    /* POWER7 exception model           */
-    POWERPC_EXCP_POWER7,
-    /* POWER8 exception model           */
-    POWERPC_EXCP_POWER8,
-#endif /* defined(TARGET_PPC64) */
-};
 
 /*****************************************************************************/
 /* Exception vectors definitions                                             */
@@ -297,27 +210,6 @@ enum {
     POWERPC_EXCP_TRAP          = 0x40,
 };
 
-/*****************************************************************************/
-/* Input pins model                                                          */
-typedef enum powerpc_input_t powerpc_input_t;
-enum powerpc_input_t {
-    PPC_FLAGS_INPUT_UNKNOWN = 0,
-    /* PowerPC 6xx bus                  */
-    PPC_FLAGS_INPUT_6xx,
-    /* BookE bus                        */
-    PPC_FLAGS_INPUT_BookE,
-    /* PowerPC 405 bus                  */
-    PPC_FLAGS_INPUT_405,
-    /* PowerPC 970 bus                  */
-    PPC_FLAGS_INPUT_970,
-    /* PowerPC POWER7 bus               */
-    PPC_FLAGS_INPUT_POWER7,
-    /* PowerPC 401 bus                  */
-    PPC_FLAGS_INPUT_401,
-    /* Freescale RCPU bus               */
-    PPC_FLAGS_INPUT_RCPU,
-};
-
 #define PPC_INPUT(env) (env->bus_model)
 
 /*****************************************************************************/
@@ -325,11 +217,8 @@ typedef struct opc_handler_t opc_handler_t;
 
 /*****************************************************************************/
 /* Types used to describe some PowerPC registers */
-typedef struct CPUPPCState CPUPPCState;
 typedef struct DisasContext DisasContext;
-typedef struct ppc_tb_t ppc_tb_t;
 typedef struct ppc_spr_t ppc_spr_t;
-typedef struct ppc_dcr_t ppc_dcr_t;
 typedef union ppc_avr_t ppc_avr_t;
 typedef union ppc_tlb_t ppc_tlb_t;
 
@@ -1215,7 +1104,57 @@ do {                                            \
     env->wdt_period[3] = (d_);                  \
  } while (0)
 
-#include "cpu-qom.h"
+/**
+ * PowerPCCPU:
+ * @env: #CPUPPCState
+ * @cpu_dt_id: CPU index used in the device tree. KVM uses this index too
+ * @max_compat: Maximal supported logical PVR from the command line
+ * @cpu_version: Current logical PVR, zero if in "raw" mode
+ *
+ * A PowerPC CPU.
+ */
+struct PowerPCCPU {
+    /*< private >*/
+    CPUState parent_obj;
+    /*< public >*/
+
+    CPUPPCState env;
+    int cpu_dt_id;
+    uint32_t max_compat;
+    uint32_t cpu_version;
+};
+
+static inline PowerPCCPU *ppc_env_get_cpu(CPUPPCState *env)
+{
+    return container_of(env, PowerPCCPU, env);
+}
+
+#define ENV_GET_CPU(e) CPU(ppc_env_get_cpu(e))
+
+#define ENV_OFFSET offsetof(PowerPCCPU, env)
+
+PowerPCCPUClass *ppc_cpu_class_by_pvr(uint32_t pvr);
+PowerPCCPUClass *ppc_cpu_class_by_pvr_mask(uint32_t pvr);
+
+void ppc_cpu_do_interrupt(CPUState *cpu);
+bool ppc_cpu_exec_interrupt(CPUState *cpu, int int_req);
+void ppc_cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                        int flags);
+void ppc_cpu_dump_statistics(CPUState *cpu, FILE *f,
+                             fprintf_function cpu_fprintf, int flags);
+int ppc_cpu_get_monitor_def(CPUState *cs, const char *name,
+                            uint64_t *pval);
+hwaddr ppc_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+int ppc_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int ppc_cpu_gdb_read_register_apple(CPUState *cpu, uint8_t *buf, int reg);
+int ppc_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+int ppc_cpu_gdb_write_register_apple(CPUState *cpu, uint8_t *buf, int reg);
+int ppc64_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
+                               int cpuid, void *opaque);
+#ifndef CONFIG_USER_ONLY
+void ppc_cpu_do_system_reset(CPUState *cs);
+extern const struct VMStateDescription vmstate_ppc_cpu;
+#endif
 
 /*****************************************************************************/
 PowerPCCPU *cpu_ppc_init(const char *cpu_model);
