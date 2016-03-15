@@ -38,7 +38,7 @@
 /* Be nice and tell them it's just a pseudo-ping packet */
 static const char icmp_ping_msg[] = "This is a pseudo-PING packet used by Slirp to emulate ICMP ECHO-REQUEST packets.\n";
 
-/* list of actions for icmp_error() on RX of an icmp message */
+/* list of actions for icmp_send_error() on RX of an icmp message */
 static const int icmp_flush[19] = {
 /*  ECHO REPLY (0)  */   0,
 		         1,
@@ -101,7 +101,7 @@ static int icmp_send(struct socket *so, struct mbuf *m, int hlen)
                (struct sockaddr *)&addr, sizeof(addr)) == -1) {
         DEBUG_MISC((dfd, "icmp_input icmp sendto tx errno = %d-%s\n",
                     errno, strerror(errno)));
-        icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_NET, 0, strerror(errno));
+        icmp_send_error(m, ICMP_UNREACH, ICMP_UNREACH_NET, 0, strerror(errno));
         icmp_detach(so);
     }
 
@@ -189,7 +189,7 @@ icmp_input(struct mbuf *m, int hlen)
 		(struct sockaddr *)&addr, sizeof(addr)) == -1) {
 	DEBUG_MISC((dfd,"icmp_input udp sendto tx errno = %d-%s\n",
 		    errno,strerror(errno)));
-	icmp_error(m, ICMP_UNREACH,ICMP_UNREACH_NET, 0,strerror(errno));
+	icmp_send_error(m, ICMP_UNREACH, ICMP_UNREACH_NET, 0, strerror(errno));
 	udp_detach(so);
       }
     } /* if ip->ip_dst.s_addr == alias_addr.s_addr */
@@ -235,7 +235,7 @@ end_error:
 
 #define ICMP_MAXDATALEN (IP_MSS-28)
 void
-icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
+icmp_send_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
            const char *message)
 {
   unsigned hlen, shlen, s_ip_len;
@@ -243,7 +243,7 @@ icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
   register struct icmp *icp;
   register struct mbuf *m;
 
-  DEBUG_CALL("icmp_error");
+  DEBUG_CALL("icmp_send_error");
   DEBUG_ARG("msrc = %p", msrc);
   DEBUG_ARG("msrc_len = %d", msrc->m_len);
 
@@ -433,7 +433,7 @@ void icmp_receive(struct socket *so)
         }
         DEBUG_MISC((dfd, " udp icmp rx errno = %d-%s\n", errno,
                     strerror(errno)));
-        icmp_error(so->so_m, ICMP_UNREACH, error_code, 0, strerror(errno));
+        icmp_send_error(so->so_m, ICMP_UNREACH, error_code, 0, strerror(errno));
     } else {
         icmp_reflect(so->so_m);
         so->so_m = NULL; /* Don't m_free() it again! */

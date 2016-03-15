@@ -604,7 +604,7 @@ findso:
 	      m->m_data -= sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
 	      m->m_len  += sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
 	      *ip=save_ip;
-	      icmp_error(m, ICMP_UNREACH,code, 0,strerror(errno));
+	      icmp_send_error(m, ICMP_UNREACH, code, 0, strerror(errno));
 	    }
             tcp_close(tp);
 	    m_free(m);

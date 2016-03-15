@@ -41,7 +41,7 @@ void ip6_input(struct mbuf *m)
 
     /* check ip_ttl for a correct ICMP reply */
     if (ip6->ip_hl == 0) {
-        /*icmp_error(m, ICMP_TIMXCEED,ICMP_TIMXCEED_INTRANS, 0,"ttl");*/
+        /*icmp_send_error(m, ICMP_TIMXCEED,ICMP_TIMXCEED_INTRANS, 0,"ttl");*/
         goto bad;
     }
 
