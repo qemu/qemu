@@ -25,6 +25,7 @@
 #define CPUArchState struct CPULM32State
 
 #include "qemu-common.h"
+#include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 struct CPULM32State;
 typedef struct CPULM32State CPULM32State;
@@ -180,6 +181,47 @@ struct CPULM32State {
 
 };
 
+/**
+ * LM32CPU:
+ * @env: #CPULM32State
+ *
+ * A LatticeMico32 CPU.
+ */
+struct LM32CPU {
+    /*< private >*/
+    CPUState parent_obj;
+    /*< public >*/
+
+    CPULM32State env;
+
+    uint32_t revision;
+    uint8_t num_interrupts;
+    uint8_t num_breakpoints;
+    uint8_t num_watchpoints;
+    uint32_t features;
+};
+
+static inline LM32CPU *lm32_env_get_cpu(CPULM32State *env)
+{
+    return container_of(env, LM32CPU, env);
+}
+
+#define ENV_GET_CPU(e) CPU(lm32_env_get_cpu(e))
+
+#define ENV_OFFSET offsetof(LM32CPU, env)
+
+#ifndef CONFIG_USER_ONLY
+extern const struct VMStateDescription vmstate_lm32_cpu;
+#endif
+
+void lm32_cpu_do_interrupt(CPUState *cpu);
+bool lm32_cpu_exec_interrupt(CPUState *cs, int int_req);
+void lm32_cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                         int flags);
+hwaddr lm32_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+int lm32_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int lm32_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+
 typedef enum {
     LM32_WP_DISABLED = 0,
     LM32_WP_READ,
@@ -192,8 +234,6 @@ static inline lm32_wp_t lm32_wp_type(uint32_t dc, int idx)
     assert(idx < 4);
     return (dc >> (idx+1)*2) & 0x3;
 }
-
-#include "cpu-qom.h"
 
 LM32CPU *cpu_lm32_init(const char *cpu_model);
 int cpu_lm32_exec(CPUState *cpu);
