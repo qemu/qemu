@@ -39,7 +39,7 @@
 #define PCI_VENDOR_ID_IVSHMEM   PCI_VENDOR_ID_REDHAT_QUMRANET
 #define PCI_DEVICE_ID_IVSHMEM   0x1110
 
-#define IVSHMEM_MAX_PEERS G_MAXUINT16
+#define IVSHMEM_MAX_PEERS UINT16_MAX
 #define IVSHMEM_IOEVENTFD   0
 #define IVSHMEM_MSI     1
 
@@ -93,7 +93,7 @@ typedef struct IVShmemState {
     uint32_t ivshmem_64bit;
 
     Peer *peers;
-    int nb_peers; /* how many peers we have space for */
+    int nb_peers;               /* space in @peers[] */
 
     int vm_id;
     uint32_t vectors;
@@ -451,34 +451,21 @@ static void close_peer_eventfds(IVShmemState *s, int posn)
     s->peers[posn].nb_eventfds = 0;
 }
 
-/* this function increase the dynamic storage need to store data about other
- * peers */
-static int resize_peers(IVShmemState *s, int new_min_size)
+static void resize_peers(IVShmemState *s, int nb_peers)
 {
+    int old_nb_peers = s->nb_peers;
+    int i;
 
-    int j, old_size;
+    assert(nb_peers > old_nb_peers);
+    IVSHMEM_DPRINTF("bumping storage to %d peers\n", nb_peers);
 
-    /* limit number of max peers */
-    if (new_min_size <= 0 || new_min_size > IVSHMEM_MAX_PEERS) {
-        return -1;
+    s->peers = g_realloc(s->peers, nb_peers * sizeof(Peer));
+    s->nb_peers = nb_peers;
+
+    for (i = old_nb_peers; i < nb_peers; i++) {
+        s->peers[i].eventfds = g_new0(EventNotifier, s->vectors);
+        s->peers[i].nb_eventfds = 0;
     }
-    if (new_min_size <= s->nb_peers) {
-        return 0;
-    }
-
-    old_size = s->nb_peers;
-    s->nb_peers = new_min_size;
-
-    IVSHMEM_DPRINTF("bumping storage to %d peers\n", s->nb_peers);
-
-    s->peers = g_realloc(s->peers, s->nb_peers * sizeof(Peer));
-
-    for (j = old_size; j < s->nb_peers; j++) {
-        s->peers[j].eventfds = g_new0(EventNotifier, s->vectors);
-        s->peers[j].nb_eventfds = 0;
-    }
-
-    return 0;
 }
 
 static bool fifo_update_and_get(IVShmemState *s, const uint8_t *buf, int size,
@@ -590,25 +577,21 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
         return;
     }
 
-    if (incoming_posn < -1) {
-        IVSHMEM_DPRINTF("invalid incoming_posn %" PRId64 "\n", incoming_posn);
-        return;
-    }
-
-    /* pick off s->server_chr->msgfd and store it, posn should accompany msg */
     incoming_fd = qemu_chr_fe_get_msgfd(s->server_chr);
     IVSHMEM_DPRINTF("posn is %" PRId64 ", fd is %d\n",
                     incoming_posn, incoming_fd);
 
-    /* make sure we have enough space for this peer */
-    if (incoming_posn >= s->nb_peers) {
-        if (resize_peers(s, incoming_posn + 1) < 0) {
-            error_report("failed to resize peers array");
-            if (incoming_fd != -1) {
-                close(incoming_fd);
-            }
-            return;
+    if (incoming_posn < -1 || incoming_posn > IVSHMEM_MAX_PEERS) {
+        error_report("server sent invalid message %" PRId64,
+                     incoming_posn);
+        if (incoming_fd != -1) {
+            close(incoming_fd);
         }
+        return;
+    }
+
+    if (incoming_posn >= s->nb_peers) {
+        resize_peers(s, incoming_posn + 1);
     }
 
     peer = &s->peers[incoming_posn];
