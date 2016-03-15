@@ -21,6 +21,7 @@
 #define CPU_CRIS_H
 
 #include "qemu-common.h"
+#include "cpu-qom.h"
 
 #define TARGET_LONG_BITS 32
 
@@ -171,7 +172,45 @@ typedef struct CPUCRISState {
     void *load_info;
 } CPUCRISState;
 
-#include "cpu-qom.h"
+/**
+ * CRISCPU:
+ * @env: #CPUCRISState
+ *
+ * A CRIS CPU.
+ */
+struct CRISCPU {
+    /*< private >*/
+    CPUState parent_obj;
+    /*< public >*/
+
+    CPUCRISState env;
+};
+
+static inline CRISCPU *cris_env_get_cpu(CPUCRISState *env)
+{
+    return container_of(env, CRISCPU, env);
+}
+
+#define ENV_GET_CPU(e) CPU(cris_env_get_cpu(e))
+
+#define ENV_OFFSET offsetof(CRISCPU, env)
+
+#ifndef CONFIG_USER_ONLY
+extern const struct VMStateDescription vmstate_cris_cpu;
+#endif
+
+void cris_cpu_do_interrupt(CPUState *cpu);
+void crisv10_cpu_do_interrupt(CPUState *cpu);
+bool cris_cpu_exec_interrupt(CPUState *cpu, int int_req);
+
+void cris_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                         int flags);
+
+hwaddr cris_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+
+int crisv10_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int cris_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int cris_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 
 CRISCPU *cpu_cris_init(const char *cpu_model);
 int cpu_cris_exec(CPUState *cpu);
