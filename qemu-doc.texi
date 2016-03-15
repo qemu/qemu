@@ -1311,7 +1311,7 @@ Instead of specifying the <shm size> using POSIX shm, you may specify
 a memory backend that has hugepage support:
 
 @example
-qemu-system-i386 -object memory-backend-file,size=1G,mem-path=/mnt/hugepages/my-shmem-file,id=mb1
+qemu-system-i386 -object memory-backend-file,size=1G,mem-path=/dev/hugepages/my-shmem-file,share,id=mb1
                  -device ivshmem,x-memdev=mb1
 @end example
 
