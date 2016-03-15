@@ -301,7 +301,6 @@ static void test_ivshmem_server(bool msi)
     int nvectors = 2;
     guint64 end_time = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
 
-    memset(tmpshmem, 0x42, TMPSHMSIZE);
     ret = ivshmem_server_init(&server, tmpserver, tmpshm, true,
                               TMPSHMSIZE, nvectors,
                               g_test_verbose());
@@ -315,9 +314,9 @@ static void test_ivshmem_server(bool msi)
     setup_vm_with_server(&state2, nvectors, msi);
     s2 = &state2;
 
+    /* check state before server sends stuff */
     g_assert_cmpuint(in_reg(s1, IVPOSITION), ==, 0xffffffff);
     g_assert_cmpuint(in_reg(s2, IVPOSITION), ==, 0xffffffff);
-
     g_assert_cmpuint(qtest_readb(s1->qtest, (uintptr_t)s1->mem_base), ==, 0x00);
 
     thread.server = &server;
@@ -326,12 +325,11 @@ static void test_ivshmem_server(bool msi)
     thread.thread = g_thread_new("ivshmem-server", server_thread, &thread);
     g_assert(thread.thread != NULL);
 
-    /* waiting until mapping is done */
+    /* waiting for devices to become operational */
     while (g_get_monotonic_time() < end_time) {
         g_usleep(1000);
-
-        if (qtest_readb(s1->qtest, (uintptr_t)s1->mem_base) == 0x42 &&
-            qtest_readb(s2->qtest, (uintptr_t)s2->mem_base) == 0x42) {
+        if ((int)in_reg(s1, IVPOSITION) >= 0 &&
+            (int)in_reg(s2, IVPOSITION) >= 0) {
             break;
         }
     }
