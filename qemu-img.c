@@ -59,8 +59,7 @@ typedef enum OutputFormat {
     OFORMAT_HUMAN,
 } OutputFormat;
 
-/* Default to cache=writeback as data integrity is not important for qemu-tcg. */
-#define BDRV_O_FLAGS BDRV_O_CACHE_WB
+/* Default to cache=writeback as data integrity is not important for qemu-img */
 #define BDRV_DEFAULT_CACHE "writeback"
 
 static void format_print(void *opaque, const char *name)
@@ -462,7 +461,7 @@ static int img_create(int argc, char **argv)
     }
 
     bdrv_img_create(filename, fmt, base_filename, base_fmt,
-                    options, img_size, BDRV_O_FLAGS, &local_err, quiet);
+                    options, img_size, BDRV_O_CACHE_WB, &local_err, quiet);
     if (local_err) {
         error_reportf_err(local_err, "%s: ", filename);
         goto fail;
@@ -592,7 +591,7 @@ static int img_check(int argc, char **argv)
     BlockBackend *blk;
     BlockDriverState *bs;
     int fix = 0;
-    int flags = BDRV_O_FLAGS | BDRV_O_CHECK;
+    int flags = BDRV_O_CACHE_WB | BDRV_O_CHECK;
     ImageCheck *check;
     bool quiet = false;
     Error *local_err = NULL;
@@ -1204,7 +1203,7 @@ static int img_compare(int argc, char **argv)
     /* Initialize before goto out */
     qemu_progress_init(progress, 2.0);
 
-    flags = BDRV_O_FLAGS;
+    flags = BDRV_O_CACHE_WB;
     ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid source cache option: %s", cache);
@@ -1884,7 +1883,7 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
-    src_flags = BDRV_O_FLAGS;
+    src_flags = BDRV_O_CACHE_WB;
     ret = bdrv_parse_cache_flags(src_cache, &src_flags);
     if (ret < 0) {
         error_report("Invalid source cache option: %s", src_cache);
@@ -2237,7 +2236,7 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
         g_hash_table_insert(filenames, (gpointer)filename, NULL);
 
         blk = img_open(image_opts, filename, fmt,
-                       BDRV_O_FLAGS | BDRV_O_NO_BACKING | BDRV_O_NO_IO,
+                       BDRV_O_CACHE_WB | BDRV_O_NO_BACKING | BDRV_O_NO_IO,
                        false);
         if (!blk) {
             goto err;
@@ -2568,7 +2567,7 @@ static int img_map(int argc, char **argv)
         return 1;
     }
 
-    blk = img_open(image_opts, filename, fmt, BDRV_O_FLAGS, false);
+    blk = img_open(image_opts, filename, fmt, BDRV_O_CACHE_WB, false);
     if (!blk) {
         return 1;
     }
@@ -2632,7 +2631,7 @@ static int img_snapshot(int argc, char **argv)
     Error *err = NULL;
     bool image_opts = false;
 
-    bdrv_oflags = BDRV_O_FLAGS | BDRV_O_RDWR;
+    bdrv_oflags = BDRV_O_CACHE_WB | BDRV_O_RDWR;
     /* Parse commandline parameters */
     for(;;) {
         static const struct option long_options[] = {
@@ -2871,7 +2870,7 @@ static int img_rebase(int argc, char **argv)
         goto out;
     }
 
-    src_flags = BDRV_O_FLAGS;
+    src_flags = BDRV_O_CACHE_WB;
     ret = bdrv_parse_cache_flags(src_cache, &src_flags);
     if (ret < 0) {
         error_report("Invalid source cache option: %s", src_cache);
@@ -3222,7 +3221,7 @@ static int img_resize(int argc, char **argv)
     qemu_opts_del(param);
 
     blk = img_open(image_opts, filename, fmt,
-                   BDRV_O_FLAGS | BDRV_O_RDWR, quiet);
+                   BDRV_O_CACHE_WB | BDRV_O_RDWR, quiet);
     if (!blk) {
         ret = -1;
         goto out;
@@ -3374,7 +3373,7 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
-    flags = BDRV_O_FLAGS | BDRV_O_RDWR;
+    flags = BDRV_O_CACHE_WB | BDRV_O_RDWR;
     ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
