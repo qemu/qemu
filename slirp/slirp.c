@@ -201,9 +201,11 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id);
 
 Slirp *slirp_init(int restricted, struct in_addr vnetwork,
                   struct in_addr vnetmask, struct in_addr vhost,
-                  const char *vhostname, const char *tftp_path,
-                  const char *bootfile, struct in_addr vdhcp_start,
-                  struct in_addr vnameserver, const char **vdnssearch,
+                  struct in6_addr vprefix_addr6, uint8_t vprefix_len,
+                  struct in6_addr vhost6, const char *vhostname,
+                  const char *tftp_path, const char *bootfile,
+                  struct in_addr vdhcp_start, struct in_addr vnameserver,
+                  struct in6_addr vnameserver6, const char **vdnssearch,
                   void *opaque)
 {
     Slirp *slirp = g_malloc0(sizeof(Slirp));
@@ -223,22 +225,9 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
     slirp->vnetwork_addr = vnetwork;
     slirp->vnetwork_mask = vnetmask;
     slirp->vhost_addr = vhost;
-#if defined(_WIN32) && (_WIN32_WINNT < 0x0600)
-    /* No inet_pton helper... */
-    memset(&slirp->vprefix_addr6, 0, sizeof(slirp->vprefix_addr6));
-    slirp->vprefix_addr6.s6_addr[0] = 0xfe;
-    slirp->vprefix_addr6.s6_addr[1] = 0xc0;
-    slirp->vprefix_len = 64;
-    slirp->vhost_addr6 = slirp->vprefix_addr6;
-    slirp->vhost_addr6.s6_addr[15] = 0x2;
-    slirp->vnameserver_addr6 = slirp->vprefix_addr6;
-    slirp->vnameserver_addr6.s6_addr[15] = 0x3;
-#else
-    inet_pton(AF_INET6, "fec0::0", &slirp->vprefix_addr6);
-    slirp->vprefix_len = 64;
-    inet_pton(AF_INET6, "fec0::2", &slirp->vhost_addr6);
-    inet_pton(AF_INET6, "fec0::3", &slirp->vnameserver_addr6);
-#endif
+    slirp->vprefix_addr6 = vprefix_addr6;
+    slirp->vprefix_len = vprefix_len;
+    slirp->vhost_addr6 = vhost6;
     if (vhostname) {
         pstrcpy(slirp->client_hostname, sizeof(slirp->client_hostname),
                 vhostname);
@@ -247,6 +236,7 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
     slirp->bootp_filename = g_strdup(bootfile);
     slirp->vdhcp_startaddr = vdhcp_start;
     slirp->vnameserver_addr = vnameserver;
+    slirp->vnameserver_addr6 = vnameserver6;
 
     if (vdnssearch) {
         translate_dnssearch(slirp, vdnssearch);

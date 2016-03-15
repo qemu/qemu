@@ -2451,6 +2451,14 @@
 # @dnssearch: #optional list of DNS suffixes to search, passed as DHCP option
 #             to the guest
 #
+# @ip6-prefix: #optional IPv6 network prefix (default is fec0::) (since 2.6)
+#
+# @ip6-prefixlen: #optional IPv6 network prefix length (default is 64) (since 2.6)
+#
+# @ip6-host: #optional guest-visible IPv6 address of the host (since 2.6)
+#
+# @ip6-dns: #optional guest-visible IPv6 address of the virtual nameserver (since 2.6)
+#
 # @smb: #optional root directory of the built-in SMB server
 #
 # @smbserver: #optional IP address of the built-in SMB server
@@ -2474,6 +2482,10 @@
     '*dhcpstart': 'str',
     '*dns':       'str',
     '*dnssearch': ['String'],
+    '*ip6-prefix':      'str',
+    '*ip6-prefixlen':   'int',
+    '*ip6-host':        'str',
+    '*ip6-dns':         'str',
     '*smb':       'str',
     '*smbserver': 'str',
     '*hostfwd':   ['String'],
