@@ -200,6 +200,12 @@ main(int argc, char *argv[])
     };
     int ret = 1;
 
+    /*
+     * Do not remove this notice without adding proper error handling!
+     * Start with handling ivshmem_server_send_one_msg() failure.
+     */
+    printf("*** Example code, do not use in production ***\n");
+
     /* parse arguments, will exit on error */
     ivshmem_server_parse_args(&args, argc, argv);
 
