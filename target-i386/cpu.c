@@ -2132,6 +2132,10 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
 
     /* Special cases not set in the X86CPUDefinition structs: */
     if (kvm_enabled()) {
+        if (!kvm_irqchip_in_kernel()) {
+            x86_cpu_change_kvm_default("x2apic", "off");
+        }
+
         x86_cpu_apply_props(cpu, kvm_default_props);
     }
 
