@@ -964,15 +964,6 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         memory_region_add_subregion(&s->bar, 0, mr);
         pci_register_bar(PCI_DEVICE(s), 2, attr, &s->bar);
     } else if (s->server_chr != NULL) {
-        /* FIXME do not rely on what chr drivers put into filename */
-        if (strncmp(s->server_chr->filename, "unix:", 5)) {
-            error_setg(errp, "chardev is not a unix client socket");
-            return;
-        }
-
-        /* if we get a UNIX socket as the parameter we will talk
-         * to the ivshmem server to receive the memory region */
-
         IVSHMEM_DPRINTF("using shared memory server (socket = %s)\n",
                         s->server_chr->filename);
 
