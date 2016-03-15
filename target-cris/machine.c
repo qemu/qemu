@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/hw.h"
+#include "migration/cpu.h"
 
 static const VMStateDescription vmstate_tlbset = {
     .name = "cpu/tlbset",

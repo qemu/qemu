@@ -3,6 +3,7 @@
 #include "hw/boards.h"
 #include "hw/i386/pc.h"
 #include "hw/isa/isa.h"
+#include "migration/cpu.h"
 
 #include "cpu.h"
 #include "sysemu/kvm.h"
