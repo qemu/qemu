@@ -608,8 +608,8 @@ static void network_init(PCIBus *pci_bus)
      a3 - RAM size in bytes
 */
 
-static void write_bootloader (CPUMIPSState *env, uint8_t *base,
-                              int64_t run_addr, int64_t kernel_entry)
+static void write_bootloader(uint8_t *base, int64_t run_addr,
+                             int64_t kernel_entry)
 {
     uint32_t *p;
 
@@ -1063,11 +1063,11 @@ void mips_malta_init(MachineState *machine)
         loaderparams.initrd_filename = initrd_filename;
         kernel_entry = load_kernel();
 
-        write_bootloader(env, memory_region_get_ram_ptr(bios),
+        write_bootloader(memory_region_get_ram_ptr(bios),
                          bootloader_run_addr, kernel_entry);
         if (kvm_enabled()) {
             /* Write the bootloader code @ the end of RAM, 1MB reserved */
-            write_bootloader(env, memory_region_get_ram_ptr(ram_low_preio) +
+            write_bootloader(memory_region_get_ram_ptr(ram_low_preio) +
                                     ram_low_size,
                              bootloader_run_addr, kernel_entry);
         }
