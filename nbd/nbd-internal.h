@@ -27,6 +27,7 @@
 #include <linux/fs.h>
 #endif
 
+#include "qemu/bswap.h"
 #include "qemu/queue.h"
 #include "qemu/main-loop.h"
 

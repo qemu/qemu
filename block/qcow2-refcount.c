@@ -28,6 +28,7 @@
 #include "block/block_int.h"
 #include "block/qcow2.h"
 #include "qemu/range.h"
+#include "qemu/bswap.h"
 
 static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size);
 static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,

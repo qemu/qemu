@@ -23,8 +23,6 @@
 #include "qemu/option.h"
 #include "qemu/host-utils.h"
 
-#include "qemu/bswap.h"
-
 /* FIXME: Remove NEED_CPU_H.  */
 #ifdef NEED_CPU_H
 #include "cpu.h"

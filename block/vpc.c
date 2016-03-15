@@ -29,6 +29,7 @@
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
 #include "migration/migration.h"
+#include "qemu/bswap.h"
 #if defined(CONFIG_UUID)
 #include <uuid/uuid.h>
 #endif

@@ -26,6 +26,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/error-report.h"
 #include "qemu/config-file.h"
+#include "qemu/bswap.h"
 #include "block/snapshot.h"
 #include "qapi/util.h"
 #include "qapi/qmp/qstring.h"

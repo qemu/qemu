@@ -22,6 +22,7 @@
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
 #include "qemu/crc32c.h"
+#include "qemu/bswap.h"
 #include "block/vhdx.h"
 #include "migration/migration.h"
 

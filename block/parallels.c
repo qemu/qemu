@@ -33,6 +33,7 @@
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
+#include "qemu/bswap.h"
 #include "qemu/bitmap.h"
 #include "qapi/util.h"
 

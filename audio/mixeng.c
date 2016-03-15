@@ -24,6 +24,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/bswap.h"
 #include "audio.h"
 
 #define AUDIO_CAP "mixeng"

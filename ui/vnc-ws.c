@@ -22,6 +22,7 @@
 #include "qapi/error.h"
 #include "vnc.h"
 #include "io/channel-websock.h"
+#include "qemu/bswap.h"
 
 static void vncws_tls_handshake_done(Object *source,
                                      Error *err,

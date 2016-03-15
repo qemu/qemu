@@ -23,6 +23,7 @@
 #include "block/block_int.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qemu/bswap.h"
 #include "block/vhdx.h"
 
 

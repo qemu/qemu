@@ -15,6 +15,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
+#include "qemu/bswap.h"
 #include "trace.h"
 #include "qed.h"
 #include "qapi/qmp/qerror.h"
