@@ -29,6 +29,7 @@ typedef struct IvshmemServerArgs {
     const char *pid_file;
     const char *unix_socket_path;
     const char *shm_path;
+    bool use_shm_open;
     uint64_t shm_size;
     unsigned n_vectors;
 } IvshmemServerArgs;
@@ -44,8 +45,9 @@ ivshmem_server_usage(const char *progname)
            "     default " IVSHMEM_SERVER_DEFAULT_PID_FILE "\n"
            "  -S <unix-socket-path>: path to the unix socket to listen to\n"
            "     default " IVSHMEM_SERVER_DEFAULT_UNIX_SOCK_PATH "\n"
-           "  -m <shm-path>: POSIX shared memory object name or a hugetlbfs mount point\n"
+           "  -M <shm-name>: POSIX shared memory object to use\n"
            "     default " IVSHMEM_SERVER_DEFAULT_SHM_PATH "\n"
+           "  -m <dir-name>: where to create shared memory\n"
            "  -l <size>: size of shared memory in bytes\n"
            "     suffixes K, M and G can be used, e.g. 1K means 1024\n"
            "     default %u\n"
@@ -69,7 +71,7 @@ ivshmem_server_parse_args(IvshmemServerArgs *args, int argc, char *argv[])
     unsigned long long v;
     Error *err = NULL;
 
-    while ((c = getopt(argc, argv, "hvFp:S:m:l:n:")) != -1) {
+    while ((c = getopt(argc, argv, "hvFp:S:m:M:l:n:")) != -1) {
 
         switch (c) {
         case 'h': /* help */
@@ -93,8 +95,10 @@ ivshmem_server_parse_args(IvshmemServerArgs *args, int argc, char *argv[])
             args->unix_socket_path = optarg;
             break;
 
-        case 'm': /* shm path */
+        case 'M': /* shm name */
+        case 'm': /* dir name */
             args->shm_path = optarg;
+            args->use_shm_open = c == 'M';
             break;
 
         case 'l': /* shm size */
@@ -190,6 +194,7 @@ main(int argc, char *argv[])
         .pid_file = IVSHMEM_SERVER_DEFAULT_PID_FILE,
         .unix_socket_path = IVSHMEM_SERVER_DEFAULT_UNIX_SOCK_PATH,
         .shm_path = IVSHMEM_SERVER_DEFAULT_SHM_PATH,
+        .use_shm_open = true,
         .shm_size = IVSHMEM_SERVER_DEFAULT_SHM_SIZE,
         .n_vectors = IVSHMEM_SERVER_DEFAULT_N_VECTORS,
     };
@@ -217,7 +222,8 @@ main(int argc, char *argv[])
     }
 
     /* init the ivshms structure */
-    if (ivshmem_server_init(&server, args.unix_socket_path, args.shm_path,
+    if (ivshmem_server_init(&server, args.unix_socket_path,
+                            args.shm_path, args.use_shm_open,
                             args.shm_size, args.n_vectors, args.verbose) < 0) {
         fprintf(stderr, "cannot init server\n");
         goto err;

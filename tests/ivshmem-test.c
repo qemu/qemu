@@ -294,7 +294,7 @@ static void test_ivshmem_server(bool msi)
     guint64 end_time = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
 
     memset(tmpshmem, 0x42, TMPSHMSIZE);
-    ret = ivshmem_server_init(&server, tmpserver, tmpshm,
+    ret = ivshmem_server_init(&server, tmpserver, tmpshm, true,
                               TMPSHMSIZE, nvectors,
                               g_test_verbose());
     g_assert_cmpint(ret, ==, 0);
