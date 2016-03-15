@@ -62,11 +62,11 @@ There are two ways to use this device:
   likely want to write a kernel driver to handle interrupts.  Requires
   the device to be configured for interrupts, obviously.
 
-If the device is configured for interrupts, BAR2 is initially invalid.
-It becomes safely accessible only after the ivshmem server provided
-the shared memory.  Guest software should wait for the IVPosition
-register (described below) to become non-negative before accessing
-BAR2.
+Before QEMU 2.6.0, BAR2 can initially be invalid if the device is
+configured for interrupts.  It becomes safely accessible only after
+the ivshmem server provided the shared memory.  Guest software should
+wait for the IVPosition register (described below) to become
+non-negative before accessing BAR2.
 
 The device is not capable to tell guest software whether it is
 configured for interrupts.
@@ -82,7 +82,7 @@ BAR 0 contains the following registers:
         4     4   read/write        0   Interrupt Status
                                         bit 0: peer interrupt
                                         bit 1..31: reserved
-        8     4   read-only   0 or -1   IVPosition
+        8     4   read-only   0 or ID   IVPosition
        12     4   write-only      N/A   Doorbell
                                         bit 0..15: vector
                                         bit 16..31: peer ID
@@ -100,12 +100,14 @@ when an interrupt request from a peer is received.  Reading the
 register clears it.
 
 IVPosition Register: if the device is not configured for interrupts,
-this is zero.  Else, it's -1 for a short while after reset, then
-changes to the device's ID (between 0 and 65535).
+this is zero.  Else, it is the device's ID (between 0 and 65535).
+
+Before QEMU 2.6.0, the register may read -1 for a short while after
+reset.
 
 There is no good way for software to find out whether the device is
 configured for interrupts.  A positive IVPosition means interrupts,
-but zero could be either.  The initial -1 cannot be reliably observed.
+but zero could be either.
 
 Doorbell Register: writing this register requests to interrupt a peer.
 The written value's high 16 bits are the ID of the peer to interrupt,

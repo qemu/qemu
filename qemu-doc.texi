@@ -1289,14 +1289,7 @@ qemu-system-i386 -device ivshmem,size=@var{shm-size},vectors=@var{vectors},chard
 
 When using the server, the guest will be assigned a VM ID (>=0) that allows guests
 using the same server to communicate via interrupts.  Guests can read their
-VM ID from a device register (see example code).  Since receiving the shared
-memory region from the server is asynchronous, there is a (small) chance the
-guest may boot before the shared memory is attached.  To allow an application
-to ensure shared memory is attached, the VM ID register will return -1 (an
-invalid VM ID) until the memory is attached.  Once the shared memory is
-attached, the VM ID will return the guest's valid VM ID.  With these semantics,
-the guest application can check to ensure the shared memory is attached to the
-guest before proceeding.
+VM ID from a device register (see ivshmem-spec.txt).
 
 The @option{role} argument can be set to either master or peer and will affect
 how the shared memory is migrated.  With @option{role=master}, the guest will

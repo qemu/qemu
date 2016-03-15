@@ -234,12 +234,7 @@ static uint64_t ivshmem_io_read(void *opaque, hwaddr addr,
             break;
 
         case IVPOSITION:
-            /* return my VM ID if the memory is mapped */
-            if (memory_region_is_mapped(&s->ivshmem)) {
-                ret = s->vm_id;
-            } else {
-                ret = -1;
-            }
+            ret = s->vm_id;
             break;
 
         default:
@@ -511,7 +506,8 @@ static bool fifo_update_and_get_i64(IVShmemState *s,
     return false;
 }
 
-static int ivshmem_add_kvm_msi_virq(IVShmemState *s, int vector)
+static void ivshmem_add_kvm_msi_virq(IVShmemState *s, int vector,
+                                     Error **errp)
 {
     PCIDevice *pdev = PCI_DEVICE(s);
     MSIMessage msg = msix_get_message(pdev, vector);
@@ -522,22 +518,21 @@ static int ivshmem_add_kvm_msi_virq(IVShmemState *s, int vector)
 
     ret = kvm_irqchip_add_msi_route(kvm_state, msg, pdev);
     if (ret < 0) {
-        error_report("ivshmem: kvm_irqchip_add_msi_route failed");
-        return -1;
+        error_setg(errp, "kvm_irqchip_add_msi_route failed");
+        return;
     }
 
     s->msi_vectors[vector].virq = ret;
     s->msi_vectors[vector].pdev = pdev;
-
-    return 0;
 }
 
-static void setup_interrupt(IVShmemState *s, int vector)
+static void setup_interrupt(IVShmemState *s, int vector, Error **errp)
 {
     EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
     bool with_irqfd = kvm_msi_via_irqfd_enabled() &&
         ivshmem_has_feature(s, IVSHMEM_MSI);
     PCIDevice *pdev = PCI_DEVICE(s);
+    Error *err = NULL;
 
     IVSHMEM_DPRINTF("setting up interrupt for vector: %d\n", vector);
 
@@ -546,13 +541,16 @@ static void setup_interrupt(IVShmemState *s, int vector)
         watch_vector_notifier(s, n, vector);
     } else if (msix_enabled(pdev)) {
         IVSHMEM_DPRINTF("with irqfd\n");
-        if (ivshmem_add_kvm_msi_virq(s, vector) < 0) {
+        ivshmem_add_kvm_msi_virq(s, vector, &err);
+        if (err) {
+            error_propagate(errp, err);
             return;
         }
 
         if (!msix_is_masked(pdev, vector)) {
             kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, n, NULL,
                                                s->msi_vectors[vector].virq);
+            /* TODO handle error */
         }
     } else {
         /* it will be delayed until msix is enabled, in write_config */
@@ -560,19 +558,19 @@ static void setup_interrupt(IVShmemState *s, int vector)
     }
 }
 
-static void process_msg_shmem(IVShmemState *s, int fd)
+static void process_msg_shmem(IVShmemState *s, int fd, Error **errp)
 {
     Error *err = NULL;
     void *ptr;
 
     if (memory_region_is_mapped(&s->ivshmem)) {
-        error_report("shm already initialized");
+        error_setg(errp, "server sent unexpected shared memory message");
         close(fd);
         return;
     }
 
     if (check_shm_size(s, fd, &err) == -1) {
-        error_report_err(err);
+        error_propagate(errp, err);
         close(fd);
         return;
     }
@@ -580,7 +578,7 @@ static void process_msg_shmem(IVShmemState *s, int fd)
     /* mmap the region and map into the BAR2 */
     ptr = mmap(0, s->ivshmem_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (ptr == MAP_FAILED) {
-        error_report("Failed to mmap shared memory %s", strerror(errno));
+        error_setg_errno(errp, errno, "Failed to mmap shared memory");
         close(fd);
         return;
     }
@@ -591,17 +589,19 @@ static void process_msg_shmem(IVShmemState *s, int fd)
     memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
 }
 
-static void process_msg_disconnect(IVShmemState *s, uint16_t posn)
+static void process_msg_disconnect(IVShmemState *s, uint16_t posn,
+                                   Error **errp)
 {
     IVSHMEM_DPRINTF("posn %d has gone away\n", posn);
     if (posn >= s->nb_peers || posn == s->vm_id) {
-        error_report("invalid peer %d", posn);
+        error_setg(errp, "invalid peer %d", posn);
         return;
     }
     close_peer_eventfds(s, posn);
 }
 
-static void process_msg_connect(IVShmemState *s, uint16_t posn, int fd)
+static void process_msg_connect(IVShmemState *s, uint16_t posn, int fd,
+                                Error **errp)
 {
     Peer *peer = &s->peers[posn];
     int vector;
@@ -611,8 +611,8 @@ static void process_msg_connect(IVShmemState *s, uint16_t posn, int fd)
      * descriptor for vector N-1.  Count messages to find the vector.
      */
     if (peer->nb_eventfds >= s->vectors) {
-        error_report("Too many eventfd received, device has %d vectors",
-                     s->vectors);
+        error_setg(errp, "Too many eventfd received, device has %d vectors",
+                   s->vectors);
         close(fd);
         return;
     }
@@ -623,7 +623,8 @@ static void process_msg_connect(IVShmemState *s, uint16_t posn, int fd)
     fcntl_setfl(fd, O_NONBLOCK); /* msix/irqfd poll non block */
 
     if (posn == s->vm_id) {
-        setup_interrupt(s, vector);
+        setup_interrupt(s, vector, errp);
+        /* TODO do we need to handle the error? */
     }
 
     if (ivshmem_has_feature(s, IVSHMEM_IOEVENTFD)) {
@@ -631,18 +632,18 @@ static void process_msg_connect(IVShmemState *s, uint16_t posn, int fd)
     }
 }
 
-static void process_msg(IVShmemState *s, int64_t msg, int fd)
+static void process_msg(IVShmemState *s, int64_t msg, int fd, Error **errp)
 {
     IVSHMEM_DPRINTF("posn is %" PRId64 ", fd is %d\n", msg, fd);
 
     if (msg < -1 || msg > IVSHMEM_MAX_PEERS) {
-        error_report("server sent invalid message %" PRId64, msg);
+        error_setg(errp, "server sent invalid message %" PRId64, msg);
         close(fd);
         return;
     }
 
     if (msg == -1) {
-        process_msg_shmem(s, fd);
+        process_msg_shmem(s, fd, errp);
         return;
     }
 
@@ -651,17 +652,18 @@ static void process_msg(IVShmemState *s, int64_t msg, int fd)
     }
 
     if (fd >= 0) {
-        process_msg_connect(s, msg, fd);
+        process_msg_connect(s, msg, fd, errp);
     } else if (s->vm_id == -1) {
         s->vm_id = msg;
     } else {
-        process_msg_disconnect(s, msg);
+        process_msg_disconnect(s, msg, errp);
     }
 }
 
 static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
 {
     IVShmemState *s = opaque;
+    Error *err = NULL;
     int fd;
     int64_t msg;
 
@@ -672,10 +674,13 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     fd = qemu_chr_fe_get_msgfd(s->server_chr);
     IVSHMEM_DPRINTF("posn is %" PRId64 ", fd is %d\n", msg, fd);
 
-    process_msg(s, msg, fd);
+    process_msg(s, msg, fd, &err);
+    if (err) {
+        error_report_err(err);
+    }
 }
 
-static int64_t ivshmem_recv_msg(IVShmemState *s, int *pfd)
+static int64_t ivshmem_recv_msg(IVShmemState *s, int *pfd, Error **errp)
 {
     int64_t msg;
     int n, ret;
@@ -685,7 +690,7 @@ static int64_t ivshmem_recv_msg(IVShmemState *s, int *pfd)
         ret = qemu_chr_fe_read_all(s->server_chr, (uint8_t *)&msg + n,
                                  sizeof(msg) - n);
         if (ret < 0 && ret != -EINTR) {
-            /* TODO error handling */
+            error_setg_errno(errp, -ret, "read from server failed");
             return INT64_MIN;
         }
         n += ret;
@@ -695,15 +700,24 @@ static int64_t ivshmem_recv_msg(IVShmemState *s, int *pfd)
     return msg;
 }
 
-static void ivshmem_recv_setup(IVShmemState *s)
+static void ivshmem_recv_setup(IVShmemState *s, Error **errp)
 {
+    Error *err = NULL;
     int64_t msg;
     int fd;
 
-    msg = ivshmem_recv_msg(s, &fd);
-    if (fd != -1 || msg != IVSHMEM_PROTOCOL_VERSION) {
-        fprintf(stderr, "incompatible version, you are connecting to a ivshmem-"
-                "server using a different protocol please check your setup\n");
+    msg = ivshmem_recv_msg(s, &fd, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    if (msg != IVSHMEM_PROTOCOL_VERSION) {
+        error_setg(errp, "server sent version %" PRId64 ", expecting %d",
+                   msg, IVSHMEM_PROTOCOL_VERSION);
+        return;
+    }
+    if (fd != -1) {
+        error_setg(errp, "server sent invalid version message");
         return;
     }
 
@@ -711,9 +725,25 @@ static void ivshmem_recv_setup(IVShmemState *s)
      * Receive more messages until we got shared memory.
      */
     do {
-        msg = ivshmem_recv_msg(s, &fd);
-        process_msg(s, msg, fd);
+        msg = ivshmem_recv_msg(s, &fd, &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+        process_msg(s, msg, fd, &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
     } while (msg != -1);
+
+    /*
+     * This function must either map the shared memory or fail.  The
+     * loop above ensures that: it terminates normally only after it
+     * successfully processed the server's shared memory message.
+     * Assert that actually mapped the shared memory:
+     */
+    assert(memory_region_is_mapped(&s->ivshmem));
 }
 
 /* Select the MSI-X vectors used by device.
@@ -763,7 +793,13 @@ static void ivshmem_enable_irqfd(IVShmemState *s)
     int i;
 
     for (i = 0; i < s->peers[s->vm_id].nb_eventfds; i++) {
-        ivshmem_add_kvm_msi_virq(s, i);
+        Error *err = NULL;
+
+        ivshmem_add_kvm_msi_virq(s, i, &err);
+        if (err) {
+            error_report_err(err);
+            /* TODO do we need to handle the error? */
+        }
     }
 
     if (msix_set_vector_notifiers(pdev,
@@ -809,7 +845,7 @@ static void ivshmem_write_config(PCIDevice *pdev, uint32_t address,
     pci_default_write_config(pdev, address, val, len);
     is_enabled = msix_enabled(pdev);
 
-    if (kvm_msi_via_irqfd_enabled() && s->vm_id != -1) {
+    if (kvm_msi_via_irqfd_enabled()) {
         if (!was_enabled && is_enabled) {
             ivshmem_enable_irqfd(s);
         } else if (was_enabled && !is_enabled) {
@@ -928,14 +964,15 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
          * Receive setup messages from server synchronously.
          * Older versions did it asynchronously, but that creates a
          * number of entertaining race conditions.
-         * TODO Propagate errors!  Without that, we still have races
-         * on errors.
          */
-        ivshmem_recv_setup(s);
-        if (memory_region_is_mapped(&s->ivshmem)) {
-            qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive,
-                                  ivshmem_read, NULL, s);
+        ivshmem_recv_setup(s, &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
         }
+
+        qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive,
+                              ivshmem_read, NULL, s);
 
         if (ivshmem_setup_interrupts(s) < 0) {
             error_setg(errp, "failed to initialize interrupts");
