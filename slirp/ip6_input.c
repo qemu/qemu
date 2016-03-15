@@ -39,9 +39,14 @@ void ip6_input(struct mbuf *m)
         goto bad;
     }
 
+    if (ntohs(ip6->ip_pl) > IF_MTU) {
+        icmp6_send_error(m, ICMP6_TOOBIG, 0);
+        goto bad;
+    }
+
     /* check ip_ttl for a correct ICMP reply */
     if (ip6->ip_hl == 0) {
-        /*icmp_send_error(m, ICMP_TIMXCEED,ICMP_TIMXCEED_INTRANS, 0,"ttl");*/
+        icmp6_send_error(m, ICMP6_TIMXCEED, ICMP6_TIMXCEED_INTRANS);
         goto bad;
     }
 
@@ -50,10 +55,10 @@ void ip6_input(struct mbuf *m)
      */
     switch (ip6->ip_nh) {
     case IPPROTO_TCP:
-        /*tcp_input(m, hlen, (struct socket *)NULL);*/
+        icmp6_send_error(m, ICMP6_UNREACH, ICMP6_UNREACH_NO_ROUTE);
         break;
     case IPPROTO_UDP:
-        /*udp_input(m, hlen);*/
+        icmp6_send_error(m, ICMP6_UNREACH, ICMP6_UNREACH_NO_ROUTE);
         break;
     case IPPROTO_ICMPV6:
         icmp6_input(m);

@@ -19,6 +19,12 @@ struct icmp6_echo { /* Echo Messages */
     uint16_t seq_num;
 };
 
+union icmp6_error_body {
+    uint32_t unused;
+    uint32_t pointer;
+    uint32_t mtu;
+};
+
 /*
  * NDP Messages
  */
@@ -82,6 +88,7 @@ struct icmp6 {
     uint8_t     icmp6_code;         /* type sub code */
     uint16_t    icmp6_cksum;        /* ones complement cksum of struct */
     union {
+        union icmp6_error_body error_body;
         struct icmp6_echo echo;
         struct ndp_rs ndp_rs;
         struct ndp_ra ndp_ra;
@@ -89,6 +96,7 @@ struct icmp6 {
         struct ndp_na ndp_na;
         struct ndp_redirect ndp_redirect;
     } icmp6_body;
+#define icmp6_err icmp6_body.error_body
 #define icmp6_echo icmp6_body.echo
 #define icmp6_nrs icmp6_body.ndp_rs
 #define icmp6_nra icmp6_body.ndp_ra
@@ -98,6 +106,7 @@ struct icmp6 {
 } QEMU_PACKED;
 
 #define ICMP6_MINLEN    4
+#define ICMP6_ERROR_MINLEN  8
 #define ICMP6_ECHO_MINLEN   8
 #define ICMP6_NDP_RS_MINLEN 8
 #define ICMP6_NDP_RA_MINLEN 16
@@ -197,6 +206,7 @@ struct ndpopt {
 void icmp6_init(Slirp *slirp);
 void icmp6_cleanup(Slirp *slirp);
 void icmp6_input(struct mbuf *);
+void icmp6_send_error(struct mbuf *m, uint8_t type, uint8_t code);
 void ndp_send_ra(Slirp *slirp);
 void ndp_send_ns(Slirp *slirp, struct in6_addr addr);
 
