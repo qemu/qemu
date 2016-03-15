@@ -51,7 +51,7 @@ static const cmdinfo_t close_cmd = {
     .oneline    = "close the current open file",
 };
 
-static int openfile(char *name, int flags, QDict *opts)
+static int openfile(char *name, int flags, bool writethrough, QDict *opts)
 {
     Error *local_err = NULL;
     BlockDriverState *bs;
@@ -83,6 +83,7 @@ static int openfile(char *name, int flags, QDict *opts)
         }
     }
 
+    blk_set_enable_write_cache(qemuio_blk, !writethrough);
 
     return 0;
 
@@ -137,6 +138,7 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
 {
     int flags = 0;
     int readonly = 0;
+    bool writethrough = true;
     int c;
     QemuOpts *qopts;
     QDict *opts;
@@ -147,7 +149,8 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
             flags |= BDRV_O_SNAPSHOT;
             break;
         case 'n':
-            flags |= BDRV_O_NOCACHE | BDRV_O_CACHE_WB;
+            flags |= BDRV_O_NOCACHE;
+            writethrough = false;
             break;
         case 'r':
             readonly = 1;
@@ -185,9 +188,9 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
     qemu_opts_reset(&empty_opts);
 
     if (optind == argc - 1) {
-        return openfile(argv[optind], flags, opts);
+        return openfile(argv[optind], flags, writethrough, opts);
     } else if (optind == argc) {
-        return openfile(NULL, flags, opts);
+        return openfile(NULL, flags, writethrough, opts);
     } else {
         QDECREF(opts);
         return qemuio_command_usage(&open_cmd);
@@ -428,6 +431,7 @@ int main(int argc, char **argv)
     int c;
     int opt_index = 0;
     int flags = BDRV_O_UNMAP;
+    bool writethrough = true;
     Error *local_error = NULL;
     QDict *opts = NULL;
     const char *format = NULL;
@@ -449,7 +453,8 @@ int main(int argc, char **argv)
             flags |= BDRV_O_SNAPSHOT;
             break;
         case 'n':
-            flags |= BDRV_O_NOCACHE | BDRV_O_CACHE_WB;
+            flags |= BDRV_O_NOCACHE;
+            writethrough = false;
             break;
         case 'd':
             if (bdrv_parse_discard_flags(optarg, &flags) < 0) {
@@ -473,7 +478,7 @@ int main(int argc, char **argv)
             flags |= BDRV_O_NATIVE_AIO;
             break;
         case 't':
-            if (bdrv_parse_cache_flags(optarg, &flags) < 0) {
+            if (bdrv_parse_cache_mode(optarg, &flags, &writethrough) < 0) {
                 error_report("Invalid cache option: %s", optarg);
                 exit(1);
             }
@@ -555,13 +560,13 @@ int main(int argc, char **argv)
                 exit(1);
             }
             opts = qemu_opts_to_qdict(qopts, NULL);
-            openfile(NULL, flags, opts);
+            openfile(NULL, flags, writethrough, opts);
         } else {
             if (format) {
                 opts = qdict_new();
                 qdict_put(opts, "driver", qstring_from_str(format));
             }
-            openfile(argv[optind], flags, opts);
+            openfile(argv[optind], flags, writethrough, opts);
         }
     }
     command_loop();
