@@ -194,7 +194,7 @@ void if_start(Slirp *slirp)
 
         /* Try to send packet unless it already expired */
         if (ifm->expiration_date >= now && !if_encap(slirp, ifm)) {
-            /* Packet is delayed due to pending ARP resolution */
+            /* Packet is delayed due to pending ARP or NDP resolution */
             continue;
         }
 
