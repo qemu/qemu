@@ -339,18 +339,21 @@ static void test_ivshmem_server(bool msi)
     vm2 = in_reg(s2, IVPOSITION);
     g_assert_cmpuint(vm1, !=, vm2);
 
+    /* check number of MSI-X vectors */
     global_qtest = s1->qtest;
     if (msi) {
         ret = qpci_msix_table_size(s1->dev);
         g_assert_cmpuint(ret, ==, nvectors);
     }
 
-    /* ping vm2 -> vm1 */
+    /* TODO test behavior before MSI-X is enabled */
+
+    /* ping vm2 -> vm1 on vector 0 */
     if (msi) {
         ret = qpci_msix_pending(s1->dev, 0);
         g_assert_cmpuint(ret, ==, 0);
     } else {
-        out_reg(s1, INTRSTATUS, 0);
+        g_assert_cmpuint(in_reg(s1, INTRSTATUS), ==, 0);
     }
     out_reg(s2, DOORBELL, vm1 << 16);
     do {
@@ -359,18 +362,18 @@ static void test_ivshmem_server(bool msi)
     } while (ret == 0 && g_get_monotonic_time() < end_time);
     g_assert_cmpuint(ret, !=, 0);
 
-    /* ping vm1 -> vm2 */
+    /* ping vm1 -> vm2 on vector 1 */
     global_qtest = s2->qtest;
     if (msi) {
-        ret = qpci_msix_pending(s2->dev, 0);
+        ret = qpci_msix_pending(s2->dev, 1);
         g_assert_cmpuint(ret, ==, 0);
     } else {
-        out_reg(s2, INTRSTATUS, 0);
+        g_assert_cmpuint(in_reg(s2, INTRSTATUS), ==, 0);
     }
-    out_reg(s1, DOORBELL, vm2 << 16);
+    out_reg(s1, DOORBELL, vm2 << 16 | 1);
     do {
         g_usleep(10000);
-        ret = msi ? qpci_msix_pending(s2->dev, 0) : in_reg(s2, INTRSTATUS);
+        ret = msi ? qpci_msix_pending(s2->dev, 1) : in_reg(s2, INTRSTATUS);
     } while (ret == 0 && g_get_monotonic_time() < end_time);
     g_assert_cmpuint(ret, !=, 0);
 
