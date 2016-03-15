@@ -27,8 +27,30 @@
 
 #include "qemu-common.h"
 #include "cpu.h"
+#include "exec/tb-context.h"
 #include "qemu/bitops.h"
 #include "tcg-target.h"
+
+/* XXX: make safe guess about sizes */
+#define MAX_OP_PER_INSTR 266
+
+#if HOST_LONG_BITS == 32
+#define MAX_OPC_PARAM_PER_ARG 2
+#else
+#define MAX_OPC_PARAM_PER_ARG 1
+#endif
+#define MAX_OPC_PARAM_IARGS 5
+#define MAX_OPC_PARAM_OARGS 1
+#define MAX_OPC_PARAM_ARGS (MAX_OPC_PARAM_IARGS + MAX_OPC_PARAM_OARGS)
+
+/* A Call op needs up to 4 + 2N parameters on 32-bit archs,
+ * and up to 4 + N parameters on 64-bit archs
+ * (N = number of input arguments + output arguments).  */
+#define MAX_OPC_PARAM (4 + (MAX_OPC_PARAM_PER_ARG * MAX_OPC_PARAM_ARGS))
+#define OPC_BUF_SIZE 640
+#define OPC_MAX_SIZE (OPC_BUF_SIZE - MAX_OP_PER_INSTR)
+
+#define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * MAX_OPC_PARAM)
 
 #define CPU_TEMP_BUF_NLONGS 128
 
