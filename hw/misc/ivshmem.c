@@ -564,114 +564,115 @@ static void setup_interrupt(IVShmemState *s, int vector)
     }
 }
 
-static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
+static void process_msg_shmem(IVShmemState *s, int fd)
 {
-    IVShmemState *s = opaque;
-    int incoming_fd;
-    int new_eventfd;
-    int64_t incoming_posn;
     Error *err = NULL;
-    Peer *peer;
+    void *ptr;
 
-    if (!fifo_update_and_get_i64(s, buf, size, &incoming_posn)) {
+    if (memory_region_is_mapped(&s->ivshmem)) {
+        error_report("shm already initialized");
+        close(fd);
         return;
     }
 
-    incoming_fd = qemu_chr_fe_get_msgfd(s->server_chr);
-    IVSHMEM_DPRINTF("posn is %" PRId64 ", fd is %d\n",
-                    incoming_posn, incoming_fd);
-
-    if (incoming_posn < -1 || incoming_posn > IVSHMEM_MAX_PEERS) {
-        error_report("server sent invalid message %" PRId64,
-                     incoming_posn);
-        if (incoming_fd != -1) {
-            close(incoming_fd);
-        }
+    if (check_shm_size(s, fd, &err) == -1) {
+        error_report_err(err);
+        close(fd);
         return;
     }
 
-    if (incoming_posn >= s->nb_peers) {
-        resize_peers(s, incoming_posn + 1);
-    }
-
-    peer = &s->peers[incoming_posn];
-
-    if (incoming_fd == -1) {
-        /* if posn is positive and unseen before then this is our posn*/
-        if (incoming_posn >= 0 && s->vm_id == -1) {
-            /* receive our posn */
-            s->vm_id = incoming_posn;
-        } else {
-            /* otherwise an fd == -1 means an existing peer has gone away */
-            IVSHMEM_DPRINTF("posn %" PRId64 " has gone away\n", incoming_posn);
-            close_peer_eventfds(s, incoming_posn);
-        }
+    /* mmap the region and map into the BAR2 */
+    ptr = mmap(0, s->ivshmem_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (ptr == MAP_FAILED) {
+        error_report("Failed to mmap shared memory %s", strerror(errno));
+        close(fd);
         return;
     }
+    memory_region_init_ram_ptr(&s->ivshmem, OBJECT(s),
+                               "ivshmem.bar2", s->ivshmem_size, ptr);
+    qemu_set_ram_fd(memory_region_get_ram_addr(&s->ivshmem), fd);
+    vmstate_register_ram(&s->ivshmem, DEVICE(s));
+    memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
+}
 
-    /* if the position is -1, then it's shared memory region fd */
-    if (incoming_posn == -1) {
-        void * map_ptr;
+static void process_msg_disconnect(IVShmemState *s, uint16_t posn)
+{
+    IVSHMEM_DPRINTF("posn %d has gone away\n", posn);
+    close_peer_eventfds(s, posn);
+}
 
-        if (memory_region_is_mapped(&s->ivshmem)) {
-            error_report("shm already initialized");
-            close(incoming_fd);
-            return;
-        }
+static void process_msg_connect(IVShmemState *s, uint16_t posn, int fd)
+{
+    Peer *peer = &s->peers[posn];
+    int vector;
 
-        if (check_shm_size(s, incoming_fd, &err) == -1) {
-            error_report_err(err);
-            close(incoming_fd);
-            return;
-        }
-
-        /* mmap the region and map into the BAR2 */
-        map_ptr = mmap(0, s->ivshmem_size, PROT_READ|PROT_WRITE, MAP_SHARED,
-                                                            incoming_fd, 0);
-        if (map_ptr == MAP_FAILED) {
-            error_report("Failed to mmap shared memory %s", strerror(errno));
-            close(incoming_fd);
-            return;
-        }
-        memory_region_init_ram_ptr(&s->ivshmem, OBJECT(s),
-                                   "ivshmem.bar2", s->ivshmem_size, map_ptr);
-        qemu_set_ram_fd(memory_region_get_ram_addr(&s->ivshmem),
-                        incoming_fd);
-        vmstate_register_ram(&s->ivshmem, DEVICE(s));
-
-        IVSHMEM_DPRINTF("guest h/w addr = %p, size = %" PRIu64 "\n",
-                        map_ptr, s->ivshmem_size);
-
-        memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
-
-        return;
-    }
-
-    /* each peer has an associated array of eventfds, and we keep
-     * track of how many eventfds received so far */
-    /* get a new eventfd: */
+    /*
+     * The N-th connect message for this peer comes with the file
+     * descriptor for vector N-1.  Count messages to find the vector.
+     */
     if (peer->nb_eventfds >= s->vectors) {
         error_report("Too many eventfd received, device has %d vectors",
                      s->vectors);
-        close(incoming_fd);
+        close(fd);
         return;
     }
+    vector = peer->nb_eventfds++;
 
-    new_eventfd = peer->nb_eventfds++;
+    IVSHMEM_DPRINTF("eventfds[%d][%d] = %d\n", posn, vector, fd);
+    event_notifier_init_fd(&peer->eventfds[vector], fd);
+    fcntl_setfl(fd, O_NONBLOCK); /* msix/irqfd poll non block */
 
-    /* this is an eventfd for a particular peer VM */
-    IVSHMEM_DPRINTF("eventfds[%" PRId64 "][%d] = %d\n", incoming_posn,
-                    new_eventfd, incoming_fd);
-    event_notifier_init_fd(&peer->eventfds[new_eventfd], incoming_fd);
-    fcntl_setfl(incoming_fd, O_NONBLOCK); /* msix/irqfd poll non block */
-
-    if (incoming_posn == s->vm_id) {
-        setup_interrupt(s, new_eventfd);
+    if (posn == s->vm_id) {
+        setup_interrupt(s, vector);
     }
 
     if (ivshmem_has_feature(s, IVSHMEM_IOEVENTFD)) {
-        ivshmem_add_eventfd(s, incoming_posn, new_eventfd);
+        ivshmem_add_eventfd(s, posn, vector);
     }
+}
+
+static void process_msg(IVShmemState *s, int64_t msg, int fd)
+{
+    IVSHMEM_DPRINTF("posn is %" PRId64 ", fd is %d\n", msg, fd);
+
+    if (msg < -1 || msg > IVSHMEM_MAX_PEERS) {
+        error_report("server sent invalid message %" PRId64, msg);
+        close(fd);
+        return;
+    }
+
+    if (msg == -1) {
+        process_msg_shmem(s, fd);
+        return;
+    }
+
+    if (msg >= s->nb_peers) {
+        resize_peers(s, msg + 1);
+    }
+
+    if (fd >= 0) {
+        process_msg_connect(s, msg, fd);
+    } else if (s->vm_id == -1) {
+        s->vm_id = msg;
+    } else {
+        process_msg_disconnect(s, msg);
+    }
+}
+
+static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
+{
+    IVShmemState *s = opaque;
+    int fd;
+    int64_t msg;
+
+    if (!fifo_update_and_get_i64(s, buf, size, &msg)) {
+        return;
+    }
+
+    fd = qemu_chr_fe_get_msgfd(s->server_chr);
+    IVSHMEM_DPRINTF("posn is %" PRId64 ", fd is %d\n", msg, fd);
+
+    process_msg(s, msg, fd);
 }
 
 static void ivshmem_check_version(void *opaque, const uint8_t * buf, int size)
