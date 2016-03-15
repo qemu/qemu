@@ -78,12 +78,19 @@ tcp_template(struct tcpcb *tp)
 	n->ti_mbuf = NULL;
 	memset(&n->ti, 0, sizeof(n->ti));
 	n->ti_x0 = 0;
+	switch (so->so_ffamily) {
+	case AF_INET:
 	n->ti_pr = IPPROTO_TCP;
 	n->ti_len = htons(sizeof(struct tcphdr));
 	n->ti_src = so->so_faddr;
 	n->ti_dst = so->so_laddr;
 	n->ti_sport = so->so_fport;
 	n->ti_dport = so->so_lport;
+	    break;
+
+	default:
+	    g_assert_not_reached();
+	}
 
 	n->ti_seq = 0;
 	n->ti_ack = 0;
@@ -110,7 +117,7 @@ tcp_template(struct tcpcb *tp)
  */
 void
 tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
-            tcp_seq ack, tcp_seq seq, int flags)
+            tcp_seq ack, tcp_seq seq, int flags, unsigned short af)
 {
 	register int tlen;
 	int win = 0;
@@ -144,8 +151,14 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 		m->m_len = sizeof (struct tcpiphdr);
 		tlen = 0;
 #define xchg(a,b,type) { type t; t=a; a=b; b=t; }
+		switch (af) {
+		case AF_INET:
 		xchg(ti->ti_dst.s_addr, ti->ti_src.s_addr, uint32_t);
 		xchg(ti->ti_dport, ti->ti_sport, uint16_t);
+		    break;
+		default:
+		    g_assert_not_reached();
+		}
 #undef xchg
 	}
 	ti->ti_len = htons((u_short)(sizeof (struct tcphdr) + tlen));
@@ -168,11 +181,15 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 	ti->ti_sum = cksum(m, tlen);
 
 	struct tcpiphdr tcpiph_save = *(mtod(m, struct tcpiphdr *));
+	struct ip *ip;
+
+	switch (af) {
+	case AF_INET:
 	m->m_data += sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
 	                                     - sizeof(struct ip);
 	m->m_len  -= sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
 	                                     - sizeof(struct ip);
-	struct ip *ip = mtod(m, struct ip *);
+	ip = mtod(m, struct ip *);
 	ip->ip_len = tlen;
 	ip->ip_dst = tcpiph_save.ti_dst;
 	ip->ip_src = tcpiph_save.ti_src;
@@ -185,6 +202,11 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 	}
 
 	(void) ip_output((struct socket *)0, m);
+	    break;
+
+	default:
+	    g_assert_not_reached();
+	}
 }
 
 /*
@@ -388,8 +410,8 @@ void tcp_connect(struct socket *inso)
 {
     Slirp *slirp = inso->slirp;
     struct socket *so;
-    struct sockaddr_in addr;
-    socklen_t addrlen = sizeof(struct sockaddr_in);
+    struct sockaddr_storage addr;
+    socklen_t addrlen = sizeof(struct sockaddr_storage);
     struct tcpcb *tp;
     int s, opt;
 
@@ -414,9 +436,8 @@ void tcp_connect(struct socket *inso)
             free(so); /* NOT sofree */
             return;
         }
-        so->so_lfamily = AF_INET;
-        so->so_laddr = inso->so_laddr;
-        so->so_lport = inso->so_lport;
+        so->lhost = inso->lhost;
+        so->so_ffamily = inso->so_ffamily;
     }
 
     tcp_mss(sototcpcb(so), 0);
@@ -432,7 +453,7 @@ void tcp_connect(struct socket *inso)
     qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
     socket_set_nodelay(s);
 
-    so->fhost.sin = addr;
+    so->fhost.ss = addr;
     sotranslate_accept(so);
 
     /* Close the accept() socket, set right state */

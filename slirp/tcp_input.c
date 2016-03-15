@@ -214,7 +214,7 @@ present:
  * protocol specification dated September, 1981 very closely.
  */
 void
-tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
+tcp_input(struct mbuf *m, int iphlen, struct socket *inso, unsigned short af)
 {
   	struct ip save_ip, *ip;
 	register struct tcpiphdr *ti;
@@ -256,6 +256,8 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 	}
 	slirp = m->slirp;
 
+	switch (af) {
+	case AF_INET:
 	if (iphlen > sizeof(struct ip )) {
 	  ip_stripoptions(m, (struct mbuf *)0);
 	  iphlen=sizeof(struct ip );
@@ -297,6 +299,11 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 	if(cksum(m, len)) {
 	  goto drop;
 	}
+	break;
+
+	default:
+	    g_assert_not_reached();
+	}
 
 	/*
 	 * Check that TCP offset makes sense,
@@ -332,14 +339,20 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 	 * Locate pcb for segment.
 	 */
 findso:
-	lhost.ss_family = AF_INET;
+	lhost.ss_family = af;
+	fhost.ss_family = af;
+	switch (af) {
+	case AF_INET:
 	lhost4 = (struct sockaddr_in *) &lhost;
 	lhost4->sin_addr = ti->ti_src;
 	lhost4->sin_port = ti->ti_sport;
-	fhost.ss_family = AF_INET;
 	fhost4 = (struct sockaddr_in *) &fhost;
 	fhost4->sin_addr = ti->ti_dst;
 	fhost4->sin_port = ti->ti_dport;
+	    break;
+	default:
+	    g_assert_not_reached();
+	}
 
 	so = solookup(&slirp->tcp_last_so, &slirp->tcb, &lhost, &fhost);
 
@@ -389,8 +402,16 @@ findso:
 	  so->lhost.ss = lhost;
 	  so->fhost.ss = fhost;
 
-	  if ((so->so_iptos = tcp_tos(so)) == 0)
-	    so->so_iptos = ((struct ip *)ti)->ip_tos;
+	  so->so_iptos = tcp_tos(so);
+	  if (so->so_iptos == 0) {
+	      switch (af) {
+	      case AF_INET:
+	          so->so_iptos = ((struct ip *)ti)->ip_tos;
+	          break;
+	      default:
+	          g_assert_not_reached();
+	      }
+	  }
 
 	  tp = sototcpcb(so);
 	  tp->t_state = TCPS_LISTEN;
@@ -569,7 +590,8 @@ findso:
 	   * If this is destined for the control address, then flag to
 	   * tcp_ctl once connected, otherwise connect
 	   */
-	  if ((so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
+	  if (af == AF_INET &&
+	      (so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
 	      slirp->vnetwork_addr.s_addr) {
 	    if (so->so_faddr.s_addr != slirp->vhost_addr.s_addr &&
 		so->so_faddr.s_addr != slirp->vnameserver_addr.s_addr) {
@@ -597,27 +619,42 @@ findso:
 	  if ((tcp_fconnect(so, so->so_ffamily) == -1) &&
               (errno != EINPROGRESS) && (errno != EWOULDBLOCK)
           ) {
-	    u_char code=ICMP_UNREACH_NET;
+	    uint8_t code;
 	    DEBUG_MISC((dfd, " tcp fconnect errno = %d-%s\n",
 			errno,strerror(errno)));
 	    if(errno == ECONNREFUSED) {
 	      /* ACK the SYN, send RST to refuse the connection */
-	      tcp_respond(tp, ti, m, ti->ti_seq+1, (tcp_seq)0,
-			  TH_RST|TH_ACK);
+	      tcp_respond(tp, ti, m, ti->ti_seq + 1, (tcp_seq) 0,
+			  TH_RST | TH_ACK, af);
 	    } else {
-	      if(errno == EHOSTUNREACH) code=ICMP_UNREACH_HOST;
+	      switch (af) {
+	      case AF_INET:
+		code = ICMP_UNREACH_NET;
+		if (errno == EHOSTUNREACH) {
+		  code = ICMP_UNREACH_HOST;
+		}
+		break;
+	      default:
+		g_assert_not_reached();
+	      }
 	      HTONL(ti->ti_seq);             /* restore tcp header */
 	      HTONL(ti->ti_ack);
 	      HTONS(ti->ti_win);
 	      HTONS(ti->ti_urp);
 	      m->m_data -= sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
 	      m->m_len  += sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
+	      switch (af) {
+	      case AF_INET:
 	      m->m_data += sizeof(struct tcpiphdr) - sizeof(struct ip)
 						   - sizeof(struct tcphdr);
 	      m->m_len  -= sizeof(struct tcpiphdr) - sizeof(struct ip)
 						   - sizeof(struct tcphdr);
 	      *ip=save_ip;
 	      icmp_send_error(m, ICMP_UNREACH, code, 0, strerror(errno));
+		break;
+	      default:
+		g_assert_not_reached();
+	      }
 	    }
             tcp_close(tp);
 	    m_free(m);
@@ -1289,11 +1326,11 @@ dropafterack:
 dropwithreset:
 	/* reuses m if m!=NULL, m_free() unnecessary */
 	if (tiflags & TH_ACK)
-		tcp_respond(tp, ti, m, (tcp_seq)0, ti->ti_ack, TH_RST);
+		tcp_respond(tp, ti, m, (tcp_seq)0, ti->ti_ack, TH_RST, af);
 	else {
 		if (tiflags & TH_SYN) ti->ti_len++;
-		tcp_respond(tp, ti, m, ti->ti_seq+ti->ti_len, (tcp_seq)0,
-		    TH_RST|TH_ACK);
+		tcp_respond(tp, ti, m, ti->ti_seq + ti->ti_len, (tcp_seq) 0,
+		    TH_RST | TH_ACK, af);
 	}
 
 	return;
@@ -1484,7 +1521,15 @@ tcp_mss(struct tcpcb *tp, u_int offer)
 	DEBUG_ARG("tp = %p", tp);
 	DEBUG_ARG("offer = %d", offer);
 
-	mss = min(IF_MTU, IF_MRU) - sizeof(struct tcphdr) + sizeof(struct ip);
+	switch (so->so_ffamily) {
+	case AF_INET:
+	    mss = min(IF_MTU, IF_MRU) - sizeof(struct tcphdr)
+	                              + sizeof(struct ip);
+	    break;
+	default:
+	    g_assert_not_reached();
+	}
+
 	if (offer)
 		mss = min(mss, offer);
 	mss = max(mss, 32);
