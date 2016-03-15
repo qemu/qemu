@@ -483,7 +483,18 @@ sorecvfrom(struct socket *so)
 	  if (!m) {
 	      return;
 	  }
-	  m->m_data += IF_MAXLINKHDR;
+	  switch (so->so_ffamily) {
+	  case AF_INET:
+	      m->m_data += IF_MAXLINKHDR + sizeof(struct udpiphdr);
+	      break;
+	  case AF_INET6:
+	      m->m_data += IF_MAXLINKHDR + sizeof(struct ip6)
+	                                 + sizeof(struct udphdr);
+	      break;
+	  default:
+	      g_assert_not_reached();
+	      break;
+	  }
 
 	  /*
 	   * XXX Shouldn't FIONREAD packets destined for port 53,

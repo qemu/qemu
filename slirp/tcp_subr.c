@@ -76,9 +76,10 @@ tcp_template(struct tcpcb *tp)
 	register struct tcpiphdr *n = &tp->t_template;
 
 	n->ti_mbuf = NULL;
-	n->ti_x1 = 0;
+	memset(&n->ti, 0, sizeof(n->ti));
+	n->ti_x0 = 0;
 	n->ti_pr = IPPROTO_TCP;
-	n->ti_len = htons(sizeof (struct tcpiphdr) - sizeof (struct ip));
+	n->ti_len = htons(sizeof(struct tcphdr));
 	n->ti_src = so->so_faddr;
 	n->ti_dst = so->so_laddr;
 	n->ti_sport = so->so_fport;
@@ -131,6 +132,7 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 		m->m_data += IF_MAXLINKHDR;
 		*mtod(m, struct tcpiphdr *) = *ti;
 		ti = mtod(m, struct tcpiphdr *);
+		memset(&ti->ti, 0, sizeof(ti->ti));
 		flags = TH_ACK;
 	} else {
 		/*
@@ -150,8 +152,8 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 	tlen += sizeof (struct tcpiphdr);
 	m->m_len = tlen;
 
-        ti->ti_mbuf = NULL;
-	ti->ti_x1 = 0;
+	ti->ti_mbuf = NULL;
+	ti->ti_x0 = 0;
 	ti->ti_seq = htonl(seq);
 	ti->ti_ack = htonl(ack);
 	ti->ti_x2 = 0;
@@ -164,12 +166,23 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 	ti->ti_urp = 0;
 	ti->ti_sum = 0;
 	ti->ti_sum = cksum(m, tlen);
-	((struct ip *)ti)->ip_len = tlen;
 
-	if(flags & TH_RST)
-	  ((struct ip *)ti)->ip_ttl = MAXTTL;
-	else
-	  ((struct ip *)ti)->ip_ttl = IPDEFTTL;
+	struct tcpiphdr tcpiph_save = *(mtod(m, struct tcpiphdr *));
+	m->m_data += sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
+	                                     - sizeof(struct ip);
+	m->m_len  -= sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
+	                                     - sizeof(struct ip);
+	struct ip *ip = mtod(m, struct ip *);
+	ip->ip_len = tlen;
+	ip->ip_dst = tcpiph_save.ti_dst;
+	ip->ip_src = tcpiph_save.ti_src;
+	ip->ip_p = tcpiph_save.ti_pr;
+
+	if (flags & TH_RST) {
+		ip->ip_ttl = MAXTTL;
+	} else {
+		ip->ip_ttl = IPDEFTTL;
+	}
 
 	(void) ip_output((struct socket *)0, m);
 }

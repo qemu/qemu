@@ -766,15 +766,16 @@ void slirp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
         m = m_get(slirp);
         if (!m)
             return;
-        /* Note: we add to align the IP header */
-        if (M_FREEROOM(m) < pkt_len + 2) {
-            m_inc(m, pkt_len + 2);
+        /* Note: we add 2 to align the IP header on 4 bytes,
+         * and add the margin for the tcpiphdr overhead  */
+        if (M_FREEROOM(m) < pkt_len + TCPIPHDR_DELTA + 2) {
+            m_inc(m, pkt_len + TCPIPHDR_DELTA + 2);
         }
-        m->m_len = pkt_len + 2;
-        memcpy(m->m_data + 2, pkt, pkt_len);
+        m->m_len = pkt_len + TCPIPHDR_DELTA + 2;
+        memcpy(m->m_data + TCPIPHDR_DELTA + 2, pkt, pkt_len);
 
-        m->m_data += 2 + ETH_HLEN;
-        m->m_len -= 2 + ETH_HLEN;
+        m->m_data += TCPIPHDR_DELTA + 2 + ETH_HLEN;
+        m->m_len -= TCPIPHDR_DELTA + 2 + ETH_HLEN;
 
         if (proto == ETH_P_IP) {
             ip_input(m);

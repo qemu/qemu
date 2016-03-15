@@ -256,11 +256,6 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 	}
 	slirp = m->slirp;
 
-	/*
-	 * Get IP and TCP header together in first mbuf.
-	 * Note: IP leaves IP header in first mbuf.
-	 */
-	ti = mtod(m, struct tcpiphdr *);
 	if (iphlen > sizeof(struct ip )) {
 	  ip_stripoptions(m, (struct mbuf *)0);
 	  iphlen=sizeof(struct ip );
@@ -277,14 +272,28 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 	save_ip.ip_len+= iphlen;
 
 	/*
+	 * Get IP and TCP header together in first mbuf.
+	 * Note: IP leaves IP header in first mbuf.
+	 */
+	m->m_data -= sizeof(struct tcpiphdr) - sizeof(struct ip)
+	                                     - sizeof(struct tcphdr);
+	m->m_len += sizeof(struct tcpiphdr) - sizeof(struct ip)
+	                                    - sizeof(struct tcphdr);
+	ti = mtod(m, struct tcpiphdr *);
+
+	/*
 	 * Checksum extended TCP header and data.
 	 */
-	tlen = ((struct ip *)ti)->ip_len;
-        tcpiphdr2qlink(ti)->next = tcpiphdr2qlink(ti)->prev = NULL;
-        memset(&ti->ti_i.ih_mbuf, 0 , sizeof(struct mbuf_ptr));
-	ti->ti_x1 = 0;
+	tlen = ip->ip_len;
+	tcpiphdr2qlink(ti)->next = tcpiphdr2qlink(ti)->prev = NULL;
+	memset(&ti->ih_mbuf, 0 , sizeof(struct mbuf_ptr));
+	memset(&ti->ti, 0, sizeof(ti->ti));
+	ti->ti_x0 = 0;
+	ti->ti_src = save_ip.ip_src;
+	ti->ti_dst = save_ip.ip_dst;
+	ti->ti_pr = save_ip.ip_p;
 	ti->ti_len = htons((uint16_t)tlen);
-	len = sizeof(struct ip ) + tlen;
+	len = ((sizeof(struct tcpiphdr) - sizeof(struct tcphdr)) + tlen);
 	if(cksum(m, len)) {
 	  goto drop;
 	}
@@ -603,6 +612,10 @@ findso:
 	      HTONS(ti->ti_urp);
 	      m->m_data -= sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
 	      m->m_len  += sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
+	      m->m_data += sizeof(struct tcpiphdr) - sizeof(struct ip)
+						   - sizeof(struct tcphdr);
+	      m->m_len  -= sizeof(struct tcpiphdr) - sizeof(struct ip)
+						   - sizeof(struct tcphdr);
 	      *ip=save_ip;
 	      icmp_send_error(m, ICMP_UNREACH, code, 0, strerror(errno));
 	    }
@@ -1471,7 +1484,7 @@ tcp_mss(struct tcpcb *tp, u_int offer)
 	DEBUG_ARG("tp = %p", tp);
 	DEBUG_ARG("offer = %d", offer);
 
-	mss = min(IF_MTU, IF_MRU) - sizeof(struct tcpiphdr);
+	mss = min(IF_MTU, IF_MRU) - sizeof(struct tcphdr) + sizeof(struct ip);
 	if (offer)
 		mss = min(mss, offer);
 	mss = max(mss, 32);
