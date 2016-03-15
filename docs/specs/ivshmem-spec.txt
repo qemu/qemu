@@ -187,6 +187,9 @@ Each message consists of a single 8 byte little-endian signed number,
 and may be accompanied by a file descriptor via SCM_RIGHTS.  Both
 client and server close the connection on error.
 
+Note: QEMU currently doesn't close the connection right on error, but
+only when the character device is destroyed.
+
 On connect, the server sends the following messages in order:
 
 1. The protocol version number, currently zero.  The client should

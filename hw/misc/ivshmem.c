@@ -708,8 +708,7 @@ static void ivshmem_check_version(void *opaque, const uint8_t * buf, int size)
     if (tmp != -1 || version != IVSHMEM_PROTOCOL_VERSION) {
         fprintf(stderr, "incompatible version, you are connecting to a ivshmem-"
                 "server using a different protocol please check your setup\n");
-        qemu_chr_delete(s->server_chr);
-        s->server_chr = NULL;
+        qemu_chr_add_handlers(s->server_chr, NULL, NULL, NULL, s);
         return;
     }
 
