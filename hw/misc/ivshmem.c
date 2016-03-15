@@ -267,11 +267,6 @@ static int ivshmem_can_receive(void * opaque)
     return sizeof(int64_t);
 }
 
-static void ivshmem_event(void *opaque, int event)
-{
-    IVSHMEM_DPRINTF("ivshmem_event %d\n", event);
-}
-
 static void ivshmem_vector_notify(void *opaque)
 {
     MSIVector *entry = opaque;
@@ -720,7 +715,7 @@ static void ivshmem_check_version(void *opaque, const uint8_t * buf, int size)
 
     IVSHMEM_DPRINTF("version check ok, switch to real chardev handler\n");
     qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive, ivshmem_read,
-                          ivshmem_event, s);
+                          NULL, s);
 }
 
 /* Select the MSI-X vectors used by device.
@@ -942,7 +937,7 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         pci_register_bar(dev, 2, attr, &s->bar);
 
         qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive,
-                              ivshmem_check_version, ivshmem_event, s);
+                              ivshmem_check_version, NULL, s);
     } else {
         /* just map the file immediately, we're not using a server */
         int fd;
