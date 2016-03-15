@@ -825,6 +825,7 @@ static void ivshmem_write_config(PCIDevice *pdev, uint32_t address,
 static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
 {
     IVShmemState *s = IVSHMEM(dev);
+    Error *err = NULL;
     uint8_t *pci_conf;
     uint8_t attr = PCI_BASE_ADDRESS_SPACE_MEMORY |
         PCI_BASE_ADDRESS_MEM_PREFETCH;
@@ -856,8 +857,6 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         s->ivshmem_size = size;
     }
 
-    fifo8_create(&s->incoming_fifo, sizeof(int64_t));
-
     /* IRQFD requires MSI */
     if (ivshmem_has_feature(s, IVSHMEM_IOEVENTFD) &&
         !ivshmem_has_feature(s, IVSHMEM_MSI)) {
@@ -877,12 +876,6 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         }
     } else {
         s->role_val = IVSHMEM_MASTER; /* default */
-    }
-
-    if (s->role_val == IVSHMEM_PEER) {
-        error_setg(&s->migration_blocker,
-                   "Migration is disabled when using feature 'peer mode' in device 'ivshmem'");
-        migrate_add_blocker(s->migration_blocker);
     }
 
     pci_conf = dev->config;
@@ -963,7 +956,19 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
             return;
         }
 
-        create_shared_memory_BAR(s, fd, attr, errp);
+        create_shared_memory_BAR(s, fd, attr, &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+    }
+
+    fifo8_create(&s->incoming_fifo, sizeof(int64_t));
+
+    if (s->role_val == IVSHMEM_PEER) {
+        error_setg(&s->migration_blocker,
+                   "Migration is disabled when using feature 'peer mode' in device 'ivshmem'");
+        migrate_add_blocker(s->migration_blocker);
     }
 }
 
