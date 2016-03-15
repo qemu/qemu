@@ -143,32 +143,41 @@ static void test_ivshmem_single(void)
     setup_vm(&state);
     s = &state;
 
-    /* valid io */
-    out_reg(s, INTRMASK, 0);
-    in_reg(s, INTRSTATUS);
-    in_reg(s, IVPOSITION);
+    /* initial state of readable registers */
+    g_assert_cmpuint(in_reg(s, INTRMASK), ==, 0);
+    g_assert_cmpuint(in_reg(s, INTRSTATUS), ==, 0);
+    g_assert_cmpuint(in_reg(s, IVPOSITION), ==, 0);
 
+    /* trigger interrupt via registers */
     out_reg(s, INTRMASK, 0xffffffff);
     g_assert_cmpuint(in_reg(s, INTRMASK), ==, 0xffffffff);
     out_reg(s, INTRSTATUS, 1);
-    /* XXX: intercept IRQ, not seen in resp */
+    /* check interrupt status */
     g_assert_cmpuint(in_reg(s, INTRSTATUS), ==, 1);
+    /* reading clears */
+    g_assert_cmpuint(in_reg(s, INTRSTATUS), ==, 0);
+    /* TODO intercept actual interrupt (needs qtest work) */
 
-    /* invalid io */
+    /* invalid register access */
     out_reg(s, IVPOSITION, 1);
+    in_reg(s, DOORBELL);
+
+    /* ring the (non-functional) doorbell */
     out_reg(s, DOORBELL, 8 << 16);
 
+    /* write shared memory */
     for (i = 0; i < G_N_ELEMENTS(data); i++) {
         data[i] = i;
     }
     qtest_memwrite(s->qtest, (uintptr_t)s->mem_base, data, sizeof(data));
 
+    /* verify write */
     for (i = 0; i < G_N_ELEMENTS(data); i++) {
         g_assert_cmpuint(((uint32_t *)tmpshmem)[i], ==, i);
     }
 
+    /* read it back and verify read */
     memset(data, 0, sizeof(data));
-
     qtest_memread(s->qtest, (uintptr_t)s->mem_base, data, sizeof(data));
     for (i = 0; i < G_N_ELEMENTS(data); i++) {
         g_assert_cmpuint(data[i], ==, i);
