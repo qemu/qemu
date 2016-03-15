@@ -87,7 +87,7 @@ typedef struct IVShmemState {
      */
     MemoryRegion bar;
     MemoryRegion ivshmem;
-    uint64_t ivshmem_size; /* size of shared memory region */
+    size_t ivshmem_size; /* size of shared memory region */
     uint32_t ivshmem_64bit;
 
     Peer *peers;
@@ -361,7 +361,7 @@ static int check_shm_size(IVShmemState *s, int fd, Error **errp)
 
     if (s->ivshmem_size > buf.st_size) {
         error_setg(errp, "Requested memory size greater"
-                   " than shared object size (%" PRIu64 " > %" PRIu64")",
+                   " than shared object size (%zu > %" PRIu64")",
                    s->ivshmem_size, (uint64_t)buf.st_size);
         return -1;
     } else {
@@ -865,7 +865,8 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
     } else {
         char *end;
         int64_t size = qemu_strtosz(s->sizearg, &end);
-        if (size < 0 || *end != '\0' || !is_power_of_2(size)) {
+        if (size < 0 || (size_t)size != size || *end != '\0'
+            || !is_power_of_2(size)) {
             error_setg(errp, "Invalid size %s", s->sizearg);
             return;
         }
