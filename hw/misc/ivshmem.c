@@ -126,6 +126,11 @@ static void ivshmem_update_irq(IVShmemState *s)
     PCIDevice *d = PCI_DEVICE(s);
     uint32_t isr = s->intrstatus & s->intrmask;
 
+    /* No INTx with msi=on, whether the guest enabled MSI-X or not */
+    if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
+        return;
+    }
+
     /* don't print ISR resets */
     if (isr) {
         IVSHMEM_DPRINTF("Set IRQ to %d (%04x %04x)\n",
@@ -873,6 +878,10 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
     pci_conf = dev->config;
     pci_conf[PCI_COMMAND] = PCI_COMMAND_IO | PCI_COMMAND_MEMORY;
 
+    /*
+     * Note: we don't use INTx with IVSHMEM_MSI at all, so this is a
+     * bald-faced lie then.  But it's a backwards compatible lie.
+     */
     pci_config_set_interrupt_pin(pci_conf, 1);
 
     memory_region_init_io(&s->ivshmem_mmio, OBJECT(s), &ivshmem_mmio_ops, s,
