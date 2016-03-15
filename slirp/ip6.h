@@ -72,7 +72,11 @@ static inline bool in6_equal_mach(const struct in6_addr *a,
   || (in6_equal_net(a, &(struct in6_addr)LINKLOCAL_ADDR, 64)\
       && in6_equal_mach(a, &slirp->vhost_addr6, 64)))
 
-#define in6_equal_dns(a) 0
+#define in6_equal_dns(a)\
+    ((in6_equal_net(a, &slirp->vprefix_addr6, slirp->vprefix_len)\
+      && in6_equal_mach(a, &slirp->vnameserver_addr6, slirp->vprefix_len))\
+  || (in6_equal_net(a, &(struct in6_addr)LINKLOCAL_ADDR, 64)\
+      && in6_equal_mach(a, &slirp->vnameserver_addr6, 64)))
 
 #define in6_equal_host(a)\
     (in6_equal_router(a) || in6_equal_dns(a))

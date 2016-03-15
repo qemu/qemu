@@ -212,6 +212,7 @@ struct Slirp {
     struct in6_addr vhost_addr6;
     struct in_addr vdhcp_startaddr;
     struct in_addr vnameserver_addr;
+    struct in6_addr vnameserver_addr6;
 
     struct in_addr client_ipaddr;
     char client_hostname[33];

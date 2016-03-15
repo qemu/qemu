@@ -231,10 +231,13 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
     slirp->vprefix_len = 64;
     slirp->vhost_addr6 = slirp->vprefix_addr6;
     slirp->vhost_addr6.s6_addr[15] = 0x2;
+    slirp->vnameserver_addr6 = slirp->vprefix_addr6;
+    slirp->vnameserver_addr6.s6_addr[15] = 0x3;
 #else
     inet_pton(AF_INET6, "fec0::0", &slirp->vprefix_addr6);
     slirp->vprefix_len = 64;
     inet_pton(AF_INET6, "fec0::2", &slirp->vhost_addr6);
+    inet_pton(AF_INET6, "fec0::3", &slirp->vnameserver_addr6);
 #endif
     if (vhostname) {
         pstrcpy(slirp->client_hostname, sizeof(slirp->client_hostname),

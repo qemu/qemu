@@ -771,6 +771,7 @@ void sotranslate_out(struct socket *so, struct sockaddr_storage *addr)
 {
     Slirp *slirp = so->slirp;
     struct sockaddr_in *sin = (struct sockaddr_in *)addr;
+    struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)addr;
 
     switch (addr->ss_family) {
     case AF_INET:
@@ -791,6 +792,19 @@ void sotranslate_out(struct socket *so, struct sockaddr_storage *addr)
             ntohs(sin->sin_port), inet_ntoa(sin->sin_addr)));
         break;
 
+    case AF_INET6:
+        if (in6_equal_net(&so->so_faddr6, &slirp->vprefix_addr6,
+                    slirp->vprefix_len)) {
+            if (in6_equal(&so->so_faddr6, &slirp->vnameserver_addr6)) {
+                /*if (get_dns_addr(&addr) < 0) {*/ /* TODO */
+                    sin6->sin6_addr = in6addr_loopback;
+                /*}*/
+            } else {
+                sin6->sin6_addr = in6addr_loopback;
+            }
+        }
+        break;
+
     default:
         break;
     }
@@ -800,6 +814,7 @@ void sotranslate_in(struct socket *so, struct sockaddr_storage *addr)
 {
     Slirp *slirp = so->slirp;
     struct sockaddr_in *sin = (struct sockaddr_in *)addr;
+    struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)addr;
 
     switch (addr->ss_family) {
     case AF_INET:
@@ -812,6 +827,16 @@ void sotranslate_in(struct socket *so, struct sockaddr_storage *addr)
             } else if (sin->sin_addr.s_addr == loopback_addr.s_addr ||
                        so->so_faddr.s_addr != slirp->vhost_addr.s_addr) {
                 sin->sin_addr = so->so_faddr;
+            }
+        }
+        break;
+
+    case AF_INET6:
+        if (in6_equal_net(&so->so_faddr6, &slirp->vprefix_addr6,
+                    slirp->vprefix_len)) {
+            if (in6_equal(&sin6->sin6_addr, &in6addr_loopback)
+                    || !in6_equal(&so->so_faddr6, &slirp->vhost_addr6)) {
+                sin6->sin6_addr = so->so_faddr6;
             }
         }
         break;
@@ -834,6 +859,13 @@ void sotranslate_accept(struct socket *so)
             (so->so_faddr.s_addr & loopback_mask) ==
             (loopback_addr.s_addr & loopback_mask)) {
            so->so_faddr = slirp->vhost_addr;
+        }
+        break;
+
+   case AF_INET6:
+        if (in6_equal(&so->so_faddr6, &in6addr_any) ||
+                in6_equal(&so->so_faddr6, &in6addr_loopback)) {
+           so->so_faddr6 = slirp->vhost_addr6;
         }
         break;
 
