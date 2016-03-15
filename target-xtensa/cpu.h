@@ -34,6 +34,7 @@
 #define CPUArchState struct CPUXtensaState
 
 #include "qemu-common.h"
+#include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat.h"
 
@@ -296,7 +297,7 @@ typedef struct XtensaGdbRegmap {
     XtensaGdbReg reg[1 + 16 + 64 + 256 + 256];
 } XtensaGdbRegmap;
 
-typedef struct XtensaConfig {
+struct XtensaConfig {
     const char *name;
     uint64_t options;
     XtensaGdbRegmap gdb_regmap;
@@ -329,7 +330,7 @@ typedef struct XtensaConfig {
 
     xtensa_tlb itlb;
     xtensa_tlb dtlb;
-} XtensaConfig;
+};
 
 typedef struct XtensaConfigList {
     const XtensaConfig *config;
@@ -379,7 +380,41 @@ typedef struct CPUXtensaState {
     CPU_COMMON
 } CPUXtensaState;
 
-#include "cpu-qom.h"
+/**
+ * XtensaCPU:
+ * @env: #CPUXtensaState
+ *
+ * An Xtensa CPU.
+ */
+struct XtensaCPU {
+    /*< private >*/
+    CPUState parent_obj;
+    /*< public >*/
+
+    CPUXtensaState env;
+};
+
+static inline XtensaCPU *xtensa_env_get_cpu(const CPUXtensaState *env)
+{
+    return container_of(env, XtensaCPU, env);
+}
+
+#define ENV_GET_CPU(e) CPU(xtensa_env_get_cpu(e))
+
+#define ENV_OFFSET offsetof(XtensaCPU, env)
+
+void xtensa_cpu_do_interrupt(CPUState *cpu);
+bool xtensa_cpu_exec_interrupt(CPUState *cpu, int interrupt_request);
+void xtensa_cpu_do_unassigned_access(CPUState *cpu, hwaddr addr,
+                                     bool is_write, bool is_exec, int opaque,
+                                     unsigned size);
+void xtensa_cpu_dump_state(CPUState *cpu, FILE *f,
+                           fprintf_function cpu_fprintf, int flags);
+hwaddr xtensa_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+int xtensa_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int xtensa_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+void xtensa_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
+                                    int is_write, int is_user, uintptr_t retaddr);
 
 #define cpu_exec cpu_xtensa_exec
 #define cpu_signal_handler cpu_xtensa_signal_handler

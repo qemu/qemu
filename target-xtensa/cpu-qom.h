@@ -40,6 +40,8 @@
 #define XTENSA_CPU_GET_CLASS(obj) \
     OBJECT_GET_CLASS(XtensaCPUClass, (obj), TYPE_XTENSA_CPU)
 
+typedef struct XtensaConfig XtensaConfig;
+
 /**
  * XtensaCPUClass:
  * @parent_realize: The parent class' realize handler.
@@ -59,40 +61,6 @@ typedef struct XtensaCPUClass {
     const XtensaConfig *config;
 } XtensaCPUClass;
 
-/**
- * XtensaCPU:
- * @env: #CPUXtensaState
- *
- * An Xtensa CPU.
- */
-typedef struct XtensaCPU {
-    /*< private >*/
-    CPUState parent_obj;
-    /*< public >*/
-
-    CPUXtensaState env;
-} XtensaCPU;
-
-static inline XtensaCPU *xtensa_env_get_cpu(const CPUXtensaState *env)
-{
-    return container_of(env, XtensaCPU, env);
-}
-
-#define ENV_GET_CPU(e) CPU(xtensa_env_get_cpu(e))
-
-#define ENV_OFFSET offsetof(XtensaCPU, env)
-
-void xtensa_cpu_do_interrupt(CPUState *cpu);
-bool xtensa_cpu_exec_interrupt(CPUState *cpu, int interrupt_request);
-void xtensa_cpu_do_unassigned_access(CPUState *cpu, hwaddr addr,
-                                     bool is_write, bool is_exec, int opaque,
-                                     unsigned size);
-void xtensa_cpu_dump_state(CPUState *cpu, FILE *f,
-                           fprintf_function cpu_fprintf, int flags);
-hwaddr xtensa_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
-int xtensa_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
-int xtensa_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
-void xtensa_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
-                                    int is_write, int is_user, uintptr_t retaddr);
+typedef struct XtensaCPU XtensaCPU;
 
 #endif
