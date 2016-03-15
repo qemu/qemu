@@ -21,6 +21,7 @@
 
 #include "tricore-defs.h"
 #include "qemu-common.h"
+#include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat.h"
 
@@ -198,6 +199,34 @@ struct CPUTriCoreState {
     struct QEMUTimer *timer; /* Internal timer */
 };
 
+/**
+ * TriCoreCPU:
+ * @env: #CPUTriCoreState
+ *
+ * A TriCore CPU.
+ */
+struct TriCoreCPU {
+    /*< private >*/
+    CPUState parent_obj;
+    /*< public >*/
+
+    CPUTriCoreState env;
+};
+
+static inline TriCoreCPU *tricore_env_get_cpu(CPUTriCoreState *env)
+{
+    return TRICORE_CPU(container_of(env, TriCoreCPU, env));
+}
+
+#define ENV_GET_CPU(e) CPU(tricore_env_get_cpu(e))
+
+#define ENV_OFFSET offsetof(TriCoreCPU, env)
+
+hwaddr tricore_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+void tricore_cpu_dump_state(CPUState *cpu, FILE *f,
+                            fprintf_function cpu_fprintf, int flags);
+
+
 #define MASK_PCXI_PCPN 0xff000000
 #define MASK_PCXI_PIE  0x00800000
 #define MASK_PCXI_UL   0x00400000
@@ -341,7 +370,6 @@ void psw_write(CPUTriCoreState *env, uint32_t val);
 
 void fpu_set_state(CPUTriCoreState *env);
 
-#include "cpu-qom.h"
 #define MMU_USER_IDX 2
 
 void tricore_cpu_list(FILE *f, fprintf_function cpu_fprintf);
