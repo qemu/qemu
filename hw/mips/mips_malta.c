@@ -1135,10 +1135,6 @@ void mips_malta_init(MachineState *machine)
     /* Board ID = 0x420 (Malta Board with CoreLV) */
     stl_p(memory_region_get_ram_ptr(bios_copy) + 0x10, 0x00000420);
 
-    /* Init internal devices */
-    cpu_mips_irq_init_cpu(env);
-    cpu_mips_clock_init(env);
-
     /*
      * We have a circular dependency problem: pci_bus depends on isa_irq,
      * isa_irq is provided by i8259, i8259 depends on ISA, ISA depends
