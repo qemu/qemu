@@ -127,7 +127,9 @@ static void setup_vm_cmd(IVState *s, const char *cmd, bool msix)
 
 static void setup_vm(IVState *s)
 {
-    char *cmd = g_strdup_printf("-device ivshmem,shm=%s,size=1M", tmpshm);
+    char *cmd = g_strdup_printf("-object memory-backend-file"
+                                ",id=mb1,size=1M,share,mem-path=/dev/shm%s"
+                                " -device ivshmem-plain,memdev=mb1", tmpshm);
 
     setup_vm_cmd(s, cmd, false);
 
@@ -284,8 +286,10 @@ static void *server_thread(void *data)
 static void setup_vm_with_server(IVState *s, int nvectors, bool msi)
 {
     char *cmd = g_strdup_printf("-chardev socket,id=chr0,path=%s,nowait "
-                                "-device ivshmem,size=1M,chardev=chr0,vectors=%d,msi=%s",
-                                tmpserver, nvectors, msi ? "true" : "false");
+                                "-device ivshmem%s,chardev=chr0,vectors=%d",
+                                tmpserver,
+                                msi ? "-doorbell" : ",size=1M,msi=off",
+                                nvectors);
 
     setup_vm_cmd(s, cmd, msi);
 
@@ -412,7 +416,7 @@ static void test_ivshmem_memdev(void)
 
     /* just for the sake of checking memory-backend property */
     setup_vm_cmd(&state, "-object memory-backend-ram,size=1M,id=mb1"
-                 " -device ivshmem,x-memdev=mb1", false);
+                 " -device ivshmem-plain,memdev=mb1", false);
 
     cleanup_vm(&state);
 }

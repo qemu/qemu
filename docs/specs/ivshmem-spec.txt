@@ -17,9 +17,10 @@ get interrupted by its peers.
 
 There are two basic configurations:
 
-- Just shared memory: -device ivshmem,shm=NAME,...
+- Just shared memory: -device ivshmem-plain,memdev=HMB,...
 
-  This uses shared memory object NAME.
+  This uses host memory backend HMB.  It should have option "share"
+  set.
 
 - Shared memory plus interrupts: -device ivshmem,chardev=CHR,vectors=N,...
 
@@ -30,9 +31,8 @@ There are two basic configurations:
   Each peer gets assigned a unique ID by the server.  IDs must be
   between 0 and 65535.
 
-  Interrupts are message-signaled by default (MSI-X).  With msi=off
-  the device has no MSI-X capability, and uses legacy INTx instead.
-  vectors=N configures the number of vectors to use.
+  Interrupts are message-signaled (MSI-X).  vectors=N configures the
+  number of vectors to use.
 
 For more details on ivshmem device properties, see The QEMU Emulator
 User Documentation (qemu-doc.*).
@@ -40,14 +40,15 @@ User Documentation (qemu-doc.*).
 
 == The ivshmem PCI device's guest interface ==
 
-The device has vendor ID 1af4, device ID 1110, revision 0.
+The device has vendor ID 1af4, device ID 1110, revision 1.  Before
+QEMU 2.6.0, it had revision 0.
 
 === PCI BARs ===
 
 The ivshmem PCI device has two or three BARs:
 
 - BAR0 holds device registers (256 Byte MMIO)
-- BAR1 holds MSI-X table and PBA (only when using MSI-X)
+- BAR1 holds MSI-X table and PBA (only ivshmem-doorbell)
 - BAR2 maps the shared memory object
 
 There are two ways to use this device:
@@ -58,18 +59,19 @@ There are two ways to use this device:
   user space (see http://dpdk.org/browse/memnic).
 
 - If you additionally need the capability for peers to interrupt each
-  other, you need BAR0 and, if using MSI-X, BAR1.  You will most
-  likely want to write a kernel driver to handle interrupts.  Requires
-  the device to be configured for interrupts, obviously.
+  other, you need BAR0 and BAR1.  You will most likely want to write a
+  kernel driver to handle interrupts.  Requires the device to be
+  configured for interrupts, obviously.
 
 Before QEMU 2.6.0, BAR2 can initially be invalid if the device is
 configured for interrupts.  It becomes safely accessible only after
-the ivshmem server provided the shared memory.  Guest software should
-wait for the IVPosition register (described below) to become
-non-negative before accessing BAR2.
+the ivshmem server provided the shared memory.  These devices have PCI
+revision 0 rather than 1.  Guest software should wait for the
+IVPosition register (described below) to become non-negative before
+accessing BAR2.
 
-The device is not capable to tell guest software whether it is
-configured for interrupts.
+Revision 0 of the device is not capable to tell guest software whether
+it is configured for interrupts.
 
 === PCI device registers ===
 
@@ -77,10 +79,12 @@ BAR 0 contains the following registers:
 
     Offset  Size  Access      On reset  Function
         0     4   read/write        0   Interrupt Mask
-                                        bit 0: peer interrupt
+                                        bit 0: peer interrupt (rev 0)
+                                               reserved       (rev 1)
                                         bit 1..31: reserved
         4     4   read/write        0   Interrupt Status
-                                        bit 0: peer interrupt
+                                        bit 0: peer interrupt (rev 0)
+                                               reserved       (rev 1)
                                         bit 1..31: reserved
         8     4   read-only   0 or ID   IVPosition
        12     4   write-only      N/A   Doorbell
@@ -92,18 +96,18 @@ Software should only access the registers as specified in column
 "Access".  Reserved bits should be ignored on read, and preserved on
 write.
 
-Interrupt Status and Mask Register together control the legacy INTx
-interrupt when the device has no MSI-X capability: INTx is asserted
-when the bit-wise AND of Status and Mask is non-zero and the device
-has no MSI-X capability.  Interrupt Status Register bit 0 becomes 1
-when an interrupt request from a peer is received.  Reading the
-register clears it.
+In revision 0 of the device, Interrupt Status and Mask Register
+together control the legacy INTx interrupt when the device has no
+MSI-X capability: INTx is asserted when the bit-wise AND of Status and
+Mask is non-zero and the device has no MSI-X capability.  Interrupt
+Status Register bit 0 becomes 1 when an interrupt request from a peer
+is received.  Reading the register clears it.
 
 IVPosition Register: if the device is not configured for interrupts,
 this is zero.  Else, it is the device's ID (between 0 and 65535).
 
 Before QEMU 2.6.0, the register may read -1 for a short while after
-reset.
+reset.  These devices have PCI revision 0 rather than 1.
 
 There is no good way for software to find out whether the device is
 configured for interrupts.  A positive IVPosition means interrupts,
@@ -124,14 +128,14 @@ interrupt vectors connected, the write is ignored.  The device is not
 capable to tell guest software what peers are connected, or how many
 interrupt vectors are connected.
 
-If the peer doesn't use MSI-X, its Interrupt Status register is set to
-1.  This asserts INTx unless masked by the Interrupt Mask register.
-The device is not capable to communicate the interrupt vector to guest
-software then.
+The peer's interrupt for this vector then becomes pending.  There is
+no way for software to clear the pending bit, and a polling mode of
+operation is therefore impossible.
 
-If the peer uses MSI-X, the interrupt for this vector becomes pending.
-There is no way for software to clear the pending bit, and a polling
-mode of operation is therefore impossible with MSI-X.
+If the peer is a revision 0 device without MSI-X capability, its
+Interrupt Status register is set to 1.  This asserts INTx unless
+masked by the Interrupt Mask register.  The device is not capable to
+communicate the interrupt vector to guest software then.
 
 With multiple MSI-X vectors, different vectors can be used to indicate
 different events have occurred.  The semantics of interrupt vectors
