@@ -343,29 +343,6 @@ static void watch_vector_notifier(IVShmemState *s, EventNotifier *n,
                         NULL, &s->msi_vectors[vector]);
 }
 
-static int check_shm_size(IVShmemState *s, int fd, Error **errp)
-{
-    /* check that the guest isn't going to try and map more memory than the
-     * the object has allocated return -1 to indicate error */
-
-    struct stat buf;
-
-    if (fstat(fd, &buf) < 0) {
-        error_setg(errp, "exiting: fstat on fd %d failed: %s",
-                   fd, strerror(errno));
-        return -1;
-    }
-
-    if (s->ivshmem_size > buf.st_size) {
-        error_setg(errp, "Requested memory size greater"
-                   " than shared object size (%zu > %" PRIu64")",
-                   s->ivshmem_size, (uint64_t)buf.st_size);
-        return -1;
-    } else {
-        return 0;
-    }
-}
-
 static void ivshmem_add_eventfd(IVShmemState *s, int posn, int i)
 {
     memory_region_add_eventfd(&s->ivshmem_mmio,
@@ -480,7 +457,7 @@ static void setup_interrupt(IVShmemState *s, int vector, Error **errp)
 
 static void process_msg_shmem(IVShmemState *s, int fd, Error **errp)
 {
-    Error *err = NULL;
+    struct stat buf;
     void *ptr;
 
     if (s->ivshmem_bar2) {
@@ -489,8 +466,16 @@ static void process_msg_shmem(IVShmemState *s, int fd, Error **errp)
         return;
     }
 
-    if (check_shm_size(s, fd, &err) == -1) {
-        error_propagate(errp, err);
+    if (fstat(fd, &buf) < 0) {
+        error_setg_errno(errp, errno,
+            "can't determine size of shared memory sent by server");
+        close(fd);
+        return;
+    }
+
+    if (s->ivshmem_size > buf.st_size) {
+        error_setg(errp, "server sent only %zd bytes of shared memory",
+                   (size_t)buf.st_size);
         close(fd);
         return;
     }
