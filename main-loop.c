@@ -509,7 +509,7 @@ int main_loop_wait(int nonblocking)
 
     /* CPU thread can infinitely wait for event after
        missing the warp */
-    qemu_clock_warp(QEMU_CLOCK_VIRTUAL);
+    qemu_start_warp_timer();
     qemu_clock_run_all_timers();
 
     return ret;

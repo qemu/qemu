@@ -24,6 +24,11 @@ enum ReplayEvents {
     EVENT_ASYNC,
     /* for shutdown request */
     EVENT_SHUTDOWN,
+    /* for character device write event */
+    EVENT_CHAR_WRITE,
+    /* for character device read all event */
+    EVENT_CHAR_READ_ALL,
+    EVENT_CHAR_READ_ALL_ERROR,
     /* for clock read/writes */
     /* some of greater codes are reserved for clocks */
     EVENT_CLOCK,
@@ -43,6 +48,7 @@ enum ReplayAsyncEventKind {
     REPLAY_ASYNC_EVENT_BH,
     REPLAY_ASYNC_EVENT_INPUT,
     REPLAY_ASYNC_EVENT_INPUT_SYNC,
+    REPLAY_ASYNC_EVENT_CHAR_READ,
     REPLAY_ASYNC_COUNT
 };
 
@@ -124,6 +130,9 @@ bool replay_has_events(void);
 void replay_save_events(int checkpoint);
 /*! Read events from the file into the input queue */
 void replay_read_events(int checkpoint);
+/*! Adds specified async event to the queue */
+void replay_add_event(ReplayAsyncEventKind event_kind, void *opaque,
+                      void *opaque2, uint64_t id);
 
 /* Input events */
 
@@ -135,5 +144,14 @@ InputEvent *replay_read_input_event(void);
 void replay_add_input_event(struct InputEvent *event);
 /*! Adds input sync event to the queue */
 void replay_add_input_sync_event(void);
+
+/* Character devices */
+
+/*! Called to run char device read event. */
+void replay_event_char_read_run(void *opaque);
+/*! Writes char read event to the file. */
+void replay_event_char_read_save(void *opaque);
+/*! Reads char event read from the file. */
+void *replay_event_char_read_load(void);
 
 #endif

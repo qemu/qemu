@@ -27,7 +27,8 @@ typedef enum ReplayClockKind ReplayClockKind;
 
 /* IDs of the checkpoints */
 enum ReplayCheckpoint {
-    CHECKPOINT_CLOCK_WARP,
+    CHECKPOINT_CLOCK_WARP_START,
+    CHECKPOINT_CLOCK_WARP_ACCOUNT,
     CHECKPOINT_RESET_REQUESTED,
     CHECKPOINT_SUSPEND_REQUESTED,
     CHECKPOINT_CLOCK_VIRTUAL,
@@ -113,5 +114,22 @@ void replay_bh_schedule_event(QEMUBH *bh);
 void replay_input_event(QemuConsole *src, InputEvent *evt);
 /*! Adds input sync event to the queue */
 void replay_input_sync_event(void);
+
+/* Character device */
+
+/*! Registers char driver to save it's events */
+void replay_register_char_driver(struct CharDriverState *chr);
+/*! Saves write to char device event to the log */
+void replay_chr_be_write(struct CharDriverState *s, uint8_t *buf, int len);
+/*! Writes char write return value to the replay log. */
+void replay_char_write_event_save(int res, int offset);
+/*! Reads char write return value from the replay log. */
+void replay_char_write_event_load(int *res, int *offset);
+/*! Reads information about read_all character event. */
+int replay_char_read_all_load(uint8_t *buf);
+/*! Writes character read_all error code into the replay log. */
+void replay_char_read_all_save_error(int res);
+/*! Writes character read_all execution result into the replay log. */
+void replay_char_read_all_save_buf(uint8_t *buf, int offset);
 
 #endif

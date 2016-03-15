@@ -1752,7 +1752,7 @@ int gdbserver_start(const char *device)
             sigaction(SIGINT, &act, NULL);
         }
 #endif
-        chr = qemu_chr_new("gdb", device, NULL);
+        chr = qemu_chr_new_noreplay("gdb", device, NULL);
         if (!chr)
             return -1;
 
