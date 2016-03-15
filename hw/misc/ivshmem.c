@@ -653,8 +653,6 @@ static void process_msg(IVShmemState *s, int64_t msg, int fd, Error **errp)
 
     if (fd >= 0) {
         process_msg_connect(s, msg, fd, errp);
-    } else if (s->vm_id == -1) {
-        s->vm_id = msg;
     } else {
         process_msg_disconnect(s, msg, errp);
     }
@@ -720,6 +718,30 @@ static void ivshmem_recv_setup(IVShmemState *s, Error **errp)
         error_setg(errp, "server sent invalid version message");
         return;
     }
+
+    /*
+     * ivshmem-server sends the remaining initial messages in a fixed
+     * order, but the device has always accepted them in any order.
+     * Stay as compatible as practical, just in case people use
+     * servers that behave differently.
+     */
+
+    /*
+     * ivshmem_device_spec.txt has always required the ID message
+     * right here, and ivshmem-server has always complied.  However,
+     * older versions of the device accepted it out of order, but
+     * broke when an interrupt setup message arrived before it.
+     */
+    msg = ivshmem_recv_msg(s, &fd, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    if (fd != -1 || msg < 0 || msg > IVSHMEM_MAX_PEERS) {
+        error_setg(errp, "server sent invalid ID message");
+        return;
+    }
+    s->vm_id = msg;
 
     /*
      * Receive more messages until we got shared memory.
@@ -956,7 +978,6 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
 
         /* we allocate enough space for 16 peers and grow as needed */
         resize_peers(s, 16);
-        s->vm_id = -1;
 
         pci_register_bar(dev, 2, attr, &s->bar);
 
