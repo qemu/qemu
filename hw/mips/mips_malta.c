@@ -57,6 +57,7 @@
 #include "hw/empty_slot.h"
 #include "sysemu/kvm.h"
 #include "exec/semihost.h"
+#include "hw/mips/cps.h"
 
 //#define DEBUG_BOARD_INIT
 
@@ -95,6 +96,7 @@ typedef struct {
 typedef struct {
     SysBusDevice parent_obj;
 
+    MIPSCPSState *cps;
     qemu_irq *i8259;
 } MaltaState;
 
@@ -908,19 +910,12 @@ static void main_cpu_reset(void *opaque)
     }
 }
 
-static void create_cpu(const char *cpu_model,
-                       qemu_irq *cbus_irq, qemu_irq *i8259_irq)
+static void create_cpu_without_cps(const char *cpu_model,
+                                   qemu_irq *cbus_irq, qemu_irq *i8259_irq)
 {
     CPUMIPSState *env;
     MIPSCPU *cpu;
     int i;
-    if (cpu_model == NULL) {
-#ifdef TARGET_MIPS64
-        cpu_model = "20Kc";
-#else
-        cpu_model = "24Kf";
-#endif
-    }
 
     for (i = 0; i < smp_cpus; i++) {
         cpu = cpu_mips_init(cpu_model);
@@ -940,6 +935,49 @@ static void create_cpu(const char *cpu_model,
     env = &cpu->env;
     *i8259_irq = env->irq[2];
     *cbus_irq = env->irq[4];
+}
+
+static void create_cps(MaltaState *s, const char *cpu_model,
+                       qemu_irq *cbus_irq, qemu_irq *i8259_irq)
+{
+    Error *err = NULL;
+    s->cps = g_new0(MIPSCPSState, 1);
+
+    object_initialize(s->cps, sizeof(MIPSCPSState), TYPE_MIPS_CPS);
+    qdev_set_parent_bus(DEVICE(s->cps), sysbus_get_default());
+
+    object_property_set_str(OBJECT(s->cps), cpu_model, "cpu-model", &err);
+    object_property_set_int(OBJECT(s->cps), smp_cpus, "num-vp", &err);
+    object_property_set_bool(OBJECT(s->cps), true, "realized", &err);
+    if (err != NULL) {
+        error_report("%s", error_get_pretty(err));
+        exit(1);
+    }
+
+    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(s->cps), 0, 0, 1);
+
+    /* FIXME: When GIC is present then we should use GIC's IRQ 3.
+       Until then CPS exposes CPU's IRQs thus use the default IRQ 2. */
+    *i8259_irq = get_cps_irq(s->cps, 2);
+    *cbus_irq = NULL;
+}
+
+static void create_cpu(MaltaState *s, const char *cpu_model,
+                       qemu_irq *cbus_irq, qemu_irq *i8259_irq)
+{
+    if (cpu_model == NULL) {
+#ifdef TARGET_MIPS64
+        cpu_model = "20Kc";
+#else
+        cpu_model = "24Kf";
+#endif
+    }
+
+    if ((smp_cpus > 1) && cpu_supports_cps_smp(cpu_model)) {
+        create_cps(s, cpu_model, cbus_irq, i8259_irq);
+    } else {
+        create_cpu_without_cps(cpu_model, cbus_irq, i8259_irq);
+    }
 }
 
 static
@@ -994,8 +1032,8 @@ void mips_malta_init(MachineState *machine)
         }
     }
 
-    /* create CPUs */
-    create_cpu(machine->cpu_model, &cbus_irq, &i8259_irq);
+    /* create CPU */
+    create_cpu(s, machine->cpu_model, &cbus_irq, &i8259_irq);
 
     /* allocate RAM */
     if (ram_size > (2048u << 20)) {

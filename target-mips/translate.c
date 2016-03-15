@@ -19977,6 +19977,16 @@ MIPSCPU *cpu_mips_init(const char *cpu_model)
     return cpu;
 }
 
+bool cpu_supports_cps_smp(const char *cpu_model)
+{
+    const mips_def_t *def = cpu_mips_find_by_name(cpu_model);
+    if (!def) {
+        return false;
+    }
+
+    return (def->CP0_Config3 & (1 << CP0C3_CMGCR)) != 0;
+}
+
 void cpu_state_reset(CPUMIPSState *env)
 {
     MIPSCPU *cpu = mips_env_get_cpu(env);
