@@ -38,17 +38,6 @@ void qemu_log(const char *fmt, ...)
     va_end(ap);
 }
 
-void qemu_log_mask(int mask, const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    if ((qemu_loglevel & mask) && qemu_logfile) {
-        vfprintf(qemu_logfile, fmt, ap);
-    }
-    va_end(ap);
-}
-
 /* enable or disable low levels log */
 void do_qemu_set_log(int log_flags, bool use_own_buffers)
 {

@@ -66,10 +66,17 @@ qemu_log_vprintf(const char *fmt, va_list va)
     }
 }
 
-/* log only if a bit is set on the current loglevel mask
+/* log only if a bit is set on the current loglevel mask:
+ * @mask: bit to check in the mask
+ * @fmt: printf-style format string
+ * @args: optional arguments for format string
  */
-void GCC_FMT_ATTR(2, 3) qemu_log_mask(int mask, const char *fmt, ...);
-
+#define qemu_log_mask(MASK, FMT, ...)                   \
+    do {                                                \
+        if (unlikely(qemu_loglevel_mask(MASK))) {       \
+            qemu_log(FMT, ## __VA_ARGS__);              \
+        }                                               \
+    } while (0)
 
 /* Maintenance: */
 
