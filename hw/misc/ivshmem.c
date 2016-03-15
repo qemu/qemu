@@ -48,13 +48,13 @@
 
 #define IVSHMEM_REG_BAR_SIZE 0x100
 
-//#define DEBUG_IVSHMEM
-#ifdef DEBUG_IVSHMEM
-#define IVSHMEM_DPRINTF(fmt, ...)        \
-    do {printf("IVSHMEM: " fmt, ## __VA_ARGS__); } while (0)
-#else
-#define IVSHMEM_DPRINTF(fmt, ...)
-#endif
+#define IVSHMEM_DEBUG 0
+#define IVSHMEM_DPRINTF(fmt, ...)                       \
+    do {                                                \
+        if (IVSHMEM_DEBUG) {                            \
+            printf("IVSHMEM: " fmt, ## __VA_ARGS__);    \
+        }                                               \
+    } while (0)
 
 #define TYPE_IVSHMEM "ivshmem"
 #define IVSHMEM(obj) \
