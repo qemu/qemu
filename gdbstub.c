@@ -19,7 +19,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
-
+#include "cpu.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
 #else

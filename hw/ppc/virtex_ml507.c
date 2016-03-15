@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "cpu.h"
 #include "hw/sysbus.h"
 #include "hw/hw.h"
 #include "hw/char/serial.h"

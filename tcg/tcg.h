@@ -26,6 +26,7 @@
 #define TCG_H
 
 #include "qemu-common.h"
+#include "cpu.h"
 #include "qemu/bitops.h"
 #include "tcg-target.h"
 

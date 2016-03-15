@@ -22,11 +22,6 @@
 
 #include "qemu/option.h"
 
-/* FIXME: Remove NEED_CPU_H.  */
-#ifdef NEED_CPU_H
-#include "cpu.h"
-#endif /* !defined(NEED_CPU_H) */
-
 /* main function, renamed */
 #if defined(CONFIG_COCOA)
 int qemu_main(int argc, char **argv, char **envp);

@@ -1145,22 +1145,8 @@ static inline void cpu_mips_store_cause(CPUMIPSState *env, target_ulong val)
 }
 #endif
 
-static inline void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env,
-                                                        uint32_t exception,
-                                                        int error_code,
-                                                        uintptr_t pc)
-{
-    CPUState *cs = CPU(mips_env_get_cpu(env));
-
-    if (exception < EXCP_SC) {
-        qemu_log_mask(CPU_LOG_INT, "%s: %d %d\n",
-                      __func__, exception, error_code);
-    }
-    cs->exception_index = exception;
-    env->error_code = error_code;
-
-    cpu_loop_exit_restore(cs, pc);
-}
+void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env, uint32_t exception,
+                                          int error_code, uintptr_t pc);
 
 static inline void QEMU_NORETURN do_raise_exception(CPUMIPSState *env,
                                                     uint32_t exception,

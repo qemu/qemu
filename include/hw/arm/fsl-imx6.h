@@ -29,6 +29,7 @@
 #include "hw/sd/sdhci.h"
 #include "hw/ssi/imx_spi.h"
 #include "exec/memory.h"
+#include "cpu.h"
 
 #define TYPE_FSL_IMX6 "fsl,imx6"
 #define FSL_IMX6(obj) OBJECT_CHECK(FslIMX6State, (obj), TYPE_FSL_IMX6)

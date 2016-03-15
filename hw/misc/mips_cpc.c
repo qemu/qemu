@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "cpu.h"
 #include "hw/sysbus.h"
 
 #include "hw/misc/mips_cpc.h"

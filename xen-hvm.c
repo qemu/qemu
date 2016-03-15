@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #include <sys/mman.h>
 
+#include "cpu.h"
 #include "hw/pci/pci.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic-msidef.h"

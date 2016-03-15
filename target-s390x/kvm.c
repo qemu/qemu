@@ -29,12 +29,12 @@
 #include <asm/ptrace.h>
 
 #include "qemu-common.h"
+#include "cpu.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
 #include "hw/hw.h"
-#include "cpu.h"
 #include "sysemu/device_tree.h"
 #include "qapi/qmp/qjson.h"
 #include "exec/gdbstub.h"

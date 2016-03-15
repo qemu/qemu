@@ -18,6 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "cpu.h"
 #include "exec/gdbstub.h"
 
 int aarch64_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)

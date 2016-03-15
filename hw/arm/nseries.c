@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "cpu.h"
 #include "qemu/cutils.h"
 #include "qemu/bswap.h"
 #include "sysemu/sysemu.h"

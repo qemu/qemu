@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "cpu.h"
 #include "hw/hw.h"
 #include "hw/timer/m48t59.h"
 #include "hw/i386/pc.h"

@@ -26,6 +26,8 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "cpu.h"
 #include <zlib.h>
 #include "qapi-event.h"
 #include "qemu/cutils.h"

@@ -22,6 +22,7 @@
 
 #include "qemu-common.h"
 #include "hw/arm/virt.h"
+#include "qemu/notify.h"
 
 #define ACPI_GICC_ENABLED 1
 

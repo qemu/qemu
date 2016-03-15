@@ -23,6 +23,8 @@
  */
 #include "qemu/osdep.h"
 #include <dirent.h>
+#include "qemu-common.h"
+#include "cpu.h"
 #include "hw/hw.h"
 #include "monitor/qdev.h"
 #include "hw/usb.h"

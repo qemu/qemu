@@ -11,6 +11,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "cpu.h"
 #include "kvm_arm.h"
 
 bool write_kvmstate_to_list(ARMCPU *cpu)

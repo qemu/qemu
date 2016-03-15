@@ -28,10 +28,10 @@
 #include "hw/qdev-core.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/boards.h"
+#include "hw/xen/xen.h"
 #endif
 #include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
-#include "hw/xen/xen.h"
 #include "qemu/timer.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"

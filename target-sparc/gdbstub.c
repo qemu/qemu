@@ -19,6 +19,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "cpu.h"
 #include "exec/gdbstub.h"
 
 #ifdef TARGET_ABI32
