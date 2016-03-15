@@ -428,21 +428,17 @@ static void close_peer_eventfds(IVShmemState *s, int posn)
 {
     int i, n;
 
-    if (!ivshmem_has_feature(s, IVSHMEM_IOEVENTFD)) {
-        return;
-    }
-    if (posn < 0 || posn >= s->nb_peers) {
-        error_report("invalid peer %d", posn);
-        return;
-    }
-
+    assert(posn >= 0 && posn < s->nb_peers);
     n = s->peers[posn].nb_eventfds;
 
-    memory_region_transaction_begin();
-    for (i = 0; i < n; i++) {
-        ivshmem_del_eventfd(s, posn, i);
+    if (ivshmem_has_feature(s, IVSHMEM_IOEVENTFD)) {
+        memory_region_transaction_begin();
+        for (i = 0; i < n; i++) {
+            ivshmem_del_eventfd(s, posn, i);
+        }
+        memory_region_transaction_commit();
     }
-    memory_region_transaction_commit();
+
     for (i = 0; i < n; i++) {
         event_notifier_cleanup(&s->peers[posn].eventfds[i]);
     }
@@ -598,6 +594,10 @@ static void process_msg_shmem(IVShmemState *s, int fd)
 static void process_msg_disconnect(IVShmemState *s, uint16_t posn)
 {
     IVSHMEM_DPRINTF("posn %d has gone away\n", posn);
+    if (posn >= s->nb_peers || posn == s->vm_id) {
+        error_report("invalid peer %d", posn);
+        return;
+    }
     close_peer_eventfds(s, posn);
 }
 
