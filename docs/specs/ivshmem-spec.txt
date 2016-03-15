@@ -164,6 +164,8 @@ For each new client that connects to the server, the server
 - sends interrupt setup messages to the new client (these contain file
   descriptors for receiving interrupts).
 
+The first client to connect to the server receives ID zero.
+
 When a client disconnects from the server, the server sends disconnect
 notifications to the other clients.
 

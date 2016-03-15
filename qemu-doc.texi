@@ -1295,11 +1295,16 @@ When using the server, the guest will be assigned a VM ID (>=0) that allows gues
 using the same server to communicate via interrupts.  Guests can read their
 VM ID from a device register (see ivshmem-spec.txt).
 
+@subsubsection Migration with ivshmem
+
 With device property @option{master=on}, the guest will copy the shared
 memory on migration to the destination host.  With @option{master=off},
 the guest will not be able to migrate with the device attached.  In the
 latter case, the device should be detached and then reattached after
 migration using the PCI hotplug support.
+
+At most one of the devices sharing the same memory can be master.  The
+master must complete migration before you plug back the other devices.
 
 @subsubsection ivshmem and hugepages
 

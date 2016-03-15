@@ -887,6 +887,12 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
             return;
         }
 
+        if (s->master == ON_OFF_AUTO_ON && s->vm_id != 0) {
+            error_setg(errp,
+                       "master must connect to the server before any peers");
+            return;
+        }
+
         qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive,
                               ivshmem_read, NULL, s);
 
