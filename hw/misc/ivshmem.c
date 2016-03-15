@@ -1210,17 +1210,12 @@ static void ivshmem_realize(PCIDevice *dev, Error **errp)
                      " or ivshmem-doorbell instead");
     }
 
-    if (!!s->server_chr + !!s->shmobj + !!s->hostmem != 1) {
-        error_setg(errp,
-                   "You must specify either 'shm', 'chardev' or 'x-memdev'");
+    if (!!s->server_chr + !!s->shmobj != 1) {
+        error_setg(errp, "You must specify either 'shm' or 'chardev'");
         return;
     }
 
-    if (s->hostmem) {
-        if (s->sizearg) {
-            g_warning("size argument ignored with hostmem");
-        }
-    } else if (s->sizearg == NULL) {
+    if (s->sizearg == NULL) {
         s->legacy_size = 4 << 20; /* 4 MB default */
     } else {
         char *end;
@@ -1260,17 +1255,6 @@ static void ivshmem_realize(PCIDevice *dev, Error **errp)
     ivshmem_common_realize(dev, errp);
 }
 
-static void ivshmem_init(Object *obj)
-{
-    IVShmemState *s = IVSHMEM(obj);
-
-    object_property_add_link(obj, "x-memdev", TYPE_MEMORY_BACKEND,
-                             (Object **)&s->hostmem,
-                             ivshmem_check_memdev_is_busy,
-                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
-                             &error_abort);
-}
-
 static void ivshmem_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1287,7 +1271,6 @@ static const TypeInfo ivshmem_info = {
     .name          = TYPE_IVSHMEM,
     .parent        = TYPE_IVSHMEM_COMMON,
     .instance_size = sizeof(IVShmemState),
-    .instance_init = ivshmem_init,
     .class_init    = ivshmem_class_init,
 };
 
