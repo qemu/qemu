@@ -26,7 +26,6 @@
 #include "migration/migration.h"
 #include "qemu/error-report.h"
 #include "qemu/event_notifier.h"
-#include "qemu/fifo8.h"
 #include "sysemu/char.h"
 #include "sysemu/hostmem.h"
 #include "qapi/visitor.h"
@@ -80,7 +79,6 @@ typedef struct IVShmemState {
     uint32_t intrstatus;
 
     CharDriverState *server_chr;
-    Fifo8 incoming_fifo;
     MemoryRegion ivshmem_mmio;
 
     /* We might need to register the BAR before we actually have the memory.
@@ -99,6 +97,8 @@ typedef struct IVShmemState {
     uint32_t vectors;
     uint32_t features;
     MSIVector *msi_vectors;
+    uint64_t msg_buf;           /* buffer for receiving server messages */
+    int msg_buffered_bytes;     /* #bytes in @msg_buf */
 
     Error *migration_blocker;
 
@@ -254,11 +254,6 @@ static const MemoryRegionOps ivshmem_mmio_ops = {
         .max_access_size = 4,
     },
 };
-
-static int ivshmem_can_receive(void * opaque)
-{
-    return sizeof(int64_t);
-}
 
 static void ivshmem_vector_notify(void *opaque)
 {
@@ -459,53 +454,6 @@ static void resize_peers(IVShmemState *s, int nb_peers)
     }
 }
 
-static bool fifo_update_and_get(IVShmemState *s, const uint8_t *buf, int size,
-                                void *data, size_t len)
-{
-    const uint8_t *p;
-    uint32_t num;
-
-    assert(len <= sizeof(int64_t)); /* limitation of the fifo */
-    if (fifo8_is_empty(&s->incoming_fifo) && size == len) {
-        memcpy(data, buf, size);
-        return true;
-    }
-
-    IVSHMEM_DPRINTF("short read of %d bytes\n", size);
-
-    num = MIN(size, sizeof(int64_t) - fifo8_num_used(&s->incoming_fifo));
-    fifo8_push_all(&s->incoming_fifo, buf, num);
-
-    if (fifo8_num_used(&s->incoming_fifo) < len) {
-        assert(num == 0);
-        return false;
-    }
-
-    size -= num;
-    buf += num;
-    p = fifo8_pop_buf(&s->incoming_fifo, len, &num);
-    assert(num == len);
-
-    memcpy(data, p, len);
-
-    if (size > 0) {
-        fifo8_push_all(&s->incoming_fifo, buf, size);
-    }
-
-    return true;
-}
-
-static bool fifo_update_and_get_i64(IVShmemState *s,
-                                    const uint8_t *buf, int size, int64_t *i64)
-{
-    if (fifo_update_and_get(s, buf, size, i64, sizeof(*i64))) {
-        *i64 = GINT64_FROM_LE(*i64);
-        return true;
-    }
-
-    return false;
-}
-
 static void ivshmem_add_kvm_msi_virq(IVShmemState *s, int vector,
                                      Error **errp)
 {
@@ -658,6 +606,14 @@ static void process_msg(IVShmemState *s, int64_t msg, int fd, Error **errp)
     }
 }
 
+static int ivshmem_can_receive(void *opaque)
+{
+    IVShmemState *s = opaque;
+
+    assert(s->msg_buffered_bytes < sizeof(s->msg_buf));
+    return sizeof(s->msg_buf) - s->msg_buffered_bytes;
+}
+
 static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
 {
     IVShmemState *s = opaque;
@@ -665,9 +621,14 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     int fd;
     int64_t msg;
 
-    if (!fifo_update_and_get_i64(s, buf, size, &msg)) {
+    assert(size >= 0 && s->msg_buffered_bytes + size <= sizeof(s->msg_buf));
+    memcpy((unsigned char *)&s->msg_buf + s->msg_buffered_bytes, buf, size);
+    s->msg_buffered_bytes += size;
+    if (s->msg_buffered_bytes < sizeof(s->msg_buf)) {
         return;
     }
+    msg = le64_to_cpu(s->msg_buf);
+    s->msg_buffered_bytes = 0;
 
     fd = qemu_chr_fe_get_msgfd(s->server_chr);
     IVSHMEM_DPRINTF("posn is %" PRId64 ", fd is %d\n", msg, fd);
@@ -1022,8 +983,6 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         }
     }
 
-    fifo8_create(&s->incoming_fifo, sizeof(int64_t));
-
     if (s->role_val == IVSHMEM_PEER) {
         error_setg(&s->migration_blocker,
                    "Migration is disabled when using feature 'peer mode' in device 'ivshmem'");
@@ -1035,8 +994,6 @@ static void pci_ivshmem_exit(PCIDevice *dev)
 {
     IVShmemState *s = IVSHMEM(dev);
     int i;
-
-    fifo8_destroy(&s->incoming_fifo);
 
     if (s->migration_blocker) {
         migrate_del_blocker(s->migration_blocker);
