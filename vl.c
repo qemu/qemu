@@ -87,6 +87,7 @@ int main(int argc, char **argv)
 #include "sysemu/dma.h"
 #include "audio/audio.h"
 #include "migration/migration.h"
+#include "sysemu/cpus.h"
 #include "sysemu/kvm.h"
 #include "qapi/qmp/qjson.h"
 #include "qemu/option.h"
