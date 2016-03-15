@@ -45,6 +45,12 @@ struct tcpiphdr {
             uint8_t ih_x1;          /* (unused) */
             uint8_t ih_pr;          /* protocol */
         } ti_i4;
+        struct {
+            struct  in6_addr ih_src;
+            struct  in6_addr ih_dst;
+            uint8_t ih_x1;
+            uint8_t ih_nh;
+        } ti_i6;
     } ti;
     uint16_t    ti_x0;
     uint16_t    ti_len;             /* protocol length */
@@ -54,6 +60,9 @@ struct tcpiphdr {
 #define	ti_pr		ti.ti_i4.ih_pr
 #define	ti_src		ti.ti_i4.ih_src
 #define	ti_dst		ti.ti_i4.ih_dst
+#define	ti_src6		ti.ti_i6.ih_src
+#define	ti_dst6		ti.ti_i6.ih_dst
+#define	ti_nh6		ti.ti_i6.ih_nh
 #define	ti_sport	ti_t.th_sport
 #define	ti_dport	ti_t.th_dport
 #define	ti_seq		ti_t.th_seq

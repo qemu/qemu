@@ -55,7 +55,8 @@ void ip6_input(struct mbuf *m)
      */
     switch (ip6->ip_nh) {
     case IPPROTO_TCP:
-        icmp6_send_error(m, ICMP6_UNREACH, ICMP6_UNREACH_NO_ROUTE);
+        NTOHS(ip6->ip_pl);
+        tcp_input(m, sizeof(struct ip6), (struct socket *)NULL, AF_INET6);
         break;
     case IPPROTO_UDP:
         udp6_input(m);

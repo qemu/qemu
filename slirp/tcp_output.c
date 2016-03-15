@@ -63,6 +63,7 @@ tcp_output(struct tcpcb *tp)
 	register struct mbuf *m;
 	register struct tcpiphdr *ti, tcpiph_save;
 	struct ip *ip;
+	struct ip6 *ip6;
 	u_char opt[MAX_TCPOPTLEN];
 	unsigned optlen, hdrlen;
 	int idle, sendalot;
@@ -466,6 +467,21 @@ send:
 	    ip->ip_ttl = IPDEFTTL;
 	    ip->ip_tos = so->so_iptos;
 	    error = ip_output(so, m);
+	    break;
+
+	case AF_INET6:
+	    m->m_data += sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
+	                                         - sizeof(struct ip6);
+	    m->m_len  -= sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
+	                                         - sizeof(struct ip6);
+	    ip6 = mtod(m, struct ip6 *);
+
+	    ip6->ip_pl = tcpiph_save.ti_len;
+	    ip6->ip_dst = tcpiph_save.ti_dst6;
+	    ip6->ip_src = tcpiph_save.ti_src6;
+	    ip6->ip_nh = tcpiph_save.ti_nh6;
+
+	    error = ip6_output(so, m, 0);
 	    break;
 
 	default:

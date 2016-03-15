@@ -88,6 +88,15 @@ tcp_template(struct tcpcb *tp)
 	    n->ti_dport = so->so_lport;
 	    break;
 
+	case AF_INET6:
+	    n->ti_nh6 = IPPROTO_TCP;
+	    n->ti_len = htons(sizeof(struct tcphdr));
+	    n->ti_src6 = so->so_faddr6;
+	    n->ti_dst6 = so->so_laddr6;
+	    n->ti_sport = so->so_fport6;
+	    n->ti_dport = so->so_lport6;
+	    break;
+
 	default:
 	    g_assert_not_reached();
 	}
@@ -156,6 +165,10 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 		    xchg(ti->ti_dst.s_addr, ti->ti_src.s_addr, uint32_t);
 		    xchg(ti->ti_dport, ti->ti_sport, uint16_t);
 		    break;
+		case AF_INET6:
+		    xchg(ti->ti_dst6, ti->ti_src6, struct in6_addr);
+		    xchg(ti->ti_dport, ti->ti_sport, uint16_t);
+		    break;
 		default:
 		    g_assert_not_reached();
 		}
@@ -182,6 +195,7 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 
 	struct tcpiphdr tcpiph_save = *(mtod(m, struct tcpiphdr *));
 	struct ip *ip;
+	struct ip6 *ip6;
 
 	switch (af) {
 	case AF_INET:
@@ -201,7 +215,21 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 	        ip->ip_ttl = IPDEFTTL;
 	    }
 
-	    (void) ip_output((struct socket *)0, m);
+	    ip_output(NULL, m);
+	    break;
+
+	case AF_INET6:
+	    m->m_data += sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
+	                                         - sizeof(struct ip6);
+	    m->m_len  -= sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
+	                                         - sizeof(struct ip6);
+	    ip6 = mtod(m, struct ip6 *);
+	    ip6->ip_pl = tlen;
+	    ip6->ip_dst = tcpiph_save.ti_dst6;
+	    ip6->ip_src = tcpiph_save.ti_src6;
+	    ip6->ip_nh = tcpiph_save.ti_nh6;
+
+	    ip6_output(NULL, m, 0);
 	    break;
 
 	default:
@@ -225,7 +253,7 @@ tcp_newtcpcb(struct socket *so)
 
 	memset((char *) tp, 0, sizeof(struct tcpcb));
 	tp->seg_next = tp->seg_prev = (struct tcpiphdr*)tp;
-	tp->t_maxseg = TCP_MSS;
+	tp->t_maxseg = (so->so_ffamily == AF_INET) ? TCP_MSS : TCP6_MSS;
 
 	tp->t_flags = TCP_DO_RFC1323 ? (TF_REQ_SCALE|TF_REQ_TSTMP) : 0;
 	tp->t_socket = so;

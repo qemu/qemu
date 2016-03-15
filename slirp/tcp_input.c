@@ -216,7 +216,8 @@ present:
 void
 tcp_input(struct mbuf *m, int iphlen, struct socket *inso, unsigned short af)
 {
-  	struct ip save_ip, *ip;
+	struct ip save_ip, *ip;
+	struct ip6 save_ip6, *ip6;
 	register struct tcpiphdr *ti;
 	caddr_t optp = NULL;
 	int optlen = 0;
@@ -230,6 +231,7 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso, unsigned short af)
 	int ret;
 	struct sockaddr_storage lhost, fhost;
 	struct sockaddr_in *lhost4, *fhost4;
+	struct sockaddr_in6 *lhost6, *fhost6;
     struct ex_list *ex_ptr;
     Slirp *slirp;
 
@@ -256,6 +258,9 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso, unsigned short af)
 	}
 	slirp = m->slirp;
 
+	ip = mtod(m, struct ip *);
+	ip6 = mtod(m, struct ip6 *);
+
 	switch (af) {
 	case AF_INET:
 	    if (iphlen > sizeof(struct ip)) {
@@ -269,7 +274,6 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso, unsigned short af)
 	     * Save a copy of the IP header in case we want restore it
 	     * for sending an ICMP error message in response.
 	     */
-	    ip = mtod(m, struct ip *);
 	    save_ip = *ip;
 	    save_ip.ip_len += iphlen;
 
@@ -295,14 +299,42 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso, unsigned short af)
 	    ti->ti_dst = save_ip.ip_dst;
 	    ti->ti_pr = save_ip.ip_p;
 	    ti->ti_len = htons((uint16_t)tlen);
-	    len = ((sizeof(struct tcpiphdr) - sizeof(struct tcphdr)) + tlen);
-	    if (cksum(m, len)) {
-	        goto drop;
-	    }
+	    break;
+
+	case AF_INET6:
+	    /*
+	     * Save a copy of the IP header in case we want restore it
+	     * for sending an ICMP error message in response.
+	     */
+	    save_ip6 = *ip6;
+	    /*
+	     * Get IP and TCP header together in first mbuf.
+	     * Note: IP leaves IP header in first mbuf.
+	     */
+	    m->m_data -= sizeof(struct tcpiphdr) - (sizeof(struct ip6)
+	                                         + sizeof(struct tcphdr));
+	    m->m_len  += sizeof(struct tcpiphdr) - (sizeof(struct ip6)
+	                                         + sizeof(struct tcphdr));
+	    ti = mtod(m, struct tcpiphdr *);
+
+	    tlen = ip6->ip_pl;
+	    tcpiphdr2qlink(ti)->next = tcpiphdr2qlink(ti)->prev = NULL;
+	    memset(&ti->ih_mbuf, 0 , sizeof(struct mbuf_ptr));
+	    memset(&ti->ti, 0, sizeof(ti->ti));
+	    ti->ti_x0 = 0;
+	    ti->ti_src6 = save_ip6.ip_src;
+	    ti->ti_dst6 = save_ip6.ip_dst;
+	    ti->ti_nh6 = save_ip6.ip_nh;
+	    ti->ti_len = htons((uint16_t)tlen);
 	    break;
 
 	default:
 	    g_assert_not_reached();
+	}
+
+	len = ((sizeof(struct tcpiphdr) - sizeof(struct tcphdr)) + tlen);
+	if (cksum(m, len)) {
+	    goto drop;
 	}
 
 	/*
@@ -349,6 +381,14 @@ findso:
 	    fhost4 = (struct sockaddr_in *) &fhost;
 	    fhost4->sin_addr = ti->ti_dst;
 	    fhost4->sin_port = ti->ti_dport;
+	    break;
+	case AF_INET6:
+	    lhost6 = (struct sockaddr_in6 *) &lhost;
+	    lhost6->sin6_addr = ti->ti_src6;
+	    lhost6->sin6_port = ti->ti_sport;
+	    fhost6 = (struct sockaddr_in6 *) &fhost;
+	    fhost6->sin6_addr = ti->ti_dst6;
+	    fhost6->sin6_port = ti->ti_dport;
 	    break;
 	default:
 	    g_assert_not_reached();
@@ -407,6 +447,8 @@ findso:
 	      switch (af) {
 	      case AF_INET:
 	          so->so_iptos = ((struct ip *)ti)->ip_tos;
+	          break;
+	      case AF_INET6:
 	          break;
 	      default:
 	          g_assert_not_reached();
@@ -634,6 +676,12 @@ findso:
 		  code = ICMP_UNREACH_HOST;
 		}
 		break;
+	      case AF_INET6:
+		code = ICMP6_UNREACH_NO_ROUTE;
+		if (errno == EHOSTUNREACH) {
+		  code = ICMP6_UNREACH_ADDRESS;
+		}
+		break;
 	      default:
 		g_assert_not_reached();
 	      }
@@ -651,6 +699,14 @@ findso:
 						     - sizeof(struct tcphdr);
 		*ip = save_ip;
 		icmp_send_error(m, ICMP_UNREACH, code, 0, strerror(errno));
+		break;
+	      case AF_INET6:
+		m->m_data += sizeof(struct tcpiphdr) - (sizeof(struct ip6)
+						     + sizeof(struct tcphdr));
+		m->m_len  -= sizeof(struct tcpiphdr) - (sizeof(struct ip6)
+						     + sizeof(struct tcphdr));
+		*ip6 = save_ip6;
+		icmp6_send_error(m, ICMP6_UNREACH, code);
 		break;
 	      default:
 		g_assert_not_reached();
@@ -1525,6 +1581,10 @@ tcp_mss(struct tcpcb *tp, u_int offer)
 	case AF_INET:
 	    mss = min(IF_MTU, IF_MRU) - sizeof(struct tcphdr)
 	                              + sizeof(struct ip);
+	    break;
+	case AF_INET6:
+	    mss = min(IF_MTU, IF_MRU) - sizeof(struct tcphdr)
+	                              + sizeof(struct ip6);
 	    break;
 	default:
 	    g_assert_not_reached();
