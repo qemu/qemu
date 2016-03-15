@@ -68,5 +68,6 @@ test-write-threshold
 test-x86-cpuid
 test-xbzrle
 test-netfilter
+test-filter-mirror
 *-test
 qapi-schema/*.test.*
