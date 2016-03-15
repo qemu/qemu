@@ -889,12 +889,14 @@ static int blk_connect(struct XenDevice *xendev)
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
     int pers, index, qflags;
     bool readonly = true;
+    bool writethrough = true;
 
     /* read-only ? */
     if (blkdev->directiosafe) {
         qflags = BDRV_O_NOCACHE | BDRV_O_NATIVE_AIO;
     } else {
-        qflags = BDRV_O_CACHE_WB;
+        qflags = 0;
+        writethrough = false;
     }
     if (strcmp(blkdev->mode, "w") == 0) {
         qflags |= BDRV_O_RDWR;
@@ -926,6 +928,7 @@ static int blk_connect(struct XenDevice *xendev)
             error_free(local_err);
             return -1;
         }
+        blk_set_enable_write_cache(blkdev->blk, !writethrough);
     } else {
         /* setup via qemu cmdline -> already setup for us */
         xen_be_printf(&blkdev->xendev, 2, "get configured bdrv (cmdline setup)\n");
