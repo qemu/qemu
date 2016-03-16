@@ -3,8 +3,8 @@
 
 /* ISA bus */
 
-#include "exec/ioport.h"
 #include "exec/memory.h"
+#include "exec/ioport.h"
 #include "hw/qdev.h"
 
 #define ISA_NUM_IRQS 16

@@ -7,9 +7,9 @@
 #endif
 
 #include "exec/cpu-common.h"
-#include "exec/ioport.h"
+#include "qom/object.h"
+#include "exec/memory.h"
 #include "hw/irq.h"
-#include "block/aio.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 

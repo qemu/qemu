@@ -24,10 +24,6 @@
 #ifndef IOPORT_H
 #define IOPORT_H
 
-#include "qemu-common.h"
-#include "qom/object.h"
-#include "exec/memory.h"
-
 #define MAX_IOPORTS     (64 * 1024)
 #define IOPORTS_MASK    (MAX_IOPORTS - 1)
 
