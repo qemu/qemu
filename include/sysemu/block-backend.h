@@ -77,8 +77,6 @@ BlockDriverState *blk_bs(BlockBackend *blk);
 void blk_remove_bs(BlockBackend *blk);
 void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs);
 
-void blk_hide_on_behalf_of_hmp_drive_del(BlockBackend *blk);
-
 void blk_set_allow_write_beyond_eof(BlockBackend *blk, bool allow);
 void blk_iostatus_enable(BlockBackend *blk);
 bool blk_iostatus_is_enabled(const BlockBackend *blk);

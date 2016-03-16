@@ -386,23 +386,6 @@ BlockBackend *blk_by_legacy_dinfo(DriveInfo *dinfo)
 }
 
 /*
- * Hide @blk.
- * @blk must not have been hidden already.
- * Make attached BlockDriverState, if any, anonymous.
- * Once hidden, @blk is invisible to all functions that don't receive
- * it as argument.  For example, blk_by_name() won't return it.
- * Strictly for use by do_drive_del().
- * TODO get rid of it!
- */
-void blk_hide_on_behalf_of_hmp_drive_del(BlockBackend *blk)
-{
-    monitor_remove_blk(blk);
-    if (blk->bs) {
-        bdrv_make_anon(blk->bs);
-    }
-}
-
-/*
  * Disassociates the currently associated BlockDriverState from @blk.
  */
 void blk_remove_bs(BlockBackend *blk)

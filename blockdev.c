@@ -2865,15 +2865,16 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
         blk_remove_bs(blk);
     }
 
+    /* Make the BlockBackend and the attached BlockDriverState anonymous */
     monitor_remove_blk(blk);
+    if (blk_bs(blk)) {
+        bdrv_make_anon(blk_bs(blk));
+    }
 
-    /* if we have a device attached to this BlockDriverState
-     * then we need to make the drive anonymous until the device
-     * can be removed.  If this is a drive with no device backing
-     * then we can just get rid of the block driver state right here.
+    /* If this BlockBackend has a device attached to it, its refcount will be
+     * decremented when the device is removed; otherwise we have to do so here.
      */
     if (blk_get_attached_dev(blk)) {
-        blk_hide_on_behalf_of_hmp_drive_del(blk);
         /* Further I/O must not pause the guest */
         blk_set_on_error(blk, BLOCKDEV_ON_ERROR_REPORT,
                          BLOCKDEV_ON_ERROR_REPORT);
