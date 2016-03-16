@@ -2005,15 +2005,14 @@ void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
     env->spr[SPR_SDR1] = value;
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
-        target_ulong htabsize = value & SDR_64_HTABSIZE;
+        PowerPCCPU *cpu = ppc_env_get_cpu(env);
+        Error *local_err = NULL;
 
-        if (htabsize > 28) {
-            fprintf(stderr, "Invalid HTABSIZE 0x" TARGET_FMT_lx
-                    " stored in SDR1\n", htabsize);
-            htabsize = 28;
+        ppc_hash64_set_sdr1(cpu, value, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            error_free(local_err);
         }
-        env->htab_mask = (1ULL << (htabsize + 18 - 7)) - 1;
-        env->htab_base = value & SDR_64_HTABORG;
     } else
 #endif /* defined(TARGET_PPC64) */
     {

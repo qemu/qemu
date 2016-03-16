@@ -122,17 +122,17 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                 break;
             }
         }
-        ppc_hash64_stop_access(token);
+        ppc_hash64_stop_access(cpu, token);
         if (index == 8) {
             return H_PTEG_FULL;
         }
     } else {
         token = ppc_hash64_start_access(cpu, pte_index);
         if (ppc_hash64_load_hpte0(cpu, token, 0) & HPTE64_V_VALID) {
-            ppc_hash64_stop_access(token);
+            ppc_hash64_stop_access(cpu, token);
             return H_PTEG_FULL;
         }
-        ppc_hash64_stop_access(token);
+        ppc_hash64_stop_access(cpu, token);
     }
 
     ppc_hash64_store_hpte(cpu, pte_index + index,
@@ -165,7 +165,7 @@ static RemoveResult remove_hpte(PowerPCCPU *cpu, target_ulong ptex,
     token = ppc_hash64_start_access(cpu, ptex);
     v = ppc_hash64_load_hpte0(cpu, token, 0);
     r = ppc_hash64_load_hpte1(cpu, token, 0);
-    ppc_hash64_stop_access(token);
+    ppc_hash64_stop_access(cpu, token);
 
     if ((v & HPTE64_V_VALID) == 0 ||
         ((flags & H_AVPN) && (v & ~0x7fULL) != avpn) ||
@@ -288,7 +288,7 @@ static target_ulong h_protect(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     token = ppc_hash64_start_access(cpu, pte_index);
     v = ppc_hash64_load_hpte0(cpu, token, 0);
     r = ppc_hash64_load_hpte1(cpu, token, 0);
-    ppc_hash64_stop_access(token);
+    ppc_hash64_stop_access(cpu, token);
 
     if ((v & HPTE64_V_VALID) == 0 ||
         ((flags & H_AVPN) && (v & ~0x7fULL) != avpn)) {

@@ -7603,6 +7603,30 @@ static void gen_spr_power8_pmu_sup(CPUPPCState *env)
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_MMCRS, 0x00000000);
+    spr_register_kvm(env, SPR_POWER_SIER, "SIER",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_SIER, 0x00000000);
+    spr_register_kvm(env, SPR_POWER_SPMC1, "SPMC1",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_SPMC1, 0x00000000);
+    spr_register_kvm(env, SPR_POWER_SPMC2, "SPMC2",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_SPMC2, 0x00000000);
+    spr_register_kvm(env, SPR_TACR, "TACR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_TACR, 0x00000000);
+    spr_register_kvm(env, SPR_TCSCR, "TCSCR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_TCSCR, 0x00000000);
+    spr_register_kvm(env, SPR_CSIGR, "CSIGR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_CSIGR, 0x00000000);
 }
 
 static void gen_spr_power8_pmu_user(CPUPPCState *env)
@@ -7610,6 +7634,10 @@ static void gen_spr_power8_pmu_user(CPUPPCState *env)
     spr_register(env, SPR_POWER_UMMCR2, "UMMCR2",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, &spr_write_ureg,
+                 0x00000000);
+    spr_register(env, SPR_POWER_USIER, "USIER",
+                 &spr_read_generic, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
                  0x00000000);
 }
 
@@ -7714,10 +7742,10 @@ static void spr_write_tar(DisasContext *ctx, int sprn, int gprn)
 
 static void gen_spr_power8_tce_address_control(CPUPPCState *env)
 {
-    spr_register(env, SPR_TAR, "TAR",
-                 &spr_read_tar, &spr_write_tar,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
+    spr_register_kvm(env, SPR_TAR, "TAR",
+                     &spr_read_tar, &spr_write_tar,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_TAR, 0x00000000);
 }
 
 static void spr_read_tm(DisasContext *ctx, int gprn, int sprn)
@@ -7842,6 +7870,14 @@ static void gen_spr_power8_fscr(CPUPPCState *env)
                      KVM_REG_PPC_FSCR, initval);
 }
 
+static void gen_spr_power8_pspb(CPUPPCState *env)
+{
+    spr_register_kvm(env, SPR_PSPB, "PSPB",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic32,
+                     KVM_REG_PPC_PSPB, 0);
+}
+
 static void init_proc_book3s_64(CPUPPCState *env, int version)
 {
     gen_spr_ne_601(env);
@@ -7892,6 +7928,7 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
         gen_spr_power8_pmu_sup(env);
         gen_spr_power8_pmu_user(env);
         gen_spr_power8_tm(env);
+        gen_spr_power8_pspb(env);
         gen_spr_vtb(env);
     }
     if (version < BOOK3S_CPU_POWER8) {
@@ -8219,6 +8256,9 @@ static void init_proc_POWER8(CPUPPCState *env)
 
 static bool ppc_pvr_match_power8(PowerPCCPUClass *pcc, uint32_t pvr)
 {
+    if ((pvr & CPU_POWERPC_POWER_SERVER_MASK) == CPU_POWERPC_POWER8NVL_BASE) {
+        return true;
+    }
     if ((pvr & CPU_POWERPC_POWER_SERVER_MASK) == CPU_POWERPC_POWER8E_BASE) {
         return true;
     }

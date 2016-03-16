@@ -1091,7 +1091,7 @@ static void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
         }
 
         spapr->htab_shift = shift;
-        kvmppc_kern_htab = true;
+        spapr->htab = NULL;
     } else {
         /* kernel-side HPT not needed, allocate in userspace instead */
         size_t size = 1ULL << shift;
@@ -1106,7 +1106,6 @@ static void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
 
         memset(spapr->htab, 0, size);
         spapr->htab_shift = shift;
-        kvmppc_kern_htab = false;
 
         for (i = 0; i < size / HASH_PTE_SIZE_64; i++) {
             DIRTY_HPTE(HPTE(spapr->htab, i));
@@ -1196,17 +1195,8 @@ static void spapr_cpu_reset(void *opaque)
 
     env->spr[SPR_HIOR] = 0;
 
-    env->external_htab = (uint8_t *)spapr->htab;
-    env->htab_base = -1;
-    /*
-     * htab_mask is the mask used to normalize hash value to PTEG index.
-     * htab_shift is log2 of hash table size.
-     * We have 8 hpte per group, and each hpte is 16 bytes.
-     * ie have 128 bytes per hpte entry.
-     */
-    env->htab_mask = (1ULL << (spapr->htab_shift - 7)) - 1;
-    env->spr[SPR_SDR1] = (target_ulong)(uintptr_t)spapr->htab |
-        (spapr->htab_shift - 18);
+    ppc_hash64_set_external_hpt(cpu, spapr->htab, spapr->htab_shift,
+                                &error_fatal);
 }
 
 static void spapr_create_nvram(sPAPRMachineState *spapr)

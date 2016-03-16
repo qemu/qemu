@@ -42,6 +42,8 @@
 #include "hw/ppc/spapr_drc.h"
 #include "sysemu/device_tree.h"
 
+#include "hw/vfio/vfio.h"
+
 /* Copied from the kernel arch/powerpc/platforms/pseries/msi.c */
 #define RTAS_QUERY_FN           0
 #define RTAS_CHANGE_FN          1
@@ -440,7 +442,6 @@ static void rtas_ibm_set_eeh_option(PowerPCCPU *cpu,
                                     target_ulong rets)
 {
     sPAPRPHBState *sphb;
-    sPAPRPHBClass *spc;
     uint32_t addr, option;
     uint64_t buid;
     int ret;
@@ -458,12 +459,11 @@ static void rtas_ibm_set_eeh_option(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    spc = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(sphb);
-    if (!spc->eeh_set_option) {
+    if (!spapr_phb_eeh_available(sphb)) {
         goto param_error_exit;
     }
 
-    ret = spc->eeh_set_option(sphb, addr, option);
+    ret = spapr_phb_vfio_eeh_set_option(sphb, addr, option);
     rtas_st(rets, 0, ret);
     return;
 
@@ -478,7 +478,6 @@ static void rtas_ibm_get_config_addr_info2(PowerPCCPU *cpu,
                                            target_ulong rets)
 {
     sPAPRPHBState *sphb;
-    sPAPRPHBClass *spc;
     PCIDevice *pdev;
     uint32_t addr, option;
     uint64_t buid;
@@ -493,8 +492,7 @@ static void rtas_ibm_get_config_addr_info2(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    spc = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(sphb);
-    if (!spc->eeh_set_option) {
+    if (!spapr_phb_eeh_available(sphb)) {
         goto param_error_exit;
     }
 
@@ -534,7 +532,6 @@ static void rtas_ibm_read_slot_reset_state2(PowerPCCPU *cpu,
                                             target_ulong rets)
 {
     sPAPRPHBState *sphb;
-    sPAPRPHBClass *spc;
     uint64_t buid;
     int state, ret;
 
@@ -548,12 +545,11 @@ static void rtas_ibm_read_slot_reset_state2(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    spc = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(sphb);
-    if (!spc->eeh_get_state) {
+    if (!spapr_phb_eeh_available(sphb)) {
         goto param_error_exit;
     }
 
-    ret = spc->eeh_get_state(sphb, &state);
+    ret = spapr_phb_vfio_eeh_get_state(sphb, &state);
     rtas_st(rets, 0, ret);
     if (ret != RTAS_OUT_SUCCESS) {
         return;
@@ -578,7 +574,6 @@ static void rtas_ibm_set_slot_reset(PowerPCCPU *cpu,
                                     target_ulong rets)
 {
     sPAPRPHBState *sphb;
-    sPAPRPHBClass *spc;
     uint32_t option;
     uint64_t buid;
     int ret;
@@ -594,12 +589,11 @@ static void rtas_ibm_set_slot_reset(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    spc = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(sphb);
-    if (!spc->eeh_reset) {
+    if (!spapr_phb_eeh_available(sphb)) {
         goto param_error_exit;
     }
 
-    ret = spc->eeh_reset(sphb, option);
+    ret = spapr_phb_vfio_eeh_reset(sphb, option);
     rtas_st(rets, 0, ret);
     return;
 
@@ -614,7 +608,6 @@ static void rtas_ibm_configure_pe(PowerPCCPU *cpu,
                                   target_ulong rets)
 {
     sPAPRPHBState *sphb;
-    sPAPRPHBClass *spc;
     uint64_t buid;
     int ret;
 
@@ -628,12 +621,11 @@ static void rtas_ibm_configure_pe(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    spc = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(sphb);
-    if (!spc->eeh_configure) {
+    if (!spapr_phb_eeh_available(sphb)) {
         goto param_error_exit;
     }
 
-    ret = spc->eeh_configure(sphb);
+    ret = spapr_phb_vfio_eeh_configure(sphb);
     rtas_st(rets, 0, ret);
     return;
 
@@ -649,7 +641,6 @@ static void rtas_ibm_slot_error_detail(PowerPCCPU *cpu,
                                        target_ulong rets)
 {
     sPAPRPHBState *sphb;
-    sPAPRPHBClass *spc;
     int option;
     uint64_t buid;
 
@@ -663,8 +654,7 @@ static void rtas_ibm_slot_error_detail(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    spc = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(sphb);
-    if (!spc->eeh_set_option) {
+    if (!spapr_phb_eeh_available(sphb)) {
         goto param_error_exit;
     }
 
@@ -1142,14 +1132,21 @@ static void spapr_phb_remove_pci_device(sPAPRDRConnector *drc,
     drck->detach(drc, DEVICE(pdev), spapr_phb_remove_pci_device_cb, phb, errp);
 }
 
+static sPAPRDRConnector *spapr_phb_get_pci_func_drc(sPAPRPHBState *phb,
+                                                    uint32_t busnr,
+                                                    int32_t devfn)
+{
+    return spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_PCI,
+                                    (phb->index << 16) |
+                                    (busnr << 8) |
+                                    devfn);
+}
+
 static sPAPRDRConnector *spapr_phb_get_pci_drc(sPAPRPHBState *phb,
                                                PCIDevice *pdev)
 {
     uint32_t busnr = pci_bus_num(PCI_BUS(qdev_get_parent_bus(DEVICE(pdev))));
-    return spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_PCI,
-                                    (phb->index << 16) |
-                                    (busnr << 8) |
-                                    pdev->devfn);
+    return spapr_phb_get_pci_func_drc(phb, busnr, pdev->devfn);
 }
 
 static uint32_t spapr_phb_get_pci_drc_index(sPAPRPHBState *phb,
@@ -1173,6 +1170,8 @@ static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,
     PCIDevice *pdev = PCI_DEVICE(plugged_dev);
     sPAPRDRConnector *drc = spapr_phb_get_pci_drc(phb, pdev);
     Error *local_err = NULL;
+    PCIBus *bus = PCI_BUS(qdev_get_parent_bus(DEVICE(pdev)));
+    uint32_t slotnr = PCI_SLOT(pdev->devfn);
 
     /* if DR is disabled we don't need to do anything in the case of
      * hotplug or coldplug callbacks
@@ -1190,13 +1189,44 @@ static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,
 
     g_assert(drc);
 
+    /* Following the QEMU convention used for PCIe multifunction
+     * hotplug, we do not allow functions to be hotplugged to a
+     * slot that already has function 0 present
+     */
+    if (plugged_dev->hotplugged && bus->devices[PCI_DEVFN(slotnr, 0)] &&
+        PCI_FUNC(pdev->devfn) != 0) {
+        error_setg(errp, "PCI: slot %d function 0 already ocuppied by %s,"
+                   " additional functions can no longer be exposed to guest.",
+                   slotnr, bus->devices[PCI_DEVFN(slotnr, 0)]->name);
+        return;
+    }
+
     spapr_phb_add_pci_device(drc, phb, pdev, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
-    if (plugged_dev->hotplugged) {
-        spapr_hotplug_req_add_by_index(drc);
+
+    /* If this is function 0, signal hotplug for all the device functions.
+     * Otherwise defer sending the hotplug event.
+     */
+    if (plugged_dev->hotplugged && PCI_FUNC(pdev->devfn) == 0) {
+        int i;
+
+        for (i = 0; i < 8; i++) {
+            sPAPRDRConnector *func_drc;
+            sPAPRDRConnectorClass *func_drck;
+            sPAPRDREntitySense state;
+
+            func_drc = spapr_phb_get_pci_func_drc(phb, pci_bus_num(bus),
+                                                  PCI_DEVFN(slotnr, i));
+            func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
+            func_drck->entity_sense(func_drc, &state);
+
+            if (state == SPAPR_DR_ENTITY_SENSE_PRESENT) {
+                spapr_hotplug_req_add_by_index(func_drc);
+            }
+        }
     }
 }
 
@@ -1219,12 +1249,51 @@ static void spapr_phb_hot_unplug_child(HotplugHandler *plug_handler,
 
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     if (!drck->release_pending(drc)) {
+        PCIBus *bus = PCI_BUS(qdev_get_parent_bus(DEVICE(pdev)));
+        uint32_t slotnr = PCI_SLOT(pdev->devfn);
+        sPAPRDRConnector *func_drc;
+        sPAPRDRConnectorClass *func_drck;
+        sPAPRDREntitySense state;
+        int i;
+
+        /* ensure any other present functions are pending unplug */
+        if (PCI_FUNC(pdev->devfn) == 0) {
+            for (i = 1; i < 8; i++) {
+                func_drc = spapr_phb_get_pci_func_drc(phb, pci_bus_num(bus),
+                                                      PCI_DEVFN(slotnr, i));
+                func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
+                func_drck->entity_sense(func_drc, &state);
+                if (state == SPAPR_DR_ENTITY_SENSE_PRESENT
+                    && !func_drck->release_pending(func_drc)) {
+                    error_setg(errp,
+                               "PCI: slot %d, function %d still present. "
+                               "Must unplug all non-0 functions first.",
+                               slotnr, i);
+                    return;
+                }
+            }
+        }
+
         spapr_phb_remove_pci_device(drc, phb, pdev, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
         }
-        spapr_hotplug_req_remove_by_index(drc);
+
+        /* if this isn't func 0, defer unplug event. otherwise signal removal
+         * for all present functions
+         */
+        if (PCI_FUNC(pdev->devfn) == 0) {
+            for (i = 7; i >= 0; i--) {
+                func_drc = spapr_phb_get_pci_func_drc(phb, pci_bus_num(bus),
+                                                      PCI_DEVFN(slotnr, i));
+                func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
+                func_drck->entity_sense(func_drc, &state);
+                if (state == SPAPR_DR_ENTITY_SENSE_PRESENT) {
+                    spapr_hotplug_req_remove_by_index(func_drc);
+                }
+            }
+        }
     }
 }
 
@@ -1234,11 +1303,12 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
     sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
-    sPAPRPHBClass *info = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(s);
     char *namebuf;
     int i;
     PCIBus *bus;
     uint64_t msi_window_size = 4096;
+    sPAPRTCETable *tcet;
+    uint32_t nb_table;
 
     if (sphb->index != (uint32_t)-1) {
         hwaddr windows_base;
@@ -1390,33 +1460,20 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    if (!info->finish_realize) {
-        error_setg(errp, "finish_realize not defined");
-        return;
-    }
-
-    info->finish_realize(sphb, errp);
-
-    sphb->msi = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, g_free);
-}
-
-static void spapr_phb_finish_realize(sPAPRPHBState *sphb, Error **errp)
-{
-    sPAPRTCETable *tcet;
-    uint32_t nb_table;
-
     nb_table = sphb->dma_win_size >> SPAPR_TCE_PAGE_SHIFT;
     tcet = spapr_tce_new_table(DEVICE(sphb), sphb->dma_liobn,
                                0, SPAPR_TCE_PAGE_SHIFT, nb_table, false);
     if (!tcet) {
         error_setg(errp, "Unable to create TCE table for %s",
                    sphb->dtbusname);
-        return ;
+        return;
     }
 
     /* Register default 32bit DMA window */
     memory_region_add_subregion(&sphb->iommu_root, sphb->dma_win_addr,
                                 spapr_tce_get_iommu(tcet));
+
+    sphb->msi = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, g_free);
 }
 
 static int spapr_phb_children_reset(Object *child, void *opaque)
@@ -1434,6 +1491,10 @@ static void spapr_phb_reset(DeviceState *qdev)
 {
     /* Reset the IOMMU state */
     object_child_foreach(OBJECT(qdev), spapr_phb_children_reset, NULL);
+
+    if (spapr_phb_eeh_available(SPAPR_PCI_HOST_BRIDGE(qdev))) {
+        spapr_phb_vfio_reset(qdev);
+    }
 }
 
 static Property spapr_phb_properties[] = {
@@ -1553,7 +1614,6 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
 {
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
-    sPAPRPHBClass *spc = SPAPR_PCI_HOST_BRIDGE_CLASS(klass);
     HotplugHandlerClass *hp = HOTPLUG_HANDLER_CLASS(klass);
 
     hc->root_bus_path = spapr_phb_root_bus_path;
@@ -1563,7 +1623,6 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_spapr_pci;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->cannot_instantiate_with_device_add_yet = false;
-    spc->finish_realize = spapr_phb_finish_realize;
     hp->plug = spapr_phb_hot_plug_child;
     hp->unplug = spapr_phb_hot_unplug_child;
 }
@@ -1573,7 +1632,6 @@ static const TypeInfo spapr_phb_info = {
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(sPAPRPHBState),
     .class_init    = spapr_phb_class_init,
-    .class_size    = sizeof(sPAPRPHBClass),
     .interfaces    = (InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { }
