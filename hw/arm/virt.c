@@ -1345,6 +1345,19 @@ static void virt_set_gic_version(Object *obj, const char *value, Error **errp)
     }
 }
 
+static void virt_machine_class_init(ObjectClass *oc, void *data)
+{
+}
+
+static const TypeInfo virt_machine_info = {
+    .name          = TYPE_VIRT_MACHINE,
+    .parent        = TYPE_MACHINE,
+    .abstract      = true,
+    .instance_size = sizeof(VirtMachineState),
+    .class_size    = sizeof(VirtMachineClass),
+    .class_init    = virt_machine_class_init,
+};
+
 static void virt_instance_init(Object *obj)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
@@ -1382,7 +1395,8 @@ static void virt_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "ARM Virtual Machine",
+    mc->desc = "QEMU 2.6 ARM Virtual Machine";
+    mc->alias = "virt";
     mc->init = machvirt_init;
     /* Start max_cpus at the maximum QEMU supports. We'll further restrict
      * it later in machvirt_init, where we have more information about the
@@ -1396,16 +1410,15 @@ static void virt_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo machvirt_info = {
-    .name = TYPE_VIRT_MACHINE,
-    .parent = TYPE_MACHINE,
-    .instance_size = sizeof(VirtMachineState),
+    .name = MACHINE_TYPE_NAME("virt-2.6"),
+    .parent = TYPE_VIRT_MACHINE,
     .instance_init = virt_instance_init,
-    .class_size = sizeof(VirtMachineClass),
     .class_init = virt_class_init,
 };
 
 static void machvirt_machine_init(void)
 {
+    type_register_static(&virt_machine_info);
     type_register_static(&machvirt_info);
 }
 
