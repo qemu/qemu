@@ -164,11 +164,6 @@ static void raspi2_machine_init(MachineClass *mc)
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
     mc->max_cpus = BCM2836_NCPUS;
-
-    /* XXX: Temporary restriction in RAM size from the full 1GB. Since
-     * we do not yet support the framebuffer / GPU, we need to limit
-     * RAM usable by the OS to sit below the peripherals.
-     */
-    mc->default_ram_size = 0x3F000000; /* BCM2836_PERI_BASE */
+    mc->default_ram_size = 1024 * 1024 * 1024;
 };
 DEFINE_MACHINE("raspi2", raspi2_machine_init)

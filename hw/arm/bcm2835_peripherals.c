@@ -79,6 +79,8 @@ static void bcm2835_peripherals_init(Object *obj)
                               "board-rev", &error_abort);
     qdev_set_parent_bus(DEVICE(&s->property), sysbus_get_default());
 
+    object_property_add_const_link(OBJECT(&s->property), "fb",
+                                   OBJECT(&s->fb), &error_abort);
     object_property_add_const_link(OBJECT(&s->property), "dma-mr",
                                    OBJECT(&s->gpu_bus_mr), &error_abort);
 
@@ -211,12 +213,6 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                        qdev_get_gpio_in(DEVICE(&s->mboxes), MBOX_CHAN_FB));
 
     /* Property channel */
-    object_property_set_int(OBJECT(&s->property), ram_size, "ram-size", &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
-
     object_property_set_bool(OBJECT(&s->property), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
