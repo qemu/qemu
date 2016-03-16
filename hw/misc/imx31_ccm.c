@@ -152,32 +152,6 @@ static uint32_t imx31_ccm_get_mcu_main_clk(IMXCCMState *dev)
     return freq;
 }
 
-static uint32_t imx31_ccm_get_mcu_clk(IMXCCMState *dev)
-{
-    uint32_t freq;
-    IMX31CCMState *s = IMX31_CCM(dev);
-
-    freq = imx31_ccm_get_mcu_main_clk(dev)
-           / (1 + EXTRACT(s->reg[IMX31_CCM_PDR0_REG], MCU));
-
-    DPRINTF("freq = %d\n", freq);
-
-    return freq;
-}
-
-static uint32_t imx31_ccm_get_hsp_clk(IMXCCMState *dev)
-{
-    uint32_t freq;
-    IMX31CCMState *s = IMX31_CCM(dev);
-
-    freq = imx31_ccm_get_mcu_main_clk(dev)
-           / (1 + EXTRACT(s->reg[IMX31_CCM_PDR0_REG], HSP));
-
-    DPRINTF("freq = %d\n", freq);
-
-    return freq;
-}
-
 static uint32_t imx31_ccm_get_hclk_clk(IMXCCMState *dev)
 {
     uint32_t freq;
@@ -209,15 +183,10 @@ static uint32_t imx31_ccm_get_clock_frequency(IMXCCMState *dev, IMXClk clock)
     uint32_t freq = 0;
 
     switch (clock) {
-    case NOCLK:
-        break;
-    case CLK_MCU:
-        freq = imx31_ccm_get_mcu_clk(dev);
-        break;
-    case CLK_HSP:
-        freq = imx31_ccm_get_hsp_clk(dev);
+    case CLK_NONE:
         break;
     case CLK_IPG:
+    case CLK_IPG_HIGH:
         freq = imx31_ccm_get_ipg_clk(dev);
         break;
     case CLK_32k:

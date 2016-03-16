@@ -319,6 +319,7 @@ static void imx_i2c_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &imx_i2c_vmstate;
     dc->reset = imx_i2c_reset;
     dc->realize = imx_i2c_realize;
+    dc->desc = "i.MX I2C Controller";
 }
 
 static const TypeInfo imx_i2c_type_info = {

@@ -12,6 +12,7 @@
 #include "hw/arm/bcm2835_peripherals.h"
 #include "hw/misc/bcm2835_mbox_defs.h"
 #include "hw/arm/raspi_platform.h"
+#include "sysemu/char.h"
 
 /* Peripheral base address on the VC (GPU) system bus */
 #define BCM2835_VC_PERI_BASE 0x7e000000
@@ -48,6 +49,11 @@ static void bcm2835_peripherals_init(Object *obj)
     object_property_add_child(obj, "uart0", OBJECT(s->uart0), NULL);
     qdev_set_parent_bus(DEVICE(s->uart0), sysbus_get_default());
 
+    /* AUX / UART1 */
+    object_initialize(&s->aux, sizeof(s->aux), TYPE_BCM2835_AUX);
+    object_property_add_child(obj, "aux", OBJECT(&s->aux), NULL);
+    qdev_set_parent_bus(DEVICE(&s->aux), sysbus_get_default());
+
     /* Mailboxes */
     object_initialize(&s->mboxes, sizeof(s->mboxes), TYPE_BCM2835_MBOX);
     object_property_add_child(obj, "mbox", OBJECT(&s->mboxes), NULL);
@@ -56,6 +62,16 @@ static void bcm2835_peripherals_init(Object *obj)
     object_property_add_const_link(OBJECT(&s->mboxes), "mbox-mr",
                                    OBJECT(&s->mbox_mr), &error_abort);
 
+    /* Framebuffer */
+    object_initialize(&s->fb, sizeof(s->fb), TYPE_BCM2835_FB);
+    object_property_add_child(obj, "fb", OBJECT(&s->fb), NULL);
+    object_property_add_alias(obj, "vcram-size", OBJECT(&s->fb), "vcram-size",
+                              &error_abort);
+    qdev_set_parent_bus(DEVICE(&s->fb), sysbus_get_default());
+
+    object_property_add_const_link(OBJECT(&s->fb), "dma-mr",
+                                   OBJECT(&s->gpu_bus_mr), &error_abort);
+
     /* Property channel */
     object_initialize(&s->property, sizeof(s->property), TYPE_BCM2835_PROPERTY);
     object_property_add_child(obj, "property", OBJECT(&s->property), NULL);
@@ -63,6 +79,8 @@ static void bcm2835_peripherals_init(Object *obj)
                               "board-rev", &error_abort);
     qdev_set_parent_bus(DEVICE(&s->property), sysbus_get_default());
 
+    object_property_add_const_link(OBJECT(&s->property), "fb",
+                                   OBJECT(&s->fb), &error_abort);
     object_property_add_const_link(OBJECT(&s->property), "dma-mr",
                                    OBJECT(&s->gpu_bus_mr), &error_abort);
 
@@ -70,6 +88,14 @@ static void bcm2835_peripherals_init(Object *obj)
     object_initialize(&s->sdhci, sizeof(s->sdhci), TYPE_SYSBUS_SDHCI);
     object_property_add_child(obj, "sdhci", OBJECT(&s->sdhci), NULL);
     qdev_set_parent_bus(DEVICE(&s->sdhci), sysbus_get_default());
+
+    /* DMA Channels */
+    object_initialize(&s->dma, sizeof(s->dma), TYPE_BCM2835_DMA);
+    object_property_add_child(obj, "dma", OBJECT(&s->dma), NULL);
+    qdev_set_parent_bus(DEVICE(&s->dma), sysbus_get_default());
+
+    object_property_add_const_link(OBJECT(&s->dma), "dma-mr",
+                                   OBJECT(&s->gpu_bus_mr), &error_abort);
 }
 
 static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
@@ -78,7 +104,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     Object *obj;
     MemoryRegion *ram;
     Error *err = NULL;
-    uint32_t ram_size;
+    uint32_t ram_size, vcram_size;
+    CharDriverState *chr;
     int n;
 
     obj = object_property_get_link(OBJECT(dev), "ram", &err);
@@ -131,6 +158,29 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
         qdev_get_gpio_in_named(DEVICE(&s->ic), BCM2835_IC_GPU_IRQ,
                                INTERRUPT_UART));
 
+    /* AUX / UART1 */
+    /* TODO: don't call qemu_char_get_next_serial() here, instead set
+     * chardev properties for each uart at the board level, once pl011
+     * (uart0) has been updated to avoid qemu_char_get_next_serial()
+     */
+    chr = qemu_char_get_next_serial();
+    if (chr == NULL) {
+        chr = qemu_chr_new("bcm2835.uart1", "null", NULL);
+    }
+    qdev_prop_set_chr(DEVICE(&s->aux), "chardev", chr);
+
+    object_property_set_bool(OBJECT(&s->aux), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    memory_region_add_subregion(&s->peri_mr, UART1_OFFSET,
+                sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->aux), 0));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->aux), 0,
+        qdev_get_gpio_in_named(DEVICE(&s->ic), BCM2835_IC_GPU_IRQ,
+                               INTERRUPT_AUX));
+
     /* Mailboxes */
     object_property_set_bool(OBJECT(&s->mboxes), true, "realized", &err);
     if (err) {
@@ -144,13 +194,33 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
         qdev_get_gpio_in_named(DEVICE(&s->ic), BCM2835_IC_ARM_IRQ,
                                INTERRUPT_ARM_MAILBOX));
 
-    /* Property channel */
-    object_property_set_int(OBJECT(&s->property), ram_size, "ram-size", &err);
+    /* Framebuffer */
+    vcram_size = (uint32_t)object_property_get_int(OBJECT(s), "vcram-size",
+                                                   &err);
     if (err) {
         error_propagate(errp, err);
         return;
     }
 
+    object_property_set_int(OBJECT(&s->fb), ram_size - vcram_size,
+                            "vcram-base", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    object_property_set_bool(OBJECT(&s->fb), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    memory_region_add_subregion(&s->mbox_mr, MBOX_CHAN_FB << MBOX_AS_CHAN_SHIFT,
+                sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->fb), 0));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->fb), 0,
+                       qdev_get_gpio_in(DEVICE(&s->mboxes), MBOX_CHAN_FB));
+
+    /* Property channel */
     object_property_set_bool(OBJECT(&s->property), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
@@ -166,6 +236,13 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     /* Extended Mass Media Controller */
     object_property_set_int(OBJECT(&s->sdhci), BCM2835_SDHC_CAPAREG, "capareg",
                             &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    object_property_set_bool(OBJECT(&s->sdhci), true, "pending-insert-quirk",
+                             &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -189,6 +266,24 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* DMA Channels */
+    object_property_set_bool(OBJECT(&s->dma), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    memory_region_add_subregion(&s->peri_mr, DMA_OFFSET,
+                sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->dma), 0));
+    memory_region_add_subregion(&s->peri_mr, DMA15_OFFSET,
+                sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->dma), 1));
+
+    for (n = 0; n <= 12; n++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->dma), n,
+                           qdev_get_gpio_in_named(DEVICE(&s->ic),
+                                                  BCM2835_IC_GPU_IRQ,
+                                                  INTERRUPT_DMA0 + n));
+    }
 }
 
 static void bcm2835_peripherals_class_init(ObjectClass *oc, void *data)
@@ -196,6 +291,8 @@ static void bcm2835_peripherals_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = bcm2835_peripherals_realize;
+    /* Reason: realize() method uses qemu_char_get_next_serial() */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo bcm2835_peripherals_type_info = {
