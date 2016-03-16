@@ -134,7 +134,7 @@ static inline uint32_t imx_gpt_find_limit(uint32_t count, uint32_t reg,
 static void imx_gpt_compute_next_timeout(IMXGPTState *s, bool event)
 {
     uint32_t timeout = GPT_TIMER_MAX;
-    uint32_t count = 0;
+    uint32_t count;
     long long limit;
 
     if (!(s->cr & GPT_CR_EN)) {
@@ -142,20 +142,23 @@ static void imx_gpt_compute_next_timeout(IMXGPTState *s, bool event)
         return;
     }
 
+    /* update the count */
+    count = imx_gpt_update_count(s);
+
     if (event) {
-        /* This is a timer event  */
-
-        if ((s->cr & GPT_CR_FRR)  && (s->next_timeout != GPT_TIMER_MAX)) {
-            /*
-             * if we are in free running mode and we have not reached
-             * the GPT_TIMER_MAX limit, then update the count
+        /*
+         * This is an event (the ptimer reached 0 and stopped), and the
+         * timer counter is now equal to s->next_timeout.
+         */
+        if (!(s->cr & GPT_CR_FRR) && (count == s->ocr1)) {
+            /* We are in restart mode and we crossed the compare channel 1
+             * value. We need to reset the counter to 0.
              */
-            count = imx_gpt_update_count(s);
+            count = s->cnt = s->next_timeout = 0;
+        } else if (count == GPT_TIMER_MAX) {
+            /* We reached GPT_TIMER_MAX so we need to rollover */
+            count = s->cnt = s->next_timeout = 0;
         }
-    } else {
-        /* not a timer event, then just update the count */
-
-        count = imx_gpt_update_count(s);
     }
 
     /* now, find the next timeout related to count */
