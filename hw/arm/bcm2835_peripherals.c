@@ -88,6 +88,14 @@ static void bcm2835_peripherals_init(Object *obj)
     object_initialize(&s->sdhci, sizeof(s->sdhci), TYPE_SYSBUS_SDHCI);
     object_property_add_child(obj, "sdhci", OBJECT(&s->sdhci), NULL);
     qdev_set_parent_bus(DEVICE(&s->sdhci), sysbus_get_default());
+
+    /* DMA Channels */
+    object_initialize(&s->dma, sizeof(s->dma), TYPE_BCM2835_DMA);
+    object_property_add_child(obj, "dma", OBJECT(&s->dma), NULL);
+    qdev_set_parent_bus(DEVICE(&s->dma), sysbus_get_default());
+
+    object_property_add_const_link(OBJECT(&s->dma), "dma-mr",
+                                   OBJECT(&s->gpu_bus_mr), &error_abort);
 }
 
 static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
@@ -258,6 +266,24 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* DMA Channels */
+    object_property_set_bool(OBJECT(&s->dma), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    memory_region_add_subregion(&s->peri_mr, DMA_OFFSET,
+                sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->dma), 0));
+    memory_region_add_subregion(&s->peri_mr, DMA15_OFFSET,
+                sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->dma), 1));
+
+    for (n = 0; n <= 12; n++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->dma), n,
+                           qdev_get_gpio_in_named(DEVICE(&s->ic),
+                                                  BCM2835_IC_GPU_IRQ,
+                                                  INTERRUPT_DMA0 + n));
+    }
 }
 
 static void bcm2835_peripherals_class_init(ObjectClass *oc, void *data)
