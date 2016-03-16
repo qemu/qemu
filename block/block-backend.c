@@ -29,7 +29,7 @@ struct BlockBackend {
     int refcnt;
     BlockDriverState *bs;
     DriveInfo *legacy_dinfo;    /* null unless created by drive_new() */
-    QTAILQ_ENTRY(BlockBackend) link; /* for blk_backends */
+    QTAILQ_ENTRY(BlockBackend) monitor_link; /* for monitor_block_backends */
 
     void *dev;                  /* attached device model, if any */
     /* TODO change to DeviceState when all users are qdevified */
@@ -69,9 +69,10 @@ static const AIOCBInfo block_backend_aiocb_info = {
 
 static void drive_info_del(DriveInfo *dinfo);
 
-/* All the BlockBackends (except for hidden ones) */
-static QTAILQ_HEAD(, BlockBackend) blk_backends =
-    QTAILQ_HEAD_INITIALIZER(blk_backends);
+/* All BlockBackends referenced by the monitor and which are iterated through by
+ * blk_next() */
+static QTAILQ_HEAD(, BlockBackend) monitor_block_backends =
+    QTAILQ_HEAD_INITIALIZER(monitor_block_backends);
 
 /*
  * Create a new BlockBackend with @name, with a reference count of one.
@@ -105,7 +106,7 @@ BlockBackend *blk_new(const char *name, Error **errp)
     blk->refcnt = 1;
     notifier_list_init(&blk->remove_bs_notifiers);
     notifier_list_init(&blk->insert_bs_notifiers);
-    QTAILQ_INSERT_TAIL(&blk_backends, blk, link);
+    QTAILQ_INSERT_TAIL(&monitor_block_backends, blk, monitor_link);
     return blk;
 }
 
@@ -178,7 +179,7 @@ static void blk_delete(BlockBackend *blk)
     }
     /* Avoid double-remove after blk_hide_on_behalf_of_hmp_drive_del() */
     if (blk->name[0]) {
-        QTAILQ_REMOVE(&blk_backends, blk, link);
+        QTAILQ_REMOVE(&monitor_block_backends, blk, monitor_link);
     }
     g_free(blk->name);
     drive_info_del(blk->legacy_dinfo);
@@ -241,7 +242,7 @@ void blk_remove_all_bs(void)
 }
 
 /*
- * Return the BlockBackend after @blk.
+ * Return the monitor-owned BlockBackend after @blk.
  * If @blk is null, return the first one.
  * Else, return @blk's next sibling, which may be null.
  *
@@ -252,7 +253,8 @@ void blk_remove_all_bs(void)
  */
 BlockBackend *blk_next(BlockBackend *blk)
 {
-    return blk ? QTAILQ_NEXT(blk, link) : QTAILQ_FIRST(&blk_backends);
+    return blk ? QTAILQ_NEXT(blk, monitor_link)
+               : QTAILQ_FIRST(&monitor_block_backends);
 }
 
 /*
@@ -353,7 +355,7 @@ BlockBackend *blk_by_legacy_dinfo(DriveInfo *dinfo)
  */
 void blk_hide_on_behalf_of_hmp_drive_del(BlockBackend *blk)
 {
-    QTAILQ_REMOVE(&blk_backends, blk, link);
+    QTAILQ_REMOVE(&monitor_block_backends, blk, monitor_link);
     blk->name[0] = 0;
     if (blk->bs) {
         bdrv_make_anon(blk->bs);
