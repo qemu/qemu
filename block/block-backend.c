@@ -227,9 +227,9 @@ void blk_unref(BlockBackend *blk)
 
 void blk_remove_all_bs(void)
 {
-    BlockBackend *blk;
+    BlockBackend *blk = NULL;
 
-    QTAILQ_FOREACH(blk, &blk_backends, link) {
+    while ((blk = blk_next(blk)) != NULL) {
         AioContext *ctx = blk_get_aio_context(blk);
 
         aio_context_acquire(ctx);
@@ -271,10 +271,10 @@ const char *blk_name(BlockBackend *blk)
  */
 BlockBackend *blk_by_name(const char *name)
 {
-    BlockBackend *blk;
+    BlockBackend *blk = NULL;
 
     assert(name);
-    QTAILQ_FOREACH(blk, &blk_backends, link) {
+    while ((blk = blk_next(blk)) != NULL) {
         if (!strcmp(name, blk->name)) {
             return blk;
         }
@@ -332,9 +332,9 @@ DriveInfo *blk_set_legacy_dinfo(BlockBackend *blk, DriveInfo *dinfo)
  */
 BlockBackend *blk_by_legacy_dinfo(DriveInfo *dinfo)
 {
-    BlockBackend *blk;
+    BlockBackend *blk = NULL;
 
-    QTAILQ_FOREACH(blk, &blk_backends, link) {
+    while ((blk = blk_next(blk)) != NULL) {
         if (blk->legacy_dinfo == dinfo) {
             return blk;
         }
