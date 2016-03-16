@@ -723,6 +723,13 @@ void blockdev_close_all_bdrv_states(void)
     }
 }
 
+/* Iterates over the list of monitor-owned BlockDriverStates */
+BlockDriverState *bdrv_next_monitor_owned(BlockDriverState *bs)
+{
+    return bs ? QTAILQ_NEXT(bs, monitor_list)
+              : QTAILQ_FIRST(&monitor_bdrv_states);
+}
+
 static void qemu_opt_rename(QemuOpts *opts, const char *from, const char *to,
                             Error **errp)
 {
