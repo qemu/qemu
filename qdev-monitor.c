@@ -39,19 +39,39 @@ typedef struct QDevAlias
     uint32_t arch_mask;
 } QDevAlias;
 
+/* Please keep this table sorted by typename. */
 static const QDevAlias qdev_alias_table[] = {
-    { "virtio-blk-pci", "virtio-blk", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
-    { "virtio-net-pci", "virtio-net", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
-    { "virtio-serial-pci", "virtio-serial", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
+    { "e1000", "e1000-82540em" },
+    { "ich9-ahci", "ahci" },
+    { "kvm-pci-assign", "pci-assign" },
+    { "lsi53c895a", "lsi" },
+    { "virtio-9p-ccw", "virtio-9p", QEMU_ARCH_S390X },
+    { "virtio-9p-pci", "virtio-9p", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
+    { "virtio-balloon-ccw", "virtio-balloon", QEMU_ARCH_S390X },
     { "virtio-balloon-pci", "virtio-balloon",
             QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
     { "virtio-blk-ccw", "virtio-blk", QEMU_ARCH_S390X },
+    { "virtio-blk-pci", "virtio-blk", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
+    { "virtio-gpu-ccw", "virtio-gpu", QEMU_ARCH_S390X },
+    { "virtio-gpu-pci", "virtio-gpu", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
+    { "virtio-input-host-ccw", "virtio-input-host", QEMU_ARCH_S390X },
+    { "virtio-input-host-pci", "virtio-input-host",
+            QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
+    { "virtio-keyboard-ccw", "virtio-keyboard", QEMU_ARCH_S390X },
+    { "virtio-keyboard-pci", "virtio-keyboard",
+            QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
+    { "virtio-mouse-ccw", "virtio-mouse", QEMU_ARCH_S390X },
+    { "virtio-mouse-pci", "virtio-mouse", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
     { "virtio-net-ccw", "virtio-net", QEMU_ARCH_S390X },
+    { "virtio-net-pci", "virtio-net", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
+    { "virtio-rng-ccw", "virtio-rng", QEMU_ARCH_S390X },
+    { "virtio-rng-pci", "virtio-rng", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
+    { "virtio-scsi-ccw", "virtio-scsi", QEMU_ARCH_S390X },
+    { "virtio-scsi-pci", "virtio-scsi", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
     { "virtio-serial-ccw", "virtio-serial", QEMU_ARCH_S390X },
-    { "lsi53c895a", "lsi" },
-    { "ich9-ahci", "ahci" },
-    { "kvm-pci-assign", "pci-assign" },
-    { "e1000", "e1000-82540em" },
+    { "virtio-serial-pci", "virtio-serial", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
+    { "virtio-tablet-ccw", "virtio-tablet", QEMU_ARCH_S390X },
+    { "virtio-tablet-pci", "virtio-tablet", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
     { }
 };
 
@@ -188,6 +208,7 @@ static DeviceClass *qdev_get_device_class(const char **driver, Error **errp)
 {
     ObjectClass *oc;
     DeviceClass *dc;
+    const char *original_name = *driver;
 
     oc = object_class_by_name(*driver);
     if (!oc) {
@@ -200,7 +221,12 @@ static DeviceClass *qdev_get_device_class(const char **driver, Error **errp)
     }
 
     if (!object_class_dynamic_cast(oc, TYPE_DEVICE)) {
-        error_setg(errp, "'%s' is not a valid device model name", *driver);
+        if (*driver != original_name) {
+            error_setg(errp, "'%s' (alias '%s') is not a valid device model"
+                       " name", original_name, *driver);
+        } else {
+            error_setg(errp, "'%s' is not a valid device model name", *driver);
+        }
         return NULL;
     }
 
