@@ -1671,9 +1671,9 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
             error_setg(errp, "Block protocol '%s' doesn't support the option "
                        "'%s'", drv->format_name, entry->key);
         } else {
-            error_setg(errp, "Block format '%s' used by device '%s' doesn't "
-                       "support the option '%s'", drv->format_name,
-                       bdrv_get_device_name(bs), entry->key);
+            error_setg(errp,
+                       "Block format '%s' does not support the option '%s'",
+                       drv->format_name, entry->key);
         }
 
         ret = -EINVAL;
