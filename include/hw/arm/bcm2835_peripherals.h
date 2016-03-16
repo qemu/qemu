@@ -15,6 +15,7 @@
 #include "exec/address-spaces.h"
 #include "hw/sysbus.h"
 #include "hw/char/bcm2835_aux.h"
+#include "hw/display/bcm2835_fb.h"
 #include "hw/intc/bcm2835_ic.h"
 #include "hw/misc/bcm2835_property.h"
 #include "hw/misc/bcm2835_mbox.h"
@@ -35,6 +36,7 @@ typedef struct BCM2835PeripheralState {
 
     SysBusDevice *uart0;
     BCM2835AuxState aux;
+    BCM2835FBState fb;
     BCM2835ICState ic;
     BCM2835PropertyState property;
     BCM2835MboxState mboxes;

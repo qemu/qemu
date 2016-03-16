@@ -113,6 +113,7 @@ static void setup_boot(MachineState *machine, int version, size_t ram_size)
 static void raspi2_init(MachineState *machine)
 {
     RasPiState *s = g_new0(RasPiState, 1);
+    uint32_t vcram_size;
     DriveInfo *di;
     BlockBackend *blk;
     BusState *bus;
@@ -149,7 +150,9 @@ static void raspi2_init(MachineState *machine)
     qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);
     object_property_set_bool(OBJECT(carddev), true, "realized", &error_fatal);
 
-    setup_boot(machine, 2, machine->ram_size);
+    vcram_size = object_property_get_int(OBJECT(&s->soc), "vcram-size",
+                                         &error_abort);
+    setup_boot(machine, 2, machine->ram_size - vcram_size);
 }
 
 static void raspi2_machine_init(MachineClass *mc)

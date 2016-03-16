@@ -62,6 +62,16 @@ static void bcm2835_peripherals_init(Object *obj)
     object_property_add_const_link(OBJECT(&s->mboxes), "mbox-mr",
                                    OBJECT(&s->mbox_mr), &error_abort);
 
+    /* Framebuffer */
+    object_initialize(&s->fb, sizeof(s->fb), TYPE_BCM2835_FB);
+    object_property_add_child(obj, "fb", OBJECT(&s->fb), NULL);
+    object_property_add_alias(obj, "vcram-size", OBJECT(&s->fb), "vcram-size",
+                              &error_abort);
+    qdev_set_parent_bus(DEVICE(&s->fb), sysbus_get_default());
+
+    object_property_add_const_link(OBJECT(&s->fb), "dma-mr",
+                                   OBJECT(&s->gpu_bus_mr), &error_abort);
+
     /* Property channel */
     object_initialize(&s->property, sizeof(s->property), TYPE_BCM2835_PROPERTY);
     object_property_add_child(obj, "property", OBJECT(&s->property), NULL);
@@ -84,7 +94,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     Object *obj;
     MemoryRegion *ram;
     Error *err = NULL;
-    uint32_t ram_size;
+    uint32_t ram_size, vcram_size;
     CharDriverState *chr;
     int n;
 
@@ -173,6 +183,32 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->mboxes), 0,
         qdev_get_gpio_in_named(DEVICE(&s->ic), BCM2835_IC_ARM_IRQ,
                                INTERRUPT_ARM_MAILBOX));
+
+    /* Framebuffer */
+    vcram_size = (uint32_t)object_property_get_int(OBJECT(s), "vcram-size",
+                                                   &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    object_property_set_int(OBJECT(&s->fb), ram_size - vcram_size,
+                            "vcram-base", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    object_property_set_bool(OBJECT(&s->fb), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    memory_region_add_subregion(&s->mbox_mr, MBOX_CHAN_FB << MBOX_AS_CHAN_SHIFT,
+                sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->fb), 0));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->fb), 0,
+                       qdev_get_gpio_in(DEVICE(&s->mboxes), MBOX_CHAN_FB));
 
     /* Property channel */
     object_property_set_int(OBJECT(&s->property), ram_size, "ram-size", &err);
