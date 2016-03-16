@@ -9703,7 +9703,7 @@ static void ppc_cpu_reset(CPUState *s)
 
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
-        env->msr |= (1ULL << MSR_SF);
+        msr |= (1ULL << MSR_SF);
     }
 #endif
 
