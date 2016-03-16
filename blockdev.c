@@ -1173,7 +1173,7 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
     int ret;
 
     if (!strcmp(device, "all")) {
-        ret = bdrv_commit_all();
+        ret = blk_commit_all();
     } else {
         BlockDriverState *bs;
         AioContext *aio_context;
