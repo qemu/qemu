@@ -171,6 +171,7 @@ static uint32_t imx25_ccm_get_clock_frequency(IMXCCMState *dev, IMXClk clock)
     case CLK_NONE:
         break;
     case CLK_IPG:
+    case CLK_IPG_HIGH:
         freq = imx25_ccm_get_ipg_clk(dev);
         break;
     case CLK_32k:

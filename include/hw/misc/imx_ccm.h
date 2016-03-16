@@ -45,6 +45,7 @@ typedef struct IMXCCMState {
 typedef enum  {
     CLK_NONE,
     CLK_IPG,
+    CLK_IPG_HIGH,
     CLK_32k
 } IMXClk;
 
