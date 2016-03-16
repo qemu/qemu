@@ -245,8 +245,7 @@ static int img_open_password(BlockBackend *blk, const char *filename,
 }
 
 
-static BlockBackend *img_open_opts(const char *id,
-                                   const char *optstr,
+static BlockBackend *img_open_opts(const char *optstr,
                                    QemuOpts *opts, int flags,
                                    bool require_io, bool quiet)
 {
@@ -254,7 +253,7 @@ static BlockBackend *img_open_opts(const char *id,
     Error *local_err = NULL;
     BlockBackend *blk;
     options = qemu_opts_to_qdict(opts, NULL);
-    blk = blk_new_open(id, NULL, NULL, options, flags, &local_err);
+    blk = blk_new_open(NULL, NULL, options, flags, &local_err);
     if (!blk) {
         error_reportf_err(local_err, "Could not open '%s'", optstr);
         return NULL;
@@ -267,7 +266,7 @@ static BlockBackend *img_open_opts(const char *id,
     return blk;
 }
 
-static BlockBackend *img_open_file(const char *id, const char *filename,
+static BlockBackend *img_open_file(const char *filename,
                                    const char *fmt, int flags,
                                    bool require_io, bool quiet)
 {
@@ -280,7 +279,7 @@ static BlockBackend *img_open_file(const char *id, const char *filename,
         qdict_put(options, "driver", qstring_from_str(fmt));
     }
 
-    blk = blk_new_open(id, filename, NULL, options, flags, &local_err);
+    blk = blk_new_open(filename, NULL, options, flags, &local_err);
     if (!blk) {
         error_reportf_err(local_err, "Could not open '%s': ", filename);
         return NULL;
@@ -294,8 +293,7 @@ static BlockBackend *img_open_file(const char *id, const char *filename,
 }
 
 
-static BlockBackend *img_open(const char *id,
-                              bool image_opts,
+static BlockBackend *img_open(bool image_opts,
                               const char *filename,
                               const char *fmt, int flags,
                               bool require_io, bool quiet)
@@ -312,9 +310,9 @@ static BlockBackend *img_open(const char *id,
         if (!opts) {
             return NULL;
         }
-        blk = img_open_opts(id, filename, opts, flags, true, quiet);
+        blk = img_open_opts(filename, opts, flags, true, quiet);
     } else {
-        blk = img_open_file(id, filename, fmt, flags, true, quiet);
+        blk = img_open_file(filename, fmt, flags, true, quiet);
     }
     return blk;
 }
@@ -686,7 +684,7 @@ static int img_check(int argc, char **argv)
         return 1;
     }
 
-    blk = img_open("image", image_opts, filename, fmt, flags, true, quiet);
+    blk = img_open(image_opts, filename, fmt, flags, true, quiet);
     if (!blk) {
         return 1;
     }
@@ -878,7 +876,7 @@ static int img_commit(int argc, char **argv)
         return 1;
     }
 
-    blk = img_open("image", image_opts, filename, fmt, flags, true, quiet);
+    blk = img_open(image_opts, filename, fmt, flags, true, quiet);
     if (!blk) {
         return 1;
     }
@@ -1212,13 +1210,13 @@ static int img_compare(int argc, char **argv)
         goto out3;
     }
 
-    blk1 = img_open("image_1", image_opts, filename1, fmt1, flags, true, quiet);
+    blk1 = img_open(image_opts, filename1, fmt1, flags, true, quiet);
     if (!blk1) {
         ret = 2;
         goto out3;
     }
 
-    blk2 = img_open("image_2", image_opts, filename2, fmt2, flags, true, quiet);
+    blk2 = img_open(image_opts, filename2, fmt2, flags, true, quiet);
     if (!blk2) {
         ret = 2;
         goto out2;
@@ -1899,11 +1897,8 @@ static int img_convert(int argc, char **argv)
 
     total_sectors = 0;
     for (bs_i = 0; bs_i < bs_n; bs_i++) {
-        char *id = bs_n > 1 ? g_strdup_printf("source_%d", bs_i)
-                            : g_strdup("source");
-        blk[bs_i] = img_open(id, image_opts, argv[optind + bs_i],
+        blk[bs_i] = img_open(image_opts, argv[optind + bs_i],
                              fmt, src_flags, true, quiet);
-        g_free(id);
         if (!blk[bs_i]) {
             ret = -1;
             goto out;
@@ -2048,8 +2043,7 @@ static int img_convert(int argc, char **argv)
      * the bdrv_create() call which takes different params.
      * Not critical right now, so fix can wait...
      */
-    out_blk = img_open_file("target", out_filename,
-                            out_fmt, flags, true, quiet);
+    out_blk = img_open_file(out_filename, out_fmt, flags, true, quiet);
     if (!out_blk) {
         ret = -1;
         goto out;
@@ -2240,7 +2234,7 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
         }
         g_hash_table_insert(filenames, (gpointer)filename, NULL);
 
-        blk = img_open("image", image_opts, filename, fmt,
+        blk = img_open(image_opts, filename, fmt,
                        BDRV_O_FLAGS | BDRV_O_NO_BACKING,
                        false, false);
         if (!blk) {
@@ -2572,8 +2566,7 @@ static int img_map(int argc, char **argv)
         return 1;
     }
 
-    blk = img_open("image", image_opts, filename, fmt,
-                   BDRV_O_FLAGS, true, false);
+    blk = img_open(image_opts, filename, fmt, BDRV_O_FLAGS, true, false);
     if (!blk) {
         return 1;
     }
@@ -2718,8 +2711,7 @@ static int img_snapshot(int argc, char **argv)
     }
 
     /* Open the image */
-    blk = img_open("image", image_opts, filename, NULL,
-                   bdrv_oflags, true, quiet);
+    blk = img_open(image_opts, filename, NULL, bdrv_oflags, true, quiet);
     if (!blk) {
         return 1;
     }
@@ -2890,7 +2882,7 @@ static int img_rebase(int argc, char **argv)
      * Ignore the old backing file for unsafe rebase in case we want to correct
      * the reference to a renamed or moved backing file.
      */
-    blk = img_open("image", image_opts, filename, fmt, flags, true, quiet);
+    blk = img_open(image_opts, filename, fmt, flags, true, quiet);
     if (!blk) {
         ret = -1;
         goto out;
@@ -2916,7 +2908,7 @@ static int img_rebase(int argc, char **argv)
         }
 
         bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
-        blk_old_backing = blk_new_open("old_backing", backing_name, NULL,
+        blk_old_backing = blk_new_open(backing_name, NULL,
                                        options, src_flags, &local_err);
         if (!blk_old_backing) {
             error_reportf_err(local_err,
@@ -2933,7 +2925,7 @@ static int img_rebase(int argc, char **argv)
                 options = NULL;
             }
 
-            blk_new_backing = blk_new_open("new_backing", out_baseimg, NULL,
+            blk_new_backing = blk_new_open(out_baseimg, NULL,
                                            options, src_flags, &local_err);
             if (!blk_new_backing) {
                 error_reportf_err(local_err,
@@ -3227,7 +3219,7 @@ static int img_resize(int argc, char **argv)
     n = qemu_opt_get_size(param, BLOCK_OPT_SIZE, 0);
     qemu_opts_del(param);
 
-    blk = img_open("image", image_opts, filename, fmt,
+    blk = img_open(image_opts, filename, fmt,
                    BDRV_O_FLAGS | BDRV_O_RDWR, true, quiet);
     if (!blk) {
         ret = -1;
@@ -3387,7 +3379,7 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
-    blk = img_open("image", image_opts, filename, fmt, flags, true, quiet);
+    blk = img_open(image_opts, filename, fmt, flags, true, quiet);
     if (!blk) {
         ret = -1;
         goto out;

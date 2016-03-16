@@ -1661,7 +1661,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
         goto exit;
     }
 
-    blk = blk_new_open("extent", filename, NULL, NULL,
+    blk = blk_new_open(filename, NULL, NULL,
                        BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
                        &local_err);
     if (blk == NULL) {
@@ -1946,7 +1946,7 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
             goto exit;
         }
 
-        blk = blk_new_open("backing", full_backing, NULL, NULL,
+        blk = blk_new_open(full_backing, NULL, NULL,
                            BDRV_O_NO_BACKING | BDRV_O_CACHE_WB, errp);
         g_free(full_backing);
         if (blk == NULL) {
@@ -2018,7 +2018,7 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
         }
     }
 
-    new_blk = blk_new_open("descriptor", filename, NULL, NULL,
+    new_blk = blk_new_open(filename, NULL, NULL,
                            BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
                            &local_err);
     if (new_blk == NULL) {

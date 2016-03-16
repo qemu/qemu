@@ -80,13 +80,11 @@ static QTAILQ_HEAD(, BlockBackend) monitor_block_backends =
     QTAILQ_HEAD_INITIALIZER(monitor_block_backends);
 
 /*
- * Create a new BlockBackend with @name, with a reference count of one.
- * @name must not be null or empty.
- * Fail if a BlockBackend with this name already exists.
+ * Create a new BlockBackend with a reference count of one.
  * Store an error through @errp on failure, unless it's null.
  * Return the new BlockBackend on success, null on failure.
  */
-BlockBackend *blk_new(const char *name, Error **errp)
+BlockBackend *blk_new(Error **errp)
 {
     BlockBackend *blk;
 
@@ -94,14 +92,7 @@ BlockBackend *blk_new(const char *name, Error **errp)
     blk->refcnt = 1;
     notifier_list_init(&blk->remove_bs_notifiers);
     notifier_list_init(&blk->insert_bs_notifiers);
-
     QTAILQ_INSERT_TAIL(&block_backends, blk, link);
-
-    if (!monitor_add_blk(blk, name, errp)) {
-        blk_unref(blk);
-        return NULL;
-    }
-
     return blk;
 }
 
@@ -109,12 +100,12 @@ BlockBackend *blk_new(const char *name, Error **errp)
  * Create a new BlockBackend with a new BlockDriverState attached.
  * Otherwise just like blk_new(), which see.
  */
-BlockBackend *blk_new_with_bs(const char *name, Error **errp)
+BlockBackend *blk_new_with_bs(Error **errp)
 {
     BlockBackend *blk;
     BlockDriverState *bs;
 
-    blk = blk_new(name, errp);
+    blk = blk_new(errp);
     if (!blk) {
         return NULL;
     }
@@ -137,14 +128,13 @@ BlockBackend *blk_new_with_bs(const char *name, Error **errp)
  * though, so callers of this function have to be able to specify @filename and
  * @flags.
  */
-BlockBackend *blk_new_open(const char *name, const char *filename,
-                           const char *reference, QDict *options, int flags,
-                           Error **errp)
+BlockBackend *blk_new_open(const char *filename, const char *reference,
+                           QDict *options, int flags, Error **errp)
 {
     BlockBackend *blk;
     int ret;
 
-    blk = blk_new_with_bs(name, errp);
+    blk = blk_new_with_bs(errp);
     if (!blk) {
         QDECREF(options);
         return NULL;
@@ -161,8 +151,6 @@ BlockBackend *blk_new_open(const char *name, const char *filename,
 
 static void blk_delete(BlockBackend *blk)
 {
-    monitor_remove_blk(blk);
-
     assert(!blk->refcnt);
     assert(!blk->name);
     assert(!blk->dev);

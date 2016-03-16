@@ -768,7 +768,7 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
         goto exit;
     }
 
-    blk = blk_new_open("image", filename, NULL, NULL,
+    blk = blk_new_open(filename, NULL, NULL,
                        BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
                        &local_err);
     if (blk == NULL) {

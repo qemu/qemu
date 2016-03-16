@@ -147,6 +147,7 @@ void blockdev_auto_del(BlockBackend *blk)
     DriveInfo *dinfo = blk_legacy_dinfo(blk);
 
     if (dinfo && dinfo->auto_del) {
+        monitor_remove_blk(blk);
         blk_unref(blk);
     }
 }
@@ -561,7 +562,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     if ((!file || !*file) && !qdict_size(bs_opts)) {
         BlockBackendRootState *blk_rs;
 
-        blk = blk_new(qemu_opts_id(opts), errp);
+        blk = blk_new(errp);
         if (!blk) {
             goto early_err;
         }
@@ -597,8 +598,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
             bdrv_flags |= BDRV_O_INACTIVE;
         }
 
-        blk = blk_new_open(qemu_opts_id(opts), file, NULL, bs_opts, bdrv_flags,
-                           errp);
+        blk = blk_new_open(file, NULL, bs_opts, bdrv_flags, errp);
         if (!blk) {
             goto err_no_bs_opts;
         }
@@ -629,6 +629,12 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     }
 
     blk_set_on_error(blk, on_read_error, on_write_error);
+
+    if (!monitor_add_blk(blk, qemu_opts_id(opts), errp)) {
+        blk_unref(blk);
+        blk = NULL;
+        goto err_no_bs_opts;
+    }
 
 err_no_bs_opts:
     qemu_opts_del(opts);
@@ -2859,6 +2865,8 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
         blk_remove_bs(blk);
     }
 
+    monitor_remove_blk(blk);
+
     /* if we have a device attached to this BlockDriverState
      * then we need to make the drive anonymous until the device
      * can be removed.  If this is a drive with no device backing
@@ -3976,6 +3984,7 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
     if (bs && bdrv_key_required(bs)) {
         if (blk) {
+            monitor_remove_blk(blk);
             blk_unref(blk);
         } else {
             QTAILQ_REMOVE(&monitor_bdrv_states, bs, monitor_list);
@@ -4005,6 +4014,7 @@ void qmp_x_blockdev_del(bool has_id, const char *id,
     }
 
     if (has_id) {
+        /* blk_by_name() never returns a BB that is not owned by the monitor */
         blk = blk_by_name(id);
         if (!blk) {
             error_setg(errp, "Cannot find block backend %s", id);
@@ -4052,6 +4062,7 @@ void qmp_x_blockdev_del(bool has_id, const char *id,
     }
 
     if (blk) {
+        monitor_remove_blk(blk);
         blk_unref(blk);
     } else {
         QTAILQ_REMOVE(&monitor_bdrv_states, bs, monitor_list);

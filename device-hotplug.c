@@ -84,6 +84,8 @@ void hmp_drive_add(Monitor *mon, const QDict *qdict)
 
 err:
     if (dinfo) {
-        blk_unref(blk_by_legacy_dinfo(dinfo));
+        BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
+        monitor_remove_blk(blk);
+        blk_unref(blk);
     }
 }
