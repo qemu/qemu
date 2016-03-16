@@ -55,8 +55,6 @@
 
 #define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
 
-struct BdrvStates bdrv_states = QTAILQ_HEAD_INITIALIZER(bdrv_states);
-
 static QTAILQ_HEAD(, BlockDriverState) graph_bdrv_states =
     QTAILQ_HEAD_INITIALIZER(graph_bdrv_states);
 
@@ -226,10 +224,7 @@ void bdrv_register(BlockDriver *bdrv)
 
 BlockDriverState *bdrv_new_root(void)
 {
-    BlockDriverState *bs = bdrv_new();
-
-    QTAILQ_INSERT_TAIL(&bdrv_states, bs, device_list);
-    return bs;
+    return bdrv_new();
 }
 
 BlockDriverState *bdrv_new(void)
@@ -2230,26 +2225,10 @@ void bdrv_close_all(void)
     }
 }
 
-/* Note that bs->device_list.tqe_prev is initially null,
- * and gets set to non-null by QTAILQ_INSERT_TAIL().  Establish
- * the useful invariant "bs in bdrv_states iff bs->tqe_prev" by
- * resetting it to null on remove.  */
-void bdrv_device_remove(BlockDriverState *bs)
-{
-    QTAILQ_REMOVE(&bdrv_states, bs, device_list);
-    bs->device_list.tqe_prev = NULL;
-}
-
-/* make a BlockDriverState anonymous by removing from bdrv_state and
- * graph_bdrv_state list.
-   Also, NULL terminate the device_name to prevent double remove */
+/* make a BlockDriverState anonymous by removing from graph_bdrv_state list.
+ * Also, NULL terminate the device_name to prevent double remove */
 void bdrv_make_anon(BlockDriverState *bs)
 {
-    /* Take care to remove bs from bdrv_states only when it's actually
-     * in it. */
-    if (bs->device_list.tqe_prev) {
-        bdrv_device_remove(bs);
-    }
     if (bs->node_name[0] != '\0') {
         QTAILQ_REMOVE(&graph_bdrv_states, bs, node_list);
     }
@@ -2286,10 +2265,6 @@ static void change_parent_backing_link(BlockDriverState *from,
     }
     if (from->blk) {
         blk_set_bs(from->blk, to);
-        if (!to->device_list.tqe_prev) {
-            QTAILQ_INSERT_BEFORE(from, to, device_list);
-        }
-        bdrv_device_remove(from);
     }
 }
 

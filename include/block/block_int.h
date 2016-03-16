@@ -442,8 +442,6 @@ struct BlockDriverState {
     char node_name[32];
     /* element of the list of named nodes building the graph */
     QTAILQ_ENTRY(BlockDriverState) node_list;
-    /* element of the list of "drives" the guest sees */
-    QTAILQ_ENTRY(BlockDriverState) device_list;
     /* element of the list of all BlockDriverStates (all_bdrv_states) */
     QTAILQ_ENTRY(BlockDriverState) bs_list;
     /* element of the list of monitor-owned BDS */
@@ -500,8 +498,6 @@ static inline BlockDriverState *backing_bs(BlockDriverState *bs)
 extern BlockDriver bdrv_file;
 extern BlockDriver bdrv_raw;
 extern BlockDriver bdrv_qcow2;
-
-extern QTAILQ_HEAD(BdrvStates, BlockDriverState) bdrv_states;
 
 /**
  * bdrv_setup_io_funcs:

@@ -2426,11 +2426,6 @@ void qmp_x_blockdev_remove_medium(const char *device, Error **errp)
         goto out;
     }
 
-    /* This follows the convention established by bdrv_make_anon() */
-    if (bs->device_list.tqe_prev) {
-        bdrv_device_remove(bs);
-    }
-
     blk_remove_bs(blk);
 
     if (!blk_dev_has_tray(blk)) {
@@ -2477,8 +2472,6 @@ static void qmp_blockdev_insert_anon_medium(const char *device,
     }
 
     blk_insert_bs(blk, bs);
-
-    QTAILQ_INSERT_TAIL(&bdrv_states, bs, device_list);
 
     if (!blk_dev_has_tray(blk)) {
         /* For tray-less devices, blockdev-close-tray is a no-op (or may not be
