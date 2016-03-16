@@ -12,6 +12,7 @@
 #include "hw/arm/bcm2835_peripherals.h"
 #include "hw/misc/bcm2835_mbox_defs.h"
 #include "hw/arm/raspi_platform.h"
+#include "sysemu/char.h"
 
 /* Peripheral base address on the VC (GPU) system bus */
 #define BCM2835_VC_PERI_BASE 0x7e000000
@@ -48,6 +49,11 @@ static void bcm2835_peripherals_init(Object *obj)
     object_property_add_child(obj, "uart0", OBJECT(s->uart0), NULL);
     qdev_set_parent_bus(DEVICE(s->uart0), sysbus_get_default());
 
+    /* AUX / UART1 */
+    object_initialize(&s->aux, sizeof(s->aux), TYPE_BCM2835_AUX);
+    object_property_add_child(obj, "aux", OBJECT(&s->aux), NULL);
+    qdev_set_parent_bus(DEVICE(&s->aux), sysbus_get_default());
+
     /* Mailboxes */
     object_initialize(&s->mboxes, sizeof(s->mboxes), TYPE_BCM2835_MBOX);
     object_property_add_child(obj, "mbox", OBJECT(&s->mboxes), NULL);
@@ -79,6 +85,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     MemoryRegion *ram;
     Error *err = NULL;
     uint32_t ram_size;
+    CharDriverState *chr;
     int n;
 
     obj = object_property_get_link(OBJECT(dev), "ram", &err);
@@ -130,6 +137,29 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(s->uart0, 0,
         qdev_get_gpio_in_named(DEVICE(&s->ic), BCM2835_IC_GPU_IRQ,
                                INTERRUPT_UART));
+
+    /* AUX / UART1 */
+    /* TODO: don't call qemu_char_get_next_serial() here, instead set
+     * chardev properties for each uart at the board level, once pl011
+     * (uart0) has been updated to avoid qemu_char_get_next_serial()
+     */
+    chr = qemu_char_get_next_serial();
+    if (chr == NULL) {
+        chr = qemu_chr_new("bcm2835.uart1", "null", NULL);
+    }
+    qdev_prop_set_chr(DEVICE(&s->aux), "chardev", chr);
+
+    object_property_set_bool(OBJECT(&s->aux), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    memory_region_add_subregion(&s->peri_mr, UART1_OFFSET,
+                sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->aux), 0));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->aux), 0,
+        qdev_get_gpio_in_named(DEVICE(&s->ic), BCM2835_IC_GPU_IRQ,
+                               INTERRUPT_AUX));
 
     /* Mailboxes */
     object_property_set_bool(OBJECT(&s->mboxes), true, "realized", &err);
@@ -203,6 +233,8 @@ static void bcm2835_peripherals_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = bcm2835_peripherals_realize;
+    /* Reason: realize() method uses qemu_char_get_next_serial() */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo bcm2835_peripherals_type_info = {
