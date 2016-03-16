@@ -494,6 +494,126 @@ uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
     }
 }
 
+static void msr_mrs_banked_exc_checks(CPUARMState *env, uint32_t tgtmode,
+                                      uint32_t regno)
+{
+    /* Raise an exception if the requested access is one of the UNPREDICTABLE
+     * cases; otherwise return. This broadly corresponds to the pseudocode
+     * BankedRegisterAccessValid() and SPSRAccessValid(),
+     * except that we have already handled some cases at translate time.
+     */
+    int curmode = env->uncached_cpsr & CPSR_M;
+
+    if (curmode == tgtmode) {
+        goto undef;
+    }
+
+    if (tgtmode == ARM_CPU_MODE_USR) {
+        switch (regno) {
+        case 8 ... 12:
+            if (curmode != ARM_CPU_MODE_FIQ) {
+                goto undef;
+            }
+            break;
+        case 13:
+            if (curmode == ARM_CPU_MODE_SYS) {
+                goto undef;
+            }
+            break;
+        case 14:
+            if (curmode == ARM_CPU_MODE_HYP || curmode == ARM_CPU_MODE_SYS) {
+                goto undef;
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
+    if (tgtmode == ARM_CPU_MODE_HYP) {
+        switch (regno) {
+        case 17: /* ELR_Hyp */
+            if (curmode != ARM_CPU_MODE_HYP && curmode != ARM_CPU_MODE_MON) {
+                goto undef;
+            }
+            break;
+        default:
+            if (curmode != ARM_CPU_MODE_MON) {
+                goto undef;
+            }
+            break;
+        }
+    }
+
+    return;
+
+undef:
+    raise_exception(env, EXCP_UDEF, syn_uncategorized(),
+                    exception_target_el(env));
+}
+
+void HELPER(msr_banked)(CPUARMState *env, uint32_t value, uint32_t tgtmode,
+                        uint32_t regno)
+{
+    msr_mrs_banked_exc_checks(env, tgtmode, regno);
+
+    switch (regno) {
+    case 16: /* SPSRs */
+        env->banked_spsr[bank_number(tgtmode)] = value;
+        break;
+    case 17: /* ELR_Hyp */
+        env->elr_el[2] = value;
+        break;
+    case 13:
+        env->banked_r13[bank_number(tgtmode)] = value;
+        break;
+    case 14:
+        env->banked_r14[bank_number(tgtmode)] = value;
+        break;
+    case 8 ... 12:
+        switch (tgtmode) {
+        case ARM_CPU_MODE_USR:
+            env->usr_regs[regno - 8] = value;
+            break;
+        case ARM_CPU_MODE_FIQ:
+            env->fiq_regs[regno - 8] = value;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+uint32_t HELPER(mrs_banked)(CPUARMState *env, uint32_t tgtmode, uint32_t regno)
+{
+    msr_mrs_banked_exc_checks(env, tgtmode, regno);
+
+    switch (regno) {
+    case 16: /* SPSRs */
+        return env->banked_spsr[bank_number(tgtmode)];
+    case 17: /* ELR_Hyp */
+        return env->elr_el[2];
+    case 13:
+        return env->banked_r13[bank_number(tgtmode)];
+    case 14:
+        return env->banked_r14[bank_number(tgtmode)];
+    case 8 ... 12:
+        switch (tgtmode) {
+        case ARM_CPU_MODE_USR:
+            return env->usr_regs[regno - 8];
+        case ARM_CPU_MODE_FIQ:
+            return env->fiq_regs[regno - 8];
+        default:
+            g_assert_not_reached();
+        }
+    default:
+        g_assert_not_reached();
+    }
+}
+
 void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome,
                                  uint32_t isread)
 {

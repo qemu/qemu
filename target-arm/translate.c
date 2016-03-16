@@ -4160,6 +4160,195 @@ static int gen_set_psr_im(DisasContext *s, uint32_t mask, int spsr, uint32_t val
     return gen_set_psr(s, mask, spsr, tmp);
 }
 
+static bool msr_banked_access_decode(DisasContext *s, int r, int sysm, int rn,
+                                     int *tgtmode, int *regno)
+{
+    /* Decode the r and sysm fields of MSR/MRS banked accesses into
+     * the target mode and register number, and identify the various
+     * unpredictable cases.
+     * MSR (banked) and MRS (banked) are CONSTRAINED UNPREDICTABLE if:
+     *  + executed in user mode
+     *  + using R15 as the src/dest register
+     *  + accessing an unimplemented register
+     *  + accessing a register that's inaccessible at current PL/security state*
+     *  + accessing a register that you could access with a different insn
+     * We choose to UNDEF in all these cases.
+     * Since we don't know which of the various AArch32 modes we are in
+     * we have to defer some checks to runtime.
+     * Accesses to Monitor mode registers from Secure EL1 (which implies
+     * that EL3 is AArch64) must trap to EL3.
+     *
+     * If the access checks fail this function will emit code to take
+     * an exception and return false. Otherwise it will return true,
+     * and set *tgtmode and *regno appropriately.
+     */
+    int exc_target = default_exception_el(s);
+
+    /* These instructions are present only in ARMv8, or in ARMv7 with the
+     * Virtualization Extensions.
+     */
+    if (!arm_dc_feature(s, ARM_FEATURE_V8) &&
+        !arm_dc_feature(s, ARM_FEATURE_EL2)) {
+        goto undef;
+    }
+
+    if (IS_USER(s) || rn == 15) {
+        goto undef;
+    }
+
+    /* The table in the v8 ARM ARM section F5.2.3 describes the encoding
+     * of registers into (r, sysm).
+     */
+    if (r) {
+        /* SPSRs for other modes */
+        switch (sysm) {
+        case 0xe: /* SPSR_fiq */
+            *tgtmode = ARM_CPU_MODE_FIQ;
+            break;
+        case 0x10: /* SPSR_irq */
+            *tgtmode = ARM_CPU_MODE_IRQ;
+            break;
+        case 0x12: /* SPSR_svc */
+            *tgtmode = ARM_CPU_MODE_SVC;
+            break;
+        case 0x14: /* SPSR_abt */
+            *tgtmode = ARM_CPU_MODE_ABT;
+            break;
+        case 0x16: /* SPSR_und */
+            *tgtmode = ARM_CPU_MODE_UND;
+            break;
+        case 0x1c: /* SPSR_mon */
+            *tgtmode = ARM_CPU_MODE_MON;
+            break;
+        case 0x1e: /* SPSR_hyp */
+            *tgtmode = ARM_CPU_MODE_HYP;
+            break;
+        default: /* unallocated */
+            goto undef;
+        }
+        /* We arbitrarily assign SPSR a register number of 16. */
+        *regno = 16;
+    } else {
+        /* general purpose registers for other modes */
+        switch (sysm) {
+        case 0x0 ... 0x6:   /* 0b00xxx : r8_usr ... r14_usr */
+            *tgtmode = ARM_CPU_MODE_USR;
+            *regno = sysm + 8;
+            break;
+        case 0x8 ... 0xe:   /* 0b01xxx : r8_fiq ... r14_fiq */
+            *tgtmode = ARM_CPU_MODE_FIQ;
+            *regno = sysm;
+            break;
+        case 0x10 ... 0x11: /* 0b1000x : r14_irq, r13_irq */
+            *tgtmode = ARM_CPU_MODE_IRQ;
+            *regno = sysm & 1 ? 13 : 14;
+            break;
+        case 0x12 ... 0x13: /* 0b1001x : r14_svc, r13_svc */
+            *tgtmode = ARM_CPU_MODE_SVC;
+            *regno = sysm & 1 ? 13 : 14;
+            break;
+        case 0x14 ... 0x15: /* 0b1010x : r14_abt, r13_abt */
+            *tgtmode = ARM_CPU_MODE_ABT;
+            *regno = sysm & 1 ? 13 : 14;
+            break;
+        case 0x16 ... 0x17: /* 0b1011x : r14_und, r13_und */
+            *tgtmode = ARM_CPU_MODE_UND;
+            *regno = sysm & 1 ? 13 : 14;
+            break;
+        case 0x1c ... 0x1d: /* 0b1110x : r14_mon, r13_mon */
+            *tgtmode = ARM_CPU_MODE_MON;
+            *regno = sysm & 1 ? 13 : 14;
+            break;
+        case 0x1e ... 0x1f: /* 0b1111x : elr_hyp, r13_hyp */
+            *tgtmode = ARM_CPU_MODE_HYP;
+            /* Arbitrarily pick 17 for ELR_Hyp (which is not a banked LR!) */
+            *regno = sysm & 1 ? 13 : 17;
+            break;
+        default: /* unallocated */
+            goto undef;
+        }
+    }
+
+    /* Catch the 'accessing inaccessible register' cases we can detect
+     * at translate time.
+     */
+    switch (*tgtmode) {
+    case ARM_CPU_MODE_MON:
+        if (!arm_dc_feature(s, ARM_FEATURE_EL3) || s->ns) {
+            goto undef;
+        }
+        if (s->current_el == 1) {
+            /* If we're in Secure EL1 (which implies that EL3 is AArch64)
+             * then accesses to Mon registers trap to EL3
+             */
+            exc_target = 3;
+            goto undef;
+        }
+        break;
+    case ARM_CPU_MODE_HYP:
+        /* Note that we can forbid accesses from EL2 here because they
+         * must be from Hyp mode itself
+         */
+        if (!arm_dc_feature(s, ARM_FEATURE_EL2) || s->current_el < 3) {
+            goto undef;
+        }
+        break;
+    default:
+        break;
+    }
+
+    return true;
+
+undef:
+    /* If we get here then some access check did not pass */
+    gen_exception_insn(s, 4, EXCP_UDEF, syn_uncategorized(), exc_target);
+    return false;
+}
+
+static void gen_msr_banked(DisasContext *s, int r, int sysm, int rn)
+{
+    TCGv_i32 tcg_reg, tcg_tgtmode, tcg_regno;
+    int tgtmode = 0, regno = 0;
+
+    if (!msr_banked_access_decode(s, r, sysm, rn, &tgtmode, &regno)) {
+        return;
+    }
+
+    /* Sync state because msr_banked() can raise exceptions */
+    gen_set_condexec(s);
+    gen_set_pc_im(s, s->pc - 4);
+    tcg_reg = load_reg(s, rn);
+    tcg_tgtmode = tcg_const_i32(tgtmode);
+    tcg_regno = tcg_const_i32(regno);
+    gen_helper_msr_banked(cpu_env, tcg_reg, tcg_tgtmode, tcg_regno);
+    tcg_temp_free_i32(tcg_tgtmode);
+    tcg_temp_free_i32(tcg_regno);
+    tcg_temp_free_i32(tcg_reg);
+    s->is_jmp = DISAS_UPDATE;
+}
+
+static void gen_mrs_banked(DisasContext *s, int r, int sysm, int rn)
+{
+    TCGv_i32 tcg_reg, tcg_tgtmode, tcg_regno;
+    int tgtmode = 0, regno = 0;
+
+    if (!msr_banked_access_decode(s, r, sysm, rn, &tgtmode, &regno)) {
+        return;
+    }
+
+    /* Sync state because mrs_banked() can raise exceptions */
+    gen_set_condexec(s);
+    gen_set_pc_im(s, s->pc - 4);
+    tcg_reg = tcg_temp_new_i32();
+    tcg_tgtmode = tcg_const_i32(tgtmode);
+    tcg_regno = tcg_const_i32(regno);
+    gen_helper_mrs_banked(tcg_reg, cpu_env, tcg_tgtmode, tcg_regno);
+    tcg_temp_free_i32(tcg_tgtmode);
+    tcg_temp_free_i32(tcg_regno);
+    store_reg(s, rn, tcg_reg);
+    s->is_jmp = DISAS_UPDATE;
+}
+
 /* Generate an old-style exception return. Marks pc as dead. */
 static void gen_exception_return(DisasContext *s, TCGv_i32 pc)
 {
@@ -8022,7 +8211,26 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
         sh = (insn >> 4) & 0xf;
         rm = insn & 0xf;
         switch (sh) {
-        case 0x0: /* move program status register */
+        case 0x0: /* MSR, MRS */
+            if (insn & (1 << 9)) {
+                /* MSR (banked) and MRS (banked) */
+                int sysm = extract32(insn, 16, 4) |
+                    (extract32(insn, 8, 1) << 4);
+                int r = extract32(insn, 22, 1);
+
+                if (op1 & 1) {
+                    /* MSR (banked) */
+                    gen_msr_banked(s, r, sysm, rm);
+                } else {
+                    /* MRS (banked) */
+                    int rd = extract32(insn, 12, 4);
+
+                    gen_mrs_banked(s, r, sysm, rd);
+                }
+                break;
+            }
+
+            /* MSR, MRS (for PSRs) */
             if (op1 & 1) {
                 /* PSR = reg */
                 tmp = load_reg(s, rm);
@@ -10133,6 +10341,18 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         if (arm_dc_feature(s, ARM_FEATURE_M)) {
                             goto illegal_op;
                         }
+
+                        if (extract32(insn, 5, 1)) {
+                            /* MSR (banked) */
+                            int sysm = extract32(insn, 8, 4) |
+                                (extract32(insn, 4, 1) << 4);
+                            int r = op & 1;
+
+                            gen_msr_banked(s, r, sysm, rm);
+                            break;
+                        }
+
+                        /* MSR (for PSRs) */
                         tmp = load_reg(s, rn);
                         if (gen_set_psr(s,
                               msr_mask(s, (insn >> 8) & 0xf, op == 1),
@@ -10205,7 +10425,17 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         tcg_gen_subi_i32(tmp, tmp, insn & 0xff);
                         gen_exception_return(s, tmp);
                         break;
-                    case 6: /* mrs cpsr.  */
+                    case 6: /* MRS */
+                        if (extract32(insn, 5, 1)) {
+                            /* MRS (banked) */
+                            int sysm = extract32(insn, 16, 4) |
+                                (extract32(insn, 4, 1) << 4);
+
+                            gen_mrs_banked(s, 0, sysm, rd);
+                            break;
+                        }
+
+                        /* mrs cpsr */
                         tmp = tcg_temp_new_i32();
                         if (arm_dc_feature(s, ARM_FEATURE_M)) {
                             addr = tcg_const_i32(insn & 0xff);
@@ -10216,7 +10446,17 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         }
                         store_reg(s, rd, tmp);
                         break;
-                    case 7: /* mrs spsr.  */
+                    case 7: /* MRS */
+                        if (extract32(insn, 5, 1)) {
+                            /* MRS (banked) */
+                            int sysm = extract32(insn, 16, 4) |
+                                (extract32(insn, 4, 1) << 4);
+
+                            gen_mrs_banked(s, 1, sysm, rd);
+                            break;
+                        }
+
+                        /* mrs spsr.  */
                         /* Not accessible in user mode.  */
                         if (IS_USER(s) || arm_dc_feature(s, ARM_FEATURE_M)) {
                             goto illegal_op;

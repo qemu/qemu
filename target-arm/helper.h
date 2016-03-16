@@ -77,6 +77,9 @@ DEF_HELPER_1(exception_return, void, env)
 DEF_HELPER_2(get_r13_banked, i32, env, i32)
 DEF_HELPER_3(set_r13_banked, void, env, i32, i32)
 
+DEF_HELPER_3(mrs_banked, i32, env, i32, i32)
+DEF_HELPER_4(msr_banked, void, env, i32, i32, i32)
+
 DEF_HELPER_2(get_user_reg, i32, env, i32)
 DEF_HELPER_3(set_user_reg, void, env, i32, i32)
 
