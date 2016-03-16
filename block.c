@@ -2521,26 +2521,6 @@ ro_cleanup:
     return ret;
 }
 
-int bdrv_commit_all(void)
-{
-    BlockDriverState *bs;
-
-    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
-
-        aio_context_acquire(aio_context);
-        if (bs->drv && bs->backing) {
-            int ret = bdrv_commit(bs);
-            if (ret < 0) {
-                aio_context_release(aio_context);
-                return ret;
-            }
-        }
-        aio_context_release(aio_context);
-    }
-    return 0;
-}
-
 /*
  * Return values:
  * 0        - success

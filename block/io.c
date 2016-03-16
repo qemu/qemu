@@ -1445,26 +1445,6 @@ int coroutine_fn bdrv_co_write_zeroes(BlockDriverState *bs,
                              BDRV_REQ_ZERO_WRITE | flags);
 }
 
-int bdrv_flush_all(void)
-{
-    BlockDriverState *bs = NULL;
-    int result = 0;
-
-    while ((bs = bdrv_next(bs))) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
-        int ret;
-
-        aio_context_acquire(aio_context);
-        ret = bdrv_flush(bs);
-        if (ret < 0 && !result) {
-            result = ret;
-        }
-        aio_context_release(aio_context);
-    }
-
-    return result;
-}
-
 typedef struct BdrvCoGetBlockStatusData {
     BlockDriverState *bs;
     BlockDriverState *base;

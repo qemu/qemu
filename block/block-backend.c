@@ -904,11 +904,6 @@ int blk_flush(BlockBackend *blk)
     return bdrv_flush(blk->bs);
 }
 
-int blk_flush_all(void)
-{
-    return bdrv_flush_all();
-}
-
 void blk_drain(BlockBackend *blk)
 {
     if (blk->bs) {
@@ -1357,5 +1352,42 @@ BlockBackendRootState *blk_get_root_state(BlockBackend *blk)
 
 int blk_commit_all(void)
 {
-    return bdrv_commit_all();
+    BlockBackend *blk = NULL;
+
+    while ((blk = blk_all_next(blk)) != NULL) {
+        AioContext *aio_context = blk_get_aio_context(blk);
+
+        aio_context_acquire(aio_context);
+        if (blk_is_inserted(blk) && blk->bs->backing) {
+            int ret = bdrv_commit(blk->bs);
+            if (ret < 0) {
+                aio_context_release(aio_context);
+                return ret;
+            }
+        }
+        aio_context_release(aio_context);
+    }
+    return 0;
+}
+
+int blk_flush_all(void)
+{
+    BlockBackend *blk = NULL;
+    int result = 0;
+
+    while ((blk = blk_all_next(blk)) != NULL) {
+        AioContext *aio_context = blk_get_aio_context(blk);
+        int ret;
+
+        aio_context_acquire(aio_context);
+        if (blk_is_inserted(blk)) {
+            ret = blk_flush(blk);
+            if (ret < 0 && !result) {
+                result = ret;
+            }
+        }
+        aio_context_release(aio_context);
+    }
+
+    return result;
 }
