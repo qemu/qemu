@@ -2969,12 +2969,23 @@ BlockDriverState *bdrv_next_node(BlockDriverState *bs)
     return QTAILQ_NEXT(bs, node_list);
 }
 
+/* Iterates over all top-level BlockDriverStates, i.e. BDSs that are owned by
+ * the monitor or attached to a BlockBackend */
 BlockDriverState *bdrv_next(BlockDriverState *bs)
 {
-    if (!bs) {
-        return QTAILQ_FIRST(&bdrv_states);
+    if (!bs || bs->blk) {
+        bs = blk_next_root_bs(bs);
+        if (bs) {
+            return bs;
+        }
     }
-    return QTAILQ_NEXT(bs, device_list);
+
+    /* Ignore all BDSs that are attached to a BlockBackend here; they have been
+     * handled by the above block already */
+    do {
+        bs = bdrv_next_monitor_owned(bs);
+    } while (bs && bs->blk);
+    return bs;
 }
 
 const char *bdrv_get_node_name(const BlockDriverState *bs)
