@@ -95,23 +95,6 @@ qemu_log_vprintf(const char *fmt, va_list va)
 
 /* Maintenance: */
 
-/* fflush() the log file */
-static inline void qemu_log_flush(void)
-{
-    fflush(qemu_logfile);
-}
-
-/* Close the log file */
-static inline void qemu_log_close(void)
-{
-    if (qemu_logfile) {
-        if (qemu_logfile != stderr) {
-            fclose(qemu_logfile);
-        }
-        qemu_logfile = NULL;
-    }
-}
-
 /* define log items */
 typedef struct QEMULogItem {
     int mask;
@@ -145,5 +128,10 @@ int qemu_str_to_log_mask(const char *str);
  * to the specified FILE*.
  */
 void qemu_print_log_usage(FILE *f);
+
+/* fflush() the log file */
+void qemu_log_flush(void);
+/* Close the log file */
+void qemu_log_close(void);
 
 #endif

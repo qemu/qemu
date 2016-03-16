@@ -198,6 +198,23 @@ void qemu_set_dfilter_ranges(const char *filter_spec)
     }
 }
 
+/* fflush() the log file */
+void qemu_log_flush(void)
+{
+    fflush(qemu_logfile);
+}
+
+/* Close the log file */
+void qemu_log_close(void)
+{
+    if (qemu_logfile) {
+        if (qemu_logfile != stderr) {
+            fclose(qemu_logfile);
+        }
+        qemu_logfile = NULL;
+    }
+}
+
 const QEMULogItem qemu_log_items[] = {
     { CPU_LOG_TB_OUT_ASM, "out_asm",
       "show generated host assembly code for each compiled TB" },
