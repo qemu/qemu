@@ -3293,10 +3293,10 @@ void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
 
 void bdrv_invalidate_cache_all(Error **errp)
 {
-    BlockDriverState *bs;
+    BlockDriverState *bs = NULL;
     Error *local_err = NULL;
 
-    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+    while ((bs = bdrv_next(bs)) != NULL) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
@@ -3326,10 +3326,10 @@ static int bdrv_inactivate(BlockDriverState *bs)
 
 int bdrv_inactivate_all(void)
 {
-    BlockDriverState *bs;
+    BlockDriverState *bs = NULL;
     int ret;
 
-    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+    while ((bs = bdrv_next(bs)) != NULL) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
@@ -3835,10 +3835,10 @@ bool bdrv_recurse_is_first_non_filter(BlockDriverState *bs,
  */
 bool bdrv_is_first_non_filter(BlockDriverState *candidate)
 {
-    BlockDriverState *bs;
+    BlockDriverState *bs = NULL;
 
     /* walk down the bs forest recursively */
-    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+    while ((bs = bdrv_next(bs)) != NULL) {
         bool perm;
 
         /* try to recurse in this top level bs */
