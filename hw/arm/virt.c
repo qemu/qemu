@@ -1347,6 +1347,18 @@ static void virt_set_gic_version(Object *obj, const char *value, Error **errp)
 
 static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->init = machvirt_init;
+    /* Start max_cpus at the maximum QEMU supports. We'll further restrict
+     * it later in machvirt_init, where we have more information about the
+     * configuration of the particular instance.
+     */
+    mc->max_cpus = MAX_CPUMASK_BITS;
+    mc->has_dynamic_sysbus = true;
+    mc->block_default_type = IF_VIRTIO;
+    mc->no_cdrom = 1;
+    mc->pci_allow_0_address = true;
 }
 
 static const TypeInfo virt_machine_info = {
@@ -1358,7 +1370,7 @@ static const TypeInfo virt_machine_info = {
     .class_init    = virt_machine_class_init,
 };
 
-static void virt_instance_init(Object *obj)
+static void virt_2_6_instance_init(Object *obj)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
 
@@ -1391,29 +1403,23 @@ static void virt_instance_init(Object *obj)
                                     "Valid values are 2, 3 and host", NULL);
 }
 
-static void virt_class_init(ObjectClass *oc, void *data)
+static void virt_2_6_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    static GlobalProperty compat_props[] = {
+        { /* end of list */ }
+    };
 
     mc->desc = "QEMU 2.6 ARM Virtual Machine";
     mc->alias = "virt";
-    mc->init = machvirt_init;
-    /* Start max_cpus at the maximum QEMU supports. We'll further restrict
-     * it later in machvirt_init, where we have more information about the
-     * configuration of the particular instance.
-     */
-    mc->max_cpus = MAX_CPUMASK_BITS;
-    mc->has_dynamic_sysbus = true;
-    mc->block_default_type = IF_VIRTIO;
-    mc->no_cdrom = 1;
-    mc->pci_allow_0_address = true;
+    mc->compat_props = compat_props;
 }
 
 static const TypeInfo machvirt_info = {
     .name = MACHINE_TYPE_NAME("virt-2.6"),
     .parent = TYPE_VIRT_MACHINE,
-    .instance_init = virt_instance_init,
-    .class_init = virt_class_init,
+    .instance_init = virt_2_6_instance_init,
+    .class_init = virt_2_6_class_init,
 };
 
 static void machvirt_machine_init(void)
