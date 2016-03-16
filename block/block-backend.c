@@ -250,6 +250,30 @@ BlockBackend *blk_next(BlockBackend *blk)
 }
 
 /*
+ * Iterates over all BlockDriverStates which are attached to a BlockBackend.
+ * This function is for use by bdrv_next().
+ *
+ * @bs must be NULL or a BDS that is attached to a BB.
+ */
+BlockDriverState *blk_next_root_bs(BlockDriverState *bs)
+{
+    BlockBackend *blk;
+
+    if (bs) {
+        assert(bs->blk);
+        blk = bs->blk;
+    } else {
+        blk = NULL;
+    }
+
+    do {
+        blk = blk_all_next(blk);
+    } while (blk && !blk->bs);
+
+    return blk ? blk->bs : NULL;
+}
+
+/*
  * Add a BlockBackend into the list of backends referenced by the monitor, with
  * the given @name acting as the handle for the monitor.
  * Strictly for use by blockdev.c.
