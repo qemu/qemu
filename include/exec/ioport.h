@@ -28,9 +28,6 @@
 #include "qom/object.h"
 #include "exec/memory.h"
 
-typedef uint32_t pio_addr_t;
-#define FMT_pioaddr     PRIx32
-
 #define MAX_IOPORTS     (64 * 1024)
 #define IOPORTS_MASK    (MAX_IOPORTS - 1)
 
@@ -49,12 +46,12 @@ typedef struct MemoryRegionPortio {
 extern const MemoryRegionOps unassigned_io_ops;
 #endif
 
-void cpu_outb(pio_addr_t addr, uint8_t val);
-void cpu_outw(pio_addr_t addr, uint16_t val);
-void cpu_outl(pio_addr_t addr, uint32_t val);
-uint8_t cpu_inb(pio_addr_t addr);
-uint16_t cpu_inw(pio_addr_t addr);
-uint32_t cpu_inl(pio_addr_t addr);
+void cpu_outb(uint32_t addr, uint8_t val);
+void cpu_outw(uint32_t addr, uint16_t val);
+void cpu_outl(uint32_t addr, uint32_t val);
+uint8_t cpu_inb(uint32_t addr);
+uint16_t cpu_inw(uint32_t addr);
+uint32_t cpu_inl(uint32_t addr);
 
 typedef struct PortioList {
     const struct MemoryRegionPortio *ports;

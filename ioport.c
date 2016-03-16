@@ -55,14 +55,14 @@ const MemoryRegionOps unassigned_io_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void cpu_outb(pio_addr_t addr, uint8_t val)
+void cpu_outb(uint32_t addr, uint8_t val)
 {
     trace_cpu_out(addr, 'b', val);
     address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
                         &val, 1);
 }
 
-void cpu_outw(pio_addr_t addr, uint16_t val)
+void cpu_outw(uint32_t addr, uint16_t val)
 {
     uint8_t buf[2];
 
@@ -72,7 +72,7 @@ void cpu_outw(pio_addr_t addr, uint16_t val)
                         buf, 2);
 }
 
-void cpu_outl(pio_addr_t addr, uint32_t val)
+void cpu_outl(uint32_t addr, uint32_t val)
 {
     uint8_t buf[4];
 
@@ -82,7 +82,7 @@ void cpu_outl(pio_addr_t addr, uint32_t val)
                         buf, 4);
 }
 
-uint8_t cpu_inb(pio_addr_t addr)
+uint8_t cpu_inb(uint32_t addr)
 {
     uint8_t val;
 
@@ -92,7 +92,7 @@ uint8_t cpu_inb(pio_addr_t addr)
     return val;
 }
 
-uint16_t cpu_inw(pio_addr_t addr)
+uint16_t cpu_inw(uint32_t addr)
 {
     uint8_t buf[2];
     uint16_t val;
@@ -103,7 +103,7 @@ uint16_t cpu_inw(pio_addr_t addr)
     return val;
 }
 
-uint32_t cpu_inl(pio_addr_t addr)
+uint32_t cpu_inl(uint32_t addr)
 {
     uint8_t buf[4];
     uint32_t val;

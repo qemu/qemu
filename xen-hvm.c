@@ -726,7 +726,7 @@ static ioreq_t *cpu_get_ioreq(XenIOState *state)
     return NULL;
 }
 
-static uint32_t do_inp(pio_addr_t addr, unsigned long size)
+static uint32_t do_inp(uint32_t addr, unsigned long size)
 {
     switch (size) {
         case 1:
@@ -736,11 +736,11 @@ static uint32_t do_inp(pio_addr_t addr, unsigned long size)
         case 4:
             return cpu_inl(addr);
         default:
-            hw_error("inp: bad size: %04"FMT_pioaddr" %lx", addr, size);
+            hw_error("inp: bad size: %04x %lx", addr, size);
     }
 }
 
-static void do_outp(pio_addr_t addr,
+static void do_outp(uint32_t addr,
         unsigned long size, uint32_t val)
 {
     switch (size) {
@@ -751,7 +751,7 @@ static void do_outp(pio_addr_t addr,
         case 4:
             return cpu_outl(addr, val);
         default:
-            hw_error("outp: bad size: %04"FMT_pioaddr" %lx", addr, size);
+            hw_error("outp: bad size: %04x %lx", addr, size);
     }
 }
 
