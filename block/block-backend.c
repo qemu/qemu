@@ -29,6 +29,7 @@ struct BlockBackend {
     int refcnt;
     BlockDriverState *bs;
     DriveInfo *legacy_dinfo;    /* null unless created by drive_new() */
+    QTAILQ_ENTRY(BlockBackend) link;         /* for block_backends */
     QTAILQ_ENTRY(BlockBackend) monitor_link; /* for monitor_block_backends */
 
     void *dev;                  /* attached device model, if any */
@@ -69,6 +70,10 @@ static const AIOCBInfo block_backend_aiocb_info = {
 
 static void drive_info_del(DriveInfo *dinfo);
 
+/* All BlockBackends */
+static QTAILQ_HEAD(, BlockBackend) block_backends =
+    QTAILQ_HEAD_INITIALIZER(block_backends);
+
 /* All BlockBackends referenced by the monitor and which are iterated through by
  * blk_next() */
 static QTAILQ_HEAD(, BlockBackend) monitor_block_backends =
@@ -106,7 +111,10 @@ BlockBackend *blk_new(const char *name, Error **errp)
     blk->refcnt = 1;
     notifier_list_init(&blk->remove_bs_notifiers);
     notifier_list_init(&blk->insert_bs_notifiers);
+
+    QTAILQ_INSERT_TAIL(&block_backends, blk, link);
     QTAILQ_INSERT_TAIL(&monitor_block_backends, blk, monitor_link);
+
     return blk;
 }
 
@@ -177,11 +185,15 @@ static void blk_delete(BlockBackend *blk)
         g_free(blk->root_state.throttle_group);
         throttle_group_unref(blk->root_state.throttle_state);
     }
+
     /* Avoid double-remove after blk_hide_on_behalf_of_hmp_drive_del() */
     if (blk->name[0]) {
         QTAILQ_REMOVE(&monitor_block_backends, blk, monitor_link);
     }
     g_free(blk->name);
+
+    QTAILQ_REMOVE(&block_backends, blk, link);
+
     drive_info_del(blk->legacy_dinfo);
     block_acct_cleanup(&blk->stats);
     g_free(blk);
@@ -226,11 +238,21 @@ void blk_unref(BlockBackend *blk)
     }
 }
 
+/*
+ * Behaves similarly to blk_next() but iterates over all BlockBackends, even the
+ * ones which are hidden (i.e. are not referenced by the monitor).
+ */
+static BlockBackend *blk_all_next(BlockBackend *blk)
+{
+    return blk ? QTAILQ_NEXT(blk, link)
+               : QTAILQ_FIRST(&block_backends);
+}
+
 void blk_remove_all_bs(void)
 {
     BlockBackend *blk = NULL;
 
-    while ((blk = blk_next(blk)) != NULL) {
+    while ((blk = blk_all_next(blk)) != NULL) {
         AioContext *ctx = blk_get_aio_context(blk);
 
         aio_context_acquire(ctx);
