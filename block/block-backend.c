@@ -90,30 +90,17 @@ BlockBackend *blk_new(const char *name, Error **errp)
 {
     BlockBackend *blk;
 
-    assert(name && name[0]);
-    if (!id_wellformed(name)) {
-        error_setg(errp, "Invalid device name");
-        return NULL;
-    }
-    if (blk_by_name(name)) {
-        error_setg(errp, "Device with id '%s' already exists", name);
-        return NULL;
-    }
-    if (bdrv_find_node(name)) {
-        error_setg(errp,
-                   "Device name '%s' conflicts with an existing node name",
-                   name);
-        return NULL;
-    }
-
     blk = g_new0(BlockBackend, 1);
-    blk->name = g_strdup(name);
     blk->refcnt = 1;
     notifier_list_init(&blk->remove_bs_notifiers);
     notifier_list_init(&blk->insert_bs_notifiers);
 
     QTAILQ_INSERT_TAIL(&block_backends, blk, link);
-    QTAILQ_INSERT_TAIL(&monitor_block_backends, blk, monitor_link);
+
+    if (!monitor_add_blk(blk, name, errp)) {
+        blk_unref(blk);
+        return NULL;
+    }
 
     return blk;
 }
@@ -174,7 +161,10 @@ BlockBackend *blk_new_open(const char *name, const char *filename,
 
 static void blk_delete(BlockBackend *blk)
 {
+    monitor_remove_blk(blk);
+
     assert(!blk->refcnt);
+    assert(!blk->name);
     assert(!blk->dev);
     if (blk->bs) {
         blk_remove_bs(blk);
@@ -185,15 +175,7 @@ static void blk_delete(BlockBackend *blk)
         g_free(blk->root_state.throttle_group);
         throttle_group_unref(blk->root_state.throttle_state);
     }
-
-    /* Avoid double-remove after blk_hide_on_behalf_of_hmp_drive_del() */
-    if (blk->name[0]) {
-        QTAILQ_REMOVE(&monitor_block_backends, blk, monitor_link);
-    }
-    g_free(blk->name);
-
     QTAILQ_REMOVE(&block_backends, blk, link);
-
     drive_info_del(blk->legacy_dinfo);
     block_acct_cleanup(&blk->stats);
     g_free(blk);
@@ -280,13 +262,62 @@ BlockBackend *blk_next(BlockBackend *blk)
 }
 
 /*
+ * Add a BlockBackend into the list of backends referenced by the monitor, with
+ * the given @name acting as the handle for the monitor.
+ * Strictly for use by blockdev.c.
+ *
+ * @name must not be null or empty.
+ *
+ * Returns true on success and false on failure. In the latter case, an Error
+ * object is returned through @errp.
+ */
+bool monitor_add_blk(BlockBackend *blk, const char *name, Error **errp)
+{
+    assert(!blk->name);
+    assert(name && name[0]);
+
+    if (!id_wellformed(name)) {
+        error_setg(errp, "Invalid device name");
+        return false;
+    }
+    if (blk_by_name(name)) {
+        error_setg(errp, "Device with id '%s' already exists", name);
+        return false;
+    }
+    if (bdrv_find_node(name)) {
+        error_setg(errp,
+                   "Device name '%s' conflicts with an existing node name",
+                   name);
+        return false;
+    }
+
+    blk->name = g_strdup(name);
+    QTAILQ_INSERT_TAIL(&monitor_block_backends, blk, monitor_link);
+    return true;
+}
+
+/*
+ * Remove a BlockBackend from the list of backends referenced by the monitor.
+ * Strictly for use by blockdev.c.
+ */
+void monitor_remove_blk(BlockBackend *blk)
+{
+    if (!blk->name) {
+        return;
+    }
+
+    QTAILQ_REMOVE(&monitor_block_backends, blk, monitor_link);
+    g_free(blk->name);
+    blk->name = NULL;
+}
+
+/*
  * Return @blk's name, a non-null string.
- * Wart: the name is empty iff @blk has been hidden with
- * blk_hide_on_behalf_of_hmp_drive_del().
+ * Returns an empty string iff @blk is not referenced by the monitor.
  */
 const char *blk_name(BlockBackend *blk)
 {
-    return blk->name;
+    return blk->name ?: "";
 }
 
 /*
@@ -377,8 +408,7 @@ BlockBackend *blk_by_legacy_dinfo(DriveInfo *dinfo)
  */
 void blk_hide_on_behalf_of_hmp_drive_del(BlockBackend *blk)
 {
-    QTAILQ_REMOVE(&monitor_block_backends, blk, monitor_link);
-    blk->name[0] = 0;
+    monitor_remove_blk(blk);
     if (blk->bs) {
         bdrv_make_anon(blk->bs);
     }
