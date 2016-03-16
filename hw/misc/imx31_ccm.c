@@ -209,7 +209,7 @@ static uint32_t imx31_ccm_get_clock_frequency(IMXCCMState *dev, IMXClk clock)
     uint32_t freq = 0;
 
     switch (clock) {
-    case NOCLK:
+    case CLK_NONE:
         break;
     case CLK_MCU:
         freq = imx31_ccm_get_mcu_clk(dev);

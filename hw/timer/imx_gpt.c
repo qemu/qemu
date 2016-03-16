@@ -81,14 +81,14 @@ static const VMStateDescription vmstate_imx_timer_gpt = {
 };
 
 static const IMXClk imx_gpt_clocks[] = {
-    NOCLK,    /* 000 No clock source */
+    CLK_NONE, /* 000 No clock source */
     CLK_IPG,  /* 001 ipg_clk, 532MHz*/
     CLK_IPG,  /* 010 ipg_clk_highfreq */
-    NOCLK,    /* 011 not defined */
+    CLK_NONE, /* 011 not defined */
     CLK_32k,  /* 100 ipg_clk_32k */
-    NOCLK,    /* 101 not defined */
-    NOCLK,    /* 110 not defined */
-    NOCLK,    /* 111 not defined */
+    CLK_NONE, /* 101 not defined */
+    CLK_NONE, /* 110 not defined */
+    CLK_NONE, /* 111 not defined */
 };
 
 static void imx_gpt_set_freq(IMXGPTState *s)

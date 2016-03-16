@@ -43,7 +43,7 @@ typedef struct IMXCCMState {
 } IMXCCMState;
 
 typedef enum  {
-    NOCLK,
+    CLK_NONE,
     CLK_MPLL,
     CLK_UPLL,
     CLK_MCU,

@@ -182,7 +182,7 @@ static uint32_t imx25_ccm_get_clock_frequency(IMXCCMState *dev, IMXClk clock)
     DPRINTF("Clock = %d)\n", clock);
 
     switch (clock) {
-    case NOCLK:
+    case CLK_NONE:
         break;
     case CLK_MPLL:
         freq = imx25_ccm_get_mpll_clk(dev);
