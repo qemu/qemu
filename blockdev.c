@@ -3898,6 +3898,7 @@ void hmp_drive_add_node(Monitor *mon, const char *optstr)
     qdict = qemu_opts_to_qdict(opts, NULL);
 
     if (!qdict_get_try_str(qdict, "node-name")) {
+        QDECREF(qdict);
         error_report("'node-name' needs to be specified");
         goto out;
     }
