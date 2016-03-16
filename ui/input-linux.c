@@ -213,6 +213,13 @@ static void input_linux_event_keyboard(void *opaque)
                  */
                 continue;
             }
+            if (event.code >= KEY_CNT) {
+                /*
+                 * Should not happen.  But better safe than sorry,
+                 * and we make Coverity happy too.
+                 */
+                continue;
+            }
             /* keep track of key state */
             if (!il->keydown[event.code] && event.value) {
                 il->keydown[event.code] = true;
