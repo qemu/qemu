@@ -100,9 +100,6 @@
 #define QERR_UNDEFINED_ERROR \
     "An undefined error has occurred"
 
-#define QERR_UNKNOWN_BLOCK_FORMAT_FEATURE \
-    "'%s' uses a %s feature which is not supported by this qemu version: %s"
-
 #define QERR_UNSUPPORTED \
     "this feature or command is not currently supported"
 

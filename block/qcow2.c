@@ -198,22 +198,8 @@ static void cleanup_unknown_header_ext(BlockDriverState *bs)
     }
 }
 
-static void GCC_FMT_ATTR(3, 4) report_unsupported(BlockDriverState *bs,
-    Error **errp, const char *fmt, ...)
-{
-    char msg[64];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
-    va_end(ap);
-
-    error_setg(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
-               bdrv_get_device_or_node_name(bs), "qcow2", msg);
-}
-
-static void report_unsupported_feature(BlockDriverState *bs,
-    Error **errp, Qcow2Feature *table, uint64_t mask)
+static void report_unsupported_feature(Error **errp, Qcow2Feature *table,
+                                       uint64_t mask)
 {
     char *features = g_strdup("");
     char *old;
@@ -238,7 +224,7 @@ static void report_unsupported_feature(BlockDriverState *bs,
         g_free(old);
     }
 
-    report_unsupported(bs, errp, "%s", features);
+    error_setg(errp, "Unsupported qcow2 feature(s): %s", features);
     g_free(features);
 }
 
@@ -855,7 +841,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
     if (header.version < 2 || header.version > 3) {
-        report_unsupported(bs, errp, "QCOW version %" PRIu32, header.version);
+        error_setg(errp, "Unsupported qcow2 version %" PRIu32, header.version);
         ret = -ENOTSUP;
         goto fail;
     }
@@ -935,7 +921,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         void *feature_table = NULL;
         qcow2_read_extensions(bs, header.header_length, ext_end,
                               &feature_table, NULL);
-        report_unsupported_feature(bs, errp, feature_table,
+        report_unsupported_feature(errp, feature_table,
                                    s->incompatible_features &
                                    ~QCOW2_INCOMPAT_MASK);
         ret = -ENOTSUP;

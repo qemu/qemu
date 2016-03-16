@@ -121,11 +121,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
     if (header.version != QCOW_VERSION) {
-        char version[64];
-        snprintf(version, sizeof(version), "QCOW version %" PRIu32,
-                 header.version);
-        error_setg(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
-                   bdrv_get_device_or_node_name(bs), "qcow", version);
+        error_setg(errp, "Unsupported qcow version %" PRIu32, header.version);
         ret = -ENOTSUP;
         goto fail;
     }

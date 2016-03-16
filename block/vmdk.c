@@ -661,11 +661,8 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     compressed =
         le16_to_cpu(header.compressAlgorithm) == VMDK4_COMPRESSION_DEFLATE;
     if (le32_to_cpu(header.version) > 3) {
-        char buf[64];
-        snprintf(buf, sizeof(buf), "VMDK version %" PRId32,
-                 le32_to_cpu(header.version));
-        error_setg(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
-                   bdrv_get_device_or_node_name(bs), "vmdk", buf);
+        error_setg(errp, "Unsupported VMDK version %" PRIu32,
+                   le32_to_cpu(header.version));
         return -ENOTSUP;
     } else if (le32_to_cpu(header.version) == 3 && (flags & BDRV_O_RDWR) &&
                !compressed) {
