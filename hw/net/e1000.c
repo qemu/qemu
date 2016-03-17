@@ -357,6 +357,14 @@ set_interrupt_cause(E1000State *s, int index, uint32_t val)
             }
             mit_update_delay(&mit_delay, s->mac_reg[ITR]);
 
+            /*
+             * According to e1000 SPEC, the Ethernet controller guarantees
+             * a maximum observable interrupt rate of 7813 interrupts/sec.
+             * Thus if mit_delay < 500 then the delay should be set to the
+             * minimum delay possible which is 500.
+             */
+            mit_delay = (mit_delay < 500) ? 500 : mit_delay;
+
             if (mit_delay) {
                 s->mit_timer_on = 1;
                 timer_mod(s->mit_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
