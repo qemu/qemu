@@ -51,7 +51,24 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
                      c_type=base.c_name())
         ret += gen_err_check()
 
-    ret += gen_visit_members(members, prefix='obj->')
+    for memb in members:
+        if memb.optional:
+            ret += mcgen('''
+    if (visit_optional(v, "%(name)s", &obj->has_%(c_name)s)) {
+''',
+                         name=memb.name, c_name=c_name(memb.name))
+            push_indent()
+        ret += mcgen('''
+    visit_type_%(c_type)s(v, "%(name)s", &obj->%(c_name)s, &err);
+''',
+                     c_type=memb.type.c_name(), name=memb.name,
+                     c_name=c_name(memb.name))
+        ret += gen_err_check()
+        if memb.optional:
+            pop_indent()
+            ret += mcgen('''
+    }
+''')
 
     if variants:
         ret += mcgen('''
@@ -90,8 +107,8 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
     }
 ''')
 
-    # 'goto out' produced for base, by gen_visit_members() for each member,
-    # and if variants were present
+    # 'goto out' produced for base, for each member, and if variants were
+    # present
     if base or members or variants:
         ret += mcgen('''
 

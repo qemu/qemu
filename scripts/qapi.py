@@ -1657,54 +1657,12 @@ def gen_params(arg_type, extra):
     return ret
 
 
-def gen_err_check(label='out', skiperr=False):
-    if skiperr:
-        return ''
+def gen_err_check():
     return mcgen('''
     if (err) {
-        goto %(label)s;
-    }
-''',
-                 label=label)
-
-
-def gen_visit_members(members, prefix='', need_cast=False, skiperr=False,
-                      label='out'):
-    ret = ''
-    if skiperr:
-        errparg = 'NULL'
-    else:
-        errparg = '&err'
-
-    for memb in members:
-        if memb.optional:
-            ret += mcgen('''
-    if (visit_optional(v, "%(name)s", &%(prefix)shas_%(c_name)s)) {
-''',
-                         prefix=prefix, c_name=c_name(memb.name),
-                         name=memb.name)
-            push_indent()
-
-        # Ugly: sometimes we need to cast away const
-        if need_cast and memb.type.name == 'str':
-            cast = '(char **)'
-        else:
-            cast = ''
-
-        ret += mcgen('''
-    visit_type_%(c_type)s(v, "%(name)s", %(cast)s&%(prefix)s%(c_name)s, %(errp)s);
-''',
-                     c_type=memb.type.c_name(), prefix=prefix, cast=cast,
-                     c_name=c_name(memb.name), name=memb.name,
-                     errp=errparg)
-        ret += gen_err_check(skiperr=skiperr, label=label)
-
-        if memb.optional:
-            pop_indent()
-            ret += mcgen('''
+        goto out;
     }
 ''')
-    return ret
 
 
 #
