@@ -456,11 +456,6 @@ static void e1000_reset(void *opaque)
         e1000_link_down(d);
     }
 
-    /* Throttle interrupts to prevent guest (e.g Win 2012) from
-     * reinjecting interrupts endlessly. TODO: fix non ITR case.
-     */
-    d->mac_reg[ITR] = 250;
-
     /* Some guests expect pre-initialized RAH/RAL (AddrValid flag + MACaddr) */
     d->mac_reg[RA] = 0;
     d->mac_reg[RA + 1] = E1000_RAH_AV;
