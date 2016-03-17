@@ -284,7 +284,7 @@ better than open-coding the member to be type 'str'.
 === Union types ===
 
 Usage: { 'union': STRING, 'data': DICT }
-or:    { 'union': STRING, 'data': DICT, 'base': STRUCT-NAME,
+or:    { 'union': STRING, 'data': DICT, 'base': STRUCT-NAME-OR-DICT,
          'discriminator': ENUM-MEMBER-OF-BASE }
 
 Union types are used to let the user choose between several different
@@ -320,13 +320,16 @@ an implicit C enum 'NameKind' is created, corresponding to the union
 the union can be named 'max', as this would collide with the implicit
 enum.  The value for each branch can be of any type.
 
-A flat union definition specifies a struct as its base, and
-avoids nesting on the wire.  All branches of the union must be
-complex types, and the top-level members of the union dictionary on
-the wire will be combination of members from both the base type and the
-appropriate branch type (when merging two dictionaries, there must be
-no keys in common).  The 'discriminator' member must be the name of a
-non-optional enum-typed member of the base struct.
+A flat union definition avoids nesting on the wire, and specifies a
+set of common members that occur in all variants of the union.  The
+'base' key must specifiy either a type name (the type must be a
+struct, not a union), or a dictionary representing an anonymous type.
+All branches of the union must be complex types, and the top-level
+members of the union dictionary on the wire will be combination of
+members from both the base type and the appropriate branch type (when
+merging two dictionaries, there must be no keys in common).  The
+'discriminator' member must be the name of a non-optional enum-typed
+member of the base struct.
 
 The following example enhances the above simple union example by
 adding an optional common member 'read-only', renaming the
@@ -334,10 +337,8 @@ discriminator to something more applicable than the simple union's
 default of 'type', and reducing the number of {} required on the wire:
 
  { 'enum': 'BlockdevDriver', 'data': [ 'file', 'qcow2' ] }
- { 'struct': 'BlockdevOptionsBase',
-   'data': { 'driver': 'BlockdevDriver', '*read-only': 'bool' } }
  { 'union': 'BlockdevOptions',
-   'base': 'BlockdevOptionsBase',
+   'base': { 'driver': 'BlockdevDriver', '*read-only': 'bool' },
    'discriminator': 'driver',
    'data': { 'file': 'BlockdevOptionsFile',
              'qcow2': 'BlockdevOptionsQcow2' } }
@@ -366,10 +367,9 @@ union has a struct with a single member named 'data'.  That is,
 is identical on the wire to:
 
  { 'enum': 'Enum', 'data': ['one', 'two'] }
- { 'struct': 'Base', 'data': { 'type': 'Enum' } }
  { 'struct': 'Branch1', 'data': { 'data': 'str' } }
  { 'struct': 'Branch2', 'data': { 'data': 'int' } }
- { 'union': 'Flat', 'base': 'Base', 'discriminator': 'type',
+ { 'union': 'Flat': 'base': { 'type': 'Enum' }, 'discriminator': 'type',
    'data': { 'one': 'Branch1', 'two': 'Branch2' } }
 
 

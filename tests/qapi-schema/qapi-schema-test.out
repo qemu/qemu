@@ -66,7 +66,7 @@ object UserDefFlatUnion
     case value2: UserDefB
     case value3: UserDefB
 object UserDefFlatUnion2
-    base UserDefUnionBase2
+    base q_obj_UserDefFlatUnion2-base
     tag enum1
     case value1: UserDefC
     case value2: UserDefB
@@ -111,10 +111,6 @@ object UserDefUnionBase
     base UserDefZero
     member string: str optional=False
     member enum1: EnumOne optional=False
-object UserDefUnionBase2
-    base UserDefZero
-    member string: str optional=False
-    member enum1: QEnumTwo optional=False
 object UserDefZero
     member integer: int optional=False
 object WrapAlternate
@@ -156,6 +152,10 @@ object q_obj_EVENT_D-arg
     member b: str optional=False
     member c: str optional=True
     member enum3: EnumOne optional=True
+object q_obj_UserDefFlatUnion2-base
+    member integer: int optional=True
+    member string: str optional=False
+    member enum1: QEnumTwo optional=False
 object q_obj___org.qemu_x-command-arg
     member a: __org.qemu_x-EnumList optional=False
     member b: __org.qemu_x-StructList optional=False

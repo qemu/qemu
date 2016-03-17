@@ -327,6 +327,8 @@ class QAPISchemaParser(object):
 
 
 def find_base_members(base):
+    if isinstance(base, dict):
+        return base
     base_struct_define = find_struct(base)
     if not base_struct_define:
         return None
@@ -561,9 +563,10 @@ def check_union(expr, expr_info):
 
     # Else, it's a flat union.
     else:
-        # The object must have a string member 'base'.
+        # The object must have a string or dictionary 'base'.
         check_type(expr_info, "'base' for union '%s'" % name,
-                   base, allow_metas=['struct'])
+                   base, allow_dict=True, allow_optional=True,
+                   allow_metas=['struct'])
         if not base:
             raise QAPIExprError(expr_info,
                                 "Flat union '%s' must have a base"
@@ -1039,6 +1042,8 @@ class QAPISchemaMember(object):
             owner = owner[6:]
             if owner.endswith('-arg'):
                 return '(parameter of %s)' % owner[:-4]
+            elif owner.endswith('-base'):
+                return '(base of %s)' % owner[:-5]
             else:
                 assert owner.endswith('-wrapper')
                 # Unreachable and not implemented
@@ -1325,6 +1330,9 @@ class QAPISchema(object):
         base = expr.get('base')
         tag_name = expr.get('discriminator')
         tag_member = None
+        if isinstance(base, dict):
+            base = (self._make_implicit_object_type(
+                    name, info, 'base', self._make_members(base, info)))
         if tag_name:
             variants = [self._make_variant(key, value)
                         for (key, value) in data.iteritems()]

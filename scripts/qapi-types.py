@@ -72,12 +72,14 @@ struct %(c_name)s {
                  c_name=c_name(name))
 
     if base:
-        ret += mcgen('''
+        if not base.is_implicit():
+            ret += mcgen('''
     /* Members inherited from %(c_name)s: */
 ''',
-                     c_name=base.c_name())
+                         c_name=base.c_name())
         ret += gen_struct_members(base.members)
-        ret += mcgen('''
+        if not base.is_implicit():
+            ret += mcgen('''
     /* Own members: */
 ''')
     ret += gen_struct_members(members)
@@ -224,7 +226,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
             return
         self._fwdecl += gen_fwd_object_or_array(name)
         self.decl += gen_object(name, base, members, variants)
-        if base:
+        if base and not base.is_implicit():
             self.decl += gen_upcast(name, base)
         # TODO Worth changing the visitor signature, so we could
         # directly use rather than repeat type.is_implicit()?
