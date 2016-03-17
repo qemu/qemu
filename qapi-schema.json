@@ -753,9 +753,9 @@
   'data': ['x86', 'sparc', 'ppc', 'mips', 'tricore', 'other' ] }
 
 ##
-# @CpuInfoBase:
+# @CpuInfo:
 #
-# Common information about a virtual CPU
+# Information about a virtual CPU
 #
 # @CPU: the index of the virtual CPU
 #
@@ -776,18 +776,10 @@
 # Notes: @halted is a transient state that changes frequently.  By the time the
 #        data is sent to the client, the guest may no longer be halted.
 ##
-{ 'struct': 'CpuInfoBase',
-  'data': {'CPU': 'int', 'current': 'bool', 'halted': 'bool',
-           'qom_path': 'str', 'thread_id': 'int', 'arch': 'CpuInfoArch' } }
-
-##
-# @CpuInfo:
-#
-# Information about a virtual CPU
-#
-# Since: 0.14.0
-##
-{ 'union': 'CpuInfo', 'base': 'CpuInfoBase', 'discriminator': 'arch',
+{ 'union': 'CpuInfo',
+  'base': {'CPU': 'int', 'current': 'bool', 'halted': 'bool',
+           'qom_path': 'str', 'thread_id': 'int', 'arch': 'CpuInfoArch' },
+  'discriminator': 'arch',
   'data': { 'x86': 'CpuInfoX86',
             'sparc': 'CpuInfoSPARC',
             'ppc': 'CpuInfoPPC',
