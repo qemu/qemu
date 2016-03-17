@@ -21,7 +21,7 @@ QMP_VERSION
 {"error": {"class": "GenericError", "desc": "Device name 'test-node' conflicts with an existing node name"}}
 {"error": {"class": "GenericError", "desc": "node-name=disk is conflicting with a device id"}}
 {"error": {"class": "GenericError", "desc": "Duplicate node name"}}
-{"error": {"class": "GenericError", "desc": "node-name=disk3 is conflicting with a device id"}}
+{"error": {"class": "GenericError", "desc": "Device name 'disk3' conflicts with an existing node name"}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
 

@@ -147,6 +147,7 @@ void blockdev_auto_del(BlockBackend *blk)
     DriveInfo *dinfo = blk_legacy_dinfo(blk);
 
     if (dinfo && dinfo->auto_del) {
+        monitor_remove_blk(blk);
         blk_unref(blk);
     }
 }
@@ -561,7 +562,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     if ((!file || !*file) && !qdict_size(bs_opts)) {
         BlockBackendRootState *blk_rs;
 
-        blk = blk_new(qemu_opts_id(opts), errp);
+        blk = blk_new(errp);
         if (!blk) {
             goto early_err;
         }
@@ -597,8 +598,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
             bdrv_flags |= BDRV_O_INACTIVE;
         }
 
-        blk = blk_new_open(qemu_opts_id(opts), file, NULL, bs_opts, bdrv_flags,
-                           errp);
+        blk = blk_new_open(file, NULL, bs_opts, bdrv_flags, errp);
         if (!blk) {
             goto err_no_bs_opts;
         }
@@ -629,6 +629,12 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     }
 
     blk_set_on_error(blk, on_read_error, on_write_error);
+
+    if (!monitor_add_blk(blk, qemu_opts_id(opts), errp)) {
+        blk_unref(blk);
+        blk = NULL;
+        goto err_no_bs_opts;
+    }
 
 err_no_bs_opts:
     qemu_opts_del(opts);
@@ -715,6 +721,13 @@ void blockdev_close_all_bdrv_states(void)
         bdrv_unref(bs);
         aio_context_release(ctx);
     }
+}
+
+/* Iterates over the list of monitor-owned BlockDriverStates */
+BlockDriverState *bdrv_next_monitor_owned(BlockDriverState *bs)
+{
+    return bs ? QTAILQ_NEXT(bs, monitor_list)
+              : QTAILQ_FIRST(&monitor_bdrv_states);
 }
 
 static void qemu_opt_rename(QemuOpts *opts, const char *from, const char *to,
@@ -1173,7 +1186,7 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
     int ret;
 
     if (!strcmp(device, "all")) {
-        ret = bdrv_commit_all();
+        ret = blk_commit_all();
     } else {
         BlockDriverState *bs;
         AioContext *aio_context;
@@ -2413,11 +2426,6 @@ void qmp_x_blockdev_remove_medium(const char *device, Error **errp)
         goto out;
     }
 
-    /* This follows the convention established by bdrv_make_anon() */
-    if (bs->device_list.tqe_prev) {
-        bdrv_device_remove(bs);
-    }
-
     blk_remove_bs(blk);
 
     if (!blk_dev_has_tray(blk)) {
@@ -2464,8 +2472,6 @@ static void qmp_blockdev_insert_anon_medium(const char *device,
     }
 
     blk_insert_bs(blk, bs);
-
-    QTAILQ_INSERT_TAIL(&bdrv_states, bs, device_list);
 
     if (!blk_dev_has_tray(blk)) {
         /* For tray-less devices, blockdev-close-tray is a no-op (or may not be
@@ -2859,13 +2865,16 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
         blk_remove_bs(blk);
     }
 
-    /* if we have a device attached to this BlockDriverState
-     * then we need to make the drive anonymous until the device
-     * can be removed.  If this is a drive with no device backing
-     * then we can just get rid of the block driver state right here.
+    /* Make the BlockBackend and the attached BlockDriverState anonymous */
+    monitor_remove_blk(blk);
+    if (blk_bs(blk)) {
+        bdrv_make_anon(blk_bs(blk));
+    }
+
+    /* If this BlockBackend has a device attached to it, its refcount will be
+     * decremented when the device is removed; otherwise we have to do so here.
      */
     if (blk_get_attached_dev(blk)) {
-        blk_hide_on_behalf_of_hmp_drive_del(blk);
         /* Further I/O must not pause the guest */
         blk_set_on_error(blk, BLOCKDEV_ON_ERROR_REPORT,
                          BLOCKDEV_ON_ERROR_REPORT);
@@ -3898,6 +3907,7 @@ void hmp_drive_add_node(Monitor *mon, const char *optstr)
     qdict = qemu_opts_to_qdict(opts, NULL);
 
     if (!qdict_get_try_str(qdict, "node-name")) {
+        QDECREF(qdict);
         error_report("'node-name' needs to be specified");
         goto out;
     }
@@ -3975,6 +3985,7 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
     if (bs && bdrv_key_required(bs)) {
         if (blk) {
+            monitor_remove_blk(blk);
             blk_unref(blk);
         } else {
             QTAILQ_REMOVE(&monitor_bdrv_states, bs, monitor_list);
@@ -4004,6 +4015,7 @@ void qmp_x_blockdev_del(bool has_id, const char *id,
     }
 
     if (has_id) {
+        /* blk_by_name() never returns a BB that is not owned by the monitor */
         blk = blk_by_name(id);
         if (!blk) {
             error_setg(errp, "Cannot find block backend %s", id);
@@ -4051,6 +4063,7 @@ void qmp_x_blockdev_del(bool has_id, const char *id,
     }
 
     if (blk) {
+        monitor_remove_blk(blk);
         blk_unref(blk);
     } else {
         QTAILQ_REMOVE(&monitor_bdrv_states, bs, monitor_list);
@@ -4221,7 +4234,7 @@ QemuOptsList qemu_common_drive_opts = {
 
 static QemuOptsList qemu_root_bds_opts = {
     .name = "root-bds",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_common_drive_opts.head),
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_root_bds_opts.head),
     .desc = {
         {
             .name = "discard",

@@ -661,11 +661,8 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     compressed =
         le16_to_cpu(header.compressAlgorithm) == VMDK4_COMPRESSION_DEFLATE;
     if (le32_to_cpu(header.version) > 3) {
-        char buf[64];
-        snprintf(buf, sizeof(buf), "VMDK version %" PRId32,
-                 le32_to_cpu(header.version));
-        error_setg(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
-                   bdrv_get_device_or_node_name(bs), "vmdk", buf);
+        error_setg(errp, "Unsupported VMDK version %" PRIu32,
+                   le32_to_cpu(header.version));
         return -ENOTSUP;
     } else if (le32_to_cpu(header.version) == 3 && (flags & BDRV_O_RDWR) &&
                !compressed) {
@@ -1664,7 +1661,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
         goto exit;
     }
 
-    blk = blk_new_open("extent", filename, NULL, NULL,
+    blk = blk_new_open(filename, NULL, NULL,
                        BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
                        &local_err);
     if (blk == NULL) {
@@ -1949,7 +1946,7 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
             goto exit;
         }
 
-        blk = blk_new_open("backing", full_backing, NULL, NULL,
+        blk = blk_new_open(full_backing, NULL, NULL,
                            BDRV_O_NO_BACKING | BDRV_O_CACHE_WB, errp);
         g_free(full_backing);
         if (blk == NULL) {
@@ -2021,7 +2018,7 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
         }
     }
 
-    new_blk = blk_new_open("descriptor", filename, NULL, NULL,
+    new_blk = blk_new_open(filename, NULL, NULL,
                            BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
                            &local_err);
     if (new_blk == NULL) {

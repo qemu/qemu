@@ -44,12 +44,6 @@ static int coroutine_fn bdrv_co_readv_em(BlockDriverState *bs,
 static int coroutine_fn bdrv_co_writev_em(BlockDriverState *bs,
                                          int64_t sector_num, int nb_sectors,
                                          QEMUIOVector *iov);
-static int coroutine_fn bdrv_co_do_preadv(BlockDriverState *bs,
-    int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
-    BdrvRequestFlags flags);
-static int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
-    int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
-    BdrvRequestFlags flags);
 static BlockAIOCB *bdrv_co_aio_rw_vector(BlockDriverState *bs,
                                          int64_t sector_num,
                                          QEMUIOVector *qiov,
@@ -621,20 +615,6 @@ int bdrv_read(BlockDriverState *bs, int64_t sector_num,
     return bdrv_rw_co(bs, sector_num, buf, nb_sectors, false, 0);
 }
 
-/* Just like bdrv_read(), but with I/O throttling temporarily disabled */
-int bdrv_read_unthrottled(BlockDriverState *bs, int64_t sector_num,
-                          uint8_t *buf, int nb_sectors)
-{
-    bool enabled;
-    int ret;
-
-    enabled = bs->io_limits_enabled;
-    bs->io_limits_enabled = false;
-    ret = bdrv_read(bs, sector_num, buf, nb_sectors);
-    bs->io_limits_enabled = enabled;
-    return ret;
-}
-
 /* Return < 0 if error. Important errors are:
   -EIO         generic I/O error (may happen for all errors)
   -ENOMEDIUM   No media inserted.
@@ -939,7 +919,7 @@ out:
 /*
  * Handle a read request in coroutine context
  */
-static int coroutine_fn bdrv_co_do_preadv(BlockDriverState *bs,
+int coroutine_fn bdrv_co_do_preadv(BlockDriverState *bs,
     int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
@@ -1284,7 +1264,7 @@ fail:
 /*
  * Handle a write request in coroutine context
  */
-static int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
+int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
     int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
@@ -1443,26 +1423,6 @@ int coroutine_fn bdrv_co_write_zeroes(BlockDriverState *bs,
 
     return bdrv_co_do_writev(bs, sector_num, nb_sectors, NULL,
                              BDRV_REQ_ZERO_WRITE | flags);
-}
-
-int bdrv_flush_all(void)
-{
-    BlockDriverState *bs = NULL;
-    int result = 0;
-
-    while ((bs = bdrv_next(bs))) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
-        int ret;
-
-        aio_context_acquire(aio_context);
-        ret = bdrv_flush(bs);
-        if (ret < 0 && !result) {
-            result = ret;
-        }
-        aio_context_release(aio_context);
-    }
-
-    return result;
 }
 
 typedef struct BdrvCoGetBlockStatusData {

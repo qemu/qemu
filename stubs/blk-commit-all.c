@@ -1,8 +1,8 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "block/block.h"
+#include "sysemu/block-backend.h"
 
-int bdrv_commit_all(void)
+int blk_commit_all(void)
 {
     return 0;
 }

@@ -284,8 +284,16 @@ static void quorum_aio_cb(void *opaque, int ret)
     QuorumChildRequest *sacb = opaque;
     QuorumAIOCB *acb = sacb->parent;
     BDRVQuorumState *s = acb->common.bs->opaque;
-    QuorumOpType type;
     bool rewrite = false;
+
+    if (ret == 0) {
+        acb->success_count++;
+    } else {
+        QuorumOpType type;
+        type = acb->is_read ? QUORUM_OP_TYPE_READ : QUORUM_OP_TYPE_WRITE;
+        quorum_report_bad(type, acb->sector_num, acb->nb_sectors,
+                          sacb->aiocb->bs->node_name, ret);
+    }
 
     if (acb->is_read && s->read_pattern == QUORUM_READ_PATTERN_FIFO) {
         /* We try to read next child in FIFO order if we fail to read */
@@ -303,15 +311,8 @@ static void quorum_aio_cb(void *opaque, int ret)
         return;
     }
 
-    type = acb->is_read ? QUORUM_OP_TYPE_READ : QUORUM_OP_TYPE_WRITE;
     sacb->ret = ret;
     acb->count++;
-    if (ret == 0) {
-        acb->success_count++;
-    } else {
-        quorum_report_bad(type, acb->sector_num, acb->nb_sectors,
-                          sacb->aiocb->bs->node_name, ret);
-    }
     assert(acb->count <= s->num_children);
     assert(acb->success_count <= s->num_children);
     if (acb->count < s->num_children) {

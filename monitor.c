@@ -42,6 +42,7 @@
 #include "ui/console.h"
 #include "ui/input.h"
 #include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include "audio/audio.h"
 #include "disas/disas.h"
 #include "sysemu/balloon.h"
@@ -3483,7 +3484,7 @@ static void monitor_find_completion_by_table(Monitor *mon,
     int i;
     const char *ptype, *str, *name;
     const mon_cmd_t *cmd;
-    BlockDriverState *bs;
+    BlockBackend *blk = NULL;
 
     if (nb_args <= 1) {
         /* command completion */
@@ -3538,8 +3539,8 @@ static void monitor_find_completion_by_table(Monitor *mon,
         case 'B':
             /* block device name completion */
             readline_set_completion_index(mon->rs, strlen(str));
-            for (bs = bdrv_next(NULL); bs; bs = bdrv_next(bs)) {
-                name = bdrv_get_device_name(bs);
+            while ((blk = blk_next(blk)) != NULL) {
+                name = blk_name(blk);
                 if (str[0] == '\0' ||
                     !strncmp(name, str, strlen(str))) {
                     readline_add_completion(mon->rs, name);

@@ -35,6 +35,7 @@ sector_size = 512
 offset = 10
 
 class TestQuorumEvents(iotests.QMPTestCase):
+    read_pattern = 'quorum'
 
     def create_blkdebug_file(self, blkdebug_file, bad_sector):
         file = open(blkdebug_file, 'w')
@@ -48,6 +49,7 @@ sector = "%d"
 
     def setUp(self):
         driveopts = ['driver=quorum', 'vote-threshold=2']
+        driveopts.append('read-pattern=%s' % self.read_pattern)
         for i in range(len(imgs)):
             iotests.qemu_img('create', '-f', iotests.imgfmt, imgs[i], '1M')
             self.create_blkdebug_file(img_conf[i], i + offset)
@@ -112,7 +114,11 @@ sector = "%d"
             self.vm.hmp_qemu_io("drive0", "aio_read %d %d" %
                                 ((offset + i) * sector_size, sector_size))
             self.vm.qtest("clock_step %d" % delay)
-            self.do_check_event('img%d' % i, offset + i)
+            # In fifo mode only errors in the first child are detected
+            if i > 0 and self.read_pattern == 'fifo':
+                self.do_check_event(None)
+            else:
+                self.do_check_event('img%d' % i, offset + i)
 
         # I/O errors in different children: all events are emitted
         delay = 2 * event_rate
@@ -120,10 +126,17 @@ sector = "%d"
             self.vm.hmp_qemu_io("drive0", "aio_read %d %d" %
                                 ((offset + i) * sector_size, sector_size))
             self.vm.qtest("clock_step %d" % delay)
-            self.do_check_event('img%d' % i, offset + i)
+            # In fifo mode only errors in the first child are detected
+            if i > 0 and self.read_pattern == 'fifo':
+                self.do_check_event(None)
+            else:
+                self.do_check_event('img%d' % i, offset + i)
 
         # No more pending events
         self.do_check_event(None)
+
+class TestFifoQuorumEvents(TestQuorumEvents):
+    read_pattern = 'fifo'
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=["raw"])

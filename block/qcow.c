@@ -121,11 +121,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
     if (header.version != QCOW_VERSION) {
-        char version[64];
-        snprintf(version, sizeof(version), "QCOW version %" PRIu32,
-                 header.version);
-        error_setg(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
-                   bdrv_get_device_or_node_name(bs), "qcow", version);
+        error_setg(errp, "Unsupported qcow version %" PRIu32, header.version);
         ret = -ENOTSUP;
         goto fail;
     }
@@ -797,7 +793,7 @@ static int qcow_create(const char *filename, QemuOpts *opts, Error **errp)
         goto cleanup;
     }
 
-    qcow_blk = blk_new_open("image", filename, NULL, NULL,
+    qcow_blk = blk_new_open(filename, NULL, NULL,
                             BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
                             &local_err);
     if (qcow_blk == NULL) {

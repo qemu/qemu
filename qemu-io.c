@@ -61,7 +61,7 @@ static int openfile(char *name, int flags, QDict *opts)
         return 1;
     }
 
-    qemuio_blk = blk_new_open("hda", name, NULL, opts, flags, &local_err);
+    qemuio_blk = blk_new_open(name, NULL, opts, flags, &local_err);
     if (!qemuio_blk) {
         error_reportf_err(local_err, "can't open%s%s: ",
                           name ? " device " : "", name ?: "");

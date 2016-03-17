@@ -442,8 +442,6 @@ struct BlockDriverState {
     char node_name[32];
     /* element of the list of named nodes building the graph */
     QTAILQ_ENTRY(BlockDriverState) node_list;
-    /* element of the list of "drives" the guest sees */
-    QTAILQ_ENTRY(BlockDriverState) device_list;
     /* element of the list of all BlockDriverStates (all_bdrv_states) */
     QTAILQ_ENTRY(BlockDriverState) bs_list;
     /* element of the list of monitor-owned BDS */
@@ -501,8 +499,6 @@ extern BlockDriver bdrv_file;
 extern BlockDriver bdrv_raw;
 extern BlockDriver bdrv_qcow2;
 
-extern QTAILQ_HEAD(BdrvStates, BlockDriverState) bdrv_states;
-
 /**
  * bdrv_setup_io_funcs:
  *
@@ -511,6 +507,13 @@ extern QTAILQ_HEAD(BdrvStates, BlockDriverState) bdrv_states;
  * that fall back to implemented interfaces.
  */
 void bdrv_setup_io_funcs(BlockDriver *bdrv);
+
+int coroutine_fn bdrv_co_do_preadv(BlockDriverState *bs,
+    int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
+    BdrvRequestFlags flags);
+int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
+    int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
+    BdrvRequestFlags flags);
 
 int get_tmp_filename(char *filename, int size);
 BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
@@ -695,6 +698,11 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
                   BlockJobTxn *txn, Error **errp);
 
 void hmp_drive_add_node(Monitor *mon, const char *optstr);
+
+BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
+                                  const char *child_name,
+                                  const BdrvChildRole *child_role);
+void bdrv_root_unref_child(BdrvChild *child);
 
 void blk_set_bs(BlockBackend *blk, BlockDriverState *bs);
 
