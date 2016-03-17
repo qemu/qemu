@@ -575,9 +575,9 @@ names an object type without members.
 Example: the SchemaInfo for command query-qmp-schema
 
     { "name": "query-qmp-schema", "meta-type": "command",
-      "arg-type": ":empty", "ret-type": "SchemaInfoList" }
+      "arg-type": "q_empty", "ret-type": "SchemaInfoList" }
 
-    Type ":empty" is an object type without members, and type
+    Type "q_empty" is an automatic object type without members, and type
     "SchemaInfoList" is the array of SchemaInfo type.
 
 The SchemaInfo for an event has meta-type "event", and variant member
@@ -594,9 +594,9 @@ QAPI schema implicitly defines an object type.
 Example: the SchemaInfo for EVENT_C from section Events
 
     { "name": "EVENT_C", "meta-type": "event",
-      "arg-type": ":obj-EVENT_C-arg" }
+      "arg-type": "q_obj-EVENT_C-arg" }
 
-    Type ":obj-EVENT_C-arg" is an implicitly defined object type with
+    Type "q_obj-EVENT_C-arg" is an implicitly defined object type with
     the two members from the event's definition.
 
 The SchemaInfo for struct and union types has meta-type "object".
@@ -660,11 +660,11 @@ Union types
           { "name": "type", "type": "BlockdevOptionsKind" } ],
       "tag": "type",
       "variants": [
-          { "case": "file", "type": ":obj-FileOptions-wrapper" },
-          { "case": "qcow2", "type": ":obj-Qcow2Options-wrapper" } ] }
+          { "case": "file", "type": "q_obj-FileOptions-wrapper" },
+          { "case": "qcow2", "type": "q_obj-Qcow2Options-wrapper" } ] }
 
     Enumeration type "BlockdevOptionsKind" and the object types
-    ":obj-FileOptions-wrapper", ":obj-Qcow2Options-wrapper" are
+    "q_obj-FileOptions-wrapper", "q_obj-Qcow2Options-wrapper" are
     implicitly defined.
 
 The SchemaInfo for an alternate type has meta-type "alternate", and

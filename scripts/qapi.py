@@ -391,7 +391,8 @@ def check_name(expr_info, source, name, allow_optional=False,
     # code always prefixes it with the enum name
     if enum_member and membername[0].isdigit():
         membername = 'D' + membername
-    # Reserve the entire 'q_' namespace for c_name()
+    # Reserve the entire 'q_' namespace for c_name(), and for 'q_empty'
+    # and 'q_obj_*' implicit type names.
     if not valid_name.match(membername) or \
        c_name(membername, False).startswith('q_'):
         raise QAPIExprError(expr_info,
@@ -994,8 +995,9 @@ class QAPISchemaObjectType(QAPISchemaType):
             m.check_clash(info, seen)
 
     def is_implicit(self):
-        # See QAPISchema._make_implicit_object_type()
-        return self.name[0] == ':'
+        # See QAPISchema._make_implicit_object_type(), as well as
+        # _def_predefineds()
+        return self.name.startswith('q_')
 
     def c_name(self):
         assert not self.is_implicit()
@@ -1044,10 +1046,10 @@ class QAPISchemaMember(object):
 
     def _pretty_owner(self):
         owner = self.owner
-        if owner.startswith(':obj-'):
+        if owner.startswith('q_obj_'):
             # See QAPISchema._make_implicit_object_type() - reverse the
             # mapping there to create a nice human-readable description
-            owner = owner[5:]
+            owner = owner[6:]
             if owner.endswith('-arg'):
                 return '(parameter of %s)' % owner[:-4]
             else:
@@ -1266,8 +1268,8 @@ class QAPISchema(object):
                   ('bool',   'boolean', 'bool',     'false'),
                   ('any',    'value',   'QObject' + pointer_suffix, 'NULL')]:
             self._def_builtin_type(*t)
-        self.the_empty_object_type = QAPISchemaObjectType(':empty', None, None,
-                                                          [], None)
+        self.the_empty_object_type = QAPISchemaObjectType('q_empty', None,
+                                                          None, [], None)
         self._def_entity(self.the_empty_object_type)
         qtype_values = self._make_enum_members(['none', 'qnull', 'qint',
                                                 'qstring', 'qdict', 'qlist',
@@ -1295,7 +1297,7 @@ class QAPISchema(object):
         if not members:
             return None
         # See also QAPISchemaObjectTypeMember._pretty_owner()
-        name = ':obj-%s-%s' % (name, role)
+        name = 'q_obj_%s-%s' % (name, role)
         if not self.lookup_entity(name, QAPISchemaObjectType):
             self._def_entity(QAPISchemaObjectType(name, info, None,
                                                   members, None))
