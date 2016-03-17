@@ -13,6 +13,11 @@ void qmp_user_def_cmd(Error **errp)
 {
 }
 
+Empty2 *qmp_user_def_cmd0(Error **errp)
+{
+    return g_new0(Empty2, 1);
+}
+
 void qmp_user_def_cmd1(UserDefOne * ud1, Error **errp)
 {
 }

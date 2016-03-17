@@ -203,6 +203,8 @@ command guest-sync :obj-guest-sync-arg -> any
    gen=True success_response=True
 command user_def_cmd None -> None
    gen=True success_response=True
+command user_def_cmd0 Empty2 -> Empty2
+   gen=True success_response=True
 command user_def_cmd1 :obj-user_def_cmd1-arg -> None
    gen=True success_response=True
 command user_def_cmd2 :obj-user_def_cmd2-arg -> UserDefTwo

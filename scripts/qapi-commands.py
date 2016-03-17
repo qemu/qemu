@@ -66,7 +66,7 @@ def gen_marshal_vars(arg_type, ret_type):
 ''',
                      c_type=ret_type.c_type())
 
-    if arg_type:
+    if arg_type and arg_type.members:
         ret += mcgen('''
     QmpInputVisitor *qiv = qmp_input_visitor_new_strict(QOBJECT(args));
     QapiDeallocVisitor *qdv;
@@ -98,7 +98,7 @@ def gen_marshal_vars(arg_type, ret_type):
 def gen_marshal_input_visit(arg_type, dealloc=False):
     ret = ''
 
-    if not arg_type:
+    if not arg_type or not arg_type.members:
         return ret
 
     if dealloc:
