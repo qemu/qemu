@@ -55,68 +55,6 @@ def gen_call(name, arg_type, ret_type):
     return ret
 
 
-def gen_marshal_vars(arg_type, ret_type):
-    ret = mcgen('''
-    Error *err = NULL;
-''')
-
-    if ret_type:
-        ret += mcgen('''
-    %(c_type)s retval;
-''',
-                     c_type=ret_type.c_type())
-
-    if arg_type and arg_type.members:
-        ret += mcgen('''
-    QmpInputVisitor *qiv = qmp_input_visitor_new_strict(QOBJECT(args));
-    QapiDeallocVisitor *qdv;
-    Visitor *v;
-    %(c_name)s arg = {0};
-
-''',
-                     c_name=arg_type.c_name())
-    else:
-        ret += mcgen('''
-
-    (void)args;
-''')
-
-    return ret
-
-
-def gen_marshal_input_visit(arg_type, dealloc=False):
-    ret = ''
-
-    if not arg_type or not arg_type.members:
-        return ret
-
-    if dealloc:
-        ret += mcgen('''
-    qmp_input_visitor_cleanup(qiv);
-    qdv = qapi_dealloc_visitor_new();
-    v = qapi_dealloc_get_visitor(qdv);
-''')
-        errp = 'NULL'
-    else:
-        ret += mcgen('''
-    v = qmp_input_get_visitor(qiv);
-''')
-        errp = '&err'
-
-    ret += mcgen('''
-    visit_type_%(c_name)s_members(v, &arg, %(errp)s);
-''',
-                 c_name=arg_type.c_name(), errp=errp)
-
-    if dealloc:
-        ret += mcgen('''
-    qapi_dealloc_visitor_cleanup(qdv);
-''')
-    else:
-        ret += gen_err_check()
-    return ret
-
-
 def gen_marshal_output(ret_type):
     return mcgen('''
 
@@ -165,15 +103,40 @@ def gen_marshal(name, arg_type, ret_type):
 
 %(proto)s
 {
+    Error *err = NULL;
 ''',
                 proto=gen_marshal_proto(name))
 
-    ret += gen_marshal_vars(arg_type, ret_type)
-    ret += gen_marshal_input_visit(arg_type)
+    if ret_type:
+        ret += mcgen('''
+    %(c_type)s retval;
+''',
+                     c_type=ret_type.c_type())
+
+    if arg_type and arg_type.members:
+        ret += mcgen('''
+    QmpInputVisitor *qiv = qmp_input_visitor_new_strict(QOBJECT(args));
+    QapiDeallocVisitor *qdv;
+    Visitor *v;
+    %(c_name)s arg = {0};
+
+    v = qmp_input_get_visitor(qiv);
+    visit_type_%(c_name)s_members(v, &arg, &err);
+    if (err) {
+        goto out;
+    }
+''',
+                     c_name=arg_type.c_name())
+
+    else:
+        ret += mcgen('''
+
+    (void)args;
+''')
+
     ret += gen_call(name, arg_type, ret_type)
 
-    # 'goto out' produced by gen_marshal_input_visit->gen_visit_members()
-    # for each arg_type member, and by gen_call() for ret_type
+    # 'goto out' produced above for arg_type, and by gen_call() for ret_type
     if (arg_type and arg_type.members) or ret_type:
         ret += mcgen('''
 
@@ -182,7 +145,16 @@ out:
     ret += mcgen('''
     error_propagate(errp, err);
 ''')
-    ret += gen_marshal_input_visit(arg_type, dealloc=True)
+    if arg_type and arg_type.members:
+        ret += mcgen('''
+    qmp_input_visitor_cleanup(qiv);
+    qdv = qapi_dealloc_visitor_new();
+    v = qapi_dealloc_get_visitor(qdv);
+    visit_type_%(c_name)s_members(v, &arg, NULL);
+    qapi_dealloc_visitor_cleanup(qdv);
+''',
+                     c_name=arg_type.c_name())
+
     ret += mcgen('''
 }
 ''')
