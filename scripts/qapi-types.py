@@ -124,11 +124,14 @@ def gen_variants(variants):
     for var in variants.variants:
         # Ugly special case for simple union TODO get rid of it
         simple_union_type = var.simple_union_type()
-        typ = simple_union_type or var.type
+        if simple_union_type:
+            typ = simple_union_type.c_type()
+        else:
+            typ = var.type.c_unboxed_type()
         ret += mcgen('''
         %(c_type)s %(c_name)s;
 ''',
-                     c_type=typ.c_type(is_unboxed=not simple_union_type),
+                     c_type=typ,
                      c_name=c_name(var.name))
 
     ret += mcgen('''
