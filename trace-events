@@ -1606,6 +1606,7 @@ colo_start_block_replication(void) "Block replication is started"
 colo_stop_block_replication(const char *reason) "Block replication is stopped(reason: '%s')"
 
 # net/colo-proxy.c
+colo_old_packet_check_found(int64_t old_time) "%" PRId64
 colo_proxy(const char *sta) ": %s"
 colo_proxy_with_ret(const char *sta, ssize_t ret) ": %s ret = %zu"
 colo_proxy_packet_src(const char *src) ":ipsrc = %s"

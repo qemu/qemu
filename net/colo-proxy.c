@@ -42,6 +42,8 @@
 #define PRIMARY_MODE "primary"
 #define SECONDARY_MODE "secondary"
 
+/* TODO: Should be configurable */
+#define REGULAR_CHECK_MS 400
 
 /*
 
@@ -122,6 +124,9 @@ typedef struct COLOProxyState {
     QemuEvent need_compare_ev;  /* notify compare thread */
     QemuThread thread; /* compare thread, a thread for each NIC */
     VMChangeStateEntry *change_state_handler;
+
+    /* Timer used on the primary to find packets that are never matched */
+    QEMUTimer *timer;
 } COLOProxyState;
 
 typedef struct Packet {
@@ -134,6 +139,9 @@ typedef struct Packet {
     int size;
     COLOProxyState *s;
     NetClientState *sender;
+
+    /* Time of packet creation, in wall clock ms */
+    int64_t creation_ms;
 } Packet;
 
 typedef struct ConnectionKey {
@@ -485,6 +493,8 @@ static Packet *packet_new(COLOProxyState *s, void *data,
     if (parse_packet_early(pkt, key)) {
         packet_destroy(pkt, NULL);
         pkt = NULL;
+    } else {
+        pkt->creation_ms = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     }
 
     return pkt;
@@ -996,6 +1006,7 @@ static void colo_proxy_cleanup(NetFilterState *nf)
     close(s->sockfd);
     s->sockfd = -1;
     qemu_del_vm_change_state_handler(s->change_state_handler);
+    timer_del(s->timer);
     qemu_event_destroy(&s->need_compare_ev);
 }
 
@@ -1201,11 +1212,31 @@ static int colo_packet_compare(Packet *spkt, Packet *ppkt)
     }
 }
 
+static void colo_old_packet_check(void *opaque_packet, void *opaque_found)
+{
+    int64_t now;
+    bool *found_old = (bool *)opaque_found;
+    Packet *ppkt = (Packet *)opaque_packet;
+
+    if (*found_old) {
+        /* Someone found an old packet earlier in the queue */
+        return;
+    }
+
+    now = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+    if ((ppkt->creation_ms < now) &&
+        ((now-ppkt->creation_ms) > REGULAR_CHECK_MS)) {
+        trace_colo_old_packet_check_found(ppkt->creation_ms);
+        *found_old = true;
+    }
+}
+
 static void colo_compare_connection(void *opaque, void *user_data)
 {
     Connection *conn = opaque;
     Packet *ppkt = NULL;
     Packet *spkt = NULL;
+    bool found_old;
     int result;
 
     while (!g_queue_is_empty(&conn->primary_list) &&
@@ -1235,8 +1266,19 @@ static void colo_compare_connection(void *opaque, void *user_data)
                         inet_ntoa(conn->ck.dst), conn->ck.dst_port);
             }
             colo_proxy_notify_checkpoint();
-            break;
+            return;
         }
+    }
+
+    /* Look for old packets that the secondary hasn't matched, if we have some
+     * then we have to checkpoint to wake the secondary up.
+    */
+    qemu_mutex_lock(&conn->list_lock);
+    found_old = false;
+    g_queue_foreach(&conn->primary_list, colo_old_packet_check, &found_old);
+    qemu_mutex_unlock(&conn->list_lock);
+    if (found_old) {
+        colo_proxy_notify_checkpoint();
     }
 }
 
@@ -1337,6 +1379,20 @@ void colo_proxy_stop(int mode)
     qemu_foreach_netfilter(colo_proxy_stop_one, &mode, &err);
 }
 
+/* Prod the compare thread regularly so it can watch for any packets
+ * that the secondary hasn't produced equivalents of.
+ */
+static void colo_proxy_regular(void *opaque)
+{
+    COLOProxyState *s = opaque;
+
+    timer_mod(s->timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+                        REGULAR_CHECK_MS);
+    if (s->colo_mode == COLO_MODE_PRIMARY) {
+        qemu_event_set(&s->need_compare_ev);
+    }
+}
+
 static void colo_proxy_setup(NetFilterState *nf, Error **errp)
 {
     COLOProxyState *s = FILTER_COLO_PROXY(nf);
@@ -1382,6 +1438,12 @@ static void colo_proxy_setup(NetFilterState *nf, Error **errp)
                                            g_free,
                                            connection_destroy);
     g_queue_init(&s->conn_list);
+
+    /* A regular timer to kick any packets that the secondary doesn't match */
+    s->timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, /* Only when guest runs */
+                            colo_proxy_regular, s);
+    timer_mod(s->timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+                        REGULAR_CHECK_MS);
 }
 
 static void colo_proxy_class_init(ObjectClass *oc, void *data)
