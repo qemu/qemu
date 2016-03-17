@@ -121,16 +121,10 @@ def gen_variants(variants):
                 c_name=c_name(variants.tag_member.name))
 
     for var in variants.variants:
-        # Ugly special case for simple union TODO get rid of it
-        simple_union_type = var.simple_union_type()
-        if simple_union_type:
-            typ = simple_union_type.c_type()
-        else:
-            typ = var.type.c_unboxed_type()
         ret += mcgen('''
         %(c_type)s %(c_name)s;
 ''',
-                     c_type=typ,
+                     c_type=var.type.c_unboxed_type(),
                      c_name=c_name(var.name))
 
     ret += mcgen('''

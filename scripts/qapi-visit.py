@@ -77,29 +77,15 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
                      c_name=c_name(variants.tag_member.name))
 
         for var in variants.variants:
-            # TODO ugly special case for simple union
-            simple_union_type = var.simple_union_type()
             ret += mcgen('''
     case %(case)s:
+        visit_type_%(c_type)s_members(v, &obj->u.%(c_name)s, &err);
+        break;
 ''',
                          case=c_enum_const(variants.tag_member.type.name,
                                            var.name,
-                                           variants.tag_member.type.prefix))
-            if simple_union_type:
-                ret += mcgen('''
-        visit_type_%(c_type)s(v, "data", &obj->u.%(c_name)s, &err);
-''',
-                             c_type=simple_union_type.c_name(),
-                             c_name=c_name(var.name))
-            else:
-                ret += mcgen('''
-        visit_type_%(c_type)s_members(v, &obj->u.%(c_name)s, &err);
-''',
-                             c_type=var.type.c_name(),
-                             c_name=c_name(var.name))
-            ret += mcgen('''
-        break;
-''')
+                                           variants.tag_member.type.prefix),
+                         c_type=var.type.c_name(), c_name=c_name(var.name))
 
         ret += mcgen('''
     default:

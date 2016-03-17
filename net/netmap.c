@@ -420,7 +420,7 @@ static NetClientInfo net_netmap_info = {
 int net_init_netmap(const NetClientOptions *opts,
                     const char *name, NetClientState *peer, Error **errp)
 {
-    const NetdevNetmapOptions *netmap_opts = opts->u.netmap;
+    const NetdevNetmapOptions *netmap_opts = opts->u.netmap.data;
     struct nm_desc *nmd;
     NetClientState *nc;
     Error *err = NULL;

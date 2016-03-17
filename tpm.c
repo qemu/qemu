@@ -262,7 +262,7 @@ static TPMInfo *qmp_query_tpm_inst(TPMBackend *drv)
     case TPM_TYPE_PASSTHROUGH:
         res->options->type = TPM_TYPE_OPTIONS_KIND_PASSTHROUGH;
         tpo = g_new0(TPMPassthroughOptions, 1);
-        res->options->u.passthrough = tpo;
+        res->options->u.passthrough.data = tpo;
         if (drv->path) {
             tpo->path = g_strdup(drv->path);
             tpo->has_path = true;

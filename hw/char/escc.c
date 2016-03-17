@@ -845,7 +845,7 @@ static void sunkbd_handle_event(DeviceState *dev, QemuConsole *src,
     InputKeyEvent *key;
 
     assert(evt->type == INPUT_EVENT_KIND_KEY);
-    key = evt->u.key;
+    key = evt->u.key.data;
     qcode = qemu_input_key_value_to_qcode(key->key);
     trace_escc_sunkbd_event_in(qcode, QKeyCode_lookup[qcode],
                                key->down);

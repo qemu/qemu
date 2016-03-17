@@ -180,7 +180,7 @@ int qmp_pc_dimm_device_list(Object *obj, void *opaque)
                                                NULL);
             di->memdev = object_get_canonical_path(OBJECT(dimm->hostmem));
 
-            info->u.dimm = di;
+            info->u.dimm.data = di;
             elem->value = info;
             elem->next = NULL;
             **prev = elem;

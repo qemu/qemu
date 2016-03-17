@@ -182,7 +182,7 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
 {
     PS2KbdState *s = (PS2KbdState *)dev;
     int scancodes[3], i, count;
-    InputKeyEvent *key = evt->u.key;
+    InputKeyEvent *key = evt->u.key.data;
 
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
     count = qemu_input_key_value_to_scancode(key->key,
@@ -399,7 +399,7 @@ static void ps2_mouse_event(DeviceState *dev, QemuConsole *src,
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_REL:
-        move = evt->u.rel;
+        move = evt->u.rel.data;
         if (move->axis == INPUT_AXIS_X) {
             s->mouse_dx += move->value;
         } else if (move->axis == INPUT_AXIS_Y) {
@@ -408,7 +408,7 @@ static void ps2_mouse_event(DeviceState *dev, QemuConsole *src,
         break;
 
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn;
+        btn = evt->u.btn.data;
         if (btn->down) {
             s->mouse_buttons |= bmap[btn->button];
             if (btn->button == INPUT_BUTTON_WHEEL_UP) {

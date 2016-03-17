@@ -197,7 +197,7 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
-        key = evt->u.key;
+        key = evt->u.key.data;
         qcode = qemu_input_key_value_to_qcode(key->key);
         if (qcode && keymap_qcode[qcode]) {
             event.type  = cpu_to_le16(EV_KEY);
@@ -212,7 +212,7 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
         }
         break;
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn;
+        btn = evt->u.btn.data;
         if (keymap_button[btn->button]) {
             event.type  = cpu_to_le16(EV_KEY);
             event.code  = cpu_to_le16(keymap_button[btn->button]);
@@ -227,14 +227,14 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
         }
         break;
     case INPUT_EVENT_KIND_REL:
-        move = evt->u.rel;
+        move = evt->u.rel.data;
         event.type  = cpu_to_le16(EV_REL);
         event.code  = cpu_to_le16(axismap_rel[move->axis]);
         event.value = cpu_to_le32(move->value);
         virtio_input_send(vinput, &event);
         break;
     case INPUT_EVENT_KIND_ABS:
-        move = evt->u.abs;
+        move = evt->u.abs.data;
         event.type  = cpu_to_le16(EV_ABS);
         event.code  = cpu_to_le16(axismap_abs[move->axis]);
         event.value = cpu_to_le32(move->value);

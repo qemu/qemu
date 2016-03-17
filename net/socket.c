@@ -704,7 +704,7 @@ int net_init_socket(const NetClientOptions *opts, const char *name,
     const NetdevSocketOptions *sock;
 
     assert(opts->type == NET_CLIENT_OPTIONS_KIND_SOCKET);
-    sock = opts->u.socket;
+    sock = opts->u.socket.data;
 
     if (sock->has_fd + sock->has_listen + sock->has_connect + sock->has_mcast +
         sock->has_udp != 1) {

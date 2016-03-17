@@ -1115,16 +1115,6 @@ class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
     def __init__(self, name, typ):
         QAPISchemaObjectTypeMember.__init__(self, name, typ, False)
 
-    # This function exists to support ugly simple union special cases
-    # TODO get rid of them, and drop the function
-    def simple_union_type(self):
-        if (self.type.is_implicit() and
-                isinstance(self.type, QAPISchemaObjectType)):
-            assert len(self.type.members) == 1
-            assert not self.type.variants
-            return self.type.members[0].type
-        return None
-
 
 class QAPISchemaAlternateType(QAPISchemaType):
     def __init__(self, name, info, variants):

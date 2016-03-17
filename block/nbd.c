@@ -206,13 +206,13 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QDict *options, char **export,
     if (qdict_haskey(options, "path")) {
         UnixSocketAddress *q_unix;
         saddr->type = SOCKET_ADDRESS_KIND_UNIX;
-        q_unix = saddr->u.q_unix = g_new0(UnixSocketAddress, 1);
+        q_unix = saddr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
         q_unix->path = g_strdup(qdict_get_str(options, "path"));
         qdict_del(options, "path");
     } else {
         InetSocketAddress *inet;
         saddr->type = SOCKET_ADDRESS_KIND_INET;
-        inet = saddr->u.inet = g_new0(InetSocketAddress, 1);
+        inet = saddr->u.inet.data = g_new0(InetSocketAddress, 1);
         inet->host = g_strdup(qdict_get_str(options, "host"));
         if (!qdict_get_try_str(options, "port")) {
             inet->port = g_strdup_printf("%d", NBD_DEFAULT_PORT);
@@ -321,7 +321,7 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
             error_setg(errp, "TLS only supported over IP sockets");
             goto error;
         }
-        hostname = saddr->u.inet->host;
+        hostname = saddr->u.inet.data->host;
     }
 
     /* establish TCP connection, return error if it fails

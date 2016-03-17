@@ -54,16 +54,16 @@ void replay_save_input_event(InputEvent *evt)
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
-        key = evt->u.key;
+        key = evt->u.key.data;
         replay_put_dword(key->key->type);
 
         switch (key->key->type) {
         case KEY_VALUE_KIND_NUMBER:
-            replay_put_qword(key->key->u.number);
+            replay_put_qword(key->key->u.number.data);
             replay_put_byte(key->down);
             break;
         case KEY_VALUE_KIND_QCODE:
-            replay_put_dword(key->key->u.qcode);
+            replay_put_dword(key->key->u.qcode.data);
             replay_put_byte(key->down);
             break;
         case KEY_VALUE_KIND__MAX:
@@ -72,17 +72,17 @@ void replay_save_input_event(InputEvent *evt)
         }
         break;
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn;
+        btn = evt->u.btn.data;
         replay_put_dword(btn->button);
         replay_put_byte(btn->down);
         break;
     case INPUT_EVENT_KIND_REL:
-        move = evt->u.rel;
+        move = evt->u.rel.data;
         replay_put_dword(move->axis);
         replay_put_qword(move->value);
         break;
     case INPUT_EVENT_KIND_ABS:
-        move = evt->u.abs;
+        move = evt->u.abs.data;
         replay_put_dword(move->axis);
         replay_put_qword(move->value);
         break;
@@ -105,17 +105,17 @@ InputEvent *replay_read_input_event(void)
     evt.type = replay_get_dword();
     switch (evt.type) {
     case INPUT_EVENT_KIND_KEY:
-        evt.u.key = &key;
-        evt.u.key->key->type = replay_get_dword();
+        evt.u.key.data = &key;
+        evt.u.key.data->key->type = replay_get_dword();
 
-        switch (evt.u.key->key->type) {
+        switch (evt.u.key.data->key->type) {
         case KEY_VALUE_KIND_NUMBER:
-            evt.u.key->key->u.number = replay_get_qword();
-            evt.u.key->down = replay_get_byte();
+            evt.u.key.data->key->u.number.data = replay_get_qword();
+            evt.u.key.data->down = replay_get_byte();
             break;
         case KEY_VALUE_KIND_QCODE:
-            evt.u.key->key->u.qcode = (QKeyCode)replay_get_dword();
-            evt.u.key->down = replay_get_byte();
+            evt.u.key.data->key->u.qcode.data = (QKeyCode)replay_get_dword();
+            evt.u.key.data->down = replay_get_byte();
             break;
         case KEY_VALUE_KIND__MAX:
             /* keep gcc happy */
@@ -123,19 +123,19 @@ InputEvent *replay_read_input_event(void)
         }
         break;
     case INPUT_EVENT_KIND_BTN:
-        evt.u.btn = &btn;
-        evt.u.btn->button = (InputButton)replay_get_dword();
-        evt.u.btn->down = replay_get_byte();
+        evt.u.btn.data = &btn;
+        evt.u.btn.data->button = (InputButton)replay_get_dword();
+        evt.u.btn.data->down = replay_get_byte();
         break;
     case INPUT_EVENT_KIND_REL:
-        evt.u.rel = &rel;
-        evt.u.rel->axis = (InputAxis)replay_get_dword();
-        evt.u.rel->value = replay_get_qword();
+        evt.u.rel.data = &rel;
+        evt.u.rel.data->axis = (InputAxis)replay_get_dword();
+        evt.u.rel.data->value = replay_get_qword();
         break;
     case INPUT_EVENT_KIND_ABS:
-        evt.u.abs = &abs;
-        evt.u.abs->axis = (InputAxis)replay_get_dword();
-        evt.u.abs->value = replay_get_qword();
+        evt.u.abs.data = &abs;
+        evt.u.abs.data->axis = (InputAxis)replay_get_dword();
+        evt.u.abs.data->value = replay_get_qword();
         break;
     case INPUT_EVENT_KIND__MAX:
         /* keep gcc happy */
