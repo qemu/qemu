@@ -215,13 +215,11 @@ out:
 
 
 def gen_visit_object(name, base, members, variants):
-    ret = gen_visit_object_members(name, base, members, variants)
-
     # FIXME: if *obj is NULL on entry, and visit_start_struct() assigns to
     # *obj, but then visit_type_FOO_members() fails, we should clean up *obj
     # rather than leaving it non-NULL. As currently written, the caller must
     # call qapi_free_FOO() to avoid a memory leak of the partial FOO.
-    ret += mcgen('''
+    return mcgen('''
 
 void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
 {
@@ -245,8 +243,6 @@ out:
 ''',
                  c_name=c_name(name))
 
-    return ret
-
 
 class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
     def __init__(self):
@@ -267,11 +263,6 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
         self._btin += guardend('QAPI_VISIT_BUILTIN')
         self.decl = self._btin + self.decl
         self._btin = None
-
-    def visit_needed(self, entity):
-        # Visit everything except implicit objects
-        return not (entity.is_implicit() and
-                    isinstance(entity, QAPISchemaObjectType))
 
     def visit_enum_type(self, name, info, values, prefix):
         # Special case for our lone builtin enum type
@@ -296,9 +287,17 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
             self.defn += defn
 
     def visit_object_type(self, name, info, base, members, variants):
+        # Nothing to do for the special empty builtin
+        if name == 'q_empty':
+            return
         self.decl += gen_visit_members_decl(name)
-        self.decl += gen_visit_decl(name)
-        self.defn += gen_visit_object(name, base, members, variants)
+        self.defn += gen_visit_object_members(name, base, members, variants)
+        # TODO Worth changing the visitor signature, so we could
+        # directly use rather than repeat type.is_implicit()?
+        if not name.startswith('q_'):
+            # only explicit types need an allocating visit
+            self.decl += gen_visit_decl(name)
+            self.defn += gen_visit_object(name, base, members, variants)
 
     def visit_alternate_type(self, name, info, variants):
         self.decl += gen_visit_decl(name)
