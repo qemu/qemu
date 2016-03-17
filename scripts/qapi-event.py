@@ -43,7 +43,6 @@ def gen_event_send(name, arg_type):
         ret += mcgen('''
     QmpOutputVisitor *qov;
     Visitor *v;
-    QObject *obj;
 
 ''')
 
@@ -77,10 +76,7 @@ out_obj:
         goto out;
     }
 
-    obj = qmp_output_get_qobject(qov);
-    g_assert(obj);
-
-    qdict_put_obj(qmp, "data", obj);
+    qdict_put_obj(qmp, "data", qmp_output_get_qobject(qov));
 ''')
 
     ret += mcgen('''
