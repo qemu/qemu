@@ -306,8 +306,10 @@ gtkabi=""
 gtk_gl="no"
 gnutls=""
 gnutls_hash=""
+gnutls_rnd=""
 nettle=""
 gcrypt=""
+gcrypt_kdf="no"
 vte=""
 virglrenderer=""
 tpm="yes"
@@ -2201,6 +2203,13 @@ if test "$gnutls" != "no"; then
 	    gnutls_hash="no"
 	fi
 
+	# gnutls_rnd requires >= 2.11.0
+	if $pkg_config --exists "gnutls >= 2.11.0"; then
+	    gnutls_rnd="yes"
+	else
+	    gnutls_rnd="no"
+	fi
+
 	if $pkg_config --exists 'gnutls >= 3.0'; then
 	    gnutls_gcrypt=no
 	    gnutls_nettle=yes
@@ -2228,9 +2237,11 @@ if test "$gnutls" != "no"; then
     else
         gnutls="no"
         gnutls_hash="no"
+        gnutls_rnd="no"
     fi
 else
     gnutls_hash="no"
+    gnutls_rnd="no"
 fi
 
 
@@ -2291,6 +2302,19 @@ if test "$gcrypt" != "no"; then
         gcrypt="yes"
         if test -z "$nettle"; then
            nettle="no"
+        fi
+
+        cat > $TMPC << EOF
+#include <gcrypt.h>
+int main(void) {
+  gcry_kdf_derive(NULL, 0, GCRY_KDF_PBKDF2,
+                  GCRY_MD_SHA256,
+                  NULL, 0, 0, 0, NULL);
+ return 0;
+}
+EOF
+        if compile_prog "$gcrypt_cflags" "$gcrypt_libs" ; then
+            gcrypt_kdf=yes
         fi
     else
         if test "$gcrypt" = "yes"; then
@@ -4714,7 +4738,9 @@ echo "GTK support       $gtk"
 echo "GTK GL support    $gtk_gl"
 echo "GNUTLS support    $gnutls"
 echo "GNUTLS hash       $gnutls_hash"
+echo "GNUTLS rnd        $gnutls_rnd"
 echo "libgcrypt         $gcrypt"
+echo "libgcrypt kdf     $gcrypt_kdf"
 if test "$nettle" = "yes"; then
     echo "nettle            $nettle ($nettle_version)"
 else
@@ -5092,8 +5118,14 @@ fi
 if test "$gnutls_hash" = "yes" ; then
   echo "CONFIG_GNUTLS_HASH=y" >> $config_host_mak
 fi
+if test "$gnutls_rnd" = "yes" ; then
+  echo "CONFIG_GNUTLS_RND=y" >> $config_host_mak
+fi
 if test "$gcrypt" = "yes" ; then
   echo "CONFIG_GCRYPT=y" >> $config_host_mak
+  if test "$gcrypt_kdf" = "yes" ; then
+    echo "CONFIG_GCRYPT_KDF=y" >> $config_host_mak
+  fi
 fi
 if test "$nettle" = "yes" ; then
   echo "CONFIG_NETTLE=y" >> $config_host_mak

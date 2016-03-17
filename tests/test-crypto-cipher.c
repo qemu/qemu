@@ -165,6 +165,211 @@ static QCryptoCipherTestData test_data[] = {
             "ffd29f1bb5596ad94ea2d8e6196b7f09"
             "30d8ed0bf2773af36dd82a6280c20926",
     },
+    {
+        /* RFC 2144, Appendix B.1 */
+        .path = "/crypto/cipher/cast5-128",
+        .alg = QCRYPTO_CIPHER_ALG_CAST5_128,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "0123456712345678234567893456789A",
+        .plaintext = "0123456789abcdef",
+        .ciphertext = "238b4fe5847e44b2",
+    },
+    {
+        /* libgcrypt serpent.c */
+        .path = "/crypto/cipher/serpent-128",
+        .alg = QCRYPTO_CIPHER_ALG_SERPENT_128,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "00000000000000000000000000000000",
+        .plaintext = "d29d576fcea3a3a7ed9099f29273d78e",
+        .ciphertext = "b2288b968ae8b08648d1ce9606fd992d",
+    },
+    {
+        /* libgcrypt serpent.c */
+        .path = "/crypto/cipher/serpent-192",
+        .alg = QCRYPTO_CIPHER_ALG_SERPENT_192,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "00000000000000000000000000000000"
+               "0000000000000000",
+        .plaintext = "d29d576fceaba3a7ed9899f2927bd78e",
+        .ciphertext = "130e353e1037c22405e8faefb2c3c3e9",
+    },
+    {
+        /* libgcrypt serpent.c */
+        .path = "/crypto/cipher/serpent-256a",
+        .alg = QCRYPTO_CIPHER_ALG_SERPENT_256,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "00000000000000000000000000000000"
+               "00000000000000000000000000000000",
+        .plaintext = "d095576fcea3e3a7ed98d9f29073d78e",
+        .ciphertext = "b90ee5862de69168f2bdd5125b45472b",
+    },
+    {
+        /* libgcrypt serpent.c */
+        .path = "/crypto/cipher/serpent-256b",
+        .alg = QCRYPTO_CIPHER_ALG_SERPENT_256,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "00000000000000000000000000000000"
+               "00000000000000000000000000000000",
+        .plaintext = "00000000010000000200000003000000",
+        .ciphertext = "2061a42782bd52ec691ec383b03ba77c",
+    },
+    {
+        /* Twofish paper "Known Answer Test" */
+        .path = "/crypto/cipher/twofish-128",
+        .alg = QCRYPTO_CIPHER_ALG_TWOFISH_128,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "d491db16e7b1c39e86cb086b789f5419",
+        .plaintext = "019f9809de1711858faac3a3ba20fbc3",
+        .ciphertext = "6363977de839486297e661c6c9d668eb",
+    },
+    {
+        /* Twofish paper "Known Answer Test", I=3 */
+        .path = "/crypto/cipher/twofish-192",
+        .alg = QCRYPTO_CIPHER_ALG_TWOFISH_192,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "88b2b2706b105e36b446bb6d731a1e88"
+               "efa71f788965bd44",
+        .plaintext = "39da69d6ba4997d585b6dc073ca341b2",
+        .ciphertext = "182b02d81497ea45f9daacdc29193a65",
+    },
+    {
+        /* Twofish paper "Known Answer Test", I=4 */
+        .path = "/crypto/cipher/twofish-256",
+        .alg = QCRYPTO_CIPHER_ALG_TWOFISH_256,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "d43bb7556ea32e46f2a282b7d45b4e0d"
+               "57ff739d4dc92c1bd7fc01700cc8216f",
+        .plaintext = "90afe91bb288544f2c32dc239b2635e6",
+        .ciphertext = "6cb4561c40bf0a9705931cb6d408e7fa",
+    },
+    {
+        /* #1 32 byte key, 32 byte PTX */
+        .path = "/crypto/cipher/aes-xts-128-1",
+        .alg = QCRYPTO_CIPHER_ALG_AES_128,
+        .mode = QCRYPTO_CIPHER_MODE_XTS,
+        .key =
+            "00000000000000000000000000000000"
+            "00000000000000000000000000000000",
+        .iv =
+            "00000000000000000000000000000000",
+        .plaintext =
+            "00000000000000000000000000000000"
+            "00000000000000000000000000000000",
+        .ciphertext =
+            "917cf69ebd68b2ec9b9fe9a3eadda692"
+            "cd43d2f59598ed858c02c2652fbf922e",
+    },
+    {
+        /* #2, 32 byte key, 32 byte PTX */
+        .path = "/crypto/cipher/aes-xts-128-2",
+        .alg = QCRYPTO_CIPHER_ALG_AES_128,
+        .mode = QCRYPTO_CIPHER_MODE_XTS,
+        .key =
+            "11111111111111111111111111111111"
+            "22222222222222222222222222222222",
+        .iv =
+            "33333333330000000000000000000000",
+        .plaintext =
+            "44444444444444444444444444444444"
+            "44444444444444444444444444444444",
+        .ciphertext =
+            "c454185e6a16936e39334038acef838b"
+            "fb186fff7480adc4289382ecd6d394f0",
+    },
+    {
+        /* #5 from xts.7, 32 byte key, 32 byte PTX */
+        .path = "/crypto/cipher/aes-xts-128-3",
+        .alg = QCRYPTO_CIPHER_ALG_AES_128,
+        .mode = QCRYPTO_CIPHER_MODE_XTS,
+        .key =
+            "fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0"
+            "bfbebdbcbbbab9b8b7b6b5b4b3b2b1b0",
+        .iv =
+            "9a785634120000000000000000000000",
+        .plaintext =
+            "44444444444444444444444444444444"
+            "44444444444444444444444444444444",
+        .ciphertext =
+            "b01f86f8edc1863706fa8a4253e34f28"
+            "af319de38334870f4dd1f94cbe9832f1",
+    },
+    {
+        /* #4, 32 byte key, 512 byte PTX  */
+        .path = "/crypto/cipher/aes-xts-128-4",
+        .alg = QCRYPTO_CIPHER_ALG_AES_128,
+        .mode = QCRYPTO_CIPHER_MODE_XTS,
+        .key =
+            "27182818284590452353602874713526"
+            "31415926535897932384626433832795",
+        .iv =
+            "00000000000000000000000000000000",
+        .plaintext =
+            "000102030405060708090a0b0c0d0e0f"
+            "101112131415161718191a1b1c1d1e1f"
+            "202122232425262728292a2b2c2d2e2f"
+            "303132333435363738393a3b3c3d3e3f"
+            "404142434445464748494a4b4c4d4e4f"
+            "505152535455565758595a5b5c5d5e5f"
+            "606162636465666768696a6b6c6d6e6f"
+            "707172737475767778797a7b7c7d7e7f"
+            "808182838485868788898a8b8c8d8e8f"
+            "909192939495969798999a9b9c9d9e9f"
+            "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf"
+            "b0b1b2b3b4b5b6b7b8b9babbbcbdbebf"
+            "c0c1c2c3c4c5c6c7c8c9cacbcccdcecf"
+            "d0d1d2d3d4d5d6d7d8d9dadbdcdddedf"
+            "e0e1e2e3e4e5e6e7e8e9eaebecedeeef"
+            "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff"
+            "000102030405060708090a0b0c0d0e0f"
+            "101112131415161718191a1b1c1d1e1f"
+            "202122232425262728292a2b2c2d2e2f"
+            "303132333435363738393a3b3c3d3e3f"
+            "404142434445464748494a4b4c4d4e4f"
+            "505152535455565758595a5b5c5d5e5f"
+            "606162636465666768696a6b6c6d6e6f"
+            "707172737475767778797a7b7c7d7e7f"
+            "808182838485868788898a8b8c8d8e8f"
+            "909192939495969798999a9b9c9d9e9f"
+            "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf"
+            "b0b1b2b3b4b5b6b7b8b9babbbcbdbebf"
+            "c0c1c2c3c4c5c6c7c8c9cacbcccdcecf"
+            "d0d1d2d3d4d5d6d7d8d9dadbdcdddedf"
+            "e0e1e2e3e4e5e6e7e8e9eaebecedeeef"
+            "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+        .ciphertext =
+            "27a7479befa1d476489f308cd4cfa6e2"
+            "a96e4bbe3208ff25287dd3819616e89c"
+            "c78cf7f5e543445f8333d8fa7f560000"
+            "05279fa5d8b5e4ad40e736ddb4d35412"
+            "328063fd2aab53e5ea1e0a9f332500a5"
+            "df9487d07a5c92cc512c8866c7e860ce"
+            "93fdf166a24912b422976146ae20ce84"
+            "6bb7dc9ba94a767aaef20c0d61ad0265"
+            "5ea92dc4c4e41a8952c651d33174be51"
+            "a10c421110e6d81588ede82103a252d8"
+            "a750e8768defffed9122810aaeb99f91"
+            "72af82b604dc4b8e51bcb08235a6f434"
+            "1332e4ca60482a4ba1a03b3e65008fc5"
+            "da76b70bf1690db4eae29c5f1badd03c"
+            "5ccf2a55d705ddcd86d449511ceb7ec3"
+            "0bf12b1fa35b913f9f747a8afd1b130e"
+            "94bff94effd01a91735ca1726acd0b19"
+            "7c4e5b03393697e126826fb6bbde8ecc"
+            "1e08298516e2c9ed03ff3c1b7860f6de"
+            "76d4cecd94c8119855ef5297ca67e9f3"
+            "e7ff72b1e99785ca0a7e7720c5b36dc6"
+            "d72cac9574c8cbbc2f801e23e56fd344"
+            "b07f22154beba0f08ce8891e643ed995"
+            "c94d9a69c9f1b5f499027a78572aeebd"
+            "74d20cc39881c213ee770b1010e4bea7"
+            "18846977ae119f7a023ab58cca0ad752"
+            "afe656bb3c17256a9f6e9bf19fdd5a38"
+            "fc82bbe872c5539edb609ef4f79c203e"
+            "bb140f2e583cb2ad15b4aa5b655016a8"
+            "449277dbd477ef2c8d6c017db738b18d"
+            "eb4a427d1923ce3ff262735779a418f2"
+            "0a282df920147beabe421ee5319d0568",
+    },
 };
 
 
@@ -251,7 +456,11 @@ static void test_cipher(const void *opaque)
     blocksize = qcrypto_cipher_get_block_len(data->alg);
     ivsize = qcrypto_cipher_get_iv_len(data->alg, data->mode);
 
-    g_assert_cmpint(keysize, ==, nkey);
+    if (data->mode == QCRYPTO_CIPHER_MODE_XTS) {
+        g_assert_cmpint(keysize * 2, ==, nkey);
+    } else {
+        g_assert_cmpint(keysize, ==, nkey);
+    }
     g_assert_cmpint(ivsize, ==, niv);
     if (niv) {
         g_assert_cmpint(blocksize, ==, niv);
@@ -380,7 +589,9 @@ int main(int argc, char **argv)
     g_assert(qcrypto_init(NULL) == 0);
 
     for (i = 0; i < G_N_ELEMENTS(test_data); i++) {
-        g_test_add_data_func(test_data[i].path, &test_data[i], test_cipher);
+        if (qcrypto_cipher_supports(test_data[i].alg)) {
+            g_test_add_data_func(test_data[i].path, &test_data[i], test_cipher);
+        }
     }
 
     g_test_add_func("/crypto/cipher/null-iv",

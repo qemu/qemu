@@ -59,11 +59,22 @@
 # @aes-192: AES with 192 bit / 24 byte keys
 # @aes-256: AES with 256 bit / 32 byte keys
 # @des-rfb: RFB specific variant of single DES. Do not use except in VNC.
+# @cast5-128: Cast5 with 128 bit / 16 byte keys
+# @serpent-128: Serpent with 128 bit / 16 byte keys
+# @serpent-192: Serpent with 192 bit / 24 byte keys
+# @serpent-256: Serpent with 256 bit / 32 byte keys
+# @twofish-128: Twofish with 128 bit / 16 byte keys
+# @twofish-192: Twofish with 192 bit / 24 byte keys
+# @twofish-256: Twofish with 256 bit / 32 byte keys
 # Since: 2.6
 ##
 { 'enum': 'QCryptoCipherAlgorithm',
   'prefix': 'QCRYPTO_CIPHER_ALG',
-  'data': ['aes-128', 'aes-192', 'aes-256', 'des-rfb']}
+  'data': ['aes-128', 'aes-192', 'aes-256',
+           'des-rfb',
+           'cast5-128',
+           'serpent-128', 'serpent-192', 'serpent-256',
+           'twofish-128', 'twofish-192', 'twofish-256']}
 
 
 ##
@@ -73,8 +84,139 @@
 #
 # @ecb: Electronic Code Book
 # @cbc: Cipher Block Chaining
+# @xts: XEX with tweaked code book and ciphertext stealing
 # Since: 2.6
 ##
 { 'enum': 'QCryptoCipherMode',
   'prefix': 'QCRYPTO_CIPHER_MODE',
-  'data': ['ecb', 'cbc']}
+  'data': ['ecb', 'cbc', 'xts']}
+
+
+##
+# QCryptoIVGenAlgorithm:
+#
+# The supported algorithms for generating initialization
+# vectors for full disk encryption. The 'plain' generator
+# should not be used for disks with sector numbers larger
+# than 2^32, except where compatibility with pre-existing
+# Linux dm-crypt volumes is required.
+#
+# @plain: 64-bit sector number truncated to 32-bits
+# @plain64: 64-bit sector number
+# @essiv: 64-bit sector number encrypted with a hash of the encryption key
+# Since: 2.6
+##
+{ 'enum': 'QCryptoIVGenAlgorithm',
+  'prefix': 'QCRYPTO_IVGEN_ALG',
+  'data': ['plain', 'plain64', 'essiv']}
+
+##
+# QCryptoBlockFormat:
+#
+# The supported full disk encryption formats
+#
+# @qcow: QCow/QCow2 built-in AES-CBC encryption. Use only
+#        for liberating data from old images.
+# @luks: LUKS encryption format. Recommended for new images
+#
+# Since: 2.6
+##
+{ 'enum': 'QCryptoBlockFormat',
+#  'prefix': 'QCRYPTO_BLOCK_FORMAT',
+  'data': ['qcow', 'luks']}
+
+##
+# QCryptoBlockOptionsBase:
+#
+# The common options that apply to all full disk
+# encryption formats
+#
+# @format: the encryption format
+#
+# Since: 2.6
+##
+{ 'struct': 'QCryptoBlockOptionsBase',
+  'data': { 'format': 'QCryptoBlockFormat' }}
+
+##
+# QCryptoBlockOptionsQCow:
+#
+# The options that apply to QCow/QCow2 AES-CBC encryption format
+#
+# @key-secret: #optional the ID of a QCryptoSecret object providing the
+#              decryption key. Mandatory except when probing image for
+#              metadata only.
+#
+# Since: 2.6
+##
+{ 'struct': 'QCryptoBlockOptionsQCow',
+  'data': { '*key-secret': 'str' }}
+
+##
+# QCryptoBlockOptionsLUKS:
+#
+# The options that apply to LUKS encryption format
+#
+# @key-secret: #optional the ID of a QCryptoSecret object providing the
+#              decryption key. Mandatory except when probing image for
+#              metadata only.
+# Since: 2.6
+##
+{ 'struct': 'QCryptoBlockOptionsLUKS',
+  'data': { '*key-secret': 'str' }}
+
+
+##
+# QCryptoBlockCreateOptionsLUKS:
+#
+# The options that apply to LUKS encryption format initialization
+#
+# @cipher-alg: #optional the cipher algorithm for data encryption
+#              Currently defaults to 'aes'.
+# @cipher-mode: #optional the cipher mode for data encryption
+#               Currently defaults to 'cbc'
+# @ivgen-alg: #optional the initialization vector generator
+#             Currently defaults to 'essiv'
+# @ivgen-hash-alg: #optional the initialization vector generator hash
+#                  Currently defaults to 'sha256'
+# @hash-alg: #optional the master key hash algorithm
+#            Currently defaults to 'sha256'
+# Since: 2.6
+##
+{ 'struct': 'QCryptoBlockCreateOptionsLUKS',
+  'base': 'QCryptoBlockOptionsLUKS',
+  'data': { '*cipher-alg': 'QCryptoCipherAlgorithm',
+            '*cipher-mode': 'QCryptoCipherMode',
+            '*ivgen-alg': 'QCryptoIVGenAlgorithm',
+            '*ivgen-hash-alg': 'QCryptoHashAlgorithm',
+            '*hash-alg': 'QCryptoHashAlgorithm'}}
+
+
+##
+# QCryptoBlockOpenOptions:
+#
+# The options that are available for all encryption formats
+# when opening an existing volume
+#
+# Since: 2.6
+##
+{ 'union': 'QCryptoBlockOpenOptions',
+  'base': 'QCryptoBlockOptionsBase',
+  'discriminator': 'format',
+  'data': { 'qcow': 'QCryptoBlockOptionsQCow',
+            'luks': 'QCryptoBlockOptionsLUKS' } }
+
+
+##
+# QCryptoBlockCreateOptions:
+#
+# The options that are available for all encryption formats
+# when initializing a new volume
+#
+# Since: 2.6
+##
+{ 'union': 'QCryptoBlockCreateOptions',
+  'base': 'QCryptoBlockOptionsBase',
+  'discriminator': 'format',
+  'data': { 'qcow': 'QCryptoBlockOptionsQCow',
+            'luks': 'QCryptoBlockCreateOptionsLUKS' } }

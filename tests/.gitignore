@@ -12,8 +12,12 @@ test-base64
 test-bitops
 test-blockjob-txn
 test-coroutine
+test-crypto-afsplit
+test-crypto-block
 test-crypto-cipher
 test-crypto-hash
+test-crypto-ivgen
+test-crypto-pbkdf
 test-crypto-secret
 test-crypto-tlscredsx509
 test-crypto-tlscredsx509-work/
@@ -22,6 +26,7 @@ test-crypto-tlssession
 test-crypto-tlssession-work/
 test-crypto-tlssession-client/
 test-crypto-tlssession-server/
+test-crypto-xts
 test-cutils
 test-hbitmap
 test-int128

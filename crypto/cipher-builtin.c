@@ -21,11 +21,17 @@
 #include "qemu/osdep.h"
 #include "crypto/aes.h"
 #include "crypto/desrfb.h"
+#include "crypto/xts.h"
 
+typedef struct QCryptoCipherBuiltinAESContext QCryptoCipherBuiltinAESContext;
+struct QCryptoCipherBuiltinAESContext {
+    AES_KEY enc;
+    AES_KEY dec;
+};
 typedef struct QCryptoCipherBuiltinAES QCryptoCipherBuiltinAES;
 struct QCryptoCipherBuiltinAES {
-    AES_KEY encrypt_key;
-    AES_KEY decrypt_key;
+    QCryptoCipherBuiltinAESContext key;
+    QCryptoCipherBuiltinAESContext key_tweak;
     uint8_t iv[AES_BLOCK_SIZE];
 };
 typedef struct QCryptoCipherBuiltinDESRFB QCryptoCipherBuiltinDESRFB;
@@ -67,6 +73,82 @@ static void qcrypto_cipher_free_aes(QCryptoCipher *cipher)
 }
 
 
+static void qcrypto_cipher_aes_ecb_encrypt(AES_KEY *key,
+                                           const void *in,
+                                           void *out,
+                                           size_t len)
+{
+    const uint8_t *inptr = in;
+    uint8_t *outptr = out;
+    while (len) {
+        if (len > AES_BLOCK_SIZE) {
+            AES_encrypt(inptr, outptr, key);
+            inptr += AES_BLOCK_SIZE;
+            outptr += AES_BLOCK_SIZE;
+            len -= AES_BLOCK_SIZE;
+        } else {
+            uint8_t tmp1[AES_BLOCK_SIZE], tmp2[AES_BLOCK_SIZE];
+            memcpy(tmp1, inptr, len);
+            /* Fill with 0 to avoid valgrind uninitialized reads */
+            memset(tmp1 + len, 0, sizeof(tmp1) - len);
+            AES_encrypt(tmp1, tmp2, key);
+            memcpy(outptr, tmp2, len);
+            len = 0;
+        }
+    }
+}
+
+
+static void qcrypto_cipher_aes_ecb_decrypt(AES_KEY *key,
+                                           const void *in,
+                                           void *out,
+                                           size_t len)
+{
+    const uint8_t *inptr = in;
+    uint8_t *outptr = out;
+    while (len) {
+        if (len > AES_BLOCK_SIZE) {
+            AES_decrypt(inptr, outptr, key);
+            inptr += AES_BLOCK_SIZE;
+            outptr += AES_BLOCK_SIZE;
+            len -= AES_BLOCK_SIZE;
+        } else {
+            uint8_t tmp1[AES_BLOCK_SIZE], tmp2[AES_BLOCK_SIZE];
+            memcpy(tmp1, inptr, len);
+            /* Fill with 0 to avoid valgrind uninitialized reads */
+            memset(tmp1 + len, 0, sizeof(tmp1) - len);
+            AES_decrypt(tmp1, tmp2, key);
+            memcpy(outptr, tmp2, len);
+            len = 0;
+        }
+    }
+}
+
+
+static void qcrypto_cipher_aes_xts_encrypt(const void *ctx,
+                                           size_t length,
+                                           uint8_t *dst,
+                                           const uint8_t *src)
+{
+    const QCryptoCipherBuiltinAESContext *aesctx = ctx;
+
+    qcrypto_cipher_aes_ecb_encrypt((AES_KEY *)&aesctx->enc,
+                                   src, dst, length);
+}
+
+
+static void qcrypto_cipher_aes_xts_decrypt(const void *ctx,
+                                           size_t length,
+                                           uint8_t *dst,
+                                           const uint8_t *src)
+{
+    const QCryptoCipherBuiltinAESContext *aesctx = ctx;
+
+    qcrypto_cipher_aes_ecb_decrypt((AES_KEY *)&aesctx->dec,
+                                   src, dst, length);
+}
+
+
 static int qcrypto_cipher_encrypt_aes(QCryptoCipher *cipher,
                                       const void *in,
                                       void *out,
@@ -75,29 +157,26 @@ static int qcrypto_cipher_encrypt_aes(QCryptoCipher *cipher,
 {
     QCryptoCipherBuiltin *ctxt = cipher->opaque;
 
-    if (cipher->mode == QCRYPTO_CIPHER_MODE_ECB) {
-        const uint8_t *inptr = in;
-        uint8_t *outptr = out;
-        while (len) {
-            if (len > AES_BLOCK_SIZE) {
-                AES_encrypt(inptr, outptr, &ctxt->state.aes.encrypt_key);
-                inptr += AES_BLOCK_SIZE;
-                outptr += AES_BLOCK_SIZE;
-                len -= AES_BLOCK_SIZE;
-            } else {
-                uint8_t tmp1[AES_BLOCK_SIZE], tmp2[AES_BLOCK_SIZE];
-                memcpy(tmp1, inptr, len);
-                /* Fill with 0 to avoid valgrind uninitialized reads */
-                memset(tmp1 + len, 0, sizeof(tmp1) - len);
-                AES_encrypt(tmp1, tmp2, &ctxt->state.aes.encrypt_key);
-                memcpy(outptr, tmp2, len);
-                len = 0;
-            }
-        }
-    } else {
+    switch (cipher->mode) {
+    case QCRYPTO_CIPHER_MODE_ECB:
+        qcrypto_cipher_aes_ecb_encrypt(&ctxt->state.aes.key.enc,
+                                       in, out, len);
+        break;
+    case QCRYPTO_CIPHER_MODE_CBC:
         AES_cbc_encrypt(in, out, len,
-                        &ctxt->state.aes.encrypt_key,
+                        &ctxt->state.aes.key.enc,
                         ctxt->state.aes.iv, 1);
+        break;
+    case QCRYPTO_CIPHER_MODE_XTS:
+        xts_encrypt(&ctxt->state.aes.key,
+                    &ctxt->state.aes.key_tweak,
+                    qcrypto_cipher_aes_xts_encrypt,
+                    qcrypto_cipher_aes_xts_decrypt,
+                    ctxt->state.aes.iv,
+                    len, out, in);
+        break;
+    default:
+        g_assert_not_reached();
     }
 
     return 0;
@@ -112,29 +191,26 @@ static int qcrypto_cipher_decrypt_aes(QCryptoCipher *cipher,
 {
     QCryptoCipherBuiltin *ctxt = cipher->opaque;
 
-    if (cipher->mode == QCRYPTO_CIPHER_MODE_ECB) {
-        const uint8_t *inptr = in;
-        uint8_t *outptr = out;
-        while (len) {
-            if (len > AES_BLOCK_SIZE) {
-                AES_decrypt(inptr, outptr, &ctxt->state.aes.decrypt_key);
-                inptr += AES_BLOCK_SIZE;
-                outptr += AES_BLOCK_SIZE;
-                len -= AES_BLOCK_SIZE;
-            } else {
-                uint8_t tmp1[AES_BLOCK_SIZE], tmp2[AES_BLOCK_SIZE];
-                memcpy(tmp1, inptr, len);
-                /* Fill with 0 to avoid valgrind uninitialized reads */
-                memset(tmp1 + len, 0, sizeof(tmp1) - len);
-                AES_decrypt(tmp1, tmp2, &ctxt->state.aes.decrypt_key);
-                memcpy(outptr, tmp2, len);
-                len = 0;
-            }
-        }
-    } else {
+    switch (cipher->mode) {
+    case QCRYPTO_CIPHER_MODE_ECB:
+        qcrypto_cipher_aes_ecb_decrypt(&ctxt->state.aes.key.dec,
+                                       in, out, len);
+        break;
+    case QCRYPTO_CIPHER_MODE_CBC:
         AES_cbc_encrypt(in, out, len,
-                        &ctxt->state.aes.decrypt_key,
+                        &ctxt->state.aes.key.dec,
                         ctxt->state.aes.iv, 0);
+        break;
+    case QCRYPTO_CIPHER_MODE_XTS:
+        xts_decrypt(&ctxt->state.aes.key,
+                    &ctxt->state.aes.key_tweak,
+                    qcrypto_cipher_aes_xts_encrypt,
+                    qcrypto_cipher_aes_xts_decrypt,
+                    ctxt->state.aes.iv,
+                    len, out, in);
+        break;
+    default:
+        g_assert_not_reached();
     }
 
     return 0;
@@ -166,21 +242,46 @@ static int qcrypto_cipher_init_aes(QCryptoCipher *cipher,
     QCryptoCipherBuiltin *ctxt;
 
     if (cipher->mode != QCRYPTO_CIPHER_MODE_CBC &&
-        cipher->mode != QCRYPTO_CIPHER_MODE_ECB) {
+        cipher->mode != QCRYPTO_CIPHER_MODE_ECB &&
+        cipher->mode != QCRYPTO_CIPHER_MODE_XTS) {
         error_setg(errp, "Unsupported cipher mode %d", cipher->mode);
         return -1;
     }
 
     ctxt = g_new0(QCryptoCipherBuiltin, 1);
 
-    if (AES_set_encrypt_key(key, nkey * 8, &ctxt->state.aes.encrypt_key) != 0) {
-        error_setg(errp, "Failed to set encryption key");
-        goto error;
-    }
+    if (cipher->mode == QCRYPTO_CIPHER_MODE_XTS) {
+        if (AES_set_encrypt_key(key, nkey * 4, &ctxt->state.aes.key.enc) != 0) {
+            error_setg(errp, "Failed to set encryption key");
+            goto error;
+        }
 
-    if (AES_set_decrypt_key(key, nkey * 8, &ctxt->state.aes.decrypt_key) != 0) {
-        error_setg(errp, "Failed to set decryption key");
-        goto error;
+        if (AES_set_decrypt_key(key, nkey * 4, &ctxt->state.aes.key.dec) != 0) {
+            error_setg(errp, "Failed to set decryption key");
+            goto error;
+        }
+
+        if (AES_set_encrypt_key(key + (nkey / 2), nkey * 4,
+                                &ctxt->state.aes.key_tweak.enc) != 0) {
+            error_setg(errp, "Failed to set encryption key");
+            goto error;
+        }
+
+        if (AES_set_decrypt_key(key + (nkey / 2), nkey * 4,
+                                &ctxt->state.aes.key_tweak.dec) != 0) {
+            error_setg(errp, "Failed to set decryption key");
+            goto error;
+        }
+    } else {
+        if (AES_set_encrypt_key(key, nkey * 8, &ctxt->state.aes.key.enc) != 0) {
+            error_setg(errp, "Failed to set encryption key");
+            goto error;
+        }
+
+        if (AES_set_decrypt_key(key, nkey * 8, &ctxt->state.aes.key.dec) != 0) {
+            error_setg(errp, "Failed to set decryption key");
+            goto error;
+        }
     }
 
     ctxt->blocksize = AES_BLOCK_SIZE;
@@ -322,7 +423,7 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     cipher->alg = alg;
     cipher->mode = mode;
 
-    if (!qcrypto_cipher_validate_key_length(alg, nkey, errp)) {
+    if (!qcrypto_cipher_validate_key_length(alg, mode, nkey, errp)) {
         goto error;
     }
 
