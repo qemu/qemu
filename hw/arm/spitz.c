@@ -1037,7 +1037,7 @@ static void spitz_machine_init(void)
     type_register_static(&terrierpda_type);
 }
 
-machine_init(spitz_machine_init)
+type_init(spitz_machine_init)
 
 static bool is_version_0(void *opaque, int version_id)
 {

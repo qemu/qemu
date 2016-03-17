@@ -1553,10 +1553,7 @@ static void sun4m_register_types(void)
     type_register_static(&afx_info);
     type_register_static(&prom_info);
     type_register_static(&ram_info);
-}
 
-static void sun4m_machine_init(void)
-{
     type_register_static(&ss5_type);
     type_register_static(&ss10_type);
     type_register_static(&ss600mp_type);
@@ -1569,4 +1566,3 @@ static void sun4m_machine_init(void)
 }
 
 type_init(sun4m_register_types)
-machine_init(sun4m_machine_init)

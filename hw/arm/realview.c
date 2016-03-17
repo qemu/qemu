@@ -457,4 +457,4 @@ static void realview_machine_init(void)
     type_register_static(&realview_pbx_a9_type);
 }
 
-machine_init(realview_machine_init)
+type_init(realview_machine_init)

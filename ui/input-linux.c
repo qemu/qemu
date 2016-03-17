@@ -388,4 +388,4 @@ static void input_linux_register_config(void)
 {
     qemu_add_opts(&qemu_input_linux_opts);
 }
-machine_init(input_linux_register_config);
+opts_init(input_linux_register_config);

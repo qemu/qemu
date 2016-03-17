@@ -2342,7 +2342,7 @@ static const TypeInfo spapr_machine_info = {
     {                                                                \
         type_register(&spapr_machine_##suffix##_info);               \
     }                                                                \
-    machine_init(spapr_machine_register_##suffix)
+    type_init(spapr_machine_register_##suffix)
 
 /*
  * pseries-2.6

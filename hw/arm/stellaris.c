@@ -1420,7 +1420,7 @@ static void stellaris_machine_init(void)
     type_register_static(&lm3s6965evb_type);
 }
 
-machine_init(stellaris_machine_init)
+type_init(stellaris_machine_init)
 
 static void stellaris_i2c_class_init(ObjectClass *klass, void *data)
 {

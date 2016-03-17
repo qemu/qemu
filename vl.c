@@ -3021,6 +3021,7 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_icount_opts);
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
+    module_call_init(MODULE_INIT_OPTS);
 
     runstate_init();
 
@@ -3033,7 +3034,6 @@ int main(int argc, char **argv, char **envp)
     QLIST_INIT (&vm_change_state_head);
     os_setup_early_signal_handling();
 
-    module_call_init(MODULE_INIT_MACHINE);
     cpu_model = NULL;
     snapshot = 0;
     cyls = heads = secs = 0;

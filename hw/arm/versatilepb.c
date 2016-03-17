@@ -419,7 +419,7 @@ static void versatile_machine_init(void)
     type_register_static(&versatileab_type);
 }
 
-machine_init(versatile_machine_init)
+type_init(versatile_machine_init)
 
 static void vpb_sic_class_init(ObjectClass *klass, void *data)
 {

@@ -997,14 +997,10 @@ static void sun4u_register_types(void)
     type_register_static(&ebus_info);
     type_register_static(&prom_info);
     type_register_static(&ram_info);
-}
 
-static void sun4u_machine_init(void)
-{
     type_register_static(&sun4u_type);
     type_register_static(&sun4v_type);
     type_register_static(&niagara_type);
 }
 
 type_init(sun4u_register_types)
-machine_init(sun4u_machine_init)

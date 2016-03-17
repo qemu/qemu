@@ -437,4 +437,4 @@ static void calxeda_machines_init(void)
     type_register_static(&midway_type);
 }
 
-machine_init(calxeda_machines_init)
+type_init(calxeda_machines_init)

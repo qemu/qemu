@@ -800,4 +800,4 @@ static void vexpress_machine_init(void)
     type_register_static(&vexpress_a15_info);
 }
 
-machine_init(vexpress_machine_init);
+type_init(vexpress_machine_init);

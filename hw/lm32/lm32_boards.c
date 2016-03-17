@@ -329,4 +329,4 @@ static void lm32_machine_init(void)
     type_register_static(&lm32_uclinux_type);
 }
 
-machine_init(lm32_machine_init)
+type_init(lm32_machine_init)

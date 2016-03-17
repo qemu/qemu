@@ -510,4 +510,4 @@ static void xtensa_lx_machines_init(void)
     type_register_static(&xtensa_kc705_type);
 }
 
-machine_init(xtensa_lx_machines_init)
+type_init(xtensa_lx_machines_init)

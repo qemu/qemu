@@ -181,7 +181,7 @@ struct MachineState {
     { \
         type_register_static(&machine_initfn##_typeinfo); \
     } \
-    machine_init(machine_initfn##_register_types)
+    type_init(machine_initfn##_register_types)
 
 #define SET_MACHINE_COMPAT(m, COMPAT) \
     do {                              \
