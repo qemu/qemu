@@ -2,7 +2,7 @@
 # QAPI command marshaller generator
 #
 # Copyright IBM, Corp. 2011
-# Copyright (C) 2014-2015 Red Hat, Inc.
+# Copyright (C) 2014-2016 Red Hat, Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
@@ -30,6 +30,7 @@ def gen_call(name, arg_type, ret_type):
 
     argstr = ''
     if arg_type:
+        assert not arg_type.variants
         for memb in arg_type.members:
             if memb.optional:
                 argstr += 'has_%s, ' % c_name(memb.name)

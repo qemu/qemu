@@ -59,6 +59,7 @@ def gen_event_send(name, arg_type):
                  name=name)
 
     if arg_type and arg_type.members:
+        assert not arg_type.variants
         ret += mcgen('''
     qov = qmp_output_visitor_new();
     v = qmp_output_get_visitor(qov);
