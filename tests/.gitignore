@@ -69,5 +69,6 @@ test-x86-cpuid
 test-xbzrle
 test-netfilter
 test-filter-mirror
+test-filter-redirector
 *-test
 qapi-schema/*.test.*
