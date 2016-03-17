@@ -33,8 +33,8 @@ def gen_call(name, arg_type, ret_type):
         assert not arg_type.variants
         for memb in arg_type.members:
             if memb.optional:
-                argstr += 'has_%s, ' % c_name(memb.name)
-            argstr += '%s, ' % c_name(memb.name)
+                argstr += 'arg.has_%s, ' % c_name(memb.name)
+            argstr += 'arg.%s, ' % c_name(memb.name)
 
     lhs = ''
     if ret_type:
@@ -71,21 +71,10 @@ def gen_marshal_vars(arg_type, ret_type):
     QmpInputVisitor *qiv = qmp_input_visitor_new_strict(QOBJECT(args));
     QapiDeallocVisitor *qdv;
     Visitor *v;
-''')
+    %(c_name)s arg = {0};
 
-        for memb in arg_type.members:
-            if memb.optional:
-                ret += mcgen('''
-    bool has_%(c_name)s = false;
 ''',
-                             c_name=c_name(memb.name))
-            ret += mcgen('''
-    %(c_type)s %(c_name)s = %(c_null)s;
-''',
-                         c_name=c_name(memb.name),
-                         c_type=memb.type.c_type(),
-                         c_null=memb.type.c_null())
-        ret += '\n'
+                     c_name=arg_type.c_name())
     else:
         ret += mcgen('''
 
@@ -107,17 +96,24 @@ def gen_marshal_input_visit(arg_type, dealloc=False):
     qdv = qapi_dealloc_visitor_new();
     v = qapi_dealloc_get_visitor(qdv);
 ''')
+        errp = 'NULL'
     else:
         ret += mcgen('''
     v = qmp_input_get_visitor(qiv);
 ''')
+        errp = '&err'
 
-    ret += gen_visit_members(arg_type.members, skiperr=dealloc)
+    ret += mcgen('''
+    visit_type_%(c_name)s_members(v, &arg, %(errp)s);
+''',
+                 c_name=arg_type.c_name(), errp=errp)
 
     if dealloc:
         ret += mcgen('''
     qapi_dealloc_visitor_cleanup(qdv);
 ''')
+    else:
+        ret += gen_err_check()
     return ret
 
 
