@@ -836,9 +836,6 @@ class QAPISchemaType(QAPISchemaEntity):
     def c_unboxed_type(self):
         return self.c_type()
 
-    def c_null(self):
-        return 'NULL'
-
     def json_type(self):
         pass
 
@@ -854,14 +851,13 @@ class QAPISchemaType(QAPISchemaEntity):
 
 
 class QAPISchemaBuiltinType(QAPISchemaType):
-    def __init__(self, name, json_type, c_type, c_null):
+    def __init__(self, name, json_type, c_type):
         QAPISchemaType.__init__(self, name, None)
         assert not c_type or isinstance(c_type, str)
         assert json_type in ('string', 'number', 'int', 'boolean', 'null',
                              'value')
         self._json_type_name = json_type
         self._c_type_name = c_type
-        self._c_null_val = c_null
 
     def c_name(self):
         return self.name
@@ -873,9 +869,6 @@ class QAPISchemaBuiltinType(QAPISchemaType):
         if self.name == 'str':
             return 'const ' + self._c_type_name
         return self._c_type_name
-
-    def c_null(self):
-        return self._c_null_val
 
     def json_type(self):
         return self._json_type_name
@@ -908,10 +901,6 @@ class QAPISchemaEnumType(QAPISchemaType):
 
     def member_names(self):
         return [v.name for v in self.values]
-
-    def c_null(self):
-        return c_enum_const(self.name, (self.member_names() + ['_MAX'])[0],
-                            self.prefix)
 
     def json_type(self):
         return 'string'
@@ -1240,9 +1229,8 @@ class QAPISchema(object):
     def lookup_type(self, name):
         return self.lookup_entity(name, QAPISchemaType)
 
-    def _def_builtin_type(self, name, json_type, c_type, c_null):
-        self._def_entity(QAPISchemaBuiltinType(name, json_type,
-                                               c_type, c_null))
+    def _def_builtin_type(self, name, json_type, c_type):
+        self._def_entity(QAPISchemaBuiltinType(name, json_type, c_type))
         # TODO As long as we have QAPI_TYPES_BUILTIN to share multiple
         # qapi-types.h from a single .c, all arrays of builtins must be
         # declared in the first file whether or not they are used.  Nicer
@@ -1251,20 +1239,20 @@ class QAPISchema(object):
         self._make_array_type(name, None)
 
     def _def_predefineds(self):
-        for t in [('str',    'string',  'char' + pointer_suffix, 'NULL'),
-                  ('number', 'number',  'double',   '0'),
-                  ('int',    'int',     'int64_t',  '0'),
-                  ('int8',   'int',     'int8_t',   '0'),
-                  ('int16',  'int',     'int16_t',  '0'),
-                  ('int32',  'int',     'int32_t',  '0'),
-                  ('int64',  'int',     'int64_t',  '0'),
-                  ('uint8',  'int',     'uint8_t',  '0'),
-                  ('uint16', 'int',     'uint16_t', '0'),
-                  ('uint32', 'int',     'uint32_t', '0'),
-                  ('uint64', 'int',     'uint64_t', '0'),
-                  ('size',   'int',     'uint64_t', '0'),
-                  ('bool',   'boolean', 'bool',     'false'),
-                  ('any',    'value',   'QObject' + pointer_suffix, 'NULL')]:
+        for t in [('str',    'string',  'char' + pointer_suffix),
+                  ('number', 'number',  'double'),
+                  ('int',    'int',     'int64_t'),
+                  ('int8',   'int',     'int8_t'),
+                  ('int16',  'int',     'int16_t'),
+                  ('int32',  'int',     'int32_t'),
+                  ('int64',  'int',     'int64_t'),
+                  ('uint8',  'int',     'uint8_t'),
+                  ('uint16', 'int',     'uint16_t'),
+                  ('uint32', 'int',     'uint32_t'),
+                  ('uint64', 'int',     'uint64_t'),
+                  ('size',   'int',     'uint64_t'),
+                  ('bool',   'boolean', 'bool'),
+                  ('any',    'value',   'QObject' + pointer_suffix)]:
             self._def_builtin_type(*t)
         self.the_empty_object_type = QAPISchemaObjectType('q_empty', None,
                                                           None, [], None)
