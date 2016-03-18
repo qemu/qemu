@@ -2242,16 +2242,6 @@ void bdrv_close_all(void)
     }
 }
 
-/* make a BlockDriverState anonymous by removing from graph_bdrv_state list.
- * Also, NULL terminate the device_name to prevent double remove */
-void bdrv_make_anon(BlockDriverState *bs)
-{
-    if (bs->node_name[0] != '\0') {
-        QTAILQ_REMOVE(&graph_bdrv_states, bs, node_list);
-    }
-    bs->node_name[0] = '\0';
-}
-
 /* Fields that need to stay with the top-level BDS */
 static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
                                      BlockDriverState *bs_src)
@@ -2381,8 +2371,9 @@ static void bdrv_delete(BlockDriverState *bs)
     bdrv_close(bs);
 
     /* remove from list, if necessary */
-    bdrv_make_anon(bs);
-
+    if (bs->node_name[0] != '\0') {
+        QTAILQ_REMOVE(&graph_bdrv_states, bs, node_list);
+    }
     QTAILQ_REMOVE(&all_bdrv_states, bs, bs_list);
 
     g_free(bs);
