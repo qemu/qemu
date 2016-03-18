@@ -216,7 +216,7 @@ echo
 # BDS initialised with the json: pseudo-protocol, but still have it inherit
 # options from its parent node.
 
-hmp_cmds="qemu-io none0 \"reopen -o cache.writeback=off,cache.direct=on,cache.no-flush=on\"
+hmp_cmds="qemu-io none0 \"reopen -o cache.direct=on,cache.no-flush=on\"
 info block none0
 info block image
 info block blkdebug

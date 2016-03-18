@@ -414,7 +414,7 @@ cache.no-flush=on on backing-file
 
 --- Change cache mode in parent, child has explicit option in JSON ---
 
-    Cache mode:       writethrough, direct, ignore flushes
+    Cache mode:       writeback, direct, ignore flushes
     Cache mode:       writeback, direct, ignore flushes
     Cache mode:       writeback, direct, ignore flushes
     Cache mode:       writeback, ignore flushes

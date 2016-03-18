@@ -2106,6 +2106,7 @@ static int reopen_f(BlockBackend *blk, int argc, char **argv)
     QDict *opts;
     int c;
     int flags = bs->open_flags;
+    bool writethrough = !blk_enable_write_cache(blk);
 
     BlockReopenQueue *brq;
     Error *local_err = NULL;
@@ -2113,7 +2114,7 @@ static int reopen_f(BlockBackend *blk, int argc, char **argv)
     while ((c = getopt(argc, argv, "c:o:r")) != -1) {
         switch (c) {
         case 'c':
-            if (bdrv_parse_cache_flags(optarg, &flags) < 0) {
+            if (bdrv_parse_cache_mode(optarg, &flags, &writethrough) < 0) {
                 error_report("Invalid cache option: %s", optarg);
                 return 0;
             }
@@ -2138,14 +2139,25 @@ static int reopen_f(BlockBackend *blk, int argc, char **argv)
         return qemuio_command_usage(&reopen_cmd);
     }
 
+    if (writethrough != blk_enable_write_cache(blk) &&
+        blk_get_attached_dev(blk))
+    {
+        error_report("Cannot change cache.writeback: Device attached");
+        qemu_opts_reset(&reopen_opts);
+        return 0;
+    }
+
     qopts = qemu_opts_find(&reopen_opts, NULL);
     opts = qopts ? qemu_opts_to_qdict(qopts, NULL) : NULL;
     qemu_opts_reset(&reopen_opts);
 
+    flags |= blk_enable_write_cache(blk) ? BDRV_O_CACHE_WB : 0;
     brq = bdrv_reopen_queue(NULL, bs, opts, flags);
     bdrv_reopen_multiple(brq, &local_err);
     if (local_err) {
         error_report_err(local_err);
+    } else {
+        blk_set_enable_write_cache(blk, !writethrough);
     }
 
     return 0;

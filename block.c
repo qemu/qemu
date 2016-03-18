@@ -2028,18 +2028,12 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
 
     update_flags_from_options(&reopen_state->flags, opts);
 
-    /* If a guest device is attached, it owns WCE */
-    if (reopen_state->bs->blk && blk_get_attached_dev(reopen_state->bs->blk)) {
-        bool old_wce = bdrv_enable_write_cache(reopen_state->bs);
-        bool new_wce = (reopen_state->flags & BDRV_O_CACHE_WB);
-        if (old_wce != new_wce) {
-            error_setg(errp, "Cannot change cache.writeback: Device attached");
-            ret = -EINVAL;
-            goto error;
-        }
-    }
-    if (!reopen_state->bs->blk && !(reopen_state->flags & BDRV_O_CACHE_WB)) {
-        error_setg(errp, "Cannot disable cache.writeback: No BlockBackend");
+    /* WCE is a BlockBackend level option, can't change it */
+    bool old_wce = bdrv_enable_write_cache(reopen_state->bs);
+    bool new_wce = (reopen_state->flags & BDRV_O_CACHE_WB);
+
+    if (old_wce != new_wce) {
+        error_setg(errp, "Cannot change cache.writeback");
         ret = -EINVAL;
         goto error;
     }
