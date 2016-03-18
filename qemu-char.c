@@ -3081,6 +3081,8 @@ static int tcp_chr_new_client(CharDriverState *chr, QIOChannelSocket *sioc)
     s->sioc = sioc;
     object_ref(OBJECT(sioc));
 
+    qio_channel_set_blocking(s->ioc, false, NULL);
+
     if (s->do_nodelay) {
         qio_channel_set_delay(s->ioc, false);
     }
@@ -3112,7 +3114,6 @@ static int tcp_chr_add_client(CharDriverState *chr, int fd)
     if (!sioc) {
         return -1;
     }
-    qio_channel_set_blocking(QIO_CHANNEL(sioc), false, NULL);
     ret = tcp_chr_new_client(chr, sioc);
     object_unref(OBJECT(sioc));
     return ret;
