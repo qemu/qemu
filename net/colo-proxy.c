@@ -1037,7 +1037,7 @@ static int colo_wait_incoming(COLOProxyState *s)
         return -1;
     }
     s->sockfd = accept_sock;
-
+    socket_set_nodelay(s->sockfd);
     qemu_set_fd_handler(s->sockfd, colo_proxy_sock_receive, NULL, (void *)s);
 
     return 0;
@@ -1056,6 +1056,7 @@ static ssize_t colo_proxy_connect(COLOProxyState *s)
         return -1;
     }
     s->sockfd = sock;
+    socket_set_nodelay(s->sockfd);
     qemu_set_fd_handler(s->sockfd, colo_proxy_sock_receive, NULL, (void *)s);
 
     return 0;
