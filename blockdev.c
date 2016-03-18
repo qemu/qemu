@@ -899,8 +899,9 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     value = qemu_opt_get(all_opts, "cache");
     if (value) {
         int flags = 0;
+        bool writethrough;
 
-        if (bdrv_parse_cache_flags(value, &flags) != 0) {
+        if (bdrv_parse_cache_mode(value, &flags, &writethrough) != 0) {
             error_report("invalid cache option");
             return NULL;
         }
@@ -908,7 +909,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         /* Specific options take precedence */
         if (!qemu_opt_get(all_opts, BDRV_OPT_CACHE_WB)) {
             qemu_opt_set_bool(all_opts, BDRV_OPT_CACHE_WB,
-                              !!(flags & BDRV_O_CACHE_WB), &error_abort);
+                              !writethrough, &error_abort);
         }
         if (!qemu_opt_get(all_opts, BDRV_OPT_CACHE_DIRECT)) {
             qemu_opt_set_bool(all_opts, BDRV_OPT_CACHE_DIRECT,
