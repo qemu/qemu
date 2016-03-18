@@ -34,6 +34,8 @@ typedef nettle_crypt_func nettle_cipher_func;
 
 typedef void *       cipher_ctx_t;
 typedef unsigned     cipher_length_t;
+
+#define cast5_set_key cast128_set_key
 #else
 typedef const void * cipher_ctx_t;
 typedef size_t       cipher_length_t;
