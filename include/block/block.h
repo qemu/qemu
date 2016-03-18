@@ -208,7 +208,6 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);
 void bdrv_replace_in_backing_chain(BlockDriverState *old,
                                    BlockDriverState *new);
 
-int bdrv_parse_cache_flags(const char *mode, int *flags);
 int bdrv_parse_cache_mode(const char *mode, int *flags, bool *writethrough);
 int bdrv_parse_discard_flags(const char *mode, int *flags);
 BdrvChild *bdrv_open_child(const char *filename,

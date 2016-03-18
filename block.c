@@ -645,40 +645,25 @@ int bdrv_parse_discard_flags(const char *mode, int *flags)
  *
  * Return 0 on success, -1 if the cache mode was invalid.
  */
-int bdrv_parse_cache_flags(const char *mode, int *flags)
+int bdrv_parse_cache_mode(const char *mode, int *flags, bool *writethrough)
 {
     *flags &= ~BDRV_O_CACHE_MASK;
 
     if (!strcmp(mode, "off") || !strcmp(mode, "none")) {
-        *flags |= BDRV_O_NOCACHE | BDRV_O_CACHE_WB;
+        *writethrough = false;
+        *flags |= BDRV_O_NOCACHE;
     } else if (!strcmp(mode, "directsync")) {
+        *writethrough = true;
         *flags |= BDRV_O_NOCACHE;
     } else if (!strcmp(mode, "writeback")) {
-        *flags |= BDRV_O_CACHE_WB;
+        *writethrough = false;
     } else if (!strcmp(mode, "unsafe")) {
-        *flags |= BDRV_O_CACHE_WB;
+        *writethrough = false;
         *flags |= BDRV_O_NO_FLUSH;
     } else if (!strcmp(mode, "writethrough")) {
-        /* this is the default */
+        *writethrough = true;
     } else {
         return -1;
-    }
-
-    return 0;
-}
-
-int bdrv_parse_cache_mode(const char *mode, int *flags, bool *writethrough)
-{
-    int ret = bdrv_parse_cache_flags(mode, flags);
-    if (ret < 0) {
-        return ret;
-    }
-
-    if (*flags & BDRV_O_CACHE_WB) {
-        *flags &= ~BDRV_O_CACHE_WB;
-        *writethrough = false;
-    } else {
-        *writethrough = true;
     }
 
     return 0;
