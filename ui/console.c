@@ -2069,7 +2069,7 @@ static VcHandler *vc_handler = text_console_init;
 static CharDriverState *vc_init(const char *id, ChardevBackend *backend,
                                 ChardevReturn *ret, Error **errp)
 {
-    return vc_handler(backend->u.vc, errp);
+    return vc_handler(backend->u.vc.data, errp);
 }
 
 void register_vc_handler(VcHandler *handler)
@@ -2111,7 +2111,7 @@ static void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend,
     int val;
     ChardevVC *vc;
 
-    vc = backend->u.vc = g_new0(ChardevVC, 1);
+    vc = backend->u.vc.data = g_new0(ChardevVC, 1);
     qemu_chr_parse_common(opts, qapi_ChardevVC_base(vc));
 
     val = qemu_opt_get_number(opts, "width", 0);

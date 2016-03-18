@@ -901,8 +901,8 @@ SocketAddress *socket_parse(const char *str, Error **errp)
             goto fail;
         } else {
             addr->type = SOCKET_ADDRESS_KIND_UNIX;
-            addr->u.q_unix = g_new(UnixSocketAddress, 1);
-            addr->u.q_unix->path = g_strdup(str + 5);
+            addr->u.q_unix.data = g_new(UnixSocketAddress, 1);
+            addr->u.q_unix.data->path = g_strdup(str + 5);
         }
     } else if (strstart(str, "fd:", NULL)) {
         if (str[3] == '\0') {
@@ -910,13 +910,13 @@ SocketAddress *socket_parse(const char *str, Error **errp)
             goto fail;
         } else {
             addr->type = SOCKET_ADDRESS_KIND_FD;
-            addr->u.fd = g_new(String, 1);
-            addr->u.fd->str = g_strdup(str + 3);
+            addr->u.fd.data = g_new(String, 1);
+            addr->u.fd.data->str = g_strdup(str + 3);
         }
     } else {
         addr->type = SOCKET_ADDRESS_KIND_INET;
-        addr->u.inet = inet_parse(str, errp);
-        if (addr->u.inet == NULL) {
+        addr->u.inet.data = inet_parse(str, errp);
+        if (addr->u.inet.data == NULL) {
             goto fail;
         }
     }
@@ -934,15 +934,15 @@ int socket_connect(SocketAddress *addr, Error **errp,
 
     switch (addr->type) {
     case SOCKET_ADDRESS_KIND_INET:
-        fd = inet_connect_saddr(addr->u.inet, errp, callback, opaque);
+        fd = inet_connect_saddr(addr->u.inet.data, errp, callback, opaque);
         break;
 
     case SOCKET_ADDRESS_KIND_UNIX:
-        fd = unix_connect_saddr(addr->u.q_unix, errp, callback, opaque);
+        fd = unix_connect_saddr(addr->u.q_unix.data, errp, callback, opaque);
         break;
 
     case SOCKET_ADDRESS_KIND_FD:
-        fd = monitor_get_fd(cur_mon, addr->u.fd->str, errp);
+        fd = monitor_get_fd(cur_mon, addr->u.fd.data->str, errp);
         if (fd >= 0 && callback) {
             qemu_set_nonblock(fd);
             callback(fd, NULL, opaque);
@@ -961,15 +961,15 @@ int socket_listen(SocketAddress *addr, Error **errp)
 
     switch (addr->type) {
     case SOCKET_ADDRESS_KIND_INET:
-        fd = inet_listen_saddr(addr->u.inet, 0, false, errp);
+        fd = inet_listen_saddr(addr->u.inet.data, 0, false, errp);
         break;
 
     case SOCKET_ADDRESS_KIND_UNIX:
-        fd = unix_listen_saddr(addr->u.q_unix, false, errp);
+        fd = unix_listen_saddr(addr->u.q_unix.data, false, errp);
         break;
 
     case SOCKET_ADDRESS_KIND_FD:
-        fd = monitor_get_fd(cur_mon, addr->u.fd->str, errp);
+        fd = monitor_get_fd(cur_mon, addr->u.fd.data->str, errp);
         break;
 
     default:
@@ -984,7 +984,8 @@ int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp)
 
     switch (remote->type) {
     case SOCKET_ADDRESS_KIND_INET:
-        fd = inet_dgram_saddr(remote->u.inet, local ? local->u.inet : NULL, errp);
+        fd = inet_dgram_saddr(remote->u.inet.data,
+                              local ? local->u.inet.data : NULL, errp);
         break;
 
     default:
@@ -1018,7 +1019,7 @@ socket_sockaddr_to_address_inet(struct sockaddr_storage *sa,
 
     addr = g_new0(SocketAddress, 1);
     addr->type = SOCKET_ADDRESS_KIND_INET;
-    inet = addr->u.inet = g_new0(InetSocketAddress, 1);
+    inet = addr->u.inet.data = g_new0(InetSocketAddress, 1);
     inet->host = g_strdup(host);
     inet->port = g_strdup(serv);
     if (sa->ss_family == AF_INET) {
@@ -1042,10 +1043,10 @@ socket_sockaddr_to_address_unix(struct sockaddr_storage *sa,
 
     addr = g_new0(SocketAddress, 1);
     addr->type = SOCKET_ADDRESS_KIND_UNIX;
-    addr->u.q_unix = g_new0(UnixSocketAddress, 1);
+    addr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
     if (su->sun_path[0]) {
-        addr->u.q_unix->path = g_strndup(su->sun_path,
-                                         sizeof(su->sun_path));
+        addr->u.q_unix.data->path = g_strndup(su->sun_path,
+                                              sizeof(su->sun_path));
     }
 
     return addr;

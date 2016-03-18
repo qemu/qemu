@@ -75,16 +75,6 @@
             'command', 'event' ] }
 
 ##
-# @SchemaInfoBase
-#
-# Members common to any @SchemaInfo.
-#
-# Since: 2.5
-##
-{ 'struct': 'SchemaInfoBase',
-  'data': { 'name': 'str', 'meta-type': 'SchemaMetaType' } }
-
-##
 # @SchemaInfo
 #
 # @name: the entity's name, inherited from @base.
@@ -103,7 +93,7 @@
 # Since: 2.5
 ##
 { 'union': 'SchemaInfo',
-  'base': 'SchemaInfoBase',
+  'base': { 'name': 'str', 'meta-type': 'SchemaMetaType' },
   'discriminator': 'meta-type',
   'data': {
       'builtin': 'SchemaInfoBuiltin',

@@ -110,7 +110,7 @@ static void legacy_kbd_event(DeviceState *dev, QemuConsole *src,
 {
     QEMUPutKbdEntry *entry = (QEMUPutKbdEntry *)dev;
     int scancodes[3], i, count;
-    InputKeyEvent *key = evt->u.key;
+    InputKeyEvent *key = evt->u.key.data;
 
     if (!entry || !entry->put_kbd) {
         return;
@@ -156,7 +156,7 @@ static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn;
+        btn = evt->u.btn.data;
         if (btn->down) {
             s->buttons |= bmap[btn->button];
         } else {
@@ -178,11 +178,11 @@ static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
         }
         break;
     case INPUT_EVENT_KIND_ABS:
-        move = evt->u.abs;
+        move = evt->u.abs.data;
         s->axis[move->axis] = move->value;
         break;
     case INPUT_EVENT_KIND_REL:
-        move = evt->u.rel;
+        move = evt->u.rel.data;
         s->axis[move->axis] += move->value;
         break;
     default:

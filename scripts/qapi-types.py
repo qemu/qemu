@@ -61,8 +61,7 @@ def gen_object(name, base, members, variants):
     ret = ''
     if variants:
         for v in variants.variants:
-            if (isinstance(v.type, QAPISchemaObjectType) and
-                    not v.type.is_implicit()):
+            if isinstance(v.type, QAPISchemaObjectType):
                 ret += gen_object(v.type.name, v.type.base,
                                   v.type.local_members, v.type.variants)
 
@@ -73,12 +72,14 @@ struct %(c_name)s {
                  c_name=c_name(name))
 
     if base:
-        ret += mcgen('''
+        if not base.is_implicit():
+            ret += mcgen('''
     /* Members inherited from %(c_name)s: */
 ''',
-                     c_name=base.c_name())
+                         c_name=base.c_name())
         ret += gen_struct_members(base.members)
-        ret += mcgen('''
+        if not base.is_implicit():
+            ret += mcgen('''
     /* Own members: */
 ''')
     ret += gen_struct_members(members)
@@ -122,13 +123,10 @@ def gen_variants(variants):
                 c_name=c_name(variants.tag_member.name))
 
     for var in variants.variants:
-        # Ugly special case for simple union TODO get rid of it
-        simple_union_type = var.simple_union_type()
-        typ = simple_union_type or var.type
         ret += mcgen('''
         %(c_type)s %(c_name)s;
 ''',
-                     c_type=typ.c_type(is_unboxed=not simple_union_type),
+                     c_type=var.type.c_unboxed_type(),
                      c_name=c_name(var.name))
 
     ret += mcgen('''
@@ -177,6 +175,8 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         self._btin = None
 
     def visit_begin(self, schema):
+        # gen_object() is recursive, ensure it doesn't visit the empty type
+        objects_seen.add(schema.the_empty_object_type.name)
         self.decl = ''
         self.defn = ''
         self._fwdecl = ''
@@ -192,11 +192,6 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         self._btin += guardend('QAPI_TYPES_BUILTIN')
         self.decl = self._btin + self.decl
         self._btin = None
-
-    def visit_needed(self, entity):
-        # Visit everything except implicit objects
-        return not (entity.is_implicit() and
-                    isinstance(entity, QAPISchemaObjectType))
 
     def _gen_type_cleanup(self, name):
         self.decl += gen_type_cleanup_decl(name)
@@ -226,11 +221,18 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
             self._gen_type_cleanup(name)
 
     def visit_object_type(self, name, info, base, members, variants):
+        # Nothing to do for the special empty builtin
+        if name == 'q_empty':
+            return
         self._fwdecl += gen_fwd_object_or_array(name)
         self.decl += gen_object(name, base, members, variants)
-        if base:
+        if base and not base.is_implicit():
             self.decl += gen_upcast(name, base)
-        self._gen_type_cleanup(name)
+        # TODO Worth changing the visitor signature, so we could
+        # directly use rather than repeat type.is_implicit()?
+        if not name.startswith('q_'):
+            # implicit types won't be directly allocated/freed
+            self._gen_type_cleanup(name)
 
     def visit_alternate_type(self, name, info, variants):
         self._fwdecl += gen_fwd_object_or_array(name)

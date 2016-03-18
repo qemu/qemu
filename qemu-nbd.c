@@ -377,12 +377,12 @@ static SocketAddress *nbd_build_socket_address(const char *sockpath,
     saddr = g_new0(SocketAddress, 1);
     if (sockpath) {
         saddr->type = SOCKET_ADDRESS_KIND_UNIX;
-        saddr->u.q_unix = g_new0(UnixSocketAddress, 1);
-        saddr->u.q_unix->path = g_strdup(sockpath);
+        saddr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
+        saddr->u.q_unix.data->path = g_strdup(sockpath);
     } else {
         InetSocketAddress *inet;
         saddr->type = SOCKET_ADDRESS_KIND_INET;
-        inet = saddr->u.inet = g_new0(InetSocketAddress, 1);
+        inet = saddr->u.inet.data = g_new0(InetSocketAddress, 1);
         inet->host = g_strdup(bindto);
         if (port) {
             inet->port = g_strdup(port);

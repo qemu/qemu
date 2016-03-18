@@ -893,7 +893,7 @@ static int net_init_nic(const NetClientOptions *opts, const char *name,
     const NetLegacyNicOptions *nic;
 
     assert(opts->type == NET_CLIENT_OPTIONS_KIND_NIC);
-    nic = opts->u.nic;
+    nic = opts->u.nic.data;
 
     idx = nic_get_free_idx();
     if (idx == -1 || nb_nics >= MAX_NICS) {
@@ -1025,7 +1025,7 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
 
         /* Do not add to a vlan if it's a nic with a netdev= parameter. */
         if (opts->type != NET_CLIENT_OPTIONS_KIND_NIC ||
-            !opts->u.nic->has_netdev) {
+            !opts->u.nic.data->has_netdev) {
             peer = net_hub_add_port(net->has_vlan ? net->vlan : 0, NULL);
         }
     }

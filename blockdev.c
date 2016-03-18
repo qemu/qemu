@@ -1247,7 +1247,7 @@ void qmp_blockdev_snapshot_sync(bool has_device, const char *device,
     };
     TransactionAction action = {
         .type = TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC,
-        .u.blockdev_snapshot_sync = &snapshot,
+        .u.blockdev_snapshot_sync.data = &snapshot,
     };
     blockdev_do_action(&action, errp);
 }
@@ -1261,7 +1261,7 @@ void qmp_blockdev_snapshot(const char *node, const char *overlay,
     };
     TransactionAction action = {
         .type = TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT,
-        .u.blockdev_snapshot = &snapshot_data,
+        .u.blockdev_snapshot.data = &snapshot_data,
     };
     blockdev_do_action(&action, errp);
 }
@@ -1276,7 +1276,7 @@ void qmp_blockdev_snapshot_internal_sync(const char *device,
     };
     TransactionAction action = {
         .type = TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_INTERNAL_SYNC,
-        .u.blockdev_snapshot_internal_sync = &snapshot,
+        .u.blockdev_snapshot_internal_sync.data = &snapshot,
     };
     blockdev_do_action(&action, errp);
 }
@@ -1515,7 +1515,7 @@ static void internal_snapshot_prepare(BlkActionState *common,
 
     g_assert(common->action->type ==
              TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_INTERNAL_SYNC);
-    internal = common->action->u.blockdev_snapshot_internal_sync;
+    internal = common->action->u.blockdev_snapshot_internal_sync.data;
     state = DO_UPCAST(InternalSnapshotState, common, common);
 
     /* 1. parse input */
@@ -1665,7 +1665,7 @@ static void external_snapshot_prepare(BlkActionState *common,
     switch (action->type) {
     case TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT:
         {
-            BlockdevSnapshot *s = action->u.blockdev_snapshot;
+            BlockdevSnapshot *s = action->u.blockdev_snapshot.data;
             device = s->node;
             node_name = s->node;
             new_image_file = NULL;
@@ -1674,7 +1674,7 @@ static void external_snapshot_prepare(BlkActionState *common,
         break;
     case TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC:
         {
-            BlockdevSnapshotSync *s = action->u.blockdev_snapshot_sync;
+            BlockdevSnapshotSync *s = action->u.blockdev_snapshot_sync.data;
             device = s->has_device ? s->device : NULL;
             node_name = s->has_node_name ? s->node_name : NULL;
             new_image_file = s->snapshot_file;
@@ -1723,7 +1723,7 @@ static void external_snapshot_prepare(BlkActionState *common,
     }
 
     if (action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC) {
-        BlockdevSnapshotSync *s = action->u.blockdev_snapshot_sync;
+        BlockdevSnapshotSync *s = action->u.blockdev_snapshot_sync.data;
         const char *format = s->has_format ? s->format : "qcow2";
         enum NewImageMode mode;
         const char *snapshot_node_name =
@@ -1861,7 +1861,7 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
     Error *local_err = NULL;
 
     assert(common->action->type == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
-    backup = common->action->u.drive_backup;
+    backup = common->action->u.drive_backup.data;
 
     blk = blk_by_name(backup->device);
     if (!blk) {
@@ -1943,7 +1943,7 @@ static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
     Error *local_err = NULL;
 
     assert(common->action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP);
-    backup = common->action->u.blockdev_backup;
+    backup = common->action->u.blockdev_backup.data;
 
     blk = blk_by_name(backup->device);
     if (!blk) {
@@ -2029,7 +2029,7 @@ static void block_dirty_bitmap_add_prepare(BlkActionState *common,
         return;
     }
 
-    action = common->action->u.block_dirty_bitmap_add;
+    action = common->action->u.block_dirty_bitmap_add.data;
     /* AIO context taken and released within qmp_block_dirty_bitmap_add */
     qmp_block_dirty_bitmap_add(action->node, action->name,
                                action->has_granularity, action->granularity,
@@ -2048,7 +2048,7 @@ static void block_dirty_bitmap_add_abort(BlkActionState *common)
     BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
                                              common, common);
 
-    action = common->action->u.block_dirty_bitmap_add;
+    action = common->action->u.block_dirty_bitmap_add.data;
     /* Should not be able to fail: IF the bitmap was added via .prepare(),
      * then the node reference and bitmap name must have been valid.
      */
@@ -2068,7 +2068,7 @@ static void block_dirty_bitmap_clear_prepare(BlkActionState *common,
         return;
     }
 
-    action = common->action->u.block_dirty_bitmap_clear;
+    action = common->action->u.block_dirty_bitmap_clear.data;
     state->bitmap = block_dirty_bitmap_lookup(action->node,
                                               action->name,
                                               &state->bs,

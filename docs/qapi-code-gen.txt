@@ -284,7 +284,7 @@ better than open-coding the member to be type 'str'.
 === Union types ===
 
 Usage: { 'union': STRING, 'data': DICT }
-or:    { 'union': STRING, 'data': DICT, 'base': STRUCT-NAME,
+or:    { 'union': STRING, 'data': DICT, 'base': STRUCT-NAME-OR-DICT,
          'discriminator': ENUM-MEMBER-OF-BASE }
 
 Union types are used to let the user choose between several different
@@ -297,22 +297,22 @@ be empty.
 A simple union type defines a mapping from automatic discriminator
 values to data types like in this example:
 
- { 'struct': 'FileOptions', 'data': { 'filename': 'str' } }
- { 'struct': 'Qcow2Options',
-   'data': { 'backing-file': 'str', 'lazy-refcounts': 'bool' } }
+ { 'struct': 'BlockdevOptionsFile', 'data': { 'filename': 'str' } }
+ { 'struct': 'BlockdevOptionsQcow2',
+   'data': { 'backing': 'str', '*lazy-refcounts': 'bool' } }
 
- { 'union': 'BlockdevOptions',
-   'data': { 'file': 'FileOptions',
-             'qcow2': 'Qcow2Options' } }
+ { 'union': 'BlockdevOptionsSimple',
+   'data': { 'file': 'BlockdevOptionsFile',
+             'qcow2': 'BlockdevOptionsQcow2' } }
 
 In the Client JSON Protocol, a simple union is represented by a
 dictionary that contains the 'type' member as a discriminator, and a
 'data' member that is of the specified data type corresponding to the
 discriminator value, as in these examples:
 
- { "type": "file", "data" : { "filename": "/some/place/my-image" } }
- { "type": "qcow2", "data" : { "backing-file": "/some/place/my-image",
-                               "lazy-refcounts": true } }
+ { "type": "file", "data": { "filename": "/some/place/my-image" } }
+ { "type": "qcow2", "data": { "backing": "/some/place/my-image",
+                              "lazy-refcounts": true } }
 
 The generated C code uses a struct containing a union. Additionally,
 an implicit C enum 'NameKind' is created, corresponding to the union
@@ -320,34 +320,35 @@ an implicit C enum 'NameKind' is created, corresponding to the union
 the union can be named 'max', as this would collide with the implicit
 enum.  The value for each branch can be of any type.
 
-A flat union definition specifies a struct as its base, and
-avoids nesting on the wire.  All branches of the union must be
-complex types, and the top-level members of the union dictionary on
-the wire will be combination of members from both the base type and the
-appropriate branch type (when merging two dictionaries, there must be
-no keys in common).  The 'discriminator' member must be the name of an
-enum-typed member of the base struct.
+A flat union definition avoids nesting on the wire, and specifies a
+set of common members that occur in all variants of the union.  The
+'base' key must specifiy either a type name (the type must be a
+struct, not a union), or a dictionary representing an anonymous type.
+All branches of the union must be complex types, and the top-level
+members of the union dictionary on the wire will be combination of
+members from both the base type and the appropriate branch type (when
+merging two dictionaries, there must be no keys in common).  The
+'discriminator' member must be the name of a non-optional enum-typed
+member of the base struct.
 
 The following example enhances the above simple union example by
-adding a common member 'readonly', renaming the discriminator to
-something more applicable, and reducing the number of {} required on
-the wire:
+adding an optional common member 'read-only', renaming the
+discriminator to something more applicable than the simple union's
+default of 'type', and reducing the number of {} required on the wire:
 
  { 'enum': 'BlockdevDriver', 'data': [ 'file', 'qcow2' ] }
- { 'struct': 'BlockdevCommonOptions',
-   'data': { 'driver': 'BlockdevDriver', 'readonly': 'bool' } }
  { 'union': 'BlockdevOptions',
-   'base': 'BlockdevCommonOptions',
+   'base': { 'driver': 'BlockdevDriver', '*read-only': 'bool' },
    'discriminator': 'driver',
-   'data': { 'file': 'FileOptions',
-             'qcow2': 'Qcow2Options' } }
+   'data': { 'file': 'BlockdevOptionsFile',
+             'qcow2': 'BlockdevOptionsQcow2' } }
 
 Resulting in these JSON objects:
 
- { "driver": "file", "readonly": true,
+ { "driver": "file", "read-only": true,
    "filename": "/some/place/my-image" }
- { "driver": "qcow2", "readonly": false,
-   "backing-file": "/some/place/my-image", "lazy-refcounts": true }
+ { "driver": "qcow2", "read-only": false,
+   "backing": "/some/place/my-image", "lazy-refcounts": true }
 
 Notice that in a flat union, the discriminator name is controlled by
 the user, but because it must map to a base member with enum type, the
@@ -366,10 +367,9 @@ union has a struct with a single member named 'data'.  That is,
 is identical on the wire to:
 
  { 'enum': 'Enum', 'data': ['one', 'two'] }
- { 'struct': 'Base', 'data': { 'type': 'Enum' } }
  { 'struct': 'Branch1', 'data': { 'data': 'str' } }
  { 'struct': 'Branch2', 'data': { 'data': 'int' } }
- { 'union': 'Flat', 'base': 'Base', 'discriminator': 'type',
+ { 'union': 'Flat': 'base': { 'type': 'Enum' }, 'discriminator': 'type',
    'data': { 'one': 'Branch1', 'two': 'Branch2' } }
 
 
@@ -382,7 +382,7 @@ data types (string, integer, number, or object, but currently not
 array) on the wire.  The definition is similar to a simple union type,
 where each branch of the union names a QAPI type.  For example:
 
- { 'alternate': 'BlockRef',
+ { 'alternate': 'BlockdevRef',
    'data': { 'definition': 'BlockdevOptions',
              'reference': 'str' } }
 
@@ -403,7 +403,7 @@ following example objects:
 
  { "file": "my_existing_block_device_id" }
  { "file": { "driver": "file",
-             "readonly": false,
+             "read-only": false,
              "filename": "/tmp/mydisk.qcow2" } }
 
 
@@ -575,9 +575,9 @@ names an object type without members.
 Example: the SchemaInfo for command query-qmp-schema
 
     { "name": "query-qmp-schema", "meta-type": "command",
-      "arg-type": ":empty", "ret-type": "SchemaInfoList" }
+      "arg-type": "q_empty", "ret-type": "SchemaInfoList" }
 
-    Type ":empty" is an object type without members, and type
+    Type "q_empty" is an automatic object type without members, and type
     "SchemaInfoList" is the array of SchemaInfo type.
 
 The SchemaInfo for an event has meta-type "event", and variant member
@@ -594,9 +594,9 @@ QAPI schema implicitly defines an object type.
 Example: the SchemaInfo for EVENT_C from section Events
 
     { "name": "EVENT_C", "meta-type": "event",
-      "arg-type": ":obj-EVENT_C-arg" }
+      "arg-type": "q_obj-EVENT_C-arg" }
 
-    Type ":obj-EVENT_C-arg" is an implicitly defined object type with
+    Type "q_obj-EVENT_C-arg" is an implicitly defined object type with
     the two members from the event's definition.
 
 The SchemaInfo for struct and union types has meta-type "object".
@@ -637,11 +637,11 @@ Union types
     { "name": "BlockdevOptions", "meta-type": "object",
       "members": [
           { "name": "driver", "type": "BlockdevDriver" },
-          { "name": "readonly", "type": "bool"} ],
+          { "name": "read-only", "type": "bool", "default": null } ],
       "tag": "driver",
       "variants": [
-          { "case": "file", "type": "FileOptions" },
-          { "case": "qcow2", "type": "Qcow2Options" } ] }
+          { "case": "file", "type": "BlockdevOptionsFile" },
+          { "case": "qcow2", "type": "BlockdevOptionsQcow2" } ] }
 
 Note that base types are "flattened": its members are included in the
 "members" array.
@@ -652,20 +652,20 @@ discriminator (called "type" on the wire, see section Union types).
 A simple union implicitly defines an object type for each of its
 variants.
 
-Example: the SchemaInfo for simple union BlockdevOptions from section
+Example: the SchemaInfo for simple union BlockdevOptionsSimple from section
 Union types
 
-    { "name": "BlockdevOptions", "meta-type": "object",
+    { "name": "BlockdevOptionsSimple", "meta-type": "object",
       "members": [
-          { "name": "type", "type": "BlockdevOptionsKind" } ],
+          { "name": "type", "type": "BlockdevOptionsSimpleKind" } ],
       "tag": "type",
       "variants": [
-          { "case": "file", "type": ":obj-FileOptions-wrapper" },
-          { "case": "qcow2", "type": ":obj-Qcow2Options-wrapper" } ] }
+          { "case": "file", "type": "q_obj-BlockdevOptionsFile-wrapper" },
+          { "case": "qcow2", "type": "q_obj-BlockdevOptionsQcow2-wrapper" } ] }
 
-    Enumeration type "BlockdevOptionsKind" and the object types
-    ":obj-FileOptions-wrapper", ":obj-Qcow2Options-wrapper" are
-    implicitly defined.
+    Enumeration type "BlockdevOptionsSimpleKind" and the object types
+    "q_obj-BlockdevOptionsFile-wrapper", "q_obj-BlockdevOptionsQcow2-wrapper"
+    are implicitly defined.
 
 The SchemaInfo for an alternate type has meta-type "alternate", and
 variant member "members".  "members" is a JSON array.  Each element is
@@ -673,9 +673,9 @@ a JSON object with member "type", which names a type.  Values of the
 alternate type conform to exactly one of its member types.  There is
 no guarantee on the order in which "members" will be listed.
 
-Example: the SchemaInfo for BlockRef from section Alternate types
+Example: the SchemaInfo for BlockdevRef from section Alternate types
 
-    { "name": "BlockRef", "meta-type": "alternate",
+    { "name": "BlockdevRef", "meta-type": "alternate",
       "members": [
           { "type": "BlockdevOptions" },
           { "type": "str" } ] }

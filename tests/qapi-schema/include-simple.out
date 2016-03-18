@@ -1,4 +1,4 @@
-object :empty
 enum QType ['none', 'qnull', 'qint', 'qstring', 'qdict', 'qlist', 'qfloat', 'qbool']
     prefix QTYPE
 enum Status ['good', 'bad', 'ugly']
+object q_empty

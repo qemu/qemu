@@ -2,7 +2,7 @@
 # QAPI command marshaller generator
 #
 # Copyright IBM, Corp. 2011
-# Copyright (C) 2014-2015 Red Hat, Inc.
+# Copyright (C) 2014-2016 Red Hat, Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
@@ -30,10 +30,11 @@ def gen_call(name, arg_type, ret_type):
 
     argstr = ''
     if arg_type:
+        assert not arg_type.variants
         for memb in arg_type.members:
             if memb.optional:
-                argstr += 'has_%s, ' % c_name(memb.name)
-            argstr += '%s, ' % c_name(memb.name)
+                argstr += 'arg.has_%s, ' % c_name(memb.name)
+            argstr += 'arg.%s, ' % c_name(memb.name)
 
     lhs = ''
     if ret_type:
@@ -51,72 +52,6 @@ def gen_call(name, arg_type, ret_type):
     qmp_marshal_output_%(c_name)s(retval, ret, &err);
 ''',
                      c_name=ret_type.c_name())
-    return ret
-
-
-def gen_marshal_vars(arg_type, ret_type):
-    ret = mcgen('''
-    Error *err = NULL;
-''')
-
-    if ret_type:
-        ret += mcgen('''
-    %(c_type)s retval;
-''',
-                     c_type=ret_type.c_type())
-
-    if arg_type:
-        ret += mcgen('''
-    QmpInputVisitor *qiv = qmp_input_visitor_new_strict(QOBJECT(args));
-    QapiDeallocVisitor *qdv;
-    Visitor *v;
-''')
-
-        for memb in arg_type.members:
-            if memb.optional:
-                ret += mcgen('''
-    bool has_%(c_name)s = false;
-''',
-                             c_name=c_name(memb.name))
-            ret += mcgen('''
-    %(c_type)s %(c_name)s = %(c_null)s;
-''',
-                         c_name=c_name(memb.name),
-                         c_type=memb.type.c_type(),
-                         c_null=memb.type.c_null())
-        ret += '\n'
-    else:
-        ret += mcgen('''
-
-    (void)args;
-''')
-
-    return ret
-
-
-def gen_marshal_input_visit(arg_type, dealloc=False):
-    ret = ''
-
-    if not arg_type:
-        return ret
-
-    if dealloc:
-        ret += mcgen('''
-    qmp_input_visitor_cleanup(qiv);
-    qdv = qapi_dealloc_visitor_new();
-    v = qapi_dealloc_get_visitor(qdv);
-''')
-    else:
-        ret += mcgen('''
-    v = qmp_input_get_visitor(qiv);
-''')
-
-    ret += gen_visit_members(arg_type.members, skiperr=dealloc)
-
-    if dealloc:
-        ret += mcgen('''
-    qapi_dealloc_visitor_cleanup(qdv);
-''')
     return ret
 
 
@@ -168,15 +103,40 @@ def gen_marshal(name, arg_type, ret_type):
 
 %(proto)s
 {
+    Error *err = NULL;
 ''',
                 proto=gen_marshal_proto(name))
 
-    ret += gen_marshal_vars(arg_type, ret_type)
-    ret += gen_marshal_input_visit(arg_type)
+    if ret_type:
+        ret += mcgen('''
+    %(c_type)s retval;
+''',
+                     c_type=ret_type.c_type())
+
+    if arg_type and arg_type.members:
+        ret += mcgen('''
+    QmpInputVisitor *qiv = qmp_input_visitor_new_strict(QOBJECT(args));
+    QapiDeallocVisitor *qdv;
+    Visitor *v;
+    %(c_name)s arg = {0};
+
+    v = qmp_input_get_visitor(qiv);
+    visit_type_%(c_name)s_members(v, &arg, &err);
+    if (err) {
+        goto out;
+    }
+''',
+                     c_name=arg_type.c_name())
+
+    else:
+        ret += mcgen('''
+
+    (void)args;
+''')
+
     ret += gen_call(name, arg_type, ret_type)
 
-    # 'goto out' produced by gen_marshal_input_visit->gen_visit_members()
-    # for each arg_type member, and by gen_call() for ret_type
+    # 'goto out' produced above for arg_type, and by gen_call() for ret_type
     if (arg_type and arg_type.members) or ret_type:
         ret += mcgen('''
 
@@ -185,7 +145,16 @@ out:
     ret += mcgen('''
     error_propagate(errp, err);
 ''')
-    ret += gen_marshal_input_visit(arg_type, dealloc=True)
+    if arg_type and arg_type.members:
+        ret += mcgen('''
+    qmp_input_visitor_cleanup(qiv);
+    qdv = qapi_dealloc_visitor_new();
+    v = qapi_dealloc_get_visitor(qdv);
+    visit_type_%(c_name)s_members(v, &arg, NULL);
+    qapi_dealloc_visitor_cleanup(qdv);
+''',
+                     c_name=arg_type.c_name())
+
     ret += mcgen('''
 }
 ''')

@@ -857,7 +857,7 @@ void hmp_info_tpm(Monitor *mon, const QDict *qdict)
 
         switch (ti->options->type) {
         case TPM_TYPE_OPTIONS_KIND_PASSTHROUGH:
-            tpo = ti->options->u.passthrough;
+            tpo = ti->options->u.passthrough.data;
             monitor_printf(mon, "%s%s%s%s",
                            tpo->has_path ? ",path=" : "",
                            tpo->has_path ? tpo->path : "",
@@ -1753,14 +1753,14 @@ void hmp_sendkey(Monitor *mon, const QDict *qdict)
                 goto err_out;
             }
             keylist->value->type = KEY_VALUE_KIND_NUMBER;
-            keylist->value->u.number = value;
+            keylist->value->u.number.data = value;
         } else {
             int idx = index_from_key(keys, keyname_len);
             if (idx == Q_KEY_CODE__MAX) {
                 goto err_out;
             }
             keylist->value->type = KEY_VALUE_KIND_QCODE;
-            keylist->value->u.qcode = idx;
+            keylist->value->u.qcode.data = idx;
         }
 
         if (!separator) {
@@ -1977,7 +1977,7 @@ void hmp_info_memory_devices(Monitor *mon, const QDict *qdict)
         if (value) {
             switch (value->type) {
             case MEMORY_DEVICE_INFO_KIND_DIMM:
-                di = value->u.dimm;
+                di = value->u.dimm.data;
 
                 monitor_printf(mon, "Memory device [%s]: \"%s\"\n",
                                MemoryDeviceInfoKind_lookup[value->type],

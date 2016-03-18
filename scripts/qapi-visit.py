@@ -51,7 +51,24 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
                      c_type=base.c_name())
         ret += gen_err_check()
 
-    ret += gen_visit_members(members, prefix='obj->')
+    for memb in members:
+        if memb.optional:
+            ret += mcgen('''
+    if (visit_optional(v, "%(name)s", &obj->has_%(c_name)s)) {
+''',
+                         name=memb.name, c_name=c_name(memb.name))
+            push_indent()
+        ret += mcgen('''
+    visit_type_%(c_type)s(v, "%(name)s", &obj->%(c_name)s, &err);
+''',
+                     c_type=memb.type.c_name(), name=memb.name,
+                     c_name=c_name(memb.name))
+        ret += gen_err_check()
+        if memb.optional:
+            pop_indent()
+            ret += mcgen('''
+    }
+''')
 
     if variants:
         ret += mcgen('''
@@ -60,29 +77,15 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
                      c_name=c_name(variants.tag_member.name))
 
         for var in variants.variants:
-            # TODO ugly special case for simple union
-            simple_union_type = var.simple_union_type()
             ret += mcgen('''
     case %(case)s:
+        visit_type_%(c_type)s_members(v, &obj->u.%(c_name)s, &err);
+        break;
 ''',
                          case=c_enum_const(variants.tag_member.type.name,
                                            var.name,
-                                           variants.tag_member.type.prefix))
-            if simple_union_type:
-                ret += mcgen('''
-        visit_type_%(c_type)s(v, "data", &obj->u.%(c_name)s, &err);
-''',
-                             c_type=simple_union_type.c_name(),
-                             c_name=c_name(var.name))
-            else:
-                ret += mcgen('''
-        visit_type_%(c_type)s_members(v, &obj->u.%(c_name)s, &err);
-''',
-                             c_type=var.type.c_name(),
-                             c_name=c_name(var.name))
-            ret += mcgen('''
-        break;
-''')
+                                           variants.tag_member.type.prefix),
+                         c_type=var.type.c_name(), c_name=c_name(var.name))
 
         ret += mcgen('''
     default:
@@ -90,8 +93,8 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
     }
 ''')
 
-    # 'goto out' produced for base, by gen_visit_members() for each member,
-    # and if variants were present
+    # 'goto out' produced for base, for each member, and if variants were
+    # present
     if base or members or variants:
         ret += mcgen('''
 
@@ -215,13 +218,11 @@ out:
 
 
 def gen_visit_object(name, base, members, variants):
-    ret = gen_visit_object_members(name, base, members, variants)
-
     # FIXME: if *obj is NULL on entry, and visit_start_struct() assigns to
     # *obj, but then visit_type_FOO_members() fails, we should clean up *obj
     # rather than leaving it non-NULL. As currently written, the caller must
     # call qapi_free_FOO() to avoid a memory leak of the partial FOO.
-    ret += mcgen('''
+    return mcgen('''
 
 void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
 {
@@ -245,8 +246,6 @@ out:
 ''',
                  c_name=c_name(name))
 
-    return ret
-
 
 class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
     def __init__(self):
@@ -267,11 +266,6 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
         self._btin += guardend('QAPI_VISIT_BUILTIN')
         self.decl = self._btin + self.decl
         self._btin = None
-
-    def visit_needed(self, entity):
-        # Visit everything except implicit objects
-        return not (entity.is_implicit() and
-                    isinstance(entity, QAPISchemaObjectType))
 
     def visit_enum_type(self, name, info, values, prefix):
         # Special case for our lone builtin enum type
@@ -296,9 +290,17 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
             self.defn += defn
 
     def visit_object_type(self, name, info, base, members, variants):
+        # Nothing to do for the special empty builtin
+        if name == 'q_empty':
+            return
         self.decl += gen_visit_members_decl(name)
-        self.decl += gen_visit_decl(name)
-        self.defn += gen_visit_object(name, base, members, variants)
+        self.defn += gen_visit_object_members(name, base, members, variants)
+        # TODO Worth changing the visitor signature, so we could
+        # directly use rather than repeat type.is_implicit()?
+        if not name.startswith('q_'):
+            # only explicit types need an allocating visit
+            self.decl += gen_visit_decl(name)
+            self.defn += gen_visit_object(name, base, members, variants)
 
     def visit_alternate_type(self, name, info, variants):
         self.decl += gen_visit_decl(name)

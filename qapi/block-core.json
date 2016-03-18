@@ -1644,57 +1644,6 @@
             'vmdk', 'vpc', 'vvfat' ] }
 
 ##
-# @BlockdevOptionsBase
-#
-# Options that are available for all block devices, independent of the block
-# driver.
-#
-# @driver:        block driver name
-# @id:            #optional id by which the new block device can be referred to.
-#                 This option is only allowed on the top level of blockdev-add.
-#                 A BlockBackend will be created by blockdev-add if and only if
-#                 this option is given.
-# @node-name:     #optional the name of a block driver state node (Since 2.0).
-#                 This option is required on the top level of blockdev-add if
-#                 the @id option is not given there.
-# @discard:       #optional discard-related options (default: ignore)
-# @cache:         #optional cache-related options
-# @aio:           #optional AIO backend (default: threads)
-# @rerror:        #optional how to handle read errors on the device
-#                 (default: report)
-# @werror:        #optional how to handle write errors on the device
-#                 (default: enospc)
-# @read-only:     #optional whether the block device should be read-only
-#                 (default: false)
-# @stats-account-invalid: #optional whether to include invalid
-#                         operations when computing last access statistics
-#                         (default: true) (Since 2.5)
-# @stats-account-failed: #optional whether to include failed
-#                         operations when computing latency and last
-#                         access statistics (default: true) (Since 2.5)
-# @stats-intervals: #optional list of intervals for collecting I/O
-#                   statistics, in seconds (default: none) (Since 2.5)
-# @detect-zeroes: #optional detect and optimize zero writes (Since 2.1)
-#                 (default: off)
-#
-# Since: 1.7
-##
-{ 'struct': 'BlockdevOptionsBase',
-  'data': { 'driver': 'BlockdevDriver',
-            '*id': 'str',
-            '*node-name': 'str',
-            '*discard': 'BlockdevDiscardOptions',
-            '*cache': 'BlockdevCacheOptions',
-            '*aio': 'BlockdevAioOptions',
-            '*rerror': 'BlockdevOnError',
-            '*werror': 'BlockdevOnError',
-            '*read-only': 'bool',
-            '*stats-account-invalid': 'bool',
-            '*stats-account-failed': 'bool',
-            '*stats-intervals': ['int'],
-            '*detect-zeroes': 'BlockdevDetectZeroesOptions' } }
-
-##
 # @BlockdevOptionsFile
 #
 # Driver specific block device options for the file backend and similar
@@ -2070,12 +2019,55 @@
 ##
 # @BlockdevOptions
 #
-# Options for creating a block device.
+# Options for creating a block device.  Many options are available for all
+# block devices, independent of the block driver:
+#
+# @driver:        block driver name
+# @id:            #optional id by which the new block device can be referred to.
+#                 This option is only allowed on the top level of blockdev-add.
+#                 A BlockBackend will be created by blockdev-add if and only if
+#                 this option is given.
+# @node-name:     #optional the name of a block driver state node (Since 2.0).
+#                 This option is required on the top level of blockdev-add if
+#                 the @id option is not given there.
+# @discard:       #optional discard-related options (default: ignore)
+# @cache:         #optional cache-related options
+# @aio:           #optional AIO backend (default: threads)
+# @rerror:        #optional how to handle read errors on the device
+#                 (default: report)
+# @werror:        #optional how to handle write errors on the device
+#                 (default: enospc)
+# @read-only:     #optional whether the block device should be read-only
+#                 (default: false)
+# @stats-account-invalid: #optional whether to include invalid
+#                         operations when computing last access statistics
+#                         (default: true) (Since 2.5)
+# @stats-account-failed: #optional whether to include failed
+#                         operations when computing latency and last
+#                         access statistics (default: true) (Since 2.5)
+# @stats-intervals: #optional list of intervals for collecting I/O
+#                   statistics, in seconds (default: none) (Since 2.5)
+# @detect-zeroes: #optional detect and optimize zero writes (Since 2.1)
+#                 (default: off)
+#
+# Remaining options are determined by the block driver.
 #
 # Since: 1.7
 ##
 { 'union': 'BlockdevOptions',
-  'base': 'BlockdevOptionsBase',
+  'base': { 'driver': 'BlockdevDriver',
+            '*id': 'str',
+            '*node-name': 'str',
+            '*discard': 'BlockdevDiscardOptions',
+            '*cache': 'BlockdevCacheOptions',
+            '*aio': 'BlockdevAioOptions',
+            '*rerror': 'BlockdevOnError',
+            '*werror': 'BlockdevOnError',
+            '*read-only': 'bool',
+            '*stats-account-invalid': 'bool',
+            '*stats-account-failed': 'bool',
+            '*stats-intervals': ['int'],
+            '*detect-zeroes': 'BlockdevDetectZeroesOptions' },
   'discriminator': 'driver',
   'data': {
       'archipelago':'BlockdevOptionsArchipelago',

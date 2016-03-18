@@ -141,10 +141,10 @@ static int number_to_qcode[0x100];
 int qemu_input_key_value_to_number(const KeyValue *value)
 {
     if (value->type == KEY_VALUE_KIND_QCODE) {
-        return qcode_to_number[value->u.qcode];
+        return qcode_to_number[value->u.qcode.data];
     } else {
         assert(value->type == KEY_VALUE_KIND_NUMBER);
-        return value->u.number;
+        return value->u.number.data;
     }
 }
 
@@ -168,10 +168,10 @@ int qemu_input_key_number_to_qcode(uint8_t nr)
 int qemu_input_key_value_to_qcode(const KeyValue *value)
 {
     if (value->type == KEY_VALUE_KIND_QCODE) {
-        return value->u.qcode;
+        return value->u.qcode.data;
     } else {
         assert(value->type == KEY_VALUE_KIND_NUMBER);
-        return qemu_input_key_number_to_qcode(value->u.number);
+        return qemu_input_key_number_to_qcode(value->u.number.data);
     }
 }
 
@@ -182,7 +182,7 @@ int qemu_input_key_value_to_scancode(const KeyValue *value, bool down,
     int count = 0;
 
     if (value->type == KEY_VALUE_KIND_QCODE &&
-        value->u.qcode == Q_KEY_CODE_PAUSE) {
+        value->u.qcode.data == Q_KEY_CODE_PAUSE) {
         /* specific case */
         int v = down ? 0 : 0x80;
         codes[count++] = 0xe1;

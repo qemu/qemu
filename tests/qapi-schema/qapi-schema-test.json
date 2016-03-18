@@ -18,6 +18,8 @@
 { 'struct': 'Empty1', 'data': { } }
 { 'struct': 'Empty2', 'base': 'Empty1', 'data': { } }
 
+{ 'command': 'user_def_cmd0', 'data': 'Empty2', 'returns': 'Empty2' }
+
 # for testing override of default naming heuristic
 { 'enum': 'QEnumTwo',
   'prefix': 'QENUM_TWO',
@@ -73,14 +75,10 @@
   'base': 'UserDefZero',
   'data': { 'string': 'str', 'enum1': 'EnumOne' } }
 
-{ 'struct': 'UserDefUnionBase2',
-  'base': 'UserDefZero',
-  'data': { 'string': 'str', 'enum1': 'QEnumTwo' } }
-
 # this variant of UserDefFlatUnion defaults to a union that uses members with
 # allocated types to test corner cases in the cleanup/dealloc visitor
 { 'union': 'UserDefFlatUnion2',
-  'base': 'UserDefUnionBase2',
+  'base': { '*integer': 'int', 'string': 'str', 'enum1': 'QEnumTwo' },
   'discriminator': 'enum1',
   'data': { 'value1' : 'UserDefC', # intentional forward reference
             'value2' : 'UserDefB' } }

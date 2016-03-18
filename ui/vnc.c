@@ -112,9 +112,9 @@ static void vnc_init_basic_info(SocketAddress *addr,
 {
     switch (addr->type) {
     case SOCKET_ADDRESS_KIND_INET:
-        info->host = g_strdup(addr->u.inet->host);
-        info->service = g_strdup(addr->u.inet->port);
-        if (addr->u.inet->ipv6) {
+        info->host = g_strdup(addr->u.inet.data->host);
+        info->service = g_strdup(addr->u.inet.data->port);
+        if (addr->u.inet.data->ipv6) {
             info->family = NETWORK_ADDRESS_FAMILY_IPV6;
         } else {
             info->family = NETWORK_ADDRESS_FAMILY_IPV4;
@@ -123,7 +123,7 @@ static void vnc_init_basic_info(SocketAddress *addr,
 
     case SOCKET_ADDRESS_KIND_UNIX:
         info->host = g_strdup("");
-        info->service = g_strdup(addr->u.q_unix->path);
+        info->service = g_strdup(addr->u.q_unix.data->path);
         info->family = NETWORK_ADDRESS_FAMILY_UNIX;
         break;
 
@@ -385,9 +385,9 @@ VncInfo *qmp_query_vnc(Error **errp)
 
         switch (addr->type) {
         case SOCKET_ADDRESS_KIND_INET:
-            info->host = g_strdup(addr->u.inet->host);
-            info->service = g_strdup(addr->u.inet->port);
-            if (addr->u.inet->ipv6) {
+            info->host = g_strdup(addr->u.inet.data->host);
+            info->service = g_strdup(addr->u.inet.data->port);
+            if (addr->u.inet.data->ipv6) {
                 info->family = NETWORK_ADDRESS_FAMILY_IPV6;
             } else {
                 info->family = NETWORK_ADDRESS_FAMILY_IPV4;
@@ -396,7 +396,7 @@ VncInfo *qmp_query_vnc(Error **errp)
 
         case SOCKET_ADDRESS_KIND_UNIX:
             info->host = g_strdup("");
-            info->service = g_strdup(addr->u.q_unix->path);
+            info->service = g_strdup(addr->u.q_unix.data->path);
             info->family = NETWORK_ADDRESS_FAMILY_UNIX;
             break;
 
@@ -3192,7 +3192,8 @@ char *vnc_display_local_addr(const char *id)
         qapi_free_SocketAddress(addr);
         return NULL;
     }
-    ret = g_strdup_printf("%s;%s", addr->u.inet->host, addr->u.inet->port);
+    ret = g_strdup_printf("%s;%s", addr->u.inet.data->host,
+                          addr->u.inet.data->port);
     qapi_free_SocketAddress(addr);
 
     return ret;
@@ -3524,8 +3525,8 @@ void vnc_display_open(const char *id, Error **errp)
 
         if (strncmp(vnc, "unix:", 5) == 0) {
             saddr->type = SOCKET_ADDRESS_KIND_UNIX;
-            saddr->u.q_unix = g_new0(UnixSocketAddress, 1);
-            saddr->u.q_unix->path = g_strdup(vnc + 5);
+            saddr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
+            saddr->u.q_unix.data->path = g_strdup(vnc + 5);
 
             if (vs->ws_enabled) {
                 error_setg(errp, "UNIX sockets not supported with websock");
@@ -3535,7 +3536,7 @@ void vnc_display_open(const char *id, Error **errp)
             unsigned long long baseport;
             InetSocketAddress *inet;
             saddr->type = SOCKET_ADDRESS_KIND_INET;
-            inet = saddr->u.inet = g_new0(InetSocketAddress, 1);
+            inet = saddr->u.inet.data = g_new0(InetSocketAddress, 1);
             if (vnc[0] == '[' && vnc[hlen - 1] == ']') {
                 inet->host = g_strndup(vnc + 1, hlen - 2);
             } else {
@@ -3564,8 +3565,8 @@ void vnc_display_open(const char *id, Error **errp)
 
             if (vs->ws_enabled) {
                 wsaddr->type = SOCKET_ADDRESS_KIND_INET;
-                inet = wsaddr->u.inet = g_new0(InetSocketAddress, 1);
-                inet->host = g_strdup(saddr->u.inet->host);
+                inet = wsaddr->u.inet.data = g_new0(InetSocketAddress, 1);
+                inet->host = g_strdup(saddr->u.inet.data->host);
                 inet->port = g_strdup(websocket);
 
                 if (to) {

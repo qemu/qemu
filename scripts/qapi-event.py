@@ -28,7 +28,37 @@ def gen_event_send_decl(name, arg_type):
                  proto=gen_event_send_proto(name, arg_type))
 
 
+# Declare and initialize an object 'qapi' using parameters from gen_params()
+def gen_param_var(typ):
+    assert not typ.variants
+    ret = mcgen('''
+    %(c_name)s param = {
+''',
+                c_name=typ.c_name())
+    sep = '        '
+    for memb in typ.members:
+        ret += sep
+        sep = ', '
+        if memb.optional:
+            ret += 'has_' + c_name(memb.name) + sep
+        if memb.type.name == 'str':
+            # Cast away const added in gen_params()
+            ret += '(char *)'
+        ret += c_name(memb.name)
+    ret += mcgen('''
+
+    };
+''')
+    return ret
+
+
 def gen_event_send(name, arg_type):
+    # FIXME: Our declaration of local variables (and of 'errp' in the
+    # parameter list) can collide with exploded members of the event's
+    # data type passed in as parameters.  If this collision ever hits in
+    # practice, we can rename our local variables with a leading _ prefix,
+    # or split the code into a wrapper function that creates a boxed
+    # 'param' object then calls another to do the real work.
     ret = mcgen('''
 
 %(proto)s
@@ -43,11 +73,11 @@ def gen_event_send(name, arg_type):
         ret += mcgen('''
     QmpOutputVisitor *qov;
     Visitor *v;
-    QObject *obj;
-
 ''')
+        ret += gen_param_var(arg_type)
 
     ret += mcgen('''
+
     emit = qmp_event_get_func_emit();
     if (!emit) {
         return;
@@ -64,23 +94,18 @@ def gen_event_send(name, arg_type):
     v = qmp_output_get_visitor(qov);
 
     visit_start_struct(v, "%(name)s", NULL, 0, &err);
-''',
-                     name=name)
-        ret += gen_err_check()
-        ret += gen_visit_members(arg_type.members, need_cast=True,
-                                 label='out_obj')
-        ret += mcgen('''
-out_obj:
+    if (err) {
+        goto out;
+    }
+    visit_type_%(c_name)s_members(v, &param, &err);
     visit_end_struct(v, err ? NULL : &err);
     if (err) {
         goto out;
     }
 
-    obj = qmp_output_get_qobject(qov);
-    g_assert(obj);
-
-    qdict_put_obj(qmp, "data", obj);
-''')
+    qdict_put_obj(qmp, "data", qmp_output_get_qobject(qov));
+''',
+                     name=name, c_name=arg_type.c_name())
 
     ret += mcgen('''
     emit(%(c_enum)s, qmp, &err);

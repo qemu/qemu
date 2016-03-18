@@ -13,6 +13,11 @@ void qmp_user_def_cmd(Error **errp)
 {
 }
 
+Empty2 *qmp_user_def_cmd0(Error **errp)
+{
+    return g_new0(Empty2, 1);
+}
+
 void qmp_user_def_cmd1(UserDefOne * ud1, Error **errp)
 {
 }
@@ -64,7 +69,7 @@ __org_qemu_x_Union1 *qmp___org_qemu_x_command(__org_qemu_x_EnumList *a,
     __org_qemu_x_Union1 *ret = g_new0(__org_qemu_x_Union1, 1);
 
     ret->type = ORG_QEMU_X_UNION1_KIND___ORG_QEMU_X_BRANCH;
-    ret->u.__org_qemu_x_branch = strdup("blah1");
+    ret->u.__org_qemu_x_branch.data = strdup("blah1");
 
     /* Also test that 'wchar-t' was munged to 'q_wchar_t' */
     if (b && b->value && !b->value->has_q_wchar_t) {
