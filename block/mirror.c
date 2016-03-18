@@ -856,7 +856,6 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
 
     bdrv_op_block_all(s->target, s->common.blocker);
 
-    bdrv_set_enable_write_cache(s->target, true);
     if (s->target->blk) {
         blk_set_on_error(s->target->blk, on_target_error, on_target_error);
         blk_iostatus_enable(s->target->blk);

@@ -395,8 +395,6 @@ int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
 
 int bdrv_is_read_only(BlockDriverState *bs);
 int bdrv_is_sg(BlockDriverState *bs);
-int bdrv_enable_write_cache(BlockDriverState *bs);
-void bdrv_set_enable_write_cache(BlockDriverState *bs, bool wce);
 bool bdrv_is_inserted(BlockDriverState *bs);
 int bdrv_media_changed(BlockDriverState *bs);
 void bdrv_lock_medium(BlockDriverState *bs, bool locked);

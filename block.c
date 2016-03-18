@@ -2695,22 +2695,6 @@ int bdrv_is_sg(BlockDriverState *bs)
     return bs->sg;
 }
 
-int bdrv_enable_write_cache(BlockDriverState *bs)
-{
-    if (bs->blk) {
-        return blk_enable_write_cache(bs->blk);
-    } else {
-        return true;
-    }
-}
-
-void bdrv_set_enable_write_cache(BlockDriverState *bs, bool wce)
-{
-    if (bs->blk) {
-        blk_set_enable_write_cache(bs->blk, wce);
-    }
-}
-
 int bdrv_is_encrypted(BlockDriverState *bs)
 {
     if (bs->backing && bs->backing->bs->encrypted) {
