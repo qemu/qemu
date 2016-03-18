@@ -510,9 +510,9 @@ struct TCGContext {
 
     /* goto_tb support */
     tcg_insn_unit *code_buf;
-    uintptr_t *tb_next;
-    uint16_t *tb_next_offset;
-    uint16_t *tb_jmp_offset; /* != NULL if USE_DIRECT_JUMP */
+    uint16_t *tb_jmp_reset_offset; /* tb->jmp_reset_offset */
+    uint16_t *tb_jmp_insn_offset; /* tb->jmp_insn_offset if USE_DIRECT_JUMP */
+    uintptr_t *tb_jmp_target_addr; /* tb->jmp_target_addr if !USE_DIRECT_JUMP */
 
     /* liveness analysis */
     uint16_t *op_dead_args; /* for each operation, each bit tells if the
