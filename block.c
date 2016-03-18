@@ -680,7 +680,6 @@ static void bdrv_temp_snapshot_options(int *child_flags, QDict *child_options,
     *child_flags = (parent_flags & ~BDRV_O_SNAPSHOT) | BDRV_O_TEMPORARY;
 
     /* For temporary files, unconditional cache=unsafe is fine */
-    qdict_set_default_str(child_options, BDRV_OPT_CACHE_WB, "on");
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_NO_FLUSH, "on");
 }
@@ -705,7 +704,6 @@ static void bdrv_inherited_options(int *child_flags, QDict *child_options,
     /* Our block drivers take care to send flushes and respect unmap policy,
      * so we can default to enable both on lower layers regardless of the
      * corresponding parent options. */
-    qdict_set_default_str(child_options, BDRV_OPT_CACHE_WB, "on");
     flags |= BDRV_O_UNMAP;
 
     /* Clear flags that only apply to the top layer */
@@ -748,7 +746,6 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
 
     /* The cache mode is inherited unmodified for backing files; except WCE,
      * which is only applied on the top level (BlockBackend) */
-    qdict_set_default_str(child_options, BDRV_OPT_CACHE_WB, "on");
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_DIRECT);
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_NO_FLUSH);
 
@@ -767,7 +764,7 @@ static const BdrvChildRole child_backing = {
 
 static int bdrv_open_flags(BlockDriverState *bs, int flags)
 {
-    int open_flags = flags | BDRV_O_CACHE_WB;
+    int open_flags = flags;
 
     /*
      * Clear flags that are internal to the block layer before opening the
@@ -789,11 +786,6 @@ static void update_flags_from_options(int *flags, QemuOpts *opts)
 {
     *flags &= ~BDRV_O_CACHE_MASK;
 
-    assert(qemu_opt_find(opts, BDRV_OPT_CACHE_WB));
-    if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_WB, false)) {
-        *flags |= BDRV_O_CACHE_WB;
-    }
-
     assert(qemu_opt_find(opts, BDRV_OPT_CACHE_NO_FLUSH));
     if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_NO_FLUSH, false)) {
         *flags |= BDRV_O_NO_FLUSH;
@@ -807,10 +799,6 @@ static void update_flags_from_options(int *flags, QemuOpts *opts)
 
 static void update_options_from_flags(QDict *options, int flags)
 {
-    if (!qdict_haskey(options, BDRV_OPT_CACHE_WB)) {
-        qdict_put(options, BDRV_OPT_CACHE_WB,
-                  qbool_from_bool(flags & BDRV_O_CACHE_WB));
-    }
     if (!qdict_haskey(options, BDRV_OPT_CACHE_DIRECT)) {
         qdict_put(options, BDRV_OPT_CACHE_DIRECT,
                   qbool_from_bool(flags & BDRV_O_NOCACHE));
@@ -871,11 +859,6 @@ static QemuOptsList bdrv_runtime_opts = {
             .name = "driver",
             .type = QEMU_OPT_STRING,
             .help = "Block driver to use for the node",
-        },
-        {
-            .name = BDRV_OPT_CACHE_WB,
-            .type = QEMU_OPT_BOOL,
-            .help = "Enable writeback mode",
         },
         {
             .name = BDRV_OPT_CACHE_DIRECT,
@@ -983,14 +966,6 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
 
     /* Apply cache mode options */
     update_flags_from_options(&bs->open_flags, opts);
-
-    if (!bs->blk && (bs->open_flags & BDRV_O_CACHE_WB) == 0) {
-        error_setg(errp, "Can't set writethrough mode except for the root");
-        ret = -EINVAL;
-        goto free_and_fail;
-    }
-
-    bdrv_set_enable_write_cache(bs, bs->open_flags & BDRV_O_CACHE_WB);
 
     /* Open the image, either directly or using a protocol */
     open_flags = bdrv_open_flags(bs, bs->open_flags);
@@ -2013,16 +1988,6 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
 
     update_flags_from_options(&reopen_state->flags, opts);
 
-    /* WCE is a BlockBackend level option, can't change it */
-    bool old_wce = bdrv_enable_write_cache(reopen_state->bs);
-    bool new_wce = (reopen_state->flags & BDRV_O_CACHE_WB);
-
-    if (old_wce != new_wce) {
-        error_setg(errp, "Cannot change cache.writeback");
-        ret = -EINVAL;
-        goto error;
-    }
-
     /* node-name and driver must be unchanged. Put them back into the QDict, so
      * that they are checked at the end of this function. */
     value = qemu_opt_get(opts, "node-name");
@@ -2124,8 +2089,6 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state)
     reopen_state->bs->open_flags         = reopen_state->flags;
     reopen_state->bs->read_only = !(reopen_state->flags & BDRV_O_RDWR);
 
-    bdrv_set_enable_write_cache(reopen_state->bs,
-                                !!(reopen_state->flags & BDRV_O_CACHE_WB));
     bdrv_refresh_limits(reopen_state->bs, NULL);
 }
 
@@ -2745,13 +2708,6 @@ void bdrv_set_enable_write_cache(BlockDriverState *bs, bool wce)
 {
     if (bs->blk) {
         blk_set_enable_write_cache(bs->blk, wce);
-    }
-
-    /* so a reopen() will preserve wce */
-    if (wce) {
-        bs->open_flags |= BDRV_O_CACHE_WB;
-    } else {
-        bs->open_flags &= ~BDRV_O_CACHE_WB;
     }
 }
 
@@ -3605,7 +3561,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
             }
 
             /* backing files always opened read-only */
-            back_flags = flags | BDRV_O_CACHE_WB;
+            back_flags = flags;
             back_flags &= ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
 
             if (backing_fmt) {

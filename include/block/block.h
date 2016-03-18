@@ -82,7 +82,6 @@ typedef struct HDGeometry {
 #define BDRV_O_SNAPSHOT    0x0008 /* open the file read only and save writes in a snapshot */
 #define BDRV_O_TEMPORARY   0x0010 /* delete the file after use */
 #define BDRV_O_NOCACHE     0x0020 /* do not use the host page cache */
-#define BDRV_O_CACHE_WB    0x0040 /* use write-back caching */
 #define BDRV_O_NATIVE_AIO  0x0080 /* use native AIO instead of the thread pool */
 #define BDRV_O_NO_BACKING  0x0100 /* don't open the backing file */
 #define BDRV_O_NO_FLUSH    0x0200 /* disable flushing on this disk */
@@ -96,7 +95,7 @@ typedef struct HDGeometry {
                                       ignoring the format layer */
 #define BDRV_O_NO_IO       0x10000 /* don't initialize for I/O */
 
-#define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH)
+#define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_NO_FLUSH)
 
 
 /* Option names of options parsed by the block layer */

@@ -110,11 +110,11 @@ function check_cache_all()
     echo -e "\n\ncache.writeback=off on none0"
     echo "$hmp_cmds" | run_qemu -drive "$files","$ids",cache.writeback=off | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.writeback=off on file"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.writeback=off | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.writeback=off | grep -e "doesn't" -e "does not"
     echo -e "\ncache.writeback=off on backing"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.writeback=off | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.writeback=off | grep -e "doesn't" -e "does not"
     echo -e "\ncache.writeback=off on backing-file"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.writeback=off | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.writeback=off | grep -e "doesn't" -e "does not"
 
     # cache.no-flush is supposed to be inherited by both bs->file and bs->backing
 

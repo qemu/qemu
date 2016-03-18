@@ -595,7 +595,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         /* bdrv_open() defaults to the values in bdrv_flags (for compatibility
          * with other callers) rather than what we want as the real defaults.
          * Apply the defaults here instead. */
-        qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_WB, writethrough ? "off" : "on");
         qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
         qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, "off");
         assert((bdrv_flags & BDRV_O_CACHE_MASK) == 0);
@@ -691,7 +690,6 @@ static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
     /* bdrv_open() defaults to the values in bdrv_flags (for compatibility
      * with other callers) rather than what we want as the real defaults.
      * Apply the defaults here instead. */
-    qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_WB, "on");
     qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, "off");
 
@@ -1779,12 +1777,6 @@ static void external_snapshot_prepare(BlkActionState *common,
         flags |= BDRV_O_NO_BACKING;
     }
 
-    /* There is no BB attached during bdrv_open(), so we can't set a
-     * writethrough mode. bdrv_append() will swap the WCE setting so that the
-     * backing file becomes unconditionally writeback (which is what backing
-     * files should always be) and the new overlay gets the original setting. */
-    flags |= BDRV_O_CACHE_WB;
-
     assert(state->new_bs == NULL);
     ret = bdrv_open(&state->new_bs, new_image_file, snapshot_ref, options,
                     flags, errp);
@@ -2529,7 +2521,6 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
     BlockBackend *blk;
     BlockDriverState *medium_bs = NULL;
     int bdrv_flags, ret;
-    bool writethrough;
     QDict *options = NULL;
     Error *err = NULL;
 
@@ -2547,12 +2538,6 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
     bdrv_flags = blk_get_open_flags_from_root_state(blk);
     bdrv_flags &= ~(BDRV_O_TEMPORARY | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING |
         BDRV_O_PROTOCOL);
-
-    /* Must open the image in writeback mode as long as no BlockBackend is
-     * attached. The right mode can be set as the final step after changing the
-     * medium. */
-    writethrough = !(bdrv_flags & BDRV_O_CACHE_WB);
-    bdrv_flags |= BDRV_O_CACHE_WB;
 
     if (!has_read_only) {
         read_only = BLOCKDEV_CHANGE_READ_ONLY_MODE_RETAIN;
@@ -2610,8 +2595,6 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
         error_propagate(errp, err);
         goto fail;
     }
-
-    bdrv_set_enable_write_cache(medium_bs, !writethrough);
 
     qmp_blockdev_close_tray(device, errp);
 
@@ -3238,7 +3221,7 @@ static void do_drive_backup(const char *device, const char *target,
         goto out;
     }
 
-    flags = bs->open_flags | BDRV_O_CACHE_WB | BDRV_O_RDWR;
+    flags = bs->open_flags | BDRV_O_RDWR;
 
     /* See if we have a backing HD we can use to create our new image
      * on top of. */
@@ -3533,7 +3516,7 @@ void qmp_drive_mirror(const char *device, const char *target,
         format = mode == NEW_IMAGE_MODE_EXISTING ? NULL : bs->drv->format_name;
     }
 
-    flags = bs->open_flags | BDRV_O_CACHE_WB | BDRV_O_RDWR;
+    flags = bs->open_flags | BDRV_O_RDWR;
     source = backing_bs(bs);
     if (!source && sync == MIRROR_SYNC_MODE_TOP) {
         sync = MIRROR_SYNC_MODE_FULL;

@@ -2151,7 +2151,6 @@ static int reopen_f(BlockBackend *blk, int argc, char **argv)
     opts = qopts ? qemu_opts_to_qdict(qopts, NULL) : NULL;
     qemu_opts_reset(&reopen_opts);
 
-    flags |= blk_enable_write_cache(blk) ? BDRV_O_CACHE_WB : 0;
     brq = bdrv_reopen_queue(NULL, bs, opts, flags);
     bdrv_reopen_multiple(brq, &local_err);
     if (local_err) {

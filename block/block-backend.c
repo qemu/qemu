@@ -150,8 +150,6 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
     BlockBackend *blk;
     int ret;
 
-    assert((flags & BDRV_O_CACHE_WB) == 0);
-
     blk = blk_new_with_bs(errp);
     if (!blk) {
         QDECREF(options);
@@ -1224,15 +1222,6 @@ int blk_enable_write_cache(BlockBackend *blk)
 void blk_set_enable_write_cache(BlockBackend *blk, bool wce)
 {
     blk->enable_write_cache = wce;
-
-    /* TODO Remove this when BDRV_O_CACHE_WB isn't used any more */
-    if (blk->root) {
-        if (wce) {
-            blk->root->bs->open_flags |= BDRV_O_CACHE_WB;
-        } else {
-            blk->root->bs->open_flags &= ~BDRV_O_CACHE_WB;
-        }
-    }
 }
 
 void blk_invalidate_cache(BlockBackend *blk, Error **errp)
