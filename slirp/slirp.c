@@ -109,31 +109,34 @@ static void winsock_cleanup(void)
 
 static struct stat dns_addr_stat;
 
-int get_dns_addr(struct in_addr *pdns_addr)
+static int get_dns_addr_cached(struct in_addr *pdns_addr)
+{
+    struct stat old_stat;
+    if (curtime - dns_addr_time < TIMEOUT_DEFAULT) {
+        *pdns_addr = dns_addr;
+        return 0;
+    }
+    old_stat = dns_addr_stat;
+    if (stat("/etc/resolv.conf", &dns_addr_stat) != 0) {
+        return -1;
+    }
+    if (dns_addr_stat.st_dev == old_stat.st_dev
+        && dns_addr_stat.st_ino == old_stat.st_ino
+        && dns_addr_stat.st_size == old_stat.st_size
+        && dns_addr_stat.st_mtime == old_stat.st_mtime) {
+        *pdns_addr = dns_addr;
+        return 0;
+    }
+    return 1;
+}
+
+static int get_dns_addr_resolv_conf(struct in_addr *pdns_addr)
 {
     char buff[512];
     char buff2[257];
     FILE *f;
     int found = 0;
     struct in_addr tmp_addr;
-
-    if (dns_addr.s_addr != 0) {
-        struct stat old_stat;
-        if ((curtime - dns_addr_time) < TIMEOUT_DEFAULT) {
-            *pdns_addr = dns_addr;
-            return 0;
-        }
-        old_stat = dns_addr_stat;
-        if (stat("/etc/resolv.conf", &dns_addr_stat) != 0)
-            return -1;
-        if ((dns_addr_stat.st_dev == old_stat.st_dev)
-            && (dns_addr_stat.st_ino == old_stat.st_ino)
-            && (dns_addr_stat.st_size == old_stat.st_size)
-            && (dns_addr_stat.st_mtime == old_stat.st_mtime)) {
-            *pdns_addr = dns_addr;
-            return 0;
-        }
-    }
 
     f = fopen("/etc/resolv.conf", "r");
     if (!f)
@@ -172,6 +175,18 @@ int get_dns_addr(struct in_addr *pdns_addr)
     if (!found)
         return -1;
     return 0;
+}
+
+int get_dns_addr(struct in_addr *pdns_addr)
+{
+    if (dns_addr.s_addr != 0) {
+        int ret;
+        ret = get_dns_addr_cached(pdns_addr);
+        if (ret <= 0) {
+            return ret;
+        }
+    }
+    return get_dns_addr_resolv_conf(pdns_addr);
 }
 
 #endif
