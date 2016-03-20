@@ -113,8 +113,7 @@ void udp6_input(struct mbuf *m)
         m->m_data -= iphlen;
         *ip = save_ip;
         DEBUG_MISC((dfd, "udp tx errno = %d-%s\n", errno, strerror(errno)));
-        /* TODO: ICMPv6 error */
-        /*icmp_error(m, ICMP_UNREACH,ICMP_UNREACH_NET, 0,strerror(errno));*/
+        icmp6_send_error(m, ICMP6_UNREACH, ICMP6_UNREACH_NO_ROUTE);
         goto bad;
     }
 
