@@ -32,7 +32,7 @@ update: $(SRCS)
 build: $(OBJS)
 
 clean:
-	$(RM) $(OBJS)
+	rm -f $(OBJS)
 
 install: $(OBJS)
 	for obj in $(OBJS); do \
