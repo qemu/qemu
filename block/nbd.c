@@ -36,7 +36,7 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qstring.h"
-
+#include "qemu/cutils.h"
 
 #define EN_OPTSTR ":exportname="
 

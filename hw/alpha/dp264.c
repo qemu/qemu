@@ -20,6 +20,7 @@
 #include "hw/ide.h"
 #include "hw/timer/i8254.h"
 #include "hw/char/serial.h"
+#include "qemu/cutils.h"
 
 #define MAX_IDE_BUS 2
 

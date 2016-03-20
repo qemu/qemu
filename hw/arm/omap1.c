@@ -31,6 +31,8 @@
 #include "sysemu/blockdev.h"
 #include "qemu/range.h"
 #include "hw/sysbus.h"
+#include "qemu/cutils.h"
+#include "qemu/bcd.h"
 
 /* Should signal the TCMI/GPMC */
 uint32_t omap_badwidth_read8(void *opaque, hwaddr addr)

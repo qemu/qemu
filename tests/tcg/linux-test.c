@@ -39,6 +39,7 @@
 #include <dirent.h>
 #include <setjmp.h>
 #include <sys/shm.h>
+#include "qemu/cutils.h"
 
 #define TESTPATH "/tmp/linux-test.tmp"
 #define TESTPORT 7654

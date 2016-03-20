@@ -29,6 +29,7 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "boot.h"
+#include "qemu/cutils.h"
 
 static void main_cpu_reset(void *opaque)
 {

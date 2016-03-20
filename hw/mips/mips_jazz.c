@@ -45,6 +45,7 @@
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
 #include "qemu/error-report.h"
+#include "qemu/help_option.h"
 
 enum jazz_model_e
 {

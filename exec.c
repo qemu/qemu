@@ -22,7 +22,7 @@
 #include <sys/mman.h>
 #endif
 
-#include "qemu-common.h"
+#include "qemu/cutils.h"
 #include "cpu.h"
 #include "tcg.h"
 #include "hw/hw.h"

@@ -21,6 +21,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include "qemu/xattr.h"
+#include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include <libgen.h>
 #include <linux/fs.h>

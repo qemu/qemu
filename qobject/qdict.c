@@ -19,6 +19,7 @@
 #include "qapi/qmp/qobject.h"
 #include "qemu/queue.h"
 #include "qemu-common.h"
+#include "qemu/cutils.h"
 
 /**
  * qdict_new(): Create a new QDict

@@ -17,6 +17,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 
 #include "cpu.h"
 #include "sysemu/kvm.h"

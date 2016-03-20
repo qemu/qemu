@@ -30,6 +30,7 @@
 #include "qapi/qmp/qstring.h"
 #include "crypto/secret.h"
 #include <curl/curl.h>
+#include "qemu/cutils.h"
 
 // #define DEBUG_CURL
 // #define DEBUG_VERBOSE

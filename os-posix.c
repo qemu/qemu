@@ -38,6 +38,7 @@
 #include "qemu/rcu.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
+#include "qemu/cutils.h"
 
 #ifdef CONFIG_LINUX
 #include <sys/prctl.h>

@@ -20,6 +20,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "hw/hw.h"
+#include "qemu/cutils.h"
 #include "qemu/queue.h"
 #include "qemu/timer.h"
 #include "migration/block.h"

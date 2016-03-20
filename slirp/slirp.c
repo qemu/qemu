@@ -28,6 +28,7 @@
 #include "sysemu/char.h"
 #include "slirp.h"
 #include "hw/hw.h"
+#include "qemu/cutils.h"
 
 /* host loopback address */
 struct in_addr loopback_addr;

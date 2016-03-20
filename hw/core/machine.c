@@ -18,6 +18,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
+#include "qemu/cutils.h"
 
 static char *machine_get_accel(Object *obj, Error **errp)
 {

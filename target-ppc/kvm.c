@@ -42,6 +42,7 @@
 #include "exec/gdbstub.h"
 #include "exec/memattrs.h"
 #include "sysemu/hostmem.h"
+#include "qemu/cutils.h"
 
 //#define DEBUG_KVM
 

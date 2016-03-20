@@ -44,6 +44,7 @@
 #include "elf.h"
 #include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
+#include "qemu/cutils.h"
 
 //#define DEBUG_IRQ
 //#define DEBUG_EBUS

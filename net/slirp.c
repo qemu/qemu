@@ -38,6 +38,7 @@
 #include "slirp/libslirp.h"
 #include "slirp/ip6.h"
 #include "sysemu/char.h"
+#include "qemu/cutils.h"
 
 static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
 {

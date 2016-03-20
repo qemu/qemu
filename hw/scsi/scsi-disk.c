@@ -30,7 +30,6 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "hw/scsi/scsi.h"
 #include "block/scsi.h"
@@ -39,6 +38,7 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "sysemu/dma.h"
+#include "qemu/cutils.h"
 
 #ifdef __linux
 #include <scsi/sg.h>

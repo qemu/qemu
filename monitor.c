@@ -78,6 +78,7 @@
 #include "qmp-introspect.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/qtest.h"
+#include "qemu/cutils.h"
 
 /* for hmp_info_irq/pic */
 #if defined(TARGET_SPARC)

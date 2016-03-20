@@ -28,6 +28,7 @@
 #include "hw/input/adb.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
+#include "qemu/cutils.h"
 
 /* XXX: implement all timer modes */
 

@@ -33,8 +33,8 @@
 
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "qemu/error-report.h"
+#include "qemu/cutils.h"
 
 #define PATH_NET_TUN "/dev/net/tun"
 

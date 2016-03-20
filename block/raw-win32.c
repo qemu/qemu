@@ -23,7 +23,7 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
+#include "qemu/cutils.h"
 #include "qemu/timer.h"
 #include "block/block_int.h"
 #include "qemu/module.h"

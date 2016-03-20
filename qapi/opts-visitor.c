@@ -12,7 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
+#include "qemu/cutils.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/opts-visitor.h"
 #include "qemu/queue.h"

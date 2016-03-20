@@ -23,6 +23,8 @@
  */
 #include "qemu/osdep.h"
 #include "config-target.h"
+#include "qemu/cutils.h"
+#include "qemu/bcd.h"
 #include "hw/hw.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"

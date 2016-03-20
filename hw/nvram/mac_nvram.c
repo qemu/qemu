@@ -27,6 +27,7 @@
 #include "hw/nvram/openbios_firmware_abi.h"
 #include "sysemu/sysemu.h"
 #include "hw/ppc/mac.h"
+#include "qemu/cutils.h"
 #include <zlib.h>
 
 /* debug NVR */

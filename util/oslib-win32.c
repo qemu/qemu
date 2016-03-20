@@ -37,6 +37,7 @@
 #include "qemu/main-loop.h"
 #include "trace.h"
 #include "qemu/sockets.h"
+#include "qemu/cutils.h"
 
 /* this must come after including "trace.h" */
 #include <shlobj.h>

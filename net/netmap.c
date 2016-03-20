@@ -37,6 +37,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
+#include "qemu/cutils.h"
 
 typedef struct NetmapState {
     NetClientState      nc;

@@ -51,7 +51,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
+#include "qemu/cutils.h"
 #include "block/block_int.h"
 #include "qemu/error-report.h"
 #include "qemu/thread.h"

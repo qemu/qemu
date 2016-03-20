@@ -30,6 +30,7 @@
 #include <SDL_syswm.h>
 
 #include "qemu-common.h"
+#include "qemu/cutils.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include "sysemu/sysemu.h"

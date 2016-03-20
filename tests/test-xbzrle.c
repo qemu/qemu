@@ -12,6 +12,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/cutils.h"
 #include "include/migration/migration.h"
 
 #define PAGE_SIZE 4096

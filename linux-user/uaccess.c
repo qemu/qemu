@@ -1,5 +1,6 @@
 /* User memory access */
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 
 #include "qemu.h"
 

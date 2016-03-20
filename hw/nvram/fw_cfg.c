@@ -31,6 +31,7 @@
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "qemu/config-file.h"
+#include "qemu/cutils.h"
 
 #define FW_CFG_NAME "fw_cfg"
 #define FW_CFG_PATH "/machine/" FW_CFG_NAME

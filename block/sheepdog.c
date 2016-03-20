@@ -14,13 +14,13 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "qemu/uri.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"
 #include "qemu/bitops.h"
+#include "qemu/cutils.h"
 
 #define SD_PROTO_VER 0x01
 

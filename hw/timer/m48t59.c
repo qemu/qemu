@@ -31,6 +31,7 @@
 #include "hw/sysbus.h"
 #include "hw/isa/isa.h"
 #include "exec/address-spaces.h"
+#include "qemu/bcd.h"
 
 //#define DEBUG_NVRAM
 

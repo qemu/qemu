@@ -20,6 +20,7 @@
 #include "9p-synth.h"
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
+#include "qemu/cutils.h"
 
 /* Root node for synth file system */
 static V9fsSynthNode v9fs_synth_root = {

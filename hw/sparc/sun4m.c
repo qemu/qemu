@@ -46,6 +46,7 @@
 #include "elf.h"
 #include "sysemu/block-backend.h"
 #include "trace.h"
+#include "qemu/cutils.h"
 
 /*
  * Sun4m architecture was used in the following machines:

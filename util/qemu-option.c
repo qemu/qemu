@@ -31,6 +31,9 @@
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/option_int.h"
+#include "qemu/cutils.h"
+#include "qemu/id.h"
+#include "qemu/help_option.h"
 
 /*
  * Extracts the name of an option from the parameter string (p points at the

@@ -33,6 +33,7 @@
 #include "sysemu/dma.h"
 #include "hw/block/block.h"
 #include "sysemu/block-backend.h"
+#include "qemu/cutils.h"
 
 #include <hw/ide/internal.h>
 

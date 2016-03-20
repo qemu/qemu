@@ -28,6 +28,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "hw/fw-path-provider.h"
 #include "linux/vhost.h"
+#include "qemu/cutils.h"
 
 /* Features supported by host kernel. */
 static const int kernel_feature_bits[] = {

@@ -35,6 +35,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/loader.h"
 #include "elf.h"
+#include "qemu/cutils.h"
 
 #include "boot.h"
 

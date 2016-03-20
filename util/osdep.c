@@ -37,6 +37,7 @@ extern int madvise(caddr_t, size_t, int);
 #endif
 
 #include "qemu-common.h"
+#include "qemu/cutils.h"
 #include "qemu/sockets.h"
 #include "qemu/error-report.h"
 #include "monitor/monitor.h"

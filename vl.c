@@ -22,7 +22,8 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-
+#include "qemu/cutils.h"
+#include "qemu/help_option.h"
 
 #ifdef CONFIG_SECCOMP
 #include "sysemu/seccomp.h"

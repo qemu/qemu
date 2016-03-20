@@ -18,9 +18,9 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
-#ifdef CONFIG_USER_ONLY
+#include "qemu/cutils.h"
 
+#ifdef CONFIG_USER_ONLY
 #include "qemu.h"
 #else
 #include "monitor/monitor.h"

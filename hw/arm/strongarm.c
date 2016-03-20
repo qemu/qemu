@@ -37,6 +37,7 @@
 #include "sysemu/char.h"
 #include "sysemu/sysemu.h"
 #include "hw/ssi/ssi.h"
+#include "qemu/cutils.h"
 
 //#define DEBUG
 

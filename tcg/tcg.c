@@ -36,7 +36,7 @@
 #define NDEBUG
 #endif
 
-#include "qemu-common.h"
+#include "qemu/cutils.h"
 #include "qemu/host-utils.h"
 #include "qemu/timer.h"
 

@@ -18,6 +18,8 @@
  */
 #define _ATFILE_SOURCE
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
+#include "qemu/path.h"
 #include <elf.h>
 #include <endian.h>
 #include <grp.h>

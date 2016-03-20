@@ -20,6 +20,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include "qemu/xattr.h"
+#include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include <linux/fs.h>
 #ifdef CONFIG_LINUX_MAGIC_H

@@ -23,6 +23,7 @@
 #include "qemu/host-utils.h"
 #include "qemu/sockets.h"
 #include "qemu/base64.h"
+#include "qemu/cutils.h"
 
 #ifndef CONFIG_HAS_ENVIRON
 #ifdef __APPLE__

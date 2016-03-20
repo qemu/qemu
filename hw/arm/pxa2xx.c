@@ -20,6 +20,7 @@
 #include "sysemu/char.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
+#include "qemu/cutils.h"
 
 static struct {
     hwaddr io_base;

@@ -46,6 +46,7 @@
 #include "exec/address-spaces.h"
 #include "trace.h"
 #include "elf.h"
+#include "qemu/cutils.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1

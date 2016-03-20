@@ -9,6 +9,7 @@
 #include "sysemu/blockdev.h"
 #include "trace.h"
 #include "sysemu/dma.h"
+#include "qemu/cutils.h"
 
 static char *scsibus_get_dev_path(DeviceState *dev);
 static char *scsibus_get_fw_dev_path(DeviceState *dev);

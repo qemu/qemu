@@ -31,6 +31,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/ppc/spapr.h"
 #include "qapi-event.h"
+#include "qemu/cutils.h"
 
 #define SPAPR_RTC(obj) \
     OBJECT_CHECK(sPAPRRTCState, (obj), TYPE_SPAPR_RTC)
