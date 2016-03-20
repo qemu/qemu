@@ -180,6 +180,8 @@ struct Slirp {
     u_int last_slowtimo;
     bool do_slowtimo;
 
+    bool in_enabled, in6_enabled;
+
     /* virtual network configuration */
     struct in_addr vnetwork_addr;
     struct in_addr vnetwork_mask;
