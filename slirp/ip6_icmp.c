@@ -148,7 +148,11 @@ void ndp_send_ra(Slirp *slirp)
     rip->ip_nh = IPPROTO_ICMPV6;
     rip->ip_pl = htons(ICMP6_NDP_RA_MINLEN
                         + NDPOPT_LINKLAYER_LEN
-                        + NDPOPT_PREFIXINFO_LEN);
+                        + NDPOPT_PREFIXINFO_LEN
+#ifndef _WIN32
+                        + NDPOPT_RDNSS_LEN
+#endif
+                        );
     t->m_len = sizeof(struct ip6) + ntohs(rip->ip_pl);
 
     /* Build ICMPv6 packet */
@@ -166,16 +170,16 @@ void ndp_send_ra(Slirp *slirp)
     ricmp->icmp6_nra.lifetime = htons(NDP_AdvDefaultLifetime);
     ricmp->icmp6_nra.reach_time = htonl(NDP_AdvReachableTime);
     ricmp->icmp6_nra.retrans_time = htonl(NDP_AdvRetransTime);
+    t->m_data += ICMP6_NDP_RA_MINLEN;
 
     /* Source link-layer address (NDP option) */
-    t->m_data += ICMP6_NDP_RA_MINLEN;
     struct ndpopt *opt = mtod(t, struct ndpopt *);
     opt->ndpopt_type = NDPOPT_LINKLAYER_SOURCE;
     opt->ndpopt_len = NDPOPT_LINKLAYER_LEN / 8;
     in6_compute_ethaddr(rip->ip_src, opt->ndpopt_linklayer);
+    t->m_data += NDPOPT_LINKLAYER_LEN;
 
     /* Prefix information (NDP option) */
-    t->m_data += NDPOPT_LINKLAYER_LEN;
     struct ndpopt *opt2 = mtod(t, struct ndpopt *);
     opt2->ndpopt_type = NDPOPT_PREFIX_INFO;
     opt2->ndpopt_len = NDPOPT_PREFIXINFO_LEN / 8;
@@ -187,8 +191,25 @@ void ndp_send_ra(Slirp *slirp)
     opt2->ndpopt_prefixinfo.pref_lt = htonl(NDP_AdvPrefLifetime);
     opt2->ndpopt_prefixinfo.reserved2 = 0;
     opt2->ndpopt_prefixinfo.prefix = slirp->vprefix_addr6;
+    t->m_data += NDPOPT_PREFIXINFO_LEN;
+
+#ifndef _WIN32
+    /* Prefix information (NDP option) */
+    /* disabled for windows for now, until get_dns6_addr is implemented */
+    struct ndpopt *opt3 = mtod(t, struct ndpopt *);
+    opt3->ndpopt_type = NDPOPT_RDNSS;
+    opt3->ndpopt_len = NDPOPT_RDNSS_LEN / 8;
+    opt3->ndpopt_rdnss.reserved = 0;
+    opt3->ndpopt_rdnss.lifetime = htonl(2 * NDP_MaxRtrAdvInterval);
+    opt3->ndpopt_rdnss.addr = slirp->vnameserver_addr6;
+    t->m_data += NDPOPT_RDNSS_LEN;
+#endif
 
     /* ICMPv6 Checksum */
+#ifndef _WIN32
+    t->m_data -= NDPOPT_RDNSS_LEN;
+#endif
+    t->m_data -= NDPOPT_PREFIXINFO_LEN;
     t->m_data -= NDPOPT_LINKLAYER_LEN;
     t->m_data -= ICMP6_NDP_RA_MINLEN;
     t->m_data -= sizeof(struct ip6);
