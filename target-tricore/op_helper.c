@@ -1045,6 +1045,8 @@ uint64_t helper_msub64_q_ssov(CPUTriCoreState *env, uint64_t r1, uint32_t r2,
             } else {
                result = INT64_MIN;
             }
+        } else {
+            env->PSW_USB_V = 0;
         }
     } else {
         if (ovf < 0) {
