@@ -53,44 +53,44 @@ class ELF(object):
         self.notes = []
         self.segments = []
         self.notes_size = 0
-        self.endianess = None
+        self.endianness = None
         self.elfclass = ELFCLASS64
 
         if arch == 'aarch64-le':
-            self.endianess = ELFDATA2LSB
+            self.endianness = ELFDATA2LSB
             self.elfclass = ELFCLASS64
-            self.ehdr = get_arch_ehdr(self.endianess, self.elfclass)
+            self.ehdr = get_arch_ehdr(self.endianness, self.elfclass)
             self.ehdr.e_machine = EM_AARCH
 
         elif arch == 'aarch64-be':
-            self.endianess = ELFDATA2MSB
-            self.ehdr = get_arch_ehdr(self.endianess, self.elfclass)
+            self.endianness = ELFDATA2MSB
+            self.ehdr = get_arch_ehdr(self.endianness, self.elfclass)
             self.ehdr.e_machine = EM_AARCH
 
         elif arch == 'X86_64':
-            self.endianess = ELFDATA2LSB
-            self.ehdr = get_arch_ehdr(self.endianess, self.elfclass)
+            self.endianness = ELFDATA2LSB
+            self.ehdr = get_arch_ehdr(self.endianness, self.elfclass)
             self.ehdr.e_machine = EM_X86_64
 
         elif arch == '386':
-            self.endianess = ELFDATA2LSB
+            self.endianness = ELFDATA2LSB
             self.elfclass = ELFCLASS32
-            self.ehdr = get_arch_ehdr(self.endianess, self.elfclass)
+            self.ehdr = get_arch_ehdr(self.endianness, self.elfclass)
             self.ehdr.e_machine = EM_386
 
         elif arch == 's390':
-            self.endianess = ELFDATA2MSB
-            self.ehdr = get_arch_ehdr(self.endianess, self.elfclass)
+            self.endianness = ELFDATA2MSB
+            self.ehdr = get_arch_ehdr(self.endianness, self.elfclass)
             self.ehdr.e_machine = EM_S390
 
         elif arch == 'ppc64-le':
-            self.endianess = ELFDATA2LSB
-            self.ehdr = get_arch_ehdr(self.endianess, self.elfclass)
+            self.endianness = ELFDATA2LSB
+            self.ehdr = get_arch_ehdr(self.endianness, self.elfclass)
             self.ehdr.e_machine = EM_PPC64
 
         elif arch == 'ppc64-be':
-            self.endianess = ELFDATA2MSB
-            self.ehdr = get_arch_ehdr(self.endianess, self.elfclass)
+            self.endianness = ELFDATA2MSB
+            self.ehdr = get_arch_ehdr(self.endianness, self.elfclass)
             self.ehdr.e_machine = EM_PPC64
 
         else:
@@ -104,7 +104,7 @@ class ELF(object):
     def add_note(self, n_name, n_desc, n_type):
         """Adds a note to the ELF."""
 
-        note = get_arch_note(self.endianess, len(n_name), len(n_desc))
+        note = get_arch_note(self.endianness, len(n_name), len(n_desc))
         note.n_namesz = len(n_name) + 1
         note.n_descsz = len(n_desc)
         note.n_name = n_name.encode()
@@ -123,7 +123,7 @@ class ELF(object):
     def add_segment(self, p_type, p_paddr, p_size):
         """Adds a segment to the elf."""
 
-        phdr = get_arch_phdr(self.endianess, self.elfclass)
+        phdr = get_arch_phdr(self.endianness, self.elfclass)
         phdr.p_type = p_type
         phdr.p_paddr = p_paddr
         phdr.p_filesz = p_size
@@ -155,10 +155,10 @@ class ELF(object):
             elf_file.write(note)
 
 
-def get_arch_note(endianess, len_name, len_desc):
-    """Returns a Note class with the specified endianess."""
+def get_arch_note(endianness, len_name, len_desc):
+    """Returns a Note class with the specified endianness."""
 
-    if endianess == ELFDATA2LSB:
+    if endianness == ELFDATA2LSB:
         superclass = ctypes.LittleEndianStructure
     else:
         superclass = ctypes.BigEndianStructure
@@ -190,20 +190,20 @@ class Ident(ctypes.Structure):
                 ('ei_abiversion', ctypes.c_ubyte),
                 ('ei_pad', ctypes.c_ubyte * 7)]
 
-    def __init__(self, endianess, elfclass):
+    def __init__(self, endianness, elfclass):
         self.ei_mag0 = 0x7F
         self.ei_mag1 = ord('E')
         self.ei_mag2 = ord('L')
         self.ei_mag3 = ord('F')
         self.ei_class = elfclass
-        self.ei_data = endianess
+        self.ei_data = endianness
         self.ei_version = EV_CURRENT
 
 
-def get_arch_ehdr(endianess, elfclass):
-    """Returns a EHDR64 class with the specified endianess."""
+def get_arch_ehdr(endianness, elfclass):
+    """Returns a EHDR64 class with the specified endianness."""
 
-    if endianess == ELFDATA2LSB:
+    if endianness == ELFDATA2LSB:
         superclass = ctypes.LittleEndianStructure
     else:
         superclass = ctypes.BigEndianStructure
@@ -228,12 +228,12 @@ def get_arch_ehdr(endianess, elfclass):
 
         def __init__(self):
             super(superclass, self).__init__()
-            self.e_ident = Ident(endianess, elfclass)
+            self.e_ident = Ident(endianness, elfclass)
             self.e_type = ET_CORE
             self.e_version = EV_CURRENT
             self.e_ehsize = ctypes.sizeof(self)
             self.e_phoff = ctypes.sizeof(self)
-            self.e_phentsize = ctypes.sizeof(get_arch_phdr(endianess, elfclass))
+            self.e_phentsize = ctypes.sizeof(get_arch_phdr(endianness, elfclass))
             self.e_phnum = 0
 
 
@@ -257,12 +257,12 @@ def get_arch_ehdr(endianess, elfclass):
 
         def __init__(self):
             super(superclass, self).__init__()
-            self.e_ident = Ident(endianess, elfclass)
+            self.e_ident = Ident(endianness, elfclass)
             self.e_type = ET_CORE
             self.e_version = EV_CURRENT
             self.e_ehsize = ctypes.sizeof(self)
             self.e_phoff = ctypes.sizeof(self)
-            self.e_phentsize = ctypes.sizeof(get_arch_phdr(endianess, elfclass))
+            self.e_phentsize = ctypes.sizeof(get_arch_phdr(endianness, elfclass))
             self.e_phnum = 0
 
     # End get_arch_ehdr
@@ -272,10 +272,10 @@ def get_arch_ehdr(endianess, elfclass):
         return EHDR32()
 
 
-def get_arch_phdr(endianess, elfclass):
-    """Returns a 32 or 64 bit PHDR class with the specified endianess."""
+def get_arch_phdr(endianness, elfclass):
+    """Returns a 32 or 64 bit PHDR class with the specified endianness."""
 
-    if endianess == ELFDATA2LSB:
+    if endianness == ELFDATA2LSB:
         superclass = ctypes.LittleEndianStructure
     else:
         superclass = ctypes.BigEndianStructure
