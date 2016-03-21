@@ -716,6 +716,11 @@ static int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
         return ret;
     }
 
+    /* throttling disk I/O */
+    if (blk->public.throttle_state) {
+        throttle_group_co_io_limits_intercept(blk, bytes, false);
+    }
+
     return bdrv_co_preadv(blk_bs(blk), offset, bytes, qiov, flags);
 }
 
@@ -728,6 +733,11 @@ static int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
     ret = blk_check_byte_request(blk, offset, bytes);
     if (ret < 0) {
         return ret;
+    }
+
+    /* throttling disk I/O */
+    if (blk->public.throttle_state) {
+        throttle_group_co_io_limits_intercept(blk, bytes, true);
     }
 
     if (!blk->enable_write_cache) {

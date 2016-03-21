@@ -1083,11 +1083,6 @@ int coroutine_fn bdrv_co_preadv(BlockDriverState *bs,
         flags |= BDRV_REQ_COPY_ON_READ;
     }
 
-    /* throttling disk I/O */
-    if (bs->blk && blk_get_public(bs->blk)->throttle_state) {
-        throttle_group_co_io_limits_intercept(bs, bytes, false);
-    }
-
     /* Align read if necessary by padding qiov */
     if (offset & (align - 1)) {
         head_buf = qemu_blockalign(bs, align);
@@ -1442,11 +1437,6 @@ int coroutine_fn bdrv_co_pwritev(BlockDriverState *bs,
     ret = bdrv_check_byte_request(bs, offset, bytes);
     if (ret < 0) {
         return ret;
-    }
-
-    /* throttling disk I/O */
-    if (bs->blk && blk_get_public(bs->blk)->throttle_state) {
-        throttle_group_co_io_limits_intercept(bs, bytes, true);
     }
 
     /*

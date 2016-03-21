@@ -284,18 +284,17 @@ static void schedule_next_request(BlockBackend *blk, bool is_write)
  * if necessary, and schedule the next request using a round robin
  * algorithm.
  *
- * @bs:        the current BlockDriverState
+ * @blk:       the current BlockBackend
  * @bytes:     the number of bytes for this I/O
  * @is_write:  the type of operation (read/write)
  */
-void coroutine_fn throttle_group_co_io_limits_intercept(BlockDriverState *bs,
+void coroutine_fn throttle_group_co_io_limits_intercept(BlockBackend *blk,
                                                         unsigned int bytes,
                                                         bool is_write)
 {
     bool must_wait;
     BlockBackend *token;
 
-    BlockBackend *blk = bs->blk;
     BlockBackendPublic *blkp = blk_get_public(blk);
     ThrottleGroup *tg = container_of(blkp->throttle_state, ThrottleGroup, ts);
     qemu_mutex_lock(&tg->lock);
