@@ -8632,6 +8632,7 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         break;
     case OPCM_32_RRR_DIVIDE:
         decode_rrr_divide(env, ctx);
+        break;
 /* RRR2 Format */
     case OPCM_32_RRR2_MADD:
         decode_rrr2_madd(env, ctx);
@@ -8661,6 +8662,7 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 /* RRRR format */
     case OPCM_32_RRRR_EXTRACT_INSERT:
         decode_rrrr_extract_insert(env, ctx);
+        break;
 /* RRRW format */
     case OPCM_32_RRRW_EXTRACT_INSERT:
         decode_rrrw_extract_insert(env, ctx);
