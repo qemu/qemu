@@ -113,7 +113,7 @@ void tricore_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 uint32_t psw_read(CPUTriCoreState *env)
 {
     /* clear all USB bits */
-    env->PSW &= 0xffffff;
+    env->PSW &= 0x6ffffff;
     /* now set them from the cache */
     env->PSW |= ((env->PSW_USB_C != 0) << 31);
     env->PSW |= ((env->PSW_USB_V   & (1 << 31))  >> 1);
