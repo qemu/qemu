@@ -1105,6 +1105,11 @@ static void gen_spr_amr (CPUPPCState *env)
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_UAMOR, 0);
+    spr_register_hv(env, SPR_AMOR, "AMOR",
+                    SPR_NOACCESS, SPR_NOACCESS,
+                    SPR_NOACCESS, SPR_NOACCESS,
+                    &spr_read_generic, &spr_write_generic,
+                    0);
 #endif /* !CONFIG_USER_ONLY */
 }
 #endif /* TARGET_PPC64 */
@@ -7491,6 +7496,20 @@ static void gen_spr_book3s_dbg(CPUPPCState *env)
                      KVM_REG_PPC_DABRX, 0x00000000);
 }
 
+static void gen_spr_book3s_207_dbg(CPUPPCState *env)
+{
+    spr_register_kvm_hv(env, SPR_DAWR, "DAWR",
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        &spr_read_generic, &spr_write_generic,
+                        KVM_REG_PPC_DAWR, 0x00000000);
+    spr_register_kvm_hv(env, SPR_DAWRX, "DAWRX",
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        &spr_read_generic, &spr_write_generic,
+                        KVM_REG_PPC_DAWRX, 0x00000000);
+}
+
 static void gen_spr_970_dbg(CPUPPCState *env)
 {
     /* Breakpoints */
@@ -7960,6 +7979,8 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
     }
     if (version < BOOK3S_CPU_POWER8) {
         gen_spr_book3s_dbg(env);
+    } else {
+        gen_spr_book3s_207_dbg(env);
     }
 #if !defined(CONFIG_USER_ONLY)
     switch (version) {
