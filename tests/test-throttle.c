@@ -574,11 +574,16 @@ static void test_accounting(void)
 static void test_groups(void)
 {
     ThrottleConfig cfg1, cfg2;
+    BlockBackend *blk1, *blk2, *blk3;
     BlockDriverState *bdrv1, *bdrv2, *bdrv3;
 
-    bdrv1 = bdrv_new();
-    bdrv2 = bdrv_new();
-    bdrv3 = bdrv_new();
+    blk1 = blk_new_with_bs(&error_abort);
+    blk2 = blk_new_with_bs(&error_abort);
+    blk3 = blk_new_with_bs(&error_abort);
+
+    bdrv1 = blk_bs(blk1);
+    bdrv2 = blk_bs(blk2);
+    bdrv3 = blk_bs(blk3);
 
     g_assert(bdrv1->throttle_state == NULL);
     g_assert(bdrv2->throttle_state == NULL);

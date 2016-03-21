@@ -2259,8 +2259,22 @@ static void swap_feature_fields(BlockDriverState *bs_top,
 
     assert(!bs_new->throttle_state);
     if (bs_top->throttle_state) {
+        /*
+         * FIXME Need to break I/O throttling with graph manipulations
+         * temporarily because of conflicting invariants (3. will go away when
+         * throttling is fully converted to work on BlockBackends):
+         *
+         * 1. Every BlockBackend has a single root BDS
+         * 2. I/O throttling functions require an attached BlockBackend
+         * 3. We need to first enable throttling on the new BDS and then
+         *    disable it on the old one (because of throttle group refcounts)
+         */
+#if 0
         bdrv_io_limits_enable(bs_new, throttle_group_get_name(bs_top));
         bdrv_io_limits_disable(bs_top);
+#else
+        abort();
+#endif
     }
 }
 

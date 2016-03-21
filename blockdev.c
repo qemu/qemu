@@ -2570,8 +2570,6 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
         goto fail;
     }
 
-    blk_apply_root_state(blk, medium_bs);
-
     bdrv_add_key(medium_bs, NULL, &err);
     if (err) {
         error_propagate(errp, err);
@@ -2595,6 +2593,8 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
         error_propagate(errp, err);
         goto fail;
     }
+
+    blk_apply_root_state(blk, medium_bs);
 
     qmp_blockdev_close_tray(device, errp);
 

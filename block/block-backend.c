@@ -420,6 +420,9 @@ void blk_remove_bs(BlockBackend *blk)
     notifier_list_notify(&blk->remove_bs_notifiers, blk);
 
     blk_update_root_state(blk);
+    if (blk->root->bs->throttle_state) {
+        bdrv_io_limits_disable(blk->root->bs);
+    }
 
     blk->root->bs->blk = NULL;
     bdrv_root_unref_child(blk->root);
