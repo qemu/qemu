@@ -33,3 +33,6 @@ Other fixes added:
   * TCP sequence number fixup for incoming connections
   * various colo-proxy bugfixes
   * Migration events for postcopy (from upstream)
+  * Turn nagling off on the proxy socket
+  * Timeout when the secondary doesn't send anything that we've got a waiting
+    primary packet for.
