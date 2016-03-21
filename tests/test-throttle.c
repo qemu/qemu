@@ -20,6 +20,7 @@
 #include "qemu/throttle.h"
 #include "qemu/error-report.h"
 #include "block/throttle-groups.h"
+#include "sysemu/block-backend.h"
 
 static AioContext     *ctx;
 static LeakyBucket    bkt;
@@ -589,9 +590,9 @@ static void test_groups(void)
     g_assert(bdrv2->throttle_state == NULL);
     g_assert(bdrv3->throttle_state == NULL);
 
-    throttle_group_register_bs(bdrv1, "bar");
-    throttle_group_register_bs(bdrv2, "foo");
-    throttle_group_register_bs(bdrv3, "bar");
+    throttle_group_register_blk(blk1, "bar");
+    throttle_group_register_blk(blk2, "foo");
+    throttle_group_register_blk(blk3, "bar");
 
     g_assert(bdrv1->throttle_state != NULL);
     g_assert(bdrv2->throttle_state != NULL);
@@ -623,9 +624,9 @@ static void test_groups(void)
     throttle_group_get_config(bdrv3, &cfg2);
     g_assert(!memcmp(&cfg1, &cfg2, sizeof(cfg1)));
 
-    throttle_group_unregister_bs(bdrv1);
-    throttle_group_unregister_bs(bdrv2);
-    throttle_group_unregister_bs(bdrv3);
+    throttle_group_unregister_blk(blk1);
+    throttle_group_unregister_blk(blk2);
+    throttle_group_unregister_blk(blk3);
 
     g_assert(bdrv1->throttle_state == NULL);
     g_assert(bdrv2->throttle_state == NULL);

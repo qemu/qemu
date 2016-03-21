@@ -63,7 +63,10 @@ typedef struct BlockDevOps {
  * fields that must be public. This is in particular for QLIST_ENTRY() and
  * friends so that BlockBackends can be kept in lists outside block-backend.c */
 typedef struct BlockBackendPublic {
-    int dummy; /* empty structs are illegal */
+    /* I/O throttling */
+    /* The following fields are protected by the ThrottleGroup lock.
+     * See the ThrottleGroup documentation for details. */
+    QLIST_ENTRY(BlockBackendPublic) round_robin;
 } BlockBackendPublic;
 
 BlockBackend *blk_new(Error **errp);

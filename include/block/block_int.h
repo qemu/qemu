@@ -435,7 +435,6 @@ struct BlockDriverState {
     ThrottleState *throttle_state;
     ThrottleTimers throttle_timers;
     unsigned       pending_reqs[2];
-    QLIST_ENTRY(BlockDriverState) round_robin;
 
     /* Offset after the highest byte written to */
     uint64_t wr_highest_offset;

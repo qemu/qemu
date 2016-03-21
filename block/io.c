@@ -70,7 +70,7 @@ void bdrv_io_limits_disable(BlockDriverState *bs)
 {
     assert(bs->throttle_state);
     bdrv_no_throttling_begin(bs);
-    throttle_group_unregister_bs(bs);
+    throttle_group_unregister_blk(bs->blk);
     bdrv_no_throttling_end(bs);
 }
 
@@ -78,7 +78,7 @@ void bdrv_io_limits_disable(BlockDriverState *bs)
 void bdrv_io_limits_enable(BlockDriverState *bs, const char *group)
 {
     assert(!bs->throttle_state);
-    throttle_group_register_bs(bs, group);
+    throttle_group_register_blk(bs->blk, group);
 }
 
 void bdrv_io_limits_update_group(BlockDriverState *bs, const char *group)
