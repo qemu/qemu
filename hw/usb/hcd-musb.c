@@ -564,7 +564,7 @@ static void musb_schedule_cb(USBPort *port, USBPacket *packey)
         ep->intv_timer[dir] = timer_new_ns(QEMU_CLOCK_VIRTUAL, musb_cb_tick, ep);
 
     timer_mod(ep->intv_timer[dir], qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                   muldiv64(timeout, get_ticks_per_sec(), 8000));
+                   muldiv64(timeout, NANOSECONDS_PER_SECOND, 8000));
 }
 
 static int musb_timeout(int ttype, int speed, int val)

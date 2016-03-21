@@ -216,7 +216,7 @@
 #define SD_HOST_SPECv2_VERS             0x2401
 
 #define SDHC_REGISTERS_MAP_SIZE         0x100
-#define SDHC_INSERTION_DELAY            (get_ticks_per_sec())
+#define SDHC_INSERTION_DELAY            (NANOSECONDS_PER_SECOND)
 #define SDHC_TRANSFER_DELAY             100
 #define SDHC_ADMA_DESCS_PER_DELAY       5
 #define SDHC_CMD_RESPONSE               (3 << 0)

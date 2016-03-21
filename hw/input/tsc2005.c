@@ -291,7 +291,8 @@ static void tsc2005_pin_update(TSC2005State *s)
     s->precision = s->nextprecision;
     s->function = s->nextfunction;
     s->pdst = !s->pnd0;	/* Synchronised on internal clock */
-    expires = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + (get_ticks_per_sec() >> 7);
+    expires = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+        (NANOSECONDS_PER_SECOND >> 7);
     timer_mod(s->timer, expires);
 }
 

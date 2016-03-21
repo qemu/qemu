@@ -104,11 +104,11 @@ static int rate_get_samples (struct audio_pcm_info *info, SpiceRateCtl *rate)
 
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     ticks = now - rate->start_ticks;
-    bytes = muldiv64 (ticks, info->bytes_per_second, get_ticks_per_sec ());
+    bytes = muldiv64(ticks, info->bytes_per_second, NANOSECONDS_PER_SECOND);
     samples = (bytes - rate->bytes_sent) >> info->shift;
     if (samples < 0 || samples > 65536) {
         error_report("Resetting rate control (%" PRId64 " samples)", samples);
-        rate_start (rate);
+        rate_start(rate);
         samples = 0;
     }
     rate->bytes_sent += samples << info->shift;

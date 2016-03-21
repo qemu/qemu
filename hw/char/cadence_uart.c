@@ -205,7 +205,7 @@ static void uart_parameters_setup(CadenceUARTState *s)
     }
 
     packet_size += ssp.data_bits + ssp.stop_bits;
-    s->char_tx_time = (get_ticks_per_sec() / ssp.speed) * packet_size;
+    s->char_tx_time = (NANOSECONDS_PER_SECOND / ssp.speed) * packet_size;
     if (s->chr) {
         qemu_chr_fe_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
     }
@@ -479,7 +479,7 @@ static void cadence_uart_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
 
-    s->char_tx_time = (get_ticks_per_sec() / 9600) * 10;
+    s->char_tx_time = (NANOSECONDS_PER_SECOND / 9600) * 10;
 }
 
 static int cadence_uart_post_load(void *opaque, int version_id)

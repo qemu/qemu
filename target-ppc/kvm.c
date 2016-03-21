@@ -1371,7 +1371,7 @@ void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
 
         /* Always wake up soon in case the interrupt was level based */
         timer_mod(idle_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                       (get_ticks_per_sec() / 50));
+                       (NANOSECONDS_PER_SECOND / 50));
     }
 
     /* We don't know if there are more interrupts pending after this. However,
@@ -1831,7 +1831,7 @@ uint32_t kvmppc_get_tbfreq(void)
 {
     char line[512];
     char *ns;
-    uint32_t retval = get_ticks_per_sec();
+    uint32_t retval = NANOSECONDS_PER_SECOND;
 
     if (read_cpuinfo("timebase", line, sizeof(line))) {
         return retval;

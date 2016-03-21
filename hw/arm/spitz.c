@@ -405,7 +405,7 @@ static void spitz_keyboard_tick(void *opaque)
     }
 
     timer_mod(s->kbdtimer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                   get_ticks_per_sec() / 32);
+                   NANOSECONDS_PER_SECOND / 32);
 }
 
 static void spitz_keyboard_pre_map(SpitzKeyboardState *s)

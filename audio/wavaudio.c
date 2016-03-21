@@ -51,7 +51,7 @@ static int wav_run_out (HWVoiceOut *hw, int live)
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     int64_t ticks = now - wav->old_ticks;
     int64_t bytes =
-        muldiv64 (ticks, hw->info.bytes_per_second, get_ticks_per_sec ());
+        muldiv64(ticks, hw->info.bytes_per_second, NANOSECONDS_PER_SECOND);
 
     if (bytes > INT_MAX) {
         samples = INT_MAX >> hw->info.shift;
