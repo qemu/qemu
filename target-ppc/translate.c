@@ -4282,14 +4282,17 @@ static inline void gen_op_mfspr(DisasContext *ctx)
     void (*read_cb)(DisasContext *ctx, int gprn, int sprn);
     uint32_t sprn = SPR(ctx->opcode);
 
-#if !defined(CONFIG_USER_ONLY)
-    if (ctx->hv)
-        read_cb = ctx->spr_cb[sprn].hea_read;
-    else if (!ctx->pr)
-        read_cb = ctx->spr_cb[sprn].oea_read;
-    else
-#endif
+#if defined(CONFIG_USER_ONLY)
+    read_cb = ctx->spr_cb[sprn].uea_read;
+#else
+    if (ctx->pr) {
         read_cb = ctx->spr_cb[sprn].uea_read;
+    } else if (ctx->hv) {
+        read_cb = ctx->spr_cb[sprn].hea_read;
+    } else {
+        read_cb = ctx->spr_cb[sprn].oea_read;
+    }
+#endif
     if (likely(read_cb != NULL)) {
         if (likely(read_cb != SPR_NOACCESS)) {
             (*read_cb)(ctx, rD(ctx->opcode), sprn);
@@ -4437,14 +4440,17 @@ static void gen_mtspr(DisasContext *ctx)
     void (*write_cb)(DisasContext *ctx, int sprn, int gprn);
     uint32_t sprn = SPR(ctx->opcode);
 
-#if !defined(CONFIG_USER_ONLY)
-    if (ctx->hv)
-        write_cb = ctx->spr_cb[sprn].hea_write;
-    else if (!ctx->pr)
-        write_cb = ctx->spr_cb[sprn].oea_write;
-    else
-#endif
+#if defined(CONFIG_USER_ONLY)
+    write_cb = ctx->spr_cb[sprn].uea_write;
+#else
+    if (ctx->pr) {
         write_cb = ctx->spr_cb[sprn].uea_write;
+    } else if (ctx->hv) {
+        write_cb = ctx->spr_cb[sprn].hea_write;
+    } else {
+        write_cb = ctx->spr_cb[sprn].oea_write;
+    }
+#endif
     if (likely(write_cb != NULL)) {
         if (likely(write_cb != SPR_NOACCESS)) {
             (*write_cb)(ctx, sprn, rS(ctx->opcode));
