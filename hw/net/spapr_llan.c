@@ -45,6 +45,10 @@
 #define DPRINTF(fmt...)
 #endif
 
+/* Compatibility flags for migration */
+#define SPAPRVLAN_FLAG_RX_BUF_POOLS_BIT  0
+#define SPAPRVLAN_FLAG_RX_BUF_POOLS      (1 << SPAPRVLAN_FLAG_RX_BUF_POOLS_BIT)
+
 /*
  * Virtual LAN device
  */
@@ -86,6 +90,15 @@ typedef uint64_t vlan_bd_t;
 #define VIO_SPAPR_VLAN_DEVICE(obj) \
      OBJECT_CHECK(VIOsPAPRVLANDevice, (obj), TYPE_VIO_SPAPR_VLAN_DEVICE)
 
+#define RX_POOL_MAX_BDS 4096
+#define RX_MAX_POOLS 5
+
+typedef struct {
+    int32_t bufsize;
+    int32_t count;
+    vlan_bd_t bds[RX_POOL_MAX_BDS];
+} RxBufPool;
+
 typedef struct VIOsPAPRVLANDevice {
     VIOsPAPRDevice sdev;
     NICConf nicconf;
@@ -94,6 +107,8 @@ typedef struct VIOsPAPRVLANDevice {
     target_ulong buf_list;
     uint32_t add_buf_ptr, use_buf_ptr, rx_bufs;
     target_ulong rxq_ptr;
+    uint32_t compat_flags;             /* Compatability flags for migration */
+    RxBufPool *rx_pool[RX_MAX_POOLS];  /* Receive buffer descriptor pools */
 } VIOsPAPRVLANDevice;
 
 static int spapr_vlan_can_receive(NetClientState *nc)
@@ -101,6 +116,37 @@ static int spapr_vlan_can_receive(NetClientState *nc)
     VIOsPAPRVLANDevice *dev = qemu_get_nic_opaque(nc);
 
     return (dev->isopen && dev->rx_bufs > 0);
+}
+
+/**
+ * Get buffer descriptor from one of our receive buffer pools
+ */
+static vlan_bd_t spapr_vlan_get_rx_bd_from_pool(VIOsPAPRVLANDevice *dev,
+                                                size_t size)
+{
+    vlan_bd_t bd;
+    int pool;
+
+    for (pool = 0; pool < RX_MAX_POOLS; pool++) {
+        if (dev->rx_pool[pool]->count > 0 &&
+            dev->rx_pool[pool]->bufsize >= size + 8) {
+            break;
+        }
+    }
+    if (pool == RX_MAX_POOLS) {
+        /* Failed to find a suitable buffer */
+        return 0;
+    }
+
+    DPRINTF("Found buffer: pool=%d count=%d rxbufs=%d\n", pool,
+            dev->rx_pool[pool]->count, dev->rx_bufs);
+
+    /* Remove the buffer from the pool */
+    dev->rx_pool[pool]->count--;
+    bd = dev->rx_pool[pool]->bds[dev->rx_pool[pool]->count];
+    dev->rx_pool[pool]->bds[dev->rx_pool[pool]->count] = 0;
+
+    return bd;
 }
 
 /**
@@ -160,7 +206,11 @@ static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
         return -1;
     }
 
-    bd = spapr_vlan_get_rx_bd_from_page(dev, size);
+    if (dev->compat_flags & SPAPRVLAN_FLAG_RX_BUF_POOLS) {
+        bd = spapr_vlan_get_rx_bd_from_pool(dev, size);
+    } else {
+        bd = spapr_vlan_get_rx_bd_from_page(dev, size);
+    }
     if (!bd) {
         return -1;
     }
@@ -213,13 +263,31 @@ static NetClientInfo net_spapr_vlan_info = {
     .receive = spapr_vlan_receive,
 };
 
+static void spapr_vlan_reset_rx_pool(RxBufPool *rxp)
+{
+    /*
+     * Use INT_MAX as bufsize so that unused buffers are moved to the end
+     * of the list during the qsort in spapr_vlan_add_rxbuf_to_pool() later.
+     */
+    rxp->bufsize = INT_MAX;
+    rxp->count = 0;
+    memset(rxp->bds, 0, sizeof(rxp->bds));
+}
+
 static void spapr_vlan_reset(VIOsPAPRDevice *sdev)
 {
     VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
+    int i;
 
     dev->buf_list = 0;
     dev->rx_bufs = 0;
     dev->isopen = 0;
+
+    if (dev->compat_flags & SPAPRVLAN_FLAG_RX_BUF_POOLS) {
+        for (i = 0; i < RX_MAX_POOLS; i++) {
+            spapr_vlan_reset_rx_pool(dev->rx_pool[i]);
+        }
+    }
 }
 
 static void spapr_vlan_realize(VIOsPAPRDevice *sdev, Error **errp)
@@ -236,10 +304,31 @@ static void spapr_vlan_realize(VIOsPAPRDevice *sdev, Error **errp)
 static void spapr_vlan_instance_init(Object *obj)
 {
     VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(obj);
+    int i;
 
     device_add_bootindex_property(obj, &dev->nicconf.bootindex,
                                   "bootindex", "",
                                   DEVICE(dev), NULL);
+
+    if (dev->compat_flags & SPAPRVLAN_FLAG_RX_BUF_POOLS) {
+        for (i = 0; i < RX_MAX_POOLS; i++) {
+            dev->rx_pool[i] = g_new(RxBufPool, 1);
+            spapr_vlan_reset_rx_pool(dev->rx_pool[i]);
+        }
+    }
+}
+
+static void spapr_vlan_instance_finalize(Object *obj)
+{
+    VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(obj);
+    int i;
+
+    if (dev->compat_flags & SPAPRVLAN_FLAG_RX_BUF_POOLS) {
+        for (i = 0; i < RX_MAX_POOLS; i++) {
+            g_free(dev->rx_pool[i]);
+            dev->rx_pool[i] = NULL;
+        }
+    }
 }
 
 void spapr_vlan_create(VIOsPAPRBus *bus, NICInfo *nd)
@@ -390,6 +479,87 @@ static target_ulong h_free_logical_lan(PowerPCCPU *cpu,
     return H_SUCCESS;
 }
 
+/**
+ * Used for qsort, this function compares two RxBufPools by size.
+ */
+static int rx_pool_size_compare(const void *p1, const void *p2)
+{
+    const RxBufPool *pool1 = *(RxBufPool **)p1;
+    const RxBufPool *pool2 = *(RxBufPool **)p2;
+
+    if (pool1->bufsize < pool2->bufsize) {
+        return -1;
+    }
+    return pool1->bufsize > pool2->bufsize;
+}
+
+/**
+ * Search for a matching buffer pool with exact matching size,
+ * or return -1 if no matching pool has been found.
+ */
+static int spapr_vlan_get_rx_pool_id(VIOsPAPRVLANDevice *dev, int size)
+{
+    int pool;
+
+    for (pool = 0; pool < RX_MAX_POOLS; pool++) {
+        if (dev->rx_pool[pool]->bufsize == size) {
+            return pool;
+        }
+    }
+
+    return -1;
+}
+
+/**
+ * Enqueuing receive buffer by adding it to one of our receive buffer pools
+ */
+static target_long spapr_vlan_add_rxbuf_to_pool(VIOsPAPRVLANDevice *dev,
+                                                target_ulong buf)
+{
+    int size = VLAN_BD_LEN(buf);
+    int pool;
+
+    pool = spapr_vlan_get_rx_pool_id(dev, size);
+    if (pool < 0) {
+        /*
+         * No matching pool found? Try to use a new one. If the guest used all
+         * pools before, but changed the size of one pool inbetween, we might
+         * need to recycle that pool here (if it's empty already). Thus scan
+         * all buffer pools now, starting with the last (likely empty) one.
+         */
+        for (pool = RX_MAX_POOLS - 1; pool >= 0 ; pool--) {
+            if (dev->rx_pool[pool]->count == 0) {
+                dev->rx_pool[pool]->bufsize = size;
+                /*
+                 * Sort pools by size so that spapr_vlan_receive()
+                 * can later find the smallest buffer pool easily.
+                 */
+                qsort(dev->rx_pool, RX_MAX_POOLS, sizeof(dev->rx_pool[0]),
+                      rx_pool_size_compare);
+                pool = spapr_vlan_get_rx_pool_id(dev, size);
+                DPRINTF("created RX pool %d for size %lld\n", pool,
+                        VLAN_BD_LEN(buf));
+                break;
+            }
+        }
+    }
+    /* Still no usable pool? Give up */
+    if (pool < 0 || dev->rx_pool[pool]->count >= RX_POOL_MAX_BDS) {
+        return H_RESOURCE;
+    }
+
+    DPRINTF("h_add_llan_buf():  Add buf using pool %i (size %lli, count=%i)\n",
+            pool, VLAN_BD_LEN(buf), dev->rx_pool[pool]->count);
+
+    dev->rx_pool[pool]->bds[dev->rx_pool[pool]->count++] = buf;
+
+    return 0;
+}
+
+/**
+ * This is the old way of enqueuing receive buffers: Add it to the rx queue
+ * page that has been supplied by the guest (which is quite limited in size).
+ */
 static target_long spapr_vlan_add_rxbuf_to_page(VIOsPAPRVLANDevice *dev,
                                                 target_ulong buf)
 {
@@ -445,7 +615,11 @@ static target_ulong h_add_logical_lan_buffer(PowerPCCPU *cpu,
         return H_RESOURCE;
     }
 
-    ret = spapr_vlan_add_rxbuf_to_page(dev, buf);
+    if (dev->compat_flags & SPAPRVLAN_FLAG_RX_BUF_POOLS) {
+        ret = spapr_vlan_add_rxbuf_to_pool(dev, buf);
+    } else {
+        ret = spapr_vlan_add_rxbuf_to_page(dev, buf);
+    }
     if (ret) {
         return ret;
     }
@@ -543,7 +717,42 @@ static target_ulong h_multicast_ctrl(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 static Property spapr_vlan_properties[] = {
     DEFINE_SPAPR_PROPERTIES(VIOsPAPRVLANDevice, sdev),
     DEFINE_NIC_PROPERTIES(VIOsPAPRVLANDevice, nicconf),
+    DEFINE_PROP_BIT("use-rx-buffer-pools", VIOsPAPRVLANDevice,
+                    compat_flags, SPAPRVLAN_FLAG_RX_BUF_POOLS_BIT, false),
     DEFINE_PROP_END_OF_LIST(),
+};
+
+static bool spapr_vlan_rx_buffer_pools_needed(void *opaque)
+{
+    VIOsPAPRVLANDevice *dev = opaque;
+
+    return (dev->compat_flags & SPAPRVLAN_FLAG_RX_BUF_POOLS) != 0;
+}
+
+static const VMStateDescription vmstate_rx_buffer_pool = {
+    .name = "spapr_llan/rx_buffer_pool",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_vlan_rx_buffer_pools_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT32(bufsize, RxBufPool),
+        VMSTATE_INT32(count, RxBufPool),
+        VMSTATE_UINT64_ARRAY(bds, RxBufPool, RX_POOL_MAX_BDS),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_rx_pools = {
+    .name = "spapr_llan/rx_pools",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_vlan_rx_buffer_pools_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_ARRAY_OF_POINTER_TO_STRUCT(rx_pool, VIOsPAPRVLANDevice,
+                                           RX_MAX_POOLS, 1,
+                                           vmstate_rx_buffer_pool, RxBufPool),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 static const VMStateDescription vmstate_spapr_llan = {
@@ -562,6 +771,10 @@ static const VMStateDescription vmstate_spapr_llan = {
 
         VMSTATE_END_OF_LIST()
     },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_rx_pools,
+        NULL
+    }
 };
 
 static void spapr_vlan_class_init(ObjectClass *klass, void *data)
@@ -588,6 +801,7 @@ static const TypeInfo spapr_vlan_info = {
     .instance_size = sizeof(VIOsPAPRVLANDevice),
     .class_init    = spapr_vlan_class_init,
     .instance_init = spapr_vlan_instance_init,
+    .instance_finalize = spapr_vlan_instance_finalize,
 };
 
 static void spapr_vlan_register_types(void)
