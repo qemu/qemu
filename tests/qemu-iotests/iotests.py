@@ -30,7 +30,8 @@ import struct
 
 __all__ = ['imgfmt', 'imgproto', 'test_dir' 'qemu_img', 'qemu_io',
            'VM', 'QMPTestCase', 'notrun', 'main', 'verify_image_format',
-           'verify_platform']
+           'verify_platform', 'filter_test_dir', 'filter_win32',
+           'filter_qemu_io', 'filter_chown', 'log']
 
 # This will not work if arguments contain spaces but is necessary if we
 # want to support the override options that ./check supports.
@@ -104,6 +105,28 @@ def create_image(name, size):
         file.write(sector)
         i = i + 512
     file.close()
+
+test_dir_re = re.compile(r"%s" % test_dir)
+def filter_test_dir(msg):
+    return test_dir_re.sub("TEST_DIR", msg)
+
+win32_re = re.compile(r"\r")
+def filter_win32(msg):
+    return win32_re.sub("", msg)
+
+qemu_io_re = re.compile(r"[0-9]* ops; [0-9\/:. sec]* \([0-9\/.inf]* [EPTGMKiBbytes]*\/sec and [0-9\/.inf]* ops\/sec\)")
+def filter_qemu_io(msg):
+    msg = filter_win32(msg)
+    return qemu_io_re.sub("X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)", msg)
+
+chown_re = re.compile(r"chown [0-9]+:[0-9]+")
+def filter_chown(msg):
+    return chown_re.sub("chown UID:GID", msg)
+
+def log(msg, filters=[]):
+    for flt in filters:
+        msg = flt(msg)
+    print msg
 
 # Test if 'match' is a recursive subset of 'event'
 def event_match(event, match=None):
