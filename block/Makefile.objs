@@ -23,6 +23,8 @@ block-obj-$(CONFIG_LIBSSH2) += ssh.o
 block-obj-y += accounting.o dirty-bitmap.o
 block-obj-y += write-threshold.o
 
+block-obj-y += crypto.o
+
 common-obj-y += stream.o
 common-obj-y += commit.o
 common-obj-y += backup.o
