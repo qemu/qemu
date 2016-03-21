@@ -53,6 +53,8 @@ git:
   # we want to do this ourselves
   submodules: false
 before_install:
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew update ; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install libffi gettext glib pixman ; fi
   - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
   - git submodule update --init --recursive
 before_script:
@@ -83,3 +85,6 @@ matrix:
     - env: CONFIG="--with-coroutine=gthread"
            TEST_CMD=""
       compiler: gcc
+    - env: CONFIG=""
+      os: osx
+      compiler: clang
