@@ -29,7 +29,8 @@ import qtest
 import struct
 
 __all__ = ['imgfmt', 'imgproto', 'test_dir' 'qemu_img', 'qemu_io',
-           'VM', 'QMPTestCase', 'notrun', 'main']
+           'VM', 'QMPTestCase', 'notrun', 'main', 'verify_image_format',
+           'verify_platform']
 
 # This will not work if arguments contain spaces but is necessary if we
 # want to support the override options that ./check supports.
@@ -394,16 +395,21 @@ def notrun(reason):
     print '%s not run: %s' % (seq, reason)
     sys.exit(0)
 
+def verify_image_format(supported_fmts=[]):
+    if supported_fmts and (imgfmt not in supported_fmts):
+        notrun('not suitable for this image format: %s' % imgfmt)
+
+def verify_platform(supported_oses=['linux']):
+    if True not in [sys.platform.startswith(x) for x in supported_oses]:
+        notrun('not suitable for this OS: %s' % sys.platform)
+
 def main(supported_fmts=[], supported_oses=['linux']):
     '''Run tests'''
 
     debug = '-d' in sys.argv
     verbosity = 1
-    if supported_fmts and (imgfmt not in supported_fmts):
-        notrun('not suitable for this image format: %s' % imgfmt)
-
-    if True not in [sys.platform.startswith(x) for x in supported_oses]:
-        notrun('not suitable for this OS: %s' % sys.platform)
+    verify_image_format(supported_fmts)
+    verify_platform(supported_oses)
 
     # We need to filter out the time taken from the output so that qemu-iotest
     # can reliably diff the results against master output.
