@@ -29,83 +29,147 @@
 #include <nettle/serpent.h>
 #include <nettle/twofish.h>
 
-#if CONFIG_NETTLE_VERSION_MAJOR < 3
-typedef nettle_crypt_func nettle_cipher_func;
+typedef void (*QCryptoCipherNettleFuncWrapper)(const void *ctx,
+                                               size_t length,
+                                               uint8_t *dst,
+                                               const uint8_t *src);
 
+#if CONFIG_NETTLE_VERSION_MAJOR < 3
+typedef nettle_crypt_func * QCryptoCipherNettleFuncNative;
 typedef void *       cipher_ctx_t;
 typedef unsigned     cipher_length_t;
+
+#define cast5_set_key cast128_set_key
 #else
+typedef nettle_cipher_func * QCryptoCipherNettleFuncNative;
 typedef const void * cipher_ctx_t;
 typedef size_t       cipher_length_t;
 #endif
-
-static nettle_cipher_func aes_encrypt_wrapper;
-static nettle_cipher_func aes_decrypt_wrapper;
-static nettle_cipher_func des_encrypt_wrapper;
-static nettle_cipher_func des_decrypt_wrapper;
 
 typedef struct QCryptoNettleAES {
     struct aes_ctx enc;
     struct aes_ctx dec;
 } QCryptoNettleAES;
 
-static void aes_encrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+static void aes_encrypt_native(cipher_ctx_t ctx, cipher_length_t length,
+                               uint8_t *dst, const uint8_t *src)
+{
+    const QCryptoNettleAES *aesctx = ctx;
+    aes_encrypt(&aesctx->enc, length, dst, src);
+}
+
+static void aes_decrypt_native(cipher_ctx_t ctx, cipher_length_t length,
+                               uint8_t *dst, const uint8_t *src)
+{
+    const QCryptoNettleAES *aesctx = ctx;
+    aes_decrypt(&aesctx->dec, length, dst, src);
+}
+
+static void des_encrypt_native(cipher_ctx_t ctx, cipher_length_t length,
+                               uint8_t *dst, const uint8_t *src)
+{
+    des_encrypt(ctx, length, dst, src);
+}
+
+static void des_decrypt_native(cipher_ctx_t ctx, cipher_length_t length,
+                               uint8_t *dst, const uint8_t *src)
+{
+    des_decrypt(ctx, length, dst, src);
+}
+
+static void cast128_encrypt_native(cipher_ctx_t ctx, cipher_length_t length,
+                                   uint8_t *dst, const uint8_t *src)
+{
+    cast128_encrypt(ctx, length, dst, src);
+}
+
+static void cast128_decrypt_native(cipher_ctx_t ctx, cipher_length_t length,
+                                   uint8_t *dst, const uint8_t *src)
+{
+    cast128_decrypt(ctx, length, dst, src);
+}
+
+static void serpent_encrypt_native(cipher_ctx_t ctx, cipher_length_t length,
+                                   uint8_t *dst, const uint8_t *src)
+{
+    serpent_encrypt(ctx, length, dst, src);
+}
+
+static void serpent_decrypt_native(cipher_ctx_t ctx, cipher_length_t length,
+                                   uint8_t *dst, const uint8_t *src)
+{
+    serpent_decrypt(ctx, length, dst, src);
+}
+
+static void twofish_encrypt_native(cipher_ctx_t ctx, cipher_length_t length,
+                                   uint8_t *dst, const uint8_t *src)
+{
+    twofish_encrypt(ctx, length, dst, src);
+}
+
+static void twofish_decrypt_native(cipher_ctx_t ctx, cipher_length_t length,
+                                   uint8_t *dst, const uint8_t *src)
+{
+    twofish_decrypt(ctx, length, dst, src);
+}
+
+static void aes_encrypt_wrapper(const void *ctx, size_t length,
                                 uint8_t *dst, const uint8_t *src)
 {
     const QCryptoNettleAES *aesctx = ctx;
     aes_encrypt(&aesctx->enc, length, dst, src);
 }
 
-static void aes_decrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+static void aes_decrypt_wrapper(const void *ctx, size_t length,
                                 uint8_t *dst, const uint8_t *src)
 {
     const QCryptoNettleAES *aesctx = ctx;
     aes_decrypt(&aesctx->dec, length, dst, src);
 }
 
-static void des_encrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+static void des_encrypt_wrapper(const void *ctx, size_t length,
                                 uint8_t *dst, const uint8_t *src)
 {
     des_encrypt(ctx, length, dst, src);
 }
 
-static void des_decrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+static void des_decrypt_wrapper(const void *ctx, size_t length,
                                 uint8_t *dst, const uint8_t *src)
 {
     des_decrypt(ctx, length, dst, src);
 }
 
-static void cast128_encrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+static void cast128_encrypt_wrapper(const void *ctx, size_t length,
                                     uint8_t *dst, const uint8_t *src)
 {
     cast128_encrypt(ctx, length, dst, src);
 }
 
-static void cast128_decrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+static void cast128_decrypt_wrapper(const void *ctx, size_t length,
                                     uint8_t *dst, const uint8_t *src)
 {
     cast128_decrypt(ctx, length, dst, src);
 }
 
-static void serpent_encrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+static void serpent_encrypt_wrapper(const void *ctx, size_t length,
                                     uint8_t *dst, const uint8_t *src)
 {
     serpent_encrypt(ctx, length, dst, src);
 }
 
-static void serpent_decrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+static void serpent_decrypt_wrapper(const void *ctx, size_t length,
                                     uint8_t *dst, const uint8_t *src)
 {
     serpent_decrypt(ctx, length, dst, src);
 }
 
-static void twofish_encrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+static void twofish_encrypt_wrapper(const void *ctx, size_t length,
                                     uint8_t *dst, const uint8_t *src)
 {
     twofish_encrypt(ctx, length, dst, src);
 }
 
-static void twofish_decrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+static void twofish_decrypt_wrapper(const void *ctx, size_t length,
                                     uint8_t *dst, const uint8_t *src)
 {
     twofish_decrypt(ctx, length, dst, src);
@@ -118,8 +182,10 @@ struct QCryptoCipherNettle {
     /* Second cipher context for XTS mode only */
     void *ctx_tweak;
     /* Cipher callbacks for both contexts */
-    nettle_cipher_func *alg_encrypt;
-    nettle_cipher_func *alg_decrypt;
+    QCryptoCipherNettleFuncNative alg_encrypt_native;
+    QCryptoCipherNettleFuncNative alg_decrypt_native;
+    QCryptoCipherNettleFuncWrapper alg_encrypt_wrapper;
+    QCryptoCipherNettleFuncWrapper alg_decrypt_wrapper;
 
     uint8_t *iv;
     size_t blocksize;
@@ -182,8 +248,10 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         des_set_key(ctx->ctx, rfbkey);
         g_free(rfbkey);
 
-        ctx->alg_encrypt = des_encrypt_wrapper;
-        ctx->alg_decrypt = des_decrypt_wrapper;
+        ctx->alg_encrypt_native = des_encrypt_native;
+        ctx->alg_decrypt_native = des_decrypt_native;
+        ctx->alg_encrypt_wrapper = des_encrypt_wrapper;
+        ctx->alg_decrypt_wrapper = des_decrypt_wrapper;
 
         ctx->blocksize = DES_BLOCK_SIZE;
         break;
@@ -213,8 +281,10 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
                                 nkey, key);
         }
 
-        ctx->alg_encrypt = aes_encrypt_wrapper;
-        ctx->alg_decrypt = aes_decrypt_wrapper;
+        ctx->alg_encrypt_native = aes_encrypt_native;
+        ctx->alg_decrypt_native = aes_decrypt_native;
+        ctx->alg_encrypt_wrapper = aes_encrypt_wrapper;
+        ctx->alg_decrypt_wrapper = aes_decrypt_wrapper;
 
         ctx->blocksize = AES_BLOCK_SIZE;
         break;
@@ -232,8 +302,10 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
             cast5_set_key(ctx->ctx, nkey, key);
         }
 
-        ctx->alg_encrypt = cast128_encrypt_wrapper;
-        ctx->alg_decrypt = cast128_decrypt_wrapper;
+        ctx->alg_encrypt_native = cast128_encrypt_native;
+        ctx->alg_decrypt_native = cast128_decrypt_native;
+        ctx->alg_encrypt_wrapper = cast128_encrypt_wrapper;
+        ctx->alg_decrypt_wrapper = cast128_decrypt_wrapper;
 
         ctx->blocksize = CAST128_BLOCK_SIZE;
         break;
@@ -253,8 +325,10 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
             serpent_set_key(ctx->ctx, nkey, key);
         }
 
-        ctx->alg_encrypt = serpent_encrypt_wrapper;
-        ctx->alg_decrypt = serpent_decrypt_wrapper;
+        ctx->alg_encrypt_native = serpent_encrypt_native;
+        ctx->alg_decrypt_native = serpent_decrypt_native;
+        ctx->alg_encrypt_wrapper = serpent_encrypt_wrapper;
+        ctx->alg_decrypt_wrapper = serpent_decrypt_wrapper;
 
         ctx->blocksize = SERPENT_BLOCK_SIZE;
         break;
@@ -274,8 +348,10 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
             twofish_set_key(ctx->ctx, nkey, key);
         }
 
-        ctx->alg_encrypt = twofish_encrypt_wrapper;
-        ctx->alg_decrypt = twofish_decrypt_wrapper;
+        ctx->alg_encrypt_native = twofish_encrypt_native;
+        ctx->alg_decrypt_native = twofish_decrypt_native;
+        ctx->alg_encrypt_wrapper = twofish_encrypt_wrapper;
+        ctx->alg_decrypt_wrapper = twofish_decrypt_wrapper;
 
         ctx->blocksize = TWOFISH_BLOCK_SIZE;
         break;
@@ -330,18 +406,18 @@ int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
 
     switch (cipher->mode) {
     case QCRYPTO_CIPHER_MODE_ECB:
-        ctx->alg_encrypt(ctx->ctx, len, out, in);
+        ctx->alg_encrypt_wrapper(ctx->ctx, len, out, in);
         break;
 
     case QCRYPTO_CIPHER_MODE_CBC:
-        cbc_encrypt(ctx->ctx, ctx->alg_encrypt,
+        cbc_encrypt(ctx->ctx, ctx->alg_encrypt_native,
                     ctx->blocksize, ctx->iv,
                     len, out, in);
         break;
 
     case QCRYPTO_CIPHER_MODE_XTS:
         xts_encrypt(ctx->ctx, ctx->ctx_tweak,
-                    ctx->alg_encrypt, ctx->alg_encrypt,
+                    ctx->alg_encrypt_wrapper, ctx->alg_encrypt_wrapper,
                     ctx->iv, len, out, in);
         break;
 
@@ -370,11 +446,11 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
 
     switch (cipher->mode) {
     case QCRYPTO_CIPHER_MODE_ECB:
-        ctx->alg_decrypt(ctx->ctx, len, out, in);
+        ctx->alg_decrypt_wrapper(ctx->ctx, len, out, in);
         break;
 
     case QCRYPTO_CIPHER_MODE_CBC:
-        cbc_decrypt(ctx->ctx, ctx->alg_decrypt,
+        cbc_decrypt(ctx->ctx, ctx->alg_decrypt_native,
                     ctx->blocksize, ctx->iv,
                     len, out, in);
         break;
@@ -386,7 +462,7 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
             return -1;
         }
         xts_decrypt(ctx->ctx, ctx->ctx_tweak,
-                    ctx->alg_encrypt, ctx->alg_decrypt,
+                    ctx->alg_encrypt_wrapper, ctx->alg_decrypt_wrapper,
                     ctx->iv, len, out, in);
         break;
 
