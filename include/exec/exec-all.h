@@ -277,14 +277,16 @@ struct TranslationBlock {
      * jmp_list_first points to the first TB jumping to this one.
      * jmp_list_next is used to point to the next TB in a list.
      * Since each TB can have two jumps, it can participate in two lists.
-     * The two least significant bits of a pointer are used to choose which
-     * data field holds a pointer to the next TB:
+     * jmp_list_first and jmp_list_next are 4-byte aligned pointers to a
+     * TranslationBlock structure, but the two least significant bits of
+     * them are used to encode which data field of the pointed TB should
+     * be used to traverse the list further from that TB:
      * 0 => jmp_list_next[0], 1 => jmp_list_next[1], 2 => jmp_list_first.
      * In other words, 0/1 tells which jump is used in the pointed TB,
      * and 2 means that this is a pointer back to the target TB of this list.
      */
-    struct TranslationBlock *jmp_list_next[2];
-    struct TranslationBlock *jmp_list_first;
+    uintptr_t jmp_list_next[2];
+    uintptr_t jmp_list_first;
 };
 
 #include "qemu/thread.h"
@@ -382,7 +384,7 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
 
         /* add in TB jmp circular list */
         tb->jmp_list_next[n] = tb_next->jmp_list_first;
-        tb_next->jmp_list_first = (TranslationBlock *)((uintptr_t)tb | n);
+        tb_next->jmp_list_first = (uintptr_t)tb | n;
     }
 }
 
