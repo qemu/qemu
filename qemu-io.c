@@ -70,7 +70,7 @@ static int openfile(char *name, int flags, QDict *opts)
     }
 
     bs = blk_bs(qemuio_blk);
-    if (bdrv_is_encrypted(bs)) {
+    if (bdrv_is_encrypted(bs) && bdrv_key_required(bs)) {
         char password[256];
         printf("Disk image '%s' is encrypted.\n", name);
         if (qemu_read_password(password, sizeof(password)) < 0) {
