@@ -55,20 +55,31 @@ void bdrv_set_io_limits(BlockDriverState *bs,
 
 void bdrv_no_throttling_begin(BlockDriverState *bs)
 {
-    if (bs->io_limits_disabled++ == 0) {
-        throttle_group_restart_bs(bs);
+    if (!bs->blk) {
+        return;
+    }
+
+    if (blk_get_public(bs->blk)->io_limits_disabled++ == 0) {
+        throttle_group_restart_blk(bs->blk);
     }
 }
 
 void bdrv_no_throttling_end(BlockDriverState *bs)
 {
-    assert(bs->io_limits_disabled);
-    --bs->io_limits_disabled;
+    BlockBackendPublic *blkp;
+
+    if (!bs->blk) {
+        return;
+    }
+
+    blkp = blk_get_public(bs->blk);
+    assert(blkp->io_limits_disabled);
+    --blkp->io_limits_disabled;
 }
 
 void bdrv_io_limits_disable(BlockDriverState *bs)
 {
-    assert(bs->throttle_state);
+    assert(blk_get_public(bs->blk)->throttle_state);
     bdrv_no_throttling_begin(bs);
     throttle_group_unregister_blk(bs->blk);
     bdrv_no_throttling_end(bs);
@@ -77,14 +88,16 @@ void bdrv_io_limits_disable(BlockDriverState *bs)
 /* should be called before bdrv_set_io_limits if a limit is set */
 void bdrv_io_limits_enable(BlockDriverState *bs, const char *group)
 {
-    assert(!bs->throttle_state);
+    BlockBackendPublic *blkp = blk_get_public(bs->blk);
+
+    assert(!blkp->throttle_state);
     throttle_group_register_blk(bs->blk, group);
 }
 
 void bdrv_io_limits_update_group(BlockDriverState *bs, const char *group)
 {
     /* this bs is not part of any group */
-    if (!bs->throttle_state) {
+    if (!blk_get_public(bs->blk)->throttle_state) {
         return;
     }
 
@@ -178,14 +191,15 @@ void bdrv_disable_copy_on_read(BlockDriverState *bs)
 bool bdrv_requests_pending(BlockDriverState *bs)
 {
     BdrvChild *child;
+    BlockBackendPublic *blkp = bs->blk ? blk_get_public(bs->blk) : NULL;
 
     if (!QLIST_EMPTY(&bs->tracked_requests)) {
         return true;
     }
-    if (!qemu_co_queue_empty(&bs->throttled_reqs[0])) {
+    if (blkp && !qemu_co_queue_empty(&blkp->throttled_reqs[0])) {
         return true;
     }
-    if (!qemu_co_queue_empty(&bs->throttled_reqs[1])) {
+    if (blkp && !qemu_co_queue_empty(&blkp->throttled_reqs[1])) {
         return true;
     }
 
@@ -1070,7 +1084,7 @@ int coroutine_fn bdrv_co_preadv(BlockDriverState *bs,
     }
 
     /* throttling disk I/O */
-    if (bs->throttle_state) {
+    if (bs->blk && blk_get_public(bs->blk)->throttle_state) {
         throttle_group_co_io_limits_intercept(bs, bytes, false);
     }
 
@@ -1431,7 +1445,7 @@ int coroutine_fn bdrv_co_pwritev(BlockDriverState *bs,
     }
 
     /* throttling disk I/O */
-    if (bs->throttle_state) {
+    if (bs->blk && blk_get_public(bs->blk)->throttle_state) {
         throttle_group_co_io_limits_intercept(bs, bytes, true);
     }
 

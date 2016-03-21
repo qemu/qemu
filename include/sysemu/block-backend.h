@@ -14,6 +14,7 @@
 #define BLOCK_BACKEND_H
 
 #include "qemu/iov.h"
+#include "block/throttle-groups.h"
 
 /*
  * TODO Have to include block/block.h for a bunch of block layer
@@ -63,9 +64,17 @@ typedef struct BlockDevOps {
  * fields that must be public. This is in particular for QLIST_ENTRY() and
  * friends so that BlockBackends can be kept in lists outside block-backend.c */
 typedef struct BlockBackendPublic {
-    /* I/O throttling */
+    /* I/O throttling.
+     * throttle_state tells us if this BlockBackend has I/O limits configured.
+     * io_limits_disabled tells us if they are currently being enforced */
+    CoQueue      throttled_reqs[2];
+    unsigned int io_limits_disabled;
+
     /* The following fields are protected by the ThrottleGroup lock.
      * See the ThrottleGroup documentation for details. */
+    ThrottleState *throttle_state;
+    ThrottleTimers throttle_timers;
+    unsigned       pending_reqs[2];
     QLIST_ENTRY(BlockBackendPublic) round_robin;
 } BlockBackendPublic;
 

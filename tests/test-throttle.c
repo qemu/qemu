@@ -576,31 +576,35 @@ static void test_groups(void)
 {
     ThrottleConfig cfg1, cfg2;
     BlockBackend *blk1, *blk2, *blk3;
-    BlockDriverState *bdrv1, *bdrv2, *bdrv3;
+    BlockBackendPublic *blkp1, *blkp2, *blkp3;
+    BlockDriverState *bdrv1, *bdrv3;
 
     blk1 = blk_new_with_bs(&error_abort);
     blk2 = blk_new_with_bs(&error_abort);
     blk3 = blk_new_with_bs(&error_abort);
 
     bdrv1 = blk_bs(blk1);
-    bdrv2 = blk_bs(blk2);
     bdrv3 = blk_bs(blk3);
 
-    g_assert(bdrv1->throttle_state == NULL);
-    g_assert(bdrv2->throttle_state == NULL);
-    g_assert(bdrv3->throttle_state == NULL);
+    blkp1 = blk_get_public(blk1);
+    blkp2 = blk_get_public(blk2);
+    blkp3 = blk_get_public(blk3);
+
+    g_assert(blkp1->throttle_state == NULL);
+    g_assert(blkp2->throttle_state == NULL);
+    g_assert(blkp3->throttle_state == NULL);
 
     throttle_group_register_blk(blk1, "bar");
     throttle_group_register_blk(blk2, "foo");
     throttle_group_register_blk(blk3, "bar");
 
-    g_assert(bdrv1->throttle_state != NULL);
-    g_assert(bdrv2->throttle_state != NULL);
-    g_assert(bdrv3->throttle_state != NULL);
+    g_assert(blkp1->throttle_state != NULL);
+    g_assert(blkp2->throttle_state != NULL);
+    g_assert(blkp3->throttle_state != NULL);
 
     g_assert(!strcmp(throttle_group_get_name(blk1), "bar"));
     g_assert(!strcmp(throttle_group_get_name(blk2), "foo"));
-    g_assert(bdrv1->throttle_state == bdrv3->throttle_state);
+    g_assert(blkp1->throttle_state == blkp3->throttle_state);
 
     /* Setting the config of a group member affects the whole group */
     throttle_config_init(&cfg1);
@@ -628,9 +632,9 @@ static void test_groups(void)
     throttle_group_unregister_blk(blk2);
     throttle_group_unregister_blk(blk3);
 
-    g_assert(bdrv1->throttle_state == NULL);
-    g_assert(bdrv2->throttle_state == NULL);
-    g_assert(bdrv3->throttle_state == NULL);
+    g_assert(blkp1->throttle_state == NULL);
+    g_assert(blkp2->throttle_state == NULL);
+    g_assert(blkp3->throttle_state == NULL);
 }
 
 int main(int argc, char **argv)

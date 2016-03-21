@@ -67,7 +67,7 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
     info->backing_file_depth = bdrv_get_backing_file_depth(bs);
     info->detect_zeroes = bs->detect_zeroes;
 
-    if (bs->throttle_state) {
+    if (bs->blk && blk_get_public(bs->blk)->throttle_state) {
         ThrottleConfig cfg;
 
         throttle_group_get_config(bs, &cfg);

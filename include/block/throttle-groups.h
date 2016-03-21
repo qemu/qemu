@@ -38,7 +38,7 @@ void throttle_group_get_config(BlockDriverState *bs, ThrottleConfig *cfg);
 
 void throttle_group_register_blk(BlockBackend *blk, const char *groupname);
 void throttle_group_unregister_blk(BlockBackend *blk);
-void throttle_group_restart_bs(BlockDriverState *bs);
+void throttle_group_restart_blk(BlockBackend *blk);
 
 void coroutine_fn throttle_group_co_io_limits_intercept(BlockDriverState *bs,
                                                         unsigned int bytes,

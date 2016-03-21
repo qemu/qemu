@@ -26,7 +26,6 @@
 
 #include "block/accounting.h"
 #include "block/block.h"
-#include "block/throttle-groups.h"
 #include "qemu/option.h"
 #include "qemu/queue.h"
 #include "qemu/coroutine.h"
@@ -423,18 +422,6 @@ struct BlockDriverState {
 
     /* number of in-flight serialising requests */
     unsigned int serialising_in_flight;
-
-    /* I/O throttling.
-     * throttle_state tells us if this BDS has I/O limits configured.
-     * io_limits_disabled tells us if they are currently being enforced */
-    CoQueue      throttled_reqs[2];
-    unsigned int io_limits_disabled;
-
-    /* The following fields are protected by the ThrottleGroup lock.
-     * See the ThrottleGroup documentation for details. */
-    ThrottleState *throttle_state;
-    ThrottleTimers throttle_timers;
-    unsigned       pending_reqs[2];
 
     /* Offset after the highest byte written to */
     uint64_t wr_highest_offset;

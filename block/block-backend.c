@@ -107,8 +107,12 @@ BlockBackend *blk_new(Error **errp)
 
     blk = g_new0(BlockBackend, 1);
     blk->refcnt = 1;
+    qemu_co_queue_init(&blk->public.throttled_reqs[0]);
+    qemu_co_queue_init(&blk->public.throttled_reqs[1]);
+
     notifier_list_init(&blk->remove_bs_notifiers);
     notifier_list_init(&blk->insert_bs_notifiers);
+
     QTAILQ_INSERT_TAIL(&block_backends, blk, link);
     return blk;
 }
@@ -437,7 +441,7 @@ void blk_remove_bs(BlockBackend *blk)
     notifier_list_notify(&blk->remove_bs_notifiers, blk);
 
     blk_update_root_state(blk);
-    if (blk->root->bs->throttle_state) {
+    if (blk->public.throttle_state) {
         bdrv_io_limits_disable(blk->root->bs);
     }
 
@@ -795,7 +799,6 @@ static int blk_prw(BlockBackend *blk, int64_t offset, uint8_t *buf,
 int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
                           int count)
 {
-    BlockDriverState *bs = blk_bs(blk);
     int ret;
 
     ret = blk_check_byte_request(blk, offset, count);
@@ -803,9 +806,9 @@ int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
         return ret;
     }
 
-    bdrv_no_throttling_begin(bs);
+    bdrv_no_throttling_begin(blk_bs(blk));
     ret = blk_pread(blk, offset, buf, count);
-    bdrv_no_throttling_end(bs);
+    bdrv_no_throttling_end(blk_bs(blk));
     return ret;
 }
 
@@ -1524,7 +1527,7 @@ void blk_update_root_state(BlockBackend *blk)
         g_free(blk->root_state.throttle_group);
         throttle_group_unref(blk->root_state.throttle_state);
     }
-    if (blk->root->bs->throttle_state) {
+    if (blk->public.throttle_state) {
         const char *name = throttle_group_get_name(blk);
         blk->root_state.throttle_group = g_strdup(name);
         blk->root_state.throttle_state = throttle_group_incref(name);

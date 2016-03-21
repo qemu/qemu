@@ -2726,14 +2726,14 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
     if (throttle_enabled(&cfg)) {
         /* Enable I/O limits if they're not enabled yet, otherwise
          * just update the throttling group. */
-        if (!bs->throttle_state) {
+        if (!blk_get_public(bs->blk)->throttle_state) {
             bdrv_io_limits_enable(bs, has_group ? group : device);
         } else if (has_group) {
             bdrv_io_limits_update_group(bs, group);
         }
         /* Set the new throttling configuration */
         bdrv_set_io_limits(bs, &cfg);
-    } else if (bs->throttle_state) {
+    } else if (blk_get_public(bs->blk)->throttle_state) {
         /* If all throttling settings are set to 0, disable I/O limits */
         bdrv_io_limits_disable(bs);
     }

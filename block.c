@@ -237,8 +237,6 @@ BlockDriverState *bdrv_new(void)
         QLIST_INIT(&bs->op_blockers[i]);
     }
     notifier_with_return_list_init(&bs->before_write_notifiers);
-    qemu_co_queue_init(&bs->throttled_reqs[0]);
-    qemu_co_queue_init(&bs->throttled_reqs[1]);
     bs->refcnt = 1;
     bs->aio_context = qemu_get_aio_context();
 
@@ -1525,7 +1523,7 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
             return -ENODEV;
         }
 
-        if (bs->throttle_state) {
+        if (bs->blk && blk_get_public(bs->blk)->throttle_state) {
             error_setg(errp, "Cannot reference an existing block device for "
                        "which I/O throttling is enabled");
             return -EINVAL;
@@ -2124,7 +2122,7 @@ static void bdrv_close(BlockDriverState *bs)
     assert(!bs->job);
 
     /* Disable I/O limits and drain all pending throttled requests */
-    if (bs->throttle_state) {
+    if (bs->blk && blk_get_public(bs->blk)->throttle_state) {
         bdrv_io_limits_disable(bs);
     }
 
@@ -2257,8 +2255,8 @@ static void swap_feature_fields(BlockDriverState *bs_top,
     bdrv_move_feature_fields(bs_top, bs_new);
     bdrv_move_feature_fields(bs_new, &tmp);
 
-    assert(!bs_new->throttle_state);
-    if (bs_top->throttle_state) {
+    assert(!bs_new->blk);
+    if (bs_top->blk && blk_get_public(bs_top->blk)->throttle_state) {
         /*
          * FIXME Need to break I/O throttling with graph manipulations
          * temporarily because of conflicting invariants (3. will go away when
@@ -2300,11 +2298,11 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
     assert(!bdrv_requests_pending(bs_new));
 
     bdrv_ref(bs_top);
-    change_parent_backing_link(bs_top, bs_new);
 
     /* Some fields always stay on top of the backing file chain */
     swap_feature_fields(bs_top, bs_new);
 
+    change_parent_backing_link(bs_top, bs_new);
     bdrv_set_backing_hd(bs_new, bs_top);
     bdrv_unref(bs_top);
 
@@ -3676,8 +3674,9 @@ void bdrv_detach_aio_context(BlockDriverState *bs)
         baf->detach_aio_context(baf->opaque);
     }
 
-    if (bs->throttle_state) {
-        throttle_timers_detach_aio_context(&bs->throttle_timers);
+    if (bs->blk && blk_get_public(bs->blk)->throttle_state) {
+        throttle_timers_detach_aio_context(
+            &blk_get_public(bs->blk)->throttle_timers);
     }
     if (bs->drv->bdrv_detach_aio_context) {
         bs->drv->bdrv_detach_aio_context(bs);
@@ -3712,8 +3711,9 @@ void bdrv_attach_aio_context(BlockDriverState *bs,
     if (bs->drv->bdrv_attach_aio_context) {
         bs->drv->bdrv_attach_aio_context(bs, new_context);
     }
-    if (bs->throttle_state) {
-        throttle_timers_attach_aio_context(&bs->throttle_timers, new_context);
+    if (bs->blk && blk_get_public(bs->blk)->throttle_state) {
+        throttle_timers_attach_aio_context(
+            &blk_get_public(bs->blk)->throttle_timers, new_context);
     }
 
     QLIST_FOREACH(ban, &bs->aio_notifiers, list) {
