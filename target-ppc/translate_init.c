@@ -8380,8 +8380,29 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
     pcc->l1_icache_size = 0x8000;
     pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_lpcr;
 }
-#endif /* defined (TARGET_PPC64) */
 
+#if !defined(CONFIG_USER_ONLY)
+
+void cpu_ppc_set_papr(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+
+    /* PAPR always has exception vectors in RAM not ROM. To ensure this,
+     * MSR[IP] should never be set.
+     *
+     * We also disallow setting of MSR_HV
+     */
+    env->msr_mask &= ~((1ull << MSR_EP) | MSR_HVB);
+
+    /* Tell KVM that we're in PAPR mode */
+    if (kvm_enabled()) {
+        kvmppc_set_papr(cpu);
+    }
+}
+
+#endif /* !defined(CONFIG_USER_ONLY) */
+
+#endif /* defined (TARGET_PPC64) */
 
 /*****************************************************************************/
 /* Generic CPU instantiation routine                                         */
