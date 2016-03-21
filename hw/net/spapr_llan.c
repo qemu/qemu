@@ -718,7 +718,7 @@ static Property spapr_vlan_properties[] = {
     DEFINE_SPAPR_PROPERTIES(VIOsPAPRVLANDevice, sdev),
     DEFINE_NIC_PROPERTIES(VIOsPAPRVLANDevice, nicconf),
     DEFINE_PROP_BIT("use-rx-buffer-pools", VIOsPAPRVLANDevice,
-                    compat_flags, SPAPRVLAN_FLAG_RX_BUF_POOLS_BIT, false),
+                    compat_flags, SPAPRVLAN_FLAG_RX_BUF_POOLS_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -2356,7 +2356,12 @@ DEFINE_SPAPR_MACHINE(2_6, "2.6", true);
  * pseries-2.5
  */
 #define SPAPR_COMPAT_2_5 \
-        HW_COMPAT_2_5
+    HW_COMPAT_2_5 \
+    { \
+        .driver   = "spapr-vlan", \
+        .property = "use-rx-buffer-pools", \
+        .value    = "off", \
+    },
 
 static void spapr_machine_2_5_instance_options(MachineState *machine)
 {
