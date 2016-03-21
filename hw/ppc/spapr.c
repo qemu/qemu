@@ -497,10 +497,11 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
              * Older KVM versions with older guest kernels were broken with the
              * magic page, don't allow the guest to map it.
              */
-            kvmppc_get_hypercall(first_cpu->env_ptr, hypercall,
-                                 sizeof(hypercall));
-            _FDT((fdt_property(fdt, "hcall-instructions", hypercall,
-                              sizeof(hypercall))));
+            if (!kvmppc_get_hypercall(first_cpu->env_ptr, hypercall,
+                                      sizeof(hypercall))) {
+                _FDT((fdt_property(fdt, "hcall-instructions", hypercall,
+                                   sizeof(hypercall))));
+            }
         }
         _FDT((fdt_end_node(fdt)));
     }
