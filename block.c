@@ -702,7 +702,8 @@ static void bdrv_inherited_options(int *child_flags, QDict *child_options,
     flags |= BDRV_O_UNMAP;
 
     /* Clear flags that only apply to the top layer */
-    flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_COPY_ON_READ);
+    flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_COPY_ON_READ |
+               BDRV_O_NO_IO);
 
     *child_flags = flags;
 }
@@ -722,7 +723,7 @@ static void bdrv_inherited_fmt_options(int *child_flags, QDict *child_options,
     child_file.inherit_options(child_flags, child_options,
                                parent_flags, parent_options);
 
-    *child_flags &= ~BDRV_O_PROTOCOL;
+    *child_flags &= ~(BDRV_O_PROTOCOL | BDRV_O_NO_IO);
 }
 
 const BdrvChildRole child_format = {

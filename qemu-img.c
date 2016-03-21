@@ -225,13 +225,13 @@ static int print_block_option_help(const char *filename, const char *fmt)
 
 
 static int img_open_password(BlockBackend *blk, const char *filename,
-                             bool require_io, bool quiet)
+                             int flags, bool quiet)
 {
     BlockDriverState *bs;
     char password[256];
 
     bs = blk_bs(blk);
-    if (bdrv_is_encrypted(bs) && require_io) {
+    if (bdrv_is_encrypted(bs) && !(flags & BDRV_O_NO_IO)) {
         qprintf(quiet, "Disk image '%s' is encrypted.\n", filename);
         if (qemu_read_password(password, sizeof(password)) < 0) {
             error_report("No password given");
@@ -248,7 +248,7 @@ static int img_open_password(BlockBackend *blk, const char *filename,
 
 static BlockBackend *img_open_opts(const char *optstr,
                                    QemuOpts *opts, int flags,
-                                   bool require_io, bool quiet)
+                                   bool quiet)
 {
     QDict *options;
     Error *local_err = NULL;
@@ -260,7 +260,7 @@ static BlockBackend *img_open_opts(const char *optstr,
         return NULL;
     }
 
-    if (img_open_password(blk, optstr, require_io, quiet) < 0) {
+    if (img_open_password(blk, optstr, flags, quiet) < 0) {
         blk_unref(blk);
         return NULL;
     }
@@ -269,7 +269,7 @@ static BlockBackend *img_open_opts(const char *optstr,
 
 static BlockBackend *img_open_file(const char *filename,
                                    const char *fmt, int flags,
-                                   bool require_io, bool quiet)
+                                   bool quiet)
 {
     BlockBackend *blk;
     Error *local_err = NULL;
@@ -286,7 +286,7 @@ static BlockBackend *img_open_file(const char *filename,
         return NULL;
     }
 
-    if (img_open_password(blk, filename, require_io, quiet) < 0) {
+    if (img_open_password(blk, filename, flags, quiet) < 0) {
         blk_unref(blk);
         return NULL;
     }
@@ -297,7 +297,7 @@ static BlockBackend *img_open_file(const char *filename,
 static BlockBackend *img_open(bool image_opts,
                               const char *filename,
                               const char *fmt, int flags,
-                              bool require_io, bool quiet)
+                              bool quiet)
 {
     BlockBackend *blk;
     if (image_opts) {
@@ -311,9 +311,9 @@ static BlockBackend *img_open(bool image_opts,
         if (!opts) {
             return NULL;
         }
-        blk = img_open_opts(filename, opts, flags, true, quiet);
+        blk = img_open_opts(filename, opts, flags, quiet);
     } else {
-        blk = img_open_file(filename, fmt, flags, true, quiet);
+        blk = img_open_file(filename, fmt, flags, quiet);
     }
     return blk;
 }
@@ -685,7 +685,7 @@ static int img_check(int argc, char **argv)
         return 1;
     }
 
-    blk = img_open(image_opts, filename, fmt, flags, true, quiet);
+    blk = img_open(image_opts, filename, fmt, flags, quiet);
     if (!blk) {
         return 1;
     }
@@ -877,7 +877,7 @@ static int img_commit(int argc, char **argv)
         return 1;
     }
 
-    blk = img_open(image_opts, filename, fmt, flags, true, quiet);
+    blk = img_open(image_opts, filename, fmt, flags, quiet);
     if (!blk) {
         return 1;
     }
@@ -1211,13 +1211,13 @@ static int img_compare(int argc, char **argv)
         goto out3;
     }
 
-    blk1 = img_open(image_opts, filename1, fmt1, flags, true, quiet);
+    blk1 = img_open(image_opts, filename1, fmt1, flags, quiet);
     if (!blk1) {
         ret = 2;
         goto out3;
     }
 
-    blk2 = img_open(image_opts, filename2, fmt2, flags, true, quiet);
+    blk2 = img_open(image_opts, filename2, fmt2, flags, quiet);
     if (!blk2) {
         ret = 2;
         goto out2;
@@ -1899,7 +1899,7 @@ static int img_convert(int argc, char **argv)
     total_sectors = 0;
     for (bs_i = 0; bs_i < bs_n; bs_i++) {
         blk[bs_i] = img_open(image_opts, argv[optind + bs_i],
-                             fmt, src_flags, true, quiet);
+                             fmt, src_flags, quiet);
         if (!blk[bs_i]) {
             ret = -1;
             goto out;
@@ -2044,7 +2044,7 @@ static int img_convert(int argc, char **argv)
      * the bdrv_create() call which takes different params.
      * Not critical right now, so fix can wait...
      */
-    out_blk = img_open_file(out_filename, out_fmt, flags, true, quiet);
+    out_blk = img_open_file(out_filename, out_fmt, flags, quiet);
     if (!out_blk) {
         ret = -1;
         goto out;
@@ -2236,8 +2236,8 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
         g_hash_table_insert(filenames, (gpointer)filename, NULL);
 
         blk = img_open(image_opts, filename, fmt,
-                       BDRV_O_FLAGS | BDRV_O_NO_BACKING,
-                       false, false);
+                       BDRV_O_FLAGS | BDRV_O_NO_BACKING | BDRV_O_NO_IO,
+                       false);
         if (!blk) {
             goto err;
         }
@@ -2567,7 +2567,7 @@ static int img_map(int argc, char **argv)
         return 1;
     }
 
-    blk = img_open(image_opts, filename, fmt, BDRV_O_FLAGS, true, false);
+    blk = img_open(image_opts, filename, fmt, BDRV_O_FLAGS, false);
     if (!blk) {
         return 1;
     }
@@ -2712,7 +2712,7 @@ static int img_snapshot(int argc, char **argv)
     }
 
     /* Open the image */
-    blk = img_open(image_opts, filename, NULL, bdrv_oflags, true, quiet);
+    blk = img_open(image_opts, filename, NULL, bdrv_oflags, quiet);
     if (!blk) {
         return 1;
     }
@@ -2883,7 +2883,7 @@ static int img_rebase(int argc, char **argv)
      * Ignore the old backing file for unsafe rebase in case we want to correct
      * the reference to a renamed or moved backing file.
      */
-    blk = img_open(image_opts, filename, fmt, flags, true, quiet);
+    blk = img_open(image_opts, filename, fmt, flags, quiet);
     if (!blk) {
         ret = -1;
         goto out;
@@ -3221,7 +3221,7 @@ static int img_resize(int argc, char **argv)
     qemu_opts_del(param);
 
     blk = img_open(image_opts, filename, fmt,
-                   BDRV_O_FLAGS | BDRV_O_RDWR, true, quiet);
+                   BDRV_O_FLAGS | BDRV_O_RDWR, quiet);
     if (!blk) {
         ret = -1;
         goto out;
@@ -3380,7 +3380,7 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
-    blk = img_open(image_opts, filename, fmt, flags, true, quiet);
+    blk = img_open(image_opts, filename, fmt, flags, quiet);
     if (!blk) {
         ret = -1;
         goto out;
