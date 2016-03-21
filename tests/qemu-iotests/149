@@ -1,0 +1,519 @@
+#!/usr/bin/python
+#
+# Copyright (C) 2016 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Daniel P. Berrange <berrange@redhat.com>
+#
+# Exercise the QEMU 'luks' block driver to validate interoperability
+# with the Linux dm-crypt + cryptsetup implementation
+
+import subprocess
+import os
+import os.path
+
+import base64
+
+import iotests
+
+
+class LUKSConfig(object):
+    """Represent configuration parameters for a single LUKS
+       setup to be tested"""
+
+    def __init__(self, name, cipher, keylen, mode, ivgen,
+                 ivgen_hash, hash, password=None, passwords=None):
+
+        self.name = name
+        self.cipher = cipher
+        self.keylen = keylen
+        self.mode = mode
+        self.ivgen = ivgen
+        self.ivgen_hash = ivgen_hash
+        self.hash = hash
+
+        if passwords is not None:
+            self.passwords = passwords
+        else:
+            self.passwords = {}
+
+            if password is None:
+                self.passwords["0"] = "123456"
+            else:
+                self.passwords["0"] = password
+
+    def __repr__(self):
+        return self.name
+
+    def image_name(self):
+        return "luks-%s.img" % self.name
+
+    def image_path(self):
+        return os.path.join(iotests.test_dir, self.image_name())
+
+    def device_name(self):
+        return "qiotest-145-%s" % self.name
+
+    def device_path(self):
+        return "/dev/mapper/" + self.device_name()
+
+    def first_password(self):
+        for i in range(8):
+            slot = str(i)
+            if slot in self.passwords:
+                return (self.passwords[slot], slot)
+        raise Exception("No password found")
+
+    def first_password_base64(self):
+        (pw, slot) = self.first_password()
+        return base64.b64encode(pw)
+
+    def active_slots(self):
+        slots = []
+        for i in range(8):
+            slot = str(i)
+            if slot in self.passwords:
+                slots.append(slot)
+        return slots
+
+def verify_passwordless_sudo():
+    """Check whether sudo is configured to allow
+       password-less access to commands"""
+
+    args = ["sudo", "-n", "/bin/true"]
+
+    proc = subprocess.Popen(args,
+                            stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT)
+
+    msg = proc.communicate()[0]
+
+    if proc.returncode != 0:
+        iotests.notrun('requires password-less sudo access: %s' % msg)
+
+
+def cryptsetup(args, password=None):
+    """Run the cryptsetup command in batch mode"""
+
+    fullargs = ["sudo", "cryptsetup", "-q", "-v"]
+    fullargs.extend(args)
+
+    iotests.log(" ".join(fullargs), filters=[iotests.filter_test_dir])
+    proc = subprocess.Popen(fullargs,
+                            stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT)
+
+    msg = proc.communicate(password)[0]
+
+    if proc.returncode != 0:
+        raise Exception(msg)
+
+
+def cryptsetup_add_password(config, slot):
+    """Add another password to a LUKS key slot"""
+
+    (password, mainslot) = config.first_password()
+
+    pwfile = os.path.join(iotests.test_dir, "passwd.txt")
+    with open(pwfile, "w") as fh:
+        fh.write(config.passwords[slot])
+
+    try:
+        args = ["luksAddKey", config.image_path(),
+                "--key-slot", slot,
+                "--key-file", "-",
+                pwfile]
+
+        cryptsetup(args, password)
+    finally:
+        os.unlink(pwfile)
+
+
+def cryptsetup_format(config):
+    """Format a new LUKS volume with cryptsetup, adding the
+    first key slot only"""
+
+    (password, slot) = config.first_password()
+
+    args = ["luksFormat"]
+    cipher = config.cipher + "-" + config.mode + "-" + config.ivgen
+    if config.ivgen_hash is not None:
+        cipher = cipher + ":" + config.ivgen_hash
+    args.extend(["--cipher", cipher])
+    if config.mode == "xts":
+        args.extend(["--key-size", str(config.keylen * 2)])
+    else:
+        args.extend(["--key-size", str(config.keylen)])
+    if config.hash is not None:
+        args.extend(["--hash", config.hash])
+    args.extend(["--key-slot", slot])
+    args.extend(["--key-file", "-"])
+    args.append(config.image_path())
+
+    cryptsetup(args, password)
+
+
+def chown(config):
+    """Set the ownership of a open LUKS device to this user"""
+
+    path = config.device_path()
+
+    args = ["sudo", "chown", "%d:%d" % (os.getuid(), os.getgid()), path]
+    iotests.log(" ".join(args), filters=[iotests.filter_chown])
+    proc = subprocess.Popen(args,
+                            stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT)
+
+    msg = proc.communicate()[0]
+
+    if proc.returncode != 0:
+        raise Exception("Cannot change owner on %s" % path)
+
+
+def cryptsetup_open(config):
+    """Open an image as a LUKS device"""
+
+    (password, slot) = config.first_password()
+
+    args = ["luksOpen", config.image_path(), config.device_name()]
+
+    cryptsetup(args, password)
+
+
+def cryptsetup_close(config):
+    """Close an active LUKS device """
+
+    args = ["luksClose", config.device_name()]
+    cryptsetup(args)
+
+
+def delete_image(config):
+    """Delete a disk image"""
+
+    try:
+        os.unlink(config.image_path())
+        iotests.log("unlink %s" % config.image_path(),
+                    filters=[iotests.filter_test_dir])
+    except Exception as e:
+        pass
+
+
+def create_image(config, size_mb):
+    """Create a bare disk image with requested size"""
+
+    delete_image(config)
+    iotests.log("truncate %s --size %dMB" % (config.image_path(), size_mb),
+                filters=[iotests.filter_test_dir])
+    with open(config.image_path(), "w") as fn:
+        fn.truncate(size_mb * 1024 * 1024)
+
+
+def qemu_img_create(config, size_mb):
+    """Create and format a disk image with LUKS using qemu-img"""
+
+    opts = [
+        "key-secret=sec0",
+        "cipher-alg=%s-%d" % (config.cipher, config.keylen),
+        "cipher-mode=%s" % config.mode,
+        "ivgen-alg=%s" % config.ivgen,
+        "hash-alg=%s" % config.hash,
+    ]
+    if config.ivgen_hash is not None:
+        opts.append("ivgen-hash-alg=%s" % config.ivgen_hash)
+
+    args = ["create", "-f", "luks",
+            "--object",
+            ("secret,id=sec0,data=%s,format=base64" %
+             config.first_password_base64()),
+            "-o", ",".join(opts),
+            config.image_path(),
+            "%dM" % size_mb]
+
+    iotests.log("qemu-img " + " ".join(args), filters=[iotests.filter_test_dir])
+    iotests.log(iotests.qemu_img_pipe(*args), filters=[iotests.filter_test_dir])
+
+def qemu_io_image_args(config, dev=False):
+    """Get the args for access an image or device with qemu-io"""
+
+    if dev:
+        return [
+            "--image-opts",
+            "driver=file,filename=%s" % config.device_path()]
+    else:
+        return [
+            "--object",
+            ("secret,id=sec0,data=%s,format=base64" %
+             config.first_password_base64()),
+            "--image-opts",
+            ("driver=luks,key-secret=sec0,file.filename=%s" %
+             config.image_path())]
+
+def qemu_io_write_pattern(config, pattern, offset_mb, size_mb, dev=False):
+    """Write a pattern of data to a LUKS image or device"""
+
+    args = ["-c", "write -P 0x%x %dM %dM" % (pattern, offset_mb, size_mb)]
+    args.extend(qemu_io_image_args(config, dev))
+    iotests.log("qemu-io " + " ".join(args), filters=[iotests.filter_test_dir])
+    iotests.log(iotests.qemu_io(*args), filters=[iotests.filter_test_dir,
+                                                 iotests.filter_qemu_io])
+
+
+def qemu_io_read_pattern(config, pattern, offset_mb, size_mb, dev=False):
+    """Read a pattern of data to a LUKS image or device"""
+
+    args = ["-c", "read -P 0x%x %dM %dM" % (pattern, offset_mb, size_mb)]
+    args.extend(qemu_io_image_args(config, dev))
+    iotests.log("qemu-io " + " ".join(args), filters=[iotests.filter_test_dir])
+    iotests.log(iotests.qemu_io(*args), filters=[iotests.filter_test_dir,
+                                                 iotests.filter_qemu_io])
+
+
+def test_once(config, qemu_img=False):
+    """Run the test with a desired LUKS configuration. Can either
+       use qemu-img for creating the initial volume, or cryptsetup,
+       in order to test interoperability in both directions"""
+
+    iotests.log("# ================= %s %s =================" % (
+        "qemu-img" if qemu_img else "dm-crypt", config))
+
+    oneKB = 1024
+    oneMB = oneKB * 1024
+    oneGB = oneMB * 1024
+    oneTB = oneGB * 1024
+
+    # 4 TB, so that we pass the 32-bit sector number boundary.
+    # Important for testing correctness of some IV generators
+    # The files are sparse, so not actually using this much space
+    image_size = 4 * oneTB
+    if qemu_img:
+        iotests.log("# Create image")
+        qemu_img_create(config, image_size / oneMB)
+    else:
+        iotests.log("# Create image")
+        create_image(config, image_size / oneMB)
+
+    lowOffsetMB = 100
+    highOffsetMB = 3 * oneTB / oneMB
+
+    try:
+        if not qemu_img:
+            iotests.log("# Format image")
+            cryptsetup_format(config)
+
+            for slot in config.active_slots()[1:]:
+                iotests.log("# Add password slot %s" % slot)
+                cryptsetup_add_password(config, slot)
+
+        # First we'll open the image using cryptsetup and write a
+        # known pattern of data that we'll then verify with QEMU
+
+        iotests.log("# Open dev")
+        cryptsetup_open(config)
+
+        try:
+            iotests.log("# Set dev owner")
+            chown(config)
+
+            iotests.log("# Write test pattern 0xa7")
+            qemu_io_write_pattern(config, 0xa7, lowOffsetMB, 10, dev=True)
+            iotests.log("# Write test pattern 0x13")
+            qemu_io_write_pattern(config, 0x13, highOffsetMB, 10, dev=True)
+        finally:
+            iotests.log("# Close dev")
+            cryptsetup_close(config)
+
+        # Ok, now we're using QEMU to verify the pattern just
+        # written via dm-crypt
+
+        iotests.log("# Read test pattern 0xa7")
+        qemu_io_read_pattern(config, 0xa7, lowOffsetMB, 10, dev=False)
+        iotests.log("# Read test pattern 0x13")
+        qemu_io_read_pattern(config, 0x13, highOffsetMB, 10, dev=False)
+
+
+        # Write a new pattern to the image, which we'll later
+        # verify with dm-crypt
+        iotests.log("# Write test pattern 0x91")
+        qemu_io_write_pattern(config, 0x91, lowOffsetMB, 10, dev=False)
+        iotests.log("# Write test pattern 0x5e")
+        qemu_io_write_pattern(config, 0x5e, highOffsetMB, 10, dev=False)
+
+
+        # Now we're opening the image with dm-crypt once more
+        # and verifying what QEMU wrote, completing the circle
+        iotests.log("# Open dev")
+        cryptsetup_open(config)
+
+        try:
+            iotests.log("# Set dev owner")
+            chown(config)
+
+            iotests.log("# Read test pattern 0x91")
+            qemu_io_read_pattern(config, 0x91, lowOffsetMB, 10, dev=True)
+            iotests.log("# Read test pattern 0x5e")
+            qemu_io_read_pattern(config, 0x5e, highOffsetMB, 10, dev=True)
+        finally:
+            iotests.log("# Close dev")
+            cryptsetup_close(config)
+    finally:
+        iotests.log("# Delete image")
+        delete_image(config)
+        print
+
+
+# Obviously we only work with the luks image format
+iotests.verify_image_format(supported_fmts=['luks'])
+iotests.verify_platform()
+
+# We need sudo in order to run cryptsetup to create
+# dm-crypt devices. This is safe to use on any
+# machine, since all dm-crypt devices are backed
+# by newly created plain files, and have a dm-crypt
+# name prefix of 'qiotest' to avoid clashing with
+# user LUKS volumes
+verify_passwordless_sudo()
+
+
+# If we look at all permutations of cipher, key size,
+# mode, ivgen, hash, there are ~1000 possible configs.
+#
+# We certainly don't want/need to test every permutation
+# to get good validation of interoperability between QEMU
+# and dm-crypt/cryptsetup.
+#
+# The configs below are a representative set that aim to
+# exercise each axis of configurability.
+#
+configs = [
+    # A common LUKS default
+    LUKSConfig("aes-256-xts-plain64-sha1",
+               "aes", 256, "xts", "plain64", None, "sha1"),
+
+
+    # LUKS default but diff ciphers
+    LUKSConfig("twofish-256-xts-plain64-sha1",
+               "twofish", 256, "xts", "plain64", None, "sha1"),
+    LUKSConfig("serpent-256-xts-plain64-sha1",
+               "serpent", 256, "xts", "plain64", None, "sha1"),
+    # Should really be xts, but kernel doesn't support xts+cast5
+    # nor does it do essiv+cast5
+    LUKSConfig("cast5-128-cbc-plain64-sha1",
+               "cast5", 128, "cbc", "plain64", None, "sha1"),
+    LUKSConfig("cast6-256-xts-plain64-sha1",
+               "cast6", 256, "xts", "plain64", None, "sha1"),
+
+
+    # LUKS default but diff modes / ivgens
+    LUKSConfig("aes-256-cbc-plain-sha1",
+               "aes", 256, "cbc", "plain", None, "sha1"),
+    LUKSConfig("aes-256-cbc-plain64-sha1",
+               "aes", 256, "cbc", "plain64", None, "sha1"),
+    LUKSConfig("aes-256-cbc-essiv-sha256-sha1",
+               "aes", 256, "cbc", "essiv", "sha256", "sha1"),
+    LUKSConfig("aes-256-xts-essiv-sha256-sha1",
+               "aes", 256, "xts", "essiv", "sha256", "sha1"),
+
+
+    # LUKS default but smaller key sizes
+    LUKSConfig("aes-128-xts-plain64-sha256-sha1",
+               "aes", 128, "xts", "plain64", None, "sha1"),
+    LUKSConfig("aes-192-xts-plain64-sha256-sha1",
+               "aes", 192, "xts", "plain64", None, "sha1"),
+
+    LUKSConfig("twofish-128-xts-plain64-sha1",
+               "twofish", 128, "xts", "plain64", None, "sha1"),
+    LUKSConfig("twofish-192-xts-plain64-sha1",
+               "twofish", 192, "xts", "plain64", None, "sha1"),
+
+    LUKSConfig("serpent-128-xts-plain64-sha1",
+               "serpent", 128, "xts", "plain64", None, "sha1"),
+    LUKSConfig("serpent-192-xts-plain64-sha1",
+               "serpent", 192, "xts", "plain64", None, "sha1"),
+
+    LUKSConfig("cast6-128-xts-plain64-sha1",
+               "cast6", 128, "xts", "plain", None, "sha1"),
+    LUKSConfig("cast6-192-xts-plain64-sha1",
+               "cast6", 192, "xts", "plain64", None, "sha1"),
+
+
+    # LUKS default but diff hash
+    LUKSConfig("aes-256-xts-plain64-sha256",
+               "aes", 256, "xts", "plain64", None, "sha256"),
+    LUKSConfig("aes-256-xts-plain64-sha512",
+               "aes", 256, "xts", "plain64", None, "sha512"),
+    LUKSConfig("aes-256-xts-plain64-ripemd160",
+               "aes", 256, "xts", "plain64", None, "ripemd160"),
+
+    # Password in slot 3
+    LUKSConfig("aes-256-xts-plain-sha1-pwslot3",
+               "aes", 256, "xts", "plain", None, "sha1",
+               passwords={
+                   "3": "slot3",
+               }),
+
+    # Passwords in every slot
+    LUKSConfig("aes-256-xts-plain-sha1-pwallslots",
+               "aes", 256, "xts", "plain", None, "sha1",
+               passwords={
+                   "0": "slot1",
+                   "1": "slot1",
+                   "2": "slot2",
+                   "3": "slot3",
+                   "4": "slot4",
+                   "5": "slot5",
+                   "6": "slot6",
+                   "7": "slot7",
+               }),
+]
+
+blacklist = [
+    # We don't have a cast-6 cipher impl for QEMU yet
+    "cast6-256-xts-plain64-sha1",
+    "cast6-128-xts-plain64-sha1",
+    "cast6-192-xts-plain64-sha1",
+
+    # GCrypt doesn't support Twofish with 192 bit key
+    "twofish-192-xts-plain64-sha1",
+
+    # We don't have sha512 hash wired up yet
+    "aes-256-xts-plain64-sha512",
+
+    # We don't have ripemd160 hash wired up yet
+    "aes-256-xts-plain64-ripemd160",
+]
+
+whitelist = []
+if "LUKS_CONFIG" in os.environ:
+    whitelist = os.environ["LUKS_CONFIG"].split(",")
+
+for config in configs:
+    if config.name in blacklist:
+        iotests.log("Skipping %s in blacklist" % config.name)
+        continue
+
+    if len(whitelist) > 0 and config.name not in whitelist:
+        iotests.log("Skipping %s not in whitelist" % config.name)
+        continue
+
+    test_once(config, qemu_img=False)
+
+    # XXX we should support setting passwords in a non-0
+    # key slot with 'qemu-img create' in future
+    (pw, slot) = config.first_password()
+    if slot == "0":
+        test_once(config, qemu_img=True)
