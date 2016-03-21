@@ -289,6 +289,11 @@ static int bdrv_is_whitelisted(BlockDriver *drv, bool read_only)
     return 0;
 }
 
+bool bdrv_uses_whitelist(void)
+{
+    return use_bdrv_whitelist;
+}
+
 typedef struct CreateCo {
     BlockDriver *drv;
     char *filename;
@@ -1011,13 +1016,6 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
             error_setg_errno(errp, -ret, "Could not open image");
         }
         goto free_and_fail;
-    }
-
-    if (bs->encrypted) {
-        error_report("Encrypted images are deprecated");
-        error_printf("Support for them will be removed in a future release.\n"
-                     "You can use 'qemu-img convert' to convert your image"
-                     " to an unencrypted one.\n");
     }
 
     ret = refresh_total_sectors(bs, bs->total_sectors);

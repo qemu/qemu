@@ -965,6 +965,14 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
     s->crypt_method_header = header.crypt_method;
     if (s->crypt_method_header) {
+        if (bdrv_uses_whitelist() &&
+            s->crypt_method_header == QCOW_CRYPT_AES) {
+            error_report("qcow2 built-in AES encryption is deprecated");
+            error_printf("Support for it will be removed in a future release.\n"
+                         "You can use 'qemu-img convert' to switch to an\n"
+                         "unencrypted qcow2 image, or a LUKS raw image.\n");
+        }
+
         bs->encrypted = 1;
     }
 

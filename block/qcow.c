@@ -24,6 +24,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
+#include "qemu/error-report.h"
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
@@ -158,6 +159,14 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     }
     s->crypt_method_header = header.crypt_method;
     if (s->crypt_method_header) {
+        if (bdrv_uses_whitelist() &&
+            s->crypt_method_header == QCOW_CRYPT_AES) {
+            error_report("qcow built-in AES encryption is deprecated");
+            error_printf("Support for it will be removed in a future release.\n"
+                         "You can use 'qemu-img convert' to switch to an\n"
+                         "unencrypted qcow image, or a LUKS raw image.\n");
+        }
+
         bs->encrypted = 1;
     }
     s->cluster_bits = header.cluster_bits;
