@@ -103,6 +103,42 @@ static int spapr_vlan_can_receive(NetClientState *nc)
     return (dev->isopen && dev->rx_bufs > 0);
 }
 
+/**
+ * Get buffer descriptor from the receive buffer list page that has been
+ * supplied by the guest with the H_REGISTER_LOGICAL_LAN call
+ */
+static vlan_bd_t spapr_vlan_get_rx_bd_from_page(VIOsPAPRVLANDevice *dev,
+                                                size_t size)
+{
+    int buf_ptr = dev->use_buf_ptr;
+    vlan_bd_t bd;
+
+    do {
+        buf_ptr += 8;
+        if (buf_ptr >= VLAN_RX_BDS_LEN + VLAN_RX_BDS_OFF) {
+            buf_ptr = VLAN_RX_BDS_OFF;
+        }
+
+        bd = vio_ldq(&dev->sdev, dev->buf_list + buf_ptr);
+        DPRINTF("use_buf_ptr=%d bd=0x%016llx\n",
+                buf_ptr, (unsigned long long)bd);
+    } while ((!(bd & VLAN_BD_VALID) || VLAN_BD_LEN(bd) < size + 8)
+             && buf_ptr != dev->use_buf_ptr);
+
+    if (!(bd & VLAN_BD_VALID) || VLAN_BD_LEN(bd) < size + 8) {
+        /* Failed to find a suitable buffer */
+        return 0;
+    }
+
+    /* Remove the buffer from the pool */
+    dev->use_buf_ptr = buf_ptr;
+    vio_stq(&dev->sdev, dev->buf_list + dev->use_buf_ptr, 0);
+
+    DPRINTF("Found buffer: ptr=%d rxbufs=%d\n", dev->use_buf_ptr, dev->rx_bufs);
+
+    return bd;
+}
+
 static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
                                   size_t size)
 {
@@ -110,7 +146,6 @@ static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
     VIOsPAPRDevice *sdev = VIO_SPAPR_DEVICE(dev);
     vlan_bd_t rxq_bd = vio_ldq(sdev, dev->buf_list + VLAN_RXQ_BD_OFF);
     vlan_bd_t bd;
-    int buf_ptr = dev->use_buf_ptr;
     uint64_t handle;
     uint8_t control;
 
@@ -125,29 +160,12 @@ static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
         return -1;
     }
 
-    do {
-        buf_ptr += 8;
-        if (buf_ptr >= (VLAN_RX_BDS_LEN + VLAN_RX_BDS_OFF)) {
-            buf_ptr = VLAN_RX_BDS_OFF;
-        }
-
-        bd = vio_ldq(sdev, dev->buf_list + buf_ptr);
-        DPRINTF("use_buf_ptr=%d bd=0x%016llx\n",
-                buf_ptr, (unsigned long long)bd);
-    } while ((!(bd & VLAN_BD_VALID) || (VLAN_BD_LEN(bd) < (size + 8)))
-             && (buf_ptr != dev->use_buf_ptr));
-
-    if (!(bd & VLAN_BD_VALID) || (VLAN_BD_LEN(bd) < (size + 8))) {
-        /* Failed to find a suitable buffer */
+    bd = spapr_vlan_get_rx_bd_from_page(dev, size);
+    if (!bd) {
         return -1;
     }
 
-    /* Remove the buffer from the pool */
     dev->rx_bufs--;
-    dev->use_buf_ptr = buf_ptr;
-    vio_stq(sdev, dev->buf_list + dev->use_buf_ptr, 0);
-
-    DPRINTF("Found buffer: ptr=%d num=%d\n", dev->use_buf_ptr, dev->rx_bufs);
 
     /* Transfer the packet data */
     if (spapr_vio_dma_write(sdev, VLAN_BD_ADDR(bd) + 8, buf, size) < 0) {
@@ -372,6 +390,32 @@ static target_ulong h_free_logical_lan(PowerPCCPU *cpu,
     return H_SUCCESS;
 }
 
+static target_long spapr_vlan_add_rxbuf_to_page(VIOsPAPRVLANDevice *dev,
+                                                target_ulong buf)
+{
+    vlan_bd_t bd;
+
+    if (dev->rx_bufs >= VLAN_MAX_BUFS) {
+        return H_RESOURCE;
+    }
+
+    do {
+        dev->add_buf_ptr += 8;
+        if (dev->add_buf_ptr >= VLAN_RX_BDS_LEN + VLAN_RX_BDS_OFF) {
+            dev->add_buf_ptr = VLAN_RX_BDS_OFF;
+        }
+
+        bd = vio_ldq(&dev->sdev, dev->buf_list + dev->add_buf_ptr);
+    } while (bd & VLAN_BD_VALID);
+
+    vio_stq(&dev->sdev, dev->buf_list + dev->add_buf_ptr, buf);
+
+    DPRINTF("h_add_llan_buf():  Added buf  ptr=%d  rx_bufs=%d bd=0x%016llx\n",
+            dev->add_buf_ptr, dev->rx_bufs, (unsigned long long)buf);
+
+    return 0;
+}
+
 static target_ulong h_add_logical_lan_buffer(PowerPCCPU *cpu,
                                              sPAPRMachineState *spapr,
                                              target_ulong opcode,
@@ -381,7 +425,7 @@ static target_ulong h_add_logical_lan_buffer(PowerPCCPU *cpu,
     target_ulong buf = args[1];
     VIOsPAPRDevice *sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
     VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
-    vlan_bd_t bd;
+    target_long ret;
 
     DPRINTF("H_ADD_LOGICAL_LAN_BUFFER(0x" TARGET_FMT_lx
             ", 0x" TARGET_FMT_lx ")\n", reg, buf);
@@ -397,28 +441,18 @@ static target_ulong h_add_logical_lan_buffer(PowerPCCPU *cpu,
         return H_PARAMETER;
     }
 
-    if (!dev->isopen || dev->rx_bufs >= VLAN_MAX_BUFS) {
+    if (!dev->isopen) {
         return H_RESOURCE;
     }
 
-    do {
-        dev->add_buf_ptr += 8;
-        if (dev->add_buf_ptr >= (VLAN_RX_BDS_LEN + VLAN_RX_BDS_OFF)) {
-            dev->add_buf_ptr = VLAN_RX_BDS_OFF;
-        }
-
-        bd = vio_ldq(sdev, dev->buf_list + dev->add_buf_ptr);
-    } while (bd & VLAN_BD_VALID);
-
-    vio_stq(sdev, dev->buf_list + dev->add_buf_ptr, buf);
+    ret = spapr_vlan_add_rxbuf_to_page(dev, buf);
+    if (ret) {
+        return ret;
+    }
 
     dev->rx_bufs++;
 
     qemu_flush_queued_packets(qemu_get_queue(dev->nic));
-
-    DPRINTF("h_add_logical_lan_buffer():  Added buf  ptr=%d  rx_bufs=%d"
-            " bd=0x%016llx\n", dev->add_buf_ptr, dev->rx_bufs,
-            (unsigned long long)buf);
 
     return H_SUCCESS;
 }
