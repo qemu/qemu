@@ -525,8 +525,7 @@ int get_tmp_filename(char *filename, int size);
 BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
                             const char *filename);
 
-void bdrv_set_io_limits(BlockDriverState *bs,
-                        ThrottleConfig *cfg);
+bool bdrv_start_throttled_reqs(BlockDriverState *bs);
 
 
 /**

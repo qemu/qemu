@@ -33,8 +33,8 @@ const char *throttle_group_get_name(BlockBackend *blk);
 ThrottleState *throttle_group_incref(const char *name);
 void throttle_group_unref(ThrottleState *ts);
 
-void throttle_group_config(BlockDriverState *bs, ThrottleConfig *cfg);
-void throttle_group_get_config(BlockDriverState *bs, ThrottleConfig *cfg);
+void throttle_group_config(BlockBackend *blk, ThrottleConfig *cfg);
+void throttle_group_get_config(BlockBackend *blk, ThrottleConfig *cfg);
 
 void throttle_group_register_blk(BlockBackend *blk, const char *groupname);
 void throttle_group_unregister_blk(BlockBackend *blk);

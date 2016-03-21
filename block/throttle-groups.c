@@ -337,12 +337,12 @@ void throttle_group_restart_blk(BlockBackend *blk)
  * to throttle_config(), but guarantees atomicity within the
  * throttling group.
  *
- * @bs:  a BlockDriverState that is member of the group
+ * @blk: a BlockBackend that is a member of the group
  * @cfg: the configuration to set
  */
-void throttle_group_config(BlockDriverState *bs, ThrottleConfig *cfg)
+void throttle_group_config(BlockBackend *blk, ThrottleConfig *cfg)
 {
-    BlockBackendPublic *blkp = blk_get_public(bs->blk);
+    BlockBackendPublic *blkp = blk_get_public(blk);
     ThrottleTimers *tt = &blkp->throttle_timers;
     ThrottleState *ts = blkp->throttle_state;
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
@@ -365,12 +365,12 @@ void throttle_group_config(BlockDriverState *bs, ThrottleConfig *cfg)
  * throttle_get_config(), but guarantees atomicity within the
  * throttling group.
  *
- * @bs:  a BlockDriverState that is member of the group
+ * @blk: a BlockBackend that is a member of the group
  * @cfg: the configuration will be written here
  */
-void throttle_group_get_config(BlockDriverState *bs, ThrottleConfig *cfg)
+void throttle_group_get_config(BlockBackend *blk, ThrottleConfig *cfg)
 {
-    BlockBackendPublic *blkp = blk_get_public(bs->blk);
+    BlockBackendPublic *blkp = blk_get_public(blk);
     ThrottleState *ts = blkp->throttle_state;
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
     qemu_mutex_lock(&tg->lock);

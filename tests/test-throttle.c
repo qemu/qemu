@@ -577,14 +577,10 @@ static void test_groups(void)
     ThrottleConfig cfg1, cfg2;
     BlockBackend *blk1, *blk2, *blk3;
     BlockBackendPublic *blkp1, *blkp2, *blkp3;
-    BlockDriverState *bdrv1, *bdrv3;
 
     blk1 = blk_new_with_bs(&error_abort);
     blk2 = blk_new_with_bs(&error_abort);
     blk3 = blk_new_with_bs(&error_abort);
-
-    bdrv1 = blk_bs(blk1);
-    bdrv3 = blk_bs(blk3);
 
     blkp1 = blk_get_public(blk1);
     blkp2 = blk_get_public(blk2);
@@ -612,20 +608,20 @@ static void test_groups(void)
     cfg1.buckets[THROTTLE_BPS_WRITE].avg = 285000;
     cfg1.buckets[THROTTLE_OPS_READ].avg  = 20000;
     cfg1.buckets[THROTTLE_OPS_WRITE].avg = 12000;
-    throttle_group_config(bdrv1, &cfg1);
+    throttle_group_config(blk1, &cfg1);
 
-    throttle_group_get_config(bdrv1, &cfg1);
-    throttle_group_get_config(bdrv3, &cfg2);
+    throttle_group_get_config(blk1, &cfg1);
+    throttle_group_get_config(blk3, &cfg2);
     g_assert(!memcmp(&cfg1, &cfg2, sizeof(cfg1)));
 
     cfg2.buckets[THROTTLE_BPS_READ].avg  = 4547;
     cfg2.buckets[THROTTLE_BPS_WRITE].avg = 1349;
     cfg2.buckets[THROTTLE_OPS_READ].avg  = 123;
     cfg2.buckets[THROTTLE_OPS_WRITE].avg = 86;
-    throttle_group_config(bdrv3, &cfg1);
+    throttle_group_config(blk3, &cfg1);
 
-    throttle_group_get_config(bdrv1, &cfg1);
-    throttle_group_get_config(bdrv3, &cfg2);
+    throttle_group_get_config(blk1, &cfg1);
+    throttle_group_get_config(blk3, &cfg2);
     g_assert(!memcmp(&cfg1, &cfg2, sizeof(cfg1)));
 
     throttle_group_unregister_blk(blk1);

@@ -46,13 +46,6 @@ static void coroutine_fn bdrv_co_do_rw(void *opaque);
 static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, BdrvRequestFlags flags);
 
-/* throttling disk I/O limits */
-void bdrv_set_io_limits(BlockDriverState *bs,
-                        ThrottleConfig *cfg)
-{
-    throttle_group_config(bs, cfg);
-}
-
 void bdrv_no_throttling_begin(BlockDriverState *bs)
 {
     if (!bs->blk) {
@@ -75,40 +68,6 @@ void bdrv_no_throttling_end(BlockDriverState *bs)
     blkp = blk_get_public(bs->blk);
     assert(blkp->io_limits_disabled);
     --blkp->io_limits_disabled;
-}
-
-void bdrv_io_limits_disable(BlockDriverState *bs)
-{
-    assert(blk_get_public(bs->blk)->throttle_state);
-    bdrv_no_throttling_begin(bs);
-    throttle_group_unregister_blk(bs->blk);
-    bdrv_no_throttling_end(bs);
-}
-
-/* should be called before bdrv_set_io_limits if a limit is set */
-void bdrv_io_limits_enable(BlockDriverState *bs, const char *group)
-{
-    BlockBackendPublic *blkp = blk_get_public(bs->blk);
-
-    assert(!blkp->throttle_state);
-    throttle_group_register_blk(bs->blk, group);
-}
-
-void bdrv_io_limits_update_group(BlockDriverState *bs, const char *group)
-{
-    /* this bs is not part of any group */
-    if (!blk_get_public(bs->blk)->throttle_state) {
-        return;
-    }
-
-    /* this bs is a part of the same group than the one we want */
-    if (!g_strcmp0(throttle_group_get_name(bs->blk), group)) {
-        return;
-    }
-
-    /* need to change the group this bs belong to */
-    bdrv_io_limits_disable(bs);
-    bdrv_io_limits_enable(bs, group);
 }
 
 void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)

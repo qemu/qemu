@@ -616,8 +616,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
             if (!throttling_group) {
                 throttling_group = blk_name(blk);
             }
-            bdrv_io_limits_enable(bs, throttling_group);
-            bdrv_set_io_limits(bs, &cfg);
+            blk_io_limits_enable(blk, throttling_group);
+            blk_set_io_limits(blk, &cfg);
         }
 
         if (bdrv_key_required(bs)) {
@@ -2726,16 +2726,16 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
     if (throttle_enabled(&cfg)) {
         /* Enable I/O limits if they're not enabled yet, otherwise
          * just update the throttling group. */
-        if (!blk_get_public(bs->blk)->throttle_state) {
-            bdrv_io_limits_enable(bs, has_group ? group : device);
+        if (!blk_get_public(blk)->throttle_state) {
+            blk_io_limits_enable(blk, has_group ? group : device);
         } else if (has_group) {
-            bdrv_io_limits_update_group(bs, group);
+            blk_io_limits_update_group(blk, group);
         }
         /* Set the new throttling configuration */
-        bdrv_set_io_limits(bs, &cfg);
-    } else if (blk_get_public(bs->blk)->throttle_state) {
+        blk_set_io_limits(blk, &cfg);
+    } else if (blk_get_public(blk)->throttle_state) {
         /* If all throttling settings are set to 0, disable I/O limits */
-        bdrv_io_limits_disable(bs);
+        blk_io_limits_disable(blk);
     }
 
 out:

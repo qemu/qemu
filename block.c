@@ -2123,7 +2123,7 @@ static void bdrv_close(BlockDriverState *bs)
 
     /* Disable I/O limits and drain all pending throttled requests */
     if (bs->blk && blk_get_public(bs->blk)->throttle_state) {
-        bdrv_io_limits_disable(bs);
+        blk_io_limits_disable(bs->blk);
     }
 
     bdrv_drained_begin(bs); /* complete I/O */

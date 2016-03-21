@@ -442,7 +442,7 @@ void blk_remove_bs(BlockBackend *blk)
 
     blk_update_root_state(blk);
     if (blk->public.throttle_state) {
-        bdrv_io_limits_disable(blk->root->bs);
+        blk_io_limits_disable(blk);
     }
 
     blk->root->bs->blk = NULL;
@@ -1556,7 +1556,7 @@ void blk_apply_root_state(BlockBackend *blk, BlockDriverState *bs)
 {
     bs->detect_zeroes = blk->root_state.detect_zeroes;
     if (blk->root_state.throttle_group) {
-        bdrv_io_limits_enable(bs, blk->root_state.throttle_group);
+        blk_io_limits_enable(blk, blk->root_state.throttle_group);
     }
 }
 
@@ -1619,4 +1619,43 @@ int blk_flush_all(void)
     }
 
     return result;
+}
+
+
+/* throttling disk I/O limits */
+void blk_set_io_limits(BlockBackend *blk, ThrottleConfig *cfg)
+{
+    throttle_group_config(blk, cfg);
+}
+
+void blk_io_limits_disable(BlockBackend *blk)
+{
+    assert(blk->public.throttle_state);
+    bdrv_no_throttling_begin(blk_bs(blk));
+    throttle_group_unregister_blk(blk);
+    bdrv_no_throttling_end(blk_bs(blk));
+}
+
+/* should be called before blk_set_io_limits if a limit is set */
+void blk_io_limits_enable(BlockBackend *blk, const char *group)
+{
+    assert(!blk->public.throttle_state);
+    throttle_group_register_blk(blk, group);
+}
+
+void blk_io_limits_update_group(BlockBackend *blk, const char *group)
+{
+    /* this BB is not part of any group */
+    if (!blk->public.throttle_state) {
+        return;
+    }
+
+    /* this BB is a part of the same group than the one we want */
+    if (!g_strcmp0(throttle_group_get_name(blk), group)) {
+        return;
+    }
+
+    /* need to change the group this bs belong to */
+    blk_io_limits_disable(blk);
+    blk_io_limits_enable(blk, group);
 }

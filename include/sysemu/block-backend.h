@@ -212,4 +212,9 @@ BlockAIOCB *blk_abort_aio_request(BlockBackend *blk,
                                   BlockCompletionFunc *cb,
                                   void *opaque, int ret);
 
+void blk_set_io_limits(BlockBackend *blk, ThrottleConfig *cfg);
+void blk_io_limits_disable(BlockBackend *blk);
+void blk_io_limits_enable(BlockBackend *blk, const char *group);
+void blk_io_limits_update_group(BlockBackend *blk, const char *group);
+
 #endif

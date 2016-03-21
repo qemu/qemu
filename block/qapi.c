@@ -70,7 +70,7 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
     if (bs->blk && blk_get_public(bs->blk)->throttle_state) {
         ThrottleConfig cfg;
 
-        throttle_group_get_config(bs, &cfg);
+        throttle_group_get_config(bs->blk, &cfg);
 
         info->bps     = cfg.buckets[THROTTLE_BPS_TOTAL].avg;
         info->bps_rd  = cfg.buckets[THROTTLE_BPS_READ].avg;

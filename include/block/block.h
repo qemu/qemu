@@ -187,10 +187,6 @@ void bdrv_stats_print(Monitor *mon, const QObject *data);
 void bdrv_info_stats(Monitor *mon, QObject **ret_data);
 
 /* disk I/O throttling */
-void bdrv_io_limits_enable(BlockDriverState *bs, const char *group);
-void bdrv_io_limits_disable(BlockDriverState *bs);
-void bdrv_io_limits_update_group(BlockDriverState *bs, const char *group);
-
 void bdrv_init(void);
 void bdrv_init_with_whitelist(void);
 bool bdrv_uses_whitelist(void);
