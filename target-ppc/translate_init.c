@@ -1063,26 +1063,68 @@ static void gen_spr_7xx (CPUPPCState *env)
 
 #ifdef TARGET_PPC64
 #ifndef CONFIG_USER_ONLY
-static void spr_read_uamr (DisasContext *ctx, int gprn, int sprn)
-{
-    gen_load_spr(cpu_gpr[gprn], SPR_AMR);
-    spr_load_dump_spr(SPR_AMR);
-}
-
-static void spr_write_uamr (DisasContext *ctx, int sprn, int gprn)
-{
-    gen_store_spr(SPR_AMR, cpu_gpr[gprn]);
-    spr_store_dump_spr(SPR_AMR);
-}
-
-static void spr_write_uamr_pr (DisasContext *ctx, int sprn, int gprn)
+static void spr_write_amr(DisasContext *ctx, int sprn, int gprn)
 {
     TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
 
-    gen_load_spr(t0, SPR_UAMOR);
-    tcg_gen_and_tl(t0, t0, cpu_gpr[gprn]);
+    /* Note, the HV=1 PR=0 case is handled earlier by simply using
+     * spr_write_generic for HV mode in the SPR table
+     */
+
+    /* Build insertion mask into t1 based on context */
+    if (ctx->pr) {
+        gen_load_spr(t1, SPR_UAMOR);
+    } else {
+        gen_load_spr(t1, SPR_AMOR);
+    }
+
+    /* Mask new bits into t2 */
+    tcg_gen_and_tl(t2, t1, cpu_gpr[gprn]);
+
+    /* Load AMR and clear new bits in t0 */
+    gen_load_spr(t0, SPR_AMR);
+    tcg_gen_andc_tl(t0, t0, t1);
+
+    /* Or'in new bits and write it out */
+    tcg_gen_or_tl(t0, t0, t2);
     gen_store_spr(SPR_AMR, t0);
     spr_store_dump_spr(SPR_AMR);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+}
+
+static void spr_write_uamor(DisasContext *ctx, int sprn, int gprn)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+
+    /* Note, the HV=1 case is handled earlier by simply using
+     * spr_write_generic for HV mode in the SPR table
+     */
+
+    /* Build insertion mask into t1 based on context */
+    gen_load_spr(t1, SPR_AMOR);
+
+    /* Mask new bits into t2 */
+    tcg_gen_and_tl(t2, t1, cpu_gpr[gprn]);
+
+    /* Load AMR and clear new bits in t0 */
+    gen_load_spr(t0, SPR_UAMOR);
+    tcg_gen_andc_tl(t0, t0, t1);
+
+    /* Or'in new bits and write it out */
+    tcg_gen_or_tl(t0, t0, t2);
+    gen_store_spr(SPR_UAMOR, t0);
+    spr_store_dump_spr(SPR_UAMOR);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
 }
 #endif /* CONFIG_USER_ONLY */
 
@@ -1094,15 +1136,17 @@ static void gen_spr_amr (CPUPPCState *env)
      * userspace accessible, 29 is privileged.  So we only need to set
      * the kvm ONE_REG id on one of them, we use 29 */
     spr_register(env, SPR_UAMR, "UAMR",
-                 &spr_read_uamr, &spr_write_uamr_pr,
-                 &spr_read_uamr, &spr_write_uamr,
+                 &spr_read_generic, &spr_write_amr,
+                 &spr_read_generic, &spr_write_amr,
                  0);
-    spr_register_kvm(env, SPR_AMR, "AMR",
+    spr_register_kvm_hv(env, SPR_AMR, "AMR",
                      SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_amr,
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_AMR, 0);
-    spr_register_kvm(env, SPR_UAMOR, "UAMOR",
+    spr_register_kvm_hv(env, SPR_UAMOR, "UAMOR",
                      SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_uamor,
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_UAMOR, 0);
     spr_register_hv(env, SPR_AMOR, "AMOR",
