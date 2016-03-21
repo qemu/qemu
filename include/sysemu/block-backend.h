@@ -59,6 +59,13 @@ typedef struct BlockDevOps {
     void (*resize_cb)(void *opaque);
 } BlockDevOps;
 
+/* This struct is embedded in (the private) BlockBackend struct and contains
+ * fields that must be public. This is in particular for QLIST_ENTRY() and
+ * friends so that BlockBackends can be kept in lists outside block-backend.c */
+typedef struct BlockBackendPublic {
+    int dummy; /* empty structs are illegal */
+} BlockBackendPublic;
+
 BlockBackend *blk_new(Error **errp);
 BlockBackend *blk_new_with_bs(Error **errp);
 BlockBackend *blk_new_open(const char *filename, const char *reference,
@@ -73,6 +80,9 @@ BlockBackend *blk_next(BlockBackend *blk);
 BlockDriverState *blk_next_root_bs(BlockDriverState *bs);
 bool monitor_add_blk(BlockBackend *blk, const char *name, Error **errp);
 void monitor_remove_blk(BlockBackend *blk);
+
+BlockBackendPublic *blk_get_public(BlockBackend *blk);
+BlockBackend *blk_by_public(BlockBackendPublic *public);
 
 BlockDriverState *blk_bs(BlockBackend *blk);
 void blk_remove_bs(BlockBackend *blk);

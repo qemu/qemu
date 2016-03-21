@@ -34,6 +34,7 @@ struct BlockBackend {
     DriveInfo *legacy_dinfo;    /* null unless created by drive_new() */
     QTAILQ_ENTRY(BlockBackend) link;         /* for block_backends */
     QTAILQ_ENTRY(BlockBackend) monitor_link; /* for monitor_block_backends */
+    BlockBackendPublic public;
 
     void *dev;                  /* attached device model, if any */
     /* TODO change to DeviceState when all users are qdevified */
@@ -408,6 +409,22 @@ BlockBackend *blk_by_legacy_dinfo(DriveInfo *dinfo)
         }
     }
     abort();
+}
+
+/*
+ * Returns a pointer to the publicly accessible fields of @blk.
+ */
+BlockBackendPublic *blk_get_public(BlockBackend *blk)
+{
+    return &blk->public;
+}
+
+/*
+ * Returns a BlockBackend given the associated @public fields.
+ */
+BlockBackend *blk_by_public(BlockBackendPublic *public)
+{
+    return container_of(public, BlockBackend, public);
 }
 
 /*
