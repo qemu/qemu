@@ -89,7 +89,7 @@ void bdrv_io_limits_update_group(BlockDriverState *bs, const char *group)
     }
 
     /* this bs is a part of the same group than the one we want */
-    if (!g_strcmp0(throttle_group_get_name(bs), group)) {
+    if (!g_strcmp0(throttle_group_get_name(bs->blk), group)) {
         return;
     }
 

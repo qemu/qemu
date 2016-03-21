@@ -133,16 +133,16 @@ void throttle_group_unref(ThrottleState *ts)
     qemu_mutex_unlock(&throttle_groups_lock);
 }
 
-/* Get the name from a BlockDriverState's ThrottleGroup. The name (and
- * the pointer) is guaranteed to remain constant during the lifetime
- * of the group.
+/* Get the name from a BlockBackend's ThrottleGroup. The name (and the pointer)
+ * is guaranteed to remain constant during the lifetime of the group.
  *
- * @bs:   a BlockDriverState that is member of a throttling group
+ * @blk:  a BlockBackend that is member of a throttling group
  * @ret:  the name of the group.
  */
-const char *throttle_group_get_name(BlockDriverState *bs)
+const char *throttle_group_get_name(BlockBackend *blk)
 {
-    ThrottleGroup *tg = container_of(bs->throttle_state, ThrottleGroup, ts);
+    ThrottleGroup *tg = container_of(blk_bs(blk)->throttle_state,
+                                     ThrottleGroup, ts);
     return tg->name;
 }
 

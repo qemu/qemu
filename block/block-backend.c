@@ -1525,7 +1525,7 @@ void blk_update_root_state(BlockBackend *blk)
         throttle_group_unref(blk->root_state.throttle_state);
     }
     if (blk->root->bs->throttle_state) {
-        const char *name = throttle_group_get_name(blk->root->bs);
+        const char *name = throttle_group_get_name(blk);
         blk->root_state.throttle_group = g_strdup(name);
         blk->root_state.throttle_state = throttle_group_incref(name);
     } else {

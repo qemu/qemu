@@ -28,7 +28,7 @@
 #include "qemu/throttle.h"
 #include "block/block_int.h"
 
-const char *throttle_group_get_name(BlockDriverState *bs);
+const char *throttle_group_get_name(BlockBackend *blk);
 
 ThrottleState *throttle_group_incref(const char *name);
 void throttle_group_unref(ThrottleState *ts);

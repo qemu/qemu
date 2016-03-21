@@ -118,7 +118,7 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
         info->iops_size = cfg.op_size;
 
         info->has_group = true;
-        info->group = g_strdup(throttle_group_get_name(bs));
+        info->group = g_strdup(throttle_group_get_name(bs->blk));
     }
 
     info->write_threshold = bdrv_write_threshold_get(bs);

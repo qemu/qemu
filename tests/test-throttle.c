@@ -598,8 +598,8 @@ static void test_groups(void)
     g_assert(bdrv2->throttle_state != NULL);
     g_assert(bdrv3->throttle_state != NULL);
 
-    g_assert(!strcmp(throttle_group_get_name(bdrv1), "bar"));
-    g_assert(!strcmp(throttle_group_get_name(bdrv2), "foo"));
+    g_assert(!strcmp(throttle_group_get_name(blk1), "bar"));
+    g_assert(!strcmp(throttle_group_get_name(blk2), "foo"));
     g_assert(bdrv1->throttle_state == bdrv3->throttle_state);
 
     /* Setting the config of a group member affects the whole group */
