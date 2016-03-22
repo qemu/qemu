@@ -2870,25 +2870,6 @@ BlockDriverState *bdrv_next_node(BlockDriverState *bs)
     return QTAILQ_NEXT(bs, node_list);
 }
 
-/* Iterates over all top-level BlockDriverStates, i.e. BDSs that are owned by
- * the monitor or attached to a BlockBackend */
-BlockDriverState *bdrv_next(BlockDriverState *bs)
-{
-    if (!bs || bs->blk) {
-        bs = blk_next_root_bs(bs);
-        if (bs) {
-            return bs;
-        }
-    }
-
-    /* Ignore all BDSs that are attached to a BlockBackend here; they have been
-     * handled by the above block already */
-    do {
-        bs = bdrv_next_monitor_owned(bs);
-    } while (bs && bs->blk);
-    return bs;
-}
-
 const char *bdrv_get_node_name(const BlockDriverState *bs)
 {
     return bs->node_name;
@@ -3220,10 +3201,11 @@ void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
 
 void bdrv_invalidate_cache_all(Error **errp)
 {
-    BlockDriverState *bs = NULL;
+    BlockDriverState *bs;
     Error *local_err = NULL;
+    BdrvNextIterator *it = NULL;
 
-    while ((bs = bdrv_next(bs)) != NULL) {
+    while ((it = bdrv_next(it, &bs)) != NULL) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
@@ -3265,10 +3247,11 @@ static int bdrv_inactivate_recurse(BlockDriverState *bs,
 int bdrv_inactivate_all(void)
 {
     BlockDriverState *bs = NULL;
+    BdrvNextIterator *it = NULL;
     int ret = 0;
     int pass;
 
-    while ((bs = bdrv_next(bs)) != NULL) {
+    while ((it = bdrv_next(it, &bs)) != NULL) {
         aio_context_acquire(bdrv_get_aio_context(bs));
     }
 
@@ -3277,8 +3260,8 @@ int bdrv_inactivate_all(void)
      * the second pass sets the BDRV_O_INACTIVE flag so that no further write
      * is allowed. */
     for (pass = 0; pass < 2; pass++) {
-        bs = NULL;
-        while ((bs = bdrv_next(bs)) != NULL) {
+        it = NULL;
+        while ((it = bdrv_next(it, &bs)) != NULL) {
             ret = bdrv_inactivate_recurse(bs, pass);
             if (ret < 0) {
                 goto out;
@@ -3287,8 +3270,8 @@ int bdrv_inactivate_all(void)
     }
 
 out:
-    bs = NULL;
-    while ((bs = bdrv_next(bs)) != NULL) {
+    it = NULL;
+    while ((it = bdrv_next(it, &bs)) != NULL) {
         aio_context_release(bdrv_get_aio_context(bs));
     }
 
@@ -3781,10 +3764,11 @@ bool bdrv_recurse_is_first_non_filter(BlockDriverState *bs,
  */
 bool bdrv_is_first_non_filter(BlockDriverState *candidate)
 {
-    BlockDriverState *bs = NULL;
+    BlockDriverState *bs;
+    BdrvNextIterator *it = NULL;
 
     /* walk down the bs forest recursively */
-    while ((bs = bdrv_next(bs)) != NULL) {
+    while ((it = bdrv_next(it, &bs)) != NULL) {
         bool perm;
 
         /* try to recurse in this top level bs */

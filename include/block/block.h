@@ -17,6 +17,7 @@ typedef struct BlockJob BlockJob;
 typedef struct BdrvChild BdrvChild;
 typedef struct BdrvChildRole BdrvChildRole;
 typedef struct BlockJobTxn BlockJobTxn;
+typedef struct BdrvNextIterator BdrvNextIterator;
 
 typedef struct BlockDriverInfo {
     /* in bytes, 0 if irrelevant */
@@ -401,7 +402,7 @@ BlockDriverState *bdrv_lookup_bs(const char *device,
                                  Error **errp);
 bool bdrv_chain_contains(BlockDriverState *top, BlockDriverState *base);
 BlockDriverState *bdrv_next_node(BlockDriverState *bs);
-BlockDriverState *bdrv_next(BlockDriverState *bs);
+BdrvNextIterator *bdrv_next(BdrvNextIterator *it, BlockDriverState **bs);
 BlockDriverState *bdrv_next_monitor_owned(BlockDriverState *bs);
 int bdrv_is_encrypted(BlockDriverState *bs);
 int bdrv_key_required(BlockDriverState *bs);

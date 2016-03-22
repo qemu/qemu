@@ -75,6 +75,7 @@ static const AIOCBInfo block_backend_aiocb_info = {
 };
 
 static void drive_info_del(DriveInfo *dinfo);
+static BlockBackend *bdrv_first_blk(BlockDriverState *bs);
 
 /* All BlockBackends */
 static QTAILQ_HEAD(, BlockBackend) block_backends =
@@ -286,28 +287,50 @@ BlockBackend *blk_next(BlockBackend *blk)
                : QTAILQ_FIRST(&monitor_block_backends);
 }
 
-/*
- * Iterates over all BlockDriverStates which are attached to a BlockBackend.
- * This function is for use by bdrv_next().
- *
- * @bs must be NULL or a BDS that is attached to a BB.
- */
-BlockDriverState *blk_next_root_bs(BlockDriverState *bs)
-{
+struct BdrvNextIterator {
+    enum {
+        BDRV_NEXT_BACKEND_ROOTS,
+        BDRV_NEXT_MONITOR_OWNED,
+    } phase;
     BlockBackend *blk;
+    BlockDriverState *bs;
+};
 
-    if (bs) {
-        assert(bs->blk);
-        blk = bs->blk;
-    } else {
-        blk = NULL;
+/* Iterates over all top-level BlockDriverStates, i.e. BDSs that are owned by
+ * the monitor or attached to a BlockBackend */
+BdrvNextIterator *bdrv_next(BdrvNextIterator *it, BlockDriverState **bs)
+{
+    if (!it) {
+        it = g_new(BdrvNextIterator, 1);
+        *it = (BdrvNextIterator) {
+            .phase = BDRV_NEXT_BACKEND_ROOTS,
+        };
     }
 
-    do {
-        blk = blk_all_next(blk);
-    } while (blk && !blk->root);
+    /* First, return all root nodes of BlockBackends. In order to avoid
+     * returning a BDS twice when multiple BBs refer to it, we only return it
+     * if the BB is the first one in the parent list of the BDS. */
+    if (it->phase == BDRV_NEXT_BACKEND_ROOTS) {
+        do {
+            it->blk = blk_all_next(it->blk);
+            *bs = it->blk ? blk_bs(it->blk) : NULL;
+        } while (it->blk && (*bs == NULL || bdrv_first_blk(*bs) != it->blk));
 
-    return blk ? blk->root->bs : NULL;
+        if (*bs) {
+            return it;
+        }
+        it->phase = BDRV_NEXT_MONITOR_OWNED;
+    }
+
+    /* Then return the monitor-owned BDSes without a BB attached. Ignore all
+     * BDSes that are attached to a BlockBackend here; they have been handled
+     * by the above block already */
+    do {
+        it->bs = bdrv_next_monitor_owned(it->bs);
+        *bs = it->bs;
+    } while (*bs && bdrv_has_blk(*bs));
+
+    return *bs ? it : NULL;
 }
 
 /*
@@ -394,21 +417,26 @@ BlockDriverState *blk_bs(BlockBackend *blk)
     return blk->root ? blk->root->bs : NULL;
 }
 
-/*
- * Returns true if @bs has an associated BlockBackend.
- */
-bool bdrv_has_blk(BlockDriverState *bs)
+static BlockBackend *bdrv_first_blk(BlockDriverState *bs)
 {
     BdrvChild *child;
     QLIST_FOREACH(child, &bs->parents, next_parent) {
         if (child->role == &child_root) {
             assert(bs->blk);
-            return true;
+            return child->opaque;
         }
     }
 
     assert(!bs->blk);
-    return false;
+    return NULL;
+}
+
+/*
+ * Returns true if @bs has an associated BlockBackend.
+ */
+bool bdrv_has_blk(BlockDriverState *bs)
+{
+    return bdrv_first_blk(bs) != NULL;
 }
 
 /*

@@ -89,7 +89,6 @@ void blk_remove_all_bs(void);
 const char *blk_name(BlockBackend *blk);
 BlockBackend *blk_by_name(const char *name);
 BlockBackend *blk_next(BlockBackend *blk);
-BlockDriverState *blk_next_root_bs(BlockDriverState *bs);
 bool monitor_add_blk(BlockBackend *blk, const char *name, Error **errp);
 void monitor_remove_blk(BlockBackend *blk);
 
