@@ -153,8 +153,6 @@ void tb_lock_reset(void)
 #endif
 }
 
-static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
-                         tb_page_addr_t phys_page2);
 static TranslationBlock *tb_find_pc(uintptr_t tc_ptr);
 
 void cpu_gen_init(void)
@@ -1053,6 +1051,107 @@ static void build_page_bitmap(PageDesc *p)
     }
 }
 
+/* add the tb in the target page and protect it if necessary
+ *
+ * Called with mmap_lock held for user-mode emulation.
+ */
+static inline void tb_alloc_page(TranslationBlock *tb,
+                                 unsigned int n, tb_page_addr_t page_addr)
+{
+    PageDesc *p;
+#ifndef CONFIG_USER_ONLY
+    bool page_already_protected;
+#endif
+
+    tb->page_addr[n] = page_addr;
+    p = page_find_alloc(page_addr >> TARGET_PAGE_BITS, 1);
+    tb->page_next[n] = p->first_tb;
+#ifndef CONFIG_USER_ONLY
+    page_already_protected = p->first_tb != NULL;
+#endif
+    p->first_tb = (TranslationBlock *)((uintptr_t)tb | n);
+    invalidate_page_bitmap(p);
+
+#if defined(CONFIG_USER_ONLY)
+    if (p->flags & PAGE_WRITE) {
+        target_ulong addr;
+        PageDesc *p2;
+        int prot;
+
+        /* force the host page as non writable (writes will have a
+           page fault + mprotect overhead) */
+        page_addr &= qemu_host_page_mask;
+        prot = 0;
+        for (addr = page_addr; addr < page_addr + qemu_host_page_size;
+            addr += TARGET_PAGE_SIZE) {
+
+            p2 = page_find(addr >> TARGET_PAGE_BITS);
+            if (!p2) {
+                continue;
+            }
+            prot |= p2->flags;
+            p2->flags &= ~PAGE_WRITE;
+          }
+        mprotect(g2h(page_addr), qemu_host_page_size,
+                 (prot & PAGE_BITS) & ~PAGE_WRITE);
+#ifdef DEBUG_TB_INVALIDATE
+        printf("protecting code page: 0x" TARGET_FMT_lx "\n",
+               page_addr);
+#endif
+    }
+#else
+    /* if some code is already present, then the pages are already
+       protected. So we handle the case where only the first TB is
+       allocated in a physical page */
+    if (!page_already_protected) {
+        tlb_protect_code(page_addr);
+    }
+#endif
+}
+
+/* add a new TB and link it to the physical page tables. phys_page2 is
+ * (-1) to indicate that only one page contains the TB.
+ *
+ * Called with mmap_lock held for user-mode emulation.
+ */
+static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
+                         tb_page_addr_t phys_page2)
+{
+    unsigned int h;
+    TranslationBlock **ptb;
+
+    /* add in the physical hash table */
+    h = tb_phys_hash_func(phys_pc);
+    ptb = &tcg_ctx.tb_ctx.tb_phys_hash[h];
+    tb->phys_hash_next = *ptb;
+    *ptb = tb;
+
+    /* add in the page list */
+    tb_alloc_page(tb, 0, phys_pc & TARGET_PAGE_MASK);
+    if (phys_page2 != -1) {
+        tb_alloc_page(tb, 1, phys_page2);
+    } else {
+        tb->page_addr[1] = -1;
+    }
+
+    assert(((uintptr_t)tb & 3) == 0);
+    tb->jmp_list_first = (uintptr_t)tb | 2;
+    tb->jmp_list_next[0] = (uintptr_t)NULL;
+    tb->jmp_list_next[1] = (uintptr_t)NULL;
+
+    /* init original jump addresses */
+    if (tb->jmp_reset_offset[0] != TB_JMP_RESET_OFFSET_INVALID) {
+        tb_reset_jump(tb, 0);
+    }
+    if (tb->jmp_reset_offset[1] != TB_JMP_RESET_OFFSET_INVALID) {
+        tb_reset_jump(tb, 1);
+    }
+
+#ifdef DEBUG_TB_CHECK
+    tb_page_check();
+#endif
+}
+
 /* Called with mmap_lock held for user mode emulation.  */
 TranslationBlock *tb_gen_code(CPUState *cpu,
                               target_ulong pc, target_ulong cs_base,
@@ -1409,107 +1508,6 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
 #endif
 }
 #endif
-
-/* add the tb in the target page and protect it if necessary
- *
- * Called with mmap_lock held for user-mode emulation.
- */
-static inline void tb_alloc_page(TranslationBlock *tb,
-                                 unsigned int n, tb_page_addr_t page_addr)
-{
-    PageDesc *p;
-#ifndef CONFIG_USER_ONLY
-    bool page_already_protected;
-#endif
-
-    tb->page_addr[n] = page_addr;
-    p = page_find_alloc(page_addr >> TARGET_PAGE_BITS, 1);
-    tb->page_next[n] = p->first_tb;
-#ifndef CONFIG_USER_ONLY
-    page_already_protected = p->first_tb != NULL;
-#endif
-    p->first_tb = (TranslationBlock *)((uintptr_t)tb | n);
-    invalidate_page_bitmap(p);
-
-#if defined(CONFIG_USER_ONLY)
-    if (p->flags & PAGE_WRITE) {
-        target_ulong addr;
-        PageDesc *p2;
-        int prot;
-
-        /* force the host page as non writable (writes will have a
-           page fault + mprotect overhead) */
-        page_addr &= qemu_host_page_mask;
-        prot = 0;
-        for (addr = page_addr; addr < page_addr + qemu_host_page_size;
-            addr += TARGET_PAGE_SIZE) {
-
-            p2 = page_find(addr >> TARGET_PAGE_BITS);
-            if (!p2) {
-                continue;
-            }
-            prot |= p2->flags;
-            p2->flags &= ~PAGE_WRITE;
-          }
-        mprotect(g2h(page_addr), qemu_host_page_size,
-                 (prot & PAGE_BITS) & ~PAGE_WRITE);
-#ifdef DEBUG_TB_INVALIDATE
-        printf("protecting code page: 0x" TARGET_FMT_lx "\n",
-               page_addr);
-#endif
-    }
-#else
-    /* if some code is already present, then the pages are already
-       protected. So we handle the case where only the first TB is
-       allocated in a physical page */
-    if (!page_already_protected) {
-        tlb_protect_code(page_addr);
-    }
-#endif
-}
-
-/* add a new TB and link it to the physical page tables. phys_page2 is
- * (-1) to indicate that only one page contains the TB.
- *
- * Called with mmap_lock held for user-mode emulation.
- */
-static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
-                         tb_page_addr_t phys_page2)
-{
-    unsigned int h;
-    TranslationBlock **ptb;
-
-    /* add in the physical hash table */
-    h = tb_phys_hash_func(phys_pc);
-    ptb = &tcg_ctx.tb_ctx.tb_phys_hash[h];
-    tb->phys_hash_next = *ptb;
-    *ptb = tb;
-
-    /* add in the page list */
-    tb_alloc_page(tb, 0, phys_pc & TARGET_PAGE_MASK);
-    if (phys_page2 != -1) {
-        tb_alloc_page(tb, 1, phys_page2);
-    } else {
-        tb->page_addr[1] = -1;
-    }
-
-    assert(((uintptr_t)tb & 3) == 0);
-    tb->jmp_list_first = (uintptr_t)tb | 2;
-    tb->jmp_list_next[0] = (uintptr_t)NULL;
-    tb->jmp_list_next[1] = (uintptr_t)NULL;
-
-    /* init original jump addresses */
-    if (tb->jmp_reset_offset[0] != TB_JMP_RESET_OFFSET_INVALID) {
-        tb_reset_jump(tb, 0);
-    }
-    if (tb->jmp_reset_offset[1] != TB_JMP_RESET_OFFSET_INVALID) {
-        tb_reset_jump(tb, 1);
-    }
-
-#ifdef DEBUG_TB_CHECK
-    tb_page_check();
-#endif
-}
 
 /* find the TB 'tb' such that tb[0].tc_ptr <= tc_ptr <
    tb[1].tc_ptr. Return NULL if not found */
