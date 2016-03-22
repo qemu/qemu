@@ -704,8 +704,6 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const BdrvChildRole *child_role);
 void bdrv_root_unref_child(BdrvChild *child);
 
-void blk_set_bs(BlockBackend *blk, BlockDriverState *bs);
-
 void blk_dev_change_media_cb(BlockBackend *blk, bool load);
 bool blk_dev_has_removable_media(BlockBackend *blk);
 bool blk_dev_has_tray(BlockBackend *blk);
