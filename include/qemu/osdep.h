@@ -76,6 +76,9 @@ extern int daemon(int, int);
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <assert.h>
+/* setjmp must be declared before sysemu/os-win32.h
+ * because it is redefined there. */
+#include <setjmp.h>
 #include <signal.h>
 
 #ifdef __OpenBSD__

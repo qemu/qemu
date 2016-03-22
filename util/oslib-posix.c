@@ -49,7 +49,6 @@
 #include "qemu/sockets.h"
 #include <sys/mman.h>
 #include <libgen.h>
-#include <setjmp.h>
 #include <sys/signal.h>
 
 #ifdef CONFIG_LINUX

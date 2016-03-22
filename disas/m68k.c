@@ -615,8 +615,6 @@ static const char *const reg_half_names[] =
 /* Maximum length of an instruction.  */
 #define MAXLEN 22
 
-#include <setjmp.h>
-
 struct private
 {
   /* Points to first byte not fetched.  */

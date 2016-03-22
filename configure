@@ -2836,7 +2836,7 @@ fi
 # curses probe
 if test "$curses" != "no" ; then
   if test "$mingw32" = "yes" ; then
-    curses_list="-lpdcurses"
+    curses_list="$($pkg_config --libs ncurses 2>/dev/null):-lpdcurses"
   else
     curses_list="$($pkg_config --libs ncurses 2>/dev/null):-lncurses:-lcurses"
   fi

@@ -20,7 +20,6 @@
 #ifndef QEMU_CPU_H
 #define QEMU_CPU_H
 
-#include <setjmp.h>
 #include "hw/qdev-core.h"
 #include "disas/bfd.h"
 #include "exec/hwaddr.h"

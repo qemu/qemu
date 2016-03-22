@@ -23,7 +23,6 @@
 #undef _FORTIFY_SOURCE
 #endif
 #include "qemu/osdep.h"
-#include <setjmp.h>
 #include <ucontext.h>
 #include "qemu-common.h"
 #include "qemu/coroutine_int.h"
