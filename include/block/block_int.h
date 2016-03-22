@@ -364,6 +364,17 @@ typedef struct BdrvAioNotifier {
 struct BdrvChildRole {
     void (*inherit_options)(int *child_flags, QDict *child_options,
                             int parent_flags, QDict *parent_options);
+
+    /*
+     * If this pair of functions is implemented, the parent doesn't issue new
+     * requests after returning from .drained_begin() until .drained_end() is
+     * called.
+     *
+     * Note that this can be nested. If drained_begin() was called twice, new
+     * I/O is allowed only after drained_end() was called twice, too.
+     */
+    void (*drained_begin)(BdrvChild *child);
+    void (*drained_end)(BdrvChild *child);
 };
 
 extern const BdrvChildRole child_file;
@@ -525,8 +536,6 @@ int coroutine_fn bdrv_co_pwritev(BlockDriverState *bs,
 int get_tmp_filename(char *filename, int size);
 BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
                             const char *filename);
-
-bool bdrv_start_throttled_reqs(BlockDriverState *bs);
 
 
 /**
@@ -709,9 +718,6 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
                                   const BdrvChildRole *child_role);
 void bdrv_root_unref_child(BdrvChild *child);
-
-void bdrv_no_throttling_begin(BlockDriverState *bs);
-void bdrv_no_throttling_end(BlockDriverState *bs);
 
 void blk_dev_change_media_cb(BlockBackend *blk, bool load);
 bool blk_dev_has_removable_media(BlockBackend *blk);

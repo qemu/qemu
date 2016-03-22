@@ -27,7 +27,6 @@
 #include "sysemu/block-backend.h"
 #include "block/blockjob.h"
 #include "block/block_int.h"
-#include "block/throttle-groups.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -46,28 +45,26 @@ static void coroutine_fn bdrv_co_do_rw(void *opaque);
 static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, BdrvRequestFlags flags);
 
-void bdrv_no_throttling_begin(BlockDriverState *bs)
+static void bdrv_parent_drained_begin(BlockDriverState *bs)
 {
-    if (!bs->blk) {
-        return;
-    }
+    BdrvChild *c;
 
-    if (blk_get_public(bs->blk)->io_limits_disabled++ == 0) {
-        throttle_group_restart_blk(bs->blk);
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
+        if (c->role->drained_begin) {
+            c->role->drained_begin(c);
+        }
     }
 }
 
-void bdrv_no_throttling_end(BlockDriverState *bs)
+static void bdrv_parent_drained_end(BlockDriverState *bs)
 {
-    BlockBackendPublic *blkp;
+    BdrvChild *c;
 
-    if (!bs->blk) {
-        return;
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
+        if (c->role->drained_end) {
+            c->role->drained_end(c);
+        }
     }
-
-    blkp = blk_get_public(bs->blk);
-    assert(blkp->io_limits_disabled);
-    --blkp->io_limits_disabled;
 }
 
 void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
@@ -248,17 +245,17 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
  */
 void coroutine_fn bdrv_co_drain(BlockDriverState *bs)
 {
-    bdrv_no_throttling_begin(bs);
+    bdrv_parent_drained_begin(bs);
     bdrv_io_unplugged_begin(bs);
     bdrv_drain_recurse(bs);
     bdrv_co_yield_to_drain(bs);
     bdrv_io_unplugged_end(bs);
-    bdrv_no_throttling_end(bs);
+    bdrv_parent_drained_end(bs);
 }
 
 void bdrv_drain(BlockDriverState *bs)
 {
-    bdrv_no_throttling_begin(bs);
+    bdrv_parent_drained_begin(bs);
     bdrv_io_unplugged_begin(bs);
     bdrv_drain_recurse(bs);
     if (qemu_in_coroutine()) {
@@ -267,7 +264,7 @@ void bdrv_drain(BlockDriverState *bs)
         bdrv_drain_poll(bs);
     }
     bdrv_io_unplugged_end(bs);
-    bdrv_no_throttling_end(bs);
+    bdrv_parent_drained_end(bs);
 }
 
 /*
@@ -290,7 +287,7 @@ void bdrv_drain_all(void)
         if (bs->job) {
             block_job_pause(bs->job);
         }
-        bdrv_no_throttling_begin(bs);
+        bdrv_parent_drained_begin(bs);
         bdrv_io_unplugged_begin(bs);
         bdrv_drain_recurse(bs);
         aio_context_release(aio_context);
@@ -333,7 +330,7 @@ void bdrv_drain_all(void)
 
         aio_context_acquire(aio_context);
         bdrv_io_unplugged_end(bs);
-        bdrv_no_throttling_end(bs);
+        bdrv_parent_drained_end(bs);
         if (bs->job) {
             block_job_resume(bs->job);
         }

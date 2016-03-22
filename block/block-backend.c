@@ -91,9 +91,14 @@ static void blk_root_inherit_options(int *child_flags, QDict *child_options,
     /* We're not supposed to call this function for root nodes */
     abort();
 }
+static void blk_root_drained_begin(BdrvChild *child);
+static void blk_root_drained_end(BdrvChild *child);
 
 static const BdrvChildRole child_root = {
-    .inherit_options = blk_root_inherit_options,
+    .inherit_options    = blk_root_inherit_options,
+
+    .drained_begin      = blk_root_drained_begin,
+    .drained_end        = blk_root_drained_end,
 };
 
 /*
@@ -818,9 +823,9 @@ int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
         return ret;
     }
 
-    bdrv_no_throttling_begin(blk_bs(blk));
+    blk_root_drained_begin(blk->root);
     ret = blk_pread(blk, offset, buf, count);
-    bdrv_no_throttling_end(blk_bs(blk));
+    blk_root_drained_end(blk->root);
     return ret;
 }
 
@@ -1633,9 +1638,9 @@ void blk_set_io_limits(BlockBackend *blk, ThrottleConfig *cfg)
 void blk_io_limits_disable(BlockBackend *blk)
 {
     assert(blk->public.throttle_state);
-    bdrv_no_throttling_begin(blk_bs(blk));
+    bdrv_drained_begin(blk_bs(blk));
     throttle_group_unregister_blk(blk);
-    bdrv_no_throttling_end(blk_bs(blk));
+    bdrv_drained_end(blk_bs(blk));
 }
 
 /* should be called before blk_set_io_limits if a limit is set */
@@ -1660,4 +1665,21 @@ void blk_io_limits_update_group(BlockBackend *blk, const char *group)
     /* need to change the group this bs belong to */
     blk_io_limits_disable(blk);
     blk_io_limits_enable(blk, group);
+}
+
+static void blk_root_drained_begin(BdrvChild *child)
+{
+    BlockBackend *blk = child->opaque;
+
+    if (blk->public.io_limits_disabled++ == 0) {
+        throttle_group_restart_blk(blk);
+    }
+}
+
+static void blk_root_drained_end(BdrvChild *child)
+{
+    BlockBackend *blk = child->opaque;
+
+    assert(blk->public.io_limits_disabled);
+    --blk->public.io_limits_disabled;
 }
