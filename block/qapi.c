@@ -67,10 +67,10 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
     info->backing_file_depth = bdrv_get_backing_file_depth(bs);
     info->detect_zeroes = bs->detect_zeroes;
 
-    if (bs->blk && blk_get_public(bs->blk)->throttle_state) {
+    if (blk && blk_get_public(blk)->throttle_state) {
         ThrottleConfig cfg;
 
-        throttle_group_get_config(bs->blk, &cfg);
+        throttle_group_get_config(blk, &cfg);
 
         info->bps     = cfg.buckets[THROTTLE_BPS_TOTAL].avg;
         info->bps_rd  = cfg.buckets[THROTTLE_BPS_READ].avg;
@@ -118,7 +118,7 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
         info->iops_size = cfg.op_size;
 
         info->has_group = true;
-        info->group = g_strdup(throttle_group_get_name(bs->blk));
+        info->group = g_strdup(throttle_group_get_name(blk));
     }
 
     info->write_threshold = bdrv_write_threshold_get(bs);

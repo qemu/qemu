@@ -45,8 +45,9 @@ class TestLiveSnapshot(iotests.QMPTestCase):
         os.remove(self.target_img)
 
     def checkConfig(self, active_layer):
-        result = self.vm.qmp('query-named-block-nodes')
+        result = self.vm.qmp('query-block')
         for r in result['return']:
+            r = r['inserted']
             if r['node-name'] == active_layer:
                 self.assertEqual(r['group'], self.group)
                 self.assertEqual(r['iops'], self.iops)
