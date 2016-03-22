@@ -60,7 +60,7 @@ before_install:
 before_script:
   - ./configure ${CONFIG}
 script:
-  - make -j2 && ${TEST_CMD}
+  - make -j3 && ${TEST_CMD}
 matrix:
   include:
     # Sparse is GCC only
