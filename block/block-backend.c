@@ -188,10 +188,6 @@ static void blk_delete(BlockBackend *blk)
     }
     assert(QLIST_EMPTY(&blk->remove_bs_notifiers.notifiers));
     assert(QLIST_EMPTY(&blk->insert_bs_notifiers.notifiers));
-    if (blk->root_state.throttle_state) {
-        g_free(blk->root_state.throttle_group);
-        throttle_group_unref(blk->root_state.throttle_state);
-    }
     QTAILQ_REMOVE(&block_backends, blk, link);
     drive_info_del(blk->legacy_dinfo);
     block_acct_cleanup(&blk->stats);
@@ -445,11 +441,11 @@ void blk_remove_bs(BlockBackend *blk)
     assert(blk->root->bs->blk == blk);
 
     notifier_list_notify(&blk->remove_bs_notifiers, blk);
+    if (blk->public.throttle_state) {
+        throttle_timers_detach_aio_context(&blk->public.throttle_timers);
+    }
 
     blk_update_root_state(blk);
-    if (blk->public.throttle_state) {
-        blk_io_limits_disable(blk);
-    }
 
     blk->root->bs->blk = NULL;
     bdrv_root_unref_child(blk->root);
@@ -468,6 +464,10 @@ void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
     bs->blk = blk;
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);
+    if (blk->public.throttle_state) {
+        throttle_timers_attach_aio_context(
+            &blk->public.throttle_timers, bdrv_get_aio_context(bs));
+    }
 }
 
 /*
@@ -1374,7 +1374,14 @@ void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
     BlockDriverState *bs = blk_bs(blk);
 
     if (bs) {
+        if (blk->public.throttle_state) {
+            throttle_timers_detach_aio_context(&blk->public.throttle_timers);
+        }
         bdrv_set_aio_context(bs, new_context);
+        if (blk->public.throttle_state) {
+            throttle_timers_attach_aio_context(&blk->public.throttle_timers,
+                                               new_context);
+        }
     }
 }
 
@@ -1539,19 +1546,6 @@ void blk_update_root_state(BlockBackend *blk)
     blk->root_state.open_flags    = blk->root->bs->open_flags;
     blk->root_state.read_only     = blk->root->bs->read_only;
     blk->root_state.detect_zeroes = blk->root->bs->detect_zeroes;
-
-    if (blk->root_state.throttle_group) {
-        g_free(blk->root_state.throttle_group);
-        throttle_group_unref(blk->root_state.throttle_state);
-    }
-    if (blk->public.throttle_state) {
-        const char *name = throttle_group_get_name(blk);
-        blk->root_state.throttle_group = g_strdup(name);
-        blk->root_state.throttle_state = throttle_group_incref(name);
-    } else {
-        blk->root_state.throttle_group = NULL;
-        blk->root_state.throttle_state = NULL;
-    }
 }
 
 /*
@@ -1562,9 +1556,6 @@ void blk_update_root_state(BlockBackend *blk)
 void blk_apply_root_state(BlockBackend *blk, BlockDriverState *bs)
 {
     bs->detect_zeroes = blk->root_state.detect_zeroes;
-    if (blk->root_state.throttle_group) {
-        blk_io_limits_enable(blk, blk->root_state.throttle_group);
-    }
 }
 
 /*

@@ -500,9 +500,6 @@ struct BlockBackendRootState {
     int open_flags;
     bool read_only;
     BlockdevDetectZeroesOptions detect_zeroes;
-
-    char *throttle_group;
-    ThrottleState *throttle_state;
 };
 
 static inline BlockDriverState *backing_bs(BlockDriverState *bs)

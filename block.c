@@ -38,7 +38,6 @@
 #include "qmp-commands.h"
 #include "qemu/timer.h"
 #include "qapi-event.h"
-#include "block/throttle-groups.h"
 #include "qemu/cutils.h"
 #include "qemu/id.h"
 
@@ -2121,11 +2120,6 @@ static void bdrv_close(BlockDriverState *bs)
 
     assert(!bs->job);
 
-    /* Disable I/O limits and drain all pending throttled requests */
-    if (bs->blk && blk_get_public(bs->blk)->throttle_state) {
-        blk_io_limits_disable(bs->blk);
-    }
-
     bdrv_drained_begin(bs); /* complete I/O */
     bdrv_flush(bs);
     bdrv_drain(bs); /* in case flush left pending I/O */
@@ -2254,26 +2248,6 @@ static void swap_feature_fields(BlockDriverState *bs_top,
     bdrv_move_feature_fields(&tmp, bs_top);
     bdrv_move_feature_fields(bs_top, bs_new);
     bdrv_move_feature_fields(bs_new, &tmp);
-
-    assert(!bs_new->blk);
-    if (bs_top->blk && blk_get_public(bs_top->blk)->throttle_state) {
-        /*
-         * FIXME Need to break I/O throttling with graph manipulations
-         * temporarily because of conflicting invariants (3. will go away when
-         * throttling is fully converted to work on BlockBackends):
-         *
-         * 1. Every BlockBackend has a single root BDS
-         * 2. I/O throttling functions require an attached BlockBackend
-         * 3. We need to first enable throttling on the new BDS and then
-         *    disable it on the old one (because of throttle group refcounts)
-         */
-#if 0
-        bdrv_io_limits_enable(bs_new, throttle_group_get_name(bs_top));
-        bdrv_io_limits_disable(bs_top);
-#else
-        abort();
-#endif
-    }
 }
 
 /*
@@ -3674,10 +3648,6 @@ void bdrv_detach_aio_context(BlockDriverState *bs)
         baf->detach_aio_context(baf->opaque);
     }
 
-    if (bs->blk && blk_get_public(bs->blk)->throttle_state) {
-        throttle_timers_detach_aio_context(
-            &blk_get_public(bs->blk)->throttle_timers);
-    }
     if (bs->drv->bdrv_detach_aio_context) {
         bs->drv->bdrv_detach_aio_context(bs);
     }
@@ -3710,10 +3680,6 @@ void bdrv_attach_aio_context(BlockDriverState *bs,
     }
     if (bs->drv->bdrv_attach_aio_context) {
         bs->drv->bdrv_attach_aio_context(bs, new_context);
-    }
-    if (bs->blk && blk_get_public(bs->blk)->throttle_state) {
-        throttle_timers_attach_aio_context(
-            &blk_get_public(bs->blk)->throttle_timers, new_context);
     }
 
     QLIST_FOREACH(ban, &bs->aio_notifiers, list) {

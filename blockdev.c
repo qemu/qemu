@@ -577,15 +577,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         blk_rs->read_only     = !(bdrv_flags & BDRV_O_RDWR);
         blk_rs->detect_zeroes = detect_zeroes;
 
-        if (throttle_enabled(&cfg)) {
-            if (!throttling_group) {
-                throttling_group = blk_name(blk);
-            }
-            blk_rs->throttle_group = g_strdup(throttling_group);
-            blk_rs->throttle_state = throttle_group_incref(throttling_group);
-            blk_rs->throttle_state->cfg = cfg;
-        }
-
         QDECREF(bs_opts);
     } else {
         if (file && !*file) {
@@ -611,15 +602,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
         bs->detect_zeroes = detect_zeroes;
 
-        /* disk I/O throttling */
-        if (throttle_enabled(&cfg)) {
-            if (!throttling_group) {
-                throttling_group = blk_name(blk);
-            }
-            blk_io_limits_enable(blk, throttling_group);
-            blk_set_io_limits(blk, &cfg);
-        }
-
         if (bdrv_key_required(bs)) {
             autostart = 0;
         }
@@ -631,6 +613,15 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
             blk = NULL;
             goto err_no_bs_opts;
         }
+    }
+
+    /* disk I/O throttling */
+    if (throttle_enabled(&cfg)) {
+        if (!throttling_group) {
+            throttling_group = blk_name(blk);
+        }
+        blk_io_limits_enable(blk, throttling_group);
+        blk_set_io_limits(blk, &cfg);
     }
 
     blk_set_enable_write_cache(blk, !writethrough);
