@@ -272,7 +272,7 @@ enum microblaze_instr_type {
 
 #define MAX_OPCODES 280
 
-static struct op_code_struct {
+static const struct op_code_struct {
   const char *name;
   short inst_type; /* registers and immediate values involved */
   short inst_offset_type; /* immediate vals offset from PC? (= 1 for branches) */
@@ -596,10 +596,6 @@ static char * get_field_imm15 (long instr);
 #if 0
 static char * get_field_unsigned_imm (long instr);
 #endif
-char * get_field_special (long instr, struct op_code_struct * op);
-unsigned long read_insn_microblaze (bfd_vma memaddr, 
-		      struct disassemble_info *info,
-		      struct op_code_struct **opr);
 
 static char *
 get_field (long instr, long mask, unsigned short low)
@@ -664,8 +660,8 @@ get_field_unsigned_imm (long instr)
   }
 */
 
-char *
-get_field_special (long instr, struct op_code_struct * op)
+static char *
+get_field_special(long instr, const struct op_code_struct *op)
 {
    char tmpstr[25];
    char spr[6];
@@ -729,14 +725,14 @@ get_field_special (long instr, struct op_code_struct * op)
    return(strdup(tmpstr));
 }
 
-unsigned long
+static unsigned long
 read_insn_microblaze (bfd_vma memaddr, 
 		      struct disassemble_info *info,
-		      struct op_code_struct **opr)
+		      const struct op_code_struct **opr)
 {
   unsigned char       ibytes[4];
   int                 status;
-  struct op_code_struct * op;
+  const struct op_code_struct *op;
   unsigned long inst;
 
   status = info->read_memory_func (memaddr, ibytes, 4, info);
@@ -772,7 +768,7 @@ print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
   fprintf_function    fprintf_func = info->fprintf_func;
   void *              stream = info->stream;
   unsigned long       inst, prev_inst;
-  struct op_code_struct * op, *pop;
+  const struct op_code_struct *op, *pop;
   int                 immval = 0;
   bfd_boolean         immfound = FALSE;
   static bfd_vma prev_insn_addr = -1; /*init the prev insn addr */
