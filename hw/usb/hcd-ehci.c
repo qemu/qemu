@@ -895,6 +895,11 @@ static uint64_t ehci_caps_read(void *ptr, hwaddr addr,
     return s->caps[addr];
 }
 
+static void ehci_caps_write(void *ptr, hwaddr addr,
+                             uint64_t val, unsigned size)
+{
+}
+
 static uint64_t ehci_opreg_read(void *ptr, hwaddr addr,
                                 unsigned size)
 {
@@ -2315,6 +2320,7 @@ static void ehci_frame_timer(void *opaque)
 
 static const MemoryRegionOps ehci_mmio_caps_ops = {
     .read = ehci_caps_read,
+    .write = ehci_caps_write,
     .valid.min_access_size = 1,
     .valid.max_access_size = 4,
     .impl.min_access_size = 1,
