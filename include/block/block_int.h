@@ -418,8 +418,6 @@ struct BlockDriverState {
     BlockDriver *drv; /* NULL means no media */
     void *opaque;
 
-    BlockBackend *blk;          /* owning backend, if any */
-
     AioContext *aio_context; /* event loop used for fd handlers, timers, etc */
     /* long-running tasks intended to always use the same AioContext as this
      * BDS may register themselves in this list to be notified of changes
@@ -724,6 +722,7 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const BdrvChildRole *child_role);
 void bdrv_root_unref_child(BdrvChild *child);
 
+const char *bdrv_get_parent_name(const BlockDriverState *bs);
 void blk_dev_change_media_cb(BlockBackend *blk, bool load);
 bool blk_dev_has_removable_media(BlockBackend *blk);
 bool blk_dev_has_tray(BlockBackend *blk);

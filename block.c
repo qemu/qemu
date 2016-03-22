@@ -2226,14 +2226,6 @@ static void change_parent_backing_link(BlockDriverState *from,
 {
     BdrvChild *c, *next;
 
-    if (from->blk) {
-        /* FIXME We bypass blk_set_bs(), so we need to make these updates
-         * manually. The root problem is not in this change function, but the
-         * existence of BlockDriverState.blk. */
-        to->blk = from->blk;
-        from->blk = NULL;
-    }
-
     QLIST_FOREACH_SAFE(c, &from->parents, next_parent, next) {
         assert(c->role != &child_backing);
         c->bs = to;
@@ -2875,7 +2867,7 @@ const char *bdrv_get_node_name(const BlockDriverState *bs)
     return bs->node_name;
 }
 
-static const char *bdrv_get_parent_name(const BlockDriverState *bs)
+const char *bdrv_get_parent_name(const BlockDriverState *bs)
 {
     BdrvChild *c;
     const char *name;

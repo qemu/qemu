@@ -1776,9 +1776,9 @@ static void external_snapshot_prepare(BlkActionState *common,
         return;
     }
 
-    if (state->new_bs->blk != NULL) {
+    if (bdrv_has_blk(state->new_bs)) {
         error_setg(errp, "The snapshot is already in use by %s",
-                   blk_name(state->new_bs->blk));
+                   bdrv_get_parent_name(state->new_bs));
         return;
     }
 
@@ -2494,9 +2494,9 @@ void qmp_x_blockdev_insert_medium(const char *device, const char *node_name,
         return;
     }
 
-    if (bs->blk) {
+    if (bdrv_has_blk(bs)) {
         error_setg(errp, "Node '%s' is already in use by '%s'", node_name,
-                   blk_name(bs->blk));
+                   bdrv_get_parent_name(bs));
         return;
     }
 
@@ -3441,7 +3441,7 @@ static void blockdev_mirror_common(BlockDriverState *bs,
     if (bdrv_op_is_blocked(target, BLOCK_OP_TYPE_MIRROR_TARGET, errp)) {
         return;
     }
-    if (target->blk) {
+    if (bdrv_has_blk(target)) {
         error_setg(errp, "Cannot mirror to an attached block device");
         return;
     }
@@ -4030,15 +4030,15 @@ void qmp_x_blockdev_del(bool has_id, const char *id,
         bs = blk_bs(blk);
         aio_context = blk_get_aio_context(blk);
     } else {
+        blk = NULL;
         bs = bdrv_find_node(node_name);
         if (!bs) {
             error_setg(errp, "Cannot find node %s", node_name);
             return;
         }
-        blk = bs->blk;
-        if (blk) {
+        if (bdrv_has_blk(bs)) {
             error_setg(errp, "Node %s is in use by %s",
-                       node_name, blk_name(blk));
+                       node_name, bdrv_get_parent_name(bs));
             return;
         }
         aio_context = bdrv_get_aio_context(bs);

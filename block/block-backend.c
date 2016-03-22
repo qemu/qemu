@@ -152,7 +152,6 @@ BlockBackend *blk_new_with_bs(Error **errp)
     bs = bdrv_new_root();
     blk->root = bdrv_root_attach_child(bs, "root", &child_root);
     blk->root->opaque = blk;
-    bs->blk = blk;
     return blk;
 }
 
@@ -422,12 +421,10 @@ static BlockBackend *bdrv_first_blk(BlockDriverState *bs)
     BdrvChild *child;
     QLIST_FOREACH(child, &bs->parents, next_parent) {
         if (child->role == &child_root) {
-            assert(bs->blk);
             return child->opaque;
         }
     }
 
-    assert(!bs->blk);
     return NULL;
 }
 
@@ -495,8 +492,6 @@ BlockBackend *blk_by_public(BlockBackendPublic *public)
  */
 void blk_remove_bs(BlockBackend *blk)
 {
-    assert(blk->root->bs->blk == blk);
-
     notifier_list_notify(&blk->remove_bs_notifiers, blk);
     if (blk->public.throttle_state) {
         throttle_timers_detach_aio_context(&blk->public.throttle_timers);
@@ -504,7 +499,6 @@ void blk_remove_bs(BlockBackend *blk)
 
     blk_update_root_state(blk);
 
-    blk->root->bs->blk = NULL;
     bdrv_root_unref_child(blk->root);
     blk->root = NULL;
 }
@@ -514,11 +508,9 @@ void blk_remove_bs(BlockBackend *blk)
  */
 void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
 {
-    assert(!blk->root && !bs->blk);
     bdrv_ref(bs);
     blk->root = bdrv_root_attach_child(bs, "root", &child_root);
     blk->root->opaque = blk;
-    bs->blk = blk;
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);
     if (blk->public.throttle_state) {

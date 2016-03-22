@@ -468,7 +468,7 @@ static void mirror_exit(BlockJob *job, void *opaque)
 
         /* This was checked in mirror_start_job(), but meanwhile one of the
          * nodes could have been newly attached to a BlockBackend. */
-        if (to_replace->blk && s->target->blk) {
+        if (bdrv_has_blk(to_replace) && bdrv_has_blk(s->target)) {
             error_report("block job: Can't create node with two BlockBackends");
             data->ret = -EINVAL;
             goto out;
@@ -831,7 +831,7 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
     } else {
         replaced_bs = bs;
     }
-    if (replaced_bs->blk && target->blk) {
+    if (bdrv_has_blk(replaced_bs) && bdrv_has_blk(target)) {
         error_setg(errp, "Can't create node with two BlockBackends");
         return;
     }
