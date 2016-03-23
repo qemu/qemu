@@ -249,7 +249,7 @@ static int pxb_dev_init_common(PCIDevice *dev, bool pcie)
     PCI_HOST_BRIDGE(ds)->bus = bus;
 
     if (pxb_register_bus(dev, bus)) {
-        return -EINVAL;
+        goto err_register_bus;
     }
 
     qdev_init_nofail(ds);
@@ -263,6 +263,12 @@ static int pxb_dev_init_common(PCIDevice *dev, bool pcie)
 
     pxb_dev_list = g_list_insert_sorted(pxb_dev_list, pxb, pxb_compare);
     return 0;
+
+err_register_bus:
+    object_unref(OBJECT(bds));
+    object_unparent(OBJECT(bus));
+    object_unref(OBJECT(ds));
+    return -EINVAL;
 }
 
 static int pxb_dev_initfn(PCIDevice *dev)
