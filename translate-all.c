@@ -924,7 +924,8 @@ static inline void tb_page_remove(TranslationBlock **ptb, TranslationBlock *tb)
     }
 }
 
-static inline void tb_jmp_remove(TranslationBlock *tb, int n)
+/* remove the TB from a list of TBs jumping to the n-th jump target of the TB */
+static inline void tb_remove_from_jmp_list(TranslationBlock *tb, int n)
 {
     TranslationBlock *tb1;
     uintptr_t *ptb, ntb;
@@ -998,8 +999,8 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     }
 
     /* suppress this TB from the two jump lists */
-    tb_jmp_remove(tb, 0);
-    tb_jmp_remove(tb, 1);
+    tb_remove_from_jmp_list(tb, 0);
+    tb_remove_from_jmp_list(tb, 1);
 
     /* suppress any remaining jumps to this TB */
     tb1 = tb->jmp_list_first;
