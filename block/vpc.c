@@ -874,6 +874,7 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
         } else if (!strcmp(disk_type_param, "fixed")) {
             disk_type = VHD_FIXED;
         } else {
+            error_setg(errp, "Invalid disk type, %s", disk_type_param);
             ret = -EINVAL;
             goto out;
         }
@@ -924,6 +925,7 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
         total_sectors = total_size / BDRV_SECTOR_SIZE;
         /* Allow a maximum disk size of approximately 2 TB */
         if (total_sectors > VHD_MAX_SECTORS) {
+            error_setg(errp, "Disk size is too large, max size is 2040 GiB");
             ret = -EFBIG;
             goto out;
         }
@@ -973,6 +975,9 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
         ret = create_dynamic_disk(blk, buf, total_sectors);
     } else {
         ret = create_fixed_disk(blk, buf, total_size);
+    }
+    if (ret < 0) {
+        error_setg(errp, "Unable to create or write VHD header");
     }
 
 out:
