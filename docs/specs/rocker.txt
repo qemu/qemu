@@ -303,7 +303,7 @@ Endianness
 ----------
 
 Device registers are hard-coded to little-endian (LE).  The driver should
-convert to/from host endianess to LE for device register accesses.
+convert to/from host endianness to LE for device register accesses.
 
 Descriptors are LE.  Descriptor buffer TLVs will have LE type and length
 fields, but the value field can either be LE or network-byte-order, depending

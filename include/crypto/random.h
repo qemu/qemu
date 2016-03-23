@@ -34,7 +34,7 @@
  * Fill @buf with @buflen bytes of cryptographically strong
  * random data
  *
- * Returns 0 on sucess, -1 on error
+ * Returns 0 on success, -1 on error
  */
 int qcrypto_random_bytes(uint8_t *buf,
                          size_t buflen,

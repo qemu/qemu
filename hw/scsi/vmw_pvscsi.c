@@ -63,7 +63,7 @@ typedef struct PVSCSIClass {
 #define PVSCSI_DEVICE_GET_CLASS(obj) \
     OBJECT_GET_CLASS(PVSCSIClass, (obj), TYPE_PVSCSI)
 
-/* Compatability flags for migration */
+/* Compatibility flags for migration */
 #define PVSCSI_COMPAT_OLD_PCI_CONFIGURATION_BIT 0
 #define PVSCSI_COMPAT_OLD_PCI_CONFIGURATION \
     (1 << PVSCSI_COMPAT_OLD_PCI_CONFIGURATION_BIT)

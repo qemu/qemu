@@ -51,7 +51,7 @@ int main(void)
 	t = (unsigned char *)x;
 	t -= 32768;
 	p = (unsigned char *) &y.v1;
-	mb(); /* dont reorder anything beyond here.  */
+	mb(); /* don't reorder anything beyond here.  */
 	cris_tst_cc_init();
 	asm volatile ("setf\tzvnc\n");
 	cris_addo_pi_d(p, t);
@@ -62,7 +62,7 @@ int main(void)
 
 
 	t += 32770;
-	mb(); /* dont reorder anything beyond here.  */
+	mb(); /* don't reorder anything beyond here.  */
 	cris_tst_cc_init();
 	asm volatile ("setf\tzvnc\n");
 	cris_addo_pi_w(p, t);
@@ -71,7 +71,7 @@ int main(void)
 	if (*r != 0x4455aa77)
 		err();
 
-	mb(); /* dont reorder anything beyond here.  */
+	mb(); /* don't reorder anything beyond here.  */
 	cris_tst_cc_init();
 	asm volatile ("setf\tzvnc\n");
 	cris_addo_d(p, r);
@@ -81,7 +81,7 @@ int main(void)
 	if (*r != 0xee19ccff)
 		err();
 
-	mb(); /* dont reorder anything beyond here.  */
+	mb(); /* don't reorder anything beyond here.  */
 	cris_tst_cc_init();
 	asm volatile ("setf\tzvnc\n");
 	cris_addo_pi_b(p, t);
@@ -90,7 +90,7 @@ int main(void)
 	if (*(uint16_t*)r != 0xff22)
 		err();
 
-	mb(); /* dont reorder anything beyond here.  */
+	mb(); /* don't reorder anything beyond here.  */
 	cris_tst_cc_init();
 	asm volatile ("setf\tzvnc\n");
 	cris_addo_b(p, r);
@@ -100,7 +100,7 @@ int main(void)
 	if (*r != 0x4455aa77)
 		err();
 
-	mb(); /* dont reorder anything beyond here.  */
+	mb(); /* don't reorder anything beyond here.  */
 	cris_tst_cc_init();
 	asm volatile ("setf\tzvnc\n");
 	cris_addo_w(p, r);
@@ -110,7 +110,7 @@ int main(void)
 	if (*r != 0xff224455)
 		err();
 
-	mb(); /* dont reorder anything beyond here.  */
+	mb(); /* don't reorder anything beyond here.  */
 	cris_tst_cc_init();
 	asm volatile ("setf\tzvnc\n");
 	cris_addo_pi_d(p, t);

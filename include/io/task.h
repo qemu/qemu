@@ -219,7 +219,7 @@ void qio_task_run_in_thread(QIOTask *task,
  * qio_task_complete:
  * @task: the task struct
  *
- * Mark the operation as succesfully completed
+ * Mark the operation as successfully completed
  * and free the memory for @task.
  */
 void qio_task_complete(QIOTask *task);

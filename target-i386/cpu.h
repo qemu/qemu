@@ -1366,7 +1366,7 @@ void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
  * If value is NULL, no default will be set and the original
  * value from the CPU model table will be kept.
  *
- * It is valid to call this funciton only for properties that
+ * It is valid to call this function only for properties that
  * are already present in the kvm_default_props table.
  */
 void x86_cpu_change_kvm_default(const char *prop, const char *value);
