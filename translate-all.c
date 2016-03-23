@@ -962,14 +962,37 @@ static inline void tb_reset_jump(TranslationBlock *tb, int n)
     tb_set_jmp_target(tb, n, addr);
 }
 
+/* remove any jumps to the TB */
+static inline void tb_jmp_unlink(TranslationBlock *tb)
+{
+    uintptr_t tb1, tb2;
+    unsigned int n1;
+
+    tb1 = tb->jmp_list_first;
+    for (;;) {
+        TranslationBlock *tmp_tb;
+        n1 = tb1 & 3;
+        if (n1 == 2) {
+            break;
+        }
+        tmp_tb = (TranslationBlock *)(tb1 & ~3);
+        tb2 = tmp_tb->jmp_list_next[n1];
+        tb_reset_jump(tmp_tb, n1);
+        tmp_tb->jmp_list_next[n1] = (uintptr_t)NULL;
+        tb1 = tb2;
+    }
+
+    assert(((uintptr_t)tb & 3) == 0);
+    tb->jmp_list_first = (uintptr_t)tb | 2; /* fail safe */
+}
+
 /* invalidate one TB */
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 {
     CPUState *cpu;
     PageDesc *p;
-    unsigned int h, n1;
+    unsigned int h;
     tb_page_addr_t phys_pc;
-    uintptr_t tb1, tb2;
 
     /* remove the TB from the hash list */
     phys_pc = tb->page_addr[0] + (tb->pc & ~TARGET_PAGE_MASK);
@@ -1003,22 +1026,7 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     tb_remove_from_jmp_list(tb, 1);
 
     /* suppress any remaining jumps to this TB */
-    tb1 = tb->jmp_list_first;
-    for (;;) {
-        TranslationBlock *tmp_tb;
-        n1 = tb1 & 3;
-        if (n1 == 2) {
-            break;
-        }
-        tmp_tb = (TranslationBlock *)(tb1 & ~3);
-        tb2 = tmp_tb->jmp_list_next[n1];
-        tb_reset_jump(tmp_tb, n1);
-        tmp_tb->jmp_list_next[n1] = (uintptr_t)NULL;
-        tb1 = tb2;
-    }
-
-    assert(((uintptr_t)tb & 3) == 0);
-    tb->jmp_list_first = (uintptr_t)tb | 2; /* fail safe */
+    tb_jmp_unlink(tb);
 
     tcg_ctx.tb_ctx.tb_phys_invalidate_count++;
 }
