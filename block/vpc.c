@@ -45,7 +45,7 @@ enum vhd_type {
     VHD_DIFFERENCING    = 4,
 };
 
-// Seconds since Jan 1, 2000 0:00:00 (UTC)
+/* Seconds since Jan 1, 2000 0:00:00 (UTC) */
 #define VHD_TIMESTAMP_BASE 946684800
 
 #define VHD_CHS_MAX_C   65535LL
@@ -57,22 +57,22 @@ enum vhd_type {
 
 #define VPC_OPT_FORCE_SIZE "force_size"
 
-// always big-endian
+/* always big-endian */
 typedef struct vhd_footer {
-    char        creator[8]; // "conectix"
+    char        creator[8]; /* "conectix" */
     uint32_t    features;
     uint32_t    version;
 
-    // Offset of next header structure, 0xFFFFFFFF if none
+    /* Offset of next header structure, 0xFFFFFFFF if none */
     uint64_t    data_offset;
 
-    // Seconds since Jan 1, 2000 0:00:00 (UTC)
+    /* Seconds since Jan 1, 2000 0:00:00 (UTC) */
     uint32_t    timestamp;
 
-    char        creator_app[4]; // "vpc "
+    char        creator_app[4]; /*  e.g., "vpc " */
     uint16_t    major;
     uint16_t    minor;
-    char        creator_os[4]; // "Wi2k"
+    char        creator_os[4]; /* "Wi2k" */
 
     uint64_t    orig_size;
     uint64_t    current_size;
@@ -83,29 +83,29 @@ typedef struct vhd_footer {
 
     uint32_t    type;
 
-    // Checksum of the Hard Disk Footer ("one's complement of the sum of all
-    // the bytes in the footer without the checksum field")
+    /* Checksum of the Hard Disk Footer ("one's complement of the sum of all
+       the bytes in the footer without the checksum field") */
     uint32_t    checksum;
 
-    // UUID used to identify a parent hard disk (backing file)
+    /* UUID used to identify a parent hard disk (backing file) */
     uint8_t     uuid[16];
 
     uint8_t     in_saved_state;
 } QEMU_PACKED VHDFooter;
 
 typedef struct vhd_dyndisk_header {
-    char        magic[8]; // "cxsparse"
+    char        magic[8]; /* "cxsparse" */
 
-    // Offset of next header structure, 0xFFFFFFFF if none
+    /* Offset of next header structure, 0xFFFFFFFF if none */
     uint64_t    data_offset;
 
-    // Offset of the Block Allocation Table (BAT)
+    /* Offset of the Block Allocation Table (BAT) */
     uint64_t    table_offset;
 
     uint32_t    version;
-    uint32_t    max_table_entries; // 32bit/entry
+    uint32_t    max_table_entries; /* 32bit/entry */
 
-    // 2 MB by default, must be a power of two
+    /* 2 MB by default, must be a power of two */
     uint32_t    block_size;
 
     uint32_t    checksum;
@@ -113,7 +113,7 @@ typedef struct vhd_dyndisk_header {
     uint32_t    parent_timestamp;
     uint32_t    reserved;
 
-    // Backing file name (in UTF-16)
+    /* Backing file name (in UTF-16) */
     uint8_t     parent_name[512];
 
     struct {
@@ -278,9 +278,9 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     /* Write 'checksum' back to footer, or else will leave it with zero. */
     footer->checksum = cpu_to_be32(checksum);
 
-    // The visible size of a image in Virtual PC depends on the geometry
-    // rather than on the size stored in the footer (the size in the footer
-    // is too large usually)
+    /* The visible size of a image in Virtual PC depends on the geometry
+       rather than on the size stored in the footer (the size in the footer
+       is too large usually) */
     bs->total_sectors = (int64_t)
         be16_to_cpu(footer->cyls) * footer->heads * footer->secs_per_cyl;
 
@@ -466,16 +466,16 @@ static inline int64_t get_sector_offset(BlockDriverState *bs,
     pageentry_index = (offset % s->block_size) / 512;
 
     if (pagetable_index >= s->max_table_entries || s->pagetable[pagetable_index] == 0xffffffff)
-        return -1; // not allocated
+        return -1; /* not allocated */
 
     bitmap_offset = 512 * (uint64_t) s->pagetable[pagetable_index];
     block_offset = bitmap_offset + s->bitmap_size + (512 * pageentry_index);
 
-    // We must ensure that we don't write to any sectors which are marked as
-    // unused in the bitmap. We get away with setting all bits in the block
-    // bitmap each time we write to a new block. This might cause Virtual PC to
-    // miss sparse read optimization, but it's not a problem in terms of
-    // correctness.
+    /* We must ensure that we don't write to any sectors which are marked as
+       unused in the bitmap. We get away with setting all bits in the block
+       bitmap each time we write to a new block. This might cause Virtual PC to
+       miss sparse read optimization, but it's not a problem in terms of
+       correctness. */
     if (write && (s->last_bitmap_offset != bitmap_offset)) {
         uint8_t bitmap[s->bitmap_size];
 
@@ -521,18 +521,18 @@ static int64_t alloc_block(BlockDriverState* bs, int64_t sector_num)
     int ret;
     uint8_t bitmap[s->bitmap_size];
 
-    // Check if sector_num is valid
+    /* Check if sector_num is valid */
     if ((sector_num < 0) || (sector_num > bs->total_sectors))
         return -1;
 
-    // Write entry into in-memory BAT
+    /* Write entry into in-memory BAT */
     index = (sector_num * 512) / s->block_size;
     if (s->pagetable[index] != 0xFFFFFFFF)
         return -1;
 
     s->pagetable[index] = s->free_data_block_offset / 512;
 
-    // Initialize the block's bitmap
+    /* Initialize the block's bitmap */
     memset(bitmap, 0xff, s->bitmap_size);
     ret = bdrv_pwrite_sync(bs->file->bs, s->free_data_block_offset, bitmap,
         s->bitmap_size);
@@ -540,13 +540,13 @@ static int64_t alloc_block(BlockDriverState* bs, int64_t sector_num)
         return ret;
     }
 
-    // Write new footer (the old one will be overwritten)
+    /* Write new footer (the old one will be overwritten) */
     s->free_data_block_offset += s->block_size + s->bitmap_size;
     ret = rewrite_footer(bs);
     if (ret < 0)
         goto fail;
 
-    // Write BAT entry to disk
+    /* Write BAT entry to disk */
     bat_offset = s->bat_offset + (4 * index);
     bat_value = cpu_to_be32(s->pagetable[index]);
     ret = bdrv_pwrite_sync(bs->file->bs, bat_offset, &bat_value, 4);
@@ -779,7 +779,7 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
     int ret;
     int64_t offset = 0;
 
-    // Write the footer (twice: at the beginning and at the end)
+    /* Write the footer (twice: at the beginning and at the end) */
     block_size = 0x200000;
     num_bat_entries = (total_sectors + block_size / 512) / (block_size / 512);
 
@@ -794,7 +794,7 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
         goto fail;
     }
 
-    // Write the initial BAT
+    /* Write the initial BAT */
     offset = 3 * 512;
 
     memset(buf, 0xFF, 512);
@@ -806,7 +806,7 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
         offset += 512;
     }
 
-    // Prepare the Dynamic Disk Header
+    /* Prepare the Dynamic Disk Header */
     memset(buf, 0, 1024);
 
     memcpy(dyndisk_header->magic, "cxsparse", 8);
@@ -823,7 +823,7 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
 
     dyndisk_header->checksum = cpu_to_be32(vpc_checksum(buf, 1024));
 
-    // Write the header
+    /* Write the header */
     offset = 512;
 
     ret = blk_pwrite(blk, offset, buf, 1024);
