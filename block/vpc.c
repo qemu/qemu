@@ -52,7 +52,7 @@ enum vhd_type {
 #define VHD_CHS_MAX_H   16
 #define VHD_CHS_MAX_S   255
 
-#define VHD_MAX_SECTORS       (65535LL * 255 * 255)
+#define VHD_MAX_SECTORS       0xff000000    /* 2040 GiB max image size */
 #define VHD_MAX_GEOMETRY      (VHD_CHS_MAX_C * VHD_CHS_MAX_H * VHD_CHS_MAX_S)
 
 #define VPC_OPT_FORCE_SIZE "force_size"
@@ -317,8 +317,8 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
                                         BDRV_SECTOR_SIZE;
     }
 
-    /* Allow a maximum disk size of approximately 2 TB */
-    if (bs->total_sectors >= VHD_MAX_SECTORS) {
+    /* Allow a maximum disk size of 2040 GiB */
+    if (bs->total_sectors > VHD_MAX_SECTORS) {
         ret = -EFBIG;
         goto fail;
     }
@@ -722,7 +722,7 @@ static int64_t coroutine_fn vpc_co_get_block_status(BlockDriverState *bs,
  * Note that the geometry doesn't always exactly match total_sectors but
  * may round it down.
  *
- * Returns 0 on success, -EFBIG if the size is larger than ~2 TB. Override
+ * Returns 0 on success, -EFBIG if the size is larger than 2040 GiB. Override
  * the hardware EIDE and ATA-2 limit of 16 heads (max disk size of 127 GB)
  * and instead allow up to 255 heads.
  */
@@ -927,7 +927,7 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
 
     if ((int64_t)cyls * heads * secs_per_cyl == VHD_MAX_GEOMETRY) {
         total_sectors = total_size / BDRV_SECTOR_SIZE;
-        /* Allow a maximum disk size of approximately 2 TB */
+        /* Allow a maximum disk size of 2040 GiB */
         if (total_sectors > VHD_MAX_SECTORS) {
             error_setg(errp, "Disk size is too large, max size is 2040 GiB");
             ret = -EFBIG;
