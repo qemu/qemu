@@ -965,25 +965,22 @@ static inline void tb_reset_jump(TranslationBlock *tb, int n)
 /* remove any jumps to the TB */
 static inline void tb_jmp_unlink(TranslationBlock *tb)
 {
-    uintptr_t tb1, tb2;
+    TranslationBlock *tb1;
+    uintptr_t *ptb, ntb;
     unsigned int n1;
 
-    tb1 = tb->jmp_list_first;
+    ptb = &tb->jmp_list_first;
     for (;;) {
-        TranslationBlock *tmp_tb;
-        n1 = tb1 & 3;
+        ntb = *ptb;
+        n1 = ntb & 3;
+        tb1 = (TranslationBlock *)(ntb & ~3);
         if (n1 == 2) {
             break;
         }
-        tmp_tb = (TranslationBlock *)(tb1 & ~3);
-        tb2 = tmp_tb->jmp_list_next[n1];
-        tb_reset_jump(tmp_tb, n1);
-        tmp_tb->jmp_list_next[n1] = (uintptr_t)NULL;
-        tb1 = tb2;
+        tb_reset_jump(tb1, n1);
+        *ptb = tb1->jmp_list_next[n1];
+        tb1->jmp_list_next[n1] = (uintptr_t)NULL;
     }
-
-    assert(((uintptr_t)tb & 3) == 0);
-    tb->jmp_list_first = (uintptr_t)tb | 2; /* fail safe */
 }
 
 /* invalidate one TB */
