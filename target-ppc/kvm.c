@@ -333,6 +333,12 @@ static long gethugepagesize(const char *mem_path)
     return fs.f_bsize;
 }
 
+/*
+ * FIXME TOCTTOU: this iterates over memory backends' mem-path, which
+ * may or may not name the same files / on the same filesystem now as
+ * when we actually open and map them.  Iterate over the file
+ * descriptors instead, and use qemu_fd_getpagesize().
+ */
 static int find_max_supported_pagesize(Object *obj, void *opaque)
 {
     char *mem_path;

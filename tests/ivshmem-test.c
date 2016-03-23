@@ -110,25 +110,26 @@ static void setup_vm_cmd(IVState *s, const char *cmd, bool msix)
     s->pcibus = qpci_init_pc();
     s->dev = get_device(s->pcibus);
 
-    /* FIXME: other bar order fails, mappings changes */
-    s->mem_base = qpci_iomap(s->dev, 2, &barsize);
-    g_assert_nonnull(s->mem_base);
-    g_assert_cmpuint(barsize, ==, TMPSHMSIZE);
+    s->reg_base = qpci_iomap(s->dev, 0, &barsize);
+    g_assert_nonnull(s->reg_base);
+    g_assert_cmpuint(barsize, ==, 256);
 
     if (msix) {
         qpci_msix_enable(s->dev);
     }
 
-    s->reg_base = qpci_iomap(s->dev, 0, &barsize);
-    g_assert_nonnull(s->reg_base);
-    g_assert_cmpuint(barsize, ==, 256);
+    s->mem_base = qpci_iomap(s->dev, 2, &barsize);
+    g_assert_nonnull(s->mem_base);
+    g_assert_cmpuint(barsize, ==, TMPSHMSIZE);
 
     qpci_device_enable(s->dev);
 }
 
 static void setup_vm(IVState *s)
 {
-    char *cmd = g_strdup_printf("-device ivshmem,shm=%s,size=1M", tmpshm);
+    char *cmd = g_strdup_printf("-object memory-backend-file"
+                                ",id=mb1,size=1M,share,mem-path=/dev/shm%s"
+                                " -device ivshmem-plain,memdev=mb1", tmpshm);
 
     setup_vm_cmd(s, cmd, false);
 
@@ -144,32 +145,41 @@ static void test_ivshmem_single(void)
     setup_vm(&state);
     s = &state;
 
-    /* valid io */
-    out_reg(s, INTRMASK, 0);
-    in_reg(s, INTRSTATUS);
-    in_reg(s, IVPOSITION);
+    /* initial state of readable registers */
+    g_assert_cmpuint(in_reg(s, INTRMASK), ==, 0);
+    g_assert_cmpuint(in_reg(s, INTRSTATUS), ==, 0);
+    g_assert_cmpuint(in_reg(s, IVPOSITION), ==, 0);
 
+    /* trigger interrupt via registers */
     out_reg(s, INTRMASK, 0xffffffff);
     g_assert_cmpuint(in_reg(s, INTRMASK), ==, 0xffffffff);
     out_reg(s, INTRSTATUS, 1);
-    /* XXX: intercept IRQ, not seen in resp */
+    /* check interrupt status */
     g_assert_cmpuint(in_reg(s, INTRSTATUS), ==, 1);
+    /* reading clears */
+    g_assert_cmpuint(in_reg(s, INTRSTATUS), ==, 0);
+    /* TODO intercept actual interrupt (needs qtest work) */
 
-    /* invalid io */
+    /* invalid register access */
     out_reg(s, IVPOSITION, 1);
+    in_reg(s, DOORBELL);
+
+    /* ring the (non-functional) doorbell */
     out_reg(s, DOORBELL, 8 << 16);
 
+    /* write shared memory */
     for (i = 0; i < G_N_ELEMENTS(data); i++) {
         data[i] = i;
     }
     qtest_memwrite(s->qtest, (uintptr_t)s->mem_base, data, sizeof(data));
 
+    /* verify write */
     for (i = 0; i < G_N_ELEMENTS(data); i++) {
         g_assert_cmpuint(((uint32_t *)tmpshmem)[i], ==, i);
     }
 
+    /* read it back and verify read */
     memset(data, 0, sizeof(data));
-
     qtest_memread(s->qtest, (uintptr_t)s->mem_base, data, sizeof(data));
     for (i = 0; i < G_N_ELEMENTS(data); i++) {
         g_assert_cmpuint(data[i], ==, i);
@@ -276,8 +286,10 @@ static void *server_thread(void *data)
 static void setup_vm_with_server(IVState *s, int nvectors, bool msi)
 {
     char *cmd = g_strdup_printf("-chardev socket,id=chr0,path=%s,nowait "
-                                "-device ivshmem,size=1M,chardev=chr0,vectors=%d,msi=%s",
-                                tmpserver, nvectors, msi ? "true" : "false");
+                                "-device ivshmem%s,chardev=chr0,vectors=%d",
+                                tmpserver,
+                                msi ? "-doorbell" : ",size=1M,msi=off",
+                                nvectors);
 
     setup_vm_cmd(s, cmd, msi);
 
@@ -293,8 +305,7 @@ static void test_ivshmem_server(bool msi)
     int nvectors = 2;
     guint64 end_time = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
 
-    memset(tmpshmem, 0x42, TMPSHMSIZE);
-    ret = ivshmem_server_init(&server, tmpserver, tmpshm,
+    ret = ivshmem_server_init(&server, tmpserver, tmpshm, true,
                               TMPSHMSIZE, nvectors,
                               g_test_verbose());
     g_assert_cmpint(ret, ==, 0);
@@ -302,49 +313,39 @@ static void test_ivshmem_server(bool msi)
     ret = ivshmem_server_start(&server);
     g_assert_cmpint(ret, ==, 0);
 
-    setup_vm_with_server(&state1, nvectors, msi);
-    s1 = &state1;
-    setup_vm_with_server(&state2, nvectors, msi);
-    s2 = &state2;
-
-    g_assert_cmpuint(in_reg(s1, IVPOSITION), ==, 0xffffffff);
-    g_assert_cmpuint(in_reg(s2, IVPOSITION), ==, 0xffffffff);
-
-    g_assert_cmpuint(qtest_readb(s1->qtest, (uintptr_t)s1->mem_base), ==, 0x00);
-
     thread.server = &server;
     ret = pipe(thread.pipe);
     g_assert_cmpint(ret, ==, 0);
     thread.thread = g_thread_new("ivshmem-server", server_thread, &thread);
     g_assert(thread.thread != NULL);
 
-    /* waiting until mapping is done */
-    while (g_get_monotonic_time() < end_time) {
-        g_usleep(1000);
-
-        if (qtest_readb(s1->qtest, (uintptr_t)s1->mem_base) == 0x42 &&
-            qtest_readb(s2->qtest, (uintptr_t)s2->mem_base) == 0x42) {
-            break;
-        }
-    }
+    setup_vm_with_server(&state1, nvectors, msi);
+    s1 = &state1;
+    setup_vm_with_server(&state2, nvectors, msi);
+    s2 = &state2;
 
     /* check got different VM ids */
     vm1 = in_reg(s1, IVPOSITION);
     vm2 = in_reg(s2, IVPOSITION);
-    g_assert_cmpuint(vm1, !=, vm2);
+    g_assert_cmpint(vm1, >=, 0);
+    g_assert_cmpint(vm2, >=, 0);
+    g_assert_cmpint(vm1, !=, vm2);
 
+    /* check number of MSI-X vectors */
     global_qtest = s1->qtest;
     if (msi) {
         ret = qpci_msix_table_size(s1->dev);
         g_assert_cmpuint(ret, ==, nvectors);
     }
 
-    /* ping vm2 -> vm1 */
+    /* TODO test behavior before MSI-X is enabled */
+
+    /* ping vm2 -> vm1 on vector 0 */
     if (msi) {
         ret = qpci_msix_pending(s1->dev, 0);
         g_assert_cmpuint(ret, ==, 0);
     } else {
-        out_reg(s1, INTRSTATUS, 0);
+        g_assert_cmpuint(in_reg(s1, INTRSTATUS), ==, 0);
     }
     out_reg(s2, DOORBELL, vm1 << 16);
     do {
@@ -353,18 +354,18 @@ static void test_ivshmem_server(bool msi)
     } while (ret == 0 && g_get_monotonic_time() < end_time);
     g_assert_cmpuint(ret, !=, 0);
 
-    /* ping vm1 -> vm2 */
+    /* ping vm1 -> vm2 on vector 1 */
     global_qtest = s2->qtest;
     if (msi) {
-        ret = qpci_msix_pending(s2->dev, 0);
+        ret = qpci_msix_pending(s2->dev, 1);
         g_assert_cmpuint(ret, ==, 0);
     } else {
-        out_reg(s2, INTRSTATUS, 0);
+        g_assert_cmpuint(in_reg(s2, INTRSTATUS), ==, 0);
     }
-    out_reg(s1, DOORBELL, vm2 << 16);
+    out_reg(s1, DOORBELL, vm2 << 16 | 1);
     do {
         g_usleep(10000);
-        ret = msi ? qpci_msix_pending(s2->dev, 0) : in_reg(s2, INTRSTATUS);
+        ret = msi ? qpci_msix_pending(s2->dev, 1) : in_reg(s2, INTRSTATUS);
     } while (ret == 0 && g_get_monotonic_time() < end_time);
     g_assert_cmpuint(ret, !=, 0);
 
@@ -415,7 +416,7 @@ static void test_ivshmem_memdev(void)
 
     /* just for the sake of checking memory-backend property */
     setup_vm_cmd(&state, "-object memory-backend-ram,size=1M,id=mb1"
-                 " -device ivshmem,x-memdev=mb1", false);
+                 " -device ivshmem-plain,memdev=mb1", false);
 
     cleanup_vm(&state);
 }

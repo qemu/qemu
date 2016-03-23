@@ -66,6 +66,7 @@ typedef struct IvshmemServer {
     char unix_sock_path[PATH_MAX];   /**< path to unix socket */
     int sock_fd;                     /**< unix sock file descriptor */
     char shm_path[PATH_MAX];         /**< path to shm */
+    bool use_shm_open;
     size_t shm_size;                 /**< size of shm */
     int shm_fd;                      /**< shm file descriptor */
     unsigned n_vectors;              /**< number of vectors */
@@ -89,7 +90,8 @@ typedef struct IvshmemServer {
  */
 int
 ivshmem_server_init(IvshmemServer *server, const char *unix_sock_path,
-                    const char *shm_path, size_t shm_size, unsigned n_vectors,
+                    const char *shm_path, bool use_shm_open,
+                    size_t shm_size, unsigned n_vectors,
                     bool verbose);
 
 /**

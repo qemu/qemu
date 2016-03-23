@@ -29,35 +29,38 @@ typedef struct IvshmemServerArgs {
     const char *pid_file;
     const char *unix_socket_path;
     const char *shm_path;
+    bool use_shm_open;
     uint64_t shm_size;
     unsigned n_vectors;
 } IvshmemServerArgs;
 
-/* show ivshmem_server_usage and exit with given error code */
 static void
-ivshmem_server_usage(const char *name, int code)
+ivshmem_server_usage(const char *progname)
 {
-    fprintf(stderr, "%s [opts]\n", name);
-    fprintf(stderr, "  -h: show this help\n");
-    fprintf(stderr, "  -v: verbose mode\n");
-    fprintf(stderr, "  -F: foreground mode (default is to daemonize)\n");
-    fprintf(stderr, "  -p <pid_file>: path to the PID file (used in daemon\n"
-                    "     mode only).\n"
-                    "     Default=%s\n", IVSHMEM_SERVER_DEFAULT_SHM_PATH);
-    fprintf(stderr, "  -S <unix_socket_path>: path to the unix socket\n"
-                    "     to listen to.\n"
-                    "     Default=%s\n", IVSHMEM_SERVER_DEFAULT_UNIX_SOCK_PATH);
-    fprintf(stderr, "  -m <shm_path>: path to the shared memory.\n"
-                    "     The path corresponds to a POSIX shm name or a\n"
-                    "     hugetlbfs mount point.\n"
-                    "     default=%s\n", IVSHMEM_SERVER_DEFAULT_SHM_PATH);
-    fprintf(stderr, "  -l <size>: size of shared memory in bytes. The suffix\n"
-                    "     K, M and G can be used (ex: 1K means 1024).\n"
-                    "     default=%u\n", IVSHMEM_SERVER_DEFAULT_SHM_SIZE);
-    fprintf(stderr, "  -n <n_vects>: number of vectors.\n"
-                    "     default=%u\n", IVSHMEM_SERVER_DEFAULT_N_VECTORS);
+    printf("Usage: %s [OPTION]...\n"
+           "  -h: show this help\n"
+           "  -v: verbose mode\n"
+           "  -F: foreground mode (default is to daemonize)\n"
+           "  -p <pid-file>: path to the PID file (used in daemon mode only)\n"
+           "     default " IVSHMEM_SERVER_DEFAULT_PID_FILE "\n"
+           "  -S <unix-socket-path>: path to the unix socket to listen to\n"
+           "     default " IVSHMEM_SERVER_DEFAULT_UNIX_SOCK_PATH "\n"
+           "  -M <shm-name>: POSIX shared memory object to use\n"
+           "     default " IVSHMEM_SERVER_DEFAULT_SHM_PATH "\n"
+           "  -m <dir-name>: where to create shared memory\n"
+           "  -l <size>: size of shared memory in bytes\n"
+           "     suffixes K, M and G can be used, e.g. 1K means 1024\n"
+           "     default %u\n"
+           "  -n <nvectors>: number of vectors\n"
+           "     default %u\n",
+           progname, IVSHMEM_SERVER_DEFAULT_SHM_SIZE,
+           IVSHMEM_SERVER_DEFAULT_N_VECTORS);
+}
 
-    exit(code);
+static void
+ivshmem_server_help(const char *progname)
+{
+    fprintf(stderr, "Try '%s -h' for more information.\n", progname);
 }
 
 /* parse the program arguments, exit on error */
@@ -68,20 +71,12 @@ ivshmem_server_parse_args(IvshmemServerArgs *args, int argc, char *argv[])
     unsigned long long v;
     Error *err = NULL;
 
-    while ((c = getopt(argc, argv,
-                       "h"  /* help */
-                       "v"  /* verbose */
-                       "F"  /* foreground */
-                       "p:" /* pid_file */
-                       "S:" /* unix_socket_path */
-                       "m:" /* shm_path */
-                       "l:" /* shm_size */
-                       "n:" /* n_vectors */
-                      )) != -1) {
+    while ((c = getopt(argc, argv, "hvFp:S:m:M:l:n:")) != -1) {
 
         switch (c) {
         case 'h': /* help */
-            ivshmem_server_usage(argv[0], 0);
+            ivshmem_server_usage(argv[0]);
+            exit(0);
             break;
 
         case 'v': /* verbose */
@@ -92,36 +87,41 @@ ivshmem_server_parse_args(IvshmemServerArgs *args, int argc, char *argv[])
             args->foreground = 1;
             break;
 
-        case 'p': /* pid_file */
+        case 'p': /* pid file */
             args->pid_file = optarg;
             break;
 
-        case 'S': /* unix_socket_path */
+        case 'S': /* unix socket path */
             args->unix_socket_path = optarg;
             break;
 
-        case 'm': /* shm_path */
+        case 'M': /* shm name */
+        case 'm': /* dir name */
             args->shm_path = optarg;
+            args->use_shm_open = c == 'M';
             break;
 
-        case 'l': /* shm_size */
+        case 'l': /* shm size */
             parse_option_size("shm_size", optarg, &args->shm_size, &err);
             if (err) {
                 error_report_err(err);
-                ivshmem_server_usage(argv[0], 1);
+                ivshmem_server_help(argv[0]);
+                exit(1);
             }
             break;
 
-        case 'n': /* n_vectors */
+        case 'n': /* number of vectors */
             if (parse_uint_full(optarg, &v, 0) < 0) {
                 fprintf(stderr, "cannot parse n_vectors\n");
-                ivshmem_server_usage(argv[0], 1);
+                ivshmem_server_help(argv[0]);
+                exit(1);
             }
             args->n_vectors = v;
             break;
 
         default:
-            ivshmem_server_usage(argv[0], 1);
+            ivshmem_server_usage(argv[0]);
+            exit(1);
             break;
         }
     }
@@ -129,12 +129,14 @@ ivshmem_server_parse_args(IvshmemServerArgs *args, int argc, char *argv[])
     if (args->n_vectors > IVSHMEM_SERVER_MAX_VECTORS) {
         fprintf(stderr, "too many requested vectors (max is %d)\n",
                 IVSHMEM_SERVER_MAX_VECTORS);
-        ivshmem_server_usage(argv[0], 1);
+        ivshmem_server_help(argv[0]);
+        exit(1);
     }
 
     if (args->verbose == 1 && args->foreground == 0) {
         fprintf(stderr, "cannot use verbose in daemon mode\n");
-        ivshmem_server_usage(argv[0], 1);
+        ivshmem_server_help(argv[0]);
+        exit(1);
     }
 }
 
@@ -192,10 +194,17 @@ main(int argc, char *argv[])
         .pid_file = IVSHMEM_SERVER_DEFAULT_PID_FILE,
         .unix_socket_path = IVSHMEM_SERVER_DEFAULT_UNIX_SOCK_PATH,
         .shm_path = IVSHMEM_SERVER_DEFAULT_SHM_PATH,
+        .use_shm_open = true,
         .shm_size = IVSHMEM_SERVER_DEFAULT_SHM_SIZE,
         .n_vectors = IVSHMEM_SERVER_DEFAULT_N_VECTORS,
     };
     int ret = 1;
+
+    /*
+     * Do not remove this notice without adding proper error handling!
+     * Start with handling ivshmem_server_send_one_msg() failure.
+     */
+    printf("*** Example code, do not use in production ***\n");
 
     /* parse arguments, will exit on error */
     ivshmem_server_parse_args(&args, argc, argv);
@@ -219,7 +228,8 @@ main(int argc, char *argv[])
     }
 
     /* init the ivshms structure */
-    if (ivshmem_server_init(&server, args.unix_socket_path, args.shm_path,
+    if (ivshmem_server_init(&server, args.unix_socket_path,
+                            args.shm_path, args.use_shm_open,
                             args.shm_size, args.n_vectors, args.verbose) < 0) {
         fprintf(stderr, "cannot init server\n");
         goto err;
