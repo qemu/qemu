@@ -351,10 +351,6 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
             ret = -EINVAL;
             goto fail;
         }
-        if (s->max_table_entries > (VHD_MAX_SECTORS * 512) / s->block_size) {
-            ret = -EINVAL;
-            goto fail;
-        }
 
         computed_size = (uint64_t) s->max_table_entries * s->block_size;
         if (computed_size < bs->total_sectors * 512) {
