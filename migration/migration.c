@@ -278,7 +278,7 @@ static void deferred_incoming_migration(Error **errp)
 void migrate_send_rp_req_pages(MigrationIncomingState *mis, const char *rbname,
                                ram_addr_t start, size_t len)
 {
-    uint8_t bufc[12 + 1 + 255]; /* start (8), len (4), rbname upto 256 */
+    uint8_t bufc[12 + 1 + 255]; /* start (8), len (4), rbname up to 256 */
     size_t msglen = 12; /* start + len */
 
     *(uint64_t *)bufc = cpu_to_be64((uint64_t)start);

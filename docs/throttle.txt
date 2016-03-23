@@ -10,7 +10,7 @@ Introduction
 ------------
 QEMU includes a throttling module that can be used to set limits to
 I/O operations. The code itself is generic and independent of the I/O
-units, but it is currenly used to limit the number of bytes per second
+units, but it is currently used to limit the number of bytes per second
 and operations per second (IOPS) when performing disk I/O.
 
 This document explains how to use the throttling code in QEMU, and how

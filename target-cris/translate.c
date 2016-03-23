@@ -3057,7 +3057,7 @@ static unsigned int crisv32_decoder(CPUCRISState *env, DisasContext *dc)
  *
  * When the software returns from an exception, the branch will re-execute.
  * On QEMU care needs to be taken when a branch+delayslot sequence is broken
- * and the branch and delayslot dont share pages.
+ * and the branch and delayslot don't share pages.
  *
  * The TB contaning the branch insn will set up env->btarget and evaluate 
  * env->btaken. When the translation loop exits we will note that the branch 
@@ -3246,7 +3246,7 @@ void gen_intermediate_code(CPUCRISState *env, struct TranslationBlock *tb)
         }
 
         /* If we are rexecuting a branch due to exceptions on
-           delay slots dont break.  */
+           delay slots don't break.  */
         if (!(tb->pc & 1) && cs->singlestep_enabled) {
             break;
         }

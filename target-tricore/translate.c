@@ -2858,7 +2858,7 @@ static void gen_shaci(TCGv ret, TCGv r1, int32_t shift_count)
     } else if (shift_count == -32) {
         /* set PSW.C */
         tcg_gen_mov_tl(cpu_PSW_C, r1);
-        /* fill ret completly with sign bit */
+        /* fill ret completely with sign bit */
         tcg_gen_sari_tl(ret, r1, 31);
         /* clear PSW.V */
         tcg_gen_movi_tl(cpu_PSW_V, 0);

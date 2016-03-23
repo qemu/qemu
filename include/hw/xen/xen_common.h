@@ -26,7 +26,7 @@
  * We don't support Xen prior to 4.2.0.
  */
 
-/* Xen 4.2 thru 4.6 */
+/* Xen 4.2 through 4.6 */
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 471
 
 typedef xc_interface xenforeignmemory_handle;

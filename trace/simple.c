@@ -108,7 +108,7 @@ static bool get_trace_record(unsigned int idx, TraceRecord **recordptr)
     smp_rmb(); /* read memory barrier before accessing record */
     /* read the record header to know record length */
     read_from_buffer(idx, &record, sizeof(TraceRecord));
-    *recordptr = malloc(record.length); /* dont use g_malloc, can deadlock when traced */
+    *recordptr = malloc(record.length); /* don't use g_malloc, can deadlock when traced */
     /* make a copy of record to avoid being overwritten */
     read_from_buffer(idx, *recordptr, record.length);
     smp_rmb(); /* memory barrier before clearing valid flag */
@@ -180,7 +180,7 @@ static gpointer writeout_thread(gpointer opaque)
         while (get_trace_record(idx, &recordptr)) {
             unused = fwrite(recordptr, recordptr->length, 1, trace_fp);
             writeout_idx += recordptr->length;
-            free(recordptr); /* dont use g_free, can deadlock when traced */
+            free(recordptr); /* don't use g_free, can deadlock when traced */
             idx = writeout_idx % TRACE_BUF_LEN;
         }
 

@@ -15,7 +15,7 @@
  * unix socket. For each client, the server will create some eventfd
  * (see EVENTFD(2)), one per vector. These fd are transmitted to all
  * clients using the SCM_RIGHTS cmsg message. Therefore, each client is
- * able to send a notification to another client without beeing
+ * able to send a notification to another client without being
  * "profixied" by the server.
  *
  * We use this mechanism to send interruptions between guests.

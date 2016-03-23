@@ -373,7 +373,7 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
     }
     length = be32_to_cpu(length);
     if (length != 0) {
-        error_setg(errp, "Start TLS reponse was not zero %x",
+        error_setg(errp, "Start TLS response was not zero %x",
                    length);
         return NULL;
     }
