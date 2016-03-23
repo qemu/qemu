@@ -238,6 +238,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
 
     ret = bdrv_pread(bs->file->bs, 0, s->footer_buf, HEADER_SIZE);
     if (ret < 0) {
+        error_setg(errp, "Unable to read VHD header");
         goto fail;
     }
 
@@ -246,9 +247,11 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
         int64_t offset = bdrv_getlength(bs->file->bs);
         if (offset < 0) {
             ret = offset;
+            error_setg(errp, "Invalid file size");
             goto fail;
         } else if (offset < HEADER_SIZE) {
             ret = -EINVAL;
+            error_setg(errp, "File too small for a VHD header");
             goto fail;
         }
 
@@ -327,12 +330,14 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
         ret = bdrv_pread(bs->file->bs, be64_to_cpu(footer->data_offset), buf,
                          HEADER_SIZE);
         if (ret < 0) {
+            error_setg(errp, "Error reading dynamic VHD header");
             goto fail;
         }
 
         dyndisk_header = (VHDDynDiskHeader *) buf;
 
         if (strncmp(dyndisk_header->magic, "cxsparse", 8)) {
+            error_setg(errp, "Invalid header magic");
             ret = -EINVAL;
             goto fail;
         }
@@ -348,12 +353,14 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
         s->max_table_entries = be32_to_cpu(dyndisk_header->max_table_entries);
 
         if ((bs->total_sectors * 512) / s->block_size > 0xffffffffU) {
+            error_setg(errp, "Too many blocks");
             ret = -EINVAL;
             goto fail;
         }
 
         computed_size = (uint64_t) s->max_table_entries * s->block_size;
         if (computed_size < bs->total_sectors * 512) {
+            error_setg(errp, "Page table too small");
             ret = -EINVAL;
             goto fail;
         }
@@ -370,6 +377,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
 
         s->pagetable = qemu_try_blockalign(bs->file->bs, pagetable_size);
         if (s->pagetable == NULL) {
+            error_setg(errp, "Unable to allocate memory for page table");
             ret = -ENOMEM;
             goto fail;
         }
@@ -379,6 +387,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
         ret = bdrv_pread(bs->file->bs, s->bat_offset, s->pagetable,
                          pagetable_size);
         if (ret < 0) {
+            error_setg(errp, "Error reading pagetable");
             goto fail;
         }
 
