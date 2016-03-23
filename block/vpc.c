@@ -299,6 +299,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
      *      'qem2'  :  current_size     QEMU (uses current_size)
      *      'win '  :  current_size     Hyper-V
      *      'd2v '  :  current_size     Disk2vhd
+     *      'tap\0' :  current_size     XenServer
      *
      *  The user can override the table values via drive options, however
      *  even with an override we will still use current_size for images
@@ -306,7 +307,8 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
      */
     use_chs = (!!strncmp(footer->creator_app, "win ", 4) &&
                !!strncmp(footer->creator_app, "qem2", 4) &&
-               !!strncmp(footer->creator_app, "d2v ", 4)) || s->force_use_chs;
+               !!strncmp(footer->creator_app, "d2v ", 4) &&
+               !!memcmp(footer->creator_app, "tap", 4)) || s->force_use_chs;
 
     if (!use_chs || bs->total_sectors == VHD_MAX_GEOMETRY || s->force_use_sz) {
         bs->total_sectors = be64_to_cpu(footer->current_size) /
