@@ -3082,6 +3082,7 @@
 #
 # 'unmapped' and 'pause' since 2.0
 # 'ro' and 'kp_comma' since 2.4
+# 'kp_equals' and 'power' since 2.6
 ##
 { 'enum': 'QKeyCode',
   'data': [ 'unmapped',
@@ -3100,7 +3101,7 @@
             'left', 'up', 'down', 'right', 'insert', 'delete', 'stop', 'again',
             'props', 'undo', 'front', 'copy', 'open', 'paste', 'find', 'cut',
             'lf', 'help', 'meta_l', 'meta_r', 'compose', 'pause', 'ro',
-            'kp_comma' ] }
+            'kp_comma', 'kp_equals', 'power' ] }
 
 ##
 # @KeyValue
