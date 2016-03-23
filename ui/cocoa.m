@@ -858,6 +858,7 @@ QemuCocoaView *cocoaView;
 - (void)ejectDeviceMedia:(id)sender;
 - (void)changeDeviceMedia:(id)sender;
 - (BOOL)verifyQuit;
+- (void)openDocumentation:(NSString *)filename;
 @end
 
 @implementation QemuCocoaAppController
@@ -994,20 +995,42 @@ QemuCocoaView *cocoaView;
     [cocoaView toggleFullScreen:sender];
 }
 
+/* Tries to find then open the specified filename */
+- (void) openDocumentation: (NSString *) filename
+{
+    /* Where to look for local files */
+    NSString *path_array[] = {@"../share/doc/qemu/", @"../doc/qemu/", @"../"};
+    NSString *full_file_path;
+
+    /* iterate thru the possible paths until the file is found */
+    int index;
+    for (index = 0; index < ARRAY_SIZE(path_array); index++) {
+        full_file_path = [[NSBundle mainBundle] executablePath];
+        full_file_path = [full_file_path stringByDeletingLastPathComponent];
+        full_file_path = [NSString stringWithFormat: @"%@/%@%@", full_file_path,
+                          path_array[index], filename];
+        if ([[NSWorkspace sharedWorkspace] openFile: full_file_path] == YES) {
+            return;
+        }
+    }
+
+    /* If none of the paths opened a file */
+    NSBeep();
+    QEMU_Alert(@"Failed to open file");
+}
+
 - (void)showQEMUDoc:(id)sender
 {
     COCOA_DEBUG("QemuCocoaAppController: showQEMUDoc\n");
 
-    [[NSWorkspace sharedWorkspace] openFile:[NSString stringWithFormat:@"%@/../doc/qemu/qemu-doc.html",
-        [[NSBundle mainBundle] resourcePath]] withApplication:@"Help Viewer"];
+    [self openDocumentation: @"qemu-doc.html"];
 }
 
 - (void)showQEMUTec:(id)sender
 {
     COCOA_DEBUG("QemuCocoaAppController: showQEMUTec\n");
 
-    [[NSWorkspace sharedWorkspace] openFile:[NSString stringWithFormat:@"%@/../doc/qemu/qemu-tech.html",
-        [[NSBundle mainBundle] resourcePath]] withApplication:@"Help Viewer"];
+    [self openDocumentation: @"qemu-tech.html"];
 }
 
 /* Stretches video to fit host monitor size */
