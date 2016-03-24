@@ -2427,7 +2427,10 @@
 #
 # @ip: #optional legacy parameter, use net= instead
 #
-# @net: #optional IP address and optional netmask
+# @net: #optional IP network address that the guest will see, in the
+#       form addr[/netmask] The netmask is optional, and can be
+#       either in the form a.b.c.d or as a number of valid top-most
+#       bits. Default is 10.0.2.0/24.
 #
 # @host: #optional guest-visible address of the host
 #
@@ -2443,13 +2446,17 @@
 # @dnssearch: #optional list of DNS suffixes to search, passed as DHCP option
 #             to the guest
 #
-# @ip6-prefix: #optional IPv6 network prefix (default is fec0::) (since 2.6)
+# @ipv6-prefix: #optional IPv6 network prefix (default is fec0::) (since
+#               2.6). The network prefix is given in the usual
+#               hexadecimal IPv6 address notation.
 #
-# @ip6-prefixlen: #optional IPv6 network prefix length (default is 64) (since 2.6)
+# @ipv6-prefixlen: #optional IPv6 network prefix length (default is 64)
+#                  (since 2.6)
 #
-# @ip6-host: #optional guest-visible IPv6 address of the host (since 2.6)
+# @ipv6-host: #optional guest-visible IPv6 address of the host (since 2.6)
 #
-# @ip6-dns: #optional guest-visible IPv6 address of the virtual nameserver (since 2.6)
+# @ipv6-dns: #optional guest-visible IPv6 address of the virtual
+#            nameserver (since 2.6)
 #
 # @smb: #optional root directory of the built-in SMB server
 #
@@ -2474,10 +2481,10 @@
     '*dhcpstart': 'str',
     '*dns':       'str',
     '*dnssearch': ['String'],
-    '*ip6-prefix':      'str',
-    '*ip6-prefixlen':   'int',
-    '*ip6-host':        'str',
-    '*ip6-dns':         'str',
+    '*ipv6-prefix':      'str',
+    '*ipv6-prefixlen':   'int',
+    '*ipv6-host':        'str',
+    '*ipv6-dns':         'str',
     '*smb':       'str',
     '*smbserver': 'str',
     '*hostfwd':   ['String'],

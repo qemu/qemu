@@ -828,10 +828,10 @@ int net_init_slirp(const NetClientOptions *opts, const char *name,
     net_init_slirp_configs(user->guestfwd, 0);
 
     ret = net_slirp_init(peer, "user", name, user->q_restrict, vnet,
-                         user->host, user->ip6_prefix, user->ip6_prefixlen,
-                         user->ip6_host, user->hostname, user->tftp,
+                         user->host, user->ipv6_prefix, user->ipv6_prefixlen,
+                         user->ipv6_host, user->hostname, user->tftp,
                          user->bootfile, user->dhcpstart,
-                         user->dns, user->ip6_dns, user->smb,
+                         user->dns, user->ipv6_dns, user->smb,
                          user->smbserver, dnssearch);
 
     while (slirp_configs) {
