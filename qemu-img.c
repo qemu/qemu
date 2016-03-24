@@ -1514,10 +1514,6 @@ static int convert_read(ImgConvertState *s, int64_t sector_num, int nb_sectors,
     int n;
     int ret;
 
-    if (s->status == BLK_ZERO || s->status == BLK_BACKING_FILE) {
-        return 0;
-    }
-
     assert(nb_sectors <= s->buf_sectors);
     while (nb_sectors > 0) {
         BlockBackend *blk;
@@ -1655,7 +1651,8 @@ static int convert_do_copy(ImgConvertState *s)
             ret = n;
             goto fail;
         }
-        if (s->status == BLK_DATA) {
+        if (s->status == BLK_DATA || (!s->min_sparse && s->status == BLK_ZERO))
+        {
             s->allocated_sectors += n;
         }
         sector_num += n;
@@ -1675,17 +1672,24 @@ static int convert_do_copy(ImgConvertState *s)
             ret = n;
             goto fail;
         }
-        if (s->status == BLK_DATA) {
+        if (s->status == BLK_DATA || (!s->min_sparse && s->status == BLK_ZERO))
+        {
             allocated_done += n;
             qemu_progress_print(100.0 * allocated_done / s->allocated_sectors,
                                 0);
         }
 
-        ret = convert_read(s, sector_num, n, buf);
-        if (ret < 0) {
-            error_report("error while reading sector %" PRId64
-                         ": %s", sector_num, strerror(-ret));
-            goto fail;
+        if (s->status == BLK_DATA) {
+            ret = convert_read(s, sector_num, n, buf);
+            if (ret < 0) {
+                error_report("error while reading sector %" PRId64
+                             ": %s", sector_num, strerror(-ret));
+                goto fail;
+            }
+        } else if (!s->min_sparse && s->status == BLK_ZERO) {
+            n = MIN(n, s->buf_sectors);
+            memset(buf, 0, n * BDRV_SECTOR_SIZE);
+            s->status = BLK_DATA;
         }
 
         ret = convert_write(s, sector_num, n, buf);
