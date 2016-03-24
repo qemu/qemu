@@ -15,10 +15,12 @@
 #include "block/block_int.h"
 
 #define NULL_OPT_LATENCY "latency-ns"
+#define NULL_OPT_ZEROES  "read-zeroes"
 
 typedef struct {
     int64_t length;
     int64_t latency_ns;
+    bool read_zeroes;
 } BDRVNullState;
 
 static QemuOptsList runtime_opts = {
@@ -41,6 +43,11 @@ static QemuOptsList runtime_opts = {
             .help = "nanoseconds (approximated) to wait "
                     "before completing request",
         },
+        {
+            .name = NULL_OPT_ZEROES,
+            .type = QEMU_OPT_BOOL,
+            .help = "return zeroes when read",
+        },
         { /* end of list */ }
     },
 };
@@ -62,6 +69,7 @@ static int null_file_open(BlockDriverState *bs, QDict *options, int flags,
         error_setg(errp, "latency-ns is invalid");
         ret = -EINVAL;
     }
+    s->read_zeroes = qemu_opt_get_bool(opts, NULL_OPT_ZEROES, false);
     qemu_opts_del(opts);
     return ret;
 }
@@ -91,6 +99,12 @@ static coroutine_fn int null_co_readv(BlockDriverState *bs,
                                       int64_t sector_num, int nb_sectors,
                                       QEMUIOVector *qiov)
 {
+    BDRVNullState *s = bs->opaque;
+
+    if (s->read_zeroes) {
+        qemu_iovec_memset(qiov, 0, 0, nb_sectors * BDRV_SECTOR_SIZE);
+    }
+
     return null_co_common(bs);
 }
 
@@ -160,6 +174,12 @@ static BlockAIOCB *null_aio_readv(BlockDriverState *bs,
                                   BlockCompletionFunc *cb,
                                   void *opaque)
 {
+    BDRVNullState *s = bs->opaque;
+
+    if (s->read_zeroes) {
+        qemu_iovec_memset(qiov, 0, 0, nb_sectors * BDRV_SECTOR_SIZE);
+    }
+
     return null_aio_common(bs, cb, opaque);
 }
 
