@@ -99,6 +99,7 @@ struct CPUMIPSFPUContext {
     uint32_t fcr0;
 #define FCR0_FREP 29
 #define FCR0_UFRP 28
+#define FCR0_HAS2008 23
 #define FCR0_F64 22
 #define FCR0_L 21
 #define FCR0_W 20
@@ -110,6 +111,8 @@ struct CPUMIPSFPUContext {
 #define FCR0_REV 0
     /* fcsr */
     uint32_t fcr31;
+#define FCR31_ABS2008 19
+#define FCR31_NAN2008 18
 #define SET_FP_COND(num,env)     do { ((env).fcr31) |= ((num) ? (1 << ((num) + 24)) : (1 << 23)); } while(0)
 #define CLEAR_FP_COND(num,env)   do { ((env).fcr31) &= ~((num) ? (1 << ((num) + 24)) : (1 << 23)); } while(0)
 #define GET_FP_COND(env)         ((((env).fcr31 >> 24) & 0xfe) | (((env).fcr31 >> 23) & 0x1))
