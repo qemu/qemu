@@ -12,9 +12,8 @@
 #include "virtio.h"
 
 char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
-char ring_area[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 uint64_t boot_value;
-static struct subchannel_id blk_schid = { .one = 1 };
+static SubChannelId blk_schid = { .one = 1 };
 
 /*
  * Priniciples of Operations (SA22-7832-09) chapter 17 requires that
@@ -23,7 +22,7 @@ static struct subchannel_id blk_schid = { .one = 1 };
  */
 void write_subsystem_identification(void)
 {
-    struct subchannel_id *schid = (struct subchannel_id *) 184;
+    SubChannelId *schid = (SubChannelId *) 184;
     uint32_t *zeroes = (uint32_t *) 188;
 
     *schid = blk_schid;
@@ -31,14 +30,14 @@ void write_subsystem_identification(void)
 }
 
 
-void virtio_panic(const char *string)
+void panic(const char *string)
 {
     sclp_print(string);
     disabled_wait();
     while (1) { }
 }
 
-static bool find_dev(struct schib *schib, int dev_no)
+static bool find_dev(Schib *schib, int dev_no)
 {
     int i, r;
 
@@ -51,7 +50,7 @@ static bool find_dev(struct schib *schib, int dev_no)
         if (!schib->pmcw.dnv) {
             continue;
         }
-        if (!virtio_is_blk(blk_schid)) {
+        if (!virtio_is_supported(blk_schid)) {
             continue;
         }
         if ((dev_no < 0) || (schib->pmcw.dev == dev_no)) {
@@ -64,7 +63,7 @@ static bool find_dev(struct schib *schib, int dev_no)
 
 static void virtio_setup(uint64_t dev_info)
 {
-    struct schib schib;
+    Schib schib;
     int ssid;
     bool found = false;
     uint16_t dev_no;
@@ -92,15 +91,11 @@ static void virtio_setup(uint64_t dev_info)
         }
     }
 
-    if (!found) {
-        virtio_panic("No virtio-blk device found!\n");
-    }
+    IPL_assert(found, "No virtio device found");
 
-    virtio_setup_block(blk_schid);
+    virtio_setup_device(blk_schid);
 
-    if (!virtio_ipl_disk_is_valid()) {
-        virtio_panic("No valid hard disk detected.\n");
-    }
+    IPL_assert(virtio_ipl_disk_is_valid(), "No valid IPL device detected");
 }
 
 int main(void)
@@ -111,6 +106,6 @@ int main(void)
 
     zipl_load(); /* no return */
 
-    virtio_panic("Failed to load OS from hard disk\n");
+    panic("Failed to load OS from hard disk\n");
     return 0; /* make compiler happy */
 }

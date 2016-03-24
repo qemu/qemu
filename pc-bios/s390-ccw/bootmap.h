@@ -264,15 +264,6 @@ typedef enum {
 
 /* utility code below */
 
-static inline void IPL_assert(bool term, const char *message)
-{
-    if (!term) {
-        sclp_print("\n! ");
-        sclp_print(message);
-        virtio_panic(" !\n"); /* no return */
-    }
-}
-
 static const unsigned char ebc2asc[256] =
       /* 0123456789abcdef0123456789abcdef */
         "................................" /* 1F */

@@ -45,15 +45,22 @@ typedef unsigned long long __u64;
 
 #include "cio.h"
 
+typedef struct irb Irb;
+typedef struct ccw1 Ccw1;
+typedef struct cmd_orb CmdOrb;
+typedef struct schib Schib;
+typedef struct chsc_area_sda ChscAreaSda;
+typedef struct senseid SenseId;
+typedef struct subchannel_id SubChannelId;
+
 /* start.s */
 void disabled_wait(void);
 void consume_sclp_int(void);
 
 /* main.c */
-void virtio_panic(const char *string);
+void panic(const char *string);
 void write_subsystem_identification(void);
 extern char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
-extern char ring_area[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 extern uint64_t boot_value;
 
 /* sclp-ascii.c */
@@ -63,10 +70,11 @@ void sclp_setup(void);
 /* virtio.c */
 unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
                                  ulong subchan_id, void *load_addr);
-bool virtio_is_blk(struct subchannel_id schid);
-void virtio_setup_block(struct subchannel_id schid);
+bool virtio_is_supported(SubChannelId schid);
+void virtio_setup_device(SubChannelId schid);
 int virtio_read(ulong sector, void *load_addr);
 int enable_mss_facility(void);
+ulong get_second(void);
 
 /* bootmap.c */
 void zipl_load(void);
@@ -142,5 +150,43 @@ static inline void yield(void)
 }
 
 #define MAX_SECTOR_SIZE 4096
+
+static inline void sleep(unsigned int seconds)
+{
+    ulong target = get_second() + seconds;
+
+    while (get_second() < target) {
+        yield();
+    }
+}
+
+static inline void *memcpy(void *s1, const void *s2, size_t n)
+{
+    uint8_t *p1 = s1;
+    const uint8_t *p2 = s2;
+
+    while (n--) {
+        p1[n] = p2[n];
+    }
+    return s1;
+}
+
+static inline void IPL_assert(bool term, const char *message)
+{
+    if (!term) {
+        sclp_print("\n! ");
+        sclp_print(message);
+        panic(" !\n"); /* no return */
+    }
+}
+
+static inline void IPL_check(bool term, const char *message)
+{
+    if (!term) {
+        sclp_print("\n! WARNING: ");
+        sclp_print(message);
+        sclp_print(" !\n");
+    }
+}
 
 #endif /* S390_CCW_H */
