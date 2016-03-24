@@ -6672,6 +6672,21 @@ static void decode_rr_divide(CPUTriCoreState *env, DisasContext *ctx)
             generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
         }
         break;
+    case OPC2_32_RR_MUL_F:
+        gen_helper_fmul(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_DIV_F:
+        gen_helper_fdiv(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_CMP_F:
+        gen_helper_fcmp(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_FTOI:
+        gen_helper_ftoi(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1]);
+        break;
+    case OPC2_32_RR_ITOF:
+        gen_helper_itof(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1]);
+        break;
     default:
         generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
     }
@@ -7013,47 +7028,59 @@ static void decode_rrr_divide(CPUTriCoreState *env, DisasContext *ctx)
     r3 = MASK_OP_RRR_S3(ctx->opcode);
     r4 = MASK_OP_RRR_D(ctx->opcode);
 
-    CHECK_REG_PAIR(r3);
-
     switch (op2) {
     case OPC2_32_RRR_DVADJ:
+        CHECK_REG_PAIR(r3);
         CHECK_REG_PAIR(r4);
         GEN_HELPER_RRR(dvadj, cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r3],
                        cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
         break;
     case OPC2_32_RRR_DVSTEP:
+        CHECK_REG_PAIR(r3);
         CHECK_REG_PAIR(r4);
         GEN_HELPER_RRR(dvstep, cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r3],
                        cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
         break;
     case OPC2_32_RRR_DVSTEP_U:
+        CHECK_REG_PAIR(r3);
         CHECK_REG_PAIR(r4);
         GEN_HELPER_RRR(dvstep_u, cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r3],
                        cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
         break;
     case OPC2_32_RRR_IXMAX:
+        CHECK_REG_PAIR(r3);
         CHECK_REG_PAIR(r4);
         GEN_HELPER_RRR(ixmax, cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r3],
                        cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
         break;
     case OPC2_32_RRR_IXMAX_U:
+        CHECK_REG_PAIR(r3);
         CHECK_REG_PAIR(r4);
         GEN_HELPER_RRR(ixmax_u, cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r3],
                        cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
         break;
     case OPC2_32_RRR_IXMIN:
+        CHECK_REG_PAIR(r3);
         CHECK_REG_PAIR(r4);
         GEN_HELPER_RRR(ixmin, cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r3],
                        cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
         break;
     case OPC2_32_RRR_IXMIN_U:
+        CHECK_REG_PAIR(r3);
         CHECK_REG_PAIR(r4);
         GEN_HELPER_RRR(ixmin_u, cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r3],
                        cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
         break;
     case OPC2_32_RRR_PACK:
+        CHECK_REG_PAIR(r3);
         gen_helper_pack(cpu_gpr_d[r4], cpu_PSW_C, cpu_gpr_d[r3],
                         cpu_gpr_d[r3+1], cpu_gpr_d[r1]);
+        break;
+    case OPC2_32_RRR_ADD_F:
+        gen_helper_fadd(cpu_gpr_d[r4], cpu_env, cpu_gpr_d[r1], cpu_gpr_d[r3]);
+        break;
+    case OPC2_32_RRR_SUB_F:
+        gen_helper_fsub(cpu_gpr_d[r4], cpu_env, cpu_gpr_d[r1], cpu_gpr_d[r3]);
         break;
     default:
         generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
@@ -8632,6 +8659,7 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         break;
     case OPCM_32_RRR_DIVIDE:
         decode_rrr_divide(env, ctx);
+        break;
 /* RRR2 Format */
     case OPCM_32_RRR2_MADD:
         decode_rrr2_madd(env, ctx);
@@ -8661,6 +8689,7 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 /* RRRR format */
     case OPCM_32_RRRR_EXTRACT_INSERT:
         decode_rrrr_extract_insert(env, ctx);
+        break;
 /* RRRW format */
     case OPCM_32_RRRW_EXTRACT_INSERT:
         decode_rrrw_extract_insert(env, ctx);
@@ -8771,6 +8800,7 @@ void cpu_state_reset(CPUTriCoreState *env)
 {
     /* Reset Regs to Default Value */
     env->PSW = 0xb80;
+    fpu_set_state(env);
 }
 
 static void tricore_tcg_init_csfr(void)
