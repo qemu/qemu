@@ -1386,7 +1386,7 @@ fi
 
 # Consult white-list to determine whether to enable werror
 # by default.  Only enable by default for git builds
-z_version=`cut -f3 -d. $source_path/VERSION`
+z_version=`cut -f3 -d. "$source_path/VERSION"`
 
 if test -z "$werror" ; then
     if test -d "$source_path/.git" -a \
