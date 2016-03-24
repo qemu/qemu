@@ -323,7 +323,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
 {
     VFIOContainer *container = container_of(listener, VFIOContainer, listener);
     hwaddr iova, end;
-    Int128 llend;
+    Int128 llend, llsize;
     void *vaddr;
     int ret;
 
@@ -349,12 +349,12 @@ static void vfio_listener_region_add(MemoryListener *listener,
     if (int128_ge(int128_make64(iova), llend)) {
         return;
     }
-    end = int128_get64(llend);
+    end = int128_get64(int128_sub(llend, int128_one()));
 
-    if ((iova < container->min_iova) || ((end - 1) > container->max_iova)) {
+    if ((iova < container->min_iova) || (end > container->max_iova)) {
         error_report("vfio: IOMMU container %p can't map guest IOVA region"
                      " 0x%"HWADDR_PRIx"..0x%"HWADDR_PRIx,
-                     container, iova, end - 1);
+                     container, iova, end);
         ret = -EFAULT;
         goto fail;
     }
@@ -364,7 +364,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
     if (memory_region_is_iommu(section->mr)) {
         VFIOGuestIOMMU *giommu;
 
-        trace_vfio_listener_region_add_iommu(iova, end - 1);
+        trace_vfio_listener_region_add_iommu(iova, end);
         /*
          * FIXME: We should do some checking to see if the
          * capabilities of the host VFIO IOMMU are adequate to model
@@ -395,13 +395,16 @@ static void vfio_listener_region_add(MemoryListener *listener,
             section->offset_within_region +
             (iova - section->offset_within_address_space);
 
-    trace_vfio_listener_region_add_ram(iova, end - 1, vaddr);
+    trace_vfio_listener_region_add_ram(iova, end, vaddr);
 
-    ret = vfio_dma_map(container, iova, end - iova, vaddr, section->readonly);
+    llsize = int128_sub(llend, int128_make64(iova));
+
+    ret = vfio_dma_map(container, iova, int128_get64(llsize),
+                       vaddr, section->readonly);
     if (ret) {
         error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
                      "0x%"HWADDR_PRIx", %p) = %d (%m)",
-                     container, iova, end - iova, vaddr, ret);
+                     container, iova, int128_get64(llsize), vaddr, ret);
         goto fail;
     }
 
