@@ -579,17 +579,33 @@ static inline void vscr_init (CPUPPCState *env, uint32_t val)
 #define spr_register_kvm(env, num, name, uea_read, uea_write,                  \
                          oea_read, oea_write, one_reg_id, initial_value)       \
     _spr_register(env, num, name, uea_read, uea_write, initial_value)
+#define spr_register_kvm_hv(env, num, name, uea_read, uea_write,               \
+                            oea_read, oea_write, hea_read, hea_write,          \
+                            one_reg_id, initial_value)                         \
+    _spr_register(env, num, name, uea_read, uea_write, initial_value)
 #else
 #if !defined(CONFIG_KVM)
 #define spr_register_kvm(env, num, name, uea_read, uea_write,                  \
-                         oea_read, oea_write, one_reg_id, initial_value) \
+                         oea_read, oea_write, one_reg_id, initial_value)       \
     _spr_register(env, num, name, uea_read, uea_write,                         \
-                  oea_read, oea_write, initial_value)
+                  oea_read, oea_write, oea_read, oea_write, initial_value)
+#define spr_register_kvm_hv(env, num, name, uea_read, uea_write,               \
+                            oea_read, oea_write, hea_read, hea_write,          \
+                            one_reg_id, initial_value)                         \
+    _spr_register(env, num, name, uea_read, uea_write,                         \
+                  oea_read, oea_write, hea_read, hea_write, initial_value)
 #else
 #define spr_register_kvm(env, num, name, uea_read, uea_write,                  \
-                         oea_read, oea_write, one_reg_id, initial_value) \
+                         oea_read, oea_write, one_reg_id, initial_value)       \
     _spr_register(env, num, name, uea_read, uea_write,                         \
-                  oea_read, oea_write, one_reg_id, initial_value)
+                  oea_read, oea_write, oea_read, oea_write,                    \
+                  one_reg_id, initial_value)
+#define spr_register_kvm_hv(env, num, name, uea_read, uea_write,               \
+                            oea_read, oea_write, hea_read, hea_write,          \
+                            one_reg_id, initial_value)                         \
+    _spr_register(env, num, name, uea_read, uea_write,                         \
+                  oea_read, oea_write, hea_read, hea_write,                    \
+                  one_reg_id, initial_value)
 #endif
 #endif
 
@@ -597,6 +613,13 @@ static inline void vscr_init (CPUPPCState *env, uint32_t val)
                      oea_read, oea_write, initial_value)                       \
     spr_register_kvm(env, num, name, uea_read, uea_write,                      \
                      oea_read, oea_write, 0, initial_value)
+
+#define spr_register_hv(env, num, name, uea_read, uea_write,                   \
+                        oea_read, oea_write, hea_read, hea_write,              \
+                        initial_value)                                         \
+    spr_register_kvm_hv(env, num, name, uea_read, uea_write,                   \
+                        oea_read, oea_write, hea_read, hea_write,              \
+                        0, initial_value)
 
 static inline void _spr_register(CPUPPCState *env, int num,
                                  const char *name,
@@ -606,6 +629,8 @@ static inline void _spr_register(CPUPPCState *env, int num,
 
                                  void (*oea_read)(DisasContext *ctx, int gprn, int sprn),
                                  void (*oea_write)(DisasContext *ctx, int sprn, int gprn),
+                                 void (*hea_read)(DisasContext *opaque, int gprn, int sprn),
+                                 void (*hea_write)(DisasContext *opaque, int sprn, int gprn),
 #endif
 #if defined(CONFIG_KVM)
                                  uint64_t one_reg_id,
@@ -633,6 +658,8 @@ static inline void _spr_register(CPUPPCState *env, int num,
 #if !defined(CONFIG_USER_ONLY)
     spr->oea_read = oea_read;
     spr->oea_write = oea_write;
+    spr->hea_read = hea_read;
+    spr->hea_write = hea_write;
 #endif
 #if defined(CONFIG_KVM)
     spr->one_reg_id = one_reg_id,
@@ -1036,30 +1063,102 @@ static void gen_spr_7xx (CPUPPCState *env)
 
 #ifdef TARGET_PPC64
 #ifndef CONFIG_USER_ONLY
-static void spr_read_uamr (DisasContext *ctx, int gprn, int sprn)
-{
-    gen_load_spr(cpu_gpr[gprn], SPR_AMR);
-    spr_load_dump_spr(SPR_AMR);
-}
-
-static void spr_write_uamr (DisasContext *ctx, int sprn, int gprn)
-{
-    gen_store_spr(SPR_AMR, cpu_gpr[gprn]);
-    spr_store_dump_spr(SPR_AMR);
-}
-
-static void spr_write_uamr_pr (DisasContext *ctx, int sprn, int gprn)
+static void spr_write_amr(DisasContext *ctx, int sprn, int gprn)
 {
     TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
 
-    gen_load_spr(t0, SPR_UAMOR);
-    tcg_gen_and_tl(t0, t0, cpu_gpr[gprn]);
+    /* Note, the HV=1 PR=0 case is handled earlier by simply using
+     * spr_write_generic for HV mode in the SPR table
+     */
+
+    /* Build insertion mask into t1 based on context */
+    if (ctx->pr) {
+        gen_load_spr(t1, SPR_UAMOR);
+    } else {
+        gen_load_spr(t1, SPR_AMOR);
+    }
+
+    /* Mask new bits into t2 */
+    tcg_gen_and_tl(t2, t1, cpu_gpr[gprn]);
+
+    /* Load AMR and clear new bits in t0 */
+    gen_load_spr(t0, SPR_AMR);
+    tcg_gen_andc_tl(t0, t0, t1);
+
+    /* Or'in new bits and write it out */
+    tcg_gen_or_tl(t0, t0, t2);
     gen_store_spr(SPR_AMR, t0);
     spr_store_dump_spr(SPR_AMR);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+}
+
+static void spr_write_uamor(DisasContext *ctx, int sprn, int gprn)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+
+    /* Note, the HV=1 case is handled earlier by simply using
+     * spr_write_generic for HV mode in the SPR table
+     */
+
+    /* Build insertion mask into t1 based on context */
+    gen_load_spr(t1, SPR_AMOR);
+
+    /* Mask new bits into t2 */
+    tcg_gen_and_tl(t2, t1, cpu_gpr[gprn]);
+
+    /* Load AMR and clear new bits in t0 */
+    gen_load_spr(t0, SPR_UAMOR);
+    tcg_gen_andc_tl(t0, t0, t1);
+
+    /* Or'in new bits and write it out */
+    tcg_gen_or_tl(t0, t0, t2);
+    gen_store_spr(SPR_UAMOR, t0);
+    spr_store_dump_spr(SPR_UAMOR);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+}
+
+static void spr_write_iamr(DisasContext *ctx, int sprn, int gprn)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+
+    /* Note, the HV=1 case is handled earlier by simply using
+     * spr_write_generic for HV mode in the SPR table
+     */
+
+    /* Build insertion mask into t1 based on context */
+    gen_load_spr(t1, SPR_AMOR);
+
+    /* Mask new bits into t2 */
+    tcg_gen_and_tl(t2, t1, cpu_gpr[gprn]);
+
+    /* Load AMR and clear new bits in t0 */
+    gen_load_spr(t0, SPR_IAMR);
+    tcg_gen_andc_tl(t0, t0, t1);
+
+    /* Or'in new bits and write it out */
+    tcg_gen_or_tl(t0, t0, t2);
+    gen_store_spr(SPR_IAMR, t0);
+    spr_store_dump_spr(SPR_IAMR);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
 }
 #endif /* CONFIG_USER_ONLY */
 
-static void gen_spr_amr (CPUPPCState *env)
+static void gen_spr_amr(CPUPPCState *env, bool has_iamr)
 {
 #ifndef CONFIG_USER_ONLY
     /* Virtual Page Class Key protection */
@@ -1067,17 +1166,31 @@ static void gen_spr_amr (CPUPPCState *env)
      * userspace accessible, 29 is privileged.  So we only need to set
      * the kvm ONE_REG id on one of them, we use 29 */
     spr_register(env, SPR_UAMR, "UAMR",
-                 &spr_read_uamr, &spr_write_uamr_pr,
-                 &spr_read_uamr, &spr_write_uamr,
+                 &spr_read_generic, &spr_write_amr,
+                 &spr_read_generic, &spr_write_amr,
                  0);
-    spr_register_kvm(env, SPR_AMR, "AMR",
+    spr_register_kvm_hv(env, SPR_AMR, "AMR",
                      SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_amr,
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_AMR, 0);
-    spr_register_kvm(env, SPR_UAMOR, "UAMOR",
+    spr_register_kvm_hv(env, SPR_UAMOR, "UAMOR",
                      SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_uamor,
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_UAMOR, 0);
+    spr_register_hv(env, SPR_AMOR, "AMOR",
+                    SPR_NOACCESS, SPR_NOACCESS,
+                    SPR_NOACCESS, SPR_NOACCESS,
+                    &spr_read_generic, &spr_write_generic,
+                    0);
+    if (has_iamr) {
+        spr_register_kvm_hv(env, SPR_IAMR, "IAMR",
+                            SPR_NOACCESS, SPR_NOACCESS,
+                            &spr_read_generic, &spr_write_iamr,
+                            &spr_read_generic, &spr_write_generic,
+                            KVM_REG_PPC_IAMR, 0);
+    }
 #endif /* !CONFIG_USER_ONLY */
 }
 #endif /* TARGET_PPC64 */
@@ -7464,6 +7577,25 @@ static void gen_spr_book3s_dbg(CPUPPCState *env)
                      KVM_REG_PPC_DABRX, 0x00000000);
 }
 
+static void gen_spr_book3s_207_dbg(CPUPPCState *env)
+{
+    spr_register_kvm_hv(env, SPR_DAWR, "DAWR",
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        &spr_read_generic, &spr_write_generic,
+                        KVM_REG_PPC_DAWR, 0x00000000);
+    spr_register_kvm_hv(env, SPR_DAWRX, "DAWRX",
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        &spr_read_generic, &spr_write_generic,
+                        KVM_REG_PPC_DAWRX, 0x00000000);
+    spr_register_kvm_hv(env, SPR_CIABR, "CIABR",
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        &spr_read_generic, &spr_write_generic,
+                        KVM_REG_PPC_CIABR, 0x00000000);
+}
+
 static void gen_spr_970_dbg(CPUPPCState *env)
 {
     /* Breakpoints */
@@ -7878,6 +8010,36 @@ static void gen_spr_power8_pspb(CPUPPCState *env)
                      KVM_REG_PPC_PSPB, 0);
 }
 
+static void gen_spr_power8_ic(CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    spr_register_hv(env, SPR_IC, "IC",
+                    SPR_NOACCESS, SPR_NOACCESS,
+                    &spr_read_generic, SPR_NOACCESS,
+                    &spr_read_generic, &spr_write_generic,
+                    0);
+#endif
+}
+
+static void gen_spr_power8_book4(CPUPPCState *env)
+{
+    /* Add a number of P8 book4 registers */
+#if !defined(CONFIG_USER_ONLY)
+    spr_register_kvm(env, SPR_ACOP, "ACOP",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_ACOP, 0);
+    spr_register_kvm(env, SPR_BOOKS_PID, "PID",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_PID, 0);
+    spr_register_kvm(env, SPR_WORT, "WORT",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_WORT, 0);
+#endif
+}
+
 static void init_proc_book3s_64(CPUPPCState *env, int version)
 {
     gen_spr_ne_601(env);
@@ -7899,7 +8061,7 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
     case BOOK3S_CPU_POWER7:
     case BOOK3S_CPU_POWER8:
         gen_spr_book3s_ids(env);
-        gen_spr_amr(env);
+        gen_spr_amr(env, version >= BOOK3S_CPU_POWER8);
         gen_spr_book3s_purr(env);
         env->ci_large_pages = true;
         break;
@@ -7930,9 +8092,13 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
         gen_spr_power8_tm(env);
         gen_spr_power8_pspb(env);
         gen_spr_vtb(env);
+        gen_spr_power8_ic(env);
+        gen_spr_power8_book4(env);
     }
     if (version < BOOK3S_CPU_POWER8) {
         gen_spr_book3s_dbg(env);
+    } else {
+        gen_spr_book3s_207_dbg(env);
     }
 #if !defined(CONFIG_USER_ONLY)
     switch (version) {
@@ -8332,8 +8498,33 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
     pcc->l1_icache_size = 0x8000;
     pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_lpcr;
 }
-#endif /* defined (TARGET_PPC64) */
 
+#if !defined(CONFIG_USER_ONLY)
+
+void cpu_ppc_set_papr(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+    ppc_spr_t *amor = &env->spr_cb[SPR_AMOR];
+
+    /* PAPR always has exception vectors in RAM not ROM. To ensure this,
+     * MSR[IP] should never be set.
+     *
+     * We also disallow setting of MSR_HV
+     */
+    env->msr_mask &= ~((1ull << MSR_EP) | MSR_HVB);
+
+    /* Set a full AMOR so guest can use the AMR as it sees fit */
+    env->spr[SPR_AMOR] = amor->default_value = 0xffffffffffffffffull;
+
+    /* Tell KVM that we're in PAPR mode */
+    if (kvm_enabled()) {
+        kvmppc_set_papr(cpu);
+    }
+}
+
+#endif /* !defined(CONFIG_USER_ONLY) */
+
+#endif /* defined (TARGET_PPC64) */
 
 /*****************************************************************************/
 /* Generic CPU instantiation routine                                         */
@@ -9703,7 +9894,7 @@ static void ppc_cpu_reset(CPUState *s)
 
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
-        env->msr |= (1ULL << MSR_SF);
+        msr |= (1ULL << MSR_SF);
     }
 #endif
 

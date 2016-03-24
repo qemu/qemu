@@ -497,10 +497,11 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
              * Older KVM versions with older guest kernels were broken with the
              * magic page, don't allow the guest to map it.
              */
-            kvmppc_get_hypercall(first_cpu->env_ptr, hypercall,
-                                 sizeof(hypercall));
-            _FDT((fdt_property(fdt, "hcall-instructions", hypercall,
-                              sizeof(hypercall))));
+            if (!kvmppc_get_hypercall(first_cpu->env_ptr, hypercall,
+                                      sizeof(hypercall))) {
+                _FDT((fdt_property(fdt, "hcall-instructions", hypercall,
+                                   sizeof(hypercall))));
+            }
         }
         _FDT((fdt_end_node(fdt)));
     }
@@ -1612,15 +1613,8 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
     /* Set time-base frequency to 512 MHz */
     cpu_ppc_tb_init(env, TIMEBASE_FREQ);
 
-    /* PAPR always has exception vectors in RAM not ROM. To ensure this,
-     * MSR[IP] should never be set.
-     */
-    env->msr_mask &= ~(1 << 6);
-
-    /* Tell KVM that we're in PAPR mode */
-    if (kvm_enabled()) {
-        kvmppc_set_papr(cpu);
-    }
+    /* Enable PAPR mode in TCG or KVM */
+    cpu_ppc_set_papr(cpu);
 
     if (cpu->max_compat) {
         Error *local_err = NULL;
@@ -2362,7 +2356,12 @@ DEFINE_SPAPR_MACHINE(2_6, "2.6", true);
  * pseries-2.5
  */
 #define SPAPR_COMPAT_2_5 \
-        HW_COMPAT_2_5
+    HW_COMPAT_2_5 \
+    { \
+        .driver   = "spapr-vlan", \
+        .property = "use-rx-buffer-pools", \
+        .value    = "off", \
+    },
 
 static void spapr_machine_2_5_instance_options(MachineState *machine)
 {
