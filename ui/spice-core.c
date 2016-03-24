@@ -828,6 +828,11 @@ void qemu_spice_init(void)
 
 #ifdef HAVE_SPICE_GL
     if (qemu_opt_get_bool(opts, "gl", 0)) {
+        if ((port != 0) || (tls_port != 0)) {
+            error_report("SPICE GL support is local-only for now and "
+                         "incompatible with -spice port/tls-port");
+            exit(1);
+        }
         if (egl_rendernode_init() == 0) {
             display_opengl = 1;
         }
