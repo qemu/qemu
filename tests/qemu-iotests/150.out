@@ -1,0 +1,14 @@
+QA output created by 150
+
+=== Comparing empty image against sparse conversion ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+Equal image size
+
+=== Comparing full image against non-sparse conversion ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Equal image size
+*** done
