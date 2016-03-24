@@ -2,7 +2,6 @@
 #include <glob.h>
 #include <dirent.h>
 
-#include "config-host.h"
 #include "ui/egl-helpers.h"
 
 EGLDisplay *qemu_egl_display;

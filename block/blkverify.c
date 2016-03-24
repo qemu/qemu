@@ -8,10 +8,12 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu/sockets.h" /* for EINPROGRESS on Windows */
 #include "block/block_int.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
+#include "qemu/cutils.h"
 
 typedef struct {
     BdrvChild *test_file;

@@ -28,6 +28,8 @@
 #include "block/blockjob.h"
 #include "block/block_int.h"
 #include "block/throttle-groups.h"
+#include "qemu/cutils.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 
 #define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */

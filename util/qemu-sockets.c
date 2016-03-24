@@ -18,11 +18,13 @@
 #include "qemu/osdep.h"
 
 #include "monitor/monitor.h"
+#include "qapi/error.h"
 #include "qemu/sockets.h"
 #include "qemu/main-loop.h"
 #include "qapi/qmp-input-visitor.h"
 #include "qapi/qmp-output-visitor.h"
 #include "qapi-visit.h"
+#include "qemu/cutils.h"
 
 #ifndef AI_ADDRCONFIG
 # define AI_ADDRCONFIG 0

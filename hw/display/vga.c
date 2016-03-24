@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/hw.h"
 #include "vga.h"
 #include "ui/console.h"
@@ -235,9 +236,9 @@ static void vga_precise_update_retrace_info(VGACommonState *s)
 
     r->total_chars = vtotal_lines * htotal_chars;
     if (r->freq) {
-        r->ticks_per_char = get_ticks_per_sec() / (r->total_chars * r->freq);
+        r->ticks_per_char = NANOSECONDS_PER_SECOND / (r->total_chars * r->freq);
     } else {
-        r->ticks_per_char = get_ticks_per_sec() / chars_per_sec;
+        r->ticks_per_char = NANOSECONDS_PER_SECOND / chars_per_sec;
     }
 
     r->vstart = vretr_start_line;
@@ -265,7 +266,7 @@ static void vga_precise_update_retrace_info(VGACommonState *s)
         "dots = %d\n"
         "ticks/char = %" PRId64 "\n"
         "\n",
-        (double) get_ticks_per_sec() / (r->ticks_per_char * r->total_chars),
+        (double) NANOSECONDS_PER_SECOND / (r->ticks_per_char * r->total_chars),
         htotal_chars,
         hretr_start_char,
         hretr_skew_chars,

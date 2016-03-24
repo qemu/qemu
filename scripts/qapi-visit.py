@@ -355,6 +355,7 @@ h_comment = '''
 fdef.write(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qapi/error.h"
 #include "%(prefix)sqapi-visit.h"
 ''',
                  prefix=prefix))

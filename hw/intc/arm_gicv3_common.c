@@ -21,6 +21,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/intc/arm_gicv3_common.h"
 
 static void gicv3_pre_save(void *opaque)

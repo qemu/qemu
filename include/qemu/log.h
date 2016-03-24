@@ -66,10 +66,32 @@ qemu_log_vprintf(const char *fmt, va_list va)
     }
 }
 
-/* log only if a bit is set on the current loglevel mask
+/* log only if a bit is set on the current loglevel mask:
+ * @mask: bit to check in the mask
+ * @fmt: printf-style format string
+ * @args: optional arguments for format string
  */
-void GCC_FMT_ATTR(2, 3) qemu_log_mask(int mask, const char *fmt, ...);
+#define qemu_log_mask(MASK, FMT, ...)                   \
+    do {                                                \
+        if (unlikely(qemu_loglevel_mask(MASK))) {       \
+            qemu_log(FMT, ## __VA_ARGS__);              \
+        }                                               \
+    } while (0)
 
+/* log only if a bit is set on the current loglevel mask
+ * and we are in the address range we care about:
+ * @mask: bit to check in the mask
+ * @addr: address to check in dfilter
+ * @fmt: printf-style format string
+ * @args: optional arguments for format string
+ */
+#define qemu_log_mask_and_addr(MASK, ADDR, FMT, ...)    \
+    do {                                                \
+        if (unlikely(qemu_loglevel_mask(MASK)) &&       \
+                     qemu_log_in_addr_range(ADDR)) {    \
+            qemu_log(FMT, ## __VA_ARGS__);              \
+        }                                               \
+    } while (0)
 
 /* Maintenance: */
 
@@ -115,6 +137,8 @@ static inline void qemu_set_log(int log_flags)
 }
 
 void qemu_set_log_filename(const char *filename);
+void qemu_set_dfilter_ranges(const char *ranges);
+bool qemu_log_in_addr_range(uint64_t addr);
 int qemu_str_to_log_mask(const char *str);
 
 /* Print a usage message listing all the valid logging categories

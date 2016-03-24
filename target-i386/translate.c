@@ -7322,7 +7322,23 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             }
             gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 1);
             break;
-
+        case 0xee: /* rdpkru */
+            if (prefixes & PREFIX_LOCK) {
+                goto illegal_op;
+            }
+            tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_regs[R_ECX]);
+            gen_helper_rdpkru(cpu_tmp1_i64, cpu_env, cpu_tmp2_i32);
+            tcg_gen_extr_i64_tl(cpu_regs[R_EAX], cpu_regs[R_EDX], cpu_tmp1_i64);
+            break;
+        case 0xef: /* wrpkru */
+            if (prefixes & PREFIX_LOCK) {
+                goto illegal_op;
+            }
+            tcg_gen_concat_tl_i64(cpu_tmp1_i64, cpu_regs[R_EAX],
+                                  cpu_regs[R_EDX]);
+            tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_regs[R_ECX]);
+            gen_helper_wrpkru(cpu_env, cpu_tmp2_i32, cpu_tmp1_i64);
+            break;
         CASE_MODRM_OP(6): /* lmsw */
             if (s->cpl != 0) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);

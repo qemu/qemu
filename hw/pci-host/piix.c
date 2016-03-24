@@ -29,6 +29,7 @@
 #include "hw/pci/pci_host.h"
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
+#include "qapi/error.h"
 #include "qemu/range.h"
 #include "hw/xen/xen.h"
 #include "hw/pci-host/pam.h"

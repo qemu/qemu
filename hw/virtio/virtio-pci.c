@@ -26,6 +26,7 @@
 #include "hw/virtio/virtio-balloon.h"
 #include "hw/virtio/virtio-input.h"
 #include "hw/pci/pci.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"

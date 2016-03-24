@@ -78,6 +78,7 @@
 #include "qmp-introspect.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/qtest.h"
+#include "qemu/cutils.h"
 
 /* for hmp_info_irq/pic */
 #if defined(TARGET_SPARC)
@@ -1523,9 +1524,9 @@ int64_t dev_time;
 static void hmp_info_profile(Monitor *mon, const QDict *qdict)
 {
     monitor_printf(mon, "async time  %" PRId64 " (%0.3f)\n",
-                   dev_time, dev_time / (double)get_ticks_per_sec());
+                   dev_time, dev_time / (double)NANOSECONDS_PER_SECOND);
     monitor_printf(mon, "qemu time   %" PRId64 " (%0.3f)\n",
-                   tcg_time, tcg_time / (double)get_ticks_per_sec());
+                   tcg_time, tcg_time / (double)NANOSECONDS_PER_SECOND);
     tcg_time = 0;
     dev_time = 0;
 }

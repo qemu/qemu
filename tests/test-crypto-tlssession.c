@@ -24,6 +24,7 @@
 #include "crypto/tlscredsx509.h"
 #include "crypto/tlssession.h"
 #include "qom/object_interfaces.h"
+#include "qapi/error.h"
 #include "qemu/sockets.h"
 #include "qemu/acl.h"
 

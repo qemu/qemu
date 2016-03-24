@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "qapi/error.h"
 #include "qemu/log.h"
 #include "net/net.h"
 #include "net/checksum.h"

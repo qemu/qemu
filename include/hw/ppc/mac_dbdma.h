@@ -23,6 +23,7 @@
 #define HW_MAC_DBDMA_H 1
 
 #include "exec/memory.h"
+#include "qemu/iov.h"
 
 typedef struct DBDMA_io DBDMA_io;
 

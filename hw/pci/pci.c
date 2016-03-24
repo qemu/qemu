@@ -40,6 +40,7 @@
 #include "exec/address-spaces.h"
 #include "hw/hotplug.h"
 #include "hw/boards.h"
+#include "qemu/cutils.h"
 
 //#define DEBUG_PCI
 #ifdef DEBUG_PCI

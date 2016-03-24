@@ -39,6 +39,7 @@
 
 #include <libfdt.h>
 #include "hw/ppc/spapr_drc.h"
+#include "qemu/cutils.h"
 
 /* #define DEBUG_SPAPR */
 

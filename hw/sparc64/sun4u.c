@@ -22,6 +22,9 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
+#include "qemu-common.h"
+#include "cpu.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "hw/pci-host/apb.h"
@@ -41,6 +44,7 @@
 #include "elf.h"
 #include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
+#include "qemu/cutils.h"
 
 //#define DEBUG_IRQ
 //#define DEBUG_EBUS
@@ -445,12 +449,12 @@ static void hstick_irq(void *opaque)
 
 static int64_t cpu_to_timer_ticks(int64_t cpu_ticks, uint32_t frequency)
 {
-    return muldiv64(cpu_ticks, get_ticks_per_sec(), frequency);
+    return muldiv64(cpu_ticks, NANOSECONDS_PER_SECOND, frequency);
 }
 
 static uint64_t timer_to_cpu_ticks(int64_t timer_ticks, uint32_t frequency)
 {
-    return muldiv64(timer_ticks, frequency, get_ticks_per_sec());
+    return muldiv64(timer_ticks, frequency, NANOSECONDS_PER_SECOND);
 }
 
 void cpu_tick_set_count(CPUTimer *timer, uint64_t count)

@@ -11,6 +11,7 @@
 #include <glib.h>
 
 #include "qemu-common.h"
+#include "qemu/cutils.h"
 #include "libqtest.h"
 #include "qapi/qmp/types.h"
 

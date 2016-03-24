@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "monitor/monitor.h"
 #include "hw/i386/ioapic.h"
 #include "hw/i386/ioapic_internal.h"

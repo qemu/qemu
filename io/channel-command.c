@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "io/channel-command.h"
 #include "io/channel-watch.h"
+#include "qapi/error.h"
 #include "qemu/sockets.h"
 #include "trace.h"
 

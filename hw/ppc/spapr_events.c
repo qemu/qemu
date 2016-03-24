@@ -25,6 +25,7 @@
  *
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "cpu.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/char.h"
@@ -36,7 +37,8 @@
 #include "hw/pci/pci.h"
 #include "hw/pci-host/spapr.h"
 #include "hw/ppc/spapr_drc.h"
-
+#include "qemu/help_option.h"
+#include "qemu/bcd.h"
 #include <libfdt.h>
 
 struct rtas_error_log {

@@ -21,6 +21,7 @@
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qfloat.h"
 #include "qapi/qmp/qdict.h"
+#include "qemu/unicode.h"
 
 typedef struct JSONParsingState
 {

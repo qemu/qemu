@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #include "exec/ioport.h"

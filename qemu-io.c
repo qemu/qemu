@@ -11,6 +11,7 @@
 #include <getopt.h>
 #include <libgen.h>
 
+#include "qapi/error.h"
 #include "qemu-io.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"

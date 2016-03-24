@@ -15,6 +15,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "e500.h"
 #include "e500-ccsr.h"

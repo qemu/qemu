@@ -23,6 +23,7 @@
 
 #include "crypto/init.h"
 #include "crypto/cipher.h"
+#include "qapi/error.h"
 
 typedef struct QCryptoCipherTestData QCryptoCipherTestData;
 struct QCryptoCipherTestData {

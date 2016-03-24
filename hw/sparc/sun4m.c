@@ -22,6 +22,9 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
+#include "qemu-common.h"
+#include "cpu.h"
 #include "hw/sysbus.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
@@ -43,6 +46,7 @@
 #include "elf.h"
 #include "sysemu/block-backend.h"
 #include "trace.h"
+#include "qemu/cutils.h"
 
 /*
  * Sun4m architecture was used in the following machines:

@@ -30,6 +30,7 @@
 #include "qemu-common.h"
 #include "exec/gdbstub.h"
 #include "hw/arm/arm.h"
+#include "qemu/cutils.h"
 #endif
 
 #define TARGET_SYS_OPEN        0x01

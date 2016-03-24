@@ -23,6 +23,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/cutils.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
@@ -2796,6 +2797,13 @@ static ssize_t tcp_chr_recv(CharDriverState *chr, char *buf, size_t len)
         ret = qio_channel_readv_full(s->ioc, &iov, 1,
                                      NULL, NULL,
                                      NULL);
+    }
+
+    if (ret == QIO_CHANNEL_ERR_BLOCK) {
+        errno = EAGAIN;
+        ret = -1;
+    } else if (ret == -1) {
+        errno = EIO;
     }
 
     if (msgfds_num) {

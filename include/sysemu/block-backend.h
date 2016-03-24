@@ -13,7 +13,7 @@
 #ifndef BLOCK_BACKEND_H
 #define BLOCK_BACKEND_H
 
-#include "qemu/typedefs.h"
+#include "qemu/iov.h"
 
 /*
  * TODO Have to include block/block.h for a bunch of block layer

@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_ids.h"
 #include "hw/pci/msi.h"

@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/ppc/mac.h"
 #include "hw/pci/pci.h"
@@ -253,7 +254,7 @@ static uint64_t timer_read(void *opaque, hwaddr addr, unsigned size)
     uint64_t systime = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     uint64_t kltime;
 
-    kltime = muldiv64(systime, 4194300, get_ticks_per_sec() * 4);
+    kltime = muldiv64(systime, 4194300, NANOSECONDS_PER_SECOND * 4);
     kltime = muldiv64(kltime, 18432000, 1048575);
 
     switch (addr) {

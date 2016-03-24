@@ -25,8 +25,6 @@
 #ifndef BLOCK_ACCOUNTING_H
 #define BLOCK_ACCOUNTING_H
 
-
-#include "qemu/typedefs.h"
 #include "qemu/timed-average.h"
 
 typedef struct BlockAcctTimedStats BlockAcctTimedStats;

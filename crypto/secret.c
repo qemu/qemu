@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "crypto/secret.h"
 #include "crypto/cipher.h"
+#include "qapi/error.h"
 #include "qom/object_interfaces.h"
 #include "qemu/base64.h"
 #include "trace.h"

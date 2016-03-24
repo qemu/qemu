@@ -97,6 +97,8 @@ check-unit-y += tests/test-crypto-ivgen$(EXESUF)
 check-unit-y += tests/test-crypto-afsplit$(EXESUF)
 check-unit-y += tests/test-crypto-xts$(EXESUF)
 check-unit-y += tests/test-crypto-block$(EXESUF)
+gcov-files-test-logging-y = tests/test-logging.c
+check-unit-y += tests/test-logging$(EXESUF)
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -435,6 +437,8 @@ tests/test-timed-average$(EXESUF): tests/test-timed-average.o qemu-timer.o \
 	$(test-util-obj-y)
 tests/test-base64$(EXESUF): tests/test-base64.o \
 	libqemuutil.a libqemustub.a
+
+tests/test-logging$(EXESUF): tests/test-logging.o $(test-util-obj-y)
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\
 $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)

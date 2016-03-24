@@ -27,6 +27,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
+#include "qemu/help_option.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them

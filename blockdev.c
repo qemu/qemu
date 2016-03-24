@@ -50,6 +50,8 @@
 #include "qmp-commands.h"
 #include "trace.h"
 #include "sysemu/arch_init.h"
+#include "qemu/cutils.h"
+#include "qemu/help_option.h"
 
 static QTAILQ_HEAD(, BlockDriverState) monitor_bdrv_states =
     QTAILQ_HEAD_INITIALIZER(monitor_bdrv_states);

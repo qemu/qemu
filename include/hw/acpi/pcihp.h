@@ -27,7 +27,6 @@
 #ifndef HW_ACPI_PCIHP_H
 #define HW_ACPI_PCIHP_H
 
-#include <qemu/typedefs.h>
 #include "hw/acpi/acpi.h"
 #include "migration/vmstate.h"
 

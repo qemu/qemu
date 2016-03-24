@@ -44,6 +44,7 @@
 #include "crypto/tlscredsanon.h"
 #include "crypto/tlscredsx509.h"
 #include "qom/object_interfaces.h"
+#include "qemu/cutils.h"
 
 #define VNC_REFRESH_INTERVAL_BASE GUI_REFRESH_INTERVAL_DEFAULT
 #define VNC_REFRESH_INTERVAL_INC  50

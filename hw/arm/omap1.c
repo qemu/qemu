@@ -18,6 +18,9 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
+#include "qemu-common.h"
+#include "cpu.h"
 #include "hw/boards.h"
 #include "hw/hw.h"
 #include "hw/arm/arm.h"
@@ -28,6 +31,8 @@
 #include "sysemu/blockdev.h"
 #include "qemu/range.h"
 #include "hw/sysbus.h"
+#include "qemu/cutils.h"
+#include "qemu/bcd.h"
 
 /* Should signal the TCMI/GPMC */
 uint32_t omap_badwidth_read8(void *opaque, hwaddr addr)
@@ -107,7 +112,7 @@ static inline uint32_t omap_timer_read(struct omap_mpu_timer_s *timer)
 
     if (timer->st && timer->enable && timer->rate)
         return timer->val - muldiv64(distance >> (timer->ptv + 1),
-                                     timer->rate, get_ticks_per_sec());
+                                     timer->rate, NANOSECONDS_PER_SECOND);
     else
         return timer->val;
 }
@@ -125,7 +130,7 @@ static inline void omap_timer_update(struct omap_mpu_timer_s *timer)
     if (timer->enable && timer->st && timer->rate) {
         timer->val = timer->reset_val;	/* Should skip this on clk enable */
         expires = muldiv64((uint64_t) timer->val << (timer->ptv + 1),
-                           get_ticks_per_sec(), timer->rate);
+                           NANOSECONDS_PER_SECOND, timer->rate);
 
         /* If timer expiry would be sooner than in about 1 ms and
          * auto-reload isn't set, then fire immediately.  This is a hack
@@ -133,10 +138,11 @@ static inline void omap_timer_update(struct omap_mpu_timer_s *timer)
          * sets the interval to a very low value and polls the status bit
          * in a busy loop when it wants to sleep just a couple of CPU
          * ticks.  */
-        if (expires > (get_ticks_per_sec() >> 10) || timer->ar)
+        if (expires > (NANOSECONDS_PER_SECOND >> 10) || timer->ar) {
             timer_mod(timer->timer, timer->time + expires);
-        else
+        } else {
             qemu_bh_schedule(timer->tick);
+        }
     } else
         timer_del(timer->timer);
 }
@@ -613,14 +619,14 @@ static void omap_ulpd_pm_write(void *opaque, hwaddr addr,
                 now -= s->ulpd_gauge_start;
 
                 /* 32-kHz ticks */
-                ticks = muldiv64(now, 32768, get_ticks_per_sec());
+                ticks = muldiv64(now, 32768, NANOSECONDS_PER_SECOND);
                 s->ulpd_pm_regs[0x00 >> 2] = (ticks >>  0) & 0xffff;
                 s->ulpd_pm_regs[0x04 >> 2] = (ticks >> 16) & 0xffff;
                 if (ticks >> 32)	/* OVERFLOW_32K */
                     s->ulpd_pm_regs[0x14 >> 2] |= 1 << 2;
 
                 /* High frequency ticks */
-                ticks = muldiv64(now, 12000000, get_ticks_per_sec());
+                ticks = muldiv64(now, 12000000, NANOSECONDS_PER_SECOND);
                 s->ulpd_pm_regs[0x08 >> 2] = (ticks >>  0) & 0xffff;
                 s->ulpd_pm_regs[0x0c >> 2] = (ticks >> 16) & 0xffff;
                 if (ticks >> 32)	/* OVERFLOW_HI_FREQ */
@@ -3026,7 +3032,7 @@ static void omap_mcbsp_source_tick(void *opaque)
 
     omap_mcbsp_rx_newdata(s);
     timer_mod(s->source_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                   get_ticks_per_sec());
+                   NANOSECONDS_PER_SECOND);
 }
 
 static void omap_mcbsp_rx_start(struct omap_mcbsp_s *s)
@@ -3072,7 +3078,7 @@ static void omap_mcbsp_sink_tick(void *opaque)
 
     omap_mcbsp_tx_newdata(s);
     timer_mod(s->sink_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                   get_ticks_per_sec());
+                   NANOSECONDS_PER_SECOND);
 }
 
 static void omap_mcbsp_tx_start(struct omap_mcbsp_s *s)

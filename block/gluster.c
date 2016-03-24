@@ -10,6 +10,7 @@
 #include "qemu/osdep.h"
 #include <glusterfs/api/glfs.h>
 #include "block/block_int.h"
+#include "qapi/error.h"
 #include "qemu/uri.h"
 
 typedef struct GlusterAIOCB {

@@ -26,6 +26,7 @@
  */
 
 #include "hw/qdev.h"
+#include "qemu/iov.h"
 #include "qemu/queue.h"
 
 /* Constants related to the USB / PCI interaction */

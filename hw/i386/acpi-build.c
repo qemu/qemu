@@ -21,6 +21,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "acpi-build.h"
 #include <glib.h>
 #include "qemu-common.h"

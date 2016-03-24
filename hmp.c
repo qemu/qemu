@@ -34,6 +34,7 @@
 #include "ui/console.h"
 #include "block/qapi.h"
 #include "qemu-io.h"
+#include "qemu/cutils.h"
 
 #ifdef CONFIG_SPICE
 #include <spice/enums.h>

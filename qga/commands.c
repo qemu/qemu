@@ -16,6 +16,7 @@
 #include "qga-qmp-commands.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/base64.h"
+#include "qemu/cutils.h"
 
 /* Maximum captured guest-exec out_data/err_data - 16MB */
 #define GUEST_EXEC_MAX_OUTPUT (16*1024*1024)

@@ -29,6 +29,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "cpu.h"
 #include "hw/hw.h"
 #include "qapi/visitor.h"
 #include "qemu/range.h"

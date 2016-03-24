@@ -19,7 +19,6 @@
 #include <block/scsi.h>
 #include <hw/virtio/virtio-bus.h>
 #include "hw/virtio/virtio-access.h"
-#include "stdio.h"
 
 /* Context: QEMU global mutex held */
 void virtio_scsi_set_iothread(VirtIOSCSI *s, IOThread *iothread)

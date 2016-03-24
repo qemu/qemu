@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "block/block_int.h"
@@ -29,6 +30,7 @@
 #include "qapi/qmp/qstring.h"
 #include "crypto/secret.h"
 #include <curl/curl.h>
+#include "qemu/cutils.h"
 
 // #define DEBUG_CURL
 // #define DEBUG_VERBOSE

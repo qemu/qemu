@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "config-host.h"
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "trace.h"
 #include "block/block_int.h"

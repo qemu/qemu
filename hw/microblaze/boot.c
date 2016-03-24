@@ -25,6 +25,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "cpu.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
@@ -33,6 +35,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/loader.h"
 #include "elf.h"
+#include "qemu/cutils.h"
 
 #include "boot.h"
 

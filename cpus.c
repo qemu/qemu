@@ -276,7 +276,7 @@ void cpu_disable_ticks(void)
    fairly approximate, so ignore small variation.
    When the guest is idle real and virtual time will be aligned in
    the IO wait loop.  */
-#define ICOUNT_WOBBLE (get_ticks_per_sec() / 10)
+#define ICOUNT_WOBBLE (NANOSECONDS_PER_SECOND / 10)
 
 static void icount_adjust(void)
 {
@@ -327,7 +327,7 @@ static void icount_adjust_vm(void *opaque)
 {
     timer_mod(icount_vm_timer,
                    qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                   get_ticks_per_sec() / 10);
+                   NANOSECONDS_PER_SECOND / 10);
     icount_adjust();
 }
 
@@ -674,7 +674,7 @@ void configure_icount(QemuOpts *opts, Error **errp)
                                         icount_adjust_vm, NULL);
     timer_mod(icount_vm_timer,
                    qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                   get_ticks_per_sec() / 10);
+                   NANOSECONDS_PER_SECOND / 10);
 }
 
 /***********************************************************/

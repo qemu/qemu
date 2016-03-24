@@ -9,6 +9,9 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
+#include "qemu-common.h"
+#include "cpu.h"
 #include "hw/arm/bcm2836.h"
 #include "qemu/error-report.h"
 #include "hw/boards.h"

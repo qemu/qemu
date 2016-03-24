@@ -379,6 +379,11 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
 {
     /* NOTE: this test is only needed for thread safety */
     if (!tb->jmp_next[n]) {
+        qemu_log_mask_and_addr(CPU_LOG_EXEC, tb->pc,
+                               "Linking TBs %p [" TARGET_FMT_lx
+                               "] index %d -> %p [" TARGET_FMT_lx "]\n",
+                               tb->tc_ptr, tb->pc, n,
+                               tb_next->tc_ptr, tb_next->pc);
         /* patch the native jump address */
         tb_set_jmp_target(tb, n, (uintptr_t)tb_next->tc_ptr);
 

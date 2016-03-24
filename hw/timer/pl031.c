@@ -15,6 +15,7 @@
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
+#include "qemu/cutils.h"
 
 //#define DEBUG_PL031
 
@@ -80,7 +81,7 @@ static void pl031_interrupt(void * opaque)
 static uint32_t pl031_get_count(PL031State *s)
 {
     int64_t now = qemu_clock_get_ns(rtc_clock);
-    return s->tick_offset + now / get_ticks_per_sec();
+    return s->tick_offset + now / NANOSECONDS_PER_SECOND;
 }
 
 static void pl031_set_alarm(PL031State *s)
@@ -96,7 +97,7 @@ static void pl031_set_alarm(PL031State *s)
         pl031_interrupt(s);
     } else {
         int64_t now = qemu_clock_get_ns(rtc_clock);
-        timer_mod(s->timer, now + (int64_t)ticks * get_ticks_per_sec());
+        timer_mod(s->timer, now + (int64_t)ticks * NANOSECONDS_PER_SECOND);
     }
 }
 
@@ -204,7 +205,7 @@ static void pl031_init(Object *obj)
     sysbus_init_irq(dev, &s->irq);
     qemu_get_timedate(&tm, 0);
     s->tick_offset = mktimegm(&tm) -
-        qemu_clock_get_ns(rtc_clock) / get_ticks_per_sec();
+        qemu_clock_get_ns(rtc_clock) / NANOSECONDS_PER_SECOND;
 
     s->timer = timer_new_ns(rtc_clock, pl031_interrupt, s);
 }
@@ -216,7 +217,7 @@ static void pl031_pre_save(void *opaque)
     /* tick_offset is base_time - rtc_clock base time.  Instead, we want to
      * store the base time relative to the QEMU_CLOCK_VIRTUAL for backwards-compatibility.  */
     int64_t delta = qemu_clock_get_ns(rtc_clock) - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    s->tick_offset_vmstate = s->tick_offset + delta / get_ticks_per_sec();
+    s->tick_offset_vmstate = s->tick_offset + delta / NANOSECONDS_PER_SECOND;
 }
 
 static int pl031_post_load(void *opaque, int version_id)
@@ -224,7 +225,7 @@ static int pl031_post_load(void *opaque, int version_id)
     PL031State *s = opaque;
 
     int64_t delta = qemu_clock_get_ns(rtc_clock) - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    s->tick_offset = s->tick_offset_vmstate - delta / get_ticks_per_sec();
+    s->tick_offset = s->tick_offset_vmstate - delta / NANOSECONDS_PER_SECOND;
     pl031_set_alarm(s);
     return 0;
 }

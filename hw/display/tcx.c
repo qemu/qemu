@@ -23,7 +23,9 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu-common.h"
+#include "cpu.h" /* FIXME shouldn't use TARGET_PAGE_SIZE */
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
 #include "hw/loader.h"

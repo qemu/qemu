@@ -1,5 +1,6 @@
 #ifndef HW_NVME_H
 #define HW_NVME_H
+#include "qemu/cutils.h"
 
 typedef struct NvmeBar {
     uint64_t    cap;

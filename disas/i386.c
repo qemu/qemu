@@ -33,6 +33,8 @@
 
 #include "qemu/osdep.h"
 #include "disas/bfd.h"
+#include "qemu/cutils.h"
+
 /* include/opcode/i386.h r1.78 */
 
 /* opcode/i386.h -- Intel 80386 opcode macros

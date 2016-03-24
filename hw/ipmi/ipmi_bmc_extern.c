@@ -28,6 +28,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "sysemu/char.h"
 #include "sysemu/sysemu.h"

@@ -18,8 +18,6 @@
 #ifndef VMXNET_RX_PKT_H
 #define VMXNET_RX_PKT_H
 
-#include "stdint.h"
-#include "stdbool.h"
 #include "net/eth.h"
 
 /* defines to enable packet dump functions */

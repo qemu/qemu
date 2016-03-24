@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/cpu/a15mpcore.h"
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"

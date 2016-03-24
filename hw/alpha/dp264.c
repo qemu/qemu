@@ -7,6 +7,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "cpu.h"
 #include "hw/hw.h"
 #include "elf.h"
 #include "hw/loader.h"
@@ -18,6 +20,7 @@
 #include "hw/ide.h"
 #include "hw/timer/i8254.h"
 #include "hw/char/serial.h"
+#include "qemu/cutils.h"
 
 #define MAX_IDE_BUS 2
 

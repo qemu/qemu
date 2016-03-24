@@ -29,6 +29,7 @@
 #include "xen_blkif.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/block-backend.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 

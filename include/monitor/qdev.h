@@ -2,7 +2,6 @@
 #define QEMU_QDEV_MONITOR_H
 
 #include "hw/qdev-core.h"
-#include "qemu/typedefs.h"
 
 /*** monitor commands ***/
 

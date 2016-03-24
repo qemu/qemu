@@ -17,6 +17,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "nbd-internal.h"
 
 static int system_errno_to_nbd_errno(int err)

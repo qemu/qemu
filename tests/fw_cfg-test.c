@@ -14,8 +14,7 @@
 #include <glib.h>
 
 #include "libqtest.h"
-#define NO_QEMU_PROTOS
-#include "hw/nvram/fw_cfg.h"
+#include "hw/nvram/fw_cfg_keys.h"
 #include "libqos/fw_cfg.h"
 
 static uint64_t ram_size = 128 << 20;

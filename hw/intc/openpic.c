@@ -41,6 +41,7 @@
 #include "hw/ppc/ppc_e500.h"
 #include "hw/sysbus.h"
 #include "hw/pci/msi.h"
+#include "qapi/error.h"
 #include "qemu/bitops.h"
 #include "qapi/qmp/qerror.h"
 

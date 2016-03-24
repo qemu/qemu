@@ -9,7 +9,6 @@
 #ifndef HW_ACPI_TCO_H
 #define HW_ACPI_TCO_H
 
-#include "qemu/typedefs.h"
 #include "qemu-common.h"
 
 /* As per ICH9 spec, the internal timer has an error of ~0.6s on every tick */

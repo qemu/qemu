@@ -12,6 +12,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "cpu.h"
 #include "s390-pci-bus.h"
 #include <hw/pci/pci_bus.h>
 #include <hw/pci/msi.h>

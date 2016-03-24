@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "cpu.h"
 #include "helper_regs.h"

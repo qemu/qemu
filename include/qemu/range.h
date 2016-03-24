@@ -1,7 +1,6 @@
 #ifndef QEMU_RANGE_H
 #define QEMU_RANGE_H
 
-#include <qemu/typedefs.h>
 #include "qemu/queue.h"
 
 /*

@@ -33,6 +33,7 @@
 #include "sysemu/dma.h"
 #include "hw/block/block.h"
 #include "sysemu/block-backend.h"
+#include "qemu/cutils.h"
 
 #include <hw/ide/internal.h>
 
@@ -975,8 +976,8 @@ static void ide_sector_write_cb(void *opaque, int ret)
            that at the expense of slower write performances. Use this
            option _only_ to install Windows 2000. You must disable it
            for normal use. */
-        timer_mod(s->sector_write_timer,
-                       qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + (get_ticks_per_sec() / 1000));
+        timer_mod(s->sector_write_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                  (NANOSECONDS_PER_SECOND / 1000));
     } else {
         ide_set_irq(s->bus);
     }

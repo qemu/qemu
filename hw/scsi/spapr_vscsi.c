@@ -32,6 +32,8 @@
  *  - Maybe do autosense (PAPR seems to mandate it, linux doesn't care)
  */
 #include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "cpu.h"
 #include "hw/hw.h"
 #include "hw/scsi/scsi.h"
 #include "block/scsi.h"

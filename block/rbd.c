@@ -13,10 +13,11 @@
 
 #include "qemu/osdep.h"
 
-#include "qemu-common.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "block/block_int.h"
 #include "crypto/secret.h"
+#include "qemu/cutils.h"
 
 #include <rbd/librbd.h>
 

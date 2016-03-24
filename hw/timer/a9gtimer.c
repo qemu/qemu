@@ -22,6 +22,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/timer/a9gtimer.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"

@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "crypto/init.h"
 #include "crypto/afsplit.h"
 

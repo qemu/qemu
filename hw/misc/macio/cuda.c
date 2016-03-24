@@ -28,6 +28,7 @@
 #include "hw/input/adb.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
+#include "qemu/cutils.h"
 
 /* XXX: implement all timer modes */
 
@@ -145,7 +146,7 @@ static void cuda_update_irq(CUDAState *s)
 
 static uint64_t get_tb(uint64_t time, uint64_t freq)
 {
-    return muldiv64(time, freq, get_ticks_per_sec());
+    return muldiv64(time, freq, NANOSECONDS_PER_SECOND);
 }
 
 static unsigned int get_counter(CUDATimer *ti)
@@ -189,7 +190,7 @@ static int64_t get_next_irq_time(CUDATimer *s, int64_t current_time)
 
     /* current counter value */
     d = muldiv64(current_time - s->load_time,
-                 CUDA_TIMER_FREQ, get_ticks_per_sec());
+                 CUDA_TIMER_FREQ, NANOSECONDS_PER_SECOND);
     /* the timer goes down from latch to -1 (period of latch + 2) */
     if (d <= (s->counter_value + 1)) {
         counter = (s->counter_value - d) & 0xffff;
@@ -208,7 +209,7 @@ static int64_t get_next_irq_time(CUDATimer *s, int64_t current_time)
     }
     CUDA_DPRINTF("latch=%d counter=%" PRId64 " delta_next=%" PRId64 "\n",
                  s->latch, d, next_time - d);
-    next_time = muldiv64(next_time, get_ticks_per_sec(), CUDA_TIMER_FREQ) +
+    next_time = muldiv64(next_time, NANOSECONDS_PER_SECOND, CUDA_TIMER_FREQ) +
         s->load_time;
     if (next_time <= current_time)
         next_time = current_time + 1;
@@ -531,7 +532,7 @@ static void cuda_adb_poll(void *opaque)
     }
     timer_mod(s->adb_poll_timer,
                    qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                   (get_ticks_per_sec() / (1000 / s->autopoll_rate_ms)));
+                   (NANOSECONDS_PER_SECOND / (1000 / s->autopoll_rate_ms)));
 }
 
 /* description of commands */
@@ -559,7 +560,7 @@ static bool cuda_cmd_autopoll(CUDAState *s,
         if (autopoll) {
             timer_mod(s->adb_poll_timer,
                       qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                      (get_ticks_per_sec() / (1000 / s->autopoll_rate_ms)));
+                      (NANOSECONDS_PER_SECOND / (1000 / s->autopoll_rate_ms)));
         } else {
             timer_del(s->adb_poll_timer);
         }
@@ -585,7 +586,7 @@ static bool cuda_cmd_set_autorate(CUDAState *s,
     if (s->autopoll) {
         timer_mod(s->adb_poll_timer,
                   qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                  (get_ticks_per_sec() / (1000 / s->autopoll_rate_ms)));
+                  (NANOSECONDS_PER_SECOND / (1000 / s->autopoll_rate_ms)));
     }
     return true;
 }
@@ -665,7 +666,7 @@ static bool cuda_cmd_get_time(CUDAState *s,
     }
 
     ti = s->tick_offset + (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)
-                           / get_ticks_per_sec());
+                           / NANOSECONDS_PER_SECOND);
     out_data[0] = ti >> 24;
     out_data[1] = ti >> 16;
     out_data[2] = ti >> 8;
@@ -687,7 +688,7 @@ static bool cuda_cmd_set_time(CUDAState *s,
     ti = (((uint32_t)in_data[1]) << 24) + (((uint32_t)in_data[2]) << 16)
          + (((uint32_t)in_data[3]) << 8) + in_data[4];
     s->tick_offset = ti - (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)
-                           / get_ticks_per_sec());
+                           / NANOSECONDS_PER_SECOND);
     return true;
 }
 

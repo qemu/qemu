@@ -22,6 +22,7 @@
 #include <glib.h>
 
 #include "io/task.h"
+#include "qapi/error.h"
 
 #define TYPE_DUMMY "qemu:dummy"
 

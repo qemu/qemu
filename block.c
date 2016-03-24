@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "trace.h"
 #include "block/block_int.h"
 #include "block/blockjob.h"
@@ -40,6 +39,8 @@
 #include "qemu/timer.h"
 #include "qapi-event.h"
 #include "block/throttle-groups.h"
+#include "qemu/cutils.h"
+#include "qemu/id.h"
 
 #ifdef CONFIG_BSD
 #include <sys/ioctl.h>

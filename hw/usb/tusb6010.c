@@ -516,7 +516,7 @@ static void tusb_async_writew(void *opaque, hwaddr addr,
         if (value & TUSB_DEV_OTG_TIMER_ENABLE)
             timer_mod(s->otg_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                             muldiv64(TUSB_DEV_OTG_TIMER_VAL(value),
-                                     get_ticks_per_sec(), TUSB_DEVCLOCK));
+                                     NANOSECONDS_PER_SECOND, TUSB_DEVCLOCK));
         else
             timer_del(s->otg_timer);
         break;
@@ -726,8 +726,8 @@ static void tusb6010_power(TUSBState *s, int on)
         /* Pull the interrupt down after TUSB6010 comes up.  */
         s->intr_ok = 0;
         tusb_intr_update(s);
-        timer_mod(s->pwr_timer,
-                       qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + get_ticks_per_sec() / 2);
+        timer_mod(s->pwr_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                  NANOSECONDS_PER_SECOND / 2);
     }
 }
 

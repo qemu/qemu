@@ -25,6 +25,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 
 #include "crypto/block-qcow.h"
 #include "crypto/secret.h"

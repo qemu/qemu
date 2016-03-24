@@ -17,11 +17,12 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #ifndef _WIN32
 #include <sys/mman.h>
 #endif
 
-#include "qemu-common.h"
+#include "qemu/cutils.h"
 #include "cpu.h"
 #include "tcg.h"
 #include "hw/hw.h"
@@ -1238,7 +1239,7 @@ static void *file_ram_alloc(RAMBlock *block,
     char *sanitized_name;
     char *c;
     void *area;
-    int fd;
+    int fd = -1;
     int64_t page_size;
 
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
@@ -1320,7 +1321,6 @@ static void *file_ram_alloc(RAMBlock *block,
     if (area == MAP_FAILED) {
         error_setg_errno(errp, errno,
                          "unable to map backing store for guest RAM");
-        close(fd);
         goto error;
     }
 
@@ -1335,7 +1335,9 @@ error:
     if (unlink_on_error) {
         unlink(path);
     }
-    close(fd);
+    if (fd != -1) {
+        close(fd);
+    }
     return NULL;
 }
 #endif

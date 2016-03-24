@@ -7,8 +7,10 @@
  *
  * To avoid getting into possible circular include dependencies, this
  * file should not include any other QEMU headers, with the exceptions
- * of config-host.h, compiler.h, os-posix.h and os-win32.h, all of which
- * are doing a similar job to this file and are under similar constraints.
+ * of config-host.h, config-target.h, qemu/compiler.h,
+ * sysemu/os-posix.h, sysemu/os-win32.h, glib-compat.h and
+ * qemu/typedefs.h, all of which are doing a similar job to this file
+ * and are under similar constraints.
  *
  * This header also contains prototypes for functions defined in
  * os-*.c and util/oslib-*.c; those would probably be better split
@@ -101,8 +103,7 @@ extern int daemon(int, int);
 #endif
 
 #include "glib-compat.h"
-
-#include "qapi/error.h"
+#include "qemu/typedefs.h"
 
 #ifndef O_LARGEFILE
 #define O_LARGEFILE 0
@@ -129,6 +130,15 @@ extern int daemon(int, int);
 #define TIME_MAX LONG_MAX
 #endif
 
+/* HOST_LONG_BITS is the size of a native pointer in bits. */
+#if UINTPTR_MAX == UINT32_MAX
+# define HOST_LONG_BITS 32
+#elif UINTPTR_MAX == UINT64_MAX
+# define HOST_LONG_BITS 64
+#else
+# error Unknown pointer size
+#endif
+
 #ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
@@ -141,6 +151,12 @@ extern int daemon(int, int);
 #ifndef MIN_NON_ZERO
 #define MIN_NON_ZERO(a, b) (((a) != 0 && (a) < (b)) ? (a) : (b))
 #endif
+
+/* Round number down to multiple */
+#define QEMU_ALIGN_DOWN(n, m) ((n) / (m) * (m))
+
+/* Round number up to multiple */
+#define QEMU_ALIGN_UP(n, m) QEMU_ALIGN_DOWN((n) + (m) - 1, (m))
 
 #ifndef ROUND_UP
 #define ROUND_UP(n,d) (((n) + (d) - 1) & -(d))

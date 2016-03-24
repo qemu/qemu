@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include <glib.h>
 
 #include "qemu-common.h"

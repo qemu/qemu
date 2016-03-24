@@ -9,6 +9,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/misc/bcm2835_mbox.h"
 
 #define MAIL0_PEEK   0x90

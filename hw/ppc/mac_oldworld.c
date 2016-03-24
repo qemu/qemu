@@ -24,6 +24,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/ppc/ppc.h"
 #include "mac.h"
@@ -44,6 +45,7 @@
 #include "kvm_ppc.h"
 #include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
+#include "qemu/cutils.h"
 
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510

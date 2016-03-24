@@ -53,7 +53,7 @@ static int pit_get_count(PITChannelState *s)
     int counter;
 
     d = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - s->count_load_time, PIT_FREQ,
-                 get_ticks_per_sec());
+                 NANOSECONDS_PER_SECOND);
     switch(s->mode) {
     case 0:
     case 1:
@@ -263,7 +263,7 @@ static void pit_irq_timer_update(PITChannelState *s, int64_t current_time)
 #ifdef DEBUG_PIT
     printf("irq_level=%d next_delay=%f\n",
            irq_level,
-           (double)(expire_time - current_time) / get_ticks_per_sec());
+           (double)(expire_time - current_time) / NANOSECONDS_PER_SECOND);
 #endif
     s->next_transition_time = expire_time;
     if (expire_time != -1)

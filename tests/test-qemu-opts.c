@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/config-file.h"
 

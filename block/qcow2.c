@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
@@ -36,6 +35,7 @@
 #include "qapi-event.h"
 #include "trace.h"
 #include "qemu/option_int.h"
+#include "qemu/cutils.h"
 
 /*
   Differences with QCOW:

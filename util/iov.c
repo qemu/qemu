@@ -17,8 +17,10 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
+#include "qemu/cutils.h"
 
 size_t iov_from_buf_full(const struct iovec *iov, unsigned int iov_cnt,
                          size_t offset, const void *buf, size_t bytes)

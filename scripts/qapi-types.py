@@ -294,11 +294,6 @@ fdef.write(mcgen('''
 ''',
                  prefix=prefix))
 
-# To avoid circular headers, use only typedefs.h here, not qobject.h
-fdecl.write(mcgen('''
-#include "qemu/typedefs.h"
-'''))
-
 schema = QAPISchema(input_file)
 gen = QAPISchemaGenTypeVisitor()
 schema.visit(gen)

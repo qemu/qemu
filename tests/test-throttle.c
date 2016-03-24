@@ -16,6 +16,7 @@
 #include <glib.h>
 #include <math.h>
 #include "block/aio.h"
+#include "qapi/error.h"
 #include "qemu/throttle.h"
 #include "qemu/error-report.h"
 #include "block/throttle-groups.h"

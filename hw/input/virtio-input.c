@@ -5,6 +5,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu/iov.h"
 
 #include "hw/qdev.h"

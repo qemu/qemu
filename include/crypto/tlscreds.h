@@ -21,7 +21,6 @@
 #ifndef QCRYPTO_TLSCRED_H__
 #define QCRYPTO_TLSCRED_H__
 
-#include "qemu-common.h"
 #include "qom/object.h"
 
 #ifdef CONFIG_GNUTLS

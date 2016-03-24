@@ -18,8 +18,6 @@
 #ifndef VMXNET_TX_PKT_H
 #define VMXNET_TX_PKT_H
 
-#include "stdint.h"
-#include "stdbool.h"
 #include "net/eth.h"
 #include "exec/hwaddr.h"
 

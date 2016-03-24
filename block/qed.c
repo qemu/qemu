@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "trace.h"
 #include "qed.h"
@@ -346,7 +347,7 @@ static void qed_start_need_check_timer(BDRVQEDState *s)
      * migration.
      */
     timer_mod(s->need_check_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                   get_ticks_per_sec() * QED_NEED_CHECK_TIMEOUT);
+                   NANOSECONDS_PER_SECOND * QED_NEED_CHECK_TIMEOUT);
 }
 
 /* It's okay to call this multiple times or when no timer is started */

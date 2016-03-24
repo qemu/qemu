@@ -16,6 +16,7 @@
 #define BLOCK_QED_H
 
 #include "block/block_int.h"
+#include "qemu/cutils.h"
 
 /* The layout of a QED file is as follows:
  *

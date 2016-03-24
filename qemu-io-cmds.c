@@ -9,6 +9,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu-io.h"
 #include "sysemu/block-backend.h"
 #include "block/block.h"
@@ -18,6 +19,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/timer.h"
 #include "sysemu/block-backend.h"
+#include "qemu/cutils.h"
 
 #define CMD_NOFILE_OK   0x01
 

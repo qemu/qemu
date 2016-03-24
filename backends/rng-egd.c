@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "sysemu/rng.h"
 #include "sysemu/char.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "hw/qdev.h" /* just for DEFINE_PROP_CHR */
 

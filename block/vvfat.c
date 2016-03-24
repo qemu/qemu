@@ -24,13 +24,14 @@
  */
 #include "qemu/osdep.h"
 #include <dirent.h>
-#include "qemu-common.h"
+#include "qapi/error.h"
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include "migration/migration.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qstring.h"
+#include "qemu/cutils.h"
 
 #ifndef S_IWGRP
 #define S_IWGRP 0

@@ -2,7 +2,6 @@
 #define QEMU_HW_SCSI_H
 
 #include "hw/qdev.h"
-#include "qemu/typedefs.h"
 #include "hw/block/block.h"
 #include "sysemu/sysemu.h"
 #include "qemu/notify.h"

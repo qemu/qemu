@@ -24,13 +24,14 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
+#include "qapi/error.h"
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "migration/migration.h"
+#include "qemu/cutils.h"
 #include <zlib.h>
 #include <glib.h>
 

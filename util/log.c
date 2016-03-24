@@ -20,12 +20,16 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/log.h"
+#include "qemu/range.h"
+#include "qemu/error-report.h"
+#include "qemu/cutils.h"
 #include "trace/control.h"
 
 static char *logfilename;
 FILE *qemu_logfile;
 int qemu_loglevel;
 static int log_append = 0;
+static GArray *debug_regions;
 
 void qemu_log(const char *fmt, ...)
 {
@@ -33,17 +37,6 @@ void qemu_log(const char *fmt, ...)
 
     va_start(ap, fmt);
     if (qemu_logfile) {
-        vfprintf(qemu_logfile, fmt, ap);
-    }
-    va_end(ap);
-}
-
-void qemu_log_mask(int mask, const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    if ((qemu_loglevel & mask) && qemu_logfile) {
         vfprintf(qemu_logfile, fmt, ap);
     }
     va_end(ap);
@@ -96,13 +89,113 @@ void do_qemu_set_log(int log_flags, bool use_own_buffers)
         qemu_log_close();
     }
 }
-
+/*
+ * Allow the user to include %d in their logfile which will be
+ * substituted with the current PID. This is useful for debugging many
+ * nested linux-user tasks but will result in lots of logs.
+ */
 void qemu_set_log_filename(const char *filename)
 {
+    char *pidstr;
     g_free(logfilename);
-    logfilename = g_strdup(filename);
+
+    pidstr = strstr(filename, "%");
+    if (pidstr) {
+        /* We only accept one %d, no other format strings */
+        if (pidstr[1] != 'd' || strchr(pidstr + 2, '%')) {
+            error_report("Bad logfile format: %s", filename);
+            logfilename = NULL;
+        } else {
+            logfilename = g_strdup_printf(filename, getpid());
+        }
+    } else {
+        logfilename = g_strdup(filename);
+    }
     qemu_log_close();
     qemu_set_log(qemu_loglevel);
+}
+
+/* Returns true if addr is in our debug filter or no filter defined
+ */
+bool qemu_log_in_addr_range(uint64_t addr)
+{
+    if (debug_regions) {
+        int i = 0;
+        for (i = 0; i < debug_regions->len; i++) {
+            struct Range *range = &g_array_index(debug_regions, Range, i);
+            if (addr >= range->begin && addr <= range->end) {
+                return true;
+            }
+        }
+        return false;
+    } else {
+        return true;
+    }
+}
+
+
+void qemu_set_dfilter_ranges(const char *filter_spec)
+{
+    gchar **ranges = g_strsplit(filter_spec, ",", 0);
+    if (ranges) {
+        gchar **next = ranges;
+        gchar *r = *next++;
+        debug_regions = g_array_sized_new(FALSE, FALSE,
+                                          sizeof(Range), g_strv_length(ranges));
+        while (r) {
+            char *range_op = strstr(r, "-");
+            char *r2 = range_op ? range_op + 1 : NULL;
+            if (!range_op) {
+                range_op = strstr(r, "+");
+                r2 = range_op ? range_op + 1 : NULL;
+            }
+            if (!range_op) {
+                range_op = strstr(r, "..");
+                r2 = range_op ? range_op + 2 : NULL;
+            }
+            if (range_op) {
+                const char *e = NULL;
+                uint64_t r1val, r2val;
+
+                if ((qemu_strtoull(r, &e, 0, &r1val) == 0) &&
+                    (qemu_strtoull(r2, NULL, 0, &r2val) == 0) &&
+                    r2val > 0) {
+                    struct Range range;
+
+                    g_assert(e == range_op);
+
+                    switch (*range_op) {
+                    case '+':
+                    {
+                        range.begin = r1val;
+                        range.end = r1val + (r2val - 1);
+                        break;
+                    }
+                    case '-':
+                    {
+                        range.end = r1val;
+                        range.begin = r1val - (r2val - 1);
+                        break;
+                    }
+                    case '.':
+                        range.begin = r1val;
+                        range.end = r2val;
+                        break;
+                    default:
+                        g_assert_not_reached();
+                    }
+                    g_array_append_val(debug_regions, range);
+
+                } else {
+                    g_error("Failed to parse range in: %s", r);
+                }
+            } else {
+                g_error("Bad range specifier in: %s", r);
+            }
+            r = *next++;
+        }
+        g_strfreev(ranges);
+    }
 }
 
 const QEMULogItem qemu_log_items[] = {
@@ -120,7 +213,7 @@ const QEMULogItem qemu_log_items[] = {
     { CPU_LOG_EXEC, "exec",
       "show trace before each executed TB (lots of logs)" },
     { CPU_LOG_TB_CPU, "cpu",
-      "show CPU state before block translation" },
+      "show CPU registers before entering a TB (lots of logs)" },
     { CPU_LOG_MMU, "mmu",
       "log MMU-related activities" },
     { CPU_LOG_PCALL, "pcall",

@@ -20,11 +20,7 @@ PUBLIC = True
 
 
 def generate_h_begin(events):
-    out('#include <stdio.h>',
-        '#include <sys/time.h>',
-        '#include <sys/types.h>',
-        '#include <unistd.h>',
-        '#include "trace/control.h"',
+    out('#include "trace/control.h"',
         '#include "qemu/log.h"',
         '')
 

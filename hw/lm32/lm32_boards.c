@@ -18,6 +18,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "cpu.h"
 #include "hw/sysbus.h"
 #include "hw/hw.h"
 #include "hw/block/flash.h"

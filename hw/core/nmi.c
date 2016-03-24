@@ -21,6 +21,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/nmi.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "monitor/monitor.h"
 

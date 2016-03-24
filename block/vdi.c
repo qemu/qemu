@@ -50,12 +50,13 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
+#include "qapi/error.h"
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
 #include "migration/migration.h"
 #include "qemu/coroutine.h"
+#include "qemu/cutils.h"
 
 #if defined(CONFIG_UUID)
 #include <uuid/uuid.h>

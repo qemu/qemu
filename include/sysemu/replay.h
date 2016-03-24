@@ -13,7 +13,6 @@
  */
 
 #include "qapi-types.h"
-#include "qemu/typedefs.h"
 
 /* replay clock kinds */
 enum ReplayClockKind {

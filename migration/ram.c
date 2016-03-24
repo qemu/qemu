@@ -28,6 +28,7 @@
 #include "qemu/osdep.h"
 #include <zlib.h>
 #include "qapi-event.h"
+#include "qemu/cutils.h"
 #include "qemu/bitops.h"
 #include "qemu/bitmap.h"
 #include "qemu/timer.h"

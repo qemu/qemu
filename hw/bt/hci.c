@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/timer.h"
 #include "hw/usb.h"
@@ -26,6 +27,7 @@
 #include "hw/bt.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/replay.h"
+#include "qemu/cutils.h"
 
 struct bt_hci_s {
     uint8_t *(*evt_packet)(void *opaque);

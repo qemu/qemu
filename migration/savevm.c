@@ -27,7 +27,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "hw/boards.h"
 #include "hw/hw.h"
 #include "hw/qdev.h"
@@ -50,7 +49,7 @@
 #include "qemu/iov.h"
 #include "block/snapshot.h"
 #include "block/qapi.h"
-
+#include "qemu/cutils.h"
 
 #ifndef ETH_P_RARP
 #define ETH_P_RARP 0x8035

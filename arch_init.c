@@ -31,6 +31,7 @@
 #include "qemu/error-report.h"
 #include "qmp-commands.h"
 #include "hw/acpi/acpi.h"
+#include "qemu/help_option.h"
 
 #ifdef TARGET_SPARC
 int graphic_width = 1024;

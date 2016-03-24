@@ -1120,7 +1120,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
        the tcg optimization currently hidden inside tcg_gen_code.  All
        that should be required is to flush the TBs, allocate a new TB,
        re-initialize it per above, and re-do the actual code generation.  */
-    gen_code_size = tcg_gen_code(&tcg_ctx, gen_code_buf);
+    gen_code_size = tcg_gen_code(&tcg_ctx, tb);
     if (unlikely(gen_code_size < 0)) {
         goto buffer_overflow;
     }
@@ -1137,7 +1137,8 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 #endif
 
 #ifdef DEBUG_DISAS
-    if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
+    if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM) &&
+        qemu_log_in_addr_range(tb->pc)) {
         qemu_log("OUT: [size=%d]\n", gen_code_size);
         log_disas(tb->tc_ptr, gen_code_size);
         qemu_log("\n");

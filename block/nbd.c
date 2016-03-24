@@ -28,6 +28,7 @@
 
 #include "qemu/osdep.h"
 #include "block/nbd-client.h"
+#include "qapi/error.h"
 #include "qemu/uri.h"
 #include "block/block_int.h"
 #include "qemu/module.h"
@@ -35,7 +36,7 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qstring.h"
-
+#include "qemu/cutils.h"
 
 #define EN_OPTSTR ":exportname="
 

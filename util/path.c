@@ -7,6 +7,8 @@
 #include <sys/param.h>
 #include <dirent.h>
 #include "qemu-common.h"
+#include "qemu/cutils.h"
+#include "qemu/path.h"
 
 struct pathelem
 {

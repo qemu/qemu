@@ -41,6 +41,11 @@ typedef struct {
 #define CHR_IOCTL_PP_EPP_WRITE       11
 #define CHR_IOCTL_PP_DATA_DIR        12
 
+struct ParallelIOArg {
+    void *buffer;
+    int count;
+};
+
 #define CHR_IOCTL_SERIAL_SET_TIOCM   13
 #define CHR_IOCTL_SERIAL_GET_TIOCM   14
 

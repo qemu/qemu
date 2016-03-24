@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/dispatch.h"
 #include "qapi/qmp/json-parser.h"

@@ -16,8 +16,6 @@
 #pragma GCC diagnostic pop
 #endif
 
-#include "qemu/typedefs.h"
-
 /*
  * pixman image formats are defined to be native endian,
  * that means host byte order on qemu.  So we go define

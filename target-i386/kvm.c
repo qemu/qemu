@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/utsname.h>

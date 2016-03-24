@@ -14,7 +14,6 @@
 #ifndef QAPI_VISITOR_CORE_H
 #define QAPI_VISITOR_CORE_H
 
-#include "qemu/typedefs.h"
 #include "qapi/qmp/qobject.h"
 
 /* This struct is layout-compatible with all other *List structs

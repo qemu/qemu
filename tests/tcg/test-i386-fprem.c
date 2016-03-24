@@ -22,10 +22,8 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "qemu/compiler.h"
+
 #include "qemu/osdep.h"
-#include <stdio.h>
-#include <inttypes.h>
 
 /*
  * Inspired by <ieee754.h>'s union ieee854_long_double, but with single

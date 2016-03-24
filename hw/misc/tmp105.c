@@ -22,6 +22,7 @@
 #include "hw/hw.h"
 #include "hw/i2c/i2c.h"
 #include "tmp105.h"
+#include "qapi/error.h"
 #include "qapi/visitor.h"
 
 static void tmp105_interrupt_update(TMP105State *s)

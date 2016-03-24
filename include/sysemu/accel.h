@@ -23,7 +23,6 @@
 #ifndef HW_ACCEL_H
 #define HW_ACCEL_H
 
-#include "qemu/typedefs.h"
 #include "qom/object.h"
 
 typedef struct AccelState {

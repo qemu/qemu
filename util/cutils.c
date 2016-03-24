@@ -29,6 +29,7 @@
 #include "qemu/sockets.h"
 #include "qemu/iov.h"
 #include "net/net.h"
+#include "qemu/cutils.h"
 
 void strpadcpy(char *buf, int buf_size, const char *str, char pad)
 {
@@ -159,6 +160,38 @@ int qemu_fdatasync(int fd)
     return fsync(fd);
 #endif
 }
+
+/* vector definitions */
+#ifdef __ALTIVEC__
+#include <altivec.h>
+/* The altivec.h header says we're allowed to undef these for
+ * C++ compatibility.  Here we don't care about C++, but we
+ * undef them anyway to avoid namespace pollution.
+ */
+#undef vector
+#undef pixel
+#undef bool
+#define VECTYPE        __vector unsigned char
+#define SPLAT(p)       vec_splat(vec_ld(0, p), 0)
+#define ALL_EQ(v1, v2) vec_all_eq(v1, v2)
+#define VEC_OR(v1, v2) ((v1) | (v2))
+/* altivec.h may redefine the bool macro as vector type.
+ * Reset it to POSIX semantics. */
+#define bool _Bool
+#elif defined __SSE2__
+#include <emmintrin.h>
+#define VECTYPE        __m128i
+#define SPLAT(p)       _mm_set1_epi8(*(p))
+#define ALL_EQ(v1, v2) (_mm_movemask_epi8(_mm_cmpeq_epi8(v1, v2)) == 0xFFFF)
+#define VEC_OR(v1, v2) (_mm_or_si128(v1, v2))
+#else
+#define VECTYPE        unsigned long
+#define SPLAT(p)       (*(p) * (~0UL / 255))
+#define ALL_EQ(v1, v2) ((v1) == (v2))
+#define VEC_OR(v1, v2) ((v1) | (v2))
+#endif
+
+#define BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR 8
 
 static bool
 can_use_buffer_find_nonzero_offset_inner(const void *buf, size_t len)

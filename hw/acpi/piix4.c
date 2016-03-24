@@ -26,6 +26,7 @@
 #include "hw/pci/pci.h"
 #include "hw/acpi/acpi.h"
 #include "sysemu/sysemu.h"
+#include "qapi/error.h"
 #include "qemu/range.h"
 #include "exec/ioport.h"
 #include "hw/nvram/fw_cfg.h"

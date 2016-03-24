@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "crypto/init.h"
 #ifndef _WIN32
 #include <sys/resource.h>

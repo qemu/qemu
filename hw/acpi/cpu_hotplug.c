@@ -12,6 +12,7 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/acpi/cpu_hotplug.h"
+#include "qapi/error.h"
 #include "qom/cpu.h"
 
 static uint64_t cpu_status_read(void *opaque, hwaddr addr, unsigned int size)

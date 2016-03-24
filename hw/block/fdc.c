@@ -30,6 +30,7 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/block/fdc.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "hw/isa/isa.h"
@@ -1938,8 +1939,8 @@ static void fdctrl_handle_readid(FDCtrl *fdctrl, int direction)
     FDrive *cur_drv = get_cur_drv(fdctrl);
 
     cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
-    timer_mod(fdctrl->result_timer,
-                   qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + (get_ticks_per_sec() / 50));
+    timer_mod(fdctrl->result_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+             (NANOSECONDS_PER_SECOND / 50));
 }
 
 static void fdctrl_handle_format_track(FDCtrl *fdctrl, int direction)

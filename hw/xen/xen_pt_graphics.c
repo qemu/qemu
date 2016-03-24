@@ -2,6 +2,7 @@
  * graphics passthrough
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "xen_pt.h"
 #include "xen-host-pci-device.h"
 #include "hw/xen/xen_backend.h"

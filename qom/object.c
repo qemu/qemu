@@ -11,9 +11,10 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
-#include "qemu-common.h"
+#include "qemu/cutils.h"
 #include "qapi/visitor.h"
 #include "qapi-visit.h"
 #include "qapi/string-input-visitor.h"

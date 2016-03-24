@@ -32,6 +32,7 @@
 #include "qapi/qmp-output-visitor.h"
 #include "qapi/qmp/types.h"
 #include "sysemu/block-backend.h"
+#include "qemu/cutils.h"
 
 BlockDeviceInfo *bdrv_block_device_info(BlockDriverState *bs, Error **errp)
 {

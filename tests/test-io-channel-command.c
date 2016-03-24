@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "io/channel-command.h"
 #include "io-channel-helpers.h"
+#include "qapi/error.h"
 
 #ifndef WIN32
 static void test_io_channel_command_fifo(bool async)

@@ -15,6 +15,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include <sys/ioctl.h>
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
@@ -27,6 +28,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "hw/fw-path-provider.h"
 #include "linux/vhost.h"
+#include "qemu/cutils.h"
 
 /* Features supported by host kernel. */
 static const int kernel_feature_bits[] = {

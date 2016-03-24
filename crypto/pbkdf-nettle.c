@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "crypto/pbkdf.h"
 #include "nettle/pbkdf2.h"
 

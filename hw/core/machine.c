@@ -12,11 +12,13 @@
 
 #include "qemu/osdep.h"
 #include "hw/boards.h"
+#include "qapi/error.h"
 #include "qapi-visit.h"
 #include "qapi/visitor.h"
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
+#include "qemu/cutils.h"
 
 static char *machine_get_accel(Object *obj, Error **errp)
 {

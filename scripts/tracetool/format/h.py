@@ -23,7 +23,6 @@ def generate(events, backend):
         '#define TRACE__GENERATED_TRACERS_H',
         '',
         '#include "qemu-common.h"',
-        '#include "qemu/typedefs.h"',
         '')
 
     backend.generate_begin(events)

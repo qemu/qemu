@@ -5,7 +5,6 @@
 #include "qom/object.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/notify.h"
-#include "qemu/typedefs.h"
 #include "qapi-types.h"
 
 #ifdef CONFIG_OPENGL

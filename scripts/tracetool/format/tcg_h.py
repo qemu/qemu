@@ -34,8 +34,6 @@ def generate(events, backend):
         '#ifndef TRACE__GENERATED_TCG_TRACERS_H',
         '#define TRACE__GENERATED_TCG_TRACERS_H',
         '',
-        '#include <stdint.h>',
-        '',
         '#include "trace.h"',
         '#include "exec/helper-proto.h"',
         '',

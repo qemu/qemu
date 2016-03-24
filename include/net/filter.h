@@ -11,7 +11,6 @@
 
 #include "qom/object.h"
 #include "qemu-common.h"
-#include "qemu/typedefs.h"
 #include "net/queue.h"
 
 #define TYPE_NETFILTER "netfilter"

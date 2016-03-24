@@ -3,7 +3,6 @@
 #ifndef HW_BOARDS_H
 #define HW_BOARDS_H
 
-#include "qemu/typedefs.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/accel.h"
 #include "hw/qdev.h"

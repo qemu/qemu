@@ -26,6 +26,7 @@
 #include <hw/pci/msix.h>
 #include <hw/pci/pci.h>
 #include "sysemu/sysemu.h"
+#include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "sysemu/block-backend.h"
 

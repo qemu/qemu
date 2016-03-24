@@ -19,7 +19,6 @@
  * <http://www.gnu.org/licenses/>.
  */
 
-#include "qemu/typedefs.h"
 #include "qemu/notify.h"
 #include "qemu/option.h"
 #include "exec/memory.h"
@@ -155,7 +154,7 @@ void acpi_pm_tmr_reset(ACPIREGS *ar);
 static inline int64_t acpi_pm_tmr_get_clock(void)
 {
     return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), PM_TIMER_FREQUENCY,
-                    get_ticks_per_sec());
+                    NANOSECONDS_PER_SECOND);
 }
 
 /* PM1a_EVT: piix and ich9 don't implement PM1b. */

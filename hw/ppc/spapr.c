@@ -25,6 +25,7 @@
  *
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/numa.h"
 #include "hw/hw.h"
@@ -63,7 +64,7 @@
 #include "hw/nmi.h"
 
 #include "hw/compat.h"
-#include "qemu-common.h"
+#include "qemu/cutils.h"
 
 #include <libfdt.h>
 
