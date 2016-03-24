@@ -889,6 +889,16 @@ target_ulong helper_mfc0_lladdr(CPUMIPSState *env)
     return (int32_t)(env->lladdr >> env->CP0_LLAddr_shift);
 }
 
+target_ulong helper_mfc0_maar(CPUMIPSState *env)
+{
+    return (int32_t) env->CP0_MAAR[env->CP0_MAARI];
+}
+
+target_ulong helper_mfhc0_maar(CPUMIPSState *env)
+{
+    return env->CP0_MAAR[env->CP0_MAARI] >> 32;
+}
+
 target_ulong helper_mfc0_watchlo(CPUMIPSState *env, uint32_t sel)
 {
     return (int32_t)env->CP0_WatchLo[sel];
@@ -953,6 +963,11 @@ target_ulong helper_dmfc0_tcschefback(CPUMIPSState *env)
 target_ulong helper_dmfc0_lladdr(CPUMIPSState *env)
 {
     return env->lladdr >> env->CP0_LLAddr_shift;
+}
+
+target_ulong helper_dmfc0_maar(CPUMIPSState *env)
+{
+    return env->CP0_MAAR[env->CP0_MAARI];
 }
 
 target_ulong helper_dmfc0_watchlo(CPUMIPSState *env, uint32_t sel)
@@ -1576,6 +1591,36 @@ void helper_mtc0_lladdr(CPUMIPSState *env, target_ulong arg1)
     target_long mask = env->CP0_LLAddr_rw_bitmask;
     arg1 = arg1 << env->CP0_LLAddr_shift;
     env->lladdr = (env->lladdr & ~mask) | (arg1 & mask);
+}
+
+#define MTC0_MAAR_MASK(env) \
+        ((0x1ULL << 63) | ((env->PAMask >> 4) & ~0xFFFull) | 0x3)
+
+void helper_mtc0_maar(CPUMIPSState *env, target_ulong arg1)
+{
+    env->CP0_MAAR[env->CP0_MAARI] = arg1 & MTC0_MAAR_MASK(env);
+}
+
+void helper_mthc0_maar(CPUMIPSState *env, target_ulong arg1)
+{
+    env->CP0_MAAR[env->CP0_MAARI] =
+        (((uint64_t) arg1 << 32) & MTC0_MAAR_MASK(env)) |
+        (env->CP0_MAAR[env->CP0_MAARI] & 0x00000000ffffffffULL);
+}
+
+void helper_mtc0_maari(CPUMIPSState *env, target_ulong arg1)
+{
+    int index = arg1 & 0x3f;
+    if (index == 0x3f) {
+        /* Software may write all ones to INDEX to determine the
+           maximum value supported. */
+        env->CP0_MAARI = MIPS_MAAR_MAX - 1;
+    } else if (index < MIPS_MAAR_MAX) {
+        env->CP0_MAARI = index;
+    }
+    /* Other than the all ones, if the
+       value written is not supported, then INDEX is unchanged
+       from its previous value. */
 }
 
 void helper_mtc0_watchlo(CPUMIPSState *env, target_ulong arg1, uint32_t sel)
