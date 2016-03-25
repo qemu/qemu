@@ -182,6 +182,27 @@ static void QEMU_NORETURN block_thread_and_exit(ITCStorageCell *c)
     cpu_loop_exit(current_cpu);
 }
 
+/* ITC Bypass View */
+
+static inline uint64_t view_bypass_read(ITCStorageCell *c)
+{
+    if (c->tag.FIFO) {
+        return c->data[c->fifo_out];
+    } else {
+        return c->data[0];
+    }
+}
+
+static inline void view_bypass_write(ITCStorageCell *c, uint64_t val)
+{
+    if (c->tag.FIFO && (c->tag.FIFOPtr > 0)) {
+        int idx = (c->fifo_out + c->tag.FIFOPtr - 1) % ITC_CELL_DEPTH;
+        c->data[idx] = val;
+    }
+
+    /* ignore a write to the semaphore cell */
+}
+
 /* ITC Control View */
 
 static inline uint64_t view_control_read(ITCStorageCell *c)
@@ -348,6 +369,9 @@ static uint64_t itc_storage_read(void *opaque, hwaddr addr, unsigned size)
     uint64_t ret = -1;
 
     switch (view) {
+    case ITCVIEW_BYPASS:
+        ret = view_bypass_read(cell);
+        break;
     case ITCVIEW_CONTROL:
         ret = view_control_read(cell);
         break;
@@ -380,6 +404,9 @@ static void itc_storage_write(void *opaque, hwaddr addr, uint64_t data,
     ITCView view = get_itc_view(addr);
 
     switch (view) {
+    case ITCVIEW_BYPASS:
+        view_bypass_write(cell, data);
+        break;
     case ITCVIEW_CONTROL:
         view_control_write(cell, data);
         break;
