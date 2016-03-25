@@ -1632,9 +1632,31 @@ void helper_mtc0_performance0(CPUMIPSState *env, target_ulong arg1)
     env->CP0_Performance0 = arg1 & 0x000007ff;
 }
 
+void helper_mtc0_errctl(CPUMIPSState *env, target_ulong arg1)
+{
+    int32_t wst = arg1 & (1 << CP0EC_WST);
+    int32_t spr = arg1 & (1 << CP0EC_SPR);
+    int32_t itc = env->itc_tag ? (arg1 & (1 << CP0EC_ITC)) : 0;
+
+    env->CP0_ErrCtl = wst | spr | itc;
+
+    if (itc && !wst && !spr) {
+        env->hflags |= MIPS_HFLAG_ITC_CACHE;
+    } else {
+        env->hflags &= ~MIPS_HFLAG_ITC_CACHE;
+    }
+}
+
 void helper_mtc0_taglo(CPUMIPSState *env, target_ulong arg1)
 {
-    env->CP0_TagLo = arg1 & 0xFFFFFCF6;
+    if (env->hflags & MIPS_HFLAG_ITC_CACHE) {
+        /* If CACHE instruction is configured for ITC tags then make all
+           CP0.TagLo bits writable. The actual write to ITC Configuration
+           Tag will take care of the read-only bits. */
+        env->CP0_TagLo = arg1;
+    } else {
+        env->CP0_TagLo = arg1 & 0xFFFFFCF6;
+    }
 }
 
 void helper_mtc0_datalo(CPUMIPSState *env, target_ulong arg1)
@@ -3781,3 +3803,19 @@ MSA_ST_DF(DF_HALF,   h, cpu_stw_data)
 MSA_ST_DF(DF_WORD,   w, cpu_stl_data)
 MSA_ST_DF(DF_DOUBLE, d, cpu_stq_data)
 #endif
+
+void helper_cache(CPUMIPSState *env, target_ulong addr, uint32_t op)
+{
+#ifndef CONFIG_USER_ONLY
+    target_ulong index = addr & 0x1fffffff;
+    if (op == 9) {
+        /* Index Store Tag */
+        memory_region_dispatch_write(env->itc_tag, index, env->CP0_TagLo,
+                                     8, MEMTXATTRS_UNSPECIFIED);
+    } else if (op == 5) {
+        /* Index Load Tag */
+        memory_region_dispatch_read(env->itc_tag, index, &env->CP0_TagLo,
+                                    8, MEMTXATTRS_UNSPECIFIED);
+    }
+#endif
+}
