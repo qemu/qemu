@@ -18,21 +18,32 @@
 
 void qemu_hexdump(const char *buf, FILE *fp, const char *prefix, size_t size)
 {
-    unsigned int b;
+    unsigned int b, len, i, c;
 
-    for (b = 0; b < size; b++) {
-        if ((b % 16) == 0) {
-            fprintf(fp, "%s: %04x:", prefix, b);
+    for (b = 0; b < size; b += 16) {
+        len = size - b;
+        if (len > 16) {
+            len = 16;
         }
-        if ((b % 4) == 0) {
-            fprintf(fp, " ");
+        fprintf(fp, "%s: %04x:", prefix, b);
+        for (i = 0; i < 16; i++) {
+            if ((i % 4) == 0) {
+                fprintf(fp, " ");
+            }
+            if (i < len) {
+                fprintf(fp, " %02x", (unsigned char)buf[b + i]);
+            } else {
+                fprintf(fp, "   ");
+            }
         }
-        fprintf(fp, " %02x", (unsigned char)buf[b]);
-        if ((b % 16) == 15) {
-            fprintf(fp, "\n");
+        fprintf(fp, " ");
+        for (i = 0; i < len; i++) {
+            c = buf[b + i];
+            if (c < ' ' || c > '~') {
+                c = '.';
+            }
+            fprintf(fp, "%c", c);
         }
-    }
-    if ((b % 16) != 0) {
         fprintf(fp, "\n");
     }
 }
