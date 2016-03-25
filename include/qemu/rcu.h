@@ -111,7 +111,6 @@ extern void rcu_unregister_thread(void);
  */
 extern void rcu_enable_atfork(void);
 extern void rcu_disable_atfork(void);
-extern void rcu_after_fork(void);
 
 struct rcu_head;
 typedef void RCUCBFunc(struct rcu_head *head);
