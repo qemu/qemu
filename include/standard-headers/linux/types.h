@@ -1,2 +1,3 @@
-#include <stdint.h>
-#include "qemu/compiler.h"
+/* For QEMU all types are already defined via osdep.h, so this
+ * header does not need to do anything.
+ */
