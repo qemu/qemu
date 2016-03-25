@@ -160,6 +160,26 @@ static inline ITCStorageCell *get_cell(MIPSITUState *s,
     return &s->cell[cell_idx];
 }
 
+static void wake_blocked_threads(ITCStorageCell *c)
+{
+    CPUState *cs;
+    CPU_FOREACH(cs) {
+        if (cs->halted && (c->blocked_threads & (1ULL << cs->cpu_index))) {
+            cpu_interrupt(cs, CPU_INTERRUPT_WAKE);
+        }
+    }
+    c->blocked_threads = 0;
+}
+
+static void QEMU_NORETURN block_thread_and_exit(ITCStorageCell *c)
+{
+    c->blocked_threads |= 1ULL << current_cpu->cpu_index;
+    cpu_restore_state(current_cpu, current_cpu->mem_io_pc);
+    current_cpu->halted = 1;
+    current_cpu->exception_index = EXCP_HLT;
+    cpu_loop_exit(current_cpu);
+}
+
 /* ITC Control View */
 
 static inline uint64_t view_control_read(ITCStorageCell *c)
@@ -183,6 +203,87 @@ static inline void view_control_write(ITCStorageCell *c, uint64_t val)
     }
 }
 
+/* ITC Empty/Full View */
+
+static uint64_t view_ef_common_read(ITCStorageCell *c, bool blocking)
+{
+    uint64_t ret = 0;
+
+    if (!c->tag.FIFO) {
+        return 0;
+    }
+
+    c->tag.F = 0;
+
+    if (blocking && c->tag.E) {
+        block_thread_and_exit(c);
+    }
+
+    if (c->blocked_threads) {
+        wake_blocked_threads(c);
+    }
+
+    if (c->tag.FIFOPtr > 0) {
+        ret = c->data[c->fifo_out];
+        c->fifo_out = (c->fifo_out + 1) % ITC_CELL_DEPTH;
+        c->tag.FIFOPtr--;
+    }
+
+    if (c->tag.FIFOPtr == 0) {
+        c->tag.E = 1;
+    }
+
+    return ret;
+}
+
+static uint64_t view_ef_sync_read(ITCStorageCell *c)
+{
+    return view_ef_common_read(c, true);
+}
+
+static uint64_t view_ef_try_read(ITCStorageCell *c)
+{
+    return view_ef_common_read(c, false);
+}
+
+static inline void view_ef_common_write(ITCStorageCell *c, uint64_t val,
+                                        bool blocking)
+{
+    if (!c->tag.FIFO) {
+        return;
+    }
+
+    c->tag.E = 0;
+
+    if (blocking && c->tag.F) {
+        block_thread_and_exit(c);
+    }
+
+    if (c->blocked_threads) {
+        wake_blocked_threads(c);
+    }
+
+    if (c->tag.FIFOPtr < ITC_CELL_DEPTH) {
+        int idx = (c->fifo_out + c->tag.FIFOPtr) % ITC_CELL_DEPTH;
+        c->data[idx] = val;
+        c->tag.FIFOPtr++;
+    }
+
+    if (c->tag.FIFOPtr == ITC_CELL_DEPTH) {
+        c->tag.F = 1;
+    }
+}
+
+static void view_ef_sync_write(ITCStorageCell *c, uint64_t val)
+{
+    view_ef_common_write(c, val, true);
+}
+
+static void view_ef_try_write(ITCStorageCell *c, uint64_t val)
+{
+    view_ef_common_write(c, val, false);
+}
+
 static uint64_t itc_storage_read(void *opaque, hwaddr addr, unsigned size)
 {
     MIPSITUState *s = (MIPSITUState *)opaque;
@@ -193,6 +294,12 @@ static uint64_t itc_storage_read(void *opaque, hwaddr addr, unsigned size)
     switch (view) {
     case ITCVIEW_CONTROL:
         ret = view_control_read(cell);
+        break;
+    case ITCVIEW_EF_SYNC:
+        ret = view_ef_sync_read(cell);
+        break;
+    case ITCVIEW_EF_TRY:
+        ret = view_ef_try_read(cell);
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -213,6 +320,12 @@ static void itc_storage_write(void *opaque, hwaddr addr, uint64_t data,
     switch (view) {
     case ITCVIEW_CONTROL:
         view_control_write(cell, data);
+        break;
+    case ITCVIEW_EF_SYNC:
+        view_ef_sync_write(cell, data);
+        break;
+    case ITCVIEW_EF_TRY:
+        view_ef_try_write(cell, data);
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
