@@ -22,6 +22,7 @@
 #include "hw/mips/cps.h"
 #include "hw/mips/mips.h"
 #include "hw/mips/cpudevs.h"
+#include "sysemu/kvm.h"
 
 qemu_irq get_cps_irq(MIPSCPSState *s, int pin_number)
 {
@@ -56,6 +57,14 @@ static void main_cpu_reset(void *opaque)
     cs->halted = 1;
 }
 
+static bool cpu_mips_itu_supported(CPUMIPSState *env)
+{
+    bool is_mt = (env->CP0_Config5 & (1 << CP0C5_VP)) ||
+                 (env->CP0_Config3 & (1 << CP0C3_MT));
+
+    return is_mt && !kvm_enabled();
+}
+
 static void mips_cps_realize(DeviceState *dev, Error **errp)
 {
     MIPSCPSState *s = MIPS_CPS(dev);
@@ -64,6 +73,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
     int i;
     Error *err = NULL;
     target_ulong gcr_base;
+    bool itu_present = false;
 
     for (i = 0; i < s->num_vp; i++) {
         cpu = cpu_mips_init(s->cpu_model);
@@ -76,11 +86,33 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
         /* Init internal devices */
         cpu_mips_irq_init_cpu(env);
         cpu_mips_clock_init(env);
+        if (cpu_mips_itu_supported(env)) {
+            itu_present = true;
+            /* Attach ITC Tag to the VP */
+            env->itc_tag = mips_itu_get_tag_region(&s->itu);
+        }
         qemu_register_reset(main_cpu_reset, cpu);
     }
 
     cpu = MIPS_CPU(first_cpu);
     env = &cpu->env;
+
+    /* Inter-Thread Communication Unit */
+    if (itu_present) {
+        object_initialize(&s->itu, sizeof(s->itu), TYPE_MIPS_ITU);
+        qdev_set_parent_bus(DEVICE(&s->itu), sysbus_get_default());
+
+        object_property_set_int(OBJECT(&s->itu), 16, "num-fifo", &err);
+        object_property_set_int(OBJECT(&s->itu), 16, "num-semaphores", &err);
+        object_property_set_bool(OBJECT(&s->itu), true, "realized", &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+
+        memory_region_add_subregion(&s->container, 0,
+                           sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->itu), 0));
+    }
 
     /* Cluster Power Controller */
     object_initialize(&s->cpc, sizeof(s->cpc), TYPE_MIPS_CPC);
