@@ -32,6 +32,8 @@
 #include "qom/object.h"
 #include "qemu/rcu.h"
 
+#define RAM_ADDR_INVALID (~(ram_addr_t)0)
+
 #define MAX_PHYS_ADDR_SPACE_BITS 62
 #define MAX_PHYS_ADDR            (((hwaddr)1 << MAX_PHYS_ADDR_SPACE_BITS) - 1)
 
@@ -676,6 +678,24 @@ int memory_region_get_fd(MemoryRegion *mr);
  * @fd: the file descriptor that backs @mr.
  */
 void memory_region_set_fd(MemoryRegion *mr, int fd);
+
+/**
+ * memory_region_from_host: Convert a pointer into a RAM memory region
+ * and an offset within it.
+ *
+ * Given a host pointer inside a RAM memory region (created with
+ * memory_region_init_ram() or memory_region_init_ram_ptr()), return
+ * the MemoryRegion and the offset within it.
+ *
+ * Use with care; by the time this function returns, the returned pointer is
+ * not protected by RCU anymore.  If the caller is not within an RCU critical
+ * section and does not hold the iothread lock, it must have other means of
+ * protecting the pointer, such as a reference to the region that includes
+ * the incoming ram_addr_t.
+ *
+ * @mr: the memory region being queried.
+ */
+MemoryRegion *memory_region_from_host(void *ptr, ram_addr_t *offset);
 
 /**
  * memory_region_get_ram_ptr: Get a pointer into a RAM memory region.

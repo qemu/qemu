@@ -1964,18 +1964,17 @@ RAMBlock *qemu_ram_block_by_name(const char *name)
 
 /* Some of the softmmu routines need to translate from a host pointer
    (typically a TLB entry) back to a ram offset.  */
-MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
+ram_addr_t qemu_ram_addr_from_host(void *ptr)
 {
     RAMBlock *block;
     ram_addr_t offset;
 
     block = qemu_ram_block_from_host(ptr, false, &offset);
-    *ram_addr = block->offset + offset;
     if (!block) {
-        return NULL;
+        return RAM_ADDR_INVALID;
     }
 
-    return block->mr;
+    return block->offset + offset;
 }
 
 /* Called within RCU critical section.  */
@@ -2975,8 +2974,9 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
         MemoryRegion *mr;
         ram_addr_t addr1;
 
-        mr = qemu_ram_addr_from_host(buffer, &addr1);
+        mr = memory_region_from_host(buffer, &addr1);
         assert(mr != NULL);
+        addr1 += memory_region_get_ram_addr(mr);
         if (is_write) {
             invalidate_and_set_dirty(mr, addr1, access_len);
         }

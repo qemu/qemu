@@ -33,8 +33,6 @@
 
 //#define DEBUG_UNASSIGNED
 
-#define RAM_ADDR_INVALID (~(ram_addr_t)0)
-
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
 static bool ioeventfd_update_pending;
@@ -1663,6 +1661,18 @@ void *memory_region_get_ram_ptr(MemoryRegion *mr)
     rcu_read_unlock();
 
     return ptr + offset;
+}
+
+MemoryRegion *memory_region_from_host(void *ptr, ram_addr_t *offset)
+{
+    RAMBlock *block;
+
+    block = qemu_ram_block_from_host(ptr, false, offset);
+    if (!block) {
+        return NULL;
+    }
+
+    return block->mr;
 }
 
 ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr)

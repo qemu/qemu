@@ -17,7 +17,6 @@
 #include "sysemu/kvm.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
-#include "exec/ram_addr.h"
 #include "migration/migration.h"
 
 #include <sys/ioctl.h>
@@ -247,19 +246,18 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
 
     for (i = 0; i < dev->mem->nregions; ++i) {
         struct vhost_memory_region *reg = dev->mem->regions + i;
-        ram_addr_t ram_addr;
+        ram_addr_t offset;
         MemoryRegion *mr;
 
         assert((uintptr_t)reg->userspace_addr == reg->userspace_addr);
-        mr = qemu_ram_addr_from_host((void *)(uintptr_t)reg->userspace_addr,
-                                     &ram_addr);
+        mr = memory_region_from_host((void *)(uintptr_t)reg->userspace_addr,
+                                     &offset);
         fd = memory_region_get_fd(mr);
         if (fd > 0) {
             msg.payload.memory.regions[fd_num].userspace_addr = reg->userspace_addr;
             msg.payload.memory.regions[fd_num].memory_size  = reg->memory_size;
             msg.payload.memory.regions[fd_num].guest_phys_addr = reg->guest_phys_addr;
-            msg.payload.memory.regions[fd_num].mmap_offset = reg->userspace_addr -
-                (uintptr_t) memory_region_get_ram_ptr(mr);
+            msg.payload.memory.regions[fd_num].mmap_offset = offset;
             assert(fd_num < VHOST_MEMORY_MAX_NREGIONS);
             fds[fd_num++] = fd;
         }
@@ -617,14 +615,14 @@ static bool vhost_user_can_merge(struct vhost_dev *dev,
                                  uint64_t start1, uint64_t size1,
                                  uint64_t start2, uint64_t size2)
 {
-    ram_addr_t ram_addr;
+    ram_addr_t offset;
     int mfd, rfd;
     MemoryRegion *mr;
 
-    mr = qemu_ram_addr_from_host((void *)(uintptr_t)start1, &ram_addr);
+    mr = memory_region_from_host((void *)(uintptr_t)start1, &offset);
     mfd = memory_region_get_fd(mr);
 
-    mr = qemu_ram_addr_from_host((void *)(uintptr_t)start2, &ram_addr);
+    mr = memory_region_from_host((void *)(uintptr_t)start2, &offset);
     rfd = memory_region_get_fd(mr);
 
     return mfd == rfd;
