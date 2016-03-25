@@ -33,6 +33,8 @@
 #define ITC_SEMAPH_NUM_MAX 16
 #define ITC_AM1_NUMENTRIES_OFS 20
 
+#define ITC_CELL_PV_MAX_VAL 0xFFFF
+
 #define ITC_CELL_TAG_FIFO_DEPTH 28
 #define ITC_CELL_TAG_FIFO_PTR 18
 #define ITC_CELL_TAG_FIFO 17
@@ -284,6 +286,60 @@ static void view_ef_try_write(ITCStorageCell *c, uint64_t val)
     view_ef_common_write(c, val, false);
 }
 
+/* ITC P/V View */
+
+static uint64_t view_pv_common_read(ITCStorageCell *c, bool blocking)
+{
+    uint64_t ret = c->data[0];
+
+    if (c->tag.FIFO) {
+        return 0;
+    }
+
+    if (c->data[0] > 0) {
+        c->data[0]--;
+    } else if (blocking) {
+        block_thread_and_exit(c);
+    }
+
+    return ret;
+}
+
+static uint64_t view_pv_sync_read(ITCStorageCell *c)
+{
+    return view_pv_common_read(c, true);
+}
+
+static uint64_t view_pv_try_read(ITCStorageCell *c)
+{
+    return view_pv_common_read(c, false);
+}
+
+static inline void view_pv_common_write(ITCStorageCell *c)
+{
+    if (c->tag.FIFO) {
+        return;
+    }
+
+    if (c->data[0] < ITC_CELL_PV_MAX_VAL) {
+        c->data[0]++;
+    }
+
+    if (c->blocked_threads) {
+        wake_blocked_threads(c);
+    }
+}
+
+static void view_pv_sync_write(ITCStorageCell *c)
+{
+    view_pv_common_write(c);
+}
+
+static void view_pv_try_write(ITCStorageCell *c)
+{
+    view_pv_common_write(c);
+}
+
 static uint64_t itc_storage_read(void *opaque, hwaddr addr, unsigned size)
 {
     MIPSITUState *s = (MIPSITUState *)opaque;
@@ -300,6 +356,12 @@ static uint64_t itc_storage_read(void *opaque, hwaddr addr, unsigned size)
         break;
     case ITCVIEW_EF_TRY:
         ret = view_ef_try_read(cell);
+        break;
+    case ITCVIEW_PV_SYNC:
+        ret = view_pv_sync_read(cell);
+        break;
+    case ITCVIEW_PV_TRY:
+        ret = view_pv_try_read(cell);
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -326,6 +388,12 @@ static void itc_storage_write(void *opaque, hwaddr addr, uint64_t data,
         break;
     case ITCVIEW_EF_TRY:
         view_ef_try_write(cell, data);
+        break;
+    case ITCVIEW_PV_SYNC:
+        view_pv_sync_write(cell);
+        break;
+    case ITCVIEW_PV_TRY:
+        view_pv_try_write(cell);
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
