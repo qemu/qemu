@@ -1626,13 +1626,26 @@ void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
 
 int memory_region_get_fd(MemoryRegion *mr)
 {
-    if (mr->alias) {
-        return memory_region_get_fd(mr->alias);
+    int fd;
+
+    rcu_read_lock();
+    while (mr->alias) {
+        mr = mr->alias;
     }
+    fd = mr->ram_block->fd;
+    rcu_read_unlock();
 
-    assert(mr->ram_block);
+    return fd;
+}
 
-    return qemu_get_ram_fd(memory_region_get_ram_addr(mr));
+void memory_region_set_fd(MemoryRegion *mr, int fd)
+{
+    rcu_read_lock();
+    while (mr->alias) {
+        mr = mr->alias;
+    }
+    mr->ram_block->fd = fd;
+    rcu_read_unlock();
 }
 
 void *memory_region_get_ram_ptr(MemoryRegion *mr)

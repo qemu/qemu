@@ -1815,40 +1815,6 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
 }
 #endif /* !_WIN32 */
 
-int qemu_get_ram_fd(ram_addr_t addr)
-{
-    RAMBlock *block;
-    int fd;
-
-    rcu_read_lock();
-    block = qemu_get_ram_block(addr);
-    fd = block->fd;
-    rcu_read_unlock();
-    return fd;
-}
-
-void qemu_set_ram_fd(ram_addr_t addr, int fd)
-{
-    RAMBlock *block;
-
-    rcu_read_lock();
-    block = qemu_get_ram_block(addr);
-    block->fd = fd;
-    rcu_read_unlock();
-}
-
-void *qemu_get_ram_block_host_ptr(ram_addr_t addr)
-{
-    RAMBlock *block;
-    void *ptr;
-
-    rcu_read_lock();
-    block = qemu_get_ram_block(addr);
-    ptr = ramblock_ptr(block, 0);
-    rcu_read_unlock();
-    return ptr;
-}
-
 /* Return a host pointer to ram allocated with qemu_ram_alloc.
  * This should not be used for general purpose DMA.  Use address_space_map
  * or address_space_rw instead. For local memory (e.g. video ram) that the

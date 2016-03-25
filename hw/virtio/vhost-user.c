@@ -248,17 +248,18 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
     for (i = 0; i < dev->mem->nregions; ++i) {
         struct vhost_memory_region *reg = dev->mem->regions + i;
         ram_addr_t ram_addr;
+        MemoryRegion *mr;
 
         assert((uintptr_t)reg->userspace_addr == reg->userspace_addr);
-        qemu_ram_addr_from_host((void *)(uintptr_t)reg->userspace_addr,
-                                &ram_addr);
-        fd = qemu_get_ram_fd(ram_addr);
+        mr = qemu_ram_addr_from_host((void *)(uintptr_t)reg->userspace_addr,
+                                     &ram_addr);
+        fd = memory_region_get_fd(mr);
         if (fd > 0) {
             msg.payload.memory.regions[fd_num].userspace_addr = reg->userspace_addr;
             msg.payload.memory.regions[fd_num].memory_size  = reg->memory_size;
             msg.payload.memory.regions[fd_num].guest_phys_addr = reg->guest_phys_addr;
             msg.payload.memory.regions[fd_num].mmap_offset = reg->userspace_addr -
-                (uintptr_t) qemu_get_ram_block_host_ptr(ram_addr);
+                (uintptr_t) memory_region_get_ram_ptr(mr);
             assert(fd_num < VHOST_MEMORY_MAX_NREGIONS);
             fds[fd_num++] = fd;
         }
@@ -621,12 +622,10 @@ static bool vhost_user_can_merge(struct vhost_dev *dev,
     MemoryRegion *mr;
 
     mr = qemu_ram_addr_from_host((void *)(uintptr_t)start1, &ram_addr);
-    assert(mr);
-    mfd = qemu_get_ram_fd(ram_addr);
+    mfd = memory_region_get_fd(mr);
 
     mr = qemu_ram_addr_from_host((void *)(uintptr_t)start2, &ram_addr);
-    assert(mr);
-    rfd = qemu_get_ram_fd(ram_addr);
+    rfd = memory_region_get_fd(mr);
 
     return mfd == rfd;
 }
