@@ -227,7 +227,6 @@ struct FlatRange {
     hwaddr offset_in_region;
     AddrRange addr;
     uint8_t dirty_log_mask;
-    bool romd_mode;
     bool readonly;
 };
 
@@ -252,7 +251,6 @@ static bool flatrange_equal(FlatRange *a, FlatRange *b)
     return a->mr == b->mr
         && addrrange_equal(a->addr, b->addr)
         && a->offset_in_region == b->offset_in_region
-        && a->romd_mode == b->romd_mode
         && a->readonly == b->readonly;
 }
 
@@ -312,7 +310,6 @@ static bool can_merge(FlatRange *r1, FlatRange *r2)
                                 r1->addr.size),
                      int128_make64(r2->offset_in_region))
         && r1->dirty_log_mask == r2->dirty_log_mask
-        && r1->romd_mode == r2->romd_mode
         && r1->readonly == r2->readonly;
 }
 
@@ -666,7 +663,6 @@ static void render_memory_region(FlatView *view,
 
     fr.mr = mr;
     fr.dirty_log_mask = memory_region_get_dirty_log_mask(mr);
-    fr.romd_mode = mr->romd_mode;
     fr.readonly = readonly;
 
     /* Render the region itself into any gaps left by the current view. */
