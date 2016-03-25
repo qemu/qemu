@@ -17194,6 +17194,7 @@ static void decode_opc_special3_r6(CPUMIPSState *env, DisasContext *ctx)
         /* Treat as NOP. */
         break;
     case R6_OPC_CACHE:
+        check_cp0_enabled(ctx);
         /* Treat as NOP. */
         break;
     case R6_OPC_SC:
