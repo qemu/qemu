@@ -33,11 +33,27 @@
 #define ITC_SEMAPH_NUM_MAX 16
 #define ITC_AM1_NUMENTRIES_OFS 20
 
+#define ITC_CELL_TAG_FIFO_DEPTH 28
+#define ITC_CELL_TAG_FIFO_PTR 18
+#define ITC_CELL_TAG_FIFO 17
+#define ITC_CELL_TAG_T 16
+#define ITC_CELL_TAG_F 1
+#define ITC_CELL_TAG_E 0
+
 #define ITC_AM0_BASE_ADDRESS_MASK 0xFFFFFC00ULL
 #define ITC_AM0_EN_MASK 0x1
 
 #define ITC_AM1_ADDR_MASK_MASK 0x1FC00
 #define ITC_AM1_ENTRY_GRAIN_MASK 0x7
+
+typedef enum ITCView {
+    ITCVIEW_BYPASS  = 0,
+    ITCVIEW_CONTROL = 1,
+    ITCVIEW_EF_SYNC = 2,
+    ITCVIEW_EF_TRY  = 3,
+    ITCVIEW_PV_SYNC = 4,
+    ITCVIEW_PV_TRY  = 5
+} ITCView;
 
 MemoryRegion *mips_itu_get_tag_region(MIPSITUState *itu)
 {
@@ -120,7 +136,95 @@ static inline uint32_t get_num_cells(MIPSITUState *s)
     return s->num_fifo + s->num_semaphores;
 }
 
+static inline ITCView get_itc_view(hwaddr addr)
+{
+    return (addr >> 3) & 0xf;
+}
+
+static inline int get_cell_stride_shift(const MIPSITUState *s)
+{
+    /* Minimum interval (for EntryGain = 0) is 128 B */
+    return 7 + (s->ITCAddressMap[1] & ITC_AM1_ENTRY_GRAIN_MASK);
+}
+
+static inline ITCStorageCell *get_cell(MIPSITUState *s,
+                                       hwaddr addr)
+{
+    uint32_t cell_idx = addr >> get_cell_stride_shift(s);
+    uint32_t num_cells = get_num_cells(s);
+
+    if (cell_idx >= num_cells) {
+        cell_idx = num_cells - 1;
+    }
+
+    return &s->cell[cell_idx];
+}
+
+/* ITC Control View */
+
+static inline uint64_t view_control_read(ITCStorageCell *c)
+{
+    return ((uint64_t)c->tag.FIFODepth << ITC_CELL_TAG_FIFO_DEPTH) |
+           (c->tag.FIFOPtr << ITC_CELL_TAG_FIFO_PTR) |
+           (c->tag.FIFO << ITC_CELL_TAG_FIFO) |
+           (c->tag.T << ITC_CELL_TAG_T) |
+           (c->tag.E << ITC_CELL_TAG_E) |
+           (c->tag.F << ITC_CELL_TAG_F);
+}
+
+static inline void view_control_write(ITCStorageCell *c, uint64_t val)
+{
+    c->tag.T = (val >> ITC_CELL_TAG_T) & 1;
+    c->tag.E = (val >> ITC_CELL_TAG_E) & 1;
+    c->tag.F = (val >> ITC_CELL_TAG_F) & 1;
+
+    if (c->tag.E) {
+        c->tag.FIFOPtr = 0;
+    }
+}
+
+static uint64_t itc_storage_read(void *opaque, hwaddr addr, unsigned size)
+{
+    MIPSITUState *s = (MIPSITUState *)opaque;
+    ITCStorageCell *cell = get_cell(s, addr);
+    ITCView view = get_itc_view(addr);
+    uint64_t ret = -1;
+
+    switch (view) {
+    case ITCVIEW_CONTROL:
+        ret = view_control_read(cell);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "itc_storage_read: Bad ITC View %d\n", (int)view);
+        break;
+    }
+
+    return ret;
+}
+
+static void itc_storage_write(void *opaque, hwaddr addr, uint64_t data,
+                              unsigned size)
+{
+    MIPSITUState *s = (MIPSITUState *)opaque;
+    ITCStorageCell *cell = get_cell(s, addr);
+    ITCView view = get_itc_view(addr);
+
+    switch (view) {
+    case ITCVIEW_CONTROL:
+        view_control_write(cell, data);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "itc_storage_write: Bad ITC View %d\n", (int)view);
+        break;
+    }
+
+}
+
 static const MemoryRegionOps itc_storage_ops = {
+    .read = itc_storage_read,
+    .write = itc_storage_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
