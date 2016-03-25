@@ -1074,7 +1074,7 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
                       uint8_t type, MemoryRegion *memory)
 {
     PCIIORegion *r;
-    uint32_t addr;
+    uint32_t addr; /* offset in pci config space */
     uint64_t wmask;
     pcibus_t size = memory_region_size(memory);
 
@@ -1090,15 +1090,20 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
     r->addr = PCI_BAR_UNMAPPED;
     r->size = size;
     r->type = type;
-    r->memory = NULL;
+    r->memory = memory;
+    r->address_space = type & PCI_BASE_ADDRESS_SPACE_IO
+                        ? pci_dev->bus->address_space_io
+                        : pci_dev->bus->address_space_mem;
 
     wmask = ~(size - 1);
-    addr = pci_bar(pci_dev, region_num);
     if (region_num == PCI_ROM_SLOT) {
         /* ROM enable bit is writable */
         wmask |= PCI_ROM_ADDRESS_ENABLE;
     }
+
+    addr = pci_bar(pci_dev, region_num);
     pci_set_long(pci_dev->config + addr, type);
+
     if (!(r->type & PCI_BASE_ADDRESS_SPACE_IO) &&
         r->type & PCI_BASE_ADDRESS_MEM_TYPE_64) {
         pci_set_quad(pci_dev->wmask + addr, wmask);
@@ -1107,11 +1112,6 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
         pci_set_long(pci_dev->wmask + addr, wmask & 0xffffffff);
         pci_set_long(pci_dev->cmask + addr, 0xffffffff);
     }
-    pci_dev->io_regions[region_num].memory = memory;
-    pci_dev->io_regions[region_num].address_space
-        = type & PCI_BASE_ADDRESS_SPACE_IO
-        ? pci_dev->bus->address_space_io
-        : pci_dev->bus->address_space_mem;
 }
 
 static void pci_update_vga(PCIDevice *pci_dev)
