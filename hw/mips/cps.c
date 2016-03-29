@@ -26,13 +26,8 @@
 
 qemu_irq get_cps_irq(MIPSCPSState *s, int pin_number)
 {
-    MIPSCPU *cpu = MIPS_CPU(first_cpu);
-    CPUMIPSState *env = &cpu->env;
-
     assert(pin_number < s->num_irq);
-
-    /* TODO: return GIC pins once implemented */
-    return env->irq[pin_number];
+    return s->gic.irq_state[pin_number].irq;
 }
 
 static void mips_cps_init(Object *obj)
@@ -130,6 +125,21 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&s->container, 0,
                             sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->cpc), 0));
 
+    /* Global Interrupt Controller */
+    object_initialize(&s->gic, sizeof(s->gic), TYPE_MIPS_GIC);
+    qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
+
+    object_property_set_int(OBJECT(&s->gic), s->num_vp, "num-vp", &err);
+    object_property_set_int(OBJECT(&s->gic), 128, "num-irq", &err);
+    object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    memory_region_add_subregion(&s->container, 0,
+                            sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->gic), 0));
+
     /* Global Configuration Registers */
     gcr_base = env->CP0_CMGCRBase << 4;
 
@@ -139,6 +149,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
     object_property_set_int(OBJECT(&s->gcr), s->num_vp, "num-vp", &err);
     object_property_set_int(OBJECT(&s->gcr), 0x800, "gcr-rev", &err);
     object_property_set_int(OBJECT(&s->gcr), gcr_base, "gcr-base", &err);
+    object_property_set_link(OBJECT(&s->gcr), OBJECT(&s->gic.mr), "gic", &err);
     object_property_set_link(OBJECT(&s->gcr), OBJECT(&s->cpc.mr), "cpc", &err);
     object_property_set_bool(OBJECT(&s->gcr), true, "realized", &err);
     if (err != NULL) {
@@ -152,7 +163,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
 
 static Property mips_cps_properties[] = {
     DEFINE_PROP_UINT32("num-vp", MIPSCPSState, num_vp, 1),
-    DEFINE_PROP_UINT32("num-irq", MIPSCPSState, num_irq, 8),
+    DEFINE_PROP_UINT32("num-irq", MIPSCPSState, num_irq, 256),
     DEFINE_PROP_STRING("cpu-model", MIPSCPSState, cpu_model),
     DEFINE_PROP_END_OF_LIST()
 };

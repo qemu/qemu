@@ -17,10 +17,16 @@
 #include "sysemu/sysemu.h"
 #include "hw/misc/mips_cmgcr.h"
 #include "hw/misc/mips_cpc.h"
+#include "hw/intc/mips_gic.h"
 
 static inline bool is_cpc_connected(MIPSGCRState *s)
 {
     return s->cpc_mr != NULL;
+}
+
+static inline bool is_gic_connected(MIPSGCRState *s)
+{
+    return s->gic_mr != NULL;
 }
 
 static inline void update_cpc_base(MIPSGCRState *gcr, uint64_t val)
@@ -32,6 +38,19 @@ static inline void update_cpc_base(MIPSGCRState *gcr, uint64_t val)
                                   gcr->cpc_base & GCR_CPC_BASE_CPCBASE_MSK);
         memory_region_set_enabled(gcr->cpc_mr,
                                   gcr->cpc_base & GCR_CPC_BASE_CPCEN_MSK);
+        memory_region_transaction_commit();
+    }
+}
+
+static inline void update_gic_base(MIPSGCRState *gcr, uint64_t val)
+{
+    if (is_gic_connected(gcr)) {
+        gcr->gic_base = val & GCR_GIC_BASE_MSK;
+        memory_region_transaction_begin();
+        memory_region_set_address(gcr->gic_mr,
+                                  gcr->gic_base & GCR_GIC_BASE_GICBASE_MSK);
+        memory_region_set_enabled(gcr->gic_mr,
+                                  gcr->gic_base & GCR_GIC_BASE_GICEN_MSK);
         memory_region_transaction_commit();
     }
 }
@@ -50,8 +69,12 @@ static uint64_t gcr_read(void *opaque, hwaddr addr, unsigned size)
         return gcr->gcr_base;
     case GCR_REV_OFS:
         return gcr->gcr_rev;
+    case GCR_GIC_BASE_OFS:
+        return gcr->gic_base;
     case GCR_CPC_BASE_OFS:
         return gcr->cpc_base;
+    case GCR_GIC_STATUS_OFS:
+        return is_gic_connected(gcr);
     case GCR_CPC_STATUS_OFS:
         return is_cpc_connected(gcr);
     case GCR_L2_CONFIG_OFS:
@@ -78,6 +101,9 @@ static void gcr_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
     MIPSGCRState *gcr = (MIPSGCRState *)opaque;
 
     switch (addr) {
+    case GCR_GIC_BASE_OFS:
+        update_gic_base(gcr, data);
+        break;
     case GCR_CPC_BASE_OFS:
         update_cpc_base(gcr, data);
         break;
@@ -102,6 +128,12 @@ static void mips_gcr_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     MIPSGCRState *s = MIPS_GCR(obj);
 
+    object_property_add_link(obj, "gic", TYPE_MEMORY_REGION,
+                             (Object **)&s->gic_mr,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &error_abort);
+
     object_property_add_link(obj, "cpc", TYPE_MEMORY_REGION,
                              (Object **)&s->cpc_mr,
                              qdev_prop_allow_set_link_before_realize,
@@ -117,6 +149,7 @@ static void mips_gcr_reset(DeviceState *dev)
 {
     MIPSGCRState *s = MIPS_GCR(dev);
 
+    update_gic_base(s, 0);
     update_cpc_base(s, 0);
 }
 

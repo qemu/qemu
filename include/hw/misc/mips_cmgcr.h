@@ -26,7 +26,9 @@
 #define GCR_CONFIG_OFS      0x0000
 #define GCR_BASE_OFS        0x0008
 #define GCR_REV_OFS         0x0030
+#define GCR_GIC_BASE_OFS    0x0080
 #define GCR_CPC_BASE_OFS    0x0088
+#define GCR_GIC_STATUS_OFS  0x00D0
 #define GCR_CPC_STATUS_OFS  0x00F0
 #define GCR_L2_CONFIG_OFS   0x0130
 
@@ -37,6 +39,11 @@
 /* GCR_L2_CONFIG register fields */
 #define GCR_L2_CONFIG_BYPASS_SHF    20
 #define GCR_L2_CONFIG_BYPASS_MSK    ((0x1ULL) << GCR_L2_CONFIG_BYPASS_SHF)
+
+/* GCR_GIC_BASE register fields */
+#define GCR_GIC_BASE_GICEN_MSK   1
+#define GCR_GIC_BASE_GICBASE_MSK 0xFFFFFFFE0000ULL
+#define GCR_GIC_BASE_MSK (GCR_GIC_BASE_GICEN_MSK | GCR_GIC_BASE_GICBASE_MSK)
 
 /* GCR_CPC_BASE register fields */
 #define GCR_CPC_BASE_CPCEN_MSK   1
@@ -52,8 +59,10 @@ struct MIPSGCRState {
     hwaddr gcr_base;
     MemoryRegion iomem;
     MemoryRegion *cpc_mr;
+    MemoryRegion *gic_mr;
 
     uint64_t cpc_base;
+    uint64_t gic_base;
 };
 
 #endif /* _MIPS_GCR_H */

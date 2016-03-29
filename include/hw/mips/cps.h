@@ -22,6 +22,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/misc/mips_cmgcr.h"
+#include "hw/intc/mips_gic.h"
 #include "hw/misc/mips_cpc.h"
 #include "hw/misc/mips_itu.h"
 
@@ -37,6 +38,7 @@ typedef struct MIPSCPSState {
 
     MemoryRegion container;
     MIPSGCRState gcr;
+    MIPSGICState gic;
     MIPSCPCState cpc;
     MIPSITUState itu;
 } MIPSCPSState;
