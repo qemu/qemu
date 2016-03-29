@@ -3573,7 +3573,8 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
         /* Return from sighandler will jump to the tramp.
            Negative 8 offset because return is rtsd r15, 8 */
-        env->regs[15] = ((unsigned long)frame->tramp) - 8;
+        env->regs[15] = frame_addr + offsetof(struct target_signal_frame, tramp)
+                                   - 8;
     }
 
     /* Set up registers for signal handler */
