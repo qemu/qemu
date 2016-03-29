@@ -5599,7 +5599,12 @@ struct target_rt_sigframe {
     unsigned char save_area[16]; /* caller save area */
     struct target_siginfo info;
     struct target_ucontext uc;
+    abi_ulong retcode[2];
 };
+
+#define INSN_MOVELI_R10_139  0x00045fe551483000ULL /* { moveli r10, 139 } */
+#define INSN_SWINT1          0x286b180051485000ULL /* { swint1 } */
+
 
 static void setup_sigcontext(struct target_sigcontext *sc,
                              CPUArchState *env, int signo)
@@ -5676,9 +5681,12 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     __put_user(target_sigaltstack_used.ss_size, &frame->uc.tuc_stack.ss_size);
     setup_sigcontext(&frame->uc.tuc_mcontext, env, info->si_signo);
 
-    restorer = (unsigned long) do_rt_sigreturn;
     if (ka->sa_flags & TARGET_SA_RESTORER) {
-            restorer = (unsigned long) ka->sa_restorer;
+        restorer = (unsigned long) ka->sa_restorer;
+    } else {
+        __put_user(INSN_MOVELI_R10_139, &frame->retcode[0]);
+        __put_user(INSN_SWINT1, &frame->retcode[1]);
+        restorer = frame_addr + offsetof(struct target_rt_sigframe, retcode);
     }
     env->pc = (unsigned long) ka->_sa_handler;
     env->regs[TILEGX_R_SP] = (unsigned long) frame;
