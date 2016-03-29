@@ -17,8 +17,10 @@
 #include "cpu.h"
 #include "elf.h"
 #include "hw/loader.h"
+#include "hw/boards.h"
 #include "hw/s390x/virtio-ccw.h"
 #include "hw/s390x/css.h"
+#include "hw/s390x/ebcdic.h"
 #include "ipl.h"
 #include "qemu/error-report.h"
 
@@ -243,7 +245,6 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
             ipl->iplb.pbt = S390_IPL_TYPE_CCW;
             ipl->iplb.ccw.devno = cpu_to_be16(ccw_dev->sch->devno);
             ipl->iplb.ccw.ssid = ccw_dev->sch->ssid & 3;
-            return true;
         } else if (sd) {
             SCSIBus *bus = scsi_bus_from_device(sd);
             VirtIOSCSI *vdev = container_of(bus, VirtIOSCSI, bus);
@@ -259,11 +260,37 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
             ipl->iplb.scsi.channel = cpu_to_be16(sd->channel);
             ipl->iplb.scsi.devno = cpu_to_be16(ccw_dev->sch->devno);
             ipl->iplb.scsi.ssid = ccw_dev->sch->ssid & 3;
-            return true;
+        } else {
+            return false; /* unknown device */
         }
+
+        if (!s390_ipl_set_loadparm(ipl->iplb.loadparm)) {
+            ipl->iplb.flags |= DIAG308_FLAGS_LP_VALID;
+        }
+        return true;
     }
 
     return false;
+}
+
+int s390_ipl_set_loadparm(uint8_t *loadparm)
+{
+    MachineState *machine = MACHINE(qdev_get_machine());
+    char *lp = object_property_get_str(OBJECT(machine), "loadparm", NULL);
+
+    if (lp) {
+        int i;
+
+        /* lp is an uppercase string without leading/embedded spaces */
+        for (i = 0; i < 8 && lp[i]; i++) {
+            loadparm[i] = ascii2ebcdic[(uint8_t) lp[i]];
+        }
+
+        g_free(lp);
+        return 0;
+    }
+
+    return -1;
 }
 
 static int load_netboot_image(Error **errp)
