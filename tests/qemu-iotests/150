@@ -38,65 +38,34 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.rc
 . ./common.filter
 
-_supported_fmt generic
+_supported_fmt raw qcow2
 _supported_proto file
 _supported_os Linux
-
-
-on_disk_size()
-{
-    du "$@" | sed -e 's/\t\+.*//'
-}
 
 
 img_size=1048576
 
 
 echo
-echo '=== Comparing empty image against sparse conversion ==='
+echo '=== Mapping sparse conversion ==='
 echo
-
-_make_test_img $img_size
-
-empty_size=$(on_disk_size "$TEST_IMG")
-
 
 $QEMU_IMG_PROG convert -O "$IMGFMT" -S 512 \
     "json:{ 'driver': 'null-co', 'size': $img_size, 'read-zeroes': true }" \
     "$TEST_IMG"
 
-sparse_convert_size=$(on_disk_size "$TEST_IMG")
-
-
-if [ "$empty_size" -eq "$sparse_convert_size" ]; then
-    echo 'Equal image size'
-else
-    echo 'Different image size'
-fi
+$QEMU_IMG map "$TEST_IMG" | _filter_qemu_img_map
 
 
 echo
-echo '=== Comparing full image against non-sparse conversion ==='
+echo '=== Mapping non-sparse conversion ==='
 echo
-
-_make_test_img $img_size
-$QEMU_IO -c "write 0 $img_size" "$TEST_IMG" | _filter_qemu_io
-
-full_size=$(on_disk_size "$TEST_IMG")
-
 
 $QEMU_IMG convert -O "$IMGFMT" -S 0 \
     "json:{ 'driver': 'null-co', 'size': $img_size, 'read-zeroes': true }" \
     "$TEST_IMG"
 
-non_sparse_convert_size=$(on_disk_size "$TEST_IMG")
-
-
-if [ "$full_size" -eq "$non_sparse_convert_size" ]; then
-    echo 'Equal image size'
-else
-    echo 'Different image size'
-fi
+$QEMU_IMG map "$TEST_IMG" | _filter_qemu_img_map
 
 
 # success, all done
