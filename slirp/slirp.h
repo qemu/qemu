@@ -82,6 +82,7 @@ void free(void *ptr);
    have different prototypes. */
 #define insque slirp_insque
 #define remque slirp_remque
+#define quehead slirp_quehead
 
 #ifdef HAVE_SYS_STROPTS_H
 #include <sys/stropts.h>
@@ -197,12 +198,13 @@ struct Slirp {
     struct ex_list *exec_list;
 
     /* mbuf states */
-    struct mbuf m_freelist, m_usedlist;
+    struct quehead m_freelist;
+    struct quehead m_usedlist;
     int mbuf_alloced;
 
     /* if states */
-    struct mbuf if_fastq;   /* fast queue (for interactive data) */
-    struct mbuf if_batchq;  /* queue for non-interactive data */
+    struct quehead if_fastq;   /* fast queue (for interactive data) */
+    struct quehead if_batchq;  /* queue for non-interactive data */
     struct mbuf *next_m;    /* pointer to next mbuf to output */
     bool if_start_busy;     /* avoid if_start recursion */
 

@@ -1551,9 +1551,9 @@ DEF("smb", HAS_ARG, QEMU_OPTION_smb, "", QEMU_ARCH_ALL)
 
 DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
 #ifdef CONFIG_SLIRP
-    "-netdev user,id=str[,net=addr[/mask]][,host=addr][,ip6-net=addr[/int]]\n"
-    "         [,ip6-host=addr][,restrict=on|off][,hostname=host][,dhcpstart=addr]\n"
-    "         [,dns=addr][,ip6-dns=addr][,dnssearch=domain][,tftp=dir]\n"
+    "-netdev user,id=str[,net=addr[/mask]][,host=addr][,ipv6-net=addr[/int]]\n"
+    "         [,ipv6-host=addr][,restrict=on|off][,hostname=host][,dhcpstart=addr]\n"
+    "         [,dns=addr][,ipv6-dns=addr][,dnssearch=domain][,tftp=dir]\n"
     "         [,bootfile=f][,hostfwd=rule][,guestfwd=rule]"
 #ifndef _WIN32
                                              "[,smb=dir[,smbserver=addr]]\n"
@@ -1710,11 +1710,13 @@ either in the form a.b.c.d or as number of valid top-most bits. Default is
 Specify the guest-visible address of the host. Default is the 2nd IP in the
 guest network, i.e. x.x.x.2.
 
-@item ip6-net=@var{addr}[/@var{int}]
-Set IPv6 network address the guest will see. Optionally specify the prefix
-size, as number of valid top-most bits. Default is fec0::/64.
+@item ipv6-net=@var{addr}[/@var{int}]
+Set IPv6 network address the guest will see (default is fec0::/64). The
+network prefix is given in the usual hexadecimal IPv6 address
+notation. The prefix size is optional, and is given as the number of
+valid top-most bits (default is 64).
 
-@item ip6-host=@var{addr}
+@item ipv6-host=@var{addr}
 Specify the guest-visible IPv6 address of the host. Default is the 2nd IPv6 in
 the guest network, i.e. xxxx::2.
 
@@ -1735,7 +1737,7 @@ Specify the guest-visible address of the virtual nameserver. The address must
 be different from the host address. Default is the 3rd IP in the guest network,
 i.e. x.x.x.3.
 
-@item ip6-dns=@var{addr}
+@item ipv6-dns=@var{addr}
 Specify the guest-visible address of the IPv6 virtual nameserver. The address
 must be different from the host address. Default is the 3rd IP in the guest
 network, i.e. xxxx::3.
