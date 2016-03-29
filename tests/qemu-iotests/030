@@ -35,6 +35,7 @@ class TestSingleDrive(iotests.QMPTestCase):
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
         qemu_io('-f', 'raw', '-c', 'write -P 0x1 0 512', backing_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x1 524288 512', mid_img)
         self.vm = iotests.VM().add_drive("blkdebug::" + test_img)
         self.vm.launch()
 
@@ -90,10 +91,28 @@ class TestSingleDrive(iotests.QMPTestCase):
                          qemu_io('-f', iotests.imgfmt, '-c', 'map', test_img),
                          'image file map does not match backing file after streaming')
 
+    def test_stream_no_op(self):
+        self.assert_no_active_block_jobs()
+
+        # The image map is empty before the operation
+        empty_map = qemu_io('-f', iotests.imgfmt, '-c', 'map', test_img)
+
+        # This is a no-op: no data should ever be copied from the base image
+        result = self.vm.qmp('block-stream', device='drive0', base=mid_img)
+        self.assert_qmp(result, 'return', {})
+
+        self.wait_until_completed()
+
+        self.assert_no_active_block_jobs()
+        self.vm.shutdown()
+
+        self.assertEqual(qemu_io('-f', iotests.imgfmt, '-c', 'map', test_img),
+                         empty_map, 'image file map changed after a no-op')
+
     def test_stream_partial(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('block-stream', device='drive0', base=mid_img)
+        result = self.vm.qmp('block-stream', device='drive0', base=backing_img)
         self.assert_qmp(result, 'return', {})
 
         self.wait_until_completed()
