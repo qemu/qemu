@@ -23,6 +23,7 @@
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/event-facility.h"
 #include "hw/s390x/s390-pci-bus.h"
+#include "hw/s390x/ipl.h"
 
 static inline SCLPDevice *get_sclp_device(void)
 {
@@ -57,6 +58,7 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     int cpu_count = 0;
     int rnsize, rnmax;
     int slots = MIN(machine->ram_slots, s390_get_memslot_count(kvm_state));
+    IplParameterBlock *ipib = s390_ipl_get_iplb();
 
     CPU_FOREACH(cpu) {
         cpu_count++;
@@ -127,6 +129,13 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     } else {
         read_info->rnmax = cpu_to_be16(0);
         read_info->rnmax2 = cpu_to_be64(rnmax);
+    }
+
+    if (ipib && ipib->flags & DIAG308_FLAGS_LP_VALID) {
+        memcpy(&read_info->loadparm, &ipib->loadparm,
+               sizeof(read_info->loadparm));
+    } else {
+        s390_ipl_set_loadparm(read_info->loadparm);
     }
 
     sccb->h.response_code = cpu_to_be16(SCLP_RC_NORMAL_READ_COMPLETION);
