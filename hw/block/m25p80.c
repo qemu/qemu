@@ -237,6 +237,9 @@ typedef enum {
     ERASE_32K = 0x52,
     ERASE_SECTOR = 0xd8,
 
+    EN_4BYTE_ADDR = 0xB7,
+    EX_4BYTE_ADDR = 0xE9,
+
     EXTEND_ADDR_READ = 0xC8,
     EXTEND_ADDR_WRITE = 0xC5,
 
@@ -269,6 +272,7 @@ typedef struct Flash {
     uint8_t cmd_in_progress;
     uint64_t cur_addr;
     bool write_enable;
+    bool four_bytes_address_mode;
     bool reset_enable;
     uint8_t ear;
 
@@ -406,12 +410,25 @@ void flash_write8(Flash *s, uint64_t addr, uint8_t data)
     s->dirty_page = page;
 }
 
+static inline int get_addr_length(Flash *s)
+{
+    return s->four_bytes_address_mode ? 4 : 3;
+}
+
 static void complete_collecting_data(Flash *s)
 {
-    s->cur_addr = s->data[0] << 16;
-    s->cur_addr |= s->data[1] << 8;
-    s->cur_addr |= s->data[2];
-    s->cur_addr += (s->ear & 0x3) * MAX_3BYTES_SIZE;
+    int i;
+
+    s->cur_addr = 0;
+
+    for (i = 0; i < get_addr_length(s); ++i) {
+        s->cur_addr <<= 8;
+        s->cur_addr |= s->data[i];
+    }
+
+    if (get_addr_length(s) == 3) {
+        s->cur_addr += (s->ear & 0x3) * MAX_3BYTES_SIZE;
+    }
 
     s->state = STATE_IDLE;
 
@@ -452,6 +469,7 @@ static void reset_memory(Flash *s)
     s->cmd_in_progress = NOP;
     s->cur_addr = 0;
     s->ear = 0;
+    s->four_bytes_address_mode = false;
     s->len = 0;
     s->needed_bytes = 0;
     s->pos = 0;
@@ -480,7 +498,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case DPP:
     case QPP:
     case PP:
-        s->needed_bytes = 3;
+        s->needed_bytes = get_addr_length(s);
         s->pos = 0;
         s->len = 0;
         s->state = STATE_COLLECTING_DATA;
@@ -489,7 +507,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case FAST_READ:
     case DOR:
     case QOR:
-        s->needed_bytes = 4;
+        s->needed_bytes = get_addr_length(s) + 1;
         s->pos = 0;
         s->len = 0;
         s->state = STATE_COLLECTING_DATA;
@@ -501,9 +519,8 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         case JEDEC_SPANSION:
             s->needed_bytes = 4;
             break;
-        case JEDEC_NUMONYX:
         default:
-            s->needed_bytes = 5;
+            s->needed_bytes = get_addr_length(s) + 2;
         }
         s->pos = 0;
         s->len = 0;
@@ -516,9 +533,8 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         case JEDEC_SPANSION:
             s->needed_bytes = 6;
             break;
-        case JEDEC_NUMONYX:
         default:
-            s->needed_bytes = 8;
+            s->needed_bytes = get_addr_length(s) + 4;
         }
         s->pos = 0;
         s->len = 0;
@@ -574,6 +590,12 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         }
         break;
     case NOP:
+        break;
+    case EN_4BYTE_ADDR:
+        s->four_bytes_address_mode = true;
+        break;
+    case EX_4BYTE_ADDR:
+        s->four_bytes_address_mode = false;
         break;
     case EXTEND_ADDR_READ:
         s->data[0] = s->ear;
@@ -731,6 +753,7 @@ static const VMStateDescription vmstate_m25p80 = {
         VMSTATE_BOOL(write_enable, Flash),
         VMSTATE_BOOL_V(reset_enable, Flash, 2),
         VMSTATE_UINT8_V(ear, Flash, 2),
+        VMSTATE_BOOL_V(four_bytes_address_mode, Flash, 2),
         VMSTATE_END_OF_LIST()
     }
 };
