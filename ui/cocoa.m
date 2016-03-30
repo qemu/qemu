@@ -874,7 +874,8 @@ QemuCocoaView *cocoaView;
 
         // set the supported image file types that can be opened
         supportedImageFileTypes = [NSArray arrayWithObjects: @"img", @"iso", @"dmg",
-                                 @"qcow", @"qcow2", @"cloop", @"vmdk", nil];
+                                 @"qcow", @"qcow2", @"cloop", @"vmdk", @"cdr",
+                                  nil];
     }
     return self;
 }
