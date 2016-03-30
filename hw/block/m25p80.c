@@ -233,6 +233,9 @@ typedef enum {
     ERASE_4K = 0x20,
     ERASE_32K = 0x52,
     ERASE_SECTOR = 0xd8,
+
+    RESET_ENABLE = 0x66,
+    RESET_MEMORY = 0x99,
 } FlashCMD;
 
 typedef enum {
@@ -260,6 +263,7 @@ typedef struct Flash {
     uint8_t cmd_in_progress;
     uint64_t cur_addr;
     bool write_enable;
+    bool reset_enable;
 
     int64_t dirty_page;
 
@@ -432,10 +436,28 @@ static void complete_collecting_data(Flash *s)
     }
 }
 
+static void reset_memory(Flash *s)
+{
+    s->cmd_in_progress = NOP;
+    s->cur_addr = 0;
+    s->len = 0;
+    s->needed_bytes = 0;
+    s->pos = 0;
+    s->state = STATE_IDLE;
+    s->write_enable = false;
+    s->reset_enable = false;
+
+    DB_PRINT_L(0, "Reset done.\n");
+}
+
 static void decode_new_cmd(Flash *s, uint32_t value)
 {
     s->cmd_in_progress = value;
     DB_PRINT_L(0, "decoded new command:%x\n", value);
+
+    if (value != RESET_MEMORY) {
+        s->reset_enable = false;
+    }
 
     switch (value) {
 
@@ -540,6 +562,14 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         }
         break;
     case NOP:
+        break;
+    case RESET_ENABLE:
+        s->reset_enable = true;
+        break;
+    case RESET_MEMORY:
+        if (s->reset_enable) {
+            reset_memory(s);
+        }
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Unknown cmd %x\n", value);
@@ -647,6 +677,13 @@ static int m25p80_init(SSISlave *ss)
     return 0;
 }
 
+static void m25p80_reset(DeviceState *d)
+{
+    Flash *s = M25P80(d);
+
+    reset_memory(s);
+}
+
 static void m25p80_pre_save(void *opaque)
 {
     flash_sync_dirty((Flash *)opaque, -1);
@@ -654,7 +691,7 @@ static void m25p80_pre_save(void *opaque)
 
 static const VMStateDescription vmstate_m25p80 = {
     .name = "xilinx_spi",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .pre_save = m25p80_pre_save,
     .fields = (VMStateField[]) {
@@ -666,6 +703,7 @@ static const VMStateDescription vmstate_m25p80 = {
         VMSTATE_UINT8(cmd_in_progress, Flash),
         VMSTATE_UINT64(cur_addr, Flash),
         VMSTATE_BOOL(write_enable, Flash),
+        VMSTATE_BOOL_V(reset_enable, Flash, 2),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -681,6 +719,7 @@ static void m25p80_class_init(ObjectClass *klass, void *data)
     k->set_cs = m25p80_cs;
     k->cs_polarity = SSI_CS_LOW;
     dc->vmsd = &vmstate_m25p80;
+    dc->reset = m25p80_reset;
     mc->pi = data;
 }
 
