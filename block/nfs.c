@@ -33,6 +33,7 @@
 #include "trace.h"
 #include "qemu/iov.h"
 #include "qemu/uri.h"
+#include "qemu/cutils.h"
 #include "sysemu/sysemu.h"
 #include <nfsc/libnfs.h>
 
