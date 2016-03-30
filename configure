@@ -308,6 +308,7 @@ gnutls=""
 gnutls_hash=""
 gnutls_rnd=""
 nettle=""
+nettle_kdf="no"
 gcrypt=""
 gcrypt_kdf="no"
 vte=""
@@ -2335,6 +2336,17 @@ if test "$nettle" != "no"; then
         libs_tools="$nettle_libs $libs_tools"
         QEMU_CFLAGS="$QEMU_CFLAGS $nettle_cflags"
         nettle="yes"
+
+        cat > $TMPC << EOF
+#include <nettle/pbkdf2.h>
+int main(void) {
+     pbkdf2_hmac_sha256(8, NULL, 1000, 8, NULL, 8, NULL);
+     return 0;
+}
+EOF
+        if compile_prog "$nettle_cflags" "$nettle_libs" ; then
+            nettle_kdf=yes
+        fi
     else
         if test "$nettle" = "yes"; then
             feature_not_found "nettle" "Install nettle devel"
@@ -4746,6 +4758,7 @@ if test "$nettle" = "yes"; then
 else
     echo "nettle            $nettle"
 fi
+echo "nettle kdf        $nettle_kdf"
 echo "libtasn1          $tasn1"
 echo "VTE support       $vte"
 echo "curses support    $curses"
@@ -5130,6 +5143,9 @@ fi
 if test "$nettle" = "yes" ; then
   echo "CONFIG_NETTLE=y" >> $config_host_mak
   echo "CONFIG_NETTLE_VERSION_MAJOR=${nettle_version%%.*}" >> $config_host_mak
+  if test "$nettle_kdf" = "yes" ; then
+    echo "CONFIG_NETTLE_KDF=y" >> $config_host_mak
+  fi
 fi
 if test "$tasn1" = "yes" ; then
   echo "CONFIG_TASN1=y" >> $config_host_mak
