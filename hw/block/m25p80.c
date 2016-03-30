@@ -47,7 +47,7 @@
 /* set to allow the page program command to write 0s back to 1. Useful for
  * modelling EEPROM with SPI flash command set
  */
-#define WR_1 0x100
+#define EEPROM 0x100
 
 /* 16 MiB max in 3 byte address mode */
 #define MAX_3BYTES_SIZE 0x1000000
@@ -122,6 +122,12 @@ static const FlashPartInfo known_devices[] = {
     { INFO("at26df321",   0x1f4700,      0,  64 << 10,  64, ER_4K) },
 
     { INFO("at45db081d",  0x1f2500,      0,  64 << 10,  16, ER_4K) },
+
+    /* Atmel EEPROMS - it is assumed, that don't care bit in command
+     * is set to 0. Block protection is not supported.
+     */
+    { INFO("at25128a-nonjedec", 0x0,     0,         1, 131072, EEPROM) },
+    { INFO("at25256a-nonjedec", 0x0,     0,         1, 262144, EEPROM) },
 
     /* EON -- en25xxx */
     { INFO("en25f32",     0x1c3116,      0,  64 << 10,  64, ER_4K) },
@@ -450,7 +456,7 @@ void flash_write8(Flash *s, uint64_t addr, uint8_t data)
                    " -> %" PRIx8 "\n", addr, prev, data);
     }
 
-    if (s->pi->flags & WR_1) {
+    if (s->pi->flags & EEPROM) {
         s->storage[s->cur_addr] = data;
     } else {
         s->storage[s->cur_addr] &= data;
@@ -462,6 +468,11 @@ void flash_write8(Flash *s, uint64_t addr, uint8_t data)
 
 static inline int get_addr_length(Flash *s)
 {
+   /* check if eeprom is in use */
+    if (s->pi->flags == EEPROM) {
+        return 2;
+    }
+
    switch (s->cmd_in_progress) {
    case PP4:
    case READ4:
