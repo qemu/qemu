@@ -234,8 +234,9 @@ static const FlashPartInfo known_devices[] = {
     { INFO("w25q80bl",    0xef4014,      0,  64 << 10,  16, ER_4K) },
     { INFO("w25q256",     0xef4019,      0,  64 << 10, 512, ER_4K) },
 
-    /* Numonyx -- n25q128 */
     { INFO("n25q128",      0x20ba18,      0,  64 << 10, 256, 0) },
+    { INFO("n25q256a",     0x20ba19,      0,  64 << 10, 512, ER_4K) },
+    { INFO("n25q512a",     0x20ba20,      0,  64 << 10, 1024, ER_4K) },
 };
 
 typedef enum {
