@@ -61,7 +61,7 @@ typedef struct FlashPartInfo {
     uint32_t sector_size;
     uint32_t n_sectors;
     uint32_t page_size;
-    uint8_t flags;
+    uint16_t flags;
 } FlashPartInfo;
 
 /* adapted from linux */
