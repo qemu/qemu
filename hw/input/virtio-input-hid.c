@@ -121,6 +121,8 @@ static const unsigned int keymap_qcode[Q_KEY_CODE__MAX] = {
 
     [Q_KEY_CODE_CTRL_R]              = KEY_RIGHTCTRL,
     [Q_KEY_CODE_SYSRQ]               = KEY_SYSRQ,
+    [Q_KEY_CODE_PRINT]               = KEY_SYSRQ,
+    [Q_KEY_CODE_PAUSE]               = KEY_PAUSE,
     [Q_KEY_CODE_ALT_R]               = KEY_RIGHTALT,
 
     [Q_KEY_CODE_HOME]                = KEY_HOME,
