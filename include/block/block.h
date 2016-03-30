@@ -64,6 +64,7 @@ typedef enum {
      */
     BDRV_REQ_MAY_UNMAP          = 0x4,
     BDRV_REQ_NO_SERIALISING     = 0x8,
+    BDRV_REQ_FUA                = 0x10,
 } BdrvRequestFlags;
 
 typedef struct BlockSizes {
@@ -81,7 +82,6 @@ typedef struct HDGeometry {
 #define BDRV_O_SNAPSHOT    0x0008 /* open the file read only and save writes in a snapshot */
 #define BDRV_O_TEMPORARY   0x0010 /* delete the file after use */
 #define BDRV_O_NOCACHE     0x0020 /* do not use the host page cache */
-#define BDRV_O_CACHE_WB    0x0040 /* use write-back caching */
 #define BDRV_O_NATIVE_AIO  0x0080 /* use native AIO instead of the thread pool */
 #define BDRV_O_NO_BACKING  0x0100 /* don't open the backing file */
 #define BDRV_O_NO_FLUSH    0x0200 /* disable flushing on this disk */
@@ -93,8 +93,9 @@ typedef struct HDGeometry {
 #define BDRV_O_PROTOCOL    0x8000  /* if no block driver is explicitly given:
                                       select an appropriate protocol driver,
                                       ignoring the format layer */
+#define BDRV_O_NO_IO       0x10000 /* don't initialize for I/O */
 
-#define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH)
+#define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_NO_FLUSH)
 
 
 /* Option names of options parsed by the block layer */
@@ -192,6 +193,7 @@ void bdrv_io_limits_update_group(BlockDriverState *bs, const char *group);
 
 void bdrv_init(void);
 void bdrv_init_with_whitelist(void);
+bool bdrv_uses_whitelist(void);
 BlockDriver *bdrv_find_protocol(const char *filename,
                                 bool allow_protocol_prefix,
                                 Error **errp);
@@ -201,12 +203,11 @@ int bdrv_create(BlockDriver *drv, const char* filename,
 int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp);
 BlockDriverState *bdrv_new_root(void);
 BlockDriverState *bdrv_new(void);
-void bdrv_make_anon(BlockDriverState *bs);
 void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);
 void bdrv_replace_in_backing_chain(BlockDriverState *old,
                                    BlockDriverState *new);
 
-int bdrv_parse_cache_flags(const char *mode, int *flags);
+int bdrv_parse_cache_mode(const char *mode, int *flags, bool *writethrough);
 int bdrv_parse_discard_flags(const char *mode, int *flags);
 BdrvChild *bdrv_open_child(const char *filename,
                            QDict *options, const char *bdref_key,
@@ -394,8 +395,6 @@ int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
 
 int bdrv_is_read_only(BlockDriverState *bs);
 int bdrv_is_sg(BlockDriverState *bs);
-int bdrv_enable_write_cache(BlockDriverState *bs);
-void bdrv_set_enable_write_cache(BlockDriverState *bs, bool wce);
 bool bdrv_is_inserted(BlockDriverState *bs);
 int bdrv_media_changed(BlockDriverState *bs);
 void bdrv_lock_medium(BlockDriverState *bs, bool locked);

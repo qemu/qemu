@@ -155,6 +155,7 @@ check options
     -ssh                test ssh
     -nfs                test nfs
     -archipelago        test archipelago
+    -luks               test luks
     -xdiff              graphical mode diff
     -nocache            use O_DIRECT on backing file
     -misalign           misalign memory allocations

@@ -63,3 +63,7 @@ void replay_char_read_all_save_buf(uint8_t *buf, int offset)
 {
     abort();
 }
+
+void replay_block_event(QEMUBH *bh, uint64_t id)
+{
+}

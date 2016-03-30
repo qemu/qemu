@@ -155,6 +155,11 @@ struct BlockDriver {
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
     int coroutine_fn (*bdrv_co_writev)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
+    int coroutine_fn (*bdrv_co_writev_flags)(BlockDriverState *bs,
+        int64_t sector_num, int nb_sectors, QEMUIOVector *qiov, int flags);
+
+    int supported_write_flags;
+
     /*
      * Efficiently zero a region of the disk image.  Typically an image format
      * would use a compact metadata representation to implement this.  This
@@ -174,6 +179,13 @@ struct BlockDriver {
      */
     void (*bdrv_invalidate_cache)(BlockDriverState *bs, Error **errp);
     int (*bdrv_inactivate)(BlockDriverState *bs);
+
+    /*
+     * Flushes all data for all layers by calling bdrv_co_flush for underlying
+     * layers, if needed. This function is needed for deterministic
+     * synchronization of the flush finishing callback.
+     */
+    int coroutine_fn (*bdrv_co_flush)(BlockDriverState *bs);
 
     /*
      * Flushes all data that was already written to the OS all the way down to
@@ -434,9 +446,6 @@ struct BlockDriverState {
 
     /* Alignment requirement for offset/length of I/O requests */
     unsigned int request_alignment;
-
-    /* do we need to tell the quest if we have a volatile write cache? */
-    int enable_write_cache;
 
     /* the following member gives a name to every node on the bs graph. */
     char node_name[32];
@@ -703,8 +712,6 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
                                   const BdrvChildRole *child_role);
 void bdrv_root_unref_child(BdrvChild *child);
-
-void blk_set_bs(BlockBackend *blk, BlockDriverState *bs);
 
 void blk_dev_change_media_cb(BlockBackend *blk, bool load);
 bool blk_dev_has_removable_media(BlockBackend *blk);

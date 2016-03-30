@@ -150,3 +150,5 @@
 145 auto quick
 146 auto quick
 148 rw auto quick
+149 rw auto sudo
+150 rw auto quick

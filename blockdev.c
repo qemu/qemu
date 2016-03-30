@@ -469,6 +469,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     int bdrv_flags = 0;
     int on_read_error, on_write_error;
     bool account_invalid, account_failed;
+    bool writethrough;
     BlockBackend *blk;
     BlockDriverState *bs;
     ThrottleConfig cfg;
@@ -506,6 +507,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     account_invalid = qemu_opt_get_bool(opts, "stats-account-invalid", true);
     account_failed = qemu_opt_get_bool(opts, "stats-account-failed", true);
+
+    writethrough = !qemu_opt_get_bool(opts, BDRV_OPT_CACHE_WB, true);
 
     qdict_extract_subqdict(bs_opts, &interval_dict, "stats-intervals.");
     qdict_array_split(interval_dict, &interval_list);
@@ -592,9 +595,9 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         /* bdrv_open() defaults to the values in bdrv_flags (for compatibility
          * with other callers) rather than what we want as the real defaults.
          * Apply the defaults here instead. */
-        qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_WB, "on");
         qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
         qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, "off");
+        assert((bdrv_flags & BDRV_O_CACHE_MASK) == 0);
 
         if (runstate_check(RUN_STATE_INMIGRATE)) {
             bdrv_flags |= BDRV_O_INACTIVE;
@@ -630,6 +633,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         }
     }
 
+    blk_set_enable_write_cache(blk, !writethrough);
     blk_set_on_error(blk, on_read_error, on_write_error);
 
     if (!monitor_add_blk(blk, qemu_opts_id(opts), errp)) {
@@ -686,7 +690,6 @@ static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
     /* bdrv_open() defaults to the values in bdrv_flags (for compatibility
      * with other callers) rather than what we want as the real defaults.
      * Apply the defaults here instead. */
-    qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_WB, "on");
     qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, "off");
 
@@ -894,8 +897,9 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     value = qemu_opt_get(all_opts, "cache");
     if (value) {
         int flags = 0;
+        bool writethrough;
 
-        if (bdrv_parse_cache_flags(value, &flags) != 0) {
+        if (bdrv_parse_cache_mode(value, &flags, &writethrough) != 0) {
             error_report("invalid cache option");
             return NULL;
         }
@@ -903,7 +907,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         /* Specific options take precedence */
         if (!qemu_opt_get(all_opts, BDRV_OPT_CACHE_WB)) {
             qemu_opt_set_bool(all_opts, BDRV_OPT_CACHE_WB,
-                              !!(flags & BDRV_O_CACHE_WB), &error_abort);
+                              !writethrough, &error_abort);
         }
         if (!qemu_opt_get(all_opts, BDRV_OPT_CACHE_DIRECT)) {
             qemu_opt_set_bool(all_opts, BDRV_OPT_CACHE_DIRECT,
@@ -1743,6 +1747,7 @@ static void external_snapshot_prepare(BlkActionState *common,
         }
 
         flags = state->old_bs->open_flags;
+        flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_COPY_ON_READ);
 
         /* create new image w/backing file */
         mode = s->has_mode ? s->mode : NEW_IMAGE_MODE_ABSOLUTE_PATHS;
@@ -1813,8 +1818,10 @@ static void external_snapshot_commit(BlkActionState *common)
     /* We don't need (or want) to use the transactional
      * bdrv_reopen_multiple() across all the entries at once, because we
      * don't want to abort all of them if one of them fails the reopen */
-    bdrv_reopen(state->old_bs, state->old_bs->open_flags & ~BDRV_O_RDWR,
-                NULL);
+    if (!state->old_bs->copy_on_read) {
+        bdrv_reopen(state->old_bs, state->old_bs->open_flags & ~BDRV_O_RDWR,
+                    NULL);
+    }
 }
 
 static void external_snapshot_abort(BlkActionState *common)
@@ -2869,9 +2876,6 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
 
     /* Make the BlockBackend and the attached BlockDriverState anonymous */
     monitor_remove_blk(blk);
-    if (blk_bs(blk)) {
-        bdrv_make_anon(blk_bs(blk));
-    }
 
     /* If this BlockBackend has a device attached to it, its refcount will be
      * decremented when the device is removed; otherwise we have to do so here.
@@ -4115,6 +4119,10 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "aio",
             .type = QEMU_OPT_STRING,
             .help = "host AIO implementation (threads, native)",
+        },{
+            .name = BDRV_OPT_CACHE_WB,
+            .type = QEMU_OPT_BOOL,
+            .help = "Enable writeback mode",
         },{
             .name = "format",
             .type = QEMU_OPT_STRING,

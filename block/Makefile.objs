@@ -4,7 +4,7 @@ block-obj-y += qed.o qed-gencb.o qed-l2-cache.o qed-table.o qed-cluster.o
 block-obj-y += qed-check.o
 block-obj-$(CONFIG_VHDX) += vhdx.o vhdx-endian.o vhdx-log.o
 block-obj-y += quorum.o
-block-obj-y += parallels.o blkdebug.o blkverify.o
+block-obj-y += parallels.o blkdebug.o blkverify.o blkreplay.o
 block-obj-y += block-backend.o snapshot.o qapi.o
 block-obj-$(CONFIG_WIN32) += raw-win32.o win32-aio.o
 block-obj-$(CONFIG_POSIX) += raw-posix.o
@@ -22,6 +22,8 @@ block-obj-$(CONFIG_ARCHIPELAGO) += archipelago.o
 block-obj-$(CONFIG_LIBSSH2) += ssh.o
 block-obj-y += accounting.o dirty-bitmap.o
 block-obj-y += write-threshold.o
+
+block-obj-y += crypto.o
 
 common-obj-y += stream.o
 common-obj-y += commit.o

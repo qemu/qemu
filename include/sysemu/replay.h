@@ -113,6 +113,8 @@ void replay_bh_schedule_event(QEMUBH *bh);
 void replay_input_event(QemuConsole *src, InputEvent *evt);
 /*! Adds input sync event to the queue */
 void replay_input_sync_event(void);
+/*! Adds block layer event to the queue */
+void replay_block_event(QEMUBH *bh, uint64_t id);
 
 /* Character device */
 

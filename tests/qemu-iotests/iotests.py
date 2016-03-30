@@ -29,7 +29,9 @@ import qtest
 import struct
 
 __all__ = ['imgfmt', 'imgproto', 'test_dir' 'qemu_img', 'qemu_io',
-           'VM', 'QMPTestCase', 'notrun', 'main']
+           'VM', 'QMPTestCase', 'notrun', 'main', 'verify_image_format',
+           'verify_platform', 'filter_test_dir', 'filter_win32',
+           'filter_qemu_io', 'filter_chown', 'log']
 
 # This will not work if arguments contain spaces but is necessary if we
 # want to support the override options that ./check supports.
@@ -71,7 +73,9 @@ def qemu_img_verbose(*args):
 
 def qemu_img_pipe(*args):
     '''Run qemu-img and return its output'''
-    subp = subprocess.Popen(qemu_img_args + list(args), stdout=subprocess.PIPE)
+    subp = subprocess.Popen(qemu_img_args + list(args),
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT)
     exitcode = subp.wait()
     if exitcode < 0:
         sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
@@ -80,7 +84,8 @@ def qemu_img_pipe(*args):
 def qemu_io(*args):
     '''Run qemu-io and return the stdout data'''
     args = qemu_io_args + list(args)
-    subp = subprocess.Popen(args, stdout=subprocess.PIPE)
+    subp = subprocess.Popen(args, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT)
     exitcode = subp.wait()
     if exitcode < 0:
         sys.stderr.write('qemu-io received signal %i: %s\n' % (-exitcode, ' '.join(args)))
@@ -100,6 +105,28 @@ def create_image(name, size):
         file.write(sector)
         i = i + 512
     file.close()
+
+test_dir_re = re.compile(r"%s" % test_dir)
+def filter_test_dir(msg):
+    return test_dir_re.sub("TEST_DIR", msg)
+
+win32_re = re.compile(r"\r")
+def filter_win32(msg):
+    return win32_re.sub("", msg)
+
+qemu_io_re = re.compile(r"[0-9]* ops; [0-9\/:. sec]* \([0-9\/.inf]* [EPTGMKiBbytes]*\/sec and [0-9\/.inf]* ops\/sec\)")
+def filter_qemu_io(msg):
+    msg = filter_win32(msg)
+    return qemu_io_re.sub("X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)", msg)
+
+chown_re = re.compile(r"chown [0-9]+:[0-9]+")
+def filter_chown(msg):
+    return chown_re.sub("chown UID:GID", msg)
+
+def log(msg, filters=[]):
+    for flt in filters:
+        msg = flt(msg)
+    print msg
 
 # Test if 'match' is a recursive subset of 'event'
 def event_match(event, match=None):
@@ -391,16 +418,21 @@ def notrun(reason):
     print '%s not run: %s' % (seq, reason)
     sys.exit(0)
 
+def verify_image_format(supported_fmts=[]):
+    if supported_fmts and (imgfmt not in supported_fmts):
+        notrun('not suitable for this image format: %s' % imgfmt)
+
+def verify_platform(supported_oses=['linux']):
+    if True not in [sys.platform.startswith(x) for x in supported_oses]:
+        notrun('not suitable for this OS: %s' % sys.platform)
+
 def main(supported_fmts=[], supported_oses=['linux']):
     '''Run tests'''
 
     debug = '-d' in sys.argv
     verbosity = 1
-    if supported_fmts and (imgfmt not in supported_fmts):
-        notrun('not suitable for this image format: %s' % imgfmt)
-
-    if True not in [sys.platform.startswith(x) for x in supported_oses]:
-        notrun('not suitable for this OS: %s' % sys.platform)
+    verify_image_format(supported_fmts)
+    verify_platform(supported_oses)
 
     # We need to filter out the time taken from the output so that qemu-iotest
     # can reliably diff the results against master output.

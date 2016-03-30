@@ -45,6 +45,7 @@
 #include <IOKit/storage/IOMedia.h>
 #include <IOKit/storage/IOCDMedia.h>
 //#include <IOKit/storage/IOCDTypes.h>
+#include <IOKit/storage/IODVDMedia.h>
 #include <CoreFoundation/CoreFoundation.h>
 #endif
 
@@ -1966,33 +1967,47 @@ BlockDriver bdrv_file = {
 /* host device */
 
 #if defined(__APPLE__) && defined(__MACH__)
-static kern_return_t FindEjectableCDMedia( io_iterator_t *mediaIterator );
 static kern_return_t GetBSDPath(io_iterator_t mediaIterator, char *bsdPath,
                                 CFIndex maxPathSize, int flags);
-kern_return_t FindEjectableCDMedia( io_iterator_t *mediaIterator )
+static char *FindEjectableOpticalMedia(io_iterator_t *mediaIterator)
 {
-    kern_return_t       kernResult;
+    kern_return_t kernResult = KERN_FAILURE;
     mach_port_t     masterPort;
     CFMutableDictionaryRef  classesToMatch;
+    const char *matching_array[] = {kIODVDMediaClass, kIOCDMediaClass};
+    char *mediaType = NULL;
 
     kernResult = IOMasterPort( MACH_PORT_NULL, &masterPort );
     if ( KERN_SUCCESS != kernResult ) {
         printf( "IOMasterPort returned %d\n", kernResult );
     }
 
-    classesToMatch = IOServiceMatching( kIOCDMediaClass );
-    if ( classesToMatch == NULL ) {
-        printf( "IOServiceMatching returned a NULL dictionary.\n" );
-    } else {
-    CFDictionarySetValue( classesToMatch, CFSTR( kIOMediaEjectableKey ), kCFBooleanTrue );
-    }
-    kernResult = IOServiceGetMatchingServices( masterPort, classesToMatch, mediaIterator );
-    if ( KERN_SUCCESS != kernResult )
-    {
-        printf( "IOServiceGetMatchingServices returned %d\n", kernResult );
-    }
+    int index;
+    for (index = 0; index < ARRAY_SIZE(matching_array); index++) {
+        classesToMatch = IOServiceMatching(matching_array[index]);
+        if (classesToMatch == NULL) {
+            error_report("IOServiceMatching returned NULL for %s",
+                         matching_array[index]);
+            continue;
+        }
+        CFDictionarySetValue(classesToMatch, CFSTR(kIOMediaEjectableKey),
+                             kCFBooleanTrue);
+        kernResult = IOServiceGetMatchingServices(masterPort, classesToMatch,
+                                                  mediaIterator);
+        if (kernResult != KERN_SUCCESS) {
+            error_report("Note: IOServiceGetMatchingServices returned %d",
+                         kernResult);
+            continue;
+        }
 
-    return kernResult;
+        /* If a match was found, leave the loop */
+        if (*mediaIterator != 0) {
+            DPRINTF("Matching using %s\n", matching_array[index]);
+            mediaType = g_strdup(matching_array[index]);
+            break;
+        }
+    }
+    return mediaType;
 }
 
 kern_return_t GetBSDPath(io_iterator_t mediaIterator, char *bsdPath,
@@ -2024,7 +2039,46 @@ kern_return_t GetBSDPath(io_iterator_t mediaIterator, char *bsdPath,
     return kernResult;
 }
 
-#endif
+/* Sets up a real cdrom for use in QEMU */
+static bool setup_cdrom(char *bsd_path, Error **errp)
+{
+    int index, num_of_test_partitions = 2, fd;
+    char test_partition[MAXPATHLEN];
+    bool partition_found = false;
+
+    /* look for a working partition */
+    for (index = 0; index < num_of_test_partitions; index++) {
+        snprintf(test_partition, sizeof(test_partition), "%ss%d", bsd_path,
+                 index);
+        fd = qemu_open(test_partition, O_RDONLY | O_BINARY | O_LARGEFILE);
+        if (fd >= 0) {
+            partition_found = true;
+            qemu_close(fd);
+            break;
+        }
+    }
+
+    /* if a working partition on the device was not found */
+    if (partition_found == false) {
+        error_setg(errp, "Failed to find a working partition on disc");
+    } else {
+        DPRINTF("Using %s as optical disc\n", test_partition);
+        pstrcpy(bsd_path, MAXPATHLEN, test_partition);
+    }
+    return partition_found;
+}
+
+/* Prints directions on mounting and unmounting a device */
+static void print_unmounting_directions(const char *file_name)
+{
+    error_report("If device %s is mounted on the desktop, unmount"
+                 " it first before using it in QEMU", file_name);
+    error_report("Command to unmount device: diskutil unmountDisk %s",
+                 file_name);
+    error_report("Command to mount device: diskutil mountDisk %s", file_name);
+}
+
+#endif /* defined(__APPLE__) && defined(__MACH__) */
 
 static int hdev_probe_device(const char *filename)
 {
@@ -2115,33 +2169,57 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
 
 #if defined(__APPLE__) && defined(__MACH__)
     const char *filename = qdict_get_str(options, "filename");
+    char bsd_path[MAXPATHLEN] = "";
+    bool error_occurred = false;
 
-    if (strstart(filename, "/dev/cdrom", NULL)) {
-        kern_return_t kernResult;
-        io_iterator_t mediaIterator;
-        char bsdPath[ MAXPATHLEN ];
-        int fd;
+    /* If using a real cdrom */
+    if (strcmp(filename, "/dev/cdrom") == 0) {
+        char *mediaType = NULL;
+        kern_return_t ret_val;
+        io_iterator_t mediaIterator = 0;
 
-        kernResult = FindEjectableCDMedia( &mediaIterator );
-        kernResult = GetBSDPath(mediaIterator, bsdPath, sizeof(bsdPath),
-                                flags);
-        if ( bsdPath[ 0 ] != '\0' ) {
-            strcat(bsdPath,"s0");
-            /* some CDs don't have a partition 0 */
-            fd = qemu_open(bsdPath, O_RDONLY | O_BINARY | O_LARGEFILE);
-            if (fd < 0) {
-                bsdPath[strlen(bsdPath)-1] = '1';
-            } else {
-                qemu_close(fd);
-            }
-            filename = bsdPath;
-            qdict_put(options, "filename", qstring_from_str(filename));
+        mediaType = FindEjectableOpticalMedia(&mediaIterator);
+        if (mediaType == NULL) {
+            error_setg(errp, "Please make sure your CD/DVD is in the optical"
+                       " drive");
+            error_occurred = true;
+            goto hdev_open_Mac_error;
         }
 
-        if ( mediaIterator )
-            IOObjectRelease( mediaIterator );
+        ret_val = GetBSDPath(mediaIterator, bsd_path, sizeof(bsd_path), flags);
+        if (ret_val != KERN_SUCCESS) {
+            error_setg(errp, "Could not get BSD path for optical drive");
+            error_occurred = true;
+            goto hdev_open_Mac_error;
+        }
+
+        /* If a real optical drive was not found */
+        if (bsd_path[0] == '\0') {
+            error_setg(errp, "Failed to obtain bsd path for optical drive");
+            error_occurred = true;
+            goto hdev_open_Mac_error;
+        }
+
+        /* If using a cdrom disc and finding a partition on the disc failed */
+        if (strncmp(mediaType, kIOCDMediaClass, 9) == 0 &&
+            setup_cdrom(bsd_path, errp) == false) {
+            print_unmounting_directions(bsd_path);
+            error_occurred = true;
+            goto hdev_open_Mac_error;
+        }
+
+        qdict_put(options, "filename", qstring_from_str(bsd_path));
+
+hdev_open_Mac_error:
+        g_free(mediaType);
+        if (mediaIterator) {
+            IOObjectRelease(mediaIterator);
+        }
+        if (error_occurred) {
+            return -ENOENT;
+        }
     }
-#endif
+#endif /* defined(__APPLE__) && defined(__MACH__) */
 
     s->type = FTYPE_FILE;
 
@@ -2150,6 +2228,15 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
         if (local_err) {
             error_propagate(errp, local_err);
         }
+#if defined(__APPLE__) && defined(__MACH__)
+        if (*bsd_path) {
+            filename = bsd_path;
+        }
+        /* if a physical device experienced an error while being opened */
+        if (strncmp(filename, "/dev/", 5) == 0) {
+            print_unmounting_directions(filename);
+        }
+#endif /* defined(__APPLE__) && defined(__MACH__) */
         return ret;
     }
 

@@ -747,9 +747,9 @@ int bdrv_pwrite_sync(BlockDriverState *bs, int64_t offset,
         return ret;
     }
 
-    /* No flush needed for cache modes that already do it */
-    if (bs->enable_write_cache) {
-        bdrv_flush(bs);
+    ret = bdrv_flush(bs);
+    if (ret < 0) {
+        return ret;
     }
 
     return 0;
@@ -844,6 +844,7 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
     assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
     assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
     assert(!qiov || bytes == qiov->size);
+    assert((bs->open_flags & BDRV_O_NO_IO) == 0);
 
     /* Handle Copy on Read and associated serialisation */
     if (flags & BDRV_REQ_COPY_ON_READ) {
@@ -1130,6 +1131,7 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
     assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
     assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
     assert(!qiov || bytes == qiov->size);
+    assert((bs->open_flags & BDRV_O_NO_IO) == 0);
 
     waited = wait_serialising_requests(req);
     assert(!waited || !req->serialising);
@@ -1152,13 +1154,20 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
     } else if (flags & BDRV_REQ_ZERO_WRITE) {
         bdrv_debug_event(bs, BLKDBG_PWRITEV_ZERO);
         ret = bdrv_co_do_write_zeroes(bs, sector_num, nb_sectors, flags);
+    } else if (drv->bdrv_co_writev_flags) {
+        bdrv_debug_event(bs, BLKDBG_PWRITEV);
+        ret = drv->bdrv_co_writev_flags(bs, sector_num, nb_sectors, qiov,
+                                        flags);
     } else {
+        assert(drv->supported_write_flags == 0);
         bdrv_debug_event(bs, BLKDBG_PWRITEV);
         ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
     }
     bdrv_debug_event(bs, BLKDBG_PWRITEV_DONE);
 
-    if (ret == 0 && !bs->enable_write_cache) {
+    if (ret == 0 && (flags & BDRV_REQ_FUA) &&
+        !(drv->supported_write_flags & BDRV_REQ_FUA))
+    {
         ret = bdrv_co_flush(bs);
     }
 
@@ -2331,6 +2340,13 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
     }
 
     tracked_request_begin(&req, bs, 0, 0, BDRV_TRACKED_FLUSH);
+
+    /* Write back all layers by calling one driver function */
+    if (bs->drv->bdrv_co_flush) {
+        ret = bs->drv->bdrv_co_flush(bs);
+        goto out;
+    }
+
     /* Write back cached data to the OS even with cache=unsafe */
     BLKDBG_EVENT(bs->file, BLKDBG_FLUSH_TO_OS);
     if (bs->drv->bdrv_co_flush_to_os) {

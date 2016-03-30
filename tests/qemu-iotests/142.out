@@ -39,14 +39,17 @@ cache.direct=on on none0
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
 
 cache.direct=on on file
+    Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback, direct
     Cache mode:       writeback
     Cache mode:       writeback
 
 cache.direct=on on backing
+    Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback, direct
@@ -56,32 +59,25 @@ cache.direct=on on backing-file
     Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
+    Cache mode:       writeback
     Cache mode:       writeback, direct
 
 
 cache.writeback=off on none0
     Cache mode:       writethrough
     Cache mode:       writeback
-    Cache mode:       writethrough
+    Cache mode:       writeback
+    Cache mode:       writeback
     Cache mode:       writeback
 
 cache.writeback=off on file
-    Cache mode:       writeback
-    Cache mode:       writethrough
-    Cache mode:       writeback
-    Cache mode:       writeback
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,file.cache.writeback=off: Block protocol 'file' doesn't support the option 'cache.writeback'
 
 cache.writeback=off on backing
-    Cache mode:       writeback
-    Cache mode:       writeback
-    Cache mode:       writethrough
-    Cache mode:       writeback
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,backing.cache.writeback=off: Could not open backing file: Block format 'qcow2' does not support the option 'cache.writeback'
 
 cache.writeback=off on backing-file
-    Cache mode:       writeback
-    Cache mode:       writeback
-    Cache mode:       writeback
-    Cache mode:       writethrough
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,backing.file.cache.writeback=off: Could not open backing file: Block protocol 'file' doesn't support the option 'cache.writeback'
 
 
 cache.no-flush=on on none0
@@ -89,8 +85,10 @@ cache.no-flush=on on none0
     Cache mode:       writeback, ignore flushes
     Cache mode:       writeback, ignore flushes
     Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, ignore flushes
 
 cache.no-flush=on on file
+    Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback, ignore flushes
     Cache mode:       writeback
@@ -99,10 +97,12 @@ cache.no-flush=on on file
 cache.no-flush=on on backing
     Cache mode:       writeback
     Cache mode:       writeback
+    Cache mode:       writeback
     Cache mode:       writeback, ignore flushes
     Cache mode:       writeback, ignore flushes
 
 cache.no-flush=on on backing-file
+    Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
@@ -141,31 +141,19 @@ cache.direct=on on backing-file
 
 cache.writeback=off on none0
     Cache mode:       writethrough
-    Cache mode:       writethrough
     Cache mode:       writeback
-    Cache mode:       writethrough
+    Cache mode:       writeback
+    Cache mode:       writeback
     Cache mode:       writeback
 
 cache.writeback=off on file
-    Cache mode:       writeback
-    Cache mode:       writeback
-    Cache mode:       writethrough
-    Cache mode:       writeback
-    Cache mode:       writeback
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,file.cache.writeback=off: Block protocol 'file' doesn't support the option 'cache.writeback'
 
 cache.writeback=off on backing
-    Cache mode:       writeback
-    Cache mode:       writeback
-    Cache mode:       writeback
-    Cache mode:       writethrough
-    Cache mode:       writeback
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,backing.cache.writeback=off: Could not open backing file: Block format 'qcow2' does not support the option 'cache.writeback'
 
 cache.writeback=off on backing-file
-    Cache mode:       writeback
-    Cache mode:       writeback
-    Cache mode:       writeback
-    Cache mode:       writeback
-    Cache mode:       writethrough
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,backing.file.cache.writeback=off: Could not open backing file: Block protocol 'file' doesn't support the option 'cache.writeback'
 
 
 cache.no-flush=on on none0
@@ -203,8 +191,10 @@ cache.direct=on on none0
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
 
 cache.direct=on on file
+    Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
@@ -215,8 +205,10 @@ cache.direct=on on backing
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
 
 cache.direct=on on backing-file
+    Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
@@ -228,24 +220,16 @@ cache.writeback=off on none0
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
 
 cache.writeback=off on file
-    Cache mode:       writeback, direct
-    Cache mode:       writethrough, direct
-    Cache mode:       writeback, direct
-    Cache mode:       writeback, direct
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,file.cache.writeback=off: Block protocol 'file' doesn't support the option 'cache.writeback'
 
 cache.writeback=off on backing
-    Cache mode:       writeback, direct
-    Cache mode:       writeback, direct
-    Cache mode:       writethrough, direct
-    Cache mode:       writeback, direct
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,backing.cache.writeback=off: Could not open backing file: Block format 'qcow2' does not support the option 'cache.writeback'
 
 cache.writeback=off on backing-file
-    Cache mode:       writeback, direct
-    Cache mode:       writeback, direct
-    Cache mode:       writeback, direct
-    Cache mode:       writethrough, direct
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,backing.file.cache.writeback=off: Could not open backing file: Block protocol 'file' doesn't support the option 'cache.writeback'
 
 
 cache.no-flush=on on none0
@@ -253,8 +237,10 @@ cache.no-flush=on on none0
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
 
 cache.no-flush=on on file
+    Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct, ignore flushes
     Cache mode:       writeback, direct
@@ -263,10 +249,12 @@ cache.no-flush=on on file
 cache.no-flush=on on backing
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
     Cache mode:       writeback, direct, ignore flushes
     Cache mode:       writeback, direct, ignore flushes
 
 cache.no-flush=on on backing-file
+    Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
@@ -279,8 +267,10 @@ cache.direct=on on none0
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
 
 cache.direct=on on file
+    Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
@@ -291,8 +281,10 @@ cache.direct=on on backing
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
 
 cache.direct=on on backing-file
+    Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
@@ -302,26 +294,18 @@ cache.direct=on on backing-file
 cache.writeback=off on none0
     Cache mode:       writethrough, direct
     Cache mode:       writeback, direct
-    Cache mode:       writethrough, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
     Cache mode:       writeback, direct
 
 cache.writeback=off on file
-    Cache mode:       writeback, direct
-    Cache mode:       writethrough, direct
-    Cache mode:       writeback, direct
-    Cache mode:       writeback, direct
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,file.cache.writeback=off: Block protocol 'file' doesn't support the option 'cache.writeback'
 
 cache.writeback=off on backing
-    Cache mode:       writeback, direct
-    Cache mode:       writeback, direct
-    Cache mode:       writethrough, direct
-    Cache mode:       writeback, direct
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,backing.cache.writeback=off: Could not open backing file: Block format 'qcow2' does not support the option 'cache.writeback'
 
 cache.writeback=off on backing-file
-    Cache mode:       writeback, direct
-    Cache mode:       writeback, direct
-    Cache mode:       writeback, direct
-    Cache mode:       writethrough, direct
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,backing.file.cache.writeback=off: Could not open backing file: Block protocol 'file' doesn't support the option 'cache.writeback'
 
 
 cache.no-flush=on on none0
@@ -329,8 +313,10 @@ cache.no-flush=on on none0
     Cache mode:       writeback, direct, ignore flushes
     Cache mode:       writeback, direct, ignore flushes
     Cache mode:       writeback, direct, ignore flushes
+    Cache mode:       writeback, direct, ignore flushes
 
 cache.no-flush=on on file
+    Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct, ignore flushes
     Cache mode:       writeback, direct
@@ -339,10 +325,12 @@ cache.no-flush=on on file
 cache.no-flush=on on backing
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
     Cache mode:       writeback, direct, ignore flushes
     Cache mode:       writeback, direct, ignore flushes
 
 cache.no-flush=on on backing-file
+    Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
@@ -381,31 +369,19 @@ cache.direct=on on backing-file
 
 cache.writeback=off on none0
     Cache mode:       writeback, direct
-    Cache mode:       writethrough
     Cache mode:       writeback
-    Cache mode:       writethrough
+    Cache mode:       writeback
+    Cache mode:       writeback
     Cache mode:       writeback
 
 cache.writeback=off on file
-    Cache mode:       writeback, direct
-    Cache mode:       writeback
-    Cache mode:       writethrough
-    Cache mode:       writeback
-    Cache mode:       writeback
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,file.cache.writeback=off: Block protocol 'file' doesn't support the option 'cache.writeback'
 
 cache.writeback=off on backing
-    Cache mode:       writeback, direct
-    Cache mode:       writeback
-    Cache mode:       writeback
-    Cache mode:       writethrough
-    Cache mode:       writeback
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,backing.cache.writeback=off: Could not open backing file: Block format 'qcow2' does not support the option 'cache.writeback'
 
 cache.writeback=off on backing-file
-    Cache mode:       writeback, direct
-    Cache mode:       writeback
-    Cache mode:       writeback
-    Cache mode:       writeback
-    Cache mode:       writethrough
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,backing.file.cache.writeback=off: Could not open backing file: Block protocol 'file' doesn't support the option 'cache.writeback'
 
 
 cache.no-flush=on on none0
@@ -438,9 +414,10 @@ cache.no-flush=on on backing-file
 
 --- Change cache mode in parent, child has explicit option in JSON ---
 
-    Cache mode:       writethrough, direct, ignore flushes
     Cache mode:       writeback, direct, ignore flushes
-    Cache mode:       writethrough, ignore flushes
+    Cache mode:       writeback, direct, ignore flushes
+    Cache mode:       writeback, direct, ignore flushes
+    Cache mode:       writeback, ignore flushes
 
 === Check that referenced BDSes don't inherit ===
 
@@ -473,28 +450,28 @@ cache.direct=on on backing-file
 
 
 cache.writeback=off on blk
-    Cache mode:       writethrough
+    Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
 
 cache.writeback=off on file
     Cache mode:       writeback
-    Cache mode:       writethrough
+    Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
 
 cache.writeback=off on backing
     Cache mode:       writeback
     Cache mode:       writeback
-    Cache mode:       writethrough
+    Cache mode:       writeback
     Cache mode:       writeback
 
 cache.writeback=off on backing-file
     Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
-    Cache mode:       writethrough
+    Cache mode:       writeback
 
 
 cache.no-flush=on on blk
@@ -554,7 +531,7 @@ cache.direct=on on backing-file
 
 cache.writeback=off on blk
     Cache mode:       writethrough
-    Cache mode:       writethrough
+    Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
@@ -562,7 +539,7 @@ cache.writeback=off on blk
 cache.writeback=off on file
     Cache mode:       writeback
     Cache mode:       writeback
-    Cache mode:       writethrough
+    Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
 
@@ -570,7 +547,7 @@ cache.writeback=off on backing
     Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
-    Cache mode:       writethrough
+    Cache mode:       writeback
     Cache mode:       writeback
 
 cache.writeback=off on backing-file
@@ -578,7 +555,7 @@ cache.writeback=off on backing-file
     Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
-    Cache mode:       writethrough
+    Cache mode:       writeback
 
 
 cache.no-flush=on on blk
@@ -644,21 +621,21 @@ cache.writeback=off on blk
 
 cache.writeback=off on file
     Cache mode:       writeback, direct
-    Cache mode:       writethrough
+    Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
 
 cache.writeback=off on backing
     Cache mode:       writeback, direct
     Cache mode:       writeback
-    Cache mode:       writethrough
+    Cache mode:       writeback
     Cache mode:       writeback
 
 cache.writeback=off on backing-file
     Cache mode:       writeback, direct
     Cache mode:       writeback
     Cache mode:       writeback
-    Cache mode:       writethrough
+    Cache mode:       writeback
 
 
 cache.no-flush=on on blk
@@ -695,8 +672,10 @@ cache.direct=on on none0
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
 
 cache.direct=on on file
+    Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
@@ -705,10 +684,12 @@ cache.direct=on on file
 cache.direct=on on backing
     Cache mode:       writeback
     Cache mode:       writeback
+    Cache mode:       writeback
     Cache mode:       writeback, direct
     Cache mode:       writeback, direct
 
 cache.direct=on on backing-file
+    Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback, direct
@@ -718,35 +699,29 @@ cache.direct=on on backing-file
 cache.writeback=off on none0
     Cache mode:       writethrough
     Cache mode:       writeback
-    Cache mode:       writethrough, direct
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
     Cache mode:       writeback, direct
 
 cache.writeback=off on file
-    Cache mode:       writeback
-    Cache mode:       writethrough
-    Cache mode:       writeback, direct
-    Cache mode:       writeback, direct
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,file.cache.writeback=off: Block protocol 'file' doesn't support the option 'cache.writeback'
 
 cache.writeback=off on backing
-    Cache mode:       writeback
-    Cache mode:       writeback
-    Cache mode:       writethrough, direct
-    Cache mode:       writeback, direct
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,backing.cache.writeback=off: Could not open backing file: Block format 'qcow2' does not support the option 'cache.writeback'
 
 cache.writeback=off on backing-file
-    Cache mode:       writeback
-    Cache mode:       writeback
-    Cache mode:       writeback, direct
-    Cache mode:       writethrough, direct
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,backing.file.filename=TEST_DIR/t.qcow2.base,node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,backing.file.cache.writeback=off: Could not open backing file: Block protocol 'file' doesn't support the option 'cache.writeback'
 
 
 cache.no-flush=on on none0
+    Cache mode:       writeback, ignore flushes
     Cache mode:       writeback, ignore flushes
     Cache mode:       writeback, ignore flushes
     Cache mode:       writeback, direct, ignore flushes
     Cache mode:       writeback, direct, ignore flushes
 
 cache.no-flush=on on file
+    Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback, ignore flushes
     Cache mode:       writeback, direct
@@ -755,10 +730,12 @@ cache.no-flush=on on file
 cache.no-flush=on on backing
     Cache mode:       writeback
     Cache mode:       writeback
+    Cache mode:       writeback
     Cache mode:       writeback, direct, ignore flushes
     Cache mode:       writeback, direct, ignore flushes
 
 cache.no-flush=on on backing-file
+    Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback
     Cache mode:       writeback, direct
@@ -767,7 +744,7 @@ cache.no-flush=on on backing-file
 --- Change cache mode after reopening child ---
 
     Cache mode:       writeback, direct
-    Cache mode:       writethrough
+    Cache mode:       writeback
     Cache mode:       writeback, direct
     Cache mode:       writeback, ignore flushes
 *** done

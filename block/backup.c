@@ -404,7 +404,6 @@ static void coroutine_fn backup_run(void *opaque)
 
     job->done_bitmap = bitmap_new(end);
 
-    bdrv_set_enable_write_cache(target, true);
     if (target->blk) {
         blk_set_on_error(target->blk, on_target_error, on_target_error);
         blk_iostatus_enable(target->blk);

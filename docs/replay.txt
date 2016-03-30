@@ -175,3 +175,23 @@ Sometimes the block layer uses asynchronous callbacks for its internal purposes
 (like reading or writing VM snapshots or disk image cluster tables). In this
 case bottom halves are not marked as "replayable" and do not saved
 into the log.
+
+Block devices
+-------------
+
+Block devices record/replay module intercepts calls of
+bdrv coroutine functions at the top of block drivers stack.
+To record and replay block operations the drive must be configured
+as following:
+ -drive file=disk.qcow,if=none,id=img-direct
+ -drive driver=blkreplay,if=none,image=img-direct,id=img-blkreplay
+ -device ide-hd,drive=img-blkreplay
+
+blkreplay driver should be inserted between disk image and virtual driver
+controller. Therefore all disk requests may be recorded and replayed.
+
+All block completion operations are added to the queue in the coroutines.
+Queue is flushed at checkpoints and information about processed requests
+is recorded to the log. In replay phase the queue is matched with
+events read from the log. Therefore block devices requests are processed
+deterministically.

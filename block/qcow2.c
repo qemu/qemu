@@ -965,6 +965,14 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
     s->crypt_method_header = header.crypt_method;
     if (s->crypt_method_header) {
+        if (bdrv_uses_whitelist() &&
+            s->crypt_method_header == QCOW_CRYPT_AES) {
+            error_report("qcow2 built-in AES encryption is deprecated");
+            error_printf("Support for it will be removed in a future release.\n"
+                         "You can use 'qemu-img convert' to switch to an\n"
+                         "unencrypted qcow2 image, or a LUKS raw image.\n");
+        }
+
         bs->encrypted = 1;
     }
 
@@ -2160,8 +2168,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     }
 
     blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
-                       &local_err);
+                       BDRV_O_RDWR | BDRV_O_PROTOCOL, &local_err);
     if (blk == NULL) {
         error_propagate(errp, local_err);
         return -EIO;
@@ -2225,8 +2232,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     options = qdict_new();
     qdict_put(options, "driver", qstring_from_str("qcow2"));
     blk = blk_new_open(filename, NULL, options,
-                       BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH,
-                       &local_err);
+                       BDRV_O_RDWR | BDRV_O_NO_FLUSH, &local_err);
     if (blk == NULL) {
         error_propagate(errp, local_err);
         ret = -EIO;
@@ -2287,8 +2293,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     options = qdict_new();
     qdict_put(options, "driver", qstring_from_str("qcow2"));
     blk = blk_new_open(filename, NULL, options,
-                       BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_BACKING,
-                       &local_err);
+                       BDRV_O_RDWR | BDRV_O_NO_BACKING, &local_err);
     if (blk == NULL) {
         error_propagate(errp, local_err);
         ret = -EIO;

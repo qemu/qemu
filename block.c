@@ -289,6 +289,11 @@ static int bdrv_is_whitelisted(BlockDriver *drv, bool read_only)
     return 0;
 }
 
+bool bdrv_uses_whitelist(void)
+{
+    return use_bdrv_whitelist;
+}
+
 typedef struct CreateCo {
     BlockDriver *drv;
     char *filename;
@@ -640,21 +645,23 @@ int bdrv_parse_discard_flags(const char *mode, int *flags)
  *
  * Return 0 on success, -1 if the cache mode was invalid.
  */
-int bdrv_parse_cache_flags(const char *mode, int *flags)
+int bdrv_parse_cache_mode(const char *mode, int *flags, bool *writethrough)
 {
     *flags &= ~BDRV_O_CACHE_MASK;
 
     if (!strcmp(mode, "off") || !strcmp(mode, "none")) {
-        *flags |= BDRV_O_NOCACHE | BDRV_O_CACHE_WB;
+        *writethrough = false;
+        *flags |= BDRV_O_NOCACHE;
     } else if (!strcmp(mode, "directsync")) {
+        *writethrough = true;
         *flags |= BDRV_O_NOCACHE;
     } else if (!strcmp(mode, "writeback")) {
-        *flags |= BDRV_O_CACHE_WB;
+        *writethrough = false;
     } else if (!strcmp(mode, "unsafe")) {
-        *flags |= BDRV_O_CACHE_WB;
+        *writethrough = false;
         *flags |= BDRV_O_NO_FLUSH;
     } else if (!strcmp(mode, "writethrough")) {
-        /* this is the default */
+        *writethrough = true;
     } else {
         return -1;
     }
@@ -673,7 +680,6 @@ static void bdrv_temp_snapshot_options(int *child_flags, QDict *child_options,
     *child_flags = (parent_flags & ~BDRV_O_SNAPSHOT) | BDRV_O_TEMPORARY;
 
     /* For temporary files, unconditional cache=unsafe is fine */
-    qdict_set_default_str(child_options, BDRV_OPT_CACHE_WB, "on");
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_NO_FLUSH, "on");
 }
@@ -698,11 +704,11 @@ static void bdrv_inherited_options(int *child_flags, QDict *child_options,
     /* Our block drivers take care to send flushes and respect unmap policy,
      * so we can default to enable both on lower layers regardless of the
      * corresponding parent options. */
-    qdict_set_default_str(child_options, BDRV_OPT_CACHE_WB, "on");
     flags |= BDRV_O_UNMAP;
 
     /* Clear flags that only apply to the top layer */
-    flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_COPY_ON_READ);
+    flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_COPY_ON_READ |
+               BDRV_O_NO_IO);
 
     *child_flags = flags;
 }
@@ -722,7 +728,7 @@ static void bdrv_inherited_fmt_options(int *child_flags, QDict *child_options,
     child_file.inherit_options(child_flags, child_options,
                                parent_flags, parent_options);
 
-    *child_flags &= ~BDRV_O_PROTOCOL;
+    *child_flags &= ~(BDRV_O_PROTOCOL | BDRV_O_NO_IO);
 }
 
 const BdrvChildRole child_format = {
@@ -738,8 +744,8 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
 {
     int flags = parent_flags;
 
-    /* The cache mode is inherited unmodified for backing files */
-    qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_WB);
+    /* The cache mode is inherited unmodified for backing files; except WCE,
+     * which is only applied on the top level (BlockBackend) */
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_DIRECT);
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_NO_FLUSH);
 
@@ -758,7 +764,7 @@ static const BdrvChildRole child_backing = {
 
 static int bdrv_open_flags(BlockDriverState *bs, int flags)
 {
-    int open_flags = flags | BDRV_O_CACHE_WB;
+    int open_flags = flags;
 
     /*
      * Clear flags that are internal to the block layer before opening the
@@ -780,11 +786,6 @@ static void update_flags_from_options(int *flags, QemuOpts *opts)
 {
     *flags &= ~BDRV_O_CACHE_MASK;
 
-    assert(qemu_opt_find(opts, BDRV_OPT_CACHE_WB));
-    if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_WB, false)) {
-        *flags |= BDRV_O_CACHE_WB;
-    }
-
     assert(qemu_opt_find(opts, BDRV_OPT_CACHE_NO_FLUSH));
     if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_NO_FLUSH, false)) {
         *flags |= BDRV_O_NO_FLUSH;
@@ -798,10 +799,6 @@ static void update_flags_from_options(int *flags, QemuOpts *opts)
 
 static void update_options_from_flags(QDict *options, int flags)
 {
-    if (!qdict_haskey(options, BDRV_OPT_CACHE_WB)) {
-        qdict_put(options, BDRV_OPT_CACHE_WB,
-                  qbool_from_bool(flags & BDRV_O_CACHE_WB));
-    }
     if (!qdict_haskey(options, BDRV_OPT_CACHE_DIRECT)) {
         qdict_put(options, BDRV_OPT_CACHE_DIRECT,
                   qbool_from_bool(flags & BDRV_O_NOCACHE));
@@ -862,11 +859,6 @@ static QemuOptsList bdrv_runtime_opts = {
             .name = "driver",
             .type = QEMU_OPT_STRING,
             .help = "Block driver to use for the node",
-        },
-        {
-            .name = BDRV_OPT_CACHE_WB,
-            .type = QEMU_OPT_BOOL,
-            .help = "Enable writeback mode",
         },
         {
             .name = BDRV_OPT_CACHE_DIRECT,
@@ -974,7 +966,6 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
 
     /* Apply cache mode options */
     update_flags_from_options(&bs->open_flags, opts);
-    bdrv_set_enable_write_cache(bs, bs->open_flags & BDRV_O_CACHE_WB);
 
     /* Open the image, either directly or using a protocol */
     open_flags = bdrv_open_flags(bs, bs->open_flags);
@@ -1002,13 +993,6 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
             error_setg_errno(errp, -ret, "Could not open image");
         }
         goto free_and_fail;
-    }
-
-    if (bs->encrypted) {
-        error_report("Encrypted images are deprecated");
-        error_printf("Support for them will be removed in a future release.\n"
-                     "You can use 'qemu-img convert' to convert your image"
-                     " to an unencrypted one.\n");
     }
 
     ret = refresh_total_sectors(bs, bs->total_sectors);
@@ -2004,17 +1988,6 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
 
     update_flags_from_options(&reopen_state->flags, opts);
 
-    /* If a guest device is attached, it owns WCE */
-    if (reopen_state->bs->blk && blk_get_attached_dev(reopen_state->bs->blk)) {
-        bool old_wce = bdrv_enable_write_cache(reopen_state->bs);
-        bool new_wce = (reopen_state->flags & BDRV_O_CACHE_WB);
-        if (old_wce != new_wce) {
-            error_setg(errp, "Cannot change cache.writeback: Device attached");
-            ret = -EINVAL;
-            goto error;
-        }
-    }
-
     /* node-name and driver must be unchanged. Put them back into the QDict, so
      * that they are checked at the end of this function. */
     value = qemu_opt_get(opts, "node-name");
@@ -2114,8 +2087,6 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state)
 
     reopen_state->bs->explicit_options   = reopen_state->explicit_options;
     reopen_state->bs->open_flags         = reopen_state->flags;
-    reopen_state->bs->enable_write_cache = !!(reopen_state->flags &
-                                              BDRV_O_CACHE_WB);
     reopen_state->bs->read_only = !(reopen_state->flags & BDRV_O_RDWR);
 
     bdrv_refresh_limits(reopen_state->bs, NULL);
@@ -2242,29 +2213,11 @@ void bdrv_close_all(void)
     }
 }
 
-/* make a BlockDriverState anonymous by removing from graph_bdrv_state list.
- * Also, NULL terminate the device_name to prevent double remove */
-void bdrv_make_anon(BlockDriverState *bs)
-{
-    if (bs->node_name[0] != '\0') {
-        QTAILQ_REMOVE(&graph_bdrv_states, bs, node_list);
-    }
-    bs->node_name[0] = '\0';
-}
-
 /* Fields that need to stay with the top-level BDS */
 static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
                                      BlockDriverState *bs_src)
 {
     /* move some fields that need to stay attached to the device */
-
-    /* dev info */
-    bs_dest->copy_on_read       = bs_src->copy_on_read;
-
-    bs_dest->enable_write_cache = bs_src->enable_write_cache;
-
-    /* dirty bitmap */
-    bs_dest->dirty_bitmaps      = bs_src->dirty_bitmaps;
 }
 
 static void change_parent_backing_link(BlockDriverState *from,
@@ -2381,8 +2334,9 @@ static void bdrv_delete(BlockDriverState *bs)
     bdrv_close(bs);
 
     /* remove from list, if necessary */
-    bdrv_make_anon(bs);
-
+    if (bs->node_name[0] != '\0') {
+        QTAILQ_REMOVE(&graph_bdrv_states, bs, node_list);
+    }
     QTAILQ_REMOVE(&all_bdrv_states, bs, bs_list);
 
     g_free(bs);
@@ -2741,23 +2695,6 @@ int bdrv_is_sg(BlockDriverState *bs)
     return bs->sg;
 }
 
-int bdrv_enable_write_cache(BlockDriverState *bs)
-{
-    return bs->enable_write_cache;
-}
-
-void bdrv_set_enable_write_cache(BlockDriverState *bs, bool wce)
-{
-    bs->enable_write_cache = wce;
-
-    /* so a reopen() will preserve wce */
-    if (wce) {
-        bs->open_flags |= BDRV_O_CACHE_WB;
-    } else {
-        bs->open_flags &= ~BDRV_O_CACHE_WB;
-    }
-}
-
 int bdrv_is_encrypted(BlockDriverState *bs)
 {
     if (bs->backing && bs->backing->bs->encrypted) {
@@ -2899,7 +2836,7 @@ BlockDeviceInfoList *bdrv_named_nodes_list(Error **errp)
 
     list = NULL;
     QTAILQ_FOREACH(bs, &graph_bdrv_states, node_list) {
-        BlockDeviceInfo *info = bdrv_block_device_info(bs, errp);
+        BlockDeviceInfo *info = bdrv_block_device_info(NULL, bs, errp);
         if (!info) {
             qapi_free_BlockDeviceInfoList(list);
             return NULL;
@@ -3608,8 +3545,8 @@ void bdrv_img_create(const char *filename, const char *fmt,
             }
 
             /* backing files always opened read-only */
-            back_flags =
-                flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+            back_flags = flags;
+            back_flags &= ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
 
             if (backing_fmt) {
                 backing_options = qdict_new();

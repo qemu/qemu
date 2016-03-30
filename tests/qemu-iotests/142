@@ -96,36 +96,36 @@ function check_cache_all()
     # bs->backing
 
     echo -e "cache.direct=on on none0"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",cache.direct=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",cache.direct=on | grep -e "Cache" -e "[Cc]annot|[Cc]ould not|[Cc]an't"
     echo -e "\ncache.direct=on on file"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.direct=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.direct=on | grep -e "Cache" -e "[Cc]annot|[Cc]ould not|[Cc]an't"
     echo -e "\ncache.direct=on on backing"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.direct=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.direct=on | grep -e "Cache" -e "[Cc]annot|[Cc]ould not|[Cc]an't"
     echo -e "\ncache.direct=on on backing-file"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.direct=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.direct=on | grep -e "Cache" -e "[Cc]annot|[Cc]ould not|[Cc]an't"
 
     # cache.writeback is supposed to be inherited by bs->backing; bs->file
     # always gets cache.writeback=on
 
     echo -e "\n\ncache.writeback=off on none0"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",cache.writeback=off | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",cache.writeback=off | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.writeback=off on file"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.writeback=off | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.writeback=off | grep -e "doesn't" -e "does not"
     echo -e "\ncache.writeback=off on backing"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.writeback=off | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.writeback=off | grep -e "doesn't" -e "does not"
     echo -e "\ncache.writeback=off on backing-file"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.writeback=off | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.writeback=off | grep -e "doesn't" -e "does not"
 
     # cache.no-flush is supposed to be inherited by both bs->file and bs->backing
 
     echo -e "\n\ncache.no-flush=on on none0"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",cache.no-flush=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",cache.no-flush=on | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.no-flush=on on file"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.no-flush=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.no-flush=on | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.no-flush=on on backing"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.no-flush=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.no-flush=on | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.no-flush=on on backing-file"
-    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.no-flush=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.no-flush=on | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
 }
 
 echo
@@ -134,7 +134,8 @@ echo
 
 # First check the inherited cache mode after opening the image.
 
-hmp_cmds="info block image
+hmp_cmds="info block none0
+info block image
 info block file
 info block backing
 info block backing-file"
@@ -164,6 +165,7 @@ echo
 # new cache mode is specified in the flags, not as an option.
 
 hmp_cmds='qemu-io none0 "reopen -c none"
+info block none0
 info block image
 info block file
 info block backing
@@ -179,6 +181,7 @@ echo
 # new cache mode is specified as an option, not in the flags.
 
 hmp_cmds='qemu-io none0 "reopen -o cache.direct=on"
+info block none0
 info block image
 info block file
 info block backing
@@ -213,12 +216,13 @@ echo
 # BDS initialised with the json: pseudo-protocol, but still have it inherit
 # options from its parent node.
 
-hmp_cmds="qemu-io none0 \"reopen -o cache.writeback=off,cache.direct=on,cache.no-flush=on\"
+hmp_cmds="qemu-io none0 \"reopen -o cache.direct=on,cache.no-flush=on\"
+info block none0
 info block image
 info block blkdebug
 info block file"
 
-echo "$hmp_cmds" | run_qemu -drive if=none,file="blkdebug::json:{\"filename\":\"$TEST_IMG\",,\"cache\":{\"writeback\":false,,\"direct\":false}}",node-name=image,file.node-name=blkdebug,file.image.node-name=file | grep "Cache"
+echo "$hmp_cmds" | run_qemu -drive if=none,file="blkdebug::json:{\"filename\":\"$TEST_IMG\",,\"cache\":{\"direct\":false}}",node-name=image,file.node-name=blkdebug,file.image.node-name=file | grep "Cache"
 
 echo
 echo "=== Check that referenced BDSes don't inherit ==="
@@ -234,35 +238,35 @@ function check_cache_all_separate()
     # Check cache.direct
 
     echo -e "cache.direct=on on blk"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img",cache.direct=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img",cache.direct=on | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.direct=on on file"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file",cache.direct=on -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file",cache.direct=on -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.direct=on on backing"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk",cache.direct=on -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk",cache.direct=on -drive "$drv_file" -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.direct=on on backing-file"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile",cache.direct=on -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile",cache.direct=on -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
 
     # Check cache.writeback
 
     echo -e "\n\ncache.writeback=off on blk"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img",cache.writeback=off | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img",cache.writeback=off | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.writeback=off on file"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file",cache.writeback=off -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file",cache.writeback=off -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.writeback=off on backing"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk",cache.writeback=off -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk",cache.writeback=off -drive "$drv_file" -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.writeback=off on backing-file"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile",cache.writeback=off -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile",cache.writeback=off -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
 
     # Check cache.no-flush
 
     echo -e "\n\ncache.no-flush=on on blk"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img",cache.no-flush=on | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img",cache.no-flush=on | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.no-flush=on on file"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file",cache.no-flush=on -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file",cache.no-flush=on -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.no-flush=on on backing"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk",cache.no-flush=on -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk",cache.no-flush=on -drive "$drv_file" -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
     echo -e "\ncache.no-flush=on on backing-file"
-    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile",cache.no-flush=on -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile",cache.no-flush=on -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img" | grep -e "Cache" -e "[Cc]annot\|[Cc]ould not\|[Cc]an't"
 }
 
 echo
@@ -321,6 +325,7 @@ echo "--- Basic reopen ---"
 echo
 
 hmp_cmds='qemu-io none0 "reopen -o backing.cache.direct=on"
+info block none0
 info block image
 info block file
 info block backing
@@ -338,8 +343,8 @@ echo
 # TODO Implement node-name support for 'qemu-io' HMP command for -c
 # Can use only -o to access child node options for now
 
-hmp_cmds="qemu-io none0 \"reopen -o file.cache.writeback=off,file.cache.direct=off,file.cache.no-flush=off\"
-qemu-io none0 \"reopen -o backing.file.cache.writeback=on,backing.file.cache.direct=off,backing.file.cache.no-flush=on\"
+hmp_cmds="qemu-io none0 \"reopen -o file.cache.direct=off,file.cache.no-flush=off\"
+qemu-io none0 \"reopen -o backing.file.cache.direct=off,backing.file.cache.no-flush=on\"
 qemu-io none0 \"reopen -c none\"
 info block image
 info block file

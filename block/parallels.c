@@ -480,8 +480,7 @@ static int parallels_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     file = blk_new_open(filename, NULL, NULL,
-                        BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL,
-                        &local_err);
+                        BDRV_O_RDWR | BDRV_O_PROTOCOL, &local_err);
     if (file == NULL) {
         error_propagate(errp, local_err);
         return -EIO;

@@ -218,7 +218,7 @@ run_qemu -drive driver=null-co,cache=invalid_value
 
 for cache in writeback writethrough unsafe invalid_value; do
     echo -e "info block\ninfo block file\ninfo block backing\ninfo block backing-file" | \
-    run_qemu -drive file="$TEST_IMG",cache=$cache,backing.file.filename="$TEST_IMG.base",backing.cache.no-flush=on,backing.cache.writeback=on,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,if=none,id=$device_id -nodefaults
+    run_qemu -drive file="$TEST_IMG",cache=$cache,backing.file.filename="$TEST_IMG.base",backing.cache.no-flush=on,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,if=none,id=$device_id -nodefaults
 done
 
 echo

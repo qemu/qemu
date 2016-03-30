@@ -242,11 +242,12 @@
 # @drv: the name of the block format used to open the backing device. As of
 #       0.14.0 this can be: 'blkdebug', 'bochs', 'cloop', 'cow', 'dmg',
 #       'file', 'file', 'ftp', 'ftps', 'host_cdrom', 'host_device',
-#       'http', 'https', 'nbd', 'parallels', 'qcow',
+#       'http', 'https', 'luks', 'nbd', 'parallels', 'qcow',
 #       'qcow2', 'raw', 'tftp', 'vdi', 'vmdk', 'vpc', 'vvfat'
 #       2.2: 'archipelago' added, 'cow' dropped
 #       2.3: 'host_floppy' deprecated
 #       2.5: 'host_floppy' dropped
+#       2.6: 'luks' added
 #
 # @backing_file: #optional the name of the backing file (for copy-on-write)
 #
@@ -1614,7 +1615,6 @@
 #
 # Includes cache-related options for block devices
 #
-# @writeback:   #optional enables writeback mode for any caches (default: true)
 # @direct:      #optional enables use of O_DIRECT (bypass the host page cache;
 #               default: false)
 # @no-flush:    #optional ignore any flush requests for the device (default:
@@ -1623,8 +1623,7 @@
 # Since: 1.7
 ##
 { 'struct': 'BlockdevCacheOptions',
-  'data': { '*writeback': 'bool',
-            '*direct': 'bool',
+  'data': { '*direct': 'bool',
             '*no-flush': 'bool' } }
 
 ##
@@ -1639,7 +1638,7 @@
 { 'enum': 'BlockdevDriver',
   'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop',
             'dmg', 'file', 'ftp', 'ftps', 'host_cdrom', 'host_device',
-            'http', 'https', 'null-aio', 'null-co', 'parallels',
+            'http', 'https', 'luks', 'null-aio', 'null-co', 'parallels',
             'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'tftp', 'vdi', 'vhdx',
             'vmdk', 'vpc', 'vvfat' ] }
 
@@ -1704,6 +1703,22 @@
 ##
 { 'struct': 'BlockdevOptionsGenericFormat',
   'data': { 'file': 'BlockdevRef' } }
+
+##
+# @BlockdevOptionsLUKS
+#
+# Driver specific block device options for LUKS.
+#
+# @key-secret: #optional the ID of a QCryptoSecret object providing
+#              the decryption key (since 2.6). Mandatory except when
+#              doing a metadata-only probe of the image.
+#
+# Since: 2.6
+##
+{ 'struct': 'BlockdevOptionsLUKS',
+  'base': 'BlockdevOptionsGenericFormat',
+  'data': { '*key-secret': 'str' } }
+
 
 ##
 # @BlockdevOptionsGenericCOWFormat
@@ -2085,6 +2100,7 @@
       'http':       'BlockdevOptionsFile',
       'https':      'BlockdevOptionsFile',
 # TODO iscsi: Wait for structured options
+      'luks':       'BlockdevOptionsLUKS',
 # TODO nbd: Should take InetSocketAddress for 'host'?
 # TODO nfs: Wait for structured options
       'null-aio':   'BlockdevOptionsNull',

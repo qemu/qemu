@@ -509,6 +509,7 @@ int main(int argc, char **argv)
     const char *export_name = NULL;
     const char *tlscredsid = NULL;
     bool imageOpts = false;
+    bool writethrough = true;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
@@ -535,7 +536,7 @@ int main(int argc, char **argv)
                 exit(EXIT_FAILURE);
             }
             seen_cache = true;
-            if (bdrv_parse_cache_flags(optarg, &flags) == -1) {
+            if (bdrv_parse_cache_mode(optarg, &flags, &writethrough) == -1) {
                 error_report("Invalid cache mode `%s'", optarg);
                 exit(EXIT_FAILURE);
             }
@@ -848,6 +849,8 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
     bs = blk_bs(blk);
+
+    blk_set_enable_write_cache(blk, !writethrough);
 
     if (sn_opts) {
         ret = bdrv_snapshot_load_tmp(bs,
