@@ -103,6 +103,10 @@ typedef struct FlashPartInfo {
 #define NVCFG_LOWER_SEGMENT_MASK (1 << 1)
 #define CFG_UPPER_128MB_SEG_ENABLED 0x3
 
+/* Numonyx (Micron) Flag Status Register macros */
+#define FSR_4BYTE_ADDR_MODE_ENABLED 0x1
+#define FSR_FLASH_READY (1 << 7)
+
 static const FlashPartInfo known_devices[] = {
     /* Atmel -- some are (confusingly) marketed as "DataFlash" */
     { INFO("at25fs010",   0x1f6601,      0,  32 << 10,   4, ER_4K) },
@@ -242,6 +246,7 @@ typedef enum {
     WREN = 0x6,
     JEDEC_READ = 0x9f,
     BULK_ERASE = 0xc7,
+    READ_FSR = 0x70,
 
     READ = 0x03,
     READ4 = 0x13,
@@ -685,6 +690,16 @@ static void decode_new_cmd(Flash *s, uint32_t value)
 
     case RDSR:
         s->data[0] = (!!s->write_enable) << 1;
+        s->pos = 0;
+        s->len = 1;
+        s->state = STATE_READING_DATA;
+        break;
+
+    case READ_FSR:
+        s->data[0] = FSR_FLASH_READY;
+        if (s->four_bytes_address_mode) {
+            s->data[0] |= FSR_4BYTE_ADDR_MODE_ENABLED;
+        }
         s->pos = 0;
         s->len = 1;
         s->state = STATE_READING_DATA;
