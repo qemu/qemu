@@ -583,7 +583,11 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case FAST_READ:
     case DOR:
     case QOR:
-        s->needed_bytes = get_addr_length(s) + 1;
+        s->needed_bytes = get_addr_length(s);
+        if (((s->pi->jedec >> 16) & 0xFF) == JEDEC_NUMONYX) {
+            /* Dummy cycles modeled with bytes writes instead of bits */
+            s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+        }
         s->pos = 0;
         s->len = 0;
         s->state = STATE_COLLECTING_DATA;
@@ -596,7 +600,9 @@ static void decode_new_cmd(Flash *s, uint32_t value)
             s->needed_bytes = 4;
             break;
         default:
-            s->needed_bytes = get_addr_length(s) + 2;
+            s->needed_bytes = get_addr_length(s);
+            /* Dummy cycles modeled with bytes writes instead of bits */
+            s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
         }
         s->pos = 0;
         s->len = 0;
@@ -610,7 +616,9 @@ static void decode_new_cmd(Flash *s, uint32_t value)
             s->needed_bytes = 6;
             break;
         default:
-            s->needed_bytes = get_addr_length(s) + 4;
+            s->needed_bytes = get_addr_length(s);
+            /* Dummy cycles modeled with bytes writes instead of bits */
+            s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
         }
         s->pos = 0;
         s->len = 0;
