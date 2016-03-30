@@ -246,8 +246,6 @@ typedef enum {
 typedef struct Flash {
     SSISlave parent_obj;
 
-    uint32_t r;
-
     BlockBackend *blk;
 
     uint8_t *storage;
