@@ -62,13 +62,18 @@ bool kvm_arm_create_scratch_host_vcpu(const uint32_t *cpus_to_try,
         goto err;
     }
 
+    if (!init) {
+        /* Caller doesn't want the VCPU to be initialized, so skip it */
+        goto finish;
+    }
+
     ret = ioctl(vmfd, KVM_ARM_PREFERRED_TARGET, init);
     if (ret >= 0) {
         ret = ioctl(cpufd, KVM_ARM_VCPU_INIT, init);
         if (ret < 0) {
             goto err;
         }
-    } else {
+    } else if (cpus_to_try) {
         /* Old kernel which doesn't know about the
          * PREFERRED_TARGET ioctl: we know it will only support
          * creating one kind of guest CPU which is its preferred
@@ -85,8 +90,15 @@ bool kvm_arm_create_scratch_host_vcpu(const uint32_t *cpus_to_try,
         if (ret < 0) {
             goto err;
         }
+    } else {
+        /* Treat a NULL cpus_to_try argument the same as an empty
+         * list, which means we will fail the call since this must
+         * be an old kernel which doesn't support PREFERRED_TARGET.
+         */
+        goto err;
     }
 
+finish:
     fdarray[0] = kvmfd;
     fdarray[1] = vmfd;
     fdarray[2] = cpufd;

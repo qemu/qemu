@@ -582,11 +582,11 @@ static void create_rtc(const VirtBoardInfo *vbi, qemu_irq *pic)
     g_free(nodename);
 }
 
-static DeviceState *pl061_dev;
+static DeviceState *gpio_key_dev;
 static void virt_powerdown_req(Notifier *n, void *opaque)
 {
     /* use gpio Pin 3 for power button event */
-    qemu_set_irq(qdev_get_gpio_in(pl061_dev, 3), 1);
+    qemu_set_irq(qdev_get_gpio_in(gpio_key_dev, 0), 1);
 }
 
 static Notifier virt_system_powerdown_notifier = {
@@ -596,6 +596,7 @@ static Notifier virt_system_powerdown_notifier = {
 static void create_gpio(const VirtBoardInfo *vbi, qemu_irq *pic)
 {
     char *nodename;
+    DeviceState *pl061_dev;
     hwaddr base = vbi->memmap[VIRT_GPIO].base;
     hwaddr size = vbi->memmap[VIRT_GPIO].size;
     int irq = vbi->irqmap[VIRT_GPIO];
@@ -618,6 +619,8 @@ static void create_gpio(const VirtBoardInfo *vbi, qemu_irq *pic)
     qemu_fdt_setprop_string(vbi->fdt, nodename, "clock-names", "apb_pclk");
     qemu_fdt_setprop_cell(vbi->fdt, nodename, "phandle", phandle);
 
+    gpio_key_dev = sysbus_create_simple("gpio-key", -1,
+                                        qdev_get_gpio_in(pl061_dev, 3));
     qemu_fdt_add_subnode(vbi->fdt, "/gpio-keys");
     qemu_fdt_setprop_string(vbi->fdt, "/gpio-keys", "compatible", "gpio-keys");
     qemu_fdt_setprop_cell(vbi->fdt, "/gpio-keys", "#size-cells", 0);

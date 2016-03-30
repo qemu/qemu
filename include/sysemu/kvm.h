@@ -306,6 +306,15 @@ void kvm_device_access(int fd, int group, uint64_t attr,
  */
 int kvm_create_device(KVMState *s, uint64_t type, bool test);
 
+/**
+ * kvm_device_supported - probe whether KVM supports specific device
+ *
+ * @vmfd: The fd handler for VM
+ * @type: type of device
+ *
+ * @return: true if supported, otherwise false.
+ */
+bool kvm_device_supported(int vmfd, uint64_t type);
 
 /* Arch specific hooks */
 
