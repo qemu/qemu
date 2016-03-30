@@ -917,6 +917,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (env->features[FEAT_1_EDX] & CPUID_MTRR) {
         has_msr_mtrr = true;
     }
+    if (!(env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_RDTSCP)) {
+        has_msr_tsc_aux = false;
+    }
 
     return 0;
 }
