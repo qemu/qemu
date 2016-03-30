@@ -357,6 +357,14 @@ set_interrupt_cause(E1000State *s, int index, uint32_t val)
             }
             mit_update_delay(&mit_delay, s->mac_reg[ITR]);
 
+            /*
+             * According to e1000 SPEC, the Ethernet controller guarantees
+             * a maximum observable interrupt rate of 7813 interrupts/sec.
+             * Thus if mit_delay < 500 then the delay should be set to the
+             * minimum delay possible which is 500.
+             */
+            mit_delay = (mit_delay < 500) ? 500 : mit_delay;
+
             if (mit_delay) {
                 s->mit_timer_on = 1;
                 timer_mod(s->mit_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
@@ -447,11 +455,6 @@ static void e1000_reset(void *opaque)
     if (qemu_get_queue(d->nic)->link_down) {
         e1000_link_down(d);
     }
-
-    /* Throttle interrupts to prevent guest (e.g Win 2012) from
-     * reinjecting interrupts endlessly. TODO: fix non ITR case.
-     */
-    d->mac_reg[ITR] = 250;
 
     /* Some guests expect pre-initialized RAH/RAL (AddrValid flag + MACaddr) */
     d->mac_reg[RA] = 0;
