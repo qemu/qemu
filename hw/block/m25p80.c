@@ -48,6 +48,9 @@
  */
 #define WR_1 0x100
 
+/* 16 MiB max in 3 byte address mode */
+#define MAX_3BYTES_SIZE 0x1000000
+
 typedef struct FlashPartInfo {
     const char *part_name;
     /* jedec code. (jedec >> 16) & 0xff is the 1st byte, >> 8 the 2nd etc */
@@ -234,6 +237,9 @@ typedef enum {
     ERASE_32K = 0x52,
     ERASE_SECTOR = 0xd8,
 
+    EXTEND_ADDR_READ = 0xC8,
+    EXTEND_ADDR_WRITE = 0xC5,
+
     RESET_ENABLE = 0x66,
     RESET_MEMORY = 0x99,
 } FlashCMD;
@@ -264,6 +270,7 @@ typedef struct Flash {
     uint64_t cur_addr;
     bool write_enable;
     bool reset_enable;
+    uint8_t ear;
 
     int64_t dirty_page;
 
@@ -404,6 +411,7 @@ static void complete_collecting_data(Flash *s)
     s->cur_addr = s->data[0] << 16;
     s->cur_addr |= s->data[1] << 8;
     s->cur_addr |= s->data[2];
+    s->cur_addr += (s->ear & 0x3) * MAX_3BYTES_SIZE;
 
     s->state = STATE_IDLE;
 
@@ -431,6 +439,9 @@ static void complete_collecting_data(Flash *s)
             s->write_enable = false;
         }
         break;
+    case EXTEND_ADDR_WRITE:
+        s->ear = s->data[0];
+        break;
     default:
         break;
     }
@@ -440,6 +451,7 @@ static void reset_memory(Flash *s)
 {
     s->cmd_in_progress = NOP;
     s->cur_addr = 0;
+    s->ear = 0;
     s->len = 0;
     s->needed_bytes = 0;
     s->pos = 0;
@@ -562,6 +574,20 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         }
         break;
     case NOP:
+        break;
+    case EXTEND_ADDR_READ:
+        s->data[0] = s->ear;
+        s->pos = 0;
+        s->len = 1;
+        s->state = STATE_READING_DATA;
+        break;
+    case EXTEND_ADDR_WRITE:
+        if (s->write_enable) {
+            s->needed_bytes = 1;
+            s->pos = 0;
+            s->len = 0;
+            s->state = STATE_COLLECTING_DATA;
+        }
         break;
     case RESET_ENABLE:
         s->reset_enable = true;
@@ -704,6 +730,7 @@ static const VMStateDescription vmstate_m25p80 = {
         VMSTATE_UINT64(cur_addr, Flash),
         VMSTATE_BOOL(write_enable, Flash),
         VMSTATE_BOOL_V(reset_enable, Flash, 2),
+        VMSTATE_UINT8_V(ear, Flash, 2),
         VMSTATE_END_OF_LIST()
     }
 };
