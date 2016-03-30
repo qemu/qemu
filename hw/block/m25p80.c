@@ -26,6 +26,7 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/ssi/ssi.h"
+#include "qemu/bitops.h"
 
 #ifndef M25P80_ERR_DEBUG
 #define M25P80_ERR_DEBUG 0
@@ -81,6 +82,26 @@ typedef struct FlashPartInfo {
 #define JEDEC_NUMONYX 0x20
 #define JEDEC_WINBOND 0xEF
 #define JEDEC_SPANSION 0x01
+
+/* Numonyx (Micron) Configuration register macros */
+#define VCFG_DUMMY 0x1
+#define VCFG_WRAP_SEQUENTIAL 0x2
+#define NVCFG_XIP_MODE_DISABLED (7 << 9)
+#define NVCFG_XIP_MODE_MASK (7 << 9)
+#define VCFG_XIP_MODE_ENABLED (1 << 3)
+#define CFG_DUMMY_CLK_LEN 4
+#define NVCFG_DUMMY_CLK_POS 12
+#define VCFG_DUMMY_CLK_POS 4
+#define EVCFG_OUT_DRIVER_STRENGHT_DEF 7
+#define EVCFG_VPP_ACCELERATOR (1 << 3)
+#define EVCFG_RESET_HOLD_ENABLED (1 << 4)
+#define NVCFG_DUAL_IO_MASK (1 << 2)
+#define EVCFG_DUAL_IO_ENABLED (1 << 6)
+#define NVCFG_QUAD_IO_MASK (1 << 3)
+#define EVCFG_QUAD_IO_ENABLED (1 << 7)
+#define NVCFG_4BYTE_ADDR_MASK (1 << 0)
+#define NVCFG_LOWER_SEGMENT_MASK (1 << 1)
+#define CFG_UPPER_128MB_SEG_ENABLED 0x3
 
 static const FlashPartInfo known_devices[] = {
     /* Atmel -- some are (confusingly) marketed as "DataFlash" */
@@ -245,6 +266,15 @@ typedef enum {
 
     RESET_ENABLE = 0x66,
     RESET_MEMORY = 0x99,
+
+    RNVCR = 0xB5,
+    WNVCR = 0xB1,
+
+    RVCR = 0x85,
+    WVCR = 0x81,
+
+    REVCR = 0x65,
+    WEVCR = 0x61,
 } FlashCMD;
 
 typedef enum {
@@ -271,6 +301,9 @@ typedef struct Flash {
     uint8_t needed_bytes;
     uint8_t cmd_in_progress;
     uint64_t cur_addr;
+    uint32_t nonvolatile_cfg;
+    uint32_t volatile_cfg;
+    uint32_t enh_volatile_cfg;
     bool write_enable;
     bool four_bytes_address_mode;
     bool reset_enable;
@@ -459,6 +492,15 @@ static void complete_collecting_data(Flash *s)
     case EXTEND_ADDR_WRITE:
         s->ear = s->data[0];
         break;
+    case WNVCR:
+        s->nonvolatile_cfg = s->data[0] | (s->data[1] << 8);
+        break;
+    case WVCR:
+        s->volatile_cfg = s->data[0];
+        break;
+    case WEVCR:
+        s->enh_volatile_cfg = s->data[0];
+        break;
     default:
         break;
     }
@@ -476,6 +518,40 @@ static void reset_memory(Flash *s)
     s->state = STATE_IDLE;
     s->write_enable = false;
     s->reset_enable = false;
+
+    if (((s->pi->jedec >> 16) & 0xFF) == JEDEC_NUMONYX) {
+        s->volatile_cfg = 0;
+        s->volatile_cfg |= VCFG_DUMMY;
+        s->volatile_cfg |= VCFG_WRAP_SEQUENTIAL;
+        if ((s->nonvolatile_cfg & NVCFG_XIP_MODE_MASK)
+                                != NVCFG_XIP_MODE_DISABLED) {
+            s->volatile_cfg |= VCFG_XIP_MODE_ENABLED;
+        }
+        s->volatile_cfg |= deposit32(s->volatile_cfg,
+                            VCFG_DUMMY_CLK_POS,
+                            CFG_DUMMY_CLK_LEN,
+                            extract32(s->nonvolatile_cfg,
+                                        NVCFG_DUMMY_CLK_POS,
+                                        CFG_DUMMY_CLK_LEN)
+                            );
+
+        s->enh_volatile_cfg = 0;
+        s->enh_volatile_cfg |= EVCFG_OUT_DRIVER_STRENGHT_DEF;
+        s->enh_volatile_cfg |= EVCFG_VPP_ACCELERATOR;
+        s->enh_volatile_cfg |= EVCFG_RESET_HOLD_ENABLED;
+        if (s->nonvolatile_cfg & NVCFG_DUAL_IO_MASK) {
+            s->enh_volatile_cfg |= EVCFG_DUAL_IO_ENABLED;
+        }
+        if (s->nonvolatile_cfg & NVCFG_QUAD_IO_MASK) {
+            s->enh_volatile_cfg |= EVCFG_QUAD_IO_ENABLED;
+        }
+        if (!(s->nonvolatile_cfg & NVCFG_4BYTE_ADDR_MASK)) {
+            s->four_bytes_address_mode = true;
+        }
+        if (!(s->nonvolatile_cfg & NVCFG_LOWER_SEGMENT_MASK)) {
+            s->ear = CFG_UPPER_128MB_SEG_ENABLED;
+        }
+    }
 
     DB_PRINT_L(0, "Reset done.\n");
 }
@@ -611,6 +687,49 @@ static void decode_new_cmd(Flash *s, uint32_t value)
             s->state = STATE_COLLECTING_DATA;
         }
         break;
+    case RNVCR:
+        s->data[0] = s->nonvolatile_cfg & 0xFF;
+        s->data[1] = (s->nonvolatile_cfg >> 8) & 0xFF;
+        s->pos = 0;
+        s->len = 2;
+        s->state = STATE_READING_DATA;
+        break;
+    case WNVCR:
+        if (s->write_enable) {
+            s->needed_bytes = 2;
+            s->pos = 0;
+            s->len = 0;
+            s->state = STATE_COLLECTING_DATA;
+        }
+        break;
+    case RVCR:
+        s->data[0] = s->volatile_cfg & 0xFF;
+        s->pos = 0;
+        s->len = 1;
+        s->state = STATE_READING_DATA;
+        break;
+    case WVCR:
+        if (s->write_enable) {
+            s->needed_bytes = 1;
+            s->pos = 0;
+            s->len = 0;
+            s->state = STATE_COLLECTING_DATA;
+        }
+        break;
+    case REVCR:
+        s->data[0] = s->enh_volatile_cfg & 0xFF;
+        s->pos = 0;
+        s->len = 1;
+        s->state = STATE_READING_DATA;
+        break;
+    case WEVCR:
+        if (s->write_enable) {
+            s->needed_bytes = 1;
+            s->pos = 0;
+            s->len = 0;
+            s->state = STATE_COLLECTING_DATA;
+        }
+        break;
     case RESET_ENABLE:
         s->reset_enable = true;
         break;
@@ -737,6 +856,11 @@ static void m25p80_pre_save(void *opaque)
     flash_sync_dirty((Flash *)opaque, -1);
 }
 
+static Property m25p80_properties[] = {
+    DEFINE_PROP_UINT32("nonvolatile-cfg", Flash, nonvolatile_cfg, 0x8FFF),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_m25p80 = {
     .name = "xilinx_spi",
     .version_id = 2,
@@ -754,6 +878,9 @@ static const VMStateDescription vmstate_m25p80 = {
         VMSTATE_BOOL_V(reset_enable, Flash, 2),
         VMSTATE_UINT8_V(ear, Flash, 2),
         VMSTATE_BOOL_V(four_bytes_address_mode, Flash, 2),
+        VMSTATE_UINT32_V(nonvolatile_cfg, Flash, 2),
+        VMSTATE_UINT32_V(volatile_cfg, Flash, 2),
+        VMSTATE_UINT32_V(enh_volatile_cfg, Flash, 2),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -769,6 +896,7 @@ static void m25p80_class_init(ObjectClass *klass, void *data)
     k->set_cs = m25p80_cs;
     k->cs_polarity = SSI_CS_LOW;
     dc->vmsd = &vmstate_m25p80;
+    dc->props = m25p80_properties;
     dc->reset = m25p80_reset;
     mc->pi = data;
 }
