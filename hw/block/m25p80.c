@@ -243,20 +243,29 @@ typedef enum {
     JEDEC_READ = 0x9f,
     BULK_ERASE = 0xc7,
 
-    READ = 0x3,
-    FAST_READ = 0xb,
+    READ = 0x03,
+    READ4 = 0x13,
+    FAST_READ = 0x0b,
+    FAST_READ4 = 0x0c,
     DOR = 0x3b,
+    DOR4 = 0x3c,
     QOR = 0x6b,
+    QOR4 = 0x6c,
     DIOR = 0xbb,
+    DIOR4 = 0xbc,
     QIOR = 0xeb,
+    QIOR4 = 0xec,
 
-    PP = 0x2,
+    PP = 0x02,
+    PP4 = 0x12,
     DPP = 0xa2,
     QPP = 0x32,
 
     ERASE_4K = 0x20,
+    ERASE4_4K = 0x21,
     ERASE_32K = 0x52,
     ERASE_SECTOR = 0xd8,
+    ERASE4_SECTOR = 0xdc,
 
     EN_4BYTE_ADDR = 0xB7,
     EX_4BYTE_ADDR = 0xE9,
@@ -379,6 +388,7 @@ static void flash_erase(Flash *s, int offset, FlashCMD cmd)
 
     switch (cmd) {
     case ERASE_4K:
+    case ERASE4_4K:
         len = 4 << 10;
         capa_to_assert = ER_4K;
         break;
@@ -387,6 +397,7 @@ static void flash_erase(Flash *s, int offset, FlashCMD cmd)
         capa_to_assert = ER_32K;
         break;
     case ERASE_SECTOR:
+    case ERASE4_SECTOR:
         len = s->pi->sector_size;
         break;
     case BULK_ERASE:
@@ -445,7 +456,20 @@ void flash_write8(Flash *s, uint64_t addr, uint8_t data)
 
 static inline int get_addr_length(Flash *s)
 {
-    return s->four_bytes_address_mode ? 4 : 3;
+   switch (s->cmd_in_progress) {
+   case PP4:
+   case READ4:
+   case QIOR4:
+   case ERASE4_4K:
+   case ERASE4_SECTOR:
+   case FAST_READ4:
+   case DOR4:
+   case QOR4:
+   case DIOR4:
+       return 4;
+   default:
+       return s->four_bytes_address_mode ? 4 : 3;
+   }
 }
 
 static void complete_collecting_data(Flash *s)
@@ -469,19 +493,28 @@ static void complete_collecting_data(Flash *s)
     case DPP:
     case QPP:
     case PP:
+    case PP4:
         s->state = STATE_PAGE_PROGRAM;
         break;
     case READ:
+    case READ4:
     case FAST_READ:
+    case FAST_READ4:
     case DOR:
+    case DOR4:
     case QOR:
+    case QOR4:
     case DIOR:
+    case DIOR4:
     case QIOR:
+    case QIOR4:
         s->state = STATE_READ;
         break;
     case ERASE_4K:
+    case ERASE4_4K:
     case ERASE_32K:
     case ERASE_SECTOR:
+    case ERASE4_SECTOR:
         flash_erase(s, s->cur_addr, s->cmd_in_progress);
         break;
     case WRSR:
@@ -568,12 +601,16 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     switch (value) {
 
     case ERASE_4K:
+    case ERASE4_4K:
     case ERASE_32K:
     case ERASE_SECTOR:
+    case ERASE4_SECTOR:
     case READ:
+    case READ4:
     case DPP:
     case QPP:
     case PP:
+    case PP4:
         s->needed_bytes = get_addr_length(s);
         s->pos = 0;
         s->len = 0;
@@ -581,8 +618,11 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         break;
 
     case FAST_READ:
+    case FAST_READ4:
     case DOR:
+    case DOR4:
     case QOR:
+    case QOR4:
         s->needed_bytes = get_addr_length(s);
         if (((s->pi->jedec >> 16) & 0xFF) == JEDEC_NUMONYX) {
             /* Dummy cycles modeled with bytes writes instead of bits */
@@ -594,6 +634,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         break;
 
     case DIOR:
+    case DIOR4:
         switch ((s->pi->jedec >> 16) & 0xFF) {
         case JEDEC_WINBOND:
         case JEDEC_SPANSION:
@@ -610,6 +651,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         break;
 
     case QIOR:
+    case QIOR4:
         switch ((s->pi->jedec >> 16) & 0xFF) {
         case JEDEC_WINBOND:
         case JEDEC_SPANSION:
