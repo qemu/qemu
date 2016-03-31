@@ -4027,6 +4027,11 @@ void qmp_x_blockdev_del(bool has_id, const char *id,
             error_setg(errp, "Cannot find block backend %s", id);
             return;
         }
+        if (blk_legacy_dinfo(blk)) {
+            error_setg(errp, "Deleting block backend added with drive-add"
+                       " is not supported");
+            return;
+        }
         if (blk_get_refcnt(blk) > 1) {
             error_setg(errp, "Block backend %s is in use", id);
             return;
