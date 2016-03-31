@@ -28,10 +28,12 @@
 #include "qemu-common.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
 #include "block/block_int.h"
 #include "trace.h"
 #include "qemu/iov.h"
 #include "qemu/uri.h"
+#include "qemu/cutils.h"
 #include "sysemu/sysemu.h"
 #include <nfsc/libnfs.h>
 
