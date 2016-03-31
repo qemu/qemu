@@ -1233,31 +1233,39 @@ static int slirp_sbuf_load(QEMUFile *f, struct sbuf *sbuf)
     return 0;
 }
 
-static int slirp_socket_load(QEMUFile *f, struct socket *so)
+static int slirp_socket_load(QEMUFile *f, struct socket *so, int version_id)
 {
     if (tcp_attach(so) < 0)
         return -ENOMEM;
 
     so->so_urgc = qemu_get_be32(f);
-    so->so_ffamily = qemu_get_be16(f);
-    switch (so->so_ffamily) {
-    case AF_INET:
+    if (version_id <= 3) {
+        so->so_ffamily = AF_INET;
         so->so_faddr.s_addr = qemu_get_be32(f);
-        so->so_fport = qemu_get_be16(f);
-        break;
-    default:
-        error_report(
-                "so_ffamily unknown, unable to restore so_faddr and so_lport\n");
-    }
-    so->so_lfamily = qemu_get_be16(f);
-    switch (so->so_lfamily) {
-    case AF_INET:
         so->so_laddr.s_addr = qemu_get_be32(f);
+        so->so_fport = qemu_get_be16(f);
         so->so_lport = qemu_get_be16(f);
-        break;
-    default:
-        error_report(
-                "so_ffamily unknown, unable to restore so_laddr and so_lport\n");
+    } else {
+        so->so_ffamily = qemu_get_be16(f);
+        switch (so->so_ffamily) {
+        case AF_INET:
+            so->so_faddr.s_addr = qemu_get_be32(f);
+            so->so_fport = qemu_get_be16(f);
+            break;
+        default:
+            error_report(
+                "so_ffamily unknown, unable to restore so_faddr and so_lport");
+        }
+        so->so_lfamily = qemu_get_be16(f);
+        switch (so->so_lfamily) {
+        case AF_INET:
+            so->so_laddr.s_addr = qemu_get_be32(f);
+            so->so_lport = qemu_get_be16(f);
+            break;
+        default:
+            error_report(
+                "so_ffamily unknown, unable to restore so_laddr and so_lport");
+        }
     }
     so->so_iptos = qemu_get_byte(f);
     so->so_emu = qemu_get_byte(f);
@@ -1294,7 +1302,7 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
         if (!so)
             return -ENOMEM;
 
-        ret = slirp_socket_load(f, so);
+        ret = slirp_socket_load(f, so, version_id);
 
         if (ret < 0)
             return ret;
