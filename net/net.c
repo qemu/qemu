@@ -1077,6 +1077,7 @@ int net_client_init(QemuOpts *opts, int is_netdev, Error **errp)
     }
 
     error_propagate(errp, err);
+    opts_visitor_cleanup(ov);
     return ret;
 }
 
