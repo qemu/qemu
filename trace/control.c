@@ -20,6 +20,7 @@
 #include "qemu/log.h"
 #endif
 #include "qemu/error-report.h"
+#include "monitor/monitor.h"
 
 int trace_events_enabled_count;
 bool trace_events_dstate[TRACE_EVENT_COUNT];
@@ -132,7 +133,9 @@ void trace_enable_events(const char *line_buf)
 {
     if (is_help_option(line_buf)) {
         trace_list_events();
-        exit(0);
+        if (cur_mon == NULL) {
+            exit(0);
+        }
     } else {
         do_trace_enable_events(line_buf);
     }

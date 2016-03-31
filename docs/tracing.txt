@@ -157,9 +157,9 @@ performance penalty.
 Note that regardless of the selected trace backend, events with the "disable"
 property will be generated with the "nop" backend.
 
-=== Stderr ===
+=== Log ===
 
-The "stderr" backend sends trace events directly to standard error.  This
+The "log" backend sends trace events directly to standard error.  This
 effectively turns trace events into debug printfs.
 
 This is the simplest backend and can be used together with existing code that
