@@ -125,6 +125,7 @@ static void virtio_input_host_realize(DeviceState *dev, Error **errp)
     virtio_input_bits_config(vih, EV_ABS, ABS_CNT);
     virtio_input_bits_config(vih, EV_MSC, MSC_CNT);
     virtio_input_bits_config(vih, EV_SW,  SW_CNT);
+    virtio_input_bits_config(vih, EV_LED, LED_CNT);
 
     qemu_set_fd_handler(vih->fd, virtio_input_host_event, NULL, vih);
     return;
