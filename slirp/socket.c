@@ -687,6 +687,7 @@ struct socket *
 tcp_listen(Slirp *slirp, uint32_t haddr, unsigned hport, uint32_t laddr,
            unsigned lport, int flags)
 {
+        /* TODO: IPv6 */
 	struct sockaddr_in addr;
 	struct socket *so;
 	int s, opt = 1;

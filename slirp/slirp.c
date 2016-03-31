@@ -729,6 +729,7 @@ static void arp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
             if (ah->ar_tip == slirp->vnameserver_addr.s_addr ||
                 ah->ar_tip == slirp->vhost_addr.s_addr)
                 goto arp_ok;
+            /* TODO: IPv6 */
             for (ex_ptr = slirp->guestfwd_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
                 if (ex_ptr->ex_addr.s_addr == ah->ar_tip)
                     goto arp_ok;
@@ -945,6 +946,7 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
 }
 
 /* Drop host forwarding rule, return 0 if found. */
+/* TODO: IPv6 */
 int slirp_remove_hostfwd(Slirp *slirp, int is_udp, struct in_addr host_addr,
                          int host_port)
 {
@@ -970,6 +972,7 @@ int slirp_remove_hostfwd(Slirp *slirp, int is_udp, struct in_addr host_addr,
     return -1;
 }
 
+/* TODO: IPv6 */
 int slirp_add_hostfwd(Slirp *slirp, int is_udp, struct in_addr host_addr,
                       int host_port, struct in_addr guest_addr, int guest_port)
 {
@@ -988,6 +991,7 @@ int slirp_add_hostfwd(Slirp *slirp, int is_udp, struct in_addr host_addr,
     return 0;
 }
 
+/* TODO: IPv6 */
 static bool
 check_guestfwd(Slirp *slirp, struct in_addr *guest_addr, int guest_port)
 {
@@ -1065,6 +1069,7 @@ slirp_find_ctl_socket(Slirp *slirp, struct in_addr guest_addr, int guest_port)
 {
     struct socket *so;
 
+    /* TODO: IPv6 */
     for (so = slirp->tcb.so_next; so != &slirp->tcb; so = so->so_next) {
         if (so->so_faddr.s_addr == guest_addr.s_addr &&
             htons(so->so_fport) == guest_port) {

@@ -885,6 +885,7 @@ static ssize_t guestfwd_write(const void *buf, size_t len, void *chr)
 
 static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
 {
+    /* TODO: IPv6 */
     struct in_addr server = { .s_addr = 0 };
     struct GuestFwd *fwd;
     const char *p;
