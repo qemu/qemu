@@ -225,12 +225,12 @@ static void qemu_chr_fe_write_log(CharDriverState *s,
     }
 
     while (done < len) {
-        do {
-            ret = write(s->logfd, buf + done, len - done);
-            if (ret == -1 && errno == EAGAIN) {
-                g_usleep(100);
-            }
-        } while (ret == -1 && errno == EAGAIN);
+    retry:
+        ret = write(s->logfd, buf + done, len - done);
+        if (ret == -1 && errno == EAGAIN) {
+            g_usleep(100);
+            goto retry;
+        }
 
         if (ret <= 0) {
             return;
@@ -246,12 +246,12 @@ static int qemu_chr_fe_write_buffer(CharDriverState *s, const uint8_t *buf, int 
 
     qemu_mutex_lock(&s->chr_write_lock);
     while (*offset < len) {
-        do {
-            res = s->chr_write(s, buf + *offset, len - *offset);
-            if (res == -1 && errno == EAGAIN) {
-                g_usleep(100);
-            }
-        } while (res == -1 && errno == EAGAIN);
+    retry:
+        res = s->chr_write(s, buf + *offset, len - *offset);
+        if (res < 0 && errno == EAGAIN) {
+            g_usleep(100);
+            goto retry;
+        }
 
         if (res <= 0) {
             break;
@@ -333,12 +333,12 @@ int qemu_chr_fe_read_all(CharDriverState *s, uint8_t *buf, int len)
     }
 
     while (offset < len) {
-        do {
-            res = s->chr_sync_read(s, buf + offset, len - offset);
-            if (res == -1 && errno == EAGAIN) {
-                g_usleep(100);
-            }
-        } while (res == -1 && errno == EAGAIN);
+    retry:
+        res = s->chr_sync_read(s, buf + offset, len - offset);
+        if (res == -1 && errno == EAGAIN) {
+            g_usleep(100);
+            goto retry;
+        }
 
         if (res == 0) {
             break;
