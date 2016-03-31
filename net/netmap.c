@@ -36,6 +36,7 @@
 #include "clients.h"
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
 #include "qemu/iov.h"
 #include "qemu/cutils.h"
 
