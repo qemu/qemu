@@ -576,6 +576,9 @@ static void sch_handle_start_func(SubchDev *sch, ORB *orb)
             s->dstat = SCSW_DSTAT_CHANNEL_END | SCSW_DSTAT_DEVICE_END;
             s->cpa = sch->channel_prog + 8;
             break;
+        case -EIO:
+            /* I/O errors, status depends on specific devices */
+            break;
         case -ENOSYS:
             /* unsupported command, generate unit check (command reject) */
             s->ctrl &= ~SCSW_ACTL_START_PEND;

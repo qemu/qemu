@@ -21,6 +21,15 @@
 #define EMULATED_CCW_3270_CHPID_TYPE 0x1a
 
 #define TYPE_EMULATED_CCW_3270 "emulated-ccw-3270"
+
+/* Local Channel Commands */
+#define TC_WRITE   0x01         /* Write */
+#define TC_RDBUF   0x02         /* Read buffer */
+#define TC_EWRITE  0x05         /* Erase write */
+#define TC_READMOD 0x06         /* Read modified */
+#define TC_EWRITEA 0x0d         /* Erase write alternate */
+#define TC_WRITESF 0x11         /* Write structured field */
+
 #define EMULATED_CCW_3270(obj) \
      OBJECT_CHECK(EmulatedCcw3270Device, (obj), TYPE_EMULATED_CCW_3270)
 #define EMULATED_CCW_3270_CLASS(klass) \

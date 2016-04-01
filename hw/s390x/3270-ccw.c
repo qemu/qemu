@@ -17,6 +17,80 @@
 #include "hw/s390x/css-bridge.h"
 #include "hw/s390x/3270-ccw.h"
 
+/* Handle READ ccw commands from guest */
+static int handle_payload_3270_read(EmulatedCcw3270Device *dev, CCW1 *ccw)
+{
+    EmulatedCcw3270Class *ck = EMULATED_CCW_3270_GET_CLASS(dev);
+    CcwDevice *ccw_dev = CCW_DEVICE(dev);
+    int len;
+
+    if (!ccw->cda) {
+        return -EFAULT;
+    }
+
+    len = ck->read_payload_3270(dev, ccw->cda, ccw->count);
+    ccw_dev->sch->curr_status.scsw.count = ccw->count - len;
+
+    return 0;
+}
+
+/* Handle WRITE ccw commands to write data to client */
+static int handle_payload_3270_write(EmulatedCcw3270Device *dev, CCW1 *ccw)
+{
+    EmulatedCcw3270Class *ck = EMULATED_CCW_3270_GET_CLASS(dev);
+    CcwDevice *ccw_dev = CCW_DEVICE(dev);
+    int len;
+
+    if (!ccw->cda) {
+        return -EFAULT;
+    }
+
+    len = ck->write_payload_3270(dev, ccw->cmd_code, ccw->cda, ccw->count);
+
+    if (len <= 0) {
+        return -EIO;
+    }
+
+    ccw_dev->sch->curr_status.scsw.count = ccw->count - len;
+    return 0;
+}
+
+static int emulated_ccw_3270_cb(SubchDev *sch, CCW1 ccw)
+{
+    int rc = 0;
+    EmulatedCcw3270Device *dev = sch->driver_data;
+
+    switch (ccw.cmd_code) {
+    case TC_WRITESF:
+    case TC_WRITE:
+    case TC_EWRITE:
+    case TC_EWRITEA:
+        rc = handle_payload_3270_write(dev, &ccw);
+        break;
+    case TC_RDBUF:
+    case TC_READMOD:
+        rc = handle_payload_3270_read(dev, &ccw);
+        break;
+    default:
+        rc = -ENOSYS;
+        break;
+    }
+
+    if (rc == -EIO) {
+        /* I/O error, specific devices generate specific conditions */
+        SCSW *s = &sch->curr_status.scsw;
+
+        sch->curr_status.scsw.dstat = SCSW_DSTAT_UNIT_CHECK;
+        sch->sense_data[0] = 0x40;    /* intervention-req */
+        s->ctrl &= ~SCSW_ACTL_START_PEND;
+        s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
+        s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
+                   SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
+    }
+
+    return rc;
+}
+
 static void emulated_ccw_3270_realize(DeviceState *ds, Error **errp)
 {
     uint16_t chpid;
@@ -48,6 +122,7 @@ static void emulated_ccw_3270_realize(DeviceState *ds, Error **errp)
     sch->id.cu_type = EMULATED_CCW_3270_CU_TYPE;
     css_sch_build_virtual_schib(sch, (uint8_t)chpid,
                                 EMULATED_CCW_3270_CHPID_TYPE);
+    sch->ccw_cb = emulated_ccw_3270_cb;
 
     ck->init(dev, &err);
     if (err) {
