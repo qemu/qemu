@@ -146,6 +146,28 @@ static void virtio_input_host_unrealize(DeviceState *dev, Error **errp)
     }
 }
 
+static void virtio_input_host_handle_status(VirtIOInput *vinput,
+                                            virtio_input_event *event)
+{
+    VirtIOInputHost *vih = VIRTIO_INPUT_HOST(vinput);
+    struct input_event evdev;
+    int rc;
+
+    if (gettimeofday(&evdev.time, NULL)) {
+        perror("virtio_input_host_handle_status: gettimeofday");
+        return;
+    }
+
+    evdev.type = le16_to_cpu(event->type);
+    evdev.code = le16_to_cpu(event->code);
+    evdev.value = le32_to_cpu(event->value);
+
+    rc = write(vih->fd, &evdev, sizeof(evdev));
+    if (rc == -1) {
+        perror("virtio_input_host_handle_status: write");
+    }
+}
+
 static const VMStateDescription vmstate_virtio_input_host = {
     .name = "virtio-input-host",
     .unmigratable = 1,
@@ -165,6 +187,7 @@ static void virtio_input_host_class_init(ObjectClass *klass, void *data)
     dc->props          = virtio_input_host_properties;
     vic->realize       = virtio_input_host_realize;
     vic->unrealize     = virtio_input_host_unrealize;
+    vic->handle_status = virtio_input_host_handle_status;
 }
 
 static void virtio_input_host_init(Object *obj)
