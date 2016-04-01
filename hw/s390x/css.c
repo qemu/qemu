@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include <hw/qdev.h>
 #include "qemu/bitops.h"
 #include "exec/address-spaces.h"
@@ -1681,3 +1682,83 @@ void css_reset(void)
     channel_subsys.max_cssid = 0;
     channel_subsys.max_ssid = 0;
 }
+
+static void get_css_devid(Object *obj, Visitor *v, const char *name,
+                          void *opaque, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    CssDevId *dev_id = qdev_get_prop_ptr(dev, prop);
+    char buffer[] = "xx.x.xxxx";
+    char *p = buffer;
+    int r;
+
+    if (dev_id->valid) {
+
+        r = snprintf(buffer, sizeof(buffer), "%02x.%1x.%04x", dev_id->cssid,
+                     dev_id->ssid, dev_id->devid);
+        assert(r == sizeof(buffer) - 1);
+
+        /* drop leading zero */
+        if (dev_id->cssid <= 0xf) {
+            p++;
+        }
+    } else {
+        snprintf(buffer, sizeof(buffer), "<unset>");
+    }
+
+    visit_type_str(v, name, &p, errp);
+}
+
+/*
+ * parse <cssid>.<ssid>.<devid> and assert valid range for cssid/ssid
+ */
+static void set_css_devid(Object *obj, Visitor *v, const char *name,
+                          void *opaque, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    CssDevId *dev_id = qdev_get_prop_ptr(dev, prop);
+    Error *local_err = NULL;
+    char *str;
+    int num, n1, n2;
+    unsigned int cssid, ssid, devid;
+
+    if (dev->realized) {
+        qdev_prop_set_after_realize(dev, name, errp);
+        return;
+    }
+
+    visit_type_str(v, name, &str, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    num = sscanf(str, "%2x.%1x%n.%4x%n", &cssid, &ssid, &n1, &devid, &n2);
+    if (num != 3 || (n2 - n1) != 5 || strlen(str) != n2) {
+        error_set_from_qdev_prop_error(errp, EINVAL, dev, prop, str);
+        goto out;
+    }
+    if ((cssid > MAX_CSSID) || (ssid > MAX_SSID)) {
+        error_setg(errp, "Invalid cssid or ssid: cssid %x, ssid %x",
+                   cssid, ssid);
+        goto out;
+    }
+
+    dev_id->cssid = cssid;
+    dev_id->ssid = ssid;
+    dev_id->devid = devid;
+    dev_id->valid = true;
+
+out:
+    g_free(str);
+}
+
+PropertyInfo css_devid_propinfo = {
+    .name = "str",
+    .description = "Identifier of an I/O device in the channel "
+                   "subsystem, example: fe.1.23ab",
+    .get = get_css_devid,
+    .set = set_css_devid,
+};
