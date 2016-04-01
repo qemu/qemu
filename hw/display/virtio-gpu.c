@@ -572,10 +572,7 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
         scanout->width != ss.r.width ||
         scanout->height != ss.r.height) {
         /* realloc the surface ptr */
-        scanout->ds = qemu_create_displaysurface_from
-            (ss.r.width, ss.r.height, format,
-             pixman_image_get_stride(res->image),
-             (uint8_t *)pixman_image_get_data(res->image) + offset);
+        scanout->ds = qemu_create_displaysurface_pixman(res->image);
         if (!scanout->ds) {
             cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
             return;
