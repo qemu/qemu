@@ -37,8 +37,8 @@ MemoryRegion):
 
 - MMIO: a range of guest memory that is implemented by host callbacks;
   each read or write causes a callback to be called on the host.
-  You initialize these with memory_region_io(), passing it a MemoryRegionOps
-  structure describing the callbacks.
+  You initialize these with memory_region_init_io(), passing it a
+  MemoryRegionOps structure describing the callbacks.
 
 - ROM: a ROM memory region works like RAM for reads (directly accessing
   a region of host memory), but like MMIO for writes (invoking a callback).
