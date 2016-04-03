@@ -8487,7 +8487,7 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
     pcc->sps = &POWER7_POWER8_sps;
 #endif
-    pcc->excp_model = POWERPC_EXCP_POWER7;
+    pcc->excp_model = POWERPC_EXCP_POWER8;
     pcc->bus_model = PPC_FLAGS_INPUT_POWER7;
     pcc->bfd_mach = bfd_mach_ppc64;
     pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |

@@ -77,7 +77,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     CPUPPCState *env = &cpu->env;
     target_ulong msr, new_msr, vector;
     int srr0, srr1, asrr0, asrr1;
-    int lpes0, lpes1, lev;
+    int lpes0, lpes1, lev, ail;
 
     if (0) {
         /* XXX: find a suitable condition to enable the hypervisor mode */
@@ -107,6 +107,25 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     srr1 = SPR_SRR1;
     asrr0 = -1;
     asrr1 = -1;
+
+    /* Exception targetting modifiers
+     *
+     * AIL is initialized here but can be cleared by
+     * selected exceptions
+     */
+#if defined(TARGET_PPC64)
+    if (excp_model == POWERPC_EXCP_POWER7 ||
+        excp_model == POWERPC_EXCP_POWER8) {
+        if (excp_model == POWERPC_EXCP_POWER8) {
+            ail = (env->spr[SPR_LPCR] & LPCR_AIL) >> LPCR_AIL_SHIFT;
+        } else {
+            ail = 0;
+        }
+    } else
+#endif /* defined(TARGET_PPC64) */
+    {
+        ail = 0;
+    }
 
     switch (excp) {
     case POWERPC_EXCP_NONE:
@@ -146,6 +165,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             /* XXX: find a suitable condition to enable the hypervisor mode */
             new_msr |= (target_ulong)MSR_HVB;
         }
+        ail = 0;
 
         /* machine check exceptions don't have ME set */
         new_msr &= ~((target_ulong)1 << MSR_ME);
@@ -344,6 +364,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             /* XXX: find a suitable condition to enable the hypervisor mode */
             new_msr |= (target_ulong)MSR_HVB;
         }
+        ail = 0;
         goto store_next;
     case POWERPC_EXCP_DSEG:      /* Data segment exception                   */
         if (lpes1 == 0) {
@@ -630,7 +651,8 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     }
 
 #ifdef TARGET_PPC64
-    if (excp_model == POWERPC_EXCP_POWER7) {
+    if (excp_model == POWERPC_EXCP_POWER7 ||
+        excp_model == POWERPC_EXCP_POWER8) {
         if (env->spr[SPR_LPCR] & LPCR_ILE) {
             new_msr |= (target_ulong)1 << MSR_LE;
         }
@@ -650,6 +672,29 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
                   excp);
     }
     vector |= env->excp_prefix;
+
+    /* AIL only works if there is no HV transition and we are running with
+     * translations enabled
+     */
+    if (!((msr >> MSR_IR) & 1) || !((msr >> MSR_DR) & 1)) {
+        ail = 0;
+    }
+    /* Handle AIL */
+    if (ail) {
+        new_msr |= (1 << MSR_IR) | (1 << MSR_DR);
+        switch(ail) {
+        case AIL_0001_8000:
+            vector |= 0x18000;
+            break;
+        case AIL_C000_0000_0000_4000:
+            vector |= 0xc000000000004000ull;
+            break;
+        default:
+            cpu_abort(cs, "Invalid AIL combination %d\n", ail);
+            break;
+        }
+    }
+
 #if defined(TARGET_PPC64)
     if (excp_model == POWERPC_EXCP_BOOKE) {
         if (env->spr[SPR_BOOKE_EPCR] & EPCR_ICM) {
