@@ -78,6 +78,14 @@ err_bridge:
     return rc;
 }
 
+static const VMStateDescription i82801b11_bridge_dev_vmstate = {
+    .name = "i82801b11_bridge",
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(parent_obj, PCIBridge),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void i82801b11_bridge_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -89,6 +97,7 @@ static void i82801b11_bridge_class_init(ObjectClass *klass, void *data)
     k->revision = ICH9_D2P_A2_REVISION;
     k->init = i82801b11_bridge_initfn;
     k->config_write = pci_bridge_write_config;
+    dc->vmsd = &i82801b11_bridge_dev_vmstate;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
