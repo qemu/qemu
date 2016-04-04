@@ -136,8 +136,8 @@ static NetClientInfo net_slirp_info = {
 
 static int net_slirp_init(NetClientState *peer, const char *model,
                           const char *name, int restricted,
-                          const char *vnetwork, const char *vhost,
-                          const char *vprefix6, int vprefix6_len,
+                          bool ipv4, const char *vnetwork, const char *vhost,
+                          bool ipv6, const char *vprefix6, int vprefix6_len,
                           const char *vhost6,
                           const char *vhostname, const char *tftp_export,
                           const char *bootfile, const char *vdhcp_start,
@@ -164,6 +164,19 @@ static int net_slirp_init(NetClientState *peer, const char *model,
     int shift;
     char *end;
     struct slirp_config_str *config;
+
+    if (!ipv4 && (vnetwork || vhost || vnameserver)) {
+        return -1;
+    }
+
+    if (!ipv6 && (vprefix6 || vhost6 || vnameserver6)) {
+        return -1;
+    }
+
+    if (!ipv4 && !ipv6) {
+        /* It doesn't make sense to disable both */
+        return -1;
+    }
 
     if (!tftp_export) {
         tftp_export = legacy_tftp_prefix;
@@ -309,8 +322,8 @@ static int net_slirp_init(NetClientState *peer, const char *model,
 
     s = DO_UPCAST(SlirpState, nc, nc);
 
-    s->slirp = slirp_init(restricted, net, mask, host,
-                          ip6_prefix, vprefix6_len, ip6_host,
+    s->slirp = slirp_init(restricted, ipv4, net, mask, host,
+                          ipv6, ip6_prefix, vprefix6_len, ip6_host,
                           vhostname, tftp_export, bootfile, dhcp,
                           dns, ip6_dns, dnssearch, s);
     QTAILQ_INSERT_TAIL(&slirp_stacks, s, entry);
@@ -813,9 +826,19 @@ int net_init_slirp(const NetClientOptions *opts, const char *name,
     int ret;
     const NetdevUserOptions *user;
     const char **dnssearch;
+    bool ipv4 = true, ipv6 = true;
 
     assert(opts->type == NET_CLIENT_OPTIONS_KIND_USER);
     user = opts->u.user.data;
+
+    if ((user->has_ipv6 && user->ipv6 && !user->has_ipv4) ||
+        (user->has_ipv4 && !user->ipv4)) {
+        ipv4 = 0;
+    }
+    if ((user->has_ipv4 && user->ipv4 && !user->has_ipv6) ||
+        (user->has_ipv6 && !user->ipv6)) {
+        ipv6 = 0;
+    }
 
     vnet = user->has_net ? g_strdup(user->net) :
            user->has_ip  ? g_strdup_printf("%s/24", user->ip) :
@@ -828,8 +851,9 @@ int net_init_slirp(const NetClientOptions *opts, const char *name,
     net_init_slirp_configs(user->hostfwd, SLIRP_CFG_HOSTFWD);
     net_init_slirp_configs(user->guestfwd, 0);
 
-    ret = net_slirp_init(peer, "user", name, user->q_restrict, vnet,
-                         user->host, user->ipv6_prefix, user->ipv6_prefixlen,
+    ret = net_slirp_init(peer, "user", name, user->q_restrict,
+                         ipv4, vnet, user->host,
+                         ipv6, user->ipv6_prefix, user->ipv6_prefixlen,
                          user->ipv6_host, user->hostname, user->tftp,
                          user->bootfile, user->dhcpstart,
                          user->dns, user->ipv6_dns, user->smb,

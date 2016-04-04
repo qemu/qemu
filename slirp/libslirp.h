@@ -8,8 +8,9 @@ typedef struct Slirp Slirp;
 
 int get_dns_addr(struct in_addr *pdns_addr);
 
-Slirp *slirp_init(int restricted, struct in_addr vnetwork,
+Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
                   struct in_addr vnetmask, struct in_addr vhost,
+                  bool in6_enabled,
                   struct in6_addr vprefix_addr6, uint8_t vprefix_len,
                   struct in6_addr vhost6, const char *vhostname,
                   const char *tftp_path, const char *bootfile,

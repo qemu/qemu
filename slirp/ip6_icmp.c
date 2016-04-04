@@ -24,6 +24,10 @@ static void ra_timer_handler(void *opaque)
 
 void icmp6_init(Slirp *slirp)
 {
+    if (!slirp->in6_enabled) {
+        return;
+    }
+
     slirp->ra_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, ra_timer_handler, slirp);
     timer_mod(slirp->ra_timer,
               qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + NDP_Interval);
@@ -31,6 +35,10 @@ void icmp6_init(Slirp *slirp)
 
 void icmp6_cleanup(Slirp *slirp)
 {
+    if (!slirp->in6_enabled) {
+        return;
+    }
+
     timer_del(slirp->ra_timer);
     timer_free(slirp->ra_timer);
 }

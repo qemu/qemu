@@ -24,6 +24,11 @@ void ip6_cleanup(Slirp *slirp)
 void ip6_input(struct mbuf *m)
 {
     struct ip6 *ip6;
+    Slirp *slirp = m->slirp;
+
+    if (!slirp->in6_enabled) {
+        goto bad;
+    }
 
     DEBUG_CALL("ip6_input");
     DEBUG_ARG("m = %lx", (long)m);

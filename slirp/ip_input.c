@@ -80,6 +80,10 @@ ip_input(struct mbuf *m)
 	register struct ip *ip;
 	int hlen;
 
+	if (!slirp->in_enabled) {
+		goto bad;
+	}
+
 	DEBUG_CALL("ip_input");
 	DEBUG_ARG("m = %p", m);
 	DEBUG_ARG("m_len = %d", m->m_len);
