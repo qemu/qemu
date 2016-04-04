@@ -123,6 +123,21 @@ static int spapr_vlan_can_receive(NetClientState *nc)
 }
 
 /**
+ * The last 8 bytes of the receive buffer list page (that has been
+ * supplied by the guest with the H_REGISTER_LOGICAL_LAN call) contain
+ * a counter for frames that have been dropped because there was no
+ * suitable receive buffer available. This function is used to increase
+ * this counter by one.
+ */
+static void spapr_vlan_record_dropped_rx_frame(VIOsPAPRVLANDevice *dev)
+{
+    uint64_t cnt;
+
+    cnt = vio_ldq(&dev->sdev, dev->buf_list + 4096 - 8);
+    vio_stq(&dev->sdev, dev->buf_list + 4096 - 8, cnt + 1);
+}
+
+/**
  * Get buffer descriptor from one of our receive buffer pools
  */
 static vlan_bd_t spapr_vlan_get_rx_bd_from_pool(VIOsPAPRVLANDevice *dev,
@@ -207,6 +222,7 @@ static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
     }
 
     if (!dev->rx_bufs) {
+        spapr_vlan_record_dropped_rx_frame(dev);
         return 0;
     }
 
@@ -216,6 +232,7 @@ static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
         bd = spapr_vlan_get_rx_bd_from_page(dev, size);
     }
     if (!bd) {
+        spapr_vlan_record_dropped_rx_frame(dev);
         return 0;
     }
 
