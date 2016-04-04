@@ -50,6 +50,16 @@ struct BlockJobTxn {
     int refcnt;
 };
 
+static QLIST_HEAD(, BlockJob) block_jobs = QLIST_HEAD_INITIALIZER(block_jobs);
+
+BlockJob *block_job_next(BlockJob *job)
+{
+    if (!job) {
+        return QLIST_FIRST(&block_jobs);
+    }
+    return QLIST_NEXT(job, job_list);
+}
+
 void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
                        int64_t speed, BlockCompletionFunc *cb,
                        void *opaque, Error **errp)
@@ -75,6 +85,8 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
     job->busy          = true;
     job->refcnt        = 1;
     bs->job = job;
+
+    QLIST_INSERT_HEAD(&block_jobs, job, job_list);
 
     /* Only set speed when necessary to avoid NotSupported error */
     if (speed != 0) {
@@ -103,6 +115,7 @@ void block_job_unref(BlockJob *job)
         bdrv_unref(job->bs);
         error_free(job->blocker);
         g_free(job->id);
+        QLIST_REMOVE(job, job_list);
         g_free(job);
     }
 }
