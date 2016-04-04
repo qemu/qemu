@@ -85,7 +85,7 @@ static void mii_reset(Mii *s)
 {
     memset(s->regs, 0, sizeof(s->regs));
     s->regs[MII_BMCR] = 0x1000;
-    s->regs[MII_BMSR] = 0x7848; /* no ext regs */
+    s->regs[MII_BMSR] = 0x7868; /* no ext regs */
     s->regs[MII_PHYIDR1] = 0x2000;
     s->regs[MII_PHYIDR2] = 0x5c90;
     s->regs[MII_ANAR] = 0x01e1;
