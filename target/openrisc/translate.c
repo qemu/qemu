@@ -198,7 +198,11 @@ static void gen_jump(DisasContext *dc, int32_t n26, uint32_t reg, uint32_t op0)
         tcg_gen_movi_tl(jmp_pc, tmp_pc);
         break;
     case 0x01:     /* l.jal */
-        tcg_gen_movi_tl(cpu_R[9], (dc->pc + 8));
+        tcg_gen_movi_tl(cpu_R[9], dc->pc + 8);
+        /* Optimize jal being used to load the PC for PIC.  */
+        if (tmp_pc == dc->pc + 8) {
+            return;
+        }
         tcg_gen_movi_tl(jmp_pc, tmp_pc);
         break;
     case 0x03:     /* l.bnf */
