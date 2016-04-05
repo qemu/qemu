@@ -29,10 +29,6 @@ import qmp
 import qtest
 import struct
 
-__all__ = ['imgfmt', 'imgproto', 'test_dir' 'qemu_img', 'qemu_io',
-           'VM', 'QMPTestCase', 'notrun', 'main', 'verify_image_format',
-           'verify_platform', 'filter_test_dir', 'filter_win32',
-           'filter_qemu_io', 'filter_chown', 'log']
 
 # This will not work if arguments contain spaces but is necessary if we
 # want to support the override options that ./check supports.
