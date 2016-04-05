@@ -314,6 +314,23 @@ static int qemu_gluster_open(BlockDriverState *bs,  QDict *options,
         goto out;
     }
 
+#ifdef CONFIG_GLUSTERFS_XLATOR_OPT
+    /* Without this, if fsync fails for a recoverable reason (for instance,
+     * ENOSPC), gluster will dump its cache, preventing retries.  This means
+     * almost certain data loss.  Not all gluster versions support the
+     * 'resync-failed-syncs-after-fsync' key value, but there is no way to
+     * discover during runtime if it is supported (this api returns success for
+     * unknown key/value pairs) */
+    ret = glfs_set_xlator_option(s->glfs, "*-write-behind",
+                                          "resync-failed-syncs-after-fsync",
+                                          "on");
+    if (ret < 0) {
+        error_setg_errno(errp, errno, "Unable to set xlator key/value pair");
+        ret = -errno;
+        goto out;
+    }
+#endif
+
     qemu_gluster_parse_flags(bdrv_flags, &open_flags);
 
     s->fd = glfs_open(s->glfs, gconf->image, open_flags);
@@ -365,6 +382,16 @@ static int qemu_gluster_reopen_prepare(BDRVReopenState *state,
         ret = -errno;
         goto exit;
     }
+
+#ifdef CONFIG_GLUSTERFS_XLATOR_OPT
+    ret = glfs_set_xlator_option(reop_s->glfs, "*-write-behind",
+                                 "resync-failed-syncs-after-fsync", "on");
+    if (ret < 0) {
+        error_setg_errno(errp, errno, "Unable to set xlator key/value pair");
+        ret = -errno;
+        goto exit;
+    }
+#endif
 
     reop_s->fd = glfs_open(reop_s->glfs, gconf->image, open_flags);
     if (reop_s->fd == NULL) {
@@ -613,11 +640,35 @@ static coroutine_fn int qemu_gluster_co_flush_to_disk(BlockDriverState *bs)
 
     ret = glfs_fsync_async(s->fd, gluster_finish_aiocb, &acb);
     if (ret < 0) {
-        return -errno;
+        ret = -errno;
+        goto error;
     }
 
     qemu_coroutine_yield();
+    if (acb.ret < 0) {
+        ret = acb.ret;
+        goto error;
+    }
+
     return acb.ret;
+
+error:
+    /* Some versions of Gluster (3.5.6 -> 3.5.8?) will not retain its cache
+     * after a fsync failure, so we have no way of allowing the guest to safely
+     * continue.  Gluster versions prior to 3.5.6 don't retain the cache
+     * either, but will invalidate the fd on error, so this is again our only
+     * option.
+     *
+     * The 'resync-failed-syncs-after-fsync' xlator option for the
+     * write-behind cache will cause later gluster versions to retain its
+     * cache after error, so long as the fd remains open.  However, we
+     * currently have no way of knowing if this option is supported.
+     *
+     * TODO: Once gluster provides a way for us to determine if the option
+     * is supported, bypass the closure and setting drv to NULL.  */
+    qemu_gluster_close(bs);
+    bs->drv = NULL;
+    return ret;
 }
 
 #ifdef CONFIG_GLUSTERFS_DISCARD
