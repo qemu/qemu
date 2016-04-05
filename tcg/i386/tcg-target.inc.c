@@ -1123,6 +1123,19 @@ static void tcg_out_jmp(TCGContext *s, tcg_insn_unit *dest)
     tcg_out_branch(s, 0, dest);
 }
 
+static void tcg_out_nopn(TCGContext *s, int n)
+{
+    static const uint8_t nop1[] = { 0x90 };
+    static const uint8_t nop2[] = { 0x66, 0x90 };
+    static const uint8_t nop3[] = { 0x8d, 0x76, 0x00 };
+    static const uint8_t *const nopn[] = { nop1, nop2, nop3 };
+    int i;
+    assert(n <= ARRAY_SIZE(nopn));
+    for (i = 0; i < n; ++i) {
+        tcg_out8(s, nopn[n - 1][i]);
+    }
+}
+
 #if defined(CONFIG_SOFTMMU)
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     int mmu_idx, uintptr_t ra)
@@ -1777,6 +1790,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_goto_tb:
         if (s->tb_jmp_insn_offset) {
             /* direct jump method */
+            /* align jump displacement for atomic pathing */
+            if (((uintptr_t)s->code_ptr & 3) != 3) {
+                tcg_out_nopn(s, 3 - ((uintptr_t)s->code_ptr & 3));
+            }
             tcg_out8(s, OPC_JMP_long); /* jmp im */
             s->tb_jmp_insn_offset[args[0]] = tcg_current_code_size(s);
             tcg_out32(s, 0);
