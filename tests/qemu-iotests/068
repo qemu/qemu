@@ -53,7 +53,7 @@ _make_test_img $IMG_SIZE
 
 case "$QEMU_DEFAULT_MACHINE" in
   s390-ccw-virtio)
-      platform_parm="-no-shutdown -machine accel=kvm"
+      platform_parm="-no-shutdown"
       ;;
   *)
       platform_parm=""
