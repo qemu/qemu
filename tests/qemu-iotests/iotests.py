@@ -437,6 +437,11 @@ def verify_platform(supported_oses=['linux']):
     if True not in [sys.platform.startswith(x) for x in supported_oses]:
         notrun('not suitable for this OS: %s' % sys.platform)
 
+def verify_quorum():
+    '''Skip test suite if quorum support is not available'''
+    if 'quorum' not in qemu_img_pipe('--help'):
+        notrun('quorum support missing')
+
 def main(supported_fmts=[], supported_oses=['linux']):
     '''Run tests'''
 

@@ -79,9 +79,6 @@ sector = "%d"
                 self.assert_qmp(event, 'data/sector-num', sector)
 
     def testQuorum(self):
-        if not 'quorum' in iotests.qemu_img_pipe('--help'):
-            return
-
         # Generate an error and get an event
         self.vm.hmp_qemu_io("drive0", "aio_read %d %d" %
                             (offset * sector_size, sector_size))
@@ -139,4 +136,5 @@ class TestFifoQuorumEvents(TestQuorumEvents):
     read_pattern = 'fifo'
 
 if __name__ == '__main__':
+    iotests.verify_quorum()
     iotests.main(supported_fmts=["raw"])
