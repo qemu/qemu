@@ -861,7 +861,8 @@ static void tb_invalidate_check(target_ulong address)
 
     address &= TARGET_PAGE_MASK;
     for (i = 0; i < CODE_GEN_PHYS_HASH_SIZE; i++) {
-        for (tb = tb_ctx.tb_phys_hash[i]; tb != NULL; tb = tb->phys_hash_next) {
+        for (tb = tcg_ctx.tb_ctx.tb_phys_hash[i]; tb != NULL;
+             tb = tb->phys_hash_next) {
             if (!(address + TARGET_PAGE_SIZE <= tb->pc ||
                   address >= tb->pc + tb->size)) {
                 printf("ERROR invalidate: address=" TARGET_FMT_lx
