@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import errno
 import os
 import re
 import subprocess
@@ -247,7 +248,8 @@ class VM(object):
             self._qmp.accept()
             self._qtest.accept()
         except:
-            os.remove(self._monitor_path)
+            _remove_if_exists(self._monitor_path)
+            _remove_if_exists(self._qtest_path)
             raise
 
     def shutdown(self):
@@ -408,6 +410,15 @@ class QMPTestCase(unittest.TestCase):
 
         event = self.wait_until_completed(drive=drive)
         self.assert_qmp(event, 'data/type', 'mirror')
+
+def _remove_if_exists(path):
+    '''Remove file object at path if it exists'''
+    try:
+        os.remove(path)
+    except OSError as exception:
+        if exception.errno == errno.ENOENT:
+           return
+        raise
 
 def notrun(reason):
     '''Skip this test suite'''
