@@ -27,9 +27,6 @@
 #ifndef AI_ADDRCONFIG
 # define AI_ADDRCONFIG 0
 #endif
-#ifndef AI_V4MAPPED
-# define AI_V4MAPPED 0
-#endif
 #ifndef EAI_ADDRFAMILY
 # define EAI_ADDRFAMILY 0
 #endif
@@ -42,7 +39,7 @@ static int check_bind(const char *hostname, bool *has_proto)
     int ret = -1;
 
     memset(&ai, 0, sizeof(ai));
-    ai.ai_flags = AI_CANONNAME | AI_V4MAPPED | AI_ADDRCONFIG;
+    ai.ai_flags = AI_CANONNAME | AI_ADDRCONFIG;
     ai.ai_family = AF_UNSPEC;
     ai.ai_socktype = SOCK_STREAM;
 

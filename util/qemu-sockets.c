@@ -29,6 +29,7 @@
 #ifndef AI_ADDRCONFIG
 # define AI_ADDRCONFIG 0
 #endif
+
 #ifndef AI_V4MAPPED
 # define AI_V4MAPPED 0
 #endif
@@ -354,10 +355,14 @@ static struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
     struct addrinfo ai, *res;
     int rc;
     Error *err = NULL;
+    static int useV4Mapped = 1;
 
     memset(&ai, 0, sizeof(ai));
 
-    ai.ai_flags = AI_CANONNAME | AI_V4MAPPED | AI_ADDRCONFIG;
+    ai.ai_flags = AI_CANONNAME | AI_ADDRCONFIG;
+    if (atomic_read(&useV4Mapped)) {
+        ai.ai_flags |= AI_V4MAPPED;
+    }
     ai.ai_family = inet_ai_family_from_address(saddr, &err);
     ai.ai_socktype = SOCK_STREAM;
 
@@ -373,6 +378,18 @@ static struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
 
     /* lookup */
     rc = getaddrinfo(saddr->host, saddr->port, &ai, &res);
+
+    /* At least FreeBSD and OS-X 10.6 declare AI_V4MAPPED but
+     * then don't implement it in their getaddrinfo(). Detect
+     * this and retry without the flag since that's preferrable
+     * to a fatal error
+     */
+    if (rc == EAI_BADFLAGS &&
+        (ai.ai_flags & AI_V4MAPPED)) {
+        atomic_set(&useV4Mapped, 0);
+        ai.ai_flags &= ~AI_V4MAPPED;
+        rc = getaddrinfo(saddr->host, saddr->port, &ai, &res);
+    }
     if (rc != 0) {
         error_setg(errp, "address resolution failed for %s:%s: %s",
                    saddr->host, saddr->port, gai_strerror(rc));

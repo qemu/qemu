@@ -319,10 +319,6 @@ int nbd_client_co_flush(BlockDriverState *bs)
         return 0;
     }
 
-    if (client->nbdflags & NBD_FLAG_SEND_FUA) {
-        request.type |= NBD_CMD_FLAG_FUA;
-    }
-
     request.from = 0;
     request.len = 0;
 

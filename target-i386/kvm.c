@@ -141,6 +141,7 @@ static int kvm_get_tsc(CPUState *cs)
         return ret;
     }
 
+    assert(ret == 1);
     env->tsc = msr_data.entries[0].data;
     return 0;
 }
@@ -917,6 +918,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (env->features[FEAT_1_EDX] & CPUID_MTRR) {
         has_msr_mtrr = true;
     }
+    if (!(env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_RDTSCP)) {
+        has_msr_tsc_aux = false;
+    }
 
     return 0;
 }
@@ -1443,6 +1447,7 @@ static int kvm_put_tscdeadline_msr(X86CPU *cpu)
         struct kvm_msr_entry entries[1];
     } msr_data;
     struct kvm_msr_entry *msrs = msr_data.entries;
+    int ret;
 
     if (!has_msr_tsc_deadline) {
         return 0;
@@ -1454,7 +1459,13 @@ static int kvm_put_tscdeadline_msr(X86CPU *cpu)
         .nmsrs = 1,
     };
 
-    return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
+    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
+    if (ret < 0) {
+        return ret;
+    }
+
+    assert(ret == 1);
+    return 0;
 }
 
 /*
@@ -1469,6 +1480,11 @@ static int kvm_put_msr_feature_control(X86CPU *cpu)
         struct kvm_msrs info;
         struct kvm_msr_entry entry;
     } msr_data;
+    int ret;
+
+    if (!has_msr_feature_control) {
+        return 0;
+    }
 
     kvm_msr_entry_set(&msr_data.entry, MSR_IA32_FEATURE_CONTROL,
                       cpu->env.msr_ia32_feature_control);
@@ -1477,7 +1493,13 @@ static int kvm_put_msr_feature_control(X86CPU *cpu)
         .nmsrs = 1,
     };
 
-    return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
+    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
+    if (ret < 0) {
+        return ret;
+    }
+
+    assert(ret == 1);
+    return 0;
 }
 
 static int kvm_put_msrs(X86CPU *cpu, int level)
@@ -1489,6 +1511,7 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
     } msr_data;
     struct kvm_msr_entry *msrs = msr_data.entries;
     int n = 0, i;
+    int ret;
 
     kvm_msr_entry_set(&msrs[n++], MSR_IA32_SYSENTER_CS, env->sysenter_cs);
     kvm_msr_entry_set(&msrs[n++], MSR_IA32_SYSENTER_ESP, env->sysenter_esp);
@@ -1682,8 +1705,13 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         .nmsrs = n,
     };
 
-    return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
+    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
+    if (ret < 0) {
+        return ret;
+    }
 
+    assert(ret == n);
+    return 0;
 }
 
 
@@ -2052,6 +2080,7 @@ static int kvm_get_msrs(X86CPU *cpu)
         return ret;
     }
 
+    assert(ret == n);
     for (i = 0; i < ret; i++) {
         uint32_t index = msrs[i].index;
         switch (index) {
@@ -2508,7 +2537,7 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
 
     assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
 
-    if (level >= KVM_PUT_RESET_STATE && has_msr_feature_control) {
+    if (level >= KVM_PUT_RESET_STATE) {
         ret = kvm_put_msr_feature_control(x86_cpu);
         if (ret < 0) {
             return ret;
