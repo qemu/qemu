@@ -39,7 +39,7 @@
 
 typedef struct DisasContext {
     TranslationBlock *tb;
-    target_ulong pc, ppc, npc;
+    target_ulong pc;
     uint32_t tb_flags, synced_flags, flags;
     uint32_t is_jmp;
     uint32_t mem_idx;
@@ -52,7 +52,6 @@ static TCGv cpu_sr;
 static TCGv cpu_R[32];
 static TCGv cpu_pc;
 static TCGv jmp_pc;            /* l.jr/l.jalr temp pc */
-static TCGv cpu_npc;
 static TCGv cpu_ppc;
 static TCGv cpu_sr_f;           /* bf/bnf, F flag taken */
 static TCGv cpu_sr_cy;          /* carry (unsigned overflow) */
@@ -83,8 +82,6 @@ void openrisc_translate_init(void)
                                        "flags");
     cpu_pc = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUOpenRISCState, pc), "pc");
-    cpu_npc = tcg_global_mem_new(cpu_env,
-                                 offsetof(CPUOpenRISCState, npc), "npc");
     cpu_ppc = tcg_global_mem_new(cpu_env,
                                  offsetof(CPUOpenRISCState, ppc), "ppc");
     jmp_pc = tcg_global_mem_new(cpu_env,
@@ -1514,7 +1511,6 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
     dc->tb = tb;
 
     dc->is_jmp = DISAS_NEXT;
-    dc->ppc = pc_start;
     dc->pc = pc_start;
     dc->flags = cpu->env.cpucfgr;
     dc->mem_idx = cpu_mmu_index(&cpu->env, false);
@@ -1543,7 +1539,7 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
     gen_tb_start(tb);
 
     do {
-        tcg_gen_insn_start(dc->pc);
+        tcg_gen_insn_start(dc->pc, num_insns != 0);
         num_insns++;
 
         if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
@@ -1561,12 +1557,9 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
-        dc->ppc = dc->pc - 4;
-        dc->npc = dc->pc + 4;
-        tcg_gen_movi_tl(cpu_ppc, dc->ppc);
-        tcg_gen_movi_tl(cpu_npc, dc->npc);
         disas_openrisc_insn(dc, cpu);
-        dc->pc = dc->npc;
+        dc->pc = dc->pc + 4;
+
         /* delay slot */
         if (dc->delayed_branch) {
             dc->delayed_branch--;
@@ -1574,10 +1567,8 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
                 dc->tb_flags &= ~D_FLAG;
                 gen_sync_flags(dc);
                 tcg_gen_mov_tl(cpu_pc, jmp_pc);
-                tcg_gen_mov_tl(cpu_npc, jmp_pc);
-                tcg_gen_movi_tl(jmp_pc, 0);
-                tcg_gen_exit_tb(0);
-                dc->is_jmp = DISAS_JUMP;
+                tcg_gen_discard_tl(jmp_pc);
+                dc->is_jmp = DISAS_UPDATE;
                 break;
             }
         }
@@ -1591,14 +1582,13 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
     if (tb->cflags & CF_LAST_IO) {
         gen_io_end();
     }
+
+    tcg_gen_movi_tl(cpu_ppc, dc->pc - 4);
     if (dc->is_jmp == DISAS_NEXT) {
         dc->is_jmp = DISAS_UPDATE;
         tcg_gen_movi_tl(cpu_pc, dc->pc);
     }
     if (unlikely(cs->singlestep_enabled)) {
-        if (dc->is_jmp == DISAS_NEXT) {
-            tcg_gen_movi_tl(cpu_pc, dc->pc);
-        }
         gen_exception(dc, EXCP_DEBUG);
     } else {
         switch (dc->is_jmp) {
@@ -1651,4 +1641,7 @@ void restore_state_to_opc(CPUOpenRISCState *env, TranslationBlock *tb,
                           target_ulong *data)
 {
     env->pc = data[0];
+    if (data[1]) {
+        env->ppc = env->pc - 4;
+    }
 }

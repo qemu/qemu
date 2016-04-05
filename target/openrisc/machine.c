@@ -47,12 +47,11 @@ static const VMStateInfo vmstate_sr = {
 
 static const VMStateDescription vmstate_env = {
     .name = "env",
-    .version_id = 3,
-    .minimum_version_id = 3,
+    .version_id = 4,
+    .minimum_version_id = 4,
     .fields = (VMStateField[]) {
         VMSTATE_UINTTL_ARRAY(gpr, CPUOpenRISCState, 32),
         VMSTATE_UINTTL(pc, CPUOpenRISCState),
-        VMSTATE_UINTTL(npc, CPUOpenRISCState),
         VMSTATE_UINTTL(ppc, CPUOpenRISCState),
         VMSTATE_UINTTL(jmp_pc, CPUOpenRISCState),
         VMSTATE_UINTTL(lock_addr, CPUOpenRISCState),

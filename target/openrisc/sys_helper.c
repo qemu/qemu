@@ -29,11 +29,10 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
                    target_ulong ra, target_ulong rb, target_ulong offset)
 {
 #ifndef CONFIG_USER_ONLY
-    int spr = (ra | offset);
-    int idx;
-
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
+    int spr = (ra | offset);
+    int idx;
 
     switch (spr) {
     case TO_SPR(0, 0): /* VR */
@@ -41,7 +40,14 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
         break;
 
     case TO_SPR(0, 16): /* NPC */
-        env->npc = rb;
+        cpu_restore_state(cs, GETPC());
+        /* ??? Mirror or1ksim in not trashing delayed branch state
+           when "jumping" to the current instruction.  */
+        if (env->pc != rb) {
+            env->pc = rb;
+            env->flags = 0;
+            cpu_loop_exit(cs);
+        }
         break;
 
     case TO_SPR(0, 17): /* SR */
@@ -170,7 +176,6 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
         cpu_openrisc_timer_update(cpu);
         break;
     default:
-
         break;
     }
 #endif
@@ -180,10 +185,10 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env,
                            target_ulong rd, target_ulong ra, uint32_t offset)
 {
 #ifndef CONFIG_USER_ONLY
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
     int spr = (ra | offset);
     int idx;
-
-    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     switch (spr) {
     case TO_SPR(0, 0): /* VR */
@@ -201,13 +206,15 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env,
     case TO_SPR(0, 4): /* IMMUCFGR */
         return env->immucfgr;
 
-    case TO_SPR(0, 16): /* NPC */
-        return env->npc;
+    case TO_SPR(0, 16): /* NPC (equals PC) */
+        cpu_restore_state(cs, GETPC());
+        return env->pc;
 
     case TO_SPR(0, 17): /* SR */
         return cpu_get_sr(env);
 
     case TO_SPR(0, 18): /* PPC */
+        cpu_restore_state(cs, GETPC());
         return env->ppc;
 
     case TO_SPR(0, 32): /* EPCR */
@@ -275,25 +282,6 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env,
         break;
     }
 #endif
-
-/*If we later need to add tracepoints (or debug printfs) for the return
-value, it may be useful to structure the code like this:
-
-target_ulong ret = 0;
-
-switch() {
-case x:
- ret = y;
- break;
-case z:
- ret = 42;
- break;
-...
-}
-
-later something like trace_spr_read(ret);
-
-return ret;*/
 
     /* for rd is passed in, if rd unchanged, just keep it back.  */
     return rd;
