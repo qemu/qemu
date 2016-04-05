@@ -176,6 +176,12 @@ static void set_configured(sPAPRDRConnector *drc)
     drc->configured = true;
 }
 
+/* has the guest been notified of device attachment? */
+static void set_signalled(sPAPRDRConnector *drc)
+{
+    drc->signalled = true;
+}
+
 /*
  * dr-entity-sense sensor value
  * returned via get-sensor-state RTAS calls
@@ -358,6 +364,7 @@ static void attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
     drc->fdt = fdt;
     drc->fdt_start_offset = fdt_start_offset;
     drc->configured = coldplug;
+    drc->signalled = coldplug;
 
     object_property_add_link(OBJECT(drc), "device",
                              object_get_typename(OBJECT(drc->dev)),
@@ -373,6 +380,26 @@ static void detach(sPAPRDRConnector *drc, DeviceState *d,
 
     drc->detach_cb = detach_cb;
     drc->detach_cb_opaque = detach_cb_opaque;
+
+    /* if we've signalled device presence to the guest, or if the guest
+     * has gone ahead and configured the device (via manually-executed
+     * device add via drmgr in guest, namely), we need to wait
+     * for the guest to quiesce the device before completing detach.
+     * Otherwise, we can assume the guest hasn't seen it and complete the
+     * detach immediately. Note that there is a small race window
+     * just before, or during, configuration, which is this context
+     * refers mainly to fetching the device tree via RTAS.
+     * During this window the device access will be arbitrated by
+     * associated DRC, which will simply fail the RTAS calls as invalid.
+     * This is recoverable within guest and current implementations of
+     * drmgr should be able to cope.
+     */
+    if (!drc->signalled && !drc->configured) {
+        /* if the guest hasn't seen the device we can't rely on it to
+         * set it back to an isolated state via RTAS, so do it here manually
+         */
+        drc->isolation_state = SPAPR_DR_ISOLATION_STATE_ISOLATED;
+    }
 
     if (drc->isolation_state != SPAPR_DR_ISOLATION_STATE_ISOLATED) {
         DPRINTFN("awaiting transition to isolated state before removal");
@@ -412,6 +439,7 @@ static void reset(DeviceState *d)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(d);
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    sPAPRDREntitySense state;
 
     DPRINTFN("drc reset: %x", drck->get_index(drc));
     /* immediately upon reset we can safely assume DRCs whose devices
@@ -438,6 +466,11 @@ static void reset(DeviceState *d)
             drc->awaiting_release) {
             drck->set_allocation_state(drc, SPAPR_DR_ALLOCATION_STATE_UNUSABLE);
         }
+    }
+
+    drck->entity_sense(drc, &state);
+    if (state == SPAPR_DR_ENTITY_SENSE_PRESENT) {
+        drck->set_signalled(drc);
     }
 }
 
@@ -597,6 +630,7 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     drck->attach = attach;
     drck->detach = detach;
     drck->release_pending = release_pending;
+    drck->set_signalled = set_signalled;
     /*
      * Reason: it crashes FIXME find and document the real reason
      */

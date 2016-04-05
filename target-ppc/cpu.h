@@ -167,6 +167,8 @@ enum powerpc_excp_t {
     POWERPC_EXCP_970,
     /* POWER7 exception model           */
     POWERPC_EXCP_POWER7,
+    /* POWER8 exception model           */
+    POWERPC_EXCP_POWER8,
 #endif /* defined(TARGET_PPC64) */
 };
 
@@ -2275,6 +2277,14 @@ enum {
     HMER_HYP_RESOURCE_ERR       = 1ull << (63 - 20),
     HMER_XSCOM_STATUS_MASK      = 7ull << (63 - 23),
     HMER_XSCOM_STATUS_LSH       = (63 - 23),
+};
+
+/* Alternate Interrupt Location (AIL) */
+enum {
+    AIL_NONE                = 0,
+    AIL_RESERVED            = 1,
+    AIL_0001_8000           = 2,
+    AIL_C000_0000_0000_4000 = 3,
 };
 
 /*****************************************************************************/
