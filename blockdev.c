@@ -2652,13 +2652,6 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
         goto out;
     }
 
-    /* The BlockBackend must be the only parent */
-    assert(QLIST_FIRST(&bs->parents));
-    if (QLIST_NEXT(QLIST_FIRST(&bs->parents), next_parent)) {
-        error_setg(errp, "Cannot throttle device with multiple parents");
-        goto out;
-    }
-
     throttle_config_init(&cfg);
     cfg.buckets[THROTTLE_BPS_TOTAL].avg = bps;
     cfg.buckets[THROTTLE_BPS_READ].avg  = bps_rd;
