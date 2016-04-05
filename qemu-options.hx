@@ -3888,7 +3888,7 @@ parameter provides the ID of a previously defined secret that contains
 the AES-256 decryption key. This key should be 32-bytes long and be
 base64 encoded. The @var{iv} parameter provides the random initialization
 vector used for encryption of this particular secret and should be a
-base64 encrypted string of the 32-byte IV.
+base64 encrypted string of the 16-byte IV.
 
 The simplest (insecure) usage is to provide the secret inline
 
