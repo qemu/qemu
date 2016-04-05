@@ -76,7 +76,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 #define TCG_TMP1  TCG_REG_T9
 
 /* check if we really need so many registers :P */
-static const TCGReg tcg_target_reg_alloc_order[] = {
+static const int tcg_target_reg_alloc_order[] = {
     /* Call saved registers.  */
     TCG_REG_S0,
     TCG_REG_S1,
