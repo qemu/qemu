@@ -2661,6 +2661,13 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
         goto out;
     }
 
+    /* The BlockBackend must be the only parent */
+    assert(QLIST_FIRST(&bs->parents));
+    if (QLIST_NEXT(QLIST_FIRST(&bs->parents), next_parent)) {
+        error_setg(errp, "Cannot throttle device with multiple parents");
+        goto out;
+    }
+
     throttle_config_init(&cfg);
     cfg.buckets[THROTTLE_BPS_TOTAL].avg = bps;
     cfg.buckets[THROTTLE_BPS_READ].avg  = bps_rd;
@@ -4025,6 +4032,11 @@ void qmp_x_blockdev_del(bool has_id, const char *id,
         blk = blk_by_name(id);
         if (!blk) {
             error_setg(errp, "Cannot find block backend %s", id);
+            return;
+        }
+        if (blk_legacy_dinfo(blk)) {
+            error_setg(errp, "Deleting block backend added with drive-add"
+                       " is not supported");
             return;
         }
         if (blk_get_refcnt(blk) > 1) {

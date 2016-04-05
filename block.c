@@ -1526,6 +1526,13 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
         if (!bs) {
             return -ENODEV;
         }
+
+        if (bs->throttle_state) {
+            error_setg(errp, "Cannot reference an existing block device for "
+                       "which I/O throttling is enabled");
+            return -EINVAL;
+        }
+
         bdrv_ref(bs);
         *pbs = bs;
         return 0;
