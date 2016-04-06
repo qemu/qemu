@@ -483,9 +483,12 @@ static int nbd_negotiate_options(NBDClient *client)
                 return -EINVAL;
             default:
                 TRACE("Unsupported option 0x%x", clientflags);
+                if (nbd_negotiate_drop_sync(client->ioc, length) != length) {
+                    return -EIO;
+                }
                 nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_UNSUP,
                                        clientflags);
-                return -EINVAL;
+                break;
             }
         } else {
             /*
