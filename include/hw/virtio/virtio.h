@@ -142,6 +142,9 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
                             void (*handle_output)(VirtIODevice *,
                                                   VirtQueue *));
 
+void virtio_set_queue_aio(VirtQueue *vq,
+                          void (*handle_output)(VirtIODevice *, VirtQueue *));
+
 void virtio_del_queue(VirtIODevice *vdev, int n);
 
 void *virtqueue_alloc_element(size_t sz, unsigned out_num, unsigned in_num);
