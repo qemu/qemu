@@ -373,6 +373,7 @@ static gboolean guest_exec_output_watch(GIOChannel *ch,
     return true;
 
 close:
+    g_io_channel_shutdown(ch, true, NULL);
     g_io_channel_unref(ch);
     g_atomic_int_set(&p->closed, 1);
     return false;
@@ -447,6 +448,7 @@ GuestExec *qmp_guest_exec(const char *path,
         g_io_channel_set_encoding(in_ch, NULL, NULL);
         g_io_channel_set_buffered(in_ch, false);
         g_io_channel_set_flags(in_ch, G_IO_FLAG_NONBLOCK, NULL);
+        g_io_channel_set_close_on_unref(in_ch, true);
         g_io_add_watch(in_ch, G_IO_OUT, guest_exec_input_watch, &gei->in);
     }
 
@@ -462,6 +464,8 @@ GuestExec *qmp_guest_exec(const char *path,
         g_io_channel_set_encoding(err_ch, NULL, NULL);
         g_io_channel_set_buffered(out_ch, false);
         g_io_channel_set_buffered(err_ch, false);
+        g_io_channel_set_close_on_unref(out_ch, true);
+        g_io_channel_set_close_on_unref(err_ch, true);
         g_io_add_watch(out_ch, G_IO_IN | G_IO_HUP,
                 guest_exec_output_watch, &gei->out);
         g_io_add_watch(err_ch, G_IO_IN | G_IO_HUP,
