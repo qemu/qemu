@@ -656,6 +656,9 @@ static ssize_t nbd_send_reply(QIOChannel *ioc, struct nbd_reply *reply)
 
     reply->error = system_errno_to_nbd_errno(reply->error);
 
+    TRACE("Sending response to client: { .error = %d, handle = %" PRIu64 " }",
+          reply->error, reply->handle);
+
     /* Reply
        [ 0 ..  3]    magic   (NBD_REPLY_MAGIC)
        [ 4 ..  7]    error   (0 == no error)
@@ -664,8 +667,6 @@ static ssize_t nbd_send_reply(QIOChannel *ioc, struct nbd_reply *reply)
     stl_be_p(buf, NBD_REPLY_MAGIC);
     stl_be_p(buf + 4, reply->error);
     stq_be_p(buf + 8, reply->handle);
-
-    TRACE("Sending response to client");
 
     ret = write_sync(ioc, buf, sizeof(buf));
     if (ret < 0) {
