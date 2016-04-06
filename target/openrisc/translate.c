@@ -40,11 +40,11 @@
 typedef struct DisasContext {
     TranslationBlock *tb;
     target_ulong pc;
-    uint32_t tb_flags, synced_flags, flags;
     uint32_t is_jmp;
     uint32_t mem_idx;
-    int singlestep_enabled;
+    uint32_t tb_flags;
     uint32_t delayed_branch;
+    bool singlestep_enabled;
 } DisasContext;
 
 static TCGv_env cpu_env;
@@ -60,7 +60,7 @@ static TCGv cpu_lock_addr;
 static TCGv cpu_lock_value;
 static TCGv_i32 fpcsr;
 static TCGv_i64 cpu_mac;        /* MACHI:MACLO */
-static TCGv_i32 env_flags;
+static TCGv_i32 cpu_dflag;
 #include "exec/gen-icount.h"
 
 void openrisc_translate_init(void)
@@ -77,9 +77,9 @@ void openrisc_translate_init(void)
     tcg_ctx.tcg_env = cpu_env;
     cpu_sr = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUOpenRISCState, sr), "sr");
-    env_flags = tcg_global_mem_new_i32(cpu_env,
-                                       offsetof(CPUOpenRISCState, flags),
-                                       "flags");
+    cpu_dflag = tcg_global_mem_new_i32(cpu_env,
+                                       offsetof(CPUOpenRISCState, dflag),
+                                       "dflag");
     cpu_pc = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUOpenRISCState, pc), "pc");
     cpu_ppc = tcg_global_mem_new(cpu_env,
@@ -108,15 +108,6 @@ void openrisc_translate_init(void)
         cpu_R[i] = tcg_global_mem_new(cpu_env,
                                       offsetof(CPUOpenRISCState, gpr[i]),
                                       regnames[i]);
-    }
-}
-
-static inline void gen_sync_flags(DisasContext *dc)
-{
-    /* Sync the tb dependent flag between translate and runtime.  */
-    if ((dc->tb_flags ^ dc->synced_flags) & D_FLAG) {
-        tcg_gen_movi_tl(env_flags, dc->tb_flags & D_FLAG);
-        dc->synced_flags = dc->tb_flags;
     }
 }
 
@@ -230,8 +221,6 @@ static void gen_jump(DisasContext *dc, int32_t n26, uint32_t reg, uint32_t op0)
     }
 
     dc->delayed_branch = 2;
-    dc->tb_flags |= D_FLAG;
-    gen_sync_flags(dc);
 }
 
 static void gen_ove_cy(DisasContext *dc)
@@ -1512,10 +1501,9 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
 
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
-    dc->flags = cpu->env.cpucfgr;
     dc->mem_idx = cpu_mmu_index(&cpu->env, false);
-    dc->synced_flags = dc->tb_flags = tb->flags;
-    dc->delayed_branch = (dc->tb_flags & D_FLAG) != 0;
+    dc->tb_flags = tb->flags;
+    dc->delayed_branch = (dc->tb_flags & TB_FLAGS_DFLAG) != 0;
     dc->singlestep_enabled = cs->singlestep_enabled;
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
@@ -1539,7 +1527,8 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
     gen_tb_start(tb);
 
     do {
-        tcg_gen_insn_start(dc->pc, num_insns != 0);
+        tcg_gen_insn_start(dc->pc, (dc->delayed_branch ? 1 : 0)
+			   | (num_insns ? 2 : 0));
         num_insns++;
 
         if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
@@ -1564,8 +1553,6 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
         if (dc->delayed_branch) {
             dc->delayed_branch--;
             if (!dc->delayed_branch) {
-                dc->tb_flags &= ~D_FLAG;
-                gen_sync_flags(dc);
                 tcg_gen_mov_tl(cpu_pc, jmp_pc);
                 tcg_gen_discard_tl(jmp_pc);
                 dc->is_jmp = DISAS_UPDATE;
@@ -1581,6 +1568,10 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
 
     if (tb->cflags & CF_LAST_IO) {
         gen_io_end();
+    }
+
+    if ((dc->tb_flags & TB_FLAGS_DFLAG ? 1 : 0) != (dc->delayed_branch != 0)) {
+        tcg_gen_movi_i32(cpu_dflag, dc->delayed_branch != 0);
     }
 
     tcg_gen_movi_tl(cpu_ppc, dc->pc - 4);
@@ -1641,7 +1632,8 @@ void restore_state_to_opc(CPUOpenRISCState *env, TranslationBlock *tb,
                           target_ulong *data)
 {
     env->pc = data[0];
-    if (data[1]) {
+    env->dflag = data[1] & 1;
+    if (data[1] & 2) {
         env->ppc = env->pc - 4;
     }
 }

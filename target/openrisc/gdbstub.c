@@ -73,7 +73,7 @@ int openrisc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
                also clear delayed branch status.  */
             if (env->pc != tmp) {
                 env->pc = tmp;
-                env->flags = 0;
+                env->dflag = 0;
             }
             break;
 

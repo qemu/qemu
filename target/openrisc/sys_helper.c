@@ -45,7 +45,7 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
            when "jumping" to the current instruction.  */
         if (env->pc != rb) {
             env->pc = rb;
-            env->flags = 0;
+            env->dflag = 0;
             cpu_loop_exit(cs);
         }
         break;

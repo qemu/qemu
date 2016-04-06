@@ -34,8 +34,8 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
     CPUOpenRISCState *env = &cpu->env;
 
     env->epcr = env->pc;
-    if (env->flags & D_FLAG) {
-        env->flags &= ~D_FLAG;
+    if (env->dflag) {
+        env->dflag = 0;
         env->sr |= SR_DSX;
         env->epcr -= 4;
     } else {
