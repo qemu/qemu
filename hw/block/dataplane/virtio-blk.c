@@ -237,8 +237,8 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
 
     /* Get this show started by hooking up our callbacks */
     aio_context_acquire(s->ctx);
-    virtio_set_queue_aio(s->vq, virtio_blk_data_plane_handle_output);
-    virtio_queue_aio_set_host_notifier_handler(s->vq, s->ctx, true, true);
+    virtio_queue_aio_set_host_notifier_handler(s->vq, s->ctx,
+                                               virtio_blk_data_plane_handle_output);
     aio_context_release(s->ctx);
     return;
 
@@ -273,8 +273,7 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
     aio_context_acquire(s->ctx);
 
     /* Stop notifications for new requests from guest */
-    virtio_queue_aio_set_host_notifier_handler(s->vq, s->ctx, false, false);
-    virtio_set_queue_aio(s->vq, NULL);
+    virtio_queue_aio_set_host_notifier_handler(s->vq, s->ctx, NULL);
 
     /* Drain and switch bs back to the QEMU main loop */
     blk_set_aio_context(s->conf->conf.blk, qemu_get_aio_context());

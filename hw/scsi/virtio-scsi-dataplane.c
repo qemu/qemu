@@ -81,8 +81,7 @@ static int virtio_scsi_vring_init(VirtIOSCSI *s, VirtQueue *vq, int n,
         return rc;
     }
 
-    virtio_queue_aio_set_host_notifier_handler(vq, s->ctx, true, true);
-    virtio_set_queue_aio(vq, fn);
+    virtio_queue_aio_set_host_notifier_handler(vq, s->ctx, fn);
     return 0;
 }
 
@@ -99,13 +98,10 @@ static void virtio_scsi_clear_aio(VirtIOSCSI *s)
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
     int i;
 
-    virtio_queue_aio_set_host_notifier_handler(vs->ctrl_vq, s->ctx, false, false);
-    virtio_set_queue_aio(vs->ctrl_vq, NULL);
-    virtio_queue_aio_set_host_notifier_handler(vs->event_vq, s->ctx, false, false);
-    virtio_set_queue_aio(vs->event_vq, NULL);
+    virtio_queue_aio_set_host_notifier_handler(vs->ctrl_vq, s->ctx, NULL);
+    virtio_queue_aio_set_host_notifier_handler(vs->event_vq, s->ctx, NULL);
     for (i = 0; i < vs->conf.num_queues; i++) {
-        virtio_queue_aio_set_host_notifier_handler(vs->cmd_vqs[i], s->ctx, false, false);
-        virtio_set_queue_aio(vs->cmd_vqs[i], NULL);
+        virtio_queue_aio_set_host_notifier_handler(vs->cmd_vqs[i], s->ctx, NULL);
     }
 }
 

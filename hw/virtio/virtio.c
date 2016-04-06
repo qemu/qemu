@@ -1159,14 +1159,6 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
     return &vdev->vq[i];
 }
 
-void virtio_set_queue_aio(VirtQueue *vq,
-                          void (*handle_output)(VirtIODevice *, VirtQueue *))
-{
-    assert(vq->handle_output);
-
-    vq->handle_aio_output = handle_output;
-}
-
 void virtio_del_queue(VirtIODevice *vdev, int n)
 {
     if (n < 0 || n >= VIRTIO_QUEUE_MAX) {
@@ -1809,18 +1801,19 @@ static void virtio_queue_host_notifier_aio_read(EventNotifier *n)
 }
 
 void virtio_queue_aio_set_host_notifier_handler(VirtQueue *vq, AioContext *ctx,
-                                                bool assign, bool set_handler)
+                                                void (*handle_output)(VirtIODevice *,
+                                                                      VirtQueue *))
 {
-    if (assign && set_handler) {
+    if (handle_output) {
+        vq->handle_aio_output = handle_output;
         aio_set_event_notifier(ctx, &vq->host_notifier, true,
                                virtio_queue_host_notifier_aio_read);
     } else {
         aio_set_event_notifier(ctx, &vq->host_notifier, true, NULL);
-    }
-    if (!assign) {
         /* Test and clear notifier before after disabling event,
          * in case poll callback didn't have time to run. */
         virtio_queue_host_notifier_aio_read(&vq->host_notifier);
+        vq->handle_aio_output = NULL;
     }
 }
 
