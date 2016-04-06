@@ -184,6 +184,17 @@ void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
     g_free(s);
 }
 
+static void virtio_blk_data_plane_handle_output(VirtIODevice *vdev,
+                                                VirtQueue *vq)
+{
+    VirtIOBlock *s = (VirtIOBlock *)vdev;
+
+    assert(s->dataplane);
+    assert(s->dataplane_started);
+
+    virtio_blk_handle_vq(s, vq);
+}
+
 /* Context: QEMU global mutex held */
 void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
 {
@@ -226,6 +237,7 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
 
     /* Get this show started by hooking up our callbacks */
     aio_context_acquire(s->ctx);
+    virtio_set_queue_aio(s->vq, virtio_blk_data_plane_handle_output);
     virtio_queue_aio_set_host_notifier_handler(s->vq, s->ctx, true, true);
     aio_context_release(s->ctx);
     return;
@@ -262,6 +274,7 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
 
     /* Stop notifications for new requests from guest */
     virtio_queue_aio_set_host_notifier_handler(s->vq, s->ctx, false, false);
+    virtio_set_queue_aio(s->vq, NULL);
 
     /* Drain and switch bs back to the QEMU main loop */
     blk_set_aio_context(s->conf->conf.blk, qemu_get_aio_context());

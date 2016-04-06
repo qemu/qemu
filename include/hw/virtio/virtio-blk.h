@@ -86,4 +86,6 @@ void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb);
 
 void virtio_blk_submit_multireq(BlockBackend *blk, MultiReqBuffer *mrb);
 
+void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq);
+
 #endif

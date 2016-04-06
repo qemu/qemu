@@ -578,19 +578,10 @@ void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     }
 }
 
-static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
+void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
 {
-    VirtIOBlock *s = VIRTIO_BLK(vdev);
     VirtIOBlockReq *req;
     MultiReqBuffer mrb = {};
-
-    /* Some guests kick before setting VIRTIO_CONFIG_S_DRIVER_OK so start
-     * dataplane here instead of waiting for .set_status().
-     */
-    if (s->dataplane && !s->dataplane_started) {
-        virtio_blk_data_plane_start(s->dataplane);
-        return;
-    }
 
     blk_io_plug(s->blk);
 
@@ -603,6 +594,22 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     }
 
     blk_io_unplug(s->blk);
+}
+
+static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
+{
+    VirtIOBlock *s = (VirtIOBlock *)vdev;
+
+    if (s->dataplane) {
+        /* Some guests kick before setting VIRTIO_CONFIG_S_DRIVER_OK so start
+         * dataplane here instead of waiting for .set_status().
+         */
+        virtio_blk_data_plane_start(s->dataplane);
+        if (!s->dataplane_disabled) {
+            return;
+        }
+    }
+    virtio_blk_handle_vq(s, vq);
 }
 
 static void virtio_blk_dma_restart_bh(void *opaque)
