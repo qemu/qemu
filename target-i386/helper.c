@@ -919,27 +919,29 @@ do_check_protect_pse36:
          !((env->cr[4] & CR4_SMEP_MASK) && (ptep & PG_USER_MASK)))) {
         prot |= PAGE_EXEC;
     }
-
-    if ((prot & (1 << is_write1)) == 0) {
-        goto do_fault_protect;
-    }
-
     if ((env->cr[4] & CR4_PKE_MASK) && (env->hflags & HF_LMA_MASK) &&
         (ptep & PG_USER_MASK) && env->pkru) {
         uint32_t pk = (pte & PG_PKRU_MASK) >> PG_PKRU_BIT;
         uint32_t pkru_ad = (env->pkru >> pk * 2) & 1;
         uint32_t pkru_wd = (env->pkru >> pk * 2) & 2;
+        uint32_t pkru_prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
 
         if (pkru_ad) {
-            prot &= ~(PAGE_READ | PAGE_WRITE);
+            pkru_prot &= ~(PAGE_READ | PAGE_WRITE);
         } else if (pkru_wd && (is_user || env->cr[0] & CR0_WP_MASK)) {
-            prot &= ~PAGE_WRITE;
+            pkru_prot &= ~PAGE_WRITE;
         }
-        if ((prot & (1 << is_write1)) == 0) {
+
+        prot &= pkru_prot;
+        if ((pkru_prot & (1 << is_write1)) == 0) {
             assert(is_write1 != 2);
             error_code |= PG_ERROR_PK_MASK;
             goto do_fault_protect;
         }
+    }
+
+    if ((prot & (1 << is_write1)) == 0) {
+        goto do_fault_protect;
     }
 
     /* yes, it can! */
