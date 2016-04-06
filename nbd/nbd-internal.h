@@ -33,18 +33,21 @@
 /* #define DEBUG_NBD */
 
 #ifdef DEBUG_NBD
-#define TRACE(msg, ...) do { \
-    LOG(msg, ## __VA_ARGS__); \
-} while(0)
+#define DEBUG_NBD_PRINT 1
 #else
-#define TRACE(msg, ...) \
-    do { } while (0)
+#define DEBUG_NBD_PRINT 0
 #endif
+
+#define TRACE(msg, ...) do { \
+    if (DEBUG_NBD_PRINT) { \
+        LOG(msg, ## __VA_ARGS__); \
+    } \
+} while (0)
 
 #define LOG(msg, ...) do { \
     fprintf(stderr, "%s:%s():L%d: " msg "\n", \
             __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__); \
-} while(0)
+} while (0)
 
 /* This is all part of the "official" NBD API.
  *
