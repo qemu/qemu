@@ -247,7 +247,7 @@ static void gluster_finish_aiocb(struct glfs_fd *fd, ssize_t ret, void *arg)
     if (!ret || ret == acb->size) {
         acb->ret = 0; /* Success */
     } else if (ret < 0) {
-        acb->ret = ret; /* Read/Write failed */
+        acb->ret = -errno; /* Read/Write failed */
     } else {
         acb->ret = -EIO; /* Partial read/write - fail it */
     }
