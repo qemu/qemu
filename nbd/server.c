@@ -26,6 +26,7 @@ static int system_errno_to_nbd_errno(int err)
     case 0:
         return NBD_SUCCESS;
     case EPERM:
+    case EROFS:
         return NBD_EPERM;
     case EIO:
         return NBD_EIO;
