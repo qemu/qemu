@@ -29,7 +29,6 @@
 struct VirtIOBlockDataPlane {
     bool starting;
     bool stopping;
-    bool disabled;
 
     VirtIOBlkConf *conf;
 
@@ -234,7 +233,7 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
   fail_host_notifier:
     k->set_guest_notifiers(qbus->parent, 1, false);
   fail_guest_notifiers:
-    s->disabled = true;
+    vblk->dataplane_disabled = true;
     s->starting = false;
     vblk->dataplane_started = true;
 }
@@ -251,8 +250,8 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
     }
 
     /* Better luck next time. */
-    if (s->disabled) {
-        s->disabled = false;
+    if (vblk->dataplane_disabled) {
+        vblk->dataplane_disabled = false;
         vblk->dataplane_started = false;
         return;
     }

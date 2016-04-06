@@ -54,7 +54,7 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, unsigned char status)
 
     stb_p(&req->in->status, status);
     virtqueue_push(s->vq, &req->elem, req->in_len);
-    if (s->dataplane) {
+    if (s->dataplane_started && !s->dataplane_disabled) {
         virtio_blk_data_plane_notify(s->dataplane);
     } else {
         virtio_notify(vdev, s->vq);
