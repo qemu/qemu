@@ -389,6 +389,7 @@ int cpu_openrisc_get_phys_data(OpenRISCCPU *cpu,
 #include "exec/cpu-all.h"
 
 #define TB_FLAGS_DFLAG 1
+#define TB_FLAGS_R0_0  2
 #define TB_FLAGS_OVE   SR_OVE
 
 static inline void cpu_get_tb_cpu_state(CPUOpenRISCState *env,
@@ -397,7 +398,9 @@ static inline void cpu_get_tb_cpu_state(CPUOpenRISCState *env,
 {
     *pc = env->pc;
     *cs_base = 0;
-    *flags = env->dflag | (env->sr & SR_OVE);
+    *flags = (env->dflag
+              | (env->gpr[0] == 0 ? TB_FLAGS_R0_0 : 0)
+              | (env->sr & SR_OVE));
 }
 
 static inline int cpu_mmu_index(CPUOpenRISCState *env, bool ifetch)
