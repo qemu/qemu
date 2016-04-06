@@ -68,7 +68,7 @@ static void virtio_scsi_complete_req(VirtIOSCSIReq *req)
 
     qemu_iovec_from_buf(&req->resp_iov, 0, &req->resp, req->resp_size);
     virtqueue_push(vq, &req->elem, req->qsgl.size + req->resp_iov.size);
-    if (s->dataplane_started) {
+    if (s->dataplane_started && !s->dataplane_fenced) {
         virtio_scsi_dataplane_notify(vdev, req);
     } else {
         virtio_notify(vdev, vq);
@@ -773,7 +773,7 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
     SCSIDevice *sd = SCSI_DEVICE(dev);
 
-    if (s->ctx && !s->dataplane_disabled) {
+    if (s->ctx && !s->dataplane_fenced) {
         VirtIOSCSIBlkChangeNotifier *insert_notifier, *remove_notifier;
 
         if (blk_op_is_blocked(sd->conf.blk, BLOCK_OP_TYPE_DATAPLANE, errp)) {

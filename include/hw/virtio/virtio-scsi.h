@@ -91,7 +91,6 @@ typedef struct VirtIOSCSI {
     bool dataplane_started;
     bool dataplane_starting;
     bool dataplane_stopping;
-    bool dataplane_disabled;
     bool dataplane_fenced;
     Error *blocker;
     uint32_t host_features;
