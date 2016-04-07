@@ -294,7 +294,6 @@ struct BlockDriver {
     /* io queue for linux-aio */
     void (*bdrv_io_plug)(BlockDriverState *bs);
     void (*bdrv_io_unplug)(BlockDriverState *bs);
-    void (*bdrv_flush_io_queue)(BlockDriverState *bs);
 
     /**
      * Try to get @bs's logical and physical block size.
@@ -483,6 +482,10 @@ struct BlockDriverState {
     /* threshold limit for writes, in bytes. "High water mark". */
     uint64_t write_threshold_offset;
     NotifierWithReturn write_threshold_notifier;
+
+    /* counters for nested bdrv_io_plug and bdrv_io_unplugged_begin */
+    unsigned io_plugged;
+    unsigned io_plug_disabled;
 
     int quiesce_counter;
 };

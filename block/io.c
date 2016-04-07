@@ -253,7 +253,6 @@ static void bdrv_drain_poll(BlockDriverState *bs)
 
     while (busy) {
         /* Keep iterating */
-        bdrv_flush_io_queue(bs);
         busy = bdrv_requests_pending(bs);
         busy |= aio_poll(bdrv_get_aio_context(bs), busy);
     }
@@ -307,20 +306,24 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
 void coroutine_fn bdrv_co_drain(BlockDriverState *bs)
 {
     bdrv_no_throttling_begin(bs);
+    bdrv_io_unplugged_begin(bs);
     bdrv_drain_recurse(bs);
     bdrv_co_yield_to_drain(bs);
+    bdrv_io_unplugged_end(bs);
     bdrv_no_throttling_end(bs);
 }
 
 void bdrv_drain(BlockDriverState *bs)
 {
     bdrv_no_throttling_begin(bs);
+    bdrv_io_unplugged_begin(bs);
     bdrv_drain_recurse(bs);
     if (qemu_in_coroutine()) {
         bdrv_co_yield_to_drain(bs);
     } else {
         bdrv_drain_poll(bs);
     }
+    bdrv_io_unplugged_end(bs);
     bdrv_no_throttling_end(bs);
 }
 
@@ -345,6 +348,7 @@ void bdrv_drain_all(void)
             block_job_pause(bs->job);
         }
         bdrv_no_throttling_begin(bs);
+        bdrv_io_unplugged_begin(bs);
         bdrv_drain_recurse(bs);
         aio_context_release(aio_context);
 
@@ -369,7 +373,6 @@ void bdrv_drain_all(void)
             aio_context_acquire(aio_context);
             while ((bs = bdrv_next(bs))) {
                 if (aio_context == bdrv_get_aio_context(bs)) {
-                    bdrv_flush_io_queue(bs);
                     if (bdrv_requests_pending(bs)) {
                         busy = true;
                         aio_poll(aio_context, busy);
@@ -386,6 +389,7 @@ void bdrv_drain_all(void)
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
+        bdrv_io_unplugged_end(bs);
         bdrv_no_throttling_end(bs);
         if (bs->job) {
             block_job_resume(bs->job);
@@ -2756,31 +2760,67 @@ void bdrv_add_before_write_notifier(BlockDriverState *bs,
 
 void bdrv_io_plug(BlockDriverState *bs)
 {
-    BlockDriver *drv = bs->drv;
-    if (drv && drv->bdrv_io_plug) {
-        drv->bdrv_io_plug(bs);
-    } else if (bs->file) {
-        bdrv_io_plug(bs->file->bs);
+    BdrvChild *child;
+
+    QLIST_FOREACH(child, &bs->children, next) {
+        bdrv_io_plug(child->bs);
+    }
+
+    if (bs->io_plugged++ == 0 && bs->io_plug_disabled == 0) {
+        BlockDriver *drv = bs->drv;
+        if (drv && drv->bdrv_io_plug) {
+            drv->bdrv_io_plug(bs);
+        }
     }
 }
 
 void bdrv_io_unplug(BlockDriverState *bs)
 {
-    BlockDriver *drv = bs->drv;
-    if (drv && drv->bdrv_io_unplug) {
-        drv->bdrv_io_unplug(bs);
-    } else if (bs->file) {
-        bdrv_io_unplug(bs->file->bs);
+    BdrvChild *child;
+
+    assert(bs->io_plugged);
+    if (--bs->io_plugged == 0 && bs->io_plug_disabled == 0) {
+        BlockDriver *drv = bs->drv;
+        if (drv && drv->bdrv_io_unplug) {
+            drv->bdrv_io_unplug(bs);
+        }
+    }
+
+    QLIST_FOREACH(child, &bs->children, next) {
+        bdrv_io_unplug(child->bs);
     }
 }
 
-void bdrv_flush_io_queue(BlockDriverState *bs)
+void bdrv_io_unplugged_begin(BlockDriverState *bs)
 {
-    BlockDriver *drv = bs->drv;
-    if (drv && drv->bdrv_flush_io_queue) {
-        drv->bdrv_flush_io_queue(bs);
-    } else if (bs->file) {
-        bdrv_flush_io_queue(bs->file->bs);
+    BdrvChild *child;
+
+    if (bs->io_plug_disabled++ == 0 && bs->io_plugged > 0) {
+        BlockDriver *drv = bs->drv;
+        if (drv && drv->bdrv_io_unplug) {
+            drv->bdrv_io_unplug(bs);
+        }
+    }
+
+    QLIST_FOREACH(child, &bs->children, next) {
+        bdrv_io_unplugged_begin(child->bs);
+    }
+}
+
+void bdrv_io_unplugged_end(BlockDriverState *bs)
+{
+    BdrvChild *child;
+
+    assert(bs->io_plug_disabled);
+    QLIST_FOREACH(child, &bs->children, next) {
+        bdrv_io_unplugged_end(child->bs);
+    }
+
+    if (--bs->io_plug_disabled == 0 && bs->io_plugged > 0) {
+        BlockDriver *drv = bs->drv;
+        if (drv && drv->bdrv_io_plug) {
+            drv->bdrv_io_plug(bs);
+        }
     }
 }
 

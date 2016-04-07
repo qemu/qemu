@@ -520,7 +520,8 @@ int bdrv_probe_geometry(BlockDriverState *bs, HDGeometry *geo);
 
 void bdrv_io_plug(BlockDriverState *bs);
 void bdrv_io_unplug(BlockDriverState *bs);
-void bdrv_flush_io_queue(BlockDriverState *bs);
+void bdrv_io_unplugged_begin(BlockDriverState *bs);
+void bdrv_io_unplugged_end(BlockDriverState *bs);
 
 /**
  * bdrv_drained_begin:

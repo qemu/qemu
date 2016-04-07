@@ -220,19 +220,16 @@ void laio_io_plug(BlockDriverState *bs, void *aio_ctx)
 {
     struct qemu_laio_state *s = aio_ctx;
 
-    s->io_q.plugged++;
+    assert(!s->io_q.plugged);
+    s->io_q.plugged = 1;
 }
 
-void laio_io_unplug(BlockDriverState *bs, void *aio_ctx, bool unplug)
+void laio_io_unplug(BlockDriverState *bs, void *aio_ctx)
 {
     struct qemu_laio_state *s = aio_ctx;
 
-    assert(s->io_q.plugged > 0 || !unplug);
-
-    if (unplug && --s->io_q.plugged > 0) {
-        return;
-    }
-
+    assert(s->io_q.plugged);
+    s->io_q.plugged = 0;
     if (!s->io_q.blocked && !QSIMPLEQ_EMPTY(&s->io_q.pending)) {
         ioq_submit(s);
     }
