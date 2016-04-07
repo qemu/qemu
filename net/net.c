@@ -81,34 +81,6 @@ int default_net = 1;
 /***********************************************************/
 /* network device redirectors */
 
-#if defined(DEBUG_NET)
-static void hex_dump(FILE *f, const uint8_t *buf, int size)
-{
-    int len, i, j, c;
-
-    for(i=0;i<size;i+=16) {
-        len = size - i;
-        if (len > 16)
-            len = 16;
-        fprintf(f, "%08x ", i);
-        for(j=0;j<16;j++) {
-            if (j < len)
-                fprintf(f, " %02x", buf[i+j]);
-            else
-                fprintf(f, "   ");
-        }
-        fprintf(f, " ");
-        for(j=0;j<len;j++) {
-            c = buf[i+j];
-            if (c < ' ' || c > '~')
-                c = '.';
-            fprintf(f, "%c", c);
-        }
-        fprintf(f, "\n");
-    }
-}
-#endif
-
 static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
 {
     const char *p, *p1;
@@ -664,7 +636,7 @@ static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
 
 #ifdef DEBUG_NET
     printf("qemu_send_packet_async:\n");
-    hex_dump(stdout, buf, size);
+    qemu_hexdump((const char *)buf, stdout, "net", size);
 #endif
 
     if (sender->link_down || !sender->peer) {
@@ -711,23 +683,28 @@ ssize_t qemu_send_packet_raw(NetClientState *nc, const uint8_t *buf, int size)
 static ssize_t nc_sendv_compat(NetClientState *nc, const struct iovec *iov,
                                int iovcnt, unsigned flags)
 {
-    uint8_t buf[NET_BUFSIZE];
+    uint8_t *buf = NULL;
     uint8_t *buffer;
     size_t offset;
+    ssize_t ret;
 
     if (iovcnt == 1) {
         buffer = iov[0].iov_base;
         offset = iov[0].iov_len;
     } else {
+        buf = g_new(uint8_t, NET_BUFSIZE);
         buffer = buf;
-        offset = iov_to_buf(iov, iovcnt, 0, buf, sizeof(buf));
+        offset = iov_to_buf(iov, iovcnt, 0, buf, NET_BUFSIZE);
     }
 
     if (flags & QEMU_NET_PACKET_FLAG_RAW && nc->info->receive_raw) {
-        return nc->info->receive_raw(nc, buffer, offset);
+        ret = nc->info->receive_raw(nc, buffer, offset);
     } else {
-        return nc->info->receive(nc, buffer, offset);
+        ret = nc->info->receive(nc, buffer, offset);
     }
+
+    g_free(buf);
+    return ret;
 }
 
 ssize_t qemu_deliver_packet_iov(NetClientState *sender,
@@ -1100,6 +1077,7 @@ int net_client_init(QemuOpts *opts, int is_netdev, Error **errp)
     }
 
     error_propagate(errp, err);
+    opts_visitor_cleanup(ov);
     return ret;
 }
 
