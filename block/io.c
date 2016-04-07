@@ -62,28 +62,15 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
 void bdrv_set_io_limits(BlockDriverState *bs,
                         ThrottleConfig *cfg)
 {
-    int i;
-
     throttle_group_config(bs, cfg);
-
-    for (i = 0; i < 2; i++) {
-        qemu_co_enter_next(&bs->throttled_reqs[i]);
-    }
 }
 
 static void bdrv_start_throttled_reqs(BlockDriverState *bs)
 {
     bool enabled = bs->io_limits_enabled;
-    int i;
 
     bs->io_limits_enabled = false;
-
-    for (i = 0; i < 2; i++) {
-        while (qemu_co_enter_next(&bs->throttled_reqs[i])) {
-            ;
-        }
-    }
-
+    throttle_group_restart_bs(bs);
     bs->io_limits_enabled = enabled;
 }
 
