@@ -243,18 +243,30 @@ typedef struct {
     bool done;
 } BdrvCoDrainData;
 
+static void bdrv_drain_poll(BlockDriverState *bs)
+{
+    bool busy = true;
+
+    while (busy) {
+        /* Keep iterating */
+        bdrv_flush_io_queue(bs);
+        busy = bdrv_requests_pending(bs);
+        busy |= aio_poll(bdrv_get_aio_context(bs), busy);
+    }
+}
+
 static void bdrv_co_drain_bh_cb(void *opaque)
 {
     BdrvCoDrainData *data = opaque;
     Coroutine *co = data->co;
 
     qemu_bh_delete(data->bh);
-    bdrv_drain(data->bs);
+    bdrv_drain_poll(data->bs);
     data->done = true;
     qemu_coroutine_enter(co, NULL);
 }
 
-void coroutine_fn bdrv_co_drain(BlockDriverState *bs)
+static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
 {
     BdrvCoDrainData data;
 
@@ -288,20 +300,19 @@ void coroutine_fn bdrv_co_drain(BlockDriverState *bs)
  * not depend on events in other AioContexts.  In that case, use
  * bdrv_drain_all() instead.
  */
+void coroutine_fn bdrv_co_drain(BlockDriverState *bs)
+{
+    bdrv_drain_recurse(bs);
+    bdrv_co_yield_to_drain(bs);
+}
+
 void bdrv_drain(BlockDriverState *bs)
 {
-    bool busy = true;
-
     bdrv_drain_recurse(bs);
     if (qemu_in_coroutine()) {
-        bdrv_co_drain(bs);
-        return;
-    }
-    while (busy) {
-        /* Keep iterating */
-         bdrv_flush_io_queue(bs);
-         busy = bdrv_requests_pending(bs);
-         busy |= aio_poll(bdrv_get_aio_context(bs), busy);
+        bdrv_co_yield_to_drain(bs);
+    } else {
+        bdrv_drain_poll(bs);
     }
 }
 
