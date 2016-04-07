@@ -8178,7 +8178,7 @@ void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb)
     CPUState *cs = CPU(cpu);
     DisasContext dc1, *dc = &dc1;
     target_ulong pc_ptr;
-    uint64_t flags;
+    uint32_t flags;
     target_ulong pc_start;
     target_ulong cs_base;
     int num_insns;

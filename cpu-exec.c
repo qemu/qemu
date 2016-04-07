@@ -220,7 +220,7 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
 static TranslationBlock *tb_find_physical(CPUState *cpu,
                                           target_ulong pc,
                                           target_ulong cs_base,
-                                          uint64_t flags)
+                                          uint32_t flags)
 {
     CPUArchState *env = (CPUArchState *)cpu->env_ptr;
     TranslationBlock *tb, **ptb1;
@@ -271,7 +271,7 @@ static TranslationBlock *tb_find_physical(CPUState *cpu,
 static TranslationBlock *tb_find_slow(CPUState *cpu,
                                       target_ulong pc,
                                       target_ulong cs_base,
-                                      uint64_t flags)
+                                      uint32_t flags)
 {
     TranslationBlock *tb;
 
@@ -314,7 +314,7 @@ static inline TranslationBlock *tb_find_fast(CPUState *cpu)
     CPUArchState *env = (CPUArchState *)cpu->env_ptr;
     TranslationBlock *tb;
     target_ulong cs_base, pc;
-    int flags;
+    uint32_t flags;
 
     /* we record a subset of the CPU state. It will
        always be the same before a given translated block

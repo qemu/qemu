@@ -230,7 +230,7 @@ int m68k_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
 #include "exec/cpu-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPUM68KState *env, target_ulong *pc,
-                                        target_ulong *cs_base, int *flags)
+                                        target_ulong *cs_base, uint32_t *flags)
 {
     *pc = env->pc;
     *cs_base = 0;

@@ -2087,7 +2087,7 @@ static void check_watchpoint(int offset, int len, MemTxAttrs attrs, int flags)
     target_ulong pc, cs_base;
     target_ulong vaddr;
     CPUWatchpoint *wp;
-    int cpu_flags;
+    uint32_t cpu_flags;
 
     if (cpu->watchpoint_hit) {
         /* We re-entered the check after replacing the TB. Now raise
