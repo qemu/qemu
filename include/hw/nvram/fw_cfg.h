@@ -11,6 +11,14 @@ typedef struct FWCfgFile {
     char      name[FW_CFG_MAX_FILE_PATH];
 } FWCfgFile;
 
+#define FW_CFG_ORDER_OVERRIDE_VGA    70
+#define FW_CFG_ORDER_OVERRIDE_NIC    80
+#define FW_CFG_ORDER_OVERRIDE_USER   100
+#define FW_CFG_ORDER_OVERRIDE_DEVICE 110
+
+void fw_cfg_set_order_override(FWCfgState *fw_cfg, int order);
+void fw_cfg_reset_order_override(FWCfgState *fw_cfg);
+
 typedef struct FWCfgFiles {
     uint32_t  count;
     FWCfgFile f[];

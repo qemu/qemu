@@ -128,6 +128,8 @@ int rom_add_elf_program(const char *name, void *data, size_t datasize,
                         size_t romsize, hwaddr addr);
 int rom_check_and_register_reset(void);
 void rom_set_fw(FWCfgState *f);
+void rom_set_order_override(int order);
+void rom_reset_order_override(void);
 int rom_copy(uint8_t *dest, hwaddr addr, size_t size);
 void *rom_ptr(hwaddr addr);
 void hmp_info_roms(Monitor *mon, const QDict *qdict);
