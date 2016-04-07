@@ -2718,7 +2718,6 @@ static int core_dump_filename(const TaskState *ts, char *buf,
                               size_t bufsize)
 {
     char timestamp[64];
-    char *filename = NULL;
     char *base_filename = NULL;
     struct timeval tv;
     struct tm tm;
@@ -2731,14 +2730,12 @@ static int core_dump_filename(const TaskState *ts, char *buf,
         return (-1);
     }
 
-    filename = strdup(ts->bprm->filename);
-    base_filename = strdup(basename(filename));
+    base_filename = g_path_get_basename(ts->bprm->filename);
     (void) strftime(timestamp, sizeof (timestamp), "%Y%m%d-%H%M%S",
                     localtime_r(&tv.tv_sec, &tm));
     (void) snprintf(buf, bufsize, "qemu_%s_%s_%d.core",
                     base_filename, timestamp, (int)getpid());
-    free(base_filename);
-    free(filename);
+    g_free(base_filename);
 
     return (0);
 }
