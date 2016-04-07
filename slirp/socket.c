@@ -176,9 +176,24 @@ soread(struct socket *so)
 		if (nn < 0 && (errno == EINTR || errno == EAGAIN))
 			return 0;
 		else {
+			int err;
+			socklen_t slen = sizeof err;
+
+			err = errno;
+			if (nn == 0) {
+				getsockopt(so->s, SOL_SOCKET, SO_ERROR,
+					   &err, &slen);
+			}
+
 			DEBUG_MISC((dfd, " --- soread() disconnected, nn = %d, errno = %d-%s\n", nn, errno,strerror(errno)));
 			sofcantrcvmore(so);
-			tcp_sockclosed(sototcpcb(so));
+
+			if (err == ECONNRESET
+			    || err == ENOTCONN || err == EPIPE) {
+				tcp_drop(sototcpcb(so), err);
+			} else {
+				tcp_sockclosed(sototcpcb(so));
+			}
 			return -1;
 		}
 	}
