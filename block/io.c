@@ -608,17 +608,6 @@ static int bdrv_prwv_co(BlockDriverState *bs, int64_t offset,
         .flags = flags,
     };
 
-    /**
-     * In sync call context, when the vcpu is blocked, this throttling timer
-     * will not fire; so the I/O throttling function has to be disabled here
-     * if it has been enabled.
-     */
-    if (bs->io_limits_enabled) {
-        fprintf(stderr, "Disabling I/O throttling on '%s' due "
-                        "to synchronous I/O.\n", bdrv_get_device_name(bs));
-        bdrv_io_limits_disable(bs);
-    }
-
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
         bdrv_rw_co_entry(&rwco);
