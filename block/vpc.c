@@ -775,7 +775,7 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
     num_bat_entries = (total_sectors + block_size / 512) / (block_size / 512);
 
     ret = blk_pwrite(blk, offset, buf, HEADER_SIZE);
-    if (ret) {
+    if (ret < 0) {
         goto fail;
     }
 
