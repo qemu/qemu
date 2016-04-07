@@ -71,10 +71,8 @@ void bdrv_set_io_limits(BlockDriverState *bs,
     }
 }
 
-/* this function drain all the throttled IOs */
-static bool bdrv_start_throttled_reqs(BlockDriverState *bs)
+static void bdrv_start_throttled_reqs(BlockDriverState *bs)
 {
-    bool drained = false;
     bool enabled = bs->io_limits_enabled;
     int i;
 
@@ -82,13 +80,11 @@ static bool bdrv_start_throttled_reqs(BlockDriverState *bs)
 
     for (i = 0; i < 2; i++) {
         while (qemu_co_enter_next(&bs->throttled_reqs[i])) {
-            drained = true;
+            ;
         }
     }
 
     bs->io_limits_enabled = enabled;
-
-    return drained;
 }
 
 void bdrv_io_limits_disable(BlockDriverState *bs)
