@@ -188,7 +188,7 @@ soread(struct socket *so)
 			DEBUG_MISC((dfd, " --- soread() disconnected, nn = %d, errno = %d-%s\n", nn, errno,strerror(errno)));
 			sofcantrcvmore(so);
 
-			if (err == ECONNRESET
+			if (err == ECONNRESET || err == ECONNREFUSED
 			    || err == ENOTCONN || err == EPIPE) {
 				tcp_drop(sototcpcb(so), err);
 			} else {

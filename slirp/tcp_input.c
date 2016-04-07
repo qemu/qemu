@@ -725,6 +725,12 @@ findso:
 	    so->so_ti = ti;
 	    tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
 	    tp->t_state = TCPS_SYN_RECEIVED;
+	    /*
+	     * Initialize receive sequence numbers now so that we can send a
+	     * valid RST if the remote end rejects our connection.
+	     */
+	    tp->irs = ti->ti_seq;
+	    tcp_rcvseqinit(tp);
 	    tcp_template(tp);
 	  }
 	  return;
