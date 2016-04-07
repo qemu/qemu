@@ -356,6 +356,10 @@ tcp_sockclosed(struct tcpcb *tp)
 	DEBUG_CALL("tcp_sockclosed");
 	DEBUG_ARG("tp = %p", tp);
 
+	if (!tp) {
+		return;
+	}
+
 	switch (tp->t_state) {
 
 	case TCPS_CLOSED:
@@ -374,8 +378,7 @@ tcp_sockclosed(struct tcpcb *tp)
 		tp->t_state = TCPS_LAST_ACK;
 		break;
 	}
-	if (tp)
-		tcp_output(tp);
+	tcp_output(tp);
 }
 
 /*

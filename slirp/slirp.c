@@ -534,7 +534,12 @@ void slirp_pollfds_poll(GArray *pollfds, int select_error)
                  * test for G_IO_IN below if this succeeds
                  */
                 if (revents & G_IO_PRI) {
-                    sorecvoob(so);
+                    ret = sorecvoob(so);
+                    if (ret < 0) {
+                        /* Socket error might have resulted in the socket being
+                         * removed, do not try to do anything more with it. */
+                        continue;
+                    }
                 }
                 /*
                  * Check sockets for reading
@@ -552,6 +557,11 @@ void slirp_pollfds_poll(GArray *pollfds, int select_error)
                     /* Output it if we read something */
                     if (ret > 0) {
                         tcp_output(sototcpcb(so));
+                    }
+                    if (ret < 0) {
+                        /* Socket error might have resulted in the socket being
+                         * removed, do not try to do anything more with it. */
+                        continue;
                     }
                 }
 
