@@ -424,10 +424,10 @@ struct BlockDriverState {
 
     /* I/O throttling.
      * throttle_state tells us if this BDS has I/O limits configured.
-     * io_limits_enabled tells us if they are currently being
-     * enforced, but it can be temporarily set to false */
+     * io_limits_disabled tells us if they are currently being enforced */
     CoQueue      throttled_reqs[2];
-    bool         io_limits_enabled;
+    unsigned int io_limits_disabled;
+
     /* The following fields are protected by the ThrottleGroup lock.
      * See the ThrottleGroup documentation for details. */
     ThrottleState *throttle_state;
@@ -712,6 +712,9 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
                                   const BdrvChildRole *child_role);
 void bdrv_root_unref_child(BdrvChild *child);
+
+void bdrv_no_throttling_begin(BlockDriverState *bs);
+void bdrv_no_throttling_end(BlockDriverState *bs);
 
 void blk_dev_change_media_cb(BlockBackend *blk, bool load);
 bool blk_dev_has_removable_media(BlockBackend *blk);

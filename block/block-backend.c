@@ -794,7 +794,6 @@ int blk_read_unthrottled(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
                          int nb_sectors)
 {
     BlockDriverState *bs = blk_bs(blk);
-    bool enabled;
     int ret;
 
     ret = blk_check_request(blk, sector_num, nb_sectors);
@@ -802,10 +801,9 @@ int blk_read_unthrottled(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
         return ret;
     }
 
-    enabled = bs->io_limits_enabled;
-    bs->io_limits_enabled = false;
+    bdrv_no_throttling_begin(bs);
     ret = blk_read(blk, sector_num, buf, nb_sectors);
-    bs->io_limits_enabled = enabled;
+    bdrv_no_throttling_end(bs);
     return ret;
 }
 

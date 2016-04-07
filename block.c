@@ -2261,7 +2261,6 @@ static void swap_feature_fields(BlockDriverState *bs_top,
 
     assert(!bs_new->throttle_state);
     if (bs_top->throttle_state) {
-        assert(bs_top->io_limits_enabled);
         bdrv_io_limits_enable(bs_new, throttle_group_get_name(bs_top));
         bdrv_io_limits_disable(bs_top);
     }

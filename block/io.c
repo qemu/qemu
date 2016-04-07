@@ -65,28 +65,32 @@ void bdrv_set_io_limits(BlockDriverState *bs,
     throttle_group_config(bs, cfg);
 }
 
-static void bdrv_start_throttled_reqs(BlockDriverState *bs)
+void bdrv_no_throttling_begin(BlockDriverState *bs)
 {
-    bool enabled = bs->io_limits_enabled;
+    if (bs->io_limits_disabled++ == 0) {
+        throttle_group_restart_bs(bs);
+    }
+}
 
-    bs->io_limits_enabled = false;
-    throttle_group_restart_bs(bs);
-    bs->io_limits_enabled = enabled;
+void bdrv_no_throttling_end(BlockDriverState *bs)
+{
+    assert(bs->io_limits_disabled);
+    --bs->io_limits_disabled;
 }
 
 void bdrv_io_limits_disable(BlockDriverState *bs)
 {
-    bs->io_limits_enabled = false;
-    bdrv_start_throttled_reqs(bs);
+    assert(bs->throttle_state);
+    bdrv_no_throttling_begin(bs);
     throttle_group_unregister_bs(bs);
+    bdrv_no_throttling_end(bs);
 }
 
 /* should be called before bdrv_set_io_limits if a limit is set */
 void bdrv_io_limits_enable(BlockDriverState *bs, const char *group)
 {
-    assert(!bs->io_limits_enabled);
+    assert(!bs->throttle_state);
     throttle_group_register_bs(bs, group);
-    bs->io_limits_enabled = true;
 }
 
 void bdrv_io_limits_update_group(BlockDriverState *bs, const char *group)
@@ -302,18 +306,22 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
  */
 void coroutine_fn bdrv_co_drain(BlockDriverState *bs)
 {
+    bdrv_no_throttling_begin(bs);
     bdrv_drain_recurse(bs);
     bdrv_co_yield_to_drain(bs);
+    bdrv_no_throttling_end(bs);
 }
 
 void bdrv_drain(BlockDriverState *bs)
 {
+    bdrv_no_throttling_begin(bs);
     bdrv_drain_recurse(bs);
     if (qemu_in_coroutine()) {
         bdrv_co_yield_to_drain(bs);
     } else {
         bdrv_drain_poll(bs);
     }
+    bdrv_no_throttling_end(bs);
 }
 
 /*
@@ -336,6 +344,7 @@ void bdrv_drain_all(void)
         if (bs->job) {
             block_job_pause(bs->job);
         }
+        bdrv_no_throttling_begin(bs);
         bdrv_drain_recurse(bs);
         aio_context_release(aio_context);
 
@@ -377,6 +386,7 @@ void bdrv_drain_all(void)
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
+        bdrv_no_throttling_end(bs);
         if (bs->job) {
             block_job_resume(bs->job);
         }
@@ -980,7 +990,7 @@ int coroutine_fn bdrv_co_do_preadv(BlockDriverState *bs,
     }
 
     /* throttling disk I/O */
-    if (bs->io_limits_enabled) {
+    if (bs->throttle_state) {
         throttle_group_co_io_limits_intercept(bs, bytes, false);
     }
 
@@ -1330,7 +1340,7 @@ int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
     }
 
     /* throttling disk I/O */
-    if (bs->io_limits_enabled) {
+    if (bs->throttle_state) {
         throttle_group_co_io_limits_intercept(bs, bytes, true);
     }
 
@@ -2772,7 +2782,6 @@ void bdrv_flush_io_queue(BlockDriverState *bs)
     } else if (bs->file) {
         bdrv_flush_io_queue(bs->file->bs);
     }
-    bdrv_start_throttled_reqs(bs);
 }
 
 void bdrv_drained_begin(BlockDriverState *bs)

@@ -219,6 +219,10 @@ static bool throttle_group_schedule_timer(BlockDriverState *bs,
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
     bool must_wait;
 
+    if (bs->io_limits_disabled) {
+        return false;
+    }
+
     /* Check if any of the timers in this group is already armed */
     if (tg->any_timer_armed[is_write]) {
         return true;
