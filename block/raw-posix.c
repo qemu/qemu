@@ -139,7 +139,7 @@ typedef struct BDRVRawState {
 
 #ifdef CONFIG_LINUX_AIO
     int use_aio;
-    void *aio_ctx;
+    LinuxAioState *aio_ctx;
 #endif
 #ifdef CONFIG_XFS
     bool is_xfs:1;
@@ -398,7 +398,7 @@ static void raw_attach_aio_context(BlockDriverState *bs,
 }
 
 #ifdef CONFIG_LINUX_AIO
-static int raw_set_aio(void **aio_ctx, int *use_aio, int bdrv_flags)
+static int raw_set_aio(LinuxAioState **aio_ctx, int *use_aio, int bdrv_flags)
 {
     int ret = -1;
     assert(aio_ctx != NULL);

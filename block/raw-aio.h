@@ -35,15 +35,16 @@
 
 /* linux-aio.c - Linux native implementation */
 #ifdef CONFIG_LINUX_AIO
-void *laio_init(void);
-void laio_cleanup(void *s);
-BlockAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
+typedef struct LinuxAioState LinuxAioState;
+LinuxAioState *laio_init(void);
+void laio_cleanup(LinuxAioState *s);
+BlockAIOCB *laio_submit(BlockDriverState *bs, LinuxAioState *s, int fd,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockCompletionFunc *cb, void *opaque, int type);
-void laio_detach_aio_context(void *s, AioContext *old_context);
-void laio_attach_aio_context(void *s, AioContext *new_context);
-void laio_io_plug(BlockDriverState *bs, void *aio_ctx);
-void laio_io_unplug(BlockDriverState *bs, void *aio_ctx);
+void laio_detach_aio_context(LinuxAioState *s, AioContext *old_context);
+void laio_attach_aio_context(LinuxAioState *s, AioContext *new_context);
+void laio_io_plug(BlockDriverState *bs, LinuxAioState *s);
+void laio_io_unplug(BlockDriverState *bs, LinuxAioState *s);
 #endif
 
 #ifdef _WIN32
