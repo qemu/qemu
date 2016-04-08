@@ -82,7 +82,8 @@ struct BlockJob {
     const BlockJobDriver *driver;
 
     /** The block device on which the job is operating.  */
-    BlockDriverState *bs;
+    BlockDriverState *bs; /* TODO Remove */
+    BlockBackend *blk;
 
     /**
      * The ID of the block job. Currently the BlockBackend name of the BDS

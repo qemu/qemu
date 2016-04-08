@@ -478,6 +478,9 @@ static void mirror_exit(BlockJob *job, void *opaque)
             bdrv_reopen(s->target, bdrv_get_flags(to_replace), NULL);
         }
         bdrv_replace_in_backing_chain(to_replace, s->target);
+        /* We just changed the BDS the job BB refers to */
+        blk_remove_bs(job->blk);
+        blk_insert_bs(job->blk, src);
     }
 
 out:
