@@ -2297,8 +2297,9 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
     gchar *buf;
     size_t size;
     const char *name, *file, *str;
+    FWCfgState *fw_cfg = (FWCfgState *) opaque;
 
-    if (opaque == NULL) {
+    if (fw_cfg == NULL) {
         error_report("fw_cfg device not available");
         return -1;
     }
@@ -2332,7 +2333,10 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
             return -1;
         }
     }
-    fw_cfg_add_file((FWCfgState *)opaque, name, buf, size);
+    /* For legacy, keep user files in a specific global order. */
+    fw_cfg_set_order_override(fw_cfg, FW_CFG_ORDER_OVERRIDE_USER);
+    fw_cfg_add_file(fw_cfg, name, buf, size);
+    fw_cfg_reset_order_override(fw_cfg);
     return 0;
 }
 
@@ -4535,10 +4539,12 @@ int main(int argc, char **argv, char **envp)
     igd_gfx_passthru();
 
     /* init generic devices */
+    rom_set_order_override(FW_CFG_ORDER_OVERRIDE_DEVICE);
     if (qemu_opts_foreach(qemu_find_opts("device"),
                           device_init_func, NULL, NULL)) {
         exit(1);
     }
+    rom_reset_order_override();
 
     /* Did we create any drives that we failed to create a device for? */
     drive_check_orphaned();

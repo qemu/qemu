@@ -432,7 +432,7 @@ static bool load_asl(GArray *sdts, AcpiSdtTable *sdt)
 
 #define COMMENT_END "*/"
 #define DEF_BLOCK "DefinitionBlock ("
-#define BLOCK_NAME_END ".aml"
+#define BLOCK_NAME_END ","
 
 static GString *normalize_asl(gchar *asl_code)
 {

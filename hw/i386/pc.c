@@ -1406,6 +1406,7 @@ DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus)
 {
     DeviceState *dev = NULL;
 
+    rom_set_order_override(FW_CFG_ORDER_OVERRIDE_VGA);
     if (pci_bus) {
         PCIDevice *pcidev = pci_vga_init(pci_bus);
         dev = pcidev ? &pcidev->qdev : NULL;
@@ -1413,6 +1414,7 @@ DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus)
         ISADevice *isadev = isa_vga_init(isa_bus);
         dev = isadev ? DEVICE(isadev) : NULL;
     }
+    rom_reset_order_override();
     return dev;
 }
 
@@ -1541,6 +1543,7 @@ void pc_nic_init(ISABus *isa_bus, PCIBus *pci_bus)
 {
     int i;
 
+    rom_set_order_override(FW_CFG_ORDER_OVERRIDE_NIC);
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
 
@@ -1550,6 +1553,7 @@ void pc_nic_init(ISABus *isa_bus, PCIBus *pci_bus)
             pci_nic_init_nofail(nd, pci_bus, "e1000", NULL);
         }
     }
+    rom_reset_order_override();
 }
 
 void pc_pci_device_init(PCIBus *pci_bus)

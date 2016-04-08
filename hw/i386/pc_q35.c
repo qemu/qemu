@@ -298,6 +298,7 @@ static void pc_q35_2_5_machine_options(MachineClass *m)
     pc_q35_2_6_machine_options(m);
     m->alias = NULL;
     pcmc->save_tsc_khz = false;
+    m->legacy_fw_cfg_order = 1;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_5);
 }
 

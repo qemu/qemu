@@ -28,6 +28,7 @@
 #include "hw/isa/isa.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/sysbus.h"
+#include "hw/boards.h"
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "qemu/config-file.h"
@@ -69,10 +70,13 @@ struct FWCfgState {
     /*< public >*/
 
     FWCfgEntry entries[2][FW_CFG_MAX_ENTRY];
+    int entry_order[FW_CFG_MAX_ENTRY];
     FWCfgFiles *files;
     uint16_t cur_entry;
     uint32_t cur_offset;
     Notifier machine_ready;
+
+    int fw_cfg_order_override;
 
     bool dma_enabled;
     dma_addr_t dma_addr;
@@ -665,12 +669,87 @@ void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
+void fw_cfg_set_order_override(FWCfgState *s, int order)
+{
+    assert(s->fw_cfg_order_override == 0);
+    s->fw_cfg_order_override = order;
+}
+
+void fw_cfg_reset_order_override(FWCfgState *s)
+{
+    assert(s->fw_cfg_order_override != 0);
+    s->fw_cfg_order_override = 0;
+}
+
+/*
+ * This is the legacy order list.  For legacy systems, files are in
+ * the fw_cfg in the order defined below, by the "order" value.  Note
+ * that some entries (VGA ROMs, NIC option ROMS, etc.) go into a
+ * specific area, but there may be more than one and they occur in the
+ * order that the user specifies them on the command line.  Those are
+ * handled in a special manner, using the order override above.
+ *
+ * For non-legacy, the files are sorted by filename to avoid this kind
+ * of complexity in the future.
+ *
+ * This is only for x86, other arches don't implement versioning so
+ * they won't set legacy mode.
+ */
+static struct {
+    const char *name;
+    int order;
+} fw_cfg_order[] = {
+    { "etc/boot-menu-wait", 10 },
+    { "bootsplash.jpg", 11 },
+    { "bootsplash.bmp", 12 },
+    { "etc/boot-fail-wait", 15 },
+    { "etc/smbios/smbios-tables", 20 },
+    { "etc/smbios/smbios-anchor", 30 },
+    { "etc/e820", 40 },
+    { "etc/reserved-memory-end", 50 },
+    { "genroms/kvmvapic.bin", 55 },
+    { "genroms/linuxboot.bin", 60 },
+    { }, /* VGA ROMs from pc_vga_init come here, 70. */
+    { }, /* NIC option ROMs from pc_nic_init come here, 80. */
+    { "etc/system-states", 90 },
+    { }, /* User ROMs come here, 100. */
+    { }, /* Device FW comes here, 110. */
+    { "etc/extra-pci-roots", 120 },
+    { "etc/acpi/tables", 130 },
+    { "etc/table-loader", 140 },
+    { "etc/tpm/log", 150 },
+    { "etc/acpi/rsdp", 160 },
+    { "bootorder", 170 },
+
+#define FW_CFG_ORDER_OVERRIDE_LAST 200
+};
+
+static int get_fw_cfg_order(FWCfgState *s, const char *name)
+{
+    int i;
+
+    if (s->fw_cfg_order_override > 0)
+	return s->fw_cfg_order_override;
+
+    for (i = 0; i < ARRAY_SIZE(fw_cfg_order); i++) {
+	if (fw_cfg_order[i].name == NULL)
+	    continue;
+	if (strcmp(name, fw_cfg_order[i].name) == 0)
+	    return fw_cfg_order[i].order;
+    }
+    /* Stick unknown stuff at the end. */
+    error_report("warning: Unknown firmware file in legacy mode: %s\n", name);
+    return FW_CFG_ORDER_OVERRIDE_LAST;
+}
+
 void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
                               FWCfgReadCallback callback, void *callback_opaque,
                               void *data, size_t len)
 {
-    int i, index;
+    int i, index, count;
     size_t dsize;
+    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+    int order = 0;
 
     if (!s->files) {
         dsize = sizeof(uint32_t) + sizeof(FWCfgFile) * FW_CFG_FILE_SLOTS;
@@ -678,13 +757,48 @@ void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
         fw_cfg_add_bytes(s, FW_CFG_FILE_DIR, s->files, dsize);
     }
 
-    index = be32_to_cpu(s->files->count);
-    assert(index < FW_CFG_FILE_SLOTS);
+    count = be32_to_cpu(s->files->count);
+    assert(count < FW_CFG_FILE_SLOTS);
 
-    pstrcpy(s->files->f[index].name, sizeof(s->files->f[index].name),
-            filename);
-    for (i = 0; i < index; i++) {
-        if (strcmp(s->files->f[index].name, s->files->f[i].name) == 0) {
+    /* Find the insertion point. */
+    if (mc->legacy_fw_cfg_order) {
+        /*
+         * Sort by order. For files with the same order, we keep them
+         * in the sequence in which they were added.
+         */
+        order = get_fw_cfg_order(s, filename);
+        for (index = count;
+             index > 0 && order < s->entry_order[index - 1];
+             index--);
+    } else {
+        /* Sort by file name. */
+        for (index = count;
+             index > 0 && strcmp(filename, s->files->f[index - 1].name) < 0;
+             index--);
+    }
+
+    /*
+     * Move all the entries from the index point and after down one
+     * to create a slot for the new entry.  Because calculations are
+     * being done with the index, make it so that "i" is the current
+     * index and "i - 1" is the one being copied from, thus the
+     * unusual start and end in the for statement.
+     */
+    for (i = count + 1; i > index; i--) {
+        s->files->f[i] = s->files->f[i - 1];
+        s->files->f[i].select = cpu_to_be16(FW_CFG_FILE_FIRST + i);
+        s->entries[0][FW_CFG_FILE_FIRST + i] =
+            s->entries[0][FW_CFG_FILE_FIRST + i - 1];
+        s->entry_order[i] = s->entry_order[i - 1];
+    }
+
+    memset(&s->files->f[index], 0, sizeof(FWCfgFile));
+    memset(&s->entries[0][FW_CFG_FILE_FIRST + index], 0, sizeof(FWCfgEntry));
+
+    pstrcpy(s->files->f[index].name, sizeof(s->files->f[index].name), filename);
+    for (i = 0; i <= count; i++) {
+        if (i != index &&
+            strcmp(s->files->f[index].name, s->files->f[i].name) == 0) {
             error_report("duplicate fw_cfg file name: %s",
                          s->files->f[index].name);
             exit(1);
@@ -696,9 +810,10 @@ void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
 
     s->files->f[index].size   = cpu_to_be32(len);
     s->files->f[index].select = cpu_to_be16(FW_CFG_FILE_FIRST + index);
+    s->entry_order[index] = order;
     trace_fw_cfg_add_file(s, index, s->files->f[index].name, len);
 
-    s->files->count = cpu_to_be32(index+1);
+    s->files->count = cpu_to_be32(count+1);
 }
 
 void fw_cfg_add_file(FWCfgState *s,  const char *filename,

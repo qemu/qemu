@@ -251,8 +251,8 @@ EventNotifier *virtio_queue_get_host_notifier(VirtQueue *vq);
 void virtio_queue_set_host_notifier_fd_handler(VirtQueue *vq, bool assign,
                                                bool set_handler);
 void virtio_queue_aio_set_host_notifier_handler(VirtQueue *vq, AioContext *ctx,
-                                                bool assign, bool set_handler);
-void virtio_queue_notify_vq(VirtQueue *vq);
+                                                void (*fn)(VirtIODevice *,
+                                                           VirtQueue *));
 void virtio_irq(VirtQueue *vq);
 VirtQueue *virtio_vector_first_queue(VirtIODevice *vdev, uint16_t vector);
 VirtQueue *virtio_vector_next_queue(VirtQueue *vq);

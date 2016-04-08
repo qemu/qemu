@@ -29,7 +29,6 @@
 struct VirtIOBlockDataPlane {
     bool starting;
     bool stopping;
-    bool disabled;
 
     VirtIOBlkConf *conf;
 
@@ -185,6 +184,17 @@ void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
     g_free(s);
 }
 
+static void virtio_blk_data_plane_handle_output(VirtIODevice *vdev,
+                                                VirtQueue *vq)
+{
+    VirtIOBlock *s = (VirtIOBlock *)vdev;
+
+    assert(s->dataplane);
+    assert(s->dataplane_started);
+
+    virtio_blk_handle_vq(s, vq);
+}
+
 /* Context: QEMU global mutex held */
 void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
 {
@@ -227,14 +237,15 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
 
     /* Get this show started by hooking up our callbacks */
     aio_context_acquire(s->ctx);
-    virtio_queue_aio_set_host_notifier_handler(s->vq, s->ctx, true, true);
+    virtio_queue_aio_set_host_notifier_handler(s->vq, s->ctx,
+                                               virtio_blk_data_plane_handle_output);
     aio_context_release(s->ctx);
     return;
 
   fail_host_notifier:
     k->set_guest_notifiers(qbus->parent, 1, false);
   fail_guest_notifiers:
-    s->disabled = true;
+    vblk->dataplane_disabled = true;
     s->starting = false;
     vblk->dataplane_started = true;
 }
@@ -251,8 +262,8 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
     }
 
     /* Better luck next time. */
-    if (s->disabled) {
-        s->disabled = false;
+    if (vblk->dataplane_disabled) {
+        vblk->dataplane_disabled = false;
         vblk->dataplane_started = false;
         return;
     }
@@ -262,7 +273,7 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
     aio_context_acquire(s->ctx);
 
     /* Stop notifications for new requests from guest */
-    virtio_queue_aio_set_host_notifier_handler(s->vq, s->ctx, false, false);
+    virtio_queue_aio_set_host_notifier_handler(s->vq, s->ctx, NULL);
 
     /* Drain and switch bs back to the QEMU main loop */
     blk_set_aio_context(s->conf->conf.blk, qemu_get_aio_context());

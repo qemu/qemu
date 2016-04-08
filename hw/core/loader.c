@@ -1053,6 +1053,20 @@ void rom_set_fw(FWCfgState *f)
     fw_cfg = f;
 }
 
+void rom_set_order_override(int order)
+{
+    if (!fw_cfg)
+        return;
+    fw_cfg_set_order_override(fw_cfg, order);
+}
+
+void rom_reset_order_override(void)
+{
+    if (!fw_cfg)
+        return;
+    fw_cfg_reset_order_override(fw_cfg);
+}
+
 static Rom *find_rom(hwaddr addr)
 {
     Rom *rom;

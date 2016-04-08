@@ -426,6 +426,10 @@ static int virtio_balloon_load_device(VirtIODevice *vdev, QEMUFile *f,
 
     s->num_pages = qemu_get_be32(f);
     s->actual = qemu_get_be32(f);
+
+    if (balloon_stats_enabled(s)) {
+        balloon_stats_change_timer(s, s->stats_poll_interval);
+    }
     return 0;
 }
 

@@ -434,6 +434,7 @@ static void pc_i440fx_2_5_machine_options(MachineClass *m)
     m->alias = NULL;
     m->is_default = 0;
     pcmc->save_tsc_khz = false;
+    m->legacy_fw_cfg_order = 1;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_5);
 }
 

@@ -96,6 +96,7 @@ struct VirtQueue
 
     uint16_t vector;
     void (*handle_output)(VirtIODevice *vdev, VirtQueue *vq);
+    void (*handle_aio_output)(VirtIODevice *vdev, VirtQueue *vq);
     VirtIODevice *vdev;
     EventNotifier guest_notifier;
     EventNotifier host_notifier;
@@ -1088,7 +1089,17 @@ void virtio_queue_set_align(VirtIODevice *vdev, int n, int align)
     virtio_queue_update_rings(vdev, n);
 }
 
-void virtio_queue_notify_vq(VirtQueue *vq)
+static void virtio_queue_notify_aio_vq(VirtQueue *vq)
+{
+    if (vq->vring.desc && vq->handle_aio_output) {
+        VirtIODevice *vdev = vq->vdev;
+
+        trace_virtio_queue_notify(vdev, vq - vdev->vq, vq);
+        vq->handle_aio_output(vdev, vq);
+    }
+}
+
+static void virtio_queue_notify_vq(VirtQueue *vq)
 {
     if (vq->vring.desc && vq->handle_output) {
         VirtIODevice *vdev = vq->vdev;
@@ -1143,6 +1154,7 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
     vdev->vq[i].vring.num_default = queue_size;
     vdev->vq[i].vring.align = VIRTIO_PCI_VRING_ALIGN;
     vdev->vq[i].handle_output = handle_output;
+    vdev->vq[i].handle_aio_output = NULL;
 
     return &vdev->vq[i];
 }
@@ -1780,27 +1792,36 @@ EventNotifier *virtio_queue_get_guest_notifier(VirtQueue *vq)
     return &vq->guest_notifier;
 }
 
+static void virtio_queue_host_notifier_aio_read(EventNotifier *n)
+{
+    VirtQueue *vq = container_of(n, VirtQueue, host_notifier);
+    if (event_notifier_test_and_clear(n)) {
+        virtio_queue_notify_aio_vq(vq);
+    }
+}
+
+void virtio_queue_aio_set_host_notifier_handler(VirtQueue *vq, AioContext *ctx,
+                                                void (*handle_output)(VirtIODevice *,
+                                                                      VirtQueue *))
+{
+    if (handle_output) {
+        vq->handle_aio_output = handle_output;
+        aio_set_event_notifier(ctx, &vq->host_notifier, true,
+                               virtio_queue_host_notifier_aio_read);
+    } else {
+        aio_set_event_notifier(ctx, &vq->host_notifier, true, NULL);
+        /* Test and clear notifier before after disabling event,
+         * in case poll callback didn't have time to run. */
+        virtio_queue_host_notifier_aio_read(&vq->host_notifier);
+        vq->handle_aio_output = NULL;
+    }
+}
+
 static void virtio_queue_host_notifier_read(EventNotifier *n)
 {
     VirtQueue *vq = container_of(n, VirtQueue, host_notifier);
     if (event_notifier_test_and_clear(n)) {
         virtio_queue_notify_vq(vq);
-    }
-}
-
-void virtio_queue_aio_set_host_notifier_handler(VirtQueue *vq, AioContext *ctx,
-                                                bool assign, bool set_handler)
-{
-    if (assign && set_handler) {
-        aio_set_event_notifier(ctx, &vq->host_notifier, true,
-                               virtio_queue_host_notifier_read);
-    } else {
-        aio_set_event_notifier(ctx, &vq->host_notifier, true, NULL);
-    }
-    if (!assign) {
-        /* Test and clear notifier before after disabling event,
-         * in case poll callback didn't have time to run. */
-        virtio_queue_host_notifier_read(&vq->host_notifier);
     }
 }
 
