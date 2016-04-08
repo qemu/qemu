@@ -331,6 +331,19 @@ int block_job_cancel_sync(BlockJob *job)
     return block_job_finish_sync(job, &block_job_cancel_err, NULL);
 }
 
+void block_job_cancel_sync_all(void)
+{
+    BlockJob *job;
+    AioContext *aio_context;
+
+    while ((job = QLIST_FIRST(&block_jobs))) {
+        aio_context = bdrv_get_aio_context(job->bs);
+        aio_context_acquire(aio_context);
+        block_job_cancel_sync(job);
+        aio_context_release(aio_context);
+    }
+}
+
 int block_job_complete_sync(BlockJob *job, Error **errp)
 {
     return block_job_finish_sync(job, &block_job_complete, errp);

@@ -371,6 +371,13 @@ bool block_job_is_paused(BlockJob *job);
 int block_job_cancel_sync(BlockJob *job);
 
 /**
+ * block_job_cancel_sync_all:
+ *
+ * Synchronously cancels all jobs using block_job_cancel_sync().
+ */
+void block_job_cancel_sync_all(void);
+
+/**
  * block_job_complete_sync:
  * @job: The job to be completed.
  * @errp: Error object which may be set by block_job_complete(); this is not
