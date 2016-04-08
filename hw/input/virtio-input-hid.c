@@ -484,12 +484,12 @@ static struct virtio_input_config virtio_tablet_config[] = {
         .select    = VIRTIO_INPUT_CFG_ABS_INFO,
         .subsel    = ABS_X,
         .size      = sizeof(virtio_input_absinfo),
-        .u.abs.max = const_le32(INPUT_EVENT_ABS_SIZE),
+        .u.abs.max = const_le32(INPUT_EVENT_ABS_SIZE - 1),
     },{
         .select    = VIRTIO_INPUT_CFG_ABS_INFO,
         .subsel    = ABS_Y,
         .size      = sizeof(virtio_input_absinfo),
-        .u.abs.max = const_le32(INPUT_EVENT_ABS_SIZE),
+        .u.abs.max = const_le32(INPUT_EVENT_ABS_SIZE - 1),
     },
     { /* end of list */ },
 };
