@@ -2348,7 +2348,12 @@ build_dsdt(GArray *table_data, GArray *linker,
                     crs = aml_resource_template();
                     aml_append(crs, aml_memory32_fixed(TPM_TIS_ADDR_BASE,
                                TPM_TIS_ADDR_SIZE, AML_READ_WRITE));
-                    aml_append(crs, aml_irq_no_flags(TPM_TIS_IRQ));
+                    /*
+                        FIXME: TPM_TIS_IRQ=5 conflicts with PNP0C0F irqs,
+                        Rewrite to take IRQ from TPM device model and
+                        fix default IRQ value there to use some unused IRQ
+                     */
+                    /* aml_append(crs, aml_irq_no_flags(TPM_TIS_IRQ)); */
                     aml_append(dev, aml_name_decl("_CRS", crs));
                     aml_append(scope, dev);
                 }
