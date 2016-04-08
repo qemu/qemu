@@ -185,9 +185,9 @@ an MMIO region mapped at 0x0, size 0x6000, priority 1. B currently has two
 of its own subregions: D of size 0x1000 at offset 0 and E of size 0x1000 at
 offset 0x2000. As a diagram:
 
-        0      1000   2000   3000   4000   5000   6000   7000    8000
-        |------|------|------|------|------|------|------|-------|
-  A:    [                                                       ]
+        0      1000   2000   3000   4000   5000   6000   7000   8000
+        |------|------|------|------|------|------|------|------|
+  A:    [                                                      ]
   C:    [CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC]
   B:                  [                          ]
   D:                  [DDDDD]
@@ -247,7 +247,7 @@ system_memory: container@0-2^48-1
  |
  +---- himem: alias@0x100000000-0x11fffffff ---> #ram (0xe0000000-0xffffffff)
  |
- +---- vga-window: alias@0xa0000-0xbfffff ---> #pci (0xa0000-0xbffff)
+ +---- vga-window: alias@0xa0000-0xbffff ---> #pci (0xa0000-0xbffff)
  |      (prio 1)
  |
  +---- pci-hole: alias@0xe0000000-0xffffffff ---> #pci (0xe0000000-0xffffffff)

@@ -50,9 +50,12 @@ ssize_t nbd_wr_syncv(QIOChannel *ioc,
                  * qio_channel_yield() that works with AIO contexts
                  * and consider using that in this branch */
                 qemu_coroutine_yield();
-            } else {
+            } else if (done) {
+                /* XXX this is needed by nbd_reply_ready.  */
                 qio_channel_wait(ioc,
                                  do_read ? G_IO_IN : G_IO_OUT);
+            } else {
+                return -EAGAIN;
             }
             continue;
         }

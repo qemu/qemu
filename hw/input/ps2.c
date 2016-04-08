@@ -628,7 +628,7 @@ static void ps2_kbd_reset(void *opaque)
     ps2_common_reset(&s->common);
     s->scan_enabled = 0;
     s->translate = 0;
-    s->scancode_set = 0;
+    s->scancode_set = 2;
 }
 
 static void ps2_mouse_reset(void *opaque)
