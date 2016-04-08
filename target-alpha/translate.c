@@ -460,12 +460,16 @@ static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
         || ctx->singlestep_enabled || singlestep) {
         return false;
     }
+#ifndef CONFIG_USER_ONLY
     /* If the destination is in the superpage, the page perms can't change.  */
     if (in_superpage(ctx, dest)) {
         return true;
     }
     /* Check for the dest on the same page as the start of the TB.  */
     return ((ctx->tb->pc ^ dest) & TARGET_PAGE_MASK) == 0;
+#else
+    return true;
+#endif
 }
 
 static ExitStatus gen_bdirect(DisasContext *ctx, int ra, int32_t disp)
