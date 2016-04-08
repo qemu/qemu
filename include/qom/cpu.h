@@ -222,6 +222,15 @@ struct kvm_run;
 #define TB_JMP_CACHE_BITS 12
 #define TB_JMP_CACHE_SIZE (1 << TB_JMP_CACHE_BITS)
 
+/* work queue */
+struct qemu_work_item {
+    struct qemu_work_item *next;
+    void (*func)(void *data);
+    void *data;
+    int done;
+    bool free;
+};
+
 /**
  * CPUState:
  * @cpu_index: CPU index (informative).

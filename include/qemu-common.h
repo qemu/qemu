@@ -23,17 +23,6 @@
 #include "qemu/option.h"
 #include "qemu/host-utils.h"
 
-void cpu_ticks_init(void);
-
-/* icount */
-void configure_icount(QemuOpts *opts, Error **errp);
-extern int use_icount;
-extern int icount_align_option;
-/* drift information for info jit command */
-extern int64_t max_delay;
-extern int64_t max_advance;
-void dump_drift_info(FILE *f, fprintf_function cpu_fprintf);
-
 #include "qemu/bswap.h"
 
 /* FIXME: Remove NEED_CPU_H.  */
@@ -99,19 +88,6 @@ void tcg_exec_init(unsigned long tb_size);
 bool tcg_enabled(void);
 
 void cpu_exec_init_all(void);
-
-/* Unblock cpu */
-void qemu_cpu_kick_self(void);
-
-/* work queue */
-struct qemu_work_item {
-    struct qemu_work_item *next;
-    void (*func)(void *data);
-    void *data;
-    int done;
-    bool free;
-};
-
 
 /**
  * Sends a (part of) iovec down a socket, yielding when the socket is full, or
