@@ -364,7 +364,7 @@ Message types
       Equivalent ioctl: VHOST_SET_VRING_NUM
       Master payload: vring state description
 
-      Sets the number of vrings for this owner.
+      Set the size of the queue.
 
  * VHOST_USER_SET_VRING_ADDR
 
