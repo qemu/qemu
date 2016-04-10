@@ -553,19 +553,19 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out64(s, args[0]);
         break;
     case INDEX_op_goto_tb:
-        if (s->tb_jmp_offset) {
+        if (s->tb_jmp_insn_offset) {
             /* Direct jump method. */
-            tcg_debug_assert(args[0] < ARRAY_SIZE(s->tb_jmp_offset));
+            tcg_debug_assert(args[0] < ARRAY_SIZE(s->tb_jmp_insn_offset));
             /* Align for atomic patching and thread safety */
             s->code_ptr = QEMU_ALIGN_PTR_UP(s->code_ptr, 4);
-            s->tb_jmp_offset[args[0]] = tcg_current_code_size(s);
+            s->tb_jmp_insn_offset[args[0]] = tcg_current_code_size(s);
             tcg_out32(s, 0);
         } else {
             /* Indirect jump method. */
             TODO();
         }
-        tcg_debug_assert(args[0] < ARRAY_SIZE(s->tb_next_offset));
-        s->tb_next_offset[args[0]] = tcg_current_code_size(s);
+        tcg_debug_assert(args[0] < ARRAY_SIZE(s->tb_jmp_reset_offset));
+        s->tb_jmp_reset_offset[args[0]] = tcg_current_code_size(s);
         break;
     case INDEX_op_br:
         tci_out_label(s, arg_label(args[0]));

@@ -1902,14 +1902,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_b(s, 0, tb_ret_addr);
         break;
     case INDEX_op_goto_tb:
-        tcg_debug_assert(s->tb_jmp_offset);
+        tcg_debug_assert(s->tb_jmp_insn_offset);
         /* Direct jump. */
 #ifdef __powerpc64__
         /* Ensure the next insns are 8-byte aligned. */
         if ((uintptr_t)s->code_ptr & 7) {
             tcg_out32(s, NOP);
         }
-        s->tb_jmp_offset[args[0]] = tcg_current_code_size(s);
+        s->tb_jmp_insn_offset[args[0]] = tcg_current_code_size(s);
         /* To be replaced by either a branch+nop or a load into TMP1.  */
         s->code_ptr += 2;
         tcg_out32(s, MTSPR | RS(TCG_REG_TMP1) | CTR);
@@ -1918,7 +1918,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         /* To be replaced by a branch.  */
         s->code_ptr++;
 #endif
-        s->tb_next_offset[args[0]] = tcg_current_code_size(s);
+        s->tb_jmp_reset_offset[args[0]] = tcg_current_code_size(s);
         break;
     case INDEX_op_br:
         {

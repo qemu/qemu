@@ -931,7 +931,7 @@ static inline void tb_jmp_remove(TranslationBlock *tb, int n)
     TranslationBlock *tb1, **ptb;
     unsigned int n1;
 
-    ptb = &tb->jmp_next[n];
+    ptb = &tb->jmp_list_next[n];
     tb1 = *ptb;
     if (tb1) {
         /* find tb(n) in circular list */
@@ -943,15 +943,15 @@ static inline void tb_jmp_remove(TranslationBlock *tb, int n)
                 break;
             }
             if (n1 == 2) {
-                ptb = &tb1->jmp_first;
+                ptb = &tb1->jmp_list_first;
             } else {
-                ptb = &tb1->jmp_next[n1];
+                ptb = &tb1->jmp_list_next[n1];
             }
         }
         /* now we can suppress tb(n) from the list */
-        *ptb = tb->jmp_next[n];
+        *ptb = tb->jmp_list_next[n];
 
-        tb->jmp_next[n] = NULL;
+        tb->jmp_list_next[n] = NULL;
     }
 }
 
@@ -959,7 +959,8 @@ static inline void tb_jmp_remove(TranslationBlock *tb, int n)
    another TB */
 static inline void tb_reset_jump(TranslationBlock *tb, int n)
 {
-    tb_set_jmp_target(tb, n, (uintptr_t)(tb->tc_ptr + tb->tb_next_offset[n]));
+    uintptr_t addr = (uintptr_t)(tb->tc_ptr + tb->jmp_reset_offset[n]);
+    tb_set_jmp_target(tb, n, addr);
 }
 
 /* invalidate one TB */
@@ -1003,19 +1004,21 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     tb_jmp_remove(tb, 1);
 
     /* suppress any remaining jumps to this TB */
-    tb1 = tb->jmp_first;
+    tb1 = tb->jmp_list_first;
     for (;;) {
         n1 = (uintptr_t)tb1 & 3;
         if (n1 == 2) {
             break;
         }
         tb1 = (TranslationBlock *)((uintptr_t)tb1 & ~3);
-        tb2 = tb1->jmp_next[n1];
+        tb2 = tb1->jmp_list_next[n1];
         tb_reset_jump(tb1, n1);
-        tb1->jmp_next[n1] = NULL;
+        tb1->jmp_list_next[n1] = NULL;
         tb1 = tb2;
     }
-    tb->jmp_first = (TranslationBlock *)((uintptr_t)tb | 2); /* fail safe */
+
+    /* fail safe */
+    tb->jmp_list_first = (TranslationBlock *)((uintptr_t)tb | 2);
 
     tcg_ctx.tb_ctx.tb_phys_invalidate_count++;
 }
@@ -1100,15 +1103,15 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     trace_translate_block(tb, tb->pc, tb->tc_ptr);
 
     /* generate machine code */
-    tb->tb_next_offset[0] = 0xffff;
-    tb->tb_next_offset[1] = 0xffff;
-    tcg_ctx.tb_next_offset = tb->tb_next_offset;
+    tb->jmp_reset_offset[0] = TB_JMP_RESET_OFFSET_INVALID;
+    tb->jmp_reset_offset[1] = TB_JMP_RESET_OFFSET_INVALID;
+    tcg_ctx.tb_jmp_reset_offset = tb->jmp_reset_offset;
 #ifdef USE_DIRECT_JUMP
-    tcg_ctx.tb_jmp_offset = tb->tb_jmp_offset;
-    tcg_ctx.tb_next = NULL;
+    tcg_ctx.tb_jmp_insn_offset = tb->jmp_insn_offset;
+    tcg_ctx.tb_jmp_target_addr = NULL;
 #else
-    tcg_ctx.tb_jmp_offset = NULL;
-    tcg_ctx.tb_next = tb->tb_next;
+    tcg_ctx.tb_jmp_insn_offset = NULL;
+    tcg_ctx.tb_jmp_target_addr = tb->jmp_target_addr;
 #endif
 
 #ifdef CONFIG_PROFILER
@@ -1489,15 +1492,15 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
         tb->page_addr[1] = -1;
     }
 
-    tb->jmp_first = (TranslationBlock *)((uintptr_t)tb | 2);
-    tb->jmp_next[0] = NULL;
-    tb->jmp_next[1] = NULL;
+    tb->jmp_list_first = (TranslationBlock *)((uintptr_t)tb | 2);
+    tb->jmp_list_next[0] = NULL;
+    tb->jmp_list_next[1] = NULL;
 
     /* init original jump addresses */
-    if (tb->tb_next_offset[0] != 0xffff) {
+    if (tb->jmp_reset_offset[0] != TB_JMP_RESET_OFFSET_INVALID) {
         tb_reset_jump(tb, 0);
     }
-    if (tb->tb_next_offset[1] != 0xffff) {
+    if (tb->jmp_reset_offset[1] != TB_JMP_RESET_OFFSET_INVALID) {
         tb_reset_jump(tb, 1);
     }
 
@@ -1690,9 +1693,9 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
         if (tb->page_addr[1] != -1) {
             cross_page++;
         }
-        if (tb->tb_next_offset[0] != 0xffff) {
+        if (tb->jmp_reset_offset[0] != TB_JMP_RESET_OFFSET_INVALID) {
             direct_jmp_count++;
-            if (tb->tb_next_offset[1] != 0xffff) {
+            if (tb->jmp_reset_offset[1] != TB_JMP_RESET_OFFSET_INVALID) {
                 direct_jmp2_count++;
             }
         }

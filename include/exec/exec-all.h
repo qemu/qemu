@@ -259,20 +259,32 @@ struct TranslationBlock {
     struct TranslationBlock *page_next[2];
     tb_page_addr_t page_addr[2];
 
-    /* the following data are used to directly call another TB from
-       the code of this one. */
-    uint16_t tb_next_offset[2]; /* offset of original jump target */
+    /* The following data are used to directly call another TB from
+     * the code of this one. This can be done either by emitting direct or
+     * indirect native jump instructions. These jumps are reset so that the TB
+     * just continue its execution. The TB can be linked to another one by
+     * setting one of the jump targets (or patching the jump instruction). Only
+     * two of such jumps are supported.
+     */
+    uint16_t jmp_reset_offset[2]; /* offset of original jump target */
+#define TB_JMP_RESET_OFFSET_INVALID 0xffff /* indicates no jump generated */
 #ifdef USE_DIRECT_JUMP
-    uint16_t tb_jmp_offset[2]; /* offset of jump instruction */
+    uint16_t jmp_insn_offset[2]; /* offset of native jump instruction */
 #else
-    uintptr_t tb_next[2]; /* address of jump generated code */
+    uintptr_t jmp_target_addr[2]; /* target address for indirect jump */
 #endif
-    /* list of TBs jumping to this one. This is a circular list using
-       the two least significant bits of the pointers to tell what is
-       the next pointer: 0 = jmp_next[0], 1 = jmp_next[1], 2 =
-       jmp_first */
-    struct TranslationBlock *jmp_next[2];
-    struct TranslationBlock *jmp_first;
+    /* Each TB has an assosiated circular list of TBs jumping to this one.
+     * jmp_list_first points to the first TB jumping to this one.
+     * jmp_list_next is used to point to the next TB in a list.
+     * Since each TB can have two jumps, it can participate in two lists.
+     * The two least significant bits of a pointer are used to choose which
+     * data field holds a pointer to the next TB:
+     * 0 => jmp_list_next[0], 1 => jmp_list_next[1], 2 => jmp_list_first.
+     * In other words, 0/1 tells which jump is used in the pointed TB,
+     * and 2 means that this is a pointer back to the target TB of this list.
+     */
+    struct TranslationBlock *jmp_list_next[2];
+    struct TranslationBlock *jmp_list_first;
 };
 
 #include "qemu/thread.h"
@@ -340,7 +352,7 @@ void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr);
 static inline void tb_set_jmp_target(TranslationBlock *tb,
                                      int n, uintptr_t addr)
 {
-    uint16_t offset = tb->tb_jmp_offset[n];
+    uint16_t offset = tb->jmp_insn_offset[n];
     tb_set_jmp_target1((uintptr_t)(tb->tc_ptr + offset), addr);
 }
 
@@ -350,7 +362,7 @@ static inline void tb_set_jmp_target(TranslationBlock *tb,
 static inline void tb_set_jmp_target(TranslationBlock *tb,
                                      int n, uintptr_t addr)
 {
-    tb->tb_next[n] = addr;
+    tb->jmp_target_addr[n] = addr;
 }
 
 #endif
@@ -359,7 +371,7 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
                                TranslationBlock *tb_next)
 {
     /* NOTE: this test is only needed for thread safety */
-    if (!tb->jmp_next[n]) {
+    if (!tb->jmp_list_next[n]) {
         qemu_log_mask_and_addr(CPU_LOG_EXEC, tb->pc,
                                "Linking TBs %p [" TARGET_FMT_lx
                                "] index %d -> %p [" TARGET_FMT_lx "]\n",
@@ -369,8 +381,8 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
         tb_set_jmp_target(tb, n, (uintptr_t)tb_next->tc_ptr);
 
         /* add in TB jmp circular list */
-        tb->jmp_next[n] = tb_next->jmp_first;
-        tb_next->jmp_first = (TranslationBlock *)((uintptr_t)(tb) | (n));
+        tb->jmp_list_next[n] = tb_next->jmp_list_first;
+        tb_next->jmp_list_first = (TranslationBlock *)((uintptr_t)tb | n);
     }
 }
 

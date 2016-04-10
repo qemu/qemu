@@ -1306,12 +1306,13 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 #ifndef USE_DIRECT_JUMP
 #error "USE_DIRECT_JUMP required for aarch64"
 #endif
-        tcg_debug_assert(s->tb_jmp_offset != NULL); /* consistency for USE_DIRECT_JUMP */
-        s->tb_jmp_offset[a0] = tcg_current_code_size(s);
+        /* consistency for USE_DIRECT_JUMP */
+        tcg_debug_assert(s->tb_jmp_insn_offset != NULL);
+        s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
         /* actual branch destination will be patched by
            aarch64_tb_set_jmp_target later, beware retranslation. */
         tcg_out_goto_noaddr(s);
-        s->tb_next_offset[a0] = tcg_current_code_size(s);
+        s->tb_jmp_reset_offset[a0] = tcg_current_code_size(s);
         break;
 
     case INDEX_op_br:

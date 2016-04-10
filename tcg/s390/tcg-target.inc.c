@@ -1717,7 +1717,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_goto_tb:
-        if (s->tb_jmp_offset) {
+        if (s->tb_jmp_insn_offset) {
             /* branch displacement must be aligned for atomic patching;
              * see if we need to add extra nop before branch
              */
@@ -1725,15 +1725,16 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                 tcg_out16(s, NOP);
             }
             tcg_out16(s, RIL_BRCL | (S390_CC_ALWAYS << 4));
-            s->tb_jmp_offset[args[0]] = tcg_current_code_size(s);
+            s->tb_jmp_insn_offset[args[0]] = tcg_current_code_size(s);
             s->code_ptr += 2;
         } else {
-            /* load address stored at s->tb_next + args[0] */
-            tcg_out_ld_abs(s, TCG_TYPE_PTR, TCG_TMP0, s->tb_next + args[0]);
+            /* load address stored at s->tb_jmp_target_addr + args[0] */
+            tcg_out_ld_abs(s, TCG_TYPE_PTR, TCG_TMP0,
+                           s->tb_jmp_target_addr + args[0]);
             /* and go there */
             tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, TCG_TMP0);
         }
-        s->tb_next_offset[args[0]] = tcg_current_code_size(s);
+        s->tb_jmp_reset_offset[args[0]] = tcg_current_code_size(s);
         break;
 
     OP_32_64(ld8u):
