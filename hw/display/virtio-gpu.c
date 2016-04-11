@@ -917,6 +917,11 @@ const GraphicHwOps virtio_gpu_ops = {
     .gl_block = virtio_gpu_gl_block,
 };
 
+static const VMStateDescription vmstate_virtio_gpu_unmigratable = {
+    .name = "virtio-gpu",
+    .unmigratable = 1,
+};
+
 static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
@@ -968,6 +973,8 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
             dpy_gfx_replace_surface(g->scanout[i].con, NULL);
         }
     }
+
+    vmstate_register(qdev, -1, &vmstate_virtio_gpu_unmigratable, g);
 }
 
 static void virtio_gpu_instance_init(Object *obj)
