@@ -1292,6 +1292,17 @@ DisplaySurface *qemu_create_displaysurface_from(int width, int height,
     return surface;
 }
 
+DisplaySurface *qemu_create_displaysurface_pixman(pixman_image_t *image)
+{
+    DisplaySurface *surface = g_new0(DisplaySurface, 1);
+
+    trace_displaysurface_create_pixman(surface);
+    surface->format = pixman_image_get_format(image);
+    surface->image = pixman_image_ref(image);
+
+    return surface;
+}
+
 static void qemu_unmap_displaysurface_guestmem(pixman_image_t *image,
                                                void *unused)
 {
