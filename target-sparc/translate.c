@@ -4670,7 +4670,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         TCGv r_const;
 
                         gen_address_mask(dc, cpu_addr);
-                        tcg_gen_qemu_ld8s(cpu_val, cpu_addr, dc->mem_idx);
+                        tcg_gen_qemu_ld8u(cpu_val, cpu_addr, dc->mem_idx);
                         r_const = tcg_const_tl(0xff);
                         tcg_gen_qemu_st8(r_const, cpu_addr, dc->mem_idx);
                         tcg_temp_free(r_const);
