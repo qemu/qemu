@@ -306,6 +306,21 @@ static void ich9_pm_set_memory_hotplug_support(Object *obj, bool value,
     s->pm.acpi_memory_hotplug.is_enabled = value;
 }
 
+static bool ich9_pm_get_cpu_hotplug_legacy(Object *obj, Error **errp)
+{
+    ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
+
+    return s->pm.cpu_hotplug_legacy;
+}
+
+static void ich9_pm_set_cpu_hotplug_legacy(Object *obj, bool value,
+                                           Error **errp)
+{
+    ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
+
+    s->pm.cpu_hotplug_legacy = value;
+}
+
 static void ich9_pm_get_disable_s3(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
@@ -397,6 +412,7 @@ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm, Error **errp)
 {
     static const uint32_t gpe0_len = ICH9_PMIO_GPE0_LEN;
     pm->acpi_memory_hotplug.is_enabled = true;
+    pm->cpu_hotplug_legacy = true;
     pm->disable_s3 = 0;
     pm->disable_s4 = 0;
     pm->s4_val = 2;
@@ -411,6 +427,10 @@ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm, Error **errp)
     object_property_add_bool(obj, "memory-hotplug-support",
                              ich9_pm_get_memory_hotplug_support,
                              ich9_pm_set_memory_hotplug_support,
+                             NULL);
+    object_property_add_bool(obj, "cpu-hotplug-legacy",
+                             ich9_pm_get_cpu_hotplug_legacy,
+                             ich9_pm_set_cpu_hotplug_legacy,
                              NULL);
     object_property_add(obj, ACPI_PM_PROP_S3_DISABLED, "uint8",
                         ich9_pm_get_disable_s3,
@@ -439,7 +459,8 @@ void ich9_pm_device_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
         object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         acpi_memory_plug_cb(hotplug_dev, &lpc->pm.acpi_memory_hotplug,
                             dev, errp);
-    } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+    } else if (lpc->pm.cpu_hotplug_legacy &&
+               object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         legacy_acpi_cpu_plug_cb(hotplug_dev, &lpc->pm.gpe_cpu, dev, errp);
     } else {
         error_setg(errp, "acpi: device plug request for not supported device"
