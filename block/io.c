@@ -253,6 +253,47 @@ static void bdrv_drain_recurse(BlockDriverState *bs)
     }
 }
 
+typedef struct {
+    Coroutine *co;
+    BlockDriverState *bs;
+    QEMUBH *bh;
+    bool done;
+} BdrvCoDrainData;
+
+static void bdrv_co_drain_bh_cb(void *opaque)
+{
+    BdrvCoDrainData *data = opaque;
+    Coroutine *co = data->co;
+
+    qemu_bh_delete(data->bh);
+    bdrv_drain(data->bs);
+    data->done = true;
+    qemu_coroutine_enter(co, NULL);
+}
+
+void coroutine_fn bdrv_co_drain(BlockDriverState *bs)
+{
+    BdrvCoDrainData data;
+
+    /* Calling bdrv_drain() from a BH ensures the current coroutine yields and
+     * other coroutines run if they were queued from
+     * qemu_co_queue_run_restart(). */
+
+    assert(qemu_in_coroutine());
+    data = (BdrvCoDrainData) {
+        .co = qemu_coroutine_self(),
+        .bs = bs,
+        .done = false,
+        .bh = aio_bh_new(bdrv_get_aio_context(bs), bdrv_co_drain_bh_cb, &data),
+    };
+    qemu_bh_schedule(data.bh);
+
+    qemu_coroutine_yield();
+    /* If we are resumed from some other event (such as an aio completion or a
+     * timer callback), it is a bug in the caller that should be fixed. */
+    assert(data.done);
+}
+
 /*
  * Wait for pending requests to complete on a single BlockDriverState subtree,
  * and suspend block driver's internal I/O until next request arrives.
@@ -269,6 +310,10 @@ void bdrv_drain(BlockDriverState *bs)
     bool busy = true;
 
     bdrv_drain_recurse(bs);
+    if (qemu_in_coroutine()) {
+        bdrv_co_drain(bs);
+        return;
+    }
     while (busy) {
         /* Keep iterating */
          bdrv_flush_io_queue(bs);

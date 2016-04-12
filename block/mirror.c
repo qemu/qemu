@@ -650,7 +650,7 @@ static void coroutine_fn mirror_run(void *opaque)
              * mirror_populate runs.
              */
             trace_mirror_before_drain(s, cnt);
-            bdrv_drain(bs);
+            bdrv_co_drain(bs);
             cnt = bdrv_get_dirty_count(s->dirty_bitmap);
         }
 
