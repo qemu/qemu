@@ -35,7 +35,7 @@ typedef struct MirrorBuffer {
 typedef struct MirrorBlockJob {
     BlockJob common;
     RateLimit limit;
-    BlockDriverState *target;
+    BlockBackend *target;
     BlockDriverState *base;
     /* The name of the graph node to replace */
     char *replaces;
@@ -156,7 +156,8 @@ static void mirror_read_complete(void *opaque, int ret)
         mirror_iteration_done(op, ret);
         return;
     }
-    bdrv_aio_writev(s->target, op->sector_num, &op->qiov, op->nb_sectors,
+    blk_aio_pwritev(s->target, op->sector_num * BDRV_SECTOR_SIZE, &op->qiov,
+                    op->nb_sectors * BDRV_SECTOR_SIZE,
                     mirror_write_complete, op);
 }
 
@@ -185,7 +186,7 @@ static int mirror_cow_align(MirrorBlockJob *s,
     need_cow |= !test_bit((*sector_num + *nb_sectors - 1) / chunk_sectors,
                           s->cow_bitmap);
     if (need_cow) {
-        bdrv_round_to_clusters(s->target, *sector_num, *nb_sectors,
+        bdrv_round_to_clusters(blk_bs(s->target), *sector_num, *nb_sectors,
                                &align_sector_num, &align_nb_sectors);
     }
 
@@ -223,7 +224,7 @@ static inline void mirror_wait_for_io(MirrorBlockJob *s)
 static int mirror_do_read(MirrorBlockJob *s, int64_t sector_num,
                           int nb_sectors)
 {
-    BlockDriverState *source = s->common.bs;
+    BlockBackend *source = s->common.blk;
     int sectors_per_chunk, nb_chunks;
     int ret = nb_sectors;
     MirrorOp *op;
@@ -273,7 +274,8 @@ static int mirror_do_read(MirrorBlockJob *s, int64_t sector_num,
     s->sectors_in_flight += nb_sectors;
     trace_mirror_one_iteration(s, sector_num, nb_sectors);
 
-    bdrv_aio_readv(source, sector_num, &op->qiov, nb_sectors,
+    blk_aio_preadv(source, sector_num * BDRV_SECTOR_SIZE, &op->qiov,
+                   nb_sectors * BDRV_SECTOR_SIZE,
                    mirror_read_complete, op);
     return ret;
 }
@@ -295,10 +297,11 @@ static void mirror_do_zero_or_discard(MirrorBlockJob *s,
     s->in_flight++;
     s->sectors_in_flight += nb_sectors;
     if (is_discard) {
-        bdrv_aio_discard(s->target, sector_num, op->nb_sectors,
-                         mirror_write_complete, op);
+        blk_aio_discard(s->target, sector_num, op->nb_sectors,
+                        mirror_write_complete, op);
     } else {
-        bdrv_aio_write_zeroes(s->target, sector_num, op->nb_sectors,
+        blk_aio_pwrite_zeroes(s->target, sector_num * BDRV_SECTOR_SIZE,
+                              op->nb_sectors * BDRV_SECTOR_SIZE,
                               s->unmap ? BDRV_REQ_MAY_UNMAP : 0,
                               mirror_write_complete, op);
     }
@@ -306,7 +309,7 @@ static void mirror_do_zero_or_discard(MirrorBlockJob *s,
 
 static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
 {
-    BlockDriverState *source = s->common.bs;
+    BlockDriverState *source = blk_bs(s->common.blk);
     int64_t sector_num, first_chunk;
     uint64_t delay_ns = 0;
     /* At least the first dirty chunk is mirrored in one iteration. */
@@ -383,7 +386,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         } else if (ret >= 0 && !(ret & BDRV_BLOCK_DATA)) {
             int64_t target_sector_num;
             int target_nb_sectors;
-            bdrv_round_to_clusters(s->target, sector_num, io_sectors,
+            bdrv_round_to_clusters(blk_bs(s->target), sector_num, io_sectors,
                                    &target_sector_num, &target_nb_sectors);
             if (target_sector_num == sector_num &&
                 target_nb_sectors == io_sectors) {
@@ -448,7 +451,8 @@ static void mirror_exit(BlockJob *job, void *opaque)
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
     MirrorExitData *data = opaque;
     AioContext *replace_aio_context = NULL;
-    BlockDriverState *src = s->common.bs;
+    BlockDriverState *src = blk_bs(s->common.blk);
+    BlockDriverState *target_bs = blk_bs(s->target);
 
     /* Make sure that the source BDS doesn't go away before we called
      * block_job_completed(). */
@@ -460,20 +464,20 @@ static void mirror_exit(BlockJob *job, void *opaque)
     }
 
     if (s->should_complete && data->ret == 0) {
-        BlockDriverState *to_replace = s->common.bs;
+        BlockDriverState *to_replace = src;
         if (s->to_replace) {
             to_replace = s->to_replace;
         }
 
-        if (bdrv_get_flags(s->target) != bdrv_get_flags(to_replace)) {
-            bdrv_reopen(s->target, bdrv_get_flags(to_replace), NULL);
+        if (bdrv_get_flags(target_bs) != bdrv_get_flags(to_replace)) {
+            bdrv_reopen(target_bs, bdrv_get_flags(to_replace), NULL);
         }
 
         /* The mirror job has no requests in flight any more, but we need to
          * drain potential other users of the BDS before changing the graph. */
-        bdrv_drained_begin(s->target);
-        bdrv_replace_in_backing_chain(to_replace, s->target);
-        bdrv_drained_end(s->target);
+        bdrv_drained_begin(target_bs);
+        bdrv_replace_in_backing_chain(to_replace, target_bs);
+        bdrv_drained_end(target_bs);
 
         /* We just changed the BDS the job BB refers to */
         blk_remove_bs(job->blk);
@@ -488,8 +492,8 @@ static void mirror_exit(BlockJob *job, void *opaque)
         aio_context_release(replace_aio_context);
     }
     g_free(s->replaces);
-    bdrv_op_unblock_all(s->target, s->common.blocker);
-    bdrv_unref(s->target);
+    bdrv_op_unblock_all(target_bs, s->common.blocker);
+    blk_unref(s->target);
     block_job_completed(&s->common, data->ret);
     g_free(data);
     bdrv_drained_end(src);
@@ -503,7 +507,8 @@ static void coroutine_fn mirror_run(void *opaque)
 {
     MirrorBlockJob *s = opaque;
     MirrorExitData *data;
-    BlockDriverState *bs = s->common.bs;
+    BlockDriverState *bs = blk_bs(s->common.blk);
+    BlockDriverState *target_bs = blk_bs(s->target);
     int64_t sector_num, end, length;
     uint64_t last_pause_ns;
     BlockDriverInfo bdi;
@@ -539,18 +544,18 @@ static void coroutine_fn mirror_run(void *opaque)
      * the destination do COW.  Instead, we copy sectors around the
      * dirty data if needed.  We need a bitmap to do that.
      */
-    bdrv_get_backing_filename(s->target, backing_filename,
+    bdrv_get_backing_filename(target_bs, backing_filename,
                               sizeof(backing_filename));
-    if (!bdrv_get_info(s->target, &bdi) && bdi.cluster_size) {
+    if (!bdrv_get_info(target_bs, &bdi) && bdi.cluster_size) {
         target_cluster_size = bdi.cluster_size;
     }
-    if (backing_filename[0] && !s->target->backing
+    if (backing_filename[0] && !target_bs->backing
         && s->granularity < target_cluster_size) {
         s->buf_size = MAX(s->buf_size, target_cluster_size);
         s->cow_bitmap = bitmap_new(length);
     }
     s->target_cluster_sectors = target_cluster_size >> BDRV_SECTOR_BITS;
-    s->max_iov = MIN(s->common.bs->bl.max_iov, s->target->bl.max_iov);
+    s->max_iov = MIN(bs->bl.max_iov, target_bs->bl.max_iov);
 
     end = s->bdev_length / BDRV_SECTOR_SIZE;
     s->buf = qemu_try_blockalign(bs, s->buf_size);
@@ -565,7 +570,7 @@ static void coroutine_fn mirror_run(void *opaque)
     if (!s->is_none_mode) {
         /* First part, loop on the sectors and initialize the dirty bitmap.  */
         BlockDriverState *base = s->base;
-        bool mark_all_dirty = s->base == NULL && !bdrv_has_zero_init(s->target);
+        bool mark_all_dirty = s->base == NULL && !bdrv_has_zero_init(target_bs);
 
         for (sector_num = 0; sector_num < end; ) {
             /* Just to make sure we are not exceeding int limit. */
@@ -635,7 +640,7 @@ static void coroutine_fn mirror_run(void *opaque)
         should_complete = false;
         if (s->in_flight == 0 && cnt == 0) {
             trace_mirror_before_flush(s);
-            ret = bdrv_flush(s->target);
+            ret = blk_flush(s->target);
             if (ret < 0) {
                 if (mirror_error_action(s, false, -ret) ==
                     BLOCK_ERROR_ACTION_REPORT) {
@@ -713,7 +718,7 @@ immediate_exit:
     data->ret = ret;
     /* Before we switch to target in mirror_exit, make sure data doesn't
      * change. */
-    bdrv_drained_begin(s->common.bs);
+    bdrv_drained_begin(bs);
     if (qemu_get_aio_context() == bdrv_get_aio_context(bs)) {
         /* FIXME: virtio host notifiers run on iohandler_ctx, therefore the
          * above bdrv_drained_end isn't enough to quiesce it. This is ugly, we
@@ -740,7 +745,8 @@ static void mirror_complete(BlockJob *job, Error **errp)
     Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_open_backing_file(s->target, NULL, "backing", &local_err);
+    ret = bdrv_open_backing_file(blk_bs(s->target), NULL, "backing",
+                                 &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return;
@@ -823,10 +829,12 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
         return;
     }
 
+    s->target = blk_new();
+    blk_insert_bs(s->target, target);
+
     s->replaces = g_strdup(replaces);
     s->on_source_error = on_source_error;
     s->on_target_error = on_target_error;
-    s->target = target;
     s->is_none_mode = is_none_mode;
     s->base = base;
     s->granularity = granularity;
@@ -836,11 +844,12 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
     s->dirty_bitmap = bdrv_create_dirty_bitmap(bs, granularity, NULL, errp);
     if (!s->dirty_bitmap) {
         g_free(s->replaces);
+        blk_unref(s->target);
         block_job_unref(&s->common);
         return;
     }
 
-    bdrv_op_block_all(s->target, s->common.blocker);
+    bdrv_op_block_all(target, s->common.blocker);
 
     s->common.co = qemu_coroutine_create(mirror_run);
     trace_mirror_start(bs, s, s->common.co, opaque);
@@ -913,7 +922,6 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
         }
     }
 
-    bdrv_ref(base);
     mirror_start_job(bs, base, NULL, speed, 0, 0,
                      on_error, on_error, false, cb, opaque, &local_err,
                      &commit_active_job_driver, false, base);

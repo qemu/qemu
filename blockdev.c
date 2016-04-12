@@ -3621,9 +3621,9 @@ void qmp_drive_mirror(const char *device, const char *target,
                            has_on_target_error, on_target_error,
                            has_unmap, unmap,
                            &local_err);
+    bdrv_unref(target_bs);
     if (local_err) {
         error_propagate(errp, local_err);
-        bdrv_unref(target_bs);
     }
 out:
     aio_context_release(aio_context);
@@ -3667,7 +3667,6 @@ void qmp_blockdev_mirror(const char *device, const char *target,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    bdrv_ref(target_bs);
     bdrv_set_aio_context(target_bs, aio_context);
 
     blockdev_mirror_common(bs, target_bs,
@@ -3681,7 +3680,6 @@ void qmp_blockdev_mirror(const char *device, const char *target,
                            &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        bdrv_unref(target_bs);
     }
 
     aio_context_release(aio_context);
