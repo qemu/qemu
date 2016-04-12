@@ -189,6 +189,7 @@ int pci_piix3_xen_ide_unplug(DeviceState *dev)
                 idedev = pci_ide->bus[di->bus].slave;
             }
             idedev->conf.blk = NULL;
+            monitor_remove_blk(blk);
             blk_unref(blk);
         }
     }
