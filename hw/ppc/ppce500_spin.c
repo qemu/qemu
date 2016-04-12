@@ -94,10 +94,9 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env,
     env->tlb_dirty = true;
 }
 
-static void spin_kick(void *data)
+static void spin_kick(CPUState *cpu, void *data)
 {
     SpinKick *kick = data;
-    CPUState *cpu = CPU(kick->cpu);
     CPUPPCState *env = &kick->cpu->env;
     SpinInfo *curspin = kick->spin;
     hwaddr map_size = 64 * 1024 * 1024;

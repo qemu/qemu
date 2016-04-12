@@ -1117,11 +1117,10 @@ typedef struct MCEInjectionParams {
     int flags;
 } MCEInjectionParams;
 
-static void do_inject_x86_mce(void *data)
+static void do_inject_x86_mce(CPUState *cpu, void *data)
 {
     MCEInjectionParams *params = data;
     CPUX86State *cenv = &params->cpu->env;
-    CPUState *cpu = CPU(params->cpu);
     uint64_t *banks = cenv->mce_banks + 4 * params->bank;
 
     cpu_synchronize_state(cpu);
