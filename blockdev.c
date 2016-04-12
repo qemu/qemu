@@ -3459,10 +3459,6 @@ static void blockdev_mirror_common(BlockDriverState *bs,
     if (bdrv_op_is_blocked(target, BLOCK_OP_TYPE_MIRROR_TARGET, errp)) {
         return;
     }
-    if (bdrv_has_blk(target)) {
-        error_setg(errp, "Cannot mirror to an attached block device");
-        return;
-    }
 
     if (!bs->backing && sync == MIRROR_SYNC_MODE_TOP) {
         sync = MIRROR_SYNC_MODE_FULL;
