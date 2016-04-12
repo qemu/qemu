@@ -13,20 +13,6 @@ typedef struct virtio_input_absinfo virtio_input_absinfo;
 typedef struct virtio_input_config virtio_input_config;
 typedef struct virtio_input_event virtio_input_event;
 
-#if defined(HOST_WORDS_BIGENDIAN)
-# define const_le32(_x)                          \
-    ((((_x) & 0x000000ffU) << 24) |              \
-     (((_x) & 0x0000ff00U) <<  8) |              \
-     (((_x) & 0x00ff0000U) >>  8) |              \
-     (((_x) & 0xff000000U) >> 24))
-# define const_le16(_x)                          \
-    ((((_x) & 0x00ff) << 8) |                    \
-     (((_x) & 0xff00) >> 8))
-#else
-# define const_le32(_x) (_x)
-# define const_le16(_x) (_x)
-#endif
-
 /* ----------------------------------------------------------------- */
 /* qemu internals                                                    */
 
