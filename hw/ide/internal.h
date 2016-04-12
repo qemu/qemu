@@ -513,6 +513,21 @@ struct IDEDevice {
 #define IDE_RETRY_TRIM 0x80
 #define IDE_RETRY_HBA  0x100
 
+static inline uint8_t ide_dma_cmd_to_retry(uint8_t dma_cmd)
+{
+    switch (dma_cmd) {
+    case IDE_DMA_READ:
+        return IDE_RETRY_DMA | IDE_RETRY_READ;
+    case IDE_DMA_WRITE:
+        return IDE_RETRY_DMA;
+    case IDE_DMA_TRIM:
+        return IDE_RETRY_DMA | IDE_RETRY_TRIM;
+    default:
+        break;
+    }
+    return 0;
+}
+
 static inline IDEState *idebus_active_if(IDEBus *bus)
 {
     return bus->ifs + bus->unit;

@@ -804,14 +804,7 @@ static void ide_dma_cb(void *opaque, int ret)
         return;
     }
     if (ret < 0) {
-        int op = IDE_RETRY_DMA;
-
-        if (s->dma_cmd == IDE_DMA_READ)
-            op |= IDE_RETRY_READ;
-        else if (s->dma_cmd == IDE_DMA_TRIM)
-            op |= IDE_RETRY_TRIM;
-
-        if (ide_handle_rw_error(s, -ret, op)) {
+        if (ide_handle_rw_error(s, -ret, ide_dma_cmd_to_retry(s->dma_cmd))) {
             return;
         }
     }
