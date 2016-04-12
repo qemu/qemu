@@ -985,6 +985,7 @@ F: tests/intel-hda-test.c
 
 Block layer core
 M: Kevin Wolf <kwolf@redhat.com>
+M: Max Reitz <mreitz@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block*
@@ -1569,6 +1570,7 @@ F: block/win32-aio.c
 
 qcow2
 M: Kevin Wolf <kwolf@redhat.com>
+M: Max Reitz <mreitz@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/qcow2*
@@ -1581,6 +1583,7 @@ F: block/qcow.c
 
 blkdebug
 M: Kevin Wolf <kwolf@redhat.com>
+M: Max Reitz <mreitz@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/blkdebug.c

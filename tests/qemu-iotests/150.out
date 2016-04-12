@@ -1,14 +1,11 @@
 QA output created by 150
 
-=== Comparing empty image against sparse conversion ===
+=== Mapping sparse conversion ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
-Equal image size
+Offset          Length          File
 
-=== Comparing full image against non-sparse conversion ===
+=== Mapping non-sparse conversion ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
-wrote 1048576/1048576 bytes at offset 0
-1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-Equal image size
+Offset          Length          File
+0               0x100000        TEST_DIR/t.IMGFMT
 *** done

@@ -37,6 +37,7 @@
 #include "block/block_int.h"
 #include "block/blockjob.h"
 #include "block/qapi.h"
+#include "crypto/init.h"
 #include <getopt.h>
 
 #define QEMU_IMG_VERSION "qemu-img version " QEMU_VERSION QEMU_PKGVERSION \
@@ -256,7 +257,7 @@ static BlockBackend *img_open_opts(const char *optstr,
     options = qemu_opts_to_qdict(opts, NULL);
     blk = blk_new_open(NULL, NULL, options, flags, &local_err);
     if (!blk) {
-        error_reportf_err(local_err, "Could not open '%s'", optstr);
+        error_reportf_err(local_err, "Could not open '%s': ", optstr);
         return NULL;
     }
     blk_set_enable_write_cache(blk, !writethrough);
@@ -3484,6 +3485,11 @@ int main(int argc, char **argv)
     if (qemu_init_main_loop(&local_error)) {
         error_report_err(local_error);
         exit(EXIT_FAILURE);
+    }
+
+    if (qcrypto_init(&local_error) < 0) {
+        error_reportf_err(local_error, "cannot initialize crypto: ");
+        exit(1);
     }
 
     module_call_init(MODULE_INIT_QOM);

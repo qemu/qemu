@@ -23,6 +23,7 @@
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"
 #include "trace/control.h"
+#include "crypto/init.h"
 
 #define CMD_NOFILE_OK   0x01
 
@@ -442,6 +443,11 @@ int main(int argc, char **argv)
 
     progname = basename(argv[0]);
     qemu_init_exec_dir(argv[0]);
+
+    if (qcrypto_init(&local_error) < 0) {
+        error_reportf_err(local_error, "cannot initialize crypto: ");
+        exit(1);
+    }
 
     module_call_init(MODULE_INIT_QOM);
     qemu_add_opts(&qemu_object_opts);

@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import errno
 import os
 import re
 import subprocess
@@ -28,10 +29,6 @@ import qmp
 import qtest
 import struct
 
-__all__ = ['imgfmt', 'imgproto', 'test_dir' 'qemu_img', 'qemu_io',
-           'VM', 'QMPTestCase', 'notrun', 'main', 'verify_image_format',
-           'verify_platform', 'filter_test_dir', 'filter_win32',
-           'filter_qemu_io', 'filter_chown', 'log']
 
 # This will not work if arguments contain spaces but is necessary if we
 # want to support the override options that ./check supports.
@@ -247,7 +244,8 @@ class VM(object):
             self._qmp.accept()
             self._qtest.accept()
         except:
-            os.remove(self._monitor_path)
+            _remove_if_exists(self._monitor_path)
+            _remove_if_exists(self._qtest_path)
             raise
 
     def shutdown(self):
@@ -409,6 +407,15 @@ class QMPTestCase(unittest.TestCase):
         event = self.wait_until_completed(drive=drive)
         self.assert_qmp(event, 'data/type', 'mirror')
 
+def _remove_if_exists(path):
+    '''Remove file object at path if it exists'''
+    try:
+        os.remove(path)
+    except OSError as exception:
+        if exception.errno == errno.ENOENT:
+           return
+        raise
+
 def notrun(reason):
     '''Skip this test suite'''
     # Each test in qemu-iotests has a number ("seq")
@@ -425,6 +432,11 @@ def verify_image_format(supported_fmts=[]):
 def verify_platform(supported_oses=['linux']):
     if True not in [sys.platform.startswith(x) for x in supported_oses]:
         notrun('not suitable for this OS: %s' % sys.platform)
+
+def verify_quorum():
+    '''Skip test suite if quorum support is not available'''
+    if 'quorum' not in qemu_img_pipe('--help'):
+        notrun('quorum support missing')
 
 def main(supported_fmts=[], supported_oses=['linux']):
     '''Run tests'''
