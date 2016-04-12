@@ -375,15 +375,18 @@ static void ide_atapi_cmd_check_status(IDEState *s)
 }
 /* ATAPI DMA support */
 
-/* XXX: handle read errors */
 static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
 {
     IDEState *s = opaque;
     int data_offset, n;
 
     if (ret < 0) {
-        ide_atapi_io_error(s, ret);
-        goto eot;
+        if (ide_handle_rw_error(s, -ret, ide_dma_cmd_to_retry(s->dma_cmd))) {
+            if (s->bus->error_status) {
+                return;
+            }
+            goto eot;
+        }
     }
 
     if (s->io_buffer_size > 0) {
@@ -481,10 +484,6 @@ static void ide_atapi_cmd_read(IDEState *s, int lba, int nb_sectors,
     }
 }
 
-
-/* Called by *_restart_bh when the transfer function points
- * to ide_atapi_cmd
- */
 void ide_atapi_dma_restart(IDEState *s)
 {
     /*
