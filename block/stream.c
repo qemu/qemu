@@ -39,7 +39,7 @@ typedef struct StreamBlockJob {
     char *backing_file_str;
 } StreamBlockJob;
 
-static int coroutine_fn stream_populate(BlockDriverState *bs,
+static int coroutine_fn stream_populate(BlockBackend *blk,
                                         int64_t sector_num, int nb_sectors,
                                         void *buf)
 {
@@ -52,7 +52,8 @@ static int coroutine_fn stream_populate(BlockDriverState *bs,
     qemu_iovec_init_external(&qiov, &iov, 1);
 
     /* Copy-on-read the unallocated clusters */
-    return bdrv_co_copy_on_readv(bs, sector_num, nb_sectors, &qiov);
+    return blk_co_preadv(blk, sector_num * BDRV_SECTOR_SIZE, qiov.size, &qiov,
+                         BDRV_REQ_COPY_ON_READ);
 }
 
 typedef struct {
@@ -64,6 +65,7 @@ static void stream_complete(BlockJob *job, void *opaque)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common);
     StreamCompleteData *data = opaque;
+    BlockDriverState *bs = blk_bs(job->blk);
     BlockDriverState *base = s->base;
 
     if (!block_job_is_cancelled(&s->common) && data->reached_end &&
@@ -75,8 +77,8 @@ static void stream_complete(BlockJob *job, void *opaque)
                 base_fmt = base->drv->format_name;
             }
         }
-        data->ret = bdrv_change_backing_file(job->bs, base_id, base_fmt);
-        bdrv_set_backing_hd(job->bs, base);
+        data->ret = bdrv_change_backing_file(bs, base_id, base_fmt);
+        bdrv_set_backing_hd(bs, base);
     }
 
     g_free(s->backing_file_str);
@@ -88,7 +90,8 @@ static void coroutine_fn stream_run(void *opaque)
 {
     StreamBlockJob *s = opaque;
     StreamCompleteData *data;
-    BlockDriverState *bs = s->common.bs;
+    BlockBackend *blk = s->common.blk;
+    BlockDriverState *bs = blk_bs(blk);
     BlockDriverState *base = s->base;
     int64_t sector_num = 0;
     int64_t end = -1;
@@ -159,7 +162,7 @@ wait:
                     goto wait;
                 }
             }
-            ret = stream_populate(bs, sector_num, n, buf);
+            ret = stream_populate(blk, sector_num, n, buf);
         }
         if (ret < 0) {
             BlockErrorAction action =
