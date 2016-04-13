@@ -308,6 +308,10 @@ static void ide_bmdma_pre_save(void *opaque)
     BMDMAState *bm = opaque;
     uint8_t abused_bits = BM_MIGRATION_COMPAT_STATUS_BITS;
 
+    if (!(bm->status & BM_STATUS_DMAING) && bm->dma_cb) {
+        bm->bus->error_status =
+            ide_dma_cmd_to_retry(bmdma_active_if(bm)->dma_cmd);
+    }
     bm->migration_retry_unit = bm->bus->retry_unit;
     bm->migration_retry_sector_num = bm->bus->retry_sector_num;
     bm->migration_retry_nsector = bm->bus->retry_nsector;

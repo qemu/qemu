@@ -338,6 +338,7 @@ enum ide_dma_cmd {
     IDE_DMA_READ,
     IDE_DMA_WRITE,
     IDE_DMA_TRIM,
+    IDE_DMA_ATAPI,
 };
 
 #define ide_cmd_is_read(s) \
@@ -506,12 +507,44 @@ struct IDEDevice {
 };
 
 /* These are used for the error_status field of IDEBus */
+#define IDE_RETRY_MASK 0xf8
 #define IDE_RETRY_DMA  0x08
 #define IDE_RETRY_PIO  0x10
+#define IDE_RETRY_ATAPI 0x20 /* reused IDE_RETRY_READ bit */
 #define IDE_RETRY_READ  0x20
 #define IDE_RETRY_FLUSH 0x40
 #define IDE_RETRY_TRIM 0x80
 #define IDE_RETRY_HBA  0x100
+
+#define IS_IDE_RETRY_DMA(_status) \
+    ((_status) & IDE_RETRY_DMA)
+
+#define IS_IDE_RETRY_PIO(_status) \
+    ((_status) & IDE_RETRY_PIO)
+
+/*
+ * The method of the IDE_RETRY_ATAPI determination is to use a previously
+ * impossible bit combination as a new status value.
+ */
+#define IS_IDE_RETRY_ATAPI(_status)   \
+    (((_status) & IDE_RETRY_MASK) == IDE_RETRY_ATAPI)
+
+static inline uint8_t ide_dma_cmd_to_retry(uint8_t dma_cmd)
+{
+    switch (dma_cmd) {
+    case IDE_DMA_READ:
+        return IDE_RETRY_DMA | IDE_RETRY_READ;
+    case IDE_DMA_WRITE:
+        return IDE_RETRY_DMA;
+    case IDE_DMA_TRIM:
+        return IDE_RETRY_DMA | IDE_RETRY_TRIM;
+    case IDE_DMA_ATAPI:
+        return IDE_RETRY_ATAPI;
+    default:
+        break;
+    }
+    return 0;
+}
 
 static inline IDEState *idebus_active_if(IDEBus *bus)
 {
@@ -596,5 +629,7 @@ void ide_atapi_cmd_reply_end(IDEState *s);
 void ide_bus_new(IDEBus *idebus, size_t idebus_size, DeviceState *dev,
                  int bus_id, int max_units);
 IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive);
+
+int ide_handle_rw_error(IDEState *s, int error, int op);
 
 #endif /* HW_IDE_INTERNAL_H */

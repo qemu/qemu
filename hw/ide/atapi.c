@@ -375,15 +375,18 @@ static void ide_atapi_cmd_check_status(IDEState *s)
 }
 /* ATAPI DMA support */
 
-/* XXX: handle read errors */
 static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
 {
     IDEState *s = opaque;
     int data_offset, n;
 
     if (ret < 0) {
-        ide_atapi_io_error(s, ret);
-        goto eot;
+        if (ide_handle_rw_error(s, -ret, ide_dma_cmd_to_retry(s->dma_cmd))) {
+            if (s->bus->error_status) {
+                return;
+            }
+            goto eot;
+        }
     }
 
     if (s->io_buffer_size > 0) {
@@ -481,21 +484,16 @@ static void ide_atapi_cmd_read(IDEState *s, int lba, int nb_sectors,
     }
 }
 
-
-/* Called by *_restart_bh when the transfer function points
- * to ide_atapi_cmd
- */
 void ide_atapi_dma_restart(IDEState *s)
 {
     /*
-     * I'm not sure we have enough stored to restart the command
-     * safely, so give the guest an error it should recover from.
-     * I'm assuming most guests will try to recover from something
-     * listed as a medium error on a CD; it seems to work on Linux.
-     * This would be more of a problem if we did any other type of
-     * DMA operation.
+     * At this point we can just re-evaluate the packet command and start over.
+     * The presence of ->dma_cb callback in the pre_save ensures that the packet
+     * command has been completely sent and we can safely restart command.
      */
-    ide_atapi_cmd_error(s, MEDIUM_ERROR, ASC_NO_SEEK_COMPLETE);
+    s->unit = s->bus->retry_unit;
+    s->bus->dma->ops->restart_dma(s->bus->dma);
+    ide_atapi_cmd(s);
 }
 
 static inline uint8_t ide_atapi_set_profile(uint8_t *buf, uint8_t *index,

@@ -57,7 +57,6 @@ static const int smart_attributes[][12] = {
     { 190,  0x03, 0x00, 0x45, 0x45, 0x1f, 0x00, 0x1f, 0x1f, 0x00, 0x00, 0x32},
 };
 
-static int ide_handle_rw_error(IDEState *s, int error, int op);
 static void ide_dummy_transfer_stop(IDEState *s);
 
 static void padstr(char *str, const char *src, int len)
@@ -773,7 +772,7 @@ void ide_dma_error(IDEState *s)
     ide_set_irq(s->bus);
 }
 
-static int ide_handle_rw_error(IDEState *s, int error, int op)
+int ide_handle_rw_error(IDEState *s, int error, int op)
 {
     bool is_read = (op & IDE_RETRY_READ) != 0;
     BlockErrorAction action = blk_get_error_action(s->blk, is_read, error);
@@ -783,8 +782,10 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
         s->bus->error_status = op;
     } else if (action == BLOCK_ERROR_ACTION_REPORT) {
         block_acct_failed(blk_get_stats(s->blk), &s->acct);
-        if (op & IDE_RETRY_DMA) {
+        if (IS_IDE_RETRY_DMA(op)) {
             ide_dma_error(s);
+        } else if (IS_IDE_RETRY_ATAPI(op)) {
+            ide_atapi_io_error(s, -error);
         } else {
             ide_rw_error(s);
         }
@@ -804,14 +805,7 @@ static void ide_dma_cb(void *opaque, int ret)
         return;
     }
     if (ret < 0) {
-        int op = IDE_RETRY_DMA;
-
-        if (s->dma_cmd == IDE_DMA_READ)
-            op |= IDE_RETRY_READ;
-        else if (s->dma_cmd == IDE_DMA_TRIM)
-            op |= IDE_RETRY_TRIM;
-
-        if (ide_handle_rw_error(s, -ret, op)) {
+        if (ide_handle_rw_error(s, -ret, ide_dma_cmd_to_retry(s->dma_cmd))) {
             return;
         }
     }
@@ -879,6 +873,8 @@ static void ide_dma_cb(void *opaque, int ret)
                                         ide_issue_trim, ide_dma_cb, s,
                                         DMA_DIRECTION_TO_DEVICE);
         break;
+    default:
+        abort();
     }
     return;
 
@@ -1641,6 +1637,9 @@ static bool cmd_packet(IDEState *s, uint8_t cmd)
 
     s->status = READY_STAT | SEEK_STAT;
     s->atapi_dma = s->feature & 1;
+    if (s->atapi_dma) {
+        s->dma_cmd = IDE_DMA_ATAPI;
+    }
     s->nsector = 1;
     ide_transfer_start(s, s->io_buffer, ATAPI_PACKET_SIZE,
                        ide_atapi_cmd);
@@ -2525,15 +2524,13 @@ static void ide_restart_bh(void *opaque)
         if (s->bus->dma->ops->restart) {
             s->bus->dma->ops->restart(s->bus->dma);
         }
-    }
-
-    if (error_status & IDE_RETRY_DMA) {
+    } else if (IS_IDE_RETRY_DMA(error_status)) {
         if (error_status & IDE_RETRY_TRIM) {
             ide_restart_dma(s, IDE_DMA_TRIM);
         } else {
             ide_restart_dma(s, is_read ? IDE_DMA_READ : IDE_DMA_WRITE);
         }
-    } else if (error_status & IDE_RETRY_PIO) {
+    } else if (IS_IDE_RETRY_PIO(error_status)) {
         if (is_read) {
             ide_sector_read(s);
         } else {
@@ -2541,15 +2538,11 @@ static void ide_restart_bh(void *opaque)
         }
     } else if (error_status & IDE_RETRY_FLUSH) {
         ide_flush_cache(s);
+    } else if (IS_IDE_RETRY_ATAPI(error_status)) {
+        assert(s->end_transfer_func == ide_atapi_cmd);
+        ide_atapi_dma_restart(s);
     } else {
-        /*
-         * We've not got any bits to tell us about ATAPI - but
-         * we do have the end_transfer_func that tells us what
-         * we're trying to do.
-         */
-        if (s->end_transfer_func == ide_atapi_cmd) {
-            ide_atapi_dma_restart(s);
-        }
+        abort();
     }
 }
 

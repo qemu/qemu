@@ -346,6 +346,8 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     case IDE_DMA_TRIM:
         pmac_dma_trim(s->blk, offset, io->len, pmac_ide_transfer_cb, io);
         break;
+    default:
+        abort();
     }
 
     return;
