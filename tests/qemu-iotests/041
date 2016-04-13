@@ -810,8 +810,7 @@ class TestRepairQuorum(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         self.complete_and_wait(drive="quorum0")
-        result = self.vm.qmp('query-named-block-nodes')
-        self.assert_qmp(result, 'return[0]/file', quorum_repair_img)
+        self.assert_has_block_node("repair0", quorum_repair_img)
         # TODO: a better test requiring some QEMU infrastructure will be added
         #       to check that this file is really driven by quorum
         self.vm.shutdown()
@@ -833,8 +832,7 @@ class TestRepairQuorum(iotests.QMPTestCase):
         self.cancel_and_wait(drive="quorum0", force=True)
         # here we check that the last registered quorum file has not been
         # swapped out and unref
-        result = self.vm.qmp('query-named-block-nodes')
-        self.assert_qmp(result, 'return[1]/file', quorum_img3)
+        self.assert_has_block_node(None, quorum_img3)
         self.vm.shutdown()
 
     def test_cancel_after_ready(self):
@@ -850,10 +848,9 @@ class TestRepairQuorum(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         self.wait_ready_and_cancel(drive="quorum0")
-        result = self.vm.qmp('query-named-block-nodes')
         # here we check that the last registered quorum file has not been
         # swapped out and unref
-        self.assert_qmp(result, 'return[1]/file', quorum_img3)
+        self.assert_has_block_node(None, quorum_img3)
         self.vm.shutdown()
         self.assertTrue(iotests.compare_images(quorum_img2, quorum_repair_img),
                         'target image does not match source after mirroring')
@@ -974,8 +971,7 @@ class TestRepairQuorum(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         self.complete_and_wait(drive="quorum0")
-        result = self.vm.qmp('query-named-block-nodes')
-        self.assert_qmp(result, 'return[0]/file', quorum_repair_img)
+        self.assert_has_block_node("repair0", quorum_repair_img)
         # TODO: a better test requiring some QEMU infrastructure will be added
         #       to check that this file is really driven by quorum
         self.vm.shutdown()
