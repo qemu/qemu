@@ -97,6 +97,9 @@ struct VirtIOInputHost {
 void virtio_input_send(VirtIOInput *vinput, virtio_input_event *event);
 void virtio_input_init_config(VirtIOInput *vinput,
                               virtio_input_config *config);
+virtio_input_config *virtio_input_find_config(VirtIOInput *vinput,
+                                              uint8_t select,
+                                              uint8_t subsel);
 void virtio_input_add_config(VirtIOInput *vinput,
                              virtio_input_config *config);
 void virtio_input_idstr_config(VirtIOInput *vinput,

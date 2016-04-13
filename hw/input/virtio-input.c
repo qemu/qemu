@@ -99,9 +99,9 @@ static void virtio_input_handle_sts(VirtIODevice *vdev, VirtQueue *vq)
     virtio_notify(vdev, vinput->sts);
 }
 
-static virtio_input_config *virtio_input_find_config(VirtIOInput *vinput,
-                                                     uint8_t select,
-                                                     uint8_t subsel)
+virtio_input_config *virtio_input_find_config(VirtIOInput *vinput,
+                                              uint8_t select,
+                                              uint8_t subsel)
 {
     VirtIOInputConfig *cfg;
 
