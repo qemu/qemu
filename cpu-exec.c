@@ -202,16 +202,20 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
                              TranslationBlock *orig_tb, bool ignore_icount)
 {
     TranslationBlock *tb;
+    bool old_tb_flushed;
 
     /* Should never happen.
        We only end up here when an existing TB is too long.  */
     if (max_cycles > CF_COUNT_MASK)
         max_cycles = CF_COUNT_MASK;
 
+    old_tb_flushed = cpu->tb_flushed;
+    cpu->tb_flushed = false;
     tb = tb_gen_code(cpu, orig_tb->pc, orig_tb->cs_base, orig_tb->flags,
                      max_cycles | CF_NOCACHE
                          | (ignore_icount ? CF_IGNORE_ICOUNT : 0));
-    tb->orig_tb = tcg_ctx.tb_ctx.tb_invalidated_flag ? NULL : orig_tb;
+    tb->orig_tb = cpu->tb_flushed ? NULL : orig_tb;
+    cpu->tb_flushed |= old_tb_flushed;
     cpu->current_tb = tb;
     /* execute the generated code */
     trace_exec_tb_nocache(tb, tb->pc);
@@ -231,8 +235,6 @@ static TranslationBlock *tb_find_physical(CPUState *cpu,
     TranslationBlock *tb, **tb_hash_head, **ptb1;
     unsigned int h;
     tb_page_addr_t phys_pc, phys_page1;
-
-    tcg_ctx.tb_ctx.tb_invalidated_flag = 0;
 
     /* find translated block using physical mappings */
     phys_pc = get_page_addr_code(env, pc);
@@ -446,6 +448,7 @@ int cpu_exec(CPUState *cpu)
             }
 
             last_tb = NULL; /* forget the last executed TB after exception */
+            cpu->tb_flushed = false; /* reset before first TB lookup */
             for(;;) {
                 interrupt_request = cpu->interrupt_request;
                 if (unlikely(interrupt_request)) {
@@ -510,14 +513,12 @@ int cpu_exec(CPUState *cpu)
                 }
                 tb_lock();
                 tb = tb_find_fast(cpu);
-                /* Note: we do it here to avoid a gcc bug on Mac OS X when
-                   doing it in tb_find_slow */
-                if (tcg_ctx.tb_ctx.tb_invalidated_flag) {
-                    /* as some TB could have been invalidated because
-                       of memory exceptions while generating the code, we
-                       must recompute the hash index here */
+                if (cpu->tb_flushed) {
+                    /* Ensure that no TB jump will be modified as the
+                     * translation buffer has been flushed.
+                     */
                     last_tb = NULL;
-                    tcg_ctx.tb_ctx.tb_invalidated_flag = 0;
+                    cpu->tb_flushed = false;
                 }
                 /* See if we can patch the calling TB. */
                 if (last_tb && !qemu_loglevel_mask(CPU_LOG_TB_NOCHAIN)) {

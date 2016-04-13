@@ -238,6 +238,7 @@ struct kvm_run;
  * @crash_occurred: Indicates the OS reported a crash (panic) for this CPU
  * @tcg_exit_req: Set to force TCG to stop executing linked TBs for this
  *           CPU and return to its top level loop.
+ * @tb_flushed: Indicates the translation buffer has been flushed.
  * @singlestep_enabled: Flags for single-stepping.
  * @icount_extra: Instructions until next timer event.
  * @icount_decr: Number of cycles left, with interrupt flag in high bit.
@@ -289,6 +290,7 @@ struct CPUState {
     bool stopped;
     bool crash_occurred;
     bool exit_request;
+    bool tb_flushed;
     uint32_t interrupt_request;
     int singlestep_enabled;
     int64_t icount_extra;
