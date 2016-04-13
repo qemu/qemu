@@ -121,11 +121,19 @@ file_backend_instance_init(Object *o)
                             set_mem_path, NULL);
 }
 
+static void file_backend_instance_finalize(Object *o)
+{
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
+
+    g_free(fb->mem_path);
+}
+
 static const TypeInfo file_backend_info = {
     .name = TYPE_MEMORY_BACKEND_FILE,
     .parent = TYPE_MEMORY_BACKEND,
     .class_init = file_backend_class_init,
     .instance_init = file_backend_instance_init,
+    .instance_finalize = file_backend_instance_finalize,
     .instance_size = sizeof(HostMemoryBackendFile),
 };
 
