@@ -121,6 +121,8 @@ static const unsigned int keymap_qcode[Q_KEY_CODE__MAX] = {
 
     [Q_KEY_CODE_CTRL_R]              = KEY_RIGHTCTRL,
     [Q_KEY_CODE_SYSRQ]               = KEY_SYSRQ,
+    [Q_KEY_CODE_PRINT]               = KEY_SYSRQ,
+    [Q_KEY_CODE_PAUSE]               = KEY_PAUSE,
     [Q_KEY_CODE_ALT_R]               = KEY_RIGHTALT,
 
     [Q_KEY_CODE_HOME]                = KEY_HOME,
@@ -482,12 +484,12 @@ static struct virtio_input_config virtio_tablet_config[] = {
         .select    = VIRTIO_INPUT_CFG_ABS_INFO,
         .subsel    = ABS_X,
         .size      = sizeof(virtio_input_absinfo),
-        .u.abs.max = const_le32(INPUT_EVENT_ABS_SIZE),
+        .u.abs.max = const_le32(INPUT_EVENT_ABS_SIZE - 1),
     },{
         .select    = VIRTIO_INPUT_CFG_ABS_INFO,
         .subsel    = ABS_Y,
         .size      = sizeof(virtio_input_absinfo),
-        .u.abs.max = const_le32(INPUT_EVENT_ABS_SIZE),
+        .u.abs.max = const_le32(INPUT_EVENT_ABS_SIZE - 1),
     },
     { /* end of list */ },
 };

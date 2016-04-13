@@ -337,7 +337,7 @@ static void input_linux_event_mouse(void *opaque)
 static void input_linux_complete(UserCreatable *uc, Error **errp)
 {
     InputLinux *il = INPUT_LINUX(uc);
-    uint32_t evtmap;
+    uint32_t evtmap, relmap, absmap;
     int rc, ver;
 
     if (!il->evdev) {
@@ -359,16 +359,36 @@ static void input_linux_complete(UserCreatable *uc, Error **errp)
     }
 
     rc = ioctl(il->fd, EVIOCGBIT(0, sizeof(evtmap)), &evtmap);
+    if (rc < 0) {
+        error_setg(errp, "%s: failed to read event bits", il->evdev);
+        goto err_close;
+    }
 
     if (evtmap & (1 << EV_REL)) {
-        /* has relative axis -> assume mouse */
+        rc = ioctl(il->fd, EVIOCGBIT(EV_REL, sizeof(relmap)), &relmap);
+        if (rc < 0) {
+            relmap = 0;
+        }
+    }
+
+    if (evtmap & (1 << EV_ABS)) {
+        ioctl(il->fd, EVIOCGBIT(EV_ABS, sizeof(absmap)), &absmap);
+        if (rc < 0) {
+            absmap = 0;
+        }
+    }
+
+    if ((evtmap & (1 << EV_REL)) &&
+        (relmap & (1 << REL_X))) {
+        /* has relative x axis -> assume mouse */
         qemu_set_fd_handler(il->fd, input_linux_event_mouse, NULL, il);
-    } else if (evtmap & (1 << EV_ABS)) {
-        /* has absolute axis -> not supported */
+    } else if ((evtmap & (1 << EV_ABS)) &&
+               (absmap & (1 << ABS_X))) {
+        /* has absolute x axis -> not supported */
         error_setg(errp, "tablet/touchscreen not supported");
         goto err_close;
     } else if (evtmap & (1 << EV_KEY)) {
-        /* has keys/buttons (and no axis) -> assume keyboard */
+        /* has keys/buttons (and no x axis) -> assume keyboard */
         qemu_set_fd_handler(il->fd, input_linux_event_keyboard, NULL, il);
     } else {
         /* Huh? What is this? */

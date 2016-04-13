@@ -70,13 +70,39 @@ static void virtio_input_bits_config(VirtIOInputHost *vih,
     virtio_input_add_config(VIRTIO_INPUT(vih), &bits);
 }
 
+static void virtio_input_abs_config(VirtIOInputHost *vih, int axis)
+{
+    virtio_input_config config;
+    struct input_absinfo absinfo;
+    int rc;
+
+    rc = ioctl(vih->fd, EVIOCGABS(axis), &absinfo);
+    if (rc < 0) {
+        return;
+    }
+
+    memset(&config, 0, sizeof(config));
+    config.select = VIRTIO_INPUT_CFG_ABS_INFO;
+    config.subsel = axis;
+    config.size   = sizeof(virtio_input_absinfo);
+
+    config.u.abs.min  = cpu_to_le32(absinfo.minimum);
+    config.u.abs.max  = cpu_to_le32(absinfo.maximum);
+    config.u.abs.fuzz = cpu_to_le32(absinfo.fuzz);
+    config.u.abs.flat = cpu_to_le32(absinfo.flat);
+    config.u.abs.res  = cpu_to_le32(absinfo.resolution);
+
+    virtio_input_add_config(VIRTIO_INPUT(vih), &config);
+}
+
 static void virtio_input_host_realize(DeviceState *dev, Error **errp)
 {
     VirtIOInputHost *vih = VIRTIO_INPUT_HOST(dev);
     VirtIOInput *vinput = VIRTIO_INPUT(dev);
-    virtio_input_config id;
+    virtio_input_config id, *abs;
     struct input_id ids;
-    int rc, ver;
+    int rc, ver, i, axis;
+    uint8_t byte;
 
     if (!vih->evdev) {
         error_setg(errp, "evdev property is required");
@@ -125,6 +151,23 @@ static void virtio_input_host_realize(DeviceState *dev, Error **errp)
     virtio_input_bits_config(vih, EV_ABS, ABS_CNT);
     virtio_input_bits_config(vih, EV_MSC, MSC_CNT);
     virtio_input_bits_config(vih, EV_SW,  SW_CNT);
+    virtio_input_bits_config(vih, EV_LED, LED_CNT);
+
+    abs = virtio_input_find_config(VIRTIO_INPUT(vih),
+        VIRTIO_INPUT_CFG_EV_BITS, EV_ABS);
+    if (abs) {
+        for (i = 0; i < abs->size; i++) {
+            byte = abs->u.bitmap[i];
+            axis = 8 * i;
+            while (byte) {
+                if (byte & 1) {
+                    virtio_input_abs_config(vih, axis);
+                }
+                axis++;
+                byte >>= 1;
+            }
+        }
+    }
 
     qemu_set_fd_handler(vih->fd, virtio_input_host_event, NULL, vih);
     return;
@@ -142,6 +185,28 @@ static void virtio_input_host_unrealize(DeviceState *dev, Error **errp)
     if (vih->fd > 0) {
         qemu_set_fd_handler(vih->fd, NULL, NULL, NULL);
         close(vih->fd);
+    }
+}
+
+static void virtio_input_host_handle_status(VirtIOInput *vinput,
+                                            virtio_input_event *event)
+{
+    VirtIOInputHost *vih = VIRTIO_INPUT_HOST(vinput);
+    struct input_event evdev;
+    int rc;
+
+    if (gettimeofday(&evdev.time, NULL)) {
+        perror("virtio_input_host_handle_status: gettimeofday");
+        return;
+    }
+
+    evdev.type = le16_to_cpu(event->type);
+    evdev.code = le16_to_cpu(event->code);
+    evdev.value = le32_to_cpu(event->value);
+
+    rc = write(vih->fd, &evdev, sizeof(evdev));
+    if (rc == -1) {
+        perror("virtio_input_host_handle_status: write");
     }
 }
 
@@ -164,6 +229,7 @@ static void virtio_input_host_class_init(ObjectClass *klass, void *data)
     dc->props          = virtio_input_host_properties;
     vic->realize       = virtio_input_host_realize;
     vic->unrealize     = virtio_input_host_unrealize;
+    vic->handle_status = virtio_input_host_handle_status;
 }
 
 static void virtio_input_host_init(Object *obj)

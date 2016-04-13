@@ -125,6 +125,25 @@ static inline uint32_t qemu_bswap_len(uint32_t value, int len)
     return bswap32(value) >> (32 - 8 * len);
 }
 
+/*
+ * Same as cpu_to_le{16,23}, except that gcc will figure the result is
+ * a compile-time constant if you pass in a constant.  So this can be
+ * used to initialize static variables.
+ */
+#if defined(HOST_WORDS_BIGENDIAN)
+# define const_le32(_x)                          \
+    ((((_x) & 0x000000ffU) << 24) |              \
+     (((_x) & 0x0000ff00U) <<  8) |              \
+     (((_x) & 0x00ff0000U) >>  8) |              \
+     (((_x) & 0xff000000U) >> 24))
+# define const_le16(_x)                          \
+    ((((_x) & 0x00ff) << 8) |                    \
+     (((_x) & 0xff00) >> 8))
+#else
+# define const_le32(_x) (_x)
+# define const_le16(_x) (_x)
+#endif
+
 /* Unions for reinterpreting between floats and integers.  */
 
 typedef union {

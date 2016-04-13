@@ -14,6 +14,8 @@
 
 #include "standard-headers/linux/input.h"
 
+#define VIRTIO_INPUT_VM_VERSION 1
+
 /* ----------------------------------------------------------------- */
 
 void virtio_input_send(VirtIOInput *vinput, virtio_input_event *event)
@@ -97,9 +99,9 @@ static void virtio_input_handle_sts(VirtIODevice *vdev, VirtQueue *vq)
     virtio_notify(vdev, vinput->sts);
 }
 
-static virtio_input_config *virtio_input_find_config(VirtIOInput *vinput,
-                                                     uint8_t select,
-                                                     uint8_t subsel)
+virtio_input_config *virtio_input_find_config(VirtIOInput *vinput,
+                                              uint8_t select,
+                                              uint8_t subsel)
 {
     VirtIOInputConfig *cfg;
 
@@ -214,6 +216,38 @@ static void virtio_input_reset(VirtIODevice *vdev)
     }
 }
 
+static void virtio_input_save(QEMUFile *f, void *opaque)
+{
+    VirtIOInput *vinput = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(vinput);
+
+    virtio_save(vdev, f);
+}
+
+static int virtio_input_load(QEMUFile *f, void *opaque, int version_id)
+{
+    VirtIOInput *vinput = opaque;
+    VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(vinput);
+    VirtIODevice *vdev = VIRTIO_DEVICE(vinput);
+    int ret;
+
+    if (version_id != VIRTIO_INPUT_VM_VERSION) {
+        return -EINVAL;
+    }
+
+    ret = virtio_load(vdev, f, version_id);
+    if (ret) {
+        return ret;
+    }
+
+    /* post_load() */
+    vinput->active = vdev->status & VIRTIO_CONFIG_S_DRIVER_OK;
+    if (vic->change_active) {
+        vic->change_active(vinput);
+    }
+    return 0;
+}
+
 static void virtio_input_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(dev);
@@ -245,13 +279,19 @@ static void virtio_input_device_realize(DeviceState *dev, Error **errp)
                 vinput->cfg_size);
     vinput->evt = virtio_add_queue(vdev, 64, virtio_input_handle_evt);
     vinput->sts = virtio_add_queue(vdev, 64, virtio_input_handle_sts);
+
+    register_savevm(dev, "virtio-input", -1, VIRTIO_INPUT_VM_VERSION,
+                    virtio_input_save, virtio_input_load, vinput);
 }
 
 static void virtio_input_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(dev);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIOInput *vinput = VIRTIO_INPUT(dev);
     Error *local_err = NULL;
+
+    unregister_savevm(dev, "virtio-input", vinput);
 
     if (vic->unrealize) {
         vic->unrealize(dev, &local_err);
