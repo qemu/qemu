@@ -872,6 +872,8 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
         s->ivshmem_bar2 = host_memory_backend_get_memory(s->hostmem,
                                                          &error_abort);
     } else {
+        assert(s->server_chr);
+
         IVSHMEM_DPRINTF("using shared memory server (socket = %s)\n",
                         s->server_chr->filename);
 
@@ -1051,10 +1053,24 @@ static void ivshmem_plain_init(Object *obj)
                              &error_abort);
 }
 
+static void ivshmem_plain_realize(PCIDevice *dev, Error **errp)
+{
+    IVShmemState *s = IVSHMEM_COMMON(dev);
+
+    if (!s->hostmem) {
+        error_setg(errp, "You must specify a 'memdev'");
+        return;
+    }
+
+    ivshmem_common_realize(dev, errp);
+}
+
 static void ivshmem_plain_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
+    k->realize = ivshmem_plain_realize;
     dc->props = ivshmem_plain_properties;
     dc->vmsd = &ivshmem_plain_vmsd;
 }
@@ -1099,10 +1115,24 @@ static void ivshmem_doorbell_init(Object *obj)
     s->legacy_size = SIZE_MAX;  /* whatever the server sends */
 }
 
+static void ivshmem_doorbell_realize(PCIDevice *dev, Error **errp)
+{
+    IVShmemState *s = IVSHMEM_COMMON(dev);
+
+    if (!s->server_chr) {
+        error_setg(errp, "You must specify a 'chardev'");
+        return;
+    }
+
+    ivshmem_common_realize(dev, errp);
+}
+
 static void ivshmem_doorbell_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
+    k->realize = ivshmem_doorbell_realize;
     dc->props = ivshmem_doorbell_properties;
     dc->vmsd = &ivshmem_doorbell_vmsd;
 }
