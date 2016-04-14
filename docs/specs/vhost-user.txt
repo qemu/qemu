@@ -364,7 +364,7 @@ Message types
       Equivalent ioctl: VHOST_SET_VRING_NUM
       Master payload: vring state description
 
-      Sets the number of vrings for this owner.
+      Set the size of the queue.
 
  * VHOST_USER_SET_VRING_ADDR
 
@@ -438,7 +438,7 @@ Message types
       Slave payload: u64
 
       Query how many queues the backend supports. This request should be
-      sent only when VHOST_USER_PROTOCOL_F_MQ is set in quried protocol
+      sent only when VHOST_USER_PROTOCOL_F_MQ is set in queried protocol
       features by VHOST_USER_GET_PROTOCOL_FEATURES.
 
  * VHOST_USER_SET_VRING_ENABLE

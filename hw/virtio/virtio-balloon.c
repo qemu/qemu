@@ -19,7 +19,6 @@
 #include "qemu-common.h"
 #include "hw/virtio/virtio.h"
 #include "hw/i386/pc.h"
-#include "cpu.h"
 #include "sysemu/balloon.h"
 #include "hw/virtio/virtio-balloon.h"
 #include "sysemu/kvm.h"
@@ -35,12 +34,14 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 
+#define BALLOON_PAGE_SIZE  (1 << VIRTIO_BALLOON_PFN_SHIFT)
+
 static void balloon_page(void *addr, int deflate)
 {
 #if defined(__linux__)
     if (!qemu_balloon_is_inhibited() && (!kvm_enabled() ||
                                          kvm_has_sync_mmu())) {
-        qemu_madvise(addr, TARGET_PAGE_SIZE,
+        qemu_madvise(addr, BALLOON_PAGE_SIZE,
                 deflate ? QEMU_MADV_WILLNEED : QEMU_MADV_DONTNEED);
     }
 #endif
