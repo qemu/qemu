@@ -215,7 +215,7 @@ static int find_partition(BlockBackend *blk, int partition,
 
 static void termsig_handler(int signum)
 {
-    state = TERMINATE;
+    atomic_cmpxchg(&state, RUNNING, TERMINATE);
     qemu_notify_event();
 }
 
