@@ -1108,15 +1108,6 @@ int coroutine_fn bdrv_co_readv(BlockDriverState *bs, int64_t sector_num,
     return bdrv_co_do_readv(bs, sector_num, nb_sectors, qiov, 0);
 }
 
-int coroutine_fn bdrv_co_readv_no_serialising(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
-{
-    trace_bdrv_co_readv_no_serialising(bs, sector_num, nb_sectors);
-
-    return bdrv_co_do_readv(bs, sector_num, nb_sectors, qiov,
-                            BDRV_REQ_NO_SERIALISING);
-}
-
 #define MAX_WRITE_ZEROES_BOUNCE_BUFFER 32768
 
 static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,

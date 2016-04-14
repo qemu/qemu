@@ -3293,8 +3293,8 @@ static void do_drive_backup(const char *device, const char *target,
     backup_start(bs, target_bs, speed, sync, bmap,
                  on_source_error, on_target_error,
                  block_job_cb, bs, txn, &local_err);
+    bdrv_unref(target_bs);
     if (local_err != NULL) {
-        bdrv_unref(target_bs);
         error_propagate(errp, local_err);
         goto out;
     }
@@ -3378,12 +3378,10 @@ void do_blockdev_backup(const char *device, const char *target,
     }
     target_bs = blk_bs(target_blk);
 
-    bdrv_ref(target_bs);
     bdrv_set_aio_context(target_bs, aio_context);
     backup_start(bs, target_bs, speed, sync, NULL, on_source_error,
                  on_target_error, block_job_cb, bs, txn, &local_err);
     if (local_err != NULL) {
-        bdrv_unref(target_bs);
         error_propagate(errp, local_err);
     }
 out:
