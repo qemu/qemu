@@ -527,6 +527,9 @@ static int s390_pcihost_init(SysBusDevice *dev)
     bus = BUS(b);
     qbus_set_hotplug_handler(bus, DEVICE(dev), NULL);
     phb->bus = b;
+
+    s->bus = S390_PCI_BUS(qbus_create(TYPE_S390_PCI_BUS, DEVICE(s), NULL));
+
     QTAILQ_INIT(&s->pending_sei);
     return 0;
 }
@@ -636,9 +639,16 @@ static const TypeInfo s390_pcihost_info = {
     }
 };
 
+static const TypeInfo s390_pcibus_info = {
+    .name = TYPE_S390_PCI_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(S390PCIBus),
+};
+
 static void s390_pci_register_types(void)
 {
     type_register_static(&s390_pcihost_info);
+    type_register_static(&s390_pcibus_info);
 }
 
 type_init(s390_pci_register_types)

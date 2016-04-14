@@ -21,6 +21,7 @@
 #include "hw/s390x/css.h"
 
 #define TYPE_S390_PCI_HOST_BRIDGE "s390-pcihost"
+#define TYPE_S390_PCI_BUS "s390-pcibus"
 #define FH_MASK_ENABLE   0x80000000
 #define FH_MASK_INSTANCE 0x7f000000
 #define FH_MASK_SHM      0x00ff0000
@@ -31,6 +32,8 @@
 
 #define S390_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(S390pciState, (obj), TYPE_S390_PCI_HOST_BRIDGE)
+#define S390_PCI_BUS(obj) \
+    OBJECT_CHECK(S390PCIBus, (obj), TYPE_S390_PCI_BUS)
 
 #define HP_EVENT_TO_CONFIGURED        0x0301
 #define HP_EVENT_RESERVED_TO_STANDBY  0x0302
@@ -267,8 +270,13 @@ typedef struct S390PCIBusDevice {
     IndAddr *indicator;
 } S390PCIBusDevice;
 
+typedef struct S390PCIBus {
+    BusState qbus;
+} S390PCIBus;
+
 typedef struct S390pciState {
     PCIHostState parent_obj;
+    S390PCIBus *bus;
     S390PCIBusDevice pbdev[PCI_SLOT_MAX];
     AddressSpace msix_notify_as;
     MemoryRegion msix_notify_mr;
