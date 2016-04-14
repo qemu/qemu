@@ -504,6 +504,7 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
 {
     int64_t len;
     BlockDriverInfo bdi;
+    BackupBlockJob *job = NULL;
     int ret;
 
     assert(bs);
@@ -568,8 +569,7 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
         goto error;
     }
 
-    BackupBlockJob *job = block_job_create(&backup_job_driver, bs, speed,
-                                           cb, opaque, errp);
+    job = block_job_create(&backup_job_driver, bs, speed, cb, opaque, errp);
     if (!job) {
         goto error;
     }
@@ -609,5 +609,8 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
  error:
     if (sync_bitmap) {
         bdrv_reclaim_dirty_bitmap(bs, sync_bitmap, NULL);
+    }
+    if (job) {
+        block_job_unref(&job->common);
     }
 }
