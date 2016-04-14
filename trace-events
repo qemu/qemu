@@ -61,6 +61,10 @@ virtio_console_chr_event(unsigned int port, int event) "port %u, event %d"
 bdrv_open_common(void *bs, const char *filename, int flags, const char *format_name) "bs %p filename \"%s\" flags %#x format_name \"%s\""
 bdrv_lock_medium(void *bs, bool locked) "bs %p locked %d"
 
+# block/block-backend.c
+blk_co_preadv(void *blk, void *bs, int64_t offset, unsigned int bytes, int flags) "blk %p bs %p offset %"PRId64" bytes %u flags %x"
+blk_co_pwritev(void *blk, void *bs, int64_t offset, unsigned int bytes, int flags) "blk %p bs %p offset %"PRId64" bytes %u flags %x"
+
 # block/io.c
 bdrv_aio_discard(void *bs, int64_t sector_num, int nb_sectors, void *opaque) "bs %p sector_num %"PRId64" nb_sectors %d opaque %p"
 bdrv_aio_flush(void *bs, void *opaque) "bs %p opaque %p"

@@ -19,6 +19,7 @@
 #include "sysemu/sysemu.h"
 #include "qapi-event.h"
 #include "qemu/id.h"
+#include "trace.h"
 
 /* Number of coroutines to reserve per attached device model */
 #define COROUTINE_POOL_RESERVATION 64
@@ -741,11 +742,15 @@ static int blk_check_request(BlockBackend *blk, int64_t sector_num,
                                   nb_sectors * BDRV_SECTOR_SIZE);
 }
 
-static int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
-                                      unsigned int bytes, QEMUIOVector *qiov,
-                                      BdrvRequestFlags flags)
+int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
+                               unsigned int bytes, QEMUIOVector *qiov,
+                               BdrvRequestFlags flags)
 {
-    int ret = blk_check_byte_request(blk, offset, bytes);
+    int ret;
+
+    trace_blk_co_preadv(blk, blk_bs(blk), offset, bytes, flags);
+
+    ret = blk_check_byte_request(blk, offset, bytes);
     if (ret < 0) {
         return ret;
     }
@@ -758,11 +763,13 @@ static int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
     return bdrv_co_preadv(blk_bs(blk), offset, bytes, qiov, flags);
 }
 
-static int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
-                                      unsigned int bytes, QEMUIOVector *qiov,
-                                      BdrvRequestFlags flags)
+int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
+                                unsigned int bytes, QEMUIOVector *qiov,
+                                BdrvRequestFlags flags)
 {
     int ret;
+
+    trace_blk_co_pwritev(blk, blk_bs(blk), offset, bytes, flags);
 
     ret = blk_check_byte_request(blk, offset, bytes);
     if (ret < 0) {

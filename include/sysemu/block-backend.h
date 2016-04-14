@@ -113,6 +113,12 @@ void *blk_get_attached_dev(BlockBackend *blk);
 void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops, void *opaque);
 int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
                           int count);
+int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
+                               unsigned int bytes, QEMUIOVector *qiov,
+                               BdrvRequestFlags flags);
+int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
+                               unsigned int bytes, QEMUIOVector *qiov,
+                               BdrvRequestFlags flags);
 int blk_pwrite_zeroes(BlockBackend *blk, int64_t offset,
                       int count, BdrvRequestFlags flags);
 BlockAIOCB *blk_aio_pwrite_zeroes(BlockBackend *blk, int64_t offset,
