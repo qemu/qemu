@@ -2059,11 +2059,11 @@ void helper_ldda_asi(CPUSPARCState *env, target_ulong addr, int asi, int rd)
                 bswap64s(&env->gregs[rd + 1]);
             }
         } else {
-            env->regwptr[rd] = cpu_ldq_nucleus(env, addr);
-            env->regwptr[rd + 1] = cpu_ldq_nucleus(env, addr + 8);
+            env->regwptr[rd - 8] = cpu_ldq_nucleus(env, addr);
+            env->regwptr[rd + 1 - 8] = cpu_ldq_nucleus(env, addr + 8);
             if (asi == 0x2c) {
-                bswap64s(&env->regwptr[rd]);
-                bswap64s(&env->regwptr[rd + 1]);
+                bswap64s(&env->regwptr[rd - 8]);
+                bswap64s(&env->regwptr[rd + 1 - 8]);
             }
         }
         break;
@@ -2076,8 +2076,8 @@ void helper_ldda_asi(CPUSPARCState *env, target_ulong addr, int asi, int rd)
             env->gregs[rd] = helper_ld_asi(env, addr, asi, 4, 0);
             env->gregs[rd + 1] = helper_ld_asi(env, addr + 4, asi, 4, 0);
         } else {
-            env->regwptr[rd] = helper_ld_asi(env, addr, asi, 4, 0);
-            env->regwptr[rd + 1] = helper_ld_asi(env, addr + 4, asi, 4, 0);
+            env->regwptr[rd - 8] = helper_ld_asi(env, addr, asi, 4, 0);
+            env->regwptr[rd + 1 - 8] = helper_ld_asi(env, addr + 4, asi, 4, 0);
         }
         break;
     }
