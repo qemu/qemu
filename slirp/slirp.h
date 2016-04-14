@@ -347,9 +347,4 @@ struct tcpcb *tcp_drop(struct tcpcb *tp, int err);
 #define max(x,y) ((x) > (y) ? (x) : (y))
 #endif
 
-#ifdef _WIN32
-#undef errno
-#define errno (WSAGetLastError())
-#endif
-
 #endif
