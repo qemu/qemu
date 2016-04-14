@@ -3227,10 +3227,8 @@ static void gen_lswi(DisasContext *ctx)
 
     if (nb == 0)
         nb = 32;
-    nr = nb / 4;
-    if (unlikely(((start + nr) > 32  &&
-                  start <= ra && (start + nr - 32) > ra) ||
-                 ((start + nr) <= 32 && start <= ra && (start + nr) > ra))) {
+    nr = (nb + 3) / 4;
+    if (unlikely(lsw_reg_in_range(start, nr, ra))) {
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_LSWX);
         return;
     }

@@ -2415,6 +2415,16 @@ static inline bool msr_is_64bit(CPUPPCState *env, target_ulong msr)
     return msr & (1ULL << MSR_SF);
 }
 
+/**
+ * Check whether register rx is in the range between start and
+ * start + nregs (as needed by the LSWX and LSWI instructions)
+ */
+static inline bool lsw_reg_in_range(int start, int nregs, int rx)
+{
+    return (start + nregs <= 32 && rx >= start && rx < start + nregs) ||
+           (start + nregs > 32 && (rx >= start || rx < start + nregs - 32));
+}
+
 extern void (*cpu_ppc_hypercall)(PowerPCCPU *);
 
 #include "exec/exec-all.h"
