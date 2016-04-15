@@ -589,6 +589,17 @@ static coroutine_fn int qemu_gluster_co_writev(BlockDriverState *bs,
     return qemu_gluster_co_rw(bs, sector_num, nb_sectors, qiov, 1);
 }
 
+static void qemu_gluster_close(BlockDriverState *bs)
+{
+    BDRVGlusterState *s = bs->opaque;
+
+    if (s->fd) {
+        glfs_close(s->fd);
+        s->fd = NULL;
+    }
+    glfs_fini(s->glfs);
+}
+
 static coroutine_fn int qemu_gluster_co_flush_to_disk(BlockDriverState *bs)
 {
     int ret;
@@ -659,17 +670,6 @@ static int64_t qemu_gluster_allocated_file_size(BlockDriverState *bs)
     } else {
         return st.st_blocks * 512;
     }
-}
-
-static void qemu_gluster_close(BlockDriverState *bs)
-{
-    BDRVGlusterState *s = bs->opaque;
-
-    if (s->fd) {
-        glfs_close(s->fd);
-        s->fd = NULL;
-    }
-    glfs_fini(s->glfs);
 }
 
 static int qemu_gluster_has_zero_init(BlockDriverState *bs)
