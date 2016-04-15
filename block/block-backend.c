@@ -820,7 +820,7 @@ int blk_write_zeroes(BlockBackend *blk, int64_t sector_num,
                      int nb_sectors, BdrvRequestFlags flags)
 {
     return blk_rw(blk, sector_num, NULL, nb_sectors, blk_write_entry,
-                  BDRV_REQ_ZERO_WRITE);
+                  flags | BDRV_REQ_ZERO_WRITE);
 }
 
 static void error_callback_bh(void *opaque)
@@ -942,7 +942,8 @@ BlockAIOCB *blk_aio_write_zeroes(BlockBackend *blk, int64_t sector_num,
 
     return blk_aio_prwv(blk, sector_num << BDRV_SECTOR_BITS,
                         nb_sectors << BDRV_SECTOR_BITS, NULL,
-                        blk_aio_write_entry, BDRV_REQ_ZERO_WRITE, cb, opaque);
+                        blk_aio_write_entry, flags | BDRV_REQ_ZERO_WRITE,
+                        cb, opaque);
 }
 
 int blk_pread(BlockBackend *blk, int64_t offset, void *buf, int count)
@@ -1452,7 +1453,7 @@ int coroutine_fn blk_co_write_zeroes(BlockBackend *blk, int64_t sector_num,
 
     return blk_co_pwritev(blk, sector_num << BDRV_SECTOR_BITS,
                           nb_sectors << BDRV_SECTOR_BITS, NULL,
-                          BDRV_REQ_ZERO_WRITE);
+                          flags | BDRV_REQ_ZERO_WRITE);
 }
 
 int blk_write_compressed(BlockBackend *blk, int64_t sector_num,
