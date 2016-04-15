@@ -192,13 +192,18 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, Error **errp)
             return -1;
         }
     } else if (type == NBD_REP_SERVER) {
+        if (len < sizeof(namelen) || len > NBD_MAX_BUFFER_SIZE) {
+            error_setg(errp, "incorrect option length");
+            return -1;
+        }
         if (read_sync(ioc, &namelen, sizeof(namelen)) != sizeof(namelen)) {
             error_setg(errp, "failed to read option name length");
             return -1;
         }
         namelen = be32_to_cpu(namelen);
-        if (len != (namelen + sizeof(namelen))) {
-            error_setg(errp, "incorrect option mame length");
+        len -= sizeof(namelen);
+        if (len < namelen) {
+            error_setg(errp, "incorrect option name length");
             return -1;
         }
         if (namelen > 255) {
@@ -214,6 +219,20 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, Error **errp)
             return -1;
         }
         (*name)[namelen] = '\0';
+        len -= namelen;
+        if (len) {
+            char *buf = g_malloc(len + 1);
+            if (read_sync(ioc, buf, len) != len) {
+                error_setg(errp, "failed to read export description");
+                g_free(*name);
+                g_free(buf);
+                *name = NULL;
+                return -1;
+            }
+            buf[len] = '\0';
+            TRACE("Ignoring export description: %s", buf);
+            g_free(buf);
+        }
     } else {
         error_setg(errp, "Unexpected reply type %x expected %x",
                    type, NBD_REP_SERVER);

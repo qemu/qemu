@@ -25,7 +25,6 @@ seq=`basename $0`
 echo "QA output created by $seq"
 
 here=`pwd`
-tmp=/tmp/$$
 status=1	# failure is the default!
 
 _cleanup()
@@ -57,12 +56,13 @@ do_test()
 	} | $QEMU_IO
 }
 
+for write_zero_cmd in "write -z" "aio_write -z"; do
 for align in 512 4k; do
 	echo
 	echo "== preparing image =="
 	do_test $align "write -P 0xa 0x200 0x400" "$TEST_IMG" | _filter_qemu_io
 	do_test $align "write -P 0xa 0x20000 0x600" "$TEST_IMG" | _filter_qemu_io
-	do_test $align "write -z 0x400 0x20000" "$TEST_IMG" | _filter_qemu_io
+	do_test $align "$write_zero_cmd 0x400 0x20000" "$TEST_IMG" | _filter_qemu_io
 
 	echo
 	echo "== verifying patterns (1) =="
@@ -73,7 +73,7 @@ for align in 512 4k; do
 	echo
 	echo "== rewriting zeroes =="
 	do_test $align "write -P 0xb 0x10000 0x10000" "$TEST_IMG" | _filter_qemu_io
-	do_test $align "write -z 0x10000 0x10000" "$TEST_IMG" | _filter_qemu_io
+	do_test $align "$write_zero_cmd 0x10000 0x10000" "$TEST_IMG" | _filter_qemu_io
 
 	echo
 	echo "== verifying patterns (2) =="
@@ -82,7 +82,7 @@ for align in 512 4k; do
 	echo
 	echo "== rewriting unaligned zeroes =="
 	do_test $align "write -P 0xb 0x0 0x1000" "$TEST_IMG" | _filter_qemu_io
-	do_test $align "write -z 0x200 0x200" "$TEST_IMG" | _filter_qemu_io
+	do_test $align "$write_zero_cmd 0x200 0x200" "$TEST_IMG" | _filter_qemu_io
 
 	echo
 	echo "== verifying patterns (3) =="
@@ -91,6 +91,7 @@ for align in 512 4k; do
 	do_test $align "read -P 0xb 0x400 0xc00" "$TEST_IMG" | _filter_qemu_io
 
 	echo
+done
 done
 
 # success, all done

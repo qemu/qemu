@@ -348,6 +348,20 @@ class QMPTestCase(unittest.TestCase):
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return', [])
 
+    def assert_has_block_node(self, node_name=None, file_name=None):
+        """Issue a query-named-block-nodes and assert node_name and/or
+        file_name is present in the result"""
+        def check_equal_or_none(a, b):
+            return a == None or b == None or a == b
+        assert node_name or file_name
+        result = self.vm.qmp('query-named-block-nodes')
+        for x in result["return"]:
+            if check_equal_or_none(x.get("node-name"), node_name) and \
+                    check_equal_or_none(x.get("file"), file_name):
+                return
+        self.assertTrue(False, "Cannot find %s %s in result:\n%s" % \
+                (node_name, file_name, result))
+
     def cancel_and_wait(self, drive='drive0', force=False, resume=False):
         '''Cancel a block job and wait for it to finish, returning the event'''
         result = self.vm.qmp('block-job-cancel', device=drive, force=force)
