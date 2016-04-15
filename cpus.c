@@ -171,12 +171,24 @@ opts_init(tcg_register_config);
 
 static bool default_mttcg_enabled(void)
 {
-    /*
-     * TODO: Check if we have a chance to have MTTCG working on this guest/host.
-     *       Basically is the atomic instruction implemented? Is there any
-     *       memory ordering issue?
+    /* Checklist for enabling MTTCG on a given frontend/backend combination
+     *
+     *  - Are atomics correctly modelled for an MTTCG environment
+     *  - If the backend is weakly ordered
+     *    - has the front-end implemented explicit memory ordering ops
+     *    - does the back-end generate code to ensure memory ordering
      */
+#if defined(__i386__) || defined(__x86_64__)
+    /* x86 backend is strongly ordered which helps a lot */
+    #if defined(TARGET_ARM)
+    return true;
+    #else
     return false;
+    #endif
+#else
+    /* Until memory ordering implemented things will likely break */
+    return false;
+#endif
 }
 
 void qemu_tcg_configure(QemuOpts *opts)
