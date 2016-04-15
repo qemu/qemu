@@ -26,7 +26,7 @@ struct VirtIORNGConf {
     RngBackend *rng;
     uint64_t max_bytes;
     uint32_t period_ms;
-    RndRandom *default_backend;
+    RngRandom *default_backend;
 };
 
 typedef struct VirtIORNG {

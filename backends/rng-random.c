@@ -17,7 +17,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qemu/main-loop.h"
 
-struct RndRandom
+struct RngRandom
 {
     RngBackend parent;
 
@@ -34,7 +34,7 @@ struct RndRandom
 
 static void entropy_available(void *opaque)
 {
-    RndRandom *s = RNG_RANDOM(opaque);
+    RngRandom *s = RNG_RANDOM(opaque);
 
     while (!QSIMPLEQ_EMPTY(&s->parent.requests)) {
         RngRequest *req = QSIMPLEQ_FIRST(&s->parent.requests);
@@ -57,7 +57,7 @@ static void entropy_available(void *opaque)
 
 static void rng_random_request_entropy(RngBackend *b, RngRequest *req)
 {
-    RndRandom *s = RNG_RANDOM(b);
+    RngRandom *s = RNG_RANDOM(b);
 
     if (QSIMPLEQ_EMPTY(&s->parent.requests)) {
         /* If there are no pending requests yet, we need to
@@ -68,7 +68,7 @@ static void rng_random_request_entropy(RngBackend *b, RngRequest *req)
 
 static void rng_random_opened(RngBackend *b, Error **errp)
 {
-    RndRandom *s = RNG_RANDOM(b);
+    RngRandom *s = RNG_RANDOM(b);
 
     if (s->filename == NULL) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
@@ -83,7 +83,7 @@ static void rng_random_opened(RngBackend *b, Error **errp)
 
 static char *rng_random_get_filename(Object *obj, Error **errp)
 {
-    RndRandom *s = RNG_RANDOM(obj);
+    RngRandom *s = RNG_RANDOM(obj);
 
     return g_strdup(s->filename);
 }
@@ -92,7 +92,7 @@ static void rng_random_set_filename(Object *obj, const char *filename,
                                  Error **errp)
 {
     RngBackend *b = RNG_BACKEND(obj);
-    RndRandom *s = RNG_RANDOM(obj);
+    RngRandom *s = RNG_RANDOM(obj);
 
     if (b->opened) {
         error_setg(errp, QERR_PERMISSION_DENIED);
@@ -105,7 +105,7 @@ static void rng_random_set_filename(Object *obj, const char *filename,
 
 static void rng_random_init(Object *obj)
 {
-    RndRandom *s = RNG_RANDOM(obj);
+    RngRandom *s = RNG_RANDOM(obj);
 
     object_property_add_str(obj, "filename",
                             rng_random_get_filename,
@@ -118,7 +118,7 @@ static void rng_random_init(Object *obj)
 
 static void rng_random_finalize(Object *obj)
 {
-    RndRandom *s = RNG_RANDOM(obj);
+    RngRandom *s = RNG_RANDOM(obj);
 
     if (s->fd != -1) {
         qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
@@ -139,7 +139,7 @@ static void rng_random_class_init(ObjectClass *klass, void *data)
 static const TypeInfo rng_random_info = {
     .name = TYPE_RNG_RANDOM,
     .parent = TYPE_RNG_BACKEND,
-    .instance_size = sizeof(RndRandom),
+    .instance_size = sizeof(RngRandom),
     .class_init = rng_random_class_init,
     .instance_init = rng_random_init,
     .instance_finalize = rng_random_finalize,
