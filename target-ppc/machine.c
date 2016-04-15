@@ -136,7 +136,7 @@ static void cpu_pre_save(void *opaque)
 
     env->spr[SPR_LR] = env->lr;
     env->spr[SPR_CTR] = env->ctr;
-    env->spr[SPR_XER] = env->xer;
+    env->spr[SPR_XER] = cpu_read_xer(env);
 #if defined(TARGET_PPC64)
     env->spr[SPR_CFAR] = env->cfar;
 #endif
