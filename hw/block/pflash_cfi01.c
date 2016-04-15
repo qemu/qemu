@@ -46,6 +46,7 @@
 #include "exec/address-spaces.h"
 #include "qemu/host-utils.h"
 #include "hw/sysbus.h"
+#include "sysemu/sysemu.h"
 
 #define PFLASH_BUG(fmt, ...) \
 do { \
@@ -97,6 +98,7 @@ struct pflash_t {
     MemoryRegion mem;
     char *name;
     void *storage;
+    VMChangeStateEntry *vmstate;
 };
 
 static int pflash_post_load(void *opaque, int version_id);
@@ -944,13 +946,25 @@ MemoryRegion *pflash_cfi01_get_memory(pflash_t *fl)
     return &fl->mem;
 }
 
+static void postload_update_cb(void *opaque, int running, RunState state)
+{
+    pflash_t *pfl = opaque;
+
+    /* This is called after bdrv_invalidate_cache_all.  */
+    qemu_del_vm_change_state_handler(pfl->vmstate);
+    pfl->vmstate = NULL;
+
+    DPRINTF("%s: updating bdrv for %s\n", __func__, pfl->name);
+    pflash_update(pfl, 0, pfl->sector_len * pfl->nb_blocs);
+}
+
 static int pflash_post_load(void *opaque, int version_id)
 {
     pflash_t *pfl = opaque;
 
     if (!pfl->ro) {
-        DPRINTF("%s: updating bdrv for %s\n", __func__, pfl->name);
-        pflash_update(pfl, 0, pfl->sector_len * pfl->nb_blocs);
+        pfl->vmstate = qemu_add_vm_change_state_handler(postload_update_cb,
+                                                        pfl);
     }
     return 0;
 }
