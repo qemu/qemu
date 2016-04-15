@@ -449,11 +449,19 @@ static int nbd_negotiate_options(NBDClient *client)
                 client->ioc = QIO_CHANNEL(tioc);
                 break;
 
+            case NBD_OPT_EXPORT_NAME:
+                /* No way to return an error to client, so drop connection */
+                TRACE("Option 0x%x not permitted before TLS", clientflags);
+                return -EINVAL;
+
             default:
                 TRACE("Option 0x%x not permitted before TLS", clientflags);
+                if (nbd_negotiate_drop_sync(client->ioc, length) != length) {
+                    return -EIO;
+                }
                 nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_TLS_REQD,
                                        clientflags);
-                return -EINVAL;
+                break;
             }
         } else if (fixedNewstyle) {
             switch (clientflags) {
@@ -471,6 +479,9 @@ static int nbd_negotiate_options(NBDClient *client)
                 return nbd_negotiate_handle_export_name(client, length);
 
             case NBD_OPT_STARTTLS:
+                if (nbd_negotiate_drop_sync(client->ioc, length) != length) {
+                    return -EIO;
+                }
                 if (client->tlscreds) {
                     TRACE("TLS already enabled");
                     nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_INVALID,
@@ -480,7 +491,7 @@ static int nbd_negotiate_options(NBDClient *client)
                     nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_POLICY,
                                            clientflags);
                 }
-                return -EINVAL;
+                break;
             default:
                 TRACE("Unsupported option 0x%x", clientflags);
                 if (nbd_negotiate_drop_sync(client->ioc, length) != length) {
