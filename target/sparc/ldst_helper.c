@@ -210,6 +210,28 @@ static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
 {
     unsigned int i, replace_used;
 
+    if (cpu_has_hypervisor(env1)) {
+        uint64_t new_vaddr = tlb_tag & ~0x1fffULL;
+        uint64_t new_size = 8192ULL << 3 * TTE_PGSIZE(tlb_tte);
+        uint32_t new_ctx = tlb_tag & 0x1fffU;
+        for (i = 0; i < 64; i++) {
+            uint32_t ctx = tlb[i].tag & 0x1fffU;
+            /* check if new mapping overlaps an existing one */
+            if (new_ctx == ctx) {
+                uint64_t vaddr = tlb[i].tag & ~0x1fffULL;
+                uint64_t size = 8192ULL << 3 * TTE_PGSIZE(tlb[i].tte);
+                if (new_vaddr == vaddr
+                    || (new_vaddr < vaddr + size
+                        && vaddr < new_vaddr + new_size)) {
+                    DPRINTF_MMU("auto demap entry [%d] %lx->%lx\n", i, vaddr,
+                                new_vaddr);
+                    replace_tlb_entry(&tlb[i], tlb_tag, tlb_tte, env1);
+                    return;
+                }
+            }
+
+        }
+    }
     /* Try replacing invalid entry */
     for (i = 0; i < 64; i++) {
         if (!TTE_IS_VALID(tlb[i].tte)) {
