@@ -158,9 +158,8 @@ void sparc_cpu_do_interrupt(CPUState *cs)
     } else if ((intno & 0x1c0) == TT_FILL) {
         cpu_set_cwp(env, cpu_cwp_inc(env, env->cwp + 1));
     }
-    env->tbr &= ~0x7fffULL;
-    env->tbr |= ((env->tl > 1) ? 1 << 14 : 0) | (intno << 5);
-    env->pc = env->tbr;
+    env->pc = env->tbr  & ~0x7fffULL;
+    env->pc |= ((env->tl > 1) ? 1 << 14 : 0) | (intno << 5);
     env->npc = env->pc + 4;
     cs->exception_index = -1;
 }
