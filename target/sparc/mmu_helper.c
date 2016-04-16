@@ -741,6 +741,8 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUSPARCState *env)
                    PRId64 "\n",
                    env->dmmu.mmu_primary_context,
                    env->dmmu.mmu_secondary_context);
+    (*cpu_fprintf)(f, "DMMU Tag Access: %" PRIx64 ", TSB Tag Target: %" PRIx64
+                   "\n", env->dmmu.tag_access, env->dmmu.tsb_tag_target);
     if ((env->lsu & DMMU_E) == 0) {
         (*cpu_fprintf)(f, "DMMU disabled\n");
     } else {
