@@ -788,8 +788,8 @@ static MTPData *usb_mtp_get_device_info(MTPState *s, MTPControl *c)
     trace_usb_mtp_op_get_device_info(s->dev.addr);
 
     usb_mtp_add_u16(d, 100);
-    usb_mtp_add_u32(d, 0xffffffff);
-    usb_mtp_add_u16(d, 0x0101);
+    usb_mtp_add_u32(d, 0x00000006);
+    usb_mtp_add_u16(d, 0x0064);
     usb_mtp_add_wstr(d, L"");
     usb_mtp_add_u16(d, 0x0000);
 
