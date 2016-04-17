@@ -139,6 +139,7 @@ struct GtkDisplayState {
     GtkWidget *view_menu_item;
     GtkWidget *view_menu;
     GtkWidget *full_screen_item;
+    GtkWidget *copy_item;
     GtkWidget *zoom_in_item;
     GtkWidget *zoom_out_item;
     GtkWidget *zoom_fixed_item;
@@ -1589,6 +1590,14 @@ static GSList *gd_vc_menu_init(GtkDisplayState *s, VirtualConsole *vc,
 }
 
 #if defined(CONFIG_VTE)
+static void gd_menu_copy(GtkMenuItem *item, void *opaque)
+{
+    GtkDisplayState *s = opaque;
+    VirtualConsole *vc = gd_vc_find_current(s);
+
+    vte_terminal_copy_clipboard(VTE_TERMINAL(vc->vte.terminal));
+}
+
 static void gd_vc_adjustment_changed(GtkAdjustment *adjustment, void *opaque)
 {
     VirtualConsole *vc = opaque;
@@ -1825,6 +1834,10 @@ static void gd_connect_signals(GtkDisplayState *s)
                      G_CALLBACK(gd_menu_powerdown), s);
     g_signal_connect(s->quit_item, "activate",
                      G_CALLBACK(gd_menu_quit), s);
+#if defined(CONFIG_VTE)
+    g_signal_connect(s->copy_item, "activate",
+                     G_CALLBACK(gd_menu_copy), s);
+#endif
     g_signal_connect(s->full_screen_item, "activate",
                      G_CALLBACK(gd_menu_full_screen), s);
     g_signal_connect(s->zoom_in_item, "activate",
@@ -1957,6 +1970,11 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s)
     gtk_menu_set_accel_group(GTK_MENU(view_menu), s->accel_group);
 
     s->full_screen_item = gtk_menu_item_new_with_mnemonic(_("_Fullscreen"));
+
+#if defined(CONFIG_VTE)
+    s->copy_item = gtk_menu_item_new_with_mnemonic(_("_Copy"));
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->copy_item);
+#endif
 
     gtk_accel_group_connect(s->accel_group, GDK_KEY_f, HOTKEY_MODIFIERS, 0,
             g_cclosure_new_swap(G_CALLBACK(gd_accel_full_screen), s, NULL));
