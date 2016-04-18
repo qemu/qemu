@@ -710,9 +710,6 @@ immediate_exit:
     g_free(s->cow_bitmap);
     g_free(s->in_flight_bitmap);
     bdrv_release_dirty_bitmap(bs, s->dirty_bitmap);
-    if (s->target->blk) {
-        blk_iostatus_disable(s->target->blk);
-    }
 
     data = g_malloc(sizeof(*data));
     data->ret = ret;
@@ -737,15 +734,6 @@ static void mirror_set_speed(BlockJob *job, int64_t speed, Error **errp)
         return;
     }
     ratelimit_set_speed(&s->limit, speed / BDRV_SECTOR_SIZE, SLICE_TIME);
-}
-
-static void mirror_iostatus_reset(BlockJob *job)
-{
-    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
-
-    if (s->target->blk) {
-        blk_iostatus_reset(s->target->blk);
-    }
 }
 
 static void mirror_complete(BlockJob *job, Error **errp)
@@ -793,7 +781,6 @@ static const BlockJobDriver mirror_job_driver = {
     .instance_size = sizeof(MirrorBlockJob),
     .job_type      = BLOCK_JOB_TYPE_MIRROR,
     .set_speed     = mirror_set_speed,
-    .iostatus_reset= mirror_iostatus_reset,
     .complete      = mirror_complete,
 };
 
@@ -801,8 +788,6 @@ static const BlockJobDriver commit_active_job_driver = {
     .instance_size = sizeof(MirrorBlockJob),
     .job_type      = BLOCK_JOB_TYPE_COMMIT,
     .set_speed     = mirror_set_speed,
-    .iostatus_reset
-                   = mirror_iostatus_reset,
     .complete      = mirror_complete,
 };
 
@@ -826,13 +811,6 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
     }
 
     assert ((granularity & (granularity - 1)) == 0);
-
-    if ((on_source_error == BLOCKDEV_ON_ERROR_STOP ||
-         on_source_error == BLOCKDEV_ON_ERROR_ENOSPC) &&
-        (!bs->blk || !blk_iostatus_is_enabled(bs->blk))) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "on-source-error");
-        return;
-    }
 
     if (buf_size < 0) {
         error_setg(errp, "Invalid parameter 'buf-size'");
@@ -882,10 +860,6 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
 
     bdrv_op_block_all(s->target, s->common.blocker);
 
-    if (s->target->blk) {
-        blk_set_on_error(s->target->blk, on_target_error, on_target_error);
-        blk_iostatus_enable(s->target->blk);
-    }
     s->common.co = qemu_coroutine_create(mirror_run);
     trace_mirror_start(bs, s, s->common.co, opaque);
     qemu_coroutine_enter(s->common.co, s);

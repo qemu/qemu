@@ -218,15 +218,6 @@ static void backup_set_speed(BlockJob *job, int64_t speed, Error **errp)
     ratelimit_set_speed(&s->limit, speed / BDRV_SECTOR_SIZE, SLICE_TIME);
 }
 
-static void backup_iostatus_reset(BlockJob *job)
-{
-    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
-
-    if (s->target->blk) {
-        blk_iostatus_reset(s->target->blk);
-    }
-}
-
 static void backup_cleanup_sync_bitmap(BackupBlockJob *job, int ret)
 {
     BdrvDirtyBitmap *bm;
@@ -263,7 +254,6 @@ static const BlockJobDriver backup_job_driver = {
     .instance_size  = sizeof(BackupBlockJob),
     .job_type       = BLOCK_JOB_TYPE_BACKUP,
     .set_speed      = backup_set_speed,
-    .iostatus_reset = backup_iostatus_reset,
     .commit         = backup_commit,
     .abort          = backup_abort,
 };
@@ -388,7 +378,6 @@ static void coroutine_fn backup_run(void *opaque)
     BackupCompleteData *data;
     BlockDriverState *bs = job->common.bs;
     BlockDriverState *target = job->target;
-    BlockdevOnError on_target_error = job->on_target_error;
     NotifierWithReturn before_write = {
         .notify = backup_before_write_notify,
     };
@@ -403,11 +392,6 @@ static void coroutine_fn backup_run(void *opaque)
     end = DIV_ROUND_UP(job->common.len, job->cluster_size);
 
     job->done_bitmap = bitmap_new(end);
-
-    if (target->blk) {
-        blk_set_on_error(target->blk, on_target_error, on_target_error);
-        blk_iostatus_enable(target->blk);
-    }
 
     bdrv_add_before_write_notifier(bs, &before_write);
 
@@ -484,9 +468,6 @@ static void coroutine_fn backup_run(void *opaque)
     qemu_co_rwlock_unlock(&job->flush_rwlock);
     g_free(job->done_bitmap);
 
-    if (target->blk) {
-        blk_iostatus_disable(target->blk);
-    }
     bdrv_op_unblock_all(target, job->common.blocker);
 
     data = g_malloc(sizeof(*data));
@@ -512,13 +493,6 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
 
     if (bs == target) {
         error_setg(errp, "Source and target cannot be the same");
-        return;
-    }
-
-    if ((on_source_error == BLOCKDEV_ON_ERROR_STOP ||
-         on_source_error == BLOCKDEV_ON_ERROR_ENOSPC) &&
-        (!bs->blk || !blk_iostatus_is_enabled(bs->blk))) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "on-source-error");
         return;
     }
 

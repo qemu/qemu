@@ -223,13 +223,6 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
 {
     StreamBlockJob *s;
 
-    if ((on_error == BLOCKDEV_ON_ERROR_STOP ||
-         on_error == BLOCKDEV_ON_ERROR_ENOSPC) &&
-        (!bs->blk || !blk_iostatus_is_enabled(bs->blk))) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "on-error");
-        return;
-    }
-
     s = block_job_create(&stream_job_driver, bs, speed, cb, opaque, errp);
     if (!s) {
         return;

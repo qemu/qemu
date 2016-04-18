@@ -214,13 +214,6 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
     BlockDriverState *overlay_bs;
     Error *local_err = NULL;
 
-    if ((on_error == BLOCKDEV_ON_ERROR_STOP ||
-         on_error == BLOCKDEV_ON_ERROR_ENOSPC) &&
-        (!bs->blk || !blk_iostatus_is_enabled(bs->blk))) {
-        error_setg(errp, "Invalid parameter combination");
-        return;
-    }
-
     assert(top != bs);
     if (top == base) {
         error_setg(errp, "Invalid files for merge: top and base are the same");
