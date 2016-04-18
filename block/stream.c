@@ -163,8 +163,7 @@ wait:
         }
         if (ret < 0) {
             BlockErrorAction action =
-                block_job_error_action(&s->common, s->common.bs, s->on_error,
-                                       true, -ret);
+                block_job_error_action(&s->common, s->on_error, true, -ret);
             if (action == BLOCK_ERROR_ACTION_STOP) {
                 n = 0;
                 continue;

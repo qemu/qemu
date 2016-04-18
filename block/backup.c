@@ -272,11 +272,11 @@ static BlockErrorAction backup_error_action(BackupBlockJob *job,
                                             bool read, int error)
 {
     if (read) {
-        return block_job_error_action(&job->common, job->common.bs,
-                                      job->on_source_error, true, error);
+        return block_job_error_action(&job->common, job->on_source_error,
+                                      true, error);
     } else {
-        return block_job_error_action(&job->common, job->target,
-                                      job->on_target_error, false, error);
+        return block_job_error_action(&job->common, job->on_target_error,
+                                      false, error);
     }
 }
 

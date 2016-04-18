@@ -411,8 +411,7 @@ void block_job_event_ready(BlockJob *job)
                                     job->speed, &error_abort);
 }
 
-BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
-                                        BlockdevOnError on_err,
+BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
                                         int is_read, int error)
 {
     BlockErrorAction action;
@@ -443,9 +442,6 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
         job->user_paused = true;
         block_job_pause(job);
         block_job_iostatus_set_err(job, error);
-        if (bs->blk && bs != job->bs) {
-            blk_iostatus_set_err(bs->blk, error);
-        }
     }
     return action;
 }

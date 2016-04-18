@@ -383,7 +383,6 @@ void block_job_iostatus_reset(BlockJob *job);
 /**
  * block_job_error_action:
  * @job: The job to signal an error for.
- * @bs: The block device on which to set an I/O error.
  * @on_err: The error action setting.
  * @is_read: Whether the operation was a read.
  * @error: The error that was reported.
@@ -391,8 +390,7 @@ void block_job_iostatus_reset(BlockJob *job);
  * Report an I/O error for a block job and possibly stop the VM.  Return the
  * action that was selected based on @on_err and @error.
  */
-BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
-                                        BlockdevOnError on_err,
+BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
                                         int is_read, int error);
 
 typedef void BlockJobDeferToMainLoopFn(BlockJob *job, void *opaque);
