@@ -2864,18 +2864,32 @@ ETEXI
 
 DEF("fw_cfg", HAS_ARG, QEMU_OPTION_fwcfg,
     "-fw_cfg [name=]<name>,file=<file>\n"
-    "                add named fw_cfg entry from file\n"
+    "                add named fw_cfg entry with contents from file\n"
     "-fw_cfg [name=]<name>,string=<str>\n"
-    "                add named fw_cfg entry from string\n",
+    "                add named fw_cfg entry with contents from string\n",
     QEMU_ARCH_ALL)
 STEXI
+
 @item -fw_cfg [name=]@var{name},file=@var{file}
 @findex -fw_cfg
-Add named fw_cfg entry from file. @var{name} determines the name of
-the entry in the fw_cfg file directory exposed to the guest.
+Add named fw_cfg entry with contents from file @var{file}.
 
 @item -fw_cfg [name=]@var{name},string=@var{str}
-Add named fw_cfg entry from string.
+Add named fw_cfg entry with contents from string @var{str}.
+
+The terminating NUL character of the contents of @var{str} will not be
+included as part of the fw_cfg item data. To insert contents with
+embedded NUL characters, you have to use the @var{file} parameter.
+
+The fw_cfg entries are passed by QEMU through to the guest.
+
+Example:
+@example
+    -fw_cfg name=opt/com.mycompany/blob,file=./my_blob.bin
+@end example
+creates an fw_cfg entry named opt/com.mycompany/blob with contents
+from ./my_blob.bin.
+
 ETEXI
 
 DEF("serial", HAS_ARG, QEMU_OPTION_serial, \
