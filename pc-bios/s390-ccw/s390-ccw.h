@@ -189,4 +189,17 @@ static inline void IPL_check(bool term, const char *message)
     }
 }
 
+extern const unsigned char ebc2asc[256];
+static inline void ebcdic_to_ascii(const char *src,
+                                   char *dst,
+                                   unsigned int size)
+{
+    unsigned int i;
+
+    for (i = 0; i < size; i++) {
+        unsigned c = src[i];
+        dst[i] = ebc2asc[c];
+    }
+}
+
 #endif /* S390_CCW_H */
