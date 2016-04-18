@@ -82,7 +82,6 @@ struct BlockJob {
     const BlockJobDriver *driver;
 
     /** The block device on which the job is operating.  */
-    BlockDriverState *bs; /* TODO Remove */
     BlockBackend *blk;
 
     /**

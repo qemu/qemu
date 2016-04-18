@@ -83,7 +83,6 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
 
     job->driver        = driver;
     job->id            = g_strdup(bdrv_get_device_name(bs));
-    job->bs            = bs;
     job->blk           = blk;
     job->cb            = cb;
     job->opaque        = opaque;

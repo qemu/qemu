@@ -775,7 +775,7 @@ static void common_block_job_cb(void *opaque, int ret)
 
 static void run_block_job(BlockJob *job, Error **errp)
 {
-    AioContext *aio_context = bdrv_get_aio_context(job->bs);
+    AioContext *aio_context = blk_get_aio_context(job->blk);
 
     do {
         aio_poll(aio_context, true);
