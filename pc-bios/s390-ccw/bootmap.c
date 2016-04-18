@@ -655,6 +655,7 @@ static IsoBcSection *find_iso_bc_entry(void)
     IsoBcEntry *e = (IsoBcEntry *)sec;
     uint32_t offset = find_iso_bc();
     int i;
+    unsigned int loadparm = get_loadparm_index();
 
     if (!offset) {
         return NULL;
@@ -675,7 +676,11 @@ static IsoBcSection *find_iso_bc_entry(void)
     for (i = 1; i < ISO_BC_ENTRY_PER_SECTOR; i++) {
         if (e[i].id == ISO_BC_BOOTABLE_SECTION) {
             if (is_iso_bc_entry_compatible(&e[i].body.sect)) {
-                return &e[i].body.sect;
+                if (loadparm <= 1) {
+                    /* found, default, or unspecified */
+                    return &e[i].body.sect;
+                }
+                loadparm--;
             }
         }
     }
