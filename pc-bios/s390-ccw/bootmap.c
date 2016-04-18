@@ -444,7 +444,8 @@ static void ipl_scsi(void)
     uint8_t *ns, *ns_end;
     int program_table_entries = 0;
     const int pte_len = sizeof(ScsiBlockPtr);
-    ScsiBlockPtr *prog_table_entry;
+    ScsiBlockPtr *prog_table_entry = NULL;
+    unsigned int loadparm = get_loadparm_index();
 
     /* Grab the MBR */
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
@@ -467,6 +468,7 @@ static void ipl_scsi(void)
 
     IPL_assert(magic_match(sec, ZIPL_MAGIC), "No zIPL magic in PT");
 
+    debug_print_int("loadparm index", loadparm);
     ns_end = sec + virtio_get_block_size();
     for (ns = (sec + pte_len); (ns + pte_len) < ns_end; ns += pte_len) {
         prog_table_entry = (ScsiBlockPtr *)ns;
@@ -475,15 +477,14 @@ static void ipl_scsi(void)
         }
 
         program_table_entries++;
+        if (program_table_entries == loadparm + 1) {
+            break; /* selected entry found */
+        }
     }
 
     debug_print_int("program table entries", program_table_entries);
 
     IPL_assert(program_table_entries != 0, "Empty Program Table");
-
-    /* Run the default entry */
-
-    prog_table_entry = (ScsiBlockPtr *)(sec + pte_len);
 
     zipl_run(prog_table_entry); /* no return */
 }
