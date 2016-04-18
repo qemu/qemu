@@ -2004,6 +2004,7 @@ static int ehci_state_writeback(EHCIQueue *q)
 static void ehci_advance_state(EHCIState *ehci, int async)
 {
     EHCIQueue *q = NULL;
+    int itd_count = 0;
     int again;
 
     do {
@@ -2028,10 +2029,12 @@ static void ehci_advance_state(EHCIState *ehci, int async)
 
         case EST_FETCHITD:
             again = ehci_state_fetchitd(ehci, async);
+            itd_count++;
             break;
 
         case EST_FETCHSITD:
             again = ehci_state_fetchsitd(ehci, async);
+            itd_count++;
             break;
 
         case EST_ADVANCEQUEUE:
@@ -2080,7 +2083,8 @@ static void ehci_advance_state(EHCIState *ehci, int async)
             break;
         }
 
-        if (again < 0) {
+        if (again < 0 || itd_count > 16) {
+            /* TODO: notify guest (raise HSE irq?) */
             fprintf(stderr, "processing error - resetting ehci HC\n");
             ehci_reset(ehci);
             again = 0;
