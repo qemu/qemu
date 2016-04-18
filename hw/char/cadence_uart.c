@@ -374,6 +374,9 @@ static void uart_write(void *opaque, hwaddr offset,
 
     DB_PRINT(" offset:%x data:%08x\n", (unsigned)offset, (unsigned)value);
     offset >>= 2;
+    if (offset >= CADENCE_UART_R_MAX) {
+        return;
+    }
     switch (offset) {
     case R_IER: /* ier (wts imr) */
         s->r[R_IMR] |= value;
