@@ -659,6 +659,7 @@ findso:
 	  }
 
 	  if ((tcp_fconnect(so, so->so_ffamily) == -1) &&
+              (errno != EAGAIN) &&
               (errno != EINPROGRESS) && (errno != EWOULDBLOCK)
           ) {
 	    uint8_t code;
