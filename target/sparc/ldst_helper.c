@@ -1396,6 +1396,18 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
             ret = env->scratch[i];
             break;
         }
+    case ASI_MMU: /* UA2005 Context ID registers */
+        switch ((addr >> 3) & 0x3) {
+        case 1:
+            ret = env->dmmu.mmu_primary_context;
+            break;
+        case 2:
+            ret = env->dmmu.mmu_secondary_context;
+            break;
+        default:
+          cpu_unassigned_access(cs, addr, true, false, 1, size);
+        }
+        break;
     case ASI_DCACHE_DATA:     /* D-cache data */
     case ASI_DCACHE_TAG:      /* D-cache tag access */
     case ASI_ESTATE_ERROR_EN: /* E-cache error enable */
@@ -1714,6 +1726,25 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
             env->scratch[i] = val;
             return;
         }
+    case ASI_MMU: /* UA2005 Context ID registers */
+        {
+          switch ((addr >> 3) & 0x3) {
+          case 1:
+              env->dmmu.mmu_primary_context = val;
+              env->immu.mmu_primary_context = val;
+              tlb_flush_by_mmuidx(CPU(cpu), MMU_USER_IDX, MMU_KERNEL_IDX, -1);
+              break;
+          case 2:
+              env->dmmu.mmu_secondary_context = val;
+              env->immu.mmu_secondary_context = val;
+              tlb_flush_by_mmuidx(CPU(cpu), MMU_USER_SECONDARY_IDX,
+                                  MMU_KERNEL_SECONDARY_IDX, -1);
+              break;
+          default:
+              cpu_unassigned_access(cs, addr, true, false, 1, size);
+          }
+        }
+        return;
     case ASI_QUEUE: /* UA2005 CPU mondo queue */
     case ASI_DCACHE_DATA: /* D-cache data */
     case ASI_DCACHE_TAG: /* D-cache tag access */
