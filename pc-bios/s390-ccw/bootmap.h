@@ -70,7 +70,7 @@ typedef struct ScsiMbr {
     uint8_t magic[4];
     uint32_t version_id;
     uint8_t reserved[8];
-    ScsiBlockPtr blockptr;
+    ScsiBlockPtr blockptr[];
 } __attribute__ ((packed)) ScsiMbr;
 
 #define ZIPL_MAGIC              "zIPL"

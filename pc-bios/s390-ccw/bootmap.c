@@ -183,15 +183,21 @@ static block_number_t load_eckd_segments(block_number_t blk, uint64_t *address)
 static void run_eckd_boot_script(block_number_t mbr_block_nr)
 {
     int i;
+    unsigned int loadparm = get_loadparm_index();
     block_number_t block_nr;
     uint64_t address;
-    ScsiMbr *scsi_mbr = (void *)sec;
+    ScsiMbr *bte = (void *)sec; /* Eckd bootmap table entry */
     BootMapScript *bms = (void *)sec;
+
+    debug_print_int("loadparm", loadparm);
+    IPL_assert(loadparm < 31, "loadparm value greater than"
+               " maximum number of boot entries allowed");
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(mbr_block_nr, sec, "Cannot read MBR");
 
-    block_nr = eckd_block_num((void *)&(scsi_mbr->blockptr));
+    block_nr = eckd_block_num((void *)&(bte->blockptr[loadparm]));
+    IPL_assert(block_nr != -1, "No Boot Map");
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(block_nr, sec, "Cannot read Boot Map Script");
@@ -459,11 +465,11 @@ static void ipl_scsi(void)
     debug_print_int("MBR Version", mbr->version_id);
     IPL_check(mbr->version_id == 1,
               "Unknown MBR layout version, assuming version 1");
-    debug_print_int("program table", mbr->blockptr.blockno);
-    IPL_assert(mbr->blockptr.blockno, "No Program Table");
+    debug_print_int("program table", mbr->blockptr[0].blockno);
+    IPL_assert(mbr->blockptr[0].blockno, "No Program Table");
 
     /* Parse the program table */
-    read_block(mbr->blockptr.blockno, sec,
+    read_block(mbr->blockptr[0].blockno, sec,
                "Error reading Program Table");
 
     IPL_assert(magic_match(sec, ZIPL_MAGIC), "No zIPL magic in PT");
