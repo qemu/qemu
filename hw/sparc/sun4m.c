@@ -1000,7 +1000,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     slavio_timer_init_all(hwdef->counter_base, slavio_irq[19], slavio_cpu_irq, smp_cpus);
 
     slavio_serial_ms_kbd_init(hwdef->ms_kb_base, slavio_irq[14],
-                              display_type == DT_NOGRAPHIC, ESCC_CLOCK, 1);
+                              !machine->enable_graphics, ESCC_CLOCK, 1);
     /* Slavio TTYA (base+4, Linux ttyS0) is the first QEMU serial device
        Slavio TTYB (base+0, Linux ttyS1) is the second QEMU serial device */
     escc_init(hwdef->serial_base, slavio_irq[15], slavio_irq[15],

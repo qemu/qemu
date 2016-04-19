@@ -138,7 +138,6 @@ typedef enum DisplayType
     DT_SDL,
     DT_COCOA,
     DT_GTK,
-    DT_NOGRAPHIC,
     DT_NONE,
 } DisplayType;
 

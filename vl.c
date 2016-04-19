@@ -2962,6 +2962,7 @@ int main(int argc, char **argv, char **envp)
     int show_vnc_port = 0;
     bool defconfig = true;
     bool userconfig = true;
+    bool nographic = false;
     const char *log_mask = NULL;
     const char *log_file = NULL;
     char *trace_file = NULL;
@@ -3206,7 +3207,10 @@ int main(int argc, char **argv, char **envp)
                 display_type = select_display(optarg);
                 break;
             case QEMU_OPTION_nographic:
-                display_type = DT_NOGRAPHIC;
+                olist = qemu_find_opts("machine");
+                qemu_opts_parse_noisily(olist, "graphics=off", false);
+                nographic = true;
+                display_type = DT_NONE;
                 break;
             case QEMU_OPTION_curses:
 #ifdef CONFIG_CURSES
@@ -4167,7 +4171,7 @@ int main(int argc, char **argv, char **envp)
          * -nographic _and_ redirects all ports explicitly - this is valid
          * usage, -nographic is just a no-op in this case.
          */
-        if (display_type == DT_NOGRAPHIC
+        if (nographic
             && (default_parallel || default_serial
                 || default_monitor || default_virtcon)) {
             error_report("-nographic cannot be used with -daemonize");
@@ -4181,7 +4185,7 @@ int main(int argc, char **argv, char **envp)
 #endif
     }
 
-    if (display_type == DT_NOGRAPHIC) {
+    if (nographic) {
         if (default_parallel)
             add_device_config(DEV_PARALLEL, "null");
         if (default_serial && default_monitor) {
@@ -4531,9 +4535,6 @@ int main(int argc, char **argv, char **envp)
 
     /* init local displays */
     switch (display_type) {
-    case DT_NOGRAPHIC:
-        (void)ds;	/* avoid warning if no display is configured */
-        break;
     case DT_CURSES:
         curses_display_init(ds, full_screen);
         break;

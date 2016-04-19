@@ -257,6 +257,20 @@ static void machine_set_usb(Object *obj, bool value, Error **errp)
     ms->usb_disabled = !value;
 }
 
+static bool machine_get_graphics(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return ms->enable_graphics;
+}
+
+static void machine_set_graphics(Object *obj, bool value, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    ms->enable_graphics = value;
+}
+
 static bool machine_get_igd_gfx_passthru(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -382,6 +396,7 @@ static void machine_initfn(Object *obj)
     ms->kvm_shadow_mem = -1;
     ms->dump_guest_core = true;
     ms->mem_merge = true;
+    ms->enable_graphics = true;
 
     object_property_add_str(obj, "accel",
                             machine_get_accel, machine_set_accel, NULL);
@@ -459,6 +474,12 @@ static void machine_initfn(Object *obj)
                              machine_set_usb, NULL);
     object_property_set_description(obj, "usb",
                                     "Set on/off to enable/disable usb",
+                                    NULL);
+    object_property_add_bool(obj, "graphics",
+                             machine_get_graphics,
+                             machine_set_graphics, NULL);
+    object_property_set_description(obj, "graphics",
+                                    "Set on/off to enable/disable graphics emulation",
                                     NULL);
     object_property_add_bool(obj, "igd-passthru",
                              machine_get_igd_gfx_passthru,
