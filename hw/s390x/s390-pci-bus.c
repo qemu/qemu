@@ -116,16 +116,22 @@ void s390_pci_sclp_configure(SCCB *sccb)
         goto out;
     }
 
-    if (pbdev) {
-        if (pbdev->configured) {
-            rc = SCLP_RC_NO_ACTION_REQUIRED;
-        } else {
-            pbdev->configured = true;
-            rc = SCLP_RC_NORMAL_COMPLETION;
-        }
-    } else {
+    if (!pbdev) {
         DPRINTF("sclp config no dev found\n");
         rc = SCLP_RC_ADAPTER_ID_NOT_RECOGNIZED;
+        goto out;
+    }
+
+    switch (pbdev->state) {
+    case ZPCI_FS_RESERVED:
+        rc = SCLP_RC_ADAPTER_IN_RESERVED_STATE;
+        break;
+    case ZPCI_FS_STANDBY:
+        pbdev->state = ZPCI_FS_DISABLED;
+        rc = SCLP_RC_NORMAL_COMPLETION;
+        break;
+    default:
+        rc = SCLP_RC_NO_ACTION_REQUIRED;
     }
 out:
     psccb->header.response_code = cpu_to_be16(rc);
@@ -142,22 +148,28 @@ void s390_pci_sclp_deconfigure(SCCB *sccb)
         goto out;
     }
 
-    if (pbdev) {
-        if (!pbdev->configured) {
-            rc = SCLP_RC_NO_ACTION_REQUIRED;
-        } else {
-            if (pbdev->summary_ind) {
-                pci_dereg_irqs(pbdev);
-            }
-            if (pbdev->iommu_enabled) {
-                pci_dereg_ioat(pbdev);
-            }
-            pbdev->configured = false;
-            rc = SCLP_RC_NORMAL_COMPLETION;
-        }
-    } else {
+    if (!pbdev) {
         DPRINTF("sclp deconfig no dev found\n");
         rc = SCLP_RC_ADAPTER_ID_NOT_RECOGNIZED;
+        goto out;
+    }
+
+    switch (pbdev->state) {
+    case ZPCI_FS_RESERVED:
+        rc = SCLP_RC_ADAPTER_IN_RESERVED_STATE;
+        break;
+    case ZPCI_FS_STANDBY:
+        rc = SCLP_RC_NO_ACTION_REQUIRED;
+        break;
+    default:
+        if (pbdev->summary_ind) {
+            pci_dereg_irqs(pbdev);
+        }
+        if (pbdev->iommu_enabled) {
+            pci_dereg_ioat(pbdev);
+        }
+        pbdev->state = ZPCI_FS_STANDBY;
+        rc = SCLP_RC_NORMAL_COMPLETION;
     }
 out:
     psccb->header.response_code = cpu_to_be16(rc);
@@ -183,7 +195,7 @@ S390PCIBusDevice *s390_pci_find_dev_by_idx(uint32_t idx)
     for (i = 0; i < PCI_SLOT_MAX; i++) {
         pbdev = &s->pbdev[i];
 
-        if (pbdev->fh == 0) {
+        if (pbdev->state == ZPCI_FS_RESERVED) {
             continue;
         }
 
@@ -233,9 +245,8 @@ static void s390_pci_generate_plug_event(uint16_t pec, uint32_t fh,
     s390_pci_generate_event(2, pec, fh, fid, 0, 0);
 }
 
-static void s390_pci_generate_error_event(uint16_t pec, uint32_t fh,
-                                          uint32_t fid, uint64_t faddr,
-                                          uint32_t e)
+void s390_pci_generate_error_event(uint16_t pec, uint32_t fh, uint32_t fid,
+                                   uint64_t faddr, uint32_t e)
 {
     s390_pci_generate_event(1, pec, fh, fid, faddr, e);
 }
@@ -337,8 +348,14 @@ static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *iommu, hwaddr addr,
         .perm = IOMMU_NONE,
     };
 
-    if (!pbdev->configured || !pbdev->pdev ||
-        !(pbdev->fh & FH_MASK_ENABLE) || !pbdev->iommu_enabled) {
+    switch (pbdev->state) {
+    case ZPCI_FS_ENABLED:
+    case ZPCI_FS_BLOCKED:
+        if (!pbdev->iommu_enabled) {
+            return ret;
+        }
+        break;
+    default:
         return ret;
     }
 
@@ -357,30 +374,13 @@ static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *iommu, hwaddr addr,
         return ret;
     }
 
-    if (!pbdev->g_iota) {
-        pbdev->error_state = true;
-        pbdev->lgstg_blocked = true;
-        s390_pci_generate_error_event(ERR_EVENT_INVALAS, pbdev->fh, pbdev->fid,
-                                      addr, 0);
-        return ret;
-    }
-
     if (addr < pbdev->pba || addr > pbdev->pal) {
-        pbdev->error_state = true;
-        pbdev->lgstg_blocked = true;
-        s390_pci_generate_error_event(ERR_EVENT_OORANGE, pbdev->fh, pbdev->fid,
-                                      addr, 0);
         return ret;
     }
 
     pte = s390_guest_io_table_walk(s390_pci_get_table_origin(pbdev->g_iota),
                                    addr);
-
     if (!pte) {
-        pbdev->error_state = true;
-        pbdev->lgstg_blocked = true;
-        s390_pci_generate_error_event(ERR_EVENT_SERR, pbdev->fh, pbdev->fid,
-                                      addr, ERR_EVENT_Q_BIT);
         return ret;
     }
 
@@ -449,7 +449,7 @@ static void s390_msi_ctrl_write(void *opaque, hwaddr addr, uint64_t data,
         return;
     }
 
-    if (!(pbdev->fh & FH_MASK_ENABLE)) {
+    if (pbdev->state != ZPCI_FS_ENABLED) {
         return;
     }
 
@@ -571,7 +571,7 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
 
     pbdev->fid = s390_pci_get_pfid(pci_dev);
     pbdev->pdev = pci_dev;
-    pbdev->configured = true;
+    pbdev->state = ZPCI_FS_DISABLED;
     pbdev->fh = s390_pci_get_pfh(pci_dev);
 
     s390_pcihost_setup_msix(pbdev);
@@ -592,8 +592,12 @@ static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
                                            ->qbus.parent);
     S390PCIBusDevice *pbdev = &s->pbdev[PCI_SLOT(pci_dev->devfn)];
 
-    if (pbdev->configured) {
-        pbdev->configured = false;
+    switch (pbdev->state) {
+    case ZPCI_FS_RESERVED:
+        goto out;
+    case ZPCI_FS_STANDBY:
+        break;
+    default:
         s390_pci_generate_plug_event(HP_EVENT_CONFIGURED_TO_STBRES,
                                      pbdev->fh, pbdev->fid);
     }
@@ -603,6 +607,8 @@ static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
     pbdev->fh = 0;
     pbdev->fid = 0;
     pbdev->pdev = NULL;
+    pbdev->state = ZPCI_FS_RESERVED;
+out:
     object_unparent(OBJECT(pci_dev));
 }
 

@@ -153,6 +153,34 @@ enum ZpciIoatDtype {
 #define ZPCI_TABLE_VALID_MASK           0x20
 #define ZPCI_TABLE_PROT_MASK            0x200
 
+/* PCI Function States
+ *
+ * reserved: default; device has just been plugged or is in progress of being
+ *           unplugged
+ * standby: device is present but not configured; transition from any
+ *          configured state/to this state via sclp configure/deconfigure
+ *
+ * The following states make up the "configured" meta-state:
+ * disabled: device is configured but not enabled; transition between this
+ *           state and enabled via clp enable/disable
+ * enbaled: device is ready for use; transition to disabled via clp disable;
+ *          may enter an error state
+ * blocked: ignore all DMA and interrupts; transition back to enabled or from
+ *          error state via mpcifc
+ * error: an error occured; transition back to enabled via mpcifc
+ * permanent error: an unrecoverable error occured; transition to standby via
+ *                  sclp deconfigure
+ */
+typedef enum {
+    ZPCI_FS_RESERVED,
+    ZPCI_FS_STANDBY,
+    ZPCI_FS_DISABLED,
+    ZPCI_FS_ENABLED,
+    ZPCI_FS_BLOCKED,
+    ZPCI_FS_ERROR,
+    ZPCI_FS_PERMANENT_ERROR,
+} ZpciState;
+
 typedef struct SeiContainer {
     QTAILQ_ENTRY(SeiContainer) link;
     uint32_t fid;
@@ -219,9 +247,7 @@ typedef struct S390MsixInfo {
 
 typedef struct S390PCIBusDevice {
     PCIDevice *pdev;
-    bool configured;
-    bool error_state;
-    bool lgstg_blocked;
+    ZpciState state;
     bool iommu_enabled;
     uint32_t fh;
     uint32_t fid;
@@ -255,6 +281,8 @@ void s390_pci_sclp_configure(SCCB *sccb);
 void s390_pci_sclp_deconfigure(SCCB *sccb);
 void s390_pci_iommu_enable(S390PCIBusDevice *pbdev);
 void s390_pci_iommu_disable(S390PCIBusDevice *pbdev);
+void s390_pci_generate_error_event(uint16_t pec, uint32_t fh, uint32_t fid,
+                                   uint64_t faddr, uint32_t e);
 S390PCIBusDevice *s390_pci_find_dev_by_idx(uint32_t idx);
 S390PCIBusDevice *s390_pci_find_dev_by_fh(uint32_t fh);
 S390PCIBusDevice *s390_pci_find_dev_by_fid(uint32_t fid);
