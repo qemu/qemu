@@ -125,6 +125,8 @@ BlockBackend *blk_new(void)
 
     blk = g_new0(BlockBackend, 1);
     blk->refcnt = 1;
+    blk_set_enable_write_cache(blk, true);
+
     qemu_co_queue_init(&blk->public.throttled_reqs[0]);
     qemu_co_queue_init(&blk->public.throttled_reqs[1]);
 
@@ -160,7 +162,6 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
         return NULL;
     }
 
-    blk_set_enable_write_cache(blk, true);
     blk->root = bdrv_root_attach_child(bs, "root", &child_root, blk);
 
     return blk;
