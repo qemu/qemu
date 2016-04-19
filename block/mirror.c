@@ -334,6 +334,11 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         }
 
         hbitmap_next = hbitmap_iter_next(&s->hbi);
+        if (hbitmap_next > next_sector || hbitmap_next < 0) {
+            /* The bitmap iterator's cache is stale, refresh it */
+            bdrv_set_dirty_iter(&s->hbi, next_sector);
+            hbitmap_next = hbitmap_iter_next(&s->hbi);
+        }
         assert(hbitmap_next == next_sector);
         nb_chunks++;
     }
