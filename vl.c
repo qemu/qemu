@@ -131,7 +131,6 @@ const char *bios_name = NULL;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 int request_opengl = -1;
 int display_opengl;
-static int display_remote;
 const char* keyboard_layout = NULL;
 ram_addr_t ram_size;
 const char *mem_path = NULL;
@@ -2972,6 +2971,7 @@ int main(int argc, char **argv, char **envp)
     bool userconfig = true;
     bool nographic = false;
     DisplayType display_type = DT_DEFAULT;
+    int display_remote = 0;
     const char *log_mask = NULL;
     const char *log_file = NULL;
     char *trace_file = NULL;
