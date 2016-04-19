@@ -210,29 +210,27 @@ the following syntax:
 
     -fw_cfg [name=]<item_name>,file=<path>
 
-where <item_name> is the fw_cfg item name, and <path> is the location
-on the host file system of a file containing the data to be inserted.
-
-Small enough items may be provided directly as strings on the command
-line, using the syntax:
+Or
 
     -fw_cfg [name=]<item_name>,string=<string>
 
-The terminating NUL character of the content <string> will NOT be
-included as part of the fw_cfg item data, which is consistent with
-the absence of a NUL terminator for items inserted via the file option.
+See QEMU man page for more documentation.
 
-Both <item_name> and, if applicable, the content <string> are passed
-through by QEMU without any interpretation, expansion, or further
-processing. Any such processing (potentially performed e.g., by the shell)
-is outside of QEMU's responsibility; as such, using plain ASCII characters
-is recommended.
+Using item_name with plain ASCII characters only is recommended.
 
-NOTE: Users *SHOULD* choose item names beginning with the prefix "opt/"
-when using the "-fw_cfg" command line option, to avoid conflicting with
-item names used internally by QEMU. For instance:
+Item names beginning with "opt/" are reserved for users.  QEMU will
+never create entries with such names unless explicitly ordered by the
+user.
 
-    -fw_cfg name=opt/my_item_name,file=./my_blob.bin
+To avoid clashes among different users, it is strongly recommended
+that you use names beginning with opt/RFQDN/, where RFQDN is a reverse
+fully qualified domain name you control.  For instance, if SeaBIOS
+wanted to define additional names, the prefix "opt/org.seabios/" would
+be appropriate.
 
-Similarly, QEMU developers *SHOULD NOT* use item names prefixed with
-"opt/" when inserting items programmatically, e.g. via fw_cfg_add_file().
+For historical reasons, "opt/ovmf/" is reserved for OVMF firmware.
+
+Prefix "opt/org.qemu/" is reserved for QEMU itself.
+
+Use of names not beginning with "opt/" is potentially dangerous and
+entirely unsupported.  QEMU will warn if you try.
