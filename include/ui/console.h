@@ -466,7 +466,16 @@ static inline char *vnc_display_local_addr(const char *id)
 #endif
 
 /* curses.c */
+#ifdef CONFIG_CURSES
 void curses_display_init(DisplayState *ds, int full_screen);
+#else
+static inline void curses_display_init(DisplayState *ds, int full_screen)
+{
+    /* This must never be called if CONFIG_CURSES is disabled */
+    error_report("curses support is disabled");
+    abort();
+}
+#endif
 
 /* input.c */
 int index_from_key(const char *key, size_t key_length);

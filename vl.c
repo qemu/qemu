@@ -4540,11 +4540,9 @@ int main(int argc, char **argv, char **envp)
     case DT_NOGRAPHIC:
         (void)ds;	/* avoid warning if no display is configured */
         break;
-#if defined(CONFIG_CURSES)
     case DT_CURSES:
         curses_display_init(ds, full_screen);
         break;
-#endif
 #if defined(CONFIG_SDL)
     case DT_SDL:
         sdl_display_init(ds, full_screen, no_frame);
