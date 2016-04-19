@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: QEMU 1.4.50\n"
 "Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
-"POT-Creation-Date: 2015-12-10 13:29+0000\n"
+"POT-Creation-Date: 2016-04-18 14:50+0100\n"
 "PO-Revision-Date: 2013-04-22 18:35+0300\n"
 "Last-Translator: Ozan Çağlayan <ozancag@gmail.com>\n"
 "Language-Team: Türkçe <>\n"
@@ -17,72 +17,72 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: Gtranslator 2.91.6\n"
 
-#: ui/gtk.c:271
+#: ui/gtk.c:273
 msgid " - Press Ctrl+Alt+G to release grab"
 msgstr " - Yakalamayı durdurmak için Ctrl+Alt+G tuşlarına basın"
 
-#: ui/gtk.c:275
+#: ui/gtk.c:277
 msgid " [Paused]"
 msgstr " [Duraklatıldı]"
 
-#: ui/gtk.c:1783
+#: ui/gtk.c:1833
 msgid "_Pause"
 msgstr "_Duraklat"
 
-#: ui/gtk.c:1789
+#: ui/gtk.c:1839
 msgid "_Reset"
 msgstr "_Sıfırla"
 
-#: ui/gtk.c:1792
+#: ui/gtk.c:1842
 msgid "Power _Down"
 msgstr "_Kapat"
 
-#: ui/gtk.c:1798
+#: ui/gtk.c:1848
 msgid "_Quit"
 msgstr ""
 
-#: ui/gtk.c:1890
+#: ui/gtk.c:1940
 msgid "_Fullscreen"
 msgstr ""
 
-#: ui/gtk.c:1904
+#: ui/gtk.c:1954
 #, fuzzy
 msgid "Zoom _In"
 msgstr "Yakınlaş ve Sığ_dır"
 
-#: ui/gtk.c:1911
+#: ui/gtk.c:1961
 #, fuzzy
 msgid "Zoom _Out"
 msgstr "Yakınlaş ve Sığ_dır"
 
-#: ui/gtk.c:1918
+#: ui/gtk.c:1968
 msgid "Best _Fit"
 msgstr ""
 
-#: ui/gtk.c:1925
+#: ui/gtk.c:1975
 msgid "Zoom To _Fit"
 msgstr "Yakınlaş ve Sığ_dır"
 
-#: ui/gtk.c:1931
+#: ui/gtk.c:1981
 msgid "Grab On _Hover"
 msgstr "Ü_zerindeyken Yakala"
 
-#: ui/gtk.c:1934
+#: ui/gtk.c:1984
 msgid "_Grab Input"
 msgstr "Girdiyi _Yakala"
 
-#: ui/gtk.c:1963
+#: ui/gtk.c:2013
 msgid "Show _Tabs"
 msgstr "Se_kmeleri Göster"
 
-#: ui/gtk.c:1966
+#: ui/gtk.c:2016
 msgid "Detach Tab"
 msgstr ""
 
-#: ui/gtk.c:1978
+#: ui/gtk.c:2028
 msgid "_Machine"
 msgstr "_Makine"
 
-#: ui/gtk.c:1983
+#: ui/gtk.c:2033
 msgid "_View"
 msgstr "_Görüntüle"

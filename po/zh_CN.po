@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: QEMU 2.2\n"
 "Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
-"POT-Creation-Date: 2015-12-10 13:29+0000\n"
+"POT-Creation-Date: 2016-04-18 14:50+0100\n"
 "PO-Revision-Date: 2014-07-31 10:00+0800\n"
 "Last-Translator: Fam Zheng <famz@redhat.com>\n"
 "Language-Team: Chinese <zh@li.org>\n"
@@ -17,70 +17,70 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 "X-Generator: Lokalize 1.4\n"
 
-#: ui/gtk.c:271
+#: ui/gtk.c:273
 msgid " - Press Ctrl+Alt+G to release grab"
 msgstr " - 按下 Ctrl+Alt+G 取消捕获"
 
-#: ui/gtk.c:275
+#: ui/gtk.c:277
 msgid " [Paused]"
 msgstr " [已暂停]"
 
-#: ui/gtk.c:1783
+#: ui/gtk.c:1833
 msgid "_Pause"
 msgstr "暂停(_P)"
 
-#: ui/gtk.c:1789
+#: ui/gtk.c:1839
 msgid "_Reset"
 msgstr "重置(_R)"
 
-#: ui/gtk.c:1792
+#: ui/gtk.c:1842
 msgid "Power _Down"
 msgstr "关闭电源(_D)"
 
-#: ui/gtk.c:1798
+#: ui/gtk.c:1848
 msgid "_Quit"
 msgstr "退出(_Q)"
 
-#: ui/gtk.c:1890
+#: ui/gtk.c:1940
 msgid "_Fullscreen"
 msgstr "全屏(_F)"
 
-#: ui/gtk.c:1904
+#: ui/gtk.c:1954
 msgid "Zoom _In"
 msgstr "放大(_I)"
 
-#: ui/gtk.c:1911
+#: ui/gtk.c:1961
 msgid "Zoom _Out"
 msgstr "缩小(_O)"
 
-#: ui/gtk.c:1918
+#: ui/gtk.c:1968
 msgid "Best _Fit"
 msgstr "最合适大小(_F)"
 
-#: ui/gtk.c:1925
+#: ui/gtk.c:1975
 msgid "Zoom To _Fit"
 msgstr "缩放以适应大小(_F)"
 
-#: ui/gtk.c:1931
+#: ui/gtk.c:1981
 msgid "Grab On _Hover"
 msgstr "鼠标经过时捕获(_H)"
 
-#: ui/gtk.c:1934
+#: ui/gtk.c:1984
 msgid "_Grab Input"
 msgstr "捕获输入(_G)"
 
-#: ui/gtk.c:1963
+#: ui/gtk.c:2013
 msgid "Show _Tabs"
 msgstr "显示标签页(_T)"
 
-#: ui/gtk.c:1966
+#: ui/gtk.c:2016
 msgid "Detach Tab"
 msgstr "分离标签页"
 
-#: ui/gtk.c:1978
+#: ui/gtk.c:2028
 msgid "_Machine"
 msgstr "虚拟机(_M)"
 
-#: ui/gtk.c:1983
+#: ui/gtk.c:2033
 msgid "_View"
 msgstr "视图(_V)"
