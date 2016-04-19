@@ -2897,6 +2897,14 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         env->cpuid_level = 7;
     }
 
+    if (x86_cpu_filter_features(cpu) && cpu->enforce_cpuid) {
+        error_setg(&local_err,
+                   kvm_enabled() ?
+                       "Host doesn't support requested features" :
+                       "TCG doesn't support requested features");
+        goto out;
+    }
+
     /* On AMD CPUs, some CPUID[8000_0001].EDX bits must match the bits on
      * CPUID[1].EDX.
      */
@@ -2906,14 +2914,6 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
            & CPUID_EXT2_AMD_ALIASES);
     }
 
-
-    if (x86_cpu_filter_features(cpu) && cpu->enforce_cpuid) {
-        error_setg(&local_err,
-                   kvm_enabled() ?
-                       "Host doesn't support requested features" :
-                       "TCG doesn't support requested features");
-        goto out;
-    }
 
 #ifndef CONFIG_USER_ONLY
     qemu_register_reset(x86_cpu_machine_reset_cb, cpu);
