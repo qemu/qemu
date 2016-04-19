@@ -131,16 +131,6 @@ void qemu_savevm_send_postcopy_ram_discard(QEMUFile *f, const char *name,
 
 int qemu_loadvm_state(QEMUFile *f);
 
-typedef enum DisplayType
-{
-    DT_DEFAULT,
-    DT_CURSES,
-    DT_SDL,
-    DT_COCOA,
-    DT_GTK,
-    DT_NONE,
-} DisplayType;
-
 extern int autostart;
 
 typedef enum {

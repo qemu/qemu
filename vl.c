@@ -2077,6 +2077,15 @@ static void select_vgahw(const char *p)
     }
 }
 
+typedef enum DisplayType {
+    DT_DEFAULT,
+    DT_CURSES,
+    DT_SDL,
+    DT_COCOA,
+    DT_GTK,
+    DT_NONE,
+} DisplayType;
+
 static DisplayType select_display(const char *p)
 {
     const char *opts;
