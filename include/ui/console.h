@@ -6,6 +6,8 @@
 #include "qapi/qmp/qdict.h"
 #include "qemu/notify.h"
 #include "qapi-types.h"
+#include "qemu/error-report.h"
+#include "qapi/error.h"
 
 #ifdef CONFIG_OPENGL
 # include <epoxy/gl.h>
@@ -430,10 +432,10 @@ void cocoa_display_init(DisplayState *ds, int full_screen);
 void vnc_display_init(const char *id);
 void vnc_display_open(const char *id, Error **errp);
 void vnc_display_add_client(const char *id, int csock, bool skipauth);
-char *vnc_display_local_addr(const char *id);
 #ifdef CONFIG_VNC
 int vnc_display_password(const char *id, const char *password);
 int vnc_display_pw_expire(const char *id, time_t expires);
+char *vnc_display_local_addr(const char *id);
 QemuOpts *vnc_parse(const char *str, Error **errp);
 int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp);
 #else
@@ -445,6 +447,22 @@ static inline int vnc_display_pw_expire(const char *id, time_t expires)
 {
     return -ENODEV;
 };
+static inline QemuOpts *vnc_parse(const char *str, Error **errp)
+{
+    error_setg(errp, "VNC support is disabled");
+    return NULL;
+}
+static inline int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+    error_setg(errp, "VNC support is disabled");
+    return -1;
+}
+static inline char *vnc_display_local_addr(const char *id)
+{
+    /* This must never be called if CONFIG_VNC is disabled */
+    error_report("VNC support is disabled");
+    abort();
+}
 #endif
 
 /* curses.c */

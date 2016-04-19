@@ -2148,7 +2148,6 @@ static DisplayType select_display(const char *p)
         exit(1);
 #endif
     } else if (strstart(p, "vnc", &opts)) {
-#ifdef CONFIG_VNC
         if (*opts == '=') {
             Error *err = NULL;
             if (vnc_parse(opts + 1, &err) == NULL) {
@@ -2159,10 +2158,6 @@ static DisplayType select_display(const char *p)
             error_report("VNC requires a display argument vnc=<display>");
             exit(1);
         }
-#else
-        error_report("VNC support is disabled");
-        exit(1);
-#endif
     } else if (strstart(p, "curses", &opts)) {
 #ifdef CONFIG_CURSES
         display = DT_CURSES;
@@ -2966,9 +2961,7 @@ int main(int argc, char **argv, char **envp)
     const char *qtest_log = NULL;
     const char *pid_file = NULL;
     const char *incoming = NULL;
-#ifdef CONFIG_VNC
     int show_vnc_port = 0;
-#endif
     bool defconfig = true;
     bool userconfig = true;
     const char *log_mask = NULL;
@@ -3715,17 +3708,12 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_vnc:
             {
-#ifdef CONFIG_VNC
                 Error *local_err = NULL;
 
                 if (vnc_parse(optarg, &local_err) == NULL) {
                     error_report_err(local_err);
                     exit(1);
                 }
-#else
-                error_report("VNC support is disabled");
-                exit(1);
-#endif
                 break;
             }
             case QEMU_OPTION_no_acpi:
@@ -4578,7 +4566,6 @@ int main(int argc, char **argv, char **envp)
     /* must be after terminal init, SDL library changes signal handlers */
     os_setup_signal_handling();
 
-#ifdef CONFIG_VNC
     /* init remote displays */
     qemu_opts_foreach(qemu_find_opts("vnc"),
                       vnc_init_func, NULL, NULL);
@@ -4587,7 +4574,7 @@ int main(int argc, char **argv, char **envp)
         printf("VNC server running on '%s'\n", ret);
         g_free(ret);
     }
-#endif
+
 #ifdef CONFIG_SPICE
     if (using_spice) {
         qemu_spice_display_init();
