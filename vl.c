@@ -4360,10 +4360,8 @@ int main(int argc, char **argv, char **envp)
 
     os_set_line_buffering();
 
-#ifdef CONFIG_SPICE
     /* spice needs the timers to be initialized by this point */
     qemu_spice_init();
-#endif
 
     cpu_ticks_init();
     if (icount_opts) {
@@ -4564,11 +4562,9 @@ int main(int argc, char **argv, char **envp)
         g_free(ret);
     }
 
-#ifdef CONFIG_SPICE
     if (using_spice) {
         qemu_spice_display_init();
     }
-#endif
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {
         exit(1);
