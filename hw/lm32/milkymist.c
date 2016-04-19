@@ -167,7 +167,9 @@ milkymist_init(MachineState *machine)
     milkymist_memcard_create(0x60004000);
     milkymist_ac97_create(0x60005000, irq[4], irq[5], irq[6], irq[7]);
     milkymist_pfpu_create(0x60006000, irq[8]);
-    milkymist_tmu2_create(0x60007000, irq[9]);
+    if (display_type != DT_NOGRAPHIC) {
+        milkymist_tmu2_create(0x60007000, irq[9]);
+    }
     milkymist_minimac2_create(0x60008000, 0x30000000, irq[10], irq[11]);
     milkymist_softusb_create(0x6000f000, irq[15],
             0x20000000, 0x1000, 0x20020000, 0x2000);
