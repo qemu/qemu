@@ -136,6 +136,7 @@ typedef enum DisplayType
     DT_DEFAULT,
     DT_CURSES,
     DT_SDL,
+    DT_COCOA,
     DT_GTK,
     DT_NOGRAPHIC,
     DT_NONE,

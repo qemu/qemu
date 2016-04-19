@@ -4237,8 +4237,10 @@ int main(int argc, char **argv, char **envp)
     if (display_type == DT_DEFAULT && !display_remote) {
 #if defined(CONFIG_GTK)
         display_type = DT_GTK;
-#elif defined(CONFIG_SDL) || defined(CONFIG_COCOA)
+#elif defined(CONFIG_SDL)
         display_type = DT_SDL;
+#elif defined(CONFIG_COCOA)
+        display_type = DT_COCOA;
 #elif defined(CONFIG_VNC)
         vnc_parse("localhost:0,to=99,id=default", &error_abort);
         show_vnc_port = 1;
@@ -4560,7 +4562,7 @@ int main(int argc, char **argv, char **envp)
         sdl_display_init(ds, full_screen, no_frame);
         break;
 #elif defined(CONFIG_COCOA)
-    case DT_SDL:
+    case DT_COCOA:
         cocoa_display_init(ds, full_screen);
         break;
 #endif
