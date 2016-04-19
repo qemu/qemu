@@ -4545,11 +4545,9 @@ int main(int argc, char **argv, char **envp)
     case DT_SDL:
         sdl_display_init(ds, full_screen, no_frame);
         break;
-#if defined(CONFIG_COCOA)
     case DT_COCOA:
         cocoa_display_init(ds, full_screen);
         break;
-#endif
 #if defined(CONFIG_GTK)
     case DT_GTK:
         gtk_display_init(ds, full_screen, grab_on_hover);
