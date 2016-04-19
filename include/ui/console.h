@@ -506,7 +506,24 @@ static inline void curses_display_init(DisplayState *ds, int full_screen)
 int index_from_key(const char *key, size_t key_length);
 
 /* gtk.c */
+#ifdef CONFIG_GTK
 void early_gtk_display_init(int opengl);
 void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover);
+#else
+static inline void gtk_display_init(DisplayState *ds, bool full_screen,
+                                    bool grab_on_hover)
+{
+    /* This must never be called if CONFIG_GTK is disabled */
+    error_report("GTK support is disabled");
+    abort();
+}
+
+static inline void early_gtk_display_init(int opengl)
+{
+    /* This must never be called if CONFIG_GTK is disabled */
+    error_report("GTK support is disabled");
+    abort();
+}
+#endif
 
 #endif

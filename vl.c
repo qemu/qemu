@@ -148,9 +148,7 @@ int vga_interface_type = VGA_NONE;
 static int full_screen = 0;
 static int no_frame = 0;
 int no_quit = 0;
-#ifdef CONFIG_GTK
 static bool grab_on_hover;
-#endif
 CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 CharDriverState *virtcon_hds[MAX_VIRTIO_CONSOLES];
@@ -4246,11 +4244,10 @@ int main(int argc, char **argv, char **envp)
                      "ignoring option");
     }
 
-#if defined(CONFIG_GTK)
     if (display_type == DT_GTK) {
         early_gtk_display_init(request_opengl);
     }
-#endif
+
     if (display_type == DT_SDL) {
         sdl_display_early_init(request_opengl);
     }
@@ -4548,11 +4545,9 @@ int main(int argc, char **argv, char **envp)
     case DT_COCOA:
         cocoa_display_init(ds, full_screen);
         break;
-#if defined(CONFIG_GTK)
     case DT_GTK:
         gtk_display_init(ds, full_screen, grab_on_hover);
         break;
-#endif
     default:
         break;
     }
