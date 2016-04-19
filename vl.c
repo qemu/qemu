@@ -4251,11 +4251,10 @@ int main(int argc, char **argv, char **envp)
         early_gtk_display_init(request_opengl);
     }
 #endif
-#if defined(CONFIG_SDL)
     if (display_type == DT_SDL) {
         sdl_display_early_init(request_opengl);
     }
-#endif
+
     if (request_opengl == 1 && display_opengl == 0) {
 #if defined(CONFIG_OPENGL)
         error_report("OpenGL is not supported by the display");
@@ -4543,11 +4542,10 @@ int main(int argc, char **argv, char **envp)
     case DT_CURSES:
         curses_display_init(ds, full_screen);
         break;
-#if defined(CONFIG_SDL)
     case DT_SDL:
         sdl_display_init(ds, full_screen, no_frame);
         break;
-#elif defined(CONFIG_COCOA)
+#if defined(CONFIG_COCOA)
     case DT_COCOA:
         cocoa_display_init(ds, full_screen);
         break;
