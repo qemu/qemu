@@ -129,7 +129,6 @@ static const char *data_dir[16];
 static int data_dir_idx;
 const char *bios_name = NULL;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
-DisplayType display_type = DT_DEFAULT;
 int request_opengl = -1;
 int display_opengl;
 static int display_remote;
@@ -2963,6 +2962,7 @@ int main(int argc, char **argv, char **envp)
     bool defconfig = true;
     bool userconfig = true;
     bool nographic = false;
+    DisplayType display_type = DT_DEFAULT;
     const char *log_mask = NULL;
     const char *log_file = NULL;
     char *trace_file = NULL;

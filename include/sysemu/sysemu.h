@@ -155,7 +155,6 @@ extern int vga_interface_type;
 extern int graphic_width;
 extern int graphic_height;
 extern int graphic_depth;
-extern DisplayType display_type;
 extern int display_opengl;
 extern const char *keyboard_layout;
 extern int win2k_install_hack;
