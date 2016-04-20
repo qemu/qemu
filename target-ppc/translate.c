@@ -11642,7 +11642,8 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
     tb->icount = num_insns;
 
 #if defined(DEBUG_DISAS)
-    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
+    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
+        && qemu_log_in_addr_range(pc_start)) {
         int flags;
         flags = env->bfd_mach;
         flags |= ctx.le_mode << 16;

@@ -1818,7 +1818,8 @@ void gen_intermediate_code(CPUMBState *env, struct TranslationBlock *tb)
 
 #ifdef DEBUG_DISAS
 #if !SIM_COMPAT
-    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
+    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
+        && qemu_log_in_addr_range(pc_start)) {
         qemu_log("\n");
 #if DISAS_GNU
         log_target_disas(cs, pc_start, dc->pc - pc_start, 0);
