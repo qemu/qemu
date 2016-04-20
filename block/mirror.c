@@ -108,7 +108,7 @@ static void mirror_iteration_done(MirrorOp *op, int ret)
 
     sectors_per_chunk = s->granularity >> BDRV_SECTOR_BITS;
     chunk_num = op->sector_num / sectors_per_chunk;
-    nb_chunks = op->nb_sectors / sectors_per_chunk;
+    nb_chunks = DIV_ROUND_UP(op->nb_sectors, sectors_per_chunk);
     bitmap_clear(s->in_flight_bitmap, chunk_num, nb_chunks);
     if (ret >= 0) {
         if (s->cow_bitmap) {
@@ -161,6 +161,14 @@ static void mirror_read_complete(void *opaque, int ret)
                     mirror_write_complete, op);
 }
 
+static inline void mirror_clip_sectors(MirrorBlockJob *s,
+                                       int64_t sector_num,
+                                       int *nb_sectors)
+{
+    *nb_sectors = MIN(*nb_sectors,
+                      s->bdev_length / BDRV_SECTOR_SIZE - sector_num);
+}
+
 /* Round sector_num and/or nb_sectors to target cluster if COW is needed, and
  * return the offset of the adjusted tail sector against original. */
 static int mirror_cow_align(MirrorBlockJob *s,
@@ -189,6 +197,9 @@ static int mirror_cow_align(MirrorBlockJob *s,
                                                s->target_cluster_sectors);
         }
     }
+    /* Clipping may result in align_nb_sectors unaligned to chunk boundary, but
+     * that doesn't matter because it's already the end of source image. */
+    mirror_clip_sectors(s, align_sector_num, &align_nb_sectors);
 
     ret = align_sector_num + align_nb_sectors - (*sector_num + *nb_sectors);
     *sector_num = align_sector_num;
@@ -231,9 +242,8 @@ static int mirror_do_read(MirrorBlockJob *s, int64_t sector_num,
     /* The sector range must meet granularity because:
      * 1) Caller passes in aligned values;
      * 2) mirror_cow_align is used only when target cluster is larger. */
-    assert(!(nb_sectors % sectors_per_chunk));
     assert(!(sector_num % sectors_per_chunk));
-    nb_chunks = nb_sectors / sectors_per_chunk;
+    nb_chunks = DIV_ROUND_UP(nb_sectors, sectors_per_chunk);
 
     while (s->buf_free_count < nb_chunks) {
         trace_mirror_yield_in_flight(s, sector_num, s->in_flight);
@@ -384,6 +394,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
             }
         }
 
+        mirror_clip_sectors(s, sector_num, &io_sectors);
         switch (mirror_method) {
         case MIRROR_METHOD_COPY:
             io_sectors = mirror_do_read(s, sector_num, io_sectors);
@@ -399,7 +410,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         }
         assert(io_sectors);
         sector_num += io_sectors;
-        nb_chunks -= io_sectors / sectors_per_chunk;
+        nb_chunks -= DIV_ROUND_UP(io_sectors, sectors_per_chunk);
         delay_ns += ratelimit_calculate_delay(&s->limit, io_sectors);
     }
     return delay_ns;
