@@ -1,0 +1,62 @@
+#!/usr/bin/env python
+#
+# Tests for drive-mirror with source size unaligned to granularity
+#
+# Copyright (C) 2016 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+from iotests import qemu_img
+
+test_img = os.path.join(iotests.test_dir, 'test.img')
+target_img = os.path.join(iotests.test_dir, 'target.img')
+
+class TestUnaligned(iotests.QMPTestCase):
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, test_img, '512')
+        self.vm = iotests.VM().add_drive(test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+        try:
+            os.remove(target_img)
+        except OSError:
+            pass
+
+    def test_unaligned(self):
+        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
+                             granularity=65536, target=target_img)
+        self.complete_and_wait()
+        self.vm.shutdown()
+        self.assertEqual(iotests.image_size(test_img), iotests.image_size(target_img),
+                         "Target size doesn't match source when granularity when unaligend")
+
+    def test_unaligned_with_update(self):
+        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
+                             granularity=65536, target=target_img)
+        self.wait_ready()
+        self.vm.hmp_qemu_io('drive0', 'write 0 512')
+        self.complete_and_wait(wait_ready=False)
+        self.vm.shutdown()
+        self.assertEqual(iotests.image_size(test_img), iotests.image_size(target_img),
+                         "Target size doesn't match source when granularity when unaligend")
+
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['raw', 'qcow2'])
