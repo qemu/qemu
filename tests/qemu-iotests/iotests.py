@@ -28,6 +28,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts', '
 import qmp
 import qtest
 import struct
+import json
 
 
 # This will not work if arguments contain spaces but is necessary if we
@@ -102,6 +103,11 @@ def create_image(name, size):
         file.write(sector)
         i = i + 512
     file.close()
+
+def image_size(img):
+    '''Return image's virtual size'''
+    r = qemu_img_pipe('info', '--output=json', '-f', imgfmt, img)
+    return json.loads(r)['virtual-size']
 
 test_dir_re = re.compile(r"%s" % test_dir)
 def filter_test_dir(msg):
