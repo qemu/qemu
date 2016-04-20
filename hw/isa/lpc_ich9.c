@@ -714,6 +714,7 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
     hc->unplug = ich9_pm_device_unplug_cb;
     adevc->ospm_status = ich9_pm_ospm_status;
     adevc->send_event = ich9_send_gpe;
+    adevc->madt_cpu = pc_madt_cpu_entry;
 }
 
 static const TypeInfo ich9_lpc_info = {

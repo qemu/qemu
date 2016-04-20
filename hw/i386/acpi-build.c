@@ -329,12 +329,38 @@ build_fadt(GArray *table_data, BIOSLinker *linker, AcpiPmInfo *pm,
                  (void *)fadt, "FACP", sizeof(*fadt), 1, oem_id, oem_table_id);
 }
 
+void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
+                       CPUArchIdList *apic_ids, GArray *entry)
+{
+    int apic_id;
+    AcpiMadtProcessorApic *apic = acpi_data_push(entry, sizeof *apic);
+
+    apic_id = apic_ids->cpus[uid].arch_id;
+    apic->type = ACPI_APIC_PROCESSOR;
+    apic->length = sizeof(*apic);
+    apic->processor_id = uid;
+    apic->local_apic_id = apic_id;
+    if (apic_ids->cpus[uid].cpu != NULL) {
+        apic->flags = cpu_to_le32(1);
+    } else {
+        /* ACPI spec says that LAPIC entry for non present
+         * CPU may be omitted from MADT or it must be marked
+         * as disabled. However omitting non present CPU from
+         * MADT breaks hotplug on linux. So possible CPUs
+         * should be put in MADT but kept disabled.
+         */
+        apic->flags = cpu_to_le32(0);
+    }
+}
+
 static void
 build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(pcms);
     CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(MACHINE(pcms));
     int madt_start = table_data->len;
+    AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(pcms->acpi_dev);
+    AcpiDeviceIf *adev = ACPI_DEVICE_IF(pcms->acpi_dev);
 
     AcpiMultipleApicTable *madt;
     AcpiMadtIoApic *io_apic;
@@ -347,24 +373,7 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
     madt->flags = cpu_to_le32(1);
 
     for (i = 0; i < apic_ids->len; i++) {
-        AcpiMadtProcessorApic *apic = acpi_data_push(table_data, sizeof *apic);
-        int apic_id = apic_ids->cpus[i].arch_id;
-
-        apic->type = ACPI_APIC_PROCESSOR;
-        apic->length = sizeof(*apic);
-        apic->processor_id = i;
-        apic->local_apic_id = apic_id;
-        if (apic_ids->cpus[i].cpu != NULL) {
-            apic->flags = cpu_to_le32(1);
-        } else {
-            /* ACPI spec says that LAPIC entry for non present
-             * CPU may be omitted from MADT or it must be marked
-             * as disabled. However omitting non present CPU from
-             * MADT breaks hotplug on linux. So possible CPUs
-             * should be put in MADT but kept disabled.
-             */
-            apic->flags = cpu_to_le32(0);
-        }
+        adevc->madt_cpu(adev, i, apic_ids, table_data);
     }
     g_free(apic_ids);
 

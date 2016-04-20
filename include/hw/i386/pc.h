@@ -17,6 +17,7 @@
 #include "hw/compat.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"
+#include "hw/acpi/acpi_dev_interface.h"
 
 #define HPET_INTCAP "hpet-intcap"
 
@@ -344,6 +345,10 @@ void pc_system_firmware_init(MemoryRegion *rom_memory,
 
 /* pvpanic.c */
 uint16_t pvpanic_port(void);
+
+/* acpi-build.c */
+void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
+                       CPUArchIdList *apic_ids, GArray *entry);
 
 /* e820 types */
 #define E820_RAM        1
