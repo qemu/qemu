@@ -1155,8 +1155,6 @@ M: Eduardo Habkost <ehabkost@redhat.com>
 S: Maintained
 F: numa.c
 F: include/sysemu/numa.h
-K: numa|NUMA
-K: srat|SRAT
 T: git git://github.com/ehabkost/qemu.git numa
 
 QAPI
