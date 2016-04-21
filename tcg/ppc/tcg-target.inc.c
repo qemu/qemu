@@ -89,7 +89,7 @@ static bool have_isa_2_06;
 #define TCG_GUEST_BASE_REG 30
 #endif
 
-#ifndef NDEBUG
+#ifdef CONFIG_DEBUG_TCG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "r0",
     "r1",

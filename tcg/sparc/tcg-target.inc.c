@@ -24,7 +24,7 @@
 
 #include "tcg-be-null.h"
 
-#ifndef NDEBUG
+#ifdef CONFIG_DEBUG_TCG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%g0",
     "%g1",

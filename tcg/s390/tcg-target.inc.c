@@ -221,7 +221,7 @@ typedef enum S390Opcode {
     RX_STH      = 0x40,
 } S390Opcode;
 
-#ifndef NDEBUG
+#ifdef CONFIG_DEBUG_TCG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%r0", "%r1", "%r2", "%r3", "%r4", "%r5", "%r6", "%r7",
     "%r8", "%r9", "%r10" "%r11" "%r12" "%r13" "%r14" "%r15"

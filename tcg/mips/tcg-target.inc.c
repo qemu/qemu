@@ -35,7 +35,7 @@
 #define LO_OFF    (MIPS_BE * 4)
 #define HI_OFF    (4 - LO_OFF)
 
-#ifndef NDEBUG
+#ifdef CONFIG_DEBUG_TCG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "zero",
     "at",

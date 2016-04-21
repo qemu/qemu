@@ -315,7 +315,7 @@ static const int tcg_target_call_oarg_regs[] = {
 #endif
 };
 
-#ifndef NDEBUG
+#ifdef CONFIG_DEBUG_TCG
 static const char *const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "r00",
     "r01",
