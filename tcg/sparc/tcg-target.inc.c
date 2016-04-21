@@ -289,7 +289,7 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
 {
     uint32_t insn;
 
-    assert(addend == 0);
+    tcg_debug_assert(addend == 0);
     value = tcg_ptr_byte_diff((tcg_insn_unit *)value, code_ptr);
 
     switch (type) {
@@ -1108,7 +1108,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
     } else {
         func = qemu_ld_trampoline[memop & (MO_BSWAP | MO_SSIZE)];
     }
-    assert(func != NULL);
+    tcg_debug_assert(func != NULL);
     tcg_out_call_nodelay(s, func);
     /* delay slot */
     tcg_out_movi(s, TCG_TYPE_I32, param, oi);
@@ -1187,7 +1187,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
     tcg_out_mov(s, TCG_TYPE_REG, param++, data);
 
     func = qemu_st_trampoline[memop & (MO_BSWAP | MO_SIZE)];
-    assert(func != NULL);
+    tcg_debug_assert(func != NULL);
     tcg_out_call_nodelay(s, func);
     /* delay slot */
     tcg_out_movi(s, TCG_TYPE_I32, param, oi);
@@ -1645,7 +1645,7 @@ void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 
     /* We can reach the entire address space for 32-bit.  For 64-bit
        the code_gen_buffer can't be larger than 2GB.  */
-    assert(disp == (int32_t)disp);
+    tcg_debug_assert(disp == (int32_t)disp);
 
     *ptr = CALL | (uint32_t)disp >> 2;
     flush_icache_range(jmp_addr, jmp_addr + 4);

@@ -67,7 +67,7 @@ static const int tcg_target_call_oarg_regs[1] = {
 static inline void reloc_pc26(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
 {
     ptrdiff_t offset = target - code_ptr;
-    assert(offset == sextract64(offset, 0, 26));
+    tcg_debug_assert(offset == sextract64(offset, 0, 26));
     /* read instruction, mask away previous PC_REL26 parameter contents,
        set the proper offset, then write back the instruction. */
     *code_ptr = deposit32(*code_ptr, 0, 26, offset);
@@ -76,14 +76,14 @@ static inline void reloc_pc26(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
 static inline void reloc_pc19(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
 {
     ptrdiff_t offset = target - code_ptr;
-    assert(offset == sextract64(offset, 0, 19));
+    tcg_debug_assert(offset == sextract64(offset, 0, 19));
     *code_ptr = deposit32(*code_ptr, 5, 19, offset);
 }
 
 static inline void patch_reloc(tcg_insn_unit *code_ptr, int type,
                                intptr_t value, intptr_t addend)
 {
-    assert(addend == 0);
+    tcg_debug_assert(addend == 0);
     switch (type) {
     case R_AARCH64_JUMP26:
     case R_AARCH64_CALL26:
@@ -402,7 +402,7 @@ static void tcg_out_insn_3314(TCGContext *s, AArch64Insn insn,
     insn |= pre << 24;
     insn |= w << 23;
 
-    assert(ofs >= -0x200 && ofs < 0x200 && (ofs & 7) == 0);
+    tcg_debug_assert(ofs >= -0x200 && ofs < 0x200 && (ofs & 7) == 0);
     insn |= (ofs & (0x7f << 3)) << (15 - 3);
 
     tcg_out32(s, insn | r2 << 10 | rn << 5 | r1);
@@ -412,9 +412,9 @@ static void tcg_out_insn_3401(TCGContext *s, AArch64Insn insn, TCGType ext,
                               TCGReg rd, TCGReg rn, uint64_t aimm)
 {
     if (aimm > 0xfff) {
-        assert((aimm & 0xfff) == 0);
+        tcg_debug_assert((aimm & 0xfff) == 0);
         aimm >>= 12;
-        assert(aimm <= 0xfff);
+        tcg_debug_assert(aimm <= 0xfff);
         aimm |= 1 << 12;  /* apply LSL 12 */
     }
     tcg_out32(s, insn | ext << 31 | aimm << 10 | rn << 5 | rd);
@@ -444,7 +444,7 @@ static void tcg_out_insn_3403(TCGContext *s, AArch64Insn insn, TCGType ext,
 static void tcg_out_insn_3405(TCGContext *s, AArch64Insn insn, TCGType ext,
                               TCGReg rd, uint16_t half, unsigned shift)
 {
-    assert((shift & ~0x30) == 0);
+    tcg_debug_assert((shift & ~0x30) == 0);
     tcg_out32(s, insn | ext << 31 | shift << (21 - 4) | half << 5 | rd);
 }
 
@@ -538,7 +538,7 @@ static void tcg_out_logicali(TCGContext *s, AArch64Insn insn, TCGType ext,
 {
     unsigned h, l, r, c;
 
-    assert(is_limm(limm));
+    tcg_debug_assert(is_limm(limm));
 
     h = clz64(limm);
     l = ctz64(limm);
@@ -793,7 +793,7 @@ static void tcg_out_cmp(TCGContext *s, TCGType ext, TCGReg a,
 static inline void tcg_out_goto(TCGContext *s, tcg_insn_unit *target)
 {
     ptrdiff_t offset = target - s->code_ptr;
-    assert(offset == sextract64(offset, 0, 26));
+    tcg_debug_assert(offset == sextract64(offset, 0, 26));
     tcg_out_insn(s, 3206, B, offset);
 }
 
@@ -867,7 +867,7 @@ static void tcg_out_brcond(TCGContext *s, TCGMemOp ext, TCGCond c, TCGArg a,
         offset = tcg_in32(s) >> 5;
     } else {
         offset = l->u.value_ptr - s->code_ptr;
-        assert(offset == sextract64(offset, 0, 19));
+        tcg_debug_assert(offset == sextract64(offset, 0, 19));
     }
 
     if (need_cmp) {
@@ -990,7 +990,7 @@ static void * const qemu_st_helpers[16] = {
 static inline void tcg_out_adr(TCGContext *s, TCGReg rd, void *target)
 {
     ptrdiff_t offset = tcg_pcrel_diff(s, target);
-    assert(offset == sextract64(offset, 0, 21));
+    tcg_debug_assert(offset == sextract64(offset, 0, 21));
     tcg_out_insn(s, 3406, ADR, rd, offset);
 }
 
@@ -1294,7 +1294,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 #ifndef USE_DIRECT_JUMP
 #error "USE_DIRECT_JUMP required for aarch64"
 #endif
-        assert(s->tb_jmp_offset != NULL); /* consistency for USE_DIRECT_JUMP */
+        tcg_debug_assert(s->tb_jmp_offset != NULL); /* consistency for USE_DIRECT_JUMP */
         s->tb_jmp_offset[a0] = tcg_current_code_size(s);
         /* actual branch destination will be patched by
            aarch64_tb_set_jmp_target later, beware retranslation. */

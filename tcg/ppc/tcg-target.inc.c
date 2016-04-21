@@ -207,7 +207,7 @@ static inline bool in_range_b(tcg_target_long target)
 static uint32_t reloc_pc24_val(tcg_insn_unit *pc, tcg_insn_unit *target)
 {
     ptrdiff_t disp = tcg_ptr_byte_diff(target, pc);
-    assert(in_range_b(disp));
+    tcg_debug_assert(in_range_b(disp));
     return disp & 0x3fffffc;
 }
 
@@ -219,7 +219,7 @@ static void reloc_pc24(tcg_insn_unit *pc, tcg_insn_unit *target)
 static uint16_t reloc_pc14_val(tcg_insn_unit *pc, tcg_insn_unit *target)
 {
     ptrdiff_t disp = tcg_ptr_byte_diff(target, pc);
-    assert(disp == (int16_t) disp);
+    tcg_debug_assert(disp == (int16_t) disp);
     return disp & 0xfffc;
 }
 
@@ -245,7 +245,7 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
 {
     tcg_insn_unit *target = (tcg_insn_unit *)value;
 
-    assert(addend == 0);
+    tcg_debug_assert(addend == 0);
     switch (type) {
     case R_PPC_REL14:
         reloc_pc14(code_ptr, target);
@@ -565,7 +565,7 @@ static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 static inline void tcg_out_rld(TCGContext *s, int op, TCGReg ra, TCGReg rs,
                                int sh, int mb)
 {
-    assert(TCG_TARGET_REG_BITS == 64);
+    tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
     sh = SH(sh & 0x1f) | (((sh >> 5) & 1) << 1);
     mb = MB64((mb >> 5) | ((mb << 1) & 0x3f));
     tcg_out32(s, op | RA(ra) | RS(rs) | sh | mb);
@@ -718,7 +718,7 @@ static void tcg_out_andi64(TCGContext *s, TCGReg dst, TCGReg src, uint64_t c)
 {
     int mb, me;
 
-    assert(TCG_TARGET_REG_BITS == 64);
+    tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
     if (mask64_operand(c, &mb, &me)) {
         if (mb == 0) {
             tcg_out_rld(s, RLDICR, dst, src, 0, me);
@@ -834,7 +834,7 @@ static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
 {
     int opi, opx;
 
-    assert(TCG_TARGET_REG_BITS == 64 || type == TCG_TYPE_I32);
+    tcg_debug_assert(TCG_TARGET_REG_BITS == 64 || type == TCG_TYPE_I32);
     if (type == TCG_TYPE_I32) {
         opi = LWZ, opx = LWZX;
     } else {
@@ -848,7 +848,7 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
 {
     int opi, opx;
 
-    assert(TCG_TARGET_REG_BITS == 64 || type == TCG_TYPE_I32);
+    tcg_debug_assert(TCG_TARGET_REG_BITS == 64 || type == TCG_TYPE_I32);
     if (type == TCG_TYPE_I32) {
         opi = STW, opx = STWX;
     } else {
@@ -981,7 +981,7 @@ static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
 {
     int crop, sh;
 
-    assert(TCG_TARGET_REG_BITS == 64 || type == TCG_TYPE_I32);
+    tcg_debug_assert(TCG_TARGET_REG_BITS == 64 || type == TCG_TYPE_I32);
 
     /* Ignore high bits of a potential constant arg2.  */
     if (type == TCG_TYPE_I32) {
@@ -1251,11 +1251,11 @@ void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
         diff = addr - (uintptr_t)tb_ret_addr;
         lo = (int16_t)diff;
         hi = (int32_t)(diff - lo);
-        assert(diff == hi + lo);
+        tcg_debug_assert(diff == hi + lo);
         i1 = ADDIS | TAI(TCG_REG_TMP1, TCG_REG_RA, hi >> 16);
         i2 = ADDI | TAI(TCG_REG_TMP1, TCG_REG_TMP1, lo);
     } else {
-        assert(TCG_TARGET_REG_BITS == 32 || addr == (int32_t)addr);
+        tcg_debug_assert(TCG_TARGET_REG_BITS == 32 || addr == (int32_t)addr);
         i1 = ADDIS | TAI(TCG_REG_TMP1, 0, addr >> 16);
         i2 = ORI | SAI(TCG_REG_TMP1, TCG_REG_TMP1, addr);
     }
@@ -1857,7 +1857,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     }
 
     /* Epilogue */
-    assert(tb_ret_addr == s->code_ptr);
+    tcg_debug_assert(tb_ret_addr == s->code_ptr);
 
     tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R0, TCG_REG_R1, FRAME_SIZE+LR_OFFSET);
     for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); ++i) {

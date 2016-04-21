@@ -425,7 +425,7 @@ static void tcg_out_opc(TCGContext *s, int opc, int r, int rm, int x)
     }
     if (opc & P_DATA16) {
         /* We should never be asking for both 16 and 64-bit operation.  */
-        assert((opc & P_REXW) == 0);
+        tcg_debug_assert((opc & P_REXW) == 0);
         tcg_out8(s, 0x66);
     }
     if (opc & P_ADDR32) {
@@ -599,7 +599,7 @@ static void tcg_out_modrm_sib_offset(TCGContext *s, int opc, int r, int rm,
         if (index < 0) {
             index = 4;
         } else {
-            assert(index != TCG_REG_ESP);
+            tcg_debug_assert(index != TCG_REG_ESP);
         }
 
         tcg_out_opc(s, opc, r, rm, index);
@@ -745,14 +745,14 @@ static inline void tcg_out_rolw_8(TCGContext *s, int reg)
 static inline void tcg_out_ext8u(TCGContext *s, int dest, int src)
 {
     /* movzbl */
-    assert(src < 4 || TCG_TARGET_REG_BITS == 64);
+    tcg_debug_assert(src < 4 || TCG_TARGET_REG_BITS == 64);
     tcg_out_modrm(s, OPC_MOVZBL + P_REXB_RM, dest, src);
 }
 
 static void tcg_out_ext8s(TCGContext *s, int dest, int src, int rexw)
 {
     /* movsbl */
-    assert(src < 4 || TCG_TARGET_REG_BITS == 64);
+    tcg_debug_assert(src < 4 || TCG_TARGET_REG_BITS == 64);
     tcg_out_modrm(s, OPC_MOVSBL + P_REXB_RM + rexw, dest, src);
 }
 

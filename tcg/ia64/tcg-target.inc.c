@@ -710,8 +710,8 @@ static uint64_t get_reloc_pcrel21b_slot2(tcg_insn_unit *pc)
 static void patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
-    assert(addend == 0);
-    assert(type == R_IA64_PCREL21B);
+    tcg_debug_assert(addend == 0);
+    tcg_debug_assert(type == R_IA64_PCREL21B);
     reloc_pcrel21b_slot2(code_ptr, (tcg_insn_unit *)value);
 }
 
@@ -809,7 +809,7 @@ static inline void tcg_out_mov(TCGContext *s, TCGType type,
 
 static inline uint64_t tcg_opc_movi_a(int qp, TCGReg dst, int64_t src)
 {
-    assert(src == sextract64(src, 0, 22));
+    tcg_debug_assert(src == sextract64(src, 0, 22));
     return tcg_opc_a5(qp, OPC_ADDL_A5, dst, src, TCG_REG_R0);
 }
 

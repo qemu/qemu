@@ -127,7 +127,7 @@ static inline uint32_t reloc_pc16_val(tcg_insn_unit *pc, tcg_insn_unit *target)
 {
     /* Let the compiler perform the right-shift as part of the arithmetic.  */
     ptrdiff_t disp = target - (pc + 1);
-    assert(disp == (int16_t)disp);
+    tcg_debug_assert(disp == (int16_t)disp);
     return disp & 0xffff;
 }
 
@@ -138,7 +138,7 @@ static inline void reloc_pc16(tcg_insn_unit *pc, tcg_insn_unit *target)
 
 static inline uint32_t reloc_26_val(tcg_insn_unit *pc, tcg_insn_unit *target)
 {
-    assert((((uintptr_t)pc ^ (uintptr_t)target) & 0xf0000000) == 0);
+    tcg_debug_assert((((uintptr_t)pc ^ (uintptr_t)target) & 0xf0000000) == 0);
     return ((uintptr_t)target >> 2) & 0x3ffffff;
 }
 
@@ -150,8 +150,8 @@ static inline void reloc_26(tcg_insn_unit *pc, tcg_insn_unit *target)
 static void patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
-    assert(type == R_MIPS_PC16);
-    assert(addend == 0);
+    tcg_debug_assert(type == R_MIPS_PC16);
+    tcg_debug_assert(addend == 0);
     reloc_pc16(code_ptr, (tcg_insn_unit *)value);
 }
 
@@ -432,7 +432,7 @@ static bool tcg_out_opc_jmp(TCGContext *s, MIPSInsn opc, void *target)
     if ((from ^ dest) & -(1 << 28)) {
         return false;
     }
-    assert((dest & 3) == 0);
+    tcg_debug_assert((dest & 3) == 0);
 
     inst = opc;
     inst |= (dest >> 2) & 0x3ffffff;
@@ -807,9 +807,9 @@ static void tcg_out_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
     TCGReg tmp0 = TCG_TMP0;
     TCGReg tmp1 = ret;
 
-    assert(ret != TCG_TMP0);
+    tcg_debug_assert(ret != TCG_TMP0);
     if (ret == ah || ret == bh) {
-        assert(ret != TCG_TMP1);
+        tcg_debug_assert(ret != TCG_TMP1);
         tmp1 = TCG_TMP1;
     }
 
@@ -1470,8 +1470,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_and_i32:
         if (c2 && a2 != (uint16_t)a2) {
             int msb = ctz32(~a2) - 1;
-            assert(use_mips32r2_instructions);
-            assert(is_p2m1(a2));
+            tcg_debug_assert(use_mips32r2_instructions);
+            tcg_debug_assert(is_p2m1(a2));
             tcg_out_opc_bf(s, OPC_EXT, a0, a1, msb, 0);
             break;
         }

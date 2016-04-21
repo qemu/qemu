@@ -124,8 +124,8 @@ static inline void reloc_pc24(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
 static void patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
-    assert(type == R_ARM_PC24);
-    assert(addend == 0);
+    tcg_debug_assert(type == R_ARM_PC24);
+    tcg_debug_assert(addend == 0);
     reloc_pc24(code_ptr, (tcg_insn_unit *)value);
 }
 
@@ -492,7 +492,7 @@ static inline void tcg_out_dat_rI(TCGContext *s, int cond, int opc, TCGArg dst,
      */
     if (rhs_is_const) {
         int rot = encode_imm(rhs);
-        assert(rot >= 0);
+        tcg_debug_assert(rot >= 0);
         tcg_out_dat_imm(s, cond, opc, dst, lhs, rotl(rhs, rot) | (rot << 7));
     } else {
         tcg_out_dat_reg(s, cond, opc, dst, lhs, rhs, SHIFT_IMM_LSL(0));
@@ -511,7 +511,7 @@ static void tcg_out_dat_rIK(TCGContext *s, int cond, int opc, int opinv,
         if (rot < 0) {
             rhs = ~rhs;
             rot = encode_imm(rhs);
-            assert(rot >= 0);
+            tcg_debug_assert(rot >= 0);
             opc = opinv;
         }
         tcg_out_dat_imm(s, cond, opc, dst, lhs, rotl(rhs, rot) | (rot << 7));
@@ -532,7 +532,7 @@ static void tcg_out_dat_rIN(TCGContext *s, int cond, int opc, int opneg,
         if (rot < 0) {
             rhs = -rhs;
             rot = encode_imm(rhs);
-            assert(rot >= 0);
+            tcg_debug_assert(rot >= 0);
             opc = opneg;
         }
         tcg_out_dat_imm(s, cond, opc, dst, lhs, rotl(rhs, rot) | (rot << 7));
@@ -1100,7 +1100,7 @@ static TCGReg NAME(TCGContext *s, TCGReg argreg, ARGTYPE arg)              \
     } else {                                                               \
         int ofs = (argreg - 4) * 4;                                        \
         EXT_ARG;                                                           \
-        assert(ofs + 4 <= TCG_STATIC_CALL_ARGS_SIZE);                      \
+        tcg_debug_assert(ofs + 4 <= TCG_STATIC_CALL_ARGS_SIZE);            \
         tcg_out_st32_12(s, COND_AL, arg, TCG_REG_CALL_STACK, ofs);         \
     }                                                                      \
     return argreg + 1;                                                     \
