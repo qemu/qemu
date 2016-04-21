@@ -1091,9 +1091,8 @@ static void nbd_trip(void *opaque)
             }
         }
 
-        ret = blk_read(exp->blk,
-                       (request.from + exp->dev_offset) / BDRV_SECTOR_SIZE,
-                       req->data, request.len / BDRV_SECTOR_SIZE);
+        ret = blk_pread(exp->blk, request.from + exp->dev_offset,
+                        req->data, request.len);
         if (ret < 0) {
             LOG("reading from file failed");
             reply.error = -ret;
@@ -1115,9 +1114,8 @@ static void nbd_trip(void *opaque)
 
         TRACE("Writing to device");
 
-        ret = blk_write(exp->blk,
-                        (request.from + exp->dev_offset) / BDRV_SECTOR_SIZE,
-                        req->data, request.len / BDRV_SECTOR_SIZE);
+        ret = blk_pwrite(exp->blk, request.from + exp->dev_offset,
+                        req->data, request.len);
         if (ret < 0) {
             LOG("writing to file failed");
             reply.error = -ret;
