@@ -1816,6 +1816,9 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
                      sizeof(interrupt_map)));
 
     tcet = spapr_tce_find_by_liobn(SPAPR_PCI_LIOBN(phb->index, 0));
+    if (!tcet) {
+        return -1;
+    }
     spapr_dma_dt(fdt, bus_off, "ibm,dma-window",
                  tcet->liobn, tcet->bus_offset,
                  tcet->nb_table << tcet->page_shift);
