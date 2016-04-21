@@ -467,7 +467,7 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
 {
     long tcg_temps[CPU_TEMP_BUF_NLONGS];
     uintptr_t sp_value = (uintptr_t)(tcg_temps + CPU_TEMP_BUF_NLONGS);
-    uintptr_t next_tb = 0;
+    uintptr_t ret = 0;
 
     tci_reg[TCG_AREG0] = (tcg_target_ulong)env;
     tci_reg[TCG_REG_CALL_STACK] = sp_value;
@@ -1085,7 +1085,7 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             /* QEMU specific operations. */
 
         case INDEX_op_exit_tb:
-            next_tb = *(uint64_t *)tb_ptr;
+            ret = *(uint64_t *)tb_ptr;
             goto exit;
             break;
         case INDEX_op_goto_tb:
@@ -1243,5 +1243,5 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
         tci_assert(tb_ptr == old_code_ptr + op_size);
     }
 exit:
-    return next_tb;
+    return ret;
 }

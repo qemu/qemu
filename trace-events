@@ -1614,7 +1614,7 @@ kvm_failed_spr_get(int str, const char *msg) "Warning: Unable to retrieve SPR %d
 # cpu-exec.c
 disable exec_tb(void *tb, uintptr_t pc) "tb:%p pc=0x%"PRIxPTR
 disable exec_tb_nocache(void *tb, uintptr_t pc) "tb:%p pc=0x%"PRIxPTR
-disable exec_tb_exit(void *next_tb, unsigned int flags) "tb:%p flags=%x"
+disable exec_tb_exit(void *last_tb, unsigned int flags) "tb:%p flags=%x"
 
 # translate-all.c
 translate_block(void *tb, uintptr_t pc, uint8_t *tb_code) "tb:%p, pc:0x%"PRIxPTR", tb_code:%p"

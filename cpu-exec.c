@@ -136,7 +136,9 @@ static void init_delay_params(SyncClocks *sc, const CPUState *cpu)
 static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
 {
     CPUArchState *env = cpu->env_ptr;
-    uintptr_t next_tb;
+    uintptr_t ret;
+    TranslationBlock *last_tb;
+    int tb_exit;
     uint8_t *tb_ptr = itb->tc_ptr;
 
     qemu_log_mask_and_addr(CPU_LOG_EXEC, itb->pc,
@@ -160,36 +162,37 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
 #endif /* DEBUG_DISAS */
 
     cpu->can_do_io = !use_icount;
-    next_tb = tcg_qemu_tb_exec(env, tb_ptr);
+    ret = tcg_qemu_tb_exec(env, tb_ptr);
     cpu->can_do_io = 1;
-    trace_exec_tb_exit((void *) (next_tb & ~TB_EXIT_MASK),
-                       next_tb & TB_EXIT_MASK);
+    last_tb = (TranslationBlock *)(ret & ~TB_EXIT_MASK);
+    tb_exit = ret & TB_EXIT_MASK;
+    trace_exec_tb_exit(last_tb, tb_exit);
 
-    if ((next_tb & TB_EXIT_MASK) > TB_EXIT_IDX1) {
+    if (tb_exit > TB_EXIT_IDX1) {
         /* We didn't start executing this TB (eg because the instruction
          * counter hit zero); we must restore the guest PC to the address
          * of the start of the TB.
          */
         CPUClass *cc = CPU_GET_CLASS(cpu);
-        TranslationBlock *tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
-        qemu_log_mask_and_addr(CPU_LOG_EXEC, itb->pc,
+        qemu_log_mask_and_addr(CPU_LOG_EXEC, last_tb->pc,
                                "Stopped execution of TB chain before %p ["
                                TARGET_FMT_lx "] %s\n",
-                               itb->tc_ptr, itb->pc, lookup_symbol(itb->pc));
+                               last_tb->tc_ptr, last_tb->pc,
+                               lookup_symbol(last_tb->pc));
         if (cc->synchronize_from_tb) {
-            cc->synchronize_from_tb(cpu, tb);
+            cc->synchronize_from_tb(cpu, last_tb);
         } else {
             assert(cc->set_pc);
-            cc->set_pc(cpu, tb->pc);
+            cc->set_pc(cpu, last_tb->pc);
         }
     }
-    if ((next_tb & TB_EXIT_MASK) == TB_EXIT_REQUESTED) {
+    if (tb_exit == TB_EXIT_REQUESTED) {
         /* We were asked to stop executing TBs (probably a pending
          * interrupt. We've now stopped, so clear the flag.
          */
         cpu->tcg_exit_req = 0;
     }
-    return next_tb;
+    return ret;
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -358,8 +361,8 @@ int cpu_exec(CPUState *cpu)
     CPUArchState *env = &x86_cpu->env;
 #endif
     int ret, interrupt_request;
-    TranslationBlock *tb;
-    uintptr_t next_tb;
+    TranslationBlock *tb, *last_tb;
+    int tb_exit = 0;
     SyncClocks sc;
 
     /* replay_interrupt may need current_cpu */
@@ -442,7 +445,7 @@ int cpu_exec(CPUState *cpu)
 #endif
             }
 
-            next_tb = 0; /* force lookup of first TB */
+            last_tb = NULL; /* forget the last executed TB after exception */
             for(;;) {
                 interrupt_request = cpu->interrupt_request;
                 if (unlikely(interrupt_request)) {
@@ -487,7 +490,7 @@ int cpu_exec(CPUState *cpu)
                     else {
                         replay_interrupt();
                         if (cc->cpu_exec_interrupt(cpu, interrupt_request)) {
-                            next_tb = 0;
+                            last_tb = NULL;
                         }
                     }
                     /* Don't use the cached interrupt_request value,
@@ -496,7 +499,7 @@ int cpu_exec(CPUState *cpu)
                         cpu->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
                         /* ensure that no TB jump will be modified as
                            the program flow was changed */
-                        next_tb = 0;
+                        last_tb = NULL;
                     }
                 }
                 if (unlikely(cpu->exit_request
@@ -513,22 +516,24 @@ int cpu_exec(CPUState *cpu)
                     /* as some TB could have been invalidated because
                        of memory exceptions while generating the code, we
                        must recompute the hash index here */
-                    next_tb = 0;
+                    last_tb = NULL;
                     tcg_ctx.tb_ctx.tb_invalidated_flag = 0;
                 }
                 /* See if we can patch the calling TB. */
-                if (next_tb != 0 && !qemu_loglevel_mask(CPU_LOG_TB_NOCHAIN)) {
-                    tb_add_jump((TranslationBlock *)(next_tb & ~TB_EXIT_MASK),
-                                next_tb & TB_EXIT_MASK, tb);
+                if (last_tb && !qemu_loglevel_mask(CPU_LOG_TB_NOCHAIN)) {
+                    tb_add_jump(last_tb, tb_exit, tb);
                 }
                 tb_unlock();
                 if (likely(!cpu->exit_request)) {
+                    uintptr_t ret;
                     trace_exec_tb(tb, tb->pc);
                     /* execute the generated code */
                     cpu->current_tb = tb;
-                    next_tb = cpu_tb_exec(cpu, tb);
+                    ret = cpu_tb_exec(cpu, tb);
                     cpu->current_tb = NULL;
-                    switch (next_tb & TB_EXIT_MASK) {
+                    last_tb = (TranslationBlock *)(ret & ~TB_EXIT_MASK);
+                    tb_exit = ret & TB_EXIT_MASK;
+                    switch (tb_exit) {
                     case TB_EXIT_REQUESTED:
                         /* Something asked us to stop executing
                          * chained TBs; just continue round the main
@@ -541,7 +546,7 @@ int cpu_exec(CPUState *cpu)
                          * or cpu->interrupt_request.
                          */
                         smp_rmb();
-                        next_tb = 0;
+                        last_tb = NULL;
                         break;
                     case TB_EXIT_ICOUNT_EXPIRED:
                     {
@@ -559,12 +564,12 @@ int cpu_exec(CPUState *cpu)
                         } else {
                             if (insns_left > 0) {
                                 /* Execute remaining instructions.  */
-                                tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
-                                cpu_exec_nocache(cpu, insns_left, tb, false);
+                                cpu_exec_nocache(cpu, insns_left,
+                                                 last_tb, false);
                                 align_clocks(&sc, cpu);
                             }
                             cpu->exception_index = EXCP_INTERRUPT;
-                            next_tb = 0;
+                            last_tb = NULL;
                             cpu_loop_exit(cpu);
                         }
                         break;
