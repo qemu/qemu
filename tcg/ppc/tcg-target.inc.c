@@ -1237,6 +1237,7 @@ static void tcg_out_brcond2 (TCGContext *s, const TCGArg *args,
     tcg_out_bc(s, BC | BI(7, CR_EQ) | BO_COND_TRUE, arg_label(args[5]));
 }
 
+#ifdef __powerpc64__
 void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
 {
     tcg_insn_unit i1, i2;
@@ -1265,11 +1266,18 @@ void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
     pair = (uint64_t)i2 << 32 | i1;
 #endif
 
-    /* ??? __atomic_store_8, presuming there's some way to do that
-       for 32-bit, otherwise this is good enough for 64-bit.  */
-    *(uint64_t *)jmp_addr = pair;
+    atomic_set((uint64_t *)jmp_addr, pair);
     flush_icache_range(jmp_addr, jmp_addr + 8);
 }
+#else
+void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
+{
+    intptr_t diff = addr - jmp_addr;
+    tcg_debug_assert(in_range_b(diff));
+    atomic_set((uint32_t *)jmp_addr, B | (diff & 0x3fffffc));
+    flush_icache_range(jmp_addr, jmp_addr + 4);
+}
+#endif
 
 static void tcg_out_call(TCGContext *s, tcg_insn_unit *target)
 {
@@ -1895,7 +1903,9 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
     case INDEX_op_goto_tb:
         tcg_debug_assert(s->tb_jmp_offset);
-        /* Direct jump.  Ensure the next insns are 8-byte aligned. */
+        /* Direct jump. */
+#ifdef __powerpc64__
+        /* Ensure the next insns are 8-byte aligned. */
         if ((uintptr_t)s->code_ptr & 7) {
             tcg_out32(s, NOP);
         }
@@ -1904,6 +1914,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         s->code_ptr += 2;
         tcg_out32(s, MTSPR | RS(TCG_REG_TMP1) | CTR);
         tcg_out32(s, BCCTR | BO_ALWAYS);
+#else
+        /* To be replaced by a branch.  */
+        s->code_ptr++;
+#endif
         s->tb_next_offset[args[0]] = tcg_current_code_size(s);
         break;
     case INDEX_op_br:
