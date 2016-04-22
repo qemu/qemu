@@ -22,6 +22,8 @@ typedef struct AcpiCpuStatus {
     uint64_t arch_id;
     bool is_inserting;
     bool is_removing;
+    uint32_t ost_event;
+    uint32_t ost_status;
 } AcpiCpuStatus;
 
 typedef struct CPUHotplugState {
@@ -53,6 +55,8 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
                     hwaddr io_base,
                     const char *res_root,
                     const char *event_handler_method);
+
+void acpi_cpu_ospm_status(CPUHotplugState *cpu_st, ACPIOSTInfoList ***list);
 
 extern const VMStateDescription vmstate_cpu_hotplug;
 #define VMSTATE_CPU_HOTPLUG(cpuhp, state) \

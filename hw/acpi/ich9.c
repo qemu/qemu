@@ -513,4 +513,7 @@ void ich9_pm_ospm_status(AcpiDeviceIf *adev, ACPIOSTInfoList ***list)
     ICH9LPCState *s = ICH9_LPC_DEVICE(adev);
 
     acpi_memory_ospm_status(&s->pm.acpi_memory_hotplug, list);
+    if (!s->pm.cpu_hotplug_legacy) {
+        acpi_cpu_ospm_status(&s->pm.cpuhp_state, list);
+    }
 }

@@ -2,6 +2,7 @@
 #include "hw/boards.h"
 #include "hw/acpi/cpu.h"
 #include "qapi/error.h"
+#include "qapi-event.h"
 #include "trace.h"
 
 #define ACPI_CPU_HOTPLUG_REG_LEN 12
@@ -12,8 +13,41 @@
 
 enum {
     CPHP_GET_NEXT_CPU_WITH_EVENT_CMD = 0,
+    CPHP_OST_EVENT_CMD = 1,
+    CPHP_OST_STATUS_CMD = 2,
     CPHP_CMD_MAX
 };
+
+static ACPIOSTInfo *acpi_cpu_device_status(int idx, AcpiCpuStatus *cdev)
+{
+    ACPIOSTInfo *info = g_new0(ACPIOSTInfo, 1);
+
+    info->slot_type = ACPI_SLOT_TYPE_CPU;
+    info->slot = g_strdup_printf("%d", idx);
+    info->source = cdev->ost_event;
+    info->status = cdev->ost_status;
+    if (cdev->cpu) {
+        DeviceState *dev = DEVICE(cdev->cpu);
+        if (dev->id) {
+            info->device = g_strdup(dev->id);
+            info->has_device = true;
+        }
+    }
+    return info;
+}
+
+void acpi_cpu_ospm_status(CPUHotplugState *cpu_st, ACPIOSTInfoList ***list)
+{
+    int i;
+
+    for (i = 0; i < cpu_st->dev_count; i++) {
+        ACPIOSTInfoList *elem = g_new0(ACPIOSTInfoList, 1);
+        elem->value = acpi_cpu_device_status(i, &cpu_st->devs[i]);
+        elem->next = NULL;
+        **list = elem;
+        *list = &elem->next;
+    }
+}
 
 static uint64_t cpu_hotplug_rd(void *opaque, hwaddr addr, unsigned size)
 {
@@ -54,6 +88,7 @@ static void cpu_hotplug_wr(void *opaque, hwaddr addr, uint64_t data,
 {
     CPUHotplugState *cpu_st = opaque;
     AcpiCpuStatus *cdev;
+    ACPIOSTInfo *info;
 
     assert(cpu_st->dev_count);
 
@@ -110,6 +145,28 @@ static void cpu_hotplug_wr(void *opaque, hwaddr addr, uint64_t data,
                     iter = iter + 1 < cpu_st->dev_count ? iter + 1 : 0;
                 } while (iter != cpu_st->selector);
             }
+        }
+        break;
+    case ACPI_CPU_CMD_DATA_OFFSET_RW:
+        switch (cpu_st->command) {
+        case CPHP_OST_EVENT_CMD: {
+           cdev = &cpu_st->devs[cpu_st->selector];
+           cdev->ost_event = data;
+           trace_cpuhp_acpi_write_ost_ev(cpu_st->selector, cdev->ost_event);
+           break;
+        }
+        case CPHP_OST_STATUS_CMD: {
+           cdev = &cpu_st->devs[cpu_st->selector];
+           cdev->ost_status = data;
+           info = acpi_cpu_device_status(cpu_st->selector, cdev);
+           qapi_event_send_acpi_device_ost(info, &error_abort);
+           qapi_free_ACPIOSTInfo(info);
+           trace_cpuhp_acpi_write_ost_status(cpu_st->selector,
+                                             cdev->ost_status);
+           break;
+        }
+        default:
+           break;
         }
         break;
     default:
@@ -216,6 +273,8 @@ static const VMStateDescription vmstate_cpuhp_sts = {
     .fields      = (VMStateField[]) {
         VMSTATE_BOOL(is_inserting, AcpiCpuStatus),
         VMSTATE_BOOL(is_removing, AcpiCpuStatus),
+        VMSTATE_UINT32(ost_event, AcpiCpuStatus),
+        VMSTATE_UINT32(ost_status, AcpiCpuStatus),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -241,6 +300,7 @@ const VMStateDescription vmstate_cpu_hotplug = {
 #define CPU_SCAN_METHOD   "CSCN"
 #define CPU_NOTIFY_METHOD "CTFY"
 #define CPU_EJECT_METHOD  "CEJ0"
+#define CPU_OST_METHOD    "COST"
 
 #define CPU_ENABLED       "CPEN"
 #define CPU_SELECTOR      "CSEL"
@@ -416,6 +476,22 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
         }
         aml_append(cpus_dev, method);
 
+        method = aml_method(CPU_OST_METHOD, 4, AML_SERIALIZED);
+        {
+            Aml *uid = aml_arg(0);
+            Aml *ev_cmd = aml_int(CPHP_OST_EVENT_CMD);
+            Aml *st_cmd = aml_int(CPHP_OST_STATUS_CMD);
+
+            aml_append(method, aml_acquire(ctrl_lock, 0xFFFF));
+            aml_append(method, aml_store(uid, cpu_selector));
+            aml_append(method, aml_store(ev_cmd, cpu_cmd));
+            aml_append(method, aml_store(aml_arg(1), cpu_data));
+            aml_append(method, aml_store(st_cmd, cpu_cmd));
+            aml_append(method, aml_store(aml_arg(2), cpu_data));
+            aml_append(method, aml_release(ctrl_lock));
+        }
+        aml_append(cpus_dev, method);
+
         /* build Processor object for each processor */
         for (i = 0; i < arch_ids->len; i++) {
             Aml *dev;
@@ -455,6 +531,12 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
             aml_append(method, aml_call1(CPU_EJECT_METHOD, uid));
             aml_append(dev, method);
 
+            method = aml_method("_OST", 3, AML_SERIALIZED);
+            aml_append(method,
+                aml_call4(CPU_OST_METHOD, uid, aml_arg(0),
+                          aml_arg(1), aml_arg(2))
+            );
+            aml_append(dev, method);
             aml_append(cpus_dev, dev);
         }
     }

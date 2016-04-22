@@ -4079,8 +4079,9 @@
 ## @ACPISlotType
 #
 # @DIMM: memory slot
+# @CPU: logical CPU slot (since 2.7)
 #
-{ 'enum': 'ACPISlotType', 'data': [ 'DIMM' ] }
+{ 'enum': 'ACPISlotType', 'data': [ 'DIMM', 'CPU' ] }
 
 ## @ACPIOSTInfo
 #
