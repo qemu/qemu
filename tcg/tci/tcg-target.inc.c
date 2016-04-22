@@ -556,6 +556,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         if (s->tb_jmp_offset) {
             /* Direct jump method. */
             tcg_debug_assert(args[0] < ARRAY_SIZE(s->tb_jmp_offset));
+            /* Align for atomic patching and thread safety */
+            s->code_ptr = QEMU_ALIGN_PTR_UP(s->code_ptr, 4);
             s->tb_jmp_offset[args[0]] = tcg_current_code_size(s);
             tcg_out32(s, 0);
         } else {

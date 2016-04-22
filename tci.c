@@ -1089,7 +1089,10 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             goto exit;
             break;
         case INDEX_op_goto_tb:
-            t0 = tci_read_i32(&tb_ptr);
+            /* Jump address is aligned */
+            tb_ptr = QEMU_ALIGN_PTR_UP(tb_ptr, 4);
+            t0 = atomic_read((int32_t *)tb_ptr);
+            tb_ptr += sizeof(int32_t);
             tci_assert(tb_ptr == old_code_ptr + op_size);
             tb_ptr += (int32_t)t0;
             continue;
