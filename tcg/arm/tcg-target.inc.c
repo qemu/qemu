@@ -121,6 +121,14 @@ static inline void reloc_pc24(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
     *code_ptr = (*code_ptr & ~0xffffff) | (offset & 0xffffff);
 }
 
+static inline void reloc_pc24_atomic(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
+{
+    ptrdiff_t offset = (tcg_ptr_byte_diff(target, code_ptr) - 8) >> 2;
+    tcg_insn_unit insn = atomic_read(code_ptr);
+    tcg_debug_assert(offset == sextract32(offset, 0, 24));
+    atomic_set(code_ptr, deposit32(insn, 0, 24, offset));
+}
+
 static void patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
@@ -1036,6 +1044,16 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *addr)
         tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, TCG_REG_PC, -4);
         tcg_out32(s, addri);
     }
+}
+
+void arm_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
+{
+    tcg_insn_unit *code_ptr = (tcg_insn_unit *)jmp_addr;
+    tcg_insn_unit *target = (tcg_insn_unit *)addr;
+
+    /* we could use a ldr pc, [pc, #-4] kind of branch and avoid the flush */
+    reloc_pc24_atomic(code_ptr, target);
+    flush_icache_range(jmp_addr, jmp_addr + 4);
 }
 
 static inline void tcg_out_goto_label(TCGContext *s, int cond, TCGLabel *l)

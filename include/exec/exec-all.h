@@ -328,29 +328,8 @@ static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 void aarch64_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
 #define tb_set_jmp_target1 aarch64_tb_set_jmp_target
 #elif defined(__arm__)
-static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
-{
-#if !QEMU_GNUC_PREREQ(4, 1)
-    register unsigned long _beg __asm ("a1");
-    register unsigned long _end __asm ("a2");
-    register unsigned long _flg __asm ("a3");
-#endif
-
-    /* we could use a ldr pc, [pc, #-4] kind of branch and avoid the flush */
-    *(uint32_t *)jmp_addr =
-        (*(uint32_t *)jmp_addr & ~0xffffff)
-        | (((addr - (jmp_addr + 8)) >> 2) & 0xffffff);
-
-#if QEMU_GNUC_PREREQ(4, 1)
-    __builtin___clear_cache((char *) jmp_addr, (char *) jmp_addr + 4);
-#else
-    /* flush icache */
-    _beg = jmp_addr;
-    _end = jmp_addr + 4;
-    _flg = 0;
-    __asm __volatile__ ("swi 0x9f0002" : : "r" (_beg), "r" (_end), "r" (_flg));
-#endif
-}
+void arm_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
+#define tb_set_jmp_target1 arm_tb_set_jmp_target
 #elif defined(__sparc__) || defined(__mips__)
 void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr);
 #else
