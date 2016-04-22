@@ -230,6 +230,7 @@ static inline void tlb_flush_by_mmuidx(CPUState *cpu, ...)
     || defined(__sparc__) || defined(__aarch64__) \
     || defined(__s390x__) || defined(__mips__) \
     || defined(CONFIG_TCG_INTERPRETER)
+/* NOTE: Direct jump patching must be atomic to be thread-safe. */
 #define USE_DIRECT_JUMP
 #endif
 
