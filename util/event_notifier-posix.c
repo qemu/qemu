@@ -91,9 +91,11 @@ int event_notifier_get_fd(const EventNotifier *e)
 }
 
 int event_notifier_set_handler(EventNotifier *e,
+                               bool is_external,
                                EventNotifierHandler *handler)
 {
-    qemu_set_fd_handler(e->rfd, (IOHandler *)handler, NULL, e);
+    aio_set_fd_handler(iohandler_get_aio_context(), e->rfd, is_external,
+                       (IOHandler *)handler, NULL, e);
     return 0;
 }
 

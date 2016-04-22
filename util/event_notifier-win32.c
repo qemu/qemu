@@ -33,6 +33,7 @@ HANDLE event_notifier_get_handle(EventNotifier *e)
 }
 
 int event_notifier_set_handler(EventNotifier *e,
+                               bool is_external,
                                EventNotifierHandler *handler)
 {
     if (handler) {

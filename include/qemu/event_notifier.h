@@ -34,7 +34,9 @@ int event_notifier_init(EventNotifier *, int active);
 void event_notifier_cleanup(EventNotifier *);
 int event_notifier_set(EventNotifier *);
 int event_notifier_test_and_clear(EventNotifier *);
-int event_notifier_set_handler(EventNotifier *, EventNotifierHandler *);
+int event_notifier_set_handler(EventNotifier *,
+                               bool is_external,
+                               EventNotifierHandler *);
 
 #ifdef CONFIG_POSIX
 void event_notifier_init_fd(EventNotifier *, int fd);

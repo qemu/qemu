@@ -44,6 +44,12 @@ static void iohandler_init(void)
     }
 }
 
+AioContext *iohandler_get_aio_context(void)
+{
+    iohandler_init();
+    return iohandler_ctx;
+}
+
 GSource *iohandler_get_g_source(void)
 {
     iohandler_init();

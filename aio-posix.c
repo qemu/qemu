@@ -282,10 +282,12 @@ bool aio_pending(AioContext *ctx)
         int revents;
 
         revents = node->pfd.revents & node->pfd.events;
-        if (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR) && node->io_read) {
+        if (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR) && node->io_read &&
+            aio_node_check(ctx, node->is_external)) {
             return true;
         }
-        if (revents & (G_IO_OUT | G_IO_ERR) && node->io_write) {
+        if (revents & (G_IO_OUT | G_IO_ERR) && node->io_write &&
+            aio_node_check(ctx, node->is_external)) {
             return true;
         }
     }
@@ -323,6 +325,7 @@ bool aio_dispatch(AioContext *ctx)
 
         if (!node->deleted &&
             (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR)) &&
+            aio_node_check(ctx, node->is_external) &&
             node->io_read) {
             node->io_read(node->opaque);
 
@@ -333,6 +336,7 @@ bool aio_dispatch(AioContext *ctx)
         }
         if (!node->deleted &&
             (revents & (G_IO_OUT | G_IO_ERR)) &&
+            aio_node_check(ctx, node->is_external) &&
             node->io_write) {
             node->io_write(node->opaque);
             progress = true;
