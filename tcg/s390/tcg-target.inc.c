@@ -219,6 +219,8 @@ typedef enum S390Opcode {
     RX_ST       = 0x50,
     RX_STC      = 0x42,
     RX_STH      = 0x40,
+
+    NOP         = 0x0707,
 } S390Opcode;
 
 #ifdef CONFIG_DEBUG_TCG
@@ -1716,6 +1718,12 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_goto_tb:
         if (s->tb_jmp_offset) {
+            /* branch displacement must be aligned for atomic patching;
+             * see if we need to add extra nop before branch
+             */
+            if (!QEMU_PTR_IS_ALIGNED(s->code_ptr + 1, 4)) {
+                tcg_out16(s, NOP);
+            }
             tcg_out16(s, RIL_BRCL | (S390_CC_ALWAYS << 4));
             s->tb_jmp_offset[args[0]] = tcg_current_code_size(s);
             s->code_ptr += 2;

@@ -321,7 +321,7 @@ static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {
     /* patch the branch destination */
     intptr_t disp = addr - (jmp_addr - 2);
-    stl_be_p((void*)jmp_addr, disp / 2);
+    atomic_set((int32_t *)jmp_addr, disp / 2);
     /* no need to flush icache explicitly */
 }
 #elif defined(__aarch64__)
