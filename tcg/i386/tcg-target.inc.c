@@ -1123,6 +1123,21 @@ static void tcg_out_jmp(TCGContext *s, tcg_insn_unit *dest)
     tcg_out_branch(s, 0, dest);
 }
 
+static void tcg_out_nopn(TCGContext *s, int n)
+{
+    int i;
+    /* Emit 1 or 2 operand size prefixes for the standard one byte nop,
+     * "xchg %eax,%eax", forming "xchg %ax,%ax". All cores accept the
+     * duplicate prefix, and all of the interesting recent cores can
+     * decode and discard the duplicates in a single cycle.
+     */
+    tcg_debug_assert(n >= 1);
+    for (i = 1; i < n; ++i) {
+        tcg_out8(s, 0x66);
+    }
+    tcg_out8(s, 0x90);
+}
+
 #if defined(CONFIG_SOFTMMU)
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     int mmu_idx, uintptr_t ra)
@@ -1777,6 +1792,14 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_goto_tb:
         if (s->tb_jmp_offset) {
             /* direct jump method */
+            int gap;
+            /* jump displacement must be aligned for atomic patching;
+             * see if we need to add extra nops before jump
+             */
+            gap = tcg_pcrel_diff(s, QEMU_ALIGN_PTR_UP(s->code_ptr + 1, 4));
+            if (gap != 1) {
+                tcg_out_nopn(s, gap - 1);
+            }
             tcg_out8(s, OPC_JMP_long); /* jmp im */
             s->tb_jmp_offset[args[0]] = tcg_current_code_size(s);
             tcg_out32(s, 0);

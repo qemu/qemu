@@ -313,7 +313,7 @@ void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
 static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {
     /* patch the branch destination */
-    stl_le_p((void*)jmp_addr, addr - (jmp_addr + 4));
+    atomic_set((int32_t *)jmp_addr, addr - (jmp_addr + 4));
     /* no need to flush icache explicitly */
 }
 #elif defined(__s390x__)
