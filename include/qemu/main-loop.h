@@ -204,6 +204,7 @@ void qemu_set_fd_handler(int fd,
                          void *opaque);
 
 GSource *iohandler_get_g_source(void);
+AioContext *iohandler_get_aio_context(void);
 #ifdef CONFIG_POSIX
 /**
  * qemu_add_child_watch: Register a child process for reaping.
