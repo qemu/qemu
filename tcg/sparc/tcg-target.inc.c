@@ -1647,6 +1647,6 @@ void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
        the code_gen_buffer can't be larger than 2GB.  */
     tcg_debug_assert(disp == (int32_t)disp);
 
-    *ptr = CALL | (uint32_t)disp >> 2;
+    atomic_set(ptr, deposit32(CALL, 0, 30, disp >> 2));
     flush_icache_range(jmp_addr, jmp_addr + 4);
 }
