@@ -1885,7 +1885,6 @@ static void tcg_target_init(TCGContext *s)
 
 void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {
-    uint32_t *ptr = (uint32_t *)jmp_addr;
-    *ptr = deposit32(*ptr, 0, 26, addr >> 2);
+    atomic_set((uint32_t *)jmp_addr, deposit32(OPC_J, 0, 26, addr >> 2));
     flush_icache_range(jmp_addr, jmp_addr + 4);
 }
