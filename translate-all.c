@@ -684,11 +684,11 @@ static inline void *alloc_code_gen_buffer(void)
         case 1:
             if (!cross_256mb(buf2, size)) {
                 /* Success!  Use the new buffer.  */
-                munmap(buf, size);
+                munmap(buf, size + qemu_real_host_page_size);
                 break;
             }
             /* Failure.  Work with what we had.  */
-            munmap(buf2, size);
+            munmap(buf2, size + qemu_real_host_page_size);
             /* fallthru */
         default:
             /* Split the original buffer.  Free the smaller half.  */
