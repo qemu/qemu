@@ -515,7 +515,7 @@ static inline size_t size_code_gen_buffer(size_t tb_size)
    that the buffer not cross a 256MB boundary.  */
 static inline bool cross_256mb(void *addr, size_t size)
 {
-    return ((uintptr_t)addr ^ ((uintptr_t)addr + size)) & 0xf0000000;
+    return ((uintptr_t)addr ^ ((uintptr_t)addr + size)) & ~0x0ffffffful;
 }
 
 /* We weren't able to allocate a buffer without crossing that boundary,
@@ -523,7 +523,7 @@ static inline bool cross_256mb(void *addr, size_t size)
    Returns the new base of the buffer, and adjusts code_gen_buffer_size.  */
 static inline void *split_cross_256mb(void *buf1, size_t size1)
 {
-    void *buf2 = (void *)(((uintptr_t)buf1 + size1) & 0xf0000000);
+    void *buf2 = (void *)(((uintptr_t)buf1 + size1) & ~0x0ffffffful);
     size_t size2 = buf1 + size1 - buf2;
 
     size1 = buf2 - buf1;
