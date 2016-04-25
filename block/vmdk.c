@@ -1259,15 +1259,26 @@ static VmdkExtent *find_extent(BDRVVmdkState *s,
     return NULL;
 }
 
+static inline uint64_t vmdk_find_offset_in_cluster(VmdkExtent *extent,
+                                                   int64_t offset)
+{
+    uint64_t offset_in_cluster, extent_begin_offset, extent_relative_offset;
+    uint64_t cluster_size = extent->cluster_sectors * BDRV_SECTOR_SIZE;
+
+    extent_begin_offset =
+        (extent->end_sector - extent->sectors) * BDRV_SECTOR_SIZE;
+    extent_relative_offset = offset - extent_begin_offset;
+    offset_in_cluster = extent_relative_offset % cluster_size;
+
+    return offset_in_cluster;
+}
+
 static inline uint64_t vmdk_find_index_in_cluster(VmdkExtent *extent,
                                                   int64_t sector_num)
 {
-    uint64_t index_in_cluster, extent_begin_sector, extent_relative_sector_num;
-
-    extent_begin_sector = extent->end_sector - extent->sectors;
-    extent_relative_sector_num = sector_num - extent_begin_sector;
-    index_in_cluster = extent_relative_sector_num % extent->cluster_sectors;
-    return index_in_cluster;
+    uint64_t offset;
+    offset = vmdk_find_offset_in_cluster(extent, sector_num * BDRV_SECTOR_SIZE);
+    return offset / BDRV_SECTOR_SIZE;
 }
 
 static int64_t coroutine_fn vmdk_co_get_block_status(BlockDriverState *bs,
