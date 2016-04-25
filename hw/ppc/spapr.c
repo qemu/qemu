@@ -940,11 +940,10 @@ static void spapr_finalize_fdt(sPAPRMachineState *spapr,
 
     QLIST_FOREACH(phb, &spapr->phbs, list) {
         ret = spapr_populate_pci_dt(phb, PHANDLE_XICP, fdt);
-    }
-
-    if (ret < 0) {
-        fprintf(stderr, "couldn't setup PCI devices in fdt\n");
-        exit(1);
+        if (ret < 0) {
+            error_report("couldn't setup PCI devices in fdt");
+            exit(1);
+        }
     }
 
     /* RTAS */
