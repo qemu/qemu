@@ -577,13 +577,13 @@ static void coroutine_fn bdrv_rw_co_entry(void *opaque)
     RwCo *rwco = opaque;
 
     if (!rwco->is_write) {
-        rwco->ret = bdrv_co_do_preadv(rwco->bs, rwco->offset,
-                                      rwco->qiov->size, rwco->qiov,
-                                      rwco->flags);
+        rwco->ret = bdrv_co_preadv(rwco->bs, rwco->offset,
+                                   rwco->qiov->size, rwco->qiov,
+                                   rwco->flags);
     } else {
-        rwco->ret = bdrv_co_do_pwritev(rwco->bs, rwco->offset,
-                                       rwco->qiov->size, rwco->qiov,
-                                       rwco->flags);
+        rwco->ret = bdrv_co_pwritev(rwco->bs, rwco->offset,
+                                    rwco->qiov->size, rwco->qiov,
+                                    rwco->flags);
     }
 }
 
@@ -1042,7 +1042,7 @@ out:
 /*
  * Handle a read request in coroutine context
  */
-int coroutine_fn bdrv_co_do_preadv(BlockDriverState *bs,
+int coroutine_fn bdrv_co_preadv(BlockDriverState *bs,
     int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
@@ -1124,8 +1124,8 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
         return -EINVAL;
     }
 
-    return bdrv_co_do_preadv(bs, sector_num << BDRV_SECTOR_BITS,
-                             nb_sectors << BDRV_SECTOR_BITS, qiov, flags);
+    return bdrv_co_preadv(bs, sector_num << BDRV_SECTOR_BITS,
+                          nb_sectors << BDRV_SECTOR_BITS, qiov, flags);
 }
 
 int coroutine_fn bdrv_co_readv(BlockDriverState *bs, int64_t sector_num,
@@ -1385,7 +1385,7 @@ fail:
 /*
  * Handle a write request in coroutine context
  */
-int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
+int coroutine_fn bdrv_co_pwritev(BlockDriverState *bs,
     int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
@@ -1520,8 +1520,8 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
         return -EINVAL;
     }
 
-    return bdrv_co_do_pwritev(bs, sector_num << BDRV_SECTOR_BITS,
-                              nb_sectors << BDRV_SECTOR_BITS, qiov, flags);
+    return bdrv_co_pwritev(bs, sector_num << BDRV_SECTOR_BITS,
+                           nb_sectors << BDRV_SECTOR_BITS, qiov, flags);
 }
 
 int coroutine_fn bdrv_co_writev(BlockDriverState *bs, int64_t sector_num,

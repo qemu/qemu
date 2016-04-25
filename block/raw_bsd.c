@@ -105,8 +105,8 @@ raw_co_writev_flags(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
-    ret = bdrv_co_do_pwritev(bs->file->bs, sector_num * BDRV_SECTOR_SIZE,
-                             nb_sectors * BDRV_SECTOR_SIZE, qiov, flags);
+    ret = bdrv_co_pwritev(bs->file->bs, sector_num * BDRV_SECTOR_SIZE,
+                          nb_sectors * BDRV_SECTOR_SIZE, qiov, flags);
 
 fail:
     if (qiov == &local_qiov) {

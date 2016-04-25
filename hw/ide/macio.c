@@ -55,8 +55,8 @@ static const int debug_macio = 0;
 /*
  * Unaligned DMA read/write access functions required for OS X/Darwin which
  * don't perform DMA transactions on sector boundaries. These functions are
- * modelled on bdrv_co_do_preadv()/bdrv_co_do_pwritev() and so should be
- * easy to remove if the unaligned block APIs are ever exposed.
+ * modelled on bdrv_co_preadv()/bdrv_co_pwritev() and so should be easy to
+ * remove if the unaligned block APIs are ever exposed.
  */
 
 static void pmac_dma_read(BlockBackend *blk,
