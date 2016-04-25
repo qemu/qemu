@@ -440,6 +440,8 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
 
     bs->read_only = 1;
+    bs->request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O supported */
+
     s->n_chunks = 0;
     s->offsets = s->lengths = s->sectors = s->sectorcounts = NULL;
     /* used by dmg_read_mish_block to keep track of the current I/O position */
@@ -659,38 +661,42 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
     return 0;
 }
 
-static int dmg_read(BlockDriverState *bs, int64_t sector_num,
-                    uint8_t *buf, int nb_sectors)
+static int coroutine_fn
+dmg_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
+              QEMUIOVector *qiov, int flags)
 {
     BDRVDMGState *s = bs->opaque;
-    int i;
+    uint64_t sector_num = offset >> BDRV_SECTOR_BITS;
+    int nb_sectors = bytes >> BDRV_SECTOR_BITS;
+    int ret, i;
+
+    assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
+
+    qemu_co_mutex_lock(&s->lock);
 
     for (i = 0; i < nb_sectors; i++) {
         uint32_t sector_offset_in_chunk;
+        void *data;
+
         if (dmg_read_chunk(bs, sector_num + i) != 0) {
-            return -1;
+            ret = -EIO;
+            goto fail;
         }
         /* Special case: current chunk is all zeroes. Do not perform a memcpy as
          * s->uncompressed_chunk may be too small to cover the large all-zeroes
          * section. dmg_read_chunk is called to find s->current_chunk */
         if (s->types[s->current_chunk] == 2) { /* all zeroes block entry */
-            memset(buf + i * 512, 0, 512);
+            qemu_iovec_memset(qiov, i * 512, 0, 512);
             continue;
         }
         sector_offset_in_chunk = sector_num + i - s->sectors[s->current_chunk];
-        memcpy(buf + i * 512,
-               s->uncompressed_chunk + sector_offset_in_chunk * 512, 512);
+        data = s->uncompressed_chunk + sector_offset_in_chunk * 512;
+        qemu_iovec_from_buf(qiov, i * 512, data, 512);
     }
-    return 0;
-}
 
-static coroutine_fn int dmg_co_read(BlockDriverState *bs, int64_t sector_num,
-                                    uint8_t *buf, int nb_sectors)
-{
-    int ret;
-    BDRVDMGState *s = bs->opaque;
-    qemu_co_mutex_lock(&s->lock);
-    ret = dmg_read(bs, sector_num, buf, nb_sectors);
+    ret = 0;
+fail:
     qemu_co_mutex_unlock(&s->lock);
     return ret;
 }
@@ -715,7 +721,7 @@ static BlockDriver bdrv_dmg = {
     .instance_size  = sizeof(BDRVDMGState),
     .bdrv_probe     = dmg_probe,
     .bdrv_open      = dmg_open,
-    .bdrv_read      = dmg_co_read,
+    .bdrv_co_preadv = dmg_co_preadv,
     .bdrv_close     = dmg_close,
 };
 
