@@ -299,7 +299,11 @@ static const TypeInfo ccw_machine_info = {
     }                                                                         \
     type_init(ccw_machine_register_##suffix)
 
+#define CCW_COMPAT_2_6 \
+        HW_COMPAT_2_6
+
 #define CCW_COMPAT_2_5 \
+        CCW_COMPAT_2_6 \
         HW_COMPAT_2_5
 
 #define CCW_COMPAT_2_4 \
@@ -343,21 +347,35 @@ static const TypeInfo ccw_machine_info = {
             .value    = "0",\
         },
 
+static void ccw_machine_2_7_instance_options(MachineState *machine)
+{
+}
+
+static void ccw_machine_2_7_class_options(MachineClass *mc)
+{
+}
+DEFINE_CCW_MACHINE(2_7, "2.7", true);
+
 static void ccw_machine_2_6_instance_options(MachineState *machine)
 {
+    ccw_machine_2_7_instance_options(machine);
 }
 
 static void ccw_machine_2_6_class_options(MachineClass *mc)
 {
+    ccw_machine_2_7_class_options(mc);
+    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_6);
 }
-DEFINE_CCW_MACHINE(2_6, "2.6", true);
+DEFINE_CCW_MACHINE(2_6, "2.6", false);
 
 static void ccw_machine_2_5_instance_options(MachineState *machine)
 {
+    ccw_machine_2_6_instance_options(machine);
 }
 
 static void ccw_machine_2_5_class_options(MachineClass *mc)
 {
+    ccw_machine_2_6_class_options(mc);
     SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_5);
 }
 DEFINE_CCW_MACHINE(2_5, "2.5", false);
@@ -369,6 +387,7 @@ static void ccw_machine_2_4_instance_options(MachineState *machine)
 
 static void ccw_machine_2_4_class_options(MachineClass *mc)
 {
+    ccw_machine_2_5_class_options(mc);
     SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_4);
 }
 DEFINE_CCW_MACHINE(2_4, "2.4", false);
