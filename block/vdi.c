@@ -611,53 +611,55 @@ vdi_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     return ret;
 }
 
-static int vdi_co_write(BlockDriverState *bs,
-        int64_t sector_num, const uint8_t *buf, int nb_sectors)
+static int coroutine_fn
+vdi_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
+               QEMUIOVector *qiov, int flags)
 {
     BDRVVdiState *s = bs->opaque;
+    QEMUIOVector local_qiov;
     uint32_t bmap_entry;
     uint32_t block_index;
-    uint32_t sector_in_block;
-    uint32_t n_sectors;
+    uint32_t offset_in_block;
+    uint32_t n_bytes;
     uint32_t bmap_first = VDI_UNALLOCATED;
     uint32_t bmap_last = VDI_UNALLOCATED;
     uint8_t *block = NULL;
+    uint64_t bytes_done = 0;
     int ret = 0;
 
     logout("\n");
 
-    while (ret >= 0 && nb_sectors > 0) {
-        block_index = sector_num / s->block_sectors;
-        sector_in_block = sector_num % s->block_sectors;
-        n_sectors = s->block_sectors - sector_in_block;
-        if (n_sectors > nb_sectors) {
-            n_sectors = nb_sectors;
-        }
+    qemu_iovec_init(&local_qiov, qiov->niov);
 
-        logout("will write %u sectors starting at sector %" PRIu64 "\n",
-               n_sectors, sector_num);
+    while (ret >= 0 && bytes > 0) {
+        block_index = offset / s->block_size;
+        offset_in_block = offset % s->block_size;
+        n_bytes = MIN(bytes, s->block_size - offset_in_block);
+
+        logout("will write %u bytes starting at offset %" PRIu64 "\n",
+               n_bytes, offset);
 
         /* prepare next AIO request */
         bmap_entry = le32_to_cpu(s->bmap[block_index]);
         if (!VDI_IS_ALLOCATED(bmap_entry)) {
             /* Allocate new block and write to it. */
-            uint64_t offset;
+            uint64_t data_offset;
             bmap_entry = s->header.blocks_allocated;
             s->bmap[block_index] = cpu_to_le32(bmap_entry);
             s->header.blocks_allocated++;
-            offset = s->header.offset_data / SECTOR_SIZE +
-                     (uint64_t)bmap_entry * s->block_sectors;
+            data_offset = s->header.offset_data +
+                          (uint64_t)bmap_entry * s->block_size;
             if (block == NULL) {
                 block = g_malloc(s->block_size);
                 bmap_first = block_index;
             }
             bmap_last = block_index;
             /* Copy data to be written to new block and zero unused parts. */
-            memset(block, 0, sector_in_block * SECTOR_SIZE);
-            memcpy(block + sector_in_block * SECTOR_SIZE,
-                   buf, n_sectors * SECTOR_SIZE);
-            memset(block + (sector_in_block + n_sectors) * SECTOR_SIZE, 0,
-                   (s->block_sectors - n_sectors - sector_in_block) * SECTOR_SIZE);
+            memset(block, 0, offset_in_block);
+            qemu_iovec_to_buf(qiov, bytes_done, block + offset_in_block,
+                              n_bytes);
+            memset(block + offset_in_block + n_bytes, 0,
+                   s->block_size - n_bytes - offset_in_block);
 
             /* Note that this coroutine does not yield anywhere from reading the
              * bmap entry until here, so in regards to all the coroutines trying
@@ -667,12 +669,12 @@ static int vdi_co_write(BlockDriverState *bs,
              * acquire the lock and thus the padded cluster is written before
              * the other coroutines can write to the affected area. */
             qemu_co_mutex_lock(&s->write_lock);
-            ret = bdrv_write(bs->file->bs, offset, block, s->block_sectors);
+            ret = bdrv_pwrite(bs->file->bs, data_offset, block, s->block_size);
             qemu_co_mutex_unlock(&s->write_lock);
         } else {
-            uint64_t offset = s->header.offset_data / SECTOR_SIZE +
-                              (uint64_t)bmap_entry * s->block_sectors +
-                              sector_in_block;
+            uint64_t data_offset = s->header.offset_data +
+                                   (uint64_t)bmap_entry * s->block_size +
+                                   offset_in_block;
             qemu_co_mutex_lock(&s->write_lock);
             /* This lock is only used to make sure the following write operation
              * is executed after the write issued by the coroutine allocating
@@ -683,15 +685,22 @@ static int vdi_co_write(BlockDriverState *bs,
              * that that write operation has returned (there may be other writes
              * in flight, but they do not concern this very operation). */
             qemu_co_mutex_unlock(&s->write_lock);
-            ret = bdrv_write(bs->file->bs, offset, buf, n_sectors);
+
+            qemu_iovec_reset(&local_qiov);
+            qemu_iovec_concat(&local_qiov, qiov, bytes_done, n_bytes);
+
+            ret = bdrv_co_pwritev(bs->file->bs, data_offset, n_bytes,
+                                  &local_qiov, 0);
         }
 
-        nb_sectors -= n_sectors;
-        sector_num += n_sectors;
-        buf += n_sectors * SECTOR_SIZE;
+        bytes -= n_bytes;
+        offset += n_bytes;
+        bytes_done += n_bytes;
 
-        logout("%u sectors written\n", n_sectors);
+        logout("%u bytes written\n", n_bytes);
     }
+
+    qemu_iovec_destroy(&local_qiov);
 
     logout("finished data write\n");
     if (ret < 0) {
@@ -703,6 +712,7 @@ static int vdi_co_write(BlockDriverState *bs,
         VdiHeader *header = (VdiHeader *) block;
         uint8_t *base;
         uint64_t offset;
+        uint32_t n_sectors;
 
         logout("now writing modified header\n");
         assert(VDI_IS_ALLOCATED(bmap_first));
@@ -914,7 +924,7 @@ static BlockDriver bdrv_vdi = {
 
     .bdrv_co_preadv     = vdi_co_preadv,
 #if defined(CONFIG_VDI_WRITE)
-    .bdrv_write = vdi_co_write,
+    .bdrv_co_pwritev    = vdi_co_pwritev,
 #endif
 
     .bdrv_get_info = vdi_get_info,
