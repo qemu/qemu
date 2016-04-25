@@ -1296,7 +1296,7 @@ static void *file_ram_alloc(RAMBlock *block,
     }
 
     page_size = qemu_fd_getpagesize(fd);
-    block->mr->align = page_size;
+    block->mr->align = MAX(page_size, QEMU_VMALLOC_ALIGN);
 
     if (memory < page_size) {
         error_setg(errp, "memory size 0x" RAM_ADDR_FMT " must be equal to "
@@ -1317,7 +1317,8 @@ static void *file_ram_alloc(RAMBlock *block,
         perror("ftruncate");
     }
 
-    area = qemu_ram_mmap(fd, memory, page_size, block->flags & RAM_SHARED);
+    area = qemu_ram_mmap(fd, memory, block->mr->align,
+                         block->flags & RAM_SHARED);
     if (area == MAP_FAILED) {
         error_setg_errno(errp, errno,
                          "unable to map backing store for guest RAM");
