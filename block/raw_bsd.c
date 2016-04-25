@@ -116,13 +116,6 @@ fail:
     return ret;
 }
 
-static int coroutine_fn
-raw_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
-              QEMUIOVector *qiov)
-{
-    return raw_co_writev_flags(bs, sector_num, nb_sectors, qiov, 0);
-}
-
 static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
                                             int64_t sector_num,
                                             int nb_sectors, int *pnum,
@@ -256,7 +249,6 @@ BlockDriver bdrv_raw = {
     .bdrv_close           = &raw_close,
     .bdrv_create          = &raw_create,
     .bdrv_co_readv        = &raw_co_readv,
-    .bdrv_co_writev       = &raw_co_writev,
     .bdrv_co_writev_flags = &raw_co_writev_flags,
     .supported_write_flags = BDRV_REQ_FUA,
     .bdrv_co_write_zeroes = &raw_co_write_zeroes,

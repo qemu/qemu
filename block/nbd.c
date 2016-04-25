@@ -374,12 +374,6 @@ static int nbd_co_writev_flags(BlockDriverState *bs, int64_t sector_num,
     return ret;
 }
 
-static int nbd_co_writev(BlockDriverState *bs, int64_t sector_num,
-                         int nb_sectors, QEMUIOVector *qiov)
-{
-    return nbd_co_writev_flags(bs, sector_num, nb_sectors, qiov, 0);
-}
-
 static int nbd_co_flush(BlockDriverState *bs)
 {
     return nbd_client_co_flush(bs);
@@ -476,7 +470,6 @@ static BlockDriver bdrv_nbd = {
     .bdrv_parse_filename        = nbd_parse_filename,
     .bdrv_file_open             = nbd_open,
     .bdrv_co_readv              = nbd_co_readv,
-    .bdrv_co_writev             = nbd_co_writev,
     .bdrv_co_writev_flags       = nbd_co_writev_flags,
     .supported_write_flags      = BDRV_REQ_FUA,
     .bdrv_close                 = nbd_close,
@@ -496,7 +489,6 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_parse_filename        = nbd_parse_filename,
     .bdrv_file_open             = nbd_open,
     .bdrv_co_readv              = nbd_co_readv,
-    .bdrv_co_writev             = nbd_co_writev,
     .bdrv_co_writev_flags       = nbd_co_writev_flags,
     .supported_write_flags      = BDRV_REQ_FUA,
     .bdrv_close                 = nbd_close,
@@ -516,7 +508,6 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_parse_filename        = nbd_parse_filename,
     .bdrv_file_open             = nbd_open,
     .bdrv_co_readv              = nbd_co_readv,
-    .bdrv_co_writev             = nbd_co_writev,
     .bdrv_co_writev_flags       = nbd_co_writev_flags,
     .supported_write_flags      = BDRV_REQ_FUA,
     .bdrv_close                 = nbd_close,

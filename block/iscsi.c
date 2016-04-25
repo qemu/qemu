@@ -513,13 +513,6 @@ retry:
     return 0;
 }
 
-static int coroutine_fn
-iscsi_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
-                QEMUIOVector *iov)
-{
-    return iscsi_co_writev_flags(bs, sector_num, nb_sectors, iov, 0);
-}
-
 
 static bool iscsi_allocationmap_is_allocated(IscsiLun *iscsilun,
                                              int64_t sector_num, int nb_sectors)
@@ -1847,7 +1840,6 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_co_discard      = iscsi_co_discard,
     .bdrv_co_write_zeroes = iscsi_co_write_zeroes,
     .bdrv_co_readv         = iscsi_co_readv,
-    .bdrv_co_writev        = iscsi_co_writev,
     .bdrv_co_writev_flags  = iscsi_co_writev_flags,
     .supported_write_flags = BDRV_REQ_FUA,
     .bdrv_co_flush_to_disk = iscsi_co_flush,
