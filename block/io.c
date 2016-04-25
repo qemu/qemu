@@ -797,6 +797,21 @@ int bdrv_pwrite_sync(BlockDriverState *bs, int64_t offset,
     return 0;
 }
 
+static int coroutine_fn bdrv_driver_preadv(BlockDriverState *bs,
+                                           uint64_t offset, uint64_t bytes,
+                                           QEMUIOVector *qiov, int flags)
+{
+    BlockDriver *drv = bs->drv;
+    int64_t sector_num = offset >> BDRV_SECTOR_BITS;
+    unsigned int nb_sectors = bytes >> BDRV_SECTOR_BITS;
+
+    assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert((bytes >> BDRV_SECTOR_BITS) <= BDRV_REQUEST_MAX_SECTORS);
+
+    return drv->bdrv_co_readv(bs, sector_num, nb_sectors, qiov);
+}
+
 static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
 {
@@ -833,8 +848,9 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
 
     qemu_iovec_init_external(&bounce_qiov, &iov, 1);
 
-    ret = drv->bdrv_co_readv(bs, cluster_sector_num, cluster_nb_sectors,
-                             &bounce_qiov);
+    ret = bdrv_driver_preadv(bs, cluster_sector_num * BDRV_SECTOR_SIZE,
+                             cluster_nb_sectors * BDRV_SECTOR_SIZE,
+                             &bounce_qiov, 0);
     if (ret < 0) {
         goto err;
     }
@@ -877,7 +893,6 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
     BdrvTrackedRequest *req, int64_t offset, unsigned int bytes,
     int64_t align, QEMUIOVector *qiov, int flags)
 {
-    BlockDriver *drv = bs->drv;
     int ret;
 
     int64_t sector_num = offset >> BDRV_SECTOR_BITS;
@@ -918,7 +933,7 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
 
     /* Forward the request to the BlockDriver */
     if (!bs->zero_beyond_eof) {
-        ret = drv->bdrv_co_readv(bs, sector_num, nb_sectors, qiov);
+        ret = bdrv_driver_preadv(bs, offset, bytes, qiov, 0);
     } else {
         /* Read zeros after EOF */
         int64_t total_sectors, max_nb_sectors;
@@ -932,7 +947,7 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
         max_nb_sectors = ROUND_UP(MAX(0, total_sectors - sector_num),
                                   align >> BDRV_SECTOR_BITS);
         if (nb_sectors < max_nb_sectors) {
-            ret = drv->bdrv_co_readv(bs, sector_num, nb_sectors, qiov);
+            ret = bdrv_driver_preadv(bs, offset, bytes, qiov, 0);
         } else if (max_nb_sectors > 0) {
             QEMUIOVector local_qiov;
 
@@ -940,8 +955,9 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
             qemu_iovec_concat(&local_qiov, qiov, 0,
                               max_nb_sectors * BDRV_SECTOR_SIZE);
 
-            ret = drv->bdrv_co_readv(bs, sector_num, max_nb_sectors,
-                                     &local_qiov);
+            ret = bdrv_driver_preadv(bs, offset,
+                                     max_nb_sectors * BDRV_SECTOR_SIZE,
+                                     &local_qiov, 0);
 
             qemu_iovec_destroy(&local_qiov);
         } else {
