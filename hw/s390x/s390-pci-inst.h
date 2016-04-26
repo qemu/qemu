@@ -14,6 +14,7 @@
 #ifndef HW_S390_PCI_INST_H
 #define HW_S390_PCI_INST_H
 
+#include "s390-pci-bus.h"
 #include <sysemu/dma.h>
 
 /* CLP common request & response block size */
@@ -277,6 +278,8 @@ typedef struct ZpciFib {
     uint32_t gd;
 } QEMU_PACKED ZpciFib;
 
+int pci_dereg_irqs(S390PCIBusDevice *pbdev);
+void pci_dereg_ioat(S390PCIBusDevice *pbdev);
 int clp_service_call(S390CPU *cpu, uint8_t r2);
 int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2);
 int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2);

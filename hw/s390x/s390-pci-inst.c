@@ -662,7 +662,7 @@ out:
     return ret;
 }
 
-static int dereg_irqs(S390PCIBusDevice *pbdev)
+int pci_dereg_irqs(S390PCIBusDevice *pbdev)
 {
     release_indicator(&pbdev->routes.adapter, pbdev->summary_ind);
     release_indicator(&pbdev->routes.adapter, pbdev->indicator);
@@ -710,7 +710,7 @@ static int reg_ioat(CPUS390XState *env, S390PCIBusDevice *pbdev, ZpciFib fib)
     return 0;
 }
 
-static void dereg_ioat(S390PCIBusDevice *pbdev)
+void pci_dereg_ioat(S390PCIBusDevice *pbdev)
 {
     s390_pci_iommu_disable(pbdev);
     pbdev->pba = 0;
@@ -758,7 +758,7 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
         }
         break;
     case ZPCI_MOD_FC_DEREG_INT:
-        dereg_irqs(pbdev);
+        pci_dereg_irqs(pbdev);
         break;
     case ZPCI_MOD_FC_REG_IOAT:
         if (reg_ioat(env, pbdev, fib)) {
@@ -766,10 +766,10 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
         }
         break;
     case ZPCI_MOD_FC_DEREG_IOAT:
-        dereg_ioat(pbdev);
+        pci_dereg_ioat(pbdev);
         break;
     case ZPCI_MOD_FC_REREG_IOAT:
-        dereg_ioat(pbdev);
+        pci_dereg_ioat(pbdev);
         if (reg_ioat(env, pbdev, fib)) {
             cc = ZPCI_PCI_LS_ERR;
         }
