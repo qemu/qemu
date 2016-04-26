@@ -127,10 +127,6 @@ struct BlockDriver {
                      Error **errp);
     int (*bdrv_file_open)(BlockDriverState *bs, QDict *options, int flags,
                           Error **errp);
-    int (*bdrv_read)(BlockDriverState *bs, int64_t sector_num,
-                     uint8_t *buf, int nb_sectors);
-    int (*bdrv_write)(BlockDriverState *bs, int64_t sector_num,
-                      const uint8_t *buf, int nb_sectors);
     void (*bdrv_close)(BlockDriverState *bs);
     int (*bdrv_create)(const char *filename, QemuOpts *opts, Error **errp);
     int (*bdrv_set_key)(BlockDriverState *bs, const char *key);

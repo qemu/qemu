@@ -218,8 +218,6 @@ void bdrv_get_full_backing_filename(BlockDriverState *bs, char *dest, size_t sz,
 
 void bdrv_register(BlockDriver *bdrv)
 {
-    bdrv_setup_io_funcs(bdrv);
-
     QLIST_INSERT_HEAD(&bdrv_drivers, bdrv, list);
 }
 

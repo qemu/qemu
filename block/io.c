@@ -34,12 +34,6 @@
 
 #define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
 
-static BlockAIOCB *bdrv_aio_readv_em(BlockDriverState *bs,
-        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockCompletionFunc *cb, void *opaque);
-static BlockAIOCB *bdrv_aio_writev_em(BlockDriverState *bs,
-        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockCompletionFunc *cb, void *opaque);
 static BlockAIOCB *bdrv_co_aio_rw_vector(BlockDriverState *bs,
                                          int64_t sector_num,
                                          QEMUIOVector *qiov,
@@ -102,18 +96,6 @@ void bdrv_io_limits_update_group(BlockDriverState *bs, const char *group)
     /* need to change the group this bs belong to */
     bdrv_io_limits_disable(bs);
     bdrv_io_limits_enable(bs, group);
-}
-
-void bdrv_setup_io_funcs(BlockDriver *bdrv)
-{
-    /* bdrv_co_readv_em()/brdv_co_writev_em() work in terms of aio, so if
-     * the block driver lacks aio we need to emulate that.
-     */
-    if (!bdrv->bdrv_aio_readv) {
-        /* add AIO emulation layer */
-        bdrv->bdrv_aio_readv = bdrv_aio_readv_em;
-        bdrv->bdrv_aio_writev = bdrv_aio_writev_em;
-    }
 }
 
 void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
@@ -2144,80 +2126,6 @@ void bdrv_aio_cancel_async(BlockAIOCB *acb)
 
 /**************************************************************/
 /* async block device emulation */
-
-typedef struct BlockAIOCBSync {
-    BlockAIOCB common;
-    QEMUBH *bh;
-    int ret;
-    /* vector translation state */
-    QEMUIOVector *qiov;
-    uint8_t *bounce;
-    int is_write;
-} BlockAIOCBSync;
-
-static const AIOCBInfo bdrv_em_aiocb_info = {
-    .aiocb_size         = sizeof(BlockAIOCBSync),
-};
-
-static void bdrv_aio_bh_cb(void *opaque)
-{
-    BlockAIOCBSync *acb = opaque;
-
-    if (!acb->is_write && acb->ret >= 0) {
-        qemu_iovec_from_buf(acb->qiov, 0, acb->bounce, acb->qiov->size);
-    }
-    qemu_vfree(acb->bounce);
-    acb->common.cb(acb->common.opaque, acb->ret);
-    qemu_bh_delete(acb->bh);
-    acb->bh = NULL;
-    qemu_aio_unref(acb);
-}
-
-static BlockAIOCB *bdrv_aio_rw_vector(BlockDriverState *bs,
-                                      int64_t sector_num,
-                                      QEMUIOVector *qiov,
-                                      int nb_sectors,
-                                      BlockCompletionFunc *cb,
-                                      void *opaque,
-                                      int is_write)
-
-{
-    BlockAIOCBSync *acb;
-
-    acb = qemu_aio_get(&bdrv_em_aiocb_info, bs, cb, opaque);
-    acb->is_write = is_write;
-    acb->qiov = qiov;
-    acb->bounce = qemu_try_blockalign(bs, qiov->size);
-    acb->bh = aio_bh_new(bdrv_get_aio_context(bs), bdrv_aio_bh_cb, acb);
-
-    if (acb->bounce == NULL) {
-        acb->ret = -ENOMEM;
-    } else if (is_write) {
-        qemu_iovec_to_buf(acb->qiov, 0, acb->bounce, qiov->size);
-        acb->ret = bs->drv->bdrv_write(bs, sector_num, acb->bounce, nb_sectors);
-    } else {
-        acb->ret = bs->drv->bdrv_read(bs, sector_num, acb->bounce, nb_sectors);
-    }
-
-    qemu_bh_schedule(acb->bh);
-
-    return &acb->common;
-}
-
-static BlockAIOCB *bdrv_aio_readv_em(BlockDriverState *bs,
-        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockCompletionFunc *cb, void *opaque)
-{
-    return bdrv_aio_rw_vector(bs, sector_num, qiov, nb_sectors, cb, opaque, 0);
-}
-
-static BlockAIOCB *bdrv_aio_writev_em(BlockDriverState *bs,
-        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockCompletionFunc *cb, void *opaque)
-{
-    return bdrv_aio_rw_vector(bs, sector_num, qiov, nb_sectors, cb, opaque, 1);
-}
-
 
 typedef struct BlockAIOCBCoroutine {
     BlockAIOCB common;
