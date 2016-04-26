@@ -454,22 +454,21 @@ static int vpc_reopen_prepare(BDRVReopenState *state,
  * The parameter write must be 1 if the offset will be used for a write
  * operation (the block bitmaps is updated then), 0 otherwise.
  */
-static inline int64_t get_sector_offset(BlockDriverState *bs,
-    int64_t sector_num, int write)
+static inline int64_t get_image_offset(BlockDriverState *bs, uint64_t offset,
+                                       bool write)
 {
     BDRVVPCState *s = bs->opaque;
-    uint64_t offset = sector_num * 512;
     uint64_t bitmap_offset, block_offset;
-    uint32_t pagetable_index, pageentry_index;
+    uint32_t pagetable_index, offset_in_block;
 
     pagetable_index = offset / s->block_size;
-    pageentry_index = (offset % s->block_size) / 512;
+    offset_in_block = offset % s->block_size;
 
     if (pagetable_index >= s->max_table_entries || s->pagetable[pagetable_index] == 0xffffffff)
         return -1; /* not allocated */
 
     bitmap_offset = 512 * (uint64_t) s->pagetable[pagetable_index];
-    block_offset = bitmap_offset + s->bitmap_size + (512 * pageentry_index);
+    block_offset = bitmap_offset + s->bitmap_size + offset_in_block;
 
     /* We must ensure that we don't write to any sectors which are marked as
        unused in the bitmap. We get away with setting all bits in the block
@@ -485,6 +484,12 @@ static inline int64_t get_sector_offset(BlockDriverState *bs,
     }
 
     return block_offset;
+}
+
+static inline int64_t get_sector_offset(BlockDriverState *bs,
+                                        int64_t sector_num, bool write)
+{
+    return get_image_offset(bs, sector_num * BDRV_SECTOR_SIZE, write);
 }
 
 /*
@@ -573,52 +578,52 @@ static int vpc_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return 0;
 }
 
-static int vpc_read(BlockDriverState *bs, int64_t sector_num,
-                    uint8_t *buf, int nb_sectors)
+static int coroutine_fn
+vpc_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
+              QEMUIOVector *qiov, int flags)
 {
     BDRVVPCState *s = bs->opaque;
     int ret;
-    int64_t offset;
-    int64_t sectors, sectors_per_block;
+    int64_t image_offset;
+    int64_t n_bytes;
+    int64_t bytes_done = 0;
     VHDFooter *footer = (VHDFooter *) s->footer_buf;
+    QEMUIOVector local_qiov;
 
     if (be32_to_cpu(footer->type) == VHD_FIXED) {
-        return bdrv_read(bs->file->bs, sector_num, buf, nb_sectors);
+        return bdrv_co_preadv(bs->file->bs, offset, bytes, qiov, 0);
     }
-    while (nb_sectors > 0) {
-        offset = get_sector_offset(bs, sector_num, 0);
 
-        sectors_per_block = s->block_size >> BDRV_SECTOR_BITS;
-        sectors = sectors_per_block - (sector_num % sectors_per_block);
-        if (sectors > nb_sectors) {
-            sectors = nb_sectors;
-        }
+    qemu_co_mutex_lock(&s->lock);
+    qemu_iovec_init(&local_qiov, qiov->niov);
 
-        if (offset == -1) {
-            memset(buf, 0, sectors * BDRV_SECTOR_SIZE);
+    while (bytes > 0) {
+        image_offset = get_image_offset(bs, offset, false);
+        n_bytes = MIN(bytes, s->block_size - (offset % s->block_size));
+
+        if (image_offset == -1) {
+            qemu_iovec_memset(qiov, bytes_done, 0, n_bytes);
         } else {
-            ret = bdrv_pread(bs->file->bs, offset, buf,
-                sectors * BDRV_SECTOR_SIZE);
-            if (ret != sectors * BDRV_SECTOR_SIZE) {
-                return -1;
+            qemu_iovec_reset(&local_qiov);
+            qemu_iovec_concat(&local_qiov, qiov, bytes_done, n_bytes);
+
+            ret = bdrv_co_preadv(bs->file->bs, image_offset, n_bytes,
+                                 &local_qiov, 0);
+            if (ret < 0) {
+                goto fail;
             }
         }
 
-        nb_sectors -= sectors;
-        sector_num += sectors;
-        buf += sectors * BDRV_SECTOR_SIZE;
+        bytes -= n_bytes;
+        offset += n_bytes;
+        bytes_done += n_bytes;
     }
-    return 0;
-}
 
-static coroutine_fn int vpc_co_read(BlockDriverState *bs, int64_t sector_num,
-                                    uint8_t *buf, int nb_sectors)
-{
-    int ret;
-    BDRVVPCState *s = bs->opaque;
-    qemu_co_mutex_lock(&s->lock);
-    ret = vpc_read(bs, sector_num, buf, nb_sectors);
+    ret = 0;
+fail:
+    qemu_iovec_destroy(&local_qiov);
     qemu_co_mutex_unlock(&s->lock);
+
     return ret;
 }
 
@@ -1056,7 +1061,7 @@ static BlockDriver bdrv_vpc = {
     .bdrv_reopen_prepare    = vpc_reopen_prepare,
     .bdrv_create            = vpc_create,
 
-    .bdrv_read                  = vpc_co_read,
+    .bdrv_co_preadv             = vpc_co_preadv,
     .bdrv_write                 = vpc_co_write,
     .bdrv_co_get_block_status   = vpc_co_get_block_status,
 
