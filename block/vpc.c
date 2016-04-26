@@ -518,7 +518,7 @@ static int rewrite_footer(BlockDriverState* bs)
  *
  * Returns the sectors' offset in the image file on success and < 0 on error
  */
-static int64_t alloc_block(BlockDriverState* bs, int64_t sector_num)
+static int64_t alloc_block(BlockDriverState* bs, int64_t offset)
 {
     BDRVVPCState *s = bs->opaque;
     int64_t bat_offset;
@@ -527,14 +527,13 @@ static int64_t alloc_block(BlockDriverState* bs, int64_t sector_num)
     uint8_t bitmap[s->bitmap_size];
 
     /* Check if sector_num is valid */
-    if ((sector_num < 0) || (sector_num > bs->total_sectors))
-        return -1;
+    if ((offset < 0) || (offset > bs->total_sectors * BDRV_SECTOR_SIZE)) {
+        return -EINVAL;
+    }
 
     /* Write entry into in-memory BAT */
-    index = (sector_num * 512) / s->block_size;
-    if (s->pagetable[index] != 0xFFFFFFFF)
-        return -1;
-
+    index = offset / s->block_size;
+    assert(s->pagetable[index] == 0xFFFFFFFF);
     s->pagetable[index] = s->free_data_block_offset / 512;
 
     /* Initialize the block's bitmap */
@@ -558,11 +557,11 @@ static int64_t alloc_block(BlockDriverState* bs, int64_t sector_num)
     if (ret < 0)
         goto fail;
 
-    return get_sector_offset(bs, sector_num, 0);
+    return get_image_offset(bs, offset, false);
 
 fail:
     s->free_data_block_offset -= (s->block_size + s->bitmap_size);
-    return -1;
+    return ret;
 }
 
 static int vpc_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
@@ -627,55 +626,56 @@ fail:
     return ret;
 }
 
-static int vpc_write(BlockDriverState *bs, int64_t sector_num,
-    const uint8_t *buf, int nb_sectors)
+static int coroutine_fn
+vpc_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
+               QEMUIOVector *qiov, int flags)
 {
     BDRVVPCState *s = bs->opaque;
-    int64_t offset;
-    int64_t sectors, sectors_per_block;
+    int64_t image_offset;
+    int64_t n_bytes;
+    int64_t bytes_done = 0;
     int ret;
     VHDFooter *footer =  (VHDFooter *) s->footer_buf;
+    QEMUIOVector local_qiov;
 
     if (be32_to_cpu(footer->type) == VHD_FIXED) {
-        return bdrv_write(bs->file->bs, sector_num, buf, nb_sectors);
-    }
-    while (nb_sectors > 0) {
-        offset = get_sector_offset(bs, sector_num, 1);
-
-        sectors_per_block = s->block_size >> BDRV_SECTOR_BITS;
-        sectors = sectors_per_block - (sector_num % sectors_per_block);
-        if (sectors > nb_sectors) {
-            sectors = nb_sectors;
-        }
-
-        if (offset == -1) {
-            offset = alloc_block(bs, sector_num);
-            if (offset < 0)
-                return -1;
-        }
-
-        ret = bdrv_pwrite(bs->file->bs, offset, buf,
-                          sectors * BDRV_SECTOR_SIZE);
-        if (ret != sectors * BDRV_SECTOR_SIZE) {
-            return -1;
-        }
-
-        nb_sectors -= sectors;
-        sector_num += sectors;
-        buf += sectors * BDRV_SECTOR_SIZE;
+        return bdrv_co_pwritev(bs->file->bs, offset, bytes, qiov, 0);
     }
 
-    return 0;
-}
-
-static coroutine_fn int vpc_co_write(BlockDriverState *bs, int64_t sector_num,
-                                     const uint8_t *buf, int nb_sectors)
-{
-    int ret;
-    BDRVVPCState *s = bs->opaque;
     qemu_co_mutex_lock(&s->lock);
-    ret = vpc_write(bs, sector_num, buf, nb_sectors);
+    qemu_iovec_init(&local_qiov, qiov->niov);
+
+    while (bytes > 0) {
+        image_offset = get_image_offset(bs, offset, true);
+        n_bytes = MIN(bytes, s->block_size - (offset % s->block_size));
+
+        if (image_offset == -1) {
+            image_offset = alloc_block(bs, offset);
+            if (image_offset < 0) {
+                ret = image_offset;
+                goto fail;
+            }
+        }
+
+        qemu_iovec_reset(&local_qiov);
+        qemu_iovec_concat(&local_qiov, qiov, bytes_done, n_bytes);
+
+        ret = bdrv_co_pwritev(bs->file->bs, image_offset, n_bytes,
+                              &local_qiov, 0);
+        if (ret < 0) {
+            goto fail;
+        }
+
+        bytes -= n_bytes;
+        offset += n_bytes;
+        bytes_done += n_bytes;
+    }
+
+    ret = 0;
+fail:
+    qemu_iovec_destroy(&local_qiov);
     qemu_co_mutex_unlock(&s->lock);
+
     return ret;
 }
 
@@ -1062,7 +1062,7 @@ static BlockDriver bdrv_vpc = {
     .bdrv_create            = vpc_create,
 
     .bdrv_co_preadv             = vpc_co_preadv,
-    .bdrv_write                 = vpc_co_write,
+    .bdrv_co_pwritev            = vpc_co_pwritev,
     .bdrv_co_get_block_status   = vpc_co_get_block_status,
 
     .bdrv_get_info          = vpc_get_info,
