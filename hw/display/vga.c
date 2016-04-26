@@ -142,6 +142,8 @@ static uint32_t expand4[256];
 static uint16_t expand2[256];
 static uint8_t expand4to8[16];
 
+static void vbe_update_vgaregs(VGACommonState *s);
+
 static inline bool vbe_enabled(VGACommonState *s)
 {
     return s->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED;
@@ -484,6 +486,7 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         printf("vga: write SR%x = 0x%02x\n", s->sr_index, val);
 #endif
         s->sr[s->sr_index] = val & sr_mask[s->sr_index];
+        vbe_update_vgaregs(s);
         if (s->sr_index == VGA_SEQ_CLOCK_MODE) {
             s->update_retrace_info(s);
         }
@@ -515,6 +518,7 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         printf("vga: write GR%x = 0x%02x\n", s->gr_index, val);
 #endif
         s->gr[s->gr_index] = val & gr_mask[s->gr_index];
+        vbe_update_vgaregs(s);
         vga_update_memory_access(s);
         break;
     case VGA_CRT_IM:
@@ -533,10 +537,12 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             if (s->cr_index == VGA_CRTC_OVERFLOW) {
                 s->cr[VGA_CRTC_OVERFLOW] = (s->cr[VGA_CRTC_OVERFLOW] & ~0x10) |
                     (val & 0x10);
+                vbe_update_vgaregs(s);
             }
             return;
         }
         s->cr[s->cr_index] = val;
+        vbe_update_vgaregs(s);
 
         switch(s->cr_index) {
         case VGA_CRTC_H_TOTAL:
