@@ -634,8 +634,15 @@ static int reg_irqs(CPUS390XState *env, S390PCIBusDevice *pbdev, ZpciFib fib)
     len = BITS_TO_LONGS(FIB_DATA_NOI(ldl_p(&fib.data))) * sizeof(unsigned long);
     pbdev->indicator = get_indicator(ldq_p(&fib.aibv), len);
 
-    map_indicator(&pbdev->routes.adapter, pbdev->summary_ind);
-    map_indicator(&pbdev->routes.adapter, pbdev->indicator);
+    ret = map_indicator(&pbdev->routes.adapter, pbdev->summary_ind);
+    if (ret) {
+        goto out;
+    }
+
+    ret = map_indicator(&pbdev->routes.adapter, pbdev->indicator);
+    if (ret) {
+        goto out;
+    }
 
     pbdev->routes.adapter.summary_addr = ldq_p(&fib.aisb);
     pbdev->routes.adapter.summary_offset = FIB_DATA_AISBO(ldl_p(&fib.data));
@@ -647,6 +654,12 @@ static int reg_irqs(CPUS390XState *env, S390PCIBusDevice *pbdev, ZpciFib fib)
 
     DPRINTF("reg_irqs adapter id %d\n", pbdev->routes.adapter.adapter_id);
     return 0;
+out:
+    release_indicator(&pbdev->routes.adapter, pbdev->summary_ind);
+    release_indicator(&pbdev->routes.adapter, pbdev->indicator);
+    pbdev->summary_ind = NULL;
+    pbdev->indicator = NULL;
+    return ret;
 }
 
 static int dereg_irqs(S390PCIBusDevice *pbdev)
