@@ -1459,6 +1459,12 @@ static int kvm_max_vcpus(KVMState *s)
     return (ret) ? ret : kvm_recommended_vcpus(s);
 }
 
+bool kvm_vcpu_id_is_valid(int vcpu_id)
+{
+    KVMState *s = KVM_STATE(current_machine->accelerator);
+    return vcpu_id >= 0 && vcpu_id < kvm_max_vcpus(s);
+}
+
 static int kvm_init(MachineState *ms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);

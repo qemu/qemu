@@ -9231,6 +9231,14 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
 #if !defined(CONFIG_USER_ONLY)
     cpu->cpu_dt_id = (cs->cpu_index / smp_threads) * max_smt
         + (cs->cpu_index % smp_threads);
+
+    if (kvm_enabled() && !kvm_vcpu_id_is_valid(cpu->cpu_dt_id)) {
+        error_setg(errp, "Can't create CPU with id %d in KVM", cpu->cpu_dt_id);
+        error_append_hint(errp, "Adjust the number of cpus to %d "
+                          "or try to raise the number of threads per core\n",
+                          cpu->cpu_dt_id * smp_threads / max_smt);
+        return;
+    }
 #endif
 
     if (tcg_enabled()) {
