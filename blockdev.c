@@ -73,7 +73,7 @@ static int if_max_devs[IF_COUNT] = {
      * Do not change these numbers!  They govern how drive option
      * index maps to unit and bus.  That mapping is ABI.
      *
-     * All controllers used to imlement if=T drives need to support
+     * All controllers used to implement if=T drives need to support
      * if_max_devs[T] units, for any T with if_max_devs[T] != 0.
      * Otherwise, some index values map to "impossible" bus, unit
      * values.
