@@ -534,8 +534,7 @@ int main(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, &local_error)) {
-        error_report_err(local_error);
+                          NULL, NULL)) {
         exit(1);
     }
 

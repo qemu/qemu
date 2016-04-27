@@ -140,7 +140,7 @@ typedef bool (*user_creatable_add_opts_predicate)(const char *type);
  * user_creatable_add_opts_foreach:
  * @opaque: a user_creatable_add_opts_predicate callback or NULL
  * @opts: options to create
- * @errp: if an error occurs, a pointer to an area to store the error
+ * @errp: unused
  *
  * An iterator callback to be used in conjunction with
  * the qemu_opts_foreach() method for creating a list of
@@ -148,8 +148,9 @@ typedef bool (*user_creatable_add_opts_predicate)(const char *type);
  *
  * The @opaque parameter can be passed a user_creatable_add_opts_predicate
  * callback to filter which types of object are created during iteration.
+ * When it fails, report the error.
  *
- * Returns: 0 on success, -1 on error
+ * Returns: 0 on success, -1 when an error was reported.
  */
 int user_creatable_add_opts_foreach(void *opaque,
                                     QemuOpts *opts, Error **errp);
