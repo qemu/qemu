@@ -28,7 +28,8 @@
 
 /* This function writes a chunk of data to a file at the given position.
  * The pos argument can be ignored if the file is only being used for
- * streaming.  The handler should try to write all of the data it can.
+ * streaming.  The handler must write all of the data or return a negative
+ * errno value.
  */
 typedef ssize_t (QEMUFilePutBufferFunc)(void *opaque, const uint8_t *buf,
                                         int64_t pos, size_t size);
@@ -54,7 +55,8 @@ typedef int (QEMUFileCloseFunc)(void *opaque);
 typedef int (QEMUFileGetFD)(void *opaque);
 
 /*
- * This function writes an iovec to file.
+ * This function writes an iovec to file. The handler must write all
+ * of the data or return a negative errno value.
  */
 typedef ssize_t (QEMUFileWritevBufferFunc)(void *opaque, struct iovec *iov,
                                            int iovcnt, int64_t pos);

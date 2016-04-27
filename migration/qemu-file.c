@@ -108,11 +108,13 @@ bool qemu_file_is_writable(QEMUFile *f)
  * Flushes QEMUFile buffer
  *
  * If there is writev_buffer QEMUFileOps it uses it otherwise uses
- * put_buffer ops.
+ * put_buffer ops. This will flush all pending data. If data was
+ * only partially flushed, it will set an error state.
  */
 void qemu_fflush(QEMUFile *f)
 {
     ssize_t ret = 0;
+    ssize_t expect = 0;
 
     if (!qemu_file_is_writable(f)) {
         return;
@@ -120,21 +122,27 @@ void qemu_fflush(QEMUFile *f)
 
     if (f->ops->writev_buffer) {
         if (f->iovcnt > 0) {
+            expect = iov_size(f->iov, f->iovcnt);
             ret = f->ops->writev_buffer(f->opaque, f->iov, f->iovcnt, f->pos);
         }
     } else {
         if (f->buf_index > 0) {
+            expect = f->buf_index;
             ret = f->ops->put_buffer(f->opaque, f->buf, f->pos, f->buf_index);
         }
     }
+
     if (ret >= 0) {
         f->pos += ret;
     }
+    /* We expect the QEMUFile write impl to send the full
+     * data set we requested, so sanity check that.
+     */
+    if (ret != expect) {
+        qemu_file_set_error(f, ret < 0 ? ret : -EIO);
+    }
     f->buf_index = 0;
     f->iovcnt = 0;
-    if (ret < 0) {
-        qemu_file_set_error(f, ret);
-    }
 }
 
 void ram_control_before_iterate(QEMUFile *f, uint64_t flags)
