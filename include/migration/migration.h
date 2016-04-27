@@ -135,9 +135,12 @@ struct MigrationState
     QemuThread thread;
     QEMUBH *cleanup_bh;
     QEMUFile *to_dst_file;
-    int parameters[MIGRATION_PARAMETER__MAX];
+
+    /* New style params from 'migrate-set-parameters' */
+    MigrationParameters parameters;
 
     int state;
+    /* Old style params from 'migrate' command */
     MigrationParams params;
 
     /* State related to return path */
