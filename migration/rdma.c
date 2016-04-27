@@ -3380,12 +3380,18 @@ static const QEMUFileOps rdma_read_ops = {
     .get_buffer    = qemu_rdma_get_buffer,
     .get_fd        = qemu_rdma_get_fd,
     .close         = qemu_rdma_close,
+};
+
+static const QEMUFileHooks rdma_read_hooks = {
     .hook_ram_load = rdma_load_hook,
 };
 
 static const QEMUFileOps rdma_write_ops = {
     .put_buffer         = qemu_rdma_put_buffer,
     .close              = qemu_rdma_close,
+};
+
+static const QEMUFileHooks rdma_write_hooks = {
     .before_ram_iterate = qemu_rdma_registration_start,
     .after_ram_iterate  = qemu_rdma_registration_stop,
     .save_page          = qemu_rdma_save_page,
@@ -3404,8 +3410,10 @@ static void *qemu_fopen_rdma(RDMAContext *rdma, const char *mode)
 
     if (mode[0] == 'w') {
         r->file = qemu_fopen_ops(r, &rdma_write_ops);
+        qemu_file_set_hooks(r->file, &rdma_write_hooks);
     } else {
         r->file = qemu_fopen_ops(r, &rdma_read_ops);
+        qemu_file_set_hooks(r->file, &rdma_read_hooks);
     }
 
     return r->file;

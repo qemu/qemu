@@ -108,13 +108,16 @@ typedef struct QEMUFileOps {
     QEMUFileCloseFunc *close;
     QEMUFileGetFD *get_fd;
     QEMUFileWritevBufferFunc *writev_buffer;
+    QEMURetPathFunc *get_return_path;
+    QEMUFileShutdownFunc *shut_down;
+} QEMUFileOps;
+
+typedef struct QEMUFileHooks {
     QEMURamHookFunc *before_ram_iterate;
     QEMURamHookFunc *after_ram_iterate;
     QEMURamHookFunc *hook_ram_load;
     QEMURamSaveFunc *save_page;
-    QEMURetPathFunc *get_return_path;
-    QEMUFileShutdownFunc *shut_down;
-} QEMUFileOps;
+} QEMUFileHooks;
 
 struct QEMUSizedBuffer {
     struct iovec *iov;
@@ -129,6 +132,7 @@ QEMUFile *qemu_fdopen(int fd, const char *mode);
 QEMUFile *qemu_fopen_socket(int fd, const char *mode);
 QEMUFile *qemu_popen_cmd(const char *command, const char *mode);
 QEMUFile *qemu_bufopen(const char *mode, QEMUSizedBuffer *input);
+void qemu_file_set_hooks(QEMUFile *f, const QEMUFileHooks *hooks);
 int qemu_get_fd(QEMUFile *f);
 int qemu_fclose(QEMUFile *f);
 int64_t qemu_ftell(QEMUFile *f);

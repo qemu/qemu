@@ -33,6 +33,7 @@
 
 struct QEMUFile {
     const QEMUFileOps *ops;
+    const QEMUFileHooks *hooks;
     void *opaque;
 
     int64_t bytes_xfer;
