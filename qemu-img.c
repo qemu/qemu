@@ -1475,10 +1475,21 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
         } else if (!s->target_has_backing) {
             /* Without a target backing file we must copy over the contents of
              * the backing file as well. */
-            /* TODO Check block status of the backing file chain to avoid
+            /* Check block status of the backing file chain to avoid
              * needlessly reading zeroes and limiting the iteration to the
              * buffer size */
-            s->status = BLK_DATA;
+            ret = bdrv_get_block_status_above(blk_bs(s->src[s->src_cur]), NULL,
+                                              sector_num - s->src_cur_offset,
+                                              n, &n, &file);
+            if (ret < 0) {
+                return ret;
+            }
+
+            if (ret & BDRV_BLOCK_ZERO) {
+                s->status = BLK_ZERO;
+            } else {
+                s->status = BLK_DATA;
+            }
         } else {
             s->status = BLK_BACKING_FILE;
         }
