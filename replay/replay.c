@@ -275,7 +275,7 @@ void replay_configure(QemuOpts *opts)
     rr = qemu_opt_get(opts, "rr");
     if (!rr) {
         /* Just enabling icount */
-        return;
+        goto out;
     } else if (!strcmp(rr, "record")) {
         mode = REPLAY_MODE_RECORD;
     } else if (!strcmp(rr, "replay")) {
@@ -293,6 +293,7 @@ void replay_configure(QemuOpts *opts)
 
     replay_enable(fname, mode);
 
+out:
     loc_pop(&loc);
 }
 
