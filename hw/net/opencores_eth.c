@@ -482,7 +482,8 @@ static NetClientInfo net_open_eth_info = {
 
 static void open_eth_start_xmit(OpenEthState *s, desc *tx)
 {
-    uint8_t buf[65536];
+    uint8_t *buf = NULL;
+    uint8_t buffer[0x600];
     unsigned len = GET_FIELD(tx->len_flags, TXD_LEN);
     unsigned tx_len = len;
 
@@ -497,6 +498,11 @@ static void open_eth_start_xmit(OpenEthState *s, desc *tx)
 
     trace_open_eth_start_xmit(tx->buf_ptr, len, tx_len);
 
+    if (tx_len > sizeof(buffer)) {
+        buf = g_new(uint8_t, tx_len);
+    } else {
+        buf = buffer;
+    }
     if (len > tx_len) {
         len = tx_len;
     }
@@ -505,6 +511,9 @@ static void open_eth_start_xmit(OpenEthState *s, desc *tx)
         memset(buf + len, 0, tx_len - len);
     }
     qemu_send_packet(qemu_get_queue(s->nic), buf, tx_len);
+    if (tx_len > sizeof(buffer)) {
+        g_free(buf);
+    }
 
     if (tx->len_flags & TXD_WR) {
         s->tx_desc = 0;
