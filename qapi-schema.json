@@ -617,11 +617,28 @@
 # @cpu-throttle-increment: throttle percentage increase each time
 #                          auto-converge detects that migration is not making
 #                          progress. The default value is 10. (Since 2.7)
+#
+# @tls-creds: ID of the 'tls-creds' object that provides credentials for
+#             establishing a TLS connection over the migration data channel.
+#             On the outgoing side of the migration, the credentials must
+#             be for a 'client' endpoint, while for the incoming side the
+#             credentials must be for a 'server' endpoint. Setting this
+#             will enable TLS for all migrations. The default is unset,
+#             resulting in unsecured migration at the QEMU level. (Since 2.7)
+#
+# @tls-hostname: hostname of the target host for the migration. This is
+#                required when using x509 based TLS credentials and the
+#                migration URI does not already include a hostname. For
+#                example if using fd: or exec: based migration, the
+#                hostname must be provided so that the server's x509
+#                certificate identity canbe validated. (Since 2.7)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
   'data': ['compress-level', 'compress-threads', 'decompress-threads',
-           'cpu-throttle-initial', 'cpu-throttle-increment'] }
+           'cpu-throttle-initial', 'cpu-throttle-increment',
+           'tls-creds', 'tls-hostname'] }
 
 #
 # @migrate-set-parameters
@@ -641,6 +658,22 @@
 # @cpu-throttle-increment: throttle percentage increase each time
 #                          auto-converge detects that migration is not making
 #                          progress. The default value is 10. (Since 2.7)
+#
+# @tls-creds: ID of the 'tls-creds' object that provides credentials for
+#             establishing a TLS connection over the migration data channel.
+#             On the outgoing side of the migration, the credentials must
+#             be for a 'client' endpoint, while for the incoming side the
+#             credentials must be for a 'server' endpoint. Setting this
+#             will enable TLS for all migrations. The default is unset,
+#             resulting in unsecured migration at the QEMU level. (Since 2.7)
+#
+# @tls-hostname: hostname of the target host for the migration. This is
+#                required when using x509 based TLS credentials and the
+#                migration URI does not already include a hostname. For
+#                example if using fd: or exec: based migration, the
+#                hostname must be provided so that the server's x509
+#                certificate identity canbe validated. (Since 2.7)
+#
 # Since: 2.4
 ##
 { 'command': 'migrate-set-parameters',
@@ -648,7 +681,9 @@
             '*compress-threads': 'int',
             '*decompress-threads': 'int',
             '*cpu-throttle-initial': 'int',
-            '*cpu-throttle-increment': 'int'} }
+            '*cpu-throttle-increment': 'int',
+            '*tls-creds': 'str',
+            '*tls-hostname': 'str'} }
 
 #
 # @MigrationParameters
@@ -667,6 +702,21 @@
 #                          auto-converge detects that migration is not making
 #                          progress. The default value is 10. (Since 2.7)
 #
+# @tls-creds: ID of the 'tls-creds' object that provides credentials for
+#             establishing a TLS connection over the migration data channel.
+#             On the outgoing side of the migration, the credentials must
+#             be for a 'client' endpoint, while for the incoming side the
+#             credentials must be for a 'server' endpoint. Setting this
+#             will enable TLS for all migrations. The default is unset,
+#             resulting in unsecured migration at the QEMU level. (Since 2.6)
+#
+# @tls-hostname: hostname of the target host for the migration. This is
+#                required when using x509 based TLS credentials and the
+#                migration URI does not already include a hostname. For
+#                example if using fd: or exec: based migration, the
+#                hostname must be provided so that the server's x509
+#                certificate identity canbe validated. (Since 2.6)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -674,7 +724,9 @@
             'compress-threads': 'int',
             'decompress-threads': 'int',
             'cpu-throttle-initial': 'int',
-            'cpu-throttle-increment': 'int'} }
+            'cpu-throttle-increment': 'int',
+            'tls-creds': 'str',
+            'tls-hostname': 'str'} }
 ##
 # @query-migrate-parameters
 #

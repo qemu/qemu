@@ -536,6 +536,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->decompress_threads = s->parameters.decompress_threads;
     params->cpu_throttle_initial = s->parameters.cpu_throttle_initial;
     params->cpu_throttle_increment = s->parameters.cpu_throttle_increment;
+    params->tls_creds = g_strdup(s->parameters.tls_creds);
+    params->tls_hostname = g_strdup(s->parameters.tls_hostname);
 
     return params;
 }
@@ -737,6 +739,10 @@ void qmp_migrate_set_parameters(bool has_compress_level,
                                 int64_t cpu_throttle_initial,
                                 bool has_cpu_throttle_increment,
                                 int64_t cpu_throttle_increment,
+                                bool has_tls_creds,
+                                const char *tls_creds,
+                                bool has_tls_hostname,
+                                const char *tls_hostname,
                                 Error **errp)
 {
     MigrationState *s = migrate_get_current();
@@ -787,6 +793,14 @@ void qmp_migrate_set_parameters(bool has_compress_level,
     }
     if (has_cpu_throttle_increment) {
         s->parameters.cpu_throttle_increment = cpu_throttle_increment;
+    }
+    if (has_tls_creds) {
+        g_free(s->parameters.tls_creds);
+        s->parameters.tls_creds = g_strdup(tls_creds);
+    }
+    if (has_tls_hostname) {
+        g_free(s->parameters.tls_hostname);
+        s->parameters.tls_hostname = g_strdup(tls_hostname);
     }
 }
 

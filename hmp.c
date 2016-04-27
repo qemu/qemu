@@ -294,6 +294,12 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, " %s: %" PRId64,
             MigrationParameter_lookup[MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT],
             params->cpu_throttle_increment);
+        monitor_printf(mon, " %s: '%s'",
+            MigrationParameter_lookup[MIGRATION_PARAMETER_TLS_CREDS],
+            params->tls_creds ? : "");
+        monitor_printf(mon, " %s: '%s'",
+            MigrationParameter_lookup[MIGRATION_PARAMETER_TLS_HOSTNAME],
+            params->tls_hostname ? : "");
         monitor_printf(mon, "\n");
     }
 
@@ -1243,13 +1249,17 @@ void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
 void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
 {
     const char *param = qdict_get_str(qdict, "parameter");
-    int value = qdict_get_int(qdict, "value");
+    const char *valuestr = qdict_get_str(qdict, "value");
+    long valueint = 0;
     Error *err = NULL;
     bool has_compress_level = false;
     bool has_compress_threads = false;
     bool has_decompress_threads = false;
     bool has_cpu_throttle_initial = false;
     bool has_cpu_throttle_increment = false;
+    bool has_tls_creds = false;
+    bool has_tls_hostname = false;
+    bool use_int_value = false;
     int i;
 
     for (i = 0; i < MIGRATION_PARAMETER__MAX; i++) {
@@ -1257,25 +1267,46 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
             switch (i) {
             case MIGRATION_PARAMETER_COMPRESS_LEVEL:
                 has_compress_level = true;
+                use_int_value = true;
                 break;
             case MIGRATION_PARAMETER_COMPRESS_THREADS:
                 has_compress_threads = true;
+                use_int_value = true;
                 break;
             case MIGRATION_PARAMETER_DECOMPRESS_THREADS:
                 has_decompress_threads = true;
+                use_int_value = true;
                 break;
             case MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL:
                 has_cpu_throttle_initial = true;
+                use_int_value = true;
                 break;
             case MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT:
                 has_cpu_throttle_increment = true;
                 break;
+            case MIGRATION_PARAMETER_TLS_CREDS:
+                has_tls_creds = true;
+                break;
+            case MIGRATION_PARAMETER_TLS_HOSTNAME:
+                has_tls_hostname = true;
+                break;
             }
-            qmp_migrate_set_parameters(has_compress_level, value,
-                                       has_compress_threads, value,
-                                       has_decompress_threads, value,
-                                       has_cpu_throttle_initial, value,
-                                       has_cpu_throttle_increment, value,
+
+            if (use_int_value) {
+                if (qemu_strtol(valuestr, NULL, 10, &valueint) < 0) {
+                    error_setg(&err, "Unable to parse '%s' as an int",
+                               valuestr);
+                    goto cleanup;
+                }
+            }
+
+            qmp_migrate_set_parameters(has_compress_level, valueint,
+                                       has_compress_threads, valueint,
+                                       has_decompress_threads, valueint,
+                                       has_cpu_throttle_initial, valueint,
+                                       has_cpu_throttle_increment, valueint,
+                                       has_tls_creds, valuestr,
+                                       has_tls_hostname, valuestr,
                                        &err);
             break;
         }
@@ -1285,6 +1316,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
         error_setg(&err, QERR_INVALID_PARAMETER, param);
     }
 
+ cleanup:
     if (err) {
         error_report_err(err);
     }
