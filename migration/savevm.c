@@ -51,6 +51,7 @@
 #include "block/snapshot.h"
 #include "block/qapi.h"
 #include "qemu/cutils.h"
+#include "io/channel-buffer.h"
 
 #ifndef ETH_P_RARP
 #define ETH_P_RARP 0x8035
@@ -760,10 +761,8 @@ void qemu_savevm_send_open_return_path(QEMUFile *f)
  *    0 on success
  *    -ve on error
  */
-int qemu_savevm_send_packaged(QEMUFile *f, const QEMUSizedBuffer *qsb)
+int qemu_savevm_send_packaged(QEMUFile *f, const uint8_t *buf, size_t len)
 {
-    size_t cur_iov;
-    size_t len = qsb_get_length(qsb);
     uint32_t tmp;
 
     if (len > MAX_VM_CMD_PACKAGED_SIZE) {
@@ -777,18 +776,7 @@ int qemu_savevm_send_packaged(QEMUFile *f, const QEMUSizedBuffer *qsb)
     trace_qemu_savevm_send_packaged();
     qemu_savevm_command_send(f, MIG_CMD_PACKAGED, 4, (uint8_t *)&tmp);
 
-    /* all the data follows (concatinating the iov's) */
-    for (cur_iov = 0; cur_iov < qsb->n_iov; cur_iov++) {
-        /* The iov entries are partially filled */
-        size_t towrite = MIN(qsb->iov[cur_iov].iov_len, len);
-        len -= towrite;
-
-        if (!towrite) {
-            break;
-        }
-
-        qemu_put_buffer(f, qsb->iov[cur_iov].iov_base, towrite);
-    }
+    qemu_put_buffer(f, buf, len);
 
     return 0;
 }
@@ -1578,39 +1566,36 @@ static int loadvm_postcopy_handle_run(MigrationIncomingState *mis)
 static int loadvm_handle_cmd_packaged(MigrationIncomingState *mis)
 {
     int ret;
-    uint8_t *buffer;
-    uint32_t length;
-    QEMUSizedBuffer *qsb;
+    size_t length;
+    QIOChannelBuffer *bioc;
 
     length = qemu_get_be32(mis->from_src_file);
     trace_loadvm_handle_cmd_packaged(length);
 
     if (length > MAX_VM_CMD_PACKAGED_SIZE) {
-        error_report("Unreasonably large packaged state: %u", length);
+        error_report("Unreasonably large packaged state: %zu", length);
         return -1;
     }
-    buffer = g_malloc0(length);
-    ret = qemu_get_buffer(mis->from_src_file, buffer, (int)length);
+
+    bioc = qio_channel_buffer_new(length);
+    ret = qemu_get_buffer(mis->from_src_file,
+                          bioc->data,
+                          length);
     if (ret != length) {
-        g_free(buffer);
-        error_report("CMD_PACKAGED: Buffer receive fail ret=%d length=%d",
+        object_unref(OBJECT(bioc));
+        error_report("CMD_PACKAGED: Buffer receive fail ret=%d length=%zu",
                      ret, length);
         return (ret < 0) ? ret : -EAGAIN;
     }
+    bioc->usage += length;
     trace_loadvm_handle_cmd_packaged_received(ret);
 
-    /* Setup a dummy QEMUFile that actually reads from the buffer */
-    qsb = qsb_create(buffer, length);
-    g_free(buffer); /* Because qsb_create copies */
-    if (!qsb) {
-        error_report("Unable to create qsb");
-    }
-    QEMUFile *packf = qemu_bufopen("r", qsb);
+    QEMUFile *packf = qemu_fopen_channel_input(QIO_CHANNEL(bioc));
 
     ret = qemu_loadvm_state_main(packf, mis);
     trace_loadvm_handle_cmd_packaged_main(ret);
     qemu_fclose(packf);
-    qsb_free(qsb);
+    object_unref(OBJECT(bioc));
 
     return ret;
 }

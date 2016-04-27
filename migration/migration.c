@@ -34,6 +34,7 @@
 #include "qom/cpu.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
+#include "io/channel-buffer.h"
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
 
@@ -1457,7 +1458,8 @@ static int await_return_path_close_on_source(MigrationState *ms)
 static int postcopy_start(MigrationState *ms, bool *old_vm_running)
 {
     int ret;
-    const QEMUSizedBuffer *qsb;
+    QIOChannelBuffer *bioc;
+    QEMUFile *fb;
     int64_t time_at_stop = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     migrate_set_state(&ms->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_POSTCOPY_ACTIVE);
@@ -1516,11 +1518,9 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
      * So we wrap the device state up in a package with a length at the start;
      * to do this we use a qemu_buf to hold the whole of the device state.
      */
-    QEMUFile *fb = qemu_bufopen("w", NULL);
-    if (!fb) {
-        error_report("Failed to create buffered file");
-        goto fail;
-    }
+    bioc = qio_channel_buffer_new(4096);
+    fb = qemu_fopen_channel_output(QIO_CHANNEL(bioc));
+    object_unref(OBJECT(bioc));
 
     /*
      * Make sure the receiver can get incoming pages before we send the rest
@@ -1534,10 +1534,9 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
     qemu_savevm_send_postcopy_run(fb);
 
     /* <><> end of stuff going into the package */
-    qsb = qemu_buf_get(fb);
 
     /* Now send that blob */
-    if (qemu_savevm_send_packaged(ms->to_dst_file, qsb)) {
+    if (qemu_savevm_send_packaged(ms->to_dst_file, bioc->data, bioc->usage)) {
         goto fail_closefb;
     }
     qemu_fclose(fb);

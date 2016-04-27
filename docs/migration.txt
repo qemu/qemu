@@ -403,8 +403,8 @@ listen thread:                     --- page -- page -- page -- page -- page --
 
 On receipt of CMD_PACKAGED (1)
    All the data associated with the package - the ( ... ) section in the
-diagram - is read into memory (into a QEMUSizedBuffer), and the main thread
-recurses into qemu_loadvm_state_main to process the contents of the package (2)
+diagram - is read into memory, and the main thread recurses into
+qemu_loadvm_state_main to process the contents of the package (2)
 which contains commands (3,6) and devices (4...)
 
 On receipt of 'postcopy listen' - 3 -(i.e. the 1st command in the package)
