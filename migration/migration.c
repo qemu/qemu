@@ -311,10 +311,8 @@ void qemu_start_incoming_migration(const char *uri, Error **errp)
     } else if (strstart(uri, "rdma:", &p)) {
         rdma_start_incoming_migration(p, errp);
 #endif
-#if !defined(WIN32)
     } else if (strstart(uri, "exec:", &p)) {
         exec_start_incoming_migration(p, errp);
-#endif
     } else if (strstart(uri, "unix:", &p)) {
         unix_start_incoming_migration(p, errp);
     } else if (strstart(uri, "fd:", &p)) {
@@ -1069,10 +1067,8 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     } else if (strstart(uri, "rdma:", &p)) {
         rdma_start_outgoing_migration(s, p, &local_err);
 #endif
-#if !defined(WIN32)
     } else if (strstart(uri, "exec:", &p)) {
         exec_start_outgoing_migration(s, p, &local_err);
-#endif
     } else if (strstart(uri, "unix:", &p)) {
         unix_start_outgoing_migration(s, p, &local_err);
     } else if (strstart(uri, "fd:", &p)) {
