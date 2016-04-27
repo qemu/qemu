@@ -179,6 +179,12 @@ void process_incoming_migration(QEMUFile *f);
 
 void qemu_start_incoming_migration(const char *uri, Error **errp);
 
+void migration_set_incoming_channel(MigrationState *s,
+                                    QIOChannel *ioc);
+
+void migration_set_outgoing_channel(MigrationState *s,
+                                    QIOChannel *ioc);
+
 uint64_t migrate_max_downtime(void);
 
 void exec_start_incoming_migration(const char *host_port, Error **errp);

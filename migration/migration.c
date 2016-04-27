@@ -428,6 +428,27 @@ void process_incoming_migration(QEMUFile *f)
     qemu_coroutine_enter(co, f);
 }
 
+
+void migration_set_incoming_channel(MigrationState *s,
+                                    QIOChannel *ioc)
+{
+    QEMUFile *f = qemu_fopen_channel_input(ioc);
+
+    process_incoming_migration(f);
+}
+
+
+void migration_set_outgoing_channel(MigrationState *s,
+                                    QIOChannel *ioc)
+{
+    QEMUFile *f = qemu_fopen_channel_output(ioc);
+
+    s->to_dst_file = f;
+
+    migrate_fd_connect(s);
+}
+
+
 /*
  * Send a message on the return channel back to the source
  * of the migration.
