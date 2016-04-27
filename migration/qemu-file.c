@@ -30,8 +30,30 @@
 #include "qemu/coroutine.h"
 #include "migration/migration.h"
 #include "migration/qemu-file.h"
-#include "migration/qemu-file-internal.h"
 #include "trace.h"
+
+#define IO_BUF_SIZE 32768
+#define MAX_IOV_SIZE MIN(IOV_MAX, 64)
+
+struct QEMUFile {
+    const QEMUFileOps *ops;
+    const QEMUFileHooks *hooks;
+    void *opaque;
+
+    int64_t bytes_xfer;
+    int64_t xfer_limit;
+
+    int64_t pos; /* start of buffer when writing, end of buffer
+                    when reading */
+    int buf_index;
+    int buf_size; /* 0 when writing */
+    uint8_t buf[IO_BUF_SIZE];
+
+    struct iovec iov[MAX_IOV_SIZE];
+    unsigned int iovcnt;
+
+    int last_error;
+};
 
 /*
  * Stop a file from being read/written - not all backing files can do this
