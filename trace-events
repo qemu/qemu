@@ -1595,6 +1595,11 @@ postcopy_ram_incoming_cleanup_entry(void) ""
 postcopy_ram_incoming_cleanup_exit(void) ""
 postcopy_ram_incoming_cleanup_join(void) ""
 
+# migration/unix.c
+migration_unix_incoming_accepted(void) ""
+migration_unix_outgoing_connected(void) ""
+migration_unix_outgoing_error(const char *err) "error=%s"
+
 # kvm-all.c
 kvm_ioctl(int type, void *arg) "type 0x%x, arg %p"
 kvm_vm_ioctl(int type, void *arg) "type 0x%x, arg %p"

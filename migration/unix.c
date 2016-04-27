@@ -1,10 +1,11 @@
 /*
  * QEMU live migration via Unix Domain Sockets
  *
- * Copyright Red Hat, Inc. 2009
+ * Copyright Red Hat, Inc. 2009-2016
  *
  * Authors:
  *  Chris Lalancette <clalance@redhat.com>
+ *  Daniel P. Berrange <berrange@redhat.com>
  *
  * This work is licensed under the terms of the GNU GPL, version 2.  See
  * the COPYING file in the top-level directory.
@@ -17,87 +18,104 @@
 
 #include "qemu-common.h"
 #include "qemu/error-report.h"
-#include "qemu/sockets.h"
-#include "qemu/main-loop.h"
+#include "qapi/error.h"
 #include "migration/migration.h"
 #include "migration/qemu-file.h"
-#include "block/block.h"
+#include "io/channel-socket.h"
+#include "trace.h"
 
-//#define DEBUG_MIGRATION_UNIX
 
-#ifdef DEBUG_MIGRATION_UNIX
-#define DPRINTF(fmt, ...) \
-    do { printf("migration-unix: " fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
+static SocketAddress *unix_build_address(const char *path)
+{
+    SocketAddress *saddr;
 
-static void unix_wait_for_connect(int fd, Error *err, void *opaque)
+    saddr = g_new0(SocketAddress, 1);
+    saddr->type = SOCKET_ADDRESS_KIND_UNIX;
+    saddr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
+    saddr->u.q_unix.data->path = g_strdup(path);
+
+    return saddr;
+}
+
+
+static void unix_outgoing_migration(Object *src,
+                                    Error *err,
+                                    gpointer opaque)
 {
     MigrationState *s = opaque;
+    QIOChannel *sioc = QIO_CHANNEL(src);
 
-    if (fd < 0) {
-        DPRINTF("migrate connect error: %s\n", error_get_pretty(err));
+    if (err) {
+        trace_migration_unix_outgoing_error(error_get_pretty(err));
         s->to_dst_file = NULL;
         migrate_fd_error(s, err);
     } else {
-        DPRINTF("migrate connect success\n");
-        s->to_dst_file = qemu_fopen_socket(fd, "wb");
-        migrate_fd_connect(s);
+        trace_migration_unix_outgoing_connected();
+        migration_set_outgoing_channel(s, sioc);
     }
+    object_unref(src);
 }
+
 
 void unix_start_outgoing_migration(MigrationState *s, const char *path, Error **errp)
 {
-    unix_nonblocking_connect(path, unix_wait_for_connect, s, errp);
+    SocketAddress *saddr = unix_build_address(path);
+    QIOChannelSocket *sioc;
+    sioc = qio_channel_socket_new();
+    qio_channel_socket_connect_async(sioc,
+                                     saddr,
+                                     unix_outgoing_migration,
+                                     s,
+                                     NULL);
+    qapi_free_SocketAddress(saddr);
 }
 
-static void unix_accept_incoming_migration(void *opaque)
+
+static gboolean unix_accept_incoming_migration(QIOChannel *ioc,
+                                               GIOCondition condition,
+                                               gpointer opaque)
 {
-    struct sockaddr_un addr;
-    socklen_t addrlen = sizeof(addr);
-    int s = (intptr_t)opaque;
-    QEMUFile *f;
-    int c, err;
+    QIOChannelSocket *sioc;
+    Error *err = NULL;
 
-    do {
-        c = qemu_accept(s, (struct sockaddr *)&addr, &addrlen);
-        err = errno;
-    } while (c < 0 && err == EINTR);
-    qemu_set_fd_handler(s, NULL, NULL, NULL);
-    close(s);
-
-    DPRINTF("accepted migration\n");
-
-    if (c < 0) {
+    sioc = qio_channel_socket_accept(QIO_CHANNEL_SOCKET(ioc),
+                                     &err);
+    if (!sioc) {
         error_report("could not accept migration connection (%s)",
-                     strerror(err));
-        return;
-    }
-
-    f = qemu_fopen_socket(c, "rb");
-    if (f == NULL) {
-        error_report("could not qemu_fopen socket");
+                     error_get_pretty(err));
         goto out;
     }
 
-    process_incoming_migration(f);
-    return;
+    trace_migration_unix_incoming_accepted();
+
+    migration_set_incoming_channel(migrate_get_current(),
+                                   QIO_CHANNEL(sioc));
+    object_unref(OBJECT(sioc));
 
 out:
-    close(c);
+    /* Close listening socket as its no longer needed */
+    qio_channel_close(ioc, NULL);
+    return FALSE; /* unregister */
 }
+
 
 void unix_start_incoming_migration(const char *path, Error **errp)
 {
-    int s;
+    SocketAddress *saddr = unix_build_address(path);
+    QIOChannelSocket *listen_ioc;
 
-    s = unix_listen(path, NULL, 0, errp);
-    if (s < 0) {
+    listen_ioc = qio_channel_socket_new();
+    if (qio_channel_socket_listen_sync(listen_ioc, saddr, errp) < 0) {
+        object_unref(OBJECT(listen_ioc));
+        qapi_free_SocketAddress(saddr);
         return;
     }
 
-    qemu_set_fd_handler(s, unix_accept_incoming_migration, NULL,
-                        (void *)(intptr_t)s);
+    qio_channel_add_watch(QIO_CHANNEL(listen_ioc),
+                          G_IO_IN,
+                          unix_accept_incoming_migration,
+                          listen_ioc,
+                          (GDestroyNotify)object_unref);
+
+    qapi_free_SocketAddress(saddr);
 }
