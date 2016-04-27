@@ -34,6 +34,7 @@
 #define ZPCI_MAX_UID 0xffff
 #define UID_UNDEFINED 0
 #define UID_CHECKING_ENABLED 0x01
+#define HOT_UNPLUG_TIMEOUT (NANOSECONDS_PER_SECOND * 60 * 5)
 
 #define S390_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(S390pciState, (obj), TYPE_S390_PCI_HOST_BRIDGE)
@@ -44,6 +45,7 @@
 
 #define HP_EVENT_TO_CONFIGURED        0x0301
 #define HP_EVENT_RESERVED_TO_STANDBY  0x0302
+#define HP_EVENT_DECONFIGURE_REQUEST  0x0303
 #define HP_EVENT_CONFIGURED_TO_STBRES 0x0304
 #define HP_EVENT_STANDBY_TO_RESERVED  0x0308
 
@@ -283,6 +285,7 @@ typedef struct S390PCIBusDevice {
     MemoryRegion iommu_mr;
     IndAddr *summary_ind;
     IndAddr *indicator;
+    QEMUTimer *release_timer;
 } S390PCIBusDevice;
 
 typedef struct S390PCIBus {

@@ -192,6 +192,10 @@ void s390_pci_sclp_deconfigure(SCCB *sccb)
         }
         pbdev->state = ZPCI_FS_STANDBY;
         rc = SCLP_RC_NORMAL_COMPLETION;
+
+        if (pbdev->release_timer) {
+            qdev_unplug(DEVICE(pbdev->pdev), NULL);
+        }
     }
 out:
     psccb->header.response_code = cpu_to_be16(rc);
@@ -679,6 +683,23 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
     }
 }
 
+static void s390_pcihost_timer_cb(void *opaque)
+{
+    S390PCIBusDevice *pbdev = opaque;
+
+    if (pbdev->summary_ind) {
+        pci_dereg_irqs(pbdev);
+    }
+    if (pbdev->iommu_enabled) {
+        pci_dereg_ioat(pbdev);
+    }
+
+    pbdev->state = ZPCI_FS_STANDBY;
+    s390_pci_generate_plug_event(HP_EVENT_CONFIGURED_TO_STBRES,
+                                 pbdev->fh, pbdev->fid);
+    qdev_unplug(DEVICE(pbdev), NULL);
+}
+
 static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
                                     DeviceState *dev, Error **errp)
 {
@@ -712,8 +733,20 @@ static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
     case ZPCI_FS_STANDBY:
         break;
     default:
-        s390_pci_generate_plug_event(HP_EVENT_CONFIGURED_TO_STBRES,
+        s390_pci_generate_plug_event(HP_EVENT_DECONFIGURE_REQUEST,
                                      pbdev->fh, pbdev->fid);
+        pbdev->release_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                            s390_pcihost_timer_cb,
+                                            pbdev);
+        timer_mod(pbdev->release_timer,
+                  qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + HOT_UNPLUG_TIMEOUT);
+        return;
+    }
+
+    if (pbdev->release_timer && timer_pending(pbdev->release_timer)) {
+        timer_del(pbdev->release_timer);
+        timer_free(pbdev->release_timer);
+        pbdev->release_timer = NULL;
     }
 
     s390_pci_generate_plug_event(HP_EVENT_STANDBY_TO_RESERVED,
