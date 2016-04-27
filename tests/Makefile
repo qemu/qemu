@@ -438,7 +438,7 @@ tests/test-qdev-global-props$(EXESUF): tests/test-qdev-global-props.o \
 	hw/core/fw-path-provider.o \
 	$(test-qapi-obj-y)
 tests/test-vmstate$(EXESUF): tests/test-vmstate.o \
-	migration/vmstate.o migration/qemu-file.o migration/qemu-file-buf.o \
+	migration/vmstate.o migration/qemu-file.o \
         migration/qemu-file-unix.o migration/qjson.o \
 	$(test-qom-obj-y)
 tests/test-timed-average$(EXESUF): tests/test-timed-average.o qemu-timer.o \
