@@ -1791,6 +1791,7 @@ void migrate_fd_connect(MigrationState *s)
     s->expected_downtime = max_downtime/1000000;
     s->cleanup_bh = qemu_bh_new(migrate_fd_cleanup, s);
 
+    qemu_file_set_blocking(s->to_dst_file, true);
     qemu_file_set_rate_limit(s->to_dst_file,
                              s->bandwidth_limit / XFER_LIMIT_RATIO);
 
