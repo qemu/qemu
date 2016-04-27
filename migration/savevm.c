@@ -52,6 +52,7 @@
 #include "block/qapi.h"
 #include "qemu/cutils.h"
 #include "io/channel-buffer.h"
+#include "io/channel-file.h"
 
 #ifndef ETH_P_RARP
 #define ETH_P_RARP 0x8035
@@ -2046,6 +2047,7 @@ void hmp_savevm(Monitor *mon, const QDict *qdict)
 void qmp_xen_save_devices_state(const char *filename, Error **errp)
 {
     QEMUFile *f;
+    QIOChannelFile *ioc;
     int saved_vm_running;
     int ret;
 
@@ -2053,11 +2055,11 @@ void qmp_xen_save_devices_state(const char *filename, Error **errp)
     vm_stop(RUN_STATE_SAVE_VM);
     global_state_store_running();
 
-    f = qemu_fopen(filename, "wb");
-    if (!f) {
-        error_setg_file_open(errp, errno, filename);
+    ioc = qio_channel_file_new_path(filename, O_WRONLY | O_CREAT, 0660, errp);
+    if (!ioc) {
         goto the_end;
     }
+    f = qemu_fopen_channel_output(QIO_CHANNEL(ioc));
     ret = qemu_save_device_state(f);
     qemu_fclose(f);
     if (ret < 0) {

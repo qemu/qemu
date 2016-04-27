@@ -29,6 +29,7 @@
 #include "migration/migration.h"
 #include "migration/vmstate.h"
 #include "qemu/coroutine.h"
+#include "io/channel-file.h"
 
 static char temp_file[] = "/tmp/vmst.test.XXXXXX";
 static int temp_fd;
@@ -49,11 +50,17 @@ void yield_until_fd_readable(int fd)
 static QEMUFile *open_test_file(bool write)
 {
     int fd = dup(temp_fd);
+    QIOChannel *ioc;
     lseek(fd, 0, SEEK_SET);
     if (write) {
         g_assert_cmpint(ftruncate(fd, 0), ==, 0);
     }
-    return qemu_fdopen(fd, write ? "wb" : "rb");
+    ioc = QIO_CHANNEL(qio_channel_file_new_fd(fd));
+    if (write) {
+        return qemu_fopen_channel_output(ioc);
+    } else {
+        return qemu_fopen_channel_input(ioc);
+    }
 }
 
 #define SUCCESS(val) \
@@ -468,6 +475,8 @@ static void test_load_skip(void)
 int main(int argc, char **argv)
 {
     temp_fd = mkstemp(temp_file);
+
+    module_call_init(MODULE_INIT_QOM);
 
     g_test_init(&argc, &argv, NULL);
     g_test_add_func("/vmstate/simple/primitive", test_simple_primitive);
