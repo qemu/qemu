@@ -129,7 +129,7 @@ void qemu_file_set_error(QEMUFile *f, int ret)
 
 bool qemu_file_is_writable(QEMUFile *f)
 {
-    return f->ops->writev_buffer || f->ops->put_buffer;
+    return f->ops->writev_buffer;
 }
 
 /**
@@ -148,16 +148,9 @@ void qemu_fflush(QEMUFile *f)
         return;
     }
 
-    if (f->ops->writev_buffer) {
-        if (f->iovcnt > 0) {
-            expect = iov_size(f->iov, f->iovcnt);
-            ret = f->ops->writev_buffer(f->opaque, f->iov, f->iovcnt, f->pos);
-        }
-    } else {
-        if (f->buf_index > 0) {
-            expect = f->buf_index;
-            ret = f->ops->put_buffer(f->opaque, f->buf, f->pos, f->buf_index);
-        }
+    if (f->iovcnt > 0) {
+        expect = iov_size(f->iov, f->iovcnt);
+        ret = f->ops->writev_buffer(f->opaque, f->iov, f->iovcnt, f->pos);
     }
 
     if (ret >= 0) {
@@ -337,11 +330,6 @@ static void add_to_iovec(QEMUFile *f, const uint8_t *buf, size_t size)
 
 void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, size_t size)
 {
-    if (!f->ops->writev_buffer) {
-        qemu_put_buffer(f, buf, size);
-        return;
-    }
-
     if (f->last_error) {
         return;
     }
@@ -365,9 +353,7 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size)
         }
         memcpy(f->buf + f->buf_index, buf, l);
         f->bytes_xfer += l;
-        if (f->ops->writev_buffer) {
-            add_to_iovec(f, f->buf + f->buf_index, l);
-        }
+        add_to_iovec(f, f->buf + f->buf_index, l);
         f->buf_index += l;
         if (f->buf_index == IO_BUF_SIZE) {
             qemu_fflush(f);
@@ -388,9 +374,7 @@ void qemu_put_byte(QEMUFile *f, int v)
 
     f->buf[f->buf_index] = v;
     f->bytes_xfer++;
-    if (f->ops->writev_buffer) {
-        add_to_iovec(f, f->buf + f->buf_index, 1);
-    }
+    add_to_iovec(f, f->buf + f->buf_index, 1);
     f->buf_index++;
     if (f->buf_index == IO_BUF_SIZE) {
         qemu_fflush(f);
@@ -554,12 +538,8 @@ int64_t qemu_ftell_fast(QEMUFile *f)
     int64_t ret = f->pos;
     int i;
 
-    if (f->ops->writev_buffer) {
-        for (i = 0; i < f->iovcnt; i++) {
-            ret += f->iov[i].iov_len;
-        }
-    } else {
-        ret += f->buf_index;
+    for (i = 0; i < f->iovcnt; i++) {
+        ret += f->iov[i].iov_len;
     }
 
     return ret;

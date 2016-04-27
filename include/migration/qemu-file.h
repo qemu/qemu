@@ -28,14 +28,6 @@
 #include "io/channel.h"
 
 
-/* This function writes a chunk of data to a file at the given position.
- * The pos argument can be ignored if the file is only being used for
- * streaming.  The handler must write all of the data or return a negative
- * errno value.
- */
-typedef ssize_t (QEMUFilePutBufferFunc)(void *opaque, const uint8_t *buf,
-                                        int64_t pos, size_t size);
-
 /* Read a chunk of data from a file at the given position.  The pos argument
  * can be ignored if the file is only be used for streaming.  The number of
  * bytes actually read should be returned.
@@ -109,7 +101,6 @@ typedef QEMUFile *(QEMURetPathFunc)(void *opaque);
 typedef int (QEMUFileShutdownFunc)(void *opaque, bool rd, bool wr);
 
 typedef struct QEMUFileOps {
-    QEMUFilePutBufferFunc *put_buffer;
     QEMUFileGetBufferFunc *get_buffer;
     QEMUFileCloseFunc *close;
     QEMUFileGetFD *get_fd;

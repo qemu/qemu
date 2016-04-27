@@ -160,13 +160,6 @@ static ssize_t block_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
     return qiov.size;
 }
 
-static ssize_t block_put_buffer(void *opaque, const uint8_t *buf,
-                                int64_t pos, size_t size)
-{
-    bdrv_save_vmstate(opaque, buf, pos, size);
-    return size;
-}
-
 static ssize_t block_get_buffer(void *opaque, uint8_t *buf, int64_t pos,
                                 size_t size)
 {
@@ -184,7 +177,6 @@ static const QEMUFileOps bdrv_read_ops = {
 };
 
 static const QEMUFileOps bdrv_write_ops = {
-    .put_buffer     = block_put_buffer,
     .writev_buffer  = block_writev_buffer,
     .close          = bdrv_fclose
 };
