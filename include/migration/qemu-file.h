@@ -103,7 +103,6 @@ typedef int (QEMUFileShutdownFunc)(void *opaque, bool rd, bool wr);
 typedef struct QEMUFileOps {
     QEMUFileGetBufferFunc *get_buffer;
     QEMUFileCloseFunc *close;
-    QEMUFileGetFD *get_fd;
     QEMUFileSetBlocking *set_blocking;
     QEMUFileWritevBufferFunc *writev_buffer;
     QEMURetPathFunc *get_return_path;

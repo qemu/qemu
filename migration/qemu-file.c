@@ -268,14 +268,6 @@ static ssize_t qemu_fill_buffer(QEMUFile *f)
     return len;
 }
 
-int qemu_get_fd(QEMUFile *f)
-{
-    if (f->ops->get_fd) {
-        return f->ops->get_fd(f->opaque);
-    }
-    return -1;
-}
-
 void qemu_update_position(QEMUFile *f, size_t size)
 {
     f->pos += size;
@@ -688,11 +680,5 @@ void qemu_file_set_blocking(QEMUFile *f, bool block)
 {
     if (f->ops->set_blocking) {
         f->ops->set_blocking(f->opaque, block);
-    } else {
-        if (block) {
-            qemu_set_block(qemu_get_fd(f));
-        } else {
-            qemu_set_nonblock(qemu_get_fd(f));
-        }
     }
 }
