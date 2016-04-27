@@ -171,6 +171,9 @@ struct MigrationState
     QSIMPLEQ_HEAD(src_page_requests, MigrationSrcPageRequest) src_page_requests;
     /* The RAMBlock used in the last src_page_request */
     RAMBlock *last_req_rb;
+
+    /* The last error that occurred */
+    Error *error;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);
@@ -207,7 +210,7 @@ void rdma_start_outgoing_migration(void *opaque, const char *host_port, Error **
 
 void rdma_start_incoming_migration(const char *host_port, Error **errp);
 
-void migrate_fd_error(MigrationState *s);
+void migrate_fd_error(MigrationState *s, const Error *error);
 
 void migrate_fd_connect(MigrationState *s);
 

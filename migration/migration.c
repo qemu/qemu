@@ -691,6 +691,10 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         break;
     case MIGRATION_STATUS_FAILED:
         info->has_status = true;
+        if (s->error) {
+            info->has_error_desc = true;
+            info->error_desc = g_strdup(error_get_pretty(s->error));
+        }
         break;
     case MIGRATION_STATUS_CANCELLED:
         info->has_status = true;
@@ -863,12 +867,15 @@ static void migrate_fd_cleanup(void *opaque)
     notifier_list_notify(&migration_state_notifiers, s);
 }
 
-void migrate_fd_error(MigrationState *s)
+void migrate_fd_error(MigrationState *s, const Error *error)
 {
-    trace_migrate_fd_error();
+    trace_migrate_fd_error(error ? error_get_pretty(error) : "");
     assert(s->to_dst_file == NULL);
     migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
                       MIGRATION_STATUS_FAILED);
+    if (!s->error) {
+        s->error = error_copy(error);
+    }
     notifier_list_notify(&migration_state_notifiers, s);
 }
 
@@ -967,6 +974,8 @@ MigrationState *migrate_init(const MigrationParams *params)
     s->postcopy_after_devices = false;
     s->migration_thread_running = false;
     s->last_req_rb = NULL;
+    error_free(s->error);
+    s->error = NULL;
 
     migrate_set_state(&s->state, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
 
@@ -1076,7 +1085,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     }
 
     if (local_err) {
-        migrate_fd_error(s);
+        migrate_fd_error(s, local_err);
         error_propagate(errp, local_err);
         return;
     }

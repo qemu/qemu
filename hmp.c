@@ -35,6 +35,7 @@
 #include "block/qapi.h"
 #include "qemu-io.h"
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 
 #ifdef CONFIG_SPICE
 #include <spice/enums.h>
@@ -168,8 +169,15 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
     }
 
     if (info->has_status) {
-        monitor_printf(mon, "Migration status: %s\n",
+        monitor_printf(mon, "Migration status: %s",
                        MigrationStatus_lookup[info->status]);
+        if (info->status == MIGRATION_STATUS_FAILED &&
+            info->has_error_desc) {
+            monitor_printf(mon, " (%s)\n", info->error_desc);
+        } else {
+            monitor_printf(mon, "\n");
+        }
+
         monitor_printf(mon, "total time: %" PRIu64 " milliseconds\n",
                        info->total_time);
         if (info->has_expected_downtime) {
@@ -1532,6 +1540,9 @@ static void hmp_migrate_status_cb(void *opaque)
     } else {
         if (status->is_block_migration) {
             monitor_printf(status->mon, "\n");
+        }
+        if (info->has_error_desc) {
+            error_report("%s", info->error_desc);
         }
         monitor_resume(status->mon);
         timer_del(status->timer);

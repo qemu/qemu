@@ -134,7 +134,7 @@ typedef enum ErrorClass {
 /*
  * Get @err's human-readable error message.
  */
-const char *error_get_pretty(Error *err);
+const char *error_get_pretty(const Error *err);
 
 /*
  * Get @err's error class.

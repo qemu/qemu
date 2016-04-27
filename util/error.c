@@ -217,7 +217,7 @@ ErrorClass error_get_class(const Error *err)
     return err->err_class;
 }
 
-const char *error_get_pretty(Error *err)
+const char *error_get_pretty(const Error *err)
 {
     return err->msg;
 }
