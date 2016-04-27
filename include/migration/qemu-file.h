@@ -23,7 +23,9 @@
  */
 #ifndef QEMU_FILE_H
 #define QEMU_FILE_H 1
+#include "qemu-common.h"
 #include "exec/cpu-common.h"
+#include "io/channel.h"
 
 
 /* This function writes a chunk of data to a file at the given position.
@@ -135,6 +137,8 @@ QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops);
 QEMUFile *qemu_fopen(const char *filename, const char *mode);
 QEMUFile *qemu_fdopen(int fd, const char *mode);
 QEMUFile *qemu_fopen_socket(int fd, const char *mode);
+QEMUFile *qemu_fopen_channel_input(QIOChannel *ioc);
+QEMUFile *qemu_fopen_channel_output(QIOChannel *ioc);
 QEMUFile *qemu_popen_cmd(const char *command, const char *mode);
 QEMUFile *qemu_bufopen(const char *mode, QEMUSizedBuffer *input);
 void qemu_file_set_hooks(QEMUFile *f, const QEMUFileHooks *hooks);
