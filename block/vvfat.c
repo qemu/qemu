@@ -1109,6 +1109,8 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
             goto fail;
         }
         memcpy(s->volume_label, label, label_length);
+    } else {
+        memcpy(s->volume_label, "QEMU VVFAT", 10);
     }
 
     if (floppy) {
