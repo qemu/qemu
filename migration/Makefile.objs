@@ -1,4 +1,5 @@
 common-obj-y += migration.o socket.o fd.o exec.o
+common-obj-y += tls.o
 common-obj-y += vmstate.o
 common-obj-y += qemu-file.o
 common-obj-y += qemu-file-channel.o

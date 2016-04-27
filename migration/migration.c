@@ -35,6 +35,7 @@
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #include "io/channel-buffer.h"
+#include "io/channel-tls.h"
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
 
@@ -428,20 +429,47 @@ void process_incoming_migration(QEMUFile *f)
 void migration_set_incoming_channel(MigrationState *s,
                                     QIOChannel *ioc)
 {
-    QEMUFile *f = qemu_fopen_channel_input(ioc);
+    trace_migration_set_incoming_channel(
+        ioc, object_get_typename(OBJECT(ioc)));
 
-    process_incoming_migration(f);
+    if (s->parameters.tls_creds &&
+        !object_dynamic_cast(OBJECT(ioc),
+                             TYPE_QIO_CHANNEL_TLS)) {
+        Error *local_err = NULL;
+        migration_tls_set_incoming_channel(s, ioc, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+        }
+    } else {
+        QEMUFile *f = qemu_fopen_channel_input(ioc);
+        process_incoming_migration(f);
+    }
 }
 
 
 void migration_set_outgoing_channel(MigrationState *s,
-                                    QIOChannel *ioc)
+                                    QIOChannel *ioc,
+                                    const char *hostname)
 {
-    QEMUFile *f = qemu_fopen_channel_output(ioc);
+    trace_migration_set_outgoing_channel(
+        ioc, object_get_typename(OBJECT(ioc)), hostname);
 
-    s->to_dst_file = f;
+    if (s->parameters.tls_creds &&
+        !object_dynamic_cast(OBJECT(ioc),
+                             TYPE_QIO_CHANNEL_TLS)) {
+        Error *local_err = NULL;
+        migration_tls_set_outgoing_channel(s, ioc, hostname, &local_err);
+        if (local_err) {
+            migrate_fd_error(s, local_err);
+            error_free(local_err);
+        }
+    } else {
+        QEMUFile *f = qemu_fopen_channel_output(ioc);
 
-    migrate_fd_connect(s);
+        s->to_dst_file = f;
+
+        migrate_fd_connect(s);
+    }
 }
 
 

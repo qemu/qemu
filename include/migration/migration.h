@@ -188,8 +188,18 @@ void qemu_start_incoming_migration(const char *uri, Error **errp);
 void migration_set_incoming_channel(MigrationState *s,
                                     QIOChannel *ioc);
 
+void migration_tls_set_incoming_channel(MigrationState *s,
+                                        QIOChannel *ioc,
+                                        Error **errp);
+
 void migration_set_outgoing_channel(MigrationState *s,
-                                    QIOChannel *ioc);
+                                    QIOChannel *ioc,
+                                    const char *hostname);
+
+void migration_tls_set_outgoing_channel(MigrationState *s,
+                                        QIOChannel *ioc,
+                                        const char *hostname,
+                                        Error **errp);
 
 uint64_t migrate_max_downtime(void);
 

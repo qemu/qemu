@@ -55,20 +55,35 @@ static SocketAddress *unix_build_address(const char *path)
 }
 
 
+struct SocketConnectData {
+    MigrationState *s;
+    char *hostname;
+};
+
+static void socket_connect_data_free(void *opaque)
+{
+    struct SocketConnectData *data = opaque;
+    if (!data) {
+        return;
+    }
+    g_free(data->hostname);
+    g_free(data);
+}
+
 static void socket_outgoing_migration(Object *src,
                                       Error *err,
                                       gpointer opaque)
 {
-    MigrationState *s = opaque;
+    struct SocketConnectData *data = opaque;
     QIOChannel *sioc = QIO_CHANNEL(src);
 
     if (err) {
         trace_migration_socket_outgoing_error(error_get_pretty(err));
-        s->to_dst_file = NULL;
-        migrate_fd_error(s, err);
+        data->s->to_dst_file = NULL;
+        migrate_fd_error(data->s, err);
     } else {
-        trace_migration_socket_outgoing_connected();
-        migration_set_outgoing_channel(s, sioc);
+        trace_migration_socket_outgoing_connected(data->hostname);
+        migration_set_outgoing_channel(data->s, sioc, data->hostname);
     }
     object_unref(src);
 }
@@ -78,11 +93,16 @@ static void socket_start_outgoing_migration(MigrationState *s,
                                             Error **errp)
 {
     QIOChannelSocket *sioc = qio_channel_socket_new();
+    struct SocketConnectData *data = g_new0(struct SocketConnectData, 1);
+    data->s = s;
+    if (saddr->type == SOCKET_ADDRESS_KIND_INET) {
+        data->hostname = g_strdup(saddr->u.inet.data->host);
+    }
     qio_channel_socket_connect_async(sioc,
                                      saddr,
                                      socket_outgoing_migration,
-                                     s,
-                                     NULL);
+                                     data,
+                                     socket_connect_data_free);
     qapi_free_SocketAddress(saddr);
 }
 

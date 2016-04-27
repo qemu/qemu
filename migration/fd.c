@@ -38,7 +38,7 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
         return;
     }
 
-    migration_set_outgoing_channel(s, ioc);
+    migration_set_outgoing_channel(s, ioc, NULL);
     object_unref(OBJECT(ioc));
 }
 
