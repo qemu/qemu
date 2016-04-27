@@ -126,13 +126,6 @@ typedef struct QEMUFileHooks {
     QEMURamSaveFunc *save_page;
 } QEMUFileHooks;
 
-struct QEMUSizedBuffer {
-    struct iovec *iov;
-    size_t n_iov;
-    size_t size; /* total allocated size in all iov's */
-    size_t used; /* number of used bytes */
-};
-
 QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops);
 QEMUFile *qemu_fopen(const char *filename, const char *mode);
 QEMUFile *qemu_fdopen(int fd, const char *mode);
@@ -154,15 +147,6 @@ void qemu_put_byte(QEMUFile *f, int v);
 void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, size_t size);
 bool qemu_file_mode_is_not_valid(const char *mode);
 bool qemu_file_is_writable(QEMUFile *f);
-
-QEMUSizedBuffer *qsb_create(const uint8_t *buffer, size_t len);
-void qsb_free(QEMUSizedBuffer *);
-size_t qsb_set_length(QEMUSizedBuffer *qsb, size_t length);
-size_t qsb_get_length(const QEMUSizedBuffer *qsb);
-ssize_t qsb_get_buffer(const QEMUSizedBuffer *, off_t start, size_t count,
-                       uint8_t *buf);
-ssize_t qsb_write_at(QEMUSizedBuffer *qsb, const uint8_t *buf,
-                     off_t pos, size_t count);
 
 
 static inline void qemu_put_ubyte(QEMUFile *f, unsigned int v)

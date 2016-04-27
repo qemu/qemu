@@ -82,7 +82,6 @@ typedef struct QemuOpt QemuOpt;
 typedef struct QemuOpts QemuOpts;
 typedef struct QemuOptsList QemuOptsList;
 typedef struct QEMUSGList QEMUSGList;
-typedef struct QEMUSizedBuffer QEMUSizedBuffer;
 typedef struct QEMUTimer QEMUTimer;
 typedef struct QEMUTimerListGroup QEMUTimerListGroup;
 typedef struct QObject QObject;
