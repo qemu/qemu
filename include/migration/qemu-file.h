@@ -54,6 +54,10 @@ typedef int (QEMUFileCloseFunc)(void *opaque);
  */
 typedef int (QEMUFileGetFD)(void *opaque);
 
+/* Called to change the blocking mode of the file
+ */
+typedef int (QEMUFileSetBlocking)(void *opaque, bool enabled);
+
 /*
  * This function writes an iovec to file. The handler must write all
  * of the data or return a negative errno value.
@@ -107,6 +111,7 @@ typedef struct QEMUFileOps {
     QEMUFileGetBufferFunc *get_buffer;
     QEMUFileCloseFunc *close;
     QEMUFileGetFD *get_fd;
+    QEMUFileSetBlocking *set_blocking;
     QEMUFileWritevBufferFunc *writev_buffer;
     QEMURetPathFunc *get_return_path;
     QEMUFileShutdownFunc *shut_down;

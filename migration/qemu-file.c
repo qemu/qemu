@@ -684,9 +684,13 @@ size_t qemu_get_counted_string(QEMUFile *f, char buf[256])
  */
 void qemu_file_set_blocking(QEMUFile *f, bool block)
 {
-    if (block) {
-        qemu_set_block(qemu_get_fd(f));
+    if (f->ops->set_blocking) {
+        f->ops->set_blocking(f->opaque, block);
     } else {
-        qemu_set_nonblock(qemu_get_fd(f));
+        if (block) {
+            qemu_set_block(qemu_get_fd(f));
+        } else {
+            qemu_set_nonblock(qemu_get_fd(f));
+        }
     }
 }

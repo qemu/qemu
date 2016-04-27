@@ -422,11 +422,9 @@ static void process_incoming_migration_co(void *opaque)
 void process_incoming_migration(QEMUFile *f)
 {
     Coroutine *co = qemu_coroutine_create(process_incoming_migration_co);
-    int fd = qemu_get_fd(f);
 
-    assert(fd != -1);
     migrate_decompress_threads_create();
-    qemu_set_nonblock(fd);
+    qemu_file_set_blocking(f, false);
     qemu_coroutine_enter(co, f);
 }
 
