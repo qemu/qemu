@@ -140,7 +140,6 @@ QEMUFile *qemu_fopen_socket(int fd, const char *mode);
 QEMUFile *qemu_fopen_channel_input(QIOChannel *ioc);
 QEMUFile *qemu_fopen_channel_output(QIOChannel *ioc);
 QEMUFile *qemu_popen_cmd(const char *command, const char *mode);
-QEMUFile *qemu_bufopen(const char *mode, QEMUSizedBuffer *input);
 void qemu_file_set_hooks(QEMUFile *f, const QEMUFileHooks *hooks);
 int qemu_get_fd(QEMUFile *f);
 int qemu_fclose(QEMUFile *f);
@@ -165,11 +164,6 @@ ssize_t qsb_get_buffer(const QEMUSizedBuffer *, off_t start, size_t count,
 ssize_t qsb_write_at(QEMUSizedBuffer *qsb, const uint8_t *buf,
                      off_t pos, size_t count);
 
-
-/*
- * For use on files opened with qemu_bufopen
- */
-const QEMUSizedBuffer *qemu_buf_get(QEMUFile *f);
 
 static inline void qemu_put_ubyte(QEMUFile *f, unsigned int v)
 {
