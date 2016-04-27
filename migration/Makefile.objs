@@ -1,4 +1,4 @@
-common-obj-y += migration.o socket.o
+common-obj-y += migration.o socket.o fd.o
 common-obj-y += vmstate.o
 common-obj-y += qemu-file.o qemu-file-buf.o qemu-file-unix.o qemu-file-stdio.o
 common-obj-y += qemu-file-channel.o
@@ -6,7 +6,7 @@ common-obj-y += xbzrle.o postcopy-ram.o
 common-obj-y += qjson.o
 
 common-obj-$(CONFIG_RDMA) += rdma.o
-common-obj-$(CONFIG_POSIX) += exec.o fd.o
+common-obj-$(CONFIG_POSIX) += exec.o
 
 common-obj-y += block.o
 

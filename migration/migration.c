@@ -317,10 +317,8 @@ void qemu_start_incoming_migration(const char *uri, Error **errp)
 #endif
     } else if (strstart(uri, "unix:", &p)) {
         unix_start_incoming_migration(p, errp);
-#if !defined(WIN32)
     } else if (strstart(uri, "fd:", &p)) {
         fd_start_incoming_migration(p, errp);
-#endif
     } else {
         error_setg(errp, "unknown migration protocol: %s", uri);
     }
@@ -1077,10 +1075,8 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
 #endif
     } else if (strstart(uri, "unix:", &p)) {
         unix_start_outgoing_migration(s, p, &local_err);
-#if !defined(WIN32)
     } else if (strstart(uri, "fd:", &p)) {
         fd_start_outgoing_migration(s, p, &local_err);
-#endif
     } else {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "uri",
                    "a valid migration protocol");

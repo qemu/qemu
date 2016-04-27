@@ -1595,6 +1595,10 @@ postcopy_ram_incoming_cleanup_entry(void) ""
 postcopy_ram_incoming_cleanup_exit(void) ""
 postcopy_ram_incoming_cleanup_join(void) ""
 
+# migration/fd.c
+migration_fd_outgoing(int fd) "fd=%d"
+migration_fd_incoming(int fd) "fd=%d"
+
 # migration/socket.c
 migration_socket_incoming_accepted(void) ""
 migration_socket_outgoing_connected(void) ""
