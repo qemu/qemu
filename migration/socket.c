@@ -25,6 +25,23 @@
 #include "trace.h"
 
 
+static SocketAddress *tcp_build_address(const char *host_port, Error **errp)
+{
+    InetSocketAddress *iaddr = inet_parse(host_port, errp);
+    SocketAddress *saddr;
+
+    if (!iaddr) {
+        return NULL;
+    }
+
+    saddr = g_new0(SocketAddress, 1);
+    saddr->type = SOCKET_ADDRESS_KIND_INET;
+    saddr->u.inet.data = iaddr;
+
+    return saddr;
+}
+
+
 static SocketAddress *unix_build_address(const char *path)
 {
     SocketAddress *saddr;
@@ -67,6 +84,14 @@ static void socket_start_outgoing_migration(MigrationState *s,
                                      s,
                                      NULL);
     qapi_free_SocketAddress(saddr);
+}
+
+void tcp_start_outgoing_migration(MigrationState *s,
+                                  const char *host_port,
+                                  Error **errp)
+{
+    SocketAddress *saddr = tcp_build_address(host_port, errp);
+    socket_start_outgoing_migration(s, saddr, errp);
 }
 
 void unix_start_outgoing_migration(MigrationState *s,
@@ -123,6 +148,12 @@ static void socket_start_incoming_migration(SocketAddress *saddr,
                           listen_ioc,
                           (GDestroyNotify)object_unref);
     qapi_free_SocketAddress(saddr);
+}
+
+void tcp_start_incoming_migration(const char *host_port, Error **errp)
+{
+    SocketAddress *saddr = tcp_build_address(host_port, errp);
+    socket_start_incoming_migration(saddr, errp);
 }
 
 void unix_start_incoming_migration(const char *path, Error **errp)
