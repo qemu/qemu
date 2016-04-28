@@ -121,7 +121,12 @@ def gen_marshal(name, arg_type, ret_type):
     %(c_name)s arg = {0};
 
     v = qmp_input_get_visitor(qiv);
+    visit_start_struct(v, NULL, NULL, 0, &err);
+    if (err) {
+        goto out;
+    }
     visit_type_%(c_name)s_members(v, &arg, &err);
+    visit_end_struct(v, err ? NULL : &err);
     if (err) {
         goto out;
     }
@@ -150,7 +155,9 @@ out:
     qmp_input_visitor_cleanup(qiv);
     qdv = qapi_dealloc_visitor_new();
     v = qapi_dealloc_get_visitor(qdv);
+    visit_start_struct(v, NULL, NULL, 0, NULL);
     visit_type_%(c_name)s_members(v, &arg, NULL);
+    visit_end_struct(v, NULL);
     qapi_dealloc_visitor_cleanup(qdv);
 ''',
                      c_name=arg_type.c_name())
