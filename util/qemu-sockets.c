@@ -1145,7 +1145,7 @@ void qapi_copy_SocketAddress(SocketAddress **p_dest,
         return;
     }
 
-    qiv = qmp_input_visitor_new(obj, false);
+    qiv = qmp_input_visitor_new(obj, true);
     iv = qmp_input_get_visitor(qiv);
     visit_type_SocketAddress(iv, NULL, p_dest, &error_abort);
     qmp_input_visitor_cleanup(qiv);

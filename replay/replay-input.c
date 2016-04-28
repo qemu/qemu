@@ -37,7 +37,7 @@ static InputEvent *qapi_clone_InputEvent(InputEvent *src)
         return NULL;
     }
 
-    qiv = qmp_input_visitor_new(obj, false);
+    qiv = qmp_input_visitor_new(obj, true);
     iv = qmp_input_get_visitor(qiv);
     visit_type_InputEvent(iv, NULL, &dst, &error_abort);
     qmp_input_visitor_cleanup(qiv);
