@@ -35,9 +35,11 @@ struct QmpInputVisitor
 {
     Visitor visitor;
 
-    /* Stack of objects being visited.  stack[0] is root of visit,
-     * stack[1..] records the nesting of start_struct()/end_struct()
-     * and start_list()/end_list() pairs. */
+    /* Root of visit at visitor creation. */
+    QObject *root;
+
+    /* Stack of objects being visited (all entries will be either
+     * QDict or QList). */
     StackObject stack[QIV_STACK_SIZE];
     int nb_stack;
 
@@ -54,33 +56,34 @@ static QObject *qmp_input_get_object(QmpInputVisitor *qiv,
                                      const char *name,
                                      bool consume)
 {
-    StackObject *tos = &qiv->stack[qiv->nb_stack - 1];
-    QObject *qobj = tos->obj;
+    StackObject *tos;
+    QObject *qobj;
     QObject *ret;
 
+    if (!qiv->nb_stack) {
+        /* Starting at root, name is ignored. */
+        return qiv->root;
+    }
+
+    /* We are in a container; find the next element. */
+    tos = &qiv->stack[qiv->nb_stack - 1];
+    qobj = tos->obj;
     assert(qobj);
 
-    /* If we have a name, and we're in a dictionary, then return that
-     * value. */
-    if (name && qobject_type(qobj) == QTYPE_QDICT) {
+    if (qobject_type(qobj) == QTYPE_QDICT) {
+        assert(name);
         ret = qdict_get(qobject_to_qdict(qobj), name);
         if (tos->h && consume && ret) {
             bool removed = g_hash_table_remove(tos->h, name);
             assert(removed);
         }
-        return ret;
-    }
-
-    /* If we are in the middle of a list, then return the next element
-     * of the list. */
-    if (tos->entry) {
+    } else {
         assert(qobject_type(qobj) == QTYPE_QLIST);
-        return qlist_entry_obj(tos->entry);
+        assert(!name);
+        ret = qlist_entry_obj(tos->entry);
     }
 
-    /* Otherwise, we are at the root of the visit or the start of a
-     * list, and return the object as-is. */
-    return qobj;
+    return ret;
 }
 
 static void qdict_add_key(const char *key, QObject *obj, void *opaque)
@@ -355,7 +358,7 @@ Visitor *qmp_input_get_visitor(QmpInputVisitor *v)
 
 void qmp_input_visitor_cleanup(QmpInputVisitor *v)
 {
-    qobject_decref(v->stack[0].obj);
+    qobject_decref(v->root);
     g_free(v);
 }
 
@@ -381,7 +384,7 @@ QmpInputVisitor *qmp_input_visitor_new(QObject *obj, bool strict)
     v->visitor.optional = qmp_input_optional;
     v->strict = strict;
 
-    qmp_input_push(v, obj, NULL);
+    v->root = obj;
     qobject_incref(obj);
 
     return v;
