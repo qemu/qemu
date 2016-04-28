@@ -442,6 +442,9 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
     switch (drc_type) {
     case SPAPR_DR_CONNECTOR_TYPE_PCI:
         hp->hotplug_type = RTAS_LOG_V6_HP_TYPE_PCI;
+        if (hp->hotplug_action == RTAS_LOG_V6_HP_ACTION_ADD) {
+            spapr_hotplug_set_signalled(drc);
+        }
         break;
     case SPAPR_DR_CONNECTOR_TYPE_LMB:
         hp->hotplug_type = RTAS_LOG_V6_HP_TYPE_MEMORY;
@@ -461,10 +464,6 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
     }
 
     rtas_event_log_queue(RTAS_LOG_TYPE_HOTPLUG, new_hp, true);
-
-    if (hp->hotplug_action == RTAS_LOG_V6_HP_ACTION_ADD) {
-        spapr_hotplug_set_signalled(drc);
-    }
 
     qemu_irq_pulse(xics_get_qirq(spapr->icp, spapr->check_exception_irq));
 }
