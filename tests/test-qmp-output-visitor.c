@@ -477,13 +477,23 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
     qobject_decref(arg);
 }
 
-static void test_visitor_out_empty(TestOutputVisitorData *data,
-                                   const void *unused)
+static void test_visitor_out_null(TestOutputVisitorData *data,
+                                  const void *unused)
 {
     QObject *arg;
+    QDict *qdict;
+    QObject *nil;
 
+    visit_start_struct(data->ov, NULL, NULL, 0, &error_abort);
+    visit_type_null(data->ov, "a", &error_abort);
+    visit_end_struct(data->ov, &error_abort);
     arg = qmp_output_get_qobject(data->qov);
-    g_assert(qobject_type(arg) == QTYPE_QNULL);
+    g_assert(qobject_type(arg) == QTYPE_QDICT);
+    qdict = qobject_to_qdict(arg);
+    g_assert_cmpint(qdict_size(qdict), ==, 1);
+    nil = qdict_get(qdict, "a");
+    g_assert(nil);
+    g_assert(qobject_type(nil) == QTYPE_QNULL);
     qobject_decref(arg);
 }
 
@@ -837,8 +847,8 @@ int main(int argc, char **argv)
                             &out_visitor_data, test_visitor_out_union_flat);
     output_visitor_test_add("/visitor/output/alternate",
                             &out_visitor_data, test_visitor_out_alternate);
-    output_visitor_test_add("/visitor/output/empty",
-                            &out_visitor_data, test_visitor_out_empty);
+    output_visitor_test_add("/visitor/output/null",
+                            &out_visitor_data, test_visitor_out_null);
     output_visitor_test_add("/visitor/output/native_list/int",
                             &out_visitor_data,
                             test_visitor_out_native_list_int);

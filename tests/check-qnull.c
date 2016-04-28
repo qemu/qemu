@@ -11,7 +11,9 @@
 
 #include "qapi/qmp/qobject.h"
 #include "qemu-common.h"
+#include "qapi/qmp-input-visitor.h"
 #include "qapi/qmp-output-visitor.h"
+#include "qapi/error.h"
 
 /*
  * Public Interface test-cases
@@ -37,6 +39,7 @@ static void qnull_visit_test(void)
 {
     QObject *obj;
     QmpOutputVisitor *qov;
+    QmpInputVisitor *qiv;
 
     /*
      * Most tests of interactions between QObject and visitors are in
@@ -45,13 +48,19 @@ static void qnull_visit_test(void)
      */
 
     g_assert(qnull_.refcnt == 1);
+    obj = qnull();
+    qiv = qmp_input_visitor_new(obj, true);
+    qobject_decref(obj);
+    visit_type_null(qmp_input_get_visitor(qiv), NULL, &error_abort);
+    qmp_input_visitor_cleanup(qiv);
+
     qov = qmp_output_visitor_new();
-    /* FIXME: Empty visits are ugly, we should have a visit_type_null(). */
+    visit_type_null(qmp_output_get_visitor(qov), NULL, &error_abort);
     obj = qmp_output_get_qobject(qov);
     g_assert(obj == &qnull_);
     qobject_decref(obj);
-
     qmp_output_visitor_cleanup(qov);
+
     g_assert(qnull_.refcnt == 1);
 }
 

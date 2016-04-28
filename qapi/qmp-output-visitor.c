@@ -198,7 +198,8 @@ static void qmp_output_type_any(Visitor *v, const char *name, QObject **obj,
 
 static void qmp_output_type_null(Visitor *v, const char *name, Error **errp)
 {
-    abort();
+    QmpOutputVisitor *qov = to_qov(v);
+    qmp_output_add_obj(qov, name, qnull());
 }
 
 /* Finish building, and return the root object. Will not be NULL. */
