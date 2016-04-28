@@ -15,6 +15,7 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "s390-pci-bus.h"
+#include "s390-pci-inst.h"
 #include <hw/pci/pci_bus.h>
 #include <hw/pci/msi.h>
 #include <qemu/error-report.h>
@@ -137,6 +138,12 @@ void s390_pci_sclp_deconfigure(SCCB *sccb)
         if (!pbdev->configured) {
             rc = SCLP_RC_NO_ACTION_REQUIRED;
         } else {
+            if (pbdev->summary_ind) {
+                pci_dereg_irqs(pbdev);
+            }
+            if (pbdev->iommu_enabled) {
+                pci_dereg_ioat(pbdev);
+            }
             pbdev->configured = false;
             rc = SCLP_RC_NORMAL_COMPLETION;
         }
