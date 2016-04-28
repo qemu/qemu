@@ -106,22 +106,42 @@ S390PCIBusDevice *s390_pci_find_dev_by_fid(uint32_t fid)
     return NULL;
 }
 
-void s390_pci_sclp_configure(int configure, SCCB *sccb)
+void s390_pci_sclp_configure(SCCB *sccb)
 {
     PciCfgSccb *psccb = (PciCfgSccb *)sccb;
     S390PCIBusDevice *pbdev = s390_pci_find_dev_by_fid(be32_to_cpu(psccb->aid));
     uint16_t rc;
 
     if (pbdev) {
-        if ((configure == 1 && pbdev->configured == true) ||
-            (configure == 0 && pbdev->configured == false)) {
+        if (pbdev->configured) {
             rc = SCLP_RC_NO_ACTION_REQUIRED;
         } else {
-            pbdev->configured = !pbdev->configured;
+            pbdev->configured = true;
             rc = SCLP_RC_NORMAL_COMPLETION;
         }
     } else {
-        DPRINTF("sclp config %d no dev found\n", configure);
+        DPRINTF("sclp config no dev found\n");
+        rc = SCLP_RC_ADAPTER_ID_NOT_RECOGNIZED;
+    }
+
+    psccb->header.response_code = cpu_to_be16(rc);
+}
+
+void s390_pci_sclp_deconfigure(SCCB *sccb)
+{
+    PciCfgSccb *psccb = (PciCfgSccb *)sccb;
+    S390PCIBusDevice *pbdev = s390_pci_find_dev_by_fid(be32_to_cpu(psccb->aid));
+    uint16_t rc;
+
+    if (pbdev) {
+        if (!pbdev->configured) {
+            rc = SCLP_RC_NO_ACTION_REQUIRED;
+        } else {
+            pbdev->configured = false;
+            rc = SCLP_RC_NORMAL_COMPLETION;
+        }
+    } else {
+        DPRINTF("sclp deconfig no dev found\n");
         rc = SCLP_RC_ADAPTER_ID_NOT_RECOGNIZED;
     }
 
