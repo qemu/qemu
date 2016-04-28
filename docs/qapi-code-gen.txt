@@ -905,6 +905,10 @@ Example:
         visit_check_struct(v, &err);
     out_obj:
         visit_end_struct(v);
+        if (err && visit_is_input(v)) {
+            qapi_free_UserDefOne(*obj);
+            *obj = NULL;
+        }
     out:
         error_propagate(errp, err);
     }
@@ -929,6 +933,10 @@ Example:
         }
 
         visit_end_list(v);
+        if (err && visit_is_input(v)) {
+            qapi_free_UserDefOneList(*obj);
+            *obj = NULL;
+        }
     out:
         error_propagate(errp, err);
     }

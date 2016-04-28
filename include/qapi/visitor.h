@@ -66,12 +66,14 @@
  * member @name is not present, or is present but not the specified
  * type).
  *
- * FIXME: At present, visit_type_FOO() is an awkward interface: input
- * visitors may allocate an incomplete *@obj even when reporting an
- * error, but using an output visitor with an incomplete object has
- * undefined behavior.  To avoid a memory leak, callers must use
- * qapi_free_FOO() even on error (this uses the dealloc visitor, and
- * safely handles an incomplete object).
+ * If an error is detected during visit_type_FOO() with an input
+ * visitor, then *@obj will be NULL for pointer types, and left
+ * unchanged for scalar types.  Using an output visitor with an
+ * incomplete object has undefined behavior (other than a special case
+ * for visit_type_str() treating NULL like ""), while the dealloc
+ * visitor safely handles incomplete objects.  Since input visitors
+ * never produce an incomplete object, such an object is possible only
+ * by manual construction.
  *
  * For the QAPI object types (structs, unions, and alternates), there
  * is an additional generated function in qapi-visit.h compatible
@@ -106,7 +108,6 @@
  *  v = ...obtain input visitor...
  *  visit_type_Foo(v, NULL, &f, &err);
  *  if (err) {
- *      qapi_free_Foo(f);
  *      ...handle error...
  *  } else {
  *      ...use f...
@@ -124,7 +125,6 @@
  *  v = ...obtain input visitor...
  *  visit_type_FooList(v, NULL, &l, &err);
  *  if (err) {
- *      qapi_free_FooList(l);
  *      ...handle error...
  *  } else {
  *      for ( ; l; l = l->next) {
@@ -154,7 +154,9 @@
  * helpers that rely on in-tree information to control the walk:
  * visit_optional() for the 'has_member' field associated with
  * optional 'member' in the C struct; and visit_next_list() for
- * advancing through a FooList linked list.  Only the generated
+ * advancing through a FooList linked list.  Similarly, the
+ * visit_is_input() helper makes it possible to write code that is
+ * visitor-agnostic everywhere except for cleanup.  Only the generated
  * visit_type functions need to use these helpers.
  *
  * It is also possible to use the visitors to do a virtual walk, where
@@ -404,6 +406,11 @@ bool visit_optional(Visitor *v, const char *name, bool *present);
  */
 void visit_type_enum(Visitor *v, const char *name, int *obj,
                      const char *const strings[], Error **errp);
+
+/*
+ * Check if visitor is an input visitor.
+ */
+bool visit_is_input(Visitor *v);
 
 /*** Visiting built-in types ***/
 

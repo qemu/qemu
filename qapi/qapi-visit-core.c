@@ -104,6 +104,11 @@ bool visit_optional(Visitor *v, const char *name, bool *present)
     return *present;
 }
 
+bool visit_is_input(Visitor *v)
+{
+    return v->type == VISITOR_INPUT;
+}
+
 void visit_type_int(Visitor *v, const char *name, int64_t *obj, Error **errp)
 {
     assert(obj);

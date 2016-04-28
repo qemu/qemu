@@ -108,10 +108,6 @@ out:
 
 
 def gen_visit_list(name, element_type):
-    # FIXME: if *obj is NULL on entry, and the first visit_next_list()
-    # assigns to *obj, while a later one fails, we should clean up *obj
-    # rather than leaving it non-NULL. As currently written, the caller must
-    # call qapi_free_FOOList() to avoid a memory leak of the partial FOOList.
     return mcgen('''
 
 void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
@@ -134,6 +130,10 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
     }
 
     visit_end_list(v);
+    if (err && visit_is_input(v)) {
+        qapi_free_%(c_name)s(*obj);
+        *obj = NULL;
+    }
 out:
     error_propagate(errp, err);
 }
@@ -211,20 +211,20 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
                    "%(name)s");
     }
     visit_end_alternate(v);
+    if (err && visit_is_input(v)) {
+        qapi_free_%(c_name)s(*obj);
+        *obj = NULL;
+    }
 out:
     error_propagate(errp, err);
 }
 ''',
-                 name=name)
+                 name=name, c_name=c_name(name))
 
     return ret
 
 
 def gen_visit_object(name, base, members, variants):
-    # FIXME: if *obj is NULL on entry, and visit_start_struct() assigns to
-    # *obj, but then visit_type_FOO_members() fails, we should clean up *obj
-    # rather than leaving it non-NULL. As currently written, the caller must
-    # call qapi_free_FOO() to avoid a memory leak of the partial FOO.
     return mcgen('''
 
 void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
@@ -245,6 +245,10 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
     visit_check_struct(v, &err);
 out_obj:
     visit_end_struct(v);
+    if (err && visit_is_input(v)) {
+        qapi_free_%(c_name)s(*obj);
+        *obj = NULL;
+    }
 out:
     error_propagate(errp, err);
 }

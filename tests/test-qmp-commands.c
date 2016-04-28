@@ -228,14 +228,13 @@ static void test_dealloc_partial(void)
         QDECREF(ud2_dict);
     }
 
-    /* verify partial success */
-    assert(ud2 != NULL);
-    assert(ud2->string0 != NULL);
-    assert(strcmp(ud2->string0, text) == 0);
-    assert(ud2->dict1 == NULL);
-
-    /* confirm & release construction error */
+    /* verify that visit_type_XXX() cleans up properly on error */
     error_free_or_abort(&err);
+    assert(!ud2);
+
+    /* Manually create a partial object, leaving ud2->dict1 at NULL */
+    ud2 = g_new0(UserDefTwo, 1);
+    ud2->string0 = g_strdup(text);
 
     /* tear down partial object */
     qapi_free_UserDefTwo(ud2);

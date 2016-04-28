@@ -182,10 +182,7 @@ static void test_validate_fail_struct(TestInputVisitorData *data,
 
     visit_type_TestStruct(v, NULL, &p, &err);
     error_free_or_abort(&err);
-    if (p) {
-        g_free(p->string);
-    }
-    g_free(p);
+    g_assert(!p);
 }
 
 static void test_validate_fail_struct_nested(TestInputVisitorData *data,
@@ -199,7 +196,7 @@ static void test_validate_fail_struct_nested(TestInputVisitorData *data,
 
     visit_type_UserDefTwo(v, NULL, &udp, &err);
     error_free_or_abort(&err);
-    qapi_free_UserDefTwo(udp);
+    g_assert(!udp);
 }
 
 static void test_validate_fail_list(TestInputVisitorData *data,
@@ -213,7 +210,7 @@ static void test_validate_fail_list(TestInputVisitorData *data,
 
     visit_type_UserDefOneList(v, NULL, &head, &err);
     error_free_or_abort(&err);
-    qapi_free_UserDefOneList(head);
+    g_assert(!head);
 }
 
 static void test_validate_fail_union_native_list(TestInputVisitorData *data,
@@ -228,7 +225,7 @@ static void test_validate_fail_union_native_list(TestInputVisitorData *data,
 
     visit_type_UserDefNativeListUnion(v, NULL, &tmp, &err);
     error_free_or_abort(&err);
-    qapi_free_UserDefNativeListUnion(tmp);
+    g_assert(!tmp);
 }
 
 static void test_validate_fail_union_flat(TestInputVisitorData *data,
@@ -242,7 +239,7 @@ static void test_validate_fail_union_flat(TestInputVisitorData *data,
 
     visit_type_UserDefFlatUnion(v, NULL, &tmp, &err);
     error_free_or_abort(&err);
-    qapi_free_UserDefFlatUnion(tmp);
+    g_assert(!tmp);
 }
 
 static void test_validate_fail_union_flat_no_discrim(TestInputVisitorData *data,
@@ -257,7 +254,7 @@ static void test_validate_fail_union_flat_no_discrim(TestInputVisitorData *data,
 
     visit_type_UserDefFlatUnion2(v, NULL, &tmp, &err);
     error_free_or_abort(&err);
-    qapi_free_UserDefFlatUnion2(tmp);
+    g_assert(!tmp);
 }
 
 static void test_validate_fail_alternate(TestInputVisitorData *data,
@@ -271,7 +268,7 @@ static void test_validate_fail_alternate(TestInputVisitorData *data,
 
     visit_type_UserDefAlternate(v, NULL, &tmp, &err);
     error_free_or_abort(&err);
-    qapi_free_UserDefAlternate(tmp);
+    g_assert(!tmp);
 }
 
 static void do_test_validate_qmp_introspect(TestInputVisitorData *data,

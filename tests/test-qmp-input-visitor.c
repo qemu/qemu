@@ -773,18 +773,12 @@ static void test_visitor_in_errors(TestInputVisitorData *data,
 
     visit_type_TestStruct(v, NULL, &p, &err);
     error_free_or_abort(&err);
-    /* FIXME - a failed parse should not leave a partially-allocated p
-     * for us to clean up; this could cause callers to leak memory. */
-    g_assert(p->string == NULL);
-
-    g_free(p->string);
-    g_free(p);
+    g_assert(!p);
 
     v = visitor_input_test_init(data, "[ '1', '2', false, '3' ]");
     visit_type_strList(v, NULL, &q, &err);
     error_free_or_abort(&err);
-    assert(q);
-    qapi_free_strList(q);
+    assert(!q);
 }
 
 static void test_visitor_in_wrong_type(TestInputVisitorData *data,
