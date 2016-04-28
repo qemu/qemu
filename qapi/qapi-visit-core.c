@@ -36,9 +36,16 @@ void visit_start_struct(Visitor *v, const char *name, void **obj,
     error_propagate(errp, err);
 }
 
-void visit_end_struct(Visitor *v, Error **errp)
+void visit_check_struct(Visitor *v, Error **errp)
 {
-    v->end_struct(v, errp);
+    if (v->check_struct) {
+        v->check_struct(v, errp);
+    }
+}
+
+void visit_end_struct(Visitor *v)
+{
+    v->end_struct(v);
 }
 
 void visit_start_list(Visitor *v, const char *name, Error **errp)

@@ -192,10 +192,11 @@
  *  }
  * outlist:
  *  visit_end_list(v);
+ *  if (!err) {
+ *      visit_check_struct(v, &err);
+ *  }
  * outobj:
- *  error_propagate(errp, err);
- *  err = NULL;
- *  visit_end_struct(v, &err);
+ *  visit_end_struct(v);
  * out:
  *  error_propagate(errp, err);
  *  ...clean up v...
@@ -249,17 +250,27 @@ void visit_start_struct(Visitor *v, const char *name, void **obj,
                         size_t size, Error **errp);
 
 /*
- * Complete an object visit started earlier.
+ * Prepare for completing an object visit.
  *
  * @errp obeys typical error usage, and reports failures such as
  * unparsed keys remaining in the input stream.
+ *
+ * Should be called prior to visit_end_struct() if all other
+ * intermediate visit steps were successful, to allow the visitor one
+ * last chance to report errors.  May be skipped on a cleanup path,
+ * where there is no need to check for further errors.
+ */
+void visit_check_struct(Visitor *v, Error **errp);
+
+/*
+ * Complete an object visit started earlier.
  *
  * Must be called after any successful use of visit_start_struct(),
  * even if intermediate processing was skipped due to errors, to allow
  * the backend to release any resources.  Destroying the visitor early
  * behaves as if this was implicitly called.
  */
-void visit_end_struct(Visitor *v, Error **errp);
+void visit_end_struct(Visitor *v);
 
 
 /*** Visiting lists ***/

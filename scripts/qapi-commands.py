@@ -126,7 +126,10 @@ def gen_marshal(name, arg_type, ret_type):
         goto out;
     }
     visit_type_%(c_name)s_members(v, &arg, &err);
-    visit_end_struct(v, err ? NULL : &err);
+    if (!err) {
+        visit_check_struct(v, &err);
+    }
+    visit_end_struct(v);
     if (err) {
         goto out;
     }
@@ -157,7 +160,7 @@ out:
     v = qapi_dealloc_get_visitor(qdv);
     visit_start_struct(v, NULL, NULL, 0, NULL);
     visit_type_%(c_name)s_members(v, &arg, NULL);
-    visit_end_struct(v, NULL);
+    visit_end_struct(v);
     qapi_dealloc_visitor_cleanup(qdv);
 ''',
                      c_name=arg_type.c_name())

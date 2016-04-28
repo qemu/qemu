@@ -43,8 +43,11 @@ struct Visitor
     void (*start_struct)(Visitor *v, const char *name, void **obj,
                          size_t size, Error **errp);
 
+    /* Optional; intended for input visitors */
+    void (*check_struct)(Visitor *v, Error **errp);
+
     /* Must be set to visit structs */
-    void (*end_struct)(Visitor *v, Error **errp);
+    void (*end_struct)(Visitor *v);
 
     /* Must be set */
     void (*start_list)(Visitor *v, const char *name, Error **errp);

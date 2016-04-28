@@ -42,7 +42,7 @@ Object *user_creatable_add(const QDict *qdict,
     char *type = NULL;
     char *id = NULL;
     Object *obj = NULL;
-    Error *local_err = NULL, *end_err = NULL;
+    Error *local_err = NULL;
     QDict *pdict;
 
     pdict = qdict_clone_shallow(qdict);
@@ -63,21 +63,15 @@ Object *user_creatable_add(const QDict *qdict,
     if (local_err) {
         goto out_visit;
     }
-
-    obj = user_creatable_add_type(type, id, pdict, v, &local_err);
+    visit_check_struct(v, &local_err);
     if (local_err) {
         goto out_visit;
     }
 
- out_visit:
-    visit_end_struct(v, &end_err);
-    if (end_err) {
-        error_propagate(&local_err, end_err);
-        if (obj) {
-            user_creatable_del(id, NULL);
-        }
-        goto out;
-    }
+    obj = user_creatable_add_type(type, id, pdict, v, &local_err);
+
+out_visit:
+    visit_end_struct(v);
 
 out:
     QDECREF(pdict);
@@ -130,7 +124,10 @@ Object *user_creatable_add_type(const char *type, const char *id,
             break;
         }
     }
-    visit_end_struct(v, local_err ? NULL : &local_err);
+    if (!local_err) {
+        visit_check_struct(v, &local_err);
+    }
+    visit_end_struct(v);
     if (local_err) {
         goto out;
     }

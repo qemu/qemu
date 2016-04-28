@@ -186,9 +186,10 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
             break;
         }
         visit_type_%(c_type)s_members(v, &(*obj)->u.%(c_name)s, &err);
-        error_propagate(errp, err);
-        err = NULL;
-        visit_end_struct(v, &err);
+        if (!err) {
+            visit_check_struct(v, &err);
+        }
+        visit_end_struct(v);
 ''',
                          c_type=var.type.c_name(),
                          c_name=c_name(var.name))
@@ -236,10 +237,12 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
         goto out_obj;
     }
     visit_type_%(c_name)s_members(v, *obj, &err);
-    error_propagate(errp, err);
-    err = NULL;
+    if (err) {
+        goto out_obj;
+    }
+    visit_check_struct(v, &err);
 out_obj:
-    visit_end_struct(v, &err);
+    visit_end_struct(v);
 out:
     error_propagate(errp, err);
 }

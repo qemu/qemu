@@ -67,7 +67,7 @@ static void qapi_dealloc_start_struct(Visitor *v, const char *name, void **obj,
     qapi_dealloc_push(qov, obj);
 }
 
-static void qapi_dealloc_end_struct(Visitor *v, Error **errp)
+static void qapi_dealloc_end_struct(Visitor *v)
 {
     QapiDeallocVisitor *qov = to_qov(v);
     void **obj = qapi_dealloc_pop(qov);

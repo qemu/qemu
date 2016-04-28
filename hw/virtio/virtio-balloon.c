@@ -138,17 +138,18 @@ static void balloon_stats_get_all(Object *obj, Visitor *v, const char *name,
     for (i = 0; i < VIRTIO_BALLOON_S_NR; i++) {
         visit_type_uint64(v, balloon_stat_names[i], &s->stats[i], &err);
         if (err) {
-            break;
+            goto out_nested;
         }
     }
-    error_propagate(errp, err);
-    err = NULL;
-    visit_end_struct(v, &err);
+    visit_check_struct(v, &err);
+out_nested:
+    visit_end_struct(v);
 
+    if (!err) {
+        visit_check_struct(v, &err);
+    }
 out_end:
-    error_propagate(errp, err);
-    err = NULL;
-    visit_end_struct(v, &err);
+    visit_end_struct(v);
 out:
     error_propagate(errp, err);
 }

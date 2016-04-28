@@ -303,7 +303,8 @@ static void test_visitor_in_null(TestInputVisitorData *data,
     error_free_or_abort(&err);
     visit_type_null(v, "b", &err);
     error_free_or_abort(&err);
-    visit_end_struct(v, &error_abort);
+    visit_check_struct(v, &error_abort);
+    visit_end_struct(v);
 }
 
 static void test_visitor_in_union_flat(TestInputVisitorData *data,

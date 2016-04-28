@@ -111,7 +111,7 @@ static void qmp_output_start_struct(Visitor *v, const char *name, void **obj,
     qmp_output_push(qov, dict);
 }
 
-static void qmp_output_end_struct(Visitor *v, Error **errp)
+static void qmp_output_end_struct(Visitor *v)
 {
     QmpOutputVisitor *qov = to_qov(v);
     QObject *value = qmp_output_pop(qov);

@@ -159,13 +159,13 @@ opts_start_struct(Visitor *v, const char *name, void **obj,
 
 
 static void
-opts_end_struct(Visitor *v, Error **errp)
+opts_check_struct(Visitor *v, Error **errp)
 {
     OptsVisitor *ov = to_ov(v);
     GHashTableIter iter;
     GQueue *any;
 
-    if (--ov->depth > 0) {
+    if (ov->depth > 0) {
         return;
     }
 
@@ -177,6 +177,18 @@ opts_end_struct(Visitor *v, Error **errp)
         first = g_queue_peek_head(any);
         error_setg(errp, QERR_INVALID_PARAMETER, first->name);
     }
+}
+
+
+static void
+opts_end_struct(Visitor *v)
+{
+    OptsVisitor *ov = to_ov(v);
+
+    if (--ov->depth > 0) {
+        return;
+    }
+
     g_hash_table_destroy(ov->unprocessed_opts);
     ov->unprocessed_opts = NULL;
     if (ov->fake_id_opt) {
@@ -516,6 +528,7 @@ opts_visitor_new(const QemuOpts *opts)
     ov->visitor.type = VISITOR_INPUT;
 
     ov->visitor.start_struct = &opts_start_struct;
+    ov->visitor.check_struct = &opts_check_struct;
     ov->visitor.end_struct   = &opts_end_struct;
 
     ov->visitor.start_list = &opts_start_list;
