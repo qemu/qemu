@@ -16,6 +16,8 @@ check-unit-y += tests/check-qstring$(EXESUF)
 gcov-files-check-qstring-y = qobject/qstring.c
 check-unit-y += tests/check-qlist$(EXESUF)
 gcov-files-check-qlist-y = qobject/qlist.c
+check-unit-y += tests/check-qnull$(EXESUF)
+gcov-files-check-qnull-y = qobject/qnull.c
 check-unit-y += tests/check-qjson$(EXESUF)
 gcov-files-check-qjson-y = qobject/qjson.c
 check-unit-y += tests/test-qmp-output-visitor$(EXESUF)
@@ -382,7 +384,8 @@ GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h \
 	tests/test-qmp-introspect.h
 
 test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
-	tests/check-qlist.o tests/check-qfloat.o tests/check-qjson.o \
+	tests/check-qlist.o tests/check-qfloat.o tests/check-qnull.o \
+	tests/check-qjson.o \
 	tests/test-coroutine.o tests/test-string-output-visitor.o \
 	tests/test-string-input-visitor.o tests/test-qmp-output-visitor.o \
 	tests/test-qmp-input-visitor.o tests/test-qmp-input-strict.o \
@@ -410,6 +413,7 @@ tests/check-qstring$(EXESUF): tests/check-qstring.o $(test-util-obj-y)
 tests/check-qdict$(EXESUF): tests/check-qdict.o $(test-util-obj-y)
 tests/check-qlist$(EXESUF): tests/check-qlist.o $(test-util-obj-y)
 tests/check-qfloat$(EXESUF): tests/check-qfloat.o $(test-util-obj-y)
+tests/check-qnull$(EXESUF): tests/check-qnull.o $(test-util-obj-y)
 tests/check-qjson$(EXESUF): tests/check-qjson.o $(test-util-obj-y)
 tests/check-qom-interface$(EXESUF): tests/check-qom-interface.o $(test-qom-obj-y)
 tests/check-qom-proplist$(EXESUF): tests/check-qom-proplist.o $(test-qom-obj-y)
