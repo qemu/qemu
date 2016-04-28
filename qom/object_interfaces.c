@@ -118,14 +118,21 @@ Object *user_creatable_add_type(const char *type, const char *id,
         return NULL;
     }
 
+    assert(qdict);
     obj = object_new(type);
-    if (qdict) {
-        for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
-            object_property_set(obj, v, e->key, &local_err);
-            if (local_err) {
-                goto out;
-            }
+    visit_start_struct(v, NULL, NULL, 0, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
+        object_property_set(obj, v, e->key, &local_err);
+        if (local_err) {
+            break;
         }
+    }
+    visit_end_struct(v, local_err ? NULL : &local_err);
+    if (local_err) {
+        goto out;
     }
 
     object_property_add_child(object_get_objects_root(),
