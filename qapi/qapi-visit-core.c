@@ -72,12 +72,6 @@ bool visit_optional(Visitor *v, const char *name, bool *present)
     return *present;
 }
 
-void visit_type_enum(Visitor *v, const char *name, int *obj,
-                     const char *const strings[], Error **errp)
-{
-    v->type_enum(v, name, obj, strings, errp);
-}
-
 void visit_type_int(Visitor *v, const char *name, int64_t *obj, Error **errp)
 {
     v->type_int64(v, name, obj, errp);
@@ -208,14 +202,13 @@ void visit_type_any(Visitor *v, const char *name, QObject **obj, Error **errp)
     v->type_any(v, name, obj, errp);
 }
 
-void output_type_enum(Visitor *v, const char *name, int *obj,
-                      const char *const strings[], Error **errp)
+static void output_type_enum(Visitor *v, const char *name, int *obj,
+                             const char *const strings[], Error **errp)
 {
     int i = 0;
     int value = *obj;
     char *enum_str;
 
-    assert(strings);
     while (strings[i++] != NULL);
     if (value < 0 || value >= i - 1) {
         error_setg(errp, QERR_INVALID_PARAMETER, name ? name : "null");
@@ -226,14 +219,12 @@ void output_type_enum(Visitor *v, const char *name, int *obj,
     visit_type_str(v, name, &enum_str, errp);
 }
 
-void input_type_enum(Visitor *v, const char *name, int *obj,
-                     const char *const strings[], Error **errp)
+static void input_type_enum(Visitor *v, const char *name, int *obj,
+                            const char *const strings[], Error **errp)
 {
     Error *local_err = NULL;
     int64_t value = 0;
     char *enum_str;
-
-    assert(strings);
 
     visit_type_str(v, name, &enum_str, &local_err);
     if (local_err) {
@@ -256,4 +247,15 @@ void input_type_enum(Visitor *v, const char *name, int *obj,
 
     g_free(enum_str);
     *obj = value;
+}
+
+void visit_type_enum(Visitor *v, const char *name, int *obj,
+                     const char *const strings[], Error **errp)
+{
+    assert(strings);
+    if (v->type == VISITOR_INPUT) {
+        input_type_enum(v, name, obj, strings, errp);
+    } else if (v->type == VISITOR_OUTPUT) {
+        output_type_enum(v, name, obj, strings, errp);
+    }
 }

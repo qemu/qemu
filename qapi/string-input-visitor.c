@@ -348,7 +348,7 @@ StringInputVisitor *string_input_visitor_new(const char *str)
 
     v = g_malloc0(sizeof(*v));
 
-    v->visitor.type_enum = input_type_enum;
+    v->visitor.type = VISITOR_INPUT;
     v->visitor.type_int64 = parse_type_int64;
     v->visitor.type_uint64 = parse_type_uint64;
     v->visitor.type_size = parse_type_size;

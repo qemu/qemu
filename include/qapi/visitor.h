@@ -78,8 +78,19 @@ void visit_end_alternate(Visitor *v);
  */
 bool visit_optional(Visitor *v, const char *name, bool *present);
 
+/*
+ * Visit an enum value.
+ *
+ * @strings expresses the mapping between C enum values and QAPI enum
+ * names; it should be the ENUM_lookup array from visit-types.h.
+ *
+ * May call visit_type_str() under the hood, and the enum visit may
+ * fail even if the corresponding string visit succeeded; this implies
+ * that visit_type_str() must have no unwelcome side effects.
+ */
 void visit_type_enum(Visitor *v, const char *name, int *obj,
                      const char *const strings[], Error **errp);
+
 void visit_type_int(Visitor *v, const char *name, int64_t *obj, Error **errp);
 void visit_type_uint8(Visitor *v, const char *name, uint8_t *obj,
                       Error **errp);

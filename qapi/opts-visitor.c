@@ -317,6 +317,11 @@ opts_type_str(Visitor *v, const char *name, char **obj, Error **errp)
         return;
     }
     *obj = g_strdup(opt->str ? opt->str : "");
+    /* Note that we consume a string even if this is called as part of
+     * an enum visit that later fails because the string is not a
+     * valid enum value; this is harmless because tracking what gets
+     * consumed only matters to visit_end_struct() as the final error
+     * check if there were no other failures during the visit.  */
     processed(ov, name);
 }
 
@@ -507,22 +512,14 @@ opts_visitor_new(const QemuOpts *opts)
 
     ov = g_malloc0(sizeof *ov);
 
+    ov->visitor.type = VISITOR_INPUT;
+
     ov->visitor.start_struct = &opts_start_struct;
     ov->visitor.end_struct   = &opts_end_struct;
 
     ov->visitor.start_list = &opts_start_list;
     ov->visitor.next_list  = &opts_next_list;
     ov->visitor.end_list   = &opts_end_list;
-
-    /* input_type_enum() covers both "normal" enums and union discriminators.
-     * The union discriminator field is always generated as "type"; it should
-     * match the "type" QemuOpt child of any QemuOpts.
-     *
-     * input_type_enum() will remove the looked-up key from the
-     * "unprocessed_opts" hash even if the lookup fails, because the removal is
-     * done earlier in opts_type_str(). This should be harmless.
-     */
-    ov->visitor.type_enum = &input_type_enum;
 
     ov->visitor.type_int64  = &opts_type_int64;
     ov->visitor.type_uint64 = &opts_type_uint64;

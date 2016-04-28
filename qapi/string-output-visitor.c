@@ -351,7 +351,7 @@ StringOutputVisitor *string_output_visitor_new(bool human)
 
     v->string = g_string_new(NULL);
     v->human = human;
-    v->visitor.type_enum = output_type_enum;
+    v->visitor.type = VISITOR_OUTPUT;
     v->visitor.type_int64 = print_type_int64;
     v->visitor.type_uint64 = print_type_uint64;
     v->visitor.type_size = print_type_size;

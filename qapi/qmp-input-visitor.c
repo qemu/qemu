@@ -339,13 +339,13 @@ QmpInputVisitor *qmp_input_visitor_new(QObject *obj)
 
     v = g_malloc0(sizeof(*v));
 
+    v->visitor.type = VISITOR_INPUT;
     v->visitor.start_struct = qmp_input_start_struct;
     v->visitor.end_struct = qmp_input_end_struct;
     v->visitor.start_list = qmp_input_start_list;
     v->visitor.next_list = qmp_input_next_list;
     v->visitor.end_list = qmp_input_end_list;
     v->visitor.start_alternate = qmp_input_start_alternate;
-    v->visitor.type_enum = input_type_enum;
     v->visitor.type_int64 = qmp_input_type_int64;
     v->visitor.type_uint64 = qmp_input_type_uint64;
     v->visitor.type_bool = qmp_input_type_bool;

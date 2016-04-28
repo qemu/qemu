@@ -234,12 +234,12 @@ QmpOutputVisitor *qmp_output_visitor_new(void)
 
     v = g_malloc0(sizeof(*v));
 
+    v->visitor.type = VISITOR_OUTPUT;
     v->visitor.start_struct = qmp_output_start_struct;
     v->visitor.end_struct = qmp_output_end_struct;
     v->visitor.start_list = qmp_output_start_list;
     v->visitor.next_list = qmp_output_next_list;
     v->visitor.end_list = qmp_output_end_list;
-    v->visitor.type_enum = output_type_enum;
     v->visitor.type_int64 = qmp_output_type_int64;
     v->visitor.type_uint64 = qmp_output_type_uint64;
     v->visitor.type_bool = qmp_output_type_bool;
