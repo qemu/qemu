@@ -133,7 +133,7 @@ opts_start_struct(Visitor *v, const char *name, void **obj,
     const QemuOpt *opt;
 
     if (obj) {
-        *obj = g_malloc0(size > 0 ? size : 1);
+        *obj = g_malloc0(size);
     }
     if (ov->depth++ > 0) {
         return;
@@ -314,6 +314,7 @@ opts_type_str(Visitor *v, const char *name, char **obj, Error **errp)
 
     opt = lookup_scalar(ov, name, errp);
     if (!opt) {
+        *obj = NULL;
         return;
     }
     *obj = g_strdup(opt->str ? opt->str : "");

@@ -263,7 +263,7 @@ static void test_validate_fail_union_flat_no_discrim(TestInputVisitorData *data,
 static void test_validate_fail_alternate(TestInputVisitorData *data,
                                          const void *unused)
 {
-    UserDefAlternate *tmp = NULL;
+    UserDefAlternate *tmp;
     Visitor *v;
     Error *err = NULL;
 

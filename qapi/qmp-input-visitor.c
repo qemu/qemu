@@ -120,6 +120,9 @@ static void qmp_input_start_struct(Visitor *v, const char *name, void **obj,
     QObject *qobj = qmp_input_get_object(qiv, name, true);
     Error *err = NULL;
 
+    if (obj) {
+        *obj = NULL;
+    }
     if (!qobj || qobject_type(qobj) != QTYPE_QDICT) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                    "QDict");
@@ -267,6 +270,7 @@ static void qmp_input_type_str(Visitor *v, const char *name, char **obj,
     QString *qstr = qobject_to_qstring(qmp_input_get_object(qiv, name, true));
 
     if (!qstr) {
+        *obj = NULL;
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                    "string");
         return;
