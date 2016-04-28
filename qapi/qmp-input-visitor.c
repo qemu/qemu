@@ -356,7 +356,7 @@ void qmp_input_visitor_cleanup(QmpInputVisitor *v)
     g_free(v);
 }
 
-QmpInputVisitor *qmp_input_visitor_new(QObject *obj)
+QmpInputVisitor *qmp_input_visitor_new(QObject *obj, bool strict)
 {
     QmpInputVisitor *v;
 
@@ -376,19 +376,10 @@ QmpInputVisitor *qmp_input_visitor_new(QObject *obj)
     v->visitor.type_number = qmp_input_type_number;
     v->visitor.type_any = qmp_input_type_any;
     v->visitor.optional = qmp_input_optional;
+    v->strict = strict;
 
     qmp_input_push(v, obj, NULL);
     qobject_incref(obj);
-
-    return v;
-}
-
-QmpInputVisitor *qmp_input_visitor_new_strict(QObject *obj)
-{
-    QmpInputVisitor *v;
-
-    v = qmp_input_visitor_new(obj);
-    v->strict = true;
 
     return v;
 }

@@ -55,7 +55,7 @@ static Visitor *validate_test_init_internal(TestInputVisitorData *data,
     data->obj = qobject_from_jsonv(json_string, ap);
     g_assert(data->obj);
 
-    data->qiv = qmp_input_visitor_new_strict(data->obj);
+    data->qiv = qmp_input_visitor_new(data->obj, true);
     g_assert(data->qiv);
 
     v = qmp_input_get_visitor(data->qiv);

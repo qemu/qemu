@@ -996,7 +996,7 @@ Example:
     {
         Error *err = NULL;
         UserDefOne *retval;
-        QmpInputVisitor *qiv = qmp_input_visitor_new_strict(QOBJECT(args));
+        QmpInputVisitor *qiv = qmp_input_visitor_new(QOBJECT(args), true);
         QapiDeallocVisitor *qdv;
         Visitor *v;
         UserDefOneList *arg1 = NULL;

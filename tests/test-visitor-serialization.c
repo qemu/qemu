@@ -1038,7 +1038,7 @@ static void qmp_deserialize(void **native_out, void *datap,
     obj = qobject_from_json(qstring_get_str(output_json));
 
     QDECREF(output_json);
-    d->qiv = qmp_input_visitor_new(obj);
+    d->qiv = qmp_input_visitor_new(obj, false);
     qobject_decref(obj_orig);
     qobject_decref(obj);
     visit(qmp_input_get_visitor(d->qiv), native_out, errp);

@@ -115,7 +115,7 @@ def gen_marshal(name, arg_type, ret_type):
 
     if arg_type and arg_type.members:
         ret += mcgen('''
-    QmpInputVisitor *qiv = qmp_input_visitor_new_strict(QOBJECT(args));
+    QmpInputVisitor *qiv = qmp_input_visitor_new(QOBJECT(args), true);
     QapiDeallocVisitor *qdv;
     Visitor *v;
     %(c_name)s arg = {0};
