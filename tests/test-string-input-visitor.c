@@ -92,19 +92,17 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
     }
     g_assert(!tmp);
 
-    tmp = res;
-    while (tmp) {
-        res = res->next;
-        g_free(tmp);
-        tmp = res;
-    }
+    qapi_free_int16List(res);
 
     visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "not an int list");
 
+    /* FIXME: res should be NULL on failure, regardless of starting value */
+    res = NULL;
     visit_type_int16List(v, NULL, &res, &err);
-    /* FIXME fix the visitor, then error_free_or_abort(&err) here */
+    error_free_or_abort(&err);
+    g_assert(!res);
 }
 
 static void test_visitor_in_bool(TestInputVisitorData *data,

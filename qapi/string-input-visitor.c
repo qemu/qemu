@@ -44,7 +44,7 @@ static void free_range(void *range, void *dummy)
     g_free(range);
 }
 
-static void parse_str(StringInputVisitor *siv, Error **errp)
+static int parse_str(StringInputVisitor *siv, const char *name, Error **errp)
 {
     char *str = (char *) siv->string;
     long long start, end;
@@ -52,7 +52,7 @@ static void parse_str(StringInputVisitor *siv, Error **errp)
     char *endptr;
 
     if (siv->ranges) {
-        return;
+        return 0;
     }
 
     do {
@@ -117,11 +117,14 @@ static void parse_str(StringInputVisitor *siv, Error **errp)
         }
     } while (str);
 
-    return;
+    return 0;
 error:
     g_list_foreach(siv->ranges, free_range, NULL);
     g_list_free(siv->ranges);
     siv->ranges = NULL;
+    error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
+               "an int64 value or range");
+    return -1;
 }
 
 static void
@@ -129,7 +132,9 @@ start_list(Visitor *v, const char *name, Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
 
-    parse_str(siv, errp);
+    if (parse_str(siv, name, errp) < 0) {
+        return;
+    }
 
     siv->cur_range = g_list_first(siv->ranges);
     if (siv->cur_range) {
@@ -195,7 +200,9 @@ static void parse_type_int64(Visitor *v, const char *name, int64_t *obj,
         return;
     }
 
-    parse_str(siv, errp);
+    if (parse_str(siv, name, errp) < 0) {
+        return;
+    }
 
     if (!siv->ranges) {
         goto error;
