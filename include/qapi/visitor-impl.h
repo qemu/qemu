@@ -90,6 +90,9 @@ struct Visitor
     void (*type_any)(Visitor *v, const char *name, QObject **obj,
                      Error **errp);
 
+    /* Must be set to visit explicit null values.  */
+    void (*type_null)(Visitor *v, const char *name, Error **errp);
+
     /* Must be set for input visitors, optional otherwise.  The core
      * takes care of the return type in the public interface. */
     void (*optional)(Visitor *v, const char *name, bool *present);

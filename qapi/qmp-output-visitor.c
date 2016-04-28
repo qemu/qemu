@@ -196,6 +196,11 @@ static void qmp_output_type_any(Visitor *v, const char *name, QObject **obj,
     qmp_output_add_obj(qov, name, *obj);
 }
 
+static void qmp_output_type_null(Visitor *v, const char *name, Error **errp)
+{
+    abort();
+}
+
 /* Finish building, and return the root object. Will not be NULL. */
 QObject *qmp_output_get_qobject(QmpOutputVisitor *qov)
 {
@@ -246,6 +251,7 @@ QmpOutputVisitor *qmp_output_visitor_new(void)
     v->visitor.type_str = qmp_output_type_str;
     v->visitor.type_number = qmp_output_type_number;
     v->visitor.type_any = qmp_output_type_any;
+    v->visitor.type_null = qmp_output_type_null;
 
     QTAILQ_INIT(&v->stack);
 

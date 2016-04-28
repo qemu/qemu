@@ -31,7 +31,8 @@ typedef struct OptsVisitor OptsVisitor;
  * - values above INT64_MAX or LLONG_MAX are rejected.
  *
  * The Opts input visitor does not implement support for visiting QAPI
- * alternates, numbers (other than integers), or arbitrary QTypes.
+ * alternates, numbers (other than integers), null, or arbitrary
+ * QTypes.
  */
 OptsVisitor *opts_visitor_new(const QemuOpts *opts);
 void opts_visitor_cleanup(OptsVisitor *nv);

@@ -340,6 +340,11 @@ static void qmp_input_type_any(Visitor *v, const char *name, QObject **obj,
     *obj = qobj;
 }
 
+static void qmp_input_type_null(Visitor *v, const char *name, Error **errp)
+{
+    abort();
+}
+
 static void qmp_input_optional(Visitor *v, const char *name, bool *present)
 {
     QmpInputVisitor *qiv = to_qiv(v);
@@ -383,6 +388,7 @@ QmpInputVisitor *qmp_input_visitor_new(QObject *obj, bool strict)
     v->visitor.type_str = qmp_input_type_str;
     v->visitor.type_number = qmp_input_type_number;
     v->visitor.type_any = qmp_input_type_any;
+    v->visitor.type_null = qmp_input_type_null;
     v->visitor.optional = qmp_input_optional;
     v->strict = strict;
 
