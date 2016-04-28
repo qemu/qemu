@@ -170,6 +170,7 @@ int user_creatable_add_opts_foreach(void *opaque, QemuOpts *opts, Error **errp)
 {
     bool (*type_predicate)(const char *) = opaque;
     Object *obj = NULL;
+    Error *err = NULL;
     const char *type;
 
     type = qemu_opt_get(opts, "qom-type");
@@ -178,8 +179,9 @@ int user_creatable_add_opts_foreach(void *opaque, QemuOpts *opts, Error **errp)
         return 0;
     }
 
-    obj = user_creatable_add_opts(opts, errp);
+    obj = user_creatable_add_opts(opts, &err);
     if (!obj) {
+        error_report_err(err);
         return -1;
     }
     object_unref(obj);

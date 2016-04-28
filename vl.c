@@ -4291,8 +4291,7 @@ int main(int argc, char **argv, char **envp)
 
     if (qemu_opts_foreach(qemu_find_opts("object"),
                           user_creatable_add_opts_foreach,
-                          object_create_initial, &err)) {
-        error_report_err(err);
+                          object_create_initial, NULL)) {
         exit(1);
     }
 
@@ -4410,8 +4409,7 @@ int main(int argc, char **argv, char **envp)
 
     if (qemu_opts_foreach(qemu_find_opts("object"),
                           user_creatable_add_opts_foreach,
-                          object_create_delayed, &err)) {
-        error_report_err(err);
+                          object_create_delayed, NULL)) {
         exit(1);
     }
 

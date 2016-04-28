@@ -1108,19 +1108,19 @@ int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func,
 {
     Location loc;
     QemuOpts *opts;
-    int rc;
+    int rc = 0;
 
     loc_push_none(&loc);
     QTAILQ_FOREACH(opts, &list->head, next) {
         loc_restore(&opts->loc);
         rc = func(opaque, opts, errp);
         if (rc) {
-            return rc;
+            break;
         }
         assert(!errp || !*errp);
     }
     loc_pop(&loc);
-    return 0;
+    return rc;
 }
 
 static size_t count_opts_list(QemuOptsList *list)
