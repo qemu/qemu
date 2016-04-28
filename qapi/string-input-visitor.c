@@ -25,8 +25,6 @@ struct StringInputVisitor
 {
     Visitor visitor;
 
-    bool head;
-
     GList *ranges;
     GList *cur_range;
     int64_t cur;
@@ -128,11 +126,16 @@ error:
 }
 
 static void
-start_list(Visitor *v, const char *name, Error **errp)
+start_list(Visitor *v, const char *name, GenericList **list, size_t size,
+           Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
 
+    /* We don't support visits without a list */
+    assert(list);
+
     if (parse_str(siv, name, errp) < 0) {
+        *list = NULL;
         return;
     }
 
@@ -142,13 +145,15 @@ start_list(Visitor *v, const char *name, Error **errp)
         if (r) {
             siv->cur = r->begin;
         }
+        *list = g_malloc0(size);
+    } else {
+        *list = NULL;
     }
 }
 
-static GenericList *next_list(Visitor *v, GenericList **list, size_t size)
+static GenericList *next_list(Visitor *v, GenericList *tail, size_t size)
 {
     StringInputVisitor *siv = to_siv(v);
-    GenericList **link;
     Range *r;
 
     if (!siv->ranges || !siv->cur_range) {
@@ -172,21 +177,12 @@ static GenericList *next_list(Visitor *v, GenericList **list, size_t size)
         siv->cur = r->begin;
     }
 
-    if (siv->head) {
-        link = list;
-        siv->head = false;
-    } else {
-        link = &(*list)->next;
-    }
-
-    *link = g_malloc0(size);
-    return *link;
+    tail->next = g_malloc0(size);
+    return tail->next;
 }
 
 static void end_list(Visitor *v)
 {
-    StringInputVisitor *siv = to_siv(v);
-    siv->head = true;
 }
 
 static void parse_type_int64(Visitor *v, const char *name, int64_t *obj,
@@ -369,6 +365,5 @@ StringInputVisitor *string_input_visitor_new(const char *str)
     v->visitor.optional = parse_optional;
 
     v->string = str;
-    v->head = true;
     return v;
 }

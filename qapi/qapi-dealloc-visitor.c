@@ -22,7 +22,6 @@
 typedef struct StackEntry
 {
     void *value;
-    bool is_list_head;
     QTAILQ_ENTRY(StackEntry) node;
 } StackEntry;
 
@@ -43,10 +42,6 @@ static void qapi_dealloc_push(QapiDeallocVisitor *qov, void *value)
 
     e->value = value;
 
-    /* see if we're just pushing a list head tracker */
-    if (value == NULL) {
-        e->is_list_head = true;
-    }
     QTAILQ_INSERT_HEAD(&qov->stack, e, node);
 }
 
@@ -93,38 +88,22 @@ static void qapi_dealloc_end_alternate(Visitor *v)
     }
 }
 
-static void qapi_dealloc_start_list(Visitor *v, const char *name, Error **errp)
+static void qapi_dealloc_start_list(Visitor *v, const char *name,
+                                    GenericList **list, size_t size,
+                                    Error **errp)
 {
-    QapiDeallocVisitor *qov = to_qov(v);
-    qapi_dealloc_push(qov, NULL);
 }
 
-static GenericList *qapi_dealloc_next_list(Visitor *v, GenericList **listp,
+static GenericList *qapi_dealloc_next_list(Visitor *v, GenericList *tail,
                                            size_t size)
 {
-    GenericList *list = *listp;
-    QapiDeallocVisitor *qov = to_qov(v);
-    StackEntry *e = QTAILQ_FIRST(&qov->stack);
-
-    if (e && e->is_list_head) {
-        e->is_list_head = false;
-        return list;
-    }
-
-    if (list) {
-        list = list->next;
-        g_free(*listp);
-        return list;
-    }
-
-    return NULL;
+    GenericList *next = tail->next;
+    g_free(tail);
+    return next;
 }
 
 static void qapi_dealloc_end_list(Visitor *v)
 {
-    QapiDeallocVisitor *qov = to_qov(v);
-    void *obj = qapi_dealloc_pop(qov);
-    assert(obj == NULL); /* should've been list head tracker with no payload */
 }
 
 static void qapi_dealloc_type_str(Visitor *v, const char *name, char **obj,

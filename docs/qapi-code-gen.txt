@@ -912,18 +912,20 @@ Example:
     void visit_type_UserDefOneList(Visitor *v, const char *name, UserDefOneList **obj, Error **errp)
     {
         Error *err = NULL;
-        GenericList *i, **prev;
+        UserDefOneList *tail;
+        size_t size = sizeof(**obj);
 
-        visit_start_list(v, name, &err);
+        visit_start_list(v, name, (GenericList **)obj, size, &err);
         if (err) {
             goto out;
         }
 
-        for (prev = (GenericList **)obj;
-             !err && (i = visit_next_list(v, prev, sizeof(**obj))) != NULL;
-             prev = &i) {
-            UserDefOneList *native_i = (UserDefOneList *)i;
-            visit_type_UserDefOne(v, NULL, &native_i->value, &err);
+        for (tail = *obj; tail;
+             tail = (UserDefOneList *)visit_next_list(v, (GenericList *)tail, size)) {
+            visit_type_UserDefOne(v, NULL, &tail->value, &err);
+            if (err) {
+                break;
+            }
         }
 
         visit_end_list(v);

@@ -20,7 +20,7 @@
 
 enum ListMode {
     LM_NONE,             /* not traversing a list of repeated options */
-    LM_STARTED,          /* start_list() succeeded */
+    LM_STARTED,          /* next_list() ready to be called */
 
     LM_IN_PROGRESS,      /* next_list() has been called.
                           *
@@ -48,7 +48,7 @@ enum ListMode {
 
     LM_UNSIGNED_INTERVAL,/* Same as above, only for an unsigned interval. */
 
-    LM_END
+    LM_END,              /* next_list() called, about to see last element. */
 };
 
 typedef enum ListMode ListMode;
@@ -58,7 +58,6 @@ struct StringOutputVisitor
     Visitor visitor;
     bool human;
     GString *string;
-    bool head;
     ListMode list_mode;
     union {
         int64_t s;
@@ -266,39 +265,29 @@ static void print_type_number(Visitor *v, const char *name, double *obj,
 }
 
 static void
-start_list(Visitor *v, const char *name, Error **errp)
+start_list(Visitor *v, const char *name, GenericList **list, size_t size,
+           Error **errp)
 {
     StringOutputVisitor *sov = to_sov(v);
 
     /* we can't traverse a list in a list */
     assert(sov->list_mode == LM_NONE);
-    sov->list_mode = LM_STARTED;
-    sov->head = true;
+    /* We don't support visits without a list */
+    assert(list);
+    /* List handling is only needed if there are at least two elements */
+    if (*list && (*list)->next) {
+        sov->list_mode = LM_STARTED;
+    }
 }
 
-static GenericList *next_list(Visitor *v, GenericList **list, size_t size)
+static GenericList *next_list(Visitor *v, GenericList *tail, size_t size)
 {
     StringOutputVisitor *sov = to_sov(v);
-    GenericList *ret = NULL;
-    if (*list) {
-        if (sov->head) {
-            ret = *list;
-        } else {
-            ret = (*list)->next;
-        }
+    GenericList *ret = tail->next;
 
-        if (sov->head) {
-            if (ret && ret->next == NULL) {
-                sov->list_mode = LM_NONE;
-            }
-            sov->head = false;
-        } else {
-            if (ret && ret->next == NULL) {
-                sov->list_mode = LM_END;
-            }
-        }
+    if (ret && !ret->next) {
+        sov->list_mode = LM_END;
     }
-
     return ret;
 }
 
@@ -311,8 +300,6 @@ static void end_list(Visitor *v)
            sov->list_mode == LM_NONE ||
            sov->list_mode == LM_IN_PROGRESS);
     sov->list_mode = LM_NONE;
-    sov->head = true;
-
 }
 
 char *string_output_get_string(StringOutputVisitor *sov)

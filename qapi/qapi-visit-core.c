@@ -48,15 +48,23 @@ void visit_end_struct(Visitor *v)
     v->end_struct(v);
 }
 
-void visit_start_list(Visitor *v, const char *name, Error **errp)
+void visit_start_list(Visitor *v, const char *name, GenericList **list,
+                      size_t size, Error **errp)
 {
-    v->start_list(v, name, errp);
+    Error *err = NULL;
+
+    assert(!list || size >= sizeof(GenericList));
+    v->start_list(v, name, list, size, &err);
+    if (list && v->type == VISITOR_INPUT) {
+        assert(!(err && *list));
+    }
+    error_propagate(errp, err);
 }
 
-GenericList *visit_next_list(Visitor *v, GenericList **list, size_t size)
+GenericList *visit_next_list(Visitor *v, GenericList *tail, size_t size)
 {
-    assert(list && size >= sizeof(GenericList));
-    return v->next_list(v, list, size);
+    assert(tail && size >= sizeof(GenericList));
+    return v->next_list(v, tail, size);
 }
 
 void visit_end_list(Visitor *v)

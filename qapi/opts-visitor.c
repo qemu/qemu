@@ -23,9 +23,8 @@
 enum ListMode
 {
     LM_NONE,             /* not traversing a list of repeated options */
-    LM_STARTED,          /* opts_start_list() succeeded */
 
-    LM_IN_PROGRESS,      /* opts_next_list() has been called.
+    LM_IN_PROGRESS,      /* opts_next_list() ready to be called.
                           *
                           * Generating the next list link will consume the most
                           * recently parsed QemuOpt instance of the repeated
@@ -214,35 +213,33 @@ lookup_distinct(const OptsVisitor *ov, const char *name, Error **errp)
 
 
 static void
-opts_start_list(Visitor *v, const char *name, Error **errp)
+opts_start_list(Visitor *v, const char *name, GenericList **list, size_t size,
+                Error **errp)
 {
     OptsVisitor *ov = to_ov(v);
 
     /* we can't traverse a list in a list */
     assert(ov->list_mode == LM_NONE);
+    /* we don't support visits without a list */
+    assert(list);
     ov->repeated_opts = lookup_distinct(ov, name, errp);
-    if (ov->repeated_opts != NULL) {
-        ov->list_mode = LM_STARTED;
+    if (ov->repeated_opts) {
+        ov->list_mode = LM_IN_PROGRESS;
+        *list = g_malloc0(size);
+    } else {
+        *list = NULL;
     }
 }
 
 
 static GenericList *
-opts_next_list(Visitor *v, GenericList **list, size_t size)
+opts_next_list(Visitor *v, GenericList *tail, size_t size)
 {
     OptsVisitor *ov = to_ov(v);
-    GenericList **link;
 
     switch (ov->list_mode) {
-    case LM_STARTED:
-        ov->list_mode = LM_IN_PROGRESS;
-        link = list;
-        break;
-
     case LM_SIGNED_INTERVAL:
     case LM_UNSIGNED_INTERVAL:
-        link = &(*list)->next;
-
         if (ov->list_mode == LM_SIGNED_INTERVAL) {
             if (ov->range_next.s < ov->range_limit.s) {
                 ++ov->range_next.s;
@@ -263,7 +260,6 @@ opts_next_list(Visitor *v, GenericList **list, size_t size)
             g_hash_table_remove(ov->unprocessed_opts, opt->name);
             return NULL;
         }
-        link = &(*list)->next;
         break;
     }
 
@@ -271,8 +267,8 @@ opts_next_list(Visitor *v, GenericList **list, size_t size)
         abort();
     }
 
-    *link = g_malloc0(size);
-    return *link;
+    tail->next = g_malloc0(size);
+    return tail->next;
 }
 
 
@@ -281,8 +277,7 @@ opts_end_list(Visitor *v)
 {
     OptsVisitor *ov = to_ov(v);
 
-    assert(ov->list_mode == LM_STARTED ||
-           ov->list_mode == LM_IN_PROGRESS ||
+    assert(ov->list_mode == LM_IN_PROGRESS ||
            ov->list_mode == LM_SIGNED_INTERVAL ||
            ov->list_mode == LM_UNSIGNED_INTERVAL);
     ov->repeated_opts = NULL;

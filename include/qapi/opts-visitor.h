@@ -32,7 +32,8 @@ typedef struct OptsVisitor OptsVisitor;
  *
  * The Opts input visitor does not implement support for visiting QAPI
  * alternates, numbers (other than integers), null, or arbitrary
- * QTypes.
+ * QTypes.  It also requires a non-null list argument to
+ * visit_start_list().
  */
 OptsVisitor *opts_visitor_new(const QemuOpts *opts);
 void opts_visitor_cleanup(OptsVisitor *nv);

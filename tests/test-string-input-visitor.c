@@ -98,8 +98,6 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "not an int list");
 
-    /* FIXME: res should be NULL on failure, regardless of starting value */
-    res = NULL;
     visit_type_int16List(v, NULL, &res, &err);
     error_free_or_abort(&err);
     g_assert(!res);

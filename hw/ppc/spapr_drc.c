@@ -309,7 +309,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
             int i;
             prop = fdt_get_property_by_offset(fdt, fdt_offset, &prop_len);
             name = fdt_string(fdt, fdt32_to_cpu(prop->nameoff));
-            visit_start_list(v, name, &err);
+            visit_start_list(v, name, NULL, 0, &err);
             if (err) {
                 error_propagate(errp, err);
                 return;

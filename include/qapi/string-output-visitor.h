@@ -19,7 +19,8 @@ typedef struct StringOutputVisitor StringOutputVisitor;
 
 /*
  * The string output visitor does not implement support for visiting
- * QAPI structs, alternates, null, or arbitrary QTypes.
+ * QAPI structs, alternates, null, or arbitrary QTypes.  It also
+ * requires a non-null list argument to visit_start_list().
  */
 StringOutputVisitor *string_output_visitor_new(bool human);
 void string_output_visitor_cleanup(StringOutputVisitor *v);

@@ -117,18 +117,20 @@ def gen_visit_list(name, element_type):
 void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
 {
     Error *err = NULL;
-    GenericList *i, **prev;
+    %(c_name)s *tail;
+    size_t size = sizeof(**obj);
 
-    visit_start_list(v, name, &err);
+    visit_start_list(v, name, (GenericList **)obj, size, &err);
     if (err) {
         goto out;
     }
 
-    for (prev = (GenericList **)obj;
-         !err && (i = visit_next_list(v, prev, sizeof(**obj))) != NULL;
-         prev = &i) {
-        %(c_name)s *native_i = (%(c_name)s *)i;
-        visit_type_%(c_elt_type)s(v, NULL, &native_i->value, &err);
+    for (tail = *obj; tail;
+         tail = (%(c_name)s *)visit_next_list(v, (GenericList *)tail, size)) {
+        visit_type_%(c_elt_type)s(v, NULL, &tail->value, &err);
+        if (err) {
+            break;
+        }
     }
 
     visit_end_list(v);

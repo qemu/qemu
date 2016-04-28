@@ -176,7 +176,7 @@
  *  if (err) {
  *      goto out;
  *  }
- *  visit_start_list(v, "list", &err);
+ *  visit_start_list(v, "list", NULL, 0, &err);
  *  if (err) {
  *      goto outobj;
  *  }
@@ -281,19 +281,27 @@ void visit_end_struct(Visitor *v);
  * @name expresses the relationship of this list to its parent
  * container; see the general description of @name above.
  *
+ * @list must be non-NULL for a real walk, in which case @size
+ * determines how much memory an input visitor will allocate into
+ * *@list (at least sizeof(GenericList)).  Some visitors also allow
+ * @list to be NULL for a virtual walk, in which case @size is
+ * ignored.
+ *
  * @errp obeys typical error usage, and reports failures such as a
- * member @name is not present, or present but not a list.
+ * member @name is not present, or present but not a list.  On error,
+ * input visitors set *@list to NULL.
  *
  * After visit_start_list() succeeds, the caller may visit its members
- * one after the other.  A real visit uses visit_next_list() for
- * traversing the linked list, while a virtual visit uses other means.
- * For each list element, call the appropriate visit_type_FOO() with
- * name set to NULL and obj set to the address of the value member of
- * the list element.  Finally, visit_end_list() needs to be called to
- * clean up, even if intermediate visits fail.  See the examples
- * above.
+ * one after the other.  A real visit (where @obj is non-NULL) uses
+ * visit_next_list() for traversing the linked list, while a virtual
+ * visit (where @obj is NULL) uses other means.  For each list
+ * element, call the appropriate visit_type_FOO() with name set to
+ * NULL and obj set to the address of the value member of the list
+ * element.  Finally, visit_end_list() needs to be called to clean up,
+ * even if intermediate visits fail.  See the examples above.
  */
-void visit_start_list(Visitor *v, const char *name, Error **errp);
+void visit_start_list(Visitor *v, const char *name, GenericList **list,
+                      size_t size, Error **errp);
 
 /*
  * Iterate over a GenericList during a non-virtual list visit.
@@ -301,20 +309,15 @@ void visit_start_list(Visitor *v, const char *name, Error **errp);
  * @size represents the size of a linked list node (at least
  * sizeof(GenericList)).
  *
- * @list must not be NULL; on the first call, @list contains the
- * address of the list head, and on subsequent calls *@list must be
- * the previously returned value.  Should be called in a loop until a
- * NULL return or error occurs; for each non-NULL return, the caller
- * then calls the appropriate visit_type_*() for the element type
- * of the list, with that function's name parameter set to NULL and
- * obj set to the address of (*@list)->value.
- *
- * FIXME: This interface is awkward; it requires all callbacks to
- * track whether it is the first or a subsequent call.  A better
- * interface would pass the head of the list through
- * visit_start_list().
+ * @tail must not be NULL; on the first call, @tail is the value of
+ * *list after visit_start_list(), and on subsequent calls @tail must
+ * be the previously returned value.  Should be called in a loop until
+ * a NULL return or error occurs; for each non-NULL return, the caller
+ * then calls the appropriate visit_type_*() for the element type of
+ * the list, with that function's name parameter set to NULL and obj
+ * set to the address of @tail->value.
  */
-GenericList *visit_next_list(Visitor *v, GenericList **list, size_t size);
+GenericList *visit_next_list(Visitor *v, GenericList *tail, size_t size);
 
 /*
  * Complete a list visit started earlier.
