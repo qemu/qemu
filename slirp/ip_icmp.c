@@ -186,7 +186,7 @@ icmp_input(struct mbuf *m, int hlen)
       sotranslate_out(so, &addr);
 
       if(sendto(so->s, icmp_ping_msg, strlen(icmp_ping_msg), 0,
-		(struct sockaddr *)&addr, sizeof(addr)) == -1) {
+		(struct sockaddr *)&addr, sockaddr_size(&addr)) == -1) {
 	DEBUG_MISC((dfd,"icmp_input udp sendto tx errno = %d-%s\n",
 		    errno,strerror(errno)));
 	icmp_send_error(m, ICMP_UNREACH, ICMP_UNREACH_NET, 0, strerror(errno));

@@ -413,7 +413,7 @@ int tcp_fconnect(struct socket *so, unsigned short af)
     sotranslate_out(so, &addr);
 
     /* We don't care what port we get */
-    ret = connect(s,(struct sockaddr *)&addr,sizeof (addr));
+    ret = connect(s, (struct sockaddr *)&addr, sockaddr_size(&addr));
 
     /*
      * If it's not in progress, it failed, so we just return 0,

@@ -122,6 +122,18 @@ static inline int sockaddr_equal(struct sockaddr_storage *a,
     return 0;
 }
 
+static inline socklen_t sockaddr_size(struct sockaddr_storage *a)
+{
+    switch (a->ss_family) {
+    case AF_INET:
+        return sizeof(struct sockaddr_in);
+    case AF_INET6:
+        return sizeof(struct sockaddr_in6);
+    default:
+        g_assert_not_reached();
+    }
+}
+
 struct socket *solookup(struct socket **, struct socket *,
         struct sockaddr_storage *, struct sockaddr_storage *);
 struct socket *socreate(Slirp *);
