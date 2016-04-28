@@ -82,9 +82,8 @@ static void qmp_output_add_obj(QmpOutputVisitor *qov, const char *name,
     QObject *cur = e ? e->value : NULL;
 
     if (!cur) {
-        /* FIXME we should require the user to reset the visitor, rather
-         * than throwing away the previous root */
-        qobject_decref(qov->root);
+        /* Don't allow reuse of visitor on more than one root */
+        assert(!qov->root);
         qov->root = value;
     } else {
         switch (qobject_type(cur)) {
@@ -93,6 +92,7 @@ static void qmp_output_add_obj(QmpOutputVisitor *qov, const char *name,
             qdict_put_obj(qobject_to_qdict(cur), name, value);
             break;
         case QTYPE_QLIST:
+            assert(!name);
             qlist_append_obj(qobject_to_qlist(cur), value);
             break;
         default:
@@ -114,7 +114,8 @@ static void qmp_output_start_struct(Visitor *v, const char *name, void **obj,
 static void qmp_output_end_struct(Visitor *v, Error **errp)
 {
     QmpOutputVisitor *qov = to_qov(v);
-    qmp_output_pop(qov);
+    QObject *value = qmp_output_pop(qov);
+    assert(qobject_type(value) == QTYPE_QDICT);
 }
 
 static void qmp_output_start_list(Visitor *v, const char *name, Error **errp)
@@ -145,7 +146,8 @@ static GenericList *qmp_output_next_list(Visitor *v, GenericList **listp,
 static void qmp_output_end_list(Visitor *v)
 {
     QmpOutputVisitor *qov = to_qov(v);
-    qmp_output_pop(qov);
+    QObject *value = qmp_output_pop(qov);
+    assert(qobject_type(value) == QTYPE_QLIST);
 }
 
 static void qmp_output_type_int64(Visitor *v, const char *name, int64_t *obj,
@@ -202,18 +204,16 @@ static void qmp_output_type_null(Visitor *v, const char *name, Error **errp)
     qmp_output_add_obj(qov, name, qnull());
 }
 
-/* Finish building, and return the root object. Will not be NULL. */
+/* Finish building, and return the root object.
+ * The root object is never null. The caller becomes the object's
+ * owner, and should use qobject_decref() when done with it.  */
 QObject *qmp_output_get_qobject(QmpOutputVisitor *qov)
 {
-    /* FIXME: we should require that a visit occurred, and that it is
-     * complete (no starts without a matching end) */
-    QObject *obj = qov->root;
-    if (obj) {
-        qobject_incref(obj);
-    } else {
-        obj = qnull();
-    }
-    return obj;
+    /* A visit must have occurred, with each start paired with end.  */
+    assert(qov->root && QTAILQ_EMPTY(&qov->stack));
+
+    qobject_incref(qov->root);
+    return qov->root;
 }
 
 Visitor *qmp_output_get_visitor(QmpOutputVisitor *v)
