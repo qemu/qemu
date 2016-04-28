@@ -56,16 +56,19 @@ static QObject *qmp_input_get_object(QmpInputVisitor *qiv,
 {
     StackObject *tos = &qiv->stack[qiv->nb_stack - 1];
     QObject *qobj = tos->obj;
+    QObject *ret;
 
     assert(qobj);
 
     /* If we have a name, and we're in a dictionary, then return that
      * value. */
     if (name && qobject_type(qobj) == QTYPE_QDICT) {
-        if (tos->h && consume) {
-            g_hash_table_remove(tos->h, name);
+        ret = qdict_get(qobject_to_qdict(qobj), name);
+        if (tos->h && consume && ret) {
+            bool removed = g_hash_table_remove(tos->h, name);
+            assert(removed);
         }
-        return qdict_get(qobject_to_qdict(qobj), name);
+        return ret;
     }
 
     /* If we are in the middle of a list, then return the next element
@@ -335,7 +338,7 @@ static void qmp_input_type_any(Visitor *v, const char *name, QObject **obj,
 static void qmp_input_optional(Visitor *v, const char *name, bool *present)
 {
     QmpInputVisitor *qiv = to_qiv(v);
-    QObject *qobj = qmp_input_get_object(qiv, name, true);
+    QObject *qobj = qmp_input_get_object(qiv, name, false);
 
     if (!qobj) {
         *present = false;
