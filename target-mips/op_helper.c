@@ -2294,29 +2294,29 @@ void helper_deret(CPUMIPSState *env)
 }
 #endif /* !CONFIG_USER_ONLY */
 
-static inline void check_hwrena(CPUMIPSState *env, int reg)
+static inline void check_hwrena(CPUMIPSState *env, int reg, uintptr_t pc)
 {
     if ((env->hflags & MIPS_HFLAG_CP0) || (env->CP0_HWREna & (1 << reg))) {
         return;
     }
-    do_raise_exception(env, EXCP_RI, GETPC());
+    do_raise_exception(env, EXCP_RI, pc);
 }
 
 target_ulong helper_rdhwr_cpunum(CPUMIPSState *env)
 {
-    check_hwrena(env, 0);
+    check_hwrena(env, 0, GETPC());
     return env->CP0_EBase & 0x3ff;
 }
 
 target_ulong helper_rdhwr_synci_step(CPUMIPSState *env)
 {
-    check_hwrena(env, 1);
+    check_hwrena(env, 1, GETPC());
     return env->SYNCI_Step;
 }
 
 target_ulong helper_rdhwr_cc(CPUMIPSState *env)
 {
-    check_hwrena(env, 2);
+    check_hwrena(env, 2, GETPC());
 #ifdef CONFIG_USER_ONLY
     return env->CP0_Count;
 #else
@@ -2326,19 +2326,19 @@ target_ulong helper_rdhwr_cc(CPUMIPSState *env)
 
 target_ulong helper_rdhwr_ccres(CPUMIPSState *env)
 {
-    check_hwrena(env, 3);
+    check_hwrena(env, 3, GETPC());
     return env->CCRes;
 }
 
 target_ulong helper_rdhwr_performance(CPUMIPSState *env)
 {
-    check_hwrena(env, 4);
+    check_hwrena(env, 4, GETPC());
     return env->CP0_Performance0;
 }
 
 target_ulong helper_rdhwr_xnp(CPUMIPSState *env)
 {
-    check_hwrena(env, 5);
+    check_hwrena(env, 5, GETPC());
     return (env->CP0_Config5 >> CP0C5_XNP) & 1;
 }
 
