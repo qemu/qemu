@@ -17,6 +17,10 @@
 
 typedef struct StringInputVisitor StringInputVisitor;
 
+/*
+ * The string input visitor does not implement support for visiting
+ * QAPI structs, alternates, or arbitrary QTypes.
+ */
 StringInputVisitor *string_input_visitor_new(const char *str);
 void string_input_visitor_cleanup(StringInputVisitor *v);
 

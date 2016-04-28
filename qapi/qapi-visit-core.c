@@ -25,6 +25,10 @@ void visit_start_struct(Visitor *v, const char *name, void **obj,
 {
     Error *err = NULL;
 
+    if (obj) {
+        assert(size);
+        assert(v->type != VISITOR_OUTPUT || *obj);
+    }
     v->start_struct(v, name, obj, size, &err);
     if (obj && v->type == VISITOR_INPUT) {
         assert(!err != !*obj);
@@ -60,6 +64,7 @@ void visit_start_alternate(Visitor *v, const char *name,
     Error *err = NULL;
 
     assert(obj && size >= sizeof(GenericAlternate));
+    assert(v->type != VISITOR_OUTPUT || *obj);
     if (v->start_alternate) {
         v->start_alternate(v, name, obj, size, promote_int, &err);
     }
@@ -86,6 +91,7 @@ bool visit_optional(Visitor *v, const char *name, bool *present)
 
 void visit_type_int(Visitor *v, const char *name, int64_t *obj, Error **errp)
 {
+    assert(obj);
     v->type_int64(v, name, obj, errp);
 }
 
@@ -133,6 +139,7 @@ void visit_type_uint32(Visitor *v, const char *name, uint32_t *obj,
 void visit_type_uint64(Visitor *v, const char *name, uint64_t *obj,
                        Error **errp)
 {
+    assert(obj);
     v->type_uint64(v, name, obj, errp);
 }
 
@@ -180,12 +187,14 @@ void visit_type_int32(Visitor *v, const char *name, int32_t *obj,
 void visit_type_int64(Visitor *v, const char *name, int64_t *obj,
                       Error **errp)
 {
+    assert(obj);
     v->type_int64(v, name, obj, errp);
 }
 
 void visit_type_size(Visitor *v, const char *name, uint64_t *obj,
                      Error **errp)
 {
+    assert(obj);
     if (v->type_size) {
         v->type_size(v, name, obj, errp);
     } else {
@@ -195,6 +204,7 @@ void visit_type_size(Visitor *v, const char *name, uint64_t *obj,
 
 void visit_type_bool(Visitor *v, const char *name, bool *obj, Error **errp)
 {
+    assert(obj);
     v->type_bool(v, name, obj, errp);
 }
 
@@ -203,6 +213,10 @@ void visit_type_str(Visitor *v, const char *name, char **obj, Error **errp)
     Error *err = NULL;
 
     assert(obj);
+    /* TODO: Fix callers to not pass NULL when they mean "", so that we
+     * can enable:
+    assert(v->type != VISITOR_OUTPUT || *obj);
+     */
     v->type_str(v, name, obj, &err);
     if (v->type == VISITOR_INPUT) {
         assert(!err != !*obj);
@@ -213,6 +227,7 @@ void visit_type_str(Visitor *v, const char *name, char **obj, Error **errp)
 void visit_type_number(Visitor *v, const char *name, double *obj,
                        Error **errp)
 {
+    assert(obj);
     v->type_number(v, name, obj, errp);
 }
 
@@ -221,6 +236,7 @@ void visit_type_any(Visitor *v, const char *name, QObject **obj, Error **errp)
     Error *err = NULL;
 
     assert(obj);
+    assert(v->type != VISITOR_OUTPUT || *obj);
     v->type_any(v, name, obj, &err);
     if (v->type == VISITOR_INPUT) {
         assert(!err != !*obj);
@@ -278,7 +294,7 @@ static void input_type_enum(Visitor *v, const char *name, int *obj,
 void visit_type_enum(Visitor *v, const char *name, int *obj,
                      const char *const strings[], Error **errp)
 {
-    assert(strings);
+    assert(obj && strings);
     if (v->type == VISITOR_INPUT) {
         input_type_enum(v, name, obj, strings, errp);
     } else if (v->type == VISITOR_OUTPUT) {

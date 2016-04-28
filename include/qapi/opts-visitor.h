@@ -29,6 +29,9 @@ typedef struct OptsVisitor OptsVisitor;
  * - string representations of negative numbers yield negative values,
  * - values below INT64_MIN or LLONG_MIN are rejected,
  * - values above INT64_MAX or LLONG_MAX are rejected.
+ *
+ * The Opts input visitor does not implement support for visiting QAPI
+ * alternates, numbers (other than integers), or arbitrary QTypes.
  */
 OptsVisitor *opts_visitor_new(const QemuOpts *opts);
 void opts_visitor_cleanup(OptsVisitor *nv);
