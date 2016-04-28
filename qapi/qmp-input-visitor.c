@@ -25,16 +25,23 @@
 
 typedef struct StackObject
 {
-    QObject *obj;
-    const QListEntry *entry;
-    GHashTable *h;
+    QObject *obj; /* Object being visited */
+
+    GHashTable *h;           /* If obj is dict: unvisited keys */
+    const QListEntry *entry; /* If obj is list: unvisited tail */
 } StackObject;
 
 struct QmpInputVisitor
 {
     Visitor visitor;
+
+    /* Stack of objects being visited.  stack[0] is root of visit,
+     * stack[1..] records the nesting of start_struct()/end_struct()
+     * and start_list()/end_list() pairs. */
     StackObject stack[QIV_STACK_SIZE];
     int nb_stack;
+
+    /* True to reject parse in visit_end_struct() if unvisited keys remain. */
     bool strict;
 };
 
@@ -47,19 +54,29 @@ static QObject *qmp_input_get_object(QmpInputVisitor *qiv,
                                      const char *name,
                                      bool consume)
 {
-    QObject *qobj = qiv->stack[qiv->nb_stack - 1].obj;
+    StackObject *tos = &qiv->stack[qiv->nb_stack - 1];
+    QObject *qobj = tos->obj;
 
-    if (qobj) {
-        if (name && qobject_type(qobj) == QTYPE_QDICT) {
-            if (qiv->stack[qiv->nb_stack - 1].h && consume) {
-                g_hash_table_remove(qiv->stack[qiv->nb_stack - 1].h, name);
-            }
-            return qdict_get(qobject_to_qdict(qobj), name);
-        } else if (qiv->stack[qiv->nb_stack - 1].entry) {
-            return qlist_entry_obj(qiv->stack[qiv->nb_stack - 1].entry);
+    assert(qobj);
+
+    /* If we have a name, and we're in a dictionary, then return that
+     * value. */
+    if (name && qobject_type(qobj) == QTYPE_QDICT) {
+        if (tos->h && consume) {
+            g_hash_table_remove(tos->h, name);
         }
+        return qdict_get(qobject_to_qdict(qobj), name);
     }
 
+    /* If we are in the middle of a list, then return the next element
+     * of the list. */
+    if (tos->entry) {
+        assert(qobject_type(qobj) == QTYPE_QLIST);
+        return qlist_entry_obj(tos->entry);
+    }
+
+    /* Otherwise, we are at the root of the visit or the start of a
+     * list, and return the object as-is. */
     return qobj;
 }
 
@@ -72,20 +89,22 @@ static void qdict_add_key(const char *key, QObject *obj, void *opaque)
 static void qmp_input_push(QmpInputVisitor *qiv, QObject *obj, Error **errp)
 {
     GHashTable *h;
+    StackObject *tos = &qiv->stack[qiv->nb_stack];
 
+    assert(obj);
     if (qiv->nb_stack >= QIV_STACK_SIZE) {
         error_setg(errp, "An internal buffer overran");
         return;
     }
 
-    qiv->stack[qiv->nb_stack].obj = obj;
-    qiv->stack[qiv->nb_stack].entry = NULL;
-    qiv->stack[qiv->nb_stack].h = NULL;
+    tos->obj = obj;
+    tos->entry = NULL;
+    tos->h = NULL;
 
     if (qiv->strict && qobject_type(obj) == QTYPE_QDICT) {
         h = g_hash_table_new(g_str_hash, g_str_equal);
         qdict_iter(qobject_to_qdict(obj), qdict_add_key, h);
-        qiv->stack[qiv->nb_stack].h = h;
+        tos->h = h;
     }
 
     qiv->nb_stack++;
