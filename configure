@@ -4494,6 +4494,21 @@ if test "$fortify_source" != "no"; then
 fi
 
 ##########################################
+# check if struct fsxattr is available via linux/fs.h
+
+have_fsxattr=no
+cat > $TMPC << EOF
+#include <linux/fs.h>
+struct fsxattr foo;
+int main(void) {
+  return 0;
+}
+EOF
+if compile_prog "" "" ; then
+    have_fsxattr=yes
+fi
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -5159,6 +5174,14 @@ if test "$tasn1" = "yes" ; then
 fi
 if test "$have_ifaddrs_h" = "yes" ; then
     echo "HAVE_IFADDRS_H=y" >> $config_host_mak
+fi
+
+# Work around a system header bug with some kernel/XFS header
+# versions where they both try to define 'struct fsxattr':
+# xfs headers will not try to redefine structs from linux headers
+# if this macro is set.
+if test "$have_fsxattr" = "yes" ; then
+    echo "HAVE_FSXATTR=y" >> $config_host_mak
 fi
 if test "$vte" = "yes" ; then
   echo "CONFIG_VTE=y" >> $config_host_mak
