@@ -1909,8 +1909,8 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
     int64_t total_size = 0, filesize;
     char *adapter_type = NULL;
     char *backing_file = NULL;
+    char *hw_version = NULL;
     char *fmt = NULL;
-    int flags = 0;
     int ret = 0;
     bool flat, split, compress;
     GString *ext_desc_lines;
@@ -1941,7 +1941,7 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
         "# The Disk Data Base\n"
         "#DDB\n"
         "\n"
-        "ddb.virtualHWVersion = \"%d\"\n"
+        "ddb.virtualHWVersion = \"%s\"\n"
         "ddb.geometry.cylinders = \"%" PRId64 "\"\n"
         "ddb.geometry.heads = \"%" PRIu32 "\"\n"
         "ddb.geometry.sectors = \"63\"\n"
@@ -1958,8 +1958,20 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
                           BDRV_SECTOR_SIZE);
     adapter_type = qemu_opt_get_del(opts, BLOCK_OPT_ADAPTER_TYPE);
     backing_file = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FILE);
+    hw_version = qemu_opt_get_del(opts, BLOCK_OPT_HWVERSION);
     if (qemu_opt_get_bool_del(opts, BLOCK_OPT_COMPAT6, false)) {
-        flags |= BLOCK_FLAG_COMPAT6;
+        if (strcmp(hw_version, "undefined")) {
+            error_setg(errp,
+                       "compat6 cannot be enabled with hwversion set");
+            ret = -EINVAL;
+            goto exit;
+        }
+        g_free(hw_version);
+        hw_version = g_strdup("6");
+    }
+    if (strcmp(hw_version, "undefined") == 0) {
+        g_free(hw_version);
+        hw_version = g_strdup("4");
     }
     fmt = qemu_opt_get_del(opts, BLOCK_OPT_SUBFMT);
     if (qemu_opt_get_bool_del(opts, BLOCK_OPT_ZEROED_GRAIN, false)) {
@@ -2081,7 +2093,7 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
                            fmt,
                            parent_desc_line,
                            ext_desc_lines->str,
-                           (flags & BLOCK_FLAG_COMPAT6 ? 6 : 4),
+                           hw_version,
                            total_size /
                                (int64_t)(63 * number_heads * BDRV_SECTOR_SIZE),
                            number_heads,
@@ -2127,6 +2139,7 @@ exit:
     }
     g_free(adapter_type);
     g_free(backing_file);
+    g_free(hw_version);
     g_free(fmt);
     g_free(desc);
     g_free(path);
@@ -2376,6 +2389,12 @@ static QemuOptsList vmdk_create_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "VMDK version 6 image",
             .def_value_str = "off"
+        },
+        {
+            .name = BLOCK_OPT_HWVERSION,
+            .type = QEMU_OPT_STRING,
+            .help = "VMDK hardware version",
+            .def_value_str = "undefined"
         },
         {
             .name = BLOCK_OPT_SUBFMT,

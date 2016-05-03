@@ -92,6 +92,7 @@ _filter_img_create()
         -e "s# zeroed_grain=\\(on\\|off\\)##g" \
         -e "s# subformat='[^']*'##g" \
         -e "s# adapter_type='[^']*'##g" \
+        -e "s# hwversion=[^ ]*##g" \
         -e "s# lazy_refcounts=\\(on\\|off\\)##g" \
         -e "s# block_size=[0-9]\\+##g" \
         -e "s# block_state_zero=\\(on\\|off\\)##g" \
@@ -115,6 +116,7 @@ _filter_img_info()
         -e "/zeroed_grain: \\(on\\|off\\)/d" \
         -e "/subformat: '[^']*'/d" \
         -e "/adapter_type: '[^']*'/d" \
+        -e "/hwversion: '[^']*'/d" \
         -e "/lazy_refcounts: \\(on\\|off\\)/d" \
         -e "/block_size: [0-9]\\+/d" \
         -e "/block_state_zero: \\(on\\|off\\)/d" \

@@ -38,12 +38,12 @@
 #include "qemu/throttle.h"
 
 #define BLOCK_FLAG_ENCRYPT          1
-#define BLOCK_FLAG_COMPAT6          4
 #define BLOCK_FLAG_LAZY_REFCOUNTS   8
 
 #define BLOCK_OPT_SIZE              "size"
 #define BLOCK_OPT_ENCRYPT           "encryption"
 #define BLOCK_OPT_COMPAT6           "compat6"
+#define BLOCK_OPT_HWVERSION         "hwversion"
 #define BLOCK_OPT_BACKING_FILE      "backing_file"
 #define BLOCK_OPT_BACKING_FMT       "backing_fmt"
 #define BLOCK_OPT_CLUSTER_SIZE      "cluster_size"
