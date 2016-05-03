@@ -1242,9 +1242,6 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val);
 #define cpu_list ppc_cpu_list
 
 /* MMU modes definitions */
-#define MMU_MODE0_SUFFIX _user
-#define MMU_MODE1_SUFFIX _kernel
-#define MMU_MODE2_SUFFIX _hypv
 #define MMU_USER_IDX 0
 static inline int cpu_mmu_index (CPUPPCState *env, bool ifetch)
 {
