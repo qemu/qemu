@@ -41,11 +41,50 @@ static inline void hreg_swap_gpr_tgpr(CPUPPCState *env)
 
 static inline void hreg_compute_mem_idx(CPUPPCState *env)
 {
-    /* Precompute MMU index */
-    if (msr_pr == 0 && msr_hv != 0) {
-        env->mmu_idx = 2;
+    /* This is our encoding for server processors
+     *
+     *   0 = Guest User space virtual mode
+     *   1 = Guest Kernel space virtual mode
+     *   2 = Guest Kernel space real mode
+     *   3 = HV User space virtual mode
+     *   4 = HV Kernel space virtual mode
+     *   5 = HV Kernel space real mode
+     *
+     * The combination PR=1 IR&DR=0 is invalid, we will treat
+     * it as IR=DR=1
+     *
+     * For BookE, we need 8 MMU modes as follow:
+     *
+     *  0 = AS 0 HV User space
+     *  1 = AS 0 HV Kernel space
+     *  2 = AS 1 HV User space
+     *  3 = AS 1 HV Kernel space
+     *  4 = AS 0 Guest User space
+     *  5 = AS 0 Guest Kernel space
+     *  6 = AS 1 Guest User space
+     *  7 = AS 1 Guest Kernel space
+     */
+    if (env->mmu_model & POWERPC_MMU_BOOKE) {
+        env->immu_idx = env->dmmu_idx = msr_pr ? 0 : 1;
+        env->immu_idx += msr_is ? 2 : 0;
+        env->dmmu_idx += msr_ds ? 2 : 0;
+        env->immu_idx += msr_gs ? 4 : 0;
+        env->dmmu_idx += msr_gs ? 4 : 0;
     } else {
-        env->mmu_idx = 1 - msr_pr;
+        /* First calucalte a base value independent of HV */
+        if (msr_pr != 0) {
+            /* User space, ignore IR and DR */
+            env->immu_idx = env->dmmu_idx = 0;
+        } else {
+            /* Kernel, setup a base I/D value */
+            env->immu_idx = msr_ir ? 1 : 2;
+            env->dmmu_idx = msr_dr ? 1 : 2;
+        }
+        /* Then offset it for HV */
+        if (msr_hv) {
+            env->immu_idx += 3;
+            env->dmmu_idx += 3;
+        }
     }
 }
 
@@ -82,9 +121,10 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
     }
     if (((value >> MSR_IR) & 1) != msr_ir ||
         ((value >> MSR_DR) & 1) != msr_dr) {
-        /* Flush all tlb when changing translation mode */
-        tlb_flush(cs, 1);
-        excp = POWERPC_EXCP_NONE;
+        cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
+    }
+    if ((env->mmu_model & POWERPC_MMU_BOOKE) &&
+        ((value >> MSR_GS) & 1) != msr_gs) {
         cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
     }
     if (unlikely((env->flags & POWERPC_FLAG_TGPR) &&

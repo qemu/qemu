@@ -646,9 +646,6 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
 
     if (env->spr[SPR_LPCR] & LPCR_AIL) {
         new_msr |= (1 << MSR_IR) | (1 << MSR_DR);
-    } else if (msr & ((1 << MSR_IR) | (1 << MSR_DR))) {
-        /* If we disactivated any translation, flush TLBs */
-        tlb_flush(cs, 1);
     }
 
 #ifdef TARGET_PPC64
@@ -721,14 +718,6 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     /* Reset exception state */
     cs->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
-
-    if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
-        (env->mmu_model == POWERPC_MMU_BOOKE206)) {
-        /* XXX: The BookE changes address space when switching modes,
-                we should probably implement that as different MMU indexes,
-                but for the moment we do it the slow way and flush all.  */
-        tlb_flush(cs, 1);
-    }
 }
 
 void ppc_cpu_do_interrupt(CPUState *cs)

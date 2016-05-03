@@ -359,6 +359,8 @@ struct ppc_slb_t {
 #define MSR_EP   6  /* Exception prefix on 601                               */
 #define MSR_IR   5  /* Instruction relocate                                  */
 #define MSR_DR   4  /* Data relocate                                         */
+#define MSR_IS   5  /* Instruction address space (BookE)                     */
+#define MSR_DS   4  /* Data address space (BookE)                            */
 #define MSR_PE   3  /* Protection enable on 403                              */
 #define MSR_PX   2  /* Protection exclusive on 403                  x        */
 #define MSR_PMM  2  /* Performance monitor mark on POWER            x        */
@@ -410,6 +412,8 @@ struct ppc_slb_t {
 #define msr_ep   ((env->msr >> MSR_EP)   & 1)
 #define msr_ir   ((env->msr >> MSR_IR)   & 1)
 #define msr_dr   ((env->msr >> MSR_DR)   & 1)
+#define msr_is   ((env->msr >> MSR_IS)   & 1)
+#define msr_ds   ((env->msr >> MSR_DS)   & 1)
 #define msr_pe   ((env->msr >> MSR_PE)   & 1)
 #define msr_px   ((env->msr >> MSR_PX)   & 1)
 #define msr_pmm  ((env->msr >> MSR_PMM)  & 1)
@@ -889,7 +893,7 @@ struct ppc_segment_page_sizes {
 
 /*****************************************************************************/
 /* The whole PowerPC CPU context */
-#define NB_MMU_MODES 3
+#define NB_MMU_MODES    8
 
 #define PPC_CPU_OPCODES_LEN          0x40
 #define PPC_CPU_INDIRECT_OPCODES_LEN 0x20
@@ -1053,7 +1057,8 @@ struct CPUPPCState {
     /* Those resources are used only in QEMU core */
     target_ulong hflags;      /* hflags is a MSR & HFLAGS_MASK         */
     target_ulong hflags_nmsr; /* specific hflags, not coming from MSR */
-    int mmu_idx;         /* precomputed MMU index to speed up mem accesses */
+    int immu_idx;         /* precomputed MMU index to speed up insn access */
+    int dmmu_idx;         /* precomputed MMU index to speed up data accesses */
 
     /* Power management */
     int (*check_pow)(CPUPPCState *env);
@@ -1245,7 +1250,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val);
 #define MMU_USER_IDX 0
 static inline int cpu_mmu_index (CPUPPCState *env, bool ifetch)
 {
-    return env->mmu_idx;
+    return ifetch ? env->immu_idx : env->dmmu_idx;
 }
 
 #include "exec/cpu-all.h"

@@ -11220,8 +11220,9 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
                 env->nip, env->lr, env->ctr, cpu_read_xer(env),
                 cs->cpu_index);
     cpu_fprintf(f, "MSR " TARGET_FMT_lx " HID0 " TARGET_FMT_lx "  HF "
-                TARGET_FMT_lx " idx %d\n", env->msr, env->spr[SPR_HID0],
-                env->hflags, env->mmu_idx);
+                TARGET_FMT_lx " iidx %d didx %d\n",
+                env->msr, env->spr[SPR_HID0],
+                env->hflags, env->immu_idx, env->dmmu_idx);
 #if !defined(NO_TIMER_DUMP)
     cpu_fprintf(f, "TB %08" PRIu32 " %08" PRIu64
 #if !defined(CONFIG_USER_ONLY)
@@ -11428,7 +11429,7 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
     ctx.spr_cb = env->spr_cb;
     ctx.pr = msr_pr;
     ctx.hv = !msr_pr && msr_hv;
-    ctx.mem_idx = env->mmu_idx;
+    ctx.mem_idx = env->dmmu_idx;
     ctx.insns_flags = env->insns_flags;
     ctx.insns_flags2 = env->insns_flags2;
     ctx.access_type = -1;
