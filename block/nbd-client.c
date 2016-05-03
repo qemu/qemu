@@ -243,15 +243,15 @@ static int nbd_co_readv_1(BlockDriverState *bs, int64_t sector_num,
 
 static int nbd_co_writev_1(BlockDriverState *bs, int64_t sector_num,
                            int nb_sectors, QEMUIOVector *qiov,
-                           int offset, int *flags)
+                           int offset, int flags)
 {
     NbdClientSession *client = nbd_get_client_session(bs);
     struct nbd_request request = { .type = NBD_CMD_WRITE };
     struct nbd_reply reply;
     ssize_t ret;
 
-    if ((*flags & BDRV_REQ_FUA) && (client->nbdflags & NBD_FLAG_SEND_FUA)) {
-        *flags &= ~BDRV_REQ_FUA;
+    if (flags & BDRV_REQ_FUA) {
+        assert(client->nbdflags & NBD_FLAG_SEND_FUA);
         request.type |= NBD_CMD_FLAG_FUA;
     }
 
@@ -291,7 +291,7 @@ int nbd_client_co_readv(BlockDriverState *bs, int64_t sector_num,
 }
 
 int nbd_client_co_writev(BlockDriverState *bs, int64_t sector_num,
-                         int nb_sectors, QEMUIOVector *qiov, int *flags)
+                         int nb_sectors, QEMUIOVector *qiov, int flags)
 {
     int offset = 0;
     int ret;
