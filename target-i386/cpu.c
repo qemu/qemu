@@ -1945,6 +1945,27 @@ static inline void feat2prop(char *s)
     }
 }
 
+/* Return the feature property name for a feature flag bit */
+static const char *x86_cpu_feature_name(FeatureWord w, int bitnr)
+{
+    /* XSAVE components are automatically enabled by other features,
+     * so return the original feature name instead
+     */
+    if (w == FEAT_XSAVE_COMP_LO || w == FEAT_XSAVE_COMP_HI) {
+        int comp = (w == FEAT_XSAVE_COMP_HI) ? bitnr + 32 : bitnr;
+
+        if (comp < ARRAY_SIZE(x86_ext_save_areas) &&
+            x86_ext_save_areas[comp].bits) {
+            w = x86_ext_save_areas[comp].feature;
+            bitnr = ctz32(x86_ext_save_areas[comp].bits);
+        }
+    }
+
+    assert(bitnr < 32);
+    assert(w < FEATURE_WORDS);
+    return feature_word_info[w].feat_names[bitnr];
+}
+
 /* Compatibily hack to maintain legacy +-feat semantic,
  * where +-feat overwrites any feature set by
  * feat=on|feat even if the later is parsed after +-feat
@@ -2028,6 +2049,59 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
     if (local_err) {
         error_propagate(errp, local_err);
     }
+}
+
+static void x86_cpu_load_features(X86CPU *cpu, Error **errp);
+static int x86_cpu_filter_features(X86CPU *cpu);
+
+/* Check for missing features that may prevent the CPU class from
+ * running using the current machine and accelerator.
+ */
+static void x86_cpu_class_check_missing_features(X86CPUClass *xcc,
+                                                 strList **missing_feats)
+{
+    X86CPU *xc;
+    FeatureWord w;
+    Error *err = NULL;
+    strList **next = missing_feats;
+
+    if (xcc->kvm_required && !kvm_enabled()) {
+        strList *new = g_new0(strList, 1);
+        new->value = g_strdup("kvm");;
+        *missing_feats = new;
+        return;
+    }
+
+    xc = X86_CPU(object_new(object_class_get_name(OBJECT_CLASS(xcc))));
+
+    x86_cpu_load_features(xc, &err);
+    if (err) {
+        /* Errors at x86_cpu_load_features should never happen,
+         * but in case it does, just report the model as not
+         * runnable at all using the "type" property.
+         */
+        strList *new = g_new0(strList, 1);
+        new->value = g_strdup("type");
+        *next = new;
+        next = &new->next;
+    }
+
+    x86_cpu_filter_features(xc);
+
+    for (w = 0; w < FEATURE_WORDS; w++) {
+        uint32_t filtered = xc->filtered_features[w];
+        int i;
+        for (i = 0; i < 32; i++) {
+            if (filtered & (1UL << i)) {
+                strList *new = g_new0(strList, 1);
+                new->value = g_strdup(x86_cpu_feature_name(w, i));
+                *next = new;
+                next = &new->next;
+            }
+        }
+    }
+
+    object_unref(OBJECT(xc));
 }
 
 /* Print all cpuid feature names in featureset
@@ -2122,6 +2196,8 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
 
     info = g_malloc0(sizeof(*info));
     info->name = x86_cpu_class_get_model_name(cc);
+    x86_cpu_class_check_missing_features(cc, &info->unavailable_features);
+    info->has_unavailable_features = true;
 
     entry = g_malloc0(sizeof(*entry));
     entry->value = info;
