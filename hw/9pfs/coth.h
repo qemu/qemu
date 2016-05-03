@@ -47,7 +47,6 @@
     } while (0)
 
 extern void co_run_in_worker_bh(void *);
-extern int v9fs_init_worker_threads(void);
 extern int v9fs_co_readlink(V9fsPDU *, V9fsPath *, V9fsString *);
 extern int v9fs_co_readdir_r(V9fsPDU *, V9fsFidState *,
                            struct dirent *, struct dirent **result);
