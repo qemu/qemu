@@ -582,8 +582,6 @@ int cpu_exec(CPUState *cpu)
                 /* Try to align the host and virtual clocks
                    if the guest is in advance */
                 align_clocks(&sc, cpu);
-                /* reset soft MMU for next block (it can currently
-                   only be set by a memory fault) */
             } /* for(;;) */
         } else {
 #if defined(__clang__) || !QEMU_GNUC_PREREQ(4, 6)
