@@ -16,6 +16,7 @@ DEF_HELPER_1(rfmci, void, env)
 DEF_HELPER_1(rfid, void, env)
 DEF_HELPER_1(hrfid, void, env)
 #endif
+DEF_HELPER_1(check_tlb_flush, void, env)
 #endif
 
 DEF_HELPER_3(lmw, void, env, tl, i32)

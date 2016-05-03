@@ -958,6 +958,8 @@ struct CPUPPCState {
     /* PowerPC 64 SLB area */
     ppc_slb_t slb[MAX_SLB_ENTRIES];
     int32_t slb_nr;
+    /* tcg TLB needs flush (deferred slb inval instruction typically) */
+    uint32_t tlb_need_flush;
 #endif
     /* segment registers */
     hwaddr htab_base;

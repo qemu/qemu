@@ -151,4 +151,17 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
     return excp;
 }
 
+#if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
+static inline void check_tlb_flush(CPUPPCState *env)
+{
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    if (env->tlb_need_flush) {
+        env->tlb_need_flush = 0;
+        tlb_flush(cs, 1);
+    }
+}
+#else
+static inline void check_tlb_flush(CPUPPCState *env) { }
+#endif
+
 #endif /* !defined(__HELPER_REGS_H__) */

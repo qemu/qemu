@@ -718,6 +718,11 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     /* Reset exception state */
     cs->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
+
+    /* Any interrupt is context synchronizing, check if TCG TLB
+     * needs a delayed flush on ppc64
+     */
+    check_tlb_flush(env);
 }
 
 void ppc_cpu_do_interrupt(CPUState *cs)
@@ -943,6 +948,9 @@ static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr,
      * as rfi is always the last insn of a TB
      */
     cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
+
+    /* Context synchronizing: check if TCG TLB needs flush */
+    check_tlb_flush(env);
 }
 
 void helper_rfi(CPUPPCState *env)

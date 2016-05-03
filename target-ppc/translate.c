@@ -3275,9 +3275,32 @@ static void gen_eieio(DisasContext *ctx)
 {
 }
 
+#if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
+static inline void gen_check_tlb_flush(DisasContext *ctx)
+{
+    TCGv_i32 t = tcg_temp_new_i32();
+    TCGLabel *l = gen_new_label();
+
+    tcg_gen_ld_i32(t, cpu_env, offsetof(CPUPPCState, tlb_need_flush));
+    tcg_gen_brcondi_i32(TCG_COND_EQ, t, 0, l);
+    gen_helper_check_tlb_flush(cpu_env);
+    gen_set_label(l);
+    tcg_temp_free_i32(t);
+}
+#else
+static inline void gen_check_tlb_flush(DisasContext *ctx) { }
+#endif
+
 /* isync */
 static void gen_isync(DisasContext *ctx)
 {
+    /*
+     * We need to check for a pending TLB flush. This can only happen in
+     * kernel mode however so check MSR_PR
+     */
+    if (!ctx->pr) {
+        gen_check_tlb_flush(ctx);
+    }
     gen_stop_exception(ctx);
 }
 
@@ -3434,6 +3457,15 @@ STCX(stqcx_, 16);
 /* sync */
 static void gen_sync(DisasContext *ctx)
 {
+    uint32_t l = (ctx->opcode >> 21) & 3;
+
+    /*
+     * For l == 2, it's a ptesync, We need to check for a pending TLB flush.
+     * This can only happen in kernel mode however so check MSR_PR as well.
+     */
+    if (l == 2 && !ctx->pr) {
+        gen_check_tlb_flush(ctx);
+    }
 }
 
 /* wait */
@@ -4851,10 +4883,11 @@ static void gen_tlbsync(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
-    /* This has no effect: it should ensure that all previous
-     * tlbie have completed
+    /* tlbsync is a nop for server, ptesync handles delayed tlb flush,
+     * embedded however needs to deal with tlbsync. We don't try to be
+     * fancy and swallow the overhead of checking for both.
      */
-    gen_stop_exception(ctx);
+    gen_check_tlb_flush(ctx);
 #endif
 }
 
