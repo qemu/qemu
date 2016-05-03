@@ -158,8 +158,6 @@ struct BlockDriver {
     int coroutine_fn (*bdrv_co_pwritev)(BlockDriverState *bs,
         uint64_t offset, uint64_t bytes, QEMUIOVector *qiov, int flags);
 
-    int supported_write_flags;
-
     /*
      * Efficiently zero a region of the disk image.  Typically an image format
      * would use a compact metadata representation to implement this.  This
@@ -445,6 +443,8 @@ struct BlockDriverState {
 
     /* Alignment requirement for offset/length of I/O requests */
     unsigned int request_alignment;
+    /* Flags honored during pwrite (so far: BDRV_REQ_FUA) */
+    unsigned int supported_write_flags;
 
     /* the following member gives a name to every node on the bs graph. */
     char node_name[32];

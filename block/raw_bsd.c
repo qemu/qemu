@@ -204,6 +204,7 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
     bs->sg = bs->file->bs->sg;
+    bs->supported_write_flags = BDRV_REQ_FUA;
 
     if (bs->probed && !bdrv_is_read_only(bs)) {
         fprintf(stderr,
@@ -250,7 +251,6 @@ BlockDriver bdrv_raw = {
     .bdrv_create          = &raw_create,
     .bdrv_co_readv        = &raw_co_readv,
     .bdrv_co_writev_flags = &raw_co_writev_flags,
-    .supported_write_flags = BDRV_REQ_FUA,
     .bdrv_co_write_zeroes = &raw_co_write_zeroes,
     .bdrv_co_discard      = &raw_co_discard,
     .bdrv_co_get_block_status = &raw_co_get_block_status,

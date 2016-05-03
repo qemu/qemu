@@ -841,9 +841,10 @@ static int coroutine_fn bdrv_driver_pwritev(BlockDriverState *bs,
 
     if (drv->bdrv_co_writev_flags) {
         ret = drv->bdrv_co_writev_flags(bs, sector_num, nb_sectors, qiov,
-                                        flags);
+                                        flags & bs->supported_write_flags);
+        flags &= ~bs->supported_write_flags;
     } else if (drv->bdrv_co_writev) {
-        assert(drv->supported_write_flags == 0);
+        assert(!bs->supported_write_flags);
         ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
     } else {
         BlockAIOCB *acb;
@@ -862,9 +863,7 @@ static int coroutine_fn bdrv_driver_pwritev(BlockDriverState *bs,
     }
 
 emulate_flags:
-    if (ret == 0 && (flags & BDRV_REQ_FUA) &&
-        !(drv->supported_write_flags & BDRV_REQ_FUA))
-    {
+    if (ret == 0 && (flags & BDRV_REQ_FUA)) {
         ret = bdrv_co_flush(bs);
     }
 

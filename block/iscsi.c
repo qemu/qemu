@@ -456,8 +456,11 @@ iscsi_co_writev_flags(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
     struct IscsiTask iTask;
     uint64_t lba;
     uint32_t num_sectors;
-    bool fua;
+    bool fua = flags & BDRV_REQ_FUA;
 
+    if (fua) {
+        assert(iscsilun->dpofua);
+    }
     if (!is_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
         return -EINVAL;
     }
@@ -472,7 +475,6 @@ iscsi_co_writev_flags(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
     num_sectors = sector_qemu2lun(nb_sectors, iscsilun);
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
-    fua = iscsilun->dpofua && (flags & BDRV_REQ_FUA);
     if (iscsilun->use_16_for_rw) {
         iTask.task = iscsi_write16_task(iscsilun->iscsi, iscsilun->lun, lba,
                                         NULL, num_sectors * iscsilun->block_size,
@@ -1548,6 +1550,9 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     task = NULL;
 
     iscsi_modesense_sync(iscsilun);
+    if (iscsilun->dpofua) {
+        bs->supported_write_flags = BDRV_REQ_FUA;
+    }
 
     /* Check the write protect flag of the LUN if we want to write */
     if (iscsilun->type == TYPE_DISK && (flags & BDRV_O_RDWR) &&
@@ -1841,7 +1846,6 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_co_write_zeroes = iscsi_co_write_zeroes,
     .bdrv_co_readv         = iscsi_co_readv,
     .bdrv_co_writev_flags  = iscsi_co_writev_flags,
-    .supported_write_flags = BDRV_REQ_FUA,
     .bdrv_co_flush_to_disk = iscsi_co_flush,
 
 #ifdef __linux__

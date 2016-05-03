@@ -414,6 +414,9 @@ int nbd_client_init(BlockDriverState *bs,
         logout("Failed to negotiate with the NBD server\n");
         return ret;
     }
+    if (client->nbdflags & NBD_FLAG_SEND_FUA) {
+        bs->supported_write_flags = BDRV_REQ_FUA;
+    }
 
     qemu_co_mutex_init(&client->send_mutex);
     qemu_co_mutex_init(&client->free_sema);
