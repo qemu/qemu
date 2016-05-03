@@ -254,7 +254,6 @@ static void cpu_common_reset(CPUState *cpu)
     }
 
     cpu->interrupt_request = 0;
-    cpu->current_tb = NULL;
     cpu->halted = 0;
     cpu->mem_io_pc = 0;
     cpu->mem_io_vaddr = 0;

@@ -216,11 +216,9 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
                          | (ignore_icount ? CF_IGNORE_ICOUNT : 0));
     tb->orig_tb = cpu->tb_flushed ? NULL : orig_tb;
     cpu->tb_flushed |= old_tb_flushed;
-    cpu->current_tb = tb;
     /* execute the generated code */
     trace_exec_tb_nocache(tb, tb->pc);
     cpu_tb_exec(cpu, tb);
-    cpu->current_tb = NULL;
     tb_phys_invalidate(tb, -1);
     tb_free(tb);
 }
@@ -532,9 +530,7 @@ int cpu_exec(CPUState *cpu)
                     uintptr_t ret;
                     trace_exec_tb(tb, tb->pc);
                     /* execute the generated code */
-                    cpu->current_tb = tb;
                     ret = cpu_tb_exec(cpu, tb);
-                    cpu->current_tb = NULL;
                     last_tb = (TranslationBlock *)(ret & ~TB_EXIT_MASK);
                     tb_exit = ret & TB_EXIT_MASK;
                     switch (tb_exit) {
