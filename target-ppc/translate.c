@@ -1392,6 +1392,19 @@ GEN_LOGICAL2(nand, tcg_gen_nand_tl, 0x0E, PPC_INTEGER);
 /* nor & nor. */
 GEN_LOGICAL2(nor, tcg_gen_nor_tl, 0x03, PPC_INTEGER);
 
+#if defined(TARGET_PPC64)
+static void gen_pause(DisasContext *ctx)
+{
+    TCGv_i32 t0 = tcg_const_i32(0);
+    tcg_gen_st_i32(t0, cpu_env,
+                   -offsetof(PowerPCCPU, env) + offsetof(CPUState, halted));
+    tcg_temp_free_i32(t0);
+
+    /* Stop translation, this gives other CPUs a chance to run */
+    gen_exception_err(ctx, EXCP_HLT, 1);
+}
+#endif /* defined(TARGET_PPC64) */
+
 /* or & or. */
 static void gen_or(DisasContext *ctx)
 {
@@ -1447,7 +1460,7 @@ static void gen_or(DisasContext *ctx)
             }
             break;
         case 7:
-            if (ctx->hv) {
+            if (ctx->hv && !ctx->pr) {
                 /* Set process priority to very high */
                 prio = 7;
             }
@@ -1464,6 +1477,10 @@ static void gen_or(DisasContext *ctx)
             tcg_gen_ori_tl(t0, t0, ((uint64_t)prio) << 50);
             gen_store_spr(SPR_PPR, t0);
             tcg_temp_free(t0);
+            /* Pause us out of TCG otherwise spin loops with smt_low
+             * eat too much CPU and the kernel hangs
+             */
+            gen_pause(ctx);
         }
 #endif
     }
@@ -1489,8 +1506,6 @@ static void gen_ori(DisasContext *ctx)
     target_ulong uimm = UIMM(ctx->opcode);
 
     if (rS(ctx->opcode) == rA(ctx->opcode) && uimm == 0) {
-        /* NOP */
-        /* XXX: should handle special NOPs for POWER series */
         return;
     }
     tcg_gen_ori_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)], uimm);
