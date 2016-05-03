@@ -1553,6 +1553,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     if (iscsilun->dpofua) {
         bs->supported_write_flags = BDRV_REQ_FUA;
     }
+    bs->supported_zero_flags = BDRV_REQ_MAY_UNMAP;
 
     /* Check the write protect flag of the LUN if we want to write */
     if (iscsilun->type == TYPE_DISK && (flags & BDRV_O_RDWR) &&

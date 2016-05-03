@@ -652,7 +652,8 @@ int bdrv_write_zeroes(BlockDriverState *bs, int64_t sector_num,
  * Completely zero out a block device with the help of bdrv_write_zeroes.
  * The operation is sped up by checking the block status and only writing
  * zeroes to the device if they currently do not return zeroes. Optional
- * flags are passed through to bdrv_write_zeroes (e.g. BDRV_REQ_MAY_UNMAP).
+ * flags are passed through to bdrv_write_zeroes (e.g. BDRV_REQ_MAY_UNMAP,
+ * BDRV_REQ_FUA).
  *
  * Returns < 0 on error, 0 on success. For error codes see bdrv_write().
  */
@@ -1160,6 +1161,7 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
     QEMUIOVector qiov;
     struct iovec iov = {0};
     int ret = 0;
+    bool need_flush = false;
 
     int max_write_zeroes = MIN_NON_ZERO(bs->bl.max_write_zeroes,
                                         BDRV_REQUEST_MAX_SECTORS);
@@ -1192,13 +1194,29 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
         ret = -ENOTSUP;
         /* First try the efficient write zeroes operation */
         if (drv->bdrv_co_write_zeroes) {
-            ret = drv->bdrv_co_write_zeroes(bs, sector_num, num, flags);
+            ret = drv->bdrv_co_write_zeroes(bs, sector_num, num,
+                                            flags & bs->supported_zero_flags);
+            if (ret != -ENOTSUP && (flags & BDRV_REQ_FUA) &&
+                !(bs->supported_zero_flags & BDRV_REQ_FUA)) {
+                need_flush = true;
+            }
+        } else {
+            assert(!bs->supported_zero_flags);
         }
 
         if (ret == -ENOTSUP) {
             /* Fall back to bounce buffer if write zeroes is unsupported */
             int max_xfer_len = MIN_NON_ZERO(bs->bl.max_transfer_length,
                                             MAX_WRITE_ZEROES_BOUNCE_BUFFER);
+            BdrvRequestFlags write_flags = flags & ~BDRV_REQ_ZERO_WRITE;
+
+            if ((flags & BDRV_REQ_FUA) &&
+                !(bs->supported_write_flags & BDRV_REQ_FUA)) {
+                /* No need for bdrv_driver_pwrite() to do a fallback
+                 * flush on each chunk; use just one at the end */
+                write_flags &= ~BDRV_REQ_FUA;
+                need_flush = true;
+            }
             num = MIN(num, max_xfer_len);
             iov.iov_len = num * BDRV_SECTOR_SIZE;
             if (iov.iov_base == NULL) {
@@ -1212,7 +1230,8 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
             qemu_iovec_init_external(&qiov, &iov, 1);
 
             ret = bdrv_driver_pwritev(bs, sector_num * BDRV_SECTOR_SIZE,
-                                      num * BDRV_SECTOR_SIZE, &qiov, 0);
+                                      num * BDRV_SECTOR_SIZE, &qiov,
+                                      write_flags);
 
             /* Keep bounce buffer around if it is big enough for all
              * all future requests.
@@ -1228,6 +1247,9 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
     }
 
 fail:
+    if (ret == 0 && need_flush) {
+        ret = bdrv_co_flush(bs);
+    }
     qemu_vfree(iov.iov_base);
     return ret;
 }

@@ -161,8 +161,8 @@ struct BlockDriver {
     /*
      * Efficiently zero a region of the disk image.  Typically an image format
      * would use a compact metadata representation to implement this.  This
-     * function pointer may be NULL and .bdrv_co_writev() will be called
-     * instead.
+     * function pointer may be NULL or return -ENOSUP and .bdrv_co_writev()
+     * will be called instead.
      */
     int coroutine_fn (*bdrv_co_write_zeroes)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, BdrvRequestFlags flags);
@@ -445,6 +445,9 @@ struct BlockDriverState {
     unsigned int request_alignment;
     /* Flags honored during pwrite (so far: BDRV_REQ_FUA) */
     unsigned int supported_write_flags;
+    /* Flags honored during write_zeroes (so far: BDRV_REQ_FUA,
+     * BDRV_REQ_MAY_UNMAP) */
+    unsigned int supported_zero_flags;
 
     /* the following member gives a name to every node on the bs graph. */
     char node_name[32];
