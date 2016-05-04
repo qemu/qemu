@@ -163,7 +163,7 @@ static inline bool kvmppc_spapr_use_multitce(void)
 
 static inline void *kvmppc_create_spapr_tce(uint32_t liobn,
                                             uint32_t window_size, int *fd,
-                                            bool vfio_accel)
+                                            bool need_vfio)
 {
     return NULL;
 }
