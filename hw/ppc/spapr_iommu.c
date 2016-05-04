@@ -76,6 +76,37 @@ static IOMMUAccessFlags spapr_tce_iommu_access_flags(uint64_t tce)
     }
 }
 
+static uint64_t *spapr_tce_alloc_table(uint32_t liobn,
+                                       uint32_t page_shift,
+                                       uint32_t nb_table,
+                                       int *fd,
+                                       bool need_vfio)
+{
+    uint64_t *table = NULL;
+    uint64_t window_size = (uint64_t)nb_table << page_shift;
+
+    if (kvm_enabled() && !(window_size >> 32)) {
+        table = kvmppc_create_spapr_tce(liobn, window_size, fd, need_vfio);
+    }
+
+    if (!table) {
+        *fd = -1;
+        table = g_malloc0(nb_table * sizeof(uint64_t));
+    }
+
+    trace_spapr_iommu_new_table(liobn, table, *fd);
+
+    return table;
+}
+
+static void spapr_tce_free_table(uint64_t *table, int fd, uint32_t nb_table)
+{
+    if (!kvm_enabled() ||
+        (kvmppc_remove_spapr_tce(table, fd, nb_table) != 0)) {
+        g_free(table);
+    }
+}
+
 /* Called from RCU critical section */
 static IOMMUTLBEntry spapr_tce_translate_iommu(MemoryRegion *iommu, hwaddr addr,
                                                bool is_write)
@@ -142,21 +173,13 @@ static MemoryRegionIOMMUOps spapr_iommu_ops = {
 static int spapr_tce_table_realize(DeviceState *dev)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
-    uint64_t window_size = (uint64_t)tcet->nb_table << tcet->page_shift;
 
-    if (kvm_enabled() && !(window_size >> 32)) {
-        tcet->table = kvmppc_create_spapr_tce(tcet->liobn,
-                                              window_size,
-                                              &tcet->fd,
-                                              tcet->need_vfio);
-    }
-
-    if (!tcet->table) {
-        size_t table_size = tcet->nb_table * sizeof(uint64_t);
-        tcet->table = g_malloc0(table_size);
-    }
-
-    trace_spapr_iommu_new_table(tcet->liobn, tcet, tcet->table, tcet->fd);
+    tcet->fd = -1;
+    tcet->table = spapr_tce_alloc_table(tcet->liobn,
+                                        tcet->page_shift,
+                                        tcet->nb_table,
+                                        &tcet->fd,
+                                        tcet->need_vfio);
 
     memory_region_init_iommu(&tcet->iommu, OBJECT(dev), &spapr_iommu_ops,
                              "iommu-spapr",
@@ -242,11 +265,8 @@ static void spapr_tce_table_unrealize(DeviceState *dev, Error **errp)
 
     QLIST_REMOVE(tcet, list);
 
-    if (!kvm_enabled() ||
-        (kvmppc_remove_spapr_tce(tcet->table, tcet->fd,
-                                 tcet->nb_table) != 0)) {
-        g_free(tcet->table);
-    }
+    spapr_tce_free_table(tcet->table, tcet->fd, tcet->nb_table);
+    tcet->fd = -1;
 }
 
 MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet)
