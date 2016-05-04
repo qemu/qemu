@@ -340,7 +340,8 @@ static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *iommu, hwaddr addr,
         .perm = IOMMU_NONE,
     };
 
-    if (!pbdev->configured || !pbdev->pdev || !(pbdev->fh & FH_ENABLED)) {
+    if (!pbdev->configured || !pbdev->pdev ||
+        !(pbdev->fh & FH_ENABLED) || !pbdev->iommu_enabled) {
         return ret;
     }
 
@@ -480,21 +481,19 @@ static const MemoryRegionOps s390_msi_ctrl_ops = {
 
 void s390_pci_iommu_enable(S390PCIBusDevice *pbdev)
 {
-    pbdev->configured = false;
     uint64_t size = pbdev->pal - pbdev->pba + 1;
 
     memory_region_init_iommu(&pbdev->iommu_mr, OBJECT(&pbdev->mr),
                              &s390_iommu_ops, "iommu-s390", size);
     memory_region_add_subregion(&pbdev->mr, pbdev->pba, &pbdev->iommu_mr);
-    pbdev->configured = true;
+    pbdev->iommu_enabled = true;
 }
 
 void s390_pci_iommu_disable(S390PCIBusDevice *pbdev)
 {
-    pbdev->configured = false;
     memory_region_del_subregion(&pbdev->mr, &pbdev->iommu_mr);
     object_unparent(OBJECT(&pbdev->iommu_mr));
-    pbdev->configured = true;
+    pbdev->iommu_enabled = false;
 }
 
 static void s390_pcihost_init_as(S390pciState *s)

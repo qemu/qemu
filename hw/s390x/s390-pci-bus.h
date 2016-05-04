@@ -219,6 +219,7 @@ typedef struct S390PCIBusDevice {
     bool configured;
     bool error_state;
     bool lgstg_blocked;
+    bool iommu_enabled;
     uint32_t fh;
     uint32_t fid;
     uint64_t g_iota;
