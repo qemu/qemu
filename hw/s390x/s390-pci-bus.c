@@ -478,19 +478,22 @@ static const MemoryRegionOps s390_msi_ctrl_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-void s390_pcihost_iommu_configure(S390PCIBusDevice *pbdev, bool enable)
+void s390_pci_iommu_enable(S390PCIBusDevice *pbdev)
 {
     pbdev->configured = false;
+    uint64_t size = pbdev->pal - pbdev->pba + 1;
 
-    if (enable) {
-        uint64_t size = pbdev->pal - pbdev->pba + 1;
-        memory_region_init_iommu(&pbdev->iommu_mr, OBJECT(&pbdev->mr),
-                                 &s390_iommu_ops, "iommu-s390", size);
-        memory_region_add_subregion(&pbdev->mr, pbdev->pba, &pbdev->iommu_mr);
-    } else {
-        memory_region_del_subregion(&pbdev->mr, &pbdev->iommu_mr);
-    }
+    memory_region_init_iommu(&pbdev->iommu_mr, OBJECT(&pbdev->mr),
+                             &s390_iommu_ops, "iommu-s390", size);
+    memory_region_add_subregion(&pbdev->mr, pbdev->pba, &pbdev->iommu_mr);
+    pbdev->configured = true;
+}
 
+void s390_pci_iommu_disable(S390PCIBusDevice *pbdev)
+{
+    pbdev->configured = false;
+    memory_region_del_subregion(&pbdev->mr, &pbdev->iommu_mr);
+    object_unparent(OBJECT(&pbdev->iommu_mr));
     pbdev->configured = true;
 }
 

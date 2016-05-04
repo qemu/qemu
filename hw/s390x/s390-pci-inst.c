@@ -705,18 +705,17 @@ static int reg_ioat(CPUS390XState *env, S390PCIBusDevice *pbdev, ZpciFib fib)
     pbdev->pal = pal;
     pbdev->g_iota = g_iota;
 
-    s390_pcihost_iommu_configure(pbdev, true);
+    s390_pci_iommu_enable(pbdev);
 
     return 0;
 }
 
 static void dereg_ioat(S390PCIBusDevice *pbdev)
 {
+    s390_pci_iommu_disable(pbdev);
     pbdev->pba = 0;
     pbdev->pal = 0;
     pbdev->g_iota = 0;
-
-    s390_pcihost_iommu_configure(pbdev, false);
 }
 
 int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
