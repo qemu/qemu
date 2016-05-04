@@ -992,6 +992,20 @@ void qmp_migrate_incoming(const char *uri, Error **errp)
     once = false;
 }
 
+bool migration_is_blocked(Error **errp)
+{
+    if (qemu_savevm_state_blocked(errp)) {
+        return true;
+    }
+
+    if (migration_blockers) {
+        *errp = error_copy(migration_blockers->data);
+        return true;
+    }
+
+    return false;
+}
+
 void qmp_migrate(const char *uri, bool has_blk, bool blk,
                  bool has_inc, bool inc, bool has_detach, bool detach,
                  Error **errp)
@@ -1014,12 +1028,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         return;
     }
 
-    if (qemu_savevm_state_blocked(errp)) {
-        return;
-    }
-
-    if (migration_blockers) {
-        *errp = error_copy(migration_blockers->data);
+    if (migration_is_blocked(errp)) {
         return;
     }
 
