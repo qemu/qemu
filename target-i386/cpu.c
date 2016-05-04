@@ -2177,14 +2177,20 @@ static int x86_cpu_filter_features(X86CPU *cpu)
         env->features[w] &= host_feat;
         cpu->filtered_features[w] = requested_features & ~env->features[w];
         if (cpu->filtered_features[w]) {
-            if (cpu->check_cpuid || cpu->enforce_cpuid) {
-                report_unavailable_features(w, cpu->filtered_features[w]);
-            }
             rv = 1;
         }
     }
 
     return rv;
+}
+
+static void x86_cpu_report_filtered_features(X86CPU *cpu)
+{
+    FeatureWord w;
+
+    for (w = 0; w < FEATURE_WORDS; w++) {
+        report_unavailable_features(w, cpu->filtered_features[w]);
+    }
 }
 
 static void x86_cpu_apply_props(X86CPU *cpu, PropValue *props)
@@ -3080,12 +3086,16 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         env->cpuid_xlevel2 = env->cpuid_min_xlevel2;
     }
 
-    if (x86_cpu_filter_features(cpu) && cpu->enforce_cpuid) {
-        error_setg(&local_err,
-                   kvm_enabled() ?
-                       "Host doesn't support requested features" :
-                       "TCG doesn't support requested features");
-        goto out;
+    if (x86_cpu_filter_features(cpu) &&
+        (cpu->check_cpuid || cpu->enforce_cpuid)) {
+        x86_cpu_report_filtered_features(cpu);
+        if (cpu->enforce_cpuid) {
+            error_setg(&local_err,
+                       kvm_enabled() ?
+                           "Host doesn't support requested features" :
+                           "TCG doesn't support requested features");
+            goto out;
+        }
     }
 
     /* On AMD CPUs, some CPUID[8000_0001].EDX bits must match the bits on
