@@ -52,7 +52,6 @@ common-obj-$(CONFIG_LINUX) += fsdev/
 common-obj-y += migration/
 common-obj-y += qemu-char.o #aio.o
 common-obj-y += page_cache.o
-common-obj-y += qjson.o
 
 common-obj-$(CONFIG_SPICE) += spice-qemu-char.o
 

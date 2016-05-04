@@ -29,7 +29,7 @@
 #ifndef CONFIG_USER_ONLY
 #include <migration/qemu-file.h>
 #endif
-#include <qjson.h>
+#include "migration/qjson.h"
 
 typedef void SaveStateHandler(QEMUFile *f, void *opaque);
 typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);

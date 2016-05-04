@@ -1,5 +1,5 @@
 /*
- * QEMU JSON writer
+ * A simple JSON writer
  *
  * Copyright Alexander Graf
  *
@@ -11,12 +11,23 @@
  *
  */
 
+/*
+ * Type QJSON lets you build JSON text.  Its interface mirrors (a
+ * subset of) abstract JSON syntax.
+ *
+ * It does *not* detect incorrect use.  It happily produces invalid
+ * JSON then.  This is what migration wants.
+ *
+ * QAPI output visitors also produce JSON text.  However, they do
+ * assert their preconditions and invariants, and therefore abort on
+ * incorrect use.
+ */
+
 #include "qemu/osdep.h"
-#include <qapi/qmp/qstring.h>
-#include <glib.h>
-#include <qjson.h>
-#include <qemu/module.h>
-#include <qom/object.h>
+#include "qapi/qmp/qstring.h"
+#include "migration/qjson.h"
+#include "qemu/module.h"
+#include "qom/object.h"
 
 struct QJSON {
     Object obj;
