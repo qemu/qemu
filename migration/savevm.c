@@ -1115,7 +1115,7 @@ void qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only)
         qemu_put_be32(f, vmdesc_len);
         qemu_put_buffer(f, (uint8_t *)qjson_get_str(vmdesc), vmdesc_len);
     }
-    object_unref(OBJECT(vmdesc));
+    qjson_destroy(vmdesc);
 
     qemu_fflush(f);
 }
