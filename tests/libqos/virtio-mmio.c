@@ -154,6 +154,13 @@ static QVirtQueue *qvirtio_mmio_virtqueue_setup(QVirtioDevice *d,
     return vq;
 }
 
+static void qvirtio_mmio_virtqueue_cleanup(QVirtQueue *vq,
+                                           QGuestAllocator *alloc)
+{
+    guest_free(alloc, vq->desc);
+    g_free(vq);
+}
+
 static void qvirtio_mmio_virtqueue_kick(QVirtioDevice *d, QVirtQueue *vq)
 {
     QVirtioMMIODevice *dev = (QVirtioMMIODevice *)d;
@@ -176,6 +183,7 @@ const QVirtioBus qvirtio_mmio = {
     .get_queue_size = qvirtio_mmio_get_queue_size,
     .set_queue_address = qvirtio_mmio_set_queue_address,
     .virtqueue_setup = qvirtio_mmio_virtqueue_setup,
+    .virtqueue_cleanup = qvirtio_mmio_virtqueue_cleanup,
     .virtqueue_kick = qvirtio_mmio_virtqueue_kick,
 };
 

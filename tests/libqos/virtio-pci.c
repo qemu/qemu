@@ -235,6 +235,15 @@ static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
     return &vqpci->vq;
 }
 
+static void qvirtio_pci_virtqueue_cleanup(QVirtQueue *vq,
+                                          QGuestAllocator *alloc)
+{
+    QVirtQueuePCI *vqpci = container_of(vq, QVirtQueuePCI, vq);
+
+    guest_free(alloc, vq->desc);
+    g_free(vqpci);
+}
+
 static void qvirtio_pci_virtqueue_kick(QVirtioDevice *d, QVirtQueue *vq)
 {
     QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
@@ -257,6 +266,7 @@ const QVirtioBus qvirtio_pci = {
     .get_queue_size = qvirtio_pci_get_queue_size,
     .set_queue_address = qvirtio_pci_set_queue_address,
     .virtqueue_setup = qvirtio_pci_virtqueue_setup,
+    .virtqueue_cleanup = qvirtio_pci_virtqueue_cleanup,
     .virtqueue_kick = qvirtio_pci_virtqueue_kick,
 };
 

@@ -229,7 +229,7 @@ static void pci_basic(gconstpointer data)
 
     /* End test */
     close(sv[0]);
-    guest_free(alloc, tx->vq.desc);
+    qvirtqueue_cleanup(&qvirtio_pci, &tx->vq, alloc);
     pc_alloc_uninit(alloc);
     qvirtio_pci_device_disable(dev);
     g_free(dev);

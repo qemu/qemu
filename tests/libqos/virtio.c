@@ -54,6 +54,12 @@ QVirtQueue *qvirtqueue_setup(const QVirtioBus *bus, QVirtioDevice *d,
     return bus->virtqueue_setup(d, alloc, index);
 }
 
+void qvirtqueue_cleanup(const QVirtioBus *bus, QVirtQueue *vq,
+                        QGuestAllocator *alloc)
+{
+    return bus->virtqueue_cleanup(vq, alloc);
+}
+
 void qvirtio_reset(const QVirtioBus *bus, QVirtioDevice *d)
 {
     bus->set_status(d, 0);

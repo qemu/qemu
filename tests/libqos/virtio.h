@@ -79,6 +79,9 @@ typedef struct QVirtioBus {
     QVirtQueue *(*virtqueue_setup)(QVirtioDevice *d, QGuestAllocator *alloc,
                                                                 uint16_t index);
 
+    /* Free virtqueue resources */
+    void (*virtqueue_cleanup)(QVirtQueue *vq, QGuestAllocator *alloc);
+
     /* Notify changes in virtqueue */
     void (*virtqueue_kick)(QVirtioDevice *d, QVirtQueue *vq);
 } QVirtioBus;
@@ -118,6 +121,8 @@ void qvirtio_wait_config_isr(const QVirtioBus *bus, QVirtioDevice *d,
                              gint64 timeout_us);
 QVirtQueue *qvirtqueue_setup(const QVirtioBus *bus, QVirtioDevice *d,
                                         QGuestAllocator *alloc, uint16_t index);
+void qvirtqueue_cleanup(const QVirtioBus *bus, QVirtQueue *vq,
+                        QGuestAllocator *alloc);
 
 void qvring_init(const QGuestAllocator *alloc, QVirtQueue *vq, uint64_t addr);
 QVRingIndirectDesc *qvring_indirect_desc_setup(QVirtioDevice *d,

@@ -298,7 +298,7 @@ static void pci_basic(void)
                                                     (uint64_t)(uintptr_t)addr);
 
     /* End test */
-    guest_free(alloc, vqpci->vq.desc);
+    qvirtqueue_cleanup(&qvirtio_pci, &vqpci->vq, alloc);
     pc_alloc_uninit(alloc);
     qvirtio_pci_device_disable(dev);
     g_free(dev);
@@ -401,7 +401,7 @@ static void pci_indirect(void)
     guest_free(alloc, req_addr);
 
     /* End test */
-    guest_free(alloc, vqpci->vq.desc);
+    qvirtqueue_cleanup(&qvirtio_pci, &vqpci->vq, alloc);
     pc_alloc_uninit(alloc);
     qvirtio_pci_device_disable(dev);
     g_free(dev);
@@ -552,7 +552,7 @@ static void pci_msix(void)
     guest_free(alloc, req_addr);
 
     /* End test */
-    guest_free(alloc, vqpci->vq.desc);
+    qvirtqueue_cleanup(&qvirtio_pci, &vqpci->vq, alloc);
     pc_alloc_uninit(alloc);
     qpci_msix_disable(dev->pdev);
     qvirtio_pci_device_disable(dev);
@@ -679,7 +679,7 @@ static void pci_idx(void)
     guest_free(alloc, req_addr);
 
     /* End test */
-    guest_free(alloc, vqpci->vq.desc);
+    qvirtqueue_cleanup(&qvirtio_pci, &vqpci->vq, alloc);
     pc_alloc_uninit(alloc);
     qpci_msix_disable(dev->pdev);
     qvirtio_pci_device_disable(dev);
@@ -745,7 +745,7 @@ static void mmio_basic(void)
     g_assert_cmpint(capacity, ==, n_size / 512);
 
     /* End test */
-    guest_free(alloc, vq->desc);
+    qvirtqueue_cleanup(&qvirtio_mmio, vq, alloc);
     generic_alloc_uninit(alloc);
     g_free(dev);
     test_end();
