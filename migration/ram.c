@@ -255,6 +255,7 @@ static struct BitmapRcu {
 struct CompressParam {
     bool start;
     bool done;
+    bool quit;
     QEMUFile *file;
     QemuMutex mutex;
     QemuCond cond;
@@ -266,6 +267,7 @@ typedef struct CompressParam CompressParam;
 struct DecompressParam {
     bool start;
     bool done;
+    bool quit;
     QemuMutex mutex;
     QemuCond cond;
     void *des;
@@ -286,8 +288,6 @@ static QemuCond *comp_done_cond;
 static const QEMUFileOps empty_ops = { };
 
 static bool compression_switch;
-static bool quit_comp_thread;
-static bool quit_decomp_thread;
 static DecompressParam *decomp_param;
 static QemuThread *decompress_threads;
 static QemuMutex decomp_done_lock;
@@ -299,18 +299,18 @@ static void *do_data_compress(void *opaque)
 {
     CompressParam *param = opaque;
 
-    while (!quit_comp_thread) {
+    while (!param->quit) {
         qemu_mutex_lock(&param->mutex);
-        /* Re-check the quit_comp_thread in case of
+        /* Re-check the quit flag in case of
          * terminate_compression_threads is called just before
          * qemu_mutex_lock(&param->mutex) and after
-         * while(!quit_comp_thread), re-check it here can make
+         * while(!param->quit), re-check it here can make
          * sure the compression thread terminate as expected.
          */
-        while (!param->start && !quit_comp_thread) {
+        while (!param->start && !param->quit) {
             qemu_cond_wait(&param->cond, &param->mutex);
         }
-        if (!quit_comp_thread) {
+        if (!param->quit) {
             do_compress_ram_page(param);
         }
         param->start = false;
@@ -330,9 +330,9 @@ static inline void terminate_compression_threads(void)
     int idx, thread_count;
 
     thread_count = migrate_compress_threads();
-    quit_comp_thread = true;
     for (idx = 0; idx < thread_count; idx++) {
         qemu_mutex_lock(&comp_param[idx].mutex);
+        comp_param[idx].quit = true;
         qemu_cond_signal(&comp_param[idx].cond);
         qemu_mutex_unlock(&comp_param[idx].mutex);
     }
@@ -372,7 +372,6 @@ void migrate_compress_threads_create(void)
     if (!migrate_use_compression()) {
         return;
     }
-    quit_comp_thread = false;
     compression_switch = true;
     thread_count = migrate_compress_threads();
     compress_threads = g_new0(QemuThread, thread_count);
@@ -387,6 +386,7 @@ void migrate_compress_threads_create(void)
          */
         comp_param[i].file = qemu_fopen_ops(NULL, &empty_ops);
         comp_param[i].done = true;
+        comp_param[i].quit = false;
         qemu_mutex_init(&comp_param[i].mutex);
         qemu_cond_init(&comp_param[i].cond);
         qemu_thread_create(compress_threads + i, "compress",
@@ -863,12 +863,12 @@ static void flush_compressed_data(QEMUFile *f)
     for (idx = 0; idx < thread_count; idx++) {
         if (!comp_param[idx].done) {
             qemu_mutex_lock(comp_done_lock);
-            while (!comp_param[idx].done && !quit_comp_thread) {
+            while (!comp_param[idx].done && !comp_param[idx].quit) {
                 qemu_cond_wait(comp_done_cond, comp_done_lock);
             }
             qemu_mutex_unlock(comp_done_lock);
         }
-        if (!quit_comp_thread) {
+        if (!comp_param[idx].quit) {
             len = qemu_put_qemu_file(f, comp_param[idx].file);
             bytes_transferred += len;
         }
@@ -2203,12 +2203,12 @@ static void *do_data_decompress(void *opaque)
     DecompressParam *param = opaque;
     unsigned long pagesize;
 
-    while (!quit_decomp_thread) {
+    while (!param->quit) {
         qemu_mutex_lock(&param->mutex);
-        while (!param->start && !quit_decomp_thread) {
+        while (!param->start && !param->quit) {
             qemu_cond_wait(&param->cond, &param->mutex);
         }
-        if (!quit_decomp_thread) {
+        if (!param->quit) {
             pagesize = TARGET_PAGE_SIZE;
             /* uncompress() will return failed in some case, especially
              * when the page is dirted when doing the compression, it's
@@ -2255,7 +2255,6 @@ void migrate_decompress_threads_create(void)
     thread_count = migrate_decompress_threads();
     decompress_threads = g_new0(QemuThread, thread_count);
     decomp_param = g_new0(DecompressParam, thread_count);
-    quit_decomp_thread = false;
     qemu_mutex_init(&decomp_done_lock);
     qemu_cond_init(&decomp_done_cond);
     for (i = 0; i < thread_count; i++) {
@@ -2263,6 +2262,7 @@ void migrate_decompress_threads_create(void)
         qemu_cond_init(&decomp_param[i].cond);
         decomp_param[i].compbuf = g_malloc0(compressBound(TARGET_PAGE_SIZE));
         decomp_param[i].done = true;
+        decomp_param[i].quit = false;
         qemu_thread_create(decompress_threads + i, "decompress",
                            do_data_decompress, decomp_param + i,
                            QEMU_THREAD_JOINABLE);
@@ -2273,10 +2273,10 @@ void migrate_decompress_threads_join(void)
 {
     int i, thread_count;
 
-    quit_decomp_thread = true;
     thread_count = migrate_decompress_threads();
     for (i = 0; i < thread_count; i++) {
         qemu_mutex_lock(&decomp_param[i].mutex);
+        decomp_param[i].quit = true;
         qemu_cond_signal(&decomp_param[i].cond);
         qemu_mutex_unlock(&decomp_param[i].mutex);
     }
