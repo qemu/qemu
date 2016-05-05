@@ -929,23 +929,19 @@ static int ram_save_compressed_page(QEMUFile *f, PageSearchStatus *pss,
                                     uint64_t *bytes_transferred)
 {
     int pages = -1;
-    uint64_t bytes_xmit;
+    uint64_t bytes_xmit = 0;
     uint8_t *p;
-    int ret;
+    int ret, blen;
     RAMBlock *block = pss->block;
     ram_addr_t offset = pss->offset;
 
     p = block->host + offset;
 
-    bytes_xmit = 0;
     ret = ram_control_save_page(f, block->offset,
                                 offset, TARGET_PAGE_SIZE, &bytes_xmit);
     if (bytes_xmit) {
         *bytes_transferred += bytes_xmit;
         pages = 1;
-    }
-    if (block == last_sent_block) {
-        offset |= RAM_SAVE_FLAG_CONTINUE;
     }
     if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
         if (ret != RAM_SAVE_CONTROL_DELAYED) {
@@ -966,19 +962,22 @@ static int ram_save_compressed_page(QEMUFile *f, PageSearchStatus *pss,
             flush_compressed_data(f);
             pages = save_zero_page(f, block, offset, p, bytes_transferred);
             if (pages == -1) {
-                set_compress_params(&comp_param[0], block, offset);
-                /* Use the qemu thread to compress the data to make sure the
-                 * first page is sent out before other pages
-                 */
-                bytes_xmit = do_compress_ram_page(&comp_param[0]);
-                if (bytes_xmit > 0) {
+                /* Make sure the first page is sent out before other pages */
+                bytes_xmit = save_page_header(f, block, offset |
+                                              RAM_SAVE_FLAG_COMPRESS_PAGE);
+                blen = qemu_put_compression_data(f, p, TARGET_PAGE_SIZE,
+                                                 migrate_compress_level());
+                if (blen > 0) {
+                    *bytes_transferred += bytes_xmit + blen;
                     acct_info.norm_pages++;
-                    qemu_put_qemu_file(f, comp_param[0].file);
-                    *bytes_transferred += bytes_xmit;
                     pages = 1;
+                } else {
+                    qemu_file_set_error(f, blen);
+                    error_report("compressed data failed!");
                 }
             }
         } else {
+            offset |= RAM_SAVE_FLAG_CONTINUE;
             pages = save_zero_page(f, block, offset, p, bytes_transferred);
             if (pages == -1) {
                 pages = compress_page_with_multi_thread(f, block, offset,
