@@ -2223,6 +2223,24 @@ static void *do_data_decompress(void *opaque)
     return NULL;
 }
 
+static void wait_for_decompress_done(void)
+{
+    int idx, thread_count;
+
+    if (!migrate_use_compression()) {
+        return;
+    }
+
+    thread_count = migrate_decompress_threads();
+    qemu_mutex_lock(&decomp_done_lock);
+    for (idx = 0; idx < thread_count; idx++) {
+        while (!decomp_param[idx].done) {
+            qemu_cond_wait(&decomp_done_cond, &decomp_done_lock);
+        }
+    }
+    qemu_mutex_unlock(&decomp_done_lock);
+}
+
 void migrate_decompress_threads_create(void)
 {
     int i, thread_count;
@@ -2557,6 +2575,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         }
     }
 
+    wait_for_decompress_done();
     rcu_read_unlock();
     DPRINTF("Completed load of VM with exit code %d seq iteration "
             "%" PRIu64 "\n", ret, seq_iter);
