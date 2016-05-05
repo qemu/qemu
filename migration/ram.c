@@ -280,8 +280,8 @@ static QemuThread *compress_threads;
  * one of the compression threads has finished the compression.
  * comp_done_lock is used to co-work with comp_done_cond.
  */
-static QemuMutex *comp_done_lock;
-static QemuCond *comp_done_cond;
+static QemuMutex comp_done_lock;
+static QemuCond comp_done_cond;
 /* The empty QEMUFileOps will be used by file in CompressParam */
 static const QEMUFileOps empty_ops = { };
 
@@ -310,10 +310,10 @@ static void *do_data_compress(void *opaque)
 
             do_compress_ram_page(param->file, block, offset);
 
-            qemu_mutex_lock(comp_done_lock);
+            qemu_mutex_lock(&comp_done_lock);
             param->done = true;
-            qemu_cond_signal(comp_done_cond);
-            qemu_mutex_unlock(comp_done_lock);
+            qemu_cond_signal(&comp_done_cond);
+            qemu_mutex_unlock(&comp_done_lock);
 
             qemu_mutex_lock(&param->mutex);
         } else {
@@ -353,16 +353,12 @@ void migrate_compress_threads_join(void)
         qemu_mutex_destroy(&comp_param[i].mutex);
         qemu_cond_destroy(&comp_param[i].cond);
     }
-    qemu_mutex_destroy(comp_done_lock);
-    qemu_cond_destroy(comp_done_cond);
+    qemu_mutex_destroy(&comp_done_lock);
+    qemu_cond_destroy(&comp_done_cond);
     g_free(compress_threads);
     g_free(comp_param);
-    g_free(comp_done_cond);
-    g_free(comp_done_lock);
     compress_threads = NULL;
     comp_param = NULL;
-    comp_done_cond = NULL;
-    comp_done_lock = NULL;
 }
 
 void migrate_compress_threads_create(void)
@@ -376,10 +372,8 @@ void migrate_compress_threads_create(void)
     thread_count = migrate_compress_threads();
     compress_threads = g_new0(QemuThread, thread_count);
     comp_param = g_new0(CompressParam, thread_count);
-    comp_done_cond = g_new0(QemuCond, 1);
-    comp_done_lock = g_new0(QemuMutex, 1);
-    qemu_cond_init(comp_done_cond);
-    qemu_mutex_init(comp_done_lock);
+    qemu_cond_init(&comp_done_cond);
+    qemu_mutex_init(&comp_done_lock);
     for (i = 0; i < thread_count; i++) {
         /* com_param[i].file is just used as a dummy buffer to save data, set
          * it's ops to empty.
@@ -840,13 +834,13 @@ static void flush_compressed_data(QEMUFile *f)
     }
     thread_count = migrate_compress_threads();
 
-    qemu_mutex_lock(comp_done_lock);
+    qemu_mutex_lock(&comp_done_lock);
     for (idx = 0; idx < thread_count; idx++) {
         while (!comp_param[idx].done) {
-            qemu_cond_wait(comp_done_cond, comp_done_lock);
+            qemu_cond_wait(&comp_done_cond, &comp_done_lock);
         }
     }
-    qemu_mutex_unlock(comp_done_lock);
+    qemu_mutex_unlock(&comp_done_lock);
 
     for (idx = 0; idx < thread_count; idx++) {
         qemu_mutex_lock(&comp_param[idx].mutex);
@@ -872,7 +866,7 @@ static int compress_page_with_multi_thread(QEMUFile *f, RAMBlock *block,
     int idx, thread_count, bytes_xmit = -1, pages = -1;
 
     thread_count = migrate_compress_threads();
-    qemu_mutex_lock(comp_done_lock);
+    qemu_mutex_lock(&comp_done_lock);
     while (true) {
         for (idx = 0; idx < thread_count; idx++) {
             if (comp_param[idx].done) {
@@ -891,10 +885,10 @@ static int compress_page_with_multi_thread(QEMUFile *f, RAMBlock *block,
         if (pages > 0) {
             break;
         } else {
-            qemu_cond_wait(comp_done_cond, comp_done_lock);
+            qemu_cond_wait(&comp_done_cond, &comp_done_lock);
         }
     }
-    qemu_mutex_unlock(comp_done_lock);
+    qemu_mutex_unlock(&comp_done_lock);
 
     return pages;
 }
