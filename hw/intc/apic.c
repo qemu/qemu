@@ -28,7 +28,9 @@
 #include "trace.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic-msidef.h"
+#include "qapi/error.h"
 
+#define MAX_APICS 255
 #define MAX_APIC_WORDS 8
 
 #define SYNC_FROM_VAPIC                 0x1
@@ -869,6 +871,14 @@ static const MemoryRegionOps apic_io_ops = {
 static void apic_realize(DeviceState *dev, Error **errp)
 {
     APICCommonState *s = APIC_COMMON(dev);
+    static int apic_no;
+
+    if (apic_no >= MAX_APICS) {
+        error_setg(errp, "%s initialization failed.",
+                   object_get_typename(OBJECT(dev)));
+        return;
+    }
+    s->idx = apic_no++;
 
     memory_region_init_io(&s->io_memory, OBJECT(s), &apic_io_ops, s, "apic-msi",
                           APIC_SPACE_SIZE);

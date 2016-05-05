@@ -299,14 +299,6 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
     APICCommonState *s = APIC_COMMON(dev);
     APICCommonClass *info;
     static DeviceState *vapic;
-    static int apic_no;
-
-    if (apic_no >= MAX_APICS) {
-        error_setg(errp, "%s initialization failed.",
-                   object_get_typename(OBJECT(dev)));
-        return;
-    }
-    s->idx = apic_no++;
 
     info = APIC_COMMON_GET_CLASS(s);
     info->realize(dev, errp);

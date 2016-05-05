@@ -121,8 +121,6 @@
 #define VAPIC_ENABLE_BIT                0
 #define VAPIC_ENABLE_MASK               (1 << VAPIC_ENABLE_BIT)
 
-#define MAX_APICS 255
-
 typedef struct APICCommonState APICCommonState;
 
 #define TYPE_APIC_COMMON "apic-common"
@@ -176,7 +174,7 @@ struct APICCommonState {
     uint32_t initial_count;
     int64_t initial_count_load_time;
     int64_t next_time;
-    int idx;
+    int idx; /* not actually common, used only by 'apic' derived class */
     QEMUTimer *timer;
     int64_t timer_expiry;
     int sipi_vector;
