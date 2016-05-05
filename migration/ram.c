@@ -264,7 +264,6 @@ struct CompressParam {
 typedef struct CompressParam CompressParam;
 
 struct DecompressParam {
-    bool start;
     bool done;
     bool quit;
     QemuMutex mutex;
@@ -828,15 +827,6 @@ static int do_compress_ram_page(QEMUFile *f, RAMBlock *block,
     }
 
     return bytes_sent;
-}
-
-static inline void start_decompression(DecompressParam *param)
-{
-    param->done = false;
-    qemu_mutex_lock(&param->mutex);
-    param->start = true;
-    qemu_cond_signal(&param->cond);
-    qemu_mutex_unlock(&param->mutex);
 }
 
 static uint64_t bytes_transferred;
@@ -2198,30 +2188,37 @@ static void *do_data_decompress(void *opaque)
 {
     DecompressParam *param = opaque;
     unsigned long pagesize;
+    uint8_t *des;
+    int len;
 
+    qemu_mutex_lock(&param->mutex);
     while (!param->quit) {
-        qemu_mutex_lock(&param->mutex);
-        while (!param->start && !param->quit) {
-            qemu_cond_wait(&param->cond, &param->mutex);
-        }
-        if (!param->quit) {
+        if (param->des) {
+            des = param->des;
+            len = param->len;
+            param->des = 0;
+            qemu_mutex_unlock(&param->mutex);
+
             pagesize = TARGET_PAGE_SIZE;
             /* uncompress() will return failed in some case, especially
              * when the page is dirted when doing the compression, it's
              * not a problem because the dirty page will be retransferred
              * and uncompress() won't break the data in other pages.
              */
-            uncompress((Bytef *)param->des, &pagesize,
-                       (const Bytef *)param->compbuf, param->len);
-        }
-        param->start = false;
-        qemu_mutex_unlock(&param->mutex);
+            uncompress((Bytef *)des, &pagesize,
+                       (const Bytef *)param->compbuf, len);
 
-        qemu_mutex_lock(&decomp_done_lock);
-        param->done = true;
-        qemu_cond_signal(&decomp_done_cond);
-        qemu_mutex_unlock(&decomp_done_lock);
+            qemu_mutex_lock(&decomp_done_lock);
+            param->done = true;
+            qemu_cond_signal(&decomp_done_cond);
+            qemu_mutex_unlock(&decomp_done_lock);
+
+            qemu_mutex_lock(&param->mutex);
+        } else {
+            qemu_cond_wait(&param->cond, &param->mutex);
+        }
     }
+    qemu_mutex_unlock(&param->mutex);
 
     return NULL;
 }
@@ -2298,10 +2295,13 @@ static void decompress_data_with_multi_threads(QEMUFile *f,
     while (true) {
         for (idx = 0; idx < thread_count; idx++) {
             if (decomp_param[idx].done) {
+                decomp_param[idx].done = false;
+                qemu_mutex_lock(&decomp_param[idx].mutex);
                 qemu_get_buffer(f, decomp_param[idx].compbuf, len);
                 decomp_param[idx].des = host;
                 decomp_param[idx].len = len;
-                start_decompression(&decomp_param[idx]);
+                qemu_cond_signal(&decomp_param[idx].cond);
+                qemu_mutex_unlock(&decomp_param[idx].mutex);
                 break;
             }
         }
