@@ -2359,7 +2359,6 @@ static int ram_load_postcopy(QEMUFile *f)
                 ret = -EINVAL;
                 break;
             }
-            page_buffer = host;
             /*
              * Postcopy requires that we place whole host pages atomically.
              * To make it atomic, the data is read into a temporary page
