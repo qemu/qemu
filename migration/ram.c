@@ -821,7 +821,13 @@ static int do_compress_ram_page(CompressParam *param)
                                   RAM_SAVE_FLAG_COMPRESS_PAGE);
     blen = qemu_put_compression_data(param->file, p, TARGET_PAGE_SIZE,
                                      migrate_compress_level());
-    bytes_sent += blen;
+    if (blen < 0) {
+        bytes_sent = 0;
+        qemu_file_set_error(migrate_get_current()->to_dst_file, blen);
+        error_report("compressed data failed!");
+    } else {
+        bytes_sent += blen;
+    }
 
     return bytes_sent;
 }
@@ -965,10 +971,12 @@ static int ram_save_compressed_page(QEMUFile *f, PageSearchStatus *pss,
                  * first page is sent out before other pages
                  */
                 bytes_xmit = do_compress_ram_page(&comp_param[0]);
-                acct_info.norm_pages++;
-                qemu_put_qemu_file(f, comp_param[0].file);
-                *bytes_transferred += bytes_xmit;
-                pages = 1;
+                if (bytes_xmit > 0) {
+                    acct_info.norm_pages++;
+                    qemu_put_qemu_file(f, comp_param[0].file);
+                    *bytes_transferred += bytes_xmit;
+                    pages = 1;
+                }
             }
         } else {
             pages = save_zero_page(f, block, offset, p, bytes_transferred);
