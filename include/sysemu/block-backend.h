@@ -102,7 +102,8 @@ BlockAIOCB *blk_aio_write_zeroes(BlockBackend *blk, int64_t sector_num,
                                  int nb_sectors, BdrvRequestFlags flags,
                                  BlockCompletionFunc *cb, void *opaque);
 int blk_pread(BlockBackend *blk, int64_t offset, void *buf, int count);
-int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count);
+int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count,
+               BdrvRequestFlags flags);
 int64_t blk_getlength(BlockBackend *blk);
 void blk_get_geometry(BlockBackend *blk, uint64_t *nb_sectors_ptr);
 int64_t blk_nb_sectors(BlockBackend *blk);

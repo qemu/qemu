@@ -788,13 +788,13 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
     block_size = 0x200000;
     num_bat_entries = (total_sectors + block_size / 512) / (block_size / 512);
 
-    ret = blk_pwrite(blk, offset, buf, HEADER_SIZE);
+    ret = blk_pwrite(blk, offset, buf, HEADER_SIZE, 0);
     if (ret < 0) {
         goto fail;
     }
 
     offset = 1536 + ((num_bat_entries * 4 + 511) & ~511);
-    ret = blk_pwrite(blk, offset, buf, HEADER_SIZE);
+    ret = blk_pwrite(blk, offset, buf, HEADER_SIZE, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -804,7 +804,7 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
 
     memset(buf, 0xFF, 512);
     for (i = 0; i < (num_bat_entries * 4 + 511) / 512; i++) {
-        ret = blk_pwrite(blk, offset, buf, 512);
+        ret = blk_pwrite(blk, offset, buf, 512, 0);
         if (ret < 0) {
             goto fail;
         }
@@ -831,7 +831,7 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
     /* Write the header */
     offset = 512;
 
-    ret = blk_pwrite(blk, offset, buf, 1024);
+    ret = blk_pwrite(blk, offset, buf, 1024, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -853,7 +853,7 @@ static int create_fixed_disk(BlockBackend *blk, uint8_t *buf,
         return ret;
     }
 
-    ret = blk_pwrite(blk, total_size - HEADER_SIZE, buf, HEADER_SIZE);
+    ret = blk_pwrite(blk, total_size - HEADER_SIZE, buf, HEADER_SIZE, 0);
     if (ret < 0) {
         return ret;
     }

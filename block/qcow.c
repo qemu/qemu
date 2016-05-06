@@ -853,14 +853,14 @@ static int qcow_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     /* write all the data */
-    ret = blk_pwrite(qcow_blk, 0, &header, sizeof(header));
+    ret = blk_pwrite(qcow_blk, 0, &header, sizeof(header), 0);
     if (ret != sizeof(header)) {
         goto exit;
     }
 
     if (backing_file) {
         ret = blk_pwrite(qcow_blk, sizeof(header),
-            backing_file, backing_filename_len);
+                         backing_file, backing_filename_len, 0);
         if (ret != backing_filename_len) {
             goto exit;
         }
@@ -869,8 +869,8 @@ static int qcow_create(const char *filename, QemuOpts *opts, Error **errp)
     tmp = g_malloc0(BDRV_SECTOR_SIZE);
     for (i = 0; i < ((sizeof(uint64_t)*l1_size + BDRV_SECTOR_SIZE - 1)/
         BDRV_SECTOR_SIZE); i++) {
-        ret = blk_pwrite(qcow_blk, header_size +
-            BDRV_SECTOR_SIZE*i, tmp, BDRV_SECTOR_SIZE);
+        ret = blk_pwrite(qcow_blk, header_size + BDRV_SECTOR_SIZE * i,
+                         tmp, BDRV_SECTOR_SIZE, 0);
         if (ret != BDRV_SECTOR_SIZE) {
             g_free(tmp);
             goto exit;

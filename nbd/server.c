@@ -1115,7 +1115,7 @@ static void nbd_trip(void *opaque)
         TRACE("Writing to device");
 
         ret = blk_pwrite(exp->blk, request.from + exp->dev_offset,
-                        req->data, request.len);
+                         req->data, request.len, 0);
         if (ret < 0) {
             LOG("writing to file failed");
             reply.error = -ret;

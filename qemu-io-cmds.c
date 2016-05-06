@@ -474,7 +474,7 @@ static int do_pwrite(BlockBackend *blk, char *buf, int64_t offset,
         return -ERANGE;
     }
 
-    *total = blk_pwrite(blk, offset, (uint8_t *)buf, count);
+    *total = blk_pwrite(blk, offset, (uint8_t *)buf, count, 0);
     if (*total < 0) {
         return *total;
     }

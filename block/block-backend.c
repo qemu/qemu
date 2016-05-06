@@ -953,9 +953,11 @@ int blk_pread(BlockBackend *blk, int64_t offset, void *buf, int count)
     return count;
 }
 
-int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count)
+int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count,
+               BdrvRequestFlags flags)
 {
-    int ret = blk_prw(blk, offset, (void*) buf, count, blk_write_entry, 0);
+    int ret = blk_prw(blk, offset, (void *) buf, count, blk_write_entry,
+                      flags);
     if (ret < 0) {
         return ret;
     }

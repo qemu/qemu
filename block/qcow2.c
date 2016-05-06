@@ -2207,7 +2207,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
             cpu_to_be64(QCOW2_COMPAT_LAZY_REFCOUNTS);
     }
 
-    ret = blk_pwrite(blk, 0, header, cluster_size);
+    ret = blk_pwrite(blk, 0, header, cluster_size, 0);
     g_free(header);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not write qcow2 header");
@@ -2217,7 +2217,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     /* Write a refcount table with one refcount block */
     refcount_table = g_malloc0(2 * cluster_size);
     refcount_table[0] = cpu_to_be64(2 * cluster_size);
-    ret = blk_pwrite(blk, cluster_size, refcount_table, 2 * cluster_size);
+    ret = blk_pwrite(blk, cluster_size, refcount_table, 2 * cluster_size, 0);
     g_free(refcount_table);
 
     if (ret < 0) {

@@ -91,7 +91,7 @@ static ssize_t block_crypto_write_func(QCryptoBlock *block,
     struct BlockCryptoCreateData *data = opaque;
     ssize_t ret;
 
-    ret = blk_pwrite(data->blk, offset, buf, buflen);
+    ret = blk_pwrite(data->blk, offset, buf, buflen, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not write encryption header");
         return ret;

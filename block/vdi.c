@@ -827,7 +827,7 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
     vdi_header_print(&header);
 #endif
     vdi_header_to_le(&header);
-    ret = blk_pwrite(blk, offset, &header, sizeof(header));
+    ret = blk_pwrite(blk, offset, &header, sizeof(header), 0);
     if (ret < 0) {
         error_setg(errp, "Error writing header to %s", filename);
         goto exit;
@@ -848,7 +848,7 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
                 bmap[i] = VDI_UNALLOCATED;
             }
         }
-        ret = blk_pwrite(blk, offset, bmap, bmap_size);
+        ret = blk_pwrite(blk, offset, bmap, bmap_size, 0);
         if (ret < 0) {
             error_setg(errp, "Error writing bmap to %s", filename);
             goto exit;

@@ -1681,7 +1681,7 @@ static int sd_prealloc(const char *filename, Error **errp)
         if (ret < 0) {
             goto out;
         }
-        ret = blk_pwrite(blk, idx * buf_size, buf, buf_size);
+        ret = blk_pwrite(blk, idx * buf_size, buf, buf_size, 0);
         if (ret < 0) {
             goto out;
         }

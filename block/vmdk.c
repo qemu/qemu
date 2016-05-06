@@ -1808,12 +1808,12 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     header.check_bytes[3] = 0xa;
 
     /* write all the data */
-    ret = blk_pwrite(blk, 0, &magic, sizeof(magic));
+    ret = blk_pwrite(blk, 0, &magic, sizeof(magic), 0);
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
         goto exit;
     }
-    ret = blk_pwrite(blk, sizeof(magic), &header, sizeof(header));
+    ret = blk_pwrite(blk, sizeof(magic), &header, sizeof(header), 0);
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
         goto exit;
@@ -1833,7 +1833,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
         gd_buf[i] = cpu_to_le32(tmp);
     }
     ret = blk_pwrite(blk, le64_to_cpu(header.rgd_offset) * BDRV_SECTOR_SIZE,
-                     gd_buf, gd_buf_size);
+                     gd_buf, gd_buf_size, 0);
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
         goto exit;
@@ -1845,7 +1845,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
         gd_buf[i] = cpu_to_le32(tmp);
     }
     ret = blk_pwrite(blk, le64_to_cpu(header.gd_offset) * BDRV_SECTOR_SIZE,
-                     gd_buf, gd_buf_size);
+                     gd_buf, gd_buf_size, 0);
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
         goto exit;
@@ -2120,7 +2120,7 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
 
     blk_set_allow_write_beyond_eof(new_blk, true);
 
-    ret = blk_pwrite(new_blk, desc_offset, desc, desc_len);
+    ret = blk_pwrite(new_blk, desc_offset, desc, desc_len, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not write description");
         goto exit;

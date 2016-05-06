@@ -601,18 +601,18 @@ static int qed_create(const char *filename, uint32_t cluster_size,
     }
 
     qed_header_cpu_to_le(&header, &le_header);
-    ret = blk_pwrite(blk, 0, &le_header, sizeof(le_header));
+    ret = blk_pwrite(blk, 0, &le_header, sizeof(le_header), 0);
     if (ret < 0) {
         goto out;
     }
     ret = blk_pwrite(blk, sizeof(le_header), backing_file,
-                     header.backing_filename_size);
+                     header.backing_filename_size, 0);
     if (ret < 0) {
         goto out;
     }
 
     l1_table = g_malloc0(l1_size);
-    ret = blk_pwrite(blk, header.l1_table_offset, l1_table, l1_size);
+    ret = blk_pwrite(blk, header.l1_table_offset, l1_table, l1_size, 0);
     if (ret < 0) {
         goto out;
     }
