@@ -474,18 +474,18 @@ static void s390_msi_ctrl_write(void *opaque, hwaddr addr, uint64_t data,
 {
     S390PCIBusDevice *pbdev;
     uint32_t io_int_word;
-    uint32_t fid = data >> ZPCI_MSI_VEC_BITS;
+    uint32_t idx = data >> ZPCI_MSI_VEC_BITS;
     uint32_t vec = data & ZPCI_MSI_VEC_MASK;
     uint64_t ind_bit;
     uint32_t sum_bit;
     uint32_t e = 0;
 
-    DPRINTF("write_msix data 0x%" PRIx64 " fid %d vec 0x%x\n", data, fid, vec);
+    DPRINTF("write_msix data 0x%" PRIx64 " idx %d vec 0x%x\n", data, idx, vec);
 
-    pbdev = s390_pci_find_dev_by_fid(fid);
+    pbdev = s390_pci_find_dev_by_idx(idx);
     if (!pbdev) {
         e |= (vec << ERR_EVENT_MVN_OFFSET);
-        s390_pci_generate_error_event(ERR_EVENT_NOMSI, 0, fid, addr, e);
+        s390_pci_generate_error_event(ERR_EVENT_NOMSI, idx, 0, addr, e);
         return;
     }
 
