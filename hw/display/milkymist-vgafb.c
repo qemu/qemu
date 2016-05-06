@@ -292,17 +292,21 @@ static const GraphicHwOps vgafb_ops = {
     .gfx_update  = vgafb_update_display,
 };
 
-static int milkymist_vgafb_init(SysBusDevice *dev)
+static void milkymist_vgafb_init(Object *obj)
 {
-    MilkymistVgafbState *s = MILKYMIST_VGAFB(dev);
+    MilkymistVgafbState *s = MILKYMIST_VGAFB(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
     memory_region_init_io(&s->regs_region, OBJECT(s), &vgafb_mmio_ops, s,
             "milkymist-vgafb", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
+}
 
-    s->con = graphic_console_init(DEVICE(dev), 0, &vgafb_ops, s);
+static void milkymist_vgafb_realize(DeviceState *dev, Error **errp)
+{
+    MilkymistVgafbState *s = MILKYMIST_VGAFB(dev);
 
-    return 0;
+    s->con = graphic_console_init(dev, 0, &vgafb_ops, s);
 }
 
 static int vgafb_post_load(void *opaque, int version_id)
@@ -331,18 +335,18 @@ static Property milkymist_vgafb_properties[] = {
 static void milkymist_vgafb_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = milkymist_vgafb_init;
     dc->reset = milkymist_vgafb_reset;
     dc->vmsd = &vmstate_milkymist_vgafb;
     dc->props = milkymist_vgafb_properties;
+    dc->realize = milkymist_vgafb_realize;
 }
 
 static const TypeInfo milkymist_vgafb_info = {
     .name          = TYPE_MILKYMIST_VGAFB,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistVgafbState),
+    .instance_init = milkymist_vgafb_init,
     .class_init    = milkymist_vgafb_class_init,
 };
 
