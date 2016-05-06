@@ -120,8 +120,7 @@ static void pmac_dma_read(BlockBackend *blk,
     MACIO_DPRINTF("--- Block read transfer - sector_num: %" PRIx64 "  "
                   "nsector: %x\n", (offset >> 9), (bytes >> 9));
 
-    s->bus->dma->aiocb = blk_aio_readv(blk, (offset >> 9), &io->iov,
-                             (bytes >> 9), cb, io);
+    s->bus->dma->aiocb = blk_aio_preadv(blk, offset, &io->iov, 0, cb, io);
 }
 
 static void pmac_dma_write(BlockBackend *blk,
@@ -205,8 +204,7 @@ static void pmac_dma_write(BlockBackend *blk,
     MACIO_DPRINTF("--- Block write transfer - sector_num: %" PRIx64 "  "
                   "nsector: %x\n", (offset >> 9), (bytes >> 9));
 
-    s->bus->dma->aiocb = blk_aio_writev(blk, (offset >> 9), &io->iov,
-                             (bytes >> 9), cb, io);
+    s->bus->dma->aiocb = blk_aio_pwritev(blk, offset, &io->iov, 0, cb, io);
 }
 
 static void pmac_dma_trim(BlockBackend *blk,
@@ -232,8 +230,7 @@ static void pmac_dma_trim(BlockBackend *blk,
     s->io_buffer_index += io->len;
     io->len = 0;
 
-    s->bus->dma->aiocb = ide_issue_trim(blk, (offset >> 9), &io->iov,
-                             (bytes >> 9), cb, io);
+    s->bus->dma->aiocb = ide_issue_trim(blk, offset, &io->iov, 0, cb, io);
 }
 
 static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)

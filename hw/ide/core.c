@@ -442,7 +442,7 @@ static void ide_issue_trim_cb(void *opaque, int ret)
 }
 
 BlockAIOCB *ide_issue_trim(BlockBackend *blk,
-        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        int64_t offset, QEMUIOVector *qiov, BdrvRequestFlags flags,
         BlockCompletionFunc *cb, void *opaque)
 {
     TrimAIOCB *iocb;
@@ -616,8 +616,8 @@ BlockAIOCB *ide_buffered_readv(IDEState *s, int64_t sector_num,
     req->iov.iov_len = iov->size;
     qemu_iovec_init_external(&req->qiov, &req->iov, 1);
 
-    aioreq = blk_aio_readv(s->blk, sector_num, &req->qiov, nb_sectors,
-                           ide_buffered_readv_cb, req);
+    aioreq = blk_aio_preadv(s->blk, sector_num << BDRV_SECTOR_BITS,
+                            &req->qiov, 0, ide_buffered_readv_cb, req);
 
     QLIST_INSERT_HEAD(&s->buffered_requests, req, list);
     return aioreq;
@@ -1006,8 +1006,8 @@ static void ide_sector_write(IDEState *s)
 
     block_acct_start(blk_get_stats(s->blk), &s->acct,
                      n * BDRV_SECTOR_SIZE, BLOCK_ACCT_WRITE);
-    s->pio_aiocb = blk_aio_writev(s->blk, sector_num, &s->qiov, n,
-                                  ide_sector_write_cb, s);
+    s->pio_aiocb = blk_aio_pwritev(s->blk, sector_num << BDRV_SECTOR_BITS,
+                                   &s->qiov, 0, ide_sector_write_cb, s);
 }
 
 static void ide_flush_cb(void *opaque, int ret)
