@@ -322,7 +322,6 @@ static inline void submit_requests(BlockBackend *blk, MultiReqBuffer *mrb,
 {
     QEMUIOVector *qiov = &mrb->reqs[start]->qiov;
     int64_t sector_num = mrb->reqs[start]->sector_num;
-    int nb_sectors = mrb->reqs[start]->qiov.size / BDRV_SECTOR_SIZE;
     bool is_write = mrb->is_write;
 
     if (num_reqs > 1) {
@@ -331,7 +330,7 @@ static inline void submit_requests(BlockBackend *blk, MultiReqBuffer *mrb,
         int tmp_niov = qiov->niov;
 
         /* mrb->reqs[start]->qiov was initialized from external so we can't
-         * modifiy it here. We need to initialize it locally and then add the
+         * modify it here. We need to initialize it locally and then add the
          * external iovecs. */
         qemu_iovec_init(qiov, niov);
 
@@ -343,23 +342,22 @@ static inline void submit_requests(BlockBackend *blk, MultiReqBuffer *mrb,
             qemu_iovec_concat(qiov, &mrb->reqs[i]->qiov, 0,
                               mrb->reqs[i]->qiov.size);
             mrb->reqs[i - 1]->mr_next = mrb->reqs[i];
-            nb_sectors += mrb->reqs[i]->qiov.size / BDRV_SECTOR_SIZE;
         }
-        assert(nb_sectors == qiov->size / BDRV_SECTOR_SIZE);
 
-        trace_virtio_blk_submit_multireq(mrb, start, num_reqs, sector_num,
-                                         nb_sectors, is_write);
+        trace_virtio_blk_submit_multireq(mrb, start, num_reqs,
+                                         sector_num << BDRV_SECTOR_BITS,
+                                         qiov->size, is_write);
         block_acct_merge_done(blk_get_stats(blk),
                               is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ,
                               num_reqs - 1);
     }
 
     if (is_write) {
-        blk_aio_writev(blk, sector_num, qiov, nb_sectors,
-                       virtio_blk_rw_complete, mrb->reqs[start]);
+        blk_aio_pwritev(blk, sector_num << BDRV_SECTOR_BITS, qiov, 0,
+                        virtio_blk_rw_complete, mrb->reqs[start]);
     } else {
-        blk_aio_readv(blk, sector_num, qiov, nb_sectors,
-                      virtio_blk_rw_complete, mrb->reqs[start]);
+        blk_aio_preadv(blk, sector_num << BDRV_SECTOR_BITS, qiov, 0,
+                       virtio_blk_rw_complete, mrb->reqs[start]);
     }
 }
 

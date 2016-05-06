@@ -118,7 +118,7 @@ virtio_blk_req_complete(void *req, int status) "req %p status %d"
 virtio_blk_rw_complete(void *req, int ret) "req %p ret %d"
 virtio_blk_handle_write(void *req, uint64_t sector, size_t nsectors) "req %p sector %"PRIu64" nsectors %zu"
 virtio_blk_handle_read(void *req, uint64_t sector, size_t nsectors) "req %p sector %"PRIu64" nsectors %zu"
-virtio_blk_submit_multireq(void *mrb, int start, int num_reqs, uint64_t sector, size_t nsectors, bool is_write) "mrb %p start %d num_reqs %d sector %"PRIu64" nsectors %zu is_write %d"
+virtio_blk_submit_multireq(void *mrb, int start, int num_reqs, uint64_t offset, size_t size, bool is_write) "mrb %p start %d num_reqs %d offset %"PRIu64" size %zu is_write %d"
 
 # hw/block/dataplane/virtio-blk.c
 virtio_blk_data_plane_start(void *s) "dataplane %p"
