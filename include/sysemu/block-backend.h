@@ -92,8 +92,8 @@ void *blk_get_attached_dev(BlockBackend *blk);
 void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops, void *opaque);
 int blk_read(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
              int nb_sectors);
-int blk_read_unthrottled(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
-                         int nb_sectors);
+int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
+                          int count);
 int blk_write(BlockBackend *blk, int64_t sector_num, const uint8_t *buf,
               int nb_sectors);
 int blk_write_zeroes(BlockBackend *blk, int64_t sector_num,

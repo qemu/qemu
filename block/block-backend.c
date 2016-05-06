@@ -790,19 +790,19 @@ int blk_read(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
     return blk_rw(blk, sector_num, buf, nb_sectors, blk_read_entry, 0);
 }
 
-int blk_read_unthrottled(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
-                         int nb_sectors)
+int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
+                          int count)
 {
     BlockDriverState *bs = blk_bs(blk);
     int ret;
 
-    ret = blk_check_request(blk, sector_num, nb_sectors);
+    ret = blk_check_byte_request(blk, offset, count);
     if (ret < 0) {
         return ret;
     }
 
     bdrv_no_throttling_begin(bs);
-    ret = blk_read(blk, sector_num, buf, nb_sectors);
+    ret = blk_pread(blk, offset, buf, count);
     bdrv_no_throttling_end(bs);
     return ret;
 }
