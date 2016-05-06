@@ -443,21 +443,25 @@ static void milkymist_tmu2_reset(DeviceState *d)
     }
 }
 
-static int milkymist_tmu2_init(SysBusDevice *dev)
+static void milkymist_tmu2_init(Object *obj)
+{
+    MilkymistTMU2State *s = MILKYMIST_TMU2(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+
+    sysbus_init_irq(dev, &s->irq);
+
+    memory_region_init_io(&s->regs_region, obj, &tmu2_mmio_ops, s,
+            "milkymist-tmu2", R_MAX * 4);
+    sysbus_init_mmio(dev, &s->regs_region);
+}
+
+static void milkymist_tmu2_realize(DeviceState *dev, Error **errp)
 {
     MilkymistTMU2State *s = MILKYMIST_TMU2(dev);
 
     if (tmu2_glx_init(s)) {
-        return 1;
+        error_setg(errp, "tmu2_glx_init failed");
     }
-
-    sysbus_init_irq(dev, &s->irq);
-
-    memory_region_init_io(&s->regs_region, OBJECT(s), &tmu2_mmio_ops, s,
-            "milkymist-tmu2", R_MAX * 4);
-    sysbus_init_mmio(dev, &s->regs_region);
-
-    return 0;
 }
 
 static const VMStateDescription vmstate_milkymist_tmu2 = {
@@ -473,9 +477,8 @@ static const VMStateDescription vmstate_milkymist_tmu2 = {
 static void milkymist_tmu2_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = milkymist_tmu2_init;
+    dc->realize = milkymist_tmu2_realize;
     dc->reset = milkymist_tmu2_reset;
     dc->vmsd = &vmstate_milkymist_tmu2;
 }
@@ -484,6 +487,7 @@ static const TypeInfo milkymist_tmu2_info = {
     .name          = TYPE_MILKYMIST_TMU2,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistTMU2State),
+    .instance_init = milkymist_tmu2_init,
     .class_init    = milkymist_tmu2_class_init,
 };
 
