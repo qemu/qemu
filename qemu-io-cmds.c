@@ -419,40 +419,6 @@ fail:
     return buf;
 }
 
-static int do_read(BlockBackend *blk, char *buf, int64_t offset, int64_t count,
-                   int64_t *total)
-{
-    int ret;
-
-    if (count >> 9 > INT_MAX) {
-        return -ERANGE;
-    }
-
-    ret = blk_read(blk, offset >> 9, (uint8_t *)buf, count >> 9);
-    if (ret < 0) {
-        return ret;
-    }
-    *total = count;
-    return 1;
-}
-
-static int do_write(BlockBackend *blk, char *buf, int64_t offset, int64_t count,
-                    int64_t *total)
-{
-    int ret;
-
-    if (count >> 9 > INT_MAX) {
-        return -ERANGE;
-    }
-
-    ret = blk_write(blk, offset >> 9, (uint8_t *)buf, count >> 9);
-    if (ret < 0) {
-        return ret;
-    }
-    *total = count;
-    return 1;
-}
-
 static int do_pread(BlockBackend *blk, char *buf, int64_t offset,
                     int64_t count, int64_t *total)
 {
@@ -588,8 +554,7 @@ static int do_aio_readv(BlockBackend *blk, QEMUIOVector *qiov,
 {
     int async_ret = NOT_DONE;
 
-    blk_aio_readv(blk, offset >> 9, qiov, qiov->size >> 9,
-                  aio_rw_done, &async_ret);
+    blk_aio_preadv(blk, offset, qiov, 0, aio_rw_done, &async_ret);
     while (async_ret == NOT_DONE) {
         main_loop_wait(false);
     }
@@ -603,8 +568,7 @@ static int do_aio_writev(BlockBackend *blk, QEMUIOVector *qiov,
 {
     int async_ret = NOT_DONE;
 
-    blk_aio_writev(blk, offset >> 9, qiov, qiov->size >> 9,
-                   aio_rw_done, &async_ret);
+    blk_aio_pwritev(blk, offset, qiov, 0, aio_rw_done, &async_ret);
     while (async_ret == NOT_DONE) {
         main_loop_wait(false);
     }
@@ -670,7 +634,7 @@ static void read_help(void)
 " -b, -- read from the VM state rather than the virtual disk\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -l, -- length for pattern verification (only with -P)\n"
-" -p, -- use blk_pread to read the file\n"
+" -p, -- allow unaligned access\n"
 " -P, -- use a pattern to verify read data\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
 " -s, -- start offset for pattern verification (only with -P)\n"
@@ -805,12 +769,10 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
     buf = qemu_io_alloc(blk, count, 0xab);
 
     gettimeofday(&t1, NULL);
-    if (pflag) {
-        cnt = do_pread(blk, buf, offset, count, &total);
-    } else if (bflag) {
+    if (bflag) {
         cnt = do_load_vmstate(blk, buf, offset, count, &total);
     } else {
-        cnt = do_read(blk, buf, offset, count, &total);
+        cnt = do_pread(blk, buf, offset, count, &total);
     }
     gettimeofday(&t2, NULL);
 
@@ -990,7 +952,7 @@ static void write_help(void)
 " filled with a set pattern (0xcdcdcdcd).\n"
 " -b, -- write to the VM state rather than the virtual disk\n"
 " -c, -- write compressed data with blk_write_compressed\n"
-" -p, -- use blk_pwrite to write the file\n"
+" -p, -- allow unaligned access\n"
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
@@ -1106,16 +1068,14 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
     }
 
     gettimeofday(&t1, NULL);
-    if (pflag) {
-        cnt = do_pwrite(blk, buf, offset, count, &total);
-    } else if (bflag) {
+    if (bflag) {
         cnt = do_save_vmstate(blk, buf, offset, count, &total);
     } else if (zflag) {
         cnt = do_co_write_zeroes(blk, offset, count, &total);
     } else if (cflag) {
         cnt = do_write_compressed(blk, buf, offset, count, &total);
     } else {
-        cnt = do_write(blk, buf, offset, count, &total);
+        cnt = do_pwrite(blk, buf, offset, count, &total);
     }
     gettimeofday(&t2, NULL);
 
@@ -1592,8 +1552,7 @@ static int aio_read_f(BlockBackend *blk, int argc, char **argv)
     gettimeofday(&ctx->t1, NULL);
     block_acct_start(blk_get_stats(blk), &ctx->acct, ctx->qiov.size,
                      BLOCK_ACCT_READ);
-    blk_aio_readv(blk, ctx->offset >> 9, &ctx->qiov,
-                  ctx->qiov.size >> 9, aio_read_done, ctx);
+    blk_aio_preadv(blk, ctx->offset, &ctx->qiov, 0, aio_read_done, ctx);
     return 0;
 }
 
@@ -1718,8 +1677,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
         block_acct_start(blk_get_stats(blk), &ctx->acct, ctx->qiov.size,
                          BLOCK_ACCT_WRITE);
 
-        blk_aio_writev(blk, ctx->offset >> 9, &ctx->qiov,
-                       ctx->qiov.size >> 9, aio_write_done, ctx);
+        blk_aio_pwritev(blk, ctx->offset, &ctx->qiov, 0, aio_write_done, ctx);
     }
     return 0;
 }
