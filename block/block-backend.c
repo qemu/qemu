@@ -814,11 +814,11 @@ int blk_write(BlockBackend *blk, int64_t sector_num, const uint8_t *buf,
                   blk_write_entry, 0);
 }
 
-int blk_write_zeroes(BlockBackend *blk, int64_t sector_num,
-                     int nb_sectors, BdrvRequestFlags flags)
+int blk_write_zeroes(BlockBackend *blk, int64_t offset,
+                     int count, BdrvRequestFlags flags)
 {
-    return blk_rw(blk, sector_num, NULL, nb_sectors, blk_write_entry,
-                  flags | BDRV_REQ_ZERO_WRITE);
+    return blk_prw(blk, offset, NULL, count, blk_write_entry,
+                   flags | BDRV_REQ_ZERO_WRITE);
 }
 
 static void error_callback_bh(void *opaque)
@@ -930,18 +930,12 @@ static void blk_aio_write_entry(void *opaque)
     blk_aio_complete(acb);
 }
 
-BlockAIOCB *blk_aio_write_zeroes(BlockBackend *blk, int64_t sector_num,
-                                 int nb_sectors, BdrvRequestFlags flags,
+BlockAIOCB *blk_aio_write_zeroes(BlockBackend *blk, int64_t offset,
+                                 int count, BdrvRequestFlags flags,
                                  BlockCompletionFunc *cb, void *opaque)
 {
-    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
-        return blk_abort_aio_request(blk, cb, opaque, -EINVAL);
-    }
-
-    return blk_aio_prwv(blk, sector_num << BDRV_SECTOR_BITS,
-                        nb_sectors << BDRV_SECTOR_BITS, NULL,
-                        blk_aio_write_entry, flags | BDRV_REQ_ZERO_WRITE,
-                        cb, opaque);
+    return blk_aio_prwv(blk, offset, count, NULL, blk_aio_write_entry,
+                        flags | BDRV_REQ_ZERO_WRITE, cb, opaque);
 }
 
 int blk_pread(BlockBackend *blk, int64_t offset, void *buf, int count)
@@ -1444,15 +1438,10 @@ void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,
     return qemu_aio_get(aiocb_info, blk_bs(blk), cb, opaque);
 }
 
-int coroutine_fn blk_co_write_zeroes(BlockBackend *blk, int64_t sector_num,
-                                     int nb_sectors, BdrvRequestFlags flags)
+int coroutine_fn blk_co_write_zeroes(BlockBackend *blk, int64_t offset,
+                                     int count, BdrvRequestFlags flags)
 {
-    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
-        return -EINVAL;
-    }
-
-    return blk_co_pwritev(blk, sector_num << BDRV_SECTOR_BITS,
-                          nb_sectors << BDRV_SECTOR_BITS, NULL,
+    return blk_co_pwritev(blk, offset, count, NULL,
                           flags | BDRV_REQ_ZERO_WRITE);
 }
 

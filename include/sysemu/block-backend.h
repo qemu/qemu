@@ -96,10 +96,10 @@ int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
                           int count);
 int blk_write(BlockBackend *blk, int64_t sector_num, const uint8_t *buf,
               int nb_sectors);
-int blk_write_zeroes(BlockBackend *blk, int64_t sector_num,
-                     int nb_sectors, BdrvRequestFlags flags);
-BlockAIOCB *blk_aio_write_zeroes(BlockBackend *blk, int64_t sector_num,
-                                 int nb_sectors, BdrvRequestFlags flags,
+int blk_write_zeroes(BlockBackend *blk, int64_t offset,
+                     int count, BdrvRequestFlags flags);
+BlockAIOCB *blk_aio_write_zeroes(BlockBackend *blk, int64_t offset,
+                                 int count, BdrvRequestFlags flags,
                                  BlockCompletionFunc *cb, void *opaque);
 int blk_pread(BlockBackend *blk, int64_t offset, void *buf, int count);
 int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count,
@@ -179,8 +179,8 @@ int blk_get_open_flags_from_root_state(BlockBackend *blk);
 
 void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,
                   BlockCompletionFunc *cb, void *opaque);
-int coroutine_fn blk_co_write_zeroes(BlockBackend *blk, int64_t sector_num,
-                                     int nb_sectors, BdrvRequestFlags flags);
+int coroutine_fn blk_co_write_zeroes(BlockBackend *blk, int64_t offset,
+                                     int count, BdrvRequestFlags flags);
 int blk_write_compressed(BlockBackend *blk, int64_t sector_num,
                          const uint8_t *buf, int nb_sectors);
 int blk_truncate(BlockBackend *blk, int64_t offset);

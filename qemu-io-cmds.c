@@ -494,8 +494,7 @@ static void coroutine_fn co_write_zeroes_entry(void *opaque)
 {
     CoWriteZeroes *data = opaque;
 
-    data->ret = blk_co_write_zeroes(data->blk, data->offset / BDRV_SECTOR_SIZE,
-                                    data->count / BDRV_SECTOR_SIZE, 0);
+    data->ret = blk_co_write_zeroes(data->blk, data->offset, data->count, 0);
     data->done = true;
     if (data->ret < 0) {
         *data->total = data->ret;
@@ -1704,8 +1703,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
         }
 
         ctx->qiov.size = count;
-        blk_aio_write_zeroes(blk, ctx->offset >> 9, count >> 9, 0,
-                             aio_write_done, ctx);
+        blk_aio_write_zeroes(blk, ctx->offset, count, 0, aio_write_done, ctx);
     } else {
         nr_iov = argc - optind;
         ctx->buf = create_iovec(blk, &ctx->qiov, &argv[optind], nr_iov,

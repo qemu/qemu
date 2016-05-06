@@ -1589,7 +1589,8 @@ static int convert_write(ImgConvertState *s, int64_t sector_num, int nb_sectors,
             if (s->has_zero_init) {
                 break;
             }
-            ret = blk_write_zeroes(s->target, sector_num, n, 0);
+            ret = blk_write_zeroes(s->target, sector_num << BDRV_SECTOR_BITS,
+                                   n << BDRV_SECTOR_BITS, 0);
             if (ret < 0) {
                 return ret;
             }
