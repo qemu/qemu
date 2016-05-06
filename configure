@@ -2157,6 +2157,7 @@ if test "$gtk" != "no"; then
     if $pkg_config --exists "$gtkpackage >= $gtkversion"; then
         gtk_cflags=`$pkg_config --cflags $gtkpackage`
         gtk_libs=`$pkg_config --libs $gtkpackage`
+        gtk_version=`$pkg_config --modversion $gtkpackage`
         if $pkg_config --exists "$gtkx11package >= $gtkversion"; then
             gtk_cflags="$gtk_cflags $x11_cflags"
             gtk_libs="$gtk_libs $x11_libs"
@@ -4786,7 +4787,7 @@ if test "$darwin" = "yes" ; then
 fi
 echo "pixman            $pixman"
 echo "SDL support       $sdl"
-echo "GTK support       $gtk"
+echo "GTK support       $gtk `echo_version $gtk $gtk_version`"
 echo "GTK GL support    $gtk_gl"
 echo "GNUTLS support    $gnutls"
 echo "GNUTLS hash       $gnutls_hash"
