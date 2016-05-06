@@ -476,12 +476,21 @@ static void gd_refresh(DisplayChangeListener *dcl)
 }
 
 #if GTK_CHECK_VERSION(3, 0, 0)
+static GdkDevice *gd_get_pointer(GdkDisplay *dpy)
+{
+#if GTK_CHECK_VERSION(3, 20, 0)
+    return gdk_seat_get_pointer(gdk_display_get_default_seat(dpy));
+#else
+    return gdk_device_manager_get_client_pointer(
+        gdk_display_get_device_manager(dpy));
+#endif
+}
+
 static void gd_mouse_set(DisplayChangeListener *dcl,
                          int x, int y, int visible)
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
     GdkDisplay *dpy;
-    GdkDeviceManager *mgr;
     gint x_root, y_root;
 
     if (qemu_input_is_absolute()) {
@@ -489,10 +498,9 @@ static void gd_mouse_set(DisplayChangeListener *dcl,
     }
 
     dpy = gtk_widget_get_display(vc->gfx.drawing_area);
-    mgr = gdk_display_get_device_manager(dpy);
     gdk_window_get_root_coords(gtk_widget_get_window(vc->gfx.drawing_area),
                                x, y, &x_root, &y_root);
-    gdk_device_warp(gdk_device_manager_get_client_pointer(mgr),
+    gdk_device_warp(gd_get_pointer(dpy),
                     gtk_widget_get_screen(vc->gfx.drawing_area),
                     x_root, y_root);
     vc->s->last_x = x;
@@ -1402,7 +1410,6 @@ static void gd_grab_pointer(VirtualConsole *vc, const char *reason)
     }
 
 #if GTK_CHECK_VERSION(3, 0, 0)
-    GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
     gd_grab_devices(vc, true, GDK_SOURCE_MOUSE,
                     GDK_POINTER_MOTION_MASK |
                     GDK_BUTTON_PRESS_MASK |
@@ -1410,7 +1417,7 @@ static void gd_grab_pointer(VirtualConsole *vc, const char *reason)
                     GDK_BUTTON_MOTION_MASK |
                     GDK_SCROLL_MASK,
                     vc->s->null_cursor);
-    gdk_device_get_position(gdk_device_manager_get_client_pointer(mgr),
+    gdk_device_get_position(gd_get_pointer(display),
                             NULL, &vc->s->grab_x_root, &vc->s->grab_y_root);
 #else
     gdk_pointer_grab(gtk_widget_get_window(vc->gfx.drawing_area),
@@ -1442,9 +1449,8 @@ static void gd_ungrab_pointer(GtkDisplayState *s)
 
     GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
 #if GTK_CHECK_VERSION(3, 0, 0)
-    GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
     gd_grab_devices(vc, false, GDK_SOURCE_MOUSE, 0, NULL);
-    gdk_device_warp(gdk_device_manager_get_client_pointer(mgr),
+    gdk_device_warp(gd_get_pointer(display),
                     gtk_widget_get_screen(vc->gfx.drawing_area),
                     vc->s->grab_x_root, vc->s->grab_y_root);
 #else
