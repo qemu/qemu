@@ -2393,20 +2393,25 @@ fi
 
 if test "$vte" != "no"; then
     if test "$gtkabi" = "3.0"; then
-      vtepackage="vte-2.90"
-      vteversion="0.32.0"
+      vteminversion="0.32.0"
+      if $pkg_config --exists "vte-2.91"; then
+        vtepackage="vte-2.91"
+      else
+        vtepackage="vte-2.90"
+      fi
     else
       vtepackage="vte"
-      vteversion="0.24.0"
+      vteminversion="0.24.0"
     fi
-    if $pkg_config --exists "$vtepackage >= $vteversion"; then
+    if $pkg_config --exists "$vtepackage >= $vteminversion"; then
         vte_cflags=`$pkg_config --cflags $vtepackage`
         vte_libs=`$pkg_config --libs $vtepackage`
+        vteversion=`$pkg_config --modversion $vtepackage`
         libs_softmmu="$vte_libs $libs_softmmu"
         vte="yes"
     elif test "$vte" = "yes"; then
         if test "$gtkabi" = "3.0"; then
-            feature_not_found "vte" "Install libvte-2.90 devel"
+            feature_not_found "vte" "Install libvte-2.90/2.91 devel"
         else
             feature_not_found "vte" "Install libvte devel"
         fi
@@ -4789,6 +4794,7 @@ echo "pixman            $pixman"
 echo "SDL support       $sdl `echo_version $sdl $sdlversion`"
 echo "GTK support       $gtk `echo_version $gtk $gtk_version`"
 echo "GTK GL support    $gtk_gl"
+echo "VTE support       $vte `echo_version $vte $vteversion`"
 echo "GNUTLS support    $gnutls"
 echo "GNUTLS hash       $gnutls_hash"
 echo "GNUTLS rnd        $gnutls_rnd"
@@ -4797,7 +4803,6 @@ echo "libgcrypt kdf     $gcrypt_kdf"
 echo "nettle            $nettle `echo_version $nettle $nettle_version`"
 echo "nettle kdf        $nettle_kdf"
 echo "libtasn1          $tasn1"
-echo "VTE support       $vte"
 echo "curses support    $curses"
 echo "virgl support     $virglrenderer"
 echo "curl support      $curl"
