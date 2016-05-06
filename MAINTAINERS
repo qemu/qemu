@@ -133,7 +133,8 @@ F: include/hw/lm32/
 F: tests/tcg/lm32/
 
 M68K
-S: Orphan
+M: Laurent Vivier <laurent@vivier.eu>
+S: Maintained
 F: target-m68k/
 F: hw/m68k/
 
