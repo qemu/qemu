@@ -772,24 +772,6 @@ static int blk_prw(BlockBackend *blk, int64_t offset, uint8_t *buf,
     return rwco.ret;
 }
 
-static int blk_rw(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
-                  int nb_sectors, CoroutineEntry co_entry,
-                  BdrvRequestFlags flags)
-{
-    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
-        return -EINVAL;
-    }
-
-    return blk_prw(blk, sector_num << BDRV_SECTOR_BITS, buf,
-                   nb_sectors << BDRV_SECTOR_BITS, co_entry, flags);
-}
-
-int blk_read(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
-             int nb_sectors)
-{
-    return blk_rw(blk, sector_num, buf, nb_sectors, blk_read_entry, 0);
-}
-
 int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
                           int count)
 {
@@ -805,13 +787,6 @@ int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
     ret = blk_pread(blk, offset, buf, count);
     bdrv_no_throttling_end(bs);
     return ret;
-}
-
-int blk_write(BlockBackend *blk, int64_t sector_num, const uint8_t *buf,
-              int nb_sectors)
-{
-    return blk_rw(blk, sector_num, (uint8_t*) buf, nb_sectors,
-                  blk_write_entry, 0);
 }
 
 int blk_write_zeroes(BlockBackend *blk, int64_t offset,
@@ -985,38 +960,12 @@ int64_t blk_nb_sectors(BlockBackend *blk)
     return bdrv_nb_sectors(blk_bs(blk));
 }
 
-BlockAIOCB *blk_aio_readv(BlockBackend *blk, int64_t sector_num,
-                          QEMUIOVector *iov, int nb_sectors,
-                          BlockCompletionFunc *cb, void *opaque)
-{
-    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
-        return blk_abort_aio_request(blk, cb, opaque, -EINVAL);
-    }
-
-    assert(nb_sectors << BDRV_SECTOR_BITS == iov->size);
-    return blk_aio_prwv(blk, sector_num << BDRV_SECTOR_BITS, iov->size, iov,
-                        blk_aio_read_entry, 0, cb, opaque);
-}
-
 BlockAIOCB *blk_aio_preadv(BlockBackend *blk, int64_t offset,
                            QEMUIOVector *qiov, BdrvRequestFlags flags,
                            BlockCompletionFunc *cb, void *opaque)
 {
     return blk_aio_prwv(blk, offset, qiov->size, qiov,
                         blk_aio_read_entry, flags, cb, opaque);
-}
-
-BlockAIOCB *blk_aio_writev(BlockBackend *blk, int64_t sector_num,
-                           QEMUIOVector *iov, int nb_sectors,
-                           BlockCompletionFunc *cb, void *opaque)
-{
-    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
-        return blk_abort_aio_request(blk, cb, opaque, -EINVAL);
-    }
-
-    assert(nb_sectors << BDRV_SECTOR_BITS == iov->size);
-    return blk_aio_prwv(blk, sector_num << BDRV_SECTOR_BITS, iov->size, iov,
-                        blk_aio_write_entry, 0, cb, opaque);
 }
 
 BlockAIOCB *blk_aio_pwritev(BlockBackend *blk, int64_t offset,

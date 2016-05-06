@@ -90,12 +90,8 @@ void blk_attach_dev_nofail(BlockBackend *blk, void *dev);
 void blk_detach_dev(BlockBackend *blk, void *dev);
 void *blk_get_attached_dev(BlockBackend *blk);
 void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops, void *opaque);
-int blk_read(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
-             int nb_sectors);
 int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
                           int count);
-int blk_write(BlockBackend *blk, int64_t sector_num, const uint8_t *buf,
-              int nb_sectors);
 int blk_write_zeroes(BlockBackend *blk, int64_t offset,
                      int count, BdrvRequestFlags flags);
 BlockAIOCB *blk_aio_write_zeroes(BlockBackend *blk, int64_t offset,
@@ -107,14 +103,8 @@ int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count,
 int64_t blk_getlength(BlockBackend *blk);
 void blk_get_geometry(BlockBackend *blk, uint64_t *nb_sectors_ptr);
 int64_t blk_nb_sectors(BlockBackend *blk);
-BlockAIOCB *blk_aio_readv(BlockBackend *blk, int64_t sector_num,
-                          QEMUIOVector *iov, int nb_sectors,
-                          BlockCompletionFunc *cb, void *opaque);
 BlockAIOCB *blk_aio_preadv(BlockBackend *blk, int64_t offset,
                            QEMUIOVector *qiov, BdrvRequestFlags flags,
-                           BlockCompletionFunc *cb, void *opaque);
-BlockAIOCB *blk_aio_writev(BlockBackend *blk, int64_t sector_num,
-                           QEMUIOVector *iov, int nb_sectors,
                            BlockCompletionFunc *cb, void *opaque);
 BlockAIOCB *blk_aio_pwritev(BlockBackend *blk, int64_t offset,
                             QEMUIOVector *qiov, BdrvRequestFlags flags,
