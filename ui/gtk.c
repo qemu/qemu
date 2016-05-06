@@ -340,10 +340,12 @@ static void gd_update_geometry_hints(VirtualConsole *vc)
         geo.min_height = geo.height_inc * VC_TERM_Y_MIN;
         mask |= GDK_HINT_MIN_SIZE;
         gtk_widget_style_get(vc->vte.terminal, "inner-border", &ib, NULL);
-        geo.base_width  += ib->left + ib->right;
-        geo.base_height += ib->top + ib->bottom;
-        geo.min_width   += ib->left + ib->right;
-        geo.min_height  += ib->top + ib->bottom;
+        if (ib) {
+            geo.base_width  += ib->left + ib->right;
+            geo.base_height += ib->top + ib->bottom;
+            geo.min_width   += ib->left + ib->right;
+            geo.min_height  += ib->top + ib->bottom;
+        }
         geo_widget = vc->vte.terminal;
 #endif
     }
