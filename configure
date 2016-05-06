@@ -4730,6 +4730,12 @@ EOF
   fi
 fi
 
+echo_version() {
+    if test "$1" = "yes" ; then
+        echo "($2)"
+    fi
+}
+
 # prepend pixman and ftd flags after all config tests are done
 QEMU_CFLAGS="$pixman_cflags $fdt_cflags $QEMU_CFLAGS"
 libs_softmmu="$pixman_libs $libs_softmmu"
@@ -4787,11 +4793,7 @@ echo "GNUTLS hash       $gnutls_hash"
 echo "GNUTLS rnd        $gnutls_rnd"
 echo "libgcrypt         $gcrypt"
 echo "libgcrypt kdf     $gcrypt_kdf"
-if test "$nettle" = "yes"; then
-    echo "nettle            $nettle ($nettle_version)"
-else
-    echo "nettle            $nettle"
-fi
+echo "nettle            $nettle `echo_version $nettle $nettle_version`"
 echo "nettle kdf        $nettle_kdf"
 echo "libtasn1          $tasn1"
 echo "VTE support       $vte"
@@ -4843,11 +4845,7 @@ echo "Trace backends    $trace_backends"
 if have_backend "simple"; then
 echo "Trace output file $trace_file-<pid>"
 fi
-if test "$spice" = "yes"; then
-echo "spice support     $spice ($spice_protocol_version/$spice_server_version)"
-else
-echo "spice support     $spice"
-fi
+echo "spice support     $spice `echo_version $spice $spice_protocol_version/$spice_server_version`"
 echo "rbd support       $rbd"
 echo "xfsctl support    $xfs"
 echo "smartcard support $smartcard"
