@@ -28,6 +28,9 @@
 #include "hw/scsi/scsi.h"
 #include "sysemu/block-backend.h"
 
+#define ATAPI_SECTOR_BITS (2 + BDRV_SECTOR_BITS)
+#define ATAPI_SECTOR_SIZE (1 << ATAPI_SECTOR_BITS)
+
 static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret);
 
 static void padstr8(uint8_t *buf, int buf_size, const char *src)
@@ -111,7 +114,7 @@ cd_read_sector_sync(IDEState *s)
 {
     int ret;
     block_acct_start(blk_get_stats(s->blk), &s->acct,
-                     4 * BDRV_SECTOR_SIZE, BLOCK_ACCT_READ);
+                     ATAPI_SECTOR_SIZE, BLOCK_ACCT_READ);
 
 #ifdef DEBUG_IDE_ATAPI
     printf("cd_read_sector_sync: lba=%d\n", s->lba);
@@ -119,12 +122,12 @@ cd_read_sector_sync(IDEState *s)
 
     switch (s->cd_sector_size) {
     case 2048:
-        ret = blk_read(s->blk, (int64_t)s->lba << 2,
-                       s->io_buffer, 4);
+        ret = blk_pread(s->blk, (int64_t)s->lba << ATAPI_SECTOR_BITS,
+                        s->io_buffer, ATAPI_SECTOR_SIZE);
         break;
     case 2352:
-        ret = blk_read(s->blk, (int64_t)s->lba << 2,
-                       s->io_buffer + 16, 4);
+        ret = blk_pread(s->blk, (int64_t)s->lba << ATAPI_SECTOR_BITS,
+                        s->io_buffer + 16, ATAPI_SECTOR_SIZE);
         if (ret >= 0) {
             cd_data_to_raw(s->io_buffer, s->lba);
         }
@@ -182,7 +185,7 @@ static int cd_read_sector(IDEState *s)
     s->iov.iov_base = (s->cd_sector_size == 2352) ?
                       s->io_buffer + 16 : s->io_buffer;
 
-    s->iov.iov_len = 4 * BDRV_SECTOR_SIZE;
+    s->iov.iov_len = ATAPI_SECTOR_SIZE;
     qemu_iovec_init_external(&s->qiov, &s->iov, 1);
 
 #ifdef DEBUG_IDE_ATAPI
@@ -190,7 +193,7 @@ static int cd_read_sector(IDEState *s)
 #endif
 
     block_acct_start(blk_get_stats(s->blk), &s->acct,
-                     4 * BDRV_SECTOR_SIZE, BLOCK_ACCT_READ);
+                     ATAPI_SECTOR_SIZE, BLOCK_ACCT_READ);
 
     ide_buffered_readv(s, (int64_t)s->lba << 2, &s->qiov, 4,
                        cd_read_sector_cb, s);
@@ -435,7 +438,7 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
 #endif
 
     s->bus->dma->iov.iov_base = (void *)(s->io_buffer + data_offset);
-    s->bus->dma->iov.iov_len = n * 4 * 512;
+    s->bus->dma->iov.iov_len = n * ATAPI_SECTOR_SIZE;
     qemu_iovec_init_external(&s->bus->dma->qiov, &s->bus->dma->iov, 1);
 
     s->bus->dma->aiocb = ide_buffered_readv(s, (int64_t)s->lba << 2,
