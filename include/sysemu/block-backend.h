@@ -1,7 +1,7 @@
 /*
  * QEMU Block backends
  *
- * Copyright (C) 2014 Red Hat, Inc.
+ * Copyright (C) 2014-2016 Red Hat, Inc.
  *
  * Authors:
  *  Markus Armbruster <armbru@redhat.com>,
@@ -110,9 +110,15 @@ int64_t blk_nb_sectors(BlockBackend *blk);
 BlockAIOCB *blk_aio_readv(BlockBackend *blk, int64_t sector_num,
                           QEMUIOVector *iov, int nb_sectors,
                           BlockCompletionFunc *cb, void *opaque);
+BlockAIOCB *blk_aio_preadv(BlockBackend *blk, int64_t offset,
+                           QEMUIOVector *qiov, BdrvRequestFlags flags,
+                           BlockCompletionFunc *cb, void *opaque);
 BlockAIOCB *blk_aio_writev(BlockBackend *blk, int64_t sector_num,
                            QEMUIOVector *iov, int nb_sectors,
                            BlockCompletionFunc *cb, void *opaque);
+BlockAIOCB *blk_aio_pwritev(BlockBackend *blk, int64_t offset,
+                            QEMUIOVector *qiov, BdrvRequestFlags flags,
+                            BlockCompletionFunc *cb, void *opaque);
 BlockAIOCB *blk_aio_flush(BlockBackend *blk,
                           BlockCompletionFunc *cb, void *opaque);
 BlockAIOCB *blk_aio_discard(BlockBackend *blk,

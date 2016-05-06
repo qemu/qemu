@@ -1,7 +1,7 @@
 /*
  * QEMU Block backends
  *
- * Copyright (C) 2014 Red Hat, Inc.
+ * Copyright (C) 2014-2016 Red Hat, Inc.
  *
  * Authors:
  *  Markus Armbruster <armbru@redhat.com>,
@@ -998,6 +998,14 @@ BlockAIOCB *blk_aio_readv(BlockBackend *blk, int64_t sector_num,
                         blk_aio_read_entry, 0, cb, opaque);
 }
 
+BlockAIOCB *blk_aio_preadv(BlockBackend *blk, int64_t offset,
+                           QEMUIOVector *qiov, BdrvRequestFlags flags,
+                           BlockCompletionFunc *cb, void *opaque)
+{
+    return blk_aio_prwv(blk, offset, qiov->size, qiov,
+                        blk_aio_read_entry, flags, cb, opaque);
+}
+
 BlockAIOCB *blk_aio_writev(BlockBackend *blk, int64_t sector_num,
                            QEMUIOVector *iov, int nb_sectors,
                            BlockCompletionFunc *cb, void *opaque)
@@ -1009,6 +1017,14 @@ BlockAIOCB *blk_aio_writev(BlockBackend *blk, int64_t sector_num,
     assert(nb_sectors << BDRV_SECTOR_BITS == iov->size);
     return blk_aio_prwv(blk, sector_num << BDRV_SECTOR_BITS, iov->size, iov,
                         blk_aio_write_entry, 0, cb, opaque);
+}
+
+BlockAIOCB *blk_aio_pwritev(BlockBackend *blk, int64_t offset,
+                            QEMUIOVector *qiov, BdrvRequestFlags flags,
+                            BlockCompletionFunc *cb, void *opaque)
+{
+    return blk_aio_prwv(blk, offset, qiov->size, qiov,
+                        blk_aio_write_entry, flags, cb, opaque);
 }
 
 BlockAIOCB *blk_aio_flush(BlockBackend *blk,
