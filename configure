@@ -2448,10 +2448,10 @@ fi
 
 if $pkg_config $sdlname --exists; then
   sdlconfig="$pkg_config $sdlname"
-  _sdlversion=`$sdlconfig --modversion 2>/dev/null | sed 's/[^0-9]//g'`
+  sdlversion=`$sdlconfig --modversion 2>/dev/null`
 elif has ${sdl_config}; then
   sdlconfig="$sdl_config"
-  _sdlversion=`$sdlconfig --version | sed 's/[^0-9]//g'`
+  sdlversion=`$sdlconfig --version`
 else
   if test "$sdl" = "yes" ; then
     feature_not_found "sdl" "Install SDL devel"
@@ -2476,7 +2476,7 @@ EOF
     sdl_libs=`$sdlconfig --libs 2> /dev/null`
   fi
   if compile_prog "$sdl_cflags" "$sdl_libs" ; then
-    if test "$_sdlversion" -lt 121 ; then
+    if test `echo $sdlversion | sed 's/[^0-9]//g'` -lt 121 ; then
       sdl_too_old=yes
     else
       sdl=yes
@@ -4786,7 +4786,7 @@ if test "$darwin" = "yes" ; then
     echo "Cocoa support     $cocoa"
 fi
 echo "pixman            $pixman"
-echo "SDL support       $sdl"
+echo "SDL support       $sdl `echo_version $sdl $sdlversion`"
 echo "GTK support       $gtk `echo_version $gtk $gtk_version`"
 echo "GTK GL support    $gtk_gl"
 echo "GNUTLS support    $gnutls"
