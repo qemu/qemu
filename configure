@@ -2434,9 +2434,11 @@ if test $sdlabi = "2.0"; then
     sdl_config=$sdl2_config
     sdlname=sdl2
     sdlconfigname=sdl2_config
-else
+elif test $sdlabi = "1.2"; then
     sdlname=sdl
     sdlconfigname=sdl_config
+else
+    error_exit "Unknown sdlabi $sdlabi, must be 1.2 or 2.0"
 fi
 
 if test "`basename $sdl_config`" != $sdlconfigname && ! has ${sdl_config}; then
