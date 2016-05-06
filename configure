@@ -207,7 +207,7 @@ fdt=""
 netmap="no"
 pixman=""
 sdl=""
-sdlabi="1.2"
+sdlabi=""
 virtfs=""
 vnc="yes"
 sparse="no"
@@ -2419,6 +2419,16 @@ fi
 
 # Look for sdl configuration program (pkg-config or sdl-config).  Try
 # sdl-config even without cross prefix, and favour pkg-config over sdl-config.
+
+if test "$sdlabi" = ""; then
+    if $pkg_config --exists "sdl"; then
+        sdlabi=1.2
+    elif $pkg_config --exists "sdl2"; then
+        sdlabi=2.0
+    else
+        sdlabi=1.2
+    fi
+fi
 
 if test $sdlabi = "2.0"; then
     sdl_config=$sdl2_config
