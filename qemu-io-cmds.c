@@ -1,7 +1,7 @@
 /*
  * Command line utility to exercise the QEMU I/O path.
  *
- * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2009-2016 Red Hat, Inc.
  * Copyright (c) 2003-2005 Silicon Graphics, Inc.
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
@@ -395,12 +395,6 @@ create_iovec(BlockBackend *blk, QEMUIOVector *qiov, char **argv, int nr_iov,
             goto fail;
         }
 
-        if (len & 0x1ff) {
-            printf("length argument %" PRId64
-                   " is not sector aligned\n", len);
-            goto fail;
-        }
-
         sizes[i] = len;
         count += len;
     }
@@ -634,7 +628,7 @@ static void read_help(void)
 " -b, -- read from the VM state rather than the virtual disk\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -l, -- length for pattern verification (only with -P)\n"
-" -p, -- allow unaligned access\n"
+" -p, -- ignored for backwards compatibility\n"
 " -P, -- use a pattern to verify read data\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
 " -s, -- start offset for pattern verification (only with -P)\n"
@@ -650,7 +644,7 @@ static const cmdinfo_t read_cmd = {
     .cfunc      = read_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-abCpqv] [-P pattern [-s off] [-l len]] off len",
+    .args       = "[-abCqv] [-P pattern [-s off] [-l len]] off len",
     .oneline    = "reads a number of bytes at a specified offset",
     .help       = read_help,
 };
@@ -658,7 +652,7 @@ static const cmdinfo_t read_cmd = {
 static int read_f(BlockBackend *blk, int argc, char **argv)
 {
     struct timeval t1, t2;
-    bool Cflag = false, pflag = false, qflag = false, vflag = false;
+    bool Cflag = false, qflag = false, vflag = false;
     bool Pflag = false, sflag = false, lflag = false, bflag = false;
     int c, cnt;
     char *buf;
@@ -686,7 +680,7 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
             }
             break;
         case 'p':
-            pflag = true;
+            /* Ignored for backwards compatibility */
             break;
         case 'P':
             Pflag = true;
@@ -716,11 +710,6 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
 
     if (optind != argc - 2) {
         return qemuio_command_usage(&read_cmd);
-    }
-
-    if (bflag && pflag) {
-        printf("-b and -p cannot be specified at the same time\n");
-        return 0;
     }
 
     offset = cvtnum(argv[optind]);
@@ -753,7 +742,7 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
         return 0;
     }
 
-    if (!pflag) {
+    if (bflag) {
         if (offset & 0x1ff) {
             printf("offset %" PRId64 " is not sector aligned\n",
                    offset);
@@ -836,7 +825,7 @@ static const cmdinfo_t readv_cmd = {
     .cfunc      = readv_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-Cqv] [-P pattern ] off len [len..]",
+    .args       = "[-Cqv] [-P pattern] off len [len..]",
     .oneline    = "reads a number of bytes at a specified offset",
     .help       = readv_help,
 };
@@ -889,12 +878,6 @@ static int readv_f(BlockBackend *blk, int argc, char **argv)
         return 0;
     }
     optind++;
-
-    if (offset & 0x1ff) {
-        printf("offset %" PRId64 " is not sector aligned\n",
-               offset);
-        return 0;
-    }
 
     nr_iov = argc - optind;
     buf = create_iovec(blk, &qiov, &argv[optind], nr_iov, 0xab);
@@ -952,7 +935,7 @@ static void write_help(void)
 " filled with a set pattern (0xcdcdcdcd).\n"
 " -b, -- write to the VM state rather than the virtual disk\n"
 " -c, -- write compressed data with blk_write_compressed\n"
-" -p, -- allow unaligned access\n"
+" -p, -- ignored for backwards compatibility\n"
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
@@ -968,7 +951,7 @@ static const cmdinfo_t write_cmd = {
     .cfunc      = write_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-bcCpqz] [-P pattern ] off len",
+    .args       = "[-bcCqz] [-P pattern] off len",
     .oneline    = "writes a number of bytes at a specified offset",
     .help       = write_help,
 };
@@ -976,7 +959,7 @@ static const cmdinfo_t write_cmd = {
 static int write_f(BlockBackend *blk, int argc, char **argv)
 {
     struct timeval t1, t2;
-    bool Cflag = false, pflag = false, qflag = false, bflag = false;
+    bool Cflag = false, qflag = false, bflag = false;
     bool Pflag = false, zflag = false, cflag = false;
     int c, cnt;
     char *buf = NULL;
@@ -998,7 +981,7 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
             Cflag = true;
             break;
         case 'p':
-            pflag = true;
+            /* Ignored for backwards compatibility */
             break;
         case 'P':
             Pflag = true;
@@ -1022,8 +1005,8 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
         return qemuio_command_usage(&write_cmd);
     }
 
-    if (bflag + pflag + zflag > 1) {
-        printf("-b, -p, or -z cannot be specified at the same time\n");
+    if (bflag && zflag) {
+        printf("-b and -z cannot be specified at the same time\n");
         return 0;
     }
 
@@ -1049,7 +1032,7 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
         return 0;
     }
 
-    if (!pflag) {
+    if (bflag || cflag) {
         if (offset & 0x1ff) {
             printf("offset %" PRId64 " is not sector aligned\n",
                    offset);
@@ -1125,7 +1108,7 @@ static const cmdinfo_t writev_cmd = {
     .cfunc      = writev_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-Cq] [-P pattern ] off len [len..]",
+    .args       = "[-Cq] [-P pattern] off len [len..]",
     .oneline    = "writes a number of bytes at a specified offset",
     .help       = writev_help,
 };
@@ -1172,12 +1155,6 @@ static int writev_f(BlockBackend *blk, int argc, char **argv)
         return 0;
     }
     optind++;
-
-    if (offset & 0x1ff) {
-        printf("offset %" PRId64 " is not sector aligned\n",
-               offset);
-        return 0;
-    }
 
     nr_iov = argc - optind;
     buf = create_iovec(blk, &qiov, &argv[optind], nr_iov, pattern);
@@ -1484,7 +1461,7 @@ static const cmdinfo_t aio_read_cmd = {
     .cfunc      = aio_read_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-Cqv] [-P pattern ] off len [len..]",
+    .args       = "[-Cqv] [-P pattern] off len [len..]",
     .oneline    = "asynchronously reads a number of bytes",
     .help       = aio_read_help,
 };
@@ -1533,14 +1510,6 @@ static int aio_read_f(BlockBackend *blk, int argc, char **argv)
     }
     optind++;
 
-    if (ctx->offset & 0x1ff) {
-        printf("offset %" PRId64 " is not sector aligned\n",
-               ctx->offset);
-        block_acct_invalid(blk_get_stats(blk), BLOCK_ACCT_READ);
-        g_free(ctx);
-        return 0;
-    }
-
     nr_iov = argc - optind;
     ctx->buf = create_iovec(blk, &ctx->qiov, &argv[optind], nr_iov, 0xab);
     if (ctx->buf == NULL) {
@@ -1584,7 +1553,7 @@ static const cmdinfo_t aio_write_cmd = {
     .cfunc      = aio_write_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-Cqz] [-P pattern ] off len [len..]",
+    .args       = "[-Cqz] [-P pattern] off len [len..]",
     .oneline    = "asynchronously writes a number of bytes",
     .help       = aio_write_help,
 };
@@ -1644,14 +1613,6 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
         return 0;
     }
     optind++;
-
-    if (ctx->offset & 0x1ff) {
-        printf("offset %" PRId64 " is not sector aligned\n",
-               ctx->offset);
-        block_acct_invalid(blk_get_stats(blk), BLOCK_ACCT_WRITE);
-        g_free(ctx);
-        return 0;
-    }
 
     if (ctx->zflag) {
         int64_t count = cvtnum(argv[optind]);
