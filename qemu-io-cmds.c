@@ -943,6 +943,7 @@ static void write_help(void)
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
+" -u, -- with -z, allow unmapping\n"
 " -z, -- write zeroes using blk_co_write_zeroes\n"
 "\n");
 }
@@ -955,7 +956,7 @@ static const cmdinfo_t write_cmd = {
     .cfunc      = write_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-bcCfqz] [-P pattern] off len",
+    .args       = "[-bcCfquz] [-P pattern] off len",
     .oneline    = "writes a number of bytes at a specified offset",
     .help       = write_help,
 };
@@ -974,7 +975,7 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
     int64_t total = 0;
     int pattern = 0xcd;
 
-    while ((c = getopt(argc, argv, "bcCfpP:qz")) != -1) {
+    while ((c = getopt(argc, argv, "bcCfpP:quz")) != -1) {
         switch (c) {
         case 'b':
             bflag = true;
@@ -1001,6 +1002,9 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
         case 'q':
             qflag = true;
             break;
+        case 'u':
+            flags |= BDRV_REQ_MAY_UNMAP;
+            break;
         case 'z':
             zflag = true;
             break;
@@ -1020,6 +1024,11 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
 
     if ((flags & BDRV_REQ_FUA) && (bflag || cflag)) {
         printf("-f and -b or -c cannot be specified at the same time\n");
+        return 0;
+    }
+
+    if ((flags & BDRV_REQ_MAY_UNMAP) && !zflag) {
+        printf("-u requires -z to be specified\n");
         return 0;
     }
 
@@ -1561,6 +1570,7 @@ static void aio_write_help(void)
 " -C, -- report statistics in a machine parsable format\n"
 " -f, -- use Force Unit Access semantics\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
+" -u, -- with -z, allow unmapping\n"
 " -z, -- write zeroes using blk_aio_write_zeroes\n"
 "\n");
 }
@@ -1572,7 +1582,7 @@ static const cmdinfo_t aio_write_cmd = {
     .cfunc      = aio_write_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-Cfqz] [-P pattern] off len [len..]",
+    .args       = "[-Cfquz] [-P pattern] off len [len..]",
     .oneline    = "asynchronously writes a number of bytes",
     .help       = aio_write_help,
 };
@@ -1595,6 +1605,9 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
             break;
         case 'q':
             ctx->qflag = true;
+            break;
+        case 'u':
+            flags |= BDRV_REQ_MAY_UNMAP;
             break;
         case 'P':
             pattern = parse_pattern(optarg);
@@ -1620,6 +1633,11 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
     if (ctx->zflag && optind != argc - 2) {
         printf("-z supports only a single length parameter\n");
         g_free(ctx);
+        return 0;
+    }
+
+    if ((flags & BDRV_REQ_MAY_UNMAP) && !ctx->zflag) {
+        printf("-u requires -z to be specified\n");
         return 0;
     }
 
