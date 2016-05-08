@@ -345,7 +345,7 @@ static void dump_buffer(const void *buffer, int64_t offset, int64_t len)
 }
 
 static void print_report(const char *op, struct timeval *t, int64_t offset,
-                         int64_t count, int64_t total, int cnt, int Cflag)
+                         int64_t count, int64_t total, int cnt, bool Cflag)
 {
     char s1[64], s2[64], ts[64];
 
@@ -658,8 +658,8 @@ static const cmdinfo_t read_cmd = {
 static int read_f(BlockBackend *blk, int argc, char **argv)
 {
     struct timeval t1, t2;
-    int Cflag = 0, pflag = 0, qflag = 0, vflag = 0;
-    int Pflag = 0, sflag = 0, lflag = 0, bflag = 0;
+    bool Cflag = false, pflag = false, qflag = false, vflag = false;
+    bool Pflag = false, sflag = false, lflag = false, bflag = false;
     int c, cnt;
     char *buf;
     int64_t offset;
@@ -672,13 +672,13 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
     while ((c = getopt(argc, argv, "bCl:pP:qs:v")) != -1) {
         switch (c) {
         case 'b':
-            bflag = 1;
+            bflag = true;
             break;
         case 'C':
-            Cflag = 1;
+            Cflag = true;
             break;
         case 'l':
-            lflag = 1;
+            lflag = true;
             pattern_count = cvtnum(optarg);
             if (pattern_count < 0) {
                 print_cvtnum_err(pattern_count, optarg);
@@ -686,20 +686,20 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
             }
             break;
         case 'p':
-            pflag = 1;
+            pflag = true;
             break;
         case 'P':
-            Pflag = 1;
+            Pflag = true;
             pattern = parse_pattern(optarg);
             if (pattern < 0) {
                 return 0;
             }
             break;
         case 'q':
-            qflag = 1;
+            qflag = true;
             break;
         case 's':
-            sflag = 1;
+            sflag = true;
             pattern_offset = cvtnum(optarg);
             if (pattern_offset < 0) {
                 print_cvtnum_err(pattern_offset, optarg);
@@ -707,7 +707,7 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
             }
             break;
         case 'v':
-            vflag = 1;
+            vflag = true;
             break;
         default:
             return qemuio_command_usage(&read_cmd);
@@ -844,7 +844,7 @@ static const cmdinfo_t readv_cmd = {
 static int readv_f(BlockBackend *blk, int argc, char **argv)
 {
     struct timeval t1, t2;
-    int Cflag = 0, qflag = 0, vflag = 0;
+    bool Cflag = false, qflag = false, vflag = false;
     int c, cnt;
     char *buf;
     int64_t offset;
@@ -853,25 +853,25 @@ static int readv_f(BlockBackend *blk, int argc, char **argv)
     int nr_iov;
     QEMUIOVector qiov;
     int pattern = 0;
-    int Pflag = 0;
+    bool Pflag = false;
 
     while ((c = getopt(argc, argv, "CP:qv")) != -1) {
         switch (c) {
         case 'C':
-            Cflag = 1;
+            Cflag = true;
             break;
         case 'P':
-            Pflag = 1;
+            Pflag = true;
             pattern = parse_pattern(optarg);
             if (pattern < 0) {
                 return 0;
             }
             break;
         case 'q':
-            qflag = 1;
+            qflag = true;
             break;
         case 'v':
-            vflag = 1;
+            vflag = true;
             break;
         default:
             return qemuio_command_usage(&readv_cmd);
@@ -976,8 +976,8 @@ static const cmdinfo_t write_cmd = {
 static int write_f(BlockBackend *blk, int argc, char **argv)
 {
     struct timeval t1, t2;
-    int Cflag = 0, pflag = 0, qflag = 0, bflag = 0, Pflag = 0, zflag = 0;
-    int cflag = 0;
+    bool Cflag = false, pflag = false, qflag = false, bflag = false;
+    bool Pflag = false, zflag = false, cflag = false;
     int c, cnt;
     char *buf = NULL;
     int64_t offset;
@@ -989,29 +989,29 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
     while ((c = getopt(argc, argv, "bcCpP:qz")) != -1) {
         switch (c) {
         case 'b':
-            bflag = 1;
+            bflag = true;
             break;
         case 'c':
-            cflag = 1;
+            cflag = true;
             break;
         case 'C':
-            Cflag = 1;
+            Cflag = true;
             break;
         case 'p':
-            pflag = 1;
+            pflag = true;
             break;
         case 'P':
-            Pflag = 1;
+            Pflag = true;
             pattern = parse_pattern(optarg);
             if (pattern < 0) {
                 return 0;
             }
             break;
         case 'q':
-            qflag = 1;
+            qflag = true;
             break;
         case 'z':
-            zflag = 1;
+            zflag = true;
             break;
         default:
             return qemuio_command_usage(&write_cmd);
@@ -1133,7 +1133,7 @@ static const cmdinfo_t writev_cmd = {
 static int writev_f(BlockBackend *blk, int argc, char **argv)
 {
     struct timeval t1, t2;
-    int Cflag = 0, qflag = 0;
+    bool Cflag = false, qflag = false;
     int c, cnt;
     char *buf;
     int64_t offset;
@@ -1146,10 +1146,10 @@ static int writev_f(BlockBackend *blk, int argc, char **argv)
     while ((c = getopt(argc, argv, "CqP:")) != -1) {
         switch (c) {
         case 'C':
-            Cflag = 1;
+            Cflag = true;
             break;
         case 'q':
-            qflag = 1;
+            qflag = true;
             break;
         case 'P':
             pattern = parse_pattern(optarg);
@@ -1242,7 +1242,7 @@ static const cmdinfo_t multiwrite_cmd = {
 static int multiwrite_f(BlockBackend *blk, int argc, char **argv)
 {
     struct timeval t1, t2;
-    int Cflag = 0, qflag = 0;
+    bool Cflag = false, qflag = false;
     int c, cnt;
     char **buf;
     int64_t offset, first_offset = 0;
@@ -1258,10 +1258,10 @@ static int multiwrite_f(BlockBackend *blk, int argc, char **argv)
     while ((c = getopt(argc, argv, "CqP:")) != -1) {
         switch (c) {
         case 'C':
-            Cflag = 1;
+            Cflag = true;
             break;
         case 'q':
-            qflag = 1;
+            qflag = true;
             break;
         case 'P':
             pattern = parse_pattern(optarg);
@@ -1371,11 +1371,11 @@ struct aio_ctx {
     QEMUIOVector qiov;
     int64_t offset;
     char *buf;
-    int qflag;
-    int vflag;
-    int Cflag;
-    int Pflag;
-    int zflag;
+    bool qflag;
+    bool vflag;
+    bool Cflag;
+    bool Pflag;
+    bool zflag;
     BlockAcctCookie acct;
     int pattern;
     struct timeval t1;
@@ -1498,10 +1498,10 @@ static int aio_read_f(BlockBackend *blk, int argc, char **argv)
     while ((c = getopt(argc, argv, "CP:qv")) != -1) {
         switch (c) {
         case 'C':
-            ctx->Cflag = 1;
+            ctx->Cflag = true;
             break;
         case 'P':
-            ctx->Pflag = 1;
+            ctx->Pflag = true;
             ctx->pattern = parse_pattern(optarg);
             if (ctx->pattern < 0) {
                 g_free(ctx);
@@ -1509,10 +1509,10 @@ static int aio_read_f(BlockBackend *blk, int argc, char **argv)
             }
             break;
         case 'q':
-            ctx->qflag = 1;
+            ctx->qflag = true;
             break;
         case 'v':
-            ctx->vflag = 1;
+            ctx->vflag = true;
             break;
         default:
             g_free(ctx);
@@ -1599,10 +1599,10 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
     while ((c = getopt(argc, argv, "CqP:z")) != -1) {
         switch (c) {
         case 'C':
-            ctx->Cflag = 1;
+            ctx->Cflag = true;
             break;
         case 'q':
-            ctx->qflag = 1;
+            ctx->qflag = true;
             break;
         case 'P':
             pattern = parse_pattern(optarg);
@@ -1612,7 +1612,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
             }
             break;
         case 'z':
-            ctx->zflag = 1;
+            ctx->zflag = true;
             break;
         default:
             g_free(ctx);
@@ -1841,17 +1841,17 @@ static const cmdinfo_t discard_cmd = {
 static int discard_f(BlockBackend *blk, int argc, char **argv)
 {
     struct timeval t1, t2;
-    int Cflag = 0, qflag = 0;
+    bool Cflag = false, qflag = false;
     int c, ret;
     int64_t offset, count;
 
     while ((c = getopt(argc, argv, "Cq")) != -1) {
         switch (c) {
         case 'C':
-            Cflag = 1;
+            Cflag = true;
             break;
         case 'q':
-            qflag = 1;
+            qflag = true;
             break;
         default:
             return qemuio_command_usage(&discard_cmd);
