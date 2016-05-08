@@ -428,13 +428,13 @@ static int do_pread(BlockBackend *blk, char *buf, int64_t offset,
 }
 
 static int do_pwrite(BlockBackend *blk, char *buf, int64_t offset,
-                     int64_t count, int64_t *total)
+                     int64_t count, int flags, int64_t *total)
 {
     if (count > INT_MAX) {
         return -ERANGE;
     }
 
-    *total = blk_pwrite(blk, offset, (uint8_t *)buf, count, 0);
+    *total = blk_pwrite(blk, offset, (uint8_t *)buf, count, flags);
     if (*total < 0) {
         return *total;
     }
@@ -446,6 +446,7 @@ typedef struct {
     int64_t offset;
     int64_t count;
     int64_t *total;
+    int flags;
     int ret;
     bool done;
 } CoWriteZeroes;
@@ -454,7 +455,8 @@ static void coroutine_fn co_write_zeroes_entry(void *opaque)
 {
     CoWriteZeroes *data = opaque;
 
-    data->ret = blk_co_write_zeroes(data->blk, data->offset, data->count, 0);
+    data->ret = blk_co_write_zeroes(data->blk, data->offset, data->count,
+                                    data->flags);
     data->done = true;
     if (data->ret < 0) {
         *data->total = data->ret;
@@ -465,7 +467,7 @@ static void coroutine_fn co_write_zeroes_entry(void *opaque)
 }
 
 static int do_co_write_zeroes(BlockBackend *blk, int64_t offset, int64_t count,
-                              int64_t *total)
+                              int flags, int64_t *total)
 {
     Coroutine *co;
     CoWriteZeroes data = {
@@ -473,6 +475,7 @@ static int do_co_write_zeroes(BlockBackend *blk, int64_t offset, int64_t count,
         .offset = offset,
         .count  = count,
         .total  = total,
+        .flags  = flags,
         .done   = false,
     };
 
@@ -558,11 +561,11 @@ static int do_aio_readv(BlockBackend *blk, QEMUIOVector *qiov,
 }
 
 static int do_aio_writev(BlockBackend *blk, QEMUIOVector *qiov,
-                         int64_t offset, int *total)
+                         int64_t offset, int flags, int *total)
 {
     int async_ret = NOT_DONE;
 
-    blk_aio_pwritev(blk, offset, qiov, 0, aio_rw_done, &async_ret);
+    blk_aio_pwritev(blk, offset, qiov, flags, aio_rw_done, &async_ret);
     while (async_ret == NOT_DONE) {
         main_loop_wait(false);
     }
@@ -935,6 +938,7 @@ static void write_help(void)
 " filled with a set pattern (0xcdcdcdcd).\n"
 " -b, -- write to the VM state rather than the virtual disk\n"
 " -c, -- write compressed data with blk_write_compressed\n"
+" -f, -- use Force Unit Access semantics\n"
 " -p, -- ignored for backwards compatibility\n"
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
@@ -951,7 +955,7 @@ static const cmdinfo_t write_cmd = {
     .cfunc      = write_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-bcCqz] [-P pattern] off len",
+    .args       = "[-bcCfqz] [-P pattern] off len",
     .oneline    = "writes a number of bytes at a specified offset",
     .help       = write_help,
 };
@@ -961,6 +965,7 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
     struct timeval t1, t2;
     bool Cflag = false, qflag = false, bflag = false;
     bool Pflag = false, zflag = false, cflag = false;
+    int flags = 0;
     int c, cnt;
     char *buf = NULL;
     int64_t offset;
@@ -969,7 +974,7 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
     int64_t total = 0;
     int pattern = 0xcd;
 
-    while ((c = getopt(argc, argv, "bcCpP:qz")) != -1) {
+    while ((c = getopt(argc, argv, "bcCfpP:qz")) != -1) {
         switch (c) {
         case 'b':
             bflag = true;
@@ -979,6 +984,9 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
             break;
         case 'C':
             Cflag = true;
+            break;
+        case 'f':
+            flags |= BDRV_REQ_FUA;
             break;
         case 'p':
             /* Ignored for backwards compatibility */
@@ -1007,6 +1015,11 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
 
     if (bflag && zflag) {
         printf("-b and -z cannot be specified at the same time\n");
+        return 0;
+    }
+
+    if ((flags & BDRV_REQ_FUA) && (bflag || cflag)) {
+        printf("-f and -b or -c cannot be specified at the same time\n");
         return 0;
     }
 
@@ -1054,11 +1067,11 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
     if (bflag) {
         cnt = do_save_vmstate(blk, buf, offset, count, &total);
     } else if (zflag) {
-        cnt = do_co_write_zeroes(blk, offset, count, &total);
+        cnt = do_co_write_zeroes(blk, offset, count, flags, &total);
     } else if (cflag) {
         cnt = do_write_compressed(blk, buf, offset, count, &total);
     } else {
-        cnt = do_pwrite(blk, buf, offset, count, &total);
+        cnt = do_pwrite(blk, buf, offset, count, flags, &total);
     }
     gettimeofday(&t2, NULL);
 
@@ -1097,6 +1110,7 @@ writev_help(void)
 " filled with a set pattern (0xcdcdcdcd).\n"
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
+" -f, -- use Force Unit Access semantics\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
 "\n");
 }
@@ -1108,7 +1122,7 @@ static const cmdinfo_t writev_cmd = {
     .cfunc      = writev_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-Cq] [-P pattern] off len [len..]",
+    .args       = "[-Cfq] [-P pattern] off len [len..]",
     .oneline    = "writes a number of bytes at a specified offset",
     .help       = writev_help,
 };
@@ -1117,6 +1131,7 @@ static int writev_f(BlockBackend *blk, int argc, char **argv)
 {
     struct timeval t1, t2;
     bool Cflag = false, qflag = false;
+    int flags = 0;
     int c, cnt;
     char *buf;
     int64_t offset;
@@ -1130,6 +1145,9 @@ static int writev_f(BlockBackend *blk, int argc, char **argv)
         switch (c) {
         case 'C':
             Cflag = true;
+            break;
+        case 'f':
+            flags |= BDRV_REQ_FUA;
             break;
         case 'q':
             qflag = true;
@@ -1163,7 +1181,7 @@ static int writev_f(BlockBackend *blk, int argc, char **argv)
     }
 
     gettimeofday(&t1, NULL);
-    cnt = do_aio_writev(blk, &qiov, offset, &total);
+    cnt = do_aio_writev(blk, &qiov, offset, flags, &total);
     gettimeofday(&t2, NULL);
 
     if (cnt < 0) {
@@ -1541,6 +1559,7 @@ static void aio_write_help(void)
 " used to ensure all outstanding aio requests have been completed.\n"
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
+" -f, -- use Force Unit Access semantics\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
 " -z, -- write zeroes using blk_aio_write_zeroes\n"
 "\n");
@@ -1553,7 +1572,7 @@ static const cmdinfo_t aio_write_cmd = {
     .cfunc      = aio_write_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-Cqz] [-P pattern] off len [len..]",
+    .args       = "[-Cfqz] [-P pattern] off len [len..]",
     .oneline    = "asynchronously writes a number of bytes",
     .help       = aio_write_help,
 };
@@ -1563,12 +1582,16 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
     int nr_iov, c;
     int pattern = 0xcd;
     struct aio_ctx *ctx = g_new0(struct aio_ctx, 1);
+    int flags = 0;
 
     ctx->blk = blk;
-    while ((c = getopt(argc, argv, "CqP:z")) != -1) {
+    while ((c = getopt(argc, argv, "CfqP:z")) != -1) {
         switch (c) {
         case 'C':
             ctx->Cflag = true;
+            break;
+        case 'f':
+            flags |= BDRV_REQ_FUA;
             break;
         case 'q':
             ctx->qflag = true;
@@ -1623,7 +1646,8 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
         }
 
         ctx->qiov.size = count;
-        blk_aio_write_zeroes(blk, ctx->offset, count, 0, aio_write_done, ctx);
+        blk_aio_write_zeroes(blk, ctx->offset, count, flags, aio_write_done,
+                             ctx);
     } else {
         nr_iov = argc - optind;
         ctx->buf = create_iovec(blk, &ctx->qiov, &argv[optind], nr_iov,
@@ -1638,7 +1662,8 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
         block_acct_start(blk_get_stats(blk), &ctx->acct, ctx->qiov.size,
                          BLOCK_ACCT_WRITE);
 
-        blk_aio_pwritev(blk, ctx->offset, &ctx->qiov, 0, aio_write_done, ctx);
+        blk_aio_pwritev(blk, ctx->offset, &ctx->qiov, flags, aio_write_done,
+                        ctx);
     }
     return 0;
 }
