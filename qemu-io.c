@@ -101,7 +101,7 @@ static void open_help(void)
 " opens a new file in the requested mode\n"
 "\n"
 " Example:\n"
-" 'open -Cn /tmp/data' - creates/opens data file read-write and uncached\n"
+" 'open -n -o driver=raw /tmp/data' - opens raw data file read-write, uncached\n"
 "\n"
 " Opens a file for subsequent use by all of the other qemu-io commands.\n"
 " -r, -- open file read-only\n"
@@ -120,7 +120,7 @@ static const cmdinfo_t open_cmd = {
     .argmin     = 1,
     .argmax     = -1,
     .flags      = CMD_NOFILE_OK,
-    .args       = "[-Crsn] [-o options] [path]",
+    .args       = "[-rsn] [-o options] [path]",
     .oneline    = "open the file specified by path",
     .help       = open_help,
 };
@@ -144,7 +144,7 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
     QemuOpts *qopts;
     QDict *opts;
 
-    while ((c = getopt(argc, argv, "snrgo:")) != -1) {
+    while ((c = getopt(argc, argv, "snro:")) != -1) {
         switch (c) {
         case 's':
             flags |= BDRV_O_SNAPSHOT;
@@ -216,20 +216,22 @@ static const cmdinfo_t quit_cmd = {
 static void usage(const char *name)
 {
     printf(
-"Usage: %s [-h] [-V] [-rsnm] [-f FMT] [-c STRING] ... [file]\n"
+"Usage: %s [OPTIONS]... [-c STRING]... [file]\n"
 "QEMU Disk exerciser\n"
 "\n"
 "  --object OBJECTDEF   define an object such as 'secret' for\n"
 "                       passwords and/or encryption keys\n"
+"  --image-opts         treat file as option string\n"
 "  -c, --cmd STRING     execute command with its arguments\n"
 "                       from the given string\n"
 "  -f, --format FMT     specifies the block driver to use\n"
 "  -r, --read-only      export read-only\n"
 "  -s, --snapshot       use snapshot file\n"
-"  -n, --nocache        disable host cache\n"
+"  -n, --nocache        disable host cache, short for -t none\n"
 "  -m, --misalign       misalign allocations for O_DIRECT\n"
 "  -k, --native-aio     use kernel AIO implementation (on Linux only)\n"
 "  -t, --cache=MODE     use the given cache mode for the image\n"
+"  -d, --discard=MODE   use the given discard mode for the image\n"
 "  -T, --trace FILE     enable trace events listed in the given file\n"
 "  -h, --help           display this help and exit\n"
 "  -V, --version        output version information and exit\n"
@@ -410,11 +412,10 @@ static QemuOptsList file_opts = {
 int main(int argc, char **argv)
 {
     int readonly = 0;
-    const char *sopt = "hVc:d:f:rsnmgkt:T:";
+    const char *sopt = "hVc:d:f:rsnmkt:T:";
     const struct option lopt[] = {
         { "help", no_argument, NULL, 'h' },
         { "version", no_argument, NULL, 'V' },
-        { "offset", required_argument, NULL, 'o' },
         { "cmd", required_argument, NULL, 'c' },
         { "format", required_argument, NULL, 'f' },
         { "read-only", no_argument, NULL, 'r' },
