@@ -106,7 +106,10 @@ static void open_help(void)
 " Opens a file for subsequent use by all of the other qemu-io commands.\n"
 " -r, -- open file read-only\n"
 " -s, -- use snapshot file\n"
-" -n, -- disable host cache\n"
+" -n, -- disable host cache, short for -t none\n"
+" -k, -- use kernel AIO implementation (on Linux only)\n"
+" -t, -- use the given cache mode for the image\n"
+" -d, -- use the given discard mode for the image\n"
 " -o, -- options to be given to the block driver"
 "\n");
 }
@@ -120,7 +123,7 @@ static const cmdinfo_t open_cmd = {
     .argmin     = 1,
     .argmax     = -1,
     .flags      = CMD_NOFILE_OK,
-    .args       = "[-rsn] [-o options] [path]",
+    .args       = "[-rsnk] [-t cache] [-d discard] [-o options] [path]",
     .oneline    = "open the file specified by path",
     .help       = open_help,
 };
@@ -137,14 +140,14 @@ static QemuOptsList empty_opts = {
 
 static int open_f(BlockBackend *blk, int argc, char **argv)
 {
-    int flags = 0;
+    int flags = BDRV_O_UNMAP;
     int readonly = 0;
     bool writethrough = true;
     int c;
     QemuOpts *qopts;
     QDict *opts;
 
-    while ((c = getopt(argc, argv, "snro:")) != -1) {
+    while ((c = getopt(argc, argv, "snro:kt:d:")) != -1) {
         switch (c) {
         case 's':
             flags |= BDRV_O_SNAPSHOT;
@@ -156,9 +159,27 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
         case 'r':
             readonly = 1;
             break;
+        case 'k':
+            flags |= BDRV_O_NATIVE_AIO;
+            break;
+        case 't':
+            if (bdrv_parse_cache_mode(optarg, &flags, &writethrough) < 0) {
+                error_report("Invalid cache option: %s", optarg);
+                qemu_opts_reset(&empty_opts);
+                return 0;
+            }
+            break;
+        case 'd':
+            if (bdrv_parse_discard_flags(optarg, &flags) < 0) {
+                error_report("Invalid discard option: %s", optarg);
+                qemu_opts_reset(&empty_opts);
+                return 0;
+            }
+            break;
         case 'o':
             if (imageOpts) {
                 printf("--image-opts and 'open -o' are mutually exclusive\n");
+                qemu_opts_reset(&empty_opts);
                 return 0;
             }
             if (!qemu_opts_parse_noisily(&empty_opts, optarg, false)) {
