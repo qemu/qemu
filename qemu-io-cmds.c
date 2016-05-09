@@ -1699,6 +1699,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
         int64_t count = cvtnum(argv[optind]);
         if (count < 0) {
             print_cvtnum_err(count, argv[optind]);
+            g_free(ctx);
             return 0;
         }
 
