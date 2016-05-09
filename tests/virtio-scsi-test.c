@@ -18,6 +18,7 @@
 #include "libqos/malloc-pc.h"
 #include "libqos/malloc-generic.h"
 #include "standard-headers/linux/virtio_ids.h"
+#include "standard-headers/linux/virtio_pci.h"
 #include "standard-headers/linux/virtio_scsi.h"
 
 #define PCI_SLOT                0x02
@@ -157,7 +158,7 @@ static QVirtIOSCSI *qvirtio_scsi_pci_init(int slot)
     qvirtio_set_acknowledge(&qvirtio_pci, vs->dev);
     qvirtio_set_driver(&qvirtio_pci, vs->dev);
 
-    addr = dev->addr + QVIRTIO_PCI_DEVICE_SPECIFIC_NO_MSIX;
+    addr = dev->addr + VIRTIO_PCI_CONFIG_OFF(false);
     vs->num_queues = qvirtio_config_readl(&qvirtio_pci, vs->dev,
                                           (uint64_t)(uintptr_t)addr);
 
