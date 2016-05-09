@@ -135,7 +135,7 @@ void qvring_init(const QGuestAllocator *alloc, QVirtQueue *vq, uint64_t addr)
     int i;
 
     vq->desc = addr;
-    vq->avail = vq->desc + vq->size*sizeof(QVRingDesc);
+    vq->avail = vq->desc + vq->size * sizeof(struct vring_desc);
     vq->used = (uint64_t)((vq->avail + sizeof(uint16_t) * (3 + vq->size)
         + vq->align - 1) & ~(vq->align - 1));
 
@@ -156,7 +156,7 @@ void qvring_init(const QGuestAllocator *alloc, QVirtQueue *vq, uint64_t addr)
     /* vq->used->flags */
     writew(vq->used, 0);
     /* vq->used->avail_event */
-    writew(vq->used+2+(sizeof(struct QVRingUsedElem)*vq->size), 0);
+    writew(vq->used + 2 + sizeof(struct vring_used_elem) * vq->size, 0);
 }
 
 QVRingIndirectDesc *qvring_indirect_desc_setup(QVirtioDevice *d,
@@ -167,7 +167,7 @@ QVRingIndirectDesc *qvring_indirect_desc_setup(QVirtioDevice *d,
 
     indirect->index = 0;
     indirect->elem = elem;
-    indirect->desc = guest_alloc(alloc, sizeof(QVRingDesc)*elem);
+    indirect->desc = guest_alloc(alloc, sizeof(struct vring_desc) * elem);
 
     for (i = 0; i < elem - 1; ++i) {
         /* indirect->desc[i].addr */
@@ -240,7 +240,7 @@ uint32_t qvirtqueue_add_indirect(QVirtQueue *vq, QVRingIndirectDesc *indirect)
     writeq(vq->desc + (16 * vq->free_head), indirect->desc);
     /* vq->desc[vq->free_head].len */
     writel(vq->desc + (16 * vq->free_head) + 8,
-                                        sizeof(QVRingDesc) * indirect->elem);
+           sizeof(struct vring_desc) * indirect->elem);
     /* vq->desc[vq->free_head].flags */
     writew(vq->desc + (16 * vq->free_head) + 12, VRING_DESC_F_INDIRECT);
 
@@ -265,7 +265,7 @@ void qvirtqueue_kick(const QVirtioBus *bus, QVirtioDevice *d, QVirtQueue *vq,
     /* Must read after idx is updated */
     flags = readw(vq->avail);
     avail_event = readw(vq->used + 4 +
-                                (sizeof(struct QVRingUsedElem) * vq->size));
+                                sizeof(struct vring_used_elem) * vq->size);
 
     /* < 1 because we add elements to avail queue one by one */
     if ((flags & VRING_USED_F_NO_NOTIFY) == 0 &&

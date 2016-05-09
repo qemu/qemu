@@ -11,6 +11,7 @@
 #define LIBQOS_VIRTIO_H
 
 #include "libqos/malloc.h"
+#include "standard-headers/linux/virtio_ring.h"
 
 #define QVIRTIO_F_BAD_FEATURE           0x40000000
 
@@ -19,36 +20,10 @@ typedef struct QVirtioDevice {
     uint16_t device_type;
 } QVirtioDevice;
 
-typedef struct QVRingDesc {
-    uint64_t addr;
-    uint32_t len;
-    uint16_t flags;
-    uint16_t next;
-} QVRingDesc;
-
-typedef struct QVRingAvail {
-    uint16_t flags;
-    uint16_t idx;
-    uint16_t ring[0]; /* This is an array of uint16_t */
-    uint16_t used_event;
-} QVRingAvail;
-
-typedef struct QVRingUsedElem {
-    uint32_t id;
-    uint32_t len;
-} QVRingUsedElem;
-
-typedef struct QVRingUsed {
-    uint16_t flags;
-    uint16_t idx;
-    QVRingUsedElem ring[0]; /* This is an array of QVRingUsedElem structs */
-    uint16_t avail_event;
-} QVRingUsed;
-
 typedef struct QVirtQueue {
-    uint64_t desc; /* This points to an array of QVRingDesc */
-    uint64_t avail; /* This points to a QVRingAvail */
-    uint64_t used; /* This points to a QVRingDesc */
+    uint64_t desc; /* This points to an array of struct vring_desc */
+    uint64_t avail; /* This points to a struct vring_avail */
+    uint64_t used; /* This points to a struct vring_desc */
     uint16_t index;
     uint32_t size;
     uint32_t free_head;
@@ -59,7 +34,7 @@ typedef struct QVirtQueue {
 } QVirtQueue;
 
 typedef struct QVRingIndirectDesc {
-    uint64_t desc; /* This points to an array fo QVRingDesc */
+    uint64_t desc; /* This points to an array fo struct vring_desc */
     uint16_t index;
     uint16_t elem;
 } QVRingIndirectDesc;
@@ -110,9 +85,9 @@ typedef struct QVirtioBus {
 
 static inline uint32_t qvring_size(uint32_t num, uint32_t align)
 {
-    return ((sizeof(struct QVRingDesc) * num + sizeof(uint16_t) * (3 + num)
+    return ((sizeof(struct vring_desc) * num + sizeof(uint16_t) * (3 + num)
         + align - 1) & ~(align - 1))
-        + sizeof(uint16_t) * 3 + sizeof(struct QVRingUsedElem) * num;
+        + sizeof(uint16_t) * 3 + sizeof(struct vring_used_elem) * num;
 }
 
 uint8_t qvirtio_config_readb(const QVirtioBus *bus, QVirtioDevice *d,
