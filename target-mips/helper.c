@@ -539,7 +539,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
         break;
     case EXCP_SRESET:
         env->CP0_Status |= (1 << CP0St_SR);
-        memset(env->CP0_WatchLo, 0, sizeof(*env->CP0_WatchLo));
+        memset(env->CP0_WatchLo, 0, sizeof(env->CP0_WatchLo));
         goto set_error_EPC;
     case EXCP_NMI:
         env->CP0_Status |= (1 << CP0St_NMI);
