@@ -17,6 +17,7 @@
 #include "libqos/malloc.h"
 #include "libqos/malloc-pc.h"
 #include "libqos/malloc-generic.h"
+#include "standard-headers/linux/virtio_ids.h"
 
 #define PCI_SLOT                0x02
 #define PCI_FN                  0x00
@@ -163,10 +164,10 @@ static QVirtIOSCSI *qvirtio_scsi_pci_init(int slot)
     vs->alloc = pc_alloc_init();
     vs->bus = qpci_init_pc();
 
-    dev = qvirtio_pci_device_find(vs->bus, QVIRTIO_SCSI_DEVICE_ID);
+    dev = qvirtio_pci_device_find(vs->bus, VIRTIO_ID_SCSI);
     vs->dev = (QVirtioDevice *)dev;
     g_assert(dev != NULL);
-    g_assert_cmphex(vs->dev->device_type, ==, QVIRTIO_SCSI_DEVICE_ID);
+    g_assert_cmphex(vs->dev->device_type, ==, VIRTIO_ID_SCSI);
 
     qvirtio_pci_device_enable(dev);
     qvirtio_reset(&qvirtio_pci, vs->dev);

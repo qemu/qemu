@@ -20,6 +20,7 @@
 #include "libqos/malloc-generic.h"
 #include "qemu/bswap.h"
 #include "hw/virtio/virtio-net.h"
+#include "standard-headers/linux/virtio_ids.h"
 
 #define PCI_SLOT_HP             0x06
 #define PCI_SLOT                0x04
@@ -39,9 +40,9 @@ static QVirtioPCIDevice *virtio_net_pci_init(QPCIBus *bus, int slot)
 {
     QVirtioPCIDevice *dev;
 
-    dev = qvirtio_pci_device_find(bus, QVIRTIO_NET_DEVICE_ID);
+    dev = qvirtio_pci_device_find(bus, VIRTIO_ID_NET);
     g_assert(dev != NULL);
-    g_assert_cmphex(dev->vdev.device_type, ==, QVIRTIO_NET_DEVICE_ID);
+    g_assert_cmphex(dev->vdev.device_type, ==, VIRTIO_ID_NET);
 
     qvirtio_pci_device_enable(dev);
     qvirtio_reset(&qvirtio_pci, &dev->vdev);

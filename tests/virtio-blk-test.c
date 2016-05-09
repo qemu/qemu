@@ -18,6 +18,7 @@
 #include "libqos/malloc-pc.h"
 #include "libqos/malloc-generic.h"
 #include "qemu/bswap.h"
+#include "standard-headers/linux/virtio_ids.h"
 
 #define QVIRTIO_BLK_F_BARRIER       0x00000001
 #define QVIRTIO_BLK_F_SIZE_MAX      0x00000002
@@ -118,9 +119,9 @@ static QVirtioPCIDevice *virtio_blk_pci_init(QPCIBus *bus, int slot)
 {
     QVirtioPCIDevice *dev;
 
-    dev = qvirtio_pci_device_find(bus, QVIRTIO_BLK_DEVICE_ID);
+    dev = qvirtio_pci_device_find(bus, VIRTIO_ID_BLOCK);
     g_assert(dev != NULL);
-    g_assert_cmphex(dev->vdev.device_type, ==, QVIRTIO_BLK_DEVICE_ID);
+    g_assert_cmphex(dev->vdev.device_type, ==, VIRTIO_ID_BLOCK);
     g_assert_cmphex(dev->pdev->devfn, ==, ((slot << 3) | PCI_FN));
 
     qvirtio_pci_device_enable(dev);
@@ -732,7 +733,7 @@ static void mmio_basic(void)
 
     dev = qvirtio_mmio_init_device(MMIO_DEV_BASE_ADDR, MMIO_PAGE_SIZE);
     g_assert(dev != NULL);
-    g_assert_cmphex(dev->vdev.device_type, ==, QVIRTIO_BLK_DEVICE_ID);
+    g_assert_cmphex(dev->vdev.device_type, ==, VIRTIO_ID_BLOCK);
 
     qvirtio_reset(&qvirtio_mmio, &dev->vdev);
     qvirtio_set_acknowledge(&qvirtio_mmio, &dev->vdev);
