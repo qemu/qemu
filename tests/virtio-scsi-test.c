@@ -18,11 +18,11 @@
 #include "libqos/malloc-pc.h"
 #include "libqos/malloc-generic.h"
 #include "standard-headers/linux/virtio_ids.h"
+#include "standard-headers/linux/virtio_scsi.h"
 
 #define PCI_SLOT                0x02
 #define PCI_FN                  0x00
 #define QVIRTIO_SCSI_TIMEOUT_US (1 * 1000 * 1000)
-#define CDB_SIZE 32
 
 #define MAX_NUM_QUEUES 64
 
@@ -33,24 +33,6 @@ typedef struct {
     int num_queues;
     QVirtQueue *vq[MAX_NUM_QUEUES + 2];
 } QVirtIOSCSI;
-
-typedef struct {
-    uint8_t lun[8];
-    int64_t tag;
-    uint8_t task_attr;
-    uint8_t prio;
-    uint8_t crn;
-    uint8_t cdb[CDB_SIZE];
-} QEMU_PACKED QVirtIOSCSICmdReq;
-
-typedef struct {
-    uint32_t sense_len;
-    uint32_t resid;
-    uint16_t status_qualifier;
-    uint8_t status;
-    uint8_t response;
-    uint8_t sense[96];
-} QEMU_PACKED QVirtIOSCSICmdResp;
 
 static void qvirtio_scsi_start(const char *extra_opts)
 {
@@ -100,11 +82,11 @@ static uint8_t virtio_scsi_do_command(QVirtIOSCSI *vs, const uint8_t *cdb,
                                       const uint8_t *data_in,
                                       size_t data_in_len,
                                       uint8_t *data_out, size_t data_out_len,
-                                      QVirtIOSCSICmdResp *resp_out)
+                                      struct virtio_scsi_cmd_resp *resp_out)
 {
     QVirtQueue *vq;
-    QVirtIOSCSICmdReq req = { { 0 } };
-    QVirtIOSCSICmdResp resp = { .response = 0xff, .status = 0xff };
+    struct virtio_scsi_cmd_req req = { { 0 } };
+    struct virtio_scsi_cmd_resp resp = { .response = 0xff, .status = 0xff };
     uint64_t req_addr, resp_addr, data_in_addr = 0, data_out_addr = 0;
     uint8_t response;
     uint32_t free_head;
@@ -113,7 +95,7 @@ static uint8_t virtio_scsi_do_command(QVirtIOSCSI *vs, const uint8_t *cdb,
 
     req.lun[0] = 1; /* Select LUN */
     req.lun[1] = 1; /* Select target 1 */
-    memcpy(req.cdb, cdb, CDB_SIZE);
+    memcpy(req.cdb, cdb, VIRTIO_SCSI_CDB_SIZE);
 
     /* XXX: Fix endian if any multi-byte field in req/resp is used */
 
@@ -138,7 +120,8 @@ static uint8_t virtio_scsi_do_command(QVirtIOSCSI *vs, const uint8_t *cdb,
     qvirtqueue_kick(&qvirtio_pci, vs->dev, vq, free_head);
     qvirtio_wait_queue_isr(&qvirtio_pci, vs->dev, vq, QVIRTIO_SCSI_TIMEOUT_US);
 
-    response = readb(resp_addr + offsetof(QVirtIOSCSICmdResp, response));
+    response = readb(resp_addr +
+                     offsetof(struct virtio_scsi_cmd_resp, response));
 
     if (resp_out) {
         memread(resp_addr, resp_out, sizeof(*resp_out));
@@ -153,10 +136,10 @@ static uint8_t virtio_scsi_do_command(QVirtIOSCSI *vs, const uint8_t *cdb,
 
 static QVirtIOSCSI *qvirtio_scsi_pci_init(int slot)
 {
-    const uint8_t test_unit_ready_cdb[CDB_SIZE] = {};
+    const uint8_t test_unit_ready_cdb[VIRTIO_SCSI_CDB_SIZE] = {};
     QVirtIOSCSI *vs;
     QVirtioPCIDevice *dev;
-    QVirtIOSCSICmdResp resp;
+    struct virtio_scsi_cmd_resp resp;
     void *addr;
     int i;
 
@@ -239,10 +222,12 @@ static void test_unaligned_write_same(void)
     QVirtIOSCSI *vs;
     uint8_t buf1[512] = { 0 };
     uint8_t buf2[512] = { 1 };
-    const uint8_t write_same_cdb_1[CDB_SIZE] = { 0x41, 0x00, 0x00, 0x00, 0x00,
-                                               0x01, 0x00, 0x00, 0x02, 0x00 };
-    const uint8_t write_same_cdb_2[CDB_SIZE] = { 0x41, 0x00, 0x00, 0x00, 0x00,
-                                               0x01, 0x00, 0x33, 0x00, 0x00 };
+    const uint8_t write_same_cdb_1[VIRTIO_SCSI_CDB_SIZE] = {
+        0x41, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x02, 0x00
+    };
+    const uint8_t write_same_cdb_2[VIRTIO_SCSI_CDB_SIZE] = {
+        0x41, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x33, 0x00, 0x00
+    };
 
     qvirtio_scsi_start("-drive file=blkdebug::null-co://,if=none,id=dr1"
                        ",format=raw,file.align=4k "
