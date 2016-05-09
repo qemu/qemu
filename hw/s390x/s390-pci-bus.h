@@ -198,11 +198,11 @@ typedef struct ChscSeiNt2Res {
 } QEMU_PACKED ChscSeiNt2Res;
 
 typedef struct PciCfgSccb {
-        SCCBHeader header;
-        uint8_t atype;
-        uint8_t reserved1;
-        uint16_t reserved2;
-        uint32_t aid;
+    SCCBHeader header;
+    uint8_t atype;
+    uint8_t reserved1;
+    uint16_t reserved2;
+    uint32_t aid;
 } QEMU_PACKED PciCfgSccb;
 
 typedef struct S390MsixInfo {
