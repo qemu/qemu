@@ -10,6 +10,7 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "libqos/virtio.h"
+#include "standard-headers/linux/virtio_config.h"
 
 uint8_t qvirtio_config_readb(const QVirtioBus *bus, QVirtioDevice *d,
                                                                 uint64_t addr)
@@ -54,28 +55,28 @@ QVirtQueue *qvirtqueue_setup(const QVirtioBus *bus, QVirtioDevice *d,
 
 void qvirtio_reset(const QVirtioBus *bus, QVirtioDevice *d)
 {
-    bus->set_status(d, QVIRTIO_RESET);
-    g_assert_cmphex(bus->get_status(d), ==, QVIRTIO_RESET);
+    bus->set_status(d, 0);
+    g_assert_cmphex(bus->get_status(d), ==, 0);
 }
 
 void qvirtio_set_acknowledge(const QVirtioBus *bus, QVirtioDevice *d)
 {
-    bus->set_status(d, bus->get_status(d) | QVIRTIO_ACKNOWLEDGE);
-    g_assert_cmphex(bus->get_status(d), ==, QVIRTIO_ACKNOWLEDGE);
+    bus->set_status(d, bus->get_status(d) | VIRTIO_CONFIG_S_ACKNOWLEDGE);
+    g_assert_cmphex(bus->get_status(d), ==, VIRTIO_CONFIG_S_ACKNOWLEDGE);
 }
 
 void qvirtio_set_driver(const QVirtioBus *bus, QVirtioDevice *d)
 {
-    bus->set_status(d, bus->get_status(d) | QVIRTIO_DRIVER);
+    bus->set_status(d, bus->get_status(d) | VIRTIO_CONFIG_S_DRIVER);
     g_assert_cmphex(bus->get_status(d), ==,
-                                    QVIRTIO_DRIVER | QVIRTIO_ACKNOWLEDGE);
+                    VIRTIO_CONFIG_S_DRIVER | VIRTIO_CONFIG_S_ACKNOWLEDGE);
 }
 
 void qvirtio_set_driver_ok(const QVirtioBus *bus, QVirtioDevice *d)
 {
-    bus->set_status(d, bus->get_status(d) | QVIRTIO_DRIVER_OK);
-    g_assert_cmphex(bus->get_status(d), ==,
-                QVIRTIO_DRIVER_OK | QVIRTIO_DRIVER | QVIRTIO_ACKNOWLEDGE);
+    bus->set_status(d, bus->get_status(d) | VIRTIO_CONFIG_S_DRIVER_OK);
+    g_assert_cmphex(bus->get_status(d), ==, VIRTIO_CONFIG_S_DRIVER_OK |
+                    VIRTIO_CONFIG_S_DRIVER | VIRTIO_CONFIG_S_ACKNOWLEDGE);
 }
 
 void qvirtio_wait_queue_isr(const QVirtioBus *bus, QVirtioDevice *d,

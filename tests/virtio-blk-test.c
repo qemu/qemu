@@ -19,6 +19,7 @@
 #include "libqos/malloc-generic.h"
 #include "qemu/bswap.h"
 #include "standard-headers/linux/virtio_ids.h"
+#include "standard-headers/linux/virtio_config.h"
 
 #define QVIRTIO_BLK_F_BARRIER       0x00000001
 #define QVIRTIO_BLK_F_SIZE_MAX      0x00000002
@@ -239,7 +240,7 @@ static void test_basic(const QVirtioBus *bus, QVirtioDevice *dev,
 
     guest_free(alloc, req_addr);
 
-    if (features & QVIRTIO_F_ANY_LAYOUT) {
+    if (features & (1u << VIRTIO_F_ANY_LAYOUT)) {
         /* Write and read with 2 descriptor layout */
         /* Write request */
         req.type = QVIRTIO_BLK_T_OUT;
@@ -606,7 +607,8 @@ static void pci_idx(void)
     features = qvirtio_get_features(&qvirtio_pci, &dev->vdev);
     features = features & ~(QVIRTIO_F_BAD_FEATURE |
                             QVIRTIO_F_RING_INDIRECT_DESC |
-                            QVIRTIO_F_NOTIFY_ON_EMPTY | QVIRTIO_BLK_F_SCSI);
+                            (1u << VIRTIO_F_NOTIFY_ON_EMPTY) |
+                            QVIRTIO_BLK_F_SCSI);
     qvirtio_set_features(&qvirtio_pci, &dev->vdev, features);
 
     vqpci = (QVirtQueuePCI *)qvirtqueue_setup(&qvirtio_pci, &dev->vdev,
