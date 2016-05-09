@@ -122,8 +122,8 @@ void xtensa_rearm_ccompare_timer(CPUXtensaState *env)
     }
     env->wake_ccount = wake_ccount;
     timer_mod(env->ccompare_timer, env->halt_clock +
-            muldiv64(wake_ccount - env->sregs[CCOUNT],
-                1000000, env->config->clock_freq_khz));
+            (uint64_t)(wake_ccount - env->sregs[CCOUNT]) *
+            1000000 / env->config->clock_freq_khz);
 }
 
 static void xtensa_ccompare_cb(void *opaque)
