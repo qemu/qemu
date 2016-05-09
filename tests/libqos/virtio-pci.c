@@ -15,6 +15,7 @@
 #include "libqos/pci-pc.h"
 #include "libqos/malloc.h"
 #include "libqos/malloc-pc.h"
+#include "standard-headers/linux/virtio_ring.h"
 
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_regs.h"
@@ -212,8 +213,8 @@ static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
     vqpci->vq.free_head = 0;
     vqpci->vq.num_free = vqpci->vq.size;
     vqpci->vq.align = QVIRTIO_PCI_ALIGN;
-    vqpci->vq.indirect = (feat & QVIRTIO_F_RING_INDIRECT_DESC) != 0;
-    vqpci->vq.event = (feat & QVIRTIO_F_RING_EVENT_IDX) != 0;
+    vqpci->vq.indirect = (feat & (1u << VIRTIO_RING_F_INDIRECT_DESC)) != 0;
+    vqpci->vq.event = (feat & (1u << VIRTIO_RING_F_EVENT_IDX)) != 0;
 
     vqpci->msix_entry = -1;
     vqpci->msix_addr = 0;

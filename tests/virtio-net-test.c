@@ -21,6 +21,7 @@
 #include "qemu/bswap.h"
 #include "hw/virtio/virtio-net.h"
 #include "standard-headers/linux/virtio_ids.h"
+#include "standard-headers/linux/virtio_ring.h"
 
 #define PCI_SLOT_HP             0x06
 #define PCI_SLOT                0x04
@@ -70,8 +71,8 @@ static void driver_init(const QVirtioBus *bus, QVirtioDevice *dev)
 
     features = qvirtio_get_features(bus, dev);
     features = features & ~(QVIRTIO_F_BAD_FEATURE |
-                            QVIRTIO_F_RING_INDIRECT_DESC |
-                            QVIRTIO_F_RING_EVENT_IDX);
+                            (1u << VIRTIO_RING_F_INDIRECT_DESC) |
+                            (1u << VIRTIO_RING_F_EVENT_IDX));
     qvirtio_set_features(bus, dev, features);
 
     qvirtio_set_driver_ok(bus, dev);

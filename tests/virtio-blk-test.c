@@ -20,6 +20,7 @@
 #include "qemu/bswap.h"
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_config.h"
+#include "standard-headers/linux/virtio_ring.h"
 
 #define QVIRTIO_BLK_F_BARRIER       0x00000001
 #define QVIRTIO_BLK_F_SIZE_MAX      0x00000002
@@ -183,7 +184,8 @@ static void test_basic(const QVirtioBus *bus, QVirtioDevice *dev,
 
     features = qvirtio_get_features(bus, dev);
     features = features & ~(QVIRTIO_F_BAD_FEATURE |
-                    QVIRTIO_F_RING_INDIRECT_DESC | QVIRTIO_F_RING_EVENT_IDX |
+                    (1u << VIRTIO_RING_F_INDIRECT_DESC) |
+                    (1u << VIRTIO_RING_F_EVENT_IDX) |
                             QVIRTIO_BLK_F_SCSI);
     qvirtio_set_features(bus, dev, features);
 
@@ -349,9 +351,10 @@ static void pci_indirect(void)
     g_assert_cmpint(capacity, ==, TEST_IMAGE_SIZE / 512);
 
     features = qvirtio_get_features(&qvirtio_pci, &dev->vdev);
-    g_assert_cmphex(features & QVIRTIO_F_RING_INDIRECT_DESC, !=, 0);
-    features = features & ~(QVIRTIO_F_BAD_FEATURE | QVIRTIO_F_RING_EVENT_IDX |
-                                                            QVIRTIO_BLK_F_SCSI);
+    g_assert_cmphex(features & (1u << VIRTIO_RING_F_INDIRECT_DESC), !=, 0);
+    features = features & ~(QVIRTIO_F_BAD_FEATURE |
+                            (1u << VIRTIO_RING_F_EVENT_IDX) |
+                            QVIRTIO_BLK_F_SCSI);
     qvirtio_set_features(&qvirtio_pci, &dev->vdev, features);
 
     alloc = pc_alloc_init();
@@ -491,8 +494,9 @@ static void pci_msix(void)
 
     features = qvirtio_get_features(&qvirtio_pci, &dev->vdev);
     features = features & ~(QVIRTIO_F_BAD_FEATURE |
-                            QVIRTIO_F_RING_INDIRECT_DESC |
-                            QVIRTIO_F_RING_EVENT_IDX | QVIRTIO_BLK_F_SCSI);
+                            (1u << VIRTIO_RING_F_INDIRECT_DESC) |
+                            (1u << VIRTIO_RING_F_EVENT_IDX) |
+                            QVIRTIO_BLK_F_SCSI);
     qvirtio_set_features(&qvirtio_pci, &dev->vdev, features);
 
     vqpci = (QVirtQueuePCI *)qvirtqueue_setup(&qvirtio_pci, &dev->vdev,
@@ -606,7 +610,7 @@ static void pci_idx(void)
 
     features = qvirtio_get_features(&qvirtio_pci, &dev->vdev);
     features = features & ~(QVIRTIO_F_BAD_FEATURE |
-                            QVIRTIO_F_RING_INDIRECT_DESC |
+                            (1u << VIRTIO_RING_F_INDIRECT_DESC) |
                             (1u << VIRTIO_F_NOTIFY_ON_EMPTY) |
                             QVIRTIO_BLK_F_SCSI);
     qvirtio_set_features(&qvirtio_pci, &dev->vdev, features);

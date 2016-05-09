@@ -12,21 +12,7 @@
 
 #include "libqos/malloc.h"
 
-#define QVIRTIO_F_RING_INDIRECT_DESC    0x10000000
-#define QVIRTIO_F_RING_EVENT_IDX        0x20000000
 #define QVIRTIO_F_BAD_FEATURE           0x40000000
-
-#define QVRING_DESC_F_NEXT      0x1
-#define QVRING_DESC_F_WRITE     0x2
-#define QVRING_DESC_F_INDIRECT  0x4
-
-#define QVIRTIO_F_RING_INDIRECT_DESC    0x10000000
-#define QVIRTIO_F_RING_EVENT_IDX        0x20000000
-#define QVIRTIO_F_BAD_FEATURE           0x40000000
-
-#define QVRING_AVAIL_F_NO_INTERRUPT     1
-
-#define QVRING_USED_F_NO_NOTIFY     1
 
 typedef struct QVirtioDevice {
     /* Device type */

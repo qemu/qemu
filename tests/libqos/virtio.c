@@ -11,6 +11,7 @@
 #include "libqtest.h"
 #include "libqos/virtio.h"
 #include "standard-headers/linux/virtio_config.h"
+#include "standard-headers/linux/virtio_ring.h"
 
 uint8_t qvirtio_config_readb(const QVirtioBus *bus, QVirtioDevice *d,
                                                                 uint64_t addr)
@@ -172,7 +173,7 @@ QVRingIndirectDesc *qvring_indirect_desc_setup(QVirtioDevice *d,
         /* indirect->desc[i].addr */
         writeq(indirect->desc + (16 * i), 0);
         /* indirect->desc[i].flags */
-        writew(indirect->desc + (16 * i) + 12, QVRING_DESC_F_NEXT);
+        writew(indirect->desc + (16 * i) + 12, VRING_DESC_F_NEXT);
         /* indirect->desc[i].next */
         writew(indirect->desc + (16 * i) + 14, i + 1);
     }
@@ -190,7 +191,7 @@ void qvring_indirect_desc_add(QVRingIndirectDesc *indirect, uint64_t data,
     flags = readw(indirect->desc + (16 * indirect->index) + 12);
 
     if (write) {
-        flags |= QVRING_DESC_F_WRITE;
+        flags |= VRING_DESC_F_WRITE;
     }
 
     /* indirect->desc[indirect->index].addr */
@@ -210,11 +211,11 @@ uint32_t qvirtqueue_add(QVirtQueue *vq, uint64_t data, uint32_t len, bool write,
     vq->num_free--;
 
     if (write) {
-        flags |= QVRING_DESC_F_WRITE;
+        flags |= VRING_DESC_F_WRITE;
     }
 
     if (next) {
-        flags |= QVRING_DESC_F_NEXT;
+        flags |= VRING_DESC_F_NEXT;
     }
 
     /* vq->desc[vq->free_head].addr */
@@ -241,7 +242,7 @@ uint32_t qvirtqueue_add_indirect(QVirtQueue *vq, QVRingIndirectDesc *indirect)
     writel(vq->desc + (16 * vq->free_head) + 8,
                                         sizeof(QVRingDesc) * indirect->elem);
     /* vq->desc[vq->free_head].flags */
-    writew(vq->desc + (16 * vq->free_head) + 12, QVRING_DESC_F_INDIRECT);
+    writew(vq->desc + (16 * vq->free_head) + 12, VRING_DESC_F_INDIRECT);
 
     return vq->free_head++; /* Return and increase, in this order */
 }
@@ -267,7 +268,7 @@ void qvirtqueue_kick(const QVirtioBus *bus, QVirtioDevice *d, QVirtQueue *vq,
                                 (sizeof(struct QVRingUsedElem) * vq->size));
 
     /* < 1 because we add elements to avail queue one by one */
-    if ((flags & QVRING_USED_F_NO_NOTIFY) == 0 &&
+    if ((flags & VRING_USED_F_NO_NOTIFY) == 0 &&
                             (!vq->event || (uint16_t)(idx-avail_event) < 1)) {
         bus->virtqueue_kick(d, vq);
     }
