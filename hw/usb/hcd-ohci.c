@@ -1474,7 +1474,7 @@ static uint32_t ohci_get_frame_remaining(OHCIState *ohci)
     if (tks >= usb_frame_time)
         return (ohci->frt << 31);
 
-    tks = muldiv64(1, tks, usb_bit_time);
+    tks = muldiv64(tks, 1, usb_bit_time);
     fr = (uint16_t)(ohci->fi - tks);
 
     return (ohci->frt << 31) | fr;
