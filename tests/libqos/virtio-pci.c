@@ -16,6 +16,7 @@
 #include "libqos/malloc.h"
 #include "libqos/malloc-pc.h"
 
+#include "hw/pci/pci.h"
 #include "hw/pci/pci_regs.h"
 
 typedef struct QVirtioPCIForeachData {
@@ -263,7 +264,7 @@ void qvirtio_pci_foreach(QPCIBus *bus, uint16_t device_type,
                                 .device_type = device_type,
                                 .user_data = data };
 
-    qpci_device_foreach(bus, QVIRTIO_VENDOR_ID, -1,
+    qpci_device_foreach(bus, PCI_VENDOR_ID_REDHAT_QUMRANET, -1,
                                 qvirtio_pci_foreach_callback, &d);
 }
 

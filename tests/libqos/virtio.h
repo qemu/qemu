@@ -12,8 +12,6 @@
 
 #include "libqos/malloc.h"
 
-#define QVIRTIO_VENDOR_ID       0x1AF4
-
 #define QVIRTIO_RESET           0x0
 #define QVIRTIO_ACKNOWLEDGE     0x1
 #define QVIRTIO_DRIVER          0x2
