@@ -1174,10 +1174,10 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
     return child;
 }
 
-static BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
-                                    BlockDriverState *child_bs,
-                                    const char *child_name,
-                                    const BdrvChildRole *child_role)
+BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
+                             BlockDriverState *child_bs,
+                             const char *child_name,
+                             const BdrvChildRole *child_role)
 {
     BdrvChild *child = bdrv_root_attach_child(child_bs, child_name, child_role);
     QLIST_INSERT_HEAD(&parent_bs->children, child, next);
