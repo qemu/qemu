@@ -35,6 +35,7 @@
 #include "qemu/error-report.h"
 #include "hw/hotplug.h"
 #include "hw/boards.h"
+#include "hw/sysbus.h"
 #include "qapi-event.h"
 
 int qdev_hotplug = 0;
@@ -140,6 +141,12 @@ DeviceState *qdev_try_create(BusState *bus, const char *type)
     }
 
     if (!bus) {
+        /* Assert that the device really is a SysBusDevice before
+         * we put it onto the sysbus. Non-sysbus devices which aren't
+         * being put onto a bus should be created with object_new(TYPE_FOO),
+         * not qdev_create(NULL, TYPE_FOO).
+         */
+        g_assert(object_dynamic_cast(OBJECT(dev), TYPE_SYS_BUS_DEVICE));
         bus = sysbus_get_default();
     }
 
