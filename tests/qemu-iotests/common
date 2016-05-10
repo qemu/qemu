@@ -53,6 +53,7 @@ export QEMU_IO_OPTIONS=""
 export CACHEMODE_IS_DEFAULT=true
 export QEMU_OPTIONS="-nodefaults"
 export VALGRIND_QEMU=
+export IMGOPTSSYNTAX=false
 
 for r
 do
@@ -399,7 +400,11 @@ BEGIN        { for (t='$start'; t<='$end'; t++) printf "%03d\n",t }' \
 done
 
 # Set qemu-io cache mode with $CACHEMODE we have
-QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS -f $IMGFMT --cache $CACHEMODE"
+if [ "$IMGOPTSSYNTAX" = "true" ]; then
+    QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS --cache $CACHEMODE"
+else
+    QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS -f $IMGFMT --cache $CACHEMODE"
+fi
 
 # Set default options for qemu-img create -o if they were not specified
 _set_default_imgopts

@@ -53,21 +53,42 @@ fi
 # make sure we have a standard umask
 umask 022
 
-if [ "$IMGPROTO" = "file" ]; then
-    TEST_IMG=$TEST_DIR/t.$IMGFMT
-elif [ "$IMGPROTO" = "nbd" ]; then
-    TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
-    TEST_IMG="nbd:127.0.0.1:10810"
-elif [ "$IMGPROTO" = "ssh" ]; then
-    TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
-    TEST_IMG="ssh://127.0.0.1$TEST_IMG_FILE"
-elif [ "$IMGPROTO" = "nfs" ]; then
-    TEST_DIR="nfs://127.0.0.1/$TEST_DIR"
-    TEST_IMG=$TEST_DIR/t.$IMGFMT
-elif [ "$IMGPROTO" = "archipelago" ]; then
-    TEST_IMG="archipelago:at.$IMGFMT"
+if [ "$IMGOPTSSYNTAX" = "true" ]; then
+    DRIVER="driver=$IMGFMT"
+    if [ "$IMGPROTO" = "file" ]; then
+        TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
+        TEST_IMG="$DRIVER,file.filename=$TEST_DIR/t.$IMGFMT"
+    elif [ "$IMGPROTO" = "nbd" ]; then
+        TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
+        TEST_IMG="$DRIVER,file.driver=nbd,file.host=127.0.0.1,file.port=10810"
+    elif [ "$IMGPROTO" = "ssh" ]; then
+        TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
+        TEST_IMG="$DRIVER,file.driver=ssh,file.host=127.0.0.1,file.path=$TEST_IMG_FILE"
+    elif [ "$IMGPROTO" = "nfs" ]; then
+        TEST_DIR="$DRIVER,file.driver=nfs,file.filename=nfs://127.0.0.1/$TEST_DIR"
+        TEST_IMG=$TEST_DIR_OPTS/t.$IMGFMT
+    elif [ "$IMGPROTO" = "archipelago" ]; then
+        TEST_IMG="$DRIVER,file.driver=archipelago,file.volume=:at.$IMGFMT"
+    else
+        TEST_IMG="$DRIVER,file.driver=$IMGPROTO,file.filename=$TEST_DIR/t.$IMGFMT"
+    fi
 else
-    TEST_IMG=$IMGPROTO:$TEST_DIR/t.$IMGFMT
+    if [ "$IMGPROTO" = "file" ]; then
+        TEST_IMG=$TEST_DIR/t.$IMGFMT
+    elif [ "$IMGPROTO" = "nbd" ]; then
+        TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
+        TEST_IMG="nbd:127.0.0.1:10810"
+    elif [ "$IMGPROTO" = "ssh" ]; then
+        TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
+        TEST_IMG="ssh://127.0.0.1$TEST_IMG_FILE"
+    elif [ "$IMGPROTO" = "nfs" ]; then
+        TEST_DIR="nfs://127.0.0.1/$TEST_DIR"
+        TEST_IMG=$TEST_DIR/t.$IMGFMT
+    elif [ "$IMGPROTO" = "archipelago" ]; then
+        TEST_IMG="archipelago:at.$IMGFMT"
+    else
+        TEST_IMG=$IMGPROTO:$TEST_DIR/t.$IMGFMT
+    fi
 fi
 
 _optstr_add()
@@ -199,7 +220,13 @@ _cleanup_test_img()
 
 _check_test_img()
 {
-    $QEMU_IMG check "$@" -f $IMGFMT "$TEST_IMG" 2>&1 | _filter_testdir | \
+    (
+        if [ "$IMGOPTSSYNTAX" = "true" ]; then
+            $QEMU_IMG check $QEMU_IMG_EXTRA_ARGS "$@" "$TEST_IMG" 2>&1
+        else
+            $QEMU_IMG check "$@" -f $IMGFMT "$TEST_IMG" 2>&1
+        fi
+    ) | _filter_testdir | \
         sed -e '/allocated.*fragmented.*compressed clusters/d' \
             -e 's/qemu-img: This image format does not support checks/No errors were found on the image./' \
             -e '/Image end offset: [0-9]\+/d'
