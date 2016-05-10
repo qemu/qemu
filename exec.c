@@ -1421,8 +1421,6 @@ void qemu_ram_set_idstr(RAMBlock *new_block, const char *name, DeviceState *dev)
 {
     RAMBlock *block;
 
-    rcu_read_lock();
-
     assert(new_block);
     assert(!new_block->idstr[0]);
 
@@ -1435,6 +1433,7 @@ void qemu_ram_set_idstr(RAMBlock *new_block, const char *name, DeviceState *dev)
     }
     pstrcat(new_block->idstr, sizeof(new_block->idstr), name);
 
+    rcu_read_lock();
     QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
         if (block != new_block &&
             !strcmp(block->idstr, new_block->idstr)) {
@@ -1453,12 +1452,9 @@ void qemu_ram_unset_idstr(RAMBlock *block)
      * migration.  Ignore the problem since hot-unplug during migration
      * does not work anyway.
      */
-
-    rcu_read_lock();
     if (block) {
         memset(block->idstr, 0, sizeof(block->idstr));
     }
-    rcu_read_unlock();
 }
 
 static int memory_try_enable_merging(void *addr, size_t len)
