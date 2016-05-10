@@ -53,6 +53,8 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #define DEFAULT_MAX_UNMAP_SIZE      (1 << 30)   /* 1 GB */
 #define DEFAULT_MAX_IO_SIZE         INT_MAX     /* 2 GB - 1 block */
 
+#define TYPE_SCSI_DISK_BASE         "scsi-disk-base"
+
 typedef struct SCSIDiskState SCSIDiskState;
 
 typedef struct SCSIDiskReq {
@@ -2656,6 +2658,21 @@ static int scsi_block_parse_cdb(SCSIDevice *d, SCSICommand *cmd,
 
 #endif
 
+static void scsi_disk_base_class_initfn(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->fw_name = "disk";
+    dc->reset = scsi_disk_reset;
+}
+
+static const TypeInfo scsi_disk_base_info = {
+    .name          = TYPE_SCSI_DISK_BASE,
+    .parent        = TYPE_SCSI_DEVICE,
+    .class_init    = scsi_disk_base_class_initfn,
+    .instance_size = sizeof(SCSIDiskState),
+};
+
 #define DEFINE_SCSI_DISK_PROPERTIES()                                \
     DEFINE_BLOCK_PROPERTIES(SCSIDiskState, qdev.conf),               \
     DEFINE_PROP_STRING("ver", SCSIDiskState, version),               \
@@ -2703,17 +2720,14 @@ static void scsi_hd_class_initfn(ObjectClass *klass, void *data)
     sc->realize      = scsi_hd_realize;
     sc->alloc_req    = scsi_new_request;
     sc->unit_attention_reported = scsi_disk_unit_attention_reported;
-    dc->fw_name = "disk";
     dc->desc = "virtual SCSI disk";
-    dc->reset = scsi_disk_reset;
     dc->props = scsi_hd_properties;
     dc->vmsd  = &vmstate_scsi_disk_state;
 }
 
 static const TypeInfo scsi_hd_info = {
     .name          = "scsi-hd",
-    .parent        = TYPE_SCSI_DEVICE,
-    .instance_size = sizeof(SCSIDiskState),
+    .parent        = TYPE_SCSI_DISK_BASE,
     .class_init    = scsi_hd_class_initfn,
 };
 
@@ -2735,17 +2749,14 @@ static void scsi_cd_class_initfn(ObjectClass *klass, void *data)
     sc->realize      = scsi_cd_realize;
     sc->alloc_req    = scsi_new_request;
     sc->unit_attention_reported = scsi_disk_unit_attention_reported;
-    dc->fw_name = "disk";
     dc->desc = "virtual SCSI CD-ROM";
-    dc->reset = scsi_disk_reset;
     dc->props = scsi_cd_properties;
     dc->vmsd  = &vmstate_scsi_disk_state;
 }
 
 static const TypeInfo scsi_cd_info = {
     .name          = "scsi-cd",
-    .parent        = TYPE_SCSI_DEVICE,
-    .instance_size = sizeof(SCSIDiskState),
+    .parent        = TYPE_SCSI_DISK_BASE,
     .class_init    = scsi_cd_class_initfn,
 };
 
@@ -2763,17 +2774,14 @@ static void scsi_block_class_initfn(ObjectClass *klass, void *data)
     sc->realize      = scsi_block_realize;
     sc->alloc_req    = scsi_block_new_request;
     sc->parse_cdb    = scsi_block_parse_cdb;
-    dc->fw_name = "disk";
     dc->desc = "SCSI block device passthrough";
-    dc->reset = scsi_disk_reset;
     dc->props = scsi_block_properties;
     dc->vmsd  = &vmstate_scsi_disk_state;
 }
 
 static const TypeInfo scsi_block_info = {
     .name          = "scsi-block",
-    .parent        = TYPE_SCSI_DEVICE,
-    .instance_size = sizeof(SCSIDiskState),
+    .parent        = TYPE_SCSI_DISK_BASE,
     .class_init    = scsi_block_class_initfn,
 };
 #endif
@@ -2811,13 +2819,13 @@ static void scsi_disk_class_initfn(ObjectClass *klass, void *data)
 
 static const TypeInfo scsi_disk_info = {
     .name          = "scsi-disk",
-    .parent        = TYPE_SCSI_DEVICE,
-    .instance_size = sizeof(SCSIDiskState),
+    .parent        = TYPE_SCSI_DISK_BASE,
     .class_init    = scsi_disk_class_initfn,
 };
 
 static void scsi_disk_register_types(void)
 {
+    type_register_static(&scsi_disk_base_info);
     type_register_static(&scsi_hd_info);
     type_register_static(&scsi_cd_info);
 #ifdef __linux__
