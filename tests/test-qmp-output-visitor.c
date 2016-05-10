@@ -43,6 +43,12 @@ static void visitor_output_teardown(TestOutputVisitorData *data,
     data->ov = NULL;
 }
 
+static void visitor_reset(TestOutputVisitorData *data)
+{
+    visitor_output_teardown(data, NULL);
+    visitor_output_setup(data, NULL);
+}
+
 static void test_visitor_out_int(TestOutputVisitorData *data,
                                  const void *unused)
 {
@@ -139,6 +145,7 @@ static void test_visitor_out_enum(TestOutputVisitorData *data,
         g_assert_cmpstr(qstring_get_str(qobject_to_qstring(obj)), ==,
                         EnumOne_lookup[i]);
         qobject_decref(obj);
+        visitor_reset(data);
     }
 }
 
@@ -153,6 +160,7 @@ static void test_visitor_out_enum_errors(TestOutputVisitorData *data,
         visit_type_EnumOne(data->ov, "unused", &bad_values[i], &err);
         g_assert(err);
         error_free(err);
+        visitor_reset(data);
     }
 }
 
@@ -262,6 +270,7 @@ static void test_visitor_out_struct_errors(TestOutputVisitorData *data,
         visit_type_UserDefOne(data->ov, "unused", &pu, &err);
         g_assert(err);
         error_free(err);
+        visitor_reset(data);
     }
 }
 
@@ -366,6 +375,7 @@ static void test_visitor_out_any(TestOutputVisitorData *data,
     qobject_decref(obj);
     qobject_decref(qobj);
 
+    visitor_reset(data);
     qdict = qdict_new();
     qdict_put(qdict, "integer", qint_from_int(-42));
     qdict_put(qdict, "boolean", qbool_from_bool(true));
@@ -442,6 +452,7 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
     qapi_free_UserDefAlternate(tmp);
     qobject_decref(arg);
 
+    visitor_reset(data);
     tmp = g_new0(UserDefAlternate, 1);
     tmp->type = QTYPE_QSTRING;
     tmp->u.s = g_strdup("hello");
@@ -455,6 +466,7 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
     qapi_free_UserDefAlternate(tmp);
     qobject_decref(arg);
 
+    visitor_reset(data);
     tmp = g_new0(UserDefAlternate, 1);
     tmp->type = QTYPE_QDICT;
     tmp->u.udfu.integer = 1;
