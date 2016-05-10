@@ -80,6 +80,7 @@ typedef struct SCSIDiskReq {
     struct iovec iov;
     QEMUIOVector qiov;
     BlockAcctCookie acct;
+    unsigned char *status;
 } SCSIDiskReq;
 
 #define SCSI_DISK_F_REMOVABLE             0
@@ -185,6 +186,15 @@ static bool scsi_disk_req_check_error(SCSIDiskReq *r, int ret, bool acct_failed)
 
     if (ret < 0) {
         return scsi_handle_rw_error(r, -ret, acct_failed);
+    }
+
+    if (r->status && *r->status) {
+        if (acct_failed) {
+            SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+            block_acct_failed(blk_get_stats(s->qdev.conf.blk), &r->acct);
+        }
+        scsi_req_complete(&r->req, *r->status);
+        return true;
     }
 
     return false;
@@ -2552,16 +2562,145 @@ static void scsi_block_realize(SCSIDevice *dev, Error **errp)
     scsi_generic_read_device_identification(&s->qdev);
 }
 
+typedef struct SCSIBlockReq {
+    SCSIDiskReq req;
+    sg_io_hdr_t io_header;
+
+    /* Selected bytes of the original CDB, copied into our own CDB.  */
+    uint8_t cmd, cdb1, group_number;
+
+    /* CDB passed to SG_IO.  */
+    uint8_t cdb[16];
+} SCSIBlockReq;
+
+static BlockAIOCB *scsi_block_do_sgio(SCSIBlockReq *req,
+                                      int64_t offset, QEMUIOVector *iov,
+                                      int direction,
+                                      BlockCompletionFunc *cb, void *opaque)
+{
+    sg_io_hdr_t *io_header = &req->io_header;
+    SCSIDiskReq *r = &req->req;
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+    int nb_logical_blocks;
+    uint64_t lba;
+    BlockAIOCB *aiocb;
+
+    /* This is not supported yet.  It can only happen if the guest does
+     * reads and writes that are not aligned to one logical sectors
+     * _and_ cover multiple MemoryRegions.
+     */
+    assert(offset % s->qdev.blocksize == 0);
+    assert(iov->size % s->qdev.blocksize == 0);
+
+    io_header->interface_id = 'S';
+
+    /* The data transfer comes from the QEMUIOVector.  */
+    io_header->dxfer_direction = direction;
+    io_header->dxfer_len = iov->size;
+    io_header->dxferp = (void *)iov->iov;
+    io_header->iovec_count = iov->niov;
+    assert(io_header->iovec_count == iov->niov); /* no overflow! */
+
+    /* Build a new CDB with the LBA and length patched in, in case
+     * DMA helpers split the transfer in multiple segments.  Do not
+     * build a CDB smaller than what the guest wanted, and only build
+     * a larger one if strictly necessary.
+     */
+    io_header->cmdp = req->cdb;
+    lba = offset / s->qdev.blocksize;
+    nb_logical_blocks = io_header->dxfer_len / s->qdev.blocksize;
+
+    if ((req->cmd >> 5) == 0 && lba <= 0x1ffff) {
+        /* 6-byte CDB */
+        stl_be_p(&req->cdb[0], lba | (req->cmd << 24));
+        req->cdb[4] = nb_logical_blocks;
+        req->cdb[5] = 0;
+        io_header->cmd_len = 6;
+    } else if ((req->cmd >> 5) <= 1 && lba <= 0xffffffffULL) {
+        /* 10-byte CDB */
+        req->cdb[0] = (req->cmd & 0x1f) | 0x20;
+        req->cdb[1] = req->cdb1;
+        stl_be_p(&req->cdb[2], lba);
+        req->cdb[6] = req->group_number;
+        stw_be_p(&req->cdb[7], nb_logical_blocks);
+        req->cdb[9] = 0;
+        io_header->cmd_len = 10;
+    } else if ((req->cmd >> 5) != 4 && lba <= 0xffffffffULL) {
+        /* 12-byte CDB */
+        req->cdb[0] = (req->cmd & 0x1f) | 0xA0;
+        req->cdb[1] = req->cdb1;
+        stl_be_p(&req->cdb[2], lba);
+        stl_be_p(&req->cdb[6], nb_logical_blocks);
+        req->cdb[10] = req->group_number;
+        req->cdb[11] = 0;
+        io_header->cmd_len = 12;
+    } else {
+        /* 16-byte CDB */
+        req->cdb[0] = (req->cmd & 0x1f) | 0x80;
+        req->cdb[1] = req->cdb1;
+        stq_be_p(&req->cdb[2], lba);
+        stl_be_p(&req->cdb[10], nb_logical_blocks);
+        req->cdb[14] = req->group_number;
+        req->cdb[15] = 0;
+        io_header->cmd_len = 16;
+    }
+
+    /* The rest is as in scsi-generic.c.  */
+    io_header->mx_sb_len = sizeof(r->req.sense);
+    io_header->sbp = r->req.sense;
+    io_header->timeout = UINT_MAX;
+    io_header->usr_ptr = r;
+    io_header->flags |= SG_FLAG_DIRECT_IO;
+
+    aiocb = blk_aio_ioctl(s->qdev.conf.blk, SG_IO, io_header, cb, opaque);
+    assert(aiocb != NULL);
+    return aiocb;
+}
+
+static bool scsi_block_no_fua(SCSICommand *cmd)
+{
+    return false;
+}
+
+static BlockAIOCB *scsi_block_dma_readv(int64_t offset,
+                                        QEMUIOVector *iov,
+                                        BlockCompletionFunc *cb, void *cb_opaque,
+                                        void *opaque)
+{
+    SCSIBlockReq *r = opaque;
+    return scsi_block_do_sgio(r, offset, iov,
+                              SG_DXFER_FROM_DEV, cb, cb_opaque);
+}
+
+static BlockAIOCB *scsi_block_dma_writev(int64_t offset,
+                                         QEMUIOVector *iov,
+                                         BlockCompletionFunc *cb, void *cb_opaque,
+                                         void *opaque)
+{
+    SCSIBlockReq *r = opaque;
+    return scsi_block_do_sgio(r, offset, iov,
+                              SG_DXFER_TO_DEV, cb, cb_opaque);
+}
+
 static bool scsi_block_is_passthrough(SCSIDiskState *s, uint8_t *buf)
 {
     switch (buf[0]) {
+    case VERIFY_10:
+    case VERIFY_12:
+    case VERIFY_16:
+        /* Check if BYTCHK == 0x01 (data-out buffer contains data
+         * for the number of logical blocks specified in the length
+         * field).  For other modes, do not use scatter/gather operation.
+         */
+        if ((buf[1] & 6) != 2) {
+            return false;
+        }
+        break;
+
     case READ_6:
     case READ_10:
     case READ_12:
     case READ_16:
-    case VERIFY_10:
-    case VERIFY_12:
-    case VERIFY_16:
     case WRITE_6:
     case WRITE_10:
     case WRITE_12:
@@ -2569,21 +2708,8 @@ static bool scsi_block_is_passthrough(SCSIDiskState *s, uint8_t *buf)
     case WRITE_VERIFY_10:
     case WRITE_VERIFY_12:
     case WRITE_VERIFY_16:
-        /* If we are not using O_DIRECT, we might read stale data from the
-         * host cache if writes were made using other commands than these
-         * ones (such as WRITE SAME or EXTENDED COPY, etc.).  So, without
-         * O_DIRECT everything must go through SG_IO.
-         */
-        if (!(blk_get_flags(s->qdev.conf.blk) & BDRV_O_NOCACHE)) {
-            break;
-        }
-
-        /* MMC writing cannot be done via pread/pwrite, because it sometimes
+        /* MMC writing cannot be done via DMA helpers, because it sometimes
          * involves writing beyond the maximum LBA or to negative LBA (lead-in).
-         * And once you do these writes, reading from the block device is
-         * unreliable, too.  It is even possible that reads deliver random data
-         * from the host page cache (this is probably a Linux bug).
-         *
          * We might use scsi_disk_dma_reqops as long as no writing commands are
          * seen, but performance usually isn't paramount on optical media.  So,
          * just make scsi-block operate the same as scsi-generic for them.
@@ -2601,6 +2727,54 @@ static bool scsi_block_is_passthrough(SCSIDiskState *s, uint8_t *buf)
 }
 
 
+static int32_t scsi_block_dma_command(SCSIRequest *req, uint8_t *buf)
+{
+    SCSIBlockReq *r = (SCSIBlockReq *)req;
+    r->cmd = req->cmd.buf[0];
+    switch (r->cmd >> 5) {
+    case 0:
+        /* 6-byte CDB.  */
+        r->cdb1 = r->group_number = 0;
+        break;
+    case 1:
+        /* 10-byte CDB.  */
+        r->cdb1 = req->cmd.buf[1];
+        r->group_number = req->cmd.buf[6];
+    case 4:
+        /* 12-byte CDB.  */
+        r->cdb1 = req->cmd.buf[1];
+        r->group_number = req->cmd.buf[10];
+        break;
+    case 5:
+        /* 16-byte CDB.  */
+        r->cdb1 = req->cmd.buf[1];
+        r->group_number = req->cmd.buf[14];
+        break;
+    default:
+        abort();
+    }
+
+    if (r->cdb1 & 0xe0) {
+        /* Protection information is not supported.  */
+        scsi_check_condition(&r->req, SENSE_CODE(INVALID_FIELD));
+        return 0;
+    }
+
+    r->req.status = &r->io_header.status;
+    return scsi_disk_dma_command(req, buf);
+}
+
+static const SCSIReqOps scsi_block_dma_reqops = {
+    .size         = sizeof(SCSIBlockReq),
+    .free_req     = scsi_free_request,
+    .send_command = scsi_block_dma_command,
+    .read_data    = scsi_read_data,
+    .write_data   = scsi_write_data,
+    .get_buf      = scsi_get_buf,
+    .load_request = scsi_disk_load_request,
+    .save_request = scsi_disk_save_request,
+};
+
 static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
                                            uint32_t lun, uint8_t *buf,
                                            void *hba_private)
@@ -2611,7 +2785,7 @@ static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
         return scsi_req_alloc(&scsi_generic_req_ops, &s->qdev, tag, lun,
                               hba_private);
     } else {
-        return scsi_req_alloc(&scsi_disk_dma_reqops, &s->qdev, tag, lun,
+        return scsi_req_alloc(&scsi_block_dma_reqops, &s->qdev, tag, lun,
                               hba_private);
     }
 }
@@ -2767,10 +2941,14 @@ static void scsi_block_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
+    SCSIDiskClass *sdc = SCSI_DISK_BASE_CLASS(klass);
 
     sc->realize      = scsi_block_realize;
     sc->alloc_req    = scsi_block_new_request;
     sc->parse_cdb    = scsi_block_parse_cdb;
+    sdc->dma_readv   = scsi_block_dma_readv;
+    sdc->dma_writev  = scsi_block_dma_writev;
+    sdc->need_fua_emulation = scsi_block_no_fua;
     dc->desc = "SCSI block device passthrough";
     dc->props = scsi_block_properties;
     dc->vmsd  = &vmstate_scsi_disk_state;
