@@ -209,6 +209,13 @@ testlist options
             xpand=false
             ;;
 
+        -luks)
+            IMGOPTSSYNTAX=true
+            IMGFMT=luks
+            IMGKEYSECRET=123456
+            xpand=false
+            ;;
+
         -qed)
             IMGFMT=qed
             xpand=false

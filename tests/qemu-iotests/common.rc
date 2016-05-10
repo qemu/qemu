@@ -55,6 +55,9 @@ umask 022
 
 if [ "$IMGOPTSSYNTAX" = "true" ]; then
     DRIVER="driver=$IMGFMT"
+    if [ "$IMGFMT" = "luks" ]; then
+        DRIVER="$DRIVER,key-secret=keysec0"
+    fi
     if [ "$IMGPROTO" = "file" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
         TEST_IMG="$DRIVER,file.filename=$TEST_DIR/t.$IMGFMT"
