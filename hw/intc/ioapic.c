@@ -255,6 +255,34 @@ ioapic_mem_read(void *opaque, hwaddr addr, unsigned int size)
     return val;
 }
 
+/*
+ * This is to satisfy the hack in Linux kernel. One hack of it is to
+ * simulate clearing the Remote IRR bit of IOAPIC entry using the
+ * following:
+ *
+ * "For IO-APIC's with EOI register, we use that to do an explicit EOI.
+ * Otherwise, we simulate the EOI message manually by changing the trigger
+ * mode to edge and then back to level, with RTE being masked during
+ * this."
+ *
+ * (See linux kernel __eoi_ioapic_pin() comment in commit c0205701)
+ *
+ * This is based on the assumption that, Remote IRR bit will be
+ * cleared by IOAPIC hardware when configured as edge-triggered
+ * interrupts.
+ *
+ * Without this, level-triggered interrupts in IR mode might fail to
+ * work correctly.
+ */
+static inline void
+ioapic_fix_edge_remote_irr(uint64_t *entry)
+{
+    if (!(*entry & IOAPIC_LVT_TRIGGER_MODE)) {
+        /* Edge-triggered interrupts, make sure remote IRR is zero */
+        *entry &= ~((uint64_t)IOAPIC_LVT_REMOTE_IRR);
+    }
+}
+
 static void
 ioapic_mem_write(void *opaque, hwaddr addr, uint64_t val,
                  unsigned int size)
@@ -292,6 +320,7 @@ ioapic_mem_write(void *opaque, hwaddr addr, uint64_t val,
                 /* restore RO bits */
                 s->ioredtbl[index] &= IOAPIC_RW_BITS;
                 s->ioredtbl[index] |= ro_bits;
+                ioapic_fix_edge_remote_irr(&s->ioredtbl[index]);
                 ioapic_service(s);
             }
         }
