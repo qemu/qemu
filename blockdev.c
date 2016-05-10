@@ -4092,6 +4092,61 @@ out:
     aio_context_release(aio_context);
 }
 
+static BdrvChild *bdrv_find_child(BlockDriverState *parent_bs,
+                                  const char *child_name)
+{
+    BdrvChild *child;
+
+    QLIST_FOREACH(child, &parent_bs->children, next) {
+        if (strcmp(child->name, child_name) == 0) {
+            return child;
+        }
+    }
+
+    return NULL;
+}
+
+void qmp_x_blockdev_change(const char *parent, bool has_child,
+                           const char *child, bool has_node,
+                           const char *node, Error **errp)
+{
+    BlockDriverState *parent_bs, *new_bs = NULL;
+    BdrvChild *p_child;
+
+    parent_bs = bdrv_lookup_bs(parent, parent, errp);
+    if (!parent_bs) {
+        return;
+    }
+
+    if (has_child == has_node) {
+        if (has_child) {
+            error_setg(errp, "The parameters child and node are in conflict");
+        } else {
+            error_setg(errp, "Either child or node must be specified");
+        }
+        return;
+    }
+
+    if (has_child) {
+        p_child = bdrv_find_child(parent_bs, child);
+        if (!p_child) {
+            error_setg(errp, "Node '%s' does not have child '%s'",
+                       parent, child);
+            return;
+        }
+        bdrv_del_child(parent_bs, p_child, errp);
+    }
+
+    if (has_node) {
+        new_bs = bdrv_find_node(node);
+        if (!new_bs) {
+            error_setg(errp, "Node '%s' not found", node);
+            return;
+        }
+        bdrv_add_child(parent_bs, new_bs, errp);
+    }
+}
+
 BlockJobInfoList *qmp_query_block_jobs(Error **errp)
 {
     BlockJobInfoList *head = NULL, **p_next = &head;
