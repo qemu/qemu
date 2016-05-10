@@ -55,7 +55,18 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 
 #define TYPE_SCSI_DISK_BASE         "scsi-disk-base"
 
-typedef struct SCSIDiskState SCSIDiskState;
+#define SCSI_DISK_BASE(obj) \
+     OBJECT_CHECK(SCSIDiskState, (obj), TYPE_SCSI_DISK_BASE)
+#define SCSI_DISK_BASE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(SCSIDiskClass, (klass), TYPE_SCSI_DISK_BASE)
+#define SCSI_DISK_BASE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(SCSIDiskClass, (obj), TYPE_SCSI_DISK_BASE)
+
+typedef struct SCSIDiskClass {
+    SCSIDeviceClass parent_class;
+    DMAIOFunc       *dma_readv;
+    DMAIOFunc       *dma_writev;
+} SCSIDiskClass;
 
 typedef struct SCSIDiskReq {
     SCSIRequest req;
@@ -73,7 +84,7 @@ typedef struct SCSIDiskReq {
 #define SCSI_DISK_F_DPOFUA                1
 #define SCSI_DISK_F_NO_REMOVABLE_DEVOPS   2
 
-struct SCSIDiskState
+typedef struct SCSIDiskState
 {
     SCSIDevice qdev;
     uint32_t features;
@@ -90,7 +101,7 @@ struct SCSIDiskState
     char *product;
     bool tray_open;
     bool tray_locked;
-};
+} SCSIDiskState;
 
 static int scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed);
 
@@ -317,6 +328,7 @@ done:
 static void scsi_do_read(SCSIDiskReq *r, int ret)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+    SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(OBJECT(s));
 
     assert (r->req.aiocb == NULL);
 
@@ -337,16 +349,16 @@ static void scsi_do_read(SCSIDiskReq *r, int ret)
     if (r->req.sg) {
         dma_acct_start(s->qdev.conf.blk, &r->acct, r->req.sg, BLOCK_ACCT_READ);
         r->req.resid -= r->req.sg->size;
-        r->req.aiocb = dma_blk_read(s->qdev.conf.blk, r->req.sg,
-                                    r->sector << BDRV_SECTOR_BITS,
-                                    scsi_dma_complete, r);
+        r->req.aiocb = dma_blk_io(blk_get_aio_context(s->qdev.conf.blk),
+                                  r->req.sg, r->sector << BDRV_SECTOR_BITS,
+                                  sdc->dma_readv, r, scsi_dma_complete, r,
+                                  DMA_DIRECTION_FROM_DEVICE);
     } else {
         scsi_init_iovec(r, SCSI_DMA_BUF_SIZE);
         block_acct_start(blk_get_stats(s->qdev.conf.blk), &r->acct,
                          r->qiov.size, BLOCK_ACCT_READ);
-        r->req.aiocb = blk_aio_preadv(s->qdev.conf.blk,
-                                      r->sector << BDRV_SECTOR_BITS, &r->qiov,
-                                      0, scsi_read_complete, r);
+        r->req.aiocb = sdc->dma_readv(r->sector, &r->qiov,
+                                      scsi_read_complete, r, r);
     }
 
 done:
@@ -506,6 +518,7 @@ static void scsi_write_data(SCSIRequest *req)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+    SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(OBJECT(s));
 
     /* No data transfer may already be in progress */
     assert(r->req.aiocb == NULL);
@@ -542,15 +555,15 @@ static void scsi_write_data(SCSIRequest *req)
     if (r->req.sg) {
         dma_acct_start(s->qdev.conf.blk, &r->acct, r->req.sg, BLOCK_ACCT_WRITE);
         r->req.resid -= r->req.sg->size;
-        r->req.aiocb = dma_blk_write(s->qdev.conf.blk, r->req.sg,
-                                     r->sector << BDRV_SECTOR_BITS,
-                                     scsi_dma_complete, r);
+        r->req.aiocb = dma_blk_io(blk_get_aio_context(s->qdev.conf.blk),
+                                  r->req.sg, r->sector << BDRV_SECTOR_BITS,
+                                  sdc->dma_writev, r, scsi_dma_complete, r,
+                                  DMA_DIRECTION_TO_DEVICE);
     } else {
         block_acct_start(blk_get_stats(s->qdev.conf.blk), &r->acct,
                          r->qiov.size, BLOCK_ACCT_WRITE);
-        r->req.aiocb = blk_aio_pwritev(s->qdev.conf.blk,
-                                       r->sector << BDRV_SECTOR_BITS, &r->qiov,
-                                       0, scsi_write_complete, r);
+        r->req.aiocb = sdc->dma_writev(r->sector << BDRV_SECTOR_BITS, &r->qiov,
+                                       scsi_write_complete, r, r);
     }
 }
 
@@ -2658,12 +2671,35 @@ static int scsi_block_parse_cdb(SCSIDevice *d, SCSICommand *cmd,
 
 #endif
 
+static
+BlockAIOCB *scsi_dma_readv(int64_t offset, QEMUIOVector *iov,
+                           BlockCompletionFunc *cb, void *cb_opaque,
+                           void *opaque)
+{
+    SCSIDiskReq *r = opaque;
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+    return blk_aio_preadv(s->qdev.conf.blk, offset, iov, 0, cb, cb_opaque);
+}
+
+static
+BlockAIOCB *scsi_dma_writev(int64_t offset, QEMUIOVector *iov,
+                            BlockCompletionFunc *cb, void *cb_opaque,
+                            void *opaque)
+{
+    SCSIDiskReq *r = opaque;
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+    return blk_aio_pwritev(s->qdev.conf.blk, offset, iov, 0, cb, cb_opaque);
+}
+
 static void scsi_disk_base_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    SCSIDiskClass *sdc = SCSI_DISK_BASE_CLASS(klass);
 
     dc->fw_name = "disk";
     dc->reset = scsi_disk_reset;
+    sdc->dma_readv = scsi_dma_readv;
+    sdc->dma_writev = scsi_dma_writev;
 }
 
 static const TypeInfo scsi_disk_base_info = {
@@ -2671,6 +2707,7 @@ static const TypeInfo scsi_disk_base_info = {
     .parent        = TYPE_SCSI_DEVICE,
     .class_init    = scsi_disk_base_class_initfn,
     .instance_size = sizeof(SCSIDiskState),
+    .class_size    = sizeof(SCSIDiskClass),
 };
 
 #define DEFINE_SCSI_DISK_PROPERTIES()                                \
