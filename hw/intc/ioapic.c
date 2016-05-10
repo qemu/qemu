@@ -281,6 +281,7 @@ ioapic_mem_write(void *opaque, hwaddr addr, uint64_t val,
         default:
             index = (s->ioregsel - IOAPIC_REG_REDTBL_BASE) >> 1;
             if (index >= 0 && index < IOAPIC_NUM_PINS) {
+                uint64_t ro_bits = s->ioredtbl[index] & IOAPIC_RO_BITS;
                 if (s->ioregsel & 1) {
                     s->ioredtbl[index] &= 0xffffffff;
                     s->ioredtbl[index] |= (uint64_t)val << 32;
@@ -288,6 +289,9 @@ ioapic_mem_write(void *opaque, hwaddr addr, uint64_t val,
                     s->ioredtbl[index] &= ~0xffffffffULL;
                     s->ioredtbl[index] |= val;
                 }
+                /* restore RO bits */
+                s->ioredtbl[index] &= IOAPIC_RW_BITS;
+                s->ioredtbl[index] |= ro_bits;
                 ioapic_service(s);
             }
         }

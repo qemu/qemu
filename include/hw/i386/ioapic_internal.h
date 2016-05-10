@@ -47,6 +47,11 @@
 #define IOAPIC_LVT_DEST_MODE            (1 << IOAPIC_LVT_DEST_MODE_SHIFT)
 #define IOAPIC_LVT_DELIV_MODE           (7 << IOAPIC_LVT_DELIV_MODE_SHIFT)
 
+/* Bits that are read-only for IOAPIC entry */
+#define IOAPIC_RO_BITS                  (IOAPIC_LVT_REMOTE_IRR | \
+                                         IOAPIC_LVT_DELIV_STATUS)
+#define IOAPIC_RW_BITS                  (~(uint64_t)IOAPIC_RO_BITS)
+
 #define IOAPIC_TRIGGER_EDGE             0
 #define IOAPIC_TRIGGER_LEVEL            1
 
