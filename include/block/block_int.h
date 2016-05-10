@@ -314,6 +314,11 @@ struct BlockDriver {
      */
     void (*bdrv_drain)(BlockDriverState *bs);
 
+    void (*bdrv_add_child)(BlockDriverState *parent, BlockDriverState *child,
+                           Error **errp);
+    void (*bdrv_del_child)(BlockDriverState *parent, BdrvChild *child,
+                           Error **errp);
+
     QLIST_ENTRY(BlockDriver) list;
 };
 
