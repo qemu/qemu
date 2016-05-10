@@ -1673,7 +1673,7 @@ void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize, Error **errp
 {
     assert(mr->ram_block);
 
-    qemu_ram_resize(memory_region_get_ram_addr(mr), newsize, errp);
+    qemu_ram_resize(mr->ram_block, newsize, errp);
 }
 
 static void memory_region_update_coalesced_range_as(MemoryRegion *mr, AddressSpace *as)

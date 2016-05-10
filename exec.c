@@ -1411,34 +1411,18 @@ static void qemu_ram_setup_dump(void *addr, ram_addr_t size)
     }
 }
 
-/* Called within an RCU critical section, or while the ramlist lock
- * is held.
- */
-static RAMBlock *find_ram_block(ram_addr_t addr)
-{
-    RAMBlock *block;
-
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
-        if (block->offset == addr) {
-            return block;
-        }
-    }
-
-    return NULL;
-}
-
 const char *qemu_ram_get_idstr(RAMBlock *rb)
 {
     return rb->idstr;
 }
 
 /* Called with iothread lock held.  */
-void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
+void qemu_ram_set_idstr(RAMBlock *new_block, const char *name, DeviceState *dev)
 {
-    RAMBlock *new_block, *block;
+    RAMBlock *block;
 
     rcu_read_lock();
-    new_block = find_ram_block(addr);
+
     assert(new_block);
     assert(!new_block->idstr[0]);
 
@@ -1452,7 +1436,8 @@ void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
     pstrcat(new_block->idstr, sizeof(new_block->idstr), name);
 
     QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
-        if (block != new_block && !strcmp(block->idstr, new_block->idstr)) {
+        if (block != new_block &&
+            !strcmp(block->idstr, new_block->idstr)) {
             fprintf(stderr, "RAMBlock \"%s\" already registered, abort!\n",
                     new_block->idstr);
             abort();
@@ -1462,17 +1447,14 @@ void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
 }
 
 /* Called with iothread lock held.  */
-void qemu_ram_unset_idstr(ram_addr_t addr)
+void qemu_ram_unset_idstr(RAMBlock *block)
 {
-    RAMBlock *block;
-
     /* FIXME: arch_init.c assumes that this is not called throughout
      * migration.  Ignore the problem since hot-unplug during migration
      * does not work anyway.
      */
 
     rcu_read_lock();
-    block = find_ram_block(addr);
     if (block) {
         memset(block->idstr, 0, sizeof(block->idstr));
     }
@@ -1496,10 +1478,8 @@ static int memory_try_enable_merging(void *addr, size_t len)
  * resize callback to update device state and/or add assertions to detect
  * misuse, if necessary.
  */
-int qemu_ram_resize(ram_addr_t base, ram_addr_t newsize, Error **errp)
+int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp)
 {
-    RAMBlock *block = find_ram_block(base);
-
     assert(block);
 
     newsize = HOST_PAGE_ALIGN(newsize);
