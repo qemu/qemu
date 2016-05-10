@@ -58,9 +58,9 @@ void rfifolock_lock(RFifoLock *r)
             }
             qemu_cond_wait(&r->cond, &r->lock);
         }
+        qemu_thread_get_self(&r->owner_thread);
     }
 
-    qemu_thread_get_self(&r->owner_thread);
     r->nesting++;
     qemu_mutex_unlock(&r->lock);
 }
