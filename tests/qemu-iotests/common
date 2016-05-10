@@ -53,6 +53,7 @@ export QEMU_IO_OPTIONS=""
 export CACHEMODE_IS_DEFAULT=true
 export QEMU_OPTIONS="-nodefaults"
 export VALGRIND_QEMU=
+export IMGKEYSECRET=
 export IMGOPTSSYNTAX=false
 
 for r

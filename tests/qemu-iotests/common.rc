@@ -129,6 +129,7 @@ _make_test_img()
     local img_name=""
     local use_backing=0
     local backing_file=""
+    local object_options=""
 
     if [ -n "$TEST_IMG_FILE" ]; then
         img_name=$TEST_IMG_FILE
@@ -138,6 +139,10 @@ _make_test_img()
 
     if [ -n "$IMGOPTS" ]; then
         optstr=$(_optstr_add "$optstr" "$IMGOPTS")
+    fi
+    if [ -n "$IMGKEYSECRET" ]; then
+        object_options="--object secret,id=keysec0,data=$IMGKEYSECRET"
+        optstr=$(_optstr_add "$optstr" "key-secret=keysec0")
     fi
 
     if [ "$1" = "-b" ]; then
@@ -156,9 +161,9 @@ _make_test_img()
     # XXX(hch): have global image options?
     (
      if [ $use_backing = 1 ]; then
-        $QEMU_IMG create -f $IMGFMT $extra_img_options -b "$backing_file" "$img_name" $image_size 2>&1
+        $QEMU_IMG create $object_options -f $IMGFMT $extra_img_options -b "$backing_file" "$img_name" $image_size 2>&1
      else
-        $QEMU_IMG create -f $IMGFMT $extra_img_options "$img_name" $image_size 2>&1
+        $QEMU_IMG create $object_options -f $IMGFMT $extra_img_options "$img_name" $image_size 2>&1
      fi
     ) | _filter_img_create
 

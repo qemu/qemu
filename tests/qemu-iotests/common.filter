@@ -98,7 +98,8 @@ _filter_img_create()
         -e "s# block_state_zero=\\(on\\|off\\)##g" \
         -e "s# log_size=[0-9]\\+##g" \
         -e "s/archipelago:a/TEST_DIR\//g" \
-        -e "s# refcount_bits=[0-9]\\+##g"
+        -e "s# refcount_bits=[0-9]\\+##g" \
+        -e "s# key-secret=[a-zA-Z0-9]\\+##g"
 }
 
 _filter_img_info()
