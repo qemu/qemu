@@ -210,7 +210,7 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, Error **errp)
             error_setg(errp, "incorrect option name length");
             return -1;
         }
-        if (namelen > 255) {
+        if (namelen > NBD_MAX_NAME_SIZE) {
             error_setg(errp, "export name length too long %" PRIu32, namelen);
             return -1;
         }

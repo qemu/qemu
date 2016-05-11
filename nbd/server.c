@@ -286,13 +286,13 @@ static int nbd_negotiate_handle_list(NBDClient *client, uint32_t length)
 static int nbd_negotiate_handle_export_name(NBDClient *client, uint32_t length)
 {
     int rc = -EINVAL;
-    char name[256];
+    char name[NBD_MAX_NAME_SIZE + 1];
 
     /* Client sends:
         [20 ..  xx]   export name (length bytes)
      */
     TRACE("Checking length");
-    if (length > 255) {
+    if (length >= sizeof(name)) {
         LOG("Bad length received");
         goto fail;
     }
