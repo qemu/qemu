@@ -624,24 +624,6 @@ fail:
     return rc;
 }
 
-#ifdef __linux__
-
-int nbd_disconnect(int fd)
-{
-    ioctl(fd, NBD_CLEAR_QUE);
-    ioctl(fd, NBD_DISCONNECT);
-    ioctl(fd, NBD_CLEAR_SOCK);
-    return 0;
-}
-
-#else
-
-int nbd_disconnect(int fd)
-{
-    return -ENOTSUP;
-}
-#endif
-
 static ssize_t nbd_receive_request(QIOChannel *ioc, struct nbd_request *request)
 {
     uint8_t buf[NBD_REQUEST_SIZE];

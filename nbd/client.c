@@ -667,6 +667,15 @@ int nbd_client(int fd)
     errno = serrno;
     return ret;
 }
+
+int nbd_disconnect(int fd)
+{
+    ioctl(fd, NBD_CLEAR_QUE);
+    ioctl(fd, NBD_DISCONNECT);
+    ioctl(fd, NBD_CLEAR_SOCK);
+    return 0;
+}
+
 #else
 int nbd_init(int fd, QIOChannelSocket *ioc, uint32_t flags, off_t size)
 {
@@ -674,6 +683,10 @@ int nbd_init(int fd, QIOChannelSocket *ioc, uint32_t flags, off_t size)
 }
 
 int nbd_client(int fd)
+{
+    return -ENOTSUP;
+}
+int nbd_disconnect(int fd)
 {
     return -ENOTSUP;
 }
