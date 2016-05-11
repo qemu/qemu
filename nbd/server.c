@@ -334,7 +334,10 @@ static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
         return NULL;
     }
 
-    nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK, NBD_OPT_STARTTLS);
+    if (nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK,
+                               NBD_OPT_STARTTLS) < 0) {
+        return NULL;
+    }
 
     tioc = qio_channel_tls_new_server(ioc,
                                       client->tlscreds,
@@ -460,8 +463,11 @@ static int nbd_negotiate_options(NBDClient *client)
                 if (nbd_negotiate_drop_sync(client->ioc, length) != length) {
                     return -EIO;
                 }
-                nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_TLS_REQD,
-                                       clientflags);
+                ret = nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_TLS_REQD,
+                                             clientflags);
+                if (ret < 0) {
+                    return ret;
+                }
                 break;
             }
         } else if (fixedNewstyle) {
@@ -485,12 +491,17 @@ static int nbd_negotiate_options(NBDClient *client)
                 }
                 if (client->tlscreds) {
                     TRACE("TLS already enabled");
-                    nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_INVALID,
-                                           clientflags);
+                    ret = nbd_negotiate_send_rep(client->ioc,
+                                                 NBD_REP_ERR_INVALID,
+                                                 clientflags);
                 } else {
                     TRACE("TLS not configured");
-                    nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_POLICY,
-                                           clientflags);
+                    ret = nbd_negotiate_send_rep(client->ioc,
+                                                 NBD_REP_ERR_POLICY,
+                                                 clientflags);
+                }
+                if (ret < 0) {
+                    return ret;
                 }
                 break;
             default:
@@ -498,8 +509,11 @@ static int nbd_negotiate_options(NBDClient *client)
                 if (nbd_negotiate_drop_sync(client->ioc, length) != length) {
                     return -EIO;
                 }
-                nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_UNSUP,
-                                       clientflags);
+                ret = nbd_negotiate_send_rep(client->ioc, NBD_REP_ERR_UNSUP,
+                                             clientflags);
+                if (ret < 0) {
+                    return ret;
+                }
                 break;
             }
         } else {
