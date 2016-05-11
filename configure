@@ -2813,8 +2813,8 @@ for drv in $audio_drv_list; do
     ;;
 
     pa)
-    audio_drv_probe $drv pulse/mainloop.h "-lpulse" \
-        "pa_mainloop *m = 0; pa_mainloop_free (m); return 0;"
+    audio_drv_probe $drv pulse/pulseaudio.h "-lpulse" \
+        "pa_context_set_source_output_volume(NULL, 0, NULL, NULL, NULL); return 0;"
     libs_softmmu="-lpulse $libs_softmmu"
     audio_pt_int="yes"
     ;;
