@@ -2749,11 +2749,14 @@ void bdrv_drained_begin(BlockDriverState *bs)
     if (!bs->quiesce_counter++) {
         aio_disable_external(bdrv_get_aio_context(bs));
     }
+    bdrv_parent_drained_begin(bs);
     bdrv_drain(bs);
 }
 
 void bdrv_drained_end(BlockDriverState *bs)
 {
+    bdrv_parent_drained_end(bs);
+
     assert(bs->quiesce_counter > 0);
     if (--bs->quiesce_counter > 0) {
         return;
