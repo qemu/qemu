@@ -56,8 +56,7 @@ static int list_pci(ClpReqRspListPci *rrb, uint8_t *cc)
     }
 
     if ((ldl_p(&rrb->request.fmt) & ~CLP_MASK_FMT) != 0 ||
-        ldq_p(&rrb->request.reserved1) != 0 ||
-        ldq_p(&rrb->request.reserved2) != 0) {
+        ldq_p(&rrb->request.reserved1) != 0) {
         res_code = CLP_RC_RESNOT0;
         rc = -EINVAL;
         goto out;
@@ -91,9 +90,9 @@ static int list_pci(ClpReqRspListPci *rrb, uint8_t *cc)
 
     stl_p(&rrb->response.fmt, 0);
     stq_p(&rrb->response.reserved1, 0);
-    stq_p(&rrb->response.reserved2, 0);
     stl_p(&rrb->response.mdd, FH_MASK_SHM);
     stw_p(&rrb->response.max_fn, PCI_MAX_FUNCTIONS);
+    rrb->response.flags = UID_CHECKING_ENABLED;
     rrb->response.entry_size = sizeof(ClpFhListEntry);
     finish = 0;
     idx = resume_token;
@@ -260,7 +259,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
         stl_p(&resquery->fid, pbdev->fid);
         stw_p(&resquery->pchid, 0);
         stw_p(&resquery->ug, 1);
-        stl_p(&resquery->uid, pbdev->fid);
+        stl_p(&resquery->uid, pbdev->uid);
         stw_p(&resquery->hdr.rsp, CLP_RC_OK);
         break;
     }

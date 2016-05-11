@@ -104,7 +104,7 @@ typedef struct ClpRspListPci {
     uint64_t resume_token;
     uint32_t mdd;
     uint16_t max_fn;
-    uint8_t reserved2;
+    uint8_t flags;
     uint8_t entry_size;
     ClpFhListEntry fh_list[CLP_FH_LIST_NR_ENTRIES];
 } QEMU_PACKED ClpRspListPci;
