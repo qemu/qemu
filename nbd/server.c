@@ -52,6 +52,7 @@ struct NBDRequest {
     QSIMPLEQ_ENTRY(NBDRequest) entry;
     NBDClient *client;
     uint8_t *data;
+    bool complete;
 };
 
 struct NBDExport {
@@ -989,7 +990,13 @@ static ssize_t nbd_co_send_reply(NBDRequest *req, struct nbd_reply *reply,
     return rc;
 }
 
-static ssize_t nbd_co_receive_request(NBDRequest *req, struct nbd_request *request)
+/* Collect a client request.  Return 0 if request looks valid, -EAGAIN
+ * to keep trying the collection, -EIO to drop connection right away,
+ * and any other negative value to report an error to the client
+ * (although the caller may still need to disconnect after reporting
+ * the error).  */
+static ssize_t nbd_co_receive_request(NBDRequest *req,
+                                      struct nbd_request *request)
 {
     NBDClient *client = req->client;
     uint32_t command;
@@ -1007,16 +1014,31 @@ static ssize_t nbd_co_receive_request(NBDRequest *req, struct nbd_request *reque
         goto out;
     }
 
+    TRACE("Decoding type");
+
+    command = request->type & NBD_CMD_MASK_COMMAND;
+    if (command != NBD_CMD_WRITE) {
+        /* No payload, we are ready to read the next request.  */
+        req->complete = true;
+    }
+
+    if (command == NBD_CMD_DISC) {
+        /* Special case: we're going to disconnect without a reply,
+         * whether or not flags, from, or len are bogus */
+        TRACE("Request type is DISCONNECT");
+        rc = -EIO;
+        goto out;
+    }
+
+    /* Check for sanity in the parameters, part 1.  Defer as many
+     * checks as possible until after reading any NBD_CMD_WRITE
+     * payload, so we can try and keep the connection alive.  */
     if ((request->from + request->len) < request->from) {
-        LOG("integer overflow detected! "
-            "you're probably being attacked");
+        LOG("integer overflow detected, you're probably being attacked");
         rc = -EINVAL;
         goto out;
     }
 
-    TRACE("Decoding type");
-
-    command = request->type & NBD_CMD_MASK_COMMAND;
     if (command == NBD_CMD_READ || command == NBD_CMD_WRITE) {
         if (request->len > NBD_MAX_BUFFER_SIZE) {
             LOG("len (%" PRIu32" ) is larger than max len (%u)",
@@ -1039,7 +1061,18 @@ static ssize_t nbd_co_receive_request(NBDRequest *req, struct nbd_request *reque
             rc = -EIO;
             goto out;
         }
+        req->complete = true;
     }
+
+    /* Sanity checks, part 2. */
+    if (request->from + request->len > client->exp->size) {
+        LOG("operation past EOF; From: %" PRIu64 ", Len: %" PRIu32
+            ", Size: %" PRIu64, request->from, request->len,
+            (uint64_t)client->exp->size);
+        rc = command == NBD_CMD_WRITE ? -ENOSPC : -EINVAL;
+        goto out;
+    }
+
     rc = 0;
 
 out:
@@ -1082,14 +1115,6 @@ static void nbd_trip(void *opaque)
         goto error_reply;
     }
     command = request.type & NBD_CMD_MASK_COMMAND;
-    if (command != NBD_CMD_DISC && (request.from + request.len) > exp->size) {
-            LOG("From: %" PRIu64 ", Len: %" PRIu32", Size: %" PRIu64
-                ", Offset: %" PRIu64 "\n",
-                request.from, request.len,
-                (uint64_t)exp->size, (uint64_t)exp->dev_offset);
-        LOG("requested operation past EOF--bad client?");
-        goto invalid_request;
-    }
 
     if (client->closing) {
         /*
@@ -1151,10 +1176,11 @@ static void nbd_trip(void *opaque)
             goto out;
         }
         break;
+
     case NBD_CMD_DISC:
-        TRACE("Request type is DISCONNECT");
-        errno = 0;
-        goto out;
+        /* unreachable, thanks to special case in nbd_co_receive_request() */
+        abort();
+
     case NBD_CMD_FLUSH:
         TRACE("Request type is FLUSH");
 
@@ -1190,10 +1216,12 @@ static void nbd_trip(void *opaque)
         break;
     default:
         LOG("invalid request type (%" PRIu32 ") received", request.type);
-    invalid_request:
         reply.error = EINVAL;
     error_reply:
-        if (nbd_co_send_reply(req, &reply, 0) < 0) {
+        /* We must disconnect after NBD_CMD_WRITE if we did not
+         * read the payload.
+         */
+        if (nbd_co_send_reply(req, &reply, 0) < 0 || !req->complete) {
             goto out;
         }
         break;
