@@ -109,25 +109,27 @@ static int nbd_handle_reply_err(QIOChannel *ioc, uint32_t opt, uint32_t type,
 
     switch (type) {
     case NBD_REP_ERR_UNSUP:
-        TRACE("server doesn't understand request %d, attempting fallback",
-              opt);
+        TRACE("server doesn't understand request %" PRIx32
+              ", attempting fallback", opt);
         result = 0;
         goto cleanup;
 
     case NBD_REP_ERR_POLICY:
-        error_setg(errp, "Denied by server for option %x", opt);
+        error_setg(errp, "Denied by server for option %" PRIx32, opt);
         break;
 
     case NBD_REP_ERR_INVALID:
-        error_setg(errp, "Invalid data length for option %x", opt);
+        error_setg(errp, "Invalid data length for option %" PRIx32, opt);
         break;
 
     case NBD_REP_ERR_TLS_REQD:
-        error_setg(errp, "TLS negotiation required before option %x", opt);
+        error_setg(errp, "TLS negotiation required before option %" PRIx32,
+                   opt);
         break;
 
     default:
-        error_setg(errp, "Unknown error code when asking for option %x", opt);
+        error_setg(errp, "Unknown error code when asking for option %" PRIx32,
+                   opt);
         break;
     }
 
@@ -165,7 +167,7 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, Error **errp)
     }
     opt = be32_to_cpu(opt);
     if (opt != NBD_OPT_LIST) {
-        error_setg(errp, "Unexpected option type %x expected %x",
+        error_setg(errp, "Unexpected option type %" PRIx32 " expected %x",
                    opt, NBD_OPT_LIST);
         return -1;
     }
@@ -207,7 +209,7 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, Error **errp)
             return -1;
         }
         if (namelen > 255) {
-            error_setg(errp, "export name length too long %d", namelen);
+            error_setg(errp, "export name length too long %" PRIu32, namelen);
             return -1;
         }
 
@@ -234,7 +236,7 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, Error **errp)
             g_free(buf);
         }
     } else {
-        error_setg(errp, "Unexpected reply type %x expected %x",
+        error_setg(errp, "Unexpected reply type %" PRIx32 " expected %x",
                    type, NBD_REP_SERVER);
         return -1;
     }
@@ -349,7 +351,7 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
     }
     opt = be32_to_cpu(opt);
     if (opt != NBD_OPT_STARTTLS) {
-        error_setg(errp, "Unexpected option type %x expected %x",
+        error_setg(errp, "Unexpected option type %" PRIx32 " expected %x",
                    opt, NBD_OPT_STARTTLS);
         return NULL;
     }
@@ -361,7 +363,7 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
     }
     type = be32_to_cpu(type);
     if (type != NBD_REP_ACK) {
-        error_setg(errp, "Server rejected request to start TLS %x",
+        error_setg(errp, "Server rejected request to start TLS %" PRIx32,
                    type);
         return NULL;
     }
@@ -373,7 +375,7 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
     }
     length = be32_to_cpu(length);
     if (length != 0) {
-        error_setg(errp, "Start TLS response was not zero %x",
+        error_setg(errp, "Start TLS response was not zero %" PRIu32,
                    length);
         return NULL;
     }
@@ -384,7 +386,7 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
         return NULL;
     }
     data.loop = g_main_loop_new(g_main_context_default(), FALSE);
-    TRACE("Starting TLS hanshake");
+    TRACE("Starting TLS handshake");
     qio_channel_tls_handshake(tioc,
                               nbd_tls_handshake,
                               &data,
@@ -474,7 +476,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
         }
         globalflags = be16_to_cpu(globalflags);
         *flags = globalflags << 16;
-        TRACE("Global flags are %x", globalflags);
+        TRACE("Global flags are %" PRIx32, globalflags);
         if (globalflags & NBD_FLAG_FIXED_NEWSTYLE) {
             fixedNewStyle = true;
             TRACE("Server supports fixed new style");
@@ -550,7 +552,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
         }
         exportflags = be16_to_cpu(exportflags);
         *flags |= exportflags;
-        TRACE("Export flags are %x", exportflags);
+        TRACE("Export flags are %" PRIx16, exportflags);
     } else if (magic == NBD_CLIENT_MAGIC) {
         if (name) {
             error_setg(errp, "Server does not support export names");
@@ -683,7 +685,8 @@ ssize_t nbd_send_request(QIOChannel *ioc, struct nbd_request *request)
     ssize_t ret;
 
     TRACE("Sending request to server: "
-          "{ .from = %" PRIu64", .len = %u, .handle = %" PRIu64", .type=%i}",
+          "{ .from = %" PRIu64", .len = %" PRIu32 ", .handle = %" PRIu64
+          ", .type=%" PRIu16 " }",
           request->from, request->len, request->handle, request->type);
 
     stl_be_p(buf, NBD_REQUEST_MAGIC);
@@ -732,12 +735,12 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, struct nbd_reply *reply)
 
     reply->error = nbd_errno_to_system_errno(reply->error);
 
-    TRACE("Got reply: "
-          "{ magic = 0x%x, .error = %d, handle = %" PRIu64" }",
+    TRACE("Got reply: { magic = 0x%" PRIx32 ", .error = % " PRId32
+          ", handle = %" PRIu64" }",
           magic, reply->error, reply->handle);
 
     if (magic != NBD_REPLY_MAGIC) {
-        LOG("invalid magic (got 0x%x)", magic);
+        LOG("invalid magic (got 0x%" PRIx32 ")", magic);
         return -EINVAL;
     }
     return 0;

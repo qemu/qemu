@@ -196,7 +196,7 @@ static int nbd_negotiate_send_rep(QIOChannel *ioc, uint32_t type, uint32_t opt)
     uint64_t magic;
     uint32_t len;
 
-    TRACE("Reply opt=%x type=%x", type, opt);
+    TRACE("Reply opt=%" PRIx32 " type=%" PRIx32, type, opt);
 
     magic = cpu_to_be64(NBD_REP_MAGIC);
     if (nbd_negotiate_write(ioc, &magic, sizeof(magic)) != sizeof(magic)) {
@@ -226,7 +226,7 @@ static int nbd_negotiate_send_rep_list(QIOChannel *ioc, NBDExport *exp)
     uint64_t magic, name_len;
     uint32_t opt, type, len;
 
-    TRACE("Advertizing export name '%s'", exp->name ? exp->name : "");
+    TRACE("Advertising export name '%s'", exp->name ? exp->name : "");
     name_len = strlen(exp->name);
     magic = cpu_to_be64(NBD_REP_MAGIC);
     if (nbd_negotiate_write(ioc, &magic, sizeof(magic)) != sizeof(magic)) {
@@ -392,12 +392,12 @@ static int nbd_negotiate_options(NBDClient *client)
     TRACE("Checking client flags");
     be32_to_cpus(&flags);
     if (flags & NBD_FLAG_C_FIXED_NEWSTYLE) {
-        TRACE("Support supports fixed newstyle handshake");
+        TRACE("Client supports fixed newstyle handshake");
         fixedNewstyle = true;
         flags &= ~NBD_FLAG_C_FIXED_NEWSTYLE;
     }
     if (flags != 0) {
-        TRACE("Unknown client flags 0x%x received", flags);
+        TRACE("Unknown client flags 0x%" PRIx32 " received", flags);
         return -EIO;
     }
 
@@ -431,12 +431,12 @@ static int nbd_negotiate_options(NBDClient *client)
         }
         length = be32_to_cpu(length);
 
-        TRACE("Checking option 0x%x", clientflags);
+        TRACE("Checking option 0x%" PRIx32, clientflags);
         if (client->tlscreds &&
             client->ioc == (QIOChannel *)client->sioc) {
             QIOChannel *tioc;
             if (!fixedNewstyle) {
-                TRACE("Unsupported option 0x%x", clientflags);
+                TRACE("Unsupported option 0x%" PRIx32, clientflags);
                 return -EINVAL;
             }
             switch (clientflags) {
@@ -455,7 +455,8 @@ static int nbd_negotiate_options(NBDClient *client)
                 return -EINVAL;
 
             default:
-                TRACE("Option 0x%x not permitted before TLS", clientflags);
+                TRACE("Option 0x%" PRIx32 " not permitted before TLS",
+                      clientflags);
                 if (nbd_negotiate_drop_sync(client->ioc, length) != length) {
                     return -EIO;
                 }
@@ -493,7 +494,7 @@ static int nbd_negotiate_options(NBDClient *client)
                 }
                 break;
             default:
-                TRACE("Unsupported option 0x%x", clientflags);
+                TRACE("Unsupported option 0x%" PRIx32, clientflags);
                 if (nbd_negotiate_drop_sync(client->ioc, length) != length) {
                     return -EIO;
                 }
@@ -511,7 +512,7 @@ static int nbd_negotiate_options(NBDClient *client)
                 return nbd_negotiate_handle_export_name(client, length);
 
             default:
-                TRACE("Unsupported option 0x%x", clientflags);
+                TRACE("Unsupported option 0x%" PRIx32, clientflags);
                 return -EINVAL;
             }
         }
@@ -560,6 +561,8 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
     oldStyle = client->exp != NULL && !client->tlscreds;
     if (oldStyle) {
         assert ((client->exp->nbdflags & ~65535) == 0);
+        TRACE("advertising size %" PRIu64 " and flags %x",
+              client->exp->size, client->exp->nbdflags | myflags);
         stq_be_p(buf + 8, NBD_CLIENT_MAGIC);
         stq_be_p(buf + 16, client->exp->size);
         stw_be_p(buf + 26, client->exp->nbdflags | myflags);
@@ -589,6 +592,8 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
         }
 
         assert ((client->exp->nbdflags & ~65535) == 0);
+        TRACE("advertising size %" PRIu64 " and flags %x",
+              client->exp->size, client->exp->nbdflags | myflags);
         stq_be_p(buf + 18, client->exp->size);
         stw_be_p(buf + 26, client->exp->nbdflags | myflags);
         if (nbd_negotiate_write(client->ioc, buf + 18, sizeof(buf) - 18) !=
@@ -652,12 +657,12 @@ static ssize_t nbd_receive_request(QIOChannel *ioc, struct nbd_request *request)
     request->from   = ldq_be_p(buf + 16);
     request->len    = ldl_be_p(buf + 24);
 
-    TRACE("Got request: "
-          "{ magic = 0x%x, .type = %d, from = %" PRIu64" , len = %u }",
+    TRACE("Got request: { magic = 0x%" PRIx32 ", .type = %" PRIx32
+          ", from = %" PRIu64 " , len = %" PRIu32 " }",
           magic, request->type, request->from, request->len);
 
     if (magic != NBD_REQUEST_MAGIC) {
-        LOG("invalid magic (got 0x%x)", magic);
+        LOG("invalid magic (got 0x%" PRIx32 ")", magic);
         return -EINVAL;
     }
     return 0;
@@ -670,7 +675,8 @@ static ssize_t nbd_send_reply(QIOChannel *ioc, struct nbd_reply *reply)
 
     reply->error = system_errno_to_nbd_errno(reply->error);
 
-    TRACE("Sending response to client: { .error = %d, handle = %" PRIu64 " }",
+    TRACE("Sending response to client: { .error = %" PRId32
+          ", handle = %" PRIu64 " }",
           reply->error, reply->handle);
 
     /* Reply
@@ -999,7 +1005,7 @@ static ssize_t nbd_co_receive_request(NBDRequest *req, struct nbd_request *reque
     command = request->type & NBD_CMD_MASK_COMMAND;
     if (command == NBD_CMD_READ || command == NBD_CMD_WRITE) {
         if (request->len > NBD_MAX_BUFFER_SIZE) {
-            LOG("len (%u) is larger than max len (%u)",
+            LOG("len (%" PRIu32" ) is larger than max len (%u)",
                 request->len, NBD_MAX_BUFFER_SIZE);
             rc = -EINVAL;
             goto out;
@@ -1012,7 +1018,7 @@ static ssize_t nbd_co_receive_request(NBDRequest *req, struct nbd_request *reque
         }
     }
     if (command == NBD_CMD_WRITE) {
-        TRACE("Reading %u byte(s)", request->len);
+        TRACE("Reading %" PRIu32 " byte(s)", request->len);
 
         if (read_sync(client->ioc, req->data, request->len) != request->len) {
             LOG("reading from socket failed");
@@ -1063,10 +1069,10 @@ static void nbd_trip(void *opaque)
     }
     command = request.type & NBD_CMD_MASK_COMMAND;
     if (command != NBD_CMD_DISC && (request.from + request.len) > exp->size) {
-            LOG("From: %" PRIu64 ", Len: %u, Size: %" PRIu64
-            ", Offset: %" PRIu64 "\n",
-                    request.from, request.len,
-                    (uint64_t)exp->size, (uint64_t)exp->dev_offset);
+            LOG("From: %" PRIu64 ", Len: %" PRIu32", Size: %" PRIu64
+                ", Offset: %" PRIu64 "\n",
+                request.from, request.len,
+                (uint64_t)exp->size, (uint64_t)exp->dev_offset);
         LOG("requested operation past EOF--bad client?");
         goto invalid_request;
     }
@@ -1100,7 +1106,7 @@ static void nbd_trip(void *opaque)
             goto error_reply;
         }
 
-        TRACE("Read %u byte(s)", request.len);
+        TRACE("Read %" PRIu32" byte(s)", request.len);
         if (nbd_co_send_reply(req, &reply, request.len) < 0)
             goto out;
         break;
@@ -1169,7 +1175,7 @@ static void nbd_trip(void *opaque)
         }
         break;
     default:
-        LOG("invalid request type (%u) received", request.type);
+        LOG("invalid request type (%" PRIu32 ") received", request.type);
     invalid_request:
         reply.error = EINVAL;
     error_reply:
