@@ -1072,6 +1072,11 @@ static ssize_t nbd_co_receive_request(NBDRequest *req,
         rc = command == NBD_CMD_WRITE ? -ENOSPC : -EINVAL;
         goto out;
     }
+    if (request->type & ~NBD_CMD_MASK_COMMAND & ~NBD_CMD_FLAG_FUA) {
+        LOG("unsupported flags (got 0x%x)",
+            request->type & ~NBD_CMD_MASK_COMMAND);
+        return -EINVAL;
+    }
 
     rc = 0;
 
