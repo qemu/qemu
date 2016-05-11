@@ -747,21 +747,6 @@ static int64_t quorum_getlength(BlockDriverState *bs)
     return result;
 }
 
-static void quorum_invalidate_cache(BlockDriverState *bs, Error **errp)
-{
-    BDRVQuorumState *s = bs->opaque;
-    Error *local_err = NULL;
-    int i;
-
-    for (i = 0; i < s->num_children; i++) {
-        bdrv_invalidate_cache(s->children[i]->bs, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-    }
-}
-
 static coroutine_fn int quorum_co_flush(BlockDriverState *bs)
 {
     BDRVQuorumState *s = bs->opaque;
@@ -1070,7 +1055,6 @@ static BlockDriver bdrv_quorum = {
 
     .bdrv_aio_readv                     = quorum_aio_readv,
     .bdrv_aio_writev                    = quorum_aio_writev,
-    .bdrv_invalidate_cache              = quorum_invalidate_cache,
 
     .bdrv_detach_aio_context            = quorum_detach_aio_context,
     .bdrv_attach_aio_context            = quorum_attach_aio_context,
