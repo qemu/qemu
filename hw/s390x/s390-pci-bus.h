@@ -22,6 +22,7 @@
 
 #define TYPE_S390_PCI_HOST_BRIDGE "s390-pcihost"
 #define TYPE_S390_PCI_BUS "s390-pcibus"
+#define TYPE_S390_PCI_DEVICE "zpci"
 #define FH_MASK_ENABLE   0x80000000
 #define FH_MASK_INSTANCE 0x7f000000
 #define FH_MASK_SHM      0x00ff0000
@@ -29,11 +30,16 @@
 #define FH_SHM_VFIO      0x00010000
 #define FH_SHM_EMUL      0x00020000
 #define S390_PCIPT_ADAPTER 2
+#define ZPCI_MAX_FID 0xffffffff
+#define ZPCI_MAX_UID 0xffff
+#define UID_UNDEFINED 0
 
 #define S390_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(S390pciState, (obj), TYPE_S390_PCI_HOST_BRIDGE)
 #define S390_PCI_BUS(obj) \
     OBJECT_CHECK(S390PCIBus, (obj), TYPE_S390_PCI_BUS)
+#define S390_PCI_DEVICE(obj) \
+    OBJECT_CHECK(S390PCIBusDevice, (obj), TYPE_S390_PCI_DEVICE)
 
 #define HP_EVENT_TO_CONFIGURED        0x0301
 #define HP_EVENT_RESERVED_TO_STANDBY  0x0302
@@ -254,11 +260,15 @@ typedef struct S390PCIIOMMU {
 } S390PCIIOMMU;
 
 typedef struct S390PCIBusDevice {
+    DeviceState qdev;
     PCIDevice *pdev;
     ZpciState state;
     bool iommu_enabled;
+    char *target;
+    uint16_t uid;
     uint32_t fh;
     uint32_t fid;
+    bool fid_defined;
     uint64_t g_iota;
     uint64_t pba;
     uint64_t pal;
@@ -281,7 +291,7 @@ typedef struct S390PCIBus {
 typedef struct S390pciState {
     PCIHostState parent_obj;
     S390PCIBus *bus;
-    S390PCIBusDevice pbdev[PCI_SLOT_MAX];
+    S390PCIBusDevice *pbdev[PCI_SLOT_MAX];
     S390PCIIOMMU *iommu[PCI_SLOT_MAX];
     AddressSpace msix_notify_as;
     MemoryRegion msix_notify_mr;
