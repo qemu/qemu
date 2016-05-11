@@ -570,10 +570,6 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
 int cpu_exec(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
-#ifdef TARGET_I386
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUArchState *env = &x86_cpu->env;
-#endif
     int ret;
     SyncClocks sc;
 
@@ -629,18 +625,10 @@ int cpu_exec(CPUState *cpu)
              * Newer versions of gcc would complain about this code (-Wclobbered). */
             cpu = current_cpu;
             cc = CPU_GET_CLASS(cpu);
-#ifdef TARGET_I386
-            x86_cpu = X86_CPU(cpu);
-            env = &x86_cpu->env;
-#endif
 #else /* buggy compiler */
             /* Assert that the compiler does not smash local variables. */
             g_assert(cpu == current_cpu);
             g_assert(cc == CPU_GET_CLASS(cpu));
-#ifdef TARGET_I386
-            g_assert(x86_cpu == X86_CPU(cpu));
-            g_assert(env == &x86_cpu->env);
-#endif
 #endif /* buggy compiler */
             cpu->can_do_io = 1;
             tb_lock_reset();
