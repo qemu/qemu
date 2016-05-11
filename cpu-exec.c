@@ -505,6 +505,66 @@ static inline void cpu_handle_interrupt(CPUState *cpu,
     }
 }
 
+static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
+                                    TranslationBlock **last_tb, int *tb_exit,
+                                    SyncClocks *sc)
+{
+    uintptr_t ret;
+
+    if (unlikely(cpu->exit_request)) {
+        return;
+    }
+
+    trace_exec_tb(tb, tb->pc);
+    ret = cpu_tb_exec(cpu, tb);
+    *last_tb = (TranslationBlock *)(ret & ~TB_EXIT_MASK);
+    *tb_exit = ret & TB_EXIT_MASK;
+    switch (*tb_exit) {
+    case TB_EXIT_REQUESTED:
+        /* Something asked us to stop executing
+         * chained TBs; just continue round the main
+         * loop. Whatever requested the exit will also
+         * have set something else (eg exit_request or
+         * interrupt_request) which we will handle
+         * next time around the loop.  But we need to
+         * ensure the tcg_exit_req read in generated code
+         * comes before the next read of cpu->exit_request
+         * or cpu->interrupt_request.
+         */
+        smp_rmb();
+        *last_tb = NULL;
+        break;
+    case TB_EXIT_ICOUNT_EXPIRED:
+    {
+        /* Instruction counter expired.  */
+#ifdef CONFIG_USER_ONLY
+        abort();
+#else
+        int insns_left = cpu->icount_decr.u32;
+        if (cpu->icount_extra && insns_left >= 0) {
+            /* Refill decrementer and continue execution.  */
+            cpu->icount_extra += insns_left;
+            insns_left = MIN(0xffff, cpu->icount_extra);
+            cpu->icount_extra -= insns_left;
+            cpu->icount_decr.u16.low = insns_left;
+        } else {
+            if (insns_left > 0) {
+                /* Execute remaining instructions.  */
+                cpu_exec_nocache(cpu, insns_left, *last_tb, false);
+                align_clocks(sc, cpu);
+            }
+            cpu->exception_index = EXCP_INTERRUPT;
+            *last_tb = NULL;
+            cpu_loop_exit(cpu);
+        }
+        break;
+#endif
+    }
+    default:
+        break;
+    }
+}
+
 /* main execution loop */
 
 int cpu_exec(CPUState *cpu)
@@ -515,8 +575,6 @@ int cpu_exec(CPUState *cpu)
     CPUArchState *env = &x86_cpu->env;
 #endif
     int ret;
-    TranslationBlock *tb, *last_tb;
-    int tb_exit = 0;
     SyncClocks sc;
 
     /* replay_interrupt may need current_cpu */
@@ -543,6 +601,9 @@ int cpu_exec(CPUState *cpu)
     init_delay_params(&sc, cpu);
 
     for(;;) {
+        TranslationBlock *tb, *last_tb;
+        int tb_exit = 0;
+
         /* prepare setjmp context for exception handling */
         if (sigsetjmp(cpu->jmp_env, 0) == 0) {
             /* if an exception is pending, we execute it here */
@@ -555,59 +616,7 @@ int cpu_exec(CPUState *cpu)
             for(;;) {
                 cpu_handle_interrupt(cpu, &last_tb);
                 tb = tb_find_fast(cpu, &last_tb, tb_exit);
-                if (likely(!cpu->exit_request)) {
-                    uintptr_t ret;
-                    trace_exec_tb(tb, tb->pc);
-                    /* execute the generated code */
-                    ret = cpu_tb_exec(cpu, tb);
-                    last_tb = (TranslationBlock *)(ret & ~TB_EXIT_MASK);
-                    tb_exit = ret & TB_EXIT_MASK;
-                    switch (tb_exit) {
-                    case TB_EXIT_REQUESTED:
-                        /* Something asked us to stop executing
-                         * chained TBs; just continue round the main
-                         * loop. Whatever requested the exit will also
-                         * have set something else (eg exit_request or
-                         * interrupt_request) which we will handle
-                         * next time around the loop.  But we need to
-                         * ensure the tcg_exit_req read in generated code
-                         * comes before the next read of cpu->exit_request
-                         * or cpu->interrupt_request.
-                         */
-                        smp_rmb();
-                        last_tb = NULL;
-                        break;
-                    case TB_EXIT_ICOUNT_EXPIRED:
-                    {
-                        /* Instruction counter expired.  */
-#ifdef CONFIG_USER_ONLY
-                        abort();
-#else
-                        int insns_left = cpu->icount_decr.u32;
-                        if (cpu->icount_extra && insns_left >= 0) {
-                            /* Refill decrementer and continue execution.  */
-                            cpu->icount_extra += insns_left;
-                            insns_left = MIN(0xffff, cpu->icount_extra);
-                            cpu->icount_extra -= insns_left;
-                            cpu->icount_decr.u16.low = insns_left;
-                        } else {
-                            if (insns_left > 0) {
-                                /* Execute remaining instructions.  */
-                                cpu_exec_nocache(cpu, insns_left,
-                                                 last_tb, false);
-                                align_clocks(&sc, cpu);
-                            }
-                            cpu->exception_index = EXCP_INTERRUPT;
-                            last_tb = NULL;
-                            cpu_loop_exit(cpu);
-                        }
-                        break;
-#endif
-                    }
-                    default:
-                        break;
-                    }
-                }
+                cpu_loop_exec_tb(cpu, tb, &last_tb, &tb_exit, &sc);
                 /* Try to align the host and virtual clocks
                    if the guest is in advance */
                 align_clocks(&sc, cpu);
