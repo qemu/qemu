@@ -33,8 +33,10 @@ static int nbd_errno_to_system_errno(int err)
         return ENOMEM;
     case NBD_ENOSPC:
         return ENOSPC;
-    case NBD_EINVAL:
     default:
+        TRACE("Squashing unexpected error %d to EINVAL", err);
+        /* fallthrough */
+    case NBD_EINVAL:
         return EINVAL;
     }
 }
