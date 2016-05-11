@@ -3198,6 +3198,7 @@ void bdrv_init_with_whitelist(void)
 
 void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
+    BdrvChild *child;
     Error *local_err = NULL;
     int ret;
 
@@ -3212,13 +3213,20 @@ void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
 
     if (bs->drv->bdrv_invalidate_cache) {
         bs->drv->bdrv_invalidate_cache(bs, &local_err);
-    } else if (bs->file) {
-        bdrv_invalidate_cache(bs->file->bs, &local_err);
+        if (local_err) {
+            bs->open_flags |= BDRV_O_INACTIVE;
+            error_propagate(errp, local_err);
+            return;
+        }
     }
-    if (local_err) {
-        bs->open_flags |= BDRV_O_INACTIVE;
-        error_propagate(errp, local_err);
-        return;
+
+    QLIST_FOREACH(child, &bs->children, next) {
+        bdrv_invalidate_cache(child->bs, &local_err);
+        if (local_err) {
+            bs->open_flags |= BDRV_O_INACTIVE;
+            error_propagate(errp, local_err);
+            return;
+        }
     }
 
     ret = refresh_total_sectors(bs, bs->total_sectors);
