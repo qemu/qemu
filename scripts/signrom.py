@@ -17,7 +17,10 @@ if len(sys.argv) < 3:
 fin = open(sys.argv[1], 'rb')
 fout = open(sys.argv[2], 'wb')
 
-fin.seek(2)
+magic = fin.read(2)
+if magic != '\x55\xaa':
+    sys.exit("%s: option ROM does not begin with magic 55 aa" % sys.argv[1])
+
 size_byte = ord(fin.read(1))
 fin.seek(0)
 
