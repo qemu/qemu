@@ -1038,6 +1038,7 @@ static void nbd_trip(void *opaque)
     struct nbd_reply reply;
     ssize_t ret;
     uint32_t command;
+    int flags;
 
     TRACE("Reading request.");
     if (client->closing) {
@@ -1114,21 +1115,16 @@ static void nbd_trip(void *opaque)
 
         TRACE("Writing to device");
 
+        flags = 0;
+        if (request.type & NBD_CMD_FLAG_FUA) {
+            flags |= BDRV_REQ_FUA;
+        }
         ret = blk_pwrite(exp->blk, request.from + exp->dev_offset,
-                         req->data, request.len, 0);
+                         req->data, request.len, flags);
         if (ret < 0) {
             LOG("writing to file failed");
             reply.error = -ret;
             goto error_reply;
-        }
-
-        if (request.type & NBD_CMD_FLAG_FUA) {
-            ret = blk_co_flush(exp->blk);
-            if (ret < 0) {
-                LOG("flush failed");
-                reply.error = -ret;
-                goto error_reply;
-            }
         }
 
         if (nbd_co_send_reply(req, &reply, 0) < 0) {
