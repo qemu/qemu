@@ -248,6 +248,11 @@ typedef struct S390MsixInfo {
     uint32_t pba_offset;
 } S390MsixInfo;
 
+typedef struct S390PCIIOMMU {
+    AddressSpace as;
+    MemoryRegion mr;
+} S390PCIIOMMU;
+
 typedef struct S390PCIBusDevice {
     PCIDevice *pdev;
     ZpciState state;
@@ -263,8 +268,7 @@ typedef struct S390PCIBusDevice {
     uint8_t sum;
     S390MsixInfo msix;
     AdapterRoutes routes;
-    AddressSpace as;
-    MemoryRegion mr;
+    S390PCIIOMMU *iommu;
     MemoryRegion iommu_mr;
     IndAddr *summary_ind;
     IndAddr *indicator;
@@ -278,6 +282,7 @@ typedef struct S390pciState {
     PCIHostState parent_obj;
     S390PCIBus *bus;
     S390PCIBusDevice pbdev[PCI_SLOT_MAX];
+    S390PCIIOMMU *iommu[PCI_SLOT_MAX];
     AddressSpace msix_notify_as;
     MemoryRegion msix_notify_mr;
     QTAILQ_HEAD(, SeiContainer) pending_sei;

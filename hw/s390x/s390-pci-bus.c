@@ -406,7 +406,7 @@ static AddressSpace *s390_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 {
     S390pciState *s = opaque;
 
-    return &s->pbdev[PCI_SLOT(devfn)].as;
+    return &s->iommu[PCI_SLOT(devfn)]->as;
 }
 
 static uint8_t set_ind_atomic(uint64_t ind_loc, uint8_t to_be_set)
@@ -478,15 +478,15 @@ static const MemoryRegionOps s390_msi_ctrl_ops = {
 
 void s390_pci_iommu_enable(S390PCIBusDevice *pbdev)
 {
-    memory_region_init_iommu(&pbdev->iommu_mr, OBJECT(&pbdev->mr),
+    memory_region_init_iommu(&pbdev->iommu_mr, OBJECT(&pbdev->iommu->mr),
                              &s390_iommu_ops, "iommu-s390", pbdev->pal + 1);
-    memory_region_add_subregion(&pbdev->mr, 0, &pbdev->iommu_mr);
+    memory_region_add_subregion(&pbdev->iommu->mr, 0, &pbdev->iommu_mr);
     pbdev->iommu_enabled = true;
 }
 
 void s390_pci_iommu_disable(S390PCIBusDevice *pbdev)
 {
-    memory_region_del_subregion(&pbdev->mr, &pbdev->iommu_mr);
+    memory_region_del_subregion(&pbdev->iommu->mr, &pbdev->iommu_mr);
     object_unparent(OBJECT(&pbdev->iommu_mr));
     pbdev->iommu_enabled = false;
 }
@@ -494,13 +494,15 @@ void s390_pci_iommu_disable(S390PCIBusDevice *pbdev)
 static void s390_pcihost_init_as(S390pciState *s)
 {
     int i;
-    S390PCIBusDevice *pbdev;
+    S390PCIIOMMU *iommu;
 
     for (i = 0; i < PCI_SLOT_MAX; i++) {
-        pbdev = &s->pbdev[i];
-        memory_region_init(&pbdev->mr, OBJECT(s),
+        iommu = g_malloc0(sizeof(S390PCIIOMMU));
+        memory_region_init(&iommu->mr, OBJECT(s),
                            "iommu-root-s390", UINT64_MAX);
-        address_space_init(&pbdev->as, &pbdev->mr, "iommu-pci");
+        address_space_init(&iommu->as, &iommu->mr, "iommu-pci");
+
+        s->iommu[i] = iommu;
     }
 
     memory_region_init_io(&s->msix_notify_mr, OBJECT(s),
@@ -576,6 +578,7 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
     pbdev->pdev = pci_dev;
     pbdev->state = ZPCI_FS_DISABLED;
     pbdev->fh = s390_pci_get_pfh(pci_dev);
+    pbdev->iommu = s->iommu[PCI_SLOT(pci_dev->devfn)];
 
     s390_pcihost_setup_msix(pbdev);
 
