@@ -3255,38 +3255,63 @@ void bdrv_invalidate_cache_all(Error **errp)
     }
 }
 
-static int bdrv_inactivate(BlockDriverState *bs)
+static int bdrv_inactivate_recurse(BlockDriverState *bs,
+                                   bool setting_flag)
 {
+    BdrvChild *child;
     int ret;
 
-    if (bs->drv->bdrv_inactivate) {
+    if (!setting_flag && bs->drv->bdrv_inactivate) {
         ret = bs->drv->bdrv_inactivate(bs);
         if (ret < 0) {
             return ret;
         }
     }
 
-    bs->open_flags |= BDRV_O_INACTIVE;
+    QLIST_FOREACH(child, &bs->children, next) {
+        ret = bdrv_inactivate_recurse(child->bs, setting_flag);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    if (setting_flag) {
+        bs->open_flags |= BDRV_O_INACTIVE;
+    }
     return 0;
 }
 
 int bdrv_inactivate_all(void)
 {
     BlockDriverState *bs = NULL;
-    int ret;
+    int ret = 0;
+    int pass;
 
     while ((bs = bdrv_next(bs)) != NULL) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
+        aio_context_acquire(bdrv_get_aio_context(bs));
+    }
 
-        aio_context_acquire(aio_context);
-        ret = bdrv_inactivate(bs);
-        aio_context_release(aio_context);
-        if (ret < 0) {
-            return ret;
+    /* We do two passes of inactivation. The first pass calls to drivers'
+     * .bdrv_inactivate callbacks recursively so all cache is flushed to disk;
+     * the second pass sets the BDRV_O_INACTIVE flag so that no further write
+     * is allowed. */
+    for (pass = 0; pass < 2; pass++) {
+        bs = NULL;
+        while ((bs = bdrv_next(bs)) != NULL) {
+            ret = bdrv_inactivate_recurse(bs, pass);
+            if (ret < 0) {
+                goto out;
+            }
         }
     }
 
-    return 0;
+out:
+    bs = NULL;
+    while ((bs = bdrv_next(bs)) != NULL) {
+        aio_context_release(bdrv_get_aio_context(bs));
+    }
+
+    return ret;
 }
 
 /**************************************************************/
