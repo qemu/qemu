@@ -18,10 +18,29 @@ fin = open(sys.argv[1], 'rb')
 fout = open(sys.argv[2], 'wb')
 
 fin.seek(2)
-size = ord(fin.read(1)) * 512 - 1
-
+size_byte = ord(fin.read(1))
 fin.seek(0)
-data = fin.read(size)
+
+if size_byte == 0:
+    # If the caller left the size field blank then we will fill it in,
+    # also rounding the whole input to a multiple of 512 bytes.
+    data = fin.read()
+    # +1 because we need a byte to store the checksum.
+    size = len(data) + 1
+    # Round up to next multiple of 512.
+    size += 511
+    size -= size % 512
+    if size >= 65536:
+        sys.exit("%s: option ROM size too large" % sys.argv[1])
+    # size-1 because a final byte is added below to store the checksum.
+    data = data.ljust(size-1, '\0')
+    data = data[:2] + chr(size/512) + data[3:]
+else:
+    # Otherwise the input file specifies the size so use it.
+    # -1 because we overwrite the last byte of the file with the checksum.
+    size = size_byte * 512 - 1
+    data = fin.read(size)
+
 fout.write(data)
 
 checksum = 0
