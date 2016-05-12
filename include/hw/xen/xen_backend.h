@@ -28,6 +28,7 @@ struct XenDevOps {
     int       (*free)(struct XenDevice *xendev);
     void      (*backend_changed)(struct XenDevice *xendev, const char *node);
     void      (*frontend_changed)(struct XenDevice *xendev, const char *node);
+    int       (*backend_register)(void);
 };
 
 struct XenDevice {
@@ -63,6 +64,7 @@ extern const char *xen_protocol;
 extern DeviceState *xen_sysdev;
 
 /* xenstore helper functions */
+int xenstore_mkdir(char *path, int p);
 int xenstore_write_str(const char *base, const char *node, const char *val);
 int xenstore_write_int(const char *base, const char *node, int ival);
 int xenstore_write_int64(const char *base, const char *node, int64_t ival);
