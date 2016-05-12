@@ -63,6 +63,13 @@ static void test_visitor_in_int(TestInputVisitorData *data,
     visit_type_int(v, NULL, &res, &err);
     g_assert(!err);
     g_assert_cmpint(res, ==, value);
+
+    visitor_input_teardown(data, unused);
+
+    v = visitor_input_test_init(data, "not an int");
+
+    visit_type_int(v, NULL, &res, &err);
+    error_free_or_abort(&err);
 }
 
 static void test_visitor_in_intList(TestInputVisitorData *data,
@@ -70,6 +77,7 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
 {
     int64_t value[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 20};
     int16List *res = NULL, *tmp;
+    Error *err = NULL;
     Visitor *v;
     int i = 0;
 
@@ -84,12 +92,15 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
     }
     g_assert(!tmp);
 
-    tmp = res;
-    while (tmp) {
-        res = res->next;
-        g_free(tmp);
-        tmp = res;
-    }
+    qapi_free_int16List(res);
+
+    visitor_input_teardown(data, unused);
+
+    v = visitor_input_test_init(data, "not an int list");
+
+    visit_type_int16List(v, NULL, &res, &err);
+    error_free_or_abort(&err);
+    g_assert(!res);
 }
 
 static void test_visitor_in_bool(TestInputVisitorData *data,

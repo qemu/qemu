@@ -3,6 +3,7 @@ check-qfloat
 check-qint
 check-qjson
 check-qlist
+check-qnull
 check-qstring
 check-qom-interface
 check-qom-proplist

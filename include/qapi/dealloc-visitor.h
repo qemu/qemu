@@ -18,6 +18,11 @@
 
 typedef struct QapiDeallocVisitor QapiDeallocVisitor;
 
+/*
+ * The dealloc visitor is primarly used only by generated
+ * qapi_free_FOO() functions, and is the only visitor designed to work
+ * correctly in the face of a partially-constructed QAPI tree.
+ */
 QapiDeallocVisitor *qapi_dealloc_visitor_new(void);
 void qapi_dealloc_visitor_cleanup(QapiDeallocVisitor *d);
 

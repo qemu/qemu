@@ -19,11 +19,6 @@
 
 typedef void (QmpCommandFunc)(QDict *, QObject **, Error **);
 
-typedef enum QmpCommandType
-{
-    QCT_NORMAL,
-} QmpCommandType;
-
 typedef enum QmpCommandOptions
 {
     QCO_NO_OPTIONS = 0x0,
@@ -33,7 +28,6 @@ typedef enum QmpCommandOptions
 typedef struct QmpCommand
 {
     const char *name;
-    QmpCommandType type;
     QmpCommandFunc *fn;
     QmpCommandOptions options;
     QTAILQ_ENTRY(QmpCommand) node;

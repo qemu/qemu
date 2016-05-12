@@ -25,7 +25,6 @@ void qmp_register_command(const char *name, QmpCommandFunc *fn,
     QmpCommand *cmd = g_malloc0(sizeof(*cmd));
 
     cmd->name = name;
-    cmd->type = QCT_NORMAL;
     cmd->fn = fn;
     cmd->enabled = true;
     cmd->options = options;

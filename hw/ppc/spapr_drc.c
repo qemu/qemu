@@ -269,11 +269,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
     void *fdt;
 
     if (!drc->fdt) {
-        visit_start_struct(v, name, NULL, 0, &err);
-        if (!err) {
-            visit_end_struct(v, &err);
-        }
-        error_propagate(errp, err);
+        visit_type_null(v, NULL, errp);
         return;
     }
 
@@ -301,7 +297,8 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
         case FDT_END_NODE:
             /* shouldn't ever see an FDT_END_NODE before FDT_BEGIN_NODE */
             g_assert(fdt_depth > 0);
-            visit_end_struct(v, &err);
+            visit_check_struct(v, &err);
+            visit_end_struct(v);
             if (err) {
                 error_propagate(errp, err);
                 return;
@@ -312,7 +309,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
             int i;
             prop = fdt_get_property_by_offset(fdt, fdt_offset, &prop_len);
             name = fdt_string(fdt, fdt32_to_cpu(prop->nameoff));
-            visit_start_list(v, name, &err);
+            visit_start_list(v, name, NULL, 0, &err);
             if (err) {
                 error_propagate(errp, err);
                 return;

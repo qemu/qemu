@@ -98,7 +98,10 @@ def gen_event_send(name, arg_type):
         goto out;
     }
     visit_type_%(c_name)s_members(v, &param, &err);
-    visit_end_struct(v, err ? NULL : &err);
+    if (!err) {
+        visit_check_struct(v, &err);
+    }
+    visit_end_struct(v);
     if (err) {
         goto out;
     }

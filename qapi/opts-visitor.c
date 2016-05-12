@@ -23,9 +23,8 @@
 enum ListMode
 {
     LM_NONE,             /* not traversing a list of repeated options */
-    LM_STARTED,          /* opts_start_list() succeeded */
 
-    LM_IN_PROGRESS,      /* opts_next_list() has been called.
+    LM_IN_PROGRESS,      /* opts_next_list() ready to be called.
                           *
                           * Generating the next list link will consume the most
                           * recently parsed QemuOpt instance of the repeated
@@ -133,7 +132,7 @@ opts_start_struct(Visitor *v, const char *name, void **obj,
     const QemuOpt *opt;
 
     if (obj) {
-        *obj = g_malloc0(size > 0 ? size : 1);
+        *obj = g_malloc0(size);
     }
     if (ov->depth++ > 0) {
         return;
@@ -159,13 +158,13 @@ opts_start_struct(Visitor *v, const char *name, void **obj,
 
 
 static void
-opts_end_struct(Visitor *v, Error **errp)
+opts_check_struct(Visitor *v, Error **errp)
 {
     OptsVisitor *ov = to_ov(v);
     GHashTableIter iter;
     GQueue *any;
 
-    if (--ov->depth > 0) {
+    if (ov->depth > 0) {
         return;
     }
 
@@ -177,6 +176,18 @@ opts_end_struct(Visitor *v, Error **errp)
         first = g_queue_peek_head(any);
         error_setg(errp, QERR_INVALID_PARAMETER, first->name);
     }
+}
+
+
+static void
+opts_end_struct(Visitor *v)
+{
+    OptsVisitor *ov = to_ov(v);
+
+    if (--ov->depth > 0) {
+        return;
+    }
+
     g_hash_table_destroy(ov->unprocessed_opts);
     ov->unprocessed_opts = NULL;
     if (ov->fake_id_opt) {
@@ -202,35 +213,33 @@ lookup_distinct(const OptsVisitor *ov, const char *name, Error **errp)
 
 
 static void
-opts_start_list(Visitor *v, const char *name, Error **errp)
+opts_start_list(Visitor *v, const char *name, GenericList **list, size_t size,
+                Error **errp)
 {
     OptsVisitor *ov = to_ov(v);
 
     /* we can't traverse a list in a list */
     assert(ov->list_mode == LM_NONE);
+    /* we don't support visits without a list */
+    assert(list);
     ov->repeated_opts = lookup_distinct(ov, name, errp);
-    if (ov->repeated_opts != NULL) {
-        ov->list_mode = LM_STARTED;
+    if (ov->repeated_opts) {
+        ov->list_mode = LM_IN_PROGRESS;
+        *list = g_malloc0(size);
+    } else {
+        *list = NULL;
     }
 }
 
 
 static GenericList *
-opts_next_list(Visitor *v, GenericList **list, size_t size)
+opts_next_list(Visitor *v, GenericList *tail, size_t size)
 {
     OptsVisitor *ov = to_ov(v);
-    GenericList **link;
 
     switch (ov->list_mode) {
-    case LM_STARTED:
-        ov->list_mode = LM_IN_PROGRESS;
-        link = list;
-        break;
-
     case LM_SIGNED_INTERVAL:
     case LM_UNSIGNED_INTERVAL:
-        link = &(*list)->next;
-
         if (ov->list_mode == LM_SIGNED_INTERVAL) {
             if (ov->range_next.s < ov->range_limit.s) {
                 ++ov->range_next.s;
@@ -251,7 +260,6 @@ opts_next_list(Visitor *v, GenericList **list, size_t size)
             g_hash_table_remove(ov->unprocessed_opts, opt->name);
             return NULL;
         }
-        link = &(*list)->next;
         break;
     }
 
@@ -259,8 +267,8 @@ opts_next_list(Visitor *v, GenericList **list, size_t size)
         abort();
     }
 
-    *link = g_malloc0(size);
-    return *link;
+    tail->next = g_malloc0(size);
+    return tail->next;
 }
 
 
@@ -269,8 +277,7 @@ opts_end_list(Visitor *v)
 {
     OptsVisitor *ov = to_ov(v);
 
-    assert(ov->list_mode == LM_STARTED ||
-           ov->list_mode == LM_IN_PROGRESS ||
+    assert(ov->list_mode == LM_IN_PROGRESS ||
            ov->list_mode == LM_SIGNED_INTERVAL ||
            ov->list_mode == LM_UNSIGNED_INTERVAL);
     ov->repeated_opts = NULL;
@@ -314,9 +321,15 @@ opts_type_str(Visitor *v, const char *name, char **obj, Error **errp)
 
     opt = lookup_scalar(ov, name, errp);
     if (!opt) {
+        *obj = NULL;
         return;
     }
     *obj = g_strdup(opt->str ? opt->str : "");
+    /* Note that we consume a string even if this is called as part of
+     * an enum visit that later fails because the string is not a
+     * valid enum value; this is harmless because tracking what gets
+     * consumed only matters to visit_end_struct() as the final error
+     * check if there were no other failures during the visit.  */
     processed(ov, name);
 }
 
@@ -507,22 +520,15 @@ opts_visitor_new(const QemuOpts *opts)
 
     ov = g_malloc0(sizeof *ov);
 
+    ov->visitor.type = VISITOR_INPUT;
+
     ov->visitor.start_struct = &opts_start_struct;
+    ov->visitor.check_struct = &opts_check_struct;
     ov->visitor.end_struct   = &opts_end_struct;
 
     ov->visitor.start_list = &opts_start_list;
     ov->visitor.next_list  = &opts_next_list;
     ov->visitor.end_list   = &opts_end_list;
-
-    /* input_type_enum() covers both "normal" enums and union discriminators.
-     * The union discriminator field is always generated as "type"; it should
-     * match the "type" QemuOpt child of any QemuOpts.
-     *
-     * input_type_enum() will remove the looked-up key from the
-     * "unprocessed_opts" hash even if the lookup fails, because the removal is
-     * done earlier in opts_type_str(). This should be harmless.
-     */
-    ov->visitor.type_enum = &input_type_enum;
 
     ov->visitor.type_int64  = &opts_type_int64;
     ov->visitor.type_uint64 = &opts_type_uint64;
