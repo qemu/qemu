@@ -3086,18 +3086,24 @@ void cpu_loop(CPUM68KState *env)
             break;
         case EXCP_TRAP0:
             {
+                abi_long ret;
                 ts->sim_syscalls = 0;
                 n = env->dregs[0];
                 env->pc += 2;
-                env->dregs[0] = do_syscall(env,
-                                          n,
-                                          env->dregs[1],
-                                          env->dregs[2],
-                                          env->dregs[3],
-                                          env->dregs[4],
-                                          env->dregs[5],
-                                          env->aregs[0],
-                                          0, 0);
+                ret = do_syscall(env,
+                                 n,
+                                 env->dregs[1],
+                                 env->dregs[2],
+                                 env->dregs[3],
+                                 env->dregs[4],
+                                 env->dregs[5],
+                                 env->aregs[0],
+                                 0, 0);
+                if (ret == -TARGET_ERESTARTSYS) {
+                    env->pc -= 2;
+                } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                    env->dregs[0] = ret;
+                }
             }
             break;
         case EXCP_INTERRUPT:

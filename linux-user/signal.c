@@ -5009,19 +5009,18 @@ static void setup_sigcontext(struct target_sigcontext *sc, CPUM68KState *env,
 }
 
 static void
-restore_sigcontext(CPUM68KState *env, struct target_sigcontext *sc, int *pd0)
+restore_sigcontext(CPUM68KState *env, struct target_sigcontext *sc)
 {
     int temp;
 
     __get_user(env->aregs[7], &sc->sc_usp);
+    __get_user(env->dregs[0], &sc->sc_d0);
     __get_user(env->dregs[1], &sc->sc_d1);
     __get_user(env->aregs[0], &sc->sc_a0);
     __get_user(env->aregs[1], &sc->sc_a1);
     __get_user(env->pc, &sc->sc_pc);
     __get_user(temp, &sc->sc_sr);
     env->sr = (env->sr & 0xff00) | (temp & 0xff);
-
-    *pd0 = tswapl(sc->sc_d0);
 }
 
 /*
@@ -5120,8 +5119,7 @@ static inline int target_rt_setup_ucontext(struct target_ucontext *uc,
 }
 
 static inline int target_rt_restore_ucontext(CPUM68KState *env,
-                                             struct target_ucontext *uc,
-                                             int *pd0)
+                                             struct target_ucontext *uc)
 {
     int temp;
     target_greg_t *gregs = uc->tuc_mcontext.gregs;
@@ -5151,7 +5149,6 @@ static inline int target_rt_restore_ucontext(CPUM68KState *env,
     __get_user(temp, &gregs[17]);
     env->sr = (env->sr & 0xff00) | (temp & 0xff);
 
-    *pd0 = env->dregs[0];
     return 0;
 
 badframe:
@@ -5238,7 +5235,7 @@ long do_sigreturn(CPUM68KState *env)
     abi_ulong frame_addr = env->aregs[7] - 4;
     target_sigset_t target_set;
     sigset_t set;
-    int d0, i;
+    int i;
 
     trace_user_do_sigreturn(env, frame_addr);
     if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1))
@@ -5257,10 +5254,10 @@ long do_sigreturn(CPUM68KState *env)
 
     /* restore registers */
 
-    restore_sigcontext(env, &frame->sc, &d0);
+    restore_sigcontext(env, &frame->sc);
 
     unlock_user_struct(frame, frame_addr, 0);
-    return d0;
+    return -TARGET_QEMU_ESIGRETURN;
 
 badframe:
     force_sig(TARGET_SIGSEGV);
@@ -5273,7 +5270,6 @@ long do_rt_sigreturn(CPUM68KState *env)
     abi_ulong frame_addr = env->aregs[7] - 4;
     target_sigset_t target_set;
     sigset_t set;
-    int d0;
 
     trace_user_do_rt_sigreturn(env, frame_addr);
     if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1))
@@ -5284,7 +5280,7 @@ long do_rt_sigreturn(CPUM68KState *env)
 
     /* restore registers */
 
-    if (target_rt_restore_ucontext(env, &frame->uc, &d0))
+    if (target_rt_restore_ucontext(env, &frame->uc))
         goto badframe;
 
     if (do_sigaltstack(frame_addr +
@@ -5293,7 +5289,7 @@ long do_rt_sigreturn(CPUM68KState *env)
         goto badframe;
 
     unlock_user_struct(frame, frame_addr, 0);
-    return d0;
+    return -TARGET_QEMU_ESIGRETURN;
 
 badframe:
     unlock_user_struct(frame, frame_addr, 0);
