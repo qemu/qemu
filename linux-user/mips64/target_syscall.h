@@ -219,10 +219,6 @@ struct target_pt_regs {
 #define TARGET_ENOTRECOVERABLE 166     /* State not recoverable */
 
 
-
-/* Nasty hack: define a fake errno value for use by sigreturn. */
-#define TARGET_QEMU_ESIGRETURN 255
-
 #define UNAME_MACHINE "mips64"
 #define UNAME_MINIMUM_RELEASE "2.6.32"
 
