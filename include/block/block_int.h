@@ -38,12 +38,12 @@
 #include "qemu/throttle.h"
 
 #define BLOCK_FLAG_ENCRYPT          1
-#define BLOCK_FLAG_COMPAT6          4
 #define BLOCK_FLAG_LAZY_REFCOUNTS   8
 
 #define BLOCK_OPT_SIZE              "size"
 #define BLOCK_OPT_ENCRYPT           "encryption"
 #define BLOCK_OPT_COMPAT6           "compat6"
+#define BLOCK_OPT_HWVERSION         "hwversion"
 #define BLOCK_OPT_BACKING_FILE      "backing_file"
 #define BLOCK_OPT_BACKING_FMT       "backing_fmt"
 #define BLOCK_OPT_CLUSTER_SIZE      "cluster_size"
@@ -127,10 +127,6 @@ struct BlockDriver {
                      Error **errp);
     int (*bdrv_file_open)(BlockDriverState *bs, QDict *options, int flags,
                           Error **errp);
-    int (*bdrv_read)(BlockDriverState *bs, int64_t sector_num,
-                     uint8_t *buf, int nb_sectors);
-    int (*bdrv_write)(BlockDriverState *bs, int64_t sector_num,
-                      const uint8_t *buf, int nb_sectors);
     void (*bdrv_close)(BlockDriverState *bs);
     int (*bdrv_create)(const char *filename, QemuOpts *opts, Error **errp);
     int (*bdrv_set_key)(BlockDriverState *bs, const char *key);
@@ -153,18 +149,20 @@ struct BlockDriver {
 
     int coroutine_fn (*bdrv_co_readv)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
+    int coroutine_fn (*bdrv_co_preadv)(BlockDriverState *bs,
+        uint64_t offset, uint64_t bytes, QEMUIOVector *qiov, int flags);
     int coroutine_fn (*bdrv_co_writev)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
     int coroutine_fn (*bdrv_co_writev_flags)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov, int flags);
-
-    int supported_write_flags;
+    int coroutine_fn (*bdrv_co_pwritev)(BlockDriverState *bs,
+        uint64_t offset, uint64_t bytes, QEMUIOVector *qiov, int flags);
 
     /*
      * Efficiently zero a region of the disk image.  Typically an image format
      * would use a compact metadata representation to implement this.  This
-     * function pointer may be NULL and .bdrv_co_writev() will be called
-     * instead.
+     * function pointer may be NULL or return -ENOSUP and .bdrv_co_writev()
+     * will be called instead.
      */
     int coroutine_fn (*bdrv_co_write_zeroes)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, BdrvRequestFlags flags);
@@ -294,7 +292,6 @@ struct BlockDriver {
     /* io queue for linux-aio */
     void (*bdrv_io_plug)(BlockDriverState *bs);
     void (*bdrv_io_unplug)(BlockDriverState *bs);
-    void (*bdrv_flush_io_queue)(BlockDriverState *bs);
 
     /**
      * Try to get @bs's logical and physical block size.
@@ -316,6 +313,11 @@ struct BlockDriver {
      * remain so until next I/O callback (e.g. bdrv_co_writev) is called.
      */
     void (*bdrv_drain)(BlockDriverState *bs);
+
+    void (*bdrv_add_child)(BlockDriverState *parent, BlockDriverState *child,
+                           Error **errp);
+    void (*bdrv_del_child)(BlockDriverState *parent, BdrvChild *child,
+                           Error **errp);
 
     QLIST_ENTRY(BlockDriver) list;
 };
@@ -424,10 +426,10 @@ struct BlockDriverState {
 
     /* I/O throttling.
      * throttle_state tells us if this BDS has I/O limits configured.
-     * io_limits_enabled tells us if they are currently being
-     * enforced, but it can be temporarily set to false */
+     * io_limits_disabled tells us if they are currently being enforced */
     CoQueue      throttled_reqs[2];
-    bool         io_limits_enabled;
+    unsigned int io_limits_disabled;
+
     /* The following fields are protected by the ThrottleGroup lock.
      * See the ThrottleGroup documentation for details. */
     ThrottleState *throttle_state;
@@ -446,6 +448,11 @@ struct BlockDriverState {
 
     /* Alignment requirement for offset/length of I/O requests */
     unsigned int request_alignment;
+    /* Flags honored during pwrite (so far: BDRV_REQ_FUA) */
+    unsigned int supported_write_flags;
+    /* Flags honored during write_zeroes (so far: BDRV_REQ_FUA,
+     * BDRV_REQ_MAY_UNMAP) */
+    unsigned int supported_zero_flags;
 
     /* the following member gives a name to every node on the bs graph. */
     char node_name[32];
@@ -484,6 +491,10 @@ struct BlockDriverState {
     uint64_t write_threshold_offset;
     NotifierWithReturn write_threshold_notifier;
 
+    /* counters for nested bdrv_io_plug and bdrv_io_unplugged_begin */
+    unsigned io_plugged;
+    unsigned io_plug_disabled;
+
     int quiesce_counter;
 };
 
@@ -517,10 +528,10 @@ extern BlockDriver bdrv_qcow2;
  */
 void bdrv_setup_io_funcs(BlockDriver *bdrv);
 
-int coroutine_fn bdrv_co_do_preadv(BlockDriverState *bs,
+int coroutine_fn bdrv_co_preadv(BlockDriverState *bs,
     int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags);
-int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
+int coroutine_fn bdrv_co_pwritev(BlockDriverState *bs,
     int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags);
 
@@ -712,6 +723,9 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
                                   const BdrvChildRole *child_role);
 void bdrv_root_unref_child(BdrvChild *child);
+
+void bdrv_no_throttling_begin(BlockDriverState *bs);
+void bdrv_no_throttling_end(BlockDriverState *bs);
 
 void blk_dev_change_media_cb(BlockBackend *blk, bool load);
 bool blk_dev_has_removable_media(BlockBackend *blk);

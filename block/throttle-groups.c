@@ -219,6 +219,10 @@ static bool throttle_group_schedule_timer(BlockDriverState *bs,
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
     bool must_wait;
 
+    if (bs->io_limits_disabled) {
+        return false;
+    }
+
     /* Check if any of the timers in this group is already armed */
     if (tg->any_timer_armed[is_write]) {
         return true;
@@ -313,6 +317,17 @@ void coroutine_fn throttle_group_co_io_limits_intercept(BlockDriverState *bs,
     qemu_mutex_unlock(&tg->lock);
 }
 
+void throttle_group_restart_bs(BlockDriverState *bs)
+{
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        while (qemu_co_enter_next(&bs->throttled_reqs[i])) {
+            ;
+        }
+    }
+}
+
 /* Update the throttle configuration for a particular group. Similar
  * to throttle_config(), but guarantees atomicity within the
  * throttling group.
@@ -335,6 +350,9 @@ void throttle_group_config(BlockDriverState *bs, ThrottleConfig *cfg)
     }
     throttle_config(ts, tt, cfg);
     qemu_mutex_unlock(&tg->lock);
+
+    qemu_co_enter_next(&bs->throttled_reqs[0]);
+    qemu_co_enter_next(&bs->throttled_reqs[1]);
 }
 
 /* Get the throttle configuration from a particular group. Similar to

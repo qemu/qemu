@@ -66,6 +66,7 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
 
     bs->read_only = 1;
+    bs->request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O supported */
 
     /* read header */
     ret = bdrv_pread(bs->file->bs, 128, &s->block_size, 4);
@@ -229,33 +230,38 @@ static inline int cloop_read_block(BlockDriverState *bs, int block_num)
     return 0;
 }
 
-static int cloop_read(BlockDriverState *bs, int64_t sector_num,
-                    uint8_t *buf, int nb_sectors)
+static int coroutine_fn
+cloop_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
+                QEMUIOVector *qiov, int flags)
 {
     BDRVCloopState *s = bs->opaque;
-    int i;
+    uint64_t sector_num = offset >> BDRV_SECTOR_BITS;
+    int nb_sectors = bytes >> BDRV_SECTOR_BITS;
+    int ret, i;
+
+    assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
+
+    qemu_co_mutex_lock(&s->lock);
 
     for (i = 0; i < nb_sectors; i++) {
+        void *data;
         uint32_t sector_offset_in_block =
             ((sector_num + i) % s->sectors_per_block),
             block_num = (sector_num + i) / s->sectors_per_block;
         if (cloop_read_block(bs, block_num) != 0) {
-            return -1;
+            ret = -EIO;
+            goto fail;
         }
-        memcpy(buf + i * 512,
-            s->uncompressed_block + sector_offset_in_block * 512, 512);
-    }
-    return 0;
-}
 
-static coroutine_fn int cloop_co_read(BlockDriverState *bs, int64_t sector_num,
-                                      uint8_t *buf, int nb_sectors)
-{
-    int ret;
-    BDRVCloopState *s = bs->opaque;
-    qemu_co_mutex_lock(&s->lock);
-    ret = cloop_read(bs, sector_num, buf, nb_sectors);
+        data = s->uncompressed_block + sector_offset_in_block * 512;
+        qemu_iovec_from_buf(qiov, i * 512, data, 512);
+    }
+
+    ret = 0;
+fail:
     qemu_co_mutex_unlock(&s->lock);
+
     return ret;
 }
 
@@ -273,7 +279,7 @@ static BlockDriver bdrv_cloop = {
     .instance_size  = sizeof(BDRVCloopState),
     .bdrv_probe     = cloop_probe,
     .bdrv_open      = cloop_open,
-    .bdrv_read      = cloop_co_read,
+    .bdrv_co_preadv = cloop_co_preadv,
     .bdrv_close     = cloop_close,
 };
 

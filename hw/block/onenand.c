@@ -224,7 +224,8 @@ static void onenand_reset(OneNANDState *s, int cold)
         /* Lock the whole flash */
         memset(s->blockwp, ONEN_LOCK_LOCKED, s->blocks);
 
-        if (s->blk_cur && blk_read(s->blk_cur, 0, s->boot[0], 8) < 0) {
+        if (s->blk_cur && blk_pread(s->blk_cur, 0, s->boot[0],
+                                    8 << BDRV_SECTOR_BITS) < 0) {
             hw_error("%s: Loading the BootRAM failed.\n", __func__);
         }
     }
@@ -240,8 +241,11 @@ static void onenand_system_reset(DeviceState *dev)
 static inline int onenand_load_main(OneNANDState *s, int sec, int secn,
                 void *dest)
 {
+    assert(UINT32_MAX >> BDRV_SECTOR_BITS > sec);
+    assert(UINT32_MAX >> BDRV_SECTOR_BITS > secn);
     if (s->blk_cur) {
-        return blk_read(s->blk_cur, sec, dest, secn) < 0;
+        return blk_pread(s->blk_cur, sec << BDRV_SECTOR_BITS, dest,
+                         secn << BDRV_SECTOR_BITS) < 0;
     } else if (sec + secn > s->secs_cur) {
         return 1;
     }
@@ -257,19 +261,22 @@ static inline int onenand_prog_main(OneNANDState *s, int sec, int secn,
     int result = 0;
 
     if (secn > 0) {
-        uint32_t size = (uint32_t)secn * 512;
+        uint32_t size = secn << BDRV_SECTOR_BITS;
+        uint32_t offset = sec << BDRV_SECTOR_BITS;
+        assert(UINT32_MAX >> BDRV_SECTOR_BITS > sec);
+        assert(UINT32_MAX >> BDRV_SECTOR_BITS > secn);
         const uint8_t *sp = (const uint8_t *)src;
         uint8_t *dp = 0;
         if (s->blk_cur) {
             dp = g_malloc(size);
-            if (!dp || blk_read(s->blk_cur, sec, dp, secn) < 0) {
+            if (!dp || blk_pread(s->blk_cur, offset, dp, size) < 0) {
                 result = 1;
             }
         } else {
             if (sec + secn > s->secs_cur) {
                 result = 1;
             } else {
-                dp = (uint8_t *)s->current + (sec << 9);
+                dp = (uint8_t *)s->current + offset;
             }
         }
         if (!result) {
@@ -278,7 +285,7 @@ static inline int onenand_prog_main(OneNANDState *s, int sec, int secn,
                 dp[i] &= sp[i];
             }
             if (s->blk_cur) {
-                result = blk_write(s->blk_cur, sec, dp, secn) < 0;
+                result = blk_pwrite(s->blk_cur, offset, dp, size, 0) < 0;
             }
         }
         if (dp && s->blk_cur) {
@@ -295,7 +302,8 @@ static inline int onenand_load_spare(OneNANDState *s, int sec, int secn,
     uint8_t buf[512];
 
     if (s->blk_cur) {
-        if (blk_read(s->blk_cur, s->secs_cur + (sec >> 5), buf, 1) < 0) {
+        uint32_t offset = (s->secs_cur + (sec >> 5)) << BDRV_SECTOR_BITS;
+        if (blk_pread(s->blk_cur, offset, buf, BDRV_SECTOR_SIZE) < 0) {
             return 1;
         }
         memcpy(dest, buf + ((sec & 31) << 4), secn << 4);
@@ -304,7 +312,7 @@ static inline int onenand_load_spare(OneNANDState *s, int sec, int secn,
     } else {
         memcpy(dest, s->current + (s->secs_cur << 9) + (sec << 4), secn << 4);
     }
- 
+
     return 0;
 }
 
@@ -315,10 +323,12 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
     if (secn > 0) {
         const uint8_t *sp = (const uint8_t *)src;
         uint8_t *dp = 0, *dpp = 0;
+        uint32_t offset = (s->secs_cur + (sec >> 5)) << BDRV_SECTOR_BITS;
+        assert(UINT32_MAX >> BDRV_SECTOR_BITS > s->secs_cur + (sec >> 5));
         if (s->blk_cur) {
             dp = g_malloc(512);
             if (!dp
-                || blk_read(s->blk_cur, s->secs_cur + (sec >> 5), dp, 1) < 0) {
+                || blk_pread(s->blk_cur, offset, dp, BDRV_SECTOR_SIZE) < 0) {
                 result = 1;
             } else {
                 dpp = dp + ((sec & 31) << 4);
@@ -336,8 +346,8 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
                 dpp[i] &= sp[i];
             }
             if (s->blk_cur) {
-                result = blk_write(s->blk_cur, s->secs_cur + (sec >> 5),
-                                   dp, 1) < 0;
+                result = blk_pwrite(s->blk_cur, offset, dp,
+                                    BDRV_SECTOR_SIZE, 0) < 0;
             }
         }
         g_free(dp);
@@ -355,14 +365,17 @@ static inline int onenand_erase(OneNANDState *s, int sec, int num)
     for (; num > 0; num--, sec++) {
         if (s->blk_cur) {
             int erasesec = s->secs_cur + (sec >> 5);
-            if (blk_write(s->blk_cur, sec, blankbuf, 1) < 0) {
+            if (blk_pwrite(s->blk_cur, sec << BDRV_SECTOR_BITS, blankbuf,
+                           BDRV_SECTOR_SIZE, 0) < 0) {
                 goto fail;
             }
-            if (blk_read(s->blk_cur, erasesec, tmpbuf, 1) < 0) {
+            if (blk_pread(s->blk_cur, erasesec << BDRV_SECTOR_BITS, tmpbuf,
+                          BDRV_SECTOR_SIZE) < 0) {
                 goto fail;
             }
             memcpy(tmpbuf + ((sec & 31) << 4), blankbuf, 1 << 4);
-            if (blk_write(s->blk_cur, erasesec, tmpbuf, 1) < 0) {
+            if (blk_pwrite(s->blk_cur, erasesec << BDRV_SECTOR_BITS, tmpbuf,
+                           BDRV_SECTOR_SIZE, 0) < 0) {
                 goto fail;
             }
         } else {

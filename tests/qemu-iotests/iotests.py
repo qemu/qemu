@@ -47,7 +47,7 @@ if os.environ.get('QEMU_OPTIONS'):
 
 imgfmt = os.environ.get('IMGFMT', 'raw')
 imgproto = os.environ.get('IMGPROTO', 'file')
-test_dir = os.environ.get('TEST_DIR', '/var/tmp')
+test_dir = os.environ.get('TEST_DIR')
 output_dir = os.environ.get('OUTPUT_DIR', '.')
 cachemode = os.environ.get('CACHEMODE')
 qemu_default_machine = os.environ.get('QEMU_DEFAULT_MACHINE')
@@ -460,6 +460,14 @@ def verify_quorum():
 
 def main(supported_fmts=[], supported_oses=['linux']):
     '''Run tests'''
+
+    # We are using TEST_DIR and QEMU_DEFAULT_MACHINE as proxies to
+    # indicate that we're not being run via "check". There may be
+    # other things set up by "check" that individual test cases rely
+    # on.
+    if test_dir is None or qemu_default_machine is None:
+        sys.stderr.write('Please run this test via the "check" script\n')
+        sys.exit(os.EX_USAGE)
 
     debug = '-d' in sys.argv
     verbosity = 1

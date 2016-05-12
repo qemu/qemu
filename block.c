@@ -218,8 +218,6 @@ void bdrv_get_full_backing_filename(BlockDriverState *bs, char *dest, size_t sz,
 
 void bdrv_register(BlockDriver *bdrv)
 {
-    bdrv_setup_io_funcs(bdrv);
-
     QLIST_INSERT_HEAD(&bdrv_drivers, bdrv, list);
 }
 
@@ -1176,10 +1174,10 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
     return child;
 }
 
-static BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
-                                    BlockDriverState *child_bs,
-                                    const char *child_name,
-                                    const BdrvChildRole *child_role)
+BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
+                             BlockDriverState *child_bs,
+                             const char *child_name,
+                             const BdrvChildRole *child_role)
 {
     BdrvChild *child = bdrv_root_attach_child(child_bs, child_name, child_role);
     QLIST_INSERT_HEAD(&parent_bs->children, child, next);
@@ -2261,7 +2259,6 @@ static void swap_feature_fields(BlockDriverState *bs_top,
 
     assert(!bs_new->throttle_state);
     if (bs_top->throttle_state) {
-        assert(bs_top->io_limits_enabled);
         bdrv_io_limits_enable(bs_new, throttle_group_get_name(bs_top));
         bdrv_io_limits_disable(bs_top);
     }
@@ -3201,6 +3198,7 @@ void bdrv_init_with_whitelist(void)
 
 void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
+    BdrvChild *child;
     Error *local_err = NULL;
     int ret;
 
@@ -3215,13 +3213,20 @@ void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
 
     if (bs->drv->bdrv_invalidate_cache) {
         bs->drv->bdrv_invalidate_cache(bs, &local_err);
-    } else if (bs->file) {
-        bdrv_invalidate_cache(bs->file->bs, &local_err);
+        if (local_err) {
+            bs->open_flags |= BDRV_O_INACTIVE;
+            error_propagate(errp, local_err);
+            return;
+        }
     }
-    if (local_err) {
-        bs->open_flags |= BDRV_O_INACTIVE;
-        error_propagate(errp, local_err);
-        return;
+
+    QLIST_FOREACH(child, &bs->children, next) {
+        bdrv_invalidate_cache(child->bs, &local_err);
+        if (local_err) {
+            bs->open_flags |= BDRV_O_INACTIVE;
+            error_propagate(errp, local_err);
+            return;
+        }
     }
 
     ret = refresh_total_sectors(bs, bs->total_sectors);
@@ -3250,38 +3255,63 @@ void bdrv_invalidate_cache_all(Error **errp)
     }
 }
 
-static int bdrv_inactivate(BlockDriverState *bs)
+static int bdrv_inactivate_recurse(BlockDriverState *bs,
+                                   bool setting_flag)
 {
+    BdrvChild *child;
     int ret;
 
-    if (bs->drv->bdrv_inactivate) {
+    if (!setting_flag && bs->drv->bdrv_inactivate) {
         ret = bs->drv->bdrv_inactivate(bs);
         if (ret < 0) {
             return ret;
         }
     }
 
-    bs->open_flags |= BDRV_O_INACTIVE;
+    QLIST_FOREACH(child, &bs->children, next) {
+        ret = bdrv_inactivate_recurse(child->bs, setting_flag);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    if (setting_flag) {
+        bs->open_flags |= BDRV_O_INACTIVE;
+    }
     return 0;
 }
 
 int bdrv_inactivate_all(void)
 {
     BlockDriverState *bs = NULL;
-    int ret;
+    int ret = 0;
+    int pass;
 
     while ((bs = bdrv_next(bs)) != NULL) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
+        aio_context_acquire(bdrv_get_aio_context(bs));
+    }
 
-        aio_context_acquire(aio_context);
-        ret = bdrv_inactivate(bs);
-        aio_context_release(aio_context);
-        if (ret < 0) {
-            return ret;
+    /* We do two passes of inactivation. The first pass calls to drivers'
+     * .bdrv_inactivate callbacks recursively so all cache is flushed to disk;
+     * the second pass sets the BDRV_O_INACTIVE flag so that no further write
+     * is allowed. */
+    for (pass = 0; pass < 2; pass++) {
+        bs = NULL;
+        while ((bs = bdrv_next(bs)) != NULL) {
+            ret = bdrv_inactivate_recurse(bs, pass);
+            if (ret < 0) {
+                goto out;
+            }
         }
     }
 
-    return 0;
+out:
+    bs = NULL;
+    while ((bs = bdrv_next(bs)) != NULL) {
+        aio_context_release(bdrv_get_aio_context(bs));
+    }
+
+    return ret;
 }
 
 /**************************************************************/
@@ -3980,4 +4010,53 @@ void bdrv_refresh_filename(BlockDriverState *bs)
                  qstring_get_str(json));
         QDECREF(json);
     }
+}
+
+/*
+ * Hot add/remove a BDS's child. So the user can take a child offline when
+ * it is broken and take a new child online
+ */
+void bdrv_add_child(BlockDriverState *parent_bs, BlockDriverState *child_bs,
+                    Error **errp)
+{
+
+    if (!parent_bs->drv || !parent_bs->drv->bdrv_add_child) {
+        error_setg(errp, "The node %s does not support adding a child",
+                   bdrv_get_device_or_node_name(parent_bs));
+        return;
+    }
+
+    if (!QLIST_EMPTY(&child_bs->parents)) {
+        error_setg(errp, "The node %s already has a parent",
+                   child_bs->node_name);
+        return;
+    }
+
+    parent_bs->drv->bdrv_add_child(parent_bs, child_bs, errp);
+}
+
+void bdrv_del_child(BlockDriverState *parent_bs, BdrvChild *child, Error **errp)
+{
+    BdrvChild *tmp;
+
+    if (!parent_bs->drv || !parent_bs->drv->bdrv_del_child) {
+        error_setg(errp, "The node %s does not support removing a child",
+                   bdrv_get_device_or_node_name(parent_bs));
+        return;
+    }
+
+    QLIST_FOREACH(tmp, &parent_bs->children, next) {
+        if (tmp == child) {
+            break;
+        }
+    }
+
+    if (!tmp) {
+        error_setg(errp, "The node %s does not have a child named %s",
+                   bdrv_get_device_or_node_name(parent_bs),
+                   bdrv_get_device_or_node_name(child->bs));
+        return;
+    }
+
+    parent_bs->drv->bdrv_del_child(parent_bs, child, errp);
 }

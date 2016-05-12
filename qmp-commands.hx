@@ -4398,6 +4398,59 @@ Example:
 EQMP
 
     {
+        .name       = "x-blockdev-change",
+        .args_type  = "parent:B,child:B?,node:B?",
+        .mhandler.cmd_new = qmp_marshal_x_blockdev_change,
+    },
+
+SQMP
+x-blockdev-change
+-----------------
+
+Dynamically reconfigure the block driver state graph. It can be used
+to add, remove, insert or replace a graph node. Currently only the
+Quorum driver implements this feature to add or remove its child. This
+is useful to fix a broken quorum child.
+
+If @node is specified, it will be inserted under @parent. @child
+may not be specified in this case. If both @parent and @child are
+specified but @node is not, @child will be detached from @parent.
+
+Arguments:
+- "parent": the id or name of the parent node (json-string)
+- "child": the name of a child under the given parent node (json-string, optional)
+- "node": the name of the node that will be added (json-string, optional)
+
+Note: this command is experimental, and not a stable API. It doesn't
+support all kinds of operations, all kinds of children, nor all block
+drivers.
+
+Warning: The data in a new quorum child MUST be consistent with that of
+the rest of the array.
+
+Example:
+
+Add a new node to a quorum
+-> { "execute": "blockdev-add",
+     "arguments": { "options": { "driver": "raw",
+                                 "node-name": "new_node",
+                                 "file": { "driver": "file",
+                                           "filename": "test.raw" } } } }
+<- { "return": {} }
+-> { "execute": "x-blockdev-change",
+     "arguments": { "parent": "disk1",
+                    "node": "new_node" } }
+<- { "return": {} }
+
+Delete a quorum's node
+-> { "execute": "x-blockdev-change",
+     "arguments": { "parent": "disk1",
+                    "child": "children.1" } }
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "query-named-block-nodes",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_query_named_block_nodes,

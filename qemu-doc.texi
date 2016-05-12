@@ -693,6 +693,9 @@ Supported options:
 File name of a base image (see @option{create} subcommand).
 @item compat6
 Create a VMDK version 6 image (instead of version 4)
+@item hwversion
+Specify vmdk virtual hardware version. Compat6 flag cannot be enabled
+if hwversion is specified.
 @item subformat
 Specifies which VMDK subformat to use. Valid options are
 @code{monolithicSparse} (default),

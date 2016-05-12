@@ -358,25 +358,21 @@ static void blk_sync_complete(void *opaque, int ret)
 
 static void flash_sync_page(Flash *s, int page)
 {
-    int blk_sector, nb_sectors;
     QEMUIOVector iov;
 
     if (!s->blk || blk_is_read_only(s->blk)) {
         return;
     }
 
-    blk_sector = (page * s->pi->page_size) / BDRV_SECTOR_SIZE;
-    nb_sectors = DIV_ROUND_UP(s->pi->page_size, BDRV_SECTOR_SIZE);
     qemu_iovec_init(&iov, 1);
-    qemu_iovec_add(&iov, s->storage + blk_sector * BDRV_SECTOR_SIZE,
-                   nb_sectors * BDRV_SECTOR_SIZE);
-    blk_aio_writev(s->blk, blk_sector, &iov, nb_sectors, blk_sync_complete,
-                   NULL);
+    qemu_iovec_add(&iov, s->storage + page * s->pi->page_size,
+                   s->pi->page_size);
+    blk_aio_pwritev(s->blk, page * s->pi->page_size, &iov, 0,
+                    blk_sync_complete, NULL);
 }
 
 static inline void flash_sync_area(Flash *s, int64_t off, int64_t len)
 {
-    int64_t start, end, nb_sectors;
     QEMUIOVector iov;
 
     if (!s->blk || blk_is_read_only(s->blk)) {
@@ -384,13 +380,9 @@ static inline void flash_sync_area(Flash *s, int64_t off, int64_t len)
     }
 
     assert(!(len % BDRV_SECTOR_SIZE));
-    start = off / BDRV_SECTOR_SIZE;
-    end = (off + len) / BDRV_SECTOR_SIZE;
-    nb_sectors = end - start;
     qemu_iovec_init(&iov, 1);
-    qemu_iovec_add(&iov, s->storage + (start * BDRV_SECTOR_SIZE),
-                                        nb_sectors * BDRV_SECTOR_SIZE);
-    blk_aio_writev(s->blk, start, &iov, nb_sectors, blk_sync_complete, NULL);
+    qemu_iovec_add(&iov, s->storage + off, len);
+    blk_aio_pwritev(s->blk, off, &iov, 0, blk_sync_complete, NULL);
 }
 
 static void flash_erase(Flash *s, int offset, FlashCMD cmd)
@@ -907,8 +899,7 @@ static int m25p80_init(SSISlave *ss)
         s->storage = blk_blockalign(s->blk, s->size);
 
         /* FIXME: Move to late init */
-        if (blk_read(s->blk, 0, s->storage,
-                     DIV_ROUND_UP(s->size, BDRV_SECTOR_SIZE))) {
+        if (blk_pread(s->blk, 0, s->storage, s->size)) {
             fprintf(stderr, "Failed to initialize SPI flash!\n");
             return 1;
         }

@@ -105,8 +105,8 @@ raw_co_writev_flags(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
-    ret = bdrv_co_do_pwritev(bs->file->bs, sector_num * BDRV_SECTOR_SIZE,
-                             nb_sectors * BDRV_SECTOR_SIZE, qiov, flags);
+    ret = bdrv_co_pwritev(bs->file->bs, sector_num * BDRV_SECTOR_SIZE,
+                          nb_sectors * BDRV_SECTOR_SIZE, qiov, flags);
 
 fail:
     if (qiov == &local_qiov) {
@@ -114,13 +114,6 @@ fail:
     }
     qemu_vfree(buf);
     return ret;
-}
-
-static int coroutine_fn
-raw_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
-              QEMUIOVector *qiov)
-{
-    return raw_co_writev_flags(bs, sector_num, nb_sectors, qiov, 0);
 }
 
 static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
@@ -211,6 +204,8 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
     bs->sg = bs->file->bs->sg;
+    bs->supported_write_flags = BDRV_REQ_FUA;
+    bs->supported_zero_flags = BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP;
 
     if (bs->probed && !bdrv_is_read_only(bs)) {
         fprintf(stderr,
@@ -256,9 +251,7 @@ BlockDriver bdrv_raw = {
     .bdrv_close           = &raw_close,
     .bdrv_create          = &raw_create,
     .bdrv_co_readv        = &raw_co_readv,
-    .bdrv_co_writev       = &raw_co_writev,
     .bdrv_co_writev_flags = &raw_co_writev_flags,
-    .supported_write_flags = BDRV_REQ_FUA,
     .bdrv_co_write_zeroes = &raw_co_write_zeroes,
     .bdrv_co_discard      = &raw_co_discard,
     .bdrv_co_get_block_status = &raw_co_get_block_status,

@@ -32,9 +32,9 @@ Unsupported value 'blubb' for qcow2 option 'overlap-check'. Allowed are any of t
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 ./common.config: Killed                  ( if [ "${VALGRIND_QEMU}" == "y" ]; then
-    exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@";
+    exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 "$QEMU_IO_PROG" $QEMU_IO_ARGS "$@";
 else
-    exec "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@";
+    exec "$QEMU_IO_PROG" $QEMU_IO_ARGS "$@";
 fi )
 incompatible_features     0x0
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864

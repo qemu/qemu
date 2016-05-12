@@ -355,31 +355,6 @@ static int nbd_co_readv(BlockDriverState *bs, int64_t sector_num,
     return nbd_client_co_readv(bs, sector_num, nb_sectors, qiov);
 }
 
-static int nbd_co_writev_flags(BlockDriverState *bs, int64_t sector_num,
-                               int nb_sectors, QEMUIOVector *qiov, int flags)
-{
-    int ret;
-
-    ret = nbd_client_co_writev(bs, sector_num, nb_sectors, qiov, &flags);
-    if (ret < 0) {
-        return ret;
-    }
-
-    /* The flag wasn't sent to the server, so we need to emulate it with an
-     * explicit flush */
-    if (flags & BDRV_REQ_FUA) {
-        ret = nbd_client_co_flush(bs);
-    }
-
-    return ret;
-}
-
-static int nbd_co_writev(BlockDriverState *bs, int64_t sector_num,
-                         int nb_sectors, QEMUIOVector *qiov)
-{
-    return nbd_co_writev_flags(bs, sector_num, nb_sectors, qiov, 0);
-}
-
 static int nbd_co_flush(BlockDriverState *bs)
 {
     return nbd_client_co_flush(bs);
@@ -476,9 +451,7 @@ static BlockDriver bdrv_nbd = {
     .bdrv_parse_filename        = nbd_parse_filename,
     .bdrv_file_open             = nbd_open,
     .bdrv_co_readv              = nbd_co_readv,
-    .bdrv_co_writev             = nbd_co_writev,
-    .bdrv_co_writev_flags       = nbd_co_writev_flags,
-    .supported_write_flags      = BDRV_REQ_FUA,
+    .bdrv_co_writev_flags       = nbd_client_co_writev,
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
     .bdrv_co_discard            = nbd_co_discard,
@@ -496,9 +469,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_parse_filename        = nbd_parse_filename,
     .bdrv_file_open             = nbd_open,
     .bdrv_co_readv              = nbd_co_readv,
-    .bdrv_co_writev             = nbd_co_writev,
-    .bdrv_co_writev_flags       = nbd_co_writev_flags,
-    .supported_write_flags      = BDRV_REQ_FUA,
+    .bdrv_co_writev_flags       = nbd_client_co_writev,
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
     .bdrv_co_discard            = nbd_co_discard,
@@ -516,9 +487,7 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_parse_filename        = nbd_parse_filename,
     .bdrv_file_open             = nbd_open,
     .bdrv_co_readv              = nbd_co_readv,
-    .bdrv_co_writev             = nbd_co_writev,
-    .bdrv_co_writev_flags       = nbd_co_writev_flags,
-    .supported_write_flags      = BDRV_REQ_FUA,
+    .bdrv_co_writev_flags       = nbd_client_co_writev,
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
     .bdrv_co_discard            = nbd_co_discard,

@@ -124,7 +124,7 @@ static void rtas_nvram_store(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     alen = len;
     if (nvram->blk) {
-        alen = blk_pwrite(nvram->blk, offset, membuf, len);
+        alen = blk_pwrite(nvram->blk, offset, membuf, len, 0);
     }
 
     assert(nvram->buf);
@@ -190,7 +190,7 @@ static int spapr_nvram_post_load(void *opaque, int version_id)
     sPAPRNVRAM *nvram = VIO_SPAPR_NVRAM(opaque);
 
     if (nvram->blk) {
-        int alen = blk_pwrite(nvram->blk, 0, nvram->buf, nvram->size);
+        int alen = blk_pwrite(nvram->blk, 0, nvram->buf, nvram->size, 0);
 
         if (alen < 0) {
             return alen;

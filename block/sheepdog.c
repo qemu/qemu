@@ -294,13 +294,16 @@ static inline size_t count_data_objs(const struct SheepdogInode *inode)
 
 #undef DPRINTF
 #ifdef DEBUG_SDOG
-#define DPRINTF(fmt, args...)                                       \
-    do {                                                            \
-        fprintf(stdout, "%s %d: " fmt, __func__, __LINE__, ##args); \
-    } while (0)
+#define DEBUG_SDOG_PRINT 1
 #else
-#define DPRINTF(fmt, args...)
+#define DEBUG_SDOG_PRINT 0
 #endif
+#define DPRINTF(fmt, args...)                                           \
+    do {                                                                \
+        if (DEBUG_SDOG_PRINT) {                                         \
+            fprintf(stderr, "%s %d: " fmt, __func__, __LINE__, ##args); \
+        }                                                               \
+    } while (0)
 
 typedef struct SheepdogAIOCB SheepdogAIOCB;
 
@@ -1678,7 +1681,7 @@ static int sd_prealloc(const char *filename, Error **errp)
         if (ret < 0) {
             goto out;
         }
-        ret = blk_pwrite(blk, idx * buf_size, buf, buf_size);
+        ret = blk_pwrite(blk, idx * buf_size, buf, buf_size, 0);
         if (ret < 0) {
             goto out;
         }

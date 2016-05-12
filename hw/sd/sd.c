@@ -123,7 +123,6 @@ struct SDState {
     qemu_irq readonly_cb;
     qemu_irq inserted_cb;
     BlockBackend *blk;
-    uint8_t *buf;
 
     bool enable;
 };
@@ -551,7 +550,7 @@ static const VMStateDescription sd_vmstate = {
         VMSTATE_UINT64(data_start, SDState),
         VMSTATE_UINT32(data_offset, SDState),
         VMSTATE_UINT8_ARRAY(data, SDState, 512),
-        VMSTATE_BUFFER_POINTER_UNSAFE(buf, SDState, 1, 512),
+        VMSTATE_UNUSED_V(1, 512),
         VMSTATE_BOOL(enable, SDState),
         VMSTATE_END_OF_LIST()
     },
@@ -1577,57 +1576,17 @@ send_response:
 
 static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
 {
-    uint64_t end = addr + len;
-
     DPRINTF("sd_blk_read: addr = 0x%08llx, len = %d\n",
             (unsigned long long) addr, len);
-    if (!sd->blk || blk_read(sd->blk, addr >> 9, sd->buf, 1) < 0) {
+    if (!sd->blk || blk_pread(sd->blk, addr, sd->data, len) < 0) {
         fprintf(stderr, "sd_blk_read: read error on host side\n");
-        return;
     }
-
-    if (end > (addr & ~511) + 512) {
-        memcpy(sd->data, sd->buf + (addr & 511), 512 - (addr & 511));
-
-        if (blk_read(sd->blk, end >> 9, sd->buf, 1) < 0) {
-            fprintf(stderr, "sd_blk_read: read error on host side\n");
-            return;
-        }
-        memcpy(sd->data + 512 - (addr & 511), sd->buf, end & 511);
-    } else
-        memcpy(sd->data, sd->buf + (addr & 511), len);
 }
 
 static void sd_blk_write(SDState *sd, uint64_t addr, uint32_t len)
 {
-    uint64_t end = addr + len;
-
-    if ((addr & 511) || len < 512)
-        if (!sd->blk || blk_read(sd->blk, addr >> 9, sd->buf, 1) < 0) {
-            fprintf(stderr, "sd_blk_write: read error on host side\n");
-            return;
-        }
-
-    if (end > (addr & ~511) + 512) {
-        memcpy(sd->buf + (addr & 511), sd->data, 512 - (addr & 511));
-        if (blk_write(sd->blk, addr >> 9, sd->buf, 1) < 0) {
-            fprintf(stderr, "sd_blk_write: write error on host side\n");
-            return;
-        }
-
-        if (blk_read(sd->blk, end >> 9, sd->buf, 1) < 0) {
-            fprintf(stderr, "sd_blk_write: read error on host side\n");
-            return;
-        }
-        memcpy(sd->buf, sd->data + 512 - (addr & 511), end & 511);
-        if (blk_write(sd->blk, end >> 9, sd->buf, 1) < 0) {
-            fprintf(stderr, "sd_blk_write: write error on host side\n");
-        }
-    } else {
-        memcpy(sd->buf + (addr & 511), sd->data, len);
-        if (!sd->blk || blk_write(sd->blk, addr >> 9, sd->buf, 1) < 0) {
-            fprintf(stderr, "sd_blk_write: write error on host side\n");
-        }
+    if (!sd->blk || blk_pwrite(sd->blk, addr, sd->data, len, 0) < 0) {
+        fprintf(stderr, "sd_blk_write: write error on host side\n");
     }
 }
 
@@ -1924,8 +1883,6 @@ static void sd_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "Cannot use read-only drive as SD card");
         return;
     }
-
-    sd->buf = blk_blockalign(sd->blk, 512);
 
     if (sd->blk) {
         blk_set_dev_ops(sd->blk, &sd_block_ops, sd);

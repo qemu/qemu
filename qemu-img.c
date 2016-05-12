@@ -1088,7 +1088,8 @@ static int check_empty_sectors(BlockBackend *blk, int64_t sect_num,
                                uint8_t *buffer, bool quiet)
 {
     int pnum, ret = 0;
-    ret = blk_read(blk, sect_num, buffer, sect_count);
+    ret = blk_pread(blk, sect_num << BDRV_SECTOR_BITS, buffer,
+                    sect_count << BDRV_SECTOR_BITS);
     if (ret < 0) {
         error_report("Error while reading offset %" PRId64 " of %s: %s",
                      sectors_to_bytes(sect_num), filename, strerror(-ret));
@@ -1301,7 +1302,8 @@ static int img_compare(int argc, char **argv)
             nb_sectors = MIN(pnum1, pnum2);
         } else if (allocated1 == allocated2) {
             if (allocated1) {
-                ret = blk_read(blk1, sector_num, buf1, nb_sectors);
+                ret = blk_pread(blk1, sector_num << BDRV_SECTOR_BITS, buf1,
+                                nb_sectors << BDRV_SECTOR_BITS);
                 if (ret < 0) {
                     error_report("Error while reading offset %" PRId64 " of %s:"
                                  " %s", sectors_to_bytes(sector_num), filename1,
@@ -1309,7 +1311,8 @@ static int img_compare(int argc, char **argv)
                     ret = 4;
                     goto out;
                 }
-                ret = blk_read(blk2, sector_num, buf2, nb_sectors);
+                ret = blk_pread(blk2, sector_num << BDRV_SECTOR_BITS, buf2,
+                                nb_sectors << BDRV_SECTOR_BITS);
                 if (ret < 0) {
                     error_report("Error while reading offset %" PRId64
                                  " of %s: %s", sectors_to_bytes(sector_num),
@@ -1472,10 +1475,21 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
         } else if (!s->target_has_backing) {
             /* Without a target backing file we must copy over the contents of
              * the backing file as well. */
-            /* TODO Check block status of the backing file chain to avoid
+            /* Check block status of the backing file chain to avoid
              * needlessly reading zeroes and limiting the iteration to the
              * buffer size */
-            s->status = BLK_DATA;
+            ret = bdrv_get_block_status_above(blk_bs(s->src[s->src_cur]), NULL,
+                                              sector_num - s->src_cur_offset,
+                                              n, &n, &file);
+            if (ret < 0) {
+                return ret;
+            }
+
+            if (ret & BDRV_BLOCK_ZERO) {
+                s->status = BLK_ZERO;
+            } else {
+                s->status = BLK_DATA;
+            }
         } else {
             s->status = BLK_BACKING_FILE;
         }
@@ -1522,7 +1536,9 @@ static int convert_read(ImgConvertState *s, int64_t sector_num, int nb_sectors,
         bs_sectors = s->src_sectors[s->src_cur];
 
         n = MIN(nb_sectors, bs_sectors - (sector_num - s->src_cur_offset));
-        ret = blk_read(blk, sector_num - s->src_cur_offset, buf, n);
+        ret = blk_pread(blk,
+                        (sector_num - s->src_cur_offset) << BDRV_SECTOR_BITS,
+                        buf, n << BDRV_SECTOR_BITS);
         if (ret < 0) {
             return ret;
         }
@@ -1577,7 +1593,8 @@ static int convert_write(ImgConvertState *s, int64_t sector_num, int nb_sectors,
             if (!s->min_sparse ||
                 is_allocated_sectors_min(buf, n, &n, s->min_sparse))
             {
-                ret = blk_write(s->target, sector_num, buf, n);
+                ret = blk_pwrite(s->target, sector_num << BDRV_SECTOR_BITS,
+                                 buf, n << BDRV_SECTOR_BITS, 0);
                 if (ret < 0) {
                     return ret;
                 }
@@ -1589,7 +1606,8 @@ static int convert_write(ImgConvertState *s, int64_t sector_num, int nb_sectors,
             if (s->has_zero_init) {
                 break;
             }
-            ret = blk_write_zeroes(s->target, sector_num, n, 0);
+            ret = blk_write_zeroes(s->target, sector_num << BDRV_SECTOR_BITS,
+                                   n << BDRV_SECTOR_BITS, 0);
             if (ret < 0) {
                 return ret;
             }
@@ -3023,7 +3041,8 @@ static int img_rebase(int argc, char **argv)
                     n = old_backing_num_sectors - sector;
                 }
 
-                ret = blk_read(blk_old_backing, sector, buf_old, n);
+                ret = blk_pread(blk_old_backing, sector << BDRV_SECTOR_BITS,
+                                buf_old, n << BDRV_SECTOR_BITS);
                 if (ret < 0) {
                     error_report("error while reading from old backing file");
                     goto out;
@@ -3037,7 +3056,8 @@ static int img_rebase(int argc, char **argv)
                     n = new_backing_num_sectors - sector;
                 }
 
-                ret = blk_read(blk_new_backing, sector, buf_new, n);
+                ret = blk_pread(blk_new_backing, sector << BDRV_SECTOR_BITS,
+                                buf_new, n << BDRV_SECTOR_BITS);
                 if (ret < 0) {
                     error_report("error while reading from new backing file");
                     goto out;
@@ -3053,8 +3073,10 @@ static int img_rebase(int argc, char **argv)
                 if (compare_sectors(buf_old + written * 512,
                     buf_new + written * 512, n - written, &pnum))
                 {
-                    ret = blk_write(blk, sector + written,
-                                    buf_old + written * 512, pnum);
+                    ret = blk_pwrite(blk,
+                                     (sector + written) << BDRV_SECTOR_BITS,
+                                     buf_old + written * 512,
+                                     pnum << BDRV_SECTOR_BITS, 0);
                     if (ret < 0) {
                         error_report("Error while writing to COW image: %s",
                             strerror(-ret));

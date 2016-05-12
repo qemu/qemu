@@ -48,7 +48,7 @@ int nbd_client_co_discard(BlockDriverState *bs, int64_t sector_num,
                           int nb_sectors);
 int nbd_client_co_flush(BlockDriverState *bs);
 int nbd_client_co_writev(BlockDriverState *bs, int64_t sector_num,
-                         int nb_sectors, QEMUIOVector *qiov, int *flags);
+                         int nb_sectors, QEMUIOVector *qiov, int flags);
 int nbd_client_co_readv(BlockDriverState *bs, int64_t sector_num,
                         int nb_sectors, QEMUIOVector *qiov);
 

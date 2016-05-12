@@ -197,8 +197,8 @@ void qemu_sglist_add(QEMUSGList *qsg, dma_addr_t base, dma_addr_t len);
 void qemu_sglist_destroy(QEMUSGList *qsg);
 #endif
 
-typedef BlockAIOCB *DMAIOFunc(BlockBackend *blk, int64_t sector_num,
-                              QEMUIOVector *iov, int nb_sectors,
+typedef BlockAIOCB *DMAIOFunc(BlockBackend *blk, int64_t offset,
+                              QEMUIOVector *iov, BdrvRequestFlags flags,
                               BlockCompletionFunc *cb, void *opaque);
 
 BlockAIOCB *dma_blk_io(BlockBackend *blk,
