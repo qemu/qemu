@@ -3618,7 +3618,7 @@ long do_sigreturn(CPUMBState *env)
     env->regs[14] = env->sregs[SR_PC];
 
     unlock_user_struct(frame, frame_addr, 0);
-    return env->regs[10];
+    return -TARGET_QEMU_ESIGRETURN;
 badframe:
     force_sig(TARGET_SIGSEGV);
 }

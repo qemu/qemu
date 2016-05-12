@@ -2982,7 +2982,12 @@ void cpu_loop(CPUMBState *env)
                              env->regs[9], 
                              env->regs[10],
                              0, 0);
-            env->regs[3] = ret;
+            if (ret == -TARGET_ERESTARTSYS) {
+                /* Wind back to before the syscall. */
+                env->sregs[SR_PC] -= 4;
+            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                env->regs[3] = ret;
+            }
             /* All syscall exits result in guest r14 being equal to the
              * PC we return to, because the kernel syscall exit "rtbd" does
              * this. (This is true even for sigreturn(); note that r14 is
