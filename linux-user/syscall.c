@@ -359,18 +359,6 @@ static int sys_getcwd1(char *buf, size_t size)
   return strlen(buf)+1;
 }
 
-static int sys_openat(int dirfd, const char *pathname, int flags, mode_t mode)
-{
-  /*
-   * open(2) has extra parameter 'mode' when called with
-   * flag O_CREAT.
-   */
-  if ((flags & O_CREAT) != 0) {
-      return (openat(dirfd, pathname, flags, mode));
-  }
-  return (openat(dirfd, pathname, flags));
-}
-
 #ifdef TARGET_NR_utimensat
 #ifdef CONFIG_UTIMENSAT
 static int sys_utimensat(int dirfd, const char *pathname,
@@ -709,6 +697,8 @@ static type safe_##name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, \
 
 safe_syscall3(ssize_t, read, int, fd, void *, buff, size_t, count)
 safe_syscall3(ssize_t, write, int, fd, const void *, buff, size_t, count)
+safe_syscall4(int, openat, int, dirfd, const char *, pathname, \
+              int, flags, mode_t, mode)
 
 static inline int host_to_target_sock_type(int host_type)
 {
@@ -5851,7 +5841,7 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, 
 
     if (is_proc_myself(pathname, "exe")) {
         int execfd = qemu_getauxval(AT_EXECFD);
-        return execfd ? execfd : sys_openat(dirfd, exec_path, flags, mode);
+        return execfd ? execfd : safe_openat(dirfd, exec_path, flags, mode);
     }
 
     for (fake_open = fakes; fake_open->filename; fake_open++) {
@@ -5887,7 +5877,7 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, 
         return fd;
     }
 
-    return sys_openat(dirfd, path(pathname), flags, mode);
+    return safe_openat(dirfd, path(pathname), flags, mode);
 }
 
 #define TIMER_MAGIC 0x0caf0000
