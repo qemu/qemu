@@ -181,185 +181,6 @@ static void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
     dst[CPUID_VENDOR_SZ] = '\0';
 }
 
-/* feature flags taken from "Intel Processor Identification and the CPUID
- * Instruction" and AMD's "CPUID Specification".  In cases of disagreement
- * between feature naming conventions, aliases may be added.
- */
-static const char *feature_name[] = {
-    "fpu", "vme", "de", "pse",
-    "tsc", "msr", "pae", "mce",
-    "cx8", "apic", NULL, "sep",
-    "mtrr", "pge", "mca", "cmov",
-    "pat", "pse36", "pn" /* Intel psn */, "clflush" /* Intel clfsh */,
-    NULL, "ds" /* Intel dts */, "acpi", "mmx",
-    "fxsr", "sse", "sse2", "ss",
-    "ht" /* Intel htt */, "tm", "ia64", "pbe",
-};
-static const char *ext_feature_name[] = {
-    "pni|sse3" /* Intel,AMD sse3 */, "pclmulqdq|pclmuldq", "dtes64", "monitor",
-    "ds_cpl", "vmx", "smx", "est",
-    "tm2", "ssse3", "cid", NULL,
-    "fma", "cx16", "xtpr", "pdcm",
-    NULL, "pcid", "dca", "sse4.1|sse4_1",
-    "sse4.2|sse4_2", "x2apic", "movbe", "popcnt",
-    "tsc-deadline", "aes", "xsave", "osxsave",
-    "avx", "f16c", "rdrand", "hypervisor",
-};
-/* Feature names that are already defined on feature_name[] but are set on
- * CPUID[8000_0001].EDX on AMD CPUs don't have their names on
- * ext2_feature_name[]. They are copied automatically to cpuid_ext2_features
- * if and only if CPU vendor is AMD.
- */
-static const char *ext2_feature_name[] = {
-    NULL /* fpu */, NULL /* vme */, NULL /* de */, NULL /* pse */,
-    NULL /* tsc */, NULL /* msr */, NULL /* pae */, NULL /* mce */,
-    NULL /* cx8 */ /* AMD CMPXCHG8B */, NULL /* apic */, NULL, "syscall",
-    NULL /* mtrr */, NULL /* pge */, NULL /* mca */, NULL /* cmov */,
-    NULL /* pat */, NULL /* pse36 */, NULL, NULL /* Linux mp */,
-    "nx|xd", NULL, "mmxext", NULL /* mmx */,
-    NULL /* fxsr */, "fxsr_opt|ffxsr", "pdpe1gb" /* AMD Page1GB */, "rdtscp",
-    NULL, "lm|i64", "3dnowext", "3dnow",
-};
-static const char *ext3_feature_name[] = {
-    "lahf_lm" /* AMD LahfSahf */, "cmp_legacy", "svm", "extapic" /* AMD ExtApicSpace */,
-    "cr8legacy" /* AMD AltMovCr8 */, "abm", "sse4a", "misalignsse",
-    "3dnowprefetch", "osvw", "ibs", "xop",
-    "skinit", "wdt", NULL, "lwp",
-    "fma4", "tce", NULL, "nodeid_msr",
-    NULL, "tbm", "topoext", "perfctr_core",
-    "perfctr_nb", NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-};
-
-static const char *ext4_feature_name[] = {
-    NULL, NULL, "xstore", "xstore-en",
-    NULL, NULL, "xcrypt", "xcrypt-en",
-    "ace2", "ace2-en", "phe", "phe-en",
-    "pmm", "pmm-en", NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-};
-
-static const char *kvm_feature_name[] = {
-    "kvmclock", "kvm_nopiodelay", "kvm_mmu", "kvmclock",
-    "kvm_asyncpf", "kvm_steal_time", "kvm_pv_eoi", "kvm_pv_unhalt",
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    "kvmclock-stable-bit", NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-};
-
-static const char *hyperv_priv_feature_name[] = {
-    NULL /* hv_msr_vp_runtime_access */, NULL /* hv_msr_time_refcount_access */,
-    NULL /* hv_msr_synic_access */, NULL /* hv_msr_stimer_access */,
-    NULL /* hv_msr_apic_access */, NULL /* hv_msr_hypercall_access */,
-    NULL /* hv_vpindex_access */, NULL /* hv_msr_reset_access */,
-    NULL /* hv_msr_stats_access */, NULL /* hv_reftsc_access */,
-    NULL /* hv_msr_idle_access */, NULL /* hv_msr_frequency_access */,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-};
-
-static const char *hyperv_ident_feature_name[] = {
-    NULL /* hv_create_partitions */, NULL /* hv_access_partition_id */,
-    NULL /* hv_access_memory_pool */, NULL /* hv_adjust_message_buffers */,
-    NULL /* hv_post_messages */, NULL /* hv_signal_events */,
-    NULL /* hv_create_port */, NULL /* hv_connect_port */,
-    NULL /* hv_access_stats */, NULL, NULL, NULL /* hv_debugging */,
-    NULL /* hv_cpu_power_management */, NULL /* hv_configure_profiler */,
-    NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-};
-
-static const char *hyperv_misc_feature_name[] = {
-    NULL /* hv_mwait */, NULL /* hv_guest_debugging */,
-    NULL /* hv_perf_monitor */, NULL /* hv_cpu_dynamic_part */,
-    NULL /* hv_hypercall_params_xmm */, NULL /* hv_guest_idle_state */,
-    NULL, NULL,
-    NULL, NULL, NULL /* hv_guest_crash_msr */, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-};
-
-static const char *svm_feature_name[] = {
-    "npt", "lbrv", "svm_lock", "nrip_save",
-    "tsc_scale", "vmcb_clean",  "flushbyasid", "decodeassists",
-    NULL, NULL, "pause_filter", NULL,
-    "pfthreshold", NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-};
-
-static const char *cpuid_7_0_ebx_feature_name[] = {
-    "fsgsbase", "tsc_adjust", NULL, "bmi1",
-    "hle", "avx2", NULL, "smep",
-    "bmi2", "erms", "invpcid", "rtm",
-    NULL, NULL, "mpx", NULL,
-    "avx512f", "avx512dq", "rdseed", "adx",
-    "smap", "avx512ifma", "pcommit", "clflushopt",
-    "clwb", NULL, "avx512pf", "avx512er",
-    "avx512cd", NULL, "avx512bw", "avx512vl",
-};
-
-static const char *cpuid_7_0_ecx_feature_name[] = {
-    NULL, "avx512vbmi", "umip", "pku",
-    "ospke", NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, "rdpid", NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-};
-
-static const char *cpuid_apm_edx_feature_name[] = {
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    "invtsc", NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-};
-
-static const char *cpuid_xsave_feature_name[] = {
-    "xsaveopt", "xsavec", "xgetbv1", "xsaves",
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-};
-
-static const char *cpuid_6_feature_name[] = {
-    NULL, NULL, "arat", NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
-};
-
 #define I486_FEATURES (CPUID_FP87 | CPUID_VME | CPUID_PSE)
 #define PENTIUM_FEATURES (I486_FEATURES | CPUID_DE | CPUID_TSC | \
           CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_MMX | CPUID_APIC)
@@ -425,7 +246,12 @@ static const char *cpuid_6_feature_name[] = {
           CPUID_XSAVE_XSAVEC, CPUID_XSAVE_XSAVES */
 
 typedef struct FeatureWordInfo {
-    const char **feat_names;
+    /* feature flags names are taken from "Intel Processor Identification and
+     * the CPUID Instruction" and AMD's "CPUID Specification".
+     * In cases of disagreement between feature naming conventions,
+     * aliases may be added.
+     */
+    const char *feat_names[32];
     uint32_t cpuid_eax;   /* Input EAX for CPUID */
     bool cpuid_needs_ecx; /* CPUID instruction uses ECX as input */
     uint32_t cpuid_ecx;   /* Input ECX value for CPUID */
@@ -436,82 +262,230 @@ typedef struct FeatureWordInfo {
 
 static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     [FEAT_1_EDX] = {
-        .feat_names = feature_name,
+        .feat_names = {
+            "fpu", "vme", "de", "pse",
+            "tsc", "msr", "pae", "mce",
+            "cx8", "apic", NULL, "sep",
+            "mtrr", "pge", "mca", "cmov",
+            "pat", "pse36", "pn" /* Intel psn */, "clflush" /* Intel clfsh */,
+            NULL, "ds" /* Intel dts */, "acpi", "mmx",
+            "fxsr", "sse", "sse2", "ss",
+            "ht" /* Intel htt */, "tm", "ia64", "pbe",
+        },
         .cpuid_eax = 1, .cpuid_reg = R_EDX,
         .tcg_features = TCG_FEATURES,
     },
     [FEAT_1_ECX] = {
-        .feat_names = ext_feature_name,
+        .feat_names = {
+            "pni|sse3" /* Intel,AMD sse3 */, "pclmulqdq|pclmuldq", "dtes64", "monitor",
+            "ds_cpl", "vmx", "smx", "est",
+            "tm2", "ssse3", "cid", NULL,
+            "fma", "cx16", "xtpr", "pdcm",
+            NULL, "pcid", "dca", "sse4.1|sse4_1",
+            "sse4.2|sse4_2", "x2apic", "movbe", "popcnt",
+            "tsc-deadline", "aes", "xsave", "osxsave",
+            "avx", "f16c", "rdrand", "hypervisor",
+        },
         .cpuid_eax = 1, .cpuid_reg = R_ECX,
         .tcg_features = TCG_EXT_FEATURES,
     },
+    /* Feature names that are already defined on feature_name[] but
+     * are set on CPUID[8000_0001].EDX on AMD CPUs don't have their
+     * names on feat_names below. They are copied automatically
+     * to features[FEAT_8000_0001_EDX] if and only if CPU vendor is AMD.
+     */
     [FEAT_8000_0001_EDX] = {
-        .feat_names = ext2_feature_name,
+        .feat_names = {
+            NULL /* fpu */, NULL /* vme */, NULL /* de */, NULL /* pse */,
+            NULL /* tsc */, NULL /* msr */, NULL /* pae */, NULL /* mce */,
+            NULL /* cx8 */, NULL /* apic */, NULL, "syscall",
+            NULL /* mtrr */, NULL /* pge */, NULL /* mca */, NULL /* cmov */,
+            NULL /* pat */, NULL /* pse36 */, NULL, NULL /* Linux mp */,
+            "nx|xd", NULL, "mmxext", NULL /* mmx */,
+            NULL /* fxsr */, "fxsr_opt|ffxsr", "pdpe1gb", "rdtscp",
+            NULL, "lm|i64", "3dnowext", "3dnow",
+        },
         .cpuid_eax = 0x80000001, .cpuid_reg = R_EDX,
         .tcg_features = TCG_EXT2_FEATURES,
     },
     [FEAT_8000_0001_ECX] = {
-        .feat_names = ext3_feature_name,
+        .feat_names = {
+            "lahf_lm", "cmp_legacy", "svm", "extapic",
+            "cr8legacy", "abm", "sse4a", "misalignsse",
+            "3dnowprefetch", "osvw", "ibs", "xop",
+            "skinit", "wdt", NULL, "lwp",
+            "fma4", "tce", NULL, "nodeid_msr",
+            NULL, "tbm", "topoext", "perfctr_core",
+            "perfctr_nb", NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
         .cpuid_eax = 0x80000001, .cpuid_reg = R_ECX,
         .tcg_features = TCG_EXT3_FEATURES,
     },
     [FEAT_C000_0001_EDX] = {
-        .feat_names = ext4_feature_name,
+        .feat_names = {
+            NULL, NULL, "xstore", "xstore-en",
+            NULL, NULL, "xcrypt", "xcrypt-en",
+            "ace2", "ace2-en", "phe", "phe-en",
+            "pmm", "pmm-en", NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
         .cpuid_eax = 0xC0000001, .cpuid_reg = R_EDX,
         .tcg_features = TCG_EXT4_FEATURES,
     },
     [FEAT_KVM] = {
-        .feat_names = kvm_feature_name,
+        .feat_names = {
+            "kvmclock", "kvm_nopiodelay", "kvm_mmu", "kvmclock",
+            "kvm_asyncpf", "kvm_steal_time", "kvm_pv_eoi", "kvm_pv_unhalt",
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            "kvmclock-stable-bit", NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
         .cpuid_eax = KVM_CPUID_FEATURES, .cpuid_reg = R_EAX,
         .tcg_features = TCG_KVM_FEATURES,
     },
     [FEAT_HYPERV_EAX] = {
-        .feat_names = hyperv_priv_feature_name,
+        .feat_names = {
+            NULL /* hv_msr_vp_runtime_access */, NULL /* hv_msr_time_refcount_access */,
+            NULL /* hv_msr_synic_access */, NULL /* hv_msr_stimer_access */,
+            NULL /* hv_msr_apic_access */, NULL /* hv_msr_hypercall_access */,
+            NULL /* hv_vpindex_access */, NULL /* hv_msr_reset_access */,
+            NULL /* hv_msr_stats_access */, NULL /* hv_reftsc_access */,
+            NULL /* hv_msr_idle_access */, NULL /* hv_msr_frequency_access */,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
         .cpuid_eax = 0x40000003, .cpuid_reg = R_EAX,
     },
     [FEAT_HYPERV_EBX] = {
-        .feat_names = hyperv_ident_feature_name,
+        .feat_names = {
+            NULL /* hv_create_partitions */, NULL /* hv_access_partition_id */,
+            NULL /* hv_access_memory_pool */, NULL /* hv_adjust_message_buffers */,
+            NULL /* hv_post_messages */, NULL /* hv_signal_events */,
+            NULL /* hv_create_port */, NULL /* hv_connect_port */,
+            NULL /* hv_access_stats */, NULL, NULL, NULL /* hv_debugging */,
+            NULL /* hv_cpu_power_management */, NULL /* hv_configure_profiler */,
+            NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
         .cpuid_eax = 0x40000003, .cpuid_reg = R_EBX,
     },
     [FEAT_HYPERV_EDX] = {
-        .feat_names = hyperv_misc_feature_name,
+        .feat_names = {
+            NULL /* hv_mwait */, NULL /* hv_guest_debugging */,
+            NULL /* hv_perf_monitor */, NULL /* hv_cpu_dynamic_part */,
+            NULL /* hv_hypercall_params_xmm */, NULL /* hv_guest_idle_state */,
+            NULL, NULL,
+            NULL, NULL, NULL /* hv_guest_crash_msr */, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
         .cpuid_eax = 0x40000003, .cpuid_reg = R_EDX,
     },
     [FEAT_SVM] = {
-        .feat_names = svm_feature_name,
+        .feat_names = {
+            "npt", "lbrv", "svm_lock", "nrip_save",
+            "tsc_scale", "vmcb_clean",  "flushbyasid", "decodeassists",
+            NULL, NULL, "pause_filter", NULL,
+            "pfthreshold", NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
         .cpuid_eax = 0x8000000A, .cpuid_reg = R_EDX,
         .tcg_features = TCG_SVM_FEATURES,
     },
     [FEAT_7_0_EBX] = {
-        .feat_names = cpuid_7_0_ebx_feature_name,
+        .feat_names = {
+            "fsgsbase", "tsc_adjust", NULL, "bmi1",
+            "hle", "avx2", NULL, "smep",
+            "bmi2", "erms", "invpcid", "rtm",
+            NULL, NULL, "mpx", NULL,
+            "avx512f", "avx512dq", "rdseed", "adx",
+            "smap", "avx512ifma", "pcommit", "clflushopt",
+            "clwb", NULL, "avx512pf", "avx512er",
+            "avx512cd", NULL, "avx512bw", "avx512vl",
+        },
         .cpuid_eax = 7,
         .cpuid_needs_ecx = true, .cpuid_ecx = 0,
         .cpuid_reg = R_EBX,
         .tcg_features = TCG_7_0_EBX_FEATURES,
     },
     [FEAT_7_0_ECX] = {
-        .feat_names = cpuid_7_0_ecx_feature_name,
+        .feat_names = {
+            NULL, "avx512vbmi", "umip", "pku",
+            "ospke", NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, "rdpid", NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
         .cpuid_eax = 7,
         .cpuid_needs_ecx = true, .cpuid_ecx = 0,
         .cpuid_reg = R_ECX,
         .tcg_features = TCG_7_0_ECX_FEATURES,
     },
     [FEAT_8000_0007_EDX] = {
-        .feat_names = cpuid_apm_edx_feature_name,
+        .feat_names = {
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            "invtsc", NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
         .cpuid_eax = 0x80000007,
         .cpuid_reg = R_EDX,
         .tcg_features = TCG_APM_FEATURES,
         .unmigratable_flags = CPUID_APM_INVTSC,
     },
     [FEAT_XSAVE] = {
-        .feat_names = cpuid_xsave_feature_name,
+        .feat_names = {
+            "xsaveopt", "xsavec", "xgetbv1", "xsaves",
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
         .cpuid_eax = 0xd,
         .cpuid_needs_ecx = true, .cpuid_ecx = 1,
         .cpuid_reg = R_EAX,
         .tcg_features = TCG_XSAVE_FEATURES,
     },
     [FEAT_6_EAX] = {
-        .feat_names = cpuid_6_feature_name,
+        .feat_names = {
+            NULL, NULL, "arat", NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
         .cpuid_eax = 6, .cpuid_reg = R_EAX,
         .tcg_features = TCG_6_EAX_FEATURES,
     },
@@ -711,8 +685,7 @@ static void add_flagname_to_bitmaps(const char *flagname,
     FeatureWord w;
     for (w = 0; w < FEATURE_WORDS; w++) {
         FeatureWordInfo *wi = &feature_word_info[w];
-        if (wi->feat_names &&
-            lookup_feature(&words[w], flagname, NULL, wi->feat_names)) {
+        if (lookup_feature(&words[w], flagname, NULL, wi->feat_names)) {
             break;
         }
     }
@@ -3324,9 +3297,6 @@ static void x86_cpu_register_feature_bit_props(X86CPU *cpu,
     char **names;
     FeatureWordInfo *fi = &feature_word_info[w];
 
-    if (!fi->feat_names) {
-        return;
-    }
     if (!fi->feat_names[bitnr]) {
         return;
     }
