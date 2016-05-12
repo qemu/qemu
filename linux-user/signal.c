@@ -3785,7 +3785,7 @@ long do_sigreturn(CPUCRISState *env)
 
     restore_sigcontext(&frame->sc, env);
     unlock_user_struct(frame, frame_addr, 0);
-    return env->regs[10];
+    return -TARGET_QEMU_ESIGRETURN;
 badframe:
     force_sig(TARGET_SIGSEGV);
 }

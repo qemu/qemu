@@ -26,4 +26,5 @@ static inline abi_ulong get_sp_from_cpustate(CPUCRISState *state)
     return state->regs[14];
 }
 
+
 #endif /* TARGET_SIGNAL_H */
