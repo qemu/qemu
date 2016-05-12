@@ -110,6 +110,10 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
     CLONE_PARENT_SETTID | CLONE_CHILD_SETTID | CLONE_CHILD_CLEARTID)
 
 //#define DEBUG
+/* Define DEBUG_ERESTARTSYS to force every syscall to be restarted
+ * once. This exercises the codepaths for restart.
+ */
+//#define DEBUG_ERESTARTSYS
 
 //#include <linux/msdos_fs.h>
 #define	VFAT_IOCTL_READDIR_BOTH		_IOR('r', 1, struct linux_dirent [2])
@@ -5870,6 +5874,21 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     struct stat st;
     struct statfs stfs;
     void *p;
+
+#if defined(DEBUG_ERESTARTSYS)
+    /* Debug-only code for exercising the syscall-restart code paths
+     * in the per-architecture cpu main loops: restart every syscall
+     * the guest makes once before letting it through.
+     */
+    {
+        static int flag;
+
+        flag = !flag;
+        if (flag) {
+            return -TARGET_ERESTARTSYS;
+        }
+    }
+#endif
 
 #ifdef DEBUG
     gemu_log("syscall %d", num);
