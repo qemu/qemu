@@ -18,21 +18,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#define SKIP_PIXEL(to)         (to += deststep)
-#if DEPTH == 32
-# define PIXEL_TYPE            uint32_t
-# define COPY_PIXEL(to, from)  do { *to = from; SKIP_PIXEL(to); } while (0)
-# define COPY_PIXEL1(to, from) (*to++ = from)
-#else
-# error unknown bit depth
-#endif
-
-#ifdef HOST_WORDS_BIGENDIAN
-# define SWAP_WORDS	1
-#endif
-
-static void glue(blizzard_draw_line16_, DEPTH)(PIXEL_TYPE *dest,
-                const uint16_t *src, unsigned int width)
+static void blizzard_draw_line16_32(uint32_t *dest,
+                                    const uint16_t *src, unsigned int width)
 {
     uint16_t data;
     unsigned int r, g, b;
@@ -45,12 +32,12 @@ static void glue(blizzard_draw_line16_, DEPTH)(PIXEL_TYPE *dest,
         data >>= 6;
         r = (data & 0x1f) << 3;
         data >>= 5;
-        COPY_PIXEL1(dest, glue(rgb_to_pixel, DEPTH)(r, g, b));
+        *dest++ = rgb_to_pixel32(r, g, b);
     }
 }
 
-static void glue(blizzard_draw_line24mode1_, DEPTH)(PIXEL_TYPE *dest,
-                const uint8_t *src, unsigned int width)
+static void blizzard_draw_line24mode1_32(uint32_t *dest,
+                                         const uint8_t *src, unsigned int width)
 {
     /* TODO: check if SDL 24-bit planes are not in the same format and
      * if so, use memcpy */
@@ -61,15 +48,15 @@ static void glue(blizzard_draw_line24mode1_, DEPTH)(PIXEL_TYPE *dest,
         r[0] = *src ++;
         r[1] = *src ++;
         b[0] = *src ++;
-        COPY_PIXEL1(dest, glue(rgb_to_pixel, DEPTH)(r[0], g[0], b[0]));
+        *dest++ = rgb_to_pixel32(r[0], g[0], b[0]);
         b[1] = *src ++;
         g[1] = *src ++;
-        COPY_PIXEL1(dest, glue(rgb_to_pixel, DEPTH)(r[1], g[1], b[1]));
+        *dest++ = rgb_to_pixel32(r[1], g[1], b[1]);
     }
 }
 
-static void glue(blizzard_draw_line24mode2_, DEPTH)(PIXEL_TYPE *dest,
-                const uint8_t *src, unsigned int width)
+static void blizzard_draw_line24mode2_32(uint32_t *dest,
+                                         const uint8_t *src, unsigned int width)
 {
     unsigned int r, g, b;
     const uint8_t *end = src + width;
@@ -78,24 +65,24 @@ static void glue(blizzard_draw_line24mode2_, DEPTH)(PIXEL_TYPE *dest,
         src ++;
         b = *src ++;
         g = *src ++;
-        COPY_PIXEL1(dest, glue(rgb_to_pixel, DEPTH)(r, g, b));
+        *dest++ = rgb_to_pixel32(r, g, b);
     }
 }
 
 /* No rotation */
-static blizzard_fn_t glue(blizzard_draw_fn_, DEPTH)[0x10] = {
+static blizzard_fn_t blizzard_draw_fn_32[0x10] = {
     NULL,
     /* RGB 5:6:5*/
-    (blizzard_fn_t) glue(blizzard_draw_line16_, DEPTH),
+    (blizzard_fn_t) blizzard_draw_line16_32,
     /* RGB 6:6:6 mode 1 */
-    (blizzard_fn_t) glue(blizzard_draw_line24mode1_, DEPTH),
+    (blizzard_fn_t) blizzard_draw_line24mode1_32,
     /* RGB 8:8:8 mode 1 */
-    (blizzard_fn_t) glue(blizzard_draw_line24mode1_, DEPTH),
+    (blizzard_fn_t) blizzard_draw_line24mode1_32,
     NULL, NULL,
     /* RGB 6:6:6 mode 2 */
-    (blizzard_fn_t) glue(blizzard_draw_line24mode2_, DEPTH),
+    (blizzard_fn_t) blizzard_draw_line24mode2_32,
     /* RGB 8:8:8 mode 2 */
-    (blizzard_fn_t) glue(blizzard_draw_line24mode2_, DEPTH),
+    (blizzard_fn_t) blizzard_draw_line24mode2_32,
     /* YUV 4:2:2 */
     NULL,
     /* YUV 4:2:0 */
@@ -104,15 +91,7 @@ static blizzard_fn_t glue(blizzard_draw_fn_, DEPTH)[0x10] = {
 };
 
 /* 90deg, 180deg and 270deg rotation */
-static blizzard_fn_t glue(blizzard_draw_fn_r_, DEPTH)[0x10] = {
+static blizzard_fn_t blizzard_draw_fn_r_32[0x10] = {
     /* TODO */
     [0 ... 0xf] = NULL,
 };
-
-#undef DEPTH
-#undef SKIP_PIXEL
-#undef COPY_PIXEL
-#undef COPY_PIXEL1
-#undef PIXEL_TYPE
-
-#undef SWAP_WORDS
