@@ -774,9 +774,7 @@ static void display_mouse_define(DisplayChangeListener *dcl,
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
 
     qemu_mutex_lock(&ssd->lock);
-    if (c) {
-        cursor_get(c);
-    }
+    cursor_get(c);
     cursor_put(ssd->cursor);
     ssd->cursor = c;
     ssd->hot_x = c->hot_x;
