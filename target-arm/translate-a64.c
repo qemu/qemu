@@ -2086,19 +2086,19 @@ static void disas_ldst_pair(DisasContext *s, uint32_t insn)
  * size: 00 -> 8 bit, 01 -> 16 bit, 10 -> 32 bit, 11 -> 64bit
  * opc: 00 -> store, 01 -> loadu, 10 -> loads 64, 11 -> loads 32
  */
-static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn)
+static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn,
+                                int opc,
+                                int size,
+                                int rt,
+                                bool is_vector)
 {
-    int rt = extract32(insn, 0, 5);
     int rn = extract32(insn, 5, 5);
     int imm9 = sextract32(insn, 12, 9);
-    int opc = extract32(insn, 22, 2);
-    int size = extract32(insn, 30, 2);
     int idx = extract32(insn, 10, 2);
     bool is_signed = false;
     bool is_store = false;
     bool is_extended = false;
     bool is_unpriv = (idx == 2);
-    bool is_vector = extract32(insn, 26, 1);
     bool post_index;
     bool writeback;
 
@@ -2205,19 +2205,19 @@ static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn)
  * Rn: address register or SP for base
  * Rm: offset register or ZR for offset
  */
-static void disas_ldst_reg_roffset(DisasContext *s, uint32_t insn)
+static void disas_ldst_reg_roffset(DisasContext *s, uint32_t insn,
+                                   int opc,
+                                   int size,
+                                   int rt,
+                                   bool is_vector)
 {
-    int rt = extract32(insn, 0, 5);
     int rn = extract32(insn, 5, 5);
     int shift = extract32(insn, 12, 1);
     int rm = extract32(insn, 16, 5);
-    int opc = extract32(insn, 22, 2);
     int opt = extract32(insn, 13, 3);
-    int size = extract32(insn, 30, 2);
     bool is_signed = false;
     bool is_store = false;
     bool is_extended = false;
-    bool is_vector = extract32(insn, 26, 1);
 
     TCGv_i64 tcg_rm;
     TCGv_i64 tcg_addr;
@@ -2294,14 +2294,14 @@ static void disas_ldst_reg_roffset(DisasContext *s, uint32_t insn)
  * Rn: base address register (inc SP)
  * Rt: target register
  */
-static void disas_ldst_reg_unsigned_imm(DisasContext *s, uint32_t insn)
+static void disas_ldst_reg_unsigned_imm(DisasContext *s, uint32_t insn,
+                                        int opc,
+                                        int size,
+                                        int rt,
+                                        bool is_vector)
 {
-    int rt = extract32(insn, 0, 5);
     int rn = extract32(insn, 5, 5);
     unsigned int imm12 = extract32(insn, 10, 12);
-    bool is_vector = extract32(insn, 26, 1);
-    int size = extract32(insn, 30, 2);
-    int opc = extract32(insn, 22, 2);
     unsigned int offset;
 
     TCGv_i64 tcg_addr;
@@ -2360,20 +2360,25 @@ static void disas_ldst_reg_unsigned_imm(DisasContext *s, uint32_t insn)
 /* Load/store register (all forms) */
 static void disas_ldst_reg(DisasContext *s, uint32_t insn)
 {
+    int rt = extract32(insn, 0, 5);
+    int opc = extract32(insn, 22, 2);
+    bool is_vector = extract32(insn, 26, 1);
+    int size = extract32(insn, 30, 2);
+
     switch (extract32(insn, 24, 2)) {
     case 0:
         if (extract32(insn, 21, 1) == 1 && extract32(insn, 10, 2) == 2) {
-            disas_ldst_reg_roffset(s, insn);
+            disas_ldst_reg_roffset(s, insn, opc, size, rt, is_vector);
         } else {
             /* Load/store register (unscaled immediate)
              * Load/store immediate pre/post-indexed
              * Load/store register unprivileged
              */
-            disas_ldst_reg_imm9(s, insn);
+            disas_ldst_reg_imm9(s, insn, opc, size, rt, is_vector);
         }
         break;
     case 1:
-        disas_ldst_reg_unsigned_imm(s, insn);
+        disas_ldst_reg_unsigned_imm(s, insn, opc, size, rt, is_vector);
         break;
     default:
         unallocated_encoding(s);
