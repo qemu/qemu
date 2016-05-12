@@ -76,8 +76,6 @@ const char *host_net_devices[] = {
     NULL,
 };
 
-int default_net = 1;
-
 /***********************************************************/
 /* network device redirectors */
 
@@ -1415,18 +1413,6 @@ void net_check_clients(void)
     NetClientState *nc;
     int i;
 
-    /* Don't warn about the default network setup that you get if
-     * no command line -net or -netdev options are specified. There
-     * are two cases that we would otherwise complain about:
-     * (1) board doesn't support a NIC but the implicit "-net nic"
-     * requested one
-     * (2) CONFIG_SLIRP not set, in which case the implicit "-net nic"
-     * sets up a nic that isn't connected to anything.
-     */
-    if (default_net) {
-        return;
-    }
-
     net_hub_check_clients();
 
     QTAILQ_FOREACH(nc, &net_clients, next) {
@@ -1483,14 +1469,6 @@ int net_init_clients(void)
 {
     QemuOptsList *net = qemu_find_opts("net");
 
-    if (default_net) {
-        /* if no clients, we use a default config */
-        qemu_opts_set(net, NULL, "type", "nic", &error_abort);
-#ifdef CONFIG_SLIRP
-        qemu_opts_set(net, NULL, "type", "user", &error_abort);
-#endif
-    }
-
     net_change_state_entry =
         qemu_add_vm_change_state_handler(net_vm_change_state_handler, NULL);
 
@@ -1521,7 +1499,6 @@ int net_client_parse(QemuOptsList *opts_list, const char *optarg)
         return -1;
     }
 
-    default_net = 0;
     return 0;
 }
 
