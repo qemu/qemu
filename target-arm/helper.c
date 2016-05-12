@@ -6708,7 +6708,9 @@ static int get_S2prot(CPUARMState *env, int s2ap, int xn)
         prot |= PAGE_WRITE;
     }
     if (!xn) {
-        prot |= PAGE_EXEC;
+        if (arm_el_is_aa64(env, 2) || prot & PAGE_READ) {
+            prot |= PAGE_EXEC;
+        }
     }
     return prot;
 }
