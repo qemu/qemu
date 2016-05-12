@@ -5,14 +5,13 @@
 
 /* Helpers for instruction counting code generation.  */
 
-static TCGArg *icount_arg;
+static int icount_start_insn_idx;
 static TCGLabel *icount_label;
 static TCGLabel *exitreq_label;
 
 static inline void gen_tb_start(TranslationBlock *tb)
 {
     TCGv_i32 count, flag, imm;
-    int i;
 
     exitreq_label = gen_new_label();
     flag = tcg_temp_new_i32();
@@ -31,12 +30,11 @@ static inline void gen_tb_start(TranslationBlock *tb)
                    -ENV_OFFSET + offsetof(CPUState, icount_decr.u32));
 
     imm = tcg_temp_new_i32();
+    /* We emit a movi with a dummy immediate argument. Keep the insn index
+     * of the movi so that we later (when we know the actual insn count)
+     * can update the immediate argument with the actual insn count.  */
+    icount_start_insn_idx = tcg_op_buf_count();
     tcg_gen_movi_i32(imm, 0xdeadbeef);
-
-    /* This is a horrid hack to allow fixing up the value later.  */
-    i = tcg_ctx.gen_last_op_idx;
-    i = tcg_ctx.gen_op_buf[i].args;
-    icount_arg = &tcg_ctx.gen_opparam_buf[i + 1];
 
     tcg_gen_sub_i32(count, count, imm);
     tcg_temp_free_i32(imm);
@@ -53,7 +51,9 @@ static void gen_tb_end(TranslationBlock *tb, int num_insns)
     tcg_gen_exit_tb((uintptr_t)tb + TB_EXIT_REQUESTED);
 
     if (tb->cflags & CF_USE_ICOUNT) {
-        *icount_arg = num_insns;
+        /* Update the num_insn immediate parameter now that we know
+         * the actual insn count.  */
+        tcg_set_insn_param(icount_start_insn_idx, 1, num_insns);
         gen_set_label(icount_label);
         tcg_gen_exit_tb((uintptr_t)tb + TB_EXIT_ICOUNT_EXPIRED);
     }
