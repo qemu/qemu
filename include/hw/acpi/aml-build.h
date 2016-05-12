@@ -198,6 +198,13 @@ typedef enum {
     AML_PULL_NONE = 3,
 } AmlPinConfig;
 
+typedef enum {
+    MEM_AFFINITY_NOFLAGS      = 0,
+    MEM_AFFINITY_ENABLED      = (1 << 0),
+    MEM_AFFINITY_HOTPLUGGABLE = (1 << 1),
+    MEM_AFFINITY_NON_VOLATILE = (1 << 2),
+} MemoryAffinityFlags;
+
 typedef
 struct AcpiBuildTables {
     GArray *table_data;
@@ -371,5 +378,8 @@ build_rsdt(GArray *table_data, GArray *linker, GArray *table_offsets,
 int
 build_append_named_dword(GArray *array, const char *name_format, ...)
 GCC_FMT_ATTR(2, 3);
+
+void build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
+                       uint64_t len, int node, MemoryAffinityFlags flags);
 
 #endif
