@@ -146,19 +146,19 @@ static void irq_handler(void *opaque, int irq, int level)
     pic_update(fs);
 }
 
-static int etraxfs_pic_init(SysBusDevice *sbd)
+static void etraxfs_pic_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    struct etrax_pic *s = ETRAX_FS_PIC(dev);
+    DeviceState *dev = DEVICE(obj);
+    struct etrax_pic *s = ETRAX_FS_PIC(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     qdev_init_gpio_in(dev, irq_handler, 32);
     sysbus_init_irq(sbd, &s->parent_irq);
     sysbus_init_irq(sbd, &s->parent_nmi);
 
-    memory_region_init_io(&s->mmio, OBJECT(s), &pic_ops, s,
+    memory_region_init_io(&s->mmio, obj, &pic_ops, s,
                           "etraxfs-pic", R_MAX * 4);
     sysbus_init_mmio(sbd, &s->mmio);
-    return 0;
 }
 
 static Property etraxfs_pic_properties[] = {
@@ -169,9 +169,7 @@ static Property etraxfs_pic_properties[] = {
 static void etraxfs_pic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = etraxfs_pic_init;
     dc->props = etraxfs_pic_properties;
     /*
      * Note: pointer property "interrupt_vector" may remain null, thus
@@ -183,6 +181,7 @@ static const TypeInfo etraxfs_pic_info = {
     .name          = TYPE_ETRAX_FS_PIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct etrax_pic),
+    .instance_init = etraxfs_pic_init,
     .class_init    = etraxfs_pic_class_init,
 };
 
