@@ -2449,7 +2449,7 @@ long do_sigreturn(CPUSPARCState *env)
         goto segv_and_exit;
     }
     unlock_user_struct(sf, sf_addr, 0);
-    return env->regwptr[0];
+    return -TARGET_QEMU_ESIGRETURN;
 
 segv_and_exit:
     unlock_user_struct(sf, sf_addr, 0);
