@@ -6940,12 +6940,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #ifdef TARGET_NR_sigreturn
     case TARGET_NR_sigreturn:
-        /* NOTE: ret is eax, so not transcoding must be done */
         ret = do_sigreturn(cpu_env);
         break;
 #endif
     case TARGET_NR_rt_sigreturn:
-        /* NOTE: ret is eax, so not transcoding must be done */
         ret = do_rt_sigreturn(cpu_env);
         break;
     case TARGET_NR_sethostname:

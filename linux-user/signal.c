@@ -1024,7 +1024,7 @@ give_sigsegv:
 }
 
 static int
-restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc, int *peax)
+restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc)
 {
     unsigned int err = 0;
     abi_ulong fpstate_addr;
@@ -1042,6 +1042,7 @@ restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc, int *peax)
     env->regs[R_EBX] = tswapl(sc->ebx);
     env->regs[R_EDX] = tswapl(sc->edx);
     env->regs[R_ECX] = tswapl(sc->ecx);
+    env->regs[R_EAX] = tswapl(sc->eax);
     env->eip = tswapl(sc->eip);
 
     cpu_x86_load_seg(env, R_CS, lduw_p(&sc->cs) | 3);
@@ -1059,7 +1060,6 @@ restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc, int *peax)
         cpu_x86_frstor(env, fpstate_addr, 1);
     }
 
-    *peax = tswapl(sc->eax);
     return err;
 badframe:
     return 1;
@@ -1071,7 +1071,7 @@ long do_sigreturn(CPUX86State *env)
     abi_ulong frame_addr = env->regs[R_ESP] - 8;
     target_sigset_t target_set;
     sigset_t set;
-    int eax, i;
+    int i;
 
     trace_user_do_sigreturn(env, frame_addr);
     if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1))
@@ -1086,10 +1086,10 @@ long do_sigreturn(CPUX86State *env)
     do_sigprocmask(SIG_SETMASK, &set, NULL);
 
     /* restore registers */
-    if (restore_sigcontext(env, &frame->sc, &eax))
+    if (restore_sigcontext(env, &frame->sc))
         goto badframe;
     unlock_user_struct(frame, frame_addr, 0);
-    return eax;
+    return -TARGET_QEMU_ESIGRETURN;
 
 badframe:
     unlock_user_struct(frame, frame_addr, 0);
@@ -1102,7 +1102,6 @@ long do_rt_sigreturn(CPUX86State *env)
     abi_ulong frame_addr;
     struct rt_sigframe *frame;
     sigset_t set;
-    int eax;
 
     frame_addr = env->regs[R_ESP] - 4;
     trace_user_do_rt_sigreturn(env, frame_addr);
@@ -1111,7 +1110,7 @@ long do_rt_sigreturn(CPUX86State *env)
     target_to_host_sigset(&set, &frame->uc.tuc_sigmask);
     do_sigprocmask(SIG_SETMASK, &set, NULL);
 
-    if (restore_sigcontext(env, &frame->uc.tuc_mcontext, &eax)) {
+    if (restore_sigcontext(env, &frame->uc.tuc_mcontext)) {
         goto badframe;
     }
 
@@ -1121,7 +1120,7 @@ long do_rt_sigreturn(CPUX86State *env)
     }
 
     unlock_user_struct(frame, frame_addr, 0);
-    return eax;
+    return -TARGET_QEMU_ESIGRETURN;
 
 badframe:
     unlock_user_struct(frame, frame_addr, 0);

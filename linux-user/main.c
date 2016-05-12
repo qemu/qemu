@@ -285,6 +285,7 @@ void cpu_loop(CPUX86State *env)
     CPUState *cs = CPU(x86_env_get_cpu(env));
     int trapnr;
     abi_ulong pc;
+    abi_ulong ret;
     target_siginfo_t info;
 
     for(;;) {
@@ -294,28 +295,38 @@ void cpu_loop(CPUX86State *env)
         switch(trapnr) {
         case 0x80:
             /* linux syscall from int $0x80 */
-            env->regs[R_EAX] = do_syscall(env,
-                                          env->regs[R_EAX],
-                                          env->regs[R_EBX],
-                                          env->regs[R_ECX],
-                                          env->regs[R_EDX],
-                                          env->regs[R_ESI],
-                                          env->regs[R_EDI],
-                                          env->regs[R_EBP],
-                                          0, 0);
+            ret = do_syscall(env,
+                             env->regs[R_EAX],
+                             env->regs[R_EBX],
+                             env->regs[R_ECX],
+                             env->regs[R_EDX],
+                             env->regs[R_ESI],
+                             env->regs[R_EDI],
+                             env->regs[R_EBP],
+                             0, 0);
+            if (ret == -TARGET_ERESTARTSYS) {
+                env->eip -= 2;
+            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                env->regs[R_EAX] = ret;
+            }
             break;
 #ifndef TARGET_ABI32
         case EXCP_SYSCALL:
             /* linux syscall from syscall instruction */
-            env->regs[R_EAX] = do_syscall(env,
-                                          env->regs[R_EAX],
-                                          env->regs[R_EDI],
-                                          env->regs[R_ESI],
-                                          env->regs[R_EDX],
-                                          env->regs[10],
-                                          env->regs[8],
-                                          env->regs[9],
-                                          0, 0);
+            ret = do_syscall(env,
+                             env->regs[R_EAX],
+                             env->regs[R_EDI],
+                             env->regs[R_ESI],
+                             env->regs[R_EDX],
+                             env->regs[10],
+                             env->regs[8],
+                             env->regs[9],
+                             0, 0);
+            if (ret == -TARGET_ERESTARTSYS) {
+                env->eip -= 2;
+            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                env->regs[R_EAX] = ret;
+            }
             break;
 #endif
         case EXCP0B_NOSEG:
