@@ -619,15 +619,19 @@ static uint16_t host_to_target_errno_table[ERRNO_TABLE_SIZE] = {
 
 static inline int host_to_target_errno(int err)
 {
-    if(host_to_target_errno_table[err])
+    if (err >= 0 && err < ERRNO_TABLE_SIZE &&
+        host_to_target_errno_table[err]) {
         return host_to_target_errno_table[err];
+    }
     return err;
 }
 
 static inline int target_to_host_errno(int err)
 {
-    if (target_to_host_errno_table[err])
+    if (err >= 0 && err < ERRNO_TABLE_SIZE &&
+        target_to_host_errno_table[err]) {
         return target_to_host_errno_table[err];
+    }
     return err;
 }
 
