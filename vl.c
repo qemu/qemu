@@ -2404,7 +2404,6 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
 static void monitor_parse(const char *optarg, const char *mode, bool pretty)
 {
     static int monitor_device_index = 0;
-    Error *local_err = NULL;
     QemuOpts *opts;
     const char *p;
     char label[32];
@@ -2425,11 +2424,7 @@ static void monitor_parse(const char *optarg, const char *mode, bool pretty)
         }
     }
 
-    opts = qemu_opts_create(qemu_find_opts("mon"), label, 1, &local_err);
-    if (!opts) {
-        error_report_err(local_err);
-        exit(1);
-    }
+    opts = qemu_opts_create(qemu_find_opts("mon"), label, 1, &error_fatal);
     qemu_opt_set(opts, "mode", mode, &error_abort);
     qemu_opt_set(opts, "chardev", label, &error_abort);
     qemu_opt_set_bool(opts, "pretty", pretty, &error_abort);
