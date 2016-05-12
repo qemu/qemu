@@ -488,10 +488,11 @@ static inline void cpu_handle_interrupt(CPUState *cpu,
             if (cc->cpu_exec_interrupt(cpu, interrupt_request)) {
                 *last_tb = NULL;
             }
+            /* The target hook may have updated the 'cpu->interrupt_request';
+             * reload the 'interrupt_request' value */
+            interrupt_request = cpu->interrupt_request;
         }
-        /* Don't use the cached interrupt_request value,
-           do_interrupt may have updated the EXITTB flag. */
-        if (cpu->interrupt_request & CPU_INTERRUPT_EXITTB) {
+        if (interrupt_request & CPU_INTERRUPT_EXITTB) {
             cpu->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
             /* ensure that no TB jump will be modified as
                the program flow was changed */
