@@ -1171,7 +1171,7 @@ void cpu_loop(CPUUniCore32State *env)
                             cpu_set_tls(env, env->regs[0]);
                             env->regs[0] = 0;
                     } else {
-                        env->regs[0] = do_syscall(env,
+                        abi_long ret = do_syscall(env,
                                                   n,
                                                   env->regs[0],
                                                   env->regs[1],
@@ -1180,6 +1180,11 @@ void cpu_loop(CPUUniCore32State *env)
                                                   env->regs[4],
                                                   env->regs[5],
                                                   0, 0);
+                        if (ret == -TARGET_ERESTARTSYS) {
+                            env->regs[31] -= 4;
+                        } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                            env->regs[0] = ret;
+                        }
                     }
                 } else {
                     goto error;
