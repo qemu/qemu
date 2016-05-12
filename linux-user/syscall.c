@@ -699,6 +699,10 @@ safe_syscall3(ssize_t, read, int, fd, void *, buff, size_t, count)
 safe_syscall3(ssize_t, write, int, fd, const void *, buff, size_t, count)
 safe_syscall4(int, openat, int, dirfd, const char *, pathname, \
               int, flags, mode_t, mode)
+safe_syscall4(pid_t, wait4, pid_t, pid, int *, status, int, options, \
+              struct rusage *, rusage)
+safe_syscall5(int, waitid, idtype_t, idtype, id_t, id, siginfo_t *, infop, \
+              int, options, struct rusage *, rusage)
 
 static inline int host_to_target_sock_type(int host_type)
 {
@@ -6037,7 +6041,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_waitpid:
         {
             int status;
-            ret = get_errno(waitpid(arg1, &status, arg3));
+            ret = get_errno(safe_wait4(arg1, &status, arg3, 0));
             if (!is_error(ret) && arg2 && ret
                 && put_user_s32(host_to_target_waitstatus(status), arg2))
                 goto efault;
@@ -6049,7 +6053,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             siginfo_t info;
             info.si_pid = 0;
-            ret = get_errno(waitid(arg1, arg2, &info, arg4));
+            ret = get_errno(safe_waitid(arg1, arg2, &info, arg4, NULL));
             if (!is_error(ret) && arg3 && info.si_pid != 0) {
                 if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(target_siginfo_t), 0)))
                     goto efault;
@@ -7761,7 +7765,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 rusage_ptr = &rusage;
             else
                 rusage_ptr = NULL;
-            ret = get_errno(wait4(arg1, &status, arg3, rusage_ptr));
+            ret = get_errno(safe_wait4(arg1, &status, arg3, rusage_ptr));
             if (!is_error(ret)) {
                 if (status_ptr && ret) {
                     status = host_to_target_waitstatus(status);
