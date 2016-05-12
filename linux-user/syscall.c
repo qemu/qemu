@@ -5559,7 +5559,9 @@ static int open_self_cmdline(void *cpu_env, int fd)
 
         nb_read = read(fd_orig, buf, sizeof(buf));
         if (nb_read < 0) {
+            int e = errno;
             fd_orig = close(fd_orig);
+            errno = e;
             return -1;
         } else if (nb_read == 0) {
             break;
@@ -5579,7 +5581,9 @@ static int open_self_cmdline(void *cpu_env, int fd)
 
         if (word_skipped) {
             if (write(fd, cp_buf, nb_read) != nb_read) {
+                int e = errno;
                 close(fd_orig);
+                errno = e;
                 return -1;
             }
         }
@@ -5599,7 +5603,7 @@ static int open_self_maps(void *cpu_env, int fd)
 
     fp = fopen("/proc/self/maps", "r");
     if (fp == NULL) {
-        return -EACCES;
+        return -1;
     }
 
     while ((read = getline(&line, &len, fp)) != -1) {
@@ -5743,7 +5747,7 @@ static int open_net_route(void *cpu_env, int fd)
 
     fp = fopen("/proc/net/route", "r");
     if (fp == NULL) {
-        return -EACCES;
+        return -1;
     }
 
     /* read header */
@@ -5793,7 +5797,7 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, 
 
     if (is_proc_myself(pathname, "exe")) {
         int execfd = qemu_getauxval(AT_EXECFD);
-        return execfd ? execfd : get_errno(sys_openat(dirfd, exec_path, flags, mode));
+        return execfd ? execfd : sys_openat(dirfd, exec_path, flags, mode);
     }
 
     for (fake_open = fakes; fake_open->filename; fake_open++) {
@@ -5819,7 +5823,9 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, 
         unlink(filename);
 
         if ((r = fake_open->fill(cpu_env, fd))) {
+            int e = errno;
             close(fd);
+            errno = e;
             return r;
         }
         lseek(fd, 0, SEEK_SET);
@@ -5827,7 +5833,7 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, 
         return fd;
     }
 
-    return get_errno(sys_openat(dirfd, path(pathname), flags, mode));
+    return sys_openat(dirfd, path(pathname), flags, mode);
 }
 
 #define TIMER_MAGIC 0x0caf0000
