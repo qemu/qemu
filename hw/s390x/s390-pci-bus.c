@@ -198,19 +198,12 @@ S390PCIBusDevice *s390_pci_find_dev_by_idx(uint32_t idx)
 
 S390PCIBusDevice *s390_pci_find_dev_by_fh(uint32_t fh)
 {
-    S390PCIBusDevice *pbdev;
-    int i;
     S390pciState *s = s390_get_phb();
+    S390PCIBusDevice *pbdev;
 
-    if (!fh) {
-        return NULL;
-    }
-
-    for (i = 0; i < PCI_SLOT_MAX; i++) {
-        pbdev = &s->pbdev[i];
-        if (pbdev->fh == fh) {
-            return pbdev;
-        }
+    pbdev = &s->pbdev[fh & FH_MASK_INDEX];
+    if (pbdev->fh != 0 && pbdev->fh == fh) {
+        return pbdev;
     }
 
     return NULL;
