@@ -561,6 +561,13 @@ int queue_signal(CPUArchState *env, int sig, target_siginfo_t *info)
     }
 }
 
+#ifndef HAVE_SAFE_SYSCALL
+static inline void rewind_if_in_safe_syscall(void *puc)
+{
+    /* Default version: never rewind */
+}
+#endif
+
 static void host_signal_handler(int host_signum, siginfo_t *info,
                                 void *puc)
 {
@@ -581,6 +588,9 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     if (sig < 1 || sig > TARGET_NSIG)
         return;
     trace_user_host_signal(env, host_signum, sig);
+
+    rewind_if_in_safe_syscall(puc);
+
     host_to_target_siginfo_noswap(&tinfo, info);
     if (queue_signal(env, sig, &tinfo) == 1) {
         /* interrupt the virtual CPU as soon as possible */
