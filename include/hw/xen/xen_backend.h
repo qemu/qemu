@@ -60,6 +60,7 @@ extern xc_interface *xen_xc;
 extern xenforeignmemory_handle *xen_fmem;
 extern struct xs_handle *xenstore;
 extern const char *xen_protocol;
+extern DeviceState *xen_sysdev;
 
 /* xenstore helper functions */
 int xenstore_write_str(const char *base, const char *node, const char *val);
