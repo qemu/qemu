@@ -139,3 +139,11 @@
 /* for robust mutexes */
 #define TARGET_EOWNERDEAD      130     /* Owner died */
 #define TARGET_ENOTRECOVERABLE 131     /* State not recoverable */
+
+/* QEMU internal, not visible to the guest. This is returned when a
+ * system call should be restarted, to tell the main loop that it
+ * should wind the guest PC backwards so it will re-execute the syscall
+ * after handling any pending signals. They match with the ones the guest
+ * kernel uses for the same purpose.
+ */
+#define TARGET_ERESTARTSYS     512     /* Restart system call (if SA_RESTART) */
