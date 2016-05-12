@@ -114,8 +114,10 @@ static void icp_kvm_reset(DeviceState *dev)
     icp->pending_priority = 0xff;
     icp->mfrr = 0xff;
 
-    /* Make all outputs are deasserted */
-    qemu_set_irq(icp->output, 0);
+    /* Make all outputs as deasserted only if the CPU thread is in use */
+    if (icp->output) {
+        qemu_set_irq(icp->output, 0);
+    }
 
     icp_set_kvm_state(icp, 1);
 }
@@ -347,8 +349,6 @@ static void xics_kvm_cpu_setup(XICSState *icp, PowerPCCPU *cpu)
 
     if (icpkvm->kernel_xics_fd != -1) {
         int ret;
-
-        ss->cs = cs;
 
         ret = kvm_vcpu_enable_cap(cs, KVM_CAP_IRQ_XICS, 0,
                                   icpkvm->kernel_xics_fd, kvm_arch_vcpu_id(cs));

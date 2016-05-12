@@ -48,6 +48,18 @@ static int get_cpu_index_by_dt_id(int cpu_dt_id)
     return -1;
 }
 
+void xics_cpu_destroy(XICSState *icp, PowerPCCPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    ICPState *ss = &icp->ss[cs->cpu_index];
+
+    assert(cs->cpu_index < icp->nr_servers);
+    assert(cs == ss->cs);
+
+    ss->output = NULL;
+    ss->cs = NULL;
+}
+
 void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
@@ -56,6 +68,8 @@ void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu)
     XICSStateClass *info = XICS_COMMON_GET_CLASS(icp);
 
     assert(cs->cpu_index < icp->nr_servers);
+
+    ss->cs = cs;
 
     if (info->cpu_setup) {
         info->cpu_setup(icp, cpu);
