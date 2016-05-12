@@ -4280,7 +4280,7 @@ long do_sigreturn(CPUS390XState *env)
     }
 
     unlock_user_struct(frame, frame_addr, 0);
-    return env->regs[2];
+    return -TARGET_QEMU_ESIGRETURN;
 
 badframe:
     force_sig(TARGET_SIGSEGV);
@@ -4310,7 +4310,7 @@ long do_rt_sigreturn(CPUS390XState *env)
         goto badframe;
     }
     unlock_user_struct(frame, frame_addr, 0);
-    return env->regs[2];
+    return -TARGET_QEMU_ESIGRETURN;
 
 badframe:
     unlock_user_struct(frame, frame_addr, 0);

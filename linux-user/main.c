@@ -3385,6 +3385,7 @@ void cpu_loop(CPUS390XState *env)
     int trapnr, n, sig;
     target_siginfo_t info;
     target_ulong addr;
+    abi_long ret;
 
     while (1) {
         cpu_exec_start(cs);
@@ -3402,9 +3403,14 @@ void cpu_loop(CPUS390XState *env)
                 n = env->regs[1];
             }
             env->psw.addr += env->int_svc_ilen;
-            env->regs[2] = do_syscall(env, n, env->regs[2], env->regs[3],
-                                      env->regs[4], env->regs[5],
-                                      env->regs[6], env->regs[7], 0, 0);
+            ret = do_syscall(env, n, env->regs[2], env->regs[3],
+                             env->regs[4], env->regs[5],
+                             env->regs[6], env->regs[7], 0, 0);
+            if (ret == -TARGET_ERESTARTSYS) {
+                env->psw.addr -= env->int_svc_ilen;
+            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                env->regs[2] = ret;
+            }
             break;
 
         case EXCP_DEBUG:
