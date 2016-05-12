@@ -216,6 +216,7 @@ int kvm_has_intx_set_mask(void);
 
 int kvm_init_vcpu(CPUState *cpu);
 int kvm_cpu_exec(CPUState *cpu);
+int kvm_destroy_vcpu(CPUState *cpu);
 
 #ifdef NEED_CPU_H
 #include "cpu.h"

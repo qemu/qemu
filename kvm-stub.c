@@ -32,6 +32,11 @@ bool kvm_allowed;
 bool kvm_readonly_mem_allowed;
 bool kvm_ioeventfd_any_length_allowed;
 
+int kvm_destroy_vcpu(CPUState *cpu)
+{
+    return -ENOSYS;
+}
+
 int kvm_init_vcpu(CPUState *cpu)
 {
     return -ENOSYS;
