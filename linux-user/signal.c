@@ -5709,7 +5709,7 @@ long do_rt_sigreturn(CPUTLGState *env)
     }
 
     unlock_user_struct(frame, frame_addr, 0);
-    return env->regs[TILEGX_R_RE];
+    return -TARGET_QEMU_ESIGRETURN;
 
 
  badframe:

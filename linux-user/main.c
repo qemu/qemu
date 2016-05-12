@@ -3706,15 +3706,20 @@ void cpu_loop(CPUTLGState *env)
         cpu_exec_end(cs);
         switch (trapnr) {
         case TILEGX_EXCP_SYSCALL:
-            env->regs[TILEGX_R_RE] = do_syscall(env, env->regs[TILEGX_R_NR],
-                                                env->regs[0], env->regs[1],
-                                                env->regs[2], env->regs[3],
-                                                env->regs[4], env->regs[5],
-                                                env->regs[6], env->regs[7]);
-            env->regs[TILEGX_R_ERR] = TILEGX_IS_ERRNO(env->regs[TILEGX_R_RE])
-                                                      ? - env->regs[TILEGX_R_RE]
-                                                      : 0;
+        {
+            abi_ulong ret = do_syscall(env, env->regs[TILEGX_R_NR],
+                                       env->regs[0], env->regs[1],
+                                       env->regs[2], env->regs[3],
+                                       env->regs[4], env->regs[5],
+                                       env->regs[6], env->regs[7]);
+            if (ret == -TARGET_ERESTARTSYS) {
+                env->pc -= 8;
+            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                env->regs[TILEGX_R_RE] = ret;
+                env->regs[TILEGX_R_ERR] = TILEGX_IS_ERRNO(ret) ? -ret : 0;
+            }
             break;
+        }
         case TILEGX_EXCP_OPCODE_EXCH:
             do_exch(env, true, false);
             break;
