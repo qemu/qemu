@@ -430,15 +430,6 @@ _syscall5(int, sys_ppoll, struct pollfd *, fds, nfds_t, nfds,
           size_t, sigsetsize)
 #endif
 
-#if defined(TARGET_NR_pselect6)
-#ifndef __NR_pselect6
-# define __NR_pselect6 -1
-#endif
-#define __NR_sys_pselect6 __NR_pselect6
-_syscall6(int, sys_pselect6, int, nfds, fd_set *, readfds, fd_set *, writefds,
-          fd_set *, exceptfds, struct timespec *, timeout, void *, sig);
-#endif
-
 #if defined(TARGET_NR_prlimit64)
 #ifndef __NR_prlimit64
 # define __NR_prlimit64 -1
@@ -704,6 +695,8 @@ safe_syscall4(pid_t, wait4, pid_t, pid, int *, status, int, options, \
 safe_syscall5(int, waitid, idtype_t, idtype, id_t, id, siginfo_t *, infop, \
               int, options, struct rusage *, rusage)
 safe_syscall3(int, execve, const char *, filename, char **, argv, char **, envp)
+safe_syscall6(int, pselect6, int, nfds, fd_set *, readfds, fd_set *, writefds, \
+              fd_set *, exceptfds, struct timespec *, timeout, void *, sig)
 
 static inline int host_to_target_sock_type(int host_type)
 {
@@ -1115,7 +1108,8 @@ static abi_long do_select(int n,
 {
     fd_set rfds, wfds, efds;
     fd_set *rfds_ptr, *wfds_ptr, *efds_ptr;
-    struct timeval tv, *tv_ptr;
+    struct timeval tv;
+    struct timespec ts, *ts_ptr;
     abi_long ret;
 
     ret = copy_from_user_fdset_ptr(&rfds, &rfds_ptr, rfd_addr, n);
@@ -1134,12 +1128,15 @@ static abi_long do_select(int n,
     if (target_tv_addr) {
         if (copy_from_user_timeval(&tv, target_tv_addr))
             return -TARGET_EFAULT;
-        tv_ptr = &tv;
+        ts.tv_sec = tv.tv_sec;
+        ts.tv_nsec = tv.tv_usec * 1000;
+        ts_ptr = &ts;
     } else {
-        tv_ptr = NULL;
+        ts_ptr = NULL;
     }
 
-    ret = get_errno(select(n, rfds_ptr, wfds_ptr, efds_ptr, tv_ptr));
+    ret = get_errno(safe_pselect6(n, rfds_ptr, wfds_ptr, efds_ptr,
+                                  ts_ptr, NULL));
 
     if (!is_error(ret)) {
         if (rfd_addr && copy_to_user_fdset(rfd_addr, &rfds, n))
@@ -1149,8 +1146,13 @@ static abi_long do_select(int n,
         if (efd_addr && copy_to_user_fdset(efd_addr, &efds, n))
             return -TARGET_EFAULT;
 
-        if (target_tv_addr && copy_to_user_timeval(target_tv_addr, &tv))
-            return -TARGET_EFAULT;
+        if (target_tv_addr) {
+            tv.tv_sec = ts.tv_sec;
+            tv.tv_usec = ts.tv_nsec / 1000;
+            if (copy_to_user_timeval(target_tv_addr, &tv)) {
+                return -TARGET_EFAULT;
+            }
+        }
     }
 
     return ret;
@@ -7206,8 +7208,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 sig_ptr = NULL;
             }
 
-            ret = get_errno(sys_pselect6(n, rfds_ptr, wfds_ptr, efds_ptr,
-                                         ts_ptr, sig_ptr));
+            ret = get_errno(safe_pselect6(n, rfds_ptr, wfds_ptr, efds_ptr,
+                                          ts_ptr, sig_ptr));
 
             if (!is_error(ret)) {
                 if (rfd_addr && copy_to_user_fdset(rfd_addr, &rfds, n))
