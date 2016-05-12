@@ -43,13 +43,16 @@ _supported_fmt generic
 _supported_proto file
 _supported_os Linux
 
+# Remove once all tests are fixed to use TEST_IMG_FILE
+# correctly and common.rc sets it unconditionally
+test -z "$TEST_IMG_FILE" && TEST_IMG_FILE=$TEST_IMG
 
 size=128M
 _make_test_img $size
 
 echo
 echo "== mark image read-only"
-chmod a-w "$TEST_IMG"
+chmod a-w "$TEST_IMG_FILE"
 
 echo
 echo "== read from read-only image"

@@ -1,5 +1,5 @@
 QA output created by 048
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 === IO: pattern 45
 wrote 4096/4096 bytes at offset 524288
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -13,6 +13,8 @@ Images are identical.
 0
 0
 Image resized.
+wrote 33554432/33554432 bytes at offset 134217728
+32 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Warning: Image size mismatch!
 Images are identical.
 0
@@ -28,7 +30,7 @@ wrote 4096/4096 bytes at offset 0
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Content mismatch at offset 0!
 1
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 === IO: pattern 100
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)

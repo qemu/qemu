@@ -58,9 +58,9 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 ./common.config: Killed                  ( if [ "${VALGRIND_QEMU}" == "y" ]; then
-    exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@";
+    exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 "$QEMU_IO_PROG" $QEMU_IO_ARGS "$@";
 else
-    exec "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@";
+    exec "$QEMU_IO_PROG" $QEMU_IO_ARGS "$@";
 fi )
 magic                     0x514649fb
 version                   3
@@ -220,9 +220,9 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 ./common.config: Killed                  ( if [ "${VALGRIND_QEMU}" == "y" ]; then
-    exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@";
+    exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 "$QEMU_IO_PROG" $QEMU_IO_ARGS "$@";
 else
-    exec "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@";
+    exec "$QEMU_IO_PROG" $QEMU_IO_ARGS "$@";
 fi )
 magic                     0x514649fb
 version                   3

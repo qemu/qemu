@@ -37,7 +37,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.rc
 . ./common.filter
 
-_supported_fmt raw qcow qcow2 qed vdi vmdk vhdx
+_supported_fmt raw qcow qcow2 qed vdi vmdk vhdx luks
 _supported_proto generic
 _supported_os Linux
 

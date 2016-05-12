@@ -43,7 +43,7 @@ choose_tcp_port() {
 
 wait_for_tcp_port() {
 	while ! (netstat --tcp --listening --numeric | \
-		 grep "$1.*0\\.0\\.0\\.0:\\*.*LISTEN") 2>&1 >/dev/null; do
+		 grep "$1.*0\\.0\\.0\\.0:\\*.*LISTEN") >/dev/null 2>&1; do
 		sleep 0.1
 	done
 }
@@ -70,7 +70,7 @@ EOF
 		nbd_url="nbd:127.0.0.1:$port:exportname=foo"
 	fi
 
-	$PYTHON nbd-fault-injector.py $extra_args "127.0.0.1:$port" "$TEST_DIR/nbd-fault-injector.conf" 2>&1 >/dev/null &
+	$PYTHON nbd-fault-injector.py $extra_args "127.0.0.1:$port" "$TEST_DIR/nbd-fault-injector.conf" >/dev/null 2>&1 &
 	wait_for_tcp_port "127\\.0\\.0\\.1:$port"
 	$QEMU_IO -c "read 0 512" "$nbd_url" 2>&1 | _filter_qemu_io | _filter_nbd
 

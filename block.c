@@ -1174,10 +1174,10 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
     return child;
 }
 
-static BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
-                                    BlockDriverState *child_bs,
-                                    const char *child_name,
-                                    const BdrvChildRole *child_role)
+BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
+                             BlockDriverState *child_bs,
+                             const char *child_name,
+                             const BdrvChildRole *child_role)
 {
     BdrvChild *child = bdrv_root_attach_child(child_bs, child_name, child_role);
     QLIST_INSERT_HEAD(&parent_bs->children, child, next);
@@ -4010,4 +4010,53 @@ void bdrv_refresh_filename(BlockDriverState *bs)
                  qstring_get_str(json));
         QDECREF(json);
     }
+}
+
+/*
+ * Hot add/remove a BDS's child. So the user can take a child offline when
+ * it is broken and take a new child online
+ */
+void bdrv_add_child(BlockDriverState *parent_bs, BlockDriverState *child_bs,
+                    Error **errp)
+{
+
+    if (!parent_bs->drv || !parent_bs->drv->bdrv_add_child) {
+        error_setg(errp, "The node %s does not support adding a child",
+                   bdrv_get_device_or_node_name(parent_bs));
+        return;
+    }
+
+    if (!QLIST_EMPTY(&child_bs->parents)) {
+        error_setg(errp, "The node %s already has a parent",
+                   child_bs->node_name);
+        return;
+    }
+
+    parent_bs->drv->bdrv_add_child(parent_bs, child_bs, errp);
+}
+
+void bdrv_del_child(BlockDriverState *parent_bs, BdrvChild *child, Error **errp)
+{
+    BdrvChild *tmp;
+
+    if (!parent_bs->drv || !parent_bs->drv->bdrv_del_child) {
+        error_setg(errp, "The node %s does not support removing a child",
+                   bdrv_get_device_or_node_name(parent_bs));
+        return;
+    }
+
+    QLIST_FOREACH(tmp, &parent_bs->children, next) {
+        if (tmp == child) {
+            break;
+        }
+    }
+
+    if (!tmp) {
+        error_setg(errp, "The node %s does not have a child named %s",
+                   bdrv_get_device_or_node_name(parent_bs),
+                   bdrv_get_device_or_node_name(child->bs));
+        return;
+    }
+
+    parent_bs->drv->bdrv_del_child(parent_bs, child, errp);
 }

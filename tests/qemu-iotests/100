@@ -47,6 +47,7 @@ size=128M
 echo
 echo "== Single request =="
 _make_test_img $size
+$QEMU_IO -c "write -z 0 8k" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "multiwrite 0 4k" "$TEST_IMG" | _filter_qemu_io
 
 echo
@@ -59,6 +60,7 @@ _cleanup_test_img
 echo
 echo "== Sequential requests =="
 _make_test_img $size
+$QEMU_IO -c "write -z 0 12k" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "multiwrite 0 4k ; 4k 4k" "$TEST_IMG" | _filter_qemu_io
 
 echo
@@ -72,6 +74,7 @@ _cleanup_test_img
 echo
 echo "== Superset overlapping requests =="
 _make_test_img $size
+$QEMU_IO -c "write -z 0 8k" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "multiwrite 0 4k ; 1k 2k" "$TEST_IMG" | _filter_qemu_io
 
 echo
@@ -87,6 +90,7 @@ _cleanup_test_img
 echo
 echo "== Subset overlapping requests =="
 _make_test_img $size
+$QEMU_IO -c "write -z 0 8k" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "multiwrite 1k 2k ; 0k 4k" "$TEST_IMG" | _filter_qemu_io
 
 echo
@@ -102,6 +106,7 @@ _cleanup_test_img
 echo
 echo "== Head overlapping requests =="
 _make_test_img $size
+$QEMU_IO -c "write -z 0 8k" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "multiwrite 0k 2k ; 0k 4k" "$TEST_IMG" | _filter_qemu_io
 
 echo
@@ -116,6 +121,7 @@ _cleanup_test_img
 echo
 echo "== Tail overlapping requests =="
 _make_test_img $size
+$QEMU_IO -c "write -z 0 8k" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "multiwrite 2k 2k ; 0k 4k" "$TEST_IMG" | _filter_qemu_io
 
 echo
@@ -130,6 +136,7 @@ _cleanup_test_img
 echo
 echo "== Disjoint requests =="
 _make_test_img $size
+$QEMU_IO -c "write -z 0 72k" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "multiwrite 0 4k ; 64k 4k" "$TEST_IMG" | _filter_qemu_io
 
 echo
