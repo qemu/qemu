@@ -7250,7 +7250,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     uint32_t tg;
     uint64_t ttbr;
     int ttbr_select;
-    hwaddr descaddr, descmask;
+    hwaddr descaddr, indexmask, indexmask_grainsize;
     uint32_t tableattrs;
     target_ulong page_size;
     uint32_t attrs;
@@ -7439,28 +7439,20 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         level = startlevel;
     }
 
-    /* Clear the vaddr bits which aren't part of the within-region address,
-     * so that we don't have to special case things when calculating the
-     * first descriptor address.
-     */
-    if (va_size != inputsize) {
-        address &= (1ULL << inputsize) - 1;
-    }
-
-    descmask = (1ULL << (stride + 3)) - 1;
+    indexmask_grainsize = (1ULL << (stride + 3)) - 1;
+    indexmask = (1ULL << (inputsize - (stride * (4 - level)))) - 1;
 
     /* Now we can extract the actual base address from the TTBR */
     descaddr = extract64(ttbr, 0, 48);
-    descaddr &= ~((1ULL << (inputsize - (stride * (4 - level)))) - 1);
+    descaddr &= ~indexmask;
 
     /* The address field in the descriptor goes up to bit 39 for ARMv7
-     * but up to bit 47 for ARMv8.
+     * but up to bit 47 for ARMv8, but we use the descaddrmask
+     * up to bit 39 for AArch32, because we don't need other bits in that case
+     * to construct next descriptor address (anyway they should be all zeroes).
      */
-    if (arm_feature(env, ARM_FEATURE_V8)) {
-        descaddrmask = 0xfffffffff000ULL;
-    } else {
-        descaddrmask = 0xfffffff000ULL;
-    }
+    descaddrmask = ((1ull << (va_size == 64 ? 48 : 40)) - 1) &
+                   ~indexmask_grainsize;
 
     /* Secure accesses start with the page table in secure memory and
      * can be downgraded to non-secure at any step. Non-secure accesses
@@ -7472,7 +7464,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         uint64_t descriptor;
         bool nstable;
 
-        descaddr |= (address >> (stride * (4 - level))) & descmask;
+        descaddr |= (address >> (stride * (4 - level))) & indexmask;
         descaddr &= ~7ULL;
         nstable = extract32(tableattrs, 4, 1);
         descriptor = arm_ldq_ptw(cs, descaddr, !nstable, mmu_idx, fsr, fi);
@@ -7495,6 +7487,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
              */
             tableattrs |= extract64(descriptor, 59, 5);
             level++;
+            indexmask = indexmask_grainsize;
             continue;
         }
         /* Block entry at level 1 or 2, or page entry at level 3.
