@@ -101,6 +101,9 @@ extern struct XenDevOps xen_kbdmouse_ops;     /* xen_framebuffer.c */
 extern struct XenDevOps xen_framebuffer_ops;  /* xen_framebuffer.c */
 extern struct XenDevOps xen_blkdev_ops;       /* xen_disk.c        */
 extern struct XenDevOps xen_netdev_ops;       /* xen_nic.c         */
+#ifdef CONFIG_USB_LIBUSB
+extern struct XenDevOps xen_usb_ops;          /* xen-usb.c         */
+#endif
 
 void xen_init_display(int domid);
 

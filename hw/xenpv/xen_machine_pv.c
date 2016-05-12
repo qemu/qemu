@@ -80,6 +80,9 @@ static void xen_init_pv(MachineState *machine)
     xen_be_register("vfb", &xen_framebuffer_ops);
     xen_be_register("qdisk", &xen_blkdev_ops);
     xen_be_register("qnic", &xen_netdev_ops);
+#ifdef CONFIG_USB_LIBUSB
+    xen_be_register("qusb", &xen_usb_ops);
+#endif
 
     /* configure framebuffer */
     if (xenfb_enabled) {

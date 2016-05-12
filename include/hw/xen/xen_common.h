@@ -49,6 +49,8 @@ typedef xc_gnttab xengnttab_handle;
 #define xengnttab_unmap(h, a, n) xc_gnttab_munmap(h, a, n)
 #define xengnttab_map_grant_refs(h, c, d, r, p) \
     xc_gnttab_map_grant_refs(h, c, d, r, p)
+#define xengnttab_map_domain_grant_refs(h, c, d, r, p) \
+    xc_gnttab_map_domain_grant_refs(h, c, d, r, p)
 
 #define xenforeignmemory_open(l, f) xen_xc
 
