@@ -1909,9 +1909,10 @@ static const GraphicHwOps exynos4210_fimd_ops = {
     .gfx_update  = exynos4210_fimd_update,
 };
 
-static int exynos4210_fimd_init(SysBusDevice *dev)
+static void exynos4210_fimd_init(Object *obj)
 {
-    Exynos4210fimdState *s = EXYNOS4210_FIMD(dev);
+    Exynos4210fimdState *s = EXYNOS4210_FIMD(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
     s->ifb = NULL;
 
@@ -1919,28 +1920,32 @@ static int exynos4210_fimd_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq[1]);
     sysbus_init_irq(dev, &s->irq[2]);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &exynos4210_fimd_mmio_ops, s,
+    memory_region_init_io(&s->iomem, obj, &exynos4210_fimd_mmio_ops, s,
             "exynos4210.fimd", FIMD_REGS_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
-    s->console = graphic_console_init(DEVICE(dev), 0, &exynos4210_fimd_ops, s);
+}
 
-    return 0;
+static void exynos4210_fimd_realize(DeviceState *dev, Error **errp)
+{
+    Exynos4210fimdState *s = EXYNOS4210_FIMD(dev);
+
+    s->console = graphic_console_init(dev, 0, &exynos4210_fimd_ops, s);
 }
 
 static void exynos4210_fimd_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     dc->vmsd = &exynos4210_fimd_vmstate;
     dc->reset = exynos4210_fimd_reset;
-    k->init = exynos4210_fimd_init;
+    dc->realize = exynos4210_fimd_realize;
 }
 
 static const TypeInfo exynos4210_fimd_info = {
     .name = TYPE_EXYNOS4210_FIMD,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210fimdState),
+    .instance_init = exynos4210_fimd_init,
     .class_init = exynos4210_fimd_class_init,
 };
 
