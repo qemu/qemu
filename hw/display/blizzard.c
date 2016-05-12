@@ -925,14 +925,6 @@ static void blizzard_update_display(void *opaque)
     s->my[1] = 0;
 }
 
-#define DEPTH 8
-#include "blizzard_template.h"
-#define DEPTH 15
-#include "blizzard_template.h"
-#define DEPTH 16
-#include "blizzard_template.h"
-#define DEPTH 24
-#include "blizzard_template.h"
 #define DEPTH 32
 #include "blizzard_template.h"
 
@@ -951,35 +943,10 @@ void *s1d13745_init(qemu_irq gpio_int)
     s->con = graphic_console_init(NULL, 0, &blizzard_ops, s);
     surface = qemu_console_surface(s->con);
 
-    switch (surface_bits_per_pixel(surface)) {
-    case 0:
-        s->line_fn_tab[0] = s->line_fn_tab[1] =
-                g_malloc0(sizeof(blizzard_fn_t) * 0x10);
-        break;
-    case 8:
-        s->line_fn_tab[0] = blizzard_draw_fn_8;
-        s->line_fn_tab[1] = blizzard_draw_fn_r_8;
-        break;
-    case 15:
-        s->line_fn_tab[0] = blizzard_draw_fn_15;
-        s->line_fn_tab[1] = blizzard_draw_fn_r_15;
-        break;
-    case 16:
-        s->line_fn_tab[0] = blizzard_draw_fn_16;
-        s->line_fn_tab[1] = blizzard_draw_fn_r_16;
-        break;
-    case 24:
-        s->line_fn_tab[0] = blizzard_draw_fn_24;
-        s->line_fn_tab[1] = blizzard_draw_fn_r_24;
-        break;
-    case 32:
-        s->line_fn_tab[0] = blizzard_draw_fn_32;
-        s->line_fn_tab[1] = blizzard_draw_fn_r_32;
-        break;
-    default:
-        fprintf(stderr, "%s: Bad color depth\n", __FUNCTION__);
-        exit(1);
-    }
+    assert(surface_bits_per_pixel(surface) == 32);
+
+    s->line_fn_tab[0] = blizzard_draw_fn_32;
+    s->line_fn_tab[1] = blizzard_draw_fn_r_32;
 
     blizzard_reset(s);
 

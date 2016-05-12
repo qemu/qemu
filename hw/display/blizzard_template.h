@@ -19,31 +19,7 @@
  */
 
 #define SKIP_PIXEL(to)         (to += deststep)
-#if DEPTH == 8
-# define PIXEL_TYPE            uint8_t
-# define COPY_PIXEL(to, from)  do { *to = from; SKIP_PIXEL(to); } while (0)
-# define COPY_PIXEL1(to, from) (*to++ = from)
-#elif DEPTH == 15 || DEPTH == 16
-# define PIXEL_TYPE            uint16_t
-# define COPY_PIXEL(to, from)  do { *to = from; SKIP_PIXEL(to); } while (0)
-# define COPY_PIXEL1(to, from) (*to++ = from)
-#elif DEPTH == 24
-# define PIXEL_TYPE            uint8_t
-# define COPY_PIXEL(to, from) \
-    do {                      \
-        to[0] = from;         \
-        to[1] = (from) >> 8;  \
-        to[2] = (from) >> 16; \
-        SKIP_PIXEL(to);       \
-    } while (0)
-
-# define COPY_PIXEL1(to, from) \
-    do {                       \
-        *to++ = from;          \
-        *to++ = (from) >> 8;   \
-        *to++ = (from) >> 16;  \
-    } while (0)
-#elif DEPTH == 32
+#if DEPTH == 32
 # define PIXEL_TYPE            uint32_t
 # define COPY_PIXEL(to, from)  do { *to = from; SKIP_PIXEL(to); } while (0)
 # define COPY_PIXEL1(to, from) (*to++ = from)
@@ -58,9 +34,6 @@
 static void glue(blizzard_draw_line16_, DEPTH)(PIXEL_TYPE *dest,
                 const uint16_t *src, unsigned int width)
 {
-#if !defined(SWAP_WORDS) && DEPTH == 16
-    memcpy(dest, src, width);
-#else
     uint16_t data;
     unsigned int r, g, b;
     const uint16_t *end = (const void *) src + width;
@@ -74,7 +47,6 @@ static void glue(blizzard_draw_line16_, DEPTH)(PIXEL_TYPE *dest,
         data >>= 5;
         COPY_PIXEL1(dest, glue(rgb_to_pixel, DEPTH)(r, g, b));
     }
-#endif
 }
 
 static void glue(blizzard_draw_line24mode1_, DEPTH)(PIXEL_TYPE *dest,
