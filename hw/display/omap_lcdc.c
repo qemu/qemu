@@ -71,46 +71,8 @@ static void omap_lcd_interrupts(struct omap_lcd_panel_s *s)
 
 #define draw_line_func drawfn
 
-#define DEPTH 8
-#include "omap_lcd_template.h"
-#define DEPTH 15
-#include "omap_lcd_template.h"
-#define DEPTH 16
-#include "omap_lcd_template.h"
 #define DEPTH 32
 #include "omap_lcd_template.h"
-
-static draw_line_func draw_line_table2[33] = {
-    [0 ... 32]	= NULL,
-    [8]		= draw_line2_8,
-    [15]	= draw_line2_15,
-    [16]	= draw_line2_16,
-    [32]	= draw_line2_32,
-}, draw_line_table4[33] = {
-    [0 ... 32]	= NULL,
-    [8]		= draw_line4_8,
-    [15]	= draw_line4_15,
-    [16]	= draw_line4_16,
-    [32]	= draw_line4_32,
-}, draw_line_table8[33] = {
-    [0 ... 32]	= NULL,
-    [8]		= draw_line8_8,
-    [15]	= draw_line8_15,
-    [16]	= draw_line8_16,
-    [32]	= draw_line8_32,
-}, draw_line_table12[33] = {
-    [0 ... 32]	= NULL,
-    [8]		= draw_line12_8,
-    [15]	= draw_line12_15,
-    [16]	= draw_line12_16,
-    [32]	= draw_line12_32,
-}, draw_line_table16[33] = {
-    [0 ... 32]	= NULL,
-    [8]		= draw_line16_8,
-    [15]	= draw_line16_15,
-    [16]	= draw_line16_16,
-    [32]	= draw_line16_32,
-};
 
 static void omap_update_display(void *opaque)
 {
@@ -143,25 +105,25 @@ static void omap_update_display(void *opaque)
     /* Colour depth */
     switch ((omap_lcd->palette[0] >> 12) & 7) {
     case 1:
-        draw_line = draw_line_table2[surface_bits_per_pixel(surface)];
+        draw_line = draw_line2_32;
         bpp = 2;
         break;
 
     case 2:
-        draw_line = draw_line_table4[surface_bits_per_pixel(surface)];
+        draw_line = draw_line4_32;
         bpp = 4;
         break;
 
     case 3:
-        draw_line = draw_line_table8[surface_bits_per_pixel(surface)];
+        draw_line = draw_line8_32;
         bpp = 8;
         break;
 
     case 4 ... 7:
         if (!omap_lcd->tft)
-            draw_line = draw_line_table12[surface_bits_per_pixel(surface)];
+            draw_line = draw_line12_32;
         else
-            draw_line = draw_line_table16[surface_bits_per_pixel(surface)];
+            draw_line = draw_line16_32;
         bpp = 16;
         break;
 
