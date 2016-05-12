@@ -2724,6 +2724,7 @@ void cpu_loop(CPUOpenRISCState *env)
 {
     CPUState *cs = CPU(openrisc_env_get_cpu(env));
     int trapnr, gdbsig;
+    abi_long ret;
 
     for (;;) {
         cpu_exec_start(cs);
@@ -2769,14 +2770,19 @@ void cpu_loop(CPUOpenRISCState *env)
             break;
         case EXCP_SYSCALL:
             env->pc += 4;   /* 0xc00; */
-            env->gpr[11] = do_syscall(env,
-                                      env->gpr[11], /* return value       */
-                                      env->gpr[3],  /* r3 - r7 are params */
-                                      env->gpr[4],
-                                      env->gpr[5],
-                                      env->gpr[6],
-                                      env->gpr[7],
-                                      env->gpr[8], 0, 0);
+            ret = do_syscall(env,
+                             env->gpr[11], /* return value       */
+                             env->gpr[3],  /* r3 - r7 are params */
+                             env->gpr[4],
+                             env->gpr[5],
+                             env->gpr[6],
+                             env->gpr[7],
+                             env->gpr[8], 0, 0);
+            if (ret == -TARGET_ERESTARTSYS) {
+                env->pc -= 4;
+            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                env->gpr[11] = ret;
+            }
             break;
         case EXCP_FPE:
             qemu_log_mask(CPU_LOG_INT, "\nFloating point error\n");
