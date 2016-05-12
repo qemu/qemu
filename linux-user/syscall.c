@@ -697,6 +697,8 @@ safe_syscall5(int, waitid, idtype_t, idtype, id_t, id, siginfo_t *, infop, \
 safe_syscall3(int, execve, const char *, filename, char **, argv, char **, envp)
 safe_syscall6(int, pselect6, int, nfds, fd_set *, readfds, fd_set *, writefds, \
               fd_set *, exceptfds, struct timespec *, timeout, void *, sig)
+safe_syscall6(int,futex,int *,uaddr,int,op,int,val, \
+              const struct timespec *,timeout,int *,uaddr2,int,val3)
 
 static inline int host_to_target_sock_type(int host_type)
 {
@@ -5381,12 +5383,12 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
         } else {
             pts = NULL;
         }
-        return get_errno(sys_futex(g2h(uaddr), op, tswap32(val),
+        return get_errno(safe_futex(g2h(uaddr), op, tswap32(val),
                          pts, NULL, val3));
     case FUTEX_WAKE:
-        return get_errno(sys_futex(g2h(uaddr), op, val, NULL, NULL, 0));
+        return get_errno(safe_futex(g2h(uaddr), op, val, NULL, NULL, 0));
     case FUTEX_FD:
-        return get_errno(sys_futex(g2h(uaddr), op, val, NULL, NULL, 0));
+        return get_errno(safe_futex(g2h(uaddr), op, val, NULL, NULL, 0));
     case FUTEX_REQUEUE:
     case FUTEX_CMP_REQUEUE:
     case FUTEX_WAKE_OP:
@@ -5396,11 +5398,11 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
            to satisfy the compiler.  We do not need to tswap TIMEOUT
            since it's not compared to guest memory.  */
         pts = (struct timespec *)(uintptr_t) timeout;
-        return get_errno(sys_futex(g2h(uaddr), op, val, pts,
-                                   g2h(uaddr2),
-                                   (base_op == FUTEX_CMP_REQUEUE
-                                    ? tswap32(val3)
-                                    : val3)));
+        return get_errno(safe_futex(g2h(uaddr), op, val, pts,
+                                    g2h(uaddr2),
+                                    (base_op == FUTEX_CMP_REQUEUE
+                                     ? tswap32(val3)
+                                     : val3)));
     default:
         return -TARGET_ENOSYS;
     }
