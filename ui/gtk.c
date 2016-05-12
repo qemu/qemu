@@ -1329,7 +1329,31 @@ static void gd_menu_zoom_fit(GtkMenuItem *item, void *opaque)
     gd_update_full_redraw(vc);
 }
 
-#if GTK_CHECK_VERSION(3, 0, 0)
+#if GTK_CHECK_VERSION(3, 20, 0)
+static void gd_grab_update(VirtualConsole *vc, bool kbd, bool ptr)
+{
+    GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
+    GdkSeat *seat = gdk_display_get_default_seat(display);
+    GdkWindow *window = gtk_widget_get_window(vc->gfx.drawing_area);
+    GdkSeatCapabilities caps = 0;
+    GdkCursor *cursor = NULL;
+
+    if (kbd) {
+        caps |= GDK_SEAT_CAPABILITY_KEYBOARD;
+    }
+    if (ptr) {
+        caps |= GDK_SEAT_CAPABILITY_ALL_POINTING;
+        cursor = vc->s->null_cursor;
+    }
+
+    if (caps) {
+        gdk_seat_grab(seat, window, caps, false, cursor,
+                      NULL, NULL, NULL);
+    } else {
+        gdk_seat_ungrab(seat);
+    }
+}
+#elif GTK_CHECK_VERSION(3, 0, 0)
 static void gd_grab_devices(VirtualConsole *vc, bool grab,
                             GdkInputSource source, GdkEventMask mask,
                             GdkCursor *cursor)
@@ -1366,7 +1390,9 @@ static void gd_grab_keyboard(VirtualConsole *vc, const char *reason)
         }
     }
 
-#if GTK_CHECK_VERSION(3, 0, 0)
+#if GTK_CHECK_VERSION(3, 20, 0)
+    gd_grab_update(vc, true, vc->s->ptr_owner == vc);
+#elif GTK_CHECK_VERSION(3, 0, 0)
     gd_grab_devices(vc, true, GDK_SOURCE_KEYBOARD,
                    GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
                    NULL);
@@ -1389,7 +1415,9 @@ static void gd_ungrab_keyboard(GtkDisplayState *s)
     }
     s->kbd_owner = NULL;
 
-#if GTK_CHECK_VERSION(3, 0, 0)
+#if GTK_CHECK_VERSION(3, 20, 0)
+    gd_grab_update(vc, false, vc->s->ptr_owner == vc);
+#elif GTK_CHECK_VERSION(3, 0, 0)
     gd_grab_devices(vc, false, GDK_SOURCE_KEYBOARD, 0, NULL);
 #else
     gdk_keyboard_ungrab(GDK_CURRENT_TIME);
@@ -1410,7 +1438,11 @@ static void gd_grab_pointer(VirtualConsole *vc, const char *reason)
         }
     }
 
-#if GTK_CHECK_VERSION(3, 0, 0)
+#if GTK_CHECK_VERSION(3, 20, 0)
+    gd_grab_update(vc, vc->s->kbd_owner == vc, true);
+    gdk_device_get_position(gd_get_pointer(display),
+                            NULL, &vc->s->grab_x_root, &vc->s->grab_y_root);
+#elif GTK_CHECK_VERSION(3, 0, 0)
     gd_grab_devices(vc, true, GDK_SOURCE_MOUSE,
                     GDK_POINTER_MOTION_MASK |
                     GDK_BUTTON_PRESS_MASK |
@@ -1442,14 +1474,19 @@ static void gd_grab_pointer(VirtualConsole *vc, const char *reason)
 static void gd_ungrab_pointer(GtkDisplayState *s)
 {
     VirtualConsole *vc = s->ptr_owner;
+    GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
 
     if (vc == NULL) {
         return;
     }
     s->ptr_owner = NULL;
 
-    GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
-#if GTK_CHECK_VERSION(3, 0, 0)
+#if GTK_CHECK_VERSION(3, 20, 0)
+    gd_grab_update(vc, vc->s->kbd_owner == vc, false);
+    gdk_device_warp(gd_get_pointer(display),
+                    gtk_widget_get_screen(vc->gfx.drawing_area),
+                    vc->s->grab_x_root, vc->s->grab_y_root);
+#elif GTK_CHECK_VERSION(3, 0, 0)
     gd_grab_devices(vc, false, GDK_SOURCE_MOUSE, 0, NULL);
     gdk_device_warp(gd_get_pointer(display),
                     gtk_widget_get_screen(vc->gfx.drawing_area),
