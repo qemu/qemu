@@ -4,3 +4,4 @@ common-obj-$(CONFIG_XILINX_SPI) += xilinx_spi.o
 common-obj-$(CONFIG_XILINX_SPIPS) += xilinx_spips.o
 
 obj-$(CONFIG_OMAP) += omap_spi.o
+obj-$(CONFIG_IMX) += imx_spi.o

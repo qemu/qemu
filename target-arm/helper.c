@@ -3559,8 +3559,10 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .resetvalue = 0 },
     { .name = "TCR_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 0, .opc2 = 2,
-      .access = PL2_RW, .writefn = vmsa_tcr_el1_write,
-      .resetfn = vmsa_ttbcr_reset, .raw_writefn = raw_write,
+      .access = PL2_RW,
+      /* no .writefn needed as this can't cause an ASID change;
+       * no .raw_writefn or .resetfn needed as we never use mask/base_mask
+       */
       .fieldoffset = offsetof(CPUARMState, cp15.tcr_el[2]) },
     { .name = "VTCR", .state = ARM_CP_STATE_AA32,
       .cp = 15, .opc1 = 4, .crn = 2, .crm = 1, .opc2 = 2,
@@ -3753,8 +3755,10 @@ static const ARMCPRegInfo el3_cp_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[3]) },
     { .name = "TCR_EL3", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 6, .crn = 2, .crm = 0, .opc2 = 2,
-      .access = PL3_RW, .writefn = vmsa_tcr_el1_write,
-      .resetfn = vmsa_ttbcr_reset, .raw_writefn = raw_write,
+      .access = PL3_RW,
+      /* no .writefn needed as this can't cause an ASID change;
+       * no .raw_writefn or .resetfn needed as we never use mask/base_mask
+       */
       .fieldoffset = offsetof(CPUARMState, cp15.tcr_el[3]) },
     { .name = "ELR_EL3", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS,
@@ -6708,7 +6712,9 @@ static int get_S2prot(CPUARMState *env, int s2ap, int xn)
         prot |= PAGE_WRITE;
     }
     if (!xn) {
-        prot |= PAGE_EXEC;
+        if (arm_el_is_aa64(env, 2) || prot & PAGE_READ) {
+            prot |= PAGE_EXEC;
+        }
     }
     return prot;
 }
@@ -7248,7 +7254,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     uint32_t tg;
     uint64_t ttbr;
     int ttbr_select;
-    hwaddr descaddr, descmask;
+    hwaddr descaddr, indexmask, indexmask_grainsize;
     uint32_t tableattrs;
     target_ulong page_size;
     uint32_t attrs;
@@ -7437,28 +7443,20 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         level = startlevel;
     }
 
-    /* Clear the vaddr bits which aren't part of the within-region address,
-     * so that we don't have to special case things when calculating the
-     * first descriptor address.
-     */
-    if (va_size != inputsize) {
-        address &= (1ULL << inputsize) - 1;
-    }
-
-    descmask = (1ULL << (stride + 3)) - 1;
+    indexmask_grainsize = (1ULL << (stride + 3)) - 1;
+    indexmask = (1ULL << (inputsize - (stride * (4 - level)))) - 1;
 
     /* Now we can extract the actual base address from the TTBR */
     descaddr = extract64(ttbr, 0, 48);
-    descaddr &= ~((1ULL << (inputsize - (stride * (4 - level)))) - 1);
+    descaddr &= ~indexmask;
 
     /* The address field in the descriptor goes up to bit 39 for ARMv7
-     * but up to bit 47 for ARMv8.
+     * but up to bit 47 for ARMv8, but we use the descaddrmask
+     * up to bit 39 for AArch32, because we don't need other bits in that case
+     * to construct next descriptor address (anyway they should be all zeroes).
      */
-    if (arm_feature(env, ARM_FEATURE_V8)) {
-        descaddrmask = 0xfffffffff000ULL;
-    } else {
-        descaddrmask = 0xfffffff000ULL;
-    }
+    descaddrmask = ((1ull << (va_size == 64 ? 48 : 40)) - 1) &
+                   ~indexmask_grainsize;
 
     /* Secure accesses start with the page table in secure memory and
      * can be downgraded to non-secure at any step. Non-secure accesses
@@ -7470,7 +7468,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         uint64_t descriptor;
         bool nstable;
 
-        descaddr |= (address >> (stride * (4 - level))) & descmask;
+        descaddr |= (address >> (stride * (4 - level))) & indexmask;
         descaddr &= ~7ULL;
         nstable = extract32(tableattrs, 4, 1);
         descriptor = arm_ldq_ptw(cs, descaddr, !nstable, mmu_idx, fsr, fi);
@@ -7493,6 +7491,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
              */
             tableattrs |= extract64(descriptor, 59, 5);
             level++;
+            indexmask = indexmask_grainsize;
             continue;
         }
         /* Block entry at level 1 or 2, or page entry at level 3.

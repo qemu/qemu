@@ -27,13 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if DEPTH == 8
-# define BPP 1
-# define PIXEL_TYPE uint8_t
-#elif DEPTH == 15 || DEPTH == 16
-# define BPP 2
-# define PIXEL_TYPE uint16_t
-#elif DEPTH == 32
+#if DEPTH == 32
 # define BPP 4
 # define PIXEL_TYPE uint32_t
 #else
@@ -152,7 +146,7 @@ static void glue(draw_line12_, DEPTH)(void *opaque,
 static void glue(draw_line16_, DEPTH)(void *opaque,
                 uint8_t *d, const uint8_t *s, int width, int deststep)
 {
-#if DEPTH == 16 && defined(HOST_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
     memcpy(d, s, width * 2);
 #else
     uint16_t v;

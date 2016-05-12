@@ -418,15 +418,16 @@ static void slavio_intctl_reset(DeviceState *d)
     slavio_check_interrupts(s, 0);
 }
 
-static int slavio_intctl_init1(SysBusDevice *sbd)
+static void slavio_intctl_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    SLAVIO_INTCTLState *s = SLAVIO_INTCTL(dev);
+    DeviceState *dev = DEVICE(obj);
+    SLAVIO_INTCTLState *s = SLAVIO_INTCTL(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     unsigned int i, j;
     char slave_name[45];
 
     qdev_init_gpio_in(dev, slavio_set_irq_all, 32 + MAX_CPUS);
-    memory_region_init_io(&s->iomem, OBJECT(s), &slavio_intctlm_mem_ops, s,
+    memory_region_init_io(&s->iomem, obj, &slavio_intctlm_mem_ops, s,
                           "master-interrupt-controller", INTCTLM_SIZE);
     sysbus_init_mmio(sbd, &s->iomem);
 
@@ -443,16 +444,12 @@ static int slavio_intctl_init1(SysBusDevice *sbd)
         s->slaves[i].cpu = i;
         s->slaves[i].master = s;
     }
-
-    return 0;
 }
 
 static void slavio_intctl_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = slavio_intctl_init1;
     dc->reset = slavio_intctl_reset;
     dc->vmsd = &vmstate_intctl;
 }
@@ -461,6 +458,7 @@ static const TypeInfo slavio_intctl_info = {
     .name          = TYPE_SLAVIO_INTCTL,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SLAVIO_INTCTLState),
+    .instance_init = slavio_intctl_init,
     .class_init    = slavio_intctl_class_init,
 };
 

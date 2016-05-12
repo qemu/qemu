@@ -1563,3 +1563,14 @@ build_rsdt(GArray *table_data, GArray *linker, GArray *table_offsets,
     build_header(linker, table_data,
                  (void *)rsdt, "RSDT", rsdt_len, 1, oem_id, oem_table_id);
 }
+
+void build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
+                       uint64_t len, int node, MemoryAffinityFlags flags)
+{
+    numamem->type = ACPI_SRAT_MEMORY;
+    numamem->length = sizeof(*numamem);
+    numamem->proximity = cpu_to_le32(node);
+    numamem->flags = cpu_to_le32(flags);
+    numamem->base_addr = cpu_to_le64(base);
+    numamem->range_length = cpu_to_le64(len);
+}

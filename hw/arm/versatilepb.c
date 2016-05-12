@@ -153,10 +153,11 @@ static const MemoryRegionOps vpb_sic_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int vpb_sic_init(SysBusDevice *sbd)
+static void vpb_sic_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    vpb_sic_state *s = VERSATILE_PB_SIC(dev);
+    DeviceState *dev = DEVICE(obj);
+    vpb_sic_state *s = VERSATILE_PB_SIC(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     int i;
 
     qdev_init_gpio_in(dev, vpb_sic_set_irq, 32);
@@ -164,10 +165,9 @@ static int vpb_sic_init(SysBusDevice *sbd)
         sysbus_init_irq(sbd, &s->parent[i]);
     }
     s->irq = 31;
-    memory_region_init_io(&s->iomem, OBJECT(s), &vpb_sic_ops, s,
+    memory_region_init_io(&s->iomem, obj, &vpb_sic_ops, s,
                           "vpb-sic", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
-    return 0;
 }
 
 /* Board init.  */
@@ -427,9 +427,7 @@ type_init(versatile_machine_init)
 static void vpb_sic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = vpb_sic_init;
     dc->vmsd = &vmstate_vpb_sic;
 }
 
@@ -437,6 +435,7 @@ static const TypeInfo vpb_sic_info = {
     .name          = TYPE_VERSATILE_PB_SIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(vpb_sic_state),
+    .instance_init = vpb_sic_init,
     .class_init    = vpb_sic_class_init,
 };
 

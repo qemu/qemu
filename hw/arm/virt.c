@@ -38,6 +38,7 @@
 #include "net/net.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/device_tree.h"
+#include "sysemu/numa.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
 #include "hw/boards.h"
@@ -329,6 +330,7 @@ static void fdt_add_cpu_nodes(const VirtBoardInfo *vbi)
 {
     int cpu;
     int addr_cells = 1;
+    unsigned int i;
 
     /*
      * From Documentation/devicetree/bindings/arm/cpus.txt
@@ -376,6 +378,12 @@ static void fdt_add_cpu_nodes(const VirtBoardInfo *vbi)
         } else {
             qemu_fdt_setprop_cell(vbi->fdt, nodename, "reg",
                                   armcpu->mp_affinity);
+        }
+
+        for (i = 0; i < nb_numa_nodes; i++) {
+            if (test_bit(cpu, numa_info[i].node_cpu)) {
+                qemu_fdt_setprop_cell(vbi->fdt, nodename, "numa-node-id", i);
+            }
         }
 
         g_free(nodename);

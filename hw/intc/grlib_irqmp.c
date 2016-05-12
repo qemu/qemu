@@ -31,6 +31,7 @@
 #include "hw/sparc/grlib.h"
 
 #include "trace.h"
+#include "qapi/error.h"
 
 #define IRQMP_MAX_CPU 16
 #define IRQMP_REG_SIZE 256      /* Size of memory mapped registers */
@@ -323,23 +324,27 @@ static void grlib_irqmp_reset(DeviceState *d)
     irqmp->state->parent = irqmp;
 }
 
-static int grlib_irqmp_init(SysBusDevice *dev)
+static void grlib_irqmp_init(Object *obj)
 {
-    IRQMP *irqmp = GRLIB_IRQMP(dev);
+    IRQMP *irqmp = GRLIB_IRQMP(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
-    /* Check parameters */
-    if (irqmp->set_pil_in == NULL) {
-        return -1;
-    }
-
-    memory_region_init_io(&irqmp->iomem, OBJECT(dev), &grlib_irqmp_ops, irqmp,
+    memory_region_init_io(&irqmp->iomem, obj, &grlib_irqmp_ops, irqmp,
                           "irqmp", IRQMP_REG_SIZE);
 
     irqmp->state = g_malloc0(sizeof *irqmp->state);
 
     sysbus_init_mmio(dev, &irqmp->iomem);
+}
 
-    return 0;
+static void grlib_irqmp_realize(DeviceState *dev, Error **errp)
+{
+    IRQMP *irqmp = GRLIB_IRQMP(dev);
+
+        /* Check parameters */
+    if (irqmp->set_pil_in == NULL) {
+        error_setg(errp, "set_pil_in cannot be NULL.");
+    }
 }
 
 static Property grlib_irqmp_properties[] = {
@@ -351,19 +356,19 @@ static Property grlib_irqmp_properties[] = {
 static void grlib_irqmp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = grlib_irqmp_init;
     dc->reset = grlib_irqmp_reset;
     dc->props = grlib_irqmp_properties;
     /* Reason: pointer properties "set_pil_in", "set_pil_in_opaque" */
     dc->cannot_instantiate_with_device_add_yet = true;
+    dc->realize = grlib_irqmp_realize;
 }
 
 static const TypeInfo grlib_irqmp_info = {
     .name          = TYPE_GRLIB_IRQMP,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IRQMP),
+    .instance_init = grlib_irqmp_init,
     .class_init    = grlib_irqmp_class_init,
 };
 

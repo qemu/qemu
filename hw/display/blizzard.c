@@ -925,16 +925,83 @@ static void blizzard_update_display(void *opaque)
     s->my[1] = 0;
 }
 
-#define DEPTH 8
-#include "blizzard_template.h"
-#define DEPTH 15
-#include "blizzard_template.h"
-#define DEPTH 16
-#include "blizzard_template.h"
-#define DEPTH 24
-#include "blizzard_template.h"
-#define DEPTH 32
-#include "blizzard_template.h"
+static void blizzard_draw_line16_32(uint32_t *dest,
+                                    const uint16_t *src, unsigned int width)
+{
+    uint16_t data;
+    unsigned int r, g, b;
+    const uint16_t *end = (const void *) src + width;
+    while (src < end) {
+        data = *src ++;
+        b = (data & 0x1f) << 3;
+        data >>= 5;
+        g = (data & 0x3f) << 2;
+        data >>= 6;
+        r = (data & 0x1f) << 3;
+        data >>= 5;
+        *dest++ = rgb_to_pixel32(r, g, b);
+    }
+}
+
+static void blizzard_draw_line24mode1_32(uint32_t *dest,
+                                         const uint8_t *src, unsigned int width)
+{
+    /* TODO: check if SDL 24-bit planes are not in the same format and
+     * if so, use memcpy */
+    unsigned int r[2], g[2], b[2];
+    const uint8_t *end = src + width;
+    while (src < end) {
+        g[0] = *src ++;
+        r[0] = *src ++;
+        r[1] = *src ++;
+        b[0] = *src ++;
+        *dest++ = rgb_to_pixel32(r[0], g[0], b[0]);
+        b[1] = *src ++;
+        g[1] = *src ++;
+        *dest++ = rgb_to_pixel32(r[1], g[1], b[1]);
+    }
+}
+
+static void blizzard_draw_line24mode2_32(uint32_t *dest,
+                                         const uint8_t *src, unsigned int width)
+{
+    unsigned int r, g, b;
+    const uint8_t *end = src + width;
+    while (src < end) {
+        r = *src ++;
+        src ++;
+        b = *src ++;
+        g = *src ++;
+        *dest++ = rgb_to_pixel32(r, g, b);
+    }
+}
+
+/* No rotation */
+static blizzard_fn_t blizzard_draw_fn_32[0x10] = {
+    NULL,
+    /* RGB 5:6:5*/
+    (blizzard_fn_t) blizzard_draw_line16_32,
+    /* RGB 6:6:6 mode 1 */
+    (blizzard_fn_t) blizzard_draw_line24mode1_32,
+    /* RGB 8:8:8 mode 1 */
+    (blizzard_fn_t) blizzard_draw_line24mode1_32,
+    NULL, NULL,
+    /* RGB 6:6:6 mode 2 */
+    (blizzard_fn_t) blizzard_draw_line24mode2_32,
+    /* RGB 8:8:8 mode 2 */
+    (blizzard_fn_t) blizzard_draw_line24mode2_32,
+    /* YUV 4:2:2 */
+    NULL,
+    /* YUV 4:2:0 */
+    NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL,
+};
+
+/* 90deg, 180deg and 270deg rotation */
+static blizzard_fn_t blizzard_draw_fn_r_32[0x10] = {
+    /* TODO */
+    [0 ... 0xf] = NULL,
+};
 
 static const GraphicHwOps blizzard_ops = {
     .invalidate  = blizzard_invalidate_display,
@@ -951,35 +1018,10 @@ void *s1d13745_init(qemu_irq gpio_int)
     s->con = graphic_console_init(NULL, 0, &blizzard_ops, s);
     surface = qemu_console_surface(s->con);
 
-    switch (surface_bits_per_pixel(surface)) {
-    case 0:
-        s->line_fn_tab[0] = s->line_fn_tab[1] =
-                g_malloc0(sizeof(blizzard_fn_t) * 0x10);
-        break;
-    case 8:
-        s->line_fn_tab[0] = blizzard_draw_fn_8;
-        s->line_fn_tab[1] = blizzard_draw_fn_r_8;
-        break;
-    case 15:
-        s->line_fn_tab[0] = blizzard_draw_fn_15;
-        s->line_fn_tab[1] = blizzard_draw_fn_r_15;
-        break;
-    case 16:
-        s->line_fn_tab[0] = blizzard_draw_fn_16;
-        s->line_fn_tab[1] = blizzard_draw_fn_r_16;
-        break;
-    case 24:
-        s->line_fn_tab[0] = blizzard_draw_fn_24;
-        s->line_fn_tab[1] = blizzard_draw_fn_r_24;
-        break;
-    case 32:
-        s->line_fn_tab[0] = blizzard_draw_fn_32;
-        s->line_fn_tab[1] = blizzard_draw_fn_r_32;
-        break;
-    default:
-        fprintf(stderr, "%s: Bad color depth\n", __FUNCTION__);
-        exit(1);
-    }
+    assert(surface_bits_per_pixel(surface) == 32);
+
+    s->line_fn_tab[0] = blizzard_draw_fn_32;
+    s->line_fn_tab[1] = blizzard_draw_fn_r_32;
 
     blizzard_reset(s);
 
