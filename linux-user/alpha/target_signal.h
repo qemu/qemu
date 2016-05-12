@@ -27,6 +27,7 @@ static inline abi_ulong get_sp_from_cpustate(CPUAlphaState *state)
     return state->ir[IR_SP];
 }
 
+
 /* From <asm/gentrap.h>.  */
 #define TARGET_GEN_INTOVF      -1      /* integer overflow */
 #define TARGET_GEN_INTDIV      -2      /* integer division by zero */
