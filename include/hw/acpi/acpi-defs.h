@@ -475,7 +475,7 @@ typedef struct AcpiSratProcessorAffinity AcpiSratProcessorAffinity;
 struct AcpiSratMemoryAffinity
 {
     ACPI_SUB_HEADER_DEF
-    uint8_t     proximity[4];
+    uint32_t    proximity;
     uint16_t    reserved1;
     uint64_t    base_addr;
     uint64_t    range_length;

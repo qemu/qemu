@@ -2440,8 +2440,7 @@ acpi_build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
 {
     numamem->type = ACPI_SRAT_MEMORY;
     numamem->length = sizeof(*numamem);
-    memset(numamem->proximity, 0, 4);
-    numamem->proximity[0] = node;
+    numamem->proximity = cpu_to_le32(node);
     numamem->flags = cpu_to_le32(flags);
     numamem->base_addr = cpu_to_le64(base);
     numamem->range_length = cpu_to_le64(len);
