@@ -703,6 +703,7 @@ safe_syscall4(pid_t, wait4, pid_t, pid, int *, status, int, options, \
               struct rusage *, rusage)
 safe_syscall5(int, waitid, idtype_t, idtype, id_t, id, siginfo_t *, infop, \
               int, options, struct rusage *, rusage)
+safe_syscall3(int, execve, const char *, filename, char **, argv, char **, envp)
 
 static inline int host_to_target_sock_type(int host_type)
 {
@@ -6179,7 +6180,17 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
             if (!(p = lock_user_string(arg1)))
                 goto execve_efault;
-            ret = get_errno(execve(p, argp, envp));
+            /* Although execve() is not an interruptible syscall it is
+             * a special case where we must use the safe_syscall wrapper:
+             * if we allow a signal to happen before we make the host
+             * syscall then we will 'lose' it, because at the point of
+             * execve the process leaves QEMU's control. So we use the
+             * safe syscall wrapper to ensure that we either take the
+             * signal as a guest signal, or else it does not happen
+             * before the execve completes and makes it the other
+             * program's problem.
+             */
+            ret = get_errno(safe_execve(p, argp, envp));
             unlock_user(p, arg1, 0);
 
             goto execve_end;
