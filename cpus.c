@@ -1084,6 +1084,8 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     } while (!cpu->unplug || cpu_can_run(cpu));
 
     qemu_kvm_destroy_vcpu(cpu);
+    cpu->created = false;
+    qemu_cond_signal(&qemu_cpu_cond);
     qemu_mutex_unlock_iothread();
     return NULL;
 }
@@ -1184,6 +1186,8 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
         }
         if (remove_cpu) {
             qemu_tcg_destroy_vcpu(remove_cpu);
+            cpu->created = false;
+            qemu_cond_signal(&qemu_cpu_cond);
             remove_cpu = NULL;
         }
     }
@@ -1347,6 +1351,14 @@ void cpu_remove(CPUState *cpu)
     cpu->stop = true;
     cpu->unplug = true;
     qemu_cpu_kick(cpu);
+}
+
+void cpu_remove_sync(CPUState *cpu)
+{
+    cpu_remove(cpu);
+    while (cpu->created) {
+        qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
+    }
 }
 
 /* For temporary buffers for forming a name */

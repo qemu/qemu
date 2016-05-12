@@ -772,6 +772,14 @@ void cpu_resume(CPUState *cpu);
  */
 void cpu_remove(CPUState *cpu);
 
+ /**
+ * cpu_remove_sync:
+ * @cpu: The CPU to remove.
+ *
+ * Requests the CPU to be removed and waits till it is removed.
+ */
+void cpu_remove_sync(CPUState *cpu);
+
 /**
  * qemu_init_vcpu:
  * @cpu: The vCPU to initialize.
