@@ -2151,11 +2151,7 @@ static DisplayType select_display(const char *p)
 #endif
     } else if (strstart(p, "vnc", &opts)) {
         if (*opts == '=') {
-            Error *err = NULL;
-            if (vnc_parse(opts + 1, &err) == NULL) {
-                error_report_err(err);
-                exit(1);
-            }
+            vnc_parse(opts + 1, &error_fatal);
         } else {
             error_report("VNC requires a display argument vnc=<display>");
             exit(1);
@@ -3709,15 +3705,8 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_vnc:
-            {
-                Error *local_err = NULL;
-
-                if (vnc_parse(optarg, &local_err) == NULL) {
-                    error_report_err(local_err);
-                    exit(1);
-                }
+                vnc_parse(optarg, &error_fatal);
                 break;
-            }
             case QEMU_OPTION_no_acpi:
                 acpi_enabled = 0;
                 break;
