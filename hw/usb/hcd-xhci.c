@@ -1531,7 +1531,10 @@ static TRBCCode xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
         usb_packet_cleanup(&epctx->transfers[i].packet);
     }
 
-    xhci_set_ep_state(xhci, epctx, NULL, EP_DISABLED);
+    /* only touch guest RAM if we're not resetting the HC */
+    if (xhci->dcbaap_low || xhci->dcbaap_high) {
+        xhci_set_ep_state(xhci, epctx, NULL, EP_DISABLED);
+    }
 
     timer_free(epctx->kick_timer);
     g_free(epctx);
