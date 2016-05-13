@@ -29,6 +29,19 @@
     do { } while (0)
 #endif
 
+static S390pciState *s390_get_phb(void)
+{
+    static S390pciState *phb;
+
+    if (!phb) {
+        phb = S390_PCI_HOST_BRIDGE(
+            object_resolve_path(TYPE_S390_PCI_HOST_BRIDGE, NULL));
+        assert(phb != NULL);
+    }
+
+    return phb;
+}
+
 int chsc_sei_nt2_get_event(void *res)
 {
     ChscSeiNt2Res *nt2_res = (ChscSeiNt2Res *)res;
@@ -36,12 +49,7 @@ int chsc_sei_nt2_get_event(void *res)
     PciCcdfErr *eccdf;
     int rc = 1;
     SeiContainer *sei_cont;
-    S390pciState *s = S390_PCI_HOST_BRIDGE(
-        object_resolve_path(TYPE_S390_PCI_HOST_BRIDGE, NULL));
-
-    if (!s) {
-        return rc;
-    }
+    S390pciState *s = s390_get_phb();
 
     sei_cont = QTAILQ_FIRST(&s->pending_sei);
     if (sei_cont) {
@@ -76,12 +84,7 @@ int chsc_sei_nt2_get_event(void *res)
 
 int chsc_sei_nt2_have_event(void)
 {
-    S390pciState *s = S390_PCI_HOST_BRIDGE(
-        object_resolve_path(TYPE_S390_PCI_HOST_BRIDGE, NULL));
-
-    if (!s) {
-        return 0;
-    }
+    S390pciState *s = s390_get_phb();
 
     return !QTAILQ_EMPTY(&s->pending_sei);
 }
@@ -90,12 +93,7 @@ S390PCIBusDevice *s390_pci_find_dev_by_fid(uint32_t fid)
 {
     S390PCIBusDevice *pbdev;
     int i;
-    S390pciState *s = S390_PCI_HOST_BRIDGE(
-        object_resolve_path(TYPE_S390_PCI_HOST_BRIDGE, NULL));
-
-    if (!s) {
-        return NULL;
-    }
+    S390pciState *s = s390_get_phb();
 
     for (i = 0; i < PCI_SLOT_MAX; i++) {
         pbdev = &s->pbdev[i];
@@ -180,12 +178,7 @@ S390PCIBusDevice *s390_pci_find_dev_by_idx(uint32_t idx)
     S390PCIBusDevice *pbdev;
     int i;
     int j = 0;
-    S390pciState *s = S390_PCI_HOST_BRIDGE(
-        object_resolve_path(TYPE_S390_PCI_HOST_BRIDGE, NULL));
-
-    if (!s) {
-        return NULL;
-    }
+    S390pciState *s = s390_get_phb();
 
     for (i = 0; i < PCI_SLOT_MAX; i++) {
         pbdev = &s->pbdev[i];
@@ -207,10 +200,9 @@ S390PCIBusDevice *s390_pci_find_dev_by_fh(uint32_t fh)
 {
     S390PCIBusDevice *pbdev;
     int i;
-    S390pciState *s = S390_PCI_HOST_BRIDGE(
-        object_resolve_path(TYPE_S390_PCI_HOST_BRIDGE, NULL));
+    S390pciState *s = s390_get_phb();
 
-    if (!s || !fh) {
+    if (!fh) {
         return NULL;
     }
 
@@ -228,12 +220,7 @@ static void s390_pci_generate_event(uint8_t cc, uint16_t pec, uint32_t fh,
                                     uint32_t fid, uint64_t faddr, uint32_t e)
 {
     SeiContainer *sei_cont;
-    S390pciState *s = S390_PCI_HOST_BRIDGE(
-        object_resolve_path(TYPE_S390_PCI_HOST_BRIDGE, NULL));
-
-    if (!s) {
-        return;
-    }
+    S390pciState *s = s390_get_phb();
 
     sei_cont = g_malloc0(sizeof(SeiContainer));
     sei_cont->fh = fh;
