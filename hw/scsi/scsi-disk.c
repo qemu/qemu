@@ -176,6 +176,20 @@ static void scsi_disk_load_request(QEMUFile *f, SCSIRequest *req)
     qemu_iovec_init_external(&r->qiov, &r->iov, 1);
 }
 
+static bool scsi_disk_req_check_error(SCSIDiskReq *r, int ret, bool acct_failed)
+{
+    if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
+        return true;
+    }
+
+    if (ret < 0) {
+        return scsi_handle_rw_error(r, -ret, acct_failed);
+    }
+
+    return false;
+}
+
 static void scsi_aio_complete(void *opaque, int ret)
 {
     SCSIDiskReq *r = (SCSIDiskReq *)opaque;
@@ -183,15 +197,8 @@ static void scsi_aio_complete(void *opaque, int ret)
 
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
-    if (r->req.io_canceled) {
-        scsi_req_cancel_complete(&r->req);
+    if (scsi_disk_req_check_error(r, ret, true)) {
         goto done;
-    }
-
-    if (ret < 0) {
-        if (scsi_handle_rw_error(r, -ret, true)) {
-            goto done;
-        }
     }
 
     block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
@@ -232,11 +239,7 @@ static void scsi_write_do_fua(SCSIDiskReq *r)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
 
     assert(r->req.aiocb == NULL);
-
-    if (r->req.io_canceled) {
-        scsi_req_cancel_complete(&r->req);
-        goto done;
-    }
+    assert(!r->req.io_canceled);
 
     if (r->need_fua_emulation) {
         block_acct_start(blk_get_stats(s->qdev.conf.blk), &r->acct, 0,
@@ -246,24 +249,14 @@ static void scsi_write_do_fua(SCSIDiskReq *r)
     }
 
     scsi_req_complete(&r->req, GOOD);
-
-done:
     scsi_req_unref(&r->req);
 }
 
 static void scsi_dma_complete_noio(SCSIDiskReq *r, int ret)
 {
     assert(r->req.aiocb == NULL);
-
-    if (r->req.io_canceled) {
-        scsi_req_cancel_complete(&r->req);
+    if (scsi_disk_req_check_error(r, ret, false)) {
         goto done;
-    }
-
-    if (ret < 0) {
-        if (scsi_handle_rw_error(r, -ret, false)) {
-            goto done;
-        }
     }
 
     r->sector += r->sector_count;
@@ -303,15 +296,8 @@ static void scsi_read_complete(void * opaque, int ret)
 
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
-    if (r->req.io_canceled) {
-        scsi_req_cancel_complete(&r->req);
+    if (scsi_disk_req_check_error(r, ret, true)) {
         goto done;
-    }
-
-    if (ret < 0) {
-        if (scsi_handle_rw_error(r, -ret, true)) {
-            goto done;
-        }
     }
 
     block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
@@ -333,16 +319,8 @@ static void scsi_do_read(SCSIDiskReq *r, int ret)
     SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(OBJECT(s));
 
     assert (r->req.aiocb == NULL);
-
-    if (r->req.io_canceled) {
-        scsi_req_cancel_complete(&r->req);
+    if (scsi_disk_req_check_error(r, ret, false)) {
         goto done;
-    }
-
-    if (ret < 0) {
-        if (scsi_handle_rw_error(r, -ret, false)) {
-            goto done;
-        }
     }
 
     /* The request is used as the AIO opaque value, so add a ref.  */
@@ -472,16 +450,8 @@ static void scsi_write_complete_noio(SCSIDiskReq *r, int ret)
     uint32_t n;
 
     assert (r->req.aiocb == NULL);
-
-    if (r->req.io_canceled) {
-        scsi_req_cancel_complete(&r->req);
+    if (scsi_disk_req_check_error(r, ret, false)) {
         goto done;
-    }
-
-    if (ret < 0) {
-        if (scsi_handle_rw_error(r, -ret, false)) {
-            goto done;
-        }
     }
 
     n = r->qiov.size / 512;
@@ -1617,16 +1587,8 @@ static void scsi_unmap_complete_noio(UnmapCBData *data, int ret)
     uint32_t nb_sectors;
 
     assert(r->req.aiocb == NULL);
-
-    if (r->req.io_canceled) {
-        scsi_req_cancel_complete(&r->req);
+    if (scsi_disk_req_check_error(r, ret, false)) {
         goto done;
-    }
-
-    if (ret < 0) {
-        if (scsi_handle_rw_error(r, -ret, false)) {
-            goto done;
-        }
     }
 
     if (data->count > 0) {
@@ -1728,15 +1690,8 @@ static void scsi_write_same_complete(void *opaque, int ret)
 
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
-    if (r->req.io_canceled) {
-        scsi_req_cancel_complete(&r->req);
+    if (scsi_disk_req_check_error(r, ret, true)) {
         goto done;
-    }
-
-    if (ret < 0) {
-        if (scsi_handle_rw_error(r, -ret, true)) {
-            goto done;
-        }
     }
 
     block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
