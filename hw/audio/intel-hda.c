@@ -26,6 +26,7 @@
 #include "intel-hda.h"
 #include "intel-hda-defs.h"
 #include "sysemu/dma.h"
+#include "qapi/error.h"
 
 /* --------------------------------------------------------------------- */
 /* hda bus                                                               */
@@ -50,7 +51,7 @@ void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus, size_t bus_size,
     bus->xfer = xfer;
 }
 
-static int hda_codec_dev_init(DeviceState *qdev)
+static void hda_codec_dev_realize(DeviceState *qdev, Error **errp)
 {
     HDACodecBus *bus = HDA_BUS(qdev->parent_bus);
     HDACodecDevice *dev = HDA_CODEC_DEVICE(qdev);
@@ -60,10 +61,13 @@ static int hda_codec_dev_init(DeviceState *qdev)
         dev->cad = bus->next_cad;
     }
     if (dev->cad >= 15) {
-        return -1;
+        error_setg(errp, "HDA audio codec address is full");
+        return;
     }
     bus->next_cad = dev->cad + 1;
-    return cdc->init(dev);
+    if (cdc->init(dev) != 0) {
+        error_setg(errp, "HDA audio init failed");
+    }
 }
 
 static int hda_codec_dev_exit(DeviceState *qdev)
@@ -1298,7 +1302,7 @@ static const TypeInfo intel_hda_info_ich9 = {
 static void hda_codec_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    k->init = hda_codec_dev_init;
+    k->realize = hda_codec_dev_realize;
     k->exit = hda_codec_dev_exit;
     set_bit(DEVICE_CATEGORY_SOUND, k->categories);
     k->bus_type = TYPE_HDA_BUS;
