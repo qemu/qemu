@@ -66,6 +66,7 @@ typedef struct SCSIDiskClass {
     SCSIDeviceClass parent_class;
     DMAIOFunc       *dma_readv;
     DMAIOFunc       *dma_writev;
+    bool            (*need_fua_emulation)(SCSICommand *cmd);
 } SCSIDiskClass;
 
 typedef struct SCSIDiskReq {
@@ -75,6 +76,7 @@ typedef struct SCSIDiskReq {
     uint32_t sector_count;
     uint32_t buflen;
     bool started;
+    bool need_fua_emulation;
     struct iovec iov;
     QEMUIOVector qiov;
     BlockAcctCookie acct;
@@ -236,7 +238,7 @@ static void scsi_write_do_fua(SCSIDiskReq *r)
         goto done;
     }
 
-    if (scsi_is_cmd_fua(&r->req.cmd)) {
+    if (r->need_fua_emulation) {
         block_acct_start(blk_get_stats(s->qdev.conf.blk), &r->acct, 0,
                          BLOCK_ACCT_FLUSH);
         r->req.aiocb = blk_aio_flush(s->qdev.conf.blk, scsi_aio_complete, r);
@@ -413,7 +415,7 @@ static void scsi_read_data(SCSIRequest *req)
 
     first = !r->started;
     r->started = true;
-    if (first && scsi_is_cmd_fua(&r->req.cmd)) {
+    if (first && r->need_fua_emulation) {
         block_acct_start(blk_get_stats(s->qdev.conf.blk), &r->acct, 0,
                          BLOCK_ACCT_FLUSH);
         r->req.aiocb = blk_aio_flush(s->qdev.conf.blk, scsi_do_read_cb, r);
@@ -2153,6 +2155,7 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
+    SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(OBJECT(s));
     uint32_t len;
     uint8_t command;
 
@@ -2211,6 +2214,7 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
         scsi_check_condition(r, SENSE_CODE(LBA_OUT_OF_RANGE));
         return 0;
     }
+    r->need_fua_emulation = sdc->need_fua_emulation(&r->req.cmd);
     if (r->sector_count == 0) {
         scsi_req_complete(&r->req, GOOD);
     }
@@ -2700,6 +2704,7 @@ static void scsi_disk_base_class_initfn(ObjectClass *klass, void *data)
     dc->reset = scsi_disk_reset;
     sdc->dma_readv = scsi_dma_readv;
     sdc->dma_writev = scsi_dma_writev;
+    sdc->need_fua_emulation = scsi_is_cmd_fua;
 }
 
 static const TypeInfo scsi_disk_base_info = {
