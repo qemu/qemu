@@ -284,15 +284,25 @@ static int ac97_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static int milkymist_ac97_init(SysBusDevice *dev)
+static void milkymist_ac97_init(Object *obj)
 {
-    MilkymistAC97State *s = MILKYMIST_AC97(dev);
+    MilkymistAC97State *s = MILKYMIST_AC97(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
-    struct audsettings as;
     sysbus_init_irq(dev, &s->crrequest_irq);
     sysbus_init_irq(dev, &s->crreply_irq);
     sysbus_init_irq(dev, &s->dmar_irq);
     sysbus_init_irq(dev, &s->dmaw_irq);
+
+    memory_region_init_io(&s->regs_region, obj, &ac97_mmio_ops, s,
+            "milkymist-ac97", R_MAX * 4);
+    sysbus_init_mmio(dev, &s->regs_region);
+}
+
+static void milkymist_ac97_realize(DeviceState *dev, Error **errp)
+{
+    MilkymistAC97State *s = MILKYMIST_AC97(dev);
+    struct audsettings as;
 
     AUD_register_card("Milkymist AC'97", &s->card);
 
@@ -305,12 +315,6 @@ static int milkymist_ac97_init(SysBusDevice *dev)
             "mm_ac97.in", s, ac97_in_cb, &as);
     s->voice_out = AUD_open_out(&s->card, s->voice_out,
             "mm_ac97.out", s, ac97_out_cb, &as);
-
-    memory_region_init_io(&s->regs_region, OBJECT(s), &ac97_mmio_ops, s,
-            "milkymist-ac97", R_MAX * 4);
-    sysbus_init_mmio(dev, &s->regs_region);
-
-    return 0;
 }
 
 static const VMStateDescription vmstate_milkymist_ac97 = {
@@ -327,9 +331,8 @@ static const VMStateDescription vmstate_milkymist_ac97 = {
 static void milkymist_ac97_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = milkymist_ac97_init;
+    dc->realize = milkymist_ac97_realize;
     dc->reset = milkymist_ac97_reset;
     dc->vmsd = &vmstate_milkymist_ac97;
 }
@@ -338,6 +341,7 @@ static const TypeInfo milkymist_ac97_info = {
     .name          = TYPE_MILKYMIST_AC97,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistAC97State),
+    .instance_init = milkymist_ac97_init,
     .class_init    = milkymist_ac97_class_init,
 };
 
