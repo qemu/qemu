@@ -267,16 +267,20 @@ static const GraphicHwOps jazz_led_ops = {
     .text_update = jazz_led_text_update,
 };
 
-static int jazz_led_init(SysBusDevice *dev)
+static void jazz_led_init(Object *obj)
+{
+    LedState *s = JAZZ_LED(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+
+    memory_region_init_io(&s->iomem, obj, &led_ops, s, "led", 1);
+    sysbus_init_mmio(dev, &s->iomem);
+}
+
+static void jazz_led_realize(DeviceState *dev, Error **errp)
 {
     LedState *s = JAZZ_LED(dev);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &led_ops, s, "led", 1);
-    sysbus_init_mmio(dev, &s->iomem);
-
-    s->con = graphic_console_init(DEVICE(dev), 0, &jazz_led_ops, s);
-
-    return 0;
+    s->con = graphic_console_init(dev, 0, &jazz_led_ops, s);
 }
 
 static void jazz_led_reset(DeviceState *d)
@@ -291,18 +295,18 @@ static void jazz_led_reset(DeviceState *d)
 static void jazz_led_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = jazz_led_init;
     dc->desc = "Jazz LED display",
     dc->vmsd = &vmstate_jazz_led;
     dc->reset = jazz_led_reset;
+    dc->realize = jazz_led_realize;
 }
 
 static const TypeInfo jazz_led_info = {
     .name          = TYPE_JAZZ_LED,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LedState),
+    .instance_init = jazz_led_init,
     .class_init    = jazz_led_class_init,
 };
 
