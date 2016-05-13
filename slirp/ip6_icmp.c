@@ -9,7 +9,6 @@
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
-#include <time.h>
 
 #define NDP_Interval g_rand_int_range(slirp->grand, \
         NDP_MinRtrAdvInterval, NDP_MaxRtrAdvInterval)
