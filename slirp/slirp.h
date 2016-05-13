@@ -23,11 +23,6 @@ typedef char *caddr_t;
 # include <sys/bitypes.h>
 #endif
 
-
-#ifndef HAVE_MEMMOVE
-#define memmove(x, y, z) bcopy(y, x, z)
-#endif
-
 #ifndef _WIN32
 #include <sys/uio.h>
 #endif
@@ -35,17 +30,6 @@ typedef char *caddr_t;
 #ifndef _WIN32
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#endif
-
-/* Systems lacking strdup() definition in <string.h>. */
-#if defined(ultrix)
-char *strdup(const char *);
-#endif
-
-/* Systems lacking malloc() definition in <stdlib.h>. */
-#if defined(ultrix) || defined(hcx)
-void *malloc(size_t arg);
-void free(void *ptr);
 #endif
 
 #ifndef NO_UNIX_SOCKETS
@@ -257,18 +241,6 @@ extern Slirp *slirp_instance;
 void if_start(Slirp *);
 #else
 void if_start(struct ttys *);
-#endif
-
-#ifndef HAVE_STRERROR
- char *strerror(int error);
-#endif
-
-#ifndef HAVE_INDEX
- char *index(const char *, int);
-#endif
-
-#ifndef HAVE_GETHOSTID
- long gethostid(void);
 #endif
 
 #ifndef _WIN32

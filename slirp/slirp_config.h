@@ -34,9 +34,6 @@
 #define HAVE_SYS_FILIO_H
 #endif
 
-/* Define if you have strerror */
-#define HAVE_STRERROR
-
 /* Define if you have sys/bitypes.h */
 #undef HAVE_SYS_BITYPES_H
 
@@ -81,15 +78,6 @@
 #ifndef _WIN32
 #define HAVE_INET_ATON
 #endif
-
-/* Define if you have index() */
-#define HAVE_INDEX
-
-/* Define if you have memmove */
-#define HAVE_MEMMOVE
-
-/* Define if you have gethostid */
-#define HAVE_GETHOSTID
 
 /* Define if you DON'T have unix-domain sockets */
 #undef NO_UNIX_SOCKETS
