@@ -316,10 +316,10 @@ static void pc_q35_init(MachineState *machine)
 
     if (pcms->smbus_enabled) {
         /* TODO: Populate SPD eeprom data.  */
-        smbus_eeprom_init(ich9_smb_init(host_bus,
-                                        PCI_DEVFN(ICH9_SMB_DEV, ICH9_SMB_FUNC),
-                                        0xb100),
-                          8, NULL, 0);
+        pcms->smbus = ich9_smb_init(host_bus,
+                                    PCI_DEVFN(ICH9_SMB_DEV, ICH9_SMB_FUNC),
+                                    0xb100);
+        smbus_eeprom_init(pcms->smbus, 8, NULL, 0);
     }
 
     pc_cmos_init(pcms, idebus[0], idebus[1], rtc_state);
@@ -421,6 +421,7 @@ static void pc_q35_3_1_machine_options(MachineClass *m)
 
     pc_q35_4_0_machine_options(m);
     m->default_kernel_irqchip_split = false;
+    pcmc->do_not_add_smb_acpi = true;
     m->smbus_no_migration_support = true;
     m->alias = NULL;
     pcmc->pvh_enabled = false;

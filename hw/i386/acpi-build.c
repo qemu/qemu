@@ -1809,6 +1809,18 @@ static Aml *build_q35_osc_method(void)
     return method;
 }
 
+static void build_smb0(Aml *table, I2CBus *smbus, int devnr, int func)
+{
+    Aml *scope = aml_scope("_SB.PCI0");
+    Aml *dev = aml_device("SMB0");
+
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("APP0005")));
+    aml_append(dev, aml_name_decl("_ADR", aml_int(devnr << 16 | func)));
+    build_acpi_ipmi_devices(dev, BUS(smbus), "\\_SB.PCI0.SMB0");
+    aml_append(scope, dev);
+    aml_append(table, scope);
+}
+
 static void
 build_dsdt(GArray *table_data, BIOSLinker *linker,
            AcpiPmInfo *pm, AcpiMiscInfo *misc,
@@ -1862,6 +1874,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         build_q35_isa_bridge(dsdt);
         build_isa_devices_aml(dsdt);
         build_q35_pci0_int(dsdt);
+        if (pcms->smbus && !pcmc->do_not_add_smb_acpi) {
+            build_smb0(dsdt, pcms->smbus, ICH9_SMB_DEV, ICH9_SMB_FUNC);
+        }
     }
 
     if (pcmc->legacy_cpu_hotplug) {
