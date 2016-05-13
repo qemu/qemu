@@ -177,16 +177,6 @@ out:
     psccb->header.response_code = cpu_to_be16(rc);
 }
 
-static uint32_t s390_pci_get_pfid(PCIDevice *pdev)
-{
-    return PCI_SLOT(pdev->devfn);
-}
-
-static uint32_t s390_pci_get_pfh(PCIDevice *pdev)
-{
-    return PCI_SLOT(pdev->devfn) | FH_SHM_VFIO;
-}
-
 static S390PCIBusDevice *s390_pci_find_dev_by_uid(uint16_t uid)
 {
     int i;
@@ -580,6 +570,7 @@ static int s390_pcihost_init(SysBusDevice *dev)
     phb->bus = b;
 
     s->bus = S390_PCI_BUS(qbus_create(TYPE_S390_PCI_BUS, DEVICE(s), NULL));
+    qbus_set_hotplug_handler(BUS(s->bus), DEVICE(s), NULL);
 
     QTAILQ_INIT(&s->pending_sei);
     return 0;
@@ -632,52 +623,87 @@ static S390PCIBusDevice *s390_pci_device_new(const char *target)
 static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
                                   DeviceState *dev, Error **errp)
 {
-    PCIDevice *pci_dev = PCI_DEVICE(dev);
-    S390PCIBusDevice *pbdev;
-    S390pciState *s = S390_PCI_HOST_BRIDGE(pci_device_root_bus(pci_dev)
-                                           ->qbus.parent);
+    PCIDevice *pdev = NULL;
+    S390PCIBusDevice *pbdev = NULL;
+    S390pciState *s = s390_get_phb();
 
-    if (!dev->id) {
-        /* In the case the PCI device does not define an id */
-        /* we generate one based on the PCI address         */
-        dev->id = g_strdup_printf("auto_%02x:%02x.%01x",
-                                  pci_bus_num(pci_dev->bus),
-                                  PCI_SLOT(pci_dev->devfn),
-                                  PCI_FUNC(pci_dev->devfn));
-    }
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        pdev = PCI_DEVICE(dev);
 
-    pbdev = s390_pci_find_dev_by_target(dev->id);
-    if (!pbdev) {
-        pbdev = s390_pci_device_new(dev->id);
-        if (!pbdev) {
-            error_setg(errp, "create zpci device failed");
+        if (!dev->id) {
+            /* In the case the PCI device does not define an id */
+            /* we generate one based on the PCI address         */
+            dev->id = g_strdup_printf("auto_%02x:%02x.%01x",
+                                      pci_bus_num(pdev->bus),
+                                      PCI_SLOT(pdev->devfn),
+                                      PCI_FUNC(pdev->devfn));
         }
-    }
 
-    s->pbdev[PCI_SLOT(pci_dev->devfn)] = pbdev;
-    pbdev->fid = s390_pci_get_pfid(pci_dev);
-    pbdev->pdev = pci_dev;
-    pbdev->state = ZPCI_FS_DISABLED;
-    pbdev->fh = s390_pci_get_pfh(pci_dev);
-    pbdev->iommu = s->iommu[PCI_SLOT(pci_dev->devfn)];
+        pbdev = s390_pci_find_dev_by_target(dev->id);
+        if (!pbdev) {
+            pbdev = s390_pci_device_new(dev->id);
+            if (!pbdev) {
+                error_setg(errp, "create zpci device failed");
+            }
+        }
 
-    s390_pcihost_setup_msix(pbdev);
+        if (object_dynamic_cast(OBJECT(dev), "vfio-pci")) {
+            pbdev->fh |= FH_SHM_VFIO;
+        } else {
+            pbdev->fh |= FH_SHM_EMUL;
+        }
 
-    if (dev->hotplugged) {
-        s390_pci_generate_plug_event(HP_EVENT_RESERVED_TO_STANDBY,
-                                     pbdev->fh, pbdev->fid);
-        s390_pci_generate_plug_event(HP_EVENT_TO_CONFIGURED,
-                                     pbdev->fh, pbdev->fid);
+        pbdev->pdev = pdev;
+        pbdev->iommu = s->iommu[PCI_SLOT(pdev->devfn)];
+        pbdev->state = ZPCI_FS_STANDBY;
+        s390_pcihost_setup_msix(pbdev);
+
+        if (dev->hotplugged) {
+            s390_pci_generate_plug_event(HP_EVENT_RESERVED_TO_STANDBY,
+                                         pbdev->fh, pbdev->fid);
+        }
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_S390_PCI_DEVICE)) {
+        int idx;
+
+        pbdev = S390_PCI_DEVICE(dev);
+        for (idx = 0; idx < PCI_SLOT_MAX; idx++) {
+            if (!s->pbdev[idx]) {
+                s->pbdev[idx] = pbdev;
+                pbdev->fh = idx;
+                return;
+            }
+        }
+
+        error_setg(errp, "no slot for plugging zpci device");
     }
 }
 
 static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
                                     DeviceState *dev, Error **errp)
 {
-    PCIDevice *pci_dev = PCI_DEVICE(dev);
-    S390pciState *s = S390_PCI_HOST_BRIDGE(pci_device_root_bus(pci_dev)
-                                           ->qbus.parent);
-    S390PCIBusDevice *pbdev = s->pbdev[PCI_SLOT(pci_dev->devfn)];
+    int i;
+    PCIDevice *pci_dev = NULL;
+    S390PCIBusDevice *pbdev = NULL;
+    S390pciState *s = s390_get_phb();
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        pci_dev = PCI_DEVICE(dev);
+
+        for (i = 0 ; i < PCI_SLOT_MAX; i++) {
+            if (s->pbdev[i]->pdev == pci_dev) {
+                pbdev = s->pbdev[i];
+                break;
+            }
+        }
+
+        if (!pbdev) {
+            object_unparent(OBJECT(pci_dev));
+            return;
+        }
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_S390_PCI_DEVICE)) {
+        pbdev = S390_PCI_DEVICE(dev);
+        pci_dev = pbdev->pdev;
+    }
 
     switch (pbdev->state) {
     case ZPCI_FS_RESERVED:
@@ -691,12 +717,13 @@ static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
 
     s390_pci_generate_plug_event(HP_EVENT_STANDBY_TO_RESERVED,
                                  pbdev->fh, pbdev->fid);
-    pbdev->fh = 0;
-    pbdev->fid = 0;
+    object_unparent(OBJECT(pci_dev));
     pbdev->pdev = NULL;
     pbdev->state = ZPCI_FS_RESERVED;
 out:
-    object_unparent(OBJECT(pci_dev));
+    pbdev->fid = 0;
+    s->pbdev[pbdev->fh & FH_MASK_INDEX] = NULL;
+    object_unparent(OBJECT(pbdev));
 }
 
 static void s390_pcihost_class_init(ObjectClass *klass, void *data)
