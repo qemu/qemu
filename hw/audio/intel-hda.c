@@ -52,8 +52,8 @@ void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus, size_t bus_size,
 
 static int hda_codec_dev_init(DeviceState *qdev)
 {
-    HDACodecBus *bus = DO_UPCAST(HDACodecBus, qbus, qdev->parent_bus);
-    HDACodecDevice *dev = DO_UPCAST(HDACodecDevice, qdev, qdev);
+    HDACodecBus *bus = HDA_BUS(qdev->parent_bus);
+    HDACodecDevice *dev = HDA_CODEC_DEVICE(qdev);
     HDACodecDeviceClass *cdc = HDA_CODEC_DEVICE_GET_CLASS(dev);
 
     if (dev->cad == -1) {
@@ -68,7 +68,7 @@ static int hda_codec_dev_init(DeviceState *qdev)
 
 static int hda_codec_dev_exit(DeviceState *qdev)
 {
-    HDACodecDevice *dev = DO_UPCAST(HDACodecDevice, qdev, qdev);
+    HDACodecDevice *dev = HDA_CODEC_DEVICE(qdev);
     HDACodecDeviceClass *cdc = HDA_CODEC_DEVICE_GET_CLASS(dev);
 
     if (cdc->exit) {
@@ -84,7 +84,7 @@ HDACodecDevice *hda_codec_find(HDACodecBus *bus, uint32_t cad)
 
     QTAILQ_FOREACH(kid, &bus->qbus.children, sibling) {
         DeviceState *qdev = kid->child;
-        cdev = DO_UPCAST(HDACodecDevice, qdev, qdev);
+        cdev = HDA_CODEC_DEVICE(qdev);
         if (cdev->cad == cad) {
             return cdev;
         }
@@ -94,14 +94,14 @@ HDACodecDevice *hda_codec_find(HDACodecBus *bus, uint32_t cad)
 
 void hda_codec_response(HDACodecDevice *dev, bool solicited, uint32_t response)
 {
-    HDACodecBus *bus = DO_UPCAST(HDACodecBus, qbus, dev->qdev.parent_bus);
+    HDACodecBus *bus = HDA_BUS(dev->qdev.parent_bus);
     bus->response(dev, solicited, response);
 }
 
 bool hda_codec_xfer(HDACodecDevice *dev, uint32_t stnr, bool output,
                     uint8_t *buf, uint32_t len)
 {
-    HDACodecBus *bus = DO_UPCAST(HDACodecBus, qbus, dev->qdev.parent_bus);
+    HDACodecBus *bus = HDA_BUS(dev->qdev.parent_bus);
     return bus->xfer(dev, stnr, output, buf, len);
 }
 
@@ -337,7 +337,7 @@ static void intel_hda_corb_run(IntelHDAState *d)
 
 static void intel_hda_response(HDACodecDevice *dev, bool solicited, uint32_t response)
 {
-    HDACodecBus *bus = DO_UPCAST(HDACodecBus, qbus, dev->qdev.parent_bus);
+    HDACodecBus *bus = HDA_BUS(dev->qdev.parent_bus);
     IntelHDAState *d = container_of(bus, IntelHDAState, codecs);
     hwaddr addr;
     uint32_t wp, ex;
@@ -386,7 +386,7 @@ static void intel_hda_response(HDACodecDevice *dev, bool solicited, uint32_t res
 static bool intel_hda_xfer(HDACodecDevice *dev, uint32_t stnr, bool output,
                            uint8_t *buf, uint32_t len)
 {
-    HDACodecBus *bus = DO_UPCAST(HDACodecBus, qbus, dev->qdev.parent_bus);
+    HDACodecBus *bus = HDA_BUS(dev->qdev.parent_bus);
     IntelHDAState *d = container_of(bus, IntelHDAState, codecs);
     hwaddr addr;
     uint32_t s, copy, left;
@@ -493,7 +493,7 @@ static void intel_hda_notify_codecs(IntelHDAState *d, uint32_t stream, bool runn
         DeviceState *qdev = kid->child;
         HDACodecDeviceClass *cdc;
 
-        cdev = DO_UPCAST(HDACodecDevice, qdev, qdev);
+        cdev = HDA_CODEC_DEVICE(qdev);
         cdc = HDA_CODEC_DEVICE_GET_CLASS(cdev);
         if (cdc->stream) {
             cdc->stream(cdev, stream, running, output);
@@ -1120,7 +1120,7 @@ static void intel_hda_reset(DeviceState *dev)
     /* reset codecs */
     QTAILQ_FOREACH(kid, &d->codecs.qbus.children, sibling) {
         DeviceState *qdev = kid->child;
-        cdev = DO_UPCAST(HDACodecDevice, qdev, qdev);
+        cdev = HDA_CODEC_DEVICE(qdev);
         device_reset(DEVICE(cdev));
         d->state_sts |= (1 << cdev->cad);
     }
