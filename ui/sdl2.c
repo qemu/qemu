@@ -357,6 +357,10 @@ static void handle_keydown(SDL_Event *ev)
         case SDL_SCANCODE_7:
         case SDL_SCANCODE_8:
         case SDL_SCANCODE_9:
+            if (gui_grab) {
+                sdl_grab_end(scon);
+            }
+
             win = ev->key.keysym.scancode - SDL_SCANCODE_1;
             if (win < sdl2_num_outputs) {
                 sdl2_console[win].hidden = !sdl2_console[win].hidden;

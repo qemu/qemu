@@ -49,18 +49,15 @@ int qemu_egl_rendernode_open(void)
             continue;
         }
 
-        r = asprintf(&p, "/dev/dri/%s", e->d_name);
-        if (r < 0) {
-            return -1;
-        }
+        p = g_strdup_printf("/dev/dri/%s", e->d_name);
 
         r = open(p, O_RDWR | O_CLOEXEC | O_NOCTTY | O_NONBLOCK);
         if (r < 0) {
-            free(p);
+            g_free(p);
             continue;
         }
         fd = r;
-        free(p);
+        g_free(p);
         break;
     }
 

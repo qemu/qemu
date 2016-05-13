@@ -660,6 +660,11 @@ static void interface_async_complete(QXLInstance *sin, uint64_t cookie_token)
         qemu_bh_schedule(ssd->gl_unblock_bh);
         break;
     }
+    case QXL_COOKIE_TYPE_IO:
+        if (cookie->io == QXL_IO_MONITORS_CONFIG_ASYNC) {
+            g_free(cookie->u.data);
+        }
+        break;
 #endif
     default:
         /* should never be called, used in qxl native mode only */
@@ -769,9 +774,7 @@ static void display_mouse_define(DisplayChangeListener *dcl,
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
 
     qemu_mutex_lock(&ssd->lock);
-    if (c) {
-        cursor_get(c);
-    }
+    cursor_get(c);
     cursor_put(ssd->cursor);
     ssd->cursor = c;
     ssd->hot_x = c->hot_x;
@@ -794,6 +797,29 @@ static const DisplayChangeListenerOps display_listener_ops = {
 };
 
 #ifdef HAVE_SPICE_GL
+
+static void qemu_spice_gl_monitor_config(SimpleSpiceDisplay *ssd,
+                                         int x, int y, int w, int h)
+{
+    QXLMonitorsConfig *config;
+    QXLCookie *cookie;
+
+    config = g_malloc0(sizeof(QXLMonitorsConfig) + sizeof(QXLHead));
+    config->count = 1;
+    config->max_allowed = 1;
+    config->heads[0].x = x;
+    config->heads[0].y = y;
+    config->heads[0].width = w;
+    config->heads[0].height = h;
+    cookie = qxl_cookie_new(QXL_COOKIE_TYPE_IO,
+                            QXL_IO_MONITORS_CONFIG_ASYNC);
+    cookie->u.data = config;
+
+    spice_qxl_monitors_config_async(&ssd->qxl,
+                                    (uintptr_t)config,
+                                    MEMSLOT_GROUP_HOST,
+                                    (uintptr_t)cookie);
+}
 
 static void qemu_spice_gl_block(SimpleSpiceDisplay *ssd, bool block)
 {
@@ -858,6 +884,8 @@ static void qemu_spice_gl_scanout(DisplayChangeListener *dcl,
                          surface_width(ssd->ds),
                          surface_height(ssd->ds),
                          stride, fourcc, y_0_top);
+
+    qemu_spice_gl_monitor_config(ssd, x, y, w, h);
 }
 
 static void qemu_spice_gl_update(DisplayChangeListener *dcl,
