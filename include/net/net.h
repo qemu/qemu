@@ -57,6 +57,8 @@ typedef void (SetOffload)(NetClientState *, int, int, int, int, int);
 typedef void (SetVnetHdrLen)(NetClientState *, int);
 typedef int (SetVnetLE)(NetClientState *, bool);
 typedef int (SetVnetBE)(NetClientState *, bool);
+typedef struct SocketReadState SocketReadState;
+typedef void (SocketReadStateFinalize)(SocketReadState *rs);
 
 typedef struct NetClientInfo {
     NetClientOptionsKind type;
@@ -102,6 +104,15 @@ typedef struct NICState {
     bool peer_deleted;
 } NICState;
 
+struct SocketReadState {
+    int state; /* 0 = getting length, 1 = getting data */
+    uint32_t index;
+    uint32_t packet_len;
+    uint8_t buf[NET_BUFSIZE];
+    SocketReadStateFinalize *finalize;
+};
+
+int net_fill_rstate(SocketReadState *rs, const uint8_t *buf, int size);
 char *qemu_mac_strdup_printf(const uint8_t *macaddr);
 NetClientState *qemu_find_netdev(const char *id);
 int qemu_find_net_clients_except(const char *id, NetClientState **ncs,
@@ -160,6 +171,8 @@ ssize_t qemu_deliver_packet_iov(NetClientState *sender,
 
 void print_net_client(Monitor *mon, NetClientState *nc);
 void hmp_info_network(Monitor *mon, const QDict *qdict);
+void net_socket_rs_init(SocketReadState *rs,
+                        SocketReadStateFinalize *finalize);
 
 /* NIC info */
 
