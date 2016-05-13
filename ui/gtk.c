@@ -329,17 +329,22 @@ static void gd_update_geometry_hints(VirtualConsole *vc)
 #if defined(CONFIG_VTE)
     } else if (vc->type == GD_VC_VTE) {
         VteTerminal *term = VTE_TERMINAL(vc->vte.terminal);
-        GtkBorder *ib;
+        GtkBorder padding = { 0 };
 
 #if VTE_CHECK_VERSION(0, 37, 0)
-        GtkBorder padding;
         gtk_style_context_get_padding(
                 gtk_widget_get_style_context(vc->vte.terminal),
                 gtk_widget_get_state_flags(vc->vte.terminal),
                 &padding);
-        ib = &padding;
 #else
-        gtk_widget_style_get(vc->vte.terminal, "inner-border", &ib, NULL);
+        {
+            GtkBorder *ib = NULL;
+            gtk_widget_style_get(vc->vte.terminal, "inner-border", &ib, NULL);
+            if (ib) {
+                padding = *ib;
+                gtk_border_free(ib);
+            }
+        }
 #endif
 
         geo.width_inc  = vte_terminal_get_char_width(term);
@@ -352,12 +357,10 @@ static void gd_update_geometry_hints(VirtualConsole *vc)
         geo.min_height = geo.height_inc * VC_TERM_Y_MIN;
         mask |= GDK_HINT_MIN_SIZE;
 
-        if (ib) {
-            geo.base_width  += ib->left + ib->right;
-            geo.base_height += ib->top + ib->bottom;
-            geo.min_width   += ib->left + ib->right;
-            geo.min_height  += ib->top + ib->bottom;
-        }
+        geo.base_width  += padding.left + padding.right;
+        geo.base_height += padding.top + padding.bottom;
+        geo.min_width   += padding.left + padding.right;
+        geo.min_height  += padding.top + padding.bottom;
         geo_widget = vc->vte.terminal;
 #endif
     }
