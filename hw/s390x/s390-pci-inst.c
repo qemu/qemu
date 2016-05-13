@@ -92,7 +92,7 @@ static int list_pci(ClpReqRspListPci *rrb, uint8_t *cc)
     stl_p(&rrb->response.fmt, 0);
     stq_p(&rrb->response.reserved1, 0);
     stq_p(&rrb->response.reserved2, 0);
-    stl_p(&rrb->response.mdd, FH_VIRT);
+    stl_p(&rrb->response.mdd, FH_MASK_SHM);
     stw_p(&rrb->response.max_fn, PCI_MAX_FUNCTIONS);
     rrb->response.entry_size = sizeof(ClpFhListEntry);
     finish = 0;
@@ -212,12 +212,12 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
 
         switch (reqsetpci->oc) {
         case CLP_SET_ENABLE_PCI_FN:
-            pbdev->fh = pbdev->fh | FH_ENABLED;
+            pbdev->fh |= FH_MASK_ENABLE;
             stl_p(&ressetpci->fh, pbdev->fh);
             stw_p(&ressetpci->hdr.rsp, CLP_RC_OK);
             break;
         case CLP_SET_DISABLE_PCI_FN:
-            pbdev->fh = pbdev->fh & ~FH_ENABLED;
+            pbdev->fh &= ~FH_MASK_ENABLE;
             pbdev->error_state = false;
             pbdev->lgstg_blocked = false;
             stl_p(&ressetpci->fh, pbdev->fh);
@@ -318,7 +318,7 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     offset = env->regs[r2 + 1];
 
     pbdev = s390_pci_find_dev_by_fh(fh);
-    if (!pbdev || !(pbdev->fh & FH_ENABLED)) {
+    if (!pbdev || !(pbdev->fh & FH_MASK_ENABLE)) {
         DPRINTF("pcilg no pci dev\n");
         setcc(cpu, ZPCI_PCI_LS_INVAL_HANDLE);
         return 0;
@@ -435,7 +435,7 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     offset = env->regs[r2 + 1];
 
     pbdev = s390_pci_find_dev_by_fh(fh);
-    if (!pbdev || !(pbdev->fh & FH_ENABLED)) {
+    if (!pbdev || !(pbdev->fh & FH_MASK_ENABLE)) {
         DPRINTF("pcistg no pci dev\n");
         setcc(cpu, ZPCI_PCI_LS_INVAL_HANDLE);
         return 0;
@@ -526,7 +526,7 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     end = start + env->regs[r2 + 1];
 
     pbdev = s390_pci_find_dev_by_fh(fh);
-    if (!pbdev || !(pbdev->fh & FH_ENABLED)) {
+    if (!pbdev || !(pbdev->fh & FH_MASK_ENABLE)) {
         DPRINTF("rpcit no pci dev\n");
         setcc(cpu, ZPCI_PCI_LS_INVAL_HANDLE);
         goto out;
@@ -590,7 +590,7 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     }
 
     pbdev = s390_pci_find_dev_by_fh(fh);
-    if (!pbdev || !(pbdev->fh & FH_ENABLED)) {
+    if (!pbdev || !(pbdev->fh & FH_MASK_ENABLE)) {
         DPRINTF("pcistb no pci dev fh 0x%x\n", fh);
         setcc(cpu, ZPCI_PCI_LS_INVAL_HANDLE);
         return 0;
@@ -743,7 +743,7 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
     }
 
     pbdev = s390_pci_find_dev_by_fh(fh);
-    if (!pbdev || !(pbdev->fh & FH_ENABLED)) {
+    if (!pbdev || !(pbdev->fh & FH_MASK_ENABLE)) {
         DPRINTF("mpcifc no pci dev fh 0x%x\n", fh);
         setcc(cpu, ZPCI_PCI_LS_INVAL_HANDLE);
         return 0;
@@ -873,7 +873,7 @@ int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
            ((uint32_t)pbdev->sum << 7) | pbdev->routes.adapter.summary_offset;
     stl_p(&fib.data, data);
 
-    if (pbdev->fh & FH_ENABLED) {
+    if (pbdev->fh & FH_MASK_ENABLE) {
         fib.fc |= 0x80;
     }
 

@@ -21,9 +21,12 @@
 #include "hw/s390x/css.h"
 
 #define TYPE_S390_PCI_HOST_BRIDGE "s390-pcihost"
-#define FH_VIRT 0x00ff0000
-#define ENABLE_BIT_OFFSET 31
-#define FH_ENABLED (1 << ENABLE_BIT_OFFSET)
+#define FH_MASK_ENABLE   0x80000000
+#define FH_MASK_INSTANCE 0x7f000000
+#define FH_MASK_SHM      0x00ff0000
+#define FH_MASK_INDEX    0x0000001f
+#define FH_SHM_VFIO      0x00010000
+#define FH_SHM_EMUL      0x00020000
 #define S390_PCIPT_ADAPTER 2
 
 #define S390_PCI_HOST_BRIDGE(obj) \

@@ -170,7 +170,7 @@ static uint32_t s390_pci_get_pfid(PCIDevice *pdev)
 
 static uint32_t s390_pci_get_pfh(PCIDevice *pdev)
 {
-    return PCI_SLOT(pdev->devfn) | FH_VIRT;
+    return PCI_SLOT(pdev->devfn) | FH_SHM_VFIO;
 }
 
 S390PCIBusDevice *s390_pci_find_dev_by_idx(uint32_t idx)
@@ -345,7 +345,7 @@ static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *iommu, hwaddr addr,
     };
 
     if (!pbdev->configured || !pbdev->pdev ||
-        !(pbdev->fh & FH_ENABLED) || !pbdev->iommu_enabled) {
+        !(pbdev->fh & FH_MASK_ENABLE) || !pbdev->iommu_enabled) {
         return ret;
     }
 
@@ -456,7 +456,7 @@ static void s390_msi_ctrl_write(void *opaque, hwaddr addr, uint64_t data,
         return;
     }
 
-    if (!(pbdev->fh & FH_ENABLED)) {
+    if (!(pbdev->fh & FH_MASK_ENABLE)) {
         return;
     }
 
