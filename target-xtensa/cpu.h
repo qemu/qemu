@@ -507,7 +507,7 @@ static inline int cpu_mmu_index(CPUXtensaState *env, bool ifetch)
 #define XTENSA_TBFLAG_WINDOW_SHIFT 15
 
 static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
-        target_ulong *cs_base, int *flags)
+        target_ulong *cs_base, uint32_t *flags)
 {
     CPUState *cs = CPU(xtensa_env_get_cpu(env));
 

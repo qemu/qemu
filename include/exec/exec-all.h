@@ -76,7 +76,8 @@ bool cpu_restore_state(CPUState *cpu, uintptr_t searched_pc);
 void QEMU_NORETURN cpu_resume_from_signal(CPUState *cpu, void *puc);
 void QEMU_NORETURN cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);
 TranslationBlock *tb_gen_code(CPUState *cpu,
-                              target_ulong pc, target_ulong cs_base, int flags,
+                              target_ulong pc, target_ulong cs_base,
+                              uint32_t flags,
                               int cflags);
 void cpu_exec_init(CPUState *cpu, Error **errp);
 void QEMU_NORETURN cpu_loop_exit(CPUState *cpu);
@@ -229,13 +230,14 @@ static inline void tlb_flush_by_mmuidx(CPUState *cpu, ...)
     || defined(__sparc__) || defined(__aarch64__) \
     || defined(__s390x__) || defined(__mips__) \
     || defined(CONFIG_TCG_INTERPRETER)
+/* NOTE: Direct jump patching must be atomic to be thread-safe. */
 #define USE_DIRECT_JUMP
 #endif
 
 struct TranslationBlock {
     target_ulong pc;   /* simulated PC corresponding to this block (EIP + CS base) */
     target_ulong cs_base; /* CS base for this block */
-    uint64_t flags; /* flags defining in which context the code was generated */
+    uint32_t flags; /* flags defining in which context the code was generated */
     uint16_t size;      /* size of target code for this block (1 <=
                            size <= TARGET_PAGE_SIZE) */
     uint16_t icount;
@@ -257,20 +259,34 @@ struct TranslationBlock {
     struct TranslationBlock *page_next[2];
     tb_page_addr_t page_addr[2];
 
-    /* the following data are used to directly call another TB from
-       the code of this one. */
-    uint16_t tb_next_offset[2]; /* offset of original jump target */
+    /* The following data are used to directly call another TB from
+     * the code of this one. This can be done either by emitting direct or
+     * indirect native jump instructions. These jumps are reset so that the TB
+     * just continue its execution. The TB can be linked to another one by
+     * setting one of the jump targets (or patching the jump instruction). Only
+     * two of such jumps are supported.
+     */
+    uint16_t jmp_reset_offset[2]; /* offset of original jump target */
+#define TB_JMP_RESET_OFFSET_INVALID 0xffff /* indicates no jump generated */
 #ifdef USE_DIRECT_JUMP
-    uint16_t tb_jmp_offset[2]; /* offset of jump instruction */
+    uint16_t jmp_insn_offset[2]; /* offset of native jump instruction */
 #else
-    uintptr_t tb_next[2]; /* address of jump generated code */
+    uintptr_t jmp_target_addr[2]; /* target address for indirect jump */
 #endif
-    /* list of TBs jumping to this one. This is a circular list using
-       the two least significant bits of the pointers to tell what is
-       the next pointer: 0 = jmp_next[0], 1 = jmp_next[1], 2 =
-       jmp_first */
-    struct TranslationBlock *jmp_next[2];
-    struct TranslationBlock *jmp_first;
+    /* Each TB has an assosiated circular list of TBs jumping to this one.
+     * jmp_list_first points to the first TB jumping to this one.
+     * jmp_list_next is used to point to the next TB in a list.
+     * Since each TB can have two jumps, it can participate in two lists.
+     * jmp_list_first and jmp_list_next are 4-byte aligned pointers to a
+     * TranslationBlock structure, but the two least significant bits of
+     * them are used to encode which data field of the pointed TB should
+     * be used to traverse the list further from that TB:
+     * 0 => jmp_list_next[0], 1 => jmp_list_next[1], 2 => jmp_list_first.
+     * In other words, 0/1 tells which jump is used in the pointed TB,
+     * and 2 means that this is a pointer back to the target TB of this list.
+     */
+    uintptr_t jmp_list_next[2];
+    uintptr_t jmp_list_first;
 };
 
 #include "qemu/thread.h"
@@ -288,8 +304,6 @@ struct TBContext {
     /* statistics */
     int tb_flush_count;
     int tb_phys_invalidate_count;
-
-    int tb_invalidated_flag;
 };
 
 void tb_free(TranslationBlock *tb);
@@ -302,7 +316,7 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
 static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {
     /* patch the branch destination */
-    *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
+    atomic_set((int32_t *)jmp_addr, addr - (jmp_addr + 4));
     /* no need to flush icache explicitly */
 }
 #elif defined(_ARCH_PPC)
@@ -312,7 +326,7 @@ void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
 static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {
     /* patch the branch destination */
-    stl_le_p((void*)jmp_addr, addr - (jmp_addr + 4));
+    atomic_set((int32_t *)jmp_addr, addr - (jmp_addr + 4));
     /* no need to flush icache explicitly */
 }
 #elif defined(__s390x__)
@@ -320,36 +334,15 @@ static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {
     /* patch the branch destination */
     intptr_t disp = addr - (jmp_addr - 2);
-    stl_be_p((void*)jmp_addr, disp / 2);
+    atomic_set((int32_t *)jmp_addr, disp / 2);
     /* no need to flush icache explicitly */
 }
 #elif defined(__aarch64__)
 void aarch64_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
 #define tb_set_jmp_target1 aarch64_tb_set_jmp_target
 #elif defined(__arm__)
-static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
-{
-#if !QEMU_GNUC_PREREQ(4, 1)
-    register unsigned long _beg __asm ("a1");
-    register unsigned long _end __asm ("a2");
-    register unsigned long _flg __asm ("a3");
-#endif
-
-    /* we could use a ldr pc, [pc, #-4] kind of branch and avoid the flush */
-    *(uint32_t *)jmp_addr =
-        (*(uint32_t *)jmp_addr & ~0xffffff)
-        | (((addr - (jmp_addr + 8)) >> 2) & 0xffffff);
-
-#if QEMU_GNUC_PREREQ(4, 1)
-    __builtin___clear_cache((char *) jmp_addr, (char *) jmp_addr + 4);
-#else
-    /* flush icache */
-    _beg = jmp_addr;
-    _end = jmp_addr + 4;
-    _flg = 0;
-    __asm __volatile__ ("swi 0x9f0002" : : "r" (_beg), "r" (_end), "r" (_flg));
-#endif
-}
+void arm_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
+#define tb_set_jmp_target1 arm_tb_set_jmp_target
 #elif defined(__sparc__) || defined(__mips__)
 void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr);
 #else
@@ -359,7 +352,7 @@ void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr);
 static inline void tb_set_jmp_target(TranslationBlock *tb,
                                      int n, uintptr_t addr)
 {
-    uint16_t offset = tb->tb_jmp_offset[n];
+    uint16_t offset = tb->jmp_insn_offset[n];
     tb_set_jmp_target1((uintptr_t)(tb->tc_ptr + offset), addr);
 }
 
@@ -369,7 +362,7 @@ static inline void tb_set_jmp_target(TranslationBlock *tb,
 static inline void tb_set_jmp_target(TranslationBlock *tb,
                                      int n, uintptr_t addr)
 {
-    tb->tb_next[n] = addr;
+    tb->jmp_target_addr[n] = addr;
 }
 
 #endif
@@ -377,20 +370,23 @@ static inline void tb_set_jmp_target(TranslationBlock *tb,
 static inline void tb_add_jump(TranslationBlock *tb, int n,
                                TranslationBlock *tb_next)
 {
-    /* NOTE: this test is only needed for thread safety */
-    if (!tb->jmp_next[n]) {
-        qemu_log_mask_and_addr(CPU_LOG_EXEC, tb->pc,
-                               "Linking TBs %p [" TARGET_FMT_lx
-                               "] index %d -> %p [" TARGET_FMT_lx "]\n",
-                               tb->tc_ptr, tb->pc, n,
-                               tb_next->tc_ptr, tb_next->pc);
-        /* patch the native jump address */
-        tb_set_jmp_target(tb, n, (uintptr_t)tb_next->tc_ptr);
-
-        /* add in TB jmp circular list */
-        tb->jmp_next[n] = tb_next->jmp_first;
-        tb_next->jmp_first = (TranslationBlock *)((uintptr_t)(tb) | (n));
+    if (tb->jmp_list_next[n]) {
+        /* Another thread has already done this while we were
+         * outside of the lock; nothing to do in this case */
+        return;
     }
+    qemu_log_mask_and_addr(CPU_LOG_EXEC, tb->pc,
+                           "Linking TBs %p [" TARGET_FMT_lx
+                           "] index %d -> %p [" TARGET_FMT_lx "]\n",
+                           tb->tc_ptr, tb->pc, n,
+                           tb_next->tc_ptr, tb_next->pc);
+
+    /* patch the native jump address */
+    tb_set_jmp_target(tb, n, (uintptr_t)tb_next->tc_ptr);
+
+    /* add in TB jmp circular list */
+    tb->jmp_list_next[n] = tb_next->jmp_list_first;
+    tb_next->jmp_list_first = (uintptr_t)tb | n;
 }
 
 /* GETRA is the true target of the return instruction that we'll execute,

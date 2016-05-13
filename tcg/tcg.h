@@ -510,9 +510,9 @@ struct TCGContext {
 
     /* goto_tb support */
     tcg_insn_unit *code_buf;
-    uintptr_t *tb_next;
-    uint16_t *tb_next_offset;
-    uint16_t *tb_jmp_offset; /* != NULL if USE_DIRECT_JUMP */
+    uint16_t *tb_jmp_reset_offset; /* tb->jmp_reset_offset */
+    uint16_t *tb_jmp_insn_offset; /* tb->jmp_insn_offset if USE_DIRECT_JUMP */
+    uintptr_t *tb_jmp_target_addr; /* tb->jmp_target_addr if !USE_DIRECT_JUMP */
 
     /* liveness analysis */
     uint16_t *op_dead_args; /* for each operation, each bit tells if the
@@ -925,7 +925,7 @@ static inline unsigned get_mmuidx(TCGMemOpIdx oi)
 
 /**
  * tcg_qemu_tb_exec:
- * @env: CPUArchState * for the CPU
+ * @env: pointer to CPUArchState for the CPU
  * @tb_ptr: address of generated code for the TB to execute
  *
  * Start executing code from a given translation block.
@@ -936,30 +936,31 @@ static inline unsigned get_mmuidx(TCGMemOpIdx oi)
  * which has not yet been directly linked, or an asynchronous
  * event such as an interrupt needs handling.
  *
- * The return value is a pointer to the next TB to execute
- * (if known; otherwise zero). This pointer is assumed to be
- * 4-aligned, and the bottom two bits are used to return further
- * information:
+ * Return: The return value is the value passed to the corresponding
+ * tcg_gen_exit_tb() at translation time of the last TB attempted to execute.
+ * The value is either zero or a 4-byte aligned pointer to that TB combined
+ * with additional information in its two least significant bits. The
+ * additional information is encoded as follows:
  *  0, 1: the link between this TB and the next is via the specified
  *        TB index (0 or 1). That is, we left the TB via (the equivalent
  *        of) "goto_tb <index>". The main loop uses this to determine
  *        how to link the TB just executed to the next.
  *  2:    we are using instruction counting code generation, and we
  *        did not start executing this TB because the instruction counter
- *        would hit zero midway through it. In this case the next-TB pointer
+ *        would hit zero midway through it. In this case the pointer
  *        returned is the TB we were about to execute, and the caller must
  *        arrange to execute the remaining count of instructions.
  *  3:    we stopped because the CPU's exit_request flag was set
  *        (usually meaning that there is an interrupt that needs to be
- *        handled). The next-TB pointer returned is the TB we were
- *        about to execute when we noticed the pending exit request.
+ *        handled). The pointer returned is the TB we were about to execute
+ *        when we noticed the pending exit request.
  *
  * If the bottom two bits indicate an exit-via-index then the CPU
  * state is correctly synchronised and ready for execution of the next
  * TB (and in particular the guest PC is the address to execute next).
  * Otherwise, we gave up on execution of this TB before it started, and
  * the caller must fix up the CPU state by calling the CPU's
- * synchronize_from_tb() method with the next-TB pointer we return (falling
+ * synchronize_from_tb() method with the TB pointer we return (falling
  * back to calling the CPU's set_pc method with tb->pb if no
  * synchronize_from_tb() method exists).
  *

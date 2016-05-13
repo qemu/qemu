@@ -73,6 +73,18 @@ static inline void reloc_pc26(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
     *code_ptr = deposit32(*code_ptr, 0, 26, offset);
 }
 
+static inline void reloc_pc26_atomic(tcg_insn_unit *code_ptr,
+                                     tcg_insn_unit *target)
+{
+    ptrdiff_t offset = target - code_ptr;
+    tcg_insn_unit insn;
+    tcg_debug_assert(offset == sextract64(offset, 0, 26));
+    /* read instruction, mask away previous PC_REL26 parameter contents,
+       set the proper offset, then write back the instruction. */
+    insn = atomic_read(code_ptr);
+    atomic_set(code_ptr, deposit32(insn, 0, 26, offset));
+}
+
 static inline void reloc_pc19(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
 {
     ptrdiff_t offset = target - code_ptr;
@@ -835,7 +847,7 @@ void aarch64_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
     tcg_insn_unit *code_ptr = (tcg_insn_unit *)jmp_addr;
     tcg_insn_unit *target = (tcg_insn_unit *)addr;
 
-    reloc_pc26(code_ptr, target);
+    reloc_pc26_atomic(code_ptr, target);
     flush_icache_range(jmp_addr, jmp_addr + 4);
 }
 
@@ -1294,12 +1306,13 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 #ifndef USE_DIRECT_JUMP
 #error "USE_DIRECT_JUMP required for aarch64"
 #endif
-        tcg_debug_assert(s->tb_jmp_offset != NULL); /* consistency for USE_DIRECT_JUMP */
-        s->tb_jmp_offset[a0] = tcg_current_code_size(s);
+        /* consistency for USE_DIRECT_JUMP */
+        tcg_debug_assert(s->tb_jmp_insn_offset != NULL);
+        s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
         /* actual branch destination will be patched by
            aarch64_tb_set_jmp_target later, beware retranslation. */
         tcg_out_goto_noaddr(s);
-        s->tb_next_offset[a0] = tcg_current_code_size(s);
+        s->tb_jmp_reset_offset[a0] = tcg_current_code_size(s);
         break;
 
     case INDEX_op_br:

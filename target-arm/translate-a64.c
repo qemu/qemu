@@ -274,10 +274,12 @@ static inline bool use_goto_tb(DisasContext *s, int n, uint64_t dest)
         return false;
     }
 
+#ifndef CONFIG_USER_ONLY
     /* Only link tbs from inside the same guest page */
     if ((s->tb->pc & TARGET_PAGE_MASK) != (dest & TARGET_PAGE_MASK)) {
         return false;
     }
+#endif
 
     return true;
 }

@@ -2085,20 +2085,25 @@ static inline int insn_const_size(TCGMemOp ot)
     }
 }
 
+static inline bool use_goto_tb(DisasContext *s, target_ulong pc)
+{
+#ifndef CONFIG_USER_ONLY
+    return (pc & TARGET_PAGE_MASK) == (s->tb->pc & TARGET_PAGE_MASK) ||
+           (pc & TARGET_PAGE_MASK) == (s->pc_start & TARGET_PAGE_MASK);
+#else
+    return true;
+#endif
+}
+
 static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip)
 {
-    TranslationBlock *tb;
-    target_ulong pc;
+    target_ulong pc = s->cs_base + eip;
 
-    pc = s->cs_base + eip;
-    tb = s->tb;
-    /* NOTE: we handle the case where the TB spans two pages here */
-    if ((pc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK) ||
-        (pc & TARGET_PAGE_MASK) == ((s->pc - 1) & TARGET_PAGE_MASK))  {
+    if (use_goto_tb(s, pc))  {
         /* jump to same page: we can use a direct jump */
         tcg_gen_goto_tb(tb_num);
         gen_jmp_im(eip);
-        tcg_gen_exit_tb((uintptr_t)tb + tb_num);
+        tcg_gen_exit_tb((uintptr_t)s->tb + tb_num);
     } else {
         /* jump to another page: currently not optimized */
         gen_jmp_im(eip);
@@ -8178,7 +8183,7 @@ void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb)
     CPUState *cs = CPU(cpu);
     DisasContext dc1, *dc = &dc1;
     target_ulong pc_ptr;
-    uint64_t flags;
+    uint32_t flags;
     target_ulong pc_start;
     target_ulong cs_base;
     int num_insns;

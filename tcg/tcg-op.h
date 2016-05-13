@@ -753,6 +753,19 @@ static inline void tcg_gen_exit_tb(uintptr_t val)
     tcg_gen_op1i(INDEX_op_exit_tb, val);
 }
 
+/**
+ * tcg_gen_goto_tb() - output goto_tb TCG operation
+ * @idx: Direct jump slot index (0 or 1)
+ *
+ * See tcg/README for more info about this TCG operation.
+ *
+ * NOTE: In softmmu emulation, direct jumps with goto_tb are only safe within
+ * the pages this TB resides in because we don't take care of direct jumps when
+ * address mapping changes, e.g. in tlb_flush(). In user mode, there's only a
+ * static address translation, so the destination address is always valid, TBs
+ * are always invalidated properly, and direct jumps are reset when mapping
+ * changes.
+ */
 void tcg_gen_goto_tb(unsigned idx);
 
 #if TARGET_LONG_BITS == 32

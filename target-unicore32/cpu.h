@@ -144,7 +144,7 @@ UniCore32CPU *uc32_cpu_init(const char *cpu_model);
 #define cpu_init(cpu_model) CPU(uc32_cpu_init(cpu_model))
 
 static inline void cpu_get_tb_cpu_state(CPUUniCore32State *env, target_ulong *pc,
-                                        target_ulong *cs_base, int *flags)
+                                        target_ulong *cs_base, uint32_t *flags)
 {
     *pc = env->regs[31];
     *cs_base = 0;

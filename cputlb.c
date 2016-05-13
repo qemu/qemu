@@ -76,10 +76,6 @@ void tlb_flush(CPUState *cpu, int flush_global)
 
     tlb_debug("(%d)\n", flush_global);
 
-    /* must reset current TB so that interrupts cannot modify the
-       links while we are modifying them */
-    cpu->current_tb = NULL;
-
     memset(env->tlb_table, -1, sizeof(env->tlb_table));
     memset(env->tlb_v_table, -1, sizeof(env->tlb_v_table));
     memset(cpu->tb_jmp_cache, 0, sizeof(cpu->tb_jmp_cache));
@@ -95,9 +91,6 @@ static inline void v_tlb_flush_by_mmuidx(CPUState *cpu, va_list argp)
     CPUArchState *env = cpu->env_ptr;
 
     tlb_debug("start\n");
-    /* must reset current TB so that interrupts cannot modify the
-       links while we are modifying them */
-    cpu->current_tb = NULL;
 
     for (;;) {
         int mmu_idx = va_arg(argp, int);
@@ -152,9 +145,6 @@ void tlb_flush_page(CPUState *cpu, target_ulong addr)
         tlb_flush(cpu, 1);
         return;
     }
-    /* must reset current TB so that interrupts cannot modify the
-       links while we are modifying them */
-    cpu->current_tb = NULL;
 
     addr &= TARGET_PAGE_MASK;
     i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
@@ -193,9 +183,6 @@ void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, ...)
         va_end(argp);
         return;
     }
-    /* must reset current TB so that interrupts cannot modify the
-       links while we are modifying them */
-    cpu->current_tb = NULL;
 
     addr &= TARGET_PAGE_MASK;
     i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);

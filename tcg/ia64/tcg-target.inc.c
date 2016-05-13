@@ -881,13 +881,13 @@ static void tcg_out_exit_tb(TCGContext *s, tcg_target_long arg)
 
 static inline void tcg_out_goto_tb(TCGContext *s, TCGArg arg)
 {
-    if (s->tb_jmp_offset) {
+    if (s->tb_jmp_insn_offset) {
         /* direct jump method */
         tcg_abort();
     } else {
         /* indirect jump method */
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2,
-                     (tcg_target_long)(s->tb_next + arg));
+                     (tcg_target_long)(s->tb_jmp_target_addr + arg));
         tcg_out_bundle(s, MmI,
                        tcg_opc_m1 (TCG_REG_P0, OPC_LD8_M1,
                                    TCG_REG_R2, TCG_REG_R2),
@@ -900,7 +900,7 @@ static inline void tcg_out_goto_tb(TCGContext *s, TCGArg arg)
                        tcg_opc_b4 (TCG_REG_P0, OPC_BR_SPTK_MANY_B4,
                                    TCG_REG_B6));
     }
-    s->tb_next_offset[arg] = tcg_current_code_size(s);
+    s->tb_jmp_reset_offset[arg] = tcg_current_code_size(s);
 }
 
 static inline void tcg_out_jmp(TCGContext *s, TCGArg addr)

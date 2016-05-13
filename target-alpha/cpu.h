@@ -465,7 +465,7 @@ enum {
 };
 
 static inline void cpu_get_tb_cpu_state(CPUAlphaState *env, target_ulong *pc,
-                                        target_ulong *cs_base, int *pflags)
+                                        target_ulong *cs_base, uint32_t *pflags)
 {
     int flags = 0;
 

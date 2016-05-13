@@ -688,7 +688,7 @@ trap_state* cpu_tsptr(CPUSPARCState* env);
 #define TB_FLAG_AM_ENABLED (1 << 5)
 
 static inline void cpu_get_tb_cpu_state(CPUSPARCState *env, target_ulong *pc,
-                                        target_ulong *cs_base, int *flags)
+                                        target_ulong *cs_base, uint32_t *flags)
 {
     *pc = env->pc;
     *cs_base = env->npc;

@@ -1229,18 +1229,19 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
     case INDEX_op_goto_tb:
-        if (s->tb_jmp_offset) {
+        if (s->tb_jmp_insn_offset) {
             /* direct jump method */
-            s->tb_jmp_offset[a0] = tcg_current_code_size(s);
+            s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
             /* Make sure to preserve links during retranslation.  */
             tcg_out32(s, CALL | (*s->code_ptr & ~INSN_OP(-1)));
         } else {
             /* indirect jump method */
-            tcg_out_ld_ptr(s, TCG_REG_T1, (uintptr_t)(s->tb_next + a0));
+            tcg_out_ld_ptr(s, TCG_REG_T1,
+                           (uintptr_t)(s->tb_jmp_target_addr + a0));
             tcg_out_arithi(s, TCG_REG_G0, TCG_REG_T1, 0, JMPL);
         }
         tcg_out_nop(s);
-        s->tb_next_offset[a0] = tcg_current_code_size(s);
+        s->tb_jmp_reset_offset[a0] = tcg_current_code_size(s);
         break;
     case INDEX_op_br:
         tcg_out_bpcc(s, COND_A, BPCC_PT, arg_label(a0));
@@ -1647,6 +1648,6 @@ void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
        the code_gen_buffer can't be larger than 2GB.  */
     tcg_debug_assert(disp == (int32_t)disp);
 
-    *ptr = CALL | (uint32_t)disp >> 2;
+    atomic_set(ptr, deposit32(CALL, 0, 30, disp >> 2));
     flush_icache_range(jmp_addr, jmp_addr + 4);
 }

@@ -158,6 +158,20 @@ extern int daemon(int, int);
 /* Round number up to multiple */
 #define QEMU_ALIGN_UP(n, m) QEMU_ALIGN_DOWN((n) + (m) - 1, (m))
 
+/* Check if n is a multiple of m */
+#define QEMU_IS_ALIGNED(n, m) (((n) % (m)) == 0)
+
+/* n-byte align pointer down */
+#define QEMU_ALIGN_PTR_DOWN(p, n) \
+    ((typeof(p))QEMU_ALIGN_DOWN((uintptr_t)(p), (n)))
+
+/* n-byte align pointer up */
+#define QEMU_ALIGN_PTR_UP(p, n) \
+    ((typeof(p))QEMU_ALIGN_UP((uintptr_t)(p), (n)))
+
+/* Check if pointer p is n-bytes aligned */
+#define QEMU_PTR_IS_ALIGNED(p, n) QEMU_IS_ALIGNED((uintptr_t)(p), (n))
+
 #ifndef ROUND_UP
 #define ROUND_UP(n,d) (((n) + (d) - 1) & -(d))
 #endif

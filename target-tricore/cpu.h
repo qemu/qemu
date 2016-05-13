@@ -377,7 +377,7 @@ void tricore_tcg_init(void);
 int cpu_tricore_signal_handler(int host_signum, void *pinfo, void *puc);
 
 static inline void cpu_get_tb_cpu_state(CPUTriCoreState *env, target_ulong *pc,
-                                        target_ulong *cs_base, int *flags)
+                                        target_ulong *cs_base, uint32_t *flags)
 {
     *pc = env->PC;
     *cs_base = 0;

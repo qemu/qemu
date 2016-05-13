@@ -303,20 +303,30 @@ static inline TCGv gen_dest_gpr(DisasContext *dc, int reg)
     }
 }
 
+static inline bool use_goto_tb(DisasContext *s, target_ulong pc,
+                               target_ulong npc)
+{
+    if (unlikely(s->singlestep)) {
+        return false;
+    }
+
+#ifndef CONFIG_USER_ONLY
+    return (pc & TARGET_PAGE_MASK) == (s->tb->pc & TARGET_PAGE_MASK) &&
+           (npc & TARGET_PAGE_MASK) == (s->tb->pc & TARGET_PAGE_MASK);
+#else
+    return true;
+#endif
+}
+
 static inline void gen_goto_tb(DisasContext *s, int tb_num,
                                target_ulong pc, target_ulong npc)
 {
-    TranslationBlock *tb;
-
-    tb = s->tb;
-    if ((pc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK) &&
-        (npc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK) &&
-        !s->singlestep)  {
+    if (use_goto_tb(s, pc, npc))  {
         /* jump to same page: we can use a direct jump */
         tcg_gen_goto_tb(tb_num);
         tcg_gen_movi_tl(cpu_pc, pc);
         tcg_gen_movi_tl(cpu_npc, npc);
-        tcg_gen_exit_tb((uintptr_t)tb + tb_num);
+        tcg_gen_exit_tb((uintptr_t)s->tb + tb_num);
     } else {
         /* jump to another page: currently not optimized */
         tcg_gen_movi_tl(cpu_pc, pc);

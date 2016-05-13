@@ -338,7 +338,7 @@ static inline uint64_t cpu_mmu_idx_to_asc(int mmu_idx)
 }
 
 static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
-                                        target_ulong *cs_base, int *flags)
+                                        target_ulong *cs_base, uint32_t *flags)
 {
     *pc = env->psw.addr;
     *cs_base = 0;

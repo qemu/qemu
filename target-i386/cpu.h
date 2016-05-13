@@ -1269,7 +1269,7 @@ void tcg_x86_init(void);
 #include "exec/exec-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPUX86State *env, target_ulong *pc,
-                                        target_ulong *cs_base, int *flags)
+                                        target_ulong *cs_base, uint32_t *flags)
 {
     *cs_base = env->segs[R_CS].base;
     *pc = *cs_base + env->eip;

@@ -121,6 +121,14 @@ static inline void reloc_pc24(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
     *code_ptr = (*code_ptr & ~0xffffff) | (offset & 0xffffff);
 }
 
+static inline void reloc_pc24_atomic(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
+{
+    ptrdiff_t offset = (tcg_ptr_byte_diff(target, code_ptr) - 8) >> 2;
+    tcg_insn_unit insn = atomic_read(code_ptr);
+    tcg_debug_assert(offset == sextract32(offset, 0, 24));
+    atomic_set(code_ptr, deposit32(insn, 0, 24, offset));
+}
+
 static void patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
@@ -1038,6 +1046,16 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *addr)
     }
 }
 
+void arm_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
+{
+    tcg_insn_unit *code_ptr = (tcg_insn_unit *)jmp_addr;
+    tcg_insn_unit *target = (tcg_insn_unit *)addr;
+
+    /* we could use a ldr pc, [pc, #-4] kind of branch and avoid the flush */
+    reloc_pc24_atomic(code_ptr, target);
+    flush_icache_range(jmp_addr, jmp_addr + 4);
+}
+
 static inline void tcg_out_goto_label(TCGContext *s, int cond, TCGLabel *l)
 {
     if (l->has_value) {
@@ -1647,17 +1665,17 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_goto(s, COND_AL, tb_ret_addr);
         break;
     case INDEX_op_goto_tb:
-        if (s->tb_jmp_offset) {
+        if (s->tb_jmp_insn_offset) {
             /* Direct jump method */
-            s->tb_jmp_offset[args[0]] = tcg_current_code_size(s);
+            s->tb_jmp_insn_offset[args[0]] = tcg_current_code_size(s);
             tcg_out_b_noaddr(s, COND_AL);
         } else {
             /* Indirect jump method */
-            intptr_t ptr = (intptr_t)(s->tb_next + args[0]);
+            intptr_t ptr = (intptr_t)(s->tb_jmp_target_addr + args[0]);
             tcg_out_movi32(s, COND_AL, TCG_REG_R0, ptr & ~0xfff);
             tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, TCG_REG_R0, ptr & 0xfff);
         }
-        s->tb_next_offset[args[0]] = tcg_current_code_size(s);
+        s->tb_jmp_reset_offset[args[0]] = tcg_current_code_size(s);
         break;
     case INDEX_op_br:
         tcg_out_goto_label(s, COND_AL, arg_label(args[0]));
