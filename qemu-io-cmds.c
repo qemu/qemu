@@ -1107,7 +1107,7 @@ static int writev_f(BlockBackend *blk, int argc, char **argv)
     int pattern = 0xcd;
     QEMUIOVector qiov;
 
-    while ((c = getopt(argc, argv, "CqP:")) != -1) {
+    while ((c = getopt(argc, argv, "CfqP:")) != -1) {
         switch (c) {
         case 'C':
             Cflag = true;
@@ -1393,7 +1393,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
     int flags = 0;
 
     ctx->blk = blk;
-    while ((c = getopt(argc, argv, "CfqP:z")) != -1) {
+    while ((c = getopt(argc, argv, "CfqP:uz")) != -1) {
         switch (c) {
         case 'C':
             ctx->Cflag = true;
@@ -1436,6 +1436,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
 
     if ((flags & BDRV_REQ_MAY_UNMAP) && !ctx->zflag) {
         printf("-u requires -z to be specified\n");
+        g_free(ctx);
         return 0;
     }
 
