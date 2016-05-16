@@ -104,8 +104,6 @@ for sample_img in empty.bochs iotest-dirtylog-10G-4M.vhdx parallels-v1 \
     $QEMU_IO -c 'read -P 0 0 64k' "$TEST_IMG" | _filter_qemu_io
 
     run_qemu "$TEST_IMG" "$TEST_IMG.src" "'format': 'raw'," "BLOCK_JOB_READY"
-    # qemu-img compare can't handle unaligned file sizes
-    $QEMU_IMG resize -f raw "$TEST_IMG.src" +0
     $QEMU_IMG compare -f raw -F raw "$TEST_IMG" "$TEST_IMG.src"
 done
 
