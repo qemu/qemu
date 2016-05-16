@@ -345,6 +345,15 @@ static inline TranslationBlock *tb_find_fast(CPUState *cpu,
         *last_tb = NULL;
         cpu->tb_flushed = false;
     }
+#ifndef CONFIG_USER_ONLY
+    /* We don't take care of direct jumps when address mapping changes in
+     * system emulation. So it's not safe to make a direct jump to a TB
+     * spanning two pages because the mapping for the second page can change.
+     */
+    if (tb->page_addr[1] != -1) {
+        *last_tb = NULL;
+    }
+#endif
     /* See if we can patch the calling TB. */
     if (*last_tb && !qemu_loglevel_mask(CPU_LOG_TB_NOCHAIN)) {
         tb_add_jump(*last_tb, tb_exit, tb);
