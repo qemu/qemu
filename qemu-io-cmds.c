@@ -1274,6 +1274,7 @@ static void aio_read_help(void)
 " used to ensure all outstanding aio requests have been completed.\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -P, -- use a pattern to verify read data\n"
+" -i, -- treat request as invalid, for exercising stats\n"
 " -v, -- dump buffer to standard output\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
 "\n");
@@ -1286,7 +1287,7 @@ static const cmdinfo_t aio_read_cmd = {
     .cfunc      = aio_read_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-Cqv] [-P pattern] off len [len..]",
+    .args       = "[-Ciqv] [-P pattern] off len [len..]",
     .oneline    = "asynchronously reads a number of bytes",
     .help       = aio_read_help,
 };
@@ -1297,7 +1298,7 @@ static int aio_read_f(BlockBackend *blk, int argc, char **argv)
     struct aio_ctx *ctx = g_new0(struct aio_ctx, 1);
 
     ctx->blk = blk;
-    while ((c = getopt(argc, argv, "CP:qv")) != -1) {
+    while ((c = getopt(argc, argv, "CP:iqv")) != -1) {
         switch (c) {
         case 'C':
             ctx->Cflag = true;
@@ -1310,6 +1311,11 @@ static int aio_read_f(BlockBackend *blk, int argc, char **argv)
                 return 0;
             }
             break;
+        case 'i':
+            printf("injecting invalid read request\n");
+            block_acct_invalid(blk_get_stats(blk), BLOCK_ACCT_READ);
+            g_free(ctx);
+            return 0;
         case 'q':
             ctx->qflag = true;
             break;
@@ -1367,6 +1373,7 @@ static void aio_write_help(void)
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -f, -- use Force Unit Access semantics\n"
+" -i, -- treat request as invalid, for exercising stats\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
 " -u, -- with -z, allow unmapping\n"
 " -z, -- write zeroes using blk_aio_write_zeroes\n"
@@ -1380,7 +1387,7 @@ static const cmdinfo_t aio_write_cmd = {
     .cfunc      = aio_write_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-Cfquz] [-P pattern] off len [len..]",
+    .args       = "[-Cfiquz] [-P pattern] off len [len..]",
     .oneline    = "asynchronously writes a number of bytes",
     .help       = aio_write_help,
 };
@@ -1393,7 +1400,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
     int flags = 0;
 
     ctx->blk = blk;
-    while ((c = getopt(argc, argv, "CfqP:uz")) != -1) {
+    while ((c = getopt(argc, argv, "CfiqP:uz")) != -1) {
         switch (c) {
         case 'C':
             ctx->Cflag = true;
@@ -1414,6 +1421,11 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
                 return 0;
             }
             break;
+        case 'i':
+            printf("injecting invalid write request\n");
+            block_acct_invalid(blk_get_stats(blk), BLOCK_ACCT_WRITE);
+            g_free(ctx);
+            return 0;
         case 'z':
             ctx->zflag = true;
             break;
