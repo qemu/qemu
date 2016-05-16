@@ -2968,6 +2968,7 @@ int main(int argc, char **argv, char **envp)
     FILE *vmstate_dump_file = NULL;
     Error *main_loop_err = NULL;
     Error *err = NULL;
+    bool list_data_dirs = false;
 
     qemu_init_cpu_loop();
     qemu_mutex_lock_iothread();
@@ -3354,7 +3355,9 @@ int main(int argc, char **argv, char **envp)
                 add_device_config(DEV_GDB, optarg);
                 break;
             case QEMU_OPTION_L:
-                if (data_dir_idx < ARRAY_SIZE(data_dir)) {
+                if (is_help_option(optarg)) {
+                    list_data_dirs = true;
+                } else if (data_dir_idx < ARRAY_SIZE(data_dir)) {
                     data_dir[data_dir_idx++] = optarg;
                 }
                 break;
@@ -4084,6 +4087,14 @@ int main(int argc, char **argv, char **envp)
     /* If all else fails use the install path specified when building. */
     if (data_dir_idx < ARRAY_SIZE(data_dir)) {
         data_dir[data_dir_idx++] = CONFIG_QEMU_DATADIR;
+    }
+
+    /* -L help lists the data directories and exits. */
+    if (list_data_dirs) {
+        for (i = 0; i < data_dir_idx; i++) {
+            printf("%s\n", data_dir[i]);
+        }
+        exit(0);
     }
 
     smp_parse(qemu_opts_find(qemu_find_opts("smp-opts"), NULL));
