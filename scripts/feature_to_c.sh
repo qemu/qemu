@@ -33,7 +33,7 @@ if test -e "$output"; then
 fi
 
 for input; do
-  arrayname=xml_feature_`echo $input | sed 's,.*/,,; s/[-.]/_/g'`
+  arrayname=xml_feature_$(echo $input | sed 's,.*/,,; s/[-.]/_/g')
 
   ${AWK:-awk} 'BEGIN { n = 0
       printf "#include \"qemu/osdep.h\"\n"
@@ -67,8 +67,8 @@ echo >> $output
 echo "const char *const xml_builtin[][2] = {" >> $output
 
 for input; do
-  basename=`echo $input | sed 's,.*/,,'`
-  arrayname=xml_feature_`echo $input | sed 's,.*/,,; s/[-.]/_/g'`
+  basename=$(echo $input | sed 's,.*/,,')
+  arrayname=xml_feature_$(echo $input | sed 's,.*/,,; s/[-.]/_/g')
   echo "  { \"$basename\", $arrayname }," >> $output
 done
 

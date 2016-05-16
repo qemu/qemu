@@ -39,7 +39,7 @@
 # However some caution is required regarding files that might be part
 # of the guest agent or standalone tests.
 
-# for i in `git ls-tree --name-only HEAD`  ; do test -f $i && \
+# for i in $(git ls-tree --name-only HEAD) ; do test -f $i && \
 #   grep -E '^# *include' $i | head -1 | grep 'osdep.h' ; test $? != 0 && \
 #   echo $i ; done
 
