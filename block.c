@@ -2117,8 +2117,6 @@ static void bdrv_close(BlockDriverState *bs)
     bdrv_release_named_dirty_bitmaps(bs);
     assert(QLIST_EMPTY(&bs->dirty_bitmaps));
 
-    bdrv_parent_cb_change_media(bs, false);
-
     if (bs->drv) {
         BdrvChild *child, *next;
 
