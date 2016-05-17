@@ -1395,7 +1395,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
            modifying the memory. It will ensure that it cannot modify
            itself */
         tb_gen_code(cpu, current_pc, current_cs_base, current_flags, 1);
-        cpu_resume_from_signal(cpu, NULL);
+        cpu_loop_exit_noexc(cpu);
     }
 #endif
 }
@@ -1654,7 +1654,7 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
        repeating the fault, which is horribly inefficient.
        Better would be to execute just this insn uncached, or generate a
        second new TB.  */
-    cpu_resume_from_signal(cpu, NULL);
+    cpu_loop_exit_noexc(cpu);
 }
 
 void tb_flush_jmp_cache(CPUState *cpu, target_ulong addr)

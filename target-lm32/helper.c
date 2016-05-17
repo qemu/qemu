@@ -141,7 +141,7 @@ void lm32_debug_excp_handler(CPUState *cs)
             if (check_watchpoints(env)) {
                 raise_exception(env, EXCP_WATCHPOINT);
             } else {
-                cpu_resume_from_signal(cs, NULL);
+                cpu_loop_exit_noexc(cs);
             }
         }
     } else {

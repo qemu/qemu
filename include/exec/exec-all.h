@@ -50,7 +50,7 @@ void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb,
 void cpu_gen_init(void);
 bool cpu_restore_state(CPUState *cpu, uintptr_t searched_pc);
 
-void QEMU_NORETURN cpu_resume_from_signal(CPUState *cpu, void *puc);
+void QEMU_NORETURN cpu_loop_exit_noexc(CPUState *cpu);
 void QEMU_NORETURN cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);
 TranslationBlock *tb_gen_code(CPUState *cpu,
                               target_ulong pc, target_ulong cs_base,

@@ -74,7 +74,7 @@ static void cpu_exit_tb_from_sighandler(CPUState *cpu, void *puc)
     sigprocmask(SIG_SETMASK, &uc->sc_mask, NULL);
 #endif
 
-    cpu_resume_from_signal(cpu, NULL);
+    cpu_loop_exit_noexc(cpu);
 }
 
 /* 'pc' is the host PC at which the exception was raised. 'address' is

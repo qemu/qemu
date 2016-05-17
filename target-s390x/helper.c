@@ -688,7 +688,7 @@ void s390x_cpu_debug_excp_handler(CPUState *cs)
            will be triggered, it will call load_psw which will recompute
            the watchpoints.  */
         cpu_watchpoint_remove_all(cs, BP_CPU);
-        cpu_resume_from_signal(cs, NULL);
+        cpu_loop_exit_noexc(cs);
     }
 }
 #endif /* CONFIG_USER_ONLY */
