@@ -23,11 +23,6 @@ typedef char *caddr_t;
 # include <sys/bitypes.h>
 #endif
 
-
-#ifndef HAVE_MEMMOVE
-#define memmove(x, y, z) bcopy(y, x, z)
-#endif
-
 #ifndef _WIN32
 #include <sys/uio.h>
 #endif
@@ -35,17 +30,6 @@ typedef char *caddr_t;
 #ifndef _WIN32
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#endif
-
-/* Systems lacking strdup() definition in <string.h>. */
-#if defined(ultrix)
-char *strdup(const char *);
-#endif
-
-/* Systems lacking malloc() definition in <stdlib.h>. */
-#if defined(ultrix) || defined(hcx)
-void *malloc(size_t arg);
-void free(void *ptr);
 #endif
 
 #ifndef NO_UNIX_SOCKETS
@@ -72,10 +56,6 @@ void free(void *ptr);
 
 #ifdef HAVE_SYS_FILIO_H
 # include <sys/filio.h>
-#endif
-
-#ifdef USE_PPP
-#include <ppp/slirppp.h>
 #endif
 
 /* Avoid conflicting with the libc insque() and remque(), which
@@ -112,10 +92,6 @@ void free(void *ptr);
 #include "if.h"
 #include "main.h"
 #include "misc.h"
-#ifdef USE_PPP
-#include "ppp/pppd.h"
-#include "ppp/ppp.h"
-#endif
 
 #include "bootp.h"
 #include "tftp.h"
@@ -253,29 +229,11 @@ extern Slirp *slirp_instance;
 #define NULL (void *)0
 #endif
 
-#ifndef FULL_BOLT
 void if_start(Slirp *);
-#else
-void if_start(struct ttys *);
-#endif
-
-#ifndef HAVE_STRERROR
- char *strerror(int error);
-#endif
-
-#ifndef HAVE_INDEX
- char *index(const char *, int);
-#endif
-
-#ifndef HAVE_GETHOSTID
- long gethostid(void);
-#endif
 
 #ifndef _WIN32
 #include <netdb.h>
 #endif
-
-#define DEFAULT_BAUD 115200
 
 #define SO_OPTIONS DO_KEEPALIVE
 #define TCP_MAXIDLE (TCPTV_KEEPCNT * TCPTV_KEEPINTVL)
@@ -333,14 +291,6 @@ uint8_t tcp_tos(struct socket *);
 int tcp_emu(struct socket *, struct mbuf *);
 int tcp_ctl(struct socket *);
 struct tcpcb *tcp_drop(struct tcpcb *tp, int err);
-
-#ifdef USE_PPP
-#define MIN_MRU MINMRU
-#define MAX_MRU MAXMRU
-#else
-#define MIN_MRU 128
-#define MAX_MRU 16384
-#endif
 
 #ifndef _WIN32
 #define min(x,y) ((x) < (y) ? (x) : (y))
