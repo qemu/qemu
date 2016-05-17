@@ -354,7 +354,7 @@ build_madt(GArray *table_data, GArray *linker, PCMachineState *pcms)
 
         apic->type = ACPI_APIC_PROCESSOR;
         apic->length = sizeof(*apic);
-        apic->processor_id = apic_id;
+        apic->processor_id = i;
         apic->local_apic_id = apic_id;
         if (apic_ids->cpus[i].cpu != NULL) {
             apic->flags = cpu_to_le32(1);

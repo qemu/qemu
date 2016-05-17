@@ -99,7 +99,8 @@ void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
     int i, apic_idx;
     Aml *sb_scope = aml_scope("_SB");
     uint8_t madt_tmpl[8] = {0x00, 0x08, 0x00, 0x00, 0x00, 0, 0, 0};
-    Aml *cpu_id = aml_arg(0);
+    Aml *cpu_id = aml_arg(1);
+    Aml *apic_id = aml_arg(0);
     Aml *cpu_on = aml_local(0);
     Aml *madt = aml_local(1);
     Aml *cpus_map = aml_name(CPU_ON_BITMAP);
@@ -111,30 +112,31 @@ void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
 
     /*
      * _MAT method - creates an madt apic buffer
-     * cpu_id = Arg0 = Processor ID = Local APIC ID
+     * apic_id = Arg0 = Local APIC ID
+     * cpu_id  = Arg1 = Processor ID
      * cpu_on = Local0 = CPON flag for this cpu
      * madt = Local1 = Buffer (in madt apic form) to return
      */
-    method = aml_method(CPU_MAT_METHOD, 1, AML_NOTSERIALIZED);
+    method = aml_method(CPU_MAT_METHOD, 2, AML_NOTSERIALIZED);
     aml_append(method,
-        aml_store(aml_derefof(aml_index(cpus_map, cpu_id)), cpu_on));
+        aml_store(aml_derefof(aml_index(cpus_map, apic_id)), cpu_on));
     aml_append(method,
         aml_store(aml_buffer(sizeof(madt_tmpl), madt_tmpl), madt));
     /* Update the processor id, lapic id, and enable/disable status */
     aml_append(method, aml_store(cpu_id, aml_index(madt, aml_int(2))));
-    aml_append(method, aml_store(cpu_id, aml_index(madt, aml_int(3))));
+    aml_append(method, aml_store(apic_id, aml_index(madt, aml_int(3))));
     aml_append(method, aml_store(cpu_on, aml_index(madt, aml_int(4))));
     aml_append(method, aml_return(madt));
     aml_append(sb_scope, method);
 
     /*
      * _STA method - return ON status of cpu
-     * cpu_id = Arg0 = Processor ID = Local APIC ID
+     * apic_id = Arg0 = Local APIC ID
      * cpu_on = Local0 = CPON flag for this cpu
      */
     method = aml_method(CPU_STATUS_METHOD, 1, AML_NOTSERIALIZED);
     aml_append(method,
-        aml_store(aml_derefof(aml_index(cpus_map, cpu_id)), cpu_on));
+        aml_store(aml_derefof(aml_index(cpus_map, apic_id)), cpu_on));
     if_ctx = aml_if(cpu_on);
     {
         aml_append(if_ctx, aml_return(aml_int(0xF)));
@@ -243,11 +245,12 @@ void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
 
         assert(apic_id < ACPI_CPU_HOTPLUG_ID_LIMIT);
 
-        dev = aml_processor(apic_id, 0, 0, "CP%.02X", apic_id);
+        dev = aml_processor(i, 0, 0, "CP%.02X", apic_id);
 
         method = aml_method("_MAT", 0, AML_NOTSERIALIZED);
         aml_append(method,
-            aml_return(aml_call1(CPU_MAT_METHOD, aml_int(apic_id))));
+            aml_return(aml_call2(CPU_MAT_METHOD, aml_int(apic_id), aml_int(i))
+        ));
         aml_append(dev, method);
 
         method = aml_method("_STA", 0, AML_NOTSERIALIZED);
@@ -268,7 +271,7 @@ void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
     /* build this code:
      *   Method(NTFY, 2) {If (LEqual(Arg0, 0x00)) {Notify(CP00, Arg1)} ...}
      */
-    /* Arg0 = Processor ID = APIC ID */
+    /* Arg0 = APIC ID */
     method = aml_method(AML_NOTIFY_METHOD, 2, AML_NOTSERIALIZED);
     for (i = 0; i < apic_ids->len; i++) {
         int apic_id = apic_ids->cpus[i].arch_id;
