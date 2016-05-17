@@ -578,9 +578,9 @@ static void test_groups(void)
     BlockBackend *blk1, *blk2, *blk3;
     BlockBackendPublic *blkp1, *blkp2, *blkp3;
 
-    blk1 = blk_new(&error_abort);
-    blk2 = blk_new(&error_abort);
-    blk3 = blk_new(&error_abort);
+    blk1 = blk_new();
+    blk2 = blk_new();
+    blk3 = blk_new();
 
     blkp1 = blk_get_public(blk1);
     blkp2 = blk_get_public(blk2);

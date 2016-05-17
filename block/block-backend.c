@@ -119,7 +119,7 @@ static const BdrvChildRole child_root = {
  * Store an error through @errp on failure, unless it's null.
  * Return the new BlockBackend on success, null on failure.
  */
-BlockBackend *blk_new(Error **errp)
+BlockBackend *blk_new(void)
 {
     BlockBackend *blk;
 
@@ -153,12 +153,7 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
     BlockBackend *blk;
     BlockDriverState *bs;
 
-    blk = blk_new(errp);
-    if (!blk) {
-        QDECREF(options);
-        return NULL;
-    }
-
+    blk = blk_new();
     bs = bdrv_open(filename, reference, options, flags, errp);
     if (!bs) {
         blk_unref(blk);
