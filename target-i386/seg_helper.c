@@ -1129,7 +1129,11 @@ static void do_interrupt_real(CPUX86State *env, int intno, int is_int,
 }
 
 #if defined(CONFIG_USER_ONLY)
-/* fake user mode interrupt */
+/* fake user mode interrupt. is_int is TRUE if coming from the int
+ * instruction. next_eip is the env->eip value AFTER the interrupt
+ * instruction. It is only relevant if is_int is TRUE or if intno
+ * is EXCP_SYSCALL.
+ */
 static void do_interrupt_user(CPUX86State *env, int intno, int is_int,
                               int error_code, target_ulong next_eip)
 {
