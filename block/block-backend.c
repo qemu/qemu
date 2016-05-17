@@ -152,7 +152,6 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
 {
     BlockBackend *blk;
     BlockDriverState *bs;
-    int ret;
 
     blk = blk_new(errp);
     if (!blk) {
@@ -160,9 +159,8 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
         return NULL;
     }
 
-    bs = NULL;
-    ret = bdrv_open(&bs, filename, reference, options, flags, errp);
-    if (ret < 0) {
+    bs = bdrv_open(filename, reference, options, flags, errp);
+    if (!bs) {
         blk_unref(blk);
         return NULL;
     }
