@@ -320,7 +320,7 @@ static void monitor_flush_locked(Monitor *mon)
             return;
         }
         if (rc > 0) {
-            /* partinal write */
+            /* partial write */
             QString *tmp = qstring_from_str(buf + rc);
             QDECREF(mon->outbuf);
             mon->outbuf = tmp;
