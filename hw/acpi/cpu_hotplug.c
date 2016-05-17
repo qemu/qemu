@@ -87,7 +87,7 @@ void legacy_acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
 }
 
 void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
-                                  uint16_t io_base, uint16_t io_len)
+                                  uint16_t io_base)
 {
     Aml *dev;
     Aml *crs;
@@ -226,13 +226,13 @@ void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
     aml_append(dev, aml_name_decl("_STA", aml_int(0xB)));
     crs = aml_resource_template();
     aml_append(crs,
-        aml_io(AML_DECODE16, io_base, io_base, 1, io_len)
+        aml_io(AML_DECODE16, io_base, io_base, 1, ACPI_GPE_PROC_LEN)
     );
     aml_append(dev, aml_name_decl("_CRS", crs));
     aml_append(sb_scope, dev);
     /* declare CPU hotplug MMIO region and PRS field to access it */
     aml_append(sb_scope, aml_operation_region(
-        "PRST", AML_SYSTEM_IO, aml_int(io_base), io_len));
+        "PRST", AML_SYSTEM_IO, aml_int(io_base), ACPI_GPE_PROC_LEN));
     field = aml_field("PRST", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
     aml_append(field, aml_named_field("PRS", 256));
     aml_append(sb_scope, field);

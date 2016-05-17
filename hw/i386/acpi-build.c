@@ -94,7 +94,6 @@ typedef struct AcpiPmInfo {
     uint32_t gpe0_blk_len;
     uint32_t io_base;
     uint16_t cpu_hp_io_base;
-    uint16_t cpu_hp_io_len;
     uint16_t mem_hp_io_base;
     uint16_t mem_hp_io_len;
     uint16_t pcihp_io_base;
@@ -142,7 +141,6 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     }
     assert(obj);
 
-    pm->cpu_hp_io_len = ACPI_GPE_PROC_LEN;
     pm->mem_hp_io_base = ACPI_MEMORY_HOTPLUG_BASE;
     pm->mem_hp_io_len = ACPI_MEMORY_HOTPLUG_IO_LEN;
 
@@ -1935,8 +1933,7 @@ build_dsdt(GArray *table_data, GArray *linker,
         build_q35_pci0_int(dsdt);
     }
 
-    build_legacy_cpu_hotplug_aml(dsdt, machine, pm->cpu_hp_io_base,
-                                 pm->cpu_hp_io_len);
+    build_legacy_cpu_hotplug_aml(dsdt, machine, pm->cpu_hp_io_base);
     build_memory_hotplug_aml(dsdt, nr_mem, pm->mem_hp_io_base,
                              pm->mem_hp_io_len);
 

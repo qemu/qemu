@@ -28,5 +28,5 @@ void legacy_acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
                                   AcpiCpuHotplug *gpe_cpu, uint16_t base);
 
 void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
-                                  uint16_t io_base, uint16_t io_len);
+                                  uint16_t io_base);
 #endif
