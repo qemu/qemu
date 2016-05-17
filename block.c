@@ -1422,8 +1422,10 @@ done:
     return c;
 }
 
-static int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags,
-                                     QDict *snapshot_options, Error **errp)
+static BlockDriverState *bdrv_append_temp_snapshot(BlockDriverState *bs,
+                                                   int flags,
+                                                   QDict *snapshot_options,
+                                                   Error **errp)
 {
     /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
     char *tmp_filename = g_malloc0(PATH_MAX + 1);
@@ -1439,7 +1441,6 @@ static int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags,
     /* Get the required size from the image */
     total_size = bdrv_getlength(bs);
     if (total_size < 0) {
-        ret = total_size;
         error_setg_errno(errp, -total_size, "Could not get image size");
         goto out;
     }
@@ -1479,12 +1480,19 @@ static int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags,
         goto out;
     }
 
+    /* bdrv_append() consumes a strong reference to bs_snapshot (i.e. it will
+     * call bdrv_unref() on it), so in order to be able to return one, we have
+     * to increase bs_snapshot's refcount here */
+    bdrv_ref(bs_snapshot);
     bdrv_append(bs_snapshot, bs);
+
+    g_free(tmp_filename);
+    return bs_snapshot;
 
 out:
     QDECREF(snapshot_options);
     g_free(tmp_filename);
-    return ret;
+    return NULL;
 }
 
 /*
@@ -1704,17 +1712,42 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
     }
 
     QDECREF(options);
-    *pbs = bs;
 
     /* For snapshot=on, create a temporary qcow2 overlay. bs points to the
      * temporary snapshot afterwards. */
     if (snapshot_flags) {
-        ret = bdrv_append_temp_snapshot(bs, snapshot_flags, snapshot_options,
-                                        &local_err);
+        BlockDriverState *snapshot_bs;
+        snapshot_bs = bdrv_append_temp_snapshot(bs, snapshot_flags,
+                                                snapshot_options, &local_err);
         snapshot_options = NULL;
         if (local_err) {
+            ret = -EINVAL;
             goto close_and_fail;
         }
+        if (!*pbs) {
+            /* We are not going to return bs but the overlay on top of it
+             * (snapshot_bs); thus, we have to drop the strong reference to bs
+             * (which we obtained by calling bdrv_new()). bs will not be
+             * deleted, though, because the overlay still has a reference to it.
+             */
+            bdrv_unref(bs);
+            bs = snapshot_bs;
+        } else {
+            /* We are not going to return snapshot_bs, so we have to drop the
+             * strong reference to it (which was returned by
+             * bdrv_append_temp_snapshot()). snapshot_bs will not be deleted,
+             * though, because bdrv_append_temp_snapshot() made all parental
+             * references to bs (*pbs) point to snapshot_bs.
+             * In fact, if *pbs was not NULL, we are not going to return any new
+             * BDS. But we do not need to decrement bs's refcount here as is
+             * done above, because with a non-NULL *pbs this function never even
+             * had a strong reference to bs. */
+            bdrv_unref(snapshot_bs);
+        }
+    }
+
+    if (!*pbs) {
+        *pbs = bs;
     }
 
     return 0;
