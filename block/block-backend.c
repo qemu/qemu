@@ -136,27 +136,7 @@ BlockBackend *blk_new(Error **errp)
 }
 
 /*
- * Create a new BlockBackend with a new BlockDriverState attached.
- * Otherwise just like blk_new(), which see.
- */
-BlockBackend *blk_new_with_bs(Error **errp)
-{
-    BlockBackend *blk;
-    BlockDriverState *bs;
-
-    blk = blk_new(errp);
-    if (!blk) {
-        return NULL;
-    }
-
-    bs = bdrv_new_root();
-    blk->root = bdrv_root_attach_child(bs, "root", &child_root);
-    blk->root->opaque = blk;
-    return blk;
-}
-
-/*
- * Calls blk_new_with_bs() and then calls bdrv_open() on the BlockDriverState.
+ * Creates a new BlockBackend, opens a new BlockDriverState, and connects both.
  *
  * Just as with bdrv_open(), after having called this function the reference to
  * @options belongs to the block layer (even on failure).
@@ -171,21 +151,25 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
                            QDict *options, int flags, Error **errp)
 {
     BlockBackend *blk;
+    BlockDriverState *bs;
     int ret;
 
-    blk = blk_new_with_bs(errp);
+    blk = blk_new(errp);
     if (!blk) {
         QDECREF(options);
         return NULL;
     }
 
-    ret = bdrv_open(&blk->root->bs, filename, reference, options, flags, errp);
+    bs = NULL;
+    ret = bdrv_open(&bs, filename, reference, options, flags, errp);
     if (ret < 0) {
         blk_unref(blk);
         return NULL;
     }
 
     blk_set_enable_write_cache(blk, true);
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root);
+    blk->root->opaque = blk;
 
     return blk;
 }
