@@ -252,6 +252,7 @@ void aml_append(Aml *parent_ctx, Aml *child);
 /* non block AML object primitives */
 Aml *aml_name(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
 Aml *aml_name_decl(const char *name, Aml *val);
+Aml *aml_debug(void);
 Aml *aml_return(Aml *val);
 Aml *aml_int(const uint64_t val);
 Aml *aml_arg(int pos);
