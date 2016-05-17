@@ -353,7 +353,7 @@ static void piix4_device_plug_cb(HotplugHandler *hotplug_dev,
         acpi_pcihp_device_plug_cb(&s->ar, s->irq, &s->acpi_pci_hotplug, dev,
                                   errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
-        acpi_cpu_plug_cb(&s->ar, s->irq, &s->gpe_cpu, dev, errp);
+        legacy_acpi_cpu_plug_cb(&s->ar, s->irq, &s->gpe_cpu, dev, errp);
     } else {
         error_setg(errp, "acpi: device plug request for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
@@ -571,8 +571,8 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
     acpi_pcihp_init(OBJECT(s), &s->acpi_pci_hotplug, bus, parent,
                     s->use_acpi_pci_hotplug);
 
-    acpi_cpu_hotplug_init(parent, OBJECT(s), &s->gpe_cpu,
-                          PIIX4_CPU_HOTPLUG_IO_BASE);
+    legacy_acpi_cpu_hotplug_init(parent, OBJECT(s), &s->gpe_cpu,
+                                 PIIX4_CPU_HOTPLUG_IO_BASE);
 
     if (s->acpi_memory_hotplug.is_enabled) {
         acpi_memory_hotplug_init(parent, OBJECT(s), &s->acpi_memory_hotplug);

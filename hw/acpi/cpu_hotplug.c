@@ -54,8 +54,8 @@ static void acpi_set_cpu_present_bit(AcpiCpuHotplug *g, CPUState *cpu,
     g->sts[cpu_id / 8] |= (1 << (cpu_id % 8));
 }
 
-void acpi_cpu_plug_cb(ACPIREGS *ar, qemu_irq irq,
-                      AcpiCpuHotplug *g, DeviceState *dev, Error **errp)
+void legacy_acpi_cpu_plug_cb(ACPIREGS *ar, qemu_irq irq,
+                             AcpiCpuHotplug *g, DeviceState *dev, Error **errp)
 {
     acpi_set_cpu_present_bit(g, CPU(dev), errp);
     if (*errp != NULL) {
@@ -65,8 +65,8 @@ void acpi_cpu_plug_cb(ACPIREGS *ar, qemu_irq irq,
     acpi_send_gpe_event(ar, irq, ACPI_CPU_HOTPLUG_STATUS);
 }
 
-void acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
-                           AcpiCpuHotplug *gpe_cpu, uint16_t base)
+void legacy_acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
+                                  AcpiCpuHotplug *gpe_cpu, uint16_t base)
 {
     CPUState *cpu;
 

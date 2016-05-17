@@ -1935,7 +1935,8 @@ build_dsdt(GArray *table_data, GArray *linker,
         build_q35_pci0_int(dsdt);
     }
 
-    build_cpu_hotplug_aml(dsdt, machine, pm->cpu_hp_io_base, pm->cpu_hp_io_len);
+    build_legacy_cpu_hotplug_aml(dsdt, machine, pm->cpu_hp_io_base,
+                                 pm->cpu_hp_io_len);
     build_memory_hotplug_aml(dsdt, nr_mem, pm->mem_hp_io_base,
                              pm->mem_hp_io_len);
 

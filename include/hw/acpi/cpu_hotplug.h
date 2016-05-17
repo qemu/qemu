@@ -21,12 +21,12 @@ typedef struct AcpiCpuHotplug {
     uint8_t sts[ACPI_GPE_PROC_LEN];
 } AcpiCpuHotplug;
 
-void acpi_cpu_plug_cb(ACPIREGS *ar, qemu_irq irq,
-                      AcpiCpuHotplug *g, DeviceState *dev, Error **errp);
+void legacy_acpi_cpu_plug_cb(ACPIREGS *ar, qemu_irq irq,
+                             AcpiCpuHotplug *g, DeviceState *dev, Error **errp);
 
-void acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
-                           AcpiCpuHotplug *gpe_cpu, uint16_t base);
+void legacy_acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
+                                  AcpiCpuHotplug *gpe_cpu, uint16_t base);
 
-void build_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
-                           uint16_t io_base, uint16_t io_len);
+void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
+                                  uint16_t io_base, uint16_t io_len);
 #endif
