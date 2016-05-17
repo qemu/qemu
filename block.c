@@ -1470,8 +1470,7 @@ static int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags,
     qdict_put(snapshot_options, "driver",
               qstring_from_str("qcow2"));
 
-    bs_snapshot = bdrv_new();
-
+    bs_snapshot = NULL;
     ret = bdrv_open(&bs_snapshot, NULL, NULL, snapshot_options,
                     flags, &local_err);
     snapshot_options = NULL;
