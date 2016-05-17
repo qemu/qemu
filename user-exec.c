@@ -55,7 +55,7 @@ static void exception_action(CPUState *cpu)
 /* exit the current TB from a signal handler. The host registers are
    restored in a state compatible with the CPU emulator
  */
-void cpu_resume_from_signal(CPUState *cpu, void *puc)
+static void cpu_exit_tb_from_sighandler(CPUState *cpu, void *puc)
 {
 #ifdef __linux__
     struct ucontext *uc = puc;
@@ -63,20 +63,18 @@ void cpu_resume_from_signal(CPUState *cpu, void *puc)
     struct sigcontext *uc = puc;
 #endif
 
-    if (puc) {
-        /* XXX: use siglongjmp ? */
+    /* XXX: use siglongjmp ? */
 #ifdef __linux__
 #ifdef __ia64
-        sigprocmask(SIG_SETMASK, (sigset_t *)&uc->uc_sigmask, NULL);
+    sigprocmask(SIG_SETMASK, (sigset_t *)&uc->uc_sigmask, NULL);
 #else
-        sigprocmask(SIG_SETMASK, &uc->uc_sigmask, NULL);
+    sigprocmask(SIG_SETMASK, &uc->uc_sigmask, NULL);
 #endif
 #elif defined(__OpenBSD__)
-        sigprocmask(SIG_SETMASK, &uc->sc_mask, NULL);
+    sigprocmask(SIG_SETMASK, &uc->sc_mask, NULL);
 #endif
-    }
-    cpu->exception_index = -1;
-    siglongjmp(cpu->jmp_env, 1);
+
+    cpu_resume_from_signal(cpu, NULL);
 }
 
 /* 'pc' is the host PC at which the exception was raised. 'address' is
@@ -96,9 +94,28 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
            pc, address, is_write, *(unsigned long *)old_set);
 #endif
     /* XXX: locking issue */
-    if (is_write && h2g_valid(address)
-        && page_unprotect(h2g(address), pc, puc)) {
-        return 1;
+    if (is_write && h2g_valid(address)) {
+        switch (page_unprotect(h2g(address), pc)) {
+        case 0:
+            /* Fault not caused by a page marked unwritable to protect
+             * cached translations, must be the guest binary's problem
+             */
+            break;
+        case 1:
+            /* Fault caused by protection of cached translation; TBs
+             * invalidated, so resume execution
+             */
+            return 1;
+        case 2:
+            /* Fault caused by protection of cached translation, and the
+             * currently executing TB was modified and must be exited
+             * immediately.
+             */
+            cpu_exit_tb_from_sighandler(current_cpu, puc);
+            g_assert_not_reached();
+        default:
+            g_assert_not_reached();
+        }
     }
 
     /* Convert forcefully to guest address space, invalid addresses

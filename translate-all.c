@@ -1955,7 +1955,7 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
             /* unprotect the page if it was put read-only because it
                contains translated code */
             if (!(p->flags & PAGE_WRITE)) {
-                if (!page_unprotect(addr, 0, NULL)) {
+                if (!page_unprotect(addr, 0)) {
                     return -1;
                 }
             }
@@ -1965,8 +1965,12 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
 }
 
 /* called from signal handler: invalidate the code and unprotect the
-   page. Return TRUE if the fault was successfully handled. */
-int page_unprotect(target_ulong address, uintptr_t pc, void *puc)
+ * page. Return 0 if the fault was not handled, 1 if it was handled,
+ * and 2 if it was handled but the caller must cause the TB to be
+ * immediately exited. (We can only return 2 if the 'pc' argument is
+ * non-zero.)
+ */
+int page_unprotect(target_ulong address, uintptr_t pc)
 {
     unsigned int prot;
     PageDesc *p;
@@ -1999,7 +2003,7 @@ int page_unprotect(target_ulong address, uintptr_t pc, void *puc)
                the corresponding translated code. */
             if (tb_invalidate_phys_page(addr, pc)) {
                 mmap_unlock();
-                cpu_resume_from_signal(current_cpu, puc);
+                return 2;
             }
 #ifdef DEBUG_TB_CHECK
             tb_invalidate_check(addr);
