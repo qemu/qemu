@@ -40,18 +40,6 @@
 
 //#define DEBUG_SIGNAL
 
-static void exception_action(CPUState *cpu)
-{
-#if defined(TARGET_I386)
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env1 = &x86_cpu->env;
-
-    raise_exception_err(env1, cpu->exception_index, env1->error_code);
-#else
-    cpu_loop_exit(cpu);
-#endif
-}
-
 /* exit the current TB from a signal handler. The host registers are
    restored in a state compatible with the CPU emulator
  */
@@ -120,10 +108,8 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
     /* now we have a real cpu fault */
     cpu_restore_state(cpu, pc);
 
-    /* we restore the process signal mask as the sigreturn should
-       do it (XXX: use sigsetjmp) */
     sigprocmask(SIG_SETMASK, old_set, NULL);
-    exception_action(cpu);
+    cpu_loop_exit(cpu);
 
     /* never comes here */
     return 1;
