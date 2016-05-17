@@ -35,7 +35,7 @@ typedef struct ICH9LPCState {
 
     /* (pci device, intx) -> pirq
      * In real chipset case, the unused slots are never used
-     * as ICH9 supports only D25-D32 irq routing.
+     * as ICH9 supports only D25-D31 irq routing.
      * On the other hand in qemu case, any slot/function can be populated
      * via command line option.
      * So fallback interrupt routing for any devices in any slots is necessary.
@@ -181,7 +181,7 @@ Object *ich9_lpc_find(void);
 #define ICH9_SATA1_DEV                          31
 #define ICH9_SATA1_FUNC                         2
 
-/* D30:F1 power management I/O registers
+/* D31:F0 power management I/O registers
    offset from the address ICH9_LPC_PMBASE */
 
 /* ICH9 LPC PM I/O registers are 128 ports and 128-aligned */
