@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
@@ -162,30 +163,25 @@ static const TypeInfo pxb_host_info = {
 };
 
 /*
- * Registers the PXB bus as a child of the i440fx root bus.
- *
- * Returns 0 on successs, -1 if i440fx host was not
- * found or the bus number is already in use.
+ * Registers the PXB bus as a child of pci host root bus.
  */
-static int pxb_register_bus(PCIDevice *dev, PCIBus *pxb_bus)
+static void pxb_register_bus(PCIDevice *dev, PCIBus *pxb_bus, Error **errp)
 {
     PCIBus *bus = dev->bus;
     int pxb_bus_num = pci_bus_num(pxb_bus);
 
     if (bus->parent_dev) {
-        error_report("PXB devices can be attached only to root bus.");
-        return -1;
+        error_setg(errp, "PXB devices can be attached only to root bus");
+        return;
     }
 
     QLIST_FOREACH(bus, &bus->child, sibling) {
         if (pci_bus_num(bus) == pxb_bus_num) {
-            error_report("Bus %d is already in use.", pxb_bus_num);
-            return -1;
+            error_setg(errp, "Bus %d is already in use", pxb_bus_num);
+            return;
         }
     }
     QLIST_INSERT_HEAD(&dev->bus->child, pxb_bus, sibling);
-
-    return 0;
 }
 
 static int pxb_map_irq_fn(PCIDevice *pci_dev, int pin)
@@ -215,17 +211,18 @@ static gint pxb_compare(gconstpointer a, gconstpointer b)
            0;
 }
 
-static int pxb_dev_init_common(PCIDevice *dev, bool pcie)
+static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
 {
     PXBDev *pxb = convert_to_pxb(dev);
     DeviceState *ds, *bds = NULL;
     PCIBus *bus;
     const char *dev_name = NULL;
+    Error *local_err = NULL;
 
     if (pxb->numa_node != NUMA_NODE_UNASSIGNED &&
         pxb->numa_node >= nb_numa_nodes) {
-        error_report("Illegal numa node %d.", pxb->numa_node);
-        return -EINVAL;
+        error_setg(errp, "Illegal numa node %d", pxb->numa_node);
+        return;
     }
 
     if (dev->qdev.id && *dev->qdev.id) {
@@ -250,7 +247,9 @@ static int pxb_dev_init_common(PCIDevice *dev, bool pcie)
 
     PCI_HOST_BRIDGE(ds)->bus = bus;
 
-    if (pxb_register_bus(dev, bus)) {
+    pxb_register_bus(dev, bus, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         goto err_register_bus;
     }
 
@@ -264,23 +263,22 @@ static int pxb_dev_init_common(PCIDevice *dev, bool pcie)
     pci_config_set_class(dev->config, PCI_CLASS_BRIDGE_HOST);
 
     pxb_dev_list = g_list_insert_sorted(pxb_dev_list, pxb, pxb_compare);
-    return 0;
+    return;
 
 err_register_bus:
     object_unref(OBJECT(bds));
     object_unparent(OBJECT(bus));
     object_unref(OBJECT(ds));
-    return -EINVAL;
 }
 
-static int pxb_dev_initfn(PCIDevice *dev)
+static void pxb_dev_realize(PCIDevice *dev, Error **errp)
 {
     if (pci_bus_is_express(dev->bus)) {
-        error_report("pxb devices cannot reside on a PCIe bus!");
-        return -EINVAL;
+        error_setg(errp, "pxb devices cannot reside on a PCIe bus");
+        return;
     }
 
-    return pxb_dev_init_common(dev, false);
+    pxb_dev_realize_common(dev, false, errp);
 }
 
 static void pxb_dev_exitfn(PCIDevice *pci_dev)
@@ -302,7 +300,7 @@ static void pxb_dev_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = pxb_dev_initfn;
+    k->realize = pxb_dev_realize;
     k->exit = pxb_dev_exitfn;
     k->vendor_id = PCI_VENDOR_ID_REDHAT;
     k->device_id = PCI_DEVICE_ID_REDHAT_PXB;
@@ -321,14 +319,14 @@ static const TypeInfo pxb_dev_info = {
     .class_init    = pxb_dev_class_init,
 };
 
-static int pxb_pcie_dev_initfn(PCIDevice *dev)
+static void pxb_pcie_dev_realize(PCIDevice *dev, Error **errp)
 {
     if (!pci_bus_is_express(dev->bus)) {
-        error_report("pxb-pcie devices cannot reside on a PCI bus!");
-        return -EINVAL;
+        error_setg(errp, "pxb-pcie devices cannot reside on a PCI bus");
+        return;
     }
 
-    return pxb_dev_init_common(dev, true);
+    pxb_dev_realize_common(dev, true, errp);
 }
 
 static void pxb_pcie_dev_class_init(ObjectClass *klass, void *data)
@@ -336,7 +334,7 @@ static void pxb_pcie_dev_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = pxb_pcie_dev_initfn;
+    k->realize = pxb_pcie_dev_realize;
     k->exit = pxb_dev_exitfn;
     k->vendor_id = PCI_VENDOR_ID_REDHAT;
     k->device_id = PCI_DEVICE_ID_REDHAT_PXB_PCIE;
