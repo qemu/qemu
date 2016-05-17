@@ -161,8 +161,7 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
     }
 
     blk_set_enable_write_cache(blk, true);
-    blk->root = bdrv_root_attach_child(bs, "root", &child_root);
-    blk->root->opaque = blk;
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root, blk);
 
     return blk;
 }
@@ -481,8 +480,7 @@ void blk_remove_bs(BlockBackend *blk)
 void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
 {
     bdrv_ref(bs);
-    blk->root = bdrv_root_attach_child(bs, "root", &child_root);
-    blk->root->opaque = blk;
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root, blk);
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);
     if (blk->public.throttle_state) {
@@ -1675,6 +1673,9 @@ void blk_io_limits_update_group(BlockBackend *blk, const char *group)
 static void blk_root_drained_begin(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
+
+    /* Note that blk->root may not be accessible here yet if we are just
+     * attaching to a BlockDriverState that is drained. Use child instead. */
 
     if (blk->public.io_limits_disabled++ == 0) {
         throttle_group_restart_blk(blk);

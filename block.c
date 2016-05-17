@@ -1155,24 +1155,33 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
     BlockDriverState *old_bs = child->bs;
 
     if (old_bs) {
+        if (old_bs->quiesce_counter && child->role->drained_end) {
+            child->role->drained_end(child);
+        }
         QLIST_REMOVE(child, next_parent);
-    }
-    if (new_bs) {
-        QLIST_INSERT_HEAD(&new_bs->parents, child, next_parent);
     }
 
     child->bs = new_bs;
+
+    if (new_bs) {
+        QLIST_INSERT_HEAD(&new_bs->parents, child, next_parent);
+        if (new_bs->quiesce_counter && child->role->drained_begin) {
+            child->role->drained_begin(child);
+        }
+    }
 }
 
 BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
-                                  const BdrvChildRole *child_role)
+                                  const BdrvChildRole *child_role,
+                                  void *opaque)
 {
     BdrvChild *child = g_new(BdrvChild, 1);
     *child = (BdrvChild) {
         .bs     = NULL,
         .name   = g_strdup(child_name),
         .role   = child_role,
+        .opaque = opaque,
     };
 
     bdrv_replace_child(child, child_bs);
@@ -1185,7 +1194,8 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
                              const char *child_name,
                              const BdrvChildRole *child_role)
 {
-    BdrvChild *child = bdrv_root_attach_child(child_bs, child_name, child_role);
+    BdrvChild *child = bdrv_root_attach_child(child_bs, child_name, child_role,
+                                              NULL);
     QLIST_INSERT_HEAD(&parent_bs->children, child, next);
     return child;
 }
