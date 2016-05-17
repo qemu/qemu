@@ -1908,3 +1908,11 @@ aspeed_vic_update_fiq(int flags) "Raising FIQ: %d"
 aspeed_vic_update_irq(int flags) "Raising IRQ: %d"
 aspeed_vic_read(uint64_t offset, unsigned size, uint32_t value) "From 0x%" PRIx64 " of size %u: 0x%" PRIx32
 aspeed_vic_write(uint64_t offset, unsigned size, uint32_t data) "To 0x%" PRIx64 " of size %u: 0x%" PRIx32
+
+# hw/intc/arm_gic.c
+gic_enable_irq(int irq) "irq %d enabled"
+gic_disable_irq(int irq) "irq %d disabled"
+gic_set_irq(int irq, int level, int cpumask, int target) "irq %d level %d cpumask 0x%x target 0x%x"
+gic_update_bestirq(int cpu, int irq, int prio, int priority_mask, int running_priority) "cpu %d irq %d priority %d cpu priority mask %d cpu running priority %d"
+gic_update_set_irq(int cpu, const char *name, int level) "cpu[%d]: %s = %d"
+gic_acknowledge_irq(int cpu, int irq) "cpu %d acknowledged irq %d"
