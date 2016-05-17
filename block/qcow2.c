@@ -2412,7 +2412,7 @@ static bool is_zero_cluster(BlockDriverState *bs, int64_t start)
     BlockDriverState *file;
     int64_t res = bdrv_get_block_status_above(bs, NULL, start,
                                               s->cluster_sectors, &nr, &file);
-    return res >= 0 && ((res & BDRV_BLOCK_ZERO) || !(res & BDRV_BLOCK_DATA));
+    return res >= 0 && (res & BDRV_BLOCK_ZERO);
 }
 
 static bool is_zero_cluster_top_locked(BlockDriverState *bs, int64_t start)
