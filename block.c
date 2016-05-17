@@ -220,11 +220,6 @@ void bdrv_register(BlockDriver *bdrv)
     QLIST_INSERT_HEAD(&bdrv_drivers, bdrv, list);
 }
 
-BlockDriverState *bdrv_new_root(void)
-{
-    return bdrv_new();
-}
-
 BlockDriverState *bdrv_new(void)
 {
     BlockDriverState *bs;
