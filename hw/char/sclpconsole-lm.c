@@ -44,6 +44,10 @@ typedef struct SCLPConsoleLM {
     uint8_t buf[SIZE_CONSOLE_BUFFER];
 } SCLPConsoleLM;
 
+#define TYPE_SCLPLM_CONSOLE "sclplmconsole"
+#define SCLPLM_CONSOLE(obj) \
+    OBJECT_CHECK(SCLPConsoleLM, (obj), TYPE_SCLPLM_CONSOLE)
+
 /*
 *  Character layer call-back functions
  *
@@ -116,7 +120,7 @@ static int get_console_data(SCLPEvent *event, uint8_t *buf, size_t *size,
 {
     int len;
 
-    SCLPConsoleLM *cons = DO_UPCAST(SCLPConsoleLM, event, event);
+    SCLPConsoleLM *cons = SCLPLM_CONSOLE(event);
 
     len = cons->length;
     /* data need to fit into provided SCLP buffer */
@@ -190,7 +194,7 @@ static int write_console_data(SCLPEvent *event, const uint8_t *buf, int len)
     int ret = 0;
     const uint8_t *buf_offset;
 
-    SCLPConsoleLM *scon = DO_UPCAST(SCLPConsoleLM, event, event);
+    SCLPConsoleLM *scon = SCLPLM_CONSOLE(event);
 
     if (!scon->chr) {
         /* If there's no backend, we can just say we consumed all data. */
@@ -244,7 +248,7 @@ static int write_event_data(SCLPEvent *event, EventBufferHeader *ebh)
     int errors = 0;
     MDBO *mdbo;
     SclpMsg *data = (SclpMsg *) ebh;
-    SCLPConsoleLM *scon = DO_UPCAST(SCLPConsoleLM, event, event);
+    SCLPConsoleLM *scon = SCLPLM_CONSOLE(event);
 
     len = be16_to_cpu(data->mdb.header.length);
     if (len < sizeof(data->mdb.header)) {
@@ -313,7 +317,7 @@ static int console_init(SCLPEvent *event)
 {
     static bool console_available;
 
-    SCLPConsoleLM *scon = DO_UPCAST(SCLPConsoleLM, event, event);
+    SCLPConsoleLM *scon = SCLPLM_CONSOLE(event);
 
     if (console_available) {
         error_report("Multiple line-mode operator consoles are not supported");
@@ -336,7 +340,7 @@ static int console_exit(SCLPEvent *event)
 static void console_reset(DeviceState *dev)
 {
    SCLPEvent *event = SCLP_EVENT(dev);
-   SCLPConsoleLM *scon = DO_UPCAST(SCLPConsoleLM, event, event);
+   SCLPConsoleLM *scon = SCLPLM_CONSOLE(event);
 
    event->event_pending = false;
    scon->length = 0;

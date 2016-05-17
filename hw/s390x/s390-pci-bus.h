@@ -198,11 +198,11 @@ typedef struct ChscSeiNt2Res {
 } QEMU_PACKED ChscSeiNt2Res;
 
 typedef struct PciCfgSccb {
-        SCCBHeader header;
-        uint8_t atype;
-        uint8_t reserved1;
-        uint16_t reserved2;
-        uint32_t aid;
+    SCCBHeader header;
+    uint8_t atype;
+    uint8_t reserved1;
+    uint16_t reserved2;
+    uint32_t aid;
 } QEMU_PACKED PciCfgSccb;
 
 typedef struct S390MsixInfo {
@@ -219,6 +219,7 @@ typedef struct S390PCIBusDevice {
     bool configured;
     bool error_state;
     bool lgstg_blocked;
+    bool iommu_enabled;
     uint32_t fh;
     uint32_t fid;
     uint64_t g_iota;
@@ -247,8 +248,10 @@ typedef struct S390pciState {
 
 int chsc_sei_nt2_get_event(void *res);
 int chsc_sei_nt2_have_event(void);
-void s390_pci_sclp_configure(int configure, SCCB *sccb);
-void s390_pcihost_iommu_configure(S390PCIBusDevice *pbdev, bool enable);
+void s390_pci_sclp_configure(SCCB *sccb);
+void s390_pci_sclp_deconfigure(SCCB *sccb);
+void s390_pci_iommu_enable(S390PCIBusDevice *pbdev);
+void s390_pci_iommu_disable(S390PCIBusDevice *pbdev);
 S390PCIBusDevice *s390_pci_find_dev_by_idx(uint32_t idx);
 S390PCIBusDevice *s390_pci_find_dev_by_fh(uint32_t fh);
 S390PCIBusDevice *s390_pci_find_dev_by_fid(uint32_t fid);

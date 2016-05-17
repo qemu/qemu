@@ -135,6 +135,8 @@ typedef struct CPUS390XState {
     uint64_t gbea;
     uint64_t pp;
 
+    uint8_t riccb[64];
+
     CPU_COMMON
 
     /* reset does memset(0) up to here */
@@ -1159,6 +1161,7 @@ void kvm_s390_reset_vcpu(S390CPU *cpu);
 int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit);
 void kvm_s390_vcpu_interrupt_pre_save(S390CPU *cpu);
 int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu);
+int kvm_s390_get_ri(void);
 void kvm_s390_crypto_reset(void);
 #else
 static inline void kvm_s390_io_interrupt(uint16_t subchannel_id,
@@ -1206,6 +1209,10 @@ static inline void kvm_s390_vcpu_interrupt_pre_save(S390CPU *cpu)
 {
 }
 static inline int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu)
+{
+    return 0;
+}
+static inline int kvm_s390_get_ri(void)
 {
     return 0;
 }
@@ -1272,8 +1279,19 @@ static inline bool vregs_needed(void *opaque)
     }
     return 0;
 }
+static inline bool riccb_needed(void *opaque)
+{
+    if (kvm_enabled()) {
+        return kvm_s390_get_ri();
+    }
+    return 0;
+}
 #else
 static inline bool vregs_needed(void *opaque)
+{
+    return 0;
+}
+static inline bool riccb_needed(void *opaque)
 {
     return 0;
 }

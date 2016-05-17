@@ -14,8 +14,6 @@
 _start:
 
 larl	%r15, stack + 0x8000    /* Set up stack */
-larl    %r6, boot_value
-stg     %r7, 0(%r6)     /* save the boot_value before any function calls */
 j	main                    /* And call C */
 
 /*

@@ -12,8 +12,8 @@
 #include "virtio.h"
 
 char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
-uint64_t boot_value;
 static SubChannelId blk_schid = { .one = 1 };
+IplParameterBlock iplb __attribute__((__aligned__(PAGE_SIZE)));
 
 /*
  * Priniciples of Operations (SA22-7832-09) chapter 17 requires that
@@ -61,7 +61,7 @@ static bool find_dev(Schib *schib, int dev_no)
     return false;
 }
 
-static void virtio_setup(uint64_t dev_info)
+static void virtio_setup(void)
 {
     Schib schib;
     int ssid;
@@ -75,12 +75,18 @@ static void virtio_setup(uint64_t dev_info)
      */
     enable_mss_facility();
 
-    if (dev_info != -1) {
-        dev_no = dev_info & 0xffff;
-        debug_print_int("device no. ", dev_no);
-        blk_schid.ssid = (dev_info >> 16) & 0x3;
-        debug_print_int("ssid ", blk_schid.ssid);
-        found = find_dev(&schib, dev_no);
+    if (store_iplb(&iplb)) {
+        switch (iplb.pbt) {
+        case S390_IPL_TYPE_CCW:
+            dev_no = iplb.ccw.devno;
+            debug_print_int("device no. ", dev_no);
+            blk_schid.ssid = iplb.ccw.ssid & 0x3;
+            debug_print_int("ssid ", blk_schid.ssid);
+            found = find_dev(&schib, dev_no);
+            break;
+        default:
+            panic("List-directed IPL not supported yet!\n");
+        }
     } else {
         for (ssid = 0; ssid < 0x3; ssid++) {
             blk_schid.ssid = ssid;
@@ -101,8 +107,7 @@ static void virtio_setup(uint64_t dev_info)
 int main(void)
 {
     sclp_setup();
-    debug_print_int("boot reg[7] ", boot_value);
-    virtio_setup(boot_value);
+    virtio_setup();
 
     zipl_load(); /* no return */
 

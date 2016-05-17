@@ -357,10 +357,10 @@ static void sclp_execute(SCLPDevice *sclp, SCCB *sccb, uint32_t code)
         sclp_c->unassign_storage(sclp, sccb);
         break;
     case SCLP_CMDW_CONFIGURE_PCI:
-        s390_pci_sclp_configure(1, sccb);
+        s390_pci_sclp_configure(sccb);
         break;
     case SCLP_CMDW_DECONFIGURE_PCI:
-        s390_pci_sclp_configure(0, sccb);
+        s390_pci_sclp_deconfigure(sccb);
         break;
     default:
         efc->command_handler(ef, sccb, code);

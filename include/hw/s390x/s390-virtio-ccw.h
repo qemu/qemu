@@ -35,6 +35,10 @@ typedef struct S390CcwMachineClass {
     MachineClass parent_class;
 
     /*< public >*/
+    bool ri_allowed;
 } S390CcwMachineClass;
+
+/* runtime-instrumentation allowed by the machine */
+bool ri_allowed(void);
 
 #endif

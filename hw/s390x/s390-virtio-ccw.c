@@ -25,6 +25,7 @@
 #include "s390-pci-bus.h"
 #include "hw/s390x/storage-keys.h"
 #include "hw/compat.h"
+#include "ipl.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 
 static const char *const reset_dev_types[] = {
@@ -190,7 +191,9 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
+    S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
 
+    s390mc->ri_allowed = true;
     mc->init = ccw_init;
     mc->reset = s390_machine_reset;
     mc->hot_add_cpu = s390_hot_add_cpu;
@@ -237,6 +240,20 @@ static inline void machine_set_dea_key_wrap(Object *obj, bool value,
     ms->dea_key_wrap = value;
 }
 
+bool ri_allowed(void)
+{
+    if (kvm_enabled()) {
+        MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+        if (object_class_dynamic_cast(OBJECT_CLASS(mc),
+                                      TYPE_S390_CCW_MACHINE)) {
+            S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+
+            return s390mc->ri_allowed;
+        }
+    }
+    return 0;
+}
+
 static inline void s390_machine_initfn(Object *obj)
 {
     object_property_add_bool(obj, "aes-key-wrap",
@@ -262,6 +279,7 @@ static const TypeInfo ccw_machine_info = {
     .abstract      = true,
     .instance_size = sizeof(S390CcwMachineState),
     .instance_init = s390_machine_initfn,
+    .class_size = sizeof(S390CcwMachineClass),
     .class_init    = ccw_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_NMI },
@@ -299,7 +317,16 @@ static const TypeInfo ccw_machine_info = {
     }                                                                         \
     type_init(ccw_machine_register_##suffix)
 
+#define CCW_COMPAT_2_6 \
+        HW_COMPAT_2_6 \
+        {\
+            .driver   = TYPE_S390_IPL,\
+            .property = "iplbext_migration",\
+            .value    = "off",\
+        },
+
 #define CCW_COMPAT_2_5 \
+        CCW_COMPAT_2_6 \
         HW_COMPAT_2_5
 
 #define CCW_COMPAT_2_4 \
@@ -343,21 +370,38 @@ static const TypeInfo ccw_machine_info = {
             .value    = "0",\
         },
 
+static void ccw_machine_2_7_instance_options(MachineState *machine)
+{
+}
+
+static void ccw_machine_2_7_class_options(MachineClass *mc)
+{
+}
+DEFINE_CCW_MACHINE(2_7, "2.7", true);
+
 static void ccw_machine_2_6_instance_options(MachineState *machine)
 {
+    ccw_machine_2_7_instance_options(machine);
 }
 
 static void ccw_machine_2_6_class_options(MachineClass *mc)
 {
+    S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+
+    s390mc->ri_allowed = false;
+    ccw_machine_2_7_class_options(mc);
+    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_6);
 }
-DEFINE_CCW_MACHINE(2_6, "2.6", true);
+DEFINE_CCW_MACHINE(2_6, "2.6", false);
 
 static void ccw_machine_2_5_instance_options(MachineState *machine)
 {
+    ccw_machine_2_6_instance_options(machine);
 }
 
 static void ccw_machine_2_5_class_options(MachineClass *mc)
 {
+    ccw_machine_2_6_class_options(mc);
     SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_5);
 }
 DEFINE_CCW_MACHINE(2_5, "2.5", false);
@@ -369,6 +413,7 @@ static void ccw_machine_2_4_instance_options(MachineState *machine)
 
 static void ccw_machine_2_4_class_options(MachineClass *mc)
 {
+    ccw_machine_2_5_class_options(mc);
     SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_4);
 }
 DEFINE_CCW_MACHINE(2_4, "2.4", false);

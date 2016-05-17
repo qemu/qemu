@@ -15,6 +15,7 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "s390-pci-bus.h"
+#include "s390-pci-inst.h"
 #include <hw/pci/pci_bus.h>
 #include <hw/pci/msi.h>
 #include <qemu/error-report.h>
@@ -106,25 +107,61 @@ S390PCIBusDevice *s390_pci_find_dev_by_fid(uint32_t fid)
     return NULL;
 }
 
-void s390_pci_sclp_configure(int configure, SCCB *sccb)
+void s390_pci_sclp_configure(SCCB *sccb)
 {
     PciCfgSccb *psccb = (PciCfgSccb *)sccb;
     S390PCIBusDevice *pbdev = s390_pci_find_dev_by_fid(be32_to_cpu(psccb->aid));
     uint16_t rc;
 
+    if (be16_to_cpu(sccb->h.length) < 16) {
+        rc = SCLP_RC_INSUFFICIENT_SCCB_LENGTH;
+        goto out;
+    }
+
     if (pbdev) {
-        if ((configure == 1 && pbdev->configured == true) ||
-            (configure == 0 && pbdev->configured == false)) {
+        if (pbdev->configured) {
             rc = SCLP_RC_NO_ACTION_REQUIRED;
         } else {
-            pbdev->configured = !pbdev->configured;
+            pbdev->configured = true;
             rc = SCLP_RC_NORMAL_COMPLETION;
         }
     } else {
-        DPRINTF("sclp config %d no dev found\n", configure);
+        DPRINTF("sclp config no dev found\n");
         rc = SCLP_RC_ADAPTER_ID_NOT_RECOGNIZED;
     }
+out:
+    psccb->header.response_code = cpu_to_be16(rc);
+}
 
+void s390_pci_sclp_deconfigure(SCCB *sccb)
+{
+    PciCfgSccb *psccb = (PciCfgSccb *)sccb;
+    S390PCIBusDevice *pbdev = s390_pci_find_dev_by_fid(be32_to_cpu(psccb->aid));
+    uint16_t rc;
+
+    if (be16_to_cpu(sccb->h.length) < 16) {
+        rc = SCLP_RC_INSUFFICIENT_SCCB_LENGTH;
+        goto out;
+    }
+
+    if (pbdev) {
+        if (!pbdev->configured) {
+            rc = SCLP_RC_NO_ACTION_REQUIRED;
+        } else {
+            if (pbdev->summary_ind) {
+                pci_dereg_irqs(pbdev);
+            }
+            if (pbdev->iommu_enabled) {
+                pci_dereg_ioat(pbdev);
+            }
+            pbdev->configured = false;
+            rc = SCLP_RC_NORMAL_COMPLETION;
+        }
+    } else {
+        DPRINTF("sclp deconfig no dev found\n");
+        rc = SCLP_RC_ADAPTER_ID_NOT_RECOGNIZED;
+    }
+out:
     psccb->header.response_code = cpu_to_be16(rc);
 }
 
@@ -320,7 +357,8 @@ static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *iommu, hwaddr addr,
         .perm = IOMMU_NONE,
     };
 
-    if (!pbdev->configured || !pbdev->pdev || !(pbdev->fh & FH_ENABLED)) {
+    if (!pbdev->configured || !pbdev->pdev ||
+        !(pbdev->fh & FH_ENABLED) || !pbdev->iommu_enabled) {
         return ret;
     }
 
@@ -458,20 +496,21 @@ static const MemoryRegionOps s390_msi_ctrl_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-void s390_pcihost_iommu_configure(S390PCIBusDevice *pbdev, bool enable)
+void s390_pci_iommu_enable(S390PCIBusDevice *pbdev)
 {
-    pbdev->configured = false;
+    uint64_t size = pbdev->pal - pbdev->pba + 1;
 
-    if (enable) {
-        uint64_t size = pbdev->pal - pbdev->pba + 1;
-        memory_region_init_iommu(&pbdev->iommu_mr, OBJECT(&pbdev->mr),
-                                 &s390_iommu_ops, "iommu-s390", size);
-        memory_region_add_subregion(&pbdev->mr, pbdev->pba, &pbdev->iommu_mr);
-    } else {
-        memory_region_del_subregion(&pbdev->mr, &pbdev->iommu_mr);
-    }
+    memory_region_init_iommu(&pbdev->iommu_mr, OBJECT(&pbdev->mr),
+                             &s390_iommu_ops, "iommu-s390", size);
+    memory_region_add_subregion(&pbdev->mr, pbdev->pba, &pbdev->iommu_mr);
+    pbdev->iommu_enabled = true;
+}
 
-    pbdev->configured = true;
+void s390_pci_iommu_disable(S390PCIBusDevice *pbdev)
+{
+    memory_region_del_subregion(&pbdev->mr, &pbdev->iommu_mr);
+    object_unparent(OBJECT(&pbdev->iommu_mr));
+    pbdev->iommu_enabled = false;
 }
 
 static void s390_pcihost_init_as(S390pciState *s)
