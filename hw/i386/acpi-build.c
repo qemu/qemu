@@ -1952,10 +1952,6 @@ build_dsdt(GArray *table_data, GArray *linker,
             aml_append(scope, method);
         }
 
-        method = aml_method("_E02", 0, AML_NOTSERIALIZED);
-        aml_append(method, aml_call0("\\_SB." CPU_SCAN_METHOD));
-        aml_append(scope, method);
-
         method = aml_method("_E03", 0, AML_NOTSERIALIZED);
         aml_append(method, aml_call0(MEMORY_HOTPLUG_HANDLER_PATH));
         aml_append(scope, method);

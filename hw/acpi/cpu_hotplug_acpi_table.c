@@ -235,4 +235,8 @@ void build_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
     g_free(apic_ids);
 
     aml_append(ctx, sb_scope);
+
+    method = aml_method("\\_GPE._E02", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_call0("\\_SB." CPU_SCAN_METHOD));
+    aml_append(ctx, method);
 }
