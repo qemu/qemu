@@ -2051,8 +2051,6 @@ build_dsdt(GArray *table_data, GArray *linker,
     {
         aml_append(scope, aml_name_decl("_HID", aml_string("ACPI0006")));
 
-        aml_append(scope, aml_method("_L00", 0, AML_NOTSERIALIZED));
-
         if (misc->is_piix4) {
             method = aml_method("_E01", 0, AML_NOTSERIALIZED);
             aml_append(method,
@@ -2060,8 +2058,6 @@ build_dsdt(GArray *table_data, GArray *linker,
             aml_append(method, aml_call0("\\_SB.PCI0.PCNT"));
             aml_append(method, aml_release(aml_name("\\_SB.PCI0.BLCK")));
             aml_append(scope, method);
-        } else {
-            aml_append(scope, aml_method("_L01", 0, AML_NOTSERIALIZED));
         }
 
         method = aml_method("_E02", 0, AML_NOTSERIALIZED);
@@ -2071,19 +2067,6 @@ build_dsdt(GArray *table_data, GArray *linker,
         method = aml_method("_E03", 0, AML_NOTSERIALIZED);
         aml_append(method, aml_call0(MEMORY_HOTPLUG_HANDLER_PATH));
         aml_append(scope, method);
-
-        aml_append(scope, aml_method("_L04", 0, AML_NOTSERIALIZED));
-        aml_append(scope, aml_method("_L05", 0, AML_NOTSERIALIZED));
-        aml_append(scope, aml_method("_L06", 0, AML_NOTSERIALIZED));
-        aml_append(scope, aml_method("_L07", 0, AML_NOTSERIALIZED));
-        aml_append(scope, aml_method("_L08", 0, AML_NOTSERIALIZED));
-        aml_append(scope, aml_method("_L09", 0, AML_NOTSERIALIZED));
-        aml_append(scope, aml_method("_L0A", 0, AML_NOTSERIALIZED));
-        aml_append(scope, aml_method("_L0B", 0, AML_NOTSERIALIZED));
-        aml_append(scope, aml_method("_L0C", 0, AML_NOTSERIALIZED));
-        aml_append(scope, aml_method("_L0D", 0, AML_NOTSERIALIZED));
-        aml_append(scope, aml_method("_L0E", 0, AML_NOTSERIALIZED));
-        aml_append(scope, aml_method("_L0F", 0, AML_NOTSERIALIZED));
     }
     aml_append(dsdt, scope);
 
