@@ -34,5 +34,6 @@ void acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
 #define CPU_STATUS_MAP "PRS"
 #define CPU_SCAN_METHOD "PRSC"
 
-void build_cpu_hotplug_aml(Aml *ctx);
+void build_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
+                           uint16_t io_base, uint16_t io_len);
 #endif
