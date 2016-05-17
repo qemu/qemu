@@ -1,0 +1,265 @@
+#!/bin/bash
+#
+# qcow2 specific bdrv_write_zeroes tests with backing files (complements 034)
+#
+# Copyright (C) 2016 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+CLUSTER_SIZE=4k
+size=128M
+
+echo
+echo == backing file contains zeros ==
+
+CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
+_make_test_img -b "$TEST_IMG.base"
+
+# Make sure that the whole cluster is allocated even for partial write_zeroes
+# when the backing file contains zeros
+
+# X = non-zero data sector in backing file
+# - = sector unallocated in whole backing chain
+# 0 = sector touched by write_zeroes request
+
+# 1. Tail unaligned:    00 00 -- --
+# 2. Head unaligned:    -- -- 00 00
+# 3. Both unaligned:    -- 00 00 --
+# 4. Both, 2 clusters:  -- -- -- 00 | 00 -- -- --
+
+$QEMU_IO -c "write -z 0 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -z 10k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -z 17k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -z 27k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+echo
+echo == backing file contains non-zero data before write_zeroes ==
+
+CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
+_make_test_img -b "$TEST_IMG.base"
+
+# Single cluster; non-zero data at the cluster start
+# ... | XX -- 00 -- | ...
+$QEMU_IO -c "write -P 0x11 32k 1k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 34k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x11 32k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 33k 3k" "$TEST_IMG" | _filter_qemu_io
+
+# Single cluster; non-zero data exists, but not at the cluster start
+# ... | -- XX 00 -- | ...
+$QEMU_IO -c "write -P 0x11 65k 1k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 66k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x11 65k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 64k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 66k 2k" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+echo
+echo == backing file contains non-zero data after write_zeroes ==
+
+CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
+_make_test_img -b "$TEST_IMG.base"
+
+# Single cluster; non-zero data directly after request
+# ... | -- 00 XX -- | ...
+$QEMU_IO -c "write -P 0x11 34k 1k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 33k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 32k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x11 34k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 35k 1k" "$TEST_IMG" | _filter_qemu_io
+
+# Single cluster; non-zero data exists, but not directly after request
+# ... | -- 00 -- XX | ...
+$QEMU_IO -c "write -P 0x11 43k 1k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 41k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x11 43k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 40k 3k" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+echo
+echo == spanning two clusters, non-zero before request ==
+
+CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
+_make_test_img -b "$TEST_IMG.base"
+
+# Two clusters; non-zero data before request:
+# 1. At cluster start:          32k: XX -- -- 00 | 00 -- -- --
+# 2. Between unallocated space: 48k: -- XX -- 00 | 00 -- -- --
+# 3. Directly before request:   64k: -- -- XX 00 | 00 -- -- --
+
+$QEMU_IO -c "write -P 0x11 32k 1k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 35k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x11 32k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 33k 7k" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IO -c "write -P 0x11 49k 1k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 51k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 48k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x11 49k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 50k 6k" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IO -c "write -P 0x11 66k 1k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 67k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 64k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x11 66k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 67k 5k" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+echo
+echo == spanning two clusters, non-zero after request ==
+
+CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
+_make_test_img -b "$TEST_IMG.base"
+
+# Two clusters; non-zero data after request:
+# 1. Directly after request:    32k: -- -- -- 00 | 00 XX -- --
+# 2. Between unallocated space: 48k: -- -- -- 00 | 00 -- XX --
+# 3. At cluster end:            64k: -- -- -- 00 | 00 -- -- XX
+
+$QEMU_IO -c "write -P 0x11 37k 1k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 35k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 32k 5k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x11 37k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 38k 2k" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IO -c "write -P 0x11 54k 1k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 51k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 48k 6k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x11 54k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 55k 1k" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IO -c "write -P 0x11 71k 1k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 67k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 64k 7k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x11 71k 1k" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+echo
+echo == spanning two clusters, partially overwriting backing file ==
+
+CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
+_make_test_img -b "$TEST_IMG.base"
+
+# Backing file: -- -- XX XX | XX XX -- --
+# Active layer: -- -- XX 00 | 00 XX -- --
+
+$QEMU_IO -c "write -P 0x11 2k 4k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 3k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 0k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x11 2k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 3k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x11 5k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 6k 2k" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+echo
+echo == spanning multiple clusters, non-zero in first cluster ==
+
+CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
+_make_test_img -b "$TEST_IMG.base"
+
+# Backing file: 64k: XX XX -- -- | -- -- -- -- | -- -- -- --
+# Active layer: 64k: XX XX 00 00 | 00 00 00 00 | 00 -- -- --
+
+$QEMU_IO -c "write -P 0x11 64k 2k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 66k 7k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x11 64k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 66k 10k" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+echo
+echo == spanning multiple clusters, non-zero in intermediate cluster ==
+
+CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
+_make_test_img -b "$TEST_IMG.base"
+
+# Backing file: 64k: -- -- -- -- | -- XX XX -- | -- -- -- --
+# Active layer: 64k: -- -- 00 00 | 00 00 00 00 | 00 -- -- --
+
+$QEMU_IO -c "write -P 0x11 69k 2k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 66k 7k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 64k 12k" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+echo
+echo == spanning multiple clusters, non-zero in final cluster ==
+
+CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
+_make_test_img -b "$TEST_IMG.base"
+
+# Backing file: 64k: -- -- -- -- | -- -- -- -- | -- -- XX XX
+# Active layer: 64k: -- -- 00 00 | 00 00 00 00 | 00 -- XX XX
+
+$QEMU_IO -c "write -P 0x11 74k 2k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 66k 7k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 64k 10k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x11 74k 2k" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+echo
+echo == spanning multiple clusters, partially overwriting backing file ==
+
+CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
+_make_test_img -b "$TEST_IMG.base"
+
+# Backing file: 64k: -- XX XX XX | XX XX XX XX | XX XX XX --
+# Active layer: 64k: -- XX 00 00 | 00 00 00 00 | 00 XX XX --
+
+$QEMU_IO -c "write -P 0x11 65k 10k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 66k 7k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 64k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x11 65k 1k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 66k 7k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x11 73k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 75k 1k" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

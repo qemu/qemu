@@ -1,0 +1,242 @@
+QA output created by 154
+
+== backing file contains zeros ==
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 2048/2048 bytes at offset 0
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 10240
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 17408
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 27648
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[{ "start": 0, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 4096, "length": 4096, "depth": 1, "zero": true, "data": false},
+{ "start": 8192, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 12288, "length": 4096, "depth": 1, "zero": true, "data": false},
+{ "start": 16384, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 20480, "length": 4096, "depth": 1, "zero": true, "data": false},
+{ "start": 24576, "length": 8192, "depth": 0, "zero": true, "data": false},
+{ "start": 32768, "length": 134184960, "depth": 1, "zero": true, "data": false}]
+
+== backing file contains non-zero data before write_zeroes ==
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 1024/1024 bytes at offset 32768
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1024/1024 bytes at offset 34816
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 32768
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 3072/3072 bytes at offset 33792
+3 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1024/1024 bytes at offset 66560
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1024/1024 bytes at offset 67584
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 66560
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 65536
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 2048/2048 bytes at offset 67584
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[{ "start": 0, "length": 32768, "depth": 1, "zero": true, "data": false},
+{ "start": 32768, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 20480},
+{ "start": 36864, "length": 28672, "depth": 1, "zero": true, "data": false},
+{ "start": 65536, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 24576},
+{ "start": 69632, "length": 134148096, "depth": 1, "zero": true, "data": false}]
+
+== backing file contains non-zero data after write_zeroes ==
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 1024/1024 bytes at offset 34816
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1024/1024 bytes at offset 33792
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 2048/2048 bytes at offset 32768
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 34816
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 35840
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1024/1024 bytes at offset 44032
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1024/1024 bytes at offset 41984
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 44032
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 3072/3072 bytes at offset 40960
+3 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[{ "start": 0, "length": 32768, "depth": 1, "zero": true, "data": false},
+{ "start": 32768, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 20480},
+{ "start": 36864, "length": 4096, "depth": 1, "zero": true, "data": false},
+{ "start": 40960, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 24576},
+{ "start": 45056, "length": 134172672, "depth": 1, "zero": true, "data": false}]
+
+== spanning two clusters, non-zero before request ==
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 1024/1024 bytes at offset 32768
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 35840
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 32768
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 7168/7168 bytes at offset 33792
+7 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1024/1024 bytes at offset 50176
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 52224
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 49152
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 50176
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 6144/6144 bytes at offset 51200
+6 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1024/1024 bytes at offset 67584
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 68608
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 2048/2048 bytes at offset 65536
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 67584
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 5120/5120 bytes at offset 68608
+5 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[{ "start": 0, "length": 32768, "depth": 1, "zero": true, "data": false},
+{ "start": 32768, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 20480},
+{ "start": 40960, "length": 8192, "depth": 1, "zero": true, "data": false},
+{ "start": 49152, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 28672},
+{ "start": 57344, "length": 8192, "depth": 1, "zero": true, "data": false},
+{ "start": 65536, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 36864},
+{ "start": 73728, "length": 134144000, "depth": 1, "zero": true, "data": false}]
+
+== spanning two clusters, non-zero after request ==
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 1024/1024 bytes at offset 37888
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 35840
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 5120/5120 bytes at offset 32768
+5 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 37888
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 2048/2048 bytes at offset 38912
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1024/1024 bytes at offset 55296
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 52224
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 6144/6144 bytes at offset 49152
+6 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 55296
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 56320
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1024/1024 bytes at offset 72704
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 68608
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 7168/7168 bytes at offset 65536
+7 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 72704
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[{ "start": 0, "length": 32768, "depth": 1, "zero": true, "data": false},
+{ "start": 32768, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 20480},
+{ "start": 40960, "length": 8192, "depth": 1, "zero": true, "data": false},
+{ "start": 49152, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 28672},
+{ "start": 57344, "length": 8192, "depth": 1, "zero": true, "data": false},
+{ "start": 65536, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 36864},
+{ "start": 73728, "length": 134144000, "depth": 1, "zero": true, "data": false}]
+
+== spanning two clusters, partially overwriting backing file ==
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 4096/4096 bytes at offset 2048
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 3072
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 2048/2048 bytes at offset 0
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 2048
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 2048/2048 bytes at offset 3072
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 5120
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 2048/2048 bytes at offset 6144
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[{ "start": 0, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 20480},
+{ "start": 8192, "length": 134209536, "depth": 1, "zero": true, "data": false}]
+
+== spanning multiple clusters, non-zero in first cluster ==
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 2048/2048 bytes at offset 65536
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 7168/7168 bytes at offset 67584
+7 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 2048/2048 bytes at offset 65536
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 10240/10240 bytes at offset 67584
+10 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[{ "start": 0, "length": 65536, "depth": 1, "zero": true, "data": false},
+{ "start": 65536, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 20480},
+{ "start": 69632, "length": 8192, "depth": 0, "zero": true, "data": false},
+{ "start": 77824, "length": 134139904, "depth": 1, "zero": true, "data": false}]
+
+== spanning multiple clusters, non-zero in intermediate cluster ==
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 2048/2048 bytes at offset 70656
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 7168/7168 bytes at offset 67584
+7 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 12288/12288 bytes at offset 65536
+12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[{ "start": 0, "length": 65536, "depth": 1, "zero": true, "data": false},
+{ "start": 65536, "length": 12288, "depth": 0, "zero": true, "data": false},
+{ "start": 77824, "length": 134139904, "depth": 1, "zero": true, "data": false}]
+
+== spanning multiple clusters, non-zero in final cluster ==
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 2048/2048 bytes at offset 75776
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 7168/7168 bytes at offset 67584
+7 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 10240/10240 bytes at offset 65536
+10 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 2048/2048 bytes at offset 75776
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[{ "start": 0, "length": 65536, "depth": 1, "zero": true, "data": false},
+{ "start": 65536, "length": 8192, "depth": 0, "zero": true, "data": false},
+{ "start": 73728, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 20480},
+{ "start": 77824, "length": 134139904, "depth": 1, "zero": true, "data": false}]
+
+== spanning multiple clusters, partially overwriting backing file ==
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 10240/10240 bytes at offset 66560
+10 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 7168/7168 bytes at offset 67584
+7 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 65536
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 66560
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 7168/7168 bytes at offset 67584
+7 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 2048/2048 bytes at offset 74752
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1024/1024 bytes at offset 76800
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[{ "start": 0, "length": 65536, "depth": 1, "zero": true, "data": false},
+{ "start": 65536, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 20480},
+{ "start": 69632, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 73728, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 24576},
+{ "start": 77824, "length": 134139904, "depth": 1, "zero": true, "data": false}]
+*** done
