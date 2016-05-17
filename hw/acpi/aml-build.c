@@ -1416,6 +1416,14 @@ Aml *aml_unicode(const char *str)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefRefOf */
+Aml *aml_refof(Aml *arg)
+{
+    Aml *var = aml_opcode(0x71 /* RefOfOp */);
+    aml_append(var, arg);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefDerefOf */
 Aml *aml_derefof(Aml *arg)
 {

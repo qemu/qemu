@@ -359,6 +359,7 @@ Aml *aml_create_qword_field(Aml *srcbuf, Aml *index, const char *name);
 Aml *aml_varpackage(uint32_t num_elements);
 Aml *aml_touuid(const char *uuid);
 Aml *aml_unicode(const char *str);
+Aml *aml_refof(Aml *arg);
 Aml *aml_derefof(Aml *arg);
 Aml *aml_sizeof(Aml *arg);
 Aml *aml_concatenate(Aml *source1, Aml *source2, Aml *target);
