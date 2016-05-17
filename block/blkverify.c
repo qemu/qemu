@@ -293,22 +293,6 @@ static bool blkverify_recurse_is_first_non_filter(BlockDriverState *bs,
     return bdrv_recurse_is_first_non_filter(s->test_file->bs, candidate);
 }
 
-/* Propagate AioContext changes to ->test_file */
-static void blkverify_detach_aio_context(BlockDriverState *bs)
-{
-    BDRVBlkverifyState *s = bs->opaque;
-
-    bdrv_detach_aio_context(s->test_file->bs);
-}
-
-static void blkverify_attach_aio_context(BlockDriverState *bs,
-                                         AioContext *new_context)
-{
-    BDRVBlkverifyState *s = bs->opaque;
-
-    bdrv_attach_aio_context(s->test_file->bs, new_context);
-}
-
 static void blkverify_refresh_filename(BlockDriverState *bs, QDict *options)
 {
     BDRVBlkverifyState *s = bs->opaque;
@@ -355,9 +339,6 @@ static BlockDriver bdrv_blkverify = {
     .bdrv_aio_readv                   = blkverify_aio_readv,
     .bdrv_aio_writev                  = blkverify_aio_writev,
     .bdrv_aio_flush                   = blkverify_aio_flush,
-
-    .bdrv_attach_aio_context          = blkverify_attach_aio_context,
-    .bdrv_detach_aio_context          = blkverify_detach_aio_context,
 
     .is_filter                        = true,
     .bdrv_recurse_is_first_non_filter = blkverify_recurse_is_first_non_filter,

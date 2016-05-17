@@ -989,27 +989,6 @@ static void quorum_close(BlockDriverState *bs)
     g_free(s->children);
 }
 
-static void quorum_detach_aio_context(BlockDriverState *bs)
-{
-    BDRVQuorumState *s = bs->opaque;
-    int i;
-
-    for (i = 0; i < s->num_children; i++) {
-        bdrv_detach_aio_context(s->children[i]->bs);
-    }
-}
-
-static void quorum_attach_aio_context(BlockDriverState *bs,
-                                      AioContext *new_context)
-{
-    BDRVQuorumState *s = bs->opaque;
-    int i;
-
-    for (i = 0; i < s->num_children; i++) {
-        bdrv_attach_aio_context(s->children[i]->bs, new_context);
-    }
-}
-
 static void quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs,
                              Error **errp)
 {
@@ -1126,9 +1105,6 @@ static BlockDriver bdrv_quorum = {
 
     .bdrv_aio_readv                     = quorum_aio_readv,
     .bdrv_aio_writev                    = quorum_aio_writev,
-
-    .bdrv_detach_aio_context            = quorum_detach_aio_context,
-    .bdrv_attach_aio_context            = quorum_attach_aio_context,
 
     .bdrv_add_child                     = quorum_add_child,
     .bdrv_del_child                     = quorum_del_child,
