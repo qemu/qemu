@@ -74,8 +74,6 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
 
-static void bdrv_close(BlockDriverState *bs);
-
 #ifdef _WIN32
 static int is_windows_drive_prefix(const char *filename)
 {
@@ -2110,6 +2108,7 @@ static void bdrv_close(BlockDriverState *bs)
     BdrvAioNotifier *ban, *ban_next;
 
     assert(!bs->job);
+    assert(!bs->refcnt);
 
     bdrv_drained_begin(bs); /* complete I/O */
     bdrv_flush(bs);
