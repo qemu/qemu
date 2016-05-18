@@ -1476,7 +1476,7 @@ static void virtio_ccw_device_plugged(DeviceState *d, Error **errp)
     int n = virtio_get_num_queues(vdev);
 
     if (virtio_get_num_queues(vdev) > VIRTIO_CCW_QUEUE_MAX) {
-        error_setg(errp, "The nubmer of virtqueues %d "
+        error_setg(errp, "The number of virtqueues %d "
                    "exceeds ccw limit %d", n,
                    VIRTIO_CCW_QUEUE_MAX);
         return;
