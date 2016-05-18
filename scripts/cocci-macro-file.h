@@ -117,3 +117,9 @@ struct {                                                                \
         type *tqe_next;       /* next element */                        \
         type **tqe_prev;      /* address of previous next element */    \
 }
+
+/* From glib */
+#define g_assert_cmpint(a, op, b)   g_assert(a op b)
+#define g_assert_cmpuint(a, op, b)   g_assert(a op b)
+#define g_assert_cmphex(a, op, b)   g_assert(a op b)
+#define g_assert_cmpstr(a, op, b)   g_assert(strcmp(a, b) op 0)
