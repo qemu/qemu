@@ -322,7 +322,7 @@ enum.  The value for each branch can be of any type.
 
 A flat union definition avoids nesting on the wire, and specifies a
 set of common members that occur in all variants of the union.  The
-'base' key must specifiy either a type name (the type must be a
+'base' key must specify either a type name (the type must be a
 struct, not a union), or a dictionary representing an anonymous type.
 All branches of the union must be complex types, and the top-level
 members of the union dictionary on the wire will be combination of
