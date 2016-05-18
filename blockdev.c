@@ -2281,13 +2281,26 @@ exit:
     block_job_txn_unref(block_job_txn);
 }
 
+static int do_open_tray(const char *device, bool force, Error **errp);
+
 void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
 {
     Error *local_err = NULL;
+    int rc;
 
-    qmp_blockdev_open_tray(device, has_force, force, &local_err);
+    if (!has_force) {
+        force = false;
+    }
+
+    rc = do_open_tray(device, force, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
+        return;
+    }
+
+    if (rc == EINPROGRESS) {
+        error_setg(errp, "Device '%s' is locked and force was not specified, "
+                   "wait for tray to open and try again", device);
         return;
     }
 
@@ -2318,35 +2331,36 @@ void qmp_block_passwd(bool has_device, const char *device,
     aio_context_release(aio_context);
 }
 
-void qmp_blockdev_open_tray(const char *device, bool has_force, bool force,
-                            Error **errp)
+/**
+ * returns -errno on fatal error, +errno for non-fatal situations.
+ * errp will always be set when the return code is negative.
+ * May return +ENOSYS if the device has no tray,
+ * or +EINPROGRESS if the tray is locked and the guest has been notified.
+ */
+static int do_open_tray(const char *device, bool force, Error **errp)
 {
     BlockBackend *blk;
     bool locked;
-
-    if (!has_force) {
-        force = false;
-    }
 
     blk = blk_by_name(device);
     if (!blk) {
         error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
                   "Device '%s' not found", device);
-        return;
+        return -ENODEV;
     }
 
     if (!blk_dev_has_removable_media(blk)) {
         error_setg(errp, "Device '%s' is not removable", device);
-        return;
+        return -ENOTSUP;
     }
 
     if (!blk_dev_has_tray(blk)) {
         /* Ignore this command on tray-less devices */
-        return;
+        return ENOSYS;
     }
 
     if (blk_dev_is_tray_open(blk)) {
-        return;
+        return 0;
     }
 
     locked = blk_dev_is_medium_locked(blk);
@@ -2357,6 +2371,21 @@ void qmp_blockdev_open_tray(const char *device, bool has_force, bool force,
     if (!locked || force) {
         blk_dev_change_media_cb(blk, false);
     }
+
+    if (locked && !force) {
+        return EINPROGRESS;
+    }
+
+    return 0;
+}
+
+void qmp_blockdev_open_tray(const char *device, bool has_force, bool force,
+                            Error **errp)
+{
+    if (!has_force) {
+        force = false;
+    }
+    do_open_tray(device, force, errp);
 }
 
 void qmp_blockdev_close_tray(const char *device, Error **errp)
