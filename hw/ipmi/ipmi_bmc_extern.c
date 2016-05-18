@@ -190,7 +190,7 @@ static void ipmi_bmc_extern_handle_command(IPMIBmc *b,
     if (ibe->outlen) {
         /* We already have a command queued.  Shouldn't ever happen. */
         fprintf(stderr, "IPMI KCS: Got command when not finished with the"
-                " previous commmand\n");
+                " previous command\n");
         abort();
     }
 
