@@ -40,7 +40,7 @@
  *
  * Setting this flag to false will remove MSI/MSI-X capability from all devices.
  *
- * It is preferrable for controllers to set this to true (non-broken) even if
+ * It is preferable for controllers to set this to true (non-broken) even if
  * they do not actually support MSI/MSI-X: guests normally probe the controller
  * type and do not attempt to enable MSI/MSI-X with interrupt controllers not
  * supporting such, so removing the capability is not required, and

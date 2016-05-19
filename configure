@@ -4611,7 +4611,7 @@ if test "$softmmu" = yes ; then
       tools="$tools fsdev/virtfs-proxy-helper\$(EXESUF)"
     else
       if test "$virtfs" = yes; then
-        error_exit "VirtFS is supported only on Linux and requires libcap-devel and libattr-devel"
+        error_exit "VirtFS is supported only on Linux and requires libcap devel and libattr devel"
       fi
       virtfs=no
     fi

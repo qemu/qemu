@@ -698,7 +698,7 @@ static void vscsi_inquiry_no_target(VSCSIState *s, vscsi_req *req)
     uint8_t resp_data[36];
     int rc, len, alen;
 
-    /* We dont do EVPD. Also check that page_code is 0 */
+    /* We don't do EVPD. Also check that page_code is 0 */
     if ((cdb[1] & 0x01) || cdb[2] != 0) {
         /* Send INVALID FIELD IN CDB */
         vscsi_makeup_sense(s, req, ILLEGAL_REQUEST, 0x24, 0);

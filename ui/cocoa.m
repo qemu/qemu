@@ -1394,7 +1394,7 @@ static void addRemovableDevicesMenuItems(void)
     [menuItem setEnabled: NO];
     [menu addItem: menuItem];
 
-    /* Loop thru all the block devices in the emulator */
+    /* Loop through all the block devices in the emulator */
     while (currentDevice) {
         deviceName = [[NSString stringWithFormat: @"%s", currentDevice->value->device] retain];
 

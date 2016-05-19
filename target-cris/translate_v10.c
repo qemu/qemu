@@ -130,7 +130,7 @@ static void cris_set_prefix(DisasContext *dc)
     dc->tb_flags |= PFIX_FLAG;
     tcg_gen_ori_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], PFIX_FLAG);
 
-    /* prefix insns dont clear the x flag.  */
+    /* prefix insns don't clear the x flag.  */
     dc->clear_x = 0;
     cris_lock_irq(dc);
 }

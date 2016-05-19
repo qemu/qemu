@@ -473,7 +473,7 @@ On a 32 bit target, all 64 bit operations are converted to 32 bits. A
 few specific operations must be implemented to allow it (see add2_i32,
 sub2_i32, brcond2_i32).
 
-On a 64 bit target, the values are transfered between 32 and 64-bit
+On a 64 bit target, the values are transferred between 32 and 64-bit
 registers using the following ops:
 - trunc_shr_i64_i32
 - ext_i32_i64

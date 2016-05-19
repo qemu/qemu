@@ -25,7 +25,7 @@
 #define BUFFER_MIN_INIT_SIZE     4096
 #define BUFFER_MIN_SHRINK_SIZE  65536
 
-/* define the factor alpha for the expentional smoothing
+/* define the factor alpha for the exponential smoothing
  * that is used in the average size calculation. a shift
  * of 7 results in an alpha of 1/2^7. */
 #define BUFFER_AVG_SIZE_SHIFT       7
@@ -45,7 +45,7 @@ static void buffer_adj_size(Buffer *buffer, size_t len)
                         old, buffer->capacity);
 
     /* make it even harder for the buffer to shrink, reset average size
-     * to currenty capacity if it is larger than the average. */
+     * to current capacity if it is larger than the average. */
     buffer->avg_size = MAX(buffer->avg_size,
                            buffer->capacity << BUFFER_AVG_SIZE_SHIFT);
 }

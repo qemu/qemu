@@ -44,7 +44,6 @@ struct HostMemoryBackendClass {
  *
  * @parent: opaque parent object container
  * @size: amount of memory backend provides
- * @id: unique identification string in memdev namespace
  * @mr: MemoryRegion representing host memory belonging to backend
  */
 struct HostMemoryBackend {

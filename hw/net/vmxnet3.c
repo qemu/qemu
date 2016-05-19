@@ -37,7 +37,7 @@
 #define VMXNET3_MSIX_BAR_SIZE 0x2000
 #define MIN_BUF_SIZE 60
 
-/* Compatability flags for migration */
+/* Compatibility flags for migration */
 #define VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS_BIT 0
 #define VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS \
     (1 << VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS_BIT)
@@ -341,7 +341,7 @@ typedef struct {
         uint32_t mcast_list_len;
         uint32_t mcast_list_buff_size; /* needed for live migration. */
 
-        /* Compatability flags for migration */
+        /* Compatibility flags for migration */
         uint32_t compat_flags;
 } VMXNET3State;
 

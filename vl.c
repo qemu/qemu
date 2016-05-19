@@ -4083,7 +4083,7 @@ int main(int argc, char **argv, char **envp)
     /* Init CPU def lists, based on config
      * - Must be called after all the qemu_read_config_file() calls
      * - Must be called before list_cpus()
-     * - Must be called before machine->init()
+     * - Must be called before machine_class->init()
      */
     cpudef_init();
 

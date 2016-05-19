@@ -56,6 +56,6 @@ typedef struct AccelClass {
 
 extern int tcg_tb_size;
 
-int configure_accelerator(MachineState *ms);
+void configure_accelerator(MachineState *ms);
 
 #endif

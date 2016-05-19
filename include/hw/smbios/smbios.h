@@ -33,7 +33,7 @@ typedef enum SmbiosEntryPointType {
 
 /* SMBIOS Entry Point
  * There are two types of entry points defined in the SMBIOS specification
- * (see below). BIOS must place the entry point(s) at a 16-bit-aligned
+ * (see below). BIOS must place the entry point(s) at a 16-byte-aligned
  * address between 0xf0000 and 0xfffff. Note that either entry point type
  * can be used in a 64-bit target system, except that SMBIOS 2.1 entry point
  * only allows the SMBIOS struct table to reside below 4GB address space.

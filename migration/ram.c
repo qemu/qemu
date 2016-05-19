@@ -1272,7 +1272,7 @@ static int ram_save_target_page(MigrationState *ms, QEMUFile *f,
 }
 
 /**
- * ram_save_host_page: Starting at *offset send pages upto the end
+ * ram_save_host_page: Starting at *offset send pages up to the end
  *                     of the current host page.  It's valid for the initial
  *                     offset to point into the middle of a host page
  *                     in which case the remainder of the hostpage is sent.

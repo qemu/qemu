@@ -2,7 +2,7 @@
  * QEMU GE IP-Octal 232 IndustryPack emulation
  *
  * Copyright (C) 2012 Igalia, S.L.
- * Author: Alberto Garcia <agarcia@igalia.com>
+ * Author: Alberto Garcia <berto@igalia.com>
  *
  * This code is licensed under the GNU GPL v2 or (at your option) any
  * later version.

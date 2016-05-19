@@ -116,7 +116,7 @@ pcibus_t pci_bridge_get_base(const PCIDevice *bridge, uint8_t type)
     return base;
 }
 
-/* accessor funciton to get bridge filtering limit */
+/* accessor function to get bridge filtering limit */
 pcibus_t pci_bridge_get_limit(const PCIDevice *bridge, uint8_t type)
 {
     pcibus_t limit;

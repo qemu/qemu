@@ -705,19 +705,16 @@ int qdict_array_entries(QDict *src, const char *subqdict)
     for (i = 0; i < INT_MAX; i++) {
         QObject *subqobj;
         int subqdict_entries;
-        size_t slen = 32 + subqdict_len;
-        char indexstr[slen], prefix[slen];
-        size_t snprintf_ret;
-
-        snprintf_ret = snprintf(indexstr, slen, "%s%u", subqdict, i);
-        assert(snprintf_ret < slen);
-
-        subqobj = qdict_get(src, indexstr);
-
-        snprintf_ret = snprintf(prefix, slen, "%s%u.", subqdict, i);
-        assert(snprintf_ret < slen);
+        char *prefix = g_strdup_printf("%s%u.", subqdict, i);
 
         subqdict_entries = qdict_count_prefixed_entries(src, prefix);
+
+        /* Remove ending "." */
+        prefix[strlen(prefix) - 1] = 0;
+        subqobj = qdict_get(src, prefix);
+
+        g_free(prefix);
+
         if (subqdict_entries < 0) {
             return subqdict_entries;
         }

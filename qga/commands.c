@@ -182,8 +182,8 @@ GuestExecStatus *qmp_guest_exec_status(int64_t pid, Error **err)
          */
 #ifdef G_OS_WIN32
         /* Additionally WIN32 does not provide any additional information
-         * on whetherthe child exited or terminated via signal.
-         * We use this simple range check to distingish application exit code
+         * on whether the child exited or terminated via signal.
+         * We use this simple range check to distinguish application exit code
          * (usually value less then 256) and unhandled exception code with
          * ntstatus (always value greater then 0xC0000005). */
         if ((uint32_t)gei->status < 0xC0000000U) {
