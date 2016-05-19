@@ -466,7 +466,7 @@ static void virtio_gpu_resource_flush(VirtIOGPU *g,
 
     pixman_region_init_rect(&flush_region,
                             rf.r.x, rf.r.y, rf.r.width, rf.r.height);
-    for (i = 0; i < VIRTIO_GPU_MAX_SCANOUT; i++) {
+    for (i = 0; i < g->conf.max_outputs; i++) {
         struct virtio_gpu_scanout *scanout;
         pixman_region16_t region, finalregion;
         pixman_box16_t *extents;
@@ -509,8 +509,7 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
     trace_virtio_gpu_cmd_set_scanout(ss.scanout_id, ss.resource_id,
                                      ss.r.width, ss.r.height, ss.r.x, ss.r.y);
 
-    if (ss.scanout_id >= VIRTIO_GPU_MAX_SCANOUT ||
-        ss.scanout_id >= g->conf.max_outputs) {
+    if (ss.scanout_id >= g->conf.max_outputs) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal scanout id specified %d",
                       __func__, ss.scanout_id);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_SCANOUT_ID;
