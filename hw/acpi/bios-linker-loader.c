@@ -121,12 +121,13 @@ BIOSLinker *bios_linker_loader_init(void)
     return linker;
 }
 
-/* Free linker wrapper and return the linker commands array. */
-void *bios_linker_loader_cleanup(BIOSLinker *linker)
+/* Free linker wrapper */
+void bios_linker_loader_cleanup(BIOSLinker *linker)
 {
     int i;
     BiosLinkerFileEntry *entry;
-    void *cmd_blob = g_array_free(linker->cmd_blob, false);
+
+    g_array_free(linker->cmd_blob, true);
 
     for (i = 0; i < linker->file_list->len; i++) {
         entry = &g_array_index(linker->file_list, BiosLinkerFileEntry, i);
@@ -134,7 +135,6 @@ void *bios_linker_loader_cleanup(BIOSLinker *linker)
     }
     g_array_free(linker->file_list, true);
     g_free(linker);
-    return cmd_blob;
 }
 
 static const BiosLinkerFileEntry *

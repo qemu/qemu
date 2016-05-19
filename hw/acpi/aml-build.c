@@ -1548,8 +1548,7 @@ void acpi_build_tables_init(AcpiBuildTables *tables)
 
 void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre)
 {
-    void *linker_data = bios_linker_loader_cleanup(tables->linker);
-    g_free(linker_data);
+    bios_linker_loader_cleanup(tables->linker);
     g_array_free(tables->rsdp, true);
     g_array_free(tables->table_data, true);
     g_array_free(tables->tcpalog, mfre);

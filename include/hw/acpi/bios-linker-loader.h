@@ -26,5 +26,5 @@ void bios_linker_loader_add_pointer(BIOSLinker *linker,
                                     void *pointer,
                                     uint8_t pointer_size);
 
-void *bios_linker_loader_cleanup(BIOSLinker *linker);
+void bios_linker_loader_cleanup(BIOSLinker *linker);
 #endif
