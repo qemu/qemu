@@ -189,8 +189,8 @@ void bios_linker_loader_alloc(BIOSLinker *linker,
 }
 
 /*
- * bios_linker_loader_add_checksum: ask guest to add checksum of file data
- * into (same) file at the specified pointer.
+ * bios_linker_loader_add_checksum: ask guest to add checksum of ACPI
+ * table in the specified file at the specified offset.
  *
  * Checksum calculation simply sums -X for each byte X in the range
  * using 8-bit math (i.e. ACPI checksum).
@@ -198,35 +198,25 @@ void bios_linker_loader_alloc(BIOSLinker *linker,
  * @linker: linker object instance
  * @file: file that includes the checksum to be calculated
  *        and the data to be checksummed
- * @start, @size: range of data to checksum
- * @checksum: location of the checksum to be patched within file blob
- *
- * Notes:
- * - checksum byte initial value must have been pushed into blob
- *   associated with @file and reside at address @checksum.
- * - @size bytes must have been pushed into blob associated wtih @file
- *   and reside at address @start.
- * - Guest calculates checksum of specified range of data, result is added to
- *   initial value at @checksum into copy of @file in Guest memory.
- * - Range might include the checksum itself.
- * - To avoid confusion, caller must always put 0x0 at @checksum.
- * - @file must be loaded into Guest memory using bios_linker_loader_alloc
+ * @start_offset, @size: range of data in the file to checksum,
+ *                       relative to the start of file blob
+ * @checksum_offset: location of the checksum to be patched within file blob,
+ *                   relative to the start of file blob
  */
 void bios_linker_loader_add_checksum(BIOSLinker *linker, const char *file_name,
-                                     void *start, unsigned size,
-                                     uint8_t *checksum)
+                                     unsigned start_offset, unsigned size,
+                                     unsigned checksum_offset)
 {
     BiosLinkerLoaderEntry entry;
     const BiosLinkerFileEntry *file = bios_linker_find_file(linker, file_name);
-    ptrdiff_t checksum_offset = (gchar *)checksum - file->blob->data;
-    ptrdiff_t start_offset = (gchar *)start - file->blob->data;
 
-    assert(checksum_offset >= 0);
-    assert(start_offset >= 0);
-    assert(checksum_offset + 1 <= file->blob->len);
+    assert(file);
+    assert(start_offset < file->blob->len);
     assert(start_offset + size <= file->blob->len);
-    assert(*checksum == 0x0);
+    assert(checksum_offset >= start_offset);
+    assert(checksum_offset + 1 <= start_offset + size);
 
+    *(file->blob->data + checksum_offset) = 0;
     memset(&entry, 0, sizeof entry);
     strncpy(entry.cksum.file, file_name, sizeof entry.cksum.file - 1);
     entry.command = cpu_to_le32(BIOS_LINKER_LOADER_COMMAND_ADD_CHECKSUM);

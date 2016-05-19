@@ -17,8 +17,8 @@ void bios_linker_loader_alloc(BIOSLinker *linker,
                               bool alloc_fseg);
 
 void bios_linker_loader_add_checksum(BIOSLinker *linker, const char *file,
-                                     void *start, unsigned size,
-                                     uint8_t *checksum);
+                                     unsigned start_offset, unsigned size,
+                                     unsigned checksum_offset);
 
 void bios_linker_loader_add_pointer(BIOSLinker *linker,
                                     const char *dest_file,
