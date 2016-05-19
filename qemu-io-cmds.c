@@ -574,49 +574,6 @@ static int do_aio_writev(BlockBackend *blk, QEMUIOVector *qiov,
     return async_ret < 0 ? async_ret : 1;
 }
 
-struct multiwrite_async_ret {
-    int num_done;
-    int error;
-};
-
-static void multiwrite_cb(void *opaque, int ret)
-{
-    struct multiwrite_async_ret *async_ret = opaque;
-
-    async_ret->num_done++;
-    if (ret < 0) {
-        async_ret->error = ret;
-    }
-}
-
-static int do_aio_multiwrite(BlockBackend *blk, BlockRequest* reqs,
-                             int num_reqs, int *total)
-{
-    int i, ret;
-    struct multiwrite_async_ret async_ret = {
-        .num_done = 0,
-        .error = 0,
-    };
-
-    *total = 0;
-    for (i = 0; i < num_reqs; i++) {
-        reqs[i].cb = multiwrite_cb;
-        reqs[i].opaque = &async_ret;
-        *total += reqs[i].qiov->size;
-    }
-
-    ret = blk_aio_multiwrite(blk, reqs, num_reqs);
-    if (ret < 0) {
-        return ret;
-    }
-
-    while (async_ret.num_done < num_reqs) {
-        main_loop_wait(false);
-    }
-
-    return async_ret.error < 0 ? async_ret.error : 1;
-}
-
 static void read_help(void)
 {
     printf(
@@ -1150,7 +1107,7 @@ static int writev_f(BlockBackend *blk, int argc, char **argv)
     int pattern = 0xcd;
     QEMUIOVector qiov;
 
-    while ((c = getopt(argc, argv, "CqP:")) != -1) {
+    while ((c = getopt(argc, argv, "CfqP:")) != -1) {
         switch (c) {
         case 'C':
             Cflag = true;
@@ -1208,165 +1165,6 @@ static int writev_f(BlockBackend *blk, int argc, char **argv)
 out:
     qemu_iovec_destroy(&qiov);
     qemu_io_free(buf);
-    return 0;
-}
-
-static void multiwrite_help(void)
-{
-    printf(
-"\n"
-" writes a range of bytes from the given offset source from multiple buffers,\n"
-" in a batch of requests that may be merged by qemu\n"
-"\n"
-" Example:\n"
-" 'multiwrite 512 1k 1k ; 4k 1k'\n"
-"  writes 2 kB at 512 bytes and 1 kB at 4 kB into the open file\n"
-"\n"
-" Writes into a segment of the currently open file, using a buffer\n"
-" filled with a set pattern (0xcdcdcdcd). The pattern byte is increased\n"
-" by one for each request contained in the multiwrite command.\n"
-" -P, -- use different pattern to fill file\n"
-" -C, -- report statistics in a machine parsable format\n"
-" -q, -- quiet mode, do not show I/O statistics\n"
-"\n");
-}
-
-static int multiwrite_f(BlockBackend *blk, int argc, char **argv);
-
-static const cmdinfo_t multiwrite_cmd = {
-    .name       = "multiwrite",
-    .cfunc      = multiwrite_f,
-    .argmin     = 2,
-    .argmax     = -1,
-    .args       = "[-Cq] [-P pattern ] off len [len..] [; off len [len..]..]",
-    .oneline    = "issues multiple write requests at once",
-    .help       = multiwrite_help,
-};
-
-static int multiwrite_f(BlockBackend *blk, int argc, char **argv)
-{
-    struct timeval t1, t2;
-    bool Cflag = false, qflag = false;
-    int c, cnt;
-    char **buf;
-    int64_t offset, first_offset = 0;
-    /* Some compilers get confused and warn if this is not initialized.  */
-    int total = 0;
-    int nr_iov;
-    int nr_reqs;
-    int pattern = 0xcd;
-    QEMUIOVector *qiovs;
-    int i;
-    BlockRequest *reqs;
-
-    while ((c = getopt(argc, argv, "CqP:")) != -1) {
-        switch (c) {
-        case 'C':
-            Cflag = true;
-            break;
-        case 'q':
-            qflag = true;
-            break;
-        case 'P':
-            pattern = parse_pattern(optarg);
-            if (pattern < 0) {
-                return 0;
-            }
-            break;
-        default:
-            return qemuio_command_usage(&writev_cmd);
-        }
-    }
-
-    if (optind > argc - 2) {
-        return qemuio_command_usage(&writev_cmd);
-    }
-
-    nr_reqs = 1;
-    for (i = optind; i < argc; i++) {
-        if (!strcmp(argv[i], ";")) {
-            nr_reqs++;
-        }
-    }
-
-    reqs = g_new0(BlockRequest, nr_reqs);
-    buf = g_new0(char *, nr_reqs);
-    qiovs = g_new(QEMUIOVector, nr_reqs);
-
-    for (i = 0; i < nr_reqs && optind < argc; i++) {
-        int j;
-
-        /* Read the offset of the request */
-        offset = cvtnum(argv[optind]);
-        if (offset < 0) {
-            print_cvtnum_err(offset, argv[optind]);
-            goto out;
-        }
-        optind++;
-
-        if (offset & 0x1ff) {
-            printf("offset %lld is not sector aligned\n",
-                   (long long)offset);
-            goto out;
-        }
-
-        if (i == 0) {
-            first_offset = offset;
-        }
-
-        /* Read lengths for qiov entries */
-        for (j = optind; j < argc; j++) {
-            if (!strcmp(argv[j], ";")) {
-                break;
-            }
-        }
-
-        nr_iov = j - optind;
-
-        /* Build request */
-        buf[i] = create_iovec(blk, &qiovs[i], &argv[optind], nr_iov, pattern);
-        if (buf[i] == NULL) {
-            goto out;
-        }
-
-        reqs[i].qiov = &qiovs[i];
-        reqs[i].sector = offset >> 9;
-        reqs[i].nb_sectors = reqs[i].qiov->size >> 9;
-
-        optind = j + 1;
-
-        pattern++;
-    }
-
-    /* If there were empty requests at the end, ignore them */
-    nr_reqs = i;
-
-    gettimeofday(&t1, NULL);
-    cnt = do_aio_multiwrite(blk, reqs, nr_reqs, &total);
-    gettimeofday(&t2, NULL);
-
-    if (cnt < 0) {
-        printf("aio_multiwrite failed: %s\n", strerror(-cnt));
-        goto out;
-    }
-
-    if (qflag) {
-        goto out;
-    }
-
-    /* Finally, report back -- -C gives a parsable format */
-    t2 = tsub(t2, t1);
-    print_report("wrote", &t2, first_offset, total, total, cnt, Cflag);
-out:
-    for (i = 0; i < nr_reqs; i++) {
-        qemu_io_free(buf[i]);
-        if (reqs[i].qiov != NULL) {
-            qemu_iovec_destroy(&qiovs[i]);
-        }
-    }
-    g_free(buf);
-    g_free(reqs);
-    g_free(qiovs);
     return 0;
 }
 
@@ -1476,6 +1274,7 @@ static void aio_read_help(void)
 " used to ensure all outstanding aio requests have been completed.\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -P, -- use a pattern to verify read data\n"
+" -i, -- treat request as invalid, for exercising stats\n"
 " -v, -- dump buffer to standard output\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
 "\n");
@@ -1488,7 +1287,7 @@ static const cmdinfo_t aio_read_cmd = {
     .cfunc      = aio_read_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-Cqv] [-P pattern] off len [len..]",
+    .args       = "[-Ciqv] [-P pattern] off len [len..]",
     .oneline    = "asynchronously reads a number of bytes",
     .help       = aio_read_help,
 };
@@ -1499,7 +1298,7 @@ static int aio_read_f(BlockBackend *blk, int argc, char **argv)
     struct aio_ctx *ctx = g_new0(struct aio_ctx, 1);
 
     ctx->blk = blk;
-    while ((c = getopt(argc, argv, "CP:qv")) != -1) {
+    while ((c = getopt(argc, argv, "CP:iqv")) != -1) {
         switch (c) {
         case 'C':
             ctx->Cflag = true;
@@ -1512,6 +1311,11 @@ static int aio_read_f(BlockBackend *blk, int argc, char **argv)
                 return 0;
             }
             break;
+        case 'i':
+            printf("injecting invalid read request\n");
+            block_acct_invalid(blk_get_stats(blk), BLOCK_ACCT_READ);
+            g_free(ctx);
+            return 0;
         case 'q':
             ctx->qflag = true;
             break;
@@ -1569,6 +1373,7 @@ static void aio_write_help(void)
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -f, -- use Force Unit Access semantics\n"
+" -i, -- treat request as invalid, for exercising stats\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
 " -u, -- with -z, allow unmapping\n"
 " -z, -- write zeroes using blk_aio_write_zeroes\n"
@@ -1582,7 +1387,7 @@ static const cmdinfo_t aio_write_cmd = {
     .cfunc      = aio_write_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-Cfquz] [-P pattern] off len [len..]",
+    .args       = "[-Cfiquz] [-P pattern] off len [len..]",
     .oneline    = "asynchronously writes a number of bytes",
     .help       = aio_write_help,
 };
@@ -1595,7 +1400,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
     int flags = 0;
 
     ctx->blk = blk;
-    while ((c = getopt(argc, argv, "CfqP:z")) != -1) {
+    while ((c = getopt(argc, argv, "CfiqP:uz")) != -1) {
         switch (c) {
         case 'C':
             ctx->Cflag = true;
@@ -1616,6 +1421,11 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
                 return 0;
             }
             break;
+        case 'i':
+            printf("injecting invalid write request\n");
+            block_acct_invalid(blk_get_stats(blk), BLOCK_ACCT_WRITE);
+            g_free(ctx);
+            return 0;
         case 'z':
             ctx->zflag = true;
             break;
@@ -1638,6 +1448,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
 
     if ((flags & BDRV_REQ_MAY_UNMAP) && !ctx->zflag) {
         printf("-u requires -z to be specified\n");
+        g_free(ctx);
         return 0;
     }
 
@@ -2436,7 +2247,6 @@ static void __attribute((constructor)) init_qemuio_commands(void)
     qemuio_add_command(&readv_cmd);
     qemuio_add_command(&write_cmd);
     qemuio_add_command(&writev_cmd);
-    qemuio_add_command(&multiwrite_cmd);
     qemuio_add_command(&aio_read_cmd);
     qemuio_add_command(&aio_write_cmd);
     qemuio_add_command(&aio_flush_cmd);

@@ -28,19 +28,19 @@
 #include "qemu/throttle.h"
 #include "block/block_int.h"
 
-const char *throttle_group_get_name(BlockDriverState *bs);
+const char *throttle_group_get_name(BlockBackend *blk);
 
 ThrottleState *throttle_group_incref(const char *name);
 void throttle_group_unref(ThrottleState *ts);
 
-void throttle_group_config(BlockDriverState *bs, ThrottleConfig *cfg);
-void throttle_group_get_config(BlockDriverState *bs, ThrottleConfig *cfg);
+void throttle_group_config(BlockBackend *blk, ThrottleConfig *cfg);
+void throttle_group_get_config(BlockBackend *blk, ThrottleConfig *cfg);
 
-void throttle_group_register_bs(BlockDriverState *bs, const char *groupname);
-void throttle_group_unregister_bs(BlockDriverState *bs);
-void throttle_group_restart_bs(BlockDriverState *bs);
+void throttle_group_register_blk(BlockBackend *blk, const char *groupname);
+void throttle_group_unregister_blk(BlockBackend *blk);
+void throttle_group_restart_blk(BlockBackend *blk);
 
-void coroutine_fn throttle_group_co_io_limits_intercept(BlockDriverState *bs,
+void coroutine_fn throttle_group_co_io_limits_intercept(BlockBackend *blk,
                                                         unsigned int bytes,
                                                         bool is_write);
 

@@ -27,7 +27,6 @@
 #include "sysemu/block-backend.h"
 #include "block/blockjob.h"
 #include "block/block_int.h"
-#include "block/throttle-groups.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -46,56 +45,26 @@ static void coroutine_fn bdrv_co_do_rw(void *opaque);
 static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, BdrvRequestFlags flags);
 
-/* throttling disk I/O limits */
-void bdrv_set_io_limits(BlockDriverState *bs,
-                        ThrottleConfig *cfg)
+static void bdrv_parent_drained_begin(BlockDriverState *bs)
 {
-    throttle_group_config(bs, cfg);
-}
+    BdrvChild *c;
 
-void bdrv_no_throttling_begin(BlockDriverState *bs)
-{
-    if (bs->io_limits_disabled++ == 0) {
-        throttle_group_restart_bs(bs);
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
+        if (c->role->drained_begin) {
+            c->role->drained_begin(c);
+        }
     }
 }
 
-void bdrv_no_throttling_end(BlockDriverState *bs)
+static void bdrv_parent_drained_end(BlockDriverState *bs)
 {
-    assert(bs->io_limits_disabled);
-    --bs->io_limits_disabled;
-}
+    BdrvChild *c;
 
-void bdrv_io_limits_disable(BlockDriverState *bs)
-{
-    assert(bs->throttle_state);
-    bdrv_no_throttling_begin(bs);
-    throttle_group_unregister_bs(bs);
-    bdrv_no_throttling_end(bs);
-}
-
-/* should be called before bdrv_set_io_limits if a limit is set */
-void bdrv_io_limits_enable(BlockDriverState *bs, const char *group)
-{
-    assert(!bs->throttle_state);
-    throttle_group_register_bs(bs, group);
-}
-
-void bdrv_io_limits_update_group(BlockDriverState *bs, const char *group)
-{
-    /* this bs is not part of any group */
-    if (!bs->throttle_state) {
-        return;
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
+        if (c->role->drained_end) {
+            c->role->drained_end(c);
+        }
     }
-
-    /* this bs is a part of the same group than the one we want */
-    if (!g_strcmp0(throttle_group_get_name(bs), group)) {
-        return;
-    }
-
-    /* need to change the group this bs belong to */
-    bdrv_io_limits_disable(bs);
-    bdrv_io_limits_enable(bs, group);
 }
 
 void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
@@ -180,12 +149,6 @@ bool bdrv_requests_pending(BlockDriverState *bs)
     BdrvChild *child;
 
     if (!QLIST_EMPTY(&bs->tracked_requests)) {
-        return true;
-    }
-    if (!qemu_co_queue_empty(&bs->throttled_reqs[0])) {
-        return true;
-    }
-    if (!qemu_co_queue_empty(&bs->throttled_reqs[1])) {
         return true;
     }
 
@@ -275,17 +238,17 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
  */
 void coroutine_fn bdrv_co_drain(BlockDriverState *bs)
 {
-    bdrv_no_throttling_begin(bs);
+    bdrv_parent_drained_begin(bs);
     bdrv_io_unplugged_begin(bs);
     bdrv_drain_recurse(bs);
     bdrv_co_yield_to_drain(bs);
     bdrv_io_unplugged_end(bs);
-    bdrv_no_throttling_end(bs);
+    bdrv_parent_drained_end(bs);
 }
 
 void bdrv_drain(BlockDriverState *bs)
 {
-    bdrv_no_throttling_begin(bs);
+    bdrv_parent_drained_begin(bs);
     bdrv_io_unplugged_begin(bs);
     bdrv_drain_recurse(bs);
     if (qemu_in_coroutine()) {
@@ -294,7 +257,7 @@ void bdrv_drain(BlockDriverState *bs)
         bdrv_drain_poll(bs);
     }
     bdrv_io_unplugged_end(bs);
-    bdrv_no_throttling_end(bs);
+    bdrv_parent_drained_end(bs);
 }
 
 /*
@@ -307,17 +270,18 @@ void bdrv_drain_all(void)
 {
     /* Always run first iteration so any pending completion BHs run */
     bool busy = true;
-    BlockDriverState *bs = NULL;
+    BlockDriverState *bs;
+    BdrvNextIterator *it = NULL;
     GSList *aio_ctxs = NULL, *ctx;
 
-    while ((bs = bdrv_next(bs))) {
+    while ((it = bdrv_next(it, &bs))) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
         if (bs->job) {
             block_job_pause(bs->job);
         }
-        bdrv_no_throttling_begin(bs);
+        bdrv_parent_drained_begin(bs);
         bdrv_io_unplugged_begin(bs);
         bdrv_drain_recurse(bs);
         aio_context_release(aio_context);
@@ -338,10 +302,10 @@ void bdrv_drain_all(void)
 
         for (ctx = aio_ctxs; ctx != NULL; ctx = ctx->next) {
             AioContext *aio_context = ctx->data;
-            bs = NULL;
+            it = NULL;
 
             aio_context_acquire(aio_context);
-            while ((bs = bdrv_next(bs))) {
+            while ((it = bdrv_next(it, &bs))) {
                 if (aio_context == bdrv_get_aio_context(bs)) {
                     if (bdrv_requests_pending(bs)) {
                         busy = true;
@@ -354,13 +318,13 @@ void bdrv_drain_all(void)
         }
     }
 
-    bs = NULL;
-    while ((bs = bdrv_next(bs))) {
+    it = NULL;
+    while ((it = bdrv_next(it, &bs))) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
         bdrv_io_unplugged_end(bs);
-        bdrv_no_throttling_end(bs);
+        bdrv_parent_drained_end(bs);
         if (bs->job) {
             block_job_resume(bs->job);
         }
@@ -1069,11 +1033,6 @@ int coroutine_fn bdrv_co_preadv(BlockDriverState *bs,
         flags |= BDRV_REQ_COPY_ON_READ;
     }
 
-    /* throttling disk I/O */
-    if (bs->throttle_state) {
-        throttle_group_co_io_limits_intercept(bs, bytes, false);
-    }
-
     /* Align read if necessary by padding qiov */
     if (offset & (align - 1)) {
         head_buf = qemu_blockalign(bs, align);
@@ -1428,11 +1387,6 @@ int coroutine_fn bdrv_co_pwritev(BlockDriverState *bs,
     ret = bdrv_check_byte_request(bs, offset, bytes);
     if (ret < 0) {
         return ret;
-    }
-
-    /* throttling disk I/O */
-    if (bs->throttle_state) {
-        throttle_group_co_io_limits_intercept(bs, bytes, true);
     }
 
     /*
@@ -1923,200 +1877,6 @@ BlockAIOCB *bdrv_aio_write_zeroes(BlockDriverState *bs,
     return bdrv_co_aio_rw_vector(bs, sector_num, NULL, nb_sectors,
                                  BDRV_REQ_ZERO_WRITE | flags,
                                  cb, opaque, true);
-}
-
-
-typedef struct MultiwriteCB {
-    int error;
-    int num_requests;
-    int num_callbacks;
-    struct {
-        BlockCompletionFunc *cb;
-        void *opaque;
-        QEMUIOVector *free_qiov;
-    } callbacks[];
-} MultiwriteCB;
-
-static void multiwrite_user_cb(MultiwriteCB *mcb)
-{
-    int i;
-
-    for (i = 0; i < mcb->num_callbacks; i++) {
-        mcb->callbacks[i].cb(mcb->callbacks[i].opaque, mcb->error);
-        if (mcb->callbacks[i].free_qiov) {
-            qemu_iovec_destroy(mcb->callbacks[i].free_qiov);
-        }
-        g_free(mcb->callbacks[i].free_qiov);
-    }
-}
-
-static void multiwrite_cb(void *opaque, int ret)
-{
-    MultiwriteCB *mcb = opaque;
-
-    trace_multiwrite_cb(mcb, ret);
-
-    if (ret < 0 && !mcb->error) {
-        mcb->error = ret;
-    }
-
-    mcb->num_requests--;
-    if (mcb->num_requests == 0) {
-        multiwrite_user_cb(mcb);
-        g_free(mcb);
-    }
-}
-
-static int multiwrite_req_compare(const void *a, const void *b)
-{
-    const BlockRequest *req1 = a, *req2 = b;
-
-    /*
-     * Note that we can't simply subtract req2->sector from req1->sector
-     * here as that could overflow the return value.
-     */
-    if (req1->sector > req2->sector) {
-        return 1;
-    } else if (req1->sector < req2->sector) {
-        return -1;
-    } else {
-        return 0;
-    }
-}
-
-/*
- * Takes a bunch of requests and tries to merge them. Returns the number of
- * requests that remain after merging.
- */
-static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
-    int num_reqs, MultiwriteCB *mcb)
-{
-    int i, outidx;
-
-    // Sort requests by start sector
-    qsort(reqs, num_reqs, sizeof(*reqs), &multiwrite_req_compare);
-
-    // Check if adjacent requests touch the same clusters. If so, combine them,
-    // filling up gaps with zero sectors.
-    outidx = 0;
-    for (i = 1; i < num_reqs; i++) {
-        int merge = 0;
-        int64_t oldreq_last = reqs[outidx].sector + reqs[outidx].nb_sectors;
-
-        // Handle exactly sequential writes and overlapping writes.
-        if (reqs[i].sector <= oldreq_last) {
-            merge = 1;
-        }
-
-        if (reqs[outidx].qiov->niov + reqs[i].qiov->niov + 1 >
-            bs->bl.max_iov) {
-            merge = 0;
-        }
-
-        if (bs->bl.max_transfer_length && reqs[outidx].nb_sectors +
-            reqs[i].nb_sectors > bs->bl.max_transfer_length) {
-            merge = 0;
-        }
-
-        if (merge) {
-            size_t size;
-            QEMUIOVector *qiov = g_malloc0(sizeof(*qiov));
-            qemu_iovec_init(qiov,
-                reqs[outidx].qiov->niov + reqs[i].qiov->niov + 1);
-
-            // Add the first request to the merged one. If the requests are
-            // overlapping, drop the last sectors of the first request.
-            size = (reqs[i].sector - reqs[outidx].sector) << 9;
-            qemu_iovec_concat(qiov, reqs[outidx].qiov, 0, size);
-
-            // We should need to add any zeros between the two requests
-            assert (reqs[i].sector <= oldreq_last);
-
-            // Add the second request
-            qemu_iovec_concat(qiov, reqs[i].qiov, 0, reqs[i].qiov->size);
-
-            // Add tail of first request, if necessary
-            if (qiov->size < reqs[outidx].qiov->size) {
-                qemu_iovec_concat(qiov, reqs[outidx].qiov, qiov->size,
-                                  reqs[outidx].qiov->size - qiov->size);
-            }
-
-            reqs[outidx].nb_sectors = qiov->size >> 9;
-            reqs[outidx].qiov = qiov;
-
-            mcb->callbacks[i].free_qiov = reqs[outidx].qiov;
-        } else {
-            outidx++;
-            reqs[outidx].sector     = reqs[i].sector;
-            reqs[outidx].nb_sectors = reqs[i].nb_sectors;
-            reqs[outidx].qiov       = reqs[i].qiov;
-        }
-    }
-
-    if (bs->blk) {
-        block_acct_merge_done(blk_get_stats(bs->blk), BLOCK_ACCT_WRITE,
-                              num_reqs - outidx - 1);
-    }
-
-    return outidx + 1;
-}
-
-/*
- * Submit multiple AIO write requests at once.
- *
- * On success, the function returns 0 and all requests in the reqs array have
- * been submitted. In error case this function returns -1, and any of the
- * requests may or may not be submitted yet. In particular, this means that the
- * callback will be called for some of the requests, for others it won't. The
- * caller must check the error field of the BlockRequest to wait for the right
- * callbacks (if error != 0, no callback will be called).
- *
- * The implementation may modify the contents of the reqs array, e.g. to merge
- * requests. However, the fields opaque and error are left unmodified as they
- * are used to signal failure for a single request to the caller.
- */
-int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs, int num_reqs)
-{
-    MultiwriteCB *mcb;
-    int i;
-
-    /* don't submit writes if we don't have a medium */
-    if (bs->drv == NULL) {
-        for (i = 0; i < num_reqs; i++) {
-            reqs[i].error = -ENOMEDIUM;
-        }
-        return -1;
-    }
-
-    if (num_reqs == 0) {
-        return 0;
-    }
-
-    // Create MultiwriteCB structure
-    mcb = g_malloc0(sizeof(*mcb) + num_reqs * sizeof(*mcb->callbacks));
-    mcb->num_requests = 0;
-    mcb->num_callbacks = num_reqs;
-
-    for (i = 0; i < num_reqs; i++) {
-        mcb->callbacks[i].cb = reqs[i].cb;
-        mcb->callbacks[i].opaque = reqs[i].opaque;
-    }
-
-    // Check for mergable requests
-    num_reqs = multiwrite_merge(bs, reqs, num_reqs, mcb);
-
-    trace_bdrv_aio_multiwrite(mcb, mcb->num_callbacks, num_reqs);
-
-    /* Run the aio requests. */
-    mcb->num_requests = num_reqs;
-    for (i = 0; i < num_reqs; i++) {
-        bdrv_co_aio_rw_vector(bs, reqs[i].sector, reqs[i].qiov,
-                              reqs[i].nb_sectors, reqs[i].flags,
-                              multiwrite_cb, mcb,
-                              true);
-    }
-
-    return 0;
 }
 
 void bdrv_aio_cancel(BlockAIOCB *acb)
@@ -2789,11 +2549,14 @@ void bdrv_drained_begin(BlockDriverState *bs)
     if (!bs->quiesce_counter++) {
         aio_disable_external(bdrv_get_aio_context(bs));
     }
+    bdrv_parent_drained_begin(bs);
     bdrv_drain(bs);
 }
 
 void bdrv_drained_end(BlockDriverState *bs)
 {
+    bdrv_parent_drained_end(bs);
+
     assert(bs->quiesce_counter > 0);
     if (--bs->quiesce_counter > 0) {
         return;

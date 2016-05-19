@@ -80,11 +80,11 @@ static BlockErrorAction mirror_error_action(MirrorBlockJob *s, bool read,
 {
     s->synced = false;
     if (read) {
-        return block_job_error_action(&s->common, s->common.bs,
-                                      s->on_source_error, true, error);
+        return block_job_error_action(&s->common, s->on_source_error,
+                                      true, error);
     } else {
-        return block_job_error_action(&s->common, s->target,
-                                      s->on_target_error, false, error);
+        return block_job_error_action(&s->common, s->on_target_error,
+                                      false, error);
     }
 }
 
@@ -468,7 +468,7 @@ static void mirror_exit(BlockJob *job, void *opaque)
 
         /* This was checked in mirror_start_job(), but meanwhile one of the
          * nodes could have been newly attached to a BlockBackend. */
-        if (to_replace->blk && s->target->blk) {
+        if (bdrv_has_blk(to_replace) && bdrv_has_blk(s->target)) {
             error_report("block job: Can't create node with two BlockBackends");
             data->ret = -EINVAL;
             goto out;
@@ -710,9 +710,6 @@ immediate_exit:
     g_free(s->cow_bitmap);
     g_free(s->in_flight_bitmap);
     bdrv_release_dirty_bitmap(bs, s->dirty_bitmap);
-    if (s->target->blk) {
-        blk_iostatus_disable(s->target->blk);
-    }
 
     data = g_malloc(sizeof(*data));
     data->ret = ret;
@@ -737,15 +734,6 @@ static void mirror_set_speed(BlockJob *job, int64_t speed, Error **errp)
         return;
     }
     ratelimit_set_speed(&s->limit, speed / BDRV_SECTOR_SIZE, SLICE_TIME);
-}
-
-static void mirror_iostatus_reset(BlockJob *job)
-{
-    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
-
-    if (s->target->blk) {
-        blk_iostatus_reset(s->target->blk);
-    }
 }
 
 static void mirror_complete(BlockJob *job, Error **errp)
@@ -793,7 +781,6 @@ static const BlockJobDriver mirror_job_driver = {
     .instance_size = sizeof(MirrorBlockJob),
     .job_type      = BLOCK_JOB_TYPE_MIRROR,
     .set_speed     = mirror_set_speed,
-    .iostatus_reset= mirror_iostatus_reset,
     .complete      = mirror_complete,
 };
 
@@ -801,8 +788,6 @@ static const BlockJobDriver commit_active_job_driver = {
     .instance_size = sizeof(MirrorBlockJob),
     .job_type      = BLOCK_JOB_TYPE_COMMIT,
     .set_speed     = mirror_set_speed,
-    .iostatus_reset
-                   = mirror_iostatus_reset,
     .complete      = mirror_complete,
 };
 
@@ -827,13 +812,6 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
 
     assert ((granularity & (granularity - 1)) == 0);
 
-    if ((on_source_error == BLOCKDEV_ON_ERROR_STOP ||
-         on_source_error == BLOCKDEV_ON_ERROR_ENOSPC) &&
-        (!bs->blk || !blk_iostatus_is_enabled(bs->blk))) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "on-source-error");
-        return;
-    }
-
     if (buf_size < 0) {
         error_setg(errp, "Invalid parameter 'buf-size'");
         return;
@@ -853,7 +831,7 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
     } else {
         replaced_bs = bs;
     }
-    if (replaced_bs->blk && target->blk) {
+    if (bdrv_has_blk(replaced_bs) && bdrv_has_blk(target)) {
         error_setg(errp, "Can't create node with two BlockBackends");
         return;
     }
@@ -882,10 +860,6 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
 
     bdrv_op_block_all(s->target, s->common.blocker);
 
-    if (s->target->blk) {
-        blk_set_on_error(s->target->blk, on_target_error, on_target_error);
-        blk_iostatus_enable(s->target->blk);
-    }
     s->common.co = qemu_coroutine_create(mirror_run);
     trace_mirror_start(bs, s, s->common.co, opaque);
     qemu_coroutine_enter(s->common.co, s);

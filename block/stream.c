@@ -163,8 +163,7 @@ wait:
         }
         if (ret < 0) {
             BlockErrorAction action =
-                block_job_error_action(&s->common, s->common.bs, s->on_error,
-                                       true, -ret);
+                block_job_error_action(&s->common, s->on_error, true, -ret);
             if (action == BLOCK_ERROR_ACTION_STOP) {
                 n = 0;
                 continue;
@@ -223,13 +222,6 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
                   void *opaque, Error **errp)
 {
     StreamBlockJob *s;
-
-    if ((on_error == BLOCKDEV_ON_ERROR_STOP ||
-         on_error == BLOCKDEV_ON_ERROR_ENOSPC) &&
-        (!bs->blk || !blk_iostatus_is_enabled(bs->blk))) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "on-error");
-        return;
-    }
 
     s = block_job_create(&stream_job_driver, bs, speed, cb, opaque, errp);
     if (!s) {

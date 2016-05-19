@@ -26,7 +26,6 @@
 
 #include "block/accounting.h"
 #include "block/block.h"
-#include "block/throttle-groups.h"
 #include "qemu/option.h"
 #include "qemu/queue.h"
 #include "qemu/coroutine.h"
@@ -365,6 +364,25 @@ typedef struct BdrvAioNotifier {
 struct BdrvChildRole {
     void (*inherit_options)(int *child_flags, QDict *child_options,
                             int parent_flags, QDict *parent_options);
+
+    void (*change_media)(BdrvChild *child, bool load);
+    void (*resize)(BdrvChild *child);
+
+    /* Returns a name that is supposedly more useful for human users than the
+     * node name for identifying the node in question (in particular, a BB
+     * name), or NULL if the parent can't provide a better name. */
+    const char* (*get_name)(BdrvChild *child);
+
+    /*
+     * If this pair of functions is implemented, the parent doesn't issue new
+     * requests after returning from .drained_begin() until .drained_end() is
+     * called.
+     *
+     * Note that this can be nested. If drained_begin() was called twice, new
+     * I/O is allowed only after drained_end() was called twice, too.
+     */
+    void (*drained_begin)(BdrvChild *child);
+    void (*drained_end)(BdrvChild *child);
 };
 
 extern const BdrvChildRole child_file;
@@ -374,6 +392,7 @@ struct BdrvChild {
     BlockDriverState *bs;
     char *name;
     const BdrvChildRole *role;
+    void *opaque;
     QLIST_ENTRY(BdrvChild) next;
     QLIST_ENTRY(BdrvChild) next_parent;
 };
@@ -399,8 +418,6 @@ struct BlockDriverState {
     BlockDriver *drv; /* NULL means no media */
     void *opaque;
 
-    BlockBackend *blk;          /* owning backend, if any */
-
     AioContext *aio_context; /* event loop used for fd handlers, timers, etc */
     /* long-running tasks intended to always use the same AioContext as this
      * BDS may register themselves in this list to be notified of changes
@@ -423,19 +440,6 @@ struct BlockDriverState {
 
     /* number of in-flight serialising requests */
     unsigned int serialising_in_flight;
-
-    /* I/O throttling.
-     * throttle_state tells us if this BDS has I/O limits configured.
-     * io_limits_disabled tells us if they are currently being enforced */
-    CoQueue      throttled_reqs[2];
-    unsigned int io_limits_disabled;
-
-    /* The following fields are protected by the ThrottleGroup lock.
-     * See the ThrottleGroup documentation for details. */
-    ThrottleState *throttle_state;
-    ThrottleTimers throttle_timers;
-    unsigned       pending_reqs[2];
-    QLIST_ENTRY(BlockDriverState) round_robin;
 
     /* Offset after the highest byte written to */
     uint64_t wr_highest_offset;
@@ -502,9 +506,6 @@ struct BlockBackendRootState {
     int open_flags;
     bool read_only;
     BlockdevDetectZeroesOptions detect_zeroes;
-
-    char *throttle_group;
-    ThrottleState *throttle_state;
 };
 
 static inline BlockDriverState *backing_bs(BlockDriverState *bs)
@@ -538,9 +539,6 @@ int coroutine_fn bdrv_co_pwritev(BlockDriverState *bs,
 int get_tmp_filename(char *filename, int size);
 BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
                             const char *filename);
-
-void bdrv_set_io_limits(BlockDriverState *bs,
-                        ThrottleConfig *cfg);
 
 
 /**
@@ -724,16 +722,13 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const BdrvChildRole *child_role);
 void bdrv_root_unref_child(BdrvChild *child);
 
-void bdrv_no_throttling_begin(BlockDriverState *bs);
-void bdrv_no_throttling_end(BlockDriverState *bs);
-
+const char *bdrv_get_parent_name(const BlockDriverState *bs);
 void blk_dev_change_media_cb(BlockBackend *blk, bool load);
 bool blk_dev_has_removable_media(BlockBackend *blk);
 bool blk_dev_has_tray(BlockBackend *blk);
 void blk_dev_eject_request(BlockBackend *blk, bool force);
 bool blk_dev_is_tray_open(BlockBackend *blk);
 bool blk_dev_is_medium_locked(BlockBackend *blk);
-void blk_dev_resize_cb(BlockBackend *blk);
 
 void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
 bool bdrv_requests_pending(BlockDriverState *bs);

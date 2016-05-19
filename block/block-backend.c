@@ -34,6 +34,7 @@ struct BlockBackend {
     DriveInfo *legacy_dinfo;    /* null unless created by drive_new() */
     QTAILQ_ENTRY(BlockBackend) link;         /* for block_backends */
     QTAILQ_ENTRY(BlockBackend) monitor_link; /* for monitor_block_backends */
+    BlockBackendPublic public;
 
     void *dev;                  /* attached device model, if any */
     /* TODO change to DeviceState when all users are qdevified */
@@ -74,6 +75,7 @@ static const AIOCBInfo block_backend_aiocb_info = {
 };
 
 static void drive_info_del(DriveInfo *dinfo);
+static BlockBackend *bdrv_first_blk(BlockDriverState *bs);
 
 /* All BlockBackends */
 static QTAILQ_HEAD(, BlockBackend) block_backends =
@@ -90,9 +92,26 @@ static void blk_root_inherit_options(int *child_flags, QDict *child_options,
     /* We're not supposed to call this function for root nodes */
     abort();
 }
+static void blk_root_drained_begin(BdrvChild *child);
+static void blk_root_drained_end(BdrvChild *child);
+
+static void blk_root_change_media(BdrvChild *child, bool load);
+static void blk_root_resize(BdrvChild *child);
+
+static const char *blk_root_get_name(BdrvChild *child)
+{
+    return blk_name(child->opaque);
+}
 
 static const BdrvChildRole child_root = {
-    .inherit_options = blk_root_inherit_options,
+    .inherit_options    = blk_root_inherit_options,
+
+    .change_media       = blk_root_change_media,
+    .resize             = blk_root_resize,
+    .get_name           = blk_root_get_name,
+
+    .drained_begin      = blk_root_drained_begin,
+    .drained_end        = blk_root_drained_end,
 };
 
 /*
@@ -106,8 +125,12 @@ BlockBackend *blk_new(Error **errp)
 
     blk = g_new0(BlockBackend, 1);
     blk->refcnt = 1;
+    qemu_co_queue_init(&blk->public.throttled_reqs[0]);
+    qemu_co_queue_init(&blk->public.throttled_reqs[1]);
+
     notifier_list_init(&blk->remove_bs_notifiers);
     notifier_list_init(&blk->insert_bs_notifiers);
+
     QTAILQ_INSERT_TAIL(&block_backends, blk, link);
     return blk;
 }
@@ -128,7 +151,7 @@ BlockBackend *blk_new_with_bs(Error **errp)
 
     bs = bdrv_new_root();
     blk->root = bdrv_root_attach_child(bs, "root", &child_root);
-    bs->blk = blk;
+    blk->root->opaque = blk;
     return blk;
 }
 
@@ -177,10 +200,6 @@ static void blk_delete(BlockBackend *blk)
     }
     assert(QLIST_EMPTY(&blk->remove_bs_notifiers.notifiers));
     assert(QLIST_EMPTY(&blk->insert_bs_notifiers.notifiers));
-    if (blk->root_state.throttle_state) {
-        g_free(blk->root_state.throttle_group);
-        throttle_group_unref(blk->root_state.throttle_state);
-    }
     QTAILQ_REMOVE(&block_backends, blk, link);
     drive_info_del(blk->legacy_dinfo);
     block_acct_cleanup(&blk->stats);
@@ -267,28 +286,50 @@ BlockBackend *blk_next(BlockBackend *blk)
                : QTAILQ_FIRST(&monitor_block_backends);
 }
 
-/*
- * Iterates over all BlockDriverStates which are attached to a BlockBackend.
- * This function is for use by bdrv_next().
- *
- * @bs must be NULL or a BDS that is attached to a BB.
- */
-BlockDriverState *blk_next_root_bs(BlockDriverState *bs)
-{
+struct BdrvNextIterator {
+    enum {
+        BDRV_NEXT_BACKEND_ROOTS,
+        BDRV_NEXT_MONITOR_OWNED,
+    } phase;
     BlockBackend *blk;
+    BlockDriverState *bs;
+};
 
-    if (bs) {
-        assert(bs->blk);
-        blk = bs->blk;
-    } else {
-        blk = NULL;
+/* Iterates over all top-level BlockDriverStates, i.e. BDSs that are owned by
+ * the monitor or attached to a BlockBackend */
+BdrvNextIterator *bdrv_next(BdrvNextIterator *it, BlockDriverState **bs)
+{
+    if (!it) {
+        it = g_new(BdrvNextIterator, 1);
+        *it = (BdrvNextIterator) {
+            .phase = BDRV_NEXT_BACKEND_ROOTS,
+        };
     }
 
-    do {
-        blk = blk_all_next(blk);
-    } while (blk && !blk->root);
+    /* First, return all root nodes of BlockBackends. In order to avoid
+     * returning a BDS twice when multiple BBs refer to it, we only return it
+     * if the BB is the first one in the parent list of the BDS. */
+    if (it->phase == BDRV_NEXT_BACKEND_ROOTS) {
+        do {
+            it->blk = blk_all_next(it->blk);
+            *bs = it->blk ? blk_bs(it->blk) : NULL;
+        } while (it->blk && (*bs == NULL || bdrv_first_blk(*bs) != it->blk));
 
-    return blk ? blk->root->bs : NULL;
+        if (*bs) {
+            return it;
+        }
+        it->phase = BDRV_NEXT_MONITOR_OWNED;
+    }
+
+    /* Then return the monitor-owned BDSes without a BB attached. Ignore all
+     * BDSes that are attached to a BlockBackend here; they have been handled
+     * by the above block already */
+    do {
+        it->bs = bdrv_next_monitor_owned(it->bs);
+        *bs = it->bs;
+    } while (*bs && bdrv_has_blk(*bs));
+
+    return *bs ? it : NULL;
 }
 
 /*
@@ -375,6 +416,26 @@ BlockDriverState *blk_bs(BlockBackend *blk)
     return blk->root ? blk->root->bs : NULL;
 }
 
+static BlockBackend *bdrv_first_blk(BlockDriverState *bs)
+{
+    BdrvChild *child;
+    QLIST_FOREACH(child, &bs->parents, next_parent) {
+        if (child->role == &child_root) {
+            return child->opaque;
+        }
+    }
+
+    return NULL;
+}
+
+/*
+ * Returns true if @bs has an associated BlockBackend.
+ */
+bool bdrv_has_blk(BlockDriverState *bs)
+{
+    return bdrv_first_blk(bs) != NULL;
+}
+
 /*
  * Return @blk's DriveInfo if any, else null.
  */
@@ -411,17 +472,33 @@ BlockBackend *blk_by_legacy_dinfo(DriveInfo *dinfo)
 }
 
 /*
+ * Returns a pointer to the publicly accessible fields of @blk.
+ */
+BlockBackendPublic *blk_get_public(BlockBackend *blk)
+{
+    return &blk->public;
+}
+
+/*
+ * Returns a BlockBackend given the associated @public fields.
+ */
+BlockBackend *blk_by_public(BlockBackendPublic *public)
+{
+    return container_of(public, BlockBackend, public);
+}
+
+/*
  * Disassociates the currently associated BlockDriverState from @blk.
  */
 void blk_remove_bs(BlockBackend *blk)
 {
-    assert(blk->root->bs->blk == blk);
-
     notifier_list_notify(&blk->remove_bs_notifiers, blk);
+    if (blk->public.throttle_state) {
+        throttle_timers_detach_aio_context(&blk->public.throttle_timers);
+    }
 
     blk_update_root_state(blk);
 
-    blk->root->bs->blk = NULL;
     bdrv_root_unref_child(blk->root);
     blk->root = NULL;
 }
@@ -431,12 +508,15 @@ void blk_remove_bs(BlockBackend *blk)
  */
 void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
 {
-    assert(!blk->root && !bs->blk);
     bdrv_ref(bs);
     blk->root = bdrv_root_attach_child(bs, "root", &child_root);
-    bs->blk = blk;
+    blk->root->opaque = blk;
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);
+    if (blk->public.throttle_state) {
+        throttle_timers_attach_aio_context(
+            &blk->public.throttle_timers, bdrv_get_aio_context(bs));
+    }
 }
 
 /*
@@ -525,6 +605,11 @@ void blk_dev_change_media_cb(BlockBackend *blk, bool load)
     }
 }
 
+static void blk_root_change_media(BdrvChild *child, bool load)
+{
+    blk_dev_change_media_cb(child->opaque, load);
+}
+
 /*
  * Does @blk's attached device model have removable media?
  * %true if no device model is attached.
@@ -579,8 +664,10 @@ bool blk_dev_is_medium_locked(BlockBackend *blk)
 /*
  * Notify @blk's attached device model of a backend size change.
  */
-void blk_dev_resize_cb(BlockBackend *blk)
+static void blk_root_resize(BdrvChild *child)
 {
+    BlockBackend *blk = child->opaque;
+
     if (blk->dev_ops && blk->dev_ops->resize_cb) {
         blk->dev_ops->resize_cb(blk->dev_opaque);
     }
@@ -692,6 +779,11 @@ static int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
         return ret;
     }
 
+    /* throttling disk I/O */
+    if (blk->public.throttle_state) {
+        throttle_group_co_io_limits_intercept(blk, bytes, false);
+    }
+
     return bdrv_co_preadv(blk_bs(blk), offset, bytes, qiov, flags);
 }
 
@@ -704,6 +796,11 @@ static int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
     ret = blk_check_byte_request(blk, offset, bytes);
     if (ret < 0) {
         return ret;
+    }
+
+    /* throttling disk I/O */
+    if (blk->public.throttle_state) {
+        throttle_group_co_io_limits_intercept(blk, bytes, true);
     }
 
     if (!blk->enable_write_cache) {
@@ -775,7 +872,6 @@ static int blk_prw(BlockBackend *blk, int64_t offset, uint8_t *buf,
 int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
                           int count)
 {
-    BlockDriverState *bs = blk_bs(blk);
     int ret;
 
     ret = blk_check_byte_request(blk, offset, count);
@@ -783,9 +879,9 @@ int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
         return ret;
     }
 
-    bdrv_no_throttling_begin(bs);
+    blk_root_drained_begin(blk->root);
     ret = blk_pread(blk, offset, buf, count);
-    bdrv_no_throttling_end(bs);
+    blk_root_drained_end(blk->root);
     return ret;
 }
 
@@ -1006,20 +1102,6 @@ void blk_aio_cancel(BlockAIOCB *acb)
 void blk_aio_cancel_async(BlockAIOCB *acb)
 {
     bdrv_aio_cancel_async(acb);
-}
-
-int blk_aio_multiwrite(BlockBackend *blk, BlockRequest *reqs, int num_reqs)
-{
-    int i, ret;
-
-    for (i = 0; i < num_reqs; i++) {
-        ret = blk_check_request(blk, reqs[i].sector, reqs[i].nb_sectors);
-        if (ret < 0) {
-            return ret;
-        }
-    }
-
-    return bdrv_aio_multiwrite(blk_bs(blk), reqs, num_reqs);
 }
 
 int blk_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
@@ -1334,7 +1416,14 @@ void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
     BlockDriverState *bs = blk_bs(blk);
 
     if (bs) {
+        if (blk->public.throttle_state) {
+            throttle_timers_detach_aio_context(&blk->public.throttle_timers);
+        }
         bdrv_set_aio_context(bs, new_context);
+        if (blk->public.throttle_state) {
+            throttle_timers_attach_aio_context(&blk->public.throttle_timers,
+                                               new_context);
+        }
     }
 }
 
@@ -1499,19 +1588,6 @@ void blk_update_root_state(BlockBackend *blk)
     blk->root_state.open_flags    = blk->root->bs->open_flags;
     blk->root_state.read_only     = blk->root->bs->read_only;
     blk->root_state.detect_zeroes = blk->root->bs->detect_zeroes;
-
-    if (blk->root_state.throttle_group) {
-        g_free(blk->root_state.throttle_group);
-        throttle_group_unref(blk->root_state.throttle_state);
-    }
-    if (blk->root->bs->throttle_state) {
-        const char *name = throttle_group_get_name(blk->root->bs);
-        blk->root_state.throttle_group = g_strdup(name);
-        blk->root_state.throttle_state = throttle_group_incref(name);
-    } else {
-        blk->root_state.throttle_group = NULL;
-        blk->root_state.throttle_state = NULL;
-    }
 }
 
 /*
@@ -1522,9 +1598,6 @@ void blk_update_root_state(BlockBackend *blk)
 void blk_apply_root_state(BlockBackend *blk, BlockDriverState *bs)
 {
     bs->detect_zeroes = blk->root_state.detect_zeroes;
-    if (blk->root_state.throttle_group) {
-        bdrv_io_limits_enable(bs, blk->root_state.throttle_group);
-    }
 }
 
 /*
@@ -1586,4 +1659,60 @@ int blk_flush_all(void)
     }
 
     return result;
+}
+
+
+/* throttling disk I/O limits */
+void blk_set_io_limits(BlockBackend *blk, ThrottleConfig *cfg)
+{
+    throttle_group_config(blk, cfg);
+}
+
+void blk_io_limits_disable(BlockBackend *blk)
+{
+    assert(blk->public.throttle_state);
+    bdrv_drained_begin(blk_bs(blk));
+    throttle_group_unregister_blk(blk);
+    bdrv_drained_end(blk_bs(blk));
+}
+
+/* should be called before blk_set_io_limits if a limit is set */
+void blk_io_limits_enable(BlockBackend *blk, const char *group)
+{
+    assert(!blk->public.throttle_state);
+    throttle_group_register_blk(blk, group);
+}
+
+void blk_io_limits_update_group(BlockBackend *blk, const char *group)
+{
+    /* this BB is not part of any group */
+    if (!blk->public.throttle_state) {
+        return;
+    }
+
+    /* this BB is a part of the same group than the one we want */
+    if (!g_strcmp0(throttle_group_get_name(blk), group)) {
+        return;
+    }
+
+    /* need to change the group this bs belong to */
+    blk_io_limits_disable(blk);
+    blk_io_limits_enable(blk, group);
+}
+
+static void blk_root_drained_begin(BdrvChild *child)
+{
+    BlockBackend *blk = child->opaque;
+
+    if (blk->public.io_limits_disabled++ == 0) {
+        throttle_group_restart_blk(blk);
+    }
+}
+
+static void blk_root_drained_end(BdrvChild *child)
+{
+    BlockBackend *blk = child->opaque;
+
+    assert(blk->public.io_limits_disabled);
+    --blk->public.io_limits_disabled;
 }

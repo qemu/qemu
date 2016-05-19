@@ -383,6 +383,7 @@ static void init_blk_migration(QEMUFile *f)
     BlockDriverState *bs;
     BlkMigDevState *bmds;
     int64_t sectors;
+    BdrvNextIterator *it = NULL;
 
     block_mig_state.submitted = 0;
     block_mig_state.read_done = 0;
@@ -392,7 +393,8 @@ static void init_blk_migration(QEMUFile *f)
     block_mig_state.bulk_completed = 0;
     block_mig_state.zero_blocks = migrate_zero_blocks();
 
-    for (bs = bdrv_next(NULL); bs; bs = bdrv_next(bs)) {
+
+    while ((it = bdrv_next(it, &bs))) {
         if (bdrv_is_read_only(bs)) {
             continue;
         }

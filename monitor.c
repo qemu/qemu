@@ -3431,11 +3431,13 @@ void host_net_remove_completion(ReadLineState *rs, int nb_args, const char *str)
 static void vm_completion(ReadLineState *rs, const char *str)
 {
     size_t len;
-    BlockDriverState *bs = NULL;
+    BlockDriverState *bs;
+    BdrvNextIterator *it = NULL;
 
     len = strlen(str);
     readline_set_completion_index(rs, len);
-    while ((bs = bdrv_next(bs))) {
+
+    while ((it = bdrv_next(it, &bs))) {
         SnapshotInfoList *snapshots, *snapshot;
         AioContext *ctx = bdrv_get_aio_context(bs);
         bool ok = false;
