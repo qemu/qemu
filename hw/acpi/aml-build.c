@@ -1516,7 +1516,7 @@ build_header(BIOSLinker *linker, GArray *table_data,
     h->checksum = 0;
     /* Checksum to be filled in by Guest linker */
     bios_linker_loader_add_checksum(linker, ACPI_BUILD_TABLE_FILE,
-                                    table_data, h, len, &h->checksum);
+                                    h, len, &h->checksum);
 }
 
 void *acpi_data_push(GArray *table_data, unsigned size)
@@ -1573,7 +1573,7 @@ build_rsdt(GArray *table_data, BIOSLinker *linker, GArray *table_offsets,
         bios_linker_loader_add_pointer(linker,
                                        ACPI_BUILD_TABLE_FILE,
                                        ACPI_BUILD_TABLE_FILE,
-                                       table_data, &rsdt->table_offset_entry[i],
+                                       &rsdt->table_offset_entry[i],
                                        sizeof(uint32_t));
     }
     build_header(linker, table_data,

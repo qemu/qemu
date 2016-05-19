@@ -358,7 +358,7 @@ build_rsdp(GArray *rsdp_table, BIOSLinker *linker, unsigned rsdt)
 {
     AcpiRsdpDescriptor *rsdp = acpi_data_push(rsdp_table, sizeof *rsdp);
 
-    bios_linker_loader_alloc(linker, ACPI_BUILD_RSDP_FILE, 16,
+    bios_linker_loader_alloc(linker, ACPI_BUILD_RSDP_FILE, rsdp_table, 16,
                              true /* fseg memory */);
 
     memcpy(&rsdp->signature, "RSD PTR ", sizeof(rsdp->signature));
@@ -371,12 +371,12 @@ build_rsdp(GArray *rsdp_table, BIOSLinker *linker, unsigned rsdt)
     /* Address to be filled by Guest linker */
     bios_linker_loader_add_pointer(linker, ACPI_BUILD_RSDP_FILE,
                                    ACPI_BUILD_TABLE_FILE,
-                                   rsdp_table, &rsdp->rsdt_physical_address,
+                                   &rsdp->rsdt_physical_address,
                                    sizeof rsdp->rsdt_physical_address);
     rsdp->checksum = 0;
     /* Checksum to be filled by Guest linker */
     bios_linker_loader_add_checksum(linker, ACPI_BUILD_RSDP_FILE,
-                                    rsdp_table, rsdp, sizeof *rsdp,
+                                    rsdp, sizeof *rsdp,
                                     &rsdp->checksum);
 
     return rsdp_table;
@@ -582,7 +582,7 @@ build_fadt(GArray *table_data, BIOSLinker *linker, unsigned dsdt)
     /* DSDT address to be filled by Guest linker */
     bios_linker_loader_add_pointer(linker, ACPI_BUILD_TABLE_FILE,
                                    ACPI_BUILD_TABLE_FILE,
-                                   table_data, &fadt->dsdt,
+                                   &fadt->dsdt,
                                    sizeof fadt->dsdt);
 
     build_header(linker, table_data,
@@ -651,7 +651,8 @@ void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
     table_offsets = g_array_new(false, true /* clear */,
                                         sizeof(uint32_t));
 
-    bios_linker_loader_alloc(tables->linker, ACPI_BUILD_TABLE_FILE,
+    bios_linker_loader_alloc(tables->linker,
+                             ACPI_BUILD_TABLE_FILE, tables_blob,
                              64, false /* high memory */);
 
     /*

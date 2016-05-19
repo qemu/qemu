@@ -96,6 +96,16 @@ enum {
 };
 
 /*
+ * BiosLinkerFileEntry:
+ *
+ * An internal type used for book-keeping file entries
+ */
+typedef struct BiosLinkerFileEntry {
+    char *name; /* file name */
+    GArray *blob; /* data accosiated with @name */
+} BiosLinkerFileEntry;
+
+/*
  * bios_linker_loader_init: allocate a new linker object instance.
  *
  * After initialization, linker commands can be added, and will
@@ -106,39 +116,69 @@ BIOSLinker *bios_linker_loader_init(void)
     BIOSLinker *linker = g_new(BIOSLinker, 1);
 
     linker->cmd_blob = g_array_new(false, true /* clear */, 1);
+    linker->file_list = g_array_new(false, true /* clear */,
+                                    sizeof(BiosLinkerFileEntry));
     return linker;
 }
 
 /* Free linker wrapper and return the linker commands array. */
 void *bios_linker_loader_cleanup(BIOSLinker *linker)
 {
+    int i;
+    BiosLinkerFileEntry *entry;
     void *cmd_blob = g_array_free(linker->cmd_blob, false);
 
+    for (i = 0; i < linker->file_list->len; i++) {
+        entry = &g_array_index(linker->file_list, BiosLinkerFileEntry, i);
+        g_free(entry->name);
+    }
+    g_array_free(linker->file_list, true);
     g_free(linker);
     return cmd_blob;
+}
+
+static const BiosLinkerFileEntry *
+bios_linker_find_file(const BIOSLinker *linker, const char *name)
+{
+    int i;
+    BiosLinkerFileEntry *entry;
+
+    for (i = 0; i < linker->file_list->len; i++) {
+        entry = &g_array_index(linker->file_list, BiosLinkerFileEntry, i);
+        if (!strcmp(entry->name, name)) {
+            return entry;
+        }
+    }
+    return NULL;
 }
 
 /*
  * bios_linker_loader_alloc: ask guest to load file into guest memory.
  *
  * @linker: linker object instance
- * @file: name of the file blob to be loaded
+ * @file_name: name of the file blob to be loaded
+ * @file_blob: pointer to blob corresponding to @file_name
  * @alloc_align: required minimal alignment in bytes. Must be a power of 2.
  * @alloc_fseg: request allocation in FSEG zone (useful for the RSDP ACPI table)
  *
  * Note: this command must precede any other linker command using this file.
  */
 void bios_linker_loader_alloc(BIOSLinker *linker,
-                              const char *file,
+                              const char *file_name,
+                              GArray *file_blob,
                               uint32_t alloc_align,
                               bool alloc_fseg)
 {
     BiosLinkerLoaderEntry entry;
+    BiosLinkerFileEntry file = { g_strdup(file_name), file_blob};
 
     assert(!(alloc_align & (alloc_align - 1)));
 
+    assert(!bios_linker_find_file(linker, file_name));
+    g_array_append_val(linker->file_list, file);
+
     memset(&entry, 0, sizeof entry);
-    strncpy(entry.alloc.file, file, sizeof entry.alloc.file - 1);
+    strncpy(entry.alloc.file, file_name, sizeof entry.alloc.file - 1);
     entry.command = cpu_to_le32(BIOS_LINKER_LOADER_COMMAND_ALLOCATE);
     entry.alloc.align = cpu_to_le32(alloc_align);
     entry.alloc.zone = alloc_fseg ? BIOS_LINKER_LOADER_ALLOC_ZONE_FSEG :
@@ -158,38 +198,37 @@ void bios_linker_loader_alloc(BIOSLinker *linker,
  * @linker: linker object instance
  * @file: file that includes the checksum to be calculated
  *        and the data to be checksummed
- * @table: @file blob contents
  * @start, @size: range of data to checksum
  * @checksum: location of the checksum to be patched within file blob
  *
  * Notes:
- * - checksum byte initial value must have been pushed into @table
- *   and reside at address @checksum.
- * - @size bytes must have been pushed into @table and reside at address
- *   @start.
+ * - checksum byte initial value must have been pushed into blob
+ *   associated with @file and reside at address @checksum.
+ * - @size bytes must have been pushed into blob associated wtih @file
+ *   and reside at address @start.
  * - Guest calculates checksum of specified range of data, result is added to
  *   initial value at @checksum into copy of @file in Guest memory.
  * - Range might include the checksum itself.
  * - To avoid confusion, caller must always put 0x0 at @checksum.
  * - @file must be loaded into Guest memory using bios_linker_loader_alloc
  */
-void bios_linker_loader_add_checksum(BIOSLinker *linker, const char *file,
-                                     GArray *table,
+void bios_linker_loader_add_checksum(BIOSLinker *linker, const char *file_name,
                                      void *start, unsigned size,
                                      uint8_t *checksum)
 {
     BiosLinkerLoaderEntry entry;
-    ptrdiff_t checksum_offset = (gchar *)checksum - table->data;
-    ptrdiff_t start_offset = (gchar *)start - table->data;
+    const BiosLinkerFileEntry *file = bios_linker_find_file(linker, file_name);
+    ptrdiff_t checksum_offset = (gchar *)checksum - file->blob->data;
+    ptrdiff_t start_offset = (gchar *)start - file->blob->data;
 
     assert(checksum_offset >= 0);
     assert(start_offset >= 0);
-    assert(checksum_offset + 1 <= table->len);
-    assert(start_offset + size <= table->len);
+    assert(checksum_offset + 1 <= file->blob->len);
+    assert(start_offset + size <= file->blob->len);
     assert(*checksum == 0x0);
 
     memset(&entry, 0, sizeof entry);
-    strncpy(entry.cksum.file, file, sizeof entry.cksum.file - 1);
+    strncpy(entry.cksum.file, file_name, sizeof entry.cksum.file - 1);
     entry.command = cpu_to_le32(BIOS_LINKER_LOADER_COMMAND_ADD_CHECKSUM);
     entry.cksum.offset = cpu_to_le32(checksum_offset);
     entry.cksum.start = cpu_to_le32(start_offset);
@@ -205,13 +244,12 @@ void bios_linker_loader_add_checksum(BIOSLinker *linker, const char *file,
  * @linker: linker object instance
  * @dest_file: destination file that must be changed
  * @src_file: source file who's address must be taken
- * @table: @dest_file blob contents array
  * @pointer: location of the pointer to be patched within destination file blob
  * @pointer_size: size of pointer to be patched, in bytes
  *
  * Notes:
- * - @pointer_size bytes must have been pushed into @table
- *   and reside at address @pointer.
+ * - @pointer_size bytes must have been pushed into blob associated with
+ *   @dest_file and reside at address @pointer.
  * - Guest address is added to initial value at @pointer
  *   into copy of @dest_file in Guest memory.
  *   e.g. to get start of src_file in guest memory, put 0x0 there
@@ -222,14 +260,15 @@ void bios_linker_loader_add_checksum(BIOSLinker *linker, const char *file,
 void bios_linker_loader_add_pointer(BIOSLinker *linker,
                                     const char *dest_file,
                                     const char *src_file,
-                                    GArray *table, void *pointer,
+                                    void *pointer,
                                     uint8_t pointer_size)
 {
     BiosLinkerLoaderEntry entry;
-    ptrdiff_t offset = (gchar *)pointer - table->data;
+    const BiosLinkerFileEntry *file = bios_linker_find_file(linker, dest_file);
+    ptrdiff_t offset = (gchar *)pointer - file->blob->data;
 
     assert(offset >= 0);
-    assert(offset + pointer_size <= table->len);
+    assert(offset + pointer_size <= file->blob->len);
 
     memset(&entry, 0, sizeof entry);
     strncpy(entry.pointer.dest_file, dest_file,
