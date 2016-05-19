@@ -879,7 +879,7 @@ static int virtio_gpu_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info)
 {
     VirtIOGPU *g = opaque;
 
-    if (idx > g->conf.max_outputs) {
+    if (idx >= g->conf.max_outputs) {
         return -1;
     }
 
