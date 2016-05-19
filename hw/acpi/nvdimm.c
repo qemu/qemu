@@ -353,7 +353,7 @@ static GArray *nvdimm_build_device_structure(GSList *device_list)
 }
 
 static void nvdimm_build_nfit(GSList *device_list, GArray *table_offsets,
-                              GArray *table_data, GArray *linker)
+                              GArray *table_data, BIOSLinker *linker)
 {
     GArray *structures = nvdimm_build_device_structure(device_list);
     unsigned int header;
@@ -579,7 +579,7 @@ static void nvdimm_build_nvdimm_devices(GSList *device_list, Aml *root_dev)
 }
 
 static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
-                              GArray *table_data, GArray *linker)
+                              GArray *table_data, BIOSLinker *linker)
 {
     Aml *ssdt, *sb_scope, *dev, *field;
     int mem_addr_offset, nvdimm_ssdt;
@@ -691,7 +691,7 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
 }
 
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
-                       GArray *linker)
+                       BIOSLinker *linker)
 {
     GSList *device_list;
 

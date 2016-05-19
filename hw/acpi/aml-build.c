@@ -24,7 +24,6 @@
 #include "hw/acpi/aml-build.h"
 #include "qemu/bswap.h"
 #include "qemu/bitops.h"
-#include "hw/acpi/bios-linker-loader.h"
 
 static GArray *build_alloc_array(void)
 {
@@ -1490,7 +1489,7 @@ Aml *aml_concatenate(Aml *source1, Aml *source2, Aml *target)
 }
 
 void
-build_header(GArray *linker, GArray *table_data,
+build_header(BIOSLinker *linker, GArray *table_data,
              AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
              const char *oem_id, const char *oem_table_id)
 {
@@ -1558,7 +1557,7 @@ void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre)
 
 /* Build rsdt table */
 void
-build_rsdt(GArray *table_data, GArray *linker, GArray *table_offsets,
+build_rsdt(GArray *table_data, BIOSLinker *linker, GArray *table_offsets,
            const char *oem_id, const char *oem_table_id)
 {
     AcpiRsdtDescriptorRev1 *rsdt;

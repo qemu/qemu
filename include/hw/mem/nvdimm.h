@@ -24,6 +24,7 @@
 #define QEMU_NVDIMM_H
 
 #include "hw/mem/pc-dimm.h"
+#include "hw/acpi/bios-linker-loader.h"
 
 #define NVDIMM_DEBUG 0
 #define nvdimm_debug(fmt, ...)                                \
@@ -58,5 +59,5 @@ typedef struct AcpiNVDIMMState AcpiNVDIMMState;
 void nvdimm_init_acpi_state(AcpiNVDIMMState *state, MemoryRegion *io,
                             FWCfgState *fw_cfg, Object *owner);
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
-                       GArray *linker);
+                       BIOSLinker *linker);
 #endif

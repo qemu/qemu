@@ -260,7 +260,7 @@ static void acpi_align_size(GArray *blob, unsigned align)
 
 /* FACS */
 static void
-build_facs(GArray *table_data, GArray *linker)
+build_facs(GArray *table_data, BIOSLinker *linker)
 {
     AcpiFacsDescriptorRev1 *facs = acpi_data_push(table_data, sizeof *facs);
     memcpy(&facs->signature, "FACS", 4);
@@ -305,7 +305,7 @@ static void fadt_setup(AcpiFadtDescriptorRev1 *fadt, AcpiPmInfo *pm)
 
 /* FADT */
 static void
-build_fadt(GArray *table_data, GArray *linker, AcpiPmInfo *pm,
+build_fadt(GArray *table_data, BIOSLinker *linker, AcpiPmInfo *pm,
            unsigned facs, unsigned dsdt,
            const char *oem_id, const char *oem_table_id)
 {
@@ -332,7 +332,7 @@ build_fadt(GArray *table_data, GArray *linker, AcpiPmInfo *pm,
 }
 
 static void
-build_madt(GArray *table_data, GArray *linker, PCMachineState *pcms)
+build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(pcms);
     CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(MACHINE(pcms));
@@ -1869,7 +1869,7 @@ static Aml *build_q35_osc_method(void)
 }
 
 static void
-build_dsdt(GArray *table_data, GArray *linker,
+build_dsdt(GArray *table_data, BIOSLinker *linker,
            AcpiPmInfo *pm, AcpiMiscInfo *misc,
            PcPciInfo *pci, MachineState *machine)
 {
@@ -2240,7 +2240,7 @@ build_dsdt(GArray *table_data, GArray *linker,
 }
 
 static void
-build_hpet(GArray *table_data, GArray *linker)
+build_hpet(GArray *table_data, BIOSLinker *linker)
 {
     Acpi20Hpet *hpet;
 
@@ -2255,7 +2255,7 @@ build_hpet(GArray *table_data, GArray *linker)
 }
 
 static void
-build_tpm_tcpa(GArray *table_data, GArray *linker, GArray *tcpalog)
+build_tpm_tcpa(GArray *table_data, BIOSLinker *linker, GArray *tcpalog)
 {
     Acpi20Tcpa *tcpa = acpi_data_push(table_data, sizeof *tcpa);
     uint64_t log_area_start_address = acpi_data_len(tcpalog);
@@ -2280,7 +2280,7 @@ build_tpm_tcpa(GArray *table_data, GArray *linker, GArray *tcpalog)
 }
 
 static void
-build_tpm2(GArray *table_data, GArray *linker)
+build_tpm2(GArray *table_data, BIOSLinker *linker)
 {
     Acpi20TPM2 *tpm2_ptr;
 
@@ -2295,7 +2295,7 @@ build_tpm2(GArray *table_data, GArray *linker)
 }
 
 static void
-build_srat(GArray *table_data, GArray *linker, MachineState *machine)
+build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 {
     AcpiSystemResourceAffinityTable *srat;
     AcpiSratProcessorAffinity *core;
@@ -2392,7 +2392,7 @@ build_srat(GArray *table_data, GArray *linker, MachineState *machine)
 }
 
 static void
-build_mcfg_q35(GArray *table_data, GArray *linker, AcpiMcfgInfo *info)
+build_mcfg_q35(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
 {
     AcpiTableMcfg *mcfg;
     const char *sig;
@@ -2421,7 +2421,7 @@ build_mcfg_q35(GArray *table_data, GArray *linker, AcpiMcfgInfo *info)
 }
 
 static void
-build_dmar_q35(GArray *table_data, GArray *linker)
+build_dmar_q35(GArray *table_data, BIOSLinker *linker)
 {
     int dmar_start = table_data->len;
 
@@ -2445,7 +2445,7 @@ build_dmar_q35(GArray *table_data, GArray *linker)
 }
 
 static GArray *
-build_rsdp(GArray *rsdp_table, GArray *linker, unsigned rsdt)
+build_rsdp(GArray *rsdp_table, BIOSLinker *linker, unsigned rsdt)
 {
     AcpiRsdpDescriptor *rsdp = acpi_data_push(rsdp_table, sizeof *rsdp);
 
@@ -2657,7 +2657,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
         acpi_align_size(tables_blob, ACPI_BUILD_TABLE_SIZE);
     }
 
-    acpi_align_size(tables->linker, ACPI_BUILD_ALIGN_SIZE);
+    acpi_align_size(tables->linker->cmd_blob, ACPI_BUILD_ALIGN_SIZE);
 
     /* Cleanup memory that's no longer used. */
     g_array_free(table_offsets, true);
@@ -2697,7 +2697,7 @@ static void acpi_build_update(void *build_opaque)
         acpi_ram_update(build_state->rsdp_mr, tables.rsdp);
     }
 
-    acpi_ram_update(build_state->linker_mr, tables.linker);
+    acpi_ram_update(build_state->linker_mr, tables.linker->cmd_blob);
     acpi_build_tables_cleanup(&tables, true);
 }
 
@@ -2761,7 +2761,8 @@ void acpi_setup(void)
     assert(build_state->table_mr != NULL);
 
     build_state->linker_mr =
-        acpi_add_rom_blob(build_state, tables.linker, "etc/table-loader", 0);
+        acpi_add_rom_blob(build_state, tables.linker->cmd_blob,
+                          "etc/table-loader", 0);
 
     fw_cfg_add_file(pcms->fw_cfg, ACPI_BUILD_TPMLOG_FILE,
                     tables.tcpalog->data, acpi_data_len(tables.tcpalog));

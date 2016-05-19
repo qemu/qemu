@@ -96,33 +96,39 @@ enum {
 };
 
 /*
- * bios_linker_loader_init: allocate a new linker file blob array.
+ * bios_linker_loader_init: allocate a new linker object instance.
  *
  * After initialization, linker commands can be added, and will
- * be stored in the array.
+ * be stored in the linker.cmd_blob array.
  */
-GArray *bios_linker_loader_init(void)
+BIOSLinker *bios_linker_loader_init(void)
 {
-    return g_array_new(false, true /* clear */, 1);
+    BIOSLinker *linker = g_new(BIOSLinker, 1);
+
+    linker->cmd_blob = g_array_new(false, true /* clear */, 1);
+    return linker;
 }
 
-/* Free linker wrapper and return the linker array. */
-void *bios_linker_loader_cleanup(GArray *linker)
+/* Free linker wrapper and return the linker commands array. */
+void *bios_linker_loader_cleanup(BIOSLinker *linker)
 {
-    return g_array_free(linker, false);
+    void *cmd_blob = g_array_free(linker->cmd_blob, false);
+
+    g_free(linker);
+    return cmd_blob;
 }
 
 /*
  * bios_linker_loader_alloc: ask guest to load file into guest memory.
  *
- * @linker: linker file blob array
- * @file: file to be loaded
+ * @linker: linker object instance
+ * @file: name of the file blob to be loaded
  * @alloc_align: required minimal alignment in bytes. Must be a power of 2.
  * @alloc_fseg: request allocation in FSEG zone (useful for the RSDP ACPI table)
  *
  * Note: this command must precede any other linker command using this file.
  */
-void bios_linker_loader_alloc(GArray *linker,
+void bios_linker_loader_alloc(BIOSLinker *linker,
                               const char *file,
                               uint32_t alloc_align,
                               bool alloc_fseg)
@@ -139,7 +145,7 @@ void bios_linker_loader_alloc(GArray *linker,
                                     BIOS_LINKER_LOADER_ALLOC_ZONE_HIGH;
 
     /* Alloc entries must come first, so prepend them */
-    g_array_prepend_vals(linker, &entry, sizeof entry);
+    g_array_prepend_vals(linker->cmd_blob, &entry, sizeof entry);
 }
 
 /*
@@ -149,7 +155,7 @@ void bios_linker_loader_alloc(GArray *linker,
  * Checksum calculation simply sums -X for each byte X in the range
  * using 8-bit math (i.e. ACPI checksum).
  *
- * @linker: linker file blob array
+ * @linker: linker object instance
  * @file: file that includes the checksum to be calculated
  *        and the data to be checksummed
  * @table: @file blob contents
@@ -167,7 +173,7 @@ void bios_linker_loader_alloc(GArray *linker,
  * - To avoid confusion, caller must always put 0x0 at @checksum.
  * - @file must be loaded into Guest memory using bios_linker_loader_alloc
  */
-void bios_linker_loader_add_checksum(GArray *linker, const char *file,
+void bios_linker_loader_add_checksum(BIOSLinker *linker, const char *file,
                                      GArray *table,
                                      void *start, unsigned size,
                                      uint8_t *checksum)
@@ -189,14 +195,14 @@ void bios_linker_loader_add_checksum(GArray *linker, const char *file,
     entry.cksum.start = cpu_to_le32(start_offset);
     entry.cksum.length = cpu_to_le32(size);
 
-    g_array_append_vals(linker, &entry, sizeof entry);
+    g_array_append_vals(linker->cmd_blob, &entry, sizeof entry);
 }
 
 /*
  * bios_linker_loader_add_pointer: ask guest to add address of source file
  * into destination file at the specified pointer.
  *
- * @linker: linker file blob array
+ * @linker: linker object instance
  * @dest_file: destination file that must be changed
  * @src_file: source file who's address must be taken
  * @table: @dest_file blob contents array
@@ -213,7 +219,7 @@ void bios_linker_loader_add_checksum(GArray *linker, const char *file,
  * - Both @dest_file and @src_file must be
  *   loaded into Guest memory using bios_linker_loader_alloc
  */
-void bios_linker_loader_add_pointer(GArray *linker,
+void bios_linker_loader_add_pointer(BIOSLinker *linker,
                                     const char *dest_file,
                                     const char *src_file,
                                     GArray *table, void *pointer,
@@ -236,5 +242,5 @@ void bios_linker_loader_add_pointer(GArray *linker,
     assert(pointer_size == 1 || pointer_size == 2 ||
            pointer_size == 4 || pointer_size == 8);
 
-    g_array_append_vals(linker, &entry, sizeof entry);
+    g_array_append_vals(linker->cmd_blob, &entry, sizeof entry);
 }
