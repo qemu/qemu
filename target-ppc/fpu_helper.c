@@ -1442,7 +1442,7 @@ static inline uint32_t efststeq(CPUPPCState *env, uint32_t op1, uint32_t op2)
 #define HELPER_SINGLE_SPE_CMP(name)                                     \
     uint32_t helper_e##name(CPUPPCState *env, uint32_t op1, uint32_t op2) \
     {                                                                   \
-        return e##name(env, op1, op2) << 2;                             \
+        return e##name(env, op1, op2);                                  \
     }
 /* efststlt */
 HELPER_SINGLE_SPE_CMP(fststlt);
