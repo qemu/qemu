@@ -38,6 +38,7 @@
 #include <nfsc/libnfs.h>
 
 #define QEMU_NFS_MAX_READAHEAD_SIZE 1048576
+#define QEMU_NFS_MAX_PAGECACHE_SIZE (8388608 / NFS_BLKSIZE)
 #define QEMU_NFS_MAX_DEBUG_LEVEL 2
 
 typedef struct NFSClient {
@@ -342,6 +343,26 @@ static int64_t nfs_client_open(NFSClient *client, const char *filename,
                 val = QEMU_NFS_MAX_READAHEAD_SIZE;
             }
             nfs_set_readahead(client->context, val);
+#ifdef LIBNFS_FEATURE_PAGECACHE
+            nfs_set_pagecache_ttl(client->context, 0);
+#endif
+            client->cache_used = true;
+#endif
+#ifdef LIBNFS_FEATURE_PAGECACHE
+            nfs_set_pagecache_ttl(client->context, 0);
+        } else if (!strcmp(qp->p[i].name, "pagecache")) {
+            if (open_flags & BDRV_O_NOCACHE) {
+                error_setg(errp, "Cannot enable NFS pagecache "
+                                 "if cache.direct = on");
+                goto fail;
+            }
+            if (val > QEMU_NFS_MAX_PAGECACHE_SIZE) {
+                error_report("NFS Warning: Truncating NFS pagecache"
+                             " size to %d pages", QEMU_NFS_MAX_PAGECACHE_SIZE);
+                val = QEMU_NFS_MAX_PAGECACHE_SIZE;
+            }
+            nfs_set_pagecache(client->context, val);
+            nfs_set_pagecache_ttl(client->context, 0);
             client->cache_used = true;
 #endif
 #ifdef LIBNFS_FEATURE_DEBUG
@@ -524,7 +545,8 @@ static int nfs_reopen_prepare(BDRVReopenState *state,
     }
 
     if ((state->flags & BDRV_O_NOCACHE) && client->cache_used) {
-        error_setg(errp, "Cannot disable cache if libnfs readahead is enabled");
+        error_setg(errp, "Cannot disable cache if libnfs readahead or"
+                         " pagecache is enabled");
         return -EINVAL;
     }
 
@@ -541,6 +563,15 @@ static int nfs_reopen_prepare(BDRVReopenState *state,
 
     return 0;
 }
+
+#ifdef LIBNFS_FEATURE_PAGECACHE
+static void nfs_invalidate_cache(BlockDriverState *bs,
+                                 Error **errp)
+{
+    NFSClient *client = bs->opaque;
+    nfs_pagecache_invalidate(client->context, client->fh);
+}
+#endif
 
 static BlockDriver bdrv_nfs = {
     .format_name                    = "nfs",
@@ -565,6 +596,10 @@ static BlockDriver bdrv_nfs = {
 
     .bdrv_detach_aio_context        = nfs_detach_aio_context,
     .bdrv_attach_aio_context        = nfs_attach_aio_context,
+
+#ifdef LIBNFS_FEATURE_PAGECACHE
+    .bdrv_invalidate_cache          = nfs_invalidate_cache,
+#endif
 };
 
 static void nfs_block_init(void)
