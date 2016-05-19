@@ -1534,7 +1534,7 @@ unsigned acpi_data_len(GArray *table)
 
 void acpi_add_table(GArray *table_offsets, GArray *table_data)
 {
-    uint32_t offset = cpu_to_le32(table_data->len);
+    uint32_t offset = table_data->len;
     g_array_append_val(table_offsets, offset);
 }
 
@@ -1559,21 +1559,23 @@ void
 build_rsdt(GArray *table_data, BIOSLinker *linker, GArray *table_offsets,
            const char *oem_id, const char *oem_table_id)
 {
-    AcpiRsdtDescriptorRev1 *rsdt;
-    size_t rsdt_len;
     int i;
-    const int table_data_len = (sizeof(uint32_t) * table_offsets->len);
+    unsigned rsdt_entries_offset;
+    AcpiRsdtDescriptorRev1 *rsdt;
+    const unsigned table_data_len = (sizeof(uint32_t) * table_offsets->len);
+    const unsigned rsdt_entry_size = sizeof(rsdt->table_offset_entry[0]);
+    const size_t rsdt_len = sizeof(*rsdt) + table_data_len;
 
-    rsdt_len = sizeof(*rsdt) + table_data_len;
     rsdt = acpi_data_push(table_data, rsdt_len);
-    memcpy(rsdt->table_offset_entry, table_offsets->data, table_data_len);
+    rsdt_entries_offset = (char *)rsdt->table_offset_entry - table_data->data;
     for (i = 0; i < table_offsets->len; ++i) {
+        uint32_t ref_tbl_offset = g_array_index(table_offsets, uint32_t, i);
+        uint32_t rsdt_entry_offset = rsdt_entries_offset + rsdt_entry_size * i;
+
         /* rsdt->table_offset_entry to be filled by Guest linker */
         bios_linker_loader_add_pointer(linker,
-                                       ACPI_BUILD_TABLE_FILE,
-                                       ACPI_BUILD_TABLE_FILE,
-                                       &rsdt->table_offset_entry[i],
-                                       sizeof(uint32_t));
+            ACPI_BUILD_TABLE_FILE, rsdt_entry_offset, rsdt_entry_size,
+            ACPI_BUILD_TABLE_FILE, ref_tbl_offset);
     }
     build_header(linker, table_data,
                  (void *)rsdt, "RSDT", rsdt_len, 1, oem_id, oem_table_id);

@@ -682,10 +682,9 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
     bios_linker_loader_alloc(linker,
                              NVDIMM_DSM_MEM_FILE, dsm_dma_arrea,
                              sizeof(NvdimmDsmIn), false /* high memory */);
-    bios_linker_loader_add_pointer(linker, ACPI_BUILD_TABLE_FILE,
-                                   NVDIMM_DSM_MEM_FILE,
-                                   table_data->data + mem_addr_offset,
-                                   sizeof(uint32_t));
+    bios_linker_loader_add_pointer(linker,
+        ACPI_BUILD_TABLE_FILE, mem_addr_offset, sizeof(uint32_t),
+        NVDIMM_DSM_MEM_FILE, 0);
     build_header(linker, table_data,
         (void *)(table_data->data + nvdimm_ssdt),
         "SSDT", table_data->len - nvdimm_ssdt, 1, NULL, "NVDIMM");
