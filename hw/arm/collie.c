@@ -18,6 +18,7 @@
 #include "hw/block/flash.h"
 #include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
+#include "qom/cpu.h"
 
 static struct arm_boot_info collie_binfo = {
     .loader_start = SA_SDCS0,

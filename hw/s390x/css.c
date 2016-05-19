@@ -14,8 +14,8 @@
 #include "qemu/bitops.h"
 #include "exec/address-spaces.h"
 #include "cpu.h"
-#include "ioinst.h"
-#include "css.h"
+#include "hw/s390x/ioinst.h"
+#include "hw/s390x/css.h"
 #include "trace.h"
 #include "hw/s390x/s390_flic.h"
 

@@ -19,6 +19,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "cpu.h"
 #include "exec/gdbstub.h"
 
 /* Old gdb always expect FPA registers.  Newer (xml-aware) gdb only expect

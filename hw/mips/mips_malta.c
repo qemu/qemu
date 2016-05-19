@@ -923,11 +923,10 @@ static void create_cpu_without_cps(const char *cpu_model,
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
-        env = &cpu->env;
 
         /* Init internal devices */
-        cpu_mips_irq_init_cpu(env);
-        cpu_mips_clock_init(env);
+        cpu_mips_irq_init_cpu(cpu);
+        cpu_mips_clock_init(cpu);
         qemu_register_reset(main_cpu_reset, cpu);
     }
 

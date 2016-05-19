@@ -30,6 +30,7 @@
 #include "sh7750_regnames.h"
 #include "hw/sh4/sh_intc.h"
 #include "cpu.h"
+#include "exec/exec-all.h"
 #include "exec/address-spaces.h"
 
 #define NB_DEVICES 4

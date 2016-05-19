@@ -9,7 +9,7 @@ void dump_slb(FILE *f, fprintf_function cpu_fprintf, PowerPCCPU *cpu);
 int ppc_store_slb(PowerPCCPU *cpu, target_ulong slot,
                   target_ulong esid, target_ulong vsid);
 hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr);
-int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, target_ulong address, int rw,
+int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr address, int rw,
                                 int mmu_idx);
 void ppc_hash64_store_hpte(PowerPCCPU *cpu, target_ulong index,
                            target_ulong pte0, target_ulong pte1);

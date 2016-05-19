@@ -104,21 +104,8 @@ typedef struct QEMULogItem {
 
 extern const QEMULogItem qemu_log_items[];
 
-/* This is the function that actually does the work of
- * changing the log level; it should only be accessed via
- * the qemu_set_log() wrapper.
- */
-void do_qemu_set_log(int log_flags, bool use_own_buffers);
-
-static inline void qemu_set_log(int log_flags)
-{
-#ifdef CONFIG_USER_ONLY
-    do_qemu_set_log(log_flags, true);
-#else
-    do_qemu_set_log(log_flags, false);
-#endif
-}
-
+void qemu_set_log(int log_flags);
+void qemu_log_needs_buffers(void);
 void qemu_set_log_filename(const char *filename);
 void qemu_set_dfilter_ranges(const char *ranges);
 bool qemu_log_in_addr_range(uint64_t addr);

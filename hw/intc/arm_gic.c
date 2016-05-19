@@ -23,6 +23,7 @@
 #include "gic_internal.h"
 #include "qapi/error.h"
 #include "qom/cpu.h"
+#include "qemu/log.h"
 #include "trace.h"
 
 //#define DEBUG_GIC

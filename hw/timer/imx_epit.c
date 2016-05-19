@@ -16,6 +16,7 @@
 #include "hw/timer/imx_epit.h"
 #include "hw/misc/imx_ccm.h"
 #include "qemu/main-loop.h"
+#include "qemu/log.h"
 
 #ifndef DEBUG_IMX_EPIT
 #define DEBUG_IMX_EPIT 0

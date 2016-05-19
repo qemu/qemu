@@ -17,6 +17,7 @@
 #include "exec/address-spaces.h"
 #include "hw/arm/ast2400.h"
 #include "hw/char/serial.h"
+#include "qemu/log.h"
 
 #define AST2400_UART_5_BASE      0x00184000
 #define AST2400_IOMEM_SIZE       0x00200000

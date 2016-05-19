@@ -23,6 +23,7 @@
 #include "cpu.h"
 #include "qemu-common.h"
 #include "migration/vmstate.h"
+#include "exec/exec-all.h"
 
 
 static void m68k_cpu_set_pc(CPUState *cs, vaddr value)

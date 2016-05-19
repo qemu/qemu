@@ -26,11 +26,13 @@
  */
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "qemu/log.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/char.h"
 #include "hw/qdev.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/cpus.h"
+#include "sysemu/kvm.h"
 
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"

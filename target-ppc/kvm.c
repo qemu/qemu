@@ -24,11 +24,11 @@
 
 #include "qemu-common.h"
 #include "qemu/error-report.h"
+#include "cpu.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
-#include "cpu.h"
 #include "sysemu/cpus.h"
 #include "sysemu/device_tree.h"
 #include "mmu-hash64.h"

@@ -33,6 +33,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/msi.h"
+#include "linux/kvm.h"
 #include "kvm_i386.h"
 #include "hw/pci/pci-assign.h"
 

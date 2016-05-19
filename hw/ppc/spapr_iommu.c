@@ -18,6 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "hw/hw.h"
+#include "qemu/log.h"
 #include "sysemu/kvm.h"
 #include "hw/qdev.h"
 #include "kvm_ppc.h"

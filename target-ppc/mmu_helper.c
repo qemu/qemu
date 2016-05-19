@@ -24,6 +24,7 @@
 #include "kvm_ppc.h"
 #include "mmu-hash64.h"
 #include "mmu-hash32.h"
+#include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "exec/log.h"
 

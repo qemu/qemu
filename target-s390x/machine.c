@@ -76,6 +76,16 @@ static const VMStateDescription vmstate_fpu = {
     }
 };
 
+static bool vregs_needed(void *opaque)
+{
+#ifdef CONFIG_KVM
+    if (kvm_enabled()) {
+        return kvm_check_extension(kvm_state, KVM_CAP_S390_VECTOR_REGISTERS);
+    }
+#endif
+    return 0;
+}
+
 static const VMStateDescription vmstate_vregs = {
     .name = "cpu/vregs",
     .version_id = 1,
@@ -134,6 +144,16 @@ static const VMStateDescription vmstate_vregs = {
         VMSTATE_END_OF_LIST()
     }
 };
+
+static bool riccb_needed(void *opaque)
+{
+#ifdef CONFIG_KVM
+    if (kvm_enabled()) {
+        return kvm_s390_get_ri();
+    }
+#endif
+    return 0;
+}
 
 const VMStateDescription vmstate_riccb = {
     .name = "cpu/riccb",

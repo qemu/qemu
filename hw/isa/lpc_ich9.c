@@ -47,6 +47,7 @@
 #include "hw/pci/pci_bus.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
+#include "qom/cpu.h"
 
 static int ich9_lpc_sci_irq(ICH9LPCState *lpc);
 

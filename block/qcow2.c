@@ -36,6 +36,7 @@
 #include "trace.h"
 #include "qemu/option_int.h"
 #include "qemu/cutils.h"
+#include "qemu/bswap.h"
 
 /*
   Differences with QCOW:

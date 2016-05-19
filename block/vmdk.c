@@ -30,6 +30,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qemu/bswap.h"
 #include "migration/migration.h"
 #include "qemu/cutils.h"
 #include <zlib.h>

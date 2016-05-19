@@ -28,6 +28,7 @@
 #include "exec/gdbstub.h"
 #include "exec/softmmu-semi.h"
 #endif
+#include "qemu/log.h"
 #include "sysemu/sysemu.h"
 
 #define HOSTED_EXIT  0

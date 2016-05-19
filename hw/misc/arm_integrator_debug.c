@@ -19,6 +19,7 @@
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "hw/misc/arm_integrator_debug.h"
+#include "qemu/log.h"
 
 #define INTEGRATOR_DEBUG(obj) \
     OBJECT_CHECK(IntegratorDebugState, (obj), TYPE_INTEGRATOR_DEBUG)

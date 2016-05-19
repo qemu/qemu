@@ -24,7 +24,8 @@
 #include <hw/virtio/virtio-rng.h>
 #include <hw/virtio/virtio-bus.h>
 
-#include "css.h"
+#include <hw/s390x/s390_flic.h>
+#include <hw/s390x/css.h>
 
 #define VIRTUAL_CSSID 0xfe
 

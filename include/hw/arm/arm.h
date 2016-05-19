@@ -12,9 +12,9 @@
 #define ARM_MISC_H 1
 
 #include "exec/memory.h"
+#include "target-arm/cpu-qom.h"
 #include "hw/irq.h"
 #include "qemu/notify.h"
-#include "cpu.h"
 
 typedef enum {
     ARM_ENDIANNESS_UNKNOWN = 0,

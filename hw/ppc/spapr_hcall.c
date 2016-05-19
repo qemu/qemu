@@ -1,12 +1,15 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
+#include "qemu/log.h"
 #include "cpu.h"
+#include "exec/exec-all.h"
 #include "helper_regs.h"
 #include "hw/ppc/spapr.h"
 #include "mmu-hash64.h"
 #include "cpu-models.h"
 #include "trace.h"
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 
 struct SPRSyncState {

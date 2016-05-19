@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include <cpu.h>
+#include "exec/exec-all.h"
 
 #undef DEBUG_UC32
 

@@ -16,6 +16,7 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/kvm.h"
 #include "net/net.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-serial.h"
@@ -28,8 +29,8 @@
 #include "hw/s390x/adapter.h"
 #include "hw/s390x/s390_flic.h"
 
-#include "ioinst.h"
-#include "css.h"
+#include "hw/s390x/ioinst.h"
+#include "hw/s390x/css.h"
 #include "virtio-ccw.h"
 #include "trace.h"
 

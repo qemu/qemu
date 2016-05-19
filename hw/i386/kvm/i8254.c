@@ -29,6 +29,7 @@
 #include "hw/timer/i8254.h"
 #include "hw/timer/i8254_internal.h"
 #include "sysemu/kvm.h"
+#include "linux/kvm.h"
 
 #define KVM_PIT_REINJECT_BIT 0
 

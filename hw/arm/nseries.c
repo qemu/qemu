@@ -20,7 +20,9 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "cpu.h"
 #include "qemu/cutils.h"
+#include "qemu/bswap.h"
 #include "sysemu/sysemu.h"
 #include "hw/arm/omap.h"
 #include "hw/arm/arm.h"
@@ -35,6 +37,7 @@
 #include "hw/loader.h"
 #include "sysemu/block-backend.h"
 #include "hw/sysbus.h"
+#include "qemu/log.h"
 #include "exec/address-spaces.h"
 
 /* Nokia N8x0 support */

@@ -30,6 +30,8 @@
 #include "config-host.h"
 #ifdef NEED_CPU_H
 #include "config-target.h"
+#else
+#include "exec/poison.h"
 #endif
 #include "qemu/compiler.h"
 

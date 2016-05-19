@@ -11,6 +11,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "cpu.h"
 #include <sys/ioctl.h>
 #include "qemu/error-report.h"
 #include "hw/sysbus.h"

@@ -23,6 +23,7 @@
 #include "qemu/log.h"
 #include "exec/log.h"
 #include "disas/disas.h"
+#include "exec/exec-all.h"
 #include "tcg-op.h"
 #include "exec/cpu_ldst.h"
 #include "linux-user/syscall_defs.h"

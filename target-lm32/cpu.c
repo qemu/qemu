@@ -22,6 +22,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "qemu-common.h"
+#include "exec/exec-all.h"
 
 
 static void lm32_cpu_set_pc(CPUState *cs, vaddr value)

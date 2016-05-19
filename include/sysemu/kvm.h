@@ -218,6 +218,7 @@ int kvm_init_vcpu(CPUState *cpu);
 int kvm_cpu_exec(CPUState *cpu);
 
 #ifdef NEED_CPU_H
+#include "cpu.h"
 
 void kvm_setup_guest_memory(void *start, size_t size);
 void kvm_flush_coalesced_mmio_buffer(void);

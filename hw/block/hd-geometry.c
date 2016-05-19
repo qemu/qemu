@@ -32,6 +32,7 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/block-backend.h"
+#include "qemu/bswap.h"
 #include "hw/block/block.h"
 #include "trace.h"
 

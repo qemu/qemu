@@ -11,6 +11,8 @@
 #define GDB_WATCHPOINT_ACCESS    4
 
 #ifdef NEED_CPU_H
+#include "cpu.h"
+
 typedef void (*gdb_syscall_complete_cb)(CPUState *cpu,
                                         target_ulong ret, target_ulong err);
 

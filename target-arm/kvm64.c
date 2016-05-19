@@ -18,6 +18,7 @@
 #include <linux/kvm.h>
 
 #include "qemu-common.h"
+#include "cpu.h"
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
 #include "qemu/host-utils.h"
@@ -25,7 +26,6 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
-#include "cpu.h"
 #include "internals.h"
 #include "hw/arm/arm.h"
 

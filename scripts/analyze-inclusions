@@ -1,0 +1,102 @@
+#! /bin/sh
+#
+# Copyright (C) 2016 Red Hat, Inc.
+#
+# Author: Paolo Bonzini <pbonzini@redhat.com>
+#
+# Print statistics about header file inclusions.
+#
+# The script has two modes of execution:
+#
+# 1) if invoked with a path on the command line (possibly
+# preceded by a "--" argument), it will run the analysis on
+# an existing build directory
+#
+# 2) otherwise, it will configure and builds QEMU itself in a
+# "+build" subdirectory which is left around when the script
+# exits.  In this case the command line is passed directly to
+# "make" (typically used for a "-j" argument suitable for your
+# system).
+#
+# Inspired by a post by Markus Armbruster.
+
+case "x$1" in
+x--)
+  shift
+  cd "$1" || exit $?
+  ;;
+x-* | x)
+  mkdir -p +build
+  cd +build
+  test -f Makefile && make distclean
+  ../configure
+  make "$@"
+  ;;
+*)
+  cd "$1" || exit $?
+esac
+
+QEMU_CFLAGS=$(sed -n s/^QEMU_CFLAGS=//p config-host.mak)
+QEMU_INCLUDES=$(sed -n s/^QEMU_INCLUDES=//p config-host.mak | \
+    sed 's/$(SRC_PATH)/../g' )
+CFLAGS=$(sed -n s/^CFLAGS=//p config-host.mak)
+
+grep_include() {
+  find . -name "*.d" -exec grep -l "$@" {} + | wc -l
+}
+
+echo Found $(find . -name "*.d" | wc -l) object files
+echo $(grep_include -F 'include/qemu-common.h') files include qemu-common.h
+echo $(grep_include -F 'hw/hw.h') files include hw/hw.h
+echo $(grep_include 'target-[a-z0-9]*/cpu\.h') files include cpu.h
+echo $(grep_include -F 'qapi-types.h') files include qapi-types.h
+echo $(grep_include -F 'trace/generated-tracers.h') files include generated-tracers.h
+echo $(grep_include -F 'qapi/error.h') files include qapi/error.h
+echo $(grep_include -F 'qom/object.h') files include qom/object.h
+echo $(grep_include -F 'block/aio.h') files include block/aio.h
+echo $(grep_include -F 'exec/memory.h') files include exec/memory.h
+echo $(grep_include -F 'fpu/softfloat.h') files include fpu/softfloat.h
+echo $(grep_include -F 'qemu/bswap.h') files include qemu/bswap.h
+echo
+
+awk1='
+    /^# / { file = $3;next }
+    NR>1 { bytes[file]+=length()+1; lines[file]++ }
+    END { for(i in lines) print i,lines[i],bytes[i] }'
+
+awk2='
+    {tot_l+=$2;tot_b+=$3;tot_f++}
+    /\/usr.*\/glib/ {glib_l+=$2;glib_b+=$3;glib_f++;next}
+    /\/usr/ {sys_l+=$2;sys_b+=$3;sys_f++;next}
+    {qemu_l+=$2;qemu_b+=$3;qemu_f++;next}
+    END {
+      printf "%s\t %s\t %s\t %s\n", "lines", "bytes", "files", "source"
+      printf "%s\t %s\t %s\t %s\n", qemu_l, qemu_b, qemu_f, "QEMU"
+      printf "%s\t %s\t %s\t %s\n", sys_l, sys_b, sys_f, "system"
+      printf "%s\t %s\t %s\t %s\n", glib_l, glib_b, glib_f, "glib"
+      printf "%s\t %s\t %s\t %s\n", tot_l, tot_b, tot_f, "total"
+    }'
+
+analyze() {
+  cc $QEMU_CFLAGS $QEMU_INCLUDES $CFLAGS  -E -o - "$@" | \
+    awk "$awk1" | awk "$awk2"
+  echo
+}
+
+echo osdep.h:
+analyze ../include/qemu/osdep.h
+
+echo qemu-common.h:
+analyze  -include ../include/qemu/osdep.h ../include/qemu-common.h
+
+echo hw/hw.h:
+analyze -include ../include/qemu/osdep.h ../include/hw/hw.h
+
+echo trace/generated-tracers.h:
+analyze -include ../include/qemu/osdep.h trace/generated-tracers.h
+
+echo target-i386/cpu.h:
+analyze -DNEED_CPU_H -I../target-i386 -Ii386-softmmu -include ../include/qemu/osdep.h ../target-i386/cpu.h
+
+echo hw/hw.h + NEED_CPU_H:
+analyze -DNEED_CPU_H -I../target-i386 -Ii386-softmmu -include ../include/qemu/osdep.h ../include/hw/hw.h

@@ -17,6 +17,7 @@
 #include "hw/arm/arm.h"
 #include "hw/arm/ast2400.h"
 #include "hw/boards.h"
+#include "qemu/log.h"
 
 static struct arm_boot_info palmetto_bmc_binfo = {
     .loader_start = AST2400_SDRAM_BASE,

@@ -23,6 +23,7 @@
 #error cpu.h included from common code
 #endif
 
+#include "qemu/host-utils.h"
 #include "qemu/queue.h"
 #include "tcg-target.h"
 #ifndef CONFIG_USER_ONLY

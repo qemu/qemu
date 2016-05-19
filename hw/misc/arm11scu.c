@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/misc/arm11scu.h"
+#include "qemu/log.h"
 
 static uint64_t mpcore_scu_read(void *opaque, hwaddr offset,
                                 unsigned size)

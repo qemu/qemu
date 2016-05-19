@@ -37,8 +37,6 @@ for input; do
 
   ${AWK:-awk} 'BEGIN { n = 0
       printf "#include \"qemu/osdep.h\"\n"
-      printf "#include \"qemu-common.h\"\n"
-      printf "#include \"exec/gdbstub.h\"\n"
       print "static const char '$arrayname'[] = {"
       for (i = 0; i < 255; i++)
         _ord_[sprintf("%c", i)] = i

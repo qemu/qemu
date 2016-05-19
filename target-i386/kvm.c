@@ -22,10 +22,10 @@
 #include <linux/kvm_para.h>
 
 #include "qemu-common.h"
+#include "cpu.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm_int.h"
 #include "kvm_i386.h"
-#include "cpu.h"
 #include "hyperv.h"
 
 #include "exec/gdbstub.h"

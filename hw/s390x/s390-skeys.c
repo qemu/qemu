@@ -15,6 +15,7 @@
 #include "migration/qemu-file.h"
 #include "hw/s390x/storage-keys.h"
 #include "qemu/error-report.h"
+#include "sysemu/kvm.h"
 
 #define S390_SKEYS_BUFFER_SIZE 131072  /* Room for 128k storage keys */
 #define S390_SKEYS_SAVE_FLAG_EOS 0x01

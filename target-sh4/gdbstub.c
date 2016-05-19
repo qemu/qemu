@@ -19,6 +19,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "cpu.h"
 #include "exec/gdbstub.h"
 
 /* Hint: Use "set architecture sh4" in GDB to see fpu registers */

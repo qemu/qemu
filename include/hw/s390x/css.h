@@ -14,7 +14,7 @@
 
 #include "hw/s390x/adapter.h"
 #include "hw/s390x/s390_flic.h"
-#include "ioinst.h"
+#include "hw/s390x/ioinst.h"
 
 /* Channel subsystem constants. */
 #define MAX_SCHID 65535
@@ -67,6 +67,7 @@ typedef struct CMBE {
     uint32_t reserved[7];
 } QEMU_PACKED CMBE;
 
+typedef struct SubchDev SubchDev;
 struct SubchDev {
     /* channel-subsystem related things: */
     uint8_t cssid;
@@ -123,4 +124,32 @@ void css_adapter_interrupt(uint8_t isc);
 #define CSS_IO_ADAPTER_VIRTIO 1
 int css_register_io_adapter(uint8_t type, uint8_t isc, bool swap,
                             bool maskable, uint32_t *id);
+
+#ifndef CONFIG_USER_ONLY
+SubchDev *css_find_subch(uint8_t m, uint8_t cssid, uint8_t ssid,
+                         uint16_t schid);
+bool css_subch_visible(SubchDev *sch);
+void css_conditional_io_interrupt(SubchDev *sch);
+int css_do_stsch(SubchDev *sch, SCHIB *schib);
+bool css_schid_final(int m, uint8_t cssid, uint8_t ssid, uint16_t schid);
+int css_do_msch(SubchDev *sch, const SCHIB *schib);
+int css_do_xsch(SubchDev *sch);
+int css_do_csch(SubchDev *sch);
+int css_do_hsch(SubchDev *sch);
+int css_do_ssch(SubchDev *sch, ORB *orb);
+int css_do_tsch_get_irb(SubchDev *sch, IRB *irb, int *irb_len);
+void css_do_tsch_update_subch(SubchDev *sch);
+int css_do_stcrw(CRW *crw);
+void css_undo_stcrw(CRW *crw);
+int css_do_tpi(IOIntCode *int_code, int lowcore);
+int css_collect_chp_desc(int m, uint8_t cssid, uint8_t f_chpid, uint8_t l_chpid,
+                         int rfmt, void *buf);
+void css_do_schm(uint8_t mbk, int update, int dct, uint64_t mbo);
+int css_enable_mcsse(void);
+int css_enable_mss(void);
+int css_do_rsch(SubchDev *sch);
+int css_do_rchp(uint8_t cssid, uint8_t chpid);
+bool css_present(uint8_t cssid);
+#endif
+
 #endif

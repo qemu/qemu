@@ -24,7 +24,8 @@
 
 /* Needed early for CONFIG_BSD etc. */
 #include "qemu/osdep.h"
-
+#include "qemu-common.h"
+#include "cpu.h"
 #include "monitor/monitor.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
@@ -34,6 +35,7 @@
 #include "sysemu/dma.h"
 #include "sysemu/kvm.h"
 #include "qmp-commands.h"
+#include "exec/exec-all.h"
 
 #include "qemu/thread.h"
 #include "sysemu/cpus.h"

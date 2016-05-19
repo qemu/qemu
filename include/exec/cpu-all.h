@@ -165,6 +165,31 @@ extern unsigned long reserved_va;
 
 #define GUEST_ADDR_MAX (reserved_va ? reserved_va : \
                                     (1ul << TARGET_VIRT_ADDR_SPACE_BITS) - 1)
+#else
+
+#include "exec/hwaddr.h"
+uint32_t lduw_phys(AddressSpace *as, hwaddr addr);
+uint32_t ldl_phys(AddressSpace *as, hwaddr addr);
+uint64_t ldq_phys(AddressSpace *as, hwaddr addr);
+void stl_phys_notdirty(AddressSpace *as, hwaddr addr, uint32_t val);
+void stw_phys(AddressSpace *as, hwaddr addr, uint32_t val);
+void stl_phys(AddressSpace *as, hwaddr addr, uint32_t val);
+void stq_phys(AddressSpace *as, hwaddr addr, uint64_t val);
+
+uint32_t address_space_lduw(AddressSpace *as, hwaddr addr,
+                            MemTxAttrs attrs, MemTxResult *result);
+uint32_t address_space_ldl(AddressSpace *as, hwaddr addr,
+                            MemTxAttrs attrs, MemTxResult *result);
+uint64_t address_space_ldq(AddressSpace *as, hwaddr addr,
+                            MemTxAttrs attrs, MemTxResult *result);
+void address_space_stl_notdirty(AddressSpace *as, hwaddr addr, uint32_t val,
+                            MemTxAttrs attrs, MemTxResult *result);
+void address_space_stw(AddressSpace *as, hwaddr addr, uint32_t val,
+                            MemTxAttrs attrs, MemTxResult *result);
+void address_space_stl(AddressSpace *as, hwaddr addr, uint32_t val,
+                            MemTxAttrs attrs, MemTxResult *result);
+void address_space_stq(AddressSpace *as, hwaddr addr, uint64_t val,
+                            MemTxAttrs attrs, MemTxResult *result);
 #endif
 
 /* page related stuff */

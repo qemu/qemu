@@ -44,6 +44,7 @@
 #include "qapi/error.h"
 #include "qemu/bitops.h"
 #include "qapi/qmp/qerror.h"
+#include "qemu/log.h"
 
 //#define DEBUG_OPENPIC
 

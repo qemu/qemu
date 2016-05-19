@@ -30,10 +30,12 @@
 #include "qemu/cutils.h"
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
-#include "hw/hw.h"
 #include "trace.h"
 #include "qapi/visitor.h"
+#include "migration/vmstate.h"
+#include "exec/exec-all.h"
 #ifndef CONFIG_USER_ONLY
+#include "hw/hw.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/sysemu.h"
 #include "hw/s390x/sclp.h"

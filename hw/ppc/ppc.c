@@ -164,9 +164,9 @@ static void ppc6xx_set_irq(void *opaque, int pin, int level)
     }
 }
 
-void ppc6xx_irq_init(CPUPPCState *env)
+void ppc6xx_irq_init(PowerPCCPU *cpu)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    CPUPPCState *env = &cpu->env;
 
     env->irq_inputs = (void **)qemu_allocate_irqs(&ppc6xx_set_irq, cpu,
                                                   PPC6xx_INPUT_NB);
@@ -251,9 +251,9 @@ static void ppc970_set_irq(void *opaque, int pin, int level)
     }
 }
 
-void ppc970_irq_init(CPUPPCState *env)
+void ppc970_irq_init(PowerPCCPU *cpu)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    CPUPPCState *env = &cpu->env;
 
     env->irq_inputs = (void **)qemu_allocate_irqs(&ppc970_set_irq, cpu,
                                                   PPC970_INPUT_NB);
@@ -287,9 +287,9 @@ static void power7_set_irq(void *opaque, int pin, int level)
     }
 }
 
-void ppcPOWER7_irq_init(CPUPPCState *env)
+void ppcPOWER7_irq_init(PowerPCCPU *cpu)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    CPUPPCState *env = &cpu->env;
 
     env->irq_inputs = (void **)qemu_allocate_irqs(&power7_set_irq, cpu,
                                                   POWER7_INPUT_NB);
@@ -372,9 +372,9 @@ static void ppc40x_set_irq(void *opaque, int pin, int level)
     }
 }
 
-void ppc40x_irq_init(CPUPPCState *env)
+void ppc40x_irq_init(PowerPCCPU *cpu)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    CPUPPCState *env = &cpu->env;
 
     env->irq_inputs = (void **)qemu_allocate_irqs(&ppc40x_set_irq,
                                                   cpu, PPC40x_INPUT_NB);
@@ -436,9 +436,9 @@ static void ppce500_set_irq(void *opaque, int pin, int level)
     }
 }
 
-void ppce500_irq_init(CPUPPCState *env)
+void ppce500_irq_init(PowerPCCPU *cpu)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    CPUPPCState *env = &cpu->env;
 
     env->irq_inputs = (void **)qemu_allocate_irqs(&ppce500_set_irq,
                                                   cpu, PPCE500_INPUT_NB);

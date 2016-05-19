@@ -14,6 +14,7 @@
 #include "e500.h"
 #include "hw/boards.h"
 #include "sysemu/device_tree.h"
+#include "sysemu/kvm.h"
 #include "hw/pci/pci.h"
 #include "hw/ppc/openpic.h"
 #include "kvm_ppc.h"

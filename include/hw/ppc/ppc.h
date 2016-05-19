@@ -1,6 +1,8 @@
 #ifndef HW_PPC_H
 #define HW_PPC_H 1
 
+#include "target-ppc/cpu-qom.h"
+
 void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level);
 
 /* PowerPC hardware exceptions management helpers */
@@ -64,17 +66,21 @@ clk_setup_cb ppc_40x_timers_init (CPUPPCState *env, uint32_t freq,
 void ppc40x_core_reset(PowerPCCPU *cpu);
 void ppc40x_chip_reset(PowerPCCPU *cpu);
 void ppc40x_system_reset(PowerPCCPU *cpu);
-void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val);
-
-extern CPUWriteMemoryFunc * const PPC_io_write[];
-extern CPUReadMemoryFunc * const PPC_io_read[];
 void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val);
 
-void ppc40x_irq_init (CPUPPCState *env);
-void ppce500_irq_init (CPUPPCState *env);
-void ppc6xx_irq_init (CPUPPCState *env);
-void ppc970_irq_init (CPUPPCState *env);
-void ppcPOWER7_irq_init (CPUPPCState *env);
+#if defined(CONFIG_USER_ONLY)
+static inline void ppc40x_irq_init(PowerPCCPU *cpu) {}
+static inline void ppc6xx_irq_init(PowerPCCPU *cpu) {}
+static inline void ppc970_irq_init(PowerPCCPU *cpu) {}
+static inline void ppcPOWER7_irq_init(PowerPCCPU *cpu) {}
+static inline void ppce500_irq_init(PowerPCCPU *cpu) {}
+#else
+void ppc40x_irq_init(PowerPCCPU *cpu);
+void ppce500_irq_init(PowerPCCPU *cpu);
+void ppc6xx_irq_init(PowerPCCPU *cpu);
+void ppc970_irq_init(PowerPCCPU *cpu);
+void ppcPOWER7_irq_init(PowerPCCPU *cpu);
+#endif
 
 /* PPC machines for OpenBIOS */
 enum {

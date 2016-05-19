@@ -19,7 +19,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
-
+#include "cpu.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
 #else
@@ -35,6 +35,7 @@
 #include "qemu/sockets.h"
 #include "sysemu/kvm.h"
 #include "exec/semihost.h"
+#include "exec/exec-all.h"
 
 #ifdef CONFIG_USER_ONLY
 #define GDB_ATTACHED "0"

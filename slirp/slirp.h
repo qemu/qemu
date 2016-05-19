@@ -1,6 +1,7 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
+#include "qemu/host-utils.h"
 #include "slirp_config.h"
 
 #ifdef _WIN32

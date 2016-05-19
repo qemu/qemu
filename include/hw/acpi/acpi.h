@@ -150,13 +150,6 @@ void acpi_pm_tmr_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
                       MemoryRegion *parent);
 void acpi_pm_tmr_reset(ACPIREGS *ar);
 
-#include "qemu/timer.h"
-static inline int64_t acpi_pm_tmr_get_clock(void)
-{
-    return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), PM_TIMER_FREQUENCY,
-                    NANOSECONDS_PER_SECOND);
-}
-
 /* PM1a_EVT: piix and ich9 don't implement PM1b. */
 uint16_t acpi_pm1_evt_get_sts(ACPIREGS *ar);
 void acpi_pm1_evt_power_down(ACPIREGS *ar);

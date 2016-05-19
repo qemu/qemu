@@ -23,6 +23,7 @@
 #define CPU_S390X_H
 
 #include "qemu-common.h"
+#include "cpu-qom.h"
 
 #define TARGET_LONG_BITS 64
 
@@ -173,7 +174,51 @@ static inline CPU_DoubleU *get_freg(CPUS390XState *cs, int nr)
     return &cs->vregs[nr][0];
 }
 
-#include "cpu-qom.h"
+/**
+ * S390CPU:
+ * @env: #CPUS390XState.
+ *
+ * An S/390 CPU.
+ */
+struct S390CPU {
+    /*< private >*/
+    CPUState parent_obj;
+    /*< public >*/
+
+    CPUS390XState env;
+    int64_t id;
+    /* needed for live migration */
+    void *irqstate;
+    uint32_t irqstate_saved_size;
+};
+
+static inline S390CPU *s390_env_get_cpu(CPUS390XState *env)
+{
+    return container_of(env, S390CPU, env);
+}
+
+#define ENV_GET_CPU(e) CPU(s390_env_get_cpu(e))
+
+#define ENV_OFFSET offsetof(S390CPU, env)
+
+#ifndef CONFIG_USER_ONLY
+extern const struct VMStateDescription vmstate_s390_cpu;
+#endif
+
+void s390_cpu_do_interrupt(CPUState *cpu);
+bool s390_cpu_exec_interrupt(CPUState *cpu, int int_req);
+void s390_cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                         int flags);
+int s390_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
+                              int cpuid, void *opaque);
+
+hwaddr s390_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+hwaddr s390_cpu_get_phys_addr_debug(CPUState *cpu, vaddr addr);
+int s390_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int s390_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+void s390_cpu_gdb_init(CPUState *cs);
+void s390x_cpu_debug_excp_handler(CPUState *cs);
+
 #include <sysemu/kvm.h>
 
 /* distinguish between 24 bit and 31 bit addressing */
@@ -428,8 +473,6 @@ int cpu_s390x_signal_handler(int host_signum, void *pinfo,
 int s390_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
                               int mmu_idx);
 
-#include "ioinst.h"
-
 
 #ifndef CONFIG_USER_ONLY
 void do_restart_interrupt(CPUS390XState *env);
@@ -540,6 +583,26 @@ static inline uint8_t s390_cpu_get_state(S390CPU *cpu)
 void gtod_save(QEMUFile *f, void *opaque);
 int gtod_load(QEMUFile *f, void *opaque, int version_id);
 
+void cpu_inject_ext(S390CPU *cpu, uint32_t code, uint32_t param,
+                    uint64_t param64);
+
+/* ioinst.c */
+void ioinst_handle_xsch(S390CPU *cpu, uint64_t reg1);
+void ioinst_handle_csch(S390CPU *cpu, uint64_t reg1);
+void ioinst_handle_hsch(S390CPU *cpu, uint64_t reg1);
+void ioinst_handle_msch(S390CPU *cpu, uint64_t reg1, uint32_t ipb);
+void ioinst_handle_ssch(S390CPU *cpu, uint64_t reg1, uint32_t ipb);
+void ioinst_handle_stcrw(S390CPU *cpu, uint32_t ipb);
+void ioinst_handle_stsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb);
+int ioinst_handle_tsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb);
+void ioinst_handle_chsc(S390CPU *cpu, uint32_t ipb);
+int ioinst_handle_tpi(S390CPU *cpu, uint32_t ipb);
+void ioinst_handle_schm(S390CPU *cpu, uint64_t reg1, uint64_t reg2,
+                        uint32_t ipb);
+void ioinst_handle_rsch(S390CPU *cpu, uint64_t reg1);
+void ioinst_handle_rchp(S390CPU *cpu, uint64_t reg1);
+void ioinst_handle_sal(S390CPU *cpu, uint64_t reg1);
+
 /* service interrupts are floating therefore we must not pass an cpustate */
 void s390_sclp_extint(uint32_t parm);
 
@@ -561,35 +624,7 @@ static inline unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
 void cpu_lock(void);
 void cpu_unlock(void);
 
-typedef struct SubchDev SubchDev;
-
-#ifndef CONFIG_USER_ONLY
 extern void subsystem_reset(void);
-SubchDev *css_find_subch(uint8_t m, uint8_t cssid, uint8_t ssid,
-                         uint16_t schid);
-bool css_subch_visible(SubchDev *sch);
-void css_conditional_io_interrupt(SubchDev *sch);
-int css_do_stsch(SubchDev *sch, SCHIB *schib);
-bool css_schid_final(int m, uint8_t cssid, uint8_t ssid, uint16_t schid);
-int css_do_msch(SubchDev *sch, const SCHIB *schib);
-int css_do_xsch(SubchDev *sch);
-int css_do_csch(SubchDev *sch);
-int css_do_hsch(SubchDev *sch);
-int css_do_ssch(SubchDev *sch, ORB *orb);
-int css_do_tsch_get_irb(SubchDev *sch, IRB *irb, int *irb_len);
-void css_do_tsch_update_subch(SubchDev *sch);
-int css_do_stcrw(CRW *crw);
-void css_undo_stcrw(CRW *crw);
-int css_do_tpi(IOIntCode *int_code, int lowcore);
-int css_collect_chp_desc(int m, uint8_t cssid, uint8_t f_chpid, uint8_t l_chpid,
-                         int rfmt, void *buf);
-void css_do_schm(uint8_t mbk, int update, int dct, uint64_t mbo);
-int css_enable_mcsse(void);
-int css_enable_mss(void);
-int css_do_rsch(SubchDev *sch);
-int css_do_rchp(uint8_t cssid, uint8_t chpid);
-bool css_present(uint8_t cssid);
-#endif
 
 #define cpu_init(model) CPU(cpu_s390x_init(model))
 #define cpu_exec cpu_s390x_exec
@@ -597,8 +632,6 @@ bool css_present(uint8_t cssid);
 
 void s390_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 #define cpu_list s390_cpu_list
-
-#include "exec/exec-all.h"
 
 #define EXCP_EXT 1 /* external interrupt */
 #define EXCP_SVC 2 /* supervisor call (syscall) */
@@ -1064,69 +1097,6 @@ static inline uint64_t tod2time(uint64_t t) {
     return (t * 125) >> 9;
 }
 
-static inline void cpu_inject_ext(S390CPU *cpu, uint32_t code, uint32_t param,
-                                  uint64_t param64)
-{
-    CPUS390XState *env = &cpu->env;
-
-    if (env->ext_index == MAX_EXT_QUEUE - 1) {
-        /* ugh - can't queue anymore. Let's drop. */
-        return;
-    }
-
-    env->ext_index++;
-    assert(env->ext_index < MAX_EXT_QUEUE);
-
-    env->ext_queue[env->ext_index].code = code;
-    env->ext_queue[env->ext_index].param = param;
-    env->ext_queue[env->ext_index].param64 = param64;
-
-    env->pending_int |= INTERRUPT_EXT;
-    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
-}
-
-static inline void cpu_inject_io(S390CPU *cpu, uint16_t subchannel_id,
-                                 uint16_t subchannel_number,
-                                 uint32_t io_int_parm, uint32_t io_int_word)
-{
-    CPUS390XState *env = &cpu->env;
-    int isc = IO_INT_WORD_ISC(io_int_word);
-
-    if (env->io_index[isc] == MAX_IO_QUEUE - 1) {
-        /* ugh - can't queue anymore. Let's drop. */
-        return;
-    }
-
-    env->io_index[isc]++;
-    assert(env->io_index[isc] < MAX_IO_QUEUE);
-
-    env->io_queue[env->io_index[isc]][isc].id = subchannel_id;
-    env->io_queue[env->io_index[isc]][isc].nr = subchannel_number;
-    env->io_queue[env->io_index[isc]][isc].parm = io_int_parm;
-    env->io_queue[env->io_index[isc]][isc].word = io_int_word;
-
-    env->pending_int |= INTERRUPT_IO;
-    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
-}
-
-static inline void cpu_inject_crw_mchk(S390CPU *cpu)
-{
-    CPUS390XState *env = &cpu->env;
-
-    if (env->mchk_index == MAX_MCHK_QUEUE - 1) {
-        /* ugh - can't queue anymore. Let's drop. */
-        return;
-    }
-
-    env->mchk_index++;
-    assert(env->mchk_index < MAX_MCHK_QUEUE);
-
-    env->mchk_queue[env->mchk_index].type = 1;
-
-    env->pending_int |= INTERRUPT_MCHK;
-    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
-}
-
 /* from s390-virtio-ccw */
 #define MEM_SECTION_SIZE             0x10000000UL
 #define MAX_AVAIL_SLOTS              32
@@ -1270,32 +1240,6 @@ static inline void s390_crypto_reset(void)
         kvm_s390_crypto_reset();
     }
 }
-
-#ifdef CONFIG_KVM
-static inline bool vregs_needed(void *opaque)
-{
-    if (kvm_enabled()) {
-        return kvm_check_extension(kvm_state, KVM_CAP_S390_VECTOR_REGISTERS);
-    }
-    return 0;
-}
-static inline bool riccb_needed(void *opaque)
-{
-    if (kvm_enabled()) {
-        return kvm_s390_get_ri();
-    }
-    return 0;
-}
-#else
-static inline bool vregs_needed(void *opaque)
-{
-    return 0;
-}
-static inline bool riccb_needed(void *opaque)
-{
-    return 0;
-}
-#endif
 
 /* machine check interruption code */
 

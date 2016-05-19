@@ -37,14 +37,6 @@
 
 #pragma GCC poison CPUArchState
 
-#pragma GCC poison lduw_phys
-#pragma GCC poison ldl_phys
-#pragma GCC poison ldq_phys
-#pragma GCC poison stl_phys_notdirty
-#pragma GCC poison stw_phys
-#pragma GCC poison stl_phys
-#pragma GCC poison stq_phys
-
 #pragma GCC poison CPU_INTERRUPT_HARD
 #pragma GCC poison CPU_INTERRUPT_EXITTB
 #pragma GCC poison CPU_INTERRUPT_HALT

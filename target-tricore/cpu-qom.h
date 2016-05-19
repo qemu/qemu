@@ -39,32 +39,6 @@ typedef struct TriCoreCPUClass {
     void (*parent_reset)(CPUState *cpu);
 } TriCoreCPUClass;
 
-/**
- * TriCoreCPU:
- * @env: #CPUTriCoreState
- *
- * A TriCore CPU.
- */
-typedef struct TriCoreCPU {
-    /*< private >*/
-    CPUState parent_obj;
-    /*< public >*/
-
-    CPUTriCoreState env;
-} TriCoreCPU;
-
-static inline TriCoreCPU *tricore_env_get_cpu(CPUTriCoreState *env)
-{
-    return TRICORE_CPU(container_of(env, TriCoreCPU, env));
-}
-
-#define ENV_GET_CPU(e) CPU(tricore_env_get_cpu(e))
-
-#define ENV_OFFSET offsetof(TriCoreCPU, env)
-
-hwaddr tricore_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
-void tricore_cpu_dump_state(CPUState *cpu, FILE *f,
-                            fprintf_function cpu_fprintf, int flags);
-
+typedef struct TriCoreCPU TriCoreCPU;
 
 #endif /*QEMU_TRICORE_CPU_QOM_H */

@@ -19,6 +19,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "cpu.h"
 #include "exec/gdbstub.h"
 
 static int ppc_gdb_register_len_apple(int n)

@@ -81,11 +81,12 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
             error_setg(errp, "%s: CPU initialization failed\n",  __func__);
             return;
         }
-        env = &cpu->env;
 
         /* Init internal devices */
-        cpu_mips_irq_init_cpu(env);
-        cpu_mips_clock_init(env);
+        cpu_mips_irq_init_cpu(cpu);
+        cpu_mips_clock_init(cpu);
+
+        env = &cpu->env;
         if (cpu_mips_itu_supported(env)) {
             itu_present = true;
             /* Attach ITC Tag to the VP */

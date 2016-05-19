@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/cpu/a9mpcore.h"
+#include "qom/cpu.h"
 
 static void a9mp_priv_set_irq(void *opaque, int irq, int level)
 {

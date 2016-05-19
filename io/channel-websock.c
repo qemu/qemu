@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/bswap.h"
 #include "io/channel-websock.h"
 #include "crypto/hash.h"
 #include "trace.h"

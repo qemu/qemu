@@ -8,6 +8,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/bitops.h"
 #include "qemu/crc32c.h"
+#include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "arm_ldst.h"
 #include <zlib.h> /* For crc32 */
@@ -5817,6 +5818,21 @@ static void do_v7m_exception_exit(CPUARMState *env)
        if there is a mismatch.  */
     /* ??? Likewise for mismatches between the CONTROL register and the stack
        pointer.  */
+}
+
+static void arm_log_exception(int idx)
+{
+    if (qemu_loglevel_mask(CPU_LOG_INT)) {
+        const char *exc = NULL;
+
+        if (idx >= 0 && idx < ARRAY_SIZE(excnames)) {
+            exc = excnames[idx];
+        }
+        if (!exc) {
+            exc = "unknown";
+        }
+        qemu_log_mask(CPU_LOG_INT, "Taking exception %d [%s]\n", idx, exc);
+    }
 }
 
 void arm_v7m_cpu_do_interrupt(CPUState *cs)

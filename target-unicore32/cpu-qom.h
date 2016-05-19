@@ -12,7 +12,6 @@
 #define QEMU_UC32_CPU_QOM_H
 
 #include "qom/cpu.h"
-#include "cpu.h"
 
 #define TYPE_UNICORE32_CPU "unicore32-cpu"
 
@@ -37,33 +36,6 @@ typedef struct UniCore32CPUClass {
     DeviceRealize parent_realize;
 } UniCore32CPUClass;
 
-/**
- * UniCore32CPU:
- * @env: #CPUUniCore32State
- *
- * A UniCore32 CPU.
- */
-typedef struct UniCore32CPU {
-    /*< private >*/
-    CPUState parent_obj;
-    /*< public >*/
-
-    CPUUniCore32State env;
-} UniCore32CPU;
-
-static inline UniCore32CPU *uc32_env_get_cpu(CPUUniCore32State *env)
-{
-    return container_of(env, UniCore32CPU, env);
-}
-
-#define ENV_GET_CPU(e) CPU(uc32_env_get_cpu(e))
-
-#define ENV_OFFSET offsetof(UniCore32CPU, env)
-
-void uc32_cpu_do_interrupt(CPUState *cpu);
-bool uc32_cpu_exec_interrupt(CPUState *cpu, int int_req);
-void uc32_cpu_dump_state(CPUState *cpu, FILE *f,
-                         fprintf_function cpu_fprintf, int flags);
-hwaddr uc32_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+typedef struct UniCore32CPU UniCore32CPU;
 
 #endif

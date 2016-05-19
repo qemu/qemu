@@ -378,17 +378,19 @@ struct NvdimmDsmIn {
     uint32_t function;
     /* the remaining size in the page is used by arg3. */
     union {
-        uint8_t arg3[0];
+        uint8_t arg3[4084];
     };
 } QEMU_PACKED;
 typedef struct NvdimmDsmIn NvdimmDsmIn;
+QEMU_BUILD_BUG_ON(sizeof(NvdimmDsmIn) != 4096);
 
 struct NvdimmDsmOut {
     /* the size of buffer filled by QEMU. */
     uint32_t len;
-    uint8_t data[0];
+    uint8_t data[4092];
 } QEMU_PACKED;
 typedef struct NvdimmDsmOut NvdimmDsmOut;
+QEMU_BUILD_BUG_ON(sizeof(NvdimmDsmOut) != 4096);
 
 struct NvdimmDsmFunc0Out {
     /* the size of buffer filled by QEMU. */
@@ -424,8 +426,8 @@ nvdimm_dsm_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
      * can change its content while we are doing DSM emulation. Avoid
      * this by copying DSM memory to QEMU local memory.
      */
-    in = g_malloc(TARGET_PAGE_SIZE);
-    cpu_physical_memory_read(dsm_mem_addr, in, TARGET_PAGE_SIZE);
+    in = g_new(NvdimmDsmIn, 1);
+    cpu_physical_memory_read(dsm_mem_addr, in, sizeof(*in));
 
     le32_to_cpus(&in->revision);
     le32_to_cpus(&in->function);
@@ -475,7 +477,7 @@ void nvdimm_init_acpi_state(AcpiNVDIMMState *state, MemoryRegion *io,
     memory_region_add_subregion(io, NVDIMM_ACPI_IO_BASE, &state->io_mr);
 
     state->dsm_mem = g_array_new(false, true /* clear */, 1);
-    acpi_data_push(state->dsm_mem, TARGET_PAGE_SIZE);
+    acpi_data_push(state->dsm_mem, sizeof(NvdimmDsmIn));
     fw_cfg_add_file(fw_cfg, NVDIMM_DSM_MEM_FILE, state->dsm_mem->data,
                     state->dsm_mem->len);
 }
@@ -608,7 +610,7 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
     aml_append(dev, aml_operation_region("NPIO", AML_SYSTEM_IO,
                aml_int(NVDIMM_ACPI_IO_BASE), NVDIMM_ACPI_IO_LEN));
     aml_append(dev, aml_operation_region("NRAM", AML_SYSTEM_MEMORY,
-               aml_name(NVDIMM_ACPI_MEM_ADDR), TARGET_PAGE_SIZE));
+               aml_name(NVDIMM_ACPI_MEM_ADDR), sizeof(NvdimmDsmIn)));
 
     /*
      * DSM notifier:
@@ -642,8 +644,7 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
     aml_append(field, aml_named_field("FUNC",
                sizeof(typeof_field(NvdimmDsmIn, function)) * BITS_PER_BYTE));
     aml_append(field, aml_named_field("ARG3",
-               (TARGET_PAGE_SIZE - offsetof(NvdimmDsmIn, arg3)) *
-                BITS_PER_BYTE));
+               (sizeof(NvdimmDsmIn) - offsetof(NvdimmDsmIn, arg3)) * BITS_PER_BYTE));
     aml_append(dev, field);
 
     /*
@@ -659,8 +660,7 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
     aml_append(field, aml_named_field("RLEN",
                sizeof(typeof_field(NvdimmDsmOut, len)) * BITS_PER_BYTE));
     aml_append(field, aml_named_field("ODAT",
-               (TARGET_PAGE_SIZE - offsetof(NvdimmDsmOut, data)) *
-                     BITS_PER_BYTE));
+               (sizeof(NvdimmDsmOut) - offsetof(NvdimmDsmOut, data)) * BITS_PER_BYTE));
     aml_append(dev, field);
 
     nvdimm_build_common_dsm(dev);
@@ -678,7 +678,7 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
     mem_addr_offset = build_append_named_dword(table_data,
                                                NVDIMM_ACPI_MEM_ADDR);
 
-    bios_linker_loader_alloc(linker, NVDIMM_DSM_MEM_FILE, TARGET_PAGE_SIZE,
+    bios_linker_loader_alloc(linker, NVDIMM_DSM_MEM_FILE, sizeof(NvdimmDsmIn),
                              false /* high memory */);
     bios_linker_loader_add_pointer(linker, ACPI_BUILD_TABLE_FILE,
                                    NVDIMM_DSM_MEM_FILE, table_data,

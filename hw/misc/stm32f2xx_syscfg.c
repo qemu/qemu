@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/misc/stm32f2xx_syscfg.h"
+#include "qemu/log.h"
 
 #ifndef STM_SYSCFG_ERR_DEBUG
 #define STM_SYSCFG_ERR_DEBUG 0
