@@ -17,6 +17,7 @@
 #include "trace.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-gpu.h"
+#include "qapi/error.h"
 
 #ifdef CONFIG_VIRGL
 
