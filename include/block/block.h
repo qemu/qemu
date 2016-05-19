@@ -320,27 +320,6 @@ BlockAIOCB *bdrv_aio_discard(BlockDriverState *bs,
 void bdrv_aio_cancel(BlockAIOCB *acb);
 void bdrv_aio_cancel_async(BlockAIOCB *acb);
 
-typedef struct BlockRequest {
-    /* Fields to be filled by caller */
-    union {
-        struct {
-            int64_t sector;
-            int nb_sectors;
-            int flags;
-            QEMUIOVector *qiov;
-        };
-        struct {
-            int req;
-            void *buf;
-        };
-    };
-    BlockCompletionFunc *cb;
-    void *opaque;
-
-    /* Filled by block layer */
-    int error;
-} BlockRequest;
-
 /* sg packet commands */
 int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf);
 BlockAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
