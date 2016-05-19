@@ -1,7 +1,7 @@
 /*
  * QEMU Block driver for native access to files on NFS shares
  *
- * Copyright (c) 2014 Peter Lieven <pl@kamp.de>
+ * Copyright (c) 2014-2016 Peter Lieven <pl@kamp.de>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -47,6 +47,7 @@ typedef struct NFSClient {
     bool has_zero_init;
     AioContext *aio_context;
     blkcnt_t st_blocks;
+    bool cache_used;
 } NFSClient;
 
 typedef struct NFSRPC {
@@ -278,7 +279,7 @@ static void nfs_file_close(BlockDriverState *bs)
 }
 
 static int64_t nfs_client_open(NFSClient *client, const char *filename,
-                               int flags, Error **errp)
+                               int flags, Error **errp, int open_flags)
 {
     int ret = -EINVAL, i;
     struct stat st;
@@ -330,12 +331,18 @@ static int64_t nfs_client_open(NFSClient *client, const char *filename,
             nfs_set_tcp_syncnt(client->context, val);
 #ifdef LIBNFS_FEATURE_READAHEAD
         } else if (!strcmp(qp->p[i].name, "readahead")) {
+            if (open_flags & BDRV_O_NOCACHE) {
+                error_setg(errp, "Cannot enable NFS readahead "
+                                 "if cache.direct = on");
+                goto fail;
+            }
             if (val > QEMU_NFS_MAX_READAHEAD_SIZE) {
                 error_report("NFS Warning: Truncating NFS readahead"
                              " size to %d", QEMU_NFS_MAX_READAHEAD_SIZE);
                 val = QEMU_NFS_MAX_READAHEAD_SIZE;
             }
             nfs_set_readahead(client->context, val);
+            client->cache_used = true;
 #endif
 #ifdef LIBNFS_FEATURE_DEBUG
         } else if (!strcmp(qp->p[i].name, "debug")) {
@@ -418,7 +425,7 @@ static int nfs_file_open(BlockDriverState *bs, QDict *options, int flags,
     }
     ret = nfs_client_open(client, qemu_opt_get(opts, "filename"),
                           (flags & BDRV_O_RDWR) ? O_RDWR : O_RDONLY,
-                          errp);
+                          errp, bs->open_flags);
     if (ret < 0) {
         goto out;
     }
@@ -454,7 +461,7 @@ static int nfs_file_create(const char *url, QemuOpts *opts, Error **errp)
     total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
                           BDRV_SECTOR_SIZE);
 
-    ret = nfs_client_open(client, url, O_CREAT, errp);
+    ret = nfs_client_open(client, url, O_CREAT, errp, 0);
     if (ret < 0) {
         goto out;
     }
@@ -514,6 +521,11 @@ static int nfs_reopen_prepare(BDRVReopenState *state,
     if (state->flags & BDRV_O_RDWR && bdrv_is_read_only(state->bs)) {
         error_setg(errp, "Cannot open a read-only mount as read-write");
         return -EACCES;
+    }
+
+    if ((state->flags & BDRV_O_NOCACHE) && client->cache_used) {
+        error_setg(errp, "Cannot disable cache if libnfs readahead is enabled");
+        return -EINVAL;
     }
 
     /* Update cache for read-only reopens */
