@@ -929,8 +929,8 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     bool have_virgl;
     int i;
 
-    if (g->conf.max_outputs > VIRTIO_GPU_MAX_SCANOUT) {
-        error_setg(errp, "invalid max_outputs > %d", VIRTIO_GPU_MAX_SCANOUT);
+    if (g->conf.max_outputs > VIRTIO_GPU_MAX_SCANOUTS) {
+        error_setg(errp, "invalid max_outputs > %d", VIRTIO_GPU_MAX_SCANOUTS);
         return;
     }
 
