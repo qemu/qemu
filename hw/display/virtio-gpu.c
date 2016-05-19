@@ -508,6 +508,14 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
     trace_virtio_gpu_cmd_set_scanout(ss.scanout_id, ss.resource_id,
                                      ss.r.width, ss.r.height, ss.r.x, ss.r.y);
 
+    if (ss.scanout_id >= VIRTIO_GPU_MAX_SCANOUT ||
+        ss.scanout_id >= g->conf.max_outputs) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal scanout id specified %d",
+                      __func__, ss.scanout_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_SCANOUT_ID;
+        return;
+    }
+
     g->enable = 1;
     if (ss.resource_id == 0) {
         scanout = &g->scanout[ss.scanout_id];
@@ -517,8 +525,7 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
                 res->scanout_bitmask &= ~(1 << ss.scanout_id);
             }
         }
-        if (ss.scanout_id == 0 ||
-            ss.scanout_id >= g->conf.max_outputs) {
+        if (ss.scanout_id == 0) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: illegal scanout id specified %d",
                           __func__, ss.scanout_id);
@@ -533,14 +540,6 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
     }
 
     /* create a surface for this scanout */
-    if (ss.scanout_id >= VIRTIO_GPU_MAX_SCANOUT ||
-        ss.scanout_id >= g->conf.max_outputs) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal scanout id specified %d",
-                      __func__, ss.scanout_id);
-        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_SCANOUT_ID;
-        return;
-    }
-
     res = virtio_gpu_find_resource(g, ss.resource_id);
     if (!res) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal resource specified %d\n",
