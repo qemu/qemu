@@ -20,6 +20,7 @@
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-bus.h"
 #include "qemu/log.h"
+#include "qapi/error.h"
 
 static struct virtio_gpu_simple_resource*
 virtio_gpu_find_resource(VirtIOGPU *g, uint32_t resource_id);
@@ -928,6 +929,11 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     VirtIOGPU *g = VIRTIO_GPU(qdev);
     bool have_virgl;
     int i;
+
+    if (g->conf.max_outputs > VIRTIO_GPU_MAX_SCANOUT) {
+        error_setg(errp, "invalid max_outputs > %d", VIRTIO_GPU_MAX_SCANOUT);
+        return;
+    }
 
     g->config_size = sizeof(struct virtio_gpu_config);
     g->virtio_config.num_scanouts = g->conf.max_outputs;
