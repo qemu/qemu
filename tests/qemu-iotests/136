@@ -226,18 +226,11 @@ sector = "%d"
 
         highest_offset = wr_ops * wr_size
 
-        # Two types of invalid operations: unaligned length and unaligned offset
-        for i in range(invalid_rd_ops / 2):
-            ops.append("aio_read 0 511")
+        for i in range(invalid_rd_ops):
+            ops.append("aio_read -i 0 512")
 
-        for i in range(invalid_rd_ops / 2, invalid_rd_ops):
-            ops.append("aio_read 13 512")
-
-        for i in range(invalid_wr_ops / 2):
-            ops.append("aio_write 0 511")
-
-        for i in range(invalid_wr_ops / 2, invalid_wr_ops):
-            ops.append("aio_write 13 512")
+        for i in range(invalid_wr_ops):
+            ops.append("aio_write -i 0 512")
 
         for i in range(failed_rd_ops):
             ops.append("aio_read %d 512" % bad_offset)
