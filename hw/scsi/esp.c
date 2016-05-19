@@ -448,7 +448,11 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
         break;
     case ESP_FIFO:
         if (s->do_cmd) {
-            s->cmdbuf[s->cmdlen++] = val & 0xff;
+            if (s->cmdlen < TI_BUFSZ) {
+                s->cmdbuf[s->cmdlen++] = val & 0xff;
+            } else {
+                trace_esp_error_fifo_overrun();
+            }
         } else if (s->ti_size == TI_BUFSZ - 1) {
             trace_esp_error_fifo_overrun();
         } else {
