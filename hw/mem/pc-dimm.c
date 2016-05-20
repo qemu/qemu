@@ -354,8 +354,9 @@ static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
     int64_t value;
     MemoryRegion *mr;
     PCDIMMDevice *dimm = PC_DIMM(obj);
+    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(obj);
 
-    mr = host_memory_backend_get_memory(dimm->hostmem, errp);
+    mr = ddc->get_memory_region(dimm);
     value = memory_region_size(mr);
 
     visit_type_int(v, name, &value, errp);

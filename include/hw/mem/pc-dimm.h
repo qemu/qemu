@@ -58,7 +58,8 @@ typedef struct PCDIMMDevice {
 
 /**
  * PCDIMMDeviceClass:
- * @get_memory_region: returns #MemoryRegion associated with @dimm
+ * @get_memory_region: returns #MemoryRegion associated with @dimm which
+ * is directly mapped into the physical address space of guest
  */
 typedef struct PCDIMMDeviceClass {
     /* private */
