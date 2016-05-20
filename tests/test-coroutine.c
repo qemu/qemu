@@ -369,7 +369,15 @@ static void perf_cost(void)
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
-    g_test_add_func("/basic/co_queue", test_co_queue);
+
+    /* This test assumes there is a freelist and marks freed coroutine memory
+     * with a sentinel value.  If there is no freelist this would legitimately
+     * crash, so skip it.
+     */
+    if (CONFIG_COROUTINE_POOL) {
+        g_test_add_func("/basic/co_queue", test_co_queue);
+    }
+
     g_test_add_func("/basic/lifecycle", test_lifecycle);
     g_test_add_func("/basic/yield", test_yield);
     g_test_add_func("/basic/nesting", test_nesting);
