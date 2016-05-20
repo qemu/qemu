@@ -58,6 +58,8 @@ typedef struct PCDIMMDevice {
 
 /**
  * PCDIMMDeviceClass:
+ * @realize: called after common dimm is realized so that the dimm based
+ * devices get the chance to do specified operations.
  * @get_memory_region: returns #MemoryRegion associated with @dimm which
  * is directly mapped into the physical address space of guest
  */
@@ -66,6 +68,7 @@ typedef struct PCDIMMDeviceClass {
     DeviceClass parent_class;
 
     /* public */
+    void (*realize)(PCDIMMDevice *dimm, Error **errp);
     MemoryRegion *(*get_memory_region)(PCDIMMDevice *dimm);
 } PCDIMMDeviceClass;
 
