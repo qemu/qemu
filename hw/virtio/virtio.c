@@ -1062,13 +1062,6 @@ int virtio_get_num_queues(VirtIODevice *vdev)
     return i;
 }
 
-int virtio_queue_get_id(VirtQueue *vq)
-{
-    VirtIODevice *vdev = vq->vdev;
-    assert(vq >= &vdev->vq[0] && vq < &vdev->vq[VIRTIO_QUEUE_MAX]);
-    return vq - &vdev->vq[0];
-}
-
 void virtio_queue_set_align(VirtIODevice *vdev, int n, int align)
 {
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
