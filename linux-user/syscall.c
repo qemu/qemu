@@ -3152,13 +3152,17 @@ static inline abi_long do_msgsnd(int msqid, abi_long msgp,
 }
 
 static inline abi_long do_msgrcv(int msqid, abi_long msgp,
-                                 unsigned int msgsz, abi_long msgtyp,
+                                 ssize_t msgsz, abi_long msgtyp,
                                  int msgflg)
 {
     struct target_msgbuf *target_mb;
     char *target_mtext;
     struct msgbuf *host_mb;
     abi_long ret = 0;
+
+    if (msgsz < 0) {
+        return -TARGET_EINVAL;
+    }
 
     if (!lock_user_struct(VERIFY_WRITE, target_mb, msgp, 0))
         return -TARGET_EFAULT;
