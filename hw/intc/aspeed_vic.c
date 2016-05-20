@@ -31,6 +31,7 @@
 #include <inttypes.h>
 #include "hw/intc/aspeed_vic.h"
 #include "qemu/bitops.h"
+#include "qemu/log.h"
 #include "trace.h"
 
 #define AVIC_NEW_BASE_OFFSET 0x80
