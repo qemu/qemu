@@ -67,6 +67,7 @@
 #include "qapi/visitor.h"
 #include "qapi-visit.h"
 #include "qom/cpu.h"
+#include "hw/nmi.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
@@ -1963,11 +1964,28 @@ static CPUArchIdList *pc_possible_cpu_arch_ids(MachineState *machine)
     return list;
 }
 
+static void x86_nmi(NMIState *n, int cpu_index, Error **errp)
+{
+    /* cpu index isn't used */
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        X86CPU *cpu = X86_CPU(cs);
+
+        if (!cpu->apic_state) {
+            cpu_interrupt(cs, CPU_INTERRUPT_NMI);
+        } else {
+            apic_deliver_nmi(cpu->apic_state);
+        }
+    }
+}
+
 static void pc_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     PCMachineClass *pcmc = PC_MACHINE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
+    NMIClass *nc = NMI_CLASS(oc);
 
     pcmc->get_hotplug_handler = mc->get_hotplug_handler;
     pcmc->pci_enabled = true;
@@ -1993,6 +2011,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     hc->plug = pc_machine_device_plug_cb;
     hc->unplug_request = pc_machine_device_unplug_request_cb;
     hc->unplug = pc_machine_device_unplug_cb;
+    nc->nmi_monitor_handler = x86_nmi;
 }
 
 static const TypeInfo pc_machine_info = {
@@ -2005,6 +2024,7 @@ static const TypeInfo pc_machine_info = {
     .class_init = pc_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
          { TYPE_HOTPLUG_HANDLER },
+         { TYPE_NMI },
          { }
     },
 };
