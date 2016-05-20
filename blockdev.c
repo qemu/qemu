@@ -4164,9 +4164,9 @@ BlockJobInfoList *qmp_query_block_jobs(Error **errp)
 {
     BlockJobInfoList *head = NULL, **p_next = &head;
     BlockDriverState *bs;
-    BdrvNextIterator *it = NULL;
+    BdrvNextIterator it;
 
-    while ((it = bdrv_next(it, &bs))) {
+    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);

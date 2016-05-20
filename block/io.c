@@ -271,10 +271,10 @@ void bdrv_drain_all(void)
     /* Always run first iteration so any pending completion BHs run */
     bool busy = true;
     BlockDriverState *bs;
-    BdrvNextIterator *it = NULL;
+    BdrvNextIterator it;
     GSList *aio_ctxs = NULL, *ctx;
 
-    while ((it = bdrv_next(it, &bs))) {
+    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
@@ -302,10 +302,9 @@ void bdrv_drain_all(void)
 
         for (ctx = aio_ctxs; ctx != NULL; ctx = ctx->next) {
             AioContext *aio_context = ctx->data;
-            it = NULL;
 
             aio_context_acquire(aio_context);
-            while ((it = bdrv_next(it, &bs))) {
+            for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
                 if (aio_context == bdrv_get_aio_context(bs)) {
                     if (bdrv_requests_pending(bs)) {
                         busy = true;
@@ -318,8 +317,7 @@ void bdrv_drain_all(void)
         }
     }
 
-    it = NULL;
-    while ((it = bdrv_next(it, &bs))) {
+    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
