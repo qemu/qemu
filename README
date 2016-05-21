@@ -17,8 +17,8 @@ Useful make commands when rebuilding:
     make clean
 
 If you receive a warning during compilation, this may cause the build to fail.
-In this case you can pass this option to the "configure" command to ignore
-warnings:
+In this case you can pass the following option to the "configure" command to
+ignore warnings:
     --disable-werror
 
 The generated executable is arm-softmmu/qemu-system-arm .
