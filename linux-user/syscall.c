@@ -2718,7 +2718,8 @@ static abi_long do_socket(int domain, int type, int protocol)
     }
 
     if (domain == PF_NETLINK &&
-        protocol != NETLINK_ROUTE) {
+        !(protocol == NETLINK_ROUTE ||
+          protocol == NETLINK_KOBJECT_UEVENT)) {
         return -EPFNOSUPPORT;
     }
 
@@ -2739,6 +2740,9 @@ static abi_long do_socket(int domain, int type, int protocol)
             switch (protocol) {
             case NETLINK_ROUTE:
                 fd_trans_register(ret, &target_netlink_route_trans);
+                break;
+            case NETLINK_KOBJECT_UEVENT:
+                /* nothing to do: messages are strings */
                 break;
             default:
                 g_assert_not_reached();
