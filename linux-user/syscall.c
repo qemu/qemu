@@ -101,6 +101,8 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/route.h>
 #include <linux/filter.h>
 #include <linux/blkpg.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
 #include "linux_loop.h"
 #include "uname.h"
 
@@ -303,6 +305,14 @@ typedef struct TargetFdTrans {
 static TargetFdTrans **target_fd_trans;
 
 static unsigned int target_fd_max;
+
+static TargetFdDataFunc fd_trans_target_to_host_data(int fd)
+{
+    if (fd >= 0 && fd < target_fd_max && target_fd_trans[fd]) {
+        return target_fd_trans[fd]->target_to_host_data;
+    }
+    return NULL;
+}
 
 static TargetFdDataFunc fd_trans_host_to_target_data(int fd)
 {
@@ -1261,7 +1271,13 @@ static inline abi_long target_to_host_sockaddr(int fd, struct sockaddr *addr,
 
     memcpy(addr, target_saddr, len);
     addr->sa_family = sa_family;
-    if (sa_family == AF_PACKET) {
+    if (sa_family == AF_NETLINK) {
+        struct sockaddr_nl *nladdr;
+
+        nladdr = (struct sockaddr_nl *)addr;
+        nladdr->nl_pid = tswap32(nladdr->nl_pid);
+        nladdr->nl_groups = tswap32(nladdr->nl_groups);
+    } else if (sa_family == AF_PACKET) {
 	struct target_sockaddr_ll *lladdr;
 
 	lladdr = (struct target_sockaddr_ll *)addr;
@@ -1284,6 +1300,11 @@ static inline abi_long host_to_target_sockaddr(abi_ulong target_addr,
         return -TARGET_EFAULT;
     memcpy(target_saddr, addr, len);
     target_saddr->sa_family = tswap16(addr->sa_family);
+    if (addr->sa_family == AF_NETLINK) {
+        struct sockaddr_nl *target_nl = (struct sockaddr_nl *)target_saddr;
+        target_nl->nl_pid = tswap32(target_nl->nl_pid);
+        target_nl->nl_groups = tswap32(target_nl->nl_groups);
+    }
     unlock_user(target_saddr, target_addr, len);
 
     return 0;
@@ -1513,6 +1534,511 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
  the_end:
     target_msgh->msg_controllen = tswapal(space);
     return 0;
+}
+
+static void tswap_nlmsghdr(struct nlmsghdr *nlh)
+{
+    nlh->nlmsg_len = tswap32(nlh->nlmsg_len);
+    nlh->nlmsg_type = tswap16(nlh->nlmsg_type);
+    nlh->nlmsg_flags = tswap16(nlh->nlmsg_flags);
+    nlh->nlmsg_seq = tswap32(nlh->nlmsg_seq);
+    nlh->nlmsg_pid = tswap32(nlh->nlmsg_pid);
+}
+
+static abi_long host_to_target_for_each_nlmsg(struct nlmsghdr *nlh,
+                                              size_t len,
+                                              abi_long (*host_to_target_nlmsg)
+                                                       (struct nlmsghdr *))
+{
+    uint32_t nlmsg_len;
+    abi_long ret;
+
+    while (len > sizeof(struct nlmsghdr)) {
+
+        nlmsg_len = nlh->nlmsg_len;
+        if (nlmsg_len < sizeof(struct nlmsghdr) ||
+            nlmsg_len > len) {
+            break;
+        }
+
+        switch (nlh->nlmsg_type) {
+        case NLMSG_DONE:
+            tswap_nlmsghdr(nlh);
+            return 0;
+        case NLMSG_NOOP:
+            break;
+        case NLMSG_ERROR:
+        {
+            struct nlmsgerr *e = NLMSG_DATA(nlh);
+            e->error = tswap32(e->error);
+            tswap_nlmsghdr(&e->msg);
+            tswap_nlmsghdr(nlh);
+            return 0;
+        }
+        default:
+            ret = host_to_target_nlmsg(nlh);
+            if (ret < 0) {
+                tswap_nlmsghdr(nlh);
+                return ret;
+            }
+            break;
+        }
+        tswap_nlmsghdr(nlh);
+        len -= NLMSG_ALIGN(nlmsg_len);
+        nlh = (struct nlmsghdr *)(((char*)nlh) + NLMSG_ALIGN(nlmsg_len));
+    }
+    return 0;
+}
+
+static abi_long target_to_host_for_each_nlmsg(struct nlmsghdr *nlh,
+                                              size_t len,
+                                              abi_long (*target_to_host_nlmsg)
+                                                       (struct nlmsghdr *))
+{
+    int ret;
+
+    while (len > sizeof(struct nlmsghdr)) {
+        if (tswap32(nlh->nlmsg_len) < sizeof(struct nlmsghdr) ||
+            tswap32(nlh->nlmsg_len) > len) {
+            break;
+        }
+        tswap_nlmsghdr(nlh);
+        switch (nlh->nlmsg_type) {
+        case NLMSG_DONE:
+            return 0;
+        case NLMSG_NOOP:
+            break;
+        case NLMSG_ERROR:
+        {
+            struct nlmsgerr *e = NLMSG_DATA(nlh);
+            e->error = tswap32(e->error);
+            tswap_nlmsghdr(&e->msg);
+        }
+        default:
+            ret = target_to_host_nlmsg(nlh);
+            if (ret < 0) {
+                return ret;
+            }
+        }
+        len -= NLMSG_ALIGN(nlh->nlmsg_len);
+        nlh = (struct nlmsghdr *)(((char *)nlh) + NLMSG_ALIGN(nlh->nlmsg_len));
+    }
+    return 0;
+}
+
+static abi_long host_to_target_for_each_rtattr(struct rtattr *rtattr,
+                                               size_t len,
+                                               abi_long (*host_to_target_rtattr)
+                                                        (struct rtattr *))
+{
+    unsigned short rta_len;
+    abi_long ret;
+
+    while (len > sizeof(struct rtattr)) {
+        rta_len = rtattr->rta_len;
+        if (rta_len < sizeof(struct rtattr) ||
+            rta_len > len) {
+            break;
+        }
+        ret = host_to_target_rtattr(rtattr);
+        rtattr->rta_len = tswap16(rtattr->rta_len);
+        rtattr->rta_type = tswap16(rtattr->rta_type);
+        if (ret < 0) {
+            return ret;
+        }
+        len -= RTA_ALIGN(rta_len);
+        rtattr = (struct rtattr *)(((char *)rtattr) + RTA_ALIGN(rta_len));
+    }
+    return 0;
+}
+
+static abi_long host_to_target_data_link_rtattr(struct rtattr *rtattr)
+{
+    uint32_t *u32;
+    struct rtnl_link_stats *st;
+    struct rtnl_link_stats64 *st64;
+    struct rtnl_link_ifmap *map;
+
+    switch (rtattr->rta_type) {
+    /* binary stream */
+    case IFLA_ADDRESS:
+    case IFLA_BROADCAST:
+    /* string */
+    case IFLA_IFNAME:
+    case IFLA_QDISC:
+        break;
+    /* uin8_t */
+    case IFLA_OPERSTATE:
+    case IFLA_LINKMODE:
+    case IFLA_CARRIER:
+    case IFLA_PROTO_DOWN:
+        break;
+    /* uint32_t */
+    case IFLA_MTU:
+    case IFLA_LINK:
+    case IFLA_WEIGHT:
+    case IFLA_TXQLEN:
+    case IFLA_CARRIER_CHANGES:
+    case IFLA_NUM_RX_QUEUES:
+    case IFLA_NUM_TX_QUEUES:
+    case IFLA_PROMISCUITY:
+    case IFLA_EXT_MASK:
+    case IFLA_LINK_NETNSID:
+    case IFLA_GROUP:
+    case IFLA_MASTER:
+    case IFLA_NUM_VF:
+        u32 = RTA_DATA(rtattr);
+        *u32 = tswap32(*u32);
+        break;
+    /* struct rtnl_link_stats */
+    case IFLA_STATS:
+        st = RTA_DATA(rtattr);
+        st->rx_packets = tswap32(st->rx_packets);
+        st->tx_packets = tswap32(st->tx_packets);
+        st->rx_bytes = tswap32(st->rx_bytes);
+        st->tx_bytes = tswap32(st->tx_bytes);
+        st->rx_errors = tswap32(st->rx_errors);
+        st->tx_errors = tswap32(st->tx_errors);
+        st->rx_dropped = tswap32(st->rx_dropped);
+        st->tx_dropped = tswap32(st->tx_dropped);
+        st->multicast = tswap32(st->multicast);
+        st->collisions = tswap32(st->collisions);
+
+        /* detailed rx_errors: */
+        st->rx_length_errors = tswap32(st->rx_length_errors);
+        st->rx_over_errors = tswap32(st->rx_over_errors);
+        st->rx_crc_errors = tswap32(st->rx_crc_errors);
+        st->rx_frame_errors = tswap32(st->rx_frame_errors);
+        st->rx_fifo_errors = tswap32(st->rx_fifo_errors);
+        st->rx_missed_errors = tswap32(st->rx_missed_errors);
+
+        /* detailed tx_errors */
+        st->tx_aborted_errors = tswap32(st->tx_aborted_errors);
+        st->tx_carrier_errors = tswap32(st->tx_carrier_errors);
+        st->tx_fifo_errors = tswap32(st->tx_fifo_errors);
+        st->tx_heartbeat_errors = tswap32(st->tx_heartbeat_errors);
+        st->tx_window_errors = tswap32(st->tx_window_errors);
+
+        /* for cslip etc */
+        st->rx_compressed = tswap32(st->rx_compressed);
+        st->tx_compressed = tswap32(st->tx_compressed);
+        break;
+    /* struct rtnl_link_stats64 */
+    case IFLA_STATS64:
+        st64 = RTA_DATA(rtattr);
+        st64->rx_packets = tswap64(st64->rx_packets);
+        st64->tx_packets = tswap64(st64->tx_packets);
+        st64->rx_bytes = tswap64(st64->rx_bytes);
+        st64->tx_bytes = tswap64(st64->tx_bytes);
+        st64->rx_errors = tswap64(st64->rx_errors);
+        st64->tx_errors = tswap64(st64->tx_errors);
+        st64->rx_dropped = tswap64(st64->rx_dropped);
+        st64->tx_dropped = tswap64(st64->tx_dropped);
+        st64->multicast = tswap64(st64->multicast);
+        st64->collisions = tswap64(st64->collisions);
+
+        /* detailed rx_errors: */
+        st64->rx_length_errors = tswap64(st64->rx_length_errors);
+        st64->rx_over_errors = tswap64(st64->rx_over_errors);
+        st64->rx_crc_errors = tswap64(st64->rx_crc_errors);
+        st64->rx_frame_errors = tswap64(st64->rx_frame_errors);
+        st64->rx_fifo_errors = tswap64(st64->rx_fifo_errors);
+        st64->rx_missed_errors = tswap64(st64->rx_missed_errors);
+
+        /* detailed tx_errors */
+        st64->tx_aborted_errors = tswap64(st64->tx_aborted_errors);
+        st64->tx_carrier_errors = tswap64(st64->tx_carrier_errors);
+        st64->tx_fifo_errors = tswap64(st64->tx_fifo_errors);
+        st64->tx_heartbeat_errors = tswap64(st64->tx_heartbeat_errors);
+        st64->tx_window_errors = tswap64(st64->tx_window_errors);
+
+        /* for cslip etc */
+        st64->rx_compressed = tswap64(st64->rx_compressed);
+        st64->tx_compressed = tswap64(st64->tx_compressed);
+        break;
+    /* struct rtnl_link_ifmap */
+    case IFLA_MAP:
+        map = RTA_DATA(rtattr);
+        map->mem_start = tswap64(map->mem_start);
+        map->mem_end = tswap64(map->mem_end);
+        map->base_addr = tswap64(map->base_addr);
+        map->irq = tswap16(map->irq);
+        break;
+    /* nested */
+    case IFLA_AF_SPEC:
+    case IFLA_LINKINFO:
+        /* FIXME: implement nested type */
+        gemu_log("Unimplemented nested type %d\n", rtattr->rta_type);
+        break;
+    default:
+        gemu_log("Unknown host IFLA type: %d\n", rtattr->rta_type);
+        break;
+    }
+    return 0;
+}
+
+static abi_long host_to_target_data_addr_rtattr(struct rtattr *rtattr)
+{
+    uint32_t *u32;
+    struct ifa_cacheinfo *ci;
+
+    switch (rtattr->rta_type) {
+    /* binary: depends on family type */
+    case IFA_ADDRESS:
+    case IFA_LOCAL:
+        break;
+    /* string */
+    case IFA_LABEL:
+        break;
+    /* u32 */
+    case IFA_FLAGS:
+    case IFA_BROADCAST:
+        u32 = RTA_DATA(rtattr);
+        *u32 = tswap32(*u32);
+        break;
+    /* struct ifa_cacheinfo */
+    case IFA_CACHEINFO:
+        ci = RTA_DATA(rtattr);
+        ci->ifa_prefered = tswap32(ci->ifa_prefered);
+        ci->ifa_valid = tswap32(ci->ifa_valid);
+        ci->cstamp = tswap32(ci->cstamp);
+        ci->tstamp = tswap32(ci->tstamp);
+        break;
+    default:
+        gemu_log("Unknown host IFA type: %d\n", rtattr->rta_type);
+        break;
+    }
+    return 0;
+}
+
+static abi_long host_to_target_data_route_rtattr(struct rtattr *rtattr)
+{
+    uint32_t *u32;
+    switch (rtattr->rta_type) {
+    /* binary: depends on family type */
+    case RTA_GATEWAY:
+    case RTA_DST:
+    case RTA_PREFSRC:
+        break;
+    /* u32 */
+    case RTA_PRIORITY:
+    case RTA_TABLE:
+    case RTA_OIF:
+        u32 = RTA_DATA(rtattr);
+        *u32 = tswap32(*u32);
+        break;
+    default:
+        gemu_log("Unknown host RTA type: %d\n", rtattr->rta_type);
+        break;
+    }
+    return 0;
+}
+
+static abi_long host_to_target_link_rtattr(struct rtattr *rtattr,
+                                         uint32_t rtattr_len)
+{
+    return host_to_target_for_each_rtattr(rtattr, rtattr_len,
+                                          host_to_target_data_link_rtattr);
+}
+
+static abi_long host_to_target_addr_rtattr(struct rtattr *rtattr,
+                                         uint32_t rtattr_len)
+{
+    return host_to_target_for_each_rtattr(rtattr, rtattr_len,
+                                          host_to_target_data_addr_rtattr);
+}
+
+static abi_long host_to_target_route_rtattr(struct rtattr *rtattr,
+                                         uint32_t rtattr_len)
+{
+    return host_to_target_for_each_rtattr(rtattr, rtattr_len,
+                                          host_to_target_data_route_rtattr);
+}
+
+static abi_long host_to_target_data_route(struct nlmsghdr *nlh)
+{
+    uint32_t nlmsg_len;
+    struct ifinfomsg *ifi;
+    struct ifaddrmsg *ifa;
+    struct rtmsg *rtm;
+
+    nlmsg_len = nlh->nlmsg_len;
+    switch (nlh->nlmsg_type) {
+    case RTM_NEWLINK:
+    case RTM_DELLINK:
+    case RTM_GETLINK:
+        ifi = NLMSG_DATA(nlh);
+        ifi->ifi_type = tswap16(ifi->ifi_type);
+        ifi->ifi_index = tswap32(ifi->ifi_index);
+        ifi->ifi_flags = tswap32(ifi->ifi_flags);
+        ifi->ifi_change = tswap32(ifi->ifi_change);
+        host_to_target_link_rtattr(IFLA_RTA(ifi),
+                                   nlmsg_len - NLMSG_LENGTH(sizeof(*ifi)));
+        break;
+    case RTM_NEWADDR:
+    case RTM_DELADDR:
+    case RTM_GETADDR:
+        ifa = NLMSG_DATA(nlh);
+        ifa->ifa_index = tswap32(ifa->ifa_index);
+        host_to_target_addr_rtattr(IFA_RTA(ifa),
+                                   nlmsg_len - NLMSG_LENGTH(sizeof(*ifa)));
+        break;
+    case RTM_NEWROUTE:
+    case RTM_DELROUTE:
+    case RTM_GETROUTE:
+        rtm = NLMSG_DATA(nlh);
+        rtm->rtm_flags = tswap32(rtm->rtm_flags);
+        host_to_target_route_rtattr(RTM_RTA(rtm),
+                                    nlmsg_len - NLMSG_LENGTH(sizeof(*rtm)));
+        break;
+    default:
+        return -TARGET_EINVAL;
+    }
+    return 0;
+}
+
+static inline abi_long host_to_target_nlmsg_route(struct nlmsghdr *nlh,
+                                                  size_t len)
+{
+    return host_to_target_for_each_nlmsg(nlh, len, host_to_target_data_route);
+}
+
+static abi_long target_to_host_for_each_rtattr(struct rtattr *rtattr,
+                                               size_t len,
+                                               abi_long (*target_to_host_rtattr)
+                                                        (struct rtattr *))
+{
+    abi_long ret;
+
+    while (len >= sizeof(struct rtattr)) {
+        if (tswap16(rtattr->rta_len) < sizeof(struct rtattr) ||
+            tswap16(rtattr->rta_len) > len) {
+            break;
+        }
+        rtattr->rta_len = tswap16(rtattr->rta_len);
+        rtattr->rta_type = tswap16(rtattr->rta_type);
+        ret = target_to_host_rtattr(rtattr);
+        if (ret < 0) {
+            return ret;
+        }
+        len -= RTA_ALIGN(rtattr->rta_len);
+        rtattr = (struct rtattr *)(((char *)rtattr) +
+                 RTA_ALIGN(rtattr->rta_len));
+    }
+    return 0;
+}
+
+static abi_long target_to_host_data_link_rtattr(struct rtattr *rtattr)
+{
+    switch (rtattr->rta_type) {
+    default:
+        gemu_log("Unknown target IFLA type: %d\n", rtattr->rta_type);
+        break;
+    }
+    return 0;
+}
+
+static abi_long target_to_host_data_addr_rtattr(struct rtattr *rtattr)
+{
+    switch (rtattr->rta_type) {
+    /* binary: depends on family type */
+    case IFA_LOCAL:
+    case IFA_ADDRESS:
+        break;
+    default:
+        gemu_log("Unknown target IFA type: %d\n", rtattr->rta_type);
+        break;
+    }
+    return 0;
+}
+
+static abi_long target_to_host_data_route_rtattr(struct rtattr *rtattr)
+{
+    uint32_t *u32;
+    switch (rtattr->rta_type) {
+    /* binary: depends on family type */
+    case RTA_DST:
+    case RTA_SRC:
+    case RTA_GATEWAY:
+        break;
+    /* u32 */
+    case RTA_OIF:
+        u32 = RTA_DATA(rtattr);
+        *u32 = tswap32(*u32);
+        break;
+    default:
+        gemu_log("Unknown target RTA type: %d\n", rtattr->rta_type);
+        break;
+    }
+    return 0;
+}
+
+static void target_to_host_link_rtattr(struct rtattr *rtattr,
+                                       uint32_t rtattr_len)
+{
+    target_to_host_for_each_rtattr(rtattr, rtattr_len,
+                                   target_to_host_data_link_rtattr);
+}
+
+static void target_to_host_addr_rtattr(struct rtattr *rtattr,
+                                     uint32_t rtattr_len)
+{
+    target_to_host_for_each_rtattr(rtattr, rtattr_len,
+                                   target_to_host_data_addr_rtattr);
+}
+
+static void target_to_host_route_rtattr(struct rtattr *rtattr,
+                                     uint32_t rtattr_len)
+{
+    target_to_host_for_each_rtattr(rtattr, rtattr_len,
+                                   target_to_host_data_route_rtattr);
+}
+
+static abi_long target_to_host_data_route(struct nlmsghdr *nlh)
+{
+    struct ifinfomsg *ifi;
+    struct ifaddrmsg *ifa;
+    struct rtmsg *rtm;
+
+    switch (nlh->nlmsg_type) {
+    case RTM_GETLINK:
+        break;
+    case RTM_NEWLINK:
+    case RTM_DELLINK:
+        ifi = NLMSG_DATA(nlh);
+        ifi->ifi_type = tswap16(ifi->ifi_type);
+        ifi->ifi_index = tswap32(ifi->ifi_index);
+        ifi->ifi_flags = tswap32(ifi->ifi_flags);
+        ifi->ifi_change = tswap32(ifi->ifi_change);
+        target_to_host_link_rtattr(IFLA_RTA(ifi), nlh->nlmsg_len -
+                                   NLMSG_LENGTH(sizeof(*ifi)));
+        break;
+    case RTM_GETADDR:
+    case RTM_NEWADDR:
+    case RTM_DELADDR:
+        ifa = NLMSG_DATA(nlh);
+        ifa->ifa_index = tswap32(ifa->ifa_index);
+        target_to_host_addr_rtattr(IFA_RTA(ifa), nlh->nlmsg_len -
+                                   NLMSG_LENGTH(sizeof(*ifa)));
+        break;
+    case RTM_GETROUTE:
+        break;
+    case RTM_NEWROUTE:
+    case RTM_DELROUTE:
+        rtm = NLMSG_DATA(nlh);
+        rtm->rtm_flags = tswap32(rtm->rtm_flags);
+        target_to_host_route_rtattr(RTM_RTA(rtm), nlh->nlmsg_len -
+                                    NLMSG_LENGTH(sizeof(*rtm)));
+        break;
+    default:
+        return -TARGET_EOPNOTSUPP;
+    }
+    return 0;
+}
+
+static abi_long target_to_host_nlmsg_route(struct nlmsghdr *nlh, size_t len)
+{
+    return target_to_host_for_each_nlmsg(nlh, len, target_to_host_data_route);
 }
 
 /* do_setsockopt() Must return target values and target errnos. */
@@ -2165,6 +2691,21 @@ static TargetFdTrans target_packet_trans = {
     .target_to_host_addr = packet_target_to_host_sockaddr,
 };
 
+static abi_long netlink_route_target_to_host(void *buf, size_t len)
+{
+    return target_to_host_nlmsg_route(buf, len);
+}
+
+static abi_long netlink_route_host_to_target(void *buf, size_t len)
+{
+    return host_to_target_nlmsg_route(buf, len);
+}
+
+static TargetFdTrans target_netlink_route_trans = {
+    .target_to_host_data = netlink_route_target_to_host,
+    .host_to_target_data = netlink_route_host_to_target,
+};
+
 /* do_socket() Must return target values and target errnos. */
 static abi_long do_socket(int domain, int type, int protocol)
 {
@@ -2176,8 +2717,10 @@ static abi_long do_socket(int domain, int type, int protocol)
         return ret;
     }
 
-    if (domain == PF_NETLINK)
-        return -TARGET_EAFNOSUPPORT;
+    if (domain == PF_NETLINK &&
+        protocol != NETLINK_ROUTE) {
+        return -EPFNOSUPPORT;
+    }
 
     if (domain == AF_PACKET ||
         (domain == AF_INET && type == SOCK_PACKET)) {
@@ -2192,6 +2735,14 @@ static abi_long do_socket(int domain, int type, int protocol)
              * if socket type is SOCK_PACKET, bind by name
              */
             fd_trans_register(ret, &target_packet_trans);
+        } else if (domain == PF_NETLINK) {
+            switch (protocol) {
+            case NETLINK_ROUTE:
+                fd_trans_register(ret, &target_netlink_route_trans);
+                break;
+            default:
+                g_assert_not_reached();
+            }
         }
     }
     return ret;
@@ -2276,14 +2827,25 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
     msg.msg_iov = vec;
 
     if (send) {
-        ret = target_to_host_cmsg(&msg, msgp);
-        if (ret == 0)
+        if (fd_trans_target_to_host_data(fd)) {
+            ret = fd_trans_target_to_host_data(fd)(msg.msg_iov->iov_base,
+                                                   msg.msg_iov->iov_len);
+        } else {
+            ret = target_to_host_cmsg(&msg, msgp);
+        }
+        if (ret == 0) {
             ret = get_errno(sendmsg(fd, &msg, flags));
+        }
     } else {
         ret = get_errno(recvmsg(fd, &msg, flags));
         if (!is_error(ret)) {
             len = ret;
-            ret = host_to_target_cmsg(msgp, &msg);
+            if (fd_trans_host_to_target_data(fd)) {
+                ret = fd_trans_host_to_target_data(fd)(msg.msg_iov->iov_base,
+                                                       msg.msg_iov->iov_len);
+            } else {
+                ret = host_to_target_cmsg(msgp, &msg);
+            }
             if (!is_error(ret)) {
                 msgp->msg_namelen = tswap32(msg.msg_namelen);
                 if (msg.msg_name != NULL) {
@@ -2510,6 +3072,13 @@ static abi_long do_sendto(int fd, abi_ulong msg, size_t len, int flags,
     host_msg = lock_user(VERIFY_READ, msg, len, 1);
     if (!host_msg)
         return -TARGET_EFAULT;
+    if (fd_trans_target_to_host_data(fd)) {
+        ret = fd_trans_target_to_host_data(fd)(host_msg, len);
+        if (ret < 0) {
+            unlock_user(host_msg, msg, 0);
+            return ret;
+        }
+    }
     if (target_addr) {
         addr = alloca(addrlen+1);
         ret = target_to_host_sockaddr(fd, addr, target_addr, addrlen);
