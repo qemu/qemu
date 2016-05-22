@@ -103,6 +103,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/blkpg.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#include <linux/audit.h>
 #include "linux_loop.h"
 #include "uname.h"
 
@@ -2041,6 +2042,44 @@ static abi_long target_to_host_nlmsg_route(struct nlmsghdr *nlh, size_t len)
     return target_to_host_for_each_nlmsg(nlh, len, target_to_host_data_route);
 }
 
+static abi_long host_to_target_data_audit(struct nlmsghdr *nlh)
+{
+    switch (nlh->nlmsg_type) {
+    default:
+        gemu_log("Unknown host audit message type %d\n",
+                 nlh->nlmsg_type);
+        return -TARGET_EINVAL;
+    }
+    return 0;
+}
+
+static inline abi_long host_to_target_nlmsg_audit(struct nlmsghdr *nlh,
+                                                  size_t len)
+{
+    return host_to_target_for_each_nlmsg(nlh, len, host_to_target_data_audit);
+}
+
+static abi_long target_to_host_data_audit(struct nlmsghdr *nlh)
+{
+    switch (nlh->nlmsg_type) {
+    case AUDIT_USER:
+    case AUDIT_FIRST_USER_MSG ... AUDIT_LAST_USER_MSG:
+    case AUDIT_FIRST_USER_MSG2 ... AUDIT_LAST_USER_MSG2:
+        break;
+    default:
+        gemu_log("Unknown target audit message type %d\n",
+                 nlh->nlmsg_type);
+        return -TARGET_EINVAL;
+    }
+
+    return 0;
+}
+
+static abi_long target_to_host_nlmsg_audit(struct nlmsghdr *nlh, size_t len)
+{
+    return target_to_host_for_each_nlmsg(nlh, len, target_to_host_data_audit);
+}
+
 /* do_setsockopt() Must return target values and target errnos. */
 static abi_long do_setsockopt(int sockfd, int level, int optname,
                               abi_ulong optval_addr, socklen_t optlen)
@@ -2706,6 +2745,21 @@ static TargetFdTrans target_netlink_route_trans = {
     .host_to_target_data = netlink_route_host_to_target,
 };
 
+static abi_long netlink_audit_target_to_host(void *buf, size_t len)
+{
+    return target_to_host_nlmsg_audit(buf, len);
+}
+
+static abi_long netlink_audit_host_to_target(void *buf, size_t len)
+{
+    return host_to_target_nlmsg_audit(buf, len);
+}
+
+static TargetFdTrans target_netlink_audit_trans = {
+    .target_to_host_data = netlink_audit_target_to_host,
+    .host_to_target_data = netlink_audit_host_to_target,
+};
+
 /* do_socket() Must return target values and target errnos. */
 static abi_long do_socket(int domain, int type, int protocol)
 {
@@ -2719,7 +2773,8 @@ static abi_long do_socket(int domain, int type, int protocol)
 
     if (domain == PF_NETLINK &&
         !(protocol == NETLINK_ROUTE ||
-          protocol == NETLINK_KOBJECT_UEVENT)) {
+          protocol == NETLINK_KOBJECT_UEVENT ||
+          protocol == NETLINK_AUDIT)) {
         return -EPFNOSUPPORT;
     }
 
@@ -2743,6 +2798,9 @@ static abi_long do_socket(int domain, int type, int protocol)
                 break;
             case NETLINK_KOBJECT_UEVENT:
                 /* nothing to do: messages are strings */
+                break;
+            case NETLINK_AUDIT:
+                fd_trans_register(ret, &target_netlink_audit_trans);
                 break;
             default:
                 g_assert_not_reached();
