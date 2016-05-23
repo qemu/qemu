@@ -3371,7 +3371,17 @@ void do_blockdev_backup(const char *device, const char *target,
         goto out;
     }
 
-    bdrv_set_aio_context(target_bs, aio_context);
+    if (bdrv_get_aio_context(target_bs) != aio_context) {
+        if (!bdrv_has_blk(target_bs)) {
+            /* The target BDS is not attached, we can safely move it to another
+             * AioContext. */
+            bdrv_set_aio_context(target_bs, aio_context);
+        } else {
+            error_setg(errp, "Target is attached to a different thread from "
+                             "source.");
+            goto out;
+        }
+    }
     backup_start(bs, target_bs, speed, sync, NULL, on_source_error,
                  on_target_error, block_job_cb, bs, txn, &local_err);
     if (local_err != NULL) {
