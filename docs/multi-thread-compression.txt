@@ -110,7 +110,7 @@ Usage
 =====
 1. Verify both the source and destination QEMU are able
 to support the multiple thread compression migration:
-    {qemu} info_migrate_capabilities
+    {qemu} info migrate_capabilities
     {qemu} ... compress: off ...
 
 2. Activate compression on the source:
