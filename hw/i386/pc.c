@@ -998,8 +998,13 @@ static void load_linux(PCMachineState *pcms,
     fw_cfg_add_i32(fw_cfg, FW_CFG_SETUP_SIZE, setup_size);
     fw_cfg_add_bytes(fw_cfg, FW_CFG_SETUP_DATA, setup, setup_size);
 
-    option_rom[nb_option_roms].name = "linuxboot.bin";
-    option_rom[nb_option_roms].bootindex = 0;
+    if (fw_cfg_dma_enabled(fw_cfg)) {
+        option_rom[nb_option_roms].name = "linuxboot_dma.bin";
+        option_rom[nb_option_roms].bootindex = 0;
+    } else {
+        option_rom[nb_option_roms].name = "linuxboot.bin";
+        option_rom[nb_option_roms].bootindex = 0;
+    }
     nb_option_roms++;
 }
 
@@ -1291,6 +1296,7 @@ void xen_load_linux(PCMachineState *pcms)
     load_linux(pcms, fw_cfg);
     for (i = 0; i < nb_option_roms; i++) {
         assert(!strcmp(option_rom[i].name, "linuxboot.bin") ||
+               !strcmp(option_rom[i].name, "linuxboot_dma.bin") ||
                !strcmp(option_rom[i].name, "multiboot.bin"));
         rom_add_option(option_rom[i].name, option_rom[i].bootindex);
     }

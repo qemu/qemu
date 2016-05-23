@@ -552,7 +552,7 @@ static bool is_version_1(void *opaque, int version_id)
     return version_id == 1;
 }
 
-static bool fw_cfg_dma_enabled(void *opaque)
+bool fw_cfg_dma_enabled(void *opaque)
 {
     FWCfgState *s = opaque;
 
