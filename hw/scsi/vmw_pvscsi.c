@@ -153,7 +153,7 @@ pvscsi_log2(uint32_t input)
     return log;
 }
 
-static void
+static int
 pvscsi_ring_init_data(PVSCSIRingInfo *m, PVSCSICmdDescSetupRings *ri)
 {
     int i;
@@ -161,6 +161,10 @@ pvscsi_ring_init_data(PVSCSIRingInfo *m, PVSCSICmdDescSetupRings *ri)
     uint32_t req_ring_size, cmp_ring_size;
     m->rs_pa = ri->ringsStatePPN << VMW_PAGE_SHIFT;
 
+    if ((ri->reqRingNumPages > PVSCSI_SETUP_RINGS_MAX_NUM_PAGES)
+        || (ri->cmpRingNumPages > PVSCSI_SETUP_RINGS_MAX_NUM_PAGES)) {
+        return -1;
+    }
     req_ring_size = ri->reqRingNumPages * PVSCSI_MAX_NUM_REQ_ENTRIES_PER_PAGE;
     cmp_ring_size = ri->cmpRingNumPages * PVSCSI_MAX_NUM_CMP_ENTRIES_PER_PAGE;
     txr_len_log2 = pvscsi_log2(req_ring_size - 1);
@@ -192,15 +196,20 @@ pvscsi_ring_init_data(PVSCSIRingInfo *m, PVSCSICmdDescSetupRings *ri)
 
     /* Flush ring state page changes */
     smp_wmb();
+
+    return 0;
 }
 
-static void
+static int
 pvscsi_ring_init_msg(PVSCSIRingInfo *m, PVSCSICmdDescSetupMsgRing *ri)
 {
     int i;
     uint32_t len_log2;
     uint32_t ring_size;
 
+    if (ri->numPages > PVSCSI_SETUP_MSG_RING_MAX_NUM_PAGES) {
+        return -1;
+    }
     ring_size = ri->numPages * PVSCSI_MAX_NUM_MSG_ENTRIES_PER_PAGE;
     len_log2 = pvscsi_log2(ring_size - 1);
 
@@ -220,6 +229,8 @@ pvscsi_ring_init_msg(PVSCSIRingInfo *m, PVSCSICmdDescSetupMsgRing *ri)
 
     /* Flush ring state page changes */
     smp_wmb();
+
+    return 0;
 }
 
 static void
@@ -770,7 +781,10 @@ pvscsi_on_cmd_setup_rings(PVSCSIState *s)
     trace_pvscsi_on_cmd_arrived("PVSCSI_CMD_SETUP_RINGS");
 
     pvscsi_dbg_dump_tx_rings_config(rc);
-    pvscsi_ring_init_data(&s->rings, rc);
+    if (pvscsi_ring_init_data(&s->rings, rc) < 0) {
+        return PVSCSI_COMMAND_PROCESSING_FAILED;
+    }
+
     s->rings_info_valid = TRUE;
     return PVSCSI_COMMAND_PROCESSING_SUCCEEDED;
 }
@@ -850,7 +864,9 @@ pvscsi_on_cmd_setup_msg_ring(PVSCSIState *s)
     }
 
     if (s->rings_info_valid) {
-        pvscsi_ring_init_msg(&s->rings, rc);
+        if (pvscsi_ring_init_msg(&s->rings, rc) < 0) {
+            return PVSCSI_COMMAND_PROCESSING_FAILED;
+        }
         s->msg_ring_info_valid = TRUE;
     }
     return sizeof(PVSCSICmdDescSetupMsgRing) / sizeof(uint32_t);
