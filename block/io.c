@@ -225,6 +225,34 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
     assert(data.done);
 }
 
+void bdrv_drained_begin(BlockDriverState *bs)
+{
+    if (!bs->quiesce_counter++) {
+        aio_disable_external(bdrv_get_aio_context(bs));
+        bdrv_parent_drained_begin(bs);
+    }
+
+    bdrv_io_unplugged_begin(bs);
+    bdrv_drain_recurse(bs);
+    if (qemu_in_coroutine()) {
+        bdrv_co_yield_to_drain(bs);
+    } else {
+        bdrv_drain_poll(bs);
+    }
+    bdrv_io_unplugged_end(bs);
+}
+
+void bdrv_drained_end(BlockDriverState *bs)
+{
+    assert(bs->quiesce_counter > 0);
+    if (--bs->quiesce_counter > 0) {
+        return;
+    }
+
+    bdrv_parent_drained_end(bs);
+    aio_enable_external(bdrv_get_aio_context(bs));
+}
+
 /*
  * Wait for pending requests to complete on a single BlockDriverState subtree,
  * and suspend block driver's internal I/O until next request arrives.
@@ -238,26 +266,15 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
  */
 void coroutine_fn bdrv_co_drain(BlockDriverState *bs)
 {
-    bdrv_parent_drained_begin(bs);
-    bdrv_io_unplugged_begin(bs);
-    bdrv_drain_recurse(bs);
-    bdrv_co_yield_to_drain(bs);
-    bdrv_io_unplugged_end(bs);
-    bdrv_parent_drained_end(bs);
+    assert(qemu_in_coroutine());
+    bdrv_drained_begin(bs);
+    bdrv_drained_end(bs);
 }
 
 void bdrv_drain(BlockDriverState *bs)
 {
-    bdrv_parent_drained_begin(bs);
-    bdrv_io_unplugged_begin(bs);
-    bdrv_drain_recurse(bs);
-    if (qemu_in_coroutine()) {
-        bdrv_co_yield_to_drain(bs);
-    } else {
-        bdrv_drain_poll(bs);
-    }
-    bdrv_io_unplugged_end(bs);
-    bdrv_parent_drained_end(bs);
+    bdrv_drained_begin(bs);
+    bdrv_drained_end(bs);
 }
 
 /*
@@ -2540,24 +2557,4 @@ void bdrv_io_unplugged_end(BlockDriverState *bs)
             drv->bdrv_io_plug(bs);
         }
     }
-}
-
-void bdrv_drained_begin(BlockDriverState *bs)
-{
-    if (!bs->quiesce_counter++) {
-        aio_disable_external(bdrv_get_aio_context(bs));
-    }
-    bdrv_parent_drained_begin(bs);
-    bdrv_drain(bs);
-}
-
-void bdrv_drained_end(BlockDriverState *bs)
-{
-    bdrv_parent_drained_end(bs);
-
-    assert(bs->quiesce_counter > 0);
-    if (--bs->quiesce_counter > 0) {
-        return;
-    }
-    aio_enable_external(bdrv_get_aio_context(bs));
 }
