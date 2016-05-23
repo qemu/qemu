@@ -5,54 +5,6 @@
 
 /* ------------------------------------------------------------- */
 
-struct xs_dirs {
-    char *xs_dir;
-    QTAILQ_ENTRY(xs_dirs) list;
-};
-static QTAILQ_HEAD(xs_dirs_head, xs_dirs) xs_cleanup = QTAILQ_HEAD_INITIALIZER(xs_cleanup);
-
-static void xen_config_cleanup_dir(char *dir)
-{
-    struct xs_dirs *d;
-
-    d = g_malloc(sizeof(*d));
-    d->xs_dir = dir;
-    QTAILQ_INSERT_TAIL(&xs_cleanup, d, list);
-}
-
-void xen_config_cleanup(void)
-{
-    struct xs_dirs *d;
-
-    QTAILQ_FOREACH(d, &xs_cleanup, list) {
-	xs_rm(xenstore, 0, d->xs_dir);
-    }
-}
-
-/* ------------------------------------------------------------- */
-
-static int xen_config_dev_mkdir(char *dev, int p)
-{
-    struct xs_permissions perms[2] = {{
-            .id    = 0, /* set owner: dom0 */
-        },{
-            .id    = xen_domid,
-            .perms = p,
-        }};
-
-    if (!xs_mkdir(xenstore, 0, dev)) {
-	xen_be_printf(NULL, 0, "xs_mkdir %s: failed\n", dev);
-	return -1;
-    }
-    xen_config_cleanup_dir(g_strdup(dev));
-
-    if (!xs_set_permissions(xenstore, 0, dev, perms, 2)) {
-	xen_be_printf(NULL, 0, "xs_set_permissions %s: failed\n", dev);
-	return -1;
-    }
-    return 0;
-}
-
 static int xen_config_dev_dirs(const char *ftype, const char *btype, int vdev,
 			       char *fe, char *be, int len)
 {
@@ -66,8 +18,8 @@ static int xen_config_dev_dirs(const char *ftype, const char *btype, int vdev,
     snprintf(be, len, "%s/backend/%s/%d/%d", dom, btype, xen_domid, vdev);
     free(dom);
 
-    xen_config_dev_mkdir(fe, XS_PERM_READ | XS_PERM_WRITE);
-    xen_config_dev_mkdir(be, XS_PERM_READ);
+    xenstore_mkdir(fe, XS_PERM_READ | XS_PERM_WRITE);
+    xenstore_mkdir(be, XS_PERM_READ);
     return 0;
 }
 

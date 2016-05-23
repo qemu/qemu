@@ -28,6 +28,7 @@ struct XenDevOps {
     int       (*free)(struct XenDevice *xendev);
     void      (*backend_changed)(struct XenDevice *xendev, const char *node);
     void      (*frontend_changed)(struct XenDevice *xendev, const char *node);
+    int       (*backend_register)(void);
 };
 
 struct XenDevice {
@@ -60,8 +61,10 @@ extern xc_interface *xen_xc;
 extern xenforeignmemory_handle *xen_fmem;
 extern struct xs_handle *xenstore;
 extern const char *xen_protocol;
+extern DeviceState *xen_sysdev;
 
 /* xenstore helper functions */
+int xenstore_mkdir(char *path, int p);
 int xenstore_write_str(const char *base, const char *node, const char *val);
 int xenstore_write_int(const char *base, const char *node, int ival);
 int xenstore_write_int64(const char *base, const char *node, int64_t ival);
@@ -98,6 +101,9 @@ extern struct XenDevOps xen_kbdmouse_ops;     /* xen_framebuffer.c */
 extern struct XenDevOps xen_framebuffer_ops;  /* xen_framebuffer.c */
 extern struct XenDevOps xen_blkdev_ops;       /* xen_disk.c        */
 extern struct XenDevOps xen_netdev_ops;       /* xen_nic.c         */
+#ifdef CONFIG_USB_LIBUSB
+extern struct XenDevOps xen_usb_ops;          /* xen-usb.c         */
+#endif
 
 void xen_init_display(int domid);
 

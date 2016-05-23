@@ -38,3 +38,7 @@ common-obj-$(CONFIG_USB_REDIR) += redirect.o quirks.o
 
 # usb pass-through
 common-obj-y += $(patsubst %,host-%.o,$(HOST_USB))
+
+ifeq ($(CONFIG_USB_LIBUSB),y)
+common-obj-$(CONFIG_XEN_BACKEND) += xen-usb.o
+endif

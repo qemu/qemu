@@ -1848,6 +1848,12 @@ static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
 
     ohci->as = as;
 
+    if (num_ports > OHCI_MAX_PORTS) {
+        error_setg(errp, "OHCI num-ports=%d is too big (limit is %d ports)",
+                   num_ports, OHCI_MAX_PORTS);
+        return;
+    }
+
     if (usb_frame_time == 0) {
 #ifdef OHCI_TIME_WARP
         usb_frame_time = NANOSECONDS_PER_SECOND;
