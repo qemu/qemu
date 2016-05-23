@@ -1150,18 +1150,32 @@ static int bdrv_fill_options(QDict **options, const char *filename,
     return 0;
 }
 
+static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
+{
+    BlockDriverState *old_bs = child->bs;
+
+    if (old_bs) {
+        QLIST_REMOVE(child, next_parent);
+    }
+    if (new_bs) {
+        QLIST_INSERT_HEAD(&new_bs->parents, child, next_parent);
+    }
+
+    child->bs = new_bs;
+}
+
 BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
                                   const BdrvChildRole *child_role)
 {
     BdrvChild *child = g_new(BdrvChild, 1);
     *child = (BdrvChild) {
-        .bs     = child_bs,
+        .bs     = NULL,
         .name   = g_strdup(child_name),
         .role   = child_role,
     };
 
-    QLIST_INSERT_HEAD(&child_bs->parents, child, next_parent);
+    bdrv_replace_child(child, child_bs);
 
     return child;
 }
@@ -1182,7 +1196,9 @@ static void bdrv_detach_child(BdrvChild *child)
         QLIST_REMOVE(child, next);
         child->next.le_prev = NULL;
     }
-    QLIST_REMOVE(child, next_parent);
+
+    bdrv_replace_child(child, NULL);
+
     g_free(child->name);
     g_free(child);
 }
@@ -2203,10 +2219,8 @@ static void change_parent_backing_link(BlockDriverState *from,
 
     QLIST_FOREACH_SAFE(c, &from->parents, next_parent, next) {
         assert(c->role != &child_backing);
-        c->bs = to;
-        QLIST_REMOVE(c, next_parent);
-        QLIST_INSERT_HEAD(&to->parents, c, next_parent);
         bdrv_ref(to);
+        bdrv_replace_child(c, to);
         bdrv_unref(from);
     }
 }
