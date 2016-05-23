@@ -659,6 +659,18 @@ int bdrv_parse_cache_mode(const char *mode, int *flags, bool *writethrough)
     return 0;
 }
 
+static void bdrv_child_cb_drained_begin(BdrvChild *child)
+{
+    BlockDriverState *bs = child->opaque;
+    bdrv_drained_begin(bs);
+}
+
+static void bdrv_child_cb_drained_end(BdrvChild *child)
+{
+    BlockDriverState *bs = child->opaque;
+    bdrv_drained_end(bs);
+}
+
 /*
  * Returns the options and flags that a temporary snapshot should get, based on
  * the originally requested flags (the originally requested image will have
@@ -705,6 +717,8 @@ static void bdrv_inherited_options(int *child_flags, QDict *child_options,
 
 const BdrvChildRole child_file = {
     .inherit_options = bdrv_inherited_options,
+    .drained_begin   = bdrv_child_cb_drained_begin,
+    .drained_end     = bdrv_child_cb_drained_end,
 };
 
 /*
@@ -723,6 +737,8 @@ static void bdrv_inherited_fmt_options(int *child_flags, QDict *child_options,
 
 const BdrvChildRole child_format = {
     .inherit_options = bdrv_inherited_fmt_options,
+    .drained_begin   = bdrv_child_cb_drained_begin,
+    .drained_end     = bdrv_child_cb_drained_end,
 };
 
 /*
@@ -750,6 +766,8 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
 
 static const BdrvChildRole child_backing = {
     .inherit_options = bdrv_backing_options,
+    .drained_begin   = bdrv_child_cb_drained_begin,
+    .drained_end     = bdrv_child_cb_drained_end,
 };
 
 static int bdrv_open_flags(BlockDriverState *bs, int flags)
@@ -1195,7 +1213,7 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
                              const BdrvChildRole *child_role)
 {
     BdrvChild *child = bdrv_root_attach_child(child_bs, child_name, child_role,
-                                              NULL);
+                                              parent_bs);
     QLIST_INSERT_HEAD(&parent_bs->children, child, next);
     return child;
 }
