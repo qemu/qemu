@@ -98,6 +98,7 @@ typedef struct VGACommonState {
     MemoryRegion chain4_alias;
     uint8_t sr_index;
     uint8_t sr[256];
+    uint8_t sr_vbe[256];
     uint8_t gr_index;
     uint8_t gr[256];
     uint8_t ar_index;

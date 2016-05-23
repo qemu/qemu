@@ -27,8 +27,6 @@
 
 #define VIRTIO_ID_GPU 16
 
-#define VIRTIO_GPU_MAX_SCANOUT 4
-
 struct virtio_gpu_simple_resource {
     uint32_t resource_id;
     uint32_t width;
@@ -98,8 +96,8 @@ typedef struct VirtIOGPU {
     QTAILQ_HEAD(, virtio_gpu_ctrl_command) cmdq;
     QTAILQ_HEAD(, virtio_gpu_ctrl_command) fenceq;
 
-    struct virtio_gpu_scanout scanout[VIRTIO_GPU_MAX_SCANOUT];
-    struct virtio_gpu_requested_state req_state[VIRTIO_GPU_MAX_SCANOUT];
+    struct virtio_gpu_scanout scanout[VIRTIO_GPU_MAX_SCANOUTS];
+    struct virtio_gpu_requested_state req_state[VIRTIO_GPU_MAX_SCANOUTS];
 
     struct virtio_gpu_conf conf;
     int enabled_output_bitmask;
