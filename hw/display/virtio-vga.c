@@ -84,6 +84,17 @@ static const GraphicHwOps virtio_vga_ops = {
     .gl_block = virtio_vga_gl_block,
 };
 
+static const VMStateDescription vmstate_virtio_vga = {
+    .name = "virtio-vga",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .fields = (VMStateField[]) {
+        /* no pci stuff here, saving the virtio device will handle that */
+        VMSTATE_STRUCT(vga, VirtIOVGA, 0, vmstate_vga_common, VGACommonState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 /* VGA device wrapper around PCI device around virtio GPU */
 static void virtio_vga_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
@@ -168,6 +179,7 @@ static void virtio_vga_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->props = virtio_vga_properties;
     dc->reset = virtio_vga_reset;
+    dc->vmsd = &vmstate_virtio_vga;
     dc->hotpluggable = false;
 
     k->realize = virtio_vga_realize;
