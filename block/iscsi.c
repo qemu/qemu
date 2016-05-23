@@ -761,6 +761,7 @@ iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
     acb->ioh->driver_status = 0;
     acb->ioh->host_status   = 0;
     acb->ioh->resid         = 0;
+    acb->ioh->status        = status;
 
 #define SG_ERR_DRIVER_SENSE    0x08
 

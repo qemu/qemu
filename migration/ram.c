@@ -2478,7 +2478,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                     if (length != block->used_length) {
                         Error *local_err = NULL;
 
-                        ret = qemu_ram_resize(block->offset, length,
+                        ret = qemu_ram_resize(block, length,
                                               &local_err);
                         if (local_err) {
                             error_report_err(local_err);

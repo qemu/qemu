@@ -8008,6 +8008,11 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             }
             /* fallthru */
         case 0xf9 ... 0xff: /* sfence */
+            if (!(s->cpuid_features & CPUID_SSE)
+                || (prefixes & PREFIX_LOCK)) {
+                goto illegal_op;
+            }
+            break;
         case 0xe8 ... 0xef: /* lfence */
         case 0xf0 ... 0xf7: /* mfence */
             if (!(s->cpuid_features & CPUID_SSE2)

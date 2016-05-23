@@ -690,6 +690,10 @@ void runstate_set(RunState new_state)
 {
     assert(new_state < RUN_STATE__MAX);
 
+    if (current_run_state == new_state) {
+        return;
+    }
+
     if (!runstate_valid_transitions[current_run_state][new_state]) {
         error_report("invalid runstate transition: '%s' -> '%s'",
                      RunState_lookup[current_run_state],

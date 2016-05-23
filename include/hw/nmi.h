@@ -45,6 +45,5 @@ typedef struct NMIClass {
 } NMIClass;
 
 void nmi_monitor_handle(int cpu_index, Error **errp);
-void inject_nmi(void);
 
 #endif /* NMI_H */

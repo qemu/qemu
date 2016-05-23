@@ -780,7 +780,7 @@ static void sigbus_reraise(void)
         raise(SIGBUS);
         sigemptyset(&set);
         sigaddset(&set, SIGBUS);
-        sigprocmask(SIG_UNBLOCK, &set, NULL);
+        pthread_sigmask(SIG_UNBLOCK, &set, NULL);
     }
     perror("Failed to re-raise SIGBUS!\n");
     abort();
@@ -1693,21 +1693,7 @@ exit:
 
 void qmp_inject_nmi(Error **errp)
 {
-#if defined(TARGET_I386)
-    CPUState *cs;
-
-    CPU_FOREACH(cs) {
-        X86CPU *cpu = X86_CPU(cs);
-
-        if (!cpu->apic_state) {
-            cpu_interrupt(cs, CPU_INTERRUPT_NMI);
-        } else {
-            apic_deliver_nmi(cpu->apic_state);
-        }
-    }
-#else
     nmi_monitor_handle(monitor_get_cpu_index(), errp);
-#endif
 }
 
 void dump_drift_info(FILE *f, fprintf_function cpu_fprintf)

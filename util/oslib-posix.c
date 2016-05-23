@@ -26,19 +26,6 @@
  * THE SOFTWARE.
  */
 
-#if defined(__linux__) && \
-    (defined(__x86_64__) || defined(__arm__) || defined(__aarch64__))
-   /* Use 2 MiB alignment so transparent hugepages can be used by KVM.
-      Valgrind does not support alignments larger than 1 MiB,
-      therefore we need special code which handles running on Valgrind. */
-#  define QEMU_VMALLOC_ALIGN (512 * 4096)
-#elif defined(__linux__) && defined(__s390x__)
-   /* Use 1 MiB (segment size) alignment so gmap can be used by KVM. */
-#  define QEMU_VMALLOC_ALIGN (256 * 4096)
-#else
-#  define QEMU_VMALLOC_ALIGN getpagesize()
-#endif
-
 #include "qemu/osdep.h"
 #include <termios.h>
 #include <termios.h>

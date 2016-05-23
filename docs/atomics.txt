@@ -62,7 +62,7 @@ operations:
     typeof(*ptr) atomic_fetch_sub(ptr, val)
     typeof(*ptr) atomic_fetch_and(ptr, val)
     typeof(*ptr) atomic_fetch_or(ptr, val)
-    typeof(*ptr) atomic_xchg(ptr, val
+    typeof(*ptr) atomic_xchg(ptr, val)
     typeof(*ptr) atomic_cmpxchg(ptr, old, new)
 
 all of which return the old value of *ptr.  These operations are
@@ -328,7 +328,7 @@ and memory barriers, and the equivalents in QEMU:
 
 - atomic_read and atomic_set in Linux give no guarantee at all;
   atomic_read and atomic_set in QEMU include a compiler barrier
-  (similar to the ACCESS_ONCE macro in Linux).
+  (similar to the READ_ONCE/WRITE_ONCE macros in Linux).
 
 - most atomic read-modify-write operations in Linux return void;
   in QEMU, all of them return the old value of the variable.

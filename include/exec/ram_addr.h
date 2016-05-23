@@ -110,7 +110,7 @@ void qemu_set_ram_fd(ram_addr_t addr, int fd);
 void *qemu_get_ram_block_host_ptr(ram_addr_t addr);
 void qemu_ram_free(RAMBlock *block);
 
-int qemu_ram_resize(ram_addr_t base, ram_addr_t newsize, Error **errp);
+int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp);
 
 #define DIRTY_CLIENTS_ALL     ((1 << DIRTY_MEMORY_NUM) - 1)
 #define DIRTY_CLIENTS_NOCODE  (DIRTY_CLIENTS_ALL & ~(1 << DIRTY_MEMORY_CODE))

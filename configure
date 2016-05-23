@@ -2985,7 +2985,7 @@ int main(void) {
 }
 EOF
 
-if ! compile_prog "-Werror $CFLAGS" "$LIBS" ; then
+if ! compile_prog "$CFLAGS" "$LIBS" ; then
     error_exit "sizeof(size_t) doesn't match GLIB_SIZEOF_SIZE_T."\
                "You probably need to set PKG_CONFIG_LIBDIR"\
 	       "to point to the right pkg-config files for your"\
