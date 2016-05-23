@@ -192,18 +192,18 @@ static const AIOCBInfo dma_aiocb_info = {
 };
 
 BlockAIOCB *dma_blk_io(
-    BlockBackend *blk, QEMUSGList *sg, uint64_t sector_num,
+    BlockBackend *blk, QEMUSGList *sg, uint64_t offset,
     DMAIOFunc *io_func, BlockCompletionFunc *cb,
     void *opaque, DMADirection dir)
 {
     DMAAIOCB *dbs = blk_aio_get(&dma_aiocb_info, blk, cb, opaque);
 
-    trace_dma_blk_io(dbs, blk, sector_num, (dir == DMA_DIRECTION_TO_DEVICE));
+    trace_dma_blk_io(dbs, blk, offset, (dir == DMA_DIRECTION_TO_DEVICE));
 
     dbs->acb = NULL;
     dbs->blk = blk;
     dbs->sg = sg;
-    dbs->offset = sector_num << BDRV_SECTOR_BITS;
+    dbs->offset = offset;
     dbs->sg_cur_index = 0;
     dbs->sg_cur_byte = 0;
     dbs->dir = dir;
@@ -216,18 +216,18 @@ BlockAIOCB *dma_blk_io(
 
 
 BlockAIOCB *dma_blk_read(BlockBackend *blk,
-                         QEMUSGList *sg, uint64_t sector,
+                         QEMUSGList *sg, uint64_t offset,
                          void (*cb)(void *opaque, int ret), void *opaque)
 {
-    return dma_blk_io(blk, sg, sector, blk_aio_preadv, cb, opaque,
+    return dma_blk_io(blk, sg, offset, blk_aio_preadv, cb, opaque,
                       DMA_DIRECTION_FROM_DEVICE);
 }
 
 BlockAIOCB *dma_blk_write(BlockBackend *blk,
-                          QEMUSGList *sg, uint64_t sector,
+                          QEMUSGList *sg, uint64_t offset,
                           void (*cb)(void *opaque, int ret), void *opaque)
 {
-    return dma_blk_io(blk, sg, sector, blk_aio_pwritev, cb, opaque,
+    return dma_blk_io(blk, sg, offset, blk_aio_pwritev, cb, opaque,
                       DMA_DIRECTION_TO_DEVICE);
 }
 

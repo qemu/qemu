@@ -799,6 +799,7 @@ static void ide_dma_cb(void *opaque, int ret)
     IDEState *s = opaque;
     int n;
     int64_t sector_num;
+    uint64_t offset;
     bool stay_active = false;
 
     if (ret == -ECANCELED) {
@@ -859,17 +860,18 @@ static void ide_dma_cb(void *opaque, int ret)
         return;
     }
 
+    offset = sector_num << BDRV_SECTOR_BITS;
     switch (s->dma_cmd) {
     case IDE_DMA_READ:
-        s->bus->dma->aiocb = dma_blk_read(s->blk, &s->sg, sector_num,
+        s->bus->dma->aiocb = dma_blk_read(s->blk, &s->sg, offset,
                                           ide_dma_cb, s);
         break;
     case IDE_DMA_WRITE:
-        s->bus->dma->aiocb = dma_blk_write(s->blk, &s->sg, sector_num,
+        s->bus->dma->aiocb = dma_blk_write(s->blk, &s->sg, offset,
                                            ide_dma_cb, s);
         break;
     case IDE_DMA_TRIM:
-        s->bus->dma->aiocb = dma_blk_io(s->blk, &s->sg, sector_num,
+        s->bus->dma->aiocb = dma_blk_io(s->blk, &s->sg, offset,
                                         ide_issue_trim, ide_dma_cb, s,
                                         DMA_DIRECTION_TO_DEVICE);
         break;

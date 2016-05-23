@@ -199,14 +199,14 @@ typedef BlockAIOCB *DMAIOFunc(BlockBackend *blk, int64_t offset,
                               BlockCompletionFunc *cb, void *opaque);
 
 BlockAIOCB *dma_blk_io(BlockBackend *blk,
-                       QEMUSGList *sg, uint64_t sector_num,
+                       QEMUSGList *sg, uint64_t offset,
                        DMAIOFunc *io_func, BlockCompletionFunc *cb,
                        void *opaque, DMADirection dir);
 BlockAIOCB *dma_blk_read(BlockBackend *blk,
-                         QEMUSGList *sg, uint64_t sector,
+                         QEMUSGList *sg, uint64_t offset,
                          BlockCompletionFunc *cb, void *opaque);
 BlockAIOCB *dma_blk_write(BlockBackend *blk,
-                          QEMUSGList *sg, uint64_t sector,
+                          QEMUSGList *sg, uint64_t offset,
                           BlockCompletionFunc *cb, void *opaque);
 uint64_t dma_buf_read(uint8_t *ptr, int32_t len, QEMUSGList *sg);
 uint64_t dma_buf_write(uint8_t *ptr, int32_t len, QEMUSGList *sg);
