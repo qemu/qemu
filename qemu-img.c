@@ -3492,10 +3492,7 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    if (qcrypto_init(&local_error) < 0) {
-        error_reportf_err(local_error, "cannot initialize crypto: ");
-        exit(1);
-    }
+    qcrypto_init(&error_fatal);
 
     module_call_init(MODULE_INIT_QOM);
     bdrv_init();

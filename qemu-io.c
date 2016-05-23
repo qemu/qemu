@@ -466,10 +466,7 @@ int main(int argc, char **argv)
     progname = basename(argv[0]);
     qemu_init_exec_dir(argv[0]);
 
-    if (qcrypto_init(&local_error) < 0) {
-        error_reportf_err(local_error, "cannot initialize crypto: ");
-        exit(1);
-    }
+    qcrypto_init(&error_fatal);
 
     module_call_init(MODULE_INIT_QOM);
     qemu_add_opts(&qemu_object_opts);

@@ -360,7 +360,6 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
     HW_COMPAT_2_5
 
 #define PC_COMPAT_2_4 \
-    PC_COMPAT_2_5 \
     HW_COMPAT_2_4 \
     {\
         .driver   = "Haswell-" TYPE_X86_CPU,\
@@ -431,7 +430,6 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
 
 #define PC_COMPAT_2_3 \
-    PC_COMPAT_2_4 \
     HW_COMPAT_2_3 \
     {\
         .driver   = TYPE_X86_CPU,\
@@ -512,7 +510,6 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
     },
 
 #define PC_COMPAT_2_2 \
-    PC_COMPAT_2_3 \
     HW_COMPAT_2_2 \
     {\
         .driver = "kvm64" "-" TYPE_X86_CPU,\
@@ -606,7 +603,6 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
     },
 
 #define PC_COMPAT_2_1 \
-    PC_COMPAT_2_2 \
     HW_COMPAT_2_1 \
     {\
         .driver = "coreduo" "-" TYPE_X86_CPU,\
@@ -620,7 +616,6 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
     },
 
 #define PC_COMPAT_2_0 \
-    PC_COMPAT_2_1 \
     {\
         .driver   = "virtio-scsi-pci",\
         .property = "any_layout",\
@@ -680,7 +675,6 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
     },
 
 #define PC_COMPAT_1_7 \
-    PC_COMPAT_2_0 \
     {\
         .driver   = TYPE_USB_DEVICE,\
         .property = "msos-desc",\
@@ -698,7 +692,6 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
     },
 
 #define PC_COMPAT_1_6 \
-    PC_COMPAT_1_7 \
     {\
         .driver   = "e1000",\
         .property = "mitigation",\
@@ -722,7 +715,6 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
     },
 
 #define PC_COMPAT_1_5 \
-    PC_COMPAT_1_6 \
     {\
         .driver   = "Conroe-" TYPE_X86_CPU,\
         .property = "model",\
@@ -766,7 +758,6 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
     },
 
 #define PC_COMPAT_1_4 \
-    PC_COMPAT_1_5 \
     {\
         .driver   = "scsi-hd",\
         .property = "discard_granularity",\

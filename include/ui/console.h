@@ -6,6 +6,8 @@
 #include "qapi/qmp/qdict.h"
 #include "qemu/notify.h"
 #include "qapi-types.h"
+#include "qemu/error-report.h"
+#include "qapi/error.h"
 
 #ifdef CONFIG_OPENGL
 # include <epoxy/gl.h>
@@ -420,20 +422,45 @@ void surface_gl_setup_viewport(ConsoleGLState *gls,
 #endif
 
 /* sdl.c */
+#ifdef CONFIG_SDL
 void sdl_display_early_init(int opengl);
 void sdl_display_init(DisplayState *ds, int full_screen, int no_frame);
+#else
+static inline void sdl_display_early_init(int opengl)
+{
+    /* This must never be called if CONFIG_SDL is disabled */
+    error_report("SDL support is disabled");
+    abort();
+}
+static inline void sdl_display_init(DisplayState *ds, int full_screen,
+                                    int no_frame)
+{
+    /* This must never be called if CONFIG_SDL is disabled */
+    error_report("SDL support is disabled");
+    abort();
+}
+#endif
 
 /* cocoa.m */
+#ifdef CONFIG_COCOA
 void cocoa_display_init(DisplayState *ds, int full_screen);
+#else
+static inline void cocoa_display_init(DisplayState *ds, int full_screen)
+{
+    /* This must never be called if CONFIG_COCOA is disabled */
+    error_report("Cocoa support is disabled");
+    abort();
+}
+#endif
 
 /* vnc.c */
 void vnc_display_init(const char *id);
 void vnc_display_open(const char *id, Error **errp);
 void vnc_display_add_client(const char *id, int csock, bool skipauth);
-char *vnc_display_local_addr(const char *id);
 #ifdef CONFIG_VNC
 int vnc_display_password(const char *id, const char *password);
 int vnc_display_pw_expire(const char *id, time_t expires);
+char *vnc_display_local_addr(const char *id);
 QemuOpts *vnc_parse(const char *str, Error **errp);
 int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp);
 #else
@@ -445,16 +472,58 @@ static inline int vnc_display_pw_expire(const char *id, time_t expires)
 {
     return -ENODEV;
 };
+static inline QemuOpts *vnc_parse(const char *str, Error **errp)
+{
+    error_setg(errp, "VNC support is disabled");
+    return NULL;
+}
+static inline int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+    error_setg(errp, "VNC support is disabled");
+    return -1;
+}
+static inline char *vnc_display_local_addr(const char *id)
+{
+    /* This must never be called if CONFIG_VNC is disabled */
+    error_report("VNC support is disabled");
+    abort();
+}
 #endif
 
 /* curses.c */
+#ifdef CONFIG_CURSES
 void curses_display_init(DisplayState *ds, int full_screen);
+#else
+static inline void curses_display_init(DisplayState *ds, int full_screen)
+{
+    /* This must never be called if CONFIG_CURSES is disabled */
+    error_report("curses support is disabled");
+    abort();
+}
+#endif
 
 /* input.c */
 int index_from_key(const char *key, size_t key_length);
 
 /* gtk.c */
+#ifdef CONFIG_GTK
 void early_gtk_display_init(int opengl);
 void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover);
+#else
+static inline void gtk_display_init(DisplayState *ds, bool full_screen,
+                                    bool grab_on_hover)
+{
+    /* This must never be called if CONFIG_GTK is disabled */
+    error_report("GTK support is disabled");
+    abort();
+}
+
+static inline void early_gtk_display_init(int opengl)
+{
+    /* This must never be called if CONFIG_GTK is disabled */
+    error_report("GTK support is disabled");
+    abort();
+}
+#endif
 
 #endif

@@ -129,10 +129,8 @@ static const char *data_dir[16];
 static int data_dir_idx;
 const char *bios_name = NULL;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
-DisplayType display_type = DT_DEFAULT;
 int request_opengl = -1;
 int display_opengl;
-static int display_remote;
 const char* keyboard_layout = NULL;
 ram_addr_t ram_size;
 const char *mem_path = NULL;
@@ -148,9 +146,7 @@ int vga_interface_type = VGA_NONE;
 static int full_screen = 0;
 static int no_frame = 0;
 int no_quit = 0;
-#ifdef CONFIG_GTK
 static bool grab_on_hover;
-#endif
 CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 CharDriverState *virtcon_hds[MAX_VIRTIO_CONSOLES];
@@ -892,16 +888,13 @@ static void configure_rtc(QemuOpts *opts)
     value = qemu_opt_get(opts, "driftfix");
     if (value) {
         if (!strcmp(value, "slew")) {
-            static GlobalProperty slew_lost_ticks[] = {
-                {
-                    .driver   = "mc146818rtc",
-                    .property = "lost_tick_policy",
-                    .value    = "slew",
-                },
-                { /* end of list */ }
+            static GlobalProperty slew_lost_ticks = {
+                .driver   = "mc146818rtc",
+                .property = "lost_tick_policy",
+                .value    = "slew",
             };
 
-            qdev_prop_register_global_list(slew_lost_ticks);
+            qdev_prop_register_global(&slew_lost_ticks);
         } else if (!strcmp(value, "none")) {
             /* discard is default */
         } else {
@@ -1981,99 +1974,86 @@ static const QEMUOption qemu_options[] = {
     { NULL },
 };
 
-static bool vga_available(void)
+typedef struct VGAInterfaceInfo {
+    const char *opt_name;    /* option name */
+    const char *name;        /* human-readable name */
+    /* Class names indicating that support is available.
+     * If no class is specified, the interface is always available */
+    const char *class_names[2];
+} VGAInterfaceInfo;
+
+static VGAInterfaceInfo vga_interfaces[VGA_TYPE_MAX] = {
+    [VGA_NONE] = {
+        .opt_name = "none",
+    },
+    [VGA_STD] = {
+        .opt_name = "std",
+        .name = "standard VGA",
+        .class_names = { "VGA", "isa-vga" },
+    },
+    [VGA_CIRRUS] = {
+        .opt_name = "cirrus",
+        .name = "Cirrus VGA",
+        .class_names = { "cirrus-vga", "isa-cirrus-vga" },
+    },
+    [VGA_VMWARE] = {
+        .opt_name = "vmware",
+        .name = "VMWare SVGA",
+        .class_names = { "vmware-svga" },
+    },
+    [VGA_VIRTIO] = {
+        .opt_name = "virtio",
+        .name = "Virtio VGA",
+        .class_names = { "virtio-vga" },
+    },
+    [VGA_QXL] = {
+        .opt_name = "qxl",
+        .name = "QXL VGA",
+        .class_names = { "qxl-vga" },
+    },
+    [VGA_TCX] = {
+        .opt_name = "tcx",
+        .name = "TCX framebuffer",
+        .class_names = { "SUNW,tcx" },
+    },
+    [VGA_CG3] = {
+        .opt_name = "cg3",
+        .name = "CG3 framebuffer",
+        .class_names = { "cgthree" },
+    },
+    [VGA_XENFB] = {
+        .opt_name = "xenfb",
+    },
+};
+
+static bool vga_interface_available(VGAInterfaceType t)
 {
-    return object_class_by_name("VGA") || object_class_by_name("isa-vga");
+    VGAInterfaceInfo *ti = &vga_interfaces[t];
+
+    assert(t < VGA_TYPE_MAX);
+    return !ti->class_names[0] ||
+           object_class_by_name(ti->class_names[0]) ||
+           object_class_by_name(ti->class_names[1]);
 }
 
-static bool cirrus_vga_available(void)
-{
-    return object_class_by_name("cirrus-vga")
-           || object_class_by_name("isa-cirrus-vga");
-}
-
-static bool vmware_vga_available(void)
-{
-    return object_class_by_name("vmware-svga");
-}
-
-static bool qxl_vga_available(void)
-{
-    return object_class_by_name("qxl-vga");
-}
-
-static bool tcx_vga_available(void)
-{
-    return object_class_by_name("SUNW,tcx");
-}
-
-static bool cg3_vga_available(void)
-{
-    return object_class_by_name("cgthree");
-}
-
-static bool virtio_vga_available(void)
-{
-    return object_class_by_name("virtio-vga");
-}
-
-static void select_vgahw (const char *p)
+static void select_vgahw(const char *p)
 {
     const char *opts;
+    int t;
 
     assert(vga_interface_type == VGA_NONE);
-    if (strstart(p, "std", &opts)) {
-        if (vga_available()) {
-            vga_interface_type = VGA_STD;
-        } else {
-            error_report("standard VGA not available");
-            exit(0);
+    for (t = 0; t < VGA_TYPE_MAX; t++) {
+        VGAInterfaceInfo *ti = &vga_interfaces[t];
+        if (ti->opt_name && strstart(p, ti->opt_name, &opts)) {
+            if (!vga_interface_available(t)) {
+                error_report("%s not available", ti->name);
+                exit(1);
+            }
+            vga_interface_type = t;
+            break;
         }
-    } else if (strstart(p, "cirrus", &opts)) {
-        if (cirrus_vga_available()) {
-            vga_interface_type = VGA_CIRRUS;
-        } else {
-            error_report("Cirrus VGA not available");
-            exit(0);
-        }
-    } else if (strstart(p, "vmware", &opts)) {
-        if (vmware_vga_available()) {
-            vga_interface_type = VGA_VMWARE;
-        } else {
-            error_report("VMWare SVGA not available");
-            exit(0);
-        }
-    } else if (strstart(p, "virtio", &opts)) {
-        if (virtio_vga_available()) {
-            vga_interface_type = VGA_VIRTIO;
-        } else {
-            error_report("Virtio VGA not available");
-            exit(0);
-        }
-    } else if (strstart(p, "xenfb", &opts)) {
-        vga_interface_type = VGA_XENFB;
-    } else if (strstart(p, "qxl", &opts)) {
-        if (qxl_vga_available()) {
-            vga_interface_type = VGA_QXL;
-        } else {
-            error_report("QXL VGA not available");
-            exit(0);
-        }
-    } else if (strstart(p, "tcx", &opts)) {
-        if (tcx_vga_available()) {
-            vga_interface_type = VGA_TCX;
-        } else {
-            error_report("TCX framebuffer not available");
-            exit(0);
-        }
-    } else if (strstart(p, "cg3", &opts)) {
-        if (cg3_vga_available()) {
-            vga_interface_type = VGA_CG3;
-        } else {
-            error_report("CG3 framebuffer not available");
-            exit(0);
-        }
-    } else if (!strstart(p, "none", &opts)) {
+    }
+    if (t == VGA_TYPE_MAX) {
     invalid_vga:
         error_report("unknown vga type: %s", p);
         exit(1);
@@ -2092,6 +2072,15 @@ static void select_vgahw (const char *p)
         opts = nextopt;
     }
 }
+
+typedef enum DisplayType {
+    DT_DEFAULT,
+    DT_CURSES,
+    DT_SDL,
+    DT_COCOA,
+    DT_GTK,
+    DT_NONE,
+} DisplayType;
 
 static DisplayType select_display(const char *p)
 {
@@ -2161,21 +2150,12 @@ static DisplayType select_display(const char *p)
         exit(1);
 #endif
     } else if (strstart(p, "vnc", &opts)) {
-#ifdef CONFIG_VNC
         if (*opts == '=') {
-            Error *err = NULL;
-            if (vnc_parse(opts + 1, &err) == NULL) {
-                error_report_err(err);
-                exit(1);
-            }
+            vnc_parse(opts + 1, &error_fatal);
         } else {
             error_report("VNC requires a display argument vnc=<display>");
             exit(1);
         }
-#else
-        error_report("VNC support is disabled");
-        exit(1);
-#endif
     } else if (strstart(p, "curses", &opts)) {
 #ifdef CONFIG_CURSES
         display = DT_CURSES;
@@ -2424,7 +2404,6 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
 static void monitor_parse(const char *optarg, const char *mode, bool pretty)
 {
     static int monitor_device_index = 0;
-    Error *local_err = NULL;
     QemuOpts *opts;
     const char *p;
     char label[32];
@@ -2445,11 +2424,7 @@ static void monitor_parse(const char *optarg, const char *mode, bool pretty)
         }
     }
 
-    opts = qemu_opts_create(qemu_find_opts("mon"), label, 1, &local_err);
-    if (!opts) {
-        error_report_err(local_err);
-        exit(1);
-    }
+    opts = qemu_opts_create(qemu_find_opts("mon"), label, 1, &error_fatal);
     qemu_opt_set(opts, "mode", mode, &error_abort);
     qemu_opt_set(opts, "chardev", label, &error_abort);
     qemu_opt_set_bool(opts, "pretty", pretty, &error_abort);
@@ -2979,11 +2954,12 @@ int main(int argc, char **argv, char **envp)
     const char *qtest_log = NULL;
     const char *pid_file = NULL;
     const char *incoming = NULL;
-#ifdef CONFIG_VNC
     int show_vnc_port = 0;
-#endif
     bool defconfig = true;
     bool userconfig = true;
+    bool nographic = false;
+    DisplayType display_type = DT_DEFAULT;
+    int display_remote = 0;
     const char *log_mask = NULL;
     const char *log_file = NULL;
     char *trace_file = NULL;
@@ -3228,7 +3204,10 @@ int main(int argc, char **argv, char **envp)
                 display_type = select_display(optarg);
                 break;
             case QEMU_OPTION_nographic:
-                display_type = DT_NOGRAPHIC;
+                olist = qemu_find_opts("machine");
+                qemu_opts_parse_noisily(olist, "graphics=off", false);
+                nographic = true;
+                display_type = DT_NONE;
                 break;
             case QEMU_OPTION_curses:
 #ifdef CONFIG_CURSES
@@ -3635,16 +3614,13 @@ int main(int argc, char **argv, char **envp)
                 win2k_install_hack = 1;
                 break;
             case QEMU_OPTION_rtc_td_hack: {
-                static GlobalProperty slew_lost_ticks[] = {
-                    {
-                        .driver   = "mc146818rtc",
-                        .property = "lost_tick_policy",
-                        .value    = "slew",
-                    },
-                    { /* end of list */ }
+                static GlobalProperty slew_lost_ticks = {
+                    .driver   = "mc146818rtc",
+                    .property = "lost_tick_policy",
+                    .value    = "slew",
                 };
 
-                qdev_prop_register_global_list(slew_lost_ticks);
+                qdev_prop_register_global(&slew_lost_ticks);
                 break;
             }
             case QEMU_OPTION_acpitable:
@@ -3691,18 +3667,15 @@ int main(int argc, char **argv, char **envp)
                 break;
             }
             case QEMU_OPTION_no_kvm_pit_reinjection: {
-                static GlobalProperty kvm_pit_lost_tick_policy[] = {
-                    {
-                        .driver   = "kvm-pit",
-                        .property = "lost_tick_policy",
-                        .value    = "discard",
-                    },
-                    { /* end of list */ }
+                static GlobalProperty kvm_pit_lost_tick_policy = {
+                    .driver   = "kvm-pit",
+                    .property = "lost_tick_policy",
+                    .value    = "discard",
                 };
 
                 error_report("warning: deprecated, replaced by "
                              "-global kvm-pit.lost_tick_policy=discard");
-                qdev_prop_register_global_list(kvm_pit_lost_tick_policy);
+                qdev_prop_register_global(&kvm_pit_lost_tick_policy);
                 break;
             }
             case QEMU_OPTION_usb:
@@ -3727,20 +3700,8 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_vnc:
-            {
-#ifdef CONFIG_VNC
-                Error *local_err = NULL;
-
-                if (vnc_parse(optarg, &local_err) == NULL) {
-                    error_report_err(local_err);
-                    exit(1);
-                }
-#else
-                error_report("VNC support is disabled");
-                exit(1);
-#endif
+                vnc_parse(optarg, &error_fatal);
                 break;
-            }
             case QEMU_OPTION_no_acpi:
                 acpi_enabled = 0;
                 break;
@@ -4194,7 +4155,7 @@ int main(int argc, char **argv, char **envp)
          * -nographic _and_ redirects all ports explicitly - this is valid
          * usage, -nographic is just a no-op in this case.
          */
-        if (display_type == DT_NOGRAPHIC
+        if (nographic
             && (default_parallel || default_serial
                 || default_monitor || default_virtcon)) {
             error_report("-nographic cannot be used with -daemonize");
@@ -4208,7 +4169,7 @@ int main(int argc, char **argv, char **envp)
 #endif
     }
 
-    if (display_type == DT_NOGRAPHIC) {
+    if (nographic) {
         if (default_parallel)
             add_device_config(DEV_PARALLEL, "null");
         if (default_serial && default_monitor) {
@@ -4250,8 +4211,10 @@ int main(int argc, char **argv, char **envp)
     if (display_type == DT_DEFAULT && !display_remote) {
 #if defined(CONFIG_GTK)
         display_type = DT_GTK;
-#elif defined(CONFIG_SDL) || defined(CONFIG_COCOA)
+#elif defined(CONFIG_SDL)
         display_type = DT_SDL;
+#elif defined(CONFIG_COCOA)
+        display_type = DT_COCOA;
 #elif defined(CONFIG_VNC)
         vnc_parse("localhost:0,to=99,id=default", &error_abort);
         show_vnc_port = 1;
@@ -4269,16 +4232,14 @@ int main(int argc, char **argv, char **envp)
                      "ignoring option");
     }
 
-#if defined(CONFIG_GTK)
     if (display_type == DT_GTK) {
         early_gtk_display_init(request_opengl);
     }
-#endif
-#if defined(CONFIG_SDL)
+
     if (display_type == DT_SDL) {
         sdl_display_early_init(request_opengl);
     }
-#endif
+
     if (request_opengl == 1 && display_opengl == 0) {
 #if defined(CONFIG_OPENGL)
         error_report("OpenGL is not supported by the display");
@@ -4387,10 +4348,8 @@ int main(int argc, char **argv, char **envp)
 
     os_set_line_buffering();
 
-#ifdef CONFIG_SPICE
     /* spice needs the timers to be initialized by this point */
     qemu_spice_init();
-#endif
 
     cpu_ticks_init();
     if (icount_opts) {
@@ -4481,9 +4440,9 @@ int main(int argc, char **argv, char **envp)
     if (default_vga) {
         if (machine_class->default_display) {
             vga_model = machine_class->default_display;
-        } else if (cirrus_vga_available()) {
+        } else if (vga_interface_available(VGA_CIRRUS)) {
             vga_model = "cirrus";
-        } else if (vga_available()) {
+        } else if (vga_interface_available(VGA_STD)) {
             vga_model = "std";
         }
     }
@@ -4498,7 +4457,11 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (machine_class->compat_props) {
-        qdev_prop_register_global_list(machine_class->compat_props);
+        GlobalProperty *p;
+        for (i = 0; i < machine_class->compat_props->len; i++) {
+            p = g_array_index(machine_class->compat_props, GlobalProperty *, i);
+            qdev_prop_register_global(p);
+        }
     }
     qemu_add_globals();
 
@@ -4560,28 +4523,18 @@ int main(int argc, char **argv, char **envp)
 
     /* init local displays */
     switch (display_type) {
-    case DT_NOGRAPHIC:
-        (void)ds;	/* avoid warning if no display is configured */
-        break;
-#if defined(CONFIG_CURSES)
     case DT_CURSES:
         curses_display_init(ds, full_screen);
         break;
-#endif
-#if defined(CONFIG_SDL)
     case DT_SDL:
         sdl_display_init(ds, full_screen, no_frame);
         break;
-#elif defined(CONFIG_COCOA)
-    case DT_SDL:
+    case DT_COCOA:
         cocoa_display_init(ds, full_screen);
         break;
-#endif
-#if defined(CONFIG_GTK)
     case DT_GTK:
         gtk_display_init(ds, full_screen, grab_on_hover);
         break;
-#endif
     default:
         break;
     }
@@ -4589,7 +4542,6 @@ int main(int argc, char **argv, char **envp)
     /* must be after terminal init, SDL library changes signal handlers */
     os_setup_signal_handling();
 
-#ifdef CONFIG_VNC
     /* init remote displays */
     qemu_opts_foreach(qemu_find_opts("vnc"),
                       vnc_init_func, NULL, NULL);
@@ -4598,12 +4550,10 @@ int main(int argc, char **argv, char **envp)
         printf("VNC server running on '%s'\n", ret);
         g_free(ret);
     }
-#endif
-#ifdef CONFIG_SPICE
+
     if (using_spice) {
         qemu_spice_display_init();
     }
-#endif
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {
         exit(1);

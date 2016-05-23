@@ -20,8 +20,6 @@
 #include "sysemu/hostmem.h"
 #include "hw/qdev.h"
 
-#define DEFAULT_PC_DIMMSIZE (1024*1024*1024)
-
 #define TYPE_PC_DIMM "pc-dimm"
 #define PC_DIMM(obj) \
     OBJECT_CHECK(PCDIMMDevice, (obj), TYPE_PC_DIMM)
@@ -72,7 +70,7 @@ typedef struct PCDIMMDeviceClass {
 
 /**
  * MemoryHotplugState:
- * @base: address in guest RAM address space where hotplug memory
+ * @base: address in guest physical address space where hotplug memory
  * address space begins.
  * @mr: hotplug memory address space container
  */

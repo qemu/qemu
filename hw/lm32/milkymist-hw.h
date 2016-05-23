@@ -108,10 +108,6 @@ static inline DeviceState *milkymist_tmu2_create(hwaddr base,
     int nelements;
     int ver_major, ver_minor;
 
-    if (display_type == DT_NOGRAPHIC) {
-        return NULL;
-    }
-
     /* check that GLX will work */
     d = XOpenDisplay(NULL);
     if (d == NULL) {

@@ -131,21 +131,12 @@ void qemu_savevm_send_postcopy_ram_discard(QEMUFile *f, const char *name,
 
 int qemu_loadvm_state(QEMUFile *f);
 
-typedef enum DisplayType
-{
-    DT_DEFAULT,
-    DT_CURSES,
-    DT_SDL,
-    DT_GTK,
-    DT_NOGRAPHIC,
-    DT_NONE,
-} DisplayType;
-
 extern int autostart;
 
 typedef enum {
     VGA_NONE, VGA_STD, VGA_CIRRUS, VGA_VMWARE, VGA_XENFB, VGA_QXL,
     VGA_TCX, VGA_CG3, VGA_DEVICE, VGA_VIRTIO,
+    VGA_TYPE_MAX,
 } VGAInterfaceType;
 
 extern int vga_interface_type;
@@ -154,7 +145,6 @@ extern int vga_interface_type;
 extern int graphic_width;
 extern int graphic_height;
 extern int graphic_depth;
-extern DisplayType display_type;
 extern int display_opengl;
 extern const char *keyboard_layout;
 extern int win2k_install_hack;
