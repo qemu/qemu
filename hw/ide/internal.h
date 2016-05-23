@@ -613,9 +613,9 @@ void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
                         EndTransferFunc *end_transfer_func);
 void ide_transfer_stop(IDEState *s);
 void ide_set_inactive(IDEState *s, bool more);
-BlockAIOCB *ide_issue_trim(BlockBackend *blk,
-        int64_t offset, QEMUIOVector *qiov, BdrvRequestFlags flags,
-        BlockCompletionFunc *cb, void *opaque);
+BlockAIOCB *ide_issue_trim(
+        int64_t offset, QEMUIOVector *qiov,
+        BlockCompletionFunc *cb, void *cb_opaque, void *opaque);
 BlockAIOCB *ide_buffered_readv(IDEState *s, int64_t sector_num,
                                QEMUIOVector *iov, int nb_sectors,
                                BlockCompletionFunc *cb, void *opaque);
