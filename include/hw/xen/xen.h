@@ -8,7 +8,6 @@
  */
 
 #include "qemu-common.h"
-#include "qemu/typedefs.h"
 #include "exec/cpu-common.h"
 #include "hw/irq.h"
 
