@@ -4159,8 +4159,8 @@ static void setup_frame(int sig, struct target_sigaction *ka,
         env->regs[14] = (unsigned long)
                 ka->sa_restorer | PSW_ADDR_AMODE;
     } else {
-        env->regs[14] = (unsigned long)
-                frame->retcode | PSW_ADDR_AMODE;
+        env->regs[14] = (frame_addr + offsetof(sigframe, retcode))
+                        | PSW_ADDR_AMODE;
         __put_user(S390_SYSCALL_OPCODE | TARGET_NR_sigreturn,
                    (uint16_t *)(frame->retcode));
     }
