@@ -67,13 +67,23 @@
     __atomic_store(ptr, &_val, __ATOMIC_RELAXED);     \
 } while(0)
 
-/* Atomic RCU operations imply weak memory barriers */
+/* See above: most compilers currently treat consume and acquire the
+ * same, but this slows down atomic_rcu_read unnecessarily.
+ */
+#ifdef __SANITIZE_THREAD__
+#define atomic_rcu_read__nocheck(ptr, valptr)           \
+    __atomic_load(ptr, valptr, __ATOMIC_CONSUME);
+#else
+#define atomic_rcu_read__nocheck(ptr, valptr)           \
+    __atomic_load(ptr, valptr, __ATOMIC_RELAXED);       \
+    smp_read_barrier_depends();
+#endif
 
 #define atomic_rcu_read(ptr)                          \
     ({                                                \
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *)); \
     typeof(*ptr) _val;                                \
-    __atomic_load(ptr, &_val, __ATOMIC_CONSUME);      \
+    atomic_rcu_read__nocheck(ptr, &_val);             \
     _val;                                             \
     })
 
