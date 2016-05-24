@@ -2136,15 +2136,6 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr, uint64_t size,
     int i, fdt_offset, fdt_size;
     void *fdt;
 
-    /*
-     * Check for DRC connectors and send hotplug notification to the
-     * guest only in case of hotplugged memory. This allows cold plugged
-     * memory to be specified at boot time.
-     */
-    if (!dev->hotplugged) {
-        return;
-    }
-
     for (i = 0; i < nr_lmbs; i++) {
         drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
                 addr/SPAPR_MEMORY_BLOCK_SIZE);
@@ -2158,7 +2149,12 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr, uint64_t size,
         drck->attach(drc, dev, fdt, fdt_offset, !dev->hotplugged, errp);
         addr += SPAPR_MEMORY_BLOCK_SIZE;
     }
-    spapr_hotplug_req_add_by_count(SPAPR_DR_CONNECTOR_TYPE_LMB, nr_lmbs);
+    /* send hotplug notification to the
+     * guest only in case of hotplugged memory
+     */
+    if (dev->hotplugged) {
+       spapr_hotplug_req_add_by_count(SPAPR_DR_CONNECTOR_TYPE_LMB, nr_lmbs);
+    }
 }
 
 static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
