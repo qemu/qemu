@@ -36,7 +36,18 @@
 #define smp_wmb()   ({ barrier(); __atomic_thread_fence(__ATOMIC_RELEASE); barrier(); })
 #define smp_rmb()   ({ barrier(); __atomic_thread_fence(__ATOMIC_ACQUIRE); barrier(); })
 
+/* Most compilers currently treat consume and acquire the same, but really
+ * no processors except Alpha need a barrier here.  Leave it in if
+ * using Thread Sanitizer to avoid warnings, otherwise optimize it away.
+ */
+#if defined(__SANITIZE_THREAD__)
 #define smp_read_barrier_depends() ({ barrier(); __atomic_thread_fence(__ATOMIC_CONSUME); barrier(); })
+#elsif defined(__alpha__)
+#define smp_read_barrier_depends()   asm volatile("mb":::"memory")
+#else
+#define smp_read_barrier_depends()   barrier()
+#endif
+
 
 /* Weak atomic operations prevent the compiler moving other
  * loads/stores past the atomic operation load/store. However there is
