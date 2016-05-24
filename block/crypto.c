@@ -507,7 +507,7 @@ block_crypto_co_writev(BlockDriverState *bs, int64_t sector_num,
         qemu_iovec_reset(&hd_qiov);
         qemu_iovec_add(&hd_qiov, cipher_data, cur_nr_sectors * 512);
 
-        ret = bdrv_co_writev(bs->file->bs,
+        ret = bdrv_co_writev(bs->file,
                              payload_offset + sector_num,
                              cur_nr_sectors, &hd_qiov);
         if (ret < 0) {

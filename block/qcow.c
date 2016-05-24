@@ -745,7 +745,7 @@ static coroutine_fn int qcow_co_writev(BlockDriverState *bs, int64_t sector_num,
         hd_iov.iov_len = n * 512;
         qemu_iovec_init_external(&hd_qiov, &hd_iov, 1);
         qemu_co_mutex_unlock(&s->lock);
-        ret = bdrv_co_writev(bs->file->bs,
+        ret = bdrv_co_writev(bs->file,
                              (cluster_offset >> 9) + index_in_cluster,
                              n, &hd_qiov);
         qemu_co_mutex_lock(&s->lock);

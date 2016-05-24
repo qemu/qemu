@@ -1326,7 +1326,7 @@ static coroutine_fn int vhdx_co_writev(BlockDriverState *bs, int64_t sector_num,
                 }
                 /* block exists, so we can just overwrite it */
                 qemu_co_mutex_unlock(&s->lock);
-                ret = bdrv_co_writev(bs->file->bs,
+                ret = bdrv_co_writev(bs->file,
                                     sinfo.file_offset >> BDRV_SECTOR_BITS,
                                     sectors_to_write, &hd_qiov);
                 qemu_co_mutex_lock(&s->lock);

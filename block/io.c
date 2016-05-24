@@ -1547,12 +1547,12 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
                            nb_sectors << BDRV_SECTOR_BITS, qiov, flags);
 }
 
-int coroutine_fn bdrv_co_writev(BlockDriverState *bs, int64_t sector_num,
+int coroutine_fn bdrv_co_writev(BdrvChild *child, int64_t sector_num,
     int nb_sectors, QEMUIOVector *qiov)
 {
-    trace_bdrv_co_writev(bs, sector_num, nb_sectors);
+    trace_bdrv_co_writev(child->bs, sector_num, nb_sectors);
 
-    return bdrv_co_do_writev(bs, sector_num, nb_sectors, qiov, 0);
+    return bdrv_co_do_writev(child->bs, sector_num, nb_sectors, qiov, 0);
 }
 
 int coroutine_fn bdrv_co_pwrite_zeroes(BlockDriverState *bs,
