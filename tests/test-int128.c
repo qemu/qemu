@@ -7,7 +7,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include "qemu/int128.h"
 
 /* clang doesn't support __noclone__ but it does have a mechanism for

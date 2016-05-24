@@ -12,7 +12,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include <float.h>
 
 #include "qemu-common.h"

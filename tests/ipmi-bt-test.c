@@ -29,7 +29,6 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
-#include <glib.h>
 
 #include "libqtest.h"
 #include "qemu-common.h"

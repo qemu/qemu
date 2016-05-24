@@ -11,7 +11,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 
 #include "qemu/config-file.h"     /* qemu_add_opts() */
 #include "qemu/option.h"          /* qemu_opts_parse() */

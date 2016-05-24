@@ -23,7 +23,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 
 #include "hw/i386/topology.h"
 

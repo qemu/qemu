@@ -9,7 +9,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include "libqtest.h"
 #include "block/scsi.h"
 #include "libqos/virtio.h"

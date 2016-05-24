@@ -8,7 +8,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include "libqtest.h"
 
 /* Tests only initialization so far. TODO: Replace with functional tests */

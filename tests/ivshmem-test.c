@@ -9,7 +9,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include <glib/gstdio.h>
 #include <sys/mman.h>
 #include "contrib/ivshmem-server/ivshmem-server.h"

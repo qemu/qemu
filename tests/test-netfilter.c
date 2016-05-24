@@ -9,7 +9,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include "libqtest.h"
 
 /* add a netfilter to a netdev and then remove it */

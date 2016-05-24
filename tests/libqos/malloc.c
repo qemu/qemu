@@ -14,7 +14,6 @@
 #include "libqos/malloc.h"
 #include "qemu-common.h"
 #include "qemu/host-utils.h"
-#include <glib.h>
 
 typedef QTAILQ_HEAD(MemList, MemBlock) MemList;
 
