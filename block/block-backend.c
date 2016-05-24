@@ -855,8 +855,8 @@ int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
     return ret;
 }
 
-int blk_write_zeroes(BlockBackend *blk, int64_t offset,
-                     int count, BdrvRequestFlags flags)
+int blk_pwrite_zeroes(BlockBackend *blk, int64_t offset,
+                      int count, BdrvRequestFlags flags)
 {
     return blk_prw(blk, offset, NULL, count, blk_write_entry,
                    flags | BDRV_REQ_ZERO_WRITE);
@@ -971,9 +971,9 @@ static void blk_aio_write_entry(void *opaque)
     blk_aio_complete(acb);
 }
 
-BlockAIOCB *blk_aio_write_zeroes(BlockBackend *blk, int64_t offset,
-                                 int count, BdrvRequestFlags flags,
-                                 BlockCompletionFunc *cb, void *opaque)
+BlockAIOCB *blk_aio_pwrite_zeroes(BlockBackend *blk, int64_t offset,
+                                  int count, BdrvRequestFlags flags,
+                                  BlockCompletionFunc *cb, void *opaque)
 {
     return blk_aio_prwv(blk, offset, count, NULL, blk_aio_write_entry,
                         flags | BDRV_REQ_ZERO_WRITE, cb, opaque);
@@ -1462,8 +1462,8 @@ void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,
     return qemu_aio_get(aiocb_info, blk_bs(blk), cb, opaque);
 }
 
-int coroutine_fn blk_co_write_zeroes(BlockBackend *blk, int64_t offset,
-                                     int count, BdrvRequestFlags flags)
+int coroutine_fn blk_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
+                                      int count, BdrvRequestFlags flags)
 {
     return blk_co_pwritev(blk, offset, count, NULL,
                           flags | BDRV_REQ_ZERO_WRITE);

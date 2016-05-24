@@ -451,12 +451,12 @@ typedef struct {
     bool done;
 } CoWriteZeroes;
 
-static void coroutine_fn co_write_zeroes_entry(void *opaque)
+static void coroutine_fn co_pwrite_zeroes_entry(void *opaque)
 {
     CoWriteZeroes *data = opaque;
 
-    data->ret = blk_co_write_zeroes(data->blk, data->offset, data->count,
-                                    data->flags);
+    data->ret = blk_co_pwrite_zeroes(data->blk, data->offset, data->count,
+                                     data->flags);
     data->done = true;
     if (data->ret < 0) {
         *data->total = data->ret;
@@ -466,8 +466,8 @@ static void coroutine_fn co_write_zeroes_entry(void *opaque)
     *data->total = data->count;
 }
 
-static int do_co_write_zeroes(BlockBackend *blk, int64_t offset, int64_t count,
-                              int flags, int64_t *total)
+static int do_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
+                               int64_t count, int flags, int64_t *total)
 {
     Coroutine *co;
     CoWriteZeroes data = {
@@ -483,7 +483,7 @@ static int do_co_write_zeroes(BlockBackend *blk, int64_t offset, int64_t count,
         return -ERANGE;
     }
 
-    co = qemu_coroutine_create(co_write_zeroes_entry);
+    co = qemu_coroutine_create(co_pwrite_zeroes_entry);
     qemu_coroutine_enter(co, &data);
     while (!data.done) {
         aio_poll(blk_get_aio_context(blk), true);
@@ -901,7 +901,7 @@ static void write_help(void)
 " -C, -- report statistics in a machine parsable format\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
 " -u, -- with -z, allow unmapping\n"
-" -z, -- write zeroes using blk_co_write_zeroes\n"
+" -z, -- write zeroes using blk_co_pwrite_zeroes\n"
 "\n");
 }
 
@@ -1033,7 +1033,7 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
     if (bflag) {
         cnt = do_save_vmstate(blk, buf, offset, count, &total);
     } else if (zflag) {
-        cnt = do_co_write_zeroes(blk, offset, count, flags, &total);
+        cnt = do_co_pwrite_zeroes(blk, offset, count, flags, &total);
     } else if (cflag) {
         cnt = do_write_compressed(blk, buf, offset, count, &total);
     } else {
@@ -1376,7 +1376,7 @@ static void aio_write_help(void)
 " -i, -- treat request as invalid, for exercising stats\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
 " -u, -- with -z, allow unmapping\n"
-" -z, -- write zeroes using blk_aio_write_zeroes\n"
+" -z, -- write zeroes using blk_aio_pwrite_zeroes\n"
 "\n");
 }
 
@@ -1475,8 +1475,8 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
         }
 
         ctx->qiov.size = count;
-        blk_aio_write_zeroes(blk, ctx->offset, count, flags, aio_write_done,
-                             ctx);
+        blk_aio_pwrite_zeroes(blk, ctx->offset, count, flags, aio_write_done,
+                              ctx);
     } else {
         nr_iov = argc - optind;
         ctx->buf = create_iovec(blk, &ctx->qiov, &argv[optind], nr_iov,

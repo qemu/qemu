@@ -1780,7 +1780,7 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
         block_acct_start(blk_get_stats(s->qdev.conf.blk), &r->acct,
                          nb_sectors * s->qdev.blocksize,
                         BLOCK_ACCT_WRITE);
-        r->req.aiocb = blk_aio_write_zeroes(s->qdev.conf.blk,
+        r->req.aiocb = blk_aio_pwrite_zeroes(s->qdev.conf.blk,
                                 r->req.cmd.lba * s->qdev.blocksize,
                                 nb_sectors * s->qdev.blocksize,
                                 flags, scsi_aio_complete, r);
