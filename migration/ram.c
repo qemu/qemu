@@ -430,9 +430,9 @@ static void mig_throttle_guest_down(void)
 {
     MigrationState *s = migrate_get_current();
     uint64_t pct_initial =
-            s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL];
+            s->parameters[MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL];
     uint64_t pct_icrement =
-            s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT];
+            s->parameters[MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT];
 
     /* We have not started throttling yet. Let's start it. */
     if (!cpu_throttle_active()) {

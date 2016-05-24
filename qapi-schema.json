@@ -480,9 +480,9 @@
 #        may be expensive, but do not actually occur during the iterative
 #        migration rounds themselves. (since 1.6)
 #
-# @x-cpu-throttle-percentage: #optional percentage of time guest cpus are being
-#       throttled during auto-converge. This is only present when auto-converge
-#       has started throttling guest cpus. (Since 2.5)
+# @cpu-throttle-percentage: #optional percentage of time guest cpus are being
+#        throttled during auto-converge. This is only present when auto-converge
+#        has started throttling guest cpus. (Since 2.7)
 #
 # Since: 0.14.0
 ##
@@ -494,7 +494,7 @@
            '*expected-downtime': 'int',
            '*downtime': 'int',
            '*setup-time': 'int',
-           '*x-cpu-throttle-percentage': 'int'} }
+           '*cpu-throttle-percentage': 'int'} }
 
 ##
 # @query-migrate
@@ -605,18 +605,18 @@
 #          compression, so set the decompress-threads to the number about 1/4
 #          of compress-threads is adequate.
 #
-# @x-cpu-throttle-initial: Initial percentage of time guest cpus are throttled
-#                          when migration auto-converge is activated. The
-#                          default value is 20. (Since 2.5)
+# @cpu-throttle-initial: Initial percentage of time guest cpus are throttled
+#                        when migration auto-converge is activated. The
+#                        default value is 20. (Since 2.7)
 #
-# @x-cpu-throttle-increment: throttle percentage increase each time
-#                            auto-converge detects that migration is not making
-#                            progress. The default value is 10. (Since 2.5)
+# @cpu-throttle-increment: throttle percentage increase each time
+#                          auto-converge detects that migration is not making
+#                          progress. The default value is 10. (Since 2.7)
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
   'data': ['compress-level', 'compress-threads', 'decompress-threads',
-           'x-cpu-throttle-initial', 'x-cpu-throttle-increment'] }
+           'cpu-throttle-initial', 'cpu-throttle-increment'] }
 
 #
 # @migrate-set-parameters
@@ -629,21 +629,21 @@
 #
 # @decompress-threads: decompression thread count
 #
-# @x-cpu-throttle-initial: Initial percentage of time guest cpus are throttled
-#                          when migration auto-converge is activated. The
-#                          default value is 20. (Since 2.5)
+# @cpu-throttle-initial: Initial percentage of time guest cpus are throttled
+#                        when migration auto-converge is activated. The
+#                        default value is 20. (Since 2.7)
 #
-# @x-cpu-throttle-increment: throttle percentage increase each time
-#                            auto-converge detects that migration is not making
-#                            progress. The default value is 10. (Since 2.5)
+# @cpu-throttle-increment: throttle percentage increase each time
+#                          auto-converge detects that migration is not making
+#                          progress. The default value is 10. (Since 2.7)
 # Since: 2.4
 ##
 { 'command': 'migrate-set-parameters',
   'data': { '*compress-level': 'int',
             '*compress-threads': 'int',
             '*decompress-threads': 'int',
-            '*x-cpu-throttle-initial': 'int',
-            '*x-cpu-throttle-increment': 'int'} }
+            '*cpu-throttle-initial': 'int',
+            '*cpu-throttle-increment': 'int'} }
 
 #
 # @MigrationParameters
@@ -654,13 +654,13 @@
 #
 # @decompress-threads: decompression thread count
 #
-# @x-cpu-throttle-initial: Initial percentage of time guest cpus are throttled
-#                          when migration auto-converge is activated. The
-#                          default value is 20. (Since 2.5)
+# @cpu-throttle-initial: Initial percentage of time guest cpus are throttled
+#                        when migration auto-converge is activated. The
+#                        default value is 20. (Since 2.7)
 #
-# @x-cpu-throttle-increment: throttle percentage increase each time
-#                            auto-converge detects that migration is not making
-#                            progress. The default value is 10. (Since 2.5)
+# @cpu-throttle-increment: throttle percentage increase each time
+#                          auto-converge detects that migration is not making
+#                          progress. The default value is 10. (Since 2.7)
 #
 # Since: 2.4
 ##
@@ -668,8 +668,8 @@
   'data': { 'compress-level': 'int',
             'compress-threads': 'int',
             'decompress-threads': 'int',
-            'x-cpu-throttle-initial': 'int',
-            'x-cpu-throttle-increment': 'int'} }
+            'cpu-throttle-initial': 'int',
+            'cpu-throttle-increment': 'int'} }
 ##
 # @query-migrate-parameters
 #

@@ -1,5 +1,5 @@
 /*
- * QEMU JSON writer
+ * A simple JSON writer
  *
  * Copyright Alexander Graf
  *
@@ -11,20 +11,26 @@
  *
  */
 
+/*
+ * Type QJSON lets you build JSON text.  Its interface mirrors (a
+ * subset of) abstract JSON syntax.
+ *
+ * It does *not* detect incorrect use.  It happily produces invalid
+ * JSON then.  This is what migration wants.
+ *
+ * QAPI output visitors also produce JSON text.  However, they do
+ * assert their preconditions and invariants, and therefore abort on
+ * incorrect use.
+ */
+
 #include "qemu/osdep.h"
-#include <qapi/qmp/qstring.h>
-#include <glib.h>
-#include <qjson.h>
-#include <qemu/module.h>
-#include <qom/object.h>
+#include "qapi/qmp/qstring.h"
+#include "migration/qjson.h"
 
 struct QJSON {
-    Object obj;
     QString *str;
     bool omit_comma;
 };
-
-#define QJSON(obj) OBJECT_CHECK(QJSON, (obj), TYPE_QJSON)
 
 static void json_emit_element(QJSON *json, const char *name)
 {
@@ -89,7 +95,10 @@ const char *qjson_get_str(QJSON *json)
 
 QJSON *qjson_new(void)
 {
-    QJSON *json = QJSON(object_new(TYPE_QJSON));
+    QJSON *json = g_new0(QJSON, 1);
+
+    json->str = qstring_from_str("{ ");
+    json->omit_comma = true;
     return json;
 }
 
@@ -98,32 +107,7 @@ void qjson_finish(QJSON *json)
     json_end_object(json);
 }
 
-static void qjson_initfn(Object *obj)
+void qjson_destroy(QJSON *json)
 {
-    QJSON *json = QJSON(obj);
-
-    json->str = qstring_from_str("{ ");
-    json->omit_comma = true;
+    g_free(json);
 }
-
-static void qjson_finalizefn(Object *obj)
-{
-    QJSON *json = QJSON(obj);
-
-    qobject_decref(QOBJECT(json->str));
-}
-
-static const TypeInfo qjson_type_info = {
-    .name = TYPE_QJSON,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(QJSON),
-    .instance_init = qjson_initfn,
-    .instance_finalize = qjson_finalizefn,
-};
-
-static void qjson_register_types(void)
-{
-    type_register_static(&qjson_type_info);
-}
-
-type_init(qjson_register_types)
