@@ -13,7 +13,6 @@
 
 #include "qemu/osdep.h"
 #include "sdl_zoom.h"
-#include <glib.h>
 
 static void sdl_zoom_rgb16(SDL_Surface *src, SDL_Surface *dst, int smooth,
                            SDL_Rect *dst_rect);

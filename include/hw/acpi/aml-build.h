@@ -1,7 +1,6 @@
 #ifndef HW_ACPI_GEN_UTILS_H
 #define HW_ACPI_GEN_UTILS_H
 
-#include <glib.h>
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/bios-linker-loader.h"
 

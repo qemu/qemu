@@ -23,7 +23,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include "slirp.h"
 
 static const uint8_t RFC3397_OPT_DOMAIN_SEARCH = 119;

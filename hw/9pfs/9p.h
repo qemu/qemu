@@ -4,7 +4,6 @@
 #include <dirent.h>
 #include <utime.h>
 #include <sys/resource.h>
-#include <glib.h>
 #include "fsdev/file-op-9p.h"
 #include "fsdev/9p-iov-marshal.h"
 #include "qemu/thread.h"

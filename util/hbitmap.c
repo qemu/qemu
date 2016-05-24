@@ -10,7 +10,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include "qemu/hbitmap.h"
 #include "qemu/host-utils.h"
 #include "trace.h"

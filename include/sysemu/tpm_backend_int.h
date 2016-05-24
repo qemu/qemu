@@ -22,7 +22,6 @@
 #ifndef TPM_TPM_BACKEND_H
 #define TPM_TPM_BACKEND_H
 
-#include <glib.h>
 
 typedef struct TPMBackendThread {
     GThreadPool *pool;

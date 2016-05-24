@@ -32,7 +32,6 @@
 #ifdef CONFIG_BZIP2
 #include <bzlib.h>
 #endif
-#include <glib.h>
 
 enum {
     /* Limit chunk sizes to prevent unreasonable amounts of memory being used

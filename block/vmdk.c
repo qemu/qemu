@@ -34,7 +34,6 @@
 #include "migration/migration.h"
 #include "qemu/cutils.h"
 #include <zlib.h>
-#include <glib.h>
 
 #define VMDK3_MAGIC (('C' << 24) | ('O' << 16) | ('W' << 8) | 'D')
 #define VMDK4_MAGIC (('K' << 24) | ('D' << 16) | ('M' << 8) | 'V')
