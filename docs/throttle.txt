@@ -39,7 +39,7 @@ the parameters for both cases:
 | throttling.bps-write  | bps_wr                |
 |-----------------------+-----------------------|
 
-It is possible to set limits for both IOPS and bps and the same time,
+It is possible to set limits for both IOPS and bps at the same time,
 and for each case we can decide whether to have separate read and
 write limits or not, but note that if iops-total is set then neither
 iops-read nor iops-write can be set. The same applies to bps-total and
@@ -235,7 +235,7 @@ consider the following values:
   - Water leaks from the bucket at a rate of 100 IOPS.
   - Water can be added to the bucket at a rate of 2000 IOPS.
   - The size of the bucket is 2000 x 60 = 120000
-  - If 'iops-total-max-length' is unset then the bucket size is 100.
+  - If 'iops-total-max' is unset then the bucket size is 100 x 60.
 
 The bucket is initially empty, therefore water can be added until it's
 full at a rate of 2000 IOPS (the burst rate). Once the bucket is full
