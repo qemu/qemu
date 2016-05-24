@@ -1147,14 +1147,6 @@ void pc_cpus_init(PCMachineState *pcms)
     smbios_set_cpuid(cpu->env.cpuid_version, cpu->env.features[FEAT_1_EDX]);
 }
 
-/* pci-info ROM file. Little endian format */
-typedef struct PcRomPciInfo {
-    uint64_t w32_min;
-    uint64_t w32_max;
-    uint64_t w64_min;
-    uint64_t w64_max;
-} PcRomPciInfo;
-
 static
 void pc_machine_done(Notifier *notifier, void *data)
 {
