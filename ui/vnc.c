@@ -2094,6 +2094,24 @@ static void set_pixel_conversion(VncState *vs)
     }
 }
 
+static void send_color_map(VncState *vs)
+{
+    int i;
+
+    vnc_write_u8(vs, VNC_MSG_SERVER_SET_COLOUR_MAP_ENTRIES);
+    vnc_write_u8(vs,  0);    /* padding     */
+    vnc_write_u16(vs, 0);    /* first color */
+    vnc_write_u16(vs, 256);  /* # of colors */
+
+    for (i = 0; i < 256; i++) {
+        PixelFormat *pf = &vs->client_pf;
+
+        vnc_write_u16(vs, (((i >> pf->rshift) & pf->rmax) << (16 - pf->rbits)));
+        vnc_write_u16(vs, (((i >> pf->gshift) & pf->gmax) << (16 - pf->gbits)));
+        vnc_write_u16(vs, (((i >> pf->bshift) & pf->bmax) << (16 - pf->bbits)));
+    }
+}
+
 static void set_pixel_format(VncState *vs,
                              int bits_per_pixel, int depth,
                              int big_endian_flag, int true_color_flag,
@@ -2101,8 +2119,15 @@ static void set_pixel_format(VncState *vs,
                              int red_shift, int green_shift, int blue_shift)
 {
     if (!true_color_flag) {
-        vnc_client_error(vs);
-        return;
+        /* Expose a reasonable default 256 color map */
+        bits_per_pixel = 8;
+        depth = 8;
+        red_max = 7;
+        green_max = 7;
+        blue_max = 3;
+        red_shift = 0;
+        green_shift = 3;
+        blue_shift = 6;
     }
 
     switch (bits_per_pixel) {
@@ -2131,6 +2156,10 @@ static void set_pixel_format(VncState *vs,
     vs->client_pf.bytes_per_pixel = bits_per_pixel / 8;
     vs->client_pf.depth = bits_per_pixel == 32 ? 24 : bits_per_pixel;
     vs->client_be = big_endian_flag;
+
+    if (!true_color_flag) {
+        send_color_map(vs);
+    }
 
     set_pixel_conversion(vs);
 
