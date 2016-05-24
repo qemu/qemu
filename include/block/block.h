@@ -241,8 +241,8 @@ int bdrv_pwrite(BlockDriverState *bs, int64_t offset,
 int bdrv_pwritev(BlockDriverState *bs, int64_t offset, QEMUIOVector *qiov);
 int bdrv_pwrite_sync(BlockDriverState *bs, int64_t offset,
     const void *buf, int count);
-int coroutine_fn bdrv_co_readv(BlockDriverState *bs, int64_t sector_num,
-    int nb_sectors, QEMUIOVector *qiov);
+int coroutine_fn bdrv_co_readv(BdrvChild *child, int64_t sector_num,
+                               int nb_sectors, QEMUIOVector *qiov);
 int coroutine_fn bdrv_co_writev(BlockDriverState *bs, int64_t sector_num,
     int nb_sectors, QEMUIOVector *qiov);
 /*

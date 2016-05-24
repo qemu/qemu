@@ -351,7 +351,7 @@ static coroutine_fn int parallels_co_readv(BlockDriverState *bs,
             qemu_iovec_reset(&hd_qiov);
             qemu_iovec_concat(&hd_qiov, qiov, bytes_done, nbytes);
 
-            ret = bdrv_co_readv(bs->file->bs, position, n, &hd_qiov);
+            ret = bdrv_co_readv(bs->file, position, n, &hd_qiov);
             if (ret < 0) {
                 break;
             }

@@ -1141,12 +1141,12 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
                           nb_sectors << BDRV_SECTOR_BITS, qiov, flags);
 }
 
-int coroutine_fn bdrv_co_readv(BlockDriverState *bs, int64_t sector_num,
-    int nb_sectors, QEMUIOVector *qiov)
+int coroutine_fn bdrv_co_readv(BdrvChild *child, int64_t sector_num,
+                               int nb_sectors, QEMUIOVector *qiov)
 {
-    trace_bdrv_co_readv(bs, sector_num, nb_sectors);
+    trace_bdrv_co_readv(child->bs, sector_num, nb_sectors);
 
-    return bdrv_co_do_readv(bs, sector_num, nb_sectors, qiov, 0);
+    return bdrv_co_do_readv(child->bs, sector_num, nb_sectors, qiov, 0);
 }
 
 /* Maximum buffer for write zeroes fallback, in bytes */
