@@ -4154,9 +4154,6 @@ int main(int argc, char **argv, char **envp)
     }
 
     cpu_model = NULL;
-#if defined(cpudef_setup)
-    cpudef_setup(); /* parse cpu definitions in target config file (TBD) */
-#endif
 
     srand(time(NULL));
 

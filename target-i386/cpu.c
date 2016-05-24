@@ -474,25 +474,32 @@ static const X86RegisterInfo32 x86_reg_info_32[CPU_NB_REGS32] = {
 const ExtSaveArea x86_ext_save_areas[] = {
     [XSTATE_YMM_BIT] =
           { .feature = FEAT_1_ECX, .bits = CPUID_EXT_AVX,
-            .offset = 0x240, .size = 0x100 },
+            .offset = offsetof(X86XSaveArea, avx_state),
+            .size = sizeof(XSaveAVX) },
     [XSTATE_BNDREGS_BIT] =
           { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
-            .offset = 0x3c0, .size = 0x40  },
+            .offset = offsetof(X86XSaveArea, bndreg_state),
+            .size = sizeof(XSaveBNDREG)  },
     [XSTATE_BNDCSR_BIT] =
           { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
-            .offset = 0x400, .size = 0x40  },
+            .offset = offsetof(X86XSaveArea, bndcsr_state),
+            .size = sizeof(XSaveBNDCSR)  },
     [XSTATE_OPMASK_BIT] =
           { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
-            .offset = 0x440, .size = 0x40 },
+            .offset = offsetof(X86XSaveArea, opmask_state),
+            .size = sizeof(XSaveOpmask) },
     [XSTATE_ZMM_Hi256_BIT] =
           { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
-            .offset = 0x480, .size = 0x200 },
+            .offset = offsetof(X86XSaveArea, zmm_hi256_state),
+            .size = sizeof(XSaveZMM_Hi256) },
     [XSTATE_Hi16_ZMM_BIT] =
           { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
-            .offset = 0x680, .size = 0x400 },
+            .offset = offsetof(X86XSaveArea, hi16_zmm_state),
+            .size = sizeof(XSaveHi16_ZMM) },
     [XSTATE_PKRU_BIT] =
           { .feature = FEAT_7_0_ECX, .bits = CPUID_7_0_ECX_PKU,
-            .offset = 0xA80, .size = 0x8 },
+            .offset = offsetof(X86XSaveArea, pkru_state),
+            .size = sizeof(XSavePKRU) },
 };
 
 const char *get_register_name_32(unsigned int reg)
@@ -703,6 +710,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
         .features[FEAT_8000_0001_ECX] =
             CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM,
         .xlevel = 0x8000000A,
+        .model_id = "QEMU Virtual CPU version " QEMU_HW_VERSION,
     },
     {
         .name = "phenom",
@@ -799,6 +807,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
         .features[FEAT_1_ECX] =
             CPUID_EXT_SSE3,
         .xlevel = 0x80000004,
+        .model_id = "QEMU Virtual CPU version " QEMU_HW_VERSION,
     },
     {
         .name = "kvm32",
@@ -895,6 +904,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
         .features[FEAT_8000_0001_EDX] =
             CPUID_EXT2_MMXEXT | CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT,
         .xlevel = 0x80000008,
+        .model_id = "QEMU Virtual CPU version " QEMU_HW_VERSION,
     },
     {
         .name = "n270",
@@ -2264,30 +2274,6 @@ void cpu_clear_apic_feature(CPUX86State *env)
 
 #endif /* !CONFIG_USER_ONLY */
 
-/* Initialize list of CPU models, filling some non-static fields if necessary
- */
-void x86_cpudef_setup(void)
-{
-    int i, j;
-    static const char *model_with_versions[] = { "qemu32", "qemu64", "athlon" };
-
-    for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); ++i) {
-        X86CPUDefinition *def = &builtin_x86_defs[i];
-
-        /* Look for specific "cpudef" models that */
-        /* have the QEMU version in .model_id */
-        for (j = 0; j < ARRAY_SIZE(model_with_versions); j++) {
-            if (strcmp(model_with_versions[j], def->name) == 0) {
-                pstrcpy(def->model_id, sizeof(def->model_id),
-                        "QEMU Virtual CPU version ");
-                pstrcat(def->model_id, sizeof(def->model_id),
-                        qemu_hw_version());
-                break;
-            }
-        }
-    }
-}
-
 void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                    uint32_t *eax, uint32_t *ebx,
                    uint32_t *ecx, uint32_t *edx)
@@ -2916,6 +2902,12 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
 
+    cpu_exec_init(cs, &error_abort);
+
+    if (tcg_enabled()) {
+        tcg_x86_init();
+    }
+
 #ifndef CONFIG_USER_ONLY
     qemu_register_reset(x86_cpu_machine_reset_cb, cpu);
 
@@ -3102,10 +3094,8 @@ static void x86_cpu_initfn(Object *obj)
     X86CPUClass *xcc = X86_CPU_GET_CLASS(obj);
     CPUX86State *env = &cpu->env;
     FeatureWord w;
-    static int inited;
 
     cs->env_ptr = env;
-    cpu_exec_init(cs, &error_abort);
 
     object_property_add(obj, "family", "int",
                         x86_cpuid_version_get_family,
@@ -3151,12 +3141,6 @@ static void x86_cpu_initfn(Object *obj)
     }
 
     x86_cpu_load_def(cpu, xcc->cpu_def, &error_abort);
-
-    /* init various static tables used in TCG mode */
-    if (tcg_enabled() && !inited) {
-        inited = 1;
-        tcg_x86_init();
-    }
 }
 
 static int64_t x86_cpu_get_arch_id(CPUState *cs)

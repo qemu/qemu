@@ -274,13 +274,6 @@ void do_smbios_option(QemuOpts *opts)
 #endif
 }
 
-void cpudef_init(void)
-{
-#if defined(cpudef_setup)
-    cpudef_setup(); /* parse cpu definitions in target config file */
-#endif
-}
-
 int kvm_available(void)
 {
 #ifdef CONFIG_KVM
