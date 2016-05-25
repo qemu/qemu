@@ -37,6 +37,7 @@
 #include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
+#include "sysemu/sysemu.h"
 
 #define D(x)
 #define DNAND(x)
@@ -341,8 +342,7 @@ void axisdev88_init(MachineState *machine)
     sysbus_create_varargs("etraxfs,timer", 0x3005e000, irq[0x1b], nmi[1], NULL);
 
     for (i = 0; i < 4; i++) {
-        sysbus_create_simple("etraxfs,serial", 0x30026000 + i * 0x2000,
-                             irq[0x14 + i]);
+        etraxfs_ser_create(0x30026000 + i * 0x2000, irq[0x14 + i], serial_hds[i]);
     }
 
     if (kernel_filename) {

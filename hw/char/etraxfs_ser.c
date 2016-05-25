@@ -159,6 +159,11 @@ static const MemoryRegionOps ser_ops = {
     }
 };
 
+static Property etraxfs_ser_properties[] = {
+    DEFINE_PROP_CHR("chardev", ETRAXSerial, chr),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void serial_receive(void *opaque, const uint8_t *buf, int size)
 {
     ETRAXSerial *s = opaque;
@@ -209,40 +214,42 @@ static void etraxfs_ser_reset(DeviceState *d)
 
 }
 
-static int etraxfs_ser_init(SysBusDevice *dev)
+static void etraxfs_ser_init(Object *obj)
+{
+    ETRAXSerial *s = ETRAX_SERIAL(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+
+    sysbus_init_irq(dev, &s->irq);
+    memory_region_init_io(&s->mmio, obj, &ser_ops, s,
+                          "etraxfs-serial", R_MAX * 4);
+    sysbus_init_mmio(dev, &s->mmio);
+}
+
+static void etraxfs_ser_realize(DeviceState *dev, Error **errp)
 {
     ETRAXSerial *s = ETRAX_SERIAL(dev);
 
-    sysbus_init_irq(dev, &s->irq);
-    memory_region_init_io(&s->mmio, OBJECT(s), &ser_ops, s,
-                          "etraxfs-serial", R_MAX * 4);
-    sysbus_init_mmio(dev, &s->mmio);
-
-    /* FIXME use a qdev chardev prop instead of qemu_char_get_next_serial() */
-    s->chr = qemu_char_get_next_serial();
     if (s->chr) {
         qemu_chr_add_handlers(s->chr,
                               serial_can_receive, serial_receive,
                               serial_event, s);
     }
-    return 0;
 }
 
 static void etraxfs_ser_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = etraxfs_ser_init;
     dc->reset = etraxfs_ser_reset;
-    /* Reason: init() method uses qemu_char_get_next_serial() */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->props = etraxfs_ser_properties;
+    dc->realize = etraxfs_ser_realize;
 }
 
 static const TypeInfo etraxfs_ser_info = {
     .name          = TYPE_ETRAX_FS_SERIAL,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ETRAXSerial),
+    .instance_init = etraxfs_ser_init,
     .class_init    = etraxfs_ser_class_init,
 };
 
