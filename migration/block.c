@@ -827,8 +827,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
     int len, flags;
     char device_name[256];
     int64_t addr;
-    BlockDriverState *bs, *bs_prev = NULL;
-    BlockBackend *blk;
+    BlockBackend *blk, *blk_prev = NULL;;
     Error *local_err = NULL;
     uint8_t *buf;
     int64_t total_sectors = 0;
@@ -853,23 +852,17 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
                         device_name);
                 return -EINVAL;
             }
-            bs = blk_bs(blk);
-            if (!bs) {
-                fprintf(stderr, "Block device %s has no medium\n",
-                        device_name);
-                return -EINVAL;
-            }
 
-            if (bs != bs_prev) {
-                bs_prev = bs;
-                total_sectors = bdrv_nb_sectors(bs);
+            if (blk != blk_prev) {
+                blk_prev = blk;
+                total_sectors = blk_nb_sectors(blk);
                 if (total_sectors <= 0) {
                     error_report("Error getting length of block device %s",
                                  device_name);
                     return -EINVAL;
                 }
 
-                bdrv_invalidate_cache(bs, &local_err);
+                blk_invalidate_cache(blk, &local_err);
                 if (local_err) {
                     error_report_err(local_err);
                     return -EINVAL;
@@ -883,13 +876,14 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
             }
 
             if (flags & BLK_MIG_FLAG_ZERO_BLOCK) {
-                ret = bdrv_pwrite_zeroes(bs, addr << BDRV_SECTOR_BITS,
-                                         nr_sectors << BDRV_SECTOR_BITS,
-                                         BDRV_REQ_MAY_UNMAP);
+                ret = blk_pwrite_zeroes(blk, addr * BDRV_SECTOR_SIZE,
+                                        nr_sectors * BDRV_SECTOR_SIZE,
+                                        BDRV_REQ_MAY_UNMAP);
             } else {
                 buf = g_malloc(BLOCK_SIZE);
                 qemu_get_buffer(f, buf, BLOCK_SIZE);
-                ret = bdrv_write(bs, addr, buf, nr_sectors);
+                ret = blk_pwrite(blk, addr * BDRV_SECTOR_SIZE, buf,
+                                 nr_sectors * BDRV_SECTOR_SIZE, 0);
                 g_free(buf);
             }
 
