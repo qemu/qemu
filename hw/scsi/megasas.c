@@ -1293,7 +1293,7 @@ static int megasas_dcmd_ld_get_info(MegasasState *s, MegasasCmd *cmd)
 
 static int megasas_dcmd_cfg_read(MegasasState *s, MegasasCmd *cmd)
 {
-    uint8_t data[4096];
+    uint8_t data[4096] = { 0 };
     struct mfi_config_data *info;
     int num_pd_disks = 0, array_offset, ld_offset;
     BusChild *kid;
