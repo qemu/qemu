@@ -340,17 +340,27 @@ and memory barriers, and the equivalents in QEMU:
   properly aligned.
   No barriers are implied by atomic_read/set in either Linux or QEMU.
 
-- most atomic read-modify-write operations in Linux return void;
-  in QEMU, all of them return the old value of the variable.
+- atomic read-modify-write operations in Linux are of three kinds:
+
+         atomic_OP          returns void
+         atomic_OP_return   returns new value of the variable
+         atomic_fetch_OP    returns the old value of the variable
+         atomic_cmpxchg     returns the old value of the variable
+
+  In QEMU, the second kind does not exist.  Currently Linux has
+  atomic_fetch_or only.  QEMU provides and, or, inc, dec, add, sub.
 
 - different atomic read-modify-write operations in Linux imply
   a different set of memory barriers; in QEMU, all of them enforce
   sequential consistency, which means they imply full memory barriers
   before and after the operation.
 
-- Linux does not have an equivalent of atomic_mb_read() and
-  atomic_mb_set().  In particular, note that set_mb() is a little
-  weaker than atomic_mb_set().
+- Linux does not have an equivalent of atomic_mb_set().  In particular,
+  note that smp_store_mb() is a little weaker than atomic_mb_set().
+  atomic_mb_read() compiles to the same instructions as Linux's
+  smp_load_acquire(), but this should be treated as an implementation
+  detail.  If required, QEMU might later add atomic_load_acquire() and
+  atomic_store_release() macros.
 
 
 SOURCES
