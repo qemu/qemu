@@ -597,7 +597,7 @@ F: hw/pci-host/grackle.c
 F: hw/misc/macio/
 
 PReP
-M: Andreas Färber <andreas.faerber@web.de>
+L: qemu-devel@nongnu.org
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/prep.c
