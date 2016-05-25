@@ -1153,12 +1153,20 @@ static void nbd_trip(void *opaque)
         break;
     case NBD_CMD_TRIM:
         TRACE("Request type is TRIM");
-        ret = blk_co_discard(exp->blk, (request.from + exp->dev_offset)
-                                       / BDRV_SECTOR_SIZE,
-                             request.len / BDRV_SECTOR_SIZE);
-        if (ret < 0) {
-            LOG("discard failed");
-            reply.error = -ret;
+        /* Ignore unaligned head or tail, until block layer adds byte
+         * interface */
+        if (request.len >= BDRV_SECTOR_SIZE) {
+            request.len -= (request.from + request.len) % BDRV_SECTOR_SIZE;
+            ret = blk_co_discard(exp->blk,
+                                 DIV_ROUND_UP(request.from + exp->dev_offset,
+                                              BDRV_SECTOR_SIZE),
+                                 request.len / BDRV_SECTOR_SIZE);
+            if (ret < 0) {
+                LOG("discard failed");
+                reply.error = -ret;
+            }
+        } else {
+            TRACE("trim request too small, ignoring");
         }
         if (nbd_co_send_reply(req, &reply, 0) < 0) {
             goto out;
