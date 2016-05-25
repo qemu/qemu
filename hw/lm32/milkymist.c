@@ -175,7 +175,7 @@ milkymist_init(MachineState *machine)
             0x20000000, 0x1000, 0x20020000, 0x2000);
 
     /* make sure juart isn't the first chardev */
-    env->juart_state = lm32_juart_init();
+    env->juart_state = lm32_juart_init(serial_hds[1]);
 
     if (kernel_filename) {
         uint64_t entry;

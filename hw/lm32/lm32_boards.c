@@ -31,6 +31,7 @@
 #include "lm32_hwsetup.h"
 #include "lm32.h"
 #include "exec/address-spaces.h"
+#include "sysemu/sysemu.h"
 
 typedef struct {
     LM32CPU *cpu;
@@ -136,7 +137,7 @@ static void lm32_evr_init(MachineState *machine)
     sysbus_create_simple("lm32-timer", timer1_base, irq[timer1_irq]);
 
     /* make sure juart isn't the first chardev */
-    env->juart_state = lm32_juart_init();
+    env->juart_state = lm32_juart_init(serial_hds[1]);
 
     reset_info->bootstrap_pc = flash_base;
 
@@ -238,7 +239,7 @@ static void lm32_uclinux_init(MachineState *machine)
     sysbus_create_simple("lm32-timer", timer2_base, irq[timer2_irq]);
 
     /* make sure juart isn't the first chardev */
-    env->juart_state = lm32_juart_init();
+    env->juart_state = lm32_juart_init(serial_hds[1]);
 
     reset_info->bootstrap_pc = flash_base;
 

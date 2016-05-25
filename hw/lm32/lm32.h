@@ -16,11 +16,12 @@ static inline DeviceState *lm32_pic_init(qemu_irq cpu_irq)
     return dev;
 }
 
-static inline DeviceState *lm32_juart_init(void)
+static inline DeviceState *lm32_juart_init(CharDriverState *chr)
 {
     DeviceState *dev;
 
     dev = qdev_create(NULL, TYPE_LM32_JUART);
+    qdev_prop_set_chr(dev, "chardev", chr);
     qdev_init_nofail(dev);
 
     return dev;
