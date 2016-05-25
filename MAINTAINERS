@@ -1399,9 +1399,8 @@ S: Orphan
 
 Stable 0.15
 L: qemu-stable@nongnu.org
-M: Andreas Färber <afaerber@suse.de>
 T: git git://git.qemu-project.org/qemu-stable-0.15.git
-S: Supported
+S: Orphan
 
 Stable 0.14
 L: qemu-stable@nongnu.org
