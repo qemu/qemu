@@ -1046,7 +1046,7 @@ S: Supported
 F: scripts/coverity-model.c
 
 CPU
-M: Andreas Färber <afaerber@suse.de>
+L: qemu-devel@nongnu.org
 S: Supported
 F: qom/cpu.c
 F: include/qom/cpu.h
