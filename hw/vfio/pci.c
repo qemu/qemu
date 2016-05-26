@@ -1452,29 +1452,6 @@ static void vfio_bars_setup(VFIOPCIDevice *vdev)
     for (i = 0; i < PCI_ROM_SLOT; i++) {
         vfio_bar_setup(vdev, i);
     }
-
-    if (vdev->vga) {
-        memory_region_init_io(&vdev->vga->region[QEMU_PCI_VGA_MEM].mem,
-                              OBJECT(vdev), &vfio_vga_ops,
-                              &vdev->vga->region[QEMU_PCI_VGA_MEM],
-                              "vfio-vga-mmio@0xa0000",
-                              QEMU_PCI_VGA_MEM_SIZE);
-        memory_region_init_io(&vdev->vga->region[QEMU_PCI_VGA_IO_LO].mem,
-                              OBJECT(vdev), &vfio_vga_ops,
-                              &vdev->vga->region[QEMU_PCI_VGA_IO_LO],
-                              "vfio-vga-io@0x3b0",
-                              QEMU_PCI_VGA_IO_LO_SIZE);
-        memory_region_init_io(&vdev->vga->region[QEMU_PCI_VGA_IO_HI].mem,
-                              OBJECT(vdev), &vfio_vga_ops,
-                              &vdev->vga->region[QEMU_PCI_VGA_IO_HI],
-                              "vfio-vga-io@0x3c0",
-                              QEMU_PCI_VGA_IO_HI_SIZE);
-
-        pci_register_vga(&vdev->pdev, &vdev->vga->region[QEMU_PCI_VGA_MEM].mem,
-                         &vdev->vga->region[QEMU_PCI_VGA_IO_LO].mem,
-                         &vdev->vga->region[QEMU_PCI_VGA_IO_HI].mem);
-        vfio_vga_quirk_setup(vdev);
-    }
 }
 
 static void vfio_bars_exit(VFIOPCIDevice *vdev)
@@ -2087,13 +2064,35 @@ int vfio_populate_vga(VFIOPCIDevice *vdev)
     vdev->vga->region[QEMU_PCI_VGA_MEM].nr = QEMU_PCI_VGA_MEM;
     QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_MEM].quirks);
 
+    memory_region_init_io(&vdev->vga->region[QEMU_PCI_VGA_MEM].mem,
+                          OBJECT(vdev), &vfio_vga_ops,
+                          &vdev->vga->region[QEMU_PCI_VGA_MEM],
+                          "vfio-vga-mmio@0xa0000",
+                          QEMU_PCI_VGA_MEM_SIZE);
+
     vdev->vga->region[QEMU_PCI_VGA_IO_LO].offset = QEMU_PCI_VGA_IO_LO_BASE;
     vdev->vga->region[QEMU_PCI_VGA_IO_LO].nr = QEMU_PCI_VGA_IO_LO;
     QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_IO_LO].quirks);
 
+    memory_region_init_io(&vdev->vga->region[QEMU_PCI_VGA_IO_LO].mem,
+                          OBJECT(vdev), &vfio_vga_ops,
+                          &vdev->vga->region[QEMU_PCI_VGA_IO_LO],
+                          "vfio-vga-io@0x3b0",
+                          QEMU_PCI_VGA_IO_LO_SIZE);
+
     vdev->vga->region[QEMU_PCI_VGA_IO_HI].offset = QEMU_PCI_VGA_IO_HI_BASE;
     vdev->vga->region[QEMU_PCI_VGA_IO_HI].nr = QEMU_PCI_VGA_IO_HI;
     QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_IO_HI].quirks);
+
+    memory_region_init_io(&vdev->vga->region[QEMU_PCI_VGA_IO_HI].mem,
+                          OBJECT(vdev), &vfio_vga_ops,
+                          &vdev->vga->region[QEMU_PCI_VGA_IO_HI],
+                          "vfio-vga-io@0x3c0",
+                          QEMU_PCI_VGA_IO_HI_SIZE);
+
+    pci_register_vga(&vdev->pdev, &vdev->vga->region[QEMU_PCI_VGA_MEM].mem,
+                     &vdev->vga->region[QEMU_PCI_VGA_IO_LO].mem,
+                     &vdev->vga->region[QEMU_PCI_VGA_IO_HI].mem);
 
     return 0;
 }
@@ -2555,6 +2554,10 @@ static int vfio_initfn(PCIDevice *pdev)
     ret = vfio_add_capabilities(vdev);
     if (ret) {
         goto out_teardown;
+    }
+
+    if (vdev->vga) {
+        vfio_vga_quirk_setup(vdev);
     }
 
     /* QEMU emulates all of MSI & MSIX */
