@@ -260,14 +260,14 @@ static void vfio_iommu_map_notify(Notifier *n, void *data)
     VFIOGuestIOMMU *giommu = container_of(n, VFIOGuestIOMMU, n);
     VFIOContainer *container = giommu->container;
     IOMMUTLBEntry *iotlb = data;
+    hwaddr iova = iotlb->iova + giommu->iommu_offset;
     MemoryRegion *mr;
     hwaddr xlat;
     hwaddr len = iotlb->addr_mask + 1;
     void *vaddr;
     int ret;
 
-    trace_vfio_iommu_map_notify(iotlb->iova,
-                                iotlb->iova + iotlb->addr_mask);
+    trace_vfio_iommu_map_notify(iova, iova + iotlb->addr_mask);
 
     /*
      * The IOMMU TLB entry we have just covers translation through
@@ -294,21 +294,21 @@ static void vfio_iommu_map_notify(Notifier *n, void *data)
 
     if ((iotlb->perm & IOMMU_RW) != IOMMU_NONE) {
         vaddr = memory_region_get_ram_ptr(mr) + xlat;
-        ret = vfio_dma_map(container, iotlb->iova,
+        ret = vfio_dma_map(container, iova,
                            iotlb->addr_mask + 1, vaddr,
                            !(iotlb->perm & IOMMU_WO) || mr->readonly);
         if (ret) {
             error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
                          "0x%"HWADDR_PRIx", %p) = %d (%m)",
-                         container, iotlb->iova,
+                         container, iova,
                          iotlb->addr_mask + 1, vaddr, ret);
         }
     } else {
-        ret = vfio_dma_unmap(container, iotlb->iova, iotlb->addr_mask + 1);
+        ret = vfio_dma_unmap(container, iova, iotlb->addr_mask + 1);
         if (ret) {
             error_report("vfio_dma_unmap(%p, 0x%"HWADDR_PRIx", "
                          "0x%"HWADDR_PRIx") = %d (%m)",
-                         container, iotlb->iova,
+                         container, iova,
                          iotlb->addr_mask + 1, ret);
         }
     }
@@ -380,6 +380,8 @@ static void vfio_listener_region_add(MemoryListener *listener,
          */
         giommu = g_malloc0(sizeof(*giommu));
         giommu->iommu = section->mr;
+        giommu->iommu_offset = section->offset_within_address_space -
+                               section->offset_within_region;
         giommu->container = container;
         giommu->n.notify = vfio_iommu_map_notify;
         QLIST_INSERT_HEAD(&container->giommu_list, giommu, giommu_next);
