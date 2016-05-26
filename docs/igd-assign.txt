@@ -1,0 +1,133 @@
+Intel Graphics Device (IGD) assignment with vfio-pci
+====================================================
+
+IGD has two different modes for assignment using vfio-pci:
+
+1) Universal Pass-Through (UPT) mode:
+
+   In this mode the IGD device is added as a *secondary* (ie. non-primary)
+   graphics device in combination with an emulated primary graphics device.
+   This mode *requires* guest driver support to remove the external
+   dependencies generally associated with IGD (see below).  Those guest
+   drivers only support this mode for Broadwell and newer IGD, according to
+   Intel.  Additionally, this mode by default, and as officially supported
+   by Intel, does not support direct video output.  The intention is to use
+   this mode either to provide hardware acceleration to the emulated graphics
+   or to use this mode in combination with guest-based remote access software,
+   for example VNC (see below for optional output support).  This mode
+   theoretically has no device specific handling dependencies on vfio-pci or
+   the VM firmware.
+
+2) "Legacy" mode:
+
+   In this mode the IGD device is intended to be the primary and exclusive
+   graphics device in the VM[1], as such QEMU does not facilitate any sort
+   of remote graphics to the VM in this mode.  A connected physical monitor
+   is the intended output device for IGD.  This mode includes several
+   requirements and restrictions:
+
+    * IGD must be given address 02.0 on the PCI root bus in the VM
+    * The host kernel must support vfio extensions for IGD (v4.6)
+    * vfio VGA support very likely needs to be enabled in the host kernel
+    * The VM firmware must support specific fw_cfg enablers for IGD
+    * The VM machine type must support a PCI host bridge at 00.0 (standard)
+    * The VM machine type must provide or allow to be created a special
+      ISA/LPC bridge device (vfio-pci-igd-lpc-bridge) on the root bus at
+      PCI address 1f.0.
+    * The IGD device must have a VGA ROM, either provided via the romfile
+      option or loaded automatically through vfio (standard).  rombar=0
+      will disable legacy mode support.
+    * Hotplug of the IGD device is not supported.
+    * The IGD device must be a SandyBridge or newer model device.
+
+For either mode, depending on the host kernel, the i915 driver in the host
+may generate faults and errors upon re-binding to an IGD device after it
+has been assigned to a VM.  It's therefore generally recommended to prevent
+such driver binding unless the host driver is known to work well for this.
+There are numerous ways to do this, i915 can be blacklisted on the host,
+the driver_override option can be used to ensure that only vfio-pci can bind
+to the device on the host[2], virsh nodedev-detach can be used to bind the
+device to vfio drivers and then managed='no' set in the VM xml to prevent
+re-binding to i915, etc.  Also note that IGD is also typically the primary
+graphics in the host and special options may be required beyond simply
+blacklisting i915 or using pci-stub/vfio-pci to take ownership of IGD as a
+PCI class device.  Lower level drivers exist that may still claim the device.
+It may therefore be necessary to use kernel boot options video=vesafb:off or
+video=efifb:off (depending on host BIOS/UEFI) or these can be combined to
+a catch-all, video=vesafb:off,efifb:off.  Error messages such as:
+
+    Failed to mmap 0000:00:02.0 BAR <>. Performance may be slow
+
+are a good indicator that such a problem exists.  The host files /proc/iomem
+and /proc/ioports are often useful for identifying drivers consuming ranges
+of the device to cause such conflicts.
+
+Additionally, IGD device are known to generate small numbers of DMAR faults
+when initially assigned.  It is believed that this is simply the IGD attempting
+to access the reserved GTT space after reset, which it no longer has access to
+when accessed from userspace.  So long as the DMAR faults are small in number
+and most importantly, not ongoing, these are not an indication of an error.
+
+Additionally++, analog VGA output (as opposed to digital outputs like HDMI,
+DVI, or DisplayPort) may be unsupported in some use cases.  In the author's
+experience, even DP to VGA adapters can be troublesome while adapters between
+digital formats work well.
+
+Usage
+=====
+The intention is for IGD assignment to be transparent for users and thus for
+management tools like libvirt.  To make use of legacy mode, simply remove all
+other graphics options and use "-nographic" and either "-vga none" or
+"-nodefaults", along with adding the device using vfio-pci:
+
+    -device vfio-pci,host=00:02.0,id=hostdev0,bus=pci.0,addr=0x2
+
+For UPT mode, retain the default emulated graphics and simply add the vfio-pci
+device making use of any other bus address other than 02.0.  libvirt will
+default to assigning the device a UPT compatible address while legacy mode
+users will need to manually edit the XML if using a tool like virt-manager
+where the VM device address is not expressly specified.
+
+An experimental vfio-pci option also exists to enable OpRegion, and thus
+external monitor support, for UPT mode.  This can be enabled by adding
+"x-igd-opregion=on" to the vfio-pci device options for the IGD device.  As
+with legacy mode, this requires the host to support features introduced in
+the v4.6 kernel.  If Intel chooses to embrace this support, the option may
+be made non-experimental in the future, opening it to libvirt support.
+
+Developer ABI
+=============
+Legacy mode IGD support imposes two fw_cfg requirements on the VM firmware:
+
+1) "etc/igd-opregion"
+
+   This fw_cfg file exposes the OpRegion for the IGD device.  A reserved
+   region should be created below 4GB (recommended 4KB alignment), sized
+   sufficient for the fw_cfg file size, and the content of this file copied
+   to it.  The dword based address of this reserved memory region must also
+   be written to the ASLS register at offset 0xFC on the IGD device.  It is
+   recommended that firmware should make use of this fw_cfg entry for any
+   PCI class VGA device with Intel vendor ID.  Multiple of such devices
+   within a VM is undefined.
+
+2) "etc/igd-bdsm-size"
+
+   This fw_cfg file contains an 8-byte, little endian integer indicating
+   the size of the reserved memory region required for IGD stolen memory.
+   Firmware must allocate a reserved memory below 4GB with required 1MB
+   alignment equal to this size.  Additionally the base address of this
+   reserved region must be written to the dword BDSM register in PCI config
+   space of the IGD device at offset 0x5C.  As this support is related to
+   running the IGD ROM, which has other dependencies on the device appearing
+   at guest address 00:02.0, it's expected that this fw_cfg file is only
+   relevant to a single PCI class VGA device with Intel vendor ID, appearing
+   at PCI bus address 00:02.0.
+
+Footnotes
+=========
+[1] Nothing precludes adding additional emulated or assigned graphics devices
+    as non-primary, other than the combination typically not working.  I only
+    intend to set user expectations, others are welcome to find working
+    combinations or fix whatever issues prevent this from working in the common
+    case.
+[2] # echo "vfio-pci" > /sys/bus/pci/devices/0000:00:02.0/driver_override
