@@ -2437,6 +2437,9 @@ static coroutine_fn int qcow2_co_write_zeroes(BlockDriverState *bs,
     int head = sector_num % s->cluster_sectors;
     int tail = (sector_num + nb_sectors) % s->cluster_sectors;
 
+    trace_qcow2_write_zeroes_start_req(qemu_coroutine_self(), sector_num,
+                                       nb_sectors);
+
     if (head != 0 || tail != 0) {
         int64_t cl_start = sector_num - head;
 
@@ -2458,6 +2461,8 @@ static coroutine_fn int qcow2_co_write_zeroes(BlockDriverState *bs,
     } else {
         qemu_co_mutex_lock(&s->lock);
     }
+
+    trace_qcow2_write_zeroes(qemu_coroutine_self(), sector_num, nb_sectors);
 
     /* Whatever is left can use real zero clusters */
     ret = qcow2_zero_clusters(bs, sector_num << BDRV_SECTOR_BITS, nb_sectors);
