@@ -433,6 +433,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
 {
     VFIOContainer *container = container_of(listener, VFIOContainer, listener);
     hwaddr iova, end;
+    Int128 llend, llsize;
     int ret;
 
     if (vfio_listener_skipped_section(section)) {
@@ -471,21 +472,25 @@ static void vfio_listener_region_del(MemoryListener *listener,
     }
 
     iova = TARGET_PAGE_ALIGN(section->offset_within_address_space);
-    end = (section->offset_within_address_space + int128_get64(section->size)) &
-          TARGET_PAGE_MASK;
+    llend = int128_make64(section->offset_within_address_space);
+    llend = int128_add(llend, section->size);
+    llend = int128_and(llend, int128_exts64(TARGET_PAGE_MASK));
 
-    if (iova >= end) {
+    if (int128_ge(int128_make64(iova), llend)) {
         return;
     }
+    end = int128_get64(int128_sub(llend, int128_one()));
 
-    trace_vfio_listener_region_del(iova, end - 1);
+    llsize = int128_sub(llend, int128_make64(iova));
 
-    ret = vfio_dma_unmap(container, iova, end - iova);
+    trace_vfio_listener_region_del(iova, end);
+
+    ret = vfio_dma_unmap(container, iova, int128_get64(llsize));
     memory_region_unref(section->mr);
     if (ret) {
         error_report("vfio_dma_unmap(%p, 0x%"HWADDR_PRIx", "
                      "0x%"HWADDR_PRIx") = %d (%m)",
-                     container, iova, end - iova, ret);
+                     container, iova, int128_get64(llsize), ret);
     }
 }
 
