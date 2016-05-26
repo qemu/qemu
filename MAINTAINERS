@@ -597,7 +597,7 @@ F: hw/pci-host/grackle.c
 F: hw/misc/macio/
 
 PReP
-M: Andreas Färber <andreas.faerber@web.de>
+L: qemu-devel@nongnu.org
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/prep.c
@@ -1046,7 +1046,7 @@ S: Supported
 F: scripts/coverity-model.c
 
 CPU
-M: Andreas Färber <afaerber@suse.de>
+L: qemu-devel@nongnu.org
 S: Supported
 F: qom/cpu.c
 F: include/qom/cpu.h
@@ -1105,7 +1105,6 @@ F: ui/
 F: include/ui/
 
 Cocoa graphics
-M: Andreas Färber <andreas.faerber@web.de>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Odd Fixes
 F: ui/cocoa.m
@@ -1400,9 +1399,8 @@ S: Orphan
 
 Stable 0.15
 L: qemu-stable@nongnu.org
-M: Andreas Färber <afaerber@suse.de>
 T: git git://git.qemu-project.org/qemu-stable-0.15.git
-S: Supported
+S: Orphan
 
 Stable 0.14
 L: qemu-stable@nongnu.org
