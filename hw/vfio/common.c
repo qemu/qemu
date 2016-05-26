@@ -269,6 +269,12 @@ static void vfio_iommu_map_notify(Notifier *n, void *data)
 
     trace_vfio_iommu_map_notify(iova, iova + iotlb->addr_mask);
 
+    if (iotlb->target_as != &address_space_memory) {
+        error_report("Wrong target AS \"%s\", only system memory is allowed",
+                     iotlb->target_as->name ? iotlb->target_as->name : "none");
+        return;
+    }
+
     /*
      * The IOMMU TLB entry we have just covers translation through
      * this IOMMU to its immediate target.  We need to translate
