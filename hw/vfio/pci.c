@@ -2061,42 +2061,39 @@ int vfio_populate_vga(VFIOPCIDevice *vdev)
     struct vfio_region_info *reg_info;
     int ret;
 
-    if (vbasedev->num_regions > VFIO_PCI_VGA_REGION_INDEX) {
-        ret = vfio_get_region_info(vbasedev,
-                                   VFIO_PCI_VGA_REGION_INDEX, &reg_info);
-        if (ret) {
-            return ret;
-        }
-
-        if (!(reg_info->flags & VFIO_REGION_INFO_FLAG_READ) ||
-            !(reg_info->flags & VFIO_REGION_INFO_FLAG_WRITE) ||
-            reg_info->size < 0xbffff + 1) {
-            error_report("vfio: Unexpected VGA info, flags 0x%lx, size 0x%lx",
-                         (unsigned long)reg_info->flags,
-                         (unsigned long)reg_info->size);
-            g_free(reg_info);
-            return -EINVAL;
-        }
-
-        vdev->vga = g_new0(VFIOVGA, 1);
-
-        vdev->vga->fd_offset = reg_info->offset;
-        vdev->vga->fd = vdev->vbasedev.fd;
-
-        g_free(reg_info);
-
-        vdev->vga->region[QEMU_PCI_VGA_MEM].offset = QEMU_PCI_VGA_MEM_BASE;
-        vdev->vga->region[QEMU_PCI_VGA_MEM].nr = QEMU_PCI_VGA_MEM;
-        QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_MEM].quirks);
-
-        vdev->vga->region[QEMU_PCI_VGA_IO_LO].offset = QEMU_PCI_VGA_IO_LO_BASE;
-        vdev->vga->region[QEMU_PCI_VGA_IO_LO].nr = QEMU_PCI_VGA_IO_LO;
-        QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_IO_LO].quirks);
-
-        vdev->vga->region[QEMU_PCI_VGA_IO_HI].offset = QEMU_PCI_VGA_IO_HI_BASE;
-        vdev->vga->region[QEMU_PCI_VGA_IO_HI].nr = QEMU_PCI_VGA_IO_HI;
-        QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_IO_HI].quirks);
+    ret = vfio_get_region_info(vbasedev, VFIO_PCI_VGA_REGION_INDEX, &reg_info);
+    if (ret) {
+        return ret;
     }
+
+    if (!(reg_info->flags & VFIO_REGION_INFO_FLAG_READ) ||
+        !(reg_info->flags & VFIO_REGION_INFO_FLAG_WRITE) ||
+        reg_info->size < 0xbffff + 1) {
+        error_report("vfio: Unexpected VGA info, flags 0x%lx, size 0x%lx",
+                     (unsigned long)reg_info->flags,
+                     (unsigned long)reg_info->size);
+        g_free(reg_info);
+        return -EINVAL;
+    }
+
+    vdev->vga = g_new0(VFIOVGA, 1);
+
+    vdev->vga->fd_offset = reg_info->offset;
+    vdev->vga->fd = vdev->vbasedev.fd;
+
+    g_free(reg_info);
+
+    vdev->vga->region[QEMU_PCI_VGA_MEM].offset = QEMU_PCI_VGA_MEM_BASE;
+    vdev->vga->region[QEMU_PCI_VGA_MEM].nr = QEMU_PCI_VGA_MEM;
+    QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_MEM].quirks);
+
+    vdev->vga->region[QEMU_PCI_VGA_IO_LO].offset = QEMU_PCI_VGA_IO_LO_BASE;
+    vdev->vga->region[QEMU_PCI_VGA_IO_LO].nr = QEMU_PCI_VGA_IO_LO;
+    QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_IO_LO].quirks);
+
+    vdev->vga->region[QEMU_PCI_VGA_IO_HI].offset = QEMU_PCI_VGA_IO_HI_BASE;
+    vdev->vga->region[QEMU_PCI_VGA_IO_HI].nr = QEMU_PCI_VGA_IO_HI;
+    QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_IO_HI].quirks);
 
     return 0;
 }
