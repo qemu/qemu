@@ -34,6 +34,8 @@
 #include "qom/cpu.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
+#include "io/channel-buffer.h"
+#include "io/channel-tls.h"
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
 
@@ -81,16 +83,13 @@ MigrationState *migrate_get_current(void)
         .bandwidth_limit = MAX_THROTTLE,
         .xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE,
         .mbps = -1,
-        .parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL] =
-                DEFAULT_MIGRATE_COMPRESS_LEVEL,
-        .parameters[MIGRATION_PARAMETER_COMPRESS_THREADS] =
-                DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT,
-        .parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS] =
-                DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT,
-        .parameters[MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL] =
-                DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL,
-        .parameters[MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT] =
-                DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT,
+        .parameters = {
+            .compress_level = DEFAULT_MIGRATE_COMPRESS_LEVEL,
+            .compress_threads = DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT,
+            .decompress_threads = DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT,
+            .cpu_throttle_initial = DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL,
+            .cpu_throttle_increment = DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT,
+        },
     };
 
     if (!once) {
@@ -310,14 +309,12 @@ void qemu_start_incoming_migration(const char *uri, Error **errp)
     } else if (strstart(uri, "rdma:", &p)) {
         rdma_start_incoming_migration(p, errp);
 #endif
-#if !defined(WIN32)
     } else if (strstart(uri, "exec:", &p)) {
         exec_start_incoming_migration(p, errp);
     } else if (strstart(uri, "unix:", &p)) {
         unix_start_incoming_migration(p, errp);
     } else if (strstart(uri, "fd:", &p)) {
         fd_start_incoming_migration(p, errp);
-#endif
     } else {
         error_setg(errp, "unknown migration protocol: %s", uri);
     }
@@ -422,13 +419,59 @@ static void process_incoming_migration_co(void *opaque)
 void process_incoming_migration(QEMUFile *f)
 {
     Coroutine *co = qemu_coroutine_create(process_incoming_migration_co);
-    int fd = qemu_get_fd(f);
 
-    assert(fd != -1);
     migrate_decompress_threads_create();
-    qemu_set_nonblock(fd);
+    qemu_file_set_blocking(f, false);
     qemu_coroutine_enter(co, f);
 }
+
+
+void migration_set_incoming_channel(MigrationState *s,
+                                    QIOChannel *ioc)
+{
+    trace_migration_set_incoming_channel(
+        ioc, object_get_typename(OBJECT(ioc)));
+
+    if (s->parameters.tls_creds &&
+        !object_dynamic_cast(OBJECT(ioc),
+                             TYPE_QIO_CHANNEL_TLS)) {
+        Error *local_err = NULL;
+        migration_tls_set_incoming_channel(s, ioc, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+        }
+    } else {
+        QEMUFile *f = qemu_fopen_channel_input(ioc);
+        process_incoming_migration(f);
+    }
+}
+
+
+void migration_set_outgoing_channel(MigrationState *s,
+                                    QIOChannel *ioc,
+                                    const char *hostname)
+{
+    trace_migration_set_outgoing_channel(
+        ioc, object_get_typename(OBJECT(ioc)), hostname);
+
+    if (s->parameters.tls_creds &&
+        !object_dynamic_cast(OBJECT(ioc),
+                             TYPE_QIO_CHANNEL_TLS)) {
+        Error *local_err = NULL;
+        migration_tls_set_outgoing_channel(s, ioc, hostname, &local_err);
+        if (local_err) {
+            migrate_fd_error(s, local_err);
+            error_free(local_err);
+        }
+    } else {
+        QEMUFile *f = qemu_fopen_channel_output(ioc);
+
+        s->to_dst_file = f;
+
+        migrate_fd_connect(s);
+    }
+}
+
 
 /*
  * Send a message on the return channel back to the source
@@ -516,15 +559,13 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     MigrationState *s = migrate_get_current();
 
     params = g_malloc0(sizeof(*params));
-    params->compress_level = s->parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL];
-    params->compress_threads =
-            s->parameters[MIGRATION_PARAMETER_COMPRESS_THREADS];
-    params->decompress_threads =
-            s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS];
-    params->cpu_throttle_initial =
-            s->parameters[MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL];
-    params->cpu_throttle_increment =
-            s->parameters[MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT];
+    params->compress_level = s->parameters.compress_level;
+    params->compress_threads = s->parameters.compress_threads;
+    params->decompress_threads = s->parameters.decompress_threads;
+    params->cpu_throttle_initial = s->parameters.cpu_throttle_initial;
+    params->cpu_throttle_increment = s->parameters.cpu_throttle_increment;
+    params->tls_creds = g_strdup(s->parameters.tls_creds);
+    params->tls_hostname = g_strdup(s->parameters.tls_hostname);
 
     return params;
 }
@@ -672,6 +713,10 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         break;
     case MIGRATION_STATUS_FAILED:
         info->has_status = true;
+        if (s->error) {
+            info->has_error_desc = true;
+            info->error_desc = g_strdup(error_get_pretty(s->error));
+        }
         break;
     case MIGRATION_STATUS_CANCELLED:
         info->has_status = true;
@@ -721,7 +766,12 @@ void qmp_migrate_set_parameters(bool has_compress_level,
                                 bool has_cpu_throttle_initial,
                                 int64_t cpu_throttle_initial,
                                 bool has_cpu_throttle_increment,
-                                int64_t cpu_throttle_increment, Error **errp)
+                                int64_t cpu_throttle_increment,
+                                bool has_tls_creds,
+                                const char *tls_creds,
+                                bool has_tls_hostname,
+                                const char *tls_hostname,
+                                Error **errp)
 {
     MigrationState *s = migrate_get_current();
 
@@ -758,25 +808,30 @@ void qmp_migrate_set_parameters(bool has_compress_level,
     }
 
     if (has_compress_level) {
-        s->parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL] = compress_level;
+        s->parameters.compress_level = compress_level;
     }
     if (has_compress_threads) {
-        s->parameters[MIGRATION_PARAMETER_COMPRESS_THREADS] = compress_threads;
+        s->parameters.compress_threads = compress_threads;
     }
     if (has_decompress_threads) {
-        s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS] =
-                                                    decompress_threads;
+        s->parameters.decompress_threads = decompress_threads;
     }
     if (has_cpu_throttle_initial) {
-        s->parameters[MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL] =
-                                                    cpu_throttle_initial;
+        s->parameters.cpu_throttle_initial = cpu_throttle_initial;
     }
-
     if (has_cpu_throttle_increment) {
-        s->parameters[MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT] =
-                                                    cpu_throttle_increment;
+        s->parameters.cpu_throttle_increment = cpu_throttle_increment;
+    }
+    if (has_tls_creds) {
+        g_free(s->parameters.tls_creds);
+        s->parameters.tls_creds = g_strdup(tls_creds);
+    }
+    if (has_tls_hostname) {
+        g_free(s->parameters.tls_hostname);
+        s->parameters.tls_hostname = g_strdup(tls_hostname);
     }
 }
+
 
 void qmp_migrate_start_postcopy(Error **errp)
 {
@@ -844,12 +899,15 @@ static void migrate_fd_cleanup(void *opaque)
     notifier_list_notify(&migration_state_notifiers, s);
 }
 
-void migrate_fd_error(MigrationState *s)
+void migrate_fd_error(MigrationState *s, const Error *error)
 {
-    trace_migrate_fd_error();
+    trace_migrate_fd_error(error ? error_get_pretty(error) : "");
     assert(s->to_dst_file == NULL);
     migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
                       MIGRATION_STATUS_FAILED);
+    if (!s->error) {
+        s->error = error_copy(error);
+    }
     notifier_list_notify(&migration_state_notifiers, s);
 }
 
@@ -948,6 +1006,8 @@ MigrationState *migrate_init(const MigrationParams *params)
     s->postcopy_after_devices = false;
     s->migration_thread_running = false;
     s->last_req_rb = NULL;
+    error_free(s->error);
+    s->error = NULL;
 
     migrate_set_state(&s->state, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
 
@@ -1040,14 +1100,12 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     } else if (strstart(uri, "rdma:", &p)) {
         rdma_start_outgoing_migration(s, p, &local_err);
 #endif
-#if !defined(WIN32)
     } else if (strstart(uri, "exec:", &p)) {
         exec_start_outgoing_migration(s, p, &local_err);
     } else if (strstart(uri, "unix:", &p)) {
         unix_start_outgoing_migration(s, p, &local_err);
     } else if (strstart(uri, "fd:", &p)) {
         fd_start_outgoing_migration(s, p, &local_err);
-#endif
     } else {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "uri",
                    "a valid migration protocol");
@@ -1057,7 +1115,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     }
 
     if (local_err) {
-        migrate_fd_error(s);
+        migrate_fd_error(s, local_err);
         error_propagate(errp, local_err);
         return;
     }
@@ -1170,7 +1228,7 @@ int migrate_compress_level(void)
 
     s = migrate_get_current();
 
-    return s->parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL];
+    return s->parameters.compress_level;
 }
 
 int migrate_compress_threads(void)
@@ -1179,7 +1237,7 @@ int migrate_compress_threads(void)
 
     s = migrate_get_current();
 
-    return s->parameters[MIGRATION_PARAMETER_COMPRESS_THREADS];
+    return s->parameters.compress_threads;
 }
 
 int migrate_decompress_threads(void)
@@ -1188,7 +1246,7 @@ int migrate_decompress_threads(void)
 
     s = migrate_get_current();
 
-    return s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS];
+    return s->parameters.decompress_threads;
 }
 
 bool migrate_use_events(void)
@@ -1429,7 +1487,8 @@ static int await_return_path_close_on_source(MigrationState *ms)
 static int postcopy_start(MigrationState *ms, bool *old_vm_running)
 {
     int ret;
-    const QEMUSizedBuffer *qsb;
+    QIOChannelBuffer *bioc;
+    QEMUFile *fb;
     int64_t time_at_stop = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     migrate_set_state(&ms->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_POSTCOPY_ACTIVE);
@@ -1488,11 +1547,9 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
      * So we wrap the device state up in a package with a length at the start;
      * to do this we use a qemu_buf to hold the whole of the device state.
      */
-    QEMUFile *fb = qemu_bufopen("w", NULL);
-    if (!fb) {
-        error_report("Failed to create buffered file");
-        goto fail;
-    }
+    bioc = qio_channel_buffer_new(4096);
+    fb = qemu_fopen_channel_output(QIO_CHANNEL(bioc));
+    object_unref(OBJECT(bioc));
 
     /*
      * Make sure the receiver can get incoming pages before we send the rest
@@ -1506,10 +1563,9 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
     qemu_savevm_send_postcopy_run(fb);
 
     /* <><> end of stuff going into the package */
-    qsb = qemu_buf_get(fb);
 
     /* Now send that blob */
-    if (qemu_savevm_send_packaged(ms->to_dst_file, qsb)) {
+    if (qemu_savevm_send_packaged(ms->to_dst_file, bioc->data, bioc->usage)) {
         goto fail_closefb;
     }
     qemu_fclose(fb);
@@ -1793,6 +1849,7 @@ void migrate_fd_connect(MigrationState *s)
     s->expected_downtime = max_downtime/1000000;
     s->cleanup_bh = qemu_bh_new(migrate_fd_cleanup, s);
 
+    qemu_file_set_blocking(s->to_dst_file, true);
     qemu_file_set_rate_limit(s->to_dst_file,
                              s->bandwidth_limit / XFER_LIMIT_RATIO);
 

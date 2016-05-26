@@ -47,15 +47,11 @@ void s390_skeys_init(void)
     qdev_init_nofail(DEVICE(obj));
 }
 
-static void write_keys(QEMUFile *f, uint8_t *keys, uint64_t startgfn,
+static void write_keys(FILE *f, uint8_t *keys, uint64_t startgfn,
                        uint64_t count, Error **errp)
 {
     uint64_t curpage = startgfn;
     uint64_t maxpage = curpage + count - 1;
-    const char *fmt = "page=%03" PRIx64 ": key(%d) => ACC=%X, FP=%d, REF=%d,"
-                      " ch=%d, reserved=%d\n";
-    char buf[128];
-    int len;
 
     for (; curpage <= maxpage; curpage++) {
         uint8_t acc = (*keys & 0xF0) >> 4;
@@ -64,10 +60,9 @@ static void write_keys(QEMUFile *f, uint8_t *keys, uint64_t startgfn,
         int ch = (*keys & 0x02);
         int res = (*keys & 0x01);
 
-        len = snprintf(buf, sizeof(buf), fmt, curpage,
-                       *keys, acc, fp, ref, ch, res);
-        assert(len < sizeof(buf));
-        qemu_put_buffer(f, (uint8_t *)buf, len);
+        fprintf(f, "page=%03" PRIx64 ": key(%d) => ACC=%X, FP=%d, REF=%d,"
+                " ch=%d, reserved=%d\n",
+                curpage, *keys, acc, fp, ref, ch, res);
         keys++;
     }
 }
@@ -116,7 +111,8 @@ void qmp_dump_skeys(const char *filename, Error **errp)
     vaddr cur_gfn = 0;
     uint8_t *buf;
     int ret;
-    QEMUFile *f;
+    int fd;
+    FILE *f;
 
     /* Quick check to see if guest is using storage keys*/
     if (!skeyclass->skeys_enabled(ss)) {
@@ -125,8 +121,14 @@ void qmp_dump_skeys(const char *filename, Error **errp)
         return;
     }
 
-    f = qemu_fopen(filename, "wb");
+    fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    if (fd < 0) {
+        error_setg_file_open(errp, errno, filename);
+        return;
+    }
+    f = fdopen(fd, "wb");
     if (!f) {
+        close(fd);
         error_setg_file_open(errp, errno, filename);
         return;
     }
@@ -162,7 +164,7 @@ out_free:
     error_propagate(errp, lerr);
     g_free(buf);
 out:
-    qemu_fclose(f);
+    fclose(f);
 }
 
 static void qemu_s390_skeys_init(Object *obj)

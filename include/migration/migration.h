@@ -135,9 +135,12 @@ struct MigrationState
     QemuThread thread;
     QEMUBH *cleanup_bh;
     QEMUFile *to_dst_file;
-    int parameters[MIGRATION_PARAMETER__MAX];
+
+    /* New style params from 'migrate-set-parameters' */
+    MigrationParameters parameters;
 
     int state;
+    /* Old style params from 'migrate' command */
     MigrationParams params;
 
     /* State related to return path */
@@ -171,6 +174,9 @@ struct MigrationState
     QSIMPLEQ_HEAD(src_page_requests, MigrationSrcPageRequest) src_page_requests;
     /* The RAMBlock used in the last src_page_request */
     RAMBlock *last_req_rb;
+
+    /* The last error that occurred */
+    Error *error;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);
@@ -178,6 +184,22 @@ void migrate_set_state(int *state, int old_state, int new_state);
 void process_incoming_migration(QEMUFile *f);
 
 void qemu_start_incoming_migration(const char *uri, Error **errp);
+
+void migration_set_incoming_channel(MigrationState *s,
+                                    QIOChannel *ioc);
+
+void migration_tls_set_incoming_channel(MigrationState *s,
+                                        QIOChannel *ioc,
+                                        Error **errp);
+
+void migration_set_outgoing_channel(MigrationState *s,
+                                    QIOChannel *ioc,
+                                    const char *hostname);
+
+void migration_tls_set_outgoing_channel(MigrationState *s,
+                                        QIOChannel *ioc,
+                                        const char *hostname,
+                                        Error **errp);
 
 uint64_t migrate_max_downtime(void);
 
@@ -201,7 +223,7 @@ void rdma_start_outgoing_migration(void *opaque, const char *host_port, Error **
 
 void rdma_start_incoming_migration(const char *host_port, Error **errp);
 
-void migrate_fd_error(MigrationState *s);
+void migrate_fd_error(MigrationState *s, const Error *error);
 
 void migrate_fd_connect(MigrationState *s);
 

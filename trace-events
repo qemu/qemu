@@ -1483,7 +1483,7 @@ await_return_path_close_on_source_close(void) ""
 await_return_path_close_on_source_joining(void) ""
 migrate_set_state(int new_state) "new state %d"
 migrate_fd_cleanup(void) ""
-migrate_fd_error(void) ""
+migrate_fd_error(const char *error_desc) "error=%s"
 migrate_fd_cancel(void) ""
 migrate_handle_rp_req_pages(const char *rbname, size_t start, size_t len) "in %s at %zx len %zx"
 migrate_pending(uint64_t size, uint64_t max, uint64_t post, uint64_t nonpost) "pending size %" PRIu64 " max %" PRIu64 " (post=%" PRIu64 " nonpost=%" PRIu64 ")"
@@ -1513,6 +1513,8 @@ migrate_state_too_big(void) ""
 migrate_transferred(uint64_t tranferred, uint64_t time_spent, double bandwidth, uint64_t size) "transferred %" PRIu64 " time_spent %" PRIu64 " bandwidth %g max_size %" PRId64
 process_incoming_migration_co_end(int ret, int ps) "ret=%d postcopy-state=%d"
 process_incoming_migration_co_postcopy_end_main(void) ""
+migration_set_incoming_channel(void *ioc, const char *ioctype) "ioc=%p ioctype=%s"
+migration_set_outgoing_channel(void *ioc, const char *ioctype, const char *hostname)  "ioc=%p ioctype=%s hostname=%s"
 
 # migration/rdma.c
 qemu_rdma_accept_incoming_migration(void) ""
@@ -1596,6 +1598,27 @@ postcopy_ram_incoming_cleanup_closeuf(void) ""
 postcopy_ram_incoming_cleanup_entry(void) ""
 postcopy_ram_incoming_cleanup_exit(void) ""
 postcopy_ram_incoming_cleanup_join(void) ""
+
+# migration/exec.c
+migration_exec_outgoing(const char *cmd) "cmd=%s"
+migration_exec_incoming(const char *cmd) "cmd=%s"
+
+# migration/fd.c
+migration_fd_outgoing(int fd) "fd=%d"
+migration_fd_incoming(int fd) "fd=%d"
+
+# migration/socket.c
+migration_socket_incoming_accepted(void) ""
+migration_socket_outgoing_connected(const char *hostname) "hostname=%s"
+migration_socket_outgoing_error(const char *err) "error=%s"
+
+# migration/tls.c
+migration_tls_outgoing_handshake_start(const char *hostname) "hostname=%s"
+migration_tls_outgoing_handshake_error(const char *err) "err=%s"
+migration_tls_outgoing_handshake_complete(void) ""
+migration_tls_incoming_handshake_start(void) ""
+migration_tls_incoming_handshake_error(const char *err) "err=%s"
+migration_tls_incoming_handshake_complete(void) ""
 
 # kvm-all.c
 kvm_ioctl(int type, void *arg) "type 0x%x, arg %p"

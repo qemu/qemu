@@ -23,15 +23,10 @@
  */
 #ifndef QEMU_FILE_H
 #define QEMU_FILE_H 1
+#include "qemu-common.h"
 #include "exec/cpu-common.h"
+#include "io/channel.h"
 
-
-/* This function writes a chunk of data to a file at the given position.
- * The pos argument can be ignored if the file is only being used for
- * streaming.  The handler should try to write all of the data it can.
- */
-typedef ssize_t (QEMUFilePutBufferFunc)(void *opaque, const uint8_t *buf,
-                                        int64_t pos, size_t size);
 
 /* Read a chunk of data from a file at the given position.  The pos argument
  * can be ignored if the file is only be used for streaming.  The number of
@@ -53,8 +48,13 @@ typedef int (QEMUFileCloseFunc)(void *opaque);
  */
 typedef int (QEMUFileGetFD)(void *opaque);
 
+/* Called to change the blocking mode of the file
+ */
+typedef int (QEMUFileSetBlocking)(void *opaque, bool enabled);
+
 /*
- * This function writes an iovec to file.
+ * This function writes an iovec to file. The handler must write all
+ * of the data or return a negative errno value.
  */
 typedef ssize_t (QEMUFileWritevBufferFunc)(void *opaque, struct iovec *iov,
                                            int iovcnt, int64_t pos);
@@ -101,32 +101,25 @@ typedef QEMUFile *(QEMURetPathFunc)(void *opaque);
 typedef int (QEMUFileShutdownFunc)(void *opaque, bool rd, bool wr);
 
 typedef struct QEMUFileOps {
-    QEMUFilePutBufferFunc *put_buffer;
     QEMUFileGetBufferFunc *get_buffer;
     QEMUFileCloseFunc *close;
-    QEMUFileGetFD *get_fd;
+    QEMUFileSetBlocking *set_blocking;
     QEMUFileWritevBufferFunc *writev_buffer;
-    QEMURamHookFunc *before_ram_iterate;
-    QEMURamHookFunc *after_ram_iterate;
-    QEMURamHookFunc *hook_ram_load;
-    QEMURamSaveFunc *save_page;
     QEMURetPathFunc *get_return_path;
     QEMUFileShutdownFunc *shut_down;
 } QEMUFileOps;
 
-struct QEMUSizedBuffer {
-    struct iovec *iov;
-    size_t n_iov;
-    size_t size; /* total allocated size in all iov's */
-    size_t used; /* number of used bytes */
-};
+typedef struct QEMUFileHooks {
+    QEMURamHookFunc *before_ram_iterate;
+    QEMURamHookFunc *after_ram_iterate;
+    QEMURamHookFunc *hook_ram_load;
+    QEMURamSaveFunc *save_page;
+} QEMUFileHooks;
 
 QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops);
-QEMUFile *qemu_fopen(const char *filename, const char *mode);
-QEMUFile *qemu_fdopen(int fd, const char *mode);
-QEMUFile *qemu_fopen_socket(int fd, const char *mode);
-QEMUFile *qemu_popen_cmd(const char *command, const char *mode);
-QEMUFile *qemu_bufopen(const char *mode, QEMUSizedBuffer *input);
+QEMUFile *qemu_fopen_channel_input(QIOChannel *ioc);
+QEMUFile *qemu_fopen_channel_output(QIOChannel *ioc);
+void qemu_file_set_hooks(QEMUFile *f, const QEMUFileHooks *hooks);
 int qemu_get_fd(QEMUFile *f);
 int qemu_fclose(QEMUFile *f);
 int64_t qemu_ftell(QEMUFile *f);
@@ -141,20 +134,6 @@ void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, size_t size);
 bool qemu_file_mode_is_not_valid(const char *mode);
 bool qemu_file_is_writable(QEMUFile *f);
 
-QEMUSizedBuffer *qsb_create(const uint8_t *buffer, size_t len);
-void qsb_free(QEMUSizedBuffer *);
-size_t qsb_set_length(QEMUSizedBuffer *qsb, size_t length);
-size_t qsb_get_length(const QEMUSizedBuffer *qsb);
-ssize_t qsb_get_buffer(const QEMUSizedBuffer *, off_t start, size_t count,
-                       uint8_t *buf);
-ssize_t qsb_write_at(QEMUSizedBuffer *qsb, const uint8_t *buf,
-                     off_t pos, size_t count);
-
-
-/*
- * For use on files opened with qemu_bufopen
- */
-const QEMUSizedBuffer *qemu_buf_get(QEMUFile *f);
 
 static inline void qemu_put_ubyte(QEMUFile *f, unsigned int v)
 {

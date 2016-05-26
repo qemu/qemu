@@ -429,10 +429,8 @@ static size_t save_page_header(QEMUFile *f, RAMBlock *block, ram_addr_t offset)
 static void mig_throttle_guest_down(void)
 {
     MigrationState *s = migrate_get_current();
-    uint64_t pct_initial =
-            s->parameters[MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL];
-    uint64_t pct_icrement =
-            s->parameters[MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT];
+    uint64_t pct_initial = s->parameters.cpu_throttle_initial;
+    uint64_t pct_icrement = s->parameters.cpu_throttle_increment;
 
     /* We have not started throttling yet. Let's start it. */
     if (!cpu_throttle_active()) {

@@ -1008,7 +1008,7 @@ ETEXI
 
     {
         .name       = "migrate_set_parameter",
-        .args_type  = "parameter:s,value:i",
+        .args_type  = "parameter:s,value:s",
         .params     = "parameter value",
         .help       = "Set the parameter for migration",
         .mhandler.cmd = hmp_migrate_set_parameter,

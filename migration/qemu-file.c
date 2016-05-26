@@ -30,8 +30,30 @@
 #include "qemu/coroutine.h"
 #include "migration/migration.h"
 #include "migration/qemu-file.h"
-#include "migration/qemu-file-internal.h"
 #include "trace.h"
+
+#define IO_BUF_SIZE 32768
+#define MAX_IOV_SIZE MIN(IOV_MAX, 64)
+
+struct QEMUFile {
+    const QEMUFileOps *ops;
+    const QEMUFileHooks *hooks;
+    void *opaque;
+
+    int64_t bytes_xfer;
+    int64_t xfer_limit;
+
+    int64_t pos; /* start of buffer when writing, end of buffer
+                    when reading */
+    int buf_index;
+    int buf_size; /* 0 when writing */
+    uint8_t buf[IO_BUF_SIZE];
+
+    struct iovec iov[MAX_IOV_SIZE];
+    unsigned int iovcnt;
+
+    int last_error;
+};
 
 /*
  * Stop a file from being read/written - not all backing files can do this
@@ -80,6 +102,12 @@ QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops)
     return f;
 }
 
+
+void qemu_file_set_hooks(QEMUFile *f, const QEMUFileHooks *hooks)
+{
+    f->hooks = hooks;
+}
+
 /*
  * Get last error for stream f
  *
@@ -101,48 +129,49 @@ void qemu_file_set_error(QEMUFile *f, int ret)
 
 bool qemu_file_is_writable(QEMUFile *f)
 {
-    return f->ops->writev_buffer || f->ops->put_buffer;
+    return f->ops->writev_buffer;
 }
 
 /**
  * Flushes QEMUFile buffer
  *
  * If there is writev_buffer QEMUFileOps it uses it otherwise uses
- * put_buffer ops.
+ * put_buffer ops. This will flush all pending data. If data was
+ * only partially flushed, it will set an error state.
  */
 void qemu_fflush(QEMUFile *f)
 {
     ssize_t ret = 0;
+    ssize_t expect = 0;
 
     if (!qemu_file_is_writable(f)) {
         return;
     }
 
-    if (f->ops->writev_buffer) {
-        if (f->iovcnt > 0) {
-            ret = f->ops->writev_buffer(f->opaque, f->iov, f->iovcnt, f->pos);
-        }
-    } else {
-        if (f->buf_index > 0) {
-            ret = f->ops->put_buffer(f->opaque, f->buf, f->pos, f->buf_index);
-        }
+    if (f->iovcnt > 0) {
+        expect = iov_size(f->iov, f->iovcnt);
+        ret = f->ops->writev_buffer(f->opaque, f->iov, f->iovcnt, f->pos);
     }
+
     if (ret >= 0) {
         f->pos += ret;
     }
+    /* We expect the QEMUFile write impl to send the full
+     * data set we requested, so sanity check that.
+     */
+    if (ret != expect) {
+        qemu_file_set_error(f, ret < 0 ? ret : -EIO);
+    }
     f->buf_index = 0;
     f->iovcnt = 0;
-    if (ret < 0) {
-        qemu_file_set_error(f, ret);
-    }
 }
 
 void ram_control_before_iterate(QEMUFile *f, uint64_t flags)
 {
     int ret = 0;
 
-    if (f->ops->before_ram_iterate) {
-        ret = f->ops->before_ram_iterate(f, f->opaque, flags, NULL);
+    if (f->hooks && f->hooks->before_ram_iterate) {
+        ret = f->hooks->before_ram_iterate(f, f->opaque, flags, NULL);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
         }
@@ -153,8 +182,8 @@ void ram_control_after_iterate(QEMUFile *f, uint64_t flags)
 {
     int ret = 0;
 
-    if (f->ops->after_ram_iterate) {
-        ret = f->ops->after_ram_iterate(f, f->opaque, flags, NULL);
+    if (f->hooks && f->hooks->after_ram_iterate) {
+        ret = f->hooks->after_ram_iterate(f, f->opaque, flags, NULL);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
         }
@@ -165,8 +194,8 @@ void ram_control_load_hook(QEMUFile *f, uint64_t flags, void *data)
 {
     int ret = -EINVAL;
 
-    if (f->ops->hook_ram_load) {
-        ret = f->ops->hook_ram_load(f, f->opaque, flags, data);
+    if (f->hooks && f->hooks->hook_ram_load) {
+        ret = f->hooks->hook_ram_load(f, f->opaque, flags, data);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
         }
@@ -185,9 +214,9 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
                              ram_addr_t offset, size_t size,
                              uint64_t *bytes_sent)
 {
-    if (f->ops->save_page) {
-        int ret = f->ops->save_page(f, f->opaque, block_offset,
-                                    offset, size, bytes_sent);
+    if (f->hooks && f->hooks->save_page) {
+        int ret = f->hooks->save_page(f, f->opaque, block_offset,
+                                      offset, size, bytes_sent);
 
         if (ret != RAM_SAVE_CONTROL_DELAYED) {
             if (bytes_sent && *bytes_sent > 0) {
@@ -237,14 +266,6 @@ static ssize_t qemu_fill_buffer(QEMUFile *f)
     }
 
     return len;
-}
-
-int qemu_get_fd(QEMUFile *f)
-{
-    if (f->ops->get_fd) {
-        return f->ops->get_fd(f->opaque);
-    }
-    return -1;
 }
 
 void qemu_update_position(QEMUFile *f, size_t size)
@@ -301,11 +322,6 @@ static void add_to_iovec(QEMUFile *f, const uint8_t *buf, size_t size)
 
 void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, size_t size)
 {
-    if (!f->ops->writev_buffer) {
-        qemu_put_buffer(f, buf, size);
-        return;
-    }
-
     if (f->last_error) {
         return;
     }
@@ -329,9 +345,7 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size)
         }
         memcpy(f->buf + f->buf_index, buf, l);
         f->bytes_xfer += l;
-        if (f->ops->writev_buffer) {
-            add_to_iovec(f, f->buf + f->buf_index, l);
-        }
+        add_to_iovec(f, f->buf + f->buf_index, l);
         f->buf_index += l;
         if (f->buf_index == IO_BUF_SIZE) {
             qemu_fflush(f);
@@ -352,9 +366,7 @@ void qemu_put_byte(QEMUFile *f, int v)
 
     f->buf[f->buf_index] = v;
     f->bytes_xfer++;
-    if (f->ops->writev_buffer) {
-        add_to_iovec(f, f->buf + f->buf_index, 1);
-    }
+    add_to_iovec(f, f->buf + f->buf_index, 1);
     f->buf_index++;
     if (f->buf_index == IO_BUF_SIZE) {
         qemu_fflush(f);
@@ -518,12 +530,8 @@ int64_t qemu_ftell_fast(QEMUFile *f)
     int64_t ret = f->pos;
     int i;
 
-    if (f->ops->writev_buffer) {
-        for (i = 0; i < f->iovcnt; i++) {
-            ret += f->iov[i].iov_len;
-        }
-    } else {
-        ret += f->buf_index;
+    for (i = 0; i < f->iovcnt; i++) {
+        ret += f->iov[i].iov_len;
     }
 
     return ret;
@@ -670,9 +678,7 @@ size_t qemu_get_counted_string(QEMUFile *f, char buf[256])
  */
 void qemu_file_set_blocking(QEMUFile *f, bool block)
 {
-    if (block) {
-        qemu_set_block(qemu_get_fd(f));
-    } else {
-        qemu_set_nonblock(qemu_get_fd(f));
+    if (f->ops->set_blocking) {
+        f->ops->set_blocking(f->opaque, block);
     }
 }
