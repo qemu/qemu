@@ -2562,6 +2562,35 @@ static int vfio_initfn(PCIDevice *pdev)
         vfio_bar_quirk_setup(vdev, i);
     }
 
+    if (!vdev->igd_opregion &&
+        vdev->features & VFIO_FEATURE_ENABLE_IGD_OPREGION) {
+        struct vfio_region_info *opregion;
+
+        if (vdev->pdev.qdev.hotplugged) {
+            error_report("Cannot support IGD OpRegion feature on hotplugged "
+                         "device %s", vdev->vbasedev.name);
+            ret = -EINVAL;
+            goto out_teardown;
+        }
+
+        ret = vfio_get_dev_region_info(&vdev->vbasedev,
+                        VFIO_REGION_TYPE_PCI_VENDOR_TYPE | PCI_VENDOR_ID_INTEL,
+                        VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION, &opregion);
+        if (ret) {
+            error_report("Device %s does not support requested IGD OpRegion "
+                         "feature", vdev->vbasedev.name);
+            goto out_teardown;
+        }
+
+        ret = vfio_pci_igd_opregion_init(vdev, opregion);
+        g_free(opregion);
+        if (ret) {
+            error_report("Device %s IGD OpRegion initialization failed",
+                         vdev->vbasedev.name);
+            goto out_teardown;
+        }
+    }
+
     /* QEMU emulates all of MSI & MSIX */
     if (pdev->cap_present & QEMU_PCI_CAP_MSIX) {
         memset(vdev->emulated_config_bits + pdev->msix_cap, 0xff,
@@ -2686,6 +2715,8 @@ static Property vfio_pci_dev_properties[] = {
                     VFIO_FEATURE_ENABLE_VGA_BIT, false),
     DEFINE_PROP_BIT("x-req", VFIOPCIDevice, features,
                     VFIO_FEATURE_ENABLE_REQ_BIT, true),
+    DEFINE_PROP_BIT("x-igd-opregion", VFIOPCIDevice, features,
+                    VFIO_FEATURE_ENABLE_IGD_OPREGION_BIT, false),
     DEFINE_PROP_BOOL("x-no-mmap", VFIOPCIDevice, vbasedev.no_mmap, false),
     DEFINE_PROP_BOOL("x-no-kvm-intx", VFIOPCIDevice, no_kvm_intx, false),
     DEFINE_PROP_BOOL("x-no-kvm-msi", VFIOPCIDevice, no_kvm_msi, false),

@@ -1055,8 +1055,8 @@ typedef struct VFIOIGDQuirk {
  * the table and to write the base address of that memory to the ASLS register
  * of the IGD device.
  */
-static int vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
-                                      struct vfio_region_info *info)
+int vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
+                               struct vfio_region_info *info)
 {
     int ret;
 
