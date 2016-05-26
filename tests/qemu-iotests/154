@@ -115,6 +115,46 @@ $QEMU_IO -c "read -P 0 40k 3k" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 
 echo
+echo == write_zeroes covers non-zero data ==
+
+CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
+_make_test_img -b "$TEST_IMG.base"
+
+# non-zero data at front of request
+# Backing file: -- XX -- --
+# Active layer: -- 00 00 --
+
+$QEMU_IO -c "write -P 0x11 5k 1k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 5k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 4k 4k" "$TEST_IMG" | _filter_qemu_io
+
+# non-zero data at end of request
+# Backing file: -- -- XX --
+# Active layer: -- 00 00 --
+
+$QEMU_IO -c "write -P 0x11 14k 1k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 13k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 12k 4k" "$TEST_IMG" | _filter_qemu_io
+
+# non-zero data matches size of request
+# Backing file: -- XX XX --
+# Active layer: -- 00 00 --
+
+$QEMU_IO -c "write -P 0x11 21k 2k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 21k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 20k 4k" "$TEST_IMG" | _filter_qemu_io
+
+# non-zero data smaller than request
+# Backing file: -- -X X- --
+# Active layer: -- 00 00 --
+
+$QEMU_IO -c "write -P 0x11 30208 1k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 29k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 28k 4k" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+echo
 echo == spanning two clusters, non-zero before request ==
 
 CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
