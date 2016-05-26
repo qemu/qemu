@@ -19,6 +19,7 @@
 #include "sysemu/sysemu.h"
 #include "qapi-event.h"
 #include "qemu/id.h"
+#include "trace.h"
 
 /* Number of coroutines to reserve per attached device model */
 #define COROUTINE_POOL_RESERVATION 64
@@ -119,12 +120,14 @@ static const BdrvChildRole child_root = {
  * Store an error through @errp on failure, unless it's null.
  * Return the new BlockBackend on success, null on failure.
  */
-BlockBackend *blk_new(Error **errp)
+BlockBackend *blk_new(void)
 {
     BlockBackend *blk;
 
     blk = g_new0(BlockBackend, 1);
     blk->refcnt = 1;
+    blk_set_enable_write_cache(blk, true);
+
     qemu_co_queue_init(&blk->public.throttled_reqs[0]);
     qemu_co_queue_init(&blk->public.throttled_reqs[1]);
 
@@ -136,27 +139,7 @@ BlockBackend *blk_new(Error **errp)
 }
 
 /*
- * Create a new BlockBackend with a new BlockDriverState attached.
- * Otherwise just like blk_new(), which see.
- */
-BlockBackend *blk_new_with_bs(Error **errp)
-{
-    BlockBackend *blk;
-    BlockDriverState *bs;
-
-    blk = blk_new(errp);
-    if (!blk) {
-        return NULL;
-    }
-
-    bs = bdrv_new_root();
-    blk->root = bdrv_root_attach_child(bs, "root", &child_root);
-    blk->root->opaque = blk;
-    return blk;
-}
-
-/*
- * Calls blk_new_with_bs() and then calls bdrv_open() on the BlockDriverState.
+ * Creates a new BlockBackend, opens a new BlockDriverState, and connects both.
  *
  * Just as with bdrv_open(), after having called this function the reference to
  * @options belongs to the block layer (even on failure).
@@ -171,21 +154,16 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
                            QDict *options, int flags, Error **errp)
 {
     BlockBackend *blk;
-    int ret;
+    BlockDriverState *bs;
 
-    blk = blk_new_with_bs(errp);
-    if (!blk) {
-        QDECREF(options);
-        return NULL;
-    }
-
-    ret = bdrv_open(&blk->root->bs, filename, reference, options, flags, errp);
-    if (ret < 0) {
+    blk = blk_new();
+    bs = bdrv_open(filename, reference, options, flags, errp);
+    if (!bs) {
         blk_unref(blk);
         return NULL;
     }
 
-    blk_set_enable_write_cache(blk, true);
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root, blk);
 
     return blk;
 }
@@ -286,25 +264,11 @@ BlockBackend *blk_next(BlockBackend *blk)
                : QTAILQ_FIRST(&monitor_block_backends);
 }
 
-struct BdrvNextIterator {
-    enum {
-        BDRV_NEXT_BACKEND_ROOTS,
-        BDRV_NEXT_MONITOR_OWNED,
-    } phase;
-    BlockBackend *blk;
-    BlockDriverState *bs;
-};
-
 /* Iterates over all top-level BlockDriverStates, i.e. BDSs that are owned by
  * the monitor or attached to a BlockBackend */
-BdrvNextIterator *bdrv_next(BdrvNextIterator *it, BlockDriverState **bs)
+BlockDriverState *bdrv_next(BdrvNextIterator *it)
 {
-    if (!it) {
-        it = g_new(BdrvNextIterator, 1);
-        *it = (BdrvNextIterator) {
-            .phase = BDRV_NEXT_BACKEND_ROOTS,
-        };
-    }
+    BlockDriverState *bs;
 
     /* First, return all root nodes of BlockBackends. In order to avoid
      * returning a BDS twice when multiple BBs refer to it, we only return it
@@ -312,11 +276,11 @@ BdrvNextIterator *bdrv_next(BdrvNextIterator *it, BlockDriverState **bs)
     if (it->phase == BDRV_NEXT_BACKEND_ROOTS) {
         do {
             it->blk = blk_all_next(it->blk);
-            *bs = it->blk ? blk_bs(it->blk) : NULL;
-        } while (it->blk && (*bs == NULL || bdrv_first_blk(*bs) != it->blk));
+            bs = it->blk ? blk_bs(it->blk) : NULL;
+        } while (it->blk && (bs == NULL || bdrv_first_blk(bs) != it->blk));
 
-        if (*bs) {
-            return it;
+        if (bs) {
+            return bs;
         }
         it->phase = BDRV_NEXT_MONITOR_OWNED;
     }
@@ -326,10 +290,19 @@ BdrvNextIterator *bdrv_next(BdrvNextIterator *it, BlockDriverState **bs)
      * by the above block already */
     do {
         it->bs = bdrv_next_monitor_owned(it->bs);
-        *bs = it->bs;
-    } while (*bs && bdrv_has_blk(*bs));
+        bs = it->bs;
+    } while (bs && bdrv_has_blk(bs));
 
-    return *bs ? it : NULL;
+    return bs;
+}
+
+BlockDriverState *bdrv_first(BdrvNextIterator *it)
+{
+    *it = (BdrvNextIterator) {
+        .phase = BDRV_NEXT_BACKEND_ROOTS,
+    };
+
+    return bdrv_next(it);
 }
 
 /*
@@ -509,8 +482,7 @@ void blk_remove_bs(BlockBackend *blk)
 void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
 {
     bdrv_ref(bs);
-    blk->root = bdrv_root_attach_child(bs, "root", &child_root);
-    blk->root->opaque = blk;
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root, blk);
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);
     if (blk->public.throttle_state) {
@@ -770,11 +742,15 @@ static int blk_check_request(BlockBackend *blk, int64_t sector_num,
                                   nb_sectors * BDRV_SECTOR_SIZE);
 }
 
-static int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
-                                      unsigned int bytes, QEMUIOVector *qiov,
-                                      BdrvRequestFlags flags)
+int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
+                               unsigned int bytes, QEMUIOVector *qiov,
+                               BdrvRequestFlags flags)
 {
-    int ret = blk_check_byte_request(blk, offset, bytes);
+    int ret;
+
+    trace_blk_co_preadv(blk, blk_bs(blk), offset, bytes, flags);
+
+    ret = blk_check_byte_request(blk, offset, bytes);
     if (ret < 0) {
         return ret;
     }
@@ -787,11 +763,13 @@ static int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
     return bdrv_co_preadv(blk_bs(blk), offset, bytes, qiov, flags);
 }
 
-static int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
-                                      unsigned int bytes, QEMUIOVector *qiov,
-                                      BdrvRequestFlags flags)
+int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
+                                unsigned int bytes, QEMUIOVector *qiov,
+                                BdrvRequestFlags flags)
 {
     int ret;
+
+    trace_blk_co_pwritev(blk, blk_bs(blk), offset, bytes, flags);
 
     ret = blk_check_byte_request(blk, offset, bytes);
     if (ret < 0) {
@@ -885,8 +863,8 @@ int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
     return ret;
 }
 
-int blk_write_zeroes(BlockBackend *blk, int64_t offset,
-                     int count, BdrvRequestFlags flags)
+int blk_pwrite_zeroes(BlockBackend *blk, int64_t offset,
+                      int count, BdrvRequestFlags flags)
 {
     return blk_prw(blk, offset, NULL, count, blk_write_entry,
                    flags | BDRV_REQ_ZERO_WRITE);
@@ -1001,9 +979,9 @@ static void blk_aio_write_entry(void *opaque)
     blk_aio_complete(acb);
 }
 
-BlockAIOCB *blk_aio_write_zeroes(BlockBackend *blk, int64_t offset,
-                                 int count, BdrvRequestFlags flags,
-                                 BlockCompletionFunc *cb, void *opaque)
+BlockAIOCB *blk_aio_pwrite_zeroes(BlockBackend *blk, int64_t offset,
+                                  int count, BdrvRequestFlags flags,
+                                  BlockCompletionFunc *cb, void *opaque)
 {
     return blk_aio_prwv(blk, offset, count, NULL, blk_aio_write_entry,
                         flags | BDRV_REQ_ZERO_WRITE, cb, opaque);
@@ -1492,8 +1470,8 @@ void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,
     return qemu_aio_get(aiocb_info, blk_bs(blk), cb, opaque);
 }
 
-int coroutine_fn blk_co_write_zeroes(BlockBackend *blk, int64_t offset,
-                                     int count, BdrvRequestFlags flags)
+int coroutine_fn blk_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
+                                      int count, BdrvRequestFlags flags)
 {
     return blk_co_pwritev(blk, offset, count, NULL,
                           flags | BDRV_REQ_ZERO_WRITE);
@@ -1703,6 +1681,9 @@ void blk_io_limits_update_group(BlockBackend *blk, const char *group)
 static void blk_root_drained_begin(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
+
+    /* Note that blk->root may not be accessible here yet if we are just
+     * attaching to a BlockDriverState that is drained. Use child instead. */
 
     if (blk->public.io_limits_disabled++ == 0) {
         throttle_group_restart_blk(blk);

@@ -2998,12 +2998,12 @@ static int enable_write_target(BDRVVVFATState *s, Error **errp)
         goto err;
     }
 
-    s->qcow = NULL;
     options = qdict_new();
     qdict_put(options, "driver", qstring_from_str("qcow"));
-    ret = bdrv_open(&s->qcow, s->qcow_filename, NULL, options,
-                    BDRV_O_RDWR | BDRV_O_NO_FLUSH, errp);
-    if (ret < 0) {
+    s->qcow = bdrv_open(s->qcow_filename, NULL, options,
+                        BDRV_O_RDWR | BDRV_O_NO_FLUSH, errp);
+    if (!s->qcow) {
+        ret = -EINVAL;
         goto err;
     }
 

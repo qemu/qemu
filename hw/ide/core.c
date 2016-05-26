@@ -441,13 +441,14 @@ static void ide_issue_trim_cb(void *opaque, int ret)
     }
 }
 
-BlockAIOCB *ide_issue_trim(BlockBackend *blk,
-        int64_t offset, QEMUIOVector *qiov, BdrvRequestFlags flags,
-        BlockCompletionFunc *cb, void *opaque)
+BlockAIOCB *ide_issue_trim(
+        int64_t offset, QEMUIOVector *qiov,
+        BlockCompletionFunc *cb, void *cb_opaque, void *opaque)
 {
+    BlockBackend *blk = opaque;
     TrimAIOCB *iocb;
 
-    iocb = blk_aio_get(&trim_aiocb_info, blk, cb, opaque);
+    iocb = blk_aio_get(&trim_aiocb_info, blk, cb, cb_opaque);
     iocb->blk = blk;
     iocb->bh = qemu_bh_new(ide_trim_bh_cb, iocb);
     iocb->ret = 0;
@@ -799,6 +800,7 @@ static void ide_dma_cb(void *opaque, int ret)
     IDEState *s = opaque;
     int n;
     int64_t sector_num;
+    uint64_t offset;
     bool stay_active = false;
 
     if (ret == -ECANCELED) {
@@ -859,18 +861,20 @@ static void ide_dma_cb(void *opaque, int ret)
         return;
     }
 
+    offset = sector_num << BDRV_SECTOR_BITS;
     switch (s->dma_cmd) {
     case IDE_DMA_READ:
-        s->bus->dma->aiocb = dma_blk_read(s->blk, &s->sg, sector_num,
+        s->bus->dma->aiocb = dma_blk_read(s->blk, &s->sg, offset,
                                           ide_dma_cb, s);
         break;
     case IDE_DMA_WRITE:
-        s->bus->dma->aiocb = dma_blk_write(s->blk, &s->sg, sector_num,
+        s->bus->dma->aiocb = dma_blk_write(s->blk, &s->sg, offset,
                                            ide_dma_cb, s);
         break;
     case IDE_DMA_TRIM:
-        s->bus->dma->aiocb = dma_blk_io(s->blk, &s->sg, sector_num,
-                                        ide_issue_trim, ide_dma_cb, s,
+        s->bus->dma->aiocb = dma_blk_io(blk_get_aio_context(s->blk),
+                                        &s->sg, offset,
+                                        ide_issue_trim, s->blk, ide_dma_cb, s,
                                         DMA_DIRECTION_TO_DEVICE);
         break;
     default:

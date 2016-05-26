@@ -775,7 +775,7 @@ static void common_block_job_cb(void *opaque, int ret)
 
 static void run_block_job(BlockJob *job, Error **errp)
 {
-    AioContext *aio_context = bdrv_get_aio_context(job->bs);
+    AioContext *aio_context = blk_get_aio_context(job->blk);
 
     do {
         aio_poll(aio_context, true);
@@ -1606,8 +1606,8 @@ static int convert_write(ImgConvertState *s, int64_t sector_num, int nb_sectors,
             if (s->has_zero_init) {
                 break;
             }
-            ret = blk_write_zeroes(s->target, sector_num << BDRV_SECTOR_BITS,
-                                   n << BDRV_SECTOR_BITS, 0);
+            ret = blk_pwrite_zeroes(s->target, sector_num << BDRV_SECTOR_BITS,
+                                    n << BDRV_SECTOR_BITS, 0);
             if (ret < 0) {
                 return ret;
             }

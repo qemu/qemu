@@ -374,9 +374,9 @@ bool bdrv_all_can_snapshot(BlockDriverState **first_bad_bs)
 {
     bool ok = true;
     BlockDriverState *bs;
-    BdrvNextIterator *it = NULL;
+    BdrvNextIterator it;
 
-    while (ok && (it = bdrv_next(it, &bs))) {
+    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *ctx = bdrv_get_aio_context(bs);
 
         aio_context_acquire(ctx);
@@ -384,8 +384,12 @@ bool bdrv_all_can_snapshot(BlockDriverState **first_bad_bs)
             ok = bdrv_can_snapshot(bs);
         }
         aio_context_release(ctx);
+        if (!ok) {
+            goto fail;
+        }
     }
 
+fail:
     *first_bad_bs = bs;
     return ok;
 }
@@ -395,20 +399,27 @@ int bdrv_all_delete_snapshot(const char *name, BlockDriverState **first_bad_bs,
 {
     int ret = 0;
     BlockDriverState *bs;
-    BdrvNextIterator *it = NULL;
+    BdrvNextIterator it;
     QEMUSnapshotInfo sn1, *snapshot = &sn1;
 
-    while (ret == 0 && (it = bdrv_next(it, &bs))) {
+    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *ctx = bdrv_get_aio_context(bs);
 
         aio_context_acquire(ctx);
         if (bdrv_can_snapshot(bs) &&
                 bdrv_snapshot_find(bs, snapshot, name) >= 0) {
             ret = bdrv_snapshot_delete_by_id_or_name(bs, name, err);
+            if (ret < 0) {
+                goto fail;
+            }
         }
         aio_context_release(ctx);
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
+fail:
     *first_bad_bs = bs;
     return ret;
 }
@@ -418,9 +429,9 @@ int bdrv_all_goto_snapshot(const char *name, BlockDriverState **first_bad_bs)
 {
     int err = 0;
     BlockDriverState *bs;
-    BdrvNextIterator *it = NULL;
+    BdrvNextIterator it;
 
-    while (err == 0 && (it = bdrv_next(it, &bs))) {
+    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *ctx = bdrv_get_aio_context(bs);
 
         aio_context_acquire(ctx);
@@ -428,8 +439,12 @@ int bdrv_all_goto_snapshot(const char *name, BlockDriverState **first_bad_bs)
             err = bdrv_snapshot_goto(bs, name);
         }
         aio_context_release(ctx);
+        if (err < 0) {
+            goto fail;
+        }
     }
 
+fail:
     *first_bad_bs = bs;
     return err;
 }
@@ -439,9 +454,9 @@ int bdrv_all_find_snapshot(const char *name, BlockDriverState **first_bad_bs)
     QEMUSnapshotInfo sn;
     int err = 0;
     BlockDriverState *bs;
-    BdrvNextIterator *it = NULL;
+    BdrvNextIterator it;
 
-    while (err == 0 && (it = bdrv_next(it, &bs))) {
+    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *ctx = bdrv_get_aio_context(bs);
 
         aio_context_acquire(ctx);
@@ -449,8 +464,12 @@ int bdrv_all_find_snapshot(const char *name, BlockDriverState **first_bad_bs)
             err = bdrv_snapshot_find(bs, &sn, name);
         }
         aio_context_release(ctx);
+        if (err < 0) {
+            goto fail;
+        }
     }
 
+fail:
     *first_bad_bs = bs;
     return err;
 }
@@ -462,9 +481,9 @@ int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
 {
     int err = 0;
     BlockDriverState *bs;
-    BdrvNextIterator *it = NULL;
+    BdrvNextIterator it;
 
-    while (err == 0 && (it = bdrv_next(it, &bs))) {
+    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *ctx = bdrv_get_aio_context(bs);
 
         aio_context_acquire(ctx);
@@ -476,24 +495,32 @@ int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
             err = bdrv_snapshot_create(bs, sn);
         }
         aio_context_release(ctx);
+        if (err < 0) {
+            goto fail;
+        }
     }
 
+fail:
     *first_bad_bs = bs;
     return err;
 }
 
 BlockDriverState *bdrv_all_find_vmstate_bs(void)
 {
-    bool not_found = true;
     BlockDriverState *bs;
-    BdrvNextIterator *it = NULL;
+    BdrvNextIterator it;
 
-    while (not_found && (it = bdrv_next(it, &bs))) {
+    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *ctx = bdrv_get_aio_context(bs);
+        bool found;
 
         aio_context_acquire(ctx);
-        not_found = !bdrv_can_snapshot(bs);
+        found = bdrv_can_snapshot(bs);
         aio_context_release(ctx);
+
+        if (found) {
+            break;
+        }
     }
     return bs;
 }

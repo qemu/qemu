@@ -207,33 +207,6 @@ class TestSingleBlockdev(TestSingleDrive):
     test_image_not_found = None
     test_small_buffer2 = None
 
-class TestBlockdevAttached(iotests.QMPTestCase):
-    image_len = 1 * 1024 * 1024 # MB
-
-    def setUp(self):
-        iotests.create_image(backing_img, self.image_len)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, target_img)
-        self.vm = iotests.VM().add_drive(test_img)
-        self.vm.launch()
-
-    def tearDown(self):
-        self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(target_img)
-
-    def test_blockdev_attached(self):
-        self.assert_no_active_block_jobs()
-        args = {'options':
-                    {'driver': iotests.imgfmt,
-                     'id': 'drive1',
-                     'file': { 'filename': target_img, 'driver': 'file' } } }
-        result = self.vm.qmp("blockdev-add", **args)
-        self.assert_qmp(result, 'return', {})
-        result = self.vm.qmp('blockdev-mirror', device='drive0', sync='full',
-                             target='drive1')
-        self.assert_qmp(result, 'error/class', 'GenericError')
-
 class TestSingleDriveZeroLength(TestSingleDrive):
     image_len = 0
     test_small_buffer2 = None

@@ -78,8 +78,7 @@ typedef struct BlockBackendPublic {
     QLIST_ENTRY(BlockBackendPublic) round_robin;
 } BlockBackendPublic;
 
-BlockBackend *blk_new(Error **errp);
-BlockBackend *blk_new_with_bs(Error **errp);
+BlockBackend *blk_new(void);
 BlockBackend *blk_new_open(const char *filename, const char *reference,
                            QDict *options, int flags, Error **errp);
 int blk_get_refcnt(BlockBackend *blk);
@@ -114,11 +113,17 @@ void *blk_get_attached_dev(BlockBackend *blk);
 void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops, void *opaque);
 int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
                           int count);
-int blk_write_zeroes(BlockBackend *blk, int64_t offset,
-                     int count, BdrvRequestFlags flags);
-BlockAIOCB *blk_aio_write_zeroes(BlockBackend *blk, int64_t offset,
-                                 int count, BdrvRequestFlags flags,
-                                 BlockCompletionFunc *cb, void *opaque);
+int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
+                               unsigned int bytes, QEMUIOVector *qiov,
+                               BdrvRequestFlags flags);
+int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
+                               unsigned int bytes, QEMUIOVector *qiov,
+                               BdrvRequestFlags flags);
+int blk_pwrite_zeroes(BlockBackend *blk, int64_t offset,
+                      int count, BdrvRequestFlags flags);
+BlockAIOCB *blk_aio_pwrite_zeroes(BlockBackend *blk, int64_t offset,
+                                  int count, BdrvRequestFlags flags,
+                                  BlockCompletionFunc *cb, void *opaque);
 int blk_pread(BlockBackend *blk, int64_t offset, void *buf, int count);
 int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count,
                BdrvRequestFlags flags);
@@ -196,8 +201,8 @@ int blk_get_open_flags_from_root_state(BlockBackend *blk);
 
 void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,
                   BlockCompletionFunc *cb, void *opaque);
-int coroutine_fn blk_co_write_zeroes(BlockBackend *blk, int64_t offset,
-                                     int count, BdrvRequestFlags flags);
+int coroutine_fn blk_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
+                                      int count, BdrvRequestFlags flags);
 int blk_write_compressed(BlockBackend *blk, int64_t sector_num,
                          const uint8_t *buf, int nb_sectors);
 int blk_truncate(BlockBackend *blk, int64_t offset);

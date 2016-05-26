@@ -719,7 +719,8 @@ void hmp_drive_add_node(Monitor *mon, const char *optstr);
 
 BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
-                                  const BdrvChildRole *child_role);
+                                  const BdrvChildRole *child_role,
+                                  void *opaque);
 void bdrv_root_unref_child(BdrvChild *child);
 
 const char *bdrv_get_parent_name(const BlockDriverState *bs);

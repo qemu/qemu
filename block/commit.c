@@ -36,28 +36,36 @@ typedef struct CommitBlockJob {
     BlockJob common;
     RateLimit limit;
     BlockDriverState *active;
-    BlockDriverState *top;
-    BlockDriverState *base;
+    BlockBackend *top;
+    BlockBackend *base;
     BlockdevOnError on_error;
     int base_flags;
     int orig_overlay_flags;
     char *backing_file_str;
 } CommitBlockJob;
 
-static int coroutine_fn commit_populate(BlockDriverState *bs,
-                                        BlockDriverState *base,
+static int coroutine_fn commit_populate(BlockBackend *bs, BlockBackend *base,
                                         int64_t sector_num, int nb_sectors,
                                         void *buf)
 {
     int ret = 0;
+    QEMUIOVector qiov;
+    struct iovec iov = {
+        .iov_base = buf,
+        .iov_len = nb_sectors * BDRV_SECTOR_SIZE,
+    };
 
-    ret = bdrv_read(bs, sector_num, buf, nb_sectors);
-    if (ret) {
+    qemu_iovec_init_external(&qiov, &iov, 1);
+
+    ret = blk_co_preadv(bs, sector_num * BDRV_SECTOR_SIZE,
+                        qiov.size, &qiov, 0);
+    if (ret < 0) {
         return ret;
     }
 
-    ret = bdrv_write(base, sector_num, buf, nb_sectors);
-    if (ret) {
+    ret = blk_co_pwritev(base, sector_num * BDRV_SECTOR_SIZE,
+                         qiov.size, &qiov, 0);
+    if (ret < 0) {
         return ret;
     }
 
@@ -73,8 +81,8 @@ static void commit_complete(BlockJob *job, void *opaque)
     CommitBlockJob *s = container_of(job, CommitBlockJob, common);
     CommitCompleteData *data = opaque;
     BlockDriverState *active = s->active;
-    BlockDriverState *top = s->top;
-    BlockDriverState *base = s->base;
+    BlockDriverState *top = blk_bs(s->top);
+    BlockDriverState *base = blk_bs(s->base);
     BlockDriverState *overlay_bs;
     int ret = data->ret;
 
@@ -94,6 +102,8 @@ static void commit_complete(BlockJob *job, void *opaque)
         bdrv_reopen(overlay_bs, s->orig_overlay_flags, NULL);
     }
     g_free(s->backing_file_str);
+    blk_unref(s->top);
+    blk_unref(s->base);
     block_job_completed(&s->common, ret);
     g_free(data);
 }
@@ -102,8 +112,6 @@ static void coroutine_fn commit_run(void *opaque)
 {
     CommitBlockJob *s = opaque;
     CommitCompleteData *data;
-    BlockDriverState *top = s->top;
-    BlockDriverState *base = s->base;
     int64_t sector_num, end;
     int ret = 0;
     int n = 0;
@@ -111,27 +119,27 @@ static void coroutine_fn commit_run(void *opaque)
     int bytes_written = 0;
     int64_t base_len;
 
-    ret = s->common.len = bdrv_getlength(top);
+    ret = s->common.len = blk_getlength(s->top);
 
 
     if (s->common.len < 0) {
         goto out;
     }
 
-    ret = base_len = bdrv_getlength(base);
+    ret = base_len = blk_getlength(s->base);
     if (base_len < 0) {
         goto out;
     }
 
     if (base_len < s->common.len) {
-        ret = bdrv_truncate(base, s->common.len);
+        ret = blk_truncate(s->base, s->common.len);
         if (ret) {
             goto out;
         }
     }
 
     end = s->common.len >> BDRV_SECTOR_BITS;
-    buf = qemu_blockalign(top, COMMIT_BUFFER_SIZE);
+    buf = blk_blockalign(s->top, COMMIT_BUFFER_SIZE);
 
     for (sector_num = 0; sector_num < end; sector_num += n) {
         uint64_t delay_ns = 0;
@@ -146,7 +154,8 @@ wait:
             break;
         }
         /* Copy if allocated above the base */
-        ret = bdrv_is_allocated_above(top, base, sector_num,
+        ret = bdrv_is_allocated_above(blk_bs(s->top), blk_bs(s->base),
+                                      sector_num,
                                       COMMIT_BUFFER_SIZE / BDRV_SECTOR_SIZE,
                                       &n);
         copy = (ret == 1);
@@ -158,7 +167,7 @@ wait:
                     goto wait;
                 }
             }
-            ret = commit_populate(top, base, sector_num, n, buf);
+            ret = commit_populate(s->top, s->base, sector_num, n, buf);
             bytes_written += n * BDRV_SECTOR_SIZE;
         }
         if (ret < 0) {
@@ -253,8 +262,12 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
         return;
     }
 
-    s->base   = base;
-    s->top    = top;
+    s->base = blk_new();
+    blk_insert_bs(s->base, base);
+
+    s->top = blk_new();
+    blk_insert_bs(s->top, top);
+
     s->active = bs;
 
     s->base_flags          = orig_base_flags;

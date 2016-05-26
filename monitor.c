@@ -3432,12 +3432,12 @@ static void vm_completion(ReadLineState *rs, const char *str)
 {
     size_t len;
     BlockDriverState *bs;
-    BdrvNextIterator *it = NULL;
+    BdrvNextIterator it;
 
     len = strlen(str);
     readline_set_completion_index(rs, len);
 
-    while ((it = bdrv_next(it, &bs))) {
+    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         SnapshotInfoList *snapshots, *snapshot;
         AioContext *ctx = bdrv_get_aio_context(bs);
         bool ok = false;
