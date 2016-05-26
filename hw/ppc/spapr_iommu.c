@@ -278,7 +278,7 @@ static target_ulong put_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
     tcet->table[index] = tce;
 
     entry.target_as = &address_space_memory,
-    entry.iova = ioba & page_mask;
+    entry.iova = (ioba - tcet->bus_offset) & page_mask;
     entry.translated_addr = tce & page_mask;
     entry.addr_mask = ~page_mask;
     entry.perm = spapr_tce_iommu_access_flags(tce);

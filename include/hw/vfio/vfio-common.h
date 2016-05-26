@@ -90,6 +90,7 @@ typedef struct VFIOContainer {
 typedef struct VFIOGuestIOMMU {
     VFIOContainer *container;
     MemoryRegion *iommu;
+    hwaddr iommu_offset;
     Notifier n;
     QLIST_ENTRY(VFIOGuestIOMMU) giommu_next;
 } VFIOGuestIOMMU;
@@ -154,5 +155,7 @@ extern QLIST_HEAD(vfio_as_head, VFIOAddressSpace) vfio_address_spaces;
 #ifdef CONFIG_LINUX
 int vfio_get_region_info(VFIODevice *vbasedev, int index,
                          struct vfio_region_info **info);
+int vfio_get_dev_region_info(VFIODevice *vbasedev, uint32_t type,
+                             uint32_t subtype, struct vfio_region_info **info);
 #endif
 #endif /* !HW_VFIO_VFIO_COMMON_H */

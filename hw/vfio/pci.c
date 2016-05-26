@@ -1440,8 +1440,6 @@ static void vfio_bar_setup(VFIOPCIDevice *vdev, int nr)
                      vdev->vbasedev.name, nr);
     }
 
-    vfio_bar_quirk_setup(vdev, nr);
-
     pci_register_bar(&vdev->pdev, nr, type, bar->region.mem);
 }
 
@@ -1451,29 +1449,6 @@ static void vfio_bars_setup(VFIOPCIDevice *vdev)
 
     for (i = 0; i < PCI_ROM_SLOT; i++) {
         vfio_bar_setup(vdev, i);
-    }
-
-    if (vdev->vga) {
-        memory_region_init_io(&vdev->vga->region[QEMU_PCI_VGA_MEM].mem,
-                              OBJECT(vdev), &vfio_vga_ops,
-                              &vdev->vga->region[QEMU_PCI_VGA_MEM],
-                              "vfio-vga-mmio@0xa0000",
-                              QEMU_PCI_VGA_MEM_SIZE);
-        memory_region_init_io(&vdev->vga->region[QEMU_PCI_VGA_IO_LO].mem,
-                              OBJECT(vdev), &vfio_vga_ops,
-                              &vdev->vga->region[QEMU_PCI_VGA_IO_LO],
-                              "vfio-vga-io@0x3b0",
-                              QEMU_PCI_VGA_IO_LO_SIZE);
-        memory_region_init_io(&vdev->vga->region[QEMU_PCI_VGA_IO_HI].mem,
-                              OBJECT(vdev), &vfio_vga_ops,
-                              &vdev->vga->region[QEMU_PCI_VGA_IO_HI],
-                              "vfio-vga-io@0x3c0",
-                              QEMU_PCI_VGA_IO_HI_SIZE);
-
-        pci_register_vga(&vdev->pdev, &vdev->vga->region[QEMU_PCI_VGA_MEM].mem,
-                         &vdev->vga->region[QEMU_PCI_VGA_IO_LO].mem,
-                         &vdev->vga->region[QEMU_PCI_VGA_IO_HI].mem);
-        vfio_vga_quirk_setup(vdev);
     }
 }
 
@@ -2061,42 +2036,61 @@ int vfio_populate_vga(VFIOPCIDevice *vdev)
     struct vfio_region_info *reg_info;
     int ret;
 
-    if (vbasedev->num_regions > VFIO_PCI_VGA_REGION_INDEX) {
-        ret = vfio_get_region_info(vbasedev,
-                                   VFIO_PCI_VGA_REGION_INDEX, &reg_info);
-        if (ret) {
-            return ret;
-        }
-
-        if (!(reg_info->flags & VFIO_REGION_INFO_FLAG_READ) ||
-            !(reg_info->flags & VFIO_REGION_INFO_FLAG_WRITE) ||
-            reg_info->size < 0xbffff + 1) {
-            error_report("vfio: Unexpected VGA info, flags 0x%lx, size 0x%lx",
-                         (unsigned long)reg_info->flags,
-                         (unsigned long)reg_info->size);
-            g_free(reg_info);
-            return -EINVAL;
-        }
-
-        vdev->vga = g_new0(VFIOVGA, 1);
-
-        vdev->vga->fd_offset = reg_info->offset;
-        vdev->vga->fd = vdev->vbasedev.fd;
-
-        g_free(reg_info);
-
-        vdev->vga->region[QEMU_PCI_VGA_MEM].offset = QEMU_PCI_VGA_MEM_BASE;
-        vdev->vga->region[QEMU_PCI_VGA_MEM].nr = QEMU_PCI_VGA_MEM;
-        QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_MEM].quirks);
-
-        vdev->vga->region[QEMU_PCI_VGA_IO_LO].offset = QEMU_PCI_VGA_IO_LO_BASE;
-        vdev->vga->region[QEMU_PCI_VGA_IO_LO].nr = QEMU_PCI_VGA_IO_LO;
-        QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_IO_LO].quirks);
-
-        vdev->vga->region[QEMU_PCI_VGA_IO_HI].offset = QEMU_PCI_VGA_IO_HI_BASE;
-        vdev->vga->region[QEMU_PCI_VGA_IO_HI].nr = QEMU_PCI_VGA_IO_HI;
-        QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_IO_HI].quirks);
+    ret = vfio_get_region_info(vbasedev, VFIO_PCI_VGA_REGION_INDEX, &reg_info);
+    if (ret) {
+        return ret;
     }
+
+    if (!(reg_info->flags & VFIO_REGION_INFO_FLAG_READ) ||
+        !(reg_info->flags & VFIO_REGION_INFO_FLAG_WRITE) ||
+        reg_info->size < 0xbffff + 1) {
+        error_report("vfio: Unexpected VGA info, flags 0x%lx, size 0x%lx",
+                     (unsigned long)reg_info->flags,
+                     (unsigned long)reg_info->size);
+        g_free(reg_info);
+        return -EINVAL;
+    }
+
+    vdev->vga = g_new0(VFIOVGA, 1);
+
+    vdev->vga->fd_offset = reg_info->offset;
+    vdev->vga->fd = vdev->vbasedev.fd;
+
+    g_free(reg_info);
+
+    vdev->vga->region[QEMU_PCI_VGA_MEM].offset = QEMU_PCI_VGA_MEM_BASE;
+    vdev->vga->region[QEMU_PCI_VGA_MEM].nr = QEMU_PCI_VGA_MEM;
+    QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_MEM].quirks);
+
+    memory_region_init_io(&vdev->vga->region[QEMU_PCI_VGA_MEM].mem,
+                          OBJECT(vdev), &vfio_vga_ops,
+                          &vdev->vga->region[QEMU_PCI_VGA_MEM],
+                          "vfio-vga-mmio@0xa0000",
+                          QEMU_PCI_VGA_MEM_SIZE);
+
+    vdev->vga->region[QEMU_PCI_VGA_IO_LO].offset = QEMU_PCI_VGA_IO_LO_BASE;
+    vdev->vga->region[QEMU_PCI_VGA_IO_LO].nr = QEMU_PCI_VGA_IO_LO;
+    QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_IO_LO].quirks);
+
+    memory_region_init_io(&vdev->vga->region[QEMU_PCI_VGA_IO_LO].mem,
+                          OBJECT(vdev), &vfio_vga_ops,
+                          &vdev->vga->region[QEMU_PCI_VGA_IO_LO],
+                          "vfio-vga-io@0x3b0",
+                          QEMU_PCI_VGA_IO_LO_SIZE);
+
+    vdev->vga->region[QEMU_PCI_VGA_IO_HI].offset = QEMU_PCI_VGA_IO_HI_BASE;
+    vdev->vga->region[QEMU_PCI_VGA_IO_HI].nr = QEMU_PCI_VGA_IO_HI;
+    QLIST_INIT(&vdev->vga->region[QEMU_PCI_VGA_IO_HI].quirks);
+
+    memory_region_init_io(&vdev->vga->region[QEMU_PCI_VGA_IO_HI].mem,
+                          OBJECT(vdev), &vfio_vga_ops,
+                          &vdev->vga->region[QEMU_PCI_VGA_IO_HI],
+                          "vfio-vga-io@0x3c0",
+                          QEMU_PCI_VGA_IO_HI_SIZE);
+
+    pci_register_vga(&vdev->pdev, &vdev->vga->region[QEMU_PCI_VGA_MEM].mem,
+                     &vdev->vga->region[QEMU_PCI_VGA_IO_LO].mem,
+                     &vdev->vga->region[QEMU_PCI_VGA_IO_HI].mem);
 
     return 0;
 }
@@ -2398,7 +2392,7 @@ static int vfio_initfn(PCIDevice *pdev)
     ssize_t len;
     struct stat st;
     int groupid;
-    int ret;
+    int i, ret;
 
     if (!vdev->vbasedev.sysfsdev) {
         vdev->vbasedev.sysfsdev =
@@ -2560,6 +2554,43 @@ static int vfio_initfn(PCIDevice *pdev)
         goto out_teardown;
     }
 
+    if (vdev->vga) {
+        vfio_vga_quirk_setup(vdev);
+    }
+
+    for (i = 0; i < PCI_ROM_SLOT; i++) {
+        vfio_bar_quirk_setup(vdev, i);
+    }
+
+    if (!vdev->igd_opregion &&
+        vdev->features & VFIO_FEATURE_ENABLE_IGD_OPREGION) {
+        struct vfio_region_info *opregion;
+
+        if (vdev->pdev.qdev.hotplugged) {
+            error_report("Cannot support IGD OpRegion feature on hotplugged "
+                         "device %s", vdev->vbasedev.name);
+            ret = -EINVAL;
+            goto out_teardown;
+        }
+
+        ret = vfio_get_dev_region_info(&vdev->vbasedev,
+                        VFIO_REGION_TYPE_PCI_VENDOR_TYPE | PCI_VENDOR_ID_INTEL,
+                        VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION, &opregion);
+        if (ret) {
+            error_report("Device %s does not support requested IGD OpRegion "
+                         "feature", vdev->vbasedev.name);
+            goto out_teardown;
+        }
+
+        ret = vfio_pci_igd_opregion_init(vdev, opregion);
+        g_free(opregion);
+        if (ret) {
+            error_report("Device %s IGD OpRegion initialization failed",
+                         vdev->vbasedev.name);
+            goto out_teardown;
+        }
+    }
+
     /* QEMU emulates all of MSI & MSIX */
     if (pdev->cap_present & QEMU_PCI_CAP_MSIX) {
         memset(vdev->emulated_config_bits + pdev->msix_cap, 0xff,
@@ -2603,6 +2634,13 @@ static void vfio_instance_finalize(Object *obj)
     vfio_bars_finalize(vdev);
     g_free(vdev->emulated_config_bits);
     g_free(vdev->rom);
+    /*
+     * XXX Leaking igd_opregion is not an oversight, we can't remove the
+     * fw_cfg entry therefore leaking this allocation seems like the safest
+     * option.
+     *
+     * g_free(vdev->igd_opregion);
+     */
     vfio_put_device(vdev);
     vfio_put_group(group);
 }
@@ -2677,6 +2715,8 @@ static Property vfio_pci_dev_properties[] = {
                     VFIO_FEATURE_ENABLE_VGA_BIT, false),
     DEFINE_PROP_BIT("x-req", VFIOPCIDevice, features,
                     VFIO_FEATURE_ENABLE_REQ_BIT, true),
+    DEFINE_PROP_BIT("x-igd-opregion", VFIOPCIDevice, features,
+                    VFIO_FEATURE_ENABLE_IGD_OPREGION_BIT, false),
     DEFINE_PROP_BOOL("x-no-mmap", VFIOPCIDevice, vbasedev.no_mmap, false),
     DEFINE_PROP_BOOL("x-no-kvm-intx", VFIOPCIDevice, no_kvm_intx, false),
     DEFINE_PROP_BOOL("x-no-kvm-msi", VFIOPCIDevice, no_kvm_msi, false),
@@ -2687,6 +2727,7 @@ static Property vfio_pci_dev_properties[] = {
                        sub_vendor_id, PCI_ANY_ID),
     DEFINE_PROP_UINT32("x-pci-sub-device-id", VFIOPCIDevice,
                        sub_device_id, PCI_ANY_ID),
+    DEFINE_PROP_UINT32("x-igd-gms", VFIOPCIDevice, igd_gms, 0),
     /*
      * TODO - support passed fds... is this necessary?
      * DEFINE_PROP_STRING("vfiofd", VFIOPCIDevice, vfiofd_name),
