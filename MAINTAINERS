@@ -165,6 +165,7 @@ F: hw/openrisc/
 F: tests/tcg/openrisc/
 
 PowerPC
+M: David Gibson <david@gibson.dropbear.id.au>
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Maintained
