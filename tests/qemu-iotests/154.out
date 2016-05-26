@@ -102,13 +102,13 @@ wrote 2048/2048 bytes at offset 29696
 read 4096/4096 bytes at offset 28672
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 [{ "start": 0, "length": 4096, "depth": 1, "zero": true, "data": false},
-{ "start": 4096, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 20480},
+{ "start": 4096, "length": 4096, "depth": 0, "zero": true, "data": false},
 { "start": 8192, "length": 4096, "depth": 1, "zero": true, "data": false},
-{ "start": 12288, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 24576},
+{ "start": 12288, "length": 4096, "depth": 0, "zero": true, "data": false},
 { "start": 16384, "length": 4096, "depth": 1, "zero": true, "data": false},
-{ "start": 20480, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 28672},
+{ "start": 20480, "length": 4096, "depth": 0, "zero": true, "data": false},
 { "start": 24576, "length": 4096, "depth": 1, "zero": true, "data": false},
-{ "start": 28672, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 32768},
+{ "start": 28672, "length": 4096, "depth": 0, "zero": true, "data": false},
 { "start": 32768, "length": 134184960, "depth": 1, "zero": true, "data": false}]
 
 == spanning two clusters, non-zero before request ==
