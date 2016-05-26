@@ -1897,16 +1897,16 @@ static void *qemu_ram_ptr_length(RAMBlock *ram_block, ram_addr_t addr,
  * ram_addr_t.
  */
 RAMBlock *qemu_ram_block_from_host(void *ptr, bool round_offset,
-                                   ram_addr_t *ram_addr,
                                    ram_addr_t *offset)
 {
     RAMBlock *block;
     uint8_t *host = ptr;
 
     if (xen_enabled()) {
+        ram_addr_t ram_addr;
         rcu_read_lock();
-        *ram_addr = xen_ram_addr_from_mapcache(ptr);
-        block = qemu_get_ram_block(*ram_addr);
+        ram_addr = xen_ram_addr_from_mapcache(ptr);
+        block = qemu_get_ram_block(ram_addr);
         if (block) {
             *offset = (host - block->host);
         }
@@ -1938,7 +1938,6 @@ found:
     if (round_offset) {
         *offset &= TARGET_PAGE_MASK;
     }
-    *ram_addr = block->offset + *offset;
     rcu_read_unlock();
     return block;
 }
@@ -1968,10 +1967,10 @@ RAMBlock *qemu_ram_block_by_name(const char *name)
 MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
 {
     RAMBlock *block;
-    ram_addr_t offset; /* Not used */
+    ram_addr_t offset;
 
-    block = qemu_ram_block_from_host(ptr, false, ram_addr, &offset);
-
+    block = qemu_ram_block_from_host(ptr, false, &offset);
+    *ram_addr = block->offset + offset;
     if (!block) {
         return NULL;
     }
