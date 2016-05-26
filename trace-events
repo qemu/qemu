@@ -1713,6 +1713,11 @@ vfio_quirk_ati_bonaire_reset_no_smc(const char *name) "%s"
 vfio_quirk_ati_bonaire_reset_timeout(const char *name) "%s"
 vfio_quirk_ati_bonaire_reset_done(const char *name) "%s"
 vfio_quirk_ati_bonaire_reset(const char *name) "%s"
+vfio_pci_igd_bar4_write(const char *name, uint32_t index, uint32_t data, uint32_t base) "%s [%03x] %08x -> %08x"
+vfio_pci_igd_bdsm_enabled(const char *name, int size) "%s %dMB"
+vfio_pci_igd_opregion_enabled(const char *name) "%s"
+vfio_pci_igd_host_bridge_enabled(const char *name) "%s"
+vfio_pci_igd_lpc_bridge_enabled(const char *name) "%s"
 
 # hw/vfio/common.c
 vfio_region_write(const char *name, int index, uint64_t addr, uint64_t data, unsigned size) " (%s:region%d+0x%"PRIx64", 0x%"PRIx64 ", %d)"

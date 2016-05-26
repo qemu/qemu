@@ -115,6 +115,7 @@ typedef struct VFIOPCIDevice {
     int interrupt; /* Current interrupt type */
     VFIOBAR bars[PCI_NUM_REGIONS - 1]; /* No ROM */
     VFIOVGA *vga; /* 0xa0000, 0x3b0, 0x3c0 */
+    void *igd_opregion;
     PCIHostDeviceAddress host;
     EventNotifier err_notifier;
     EventNotifier req_notifier;
@@ -129,6 +130,7 @@ typedef struct VFIOPCIDevice {
 #define VFIO_FEATURE_ENABLE_REQ_BIT 1
 #define VFIO_FEATURE_ENABLE_REQ (1 << VFIO_FEATURE_ENABLE_REQ_BIT)
     int32_t bootindex;
+    uint32_t igd_gms;
     uint8_t pm_cap;
     bool has_vga;
     bool pci_aer;
