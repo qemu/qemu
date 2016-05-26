@@ -1440,8 +1440,6 @@ static void vfio_bar_setup(VFIOPCIDevice *vdev, int nr)
                      vdev->vbasedev.name, nr);
     }
 
-    vfio_bar_quirk_setup(vdev, nr);
-
     pci_register_bar(&vdev->pdev, nr, type, bar->region.mem);
 }
 
@@ -2394,7 +2392,7 @@ static int vfio_initfn(PCIDevice *pdev)
     ssize_t len;
     struct stat st;
     int groupid;
-    int ret;
+    int i, ret;
 
     if (!vdev->vbasedev.sysfsdev) {
         vdev->vbasedev.sysfsdev =
@@ -2558,6 +2556,10 @@ static int vfio_initfn(PCIDevice *pdev)
 
     if (vdev->vga) {
         vfio_vga_quirk_setup(vdev);
+    }
+
+    for (i = 0; i < PCI_ROM_SLOT; i++) {
+        vfio_bar_quirk_setup(vdev, i);
     }
 
     /* QEMU emulates all of MSI & MSIX */
