@@ -2438,33 +2438,20 @@ static coroutine_fn int qcow2_co_write_zeroes(BlockDriverState *bs,
     int tail = (sector_num + nb_sectors) % s->cluster_sectors;
 
     if (head != 0 || tail != 0) {
-        int64_t cl_end = -1;
+        int64_t cl_start = sector_num - head;
 
-        sector_num -= head;
-        nb_sectors += head;
+        assert(cl_start + s->cluster_sectors >= sector_num + nb_sectors);
 
-        if (tail != 0) {
-            nb_sectors += s->cluster_sectors - tail;
-        }
+        sector_num = cl_start;
+        nb_sectors = s->cluster_sectors;
 
         if (!is_zero_cluster(bs, sector_num)) {
             return -ENOTSUP;
         }
 
-        if (nb_sectors > s->cluster_sectors) {
-            /* Technically the request can cover 2 clusters, f.e. 4k write
-               at s->cluster_sectors - 2k offset. One of these cluster can
-               be zeroed, one unallocated */
-            cl_end = sector_num + nb_sectors - s->cluster_sectors;
-            if (!is_zero_cluster(bs, cl_end)) {
-                return -ENOTSUP;
-            }
-        }
-
         qemu_co_mutex_lock(&s->lock);
         /* We can have new write after previous check */
-        if (!is_zero_cluster_top_locked(bs, sector_num) ||
-                (cl_end > 0 && !is_zero_cluster_top_locked(bs, cl_end))) {
+        if (!is_zero_cluster_top_locked(bs, sector_num)) {
             qemu_co_mutex_unlock(&s->lock);
             return -ENOTSUP;
         }
