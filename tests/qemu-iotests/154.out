@@ -106,11 +106,14 @@ read 1024/1024 bytes at offset 67584
 read 5120/5120 bytes at offset 68608
 5 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 [{ "start": 0, "length": 32768, "depth": 1, "zero": true, "data": false},
-{ "start": 32768, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 20480},
+{ "start": 32768, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 20480},
+{ "start": 36864, "length": 4096, "depth": 0, "zero": true, "data": false},
 { "start": 40960, "length": 8192, "depth": 1, "zero": true, "data": false},
-{ "start": 49152, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 28672},
+{ "start": 49152, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 24576},
+{ "start": 53248, "length": 4096, "depth": 0, "zero": true, "data": false},
 { "start": 57344, "length": 8192, "depth": 1, "zero": true, "data": false},
-{ "start": 65536, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 36864},
+{ "start": 65536, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 28672},
+{ "start": 69632, "length": 4096, "depth": 0, "zero": true, "data": false},
 { "start": 73728, "length": 134144000, "depth": 1, "zero": true, "data": false}]
 
 == spanning two clusters, non-zero after request ==
@@ -145,11 +148,14 @@ read 7168/7168 bytes at offset 65536
 read 1024/1024 bytes at offset 72704
 1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 [{ "start": 0, "length": 32768, "depth": 1, "zero": true, "data": false},
-{ "start": 32768, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 20480},
+{ "start": 32768, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 36864, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 20480},
 { "start": 40960, "length": 8192, "depth": 1, "zero": true, "data": false},
-{ "start": 49152, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 28672},
+{ "start": 49152, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 53248, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 24576},
 { "start": 57344, "length": 8192, "depth": 1, "zero": true, "data": false},
-{ "start": 65536, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 36864},
+{ "start": 65536, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 69632, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 28672},
 { "start": 73728, "length": 134144000, "depth": 1, "zero": true, "data": false}]
 
 == spanning two clusters, partially overwriting backing file ==

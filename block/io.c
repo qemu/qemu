@@ -1118,28 +1118,32 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
     struct iovec iov = {0};
     int ret = 0;
     bool need_flush = false;
+    int head = 0;
+    int tail = 0;
 
     int max_write_zeroes = MIN_NON_ZERO(bs->bl.max_write_zeroes,
                                         BDRV_REQUEST_MAX_SECTORS);
+    if (bs->bl.write_zeroes_alignment) {
+        assert(is_power_of_2(bs->bl.write_zeroes_alignment));
+        head = sector_num & (bs->bl.write_zeroes_alignment - 1);
+        tail = (sector_num + nb_sectors) & (bs->bl.write_zeroes_alignment - 1);
+        max_write_zeroes &= ~(bs->bl.write_zeroes_alignment - 1);
+    }
 
     while (nb_sectors > 0 && !ret) {
         int num = nb_sectors;
 
         /* Align request.  Block drivers can expect the "bulk" of the request
-         * to be aligned.
+         * to be aligned, and that unaligned requests do not cross cluster
+         * boundaries.
          */
-        if (bs->bl.write_zeroes_alignment
-            && num > bs->bl.write_zeroes_alignment) {
-            if (sector_num % bs->bl.write_zeroes_alignment != 0) {
-                /* Make a small request up to the first aligned sector.  */
-                num = bs->bl.write_zeroes_alignment;
-                num -= sector_num % bs->bl.write_zeroes_alignment;
-            } else if ((sector_num + num) % bs->bl.write_zeroes_alignment != 0) {
-                /* Shorten the request to the last aligned sector.  num cannot
-                 * underflow because num > bs->bl.write_zeroes_alignment.
-                 */
-                num -= (sector_num + num) % bs->bl.write_zeroes_alignment;
-            }
+        if (head) {
+            /* Make a small request up to the first aligned sector.  */
+            num = MIN(nb_sectors, bs->bl.write_zeroes_alignment - head);
+            head = 0;
+        } else if (tail && num > bs->bl.write_zeroes_alignment) {
+            /* Shorten the request to the last aligned sector.  */
+            num -= tail;
         }
 
         /* limit request size */
