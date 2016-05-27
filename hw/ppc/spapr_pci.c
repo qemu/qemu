@@ -1093,13 +1093,11 @@ static void spapr_phb_add_pci_device(sPAPRDRConnector *drc,
         spapr_tce_set_need_vfio(tcet, true);
     }
 
-    if (dev->hotplugged) {
-        fdt = create_device_tree(&fdt_size);
-        fdt_start_offset = spapr_create_pci_child_dt(phb, pdev, fdt, 0);
-        if (!fdt_start_offset) {
-            error_setg(errp, "Failed to create pci child device tree node");
-            goto out;
-        }
+    fdt = create_device_tree(&fdt_size);
+    fdt_start_offset = spapr_create_pci_child_dt(phb, pdev, fdt, 0);
+    if (!fdt_start_offset) {
+        error_setg(errp, "Failed to create pci child device tree node");
+        goto out;
     }
 
     drck->attach(drc, DEVICE(pdev),
@@ -1816,7 +1814,7 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     _FDT(fdt_setprop(fdt, bus_off, "interrupt-map", &interrupt_map,
                      sizeof(interrupt_map)));
 
-    tcet = spapr_tce_find_by_liobn(SPAPR_PCI_LIOBN(phb->index, 0));
+    tcet = spapr_tce_find_by_liobn(phb->dma_liobn);
     if (!tcet) {
         return -1;
     }

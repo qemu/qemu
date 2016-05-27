@@ -284,8 +284,6 @@ void ppc_hash64_set_external_hpt(PowerPCCPU *cpu, void *hpt, int shift,
     CPUPPCState *env = &cpu->env;
     Error *local_err = NULL;
 
-    cpu_synchronize_state(CPU(cpu));
-
     if (hpt) {
         env->external_htab = hpt;
     } else {
