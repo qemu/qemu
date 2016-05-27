@@ -716,6 +716,7 @@ safe_syscall6(int, pselect6, int, nfds, fd_set *, readfds, fd_set *, writefds, \
               fd_set *, exceptfds, struct timespec *, timeout, void *, sig)
 safe_syscall6(int,futex,int *,uaddr,int,op,int,val, \
               const struct timespec *,timeout,int *,uaddr2,int,val3)
+safe_syscall2(int, rt_sigsuspend, sigset_t *, newset, size_t, sigsetsize)
 
 static inline int host_to_target_sock_type(int host_type)
 {
@@ -7648,7 +7649,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             target_to_host_old_sigset(&set, p);
             unlock_user(p, arg1, 0);
 #endif
-            ret = get_errno(sigsuspend(&set));
+            ret = get_errno(safe_rt_sigsuspend(&set, SIGSET_T_SIZE));
         }
         break;
 #endif
@@ -7659,7 +7660,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 goto efault;
             target_to_host_sigset(&set, p);
             unlock_user(p, arg1, 0);
-            ret = get_errno(sigsuspend(&set));
+            ret = get_errno(safe_rt_sigsuspend(&set, SIGSET_T_SIZE));
         }
         break;
     case TARGET_NR_rt_sigtimedwait:
