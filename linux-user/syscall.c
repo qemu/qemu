@@ -191,8 +191,6 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #define __NR_sys_getpriority __NR_getpriority
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
 #define __NR_sys_syslog __NR_syslog
-#define __NR_sys_tgkill __NR_tgkill
-#define __NR_sys_tkill __NR_tkill
 #define __NR_sys_futex __NR_futex
 #define __NR_sys_inotify_init __NR_inotify_init
 #define __NR_sys_inotify_add_watch __NR_inotify_add_watch
@@ -230,12 +228,6 @@ _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
 #endif
 _syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
 _syscall3(int,sys_syslog,int,type,char*,bufp,int,len)
-#if defined(TARGET_NR_tgkill) && defined(__NR_tgkill)
-_syscall3(int,sys_tgkill,int,tgid,int,pid,int,sig)
-#endif
-#if defined(TARGET_NR_tkill) && defined(__NR_tkill)
-_syscall2(int,sys_tkill,int,tid,int,sig)
-#endif
 #ifdef __NR_exit_group
 _syscall1(int,exit_group,int,error_code)
 #endif
@@ -717,6 +709,9 @@ safe_syscall6(int, pselect6, int, nfds, fd_set *, readfds, fd_set *, writefds, \
 safe_syscall6(int,futex,int *,uaddr,int,op,int,val, \
               const struct timespec *,timeout,int *,uaddr2,int,val3)
 safe_syscall2(int, rt_sigsuspend, sigset_t *, newset, size_t, sigsetsize)
+safe_syscall2(int, kill, pid_t, pid, int, sig)
+safe_syscall2(int, tkill, int, tid, int, sig)
+safe_syscall3(int, tgkill, int, tgid, int, pid, int, sig)
 
 static inline int host_to_target_sock_type(int host_type)
 {
@@ -7169,7 +7164,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = 0;
         break;
     case TARGET_NR_kill:
-        ret = get_errno(kill(arg1, target_to_host_signal(arg2)));
+        ret = get_errno(safe_kill(arg1, target_to_host_signal(arg2)));
         break;
 #ifdef TARGET_NR_rename
     case TARGET_NR_rename:
@@ -10405,18 +10400,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
 
-#if defined(TARGET_NR_tkill) && defined(__NR_tkill)
     case TARGET_NR_tkill:
-        ret = get_errno(sys_tkill((int)arg1, target_to_host_signal(arg2)));
+        ret = get_errno(safe_tkill((int)arg1, target_to_host_signal(arg2)));
         break;
-#endif
 
-#if defined(TARGET_NR_tgkill) && defined(__NR_tgkill)
     case TARGET_NR_tgkill:
-	ret = get_errno(sys_tgkill((int)arg1, (int)arg2,
+        ret = get_errno(safe_tgkill((int)arg1, (int)arg2,
                         target_to_host_signal(arg3)));
-	break;
-#endif
+        break;
 
 #ifdef TARGET_NR_set_robust_list
     case TARGET_NR_set_robust_list:
