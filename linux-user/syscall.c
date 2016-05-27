@@ -110,6 +110,10 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
     CLONE_PARENT_SETTID | CLONE_CHILD_SETTID | CLONE_CHILD_CLEARTID)
 
 //#define DEBUG
+/* Define DEBUG_ERESTARTSYS to force every syscall to be restarted
+ * once. This exercises the codepaths for restart.
+ */
+//#define DEBUG_ERESTARTSYS
 
 //#include <linux/msdos_fs.h>
 #define	VFAT_IOCTL_READDIR_BOTH		_IOR('r', 1, struct linux_dirent [2])
@@ -355,18 +359,6 @@ static int sys_getcwd1(char *buf, size_t size)
   return strlen(buf)+1;
 }
 
-static int sys_openat(int dirfd, const char *pathname, int flags, mode_t mode)
-{
-  /*
-   * open(2) has extra parameter 'mode' when called with
-   * flag O_CREAT.
-   */
-  if ((flags & O_CREAT) != 0) {
-      return (openat(dirfd, pathname, flags, mode));
-  }
-  return (openat(dirfd, pathname, flags));
-}
-
 #ifdef TARGET_NR_utimensat
 #ifdef CONFIG_UTIMENSAT
 static int sys_utimensat(int dirfd, const char *pathname,
@@ -436,15 +428,6 @@ static int sys_inotify_init1(int flags)
 _syscall5(int, sys_ppoll, struct pollfd *, fds, nfds_t, nfds,
           struct timespec *, timeout, const sigset_t *, sigmask,
           size_t, sigsetsize)
-#endif
-
-#if defined(TARGET_NR_pselect6)
-#ifndef __NR_pselect6
-# define __NR_pselect6 -1
-#endif
-#define __NR_sys_pselect6 __NR_pselect6
-_syscall6(int, sys_pselect6, int, nfds, fd_set *, readfds, fd_set *, writefds,
-          fd_set *, exceptfds, struct timespec *, timeout, void *, sig);
 #endif
 
 #if defined(TARGET_NR_prlimit64)
@@ -619,15 +602,19 @@ static uint16_t host_to_target_errno_table[ERRNO_TABLE_SIZE] = {
 
 static inline int host_to_target_errno(int err)
 {
-    if(host_to_target_errno_table[err])
+    if (err >= 0 && err < ERRNO_TABLE_SIZE &&
+        host_to_target_errno_table[err]) {
         return host_to_target_errno_table[err];
+    }
     return err;
 }
 
 static inline int target_to_host_errno(int err)
 {
-    if (target_to_host_errno_table[err])
+    if (err >= 0 && err < ERRNO_TABLE_SIZE &&
+        target_to_host_errno_table[err]) {
         return target_to_host_errno_table[err];
+    }
     return err;
 }
 
@@ -651,6 +638,67 @@ char *target_strerror(int err)
     }
     return strerror(target_to_host_errno(err));
 }
+
+#define safe_syscall0(type, name) \
+static type safe_##name(void) \
+{ \
+    return safe_syscall(__NR_##name); \
+}
+
+#define safe_syscall1(type, name, type1, arg1) \
+static type safe_##name(type1 arg1) \
+{ \
+    return safe_syscall(__NR_##name, arg1); \
+}
+
+#define safe_syscall2(type, name, type1, arg1, type2, arg2) \
+static type safe_##name(type1 arg1, type2 arg2) \
+{ \
+    return safe_syscall(__NR_##name, arg1, arg2); \
+}
+
+#define safe_syscall3(type, name, type1, arg1, type2, arg2, type3, arg3) \
+static type safe_##name(type1 arg1, type2 arg2, type3 arg3) \
+{ \
+    return safe_syscall(__NR_##name, arg1, arg2, arg3); \
+}
+
+#define safe_syscall4(type, name, type1, arg1, type2, arg2, type3, arg3, \
+    type4, arg4) \
+static type safe_##name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) \
+{ \
+    return safe_syscall(__NR_##name, arg1, arg2, arg3, arg4); \
+}
+
+#define safe_syscall5(type, name, type1, arg1, type2, arg2, type3, arg3, \
+    type4, arg4, type5, arg5) \
+static type safe_##name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, \
+    type5 arg5) \
+{ \
+    return safe_syscall(__NR_##name, arg1, arg2, arg3, arg4, arg5); \
+}
+
+#define safe_syscall6(type, name, type1, arg1, type2, arg2, type3, arg3, \
+    type4, arg4, type5, arg5, type6, arg6) \
+static type safe_##name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, \
+    type5 arg5, type6 arg6) \
+{ \
+    return safe_syscall(__NR_##name, arg1, arg2, arg3, arg4, arg5, arg6); \
+}
+
+safe_syscall3(ssize_t, read, int, fd, void *, buff, size_t, count)
+safe_syscall3(ssize_t, write, int, fd, const void *, buff, size_t, count)
+safe_syscall4(int, openat, int, dirfd, const char *, pathname, \
+              int, flags, mode_t, mode)
+safe_syscall4(pid_t, wait4, pid_t, pid, int *, status, int, options, \
+              struct rusage *, rusage)
+safe_syscall5(int, waitid, idtype_t, idtype, id_t, id, siginfo_t *, infop, \
+              int, options, struct rusage *, rusage)
+safe_syscall3(int, execve, const char *, filename, char **, argv, char **, envp)
+safe_syscall6(int, pselect6, int, nfds, fd_set *, readfds, fd_set *, writefds, \
+              fd_set *, exceptfds, struct timespec *, timeout, void *, sig)
+safe_syscall6(int,futex,int *,uaddr,int,op,int,val, \
+              const struct timespec *,timeout,int *,uaddr2,int,val3)
 
 static inline int host_to_target_sock_type(int host_type)
 {
@@ -1062,7 +1110,8 @@ static abi_long do_select(int n,
 {
     fd_set rfds, wfds, efds;
     fd_set *rfds_ptr, *wfds_ptr, *efds_ptr;
-    struct timeval tv, *tv_ptr;
+    struct timeval tv;
+    struct timespec ts, *ts_ptr;
     abi_long ret;
 
     ret = copy_from_user_fdset_ptr(&rfds, &rfds_ptr, rfd_addr, n);
@@ -1081,12 +1130,15 @@ static abi_long do_select(int n,
     if (target_tv_addr) {
         if (copy_from_user_timeval(&tv, target_tv_addr))
             return -TARGET_EFAULT;
-        tv_ptr = &tv;
+        ts.tv_sec = tv.tv_sec;
+        ts.tv_nsec = tv.tv_usec * 1000;
+        ts_ptr = &ts;
     } else {
-        tv_ptr = NULL;
+        ts_ptr = NULL;
     }
 
-    ret = get_errno(select(n, rfds_ptr, wfds_ptr, efds_ptr, tv_ptr));
+    ret = get_errno(safe_pselect6(n, rfds_ptr, wfds_ptr, efds_ptr,
+                                  ts_ptr, NULL));
 
     if (!is_error(ret)) {
         if (rfd_addr && copy_to_user_fdset(rfd_addr, &rfds, n))
@@ -1096,8 +1148,13 @@ static abi_long do_select(int n,
         if (efd_addr && copy_to_user_fdset(efd_addr, &efds, n))
             return -TARGET_EFAULT;
 
-        if (target_tv_addr && copy_to_user_timeval(target_tv_addr, &tv))
-            return -TARGET_EFAULT;
+        if (target_tv_addr) {
+            tv.tv_sec = ts.tv_sec;
+            tv.tv_usec = ts.tv_nsec / 1000;
+            if (copy_to_user_timeval(target_tv_addr, &tv)) {
+                return -TARGET_EFAULT;
+            }
+        }
     }
 
     return ret;
@@ -3095,7 +3152,7 @@ static inline abi_long do_msgsnd(int msqid, abi_long msgp,
 }
 
 static inline abi_long do_msgrcv(int msqid, abi_long msgp,
-                                 unsigned int msgsz, abi_long msgtyp,
+                                 ssize_t msgsz, abi_long msgtyp,
                                  int msgflg)
 {
     struct target_msgbuf *target_mb;
@@ -3103,10 +3160,18 @@ static inline abi_long do_msgrcv(int msqid, abi_long msgp,
     struct msgbuf *host_mb;
     abi_long ret = 0;
 
+    if (msgsz < 0) {
+        return -TARGET_EINVAL;
+    }
+
     if (!lock_user_struct(VERIFY_WRITE, target_mb, msgp, 0))
         return -TARGET_EFAULT;
 
-    host_mb = g_malloc(msgsz+sizeof(long));
+    host_mb = g_try_malloc(msgsz + sizeof(long));
+    if (!host_mb) {
+        ret = -TARGET_ENOMEM;
+        goto end;
+    }
     ret = get_errno(msgrcv(msqid, host_mb, msgsz, msgtyp, msgflg));
 
     if (ret > 0) {
@@ -5034,6 +5099,40 @@ static inline int tswapid(int id)
 
 #endif /* USE_UID16 */
 
+/* We must do direct syscalls for setting UID/GID, because we want to
+ * implement the Linux system call semantics of "change only for this thread",
+ * not the libc/POSIX semantics of "change for all threads in process".
+ * (See http://ewontfix.com/17/ for more details.)
+ * We use the 32-bit version of the syscalls if present; if it is not
+ * then either the host architecture supports 32-bit UIDs natively with
+ * the standard syscall, or the 16-bit UID is the best we can do.
+ */
+#ifdef __NR_setuid32
+#define __NR_sys_setuid __NR_setuid32
+#else
+#define __NR_sys_setuid __NR_setuid
+#endif
+#ifdef __NR_setgid32
+#define __NR_sys_setgid __NR_setgid32
+#else
+#define __NR_sys_setgid __NR_setgid
+#endif
+#ifdef __NR_setresuid32
+#define __NR_sys_setresuid __NR_setresuid32
+#else
+#define __NR_sys_setresuid __NR_setresuid
+#endif
+#ifdef __NR_setresgid32
+#define __NR_sys_setresgid __NR_setresgid32
+#else
+#define __NR_sys_setresgid __NR_setresgid
+#endif
+
+_syscall1(int, sys_setuid, uid_t, uid)
+_syscall1(int, sys_setgid, gid_t, gid)
+_syscall3(int, sys_setresuid, uid_t, ruid, uid_t, euid, uid_t, suid)
+_syscall3(int, sys_setresgid, gid_t, rgid, gid_t, egid, gid_t, sgid)
+
 void syscall_init(void)
 {
     IOCTLEntry *ie;
@@ -5137,8 +5236,8 @@ static inline abi_long target_to_host_timespec(struct timespec *host_ts,
 
     if (!lock_user_struct(VERIFY_READ, target_ts, target_addr, 1))
         return -TARGET_EFAULT;
-    host_ts->tv_sec = tswapal(target_ts->tv_sec);
-    host_ts->tv_nsec = tswapal(target_ts->tv_nsec);
+    __get_user(host_ts->tv_sec, &target_ts->tv_sec);
+    __get_user(host_ts->tv_nsec, &target_ts->tv_nsec);
     unlock_user_struct(target_ts, target_addr, 0);
     return 0;
 }
@@ -5150,8 +5249,8 @@ static inline abi_long host_to_target_timespec(abi_ulong target_addr,
 
     if (!lock_user_struct(VERIFY_WRITE, target_ts, target_addr, 0))
         return -TARGET_EFAULT;
-    target_ts->tv_sec = tswapal(host_ts->tv_sec);
-    target_ts->tv_nsec = tswapal(host_ts->tv_nsec);
+    __put_user(host_ts->tv_sec, &target_ts->tv_sec);
+    __put_user(host_ts->tv_nsec, &target_ts->tv_nsec);
     unlock_user_struct(target_ts, target_addr, 1);
     return 0;
 }
@@ -5326,12 +5425,12 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
         } else {
             pts = NULL;
         }
-        return get_errno(sys_futex(g2h(uaddr), op, tswap32(val),
+        return get_errno(safe_futex(g2h(uaddr), op, tswap32(val),
                          pts, NULL, val3));
     case FUTEX_WAKE:
-        return get_errno(sys_futex(g2h(uaddr), op, val, NULL, NULL, 0));
+        return get_errno(safe_futex(g2h(uaddr), op, val, NULL, NULL, 0));
     case FUTEX_FD:
-        return get_errno(sys_futex(g2h(uaddr), op, val, NULL, NULL, 0));
+        return get_errno(safe_futex(g2h(uaddr), op, val, NULL, NULL, 0));
     case FUTEX_REQUEUE:
     case FUTEX_CMP_REQUEUE:
     case FUTEX_WAKE_OP:
@@ -5341,11 +5440,11 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
            to satisfy the compiler.  We do not need to tswap TIMEOUT
            since it's not compared to guest memory.  */
         pts = (struct timespec *)(uintptr_t) timeout;
-        return get_errno(sys_futex(g2h(uaddr), op, val, pts,
-                                   g2h(uaddr2),
-                                   (base_op == FUTEX_CMP_REQUEUE
-                                    ? tswap32(val3)
-                                    : val3)));
+        return get_errno(safe_futex(g2h(uaddr), op, val, pts,
+                                    g2h(uaddr2),
+                                    (base_op == FUTEX_CMP_REQUEUE
+                                     ? tswap32(val3)
+                                     : val3)));
     default:
         return -TARGET_ENOSYS;
     }
@@ -5555,7 +5654,9 @@ static int open_self_cmdline(void *cpu_env, int fd)
 
         nb_read = read(fd_orig, buf, sizeof(buf));
         if (nb_read < 0) {
+            int e = errno;
             fd_orig = close(fd_orig);
+            errno = e;
             return -1;
         } else if (nb_read == 0) {
             break;
@@ -5575,7 +5676,9 @@ static int open_self_cmdline(void *cpu_env, int fd)
 
         if (word_skipped) {
             if (write(fd, cp_buf, nb_read) != nb_read) {
+                int e = errno;
                 close(fd_orig);
+                errno = e;
                 return -1;
             }
         }
@@ -5595,7 +5698,7 @@ static int open_self_maps(void *cpu_env, int fd)
 
     fp = fopen("/proc/self/maps", "r");
     if (fp == NULL) {
-        return -EACCES;
+        return -1;
     }
 
     while ((read = getline(&line, &len, fp)) != -1) {
@@ -5739,7 +5842,7 @@ static int open_net_route(void *cpu_env, int fd)
 
     fp = fopen("/proc/net/route", "r");
     if (fp == NULL) {
-        return -EACCES;
+        return -1;
     }
 
     /* read header */
@@ -5789,7 +5892,7 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, 
 
     if (is_proc_myself(pathname, "exe")) {
         int execfd = qemu_getauxval(AT_EXECFD);
-        return execfd ? execfd : get_errno(sys_openat(dirfd, exec_path, flags, mode));
+        return execfd ? execfd : safe_openat(dirfd, exec_path, flags, mode);
     }
 
     for (fake_open = fakes; fake_open->filename; fake_open++) {
@@ -5815,7 +5918,9 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, 
         unlink(filename);
 
         if ((r = fake_open->fill(cpu_env, fd))) {
+            int e = errno;
             close(fd);
+            errno = e;
             return r;
         }
         lseek(fd, 0, SEEK_SET);
@@ -5823,7 +5928,7 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, 
         return fd;
     }
 
-    return get_errno(sys_openat(dirfd, path(pathname), flags, mode));
+    return safe_openat(dirfd, path(pathname), flags, mode);
 }
 
 #define TIMER_MAGIC 0x0caf0000
@@ -5860,6 +5965,21 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     struct stat st;
     struct statfs stfs;
     void *p;
+
+#if defined(DEBUG_ERESTARTSYS)
+    /* Debug-only code for exercising the syscall-restart code paths
+     * in the per-architecture cpu main loops: restart every syscall
+     * the guest makes once before letting it through.
+     */
+    {
+        static int flag;
+
+        flag = !flag;
+        if (flag) {
+            return -TARGET_ERESTARTSYS;
+        }
+    }
+#endif
 
 #ifdef DEBUG
     gemu_log("syscall %d", num);
@@ -5907,7 +6027,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         else {
             if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0)))
                 goto efault;
-            ret = get_errno(read(arg1, p, arg3));
+            ret = get_errno(safe_read(arg1, p, arg3));
             if (ret >= 0 &&
                 fd_trans_host_to_target_data(arg1)) {
                 ret = fd_trans_host_to_target_data(arg1)(p, ret);
@@ -5918,7 +6038,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_write:
         if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1)))
             goto efault;
-        ret = get_errno(write(arg1, p, arg3));
+        ret = get_errno(safe_write(arg1, p, arg3));
         unlock_user(p, arg2, 0);
         break;
 #ifdef TARGET_NR_open
@@ -5968,7 +6088,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_waitpid:
         {
             int status;
-            ret = get_errno(waitpid(arg1, &status, arg3));
+            ret = get_errno(safe_wait4(arg1, &status, arg3, 0));
             if (!is_error(ret) && arg2 && ret
                 && put_user_s32(host_to_target_waitstatus(status), arg2))
                 goto efault;
@@ -5980,7 +6100,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             siginfo_t info;
             info.si_pid = 0;
-            ret = get_errno(waitid(arg1, arg2, &info, arg4));
+            ret = get_errno(safe_waitid(arg1, arg2, &info, arg4, NULL));
             if (!is_error(ret) && arg3 && info.si_pid != 0) {
                 if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(target_siginfo_t), 0)))
                     goto efault;
@@ -6106,7 +6226,17 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
             if (!(p = lock_user_string(arg1)))
                 goto execve_efault;
-            ret = get_errno(execve(p, argp, envp));
+            /* Although execve() is not an interruptible syscall it is
+             * a special case where we must use the safe_syscall wrapper:
+             * if we allow a signal to happen before we make the host
+             * syscall then we will 'lose' it, because at the point of
+             * execve the process leaves QEMU's control. So we use the
+             * safe syscall wrapper to ensure that we either take the
+             * signal as a guest signal, or else it does not happen
+             * before the execve completes and makes it the other
+             * program's problem.
+             */
+            ret = get_errno(safe_execve(p, argp, envp));
             unlock_user(p, arg1, 0);
 
             goto execve_end;
@@ -6930,12 +7060,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #ifdef TARGET_NR_sigreturn
     case TARGET_NR_sigreturn:
-        /* NOTE: ret is eax, so not transcoding must be done */
         ret = do_sigreturn(cpu_env);
         break;
 #endif
     case TARGET_NR_rt_sigreturn:
-        /* NOTE: ret is eax, so not transcoding must be done */
         ret = do_rt_sigreturn(cpu_env);
         break;
     case TARGET_NR_sethostname:
@@ -7124,8 +7252,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 sig_ptr = NULL;
             }
 
-            ret = get_errno(sys_pselect6(n, rfds_ptr, wfds_ptr, efds_ptr,
-                                         ts_ptr, sig_ptr));
+            ret = get_errno(safe_pselect6(n, rfds_ptr, wfds_ptr, efds_ptr,
+                                          ts_ptr, sig_ptr));
 
             if (!is_error(ret)) {
                 if (rfd_addr && copy_to_user_fdset(rfd_addr, &rfds, n))
@@ -7694,7 +7822,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 rusage_ptr = &rusage;
             else
                 rusage_ptr = NULL;
-            ret = get_errno(wait4(arg1, &status, arg3, rusage_ptr));
+            ret = get_errno(safe_wait4(arg1, &status, arg3, rusage_ptr));
             if (!is_error(ret)) {
                 if (status_ptr && ret) {
                     status = host_to_target_waitstatus(status);
@@ -8740,9 +8868,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_setresuid
     case TARGET_NR_setresuid:
-        ret = get_errno(setresuid(low2highuid(arg1),
-                                  low2highuid(arg2),
-                                  low2highuid(arg3)));
+        ret = get_errno(sys_setresuid(low2highuid(arg1),
+                                      low2highuid(arg2),
+                                      low2highuid(arg3)));
         break;
 #endif
 #ifdef TARGET_NR_getresuid
@@ -8761,9 +8889,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_getresgid
     case TARGET_NR_setresgid:
-        ret = get_errno(setresgid(low2highgid(arg1),
-                                  low2highgid(arg2),
-                                  low2highgid(arg3)));
+        ret = get_errno(sys_setresgid(low2highgid(arg1),
+                                      low2highgid(arg2),
+                                      low2highgid(arg3)));
         break;
 #endif
 #ifdef TARGET_NR_getresgid
@@ -8789,10 +8917,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
     case TARGET_NR_setuid:
-        ret = get_errno(setuid(low2highuid(arg1)));
+        ret = get_errno(sys_setuid(low2highuid(arg1)));
         break;
     case TARGET_NR_setgid:
-        ret = get_errno(setgid(low2highgid(arg1)));
+        ret = get_errno(sys_setgid(low2highgid(arg1)));
         break;
     case TARGET_NR_setfsuid:
         ret = get_errno(setfsuid(arg1));
@@ -9074,7 +9202,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_setresuid32
     case TARGET_NR_setresuid32:
-        ret = get_errno(setresuid(arg1, arg2, arg3));
+        ret = get_errno(sys_setresuid(arg1, arg2, arg3));
         break;
 #endif
 #ifdef TARGET_NR_getresuid32
@@ -9093,7 +9221,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_setresgid32
     case TARGET_NR_setresgid32:
-        ret = get_errno(setresgid(arg1, arg2, arg3));
+        ret = get_errno(sys_setresgid(arg1, arg2, arg3));
         break;
 #endif
 #ifdef TARGET_NR_getresgid32
@@ -9120,12 +9248,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_setuid32
     case TARGET_NR_setuid32:
-        ret = get_errno(setuid(arg1));
+        ret = get_errno(sys_setuid(arg1));
         break;
 #endif
 #ifdef TARGET_NR_setgid32
     case TARGET_NR_setgid32:
-        ret = get_errno(setgid(arg1));
+        ret = get_errno(sys_setgid(arg1));
         break;
 #endif
 #ifdef TARGET_NR_setfsuid32

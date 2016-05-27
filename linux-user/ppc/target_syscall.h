@@ -53,8 +53,6 @@ struct target_revectored_struct {
 	abi_ulong __map[8];			/* 256 bits */
 };
 
-/* Nasty hack: define a fake errno value for use by sigreturn.  */
-#define TARGET_QEMU_ESIGRETURN 255
 
 /*
  * flags masks

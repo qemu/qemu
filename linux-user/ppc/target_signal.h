@@ -26,4 +26,5 @@ static inline abi_ulong get_sp_from_cpustate(CPUPPCState *state)
     return state->gpr[1];
 }
 
+
 #endif /* TARGET_SIGNAL_H */

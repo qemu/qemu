@@ -108,7 +108,12 @@ obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/dpd/decimal128.o
 
 ifdef CONFIG_LINUX_USER
 
-QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR) -I$(SRC_PATH)/linux-user
+# Note that we only add linux-user/host/$ARCH if it exists, and
+# that it must come before linux-user/host/generic in the search path.
+QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR) \
+             $(patsubst %,-I%,$(wildcard $(SRC_PATH)/linux-user/host/$(ARCH))) \
+             -I$(SRC_PATH)/linux-user/host/generic \
+             -I$(SRC_PATH)/linux-user
 
 obj-y += linux-user/
 obj-y += gdbstub.o thunk.o user-exec.o

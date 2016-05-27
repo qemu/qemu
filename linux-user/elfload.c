@@ -274,19 +274,20 @@ static inline void init_thread(struct target_pt_regs *regs,
     abi_long stack = infop->start_stack;
     memset(regs, 0, sizeof(*regs));
 
-    regs->ARM_cpsr = 0x10;
-    if (infop->entry & 1)
-        regs->ARM_cpsr |= CPSR_T;
-    regs->ARM_pc = infop->entry & 0xfffffffe;
-    regs->ARM_sp = infop->start_stack;
+    regs->uregs[16] = ARM_CPU_MODE_USR;
+    if (infop->entry & 1) {
+        regs->uregs[16] |= CPSR_T;
+    }
+    regs->uregs[15] = infop->entry & 0xfffffffe;
+    regs->uregs[13] = infop->start_stack;
     /* FIXME - what to for failure of get_user()? */
-    get_user_ual(regs->ARM_r2, stack + 8); /* envp */
-    get_user_ual(regs->ARM_r1, stack + 4); /* envp */
+    get_user_ual(regs->uregs[2], stack + 8); /* envp */
+    get_user_ual(regs->uregs[1], stack + 4); /* envp */
     /* XXX: it seems that r0 is zeroed after ! */
-    regs->ARM_r0 = 0;
+    regs->uregs[0] = 0;
     /* For uClinux PIC binaries.  */
     /* XXX: Linux does this only on ARM with no MMU (do we care ?) */
-    regs->ARM_r10 = infop->start_data;
+    regs->uregs[10] = infop->start_data;
 }
 
 #define ELF_NREG    18

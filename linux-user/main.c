@@ -285,6 +285,7 @@ void cpu_loop(CPUX86State *env)
     CPUState *cs = CPU(x86_env_get_cpu(env));
     int trapnr;
     abi_ulong pc;
+    abi_ulong ret;
     target_siginfo_t info;
 
     for(;;) {
@@ -294,28 +295,38 @@ void cpu_loop(CPUX86State *env)
         switch(trapnr) {
         case 0x80:
             /* linux syscall from int $0x80 */
-            env->regs[R_EAX] = do_syscall(env,
-                                          env->regs[R_EAX],
-                                          env->regs[R_EBX],
-                                          env->regs[R_ECX],
-                                          env->regs[R_EDX],
-                                          env->regs[R_ESI],
-                                          env->regs[R_EDI],
-                                          env->regs[R_EBP],
-                                          0, 0);
+            ret = do_syscall(env,
+                             env->regs[R_EAX],
+                             env->regs[R_EBX],
+                             env->regs[R_ECX],
+                             env->regs[R_EDX],
+                             env->regs[R_ESI],
+                             env->regs[R_EDI],
+                             env->regs[R_EBP],
+                             0, 0);
+            if (ret == -TARGET_ERESTARTSYS) {
+                env->eip -= 2;
+            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                env->regs[R_EAX] = ret;
+            }
             break;
 #ifndef TARGET_ABI32
         case EXCP_SYSCALL:
             /* linux syscall from syscall instruction */
-            env->regs[R_EAX] = do_syscall(env,
-                                          env->regs[R_EAX],
-                                          env->regs[R_EDI],
-                                          env->regs[R_ESI],
-                                          env->regs[R_EDX],
-                                          env->regs[10],
-                                          env->regs[8],
-                                          env->regs[9],
-                                          0, 0);
+            ret = do_syscall(env,
+                             env->regs[R_EAX],
+                             env->regs[R_EDI],
+                             env->regs[R_ESI],
+                             env->regs[R_EDX],
+                             env->regs[10],
+                             env->regs[8],
+                             env->regs[9],
+                             0, 0);
+            if (ret == -TARGET_ERESTARTSYS) {
+                env->eip -= 2;
+            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                env->regs[R_EAX] = ret;
+            }
             break;
 #endif
         case EXCP0B_NOSEG:
@@ -716,6 +727,7 @@ void cpu_loop(CPUARMState *env)
     unsigned int n, insn;
     target_siginfo_t info;
     uint32_t addr;
+    abi_ulong ret;
 
     for(;;) {
         cpu_exec_start(cs);
@@ -854,15 +866,20 @@ void cpu_loop(CPUARMState *env)
                             break;
                         }
                     } else {
-                        env->regs[0] = do_syscall(env,
-                                                  n,
-                                                  env->regs[0],
-                                                  env->regs[1],
-                                                  env->regs[2],
-                                                  env->regs[3],
-                                                  env->regs[4],
-                                                  env->regs[5],
-                                                  0, 0);
+                        ret = do_syscall(env,
+                                         n,
+                                         env->regs[0],
+                                         env->regs[1],
+                                         env->regs[2],
+                                         env->regs[3],
+                                         env->regs[4],
+                                         env->regs[5],
+                                         0, 0);
+                        if (ret == -TARGET_ERESTARTSYS) {
+                            env->regs[15] -= env->thumb ? 2 : 4;
+                        } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                            env->regs[0] = ret;
+                        }
                     }
                 } else {
                     goto error;
@@ -1045,6 +1062,7 @@ void cpu_loop(CPUARMState *env)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
     int trapnr, sig;
+    abi_long ret;
     target_siginfo_t info;
 
     for (;;) {
@@ -1054,15 +1072,20 @@ void cpu_loop(CPUARMState *env)
 
         switch (trapnr) {
         case EXCP_SWI:
-            env->xregs[0] = do_syscall(env,
-                                       env->xregs[8],
-                                       env->xregs[0],
-                                       env->xregs[1],
-                                       env->xregs[2],
-                                       env->xregs[3],
-                                       env->xregs[4],
-                                       env->xregs[5],
-                                       0, 0);
+            ret = do_syscall(env,
+                             env->xregs[8],
+                             env->xregs[0],
+                             env->xregs[1],
+                             env->xregs[2],
+                             env->xregs[3],
+                             env->xregs[4],
+                             env->xregs[5],
+                             0, 0);
+            if (ret == -TARGET_ERESTARTSYS) {
+                env->pc -= 4;
+            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                env->xregs[0] = ret;
+            }
             break;
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */
@@ -1148,7 +1171,7 @@ void cpu_loop(CPUUniCore32State *env)
                             cpu_set_tls(env, env->regs[0]);
                             env->regs[0] = 0;
                     } else {
-                        env->regs[0] = do_syscall(env,
+                        abi_long ret = do_syscall(env,
                                                   n,
                                                   env->regs[0],
                                                   env->regs[1],
@@ -1157,6 +1180,11 @@ void cpu_loop(CPUUniCore32State *env)
                                                   env->regs[4],
                                                   env->regs[5],
                                                   0, 0);
+                        if (ret == -TARGET_ERESTARTSYS) {
+                            env->regs[31] -= 4;
+                        } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                            env->regs[0] = ret;
+                        }
                     }
                 } else {
                     goto error;
@@ -1353,6 +1381,9 @@ void cpu_loop (CPUSPARCState *env)
                               env->regwptr[2], env->regwptr[3],
                               env->regwptr[4], env->regwptr[5],
                               0, 0);
+            if (ret == -TARGET_ERESTARTSYS || ret == -TARGET_QEMU_ESIGRETURN) {
+                break;
+            }
             if ((abi_ulong)ret >= (abi_ulong)(-515)) {
 #if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
                 env->xcc |= PSR_CARRY;
@@ -1964,6 +1995,10 @@ void cpu_loop(CPUPPCState *env)
             ret = do_syscall(env, env->gpr[0], env->gpr[3], env->gpr[4],
                              env->gpr[5], env->gpr[6], env->gpr[7],
                              env->gpr[8], 0, 0);
+            if (ret == -TARGET_ERESTARTSYS) {
+                env->nip -= 4;
+                break;
+            }
             if (ret == (target_ulong)(-TARGET_QEMU_ESIGRETURN)) {
                 /* Returning from a successful sigreturn syscall.
                    Avoid corrupting register state.  */
@@ -2505,6 +2540,10 @@ done_syscall:
                              env->active_tc.gpr[8], env->active_tc.gpr[9],
                              env->active_tc.gpr[10], env->active_tc.gpr[11]);
 # endif /* O32 */
+            if (ret == -TARGET_ERESTARTSYS) {
+                env->active_tc.PC -= 4;
+                break;
+            }
             if (ret == -TARGET_QEMU_ESIGRETURN) {
                 /* Returning from a successful sigreturn syscall.
                    Avoid clobbering register state.  */
@@ -2685,6 +2724,7 @@ void cpu_loop(CPUOpenRISCState *env)
 {
     CPUState *cs = CPU(openrisc_env_get_cpu(env));
     int trapnr, gdbsig;
+    abi_long ret;
 
     for (;;) {
         cpu_exec_start(cs);
@@ -2730,14 +2770,19 @@ void cpu_loop(CPUOpenRISCState *env)
             break;
         case EXCP_SYSCALL:
             env->pc += 4;   /* 0xc00; */
-            env->gpr[11] = do_syscall(env,
-                                      env->gpr[11], /* return value       */
-                                      env->gpr[3],  /* r3 - r7 are params */
-                                      env->gpr[4],
-                                      env->gpr[5],
-                                      env->gpr[6],
-                                      env->gpr[7],
-                                      env->gpr[8], 0, 0);
+            ret = do_syscall(env,
+                             env->gpr[11], /* return value       */
+                             env->gpr[3],  /* r3 - r7 are params */
+                             env->gpr[4],
+                             env->gpr[5],
+                             env->gpr[6],
+                             env->gpr[7],
+                             env->gpr[8], 0, 0);
+            if (ret == -TARGET_ERESTARTSYS) {
+                env->pc -= 4;
+            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                env->gpr[11] = ret;
+            }
             break;
         case EXCP_FPE:
             qemu_log_mask(CPU_LOG_INT, "\nFloating point error\n");
@@ -2792,7 +2837,11 @@ void cpu_loop(CPUSH4State *env)
                              env->gregs[0],
                              env->gregs[1],
                              0, 0);
-            env->gregs[0] = ret;
+            if (ret == -TARGET_ERESTARTSYS) {
+                env->pc -= 2;
+            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                env->gregs[0] = ret;
+            }
             break;
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */
@@ -2865,7 +2914,11 @@ void cpu_loop(CPUCRISState *env)
                              env->pregs[7], 
                              env->pregs[11],
                              0, 0);
-            env->regs[10] = ret;
+            if (ret == -TARGET_ERESTARTSYS) {
+                env->pc -= 2;
+            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                env->regs[10] = ret;
+            }
             break;
         case EXCP_DEBUG:
             {
@@ -2929,7 +2982,19 @@ void cpu_loop(CPUMBState *env)
                              env->regs[9], 
                              env->regs[10],
                              0, 0);
-            env->regs[3] = ret;
+            if (ret == -TARGET_ERESTARTSYS) {
+                /* Wind back to before the syscall. */
+                env->sregs[SR_PC] -= 4;
+            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                env->regs[3] = ret;
+            }
+            /* All syscall exits result in guest r14 being equal to the
+             * PC we return to, because the kernel syscall exit "rtbd" does
+             * this. (This is true even for sigreturn(); note that r14 is
+             * not a userspace-usable register, as the kernel may clobber it
+             * at any point.)
+             */
+            env->regs[14] = env->sregs[SR_PC];
             break;
         case EXCP_HW_EXCP:
             env->regs[17] = env->sregs[SR_PC] + 4;
@@ -3037,18 +3102,24 @@ void cpu_loop(CPUM68KState *env)
             break;
         case EXCP_TRAP0:
             {
+                abi_long ret;
                 ts->sim_syscalls = 0;
                 n = env->dregs[0];
                 env->pc += 2;
-                env->dregs[0] = do_syscall(env,
-                                          n,
-                                          env->dregs[1],
-                                          env->dregs[2],
-                                          env->dregs[3],
-                                          env->dregs[4],
-                                          env->dregs[5],
-                                          env->aregs[0],
-                                          0, 0);
+                ret = do_syscall(env,
+                                 n,
+                                 env->dregs[1],
+                                 env->dregs[2],
+                                 env->dregs[3],
+                                 env->dregs[4],
+                                 env->dregs[5],
+                                 env->aregs[0],
+                                 0, 0);
+                if (ret == -TARGET_ERESTARTSYS) {
+                    env->pc -= 2;
+                } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                    env->dregs[0] = ret;
+                }
             }
             break;
         case EXCP_INTERRUPT:
@@ -3229,8 +3300,11 @@ void cpu_loop(CPUAlphaState *env)
                                     env->ir[IR_A2], env->ir[IR_A3],
                                     env->ir[IR_A4], env->ir[IR_A5],
                                     0, 0);
-                if (trapnr == TARGET_NR_sigreturn
-                    || trapnr == TARGET_NR_rt_sigreturn) {
+                if (sysret == -TARGET_ERESTARTSYS) {
+                    env->pc -= 4;
+                    break;
+                }
+                if (sysret == -TARGET_QEMU_ESIGRETURN) {
                     break;
                 }
                 /* Syscall writes 0 to V0 to bypass error check, similar
@@ -3327,6 +3401,7 @@ void cpu_loop(CPUS390XState *env)
     int trapnr, n, sig;
     target_siginfo_t info;
     target_ulong addr;
+    abi_long ret;
 
     while (1) {
         cpu_exec_start(cs);
@@ -3344,9 +3419,14 @@ void cpu_loop(CPUS390XState *env)
                 n = env->regs[1];
             }
             env->psw.addr += env->int_svc_ilen;
-            env->regs[2] = do_syscall(env, n, env->regs[2], env->regs[3],
-                                      env->regs[4], env->regs[5],
-                                      env->regs[6], env->regs[7], 0, 0);
+            ret = do_syscall(env, n, env->regs[2], env->regs[3],
+                             env->regs[4], env->regs[5],
+                             env->regs[6], env->regs[7], 0, 0);
+            if (ret == -TARGET_ERESTARTSYS) {
+                env->psw.addr -= env->int_svc_ilen;
+            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                env->regs[2] = ret;
+            }
             break;
 
         case EXCP_DEBUG:
@@ -3638,15 +3718,20 @@ void cpu_loop(CPUTLGState *env)
         cpu_exec_end(cs);
         switch (trapnr) {
         case TILEGX_EXCP_SYSCALL:
-            env->regs[TILEGX_R_RE] = do_syscall(env, env->regs[TILEGX_R_NR],
-                                                env->regs[0], env->regs[1],
-                                                env->regs[2], env->regs[3],
-                                                env->regs[4], env->regs[5],
-                                                env->regs[6], env->regs[7]);
-            env->regs[TILEGX_R_ERR] = TILEGX_IS_ERRNO(env->regs[TILEGX_R_RE])
-                                                      ? - env->regs[TILEGX_R_RE]
-                                                      : 0;
+        {
+            abi_ulong ret = do_syscall(env, env->regs[TILEGX_R_NR],
+                                       env->regs[0], env->regs[1],
+                                       env->regs[2], env->regs[3],
+                                       env->regs[4], env->regs[5],
+                                       env->regs[6], env->regs[7]);
+            if (ret == -TARGET_ERESTARTSYS) {
+                env->pc -= 8;
+            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                env->regs[TILEGX_R_RE] = ret;
+                env->regs[TILEGX_R_ERR] = TILEGX_IS_ERRNO(ret) ? -ret : 0;
+            }
             break;
+        }
         case TILEGX_EXCP_OPCODE_EXCH:
             do_exch(env, true, false);
             break;

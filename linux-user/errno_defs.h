@@ -139,3 +139,20 @@
 /* for robust mutexes */
 #define TARGET_EOWNERDEAD      130     /* Owner died */
 #define TARGET_ENOTRECOVERABLE 131     /* State not recoverable */
+
+/* QEMU internal, not visible to the guest. This is returned when a
+ * system call should be restarted, to tell the main loop that it
+ * should wind the guest PC backwards so it will re-execute the syscall
+ * after handling any pending signals. They match with the ones the guest
+ * kernel uses for the same purpose.
+ */
+#define TARGET_ERESTARTSYS     512     /* Restart system call (if SA_RESTART) */
+
+/* QEMU internal, not visible to the guest. This is returned by the
+ * do_sigreturn() code after a successful sigreturn syscall, to indicate
+ * that it has correctly set the guest registers and so the main loop
+ * should not touch them. We use the value the guest would use for
+ * ERESTART_NOINTR (which is kernel internal) to guarantee that we won't
+ * clash with a valid guest errno now or in the future.
+ */
+#define TARGET_QEMU_ESIGRETURN 513     /* Return from signal */

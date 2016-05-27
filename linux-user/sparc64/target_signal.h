@@ -33,4 +33,5 @@ static inline abi_ulong get_sp_from_cpustate(CPUSPARCState *state)
     return state->regwptr[UREG_FP];
 }
 
+
 #endif /* TARGET_SIGNAL_H */
