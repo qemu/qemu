@@ -6640,8 +6640,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
            However in threaded applictions it is used for thread termination,
            and _exit_group is used for application termination.
            Do thread termination if we have more then one thread.  */
-        /* FIXME: This probably breaks if a signal arrives.  We should probably
-           be disabling signals.  */
+
+        if (block_signals()) {
+            ret = -TARGET_ERESTARTSYS;
+            break;
+        }
+
         if (CPU_NEXT(first_cpu)) {
             TaskState *ts;
 
