@@ -1494,19 +1494,6 @@ void gdb_exit(CPUArchState *env, int code)
 
 #ifdef CONFIG_USER_ONLY
 int
-gdb_queuesig (void)
-{
-    GDBState *s;
-
-    s = gdbserver_state;
-
-    if (gdbserver_fd < 0 || s->fd < 0)
-        return 0;
-    else
-        return 1;
-}
-
-int
 gdb_handlesig(CPUState *cpu, int sig)
 {
     GDBState *s;
