@@ -17,6 +17,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "qemu/bitops.h"
 #include <sys/ucontext.h>
 #include <sys/resource.h>
 
@@ -274,69 +275,128 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
                                                  const siginfo_t *info)
 {
     int sig = host_to_target_signal(info->si_signo);
+    int si_code = info->si_code;
+    int si_type;
     tinfo->si_signo = sig;
     tinfo->si_errno = 0;
     tinfo->si_code = info->si_code;
 
-    if (sig == TARGET_SIGILL || sig == TARGET_SIGFPE || sig == TARGET_SIGSEGV
-            || sig == TARGET_SIGBUS || sig == TARGET_SIGTRAP) {
-        /* Should never come here, but who knows. The information for
-           the target is irrelevant.  */
-        tinfo->_sifields._sigfault._addr = 0;
-    } else if (sig == TARGET_SIGIO) {
-        tinfo->_sifields._sigpoll._band = info->si_band;
-        tinfo->_sifields._sigpoll._fd = info->si_fd;
-    } else if (sig == TARGET_SIGCHLD) {
-        tinfo->_sifields._sigchld._pid = info->si_pid;
-        tinfo->_sifields._sigchld._uid = info->si_uid;
-        tinfo->_sifields._sigchld._status
+    /* This is awkward, because we have to use a combination of
+     * the si_code and si_signo to figure out which of the union's
+     * members are valid. (Within the host kernel it is always possible
+     * to tell, but the kernel carefully avoids giving userspace the
+     * high 16 bits of si_code, so we don't have the information to
+     * do this the easy way...) We therefore make our best guess,
+     * bearing in mind that a guest can spoof most of the si_codes
+     * via rt_sigqueueinfo() if it likes.
+     *
+     * Once we have made our guess, we record it in the top 16 bits of
+     * the si_code, so that tswap_siginfo() later can use it.
+     * tswap_siginfo() will strip these top bits out before writing
+     * si_code to the guest (sign-extending the lower bits).
+     */
+
+    switch (si_code) {
+    case SI_USER:
+    case SI_TKILL:
+    case SI_KERNEL:
+        /* Sent via kill(), tkill() or tgkill(), or direct from the kernel.
+         * These are the only unspoofable si_code values.
+         */
+        tinfo->_sifields._kill._pid = info->si_pid;
+        tinfo->_sifields._kill._uid = info->si_uid;
+        si_type = QEMU_SI_KILL;
+        break;
+    default:
+        /* Everything else is spoofable. Make best guess based on signal */
+        switch (sig) {
+        case TARGET_SIGCHLD:
+            tinfo->_sifields._sigchld._pid = info->si_pid;
+            tinfo->_sifields._sigchld._uid = info->si_uid;
+            tinfo->_sifields._sigchld._status
                 = host_to_target_waitstatus(info->si_status);
-        tinfo->_sifields._sigchld._utime = info->si_utime;
-        tinfo->_sifields._sigchld._stime = info->si_stime;
-    } else if (sig >= TARGET_SIGRTMIN) {
-        tinfo->_sifields._rt._pid = info->si_pid;
-        tinfo->_sifields._rt._uid = info->si_uid;
-        /* XXX: potential problem if 64 bit */
-        tinfo->_sifields._rt._sigval.sival_ptr
+            tinfo->_sifields._sigchld._utime = info->si_utime;
+            tinfo->_sifields._sigchld._stime = info->si_stime;
+            si_type = QEMU_SI_CHLD;
+            break;
+        case TARGET_SIGIO:
+            tinfo->_sifields._sigpoll._band = info->si_band;
+            tinfo->_sifields._sigpoll._fd = info->si_fd;
+            si_type = QEMU_SI_POLL;
+            break;
+        default:
+            /* Assume a sigqueue()/mq_notify()/rt_sigqueueinfo() source. */
+            tinfo->_sifields._rt._pid = info->si_pid;
+            tinfo->_sifields._rt._uid = info->si_uid;
+            /* XXX: potential problem if 64 bit */
+            tinfo->_sifields._rt._sigval.sival_ptr
                 = (abi_ulong)(unsigned long)info->si_value.sival_ptr;
+            si_type = QEMU_SI_RT;
+            break;
+        }
+        break;
     }
+
+    tinfo->si_code = deposit32(si_code, 16, 16, si_type);
 }
 
 static void tswap_siginfo(target_siginfo_t *tinfo,
                           const target_siginfo_t *info)
 {
-    int sig = info->si_signo;
-    tinfo->si_signo = tswap32(sig);
-    tinfo->si_errno = tswap32(info->si_errno);
-    tinfo->si_code = tswap32(info->si_code);
+    int si_type = extract32(info->si_code, 16, 16);
+    int si_code = sextract32(info->si_code, 0, 16);
 
-    if (sig == TARGET_SIGILL || sig == TARGET_SIGFPE || sig == TARGET_SIGSEGV
-        || sig == TARGET_SIGBUS || sig == TARGET_SIGTRAP) {
-        tinfo->_sifields._sigfault._addr
-            = tswapal(info->_sifields._sigfault._addr);
-    } else if (sig == TARGET_SIGIO) {
-        tinfo->_sifields._sigpoll._band
-            = tswap32(info->_sifields._sigpoll._band);
-        tinfo->_sifields._sigpoll._fd = tswap32(info->_sifields._sigpoll._fd);
-    } else if (sig == TARGET_SIGCHLD) {
-        tinfo->_sifields._sigchld._pid
-            = tswap32(info->_sifields._sigchld._pid);
-        tinfo->_sifields._sigchld._uid
-            = tswap32(info->_sifields._sigchld._uid);
-        tinfo->_sifields._sigchld._status
-            = tswap32(info->_sifields._sigchld._status);
-        tinfo->_sifields._sigchld._utime
-            = tswapal(info->_sifields._sigchld._utime);
-        tinfo->_sifields._sigchld._stime
-            = tswapal(info->_sifields._sigchld._stime);
-    } else if (sig >= TARGET_SIGRTMIN) {
-        tinfo->_sifields._rt._pid = tswap32(info->_sifields._rt._pid);
-        tinfo->_sifields._rt._uid = tswap32(info->_sifields._rt._uid);
-        tinfo->_sifields._rt._sigval.sival_ptr
-            = tswapal(info->_sifields._rt._sigval.sival_ptr);
+    __put_user(info->si_signo, &tinfo->si_signo);
+    __put_user(info->si_errno, &tinfo->si_errno);
+    __put_user(si_code, &tinfo->si_code);
+
+    /* We can use our internal marker of which fields in the structure
+     * are valid, rather than duplicating the guesswork of
+     * host_to_target_siginfo_noswap() here.
+     */
+    switch (si_type) {
+    case QEMU_SI_KILL:
+        __put_user(info->_sifields._kill._pid, &tinfo->_sifields._kill._pid);
+        __put_user(info->_sifields._kill._uid, &tinfo->_sifields._kill._uid);
+        break;
+    case QEMU_SI_TIMER:
+        __put_user(info->_sifields._timer._timer1,
+                   &tinfo->_sifields._timer._timer1);
+        __put_user(info->_sifields._timer._timer2,
+                   &tinfo->_sifields._timer._timer2);
+        break;
+    case QEMU_SI_POLL:
+        __put_user(info->_sifields._sigpoll._band,
+                   &tinfo->_sifields._sigpoll._band);
+        __put_user(info->_sifields._sigpoll._fd,
+                   &tinfo->_sifields._sigpoll._fd);
+        break;
+    case QEMU_SI_FAULT:
+        __put_user(info->_sifields._sigfault._addr,
+                   &tinfo->_sifields._sigfault._addr);
+        break;
+    case QEMU_SI_CHLD:
+        __put_user(info->_sifields._sigchld._pid,
+                   &tinfo->_sifields._sigchld._pid);
+        __put_user(info->_sifields._sigchld._uid,
+                   &tinfo->_sifields._sigchld._uid);
+        __put_user(info->_sifields._sigchld._status,
+                   &tinfo->_sifields._sigchld._status);
+        __put_user(info->_sifields._sigchld._utime,
+                   &tinfo->_sifields._sigchld._utime);
+        __put_user(info->_sifields._sigchld._stime,
+                   &tinfo->_sifields._sigchld._stime);
+        break;
+    case QEMU_SI_RT:
+        __put_user(info->_sifields._rt._pid, &tinfo->_sifields._rt._pid);
+        __put_user(info->_sifields._rt._uid, &tinfo->_sifields._rt._uid);
+        __put_user(info->_sifields._rt._sigval.sival_ptr,
+                   &tinfo->_sifields._rt._sigval.sival_ptr);
+        break;
+    default:
+        g_assert_not_reached();
     }
 }
-
 
 void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info)
 {
@@ -504,6 +564,13 @@ int queue_signal(CPUArchState *env, int sig, target_siginfo_t *info)
     TaskState *ts = cpu->opaque;
 
     trace_user_queue_signal(env, sig);
+
+    /* Currently all callers define siginfo structures which
+     * use the _sifields._sigfault union member, so we can
+     * set the type here. If that changes we should push this
+     * out so the si_type is passed in by callers.
+     */
+    info->si_code = deposit32(info->si_code, 16, 16, QEMU_SI_FAULT);
 
     ts->sync_signal.info = *info;
     ts->sync_signal.pending = sig;
