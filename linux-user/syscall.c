@@ -124,6 +124,10 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #define	VFAT_IOCTL_READDIR_BOTH		_IOR('r', 1, struct linux_dirent [2])
 #define	VFAT_IOCTL_READDIR_SHORT	_IOR('r', 2, struct linux_dirent [2])
 
+/* This is the size of the host kernel's sigset_t, needed where we make
+ * direct system calls that take a sigset_t pointer and a size.
+ */
+#define SIGSET_T_SIZE (_NSIG / 8)
 
 #undef _syscall0
 #undef _syscall1
@@ -7862,7 +7866,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             /* Extract the two packed args for the sigset */
             if (arg6) {
                 sig_ptr = &sig;
-                sig.size = _NSIG / 8;
+                sig.size = SIGSET_T_SIZE;
 
                 arg7 = lock_user(VERIFY_READ, arg6, sizeof(*arg7) * 2, 1);
                 if (!arg7) {
@@ -8916,7 +8920,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     set = NULL;
                 }
 
-                ret = get_errno(sys_ppoll(pfd, nfds, timeout_ts, set, _NSIG/8));
+                ret = get_errno(sys_ppoll(pfd, nfds, timeout_ts,
+                                          set, SIGSET_T_SIZE));
 
                 if (!is_error(ret) && arg3) {
                     host_to_target_timespec(arg3, timeout_ts);
