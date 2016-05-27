@@ -640,7 +640,7 @@ out:
     return ret;
 }
 
-/* do_sigaction() return host values and errnos */
+/* do_sigaction() return target values and host errnos */
 int do_sigaction(int sig, const struct target_sigaction *act,
                  struct target_sigaction *oact)
 {
@@ -649,8 +649,14 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     int host_sig;
     int ret = 0;
 
-    if (sig < 1 || sig > TARGET_NSIG || sig == TARGET_SIGKILL || sig == TARGET_SIGSTOP)
-        return -EINVAL;
+    if (sig < 1 || sig > TARGET_NSIG || sig == TARGET_SIGKILL || sig == TARGET_SIGSTOP) {
+        return -TARGET_EINVAL;
+    }
+
+    if (block_signals()) {
+        return -TARGET_ERESTARTSYS;
+    }
+
     k = &sigact_table[sig - 1];
     if (oact) {
         __put_user(k->_sa_handler, &oact->_sa_handler);
