@@ -408,13 +408,18 @@ void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info)
 /* XXX: find a solution for 64 bit (additional malloced data is needed) */
 void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo)
 {
-    info->si_signo = tswap32(tinfo->si_signo);
-    info->si_errno = tswap32(tinfo->si_errno);
-    info->si_code = tswap32(tinfo->si_code);
-    info->si_pid = tswap32(tinfo->_sifields._rt._pid);
-    info->si_uid = tswap32(tinfo->_sifields._rt._uid);
-    info->si_value.sival_ptr =
-            (void *)(long)tswapal(tinfo->_sifields._rt._sigval.sival_ptr);
+    /* This conversion is used only for the rt_sigqueueinfo syscall,
+     * and so we know that the _rt fields are the valid ones.
+     */
+    abi_ulong sival_ptr;
+
+    __get_user(info->si_signo, &tinfo->si_signo);
+    __get_user(info->si_errno, &tinfo->si_errno);
+    __get_user(info->si_code, &tinfo->si_code);
+    __get_user(info->si_pid, &tinfo->_sifields._rt._pid);
+    __get_user(info->si_uid, &tinfo->_sifields._rt._uid);
+    __get_user(sival_ptr, &tinfo->_sifields._rt._sigval.sival_ptr);
+    info->si_value.sival_ptr = (void *)(long)sival_ptr;
 }
 
 static int fatal_signal (int sig)
