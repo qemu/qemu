@@ -239,6 +239,15 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
     return ret;
 }
 
+#if !defined(TARGET_OPENRISC) && !defined(TARGET_UNICORE32) && \
+    !defined(TARGET_X86_64)
+/* Just set the guest's signal mask to the specified value */
+static void set_sigmask(const sigset_t *set)
+{
+    do_sigprocmask(SIG_SETMASK, set, NULL);
+}
+#endif
+
 /* siginfo conversion */
 
 static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
@@ -1093,7 +1102,7 @@ long do_sigreturn(CPUX86State *env)
     }
 
     target_to_host_sigset_internal(&set, &target_set);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     /* restore registers */
     if (restore_sigcontext(env, &frame->sc))
@@ -1118,7 +1127,7 @@ long do_rt_sigreturn(CPUX86State *env)
     if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1))
         goto badframe;
     target_to_host_sigset(&set, &frame->uc.tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     if (restore_sigcontext(env, &frame->uc.tuc_mcontext)) {
         goto badframe;
@@ -1258,7 +1267,7 @@ static int target_restore_sigframe(CPUARMState *env,
     uint64_t pstate;
 
     target_to_host_sigset(&set, &sf->uc.tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     for (i = 0; i < 31; i++) {
         __get_user(env->xregs[i], &sf->uc.tuc_mcontext.regs[i]);
@@ -1900,7 +1909,7 @@ static long do_sigreturn_v1(CPUARMState *env)
     }
 
     target_to_host_sigset_internal(&host_set, &set);
-    do_sigprocmask(SIG_SETMASK, &host_set, NULL);
+    set_sigmask(&host_set);
 
     if (restore_sigcontext(env, &frame->sc)) {
         goto badframe;
@@ -1981,7 +1990,7 @@ static int do_sigframe_return_v2(CPUARMState *env, target_ulong frame_addr,
     abi_ulong *regspace;
 
     target_to_host_sigset(&host_set, &uc->tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &host_set, NULL);
+    set_sigmask(&host_set);
 
     if (restore_sigcontext(env, &uc->tuc_mcontext))
         return 1;
@@ -2077,7 +2086,7 @@ static long do_rt_sigreturn_v1(CPUARMState *env)
     }
 
     target_to_host_sigset(&host_set, &frame->uc.tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &host_set, NULL);
+    set_sigmask(&host_set);
 
     if (restore_sigcontext(env, &frame->uc.tuc_mcontext)) {
         goto badframe;
@@ -2453,7 +2462,7 @@ long do_sigreturn(CPUSPARCState *env)
     }
 
     target_to_host_sigset_internal(&host_set, &set);
-    do_sigprocmask(SIG_SETMASK, &host_set, NULL);
+    set_sigmask(&host_set);
 
     if (err) {
         goto segv_and_exit;
@@ -2576,7 +2585,7 @@ void sparc64_set_context(CPUSPARCState *env)
             }
         }
         target_to_host_sigset_internal(&set, &target_set);
-        do_sigprocmask(SIG_SETMASK, &set, NULL);
+        set_sigmask(&set);
     }
     env->pc = pc;
     env->npc = npc;
@@ -2993,7 +3002,7 @@ long do_sigreturn(CPUMIPSState *regs)
     }
 
     target_to_host_sigset_internal(&blocked, &target_set);
-    do_sigprocmask(SIG_SETMASK, &blocked, NULL);
+    set_sigmask(&blocked);
 
     restore_sigcontext(regs, &frame->sf_sc);
 
@@ -3097,7 +3106,7 @@ long do_rt_sigreturn(CPUMIPSState *env)
     }
 
     target_to_host_sigset(&blocked, &frame->rs_uc.tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &blocked, NULL);
+    set_sigmask(&blocked);
 
     restore_sigcontext(env, &frame->rs_uc.tuc_mcontext);
 
@@ -3371,7 +3380,7 @@ long do_sigreturn(CPUSH4State *regs)
         goto badframe;
 
     target_to_host_sigset_internal(&blocked, &target_set);
-    do_sigprocmask(SIG_SETMASK, &blocked, NULL);
+    set_sigmask(&blocked);
 
     restore_sigcontext(regs, &frame->sc);
 
@@ -3397,7 +3406,7 @@ long do_rt_sigreturn(CPUSH4State *regs)
     }
 
     target_to_host_sigset(&blocked, &frame->uc.tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &blocked, NULL);
+    set_sigmask(&blocked);
 
     restore_sigcontext(regs, &frame->uc.tuc_mcontext);
 
@@ -3621,7 +3630,7 @@ long do_sigreturn(CPUMBState *env)
         __get_user(target_set.sig[i], &frame->extramask[i - 1]);
     }
     target_to_host_sigset_internal(&set, &target_set);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     restore_sigcontext(&frame->uc.tuc_mcontext, env);
     /* We got here through a sigreturn syscall, our path back is via an
@@ -3792,7 +3801,7 @@ long do_sigreturn(CPUCRISState *env)
         __get_user(target_set.sig[i], &frame->extramask[i - 1]);
     }
     target_to_host_sigset_internal(&set, &target_set);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     restore_sigcontext(&frame->sc, env);
     unlock_user_struct(frame, frame_addr, 0);
@@ -4284,7 +4293,7 @@ long do_sigreturn(CPUS390XState *env)
     __get_user(target_set.sig[0], &frame->sc.oldmask[0]);
 
     target_to_host_sigset_internal(&set, &target_set);
-    do_sigprocmask(SIG_SETMASK, &set, NULL); /* ~_BLOCKABLE? */
+    set_sigmask(&set); /* ~_BLOCKABLE? */
 
     if (restore_sigregs(env, &frame->sregs)) {
         goto badframe;
@@ -4310,7 +4319,7 @@ long do_rt_sigreturn(CPUS390XState *env)
     }
     target_to_host_sigset(&set, &frame->uc.tuc_sigmask);
 
-    do_sigprocmask(SIG_SETMASK, &set, NULL); /* ~_BLOCKABLE? */
+    set_sigmask(&set); /* ~_BLOCKABLE? */
 
     if (restore_sigregs(env, &frame->uc.tuc_mcontext)) {
         goto badframe;
@@ -4872,7 +4881,7 @@ long do_sigreturn(CPUPPCState *env)
     __get_user(set.sig[1], &sc->_unused[3]);
 #endif
     target_to_host_sigset_internal(&blocked, &set);
-    do_sigprocmask(SIG_SETMASK, &blocked, NULL);
+    set_sigmask(&blocked);
 
     __get_user(sr_addr, &sc->regs);
     if (!lock_user_struct(VERIFY_READ, sr, sr_addr, 1))
@@ -4913,7 +4922,7 @@ static int do_setcontext(struct target_ucontext *ucp, CPUPPCState *env, int sig)
         return 1;
 
     target_to_host_sigset_internal(&blocked, &set);
-    do_sigprocmask(SIG_SETMASK, &blocked, NULL);
+    set_sigmask(&blocked);
     restore_user_regs(env, mcp, sig);
 
     unlock_user_struct(mcp, mcp_addr, 1);
@@ -5261,7 +5270,7 @@ long do_sigreturn(CPUM68KState *env)
     }
 
     target_to_host_sigset_internal(&set, &target_set);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     /* restore registers */
 
@@ -5287,7 +5296,7 @@ long do_rt_sigreturn(CPUM68KState *env)
         goto badframe;
 
     target_to_host_sigset_internal(&set, &target_set);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     /* restore registers */
 
@@ -5530,7 +5539,7 @@ long do_sigreturn(CPUAlphaState *env)
     __get_user(target_set.sig[0], &sc->sc_mask);
 
     target_to_host_sigset_internal(&set, &target_set);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     restore_sigcontext(env, sc);
     unlock_user_struct(sc, sc_addr, 0);
@@ -5551,7 +5560,7 @@ long do_rt_sigreturn(CPUAlphaState *env)
         goto badframe;
     }
     target_to_host_sigset(&set, &frame->uc.tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     restore_sigcontext(env, &frame->uc.tuc_mcontext);
     if (do_sigaltstack(frame_addr + offsetof(struct target_rt_sigframe,
@@ -5718,7 +5727,7 @@ long do_rt_sigreturn(CPUTLGState *env)
         goto badframe;
     }
     target_to_host_sigset(&set, &frame->uc.tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     restore_sigcontext(env, &frame->uc.tuc_mcontext);
     if (do_sigaltstack(frame_addr + offsetof(struct target_rt_sigframe,
