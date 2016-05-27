@@ -5765,33 +5765,40 @@ long do_rt_sigreturn(CPUArchState *env)
 
 #endif
 
+static void handle_pending_signal(CPUArchState *cpu_env, int sig);
+
 void process_pending_signals(CPUArchState *cpu_env)
 {
     CPUState *cpu = ENV_GET_CPU(cpu_env);
     int sig;
-    abi_ulong handler;
-    sigset_t set, old_set;
-    target_sigset_t target_old_set;
-    struct emulated_sigtable *k;
-    struct target_sigaction *sa;
-    struct sigqueue *q;
     TaskState *ts = cpu->opaque;
 
     if (!ts->signal_pending)
         return;
 
     /* FIXME: This is not threadsafe.  */
-    k = ts->sigtab;
     for(sig = 1; sig <= TARGET_NSIG; sig++) {
-        if (k->pending)
-            goto handle_signal;
-        k++;
+        if (ts->sigtab[sig - 1].pending) {
+            handle_pending_signal(cpu_env, sig);
+            return;
+        }
     }
     /* if no signal is pending, just return */
     ts->signal_pending = 0;
     return;
+}
 
- handle_signal:
+static void handle_pending_signal(CPUArchState *cpu_env, int sig)
+{
+    CPUState *cpu = ENV_GET_CPU(cpu_env);
+    abi_ulong handler;
+    sigset_t set, old_set;
+    target_sigset_t target_old_set;
+    struct target_sigaction *sa;
+    struct sigqueue *q;
+    TaskState *ts = cpu->opaque;
+    struct emulated_sigtable *k = &ts->sigtab[sig - 1];
+
     trace_user_handle_signal(cpu_env, sig);
     /* dequeue signal */
     q = k->first;
