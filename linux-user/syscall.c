@@ -5437,6 +5437,11 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         if ((flags & ~(CSIGNAL | CLONE_NPTL_FLAGS2)) != 0) {
             return -TARGET_EINVAL;
         }
+
+        if (block_signals()) {
+            return -TARGET_ERESTARTSYS;
+        }
+
         fork_start();
         ret = fork();
         if (ret == 0) {
