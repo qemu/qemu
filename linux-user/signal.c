@@ -5847,8 +5847,9 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig)
         else
             setup_frame(sig, sa, &target_old_set, cpu_env);
 #endif
-	if (sa->sa_flags & TARGET_SA_RESETHAND)
+        if (sa->sa_flags & TARGET_SA_RESETHAND) {
             sa->_sa_handler = TARGET_SIG_DFL;
+        }
     }
     if (q != &k->info)
         free_sigqueue(cpu_env, q);
