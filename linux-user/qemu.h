@@ -119,6 +119,7 @@ typedef struct TaskState {
     struct image_info *info;
     struct linux_binprm *bprm;
 
+    struct emulated_sigtable sync_signal;
     struct emulated_sigtable sigtab[TARGET_NSIG];
     /* This thread's signal mask, as requested by the guest program.
      * The actual signal mask of this thread may differ:
