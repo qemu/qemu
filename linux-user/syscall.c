@@ -7059,7 +7059,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_pause /* not on alpha */
     case TARGET_NR_pause:
-        ret = get_errno(pause());
+        if (!block_signals()) {
+            sigsuspend(&((TaskState *)cpu->opaque)->signal_mask);
+        }
+        ret = -TARGET_EINTR;
         break;
 #endif
 #ifdef TARGET_NR_utime
