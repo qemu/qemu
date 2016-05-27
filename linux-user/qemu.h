@@ -78,16 +78,9 @@ struct vm86_saved_state {
 
 #define MAX_SIGQUEUE_SIZE 1024
 
-struct sigqueue {
-    struct sigqueue *next;
-    target_siginfo_t info;
-};
-
 struct emulated_sigtable {
     int pending; /* true if signal is pending */
-    struct sigqueue *first;
-    struct sigqueue info; /* in order to always have memory for the
-                             first signal, we put it here */
+    target_siginfo_t info;
 };
 
 /* NOTE: we force a big alignment so that the stack stored after is
@@ -127,8 +120,6 @@ typedef struct TaskState {
     struct linux_binprm *bprm;
 
     struct emulated_sigtable sigtab[TARGET_NSIG];
-    struct sigqueue sigqueue_table[MAX_SIGQUEUE_SIZE]; /* siginfo queue */
-    struct sigqueue *first_free; /* first free siginfo queue entry */
     /* This thread's signal mask, as requested by the guest program.
      * The actual signal mask of this thread may differ:
      *  + we don't let SIGSEGV and SIGBUS be blocked while running guest code
