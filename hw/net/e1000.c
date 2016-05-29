@@ -311,11 +311,9 @@ set_interrupt_cause(E1000State *s, int index, uint32_t val)
              */
             mit_delay = (mit_delay < 500) ? 500 : mit_delay;
 
-            if (mit_delay) {
-                s->mit_timer_on = 1;
-                timer_mod(s->mit_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                          mit_delay * 256);
-            }
+            s->mit_timer_on = 1;
+            timer_mod(s->mit_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                      mit_delay * 256);
             s->mit_ide = 0;
         }
     }
