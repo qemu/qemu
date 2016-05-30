@@ -123,7 +123,7 @@ static void qed_write_header_read_cb(void *opaque, int ret)
     /* Update header */
     qed_header_cpu_to_le(&s->header, (QEDHeader *)write_header_cb->buf);
 
-    bdrv_aio_writev(s->bs->file->bs, 0, &write_header_cb->qiov,
+    bdrv_aio_writev(s->bs->file, 0, &write_header_cb->qiov,
                     write_header_cb->nsectors, qed_write_header_cb,
                     write_header_cb);
 }
@@ -837,7 +837,7 @@ static void qed_copy_from_backing_file_write(void *opaque, int ret)
     }
 
     BLKDBG_EVENT(s->bs->file, BLKDBG_COW_WRITE);
-    bdrv_aio_writev(s->bs->file->bs, copy_cb->offset / BDRV_SECTOR_SIZE,
+    bdrv_aio_writev(s->bs->file, copy_cb->offset / BDRV_SECTOR_SIZE,
                     &copy_cb->qiov, copy_cb->qiov.size / BDRV_SECTOR_SIZE,
                     qed_copy_from_backing_file_cb, copy_cb);
 }
@@ -1087,7 +1087,7 @@ static void qed_aio_write_main(void *opaque, int ret)
     }
 
     BLKDBG_EVENT(s->bs->file, BLKDBG_WRITE_AIO);
-    bdrv_aio_writev(s->bs->file->bs, offset / BDRV_SECTOR_SIZE,
+    bdrv_aio_writev(s->bs->file, offset / BDRV_SECTOR_SIZE,
                     &acb->cur_qiov, acb->cur_qiov.size / BDRV_SECTOR_SIZE,
                     next_fn, acb);
 }

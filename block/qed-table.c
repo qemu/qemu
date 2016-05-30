@@ -154,7 +154,7 @@ static void qed_write_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
     /* Adjust for offset into table */
     offset += start * sizeof(uint64_t);
 
-    bdrv_aio_writev(s->bs->file->bs, offset / BDRV_SECTOR_SIZE,
+    bdrv_aio_writev(s->bs->file, offset / BDRV_SECTOR_SIZE,
                     &write_table_cb->qiov,
                     write_table_cb->qiov.size / BDRV_SECTOR_SIZE,
                     qed_write_table_cb, write_table_cb);

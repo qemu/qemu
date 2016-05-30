@@ -480,7 +480,7 @@ static BlockAIOCB *blkdebug_aio_writev(BlockDriverState *bs,
         return inject_error(bs, cb, opaque, rule);
     }
 
-    return bdrv_aio_writev(bs->file->bs, sector_num, qiov, nb_sectors,
+    return bdrv_aio_writev(bs->file, sector_num, qiov, nb_sectors,
                            cb, opaque);
 }
 

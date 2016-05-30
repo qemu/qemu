@@ -1972,13 +1972,13 @@ BlockAIOCB *bdrv_aio_readv(BdrvChild *child, int64_t sector_num,
                                  cb, opaque, false);
 }
 
-BlockAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
+BlockAIOCB *bdrv_aio_writev(BdrvChild *child, int64_t sector_num,
                             QEMUIOVector *qiov, int nb_sectors,
                             BlockCompletionFunc *cb, void *opaque)
 {
-    trace_bdrv_aio_writev(bs, sector_num, nb_sectors, opaque);
+    trace_bdrv_aio_writev(child->bs, sector_num, nb_sectors, opaque);
 
-    return bdrv_co_aio_rw_vector(bs, sector_num, qiov, nb_sectors, 0,
+    return bdrv_co_aio_rw_vector(child->bs, sector_num, qiov, nb_sectors, 0,
                                  cb, opaque, true);
 }
 

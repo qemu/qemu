@@ -383,7 +383,7 @@ static bool quorum_rewrite_bad_versions(BDRVQuorumState *s, QuorumAIOCB *acb,
             continue;
         }
         QLIST_FOREACH(item, &version->items, next) {
-            bdrv_aio_writev(s->children[item->index]->bs, acb->sector_num,
+            bdrv_aio_writev(s->children[item->index], acb->sector_num,
                             acb->qiov, acb->nb_sectors, quorum_rewrite_aio_cb,
                             acb);
         }
@@ -719,7 +719,7 @@ static BlockAIOCB *quorum_aio_writev(BlockDriverState *bs,
     int i;
 
     for (i = 0; i < s->num_children; i++) {
-        acb->qcrs[i].aiocb = bdrv_aio_writev(s->children[i]->bs, sector_num,
+        acb->qcrs[i].aiocb = bdrv_aio_writev(s->children[i], sector_num,
                                              qiov, nb_sectors, &quorum_aio_cb,
                                              &acb->qcrs[i]);
     }
