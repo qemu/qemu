@@ -563,7 +563,10 @@ static inline int vmsvga_fifo_length(struct vmsvga_state_s *s)
     if (CMD(min) < (uint8_t *) s->cmd->fifo - (uint8_t *) s->fifo) {
         return 0;
     }
-    if (CMD(max) > SVGA_FIFO_SIZE) {
+    if (CMD(max) > SVGA_FIFO_SIZE ||
+        CMD(min) >= SVGA_FIFO_SIZE ||
+        CMD(stop) >= SVGA_FIFO_SIZE ||
+        CMD(next_cmd) >= SVGA_FIFO_SIZE) {
         return 0;
     }
     if (CMD(max) < CMD(min) + 10 * 1024) {
