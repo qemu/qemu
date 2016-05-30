@@ -53,30 +53,75 @@
         } \
     } while (0)
 
+static const char *imx_fec_reg_name(IMXFECState *s, uint32_t index)
+{
+    static char tmp[20];
+
+    switch (index) {
+    case ENET_EIR:
+        return "EIR";
+    case ENET_EIMR:
+        return "EIMR";
+    case ENET_RDAR:
+        return "RDAR";
+    case ENET_TDAR:
+        return "TDAR";
+    case ENET_ECR:
+        return "ECR";
+    case ENET_MMFR:
+        return "MMFR";
+    case ENET_MSCR:
+        return "MSCR";
+    case ENET_MIBC:
+        return "MIBC";
+    case ENET_RCR:
+        return "RCR";
+    case ENET_TCR:
+        return "TCR";
+    case ENET_PALR:
+        return "PALR";
+    case ENET_PAUR:
+        return "PAUR";
+    case ENET_OPD:
+        return "OPD";
+    case ENET_IAUR:
+        return "IAUR";
+    case ENET_IALR:
+        return "IALR";
+    case ENET_GAUR:
+        return "GAUR";
+    case ENET_GALR:
+        return "GALR";
+    case ENET_TFWR:
+        return "TFWR";
+    case ENET_RDSR:
+        return "RDSR";
+    case ENET_TDSR:
+        return "TDSR";
+    case ENET_MRBR:
+        return "MRBR";
+    case ENET_FRBR:
+        return "FRBR";
+    case ENET_FRSR:
+        return "FRSR";
+    case ENET_MIIGSK_CFGR:
+        return "MIIGSK_CFGR";
+    case ENET_MIIGSK_ENR:
+        return "MIIGSK_ENR";
+    default:
+        sprintf(tmp, "index %d", index);
+        return tmp;
+    }
+}
+
 static const VMStateDescription vmstate_imx_fec = {
     .name = TYPE_IMX_FEC,
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(irq_state, IMXFECState),
-        VMSTATE_UINT32(eir, IMXFECState),
-        VMSTATE_UINT32(eimr, IMXFECState),
-        VMSTATE_UINT32(rx_enabled, IMXFECState),
+        VMSTATE_UINT32_ARRAY(regs, IMXFECState, ENET_MAX),
         VMSTATE_UINT32(rx_descriptor, IMXFECState),
         VMSTATE_UINT32(tx_descriptor, IMXFECState),
-        VMSTATE_UINT32(ecr, IMXFECState),
-        VMSTATE_UINT32(mmfr, IMXFECState),
-        VMSTATE_UINT32(mscr, IMXFECState),
-        VMSTATE_UINT32(mibc, IMXFECState),
-        VMSTATE_UINT32(rcr, IMXFECState),
-        VMSTATE_UINT32(tcr, IMXFECState),
-        VMSTATE_UINT32(tfwr, IMXFECState),
-        VMSTATE_UINT32(frsr, IMXFECState),
-        VMSTATE_UINT32(erdsr, IMXFECState),
-        VMSTATE_UINT32(etdsr, IMXFECState),
-        VMSTATE_UINT32(emrbr, IMXFECState),
-        VMSTATE_UINT32(miigsk_cfgr, IMXFECState),
-        VMSTATE_UINT32(miigsk_enr, IMXFECState),
 
         VMSTATE_UINT32(phy_status, IMXFECState),
         VMSTATE_UINT32(phy_control, IMXFECState),
@@ -252,15 +297,13 @@ static void imx_fec_write_bd(IMXFECBufDesc *bd, dma_addr_t addr)
 
 static void imx_fec_update(IMXFECState *s)
 {
-    uint32_t active;
-    uint32_t changed;
-
-    active = s->eir & s->eimr;
-    changed = active ^ s->irq_state;
-    if (changed) {
-        qemu_set_irq(s->irq, active);
+    if (s->regs[ENET_EIR] & s->regs[ENET_EIMR]) {
+        FEC_PRINTF("interrupt raised\n");
+        qemu_set_irq(s->irq, 1);
+    } else {
+        FEC_PRINTF("interrupt lowered\n");
+        qemu_set_irq(s->irq, 0);
     }
-    s->irq_state = active;
 }
 
 static void imx_fec_do_tx(IMXFECState *s)
@@ -284,7 +327,7 @@ static void imx_fec_do_tx(IMXFECState *s)
         len = bd.length;
         if (frame_size + len > ENET_MAX_FRAME_SIZE) {
             len = ENET_MAX_FRAME_SIZE - frame_size;
-            s->eir |= ENET_INT_BABT;
+            s->regs[ENET_EIR] |= ENET_INT_BABT;
         }
         dma_memory_read(&address_space_memory, bd.data, ptr, len);
         ptr += len;
@@ -294,17 +337,17 @@ static void imx_fec_do_tx(IMXFECState *s)
             qemu_send_packet(qemu_get_queue(s->nic), frame, len);
             ptr = frame;
             frame_size = 0;
-            s->eir |= ENET_INT_TXF;
+            s->regs[ENET_EIR] |= ENET_INT_TXF;
         }
-        s->eir |= ENET_INT_TXB;
+        s->regs[ENET_EIR] |= ENET_INT_TXB;
         bd.flags &= ~ENET_BD_R;
         /* Write back the modified descriptor.  */
         imx_fec_write_bd(&bd, addr);
         /* Advance to the next descriptor.  */
         if ((bd.flags & ENET_BD_W) != 0) {
-            addr = s->etdsr;
+            addr = s->regs[ENET_TDSR];
         } else {
-            addr += 8;
+            addr += sizeof(bd);
         }
     }
 
@@ -316,7 +359,7 @@ static void imx_fec_do_tx(IMXFECState *s)
 static void imx_fec_enable_rx(IMXFECState *s)
 {
     IMXFECBufDesc bd;
-    uint32_t tmp;
+    bool tmp;
 
     imx_fec_read_bd(&bd, s->rx_descriptor);
 
@@ -324,11 +367,11 @@ static void imx_fec_enable_rx(IMXFECState *s)
 
     if (!tmp) {
         FEC_PRINTF("RX buffer full\n");
-    } else if (!s->rx_enabled) {
+    } else if (!s->regs[ENET_RDAR]) {
         qemu_flush_queued_packets(qemu_get_queue(s->nic));
     }
 
-    s->rx_enabled = tmp;
+    s->regs[ENET_RDAR] = tmp ? ENET_RDAR_RDAR : 0;
 }
 
 static void imx_fec_reset(DeviceState *d)
@@ -336,18 +379,26 @@ static void imx_fec_reset(DeviceState *d)
     IMXFECState *s = IMX_FEC(d);
 
     /* Reset the FEC */
-    s->eir = 0;
-    s->eimr = 0;
-    s->rx_enabled = 0;
-    s->ecr = 0xf0000000;
-    s->mscr = 0;
-    s->mibc = 0xc0000000;
-    s->rcr = 0x05ee0001;
-    s->tcr = 0;
-    s->tfwr = 0;
-    s->frsr = 0x500;
-    s->miigsk_cfgr = 0;
-    s->miigsk_enr = 0x6;
+    memset(s->regs, 0, sizeof(s->regs));
+    s->regs[ENET_ECR]   = 0xf0000000;
+    s->regs[ENET_MIBC]  = 0xc0000000;
+    s->regs[ENET_RCR]   = 0x05ee0001;
+    s->regs[ENET_OPD]   = 0x00010000;
+
+    s->regs[ENET_PALR]  = (s->conf.macaddr.a[0] << 24)
+                          | (s->conf.macaddr.a[1] << 16)
+                          | (s->conf.macaddr.a[2] << 8)
+                          | s->conf.macaddr.a[3];
+    s->regs[ENET_PAUR]  = (s->conf.macaddr.a[4] << 24)
+                          | (s->conf.macaddr.a[5] << 16)
+                          | 0x8808;
+
+    s->regs[ENET_FRBR]  = 0x00000600;
+    s->regs[ENET_FRSR]  = 0x00000500;
+    s->regs[ENET_MIIGSK_ENR]  = 0x00000006;
+
+    s->rx_descriptor = 0;
+    s->tx_descriptor = 0;
 
     /* We also reset the PHY */
     phy_reset(s);
@@ -355,185 +406,180 @@ static void imx_fec_reset(DeviceState *d)
 
 static uint64_t imx_fec_read(void *opaque, hwaddr addr, unsigned size)
 {
+    uint32_t value = 0;
     IMXFECState *s = IMX_FEC(opaque);
+    uint32_t index = addr >> 2;
 
-    FEC_PRINTF("reading from @ 0x%" HWADDR_PRIx "\n", addr);
-
-    switch (addr & 0x3ff) {
-    case 0x004:
-        return s->eir;
-    case 0x008:
-        return s->eimr;
-    case 0x010:
-        return s->rx_enabled ? (1 << 24) : 0;   /* RDAR */
-    case 0x014:
-        return 0;   /* TDAR */
-    case 0x024:
-        return s->ecr;
-    case 0x040:
-        return s->mmfr;
-    case 0x044:
-        return s->mscr;
-    case 0x064:
-        return s->mibc; /* MIBC */
-    case 0x084:
-        return s->rcr;
-    case 0x0c4:
-        return s->tcr;
-    case 0x0e4:     /* PALR */
-        return (s->conf.macaddr.a[0] << 24)
-               | (s->conf.macaddr.a[1] << 16)
-               | (s->conf.macaddr.a[2] << 8)
-               | s->conf.macaddr.a[3];
+    switch (index) {
+    case ENET_EIR:
+    case ENET_EIMR:
+    case ENET_RDAR:
+    case ENET_TDAR:
+    case ENET_ECR:
+    case ENET_MMFR:
+    case ENET_MSCR:
+    case ENET_MIBC:
+    case ENET_RCR:
+    case ENET_TCR:
+    case ENET_PALR:
+    case ENET_PAUR:
+    case ENET_OPD:
+    case ENET_IAUR:
+    case ENET_IALR:
+    case ENET_GAUR:
+    case ENET_GALR:
+    case ENET_TFWR:
+    case ENET_RDSR:
+    case ENET_TDSR:
+    case ENET_MRBR:
+    case ENET_FRBR:
+    case ENET_FRSR:
+    case ENET_MIIGSK_CFGR:
+    case ENET_MIIGSK_ENR:
+        value = s->regs[index];
         break;
-    case 0x0e8:     /* PAUR */
-        return (s->conf.macaddr.a[4] << 24)
-               | (s->conf.macaddr.a[5] << 16)
-               | 0x8808;
-    case 0x0ec:
-        return 0x10000; /* OPD */
-    case 0x118:
-        return 0;
-    case 0x11c:
-        return 0;
-    case 0x120:
-        return 0;
-    case 0x124:
-        return 0;
-    case 0x144:
-        return s->tfwr;
-    case 0x14c:
-        return 0x600;
-    case 0x150:
-        return s->frsr;
-    case 0x180:
-        return s->erdsr;
-    case 0x184:
-        return s->etdsr;
-    case 0x188:
-        return s->emrbr;
-    case 0x300:
-        return s->miigsk_cfgr;
-    case 0x308:
-        return s->miigsk_enr;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad address at offset 0x%"
-                      HWADDR_PRIx "\n", TYPE_IMX_FEC, __func__, addr);
-        return 0;
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad register at offset 0x%"
+                      PRIx32 "\n", TYPE_IMX_FEC, __func__, index * 4);
+        break;
     }
+
+    FEC_PRINTF("reg[%s] => 0x%" PRIx32 "\n", imx_fec_reg_name(s, index),
+                                              value);
+
+    return value;
 }
 
 static void imx_fec_write(void *opaque, hwaddr addr,
                           uint64_t value, unsigned size)
 {
     IMXFECState *s = IMX_FEC(opaque);
+    uint32_t index = addr >> 2;
 
-    FEC_PRINTF("writing 0x%08x @ 0x%" HWADDR_PRIx "\n", (int)value, addr);
+    FEC_PRINTF("reg[%s] <= 0x%" PRIx32 "\n", imx_fec_reg_name(s, index),
+                                             (uint32_t)value);
 
-    switch (addr & 0x3ff) {
-    case 0x004: /* EIR */
-        s->eir &= ~value;
+    switch (index) {
+    case ENET_EIR:
+        s->regs[index] &= ~value;
         break;
-    case 0x008: /* EIMR */
-        s->eimr = value;
+    case ENET_EIMR:
+        s->regs[index] = value;
         break;
-    case 0x010: /* RDAR */
-        if ((s->ecr & ENET_ECR_ETHEREN) && !s->rx_enabled) {
-            imx_fec_enable_rx(s);
+    case ENET_RDAR:
+        if (s->regs[ENET_ECR] & ENET_ECR_ETHEREN) {
+            if (!s->regs[index]) {
+                s->regs[index] = ENET_RDAR_RDAR;
+                imx_fec_enable_rx(s);
+            }
+        } else {
+            s->regs[index] = 0;
         }
         break;
-    case 0x014: /* TDAR */
-        if (s->ecr & ENET_ECR_ETHEREN) {
+    case ENET_TDAR:
+        if (s->regs[ENET_ECR] & ENET_ECR_ETHEREN) {
+            s->regs[index] = ENET_TDAR_TDAR;
             imx_fec_do_tx(s);
         }
+        s->regs[index] = 0;
         break;
-    case 0x024: /* ECR */
-        s->ecr = value;
+    case ENET_ECR:
         if (value & ENET_ECR_RESET) {
-            imx_fec_reset(DEVICE(s));
+            return imx_fec_reset(DEVICE(s));
         }
-        if ((s->ecr & ENET_ECR_ETHEREN) == 0) {
-            s->rx_enabled = 0;
-            s->rx_descriptor = s->erdsr;
-            s->tx_descriptor = s->etdsr;
+        s->regs[index] = value;
+        if ((s->regs[index] & ENET_ECR_ETHEREN) == 0) {
+            s->regs[ENET_RDAR] = 0;
+            s->rx_descriptor = s->regs[ENET_RDSR];
+            s->regs[ENET_TDAR] = 0;
+            s->tx_descriptor = s->regs[ENET_TDSR];
         }
         break;
-    case 0x040: /* MMFR */
-        /* store the value */
-        s->mmfr = value;
+    case ENET_MMFR:
+        s->regs[index] = value;
         if (extract32(value, 29, 1)) {
-            s->mmfr = do_phy_read(s, extract32(value, 18, 10));
+            /* This is a read operation */
+            s->regs[ENET_MMFR] = deposit32(s->regs[ENET_MMFR], 0, 16,
+                                           do_phy_read(s,
+                                                       extract32(value,
+                                                                 18, 10)));
         } else {
+            /* This a write operation */
             do_phy_write(s, extract32(value, 18, 10), extract32(value, 0, 16));
         }
         /* raise the interrupt as the PHY operation is done */
-        s->eir |= ENET_INT_MII;
+        s->regs[ENET_EIR] |= ENET_INT_MII;
         break;
-    case 0x044: /* MSCR */
-        s->mscr = value & 0xfe;
+    case ENET_MSCR:
+        s->regs[index] = value & 0xfe;
         break;
-    case 0x064: /* MIBC */
+    case ENET_MIBC:
         /* TODO: Implement MIB.  */
-        s->mibc = (value & 0x80000000) ? 0xc0000000 : 0;
+        s->regs[index] = (value & 0x80000000) ? 0xc0000000 : 0;
         break;
-    case 0x084: /* RCR */
-        s->rcr = value & 0x07ff003f;
+    case ENET_RCR:
+        s->regs[index] = value & 0x07ff003f;
         /* TODO: Implement LOOP mode.  */
         break;
-    case 0x0c4: /* TCR */
+    case ENET_TCR:
         /* We transmit immediately, so raise GRA immediately.  */
-        s->tcr = value;
+        s->regs[index] = value;
         if (value & 1) {
-            s->eir |= ENET_INT_GRA;
+            s->regs[ENET_EIR] |= ENET_INT_GRA;
         }
         break;
-    case 0x0e4: /* PALR */
+    case ENET_PALR:
+        s->regs[index] = value;
         s->conf.macaddr.a[0] = value >> 24;
         s->conf.macaddr.a[1] = value >> 16;
         s->conf.macaddr.a[2] = value >> 8;
         s->conf.macaddr.a[3] = value;
         break;
-    case 0x0e8: /* PAUR */
+    case ENET_PAUR:
+        s->regs[index] = (value | 0x0000ffff) & 0xffff8808;
         s->conf.macaddr.a[4] = value >> 24;
         s->conf.macaddr.a[5] = value >> 16;
         break;
-    case 0x0ec: /* OPDR */
+    case ENET_OPD:
+        s->regs[index] = (value & 0x0000ffff) | 0x00010000;
         break;
-    case 0x118: /* IAUR */
-    case 0x11c: /* IALR */
-    case 0x120: /* GAUR */
-    case 0x124: /* GALR */
+    case ENET_IAUR:
+    case ENET_IALR:
+    case ENET_GAUR:
+    case ENET_GALR:
         /* TODO: implement MAC hash filtering.  */
         break;
-    case 0x144: /* TFWR */
-        s->tfwr = value & 3;
+    case ENET_TFWR:
+        s->regs[index] = value & 3;
         break;
-    case 0x14c: /* FRBR */
-        /* FRBR writes ignored.  */
+    case ENET_FRBR:
+        /* FRBR is read only */
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Register FRBR is read only\n",
+                      TYPE_IMX_FEC, __func__);
         break;
-    case 0x150: /* FRSR */
-        s->frsr = (value & 0x3fc) | 0x400;
+    case ENET_FRSR:
+        s->regs[index] = (value & 0x000003fc) | 0x00000400;
         break;
-    case 0x180: /* ERDSR */
-        s->erdsr = value & ~3;
-        s->rx_descriptor = s->erdsr;
+    case ENET_RDSR:
+        s->regs[index] = value & ~3;
+        s->rx_descriptor = s->regs[index];
         break;
-    case 0x184: /* ETDSR */
-        s->etdsr = value & ~3;
-        s->tx_descriptor = s->etdsr;
+    case ENET_TDSR:
+        s->regs[index] = value & ~3;
+        s->tx_descriptor = s->regs[index];
         break;
-    case 0x188: /* EMRBR */
-        s->emrbr = value & 0x7f0;
+    case ENET_MRBR:
+        s->regs[index] = value & 0x000007f0;
         break;
-    case 0x300: /* MIIGSK_CFGR */
-        s->miigsk_cfgr = value & 0x53;
+    case ENET_MIIGSK_CFGR:
+        s->regs[index] = value & 0x00000053;
         break;
-    case 0x308: /* MIIGSK_ENR */
-        s->miigsk_enr = (value & 0x2) ? 0x6 : 0;
+    case ENET_MIIGSK_ENR:
+        s->regs[index] = (value & 0x00000002) ? 0x00000006 : 0;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad address at offset 0x%"
-                      HWADDR_PRIx "\n", TYPE_IMX_FEC, __func__, addr);
+                      PRIx32 "\n", TYPE_IMX_FEC, __func__, index * 4);
         break;
     }
 
@@ -544,7 +590,7 @@ static int imx_fec_can_receive(NetClientState *nc)
 {
     IMXFECState *s = IMX_FEC(qemu_get_nic_opaque(nc));
 
-    return s->rx_enabled;
+    return s->regs[ENET_RDAR] ? 1 : 0;
 }
 
 static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
@@ -562,7 +608,7 @@ static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
 
     FEC_PRINTF("len %d\n", (int)size);
 
-    if (!s->rx_enabled) {
+    if (!s->regs[ENET_RDAR]) {
         qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Unexpected packet\n",
                       TYPE_IMX_FEC, __func__);
         return 0;
@@ -580,7 +626,7 @@ static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
     }
 
     /* Frames larger than the user limit just set error flags.  */
-    if (size > (s->rcr >> 16)) {
+    if (size > (s->regs[ENET_RCR] >> 16)) {
         flags |= ENET_BD_LG;
     }
 
@@ -598,7 +644,7 @@ static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
                           TYPE_IMX_FEC, __func__);
             break;
         }
-        buf_len = (size <= s->emrbr) ? size : s->emrbr;
+        buf_len = (size <= s->regs[ENET_MRBR]) ? size : s->regs[ENET_MRBR];
         bd.length = buf_len;
         size -= buf_len;
 
@@ -621,16 +667,16 @@ static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
             /* Last buffer in frame.  */
             bd.flags |= flags | ENET_BD_L;
             FEC_PRINTF("rx frame flags %04x\n", bd.flags);
-            s->eir |= ENET_INT_RXF;
+            s->regs[ENET_EIR] |= ENET_INT_RXF;
         } else {
-            s->eir |= ENET_INT_RXB;
+            s->regs[ENET_EIR] |= ENET_INT_RXB;
         }
         imx_fec_write_bd(&bd, addr);
         /* Advance to the next descriptor.  */
         if ((bd.flags & ENET_BD_W) != 0) {
-            addr = s->erdsr;
+            addr = s->regs[ENET_RDSR];
         } else {
-            addr += 8;
+            addr += sizeof(bd);
         }
     }
     s->rx_descriptor = addr;

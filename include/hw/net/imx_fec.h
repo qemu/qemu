@@ -30,6 +30,33 @@
 #include "hw/sysbus.h"
 #include "net/net.h"
 
+#define ENET_EIR               1
+#define ENET_EIMR              2
+#define ENET_RDAR              4
+#define ENET_TDAR              5
+#define ENET_ECR               9
+#define ENET_MMFR              16
+#define ENET_MSCR              17
+#define ENET_MIBC              25
+#define ENET_RCR               33
+#define ENET_TCR               49
+#define ENET_PALR              57
+#define ENET_PAUR              58
+#define ENET_OPD               59
+#define ENET_IAUR              70
+#define ENET_IALR              71
+#define ENET_GAUR              72
+#define ENET_GALR              73
+#define ENET_TFWR              81
+#define ENET_FRBR              83
+#define ENET_FRSR              84
+#define ENET_RDSR              96
+#define ENET_TDSR              97
+#define ENET_MRBR              98
+#define ENET_MIIGSK_CFGR       192
+#define ENET_MIIGSK_ENR        194
+#define ENET_MAX               400
+
 #define ENET_MAX_FRAME_SIZE    2032
 
 #define ENET_INT_HB            (1 << 31)
@@ -45,6 +72,12 @@
 #define ENET_INT_LC            (1 << 21)
 #define ENET_INT_RL            (1 << 20)
 #define ENET_INT_UN            (1 << 19)
+
+/* RDAR */
+#define ENET_RDAR_RDAR         (1 << 24)
+
+/* TDAR */
+#define ENET_TDAR_TDAR         (1 << 24)
 
 #define ENET_ECR_RESET         (1 << 0)
 #define ENET_ECR_ETHEREN       (1 << 1)
@@ -83,25 +116,9 @@ typedef struct IMXFECState {
     qemu_irq irq;
     MemoryRegion iomem;
 
-    uint32_t irq_state;
-    uint32_t eir;
-    uint32_t eimr;
-    uint32_t rx_enabled;
+    uint32_t regs[ENET_MAX];
     uint32_t rx_descriptor;
     uint32_t tx_descriptor;
-    uint32_t ecr;
-    uint32_t mmfr;
-    uint32_t mscr;
-    uint32_t mibc;
-    uint32_t rcr;
-    uint32_t tcr;
-    uint32_t tfwr;
-    uint32_t frsr;
-    uint32_t erdsr;
-    uint32_t etdsr;
-    uint32_t emrbr;
-    uint32_t miigsk_cfgr;
-    uint32_t miigsk_enr;
 
     uint32_t phy_status;
     uint32_t phy_control;
