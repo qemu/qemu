@@ -1427,6 +1427,14 @@ int coroutine_fn bdrv_co_pwritev(BlockDriverState *bs,
 
         bytes += offset & (align - 1);
         offset = offset & ~(align - 1);
+
+        /* We have read the tail already if the request is smaller
+         * than one aligned block.
+         */
+        if (bytes < align) {
+            qemu_iovec_add(&local_qiov, head_buf + bytes, align - bytes);
+            bytes = align;
+        }
     }
 
     if ((offset + bytes) & (align - 1)) {
