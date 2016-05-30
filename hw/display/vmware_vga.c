@@ -66,17 +66,11 @@ struct vmsvga_state_s {
     uint8_t *fifo_ptr;
     unsigned int fifo_size;
 
-    union {
-        uint32_t *fifo;
-        struct QEMU_PACKED {
-            uint32_t min;
-            uint32_t max;
-            uint32_t next_cmd;
-            uint32_t stop;
-            /* Add registers here when adding capabilities.  */
-            uint32_t fifo[0];
-        } *cmd;
-    };
+    uint32_t *fifo;
+    uint32_t fifo_min;
+    uint32_t fifo_max;
+    uint32_t fifo_next;
+    uint32_t fifo_stop;
 
 #define REDRAW_FIFO_LEN  512
     struct vmsvga_rect_s {
@@ -198,7 +192,7 @@ enum {
      */
     SVGA_FIFO_MIN = 0,
     SVGA_FIFO_MAX,      /* The distance from MIN to MAX must be at least 10K */
-    SVGA_FIFO_NEXT_CMD,
+    SVGA_FIFO_NEXT,
     SVGA_FIFO_STOP,
 
     /*
@@ -546,8 +540,6 @@ static inline void vmsvga_cursor_define(struct vmsvga_state_s *s,
 }
 #endif
 
-#define CMD(f)  le32_to_cpu(s->cmd->f)
-
 static inline int vmsvga_fifo_length(struct vmsvga_state_s *s)
 {
     int num;
@@ -556,38 +548,44 @@ static inline int vmsvga_fifo_length(struct vmsvga_state_s *s)
         return 0;
     }
 
+    s->fifo_min  = le32_to_cpu(s->fifo[SVGA_FIFO_MIN]);
+    s->fifo_max  = le32_to_cpu(s->fifo[SVGA_FIFO_MAX]);
+    s->fifo_next = le32_to_cpu(s->fifo[SVGA_FIFO_NEXT]);
+    s->fifo_stop = le32_to_cpu(s->fifo[SVGA_FIFO_STOP]);
+
     /* Check range and alignment.  */
-    if ((CMD(min) | CMD(max) | CMD(next_cmd) | CMD(stop)) & 3) {
+    if ((s->fifo_min | s->fifo_max | s->fifo_next | s->fifo_stop) & 3) {
         return 0;
     }
-    if (CMD(min) < (uint8_t *) s->cmd->fifo - (uint8_t *) s->fifo) {
+    if (s->fifo_min < sizeof(uint32_t) * 4) {
         return 0;
     }
-    if (CMD(max) > SVGA_FIFO_SIZE ||
-        CMD(min) >= SVGA_FIFO_SIZE ||
-        CMD(stop) >= SVGA_FIFO_SIZE ||
-        CMD(next_cmd) >= SVGA_FIFO_SIZE) {
+    if (s->fifo_max > SVGA_FIFO_SIZE ||
+        s->fifo_min >= SVGA_FIFO_SIZE ||
+        s->fifo_stop >= SVGA_FIFO_SIZE ||
+        s->fifo_next >= SVGA_FIFO_SIZE) {
         return 0;
     }
-    if (CMD(max) < CMD(min) + 10 * 1024) {
+    if (s->fifo_max < s->fifo_min + 10 * 1024) {
         return 0;
     }
 
-    num = CMD(next_cmd) - CMD(stop);
+    num = s->fifo_next - s->fifo_stop;
     if (num < 0) {
-        num += CMD(max) - CMD(min);
+        num += s->fifo_max - s->fifo_min;
     }
     return num >> 2;
 }
 
 static inline uint32_t vmsvga_fifo_read_raw(struct vmsvga_state_s *s)
 {
-    uint32_t cmd = s->fifo[CMD(stop) >> 2];
+    uint32_t cmd = s->fifo[s->fifo_stop >> 2];
 
-    s->cmd->stop = cpu_to_le32(CMD(stop) + 4);
-    if (CMD(stop) >= CMD(max)) {
-        s->cmd->stop = s->cmd->min;
+    s->fifo_stop += 4;
+    if (s->fifo_stop >= s->fifo_max) {
+        s->fifo_stop = s->fifo_min;
     }
+    s->fifo[SVGA_FIFO_STOP] = cpu_to_le32(s->fifo_stop);
     return cmd;
 }
 
@@ -607,7 +605,7 @@ static void vmsvga_fifo_run(struct vmsvga_state_s *s)
     len = vmsvga_fifo_length(s);
     while (len > 0) {
         /* May need to go back to the start of the command if incomplete */
-        cmd_start = s->cmd->stop;
+        cmd_start = s->fifo_stop;
 
         switch (cmd = vmsvga_fifo_read(s)) {
         case SVGA_CMD_UPDATE:
@@ -766,7 +764,8 @@ static void vmsvga_fifo_run(struct vmsvga_state_s *s)
             break;
 
         rewind:
-            s->cmd->stop = cmd_start;
+            s->fifo_stop = cmd_start;
+            s->fifo[SVGA_FIFO_STOP] = cpu_to_le32(s->fifo_stop);
             break;
         }
     }
