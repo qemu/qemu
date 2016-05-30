@@ -630,10 +630,10 @@ static int bdrv_rw_co(BlockDriverState *bs, int64_t sector_num, uint8_t *buf,
 }
 
 /* return < 0 if error. See bdrv_write() for the return codes */
-int bdrv_read(BlockDriverState *bs, int64_t sector_num,
+int bdrv_read(BdrvChild *child, int64_t sector_num,
               uint8_t *buf, int nb_sectors)
 {
-    return bdrv_rw_co(bs, sector_num, buf, nb_sectors, false, 0);
+    return bdrv_rw_co(child->bs, sector_num, buf, nb_sectors, false, 0);
 }
 
 /* Return < 0 if error. Important errors are:

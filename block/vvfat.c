@@ -1393,7 +1393,7 @@ static int vvfat_read(BlockDriverState *bs, int64_t sector_num,
             if (bdrv_is_allocated(s->qcow->bs, sector_num, nb_sectors-i, &n)) {
                 DLOG(fprintf(stderr, "sectors %d+%d allocated\n",
                              (int)sector_num, n));
-                if (bdrv_read(s->qcow->bs, sector_num, buf + i * 0x200, n)) {
+                if (bdrv_read(s->qcow, sector_num, buf + i * 0x200, n)) {
                     return -1;
                 }
                 i += n - 1;

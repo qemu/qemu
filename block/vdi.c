@@ -403,7 +403,7 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
 
     logout("\n");
 
-    ret = bdrv_read(bs->file->bs, 0, (uint8_t *)&header, 1);
+    ret = bdrv_read(bs->file, 0, (uint8_t *)&header, 1);
     if (ret < 0) {
         goto fail;
     }
@@ -500,7 +500,7 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    ret = bdrv_read(bs->file->bs, s->bmap_sector, (uint8_t *)s->bmap,
+    ret = bdrv_read(bs->file, s->bmap_sector, (uint8_t *)s->bmap,
                     bmap_size);
     if (ret < 0) {
         goto fail_free_bmap;
