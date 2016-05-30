@@ -1,5 +1,5 @@
 /*
- * i.MX Fast Ethernet Controller emulation.
+ * i.MX FEC/ENET Ethernet Controller emulation.
  *
  * Copyright (c) 2013 Jean-Christophe Dubois. <jcd@tribudubois.net>
  *
@@ -27,6 +27,8 @@
 #define TYPE_IMX_FEC "imx.fec"
 #define IMX_FEC(obj) OBJECT_CHECK(IMXFECState, (obj), TYPE_IMX_FEC)
 
+#define TYPE_IMX_ENET "imx.enet"
+
 #include "hw/sysbus.h"
 #include "net/net.h"
 
@@ -53,12 +55,40 @@
 #define ENET_RDSR              96
 #define ENET_TDSR              97
 #define ENET_MRBR              98
+#define ENET_RSFL              100
+#define ENET_RSEM              101
+#define ENET_RAEM              102
+#define ENET_RAFL              103
+#define ENET_TSEM              104
+#define ENET_TAEM              105
+#define ENET_TAFL              106
+#define ENET_TIPG              107
+#define ENET_FTRL              108
+#define ENET_TACC              112
+#define ENET_RACC              113
 #define ENET_MIIGSK_CFGR       192
 #define ENET_MIIGSK_ENR        194
+#define ENET_ATCR              256
+#define ENET_ATVR              257
+#define ENET_ATOFF             258
+#define ENET_ATPER             259
+#define ENET_ATCOR             260
+#define ENET_ATINC             261
+#define ENET_ATSTMP            262
+#define ENET_TGSR              385
+#define ENET_TCSR0             386
+#define ENET_TCCR0             387
+#define ENET_TCSR1             388
+#define ENET_TCCR1             389
+#define ENET_TCSR2             390
+#define ENET_TCCR2             391
+#define ENET_TCSR3             392
+#define ENET_TCCR3             393
 #define ENET_MAX               400
 
 #define ENET_MAX_FRAME_SIZE    2032
 
+/* EIR and EIMR */
 #define ENET_INT_HB            (1 << 31)
 #define ENET_INT_BABR          (1 << 30)
 #define ENET_INT_BABT          (1 << 29)
@@ -72,6 +102,17 @@
 #define ENET_INT_LC            (1 << 21)
 #define ENET_INT_RL            (1 << 20)
 #define ENET_INT_UN            (1 << 19)
+#define ENET_INT_PLR           (1 << 18)
+#define ENET_INT_WAKEUP        (1 << 17)
+#define ENET_INT_TS_AVAIL      (1 << 16)
+#define ENET_INT_TS_TIMER      (1 << 15)
+
+#define ENET_INT_MAC           (ENET_INT_HB | ENET_INT_BABR | ENET_INT_BABT | \
+                                ENET_INT_GRA | ENET_INT_TXF | ENET_INT_TXB | \
+                                ENET_INT_RXF | ENET_INT_RXB | ENET_INT_MII | \
+                                ENET_INT_EBERR | ENET_INT_LC | ENET_INT_RL | \
+                                ENET_INT_UN | ENET_INT_PLR | ENET_INT_WAKEUP | \
+                                ENET_INT_TS_AVAIL)
 
 /* RDAR */
 #define ENET_RDAR_RDAR         (1 << 24)
@@ -79,8 +120,54 @@
 /* TDAR */
 #define ENET_TDAR_TDAR         (1 << 24)
 
+/* ECR */
 #define ENET_ECR_RESET         (1 << 0)
 #define ENET_ECR_ETHEREN       (1 << 1)
+#define ENET_ECR_MAGICEN       (1 << 2)
+#define ENET_ECR_SLEEP         (1 << 3)
+#define ENET_ECR_EN1588        (1 << 4)
+#define ENET_ECR_SPEED         (1 << 5)
+#define ENET_ECR_DBGEN         (1 << 6)
+#define ENET_ECR_STOPEN        (1 << 7)
+#define ENET_ECR_DSBWP         (1 << 8)
+
+/* MIBC */
+#define ENET_MIBC_MIB_DIS      (1 << 31)
+#define ENET_MIBC_MIB_IDLE     (1 << 30)
+#define ENET_MIBC_MIB_CLEAR    (1 << 29)
+
+/* RCR */
+#define ENET_RCR_LOOP          (1 << 0)
+#define ENET_RCR_DRT           (1 << 1)
+#define ENET_RCR_MII_MODE      (1 << 2)
+#define ENET_RCR_PROM          (1 << 3)
+#define ENET_RCR_BC_REJ        (1 << 4)
+#define ENET_RCR_FCE           (1 << 5)
+#define ENET_RCR_RGMII_EN      (1 << 6)
+#define ENET_RCR_RMII_MODE     (1 << 8)
+#define ENET_RCR_RMII_10T      (1 << 9)
+#define ENET_RCR_PADEN         (1 << 12)
+#define ENET_RCR_PAUFWD        (1 << 13)
+#define ENET_RCR_CRCFWD        (1 << 14)
+#define ENET_RCR_CFEN          (1 << 15)
+#define ENET_RCR_MAX_FL_SHIFT  (16)
+#define ENET_RCR_MAX_FL_LENGTH (14)
+#define ENET_RCR_NLC           (1 << 30)
+#define ENET_RCR_GRS           (1 << 31)
+
+/* TCR */
+#define ENET_TCR_GTS           (1 << 0)
+#define ENET_TCR_FDEN          (1 << 2)
+#define ENET_TCR_TFC_PAUSE     (1 << 3)
+#define ENET_TCR_RFC_PAUSE     (1 << 4)
+#define ENET_TCR_ADDSEL_SHIFT  (5)
+#define ENET_TCR_ADDSEL_LENGTH (3)
+#define ENET_TCR_CRCFWD        (1 << 9)
+
+/* RDSR */
+#define ENET_TWFR_TFWR_SHIFT   (0)
+#define ENET_TWFR_TFWR_LENGTH  (6)
+#define ENET_TWFR_STRFWD       (1 << 8)
 
 /* Buffer Descriptor.  */
 typedef struct {
@@ -106,6 +193,44 @@ typedef struct {
 #define ENET_BD_OV             (1 << 1)
 #define ENET_BD_TR             (1 << 0)
 
+typedef struct {
+    uint16_t length;
+    uint16_t flags;
+    uint32_t data;
+    uint16_t status;
+    uint16_t option;
+    uint16_t checksum;
+    uint16_t head_proto;
+    uint32_t last_buffer;
+    uint32_t timestamp;
+    uint32_t reserved[2];
+} IMXENETBufDesc;
+
+#define ENET_BD_ME             (1 << 15)
+#define ENET_BD_TX_INT         (1 << 14)
+#define ENET_BD_TS             (1 << 13)
+#define ENET_BD_PINS           (1 << 12)
+#define ENET_BD_IINS           (1 << 11)
+#define ENET_BD_PE             (1 << 10)
+#define ENET_BD_CE             (1 << 9)
+#define ENET_BD_UC             (1 << 8)
+#define ENET_BD_RX_INT         (1 << 7)
+
+#define ENET_BD_TXE            (1 << 15)
+#define ENET_BD_UE             (1 << 13)
+#define ENET_BD_EE             (1 << 12)
+#define ENET_BD_FE             (1 << 11)
+#define ENET_BD_LCE            (1 << 10)
+#define ENET_BD_OE             (1 << 9)
+#define ENET_BD_TSE            (1 << 8)
+#define ENET_BD_ICE            (1 << 5)
+#define ENET_BD_PCR            (1 << 4)
+#define ENET_BD_VLAN           (1 << 2)
+#define ENET_BD_IPV6           (1 << 1)
+#define ENET_BD_FRAG           (1 << 0)
+
+#define ENET_BD_BDU            (1 << 31)
+
 typedef struct IMXFECState {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -113,7 +238,7 @@ typedef struct IMXFECState {
     /*< public >*/
     NICState *nic;
     NICConf conf;
-    qemu_irq irq;
+    qemu_irq irq[2];
     MemoryRegion iomem;
 
     uint32_t regs[ENET_MAX];
@@ -125,6 +250,8 @@ typedef struct IMXFECState {
     uint32_t phy_advertise;
     uint32_t phy_int;
     uint32_t phy_int_mask;
+
+    bool is_fec;
 } IMXFECState;
 
 #endif
