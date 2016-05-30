@@ -1453,9 +1453,13 @@ bool dpy_ui_info_supported(QemuConsole *con)
 int dpy_set_ui_info(QemuConsole *con, QemuUIInfo *info)
 {
     assert(con != NULL);
-    con->ui_info = *info;
+
     if (!dpy_ui_info_supported(con)) {
         return -1;
+    }
+    if (memcmp(&con->ui_info, info, sizeof(con->ui_info)) == 0) {
+        /* nothing changed -- ignore */
+        return 0;
     }
 
     /*
@@ -1463,6 +1467,7 @@ int dpy_set_ui_info(QemuConsole *con, QemuUIInfo *info)
      * Wait until the dust has settled (one second without updates), then
      * go notify the guest.
      */
+    con->ui_info = *info;
     timer_mod(con->ui_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1000);
     return 0;
 }
