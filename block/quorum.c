@@ -660,7 +660,7 @@ static BlockAIOCB *read_quorum_children(QuorumAIOCB *acb)
     }
 
     for (i = 0; i < s->num_children; i++) {
-        acb->qcrs[i].aiocb = bdrv_aio_readv(s->children[i]->bs, acb->sector_num,
+        acb->qcrs[i].aiocb = bdrv_aio_readv(s->children[i], acb->sector_num,
                                             &acb->qcrs[i].qiov, acb->nb_sectors,
                                             quorum_aio_cb, &acb->qcrs[i]);
     }
@@ -678,7 +678,7 @@ static BlockAIOCB *read_fifo_child(QuorumAIOCB *acb)
     qemu_iovec_clone(&acb->qcrs[acb->child_iter].qiov, acb->qiov,
                      acb->qcrs[acb->child_iter].buf);
     acb->qcrs[acb->child_iter].aiocb =
-        bdrv_aio_readv(s->children[acb->child_iter]->bs, acb->sector_num,
+        bdrv_aio_readv(s->children[acb->child_iter], acb->sector_num,
                        &acb->qcrs[acb->child_iter].qiov, acb->nb_sectors,
                        quorum_aio_cb, &acb->qcrs[acb->child_iter]);
 

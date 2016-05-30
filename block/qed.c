@@ -155,7 +155,7 @@ static void qed_write_header(BDRVQEDState *s, BlockCompletionFunc cb,
     write_header_cb->iov.iov_len = len;
     qemu_iovec_init_external(&write_header_cb->qiov, &write_header_cb->iov, 1);
 
-    bdrv_aio_readv(s->bs->file->bs, 0, &write_header_cb->qiov, nsectors,
+    bdrv_aio_readv(s->bs->file, 0, &write_header_cb->qiov, nsectors,
                    qed_write_header_read_cb, write_header_cb);
 }
 
@@ -800,7 +800,7 @@ static void qed_read_backing_file(BDRVQEDState *s, uint64_t pos,
     qemu_iovec_concat(*backing_qiov, qiov, 0, size);
 
     BLKDBG_EVENT(s->bs->file, BLKDBG_READ_BACKING_AIO);
-    bdrv_aio_readv(s->bs->backing->bs, pos / BDRV_SECTOR_SIZE,
+    bdrv_aio_readv(s->bs->backing, pos / BDRV_SECTOR_SIZE,
                    *backing_qiov, size / BDRV_SECTOR_SIZE, cb, opaque);
 }
 
@@ -1319,7 +1319,7 @@ static void qed_aio_read_data(void *opaque, int ret,
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
-    bdrv_aio_readv(bs->file->bs, offset / BDRV_SECTOR_SIZE,
+    bdrv_aio_readv(bs->file, offset / BDRV_SECTOR_SIZE,
                    &acb->cur_qiov, acb->cur_qiov.size / BDRV_SECTOR_SIZE,
                    qed_aio_next_io, acb);
     return;
