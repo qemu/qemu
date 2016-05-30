@@ -597,13 +597,13 @@ static inline uint32_t vmsvga_fifo_read(struct vmsvga_state_s *s)
 static void vmsvga_fifo_run(struct vmsvga_state_s *s)
 {
     uint32_t cmd, colour;
-    int args, len;
+    int args, len, maxloop = 1024;
     int x, y, dx, dy, width, height;
     struct vmsvga_cursor_definition_s cursor;
     uint32_t cmd_start;
 
     len = vmsvga_fifo_length(s);
-    while (len > 0) {
+    while (len > 0 && --maxloop > 0) {
         /* May need to go back to the start of the command if incomplete */
         cmd_start = s->fifo_stop;
 
