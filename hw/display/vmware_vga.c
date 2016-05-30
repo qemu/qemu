@@ -555,6 +555,21 @@ static inline int vmsvga_fifo_length(struct vmsvga_state_s *s)
     if (!s->config || !s->enable) {
         return 0;
     }
+
+    /* Check range and alignment.  */
+    if ((CMD(min) | CMD(max) | CMD(next_cmd) | CMD(stop)) & 3) {
+        return 0;
+    }
+    if (CMD(min) < (uint8_t *) s->cmd->fifo - (uint8_t *) s->fifo) {
+        return 0;
+    }
+    if (CMD(max) > SVGA_FIFO_SIZE) {
+        return 0;
+    }
+    if (CMD(max) < CMD(min) + 10 * 1024) {
+        return 0;
+    }
+
     num = CMD(next_cmd) - CMD(stop);
     if (num < 0) {
         num += CMD(max) - CMD(min);
@@ -1005,19 +1020,6 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
     case SVGA_REG_CONFIG_DONE:
         if (value) {
             s->fifo = (uint32_t *) s->fifo_ptr;
-            /* Check range and alignment.  */
-            if ((CMD(min) | CMD(max) | CMD(next_cmd) | CMD(stop)) & 3) {
-                break;
-            }
-            if (CMD(min) < (uint8_t *) s->cmd->fifo - (uint8_t *) s->fifo) {
-                break;
-            }
-            if (CMD(max) > SVGA_FIFO_SIZE) {
-                break;
-            }
-            if (CMD(max) < CMD(min) + 10 * 1024) {
-                break;
-            }
             vga_dirty_log_stop(&s->vga);
         }
         s->config = !!value;
