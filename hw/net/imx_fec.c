@@ -454,6 +454,8 @@ static void imx_fec_write(void *opaque, hwaddr addr,
         }
         if ((s->ecr & FEC_EN) == 0) {
             s->rx_enabled = 0;
+            s->rx_descriptor = s->erdsr;
+            s->tx_descriptor = s->etdsr;
         }
         break;
     case 0x040: /* MMFR */
