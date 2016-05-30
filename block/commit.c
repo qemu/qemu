@@ -289,6 +289,7 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
 /* commit COW file into the raw image */
 int bdrv_commit(BlockDriverState *bs)
 {
+    BlockBackend *src, *backing;
     BlockDriver *drv = bs->drv;
     int64_t sector, total_sectors, length, backing_length;
     int n, ro, open_flags;
@@ -316,13 +317,19 @@ int bdrv_commit(BlockDriverState *bs)
         }
     }
 
-    length = bdrv_getlength(bs);
+    src = blk_new();
+    blk_insert_bs(src, bs);
+
+    backing = blk_new();
+    blk_insert_bs(backing, bs->backing->bs);
+
+    length = blk_getlength(src);
     if (length < 0) {
         ret = length;
         goto ro_cleanup;
     }
 
-    backing_length = bdrv_getlength(bs->backing->bs);
+    backing_length = blk_getlength(backing);
     if (backing_length < 0) {
         ret = backing_length;
         goto ro_cleanup;
@@ -332,7 +339,7 @@ int bdrv_commit(BlockDriverState *bs)
      * grow the backing file image if possible.  If not possible,
      * we must return an error */
     if (length > backing_length) {
-        ret = bdrv_truncate(bs->backing->bs, length);
+        ret = blk_truncate(backing, length);
         if (ret < 0) {
             goto ro_cleanup;
         }
@@ -340,9 +347,9 @@ int bdrv_commit(BlockDriverState *bs)
 
     total_sectors = length >> BDRV_SECTOR_BITS;
 
-    /* qemu_try_blockalign() for bs will choose an alignment that works for
-     * bs->backing->bs as well, so no need to compare the alignment manually. */
-    buf = qemu_try_blockalign(bs, COMMIT_BUF_SECTORS * BDRV_SECTOR_SIZE);
+    /* blk_try_blockalign() for src will choose an alignment that works for
+     * backing as well, so no need to compare the alignment manually. */
+    buf = blk_try_blockalign(src, COMMIT_BUF_SECTORS * BDRV_SECTOR_SIZE);
     if (buf == NULL) {
         ret = -ENOMEM;
         goto ro_cleanup;
@@ -354,12 +361,14 @@ int bdrv_commit(BlockDriverState *bs)
             goto ro_cleanup;
         }
         if (ret) {
-            ret = bdrv_read(bs, sector, buf, n);
+            ret = blk_pread(src, sector * BDRV_SECTOR_SIZE, buf,
+                            n * BDRV_SECTOR_SIZE);
             if (ret < 0) {
                 goto ro_cleanup;
             }
 
-            ret = bdrv_write(bs->backing->bs, sector, buf, n);
+            ret = blk_pwrite(backing, sector * BDRV_SECTOR_SIZE, buf,
+                             n * BDRV_SECTOR_SIZE, 0);
             if (ret < 0) {
                 goto ro_cleanup;
             }
@@ -371,20 +380,21 @@ int bdrv_commit(BlockDriverState *bs)
         if (ret < 0) {
             goto ro_cleanup;
         }
-        bdrv_flush(bs);
+        blk_flush(src);
     }
 
     /*
      * Make sure all data we wrote to the backing device is actually
      * stable on disk.
      */
-    if (bs->backing) {
-        bdrv_flush(bs->backing->bs);
-    }
+    blk_flush(backing);
 
     ret = 0;
 ro_cleanup:
     qemu_vfree(buf);
+
+    blk_unref(src);
+    blk_unref(backing);
 
     if (ro) {
         /* ignoring error return here */
