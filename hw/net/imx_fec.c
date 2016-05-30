@@ -266,7 +266,7 @@ static void imx_fec_update(IMXFECState *s)
 static void imx_fec_do_tx(IMXFECState *s)
 {
     int frame_size = 0;
-    uint8_t frame[FEC_MAX_FRAME_SIZE];
+    uint8_t frame[ENET_MAX_FRAME_SIZE];
     uint8_t *ptr = frame;
     uint32_t addr = s->tx_descriptor;
 
@@ -277,31 +277,31 @@ static void imx_fec_do_tx(IMXFECState *s)
         imx_fec_read_bd(&bd, addr);
         FEC_PRINTF("tx_bd %x flags %04x len %d data %08x\n",
                    addr, bd.flags, bd.length, bd.data);
-        if ((bd.flags & FEC_BD_R) == 0) {
+        if ((bd.flags & ENET_BD_R) == 0) {
             /* Run out of descriptors to transmit.  */
             break;
         }
         len = bd.length;
-        if (frame_size + len > FEC_MAX_FRAME_SIZE) {
-            len = FEC_MAX_FRAME_SIZE - frame_size;
-            s->eir |= FEC_INT_BABT;
+        if (frame_size + len > ENET_MAX_FRAME_SIZE) {
+            len = ENET_MAX_FRAME_SIZE - frame_size;
+            s->eir |= ENET_INT_BABT;
         }
         dma_memory_read(&address_space_memory, bd.data, ptr, len);
         ptr += len;
         frame_size += len;
-        if (bd.flags & FEC_BD_L) {
+        if (bd.flags & ENET_BD_L) {
             /* Last buffer in frame.  */
             qemu_send_packet(qemu_get_queue(s->nic), frame, len);
             ptr = frame;
             frame_size = 0;
-            s->eir |= FEC_INT_TXF;
+            s->eir |= ENET_INT_TXF;
         }
-        s->eir |= FEC_INT_TXB;
-        bd.flags &= ~FEC_BD_R;
+        s->eir |= ENET_INT_TXB;
+        bd.flags &= ~ENET_BD_R;
         /* Write back the modified descriptor.  */
         imx_fec_write_bd(&bd, addr);
         /* Advance to the next descriptor.  */
-        if ((bd.flags & FEC_BD_W) != 0) {
+        if ((bd.flags & ENET_BD_W) != 0) {
             addr = s->etdsr;
         } else {
             addr += 8;
@@ -320,7 +320,7 @@ static void imx_fec_enable_rx(IMXFECState *s)
 
     imx_fec_read_bd(&bd, s->rx_descriptor);
 
-    tmp = ((bd.flags & FEC_BD_E) != 0);
+    tmp = ((bd.flags & ENET_BD_E) != 0);
 
     if (!tmp) {
         FEC_PRINTF("RX buffer full\n");
@@ -438,21 +438,21 @@ static void imx_fec_write(void *opaque, hwaddr addr,
         s->eimr = value;
         break;
     case 0x010: /* RDAR */
-        if ((s->ecr & FEC_EN) && !s->rx_enabled) {
+        if ((s->ecr & ENET_ECR_ETHEREN) && !s->rx_enabled) {
             imx_fec_enable_rx(s);
         }
         break;
     case 0x014: /* TDAR */
-        if (s->ecr & FEC_EN) {
+        if (s->ecr & ENET_ECR_ETHEREN) {
             imx_fec_do_tx(s);
         }
         break;
     case 0x024: /* ECR */
         s->ecr = value;
-        if (value & FEC_RESET) {
+        if (value & ENET_ECR_RESET) {
             imx_fec_reset(DEVICE(s));
         }
-        if ((s->ecr & FEC_EN) == 0) {
+        if ((s->ecr & ENET_ECR_ETHEREN) == 0) {
             s->rx_enabled = 0;
             s->rx_descriptor = s->erdsr;
             s->tx_descriptor = s->etdsr;
@@ -467,7 +467,7 @@ static void imx_fec_write(void *opaque, hwaddr addr,
             do_phy_write(s, extract32(value, 18, 10), extract32(value, 0, 16));
         }
         /* raise the interrupt as the PHY operation is done */
-        s->eir |= FEC_INT_MII;
+        s->eir |= ENET_INT_MII;
         break;
     case 0x044: /* MSCR */
         s->mscr = value & 0xfe;
@@ -484,7 +484,7 @@ static void imx_fec_write(void *opaque, hwaddr addr,
         /* We transmit immediately, so raise GRA immediately.  */
         s->tcr = value;
         if (value & 1) {
-            s->eir |= FEC_INT_GRA;
+            s->eir |= ENET_INT_GRA;
         }
         break;
     case 0x0e4: /* PALR */
@@ -574,20 +574,20 @@ static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
     crc_ptr = (uint8_t *) &crc;
 
     /* Huge frames are truncted.  */
-    if (size > FEC_MAX_FRAME_SIZE) {
-        size = FEC_MAX_FRAME_SIZE;
-        flags |= FEC_BD_TR | FEC_BD_LG;
+    if (size > ENET_MAX_FRAME_SIZE) {
+        size = ENET_MAX_FRAME_SIZE;
+        flags |= ENET_BD_TR | ENET_BD_LG;
     }
 
     /* Frames larger than the user limit just set error flags.  */
     if (size > (s->rcr >> 16)) {
-        flags |= FEC_BD_LG;
+        flags |= ENET_BD_LG;
     }
 
     addr = s->rx_descriptor;
     while (size > 0) {
         imx_fec_read_bd(&bd, addr);
-        if ((bd.flags & FEC_BD_E) == 0) {
+        if ((bd.flags & ENET_BD_E) == 0) {
             /* No descriptors available.  Bail out.  */
             /*
              * FIXME: This is wrong. We should probably either
@@ -616,18 +616,18 @@ static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
                              crc_ptr, 4 - size);
             crc_ptr += 4 - size;
         }
-        bd.flags &= ~FEC_BD_E;
+        bd.flags &= ~ENET_BD_E;
         if (size == 0) {
             /* Last buffer in frame.  */
-            bd.flags |= flags | FEC_BD_L;
+            bd.flags |= flags | ENET_BD_L;
             FEC_PRINTF("rx frame flags %04x\n", bd.flags);
-            s->eir |= FEC_INT_RXF;
+            s->eir |= ENET_INT_RXF;
         } else {
-            s->eir |= FEC_INT_RXB;
+            s->eir |= ENET_INT_RXB;
         }
         imx_fec_write_bd(&bd, addr);
         /* Advance to the next descriptor.  */
-        if ((bd.flags & FEC_BD_W) != 0) {
+        if ((bd.flags & ENET_BD_W) != 0) {
             addr = s->erdsr;
         } else {
             addr += 8;

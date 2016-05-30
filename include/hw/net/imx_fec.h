@@ -30,24 +30,24 @@
 #include "hw/sysbus.h"
 #include "net/net.h"
 
-#define FEC_MAX_FRAME_SIZE 2032
+#define ENET_MAX_FRAME_SIZE    2032
 
-#define FEC_INT_HB      (1 << 31)
-#define FEC_INT_BABR    (1 << 30)
-#define FEC_INT_BABT    (1 << 29)
-#define FEC_INT_GRA     (1 << 28)
-#define FEC_INT_TXF     (1 << 27)
-#define FEC_INT_TXB     (1 << 26)
-#define FEC_INT_RXF     (1 << 25)
-#define FEC_INT_RXB     (1 << 24)
-#define FEC_INT_MII     (1 << 23)
-#define FEC_INT_EBERR   (1 << 22)
-#define FEC_INT_LC      (1 << 21)
-#define FEC_INT_RL      (1 << 20)
-#define FEC_INT_UN      (1 << 19)
+#define ENET_INT_HB            (1 << 31)
+#define ENET_INT_BABR          (1 << 30)
+#define ENET_INT_BABT          (1 << 29)
+#define ENET_INT_GRA           (1 << 28)
+#define ENET_INT_TXF           (1 << 27)
+#define ENET_INT_TXB           (1 << 26)
+#define ENET_INT_RXF           (1 << 25)
+#define ENET_INT_RXB           (1 << 24)
+#define ENET_INT_MII           (1 << 23)
+#define ENET_INT_EBERR         (1 << 22)
+#define ENET_INT_LC            (1 << 21)
+#define ENET_INT_RL            (1 << 20)
+#define ENET_INT_UN            (1 << 19)
 
-#define FEC_EN      2
-#define FEC_RESET   1
+#define ENET_ECR_RESET         (1 << 0)
+#define ENET_ECR_ETHEREN       (1 << 1)
 
 /* Buffer Descriptor.  */
 typedef struct {
@@ -56,22 +56,22 @@ typedef struct {
     uint32_t data;
 } IMXFECBufDesc;
 
-#define FEC_BD_R    (1 << 15)
-#define FEC_BD_E    (1 << 15)
-#define FEC_BD_O1   (1 << 14)
-#define FEC_BD_W    (1 << 13)
-#define FEC_BD_O2   (1 << 12)
-#define FEC_BD_L    (1 << 11)
-#define FEC_BD_TC   (1 << 10)
-#define FEC_BD_ABC  (1 << 9)
-#define FEC_BD_M    (1 << 8)
-#define FEC_BD_BC   (1 << 7)
-#define FEC_BD_MC   (1 << 6)
-#define FEC_BD_LG   (1 << 5)
-#define FEC_BD_NO   (1 << 4)
-#define FEC_BD_CR   (1 << 2)
-#define FEC_BD_OV   (1 << 1)
-#define FEC_BD_TR   (1 << 0)
+#define ENET_BD_R              (1 << 15)
+#define ENET_BD_E              (1 << 15)
+#define ENET_BD_O1             (1 << 14)
+#define ENET_BD_W              (1 << 13)
+#define ENET_BD_O2             (1 << 12)
+#define ENET_BD_L              (1 << 11)
+#define ENET_BD_TC             (1 << 10)
+#define ENET_BD_ABC            (1 << 9)
+#define ENET_BD_M              (1 << 8)
+#define ENET_BD_BC             (1 << 7)
+#define ENET_BD_MC             (1 << 6)
+#define ENET_BD_LG             (1 << 5)
+#define ENET_BD_NO             (1 << 4)
+#define ENET_BD_CR             (1 << 2)
+#define ENET_BD_OV             (1 << 1)
+#define ENET_BD_TR             (1 << 0)
 
 typedef struct IMXFECState {
     /*< private >*/
