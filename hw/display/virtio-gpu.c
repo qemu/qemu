@@ -495,6 +495,11 @@ static void virtio_gpu_resource_flush(VirtIOGPU *g,
     pixman_region_fini(&flush_region);
 }
 
+static void virtio_unref_resource(pixman_image_t *image, void *data)
+{
+    pixman_image_unref(data);
+}
+
 static void virtio_gpu_set_scanout(VirtIOGPU *g,
                                    struct virtio_gpu_ctrl_command *cmd)
 {
@@ -571,8 +576,15 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
         != ((uint8_t *)pixman_image_get_data(res->image) + offset) ||
         scanout->width != ss.r.width ||
         scanout->height != ss.r.height) {
+        pixman_image_t *rect;
+        void *ptr = (uint8_t *)pixman_image_get_data(res->image) + offset;
+        rect = pixman_image_create_bits(format, ss.r.width, ss.r.height, ptr,
+                                        pixman_image_get_stride(res->image));
+        pixman_image_ref(res->image);
+        pixman_image_set_destroy_function(rect, virtio_unref_resource,
+                                          res->image);
         /* realloc the surface ptr */
-        scanout->ds = qemu_create_displaysurface_pixman(res->image);
+        scanout->ds = qemu_create_displaysurface_pixman(rect);
         if (!scanout->ds) {
             cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
             return;
