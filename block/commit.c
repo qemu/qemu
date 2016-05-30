@@ -282,3 +282,114 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
     trace_commit_start(bs, base, top, s, s->common.co, opaque);
     qemu_coroutine_enter(s->common.co, s);
 }
+
+
+#define COMMIT_BUF_SECTORS 2048
+
+/* commit COW file into the raw image */
+int bdrv_commit(BlockDriverState *bs)
+{
+    BlockDriver *drv = bs->drv;
+    int64_t sector, total_sectors, length, backing_length;
+    int n, ro, open_flags;
+    int ret = 0;
+    uint8_t *buf = NULL;
+
+    if (!drv)
+        return -ENOMEDIUM;
+
+    if (!bs->backing) {
+        return -ENOTSUP;
+    }
+
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT_SOURCE, NULL) ||
+        bdrv_op_is_blocked(bs->backing->bs, BLOCK_OP_TYPE_COMMIT_TARGET, NULL)) {
+        return -EBUSY;
+    }
+
+    ro = bs->backing->bs->read_only;
+    open_flags =  bs->backing->bs->open_flags;
+
+    if (ro) {
+        if (bdrv_reopen(bs->backing->bs, open_flags | BDRV_O_RDWR, NULL)) {
+            return -EACCES;
+        }
+    }
+
+    length = bdrv_getlength(bs);
+    if (length < 0) {
+        ret = length;
+        goto ro_cleanup;
+    }
+
+    backing_length = bdrv_getlength(bs->backing->bs);
+    if (backing_length < 0) {
+        ret = backing_length;
+        goto ro_cleanup;
+    }
+
+    /* If our top snapshot is larger than the backing file image,
+     * grow the backing file image if possible.  If not possible,
+     * we must return an error */
+    if (length > backing_length) {
+        ret = bdrv_truncate(bs->backing->bs, length);
+        if (ret < 0) {
+            goto ro_cleanup;
+        }
+    }
+
+    total_sectors = length >> BDRV_SECTOR_BITS;
+
+    /* qemu_try_blockalign() for bs will choose an alignment that works for
+     * bs->backing->bs as well, so no need to compare the alignment manually. */
+    buf = qemu_try_blockalign(bs, COMMIT_BUF_SECTORS * BDRV_SECTOR_SIZE);
+    if (buf == NULL) {
+        ret = -ENOMEM;
+        goto ro_cleanup;
+    }
+
+    for (sector = 0; sector < total_sectors; sector += n) {
+        ret = bdrv_is_allocated(bs, sector, COMMIT_BUF_SECTORS, &n);
+        if (ret < 0) {
+            goto ro_cleanup;
+        }
+        if (ret) {
+            ret = bdrv_read(bs, sector, buf, n);
+            if (ret < 0) {
+                goto ro_cleanup;
+            }
+
+            ret = bdrv_write(bs->backing->bs, sector, buf, n);
+            if (ret < 0) {
+                goto ro_cleanup;
+            }
+        }
+    }
+
+    if (drv->bdrv_make_empty) {
+        ret = drv->bdrv_make_empty(bs);
+        if (ret < 0) {
+            goto ro_cleanup;
+        }
+        bdrv_flush(bs);
+    }
+
+    /*
+     * Make sure all data we wrote to the backing device is actually
+     * stable on disk.
+     */
+    if (bs->backing) {
+        bdrv_flush(bs->backing->bs);
+    }
+
+    ret = 0;
+ro_cleanup:
+    qemu_vfree(buf);
+
+    if (ro) {
+        /* ignoring error return here */
+        bdrv_reopen(bs->backing->bs, open_flags & ~BDRV_O_RDWR, NULL);
+    }
+
+    return ret;
+}
