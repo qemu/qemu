@@ -55,7 +55,7 @@ uint16_t net_checksum_tcpudp(uint16_t length, uint16_t proto,
 
 void net_checksum_calculate(uint8_t *data, int length)
 {
-    int ip_len;
+    int mac_hdr_len, ip_len;
     struct ip_header *ip;
 
     /*
@@ -64,12 +64,39 @@ void net_checksum_calculate(uint8_t *data, int length)
      * struct members (just in case).
      */
 
-    /* Ensure data has complete L2 & L3 headers. */
-    if (length < (sizeof(struct eth_header) + sizeof(struct ip_header))) {
+    /* Ensure we have at least an Eth header */
+    if (length < sizeof(struct eth_header)) {
         return;
     }
 
-    ip = (struct ip_header *)(data + sizeof(struct eth_header));
+    /* Handle the optionnal VLAN headers */
+    switch (lduw_be_p(&PKT_GET_ETH_HDR(data)->h_proto)) {
+    case ETH_P_VLAN:
+        mac_hdr_len = sizeof(struct eth_header) +
+                     sizeof(struct vlan_header);
+        break;
+    case ETH_P_DVLAN:
+        if (lduw_be_p(&PKT_GET_VLAN_HDR(data)->h_proto) == ETH_P_VLAN) {
+            mac_hdr_len = sizeof(struct eth_header) +
+                         2 * sizeof(struct vlan_header);
+        } else {
+            mac_hdr_len = sizeof(struct eth_header) +
+                         sizeof(struct vlan_header);
+        }
+        break;
+    default:
+        mac_hdr_len = sizeof(struct eth_header);
+        break;
+    }
+
+    length -= mac_hdr_len;
+
+    /* Now check we have an IP header (with an optionnal VLAN header) */
+    if (length < sizeof(struct ip_header)) {
+        return;
+    }
+
+    ip = (struct ip_header *)(data + mac_hdr_len);
 
     if (IP_HEADER_VERSION(ip) != IP_HEADER_VERSION_4) {
         return; /* not IPv4 */
