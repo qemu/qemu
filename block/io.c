@@ -33,7 +33,7 @@
 
 #define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
 
-static BlockAIOCB *bdrv_co_aio_rw_vector(BlockDriverState *bs,
+static BlockAIOCB *bdrv_co_aio_rw_vector(BdrvChild *child,
                                          int64_t sector_num,
                                          QEMUIOVector *qiov,
                                          int nb_sectors,
@@ -1129,7 +1129,7 @@ int coroutine_fn bdrv_co_preadv(BlockDriverState *bs,
     return ret;
 }
 
-static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
+static int coroutine_fn bdrv_co_do_readv(BdrvChild *child,
     int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
@@ -1137,7 +1137,7 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
         return -EINVAL;
     }
 
-    return bdrv_co_preadv(bs, sector_num << BDRV_SECTOR_BITS,
+    return bdrv_co_preadv(child->bs, sector_num << BDRV_SECTOR_BITS,
                           nb_sectors << BDRV_SECTOR_BITS, qiov, flags);
 }
 
@@ -1146,7 +1146,7 @@ int coroutine_fn bdrv_co_readv(BdrvChild *child, int64_t sector_num,
 {
     trace_bdrv_co_readv(child->bs, sector_num, nb_sectors);
 
-    return bdrv_co_do_readv(child->bs, sector_num, nb_sectors, qiov, 0);
+    return bdrv_co_do_readv(child, sector_num, nb_sectors, qiov, 0);
 }
 
 /* Maximum buffer for write zeroes fallback, in bytes */
@@ -1535,7 +1535,7 @@ out:
     return ret;
 }
 
-static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
+static int coroutine_fn bdrv_co_do_writev(BdrvChild *child,
     int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
@@ -1543,7 +1543,7 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
         return -EINVAL;
     }
 
-    return bdrv_co_pwritev(bs, sector_num << BDRV_SECTOR_BITS,
+    return bdrv_co_pwritev(child->bs, sector_num << BDRV_SECTOR_BITS,
                            nb_sectors << BDRV_SECTOR_BITS, qiov, flags);
 }
 
@@ -1552,7 +1552,7 @@ int coroutine_fn bdrv_co_writev(BdrvChild *child, int64_t sector_num,
 {
     trace_bdrv_co_writev(child->bs, sector_num, nb_sectors);
 
-    return bdrv_co_do_writev(child->bs, sector_num, nb_sectors, qiov, 0);
+    return bdrv_co_do_writev(child, sector_num, nb_sectors, qiov, 0);
 }
 
 int coroutine_fn bdrv_co_pwrite_zeroes(BlockDriverState *bs,
@@ -1968,7 +1968,7 @@ BlockAIOCB *bdrv_aio_readv(BdrvChild *child, int64_t sector_num,
 {
     trace_bdrv_aio_readv(child->bs, sector_num, nb_sectors, opaque);
 
-    return bdrv_co_aio_rw_vector(child->bs, sector_num, qiov, nb_sectors, 0,
+    return bdrv_co_aio_rw_vector(child, sector_num, qiov, nb_sectors, 0,
                                  cb, opaque, false);
 }
 
@@ -1978,7 +1978,7 @@ BlockAIOCB *bdrv_aio_writev(BdrvChild *child, int64_t sector_num,
 {
     trace_bdrv_aio_writev(child->bs, sector_num, nb_sectors, opaque);
 
-    return bdrv_co_aio_rw_vector(child->bs, sector_num, qiov, nb_sectors, 0,
+    return bdrv_co_aio_rw_vector(child, sector_num, qiov, nb_sectors, 0,
                                  cb, opaque, true);
 }
 
@@ -2034,6 +2034,7 @@ typedef struct BlockRequest {
 
 typedef struct BlockAIOCBCoroutine {
     BlockAIOCB common;
+    BdrvChild *child;
     BlockRequest req;
     bool is_write;
     bool need_bh;
@@ -2077,20 +2078,19 @@ static void bdrv_co_maybe_schedule_bh(BlockAIOCBCoroutine *acb)
 static void coroutine_fn bdrv_co_do_rw(void *opaque)
 {
     BlockAIOCBCoroutine *acb = opaque;
-    BlockDriverState *bs = acb->common.bs;
 
     if (!acb->is_write) {
-        acb->req.error = bdrv_co_do_readv(bs, acb->req.sector,
+        acb->req.error = bdrv_co_do_readv(acb->child, acb->req.sector,
             acb->req.nb_sectors, acb->req.qiov, acb->req.flags);
     } else {
-        acb->req.error = bdrv_co_do_writev(bs, acb->req.sector,
+        acb->req.error = bdrv_co_do_writev(acb->child, acb->req.sector,
             acb->req.nb_sectors, acb->req.qiov, acb->req.flags);
     }
 
     bdrv_co_complete(acb);
 }
 
-static BlockAIOCB *bdrv_co_aio_rw_vector(BlockDriverState *bs,
+static BlockAIOCB *bdrv_co_aio_rw_vector(BdrvChild *child,
                                          int64_t sector_num,
                                          QEMUIOVector *qiov,
                                          int nb_sectors,
@@ -2102,7 +2102,8 @@ static BlockAIOCB *bdrv_co_aio_rw_vector(BlockDriverState *bs,
     Coroutine *co;
     BlockAIOCBCoroutine *acb;
 
-    acb = qemu_aio_get(&bdrv_em_co_aiocb_info, bs, cb, opaque);
+    acb = qemu_aio_get(&bdrv_em_co_aiocb_info, child->bs, cb, opaque);
+    acb->child = child;
     acb->need_bh = true;
     acb->req.error = -EINPROGRESS;
     acb->req.sector = sector_num;
