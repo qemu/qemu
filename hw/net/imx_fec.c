@@ -460,9 +460,9 @@ static void imx_fec_write(void *opaque, hwaddr addr,
         /* store the value */
         s->mmfr = value;
         if (extract32(value, 29, 1)) {
-            s->mmfr = do_phy_read(s, extract32(value, 18, 9));
+            s->mmfr = do_phy_read(s, extract32(value, 18, 10));
         } else {
-            do_phy_write(s, extract32(value, 18, 9), extract32(value, 0, 16));
+            do_phy_write(s, extract32(value, 18, 10), extract32(value, 0, 16));
         }
         /* raise the interrupt as the PHY operation is done */
         s->eir |= FEC_INT_MII;
