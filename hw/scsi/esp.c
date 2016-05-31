@@ -98,6 +98,9 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf, uint8_t buflen)
         s->dma_memory_read(s->dma_opaque, buf, dmalen);
     } else {
         dmalen = s->ti_size;
+        if (dmalen > TI_BUFSZ) {
+            return 0;
+        }
         memcpy(buf, s->ti_buf, dmalen);
         buf[0] = buf[2] >> 5;
     }
