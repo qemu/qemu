@@ -472,9 +472,9 @@ static int xenfb_map_fb(struct XenFB *xenfb)
         xenfb->pixels = NULL;
     }
 
-    xenfb->fbpages = (xenfb->fb_len + (XC_PAGE_SIZE - 1)) / XC_PAGE_SIZE;
+    xenfb->fbpages = DIV_ROUND_UP(xenfb->fb_len, XC_PAGE_SIZE);
     n_fbdirs = xenfb->fbpages * mode / 8;
-    n_fbdirs = (n_fbdirs + (XC_PAGE_SIZE - 1)) / XC_PAGE_SIZE;
+    n_fbdirs = DIV_ROUND_UP(n_fbdirs, XC_PAGE_SIZE);
 
     pgmfns = g_malloc0(sizeof(xen_pfn_t) * n_fbdirs);
     fbmfns = g_malloc0(sizeof(xen_pfn_t) * xenfb->fbpages);
