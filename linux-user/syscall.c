@@ -10035,8 +10035,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         default: break;
         }
 #endif
-        ret = -posix_fadvise(arg1, arg2, arg3, arg4);
-	break;
+        ret = -host_to_target_errno(posix_fadvise(arg1, arg2, arg3, arg4));
+        break;
 #endif
 #endif /* end of 64-bit ABI fadvise handling */
 
