@@ -424,7 +424,8 @@ static int coroutine_fn copy_sectors(BlockDriverState *bs,
      * interface.  This avoids double I/O throttling and request tracking,
      * which can lead to deadlock when block layer copy-on-read is enabled.
      */
-    ret = bs->drv->bdrv_co_readv(bs, start_sect + n_start, n, &qiov);
+    ret = bs->drv->bdrv_co_preadv(bs, (start_sect + n_start) * BDRV_SECTOR_SIZE,
+                                  n * BDRV_SECTOR_SIZE, &qiov, 0);
     if (ret < 0) {
         goto out;
     }
@@ -464,19 +465,21 @@ out:
 /*
  * get_cluster_offset
  *
- * For a given offset of the disk image, find the cluster offset in
- * qcow2 file. The offset is stored in *cluster_offset.
+ * For a given offset of the virtual disk, find the cluster type and offset in
+ * the qcow2 file. The offset is stored in *cluster_offset.
  *
- * on entry, *num is the number of contiguous sectors we'd like to
- * access following offset.
+ * On entry, *bytes is the maximum number of contiguous bytes starting at
+ * offset that we are interested in.
  *
- * on exit, *num is the number of contiguous sectors we can read.
+ * On exit, *bytes is the number of bytes starting at offset that have the same
+ * cluster type and (if applicable) are stored contiguously in the image file.
+ * Compressed clusters are always returned one by one.
  *
  * Returns the cluster type (QCOW2_CLUSTER_*) on success, -errno in error
  * cases.
  */
 int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
-    int *num, uint64_t *cluster_offset)
+                             unsigned int *bytes, uint64_t *cluster_offset)
 {
     BDRVQcow2State *s = bs->opaque;
     unsigned int l2_index;
@@ -485,13 +488,9 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     unsigned int offset_in_cluster, nb_clusters;
     uint64_t bytes_available, bytes_needed;
     int ret;
-    unsigned int bytes;
-
-    assert(*num <= BDRV_REQUEST_MAX_SECTORS);
-    bytes = *num * BDRV_SECTOR_SIZE;
 
     offset_in_cluster = offset_into_cluster(s, offset);
-    bytes_needed = (uint64_t) bytes + offset_in_cluster;
+    bytes_needed = (uint64_t) *bytes + offset_in_cluster;
 
     l1_bits = s->l2_bits + s->cluster_bits;
 
@@ -595,9 +594,7 @@ out:
         bytes_available = bytes_needed;
     }
 
-    bytes = bytes_available - offset_in_cluster;
-    assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
-    *num = bytes >> BDRV_SECTOR_BITS;
+    *bytes = bytes_available - offset_in_cluster;
 
     return ret;
 
