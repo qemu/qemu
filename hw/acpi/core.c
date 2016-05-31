@@ -698,7 +698,7 @@ uint32_t acpi_gpe_ioport_readb(ACPIREGS *ar, uint32_t addr)
 }
 
 void acpi_send_gpe_event(ACPIREGS *ar, qemu_irq irq,
-                         AcpiGPEStatusBits status)
+                         AcpiEventStatusBits status)
 {
     ar->gpe.sts[0] |= status;
     acpi_update_sci(ar, irq);

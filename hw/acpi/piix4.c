@@ -586,6 +586,13 @@ static void piix4_ospm_status(AcpiDeviceIf *adev, ACPIOSTInfoList ***list)
     acpi_memory_ospm_status(&s->acpi_memory_hotplug, list);
 }
 
+static void piix4_send_gpe(AcpiDeviceIf *adev, AcpiEventStatusBits ev)
+{
+    PIIX4PMState *s = PIIX4_PM(adev);
+
+    acpi_send_gpe_event(&s->ar, s->irq, ev);
+}
+
 static Property piix4_pm_properties[] = {
     DEFINE_PROP_UINT32("smb_io_base", PIIX4PMState, smb_io_base, 0),
     DEFINE_PROP_UINT8(ACPI_PM_PROP_S3_DISABLED, PIIX4PMState, disable_s3, 0),
@@ -624,6 +631,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
     hc->unplug_request = piix4_device_unplug_request_cb;
     hc->unplug = piix4_device_unplug_cb;
     adevc->ospm_status = piix4_ospm_status;
+    adevc->send_event = piix4_send_gpe;
 }
 
 static const TypeInfo piix4_pm_info = {

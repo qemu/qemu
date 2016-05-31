@@ -703,6 +703,13 @@ static Property ich9_lpc_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void ich9_send_gpe(AcpiDeviceIf *adev, AcpiEventStatusBits ev)
+{
+    ICH9LPCState *s = ICH9_LPC_DEVICE(adev);
+
+    acpi_send_gpe_event(&s->pm.acpi_regs, s->pm.irq, ev);
+}
+
 static void ich9_lpc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -730,6 +737,7 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
     hc->unplug_request = ich9_device_unplug_request_cb;
     hc->unplug = ich9_device_unplug_cb;
     adevc->ospm_status = ich9_pm_ospm_status;
+    adevc->send_event = ich9_send_gpe;
 }
 
 static const TypeInfo ich9_lpc_info = {
