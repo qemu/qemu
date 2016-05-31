@@ -900,7 +900,7 @@ static int m25p80_init(SSISlave *ss)
         s->storage = blk_blockalign(s->blk, s->size);
 
         /* FIXME: Move to late init */
-        if (blk_pread(s->blk, 0, s->storage, s->size)) {
+        if (blk_pread(s->blk, 0, s->storage, s->size) != s->size) {
             fprintf(stderr, "Failed to initialize SPI flash!\n");
             return 1;
         }
