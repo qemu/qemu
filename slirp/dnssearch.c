@@ -261,7 +261,7 @@ int translate_dnssearch(Slirp *s, const char **names)
     }
 
     /* reserve extra 2 header bytes for each 255 bytes of output */
-    memreq += ((memreq + MAX_OPT_LEN - 1) / MAX_OPT_LEN) * OPT_HEADER_LEN;
+    memreq += DIV_ROUND_UP(memreq, MAX_OPT_LEN) * OPT_HEADER_LEN;
     result = g_malloc(memreq * sizeof(*result));
 
     outptr = result;
@@ -288,7 +288,7 @@ int translate_dnssearch(Slirp *s, const char **names)
     domain_mkxrefs(domains, domains + num_domains - 1, 0);
     memreq = domain_compactify(domains, num_domains);
 
-    blocks = (memreq + MAX_OPT_LEN - 1) / MAX_OPT_LEN;
+    blocks = DIV_ROUND_UP(memreq, MAX_OPT_LEN);
     bsrc_end = memreq;
     bsrc_start = (blocks - 1) * MAX_OPT_LEN;
     bdst_start = bsrc_start + blocks * OPT_HEADER_LEN;
