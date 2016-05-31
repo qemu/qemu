@@ -1241,6 +1241,13 @@ syntax for the @var{display} is
 
 @table @option
 
+@item to=@var{L}
+
+With this option, QEMU will try next available VNC @var{display}s, until the
+number @var{L}, if the origianlly defined "-vnc @var{display}" is not
+available, e.g. port 5900+@var{display} is already used by another
+application. By default, to=0.
+
 @item @var{host}:@var{d}
 
 TCP connections will only be allowed from @var{host} on display @var{d}.
