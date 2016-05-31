@@ -28,65 +28,48 @@
  *   - this can not represent a full 0 to ~0x0LL range.
  */
 
-/* 0,1 can merge with 1,2 but don't overlap */
-static bool ranges_can_merge(Range *range1, Range *range2)
+/* Return -1 if @a < @b, 1 if greater, and 0 if they touch or overlap. */
+static inline int range_compare(Range *a, Range *b)
 {
-    return !(range1->end < range2->begin || range2->end < range1->begin);
-}
-
-static void range_merge(Range *range1, Range *range2)
-{
-    if (range1->end < range2->end) {
-        range1->end = range2->end;
-    }
-    if (range1->begin > range2->begin) {
-        range1->begin = range2->begin;
-    }
-}
-
-static gint range_compare(gconstpointer a, gconstpointer b)
-{
-    Range *ra = (Range *)a, *rb = (Range *)b;
-    if (ra->begin == rb->begin && ra->end == rb->end) {
-        return 0;
-    } else if (range_get_last(ra->begin, ra->end) <
-               range_get_last(rb->begin, rb->end)) {
+    /* Zero a->end is 2**64, and therefore not less than any b->begin */
+    if (a->end && a->end < b->begin) {
         return -1;
-    } else {
+    }
+    if (b->end && a->begin > b->end) {
         return 1;
     }
+    return 0;
 }
 
+/* Insert @data into @list of ranges; caller no longer owns @data */
 GList *range_list_insert(GList *list, Range *data)
 {
-    GList *l, *next = NULL;
-    Range *r, *nextr;
+    GList *l;
 
-    if (!list) {
-        list = g_list_insert_sorted(list, data, range_compare);
-        return list;
+    /* Range lists require no empty ranges */
+    assert(data->begin < data->end || (data->begin && !data->end));
+
+    /* Skip all list elements strictly less than data */
+    for (l = list; l && range_compare(l->data, data) < 0; l = l->next) {
     }
 
-    nextr = data;
-    l = list;
-    while (l && l != next && nextr) {
-        r = l->data;
-        if (ranges_can_merge(r, nextr)) {
-            range_merge(r, nextr);
-            l = g_list_remove_link(l, next);
-            next = g_list_next(l);
-            if (next) {
-                nextr = next->data;
-            } else {
-                nextr = NULL;
-            }
-        } else {
-            l = g_list_next(l);
-        }
+    if (!l || range_compare(l->data, data) > 0) {
+        /* Rest of the list (if any) is strictly greater than @data */
+        return g_list_insert_before(list, l, data);
     }
 
-    if (!l) {
-        list = g_list_insert_sorted(list, data, range_compare);
+    /* Current list element overlaps @data, merge the two */
+    range_extend(l->data, data);
+    g_free(data);
+
+    /* Merge any subsequent list elements that now also overlap */
+    while (l->next && range_compare(l->data, l->next->data) == 0) {
+        GList *new_l;
+
+        range_extend(l->data, l->next->data);
+        g_free(l->next->data);
+        new_l = g_list_delete_link(list, l->next);
+        assert(new_l == list);
     }
 
     return list;
