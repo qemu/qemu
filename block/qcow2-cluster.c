@@ -482,29 +482,28 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     unsigned int l2_index;
     uint64_t l1_index, l2_offset, *l2_table;
     int l1_bits, c;
-    unsigned int index_in_cluster, nb_clusters;
-    uint64_t nb_available, nb_needed;
+    unsigned int offset_in_cluster, nb_clusters;
+    uint64_t bytes_available, bytes_needed;
     int ret;
+    unsigned int bytes;
 
-    index_in_cluster = (offset >> 9) & (s->cluster_sectors - 1);
-    nb_needed = *num + index_in_cluster;
+    assert(*num <= BDRV_REQUEST_MAX_SECTORS);
+    bytes = *num * BDRV_SECTOR_SIZE;
+
+    offset_in_cluster = offset_into_cluster(s, offset);
+    bytes_needed = (uint64_t) bytes + offset_in_cluster;
 
     l1_bits = s->l2_bits + s->cluster_bits;
 
-    /* compute how many bytes there are between the offset and
-     * the end of the l1 entry
-     */
+    /* compute how many bytes there are between the start of the cluster
+     * containing offset and the end of the l1 entry */
+    bytes_available = (1ULL << l1_bits) - (offset & ((1ULL << l1_bits) - 1))
+                    + offset_in_cluster;
 
-    nb_available = (1ULL << l1_bits) - (offset & ((1ULL << l1_bits) - 1));
-
-    /* compute the number of available sectors */
-
-    nb_available = (nb_available >> 9) + index_in_cluster;
-
-    if (nb_needed > nb_available) {
-        nb_needed = nb_available;
+    if (bytes_needed > bytes_available) {
+        bytes_needed = bytes_available;
     }
-    assert(nb_needed <= INT_MAX);
+    assert(bytes_needed <= INT_MAX);
 
     *cluster_offset = 0;
 
@@ -542,7 +541,7 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     *cluster_offset = be64_to_cpu(l2_table[l2_index]);
 
     /* nb_needed <= INT_MAX, thus nb_clusters <= INT_MAX, too */
-    nb_clusters = size_to_clusters(s, nb_needed << 9);
+    nb_clusters = size_to_clusters(s, bytes_needed);
 
     ret = qcow2_get_cluster_type(*cluster_offset);
     switch (ret) {
@@ -589,13 +588,16 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
 
     qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
 
-    nb_available = (c * s->cluster_sectors);
+    bytes_available = (c * s->cluster_size);
 
 out:
-    if (nb_available > nb_needed)
-        nb_available = nb_needed;
+    if (bytes_available > bytes_needed) {
+        bytes_available = bytes_needed;
+    }
 
-    *num = nb_available - index_in_cluster;
+    bytes = bytes_available - offset_in_cluster;
+    assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
+    *num = bytes >> BDRV_SECTOR_BITS;
 
     return ret;
 
