@@ -61,8 +61,7 @@ static int parse_str(StringInputVisitor *siv, const char *name, Error **errp)
                 cur = g_malloc0(sizeof(*cur));
                 cur->begin = start;
                 cur->end = start + 1;
-                siv->ranges = g_list_insert_sorted_merged(siv->ranges, cur,
-                                                          range_compare);
+                siv->ranges = range_list_insert(siv->ranges, cur);
                 cur = NULL;
                 str = NULL;
             } else if (*endptr == '-') {
@@ -76,10 +75,7 @@ static int parse_str(StringInputVisitor *siv, const char *name, Error **errp)
                         cur = g_malloc0(sizeof(*cur));
                         cur->begin = start;
                         cur->end = end + 1;
-                        siv->ranges =
-                            g_list_insert_sorted_merged(siv->ranges,
-                                                        cur,
-                                                        range_compare);
+                        siv->ranges = range_list_insert(siv->ranges, cur);
                         cur = NULL;
                         str = NULL;
                     } else if (*endptr == ',') {
@@ -87,10 +83,7 @@ static int parse_str(StringInputVisitor *siv, const char *name, Error **errp)
                         cur = g_malloc0(sizeof(*cur));
                         cur->begin = start;
                         cur->end = end + 1;
-                        siv->ranges =
-                            g_list_insert_sorted_merged(siv->ranges,
-                                                        cur,
-                                                        range_compare);
+                        siv->ranges = range_list_insert(siv->ranges, cur);
                         cur = NULL;
                     } else {
                         goto error;
@@ -103,9 +96,7 @@ static int parse_str(StringInputVisitor *siv, const char *name, Error **errp)
                 cur = g_malloc0(sizeof(*cur));
                 cur->begin = start;
                 cur->end = start + 1;
-                siv->ranges = g_list_insert_sorted_merged(siv->ranges,
-                                                          cur,
-                                                          range_compare);
+                siv->ranges = range_list_insert(siv->ranges, cur);
                 cur = NULL;
             } else {
                 goto error;

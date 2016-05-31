@@ -79,20 +79,6 @@ static inline int ranges_overlap(uint64_t first1, uint64_t len1,
     return !(last2 < first1 || last1 < first2);
 }
 
-GList *g_list_insert_sorted_merged(GList *list, gpointer data,
-                                   GCompareFunc func);
-
-static inline gint range_compare(gconstpointer a, gconstpointer b)
-{
-    Range *ra = (Range *)a, *rb = (Range *)b;
-    if (ra->begin == rb->begin && ra->end == rb->end) {
-        return 0;
-    } else if (range_get_last(ra->begin, ra->end) <
-               range_get_last(rb->begin, rb->end)) {
-        return -1;
-    } else {
-        return 1;
-    }
-}
+GList *range_list_insert(GList *list, Range *data);
 
 #endif
