@@ -228,7 +228,7 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state);
 void bdrv_reopen_abort(BDRVReopenState *reopen_state);
 int bdrv_read(BdrvChild *child, int64_t sector_num,
               uint8_t *buf, int nb_sectors);
-int bdrv_write(BlockDriverState *bs, int64_t sector_num,
+int bdrv_write(BdrvChild *child, int64_t sector_num,
                const uint8_t *buf, int nb_sectors);
 int bdrv_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
                        int count, BdrvRequestFlags flags);

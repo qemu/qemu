@@ -1784,7 +1784,7 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                     goto fail;
                 }
 
-                ret = bdrv_write(bs->file->bs, l2_offset / BDRV_SECTOR_SIZE,
+                ret = bdrv_write(bs->file, l2_offset / BDRV_SECTOR_SIZE,
                                  (void *)l2_table, s->cluster_sectors);
                 if (ret < 0) {
                     goto fail;

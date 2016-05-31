@@ -642,10 +642,11 @@ int bdrv_read(BdrvChild *child, int64_t sector_num,
   -EINVAL      Invalid sector number or nb_sectors
   -EACCES      Trying to write a read-only device
 */
-int bdrv_write(BlockDriverState *bs, int64_t sector_num,
+int bdrv_write(BdrvChild *child, int64_t sector_num,
                const uint8_t *buf, int nb_sectors)
 {
-    return bdrv_rw_co(bs, sector_num, (uint8_t *)buf, nb_sectors, true, 0);
+    return bdrv_rw_co(child->bs, sector_num, (uint8_t *)buf, nb_sectors,
+                      true, 0);
 }
 
 int bdrv_pwrite_zeroes(BlockDriverState *bs, int64_t offset,

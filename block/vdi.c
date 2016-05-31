@@ -719,7 +719,7 @@ vdi_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
         assert(VDI_IS_ALLOCATED(bmap_first));
         *header = s->header;
         vdi_header_to_le(header);
-        ret = bdrv_write(bs->file->bs, 0, block, 1);
+        ret = bdrv_write(bs->file, 0, block, 1);
         g_free(block);
         block = NULL;
 
@@ -737,7 +737,7 @@ vdi_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
         base = ((uint8_t *)&s->bmap[0]) + bmap_first * SECTOR_SIZE;
         logout("will write %u block map sectors starting from entry %u\n",
                n_sectors, bmap_first);
-        ret = bdrv_write(bs->file->bs, offset, base, n_sectors);
+        ret = bdrv_write(bs->file, offset, base, n_sectors);
     }
 
     return ret;

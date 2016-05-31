@@ -1834,8 +1834,7 @@ static uint32_t get_cluster_count_for_direntry(BDRVVVFATState* s,
                         if (res) {
                             return -1;
                         }
-                        res = bdrv_write(s->qcow->bs, offset,
-                                         s->cluster_buffer, 1);
+                        res = bdrv_write(s->qcow, offset, s->cluster_buffer, 1);
                         if (res) {
                             return -2;
                         }
@@ -2889,7 +2888,7 @@ DLOG(checkpoint());
      * Use qcow backend. Commit later.
      */
 DLOG(fprintf(stderr, "Write to qcow backend: %d + %d\n", (int)sector_num, nb_sectors));
-    ret = bdrv_write(s->qcow->bs, sector_num, buf, nb_sectors);
+    ret = bdrv_write(s->qcow, sector_num, buf, nb_sectors);
     if (ret < 0) {
 	fprintf(stderr, "Error writing to qcow backend\n");
 	return ret;

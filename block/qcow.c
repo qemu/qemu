@@ -913,6 +913,49 @@ static int qcow_make_empty(BlockDriverState *bs)
     return 0;
 }
 
+typedef struct QcowWriteCo {
+    BlockDriverState *bs;
+    int64_t sector_num;
+    const uint8_t *buf;
+    int nb_sectors;
+    int ret;
+} QcowWriteCo;
+
+static void qcow_write_co_entry(void *opaque)
+{
+    QcowWriteCo *co = opaque;
+    QEMUIOVector qiov;
+
+    struct iovec iov = (struct iovec) {
+        .iov_base   = (uint8_t*) co->buf,
+        .iov_len    = co->nb_sectors * BDRV_SECTOR_SIZE,
+    };
+    qemu_iovec_init_external(&qiov, &iov, 1);
+
+    co->ret = qcow_co_writev(co->bs, co->sector_num, co->nb_sectors, &qiov);
+}
+
+/* Wrapper for non-coroutine contexts */
+static int qcow_write(BlockDriverState *bs, int64_t sector_num,
+                      const uint8_t *buf, int nb_sectors)
+{
+    Coroutine *co;
+    AioContext *aio_context = bdrv_get_aio_context(bs);
+    QcowWriteCo data = {
+        .bs         = bs,
+        .sector_num = sector_num,
+        .buf        = buf,
+        .nb_sectors = nb_sectors,
+        .ret        = -EINPROGRESS,
+    };
+    co = qemu_coroutine_create(qcow_write_co_entry);
+    qemu_coroutine_enter(co, &data);
+    while (data.ret == -EINPROGRESS) {
+        aio_poll(aio_context, true);
+    }
+    return data.ret;
+}
+
 /* XXX: put compressed sectors first, then all the cluster aligned
    tables to avoid losing bytes in alignment */
 static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
@@ -969,7 +1012,7 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
     if (ret != Z_STREAM_END || out_len >= s->cluster_size) {
         /* could not compress: write normal cluster */
-        ret = bdrv_write(bs, sector_num, buf, s->cluster_sectors);
+        ret = qcow_write(bs, sector_num, buf, s->cluster_sectors);
         if (ret < 0) {
             goto fail;
         }

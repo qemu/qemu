@@ -2098,7 +2098,7 @@ write_refblocks:
         on_disk_refblock = (void *)((char *) *refcount_table +
                                     refblock_index * s->cluster_size);
 
-        ret = bdrv_write(bs->file->bs, refblock_offset / BDRV_SECTOR_SIZE,
+        ret = bdrv_write(bs->file, refblock_offset / BDRV_SECTOR_SIZE,
                          on_disk_refblock, s->cluster_sectors);
         if (ret < 0) {
             fprintf(stderr, "ERROR writing refblock: %s\n", strerror(-ret));
