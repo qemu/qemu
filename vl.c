@@ -3068,7 +3068,7 @@ int main(int argc, char **argv, char **envp)
 
             popt = lookup_opt(argc, argv, &optarg, &optind);
             if (!(popt->arch_mask & arch_type)) {
-                printf("Option %s not supported for this target\n", popt->name);
+                error_report("Option not supported for this target");
                 exit(1);
             }
             switch(popt->index) {
@@ -3846,21 +3846,21 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_xen_domid:
                 if (!(xen_available())) {
-                    printf("Option %s not supported for this target\n", popt->name);
+                    error_report("Option not supported for this target");
                     exit(1);
                 }
                 xen_domid = atoi(optarg);
                 break;
             case QEMU_OPTION_xen_create:
                 if (!(xen_available())) {
-                    printf("Option %s not supported for this target\n", popt->name);
+                    error_report("Option not supported for this target");
                     exit(1);
                 }
                 xen_mode = XEN_CREATE;
                 break;
             case QEMU_OPTION_xen_attach:
                 if (!(xen_available())) {
-                    printf("Option %s not supported for this target\n", popt->name);
+                    error_report("Option not supported for this target");
                     exit(1);
                 }
                 xen_mode = XEN_ATTACH;
