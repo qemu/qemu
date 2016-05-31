@@ -9970,18 +9970,18 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_arm_fadvise64_64
     case TARGET_NR_arm_fadvise64_64:
-	{
-		/*
-		 * arm_fadvise64_64 looks like fadvise64_64 but
-		 * with different argument order
-		 */
-		abi_long temp;
-		temp = arg3;
-		arg3 = arg4;
-		arg4 = temp;
-	}
+        /* arm_fadvise64_64 looks like fadvise64_64 but
+         * with different argument order: fd, advice, offset, len
+         * rather than the usual fd, offset, len, advice.
+         * Note that offset and len are both 64-bit so appear as
+         * pairs of 32-bit registers.
+         */
+        ret = posix_fadvise(arg1, target_offset64(arg3, arg4),
+                            target_offset64(arg5, arg6), arg2);
+        ret = -host_to_target_errno(ret);
+        break;
 #endif
-#if defined(TARGET_NR_fadvise64_64) || defined(TARGET_NR_arm_fadvise64_64) || defined(TARGET_NR_fadvise64)
+#if defined(TARGET_NR_fadvise64_64) || defined(TARGET_NR_fadvise64)
 #ifdef TARGET_NR_fadvise64_64
     case TARGET_NR_fadvise64_64:
 #endif
