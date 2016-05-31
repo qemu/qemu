@@ -45,7 +45,7 @@ static void init_dev(tc58128_dev * dev, const char *filename)
             }
 	} else {
 	    /* Build first block with number of blocks */
-	    blocks = (ret + 528 * 32 - 1) / (528 * 32);
+            blocks = DIV_ROUND_UP(ret, 528 * 32);
 	    dev->flash_contents[0] = blocks & 0xff;
 	    dev->flash_contents[1] = (blocks >> 8) & 0xff;
 	    dev->flash_contents[2] = (blocks >> 16) & 0xff;

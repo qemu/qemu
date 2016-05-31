@@ -1960,8 +1960,7 @@ DLOG(fprintf(stderr, "check direntry %d:\n", i); print_direntry(direntries + i))
 		/* check file size with FAT */
 		cluster_count = get_cluster_count_for_direntry(s, direntries + i, path2);
 		if (cluster_count !=
-			(le32_to_cpu(direntries[i].size) + s->cluster_size
-			 - 1) / s->cluster_size) {
+            DIV_ROUND_UP(le32_to_cpu(direntries[i].size), s->cluster_size)) {
 		    DLOG(fprintf(stderr, "Cluster count mismatch\n"));
 		    goto fail;
 		}
