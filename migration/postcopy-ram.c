@@ -407,7 +407,6 @@ static void *postcopy_ram_fault_thread(void *opaque)
 
     while (true) {
         ram_addr_t rb_offset;
-        ram_addr_t in_raspace;
         struct pollfd pfd[2];
 
         /*
@@ -459,7 +458,7 @@ static void *postcopy_ram_fault_thread(void *opaque)
 
         rb = qemu_ram_block_from_host(
                  (void *)(uintptr_t)msg.arg.pagefault.address,
-                 true, &in_raspace, &rb_offset);
+                 true, &rb_offset);
         if (!rb) {
             error_report("postcopy_ram_fault_thread: Fault outside guest: %"
                          PRIx64, (uint64_t)msg.arg.pagefault.address);

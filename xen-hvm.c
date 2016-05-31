@@ -511,8 +511,13 @@ static void xen_io_add(MemoryListener *listener,
                        MemoryRegionSection *section)
 {
     XenIOState *state = container_of(listener, XenIOState, io_listener);
+    MemoryRegion *mr = section->mr;
 
-    memory_region_ref(section->mr);
+    if (mr->ops == &unassigned_io_ops) {
+        return;
+    }
+
+    memory_region_ref(mr);
 
     xen_map_io_section(xen_xc, xen_domid, state->ioservid, section);
 }
@@ -521,10 +526,15 @@ static void xen_io_del(MemoryListener *listener,
                        MemoryRegionSection *section)
 {
     XenIOState *state = container_of(listener, XenIOState, io_listener);
+    MemoryRegion *mr = section->mr;
+
+    if (mr->ops == &unassigned_io_ops) {
+        return;
+    }
 
     xen_unmap_io_section(xen_xc, xen_domid, state->ioservid, section);
 
-    memory_region_unref(section->mr);
+    memory_region_unref(mr);
 }
 
 static void xen_device_realize(DeviceListener *listener,

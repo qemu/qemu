@@ -33,7 +33,6 @@
 #include "sysemu/hostmem.h"
 #include "sysemu/qtest.h"
 #include "qapi/visitor.h"
-#include "exec/ram_addr.h"
 
 #include "hw/misc/ivshmem.h"
 
@@ -533,7 +532,7 @@ static void process_msg_shmem(IVShmemState *s, int fd, Error **errp)
     }
     memory_region_init_ram_ptr(&s->server_bar2, OBJECT(s),
                                "ivshmem.bar2", size, ptr);
-    qemu_set_ram_fd(memory_region_get_ram_addr(&s->server_bar2), fd);
+    memory_region_set_fd(&s->server_bar2, fd);
     s->ivshmem_bar2 = &s->server_bar2;
 }
 
@@ -940,7 +939,7 @@ static void ivshmem_exit(PCIDevice *dev)
                              strerror(errno));
             }
 
-            fd = qemu_get_ram_fd(memory_region_get_ram_addr(s->ivshmem_bar2));
+            fd = memory_region_get_fd(s->ivshmem_bar2);
             close(fd);
         }
 

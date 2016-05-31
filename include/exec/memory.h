@@ -32,6 +32,8 @@
 #include "qom/object.h"
 #include "qemu/rcu.h"
 
+#define RAM_ADDR_INVALID (~(ram_addr_t)0)
+
 #define MAX_PHYS_ADDR_SPACE_BITS 62
 #define MAX_PHYS_ADDR            (((hwaddr)1 << MAX_PHYS_ADDR_SPACE_BITS) - 1)
 
@@ -665,6 +667,35 @@ static inline bool memory_region_is_rom(MemoryRegion *mr)
  * @mr: the RAM or alias memory region being queried.
  */
 int memory_region_get_fd(MemoryRegion *mr);
+
+/**
+ * memory_region_set_fd: Mark a RAM memory region as backed by a
+ * file descriptor.
+ *
+ * This function is typically used after memory_region_init_ram_ptr().
+ *
+ * @mr: the memory region being queried.
+ * @fd: the file descriptor that backs @mr.
+ */
+void memory_region_set_fd(MemoryRegion *mr, int fd);
+
+/**
+ * memory_region_from_host: Convert a pointer into a RAM memory region
+ * and an offset within it.
+ *
+ * Given a host pointer inside a RAM memory region (created with
+ * memory_region_init_ram() or memory_region_init_ram_ptr()), return
+ * the MemoryRegion and the offset within it.
+ *
+ * Use with care; by the time this function returns, the returned pointer is
+ * not protected by RCU anymore.  If the caller is not within an RCU critical
+ * section and does not hold the iothread lock, it must have other means of
+ * protecting the pointer, such as a reference to the region that includes
+ * the incoming ram_addr_t.
+ *
+ * @mr: the memory region being queried.
+ */
+MemoryRegion *memory_region_from_host(void *ptr, ram_addr_t *offset);
 
 /**
  * memory_region_get_ram_ptr: Get a pointer into a RAM memory region.
@@ -1362,7 +1393,7 @@ MemTxResult address_space_read_continue(AddressSpace *as, hwaddr addr,
 					MemoryRegion *mr);
 MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
                                     MemTxAttrs attrs, uint8_t *buf, int len);
-void *qemu_get_ram_ptr(RAMBlock *ram_block, ram_addr_t addr);
+void *qemu_map_ram_ptr(RAMBlock *ram_block, ram_addr_t addr);
 
 static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
 {
@@ -1400,8 +1431,7 @@ MemTxResult address_space_read(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
             l = len;
             mr = address_space_translate(as, addr, &addr1, &l, false);
             if (len == l && memory_access_is_direct(mr, false)) {
-                addr1 += memory_region_get_ram_addr(mr);
-                ptr = qemu_get_ram_ptr(mr->ram_block, addr1);
+                ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
                 memcpy(buf, ptr, len);
             } else {
                 result = address_space_read_continue(as, addr, attrs, buf, len,

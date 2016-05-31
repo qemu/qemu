@@ -833,6 +833,13 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
         return &acb->common;
     }
 
+    if (acb->ioh->cmd_len > SCSI_CDB_MAX_SIZE) {
+        error_report("iSCSI: ioctl error CDB exceeds max size (%d > %d)",
+                     acb->ioh->cmd_len, SCSI_CDB_MAX_SIZE);
+        qemu_aio_unref(acb);
+        return NULL;
+    }
+
     acb->task = malloc(sizeof(struct scsi_task));
     if (acb->task == NULL) {
         error_report("iSCSI: Failed to allocate task for scsi command. %s",

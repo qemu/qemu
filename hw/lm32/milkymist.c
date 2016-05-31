@@ -159,7 +159,7 @@ milkymist_init(MachineState *machine)
     }
     g_free(bios_filename);
 
-    milkymist_uart_create(0x60000000, irq[0]);
+    milkymist_uart_create(0x60000000, irq[0], serial_hds[0]);
     milkymist_sysctl_create(0x60001000, irq[1], irq[2], irq[3],
             80000000, 0x10014d31, 0x0000041f, 0x00000001);
     milkymist_hpdmc_create(0x60002000);
@@ -175,7 +175,7 @@ milkymist_init(MachineState *machine)
             0x20000000, 0x1000, 0x20020000, 0x2000);
 
     /* make sure juart isn't the first chardev */
-    env->juart_state = lm32_juart_init();
+    env->juart_state = lm32_juart_init(serial_hds[1]);
 
     if (kernel_filename) {
         uint64_t entry;

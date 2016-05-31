@@ -36,7 +36,18 @@
 #define smp_wmb()   ({ barrier(); __atomic_thread_fence(__ATOMIC_RELEASE); barrier(); })
 #define smp_rmb()   ({ barrier(); __atomic_thread_fence(__ATOMIC_ACQUIRE); barrier(); })
 
+/* Most compilers currently treat consume and acquire the same, but really
+ * no processors except Alpha need a barrier here.  Leave it in if
+ * using Thread Sanitizer to avoid warnings, otherwise optimize it away.
+ */
+#if defined(__SANITIZE_THREAD__)
 #define smp_read_barrier_depends() ({ barrier(); __atomic_thread_fence(__ATOMIC_CONSUME); barrier(); })
+#elsif defined(__alpha__)
+#define smp_read_barrier_depends()   asm volatile("mb":::"memory")
+#else
+#define smp_read_barrier_depends()   barrier()
+#endif
+
 
 /* Weak atomic operations prevent the compiler moving other
  * loads/stores past the atomic operation load/store. However there is
@@ -56,13 +67,23 @@
     __atomic_store(ptr, &_val, __ATOMIC_RELAXED);     \
 } while(0)
 
-/* Atomic RCU operations imply weak memory barriers */
+/* See above: most compilers currently treat consume and acquire the
+ * same, but this slows down atomic_rcu_read unnecessarily.
+ */
+#ifdef __SANITIZE_THREAD__
+#define atomic_rcu_read__nocheck(ptr, valptr)           \
+    __atomic_load(ptr, valptr, __ATOMIC_CONSUME);
+#else
+#define atomic_rcu_read__nocheck(ptr, valptr)           \
+    __atomic_load(ptr, valptr, __ATOMIC_RELAXED);       \
+    smp_read_barrier_depends();
+#endif
 
 #define atomic_rcu_read(ptr)                          \
     ({                                                \
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *)); \
     typeof(*ptr) _val;                                \
-    __atomic_load(ptr, &_val, __ATOMIC_CONSUME);      \
+    atomic_rcu_read__nocheck(ptr, &_val);             \
     _val;                                             \
     })
 

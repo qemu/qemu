@@ -650,7 +650,9 @@ static int megasas_init_firmware(MegasasState *s, MegasasCmd *cmd)
     pa_hi = le32_to_cpu(initq->pi_addr_hi);
     s->producer_pa = ((uint64_t) pa_hi << 32) | pa_lo;
     s->reply_queue_head = ldl_le_pci_dma(pcid, s->producer_pa);
+    s->reply_queue_head %= MEGASAS_MAX_FRAMES;
     s->reply_queue_tail = ldl_le_pci_dma(pcid, s->consumer_pa);
+    s->reply_queue_tail %= MEGASAS_MAX_FRAMES;
     flags = le32_to_cpu(initq->flags);
     if (flags & MFI_QUEUE_FLAG_CONTEXT64) {
         s->flags |= MEGASAS_MASK_USE_QUEUE64;
@@ -1293,7 +1295,7 @@ static int megasas_dcmd_ld_get_info(MegasasState *s, MegasasCmd *cmd)
 
 static int megasas_dcmd_cfg_read(MegasasState *s, MegasasCmd *cmd)
 {
-    uint8_t data[4096];
+    uint8_t data[4096] = { 0 };
     struct mfi_config_data *info;
     int num_pd_disks = 0, array_offset, ld_offset;
     BusChild *kid;
@@ -1446,7 +1448,7 @@ static int megasas_dcmd_set_properties(MegasasState *s, MegasasCmd *cmd)
                                             dcmd_size);
         return MFI_STAT_INVALID_PARAMETER;
     }
-    dma_buf_write((uint8_t *)&info, cmd->iov_size, &cmd->qsg);
+    dma_buf_write((uint8_t *)&info, dcmd_size, &cmd->qsg);
     trace_megasas_dcmd_unsupported(cmd->index, cmd->iov_size);
     return MFI_STAT_OK;
 }

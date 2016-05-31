@@ -33,8 +33,6 @@
 
 //#define DEBUG_UNASSIGNED
 
-#define RAM_ADDR_INVALID (~(ram_addr_t)0)
-
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
 static bool ioeventfd_update_pending;
@@ -227,6 +225,7 @@ struct FlatRange {
     hwaddr offset_in_region;
     AddrRange addr;
     uint8_t dirty_log_mask;
+    bool romd_mode;
     bool readonly;
 };
 
@@ -251,6 +250,7 @@ static bool flatrange_equal(FlatRange *a, FlatRange *b)
     return a->mr == b->mr
         && addrrange_equal(a->addr, b->addr)
         && a->offset_in_region == b->offset_in_region
+        && a->romd_mode == b->romd_mode
         && a->readonly == b->readonly;
 }
 
@@ -310,6 +310,7 @@ static bool can_merge(FlatRange *r1, FlatRange *r2)
                                 r1->addr.size),
                      int128_make64(r2->offset_in_region))
         && r1->dirty_log_mask == r2->dirty_log_mask
+        && r1->romd_mode == r2->romd_mode
         && r1->readonly == r2->readonly;
 }
 
@@ -663,6 +664,7 @@ static void render_memory_region(FlatView *view,
 
     fr.mr = mr;
     fr.dirty_log_mask = memory_region_get_dirty_log_mask(mr);
+    fr.romd_mode = mr->romd_mode;
     fr.readonly = readonly;
 
     /* Render the region itself into any gaps left by the current view. */
@@ -1622,13 +1624,26 @@ void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
 
 int memory_region_get_fd(MemoryRegion *mr)
 {
-    if (mr->alias) {
-        return memory_region_get_fd(mr->alias);
+    int fd;
+
+    rcu_read_lock();
+    while (mr->alias) {
+        mr = mr->alias;
     }
+    fd = mr->ram_block->fd;
+    rcu_read_unlock();
 
-    assert(mr->ram_block);
+    return fd;
+}
 
-    return qemu_get_ram_fd(memory_region_get_ram_addr(mr));
+void memory_region_set_fd(MemoryRegion *mr, int fd)
+{
+    rcu_read_lock();
+    while (mr->alias) {
+        mr = mr->alias;
+    }
+    mr->ram_block->fd = fd;
+    rcu_read_unlock();
 }
 
 void *memory_region_get_ram_ptr(MemoryRegion *mr)
@@ -1642,10 +1657,22 @@ void *memory_region_get_ram_ptr(MemoryRegion *mr)
         mr = mr->alias;
     }
     assert(mr->ram_block);
-    ptr = qemu_get_ram_ptr(mr->ram_block, memory_region_get_ram_addr(mr));
+    ptr = qemu_map_ram_ptr(mr->ram_block, offset);
     rcu_read_unlock();
 
-    return ptr + offset;
+    return ptr;
+}
+
+MemoryRegion *memory_region_from_host(void *ptr, ram_addr_t *offset)
+{
+    RAMBlock *block;
+
+    block = qemu_ram_block_from_host(ptr, false, offset);
+    if (!block) {
+        return NULL;
+    }
+
+    return block->mr;
 }
 
 ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr)
