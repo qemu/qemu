@@ -197,7 +197,7 @@ static void qemu_spice_create_one_update(SimpleSpiceDisplay *ssd,
 static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
 {
     static const int blksize = 32;
-    int blocks = (surface_width(ssd->ds) + blksize - 1) / blksize;
+    int blocks = DIV_ROUND_UP(surface_width(ssd->ds), blksize);
     int dirty_top[blocks];
     int y, yoff1, yoff2, x, xoff, blk, bw;
     int bpp = surface_bytes_per_pixel(ssd->ds);
