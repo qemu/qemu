@@ -15,13 +15,14 @@
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/pc-hotplug.h"
 #include "hw/acpi/aml-build.h"
+#include "hw/hotplug.h"
 
 typedef struct AcpiCpuHotplug {
     MemoryRegion io;
     uint8_t sts[ACPI_GPE_PROC_LEN];
 } AcpiCpuHotplug;
 
-void legacy_acpi_cpu_plug_cb(ACPIREGS *ar, qemu_irq irq,
+void legacy_acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
                              AcpiCpuHotplug *g, DeviceState *dev, Error **errp);
 
 void legacy_acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
