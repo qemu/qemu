@@ -490,14 +490,12 @@ static int alloc_refcount_block(BlockDriverState *bs,
         uint64_t table_clusters =
             size_to_clusters(s, table_size * sizeof(uint64_t));
         blocks_clusters = 1 +
-            ((table_clusters + s->refcount_block_size - 1)
-            / s->refcount_block_size);
+            DIV_ROUND_UP(table_clusters, s->refcount_block_size);
         uint64_t meta_clusters = table_clusters + blocks_clusters;
 
         last_table_size = table_size;
         table_size = next_refcount_table_size(s, blocks_used +
-            ((meta_clusters + s->refcount_block_size - 1)
-            / s->refcount_block_size));
+            DIV_ROUND_UP(meta_clusters, s->refcount_block_size));
 
     } while (last_table_size != table_size);
 

@@ -1868,8 +1868,8 @@ int qcow2_expand_zero_clusters(BlockDriverState *bs,
     }
 
     for (i = 0; i < s->nb_snapshots; i++) {
-        int l1_sectors = (s->snapshots[i].l1_size * sizeof(uint64_t) +
-                BDRV_SECTOR_SIZE - 1) / BDRV_SECTOR_SIZE;
+        int l1_sectors = DIV_ROUND_UP(s->snapshots[i].l1_size *
+                                      sizeof(uint64_t), BDRV_SECTOR_SIZE);
 
         l1_table = g_realloc(l1_table, l1_sectors * BDRV_SECTOR_SIZE);
 
