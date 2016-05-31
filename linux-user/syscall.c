@@ -9981,6 +9981,44 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = -host_to_target_errno(ret);
         break;
 #endif
+
+#if TARGET_ABI_BITS == 32
+
+#ifdef TARGET_NR_fadvise64_64
+    case TARGET_NR_fadvise64_64:
+        /* 6 args: fd, offset (high, low), len (high, low), advice */
+        if (regpairs_aligned(cpu_env)) {
+            /* offset is in (3,4), len in (5,6) and advice in 7 */
+            arg2 = arg3;
+            arg3 = arg4;
+            arg4 = arg5;
+            arg5 = arg6;
+            arg6 = arg7;
+        }
+        ret = -host_to_target_errno(posix_fadvise(arg1,
+                                                  target_offset64(arg2, arg3),
+                                                  target_offset64(arg4, arg5),
+                                                  arg6));
+        break;
+#endif
+
+#ifdef TARGET_NR_fadvise64
+    case TARGET_NR_fadvise64:
+        /* 5 args: fd, offset (high, low), len, advice */
+        if (regpairs_aligned(cpu_env)) {
+            /* offset is in (3,4), len in 5 and advice in 6 */
+            arg2 = arg3;
+            arg3 = arg4;
+            arg4 = arg5;
+            arg5 = arg6;
+        }
+        ret = -host_to_target_errno(posix_fadvise(arg1,
+                                                  target_offset64(arg2, arg3),
+                                                  arg4, arg5));
+        break;
+#endif
+
+#else /* not a 32-bit ABI */
 #if defined(TARGET_NR_fadvise64_64) || defined(TARGET_NR_fadvise64)
 #ifdef TARGET_NR_fadvise64_64
     case TARGET_NR_fadvise64_64:
@@ -10000,6 +10038,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = -posix_fadvise(arg1, arg2, arg3, arg4);
 	break;
 #endif
+#endif /* end of 64-bit ABI fadvise handling */
+
 #ifdef TARGET_NR_madvise
     case TARGET_NR_madvise:
         /* A straight passthrough may not be safe because qemu sometimes
