@@ -97,8 +97,11 @@ static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
     qemu_get_betls(f, &env->nip);
     qemu_get_betls(f, &env->hflags);
     qemu_get_betls(f, &env->hflags_nmsr);
-    qemu_get_sbe32s(f, &env->mmu_idx);
+    qemu_get_sbe32(f); /* Discard unused mmu_idx */
     qemu_get_sbe32(f); /* Discard unused power_mode */
+
+    /* Recompute mmu indices */
+    hreg_compute_mem_idx(env);
 
     return 0;
 }

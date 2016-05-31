@@ -27,6 +27,7 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "exec/log.h"
+#include "helper_regs.h"
 
 //#define DEBUG_MMU
 //#define DEBUG_BATS
@@ -1924,6 +1925,7 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
     case POWERPC_MMU_2_06a:
     case POWERPC_MMU_2_07:
     case POWERPC_MMU_2_07a:
+        env->tlb_need_flush = 0;
 #endif /* defined(TARGET_PPC64) */
         tlb_flush(CPU(cpu), 1);
         break;
@@ -1986,7 +1988,7 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
          *      and we still don't have a tlb_flush_mask(env, n, mask) in QEMU,
          *      we just invalidate all TLBs
          */
-        tlb_flush(CPU(cpu), 1);
+        env->tlb_need_flush = 1;
         break;
 #endif /* defined(TARGET_PPC64) */
     default:
@@ -2874,6 +2876,11 @@ void helper_booke206_tlbflush(CPUPPCState *env, target_ulong type)
     booke206_flush_tlb(env, flags, 1);
 }
 
+
+void helper_check_tlb_flush(CPUPPCState *env)
+{
+    check_tlb_flush(env);
+}
 
 /*****************************************************************************/
 

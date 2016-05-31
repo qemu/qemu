@@ -1392,6 +1392,19 @@ GEN_LOGICAL2(nand, tcg_gen_nand_tl, 0x0E, PPC_INTEGER);
 /* nor & nor. */
 GEN_LOGICAL2(nor, tcg_gen_nor_tl, 0x03, PPC_INTEGER);
 
+#if defined(TARGET_PPC64)
+static void gen_pause(DisasContext *ctx)
+{
+    TCGv_i32 t0 = tcg_const_i32(0);
+    tcg_gen_st_i32(t0, cpu_env,
+                   -offsetof(PowerPCCPU, env) + offsetof(CPUState, halted));
+    tcg_temp_free_i32(t0);
+
+    /* Stop translation, this gives other CPUs a chance to run */
+    gen_exception_err(ctx, EXCP_HLT, 1);
+}
+#endif /* defined(TARGET_PPC64) */
+
 /* or & or. */
 static void gen_or(DisasContext *ctx)
 {
@@ -1447,7 +1460,7 @@ static void gen_or(DisasContext *ctx)
             }
             break;
         case 7:
-            if (ctx->hv) {
+            if (ctx->hv && !ctx->pr) {
                 /* Set process priority to very high */
                 prio = 7;
             }
@@ -1464,6 +1477,10 @@ static void gen_or(DisasContext *ctx)
             tcg_gen_ori_tl(t0, t0, ((uint64_t)prio) << 50);
             gen_store_spr(SPR_PPR, t0);
             tcg_temp_free(t0);
+            /* Pause us out of TCG otherwise spin loops with smt_low
+             * eat too much CPU and the kernel hangs
+             */
+            gen_pause(ctx);
         }
 #endif
     }
@@ -1489,8 +1506,6 @@ static void gen_ori(DisasContext *ctx)
     target_ulong uimm = UIMM(ctx->opcode);
 
     if (rS(ctx->opcode) == rA(ctx->opcode) && uimm == 0) {
-        /* NOP */
-        /* XXX: should handle special NOPs for POWER series */
         return;
     }
     tcg_gen_ori_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)], uimm);
@@ -3275,9 +3290,32 @@ static void gen_eieio(DisasContext *ctx)
 {
 }
 
+#if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
+static inline void gen_check_tlb_flush(DisasContext *ctx)
+{
+    TCGv_i32 t = tcg_temp_new_i32();
+    TCGLabel *l = gen_new_label();
+
+    tcg_gen_ld_i32(t, cpu_env, offsetof(CPUPPCState, tlb_need_flush));
+    tcg_gen_brcondi_i32(TCG_COND_EQ, t, 0, l);
+    gen_helper_check_tlb_flush(cpu_env);
+    gen_set_label(l);
+    tcg_temp_free_i32(t);
+}
+#else
+static inline void gen_check_tlb_flush(DisasContext *ctx) { }
+#endif
+
 /* isync */
 static void gen_isync(DisasContext *ctx)
 {
+    /*
+     * We need to check for a pending TLB flush. This can only happen in
+     * kernel mode however so check MSR_PR
+     */
+    if (!ctx->pr) {
+        gen_check_tlb_flush(ctx);
+    }
     gen_stop_exception(ctx);
 }
 
@@ -3434,6 +3472,15 @@ STCX(stqcx_, 16);
 /* sync */
 static void gen_sync(DisasContext *ctx)
 {
+    uint32_t l = (ctx->opcode >> 21) & 3;
+
+    /*
+     * For l == 2, it's a ptesync, We need to check for a pending TLB flush.
+     * This can only happen in kernel mode however so check MSR_PR as well.
+     */
+    if (l == 2 && !ctx->pr) {
+        gen_check_tlb_flush(ctx);
+    }
 }
 
 /* wait */
@@ -4349,7 +4396,7 @@ static void gen_mtmsrd(DisasContext *ctx)
         /* Special form that does not need any synchronisation */
         TCGv t0 = tcg_temp_new();
         tcg_gen_andi_tl(t0, cpu_gpr[rS(ctx->opcode)], (1 << MSR_RI) | (1 << MSR_EE));
-        tcg_gen_andi_tl(cpu_msr, cpu_msr, ~((1 << MSR_RI) | (1 << MSR_EE)));
+        tcg_gen_andi_tl(cpu_msr, cpu_msr, ~(target_ulong)((1 << MSR_RI) | (1 << MSR_EE)));
         tcg_gen_or_tl(cpu_msr, cpu_msr, t0);
         tcg_temp_free(t0);
     } else {
@@ -4380,7 +4427,7 @@ static void gen_mtmsr(DisasContext *ctx)
         /* Special form that does not need any synchronisation */
         TCGv t0 = tcg_temp_new();
         tcg_gen_andi_tl(t0, cpu_gpr[rS(ctx->opcode)], (1 << MSR_RI) | (1 << MSR_EE));
-        tcg_gen_andi_tl(cpu_msr, cpu_msr, ~((1 << MSR_RI) | (1 << MSR_EE)));
+        tcg_gen_andi_tl(cpu_msr, cpu_msr, ~(target_ulong)((1 << MSR_RI) | (1 << MSR_EE)));
         tcg_gen_or_tl(cpu_msr, cpu_msr, t0);
         tcg_temp_free(t0);
     } else {
@@ -4826,7 +4873,7 @@ static void gen_tlbie(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(ctx->pr)) {
+    if (unlikely(ctx->pr || !ctx->hv)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -4847,14 +4894,15 @@ static void gen_tlbsync(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(ctx->pr)) {
+    if (unlikely(ctx->pr || !ctx->hv)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
-    /* This has no effect: it should ensure that all previous
-     * tlbie have completed
+    /* tlbsync is a nop for server, ptesync handles delayed tlb flush,
+     * embedded however needs to deal with tlbsync. We don't try to be
+     * fancy and swallow the overhead of checking for both.
      */
-    gen_stop_exception(ctx);
+    gen_check_tlb_flush(ctx);
 #endif
 }
 
@@ -4865,7 +4913,7 @@ static void gen_slbia(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(ctx->pr)) {
+    if (unlikely(ctx->pr || !ctx->hv)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -9913,8 +9961,10 @@ GEN_HANDLER2(slbmfee, "slbmfee", 0x1F, 0x13, 0x1C, 0x001F0001, PPC_SEGMENT_64B),
 GEN_HANDLER2(slbmfev, "slbmfev", 0x1F, 0x13, 0x1A, 0x001F0001, PPC_SEGMENT_64B),
 #endif
 GEN_HANDLER(tlbia, 0x1F, 0x12, 0x0B, 0x03FFFC01, PPC_MEM_TLBIA),
-GEN_HANDLER(tlbiel, 0x1F, 0x12, 0x08, 0x03FF0001, PPC_MEM_TLBIE),
-GEN_HANDLER(tlbie, 0x1F, 0x12, 0x09, 0x03FF0001, PPC_MEM_TLBIE),
+/* XXX Those instructions will need to be handled differently for
+ * different ISA versions */
+GEN_HANDLER(tlbiel, 0x1F, 0x12, 0x08, 0x001F0001, PPC_MEM_TLBIE),
+GEN_HANDLER(tlbie, 0x1F, 0x12, 0x09, 0x001F0001, PPC_MEM_TLBIE),
 GEN_HANDLER(tlbsync, 0x1F, 0x16, 0x11, 0x03FFF801, PPC_MEM_TLBSYNC),
 #if defined(TARGET_PPC64)
 GEN_HANDLER(slbia, 0x1F, 0x12, 0x0F, 0x03FFFC01, PPC_SLBI),
@@ -11220,8 +11270,9 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
                 env->nip, env->lr, env->ctr, cpu_read_xer(env),
                 cs->cpu_index);
     cpu_fprintf(f, "MSR " TARGET_FMT_lx " HID0 " TARGET_FMT_lx "  HF "
-                TARGET_FMT_lx " idx %d\n", env->msr, env->spr[SPR_HID0],
-                env->hflags, env->mmu_idx);
+                TARGET_FMT_lx " iidx %d didx %d\n",
+                env->msr, env->spr[SPR_HID0],
+                env->hflags, env->immu_idx, env->dmmu_idx);
 #if !defined(NO_TIMER_DUMP)
     cpu_fprintf(f, "TB %08" PRIu32 " %08" PRIu64
 #if !defined(CONFIG_USER_ONLY)
@@ -11428,7 +11479,7 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
     ctx.spr_cb = env->spr_cb;
     ctx.pr = msr_pr;
     ctx.hv = !msr_pr && msr_hv;
-    ctx.mem_idx = env->mmu_idx;
+    ctx.mem_idx = env->dmmu_idx;
     ctx.insns_flags = env->insns_flags;
     ctx.insns_flags2 = env->insns_flags2;
     ctx.access_type = -1;

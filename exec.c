@@ -57,6 +57,8 @@
 #include "exec/ram_addr.h"
 #include "exec/log.h"
 
+#include "migration/vmstate.h"
+
 #include "qemu/range.h"
 #ifndef _WIN32
 #include "qemu/mmap-alloc.h"
@@ -612,15 +614,9 @@ static int cpu_get_free_index(Error **errp)
     return cpu;
 }
 
-void cpu_exec_exit(CPUState *cpu)
+static void cpu_release_index(CPUState *cpu)
 {
-    if (cpu->cpu_index == -1) {
-        /* cpu_index was never allocated by this @cpu or was already freed. */
-        return;
-    }
-
     bitmap_clear(cpu_index_map, cpu->cpu_index, 1);
-    cpu->cpu_index = -1;
 }
 #else
 
@@ -635,10 +631,41 @@ static int cpu_get_free_index(Error **errp)
     return cpu_index;
 }
 
-void cpu_exec_exit(CPUState *cpu)
+static void cpu_release_index(CPUState *cpu)
 {
+    return;
 }
 #endif
+
+void cpu_exec_exit(CPUState *cpu)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+#if defined(CONFIG_USER_ONLY)
+    cpu_list_lock();
+#endif
+    if (cpu->cpu_index == -1) {
+        /* cpu_index was never allocated by this @cpu or was already freed. */
+#if defined(CONFIG_USER_ONLY)
+        cpu_list_unlock();
+#endif
+        return;
+    }
+
+    QTAILQ_REMOVE(&cpus, cpu, node);
+    cpu_release_index(cpu);
+    cpu->cpu_index = -1;
+#if defined(CONFIG_USER_ONLY)
+    cpu_list_unlock();
+#endif
+
+    if (cc->vmsd != NULL) {
+        vmstate_unregister(NULL, cc->vmsd, cpu);
+    }
+    if (qdev_get_vmsd(DEVICE(cpu)) == NULL) {
+        vmstate_unregister(NULL, &vmstate_cpu_common, cpu);
+    }
+}
 
 void cpu_exec_init(CPUState *cpu, Error **errp)
 {

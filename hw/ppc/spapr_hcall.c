@@ -186,6 +186,7 @@ static RemoveResult remove_hpte(PowerPCCPU *cpu, target_ulong ptex,
 static target_ulong h_remove(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                              target_ulong opcode, target_ulong *args)
 {
+    CPUPPCState *env = &cpu->env;
     target_ulong flags = args[0];
     target_ulong pte_index = args[1];
     target_ulong avpn = args[2];
@@ -196,6 +197,7 @@ static target_ulong h_remove(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     switch (ret) {
     case REMOVE_SUCCESS:
+        check_tlb_flush(env);
         return H_SUCCESS;
 
     case REMOVE_NOT_FOUND:
@@ -232,7 +234,9 @@ static target_ulong h_remove(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 static target_ulong h_bulk_remove(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                   target_ulong opcode, target_ulong *args)
 {
+    CPUPPCState *env = &cpu->env;
     int i;
+    target_ulong rc = H_SUCCESS;
 
     for (i = 0; i < H_BULK_REMOVE_MAX_BATCH; i++) {
         target_ulong *tsh = &args[i*2];
@@ -265,14 +269,18 @@ static target_ulong h_bulk_remove(PowerPCCPU *cpu, sPAPRMachineState *spapr,
             break;
 
         case REMOVE_PARM:
-            return H_PARAMETER;
+            rc = H_PARAMETER;
+            goto exit;
 
         case REMOVE_HW:
-            return H_HARDWARE;
+            rc = H_HARDWARE;
+            goto exit;
         }
     }
+ exit:
+    check_tlb_flush(env);
 
-    return H_SUCCESS;
+    return rc;
 }
 
 static target_ulong h_protect(PowerPCCPU *cpu, sPAPRMachineState *spapr,
