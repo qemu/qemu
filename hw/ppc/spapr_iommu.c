@@ -17,6 +17,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/hw.h"
 #include "qemu/log.h"
 #include "sysemu/kvm.h"
@@ -175,15 +176,9 @@ static int spapr_tce_table_realize(DeviceState *dev)
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
 
     tcet->fd = -1;
-    tcet->table = spapr_tce_alloc_table(tcet->liobn,
-                                        tcet->page_shift,
-                                        tcet->nb_table,
-                                        &tcet->fd,
-                                        tcet->need_vfio);
-
+    tcet->need_vfio = false;
     memory_region_init_iommu(&tcet->iommu, OBJECT(dev), &spapr_iommu_ops,
-                             "iommu-spapr",
-                             (uint64_t)tcet->nb_table << tcet->page_shift);
+                             "iommu-spapr", 0);
 
     QLIST_INSERT_HEAD(&spapr_tce_tables, tcet, list);
 
@@ -225,14 +220,10 @@ void spapr_tce_set_need_vfio(sPAPRTCETable *tcet, bool need_vfio)
     tcet->table = newtable;
 }
 
-sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
-                                   uint64_t bus_offset,
-                                   uint32_t page_shift,
-                                   uint32_t nb_table,
-                                   bool need_vfio)
+sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn)
 {
     sPAPRTCETable *tcet;
-    char tmp[64];
+    char tmp[32];
 
     if (spapr_tce_find_by_liobn(liobn)) {
         fprintf(stderr, "Attempted to create TCE table with duplicate"
@@ -240,16 +231,8 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
         return NULL;
     }
 
-    if (!nb_table) {
-        return NULL;
-    }
-
     tcet = SPAPR_TCE_TABLE(object_new(TYPE_SPAPR_TCE_TABLE));
     tcet->liobn = liobn;
-    tcet->bus_offset = bus_offset;
-    tcet->page_shift = page_shift;
-    tcet->nb_table = nb_table;
-    tcet->need_vfio = need_vfio;
 
     snprintf(tmp, sizeof(tmp), "tce-table-%x", liobn);
     object_property_add_child(OBJECT(owner), tmp, OBJECT(tcet), NULL);
@@ -259,14 +242,51 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
     return tcet;
 }
 
+void spapr_tce_table_enable(sPAPRTCETable *tcet,
+                            uint32_t page_shift, uint64_t bus_offset,
+                            uint32_t nb_table)
+{
+    if (tcet->nb_table) {
+        error_report("Warning: trying to enable already enabled TCE table");
+        return;
+    }
+
+    tcet->bus_offset = bus_offset;
+    tcet->page_shift = page_shift;
+    tcet->nb_table = nb_table;
+    tcet->table = spapr_tce_alloc_table(tcet->liobn,
+                                        tcet->page_shift,
+                                        tcet->nb_table,
+                                        &tcet->fd,
+                                        tcet->need_vfio);
+
+    memory_region_set_size(&tcet->iommu,
+                           (uint64_t)tcet->nb_table << tcet->page_shift);
+}
+
+static void spapr_tce_table_disable(sPAPRTCETable *tcet)
+{
+    if (!tcet->nb_table) {
+        return;
+    }
+
+    memory_region_set_size(&tcet->iommu, 0);
+
+    spapr_tce_free_table(tcet->table, tcet->fd, tcet->nb_table);
+    tcet->fd = -1;
+    tcet->table = NULL;
+    tcet->bus_offset = 0;
+    tcet->page_shift = 0;
+    tcet->nb_table = 0;
+}
+
 static void spapr_tce_table_unrealize(DeviceState *dev, Error **errp)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
 
     QLIST_REMOVE(tcet, list);
 
-    spapr_tce_free_table(tcet->table, tcet->fd, tcet->nb_table);
-    tcet->fd = -1;
+    spapr_tce_table_disable(tcet);
 }
 
 MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet)

@@ -483,11 +483,9 @@ static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
         memory_region_add_subregion_overlap(&dev->mrroot, 0, &dev->mrbypass, 1);
         address_space_init(&dev->as, &dev->mrroot, qdev->id);
 
-        dev->tcet = spapr_tce_new_table(qdev, liobn,
-                                        0,
-                                        SPAPR_TCE_PAGE_SHIFT,
-                                        pc->rtce_window_size >>
-                                        SPAPR_TCE_PAGE_SHIFT, false);
+        dev->tcet = spapr_tce_new_table(qdev, liobn);
+        spapr_tce_table_enable(dev->tcet, SPAPR_TCE_PAGE_SHIFT, 0,
+                               pc->rtce_window_size >> SPAPR_TCE_PAGE_SHIFT);
         dev->tcet->vdev = dev;
         memory_region_add_subregion_overlap(&dev->mrroot, 0,
                                             spapr_tce_get_iommu(dev->tcet), 2);
