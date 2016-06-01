@@ -84,6 +84,18 @@ static void virtio_setup(void)
             debug_print_int("ssid ", blk_schid.ssid);
             found = find_dev(&schib, dev_no);
             break;
+        case S390_IPL_TYPE_QEMU_SCSI:
+        {
+            VDev *vdev = virtio_get_device();
+
+            vdev->scsi_device_selected = true;
+            vdev->selected_scsi_device.channel = iplb.scsi.channel;
+            vdev->selected_scsi_device.target = iplb.scsi.target;
+            vdev->selected_scsi_device.lun = iplb.scsi.lun;
+            blk_schid.ssid = iplb.scsi.ssid & 0x3;
+            found = find_dev(&schib, iplb.scsi.devno);
+            break;
+        }
         default:
             panic("List-directed IPL not supported yet!\n");
         }
