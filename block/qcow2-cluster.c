@@ -390,22 +390,18 @@ int qcow2_encrypt_sectors(BDRVQcow2State *s, int64_t sector_num,
     return 0;
 }
 
-static int coroutine_fn copy_sectors(BlockDriverState *bs,
-                                     uint64_t start_sect,
-                                     uint64_t cluster_offset,
-                                     int n_start, int n_end)
+static int coroutine_fn do_perform_cow(BlockDriverState *bs,
+                                       uint64_t src_cluster_offset,
+                                       uint64_t cluster_offset,
+                                       int offset_in_cluster,
+                                       int bytes)
 {
     BDRVQcow2State *s = bs->opaque;
     QEMUIOVector qiov;
     struct iovec iov;
-    int n, ret;
+    int ret;
 
-    n = n_end - n_start;
-    if (n <= 0) {
-        return 0;
-    }
-
-    iov.iov_len = n * BDRV_SECTOR_SIZE;
+    iov.iov_len = bytes;
     iov.iov_base = qemu_try_blockalign(bs, iov.iov_len);
     if (iov.iov_base == NULL) {
         return -ENOMEM;
@@ -424,18 +420,21 @@ static int coroutine_fn copy_sectors(BlockDriverState *bs,
      * interface.  This avoids double I/O throttling and request tracking,
      * which can lead to deadlock when block layer copy-on-read is enabled.
      */
-    ret = bs->drv->bdrv_co_preadv(bs, (start_sect + n_start) * BDRV_SECTOR_SIZE,
-                                  n * BDRV_SECTOR_SIZE, &qiov, 0);
+    ret = bs->drv->bdrv_co_preadv(bs, src_cluster_offset + offset_in_cluster,
+                                  bytes, &qiov, 0);
     if (ret < 0) {
         goto out;
     }
 
     if (bs->encrypted) {
         Error *err = NULL;
+        int64_t sector = (cluster_offset + offset_in_cluster)
+                         >> BDRV_SECTOR_BITS;
         assert(s->cipher);
-        if (qcow2_encrypt_sectors(s, start_sect + n_start,
-                                  iov.iov_base, iov.iov_base, n,
-                                  true, &err) < 0) {
+        assert((offset_in_cluster & ~BDRV_SECTOR_MASK) == 0);
+        assert((bytes & ~BDRV_SECTOR_MASK) == 0);
+        if (qcow2_encrypt_sectors(s, sector, iov.iov_base, iov.iov_base,
+                                  bytes >> BDRV_SECTOR_BITS, true, &err) < 0) {
             ret = -EIO;
             error_free(err);
             goto out;
@@ -443,14 +442,14 @@ static int coroutine_fn copy_sectors(BlockDriverState *bs,
     }
 
     ret = qcow2_pre_write_overlap_check(bs, 0,
-            cluster_offset + n_start * BDRV_SECTOR_SIZE, n * BDRV_SECTOR_SIZE);
+            cluster_offset + offset_in_cluster, bytes);
     if (ret < 0) {
         goto out;
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_COW_WRITE);
-    ret = bdrv_co_writev(bs->file->bs, (cluster_offset >> 9) + n_start, n,
-                         &qiov);
+    ret = bdrv_co_pwritev(bs->file->bs, cluster_offset + offset_in_cluster,
+                          bytes, &qiov, 0);
     if (ret < 0) {
         goto out;
     }
@@ -745,9 +744,8 @@ static int perform_cow(BlockDriverState *bs, QCowL2Meta *m, Qcow2COWRegion *r)
     }
 
     qemu_co_mutex_unlock(&s->lock);
-    ret = copy_sectors(bs, m->offset / BDRV_SECTOR_SIZE, m->alloc_offset,
-                       r->offset / BDRV_SECTOR_SIZE,
-                       r->offset / BDRV_SECTOR_SIZE + r->nb_sectors);
+    ret = do_perform_cow(bs, m->offset, m->alloc_offset,
+                         r->offset, r->nb_sectors * BDRV_SECTOR_SIZE);
     qemu_co_mutex_lock(&s->lock);
 
     if (ret < 0) {
@@ -809,13 +807,14 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     assert(l2_index + m->nb_clusters <= s->l2_size);
     for (i = 0; i < m->nb_clusters; i++) {
         /* if two concurrent writes happen to the same unallocated cluster
-	 * each write allocates separate cluster and writes data concurrently.
-	 * The first one to complete updates l2 table with pointer to its
-	 * cluster the second one has to do RMW (which is done above by
-	 * copy_sectors()), update l2 table with its cluster pointer and free
-	 * old cluster. This is what this loop does */
-        if(l2_table[l2_index + i] != 0)
+         * each write allocates separate cluster and writes data concurrently.
+         * The first one to complete updates l2 table with pointer to its
+         * cluster the second one has to do RMW (which is done above by
+         * perform_cow()), update l2 table with its cluster pointer and free
+         * old cluster. This is what this loop does */
+        if (l2_table[l2_index + i] != 0) {
             old_cluster[j++] = l2_table[l2_index + i];
+        }
 
         l2_table[l2_index + i] = cpu_to_be64((cluster_offset +
                     (i << s->cluster_bits)) | QCOW_OFLAG_COPIED);
