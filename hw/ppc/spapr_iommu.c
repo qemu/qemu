@@ -233,11 +233,16 @@ static MemoryRegionIOMMUOps spapr_iommu_ops = {
 static int spapr_tce_table_realize(DeviceState *dev)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
+    Object *tcetobj = OBJECT(tcet);
+    char tmp[32];
 
     tcet->fd = -1;
     tcet->need_vfio = false;
-    memory_region_init_iommu(&tcet->iommu, OBJECT(dev), &spapr_iommu_ops,
-                             "iommu-spapr", 0);
+    snprintf(tmp, sizeof(tmp), "tce-root-%x", tcet->liobn);
+    memory_region_init(&tcet->root, tcetobj, tmp, UINT64_MAX);
+
+    snprintf(tmp, sizeof(tmp), "tce-iommu-%x", tcet->liobn);
+    memory_region_init_iommu(&tcet->iommu, tcetobj, &spapr_iommu_ops, tmp, 0);
 
     QLIST_INSERT_HEAD(&spapr_tce_tables, tcet, list);
 
@@ -321,6 +326,7 @@ void spapr_tce_table_enable(sPAPRTCETable *tcet,
 
     memory_region_set_size(&tcet->iommu,
                            (uint64_t)tcet->nb_table << tcet->page_shift);
+    memory_region_add_subregion(&tcet->root, tcet->bus_offset, &tcet->iommu);
 }
 
 void spapr_tce_table_disable(sPAPRTCETable *tcet)
@@ -329,6 +335,7 @@ void spapr_tce_table_disable(sPAPRTCETable *tcet)
         return;
     }
 
+    memory_region_del_subregion(&tcet->root, &tcet->iommu);
     memory_region_set_size(&tcet->iommu, 0);
 
     spapr_tce_free_table(tcet->table, tcet->fd, tcet->nb_table);
@@ -350,7 +357,7 @@ static void spapr_tce_table_unrealize(DeviceState *dev, Error **errp)
 
 MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet)
 {
-    return &tcet->iommu;
+    return &tcet->root;
 }
 
 static void spapr_tce_reset(DeviceState *dev)
