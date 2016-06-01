@@ -131,7 +131,8 @@ static int coroutine_fn raw_co_write_zeroes(BlockDriverState *bs,
                                             int64_t sector_num, int nb_sectors,
                                             BdrvRequestFlags flags)
 {
-    return bdrv_co_write_zeroes(bs->file->bs, sector_num, nb_sectors, flags);
+    return bdrv_co_pwrite_zeroes(bs->file->bs, sector_num << BDRV_SECTOR_BITS,
+                                 nb_sectors << BDRV_SECTOR_BITS, flags);
 }
 
 static int coroutine_fn raw_co_discard(BlockDriverState *bs,

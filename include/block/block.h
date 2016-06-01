@@ -33,7 +33,7 @@ typedef struct BlockDriverInfo {
      * True if the driver can optimize writing zeroes by unmapping
      * sectors. This is equivalent to the BLKDISCARDZEROES ioctl in Linux
      * with the difference that in qemu a discard is allowed to silently
-     * fail. Therefore we have to use bdrv_write_zeroes with the
+     * fail. Therefore we have to use bdrv_pwrite_zeroes with the
      * BDRV_REQ_MAY_UNMAP flag for an optimized zero write with unmapping.
      * After this call the driver has to guarantee that the contents read
      * back as zero. It is additionally required that the block device is
@@ -227,8 +227,8 @@ int bdrv_read(BlockDriverState *bs, int64_t sector_num,
               uint8_t *buf, int nb_sectors);
 int bdrv_write(BlockDriverState *bs, int64_t sector_num,
                const uint8_t *buf, int nb_sectors);
-int bdrv_write_zeroes(BlockDriverState *bs, int64_t sector_num,
-               int nb_sectors, BdrvRequestFlags flags);
+int bdrv_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
+                       int count, BdrvRequestFlags flags);
 int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags);
 int bdrv_pread(BlockDriverState *bs, int64_t offset,
                void *buf, int count);
@@ -247,8 +247,8 @@ int coroutine_fn bdrv_co_writev(BlockDriverState *bs, int64_t sector_num,
  * function is not suitable for zeroing the entire image in a single request
  * because it may allocate memory for the entire region.
  */
-int coroutine_fn bdrv_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
-    int nb_sectors, BdrvRequestFlags flags);
+int coroutine_fn bdrv_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
+    int count, BdrvRequestFlags flags);
 BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
     const char *backing_file);
 int bdrv_get_backing_file_depth(BlockDriverState *bs);

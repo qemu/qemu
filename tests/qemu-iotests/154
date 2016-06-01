@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# qcow2 specific bdrv_write_zeroes tests with backing files (complements 034)
+# qcow2 specific bdrv_pwrite_zeroes tests with backing files (complements 034)
 #
 # Copyright (C) 2016 Red Hat, Inc.
 #

@@ -883,8 +883,9 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
             }
 
             if (flags & BLK_MIG_FLAG_ZERO_BLOCK) {
-                ret = bdrv_write_zeroes(bs, addr, nr_sectors,
-                                        BDRV_REQ_MAY_UNMAP);
+                ret = bdrv_pwrite_zeroes(bs, addr << BDRV_SECTOR_BITS,
+                                         nr_sectors << BDRV_SECTOR_BITS,
+                                         BDRV_REQ_MAY_UNMAP);
             } else {
                 buf = g_malloc(BLOCK_SIZE);
                 qemu_get_buffer(f, buf, BLOCK_SIZE);

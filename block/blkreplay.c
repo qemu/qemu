@@ -107,7 +107,9 @@ static int coroutine_fn blkreplay_co_write_zeroes(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, BdrvRequestFlags flags)
 {
     uint64_t reqid = request_id++;
-    int ret = bdrv_co_write_zeroes(bs->file->bs, sector_num, nb_sectors, flags);
+    int ret = bdrv_co_pwrite_zeroes(bs->file->bs,
+                                    sector_num << BDRV_SECTOR_BITS,
+                                    nb_sectors << BDRV_SECTOR_BITS, flags);
     block_request_create(reqid, bs, qemu_coroutine_self());
     qemu_coroutine_yield();
 

@@ -620,18 +620,25 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
     return bdrv_rw_co(bs, sector_num, (uint8_t *)buf, nb_sectors, true, 0);
 }
 
-int bdrv_write_zeroes(BlockDriverState *bs, int64_t sector_num,
-                      int nb_sectors, BdrvRequestFlags flags)
+int bdrv_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
+                       int count, BdrvRequestFlags flags)
 {
-    return bdrv_rw_co(bs, sector_num, NULL, nb_sectors, true,
-                      BDRV_REQ_ZERO_WRITE | flags);
+    QEMUIOVector qiov;
+    struct iovec iov = {
+        .iov_base = NULL,
+        .iov_len = count,
+    };
+
+    qemu_iovec_init_external(&qiov, &iov, 1);
+    return bdrv_prwv_co(bs, offset, &qiov, true,
+                        BDRV_REQ_ZERO_WRITE | flags);
 }
 
 /*
- * Completely zero out a block device with the help of bdrv_write_zeroes.
+ * Completely zero out a block device with the help of bdrv_pwrite_zeroes.
  * The operation is sped up by checking the block status and only writing
  * zeroes to the device if they currently do not return zeroes. Optional
- * flags are passed through to bdrv_write_zeroes (e.g. BDRV_REQ_MAY_UNMAP,
+ * flags are passed through to bdrv_pwrite_zeroes (e.g. BDRV_REQ_MAY_UNMAP,
  * BDRV_REQ_FUA).
  *
  * Returns < 0 on error, 0 on success. For error codes see bdrv_write().
@@ -662,7 +669,8 @@ int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags)
             sector_num += n;
             continue;
         }
-        ret = bdrv_write_zeroes(bs, sector_num, n, flags);
+        ret = bdrv_pwrite_zeroes(bs, sector_num << BDRV_SECTOR_BITS,
+                                 n << BDRV_SECTOR_BITS, flags);
         if (ret < 0) {
             error_report("error writing zeroes at sector %" PRId64 ": %s",
                          sector_num, strerror(-ret));
@@ -1526,18 +1534,18 @@ int coroutine_fn bdrv_co_writev(BlockDriverState *bs, int64_t sector_num,
     return bdrv_co_do_writev(bs, sector_num, nb_sectors, qiov, 0);
 }
 
-int coroutine_fn bdrv_co_write_zeroes(BlockDriverState *bs,
-                                      int64_t sector_num, int nb_sectors,
-                                      BdrvRequestFlags flags)
+int coroutine_fn bdrv_co_pwrite_zeroes(BlockDriverState *bs,
+                                       int64_t offset, int count,
+                                       BdrvRequestFlags flags)
 {
-    trace_bdrv_co_write_zeroes(bs, sector_num, nb_sectors, flags);
+    trace_bdrv_co_pwrite_zeroes(bs, offset, count, flags);
 
     if (!(bs->open_flags & BDRV_O_UNMAP)) {
         flags &= ~BDRV_REQ_MAY_UNMAP;
     }
 
-    return bdrv_co_do_writev(bs, sector_num, nb_sectors, NULL,
-                             BDRV_REQ_ZERO_WRITE | flags);
+    return bdrv_co_pwritev(bs, offset, count, NULL,
+                           BDRV_REQ_ZERO_WRITE | flags);
 }
 
 typedef struct BdrvCoGetBlockStatusData {
