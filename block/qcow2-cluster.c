@@ -1265,7 +1265,8 @@ fail:
  * Return 0 on success and -errno in error cases
  */
 int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
-    int *num, uint64_t *host_offset, QCowL2Meta **m)
+                               unsigned int *bytes, uint64_t *host_offset,
+                               QCowL2Meta **m)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t start, remaining;
@@ -1273,13 +1274,11 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
     uint64_t cur_bytes;
     int ret;
 
-    trace_qcow2_alloc_clusters_offset(qemu_coroutine_self(), offset, *num);
-
-    assert((offset & ~BDRV_SECTOR_MASK) == 0);
+    trace_qcow2_alloc_clusters_offset(qemu_coroutine_self(), offset, *bytes);
 
 again:
     start = offset;
-    remaining = (uint64_t)*num << BDRV_SECTOR_BITS;
+    remaining = *bytes;
     cluster_offset = 0;
     *host_offset = 0;
     cur_bytes = 0;
@@ -1365,8 +1364,8 @@ again:
         }
     }
 
-    *num -= remaining >> BDRV_SECTOR_BITS;
-    assert(*num > 0);
+    *bytes -= remaining;
+    assert(*bytes > 0);
     assert(*host_offset != 0);
 
     return 0;
