@@ -938,7 +938,6 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
     }
 
     bs->request_alignment = drv->bdrv_co_preadv ? 1 : 512;
-    bs->zero_beyond_eof = true;
     bs->read_only = !(bs->open_flags & BDRV_O_RDWR);
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv, bs->read_only)) {
@@ -2192,7 +2191,6 @@ static void bdrv_close(BlockDriverState *bs)
         bs->encrypted = 0;
         bs->valid_key = 0;
         bs->sg = 0;
-        bs->zero_beyond_eof = false;
         QDECREF(bs->options);
         QDECREF(bs->explicit_options);
         bs->options = NULL;

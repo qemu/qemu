@@ -967,6 +967,7 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
     BdrvTrackedRequest *req, int64_t offset, unsigned int bytes,
     int64_t align, QEMUIOVector *qiov, int flags)
 {
+    int64_t total_bytes, max_bytes;
     int ret;
 
     assert(is_power_of_2(align));
@@ -1008,40 +1009,33 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
     }
 
     /* Forward the request to the BlockDriver */
-    if (!bs->zero_beyond_eof) {
+    total_bytes = bdrv_getlength(bs);
+    if (total_bytes < 0) {
+        ret = total_bytes;
+        goto out;
+    }
+
+    max_bytes = ROUND_UP(MAX(0, total_bytes - offset), align);
+    if (bytes < max_bytes) {
         ret = bdrv_driver_preadv(bs, offset, bytes, qiov, 0);
+    } else if (max_bytes > 0) {
+        QEMUIOVector local_qiov;
+
+        qemu_iovec_init(&local_qiov, qiov->niov);
+        qemu_iovec_concat(&local_qiov, qiov, 0, max_bytes);
+
+        ret = bdrv_driver_preadv(bs, offset, max_bytes, &local_qiov, 0);
+
+        qemu_iovec_destroy(&local_qiov);
     } else {
-        /* Read zeros after EOF */
-        int64_t total_bytes, max_bytes;
+        ret = 0;
+    }
 
-        total_bytes = bdrv_getlength(bs);
-        if (total_bytes < 0) {
-            ret = total_bytes;
-            goto out;
-        }
-
-        max_bytes = ROUND_UP(MAX(0, total_bytes - offset), align);
-        if (bytes < max_bytes) {
-            ret = bdrv_driver_preadv(bs, offset, bytes, qiov, 0);
-        } else if (max_bytes > 0) {
-            QEMUIOVector local_qiov;
-
-            qemu_iovec_init(&local_qiov, qiov->niov);
-            qemu_iovec_concat(&local_qiov, qiov, 0, max_bytes);
-
-            ret = bdrv_driver_preadv(bs, offset, max_bytes, &local_qiov, 0);
-
-            qemu_iovec_destroy(&local_qiov);
-        } else {
-            ret = 0;
-        }
-
-        /* Reading beyond end of file is supposed to produce zeroes */
-        if (ret == 0 && total_bytes < offset + bytes) {
-            uint64_t zero_offset = MAX(0, total_bytes - offset);
-            uint64_t zero_bytes = offset + bytes - zero_offset;
-            qemu_iovec_memset(qiov, zero_offset, 0, zero_bytes);
-        }
+    /* Reading beyond end of file is supposed to produce zeroes */
+    if (ret == 0 && total_bytes < offset + bytes) {
+        uint64_t zero_offset = MAX(0, total_bytes - offset);
+        uint64_t zero_bytes = offset + bytes - zero_offset;
+        qemu_iovec_memset(qiov, zero_offset, 0, zero_bytes);
     }
 
 out:

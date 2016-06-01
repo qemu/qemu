@@ -451,9 +451,6 @@ struct BlockDriverState {
     /* I/O Limits */
     BlockLimits bl;
 
-    /* Whether produces zeros when read beyond eof */
-    bool zero_beyond_eof;
-
     /* Alignment requirement for offset/length of I/O requests */
     unsigned int request_alignment;
     /* Flags honored during pwrite (so far: BDRV_REQ_FUA) */
