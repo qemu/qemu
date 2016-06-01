@@ -18,6 +18,7 @@
 #ifndef NET_TX_PKT_H
 #define NET_TX_PKT_H
 
+#include "qemu/osdep.h"
 #include "net/eth.h"
 #include "exec/hwaddr.h"
 
@@ -64,13 +65,29 @@ void net_tx_pkt_build_vheader(struct NetTxPkt *pkt, bool tso_enable,
     bool csum_enable, uint32_t gso_size);
 
 /**
- * updates vlan tag, and adds vlan header in case it is missing
- *
- * @pkt:            packet
- * @vlan:           VLAN tag
- *
- */
-void net_tx_pkt_setup_vlan_header(struct NetTxPkt *pkt, uint16_t vlan);
+* updates vlan tag, and adds vlan header with custom ethernet type
+* in case it is missing.
+*
+* @pkt:            packet
+* @vlan:           VLAN tag
+* @vlan_ethtype:   VLAN header Ethernet type
+*
+*/
+void net_tx_pkt_setup_vlan_header_ex(struct NetTxPkt *pkt,
+    uint16_t vlan, uint16_t vlan_ethtype);
+
+/**
+* updates vlan tag, and adds vlan header in case it is missing
+*
+* @pkt:            packet
+* @vlan:           VLAN tag
+*
+*/
+static inline void
+net_tx_pkt_setup_vlan_header(struct NetTxPkt *pkt, uint16_t vlan)
+{
+    net_tx_pkt_setup_vlan_header_ex(pkt, vlan, ETH_P_VLAN);
+}
 
 /**
  * populate data fragment into pkt context.
@@ -84,12 +101,20 @@ bool net_tx_pkt_add_raw_fragment(struct NetTxPkt *pkt, hwaddr pa,
     size_t len);
 
 /**
- * fix ip header fields and calculate checksums needed.
+ * Fix ip header fields and calculate IP header and pseudo header checksums.
  *
  * @pkt:            packet
  *
  */
 void net_tx_pkt_update_ip_checksums(struct NetTxPkt *pkt);
+
+/**
+ * Calculate the IP header checksum.
+ *
+ * @pkt:            packet
+ *
+ */
+void net_tx_pkt_update_ip_hdr_checksum(struct NetTxPkt *pkt);
 
 /**
  * get length of all populated data.
@@ -136,11 +161,30 @@ void net_tx_pkt_reset(struct NetTxPkt *pkt);
 bool net_tx_pkt_send(struct NetTxPkt *pkt, NetClientState *nc);
 
 /**
+* Redirect packet directly to receive path (emulate loopback phy).
+* Handles sw offloads if vhdr is not supported.
+*
+* @pkt:            packet
+* @nc:             NetClientState
+* @ret:            operation result
+*
+*/
+bool net_tx_pkt_send_loopback(struct NetTxPkt *pkt, NetClientState *nc);
+
+/**
  * parse raw packet data and analyze offload requirements.
  *
  * @pkt:            packet
  *
  */
 bool net_tx_pkt_parse(struct NetTxPkt *pkt);
+
+/**
+* indicates if there are data fragments held by this packet object.
+*
+* @pkt:            packet
+*
+*/
+bool net_tx_pkt_has_fragments(struct NetTxPkt *pkt);
 
 #endif

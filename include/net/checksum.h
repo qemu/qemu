@@ -46,10 +46,12 @@ net_raw_checksum(uint8_t *data, int length)
  * @iov_cnt: number of array elements
  * @iov_off: starting iov offset for checksumming
  * @size: length of data to be checksummed
+ * @csum_offset: offset of the checksum chunk
  */
 uint32_t net_checksum_add_iov(const struct iovec *iov,
                               const unsigned int iov_cnt,
-                              uint32_t iov_off, uint32_t size);
+                              uint32_t iov_off, uint32_t size,
+                              uint32_t csum_offset);
 
 typedef struct toeplitz_key_st {
     uint32_t leftmost_32_bits;
