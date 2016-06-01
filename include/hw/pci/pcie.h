@@ -119,6 +119,7 @@ void pcie_add_capability(PCIDevice *dev,
                          uint16_t offset, uint16_t size);
 
 void pcie_ari_init(PCIDevice *dev, uint16_t offset, uint16_t nextfn);
+void pcie_dev_ser_num_init(PCIDevice *dev, uint16_t offset, uint64_t ser_num);
 
 extern const VMStateDescription vmstate_pcie_device;
 
