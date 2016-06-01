@@ -739,13 +739,12 @@ static int perform_cow(BlockDriverState *bs, QCowL2Meta *m, Qcow2COWRegion *r)
     BDRVQcow2State *s = bs->opaque;
     int ret;
 
-    if (r->nb_sectors == 0) {
+    if (r->nb_bytes == 0) {
         return 0;
     }
 
     qemu_co_mutex_unlock(&s->lock);
-    ret = do_perform_cow(bs, m->offset, m->alloc_offset,
-                         r->offset, r->nb_sectors * BDRV_SECTOR_SIZE);
+    ret = do_perform_cow(bs, m->offset, m->alloc_offset, r->offset, r->nb_bytes);
     qemu_co_mutex_lock(&s->lock);
 
     if (ret < 0) {
@@ -1196,25 +1195,20 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
     /*
      * Save info needed for meta data update.
      *
-     * requested_sectors: Number of sectors from the start of the first
+     * requested_bytes: Number of bytes from the start of the first
      * newly allocated cluster to the end of the (possibly shortened
      * before) write request.
      *
-     * avail_sectors: Number of sectors from the start of the first
+     * avail_bytes: Number of bytes from the start of the first
      * newly allocated to the end of the last newly allocated cluster.
      *
-     * nb_sectors: The number of sectors from the start of the first
+     * nb_bytes: The number of bytes from the start of the first
      * newly allocated cluster to the end of the area that the write
      * request actually writes to (excluding COW at the end)
      */
-    int requested_sectors =
-        (*bytes + offset_into_cluster(s, guest_offset))
-        >> BDRV_SECTOR_BITS;
-    int avail_sectors = nb_clusters
-                        << (s->cluster_bits - BDRV_SECTOR_BITS);
-    int alloc_n_start = offset_into_cluster(s, guest_offset)
-                        >> BDRV_SECTOR_BITS;
-    int nb_sectors = MIN(requested_sectors, avail_sectors);
+    uint64_t requested_bytes = *bytes + offset_into_cluster(s, guest_offset);
+    int avail_bytes = MIN(INT_MAX, nb_clusters << s->cluster_bits);
+    int nb_bytes = MIN(requested_bytes, avail_bytes);
     QCowL2Meta *old_m = *m;
 
     *m = g_malloc0(sizeof(**m));
@@ -1225,23 +1219,21 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
         .alloc_offset   = alloc_cluster_offset,
         .offset         = start_of_cluster(s, guest_offset),
         .nb_clusters    = nb_clusters,
-        .nb_available   = nb_sectors,
 
         .cow_start = {
             .offset     = 0,
-            .nb_sectors = alloc_n_start,
+            .nb_bytes   = offset_into_cluster(s, guest_offset),
         },
         .cow_end = {
-            .offset     = nb_sectors * BDRV_SECTOR_SIZE,
-            .nb_sectors = avail_sectors - nb_sectors,
+            .offset     = nb_bytes,
+            .nb_bytes   = avail_bytes - nb_bytes,
         },
     };
     qemu_co_queue_init(&(*m)->dependent_requests);
     QLIST_INSERT_HEAD(&s->cluster_allocs, *m, next_in_flight);
 
     *host_offset = alloc_cluster_offset + offset_into_cluster(s, guest_offset);
-    *bytes = MIN(*bytes, (nb_sectors * BDRV_SECTOR_SIZE)
-                         - offset_into_cluster(s, guest_offset));
+    *bytes = MIN(*bytes, nb_bytes - offset_into_cluster(s, guest_offset));
     assert(*bytes != 0);
 
     return 1;
