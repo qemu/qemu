@@ -142,6 +142,8 @@ gcov-files-virtio-y += $(gcov-files-virtioserial-y)
 
 check-qtest-pci-y += tests/e1000-test$(EXESUF)
 gcov-files-pci-y += hw/net/e1000.c
+check-qtest-pci-y += tests/e1000e-test$(EXESUF)
+gcov-files-pci-y += hw/net/e1000e.c hw/net/e1000e_core.c
 check-qtest-pci-y += tests/rtl8139-test$(EXESUF)
 gcov-files-pci-y += hw/net/rtl8139.c
 check-qtest-pci-y += tests/pcnet-test$(EXESUF)
@@ -550,6 +552,7 @@ tests/i440fx-test$(EXESUF): tests/i440fx-test.o $(libqos-pc-obj-y)
 tests/q35-test$(EXESUF): tests/q35-test.o $(libqos-pc-obj-y)
 tests/fw_cfg-test$(EXESUF): tests/fw_cfg-test.o $(libqos-pc-obj-y)
 tests/e1000-test$(EXESUF): tests/e1000-test.o
+tests/e1000e-test$(EXESUF): tests/e1000e-test.o $(libqos-pc-obj-y)
 tests/rtl8139-test$(EXESUF): tests/rtl8139-test.o $(libqos-pc-obj-y)
 tests/pcnet-test$(EXESUF): tests/pcnet-test.o
 tests/eepro100-test$(EXESUF): tests/eepro100-test.o
