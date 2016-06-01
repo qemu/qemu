@@ -328,11 +328,13 @@ typedef struct BlockLimits {
     /* optimal alignment for discard requests in sectors */
     int64_t discard_alignment;
 
-    /* maximum number of sectors that can zeroized at once */
-    int max_write_zeroes;
+    /* maximum number of bytes that can zeroized at once (since it is
+     * signed, it must be < 2G, if set) */
+    int32_t max_pwrite_zeroes;
 
-    /* optimal alignment for write zeroes requests in sectors */
-    int64_t write_zeroes_alignment;
+    /* optimal alignment for write zeroes requests in bytes, must be
+     * power of 2, and less than max_pwrite_zeroes if that is set */
+    uint32_t pwrite_zeroes_alignment;
 
     /* optimal transfer length in sectors */
     int opt_transfer_length;

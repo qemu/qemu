@@ -1121,15 +1121,19 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
     int head = 0;
     int tail = 0;
 
-    int max_write_zeroes = MIN_NON_ZERO(bs->bl.max_write_zeroes,
-                                        BDRV_REQUEST_MAX_SECTORS);
-    if (bs->bl.write_zeroes_alignment) {
-        assert(is_power_of_2(bs->bl.write_zeroes_alignment));
-        head = sector_num & (bs->bl.write_zeroes_alignment - 1);
-        tail = (sector_num + nb_sectors) & (bs->bl.write_zeroes_alignment - 1);
-        max_write_zeroes &= ~(bs->bl.write_zeroes_alignment - 1);
+    int max_write_zeroes = MIN_NON_ZERO(bs->bl.max_pwrite_zeroes, INT_MAX);
+    int write_zeroes_sector_align =
+        bs->bl.pwrite_zeroes_alignment >> BDRV_SECTOR_BITS;
+
+    max_write_zeroes >>= BDRV_SECTOR_BITS;
+    if (write_zeroes_sector_align) {
+        assert(is_power_of_2(bs->bl.pwrite_zeroes_alignment));
+        head = sector_num & (write_zeroes_sector_align - 1);
+        tail = (sector_num + nb_sectors) & (write_zeroes_sector_align - 1);
+        max_write_zeroes &= ~(write_zeroes_sector_align - 1);
     }
 
+    assert(nb_sectors <= BDRV_REQUEST_MAX_SECTORS);
     while (nb_sectors > 0 && !ret) {
         int num = nb_sectors;
 
@@ -1139,9 +1143,9 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
          */
         if (head) {
             /* Make a small request up to the first aligned sector.  */
-            num = MIN(nb_sectors, bs->bl.write_zeroes_alignment - head);
+            num = MIN(nb_sectors, write_zeroes_sector_align - head);
             head = 0;
-        } else if (tail && num > bs->bl.write_zeroes_alignment) {
+        } else if (tail && num > write_zeroes_sector_align) {
             /* Shorten the request to the last aligned sector.  */
             num -= tail;
         }

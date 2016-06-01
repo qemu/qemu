@@ -997,9 +997,9 @@ static void vmdk_refresh_limits(BlockDriverState *bs, Error **errp)
 
     for (i = 0; i < s->num_extents; i++) {
         if (!s->extents[i].flat) {
-            bs->bl.write_zeroes_alignment =
-                MAX(bs->bl.write_zeroes_alignment,
-                    s->extents[i].cluster_sectors);
+            bs->bl.pwrite_zeroes_alignment =
+                MAX(bs->bl.pwrite_zeroes_alignment,
+                    s->extents[i].cluster_sectors << BDRV_SECTOR_BITS);
         }
     }
 }

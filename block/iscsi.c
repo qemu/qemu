@@ -1715,16 +1715,15 @@ static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
         bs->bl.discard_alignment = iscsilun->block_size >> BDRV_SECTOR_BITS;
     }
 
-    if (iscsilun->bl.max_ws_len < 0xffffffff) {
-        bs->bl.max_write_zeroes =
-            sector_limits_lun2qemu(iscsilun->bl.max_ws_len, iscsilun);
+    if (iscsilun->bl.max_ws_len < 0xffffffff / iscsilun->block_size) {
+        bs->bl.max_pwrite_zeroes =
+            iscsilun->bl.max_ws_len * iscsilun->block_size;
     }
     if (iscsilun->lbp.lbpws) {
-        bs->bl.write_zeroes_alignment =
-            sector_limits_lun2qemu(iscsilun->bl.opt_unmap_gran, iscsilun);
+        bs->bl.pwrite_zeroes_alignment =
+            iscsilun->bl.opt_unmap_gran * iscsilun->block_size;
     } else {
-        bs->bl.write_zeroes_alignment =
-            iscsilun->block_size >> BDRV_SECTOR_BITS;
+        bs->bl.pwrite_zeroes_alignment = iscsilun->block_size;
     }
     bs->bl.opt_transfer_length =
         sector_limits_lun2qemu(iscsilun->bl.opt_xfer_len, iscsilun);
