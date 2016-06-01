@@ -165,6 +165,8 @@ struct BlockDriver {
      */
     int coroutine_fn (*bdrv_co_write_zeroes)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, BdrvRequestFlags flags);
+    int coroutine_fn (*bdrv_co_pwrite_zeroes)(BlockDriverState *bs,
+        int64_t offset, int count, BdrvRequestFlags flags);
     int coroutine_fn (*bdrv_co_discard)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors);
     int64_t coroutine_fn (*bdrv_co_get_block_status)(BlockDriverState *bs,
@@ -456,7 +458,7 @@ struct BlockDriverState {
     unsigned int request_alignment;
     /* Flags honored during pwrite (so far: BDRV_REQ_FUA) */
     unsigned int supported_write_flags;
-    /* Flags honored during write_zeroes (so far: BDRV_REQ_FUA,
+    /* Flags honored during pwrite_zeroes (so far: BDRV_REQ_FUA,
      * BDRV_REQ_MAY_UNMAP) */
     unsigned int supported_zero_flags;
 
