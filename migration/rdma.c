@@ -1511,7 +1511,7 @@ static int qemu_rdma_block_for_wrid(RDMAContext *rdma, int wrid_requested,
 
     while (1) {
         /*
-         * Coroutine doesn't start until process_incoming_migration()
+         * Coroutine doesn't start until migration_fd_process_incoming()
          * so don't yield unless we know we're running inside of a coroutine.
          */
         if (rdma->migration_started_on_destination) {
@@ -3620,7 +3620,7 @@ static void rdma_accept_incoming_migration(void *opaque)
     }
 
     rdma->migration_started_on_destination = 1;
-    process_incoming_migration(f);
+    migration_fd_process_incoming(f);
 }
 
 void rdma_start_incoming_migration(const char *host_port, Error **errp)

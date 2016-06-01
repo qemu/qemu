@@ -72,14 +72,14 @@ static void migration_tls_incoming_handshake(Object *src,
         error_report("%s", error_get_pretty(err));
     } else {
         trace_migration_tls_incoming_handshake_complete();
-        migration_set_incoming_channel(migrate_get_current(), ioc);
+        migration_channel_process_incoming(migrate_get_current(), ioc);
     }
     object_unref(OBJECT(ioc));
 }
 
-void migration_tls_set_incoming_channel(MigrationState *s,
-                                        QIOChannel *ioc,
-                                        Error **errp)
+void migration_tls_channel_process_incoming(MigrationState *s,
+                                            QIOChannel *ioc,
+                                            Error **errp)
 {
     QCryptoTLSCreds *creds;
     QIOChannelTLS *tioc;
@@ -119,16 +119,16 @@ static void migration_tls_outgoing_handshake(Object *src,
         migrate_fd_error(s, err);
     } else {
         trace_migration_tls_outgoing_handshake_complete();
-        migration_set_outgoing_channel(s, ioc, NULL);
+        migration_channel_connect(s, ioc, NULL);
     }
     object_unref(OBJECT(ioc));
 }
 
 
-void migration_tls_set_outgoing_channel(MigrationState *s,
-                                        QIOChannel *ioc,
-                                        const char *hostname,
-                                        Error **errp)
+void migration_tls_channel_connect(MigrationState *s,
+                                   QIOChannel *ioc,
+                                   const char *hostname,
+                                   Error **errp)
 {
     QCryptoTLSCreds *creds;
     QIOChannelTLS *tioc;
