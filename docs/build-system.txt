@@ -438,6 +438,11 @@ top level Makefile, so anything defined in this file will influence the
 entire build system. Care needs to be taken when writing rules for tests
 to ensure they only apply to the unit test execution / build.
 
+- tests/docker/Makefile.include
+
+Rules for Docker tests. Like tests/Makefile, this file is included
+directly by the top level Makefile, anything defined in this file will
+influence the entire build system.
 
 - po/Makefile
 
