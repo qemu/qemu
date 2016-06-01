@@ -1,0 +1,6 @@
+FROM centos:6
+RUN yum install -y \
+    tar git make gcc g++ \
+    zlib-devel glib2-devel SDL-devel pixman-devel \
+    epel-release
+RUN yum install -y libfdt-devel ccache
