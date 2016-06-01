@@ -43,26 +43,15 @@
 /***************************************************************************
  * pci express capability helper functions
  */
-int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
+
+static void
+pcie_cap_v1_fill(uint8_t *exp_cap, uint8_t port, uint8_t type, uint8_t version)
 {
-    int pos;
-    uint8_t *exp_cap;
-
-    assert(pci_is_express(dev));
-
-    pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset,
-                                 PCI_EXP_VER2_SIZEOF);
-    if (pos < 0) {
-        return pos;
-    }
-    dev->exp.exp_cap = pos;
-    exp_cap = dev->config + pos;
-
     /* capability register
-       interrupt message number defaults to 0 */
+    interrupt message number defaults to 0 */
     pci_set_word(exp_cap + PCI_EXP_FLAGS,
                  ((type << PCI_EXP_FLAGS_TYPE_SHIFT) & PCI_EXP_FLAGS_TYPE) |
-                 PCI_EXP_FLAGS_VER2);
+                 version);
 
     /* device capability register
      * table 7-12:
@@ -81,7 +70,27 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
 
     pci_set_word(exp_cap + PCI_EXP_LNKSTA,
                  PCI_EXP_LNK_MLW_1 | PCI_EXP_LNK_LS_25 |PCI_EXP_LNKSTA_DLLLA);
+}
 
+int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
+{
+    /* PCIe cap v2 init */
+    int pos;
+    uint8_t *exp_cap;
+
+    assert(pci_is_express(dev));
+
+    pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset, PCI_EXP_VER2_SIZEOF);
+    if (pos < 0) {
+        return pos;
+    }
+    dev->exp.exp_cap = pos;
+    exp_cap = dev->config + pos;
+
+    /* Filling values common with v1 */
+    pcie_cap_v1_fill(exp_cap, port, type, PCI_EXP_FLAGS_VER2);
+
+    /* Filling v2 specific values */
     pci_set_long(exp_cap + PCI_EXP_DEVCAP2,
                  PCI_EXP_DEVCAP2_EFF | PCI_EXP_DEVCAP2_EETLPP);
 
@@ -89,7 +98,29 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
     return pos;
 }
 
-int pcie_endpoint_cap_init(PCIDevice *dev, uint8_t offset)
+int pcie_cap_v1_init(PCIDevice *dev, uint8_t offset, uint8_t type,
+                     uint8_t port)
+{
+    /* PCIe cap v1 init */
+    int pos;
+    uint8_t *exp_cap;
+
+    assert(pci_is_express(dev));
+
+    pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset, PCI_EXP_VER1_SIZEOF);
+    if (pos < 0) {
+        return pos;
+    }
+    dev->exp.exp_cap = pos;
+    exp_cap = dev->config + pos;
+
+    pcie_cap_v1_fill(exp_cap, port, type, PCI_EXP_FLAGS_VER1);
+
+    return pos;
+}
+
+static int
+pcie_endpoint_cap_common_init(PCIDevice *dev, uint8_t offset, uint8_t cap_size)
 {
     uint8_t type = PCI_EXP_TYPE_ENDPOINT;
 
@@ -102,12 +133,29 @@ int pcie_endpoint_cap_init(PCIDevice *dev, uint8_t offset)
         type = PCI_EXP_TYPE_RC_END;
     }
 
-    return pcie_cap_init(dev, offset, type, 0);
+    return (cap_size == PCI_EXP_VER1_SIZEOF)
+        ? pcie_cap_v1_init(dev, offset, type, 0)
+        : pcie_cap_init(dev, offset, type, 0);
+}
+
+int pcie_endpoint_cap_init(PCIDevice *dev, uint8_t offset)
+{
+    return pcie_endpoint_cap_common_init(dev, offset, PCI_EXP_VER2_SIZEOF);
+}
+
+int pcie_endpoint_cap_v1_init(PCIDevice *dev, uint8_t offset)
+{
+    return pcie_endpoint_cap_common_init(dev, offset, PCI_EXP_VER1_SIZEOF);
 }
 
 void pcie_cap_exit(PCIDevice *dev)
 {
     pci_del_capability(dev, PCI_CAP_ID_EXP, PCI_EXP_VER2_SIZEOF);
+}
+
+void pcie_cap_v1_exit(PCIDevice *dev)
+{
+    pci_del_capability(dev, PCI_CAP_ID_EXP, PCI_EXP_VER1_SIZEOF);
 }
 
 uint8_t pcie_cap_get_type(const PCIDevice *dev)
