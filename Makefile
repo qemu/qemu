@@ -6,7 +6,7 @@ BUILD_DIR=$(CURDIR)
 # Before including a proper config-host.mak, assume we are in the source tree
 SRC_PATH=.
 
-UNCHECKED_GOALS := %clean TAGS cscope ctags
+UNCHECKED_GOALS := %clean TAGS cscope ctags docker docker-%
 
 # All following code might depend on configuration variables
 ifneq ($(wildcard config-host.mak),)
@@ -644,3 +644,5 @@ endif
 # Include automatically generated dependency files
 # Dependencies in Makefile.objs files come from our recursive subdir rules
 -include $(wildcard *.d tests/*.d)
+
+include $(SRC_PATH)/tests/docker/Makefile.include

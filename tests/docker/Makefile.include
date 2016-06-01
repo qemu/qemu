@@ -1,0 +1,123 @@
+# Makefile for Docker tests
+
+.PHONY: docker docker-test docker-clean docker-image docker-qemu-src
+
+DOCKER_SUFFIX := .docker
+DOCKER_FILES_DIR := $(SRC_PATH)/tests/docker/dockerfiles
+DOCKER_IMAGES := $(notdir $(basename $(wildcard $(DOCKER_FILES_DIR)/*.docker)))
+DOCKER_TARGETS := $(patsubst %,docker-image-%,$(DOCKER_IMAGES))
+# Use a global constant ccache directory to speed up repetitive builds
+DOCKER_CCACHE_DIR := $$HOME/.cache/qemu-docker-ccache
+
+DOCKER_TESTS := $(notdir $(shell \
+	find $(SRC_PATH)/tests/docker/ -name 'test-*' -type f))
+
+DOCKER_TOOLS := travis
+
+TESTS ?= %
+IMAGES ?= %
+
+# Make archive from git repo $1 to tar.gz $2
+make-archive-maybe = $(if $(wildcard $1/*), \
+	$(call quiet-command, \
+		(cd $1; if git diff-index --quiet HEAD -- &>/dev/null; then \
+			git archive -1 HEAD --format=tar.gz -o $2; \
+		else \
+			git archive -1 $$(git stash create) --format=tar.gz -o $2; \
+		fi), \
+		"  ARCHIVE $(notdir $2)"))
+
+CUR_TIME := $(shell date +%Y-%m-%d-%H.%M.%S.$$$$)
+# Makes the definition constant after the first expansion
+DOCKER_SRC_COPY = $(eval DOCKER_SRC_COPY := docker-src.$(CUR_TIME))$(DOCKER_SRC_COPY)
+
+$(DOCKER_SRC_COPY):
+	@mkdir $@
+	$(call make-archive-maybe, $(SRC_PATH), $@/qemu.tgz)
+	$(call make-archive-maybe, $(SRC_PATH)/dtc, $@/dtc.tgz)
+	$(call make-archive-maybe, $(SRC_PATH)/pixman, $@/pixman.tgz)
+	$(call quiet-command, cp $(SRC_PATH)/tests/docker/run $@/run, \
+		"  COPY RUNNER")
+
+docker-qemu-src: $(DOCKER_SRC_COPY)
+
+docker-image: ${DOCKER_TARGETS}
+
+# General rule for building docker images
+docker-image-%: $(DOCKER_FILES_DIR)/%.docker
+	$(call quiet-command,\
+		$(SRC_PATH)/tests/docker/docker.py build qemu:$* $< \
+		$(if $V,,--quiet) $(if $(NOCACHE),--no-cache),\
+		"  BUILD $*")
+
+# Expand all the pre-requistes for each docker image and test combination
+$(foreach i,$(DOCKER_IMAGES), \
+	$(foreach t,$(DOCKER_TESTS) $(DOCKER_TOOLS), \
+		$(eval .PHONY: docker-$t@$i) \
+		$(eval docker-$t@$i: docker-image-$i docker-run-$t@$i) \
+	) \
+	$(foreach t,$(DOCKER_TESTS), \
+		$(eval docker-test: docker-$t@$i) \
+	) \
+)
+
+docker:
+	@echo 'Build QEMU and run tests inside Docker containers'
+	@echo
+	@echo 'Available targets:'
+	@echo
+	@echo '    docker:              Print this help.'
+	@echo '    docker-test:         Run all image/test combinations.'
+	@echo '    docker-clean:        Kill and remove residual docker testing containers.'
+	@echo '    docker-TEST@IMAGE:   Run "TEST" in container "IMAGE".'
+	@echo '                         Note: "TEST" is one of the listed test name,'
+	@echo '                         or a script name under $$QEMU_SRC/tests/docker/;'
+	@echo '                         "IMAGE" is one of the listed container name."'
+	@echo '    docker-image:        Build all images.'
+	@echo '    docker-image-IMAGE:  Build image "IMAGE".'
+	@echo
+	@echo 'Available container images:'
+	@echo '    $(DOCKER_IMAGES)'
+	@echo
+	@echo 'Available tests:'
+	@echo '    $(DOCKER_TESTS)'
+	@echo
+	@echo 'Available tools:'
+	@echo '    $(DOCKER_TOOLS)'
+	@echo
+	@echo 'Special variables:'
+	@echo '    TARGET_LIST=a,b,c    Override target list in builds.'
+	@echo '    IMAGES="a b c ..":   Filters which images to build or run.'
+	@echo '    TESTS="x y z .."     Filters which tests to run (for docker-test).'
+	@echo '    J=[0..9]*            Overrides the -jN parameter for make commands'
+	@echo '                         (default is 1)'
+	@echo '    DEBUG=1              Stop and drop to shell in the created container'
+	@echo '                         before running the command.'
+	@echo '    NOCACHE=1            Ignore cache when build images.'
+
+docker-run-%: CMD = $(shell echo '$@' | sed -e 's/docker-run-\([^@]*\)@\(.*\)/\1/')
+docker-run-%: IMAGE = $(shell echo '$@' | sed -e 's/docker-run-\([^@]*\)@\(.*\)/\2/')
+docker-run-%: docker-qemu-src
+	@mkdir -p "$(DOCKER_CCACHE_DIR)"
+	@if test -z "$(IMAGE)" || test -z "$(CMD)"; \
+		then echo "Invalid target"; exit 1; \
+	fi
+	$(if $(filter $(TESTS),$(CMD)),$(if $(filter $(IMAGES),$(IMAGE)), \
+		$(call quiet-command,\
+			$(SRC_PATH)/tests/docker/docker.py run $(if $V,,--rm) \
+				-t \
+				$(if $(DEBUG),-i,--net=none) \
+				-e TARGET_LIST=$(TARGET_LIST) \
+				-e V=$V -e J=$J -e DEBUG=$(DEBUG)\
+				-e CCACHE_DIR=/var/tmp/ccache \
+				-v $$(realpath $(DOCKER_SRC_COPY)):/var/tmp/qemu:z$(COMMA)ro \
+				-v $(DOCKER_CCACHE_DIR):/var/tmp/ccache:z \
+				-w /var/tmp/qemu \
+				qemu:$(IMAGE) \
+				$(if $V,/bin/bash -x ,) \
+				./run \
+				$(CMD); \
+			, "  RUN $(CMD) in $(IMAGE)")))
+
+docker-clean:
+	$(call quiet-command, $(SRC_PATH)/tests/docker/docker.py clean)
