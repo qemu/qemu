@@ -50,7 +50,7 @@ endif
 
 include $(SRC_PATH)/rules.mak
 
-GENERATED_HEADERS = config-host.h qemu-options.def
+GENERATED_HEADERS = qemu-version.h config-host.h qemu-options.def
 GENERATED_HEADERS += qmp-commands.h qapi-types.h qapi-visit.h qapi-event.h
 GENERATED_SOURCES += qmp-marshal.c qapi-types.c qapi-visit.c qapi-event.c
 GENERATED_HEADERS += qmp-introspect.h
@@ -166,6 +166,26 @@ include $(SRC_PATH)/tests/Makefile.include
 endif
 
 all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all modules
+
+qemu-version.h: FORCE
+	$(call quiet-command, \
+		(cd $(SRC_PATH); \
+		printf '#define QEMU_PKGVERSION '; \
+		if test -n "$(PKGVERSION)"; then \
+			printf '"$(PKGVERSION)"\n'; \
+		else \
+			if test -d .git; then \
+				printf '" ('; \
+				git describe --match 'v*' 2>/dev/null | tr -d '\n'; \
+				if ! git diff-index --quiet HEAD &>/dev/null; then \
+					printf -- '-dirty'; \
+				fi; \
+				printf ')"\n'; \
+			else \
+				printf '""\n'; \
+			fi; \
+		fi) > $@.tmp)
+	$(call quiet-command, cmp --quiet $@ $@.tmp || mv $@.tmp $@)
 
 config-host.h: config-host.h-timestamp
 config-host.h-timestamp: config-host.mak

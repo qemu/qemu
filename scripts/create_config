@@ -9,10 +9,6 @@ case $line in
     version=${line#*=}
     echo "#define QEMU_VERSION \"$version\""
     ;;
- PKGVERSION=*) # configuration
-    pkgversion=${line#*=}
-    echo "#define QEMU_PKGVERSION \"$pkgversion\""
-    ;;
  qemu_*dir=*) # qemu-specific directory configuration
     name=${line%=*}
     value=${line#*=}
