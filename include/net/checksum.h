@@ -18,6 +18,7 @@
 #ifndef QEMU_NET_CHECKSUM_H
 #define QEMU_NET_CHECKSUM_H
 
+#include "qemu/bswap.h"
 struct iovec;
 
 uint32_t net_checksum_add_cont(int len, uint8_t *buf, int seq);
@@ -49,5 +50,49 @@ net_raw_checksum(uint8_t *data, int length)
 uint32_t net_checksum_add_iov(const struct iovec *iov,
                               const unsigned int iov_cnt,
                               uint32_t iov_off, uint32_t size);
+
+typedef struct toeplitz_key_st {
+    uint32_t leftmost_32_bits;
+    uint8_t *next_byte;
+} net_toeplitz_key;
+
+static inline
+void net_toeplitz_key_init(net_toeplitz_key *key, uint8_t *key_bytes)
+{
+    key->leftmost_32_bits = be32_to_cpu(*(uint32_t *)key_bytes);
+    key->next_byte = key_bytes + sizeof(uint32_t);
+}
+
+static inline
+void net_toeplitz_add(uint32_t *result,
+                      uint8_t *input,
+                      uint32_t len,
+                      net_toeplitz_key *key)
+{
+    register uint32_t accumulator = *result;
+    register uint32_t leftmost_32_bits = key->leftmost_32_bits;
+    register uint32_t byte;
+
+    for (byte = 0; byte < len; byte++) {
+        register uint8_t input_byte = input[byte];
+        register uint8_t key_byte = *(key->next_byte++);
+        register uint8_t bit;
+
+        for (bit = 0; bit < 8; bit++) {
+            if (input_byte & (1 << 7)) {
+                accumulator ^= leftmost_32_bits;
+            }
+
+            leftmost_32_bits =
+                (leftmost_32_bits << 1) | ((key_byte & (1 << 7)) >> 7);
+
+            input_byte <<= 1;
+            key_byte <<= 1;
+        }
+    }
+
+    key->leftmost_32_bits = leftmost_32_bits;
+    *result = accumulator;
+}
 
 #endif /* QEMU_NET_CHECKSUM_H */
