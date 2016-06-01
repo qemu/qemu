@@ -87,6 +87,8 @@ docker:
 	@echo
 	@echo 'Special variables:'
 	@echo '    TARGET_LIST=a,b,c    Override target list in builds.'
+	@echo '    EXTRA_CONFIGURE_OPTS="..."'
+	@echo '                         Extra configure options.'
 	@echo '    IMAGES="a b c ..":   Filters which images to build or run.'
 	@echo '    TESTS="x y z .."     Filters which tests to run (for docker-test).'
 	@echo '    J=[0..9]*            Overrides the -jN parameter for make commands'
@@ -108,6 +110,7 @@ docker-run-%: docker-qemu-src
 				-t \
 				$(if $(DEBUG),-i,--net=none) \
 				-e TARGET_LIST=$(TARGET_LIST) \
+				-e EXTRA_CONFIGURE_OPTS=$(EXTRA_CONFIGURE_OPTS) \
 				-e V=$V -e J=$J -e DEBUG=$(DEBUG)\
 				-e CCACHE_DIR=/var/tmp/ccache \
 				-v $$(realpath $(DOCKER_SRC_COPY)):/var/tmp/qemu:z$(COMMA)ro \

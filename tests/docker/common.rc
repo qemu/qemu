@@ -26,6 +26,7 @@ build_qemu()
     $QEMU_SRC/configure \
         --target-list="${TARGET_LIST}" \
         --prefix="$PWD/install" \
+        $EXTRA_CONFIGURE_OPTS \
         "$@"
     make $MAKEFLAGS
 }
