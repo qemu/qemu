@@ -1711,6 +1711,8 @@ static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
         }
         bs->bl.discard_alignment =
             sector_limits_lun2qemu(iscsilun->bl.opt_unmap_gran, iscsilun);
+    } else {
+        bs->bl.discard_alignment = iscsilun->block_size >> BDRV_SECTOR_BITS;
     }
 
     if (iscsilun->bl.max_ws_len < 0xffffffff) {
@@ -1720,6 +1722,9 @@ static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
     if (iscsilun->lbp.lbpws) {
         bs->bl.write_zeroes_alignment =
             sector_limits_lun2qemu(iscsilun->bl.opt_unmap_gran, iscsilun);
+    } else {
+        bs->bl.write_zeroes_alignment =
+            iscsilun->block_size >> BDRV_SECTOR_BITS;
     }
     bs->bl.opt_transfer_length =
         sector_limits_lun2qemu(iscsilun->bl.opt_xfer_len, iscsilun);
