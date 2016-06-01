@@ -1,0 +1,26 @@
+#!/bin/bash -e
+#
+# Compile and check with clang.
+#
+# Copyright (c) 2016 Red Hat Inc.
+#
+# Authors:
+#  Fam Zheng <famz@redhat.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2
+# or (at your option) any later version. See the COPYING file in
+# the top-level directory.
+
+. common.rc
+
+requires clang
+
+OPTS="--enable-debug --cxx=clang++ --cc=clang --host-cc=clang"
+# -fsanitize=undefined is broken on Fedora 23, skip it for now
+# See also: https://bugzilla.redhat.com/show_bug.cgi?id=1263834
+#OPTS="$OPTS --extra-cflags=-fsanitize=undefined \
+    #--extra-cflags=-fno-sanitize=float-divide-by-zero"
+DEF_TARGET_LIST="$(echo {x86_64,aarch64}-softmmu)"
+TARGET_LIST=${TARGET_LIST:-$DEF_TARGET_LIST} \
+build_qemu $OPTS
+make $MAKEFLAGS check
