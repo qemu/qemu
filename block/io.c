@@ -901,7 +901,7 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
         goto err;
     }
 
-    if ((drv->bdrv_co_write_zeroes || drv->bdrv_co_pwrite_zeroes) &&
+    if (drv->bdrv_co_pwrite_zeroes &&
         buffer_is_zero(bounce_buffer, iov.iov_len)) {
         ret = bdrv_co_do_pwrite_zeroes(bs,
                                        cluster_sector_num * BDRV_SECTOR_SIZE,
@@ -1170,16 +1170,6 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
                 !(bs->supported_zero_flags & BDRV_REQ_FUA)) {
                 need_flush = true;
             }
-        } else if (drv->bdrv_co_write_zeroes) {
-            assert(offset % BDRV_SECTOR_SIZE == 0);
-            assert(count % BDRV_SECTOR_SIZE == 0);
-            ret = drv->bdrv_co_write_zeroes(bs, offset >> BDRV_SECTOR_BITS,
-                                            num >> BDRV_SECTOR_BITS,
-                                            flags & bs->supported_zero_flags);
-            if (ret != -ENOTSUP && (flags & BDRV_REQ_FUA) &&
-                !(bs->supported_zero_flags & BDRV_REQ_FUA)) {
-                need_flush = true;
-            }
         } else {
             assert(!bs->supported_zero_flags);
         }
@@ -1259,8 +1249,7 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
     ret = notifier_with_return_list_notify(&bs->before_write_notifiers, req);
 
     if (!ret && bs->detect_zeroes != BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF &&
-        !(flags & BDRV_REQ_ZERO_WRITE) &&
-        (drv->bdrv_co_pwrite_zeroes || drv->bdrv_co_write_zeroes) &&
+        !(flags & BDRV_REQ_ZERO_WRITE) && drv->bdrv_co_pwrite_zeroes &&
         qemu_iovec_is_zero(qiov)) {
         flags |= BDRV_REQ_ZERO_WRITE;
         if (bs->detect_zeroes == BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP) {
