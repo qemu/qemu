@@ -9,6 +9,11 @@
 #include "migration/vmstate.h"
 #include "qapi-types.h"
 
+#define MAC_FMT "%02X:%02X:%02X:%02X:%02X:%02X"
+#define MAC_ARG(x) ((uint8_t *)(x))[0], ((uint8_t *)(x))[1], \
+                   ((uint8_t *)(x))[2], ((uint8_t *)(x))[3], \
+                   ((uint8_t *)(x))[4], ((uint8_t *)(x))[5]
+
 #define MAX_QUEUE_NUM 1024
 
 /* Maximum GSO packet size (64k) plus plenty of room for
