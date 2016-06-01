@@ -611,8 +611,8 @@ qcow2_writev_done_req(void *co, int ret) "co %p ret %d"
 qcow2_writev_start_part(void *co) "co %p"
 qcow2_writev_done_part(void *co, int cur_nr_sectors) "co %p cur_nr_sectors %d"
 qcow2_writev_data(void *co, uint64_t offset) "co %p offset %" PRIx64
-qcow2_write_zeroes_start_req(void *co, int64_t sector, int nb_sectors) "co %p sector %" PRIx64 " nb_sectors %d"
-qcow2_write_zeroes(void *co, int64_t sector, int nb_sectors) "co %p sector %" PRIx64 " nb_sectors %d"
+qcow2_pwrite_zeroes_start_req(void *co, int64_t offset, int count) "co %p offset %" PRIx64 " count %d"
+qcow2_pwrite_zeroes(void *co, int64_t offset, int count) "co %p offset %" PRIx64 " count %d"
 
 # block/qcow2-cluster.c
 qcow2_alloc_clusters_offset(void *co, uint64_t offset, int num) "co %p offset %" PRIx64 " num %d"
