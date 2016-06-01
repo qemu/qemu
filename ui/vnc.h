@@ -155,6 +155,7 @@ struct VncDisplay
     DisplayChangeListener dcl;
     kbd_layout_t *kbd_layout;
     int lock_key_sync;
+    int key_delay_ms;
     QemuMutex mutex;
 
     QEMUCursor *cursor;

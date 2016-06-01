@@ -1629,6 +1629,7 @@ static void reset_keys(VncState *vs)
     for(i = 0; i < 256; i++) {
         if (vs->modifiers_state[i]) {
             qemu_input_event_send_key_number(vs->vd->dcl.con, i, false);
+            qemu_input_event_send_key_delay(vs->vd->key_delay_ms);
             vs->modifiers_state[i] = 0;
         }
     }
@@ -1638,9 +1639,9 @@ static void press_key(VncState *vs, int keysym)
 {
     int keycode = keysym2scancode(vs->vd->kbd_layout, keysym) & SCANCODE_KEYMASK;
     qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, true);
-    qemu_input_event_send_key_delay(0);
+    qemu_input_event_send_key_delay(vs->vd->key_delay_ms);
     qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, false);
-    qemu_input_event_send_key_delay(0);
+    qemu_input_event_send_key_delay(vs->vd->key_delay_ms);
 }
 
 static int current_led_state(VncState *vs)
@@ -1792,6 +1793,7 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
 
     if (qemu_console_is_graphic(NULL)) {
         qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, down);
+        qemu_input_event_send_key_delay(vs->vd->key_delay_ms);
     } else {
         bool numlock = vs->modifiers_state[0x45];
         bool control = (vs->modifiers_state[0x1d] ||
@@ -1913,6 +1915,7 @@ static void vnc_release_modifiers(VncState *vs)
             continue;
         }
         qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, false);
+        qemu_input_event_send_key_delay(vs->vd->key_delay_ms);
     }
 }
 
@@ -3278,6 +3281,9 @@ static QemuOptsList qemu_vnc_opts = {
             .name = "lock-key-sync",
             .type = QEMU_OPT_BOOL,
         },{
+            .name = "key-delay-ms",
+            .type = QEMU_OPT_NUMBER,
+        },{
             .name = "sasl",
             .type = QEMU_OPT_BOOL,
         },{
@@ -3515,6 +3521,7 @@ void vnc_display_open(const char *id, Error **errp)
 #endif
     int acl = 0;
     int lock_key_sync = 1;
+    int key_delay_ms;
 
     if (!vs) {
         error_setg(errp, "VNC display not active");
@@ -3633,6 +3640,7 @@ void vnc_display_open(const char *id, Error **errp)
 
     reverse = qemu_opt_get_bool(opts, "reverse", false);
     lock_key_sync = qemu_opt_get_bool(opts, "lock-key-sync", true);
+    key_delay_ms = qemu_opt_get_number(opts, "key-delay-ms", 1);
     sasl = qemu_opt_get_bool(opts, "sasl", false);
 #ifndef CONFIG_VNC_SASL
     if (sasl) {
@@ -3764,6 +3772,7 @@ void vnc_display_open(const char *id, Error **errp)
     }
 #endif
     vs->lock_key_sync = lock_key_sync;
+    vs->key_delay_ms = key_delay_ms;
 
     device_id = qemu_opt_get(opts, "display");
     if (device_id) {
