@@ -1703,15 +1703,13 @@ static int vmdk_write_compressed(BlockDriverState *bs,
     }
 }
 
-static int coroutine_fn vmdk_co_write_zeroes(BlockDriverState *bs,
-                                             int64_t sector_num,
-                                             int nb_sectors,
-                                             BdrvRequestFlags flags)
+static int coroutine_fn vmdk_co_pwrite_zeroes(BlockDriverState *bs,
+                                              int64_t offset,
+                                              int bytes,
+                                              BdrvRequestFlags flags)
 {
     int ret;
     BDRVVmdkState *s = bs->opaque;
-    uint64_t offset = sector_num * BDRV_SECTOR_SIZE;
-    uint64_t bytes = nb_sectors * BDRV_SECTOR_SIZE;
 
     qemu_co_mutex_lock(&s->lock);
     /* write zeroes could fail if sectors not aligned to cluster, test it with
@@ -2402,7 +2400,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_co_preadv               = vmdk_co_preadv,
     .bdrv_co_pwritev              = vmdk_co_pwritev,
     .bdrv_write_compressed        = vmdk_write_compressed,
-    .bdrv_co_write_zeroes         = vmdk_co_write_zeroes,
+    .bdrv_co_pwrite_zeroes        = vmdk_co_pwrite_zeroes,
     .bdrv_close                   = vmdk_close,
     .bdrv_create                  = vmdk_create,
     .bdrv_co_flush_to_disk        = vmdk_co_flush,
