@@ -454,14 +454,12 @@ static void qemu_gluster_reopen_abort(BDRVReopenState *state)
 }
 
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
-static coroutine_fn int qemu_gluster_co_write_zeroes(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, BdrvRequestFlags flags)
+static coroutine_fn int qemu_gluster_co_pwrite_zeroes(BlockDriverState *bs,
+        int64_t offset, int size, BdrvRequestFlags flags)
 {
     int ret;
     GlusterAIOCB acb;
     BDRVGlusterState *s = bs->opaque;
-    off_t size = nb_sectors * BDRV_SECTOR_SIZE;
-    off_t offset = sector_num * BDRV_SECTOR_SIZE;
 
     acb.size = size;
     acb.ret = 0;
@@ -769,7 +767,7 @@ static BlockDriver bdrv_gluster = {
     .bdrv_co_discard              = qemu_gluster_co_discard,
 #endif
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
-    .bdrv_co_write_zeroes         = qemu_gluster_co_write_zeroes,
+    .bdrv_co_pwrite_zeroes        = qemu_gluster_co_pwrite_zeroes,
 #endif
     .create_opts                  = &qemu_gluster_create_opts,
 };
@@ -796,7 +794,7 @@ static BlockDriver bdrv_gluster_tcp = {
     .bdrv_co_discard              = qemu_gluster_co_discard,
 #endif
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
-    .bdrv_co_write_zeroes         = qemu_gluster_co_write_zeroes,
+    .bdrv_co_pwrite_zeroes        = qemu_gluster_co_pwrite_zeroes,
 #endif
     .create_opts                  = &qemu_gluster_create_opts,
 };
@@ -823,7 +821,7 @@ static BlockDriver bdrv_gluster_unix = {
     .bdrv_co_discard              = qemu_gluster_co_discard,
 #endif
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
-    .bdrv_co_write_zeroes         = qemu_gluster_co_write_zeroes,
+    .bdrv_co_pwrite_zeroes        = qemu_gluster_co_pwrite_zeroes,
 #endif
     .create_opts                  = &qemu_gluster_create_opts,
 };
@@ -850,7 +848,7 @@ static BlockDriver bdrv_gluster_rdma = {
     .bdrv_co_discard              = qemu_gluster_co_discard,
 #endif
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
-    .bdrv_co_write_zeroes         = qemu_gluster_co_write_zeroes,
+    .bdrv_co_pwrite_zeroes        = qemu_gluster_co_pwrite_zeroes,
 #endif
     .create_opts                  = &qemu_gluster_create_opts,
 };
