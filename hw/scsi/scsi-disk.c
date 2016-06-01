@@ -2842,6 +2842,7 @@ static const TypeInfo scsi_disk_base_info = {
     .class_init    = scsi_disk_base_class_initfn,
     .instance_size = sizeof(SCSIDiskState),
     .class_size    = sizeof(SCSIDiskClass),
+    .abstract      = true,
 };
 
 #define DEFINE_SCSI_DISK_PROPERTIES()                                \
