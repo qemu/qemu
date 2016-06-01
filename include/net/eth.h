@@ -67,6 +67,14 @@ typedef struct tcp_header {
     uint16_t th_urp;            /* urgent pointer */
 } tcp_header;
 
+#define TCP_FLAGS_ONLY(flags) ((flags) & 0x3f)
+
+#define TCP_HEADER_FLAGS(tcp) \
+    TCP_FLAGS_ONLY(be16_to_cpu((tcp)->th_offset_flags))
+
+#define TCP_HEADER_DATA_OFFSET(tcp) \
+    (((be16_to_cpu((tcp)->th_offset_flags) >> 12) & 0xf) << 2)
+
 typedef struct udp_header {
     uint16_t uh_sport; /* source port */
     uint16_t uh_dport; /* destination port */
