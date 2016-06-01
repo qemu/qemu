@@ -980,6 +980,11 @@ F: hw/acpi/nvdimm.c
 F: hw/mem/nvdimm.c
 F: include/hw/mem/nvdimm.h
 
+e1000x
+M: Dmitry Fleytman <dmitry@daynix.com>
+S: Maintained
+F: hw/net/e1000x*
+
 Subsystems
 ----------
 Audio
