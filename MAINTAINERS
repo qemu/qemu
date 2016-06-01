@@ -985,6 +985,11 @@ M: Dmitry Fleytman <dmitry@daynix.com>
 S: Maintained
 F: hw/net/e1000x*
 
+e1000e
+M: Dmitry Fleytman <dmitry@daynix.com>
+S: Maintained
+F: hw/net/e1000e*
+
 Subsystems
 ----------
 Audio

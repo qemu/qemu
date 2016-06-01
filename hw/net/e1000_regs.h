@@ -417,6 +417,10 @@
 #define E1000_ICR_ASSERTED BIT(31)
 #define E1000_EIAC_MASK    0x01F00000
 
+/* [TR]DBAL and [TR]DLEN masks */
+#define E1000_XDBAL_MASK            (~(BIT(4) - 1))
+#define E1000_XDLEN_MASK            ((BIT(20) - 1) & (~(BIT(7) - 1)))
+
 /* IVAR register parsing helpers */
 #define E1000_IVAR_INT_ALLOC_VALID  (0x8)
 
