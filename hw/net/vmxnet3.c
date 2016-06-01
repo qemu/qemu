@@ -474,7 +474,7 @@ static void vmxnet3_set_variable_mac(VMXNET3State *s, uint32_t h, uint32_t l)
     s->conf.macaddr.a[4] = VMXNET3_GET_BYTE(h, 0);
     s->conf.macaddr.a[5] = VMXNET3_GET_BYTE(h, 1);
 
-    VMW_CFPRN("Variable MAC: " VMXNET_MF, VMXNET_MA(s->conf.macaddr.a));
+    VMW_CFPRN("Variable MAC: " MAC_FMT, MAC_ARG(s->conf.macaddr.a));
 
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 }
@@ -1219,7 +1219,7 @@ static void vmxnet3_reset_interrupt_states(VMXNET3State *s)
 static void vmxnet3_reset_mac(VMXNET3State *s)
 {
     memcpy(&s->conf.macaddr.a, &s->perm_mac.a, sizeof(s->perm_mac.a));
-    VMW_CFPRN("MAC address set to: " VMXNET_MF, VMXNET_MA(s->conf.macaddr.a));
+    VMW_CFPRN("MAC address set to: " MAC_FMT, MAC_ARG(s->conf.macaddr.a));
 }
 
 static void vmxnet3_deactivate_device(VMXNET3State *s)
@@ -1301,7 +1301,7 @@ static void vmxnet3_update_mcast_filters(VMXNET3State *s)
         cpu_physical_memory_read(mcast_list_pa, s->mcast_list, list_bytes);
         VMW_CFPRN("Current multicast list len is %d:", s->mcast_list_len);
         for (i = 0; i < s->mcast_list_len; i++) {
-            VMW_CFPRN("\t" VMXNET_MF, VMXNET_MA(s->mcast_list[i].a));
+            VMW_CFPRN("\t" MAC_FMT, MAC_ARG(s->mcast_list[i].a));
         }
     }
 }
@@ -2102,7 +2102,7 @@ static void vmxnet3_net_init(VMXNET3State *s)
 
     s->link_status_and_speed = VMXNET3_LINK_SPEED | VMXNET3_LINK_STATUS_UP;
 
-    VMW_CFPRN("Permanent MAC: " VMXNET_MF, VMXNET_MA(s->perm_mac.a));
+    VMW_CFPRN("Permanent MAC: " MAC_FMT, MAC_ARG(s->perm_mac.a));
 
     s->nic = qemu_new_nic(&net_vmxnet3_info, &s->conf,
                           object_get_typename(OBJECT(s)),
