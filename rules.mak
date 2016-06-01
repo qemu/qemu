@@ -1,4 +1,6 @@
 
+COMMA := ,
+
 # Don't use implicit rules or variables
 # we have explicit rules for everything
 MAKEFLAGS += -rR
