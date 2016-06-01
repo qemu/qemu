@@ -490,7 +490,7 @@
 #
 # @error-desc: #optional the human readable error description string, when
 #              @status is 'failed'. Clients should not attempt to parse the
-#              error strings. (Since 2.6)
+#              error strings. (Since 2.7)
 #
 # Since: 0.14.0
 ##
@@ -635,7 +635,7 @@
 #                migration URI does not already include a hostname. For
 #                example if using fd: or exec: based migration, the
 #                hostname must be provided so that the server's x509
-#                certificate identity canbe validated. (Since 2.7)
+#                certificate identity can be validated. (Since 2.7)
 #
 # Since: 2.4
 ##
@@ -676,7 +676,7 @@
 #                migration URI does not already include a hostname. For
 #                example if using fd: or exec: based migration, the
 #                hostname must be provided so that the server's x509
-#                certificate identity canbe validated. (Since 2.7)
+#                certificate identity can be validated. (Since 2.7)
 #
 # Since: 2.4
 ##
@@ -712,14 +712,14 @@
 #             be for a 'client' endpoint, while for the incoming side the
 #             credentials must be for a 'server' endpoint. Setting this
 #             will enable TLS for all migrations. The default is unset,
-#             resulting in unsecured migration at the QEMU level. (Since 2.6)
+#             resulting in unsecured migration at the QEMU level. (Since 2.7)
 #
 # @tls-hostname: hostname of the target host for the migration. This is
 #                required when using x509 based TLS credentials and the
 #                migration URI does not already include a hostname. For
 #                example if using fd: or exec: based migration, the
 #                hostname must be provided so that the server's x509
-#                certificate identity canbe validated. (Since 2.6)
+#                certificate identity can be validated. (Since 2.7)
 #
 # Since: 2.4
 ##
