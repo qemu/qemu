@@ -1,0 +1,58 @@
+#!/bin/bash -e
+#
+# Docker test runner
+#
+# Copyright (c) 2016 Red Hat Inc.
+#
+# Authors:
+#  Fam Zheng <famz@redhat.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2
+# or (at your option) any later version. See the COPYING file in
+# the top-level directory.
+
+# Prepare the environment
+. /etc/profile || true
+export PATH=/usr/lib/ccache:$PATH
+
+if test -n "$J"; then
+    export MAKEFLAGS="$MAKEFLAGS -j$J"
+fi
+
+# We are in the container so the whole file system belong to us
+export TEST_DIR=/tmp/qemu-test
+mkdir -p $TEST_DIR/{src,build,install}
+
+# Extract the source tarballs
+tar -C $TEST_DIR/src -xzf qemu.tgz
+for p in dtc pixman; do
+    if test -f $p.tgz; then
+        tar -C $TEST_DIR/src/$p -xzf $p.tgz
+        export FEATURES="$FEATURES $p"
+    fi
+done
+
+export QEMU_SRC="$TEST_DIR/src"
+
+cd "$QEMU_SRC/tests/docker"
+
+CMD="$QEMU_SRC/tests/docker/$@"
+
+if test -n "$DEBUG"; then
+    echo "* Prepared to run command:"
+    echo "  $CMD"
+    echo "* Hit Ctrl-D to continue, or type 'exit 1' to abort"
+    echo
+    $SHELL
+fi
+
+if "$CMD"; then
+    exit 0
+elif test -n "$DEBUG"; then
+    echo "* Command failed:"
+    echo "  $CMD"
+    echo "* Hit Ctrl-D to exit"
+    echo
+    # Force error after shell exits
+    $SHELL && exit 1
+fi
