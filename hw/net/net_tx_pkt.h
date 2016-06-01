@@ -31,11 +31,12 @@ struct NetTxPkt;
  * Init function for tx packet functionality
  *
  * @pkt:            packet pointer
+ * @pci_dev:        PCI device processing this packet
  * @max_frags:      max tx ip fragments
  * @has_virt_hdr:   device uses virtio header.
  */
-void net_tx_pkt_init(struct NetTxPkt **pkt, uint32_t max_frags,
-    bool has_virt_hdr);
+void net_tx_pkt_init(struct NetTxPkt **pkt, PCIDevice *pci_dev,
+    uint32_t max_frags, bool has_virt_hdr);
 
 /**
  * Clean all tx packet resources.

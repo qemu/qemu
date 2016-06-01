@@ -802,7 +802,9 @@ vmxnet3_pop_rxc_descr(VMXNET3State *s, int qidx, uint32_t *descr_gen)
     hwaddr daddr =
         vmxnet3_ring_curr_cell_pa(&s->rxq_descr[qidx].comp_ring);
 
-    cpu_physical_memory_read(daddr, &rxcd, sizeof(struct Vmxnet3_RxCompDesc));
+    pci_dma_read(PCI_DEVICE(s), daddr,
+                 &rxcd, sizeof(struct Vmxnet3_RxCompDesc));
+
     ring_gen = vmxnet3_ring_curr_gen(&s->rxq_descr[qidx].comp_ring);
 
     if (rxcd.gen != ring_gen) {
@@ -1023,10 +1025,11 @@ nocsum:
 }
 
 static void
-vmxnet3_physical_memory_writev(const struct iovec *iov,
-                               size_t start_iov_off,
-                               hwaddr target_addr,
-                               size_t bytes_to_copy)
+vmxnet3_pci_dma_writev(PCIDevice *pci_dev,
+                       const struct iovec *iov,
+                       size_t start_iov_off,
+                       hwaddr target_addr,
+                       size_t bytes_to_copy)
 {
     size_t curr_off = 0;
     size_t copied = 0;
@@ -1036,9 +1039,9 @@ vmxnet3_physical_memory_writev(const struct iovec *iov,
             size_t chunk_len =
                 MIN((curr_off + iov->iov_len) - start_iov_off, bytes_to_copy);
 
-            cpu_physical_memory_write(target_addr + copied,
-                                      iov->iov_base + start_iov_off - curr_off,
-                                      chunk_len);
+            pci_dma_write(pci_dev, target_addr + copied,
+                          iov->iov_base + start_iov_off - curr_off,
+                          chunk_len);
 
             copied += chunk_len;
             start_iov_off += chunk_len;
@@ -1088,15 +1091,15 @@ vmxnet3_indicate_packet(VMXNET3State *s)
         }
 
         chunk_size = MIN(bytes_left, rxd.len);
-        vmxnet3_physical_memory_writev(data, bytes_copied,
-                                       le64_to_cpu(rxd.addr), chunk_size);
+        vmxnet3_pci_dma_writev(PCI_DEVICE(s), data, bytes_copied,
+                               le64_to_cpu(rxd.addr), chunk_size);
         bytes_copied += chunk_size;
         bytes_left -= chunk_size;
 
         vmxnet3_dump_rx_descr(&rxd);
 
         if (ready_rxcd_pa != 0) {
-            cpu_physical_memory_write(ready_rxcd_pa, &rxcd, sizeof(rxcd));
+            pci_dma_write(PCI_DEVICE(s), ready_rxcd_pa, &rxcd, sizeof(rxcd));
         }
 
         memset(&rxcd, 0, sizeof(struct Vmxnet3_RxCompDesc));
@@ -1127,7 +1130,8 @@ vmxnet3_indicate_packet(VMXNET3State *s)
     if (ready_rxcd_pa != 0) {
         rxcd.eop = 1;
         rxcd.err = (bytes_left != 0);
-        cpu_physical_memory_write(ready_rxcd_pa, &rxcd, sizeof(rxcd));
+
+        pci_dma_write(PCI_DEVICE(s), ready_rxcd_pa, &rxcd, sizeof(rxcd));
 
         /* Flush RX descriptor changes */
         smp_wmb();
@@ -1298,7 +1302,8 @@ static void vmxnet3_update_mcast_filters(VMXNET3State *s)
             VMXNET3_READ_DRV_SHARED64(s->drv_shmem,
                                       devRead.rxFilterConf.mfTablePA);
 
-        cpu_physical_memory_read(mcast_list_pa, s->mcast_list, list_bytes);
+        pci_dma_read(PCI_DEVICE(s), mcast_list_pa, s->mcast_list, list_bytes);
+
         VMW_CFPRN("Current multicast list len is %d:", s->mcast_list_len);
         for (i = 0; i < s->mcast_list_len; i++) {
             VMW_CFPRN("\t" MAC_FMT, MAC_ARG(s->mcast_list[i].a));
@@ -1328,15 +1333,17 @@ static void vmxnet3_fill_stats(VMXNET3State *s)
         return;
 
     for (i = 0; i < s->txq_num; i++) {
-        cpu_physical_memory_write(s->txq_descr[i].tx_stats_pa,
-                                  &s->txq_descr[i].txq_stats,
-                                  sizeof(s->txq_descr[i].txq_stats));
+        pci_dma_write(PCI_DEVICE(s),
+                      s->txq_descr[i].tx_stats_pa,
+                      &s->txq_descr[i].txq_stats,
+                      sizeof(s->txq_descr[i].txq_stats));
     }
 
     for (i = 0; i < s->rxq_num; i++) {
-        cpu_physical_memory_write(s->rxq_descr[i].rx_stats_pa,
-                                  &s->rxq_descr[i].rxq_stats,
-                                  sizeof(s->rxq_descr[i].rxq_stats));
+        pci_dma_write(PCI_DEVICE(s),
+                      s->rxq_descr[i].rx_stats_pa,
+                      &s->rxq_descr[i].rxq_stats,
+                      sizeof(s->rxq_descr[i].rxq_stats));
     }
 }
 
@@ -1558,7 +1565,8 @@ static void vmxnet3_activate_device(VMXNET3State *s)
 
     /* Preallocate TX packet wrapper */
     VMW_CFPRN("Max TX fragments is %u", s->max_tx_frags);
-    net_tx_pkt_init(&s->tx_pkt, s->max_tx_frags, s->peer_has_vhdr);
+    net_tx_pkt_init(&s->tx_pkt, PCI_DEVICE(s),
+                    s->max_tx_frags, s->peer_has_vhdr);
     net_rx_pkt_init(&s->rx_pkt, s->peer_has_vhdr);
 
     /* Read rings memory locations for RX queues */
@@ -2536,7 +2544,8 @@ static int vmxnet3_post_load(void *opaque, int version_id)
     VMXNET3State *s = opaque;
     PCIDevice *d = PCI_DEVICE(s);
 
-    net_tx_pkt_init(&s->tx_pkt, s->max_tx_frags, s->peer_has_vhdr);
+    net_tx_pkt_init(&s->tx_pkt, PCI_DEVICE(s),
+                    s->max_tx_frags, s->peer_has_vhdr);
     net_rx_pkt_init(&s->rx_pkt, s->peer_has_vhdr);
 
     if (s->msix_used) {

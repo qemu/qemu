@@ -20,6 +20,7 @@
 #include "net/checksum.h"
 #include "net/tap.h"
 #include "net/net.h"
+#include "hw/pci/pci.h"
 
 enum {
     NET_TX_PKT_VHDR_FRAG = 0,
@@ -30,6 +31,8 @@ enum {
 
 /* TX packet private context */
 struct NetTxPkt {
+    PCIDevice *pci_dev;
+
     struct virtio_net_hdr virt_hdr;
     bool has_virt_hdr;
 
@@ -54,10 +57,12 @@ struct NetTxPkt {
     bool is_loopback;
 };
 
-void net_tx_pkt_init(struct NetTxPkt **pkt, uint32_t max_frags,
-    bool has_virt_hdr)
+void net_tx_pkt_init(struct NetTxPkt **pkt, PCIDevice *pci_dev,
+    uint32_t max_frags, bool has_virt_hdr)
 {
     struct NetTxPkt *p = g_malloc0(sizeof *p);
+
+    p->pci_dev = pci_dev;
 
     p->vec = g_malloc((sizeof *p->vec) *
         (max_frags + NET_TX_PKT_PL_START_FRAG));
@@ -383,7 +388,8 @@ bool net_tx_pkt_add_raw_fragment(struct NetTxPkt *pkt, hwaddr pa,
     ventry = &pkt->raw[pkt->raw_frags];
     mapped_len = len;
 
-    ventry->iov_base = cpu_physical_memory_map(pa, &mapped_len, false);
+    ventry->iov_base = pci_dma_map(pkt->pci_dev, pa,
+                                   &mapped_len, DMA_DIRECTION_TO_DEVICE);
 
     if ((ventry->iov_base != NULL) && (len == mapped_len)) {
         ventry->iov_len = mapped_len;
@@ -444,8 +450,8 @@ void net_tx_pkt_reset(struct NetTxPkt *pkt)
     assert(pkt->raw);
     for (i = 0; i < pkt->raw_frags; i++) {
         assert(pkt->raw[i].iov_base);
-        cpu_physical_memory_unmap(pkt->raw[i].iov_base, pkt->raw[i].iov_len,
-                                  false, pkt->raw[i].iov_len);
+        pci_dma_unmap(pkt->pci_dev, pkt->raw[i].iov_base, pkt->raw[i].iov_len,
+                      DMA_DIRECTION_TO_DEVICE, 0);
     }
     pkt->raw_frags = 0;
 
