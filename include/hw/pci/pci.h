@@ -465,16 +465,23 @@ pci_get_long(const uint8_t *config)
     return ldl_le_p(config);
 }
 
+/*
+ * PCI capabilities and/or their fields
+ * are generally DWORD aligned only so
+ * mechanism used by pci_set/get_quad()
+ * must be tolerant to unaligned pointers
+ *
+ */
 static inline void
 pci_set_quad(uint8_t *config, uint64_t val)
 {
-    cpu_to_le64w((uint64_t *)config, val);
+    stq_le_p(config, val);
 }
 
 static inline uint64_t
 pci_get_quad(const uint8_t *config)
 {
-    return le64_to_cpup((const uint64_t *)config);
+    return ldq_le_p(config);
 }
 
 static inline void
