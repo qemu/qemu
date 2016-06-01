@@ -82,7 +82,7 @@ Makefile: ;
 configure: ;
 
 .PHONY: all clean cscope distclean dvi html info install install-doc \
-	pdf recurse-all speed test dist msi
+	pdf recurse-all speed test dist msi FORCE
 
 $(call set-vpath, $(SRC_PATH))
 
