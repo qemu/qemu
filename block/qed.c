@@ -1418,7 +1418,7 @@ typedef struct {
     bool done;
 } QEDWriteZeroesCB;
 
-static void coroutine_fn qed_co_write_zeroes_cb(void *opaque, int ret)
+static void coroutine_fn qed_co_pwrite_zeroes_cb(void *opaque, int ret)
 {
     QEDWriteZeroesCB *cb = opaque;
 
@@ -1429,10 +1429,10 @@ static void coroutine_fn qed_co_write_zeroes_cb(void *opaque, int ret)
     }
 }
 
-static int coroutine_fn bdrv_qed_co_write_zeroes(BlockDriverState *bs,
-                                                 int64_t sector_num,
-                                                 int nb_sectors,
-                                                 BdrvRequestFlags flags)
+static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
+                                                  int64_t offset,
+                                                  int count,
+                                                  BdrvRequestFlags flags)
 {
     BlockAIOCB *blockacb;
     BDRVQEDState *s = bs->opaque;
@@ -1440,25 +1440,22 @@ static int coroutine_fn bdrv_qed_co_write_zeroes(BlockDriverState *bs,
     QEMUIOVector qiov;
     struct iovec iov;
 
-    /* Refuse if there are untouched backing file sectors */
-    if (bs->backing) {
-        if (qed_offset_into_cluster(s, sector_num * BDRV_SECTOR_SIZE) != 0) {
-            return -ENOTSUP;
-        }
-        if (qed_offset_into_cluster(s, nb_sectors * BDRV_SECTOR_SIZE) != 0) {
-            return -ENOTSUP;
-        }
+    /* Fall back if the request is not aligned */
+    if (qed_offset_into_cluster(s, offset) ||
+        qed_offset_into_cluster(s, count)) {
+        return -ENOTSUP;
     }
 
     /* Zero writes start without an I/O buffer.  If a buffer becomes necessary
      * then it will be allocated during request processing.
      */
-    iov.iov_base = NULL,
-    iov.iov_len  = nb_sectors * BDRV_SECTOR_SIZE,
+    iov.iov_base = NULL;
+    iov.iov_len = count;
 
     qemu_iovec_init_external(&qiov, &iov, 1);
-    blockacb = qed_aio_setup(bs, sector_num, &qiov, nb_sectors,
-                             qed_co_write_zeroes_cb, &cb,
+    blockacb = qed_aio_setup(bs, offset >> BDRV_SECTOR_BITS, &qiov,
+                             count >> BDRV_SECTOR_BITS,
+                             qed_co_pwrite_zeroes_cb, &cb,
                              QED_AIOCB_WRITE | QED_AIOCB_ZERO);
     if (!blockacb) {
         return -EIO;
@@ -1663,7 +1660,7 @@ static BlockDriver bdrv_qed = {
     .bdrv_co_get_block_status = bdrv_qed_co_get_block_status,
     .bdrv_aio_readv           = bdrv_qed_aio_readv,
     .bdrv_aio_writev          = bdrv_qed_aio_writev,
-    .bdrv_co_write_zeroes     = bdrv_qed_co_write_zeroes,
+    .bdrv_co_pwrite_zeroes    = bdrv_qed_co_pwrite_zeroes,
     .bdrv_truncate            = bdrv_qed_truncate,
     .bdrv_getlength           = bdrv_qed_getlength,
     .bdrv_get_info            = bdrv_qed_get_info,
