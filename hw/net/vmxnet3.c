@@ -2255,9 +2255,9 @@ static const MemoryRegionOps b1_ops = {
     },
 };
 
-static uint8_t *vmxnet3_device_serial_num(VMXNET3State *s)
+static uint64_t vmxnet3_device_serial_num(VMXNET3State *s)
 {
-    static uint64_t dsn_payload;
+    uint64_t dsn_payload;
     uint8_t *dsnp = (uint8_t *)&dsn_payload;
 
     dsnp[0] = 0xfe;
@@ -2268,7 +2268,7 @@ static uint8_t *vmxnet3_device_serial_num(VMXNET3State *s)
     dsnp[5] = s->conf.macaddr.a[1];
     dsnp[6] = s->conf.macaddr.a[2];
     dsnp[7] = 0xff;
-    return dsnp;
+    return dsn_payload;
 }
 
 static void vmxnet3_pci_realize(PCIDevice *pci_dev, Error **errp)
@@ -2313,10 +2313,8 @@ static void vmxnet3_pci_realize(PCIDevice *pci_dev, Error **errp)
             pcie_endpoint_cap_init(pci_dev, VMXNET3_EXP_EP_OFFSET);
         }
 
-        pcie_add_capability(pci_dev, PCI_EXT_CAP_ID_DSN, 0x1,
-                            VMXNET3_DSN_OFFSET, PCI_EXT_CAP_DSN_SIZEOF);
-        memcpy(pci_dev->config + VMXNET3_DSN_OFFSET + 4,
-               vmxnet3_device_serial_num(s), sizeof(uint64_t));
+        pcie_dev_ser_num_init(pci_dev, VMXNET3_DSN_OFFSET,
+                              vmxnet3_device_serial_num(s));
     }
 
     register_savevm(dev, "vmxnet3-msix", -1, 1,
