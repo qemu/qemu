@@ -1,5 +1,5 @@
 /*
- * QEMU VMWARE VMXNET* paravirtual NICs - TX packets abstraction
+ * QEMU TX packets abstraction
  *
  * Copyright (c) 2012 Ravello Systems LTD (http://ravellosystems.com)
  *
@@ -15,16 +15,16 @@
  *
  */
 
-#ifndef VMXNET_TX_PKT_H
-#define VMXNET_TX_PKT_H
+#ifndef NET_TX_PKT_H
+#define NET_TX_PKT_H
 
 #include "net/eth.h"
 #include "exec/hwaddr.h"
 
 /* define to enable packet dump functions */
-/*#define VMXNET_TX_PKT_DEBUG*/
+/*#define NET_TX_PKT_DEBUG*/
 
-struct VmxnetTxPkt;
+struct NetTxPkt;
 
 /**
  * Init function for tx packet functionality
@@ -33,7 +33,7 @@ struct VmxnetTxPkt;
  * @max_frags:      max tx ip fragments
  * @has_virt_hdr:   device uses virtio header.
  */
-void vmxnet_tx_pkt_init(struct VmxnetTxPkt **pkt, uint32_t max_frags,
+void net_tx_pkt_init(struct NetTxPkt **pkt, uint32_t max_frags,
     bool has_virt_hdr);
 
 /**
@@ -41,7 +41,7 @@ void vmxnet_tx_pkt_init(struct VmxnetTxPkt **pkt, uint32_t max_frags,
  *
  * @pkt:            packet.
  */
-void vmxnet_tx_pkt_uninit(struct VmxnetTxPkt *pkt);
+void net_tx_pkt_uninit(struct NetTxPkt *pkt);
 
 /**
  * get virtio header
@@ -49,7 +49,7 @@ void vmxnet_tx_pkt_uninit(struct VmxnetTxPkt *pkt);
  * @pkt:            packet
  * @ret:            virtio header
  */
-struct virtio_net_hdr *vmxnet_tx_pkt_get_vhdr(struct VmxnetTxPkt *pkt);
+struct virtio_net_hdr *net_tx_pkt_get_vhdr(struct NetTxPkt *pkt);
 
 /**
  * build virtio header (will be stored in module context)
@@ -60,7 +60,7 @@ struct virtio_net_hdr *vmxnet_tx_pkt_get_vhdr(struct VmxnetTxPkt *pkt);
  * @gso_size:       MSS size for TSO
  *
  */
-void vmxnet_tx_pkt_build_vheader(struct VmxnetTxPkt *pkt, bool tso_enable,
+void net_tx_pkt_build_vheader(struct NetTxPkt *pkt, bool tso_enable,
     bool csum_enable, uint32_t gso_size);
 
 /**
@@ -70,7 +70,7 @@ void vmxnet_tx_pkt_build_vheader(struct VmxnetTxPkt *pkt, bool tso_enable,
  * @vlan:           VLAN tag
  *
  */
-void vmxnet_tx_pkt_setup_vlan_header(struct VmxnetTxPkt *pkt, uint16_t vlan);
+void net_tx_pkt_setup_vlan_header(struct NetTxPkt *pkt, uint16_t vlan);
 
 /**
  * populate data fragment into pkt context.
@@ -80,7 +80,7 @@ void vmxnet_tx_pkt_setup_vlan_header(struct VmxnetTxPkt *pkt, uint16_t vlan);
  * @len:            length of fragment
  *
  */
-bool vmxnet_tx_pkt_add_raw_fragment(struct VmxnetTxPkt *pkt, hwaddr pa,
+bool net_tx_pkt_add_raw_fragment(struct NetTxPkt *pkt, hwaddr pa,
     size_t len);
 
 /**
@@ -89,7 +89,7 @@ bool vmxnet_tx_pkt_add_raw_fragment(struct VmxnetTxPkt *pkt, hwaddr pa,
  * @pkt:            packet
  *
  */
-void vmxnet_tx_pkt_update_ip_checksums(struct VmxnetTxPkt *pkt);
+void net_tx_pkt_update_ip_checksums(struct NetTxPkt *pkt);
 
 /**
  * get length of all populated data.
@@ -98,7 +98,7 @@ void vmxnet_tx_pkt_update_ip_checksums(struct VmxnetTxPkt *pkt);
  * @ret:            total data length
  *
  */
-size_t vmxnet_tx_pkt_get_total_len(struct VmxnetTxPkt *pkt);
+size_t net_tx_pkt_get_total_len(struct NetTxPkt *pkt);
 
 /**
  * get packet type
@@ -107,7 +107,7 @@ size_t vmxnet_tx_pkt_get_total_len(struct VmxnetTxPkt *pkt);
  * @ret:            packet type
  *
  */
-eth_pkt_types_e vmxnet_tx_pkt_get_packet_type(struct VmxnetTxPkt *pkt);
+eth_pkt_types_e net_tx_pkt_get_packet_type(struct NetTxPkt *pkt);
 
 /**
  * prints packet data if debug is enabled
@@ -115,7 +115,7 @@ eth_pkt_types_e vmxnet_tx_pkt_get_packet_type(struct VmxnetTxPkt *pkt);
  * @pkt:            packet
  *
  */
-void vmxnet_tx_pkt_dump(struct VmxnetTxPkt *pkt);
+void net_tx_pkt_dump(struct NetTxPkt *pkt);
 
 /**
  * reset tx packet private context (needed to be called between packets)
@@ -123,7 +123,7 @@ void vmxnet_tx_pkt_dump(struct VmxnetTxPkt *pkt);
  * @pkt:            packet
  *
  */
-void vmxnet_tx_pkt_reset(struct VmxnetTxPkt *pkt);
+void net_tx_pkt_reset(struct NetTxPkt *pkt);
 
 /**
  * Send packet to qemu. handles sw offloads if vhdr is not supported.
@@ -133,7 +133,7 @@ void vmxnet_tx_pkt_reset(struct VmxnetTxPkt *pkt);
  * @ret:            operation result
  *
  */
-bool vmxnet_tx_pkt_send(struct VmxnetTxPkt *pkt, NetClientState *nc);
+bool net_tx_pkt_send(struct NetTxPkt *pkt, NetClientState *nc);
 
 /**
  * parse raw packet data and analyze offload requirements.
@@ -141,6 +141,6 @@ bool vmxnet_tx_pkt_send(struct VmxnetTxPkt *pkt, NetClientState *nc);
  * @pkt:            packet
  *
  */
-bool vmxnet_tx_pkt_parse(struct VmxnetTxPkt *pkt);
+bool net_tx_pkt_parse(struct NetTxPkt *pkt);
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * QEMU VMWARE VMXNET* paravirtual NICs - RX packets abstractions
+ * QEMU RX packets abstractions
  *
  * Copyright (c) 2012 Ravello Systems LTD (http://ravellosystems.com)
  *
@@ -16,7 +16,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "vmxnet_rx_pkt.h"
+#include "net_rx_pkt.h"
 #include "net/eth.h"
 #include "qemu-common.h"
 #include "qemu/iov.h"
@@ -28,12 +28,12 @@
  * in case of VLAN tag stripping
  * and payload received from QEMU - in any case
  */
-#define VMXNET_MAX_RX_PACKET_FRAGMENTS (2)
+#define NET_MAX_RX_PACKET_FRAGMENTS (2)
 
-struct VmxnetRxPkt {
+struct NetRxPkt {
     struct virtio_net_hdr virt_hdr;
     uint8_t ehdr_buf[ETH_MAX_L2_HDR_LEN];
-    struct iovec vec[VMXNET_MAX_RX_PACKET_FRAGMENTS];
+    struct iovec vec[NET_MAX_RX_PACKET_FRAGMENTS];
     uint16_t vec_len;
     uint32_t tot_len;
     uint16_t tci;
@@ -48,25 +48,25 @@ struct VmxnetRxPkt {
     bool istcp;
 };
 
-void vmxnet_rx_pkt_init(struct VmxnetRxPkt **pkt, bool has_virt_hdr)
+void net_rx_pkt_init(struct NetRxPkt **pkt, bool has_virt_hdr)
 {
-    struct VmxnetRxPkt *p = g_malloc0(sizeof *p);
+    struct NetRxPkt *p = g_malloc0(sizeof *p);
     p->has_virt_hdr = has_virt_hdr;
     *pkt = p;
 }
 
-void vmxnet_rx_pkt_uninit(struct VmxnetRxPkt *pkt)
+void net_rx_pkt_uninit(struct NetRxPkt *pkt)
 {
     g_free(pkt);
 }
 
-struct virtio_net_hdr *vmxnet_rx_pkt_get_vhdr(struct VmxnetRxPkt *pkt)
+struct virtio_net_hdr *net_rx_pkt_get_vhdr(struct NetRxPkt *pkt)
 {
     assert(pkt);
     return &pkt->virt_hdr;
 }
 
-void vmxnet_rx_pkt_attach_data(struct VmxnetRxPkt *pkt, const void *data,
+void net_rx_pkt_attach_data(struct NetRxPkt *pkt, const void *data,
                                size_t len, bool strip_vlan)
 {
     uint16_t tci = 0;
@@ -95,10 +95,10 @@ void vmxnet_rx_pkt_attach_data(struct VmxnetRxPkt *pkt, const void *data,
     pkt->tci = tci;
 }
 
-void vmxnet_rx_pkt_dump(struct VmxnetRxPkt *pkt)
+void net_rx_pkt_dump(struct NetRxPkt *pkt)
 {
-#ifdef VMXNET_RX_PKT_DEBUG
-    VmxnetRxPkt *pkt = (VmxnetRxPkt *)pkt;
+#ifdef NET_RX_PKT_DEBUG
+    NetRxPkt *pkt = (NetRxPkt *)pkt;
     assert(pkt);
 
     printf("RX PKT: tot_len: %d, vlan_stripped: %d, vlan_tag: %d\n",
@@ -106,7 +106,7 @@ void vmxnet_rx_pkt_dump(struct VmxnetRxPkt *pkt)
 #endif
 }
 
-void vmxnet_rx_pkt_set_packet_type(struct VmxnetRxPkt *pkt,
+void net_rx_pkt_set_packet_type(struct NetRxPkt *pkt,
     eth_pkt_types_e packet_type)
 {
     assert(pkt);
@@ -115,22 +115,22 @@ void vmxnet_rx_pkt_set_packet_type(struct VmxnetRxPkt *pkt,
 
 }
 
-eth_pkt_types_e vmxnet_rx_pkt_get_packet_type(struct VmxnetRxPkt *pkt)
+eth_pkt_types_e net_rx_pkt_get_packet_type(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
     return pkt->packet_type;
 }
 
-size_t vmxnet_rx_pkt_get_total_len(struct VmxnetRxPkt *pkt)
+size_t net_rx_pkt_get_total_len(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
     return pkt->tot_len;
 }
 
-void vmxnet_rx_pkt_set_protocols(struct VmxnetRxPkt *pkt, const void *data,
-                                 size_t len)
+void net_rx_pkt_set_protocols(struct NetRxPkt *pkt, const void *data,
+                              size_t len)
 {
     assert(pkt);
 
@@ -138,9 +138,9 @@ void vmxnet_rx_pkt_set_protocols(struct VmxnetRxPkt *pkt, const void *data,
         &pkt->isudp, &pkt->istcp);
 }
 
-void vmxnet_rx_pkt_get_protocols(struct VmxnetRxPkt *pkt,
-                                 bool *isip4, bool *isip6,
-                                 bool *isudp, bool *istcp)
+void net_rx_pkt_get_protocols(struct NetRxPkt *pkt,
+                              bool *isip4, bool *isip6,
+                              bool *isudp, bool *istcp)
 {
     assert(pkt);
 
@@ -150,14 +150,14 @@ void vmxnet_rx_pkt_get_protocols(struct VmxnetRxPkt *pkt,
     *istcp = pkt->istcp;
 }
 
-struct iovec *vmxnet_rx_pkt_get_iovec(struct VmxnetRxPkt *pkt)
+struct iovec *net_rx_pkt_get_iovec(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
     return pkt->vec;
 }
 
-void vmxnet_rx_pkt_set_vhdr(struct VmxnetRxPkt *pkt,
+void net_rx_pkt_set_vhdr(struct NetRxPkt *pkt,
                             struct virtio_net_hdr *vhdr)
 {
     assert(pkt);
@@ -165,21 +165,21 @@ void vmxnet_rx_pkt_set_vhdr(struct VmxnetRxPkt *pkt,
     memcpy(&pkt->virt_hdr, vhdr, sizeof pkt->virt_hdr);
 }
 
-bool vmxnet_rx_pkt_is_vlan_stripped(struct VmxnetRxPkt *pkt)
+bool net_rx_pkt_is_vlan_stripped(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
     return pkt->vlan_stripped;
 }
 
-bool vmxnet_rx_pkt_has_virt_hdr(struct VmxnetRxPkt *pkt)
+bool net_rx_pkt_has_virt_hdr(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
     return pkt->has_virt_hdr;
 }
 
-uint16_t vmxnet_rx_pkt_get_vlan_tag(struct VmxnetRxPkt *pkt)
+uint16_t net_rx_pkt_get_vlan_tag(struct NetRxPkt *pkt)
 {
     assert(pkt);
 

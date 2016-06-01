@@ -1,5 +1,5 @@
 /*
- * QEMU VMWARE VMXNET* paravirtual NICs - RX packets abstraction
+ * QEMU RX packets abstraction
  *
  * Copyright (c) 2012 Ravello Systems LTD (http://ravellosystems.com)
  *
@@ -15,15 +15,15 @@
  *
  */
 
-#ifndef VMXNET_RX_PKT_H
-#define VMXNET_RX_PKT_H
+#ifndef NET_RX_PKT_H
+#define NET_RX_PKT_H
 
 #include "net/eth.h"
 
 /* defines to enable packet dump functions */
-/*#define VMXNET_RX_PKT_DEBUG*/
+/*#define NET_RX_PKT_DEBUG*/
 
-struct VmxnetRxPkt;
+struct NetRxPkt;
 
 /**
  * Clean all rx packet resources
@@ -31,7 +31,7 @@ struct VmxnetRxPkt;
  * @pkt:            packet
  *
  */
-void vmxnet_rx_pkt_uninit(struct VmxnetRxPkt *pkt);
+void net_rx_pkt_uninit(struct NetRxPkt *pkt);
 
 /**
  * Init function for rx packet functionality
@@ -40,7 +40,7 @@ void vmxnet_rx_pkt_uninit(struct VmxnetRxPkt *pkt);
  * @has_virt_hdr:   device uses virtio header
  *
  */
-void vmxnet_rx_pkt_init(struct VmxnetRxPkt **pkt, bool has_virt_hdr);
+void net_rx_pkt_init(struct NetRxPkt **pkt, bool has_virt_hdr);
 
 /**
  * returns total length of data attached to rx context
@@ -50,7 +50,7 @@ void vmxnet_rx_pkt_init(struct VmxnetRxPkt **pkt, bool has_virt_hdr);
  * Return:  nothing
  *
  */
-size_t vmxnet_rx_pkt_get_total_len(struct VmxnetRxPkt *pkt);
+size_t net_rx_pkt_get_total_len(struct NetRxPkt *pkt);
 
 /**
  * parse and set packet analysis results
@@ -60,8 +60,8 @@ size_t vmxnet_rx_pkt_get_total_len(struct VmxnetRxPkt *pkt);
  * @len:            data length
  *
  */
-void vmxnet_rx_pkt_set_protocols(struct VmxnetRxPkt *pkt, const void *data,
-                                 size_t len);
+void net_rx_pkt_set_protocols(struct NetRxPkt *pkt, const void *data,
+                              size_t len);
 
 /**
  * fetches packet analysis results
@@ -73,7 +73,7 @@ void vmxnet_rx_pkt_set_protocols(struct VmxnetRxPkt *pkt, const void *data,
  * @istcp:          whether the packet given is TCP
  *
  */
-void vmxnet_rx_pkt_get_protocols(struct VmxnetRxPkt *pkt,
+void net_rx_pkt_get_protocols(struct NetRxPkt *pkt,
                                  bool *isip4, bool *isip6,
                                  bool *isudp, bool *istcp);
 
@@ -84,7 +84,7 @@ void vmxnet_rx_pkt_get_protocols(struct VmxnetRxPkt *pkt,
  * @ret:            virtio header
  *
  */
-struct virtio_net_hdr *vmxnet_rx_pkt_get_vhdr(struct VmxnetRxPkt *pkt);
+struct virtio_net_hdr *net_rx_pkt_get_vhdr(struct NetRxPkt *pkt);
 
 /**
  * returns packet type
@@ -93,7 +93,7 @@ struct virtio_net_hdr *vmxnet_rx_pkt_get_vhdr(struct VmxnetRxPkt *pkt);
  * @ret:            packet type
  *
  */
-eth_pkt_types_e vmxnet_rx_pkt_get_packet_type(struct VmxnetRxPkt *pkt);
+eth_pkt_types_e net_rx_pkt_get_packet_type(struct NetRxPkt *pkt);
 
 /**
  * returns vlan tag
@@ -102,7 +102,7 @@ eth_pkt_types_e vmxnet_rx_pkt_get_packet_type(struct VmxnetRxPkt *pkt);
  * @ret:            VLAN tag
  *
  */
-uint16_t vmxnet_rx_pkt_get_vlan_tag(struct VmxnetRxPkt *pkt);
+uint16_t net_rx_pkt_get_vlan_tag(struct NetRxPkt *pkt);
 
 /**
  * tells whether vlan was stripped from the packet
@@ -111,7 +111,7 @@ uint16_t vmxnet_rx_pkt_get_vlan_tag(struct VmxnetRxPkt *pkt);
  * @ret:            VLAN stripped sign
  *
  */
-bool vmxnet_rx_pkt_is_vlan_stripped(struct VmxnetRxPkt *pkt);
+bool net_rx_pkt_is_vlan_stripped(struct NetRxPkt *pkt);
 
 /**
  * notifies caller if the packet has virtio header
@@ -120,7 +120,7 @@ bool vmxnet_rx_pkt_is_vlan_stripped(struct VmxnetRxPkt *pkt);
  * @ret:            true if packet has virtio header, false otherwize
  *
  */
-bool vmxnet_rx_pkt_has_virt_hdr(struct VmxnetRxPkt *pkt);
+bool net_rx_pkt_has_virt_hdr(struct NetRxPkt *pkt);
 
 /**
  * attach data to rx packet
@@ -131,7 +131,7 @@ bool vmxnet_rx_pkt_has_virt_hdr(struct VmxnetRxPkt *pkt);
  * @strip_vlan:     should the module strip vlan from data
  *
  */
-void vmxnet_rx_pkt_attach_data(struct VmxnetRxPkt *pkt, const void *data,
+void net_rx_pkt_attach_data(struct NetRxPkt *pkt, const void *data,
     size_t len, bool strip_vlan);
 
 /**
@@ -141,7 +141,7 @@ void vmxnet_rx_pkt_attach_data(struct VmxnetRxPkt *pkt, const void *data,
  * @ret:            pointer to IOVec
  *
  */
-struct iovec *vmxnet_rx_pkt_get_iovec(struct VmxnetRxPkt *pkt);
+struct iovec *net_rx_pkt_get_iovec(struct NetRxPkt *pkt);
 
 /**
  * prints rx packet data if debug is enabled
@@ -149,7 +149,7 @@ struct iovec *vmxnet_rx_pkt_get_iovec(struct VmxnetRxPkt *pkt);
  * @pkt:            packet
  *
  */
-void vmxnet_rx_pkt_dump(struct VmxnetRxPkt *pkt);
+void net_rx_pkt_dump(struct NetRxPkt *pkt);
 
 /**
  * copy passed vhdr data to packet context
@@ -158,7 +158,7 @@ void vmxnet_rx_pkt_dump(struct VmxnetRxPkt *pkt);
  * @vhdr:           VHDR buffer
  *
  */
-void vmxnet_rx_pkt_set_vhdr(struct VmxnetRxPkt *pkt,
+void net_rx_pkt_set_vhdr(struct NetRxPkt *pkt,
     struct virtio_net_hdr *vhdr);
 
 /**
@@ -168,7 +168,7 @@ void vmxnet_rx_pkt_set_vhdr(struct VmxnetRxPkt *pkt,
  * @packet_type:    the packet type
  *
  */
-void vmxnet_rx_pkt_set_packet_type(struct VmxnetRxPkt *pkt,
+void net_rx_pkt_set_packet_type(struct NetRxPkt *pkt,
     eth_pkt_types_e packet_type);
 
 #endif
