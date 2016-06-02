@@ -185,8 +185,9 @@ static int mirror_cow_align(MirrorBlockJob *s,
     need_cow |= !test_bit((*sector_num + *nb_sectors - 1) / chunk_sectors,
                           s->cow_bitmap);
     if (need_cow) {
-        bdrv_round_to_clusters(blk_bs(s->target), *sector_num, *nb_sectors,
-                               &align_sector_num, &align_nb_sectors);
+        bdrv_round_sectors_to_clusters(blk_bs(s->target), *sector_num,
+                                       *nb_sectors, &align_sector_num,
+                                       &align_nb_sectors);
     }
 
     if (align_nb_sectors > max_sectors) {
@@ -384,8 +385,9 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         } else if (ret >= 0 && !(ret & BDRV_BLOCK_DATA)) {
             int64_t target_sector_num;
             int target_nb_sectors;
-            bdrv_round_to_clusters(blk_bs(s->target), sector_num, io_sectors,
-                                   &target_sector_num, &target_nb_sectors);
+            bdrv_round_sectors_to_clusters(blk_bs(s->target), sector_num,
+                                           io_sectors,  &target_sector_num,
+                                           &target_nb_sectors);
             if (target_sector_num == sector_num &&
                 target_nb_sectors == io_sectors) {
                 mirror_method = ret & BDRV_BLOCK_ZERO ?

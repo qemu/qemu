@@ -404,12 +404,12 @@ static void mark_request_serialising(BdrvTrackedRequest *req, uint64_t align)
 }
 
 /**
- * Round a region to cluster boundaries
+ * Round a region to cluster boundaries (sector-based)
  */
-void bdrv_round_to_clusters(BlockDriverState *bs,
-                            int64_t sector_num, int nb_sectors,
-                            int64_t *cluster_sector_num,
-                            int *cluster_nb_sectors)
+void bdrv_round_sectors_to_clusters(BlockDriverState *bs,
+                                    int64_t sector_num, int nb_sectors,
+                                    int64_t *cluster_sector_num,
+                                    int *cluster_nb_sectors)
 {
     BlockDriverInfo bdi;
 
@@ -421,6 +421,26 @@ void bdrv_round_to_clusters(BlockDriverState *bs,
         *cluster_sector_num = QEMU_ALIGN_DOWN(sector_num, c);
         *cluster_nb_sectors = QEMU_ALIGN_UP(sector_num - *cluster_sector_num +
                                             nb_sectors, c);
+    }
+}
+
+/**
+ * Round a region to cluster boundaries
+ */
+void bdrv_round_to_clusters(BlockDriverState *bs,
+                            int64_t offset, unsigned int bytes,
+                            int64_t *cluster_offset,
+                            unsigned int *cluster_bytes)
+{
+    BlockDriverInfo bdi;
+
+    if (bdrv_get_info(bs, &bdi) < 0 || bdi.cluster_size == 0) {
+        *cluster_offset = offset;
+        *cluster_bytes = bytes;
+    } else {
+        int64_t c = bdi.cluster_size;
+        *cluster_offset = QEMU_ALIGN_DOWN(offset, c);
+        *cluster_bytes = QEMU_ALIGN_UP(offset - *cluster_offset + bytes, c);
     }
 }
 
@@ -865,7 +885,7 @@ emulate_flags:
 }
 
 static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
+        int64_t offset, unsigned int bytes, QEMUIOVector *qiov)
 {
     /* Perform I/O through a temporary buffer so that users who scribble over
      * their read buffer while the operation is in progress do not end up
@@ -877,21 +897,20 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
     BlockDriver *drv = bs->drv;
     struct iovec iov;
     QEMUIOVector bounce_qiov;
-    int64_t cluster_sector_num;
-    int cluster_nb_sectors;
+    int64_t cluster_offset;
+    unsigned int cluster_bytes;
     size_t skip_bytes;
     int ret;
 
     /* Cover entire cluster so no additional backing file I/O is required when
      * allocating cluster in the image file.
      */
-    bdrv_round_to_clusters(bs, sector_num, nb_sectors,
-                           &cluster_sector_num, &cluster_nb_sectors);
+    bdrv_round_to_clusters(bs, offset, bytes, &cluster_offset, &cluster_bytes);
 
-    trace_bdrv_co_do_copy_on_readv(bs, sector_num, nb_sectors,
-                                   cluster_sector_num, cluster_nb_sectors);
+    trace_bdrv_co_do_copy_on_readv(bs, offset, bytes,
+                                   cluster_offset, cluster_bytes);
 
-    iov.iov_len = cluster_nb_sectors * BDRV_SECTOR_SIZE;
+    iov.iov_len = cluster_bytes;
     iov.iov_base = bounce_buffer = qemu_try_blockalign(bs, iov.iov_len);
     if (bounce_buffer == NULL) {
         ret = -ENOMEM;
@@ -900,8 +919,7 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
 
     qemu_iovec_init_external(&bounce_qiov, &iov, 1);
 
-    ret = bdrv_driver_preadv(bs, cluster_sector_num * BDRV_SECTOR_SIZE,
-                             cluster_nb_sectors * BDRV_SECTOR_SIZE,
+    ret = bdrv_driver_preadv(bs, cluster_offset, cluster_bytes,
                              &bounce_qiov, 0);
     if (ret < 0) {
         goto err;
@@ -909,16 +927,12 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
 
     if (drv->bdrv_co_pwrite_zeroes &&
         buffer_is_zero(bounce_buffer, iov.iov_len)) {
-        ret = bdrv_co_do_pwrite_zeroes(bs,
-                                       cluster_sector_num * BDRV_SECTOR_SIZE,
-                                       cluster_nb_sectors * BDRV_SECTOR_SIZE,
-                                       0);
+        ret = bdrv_co_do_pwrite_zeroes(bs, cluster_offset, cluster_bytes, 0);
     } else {
         /* This does not change the data on the disk, it is not necessary
          * to flush even in cache=writethrough mode.
          */
-        ret = bdrv_driver_pwritev(bs, cluster_sector_num * BDRV_SECTOR_SIZE,
-                                  cluster_nb_sectors * BDRV_SECTOR_SIZE,
+        ret = bdrv_driver_pwritev(bs, cluster_offset, cluster_bytes,
                                   &bounce_qiov, 0);
     }
 
@@ -930,9 +944,8 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
         goto err;
     }
 
-    skip_bytes = (sector_num - cluster_sector_num) * BDRV_SECTOR_SIZE;
-    qemu_iovec_from_buf(qiov, 0, bounce_buffer + skip_bytes,
-                        nb_sectors * BDRV_SECTOR_SIZE);
+    skip_bytes = offset - cluster_offset;
+    qemu_iovec_from_buf(qiov, 0, bounce_buffer + skip_bytes, bytes);
 
 err:
     qemu_vfree(bounce_buffer);
@@ -982,7 +995,7 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
         }
 
         if (!ret || pnum != nb_sectors) {
-            ret = bdrv_co_do_copy_on_readv(bs, sector_num, nb_sectors, qiov);
+            ret = bdrv_co_do_copy_on_readv(bs, offset, bytes, qiov);
             goto out;
         }
     }
