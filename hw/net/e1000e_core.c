@@ -523,8 +523,15 @@ e1000e_rss_get_hash_type(E1000ECore *core, struct NetRxPkt *pkt)
         bool ex_dis = core->mac[RFCTL] & E1000_RFCTL_IPV6_EX_DIS;
         bool new_ex_dis = core->mac[RFCTL] & E1000_RFCTL_NEW_IPV6_EXT_DIS;
 
-        trace_e1000e_rx_rss_ip6(core->mac[RFCTL],
-                                ex_dis, new_ex_dis, istcp,
+        /*
+         * Following two traces must not be combined because resulting
+         * event will have 11 arguments totally and some trace backends
+         * (at least "ust") have limitation of maximum 10 arguments per
+         * event. Events with more arguments fail to compile for
+         * backends like these.
+         */
+        trace_e1000e_rx_rss_ip6_rfctl(core->mac[RFCTL]);
+        trace_e1000e_rx_rss_ip6(ex_dis, new_ex_dis, istcp,
                                 ip6info->has_ext_hdrs,
                                 ip6info->rss_ex_dst_valid,
                                 ip6info->rss_ex_src_valid,
