@@ -1816,11 +1816,21 @@ static void ppc_spapr_init(MachineState *machine)
     /* initialize hotplug memory address space */
     if (machine->ram_size < machine->maxram_size) {
         ram_addr_t hotplug_mem_size = machine->maxram_size - machine->ram_size;
+        /*
+         * Limit the number of hotpluggable memory slots to half the number
+         * slots that KVM supports, leaving the other half for PCI and other
+         * devices. However ensure that number of slots doesn't drop below 32.
+         */
+        int max_memslots = kvm_enabled() ? kvm_get_max_memslots() / 2 :
+                           SPAPR_MAX_RAM_SLOTS;
 
-        if (machine->ram_slots > SPAPR_MAX_RAM_SLOTS) {
+        if (max_memslots < SPAPR_MAX_RAM_SLOTS) {
+            max_memslots = SPAPR_MAX_RAM_SLOTS;
+        }
+        if (machine->ram_slots > max_memslots) {
             error_report("Specified number of memory slots %"
                          PRIu64" exceeds max supported %d",
-                         machine->ram_slots, SPAPR_MAX_RAM_SLOTS);
+                         machine->ram_slots, max_memslots);
             exit(1);
         }
 
