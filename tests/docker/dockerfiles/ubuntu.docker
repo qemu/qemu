@@ -1,0 +1,11 @@
+FROM ubuntu:14.04
+RUN echo "deb http://archive.ubuntu.com/ubuntu/ trusty universe multiverse" >> \
+    /etc/apt/sources.list
+RUN apt-get update
+RUN apt-get -y install \
+    libusb-1.0-0-dev libiscsi-dev librados-dev libncurses5-dev \
+    libseccomp-dev libgnutls-dev libssh2-1-dev  libspice-server-dev \
+    libspice-protocol-dev libnss3-dev libfdt-dev \
+    libgtk-3-dev libvte-2.90-dev libsdl1.2-dev libpng12-dev libpixman-1-dev \
+    git make ccache python-yaml gcc clang sparse
+ENV FEATURES clang ccache pyyaml

@@ -6,7 +6,7 @@ BUILD_DIR=$(CURDIR)
 # Before including a proper config-host.mak, assume we are in the source tree
 SRC_PATH=.
 
-UNCHECKED_GOALS := %clean TAGS cscope ctags
+UNCHECKED_GOALS := %clean TAGS cscope ctags docker docker-%
 
 # All following code might depend on configuration variables
 ifneq ($(wildcard config-host.mak),)
@@ -30,7 +30,6 @@ CONFIG_ALL=y
 -include config-all-devices.mak
 -include config-all-disas.mak
 
-include $(SRC_PATH)/rules.mak
 config-host.mak: $(SRC_PATH)/configure
 	@echo $@ is out-of-date, running configure
 	@# TODO: The next lines include code which supports a smooth
@@ -48,6 +47,8 @@ ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fa
 	@exit 1
 endif
 endif
+
+include $(SRC_PATH)/rules.mak
 
 GENERATED_HEADERS = config-host.h qemu-options.def
 GENERATED_HEADERS += qmp-commands.h qapi-types.h qapi-visit.h qapi-event.h
@@ -643,3 +644,5 @@ endif
 # Include automatically generated dependency files
 # Dependencies in Makefile.objs files come from our recursive subdir rules
 -include $(wildcard *.d tests/*.d)
+
+include $(SRC_PATH)/tests/docker/Makefile.include

@@ -108,4 +108,5 @@
 cscope.*
 tags
 TAGS
+docker-src.*
 *~
