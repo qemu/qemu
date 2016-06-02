@@ -1091,6 +1091,7 @@ static uint8_t virtio_set_ind_atomic(SubchDev *sch, uint64_t ind_loc,
         ind_old = *ind_addr;
         ind_new = ind_old | to_be_set;
     } while (atomic_cmpxchg(ind_addr, ind_old, ind_new) != ind_old);
+    trace_virtio_ccw_set_ind(ind_loc, ind_old, ind_new);
     cpu_physical_memory_unmap(ind_addr, len, 1, len);
 
     return ind_old;
