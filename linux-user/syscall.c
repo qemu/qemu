@@ -102,7 +102,9 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/filter.h>
 #include <linux/blkpg.h>
 #include <linux/netlink.h>
+#ifdef CONFIG_RTNETLINK
 #include <linux/rtnetlink.h>
+#endif
 #include <linux/audit.h>
 #include "linux_loop.h"
 #include "uname.h"
@@ -1627,6 +1629,7 @@ static abi_long target_to_host_for_each_nlmsg(struct nlmsghdr *nlh,
     return 0;
 }
 
+#ifdef CONFIG_RTNETLINK
 static abi_long host_to_target_for_each_rtattr(struct rtattr *rtattr,
                                                size_t len,
                                                abi_long (*host_to_target_rtattr)
@@ -2041,6 +2044,7 @@ static abi_long target_to_host_nlmsg_route(struct nlmsghdr *nlh, size_t len)
 {
     return target_to_host_for_each_nlmsg(nlh, len, target_to_host_data_route);
 }
+#endif /* CONFIG_RTNETLINK */
 
 static abi_long host_to_target_data_audit(struct nlmsghdr *nlh)
 {
@@ -2730,6 +2734,7 @@ static TargetFdTrans target_packet_trans = {
     .target_to_host_addr = packet_target_to_host_sockaddr,
 };
 
+#ifdef CONFIG_RTNETLINK
 static abi_long netlink_route_target_to_host(void *buf, size_t len)
 {
     return target_to_host_nlmsg_route(buf, len);
@@ -2744,6 +2749,7 @@ static TargetFdTrans target_netlink_route_trans = {
     .target_to_host_data = netlink_route_target_to_host,
     .host_to_target_data = netlink_route_host_to_target,
 };
+#endif /* CONFIG_RTNETLINK */
 
 static abi_long netlink_audit_target_to_host(void *buf, size_t len)
 {
@@ -2771,10 +2777,12 @@ static abi_long do_socket(int domain, int type, int protocol)
         return ret;
     }
 
-    if (domain == PF_NETLINK &&
-        !(protocol == NETLINK_ROUTE ||
-          protocol == NETLINK_KOBJECT_UEVENT ||
-          protocol == NETLINK_AUDIT)) {
+    if (domain == PF_NETLINK && !(
+#ifdef CONFIG_RTNETLINK
+         protocol == NETLINK_ROUTE ||
+#endif
+         protocol == NETLINK_KOBJECT_UEVENT ||
+         protocol == NETLINK_AUDIT)) {
         return -EPFNOSUPPORT;
     }
 
@@ -2793,9 +2801,11 @@ static abi_long do_socket(int domain, int type, int protocol)
             fd_trans_register(ret, &target_packet_trans);
         } else if (domain == PF_NETLINK) {
             switch (protocol) {
+#ifdef CONFIG_RTNETLINK
             case NETLINK_ROUTE:
                 fd_trans_register(ret, &target_netlink_route_trans);
                 break;
+#endif
             case NETLINK_KOBJECT_UEVENT:
                 /* nothing to do: messages are strings */
                 break;

@@ -4526,6 +4526,17 @@ if compile_prog "" "" ; then
     have_fsxattr=yes
 fi
 
+have_rtnetlink=no
+cat > $TMPC << EOF
+#include <linux/rtnetlink.h>
+int main(void) {
+  return IFLA_PROTO_DOWN;
+}
+EOF
+if compile_prog "" "" ; then
+    have_rtnetlink=yes
+fi
+
 ##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
@@ -5459,6 +5470,10 @@ echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
 
 if test "$rdma" = "yes" ; then
   echo "CONFIG_RDMA=y" >> $config_host_mak
+fi
+
+if test "$have_rtnetlink" = "yes" ; then
+  echo "CONFIG_RTNETLINK=y" >> $config_host_mak
 fi
 
 # Hold two types of flag:
