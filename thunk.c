@@ -273,34 +273,34 @@ const argtype *thunk_convert(void *dst, const void *src,
 /* from em86 */
 
 /* Utility function: Table-driven functions to translate bitmasks
- * between X86 and Alpha formats...
+ * between host and target formats
  */
-unsigned int target_to_host_bitmask(unsigned int x86_mask,
+unsigned int target_to_host_bitmask(unsigned int target_mask,
                                     const bitmask_transtbl * trans_tbl)
 {
     const bitmask_transtbl *btp;
-    unsigned int	alpha_mask = 0;
+    unsigned int host_mask = 0;
 
-    for(btp = trans_tbl; btp->x86_mask && btp->alpha_mask; btp++) {
-	if((x86_mask & btp->x86_mask) == btp->x86_bits) {
-	    alpha_mask |= btp->alpha_bits;
-	}
+    for (btp = trans_tbl; btp->target_mask && btp->host_mask; btp++) {
+        if ((target_mask & btp->target_mask) == btp->target_bits) {
+            host_mask |= btp->host_bits;
+        }
     }
-    return(alpha_mask);
+    return host_mask;
 }
 
-unsigned int host_to_target_bitmask(unsigned int alpha_mask,
+unsigned int host_to_target_bitmask(unsigned int host_mask,
                                     const bitmask_transtbl * trans_tbl)
 {
     const bitmask_transtbl *btp;
-    unsigned int	x86_mask = 0;
+    unsigned int target_mask = 0;
 
-    for(btp = trans_tbl; btp->x86_mask && btp->alpha_mask; btp++) {
-	if((alpha_mask & btp->alpha_mask) == btp->alpha_bits) {
-	    x86_mask |= btp->x86_bits;
-	}
+    for (btp = trans_tbl; btp->target_mask && btp->host_mask; btp++) {
+        if ((host_mask & btp->host_mask) == btp->host_bits) {
+            target_mask |= btp->target_bits;
+        }
     }
-    return(x86_mask);
+    return target_mask;
 }
 
 int thunk_type_size_array(const argtype *type_ptr, int is_host)

@@ -60,10 +60,10 @@ typedef struct {
 
 /* Translation table for bitmasks... */
 typedef struct bitmask_transtbl {
-	unsigned int	x86_mask;
-	unsigned int	x86_bits;
-	unsigned int	alpha_mask;
-	unsigned int	alpha_bits;
+    unsigned int target_mask;
+    unsigned int target_bits;
+    unsigned int host_mask;
+    unsigned int host_bits;
 } bitmask_transtbl;
 
 void thunk_register_struct(int id, const char *name, const argtype *types);
@@ -177,9 +177,9 @@ static inline int thunk_type_align(const argtype *type_ptr, int is_host)
     }
 }
 
-unsigned int target_to_host_bitmask(unsigned int x86_mask,
+unsigned int target_to_host_bitmask(unsigned int target_mask,
                                     const bitmask_transtbl * trans_tbl);
-unsigned int host_to_target_bitmask(unsigned int alpha_mask,
+unsigned int host_to_target_bitmask(unsigned int host_mask,
                                     const bitmask_transtbl * trans_tbl);
 
 void thunk_init(unsigned int max_structs);
