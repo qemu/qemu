@@ -38,11 +38,8 @@ typedef struct NetSocketState {
     NetClientState nc;
     int listen_fd;
     int fd;
-    int state; /* 0 = getting length, 1 = getting data */
-    unsigned int index;
-    unsigned int packet_len;
+    SocketReadState rs;
     unsigned int send_index;      /* number of bytes sent (only SOCK_STREAM) */
-    uint8_t buf[NET_BUFSIZE];
     struct sockaddr_in dgram_dst; /* contains inet host and port destination iff connectionless (SOCK_DGRAM) */
     IOHandler *send_fn;           /* differs between SOCK_STREAM/SOCK_DGRAM */
     bool read_poll;               /* waiting to receive data? */
@@ -143,11 +140,22 @@ static void net_socket_send_completed(NetClientState *nc, ssize_t len)
     }
 }
 
+static void net_socket_rs_finalize(SocketReadState *rs)
+{
+    NetSocketState *s = container_of(rs, NetSocketState, rs);
+
+    if (qemu_send_packet_async(&s->nc, rs->buf,
+                               rs->packet_len,
+                               net_socket_send_completed) == 0) {
+        net_socket_read_poll(s, false);
+    }
+}
+
 static void net_socket_send(void *opaque)
 {
     NetSocketState *s = opaque;
     int size;
-    unsigned l;
+    int ret;
     uint8_t buf1[NET_BUFSIZE];
     const uint8_t *buf;
 
@@ -166,61 +174,18 @@ static void net_socket_send(void *opaque)
         closesocket(s->fd);
 
         s->fd = -1;
-        s->state = 0;
-        s->index = 0;
-        s->packet_len = 0;
+        net_socket_rs_init(&s->rs, net_socket_rs_finalize);
         s->nc.link_down = true;
-        memset(s->buf, 0, sizeof(s->buf));
         memset(s->nc.info_str, 0, sizeof(s->nc.info_str));
 
         return;
     }
     buf = buf1;
-    while (size > 0) {
-        /* reassemble a packet from the network */
-        switch(s->state) {
-        case 0:
-            l = 4 - s->index;
-            if (l > size)
-                l = size;
-            memcpy(s->buf + s->index, buf, l);
-            buf += l;
-            size -= l;
-            s->index += l;
-            if (s->index == 4) {
-                /* got length */
-                s->packet_len = ntohl(*(uint32_t *)s->buf);
-                s->index = 0;
-                s->state = 1;
-            }
-            break;
-        case 1:
-            l = s->packet_len - s->index;
-            if (l > size)
-                l = size;
-            if (s->index + l <= sizeof(s->buf)) {
-                memcpy(s->buf + s->index, buf, l);
-            } else {
-                fprintf(stderr, "serious error: oversized packet received,"
-                    "connection terminated.\n");
-                s->state = 0;
-                goto eoc;
-            }
 
-            s->index += l;
-            buf += l;
-            size -= l;
-            if (s->index >= s->packet_len) {
-                s->index = 0;
-                s->state = 0;
-                if (qemu_send_packet_async(&s->nc, s->buf, s->packet_len,
-                                           net_socket_send_completed) == 0) {
-                    net_socket_read_poll(s, false);
-                    break;
-                }
-            }
-            break;
-        }
+    ret = net_fill_rstate(&s->rs, buf, size);
+
+    if (ret == -1) {
+        goto eoc;
     }
 }
 
@@ -229,7 +194,7 @@ static void net_socket_send_dgram(void *opaque)
     NetSocketState *s = opaque;
     int size;
 
-    size = qemu_recv(s->fd, s->buf, sizeof(s->buf), 0);
+    size = qemu_recv(s->fd, s->rs.buf, sizeof(s->rs.buf), 0);
     if (size < 0)
         return;
     if (size == 0) {
@@ -238,7 +203,7 @@ static void net_socket_send_dgram(void *opaque)
         net_socket_write_poll(s, false);
         return;
     }
-    if (qemu_send_packet_async(&s->nc, s->buf, size,
+    if (qemu_send_packet_async(&s->nc, s->rs.buf, size,
                                net_socket_send_completed) == 0) {
         net_socket_read_poll(s, false);
     }
@@ -401,6 +366,7 @@ static NetSocketState *net_socket_fd_init_dgram(NetClientState *peer,
     s->fd = fd;
     s->listen_fd = -1;
     s->send_fn = net_socket_send_dgram;
+    net_socket_rs_init(&s->rs, net_socket_rs_finalize);
     net_socket_read_poll(s, true);
 
     /* mcast: save bound address as dst */
@@ -451,6 +417,7 @@ static NetSocketState *net_socket_fd_init_stream(NetClientState *peer,
 
     s->fd = fd;
     s->listen_fd = -1;
+    net_socket_rs_init(&s->rs, net_socket_rs_finalize);
 
     /* Disable Nagle algorithm on TCP sockets to reduce latency */
     socket_set_nodelay(fd);

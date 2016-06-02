@@ -191,6 +191,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
     }
 
     qdev_set_nic_properties(DEVICE(&s->fec), &nd_table[0]);
+
     object_property_set_bool(OBJECT(&s->fec), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);

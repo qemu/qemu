@@ -105,6 +105,10 @@ static void fsl_imx6_init(Object *obj)
         snprintf(name, NAME_SIZE, "spi%d", i + 1);
         object_property_add_child(obj, name, OBJECT(&s->spi[i]), NULL);
     }
+
+    object_initialize(&s->eth, sizeof(s->eth), TYPE_IMX_ENET);
+    qdev_set_parent_bus(DEVICE(&s->eth), sysbus_get_default());
+    object_property_add_child(obj, "eth", OBJECT(&s->eth), NULL);
 }
 
 static void fsl_imx6_realize(DeviceState *dev, Error **errp)
@@ -380,6 +384,19 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
                            qdev_get_gpio_in(DEVICE(&s->a9mpcore),
                                             spi_table[i].irq));
     }
+
+    object_property_set_bool(OBJECT(&s->eth), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->eth), 0, FSL_IMX6_ENET_ADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->eth), 0,
+                       qdev_get_gpio_in(DEVICE(&s->a9mpcore),
+                                        FSL_IMX6_ENET_MAC_IRQ));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->eth), 1,
+                       qdev_get_gpio_in(DEVICE(&s->a9mpcore),
+                                        FSL_IMX6_ENET_MAC_1588_IRQ));
 
     /* ROM memory */
     memory_region_init_rom_device(&s->rom, NULL, NULL, NULL, "imx6.rom",

@@ -83,6 +83,9 @@ static ssize_t mipsnet_receive(NetClientState *nc, const uint8_t *buf, size_t si
     if (!mipsnet_can_receive(nc))
         return 0;
 
+    if (size >= sizeof(s->rx_buffer)) {
+        return 0;
+    }
     s->busy = 1;
 
     /* Just accept everything. */

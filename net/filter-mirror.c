@@ -40,10 +40,7 @@ typedef struct MirrorState {
     char *outdev;
     CharDriverState *chr_in;
     CharDriverState *chr_out;
-    int state; /* 0 = getting length, 1 = getting data */
-    unsigned int index;
-    unsigned int packet_len;
-    uint8_t buf[REDIRECTOR_MAX_LEN];
+    SocketReadState rs;
 } MirrorState;
 
 static int filter_mirror_send(CharDriverState *chr_out,
@@ -108,51 +105,12 @@ static void redirector_chr_read(void *opaque, const uint8_t *buf, int size)
 {
     NetFilterState *nf = opaque;
     MirrorState *s = FILTER_REDIRECTOR(nf);
-    unsigned int l;
+    int ret;
 
-    while (size > 0) {
-        /* reassemble a packet from the network */
-        switch (s->state) { /* 0 = getting length, 1 = getting data */
-        case 0:
-            l = 4 - s->index;
-            if (l > size) {
-                l = size;
-            }
-            memcpy(s->buf + s->index, buf, l);
-            buf += l;
-            size -= l;
-            s->index += l;
-            if (s->index == 4) {
-                /* got length */
-                s->packet_len = ntohl(*(uint32_t *)s->buf);
-                s->index = 0;
-                s->state = 1;
-            }
-            break;
-        case 1:
-            l = s->packet_len - s->index;
-            if (l > size) {
-                l = size;
-            }
-            if (s->index + l <= sizeof(s->buf)) {
-                memcpy(s->buf + s->index, buf, l);
-            } else {
-                error_report("serious error: oversized packet received.");
-                s->index = s->state = 0;
-                qemu_chr_add_handlers(s->chr_in, NULL, NULL, NULL, NULL);
-                return;
-            }
+    ret = net_fill_rstate(&s->rs, buf, size);
 
-            s->index += l;
-            buf += l;
-            size -= l;
-            if (s->index >= s->packet_len) {
-                s->index = 0;
-                s->state = 0;
-                redirector_to_filter(nf, s->buf, s->packet_len);
-            }
-            break;
-        }
+    if (ret == -1) {
+        qemu_chr_add_handlers(s->chr_in, NULL, NULL, NULL, NULL);
     }
 }
 
@@ -258,6 +216,14 @@ static void filter_mirror_setup(NetFilterState *nf, Error **errp)
     }
 }
 
+static void redirector_rs_finalize(SocketReadState *rs)
+{
+    MirrorState *s = container_of(rs, MirrorState, rs);
+    NetFilterState *nf = NETFILTER(s);
+
+    redirector_to_filter(nf, rs->buf, rs->packet_len);
+}
+
 static void filter_redirector_setup(NetFilterState *nf, Error **errp)
 {
     MirrorState *s = FILTER_REDIRECTOR(nf);
@@ -274,7 +240,7 @@ static void filter_redirector_setup(NetFilterState *nf, Error **errp)
         }
     }
 
-    s->state = s->index = 0;
+    net_socket_rs_init(&s->rs, redirector_rs_finalize);
 
     if (s->indev) {
         s->chr_in = qemu_chr_find(s->indev);

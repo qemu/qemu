@@ -9,6 +9,11 @@
 #include "migration/vmstate.h"
 #include "qapi-types.h"
 
+#define MAC_FMT "%02X:%02X:%02X:%02X:%02X:%02X"
+#define MAC_ARG(x) ((uint8_t *)(x))[0], ((uint8_t *)(x))[1], \
+                   ((uint8_t *)(x))[2], ((uint8_t *)(x))[3], \
+                   ((uint8_t *)(x))[4], ((uint8_t *)(x))[5]
+
 #define MAX_QUEUE_NUM 1024
 
 /* Maximum GSO packet size (64k) plus plenty of room for
@@ -57,6 +62,8 @@ typedef void (SetOffload)(NetClientState *, int, int, int, int, int);
 typedef void (SetVnetHdrLen)(NetClientState *, int);
 typedef int (SetVnetLE)(NetClientState *, bool);
 typedef int (SetVnetBE)(NetClientState *, bool);
+typedef struct SocketReadState SocketReadState;
+typedef void (SocketReadStateFinalize)(SocketReadState *rs);
 
 typedef struct NetClientInfo {
     NetClientOptionsKind type;
@@ -102,6 +109,15 @@ typedef struct NICState {
     bool peer_deleted;
 } NICState;
 
+struct SocketReadState {
+    int state; /* 0 = getting length, 1 = getting data */
+    uint32_t index;
+    uint32_t packet_len;
+    uint8_t buf[NET_BUFSIZE];
+    SocketReadStateFinalize *finalize;
+};
+
+int net_fill_rstate(SocketReadState *rs, const uint8_t *buf, int size);
 char *qemu_mac_strdup_printf(const uint8_t *macaddr);
 NetClientState *qemu_find_netdev(const char *id);
 int qemu_find_net_clients_except(const char *id, NetClientState **ncs,
@@ -160,6 +176,8 @@ ssize_t qemu_deliver_packet_iov(NetClientState *sender,
 
 void print_net_client(Monitor *mon, NetClientState *nc);
 void hmp_info_network(Monitor *mon, const QDict *qdict);
+void net_socket_rs_init(SocketReadState *rs,
+                        SocketReadStateFinalize *finalize);
 
 /* NIC info */
 
@@ -178,7 +196,6 @@ struct NICInfo {
 
 extern int nb_nics;
 extern NICInfo nd_table[MAX_NICS];
-extern int default_net;
 extern const char *host_net_devices[];
 
 /* from net.c */

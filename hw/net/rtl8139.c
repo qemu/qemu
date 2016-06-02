@@ -1867,11 +1867,6 @@ static int rtl8139_transmit_one(RTL8139State *s, int descriptor)
     return 1;
 }
 
-/* structures and macros for task offloading */
-#define TCP_HEADER_DATA_OFFSET(tcp) (((be16_to_cpu(tcp->th_offset_flags) >> 12)&0xf) << 2)
-#define TCP_FLAGS_ONLY(flags) ((flags)&0x3f)
-#define TCP_HEADER_FLAGS(tcp) TCP_FLAGS_ONLY(be16_to_cpu(tcp->th_offset_flags))
-
 #define TCP_HEADER_CLEAR_FLAGS(tcp, off) ((tcp)->th_offset_flags &= cpu_to_be16(~TCP_FLAGS_ONLY(off)))
 
 /* produces ones' complement sum of data */

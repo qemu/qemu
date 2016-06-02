@@ -18,9 +18,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "net/checksum.h"
-
-#define PROTO_TCP  6
-#define PROTO_UDP 17
+#include "net/eth.h"
 
 uint32_t net_checksum_add_cont(int len, uint8_t *buf, int seq)
 {
@@ -57,50 +55,118 @@ uint16_t net_checksum_tcpudp(uint16_t length, uint16_t proto,
 
 void net_checksum_calculate(uint8_t *data, int length)
 {
-    int hlen, plen, proto, csum_offset;
-    uint16_t csum;
+    int mac_hdr_len, ip_len;
+    struct ip_header *ip;
 
-    /* Ensure data has complete L2 & L3 headers. */
-    if (length < 14 + 20) {
+    /*
+     * Note: We cannot assume "data" is aligned, so the all code uses
+     * some macros that take care of possible unaligned access for
+     * struct members (just in case).
+     */
+
+    /* Ensure we have at least an Eth header */
+    if (length < sizeof(struct eth_header)) {
         return;
     }
 
-    if ((data[14] & 0xf0) != 0x40)
-	return; /* not IPv4 */
-    hlen  = (data[14] & 0x0f) * 4;
-    plen  = (data[16] << 8 | data[17]) - hlen;
-    proto = data[23];
-
-    switch (proto) {
-    case PROTO_TCP:
-	csum_offset = 16;
-	break;
-    case PROTO_UDP:
-	csum_offset = 6;
-	break;
+    /* Handle the optionnal VLAN headers */
+    switch (lduw_be_p(&PKT_GET_ETH_HDR(data)->h_proto)) {
+    case ETH_P_VLAN:
+        mac_hdr_len = sizeof(struct eth_header) +
+                     sizeof(struct vlan_header);
+        break;
+    case ETH_P_DVLAN:
+        if (lduw_be_p(&PKT_GET_VLAN_HDR(data)->h_proto) == ETH_P_VLAN) {
+            mac_hdr_len = sizeof(struct eth_header) +
+                         2 * sizeof(struct vlan_header);
+        } else {
+            mac_hdr_len = sizeof(struct eth_header) +
+                         sizeof(struct vlan_header);
+        }
+        break;
     default:
-	return;
+        mac_hdr_len = sizeof(struct eth_header);
+        break;
     }
 
-    if (plen < csum_offset + 2 || 14 + hlen + plen > length) {
+    length -= mac_hdr_len;
+
+    /* Now check we have an IP header (with an optionnal VLAN header) */
+    if (length < sizeof(struct ip_header)) {
         return;
     }
 
-    data[14+hlen+csum_offset]   = 0;
-    data[14+hlen+csum_offset+1] = 0;
-    csum = net_checksum_tcpudp(plen, proto, data+14+12, data+14+hlen);
-    data[14+hlen+csum_offset]   = csum >> 8;
-    data[14+hlen+csum_offset+1] = csum & 0xff;
+    ip = (struct ip_header *)(data + mac_hdr_len);
+
+    if (IP_HEADER_VERSION(ip) != IP_HEADER_VERSION_4) {
+        return; /* not IPv4 */
+    }
+
+    ip_len = lduw_be_p(&ip->ip_len);
+
+    /* Last, check that we have enough data for the all IP frame */
+    if (length < ip_len) {
+        return;
+    }
+
+    ip_len -= IP_HDR_GET_LEN(ip);
+
+    switch (ip->ip_p) {
+    case IP_PROTO_TCP:
+    {
+        uint16_t csum;
+        tcp_header *tcp = (tcp_header *)(ip + 1);
+
+        if (ip_len < sizeof(tcp_header)) {
+            return;
+        }
+
+        /* Set csum to 0 */
+        stw_he_p(&tcp->th_sum, 0);
+
+        csum = net_checksum_tcpudp(ip_len, ip->ip_p,
+                                   (uint8_t *)&ip->ip_src,
+                                   (uint8_t *)tcp);
+
+        /* Store computed csum */
+        stw_be_p(&tcp->th_sum, csum);
+
+        break;
+    }
+    case IP_PROTO_UDP:
+    {
+        uint16_t csum;
+        udp_header *udp = (udp_header *)(ip + 1);
+
+        if (ip_len < sizeof(udp_header)) {
+            return;
+        }
+
+        /* Set csum to 0 */
+        stw_he_p(&udp->uh_sum, 0);
+
+        csum = net_checksum_tcpudp(ip_len, ip->ip_p,
+                                   (uint8_t *)&ip->ip_src,
+                                   (uint8_t *)udp);
+
+        /* Store computed csum */
+        stw_be_p(&udp->uh_sum, csum);
+
+        break;
+    }
+    default:
+        /* Can't handle any other protocol */
+        break;
+    }
 }
 
 uint32_t
 net_checksum_add_iov(const struct iovec *iov, const unsigned int iov_cnt,
-                     uint32_t iov_off, uint32_t size)
+                     uint32_t iov_off, uint32_t size, uint32_t csum_offset)
 {
     size_t iovec_off, buf_off;
     unsigned int i;
     uint32_t res = 0;
-    uint32_t seq = 0;
 
     iovec_off = 0;
     buf_off = 0;
@@ -109,8 +175,8 @@ net_checksum_add_iov(const struct iovec *iov, const unsigned int iov_cnt,
             size_t len = MIN((iovec_off + iov[i].iov_len) - iov_off , size);
             void *chunk_buf = iov[i].iov_base + (iov_off - iovec_off);
 
-            res += net_checksum_add_cont(len, chunk_buf, seq);
-            seq += len;
+            res += net_checksum_add_cont(len, chunk_buf, csum_offset);
+            csum_offset += len;
 
             buf_off += len;
             iov_off += len;

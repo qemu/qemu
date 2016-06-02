@@ -207,6 +207,7 @@ static int default_floppy = 1;
 static int default_cdrom = 1;
 static int default_sdcard = 1;
 static int default_vga = 1;
+static int default_net = 1;
 
 static struct {
     const char *driver;
@@ -3267,11 +3268,13 @@ int main(int argc, char **argv, char **envp)
                 fd_bootchk = 0;
                 break;
             case QEMU_OPTION_netdev:
+                default_net = 0;
                 if (net_client_parse(qemu_find_opts("netdev"), optarg) == -1) {
                     exit(1);
                 }
                 break;
             case QEMU_OPTION_net:
+                default_net = 0;
                 if (net_client_parse(qemu_find_opts("net"), optarg) == -1) {
                     exit(1);
                 }
@@ -4361,6 +4364,14 @@ int main(int argc, char **argv, char **envp)
     /* clean up network at qemu process termination */
     atexit(&net_cleanup);
 
+    if (default_net) {
+        QemuOptsList *net = qemu_find_opts("net");
+        qemu_opts_set(net, NULL, "type", "nic", &error_abort);
+#ifdef CONFIG_SLIRP
+        qemu_opts_set(net, NULL, "type", "user", &error_abort);
+#endif
+    }
+
     if (net_init_clients() < 0) {
         exit(1);
     }
@@ -4509,7 +4520,18 @@ int main(int argc, char **argv, char **envp)
     /* Did we create any drives that we failed to create a device for? */
     drive_check_orphaned();
 
-    net_check_clients();
+    /* Don't warn about the default network setup that you get if
+     * no command line -net or -netdev options are specified. There
+     * are two cases that we would otherwise complain about:
+     * (1) board doesn't support a NIC but the implicit "-net nic"
+     * requested one
+     * (2) CONFIG_SLIRP not set, in which case the implicit "-net nic"
+     * sets up a nic that isn't connected to anything.
+     */
+    if (!default_net) {
+        net_check_clients();
+    }
+
 
     if (boot_once) {
         qemu_boot_set(boot_once, &error_fatal);

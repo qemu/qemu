@@ -28,6 +28,7 @@
 #include "hw/gpio/imx_gpio.h"
 #include "hw/sd/sdhci.h"
 #include "hw/ssi/imx_spi.h"
+#include "hw/net/imx_fec.h"
 #include "exec/memory.h"
 #include "cpu.h"
 
@@ -58,6 +59,7 @@ typedef struct FslIMX6State {
     IMXGPIOState   gpio[FSL_IMX6_NUM_GPIOS];
     SDHCIState     esdhc[FSL_IMX6_NUM_ESDHCS];
     IMXSPIState    spi[FSL_IMX6_NUM_ECSPIS];
+    IMXFECState    eth;
     MemoryRegion   rom;
     MemoryRegion   caam;
     MemoryRegion   ocram;
@@ -436,8 +438,8 @@ typedef struct FslIMX6State {
 #define FSL_IMX6_HDMI_MASTER_IRQ 115
 #define FSL_IMX6_HDMI_CEC_IRQ 116
 #define FSL_IMX6_MLB150_LOW_IRQ 117
-#define FSL_IMX6_ENET_MAC_IRQ 118
-#define FSL_IMX6_ENET_MAC_1588_IRQ 119
+#define FSL_IMX6_ENET_MAC_1588_IRQ 118
+#define FSL_IMX6_ENET_MAC_IRQ 119
 #define FSL_IMX6_PCIE1_IRQ 120
 #define FSL_IMX6_PCIE2_IRQ 121
 #define FSL_IMX6_PCIE3_IRQ 122

@@ -11,6 +11,7 @@
 
 /* express capability */
 
+#define PCI_EXP_VER1_SIZEOF             0x14 /* express capability of ver. 1 */
 #define PCI_EXP_VER2_SIZEOF             0x3c /* express capability of ver. 2 */
 #define PCI_EXT_CAP_VER_SHIFT           16
 #define PCI_EXT_CAP_NEXT_SHIFT          20
@@ -26,10 +27,10 @@
     (((x) + PCI_EXT_CAP_ALIGN - 1) & ~(PCI_EXT_CAP_ALIGN - 1))
 
 /* PCI_EXP_FLAGS */
-#define PCI_EXP_FLAGS_VER2              2 /* for now, supports only ver. 2 */
+#define PCI_EXP_FLAGS_VER1              1
+#define PCI_EXP_FLAGS_VER2              2
 #define PCI_EXP_FLAGS_IRQ_SHIFT         ctz32(PCI_EXP_FLAGS_IRQ)
 #define PCI_EXP_FLAGS_TYPE_SHIFT        ctz32(PCI_EXP_FLAGS_TYPE)
-
 
 /* PCI_EXP_LINK{CAP, STA} */
 /* link speed */
