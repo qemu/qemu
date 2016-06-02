@@ -71,7 +71,6 @@ void thunk_register_struct_direct(int id, const char *name,
                                   const StructEntry *se1);
 const argtype *thunk_convert(void *dst, const void *src,
                              const argtype *type_ptr, int to_host);
-#ifndef NO_THUNK_TYPE_SIZE
 
 extern StructEntry *struct_entries;
 
@@ -177,8 +176,6 @@ static inline int thunk_type_align(const argtype *type_ptr, int is_host)
         return -1;
     }
 }
-
-#endif /* NO_THUNK_TYPE_SIZE */
 
 unsigned int target_to_host_bitmask(unsigned int x86_mask,
                                     const bitmask_transtbl * trans_tbl);
