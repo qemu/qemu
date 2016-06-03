@@ -1629,6 +1629,7 @@ static void reset_keys(VncState *vs)
     for(i = 0; i < 256; i++) {
         if (vs->modifiers_state[i]) {
             qemu_input_event_send_key_number(vs->vd->dcl.con, i, false);
+            qemu_input_event_send_key_delay(vs->vd->key_delay_ms);
             vs->modifiers_state[i] = 0;
         }
     }
@@ -1638,9 +1639,9 @@ static void press_key(VncState *vs, int keysym)
 {
     int keycode = keysym2scancode(vs->vd->kbd_layout, keysym) & SCANCODE_KEYMASK;
     qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, true);
-    qemu_input_event_send_key_delay(0);
+    qemu_input_event_send_key_delay(vs->vd->key_delay_ms);
     qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, false);
-    qemu_input_event_send_key_delay(0);
+    qemu_input_event_send_key_delay(vs->vd->key_delay_ms);
 }
 
 static int current_led_state(VncState *vs)
@@ -1792,6 +1793,7 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
 
     if (qemu_console_is_graphic(NULL)) {
         qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, down);
+        qemu_input_event_send_key_delay(vs->vd->key_delay_ms);
     } else {
         bool numlock = vs->modifiers_state[0x45];
         bool control = (vs->modifiers_state[0x1d] ||
@@ -1913,6 +1915,7 @@ static void vnc_release_modifiers(VncState *vs)
             continue;
         }
         qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, false);
+        qemu_input_event_send_key_delay(vs->vd->key_delay_ms);
     }
 }
 
@@ -2094,6 +2097,24 @@ static void set_pixel_conversion(VncState *vs)
     }
 }
 
+static void send_color_map(VncState *vs)
+{
+    int i;
+
+    vnc_write_u8(vs, VNC_MSG_SERVER_SET_COLOUR_MAP_ENTRIES);
+    vnc_write_u8(vs,  0);    /* padding     */
+    vnc_write_u16(vs, 0);    /* first color */
+    vnc_write_u16(vs, 256);  /* # of colors */
+
+    for (i = 0; i < 256; i++) {
+        PixelFormat *pf = &vs->client_pf;
+
+        vnc_write_u16(vs, (((i >> pf->rshift) & pf->rmax) << (16 - pf->rbits)));
+        vnc_write_u16(vs, (((i >> pf->gshift) & pf->gmax) << (16 - pf->gbits)));
+        vnc_write_u16(vs, (((i >> pf->bshift) & pf->bmax) << (16 - pf->bbits)));
+    }
+}
+
 static void set_pixel_format(VncState *vs,
                              int bits_per_pixel, int depth,
                              int big_endian_flag, int true_color_flag,
@@ -2101,8 +2122,15 @@ static void set_pixel_format(VncState *vs,
                              int red_shift, int green_shift, int blue_shift)
 {
     if (!true_color_flag) {
-        vnc_client_error(vs);
-        return;
+        /* Expose a reasonable default 256 color map */
+        bits_per_pixel = 8;
+        depth = 8;
+        red_max = 7;
+        green_max = 7;
+        blue_max = 3;
+        red_shift = 0;
+        green_shift = 3;
+        blue_shift = 6;
     }
 
     switch (bits_per_pixel) {
@@ -2131,6 +2159,10 @@ static void set_pixel_format(VncState *vs,
     vs->client_pf.bytes_per_pixel = bits_per_pixel / 8;
     vs->client_pf.depth = bits_per_pixel == 32 ? 24 : bits_per_pixel;
     vs->client_be = big_endian_flag;
+
+    if (!true_color_flag) {
+        send_color_map(vs);
+    }
 
     set_pixel_conversion(vs);
 
@@ -3249,6 +3281,9 @@ static QemuOptsList qemu_vnc_opts = {
             .name = "lock-key-sync",
             .type = QEMU_OPT_BOOL,
         },{
+            .name = "key-delay-ms",
+            .type = QEMU_OPT_NUMBER,
+        },{
             .name = "sasl",
             .type = QEMU_OPT_BOOL,
         },{
@@ -3486,6 +3521,7 @@ void vnc_display_open(const char *id, Error **errp)
 #endif
     int acl = 0;
     int lock_key_sync = 1;
+    int key_delay_ms;
 
     if (!vs) {
         error_setg(errp, "VNC display not active");
@@ -3604,6 +3640,7 @@ void vnc_display_open(const char *id, Error **errp)
 
     reverse = qemu_opt_get_bool(opts, "reverse", false);
     lock_key_sync = qemu_opt_get_bool(opts, "lock-key-sync", true);
+    key_delay_ms = qemu_opt_get_number(opts, "key-delay-ms", 1);
     sasl = qemu_opt_get_bool(opts, "sasl", false);
 #ifndef CONFIG_VNC_SASL
     if (sasl) {
@@ -3735,6 +3772,7 @@ void vnc_display_open(const char *id, Error **errp)
     }
 #endif
     vs->lock_key_sync = lock_key_sync;
+    vs->key_delay_ms = key_delay_ms;
 
     device_id = qemu_opt_get(opts, "display");
     if (device_id) {

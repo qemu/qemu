@@ -2,6 +2,7 @@
 #include <glob.h>
 #include <dirent.h>
 
+#include "qemu/error-report.h"
 #include "ui/egl-helpers.h"
 
 EGLDisplay *qemu_egl_display;
@@ -74,13 +75,13 @@ int egl_rendernode_init(void)
 
     qemu_egl_rn_fd = qemu_egl_rendernode_open();
     if (qemu_egl_rn_fd == -1) {
-        fprintf(stderr, "egl: no drm render node available\n");
+        error_report("egl: no drm render node available");
         goto err;
     }
 
     qemu_egl_rn_gbm_dev = gbm_create_device(qemu_egl_rn_fd);
     if (!qemu_egl_rn_gbm_dev) {
-        fprintf(stderr, "egl: gbm_create_device failed\n");
+        error_report("egl: gbm_create_device failed");
         goto err;
     }
 
@@ -88,18 +89,18 @@ int egl_rendernode_init(void)
 
     if (!epoxy_has_egl_extension(qemu_egl_display,
                                  "EGL_KHR_surfaceless_context")) {
-        fprintf(stderr, "egl: EGL_KHR_surfaceless_context not supported\n");
+        error_report("egl: EGL_KHR_surfaceless_context not supported");
         goto err;
     }
     if (!epoxy_has_egl_extension(qemu_egl_display,
                                  "EGL_MESA_image_dma_buf_export")) {
-        fprintf(stderr, "egl: EGL_MESA_image_dma_buf_export not supported\n");
+        error_report("egl: EGL_MESA_image_dma_buf_export not supported");
         goto err;
     }
 
     qemu_egl_rn_ctx = qemu_egl_init_ctx();
     if (!qemu_egl_rn_ctx) {
-        fprintf(stderr, "egl: egl_init_ctx failed\n");
+        error_report("egl: egl_init_ctx failed");
         goto err;
     }
 
@@ -156,13 +157,13 @@ EGLSurface qemu_egl_init_surface_x11(EGLContext ectx, Window win)
                                       qemu_egl_config,
                                       (EGLNativeWindowType)win, NULL);
     if (esurface == EGL_NO_SURFACE) {
-        fprintf(stderr, "egl: eglCreateWindowSurface failed\n");
+        error_report("egl: eglCreateWindowSurface failed");
         return NULL;
     }
 
     b = eglMakeCurrent(qemu_egl_display, esurface, esurface, ectx);
     if (b == EGL_FALSE) {
-        fprintf(stderr, "egl: eglMakeCurrent failed\n");
+        error_report("egl: eglMakeCurrent failed");
         return NULL;
     }
 
@@ -204,21 +205,21 @@ int qemu_egl_init_dpy(EGLNativeDisplayType dpy, bool gles, bool debug)
     egl_dbg("eglGetDisplay (dpy %p) ...\n", dpy);
     qemu_egl_display = eglGetDisplay(dpy);
     if (qemu_egl_display == EGL_NO_DISPLAY) {
-        fprintf(stderr, "egl: eglGetDisplay failed\n");
+        error_report("egl: eglGetDisplay failed");
         return -1;
     }
 
     egl_dbg("eglInitialize ...\n");
     b = eglInitialize(qemu_egl_display, &major, &minor);
     if (b == EGL_FALSE) {
-        fprintf(stderr, "egl: eglInitialize failed\n");
+        error_report("egl: eglInitialize failed");
         return -1;
     }
 
     egl_dbg("eglBindAPI ...\n");
     b = eglBindAPI(gles ? EGL_OPENGL_ES_API : EGL_OPENGL_API);
     if (b == EGL_FALSE) {
-        fprintf(stderr, "egl: eglBindAPI failed\n");
+        error_report("egl: eglBindAPI failed");
         return -1;
     }
 
@@ -227,7 +228,7 @@ int qemu_egl_init_dpy(EGLNativeDisplayType dpy, bool gles, bool debug)
                         gles ? conf_att_gles : conf_att_gl,
                         &qemu_egl_config, 1, &n);
     if (b == EGL_FALSE || n != 1) {
-        fprintf(stderr, "egl: eglChooseConfig failed\n");
+        error_report("egl: eglChooseConfig failed");
         return -1;
     }
 
@@ -252,13 +253,13 @@ EGLContext qemu_egl_init_ctx(void)
     ectx = eglCreateContext(qemu_egl_display, qemu_egl_config, EGL_NO_CONTEXT,
                             egl_gles ? ctx_att_gles : ctx_att_gl);
     if (ectx == EGL_NO_CONTEXT) {
-        fprintf(stderr, "egl: eglCreateContext failed\n");
+        error_report("egl: eglCreateContext failed");
         return NULL;
     }
 
     b = eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, ectx);
     if (b == EGL_FALSE) {
-        fprintf(stderr, "egl: eglMakeCurrent failed\n");
+        error_report("egl: eglMakeCurrent failed");
         return NULL;
     }
 

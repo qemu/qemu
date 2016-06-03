@@ -1477,13 +1477,14 @@ static void gd_grab_pointer(VirtualConsole *vc, const char *reason)
 static void gd_ungrab_pointer(GtkDisplayState *s)
 {
     VirtualConsole *vc = s->ptr_owner;
-    GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
+    GdkDisplay *display;
 
     if (vc == NULL) {
         return;
     }
     s->ptr_owner = NULL;
 
+    display = gtk_widget_get_display(vc->gfx.drawing_area);
 #if GTK_CHECK_VERSION(3, 20, 0)
     gd_grab_update(vc, vc->s->kbd_owner == vc, false);
     gdk_device_warp(gd_get_pointer(display),
