@@ -11478,8 +11478,10 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
     ctx.exception = POWERPC_EXCP_NONE;
     ctx.spr_cb = env->spr_cb;
     ctx.pr = msr_pr;
-    ctx.hv = !msr_pr && msr_hv;
     ctx.mem_idx = env->dmmu_idx;
+#if !defined(CONFIG_USER_ONLY)
+    ctx.hv = msr_hv || !env->has_hv_mode;
+#endif
     ctx.insns_flags = env->insns_flags;
     ctx.insns_flags2 = env->insns_flags2;
     ctx.access_type = -1;

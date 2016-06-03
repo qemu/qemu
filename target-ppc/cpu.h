@@ -1050,6 +1050,10 @@ struct CPUPPCState {
     hwaddr mpic_iack;
     /* true when the external proxy facility mode is enabled */
     bool mpic_proxy;
+    /* set when the processor has an HV mode, thus HV priv
+     * instructions and SPRs are diallowed if MSR:HV is 0
+     */
+    bool has_hv_mode;
 #endif
 
     /* Those resources are used only during code translation */

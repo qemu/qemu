@@ -8450,6 +8450,7 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
                         PPC2_ISA205 | PPC2_ISA207S | PPC2_FP_CVT_S64 |
                         PPC2_TM;
     pcc->msr_mask = (1ull << MSR_SF) |
+                    (1ull << MSR_SHV) |
                     (1ull << MSR_TM) |
                     (1ull << MSR_VR) |
                     (1ull << MSR_VSX) |
@@ -9854,10 +9855,7 @@ static void ppc_cpu_reset(CPUState *s)
     pcc->parent_reset(s);
 
     msr = (target_ulong)0;
-    if (0) {
-        /* XXX: find a suitable condition to enable the hypervisor mode */
-        msr |= (target_ulong)MSR_HVB;
-    }
+    msr |= (target_ulong)MSR_HVB;
     msr |= (target_ulong)0 << MSR_AP; /* TO BE CHECKED */
     msr |= (target_ulong)0 << MSR_SA; /* TO BE CHECKED */
     msr |= (target_ulong)1 << MSR_EP;
@@ -9957,6 +9955,19 @@ static void ppc_cpu_initfn(Object *obj)
     env->flags = pcc->flags;
     env->bfd_mach = pcc->bfd_mach;
     env->check_pow = pcc->check_pow;
+
+    /* Mark HV mode as supported if the CPU has an MSR_HV bit
+     * in the msr_mask. The mask can later be cleared by PAPR
+     * mode but the hv mode support will remain, thus enforcing
+     * that we cannot use priv. instructions in guest in PAPR
+     * mode. For 970 we currently simply don't set HV in msr_mask
+     * thus simulating an "Apple mode" 970. If we ever want to
+     * support 970 HV mode, we'll have to add a processor attribute
+     * of some sort.
+     */
+#if !defined(CONFIG_USER_ONLY)
+    env->has_hv_mode = !!(env->msr_mask & MSR_HVB);
+#endif
 
 #if defined(TARGET_PPC64)
     if (pcc->sps) {
