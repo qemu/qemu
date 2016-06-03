@@ -2354,18 +2354,36 @@ static const TypeInfo spapr_machine_info = {
     type_init(spapr_machine_register_##suffix)
 
 /*
+ * pseries-2.7
+ */
+static void spapr_machine_2_7_instance_options(MachineState *machine)
+{
+}
+
+static void spapr_machine_2_7_class_options(MachineClass *mc)
+{
+    /* Defaults for the latest behaviour inherited from the base class */
+}
+
+DEFINE_SPAPR_MACHINE(2_7, "2.7", true);
+
+/*
  * pseries-2.6
  */
+#define SPAPR_COMPAT_2_6 \
+    HW_COMPAT_2_6
+
 static void spapr_machine_2_6_instance_options(MachineState *machine)
 {
 }
 
 static void spapr_machine_2_6_class_options(MachineClass *mc)
 {
-    /* Defaults for the latest behaviour inherited from the base class */
+    spapr_machine_2_7_class_options(mc);
+    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_6);
 }
 
-DEFINE_SPAPR_MACHINE(2_6, "2.6", true);
+DEFINE_SPAPR_MACHINE(2_6, "2.6", false);
 
 /*
  * pseries-2.5
