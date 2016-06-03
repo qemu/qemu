@@ -384,6 +384,9 @@ enum {
 #define CACHE_CTRL_FD (1 << 22)  /* Flush Data cache (Write only) */
 #define CACHE_CTRL_DS (1 << 23)  /* Data cache snoop enable */
 
+#define CONVERT_BIT(X, SRC, DST) \
+         (SRC > DST ? (X) / (SRC / DST) & (DST) : ((X) & SRC) * (DST / SRC))
+
 typedef struct SparcTLBEntry {
     uint64_t tag;
     uint64_t tte;

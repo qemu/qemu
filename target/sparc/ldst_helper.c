@@ -204,12 +204,34 @@ static void demap_tlb(SparcTLBEntry *tlb, target_ulong demap_addr,
     }
 }
 
+static uint64_t sun4v_tte_to_sun4u(CPUSPARCState *env, uint64_t tag,
+                                   uint64_t sun4v_tte)
+{
+    uint64_t sun4u_tte;
+    if (!(cpu_has_hypervisor(env) && (tag & TLB_UST1_IS_SUN4V_BIT))) {
+        /* is already in the sun4u format */
+        return sun4v_tte;
+    }
+    sun4u_tte = TTE_PA(sun4v_tte) | (sun4v_tte & TTE_VALID_BIT);
+    sun4u_tte |= (sun4v_tte & 3ULL) << 61; /* TTE_PGSIZE */
+    sun4u_tte |= CONVERT_BIT(sun4v_tte, TTE_NFO_BIT_UA2005, TTE_NFO_BIT);
+    sun4u_tte |= CONVERT_BIT(sun4v_tte, TTE_USED_BIT_UA2005, TTE_USED_BIT);
+    sun4u_tte |= CONVERT_BIT(sun4v_tte, TTE_W_OK_BIT_UA2005, TTE_W_OK_BIT);
+    sun4u_tte |= CONVERT_BIT(sun4v_tte, TTE_SIDEEFFECT_BIT_UA2005,
+                             TTE_SIDEEFFECT_BIT);
+    sun4u_tte |= CONVERT_BIT(sun4v_tte, TTE_PRIV_BIT_UA2005, TTE_PRIV_BIT);
+    sun4u_tte |= CONVERT_BIT(sun4v_tte, TTE_LOCKED_BIT_UA2005, TTE_LOCKED_BIT);
+    return sun4u_tte;
+}
+
 static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
                                  uint64_t tlb_tag, uint64_t tlb_tte,
-                                 const char *strmmu, CPUSPARCState *env1)
+                                 const char *strmmu, CPUSPARCState *env1,
+                                 uint64_t addr)
 {
     unsigned int i, replace_used;
 
+    tlb_tte = sun4v_tte_to_sun4u(env1, addr, tlb_tte);
     if (cpu_has_hypervisor(env1)) {
         uint64_t new_vaddr = tlb_tag & ~0x1fffULL;
         uint64_t new_size = 8192ULL << 3 * TTE_PGSIZE(tlb_tte);
@@ -1617,7 +1639,11 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
             return;
         }
     case ASI_ITLB_DATA_IN: /* I-MMU data in */
-        replace_tlb_1bit_lru(env->itlb, env->immu.tag_access, val, "immu", env);
+        /* ignore real translation entries */
+        if (!(addr & TLB_UST1_IS_REAL_BIT)) {
+            replace_tlb_1bit_lru(env->itlb, env->immu.tag_access,
+                                 val, "immu", env, addr);
+        }
         return;
     case ASI_ITLB_DATA_ACCESS: /* I-MMU data access */
         {
@@ -1625,8 +1651,11 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
 
             unsigned int i = (addr >> 3) & 0x3f;
 
-            replace_tlb_entry(&env->itlb[i], env->immu.tag_access, val, env);
-
+            /* ignore real translation entries */
+            if (!(addr & TLB_UST1_IS_REAL_BIT)) {
+                replace_tlb_entry(&env->itlb[i], env->immu.tag_access,
+                                  sun4v_tte_to_sun4u(env, addr, val), env);
+            }
 #ifdef DEBUG_MMU
             DPRINTF_MMU("immu data access replaced entry [%i]\n", i);
             dump_mmu(stdout, fprintf, env);
@@ -1694,14 +1723,21 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
             return;
         }
     case ASI_DTLB_DATA_IN: /* D-MMU data in */
-        replace_tlb_1bit_lru(env->dtlb, env->dmmu.tag_access, val, "dmmu", env);
-        return;
+      /* ignore real translation entries */
+      if (!(addr & TLB_UST1_IS_REAL_BIT)) {
+          replace_tlb_1bit_lru(env->dtlb, env->dmmu.tag_access,
+                               val, "dmmu", env, addr);
+      }
+      return;
     case ASI_DTLB_DATA_ACCESS: /* D-MMU data access */
         {
             unsigned int i = (addr >> 3) & 0x3f;
 
-            replace_tlb_entry(&env->dtlb[i], env->dmmu.tag_access, val, env);
-
+            /* ignore real translation entries */
+            if (!(addr & TLB_UST1_IS_REAL_BIT)) {
+                replace_tlb_entry(&env->dtlb[i], env->dmmu.tag_access,
+                                  sun4v_tte_to_sun4u(env, addr, val), env);
+            }
 #ifdef DEBUG_MMU
             DPRINTF_MMU("dmmu data access replaced entry [%i]\n", i);
             dump_mmu(stdout, fprintf, env);
