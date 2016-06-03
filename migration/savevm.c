@@ -31,6 +31,7 @@
 #include "hw/boards.h"
 #include "hw/hw.h"
 #include "hw/qdev.h"
+#include "hw/xen/xen.h"
 #include "net/net.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
@@ -1754,6 +1755,12 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
         return -EINVAL;
     }
 
+    /* Validate if it is a device's state */
+    if (xen_enabled() && se->is_ram) {
+        error_report("loadvm: %s RAM loading not allowed on Xen", idstr);
+        return -EINVAL;
+    }
+
     /* Add entry */
     le = g_malloc0(sizeof(*le));
 
@@ -2062,6 +2069,36 @@ void qmp_xen_save_devices_state(const char *filename, Error **errp)
     if (saved_vm_running) {
         vm_start();
     }
+}
+
+void qmp_xen_load_devices_state(const char *filename, Error **errp)
+{
+    QEMUFile *f;
+    QIOChannelFile *ioc;
+    int ret;
+
+    /* Guest must be paused before loading the device state; the RAM state
+     * will already have been loaded by xc
+     */
+    if (runstate_is_running()) {
+        error_setg(errp, "Cannot update device state while vm is running");
+        return;
+    }
+    vm_stop(RUN_STATE_RESTORE_VM);
+
+    ioc = qio_channel_file_new_path(filename, O_RDONLY | O_BINARY, 0, errp);
+    if (!ioc) {
+        return;
+    }
+    f = qemu_fopen_channel_input(QIO_CHANNEL(ioc));
+
+    migration_incoming_state_new(f);
+    ret = qemu_loadvm_state(f);
+    qemu_fclose(f);
+    if (ret < 0) {
+        error_setg(errp, QERR_IO_ERROR);
+    }
+    migration_incoming_state_destroy();
 }
 
 int load_vmstate(const char *name)
