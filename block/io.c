@@ -963,11 +963,9 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
 {
     int ret;
 
-    int64_t sector_num = offset >> BDRV_SECTOR_BITS;
-    unsigned int nb_sectors = bytes >> BDRV_SECTOR_BITS;
-
-    assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
-    assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert(is_power_of_2(align));
+    assert((offset & (align - 1)) == 0);
+    assert((bytes & (align - 1)) == 0);
     assert(!qiov || bytes == qiov->size);
     assert((bs->open_flags & BDRV_O_NO_IO) == 0);
     assert(!(flags & ~BDRV_REQ_MASK));
@@ -987,9 +985,12 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
     }
 
     if (flags & BDRV_REQ_COPY_ON_READ) {
+        int64_t start_sector = offset >> BDRV_SECTOR_BITS;
+        int64_t end_sector = DIV_ROUND_UP(offset + bytes, BDRV_SECTOR_SIZE);
+        unsigned int nb_sectors = end_sector - start_sector;
         int pnum;
 
-        ret = bdrv_is_allocated(bs, sector_num, nb_sectors, &pnum);
+        ret = bdrv_is_allocated(bs, start_sector, nb_sectors, &pnum);
         if (ret < 0) {
             goto out;
         }
@@ -1005,28 +1006,24 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
         ret = bdrv_driver_preadv(bs, offset, bytes, qiov, 0);
     } else {
         /* Read zeros after EOF */
-        int64_t total_sectors, max_nb_sectors;
+        int64_t total_bytes, max_bytes;
 
-        total_sectors = bdrv_nb_sectors(bs);
-        if (total_sectors < 0) {
-            ret = total_sectors;
+        total_bytes = bdrv_getlength(bs);
+        if (total_bytes < 0) {
+            ret = total_bytes;
             goto out;
         }
 
-        max_nb_sectors = ROUND_UP(MAX(0, total_sectors - sector_num),
-                                  align >> BDRV_SECTOR_BITS);
-        if (nb_sectors < max_nb_sectors) {
+        max_bytes = ROUND_UP(MAX(0, total_bytes - offset), align);
+        if (bytes < max_bytes) {
             ret = bdrv_driver_preadv(bs, offset, bytes, qiov, 0);
-        } else if (max_nb_sectors > 0) {
+        } else if (max_bytes > 0) {
             QEMUIOVector local_qiov;
 
             qemu_iovec_init(&local_qiov, qiov->niov);
-            qemu_iovec_concat(&local_qiov, qiov, 0,
-                              max_nb_sectors * BDRV_SECTOR_SIZE);
+            qemu_iovec_concat(&local_qiov, qiov, 0, max_bytes);
 
-            ret = bdrv_driver_preadv(bs, offset,
-                                     max_nb_sectors * BDRV_SECTOR_SIZE,
-                                     &local_qiov, 0);
+            ret = bdrv_driver_preadv(bs, offset, max_bytes, &local_qiov, 0);
 
             qemu_iovec_destroy(&local_qiov);
         } else {
@@ -1034,11 +1031,10 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
         }
 
         /* Reading beyond end of file is supposed to produce zeroes */
-        if (ret == 0 && total_sectors < sector_num + nb_sectors) {
-            uint64_t offset = MAX(0, total_sectors - sector_num);
-            uint64_t bytes = (sector_num + nb_sectors - offset) *
-                              BDRV_SECTOR_SIZE;
-            qemu_iovec_memset(qiov, offset * BDRV_SECTOR_SIZE, 0, bytes);
+        if (ret == 0 && total_bytes < offset + bytes) {
+            uint64_t zero_offset = MAX(0, total_bytes - offset);
+            uint64_t zero_bytes = offset + bytes - zero_offset;
+            qemu_iovec_memset(qiov, zero_offset, 0, zero_bytes);
         }
     }
 
