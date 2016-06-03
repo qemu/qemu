@@ -1249,11 +1249,9 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
     bool waited;
     int ret;
 
-    int64_t sector_num = offset >> BDRV_SECTOR_BITS;
-    unsigned int nb_sectors = bytes >> BDRV_SECTOR_BITS;
+    int64_t start_sector = offset >> BDRV_SECTOR_BITS;
+    int64_t end_sector = DIV_ROUND_UP(offset + bytes, BDRV_SECTOR_SIZE);
 
-    assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
-    assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
     assert(!qiov || bytes == qiov->size);
     assert((bs->open_flags & BDRV_O_NO_IO) == 0);
     assert(!(flags & ~BDRV_REQ_MASK));
@@ -1278,22 +1276,21 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
         /* Do nothing, write notifier decided to fail this request */
     } else if (flags & BDRV_REQ_ZERO_WRITE) {
         bdrv_debug_event(bs, BLKDBG_PWRITEV_ZERO);
-        ret = bdrv_co_do_pwrite_zeroes(bs, sector_num << BDRV_SECTOR_BITS,
-                                       nb_sectors << BDRV_SECTOR_BITS, flags);
+        ret = bdrv_co_do_pwrite_zeroes(bs, offset, bytes, flags);
     } else {
         bdrv_debug_event(bs, BLKDBG_PWRITEV);
         ret = bdrv_driver_pwritev(bs, offset, bytes, qiov, flags);
     }
     bdrv_debug_event(bs, BLKDBG_PWRITEV_DONE);
 
-    bdrv_set_dirty(bs, sector_num, nb_sectors);
+    bdrv_set_dirty(bs, start_sector, end_sector - start_sector);
 
     if (bs->wr_highest_offset < offset + bytes) {
         bs->wr_highest_offset = offset + bytes;
     }
 
     if (ret >= 0) {
-        bs->total_sectors = MAX(bs->total_sectors, sector_num + nb_sectors);
+        bs->total_sectors = MAX(bs->total_sectors, end_sector);
     }
 
     return ret;
