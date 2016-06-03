@@ -271,15 +271,12 @@ static int laio_do_submit(int fd, struct qemu_laiocb *laiocb, off_t offset,
 }
 
 int coroutine_fn laio_co_submit(BlockDriverState *bs, LinuxAioState *s, int fd,
-                                int64_t sector_num, QEMUIOVector *qiov,
-                                int nb_sectors, int type)
+                                uint64_t offset, QEMUIOVector *qiov, int type)
 {
-    off_t offset = sector_num * BDRV_SECTOR_SIZE;
     int ret;
-
     struct qemu_laiocb laiocb = {
         .co         = qemu_coroutine_self(),
-        .nbytes     = nb_sectors * BDRV_SECTOR_SIZE,
+        .nbytes     = qiov->size,
         .ctx        = s,
         .is_read    = (type == QEMU_AIO_READ),
         .qiov       = qiov,
