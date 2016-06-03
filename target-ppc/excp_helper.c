@@ -709,8 +709,12 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         }
     }
 #endif
-    /* XXX: we don't use hreg_store_msr here as already have treated
-     *      any special case that could occur. Just store MSR and update hflags
+    /* We don't use hreg_store_msr here as already have treated
+     * any special case that could occur. Just store MSR and update hflags
+     *
+     * Note: We *MUST* not use hreg_store_msr() as-is anyway because it
+     * will prevent setting of the HV bit which some exceptions might need
+     * to do.
      */
     env->msr = new_msr & env->msr_mask;
     hreg_compute_hflags(env);

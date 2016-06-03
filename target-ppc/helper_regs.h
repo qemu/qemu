@@ -114,8 +114,8 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
     excp = 0;
     value &= env->msr_mask;
 #if !defined(CONFIG_USER_ONLY)
-    if (!alter_hv) {
-        /* mtmsr cannot alter the hypervisor state */
+    /* Neither mtmsr nor guest state can alter HV */
+    if (!alter_hv || !(env->msr & MSR_HVB)) {
         value &= ~MSR_HVB;
         value |= env->msr & MSR_HVB;
     }
