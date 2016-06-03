@@ -4108,7 +4108,7 @@ static void gen_hrfid(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
     /* Restore CPU state */
-    if (unlikely(!ctx->hv)) {
+    if (unlikely(ctx->pr || !ctx->hv)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -4845,7 +4845,7 @@ static void gen_tlbia(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(ctx->pr)) {
+    if (unlikely(ctx->pr || !ctx->hv)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -4913,7 +4913,7 @@ static void gen_slbia(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(ctx->pr || !ctx->hv)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
