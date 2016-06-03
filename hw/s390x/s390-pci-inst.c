@@ -37,9 +37,9 @@ static void s390_set_status_code(CPUS390XState *env,
 
 static int list_pci(ClpReqRspListPci *rrb, uint8_t *cc)
 {
-    S390PCIBusDevice *pbdev;
-    uint32_t res_code, initial_l2, g_l2, finish;
-    int rc, idx;
+    S390PCIBusDevice *pbdev = NULL;
+    uint32_t res_code, initial_l2, g_l2;
+    int rc, i;
     uint64_t resume_token;
 
     rc = 0;
@@ -71,6 +71,8 @@ static int list_pci(ClpReqRspListPci *rrb, uint8_t *cc)
             rc = -EINVAL;
             goto out;
         }
+    } else {
+        pbdev = s390_pci_find_next_avail_dev(NULL);
     }
 
     if (lduw_p(&rrb->response.hdr.len) < 48) {
@@ -94,40 +96,36 @@ static int list_pci(ClpReqRspListPci *rrb, uint8_t *cc)
     stw_p(&rrb->response.max_fn, PCI_MAX_FUNCTIONS);
     rrb->response.flags = UID_CHECKING_ENABLED;
     rrb->response.entry_size = sizeof(ClpFhListEntry);
-    finish = 0;
-    idx = resume_token;
+
+    i = 0;
     g_l2 = LIST_PCI_HDR_LEN;
-    do {
-        pbdev = s390_pci_find_dev_by_idx(idx);
-        if (!pbdev) {
-            finish = 1;
-            break;
-        }
-        stw_p(&rrb->response.fh_list[idx - resume_token].device_id,
+    while (g_l2 < initial_l2 && pbdev) {
+        stw_p(&rrb->response.fh_list[i].device_id,
             pci_get_word(pbdev->pdev->config + PCI_DEVICE_ID));
-        stw_p(&rrb->response.fh_list[idx - resume_token].vendor_id,
+        stw_p(&rrb->response.fh_list[i].vendor_id,
             pci_get_word(pbdev->pdev->config + PCI_VENDOR_ID));
         /* Ignore RESERVED devices. */
-        stl_p(&rrb->response.fh_list[idx - resume_token].config,
+        stl_p(&rrb->response.fh_list[i].config,
             pbdev->state == ZPCI_FS_STANDBY ? 0 : 1 << 31);
-        stl_p(&rrb->response.fh_list[idx - resume_token].fid, pbdev->fid);
-        stl_p(&rrb->response.fh_list[idx - resume_token].fh, pbdev->fh);
+        stl_p(&rrb->response.fh_list[i].fid, pbdev->fid);
+        stl_p(&rrb->response.fh_list[i].fh, pbdev->fh);
 
         g_l2 += sizeof(ClpFhListEntry);
         /* Add endian check for DPRINTF? */
         DPRINTF("g_l2 %d vendor id 0x%x device id 0x%x fid 0x%x fh 0x%x\n",
-            g_l2,
-            lduw_p(&rrb->response.fh_list[idx - resume_token].vendor_id),
-            lduw_p(&rrb->response.fh_list[idx - resume_token].device_id),
-            ldl_p(&rrb->response.fh_list[idx - resume_token].fid),
-            ldl_p(&rrb->response.fh_list[idx - resume_token].fh));
-        idx++;
-    } while (g_l2 < initial_l2);
+                g_l2,
+                lduw_p(&rrb->response.fh_list[i].vendor_id),
+                lduw_p(&rrb->response.fh_list[i].device_id),
+                ldl_p(&rrb->response.fh_list[i].fid),
+                ldl_p(&rrb->response.fh_list[i].fh));
+        pbdev = s390_pci_find_next_avail_dev(pbdev);
+        i++;
+    }
 
-    if (finish == 1) {
+    if (!pbdev) {
         resume_token = 0;
     } else {
-        resume_token = idx;
+        resume_token = pbdev->fh & FH_MASK_INDEX;
     }
     stq_p(&rrb->response.resume_token, resume_token);
     stw_p(&rrb->response.hdr.len, g_l2);

@@ -310,5 +310,6 @@ void s390_pci_generate_error_event(uint16_t pec, uint32_t fh, uint32_t fid,
 S390PCIBusDevice *s390_pci_find_dev_by_idx(uint32_t idx);
 S390PCIBusDevice *s390_pci_find_dev_by_fh(uint32_t fh);
 S390PCIBusDevice *s390_pci_find_dev_by_fid(uint32_t fid);
+S390PCIBusDevice *s390_pci_find_next_avail_dev(S390PCIBusDevice *pbdev);
 
 #endif
