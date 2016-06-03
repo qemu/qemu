@@ -1052,8 +1052,7 @@ int coroutine_fn bdrv_co_preadv(BlockDriverState *bs,
     BlockDriver *drv = bs->drv;
     BdrvTrackedRequest req;
 
-    /* TODO Lift BDRV_SECTOR_SIZE restriction in BlockDriver interface */
-    uint64_t align = MAX(BDRV_SECTOR_SIZE, bs->request_alignment);
+    uint64_t align = bs->request_alignment;
     uint8_t *head_buf = NULL;
     uint8_t *tail_buf = NULL;
     QEMUIOVector local_qiov;
@@ -1305,7 +1304,7 @@ static int coroutine_fn bdrv_co_do_zero_pwritev(BlockDriverState *bs,
     uint8_t *buf = NULL;
     QEMUIOVector local_qiov;
     struct iovec iov;
-    uint64_t align = MAX(BDRV_SECTOR_SIZE, bs->request_alignment);
+    uint64_t align = bs->request_alignment;
     unsigned int head_padding_bytes, tail_padding_bytes;
     int ret = 0;
 
@@ -1392,8 +1391,7 @@ int coroutine_fn bdrv_co_pwritev(BlockDriverState *bs,
     BdrvRequestFlags flags)
 {
     BdrvTrackedRequest req;
-    /* TODO Lift BDRV_SECTOR_SIZE restriction in BlockDriver interface */
-    uint64_t align = MAX(BDRV_SECTOR_SIZE, bs->request_alignment);
+    uint64_t align = bs->request_alignment;
     uint8_t *head_buf = NULL;
     uint8_t *tail_buf = NULL;
     QEMUIOVector local_qiov;
