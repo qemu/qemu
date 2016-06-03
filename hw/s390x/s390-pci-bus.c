@@ -223,28 +223,9 @@ static S390PCIBusDevice *s390_pci_find_dev_by_target(const char *target)
 
 S390PCIBusDevice *s390_pci_find_dev_by_idx(uint32_t idx)
 {
-    S390PCIBusDevice *pbdev;
-    int i;
-    int j = 0;
     S390pciState *s = s390_get_phb();
 
-    for (i = 0; i < PCI_SLOT_MAX; i++) {
-        pbdev = s->pbdev[i];
-        if (!pbdev) {
-            continue;
-        }
-
-        if (pbdev->state == ZPCI_FS_RESERVED) {
-            continue;
-        }
-
-        if (j == idx) {
-            return pbdev;
-        }
-        j++;
-    }
-
-    return NULL;
+    return s->pbdev[idx & FH_MASK_INDEX];
 }
 
 S390PCIBusDevice *s390_pci_find_dev_by_fh(uint32_t fh)
