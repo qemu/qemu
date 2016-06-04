@@ -133,7 +133,7 @@ static uint64_t
 e1000e_io_read(void *opaque, hwaddr addr, unsigned size)
 {
     E1000EState *s = opaque;
-    uint32_t idx;
+    uint32_t idx = 0;
     uint64_t val;
 
     switch (addr) {
@@ -158,7 +158,7 @@ e1000e_io_write(void *opaque, hwaddr addr,
                 uint64_t val, unsigned size)
 {
     E1000EState *s = opaque;
-    uint32_t idx;
+    uint32_t idx = 0;
 
     switch (addr) {
     case E1000_IOADDR:
