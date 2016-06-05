@@ -271,7 +271,8 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
     if (s->lba == -1) {
         /* Non-block ATAPI transfer - just copy to RAM */
         s->io_buffer_size = MIN(s->io_buffer_size, io->len);
-        cpu_physical_memory_write(io->addr, s->io_buffer, s->io_buffer_size);
+        dma_memory_write(&address_space_memory, io->addr, s->io_buffer,
+                         s->io_buffer_size);
         ide_atapi_cmd_ok(s);
         m->dma_active = false;
         goto done;
