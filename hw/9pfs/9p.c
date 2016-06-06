@@ -1642,15 +1642,15 @@ static int v9fs_do_readdir_with_stat(V9fsPDU *pdu,
         }
         err = v9fs_co_name_to_path(pdu, &fidp->path, dent->d_name, &path);
         if (err < 0) {
-            goto out;
+            break;
         }
         err = v9fs_co_lstat(pdu, &path, &stbuf);
         if (err < 0) {
-            goto out;
+            break;
         }
         err = stat_to_v9stat(pdu, &path, &stbuf, &v9stat);
         if (err < 0) {
-            goto out;
+            break;
         }
         /* 11 = 7 + 4 (7 = start offset, 4 = space for storing count) */
         len = pdu_marshal(pdu, 11 + count, "S", &v9stat);
@@ -1667,7 +1667,7 @@ static int v9fs_do_readdir_with_stat(V9fsPDU *pdu,
         v9fs_path_free(&path);
         saved_dir_pos = dent->d_off;
     }
-out:
+
     g_free(dent);
     v9fs_path_free(&path);
     if (err < 0) {
