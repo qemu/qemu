@@ -732,6 +732,8 @@ safe_syscall4(int, msgsnd, int, msgid, const void *, msgp, size_t, sz,
               int, flags)
 safe_syscall5(int, msgrcv, int, msgid, void *, msgp, size_t, sz,
               long, msgtype, int, flags)
+safe_syscall4(int, semtimedop, int, semid, struct sembuf *, tsops,
+              unsigned, nsops, const struct timespec *, timeout)
 #else
 /* This host kernel architecture uses a single ipc syscall; fake up
  * wrappers for the sub-operations to hide this implementation detail.
@@ -740,6 +742,7 @@ safe_syscall5(int, msgrcv, int, msgid, void *, msgp, size_t, sz,
  * sys/ipc.h ones. So we just define them here, and rely on them being
  * the same for all host architectures.
  */
+#define Q_SEMTIMEDOP 4
 #define Q_MSGSND 11
 #define Q_MSGRCV 12
 #define Q_IPCCALL(VERSION, OP) ((VERSION) << 16 | (OP))
@@ -753,6 +756,12 @@ static int safe_msgsnd(int msgid, const void *msgp, size_t sz, int flags)
 static int safe_msgrcv(int msgid, void *msgp, size_t sz, long type, int flags)
 {
     return safe_ipc(Q_IPCCALL(1, Q_MSGRCV), msgid, sz, flags, msgp, type);
+}
+static int safe_semtimedop(int semid, struct sembuf *tsops, unsigned nsops,
+                           const struct timespec *timeout)
+{
+    return safe_ipc(Q_IPCCALL(0, Q_SEMTIMEDOP), semid, nsops, 0, tsops,
+                    (long)timeout);
 }
 #endif
 #if defined(TARGET_NR_mq_open) && defined(__NR_mq_open)
@@ -3680,7 +3689,7 @@ static inline abi_long do_semop(int semid, abi_long ptr, unsigned nsops)
     if (target_to_host_sembuf(sops, ptr, nsops))
         return -TARGET_EFAULT;
 
-    return get_errno(semop(semid, sops, nsops));
+    return get_errno(safe_semtimedop(semid, sops, nsops, NULL));
 }
 
 struct target_msqid_ds
