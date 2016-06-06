@@ -781,23 +781,22 @@ static int qpa_ctl_in (HWVoiceIn *hw, int cmd, ...)
 
             pa_threaded_mainloop_lock (g->mainloop);
 
-            /* FIXME: use the upcoming "set_source_output_{volume,mute}" */
-            op = pa_context_set_source_volume_by_index (g->context,
-                pa_stream_get_device_index (pa->stream),
+            op = pa_context_set_source_output_volume (g->context,
+                pa_stream_get_index (pa->stream),
                 &v, NULL, NULL);
             if (!op) {
                 qpa_logerr (pa_context_errno (g->context),
-                            "set_source_volume() failed\n");
+                            "set_source_output_volume() failed\n");
             } else {
                 pa_operation_unref(op);
             }
 
-            op = pa_context_set_source_mute_by_index (g->context,
+            op = pa_context_set_source_output_mute (g->context,
                 pa_stream_get_index (pa->stream),
                 sw->vol.mute, NULL, NULL);
             if (!op) {
                 qpa_logerr (pa_context_errno (g->context),
-                            "set_source_mute() failed\n");
+                            "set_source_output_mute() failed\n");
             } else {
                 pa_operation_unref (op);
             }

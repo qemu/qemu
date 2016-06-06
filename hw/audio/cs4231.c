@@ -145,16 +145,15 @@ static const VMStateDescription vmstate_cs4231 = {
     }
 };
 
-static int cs4231_init1(SysBusDevice *dev)
+static void cs4231_init(Object *obj)
 {
-    CSState *s = CS4231(dev);
+    CSState *s = CS4231(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &cs_mem_ops, s, "cs4321",
+    memory_region_init_io(&s->iomem, obj, &cs_mem_ops, s, "cs4321",
                           CS_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
-
-    return 0;
 }
 
 static Property cs4231_properties[] = {
@@ -164,9 +163,7 @@ static Property cs4231_properties[] = {
 static void cs4231_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = cs4231_init1;
     dc->reset = cs_reset;
     dc->vmsd = &vmstate_cs4231;
     dc->props = cs4231_properties;
@@ -176,6 +173,7 @@ static const TypeInfo cs4231_info = {
     .name          = TYPE_CS4231,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(CSState),
+    .instance_init = cs4231_init,
     .class_init    = cs4231_class_init,
 };
 
