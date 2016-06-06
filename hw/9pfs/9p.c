@@ -300,6 +300,9 @@ static V9fsFidState *alloc_fid(V9fsState *s, int32_t fid)
     f->next = s->fid_list;
     s->fid_list = f;
 
+    v9fs_readdir_init(&f->fs.dir);
+    v9fs_readdir_init(&f->fs_reclaim.dir);
+
     return f;
 }
 
@@ -1636,6 +1639,9 @@ static int v9fs_do_readdir_with_stat(V9fsPDU *pdu,
 
     while (1) {
         v9fs_path_init(&path);
+
+        v9fs_readdir_lock(&fidp->fs.dir);
+
         err = v9fs_co_readdir_r(pdu, fidp, dent, &result);
         if (err || !result) {
             break;
@@ -1654,6 +1660,9 @@ static int v9fs_do_readdir_with_stat(V9fsPDU *pdu,
         }
         /* 11 = 7 + 4 (7 = start offset, 4 = space for storing count) */
         len = pdu_marshal(pdu, 11 + count, "S", &v9stat);
+
+        v9fs_readdir_unlock(&fidp->fs.dir);
+
         if ((len != (v9stat.size + 2)) || ((count + len) > max_count)) {
             /* Ran out of buffer. Set dir back to old position and return */
             v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
@@ -1667,6 +1676,8 @@ static int v9fs_do_readdir_with_stat(V9fsPDU *pdu,
         v9fs_path_free(&path);
         saved_dir_pos = dent->d_off;
     }
+
+    v9fs_readdir_unlock(&fidp->fs.dir);
 
     g_free(dent);
     v9fs_path_free(&path);
@@ -1815,6 +1826,8 @@ static int v9fs_do_readdir(V9fsPDU *pdu,
     dent = g_malloc(sizeof(struct dirent));
 
     while (1) {
+        v9fs_readdir_lock(&fidp->fs.dir);
+
         err = v9fs_co_readdir_r(pdu, fidp, dent, &result);
         if (err || !result) {
             break;
@@ -1822,6 +1835,8 @@ static int v9fs_do_readdir(V9fsPDU *pdu,
         v9fs_string_init(&name);
         v9fs_string_sprintf(&name, "%s", dent->d_name);
         if ((count + v9fs_readdir_data_size(&name)) > max_count) {
+            v9fs_readdir_unlock(&fidp->fs.dir);
+
             /* Ran out of buffer. Set dir back to old position and return */
             v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
             v9fs_string_free(&name);
@@ -1843,6 +1858,9 @@ static int v9fs_do_readdir(V9fsPDU *pdu,
         len = pdu_marshal(pdu, 11 + count, "Qqbs",
                           &qid, dent->d_off,
                           dent->d_type, &name);
+
+        v9fs_readdir_unlock(&fidp->fs.dir);
+
         if (len < 0) {
             v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
             v9fs_string_free(&name);
@@ -1853,6 +1871,9 @@ static int v9fs_do_readdir(V9fsPDU *pdu,
         v9fs_string_free(&name);
         saved_dir_pos = dent->d_off;
     }
+
+    v9fs_readdir_unlock(&fidp->fs.dir);
+
     g_free(dent);
     if (err < 0) {
         return err;
