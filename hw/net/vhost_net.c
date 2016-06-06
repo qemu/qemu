@@ -329,6 +329,15 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
         if (r < 0) {
             goto err_start;
         }
+
+        if (ncs[i].peer->vring_enable) {
+            /* restore vring enable state */
+            r = vhost_set_vring_enable(ncs[i].peer, ncs[i].peer->vring_enable);
+
+            if (r < 0) {
+                goto err_start;
+            }
+        }
     }
 
     return 0;
@@ -421,6 +430,8 @@ int vhost_set_vring_enable(NetClientState *nc, int enable)
 {
     VHostNetState *net = get_vhost_net(nc);
     const VhostOps *vhost_ops;
+
+    nc->vring_enable = enable;
 
     if (!net) {
         return 0;
