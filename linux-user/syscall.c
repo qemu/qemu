@@ -725,6 +725,12 @@ safe_syscall3(ssize_t, recvmsg, int, fd, struct msghdr *, msg, int, flags)
 safe_syscall2(int, flock, int, fd, int, operation)
 safe_syscall4(int, rt_sigtimedwait, const sigset_t *, these, siginfo_t *, uinfo,
               const struct timespec *, uts, size_t, sigsetsize)
+safe_syscall2(int, nanosleep, const struct timespec *, req,
+              struct timespec *, rem)
+#ifdef TARGET_NR_clock_nanosleep
+safe_syscall4(int, clock_nanosleep, const clockid_t, clock, int, flags,
+              const struct timespec *, req, struct timespec *, rem)
+#endif
 #ifdef __NR_msgsnd
 safe_syscall4(int, msgsnd, int, msgid, const void *, msgp, size_t, sz,
               int, flags)
@@ -9205,7 +9211,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             struct timespec req, rem;
             target_to_host_timespec(&req, arg1);
-            ret = get_errno(nanosleep(&req, &rem));
+            ret = get_errno(safe_nanosleep(&req, &rem));
             if (is_error(ret) && arg2) {
                 host_to_target_timespec(arg2, &rem);
             }
@@ -10473,14 +10479,15 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     {
         struct timespec ts;
         target_to_host_timespec(&ts, arg3);
-        ret = get_errno(clock_nanosleep(arg1, arg2, &ts, arg4 ? &ts : NULL));
+        ret = get_errno(safe_clock_nanosleep(arg1, arg2,
+                                             &ts, arg4 ? &ts : NULL));
         if (arg4)
             host_to_target_timespec(arg4, &ts);
 
 #if defined(TARGET_PPC)
         /* clock_nanosleep is odd in that it returns positive errno values.
          * On PPC, CR0 bit 3 should be set in such a situation. */
-        if (ret) {
+        if (ret && ret != -TARGET_ERESTARTSYS) {
             ((CPUPPCState *)cpu_env)->crf[0] |= 1;
         }
 #endif
