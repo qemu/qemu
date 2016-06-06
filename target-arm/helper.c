@@ -6365,9 +6365,6 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
         env->elr_el[new_el] = env->pc;
     } else {
         env->banked_spsr[aarch64_banked_spsr_index(new_el)] = cpsr_read(env);
-        if (!env->thumb) {
-            env->cp15.esr_el[new_el] |= 1 << 25;
-        }
         env->elr_el[new_el] = env->regs[15];
 
         aarch64_sync_32_to_64(env);
