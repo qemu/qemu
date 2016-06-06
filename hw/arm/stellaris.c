@@ -20,6 +20,7 @@
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
+#include "hw/char/pl011.h"
 
 #define GPIO_A 0
 #define GPIO_B 1
@@ -1303,8 +1304,9 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
 
     for (i = 0; i < 4; i++) {
         if (board->dc2 & (1 << i)) {
-            sysbus_create_simple("pl011_luminary", 0x4000c000 + i * 0x1000,
-                                 qdev_get_gpio_in(nvic, uart_irq[i]));
+            pl011_luminary_create(0x4000c000 + i * 0x1000,
+                                  qdev_get_gpio_in(nvic, uart_irq[i]),
+                                  serial_hds[i]);
         }
     }
     if (board->dc2 & (1 << 4)) {

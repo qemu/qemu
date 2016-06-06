@@ -536,6 +536,7 @@ static void create_uart(const VirtBoardInfo *vbi, qemu_irq *pic, int uart,
     DeviceState *dev = qdev_create(NULL, "pl011");
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
 
+    qdev_prop_set_chr(dev, "chardev", serial_hds[0]);
     qdev_init_nofail(dev);
     memory_region_add_subregion(mem, base,
                                 sysbus_mmio_get_region(s, 0));

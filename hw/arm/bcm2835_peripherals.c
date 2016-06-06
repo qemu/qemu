@@ -14,6 +14,7 @@
 #include "hw/misc/bcm2835_mbox_defs.h"
 #include "hw/arm/raspi_platform.h"
 #include "sysemu/char.h"
+#include "sysemu/sysemu.h"
 
 /* Peripheral base address on the VC (GPU) system bus */
 #define BCM2835_VC_PERI_BASE 0x7e000000
@@ -106,7 +107,6 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     MemoryRegion *ram;
     Error *err = NULL;
     uint32_t ram_size, vcram_size;
-    CharDriverState *chr;
     int n;
 
     obj = object_property_get_link(OBJECT(dev), "ram", &err);
@@ -147,6 +147,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     sysbus_pass_irq(SYS_BUS_DEVICE(s), SYS_BUS_DEVICE(&s->ic));
 
     /* UART0 */
+    qdev_prop_set_chr(DEVICE(s->uart0), "chardev", serial_hds[0]);
     object_property_set_bool(OBJECT(s->uart0), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
@@ -158,17 +159,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(s->uart0, 0,
         qdev_get_gpio_in_named(DEVICE(&s->ic), BCM2835_IC_GPU_IRQ,
                                INTERRUPT_UART));
-
     /* AUX / UART1 */
-    /* TODO: don't call qemu_char_get_next_serial() here, instead set
-     * chardev properties for each uart at the board level, once pl011
-     * (uart0) has been updated to avoid qemu_char_get_next_serial()
-     */
-    chr = qemu_char_get_next_serial();
-    if (chr == NULL) {
-        chr = qemu_chr_new("bcm2835.uart1", "null", NULL);
-    }
-    qdev_prop_set_chr(DEVICE(&s->aux), "chardev", chr);
+    qdev_prop_set_chr(DEVICE(&s->aux), "chardev", serial_hds[1]);
 
     object_property_set_bool(OBJECT(&s->aux), true, "realized", &err);
     if (err) {
@@ -292,8 +284,6 @@ static void bcm2835_peripherals_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = bcm2835_peripherals_realize;
-    /* Reason: realize() method uses qemu_char_get_next_serial() */
-    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo bcm2835_peripherals_type_info = {
