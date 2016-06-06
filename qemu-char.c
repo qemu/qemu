@@ -4088,22 +4088,6 @@ CharDriverState *qemu_chr_find(const char *name)
     return NULL;
 }
 
-/* Get a character (serial) device interface.  */
-CharDriverState *qemu_char_get_next_serial(void)
-{
-    static int next_serial;
-    CharDriverState *chr;
-
-    /* FIXME: This function needs to go away: use chardev properties!  */
-
-    while (next_serial < MAX_SERIAL_PORTS && serial_hds[next_serial]) {
-        chr = serial_hds[next_serial++];
-        qemu_chr_fe_claim_no_fail(chr);
-        return chr;
-    }
-    return NULL;
-}
-
 QemuOptsList qemu_chardev_opts = {
     .name = "chardev",
     .implied_opt_name = "backend",
