@@ -137,7 +137,7 @@ qcrypto_tls_session_new(QCryptoTLSCreds *creds,
         if (creds->priority != NULL) {
             prio = g_strdup_printf("%s:+ANON-DH", creds->priority);
         } else {
-            prio = g_strdup("NORMAL:+ANON-DH");
+            prio = g_strdup(CONFIG_TLS_PRIORITY ":+ANON-DH");
         }
 
         ret = gnutls_priority_set_direct(session->handle, prio, NULL);
@@ -167,7 +167,7 @@ qcrypto_tls_session_new(QCryptoTLSCreds *creds,
         QCryptoTLSCredsX509 *tcreds = QCRYPTO_TLS_CREDS_X509(creds);
         const char *prio = creds->priority;
         if (!prio) {
-            prio = "NORMAL";
+            prio = CONFIG_TLS_PRIORITY;
         }
 
         ret = gnutls_priority_set_direct(session->handle, prio, NULL);

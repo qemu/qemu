@@ -305,6 +305,7 @@ archipelago="no"
 gtk=""
 gtkabi=""
 gtk_gl="no"
+tls_priority="NORMAL"
 gnutls=""
 gnutls_rnd=""
 nettle=""
@@ -1096,6 +1097,8 @@ for opt do
   ;;
   --enable-gtk) gtk="yes"
   ;;
+  --tls-priority=*) tls_priority="$optarg"
+  ;;
   --disable-gnutls) gnutls="no"
   ;;
   --enable-gnutls) gnutls="yes"
@@ -1307,6 +1310,7 @@ Advanced options (experts only):
   --disable-blobs          disable installing provided firmware blobs
   --with-vss-sdk=SDK-path  enable Windows VSS support in QEMU Guest Agent
   --with-win-sdk=SDK-path  path to Windows Platform SDK (to build VSS .tlb)
+  --tls-priority           default TLS protocol/cipher priority string
 
 Optional features, enabled with --enable-FEATURE and
 disabled with --disable-FEATURE, default is enabled if available:
@@ -4802,6 +4806,7 @@ echo "SDL support       $sdl $(echo_version $sdl $sdlversion)"
 echo "GTK support       $gtk $(echo_version $gtk $gtk_version)"
 echo "GTK GL support    $gtk_gl"
 echo "VTE support       $vte $(echo_version $vte $vteversion)"
+echo "TLS priority      $tls_priority"
 echo "GNUTLS support    $gnutls"
 echo "GNUTLS rnd        $gnutls_rnd"
 echo "libgcrypt         $gcrypt"
@@ -5165,6 +5170,7 @@ if test "$gtk" = "yes" ; then
     echo "CONFIG_GTK_GL=y" >> $config_host_mak
   fi
 fi
+echo "CONFIG_TLS_PRIORITY=\"$tls_priority\"" >> $config_host_mak
 if test "$gnutls" = "yes" ; then
   echo "CONFIG_GNUTLS=y" >> $config_host_mak
 fi
