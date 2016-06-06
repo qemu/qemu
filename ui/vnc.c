@@ -2115,8 +2115,7 @@ static void send_color_map(VncState *vs)
     }
 }
 
-static void set_pixel_format(VncState *vs,
-                             int bits_per_pixel, int depth,
+static void set_pixel_format(VncState *vs, int bits_per_pixel,
                              int big_endian_flag, int true_color_flag,
                              int red_max, int green_max, int blue_max,
                              int red_shift, int green_shift, int blue_shift)
@@ -2124,7 +2123,6 @@ static void set_pixel_format(VncState *vs,
     if (!true_color_flag) {
         /* Expose a reasonable default 256 color map */
         bits_per_pixel = 8;
-        depth = 8;
         red_max = 7;
         green_max = 7;
         blue_max = 3;
@@ -2231,7 +2229,7 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
         if (len == 1)
             return 20;
 
-        set_pixel_format(vs, read_u8(data, 4), read_u8(data, 5),
+        set_pixel_format(vs, read_u8(data, 4),
                          read_u8(data, 6), read_u8(data, 7),
                          read_u16(data, 8), read_u16(data, 10),
                          read_u16(data, 12), read_u8(data, 14),
