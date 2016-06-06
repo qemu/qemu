@@ -195,7 +195,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 void gemu_log(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 extern THREAD CPUState *thread_cpu;
 void cpu_loop(CPUArchState *env);
-char *target_strerror(int err);
+const char *target_strerror(int err);
 int get_osversion(void);
 void init_qemu_uname_release(void);
 void fork_start(void);
