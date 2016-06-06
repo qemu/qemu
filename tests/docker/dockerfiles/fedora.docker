@@ -1,6 +1,6 @@
 FROM fedora:23
 RUN dnf install -y \
-    ccache git tar \
+    ccache git tar flex bison \
     glib2-devel pixman-devel zlib-devel SDL-devel libfdt-devel \
     gcc gcc-c++ clang make perl which bc findutils \
     mingw{32,64}-{pixman,glib2,gmp,SDL,pkg-config,gtk2,gtk3,gnutls,nettle,libtasn1,libjpeg-turbo,libpng,curl,libssh2,bzip2}

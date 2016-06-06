@@ -2,7 +2,7 @@ FROM ubuntu:14.04
 RUN echo "deb http://archive.ubuntu.com/ubuntu/ trusty universe multiverse" >> \
     /etc/apt/sources.list
 RUN apt-get update
-RUN apt-get -y install \
+RUN apt-get -y install flex bison \
     libusb-1.0-0-dev libiscsi-dev librados-dev libncurses5-dev \
     libseccomp-dev libgnutls-dev libssh2-1-dev  libspice-server-dev \
     libspice-protocol-dev libnss3-dev libfdt-dev \
