@@ -750,6 +750,12 @@ static int safe_msgrcv(int msgid, void *msgp, size_t sz, long type, int flags)
     return safe_ipc(Q_IPCCALL(1, Q_MSGRCV), msgid, sz, flags, msgp, type);
 }
 #endif
+#if defined(TARGET_NR_mq_open) && defined(__NR_mq_open)
+safe_syscall5(int, mq_timedsend, int, mqdes, const char *, msg_ptr,
+              size_t, len, unsigned, prio, const struct timespec *, timeout)
+safe_syscall5(int, mq_timedreceive, int, mqdes, char *, msg_ptr,
+              size_t, len, unsigned *, prio, const struct timespec *, timeout)
+#endif
 
 static inline int host_to_target_sock_type(int host_type)
 {
@@ -10593,11 +10599,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             p = lock_user (VERIFY_READ, arg2, arg3, 1);
             if (arg5 != 0) {
                 target_to_host_timespec(&ts, arg5);
-                ret = get_errno(mq_timedsend(arg1, p, arg3, arg4, &ts));
+                ret = get_errno(safe_mq_timedsend(arg1, p, arg3, arg4, &ts));
                 host_to_target_timespec(arg5, &ts);
+            } else {
+                ret = get_errno(safe_mq_timedsend(arg1, p, arg3, arg4, NULL));
             }
-            else
-                ret = get_errno(mq_send(arg1, p, arg3, arg4));
             unlock_user (p, arg2, arg3);
         }
         break;
@@ -10610,11 +10616,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             p = lock_user (VERIFY_READ, arg2, arg3, 1);
             if (arg5 != 0) {
                 target_to_host_timespec(&ts, arg5);
-                ret = get_errno(mq_timedreceive(arg1, p, arg3, &prio, &ts));
+                ret = get_errno(safe_mq_timedreceive(arg1, p, arg3,
+                                                     &prio, &ts));
                 host_to_target_timespec(arg5, &ts);
+            } else {
+                ret = get_errno(safe_mq_timedreceive(arg1, p, arg3,
+                                                     &prio, NULL));
             }
-            else
-                ret = get_errno(mq_receive(arg1, p, arg3, &prio));
             unlock_user (p, arg2, arg3);
             if (arg4 != 0)
                 put_user_u32(prio, arg4);
