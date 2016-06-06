@@ -231,7 +231,8 @@ static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
         aml_append(rbuf,
             aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
                              AML_NON_CACHEABLE, AML_READ_WRITE, 0x0000,
-                             base_mmio_high, base_mmio_high, 0x0000,
+                             base_mmio_high,
+                             base_mmio_high + size_mmio_high - 1, 0x0000,
                              size_mmio_high));
     }
 
