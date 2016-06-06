@@ -661,6 +661,11 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
             goto bad_reg;
         res = 0;
         for (i = 0; i < 8; i++) {
+            if (s->security_extn && !attrs.secure &&
+                !GIC_TEST_GROUP(irq + i, 1 << cpu)) {
+                continue; /* Ignore Non-secure access of Group0 IRQ */
+            }
+
             if (GIC_TEST_ENABLED(irq + i, cm)) {
                 res |= (1 << i);
             }
@@ -677,6 +682,11 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
         res = 0;
         mask = (irq < GIC_INTERNAL) ?  cm : ALL_CPU_MASK;
         for (i = 0; i < 8; i++) {
+            if (s->security_extn && !attrs.secure &&
+                !GIC_TEST_GROUP(irq + i, 1 << cpu)) {
+                continue; /* Ignore Non-secure access of Group0 IRQ */
+            }
+
             if (gic_test_pending(s, irq + i, mask)) {
                 res |= (1 << i);
             }
@@ -689,6 +699,11 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
         res = 0;
         mask = (irq < GIC_INTERNAL) ?  cm : ALL_CPU_MASK;
         for (i = 0; i < 8; i++) {
+            if (s->security_extn && !attrs.secure &&
+                !GIC_TEST_GROUP(irq + i, 1 << cpu)) {
+                continue; /* Ignore Non-secure access of Group0 IRQ */
+            }
+
             if (GIC_TEST_ACTIVE(irq + i, mask)) {
                 res |= (1 << i);
             }
@@ -722,6 +737,11 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
             goto bad_reg;
         res = 0;
         for (i = 0; i < 4; i++) {
+            if (s->security_extn && !attrs.secure &&
+                !GIC_TEST_GROUP(irq + i, 1 << cpu)) {
+                continue; /* Ignore Non-secure access of Group0 IRQ */
+            }
+
             if (GIC_TEST_MODEL(irq + i))
                 res |= (1 << (i * 2));
             if (GIC_TEST_EDGE_TRIGGER(irq + i))
@@ -742,7 +762,12 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
             /* GICD_SPENDSGIRn */
         }
 
-        res = s->sgi_pending[irq][cpu];
+        if (s->security_extn && !attrs.secure &&
+            !GIC_TEST_GROUP(irq, 1 << cpu)) {
+            res = 0; /* Ignore Non-secure access of Group0 IRQ */
+        } else {
+            res = s->sgi_pending[irq][cpu];
+        }
     } else if (offset < 0xfd0) {
         goto bad_reg;
     } else if (offset < 0x1000) {
@@ -862,6 +887,11 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
                     (irq < GIC_INTERNAL) ? (1 << cpu) : GIC_TARGET(irq + i);
                 int cm = (irq < GIC_INTERNAL) ? (1 << cpu) : ALL_CPU_MASK;
 
+                if (s->security_extn && !attrs.secure &&
+                    !GIC_TEST_GROUP(irq + i, 1 << cpu)) {
+                    continue; /* Ignore Non-secure access of Group0 IRQ */
+                }
+
                 if (!GIC_TEST_ENABLED(irq + i, cm)) {
                     DPRINTF("Enabled IRQ %d\n", irq + i);
                     trace_gic_enable_irq(irq + i);
@@ -889,6 +919,11 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
             if (value & (1 << i)) {
                 int cm = (irq < GIC_INTERNAL) ? (1 << cpu) : ALL_CPU_MASK;
 
+                if (s->security_extn && !attrs.secure &&
+                    !GIC_TEST_GROUP(irq + i, 1 << cpu)) {
+                    continue; /* Ignore Non-secure access of Group0 IRQ */
+                }
+
                 if (GIC_TEST_ENABLED(irq + i, cm)) {
                     DPRINTF("Disabled IRQ %d\n", irq + i);
                     trace_gic_disable_irq(irq + i);
@@ -907,6 +942,11 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
 
         for (i = 0; i < 8; i++) {
             if (value & (1 << i)) {
+                if (s->security_extn && !attrs.secure &&
+                    !GIC_TEST_GROUP(irq + i, 1 << cpu)) {
+                    continue; /* Ignore Non-secure access of Group0 IRQ */
+                }
+
                 GIC_SET_PENDING(irq + i, GIC_TARGET(irq + i));
             }
         }
@@ -920,6 +960,11 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         }
 
         for (i = 0; i < 8; i++) {
+            if (s->security_extn && !attrs.secure &&
+                !GIC_TEST_GROUP(irq + i, 1 << cpu)) {
+                continue; /* Ignore Non-secure access of Group0 IRQ */
+            }
+
             /* ??? This currently clears the pending bit for all CPUs, even
                for per-CPU interrupts.  It's unclear whether this is the
                corect behavior.  */
@@ -960,6 +1005,11 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         if (irq < GIC_NR_SGIS)
             value |= 0xaa;
         for (i = 0; i < 4; i++) {
+            if (s->security_extn && !attrs.secure &&
+                !GIC_TEST_GROUP(irq + i, 1 << cpu)) {
+                continue; /* Ignore Non-secure access of Group0 IRQ */
+            }
+
             if (s->revision == REV_11MPCORE || s->revision == REV_NVIC) {
                 if (value & (1 << (i * 2))) {
                     GIC_SET_MODEL(irq + i);
@@ -983,9 +1033,12 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         }
         irq = (offset - 0xf10);
 
-        s->sgi_pending[irq][cpu] &= ~value;
-        if (s->sgi_pending[irq][cpu] == 0) {
-            GIC_CLEAR_PENDING(irq, 1 << cpu);
+        if (!s->security_extn || attrs.secure ||
+            GIC_TEST_GROUP(irq, 1 << cpu)) {
+            s->sgi_pending[irq][cpu] &= ~value;
+            if (s->sgi_pending[irq][cpu] == 0) {
+                GIC_CLEAR_PENDING(irq, 1 << cpu);
+            }
         }
     } else if (offset < 0xf30) {
         /* GICD_SPENDSGIRn */
@@ -994,8 +1047,11 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         }
         irq = (offset - 0xf20);
 
-        GIC_SET_PENDING(irq, 1 << cpu);
-        s->sgi_pending[irq][cpu] |= value;
+        if (!s->security_extn || attrs.secure ||
+            GIC_TEST_GROUP(irq, 1 << cpu)) {
+            GIC_SET_PENDING(irq, 1 << cpu);
+            s->sgi_pending[irq][cpu] |= value;
+        }
     } else {
         goto bad_reg;
     }

@@ -114,3 +114,11 @@ static void xlnx_ep108_machine_init(MachineClass *mc)
 }
 
 DEFINE_MACHINE("xlnx-ep108", xlnx_ep108_machine_init)
+
+static void xlnx_zcu102_machine_init(MachineClass *mc)
+{
+    mc->desc = "Xilinx ZynqMP ZCU102 board";
+    mc->init = xlnx_ep108_init;
+}
+
+DEFINE_MACHINE("xlnx-zcu102", xlnx_zcu102_machine_init)

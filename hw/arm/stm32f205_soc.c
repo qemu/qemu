@@ -107,6 +107,7 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
     /* Attach UART (uses USART registers) and USART controllers */
     for (i = 0; i < STM_NUM_USARTS; i++) {
         usartdev = DEVICE(&(s->usart[i]));
+        qdev_prop_set_chr(usartdev, "chardev", i < MAX_SERIAL_PORTS ? serial_hds[i] : NULL);
         object_property_set_bool(OBJECT(&s->usart[i]), true, "realized", &err);
         if (err != NULL) {
             error_propagate(errp, err);

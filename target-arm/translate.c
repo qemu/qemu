@@ -11732,7 +11732,8 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
       }
     do {
         tcg_gen_insn_start(dc->pc,
-                           (dc->condexec_cond << 4) | (dc->condexec_mask >> 1));
+                           (dc->condexec_cond << 4) | (dc->condexec_mask >> 1),
+                           0);
         num_insns++;
 
 #ifdef CONFIG_USER_ONLY
@@ -12049,8 +12050,10 @@ void restore_state_to_opc(CPUARMState *env, TranslationBlock *tb,
     if (is_a64(env)) {
         env->pc = data[0];
         env->condexec_bits = 0;
+        env->exception.syndrome = data[2] << ARM_INSN_START_WORD2_SHIFT;
     } else {
         env->regs[15] = data[0];
         env->condexec_bits = data[1];
+        env->exception.syndrome = data[2] << ARM_INSN_START_WORD2_SHIFT;
     }
 }

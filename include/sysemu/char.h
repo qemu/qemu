@@ -403,7 +403,6 @@ void register_char_driver(const char *name, ChardevBackendKind kind,
 
 extern int term_escape_char;
 
-CharDriverState *qemu_char_get_next_serial(void);
 
 /* console.c */
 typedef CharDriverState *(VcHandler)(ChardevVC *vc, Error **errp);

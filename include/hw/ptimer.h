@@ -19,6 +19,7 @@ typedef void (*ptimer_cb)(void *opaque);
 ptimer_state *ptimer_init(QEMUBH *bh);
 void ptimer_set_period(ptimer_state *s, int64_t period);
 void ptimer_set_freq(ptimer_state *s, uint32_t freq);
+uint64_t ptimer_get_limit(ptimer_state *s);
 void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload);
 uint64_t ptimer_get_count(ptimer_state *s);
 void ptimer_set_count(ptimer_state *s, uint64_t count);

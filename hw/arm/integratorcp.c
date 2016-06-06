@@ -20,6 +20,7 @@
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
+#include "hw/char/pl011.h"
 
 #define TYPE_INTEGRATOR_CM "integrator_core"
 #define INTEGRATOR_CM(obj) \
@@ -588,8 +589,8 @@ static void integratorcp_init(MachineState *machine)
     sysbus_create_varargs("integrator_pit", 0x13000000,
                           pic[5], pic[6], pic[7], NULL);
     sysbus_create_simple("pl031", 0x15000000, pic[8]);
-    sysbus_create_simple("pl011", 0x16000000, pic[1]);
-    sysbus_create_simple("pl011", 0x17000000, pic[2]);
+    pl011_create(0x16000000, pic[1], serial_hds[0]);
+    pl011_create(0x17000000, pic[2], serial_hds[1]);
     icp = sysbus_create_simple(TYPE_ICP_CONTROL_REGS, 0xcb000000,
                                qdev_get_gpio_in(sic, 3));
     sysbus_create_simple("pl050_keyboard", 0x18000000, pic[3]);

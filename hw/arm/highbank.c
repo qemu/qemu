@@ -30,6 +30,7 @@
 #include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"
+#include "hw/char/pl011.h"
 
 #define SMP_BOOT_ADDR           0x100
 #define SMP_BOOT_REG            0x40
@@ -326,7 +327,7 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, 0xfff34000);
     sysbus_connect_irq(busdev, 0, pic[18]);
-    sysbus_create_simple("pl011", 0xfff36000, pic[20]);
+    pl011_create(0xfff36000, pic[20], serial_hds[0]);
 
     dev = qdev_create(NULL, "highbank-regs");
     qdev_init_nofail(dev);

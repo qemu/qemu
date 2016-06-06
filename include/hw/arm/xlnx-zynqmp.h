@@ -84,6 +84,11 @@ typedef struct XlnxZynqMPState {
 
     char *boot_cpu;
     ARMCPU *boot_cpu_ptr;
+
+    /* Has the ARM Security extensions?  */
+    bool secure;
+    /* Has the RPU subsystem?  */
+    bool has_rpu;
 }  XlnxZynqMPState;
 
 #define XLNX_ZYNQMP_H

@@ -367,7 +367,7 @@ static inline uint32_t syn_fp_access_trap(int cv, int cond, bool is_16bit)
 static inline uint32_t syn_insn_abort(int same_el, int ea, int s1ptw, int fsc)
 {
     return (EC_INSNABORT << ARM_EL_EC_SHIFT) | (same_el << ARM_EL_EC_SHIFT)
-        | (ea << 9) | (s1ptw << 7) | fsc;
+        | ARM_EL_IL | (ea << 9) | (s1ptw << 7) | fsc;
 }
 
 static inline uint32_t syn_data_abort_no_iss(int same_el,
@@ -396,13 +396,13 @@ static inline uint32_t syn_data_abort_with_iss(int same_el,
 static inline uint32_t syn_swstep(int same_el, int isv, int ex)
 {
     return (EC_SOFTWARESTEP << ARM_EL_EC_SHIFT) | (same_el << ARM_EL_EC_SHIFT)
-        | (isv << 24) | (ex << 6) | 0x22;
+        | ARM_EL_IL | (isv << 24) | (ex << 6) | 0x22;
 }
 
 static inline uint32_t syn_watchpoint(int same_el, int cm, int wnr)
 {
     return (EC_WATCHPOINT << ARM_EL_EC_SHIFT) | (same_el << ARM_EL_EC_SHIFT)
-        | (cm << 8) | (wnr << 6) | 0x22;
+        | ARM_EL_IL | (cm << 8) | (wnr << 6) | 0x22;
 }
 
 static inline uint32_t syn_breakpoint(int same_el)

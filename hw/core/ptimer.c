@@ -35,6 +35,9 @@ static void ptimer_trigger(ptimer_state *s)
 
 static void ptimer_reload(ptimer_state *s)
 {
+    uint32_t period_frac = s->period_frac;
+    uint64_t period = s->period;
+
     if (s->delta == 0) {
         ptimer_trigger(s);
         s->delta = s->limit;
@@ -45,10 +48,24 @@ static void ptimer_reload(ptimer_state *s)
         return;
     }
 
+    /*
+     * Artificially limit timeout rate to something
+     * achievable under QEMU.  Otherwise, QEMU spends all
+     * its time generating timer interrupts, and there
+     * is no forward progress.
+     * About ten microseconds is the fastest that really works
+     * on the current generation of host machines.
+     */
+
+    if (s->enabled == 1 && (s->delta * period < 10000) && !use_icount) {
+        period = 10000 / s->delta;
+        period_frac = 0;
+    }
+
     s->last_event = s->next_event;
-    s->next_event = s->last_event + s->delta * s->period;
-    if (s->period_frac) {
-        s->next_event += ((int64_t)s->period_frac * s->delta) >> 32;
+    s->next_event = s->last_event + s->delta * period;
+    if (period_frac) {
+        s->next_event += ((int64_t)period_frac * s->delta) >> 32;
     }
     timer_mod(s->timer, s->next_event);
 }
@@ -67,14 +84,16 @@ static void ptimer_tick(void *opaque)
 
 uint64_t ptimer_get_count(ptimer_state *s)
 {
-    int64_t now;
     uint64_t counter;
 
     if (s->enabled) {
-        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        int64_t next = s->next_event;
+        bool expired = (now - next >= 0);
+        bool oneshot = (s->enabled == 2);
+
         /* Figure out the current counter value.  */
-        if (now - s->next_event > 0
-            || s->period == 0) {
+        if (s->period == 0 || (expired && (oneshot || use_icount))) {
             /* Prevent timer underflowing if it should already have
                triggered.  */
             counter = 0;
@@ -83,6 +102,13 @@ uint64_t ptimer_get_count(ptimer_state *s)
             uint64_t div;
             int clz1, clz2;
             int shift;
+            uint32_t period_frac = s->period_frac;
+            uint64_t period = s->period;
+
+            if (!oneshot && (s->delta * period < 10000) && !use_icount) {
+                period = 10000 / s->delta;
+                period_frac = 0;
+            }
 
             /* We need to divide time by period, where time is stored in
                rem (64-bit integer) and period is stored in period/period_frac
@@ -94,8 +120,8 @@ uint64_t ptimer_get_count(ptimer_state *s)
                backwards.
             */
 
-            rem = s->next_event - now;
-            div = s->period;
+            rem = expired ? now - next : next - now;
+            div = period;
 
             clz1 = clz64(rem);
             clz2 = clz64(div);
@@ -104,16 +130,21 @@ uint64_t ptimer_get_count(ptimer_state *s)
             rem <<= shift;
             div <<= shift;
             if (shift >= 32) {
-                div |= ((uint64_t)s->period_frac << (shift - 32));
+                div |= ((uint64_t)period_frac << (shift - 32));
             } else {
                 if (shift != 0)
-                    div |= (s->period_frac >> (32 - shift));
+                    div |= (period_frac >> (32 - shift));
                 /* Look at remaining bits of period_frac and round div up if 
                    necessary.  */
-                if ((uint32_t)(s->period_frac << shift))
+                if ((uint32_t)(period_frac << shift))
                     div += 1;
             }
             counter = rem / div;
+
+            if (expired && counter != 0) {
+                /* Wrap around periodic counter.  */
+                counter = s->limit - (counter - 1) % s->limit;
+            }
         }
     } else {
         counter = s->delta;
@@ -132,16 +163,17 @@ void ptimer_set_count(ptimer_state *s, uint64_t count)
 
 void ptimer_run(ptimer_state *s, int oneshot)
 {
-    if (s->enabled) {
-        return;
-    }
-    if (s->period == 0) {
+    bool was_disabled = !s->enabled;
+
+    if (was_disabled && s->period == 0) {
         fprintf(stderr, "Timer with period zero, disabling\n");
         return;
     }
     s->enabled = oneshot ? 2 : 1;
-    s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    ptimer_reload(s);
+    if (was_disabled) {
+        s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        ptimer_reload(s);
+    }
 }
 
 /* Pause a timer.  Note that this may cause it to "lose" time, even if it
@@ -159,6 +191,7 @@ void ptimer_stop(ptimer_state *s)
 /* Set counter increment interval in nanoseconds.  */
 void ptimer_set_period(ptimer_state *s, int64_t period)
 {
+    s->delta = ptimer_get_count(s);
     s->period = period;
     s->period_frac = 0;
     if (s->enabled) {
@@ -170,6 +203,7 @@ void ptimer_set_period(ptimer_state *s, int64_t period)
 /* Set counter frequency in Hz.  */
 void ptimer_set_freq(ptimer_state *s, uint32_t freq)
 {
+    s->delta = ptimer_get_count(s);
     s->period = 1000000000ll / freq;
     s->period_frac = (1000000000ll << 32) / freq;
     if (s->enabled) {
@@ -182,19 +216,6 @@ void ptimer_set_freq(ptimer_state *s, uint32_t freq)
    count = limit.  */
 void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload)
 {
-    /*
-     * Artificially limit timeout rate to something
-     * achievable under QEMU.  Otherwise, QEMU spends all
-     * its time generating timer interrupts, and there
-     * is no forward progress.
-     * About ten microseconds is the fastest that really works
-     * on the current generation of host machines.
-     */
-
-    if (!use_icount && limit * s->period < 10000 && s->period) {
-        limit = 10000 / s->period;
-    }
-
     s->limit = limit;
     if (reload)
         s->delta = limit;
@@ -202,6 +223,11 @@ void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload)
         s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         ptimer_reload(s);
     }
+}
+
+uint64_t ptimer_get_limit(ptimer_state *s)
+{
+    return s->limit;
 }
 
 const VMStateDescription vmstate_ptimer = {

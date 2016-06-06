@@ -468,9 +468,6 @@ static void cadence_uart_realize(DeviceState *dev, Error **errp)
     s->fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                           fifo_trigger_update, s);
 
-    /* FIXME use a qdev chardev prop instead of qemu_char_get_next_serial() */
-    s->chr = qemu_char_get_next_serial();
-
     if (s->chr) {
         qemu_chr_add_handlers(s->chr, uart_can_receive, uart_receive,
                               uart_event, s);
@@ -517,6 +514,11 @@ static const VMStateDescription vmstate_cadence_uart = {
     }
 };
 
+static Property cadence_uart_properties[] = {
+    DEFINE_PROP_CHR("chardev", CadenceUARTState, chr),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void cadence_uart_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -524,9 +526,8 @@ static void cadence_uart_class_init(ObjectClass *klass, void *data)
     dc->realize = cadence_uart_realize;
     dc->vmsd = &vmstate_cadence_uart;
     dc->reset = cadence_uart_reset;
-    /* Reason: realize() method uses qemu_char_get_next_serial() */
-    dc->cannot_instantiate_with_device_add_yet = true;
-}
+    dc->props = cadence_uart_properties;
+  }
 
 static const TypeInfo cadence_uart_info = {
     .name          = TYPE_CADENCE_UART,
