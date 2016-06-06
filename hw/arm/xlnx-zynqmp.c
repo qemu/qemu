@@ -22,6 +22,8 @@
 #include "hw/arm/xlnx-zynqmp.h"
 #include "hw/intc/arm_gic_common.h"
 #include "exec/address-spaces.h"
+#include "sysemu/kvm.h"
+#include "kvm_arm.h"
 
 #define GIC_NUM_SPI_INTR 160
 
@@ -135,7 +137,7 @@ static void xlnx_zynqmp_init(Object *obj)
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
 
-    object_initialize(&s->gic, sizeof(s->gic), TYPE_ARM_GIC);
+    object_initialize(&s->gic, sizeof(s->gic), gic_class_name());
     qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_GEMS; i++) {
