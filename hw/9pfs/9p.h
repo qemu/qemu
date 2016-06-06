@@ -5,8 +5,6 @@
 #include <utime.h>
 #include <sys/resource.h>
 #include <glib.h>
-#include "standard-headers/linux/virtio_9p.h"
-#include "hw/virtio/virtio.h"
 #include "fsdev/file-op-9p.h"
 #include "fsdev/9p-iov-marshal.h"
 #include "qemu/thread.h"
@@ -169,13 +167,33 @@ typedef struct V9fsXattr
     int flags;
 } V9fsXattr;
 
+typedef struct V9fsDir {
+    DIR *stream;
+    QemuMutex readdir_mutex;
+} V9fsDir;
+
+static inline void v9fs_readdir_lock(V9fsDir *dir)
+{
+    qemu_mutex_lock(&dir->readdir_mutex);
+}
+
+static inline void v9fs_readdir_unlock(V9fsDir *dir)
+{
+    qemu_mutex_unlock(&dir->readdir_mutex);
+}
+
+static inline void v9fs_readdir_init(V9fsDir *dir)
+{
+    qemu_mutex_init(&dir->readdir_mutex);
+}
+
 /*
  * Filled by fs driver on open and other
  * calls.
  */
 union V9fsFidOpenState {
     int fd;
-    DIR *dir;
+    V9fsDir dir;
     V9fsXattr xattr;
     /*
      * private pointer for fs drivers, that

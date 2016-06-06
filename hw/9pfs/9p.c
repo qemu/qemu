@@ -13,7 +13,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/virtio/virtio.h"
-#include "hw/i386/pc.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
@@ -232,7 +231,7 @@ static int v9fs_reopen_fid(V9fsPDU *pdu, V9fsFidState *f)
             } while (err == -EINTR && !pdu->cancelled);
         }
     } else if (f->fid_type == P9_FID_DIR) {
-        if (f->fs.dir == NULL) {
+        if (f->fs.dir.stream == NULL) {
             do {
                 err = v9fs_co_opendir(pdu, f);
             } while (err == -EINTR && !pdu->cancelled);
@@ -301,6 +300,9 @@ static V9fsFidState *alloc_fid(V9fsState *s, int32_t fid)
     f->next = s->fid_list;
     s->fid_list = f;
 
+    v9fs_readdir_init(&f->fs.dir);
+    v9fs_readdir_init(&f->fs_reclaim.dir);
+
     return f;
 }
 
@@ -346,7 +348,7 @@ static int free_fid(V9fsPDU *pdu, V9fsFidState *fidp)
             retval = v9fs_co_close(pdu, &fidp->fs);
         }
     } else if (fidp->fid_type == P9_FID_DIR) {
-        if (fidp->fs.dir != NULL) {
+        if (fidp->fs.dir.stream != NULL) {
             retval = v9fs_co_closedir(pdu, &fidp->fs);
         }
     } else if (fidp->fid_type == P9_FID_XATTR) {
@@ -444,7 +446,7 @@ void v9fs_reclaim_fd(V9fsPDU *pdu)
                 reclaim_count++;
             }
         } else if (f->fid_type == P9_FID_DIR) {
-            if (f->fs.dir != NULL) {
+            if (f->fs.dir.stream != NULL) {
                 /*
                  * Up the reference count so that
                  * a clunk request won't free this fid
@@ -452,8 +454,8 @@ void v9fs_reclaim_fd(V9fsPDU *pdu)
                 f->ref++;
                 f->rclm_lst = reclaim_list;
                 reclaim_list = f;
-                f->fs_reclaim.dir = f->fs.dir;
-                f->fs.dir = NULL;
+                f->fs_reclaim.dir.stream = f->fs.dir.stream;
+                f->fs.dir.stream = NULL;
                 reclaim_count++;
             }
         }
@@ -1625,7 +1627,7 @@ static int v9fs_do_readdir_with_stat(V9fsPDU *pdu,
     int32_t count = 0;
     struct stat stbuf;
     off_t saved_dir_pos;
-    struct dirent *dent, *result;
+    struct dirent *dent;
 
     /* save the directory position */
     saved_dir_pos = v9fs_co_telldir(pdu, fidp);
@@ -1633,34 +1635,37 @@ static int v9fs_do_readdir_with_stat(V9fsPDU *pdu,
         return saved_dir_pos;
     }
 
-    dent = g_malloc(sizeof(struct dirent));
-
     while (1) {
         v9fs_path_init(&path);
-        err = v9fs_co_readdir_r(pdu, fidp, dent, &result);
-        if (err || !result) {
+
+        v9fs_readdir_lock(&fidp->fs.dir);
+
+        err = v9fs_co_readdir(pdu, fidp, &dent);
+        if (err || !dent) {
             break;
         }
         err = v9fs_co_name_to_path(pdu, &fidp->path, dent->d_name, &path);
         if (err < 0) {
-            goto out;
+            break;
         }
         err = v9fs_co_lstat(pdu, &path, &stbuf);
         if (err < 0) {
-            goto out;
+            break;
         }
         err = stat_to_v9stat(pdu, &path, &stbuf, &v9stat);
         if (err < 0) {
-            goto out;
+            break;
         }
         /* 11 = 7 + 4 (7 = start offset, 4 = space for storing count) */
         len = pdu_marshal(pdu, 11 + count, "S", &v9stat);
+
+        v9fs_readdir_unlock(&fidp->fs.dir);
+
         if ((len != (v9stat.size + 2)) || ((count + len) > max_count)) {
             /* Ran out of buffer. Set dir back to old position and return */
             v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
             v9fs_stat_free(&v9stat);
             v9fs_path_free(&path);
-            g_free(dent);
             return count;
         }
         count += len;
@@ -1668,8 +1673,9 @@ static int v9fs_do_readdir_with_stat(V9fsPDU *pdu,
         v9fs_path_free(&path);
         saved_dir_pos = dent->d_off;
     }
-out:
-    g_free(dent);
+
+    v9fs_readdir_unlock(&fidp->fs.dir);
+
     v9fs_path_free(&path);
     if (err < 0) {
         return err;
@@ -1805,7 +1811,7 @@ static int v9fs_do_readdir(V9fsPDU *pdu,
     int len, err = 0;
     int32_t count = 0;
     off_t saved_dir_pos;
-    struct dirent *dent, *result;
+    struct dirent *dent;
 
     /* save the directory position */
     saved_dir_pos = v9fs_co_telldir(pdu, fidp);
@@ -1813,20 +1819,21 @@ static int v9fs_do_readdir(V9fsPDU *pdu,
         return saved_dir_pos;
     }
 
-    dent = g_malloc(sizeof(struct dirent));
-
     while (1) {
-        err = v9fs_co_readdir_r(pdu, fidp, dent, &result);
-        if (err || !result) {
+        v9fs_readdir_lock(&fidp->fs.dir);
+
+        err = v9fs_co_readdir(pdu, fidp, &dent);
+        if (err || !dent) {
             break;
         }
         v9fs_string_init(&name);
         v9fs_string_sprintf(&name, "%s", dent->d_name);
         if ((count + v9fs_readdir_data_size(&name)) > max_count) {
+            v9fs_readdir_unlock(&fidp->fs.dir);
+
             /* Ran out of buffer. Set dir back to old position and return */
             v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
             v9fs_string_free(&name);
-            g_free(dent);
             return count;
         }
         /*
@@ -1844,17 +1851,21 @@ static int v9fs_do_readdir(V9fsPDU *pdu,
         len = pdu_marshal(pdu, 11 + count, "Qqbs",
                           &qid, dent->d_off,
                           dent->d_type, &name);
+
+        v9fs_readdir_unlock(&fidp->fs.dir);
+
         if (len < 0) {
             v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
             v9fs_string_free(&name);
-            g_free(dent);
             return len;
         }
         count += len;
         v9fs_string_free(&name);
         saved_dir_pos = dent->d_off;
     }
-    g_free(dent);
+
+    v9fs_readdir_unlock(&fidp->fs.dir);
+
     if (err < 0) {
         return err;
     }
@@ -1884,7 +1895,7 @@ static void v9fs_readdir(void *opaque)
         retval = -EINVAL;
         goto out_nofid;
     }
-    if (!fidp->fs.dir) {
+    if (!fidp->fs.dir.stream) {
         retval = -EINVAL;
         goto out;
     }

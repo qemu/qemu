@@ -17,7 +17,8 @@
 
 #include "qemu/thread.h"
 #include "qemu/coroutine.h"
-#include "virtio-9p.h"
+#include "qemu/main-loop.h"
+#include "9p.h"
 
 /*
  * we want to use bottom half because we want to make sure the below
@@ -48,8 +49,7 @@
 
 extern void co_run_in_worker_bh(void *);
 extern int v9fs_co_readlink(V9fsPDU *, V9fsPath *, V9fsString *);
-extern int v9fs_co_readdir_r(V9fsPDU *, V9fsFidState *,
-                           struct dirent *, struct dirent **result);
+extern int v9fs_co_readdir(V9fsPDU *, V9fsFidState *, struct dirent **);
 extern off_t v9fs_co_telldir(V9fsPDU *, V9fsFidState *);
 extern void v9fs_co_seekdir(V9fsPDU *, V9fsFidState *, off_t);
 extern void v9fs_co_rewinddir(V9fsPDU *, V9fsFidState *);

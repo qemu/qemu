@@ -40,6 +40,7 @@ struct V9fsSynthNode {
 typedef struct V9fsSynthOpenState {
     off_t offset;
     V9fsSynthNode *node;
+    struct dirent dent;
 } V9fsSynthOpenState;
 
 extern int qemu_v9fs_synth_mkdir(V9fsSynthNode *parent, int mode,

@@ -112,7 +112,7 @@ static int handle_close(FsContext *ctx, V9fsFidOpenState *fs)
 
 static int handle_closedir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return closedir(fs->dir);
+    return closedir(fs->dir.stream);
 }
 
 static int handle_open(FsContext *ctx, V9fsPath *fs_path,
@@ -132,8 +132,8 @@ static int handle_opendir(FsContext *ctx,
     if (ret < 0) {
         return -1;
     }
-    fs->dir = fdopendir(ret);
-    if (!fs->dir) {
+    fs->dir.stream = fdopendir(ret);
+    if (!fs->dir.stream) {
         return -1;
     }
     return 0;
@@ -141,24 +141,22 @@ static int handle_opendir(FsContext *ctx,
 
 static void handle_rewinddir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    rewinddir(fs->dir);
+    rewinddir(fs->dir.stream);
 }
 
 static off_t handle_telldir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return telldir(fs->dir);
+    return telldir(fs->dir.stream);
 }
 
-static int handle_readdir_r(FsContext *ctx, V9fsFidOpenState *fs,
-                            struct dirent *entry,
-                            struct dirent **result)
+static struct dirent *handle_readdir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return readdir_r(fs->dir, entry, result);
+    return readdir(fs->dir.stream);
 }
 
 static void handle_seekdir(FsContext *ctx, V9fsFidOpenState *fs, off_t off)
 {
-    seekdir(fs->dir, off);
+    seekdir(fs->dir.stream, off);
 }
 
 static ssize_t handle_preadv(FsContext *ctx, V9fsFidOpenState *fs,
@@ -262,7 +260,7 @@ static int handle_fstat(FsContext *fs_ctx, int fid_type,
     int fd;
 
     if (fid_type == P9_FID_DIR) {
-        fd = dirfd(fs->dir);
+        fd = dirfd(fs->dir.stream);
     } else {
         fd = fs->fd;
     }
@@ -409,7 +407,7 @@ static int handle_fsync(FsContext *ctx, int fid_type,
     int fd;
 
     if (fid_type == P9_FID_DIR) {
-        fd = dirfd(fs->dir);
+        fd = dirfd(fs->dir.stream);
     } else {
         fd = fs->fd;
     }
@@ -681,7 +679,7 @@ FileOperations handle_ops = {
     .opendir      = handle_opendir,
     .rewinddir    = handle_rewinddir,
     .telldir      = handle_telldir,
-    .readdir_r    = handle_readdir_r,
+    .readdir      = handle_readdir,
     .seekdir      = handle_seekdir,
     .preadv       = handle_preadv,
     .pwritev      = handle_pwritev,
