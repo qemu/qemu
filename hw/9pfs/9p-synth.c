@@ -1,5 +1,5 @@
 /*
- * Virtio 9p synthetic file system support
+ * 9p synthetic file system support
  *
  * Copyright IBM, Corp. 2011
  *
@@ -13,9 +13,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/virtio/virtio.h"
 #include "9p.h"
-#include "9p-xattr.h"
 #include "fsdev/qemu-fsdev.h"
 #include "9p-synth.h"
 #include "qemu/rcu.h"
