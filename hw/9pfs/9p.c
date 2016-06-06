@@ -1627,7 +1627,7 @@ static int v9fs_do_readdir_with_stat(V9fsPDU *pdu,
     int32_t count = 0;
     struct stat stbuf;
     off_t saved_dir_pos;
-    struct dirent *dent, *result;
+    struct dirent *dent;
 
     /* save the directory position */
     saved_dir_pos = v9fs_co_telldir(pdu, fidp);
@@ -1635,15 +1635,13 @@ static int v9fs_do_readdir_with_stat(V9fsPDU *pdu,
         return saved_dir_pos;
     }
 
-    dent = g_malloc(sizeof(struct dirent));
-
     while (1) {
         v9fs_path_init(&path);
 
         v9fs_readdir_lock(&fidp->fs.dir);
 
-        err = v9fs_co_readdir_r(pdu, fidp, dent, &result);
-        if (err || !result) {
+        err = v9fs_co_readdir(pdu, fidp, &dent);
+        if (err || !dent) {
             break;
         }
         err = v9fs_co_name_to_path(pdu, &fidp->path, dent->d_name, &path);
@@ -1668,7 +1666,6 @@ static int v9fs_do_readdir_with_stat(V9fsPDU *pdu,
             v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
             v9fs_stat_free(&v9stat);
             v9fs_path_free(&path);
-            g_free(dent);
             return count;
         }
         count += len;
@@ -1679,7 +1676,6 @@ static int v9fs_do_readdir_with_stat(V9fsPDU *pdu,
 
     v9fs_readdir_unlock(&fidp->fs.dir);
 
-    g_free(dent);
     v9fs_path_free(&path);
     if (err < 0) {
         return err;
@@ -1815,7 +1811,7 @@ static int v9fs_do_readdir(V9fsPDU *pdu,
     int len, err = 0;
     int32_t count = 0;
     off_t saved_dir_pos;
-    struct dirent *dent, *result;
+    struct dirent *dent;
 
     /* save the directory position */
     saved_dir_pos = v9fs_co_telldir(pdu, fidp);
@@ -1823,13 +1819,11 @@ static int v9fs_do_readdir(V9fsPDU *pdu,
         return saved_dir_pos;
     }
 
-    dent = g_malloc(sizeof(struct dirent));
-
     while (1) {
         v9fs_readdir_lock(&fidp->fs.dir);
 
-        err = v9fs_co_readdir_r(pdu, fidp, dent, &result);
-        if (err || !result) {
+        err = v9fs_co_readdir(pdu, fidp, &dent);
+        if (err || !dent) {
             break;
         }
         v9fs_string_init(&name);
@@ -1840,7 +1834,6 @@ static int v9fs_do_readdir(V9fsPDU *pdu,
             /* Ran out of buffer. Set dir back to old position and return */
             v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
             v9fs_string_free(&name);
-            g_free(dent);
             return count;
         }
         /*
@@ -1864,7 +1857,6 @@ static int v9fs_do_readdir(V9fsPDU *pdu,
         if (len < 0) {
             v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
             v9fs_string_free(&name);
-            g_free(dent);
             return len;
         }
         count += len;
@@ -1874,7 +1866,6 @@ static int v9fs_do_readdir(V9fsPDU *pdu,
 
     v9fs_readdir_unlock(&fidp->fs.dir);
 
-    g_free(dent);
     if (err < 0) {
         return err;
     }

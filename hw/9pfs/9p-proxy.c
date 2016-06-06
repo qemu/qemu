@@ -678,11 +678,9 @@ static off_t proxy_telldir(FsContext *ctx, V9fsFidOpenState *fs)
     return telldir(fs->dir.stream);
 }
 
-static int proxy_readdir_r(FsContext *ctx, V9fsFidOpenState *fs,
-                           struct dirent *entry,
-                           struct dirent **result)
+static struct dirent *proxy_readdir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return readdir_r(fs->dir.stream, entry, result);
+    return readdir(fs->dir.stream);
 }
 
 static void proxy_seekdir(FsContext *ctx, V9fsFidOpenState *fs, off_t off)
@@ -1192,7 +1190,7 @@ FileOperations proxy_ops = {
     .opendir      = proxy_opendir,
     .rewinddir    = proxy_rewinddir,
     .telldir      = proxy_telldir,
-    .readdir_r    = proxy_readdir_r,
+    .readdir      = proxy_readdir,
     .seekdir      = proxy_seekdir,
     .preadv       = proxy_preadv,
     .pwritev      = proxy_pwritev,

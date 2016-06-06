@@ -149,11 +149,9 @@ static off_t handle_telldir(FsContext *ctx, V9fsFidOpenState *fs)
     return telldir(fs->dir.stream);
 }
 
-static int handle_readdir_r(FsContext *ctx, V9fsFidOpenState *fs,
-                            struct dirent *entry,
-                            struct dirent **result)
+static struct dirent *handle_readdir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return readdir_r(fs->dir.stream, entry, result);
+    return readdir(fs->dir.stream);
 }
 
 static void handle_seekdir(FsContext *ctx, V9fsFidOpenState *fs, off_t off)
@@ -681,7 +679,7 @@ FileOperations handle_ops = {
     .opendir      = handle_opendir,
     .rewinddir    = handle_rewinddir,
     .telldir      = handle_telldir,
-    .readdir_r    = handle_readdir_r,
+    .readdir      = handle_readdir,
     .seekdir      = handle_seekdir,
     .preadv       = handle_preadv,
     .pwritev      = handle_pwritev,

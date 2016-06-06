@@ -388,25 +388,27 @@ static off_t local_telldir(FsContext *ctx, V9fsFidOpenState *fs)
     return telldir(fs->dir.stream);
 }
 
-static int local_readdir_r(FsContext *ctx, V9fsFidOpenState *fs,
-                           struct dirent *entry,
-                           struct dirent **result)
+static struct dirent *local_readdir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    int ret;
+    struct dirent *entry;
 
 again:
-    ret = readdir_r(fs->dir.stream, entry, result);
+    entry = readdir(fs->dir.stream);
+    if (!entry) {
+        return NULL;
+    }
+
     if (ctx->export_flags & V9FS_SM_MAPPED) {
         entry->d_type = DT_UNKNOWN;
     } else if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
-        if (!ret && *result != NULL &&
-            !strcmp(entry->d_name, VIRTFS_META_DIR)) {
+        if (!strcmp(entry->d_name, VIRTFS_META_DIR)) {
             /* skp the meta data directory */
             goto again;
         }
         entry->d_type = DT_UNKNOWN;
     }
-    return ret;
+
+    return entry;
 }
 
 static void local_seekdir(FsContext *ctx, V9fsFidOpenState *fs, off_t off)
@@ -1254,7 +1256,7 @@ FileOperations local_ops = {
     .opendir = local_opendir,
     .rewinddir = local_rewinddir,
     .telldir = local_telldir,
-    .readdir_r = local_readdir_r,
+    .readdir = local_readdir,
     .seekdir = local_seekdir,
     .preadv = local_preadv,
     .pwritev = local_pwritev,

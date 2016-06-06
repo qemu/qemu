@@ -223,8 +223,8 @@ static void v9fs_synth_direntry(V9fsSynthNode *node,
     entry->d_off = off + 1;
 }
 
-static int v9fs_synth_get_dentry(V9fsSynthNode *dir, struct dirent *entry,
-                                 struct dirent **result, off_t off)
+static struct dirent *v9fs_synth_get_dentry(V9fsSynthNode *dir,
+                                            struct dirent *entry, off_t off)
 {
     int i = 0;
     V9fsSynthNode *node;
@@ -240,25 +240,22 @@ static int v9fs_synth_get_dentry(V9fsSynthNode *dir, struct dirent *entry,
     rcu_read_unlock();
     if (!node) {
         /* end of directory */
-        *result = NULL;
-        return 0;
+        return NULL;
     }
     v9fs_synth_direntry(node, entry, off);
-    *result = entry;
-    return 0;
+    return entry;
 }
 
-static int v9fs_synth_readdir_r(FsContext *ctx, V9fsFidOpenState *fs,
-                                struct dirent *entry, struct dirent **result)
+static struct dirent *v9fs_synth_readdir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    int ret;
+    struct dirent *entry;
     V9fsSynthOpenState *synth_open = fs->private;
     V9fsSynthNode *node = synth_open->node;
-    ret = v9fs_synth_get_dentry(node, entry, result, synth_open->offset);
-    if (!ret && *result != NULL) {
+    entry = v9fs_synth_get_dentry(node, &synth_open->dent, synth_open->offset);
+    if (entry) {
         synth_open->offset++;
     }
-    return ret;
+    return entry;
 }
 
 static int v9fs_synth_open(FsContext *ctx, V9fsPath *fs_path,
@@ -544,7 +541,7 @@ FileOperations synth_ops = {
     .opendir      = v9fs_synth_opendir,
     .rewinddir    = v9fs_synth_rewinddir,
     .telldir      = v9fs_synth_telldir,
-    .readdir_r    = v9fs_synth_readdir_r,
+    .readdir      = v9fs_synth_readdir,
     .seekdir      = v9fs_synth_seekdir,
     .preadv       = v9fs_synth_preadv,
     .pwritev      = v9fs_synth_pwritev,
