@@ -225,6 +225,11 @@ void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload)
     }
 }
 
+uint64_t ptimer_get_limit(ptimer_state *s)
+{
+    return s->limit;
+}
+
 const VMStateDescription vmstate_ptimer = {
     .name = "ptimer",
     .version_id = 1,
