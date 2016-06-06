@@ -946,6 +946,13 @@ vubr_set_vring_addr_exec(VubrDev *dev, VhostUserMsg *vmsg)
     DPRINT("    vring_avail at %p\n", vq->avail);
 
     vq->last_used_index = vq->used->idx;
+
+    if (vq->last_avail_index != vq->used->idx) {
+        DPRINT("Last avail index != used index: %d != %d, resuming",
+               vq->last_avail_index, vq->used->idx);
+        vq->last_avail_index = vq->used->idx;
+    }
+
     return 0;
 }
 
