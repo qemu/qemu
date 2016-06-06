@@ -120,6 +120,11 @@ uint64_t vhost_net_get_max_queues(VHostNetState *net)
     return net->dev.max_queues;
 }
 
+uint64_t vhost_net_get_acked_features(VHostNetState *net)
+{
+    return net->dev.acked_features;
+}
+
 static int vhost_net_get_fd(NetClientState *backend)
 {
     switch (backend->info->type) {
@@ -136,6 +141,7 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     int r;
     bool backend_kernel = options->backend_type == VHOST_BACKEND_TYPE_KERNEL;
     struct vhost_net *net = g_malloc(sizeof *net);
+    uint64_t features = 0;
 
     if (!options->net_backend) {
         fprintf(stderr, "vhost-net requires net backend to be setup\n");
@@ -183,8 +189,21 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
             goto fail;
         }
     }
+
     /* Set sane init value. Override when guest acks. */
-    vhost_net_ack_features(net, 0);
+    if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER) {
+        features = vhost_user_get_acked_features(net->nc);
+        if (~net->dev.features & features) {
+            fprintf(stderr, "vhost lacks feature mask %" PRIu64
+                    " for backend\n",
+                    (uint64_t)(~net->dev.features & features));
+            vhost_dev_cleanup(&net->dev);
+            goto fail;
+        }
+    }
+
+    vhost_net_ack_features(net, features);
+
     return net;
 fail:
     g_free(net);
@@ -447,8 +466,14 @@ uint64_t vhost_net_get_features(struct vhost_net *net, uint64_t features)
 {
     return features;
 }
+
 void vhost_net_ack_features(struct vhost_net *net, uint64_t features)
 {
+}
+
+uint64_t vhost_net_get_acked_features(VHostNetState *net)
+{
+    return 0;
 }
 
 bool vhost_net_virtqueue_pending(VHostNetState *net, int idx)

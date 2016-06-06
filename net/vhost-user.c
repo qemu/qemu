@@ -23,6 +23,7 @@ typedef struct VhostUserState {
     CharDriverState *chr;
     VHostNetState *vhost_net;
     int watch;
+    uint64_t acked_features;
 } VhostUserState;
 
 typedef struct VhostUserChardevProps {
@@ -35,6 +36,13 @@ VHostNetState *vhost_user_get_vhost_net(NetClientState *nc)
     VhostUserState *s = DO_UPCAST(VhostUserState, nc, nc);
     assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
     return s->vhost_net;
+}
+
+uint64_t vhost_user_get_acked_features(NetClientState *nc)
+{
+    VhostUserState *s = DO_UPCAST(VhostUserState, nc, nc);
+    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
+    return s->acked_features;
 }
 
 static int vhost_user_running(VhostUserState *s)
@@ -56,6 +64,8 @@ static void vhost_user_stop(int queues, NetClientState *ncs[])
         }
 
         if (s->vhost_net) {
+            /* save acked features */
+            s->acked_features = vhost_net_get_acked_features(s->vhost_net);
             vhost_net_cleanup(s->vhost_net);
             s->vhost_net = NULL;
         }
