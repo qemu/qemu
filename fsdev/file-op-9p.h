@@ -1,5 +1,5 @@
 /*
- * Virtio 9p
+ * 9p
  *
  * Copyright IBM, Corp. 2010
  *

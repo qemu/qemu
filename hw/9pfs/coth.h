@@ -17,7 +17,8 @@
 
 #include "qemu/thread.h"
 #include "qemu/coroutine.h"
-#include "virtio-9p.h"
+#include "qemu/main-loop.h"
+#include "9p.h"
 
 /*
  * we want to use bottom half because we want to make sure the below
