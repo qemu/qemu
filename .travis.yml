@@ -64,9 +64,6 @@ script:
   - make -j3 && ${TEST_CMD}
 matrix:
   include:
-    # Sparse is GCC only
-    - env: CONFIG="--enable-sparse"
-      compiler: gcc
     # gprof/gcov are GCC features
     - env: CONFIG="--enable-gprof --enable-gcov --disable-pie"
       compiler: gcc
