@@ -429,16 +429,6 @@ static int sys_inotify_init1(int flags)
 #undef TARGET_NR_inotify_rm_watch
 #endif /* CONFIG_INOTIFY  */
 
-#if defined(TARGET_NR_ppoll)
-#ifndef __NR_ppoll
-# define __NR_ppoll -1
-#endif
-#define __NR_sys_ppoll __NR_ppoll
-_syscall5(int, sys_ppoll, struct pollfd *, fds, nfds_t, nfds,
-          struct timespec *, timeout, const sigset_t *, sigmask,
-          size_t, sigsetsize)
-#endif
-
 #if defined(TARGET_NR_prlimit64)
 #ifndef __NR_prlimit64
 # define __NR_prlimit64 -1
@@ -706,6 +696,9 @@ safe_syscall5(int, waitid, idtype_t, idtype, id_t, id, siginfo_t *, infop, \
 safe_syscall3(int, execve, const char *, filename, char **, argv, char **, envp)
 safe_syscall6(int, pselect6, int, nfds, fd_set *, readfds, fd_set *, writefds, \
               fd_set *, exceptfds, struct timespec *, timeout, void *, sig)
+safe_syscall5(int, ppoll, struct pollfd *, ufds, unsigned int, nfds,
+              struct timespec *, tsp, const sigset_t *, sigmask,
+              size_t, sigsetsize)
 safe_syscall6(int,futex,int *,uaddr,int,op,int,val, \
               const struct timespec *,timeout,int *,uaddr2,int,val3)
 safe_syscall2(int, rt_sigsuspend, sigset_t *, newset, size_t, sigsetsize)
@@ -8964,7 +8957,6 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             struct target_pollfd *target_pfd;
             unsigned int nfds = arg2;
-            int timeout = arg3;
             struct pollfd *pfd;
             unsigned int i;
 
@@ -8984,8 +8976,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 }
             }
 
+            switch (num) {
 # ifdef TARGET_NR_ppoll
-            if (num == TARGET_NR_ppoll) {
+            case TARGET_NR_ppoll:
+            {
                 struct timespec _timeout_ts, *timeout_ts = &_timeout_ts;
                 target_sigset_t *target_set;
                 sigset_t _set, *set = &_set;
@@ -9010,8 +9004,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     set = NULL;
                 }
 
-                ret = get_errno(sys_ppoll(pfd, nfds, timeout_ts,
-                                          set, SIGSET_T_SIZE));
+                ret = get_errno(safe_ppoll(pfd, nfds, timeout_ts,
+                                           set, SIGSET_T_SIZE));
 
                 if (!is_error(ret) && arg3) {
                     host_to_target_timespec(arg3, timeout_ts);
@@ -9019,9 +9013,30 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 if (arg4) {
                     unlock_user(target_set, arg4, 0);
                 }
-            } else
+                break;
+            }
 # endif
-                ret = get_errno(poll(pfd, nfds, timeout));
+# ifdef TARGET_NR_poll
+            case TARGET_NR_poll:
+            {
+                struct timespec ts, *pts;
+
+                if (arg3 >= 0) {
+                    /* Convert ms to secs, ns */
+                    ts.tv_sec = arg3 / 1000;
+                    ts.tv_nsec = (arg3 % 1000) * 1000000LL;
+                    pts = &ts;
+                } else {
+                    /* -ve poll() timeout means "infinite" */
+                    pts = NULL;
+                }
+                ret = get_errno(safe_ppoll(pfd, nfds, pts, NULL, 0));
+                break;
+            }
+# endif
+            default:
+                g_assert_not_reached();
+            }
 
             if (!is_error(ret)) {
                 for(i = 0; i < nfds; i++) {
