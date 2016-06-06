@@ -224,33 +224,9 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     qdev_prop_set_uint32(DEVICE(&s->gic), "num-irq", GIC_NUM_SPI_INTR + 32);
     qdev_prop_set_uint32(DEVICE(&s->gic), "revision", 2);
     qdev_prop_set_uint32(DEVICE(&s->gic), "num-cpu", XLNX_ZYNQMP_NUM_APU_CPUS);
-    object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
-    assert(ARRAY_SIZE(xlnx_zynqmp_gic_regions) == XLNX_ZYNQMP_GIC_REGIONS);
-    for (i = 0; i < XLNX_ZYNQMP_GIC_REGIONS; i++) {
-        SysBusDevice *gic = SYS_BUS_DEVICE(&s->gic);
-        const XlnxZynqMPGICRegion *r = &xlnx_zynqmp_gic_regions[i];
-        MemoryRegion *mr = sysbus_mmio_get_region(gic, r->region_index);
-        uint32_t addr = r->address;
-        int j;
 
-        sysbus_mmio_map(gic, r->region_index, addr);
-
-        for (j = 0; j < XLNX_ZYNQMP_GIC_ALIASES; j++) {
-            MemoryRegion *alias = &s->gic_mr[i][j];
-
-            addr += XLNX_ZYNQMP_GIC_REGION_SIZE;
-            memory_region_init_alias(alias, OBJECT(s), "zynqmp-gic-alias", mr,
-                                     0, XLNX_ZYNQMP_GIC_REGION_SIZE);
-            memory_region_add_subregion(system_memory, addr, alias);
-        }
-    }
-
+    /* Realize APUs before realizing the GIC. KVM requires this.  */
     for (i = 0; i < XLNX_ZYNQMP_NUM_APU_CPUS; i++) {
-        qemu_irq irq;
         char *name;
 
         object_property_set_int(OBJECT(&s->apu_cpu[i]), QEMU_PSCI_CONDUIT_SMC,
@@ -276,6 +252,36 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
             error_propagate(errp, err);
             return;
         }
+    }
+
+    object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    assert(ARRAY_SIZE(xlnx_zynqmp_gic_regions) == XLNX_ZYNQMP_GIC_REGIONS);
+    for (i = 0; i < XLNX_ZYNQMP_GIC_REGIONS; i++) {
+        SysBusDevice *gic = SYS_BUS_DEVICE(&s->gic);
+        const XlnxZynqMPGICRegion *r = &xlnx_zynqmp_gic_regions[i];
+        MemoryRegion *mr = sysbus_mmio_get_region(gic, r->region_index);
+        uint32_t addr = r->address;
+        int j;
+
+        sysbus_mmio_map(gic, r->region_index, addr);
+
+        for (j = 0; j < XLNX_ZYNQMP_GIC_ALIASES; j++) {
+            MemoryRegion *alias = &s->gic_mr[i][j];
+
+            addr += XLNX_ZYNQMP_GIC_REGION_SIZE;
+            memory_region_init_alias(alias, OBJECT(s), "zynqmp-gic-alias", mr,
+                                     0, XLNX_ZYNQMP_GIC_REGION_SIZE);
+            memory_region_add_subregion(system_memory, addr, alias);
+        }
+    }
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_APU_CPUS; i++) {
+        qemu_irq irq;
 
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->gic), i,
                            qdev_get_gpio_in(DEVICE(&s->apu_cpu[i]),
