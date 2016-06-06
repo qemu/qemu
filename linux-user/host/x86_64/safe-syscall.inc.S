@@ -24,6 +24,7 @@
          * -1-and-errno-set convention is done by the calling wrapper.
          */
 safe_syscall_base:
+        .cfi_startproc
         /* This saves a frame pointer and aligns the stack for the syscall.
          * (It's unclear if the syscall ABI has the same stack alignment
          * requirements as the userspace function call ABI, but better safe than
@@ -31,6 +32,8 @@ safe_syscall_base:
          * does not list any ABI differences regarding stack alignment.)
          */
         push    %rbp
+        .cfi_adjust_cfa_offset 8
+        .cfi_rel_offset rbp, 0
 
         /* The syscall calling convention isn't the same as the
          * C one:
@@ -70,12 +73,19 @@ safe_syscall_start:
 safe_syscall_end:
         /* code path for having successfully executed the syscall */
         pop     %rbp
+        .cfi_remember_state
+        .cfi_def_cfa_offset 8
+        .cfi_restore rbp
         ret
 
 return_ERESTARTSYS:
         /* code path when we didn't execute the syscall */
+        .cfi_restore_state
         mov     $-TARGET_ERESTARTSYS, %rax
         pop     %rbp
+        .cfi_def_cfa_offset 8
+        .cfi_restore rbp
         ret
+        .cfi_endproc
 
         .size   safe_syscall_base, .-safe_syscall_base
