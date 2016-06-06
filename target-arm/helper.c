@@ -3471,6 +3471,9 @@ static const ARMCPRegInfo el3_no_el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 4, .crn = 6, .crm = 0, .opc2 = 4,
       .access = PL2_RW, .accessfn = access_el3_aa32ns_aa64any,
       .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "HSTR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 3,
+      .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -3706,6 +3709,10 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 4, .crn = 6, .crm = 0, .opc2 = 4,
       .access = PL2_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.hpfar_el2) },
+    { .name = "HSTR_EL2", .state = ARM_CP_STATE_BOTH,
+      .cp = 15, .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 3,
+      .access = PL2_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.hstr_el2) },
     REGINFO_SENTINEL
 };
 

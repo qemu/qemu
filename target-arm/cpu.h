@@ -278,6 +278,7 @@ typedef struct CPUARMState {
             uint64_t far_el[4];
         };
         uint64_t hpfar_el2;
+        uint64_t hstr_el2;
         union { /* Translation result. */
             struct {
                 uint64_t _unused_par_0;
