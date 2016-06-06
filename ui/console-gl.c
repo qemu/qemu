@@ -88,6 +88,11 @@ void surface_gl_create_texture(ConsoleGLState *gls,
         surface->glformat = GL_BGRA_EXT;
         surface->gltype = GL_UNSIGNED_BYTE;
         break;
+    case PIXMAN_BE_x8r8g8b8:
+    case PIXMAN_BE_a8r8g8b8:
+        surface->glformat = GL_RGBA;
+        surface->gltype = GL_UNSIGNED_BYTE;
+        break;
     case PIXMAN_r5g6b5:
         surface->glformat = GL_RGB;
         surface->gltype = GL_UNSIGNED_SHORT_5_6_5;
