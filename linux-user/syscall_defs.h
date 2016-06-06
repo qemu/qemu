@@ -2289,34 +2289,34 @@ struct target_statfs64 {
 #endif
 
 struct target_flock {
-	short l_type;
-	short l_whence;
-	abi_ulong l_start;
-	abi_ulong l_len;
-	int l_pid;
+    short l_type;
+    short l_whence;
+    abi_long l_start;
+    abi_long l_len;
+    int l_pid;
 };
 
 struct target_flock64 {
-	short  l_type;
-	short  l_whence;
+    short  l_type;
+    short  l_whence;
 #if defined(TARGET_PPC) || defined(TARGET_X86_64) || defined(TARGET_MIPS) \
     || defined(TARGET_SPARC) || defined(TARGET_HPPA) \
     || defined(TARGET_MICROBLAZE) || defined(TARGET_TILEGX)
-        int __pad;
+    int __pad;
 #endif
-	unsigned long long l_start;
-	unsigned long long l_len;
-	int  l_pid;
+    abi_llong l_start;
+    abi_llong l_len;
+    int  l_pid;
 } QEMU_PACKED;
 
 #ifdef TARGET_ARM
 struct target_eabi_flock64 {
-	short  l_type;
-	short  l_whence;
-        int __pad;
-	unsigned long long l_start;
-	unsigned long long l_len;
-	int  l_pid;
+    short  l_type;
+    short  l_whence;
+    int __pad;
+    abi_llong l_start;
+    abi_llong l_len;
+    int  l_pid;
 } QEMU_PACKED;
 #endif
 
