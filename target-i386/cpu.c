@@ -678,6 +678,14 @@ static ObjectClass *x86_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
+static char *x86_cpu_class_get_model_name(X86CPUClass *cc)
+{
+    const char *class_name = object_class_get_name(OBJECT_CLASS(cc));
+    assert(g_str_has_suffix(class_name, X86_CPU_TYPE_SUFFIX));
+    return g_strndup(class_name,
+                     strlen(class_name) - strlen(X86_CPU_TYPE_SUFFIX));
+}
+
 struct X86CPUDefinition {
     const char *name;
     uint32_t level;
@@ -1552,7 +1560,7 @@ static void host_x86_cpu_initfn(Object *obj)
      */
     cpu->host_features = true;
 
-    /* If KVM is disabled, cpu_x86_create() will already report an error */
+    /* If KVM is disabled, x86_cpu_realizefn() will report an error later */
     if (kvm_enabled()) {
         env->cpuid_level = kvm_arch_get_supported_cpuid(s, 0x0, 0, R_EAX);
         env->cpuid_xlevel = kvm_arch_get_supported_cpuid(s, 0x80000000, 0, R_EAX);
@@ -2178,7 +2186,6 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
 X86CPU *cpu_x86_create(const char *cpu_model, Error **errp)
 {
     X86CPU *cpu = NULL;
-    X86CPUClass *xcc;
     ObjectClass *oc;
     gchar **model_pieces;
     char *name, *features;
@@ -2195,12 +2202,6 @@ X86CPU *cpu_x86_create(const char *cpu_model, Error **errp)
     oc = x86_cpu_class_by_name(name);
     if (oc == NULL) {
         error_setg(&error, "Unable to find CPU definition: %s", name);
-        goto out;
-    }
-    xcc = X86_CPU_CLASS(oc);
-
-    if (xcc->kvm_required && !kvm_enabled()) {
-        error_setg(&error, "CPU model '%s' requires KVM", name);
         goto out;
     }
 
@@ -2908,6 +2909,13 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     Error *local_err = NULL;
     static bool ht_warned;
     FeatureWord w;
+
+    if (xcc->kvm_required && !kvm_enabled()) {
+        char *name = x86_cpu_class_get_model_name(xcc);
+        error_setg(&local_err, "CPU model '%s' requires KVM", name);
+        g_free(name);
+        goto out;
+    }
 
     if (cpu->apic_id < 0) {
         error_setg(errp, "apic-id property was not initialized properly");
