@@ -714,6 +714,8 @@ safe_syscall2(int, tkill, int, tid, int, sig)
 safe_syscall3(int, tgkill, int, tgid, int, pid, int, sig)
 safe_syscall3(ssize_t, readv, int, fd, const struct iovec *, iov, int, iovcnt)
 safe_syscall3(ssize_t, writev, int, fd, const struct iovec *, iov, int, iovcnt)
+safe_syscall3(int, connect, int, fd, const struct sockaddr *, addr,
+              socklen_t, addrlen)
 
 static inline int host_to_target_sock_type(int host_type)
 {
@@ -2859,7 +2861,7 @@ static abi_long do_connect(int sockfd, abi_ulong target_addr,
     if (ret)
         return ret;
 
-    return get_errno(connect(sockfd, addr, addrlen));
+    return get_errno(safe_connect(sockfd, addr, addrlen));
 }
 
 /* do_sendrecvmsg_locked() Must return target values and target errnos. */
