@@ -1940,6 +1940,14 @@ static inline void feat2prop(char *s)
     }
 }
 
+/* Compatibily hack to maintain legacy +-feat semantic,
+ * where +-feat overwrites any feature set by
+ * feat=on|feat even if the later is parsed after +-feat
+ * (i.e. "-x2apic,x2apic=on" will result in x2apic disabled)
+ */
+static FeatureWordArray plus_features = { 0 };
+static FeatureWordArray minus_features = { 0 };
+
 /* Parse "+feature,-feature,feature=foo" CPU feature string
  */
 static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
@@ -1947,12 +1955,6 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
 {
     X86CPU *cpu = X86_CPU(cs);
     char *featurestr; /* Single 'key=value" string being parsed */
-    FeatureWord w;
-    /* Features to be added */
-    FeatureWordArray plus_features = { 0 };
-    /* Features to be removed */
-    FeatureWordArray minus_features = { 0 };
-    CPUX86State *env = &cpu->env;
     Error *local_err = NULL;
 
     featurestr = features ? strtok(features, ",") : NULL;
@@ -1992,18 +1994,6 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
             return;
         }
         featurestr = strtok(NULL, ",");
-    }
-
-    if (cpu->host_features) {
-        for (w = 0; w < FEATURE_WORDS; w++) {
-            env->features[w] =
-                x86_cpu_get_supported_feature_word(w, cpu->migratable);
-        }
-    }
-
-    for (w = 0; w < FEATURE_WORDS; w++) {
-        env->features[w] |= plus_features[w];
-        env->features[w] &= ~minus_features[w];
     }
 }
 
@@ -2916,10 +2906,28 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     CPUX86State *env = &cpu->env;
     Error *local_err = NULL;
     static bool ht_warned;
+    FeatureWord w;
 
     if (cpu->apic_id < 0) {
         error_setg(errp, "apic-id property was not initialized properly");
         return;
+    }
+
+    /*TODO: cpu->host_features incorrectly overwrites features
+     * set using "feat=on|off". Once we fix this, we can convert
+     * plus_features & minus_features to global properties
+     * inside x86_cpu_parse_featurestr() too.
+     */
+    if (cpu->host_features) {
+        for (w = 0; w < FEATURE_WORDS; w++) {
+            env->features[w] =
+                x86_cpu_get_supported_feature_word(w, cpu->migratable);
+        }
+    }
+
+    for (w = 0; w < FEATURE_WORDS; w++) {
+        cpu->env.features[w] |= plus_features[w];
+        cpu->env.features[w] &= ~minus_features[w];
     }
 
     if (env->features[FEAT_7_0_EBX] && env->cpuid_level < 7) {
