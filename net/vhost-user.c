@@ -202,7 +202,8 @@ static void net_vhost_user_event(void *opaque, int event)
         s->watch = qemu_chr_fe_add_watch(s->chr, G_IO_HUP,
                                          net_vhost_user_watch, s);
         if (vhost_user_start(queues, ncs) < 0) {
-            exit(1);
+            qemu_chr_disconnect(s->chr);
+            return;
         }
         qmp_set_link(name, true, &err);
         break;
