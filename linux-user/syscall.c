@@ -722,6 +722,34 @@ safe_syscall6(ssize_t, recvfrom, int, fd, void *, buf, size_t, len,
               int, flags, struct sockaddr *, addr, socklen_t *, addrlen)
 safe_syscall3(ssize_t, sendmsg, int, fd, const struct msghdr *, msg, int, flags)
 safe_syscall3(ssize_t, recvmsg, int, fd, struct msghdr *, msg, int, flags)
+#ifdef __NR_msgsnd
+safe_syscall4(int, msgsnd, int, msgid, const void *, msgp, size_t, sz,
+              int, flags)
+safe_syscall5(int, msgrcv, int, msgid, void *, msgp, size_t, sz,
+              long, msgtype, int, flags)
+#else
+/* This host kernel architecture uses a single ipc syscall; fake up
+ * wrappers for the sub-operations to hide this implementation detail.
+ * Annoyingly we can't include linux/ipc.h to get the constant definitions
+ * for the call parameter because some structs in there conflict with the
+ * sys/ipc.h ones. So we just define them here, and rely on them being
+ * the same for all host architectures.
+ */
+#define Q_MSGSND 11
+#define Q_MSGRCV 12
+#define Q_IPCCALL(VERSION, OP) ((VERSION) << 16 | (OP))
+
+safe_syscall6(int, ipc, int, call, long, first, long, second, long, third,
+              void *, ptr, long, fifth)
+static int safe_msgsnd(int msgid, const void *msgp, size_t sz, int flags)
+{
+    return safe_ipc(Q_IPCCALL(0, Q_MSGSND), msgid, sz, flags, (void *)msgp, 0);
+}
+static int safe_msgrcv(int msgid, void *msgp, size_t sz, long type, int flags)
+{
+    return safe_ipc(Q_IPCCALL(1, Q_MSGRCV), msgid, sz, flags, msgp, type);
+}
+#endif
 
 static inline int host_to_target_sock_type(int host_type)
 {
@@ -3796,7 +3824,7 @@ static inline abi_long do_msgsnd(int msqid, abi_long msgp,
     }
     host_mb->mtype = (abi_long) tswapal(target_mb->mtype);
     memcpy(host_mb->mtext, target_mb->mtext, msgsz);
-    ret = get_errno(msgsnd(msqid, host_mb, msgsz, msgflg));
+    ret = get_errno(safe_msgsnd(msqid, host_mb, msgsz, msgflg));
     g_free(host_mb);
     unlock_user_struct(target_mb, msgp, 0);
 
@@ -3824,7 +3852,7 @@ static inline abi_long do_msgrcv(int msqid, abi_long msgp,
         ret = -TARGET_ENOMEM;
         goto end;
     }
-    ret = get_errno(msgrcv(msqid, host_mb, msgsz, msgtyp, msgflg));
+    ret = get_errno(safe_msgrcv(msqid, host_mb, msgsz, msgtyp, msgflg));
 
     if (ret > 0) {
         abi_ulong target_mtext_addr = msgp + sizeof(abi_ulong);
