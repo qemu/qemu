@@ -179,6 +179,27 @@ qcrypto_tls_creds_prop_get_dir(Object *obj,
 
 
 static void
+qcrypto_tls_creds_prop_set_priority(Object *obj,
+                                    const char *value,
+                                    Error **errp G_GNUC_UNUSED)
+{
+    QCryptoTLSCreds *creds = QCRYPTO_TLS_CREDS(obj);
+
+    creds->priority = g_strdup(value);
+}
+
+
+static char *
+qcrypto_tls_creds_prop_get_priority(Object *obj,
+                                    Error **errp G_GNUC_UNUSED)
+{
+    QCryptoTLSCreds *creds = QCRYPTO_TLS_CREDS(obj);
+
+    return g_strdup(creds->priority);
+}
+
+
+static void
 qcrypto_tls_creds_prop_set_endpoint(Object *obj,
                                     int value,
                                     Error **errp G_GNUC_UNUSED)
@@ -216,6 +237,10 @@ qcrypto_tls_creds_class_init(ObjectClass *oc, void *data)
                                    qcrypto_tls_creds_prop_get_endpoint,
                                    qcrypto_tls_creds_prop_set_endpoint,
                                    NULL);
+    object_class_property_add_str(oc, "priority",
+                                  qcrypto_tls_creds_prop_get_priority,
+                                  qcrypto_tls_creds_prop_set_priority,
+                                  NULL);
 }
 
 
@@ -234,6 +259,7 @@ qcrypto_tls_creds_finalize(Object *obj)
     QCryptoTLSCreds *creds = QCRYPTO_TLS_CREDS(obj);
 
     g_free(creds->dir);
+    g_free(creds->priority);
 }
 
 
