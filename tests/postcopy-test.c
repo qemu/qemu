@@ -11,7 +11,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 
 #include "libqtest.h"
 #include "qemu/option.h"

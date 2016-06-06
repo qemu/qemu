@@ -18,7 +18,6 @@
 #ifndef NET_TX_PKT_H
 #define NET_TX_PKT_H
 
-#include "qemu/osdep.h"
 #include "net/eth.h"
 #include "exec/hwaddr.h"
 

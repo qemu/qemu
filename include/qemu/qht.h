@@ -7,7 +7,6 @@
 #ifndef QEMU_QHT_H
 #define QEMU_QHT_H
 
-#include "qemu/osdep.h"
 #include "qemu/seqlock.h"
 #include "qemu/thread.h"
 #include "qemu/qdist.h"
