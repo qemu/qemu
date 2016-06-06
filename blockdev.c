@@ -56,6 +56,8 @@
 static QTAILQ_HEAD(, BlockDriverState) monitor_bdrv_states =
     QTAILQ_HEAD_INITIALIZER(monitor_bdrv_states);
 
+static int do_open_tray(const char *device, bool force, Error **errp);
+
 static const char *const if_name[IF_COUNT] = {
     [IF_NONE] = "none",
     [IF_IDE] = "ide",
@@ -2274,8 +2276,6 @@ exit:
     block_job_txn_unref(block_job_txn);
 }
 
-static int do_open_tray(const char *device, bool force, Error **errp);
-
 void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
 {
     Error *local_err = NULL;
@@ -2286,16 +2286,11 @@ void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
     }
 
     rc = do_open_tray(device, force, &local_err);
-    if (local_err) {
+    if (rc && rc != -ENOSYS) {
         error_propagate(errp, local_err);
         return;
     }
-
-    if (rc == EINPROGRESS) {
-        error_setg(errp, "Device '%s' is locked and force was not specified, "
-                   "wait for tray to open and try again", device);
-        return;
-    }
+    error_free(local_err);
 
     qmp_x_blockdev_remove_medium(device, errp);
 }
@@ -2324,11 +2319,16 @@ void qmp_block_passwd(bool has_device, const char *device,
     aio_context_release(aio_context);
 }
 
-/**
- * returns -errno on fatal error, +errno for non-fatal situations.
- * errp will always be set when the return code is negative.
- * May return +ENOSYS if the device has no tray,
- * or +EINPROGRESS if the tray is locked and the guest has been notified.
+/*
+ * Attempt to open the tray of @device.
+ * If @force, ignore its tray lock.
+ * Else, if the tray is locked, don't open it, but ask the guest to open it.
+ * On error, store an error through @errp and return -errno.
+ * If @device does not exist, return -ENODEV.
+ * If it has no removable media, return -ENOTSUP.
+ * If it has no tray, return -ENOSYS.
+ * If the guest was asked to open the tray, return -EINPROGRESS.
+ * Else, return 0.
  */
 static int do_open_tray(const char *device, bool force, Error **errp)
 {
@@ -2348,8 +2348,8 @@ static int do_open_tray(const char *device, bool force, Error **errp)
     }
 
     if (!blk_dev_has_tray(blk)) {
-        /* Ignore this command on tray-less devices */
-        return ENOSYS;
+        error_setg(errp, "Device '%s' does not have a tray", device);
+        return -ENOSYS;
     }
 
     if (blk_dev_is_tray_open(blk)) {
@@ -2366,7 +2366,9 @@ static int do_open_tray(const char *device, bool force, Error **errp)
     }
 
     if (locked && !force) {
-        return EINPROGRESS;
+        error_setg(errp, "Device '%s' is locked and force was not specified, "
+                   "wait for tray to open and try again", device);
+        return -EINPROGRESS;
     }
 
     return 0;
@@ -2375,10 +2377,18 @@ static int do_open_tray(const char *device, bool force, Error **errp)
 void qmp_blockdev_open_tray(const char *device, bool has_force, bool force,
                             Error **errp)
 {
+    Error *local_err = NULL;
+    int rc;
+
     if (!has_force) {
         force = false;
     }
-    do_open_tray(device, force, errp);
+    rc = do_open_tray(device, force, &local_err);
+    if (rc && rc != -ENOSYS && rc != -EINPROGRESS) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    error_free(local_err);
 }
 
 void qmp_blockdev_close_tray(const char *device, Error **errp)
