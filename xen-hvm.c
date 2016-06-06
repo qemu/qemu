@@ -9,7 +9,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <sys/mman.h>
 
 #include "cpu.h"
 #include "hw/pci/pci.h"

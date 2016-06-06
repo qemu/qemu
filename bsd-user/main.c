@@ -18,7 +18,6 @@
  */
 #include "qemu/osdep.h"
 #include <machine/trap.h>
-#include <sys/mman.h>
 
 #include "qemu.h"
 #include "qemu/path.h"

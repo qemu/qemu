@@ -34,7 +34,6 @@
 /****************************************************************************/
 
 #include "qemu/osdep.h"
-#include <sys/mman.h>
 
 #include "qemu.h"
 #include "flat.h"

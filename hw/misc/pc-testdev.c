@@ -36,9 +36,6 @@
 */
 
 #include "qemu/osdep.h"
-#if defined(CONFIG_POSIX)
-#include <sys/mman.h>
-#endif
 #include "hw/hw.h"
 #include "hw/qdev.h"
 #include "hw/isa/isa.h"

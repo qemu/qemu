@@ -17,7 +17,6 @@
 #include "qemu/osdep.h"
 #include <dirent.h>
 #include <sys/ioctl.h>
-#include <sys/mman.h>
 #include <sys/vfs.h>
 
 #include <linux/kvm.h>

@@ -11,7 +11,6 @@
  */
 #include "qemu/osdep.h"
 #include <qemu/mmap-alloc.h>
-#include <sys/mman.h>
 
 #define HUGETLBFS_MAGIC       0x958458f6
 

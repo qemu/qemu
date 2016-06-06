@@ -17,7 +17,6 @@
 #include "qemu/bitmap.h"
 
 #include <xen/hvm/params.h>
-#include <sys/mman.h>
 
 #include "sysemu/xen-mapcache.h"
 #include "trace.h"

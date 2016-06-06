@@ -5,7 +5,6 @@
 #include <sys/shm.h>
 #include <sys/select.h>
 #include <sys/mount.h>
-#include <sys/mman.h>
 #include <sched.h>
 #include "qemu.h"
 

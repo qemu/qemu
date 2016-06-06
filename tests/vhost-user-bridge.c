@@ -33,7 +33,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/unistd.h>
-#include <sys/mman.h>
 #include <sys/eventfd.h>
 #include <arpa/inet.h>
 #include <netdb.h>

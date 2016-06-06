@@ -2,7 +2,6 @@
 #include "qemu/osdep.h"
 #include <sys/param.h>
 
-#include <sys/mman.h>
 #include <sys/resource.h>
 
 #include "qemu.h"

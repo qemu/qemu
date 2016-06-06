@@ -25,10 +25,6 @@
 
 /* Needed early for CONFIG_BSD etc. */
 
-#if defined(CONFIG_MADVISE) || defined(CONFIG_POSIX_MADVISE)
-#include <sys/mman.h>
-#endif
-
 #ifdef CONFIG_SOLARIS
 #include <sys/statvfs.h>
 /* See MySQL bug #7156 (http://bugs.mysql.com/bug.php?id=7156) for

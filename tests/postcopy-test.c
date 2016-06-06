@@ -26,7 +26,6 @@ const unsigned end_address = 100 * 1024 * 1024;
 bool got_stop;
 
 #if defined(__linux__)
-#include <sys/mman.h>
 #include <sys/syscall.h>
 #include <sys/vfs.h>
 #endif

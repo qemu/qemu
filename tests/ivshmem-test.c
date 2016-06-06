@@ -10,7 +10,6 @@
 
 #include "qemu/osdep.h"
 #include <glib/gstdio.h>
-#include <sys/mman.h>
 #include "contrib/ivshmem-server/ivshmem-server.h"
 #include "libqos/pci-pc.h"
 #include "libqtest.h"

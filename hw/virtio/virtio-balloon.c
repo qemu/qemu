@@ -27,10 +27,6 @@
 #include "qapi-event.h"
 #include "trace.h"
 
-#if defined(__linux__)
-#include <sys/mman.h>
-#endif
-
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 

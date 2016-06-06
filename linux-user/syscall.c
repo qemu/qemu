@@ -32,7 +32,6 @@
 #include <sys/personality.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
-#include <sys/mman.h>
 #include <sys/swap.h>
 #include <linux/capability.h>
 #include <sched.h>

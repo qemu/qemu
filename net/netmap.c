@@ -26,7 +26,6 @@
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
 #include <net/if.h>
-#include <sys/mman.h>
 #define NETMAP_WITH_LIBS
 #include <net/netmap.h>
 #include <net/netmap_user.h>
