@@ -32,6 +32,7 @@ struct virtio_gpu_simple_resource {
     uint32_t width;
     uint32_t height;
     uint32_t format;
+    uint64_t *addrs;
     struct iovec *iov;
     unsigned int iov_cnt;
     uint32_t scanout_bitmask;
@@ -46,6 +47,7 @@ struct virtio_gpu_scanout {
     int x, y;
     int invalidate;
     uint32_t resource_id;
+    struct virtio_gpu_update_cursor cursor;
     QEMUCursor *current_cursor;
 };
 
@@ -150,7 +152,7 @@ void virtio_gpu_get_display_info(VirtIOGPU *g,
                                  struct virtio_gpu_ctrl_command *cmd);
 int virtio_gpu_create_mapping_iov(struct virtio_gpu_resource_attach_backing *ab,
                                   struct virtio_gpu_ctrl_command *cmd,
-                                  struct iovec **iov);
+                                  uint64_t **addr, struct iovec **iov);
 void virtio_gpu_cleanup_mapping_iov(struct iovec *iov, uint32_t count);
 void virtio_gpu_process_cmdq(VirtIOGPU *g);
 
