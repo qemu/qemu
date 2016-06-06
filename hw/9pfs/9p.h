@@ -167,13 +167,17 @@ typedef struct V9fsXattr
     int flags;
 } V9fsXattr;
 
+typedef struct V9fsDir {
+    DIR *stream;
+} V9fsDir;
+
 /*
  * Filled by fs driver on open and other
  * calls.
  */
 union V9fsFidOpenState {
     int fd;
-    DIR *dir;
+    V9fsDir dir;
     V9fsXattr xattr;
     /*
      * private pointer for fs drivers, that

@@ -348,7 +348,7 @@ static int local_close(FsContext *ctx, V9fsFidOpenState *fs)
 
 static int local_closedir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return closedir(fs->dir);
+    return closedir(fs->dir.stream);
 }
 
 static int local_open(FsContext *ctx, V9fsPath *fs_path,
@@ -370,9 +370,9 @@ static int local_opendir(FsContext *ctx,
     char *path = fs_path->data;
 
     buffer = rpath(ctx, path);
-    fs->dir = opendir(buffer);
+    fs->dir.stream = opendir(buffer);
     g_free(buffer);
-    if (!fs->dir) {
+    if (!fs->dir.stream) {
         return -1;
     }
     return 0;
@@ -380,12 +380,12 @@ static int local_opendir(FsContext *ctx,
 
 static void local_rewinddir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    rewinddir(fs->dir);
+    rewinddir(fs->dir.stream);
 }
 
 static off_t local_telldir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return telldir(fs->dir);
+    return telldir(fs->dir.stream);
 }
 
 static int local_readdir_r(FsContext *ctx, V9fsFidOpenState *fs,
@@ -395,7 +395,7 @@ static int local_readdir_r(FsContext *ctx, V9fsFidOpenState *fs,
     int ret;
 
 again:
-    ret = readdir_r(fs->dir, entry, result);
+    ret = readdir_r(fs->dir.stream, entry, result);
     if (ctx->export_flags & V9FS_SM_MAPPED) {
         entry->d_type = DT_UNKNOWN;
     } else if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
@@ -411,7 +411,7 @@ again:
 
 static void local_seekdir(FsContext *ctx, V9fsFidOpenState *fs, off_t off)
 {
-    seekdir(fs->dir, off);
+    seekdir(fs->dir.stream, off);
 }
 
 static ssize_t local_preadv(FsContext *ctx, V9fsFidOpenState *fs,
@@ -610,7 +610,7 @@ static int local_fstat(FsContext *fs_ctx, int fid_type,
     int err, fd;
 
     if (fid_type == P9_FID_DIR) {
-        fd = dirfd(fs->dir);
+        fd = dirfd(fs->dir.stream);
     } else {
         fd = fs->fd;
     }
@@ -998,7 +998,7 @@ static int local_fsync(FsContext *ctx, int fid_type,
     int fd;
 
     if (fid_type == P9_FID_DIR) {
-        fd = dirfd(fs->dir);
+        fd = dirfd(fs->dir.stream);
     } else {
         fd = fs->fd;
     }

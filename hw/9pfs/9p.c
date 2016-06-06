@@ -231,7 +231,7 @@ static int v9fs_reopen_fid(V9fsPDU *pdu, V9fsFidState *f)
             } while (err == -EINTR && !pdu->cancelled);
         }
     } else if (f->fid_type == P9_FID_DIR) {
-        if (f->fs.dir == NULL) {
+        if (f->fs.dir.stream == NULL) {
             do {
                 err = v9fs_co_opendir(pdu, f);
             } while (err == -EINTR && !pdu->cancelled);
@@ -345,7 +345,7 @@ static int free_fid(V9fsPDU *pdu, V9fsFidState *fidp)
             retval = v9fs_co_close(pdu, &fidp->fs);
         }
     } else if (fidp->fid_type == P9_FID_DIR) {
-        if (fidp->fs.dir != NULL) {
+        if (fidp->fs.dir.stream != NULL) {
             retval = v9fs_co_closedir(pdu, &fidp->fs);
         }
     } else if (fidp->fid_type == P9_FID_XATTR) {
@@ -443,7 +443,7 @@ void v9fs_reclaim_fd(V9fsPDU *pdu)
                 reclaim_count++;
             }
         } else if (f->fid_type == P9_FID_DIR) {
-            if (f->fs.dir != NULL) {
+            if (f->fs.dir.stream != NULL) {
                 /*
                  * Up the reference count so that
                  * a clunk request won't free this fid
@@ -451,8 +451,8 @@ void v9fs_reclaim_fd(V9fsPDU *pdu)
                 f->ref++;
                 f->rclm_lst = reclaim_list;
                 reclaim_list = f;
-                f->fs_reclaim.dir = f->fs.dir;
-                f->fs.dir = NULL;
+                f->fs_reclaim.dir.stream = f->fs.dir.stream;
+                f->fs.dir.stream = NULL;
                 reclaim_count++;
             }
         }
@@ -1883,7 +1883,7 @@ static void v9fs_readdir(void *opaque)
         retval = -EINVAL;
         goto out_nofid;
     }
-    if (!fidp->fs.dir) {
+    if (!fidp->fs.dir.stream) {
         retval = -EINVAL;
         goto out;
     }
