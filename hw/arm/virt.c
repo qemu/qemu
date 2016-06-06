@@ -1122,10 +1122,14 @@ static void machvirt_init(MachineState *machine)
      * KVM is not available yet
      */
     if (!gic_version) {
+        if (!kvm_enabled()) {
+            error_report("gic-version=host requires KVM");
+            exit(1);
+        }
+
         gic_version = kvm_arm_vgic_probe();
         if (!gic_version) {
             error_report("Unable to determine GIC version supported by host");
-            error_printf("KVM acceleration is probably not supported\n");
             exit(1);
         }
     }
