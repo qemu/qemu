@@ -772,6 +772,11 @@ safe_syscall5(int, mq_timedsend, int, mqdes, const char *, msg_ptr,
 safe_syscall5(int, mq_timedreceive, int, mqdes, char *, msg_ptr,
               size_t, len, unsigned *, prio, const struct timespec *, timeout)
 #endif
+/* We do ioctl like this rather than via safe_syscall3 to preserve the
+ * "third argument might be integer or pointer or not present" behaviour of
+ * the libc function.
+ */
+#define safe_ioctl(...) safe_syscall(__NR_ioctl, __VA_ARGS__)
 
 static inline int host_to_target_sock_type(int host_type)
 {
@@ -4277,7 +4282,7 @@ static abi_long do_ioctl_fs_ioc_fiemap(const IOCTLEntry *ie, uint8_t *buf_temp,
         memcpy(fm, buf_temp, sizeof(struct fiemap));
         free_fm = 1;
     }
-    ret = get_errno(ioctl(fd, ie->host_cmd, fm));
+    ret = get_errno(safe_ioctl(fd, ie->host_cmd, fm));
     if (!is_error(ret)) {
         target_size_out = target_size_in;
         /* An extent_count of 0 means we were only counting the extents
@@ -4367,7 +4372,7 @@ static abi_long do_ioctl_ifconf(const IOCTLEntry *ie, uint8_t *buf_temp,
     host_ifconf->ifc_len = host_ifc_len;
     host_ifconf->ifc_buf = host_ifc_buf;
 
-    ret = get_errno(ioctl(fd, ie->host_cmd, host_ifconf));
+    ret = get_errno(safe_ioctl(fd, ie->host_cmd, host_ifconf));
     if (!is_error(ret)) {
 	/* convert host ifc_len to target ifc_len */
 
@@ -4496,7 +4501,7 @@ static abi_long do_ioctl_dm(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
     }
     unlock_user(argptr, guest_data, 0);
 
-    ret = get_errno(ioctl(fd, ie->host_cmd, buf_temp));
+    ret = get_errno(safe_ioctl(fd, ie->host_cmd, buf_temp));
     if (!is_error(ret)) {
         guest_data = arg + host_dm->data_start;
         guest_data_size = host_dm->data_size - host_dm->data_start;
@@ -4677,7 +4682,7 @@ static abi_long do_ioctl_blkpg(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
 
     /* Swizzle the data pointer to our local copy and call! */
     host_blkpg->data = &host_part;
-    ret = get_errno(ioctl(fd, ie->host_cmd, host_blkpg));
+    ret = get_errno(safe_ioctl(fd, ie->host_cmd, host_blkpg));
 
 out:
     return ret;
@@ -4738,7 +4743,7 @@ static abi_long do_ioctl_rt(const IOCTLEntry *ie, uint8_t *buf_temp,
     }
     unlock_user(argptr, arg, 0);
 
-    ret = get_errno(ioctl(fd, ie->host_cmd, buf_temp));
+    ret = get_errno(safe_ioctl(fd, ie->host_cmd, buf_temp));
     if (*host_rt_dev_ptr != 0) {
         unlock_user((void *)*host_rt_dev_ptr,
                     *target_rt_dev_ptr, 0);
@@ -4750,7 +4755,7 @@ static abi_long do_ioctl_kdsigaccept(const IOCTLEntry *ie, uint8_t *buf_temp,
                                      int fd, int cmd, abi_long arg)
 {
     int sig = target_to_host_signal(arg);
-    return get_errno(ioctl(fd, ie->host_cmd, sig));
+    return get_errno(safe_ioctl(fd, ie->host_cmd, sig));
 }
 
 static IOCTLEntry ioctl_entries[] = {
@@ -4794,18 +4799,18 @@ static abi_long do_ioctl(int fd, int cmd, abi_long arg)
     switch(arg_type[0]) {
     case TYPE_NULL:
         /* no argument */
-        ret = get_errno(ioctl(fd, ie->host_cmd));
+        ret = get_errno(safe_ioctl(fd, ie->host_cmd));
         break;
     case TYPE_PTRVOID:
     case TYPE_INT:
-        ret = get_errno(ioctl(fd, ie->host_cmd, arg));
+        ret = get_errno(safe_ioctl(fd, ie->host_cmd, arg));
         break;
     case TYPE_PTR:
         arg_type++;
         target_size = thunk_type_size(arg_type, 0);
         switch(ie->access) {
         case IOC_R:
-            ret = get_errno(ioctl(fd, ie->host_cmd, buf_temp));
+            ret = get_errno(safe_ioctl(fd, ie->host_cmd, buf_temp));
             if (!is_error(ret)) {
                 argptr = lock_user(VERIFY_WRITE, arg, target_size, 0);
                 if (!argptr)
@@ -4820,7 +4825,7 @@ static abi_long do_ioctl(int fd, int cmd, abi_long arg)
                 return -TARGET_EFAULT;
             thunk_convert(buf_temp, argptr, arg_type, THUNK_HOST);
             unlock_user(argptr, arg, 0);
-            ret = get_errno(ioctl(fd, ie->host_cmd, buf_temp));
+            ret = get_errno(safe_ioctl(fd, ie->host_cmd, buf_temp));
             break;
         default:
         case IOC_RW:
@@ -4829,7 +4834,7 @@ static abi_long do_ioctl(int fd, int cmd, abi_long arg)
                 return -TARGET_EFAULT;
             thunk_convert(buf_temp, argptr, arg_type, THUNK_HOST);
             unlock_user(argptr, arg, 0);
-            ret = get_errno(ioctl(fd, ie->host_cmd, buf_temp));
+            ret = get_errno(safe_ioctl(fd, ie->host_cmd, buf_temp));
             if (!is_error(ret)) {
                 argptr = lock_user(VERIFY_WRITE, arg, target_size, 0);
                 if (!argptr)
