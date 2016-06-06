@@ -699,6 +699,9 @@ safe_syscall6(int, pselect6, int, nfds, fd_set *, readfds, fd_set *, writefds, \
 safe_syscall5(int, ppoll, struct pollfd *, ufds, unsigned int, nfds,
               struct timespec *, tsp, const sigset_t *, sigmask,
               size_t, sigsetsize)
+safe_syscall6(int, epoll_pwait, int, epfd, struct epoll_event *, events,
+              int, maxevents, int, timeout, const sigset_t *, sigmask,
+              size_t, sigsetsize)
 safe_syscall6(int,futex,int *,uaddr,int,op,int,val, \
               const struct timespec *,timeout,int *,uaddr2,int,val3)
 safe_syscall2(int, rt_sigsuspend, sigset_t *, newset, size_t, sigsetsize)
@@ -10835,14 +10838,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     }
 #endif
 
-#if defined(TARGET_NR_epoll_pwait) && defined(CONFIG_EPOLL_PWAIT)
-#define IMPLEMENT_EPOLL_PWAIT
-#endif
-#if defined(TARGET_NR_epoll_wait) || defined(IMPLEMENT_EPOLL_PWAIT)
+#if defined(TARGET_NR_epoll_wait) || defined(TARGET_NR_epoll_pwait)
 #if defined(TARGET_NR_epoll_wait)
     case TARGET_NR_epoll_wait:
 #endif
-#if defined(IMPLEMENT_EPOLL_PWAIT)
+#if defined(TARGET_NR_epoll_pwait)
     case TARGET_NR_epoll_pwait:
 #endif
     {
@@ -10861,7 +10861,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ep = alloca(maxevents * sizeof(struct epoll_event));
 
         switch (num) {
-#if defined(IMPLEMENT_EPOLL_PWAIT)
+#if defined(TARGET_NR_epoll_pwait)
         case TARGET_NR_epoll_pwait:
         {
             target_sigset_t *target_set;
@@ -10880,13 +10880,15 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 set = NULL;
             }
 
-            ret = get_errno(epoll_pwait(epfd, ep, maxevents, timeout, set));
+            ret = get_errno(safe_epoll_pwait(epfd, ep, maxevents, timeout,
+                                             set, SIGSET_T_SIZE));
             break;
         }
 #endif
 #if defined(TARGET_NR_epoll_wait)
         case TARGET_NR_epoll_wait:
-            ret = get_errno(epoll_wait(epfd, ep, maxevents, timeout));
+            ret = get_errno(safe_epoll_pwait(epfd, ep, maxevents, timeout,
+                                             NULL, 0));
             break;
 #endif
         default:
