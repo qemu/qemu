@@ -632,6 +632,13 @@ static inline int is_error(abi_long ret)
 
 const char *target_strerror(int err)
 {
+    if (err == TARGET_ERESTARTSYS) {
+        return "To be restarted";
+    }
+    if (err == TARGET_QEMU_ESIGRETURN) {
+        return "Successful exit from sigreturn";
+    }
+
     if ((err >= ERRNO_TABLE_SIZE) || (err < 0)) {
         return NULL;
     }
