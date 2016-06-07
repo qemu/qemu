@@ -490,7 +490,7 @@ static void nvdimm_build_common_dsm(Aml *dev)
     Aml *method, *ifctx, *function, *dsm_mem, *unpatched, *result_size;
     uint8_t byte_list[1];
 
-    method = aml_method(NVDIMM_COMMON_DSM, 4, AML_SERIALIZED);
+    method = aml_method(NVDIMM_COMMON_DSM, 5, AML_SERIALIZED);
     function = aml_arg(2);
     dsm_mem = aml_name(NVDIMM_ACPI_MEM_ADDR);
 
@@ -516,11 +516,10 @@ static void nvdimm_build_common_dsm(Aml *dev)
 
     /*
      * The HDLE indicates the DSM function is issued from which device,
-     * it is not used at this time as no function is supported yet.
-     * Currently we make it always be 0 for all the devices and will set
-     * the appropriate value once real function is implemented.
+     * it reserves 0 for root device and is the handle for NVDIMM devices.
+     * See the comments in nvdimm_slot_to_handle().
      */
-    aml_append(method, aml_store(aml_int(0x0), aml_name("HDLE")));
+    aml_append(method, aml_store(aml_arg(4), aml_name("HDLE")));
     aml_append(method, aml_store(aml_arg(1), aml_name("REVS")));
     aml_append(method, aml_store(aml_arg(2), aml_name("FUNC")));
 
@@ -542,13 +541,14 @@ static void nvdimm_build_common_dsm(Aml *dev)
     aml_append(dev, method);
 }
 
-static void nvdimm_build_device_dsm(Aml *dev)
+static void nvdimm_build_device_dsm(Aml *dev, uint32_t handle)
 {
     Aml *method;
 
     method = aml_method("_DSM", 4, AML_NOTSERIALIZED);
-    aml_append(method, aml_return(aml_call4(NVDIMM_COMMON_DSM, aml_arg(0),
-                                  aml_arg(1), aml_arg(2), aml_arg(3))));
+    aml_append(method, aml_return(aml_call5(NVDIMM_COMMON_DSM, aml_arg(0),
+                                  aml_arg(1), aml_arg(2), aml_arg(3),
+                                  aml_int(handle))));
     aml_append(dev, method);
 }
 
@@ -573,7 +573,7 @@ static void nvdimm_build_nvdimm_devices(GSList *device_list, Aml *root_dev)
          */
         aml_append(nvdimm_dev, aml_name_decl("_ADR", aml_int(handle)));
 
-        nvdimm_build_device_dsm(nvdimm_dev);
+        nvdimm_build_device_dsm(nvdimm_dev, handle);
         aml_append(root_dev, nvdimm_dev);
     }
 }
@@ -665,7 +665,9 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
     aml_append(dev, field);
 
     nvdimm_build_common_dsm(dev);
-    nvdimm_build_device_dsm(dev);
+
+    /* 0 is reserved for root device. */
+    nvdimm_build_device_dsm(dev, 0);
 
     nvdimm_build_nvdimm_devices(device_list, dev);
 
