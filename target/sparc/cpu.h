@@ -79,6 +79,7 @@
 #define TT_FILL     0xc0
 #define TT_WOTHER   (1 << 5)
 #define TT_TRAP     0x100
+#define TT_HTRAP    0x180
 #endif
 
 #define PSR_NEG_SHIFT 23

@@ -366,6 +366,9 @@ void helper_done(CPUSPARCState *env)
     env->asi = (tsptr->tstate >> 24) & 0xff;
     cpu_change_pstate(env, (tsptr->tstate >> 8) & 0xf3f);
     cpu_put_cwp64(env, tsptr->tstate & 0xff);
+    if (cpu_has_hypervisor(env)) {
+        env->hpstate = env->htstate[env->tl];
+    }
     env->tl--;
 
     trace_win_helper_done(env->tl);
@@ -387,6 +390,9 @@ void helper_retry(CPUSPARCState *env)
     env->asi = (tsptr->tstate >> 24) & 0xff;
     cpu_change_pstate(env, (tsptr->tstate >> 8) & 0xf3f);
     cpu_put_cwp64(env, tsptr->tstate & 0xff);
+    if (cpu_has_hypervisor(env)) {
+        env->hpstate = env->htstate[env->tl];
+    }
     env->tl--;
 
     trace_win_helper_retry(env->tl);
