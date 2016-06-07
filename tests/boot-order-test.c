@@ -11,7 +11,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include "libqos/fw_cfg.h"
 #include "libqtest.h"
 

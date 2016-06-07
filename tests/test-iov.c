@@ -1,5 +1,4 @@
 #include "qemu/osdep.h"
-#include <glib.h>
 #include "qemu-common.h"
 #include "qemu/iov.h"
 #include "qemu/sockets.h"

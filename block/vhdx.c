@@ -27,7 +27,6 @@
 #include "migration/migration.h"
 
 #include <uuid/uuid.h>
-#include <glib.h>
 
 /* Options for VHDX creation */
 

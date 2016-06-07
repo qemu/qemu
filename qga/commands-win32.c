@@ -12,7 +12,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include <wtypes.h>
 #include <powrprof.h>
 #include <winsock2.h>

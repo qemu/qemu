@@ -24,7 +24,6 @@
 
 #include "qemu/osdep.h"
 #include <getopt.h>
-#include <glib.h>
 
 #include "libqtest.h"
 #include "libqos/libqos-pc.h"

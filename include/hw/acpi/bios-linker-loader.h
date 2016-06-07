@@ -1,7 +1,6 @@
 #ifndef BIOS_LINKER_LOADER_H
 #define BIOS_LINKER_LOADER_H
 
-#include <glib.h>
 
 typedef struct BIOSLinker {
     GArray *cmd_blob;

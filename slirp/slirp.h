@@ -69,7 +69,6 @@ typedef char *caddr_t;
 #include <sys/stropts.h>
 #endif
 
-#include <glib.h>
 
 #include "debug.h"
 

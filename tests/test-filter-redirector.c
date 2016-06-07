@@ -51,7 +51,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include "libqtest.h"
 #include "qemu/iov.h"
 #include "qemu/sockets.h"

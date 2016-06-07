@@ -12,7 +12,6 @@
 #ifndef BITMAP_H
 #define BITMAP_H
 
-#include <glib.h>
 
 #include "qemu/bitops.h"
 

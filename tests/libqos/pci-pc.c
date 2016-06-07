@@ -19,7 +19,6 @@
 #include "qemu-common.h"
 #include "qemu/host-utils.h"
 
-#include <glib.h>
 
 #define ACPI_PCIHP_ADDR         0xae00
 #define PCI_EJ_BASE             0x0008

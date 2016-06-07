@@ -15,7 +15,7 @@ provide access to files beyond 9p export path.
 
 2) Running QEMU with root privilege could be a security issue.
 
-To overcome above issues, following approach is used: A new filesytem
+To overcome above issues, following approach is used: A new filesystem
 type 'proxy' is introduced. Proxy FS uses chroot + socket combination
 for securing the vulnerability known with following symbolic links.
 Intention of adding a new filesystem type is to allow qemu to run

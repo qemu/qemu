@@ -1,5 +1,4 @@
 #include "qemu/osdep.h"
-#include <glib.h>
 #include <windows.h>
 #include <io.h>
 #include "qga/guest-agent-core.h"

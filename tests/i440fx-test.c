@@ -13,7 +13,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include <sys/mman.h>
 
 #include "libqtest.h"

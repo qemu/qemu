@@ -829,7 +829,7 @@ static inline abi_long copy_from_user_fdset(fd_set *fds,
     int i, nw, j, k;
     abi_ulong b, *target_fds;
 
-    nw = (n + TARGET_ABI_BITS - 1) / TARGET_ABI_BITS;
+    nw = DIV_ROUND_UP(n, TARGET_ABI_BITS);
     if (!(target_fds = lock_user(VERIFY_READ,
                                  target_fds_addr,
                                  sizeof(abi_ulong) * nw,
@@ -876,7 +876,7 @@ static inline abi_long copy_to_user_fdset(abi_ulong target_fds_addr,
     abi_long v;
     abi_ulong *target_fds;
 
-    nw = (n + TARGET_ABI_BITS - 1) / TARGET_ABI_BITS;
+    nw = DIV_ROUND_UP(n, TARGET_ABI_BITS);
     if (!(target_fds = lock_user(VERIFY_WRITE,
                                  target_fds_addr,
                                  sizeof(abi_ulong) * nw,

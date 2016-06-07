@@ -17,7 +17,6 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 
-#include <glib.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/un.h>

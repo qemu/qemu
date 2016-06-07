@@ -19,7 +19,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include "qemu-common.h"
 #include "qemu/coroutine_int.h"
 

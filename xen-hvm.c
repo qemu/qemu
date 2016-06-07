@@ -567,7 +567,7 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
 {
     hwaddr npages = size >> TARGET_PAGE_BITS;
     const int width = sizeof(unsigned long) * 8;
-    unsigned long bitmap[(npages + width - 1) / width];
+    unsigned long bitmap[DIV_ROUND_UP(npages, width)];
     int rc, i, j;
     const XenPhysmap *physmap = NULL;
 

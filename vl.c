@@ -51,7 +51,6 @@ int main(int argc, char **argv)
 #define main qemu_main
 #endif /* CONFIG_COCOA */
 
-#include <glib.h>
 
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"

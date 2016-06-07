@@ -17,7 +17,6 @@
 #include "hw/nvram/fw_cfg_keys.h"
 
 #include "qemu-common.h"
-#include <glib.h>
 
 #define PAGE_SIZE (4096)
 

@@ -9,7 +9,6 @@
 #include "qemu/osdep.h"
 #include "libqos/i2c.h"
 
-#include <glib.h>
 
 #include "qemu/bswap.h"
 #include "libqtest.h"

@@ -3,7 +3,6 @@
 #ifndef HWADDR_H
 #define HWADDR_H
 
-#include <inttypes.h>
 
 #define HWADDR_BITS 64
 /* hwaddr is the type of a physical address (its size can

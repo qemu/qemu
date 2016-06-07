@@ -28,7 +28,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <inttypes.h>
 #include "hw/intc/aspeed_vic.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"

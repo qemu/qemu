@@ -10,7 +10,7 @@
 # This work is licensed under the terms of the GNU GPL version 2.
 # See the COPYING file in the top-level directory.
 
-tmpdir=`mktemp -d`
+tmpdir=$(mktemp -d)
 linux="$1"
 output="$2"
 

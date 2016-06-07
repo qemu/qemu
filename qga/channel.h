@@ -12,7 +12,6 @@
 #ifndef QGA_CHANNEL_H
 #define QGA_CHANNEL_H
 
-#include <glib.h>
 
 typedef struct GAChannel GAChannel;
 

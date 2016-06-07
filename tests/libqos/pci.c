@@ -14,7 +14,6 @@
 #include "libqos/pci.h"
 
 #include "hw/pci/pci_regs.h"
-#include <glib.h>
 
 void qpci_device_foreach(QPCIBus *bus, int vendor_id, int device_id,
                          void (*func)(QPCIDevice *dev, int devfn, void *data),

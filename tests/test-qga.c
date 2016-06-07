@@ -1,6 +1,5 @@
 #include "qemu/osdep.h"
 #include <locale.h>
-#include <glib.h>
 #include <glib/gstdio.h>
 #include <sys/socket.h>
 #include <sys/un.h>

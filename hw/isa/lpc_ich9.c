@@ -97,8 +97,8 @@ static void ich9_cc_update(ICH9LPCState *lpc)
 
     /*
      * D30: DMI2PCI bridge
-     * It is arbitrarily decided how INTx lines of PCI devicesbehind the bridge
-     * are connected to pirq lines. Our choice is PIRQ[E-H].
+     * It is arbitrarily decided how INTx lines of PCI devices behind
+     * the bridge are connected to pirq lines. Our choice is PIRQ[E-H].
      * INT[A-D] are connected to PIRQ[E-H]
      */
     for (pci_intx = 0; pci_intx < PCI_NUM_PINS; pci_intx++) {

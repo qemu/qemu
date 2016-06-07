@@ -12,7 +12,6 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
-#include <glib.h>
 #include "libqtest.h"
 #include "hw/usb/uhci-regs.h"
 #include "libqos/usb.h"

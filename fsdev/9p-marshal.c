@@ -12,7 +12,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include <glib/gprintf.h>
 #include <dirent.h>
 #include <utime.h>

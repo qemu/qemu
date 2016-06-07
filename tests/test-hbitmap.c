@@ -10,7 +10,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include "qemu/hbitmap.h"
 
 #define LOG_BITS_PER_LONG          (BITS_PER_LONG == 32 ? 5 : 6)
@@ -80,7 +79,7 @@ static void hbitmap_test_init(TestHBitmapData *data,
     size_t n;
     data->hb = hbitmap_alloc(size, granularity);
 
-    n = (size + BITS_PER_LONG - 1) / BITS_PER_LONG;
+    n = DIV_ROUND_UP(size, BITS_PER_LONG);
     if (n == 0) {
         n = 1;
     }
@@ -94,7 +93,7 @@ static void hbitmap_test_init(TestHBitmapData *data,
 
 static inline size_t hbitmap_test_array_size(size_t bits)
 {
-    size_t n = (bits + BITS_PER_LONG - 1) / BITS_PER_LONG;
+    size_t n = DIV_ROUND_UP(bits, BITS_PER_LONG);
     return n ? n : 1;
 }
 
@@ -186,7 +185,7 @@ static void hbitmap_test_reset_all(TestHBitmapData *data)
 
     hbitmap_reset_all(data->hb);
 
-    n = (data->size + BITS_PER_LONG - 1) / BITS_PER_LONG;
+    n = DIV_ROUND_UP(data->size, BITS_PER_LONG);
     if (n == 0) {
         n = 1;
     }

@@ -13,7 +13,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include <math.h>
 #include "block/aio.h"
 #include "qapi/error.h"

@@ -144,7 +144,7 @@ static void GUS_callback (void *opaque, int free)
     s->left = samples;
 
  reset:
-    gus_irqgen (&s->emu, muldiv64 (net, 1000000, s->freq));
+    gus_irqgen (&s->emu, (uint64_t)net * 1000000 / s->freq);
 }
 
 int GUS_irqrequest (GUSEmuState *emu, int hwirq, int n)

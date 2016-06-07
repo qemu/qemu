@@ -15,7 +15,6 @@
 #ifndef FIFO32_H
 #define FIFO32_H
 
-#include "qemu/osdep.h"
 #include "qemu/fifo8.h"
 
 typedef struct {

@@ -880,7 +880,7 @@ static int timebase_post_load(void *opaque, int version_id)
     host_ns = qemu_clock_get_ns(QEMU_CLOCK_HOST);
     ns_diff = MAX(0, host_ns - tb_remote->time_of_the_day_ns);
     migration_duration_ns = MIN(NANOSECONDS_PER_SECOND, ns_diff);
-    migration_duration_tb = muldiv64(migration_duration_ns, freq,
+    migration_duration_tb = muldiv64(freq, migration_duration_ns,
                                      NANOSECONDS_PER_SECOND);
     guest_tb = tb_remote->guest_timebase + MIN(0, migration_duration_tb);
 

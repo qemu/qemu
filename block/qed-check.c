@@ -234,8 +234,7 @@ int qed_check(BDRVQEDState *s, BdrvCheckResult *result, bool fix)
     }
 
     check.result->bfi.total_clusters =
-        (s->header.image_size + s->header.cluster_size - 1) /
-            s->header.cluster_size;
+        DIV_ROUND_UP(s->header.image_size, s->header.cluster_size);
     ret = qed_check_l1_table(&check, s->l1_table);
     if (ret == 0) {
         /* Only check for leaks if entire image was scanned successfully */

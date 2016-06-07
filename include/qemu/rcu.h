@@ -23,7 +23,6 @@
  * IBM's contributions to this file may be relicensed under LGPLv2 or later.
  */
 
-#include <glib.h>
 
 #include "qemu/thread.h"
 #include "qemu/queue.h"

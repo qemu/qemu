@@ -133,8 +133,8 @@ static inline void omap_gp_timer_update(struct omap_gp_timer_s *timer)
         timer_mod(timer->timer, timer->time + expires);
 
         if (timer->ce && timer->match_val >= timer->val) {
-            matches = muldiv64(timer->match_val - timer->val,
-                            timer->ticks_per_sec, timer->rate);
+            matches = muldiv64(timer->ticks_per_sec,
+                               timer->match_val - timer->val, timer->rate);
             timer_mod(timer->match, timer->time + matches);
         } else
             timer_del(timer->match);

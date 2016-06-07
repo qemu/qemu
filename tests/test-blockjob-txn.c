@@ -11,7 +11,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include "qapi/error.h"
 #include "qemu/main-loop.h"
 #include "block/blockjob.h"

@@ -11,7 +11,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 
 #include "libqtest.h"
 #include "hw/nvram/fw_cfg_keys.h"

@@ -15,7 +15,6 @@
 
 #include "qemu/osdep.h"
 
-#include <glib.h>
 
 #include <sys/ioctl.h>
 #include <sys/socket.h>

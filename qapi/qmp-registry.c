@@ -13,7 +13,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib.h>
 #include "qapi/qmp/dispatch.h"
 
 static QTAILQ_HEAD(QmpCommandList, QmpCommand) qmp_commands =
