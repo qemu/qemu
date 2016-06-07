@@ -193,6 +193,7 @@ struct DisasContext {
     uint32_t exception;
     /* Routine used to access memory */
     bool pr, hv;
+    bool lazy_tlb_flush;
     int mem_idx;
     int access_type;
     /* Translation flags */
@@ -3290,12 +3291,17 @@ static void gen_eieio(DisasContext *ctx)
 {
 }
 
-#if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
+#if !defined(CONFIG_USER_ONLY)
 static inline void gen_check_tlb_flush(DisasContext *ctx)
 {
-    TCGv_i32 t = tcg_temp_new_i32();
-    TCGLabel *l = gen_new_label();
+    TCGv_i32 t;
+    TCGLabel *l;
 
+    if (!ctx->lazy_tlb_flush) {
+        return;
+    }
+    l = gen_new_label();
+    t = tcg_temp_new_i32();
     tcg_gen_ld_i32(t, cpu_env, offsetof(CPUPPCState, tlb_need_flush));
     tcg_gen_brcondi_i32(TCG_COND_EQ, t, 0, l);
     gen_helper_check_tlb_flush(cpu_env);
@@ -3475,10 +3481,14 @@ static void gen_sync(DisasContext *ctx)
     uint32_t l = (ctx->opcode >> 21) & 3;
 
     /*
-     * For l == 2, it's a ptesync, We need to check for a pending TLB flush.
-     * This can only happen in kernel mode however so check MSR_PR as well.
+     * We may need to check for a pending TLB flush.
+     *
+     * We do this on ptesync (l == 2) on ppc64 and any sync pn ppc32.
+     *
+     * Additionally, this can only happen in kernel mode however so
+     * check MSR_PR as well.
      */
-    if (l == 2 && !ctx->pr) {
+    if (((l == 2) || !(ctx->insns_flags & PPC_64B)) && !ctx->pr) {
         gen_check_tlb_flush(ctx);
     }
 }
@@ -11491,6 +11501,11 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
     ctx.sf_mode = msr_is_64bit(env, env->msr);
     ctx.has_cfar = !!(env->flags & POWERPC_FLAG_CFAR);
 #endif
+    if (env->mmu_model == POWERPC_MMU_32B ||
+        env->mmu_model == POWERPC_MMU_601 ||
+        (env->mmu_model & POWERPC_MMU_64B))
+            ctx.lazy_tlb_flush = true;
+
     ctx.fpu_enabled = msr_fp;
     if ((env->flags & POWERPC_FLAG_SPE) && msr_spe)
         ctx.spe_enabled = msr_spe;

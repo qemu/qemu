@@ -1935,8 +1935,8 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
     case POWERPC_MMU_2_06a:
     case POWERPC_MMU_2_07:
     case POWERPC_MMU_2_07a:
-        env->tlb_need_flush = 0;
 #endif /* defined(TARGET_PPC64) */
+        env->tlb_need_flush = 0;
         tlb_flush(CPU(cpu), 1);
         break;
     default:
@@ -1949,9 +1949,6 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
 void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 {
 #if !defined(FLUSH_ALL_TLBS)
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-    CPUState *cs;
-
     addr &= TARGET_PAGE_MASK;
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
@@ -1963,36 +1960,12 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
         break;
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
-        /* tlbie invalidate TLBs for all segments */
-        addr &= ~((target_ulong)-1ULL << 28);
-        cs = CPU(cpu);
-        /* XXX: this case should be optimized,
-         * giving a mask to tlb_flush_page
+        /* Actual CPUs invalidate entire congruence classes based on the
+         * geometry of their TLBs and some OSes take that into account,
+         * we just mark the TLB to be flushed later (context synchronizing
+         * event or sync instruction on 32-bit).
          */
-        /* This is broken, some CPUs invalidate a whole congruence
-         * class on an even smaller subset of bits and some OSes take
-         * advantage of this. Just blow the whole thing away.
-         */
-#if 0
-        tlb_flush_page(cs, addr | (0x0 << 28));
-        tlb_flush_page(cs, addr | (0x1 << 28));
-        tlb_flush_page(cs, addr | (0x2 << 28));
-        tlb_flush_page(cs, addr | (0x3 << 28));
-        tlb_flush_page(cs, addr | (0x4 << 28));
-        tlb_flush_page(cs, addr | (0x5 << 28));
-        tlb_flush_page(cs, addr | (0x6 << 28));
-        tlb_flush_page(cs, addr | (0x7 << 28));
-        tlb_flush_page(cs, addr | (0x8 << 28));
-        tlb_flush_page(cs, addr | (0x9 << 28));
-        tlb_flush_page(cs, addr | (0xA << 28));
-        tlb_flush_page(cs, addr | (0xB << 28));
-        tlb_flush_page(cs, addr | (0xC << 28));
-        tlb_flush_page(cs, addr | (0xD << 28));
-        tlb_flush_page(cs, addr | (0xE << 28));
-        tlb_flush_page(cs, addr | (0xF << 28));
-#else
-        tlb_flush(cs, 1);
-#endif
+        env->tlb_need_flush = 1;
         break;
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
@@ -2058,13 +2031,12 @@ target_ulong helper_load_sr(CPUPPCState *env, target_ulong sr_num)
 
 void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-
     qemu_log_mask(CPU_LOG_MMU,
             "%s: reg=%d " TARGET_FMT_lx " " TARGET_FMT_lx "\n", __func__,
             (int)srnum, value, env->sr[srnum]);
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
+        PowerPCCPU *cpu = ppc_env_get_cpu(env);
         uint64_t esid, vsid;
 
         /* ESID = srnum */
@@ -2093,7 +2065,7 @@ void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
             }
         }
 #else
-        tlb_flush(CPU(cpu), 1);
+        env->tlb_need_flush = 1;
 #endif
     }
 }

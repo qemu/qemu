@@ -959,7 +959,6 @@ struct CPUPPCState {
     ppc_slb_t slb[MAX_SLB_ENTRIES];
     int32_t slb_nr;
     /* tcg TLB needs flush (deferred slb inval instruction typically) */
-    uint32_t tlb_need_flush;
 #endif
     /* segment registers */
     hwaddr htab_base;
@@ -985,6 +984,7 @@ struct CPUPPCState {
     target_ulong pb[4];
     bool tlb_dirty;   /* Set to non-zero when modifying TLB                  */
     bool kvm_sw_tlb;  /* non-zero if KVM SW TLB API is active                */
+    uint32_t tlb_need_flush; /* Delayed flush needed */
 #endif
 
     /* Other registers */
