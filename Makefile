@@ -117,7 +117,7 @@ endif
 
 -include $(SUBDIR_DEVICES_MAK_DEP)
 
-%/config-devices.mak: default-configs/%.mak
+%/config-devices.mak: default-configs/%.mak $(SRC_PATH)/scripts/make_device_config.sh
 	$(call quiet-command, \
             $(SHELL) $(SRC_PATH)/scripts/make_device_config.sh $< $*-config-devices.mak.d $@ > $@.tmp, "  GEN   $@.tmp")
 	$(call quiet-command, if test -f $@; then \
