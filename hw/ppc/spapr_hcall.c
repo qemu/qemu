@@ -934,9 +934,9 @@ static void cas_handle_compat_cpu(PowerPCCPUClass *pcc, uint32_t pvr,
     }
 
     /* If it is a logical PVR, try to determine the highest level */
-    is205 = (pcc->pcr_mask & PCR_COMPAT_2_05) &&
+    is205 = (pcc->pcr_supported & PCR_COMPAT_2_05) &&
             (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_05));
-    is206 = (pcc->pcr_mask & PCR_COMPAT_2_06) &&
+    is206 = (pcc->pcr_supported & PCR_COMPAT_2_06) &&
             ((lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_06)) ||
              (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_06_PLUS)));
 
