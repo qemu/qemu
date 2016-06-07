@@ -1062,6 +1062,7 @@ enum {
     OPC2_32_RR_MIN_H                             = 0x78,
     OPC2_32_RR_MIN_HU                            = 0x79,
     OPC2_32_RR_MOV                               = 0x1f,
+    OPC2_32_RR_MOV_64                            = 0x81,
     OPC2_32_RR_NE                                = 0x11,
     OPC2_32_RR_OR_EQ                             = 0x27,
     OPC2_32_RR_OR_GE                             = 0x2b,
