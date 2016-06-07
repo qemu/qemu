@@ -9533,6 +9533,9 @@ void ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version, Error **errp)
     case CPU_POWERPC_LOGICAL_2_06_PLUS:
         env->spr[SPR_PCR] = PCR_TM_DIS | PCR_COMPAT_2_07 | PCR_COMPAT_2_06;
         break;
+    case CPU_POWERPC_LOGICAL_2_07:
+        env->spr[SPR_PCR] = PCR_COMPAT_2_07;
+        break;
     default:
         env->spr[SPR_PCR] = 0;
         break;

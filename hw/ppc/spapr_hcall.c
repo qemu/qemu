@@ -927,7 +927,7 @@ static void cas_handle_compat_cpu(PowerPCCPUClass *pcc, uint32_t pvr,
                                   unsigned *cpu_version)
 {
     unsigned lvl = get_compat_level(pvr);
-    bool is205, is206;
+    bool is205, is206, is207;
 
     if (!lvl) {
         return;
@@ -939,8 +939,10 @@ static void cas_handle_compat_cpu(PowerPCCPUClass *pcc, uint32_t pvr,
     is206 = (pcc->pcr_supported & PCR_COMPAT_2_06) &&
             ((lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_06)) ||
              (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_06_PLUS)));
+    is207 = (pcc->pcr_supported & PCR_COMPAT_2_07) &&
+            (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_07));
 
-    if (is205 || is206) {
+    if (is205 || is206 || is207) {
         if (!max_lvl) {
             /* User did not set the level, choose the highest */
             if (*compat_lvl <= lvl) {
