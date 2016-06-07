@@ -147,4 +147,6 @@ static inline void spapr_phb_vfio_reset(DeviceState *qdev)
 }
 #endif
 
+void spapr_phb_dma_reset(sPAPRPHBState *sphb);
+
 #endif /* __HW_SPAPR_PCI_H__ */

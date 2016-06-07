@@ -1816,11 +1816,21 @@ static void ppc_spapr_init(MachineState *machine)
     /* initialize hotplug memory address space */
     if (machine->ram_size < machine->maxram_size) {
         ram_addr_t hotplug_mem_size = machine->maxram_size - machine->ram_size;
+        /*
+         * Limit the number of hotpluggable memory slots to half the number
+         * slots that KVM supports, leaving the other half for PCI and other
+         * devices. However ensure that number of slots doesn't drop below 32.
+         */
+        int max_memslots = kvm_enabled() ? kvm_get_max_memslots() / 2 :
+                           SPAPR_MAX_RAM_SLOTS;
 
-        if (machine->ram_slots > SPAPR_MAX_RAM_SLOTS) {
+        if (max_memslots < SPAPR_MAX_RAM_SLOTS) {
+            max_memslots = SPAPR_MAX_RAM_SLOTS;
+        }
+        if (machine->ram_slots > max_memslots) {
             error_report("Specified number of memory slots %"
                          PRIu64" exceeds max supported %d",
-                         machine->ram_slots, SPAPR_MAX_RAM_SLOTS);
+                         machine->ram_slots, max_memslots);
             exit(1);
         }
 
@@ -2344,18 +2354,36 @@ static const TypeInfo spapr_machine_info = {
     type_init(spapr_machine_register_##suffix)
 
 /*
+ * pseries-2.7
+ */
+static void spapr_machine_2_7_instance_options(MachineState *machine)
+{
+}
+
+static void spapr_machine_2_7_class_options(MachineClass *mc)
+{
+    /* Defaults for the latest behaviour inherited from the base class */
+}
+
+DEFINE_SPAPR_MACHINE(2_7, "2.7", true);
+
+/*
  * pseries-2.6
  */
+#define SPAPR_COMPAT_2_6 \
+    HW_COMPAT_2_6
+
 static void spapr_machine_2_6_instance_options(MachineState *machine)
 {
 }
 
 static void spapr_machine_2_6_class_options(MachineClass *mc)
 {
-    /* Defaults for the latest behaviour inherited from the base class */
+    spapr_machine_2_7_class_options(mc);
+    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_6);
 }
 
-DEFINE_SPAPR_MACHINE(2_6, "2.6", true);
+DEFINE_SPAPR_MACHINE(2_6, "2.6", false);
 
 /*
  * pseries-2.5

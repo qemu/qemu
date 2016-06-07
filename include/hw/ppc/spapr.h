@@ -539,10 +539,12 @@ struct sPAPRTCETable {
     uint64_t bus_offset;
     uint32_t page_shift;
     uint64_t *table;
+    uint32_t mig_nb_table;
+    uint64_t *mig_table;
     bool bypass;
     bool need_vfio;
     int fd;
-    MemoryRegion iommu;
+    MemoryRegion root, iommu;
     struct VIOsPAPRDevice *vdev; /* for @bypass migration compatibility only */
     QLIST_ENTRY(sPAPRTCETable) list;
 };
@@ -561,11 +563,11 @@ void spapr_events_fdt_skel(void *fdt, uint32_t epow_irq);
 int spapr_h_cas_compose_response(sPAPRMachineState *sm,
                                  target_ulong addr, target_ulong size,
                                  bool cpu_update, bool memory_update);
-sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
-                                   uint64_t bus_offset,
-                                   uint32_t page_shift,
-                                   uint32_t nb_table,
-                                   bool need_vfio);
+sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn);
+void spapr_tce_table_enable(sPAPRTCETable *tcet,
+                            uint32_t page_shift, uint64_t bus_offset,
+                            uint32_t nb_table);
+void spapr_tce_table_disable(sPAPRTCETable *tcet);
 void spapr_tce_set_need_vfio(sPAPRTCETable *tcet, bool need_vfio);
 
 MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet);

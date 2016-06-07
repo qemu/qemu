@@ -1310,7 +1310,6 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     PCIBus *bus;
     uint64_t msi_window_size = 4096;
     sPAPRTCETable *tcet;
-    uint32_t nb_table;
 
     if (sphb->index != (uint32_t)-1) {
         hwaddr windows_base;
@@ -1462,18 +1461,15 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    nb_table = sphb->dma_win_size >> SPAPR_TCE_PAGE_SHIFT;
-    tcet = spapr_tce_new_table(DEVICE(sphb), sphb->dma_liobn,
-                               0, SPAPR_TCE_PAGE_SHIFT, nb_table, false);
+    tcet = spapr_tce_new_table(DEVICE(sphb), sphb->dma_liobn);
     if (!tcet) {
         error_setg(errp, "Unable to create TCE table for %s",
                    sphb->dtbusname);
         return;
     }
 
-    /* Register default 32bit DMA window */
-    memory_region_add_subregion(&sphb->iommu_root, sphb->dma_win_addr,
-                                spapr_tce_get_iommu(tcet));
+    memory_region_add_subregion_overlap(&sphb->iommu_root, 0,
+                                        spapr_tce_get_iommu(tcet), 0);
 
     sphb->msi = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, g_free);
 }
@@ -1489,8 +1485,25 @@ static int spapr_phb_children_reset(Object *child, void *opaque)
     return 0;
 }
 
+void spapr_phb_dma_reset(sPAPRPHBState *sphb)
+{
+    sPAPRTCETable *tcet = spapr_tce_find_by_liobn(sphb->dma_liobn);
+
+    if (tcet && tcet->nb_table) {
+        spapr_tce_table_disable(tcet);
+    }
+
+    /* Register default 32bit DMA window */
+    spapr_tce_table_enable(tcet, SPAPR_TCE_PAGE_SHIFT, sphb->dma_win_addr,
+                           sphb->dma_win_size >> SPAPR_TCE_PAGE_SHIFT);
+}
+
 static void spapr_phb_reset(DeviceState *qdev)
 {
+    sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(qdev);
+
+    spapr_phb_dma_reset(sphb);
+
     /* Reset the IOMMU state */
     object_child_foreach(OBJECT(qdev), spapr_phb_children_reset, NULL);
 
@@ -1624,7 +1637,6 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
     dc->reset = spapr_phb_reset;
     dc->vmsd = &vmstate_spapr_pci;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->cannot_instantiate_with_device_add_yet = false;
     hp->plug = spapr_phb_hot_plug_child;
     hp->unplug = spapr_phb_hot_unplug_child;
 }

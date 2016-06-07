@@ -95,7 +95,7 @@ static inline void hreg_compute_hflags(CPUPPCState *env)
     /* We 'forget' FE0 & FE1: we'll never generate imprecise exceptions */
     hflags_mask = (1 << MSR_VR) | (1 << MSR_AP) | (1 << MSR_SA) |
         (1 << MSR_PR) | (1 << MSR_FP) | (1 << MSR_SE) | (1 << MSR_BE) |
-        (1 << MSR_LE) | (1 << MSR_VSX);
+        (1 << MSR_LE) | (1 << MSR_VSX) | (1 << MSR_IR) | (1 << MSR_DR);
     hflags_mask |= (1ULL << MSR_CM) | (1ULL << MSR_SF) | MSR_HVB;
     hreg_compute_mem_idx(env);
     env->hflags = env->msr & hflags_mask;
@@ -114,8 +114,8 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
     excp = 0;
     value &= env->msr_mask;
 #if !defined(CONFIG_USER_ONLY)
-    if (!alter_hv) {
-        /* mtmsr cannot alter the hypervisor state */
+    /* Neither mtmsr nor guest state can alter HV */
+    if (!alter_hv || !(env->msr & MSR_HVB)) {
         value &= ~MSR_HVB;
         value |= env->msr & MSR_HVB;
     }
@@ -151,7 +151,7 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
     return excp;
 }
 
-#if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
+#if !defined(CONFIG_USER_ONLY)
 static inline void check_tlb_flush(CPUPPCState *env)
 {
     CPUState *cs = CPU(ppc_env_get_cpu(env));

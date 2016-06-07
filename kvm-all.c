@@ -126,6 +126,13 @@ static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_LAST_INFO
 };
 
+int kvm_get_max_memslots(void)
+{
+    KVMState *s = KVM_STATE(current_machine->accelerator);
+
+    return s->nr_slots;
+}
+
 static KVMSlot *kvm_get_free_slot(KVMMemoryListener *kml)
 {
     KVMState *s = kvm_state;

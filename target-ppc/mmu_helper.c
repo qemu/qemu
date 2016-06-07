@@ -512,18 +512,20 @@ static inline int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
             /* Software TLB search */
             ret = ppc6xx_tlb_check(env, ctx, eaddr, rw, type);
 #if defined(DUMP_PAGE_TABLES)
-            if (qemu_log_mask(CPU_LOG_MMU)) {
+            if (qemu_loglevel_mask(CPU_LOG_MMU)) {
+                CPUState *cs = ENV_GET_CPU(env);
                 hwaddr curaddr;
                 uint32_t a0, a1, a2, a3;
 
                 qemu_log("Page table: " TARGET_FMT_plx " len " TARGET_FMT_plx
-                         "\n", sdr, mask + 0x80);
-                for (curaddr = sdr; curaddr < (sdr + mask + 0x80);
+                         "\n", env->htab_base, env->htab_mask + 0x80);
+                for (curaddr = env->htab_base;
+                     curaddr < (env->htab_base + env->htab_mask + 0x80);
                      curaddr += 16) {
-                    a0 = ldl_phys(curaddr);
-                    a1 = ldl_phys(curaddr + 4);
-                    a2 = ldl_phys(curaddr + 8);
-                    a3 = ldl_phys(curaddr + 12);
+                    a0 = ldl_phys(cs->as, curaddr);
+                    a1 = ldl_phys(cs->as, curaddr + 4);
+                    a2 = ldl_phys(cs->as, curaddr + 8);
+                    a3 = ldl_phys(cs->as, curaddr + 12);
                     if (a0 != 0 || a1 != 0 || a2 != 0 || a3 != 0) {
                         qemu_log(TARGET_FMT_plx ": %08x %08x %08x %08x\n",
                                  curaddr, a0, a1, a2, a3);
@@ -894,9 +896,9 @@ static int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
 
     mask = ~(booke206_tlb_to_page_size(env, tlb) - 1);
     LOG_SWTLB("%s: TLB ADDR=0x" TARGET_FMT_lx " PID=0x%x MAS1=0x%x MAS2=0x%"
-              PRIx64 " mask=0x" TARGET_FMT_lx " MAS7_3=0x%" PRIx64 " MAS8=%x\n",
-              __func__, address, pid, tlb->mas1, tlb->mas2, mask, tlb->mas7_3,
-              tlb->mas8);
+              PRIx64 " mask=0x%" HWADDR_PRIx " MAS7_3=0x%" PRIx64 " MAS8=0x%"
+              PRIx32 "\n", __func__, address, pid, tlb->mas1, tlb->mas2, mask,
+              tlb->mas7_3, tlb->mas8);
 
     /* Check PID */
     tlb_pid = (tlb->mas1 & MAS1_TID_MASK) >> MAS1_TID_SHIFT;
@@ -1746,6 +1748,9 @@ static inline void dump_store_bat(CPUPPCState *env, char ID, int ul, int nr,
 void helper_store_ibatu(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
     target_ulong mask;
+#if defined(FLUSH_ALL_TLBS)
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+#endif
 
     dump_store_bat(env, 'I', 0, nr, value);
     if (env->IBAT[0][nr] != value) {
@@ -1764,7 +1769,7 @@ void helper_store_ibatu(CPUPPCState *env, uint32_t nr, target_ulong value)
 #if !defined(FLUSH_ALL_TLBS)
         do_invalidate_BAT(env, env->IBAT[0][nr], mask);
 #else
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
 #endif
     }
 }
@@ -1778,6 +1783,9 @@ void helper_store_ibatl(CPUPPCState *env, uint32_t nr, target_ulong value)
 void helper_store_dbatu(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
     target_ulong mask;
+#if defined(FLUSH_ALL_TLBS)
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+#endif
 
     dump_store_bat(env, 'D', 0, nr, value);
     if (env->DBAT[0][nr] != value) {
@@ -1796,7 +1804,7 @@ void helper_store_dbatu(CPUPPCState *env, uint32_t nr, target_ulong value)
 #if !defined(FLUSH_ALL_TLBS)
         do_invalidate_BAT(env, env->DBAT[0][nr], mask);
 #else
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
 #endif
     }
 }
@@ -1811,6 +1819,7 @@ void helper_store_601_batu(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
     target_ulong mask;
 #if defined(FLUSH_ALL_TLBS)
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     int do_inval;
 #endif
 
@@ -1843,7 +1852,7 @@ void helper_store_601_batu(CPUPPCState *env, uint32_t nr, target_ulong value)
         }
 #if defined(FLUSH_ALL_TLBS)
         if (do_inval) {
-            tlb_flush(env, 1);
+            tlb_flush(CPU(cpu), 1);
         }
 #endif
     }
@@ -1854,6 +1863,7 @@ void helper_store_601_batl(CPUPPCState *env, uint32_t nr, target_ulong value)
 #if !defined(FLUSH_ALL_TLBS)
     target_ulong mask;
 #else
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     int do_inval;
 #endif
 
@@ -1882,7 +1892,7 @@ void helper_store_601_batl(CPUPPCState *env, uint32_t nr, target_ulong value)
         env->DBAT[1][nr] = value;
 #if defined(FLUSH_ALL_TLBS)
         if (do_inval) {
-            tlb_flush(env, 1);
+            tlb_flush(CPU(cpu), 1);
         }
 #endif
     }
@@ -1925,8 +1935,8 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
     case POWERPC_MMU_2_06a:
     case POWERPC_MMU_2_07:
     case POWERPC_MMU_2_07a:
-        env->tlb_need_flush = 0;
 #endif /* defined(TARGET_PPC64) */
+        env->tlb_need_flush = 0;
         tlb_flush(CPU(cpu), 1);
         break;
     default:
@@ -1939,9 +1949,6 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
 void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 {
 #if !defined(FLUSH_ALL_TLBS)
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-    CPUState *cs;
-
     addr &= TARGET_PAGE_MASK;
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
@@ -1953,28 +1960,12 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
         break;
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
-        /* tlbie invalidate TLBs for all segments */
-        addr &= ~((target_ulong)-1ULL << 28);
-        cs = CPU(cpu);
-        /* XXX: this case should be optimized,
-         * giving a mask to tlb_flush_page
+        /* Actual CPUs invalidate entire congruence classes based on the
+         * geometry of their TLBs and some OSes take that into account,
+         * we just mark the TLB to be flushed later (context synchronizing
+         * event or sync instruction on 32-bit).
          */
-        tlb_flush_page(cs, addr | (0x0 << 28));
-        tlb_flush_page(cs, addr | (0x1 << 28));
-        tlb_flush_page(cs, addr | (0x2 << 28));
-        tlb_flush_page(cs, addr | (0x3 << 28));
-        tlb_flush_page(cs, addr | (0x4 << 28));
-        tlb_flush_page(cs, addr | (0x5 << 28));
-        tlb_flush_page(cs, addr | (0x6 << 28));
-        tlb_flush_page(cs, addr | (0x7 << 28));
-        tlb_flush_page(cs, addr | (0x8 << 28));
-        tlb_flush_page(cs, addr | (0x9 << 28));
-        tlb_flush_page(cs, addr | (0xA << 28));
-        tlb_flush_page(cs, addr | (0xB << 28));
-        tlb_flush_page(cs, addr | (0xC << 28));
-        tlb_flush_page(cs, addr | (0xD << 28));
-        tlb_flush_page(cs, addr | (0xE << 28));
-        tlb_flush_page(cs, addr | (0xF << 28));
+        env->tlb_need_flush = 1;
         break;
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
@@ -2040,13 +2031,12 @@ target_ulong helper_load_sr(CPUPPCState *env, target_ulong sr_num)
 
 void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-
     qemu_log_mask(CPU_LOG_MMU,
             "%s: reg=%d " TARGET_FMT_lx " " TARGET_FMT_lx "\n", __func__,
             (int)srnum, value, env->sr[srnum]);
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
+        PowerPCCPU *cpu = ppc_env_get_cpu(env);
         uint64_t esid, vsid;
 
         /* ESID = srnum */
@@ -2075,7 +2065,7 @@ void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
             }
         }
 #else
-        tlb_flush(CPU(cpu), 1);
+        env->tlb_need_flush = 1;
 #endif
     }
 }
