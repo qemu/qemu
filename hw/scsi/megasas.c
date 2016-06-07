@@ -773,6 +773,7 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
 
         ptr = memory_region_get_ram_ptr(&pci_dev->rom);
         memcpy(biosver, ptr + 0x41, 31);
+        biosver[31] = 0;
         memcpy(info.image_component[1].name, "BIOS", 4);
         memcpy(info.image_component[1].version, biosver,
                strlen((const char *)biosver));
