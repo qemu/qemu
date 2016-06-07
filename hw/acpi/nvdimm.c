@@ -216,6 +216,26 @@ static uint32_t nvdimm_slot_to_dcr_index(int slot)
     return nvdimm_slot_to_spa_index(slot) + 1;
 }
 
+static NVDIMMDevice *nvdimm_get_device_by_handle(uint32_t handle)
+{
+    NVDIMMDevice *nvdimm = NULL;
+    GSList *list, *device_list = nvdimm_get_plugged_device_list();
+
+    for (list = device_list; list; list = list->next) {
+        NVDIMMDevice *nvd = list->data;
+        int slot = object_property_get_int(OBJECT(nvd), PC_DIMM_SLOT_PROP,
+                                           NULL);
+
+        if (nvdimm_slot_to_handle(slot) == handle) {
+            nvdimm = nvd;
+            break;
+        }
+    }
+
+    g_slist_free(device_list);
+    return nvdimm;
+}
+
 /* ACPI 6.0: 5.2.25.1 System Physical Address Range Structure */
 static void
 nvdimm_build_structure_spa(GArray *structures, DeviceState *dev)
@@ -406,6 +426,35 @@ struct NvdimmDsmFuncNoPayloadOut {
 } QEMU_PACKED;
 typedef struct NvdimmDsmFuncNoPayloadOut NvdimmDsmFuncNoPayloadOut;
 
+struct NvdimmFuncGetLabelSizeOut {
+    /* the size of buffer filled by QEMU. */
+    uint32_t len;
+    uint32_t func_ret_status; /* return status code. */
+    uint32_t label_size; /* the size of label data area. */
+    /*
+     * Maximum size of the namespace label data length supported by
+     * the platform in Get/Set Namespace Label Data functions.
+     */
+    uint32_t max_xfer;
+} QEMU_PACKED;
+typedef struct NvdimmFuncGetLabelSizeOut NvdimmFuncGetLabelSizeOut;
+QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncGetLabelSizeOut) > 4096);
+
+struct NvdimmFuncGetLabelDataOut {
+    /* the size of buffer filled by QEMU. */
+    uint32_t len;
+    uint32_t func_ret_status; /* return status code. */
+    uint8_t out_buf[0]; /* the data got via Get Namesapce Label function. */
+} QEMU_PACKED;
+typedef struct NvdimmFuncGetLabelDataOut NvdimmFuncGetLabelDataOut;
+
+struct NvdimmFuncSetLabelDataIn {
+    uint32_t offset; /* the offset in the namespace label data area. */
+    uint32_t length; /* the size of data is to be written via the function. */
+    uint8_t in_buf[0]; /* the data written to label data area. */
+} QEMU_PACKED;
+typedef struct NvdimmFuncSetLabelDataIn NvdimmFuncSetLabelDataIn;
+
 static void
 nvdimm_dsm_function0(uint32_t supported_func, hwaddr dsm_mem_addr)
 {
@@ -442,16 +491,91 @@ static void nvdimm_dsm_root(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
     nvdimm_dsm_no_payload(1 /* Not Supported */, dsm_mem_addr);
 }
 
+/*
+ * the max transfer size is the max size transferred by both a
+ * 'Get Namespace Label Data' function and a 'Set Namespace Label Data'
+ * function.
+ */
+static uint32_t nvdimm_get_max_xfer_label_size(void)
+{
+    uint32_t max_get_size, max_set_size, dsm_memory_size = 4096;
+
+    /*
+     * the max data ACPI can read one time which is transferred by
+     * the response of 'Get Namespace Label Data' function.
+     */
+    max_get_size = dsm_memory_size - sizeof(NvdimmFuncGetLabelDataOut);
+
+    /*
+     * the max data ACPI can write one time which is transferred by
+     * 'Set Namespace Label Data' function.
+     */
+    max_set_size = dsm_memory_size - offsetof(NvdimmDsmIn, arg3) -
+                   sizeof(NvdimmFuncSetLabelDataIn);
+
+    return MIN(max_get_size, max_set_size);
+}
+
+/*
+ * DSM Spec Rev1 4.4 Get Namespace Label Size (Function Index 4).
+ *
+ * It gets the size of Namespace Label data area and the max data size
+ * that Get/Set Namespace Label Data functions can transfer.
+ */
+static void nvdimm_dsm_label_size(NVDIMMDevice *nvdimm, hwaddr dsm_mem_addr)
+{
+    NvdimmFuncGetLabelSizeOut label_size_out = {
+        .len = cpu_to_le32(sizeof(label_size_out)),
+    };
+    uint32_t label_size, mxfer;
+
+    label_size = nvdimm->label_size;
+    mxfer = nvdimm_get_max_xfer_label_size();
+
+    nvdimm_debug("label_size %#x, max_xfer %#x.\n", label_size, mxfer);
+
+    label_size_out.func_ret_status = cpu_to_le32(0 /* Success */);
+    label_size_out.label_size = cpu_to_le32(label_size);
+    label_size_out.max_xfer = cpu_to_le32(mxfer);
+
+    cpu_physical_memory_write(dsm_mem_addr, &label_size_out,
+                              sizeof(label_size_out));
+}
+
 static void nvdimm_dsm_device(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
 {
+    NVDIMMDevice *nvdimm = nvdimm_get_device_by_handle(in->handle);
+
     /* See the comments in nvdimm_dsm_root(). */
     if (!in->function) {
-        nvdimm_dsm_function0(0 /* No function supported other than
-                                  function 0 */, dsm_mem_addr);
+        uint32_t supported_func = 0;
+
+        if (nvdimm && nvdimm->label_size) {
+            supported_func |= 0x1 /* Bit 0 indicates whether there is
+                                     support for any functions other
+                                     than function 0. */ |
+                              1 << 4 /* Get Namespace Label Size */;
+        }
+        nvdimm_dsm_function0(supported_func, dsm_mem_addr);
         return;
     }
 
-    /* No function except function 0 is supported yet. */
+    if (!nvdimm) {
+        nvdimm_dsm_no_payload(2 /* Non-Existing Memory Device */,
+                              dsm_mem_addr);
+        return;
+    }
+
+    /* Encode DSM function according to DSM Spec Rev1. */
+    switch (in->function) {
+    case 4 /* Get Namespace Label Size */:
+        if (nvdimm->label_size) {
+            nvdimm_dsm_label_size(nvdimm, dsm_mem_addr);
+            return;
+        }
+        break;
+    }
+
     nvdimm_dsm_no_payload(1 /* Not Supported */, dsm_mem_addr);
 }
 
