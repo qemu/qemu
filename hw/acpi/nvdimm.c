@@ -488,6 +488,7 @@ void nvdimm_init_acpi_state(AcpiNVDIMMState *state, MemoryRegion *io,
 static void nvdimm_build_common_dsm(Aml *dev)
 {
     Aml *method, *ifctx, *function, *dsm_mem, *unpatched, *result_size;
+    Aml *pckg, *pckg_index, *pckg_buf;
     uint8_t byte_list[1];
 
     method = aml_method(NVDIMM_COMMON_DSM, 5, AML_SERIALIZED);
@@ -522,6 +523,25 @@ static void nvdimm_build_common_dsm(Aml *dev)
     aml_append(method, aml_store(aml_arg(4), aml_name("HDLE")));
     aml_append(method, aml_store(aml_arg(1), aml_name("REVS")));
     aml_append(method, aml_store(aml_arg(2), aml_name("FUNC")));
+
+    /*
+     * The fourth parameter (Arg3) of _DSM is a package which contains
+     * a buffer, the layout of the buffer is specified by UUID (Arg0),
+     * Revision ID (Arg1) and Function Index (Arg2) which are documented
+     * in the DSM Spec.
+     */
+    pckg = aml_arg(3);
+    ifctx = aml_if(aml_and(aml_equal(aml_object_type(pckg),
+                   aml_int(4 /* Package */)) /* It is a Package? */,
+                   aml_equal(aml_sizeof(pckg), aml_int(1)) /* 1 element? */,
+                   NULL));
+
+    pckg_index = aml_local(2);
+    pckg_buf = aml_local(3);
+    aml_append(ifctx, aml_store(aml_index(pckg, aml_int(0)), pckg_index));
+    aml_append(ifctx, aml_store(aml_derefof(pckg_index), pckg_buf));
+    aml_append(ifctx, aml_store(pckg_buf, aml_name("ARG3")));
+    aml_append(method, ifctx);
 
     /*
      * tell QEMU about the real address of DSM memory, then QEMU
