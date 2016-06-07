@@ -1187,7 +1187,9 @@ void ppc_store_msr (CPUPPCState *env, target_ulong value);
 
 void ppc_cpu_list (FILE *f, fprintf_function cpu_fprintf);
 int ppc_get_compat_smt_threads(PowerPCCPU *cpu);
+#if defined(TARGET_PPC64)
 void ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version, Error **errp);
+#endif
 
 /* Time-base and decrementer management */
 #ifndef NO_CPU_IO_DEFS
