@@ -477,6 +477,19 @@ typedef struct {
 #define PPC_FEATURE_TRUE_LE             0x00000002
 #define PPC_FEATURE_PPC_LE              0x00000001
 
+/* Bits present in AT_HWCAP2 for PowerPC.  */
+
+#define PPC_FEATURE2_ARCH_2_07          0x80000000
+#define PPC_FEATURE2_HAS_HTM            0x40000000
+#define PPC_FEATURE2_HAS_DSCR           0x20000000
+#define PPC_FEATURE2_HAS_EBB            0x10000000
+#define PPC_FEATURE2_HAS_ISEL           0x08000000
+#define PPC_FEATURE2_HAS_TAR            0x04000000
+#define PPC_FEATURE2_HAS_VEC_CRYPTO     0x02000000
+#define PPC_FEATURE2_HTM_NOSC           0x01000000
+#define PPC_FEATURE2_ARCH_3_00          0x00800000
+#define PPC_FEATURE2_HAS_IEEE128        0x00400000
+
 /* Bits present in AT_HWCAP for Sparc.  */
 
 #define HWCAP_SPARC_FLUSH               0x00000001
