@@ -922,6 +922,39 @@ static void do_set_compat(void *arg)
     ((cpuver) == CPU_POWERPC_LOGICAL_2_06_PLUS) ? 2061 : \
     ((cpuver) == CPU_POWERPC_LOGICAL_2_07) ? 2070 : 0)
 
+static void cas_handle_compat_cpu(PowerPCCPUClass *pcc, uint32_t pvr,
+                                  unsigned max_lvl, unsigned *compat_lvl,
+                                  unsigned *cpu_version)
+{
+    unsigned lvl = get_compat_level(pvr);
+    bool is205, is206;
+
+    if (!lvl) {
+        return;
+    }
+
+    /* If it is a logical PVR, try to determine the highest level */
+    is205 = (pcc->pcr_mask & PCR_COMPAT_2_05) &&
+            (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_05));
+    is206 = (pcc->pcr_mask & PCR_COMPAT_2_06) &&
+            ((lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_06)) ||
+             (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_06_PLUS)));
+
+    if (is205 || is206) {
+        if (!max_lvl) {
+            /* User did not set the level, choose the highest */
+            if (*compat_lvl <= lvl) {
+                *compat_lvl = lvl;
+                *cpu_version = pvr;
+            }
+        } else if (max_lvl >= lvl) {
+            /* User chose the level, don't set higher than this */
+            *compat_lvl = lvl;
+            *cpu_version = pvr;
+        }
+    }
+}
+
 #define OV5_DRCONF_MEMORY 0x20
 
 static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
@@ -931,7 +964,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
 {
     target_ulong list = ppc64_phys_to_real(args[0]);
     target_ulong ov_table, ov5;
-    PowerPCCPUClass *pcc_ = POWERPC_CPU_GET_CLASS(cpu_);
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu_);
     CPUState *cs;
     bool cpu_match = false, cpu_update = true, memory_update = false;
     unsigned old_cpu_version = cpu_->cpu_version;
@@ -958,29 +991,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
             cpu_match = true;
             cpu_version = cpu_->cpu_version;
         } else if (!cpu_match) {
-            /* If it is a logical PVR, try to determine the highest level */
-            unsigned lvl = get_compat_level(pvr);
-            if (lvl) {
-                bool is205 = (pcc_->pcr_mask & PCR_COMPAT_2_05) &&
-                     (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_05));
-                bool is206 = (pcc_->pcr_mask & PCR_COMPAT_2_06) &&
-                    ((lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_06)) ||
-                    (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_06_PLUS)));
-
-                if (is205 || is206) {
-                    if (!max_lvl) {
-                        /* User did not set the level, choose the highest */
-                        if (compat_lvl <= lvl) {
-                            compat_lvl = lvl;
-                            cpu_version = pvr;
-                        }
-                    } else if (max_lvl >= lvl) {
-                        /* User chose the level, don't set higher than this */
-                        compat_lvl = lvl;
-                        cpu_version = pvr;
-                    }
-                }
-            }
+            cas_handle_compat_cpu(pcc, pvr, max_lvl, &compat_lvl, &cpu_version);
         }
         /* Terminator record */
         if (~pvr_mask & pvr) {
@@ -990,7 +1001,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
 
     /* Parsing finished */
     trace_spapr_cas_pvr(cpu_->cpu_version, cpu_match,
-                        cpu_version, pcc_->pcr_mask);
+                        cpu_version, pcc->pcr_mask);
 
     /* Update CPUs */
     if (old_cpu_version != cpu_version) {
