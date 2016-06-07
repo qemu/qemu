@@ -816,7 +816,9 @@ static int coroutine_fn bdrv_driver_pwritev(BlockDriverState *bs,
     int ret;
 
     if (drv->bdrv_co_pwritev) {
-        ret = drv->bdrv_co_pwritev(bs, offset, bytes, qiov, flags);
+        ret = drv->bdrv_co_pwritev(bs, offset, bytes, qiov,
+                                   flags & bs->supported_write_flags);
+        flags &= ~bs->supported_write_flags;
         goto emulate_flags;
     }
 
