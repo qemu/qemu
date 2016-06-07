@@ -487,19 +487,39 @@ void nvdimm_init_acpi_state(AcpiNVDIMMState *state, MemoryRegion *io,
 
 static void nvdimm_build_common_dsm(Aml *dev)
 {
-    Aml *method, *ifctx, *function, *dsm_mem, *unpatched, *result_size;
+    Aml *method, *ifctx, *function, *handle, *uuid, *dsm_mem, *result_size;
+    Aml *elsectx, *unsupport, *unpatched, *expected_uuid, *uuid_invalid;
     Aml *pckg, *pckg_index, *pckg_buf;
     uint8_t byte_list[1];
 
     method = aml_method(NVDIMM_COMMON_DSM, 5, AML_SERIALIZED);
+    uuid = aml_arg(0);
     function = aml_arg(2);
+    handle = aml_arg(4);
     dsm_mem = aml_name(NVDIMM_ACPI_MEM_ADDR);
 
     /*
      * do not support any method if DSM memory address has not been
      * patched.
      */
-    unpatched = aml_if(aml_equal(dsm_mem, aml_int(0x0)));
+    unpatched = aml_equal(dsm_mem, aml_int(0x0));
+
+    expected_uuid = aml_local(0);
+
+    ifctx = aml_if(aml_equal(handle, aml_int(0x0)));
+    aml_append(ifctx, aml_store(
+               aml_touuid("2F10E7A4-9E91-11E4-89D3-123B93F75CBA")
+               /* UUID for NVDIMM Root Device */, expected_uuid));
+    aml_append(method, ifctx);
+    elsectx = aml_else();
+    aml_append(elsectx, aml_store(
+               aml_touuid("4309AC30-0D11-11E4-9191-0800200C9A66")
+               /* UUID for NVDIMM Devices */, expected_uuid));
+    aml_append(method, elsectx);
+
+    uuid_invalid = aml_lnot(aml_equal(uuid, expected_uuid));
+
+    unsupport = aml_if(aml_or(unpatched, uuid_invalid, NULL));
 
     /*
      * function 0 is called to inquire what functions are supported by
@@ -508,19 +528,19 @@ static void nvdimm_build_common_dsm(Aml *dev)
     ifctx = aml_if(aml_equal(function, aml_int(0)));
     byte_list[0] = 0 /* No function Supported */;
     aml_append(ifctx, aml_return(aml_buffer(1, byte_list)));
-    aml_append(unpatched, ifctx);
+    aml_append(unsupport, ifctx);
 
     /* No function is supported yet. */
     byte_list[0] = 1 /* Not Supported */;
-    aml_append(unpatched, aml_return(aml_buffer(1, byte_list)));
-    aml_append(method, unpatched);
+    aml_append(unsupport, aml_return(aml_buffer(1, byte_list)));
+    aml_append(method, unsupport);
 
     /*
      * The HDLE indicates the DSM function is issued from which device,
      * it reserves 0 for root device and is the handle for NVDIMM devices.
      * See the comments in nvdimm_slot_to_handle().
      */
-    aml_append(method, aml_store(aml_arg(4), aml_name("HDLE")));
+    aml_append(method, aml_store(handle, aml_name("HDLE")));
     aml_append(method, aml_store(aml_arg(1), aml_name("REVS")));
     aml_append(method, aml_store(aml_arg(2), aml_name("FUNC")));
 
