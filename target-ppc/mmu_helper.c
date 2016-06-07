@@ -1969,6 +1969,11 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
         /* XXX: this case should be optimized,
          * giving a mask to tlb_flush_page
          */
+        /* This is broken, some CPUs invalidate a whole congruence
+         * class on an even smaller subset of bits and some OSes take
+         * advantage of this. Just blow the whole thing away.
+         */
+#if 0
         tlb_flush_page(cs, addr | (0x0 << 28));
         tlb_flush_page(cs, addr | (0x1 << 28));
         tlb_flush_page(cs, addr | (0x2 << 28));
@@ -1985,6 +1990,9 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
         tlb_flush_page(cs, addr | (0xD << 28));
         tlb_flush_page(cs, addr | (0xE << 28));
         tlb_flush_page(cs, addr | (0xF << 28));
+#else
+        tlb_flush(cs, 1);
+#endif
         break;
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
