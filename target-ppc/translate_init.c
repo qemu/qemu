@@ -8024,6 +8024,21 @@ static void gen_spr_power8_book4(CPUPPCState *env)
 #endif
 }
 
+static void gen_spr_power7_book4(CPUPPCState *env)
+{
+    /* Add a number of P7 book4 registers */
+#if !defined(CONFIG_USER_ONLY)
+    spr_register_kvm(env, SPR_ACOP, "ACOP",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_ACOP, 0);
+    spr_register_kvm(env, SPR_BOOKS_PID, "PID",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_PID, 0);
+#endif
+}
+
 static void init_proc_book3s_64(CPUPPCState *env, int version)
 {
     gen_spr_ne_601(env);
@@ -8065,6 +8080,9 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
     if (version >= BOOK3S_CPU_POWER6) {
         gen_spr_power6_common(env);
         gen_spr_power6_dbg(env);
+    }
+    if (version == BOOK3S_CPU_POWER7) {
+        gen_spr_power7_book4(env);
     }
     if (version >= BOOK3S_CPU_POWER8) {
         gen_spr_power8_tce_address_control(env);
