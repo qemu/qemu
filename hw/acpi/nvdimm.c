@@ -485,6 +485,13 @@ nvdimm_dsm_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     nvdimm_debug("Revision %#x Handler %#x Function %#x.\n", in->revision,
                  in->handle, in->function);
 
+    if (in->revision != 0x1 /* Currently we only support DSM Spec Rev1. */) {
+        nvdimm_debug("Revision %#x is not supported, expect %#x.\n",
+                     in->revision, 0x1);
+        nvdimm_dsm_no_payload(1 /* Not Supported */, dsm_mem_addr);
+        goto exit;
+    }
+
      /* Handle 0 is reserved for NVDIMM Root Device. */
     if (!in->handle) {
         nvdimm_dsm_root(in, dsm_mem_addr);
