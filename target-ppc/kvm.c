@@ -2329,6 +2329,19 @@ static PowerPCCPUClass *ppc_cpu_get_family_class(PowerPCCPUClass *pcc)
     return POWERPC_CPU_CLASS(oc);
 }
 
+PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)
+{
+    uint32_t host_pvr = mfpvr();
+    PowerPCCPUClass *pvr_pcc;
+
+    pvr_pcc = ppc_cpu_class_by_pvr(host_pvr);
+    if (pvr_pcc == NULL) {
+        pvr_pcc = ppc_cpu_class_by_pvr_mask(host_pvr);
+    }
+
+    return pvr_pcc;
+}
+
 static int kvm_ppc_register_host_cpu_type(void)
 {
     TypeInfo type_info = {
@@ -2336,14 +2349,10 @@ static int kvm_ppc_register_host_cpu_type(void)
         .instance_init = kvmppc_host_cpu_initfn,
         .class_init = kvmppc_host_cpu_class_init,
     };
-    uint32_t host_pvr = mfpvr();
     PowerPCCPUClass *pvr_pcc;
     DeviceClass *dc;
 
-    pvr_pcc = ppc_cpu_class_by_pvr(host_pvr);
-    if (pvr_pcc == NULL) {
-        pvr_pcc = ppc_cpu_class_by_pvr_mask(host_pvr);
-    }
+    pvr_pcc = kvm_ppc_get_host_cpu_class();
     if (pvr_pcc == NULL) {
         return -1;
     }
