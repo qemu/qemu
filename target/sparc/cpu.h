@@ -515,6 +515,7 @@ struct CPUSPARCState {
     uint64_t bgregs[8]; /* backup for normal global registers */
     uint64_t igregs[8]; /* interrupt general registers */
     uint64_t mgregs[8]; /* mmu general registers */
+    uint64_t glregs[8 * MAXTL_MAX];
     uint64_t fprs;
     uint64_t tick_cmpr, stick_cmpr;
     CPUTimer *tick, *stick;
@@ -615,6 +616,7 @@ void cpu_put_ccr(CPUSPARCState *env1, target_ulong val);
 target_ulong cpu_get_cwp64(CPUSPARCState *env1);
 void cpu_put_cwp64(CPUSPARCState *env1, int cwp);
 void cpu_change_pstate(CPUSPARCState *env1, uint32_t new_pstate);
+void cpu_gl_switch_gregs(CPUSPARCState *env, uint32_t new_gl);
 #endif
 int cpu_cwp_inc(CPUSPARCState *env1, int cwp);
 int cpu_cwp_dec(CPUSPARCState *env1, int cwp);

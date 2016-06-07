@@ -57,9 +57,13 @@ static void sparc_cpu_reset(CPUState *s)
     env->psrps = 1;
 #endif
 #ifdef TARGET_SPARC64
-    env->pstate = PS_PRIV|PS_RED|PS_PEF|PS_AG;
+    env->pstate = PS_PRIV | PS_RED | PS_PEF;
+    if (!cpu_has_hypervisor(env)) {
+        env->pstate |= PS_AG;
+    }
     env->hpstate = cpu_has_hypervisor(env) ? HS_PRIV : 0;
     env->tl = env->maxtl;
+    env->gl = 2;
     cpu_tsptr(env)->tt = TT_POWER_ON_RESET;
     env->lsu = 0;
 #else
@@ -744,14 +748,17 @@ void sparc_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     cpu_print_cc(f, cpu_fprintf, cpu_get_ccr(env) << PSR_CARRY_SHIFT);
     cpu_fprintf(f, " xcc: ");
     cpu_print_cc(f, cpu_fprintf, cpu_get_ccr(env) << (PSR_CARRY_SHIFT - 4));
-    cpu_fprintf(f, ") asi: %02x tl: %d pil: %x\n", env->asi, env->tl,
-                env->psrpil);
+    cpu_fprintf(f, ") asi: %02x tl: %d pil: %x gl: %d\n", env->asi, env->tl,
+                env->psrpil, env->gl);
+    cpu_fprintf(f, "tbr: " TARGET_FMT_lx " hpstate: " TARGET_FMT_lx " htba: "
+                TARGET_FMT_lx "\n", env->tbr, env->hpstate, env->htba);
     cpu_fprintf(f, "cansave: %d canrestore: %d otherwin: %d wstate: %d "
                 "cleanwin: %d cwp: %d\n",
                 env->cansave, env->canrestore, env->otherwin, env->wstate,
                 env->cleanwin, env->nwindows - 1 - env->cwp);
     cpu_fprintf(f, "fsr: " TARGET_FMT_lx " y: " TARGET_FMT_lx " fprs: "
                 TARGET_FMT_lx "\n", env->fsr, env->y, env->fprs);
+
 #else
     cpu_fprintf(f, "psr: %08x (icc: ", cpu_get_psr(env));
     cpu_print_cc(f, cpu_fprintf, cpu_get_psr(env));
