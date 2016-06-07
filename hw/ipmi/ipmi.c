@@ -30,6 +30,13 @@
 #include "qom/object_interfaces.h"
 #include "qapi/visitor.h"
 
+static uint32_t ipmi_current_uuid = 1;
+
+uint32_t ipmi_next_uuid(void)
+{
+    return ipmi_current_uuid++;
+}
+
 static int ipmi_do_hw_op(IPMIInterface *s, enum ipmi_op op, int checkonly)
 {
     switch (op) {
@@ -122,30 +129,3 @@ static void ipmi_register_types(void)
 }
 
 type_init(ipmi_register_types)
-
-static IPMIFwInfo *ipmi_fw_info;
-static unsigned int ipmi_fw_info_len;
-
-static uint32_t current_uuid = 1;
-
-void ipmi_add_fwinfo(IPMIFwInfo *info, Error **errp)
-{
-    info->uuid = current_uuid++;
-    ipmi_fw_info = g_realloc(ipmi_fw_info,
-                             sizeof(*ipmi_fw_info) * (ipmi_fw_info_len + 1));
-    ipmi_fw_info[ipmi_fw_info_len] = *info;
-}
-
-IPMIFwInfo *ipmi_first_fwinfo(void)
-{
-    return ipmi_fw_info;
-}
-
-IPMIFwInfo *ipmi_next_fwinfo(IPMIFwInfo *current)
-{
-    current++;
-    if (current >= &ipmi_fw_info[ipmi_fw_info_len]) {
-        return NULL;
-    }
-    return current;
-}

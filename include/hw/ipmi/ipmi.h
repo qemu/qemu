@@ -65,6 +65,40 @@ enum ipmi_op {
 #define IPMI_SMBIOS_BT          0x03
 #define IPMI_SMBIOS_SSIF        0x04
 
+/*
+ * Used for transferring information to interfaces that add
+ * entries to firmware tables.
+ */
+typedef struct IPMIFwInfo {
+    const char *interface_name;
+    int interface_type;
+    uint8_t ipmi_spec_major_revision;
+    uint8_t ipmi_spec_minor_revision;
+    uint8_t i2c_slave_address;
+    uint32_t uuid;
+
+    uint64_t base_address;
+    uint64_t register_length;
+    uint8_t register_spacing;
+    enum {
+        IPMI_MEMSPACE_IO,
+        IPMI_MEMSPACE_MEM32,
+        IPMI_MEMSPACE_MEM64,
+        IPMI_MEMSPACE_SMBUS
+    } memspace;
+
+    int interrupt_number;
+    enum {
+        IPMI_LEVEL_IRQ,
+        IPMI_EDGE_IRQ
+    } irq_type;
+} IPMIFwInfo;
+
+/*
+ * Called by each instantiated IPMI interface device to get it's uuid.
+ */
+uint32_t ipmi_next_uuid(void);
+
 /* IPMI Interface types (KCS, SMIC, BT) are prefixed with this */
 #define TYPE_IPMI_INTERFACE_PREFIX "ipmi-interface-"
 
@@ -127,6 +161,11 @@ typedef struct IPMIInterfaceClass {
      * Set by the owner to hold the backend data for the interface.
      */
     void *(*get_backend_data)(struct IPMIInterface *s);
+
+    /*
+     * Return the firmware info for a device.
+     */
+    void (*get_fwinfo)(struct IPMIInterface *s, IPMIFwInfo *info);
 } IPMIInterfaceClass;
 
 /*
@@ -167,41 +206,6 @@ typedef struct IPMIBmcClass {
  * Add a link property to obj that points to a BMC.
  */
 void ipmi_bmc_find_and_link(Object *obj, Object **bmc);
-
-/*
- * Used for transferring information to interfaces that add
- * entries to firmware tables.
- */
-typedef struct IPMIFwInfo {
-    const char *interface_name;
-    int interface_type;
-    uint8_t ipmi_spec_major_revision;
-    uint8_t ipmi_spec_minor_revision;
-    uint8_t i2c_slave_address;
-    uint32_t uuid;
-
-    uint64_t base_address;
-    uint64_t register_length;
-    uint8_t register_spacing;
-    enum {
-        IPMI_MEMSPACE_IO,
-        IPMI_MEMSPACE_MEM32,
-        IPMI_MEMSPACE_MEM64,
-        IPMI_MEMSPACE_SMBUS
-    } memspace;
-
-    int interrupt_number;
-    enum {
-        IPMI_LEVEL_IRQ,
-        IPMI_EDGE_IRQ
-    } irq_type;
-
-    const char *acpi_parent;
-} IPMIFwInfo;
-
-void ipmi_add_fwinfo(IPMIFwInfo *info, Error **errp);
-IPMIFwInfo *ipmi_first_fwinfo(void);
-IPMIFwInfo *ipmi_next_fwinfo(IPMIFwInfo *current);
 
 #ifdef IPMI_DEBUG
 #define ipmi_debug(fs, ...) \

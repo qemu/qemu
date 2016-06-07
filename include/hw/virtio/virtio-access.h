@@ -17,9 +17,13 @@
 #include "hw/virtio/virtio.h"
 #include "exec/address-spaces.h"
 
+#if defined(TARGET_PPC64) || defined(TARGET_ARM)
+#define LEGACY_VIRTIO_IS_BIENDIAN 1
+#endif
+
 static inline bool virtio_access_is_big_endian(VirtIODevice *vdev)
 {
-#if defined(TARGET_IS_BIENDIAN)
+#if defined(LEGACY_VIRTIO_IS_BIENDIAN)
     return virtio_is_big_endian(vdev);
 #elif defined(TARGET_WORDS_BIGENDIAN)
     if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {

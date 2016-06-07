@@ -23,6 +23,7 @@
 #include "qemu/option.h"
 #include "exec/memory.h"
 #include "hw/irq.h"
+#include "hw/acpi/acpi_dev_interface.h"
 
 /*
  * current device naming scheme supports up to 256 memory devices
@@ -88,13 +89,6 @@
 
 /* PM2_CNT */
 #define ACPI_BITMASK_ARB_DISABLE                0x0001
-
-/* These values are part of guest ABI, and can not be changed */
-typedef enum {
-    ACPI_PCI_HOTPLUG_STATUS = 2,
-    ACPI_CPU_HOTPLUG_STATUS = 4,
-    ACPI_MEMORY_HOTPLUG_STATUS = 8,
-} AcpiGPEStatusBits;
 
 /* structs */
 typedef struct ACPIPMTimer ACPIPMTimer;
@@ -172,7 +166,7 @@ void acpi_gpe_ioport_writeb(ACPIREGS *ar, uint32_t addr, uint32_t val);
 uint32_t acpi_gpe_ioport_readb(ACPIREGS *ar, uint32_t addr);
 
 void acpi_send_gpe_event(ACPIREGS *ar, qemu_irq irq,
-                         AcpiGPEStatusBits status);
+                         AcpiEventStatusBits status);
 
 void acpi_update_sci(ACPIREGS *acpi_regs, qemu_irq irq);
 

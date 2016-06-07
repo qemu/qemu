@@ -353,7 +353,7 @@ static GArray *nvdimm_build_device_structure(GSList *device_list)
 }
 
 static void nvdimm_build_nfit(GSList *device_list, GArray *table_offsets,
-                              GArray *table_data, GArray *linker)
+                              GArray *table_data, BIOSLinker *linker)
 {
     GArray *structures = nvdimm_build_device_structure(device_list);
     unsigned int header;
@@ -579,7 +579,8 @@ static void nvdimm_build_nvdimm_devices(GSList *device_list, Aml *root_dev)
 }
 
 static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
-                              GArray *table_data, GArray *linker)
+                              GArray *table_data, BIOSLinker *linker,
+                              GArray *dsm_dma_arrea)
 {
     Aml *ssdt, *sb_scope, *dev, *field;
     int mem_addr_offset, nvdimm_ssdt;
@@ -678,12 +679,12 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
     mem_addr_offset = build_append_named_dword(table_data,
                                                NVDIMM_ACPI_MEM_ADDR);
 
-    bios_linker_loader_alloc(linker, NVDIMM_DSM_MEM_FILE, sizeof(NvdimmDsmIn),
-                             false /* high memory */);
-    bios_linker_loader_add_pointer(linker, ACPI_BUILD_TABLE_FILE,
-                                   NVDIMM_DSM_MEM_FILE, table_data,
-                                   table_data->data + mem_addr_offset,
-                                   sizeof(uint32_t));
+    bios_linker_loader_alloc(linker,
+                             NVDIMM_DSM_MEM_FILE, dsm_dma_arrea,
+                             sizeof(NvdimmDsmIn), false /* high memory */);
+    bios_linker_loader_add_pointer(linker,
+        ACPI_BUILD_TABLE_FILE, mem_addr_offset, sizeof(uint32_t),
+        NVDIMM_DSM_MEM_FILE, 0);
     build_header(linker, table_data,
         (void *)(table_data->data + nvdimm_ssdt),
         "SSDT", table_data->len - nvdimm_ssdt, 1, NULL, "NVDIMM");
@@ -691,7 +692,7 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
 }
 
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
-                       GArray *linker)
+                       BIOSLinker *linker, GArray *dsm_dma_arrea)
 {
     GSList *device_list;
 
@@ -701,6 +702,7 @@ void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
         return;
     }
     nvdimm_build_nfit(device_list, table_offsets, table_data, linker);
-    nvdimm_build_ssdt(device_list, table_offsets, table_data, linker);
+    nvdimm_build_ssdt(device_list, table_offsets, table_data, linker,
+                      dsm_dma_arrea);
     g_slist_free(device_list);
 }

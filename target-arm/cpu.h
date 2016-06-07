@@ -29,8 +29,6 @@
 #  define TARGET_LONG_BITS 32
 #endif
 
-#define TARGET_IS_BIENDIAN 1
-
 #define CPUArchState struct CPUARMState
 
 #include "qemu-common.h"

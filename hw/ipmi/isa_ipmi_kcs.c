@@ -354,16 +354,6 @@ static void ipmi_kcs_init(IPMIInterface *ii, Error **errp)
     memory_region_init_io(&ik->io, NULL, &ipmi_kcs_io_ops, ii, "ipmi-kcs", 2);
 }
 
-static void ipmi_kcs_class_init(IPMIInterfaceClass *iic)
-{
-    iic->init = ipmi_kcs_init;
-    iic->set_atn = ipmi_kcs_set_atn;
-    iic->handle_rsp = ipmi_kcs_handle_rsp;
-    iic->handle_if_event = ipmi_kcs_handle_event;
-    iic->set_irq_enable = ipmi_kcs_set_irq_enable;
-}
-
-
 #define TYPE_ISA_IPMI_KCS "isa-ipmi-kcs"
 #define ISA_IPMI_KCS(obj) OBJECT_CHECK(ISAIPMIKCSDevice, (obj), \
                                        TYPE_ISA_IPMI_KCS)
@@ -372,8 +362,36 @@ typedef struct ISAIPMIKCSDevice {
     ISADevice dev;
     int32_t isairq;
     IPMIKCS kcs;
-    IPMIFwInfo fwinfo;
+    uint32_t uuid;
 } ISAIPMIKCSDevice;
+
+static void ipmi_kcs_get_fwinfo(IPMIInterface *ii, IPMIFwInfo *info)
+{
+    ISAIPMIKCSDevice *iik = ISA_IPMI_KCS(ii);
+
+    info->interface_name = "kcs";
+    info->interface_type = IPMI_SMBIOS_KCS;
+    info->ipmi_spec_major_revision = 2;
+    info->ipmi_spec_minor_revision = 0;
+    info->base_address = iik->kcs.io_base;
+    info->i2c_slave_address = iik->kcs.bmc->slave_addr;
+    info->register_length = iik->kcs.io_length;
+    info->register_spacing = 1;
+    info->memspace = IPMI_MEMSPACE_IO;
+    info->irq_type = IPMI_LEVEL_IRQ;
+    info->interrupt_number = iik->isairq;
+    info->uuid = iik->uuid;
+}
+
+static void ipmi_kcs_class_init(IPMIInterfaceClass *iic)
+{
+    iic->init = ipmi_kcs_init;
+    iic->set_atn = ipmi_kcs_set_atn;
+    iic->handle_rsp = ipmi_kcs_handle_rsp;
+    iic->handle_if_event = ipmi_kcs_handle_event;
+    iic->set_irq_enable = ipmi_kcs_set_irq_enable;
+    iic->get_fwinfo = ipmi_kcs_get_fwinfo;
+}
 
 static void ipmi_isa_realize(DeviceState *dev, Error **errp)
 {
@@ -386,6 +404,8 @@ static void ipmi_isa_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "IPMI device requires a bmc attribute to be set");
         return;
     }
+
+    iik->uuid = ipmi_next_uuid();
 
     iik->kcs.bmc->intf = ii;
 
@@ -401,20 +421,6 @@ static void ipmi_isa_realize(DeviceState *dev, Error **errp)
     qdev_set_legacy_instance_id(dev, iik->kcs.io_base, iik->kcs.io_length);
 
     isa_register_ioport(isadev, &iik->kcs.io, iik->kcs.io_base);
-
-    iik->fwinfo.interface_name = "kcs";
-    iik->fwinfo.interface_type = IPMI_SMBIOS_KCS;
-    iik->fwinfo.ipmi_spec_major_revision = 2;
-    iik->fwinfo.ipmi_spec_minor_revision = 0;
-    iik->fwinfo.base_address = iik->kcs.io_base;
-    iik->fwinfo.i2c_slave_address = iik->kcs.bmc->slave_addr;
-    iik->fwinfo.register_length = iik->kcs.io_length;
-    iik->fwinfo.register_spacing = 1;
-    iik->fwinfo.memspace = IPMI_MEMSPACE_IO;
-    iik->fwinfo.irq_type = IPMI_LEVEL_IRQ;
-    iik->fwinfo.interrupt_number = iik->isairq;
-    iik->fwinfo.acpi_parent = "\\_SB.PCI0.ISA";
-    ipmi_add_fwinfo(&iik->fwinfo, errp);
 }
 
 const VMStateDescription vmstate_ISAIPMIKCSDevice = {

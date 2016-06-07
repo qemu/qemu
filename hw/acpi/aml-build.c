@@ -24,7 +24,6 @@
 #include "hw/acpi/aml-build.h"
 #include "qemu/bswap.h"
 #include "qemu/bitops.h"
-#include "hw/acpi/bios-linker-loader.h"
 
 static GArray *build_alloc_array(void)
 {
@@ -403,6 +402,15 @@ Aml *aml_return(Aml *val)
 {
     Aml *var = aml_opcode(0xA4 /* ReturnOp */);
     aml_append(var, val);
+    return var;
+}
+
+/* ACPI 1.0b: 16.2.6.3 Debug Objects Encoding: DebugObj */
+Aml *aml_debug(void)
+{
+    Aml *var = aml_alloc();
+    build_append_byte(var->buf, 0x5B); /* ExtOpPrefix */
+    build_append_byte(var->buf, 0x31); /* DebugOp */
     return var;
 }
 
@@ -1407,6 +1415,14 @@ Aml *aml_unicode(const char *str)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefRefOf */
+Aml *aml_refof(Aml *arg)
+{
+    Aml *var = aml_opcode(0x71 /* RefOfOp */);
+    aml_append(var, arg);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefDerefOf */
 Aml *aml_derefof(Aml *arg)
 {
@@ -1473,10 +1489,12 @@ Aml *aml_concatenate(Aml *source1, Aml *source2, Aml *target)
 }
 
 void
-build_header(GArray *linker, GArray *table_data,
+build_header(BIOSLinker *linker, GArray *table_data,
              AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
              const char *oem_id, const char *oem_table_id)
 {
+    unsigned tbl_offset = (char *)h - table_data->data;
+    unsigned checksum_offset = (char *)&h->checksum - table_data->data;
     memcpy(&h->signature, sig, 4);
     h->length = cpu_to_le32(len);
     h->revision = rev;
@@ -1497,10 +1515,9 @@ build_header(GArray *linker, GArray *table_data,
     h->oem_revision = cpu_to_le32(1);
     memcpy(h->asl_compiler_id, ACPI_BUILD_APPNAME4, 4);
     h->asl_compiler_revision = cpu_to_le32(1);
-    h->checksum = 0;
     /* Checksum to be filled in by Guest linker */
     bios_linker_loader_add_checksum(linker, ACPI_BUILD_TABLE_FILE,
-                                    table_data, h, len, &h->checksum);
+        tbl_offset, len, checksum_offset);
 }
 
 void *acpi_data_push(GArray *table_data, unsigned size)
@@ -1518,7 +1535,7 @@ unsigned acpi_data_len(GArray *table)
 
 void acpi_add_table(GArray *table_offsets, GArray *table_data)
 {
-    uint32_t offset = cpu_to_le32(table_data->len);
+    uint32_t offset = table_data->len;
     g_array_append_val(table_offsets, offset);
 }
 
@@ -1532,8 +1549,7 @@ void acpi_build_tables_init(AcpiBuildTables *tables)
 
 void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre)
 {
-    void *linker_data = bios_linker_loader_cleanup(tables->linker);
-    g_free(linker_data);
+    bios_linker_loader_cleanup(tables->linker);
     g_array_free(tables->rsdp, true);
     g_array_free(tables->table_data, true);
     g_array_free(tables->tcpalog, mfre);
@@ -1541,24 +1557,26 @@ void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre)
 
 /* Build rsdt table */
 void
-build_rsdt(GArray *table_data, GArray *linker, GArray *table_offsets,
+build_rsdt(GArray *table_data, BIOSLinker *linker, GArray *table_offsets,
            const char *oem_id, const char *oem_table_id)
 {
-    AcpiRsdtDescriptorRev1 *rsdt;
-    size_t rsdt_len;
     int i;
-    const int table_data_len = (sizeof(uint32_t) * table_offsets->len);
+    unsigned rsdt_entries_offset;
+    AcpiRsdtDescriptorRev1 *rsdt;
+    const unsigned table_data_len = (sizeof(uint32_t) * table_offsets->len);
+    const unsigned rsdt_entry_size = sizeof(rsdt->table_offset_entry[0]);
+    const size_t rsdt_len = sizeof(*rsdt) + table_data_len;
 
-    rsdt_len = sizeof(*rsdt) + table_data_len;
     rsdt = acpi_data_push(table_data, rsdt_len);
-    memcpy(rsdt->table_offset_entry, table_offsets->data, table_data_len);
+    rsdt_entries_offset = (char *)rsdt->table_offset_entry - table_data->data;
     for (i = 0; i < table_offsets->len; ++i) {
+        uint32_t ref_tbl_offset = g_array_index(table_offsets, uint32_t, i);
+        uint32_t rsdt_entry_offset = rsdt_entries_offset + rsdt_entry_size * i;
+
         /* rsdt->table_offset_entry to be filled by Guest linker */
         bios_linker_loader_add_pointer(linker,
-                                       ACPI_BUILD_TABLE_FILE,
-                                       ACPI_BUILD_TABLE_FILE,
-                                       table_data, &rsdt->table_offset_entry[i],
-                                       sizeof(uint32_t));
+            ACPI_BUILD_TABLE_FILE, rsdt_entry_offset, rsdt_entry_size,
+            ACPI_BUILD_TABLE_FILE, ref_tbl_offset);
     }
     build_header(linker, table_data,
                  (void *)rsdt, "RSDT", rsdt_len, 1, oem_id, oem_table_id);

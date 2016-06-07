@@ -390,16 +390,6 @@ static void ipmi_bt_init(IPMIInterface *ii, Error **errp)
     memory_region_init_io(&ib->io, NULL, &ipmi_bt_io_ops, ii, "ipmi-bt", 3);
 }
 
-static void ipmi_bt_class_init(IPMIInterfaceClass *iic)
-{
-    iic->init = ipmi_bt_init;
-    iic->set_atn = ipmi_bt_set_atn;
-    iic->handle_rsp = ipmi_bt_handle_rsp;
-    iic->handle_if_event = ipmi_bt_handle_event;
-    iic->set_irq_enable = ipmi_bt_set_irq_enable;
-    iic->reset = ipmi_bt_handle_reset;
-}
-
 
 #define TYPE_ISA_IPMI_BT "isa-ipmi-bt"
 #define ISA_IPMI_BT(obj) OBJECT_CHECK(ISAIPMIBTDevice, (obj), \
@@ -409,8 +399,37 @@ typedef struct ISAIPMIBTDevice {
     ISADevice dev;
     int32_t isairq;
     IPMIBT bt;
-    IPMIFwInfo fwinfo;
+    uint32_t uuid;
 } ISAIPMIBTDevice;
+
+static void ipmi_bt_get_fwinfo(struct IPMIInterface *ii, IPMIFwInfo *info)
+{
+    ISAIPMIBTDevice *iib = ISA_IPMI_BT(ii);
+
+    info->interface_name = "bt";
+    info->interface_type = IPMI_SMBIOS_BT;
+    info->ipmi_spec_major_revision = 2;
+    info->ipmi_spec_minor_revision = 0;
+    info->base_address = iib->bt.io_base;
+    info->register_length = iib->bt.io_length;
+    info->register_spacing = 1;
+    info->memspace = IPMI_MEMSPACE_IO;
+    info->irq_type = IPMI_LEVEL_IRQ;
+    info->interrupt_number = iib->isairq;
+    info->i2c_slave_address = iib->bt.bmc->slave_addr;
+    info->uuid = iib->uuid;
+}
+
+static void ipmi_bt_class_init(IPMIInterfaceClass *iic)
+{
+    iic->init = ipmi_bt_init;
+    iic->set_atn = ipmi_bt_set_atn;
+    iic->handle_rsp = ipmi_bt_handle_rsp;
+    iic->handle_if_event = ipmi_bt_handle_event;
+    iic->set_irq_enable = ipmi_bt_set_irq_enable;
+    iic->reset = ipmi_bt_handle_reset;
+    iic->get_fwinfo = ipmi_bt_get_fwinfo;
+}
 
 static void isa_ipmi_bt_realize(DeviceState *dev, Error **errp)
 {
@@ -423,6 +442,8 @@ static void isa_ipmi_bt_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "IPMI device requires a bmc attribute to be set");
         return;
     }
+
+    iib->uuid = ipmi_next_uuid();
 
     iib->bt.bmc->intf = ii;
 
@@ -438,20 +459,6 @@ static void isa_ipmi_bt_realize(DeviceState *dev, Error **errp)
     qdev_set_legacy_instance_id(dev, iib->bt.io_base, iib->bt.io_length);
 
     isa_register_ioport(isadev, &iib->bt.io, iib->bt.io_base);
-
-    iib->fwinfo.interface_name = "bt";
-    iib->fwinfo.interface_type = IPMI_SMBIOS_BT;
-    iib->fwinfo.ipmi_spec_major_revision = 2;
-    iib->fwinfo.ipmi_spec_minor_revision = 0;
-    iib->fwinfo.base_address = iib->bt.io_base;
-    iib->fwinfo.register_length = iib->bt.io_length;
-    iib->fwinfo.register_spacing = 1;
-    iib->fwinfo.memspace = IPMI_MEMSPACE_IO;
-    iib->fwinfo.irq_type = IPMI_LEVEL_IRQ;
-    iib->fwinfo.interrupt_number = iib->isairq;
-    iib->fwinfo.acpi_parent = "\\_SB.PCI0.ISA";
-    iib->fwinfo.i2c_slave_address = iib->bt.bmc->slave_addr;
-    ipmi_add_fwinfo(&iib->fwinfo, errp);
 }
 
 static const VMStateDescription vmstate_ISAIPMIBTDevice = {
