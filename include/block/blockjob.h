@@ -397,7 +397,7 @@ int block_job_complete_sync(BlockJob *job, Error **errp);
  * @job: The job whose I/O status should be reset.
  *
  * Reset I/O status on @job and on BlockDriverState objects it uses,
- * other than job->bs.
+ * other than job->blk.
  */
 void block_job_iostatus_reset(BlockJob *job);
 

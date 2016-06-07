@@ -60,7 +60,7 @@ EOF
 
 # Sequential RMW requests on the same physical sector
 off=0x1000
-for ev in "head" "after_head" "tail" "after_tail"; do
+for ev in "head" "after_head"; do
 cat  <<EOF
 break pwritev_rmw_$ev A
 aio_write -P 10 $((off + 0x200)) 0x200
@@ -210,16 +210,6 @@ function verify_io()
     echo read -P 10 0x2200 0x200
     echo read -P 11 0x2400 0x200
     echo read -P 0  0x2600 0xa00
-
-    echo read -P 0  0x3000 0x200
-    echo read -P 10 0x3200 0x200
-    echo read -P 11 0x3400 0x200
-    echo read -P 0  0x3600 0xa00
-
-    echo read -P 0  0x4000 0x200
-    echo read -P 10 0x4200 0x200
-    echo read -P 11 0x4400 0x200
-    echo read -P 0  0x4600 0xa00
 
     # Chained dependencies
     echo read -P 10 0x5000 0x200

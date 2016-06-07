@@ -19,16 +19,6 @@ wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'A'
-wrote XXX/XXX bytes at offset XXX
-XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-wrote XXX/XXX bytes at offset XXX
-XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'A'
-wrote XXX/XXX bytes at offset XXX
-XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-wrote XXX/XXX bytes at offset XXX
-XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote XXX/XXX bytes at offset XXX
@@ -113,22 +103,6 @@ read 512/512 bytes at offset 8704
 read 512/512 bytes at offset 9216
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 2560/2560 bytes at offset 9728
-2.500 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read 512/512 bytes at offset 12288
-512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read 512/512 bytes at offset 12800
-512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read 512/512 bytes at offset 13312
-512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read 2560/2560 bytes at offset 13824
-2.500 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read 512/512 bytes at offset 16384
-512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read 512/512 bytes at offset 16896
-512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read 512/512 bytes at offset 17408
-512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read 2560/2560 bytes at offset 17920
 2.500 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 512/512 bytes at offset 20480
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)

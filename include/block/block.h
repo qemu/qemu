@@ -229,9 +229,6 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
                const uint8_t *buf, int nb_sectors);
 int bdrv_write_zeroes(BlockDriverState *bs, int64_t sector_num,
                int nb_sectors, BdrvRequestFlags flags);
-BlockAIOCB *bdrv_aio_write_zeroes(BlockDriverState *bs, int64_t sector_num,
-                                  int nb_sectors, BdrvRequestFlags flags,
-                                  BlockCompletionFunc *cb, void *opaque);
 int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags);
 int bdrv_pread(BlockDriverState *bs, int64_t offset,
                void *buf, int count);
@@ -322,27 +319,6 @@ BlockAIOCB *bdrv_aio_discard(BlockDriverState *bs,
                              BlockCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockAIOCB *acb);
 void bdrv_aio_cancel_async(BlockAIOCB *acb);
-
-typedef struct BlockRequest {
-    /* Fields to be filled by caller */
-    union {
-        struct {
-            int64_t sector;
-            int nb_sectors;
-            int flags;
-            QEMUIOVector *qiov;
-        };
-        struct {
-            int req;
-            void *buf;
-        };
-    };
-    BlockCompletionFunc *cb;
-    void *opaque;
-
-    /* Filled by block layer */
-    int error;
-} BlockRequest;
 
 /* sg packet commands */
 int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf);

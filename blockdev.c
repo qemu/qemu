@@ -3335,7 +3335,7 @@ void do_blockdev_backup(const char *device, const char *target,
                          BlockdevOnError on_target_error,
                          BlockJobTxn *txn, Error **errp)
 {
-    BlockBackend *blk, *target_blk;
+    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriverState *target_bs;
     Error *local_err = NULL;
@@ -3366,19 +3366,22 @@ void do_blockdev_backup(const char *device, const char *target,
     }
     bs = blk_bs(blk);
 
-    target_blk = blk_by_name(target);
-    if (!target_blk) {
-        error_setg(errp, "Device '%s' not found", target);
+    target_bs = bdrv_lookup_bs(target, target, errp);
+    if (!target_bs) {
         goto out;
     }
 
-    if (!blk_is_available(target_blk)) {
-        error_setg(errp, "Device '%s' has no medium", target);
-        goto out;
+    if (bdrv_get_aio_context(target_bs) != aio_context) {
+        if (!bdrv_has_blk(target_bs)) {
+            /* The target BDS is not attached, we can safely move it to another
+             * AioContext. */
+            bdrv_set_aio_context(target_bs, aio_context);
+        } else {
+            error_setg(errp, "Target is attached to a different thread from "
+                             "source.");
+            goto out;
+        }
     }
-    target_bs = blk_bs(target_blk);
-
-    bdrv_set_aio_context(target_bs, aio_context);
     backup_start(bs, target_bs, speed, sync, NULL, on_source_error,
                  on_target_error, block_job_cb, bs, txn, &local_err);
     if (local_err != NULL) {

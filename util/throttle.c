@@ -315,6 +315,14 @@ bool throttle_is_valid(ThrottleConfig *cfg, Error **errp)
         return false;
     }
 
+    if (cfg->op_size &&
+        !cfg->buckets[THROTTLE_OPS_TOTAL].avg &&
+        !cfg->buckets[THROTTLE_OPS_READ].avg &&
+        !cfg->buckets[THROTTLE_OPS_WRITE].avg) {
+        error_setg(errp, "iops size requires an iops value to be set");
+        return false;
+    }
+
     for (i = 0; i < BUCKETS_COUNT; i++) {
         if (cfg->buckets[i].avg < 0 ||
             cfg->buckets[i].max < 0 ||

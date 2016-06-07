@@ -185,7 +185,7 @@ static void virtio_scsi_save_request(QEMUFile *f, SCSIRequest *sreq)
 {
     VirtIOSCSIReq *req = sreq->hba_private;
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(req->dev);
-    uint32_t n = virtio_queue_get_id(req->vq) - 2;
+    uint32_t n = virtio_get_queue_index(req->vq) - 2;
 
     assert(n < vs->conf.num_queues);
     qemu_put_be32s(f, &n);
@@ -773,22 +773,6 @@ static void virtio_scsi_change(SCSIBus *bus, SCSIDevice *dev, SCSISense sense)
     }
 }
 
-static void virtio_scsi_blk_insert_notifier(Notifier *n, void *data)
-{
-    VirtIOSCSIBlkChangeNotifier *cn = DO_UPCAST(VirtIOSCSIBlkChangeNotifier,
-                                                n, n);
-    assert(cn->sd->conf.blk == data);
-    blk_op_block_all(cn->sd->conf.blk, cn->s->blocker);
-}
-
-static void virtio_scsi_blk_remove_notifier(Notifier *n, void *data)
-{
-    VirtIOSCSIBlkChangeNotifier *cn = DO_UPCAST(VirtIOSCSIBlkChangeNotifier,
-                                                n, n);
-    assert(cn->sd->conf.blk == data);
-    blk_op_unblock_all(cn->sd->conf.blk, cn->s->blocker);
-}
-
 static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                 Error **errp)
 {
@@ -797,29 +781,13 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     SCSIDevice *sd = SCSI_DEVICE(dev);
 
     if (s->ctx && !s->dataplane_fenced) {
-        VirtIOSCSIBlkChangeNotifier *insert_notifier, *remove_notifier;
-
         if (blk_op_is_blocked(sd->conf.blk, BLOCK_OP_TYPE_DATAPLANE, errp)) {
             return;
         }
-        blk_op_block_all(sd->conf.blk, s->blocker);
         aio_context_acquire(s->ctx);
         blk_set_aio_context(sd->conf.blk, s->ctx);
         aio_context_release(s->ctx);
 
-        insert_notifier = g_new0(VirtIOSCSIBlkChangeNotifier, 1);
-        insert_notifier->n.notify = virtio_scsi_blk_insert_notifier;
-        insert_notifier->s = s;
-        insert_notifier->sd = sd;
-        blk_add_insert_bs_notifier(sd->conf.blk, &insert_notifier->n);
-        QTAILQ_INSERT_TAIL(&s->insert_notifiers, insert_notifier, next);
-
-        remove_notifier = g_new0(VirtIOSCSIBlkChangeNotifier, 1);
-        remove_notifier->n.notify = virtio_scsi_blk_remove_notifier;
-        remove_notifier->s = s;
-        remove_notifier->sd = sd;
-        blk_add_remove_bs_notifier(sd->conf.blk, &remove_notifier->n);
-        QTAILQ_INSERT_TAIL(&s->remove_notifiers, remove_notifier, next);
     }
 
     if (virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG)) {
@@ -835,34 +803,11 @@ static void virtio_scsi_hotunplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     VirtIODevice *vdev = VIRTIO_DEVICE(hotplug_dev);
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
     SCSIDevice *sd = SCSI_DEVICE(dev);
-    VirtIOSCSIBlkChangeNotifier *insert_notifier, *remove_notifier;
 
     if (virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG)) {
         virtio_scsi_push_event(s, sd,
                                VIRTIO_SCSI_T_TRANSPORT_RESET,
                                VIRTIO_SCSI_EVT_RESET_REMOVED);
-    }
-
-    if (s->ctx) {
-        blk_op_unblock_all(sd->conf.blk, s->blocker);
-    }
-
-    QTAILQ_FOREACH(insert_notifier, &s->insert_notifiers, next) {
-        if (insert_notifier->sd == sd) {
-            notifier_remove(&insert_notifier->n);
-            QTAILQ_REMOVE(&s->insert_notifiers, insert_notifier, next);
-            g_free(insert_notifier);
-            break;
-        }
-    }
-
-    QTAILQ_FOREACH(remove_notifier, &s->remove_notifiers, next) {
-        if (remove_notifier->sd == sd) {
-            notifier_remove(&remove_notifier->n);
-            QTAILQ_REMOVE(&s->remove_notifiers, remove_notifier, next);
-            g_free(remove_notifier);
-            break;
-        }
     }
 
     qdev_simple_device_unplug_cb(hotplug_dev, dev, errp);
@@ -950,11 +895,6 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
 
     register_savevm(dev, "virtio-scsi", virtio_scsi_id++, 1,
                     virtio_scsi_save, virtio_scsi_load, s);
-
-    error_setg(&s->blocker, "block device is in use by data plane");
-
-    QTAILQ_INIT(&s->insert_notifiers);
-    QTAILQ_INIT(&s->remove_notifiers);
 }
 
 static void virtio_scsi_instance_init(Object *obj)
@@ -979,8 +919,6 @@ void virtio_scsi_common_unrealize(DeviceState *dev, Error **errp)
 static void virtio_scsi_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIOSCSI *s = VIRTIO_SCSI(dev);
-
-    error_free(s->blocker);
 
     unregister_savevm(dev, "virtio-scsi", s);
     virtio_scsi_common_unrealize(dev, errp);

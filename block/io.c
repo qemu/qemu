@@ -1427,6 +1427,14 @@ int coroutine_fn bdrv_co_pwritev(BlockDriverState *bs,
 
         bytes += offset & (align - 1);
         offset = offset & ~(align - 1);
+
+        /* We have read the tail already if the request is smaller
+         * than one aligned block.
+         */
+        if (bytes < align) {
+            qemu_iovec_add(&local_qiov, head_buf + bytes, align - bytes);
+            bytes = align;
+        }
     }
 
     if ((offset + bytes) & (align - 1)) {
@@ -1865,17 +1873,6 @@ BlockAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
                                  cb, opaque, true);
 }
 
-BlockAIOCB *bdrv_aio_write_zeroes(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, BdrvRequestFlags flags,
-        BlockCompletionFunc *cb, void *opaque)
-{
-    trace_bdrv_aio_write_zeroes(bs, sector_num, nb_sectors, flags, opaque);
-
-    return bdrv_co_aio_rw_vector(bs, sector_num, NULL, nb_sectors,
-                                 BDRV_REQ_ZERO_WRITE | flags,
-                                 cb, opaque, true);
-}
-
 void bdrv_aio_cancel(BlockAIOCB *acb)
 {
     qemu_aio_ref(acb);
@@ -1904,6 +1901,27 @@ void bdrv_aio_cancel_async(BlockAIOCB *acb)
 
 /**************************************************************/
 /* async block device emulation */
+
+typedef struct BlockRequest {
+    union {
+        /* Used during read, write, trim */
+        struct {
+            int64_t sector;
+            int nb_sectors;
+            int flags;
+            QEMUIOVector *qiov;
+        };
+        /* Used during ioctl */
+        struct {
+            int req;
+            void *buf;
+        };
+    };
+    BlockCompletionFunc *cb;
+    void *opaque;
+
+    int error;
+} BlockRequest;
 
 typedef struct BlockAIOCBCoroutine {
     BlockAIOCB common;
@@ -2309,19 +2327,6 @@ int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors)
     return rwco.ret;
 }
 
-typedef struct {
-    CoroutineIOCompletion *co;
-    QEMUBH *bh;
-} BdrvIoctlCompletionData;
-
-static void bdrv_ioctl_bh_cb(void *opaque)
-{
-    BdrvIoctlCompletionData *data = opaque;
-
-    bdrv_co_io_em_complete(data->co, -ENOTSUP);
-    qemu_bh_delete(data->bh);
-}
-
 static int bdrv_co_do_ioctl(BlockDriverState *bs, int req, void *buf)
 {
     BlockDriver *drv = bs->drv;
@@ -2339,11 +2344,8 @@ static int bdrv_co_do_ioctl(BlockDriverState *bs, int req, void *buf)
 
     acb = drv->bdrv_aio_ioctl(bs, req, buf, bdrv_co_io_em_complete, &co);
     if (!acb) {
-        BdrvIoctlCompletionData *data = g_new(BdrvIoctlCompletionData, 1);
-        data->bh = aio_bh_new(bdrv_get_aio_context(bs),
-                                bdrv_ioctl_bh_cb, data);
-        data->co = &co;
-        qemu_bh_schedule(data->bh);
+        co.ret = -ENOTSUP;
+        goto out;
     }
     qemu_coroutine_yield();
 out:
