@@ -3047,9 +3047,12 @@ static void gen_std(DisasContext *ctx)
 
     rs = rS(ctx->opcode);
     if ((ctx->opcode & 0x3) == 0x2) { /* stq */
-
         bool legal_in_user_mode = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
         bool le_is_supported = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
+
+        if (!(ctx->insns_flags & PPC_64BX)) {
+            gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+        }
 
         if (!legal_in_user_mode && ctx->pr) {
             gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
