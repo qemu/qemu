@@ -3362,8 +3362,16 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
     case OPC1_16_SBC_JEQ:
         gen_branch_condi(ctx, TCG_COND_EQ, cpu_gpr_d[15], constant, offset);
         break;
+    case OPC1_16_SBC_JEQ2:
+        gen_branch_condi(ctx, TCG_COND_EQ, cpu_gpr_d[15], constant,
+                         offset + 16);
+        break;
     case OPC1_16_SBC_JNE:
         gen_branch_condi(ctx, TCG_COND_NE, cpu_gpr_d[15], constant, offset);
+        break;
+    case OPC1_16_SBC_JNE2:
+        gen_branch_condi(ctx, TCG_COND_NE, cpu_gpr_d[15],
+                         constant, offset + 16);
         break;
 /* SBRN-format jumps */
     case OPC1_16_SBRN_JZ_T:
@@ -4096,6 +4104,16 @@ static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         address = MASK_OP_SBC_DISP4(ctx->opcode);
         const16 = MASK_OP_SBC_CONST4_SEXT(ctx->opcode);
         gen_compute_branch(ctx, op1, 0, 0, const16, address);
+        break;
+    case OPC1_16_SBC_JEQ2:
+    case OPC1_16_SBC_JNE2:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            address = MASK_OP_SBC_DISP4(ctx->opcode);
+            const16 = MASK_OP_SBC_CONST4_SEXT(ctx->opcode);
+            gen_compute_branch(ctx, op1, 0, 0, const16, address);
+        } else {
+            generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
+        }
         break;
 /* SBRN-format */
     case OPC1_16_SBRN_JNZ_T:
