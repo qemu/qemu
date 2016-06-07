@@ -1481,6 +1481,14 @@ Aml *aml_concatenate(Aml *source1, Aml *source2, Aml *target)
                                  target);
 }
 
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefObjectType */
+Aml *aml_object_type(Aml *object)
+{
+    Aml *var = aml_opcode(0x8E /* ObjectTypeOp */);
+    aml_append(var, object);
+    return var;
+}
+
 void
 build_header(BIOSLinker *linker, GArray *table_data,
              AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
