@@ -440,6 +440,14 @@ struct NvdimmFuncGetLabelSizeOut {
 typedef struct NvdimmFuncGetLabelSizeOut NvdimmFuncGetLabelSizeOut;
 QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncGetLabelSizeOut) > 4096);
 
+struct NvdimmFuncGetLabelDataIn {
+    uint32_t offset; /* the offset in the namespace label data area. */
+    uint32_t length; /* the size of data is to be read via the function. */
+} QEMU_PACKED;
+typedef struct NvdimmFuncGetLabelDataIn NvdimmFuncGetLabelDataIn;
+QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncGetLabelDataIn) +
+                  offsetof(NvdimmDsmIn, arg3) > 4096);
+
 struct NvdimmFuncGetLabelDataOut {
     /* the size of buffer filled by QEMU. */
     uint32_t len;
@@ -447,6 +455,7 @@ struct NvdimmFuncGetLabelDataOut {
     uint8_t out_buf[0]; /* the data got via Get Namesapce Label function. */
 } QEMU_PACKED;
 typedef struct NvdimmFuncGetLabelDataOut NvdimmFuncGetLabelDataOut;
+QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncGetLabelDataOut) > 4096);
 
 struct NvdimmFuncSetLabelDataIn {
     uint32_t offset; /* the offset in the namespace label data area. */
@@ -542,6 +551,71 @@ static void nvdimm_dsm_label_size(NVDIMMDevice *nvdimm, hwaddr dsm_mem_addr)
                               sizeof(label_size_out));
 }
 
+static uint32_t nvdimm_rw_label_data_check(NVDIMMDevice *nvdimm,
+                                           uint32_t offset, uint32_t length)
+{
+    uint32_t ret = 3 /* Invalid Input Parameters */;
+
+    if (offset + length < offset) {
+        nvdimm_debug("offset %#x + length %#x is overflow.\n", offset,
+                     length);
+        return ret;
+    }
+
+    if (nvdimm->label_size < offset + length) {
+        nvdimm_debug("position %#x is beyond label data (len = %" PRIx64 ").\n",
+                     offset + length, nvdimm->label_size);
+        return ret;
+    }
+
+    if (length > nvdimm_get_max_xfer_label_size()) {
+        nvdimm_debug("length (%#x) is larger than max_xfer (%#x).\n",
+                     length, nvdimm_get_max_xfer_label_size());
+        return ret;
+    }
+
+    return 0 /* Success */;
+}
+
+/*
+ * DSM Spec Rev1 4.5 Get Namespace Label Data (Function Index 5).
+ */
+static void nvdimm_dsm_get_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
+                                      hwaddr dsm_mem_addr)
+{
+    NVDIMMClass *nvc = NVDIMM_GET_CLASS(nvdimm);
+    NvdimmFuncGetLabelDataIn *get_label_data;
+    NvdimmFuncGetLabelDataOut *get_label_data_out;
+    uint32_t status;
+    int size;
+
+    get_label_data = (NvdimmFuncGetLabelDataIn *)in->arg3;
+    le32_to_cpus(&get_label_data->offset);
+    le32_to_cpus(&get_label_data->length);
+
+    nvdimm_debug("Read Label Data: offset %#x length %#x.\n",
+                 get_label_data->offset, get_label_data->length);
+
+    status = nvdimm_rw_label_data_check(nvdimm, get_label_data->offset,
+                                        get_label_data->length);
+    if (status != 0 /* Success */) {
+        nvdimm_dsm_no_payload(status, dsm_mem_addr);
+        return;
+    }
+
+    size = sizeof(*get_label_data_out) + get_label_data->length;
+    assert(size <= 4096);
+    get_label_data_out = g_malloc(size);
+
+    get_label_data_out->len = cpu_to_le32(size);
+    get_label_data_out->func_ret_status = cpu_to_le32(0 /* Success */);
+    nvc->read_label_data(nvdimm, get_label_data_out->out_buf,
+                         get_label_data->length, get_label_data->offset);
+
+    cpu_physical_memory_write(dsm_mem_addr, get_label_data_out, size);
+    g_free(get_label_data_out);
+}
+
 static void nvdimm_dsm_device(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
 {
     NVDIMMDevice *nvdimm = nvdimm_get_device_by_handle(in->handle);
@@ -554,7 +628,8 @@ static void nvdimm_dsm_device(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
             supported_func |= 0x1 /* Bit 0 indicates whether there is
                                      support for any functions other
                                      than function 0. */ |
-                              1 << 4 /* Get Namespace Label Size */;
+                              1 << 4 /* Get Namespace Label Size */ |
+                              1 << 5 /* Get Namespace Label Data */;
         }
         nvdimm_dsm_function0(supported_func, dsm_mem_addr);
         return;
@@ -571,6 +646,12 @@ static void nvdimm_dsm_device(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
     case 4 /* Get Namespace Label Size */:
         if (nvdimm->label_size) {
             nvdimm_dsm_label_size(nvdimm, dsm_mem_addr);
+            return;
+        }
+        break;
+    case 5 /* Get Namespace Label Data */:
+        if (nvdimm->label_size) {
+            nvdimm_dsm_get_label_data(nvdimm, in, dsm_mem_addr);
             return;
         }
         break;
