@@ -4351,7 +4351,10 @@ static inline void gen_op_mfspr(DisasContext *ctx)
             qemu_log("Trying to read invalid spr %d (0x%03x) at "
                      TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
         }
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_SPR);
+        /* Only generate an exception in user space, otherwise this is a nop */
+        if (ctx->pr) {
+            gen_inval_exception(ctx, POWERPC_EXCP_INVAL_SPR);
+        }
     }
 }
 
@@ -4503,7 +4506,11 @@ static void gen_mtspr(DisasContext *ctx)
         }
         fprintf(stderr, "Trying to write invalid spr %d (0x%03x) at "
                 TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_SPR);
+
+        /* Only generate an exception in user space, otherwise this is a nop */
+        if (ctx->pr) {
+            gen_inval_exception(ctx, POWERPC_EXCP_INVAL_SPR);
+        }
     }
 }
 
