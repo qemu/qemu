@@ -95,7 +95,7 @@ static inline void hreg_compute_hflags(CPUPPCState *env)
     /* We 'forget' FE0 & FE1: we'll never generate imprecise exceptions */
     hflags_mask = (1 << MSR_VR) | (1 << MSR_AP) | (1 << MSR_SA) |
         (1 << MSR_PR) | (1 << MSR_FP) | (1 << MSR_SE) | (1 << MSR_BE) |
-        (1 << MSR_LE) | (1 << MSR_VSX);
+        (1 << MSR_LE) | (1 << MSR_VSX) | (1 << MSR_IR) | (1 << MSR_DR);
     hflags_mask |= (1ULL << MSR_CM) | (1ULL << MSR_SF) | MSR_HVB;
     hreg_compute_mem_idx(env);
     env->hflags = env->msr & hflags_mask;
