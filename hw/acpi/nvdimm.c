@@ -406,6 +406,55 @@ struct NvdimmDsmFuncNoPayloadOut {
 } QEMU_PACKED;
 typedef struct NvdimmDsmFuncNoPayloadOut NvdimmDsmFuncNoPayloadOut;
 
+static void
+nvdimm_dsm_function0(uint32_t supported_func, hwaddr dsm_mem_addr)
+{
+    NvdimmDsmFunc0Out func0 = {
+        .len = cpu_to_le32(sizeof(func0)),
+        .supported_func = cpu_to_le32(supported_func),
+    };
+    cpu_physical_memory_write(dsm_mem_addr, &func0, sizeof(func0));
+}
+
+static void
+nvdimm_dsm_no_payload(uint32_t func_ret_status, hwaddr dsm_mem_addr)
+{
+    NvdimmDsmFuncNoPayloadOut out = {
+        .len = cpu_to_le32(sizeof(out)),
+        .func_ret_status = cpu_to_le32(func_ret_status),
+    };
+    cpu_physical_memory_write(dsm_mem_addr, &out, sizeof(out));
+}
+
+static void nvdimm_dsm_root(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
+{
+    /*
+     * function 0 is called to inquire which functions are supported by
+     * OSPM
+     */
+    if (!in->function) {
+        nvdimm_dsm_function0(0 /* No function supported other than
+                                  function 0 */, dsm_mem_addr);
+        return;
+    }
+
+    /* No function except function 0 is supported yet. */
+    nvdimm_dsm_no_payload(1 /* Not Supported */, dsm_mem_addr);
+}
+
+static void nvdimm_dsm_device(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
+{
+    /* See the comments in nvdimm_dsm_root(). */
+    if (!in->function) {
+        nvdimm_dsm_function0(0 /* No function supported other than
+                                  function 0 */, dsm_mem_addr);
+        return;
+    }
+
+    /* No function except function 0 is supported yet. */
+    nvdimm_dsm_no_payload(1 /* Not Supported */, dsm_mem_addr);
+}
+
 static uint64_t
 nvdimm_dsm_read(void *opaque, hwaddr addr, unsigned size)
 {
@@ -436,26 +485,15 @@ nvdimm_dsm_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     nvdimm_debug("Revision %#x Handler %#x Function %#x.\n", in->revision,
                  in->handle, in->function);
 
-    /*
-     * function 0 is called to inquire which functions are supported by
-     * OSPM
-     */
-    if (in->function == 0) {
-        NvdimmDsmFunc0Out func0 = {
-            .len = cpu_to_le32(sizeof(func0)),
-             /* No function supported other than function 0 */
-            .supported_func = cpu_to_le32(0),
-        };
-        cpu_physical_memory_write(dsm_mem_addr, &func0, sizeof func0);
-    } else {
-        /* No function except function 0 is supported yet. */
-        NvdimmDsmFuncNoPayloadOut out = {
-            .len = cpu_to_le32(sizeof(out)),
-            .func_ret_status = cpu_to_le32(1)  /* Not Supported */,
-        };
-        cpu_physical_memory_write(dsm_mem_addr, &out, sizeof(out));
+     /* Handle 0 is reserved for NVDIMM Root Device. */
+    if (!in->handle) {
+        nvdimm_dsm_root(in, dsm_mem_addr);
+        goto exit;
     }
 
+    nvdimm_dsm_device(in, dsm_mem_addr);
+
+exit:
     g_free(in);
 }
 
