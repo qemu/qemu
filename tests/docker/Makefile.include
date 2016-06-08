@@ -21,10 +21,10 @@ IMAGES ?= %
 make-archive-maybe = $(if $(wildcard $1/*), \
 	$(call quiet-command, \
 		(cd $1; if git diff-index --quiet HEAD -- &>/dev/null; then \
-			git archive -1 HEAD --format=tar.gz -o $2; \
+			git archive -1 HEAD --format=tar.gz; \
 		else \
-			git archive -1 $$(git stash create) --format=tar.gz -o $2; \
-		fi), \
+			git archive -1 $$(git stash create) --format=tar.gz; \
+		fi) > $2, \
 		"  ARCHIVE $(notdir $2)"))
 
 CUR_TIME := $(shell date +%Y-%m-%d-%H.%M.%S.$$$$)
