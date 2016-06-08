@@ -893,7 +893,8 @@ static void interface_update_area_complete(QXLInstance *sin,
     int qxl_i;
 
     qemu_mutex_lock(&qxl->ssd.lock);
-    if (surface_id != 0 || !qxl->render_update_cookie_num) {
+    if (surface_id != 0 || !num_updated_rects ||
+        !qxl->render_update_cookie_num) {
         qemu_mutex_unlock(&qxl->ssd.lock);
         return;
     }
