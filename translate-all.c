@@ -1668,6 +1668,10 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
     int i, target_code_size, max_target_code_size;
     int direct_jmp_count, direct_jmp2_count, cross_page;
     TranslationBlock *tb;
+    struct qht_stats hst;
+    uint32_t hgram_opts;
+    size_t hgram_bins;
+    char *hgram;
 
     target_code_size = 0;
     max_target_code_size = 0;
@@ -1718,6 +1722,38 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
                 direct_jmp2_count,
                 tcg_ctx.tb_ctx.nb_tbs ? (direct_jmp2_count * 100) /
                         tcg_ctx.tb_ctx.nb_tbs : 0);
+
+    qht_statistics_init(&tcg_ctx.tb_ctx.htable, &hst);
+
+    cpu_fprintf(f, "TB hash buckets     %zu/%zu (%0.2f%% head buckets used)\n",
+                hst.used_head_buckets, hst.head_buckets,
+                (double)hst.used_head_buckets / hst.head_buckets * 100);
+
+    hgram_opts =  QDIST_PR_BORDER | QDIST_PR_LABELS;
+    hgram_opts |= QDIST_PR_100X   | QDIST_PR_PERCENT;
+    if (qdist_xmax(&hst.occupancy) - qdist_xmin(&hst.occupancy) == 1) {
+        hgram_opts |= QDIST_PR_NODECIMAL;
+    }
+    hgram = qdist_pr(&hst.occupancy, 10, hgram_opts);
+    cpu_fprintf(f, "TB hash occupancy   %0.2f%% avg chain occ. Histogram: %s\n",
+                qdist_avg(&hst.occupancy) * 100, hgram);
+    g_free(hgram);
+
+    hgram_opts = QDIST_PR_BORDER | QDIST_PR_LABELS;
+    hgram_bins = qdist_xmax(&hst.chain) - qdist_xmin(&hst.chain);
+    if (hgram_bins > 10) {
+        hgram_bins = 10;
+    } else {
+        hgram_bins = 0;
+        hgram_opts |= QDIST_PR_NODECIMAL | QDIST_PR_NOBINRANGE;
+    }
+    hgram = qdist_pr(&hst.chain, hgram_bins, hgram_opts);
+    cpu_fprintf(f, "TB hash avg chain   %0.3f buckets. Histogram: %s\n",
+                qdist_avg(&hst.chain), hgram);
+    g_free(hgram);
+
+    qht_statistics_destroy(&hst);
+
     cpu_fprintf(f, "\nStatistics:\n");
     cpu_fprintf(f, "TB flush count      %d\n", tcg_ctx.tb_ctx.tb_flush_count);
     cpu_fprintf(f, "TB invalidate count %d\n",
