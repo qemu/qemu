@@ -78,16 +78,9 @@ struct vm86_saved_state {
 
 #define MAX_SIGQUEUE_SIZE 1024
 
-struct sigqueue {
-    struct sigqueue *next;
-    target_siginfo_t info;
-};
-
 struct emulated_sigtable {
     int pending; /* true if signal is pending */
-    struct sigqueue *first;
-    struct sigqueue info; /* in order to always have memory for the
-                             first signal, we put it here */
+    target_siginfo_t info;
 };
 
 /* NOTE: we force a big alignment so that the stack stored after is
@@ -123,14 +116,32 @@ typedef struct TaskState {
 #endif
     uint32_t stack_base;
     int used; /* non zero if used */
-    bool sigsegv_blocked; /* SIGSEGV blocked by guest */
     struct image_info *info;
     struct linux_binprm *bprm;
 
+    struct emulated_sigtable sync_signal;
     struct emulated_sigtable sigtab[TARGET_NSIG];
-    struct sigqueue sigqueue_table[MAX_SIGQUEUE_SIZE]; /* siginfo queue */
-    struct sigqueue *first_free; /* first free siginfo queue entry */
-    int signal_pending; /* non zero if a signal may be pending */
+    /* This thread's signal mask, as requested by the guest program.
+     * The actual signal mask of this thread may differ:
+     *  + we don't let SIGSEGV and SIGBUS be blocked while running guest code
+     *  + sometimes we block all signals to avoid races
+     */
+    sigset_t signal_mask;
+    /* The signal mask imposed by a guest sigsuspend syscall, if we are
+     * currently in the middle of such a syscall
+     */
+    sigset_t sigsuspend_mask;
+    /* Nonzero if we're leaving a sigsuspend and sigsuspend_mask is valid. */
+    int in_sigsuspend;
+
+    /* Nonzero if process_pending_signals() needs to do something (either
+     * handle a pending signal or unblock signals).
+     * This flag is written from a signal handler so should be accessed via
+     * the atomic_read() and atomic_write() functions. (It is not accessed
+     * from multiple threads.)
+     */
+    int signal_pending;
+
 } __attribute__((aligned(16))) TaskState;
 
 extern char *exec_path;
@@ -184,7 +195,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 void gemu_log(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 extern THREAD CPUState *thread_cpu;
 void cpu_loop(CPUArchState *env);
-char *target_strerror(int err);
+const char *target_strerror(int err);
 int get_osversion(void);
 void init_qemu_uname_release(void);
 void fork_start(void);
@@ -235,6 +246,12 @@ unsigned long init_guest_space(unsigned long host_start,
  * It's also OK to implement these with safe_syscall, though it will be
  * a little less efficient if a signal is delivered at the 'wrong' moment.
  *
+ * Some non-interruptible syscalls need to be handled using block_signals()
+ * to block signals for the duration of the syscall. This mainly applies
+ * to code which needs to modify the data structures used by the
+ * host_signal_handler() function and the functions it calls, including
+ * all syscalls which change the thread's signal mask.
+ *
  * (2) Interruptible syscalls
  *
  * These are guest syscalls that can be interrupted by signals and
@@ -265,6 +282,8 @@ unsigned long init_guest_space(unsigned long host_start,
  * You must be able to cope with backing out correctly if some safe_syscall
  * you make in the implementation returns either -TARGET_ERESTARTSYS or
  * EINTR though.)
+ *
+ * block_signals() cannot be used for interruptible syscalls.
  *
  *
  * How and why the safe_syscall implementation works:
@@ -352,6 +371,25 @@ long do_sigreturn(CPUArchState *env);
 long do_rt_sigreturn(CPUArchState *env);
 abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp);
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+/**
+ * block_signals: block all signals while handling this guest syscall
+ *
+ * Block all signals, and arrange that the signal mask is returned to
+ * its correct value for the guest before we resume execution of guest code.
+ * If this function returns non-zero, then the caller should immediately
+ * return -TARGET_ERESTARTSYS to the main loop, which will take the pending
+ * signal and restart execution of the syscall.
+ * If block_signals() returns zero, then the caller can continue with
+ * emulation of the system call knowing that no signals can be taken
+ * (and therefore that no race conditions will result).
+ * This should only be called once, because if it is called a second time
+ * it will always return non-zero. (Think of it like a mutex that can't
+ * be recursively locked.)
+ * Signals will be unblocked again by process_pending_signals().
+ *
+ * Return value: non-zero if there was a pending signal, zero if not.
+ */
+int block_signals(void); /* Returns non zero if signal pending */
 
 #ifdef TARGET_I386
 /* vm86.c */

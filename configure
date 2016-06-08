@@ -3800,8 +3800,8 @@ if compile_prog "" "" ; then
   epoll=yes
 fi
 
-# epoll_create1 and epoll_pwait are later additions
-# so we must check separately for their presence
+# epoll_create1 is a later addition
+# so we must check separately for its presence
 epoll_create1=no
 cat > $TMPC << EOF
 #include <sys/epoll.h>
@@ -3821,20 +3821,6 @@ int main(void)
 EOF
 if compile_prog "" "" ; then
   epoll_create1=yes
-fi
-
-epoll_pwait=no
-cat > $TMPC << EOF
-#include <sys/epoll.h>
-
-int main(void)
-{
-    epoll_pwait(0, 0, 0, 0, 0);
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-  epoll_pwait=yes
 fi
 
 # check for sendfile support
@@ -4528,6 +4514,19 @@ if compile_prog "" "" ; then
     have_fsxattr=yes
 fi
 
+##########################################
+# check if rtnetlink.h exists and is useful
+have_rtnetlink=no
+cat > $TMPC << EOF
+#include <linux/rtnetlink.h>
+int main(void) {
+  return IFLA_PROTO_DOWN;
+}
+EOF
+if compile_prog "" "" ; then
+    have_rtnetlink=yes
+fi
+
 #################################################
 # Sparc implicitly links with --relax, which is
 # incompatible with -r, so --no-relax should be
@@ -5135,9 +5134,6 @@ fi
 if test "$epoll_create1" = "yes" ; then
   echo "CONFIG_EPOLL_CREATE1=y" >> $config_host_mak
 fi
-if test "$epoll_pwait" = "yes" ; then
-  echo "CONFIG_EPOLL_PWAIT=y" >> $config_host_mak
-fi
 if test "$sendfile" = "yes" ; then
   echo "CONFIG_SENDFILE=y" >> $config_host_mak
 fi
@@ -5480,6 +5476,10 @@ echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
 
 if test "$rdma" = "yes" ; then
   echo "CONFIG_RDMA=y" >> $config_host_mak
+fi
+
+if test "$have_rtnetlink" = "yes" ; then
+  echo "CONFIG_RTNETLINK=y" >> $config_host_mak
 fi
 
 # Hold two types of flag:

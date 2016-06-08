@@ -17,6 +17,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "qemu/bitops.h"
 #include <sys/ucontext.h>
 #include <sys/resource.h>
 
@@ -190,54 +191,83 @@ void target_to_host_old_sigset(sigset_t *sigset,
     target_to_host_sigset(sigset, &d);
 }
 
+int block_signals(void)
+{
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    sigset_t set;
+    int pending;
+
+    /* It's OK to block everything including SIGSEGV, because we won't
+     * run any further guest code before unblocking signals in
+     * process_pending_signals().
+     */
+    sigfillset(&set);
+    sigprocmask(SIG_SETMASK, &set, 0);
+
+    pending = atomic_xchg(&ts->signal_pending, 1);
+
+    return pending;
+}
+
 /* Wrapper for sigprocmask function
  * Emulates a sigprocmask in a safe way for the guest. Note that set and oldset
- * are host signal set, not guest ones. This wraps the sigprocmask host calls
- * that should be protected (calls originated from guest)
+ * are host signal set, not guest ones. Returns -TARGET_ERESTARTSYS if
+ * a signal was already pending and the syscall must be restarted, or
+ * 0 on success.
+ * If set is NULL, this is guaranteed not to fail.
  */
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
 {
-    int ret;
-    sigset_t val;
-    sigset_t *temp = NULL;
-    CPUState *cpu = thread_cpu;
-    TaskState *ts = (TaskState *)cpu->opaque;
-    bool segv_was_blocked = ts->sigsegv_blocked;
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+
+    if (oldset) {
+        *oldset = ts->signal_mask;
+    }
 
     if (set) {
-        bool has_sigsegv = sigismember(set, SIGSEGV);
-        val = *set;
-        temp = &val;
+        int i;
 
-        sigdelset(temp, SIGSEGV);
+        if (block_signals()) {
+            return -TARGET_ERESTARTSYS;
+        }
 
         switch (how) {
         case SIG_BLOCK:
-            if (has_sigsegv) {
-                ts->sigsegv_blocked = true;
-            }
+            sigorset(&ts->signal_mask, &ts->signal_mask, set);
             break;
         case SIG_UNBLOCK:
-            if (has_sigsegv) {
-                ts->sigsegv_blocked = false;
+            for (i = 1; i <= NSIG; ++i) {
+                if (sigismember(set, i)) {
+                    sigdelset(&ts->signal_mask, i);
+                }
             }
             break;
         case SIG_SETMASK:
-            ts->sigsegv_blocked = has_sigsegv;
+            ts->signal_mask = *set;
             break;
         default:
             g_assert_not_reached();
         }
+
+        /* Silently ignore attempts to change blocking status of KILL or STOP */
+        sigdelset(&ts->signal_mask, SIGKILL);
+        sigdelset(&ts->signal_mask, SIGSTOP);
     }
-
-    ret = sigprocmask(how, temp, oldset);
-
-    if (oldset && segv_was_blocked) {
-        sigaddset(oldset, SIGSEGV);
-    }
-
-    return ret;
+    return 0;
 }
+
+#if !defined(TARGET_OPENRISC) && !defined(TARGET_UNICORE32) && \
+    !defined(TARGET_X86_64)
+/* Just set the guest's signal mask to the specified value; the
+ * caller is assumed to have called block_signals() already.
+ */
+static void set_sigmask(const sigset_t *set)
+{
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+
+    ts->signal_mask = *set;
+}
+#endif
 
 /* siginfo conversion */
 
@@ -245,69 +275,128 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
                                                  const siginfo_t *info)
 {
     int sig = host_to_target_signal(info->si_signo);
+    int si_code = info->si_code;
+    int si_type;
     tinfo->si_signo = sig;
     tinfo->si_errno = 0;
     tinfo->si_code = info->si_code;
 
-    if (sig == TARGET_SIGILL || sig == TARGET_SIGFPE || sig == TARGET_SIGSEGV
-            || sig == TARGET_SIGBUS || sig == TARGET_SIGTRAP) {
-        /* Should never come here, but who knows. The information for
-           the target is irrelevant.  */
-        tinfo->_sifields._sigfault._addr = 0;
-    } else if (sig == TARGET_SIGIO) {
-        tinfo->_sifields._sigpoll._band = info->si_band;
-        tinfo->_sifields._sigpoll._fd = info->si_fd;
-    } else if (sig == TARGET_SIGCHLD) {
-        tinfo->_sifields._sigchld._pid = info->si_pid;
-        tinfo->_sifields._sigchld._uid = info->si_uid;
-        tinfo->_sifields._sigchld._status
+    /* This is awkward, because we have to use a combination of
+     * the si_code and si_signo to figure out which of the union's
+     * members are valid. (Within the host kernel it is always possible
+     * to tell, but the kernel carefully avoids giving userspace the
+     * high 16 bits of si_code, so we don't have the information to
+     * do this the easy way...) We therefore make our best guess,
+     * bearing in mind that a guest can spoof most of the si_codes
+     * via rt_sigqueueinfo() if it likes.
+     *
+     * Once we have made our guess, we record it in the top 16 bits of
+     * the si_code, so that tswap_siginfo() later can use it.
+     * tswap_siginfo() will strip these top bits out before writing
+     * si_code to the guest (sign-extending the lower bits).
+     */
+
+    switch (si_code) {
+    case SI_USER:
+    case SI_TKILL:
+    case SI_KERNEL:
+        /* Sent via kill(), tkill() or tgkill(), or direct from the kernel.
+         * These are the only unspoofable si_code values.
+         */
+        tinfo->_sifields._kill._pid = info->si_pid;
+        tinfo->_sifields._kill._uid = info->si_uid;
+        si_type = QEMU_SI_KILL;
+        break;
+    default:
+        /* Everything else is spoofable. Make best guess based on signal */
+        switch (sig) {
+        case TARGET_SIGCHLD:
+            tinfo->_sifields._sigchld._pid = info->si_pid;
+            tinfo->_sifields._sigchld._uid = info->si_uid;
+            tinfo->_sifields._sigchld._status
                 = host_to_target_waitstatus(info->si_status);
-        tinfo->_sifields._sigchld._utime = info->si_utime;
-        tinfo->_sifields._sigchld._stime = info->si_stime;
-    } else if (sig >= TARGET_SIGRTMIN) {
-        tinfo->_sifields._rt._pid = info->si_pid;
-        tinfo->_sifields._rt._uid = info->si_uid;
-        /* XXX: potential problem if 64 bit */
-        tinfo->_sifields._rt._sigval.sival_ptr
+            tinfo->_sifields._sigchld._utime = info->si_utime;
+            tinfo->_sifields._sigchld._stime = info->si_stime;
+            si_type = QEMU_SI_CHLD;
+            break;
+        case TARGET_SIGIO:
+            tinfo->_sifields._sigpoll._band = info->si_band;
+            tinfo->_sifields._sigpoll._fd = info->si_fd;
+            si_type = QEMU_SI_POLL;
+            break;
+        default:
+            /* Assume a sigqueue()/mq_notify()/rt_sigqueueinfo() source. */
+            tinfo->_sifields._rt._pid = info->si_pid;
+            tinfo->_sifields._rt._uid = info->si_uid;
+            /* XXX: potential problem if 64 bit */
+            tinfo->_sifields._rt._sigval.sival_ptr
                 = (abi_ulong)(unsigned long)info->si_value.sival_ptr;
+            si_type = QEMU_SI_RT;
+            break;
+        }
+        break;
     }
+
+    tinfo->si_code = deposit32(si_code, 16, 16, si_type);
 }
 
 static void tswap_siginfo(target_siginfo_t *tinfo,
                           const target_siginfo_t *info)
 {
-    int sig = info->si_signo;
-    tinfo->si_signo = tswap32(sig);
-    tinfo->si_errno = tswap32(info->si_errno);
-    tinfo->si_code = tswap32(info->si_code);
+    int si_type = extract32(info->si_code, 16, 16);
+    int si_code = sextract32(info->si_code, 0, 16);
 
-    if (sig == TARGET_SIGILL || sig == TARGET_SIGFPE || sig == TARGET_SIGSEGV
-        || sig == TARGET_SIGBUS || sig == TARGET_SIGTRAP) {
-        tinfo->_sifields._sigfault._addr
-            = tswapal(info->_sifields._sigfault._addr);
-    } else if (sig == TARGET_SIGIO) {
-        tinfo->_sifields._sigpoll._band
-            = tswap32(info->_sifields._sigpoll._band);
-        tinfo->_sifields._sigpoll._fd = tswap32(info->_sifields._sigpoll._fd);
-    } else if (sig == TARGET_SIGCHLD) {
-        tinfo->_sifields._sigchld._pid
-            = tswap32(info->_sifields._sigchld._pid);
-        tinfo->_sifields._sigchld._uid
-            = tswap32(info->_sifields._sigchld._uid);
-        tinfo->_sifields._sigchld._status
-            = tswap32(info->_sifields._sigchld._status);
-        tinfo->_sifields._sigchld._utime
-            = tswapal(info->_sifields._sigchld._utime);
-        tinfo->_sifields._sigchld._stime
-            = tswapal(info->_sifields._sigchld._stime);
-    } else if (sig >= TARGET_SIGRTMIN) {
-        tinfo->_sifields._rt._pid = tswap32(info->_sifields._rt._pid);
-        tinfo->_sifields._rt._uid = tswap32(info->_sifields._rt._uid);
-        tinfo->_sifields._rt._sigval.sival_ptr
-            = tswapal(info->_sifields._rt._sigval.sival_ptr);
+    __put_user(info->si_signo, &tinfo->si_signo);
+    __put_user(info->si_errno, &tinfo->si_errno);
+    __put_user(si_code, &tinfo->si_code);
+
+    /* We can use our internal marker of which fields in the structure
+     * are valid, rather than duplicating the guesswork of
+     * host_to_target_siginfo_noswap() here.
+     */
+    switch (si_type) {
+    case QEMU_SI_KILL:
+        __put_user(info->_sifields._kill._pid, &tinfo->_sifields._kill._pid);
+        __put_user(info->_sifields._kill._uid, &tinfo->_sifields._kill._uid);
+        break;
+    case QEMU_SI_TIMER:
+        __put_user(info->_sifields._timer._timer1,
+                   &tinfo->_sifields._timer._timer1);
+        __put_user(info->_sifields._timer._timer2,
+                   &tinfo->_sifields._timer._timer2);
+        break;
+    case QEMU_SI_POLL:
+        __put_user(info->_sifields._sigpoll._band,
+                   &tinfo->_sifields._sigpoll._band);
+        __put_user(info->_sifields._sigpoll._fd,
+                   &tinfo->_sifields._sigpoll._fd);
+        break;
+    case QEMU_SI_FAULT:
+        __put_user(info->_sifields._sigfault._addr,
+                   &tinfo->_sifields._sigfault._addr);
+        break;
+    case QEMU_SI_CHLD:
+        __put_user(info->_sifields._sigchld._pid,
+                   &tinfo->_sifields._sigchld._pid);
+        __put_user(info->_sifields._sigchld._uid,
+                   &tinfo->_sifields._sigchld._uid);
+        __put_user(info->_sifields._sigchld._status,
+                   &tinfo->_sifields._sigchld._status);
+        __put_user(info->_sifields._sigchld._utime,
+                   &tinfo->_sifields._sigchld._utime);
+        __put_user(info->_sifields._sigchld._stime,
+                   &tinfo->_sifields._sigchld._stime);
+        break;
+    case QEMU_SI_RT:
+        __put_user(info->_sifields._rt._pid, &tinfo->_sifields._rt._pid);
+        __put_user(info->_sifields._rt._uid, &tinfo->_sifields._rt._uid);
+        __put_user(info->_sifields._rt._sigval.sival_ptr,
+                   &tinfo->_sifields._rt._sigval.sival_ptr);
+        break;
+    default:
+        g_assert_not_reached();
     }
 }
-
 
 void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info)
 {
@@ -319,13 +408,18 @@ void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info)
 /* XXX: find a solution for 64 bit (additional malloced data is needed) */
 void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo)
 {
-    info->si_signo = tswap32(tinfo->si_signo);
-    info->si_errno = tswap32(tinfo->si_errno);
-    info->si_code = tswap32(tinfo->si_code);
-    info->si_pid = tswap32(tinfo->_sifields._rt._pid);
-    info->si_uid = tswap32(tinfo->_sifields._rt._uid);
-    info->si_value.sival_ptr =
-            (void *)(long)tswapal(tinfo->_sifields._rt._sigval.sival_ptr);
+    /* This conversion is used only for the rt_sigqueueinfo syscall,
+     * and so we know that the _rt fields are the valid ones.
+     */
+    abi_ulong sival_ptr;
+
+    __get_user(info->si_signo, &tinfo->si_signo);
+    __get_user(info->si_errno, &tinfo->si_errno);
+    __get_user(info->si_code, &tinfo->si_code);
+    __get_user(info->si_pid, &tinfo->_sifields._rt._pid);
+    __get_user(info->si_uid, &tinfo->_sifields._rt._uid);
+    __get_user(sival_ptr, &tinfo->_sifields._rt._sigval.sival_ptr);
+    info->si_value.sival_ptr = (void *)(long)sival_ptr;
 }
 
 static int fatal_signal (int sig)
@@ -367,6 +461,7 @@ static int core_dump_signal(int sig)
 
 void signal_init(void)
 {
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
     struct sigaction act;
     struct sigaction oact;
     int i, j;
@@ -381,6 +476,9 @@ void signal_init(void)
         j = host_to_target_signal_table[i];
         target_to_host_signal_table[j] = i;
     }
+
+    /* Set the signal mask from the host mask. */
+    sigprocmask(0, 0, &ts->signal_mask);
 
     /* set all host signal handlers. ALL signals are blocked during
        the handlers to serialize them. */
@@ -408,27 +506,6 @@ void signal_init(void)
     }
 }
 
-/* signal queue handling */
-
-static inline struct sigqueue *alloc_sigqueue(CPUArchState *env)
-{
-    CPUState *cpu = ENV_GET_CPU(env);
-    TaskState *ts = cpu->opaque;
-    struct sigqueue *q = ts->first_free;
-    if (!q)
-        return NULL;
-    ts->first_free = q->next;
-    return q;
-}
-
-static inline void free_sigqueue(CPUArchState *env, struct sigqueue *q)
-{
-    CPUState *cpu = ENV_GET_CPU(env);
-    TaskState *ts = cpu->opaque;
-
-    q->next = ts->first_free;
-    ts->first_free = q;
-}
 
 /* abort execution with signal */
 static void QEMU_NORETURN force_sig(int target_sig)
@@ -490,75 +567,21 @@ int queue_signal(CPUArchState *env, int sig, target_siginfo_t *info)
 {
     CPUState *cpu = ENV_GET_CPU(env);
     TaskState *ts = cpu->opaque;
-    struct emulated_sigtable *k;
-    struct sigqueue *q, **pq;
-    abi_ulong handler;
-    int queue;
 
     trace_user_queue_signal(env, sig);
-    k = &ts->sigtab[sig - 1];
-    queue = gdb_queuesig ();
-    handler = sigact_table[sig - 1]._sa_handler;
 
-    if (ts->sigsegv_blocked && sig == TARGET_SIGSEGV) {
-        /* Guest has blocked SIGSEGV but we got one anyway. Assume this
-         * is a forced SIGSEGV (ie one the kernel handles via force_sig_info
-         * because it got a real MMU fault). A blocked SIGSEGV in that
-         * situation is treated as if using the default handler. This is
-         * not correct if some other process has randomly sent us a SIGSEGV
-         * via kill(), but that is not easy to distinguish at this point,
-         * so we assume it doesn't happen.
-         */
-        handler = TARGET_SIG_DFL;
-    }
+    /* Currently all callers define siginfo structures which
+     * use the _sifields._sigfault union member, so we can
+     * set the type here. If that changes we should push this
+     * out so the si_type is passed in by callers.
+     */
+    info->si_code = deposit32(info->si_code, 16, 16, QEMU_SI_FAULT);
 
-    if (!queue && handler == TARGET_SIG_DFL) {
-        if (sig == TARGET_SIGTSTP || sig == TARGET_SIGTTIN || sig == TARGET_SIGTTOU) {
-            kill(getpid(),SIGSTOP);
-            return 0;
-        } else
-        /* default handler : ignore some signal. The other are fatal */
-        if (sig != TARGET_SIGCHLD &&
-            sig != TARGET_SIGURG &&
-            sig != TARGET_SIGWINCH &&
-            sig != TARGET_SIGCONT) {
-            force_sig(sig);
-        } else {
-            return 0; /* indicate ignored */
-        }
-    } else if (!queue && handler == TARGET_SIG_IGN) {
-        /* ignore signal */
-        return 0;
-    } else if (!queue && handler == TARGET_SIG_ERR) {
-        force_sig(sig);
-    } else {
-        pq = &k->first;
-        if (sig < TARGET_SIGRTMIN) {
-            /* if non real time signal, we queue exactly one signal */
-            if (!k->pending)
-                q = &k->info;
-            else
-                return 0;
-        } else {
-            if (!k->pending) {
-                /* first signal */
-                q = &k->info;
-            } else {
-                q = alloc_sigqueue(env);
-                if (!q)
-                    return -EAGAIN;
-                while (*pq != NULL)
-                    pq = &(*pq)->next;
-            }
-        }
-        *pq = q;
-        q->info = *info;
-        q->next = NULL;
-        k->pending = 1;
-        /* signal that a new signal is pending */
-        ts->signal_pending = 1;
-        return 1; /* indicates that the signal was queued */
-    }
+    ts->sync_signal.info = *info;
+    ts->sync_signal.pending = sig;
+    /* signal that a new signal is pending */
+    atomic_set(&ts->signal_pending, 1);
+    return 1; /* indicates that the signal was queued */
 }
 
 #ifndef HAVE_SAFE_SYSCALL
@@ -572,8 +595,13 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
                                 void *puc)
 {
     CPUArchState *env = thread_cpu->env_ptr;
+    CPUState *cpu = ENV_GET_CPU(env);
+    TaskState *ts = cpu->opaque;
+
     int sig;
     target_siginfo_t tinfo;
+    ucontext_t *uc = puc;
+    struct emulated_sigtable *k;
 
     /* the CPU emulator uses some host signals to detect exceptions,
        we forward to it some signals */
@@ -592,10 +620,23 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     rewind_if_in_safe_syscall(puc);
 
     host_to_target_siginfo_noswap(&tinfo, info);
-    if (queue_signal(env, sig, &tinfo) == 1) {
-        /* interrupt the virtual CPU as soon as possible */
-        cpu_exit(thread_cpu);
-    }
+    k = &ts->sigtab[sig - 1];
+    k->info = tinfo;
+    k->pending = sig;
+    ts->signal_pending = 1;
+
+    /* Block host signals until target signal handler entered. We
+     * can't block SIGSEGV or SIGBUS while we're executing guest
+     * code in case the guest code provokes one in the window between
+     * now and it getting out to the main loop. Signals will be
+     * unblocked again in process_pending_signals().
+     */
+    sigfillset(&uc->uc_sigmask);
+    sigdelset(&uc->uc_sigmask, SIGSEGV);
+    sigdelset(&uc->uc_sigmask, SIGBUS);
+
+    /* interrupt the virtual CPU as soon as possible */
+    cpu_exit(thread_cpu);
 }
 
 /* do_sigaltstack() returns target values and errnos. */
@@ -671,7 +712,7 @@ out:
     return ret;
 }
 
-/* do_sigaction() return host values and errnos */
+/* do_sigaction() return target values and host errnos */
 int do_sigaction(int sig, const struct target_sigaction *act,
                  struct target_sigaction *oact)
 {
@@ -680,8 +721,14 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     int host_sig;
     int ret = 0;
 
-    if (sig < 1 || sig > TARGET_NSIG || sig == TARGET_SIGKILL || sig == TARGET_SIGSTOP)
-        return -EINVAL;
+    if (sig < 1 || sig > TARGET_NSIG || sig == TARGET_SIGKILL || sig == TARGET_SIGSTOP) {
+        return -TARGET_EINVAL;
+    }
+
+    if (block_signals()) {
+        return -TARGET_ERESTARTSYS;
+    }
+
     k = &sigact_table[sig - 1];
     if (oact) {
         __put_user(k->_sa_handler, &oact->_sa_handler);
@@ -1093,7 +1140,7 @@ long do_sigreturn(CPUX86State *env)
     }
 
     target_to_host_sigset_internal(&set, &target_set);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     /* restore registers */
     if (restore_sigcontext(env, &frame->sc))
@@ -1118,7 +1165,7 @@ long do_rt_sigreturn(CPUX86State *env)
     if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1))
         goto badframe;
     target_to_host_sigset(&set, &frame->uc.tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     if (restore_sigcontext(env, &frame->uc.tuc_mcontext)) {
         goto badframe;
@@ -1258,7 +1305,7 @@ static int target_restore_sigframe(CPUARMState *env,
     uint64_t pstate;
 
     target_to_host_sigset(&set, &sf->uc.tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     for (i = 0; i < 31; i++) {
         __get_user(env->xregs[i], &sf->uc.tuc_mcontext.regs[i]);
@@ -1900,7 +1947,7 @@ static long do_sigreturn_v1(CPUARMState *env)
     }
 
     target_to_host_sigset_internal(&host_set, &set);
-    do_sigprocmask(SIG_SETMASK, &host_set, NULL);
+    set_sigmask(&host_set);
 
     if (restore_sigcontext(env, &frame->sc)) {
         goto badframe;
@@ -1981,7 +2028,7 @@ static int do_sigframe_return_v2(CPUARMState *env, target_ulong frame_addr,
     abi_ulong *regspace;
 
     target_to_host_sigset(&host_set, &uc->tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &host_set, NULL);
+    set_sigmask(&host_set);
 
     if (restore_sigcontext(env, &uc->tuc_mcontext))
         return 1;
@@ -2077,7 +2124,7 @@ static long do_rt_sigreturn_v1(CPUARMState *env)
     }
 
     target_to_host_sigset(&host_set, &frame->uc.tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &host_set, NULL);
+    set_sigmask(&host_set);
 
     if (restore_sigcontext(env, &frame->uc.tuc_mcontext)) {
         goto badframe;
@@ -2453,7 +2500,7 @@ long do_sigreturn(CPUSPARCState *env)
     }
 
     target_to_host_sigset_internal(&host_set, &set);
-    do_sigprocmask(SIG_SETMASK, &host_set, NULL);
+    set_sigmask(&host_set);
 
     if (err) {
         goto segv_and_exit;
@@ -2576,7 +2623,7 @@ void sparc64_set_context(CPUSPARCState *env)
             }
         }
         target_to_host_sigset_internal(&set, &target_set);
-        do_sigprocmask(SIG_SETMASK, &set, NULL);
+        set_sigmask(&set);
     }
     env->pc = pc;
     env->npc = npc;
@@ -2664,9 +2711,13 @@ void sparc64_get_context(CPUSPARCState *env)
     env->pc = env->npc;
     env->npc += 4;
 
-    err = 0;
-
-    do_sigprocmask(0, NULL, &set);
+    /* If we're only reading the signal mask then do_sigprocmask()
+     * is guaranteed not to fail, which is important because we don't
+     * have any way to signal a failure or restart this operation since
+     * this is not a normal syscall.
+     */
+    err = do_sigprocmask(0, NULL, &set);
+    assert(err == 0);
     host_to_target_sigset_internal(&target_set, &set);
     if (TARGET_NSIG_WORDS == 1) {
         __put_user(target_set.sig[0],
@@ -2993,7 +3044,7 @@ long do_sigreturn(CPUMIPSState *regs)
     }
 
     target_to_host_sigset_internal(&blocked, &target_set);
-    do_sigprocmask(SIG_SETMASK, &blocked, NULL);
+    set_sigmask(&blocked);
 
     restore_sigcontext(regs, &frame->sf_sc);
 
@@ -3097,7 +3148,7 @@ long do_rt_sigreturn(CPUMIPSState *env)
     }
 
     target_to_host_sigset(&blocked, &frame->rs_uc.tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &blocked, NULL);
+    set_sigmask(&blocked);
 
     restore_sigcontext(env, &frame->rs_uc.tuc_mcontext);
 
@@ -3371,7 +3422,7 @@ long do_sigreturn(CPUSH4State *regs)
         goto badframe;
 
     target_to_host_sigset_internal(&blocked, &target_set);
-    do_sigprocmask(SIG_SETMASK, &blocked, NULL);
+    set_sigmask(&blocked);
 
     restore_sigcontext(regs, &frame->sc);
 
@@ -3397,7 +3448,7 @@ long do_rt_sigreturn(CPUSH4State *regs)
     }
 
     target_to_host_sigset(&blocked, &frame->uc.tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &blocked, NULL);
+    set_sigmask(&blocked);
 
     restore_sigcontext(regs, &frame->uc.tuc_mcontext);
 
@@ -3621,7 +3672,7 @@ long do_sigreturn(CPUMBState *env)
         __get_user(target_set.sig[i], &frame->extramask[i - 1]);
     }
     target_to_host_sigset_internal(&set, &target_set);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     restore_sigcontext(&frame->uc.tuc_mcontext, env);
     /* We got here through a sigreturn syscall, our path back is via an
@@ -3792,7 +3843,7 @@ long do_sigreturn(CPUCRISState *env)
         __get_user(target_set.sig[i], &frame->extramask[i - 1]);
     }
     target_to_host_sigset_internal(&set, &target_set);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     restore_sigcontext(&frame->sc, env);
     unlock_user_struct(frame, frame_addr, 0);
@@ -4284,7 +4335,7 @@ long do_sigreturn(CPUS390XState *env)
     __get_user(target_set.sig[0], &frame->sc.oldmask[0]);
 
     target_to_host_sigset_internal(&set, &target_set);
-    do_sigprocmask(SIG_SETMASK, &set, NULL); /* ~_BLOCKABLE? */
+    set_sigmask(&set); /* ~_BLOCKABLE? */
 
     if (restore_sigregs(env, &frame->sregs)) {
         goto badframe;
@@ -4310,7 +4361,7 @@ long do_rt_sigreturn(CPUS390XState *env)
     }
     target_to_host_sigset(&set, &frame->uc.tuc_sigmask);
 
-    do_sigprocmask(SIG_SETMASK, &set, NULL); /* ~_BLOCKABLE? */
+    set_sigmask(&set); /* ~_BLOCKABLE? */
 
     if (restore_sigregs(env, &frame->uc.tuc_mcontext)) {
         goto badframe;
@@ -4872,7 +4923,7 @@ long do_sigreturn(CPUPPCState *env)
     __get_user(set.sig[1], &sc->_unused[3]);
 #endif
     target_to_host_sigset_internal(&blocked, &set);
-    do_sigprocmask(SIG_SETMASK, &blocked, NULL);
+    set_sigmask(&blocked);
 
     __get_user(sr_addr, &sc->regs);
     if (!lock_user_struct(VERIFY_READ, sr, sr_addr, 1))
@@ -4913,7 +4964,7 @@ static int do_setcontext(struct target_ucontext *ucp, CPUPPCState *env, int sig)
         return 1;
 
     target_to_host_sigset_internal(&blocked, &set);
-    do_sigprocmask(SIG_SETMASK, &blocked, NULL);
+    set_sigmask(&blocked);
     restore_user_regs(env, mcp, sig);
 
     unlock_user_struct(mcp, mcp_addr, 1);
@@ -5261,7 +5312,7 @@ long do_sigreturn(CPUM68KState *env)
     }
 
     target_to_host_sigset_internal(&set, &target_set);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     /* restore registers */
 
@@ -5287,7 +5338,7 @@ long do_rt_sigreturn(CPUM68KState *env)
         goto badframe;
 
     target_to_host_sigset_internal(&set, &target_set);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     /* restore registers */
 
@@ -5530,7 +5581,7 @@ long do_sigreturn(CPUAlphaState *env)
     __get_user(target_set.sig[0], &sc->sc_mask);
 
     target_to_host_sigset_internal(&set, &target_set);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     restore_sigcontext(env, sc);
     unlock_user_struct(sc, sc_addr, 0);
@@ -5551,7 +5602,7 @@ long do_rt_sigreturn(CPUAlphaState *env)
         goto badframe;
     }
     target_to_host_sigset(&set, &frame->uc.tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     restore_sigcontext(env, &frame->uc.tuc_mcontext);
     if (do_sigaltstack(frame_addr + offsetof(struct target_rt_sigframe,
@@ -5718,7 +5769,7 @@ long do_rt_sigreturn(CPUTLGState *env)
         goto badframe;
     }
     target_to_host_sigset(&set, &frame->uc.tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     restore_sigcontext(env, &frame->uc.tuc_mcontext);
     if (do_sigaltstack(frame_addr + offsetof(struct target_rt_sigframe,
@@ -5765,39 +5816,19 @@ long do_rt_sigreturn(CPUArchState *env)
 
 #endif
 
-void process_pending_signals(CPUArchState *cpu_env)
+static void handle_pending_signal(CPUArchState *cpu_env, int sig)
 {
     CPUState *cpu = ENV_GET_CPU(cpu_env);
-    int sig;
     abi_ulong handler;
-    sigset_t set, old_set;
+    sigset_t set;
     target_sigset_t target_old_set;
-    struct emulated_sigtable *k;
     struct target_sigaction *sa;
-    struct sigqueue *q;
     TaskState *ts = cpu->opaque;
+    struct emulated_sigtable *k = &ts->sigtab[sig - 1];
 
-    if (!ts->signal_pending)
-        return;
-
-    /* FIXME: This is not threadsafe.  */
-    k = ts->sigtab;
-    for(sig = 1; sig <= TARGET_NSIG; sig++) {
-        if (k->pending)
-            goto handle_signal;
-        k++;
-    }
-    /* if no signal is pending, just return */
-    ts->signal_pending = 0;
-    return;
-
- handle_signal:
     trace_user_handle_signal(cpu_env, sig);
     /* dequeue signal */
-    q = k->first;
-    k->first = q->next;
-    if (!k->first)
-        k->pending = 0;
+    k->pending = 0;
 
     sig = gdb_handlesig(cpu, sig);
     if (!sig) {
@@ -5806,14 +5837,6 @@ void process_pending_signals(CPUArchState *cpu_env)
     } else {
         sa = &sigact_table[sig - 1];
         handler = sa->_sa_handler;
-    }
-
-    if (ts->sigsegv_blocked && sig == TARGET_SIGSEGV) {
-        /* Guest has blocked SIGSEGV but we got one anyway. Assume this
-         * is a forced SIGSEGV (ie one the kernel handles via force_sig_info
-         * because it got a real MMU fault), and treat as if default handler.
-         */
-        handler = TARGET_SIG_DFL;
     }
 
     if (handler == TARGET_SIG_DFL) {
@@ -5832,17 +5855,23 @@ void process_pending_signals(CPUArchState *cpu_env)
         force_sig(sig);
     } else {
         /* compute the blocked signals during the handler execution */
+        sigset_t *blocked_set;
+
         target_to_host_sigset(&set, &sa->sa_mask);
         /* SA_NODEFER indicates that the current signal should not be
            blocked during the handler */
         if (!(sa->sa_flags & TARGET_SA_NODEFER))
             sigaddset(&set, target_to_host_signal(sig));
 
-        /* block signals in the handler using Linux */
-        do_sigprocmask(SIG_BLOCK, &set, &old_set);
         /* save the previous blocked signal state to restore it at the
            end of the signal execution (see do_sigreturn) */
-        host_to_target_sigset_internal(&target_old_set, &old_set);
+        host_to_target_sigset_internal(&target_old_set, &ts->signal_mask);
+
+        /* block signals in the handler */
+        blocked_set = ts->in_sigsuspend ?
+            &ts->sigsuspend_mask : &ts->signal_mask;
+        sigorset(&ts->signal_mask, blocked_set, &set);
+        ts->in_sigsuspend = 0;
 
         /* if the CPU is in VM86 mode, we restore the 32 bit values */
 #if defined(TARGET_I386) && !defined(TARGET_X86_64)
@@ -5856,16 +5885,74 @@ void process_pending_signals(CPUArchState *cpu_env)
 #if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64) \
     || defined(TARGET_OPENRISC) || defined(TARGET_TILEGX)
         /* These targets do not have traditional signals.  */
-        setup_rt_frame(sig, sa, &q->info, &target_old_set, cpu_env);
+        setup_rt_frame(sig, sa, &k->info, &target_old_set, cpu_env);
 #else
         if (sa->sa_flags & TARGET_SA_SIGINFO)
-            setup_rt_frame(sig, sa, &q->info, &target_old_set, cpu_env);
+            setup_rt_frame(sig, sa, &k->info, &target_old_set, cpu_env);
         else
             setup_frame(sig, sa, &target_old_set, cpu_env);
 #endif
-	if (sa->sa_flags & TARGET_SA_RESETHAND)
+        if (sa->sa_flags & TARGET_SA_RESETHAND) {
             sa->_sa_handler = TARGET_SIG_DFL;
+        }
     }
-    if (q != &k->info)
-        free_sigqueue(cpu_env, q);
+}
+
+void process_pending_signals(CPUArchState *cpu_env)
+{
+    CPUState *cpu = ENV_GET_CPU(cpu_env);
+    int sig;
+    TaskState *ts = cpu->opaque;
+    sigset_t set;
+    sigset_t *blocked_set;
+
+    while (atomic_read(&ts->signal_pending)) {
+        /* FIXME: This is not threadsafe.  */
+        sigfillset(&set);
+        sigprocmask(SIG_SETMASK, &set, 0);
+
+        sig = ts->sync_signal.pending;
+        if (sig) {
+            /* Synchronous signals are forced,
+             * see force_sig_info() and callers in Linux
+             * Note that not all of our queue_signal() calls in QEMU correspond
+             * to force_sig_info() calls in Linux (some are send_sig_info()).
+             * However it seems like a kernel bug to me to allow the process
+             * to block a synchronous signal since it could then just end up
+             * looping round and round indefinitely.
+             */
+            if (sigismember(&ts->signal_mask, target_to_host_signal_table[sig])
+                || sigact_table[sig - 1]._sa_handler == TARGET_SIG_IGN) {
+                sigdelset(&ts->signal_mask, target_to_host_signal_table[sig]);
+                sigact_table[sig - 1]._sa_handler = TARGET_SIG_DFL;
+            }
+
+            handle_pending_signal(cpu_env, sig);
+        }
+
+        for (sig = 1; sig <= TARGET_NSIG; sig++) {
+            blocked_set = ts->in_sigsuspend ?
+                &ts->sigsuspend_mask : &ts->signal_mask;
+
+            if (ts->sigtab[sig - 1].pending &&
+                (!sigismember(blocked_set,
+                              target_to_host_signal_table[sig]))) {
+                handle_pending_signal(cpu_env, sig);
+                /* Restart scan from the beginning */
+                sig = 1;
+            }
+        }
+
+        /* if no signal is pending, unblock signals and recheck (the act
+         * of unblocking might cause us to take another host signal which
+         * will set signal_pending again).
+         */
+        atomic_set(&ts->signal_pending, 0);
+        ts->in_sigsuspend = 0;
+        set = ts->signal_mask;
+        sigdelset(&set, SIGSEGV);
+        sigdelset(&set, SIGBUS);
+        sigprocmask(SIG_SETMASK, &set, 0);
+    }
+    ts->in_sigsuspend = 0;
 }

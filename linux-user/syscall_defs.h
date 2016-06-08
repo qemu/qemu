@@ -673,6 +673,21 @@ typedef struct {
 
 #define TARGET_SI_PAD_SIZE ((TARGET_SI_MAX_SIZE - TARGET_SI_PREAMBLE_SIZE) / sizeof(int))
 
+/* Within QEMU the top 16 bits of si_code indicate which of the parts of
+ * the union in target_siginfo is valid. This only applies between
+ * host_to_target_siginfo_noswap() and tswap_siginfo(); it does not
+ * appear either within host siginfo_t or in target_siginfo structures
+ * which we get from the guest userspace program. (The Linux kernel
+ * does a similar thing with using the top bits for its own internal
+ * purposes but not letting them be visible to userspace.)
+ */
+#define QEMU_SI_KILL 0
+#define QEMU_SI_TIMER 1
+#define QEMU_SI_POLL 2
+#define QEMU_SI_FAULT 3
+#define QEMU_SI_CHLD 4
+#define QEMU_SI_RT 5
+
 typedef struct target_siginfo {
 #ifdef TARGET_MIPS
 	int si_signo;
@@ -2274,34 +2289,34 @@ struct target_statfs64 {
 #endif
 
 struct target_flock {
-	short l_type;
-	short l_whence;
-	abi_ulong l_start;
-	abi_ulong l_len;
-	int l_pid;
+    short l_type;
+    short l_whence;
+    abi_long l_start;
+    abi_long l_len;
+    int l_pid;
 };
 
 struct target_flock64 {
-	short  l_type;
-	short  l_whence;
+    short  l_type;
+    short  l_whence;
 #if defined(TARGET_PPC) || defined(TARGET_X86_64) || defined(TARGET_MIPS) \
     || defined(TARGET_SPARC) || defined(TARGET_HPPA) \
     || defined(TARGET_MICROBLAZE) || defined(TARGET_TILEGX)
-        int __pad;
+    int __pad;
 #endif
-	unsigned long long l_start;
-	unsigned long long l_len;
-	int  l_pid;
+    abi_llong l_start;
+    abi_llong l_len;
+    int  l_pid;
 } QEMU_PACKED;
 
 #ifdef TARGET_ARM
 struct target_eabi_flock64 {
-	short  l_type;
-	short  l_whence;
-        int __pad;
-	unsigned long long l_start;
-	unsigned long long l_len;
-	int  l_pid;
+    short  l_type;
+    short  l_whence;
+    int __pad;
+    abi_llong l_start;
+    abi_llong l_len;
+    int  l_pid;
 } QEMU_PACKED;
 #endif
 
