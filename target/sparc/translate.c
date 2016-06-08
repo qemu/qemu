@@ -3468,7 +3468,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 rs1 = GET_FIELD(insn, 13, 17);
                 switch (rs1) {
                 case 0: // hpstate
-                    // gen_op_rdhpstate();
+                    tcg_gen_ld_i64(cpu_dst, cpu_env,
+                                   offsetof(CPUSPARCState, hpstate));
                     break;
                 case 1: // htstate
                     // gen_op_rdhtstate();
@@ -4592,7 +4593,9 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                             tcg_gen_xor_tl(cpu_tmp0, cpu_src1, cpu_src2);
                             switch (rd) {
                             case 0: // hpstate
-                                // XXX gen_op_wrhpstate();
+                                tcg_gen_st_i64(cpu_tmp0, cpu_env,
+                                               offsetof(CPUSPARCState,
+                                                        hpstate));
                                 save_state(dc);
                                 gen_op_next_insn();
                                 tcg_gen_exit_tb(0);
