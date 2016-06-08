@@ -1193,7 +1193,7 @@ static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
 
-    bs->bl.write_zeroes_alignment = s->cluster_sectors;
+    bs->bl.pwrite_zeroes_alignment = s->cluster_size;
 }
 
 static int qcow2_set_key(BlockDriverState *bs, const char *key)
@@ -2406,65 +2406,55 @@ finish:
 }
 
 
-static bool is_zero_cluster(BlockDriverState *bs, int64_t start)
+static bool is_zero_sectors(BlockDriverState *bs, int64_t start,
+                            uint32_t count)
 {
-    BDRVQcow2State *s = bs->opaque;
     int nr;
     BlockDriverState *file;
-    int64_t res = bdrv_get_block_status_above(bs, NULL, start,
-                                              s->cluster_sectors, &nr, &file);
-    return res >= 0 && (res & BDRV_BLOCK_ZERO) && nr == s->cluster_sectors;
+    int64_t res;
+
+    if (!count) {
+        return true;
+    }
+    res = bdrv_get_block_status_above(bs, NULL, start, count,
+                                      &nr, &file);
+    return res >= 0 && (res & BDRV_BLOCK_ZERO) && nr == count;
 }
 
-static bool is_zero_cluster_top_locked(BlockDriverState *bs, int64_t start)
-{
-    BDRVQcow2State *s = bs->opaque;
-    int nr = s->cluster_sectors;
-    uint64_t off;
-    int ret;
-
-    ret = qcow2_get_cluster_offset(bs, start << BDRV_SECTOR_BITS, &nr, &off);
-    assert(nr == s->cluster_sectors);
-    return ret == QCOW2_CLUSTER_UNALLOCATED || ret == QCOW2_CLUSTER_ZERO;
-}
-
-static coroutine_fn int qcow2_co_write_zeroes(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors, BdrvRequestFlags flags)
+static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
+    int64_t offset, int count, BdrvRequestFlags flags)
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;
 
-    int head = sector_num % s->cluster_sectors;
-    int tail = (sector_num + nb_sectors) % s->cluster_sectors;
+    uint32_t head = offset % s->cluster_size;
+    uint32_t tail = (offset + count) % s->cluster_size;
 
-    if (head != 0 || tail != 0) {
-        int64_t cl_end = -1;
+    trace_qcow2_pwrite_zeroes_start_req(qemu_coroutine_self(), offset, count);
 
-        sector_num -= head;
-        nb_sectors += head;
+    if (head || tail) {
+        int64_t cl_start = (offset - head) >> BDRV_SECTOR_BITS;
+        uint64_t off;
+        int nr;
 
-        if (tail != 0) {
-            nb_sectors += s->cluster_sectors - tail;
-        }
+        assert(head + count <= s->cluster_size);
 
-        if (!is_zero_cluster(bs, sector_num)) {
+        /* check whether remainder of cluster already reads as zero */
+        if (!(is_zero_sectors(bs, cl_start,
+                              DIV_ROUND_UP(head, BDRV_SECTOR_SIZE)) &&
+              is_zero_sectors(bs, (offset + count) >> BDRV_SECTOR_BITS,
+                              DIV_ROUND_UP(-tail & (s->cluster_size - 1),
+                                           BDRV_SECTOR_SIZE)))) {
             return -ENOTSUP;
-        }
-
-        if (nb_sectors > s->cluster_sectors) {
-            /* Technically the request can cover 2 clusters, f.e. 4k write
-               at s->cluster_sectors - 2k offset. One of these cluster can
-               be zeroed, one unallocated */
-            cl_end = sector_num + nb_sectors - s->cluster_sectors;
-            if (!is_zero_cluster(bs, cl_end)) {
-                return -ENOTSUP;
-            }
         }
 
         qemu_co_mutex_lock(&s->lock);
         /* We can have new write after previous check */
-        if (!is_zero_cluster_top_locked(bs, sector_num) ||
-                (cl_end > 0 && !is_zero_cluster_top_locked(bs, cl_end))) {
+        offset = cl_start << BDRV_SECTOR_BITS;
+        count = s->cluster_size;
+        nr = s->cluster_sectors;
+        ret = qcow2_get_cluster_offset(bs, offset, &nr, &off);
+        if (ret != QCOW2_CLUSTER_UNALLOCATED && ret != QCOW2_CLUSTER_ZERO) {
             qemu_co_mutex_unlock(&s->lock);
             return -ENOTSUP;
         }
@@ -2472,8 +2462,10 @@ static coroutine_fn int qcow2_co_write_zeroes(BlockDriverState *bs,
         qemu_co_mutex_lock(&s->lock);
     }
 
+    trace_qcow2_pwrite_zeroes(qemu_coroutine_self(), offset, count);
+
     /* Whatever is left can use real zero clusters */
-    ret = qcow2_zero_clusters(bs, sector_num << BDRV_SECTOR_BITS, nb_sectors);
+    ret = qcow2_zero_clusters(bs, offset, count >> BDRV_SECTOR_BITS);
     qemu_co_mutex_unlock(&s->lock);
 
     return ret;
@@ -2664,8 +2656,8 @@ static int make_completely_empty(BlockDriverState *bs)
     /* After this call, neither the in-memory nor the on-disk refcount
      * information accurately describe the actual references */
 
-    ret = bdrv_write_zeroes(bs->file->bs, s->l1_table_offset / BDRV_SECTOR_SIZE,
-                            l1_clusters * s->cluster_sectors, 0);
+    ret = bdrv_pwrite_zeroes(bs->file->bs, s->l1_table_offset,
+                             l1_clusters * s->cluster_size, 0);
     if (ret < 0) {
         goto fail_broken_refcounts;
     }
@@ -2678,9 +2670,8 @@ static int make_completely_empty(BlockDriverState *bs)
      * overwrite parts of the existing refcount and L1 table, which is not
      * an issue because the dirty flag is set, complete data loss is in fact
      * desired and partial data loss is consequently fine as well */
-    ret = bdrv_write_zeroes(bs->file->bs, s->cluster_size / BDRV_SECTOR_SIZE,
-                            (2 + l1_clusters) * s->cluster_size /
-                            BDRV_SECTOR_SIZE, 0);
+    ret = bdrv_pwrite_zeroes(bs->file->bs, s->cluster_size,
+                             (2 + l1_clusters) * s->cluster_size, 0);
     /* This call (even if it failed overall) may have overwritten on-disk
      * refcount structures; in that case, the in-memory refcount information
      * will probably differ from the on-disk information which makes the BDS
@@ -2822,14 +2813,14 @@ static coroutine_fn int qcow2_co_flush_to_os(BlockDriverState *bs)
     int ret;
 
     qemu_co_mutex_lock(&s->lock);
-    ret = qcow2_cache_flush(bs, s->l2_table_cache);
+    ret = qcow2_cache_write(bs, s->l2_table_cache);
     if (ret < 0) {
         qemu_co_mutex_unlock(&s->lock);
         return ret;
     }
 
     if (qcow2_need_accurate_refcounts(s)) {
-        ret = qcow2_cache_flush(bs, s->refcount_block_cache);
+        ret = qcow2_cache_write(bs, s->refcount_block_cache);
         if (ret < 0) {
             qemu_co_mutex_unlock(&s->lock);
             return ret;
@@ -3381,7 +3372,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_co_writev         = qcow2_co_writev,
     .bdrv_co_flush_to_os    = qcow2_co_flush_to_os,
 
-    .bdrv_co_write_zeroes   = qcow2_co_write_zeroes,
+    .bdrv_co_pwrite_zeroes  = qcow2_co_pwrite_zeroes,
     .bdrv_co_discard        = qcow2_co_discard,
     .bdrv_truncate          = qcow2_truncate,
     .bdrv_write_compressed  = qcow2_write_compressed,

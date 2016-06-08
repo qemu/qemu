@@ -74,6 +74,43 @@ read 3072/3072 bytes at offset 40960
 { "start": 40960, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 24576},
 { "start": 45056, "length": 134172672, "depth": 1, "zero": true, "data": false}]
 
+== write_zeroes covers non-zero data ==
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
+wrote 1024/1024 bytes at offset 5120
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 5120
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 4096/4096 bytes at offset 4096
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1024/1024 bytes at offset 14336
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 13312
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 4096/4096 bytes at offset 12288
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 21504
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 21504
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 4096/4096 bytes at offset 20480
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1024/1024 bytes at offset 30208
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 29696
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 4096/4096 bytes at offset 28672
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[{ "start": 0, "length": 4096, "depth": 1, "zero": true, "data": false},
+{ "start": 4096, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 8192, "length": 4096, "depth": 1, "zero": true, "data": false},
+{ "start": 12288, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 16384, "length": 4096, "depth": 1, "zero": true, "data": false},
+{ "start": 20480, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 24576, "length": 4096, "depth": 1, "zero": true, "data": false},
+{ "start": 28672, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 32768, "length": 134184960, "depth": 1, "zero": true, "data": false}]
+
 == spanning two clusters, non-zero before request ==
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
@@ -106,11 +143,14 @@ read 1024/1024 bytes at offset 67584
 read 5120/5120 bytes at offset 68608
 5 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 [{ "start": 0, "length": 32768, "depth": 1, "zero": true, "data": false},
-{ "start": 32768, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 20480},
+{ "start": 32768, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 20480},
+{ "start": 36864, "length": 4096, "depth": 0, "zero": true, "data": false},
 { "start": 40960, "length": 8192, "depth": 1, "zero": true, "data": false},
-{ "start": 49152, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 28672},
+{ "start": 49152, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 24576},
+{ "start": 53248, "length": 4096, "depth": 0, "zero": true, "data": false},
 { "start": 57344, "length": 8192, "depth": 1, "zero": true, "data": false},
-{ "start": 65536, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 36864},
+{ "start": 65536, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 28672},
+{ "start": 69632, "length": 4096, "depth": 0, "zero": true, "data": false},
 { "start": 73728, "length": 134144000, "depth": 1, "zero": true, "data": false}]
 
 == spanning two clusters, non-zero after request ==
@@ -145,11 +185,14 @@ read 7168/7168 bytes at offset 65536
 read 1024/1024 bytes at offset 72704
 1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 [{ "start": 0, "length": 32768, "depth": 1, "zero": true, "data": false},
-{ "start": 32768, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 20480},
+{ "start": 32768, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 36864, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 20480},
 { "start": 40960, "length": 8192, "depth": 1, "zero": true, "data": false},
-{ "start": 49152, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 28672},
+{ "start": 49152, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 53248, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 24576},
 { "start": 57344, "length": 8192, "depth": 1, "zero": true, "data": false},
-{ "start": 65536, "length": 8192, "depth": 0, "zero": false, "data": true, "offset": 36864},
+{ "start": 65536, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 69632, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": 28672},
 { "start": 73728, "length": 134144000, "depth": 1, "zero": true, "data": false}]
 
 == spanning two clusters, partially overwriting backing file ==

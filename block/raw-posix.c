@@ -729,9 +729,33 @@ static void raw_reopen_abort(BDRVReopenState *state)
     state->opaque = NULL;
 }
 
+static int hdev_get_max_transfer_length(int fd)
+{
+#ifdef BLKSECTGET
+    int max_sectors = 0;
+    if (ioctl(fd, BLKSECTGET, &max_sectors) == 0) {
+        return max_sectors;
+    } else {
+        return -errno;
+    }
+#else
+    return -ENOSYS;
+#endif
+}
+
 static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
+    struct stat st;
+
+    if (!fstat(s->fd, &st)) {
+        if (S_ISBLK(st.st_mode)) {
+            int ret = hdev_get_max_transfer_length(s->fd);
+            if (ret >= 0) {
+                bs->bl.max_transfer_length = ret;
+            }
+        }
+    }
 
     raw_probe_alignment(bs, s->fd, errp);
     bs->bl.min_mem_alignment = s->buf_align;
@@ -1252,8 +1276,8 @@ static int aio_worker(void *arg)
 }
 
 static int paio_submit_co(BlockDriverState *bs, int fd,
-        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        int type)
+                          int64_t offset, QEMUIOVector *qiov,
+                          int count, int type)
 {
     RawPosixAIOData *acb = g_new(RawPosixAIOData, 1);
     ThreadPool *pool;
@@ -1262,16 +1286,16 @@ static int paio_submit_co(BlockDriverState *bs, int fd,
     acb->aio_type = type;
     acb->aio_fildes = fd;
 
-    acb->aio_nbytes = nb_sectors * BDRV_SECTOR_SIZE;
-    acb->aio_offset = sector_num * BDRV_SECTOR_SIZE;
+    acb->aio_nbytes = count;
+    acb->aio_offset = offset;
 
     if (qiov) {
         acb->aio_iov = qiov->iov;
         acb->aio_niov = qiov->niov;
-        assert(qiov->size == acb->aio_nbytes);
+        assert(qiov->size == count);
     }
 
-    trace_paio_submit_co(sector_num, nb_sectors, type);
+    trace_paio_submit_co(offset, count, type);
     pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
     return thread_pool_submit_co(pool, aio_worker, acb);
 }
@@ -1868,17 +1892,17 @@ static coroutine_fn BlockAIOCB *raw_aio_discard(BlockDriverState *bs,
                        cb, opaque, QEMU_AIO_DISCARD);
 }
 
-static int coroutine_fn raw_co_write_zeroes(
-    BlockDriverState *bs, int64_t sector_num,
-    int nb_sectors, BdrvRequestFlags flags)
+static int coroutine_fn raw_co_pwrite_zeroes(
+    BlockDriverState *bs, int64_t offset,
+    int count, BdrvRequestFlags flags)
 {
     BDRVRawState *s = bs->opaque;
 
     if (!(flags & BDRV_REQ_MAY_UNMAP)) {
-        return paio_submit_co(bs, s->fd, sector_num, NULL, nb_sectors,
+        return paio_submit_co(bs, s->fd, offset, NULL, count,
                               QEMU_AIO_WRITE_ZEROES);
     } else if (s->discard_zeroes) {
-        return paio_submit_co(bs, s->fd, sector_num, NULL, nb_sectors,
+        return paio_submit_co(bs, s->fd, offset, NULL, count,
                               QEMU_AIO_DISCARD);
     }
     return -ENOTSUP;
@@ -1931,7 +1955,7 @@ BlockDriver bdrv_file = {
     .bdrv_create = raw_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_get_block_status = raw_co_get_block_status,
-    .bdrv_co_write_zeroes = raw_co_write_zeroes,
+    .bdrv_co_pwrite_zeroes = raw_co_pwrite_zeroes,
 
     .bdrv_aio_readv = raw_aio_readv,
     .bdrv_aio_writev = raw_aio_writev,
@@ -2293,8 +2317,8 @@ static coroutine_fn BlockAIOCB *hdev_aio_discard(BlockDriverState *bs,
                        cb, opaque, QEMU_AIO_DISCARD|QEMU_AIO_BLKDEV);
 }
 
-static coroutine_fn int hdev_co_write_zeroes(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors, BdrvRequestFlags flags)
+static coroutine_fn int hdev_co_pwrite_zeroes(BlockDriverState *bs,
+    int64_t offset, int count, BdrvRequestFlags flags)
 {
     BDRVRawState *s = bs->opaque;
     int rc;
@@ -2304,10 +2328,10 @@ static coroutine_fn int hdev_co_write_zeroes(BlockDriverState *bs,
         return rc;
     }
     if (!(flags & BDRV_REQ_MAY_UNMAP)) {
-        return paio_submit_co(bs, s->fd, sector_num, NULL, nb_sectors,
+        return paio_submit_co(bs, s->fd, offset, NULL, count,
                               QEMU_AIO_WRITE_ZEROES|QEMU_AIO_BLKDEV);
     } else if (s->discard_zeroes) {
-        return paio_submit_co(bs, s->fd, sector_num, NULL, nb_sectors,
+        return paio_submit_co(bs, s->fd, offset, NULL, count,
                               QEMU_AIO_DISCARD|QEMU_AIO_BLKDEV);
     }
     return -ENOTSUP;
@@ -2379,7 +2403,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_reopen_abort   = raw_reopen_abort,
     .bdrv_create         = hdev_create,
     .create_opts         = &raw_create_opts,
-    .bdrv_co_write_zeroes = hdev_co_write_zeroes,
+    .bdrv_co_pwrite_zeroes = hdev_co_pwrite_zeroes,
 
     .bdrv_aio_readv	= raw_aio_readv,
     .bdrv_aio_writev	= raw_aio_writev,

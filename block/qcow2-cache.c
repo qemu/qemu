@@ -226,7 +226,7 @@ static int qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
     return 0;
 }
 
-int qcow2_cache_flush(BlockDriverState *bs, Qcow2Cache *c)
+int qcow2_cache_write(BlockDriverState *bs, Qcow2Cache *c)
 {
     BDRVQcow2State *s = bs->opaque;
     int result = 0;
@@ -242,8 +242,15 @@ int qcow2_cache_flush(BlockDriverState *bs, Qcow2Cache *c)
         }
     }
 
+    return result;
+}
+
+int qcow2_cache_flush(BlockDriverState *bs, Qcow2Cache *c)
+{
+    int result = qcow2_cache_write(bs, c);
+
     if (result == 0) {
-        ret = bdrv_flush(bs->file->bs);
+        int ret = bdrv_flush(bs->file->bs);
         if (ret < 0) {
             result = ret;
         }

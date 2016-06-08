@@ -210,7 +210,9 @@ static int64_t allocate_clusters(BlockDriverState *bs, int64_t sector_num,
         int ret;
         space += s->prealloc_size;
         if (s->prealloc_mode == PRL_PREALLOC_MODE_FALLOCATE) {
-            ret = bdrv_write_zeroes(bs->file->bs, s->data_end, space, 0);
+            ret = bdrv_pwrite_zeroes(bs->file->bs,
+                                     s->data_end << BDRV_SECTOR_BITS,
+                                     space << BDRV_SECTOR_BITS, 0);
         } else {
             ret = bdrv_truncate(bs->file->bs,
                                 (s->data_end + space) << BDRV_SECTOR_BITS);

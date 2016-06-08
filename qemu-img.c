@@ -54,6 +54,9 @@ enum {
     OPTION_BACKING_CHAIN = 257,
     OPTION_OBJECT = 258,
     OPTION_IMAGE_OPTS = 259,
+    OPTION_PATTERN = 260,
+    OPTION_FLUSH_INTERVAL = 261,
+    OPTION_NO_DRAIN = 262,
 };
 
 typedef enum OutputFormat {
@@ -3459,6 +3462,332 @@ out_no_progress:
     }
     return 0;
 }
+
+typedef struct BenchData {
+    BlockBackend *blk;
+    uint64_t image_size;
+    bool write;
+    int bufsize;
+    int step;
+    int nrreq;
+    int n;
+    int flush_interval;
+    bool drain_on_flush;
+    uint8_t *buf;
+    QEMUIOVector *qiov;
+
+    int in_flight;
+    bool in_flush;
+    uint64_t offset;
+} BenchData;
+
+static void bench_undrained_flush_cb(void *opaque, int ret)
+{
+    if (ret < 0) {
+        error_report("Failed flush request: %s\n", strerror(-ret));
+        exit(EXIT_FAILURE);
+    }
+}
+
+static void bench_cb(void *opaque, int ret)
+{
+    BenchData *b = opaque;
+    BlockAIOCB *acb;
+
+    if (ret < 0) {
+        error_report("Failed request: %s\n", strerror(-ret));
+        exit(EXIT_FAILURE);
+    }
+
+    if (b->in_flush) {
+        /* Just finished a flush with drained queue: Start next requests */
+        assert(b->in_flight == 0);
+        b->in_flush = false;
+    } else if (b->in_flight > 0) {
+        int remaining = b->n - b->in_flight;
+
+        b->n--;
+        b->in_flight--;
+
+        /* Time for flush? Drain queue if requested, then flush */
+        if (b->flush_interval && remaining % b->flush_interval == 0) {
+            if (!b->in_flight || !b->drain_on_flush) {
+                BlockCompletionFunc *cb;
+
+                if (b->drain_on_flush) {
+                    b->in_flush = true;
+                    cb = bench_cb;
+                } else {
+                    cb = bench_undrained_flush_cb;
+                }
+
+                acb = blk_aio_flush(b->blk, cb, b);
+                if (!acb) {
+                    error_report("Failed to issue flush request");
+                    exit(EXIT_FAILURE);
+                }
+            }
+            if (b->drain_on_flush) {
+                return;
+            }
+        }
+    }
+
+    while (b->n > b->in_flight && b->in_flight < b->nrreq) {
+        if (b->write) {
+            acb = blk_aio_pwritev(b->blk, b->offset, b->qiov, 0,
+                                  bench_cb, b);
+        } else {
+            acb = blk_aio_preadv(b->blk, b->offset, b->qiov, 0,
+                                 bench_cb, b);
+        }
+        if (!acb) {
+            error_report("Failed to issue request");
+            exit(EXIT_FAILURE);
+        }
+        b->in_flight++;
+        b->offset += b->step;
+        b->offset %= b->image_size;
+    }
+}
+
+static int img_bench(int argc, char **argv)
+{
+    int c, ret = 0;
+    const char *fmt = NULL, *filename;
+    bool quiet = false;
+    bool image_opts = false;
+    bool is_write = false;
+    int count = 75000;
+    int depth = 64;
+    int64_t offset = 0;
+    size_t bufsize = 4096;
+    int pattern = 0;
+    size_t step = 0;
+    int flush_interval = 0;
+    bool drain_on_flush = true;
+    int64_t image_size;
+    BlockBackend *blk = NULL;
+    BenchData data = {};
+    int flags = 0;
+    bool writethrough;
+    struct timeval t1, t2;
+    int i;
+
+    for (;;) {
+        static const struct option long_options[] = {
+            {"help", no_argument, 0, 'h'},
+            {"flush-interval", required_argument, 0, OPTION_FLUSH_INTERVAL},
+            {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"pattern", required_argument, 0, OPTION_PATTERN},
+            {"no-drain", no_argument, 0, OPTION_NO_DRAIN},
+            {0, 0, 0, 0}
+        };
+        c = getopt_long(argc, argv, "hc:d:f:no:qs:S:t:w", long_options, NULL);
+        if (c == -1) {
+            break;
+        }
+
+        switch (c) {
+        case 'h':
+        case '?':
+            help();
+            break;
+        case 'c':
+        {
+            char *end;
+            errno = 0;
+            count = strtoul(optarg, &end, 0);
+            if (errno || *end || count > INT_MAX) {
+                error_report("Invalid request count specified");
+                return 1;
+            }
+            break;
+        }
+        case 'd':
+        {
+            char *end;
+            errno = 0;
+            depth = strtoul(optarg, &end, 0);
+            if (errno || *end || depth > INT_MAX) {
+                error_report("Invalid queue depth specified");
+                return 1;
+            }
+            break;
+        }
+        case 'f':
+            fmt = optarg;
+            break;
+        case 'n':
+            flags |= BDRV_O_NATIVE_AIO;
+            break;
+        case 'o':
+        {
+            char *end;
+            errno = 0;
+            offset = qemu_strtosz_suffix(optarg, &end,
+                                         QEMU_STRTOSZ_DEFSUFFIX_B);
+            if (offset < 0|| *end) {
+                error_report("Invalid offset specified");
+                return 1;
+            }
+            break;
+        }
+            break;
+        case 'q':
+            quiet = true;
+            break;
+        case 's':
+        {
+            int64_t sval;
+            char *end;
+
+            sval = qemu_strtosz_suffix(optarg, &end, QEMU_STRTOSZ_DEFSUFFIX_B);
+            if (sval < 0 || sval > INT_MAX || *end) {
+                error_report("Invalid buffer size specified");
+                return 1;
+            }
+
+            bufsize = sval;
+            break;
+        }
+        case 'S':
+        {
+            int64_t sval;
+            char *end;
+
+            sval = qemu_strtosz_suffix(optarg, &end, QEMU_STRTOSZ_DEFSUFFIX_B);
+            if (sval < 0 || sval > INT_MAX || *end) {
+                error_report("Invalid step size specified");
+                return 1;
+            }
+
+            step = sval;
+            break;
+        }
+        case 't':
+            ret = bdrv_parse_cache_mode(optarg, &flags, &writethrough);
+            if (ret < 0) {
+                error_report("Invalid cache mode");
+                ret = -1;
+                goto out;
+            }
+            break;
+        case 'w':
+            flags |= BDRV_O_RDWR;
+            is_write = true;
+            break;
+        case OPTION_PATTERN:
+        {
+            char *end;
+            errno = 0;
+            pattern = strtoul(optarg, &end, 0);
+            if (errno || *end || pattern > 0xff) {
+                error_report("Invalid pattern byte specified");
+                return 1;
+            }
+            break;
+        }
+        case OPTION_FLUSH_INTERVAL:
+        {
+            char *end;
+            errno = 0;
+            flush_interval = strtoul(optarg, &end, 0);
+            if (errno || *end || flush_interval > INT_MAX) {
+                error_report("Invalid flush interval specified");
+                return 1;
+            }
+            break;
+        }
+        case OPTION_NO_DRAIN:
+            drain_on_flush = false;
+            break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        }
+    }
+
+    if (optind != argc - 1) {
+        error_exit("Expecting one image file name");
+    }
+    filename = argv[argc - 1];
+
+    if (!is_write && flush_interval) {
+        error_report("--flush-interval is only available in write tests");
+        ret = -1;
+        goto out;
+    }
+    if (flush_interval && flush_interval < depth) {
+        error_report("Flush interval can't be smaller than depth");
+        ret = -1;
+        goto out;
+    }
+
+    blk = img_open(image_opts, filename, fmt, flags, writethrough, quiet);
+    if (!blk) {
+        ret = -1;
+        goto out;
+    }
+
+    image_size = blk_getlength(blk);
+    if (image_size < 0) {
+        ret = image_size;
+        goto out;
+    }
+
+    data = (BenchData) {
+        .blk            = blk,
+        .image_size     = image_size,
+        .bufsize        = bufsize,
+        .step           = step ?: bufsize,
+        .nrreq          = depth,
+        .n              = count,
+        .offset         = offset,
+        .write          = is_write,
+        .flush_interval = flush_interval,
+        .drain_on_flush = drain_on_flush,
+    };
+    printf("Sending %d %s requests, %d bytes each, %d in parallel "
+           "(starting at offset %" PRId64 ", step size %d)\n",
+           data.n, data.write ? "write" : "read", data.bufsize, data.nrreq,
+           data.offset, data.step);
+    if (flush_interval) {
+        printf("Sending flush every %d requests\n", flush_interval);
+    }
+
+    data.buf = blk_blockalign(blk, data.nrreq * data.bufsize);
+    memset(data.buf, pattern, data.nrreq * data.bufsize);
+
+    data.qiov = g_new(QEMUIOVector, data.nrreq);
+    for (i = 0; i < data.nrreq; i++) {
+        qemu_iovec_init(&data.qiov[i], 1);
+        qemu_iovec_add(&data.qiov[i],
+                       data.buf + i * data.bufsize, data.bufsize);
+    }
+
+    gettimeofday(&t1, NULL);
+    bench_cb(&data, 0);
+
+    while (data.n > 0) {
+        main_loop_wait(false);
+    }
+    gettimeofday(&t2, NULL);
+
+    printf("Run completed in %3.3f seconds.\n",
+           (t2.tv_sec - t1.tv_sec)
+           + ((double)(t2.tv_usec - t1.tv_usec) / 1000000));
+
+out:
+    qemu_vfree(data.buf);
+    blk_unref(blk);
+
+    if (ret) {
+        return 1;
+    }
+    return 0;
+}
+
 
 static const img_cmd_t img_cmds[] = {
 #define DEF(option, callback, arg_string)        \

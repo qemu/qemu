@@ -163,8 +163,8 @@ struct BlockDriver {
      * function pointer may be NULL or return -ENOSUP and .bdrv_co_writev()
      * will be called instead.
      */
-    int coroutine_fn (*bdrv_co_write_zeroes)(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, BdrvRequestFlags flags);
+    int coroutine_fn (*bdrv_co_pwrite_zeroes)(BlockDriverState *bs,
+        int64_t offset, int count, BdrvRequestFlags flags);
     int coroutine_fn (*bdrv_co_discard)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors);
     int64_t coroutine_fn (*bdrv_co_get_block_status)(BlockDriverState *bs,
@@ -328,11 +328,13 @@ typedef struct BlockLimits {
     /* optimal alignment for discard requests in sectors */
     int64_t discard_alignment;
 
-    /* maximum number of sectors that can zeroized at once */
-    int max_write_zeroes;
+    /* maximum number of bytes that can zeroized at once (since it is
+     * signed, it must be < 2G, if set) */
+    int32_t max_pwrite_zeroes;
 
-    /* optimal alignment for write zeroes requests in sectors */
-    int64_t write_zeroes_alignment;
+    /* optimal alignment for write zeroes requests in bytes, must be
+     * power of 2, and less than max_pwrite_zeroes if that is set */
+    uint32_t pwrite_zeroes_alignment;
 
     /* optimal transfer length in sectors */
     int opt_transfer_length;
@@ -454,7 +456,7 @@ struct BlockDriverState {
     unsigned int request_alignment;
     /* Flags honored during pwrite (so far: BDRV_REQ_FUA) */
     unsigned int supported_write_flags;
-    /* Flags honored during write_zeroes (so far: BDRV_REQ_FUA,
+    /* Flags honored during pwrite_zeroes (so far: BDRV_REQ_FUA,
      * BDRV_REQ_MAY_UNMAP) */
     unsigned int supported_zero_flags;
 

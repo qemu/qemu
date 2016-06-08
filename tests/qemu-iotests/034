@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Test bdrv_write_zeroes with backing files
+# Test bdrv_pwrite_zeroes with backing files (see also 154)
 #
 # Copyright (C) 2012 Red Hat, Inc.
 #
