@@ -2544,6 +2544,7 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
     BlockBackend *blk;
     BlockDriverState *medium_bs = NULL;
     int bdrv_flags;
+    int rc;
     QDict *options = NULL;
     Error *err = NULL;
 
@@ -2598,11 +2599,13 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
         goto fail;
     }
 
-    qmp_blockdev_open_tray(device, false, false, &err);
-    if (err) {
+    rc = do_open_tray(device, false, &err);
+    if (rc && rc != -ENOSYS) {
         error_propagate(errp, err);
         goto fail;
     }
+    error_free(err);
+    err = NULL;
 
     qmp_x_blockdev_remove_medium(device, &err);
     if (err) {
