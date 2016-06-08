@@ -249,13 +249,13 @@ int64_t cpu_get_clock(void)
 void cpu_enable_ticks(void)
 {
     /* Here, the really thing protected by seqlock is cpu_clock_offset. */
-    seqlock_write_lock(&timers_state.vm_clock_seqlock);
+    seqlock_write_begin(&timers_state.vm_clock_seqlock);
     if (!timers_state.cpu_ticks_enabled) {
         timers_state.cpu_ticks_offset -= cpu_get_host_ticks();
         timers_state.cpu_clock_offset -= get_clock();
         timers_state.cpu_ticks_enabled = 1;
     }
-    seqlock_write_unlock(&timers_state.vm_clock_seqlock);
+    seqlock_write_end(&timers_state.vm_clock_seqlock);
 }
 
 /* disable cpu_get_ticks() : the clock is stopped. You must not call
@@ -265,13 +265,13 @@ void cpu_enable_ticks(void)
 void cpu_disable_ticks(void)
 {
     /* Here, the really thing protected by seqlock is cpu_clock_offset. */
-    seqlock_write_lock(&timers_state.vm_clock_seqlock);
+    seqlock_write_begin(&timers_state.vm_clock_seqlock);
     if (timers_state.cpu_ticks_enabled) {
         timers_state.cpu_ticks_offset += cpu_get_host_ticks();
         timers_state.cpu_clock_offset = cpu_get_clock_locked();
         timers_state.cpu_ticks_enabled = 0;
     }
-    seqlock_write_unlock(&timers_state.vm_clock_seqlock);
+    seqlock_write_end(&timers_state.vm_clock_seqlock);
 }
 
 /* Correlation between real and virtual time is always going to be
@@ -294,7 +294,7 @@ static void icount_adjust(void)
         return;
     }
 
-    seqlock_write_lock(&timers_state.vm_clock_seqlock);
+    seqlock_write_begin(&timers_state.vm_clock_seqlock);
     cur_time = cpu_get_clock_locked();
     cur_icount = cpu_get_icount_locked();
 
@@ -315,7 +315,7 @@ static void icount_adjust(void)
     last_delta = delta;
     timers_state.qemu_icount_bias = cur_icount
                               - (timers_state.qemu_icount << icount_time_shift);
-    seqlock_write_unlock(&timers_state.vm_clock_seqlock);
+    seqlock_write_end(&timers_state.vm_clock_seqlock);
 }
 
 static void icount_adjust_rt(void *opaque)
@@ -355,7 +355,7 @@ static void icount_warp_rt(void)
         return;
     }
 
-    seqlock_write_lock(&timers_state.vm_clock_seqlock);
+    seqlock_write_begin(&timers_state.vm_clock_seqlock);
     if (runstate_is_running()) {
         int64_t clock = REPLAY_CLOCK(REPLAY_CLOCK_VIRTUAL_RT,
                                      cpu_get_clock_locked());
@@ -374,7 +374,7 @@ static void icount_warp_rt(void)
         timers_state.qemu_icount_bias += warp_delta;
     }
     vm_clock_warp_start = -1;
-    seqlock_write_unlock(&timers_state.vm_clock_seqlock);
+    seqlock_write_end(&timers_state.vm_clock_seqlock);
 
     if (qemu_clock_expired(QEMU_CLOCK_VIRTUAL)) {
         qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
@@ -399,9 +399,9 @@ void qtest_clock_warp(int64_t dest)
         int64_t deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
         int64_t warp = qemu_soonest_timeout(dest - clock, deadline);
 
-        seqlock_write_lock(&timers_state.vm_clock_seqlock);
+        seqlock_write_begin(&timers_state.vm_clock_seqlock);
         timers_state.qemu_icount_bias += warp;
-        seqlock_write_unlock(&timers_state.vm_clock_seqlock);
+        seqlock_write_end(&timers_state.vm_clock_seqlock);
 
         qemu_clock_run_timers(QEMU_CLOCK_VIRTUAL);
         timerlist_run_timers(aio_context->tlg.tl[QEMU_CLOCK_VIRTUAL]);
@@ -468,9 +468,9 @@ void qemu_start_warp_timer(void)
              * It is useful when we want a deterministic execution time,
              * isolated from host latencies.
              */
-            seqlock_write_lock(&timers_state.vm_clock_seqlock);
+            seqlock_write_begin(&timers_state.vm_clock_seqlock);
             timers_state.qemu_icount_bias += deadline;
-            seqlock_write_unlock(&timers_state.vm_clock_seqlock);
+            seqlock_write_end(&timers_state.vm_clock_seqlock);
             qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
         } else {
             /*
@@ -481,11 +481,11 @@ void qemu_start_warp_timer(void)
              * you will not be sending network packets continuously instead of
              * every 100ms.
              */
-            seqlock_write_lock(&timers_state.vm_clock_seqlock);
+            seqlock_write_begin(&timers_state.vm_clock_seqlock);
             if (vm_clock_warp_start == -1 || vm_clock_warp_start > clock) {
                 vm_clock_warp_start = clock;
             }
-            seqlock_write_unlock(&timers_state.vm_clock_seqlock);
+            seqlock_write_end(&timers_state.vm_clock_seqlock);
             timer_mod_anticipate(icount_warp_timer, clock + deadline);
         }
     } else if (deadline == 0) {
