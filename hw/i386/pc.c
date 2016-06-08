@@ -1886,7 +1886,7 @@ static void pc_machine_initfn(Object *obj)
                         pc_machine_get_hotplug_memory_region_size,
                         NULL, NULL, NULL, &error_abort);
 
-    pcms->max_ram_below_4g = 1ULL << 32; /* 4G */
+    pcms->max_ram_below_4g = 0xe0000000; /* 3.5G */
     object_property_add(obj, PC_MACHINE_MAX_RAM_BELOW_4G, "size",
                         pc_machine_get_max_ram_below_4g,
                         pc_machine_set_max_ram_below_4g,

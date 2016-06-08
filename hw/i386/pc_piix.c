@@ -86,29 +86,46 @@ static void pc_init1(MachineState *machine,
     MemoryRegion *rom_memory;
     ram_addr_t lowmem;
 
-    /* Check whether RAM fits below 4G (leaving 1/2 GByte for IO memory).
-     * If it doesn't, we need to split it in chunks below and above 4G.
-     * In any case, try to make sure that guest addresses aligned at
-     * 1G boundaries get mapped to host addresses aligned at 1G boundaries.
-     * For old machine types, use whatever split we used historically to avoid
-     * breaking migration.
+    /*
+     * Calculate ram split, for memory below and above 4G.  It's a bit
+     * complicated for backward compatibility reasons ...
+     *
+     *  - Traditional split is 3.5G (lowmem = 0xe0000000).  This is the
+     *    default value for max_ram_below_4g now.
+     *
+     *  - Then, to gigabyte align the memory, we move the split to 3G
+     *    (lowmem = 0xc0000000).  But only in case we have to split in
+     *    the first place, i.e. ram_size is larger than (traditional)
+     *    lowmem.  And for new machine types (gigabyte_align = true)
+     *    only, for live migration compatibility reasons.
+     *
+     *  - Next the max-ram-below-4g option was added, which allowed to
+     *    reduce lowmem to a smaller value, to allow a larger PCI I/O
+     *    window below 4G.  qemu doesn't enforce gigabyte alignment here,
+     *    but prints a warning.
+     *
+     *  - Finally max-ram-below-4g got updated to also allow raising lowmem,
+     *    so legacy non-PAE guests can get as much memory as possible in
+     *    the 32bit address space below 4G.
+     *
+     * Examples:
+     *    qemu -M pc-1.7 -m 4G    (old default)    -> 3584M low,  512M high
+     *    qemu -M pc -m 4G        (new default)    -> 3072M low, 1024M high
+     *    qemu -M pc,max-ram-below-4g=2G -m 4G     -> 2048M low, 2048M high
+     *    qemu -M pc,max-ram-below-4g=4G -m 3968M  -> 3968M low (=4G-128M)
      */
-    if (machine->ram_size >= 0xe0000000) {
-        lowmem = pcmc->gigabyte_align ? 0xc0000000 : 0xe0000000;
-    } else {
-        lowmem = 0xe0000000;
-    }
-
-    /* Handle the machine opt max-ram-below-4g.  It is basically doing
-     * min(qemu limit, user limit).
-     */
-    if (lowmem > pcms->max_ram_below_4g) {
-        lowmem = pcms->max_ram_below_4g;
-        if (machine->ram_size - lowmem > lowmem &&
-            lowmem & ((1ULL << 30) - 1)) {
-            error_report("Warning: Large machine and max_ram_below_4g(%"PRIu64
-                         ") not a multiple of 1G; possible bad performance.",
-                         pcms->max_ram_below_4g);
+    lowmem = pcms->max_ram_below_4g;
+    if (machine->ram_size >= pcms->max_ram_below_4g) {
+        if (pcmc->gigabyte_align) {
+            if (lowmem > 0xc0000000) {
+                lowmem = 0xc0000000;
+            }
+            if (lowmem & ((1ULL << 30) - 1)) {
+                error_report("Warning: Large machine and max_ram_below_4g "
+                             "(%" PRIu64 ") not a multiple of 1G; "
+                             "possible bad performance.",
+                             pcms->max_ram_below_4g);
+            }
         }
     }
 

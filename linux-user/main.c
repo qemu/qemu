@@ -17,6 +17,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "qemu-version.h"
 #include <sys/mman.h>
 #include <sys/syscall.h>
 #include <sys/resource.h>

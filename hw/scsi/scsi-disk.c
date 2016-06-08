@@ -2740,6 +2740,7 @@ static int32_t scsi_block_dma_command(SCSIRequest *req, uint8_t *buf)
         /* 10-byte CDB.  */
         r->cdb1 = req->cmd.buf[1];
         r->group_number = req->cmd.buf[6];
+        break;
     case 4:
         /* 12-byte CDB.  */
         r->cdb1 = req->cmd.buf[1];
@@ -2842,6 +2843,7 @@ static const TypeInfo scsi_disk_base_info = {
     .class_init    = scsi_disk_base_class_initfn,
     .instance_size = sizeof(SCSIDiskState),
     .class_size    = sizeof(SCSIDiskClass),
+    .abstract      = true,
 };
 
 #define DEFINE_SCSI_DISK_PROPERTIES()                                \

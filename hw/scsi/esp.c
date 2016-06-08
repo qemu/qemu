@@ -400,19 +400,17 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
     trace_esp_mem_readb(saddr, s->rregs[saddr]);
     switch (saddr) {
     case ESP_FIFO:
-        if (s->ti_size > 0) {
+        if ((s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0) {
+            /* Data out.  */
+            qemu_log_mask(LOG_UNIMP, "esp: PIO data read not implemented\n");
+            s->rregs[ESP_FIFO] = 0;
+            esp_raise_irq(s);
+        } else if (s->ti_rptr < s->ti_wptr) {
             s->ti_size--;
-            if ((s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0) {
-                /* Data out.  */
-                qemu_log_mask(LOG_UNIMP,
-                              "esp: PIO data read not implemented\n");
-                s->rregs[ESP_FIFO] = 0;
-            } else {
-                s->rregs[ESP_FIFO] = s->ti_buf[s->ti_rptr++];
-            }
+            s->rregs[ESP_FIFO] = s->ti_buf[s->ti_rptr++];
             esp_raise_irq(s);
         }
-        if (s->ti_size == 0) {
+        if (s->ti_rptr == s->ti_wptr) {
             s->ti_rptr = 0;
             s->ti_wptr = 0;
         }
@@ -456,7 +454,7 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
             } else {
                 trace_esp_error_fifo_overrun();
             }
-        } else if (s->ti_size == TI_BUFSZ - 1) {
+        } else if (s->ti_wptr == TI_BUFSZ - 1) {
             trace_esp_error_fifo_overrun();
         } else {
             s->ti_size++;

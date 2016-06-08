@@ -50,7 +50,7 @@ endif
 
 include $(SRC_PATH)/rules.mak
 
-GENERATED_HEADERS = config-host.h qemu-options.def
+GENERATED_HEADERS = qemu-version.h config-host.h qemu-options.def
 GENERATED_HEADERS += qmp-commands.h qapi-types.h qapi-visit.h qapi-event.h
 GENERATED_SOURCES += qmp-marshal.c qapi-types.c qapi-visit.c qapi-event.c
 GENERATED_HEADERS += qmp-introspect.h
@@ -82,7 +82,7 @@ Makefile: ;
 configure: ;
 
 .PHONY: all clean cscope distclean dvi html info install install-doc \
-	pdf recurse-all speed test dist msi
+	pdf recurse-all speed test dist msi FORCE
 
 $(call set-vpath, $(SRC_PATH))
 
@@ -117,7 +117,7 @@ endif
 
 -include $(SUBDIR_DEVICES_MAK_DEP)
 
-%/config-devices.mak: default-configs/%.mak
+%/config-devices.mak: default-configs/%.mak $(SRC_PATH)/scripts/make_device_config.sh
 	$(call quiet-command, \
             $(SHELL) $(SRC_PATH)/scripts/make_device_config.sh $< $*-config-devices.mak.d $@ > $@.tmp, "  GEN   $@.tmp")
 	$(call quiet-command, if test -f $@; then \
@@ -162,14 +162,34 @@ dummy := $(call unnest-vars,, \
                 common-obj-m)
 
 ifneq ($(wildcard config-host.mak),)
-include $(SRC_PATH)/tests/Makefile
+include $(SRC_PATH)/tests/Makefile.include
 endif
 
 all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all modules
 
+qemu-version.h: FORCE
+	$(call quiet-command, \
+		(cd $(SRC_PATH); \
+		printf '#define QEMU_PKGVERSION '; \
+		if test -n "$(PKGVERSION)"; then \
+			printf '"$(PKGVERSION)"\n'; \
+		else \
+			if test -d .git; then \
+				printf '" ('; \
+				git describe --match 'v*' 2>/dev/null | tr -d '\n'; \
+				if ! git diff-index --quiet HEAD &>/dev/null; then \
+					printf -- '-dirty'; \
+				fi; \
+				printf ')"\n'; \
+			else \
+				printf '""\n'; \
+			fi; \
+		fi) > $@.tmp)
+	$(call quiet-command, cmp --quiet $@ $@.tmp || mv $@.tmp $@)
+
 config-host.h: config-host.h-timestamp
 config-host.h-timestamp: config-host.mak
-qemu-options.def: $(SRC_PATH)/qemu-options.hx
+qemu-options.def: $(SRC_PATH)/qemu-options.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"  GEN   $@")
 
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
@@ -241,7 +261,7 @@ qemu-bridge-helper$(EXESUF): qemu-bridge-helper.o libqemuutil.a libqemustub.a
 fsdev/virtfs-proxy-helper$(EXESUF): fsdev/virtfs-proxy-helper.o fsdev/9p-marshal.o fsdev/9p-iov-marshal.o libqemuutil.a libqemustub.a
 fsdev/virtfs-proxy-helper$(EXESUF): LIBS += -lcap
 
-qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
+qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"  GEN   $@")
 
 qemu-ga$(EXESUF): LIBS = $(LIBS_QGA)
@@ -524,19 +544,19 @@ TEXIFLAG=$(if $(V),,--quiet)
 %.pdf: %.texi
 	$(call quiet-command,texi2pdf $(TEXIFLAG) -I . $<,"  GEN   $@")
 
-qemu-options.texi: $(SRC_PATH)/qemu-options.hx
+qemu-options.texi: $(SRC_PATH)/qemu-options.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"  GEN   $@")
 
-qemu-monitor.texi: $(SRC_PATH)/hmp-commands.hx
+qemu-monitor.texi: $(SRC_PATH)/hmp-commands.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"  GEN   $@")
 
-qemu-monitor-info.texi: $(SRC_PATH)/hmp-commands-info.hx
+qemu-monitor-info.texi: $(SRC_PATH)/hmp-commands-info.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"  GEN   $@")
 
-qmp-commands.txt: $(SRC_PATH)/qmp-commands.hx
+qmp-commands.txt: $(SRC_PATH)/qmp-commands.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -q < $< > $@,"  GEN   $@")
 
-qemu-img-cmds.texi: $(SRC_PATH)/qemu-img-cmds.hx
+qemu-img-cmds.texi: $(SRC_PATH)/qemu-img-cmds.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"  GEN   $@")
 
 qemu.1: qemu-doc.texi qemu-options.texi qemu-monitor.texi qemu-monitor-info.texi

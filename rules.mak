@@ -172,7 +172,7 @@ TRACETOOL=$(PYTHON) $(SRC_PATH)/scripts/tracetool.py
 config-%.h: config-%.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
 
-config-%.h-timestamp: config-%.mak
+config-%.h-timestamp: config-%.mak $(SRC_PATH)/scripts/create_config
 	$(call quiet-command, sh $(SRC_PATH)/scripts/create_config < $< > $@, "  GEN   $(TARGET_DIR)config-$*.h")
 
 .PHONY: clean-timestamp

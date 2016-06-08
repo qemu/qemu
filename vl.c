@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu-version.h"
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
 

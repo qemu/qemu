@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu-version.h"
 #include "qapi/error.h"
 #include "qapi-visit.h"
 #include "qapi/qmp-output-visitor.h"
