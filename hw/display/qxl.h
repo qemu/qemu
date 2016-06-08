@@ -104,9 +104,9 @@ typedef struct PCIQXLDevice {
 #endif
 
     /* vram pci bar */
-    uint32_t           vram_size;
+    uint64_t           vram_size;
     MemoryRegion       vram_bar;
-    uint32_t           vram32_size;
+    uint64_t           vram32_size;
     MemoryRegion       vram32_bar;
 
     /* io bar */

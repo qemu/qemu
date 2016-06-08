@@ -1914,7 +1914,7 @@ static void qxl_init_ramsize(PCIQXLDevice *qxl)
 
     /* vram (surfaces, 64bit, bar 4+5) */
     if (qxl->vram_size_mb != -1) {
-        qxl->vram_size = qxl->vram_size_mb * 1024 * 1024;
+        qxl->vram_size = (uint64_t)qxl->vram_size_mb * 1024 * 1024;
     }
     if (qxl->vram_size < qxl->vram32_size) {
         qxl->vram_size = qxl->vram32_size;
@@ -2020,9 +2020,9 @@ static void qxl_realize_common(PCIQXLDevice *qxl, Error **errp)
     dprint(qxl, 1, "ram/%s: %d MB [region 0]\n",
            qxl->id == 0 ? "pri" : "sec",
            qxl->vga.vram_size / (1024*1024));
-    dprint(qxl, 1, "vram/32: %d MB [region 1]\n",
+    dprint(qxl, 1, "vram/32: %" PRIx64 "d MB [region 1]\n",
            qxl->vram32_size / (1024*1024));
-    dprint(qxl, 1, "vram/64: %d MB %s\n",
+    dprint(qxl, 1, "vram/64: %" PRIx64 "d MB %s\n",
            qxl->vram_size / (1024*1024),
            qxl->vram32_size < qxl->vram_size ? "[region 4]" : "[unmapped]");
 
@@ -2276,7 +2276,7 @@ static VMStateDescription qxl_vmstate = {
 static Property qxl_properties[] = {
         DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size,
                            64 * 1024 * 1024),
-        DEFINE_PROP_UINT32("vram_size", PCIQXLDevice, vram32_size,
+        DEFINE_PROP_UINT64("vram_size", PCIQXLDevice, vram32_size,
                            64 * 1024 * 1024),
         DEFINE_PROP_UINT32("revision", PCIQXLDevice, revision,
                            QXL_DEFAULT_REVISION),
