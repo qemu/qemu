@@ -32,3 +32,4 @@ util-obj-y += buffer.o
 util-obj-y += timed-average.o
 util-obj-y += base64.o
 util-obj-y += log.o
+util-obj-y += qdist.o
