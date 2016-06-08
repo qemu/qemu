@@ -3223,7 +3223,7 @@ char *vnc_display_local_addr(const char *id)
         qapi_free_SocketAddress(addr);
         return NULL;
     }
-    ret = g_strdup_printf("%s;%s", addr->u.inet.data->host,
+    ret = g_strdup_printf("%s:%s", addr->u.inet.data->host,
                           addr->u.inet.data->port);
     qapi_free_SocketAddress(addr);
 
