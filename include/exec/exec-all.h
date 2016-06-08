@@ -215,8 +215,6 @@ struct TranslationBlock {
 
     void *tc_ptr;    /* pointer to the translated code */
     uint8_t *tc_search;  /* pointer to search data */
-    /* next matching tb for physical address. */
-    struct TranslationBlock *phys_hash_next;
     /* original tb when cflags has CF_NOCACHE */
     struct TranslationBlock *orig_tb;
     /* first and second physical page containing code. The lower bit

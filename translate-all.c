@@ -735,6 +735,13 @@ static inline void code_gen_alloc(size_t tb_size)
     qemu_mutex_init(&tcg_ctx.tb_ctx.tb_lock);
 }
 
+static void tb_htable_init(void)
+{
+    unsigned int mode = QHT_MODE_AUTO_RESIZE;
+
+    qht_init(&tcg_ctx.tb_ctx.htable, CODE_GEN_HTABLE_SIZE, mode);
+}
+
 /* Must be called before using the QEMU cpus. 'tb_size' is the size
    (in bytes) allocated to the translation buffer. Zero means default
    size. */
@@ -742,6 +749,7 @@ void tcg_exec_init(unsigned long tb_size)
 {
     cpu_gen_init();
     page_init();
+    tb_htable_init();
     code_gen_alloc(tb_size);
 #if defined(CONFIG_SOFTMMU)
     /* There's no guest base to take into account, so go ahead and
@@ -846,7 +854,7 @@ void tb_flush(CPUState *cpu)
         cpu->tb_flushed = true;
     }
 
-    memset(tcg_ctx.tb_ctx.tb_phys_hash, 0, sizeof(tcg_ctx.tb_ctx.tb_phys_hash));
+    qht_reset_size(&tcg_ctx.tb_ctx.htable, CODE_GEN_HTABLE_SIZE);
     page_flush_tb();
 
     tcg_ctx.code_gen_ptr = tcg_ctx.code_gen_buffer;
@@ -857,59 +865,45 @@ void tb_flush(CPUState *cpu)
 
 #ifdef DEBUG_TB_CHECK
 
+static void
+do_tb_invalidate_check(struct qht *ht, void *p, uint32_t hash, void *userp)
+{
+    TranslationBlock *tb = p;
+    target_ulong addr = *(target_ulong *)userp;
+
+    if (!(addr + TARGET_PAGE_SIZE <= tb->pc || addr >= tb->pc + tb->size)) {
+        printf("ERROR invalidate: address=" TARGET_FMT_lx
+               " PC=%08lx size=%04x\n", addr, (long)tb->pc, tb->size);
+    }
+}
+
 static void tb_invalidate_check(target_ulong address)
 {
-    TranslationBlock *tb;
-    int i;
-
     address &= TARGET_PAGE_MASK;
-    for (i = 0; i < CODE_GEN_PHYS_HASH_SIZE; i++) {
-        for (tb = tcg_ctx.tb_ctx.tb_phys_hash[i]; tb != NULL;
-             tb = tb->phys_hash_next) {
-            if (!(address + TARGET_PAGE_SIZE <= tb->pc ||
-                  address >= tb->pc + tb->size)) {
-                printf("ERROR invalidate: address=" TARGET_FMT_lx
-                       " PC=%08lx size=%04x\n",
-                       address, (long)tb->pc, tb->size);
-            }
-        }
+    qht_iter(&tcg_ctx.tb_ctx.htable, do_tb_invalidate_check, &address);
+}
+
+static void
+do_tb_page_check(struct qht *ht, void *p, uint32_t hash, void *userp)
+{
+    TranslationBlock *tb = p;
+    int flags1, flags2;
+
+    flags1 = page_get_flags(tb->pc);
+    flags2 = page_get_flags(tb->pc + tb->size - 1);
+    if ((flags1 & PAGE_WRITE) || (flags2 & PAGE_WRITE)) {
+        printf("ERROR page flags: PC=%08lx size=%04x f1=%x f2=%x\n",
+               (long)tb->pc, tb->size, flags1, flags2);
     }
 }
 
 /* verify that all the pages have correct rights for code */
 static void tb_page_check(void)
 {
-    TranslationBlock *tb;
-    int i, flags1, flags2;
-
-    for (i = 0; i < CODE_GEN_PHYS_HASH_SIZE; i++) {
-        for (tb = tcg_ctx.tb_ctx.tb_phys_hash[i]; tb != NULL;
-                tb = tb->phys_hash_next) {
-            flags1 = page_get_flags(tb->pc);
-            flags2 = page_get_flags(tb->pc + tb->size - 1);
-            if ((flags1 & PAGE_WRITE) || (flags2 & PAGE_WRITE)) {
-                printf("ERROR page flags: PC=%08lx size=%04x f1=%x f2=%x\n",
-                       (long)tb->pc, tb->size, flags1, flags2);
-            }
-        }
-    }
+    qht_iter(&tcg_ctx.tb_ctx.htable, do_tb_page_check, NULL);
 }
 
 #endif
-
-static inline void tb_hash_remove(TranslationBlock **ptb, TranslationBlock *tb)
-{
-    TranslationBlock *tb1;
-
-    for (;;) {
-        tb1 = *ptb;
-        if (tb1 == tb) {
-            *ptb = tb1->phys_hash_next;
-            break;
-        }
-        ptb = &tb1->phys_hash_next;
-    }
-}
 
 static inline void tb_page_remove(TranslationBlock **ptb, TranslationBlock *tb)
 {
@@ -998,7 +992,7 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     /* remove the TB from the hash list */
     phys_pc = tb->page_addr[0] + (tb->pc & ~TARGET_PAGE_MASK);
     h = tb_hash_func(phys_pc, tb->pc, tb->flags);
-    tb_hash_remove(&tcg_ctx.tb_ctx.tb_phys_hash[h], tb);
+    qht_remove(&tcg_ctx.tb_ctx.htable, tb, h);
 
     /* remove the TB from the page list */
     if (tb->page_addr[0] != page_addr) {
@@ -1128,13 +1122,10 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
                          tb_page_addr_t phys_page2)
 {
     uint32_t h;
-    TranslationBlock **ptb;
 
     /* add in the hash table */
     h = tb_hash_func(phys_pc, tb->pc, tb->flags);
-    ptb = &tcg_ctx.tb_ctx.tb_phys_hash[h];
-    tb->phys_hash_next = *ptb;
-    *ptb = tb;
+    qht_insert(&tcg_ctx.tb_ctx.htable, tb, h);
 
     /* add in the page list */
     tb_alloc_page(tb, 0, phys_pc & TARGET_PAGE_MASK);
