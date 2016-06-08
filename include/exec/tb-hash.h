@@ -20,6 +20,9 @@
 #ifndef EXEC_TB_HASH
 #define EXEC_TB_HASH
 
+#include "exec/exec-all.h"
+#include "exec/tb-hash-xx.h"
+
 /* Only the bottom TB_JMP_PAGE_BITS of the jump cache hash bits vary for
    addresses on the same page.  The top bits are the same.  This allows
    TLB invalidation to quickly clear a subset of the hash table.  */
@@ -43,9 +46,10 @@ static inline unsigned int tb_jmp_cache_hash_func(target_ulong pc)
            | (tmp & TB_JMP_ADDR_MASK));
 }
 
-static inline unsigned int tb_phys_hash_func(tb_page_addr_t pc)
+static inline
+uint32_t tb_hash_func(tb_page_addr_t phys_pc, target_ulong pc, uint32_t flags)
 {
-    return (pc >> 2) & (CODE_GEN_PHYS_HASH_SIZE - 1);
+    return tb_hash_func5(phys_pc, pc, flags) & (CODE_GEN_PHYS_HASH_SIZE - 1);
 }
 
 #endif

@@ -232,13 +232,13 @@ static TranslationBlock *tb_find_physical(CPUState *cpu,
 {
     CPUArchState *env = (CPUArchState *)cpu->env_ptr;
     TranslationBlock *tb, **tb_hash_head, **ptb1;
-    unsigned int h;
+    uint32_t h;
     tb_page_addr_t phys_pc, phys_page1;
 
     /* find translated block using physical mappings */
     phys_pc = get_page_addr_code(env, pc);
     phys_page1 = phys_pc & TARGET_PAGE_MASK;
-    h = tb_phys_hash_func(phys_pc);
+    h = tb_hash_func(phys_pc, pc, flags);
 
     /* Start at head of the hash entry */
     ptb1 = tb_hash_head = &tcg_ctx.tb_ctx.tb_phys_hash[h];
