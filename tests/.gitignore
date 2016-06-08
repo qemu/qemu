@@ -50,6 +50,7 @@ test-qdev-global-props
 test-qemu-opts
 test-qdist
 test-qga
+test-qht
 test-qmp-commands
 test-qmp-commands.h
 test-qmp-event
