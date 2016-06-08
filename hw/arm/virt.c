@@ -525,7 +525,7 @@ static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic, int type, bool secure)
 }
 
 static void create_uart(const VirtBoardInfo *vbi, qemu_irq *pic, int uart,
-                        MemoryRegion *mem)
+                        MemoryRegion *mem, CharDriverState *chr)
 {
     char *nodename;
     hwaddr base = vbi->memmap[uart].base;
@@ -536,7 +536,7 @@ static void create_uart(const VirtBoardInfo *vbi, qemu_irq *pic, int uart,
     DeviceState *dev = qdev_create(NULL, "pl011");
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
 
-    qdev_prop_set_chr(dev, "chardev", serial_hds[0]);
+    qdev_prop_set_chr(dev, "chardev", chr);
     qdev_init_nofail(dev);
     memory_region_add_subregion(mem, base,
                                 sysbus_mmio_get_region(s, 0));
@@ -1259,11 +1259,11 @@ static void machvirt_init(MachineState *machine)
 
     create_gic(vbi, pic, gic_version, vms->secure);
 
-    create_uart(vbi, pic, VIRT_UART, sysmem);
+    create_uart(vbi, pic, VIRT_UART, sysmem, serial_hds[0]);
 
     if (vms->secure) {
         create_secure_ram(vbi, secure_sysmem);
-        create_uart(vbi, pic, VIRT_SECURE_UART, secure_sysmem);
+        create_uart(vbi, pic, VIRT_SECURE_UART, secure_sysmem, serial_hds[1]);
     }
 
     create_rtc(vbi, pic);
