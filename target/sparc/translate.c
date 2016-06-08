@@ -3298,7 +3298,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 
                 rs1 = GET_FIELD_SP(insn, 14, 18);
                 if (IS_IMM) {
-                    rs2 = GET_FIELD_SP(insn, 0, 6);
+                    rs2 = GET_FIELD_SP(insn, 0, 7);
                     if (rs1 == 0) {
                         tcg_gen_movi_i32(trap, (rs2 & mask) + TT_TRAP);
                         /* Signal that the trap value is fully constant.  */
