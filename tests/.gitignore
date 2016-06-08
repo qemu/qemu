@@ -52,6 +52,7 @@ test-qemu-opts
 test-qdist
 test-qga
 test-qht
+test-qht-par
 test-qmp-commands
 test-qmp-commands.h
 test-qmp-event
