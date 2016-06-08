@@ -1955,7 +1955,12 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
 
     blk = blk_by_name(device);
     if (blk) {
+        AioContext *aio_context = blk_get_aio_context(blk);
+        aio_context_acquire(aio_context);
+
         qemuio_command(blk, command);
+
+        aio_context_release(aio_context);
     } else {
         error_set(&err, ERROR_CLASS_DEVICE_NOT_FOUND,
                   "Device '%s' not found", device);
