@@ -276,7 +276,7 @@ static void versatile_init(MachineState *machine, int board_id)
             pci_nic_init_nofail(nd, pci_bus, "rtl8139", NULL);
         }
     }
-    if (usb_enabled()) {
+    if (machine_usb(machine)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
     }
     n = drive_get_max_bus(IF_SCSI);

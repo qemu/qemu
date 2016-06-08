@@ -254,7 +254,7 @@ static void realview_init(MachineState *machine,
         sysbus_connect_irq(busdev, 2, pic[50]);
         sysbus_connect_irq(busdev, 3, pic[51]);
         pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci");
-        if (usb_enabled()) {
+        if (machine_usb(machine)) {
             pci_create_simple(pci_bus, -1, "pci-ohci");
         }
         n = drive_get_max_bus(IF_SCSI);
