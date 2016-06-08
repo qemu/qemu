@@ -2165,10 +2165,8 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
         s->ssp[i] = (SSIBus *)qdev_get_child_bus(dev, "ssi");
     }
 
-    if (usb_enabled()) {
-        sysbus_create_simple("sysbus-ohci", 0x4c000000,
-                        qdev_get_gpio_in(s->pic, PXA2XX_PIC_USBH1));
-    }
+    sysbus_create_simple("sysbus-ohci", 0x4c000000,
+                         qdev_get_gpio_in(s->pic, PXA2XX_PIC_USBH1));
 
     s->pcmcia[0] = pxa2xx_pcmcia_init(address_space, 0x20000000);
     s->pcmcia[1] = pxa2xx_pcmcia_init(address_space, 0x30000000);
@@ -2298,10 +2296,8 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
         s->ssp[i] = (SSIBus *)qdev_get_child_bus(dev, "ssi");
     }
 
-    if (usb_enabled()) {
-        sysbus_create_simple("sysbus-ohci", 0x4c000000,
-                        qdev_get_gpio_in(s->pic, PXA2XX_PIC_USBH1));
-    }
+    sysbus_create_simple("sysbus-ohci", 0x4c000000,
+                         qdev_get_gpio_in(s->pic, PXA2XX_PIC_USBH1));
 
     s->pcmcia[0] = pxa2xx_pcmcia_init(address_space, 0x20000000);
     s->pcmcia[1] = pxa2xx_pcmcia_init(address_space, 0x30000000);
