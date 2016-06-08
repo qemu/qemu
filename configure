@@ -270,7 +270,6 @@ aix="no"
 blobs="yes"
 pkgversion=""
 pie=""
-zero_malloc=""
 qom_cast_debug="yes"
 trace_backends="log"
 trace_file="trace"
@@ -1389,8 +1388,6 @@ fi
 
 # Consult white-list to determine whether to enable werror
 # by default.  Only enable by default for git builds
-z_version=$(cut -f3 -d. $source_path/VERSION)
-
 if test -z "$werror" ; then
     if test -d "$source_path/.git" -a \
         "$linux" = "yes" ; then
@@ -4574,16 +4571,6 @@ if test "$libnfs" != "no" ; then
   fi
 fi
 
-# Disable zero malloc errors for official releases unless explicitly told to
-# enable/disable
-if test -z "$zero_malloc" ; then
-    if test "$z_version" = "50" ; then
-	zero_malloc="no"
-    else
-	zero_malloc="yes"
-    fi
-fi
-
 # Now we've finished running tests it's OK to add -Werror to the compiler flags
 if test "$werror" = "yes"; then
     QEMU_CFLAGS="-Werror $QEMU_CFLAGS"
@@ -5342,9 +5329,6 @@ if [ "$bsd" = "yes" ] ; then
   echo "CONFIG_BSD=y" >> $config_host_mak
 fi
 
-if test "$zero_malloc" = "yes" ; then
-  echo "CONFIG_ZERO_MALLOC=y" >> $config_host_mak
-fi
 if test "$localtime_r" = "yes" ; then
   echo "CONFIG_LOCALTIME_R=y" >> $config_host_mak
 fi
