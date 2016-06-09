@@ -700,6 +700,18 @@ int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags)
     }
 }
 
+int bdrv_preadv(BlockDriverState *bs, int64_t offset, QEMUIOVector *qiov)
+{
+    int ret;
+
+    ret = bdrv_prwv_co(bs, offset, qiov, false, 0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return qiov->size;
+}
+
 int bdrv_pread(BlockDriverState *bs, int64_t offset, void *buf, int bytes)
 {
     QEMUIOVector qiov;
@@ -707,19 +719,13 @@ int bdrv_pread(BlockDriverState *bs, int64_t offset, void *buf, int bytes)
         .iov_base = (void *)buf,
         .iov_len = bytes,
     };
-    int ret;
 
     if (bytes < 0) {
         return -EINVAL;
     }
 
     qemu_iovec_init_external(&qiov, &iov, 1);
-    ret = bdrv_prwv_co(bs, offset, &qiov, false, 0);
-    if (ret < 0) {
-        return ret;
-    }
-
-    return bytes;
+    return bdrv_preadv(bs, offset, &qiov);
 }
 
 int bdrv_pwritev(BlockDriverState *bs, int64_t offset, QEMUIOVector *qiov)

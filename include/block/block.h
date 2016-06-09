@@ -235,6 +235,7 @@ int bdrv_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
 int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags);
 int bdrv_pread(BlockDriverState *bs, int64_t offset,
                void *buf, int count);
+int bdrv_preadv(BlockDriverState *bs, int64_t offset, QEMUIOVector *qiov);
 int bdrv_pwrite(BlockDriverState *bs, int64_t offset,
                 const void *buf, int count);
 int bdrv_pwritev(BlockDriverState *bs, int64_t offset, QEMUIOVector *qiov);
