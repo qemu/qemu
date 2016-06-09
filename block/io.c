@@ -1840,6 +1840,62 @@ int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
     return drv->bdrv_write_compressed(bs, sector_num, buf, nb_sectors);
 }
 
+typedef struct BdrvVmstateCo {
+    BlockDriverState    *bs;
+    QEMUIOVector        *qiov;
+    int64_t             pos;
+    bool                is_read;
+    int                 ret;
+} BdrvVmstateCo;
+
+static int coroutine_fn
+bdrv_co_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
+                   bool is_read)
+{
+    BlockDriver *drv = bs->drv;
+
+    if (!drv) {
+        return -ENOMEDIUM;
+    } else if (drv->bdrv_load_vmstate) {
+        return is_read ? drv->bdrv_load_vmstate(bs, qiov, pos)
+                       : drv->bdrv_save_vmstate(bs, qiov, pos);
+    } else if (bs->file) {
+        return bdrv_co_rw_vmstate(bs->file->bs, qiov, pos, is_read);
+    }
+
+    return -ENOTSUP;
+}
+
+static void coroutine_fn bdrv_co_rw_vmstate_entry(void *opaque)
+{
+    BdrvVmstateCo *co = opaque;
+    co->ret = bdrv_co_rw_vmstate(co->bs, co->qiov, co->pos, co->is_read);
+}
+
+static inline int
+bdrv_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
+                bool is_read)
+{
+    if (qemu_in_coroutine()) {
+        return bdrv_co_rw_vmstate(bs, qiov, pos, is_read);
+    } else {
+        BdrvVmstateCo data = {
+            .bs         = bs,
+            .qiov       = qiov,
+            .pos        = pos,
+            .is_read    = is_read,
+            .ret        = -EINPROGRESS,
+        };
+        Coroutine *co = qemu_coroutine_create(bdrv_co_rw_vmstate_entry);
+
+        qemu_coroutine_enter(co, &data);
+        while (data.ret == -EINPROGRESS) {
+            aio_poll(bdrv_get_aio_context(bs), true);
+        }
+        return data.ret;
+    }
+}
+
 int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
                       int64_t pos, int size)
 {
@@ -1862,17 +1918,7 @@ int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
 
 int bdrv_writev_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
 {
-    BlockDriver *drv = bs->drv;
-
-    if (!drv) {
-        return -ENOMEDIUM;
-    } else if (drv->bdrv_save_vmstate) {
-        return drv->bdrv_save_vmstate(bs, qiov, pos);
-    } else if (bs->file) {
-        return bdrv_writev_vmstate(bs->file->bs, qiov, pos);
-    }
-
-    return -ENOTSUP;
+    return bdrv_rw_vmstate(bs, qiov, pos, false);
 }
 
 int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
@@ -1896,17 +1942,7 @@ int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
 
 int bdrv_readv_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
 {
-    BlockDriver *drv = bs->drv;
-
-    if (!drv) {
-        return -ENOMEDIUM;
-    } else if (drv->bdrv_load_vmstate) {
-        return drv->bdrv_load_vmstate(bs, qiov, pos);
-    } else if (bs->file) {
-        return bdrv_readv_vmstate(bs->file->bs, qiov, pos);
-    }
-
-    return -ENOTSUP;
+    return bdrv_rw_vmstate(bs, qiov, pos, true);
 }
 
 /**************************************************************/
