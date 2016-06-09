@@ -8835,6 +8835,7 @@ void tricore_tcg_init(void)
         return;
     }
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
+    tcg_ctx.tcg_env = cpu_env;
     /* reg init */
     for (i = 0 ; i < 16 ; i++) {
         cpu_gpr_a[i] = tcg_global_mem_new(cpu_env,

@@ -88,6 +88,7 @@ void ppc_translate_init(void)
         return;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
+    tcg_ctx.tcg_env = cpu_env;
 
     p = cpu_reg_names;
     cpu_reg_names_size = sizeof(cpu_reg_names);
