@@ -293,6 +293,22 @@ static inline target_ulong asi_address_mask(CPUSPARCState *env,
     }
     return addr;
 }
+
+#ifndef CONFIG_USER_ONLY
+static inline void do_check_asi(CPUSPARCState *env, int asi, uintptr_t ra)
+{
+    /* ASIs >= 0x80 are user mode.
+     * ASIs >= 0x30 are hyper mode (or super if hyper is not available).
+     * ASIs <= 0x2f are super mode.
+     */
+    if (asi < 0x80
+        && !cpu_hypervisor_mode(env)
+        && (!cpu_supervisor_mode(env)
+            || (asi >= 0x30 && cpu_has_hypervisor(env)))) {
+        cpu_raise_exception_ra(env, TT_PRIV_ACT, ra);
+    }
+}
+#endif /* !CONFIG_USER_ONLY */
 #endif
 
 static void do_check_align(CPUSPARCState *env, target_ulong addr,
@@ -1118,13 +1134,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
 
     asi &= 0xff;
 
-    if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-        || (cpu_has_hypervisor(env)
-            && asi >= 0x30 && asi < 0x80
-            && !(env->hpstate & HS_PRIV))) {
-        cpu_raise_exception_ra(env, TT_PRIV_ACT, GETPC());
-    }
-
+    do_check_asi(env, asi, GETPC());
     do_check_align(env, addr, size - 1, GETPC());
     addr = asi_address_mask(env, asi, addr);
 
@@ -1423,13 +1433,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
 
     asi &= 0xff;
 
-    if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-        || (cpu_has_hypervisor(env)
-            && asi >= 0x30 && asi < 0x80
-            && !(env->hpstate & HS_PRIV))) {
-        cpu_raise_exception_ra(env, TT_PRIV_ACT, GETPC());
-    }
-
+    do_check_asi(env, asi, GETPC());
     do_check_align(env, addr, size - 1, GETPC());
     addr = asi_address_mask(env, asi, addr);
 
