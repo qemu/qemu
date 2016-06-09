@@ -2206,3 +2206,24 @@ gicv3_redist_write(uint32_t cpu, uint64_t offset, uint64_t data, unsigned size, 
 gicv3_redist_badwrite(uint32_t cpu, uint64_t offset, uint64_t data, unsigned size, bool secure) "GICv3 redistributor %x write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u secure %d: error"
 gicv3_redist_set_irq(uint32_t cpu, int irq, int level) "GICv3 redistributor %x interrupt %d level changed to %d"
 gicv3_redist_send_sgi(uint32_t cpu, int irq) "GICv3 redistributor %x pending SGI %d"
+
+### Guest events, keep at bottom
+
+# @vaddr: Access' virtual address.
+# @info : Access' information (see below).
+#
+# Start virtual memory access (before any potential access violation).
+#
+# Does not include memory accesses performed by devices.
+#
+# Access information can be parsed as:
+#
+# struct mem_info {
+#     uint8_t size_shift : 2; /* interpreted as "1 << size_shift" bytes */
+#     bool    sign_extend: 1; /* sign-extended */
+#     uint8_t endianness : 1; /* 0: little, 1: big */
+#     bool    store      : 1; /* wheter it's a store operation */
+# };
+#
+# Targets: TCG(all)
+disable vcpu tcg guest_mem_before(TCGv vaddr, uint8_t info) "info=%d", "vaddr=0x%016"PRIx64" info=%d"

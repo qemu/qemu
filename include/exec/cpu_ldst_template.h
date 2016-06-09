@@ -23,6 +23,13 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+
+#if !defined(SOFTMMU_CODE_ACCESS)
+#include "trace.h"
+#endif
+
+#include "trace/mem.h"
+
 #if DATA_SIZE == 8
 #define SUFFIX q
 #define USUFFIX q
@@ -80,6 +87,12 @@ glue(glue(glue(cpu_ld, USUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
     int mmu_idx;
     TCGMemOpIdx oi;
 
+#if !defined(SOFTMMU_CODE_ACCESS)
+    trace_guest_mem_before_exec(
+        ENV_GET_CPU(env), ptr,
+        trace_mem_build_info(SHIFT, false, MO_TE, false));
+#endif
+
     addr = ptr;
     page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     mmu_idx = CPU_MMU_INDEX;
@@ -111,6 +124,12 @@ glue(glue(glue(cpu_lds, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
     target_ulong addr;
     int mmu_idx;
     TCGMemOpIdx oi;
+
+#if !defined(SOFTMMU_CODE_ACCESS)
+    trace_guest_mem_before_exec(
+        ENV_GET_CPU(env), ptr,
+        trace_mem_build_info(SHIFT, true, MO_TE, false));
+#endif
 
     addr = ptr;
     page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
@@ -147,6 +166,12 @@ glue(glue(glue(cpu_st, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
     target_ulong addr;
     int mmu_idx;
     TCGMemOpIdx oi;
+
+#if !defined(SOFTMMU_CODE_ACCESS)
+    trace_guest_mem_before_exec(
+        ENV_GET_CPU(env), ptr,
+        trace_mem_build_info(SHIFT, false, MO_TE, true));
+#endif
 
     addr = ptr;
     page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
