@@ -33,7 +33,9 @@ struct S390IPLState {
     /*< private >*/
     DeviceState parent_obj;
     uint64_t start_addr;
+    uint64_t compat_start_addr;
     uint64_t bios_start_addr;
+    uint64_t compat_bios_start_addr;
     bool enforce_bios;
     IplParameterBlock iplb;
     bool iplb_valid;
