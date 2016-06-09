@@ -230,7 +230,7 @@ enum {
 #if !defined(TARGET_SPARC64)
 #define NB_MMU_MODES 3
 #else
-#define NB_MMU_MODES 7
+#define NB_MMU_MODES 6
 typedef struct trap_state {
     uint64_t tpc;
     uint64_t tnpc;
@@ -676,8 +676,7 @@ int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 #define MMU_KERNEL_IDX 2
 #define MMU_KERNEL_SECONDARY_IDX 3
 #define MMU_NUCLEUS_IDX 4
-#define MMU_HYPV_IDX   5
-#define MMU_PHYS_IDX   6
+#define MMU_PHYS_IDX   5
 #else
 #define MMU_USER_IDX   0
 #define MMU_KERNEL_IDX 1
@@ -723,7 +722,7 @@ static inline int cpu_mmu_index(CPUSPARCState *env, bool ifetch)
         : (env->lsu & DMMU_E) == 0) {
         return MMU_PHYS_IDX;
     } else if (cpu_hypervisor_mode(env)) {
-        return MMU_HYPV_IDX;
+        return MMU_PHYS_IDX;
     } else if (env->tl > 0) {
         return MMU_NUCLEUS_IDX;
     } else if (cpu_supervisor_mode(env)) {

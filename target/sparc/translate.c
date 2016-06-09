@@ -2143,7 +2143,7 @@ static DisasASI get_asi(DisasContext *dc, int insn, TCGMemOp memop)
         case ASI_NUCLEUS_QUAD_LDD:
         case ASI_NUCLEUS_QUAD_LDD_L:
             if (hypervisor(dc)) {
-                mem_idx = MMU_HYPV_IDX;
+                mem_idx = MMU_PHYS_IDX;
             } else {
                 mem_idx = MMU_NUCLEUS_IDX;
             }
