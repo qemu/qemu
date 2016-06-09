@@ -326,26 +326,16 @@ static void parse_optional(Visitor *v, const char *name, bool *present)
     *present = true;
 }
 
-Visitor *string_input_get_visitor(StringInputVisitor *v)
-{
-    return &v->visitor;
-}
-
 static void string_input_free(Visitor *v)
 {
     StringInputVisitor *siv = to_siv(v);
 
-    string_input_visitor_cleanup(siv);
+    g_list_foreach(siv->ranges, free_range, NULL);
+    g_list_free(siv->ranges);
+    g_free(siv);
 }
 
-void string_input_visitor_cleanup(StringInputVisitor *v)
-{
-    g_list_foreach(v->ranges, free_range, NULL);
-    g_list_free(v->ranges);
-    g_free(v);
-}
-
-StringInputVisitor *string_input_visitor_new(const char *str)
+Visitor *string_input_visitor_new(const char *str)
 {
     StringInputVisitor *v;
 
@@ -365,5 +355,5 @@ StringInputVisitor *string_input_visitor_new(const char *str)
     v->visitor.free = string_input_free;
 
     v->string = str;
-    return v;
+    return &v->visitor;
 }

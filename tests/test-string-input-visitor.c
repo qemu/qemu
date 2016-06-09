@@ -20,15 +20,15 @@
 #include "qapi/qmp/types.h"
 
 typedef struct TestInputVisitorData {
-    StringInputVisitor *siv;
+    Visitor *v;
 } TestInputVisitorData;
 
 static void visitor_input_teardown(TestInputVisitorData *data,
                                    const void *unused)
 {
-    if (data->siv) {
-        string_input_visitor_cleanup(data->siv);
-        data->siv = NULL;
+    if (data->v) {
+        visit_free(data->v);
+        data->v = NULL;
     }
 }
 
@@ -39,15 +39,9 @@ static
 Visitor *visitor_input_test_init(TestInputVisitorData *data,
                                  const char *string)
 {
-    Visitor *v;
-
-    data->siv = string_input_visitor_new(string);
-    g_assert(data->siv != NULL);
-
-    v = string_input_get_visitor(data->siv);
-    g_assert(v != NULL);
-
-    return v;
+    data->v = string_input_visitor_new(string);
+    g_assert(data->v);
+    return data->v;
 }
 
 static void test_visitor_in_int(TestInputVisitorData *data,
@@ -199,8 +193,6 @@ static void test_visitor_in_enum(TestInputVisitorData *data,
 
         visitor_input_teardown(data, NULL);
     }
-
-    data->siv = NULL;
 }
 
 /* Try to crash the visitors */

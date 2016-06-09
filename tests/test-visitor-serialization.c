@@ -1056,7 +1056,7 @@ static void qmp_cleanup(void *datap)
 typedef struct StringSerializeData {
     char *string;
     StringOutputVisitor *sov;
-    StringInputVisitor *siv;
+    Visitor *siv;
 } StringSerializeData;
 
 static void string_serialize(void *native_in, void **datap,
@@ -1076,7 +1076,7 @@ static void string_deserialize(void **native_out, void *datap,
 
     d->string = string_output_get_string(d->sov);
     d->siv = string_input_visitor_new(d->string);
-    visit(string_input_get_visitor(d->siv), native_out, errp);
+    visit(d->siv, native_out, errp);
 }
 
 static void string_cleanup(void *datap)
@@ -1084,7 +1084,7 @@ static void string_cleanup(void *datap)
     StringSerializeData *d = datap;
 
     string_output_visitor_cleanup(d->sov);
-    string_input_visitor_cleanup(d->siv);
+    visit_free(d->siv);
     g_free(d->string);
     g_free(d);
 }

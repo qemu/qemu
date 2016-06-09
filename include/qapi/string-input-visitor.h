@@ -22,9 +22,6 @@ typedef struct StringInputVisitor StringInputVisitor;
  * QAPI structs, alternates, null, or arbitrary QTypes.  It also
  * requires a non-null list argument to visit_start_list().
  */
-StringInputVisitor *string_input_visitor_new(const char *str);
-void string_input_visitor_cleanup(StringInputVisitor *v);
-
-Visitor *string_input_get_visitor(StringInputVisitor *v);
+Visitor *string_input_visitor_new(const char *str);
 
 #endif
