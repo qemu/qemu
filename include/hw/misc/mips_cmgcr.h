@@ -35,6 +35,7 @@
 /* Core Local and Core Other Block Register Map */
 #define GCR_CL_CONFIG_OFS   0x0010
 #define GCR_CL_OTHER_OFS    0x0018
+#define GCR_CL_RESETBASE_OFS 0x0020
 
 /* GCR_L2_CONFIG register fields */
 #define GCR_L2_CONFIG_BYPASS_SHF    20
@@ -50,6 +51,20 @@
 #define GCR_CPC_BASE_CPCBASE_MSK 0xFFFFFFFF8000ULL
 #define GCR_CPC_BASE_MSK (GCR_CPC_BASE_CPCEN_MSK | GCR_CPC_BASE_CPCBASE_MSK)
 
+/* GCR_CL_OTHER_OFS register fields */
+#define GCR_CL_OTHER_VPOTHER_MSK 0x7
+#define GCR_CL_OTHER_MSK GCR_CL_OTHER_VPOTHER_MSK
+
+/* GCR_CL_RESETBASE_OFS register fields */
+#define GCR_CL_RESET_BASE_RESETBASE_MSK 0xFFFFF000U
+#define GCR_CL_RESET_BASE_MSK GCR_CL_RESET_BASE_RESETBASE_MSK
+
+typedef struct MIPSGCRVPState MIPSGCRVPState;
+struct MIPSGCRVPState {
+    uint32_t other;
+    uint64_t reset_base;
+};
+
 typedef struct MIPSGCRState MIPSGCRState;
 struct MIPSGCRState {
     SysBusDevice parent_obj;
@@ -63,6 +78,9 @@ struct MIPSGCRState {
 
     uint64_t cpc_base;
     uint64_t gic_base;
+
+    /* VP Local/Other Registers */
+    MIPSGCRVPState *vps;
 };
 
 #endif /* _MIPS_GCR_H */
