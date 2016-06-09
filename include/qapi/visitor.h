@@ -24,15 +24,16 @@
  * for doing work at each node of a QAPI graph; it can also be used
  * for a virtual walk, where there is no actual QAPI C struct.
  *
- * There are three kinds of visitor classes: input visitors (QMP,
+ * There are four kinds of visitor classes: input visitors (QMP,
  * string, and QemuOpts) parse an external representation and build
  * the corresponding QAPI graph, output visitors (QMP and string) take
- * a completed QAPI graph and generate an external representation, and
- * the dealloc visitor can take a QAPI graph (possibly partially
- * constructed) and recursively free its resources.  While the dealloc
- * and QMP input/output visitors are general, the string and QemuOpts
- * visitors have some implementation limitations; see the
- * documentation for each visitor for more details on what it
+ * a completed QAPI graph and generate an external representation, the
+ * dealloc visitor can take a QAPI graph (possibly partially
+ * constructed) and recursively free its resources, and the clone
+ * visitor performs a deep clone of one QAPI object to another.  While
+ * the dealloc and QMP input/output visitors are general, the string,
+ * QemuOpts, and clone visitors have some implementation limitations;
+ * see the documentation for each visitor for more details on what it
  * supports.  Also, see visitor-impl.h for the callback contracts
  * implemented by each visitor, and docs/qapi-code-gen.txt for more
  * about the QAPI code generator.
@@ -80,9 +81,9 @@
  *
  * If an error is detected during visit_type_FOO() with an input
  * visitor, then *@obj will be NULL for pointer types, and left
- * unchanged for scalar types.  Using an output visitor with an
- * incomplete object has undefined behavior (other than a special case
- * for visit_type_str() treating NULL like ""), while the dealloc
+ * unchanged for scalar types.  Using an output or clone visitor with
+ * an incomplete object has undefined behavior (other than a special
+ * case for visit_type_str() treating NULL like ""), while the dealloc
  * visitor safely handles incomplete objects.  Since input visitors
  * never produce an incomplete object, such an object is possible only
  * by manual construction.
@@ -102,11 +103,19 @@
  *
  * void qapi_free_FOO(FOO *obj);
  *
- * which behaves like free() in that @obj may be NULL.  Because of
- * these functions, the dealloc visitor is seldom used directly
- * outside of generated code.  QAPI types can also inherit from a base
- * class; when this happens, a function is generated for easily going
- * from the derived type to the base type:
+ * where behaves like free() in that @obj may be NULL.  Such objects
+ * may also be used with the following macro, provided alongside the
+ * clone visitor:
+ *
+ * Type *QAPI_CLONE(Type, src);
+ *
+ * in order to perform a deep clone of @src.  Because of the generated
+ * qapi_free functions and the QAPI_CLONE() macro, the clone and
+ * dealloc visitor should not be used directly outside of QAPI code.
+ *
+ * QAPI types can also inherit from a base class; when this happens, a
+ * function is generated for easily going from the derived type to the
+ * base type:
  *
  * BASE *qapi_CHILD_base(CHILD *obj);
  *
@@ -272,9 +281,9 @@ void visit_free(Visitor *v);
  * container; see the general description of @name above.
  *
  * @obj must be non-NULL for a real walk, in which case @size
- * determines how much memory an input visitor will allocate into
- * *@obj.  @obj may also be NULL for a virtual walk, in which case
- * @size is ignored.
+ * determines how much memory an input or clone visitor will allocate
+ * into *@obj.  @obj may also be NULL for a virtual walk, in which
+ * case @size is ignored.
  *
  * @errp obeys typical error usage, and reports failures such as a
  * member @name is not present, or present but not an object.  On
@@ -327,9 +336,9 @@ void visit_end_struct(Visitor *v, void **obj);
  * container; see the general description of @name above.
  *
  * @list must be non-NULL for a real walk, in which case @size
- * determines how much memory an input visitor will allocate into
- * *@list (at least sizeof(GenericList)).  Some visitors also allow
- * @list to be NULL for a virtual walk, in which case @size is
+ * determines how much memory an input or clone visitor will allocate
+ * into *@list (at least sizeof(GenericList)).  Some visitors also
+ * allow @list to be NULL for a virtual walk, in which case @size is
  * ignored.
  *
  * @errp obeys typical error usage, and reports failures such as a
@@ -386,10 +395,10 @@ void visit_end_list(Visitor *v, void **list);
  * @name expresses the relationship of this alternate to its parent
  * container; see the general description of @name above.
  *
- * @obj must not be NULL. Input visitors use @size to determine how
- * much memory to allocate into *@obj, then determine the qtype of the
- * next thing to be visited, stored in (*@obj)->type.  Other visitors
- * will leave @obj unchanged.
+ * @obj must not be NULL. Input and clone visitors use @size to
+ * determine how much memory to allocate into *@obj, then determine
+ * the qtype of the next thing to be visited, stored in (*@obj)->type.
+ * Other visitors will leave @obj unchanged.
  *
  * If @promote_int, treat integers as QTYPE_FLOAT.
  *
@@ -554,9 +563,10 @@ void visit_type_bool(Visitor *v, const char *name, bool *obj, Error **errp);
  * @name expresses the relationship of this string to its parent
  * container; see the general description of @name above.
  *
- * @obj must be non-NULL.  Input visitors set *@obj to the value
- * (never NULL).  Other visitors leave *@obj unchanged, and commonly
- * treat NULL like "".
+ * @obj must be non-NULL.  Input and clone visitors set *@obj to the
+ * value (always using "" rather than NULL for an empty string).
+ * Other visitors leave *@obj unchanged, and commonly treat NULL like
+ * "".
  *
  * It is safe to cast away const when preparing a (const char *) value
  * into @obj for use by an output visitor.

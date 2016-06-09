@@ -42,10 +42,10 @@ void visit_start_struct(Visitor *v, const char *name, void **obj,
 
     if (obj) {
         assert(size);
-        assert(v->type != VISITOR_OUTPUT || *obj);
+        assert(!(v->type & VISITOR_OUTPUT) || *obj);
     }
     v->start_struct(v, name, obj, size, &err);
-    if (obj && v->type == VISITOR_INPUT) {
+    if (obj && (v->type & VISITOR_INPUT)) {
         assert(!err != !*obj);
     }
     error_propagate(errp, err);
@@ -70,7 +70,7 @@ void visit_start_list(Visitor *v, const char *name, GenericList **list,
 
     assert(!list || size >= sizeof(GenericList));
     v->start_list(v, name, list, size, &err);
-    if (list && v->type == VISITOR_INPUT) {
+    if (list && (v->type & VISITOR_INPUT)) {
         assert(!(err && *list));
     }
     error_propagate(errp, err);
@@ -94,11 +94,11 @@ void visit_start_alternate(Visitor *v, const char *name,
     Error *err = NULL;
 
     assert(obj && size >= sizeof(GenericAlternate));
-    assert(v->type != VISITOR_OUTPUT || *obj);
+    assert(!(v->type & VISITOR_OUTPUT) || *obj);
     if (v->start_alternate) {
         v->start_alternate(v, name, obj, size, promote_int, &err);
     }
-    if (v->type == VISITOR_INPUT) {
+    if (v->type & VISITOR_INPUT) {
         assert(v->start_alternate && !err != !*obj);
     }
     error_propagate(errp, err);
@@ -250,10 +250,10 @@ void visit_type_str(Visitor *v, const char *name, char **obj, Error **errp)
     assert(obj);
     /* TODO: Fix callers to not pass NULL when they mean "", so that we
      * can enable:
-    assert(v->type != VISITOR_OUTPUT || *obj);
+    assert(!(v->type & VISITOR_OUTPUT) || *obj);
      */
     v->type_str(v, name, obj, &err);
-    if (v->type == VISITOR_INPUT) {
+    if (v->type & VISITOR_INPUT) {
         assert(!err != !*obj);
     }
     error_propagate(errp, err);
@@ -335,9 +335,19 @@ void visit_type_enum(Visitor *v, const char *name, int *obj,
                      const char *const strings[], Error **errp)
 {
     assert(obj && strings);
-    if (v->type == VISITOR_INPUT) {
+    switch (v->type) {
+    case VISITOR_INPUT:
         input_type_enum(v, name, obj, strings, errp);
-    } else if (v->type == VISITOR_OUTPUT) {
+        break;
+    case VISITOR_OUTPUT:
         output_type_enum(v, name, obj, strings, errp);
+        break;
+    case VISITOR_CLONE:
+        /* nothing further to do, scalar value was already copied by
+         * g_memdup() during visit_start_*() */
+        break;
+    case VISITOR_DEALLOC:
+        /* nothing to deallocate for a scalar */
+        break;
     }
 }

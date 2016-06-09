@@ -27,14 +27,18 @@
  */
 
 /*
- * There are three classes of visitors; setting the class determines
+ * There are four classes of visitors; setting the class determines
  * how QAPI enums are visited, as well as what additional restrictions
- * can be asserted.
+ * can be asserted.  The values are intentionally chosen so as to
+ * permit some assertions based on whether a given bit is set (that
+ * is, some assertions apply to input and clone visitors, some
+ * assertions apply to output and clone visitors).
  */
 typedef enum VisitorType {
-    VISITOR_INPUT,
-    VISITOR_OUTPUT,
-    VISITOR_DEALLOC,
+    VISITOR_INPUT = 1,
+    VISITOR_OUTPUT = 2,
+    VISITOR_CLONE = 3,
+    VISITOR_DEALLOC = 4,
 } VisitorType;
 
 struct Visitor
