@@ -69,8 +69,8 @@ static const VMStateDescription vmstate_ipl = {
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(start_addr, S390IPLState),
-        VMSTATE_UINT64(bios_start_addr, S390IPLState),
+        VMSTATE_UINT64(compat_start_addr, S390IPLState),
+        VMSTATE_UINT64(compat_bios_start_addr, S390IPLState),
         VMSTATE_STRUCT(iplb, S390IPLState, 0, vmstate_iplb, IplParameterBlock),
         VMSTATE_BOOL(iplb_valid, S390IPLState),
         VMSTATE_UINT8(cssid, S390IPLState),
@@ -192,6 +192,13 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
             stq_p(rom_ptr(INITRD_PARM_SIZE), initrd_size);
         }
     }
+    /*
+     * Don't ever use the migrated values, they could come from a different
+     * BIOS and therefore don't work. But still migrate the values, so
+     * QEMUs relying on it don't break.
+     */
+    ipl->compat_start_addr = ipl->start_addr;
+    ipl->compat_bios_start_addr = ipl->bios_start_addr;
     qemu_register_reset(qdev_reset_all_fn, dev);
 error:
     error_propagate(errp, err);
