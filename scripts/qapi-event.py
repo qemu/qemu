@@ -71,7 +71,7 @@ def gen_event_send(name, arg_type):
 
     if arg_type and arg_type.members:
         ret += mcgen('''
-    QmpOutputVisitor *qov;
+    QObject *obj;
     Visitor *v;
 ''')
         ret += gen_param_var(arg_type)
@@ -90,8 +90,7 @@ def gen_event_send(name, arg_type):
 
     if arg_type and arg_type.members:
         ret += mcgen('''
-    qov = qmp_output_visitor_new();
-    v = qmp_output_get_visitor(qov);
+    v = qmp_output_visitor_new(&obj);
 
     visit_start_struct(v, "%(name)s", NULL, 0, &err);
     if (err) {
@@ -106,7 +105,8 @@ def gen_event_send(name, arg_type):
         goto out;
     }
 
-    qdict_put_obj(qmp, "data", qmp_output_get_qobject(qov));
+    visit_complete(v, &obj);
+    qdict_put_obj(qmp, "data", obj);
 ''',
                      name=name, c_name=arg_type.c_name())
 

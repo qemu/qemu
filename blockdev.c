@@ -3950,10 +3950,10 @@ out:
 
 void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 {
-    QmpOutputVisitor *ov = qmp_output_visitor_new();
     BlockDriverState *bs;
     BlockBackend *blk = NULL;
     QObject *obj;
+    Visitor *v = qmp_output_visitor_new(&obj);
     QDict *qdict;
     Error *local_err = NULL;
 
@@ -3972,14 +3972,13 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
         }
     }
 
-    visit_type_BlockdevOptions(qmp_output_get_visitor(ov), NULL, &options,
-                               &local_err);
+    visit_type_BlockdevOptions(v, NULL, &options, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto fail;
     }
 
-    obj = qmp_output_get_qobject(ov);
+    visit_complete(v, &obj);
     qdict = qobject_to_qdict(obj);
 
     qdict_flatten(qdict);
@@ -4020,7 +4019,7 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
     }
 
 fail:
-    visit_free(qmp_output_get_visitor(ov));
+    visit_free(v);
 }
 
 void qmp_x_blockdev_del(bool has_id, const char *id,

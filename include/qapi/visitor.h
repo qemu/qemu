@@ -39,21 +39,15 @@
  *
  * All of the visitors are created via:
  *
- * Type *subtype_visitor_new(parameters...);
- *
- * where Type is either directly 'Visitor *', or is a subtype that can
- * be trivially upcast to Visitor * via another function:
- *
- * Visitor *subtype_get_visitor(SubtypeVisitor *);
+ * Visitor *subtype_visitor_new(parameters...);
  *
  * A visitor should be used for exactly one top-level visit_type_FOO()
- * or virtual walk, then passed to visit_free() to clean up resources.
+ * or virtual walk; if that is successful, the caller can optionally
+ * call visit_complete() (for now, useful only for output visits, but
+ * safe to call on all visits).  Then, regardless of success or
+ * failure, the user should call visit_free() to clean up resources.
  * It is okay to free the visitor without completing the visit, if
- * some other error is detected in the meantime.  Output visitors
- * provide an additional function, for collecting the final results of
- * a successful visit: string_output_get_string() and
- * qmp_output_get_qobject(); this collection function should not be
- * called if any errors were reported during the visit.
+ * some other error is detected in the meantime.
  *
  * All QAPI types have a corresponding function with a signature
  * roughly compatible with this:
@@ -123,14 +117,14 @@
  *  Error *err = NULL;
  *  Visitor *v;
  *
- *  v = ...obtain input visitor...
+ *  v = FOO_visitor_new(...);
  *  visit_type_Foo(v, NULL, &f, &err);
  *  if (err) {
  *      ...handle error...
  *  } else {
  *      ...use f...
  *  }
- *  ...clean up v...
+ *  visit_free(v);
  *  qapi_free_Foo(f);
  * </example>
  *
@@ -140,7 +134,7 @@
  *  Error *err = NULL;
  *  Visitor *v;
  *
- *  v = ...obtain input visitor...
+ *  v = FOO_visitor_new(...);
  *  visit_type_FooList(v, NULL, &l, &err);
  *  if (err) {
  *      ...handle error...
@@ -149,7 +143,7 @@
  *          ...use l->value...
  *      }
  *  }
- *  ...clean up v...
+ *  visit_free(v);
  *  qapi_free_FooList(l);
  * </example>
  *
@@ -159,13 +153,17 @@
  *  Foo *f = ...obtain populated object...
  *  Error *err = NULL;
  *  Visitor *v;
+ *  Type *result;
  *
- *  v = ...obtain output visitor...
+ *  v = FOO_visitor_new(..., &result);
  *  visit_type_Foo(v, NULL, &f, &err);
  *  if (err) {
  *      ...handle error...
+ *  } else {
+ *      visit_complete(v, &result);
+ *      ...use result...
  *  }
- *  ...clean up v...
+ *  visit_free(v);
  * </example>
  *
  * When visiting a real QAPI struct, this file provides several
@@ -191,7 +189,7 @@
  *  Error *err = NULL;
  *  int value;
  *
- *  v = ...obtain visitor...
+ *  v = FOO_visitor_new(...);
  *  visit_start_struct(v, NULL, NULL, 0, &err);
  *  if (err) {
  *      goto out;
@@ -219,7 +217,7 @@
  *  visit_end_struct(v, NULL);
  * out:
  *  error_propagate(errp, err);
- *  ...clean up v...
+ *  visit_free(v);
  * </example>
  */
 
@@ -241,6 +239,18 @@ typedef struct GenericAlternate {
 } GenericAlternate;
 
 /*** Visitor cleanup ***/
+
+/*
+ * Complete the visit, collecting any output.
+ *
+ * May only be called only once after a successful top-level
+ * visit_type_FOO() or visit_end_ITEM(), and marks the end of the
+ * visit.  The @opaque pointer should match the output parameter
+ * passed to the subtype_visitor_new() used to create an output
+ * visitor, or NULL for any other visitor.  Needed for output
+ * visitors, but may also be called with other visitors.
+ */
+void visit_complete(Visitor *v, void *opaque);
 
 /*
  * Free @v and any resources it has tied up.

@@ -690,16 +690,15 @@ static void dump_qdict(fprintf_function func_fprintf, void *f, int indentation,
 void bdrv_image_info_specific_dump(fprintf_function func_fprintf, void *f,
                                    ImageInfoSpecific *info_spec)
 {
-    QmpOutputVisitor *ov = qmp_output_visitor_new();
     QObject *obj, *data;
+    Visitor *v = qmp_output_visitor_new(&obj);
 
-    visit_type_ImageInfoSpecific(qmp_output_get_visitor(ov), NULL, &info_spec,
-                                 &error_abort);
-    obj = qmp_output_get_qobject(ov);
+    visit_type_ImageInfoSpecific(v, NULL, &info_spec, &error_abort);
+    visit_complete(v, &obj);
     assert(qobject_type(obj) == QTYPE_QDICT);
     data = qdict_get(qobject_to_qdict(obj), "data");
     dump_qobject(func_fprintf, f, 1, data);
-    visit_free(qmp_output_get_visitor(ov));
+    visit_free(v);
 }
 
 void bdrv_image_info_dump(fprintf_function func_fprintf, void *f,

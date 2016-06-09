@@ -37,7 +37,6 @@ static void qnull_ref_test(void)
 static void qnull_visit_test(void)
 {
     QObject *obj;
-    QmpOutputVisitor *qov;
     Visitor *v;
 
     /*
@@ -53,12 +52,12 @@ static void qnull_visit_test(void)
     visit_type_null(v, NULL, &error_abort);
     visit_free(v);
 
-    qov = qmp_output_visitor_new();
-    visit_type_null(qmp_output_get_visitor(qov), NULL, &error_abort);
-    obj = qmp_output_get_qobject(qov);
+    v = qmp_output_visitor_new(&obj);
+    visit_type_null(v, NULL, &error_abort);
+    visit_complete(v, &obj);
     g_assert(obj == &qnull_);
     qobject_decref(obj);
-    visit_free(qmp_output_get_visitor(qov));
+    visit_free(v);
 
     g_assert(qnull_.refcnt == 1);
 }

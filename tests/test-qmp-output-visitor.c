@@ -21,7 +21,6 @@
 #include "qapi/qmp/qjson.h"
 
 typedef struct TestOutputVisitorData {
-    QmpOutputVisitor *qov;
     Visitor *ov;
     QObject *obj;
 } TestOutputVisitorData;
@@ -29,18 +28,14 @@ typedef struct TestOutputVisitorData {
 static void visitor_output_setup(TestOutputVisitorData *data,
                                  const void *unused)
 {
-    data->qov = qmp_output_visitor_new();
-    g_assert(data->qov != NULL);
-
-    data->ov = qmp_output_get_visitor(data->qov);
-    g_assert(data->ov != NULL);
+    data->ov = qmp_output_visitor_new(&data->obj);
+    g_assert(data->ov);
 }
 
 static void visitor_output_teardown(TestOutputVisitorData *data,
                                     const void *unused)
 {
     visit_free(data->ov);
-    data->qov = NULL;
     data->ov = NULL;
     qobject_decref(data->obj);
     data->obj = NULL;
@@ -48,7 +43,7 @@ static void visitor_output_teardown(TestOutputVisitorData *data,
 
 static QObject *visitor_get(TestOutputVisitorData *data)
 {
-    data->obj = qmp_output_get_qobject(data->qov);
+    visit_complete(data->ov, &data->obj);
     g_assert(data->obj);
     return data->obj;
 }

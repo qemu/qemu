@@ -1012,7 +1012,8 @@ static PrimitiveType pt_values[] = {
 /* visitor-specific op implementations */
 
 typedef struct QmpSerializeData {
-    QmpOutputVisitor *qov;
+    Visitor *qov;
+    QObject *obj;
     Visitor *qiv;
 } QmpSerializeData;
 
@@ -1021,8 +1022,8 @@ static void qmp_serialize(void *native_in, void **datap,
 {
     QmpSerializeData *d = g_malloc0(sizeof(*d));
 
-    d->qov = qmp_output_visitor_new();
-    visit(qmp_output_get_visitor(d->qov), &native_in, errp);
+    d->qov = qmp_output_visitor_new(&d->obj);
+    visit(d->qov, &native_in, errp);
     *datap = d;
 }
 
@@ -1033,7 +1034,8 @@ static void qmp_deserialize(void **native_out, void *datap,
     QString *output_json;
     QObject *obj_orig, *obj;
 
-    obj_orig = qmp_output_get_qobject(d->qov);
+    visit_complete(d->qov, &d->obj);
+    obj_orig = d->obj;
     output_json = qobject_to_json(obj_orig);
     obj = qobject_from_json(qstring_get_str(output_json));
 
@@ -1047,7 +1049,7 @@ static void qmp_deserialize(void **native_out, void *datap,
 static void qmp_cleanup(void *datap)
 {
     QmpSerializeData *d = datap;
-    visit_free(qmp_output_get_visitor(d->qov));
+    visit_free(d->qov);
     visit_free(d->qiv);
 
     g_free(d);
@@ -1055,7 +1057,7 @@ static void qmp_cleanup(void *datap)
 
 typedef struct StringSerializeData {
     char *string;
-    StringOutputVisitor *sov;
+    Visitor *sov;
     Visitor *siv;
 } StringSerializeData;
 
@@ -1064,8 +1066,8 @@ static void string_serialize(void *native_in, void **datap,
 {
     StringSerializeData *d = g_malloc0(sizeof(*d));
 
-    d->sov = string_output_visitor_new(false);
-    visit(string_output_get_visitor(d->sov), &native_in, errp);
+    d->sov = string_output_visitor_new(false, &d->string);
+    visit(d->sov, &native_in, errp);
     *datap = d;
 }
 
@@ -1074,7 +1076,7 @@ static void string_deserialize(void **native_out, void *datap,
 {
     StringSerializeData *d = datap;
 
-    d->string = string_output_get_string(d->sov);
+    visit_complete(d->sov, &d->string);
     d->siv = string_input_visitor_new(d->string);
     visit(d->siv, native_out, errp);
 }
@@ -1083,7 +1085,7 @@ static void string_cleanup(void *datap)
 {
     StringSerializeData *d = datap;
 
-    visit_free(string_output_get_visitor(d->sov));
+    visit_free(d->sov);
     visit_free(d->siv);
     g_free(d->string);
     g_free(d);

@@ -22,15 +22,13 @@
 
 static InputEvent *qapi_clone_InputEvent(InputEvent *src)
 {
-    QmpOutputVisitor *qov;
     Visitor *ov, *iv;
     QObject *obj;
     InputEvent *dst = NULL;
 
-    qov = qmp_output_visitor_new();
-    ov = qmp_output_get_visitor(qov);
+    ov = qmp_output_visitor_new(&obj);
     visit_type_InputEvent(ov, NULL, &src, &error_abort);
-    obj = qmp_output_get_qobject(qov);
+    visit_complete(ov, &obj);
     visit_free(ov);
     if (!obj) {
         return NULL;

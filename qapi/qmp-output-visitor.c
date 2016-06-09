@@ -33,6 +33,7 @@ struct QmpOutputVisitor
     Visitor visitor;
     QStack stack; /* Stack of containers that haven't yet been finished */
     QObject *root; /* Root of the output visit */
+    QObject **result; /* User's storage location for result */
 };
 
 #define qmp_output_add(qov, name, value) \
@@ -200,18 +201,17 @@ static void qmp_output_type_null(Visitor *v, const char *name, Error **errp)
 /* Finish building, and return the root object.
  * The root object is never null. The caller becomes the object's
  * owner, and should use qobject_decref() when done with it.  */
-QObject *qmp_output_get_qobject(QmpOutputVisitor *qov)
+static void qmp_output_complete(Visitor *v, void *opaque)
 {
+    QmpOutputVisitor *qov = to_qov(v);
+
     /* A visit must have occurred, with each start paired with end.  */
     assert(qov->root && QTAILQ_EMPTY(&qov->stack));
+    assert(opaque == qov->result);
 
     qobject_incref(qov->root);
-    return qov->root;
-}
-
-Visitor *qmp_output_get_visitor(QmpOutputVisitor *v)
-{
-    return &v->visitor;
+    *qov->result = qov->root;
+    qov->result = NULL;
 }
 
 static void qmp_output_free(Visitor *v)
@@ -228,7 +228,7 @@ static void qmp_output_free(Visitor *v)
     g_free(qov);
 }
 
-QmpOutputVisitor *qmp_output_visitor_new(void)
+Visitor *qmp_output_visitor_new(QObject **result)
 {
     QmpOutputVisitor *v;
 
@@ -247,9 +247,12 @@ QmpOutputVisitor *qmp_output_visitor_new(void)
     v->visitor.type_number = qmp_output_type_number;
     v->visitor.type_any = qmp_output_type_any;
     v->visitor.type_null = qmp_output_type_null;
+    v->visitor.complete = qmp_output_complete;
     v->visitor.free = qmp_output_free;
 
     QTAILQ_INIT(&v->stack);
+    *result = NULL;
+    v->result = result;
 
-    return v;
+    return &v->visitor;
 }

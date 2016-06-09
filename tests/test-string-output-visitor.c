@@ -20,7 +20,6 @@
 #include "qapi/qmp/types.h"
 
 typedef struct TestOutputVisitorData {
-    StringOutputVisitor *sov;
     Visitor *ov;
     char *str;
     bool human;
@@ -30,9 +29,7 @@ static void visitor_output_setup_internal(TestOutputVisitorData *data,
                                           bool human)
 {
     data->human = human;
-    data->sov = string_output_visitor_new(human);
-    g_assert(data->sov);
-    data->ov = string_output_get_visitor(data->sov);
+    data->ov = string_output_visitor_new(human, &data->str);
     g_assert(data->ov);
 }
 
@@ -52,7 +49,6 @@ static void visitor_output_teardown(TestOutputVisitorData *data,
                                     const void *unused)
 {
     visit_free(data->ov);
-    data->sov = NULL;
     data->ov = NULL;
     g_free(data->str);
     data->str = NULL;
@@ -60,7 +56,7 @@ static void visitor_output_teardown(TestOutputVisitorData *data,
 
 static char *visitor_get(TestOutputVisitorData *data)
 {
-    data->str = string_output_get_string(data->sov);
+    visit_complete(data->ov, &data->str);
     g_assert(data->str);
     return data->str;
 }

@@ -105,6 +105,9 @@ struct Visitor
     /* Must be set */
     VisitorType type;
 
+    /* Must be set for output visitors, optional otherwise. */
+    void (*complete)(Visitor *v, void *opaque);
+
     /* Must be set */
     void (*free)(Visitor *v);
 };

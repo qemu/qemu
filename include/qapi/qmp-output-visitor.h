@@ -19,9 +19,12 @@
 
 typedef struct QmpOutputVisitor QmpOutputVisitor;
 
-QmpOutputVisitor *qmp_output_visitor_new(void);
-
-QObject *qmp_output_get_qobject(QmpOutputVisitor *v);
-Visitor *qmp_output_get_visitor(QmpOutputVisitor *v);
+/*
+ * Create a new QMP output visitor.
+ *
+ * If everything else succeeds, pass @result to visit_complete() to
+ * collect the result of the visit.
+ */
+Visitor *qmp_output_visitor_new(QObject **result);
 
 #endif

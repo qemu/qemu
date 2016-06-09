@@ -20,6 +20,14 @@
 #include "qapi/visitor.h"
 #include "qapi/visitor-impl.h"
 
+void visit_complete(Visitor *v, void *opaque)
+{
+    assert(v->type != VISITOR_OUTPUT || v->complete);
+    if (v->complete) {
+        v->complete(v, opaque);
+    }
+}
+
 void visit_free(Visitor *v)
 {
     if (v) {

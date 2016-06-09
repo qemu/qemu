@@ -980,17 +980,13 @@ Example:
     static void qmp_marshal_output_UserDefOne(UserDefOne *ret_in, QObject **ret_out, Error **errp)
     {
         Error *err = NULL;
-        QmpOutputVisitor *qov = qmp_output_visitor_new();
         Visitor *v;
 
-        v = qmp_output_get_visitor(qov);
+        v = qmp_output_visitor_new(ret_out);
         visit_type_UserDefOne(v, "unused", &ret_in, &err);
-        if (err) {
-            goto out;
+        if (!err) {
+            visit_complete(v, ret_out);
         }
-        *ret_out = qmp_output_get_qobject(qov);
-
-    out:
         error_propagate(errp, err);
         visit_free(v);
         v = qapi_dealloc_visitor_new();

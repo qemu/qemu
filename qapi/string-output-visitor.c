@@ -58,6 +58,7 @@ struct StringOutputVisitor
     Visitor visitor;
     bool human;
     GString *string;
+    char **result;
     ListMode list_mode;
     union {
         int64_t s;
@@ -305,16 +306,13 @@ static void end_list(Visitor *v, void **obj)
     sov->list_mode = LM_NONE;
 }
 
-char *string_output_get_string(StringOutputVisitor *sov)
+static void string_output_complete(Visitor *v, void *opaque)
 {
-    char *string = g_string_free(sov->string, false);
-    sov->string = NULL;
-    return string;
-}
+    StringOutputVisitor *sov = to_sov(v);
 
-Visitor *string_output_get_visitor(StringOutputVisitor *sov)
-{
-    return &sov->visitor;
+    assert(opaque == sov->result);
+    *sov->result = g_string_free(sov->string, false);
+    sov->string = NULL;
 }
 
 static void free_range(void *range, void *dummy)
@@ -335,7 +333,7 @@ static void string_output_free(Visitor *v)
     g_free(sov);
 }
 
-StringOutputVisitor *string_output_visitor_new(bool human)
+Visitor *string_output_visitor_new(bool human, char **result)
 {
     StringOutputVisitor *v;
 
@@ -343,6 +341,9 @@ StringOutputVisitor *string_output_visitor_new(bool human)
 
     v->string = g_string_new(NULL);
     v->human = human;
+    v->result = result;
+    *result = NULL;
+
     v->visitor.type = VISITOR_OUTPUT;
     v->visitor.type_int64 = print_type_int64;
     v->visitor.type_uint64 = print_type_uint64;
@@ -353,7 +354,8 @@ StringOutputVisitor *string_output_visitor_new(bool human)
     v->visitor.start_list = start_list;
     v->visitor.next_list = next_list;
     v->visitor.end_list = end_list;
+    v->visitor.complete = string_output_complete;
     v->visitor.free = string_output_free;
 
-    return v;
+    return &v->visitor;
 }

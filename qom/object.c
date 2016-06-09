@@ -1221,7 +1221,6 @@ int object_property_get_enum(Object *obj, const char *name,
                              const char *typename, Error **errp)
 {
     Error *err = NULL;
-    StringOutputVisitor *sov;
     Visitor *v;
     char *str;
     int ret;
@@ -1241,15 +1240,14 @@ int object_property_get_enum(Object *obj, const char *name,
 
     enumprop = prop->opaque;
 
-    sov = string_output_visitor_new(false);
-    v = string_output_get_visitor(sov);
+    v = string_output_visitor_new(false, &str);
     object_property_get(obj, v, name, &err);
     if (err) {
         error_propagate(errp, err);
         visit_free(v);
         return 0;
     }
-    str = string_output_get_string(sov);
+    visit_complete(v, &str);
     visit_free(v);
     v = string_input_visitor_new(str);
     visit_type_enum(v, name, &ret, enumprop->strings, errp);
@@ -1264,25 +1262,23 @@ void object_property_get_uint16List(Object *obj, const char *name,
                                     uint16List **list, Error **errp)
 {
     Error *err = NULL;
-    StringOutputVisitor *ov;
     Visitor *v;
     char *str;
 
-    ov = string_output_visitor_new(false);
-    object_property_get(obj, string_output_get_visitor(ov),
-                        name, &err);
+    v = string_output_visitor_new(false, &str);
+    object_property_get(obj, v, name, &err);
     if (err) {
         error_propagate(errp, err);
         goto out;
     }
-    str = string_output_get_string(ov);
+    visit_complete(v, &str);
+    visit_free(v);
     v = string_input_visitor_new(str);
     visit_type_uint16List(v, NULL, list, errp);
 
     g_free(str);
-    visit_free(v);
 out:
-    visit_free(string_output_get_visitor(ov));
+    visit_free(v);
 }
 
 void object_property_parse(Object *obj, const char *string,
@@ -1296,21 +1292,21 @@ void object_property_parse(Object *obj, const char *string,
 char *object_property_print(Object *obj, const char *name, bool human,
                             Error **errp)
 {
-    StringOutputVisitor *sov;
+    Visitor *v;
     char *string = NULL;
     Error *local_err = NULL;
 
-    sov = string_output_visitor_new(human);
-    object_property_get(obj, string_output_get_visitor(sov), name, &local_err);
+    v = string_output_visitor_new(human, &string);
+    object_property_get(obj, v, name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto out;
     }
 
-    string = string_output_get_string(sov);
+    visit_complete(v, &string);
 
 out:
-    visit_free(string_output_get_visitor(sov));
+    visit_free(v);
     return string;
 }
 

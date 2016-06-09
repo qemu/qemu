@@ -61,17 +61,13 @@ def gen_marshal_output(ret_type):
 static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in, QObject **ret_out, Error **errp)
 {
     Error *err = NULL;
-    QmpOutputVisitor *qov = qmp_output_visitor_new();
     Visitor *v;
 
-    v = qmp_output_get_visitor(qov);
+    v = qmp_output_visitor_new(ret_out);
     visit_type_%(c_name)s(v, "unused", &ret_in, &err);
-    if (err) {
-        goto out;
+    if (!err) {
+        visit_complete(v, ret_out);
     }
-    *ret_out = qmp_output_get_qobject(qov);
-
-out:
     error_propagate(errp, err);
     visit_free(v);
     v = qapi_dealloc_visitor_new();
