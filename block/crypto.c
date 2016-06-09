@@ -222,7 +222,7 @@ block_crypto_open_opts_init(QCryptoBlockFormat format,
         visit_check_struct(opts_get_visitor(ov), &local_err);
     }
 
-    visit_end_struct(opts_get_visitor(ov));
+    visit_end_struct(opts_get_visitor(ov), NULL);
 
  out:
     if (local_err) {
@@ -269,7 +269,7 @@ block_crypto_create_opts_init(QCryptoBlockFormat format,
         visit_check_struct(opts_get_visitor(ov), &local_err);
     }
 
-    visit_end_struct(opts_get_visitor(ov));
+    visit_end_struct(opts_get_visitor(ov), NULL);
 
  out:
     if (local_err) {

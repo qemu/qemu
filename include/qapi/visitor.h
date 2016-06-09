@@ -193,12 +193,12 @@
  *      goto outlist;
  *  }
  * outlist:
- *  visit_end_list(v);
+ *  visit_end_list(v, NULL);
  *  if (!err) {
  *      visit_check_struct(v, &err);
  *  }
  * outobj:
- *  visit_end_struct(v);
+ *  visit_end_struct(v, NULL);
  * out:
  *  error_propagate(errp, err);
  *  ...clean up v...
@@ -242,8 +242,8 @@ typedef struct GenericAlternate {
  * After visit_start_struct() succeeds, the caller may visit its
  * members one after the other, passing the member's name and address
  * within the struct.  Finally, visit_end_struct() needs to be called
- * to clean up, even if intermediate visits fail.  See the examples
- * above.
+ * with the same @obj to clean up, even if intermediate visits fail.
+ * See the examples above.
  *
  * FIXME Should this be named visit_start_object, since it is also
  * used for QAPI unions, and maps to JSON objects?
@@ -267,12 +267,14 @@ void visit_check_struct(Visitor *v, Error **errp);
 /*
  * Complete an object visit started earlier.
  *
+ * @obj must match what was passed to the paired visit_start_struct().
+ *
  * Must be called after any successful use of visit_start_struct(),
  * even if intermediate processing was skipped due to errors, to allow
  * the backend to release any resources.  Destroying the visitor early
  * behaves as if this was implicitly called.
  */
-void visit_end_struct(Visitor *v);
+void visit_end_struct(Visitor *v, void **obj);
 
 
 /*** Visiting lists ***/
@@ -299,8 +301,9 @@ void visit_end_struct(Visitor *v);
  * visit (where @obj is NULL) uses other means.  For each list
  * element, call the appropriate visit_type_FOO() with name set to
  * NULL and obj set to the address of the value member of the list
- * element.  Finally, visit_end_list() needs to be called to clean up,
- * even if intermediate visits fail.  See the examples above.
+ * element.  Finally, visit_end_list() needs to be called with the
+ * same @list to clean up, even if intermediate visits fail.  See the
+ * examples above.
  */
 void visit_start_list(Visitor *v, const char *name, GenericList **list,
                       size_t size, Error **errp);
@@ -324,12 +327,14 @@ GenericList *visit_next_list(Visitor *v, GenericList *tail, size_t size);
 /*
  * Complete a list visit started earlier.
  *
+ * @list must match what was passed to the paired visit_start_list().
+ *
  * Must be called after any successful use of visit_start_list(), even
  * if intermediate processing was skipped due to errors, to allow the
  * backend to release any resources.  Destroying the visitor early
  * behaves as if this was implicitly called.
  */
-void visit_end_list(Visitor *v);
+void visit_end_list(Visitor *v, void **list);
 
 
 /*** Visiting alternates ***/
@@ -347,8 +352,9 @@ void visit_end_list(Visitor *v);
  *
  * If @promote_int, treat integers as QTYPE_FLOAT.
  *
- * If successful, this must be paired with visit_end_alternate() to
- * clean up, even if visiting the contents of the alternate fails.
+ * If successful, this must be paired with visit_end_alternate() with
+ * the same @obj to clean up, even if visiting the contents of the
+ * alternate fails.
  */
 void visit_start_alternate(Visitor *v, const char *name,
                            GenericAlternate **obj, size_t size,
@@ -357,15 +363,15 @@ void visit_start_alternate(Visitor *v, const char *name,
 /*
  * Finish visiting an alternate type.
  *
+ * @obj must match what was passed to the paired visit_start_alternate().
+ *
  * Must be called after any successful use of visit_start_alternate(),
  * even if intermediate processing was skipped due to errors, to allow
  * the backend to release any resources.  Destroying the visitor early
  * behaves as if this was implicitly called.
  *
- * TODO: Should all the visit_end_* interfaces take obj parameter, so
- * that dealloc visitor need not track what was passed in visit_start?
  */
-void visit_end_alternate(Visitor *v);
+void visit_end_alternate(Visitor *v, void **obj);
 
 
 /*** Other helpers ***/

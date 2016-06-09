@@ -101,7 +101,7 @@ def gen_event_send(name, arg_type):
     if (!err) {
         visit_check_struct(v, &err);
     }
-    visit_end_struct(v);
+    visit_end_struct(v, NULL);
     if (err) {
         goto out;
     }

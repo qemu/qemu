@@ -304,7 +304,7 @@ static void test_visitor_in_null(TestInputVisitorData *data,
     visit_type_null(v, "b", &err);
     error_free_or_abort(&err);
     visit_check_struct(v, &error_abort);
-    visit_end_struct(v);
+    visit_end_struct(v, NULL);
 }
 
 static void test_visitor_in_union_flat(TestInputVisitorData *data,

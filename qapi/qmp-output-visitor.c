@@ -22,6 +22,7 @@
 typedef struct QStackEntry
 {
     QObject *value;
+    void *qapi; /* sanity check that caller uses same pointer */
     QTAILQ_ENTRY(QStackEntry) node;
 } QStackEntry;
 
@@ -36,7 +37,8 @@ struct QmpOutputVisitor
 
 #define qmp_output_add(qov, name, value) \
     qmp_output_add_obj(qov, name, QOBJECT(value))
-#define qmp_output_push(qov, value) qmp_output_push_obj(qov, QOBJECT(value))
+#define qmp_output_push(qov, value, qapi) \
+    qmp_output_push_obj(qov, QOBJECT(value), qapi)
 
 static QmpOutputVisitor *to_qov(Visitor *v)
 {
@@ -44,23 +46,26 @@ static QmpOutputVisitor *to_qov(Visitor *v)
 }
 
 /* Push @value onto the stack of current QObjects being built */
-static void qmp_output_push_obj(QmpOutputVisitor *qov, QObject *value)
+static void qmp_output_push_obj(QmpOutputVisitor *qov, QObject *value,
+                                void *qapi)
 {
     QStackEntry *e = g_malloc0(sizeof(*e));
 
     assert(qov->root);
     assert(value);
     e->value = value;
+    e->qapi = qapi;
     QTAILQ_INSERT_HEAD(&qov->stack, e, node);
 }
 
 /* Pop a value off the stack of QObjects being built, and return it. */
-static QObject *qmp_output_pop(QmpOutputVisitor *qov)
+static QObject *qmp_output_pop(QmpOutputVisitor *qov, void *qapi)
 {
     QStackEntry *e = QTAILQ_FIRST(&qov->stack);
     QObject *value;
 
     assert(e);
+    assert(e->qapi == qapi);
     QTAILQ_REMOVE(&qov->stack, e, node);
     value = e->value;
     assert(value);
@@ -104,13 +109,13 @@ static void qmp_output_start_struct(Visitor *v, const char *name, void **obj,
     QDict *dict = qdict_new();
 
     qmp_output_add(qov, name, dict);
-    qmp_output_push(qov, dict);
+    qmp_output_push(qov, dict, obj);
 }
 
-static void qmp_output_end_struct(Visitor *v)
+static void qmp_output_end_struct(Visitor *v, void **obj)
 {
     QmpOutputVisitor *qov = to_qov(v);
-    QObject *value = qmp_output_pop(qov);
+    QObject *value = qmp_output_pop(qov, obj);
     assert(qobject_type(value) == QTYPE_QDICT);
 }
 
@@ -122,7 +127,7 @@ static void qmp_output_start_list(Visitor *v, const char *name,
     QList *list = qlist_new();
 
     qmp_output_add(qov, name, list);
-    qmp_output_push(qov, list);
+    qmp_output_push(qov, list, listp);
 }
 
 static GenericList *qmp_output_next_list(Visitor *v, GenericList *tail,
@@ -131,10 +136,10 @@ static GenericList *qmp_output_next_list(Visitor *v, GenericList *tail,
     return tail->next;
 }
 
-static void qmp_output_end_list(Visitor *v)
+static void qmp_output_end_list(Visitor *v, void **obj)
 {
     QmpOutputVisitor *qov = to_qov(v);
-    QObject *value = qmp_output_pop(qov);
+    QObject *value = qmp_output_pop(qov, obj);
     assert(qobject_type(value) == QTYPE_QLIST);
 }
 

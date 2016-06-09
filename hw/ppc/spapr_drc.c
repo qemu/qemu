@@ -300,7 +300,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
             /* shouldn't ever see an FDT_END_NODE before FDT_BEGIN_NODE */
             g_assert(fdt_depth > 0);
             visit_check_struct(v, &err);
-            visit_end_struct(v);
+            visit_end_struct(v, NULL);
             if (err) {
                 error_propagate(errp, err);
                 return;
@@ -323,7 +323,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
                     return;
                 }
             }
-            visit_end_list(v);
+            visit_end_list(v, NULL);
             break;
         }
         default:

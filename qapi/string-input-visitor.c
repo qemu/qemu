@@ -30,6 +30,7 @@ struct StringInputVisitor
     int64_t cur;
 
     const char *string;
+    void *list; /* Only needed for sanity checking the caller */
 };
 
 static StringInputVisitor *to_siv(Visitor *v)
@@ -120,6 +121,7 @@ start_list(Visitor *v, const char *name, GenericList **list, size_t size,
 
     /* We don't support visits without a list */
     assert(list);
+    siv->list = list;
 
     if (parse_str(siv, name, errp) < 0) {
         *list = NULL;
@@ -168,8 +170,11 @@ static GenericList *next_list(Visitor *v, GenericList *tail, size_t size)
     return tail->next;
 }
 
-static void end_list(Visitor *v)
+static void end_list(Visitor *v, void **obj)
 {
+    StringInputVisitor *siv = to_siv(v);
+
+    assert(siv->list == obj);
 }
 
 static void parse_type_int64(Visitor *v, const char *name, int64_t *obj,

@@ -64,6 +64,7 @@ struct StringOutputVisitor
         uint64_t u;
     } range_start, range_end;
     GList *ranges;
+    void *list; /* Only needed for sanity checking the caller */
 };
 
 static StringOutputVisitor *to_sov(Visitor *v)
@@ -274,6 +275,7 @@ start_list(Visitor *v, const char *name, GenericList **list, size_t size,
     assert(sov->list_mode == LM_NONE);
     /* We don't support visits without a list */
     assert(list);
+    sov->list = list;
     /* List handling is only needed if there are at least two elements */
     if (*list && (*list)->next) {
         sov->list_mode = LM_STARTED;
@@ -291,10 +293,11 @@ static GenericList *next_list(Visitor *v, GenericList *tail, size_t size)
     return ret;
 }
 
-static void end_list(Visitor *v)
+static void end_list(Visitor *v, void **obj)
 {
     StringOutputVisitor *sov = to_sov(v);
 
+    assert(sov->list == obj);
     assert(sov->list_mode == LM_STARTED ||
            sov->list_mode == LM_END ||
            sov->list_mode == LM_NONE ||

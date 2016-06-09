@@ -71,7 +71,7 @@ Object *user_creatable_add(const QDict *qdict,
     obj = user_creatable_add_type(type, id, pdict, v, &local_err);
 
 out_visit:
-    visit_end_struct(v);
+    visit_end_struct(v, NULL);
 
 out:
     QDECREF(pdict);
@@ -127,7 +127,7 @@ Object *user_creatable_add_type(const char *type, const char *id,
     if (!local_err) {
         visit_check_struct(v, &local_err);
     }
-    visit_end_struct(v);
+    visit_end_struct(v, NULL);
     if (local_err) {
         goto out;
     }

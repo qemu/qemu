@@ -904,7 +904,7 @@ Example:
         }
         visit_check_struct(v, &err);
     out_obj:
-        visit_end_struct(v);
+        visit_end_struct(v, (void **)obj);
         if (err && visit_is_input(v)) {
             qapi_free_UserDefOne(*obj);
             *obj = NULL;
@@ -932,7 +932,7 @@ Example:
             }
         }
 
-        visit_end_list(v);
+        visit_end_list(v, (void **)obj);
         if (err && visit_is_input(v)) {
             qapi_free_UserDefOneList(*obj);
             *obj = NULL;
@@ -1022,7 +1022,7 @@ Example:
         if (!err) {
             visit_check_struct(v, &err);
         }
-        visit_end_struct(v);
+        visit_end_struct(v, NULL);
         if (err) {
             goto out;
         }
@@ -1041,7 +1041,7 @@ Example:
         v = qapi_dealloc_get_visitor(qdv);
         visit_start_struct(v, NULL, NULL, 0, NULL);
         visit_type_UserDefOneList(v, "arg1", &arg1, NULL);
-        visit_end_struct(v);
+        visit_end_struct(v, NULL);
         qapi_dealloc_visitor_cleanup(qdv);
     }
 

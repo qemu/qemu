@@ -180,7 +180,7 @@ opts_check_struct(Visitor *v, Error **errp)
 
 
 static void
-opts_end_struct(Visitor *v)
+opts_end_struct(Visitor *v, void **obj)
 {
     OptsVisitor *ov = to_ov(v);
 
@@ -273,7 +273,7 @@ opts_next_list(Visitor *v, GenericList *tail, size_t size)
 
 
 static void
-opts_end_list(Visitor *v)
+opts_end_list(Visitor *v, void **obj)
 {
     OptsVisitor *ov = to_ov(v);
 
