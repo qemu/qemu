@@ -26,7 +26,7 @@
 
 typedef struct TestInputVisitorData {
     QObject *obj;
-    QmpInputVisitor *qiv;
+    Visitor *qiv;
 } TestInputVisitorData;
 
 static void validate_teardown(TestInputVisitorData *data,
@@ -36,7 +36,7 @@ static void validate_teardown(TestInputVisitorData *data,
     data->obj = NULL;
 
     if (data->qiv) {
-        qmp_input_visitor_cleanup(data->qiv);
+        visit_free(data->qiv);
         data->qiv = NULL;
     }
 }
@@ -48,8 +48,6 @@ static Visitor *validate_test_init_internal(TestInputVisitorData *data,
                                             const char *json_string,
                                             va_list *ap)
 {
-    Visitor *v;
-
     validate_teardown(data, NULL);
 
     data->obj = qobject_from_jsonv(json_string, ap);
@@ -57,11 +55,7 @@ static Visitor *validate_test_init_internal(TestInputVisitorData *data,
 
     data->qiv = qmp_input_visitor_new(data->obj, true);
     g_assert(data->qiv);
-
-    v = qmp_input_get_visitor(data->qiv);
-    g_assert(v);
-
-    return v;
+    return data->qiv;
 }
 
 static GCC_FMT_ATTR(2, 3)

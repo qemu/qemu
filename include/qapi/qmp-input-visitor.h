@@ -25,10 +25,6 @@ typedef struct QmpInputVisitor QmpInputVisitor;
  * Set @strict to reject a parse that doesn't consume all keys of a
  * dictionary; otherwise excess input is ignored.
  */
-QmpInputVisitor *qmp_input_visitor_new(QObject *obj, bool strict);
-
-void qmp_input_visitor_cleanup(QmpInputVisitor *v);
-
-Visitor *qmp_input_get_visitor(QmpInputVisitor *v);
+Visitor *qmp_input_visitor_new(QObject *obj, bool strict);
 
 #endif

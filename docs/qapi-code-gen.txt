@@ -1002,11 +1002,10 @@ Example:
     {
         Error *err = NULL;
         UserDefOne *retval;
-        QmpInputVisitor *qiv = qmp_input_visitor_new(QOBJECT(args), true);
         Visitor *v;
         UserDefOneList *arg1 = NULL;
 
-        v = qmp_input_get_visitor(qiv);
+        v = qmp_input_visitor_new(QOBJECT(args), true);
         visit_start_struct(v, NULL, NULL, 0, &err);
         if (err) {
             goto out;

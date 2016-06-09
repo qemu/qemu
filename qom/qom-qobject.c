@@ -21,12 +21,11 @@
 void object_property_set_qobject(Object *obj, QObject *value,
                                  const char *name, Error **errp)
 {
-    QmpInputVisitor *qiv;
+    Visitor *v;
     /* TODO: Should we reject, rather than ignore, excess input? */
-    qiv = qmp_input_visitor_new(value, false);
-    object_property_set(obj, qmp_input_get_visitor(qiv), name, errp);
-
-    qmp_input_visitor_cleanup(qiv);
+    v = qmp_input_visitor_new(value, false);
+    object_property_set(obj, v, name, errp);
+    visit_free(v);
 }
 
 QObject *object_property_get_qobject(Object *obj, const char *name,

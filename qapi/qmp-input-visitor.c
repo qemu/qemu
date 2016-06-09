@@ -373,25 +373,15 @@ static void qmp_input_optional(Visitor *v, const char *name, bool *present)
     *present = true;
 }
 
-Visitor *qmp_input_get_visitor(QmpInputVisitor *v)
-{
-    return &v->visitor;
-}
-
 static void qmp_input_free(Visitor *v)
 {
     QmpInputVisitor *qiv = to_qiv(v);
 
-    qmp_input_visitor_cleanup(qiv);
+    qobject_decref(qiv->root);
+    g_free(qiv);
 }
 
-void qmp_input_visitor_cleanup(QmpInputVisitor *v)
-{
-    qobject_decref(v->root);
-    g_free(v);
-}
-
-QmpInputVisitor *qmp_input_visitor_new(QObject *obj, bool strict)
+Visitor *qmp_input_visitor_new(QObject *obj, bool strict)
 {
     QmpInputVisitor *v;
 
@@ -419,5 +409,5 @@ QmpInputVisitor *qmp_input_visitor_new(QObject *obj, bool strict)
     v->root = obj;
     qobject_incref(obj);
 
-    return v;
+    return &v->visitor;
 }

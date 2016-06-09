@@ -113,11 +113,10 @@ def gen_marshal(name, arg_type, ret_type):
 
     if arg_type and arg_type.members:
         ret += mcgen('''
-    QmpInputVisitor *qiv = qmp_input_visitor_new(QOBJECT(args), true);
     Visitor *v;
     %(c_name)s arg = {0};
 
-    v = qmp_input_get_visitor(qiv);
+    v = qmp_input_visitor_new(QOBJECT(args), true);
     visit_start_struct(v, NULL, NULL, 0, &err);
     if (err) {
         goto out;

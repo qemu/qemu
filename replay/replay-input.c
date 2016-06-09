@@ -23,7 +23,6 @@
 static InputEvent *qapi_clone_InputEvent(InputEvent *src)
 {
     QmpOutputVisitor *qov;
-    QmpInputVisitor *qiv;
     Visitor *ov, *iv;
     QObject *obj;
     InputEvent *dst = NULL;
@@ -37,10 +36,9 @@ static InputEvent *qapi_clone_InputEvent(InputEvent *src)
         return NULL;
     }
 
-    qiv = qmp_input_visitor_new(obj, true);
-    iv = qmp_input_get_visitor(qiv);
+    iv = qmp_input_visitor_new(obj, true);
     visit_type_InputEvent(iv, NULL, &dst, &error_abort);
-    qmp_input_visitor_cleanup(qiv);
+    visit_free(iv);
     qobject_decref(obj);
 
     return dst;

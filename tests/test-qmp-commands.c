@@ -216,14 +216,14 @@ static void test_dealloc_partial(void)
     /* create partial object */
     {
         QDict *ud2_dict;
-        QmpInputVisitor *qiv;
+        Visitor *v;
 
         ud2_dict = qdict_new();
         qdict_put_obj(ud2_dict, "string0", QOBJECT(qstring_from_str(text)));
 
-        qiv = qmp_input_visitor_new(QOBJECT(ud2_dict), true);
-        visit_type_UserDefTwo(qmp_input_get_visitor(qiv), NULL, &ud2, &err);
-        qmp_input_visitor_cleanup(qiv);
+        v = qmp_input_visitor_new(QOBJECT(ud2_dict), true);
+        visit_type_UserDefTwo(v, NULL, &ud2, &err);
+        visit_free(v);
         QDECREF(ud2_dict);
     }
 

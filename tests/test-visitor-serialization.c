@@ -1013,7 +1013,7 @@ static PrimitiveType pt_values[] = {
 
 typedef struct QmpSerializeData {
     QmpOutputVisitor *qov;
-    QmpInputVisitor *qiv;
+    Visitor *qiv;
 } QmpSerializeData;
 
 static void qmp_serialize(void *native_in, void **datap,
@@ -1041,14 +1041,14 @@ static void qmp_deserialize(void **native_out, void *datap,
     d->qiv = qmp_input_visitor_new(obj, true);
     qobject_decref(obj_orig);
     qobject_decref(obj);
-    visit(qmp_input_get_visitor(d->qiv), native_out, errp);
+    visit(d->qiv, native_out, errp);
 }
 
 static void qmp_cleanup(void *datap)
 {
     QmpSerializeData *d = datap;
     qmp_output_visitor_cleanup(d->qov);
-    qmp_input_visitor_cleanup(d->qiv);
+    visit_free(d->qiv);
 
     g_free(d);
 }
