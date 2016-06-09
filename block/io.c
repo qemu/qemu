@@ -1871,13 +1871,28 @@ int bdrv_writev_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
 int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
                       int64_t pos, int size)
 {
+    QEMUIOVector qiov;
+    struct iovec iov = {
+        .iov_base   = buf,
+        .iov_len    = size,
+    };
+
+    qemu_iovec_init_external(&qiov, &iov, 1);
+    return bdrv_readv_vmstate(bs, &qiov, pos);
+}
+
+int bdrv_readv_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
+{
     BlockDriver *drv = bs->drv;
-    if (!drv)
+
+    if (!drv) {
         return -ENOMEDIUM;
-    if (drv->bdrv_load_vmstate)
-        return drv->bdrv_load_vmstate(bs, buf, pos, size);
-    if (bs->file)
-        return bdrv_load_vmstate(bs->file->bs, buf, pos, size);
+    } else if (drv->bdrv_load_vmstate) {
+        return drv->bdrv_load_vmstate(bs, qiov, pos);
+    } else if (bs->file) {
+        return bdrv_readv_vmstate(bs->file->bs, qiov, pos);
+    }
+
     return -ENOTSUP;
 }
 

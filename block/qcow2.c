@@ -2926,8 +2926,8 @@ static int qcow2_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
     return ret;
 }
 
-static int qcow2_load_vmstate(BlockDriverState *bs, uint8_t *buf,
-                              int64_t pos, int size)
+static int qcow2_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
+                              int64_t pos)
 {
     BDRVQcow2State *s = bs->opaque;
     bool zero_beyond_eof = bs->zero_beyond_eof;
@@ -2935,7 +2935,7 @@ static int qcow2_load_vmstate(BlockDriverState *bs, uint8_t *buf,
 
     BLKDBG_EVENT(bs->file, BLKDBG_VMSTATE_LOAD);
     bs->zero_beyond_eof = false;
-    ret = bdrv_pread(bs, qcow2_vm_state_offset(s) + pos, buf, size);
+    ret = bdrv_preadv(bs, qcow2_vm_state_offset(s) + pos, qiov);
     bs->zero_beyond_eof = zero_beyond_eof;
 
     return ret;
