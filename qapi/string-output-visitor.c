@@ -326,11 +326,6 @@ static void string_output_free(Visitor *v)
 {
     StringOutputVisitor *sov = to_sov(v);
 
-    string_output_visitor_cleanup(sov);
-}
-
-void string_output_visitor_cleanup(StringOutputVisitor *sov)
-{
     if (sov->string) {
         g_string_free(sov->string, true);
     }

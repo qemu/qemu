@@ -50,7 +50,7 @@ static void visitor_output_setup_human(TestOutputVisitorData *data,
 static void visitor_output_teardown(TestOutputVisitorData *data,
                                     const void *unused)
 {
-    string_output_visitor_cleanup(data->sov);
+    visit_free(data->ov);
     data->sov = NULL;
     data->ov = NULL;
 }

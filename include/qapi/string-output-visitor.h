@@ -23,7 +23,6 @@ typedef struct StringOutputVisitor StringOutputVisitor;
  * requires a non-null list argument to visit_start_list().
  */
 StringOutputVisitor *string_output_visitor_new(bool human);
-void string_output_visitor_cleanup(StringOutputVisitor *v);
 
 char *string_output_get_string(StringOutputVisitor *v);
 Visitor *string_output_get_visitor(StringOutputVisitor *v);

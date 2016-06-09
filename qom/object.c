@@ -1242,14 +1242,15 @@ int object_property_get_enum(Object *obj, const char *name,
     enumprop = prop->opaque;
 
     sov = string_output_visitor_new(false);
-    object_property_get(obj, string_output_get_visitor(sov), name, &err);
+    v = string_output_get_visitor(sov);
+    object_property_get(obj, v, name, &err);
     if (err) {
         error_propagate(errp, err);
-        string_output_visitor_cleanup(sov);
+        visit_free(v);
         return 0;
     }
     str = string_output_get_string(sov);
-    string_output_visitor_cleanup(sov);
+    visit_free(v);
     v = string_input_visitor_new(str);
     visit_type_enum(v, name, &ret, enumprop->strings, errp);
 
@@ -1281,7 +1282,7 @@ void object_property_get_uint16List(Object *obj, const char *name,
     g_free(str);
     visit_free(v);
 out:
-    string_output_visitor_cleanup(ov);
+    visit_free(string_output_get_visitor(ov));
 }
 
 void object_property_parse(Object *obj, const char *string,
@@ -1309,7 +1310,7 @@ char *object_property_print(Object *obj, const char *name, bool human,
     string = string_output_get_string(sov);
 
 out:
-    string_output_visitor_cleanup(sov);
+    visit_free(string_output_get_visitor(sov));
     return string;
 }
 

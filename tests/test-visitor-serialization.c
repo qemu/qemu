@@ -1047,7 +1047,7 @@ static void qmp_deserialize(void **native_out, void *datap,
 static void qmp_cleanup(void *datap)
 {
     QmpSerializeData *d = datap;
-    qmp_output_visitor_cleanup(d->qov);
+    visit_free(qmp_output_get_visitor(d->qov));
     visit_free(d->qiv);
 
     g_free(d);
@@ -1083,7 +1083,7 @@ static void string_cleanup(void *datap)
 {
     StringSerializeData *d = datap;
 
-    string_output_visitor_cleanup(d->sov);
+    visit_free(string_output_get_visitor(d->sov));
     visit_free(d->siv);
     g_free(d->string);
     g_free(d);

@@ -2006,7 +2006,7 @@ void hmp_info_memdev(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "  host nodes: %s\n", str);
 
         g_free(str);
-        string_output_visitor_cleanup(ov);
+        visit_free(string_output_get_visitor(ov));
         m = m->next;
         i++;
     }
