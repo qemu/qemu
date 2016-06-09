@@ -640,7 +640,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
         /* EJTAG probe trap enable is not implemented... */
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
             env->CP0_Cause &= ~(1U << CP0Ca_BD);
-        env->active_tc.PC = (int32_t)0xBFC00480;
+        env->active_tc.PC = env->exception_base + 0x480;
         set_hflags_for_handler(env);
         break;
     case EXCP_RESET:
@@ -667,7 +667,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
         env->hflags &= ~(MIPS_HFLAG_KSU);
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
             env->CP0_Cause &= ~(1U << CP0Ca_BD);
-        env->active_tc.PC = (int32_t)0xBFC00000;
+        env->active_tc.PC = env->exception_base;
         set_hflags_for_handler(env);
         break;
     case EXCP_EXT_INTERRUPT:
@@ -849,7 +849,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
         }
         env->hflags &= ~MIPS_HFLAG_BMASK;
         if (env->CP0_Status & (1 << CP0St_BEV)) {
-            env->active_tc.PC = (int32_t)0xBFC00200;
+            env->active_tc.PC = env->exception_base + 0x200;
         } else {
             env->active_tc.PC = (int32_t)(env->CP0_EBase & ~0x3ff);
         }

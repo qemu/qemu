@@ -616,6 +616,7 @@ struct CPUMIPSState {
     void *irq[8];
     QEMUTimer *timer; /* Internal timer */
     MemoryRegion *itc_tag; /* ITC Configuration Tags */
+    target_ulong exception_base; /* ExceptionBase input to the core */
 };
 
 /**
@@ -807,6 +808,7 @@ int cpu_mips_signal_handler(int host_signum, void *pinfo, void *puc);
 
 #define cpu_init(cpu_model) CPU(cpu_mips_init(cpu_model))
 bool cpu_supports_cps_smp(const char *cpu_model);
+void cpu_set_exception_base(int vp_index, target_ulong address);
 
 /* TODO QOM'ify CPU reset and remove */
 void cpu_state_reset(CPUMIPSState *s);
