@@ -1024,8 +1024,7 @@ int net_client_init(QemuOpts *opts, int is_netdev, Error **errp)
     void *object = NULL;
     Error *err = NULL;
     int ret = -1;
-    OptsVisitor *ov = opts_visitor_new(opts);
-    Visitor *v = opts_get_visitor(ov);
+    Visitor *v = opts_visitor_new(opts);
 
     {
         /* Parse convenience option format ip6-net=fec0::0[/64] */
@@ -1075,7 +1074,7 @@ int net_client_init(QemuOpts *opts, int is_netdev, Error **errp)
     }
 
     error_propagate(errp, err);
-    opts_visitor_cleanup(ov);
+    visit_free(v);
     return ret;
 }
 

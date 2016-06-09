@@ -156,15 +156,15 @@ out:
 
 Object *user_creatable_add_opts(QemuOpts *opts, Error **errp)
 {
-    OptsVisitor *ov;
+    Visitor *v;
     QDict *pdict;
     Object *obj = NULL;
 
-    ov = opts_visitor_new(opts);
+    v = opts_visitor_new(opts);
     pdict = qemu_opts_to_qdict(opts, NULL);
 
-    obj = user_creatable_add(pdict, opts_get_visitor(ov), errp);
-    opts_visitor_cleanup(ov);
+    obj = user_creatable_add(pdict, v, errp);
+    visit_free(v);
     QDECREF(pdict);
     return obj;
 }

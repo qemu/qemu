@@ -193,17 +193,16 @@ block_crypto_open_opts_init(QCryptoBlockFormat format,
                             QemuOpts *opts,
                             Error **errp)
 {
-    OptsVisitor *ov;
+    Visitor *v;
     QCryptoBlockOpenOptions *ret = NULL;
     Error *local_err = NULL;
 
     ret = g_new0(QCryptoBlockOpenOptions, 1);
     ret->format = format;
 
-    ov = opts_visitor_new(opts);
+    v = opts_visitor_new(opts);
 
-    visit_start_struct(opts_get_visitor(ov),
-                       NULL, NULL, 0, &local_err);
+    visit_start_struct(v, NULL, NULL, 0, &local_err);
     if (local_err) {
         goto out;
     }
@@ -211,7 +210,7 @@ block_crypto_open_opts_init(QCryptoBlockFormat format,
     switch (format) {
     case Q_CRYPTO_BLOCK_FORMAT_LUKS:
         visit_type_QCryptoBlockOptionsLUKS_members(
-            opts_get_visitor(ov), &ret->u.luks, &local_err);
+            v, &ret->u.luks, &local_err);
         break;
 
     default:
@@ -219,10 +218,10 @@ block_crypto_open_opts_init(QCryptoBlockFormat format,
         break;
     }
     if (!local_err) {
-        visit_check_struct(opts_get_visitor(ov), &local_err);
+        visit_check_struct(v, &local_err);
     }
 
-    visit_end_struct(opts_get_visitor(ov), NULL);
+    visit_end_struct(v, NULL);
 
  out:
     if (local_err) {
@@ -230,7 +229,7 @@ block_crypto_open_opts_init(QCryptoBlockFormat format,
         qapi_free_QCryptoBlockOpenOptions(ret);
         ret = NULL;
     }
-    opts_visitor_cleanup(ov);
+    visit_free(v);
     return ret;
 }
 
@@ -240,17 +239,16 @@ block_crypto_create_opts_init(QCryptoBlockFormat format,
                               QemuOpts *opts,
                               Error **errp)
 {
-    OptsVisitor *ov;
+    Visitor *v;
     QCryptoBlockCreateOptions *ret = NULL;
     Error *local_err = NULL;
 
     ret = g_new0(QCryptoBlockCreateOptions, 1);
     ret->format = format;
 
-    ov = opts_visitor_new(opts);
+    v = opts_visitor_new(opts);
 
-    visit_start_struct(opts_get_visitor(ov),
-                       NULL, NULL, 0, &local_err);
+    visit_start_struct(v, NULL, NULL, 0, &local_err);
     if (local_err) {
         goto out;
     }
@@ -258,7 +256,7 @@ block_crypto_create_opts_init(QCryptoBlockFormat format,
     switch (format) {
     case Q_CRYPTO_BLOCK_FORMAT_LUKS:
         visit_type_QCryptoBlockCreateOptionsLUKS_members(
-            opts_get_visitor(ov), &ret->u.luks, &local_err);
+            v, &ret->u.luks, &local_err);
         break;
 
     default:
@@ -266,10 +264,10 @@ block_crypto_create_opts_init(QCryptoBlockFormat format,
         break;
     }
     if (!local_err) {
-        visit_check_struct(opts_get_visitor(ov), &local_err);
+        visit_check_struct(v, &local_err);
     }
 
-    visit_end_struct(opts_get_visitor(ov), NULL);
+    visit_end_struct(v, NULL);
 
  out:
     if (local_err) {
@@ -277,7 +275,7 @@ block_crypto_create_opts_init(QCryptoBlockFormat format,
         qapi_free_QCryptoBlockCreateOptions(ret);
         ret = NULL;
     }
-    opts_visitor_cleanup(ov);
+    visit_free(v);
     return ret;
 }
 

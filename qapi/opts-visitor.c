@@ -518,11 +518,15 @@ opts_free(Visitor *v)
 {
     OptsVisitor *ov = to_ov(v);
 
-    opts_visitor_cleanup(ov);
+    if (ov->unprocessed_opts != NULL) {
+        g_hash_table_destroy(ov->unprocessed_opts);
+    }
+    g_free(ov->fake_id_opt);
+    g_free(ov);
 }
 
 
-OptsVisitor *
+Visitor *
 opts_visitor_new(const QemuOpts *opts)
 {
     OptsVisitor *ov;
@@ -553,23 +557,5 @@ opts_visitor_new(const QemuOpts *opts)
 
     ov->opts_root = opts;
 
-    return ov;
-}
-
-
-void
-opts_visitor_cleanup(OptsVisitor *ov)
-{
-    if (ov->unprocessed_opts != NULL) {
-        g_hash_table_destroy(ov->unprocessed_opts);
-    }
-    g_free(ov->fake_id_opt);
-    g_free(ov);
-}
-
-
-Visitor *
-opts_get_visitor(OptsVisitor *ov)
-{
     return &ov->visitor;
 }
