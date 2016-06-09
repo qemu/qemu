@@ -513,6 +513,15 @@ opts_optional(Visitor *v, const char *name, bool *present)
 }
 
 
+static void
+opts_free(Visitor *v)
+{
+    OptsVisitor *ov = to_ov(v);
+
+    opts_visitor_cleanup(ov);
+}
+
+
 OptsVisitor *
 opts_visitor_new(const QemuOpts *opts)
 {
@@ -540,6 +549,7 @@ opts_visitor_new(const QemuOpts *opts)
      * skip some mandatory methods... */
 
     ov->visitor.optional = &opts_optional;
+    ov->visitor.free = opts_free;
 
     ov->opts_root = opts;
 

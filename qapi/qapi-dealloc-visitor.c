@@ -107,17 +107,12 @@ static void qapi_dealloc_type_null(Visitor *v, const char *name, Error **errp)
 {
 }
 
-Visitor *qapi_dealloc_get_visitor(QapiDeallocVisitor *v)
+static void qapi_dealloc_free(Visitor *v)
 {
-    return &v->visitor;
+    g_free(container_of(v, QapiDeallocVisitor, visitor));
 }
 
-void qapi_dealloc_visitor_cleanup(QapiDeallocVisitor *v)
-{
-    g_free(v);
-}
-
-QapiDeallocVisitor *qapi_dealloc_visitor_new(void)
+Visitor *qapi_dealloc_visitor_new(void)
 {
     QapiDeallocVisitor *v;
 
@@ -138,6 +133,7 @@ QapiDeallocVisitor *qapi_dealloc_visitor_new(void)
     v->visitor.type_number = qapi_dealloc_type_number;
     v->visitor.type_any = qapi_dealloc_type_anything;
     v->visitor.type_null = qapi_dealloc_type_null;
+    v->visitor.free = qapi_dealloc_free;
 
-    return v;
+    return &v->visitor;
 }

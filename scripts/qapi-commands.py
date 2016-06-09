@@ -62,7 +62,6 @@ static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in, QObject **ret_out, 
 {
     Error *err = NULL;
     QmpOutputVisitor *qov = qmp_output_visitor_new();
-    QapiDeallocVisitor *qdv;
     Visitor *v;
 
     v = qmp_output_get_visitor(qov);
@@ -74,11 +73,10 @@ static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in, QObject **ret_out, 
 
 out:
     error_propagate(errp, err);
-    qmp_output_visitor_cleanup(qov);
-    qdv = qapi_dealloc_visitor_new();
-    v = qapi_dealloc_get_visitor(qdv);
+    visit_free(v);
+    v = qapi_dealloc_visitor_new();
     visit_type_%(c_name)s(v, "unused", &ret_in, NULL);
-    qapi_dealloc_visitor_cleanup(qdv);
+    visit_free(v);
 }
 ''',
                  c_type=ret_type.c_type(), c_name=ret_type.c_name())
@@ -116,7 +114,6 @@ def gen_marshal(name, arg_type, ret_type):
     if arg_type and arg_type.members:
         ret += mcgen('''
     QmpInputVisitor *qiv = qmp_input_visitor_new(QOBJECT(args), true);
-    QapiDeallocVisitor *qdv;
     Visitor *v;
     %(c_name)s arg = {0};
 
@@ -155,13 +152,12 @@ out:
 ''')
     if arg_type and arg_type.members:
         ret += mcgen('''
-    qmp_input_visitor_cleanup(qiv);
-    qdv = qapi_dealloc_visitor_new();
-    v = qapi_dealloc_get_visitor(qdv);
+    visit_free(v);
+    v = qapi_dealloc_visitor_new();
     visit_start_struct(v, NULL, NULL, 0, NULL);
     visit_type_%(c_name)s_members(v, &arg, NULL);
     visit_end_struct(v, NULL);
-    qapi_dealloc_visitor_cleanup(qdv);
+    visit_free(v);
 ''',
                      c_name=arg_type.c_name())
 

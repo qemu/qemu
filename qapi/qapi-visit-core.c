@@ -20,6 +20,13 @@
 #include "qapi/visitor.h"
 #include "qapi/visitor-impl.h"
 
+void visit_free(Visitor *v)
+{
+    if (v) {
+        v->free(v);
+    }
+}
+
 void visit_start_struct(Visitor *v, const char *name, void **obj,
                         size_t size, Error **errp)
 {

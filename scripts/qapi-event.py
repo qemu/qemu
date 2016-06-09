@@ -119,7 +119,7 @@ def gen_event_send(name, arg_type):
     if arg_type and arg_type.members:
         ret += mcgen('''
 out:
-    qmp_output_visitor_cleanup(qov);
+    visit_free(v);
 ''')
     ret += mcgen('''
     error_propagate(errp, err);

@@ -104,6 +104,9 @@ struct Visitor
 
     /* Must be set */
     VisitorType type;
+
+    /* Must be set */
+    void (*free)(Visitor *v);
 };
 
 #endif

@@ -322,6 +322,13 @@ static void free_range(void *range, void *dummy)
     g_free(range);
 }
 
+static void string_output_free(Visitor *v)
+{
+    StringOutputVisitor *sov = to_sov(v);
+
+    string_output_visitor_cleanup(sov);
+}
+
 void string_output_visitor_cleanup(StringOutputVisitor *sov)
 {
     if (sov->string) {
@@ -351,6 +358,7 @@ StringOutputVisitor *string_output_visitor_new(bool human)
     v->visitor.start_list = start_list;
     v->visitor.next_list = next_list;
     v->visitor.end_list = end_list;
+    v->visitor.free = string_output_free;
 
     return v;
 }

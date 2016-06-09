@@ -37,6 +37,24 @@
  * implemented by each visitor, and docs/qapi-code-gen.txt for more
  * about the QAPI code generator.
  *
+ * All of the visitors are created via:
+ *
+ * Type *subtype_visitor_new(parameters...);
+ *
+ * where Type is either directly 'Visitor *', or is a subtype that can
+ * be trivially upcast to Visitor * via another function:
+ *
+ * Visitor *subtype_get_visitor(SubtypeVisitor *);
+ *
+ * A visitor should be used for exactly one top-level visit_type_FOO()
+ * or virtual walk, then passed to visit_free() to clean up resources.
+ * It is okay to free the visitor without completing the visit, if
+ * some other error is detected in the meantime.  Output visitors
+ * provide an additional function, for collecting the final results of
+ * a successful visit: string_output_get_string() and
+ * qmp_output_get_qobject(); this collection function should not be
+ * called if any errors were reported during the visit.
+ *
  * All QAPI types have a corresponding function with a signature
  * roughly compatible with this:
  *
@@ -222,6 +240,19 @@ typedef struct GenericAlternate {
     char padding[];
 } GenericAlternate;
 
+/*** Visitor cleanup ***/
+
+/*
+ * Free @v and any resources it has tied up.
+ *
+ * May be called whether or not the visit has been successfully
+ * completed, but should not be called until a top-level
+ * visit_type_FOO() or visit_start_ITEM() has been performed on the
+ * visitor.  Safe if @v is NULL.
+ */
+void visit_free(Visitor *v);
+
+
 /*** Visiting structures ***/
 
 /*
@@ -272,7 +303,7 @@ void visit_check_struct(Visitor *v, Error **errp);
  * Must be called after any successful use of visit_start_struct(),
  * even if intermediate processing was skipped due to errors, to allow
  * the backend to release any resources.  Destroying the visitor early
- * behaves as if this was implicitly called.
+ * with visit_free() behaves as if this was implicitly called.
  */
 void visit_end_struct(Visitor *v, void **obj);
 
@@ -332,7 +363,7 @@ GenericList *visit_next_list(Visitor *v, GenericList *tail, size_t size);
  * Must be called after any successful use of visit_start_list(), even
  * if intermediate processing was skipped due to errors, to allow the
  * backend to release any resources.  Destroying the visitor early
- * behaves as if this was implicitly called.
+ * with visit_free() behaves as if this was implicitly called.
  */
 void visit_end_list(Visitor *v, void **list);
 
@@ -368,7 +399,7 @@ void visit_start_alternate(Visitor *v, const char *name,
  * Must be called after any successful use of visit_start_alternate(),
  * even if intermediate processing was skipped due to errors, to allow
  * the backend to release any resources.  Destroying the visitor early
- * behaves as if this was implicitly called.
+ * with visit_free() behaves as if this was implicitly called.
  *
  */
 void visit_end_alternate(Visitor *v, void **obj);

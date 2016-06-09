@@ -89,11 +89,11 @@ typedef void (*VisitorFunc)(Visitor *v, void **native, Error **errp);
 
 static void dealloc_helper(void *native_in, VisitorFunc visit, Error **errp)
 {
-    QapiDeallocVisitor *qdv = qapi_dealloc_visitor_new();
+    Visitor *v = qapi_dealloc_visitor_new();
 
-    visit(qapi_dealloc_get_visitor(qdv), &native_in, errp);
+    visit(v, &native_in, errp);
 
-    qapi_dealloc_visitor_cleanup(qdv);
+    visit_free(v);
 }
 
 static void visit_primitive_type(Visitor *v, void **native, Error **errp)

@@ -802,32 +802,28 @@ Example:
 
     void qapi_free_UserDefOne(UserDefOne *obj)
     {
-        QapiDeallocVisitor *qdv;
         Visitor *v;
 
         if (!obj) {
             return;
         }
 
-        qdv = qapi_dealloc_visitor_new();
-        v = qapi_dealloc_get_visitor(qdv);
+        v = qapi_dealloc_visitor_new();
         visit_type_UserDefOne(v, NULL, &obj, NULL);
-        qapi_dealloc_visitor_cleanup(qdv);
+        visit_free(v);
     }
 
     void qapi_free_UserDefOneList(UserDefOneList *obj)
     {
-        QapiDeallocVisitor *qdv;
         Visitor *v;
 
         if (!obj) {
             return;
         }
 
-        qdv = qapi_dealloc_visitor_new();
-        v = qapi_dealloc_get_visitor(qdv);
+        v = qapi_dealloc_visitor_new();
         visit_type_UserDefOneList(v, NULL, &obj, NULL);
-        qapi_dealloc_visitor_cleanup(qdv);
+        visit_free(v);
     }
 
 === scripts/qapi-visit.py ===
@@ -985,7 +981,6 @@ Example:
     {
         Error *err = NULL;
         QmpOutputVisitor *qov = qmp_output_visitor_new();
-        QapiDeallocVisitor *qdv;
         Visitor *v;
 
         v = qmp_output_get_visitor(qov);
@@ -997,11 +992,10 @@ Example:
 
     out:
         error_propagate(errp, err);
-        qmp_output_visitor_cleanup(qov);
-        qdv = qapi_dealloc_visitor_new();
-        v = qapi_dealloc_get_visitor(qdv);
+        visit_free(v);
+        v = qapi_dealloc_visitor_new();
         visit_type_UserDefOne(v, "unused", &ret_in, NULL);
-        qapi_dealloc_visitor_cleanup(qdv);
+        visit_free(v);
     }
 
     static void qmp_marshal_my_command(QDict *args, QObject **ret, Error **errp)
@@ -1009,7 +1003,6 @@ Example:
         Error *err = NULL;
         UserDefOne *retval;
         QmpInputVisitor *qiv = qmp_input_visitor_new(QOBJECT(args), true);
-        QapiDeallocVisitor *qdv;
         Visitor *v;
         UserDefOneList *arg1 = NULL;
 
@@ -1036,13 +1029,12 @@ Example:
 
     out:
         error_propagate(errp, err);
-        qmp_input_visitor_cleanup(qiv);
-        qdv = qapi_dealloc_visitor_new();
-        v = qapi_dealloc_get_visitor(qdv);
+        visit_free(v);
+        v = qapi_dealloc_visitor_new();
         visit_start_struct(v, NULL, NULL, 0, NULL);
         visit_type_UserDefOneList(v, "arg1", &arg1, NULL);
         visit_end_struct(v, NULL);
-        qapi_dealloc_visitor_cleanup(qdv);
+        visit_free(v);
     }
 
     static void qmp_init_marshal(void)

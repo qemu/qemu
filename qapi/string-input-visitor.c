@@ -331,6 +331,13 @@ Visitor *string_input_get_visitor(StringInputVisitor *v)
     return &v->visitor;
 }
 
+static void string_input_free(Visitor *v)
+{
+    StringInputVisitor *siv = to_siv(v);
+
+    string_input_visitor_cleanup(siv);
+}
+
 void string_input_visitor_cleanup(StringInputVisitor *v)
 {
     g_list_foreach(v->ranges, free_range, NULL);
@@ -355,6 +362,7 @@ StringInputVisitor *string_input_visitor_new(const char *str)
     v->visitor.next_list = next_list;
     v->visitor.end_list = end_list;
     v->visitor.optional = parse_optional;
+    v->visitor.free = string_input_free;
 
     v->string = str;
     return v;

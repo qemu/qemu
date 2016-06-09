@@ -214,6 +214,13 @@ Visitor *qmp_output_get_visitor(QmpOutputVisitor *v)
     return &v->visitor;
 }
 
+static void qmp_output_free(Visitor *v)
+{
+    QmpOutputVisitor *qov = to_qov(v);
+
+    qmp_output_visitor_cleanup(qov);
+}
+
 void qmp_output_visitor_cleanup(QmpOutputVisitor *v)
 {
     QStackEntry *e, *tmp;
@@ -246,6 +253,7 @@ QmpOutputVisitor *qmp_output_visitor_new(void)
     v->visitor.type_number = qmp_output_type_number;
     v->visitor.type_any = qmp_output_type_any;
     v->visitor.type_null = qmp_output_type_null;
+    v->visitor.free = qmp_output_free;
 
     QTAILQ_INIT(&v->stack);
 
