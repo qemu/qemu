@@ -1261,6 +1261,7 @@ static void machvirt_init(MachineState *machine)
 
     for (n = 0; n < smp_cpus; n++) {
         ObjectClass *oc = cpu_class_by_name(TYPE_ARM_CPU, cpustr[0]);
+        const char *typename = object_class_get_name(oc);
         CPUClass *cc = CPU_CLASS(oc);
         Object *cpuobj;
         Error *err = NULL;
@@ -1270,10 +1271,10 @@ static void machvirt_init(MachineState *machine)
             error_report("Unable to find CPU definition");
             exit(1);
         }
-        cpuobj = object_new(object_class_get_name(oc));
+        /* convert -smp CPU options specified by the user into global props */
+        cc->parse_features(typename, cpuopts, &err);
+        cpuobj = object_new(typename);
 
-        /* Handle any CPU options specified by the user */
-        cc->parse_features(CPU(cpuobj), cpuopts, &err);
         g_free(cpuopts);
         if (err) {
             error_report_err(err);
