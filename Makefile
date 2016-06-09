@@ -498,12 +498,12 @@ test speed: all
 
 .PHONY: ctags
 ctags:
-	rm -f $@
+	rm -f tags
 	find "$(SRC_PATH)" -name '*.[hc]' -exec ctags --append {} +
 
 .PHONY: TAGS
 TAGS:
-	rm -f $@
+	rm -f TAGS
 	find "$(SRC_PATH)" -name '*.[hc]' -exec etags --append {} +
 
 cscope:
