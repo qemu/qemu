@@ -297,7 +297,6 @@ static void cpu_common_parse_features(const char *typename, char *features,
      * to assert(!cpu_globals_initialized).
      * Current callers of ->parse_features() are:
      * - cpu_generic_init()
-     * - cpu_x86_create()
      */
     if (cpu_globals_initialized) {
         return;
