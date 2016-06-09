@@ -1935,7 +1935,7 @@ RAMBlock *qemu_ram_block_from_host(void *ptr, bool round_offset,
         ram_addr = xen_ram_addr_from_mapcache(ptr);
         block = qemu_get_ram_block(ram_addr);
         if (block) {
-            *offset = (host - block->host);
+            *offset = ram_addr - block->offset;
         }
         rcu_read_unlock();
         return block;
