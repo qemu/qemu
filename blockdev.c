@@ -4020,7 +4020,7 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
     }
 
 fail:
-    qmp_output_visitor_cleanup(ov);
+    visit_free(qmp_output_get_visitor(ov));
 }
 
 void qmp_x_blockdev_del(bool has_id, const char *id,

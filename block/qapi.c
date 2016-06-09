@@ -699,7 +699,7 @@ void bdrv_image_info_specific_dump(fprintf_function func_fprintf, void *f,
     assert(qobject_type(obj) == QTYPE_QDICT);
     data = qdict_get(qobject_to_qdict(obj), "data");
     dump_qobject(func_fprintf, f, 1, data);
-    qmp_output_visitor_cleanup(ov);
+    visit_free(qmp_output_get_visitor(ov));
 }
 
 void bdrv_image_info_dump(fprintf_function func_fprintf, void *f,

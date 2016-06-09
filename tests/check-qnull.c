@@ -58,7 +58,7 @@ static void qnull_visit_test(void)
     obj = qmp_output_get_qobject(qov);
     g_assert(obj == &qnull_);
     qobject_decref(obj);
-    qmp_output_visitor_cleanup(qov);
+    visit_free(qmp_output_get_visitor(qov));
 
     g_assert(qnull_.refcnt == 1);
 }

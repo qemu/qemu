@@ -500,7 +500,7 @@ static void dump_json_image_check(ImageCheck *check, bool quiet)
     assert(str != NULL);
     qprintf(quiet, "%s\n", qstring_get_str(str));
     qobject_decref(obj);
-    qmp_output_visitor_cleanup(ov);
+    visit_free(qmp_output_get_visitor(ov));
     QDECREF(str);
 }
 
@@ -2190,7 +2190,7 @@ static void dump_json_image_info_list(ImageInfoList *list)
     assert(str != NULL);
     printf("%s\n", qstring_get_str(str));
     qobject_decref(obj);
-    qmp_output_visitor_cleanup(ov);
+    visit_free(qmp_output_get_visitor(ov));
     QDECREF(str);
 }
 
@@ -2206,7 +2206,7 @@ static void dump_json_image_info(ImageInfo *info)
     assert(str != NULL);
     printf("%s\n", qstring_get_str(str));
     qobject_decref(obj);
-    qmp_output_visitor_cleanup(ov);
+    visit_free(qmp_output_get_visitor(ov));
     QDECREF(str);
 }
 

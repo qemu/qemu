@@ -41,6 +41,6 @@ QObject *object_property_get_qobject(Object *obj, const char *name,
         ret = qmp_output_get_qobject(qov);
     }
     error_propagate(errp, local_err);
-    qmp_output_visitor_cleanup(qov);
+    visit_free(qmp_output_get_visitor(qov));
     return ret;
 }

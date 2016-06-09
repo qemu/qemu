@@ -217,21 +217,15 @@ Visitor *qmp_output_get_visitor(QmpOutputVisitor *v)
 static void qmp_output_free(Visitor *v)
 {
     QmpOutputVisitor *qov = to_qov(v);
-
-    qmp_output_visitor_cleanup(qov);
-}
-
-void qmp_output_visitor_cleanup(QmpOutputVisitor *v)
-{
     QStackEntry *e, *tmp;
 
-    QTAILQ_FOREACH_SAFE(e, &v->stack, node, tmp) {
-        QTAILQ_REMOVE(&v->stack, e, node);
+    QTAILQ_FOREACH_SAFE(e, &qov->stack, node, tmp) {
+        QTAILQ_REMOVE(&qov->stack, e, node);
         g_free(e);
     }
 
-    qobject_decref(v->root);
-    g_free(v);
+    qobject_decref(qov->root);
+    g_free(qov);
 }
 
 QmpOutputVisitor *qmp_output_visitor_new(void)

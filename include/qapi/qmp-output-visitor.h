@@ -20,7 +20,6 @@
 typedef struct QmpOutputVisitor QmpOutputVisitor;
 
 QmpOutputVisitor *qmp_output_visitor_new(void);
-void qmp_output_visitor_cleanup(QmpOutputVisitor *v);
 
 QObject *qmp_output_get_qobject(QmpOutputVisitor *v);
 Visitor *qmp_output_get_visitor(QmpOutputVisitor *v);

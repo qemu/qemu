@@ -1157,7 +1157,7 @@ void qapi_copy_SocketAddress(SocketAddress **p_dest,
     ov = qmp_output_get_visitor(qov);
     visit_type_SocketAddress(ov, NULL, &src, &error_abort);
     obj = qmp_output_get_qobject(qov);
-    qmp_output_visitor_cleanup(qov);
+    visit_free(ov);
     if (!obj) {
         return;
     }

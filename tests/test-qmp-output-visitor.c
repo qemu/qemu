@@ -38,7 +38,7 @@ static void visitor_output_setup(TestOutputVisitorData *data,
 static void visitor_output_teardown(TestOutputVisitorData *data,
                                     const void *unused)
 {
-    qmp_output_visitor_cleanup(data->qov);
+    visit_free(data->ov);
     data->qov = NULL;
     data->ov = NULL;
 }
