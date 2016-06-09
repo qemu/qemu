@@ -19,6 +19,7 @@
 #include "test-qapi-types.h"
 #include "test-qapi-visit.h"
 #include "qapi/qmp/types.h"
+#include "qapi/qmp/qjson.h"
 #include "test-qmp-introspect.h"
 #include "qmp-introspect.h"
 #include "qapi-visit.h"

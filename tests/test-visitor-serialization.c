@@ -19,6 +19,7 @@
 #include "test-qapi-visit.h"
 #include "qapi/error.h"
 #include "qapi/qmp/types.h"
+#include "qapi/qmp/qjson.h"
 #include "qapi/qmp-input-visitor.h"
 #include "qapi/qmp-output-visitor.h"
 #include "qapi/string-input-visitor.h"

@@ -18,6 +18,7 @@
 #include "test-qapi-types.h"
 #include "test-qapi-visit.h"
 #include "qapi/qmp/types.h"
+#include "qapi/qmp/qjson.h"
 
 typedef struct TestOutputVisitorData {
     QmpOutputVisitor *qov;

@@ -9,12 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "qapi/qmp/qbool.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qfloat.h"
-#include "qapi/qmp/qint.h"
-#include "qapi/qmp/qlist.h"
-#include "qapi/qmp/qstring.h"
+#include "qapi/qmp/types.h"
 
 static void (*qdestroy[QTYPE__MAX])(QObject *) = {
     [QTYPE_NONE] = NULL,               /* No such object exists */
