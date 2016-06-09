@@ -23,6 +23,7 @@
 #include "io/channel-socket.h"
 #include "io/channel-watch.h"
 #include "trace.h"
+#include "qapi/clone-visitor.h"
 
 #define SOCKET_MAX_FDS 16
 
@@ -189,7 +190,7 @@ void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
         OBJECT(ioc), callback, opaque, destroy);
     SocketAddress *addrCopy;
 
-    qapi_copy_SocketAddress(&addrCopy, addr);
+    addrCopy = QAPI_CLONE(SocketAddress, addr);
 
     /* socket_connect() does a non-blocking connect(), but it
      * still blocks in DNS lookups, so we must use a thread */
@@ -251,7 +252,7 @@ void qio_channel_socket_listen_async(QIOChannelSocket *ioc,
         OBJECT(ioc), callback, opaque, destroy);
     SocketAddress *addrCopy;
 
-    qapi_copy_SocketAddress(&addrCopy, addr);
+    addrCopy = QAPI_CLONE(SocketAddress, addr);
 
     /* socket_listen() blocks in DNS lookups, so we must use a thread */
     trace_qio_channel_socket_listen_async(ioc, addr);
@@ -331,8 +332,8 @@ void qio_channel_socket_dgram_async(QIOChannelSocket *ioc,
     struct QIOChannelSocketDGramWorkerData *data = g_new0(
         struct QIOChannelSocketDGramWorkerData, 1);
 
-    qapi_copy_SocketAddress(&data->localAddr, localAddr);
-    qapi_copy_SocketAddress(&data->remoteAddr, remoteAddr);
+    data->localAddr = QAPI_CLONE(SocketAddress, localAddr);
+    data->remoteAddr = QAPI_CLONE(SocketAddress, remoteAddr);
 
     trace_qio_channel_socket_dgram_async(ioc, localAddr, remoteAddr);
     qio_task_run_in_thread(task,

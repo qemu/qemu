@@ -107,10 +107,6 @@ SocketAddress *socket_local_address(int fd, Error **errp);
  */
 SocketAddress *socket_remote_address(int fd, Error **errp);
 
-
-void qapi_copy_SocketAddress(SocketAddress **p_dest,
-                             SocketAddress *src);
-
 /**
  * socket_address_to_string:
  * @addr: the socket address struct

@@ -159,7 +159,7 @@ typedef int (*QIOTaskWorker)(QIOTask *task,
  *      QIOTask *task;
  *      SocketAddress *addrCopy;
  *
- *      qapi_copy_SocketAddress(&addrCopy, addr);
+ *      addrCopy = QAPI_CLONE(SocketAddress, addr);
  *      task = qio_task_new(OBJECT(obj), func, opaque, notify);
  *
  *      qio_task_run_in_thread(task, myobject_listen_worker,

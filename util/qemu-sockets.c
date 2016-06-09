@@ -1143,29 +1143,6 @@ SocketAddress *socket_remote_address(int fd, Error **errp)
     return socket_sockaddr_to_address(&ss, sslen, errp);
 }
 
-
-void qapi_copy_SocketAddress(SocketAddress **p_dest,
-                             SocketAddress *src)
-{
-    Visitor *ov, *iv;
-    QObject *obj;
-
-    *p_dest = NULL;
-
-    ov = qmp_output_visitor_new(&obj);
-    visit_type_SocketAddress(ov, NULL, &src, &error_abort);
-    visit_complete(ov, &obj);
-    visit_free(ov);
-    if (!obj) {
-        return;
-    }
-
-    iv = qmp_input_visitor_new(obj, true);
-    visit_type_SocketAddress(iv, NULL, p_dest, &error_abort);
-    visit_free(iv);
-    qobject_decref(obj);
-}
-
 char *socket_address_to_string(struct SocketAddress *addr, Error **errp)
 {
     char *buf;
