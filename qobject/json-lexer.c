@@ -18,11 +18,20 @@
 #define MAX_TOKEN_SIZE (64ULL << 20)
 
 /*
- * \"([^\\\"]|(\\\"\\'\\\\\\/\\b\\f\\n\\r\\t\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]))*\"
- * '([^\\']|(\\\"\\'\\\\\\/\\b\\f\\n\\r\\t\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]))*'
- * 0|([1-9][0-9]*(.[0-9]+)?([eE]([-+])?[0-9]+))
+ * Required by JSON (RFC 7159):
+ *
+ * \"([^\\\"]|\\[\"'\\/bfnrt]|\\u[0-9a-fA-F]{4})*\"
+ * -?(0|[1-9][0-9]*)(.[0-9]+)?([eE][-+]?[0-9]+)?
  * [{}\[\],:]
- * [a-z]+
+ * [a-z]+   # covers null, true, false
+ *
+ * Extension of '' strings:
+ *
+ * '([^\\']|\\[\"'\\/bfnrt]|\\u[0-9a-fA-F]{4})*'
+ *
+ * Extension for vararg handling in JSON construction:
+ *
+ * %((l|ll|I64)?d|[ipsf])
  *
  */
 
@@ -213,7 +222,7 @@ static const uint8_t json_lexer[][256] =  {
         ['\t'] = IN_WHITESPACE,
         ['\r'] = IN_WHITESPACE,
         ['\n'] = IN_WHITESPACE,
-    },        
+    },
 
     /* escape */
     [IN_ESCAPE_LL] = {
