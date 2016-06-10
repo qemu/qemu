@@ -1781,7 +1781,7 @@ fi
 cat > $TMPC << EOF
 static void bar(void) {}
 static void *bar_ifunc(void) {return (void*) bar;}
-static void foo(void) __attribute__((ifunc("bar_ifunc")));
+void foo(void) __attribute__((ifunc("bar_ifunc")));
 int main(void) { foo(); return 0; }
 EOF
 if compile_prog "-mavx2" "" ; then
