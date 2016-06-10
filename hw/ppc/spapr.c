@@ -605,6 +605,16 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
     size_t page_sizes_prop_size;
     uint32_t vcpus_per_socket = smp_threads * smp_cores;
     uint32_t pft_size_prop[] = {0, cpu_to_be32(spapr->htab_shift)};
+    sPAPRDRConnector *drc;
+    sPAPRDRConnectorClass *drck;
+    int drc_index;
+
+    drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_CPU, index);
+    if (drc) {
+        drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+        drc_index = drck->get_index(drc);
+        _FDT((fdt_setprop_cell(fdt, offset, "ibm,my-drc-index", drc_index)));
+    }
 
     /* Note: we keep CI large pages off for now because a 64K capable guest
      * provisioned with large pages might otherwise try to map a qemu
@@ -1003,6 +1013,16 @@ static void spapr_finalize_fdt(sPAPRMachineState *spapr,
 
     if (smc->dr_lmb_enabled) {
         _FDT(spapr_drc_populate_dt(fdt, 0, NULL, SPAPR_DR_CONNECTOR_TYPE_LMB));
+    }
+
+    if (smc->dr_cpu_enabled) {
+        int offset = fdt_path_offset(fdt, "/cpus");
+        ret = spapr_drc_populate_dt(fdt, offset, NULL,
+                                    SPAPR_DR_CONNECTOR_TYPE_CPU);
+        if (ret < 0) {
+            error_report("Couldn't set up CPU DR device tree properties");
+            exit(1);
+        }
     }
 
     _FDT((fdt_pack(fdt)));
@@ -1775,21 +1795,30 @@ static void ppc_spapr_init(MachineState *machine)
         char *type = spapr_get_cpu_core_type(machine->cpu_model);
 
         spapr->cores = g_new0(Object *, spapr_max_cores);
-        for (i = 0; i < spapr_cores; i++) {
+        for (i = 0; i < spapr_max_cores; i++) {
             int core_dt_id = i * smt;
-            Object *core;
+            sPAPRDRConnector *drc =
+                spapr_dr_connector_new(OBJECT(spapr),
+                                       SPAPR_DR_CONNECTOR_TYPE_CPU, core_dt_id);
 
-            if (!object_class_by_name(type)) {
-                error_report("Unable to find sPAPR CPU Core definition");
-                exit(1);
+            qemu_register_reset(spapr_drc_reset, drc);
+
+            if (i < spapr_cores) {
+                char *type = spapr_get_cpu_core_type(machine->cpu_model);
+                Object *core;
+
+                if (!object_class_by_name(type)) {
+                    error_report("Unable to find sPAPR CPU Core definition");
+                    exit(1);
+                }
+
+                core  = object_new(type);
+                object_property_set_int(core, smp_threads, "nr-threads",
+                                        &error_fatal);
+                object_property_set_int(core, core_dt_id, CPU_CORE_PROP_CORE_ID,
+                                        &error_fatal);
+                object_property_set_bool(core, true, "realized", &error_fatal);
             }
-
-            core  = object_new(type);
-            object_property_set_int(core, smp_threads, "nr-threads",
-                                    &error_fatal);
-            object_property_set_int(core, core_dt_id, CPU_CORE_PROP_CORE_ID,
-                                    &error_fatal);
-            object_property_set_bool(core, true, "realized", &error_fatal);
         }
         g_free(type);
     } else {
@@ -2211,6 +2240,27 @@ out:
     error_propagate(errp, local_err);
 }
 
+void *spapr_populate_hotplug_cpu_dt(CPUState *cs, int *fdt_offset,
+                                    sPAPRMachineState *spapr)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    DeviceClass *dc = DEVICE_GET_CLASS(cs);
+    int id = ppc_get_vcpu_dt_id(cpu);
+    void *fdt;
+    int offset, fdt_size;
+    char *nodename;
+
+    fdt = create_device_tree(&fdt_size);
+    nodename = g_strdup_printf("%s@%x", dc->fw_name, id);
+    offset = fdt_add_subnode(fdt, 0, nodename);
+
+    spapr_populate_cpu_dt(cs, fdt, offset, spapr);
+    g_free(nodename);
+
+    *fdt_offset = offset;
+    return fdt;
+}
+
 static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
@@ -2255,6 +2305,8 @@ static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
         }
 
         spapr_memory_plug(hotplug_dev, dev, node, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
+        spapr_core_plug(hotplug_dev, dev, errp);
     }
 }
 
