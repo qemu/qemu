@@ -97,7 +97,11 @@ float16 float16_default_nan(float_status *status)
     if (status->snan_bit_is_one) {
         return const_float16(0x7DFF);
     } else {
+#if defined(TARGET_MIPS)
+        return const_float16(0x7E00);
+#else
         return const_float16(0xFE00);
+#endif
     }
 #endif
 }
@@ -116,7 +120,11 @@ float32 float32_default_nan(float_status *status)
     if (status->snan_bit_is_one) {
         return const_float32(0x7FBFFFFF);
     } else {
+#if defined(TARGET_MIPS)
+        return const_float32(0x7FC00000);
+#else
         return const_float32(0xFFC00000);
+#endif
     }
 #endif
 }
@@ -135,7 +143,11 @@ float64 float64_default_nan(float_status *status)
     if (status->snan_bit_is_one) {
         return const_float64(LIT64(0x7FF7FFFFFFFFFFFF));
     } else {
+#if defined(TARGET_MIPS)
+        return const_float64(LIT64(0x7FF8000000000000));
+#else
         return const_float64(LIT64(0xFFF8000000000000));
+#endif
     }
 #endif
 }
