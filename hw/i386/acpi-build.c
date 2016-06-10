@@ -58,6 +58,8 @@
 #include "qapi/qmp/qint.h"
 #include "qom/qom-qobject.h"
 
+#include "hw/acpi/ipmi.h"
+
 /* These are used to size the ACPI tables for -M pc-i440fx-1.7 and
  * -M pc-i440fx-2.0.  Even if the actual amount of AML generated grows
  * a little bit, there should be plenty of free space since the DSDT
@@ -1334,8 +1336,10 @@ static Aml *build_com_device_aml(uint8_t uid)
 static void build_isa_devices_aml(Aml *table)
 {
     ISADevice *fdc = pc_find_fdc0();
+    bool ambiguous;
 
     Aml *scope = aml_scope("_SB.PCI0.ISA");
+    Object *obj = object_resolve_path_type("", TYPE_ISA_BUS, &ambiguous);
 
     aml_append(scope, build_rtc_device_aml());
     aml_append(scope, build_kbd_device_aml());
@@ -1346,6 +1350,14 @@ static void build_isa_devices_aml(Aml *table)
     aml_append(scope, build_lpt_device_aml());
     aml_append(scope, build_com_device_aml(1));
     aml_append(scope, build_com_device_aml(2));
+
+    if (ambiguous) {
+        error_report("Multiple ISA busses, unable to define IPMI ACPI data");
+    } else if (!obj) {
+        error_report("No ISA bus, unable to define IPMI ACPI data");
+    } else {
+        build_acpi_ipmi_devices(scope, BUS(obj));
+    }
 
     aml_append(table, scope);
 }
