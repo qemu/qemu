@@ -70,11 +70,13 @@ static int xio3130_downstream_initfn(PCIDevice *d)
     if (rc < 0) {
         goto err_bridge;
     }
+
     rc = pci_bridge_ssvid_init(d, XIO3130_SSVID_OFFSET,
                                XIO3130_SSVID_SVID, XIO3130_SSVID_SSID);
     if (rc < 0) {
         goto err_bridge;
     }
+
     rc = pcie_cap_init(d, XIO3130_EXP_OFFSET, PCI_EXP_TYPE_DOWNSTREAM,
                        p->port);
     if (rc < 0) {
@@ -83,12 +85,14 @@ static int xio3130_downstream_initfn(PCIDevice *d)
     pcie_cap_flr_init(d);
     pcie_cap_deverr_init(d);
     pcie_cap_slot_init(d, s->slot);
+    pcie_cap_arifwd_init(d);
+
     pcie_chassis_create(s->chassis);
     rc = pcie_chassis_add_slot(s);
     if (rc < 0) {
         goto err_pcie_cap;
     }
-    pcie_cap_arifwd_init(d);
+
     rc = pcie_aer_init(d, XIO3130_AER_OFFSET, PCI_ERR_SIZEOF);
     if (rc < 0) {
         goto err;
