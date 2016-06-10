@@ -67,6 +67,7 @@
 #include "hw/compat.h"
 #include "qemu/cutils.h"
 #include "hw/ppc/spapr_cpu_core.h"
+#include "qmp-commands.h"
 
 #include <libfdt.h>
 
@@ -2351,6 +2352,38 @@ static unsigned spapr_cpu_index_to_socket_id(unsigned cpu_index)
     return cpu_index / smp_threads / smp_cores;
 }
 
+static HotpluggableCPUList *spapr_query_hotpluggable_cpus(MachineState *machine)
+{
+    int i;
+    HotpluggableCPUList *head = NULL;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
+    int spapr_max_cores = max_cpus / smp_threads;
+    int smt = kvmppc_smt_threads();
+
+    for (i = 0; i < spapr_max_cores; i++) {
+        HotpluggableCPUList *list_item = g_new0(typeof(*list_item), 1);
+        HotpluggableCPU *cpu_item = g_new0(typeof(*cpu_item), 1);
+        CpuInstanceProperties *cpu_props = g_new0(typeof(*cpu_props), 1);
+
+        cpu_item->type = spapr_get_cpu_core_type(machine->cpu_model);
+        cpu_item->vcpus_count = smp_threads;
+        cpu_props->has_core = true;
+        cpu_props->core = i * smt;
+        /* TODO: add 'has_node/node' here to describe
+           to which node core belongs */
+
+        cpu_item->props = cpu_props;
+        if (spapr->cores[i]) {
+            cpu_item->has_qom_path = true;
+            cpu_item->qom_path = object_get_canonical_path(spapr->cores[i]);
+        }
+        list_item->value = cpu_item;
+        list_item->next = head;
+        head = list_item;
+    }
+    return head;
+}
+
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -2381,6 +2414,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     hc->plug = spapr_machine_device_plug;
     hc->unplug = spapr_machine_device_unplug;
     mc->cpu_index_to_socket_id = spapr_cpu_index_to_socket_id;
+    mc->query_hotpluggable_cpus = spapr_query_hotpluggable_cpus;
 
     smc->dr_lmb_enabled = true;
     smc->dr_cpu_enabled = true;
