@@ -4253,3 +4253,58 @@
 # Since: 2.6
 ##
 { 'command': 'query-gic-capabilities', 'returns': ['GICCapability'] }
+
+##
+# CpuInstanceProperties
+#
+# List of properties to be used for hotplugging a CPU instance,
+# it should be passed by management with device_add command when
+# a CPU is being hotplugged.
+#
+# Note: currently there are 4 properties that could be present
+# but management should be prepared to pass through other
+# properties with device_add command to allow for future
+# interface extension.
+#
+# @node: #optional NUMA node ID the CPU belongs to
+# @socket: #optional socket number within node/board the CPU belongs to
+# @core: #optional core number within socket the CPU belongs to
+# @thread: #optional thread number within core the CPU belongs to
+#
+# Since: 2.7
+##
+{ 'struct': 'CpuInstanceProperties',
+  'data': { '*node': 'int',
+            '*socket': 'int',
+            '*core': 'int',
+            '*thread': 'int'
+  }
+}
+
+##
+# @HotpluggableCPU
+#
+# @type: CPU object type for usage with device_add command
+# @props: list of properties to be used for hotplugging CPU
+# @vcpus-count: number of logical VCPU threads @HotpluggableCPU provides
+# @qom-path: #optional link to existing CPU object if CPU is present or
+#            omitted if CPU is not present.
+#
+# Since: 2.7
+##
+{ 'struct': 'HotpluggableCPU',
+  'data': { 'type': 'str',
+            'vcpus-count': 'int',
+            'props': 'CpuInstanceProperties',
+            '*qom-path': 'str'
+          }
+}
+
+##
+# @query-hotpluggable-cpus
+#
+# Returns: a list of HotpluggableCPU objects.
+#
+# Since: 2.7
+##
+{ 'command': 'query-hotpluggable-cpus', 'returns': ['HotpluggableCPU'] }

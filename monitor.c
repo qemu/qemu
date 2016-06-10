@@ -4273,3 +4273,16 @@ GICCapabilityList *qmp_query_gic_capabilities(Error **errp)
     return NULL;
 }
 #endif
+
+HotpluggableCPUList *qmp_query_hotpluggable_cpus(Error **errp)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+
+    if (!mc->query_hotpluggable_cpus) {
+        error_setg(errp, QERR_FEATURE_DISABLED, "query-hotpluggable-cpus");
+        return NULL;
+    }
+
+    return mc->query_hotpluggable_cpus(ms);
+}

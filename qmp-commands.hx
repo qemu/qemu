@@ -4960,3 +4960,26 @@ Example:
                 { "version": 3, "emulated": false, "kernel": true } ] }
 
 EQMP
+
+    {
+        .name       = "query-hotpluggable-cpus",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_query_hotpluggable_cpus,
+    },
+
+SQMP
+Show existing/possible CPUs
+---------------------------
+
+Arguments: None.
+
+Example for pseries machine type started with
+-smp 2,cores=2,maxcpus=4 -cpu POWER8:
+
+-> { "execute": "query-hotpluggable-cpus" }
+<- {"return": [
+     { "props": { "core": 8 }, "type": "POWER8-spapr-cpu-core",
+       "vcpus-count": 1 },
+     { "props": { "core": 0 }, "type": "POWER8-spapr-cpu-core",
+       "vcpus-count": 1, "qom-path": "/machine/unattached/device[0]"}
+   ]}'
