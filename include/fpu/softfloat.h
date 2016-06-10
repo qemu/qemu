@@ -205,6 +205,7 @@ typedef struct float_status {
     /* should denormalised inputs go to zero and set the input_denormal flag? */
     flag flush_inputs_to_zero;
     flag default_nan_mode;
+    flag snan_bit_is_one;
 } float_status;
 
 static inline void set_float_detect_tininess(int val, float_status *status)
@@ -235,6 +236,10 @@ static inline void set_flush_inputs_to_zero(flag val, float_status *status)
 static inline void set_default_nan_mode(flag val, float_status *status)
 {
     status->default_nan_mode = val;
+}
+static inline void set_snan_bit_is_one(flag val, float_status *status)
+{
+    status->snan_bit_is_one = val;
 }
 static inline int get_float_detect_tininess(float_status *status)
 {
@@ -342,9 +347,9 @@ float64 float16_to_float64(float16 a, flag ieee, float_status *status);
 /*----------------------------------------------------------------------------
 | Software half-precision operations.
 *----------------------------------------------------------------------------*/
-int float16_is_quiet_nan( float16 );
-int float16_is_signaling_nan( float16 );
-float16 float16_maybe_silence_nan( float16 );
+int float16_is_quiet_nan(float16, float_status *status);
+int float16_is_signaling_nan(float16, float_status *status);
+float16 float16_maybe_silence_nan(float16, float_status *status);
 
 static inline int float16_is_any_nan(float16 a)
 {
@@ -354,7 +359,7 @@ static inline int float16_is_any_nan(float16 a)
 /*----------------------------------------------------------------------------
 | The pattern for a default generated half-precision NaN.
 *----------------------------------------------------------------------------*/
-extern const float16 float16_default_nan;
+float16 float16_default_nan(float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE single-precision conversion routines.
@@ -404,9 +409,9 @@ float32 float32_minnum(float32, float32, float_status *status);
 float32 float32_maxnum(float32, float32, float_status *status);
 float32 float32_minnummag(float32, float32, float_status *status);
 float32 float32_maxnummag(float32, float32, float_status *status);
-int float32_is_quiet_nan( float32 );
-int float32_is_signaling_nan( float32 );
-float32 float32_maybe_silence_nan( float32 );
+int float32_is_quiet_nan(float32, float_status *status);
+int float32_is_signaling_nan(float32, float_status *status);
+float32 float32_maybe_silence_nan(float32, float_status *status);
 float32 float32_scalbn(float32, int, float_status *status);
 
 static inline float32 float32_abs(float32 a)
@@ -466,7 +471,7 @@ static inline float32 float32_set_sign(float32 a, int sign)
 /*----------------------------------------------------------------------------
 | The pattern for a default generated single-precision NaN.
 *----------------------------------------------------------------------------*/
-extern const float32 float32_default_nan;
+float32 float32_default_nan(float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision conversion routines.
@@ -516,9 +521,9 @@ float64 float64_minnum(float64, float64, float_status *status);
 float64 float64_maxnum(float64, float64, float_status *status);
 float64 float64_minnummag(float64, float64, float_status *status);
 float64 float64_maxnummag(float64, float64, float_status *status);
-int float64_is_quiet_nan( float64 a );
-int float64_is_signaling_nan( float64 );
-float64 float64_maybe_silence_nan( float64 );
+int float64_is_quiet_nan(float64 a, float_status *status);
+int float64_is_signaling_nan(float64, float_status *status);
+float64 float64_maybe_silence_nan(float64, float_status *status);
 float64 float64_scalbn(float64, int, float_status *status);
 
 static inline float64 float64_abs(float64 a)
@@ -578,7 +583,7 @@ static inline float64 float64_set_sign(float64 a, int sign)
 /*----------------------------------------------------------------------------
 | The pattern for a default generated double-precision NaN.
 *----------------------------------------------------------------------------*/
-extern const float64 float64_default_nan;
+float64 float64_default_nan(float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision conversion routines.
@@ -611,9 +616,9 @@ int floatx80_lt_quiet(floatx80, floatx80, float_status *status);
 int floatx80_unordered_quiet(floatx80, floatx80, float_status *status);
 int floatx80_compare(floatx80, floatx80, float_status *status);
 int floatx80_compare_quiet(floatx80, floatx80, float_status *status);
-int floatx80_is_quiet_nan( floatx80 );
-int floatx80_is_signaling_nan( floatx80 );
-floatx80 floatx80_maybe_silence_nan( floatx80 );
+int floatx80_is_quiet_nan(floatx80, float_status *status);
+int floatx80_is_signaling_nan(floatx80, float_status *status);
+floatx80 floatx80_maybe_silence_nan(floatx80, float_status *status);
 floatx80 floatx80_scalbn(floatx80, int, float_status *status);
 
 static inline floatx80 floatx80_abs(floatx80 a)
@@ -663,7 +668,7 @@ static inline int floatx80_is_any_nan(floatx80 a)
 /*----------------------------------------------------------------------------
 | The pattern for a default generated extended double-precision NaN.
 *----------------------------------------------------------------------------*/
-extern const floatx80 floatx80_default_nan;
+floatx80 floatx80_default_nan(float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE quadruple-precision conversion routines.
@@ -696,9 +701,9 @@ int float128_lt_quiet(float128, float128, float_status *status);
 int float128_unordered_quiet(float128, float128, float_status *status);
 int float128_compare(float128, float128, float_status *status);
 int float128_compare_quiet(float128, float128, float_status *status);
-int float128_is_quiet_nan( float128 );
-int float128_is_signaling_nan( float128 );
-float128 float128_maybe_silence_nan( float128 );
+int float128_is_quiet_nan(float128, float_status *status);
+int float128_is_signaling_nan(float128, float_status *status);
+float128 float128_maybe_silence_nan(float128, float_status *status);
 float128 float128_scalbn(float128, int, float_status *status);
 
 static inline float128 float128_abs(float128 a)
@@ -744,6 +749,6 @@ static inline int float128_is_any_nan(float128 a)
 /*----------------------------------------------------------------------------
 | The pattern for a default generated quadruple-precision NaN.
 *----------------------------------------------------------------------------*/
-extern const float128 float128_default_nan;
+float128 float128_default_nan(float_status *status);
 
 #endif /* !SOFTFLOAT_H */

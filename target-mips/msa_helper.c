@@ -1495,11 +1495,11 @@ MSA_UNOP_DF(pcnt)
 #define FLOAT_ONE32 make_float32(0x3f8 << 20)
 #define FLOAT_ONE64 make_float64(0x3ffULL << 52)
 
-#define FLOAT_SNAN16 (float16_default_nan ^ 0x0220)
+#define FLOAT_SNAN16(s) (float16_default_nan(s) ^ 0x0220)
         /* 0x7c20 */
-#define FLOAT_SNAN32 (float32_default_nan ^ 0x00400020)
+#define FLOAT_SNAN32(s) (float32_default_nan(s) ^ 0x00400020)
         /* 0x7f800020 */
-#define FLOAT_SNAN64 (float64_default_nan ^ 0x0008000000000020ULL)
+#define FLOAT_SNAN64(s) (float64_default_nan(s) ^ 0x0008000000000020ULL)
         /* 0x7ff0000000000020 */
 
 static inline void clear_msacsr_cause(CPUMIPSState *env)
@@ -1612,7 +1612,7 @@ static inline float16 float16_from_float32(int32_t a, flag ieee,
       float16 f_val;
 
       f_val = float32_to_float16((float32)a, ieee, status);
-      f_val = float16_maybe_silence_nan(f_val);
+      f_val = float16_maybe_silence_nan(f_val, status);
 
       return a < 0 ? (f_val | (1 << 15)) : f_val;
 }
@@ -1622,7 +1622,7 @@ static inline float32 float32_from_float64(int64_t a, float_status *status)
       float32 f_val;
 
       f_val = float64_to_float32((float64)a, status);
-      f_val = float32_maybe_silence_nan(f_val);
+      f_val = float32_maybe_silence_nan(f_val, status);
 
       return a < 0 ? (f_val | (1 << 31)) : f_val;
 }
@@ -1633,7 +1633,7 @@ static inline float32 float32_from_float16(int16_t a, flag ieee,
       float32 f_val;
 
       f_val = float16_to_float32((float16)a, ieee, status);
-      f_val = float32_maybe_silence_nan(f_val);
+      f_val = float32_maybe_silence_nan(f_val, status);
 
       return a < 0 ? (f_val | (1 << 31)) : f_val;
 }
@@ -1643,7 +1643,7 @@ static inline float64 float64_from_float32(int32_t a, float_status *status)
       float64 f_val;
 
       f_val = float32_to_float64((float64)a, status);
-      f_val = float64_maybe_silence_nan(f_val);
+      f_val = float64_maybe_silence_nan(f_val, status);
 
       return a < 0 ? (f_val | (1ULL << 63)) : f_val;
 }
@@ -1789,7 +1789,7 @@ static inline int32_t float64_to_q32(float64 a, float_status *status)
         c = update_msacsr(env, CLEAR_IS_INEXACT, 0);                        \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
-            DEST = ((FLOAT_SNAN ## BITS >> 6) << 6) | c;                    \
+            DEST = ((FLOAT_SNAN ## BITS(status) >> 6) << 6) | c;            \
         }                                                                   \
     } while (0)
 
@@ -2388,7 +2388,7 @@ void helper_msa_fsne_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         c = update_msacsr(env, 0, IS_DENORMAL(DEST, BITS));                 \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
-            DEST = ((FLOAT_SNAN ## BITS >> 6) << 6) | c;                    \
+            DEST = ((FLOAT_SNAN ## BITS(status) >> 6) << 6) | c;            \
         }                                                                   \
     } while (0)
 
@@ -2524,7 +2524,7 @@ void helper_msa_fdiv_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         c = update_msacsr(env, 0, IS_DENORMAL(DEST, BITS));                 \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
-            DEST = ((FLOAT_SNAN ## BITS >> 6) << 6) | c;                    \
+            DEST = ((FLOAT_SNAN ## BITS(status) >> 6) << 6) | c;            \
         }                                                                   \
     } while (0)
 
@@ -2643,7 +2643,7 @@ void helper_msa_fexp2_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         c = update_msacsr(env, 0, IS_DENORMAL(DEST, BITS));                 \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
-            DEST = ((FLOAT_SNAN ## BITS >> 6) << 6) | c;                    \
+            DEST = ((FLOAT_SNAN ## BITS(status) >> 6) << 6) | c;            \
         }                                                                   \
     } while (0)
 
@@ -2694,7 +2694,7 @@ void helper_msa_fexdo_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         c = update_msacsr(env, CLEAR_FS_UNDERFLOW, 0);                      \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
-            DEST = ((FLOAT_SNAN ## XBITS >> 6) << 6) | c;                   \
+            DEST = ((FLOAT_SNAN ## XBITS(status) >> 6) << 6) | c;           \
         }                                                                   \
     } while (0)
 
@@ -2731,9 +2731,9 @@ void helper_msa_ftq_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     msa_move_v(pwd, pwx);
 }
 
-#define NUMBER_QNAN_PAIR(ARG1, ARG2, BITS)      \
-    !float ## BITS ## _is_any_nan(ARG1)         \
-    && float ## BITS ## _is_quiet_nan(ARG2)
+#define NUMBER_QNAN_PAIR(ARG1, ARG2, BITS, STATUS)      \
+    !float ## BITS ## _is_any_nan(ARG1)                 \
+    && float ## BITS ## _is_quiet_nan(ARG2, STATUS)
 
 #define MSA_FLOAT_MAXOP(DEST, OP, ARG1, ARG2, BITS)                         \
     do {                                                                    \
@@ -2745,18 +2745,18 @@ void helper_msa_ftq_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         c = update_msacsr(env, 0, 0);                                       \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
-            DEST = ((FLOAT_SNAN ## BITS >> 6) << 6) | c;                    \
+            DEST = ((FLOAT_SNAN ## BITS(status) >> 6) << 6) | c;            \
         }                                                                   \
     } while (0)
 
-#define FMAXMIN_A(F, G, X, _S, _T, BITS)                            \
+#define FMAXMIN_A(F, G, X, _S, _T, BITS, STATUS)                    \
     do {                                                            \
         uint## BITS ##_t S = _S, T = _T;                            \
         uint## BITS ##_t as, at, xs, xt, xd;                        \
-        if (NUMBER_QNAN_PAIR(S, T, BITS)) {                         \
+        if (NUMBER_QNAN_PAIR(S, T, BITS, STATUS)) {                 \
             T = S;                                                  \
         }                                                           \
-        else if (NUMBER_QNAN_PAIR(T, S, BITS)) {                    \
+        else if (NUMBER_QNAN_PAIR(T, S, BITS, STATUS)) {            \
             S = T;                                                  \
         }                                                           \
         as = float## BITS ##_abs(S);                                \
@@ -2770,6 +2770,7 @@ void helper_msa_ftq_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 void helper_msa_fmin_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         uint32_t ws, uint32_t wt)
 {
+    float_status *status = &env->active_tc.msa_fp_status;
     wr_t wx, *pwx = &wx;
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
@@ -2781,9 +2782,9 @@ void helper_msa_fmin_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     switch (df) {
     case DF_WORD:
         for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {
-            if (NUMBER_QNAN_PAIR(pws->w[i], pwt->w[i], 32)) {
+            if (NUMBER_QNAN_PAIR(pws->w[i], pwt->w[i], 32, status)) {
                 MSA_FLOAT_MAXOP(pwx->w[i], min, pws->w[i], pws->w[i], 32);
-            } else if (NUMBER_QNAN_PAIR(pwt->w[i], pws->w[i], 32)) {
+            } else if (NUMBER_QNAN_PAIR(pwt->w[i], pws->w[i], 32, status)) {
                 MSA_FLOAT_MAXOP(pwx->w[i], min, pwt->w[i], pwt->w[i], 32);
             } else {
                 MSA_FLOAT_MAXOP(pwx->w[i], min, pws->w[i], pwt->w[i], 32);
@@ -2792,9 +2793,9 @@ void helper_msa_fmin_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         break;
     case DF_DOUBLE:
         for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {
-            if (NUMBER_QNAN_PAIR(pws->d[i], pwt->d[i], 64)) {
+            if (NUMBER_QNAN_PAIR(pws->d[i], pwt->d[i], 64, status)) {
                 MSA_FLOAT_MAXOP(pwx->d[i], min, pws->d[i], pws->d[i], 64);
-            } else if (NUMBER_QNAN_PAIR(pwt->d[i], pws->d[i], 64)) {
+            } else if (NUMBER_QNAN_PAIR(pwt->d[i], pws->d[i], 64, status)) {
                 MSA_FLOAT_MAXOP(pwx->d[i], min, pwt->d[i], pwt->d[i], 64);
             } else {
                 MSA_FLOAT_MAXOP(pwx->d[i], min, pws->d[i], pwt->d[i], 64);
@@ -2813,6 +2814,7 @@ void helper_msa_fmin_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 void helper_msa_fmin_a_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         uint32_t ws, uint32_t wt)
 {
+    float_status *status = &env->active_tc.msa_fp_status;
     wr_t wx, *pwx = &wx;
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
@@ -2824,12 +2826,12 @@ void helper_msa_fmin_a_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     switch (df) {
     case DF_WORD:
         for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {
-            FMAXMIN_A(min, max, pwx->w[i], pws->w[i], pwt->w[i], 32);
+            FMAXMIN_A(min, max, pwx->w[i], pws->w[i], pwt->w[i], 32, status);
         }
         break;
     case DF_DOUBLE:
         for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {
-            FMAXMIN_A(min, max, pwx->d[i], pws->d[i], pwt->d[i], 64);
+            FMAXMIN_A(min, max, pwx->d[i], pws->d[i], pwt->d[i], 64, status);
         }
         break;
     default:
@@ -2844,6 +2846,7 @@ void helper_msa_fmin_a_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 void helper_msa_fmax_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         uint32_t ws, uint32_t wt)
 {
+    float_status *status = &env->active_tc.msa_fp_status;
     wr_t wx, *pwx = &wx;
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
@@ -2855,9 +2858,9 @@ void helper_msa_fmax_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     switch (df) {
     case DF_WORD:
         for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {
-            if (NUMBER_QNAN_PAIR(pws->w[i], pwt->w[i], 32)) {
+            if (NUMBER_QNAN_PAIR(pws->w[i], pwt->w[i], 32, status)) {
                 MSA_FLOAT_MAXOP(pwx->w[i], max, pws->w[i], pws->w[i], 32);
-            } else if (NUMBER_QNAN_PAIR(pwt->w[i], pws->w[i], 32)) {
+            } else if (NUMBER_QNAN_PAIR(pwt->w[i], pws->w[i], 32, status)) {
                 MSA_FLOAT_MAXOP(pwx->w[i], max, pwt->w[i], pwt->w[i], 32);
             } else {
                 MSA_FLOAT_MAXOP(pwx->w[i], max, pws->w[i], pwt->w[i], 32);
@@ -2866,9 +2869,9 @@ void helper_msa_fmax_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         break;
     case DF_DOUBLE:
         for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {
-            if (NUMBER_QNAN_PAIR(pws->d[i], pwt->d[i], 64)) {
+            if (NUMBER_QNAN_PAIR(pws->d[i], pwt->d[i], 64, status)) {
                 MSA_FLOAT_MAXOP(pwx->d[i], max, pws->d[i], pws->d[i], 64);
-            } else if (NUMBER_QNAN_PAIR(pwt->d[i], pws->d[i], 64)) {
+            } else if (NUMBER_QNAN_PAIR(pwt->d[i], pws->d[i], 64, status)) {
                 MSA_FLOAT_MAXOP(pwx->d[i], max, pwt->d[i], pwt->d[i], 64);
             } else {
                 MSA_FLOAT_MAXOP(pwx->d[i], max, pws->d[i], pwt->d[i], 64);
@@ -2887,6 +2890,7 @@ void helper_msa_fmax_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 void helper_msa_fmax_a_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         uint32_t ws, uint32_t wt)
 {
+    float_status *status = &env->active_tc.msa_fp_status;
     wr_t wx, *pwx = &wx;
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
@@ -2898,12 +2902,12 @@ void helper_msa_fmax_a_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     switch (df) {
     case DF_WORD:
         for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {
-            FMAXMIN_A(max, min, pwx->w[i], pws->w[i], pwt->w[i], 32);
+            FMAXMIN_A(max, min, pwx->w[i], pws->w[i], pwt->w[i], 32, status);
         }
         break;
     case DF_DOUBLE:
         for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {
-            FMAXMIN_A(max, min, pwx->d[i], pws->d[i], pwt->d[i], 64);
+            FMAXMIN_A(max, min, pwx->d[i], pws->d[i], pwt->d[i], 64, status);
         }
         break;
     default:
@@ -2918,16 +2922,18 @@ void helper_msa_fmax_a_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 void helper_msa_fclass_df(CPUMIPSState *env, uint32_t df,
         uint32_t wd, uint32_t ws)
 {
+    float_status* status = &env->active_tc.msa_fp_status;
+
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     if (df == DF_WORD) {
-        pwd->w[0] = helper_float_class_s(pws->w[0]);
-        pwd->w[1] = helper_float_class_s(pws->w[1]);
-        pwd->w[2] = helper_float_class_s(pws->w[2]);
-        pwd->w[3] = helper_float_class_s(pws->w[3]);
+        pwd->w[0] = float_class_s(pws->w[0], status);
+        pwd->w[1] = float_class_s(pws->w[1], status);
+        pwd->w[2] = float_class_s(pws->w[2], status);
+        pwd->w[3] = float_class_s(pws->w[3], status);
     } else {
-        pwd->d[0] = helper_float_class_d(pws->d[0]);
-        pwd->d[1] = helper_float_class_d(pws->d[1]);
+        pwd->d[0] = float_class_d(pws->d[0], status);
+        pwd->d[1] = float_class_d(pws->d[1], status);
     }
 }
 
@@ -2941,7 +2947,7 @@ void helper_msa_fclass_df(CPUMIPSState *env, uint32_t df,
         c = update_msacsr(env, CLEAR_FS_UNDERFLOW, 0);                      \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
-            DEST = ((FLOAT_SNAN ## BITS >> 6) << 6) | c;                    \
+            DEST = ((FLOAT_SNAN ## BITS(status) >> 6) << 6) | c;            \
         } else if (float ## BITS ## _is_any_nan(ARG)) {                     \
             DEST = 0;                                                       \
         }                                                                   \
@@ -3045,12 +3051,12 @@ void helper_msa_fsqrt_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         set_float_exception_flags(0, status);                               \
         DEST = float ## BITS ## _ ## div(FLOAT_ONE ## BITS, ARG, status);   \
         c = update_msacsr(env, float ## BITS ## _is_infinity(ARG) ||        \
-                          float ## BITS ## _is_quiet_nan(DEST) ?            \
+                          float ## BITS ## _is_quiet_nan(DEST, status) ?    \
                           0 : RECIPROCAL_INEXACT,                           \
                           IS_DENORMAL(DEST, BITS));                         \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
-            DEST = ((FLOAT_SNAN ## BITS >> 6) << 6) | c;                    \
+            DEST = ((FLOAT_SNAN ## BITS(status) >> 6) << 6) | c;            \
         }                                                                   \
     } while (0)
 
@@ -3166,7 +3172,7 @@ void helper_msa_frint_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         c = update_msacsr(env, 0, IS_DENORMAL(DEST, BITS));                 \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
-            DEST = ((FLOAT_SNAN ## BITS >> 6) << 6) | c;                    \
+            DEST = ((FLOAT_SNAN ## BITS(status) >> 6) << 6) | c;            \
         }                                                                   \
     } while (0)
 

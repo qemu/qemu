@@ -892,4 +892,6 @@ static void msa_reset(CPUMIPSState *env)
 
     /* clear float_status nan mode */
     set_default_nan_mode(0, &env->active_tc.msa_fp_status);
+
+    set_snan_bit_is_one(1, &env->active_tc.msa_fp_status);
 }
