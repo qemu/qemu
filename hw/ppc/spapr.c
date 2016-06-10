@@ -66,6 +66,7 @@
 
 #include "hw/compat.h"
 #include "qemu/cutils.h"
+#include "hw/ppc/spapr_cpu_core.h"
 
 #include <libfdt.h>
 
@@ -1683,7 +1684,6 @@ static void ppc_spapr_init(MachineState *machine)
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
-    PowerPCCPU *cpu;
     PCIHostState *phb;
     int i;
     MemoryRegion *sysmem = get_system_memory();
@@ -1697,6 +1697,22 @@ static void ppc_spapr_init(MachineState *machine)
     long load_limit, fw_size;
     bool kernel_le = false;
     char *filename;
+    int smt = kvmppc_smt_threads();
+    int spapr_cores = smp_cpus / smp_threads;
+    int spapr_max_cores = max_cpus / smp_threads;
+
+    if (smc->dr_cpu_enabled) {
+        if (smp_cpus % smp_threads) {
+            error_report("smp_cpus (%u) must be multiple of threads (%u)",
+                         smp_cpus, smp_threads);
+            exit(1);
+        }
+        if (max_cpus % smp_threads) {
+            error_report("max_cpus (%u) must be multiple of threads (%u)",
+                         max_cpus, smp_threads);
+            exit(1);
+        }
+    }
 
     msi_nonbroken = true;
 
@@ -1743,8 +1759,7 @@ static void ppc_spapr_init(MachineState *machine)
 
     /* Set up Interrupt Controller before we create the VCPUs */
     spapr->icp = xics_system_init(machine,
-                                  DIV_ROUND_UP(max_cpus * kvmppc_smt_threads(),
-                                               smp_threads),
+                                  DIV_ROUND_UP(max_cpus * smt, smp_threads),
                                   XICS_IRQS, &error_fatal);
 
     if (smc->dr_lmb_enabled) {
@@ -1755,13 +1770,37 @@ static void ppc_spapr_init(MachineState *machine)
     if (machine->cpu_model == NULL) {
         machine->cpu_model = kvm_enabled() ? "host" : "POWER7";
     }
-    for (i = 0; i < smp_cpus; i++) {
-        cpu = cpu_ppc_init(machine->cpu_model);
-        if (cpu == NULL) {
-            error_report("Unable to find PowerPC CPU definition");
-            exit(1);
+
+    if (smc->dr_cpu_enabled) {
+        char *type = spapr_get_cpu_core_type(machine->cpu_model);
+
+        spapr->cores = g_new0(Object *, spapr_max_cores);
+        for (i = 0; i < spapr_cores; i++) {
+            int core_dt_id = i * smt;
+            Object *core;
+
+            if (!object_class_by_name(type)) {
+                error_report("Unable to find sPAPR CPU Core definition");
+                exit(1);
+            }
+
+            core  = object_new(type);
+            object_property_set_int(core, smp_threads, "nr-threads",
+                                    &error_fatal);
+            object_property_set_int(core, core_dt_id, CPU_CORE_PROP_CORE_ID,
+                                    &error_fatal);
+            object_property_set_bool(core, true, "realized", &error_fatal);
         }
-        spapr_cpu_init(spapr, cpu, &error_fatal);
+        g_free(type);
+    } else {
+        for (i = 0; i < smp_cpus; i++) {
+            PowerPCCPU *cpu = cpu_ppc_init(machine->cpu_model);
+            if (cpu == NULL) {
+                error_report("Unable to find PowerPC CPU definition");
+                exit(1);
+            }
+            spapr_cpu_init(spapr, cpu, &error_fatal);
+       }
     }
 
     if (kvm_enabled()) {
@@ -2227,10 +2266,19 @@ static void spapr_machine_device_unplug(HotplugHandler *hotplug_dev,
     }
 }
 
+static void spapr_machine_device_pre_plug(HotplugHandler *hotplug_dev,
+                                          DeviceState *dev, Error **errp)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
+        spapr_core_pre_plug(hotplug_dev, dev, errp);
+    }
+}
+
 static HotplugHandler *spapr_get_hotpug_handler(MachineState *machine,
                                              DeviceState *dev)
 {
-    if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM) ||
+        object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
         return HOTPLUG_HANDLER(machine);
     }
     return NULL;
@@ -2269,11 +2317,13 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->has_dynamic_sysbus = true;
     mc->pci_allow_0_address = true;
     mc->get_hotplug_handler = spapr_get_hotpug_handler;
+    hc->pre_plug = spapr_machine_device_pre_plug;
     hc->plug = spapr_machine_device_plug;
     hc->unplug = spapr_machine_device_unplug;
     mc->cpu_index_to_socket_id = spapr_cpu_index_to_socket_id;
 
     smc->dr_lmb_enabled = true;
+    smc->dr_cpu_enabled = true;
     fwc->get_dev_path = spapr_get_fw_dev_path;
     nc->nmi_monitor_handler = spapr_nmi;
 }
@@ -2349,7 +2399,10 @@ static void spapr_machine_2_6_instance_options(MachineState *machine)
 
 static void spapr_machine_2_6_class_options(MachineClass *mc)
 {
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
     spapr_machine_2_7_class_options(mc);
+    smc->dr_cpu_enabled = false;
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_6);
 }
 

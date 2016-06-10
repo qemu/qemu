@@ -63,6 +63,64 @@ void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu, Error **errp)
     qemu_register_reset(spapr_cpu_reset, cpu);
 }
 
+/*
+ * Return the sPAPR CPU core type for @model which essentially is the CPU
+ * model specified with -cpu cmdline option.
+ */
+char *spapr_get_cpu_core_type(const char *model)
+{
+    char *core_type;
+    gchar **model_pieces = g_strsplit(model, ",", 2);
+
+    core_type = g_strdup_printf("%s-%s", model_pieces[0], TYPE_SPAPR_CPU_CORE);
+    g_strfreev(model_pieces);
+    return core_type;
+}
+
+void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                         Error **errp)
+{
+    MachineState *machine = MACHINE(OBJECT(hotplug_dev));
+    sPAPRMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
+    int spapr_max_cores = max_cpus / smp_threads;
+    int index;
+    int smt = kvmppc_smt_threads();
+    Error *local_err = NULL;
+    CPUCore *cc = CPU_CORE(dev);
+    char *base_core_type = spapr_get_cpu_core_type(machine->cpu_model);
+    const char *type = object_get_typename(OBJECT(dev));
+
+    if (strcmp(base_core_type, type)) {
+        error_setg(&local_err, "CPU core type should be %s", base_core_type);
+        goto out;
+    }
+
+    if (cc->nr_threads != smp_threads) {
+        error_setg(&local_err, "threads must be %d", smp_threads);
+        goto out;
+    }
+
+    if (cc->core_id % smt) {
+        error_setg(&local_err, "invalid core id %d\n", cc->core_id);
+        goto out;
+    }
+
+    index = cc->core_id / smt;
+    if (index < 0 || index >= spapr_max_cores) {
+        error_setg(&local_err, "core id %d out of range", cc->core_id);
+        goto out;
+    }
+
+    if (spapr->cores[index]) {
+        error_setg(&local_err, "core %d already populated", cc->core_id);
+        goto out;
+    }
+
+out:
+    g_free(base_core_type);
+    error_propagate(errp, local_err);
+}
+
 static int spapr_cpu_core_realize_child(Object *child, void *opaque)
 {
     Error **errp = opaque;

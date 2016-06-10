@@ -26,4 +26,7 @@ typedef struct sPAPRCPUCore {
     ObjectClass *cpu_class;
 } sPAPRCPUCore;
 
+void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                         Error **errp);
+char *spapr_get_cpu_core_type(const char *model);
 #endif
