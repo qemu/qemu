@@ -79,8 +79,7 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
     }
 
     /* Don't try if transport does not support notifiers. */
-    if (!k->set_guest_notifiers ||
-        (!k->set_host_notifier && !k->ioeventfd_started)) {
+    if (!k->set_guest_notifiers || !k->ioeventfd_started) {
         error_setg(errp,
                    "device is incompatible with dataplane "
                    "(transport does not support notifiers)");
@@ -159,9 +158,6 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
 
     /* Set up virtqueue notify */
     r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), 0, true);
-    if (r == -ENOSYS) {
-        r = k->set_host_notifier(qbus->parent, 0, true);
-    }
     if (r != 0) {
         fprintf(stderr, "virtio-blk failed to set host notifier (%d)\n", r);
         goto fail_host_notifier;
@@ -197,7 +193,6 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s->vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtIOBlock *vblk = VIRTIO_BLK(s->vdev);
-    int r;
 
     if (!vblk->dataplane_started || s->stopping) {
         return;
@@ -222,10 +217,7 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
 
     aio_context_release(s->ctx);
 
-    r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), 0, false);
-    if (r == -ENOSYS) {
-        k->set_host_notifier(qbus->parent, 0, false);
-    }
+    virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), 0, false);
 
     /* Clean up guest notifier (irq) */
     k->set_guest_notifiers(qbus->parent, 1, false);

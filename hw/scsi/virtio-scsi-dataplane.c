@@ -31,8 +31,7 @@ void virtio_scsi_set_iothread(VirtIOSCSI *s, IOThread *iothread)
     s->ctx = iothread_get_aio_context(vs->conf.iothread);
 
     /* Don't try if transport does not support notifiers. */
-    if (!k->set_guest_notifiers ||
-        (!k->set_host_notifier && !k->ioeventfd_started)) {
+    if (!k->set_guest_notifiers || !k->ioeventfd_started) {
         fprintf(stderr, "virtio-scsi: Failed to set iothread "
                    "(transport does not support notifiers)");
         exit(1);
@@ -70,14 +69,10 @@ static int virtio_scsi_vring_init(VirtIOSCSI *s, VirtQueue *vq, int n,
                                   void (*fn)(VirtIODevice *vdev, VirtQueue *vq))
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s)));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int rc;
 
     /* Set up virtqueue notify */
     rc = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), n, true);
-    if (rc == -ENOSYS) {
-        rc = k->set_host_notifier(qbus->parent, n, true);
-    }
     if (rc != 0) {
         fprintf(stderr, "virtio-scsi: Failed to set host notifier (%d)\n",
                 rc);
@@ -163,10 +158,7 @@ fail_vrings:
     virtio_scsi_clear_aio(s);
     aio_context_release(s->ctx);
     for (i = 0; i < vs->conf.num_queues + 2; i++) {
-        rc = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
-        if (rc == -ENOSYS) {
-            k->set_host_notifier(qbus->parent, i, false);
-        }
+        virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
     }
     k->set_guest_notifiers(qbus->parent, vs->conf.num_queues + 2, false);
 fail_guest_notifiers:
@@ -181,7 +173,7 @@ void virtio_scsi_dataplane_stop(VirtIOSCSI *s)
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
-    int i, rc;
+    int i;
 
     if (!s->dataplane_started || s->dataplane_stopping) {
         return;
@@ -205,10 +197,7 @@ void virtio_scsi_dataplane_stop(VirtIOSCSI *s)
     aio_context_release(s->ctx);
 
     for (i = 0; i < vs->conf.num_queues + 2; i++) {
-        rc = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
-        if (rc == -ENOSYS) {
-            k->set_host_notifier(qbus->parent, i, false);
-        }
+        virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
     }
 
     /* Clean up guest notifier (irq) */

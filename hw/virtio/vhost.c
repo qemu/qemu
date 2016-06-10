@@ -1110,7 +1110,7 @@ int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     int i, r, e;
-    if (!k->set_host_notifier || !k->ioeventfd_started) {
+    if (!k->ioeventfd_started) {
         fprintf(stderr, "binding does not support host notifiers\n");
         r = -ENOSYS;
         goto fail;
@@ -1119,9 +1119,6 @@ int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
     for (i = 0; i < hdev->nvqs; ++i) {
         r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i,
                                          true);
-        if (r == -ENOSYS) {
-            r = k->set_host_notifier(qbus->parent, hdev->vq_index + i, true);
-        }
         if (r < 0) {
             fprintf(stderr, "vhost VQ %d notifier binding failed: %d\n", i, -r);
             goto fail_vq;
@@ -1133,9 +1130,6 @@ fail_vq:
     while (--i >= 0) {
         e = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i,
                                          false);
-        if (e == -ENOSYS) {
-            e = k->set_host_notifier(qbus->parent, hdev->vq_index + i, false);
-        }
         if (e < 0) {
             fprintf(stderr, "vhost VQ %d notifier cleanup error: %d\n", i, -r);
             fflush(stderr);
@@ -1154,16 +1148,11 @@ fail:
 void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
-    VirtioBusState *vbus = VIRTIO_BUS(qbus);
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     int i, r;
 
     for (i = 0; i < hdev->nvqs; ++i) {
         r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i,
                                          false);
-        if (r == -ENOSYS) {
-            r = k->set_host_notifier(qbus->parent, hdev->vq_index + i, false);
-        }
         if (r < 0) {
             fprintf(stderr, "vhost VQ %d notifier cleanup failed: %d\n", i, -r);
             fflush(stderr);
