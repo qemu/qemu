@@ -646,11 +646,11 @@ static ssize_t nbd_receive_request(QIOChannel *ioc, struct nbd_request *request)
        [24 .. 27]   len
      */
 
-    magic = be32_to_cpup((uint32_t*)buf);
-    request->type  = be32_to_cpup((uint32_t*)(buf + 4));
-    request->handle = be64_to_cpup((uint64_t*)(buf + 8));
-    request->from  = be64_to_cpup((uint64_t*)(buf + 16));
-    request->len   = be32_to_cpup((uint32_t*)(buf + 24));
+    magic = ldl_be_p(buf);
+    request->type   = ldl_be_p(buf + 4);
+    request->handle = ldq_be_p(buf + 8);
+    request->from   = ldq_be_p(buf + 16);
+    request->len    = ldl_be_p(buf + 24);
 
     TRACE("Got request: "
           "{ magic = 0x%x, .type = %d, from = %" PRIu64" , len = %u }",

@@ -572,7 +572,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
             error_setg(errp, "Failed to read export flags");
             goto fail;
         }
-        *flags = be32_to_cpup(flags);
+        *flags = be32_to_cpu(*flags);
     } else {
         error_setg(errp, "Bad magic received");
         goto fail;
@@ -726,9 +726,9 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, struct nbd_reply *reply)
        [ 7 .. 15]    handle
      */
 
-    magic = be32_to_cpup((uint32_t*)buf);
-    reply->error  = be32_to_cpup((uint32_t*)(buf + 4));
-    reply->handle = be64_to_cpup((uint64_t*)(buf + 8));
+    magic = ldl_be_p(buf);
+    reply->error  = ldl_be_p(buf + 4);
+    reply->handle = ldq_be_p(buf + 8);
 
     reply->error = nbd_errno_to_system_errno(reply->error);
 

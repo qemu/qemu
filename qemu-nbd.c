@@ -154,8 +154,8 @@ static void read_partition(uint8_t *p, struct partition_record *r)
     r->end_cylinder = p[7] | ((p[6] << 2) & 0x300);
     r->end_sector = p[6] & 0x3f;
 
-    r->start_sector_abs = le32_to_cpup((uint32_t *)(p +  8));
-    r->nb_sectors_abs   = le32_to_cpup((uint32_t *)(p + 12));
+    r->start_sector_abs = ldl_le_p(p + 8);
+    r->nb_sectors_abs   = ldl_le_p(p + 12);
 }
 
 static int find_partition(BlockBackend *blk, int partition,
