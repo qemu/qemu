@@ -686,11 +686,11 @@ ssize_t nbd_send_request(QIOChannel *ioc, struct nbd_request *request)
           "{ .from = %" PRIu64", .len = %u, .handle = %" PRIu64", .type=%i}",
           request->from, request->len, request->handle, request->type);
 
-    cpu_to_be32w((uint32_t*)buf, NBD_REQUEST_MAGIC);
-    cpu_to_be32w((uint32_t*)(buf + 4), request->type);
-    cpu_to_be64w((uint64_t*)(buf + 8), request->handle);
-    cpu_to_be64w((uint64_t*)(buf + 16), request->from);
-    cpu_to_be32w((uint32_t*)(buf + 24), request->len);
+    stl_be_p(buf, NBD_REQUEST_MAGIC);
+    stl_be_p(buf + 4, request->type);
+    stq_be_p(buf + 8, request->handle);
+    stq_be_p(buf + 16, request->from);
+    stl_be_p(buf + 24, request->len);
 
     ret = write_sync(ioc, buf, sizeof(buf));
     if (ret < 0) {
