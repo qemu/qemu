@@ -71,6 +71,29 @@ typedef struct VirtioBusClass {
     void (*device_unplugged)(DeviceState *d);
     int (*query_nvectors)(DeviceState *d);
     /*
+     * ioeventfd handling: if the transport implements ioeventfd_started,
+     * it must implement the other ioeventfd callbacks as well
+     */
+    /* Returns true if the ioeventfd has been started for the device. */
+    bool (*ioeventfd_started)(DeviceState *d);
+    /*
+     * Sets the 'ioeventfd started' state after the ioeventfd has been
+     * started/stopped for the device. err signifies whether an error
+     * had occurred.
+     */
+    void (*ioeventfd_set_started)(DeviceState *d, bool started, bool err);
+    /* Returns true if the ioeventfd has been disabled for the device. */
+    bool (*ioeventfd_disabled)(DeviceState *d);
+    /* Sets the 'ioeventfd disabled' state for the device. */
+    void (*ioeventfd_set_disabled)(DeviceState *d, bool disabled);
+    /*
+     * Assigns/deassigns the ioeventfd backing for the transport on
+     * the device for queue number n. Returns an error value on
+     * failure.
+     */
+    int (*ioeventfd_assign)(DeviceState *d, EventNotifier *notifier,
+                            int n, bool assign);
+    /*
      * Does the transport have variable vring alignment?
      * (ie can it ever call virtio_queue_set_align()?)
      * Note that changing this will break migration for this transport.
@@ -110,5 +133,12 @@ static inline VirtIODevice *virtio_bus_get_device(VirtioBusState *bus)
      */
     return (VirtIODevice *)qdev;
 }
+
+/* Start the ioeventfd. */
+void virtio_bus_start_ioeventfd(VirtioBusState *bus);
+/* Stop the ioeventfd. */
+void virtio_bus_stop_ioeventfd(VirtioBusState *bus);
+/* Switch from/to the generic ioeventfd handler */
+int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign);
 
 #endif /* VIRTIO_BUS_H */
