@@ -173,8 +173,7 @@ bool msi_enabled(const PCIDevice *dev)
  * If @msi64bit, make the device capable of sending a 64-bit message
  * address.
  * If @msi_per_vector_mask, make the device support per-vector masking.
- * Return the offset of capability MSI in config space on success,
- * return -errno on error.
+ * Return 0 on success, return -errno on error.
  *
  * -ENOTSUP means lacking msi support for a msi-capable platform.
  * -EINVAL means capability overlap, happens when @offset is non-zero,
@@ -236,7 +235,8 @@ int msi_init(struct PCIDevice *dev, uint8_t offset,
         pci_set_long(dev->wmask + msi_mask_off(dev, msi64bit),
                      0xffffffff >> (PCI_MSI_VECTORS_MAX - nr_vectors));
     }
-    return config_offset;
+
+    return 0;
 }
 
 void msi_uninit(struct PCIDevice *dev)
