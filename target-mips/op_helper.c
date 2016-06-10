@@ -2575,21 +2575,13 @@ void helper_ctc1(CPUMIPSState *env, target_ulong arg1, uint32_t fs, uint32_t rt)
                      ((arg1 & 0x4) << 22);
         break;
     case 31:
-        if (env->insn_flags & ISA_MIPS32R6) {
-            uint32_t mask = 0xfefc0000;
-            env->active_fpu.fcr31 = (arg1 & ~mask) |
-                (env->active_fpu.fcr31 & mask);
-        } else if (!(arg1 & 0x007c0000)) {
-            env->active_fpu.fcr31 = arg1;
-        }
+        env->active_fpu.fcr31 = (arg1 & env->active_fpu.fcr31_rw_bitmask) |
+               (env->active_fpu.fcr31 & ~(env->active_fpu.fcr31_rw_bitmask));
         break;
     default:
         return;
     }
-    /* set rounding mode */
-    restore_rounding_mode(env);
-    /* set flush-to-zero mode */
-    restore_flush_mode(env);
+    restore_fp_status(env);
     set_float_exception_flags(0, &env->active_fpu.fp_status);
     if ((GET_FP_ENABLE(env->active_fpu.fcr31) | 0x20) & GET_FP_CAUSE(env->active_fpu.fcr31))
         do_raise_exception(env, EXCP_FPE, GETPC());

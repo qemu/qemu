@@ -111,6 +111,7 @@ struct CPUMIPSFPUContext {
 #define FCR0_PRID 8
 #define FCR0_REV 0
     /* fcsr */
+    uint32_t fcr31_rw_bitmask;
     uint32_t fcr31;
 #define FCR31_ABS2008 19
 #define FCR31_NAN2008 18
@@ -853,10 +854,17 @@ static inline void restore_flush_mode(CPUMIPSState *env)
                       &env->active_fpu.fp_status);
 }
 
+static inline void restore_snan_bit_mode(CPUMIPSState *env)
+{
+    set_snan_bit_is_one((env->active_fpu.fcr31 & (1 << FCR31_NAN2008)) == 0,
+                        &env->active_fpu.fp_status);
+}
+
 static inline void restore_fp_status(CPUMIPSState *env)
 {
     restore_rounding_mode(env);
     restore_flush_mode(env);
+    restore_snan_bit_mode(env);
 }
 
 static inline void restore_msa_fp_status(CPUMIPSState *env)

@@ -90,11 +90,9 @@ int mips_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     if (env->CP0_Config1 & (1 << CP0C1_FP) && n >= 38 && n < 72) {
         switch (n) {
         case 70:
-            env->active_fpu.fcr31 = tmp & 0xFF83FFFF;
-            /* set rounding mode */
-            restore_rounding_mode(env);
-            /* set flush-to-zero mode */
-            restore_flush_mode(env);
+            env->active_fpu.fcr31 = (tmp & env->active_fpu.fcr31_rw_bitmask) |
+                  (env->active_fpu.fcr31 & ~(env->active_fpu.fcr31_rw_bitmask));
+            restore_fp_status(env);
             break;
         case 71:
             /* FIR is read-only.  Ignore writes.  */
