@@ -154,7 +154,7 @@ CharDriverState *sclp_hds[MAX_SCLP_CONSOLES];
 int win2k_install_hack = 0;
 int singlestep = 0;
 int smp_cpus = 1;
-int max_cpus = 0;
+int max_cpus = 1;
 int smp_cores = 1;
 int smp_threads = 1;
 int acpi_enabled = 1;
@@ -1218,7 +1218,6 @@ static QemuOptsList qemu_smp_opts = {
 static void smp_parse(QemuOpts *opts)
 {
     if (opts) {
-
         unsigned cpus    = qemu_opt_get_number(opts, "cpus", 0);
         unsigned sockets = qemu_opt_get_number(opts, "sockets", 0);
         unsigned cores   = qemu_opt_get_number(opts, "cores", 0);
@@ -1246,6 +1245,17 @@ static void smp_parse(QemuOpts *opts)
         }
 
         max_cpus = qemu_opt_get_number(opts, "maxcpus", cpus);
+
+        if (max_cpus > MAX_CPUMASK_BITS) {
+            error_report("unsupported number of maxcpus");
+            exit(1);
+        }
+
+        if (max_cpus < cpus) {
+            error_report("maxcpus must be equal to or greater than smp");
+            exit(1);
+        }
+
         if (sockets * cores * threads > max_cpus) {
             error_report("cpu topology: "
                          "sockets (%u) * cores (%u) * threads (%u) > "
@@ -1255,25 +1265,11 @@ static void smp_parse(QemuOpts *opts)
         }
 
         smp_cpus = cpus;
-        smp_cores = cores > 0 ? cores : 1;
-        smp_threads = threads > 0 ? threads : 1;
-
+        smp_cores = cores;
+        smp_threads = threads;
     }
 
-    if (max_cpus == 0) {
-        max_cpus = smp_cpus;
-    }
-
-    if (max_cpus > MAX_CPUMASK_BITS) {
-        error_report("unsupported number of maxcpus");
-        exit(1);
-    }
-    if (max_cpus < smp_cpus) {
-        error_report("maxcpus must be equal to or greater than smp");
-        exit(1);
-    }
-
-    if (smp_cpus > 1 || smp_cores > 1 || smp_threads > 1) {
+    if (smp_cpus > 1) {
         Error *blocker = NULL;
         error_setg(&blocker, QERR_REPLAY_NOT_SUPPORTED, "smp");
         replay_add_blocker(blocker);
