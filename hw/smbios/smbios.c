@@ -24,6 +24,7 @@
 #include "hw/smbios/smbios.h"
 #include "hw/loader.h"
 #include "exec/cpu-common.h"
+#include "smbios_build.h"
 
 /* legacy structures and constants for <= 2.0 machines */
 struct smbios_header {
@@ -53,10 +54,10 @@ static bool smbios_uuid_encoded = true;
 /* end: legacy structures & constants for <= 2.0 machines */
 
 
-static uint8_t *smbios_tables;
-static size_t smbios_tables_len;
-static unsigned smbios_table_max;
-static unsigned smbios_table_cnt;
+uint8_t *smbios_tables;
+size_t smbios_tables_len;
+unsigned smbios_table_max;
+unsigned smbios_table_cnt;
 static SmbiosEntryPointType smbios_ep_type = SMBIOS_ENTRY_POINT_21;
 
 static SmbiosEntryPoint ep;
@@ -429,7 +430,7 @@ uint8_t *smbios_get_table_legacy(size_t *length)
 /* end: legacy setup functions for <= 2.0 machines */
 
 
-static bool smbios_skip_table(uint8_t type, bool required_table)
+bool smbios_skip_table(uint8_t type, bool required_table)
 {
     if (test_bit(type, have_binfile_bitmap)) {
         return true; /* user provided their own binary blob(s) */
@@ -442,65 +443,6 @@ static bool smbios_skip_table(uint8_t type, bool required_table)
     }
     return true;
 }
-
-#define SMBIOS_BUILD_TABLE_PRE(tbl_type, tbl_handle, tbl_required)        \
-    struct smbios_type_##tbl_type *t;                                     \
-    size_t t_off; /* table offset into smbios_tables */                   \
-    int str_index = 0;                                                    \
-    do {                                                                  \
-        /* should we skip building this table ? */                        \
-        if (smbios_skip_table(tbl_type, tbl_required)) {                  \
-            return;                                                       \
-        }                                                                 \
-                                                                          \
-        /* use offset of table t within smbios_tables */                  \
-        /* (pointer must be updated after each realloc) */                \
-        t_off = smbios_tables_len;                                        \
-        smbios_tables_len += sizeof(*t);                                  \
-        smbios_tables = g_realloc(smbios_tables, smbios_tables_len);      \
-        t = (struct smbios_type_##tbl_type *)(smbios_tables + t_off);     \
-                                                                          \
-        t->header.type = tbl_type;                                        \
-        t->header.length = sizeof(*t);                                    \
-        t->header.handle = cpu_to_le16(tbl_handle);                       \
-    } while (0)
-
-#define SMBIOS_TABLE_SET_STR(tbl_type, field, value)                      \
-    do {                                                                  \
-        int len = (value != NULL) ? strlen(value) + 1 : 0;                \
-        if (len > 1) {                                                    \
-            smbios_tables = g_realloc(smbios_tables,                      \
-                                      smbios_tables_len + len);           \
-            memcpy(smbios_tables + smbios_tables_len, value, len);        \
-            smbios_tables_len += len;                                     \
-            /* update pointer post-realloc */                             \
-            t = (struct smbios_type_##tbl_type *)(smbios_tables + t_off); \
-            t->field = ++str_index;                                       \
-        } else {                                                          \
-            t->field = 0;                                                 \
-        }                                                                 \
-    } while (0)
-
-#define SMBIOS_BUILD_TABLE_POST                                           \
-    do {                                                                  \
-        size_t term_cnt, t_size;                                          \
-                                                                          \
-        /* add '\0' terminator (add two if no strings defined) */         \
-        term_cnt = (str_index == 0) ? 2 : 1;                              \
-        smbios_tables = g_realloc(smbios_tables,                          \
-                                  smbios_tables_len + term_cnt);          \
-        memset(smbios_tables + smbios_tables_len, 0, term_cnt);           \
-        smbios_tables_len += term_cnt;                                    \
-                                                                          \
-        /* update smbios max. element size */                             \
-        t_size = smbios_tables_len - t_off;                               \
-        if (t_size > smbios_table_max) {                                  \
-            smbios_table_max = t_size;                                    \
-        }                                                                 \
-                                                                          \
-        /* update smbios element count */                                 \
-        smbios_table_cnt++;                                               \
-    } while (0)
 
 static void smbios_build_type_0_table(void)
 {
