@@ -336,6 +336,10 @@ enum {
 #define TTE_PGSIZE_UA2005(tte)     ((tte) & 7ULL)
 #define TTE_PA(tte)         ((tte) & 0x1ffffffe000ULL)
 
+/* UltraSPARC T1 specific */
+#define TLB_UST1_IS_REAL_BIT   (1ULL << 9)  /* Real translation entry */
+#define TLB_UST1_IS_SUN4V_BIT  (1ULL << 10) /* sun4u/sun4v TTE format switch */
+
 #define SFSR_NF_BIT         (1ULL << 24)   /* JPS1 NoFault */
 #define SFSR_TM_BIT         (1ULL << 15)   /* JPS1 TLB Miss */
 #define SFSR_FT_VA_IMMU_BIT (1ULL << 13)   /* USIIi VA out of range (IMMU) */
