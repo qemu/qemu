@@ -14,6 +14,54 @@
 #include "qapi/error.h"
 #include <sysemu/cpus.h>
 #include "target-ppc/kvm_ppc.h"
+#include "hw/ppc/ppc.h"
+#include "target-ppc/mmu-hash64.h"
+#include <sysemu/numa.h>
+
+static void spapr_cpu_reset(void *opaque)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    PowerPCCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+
+    cpu_reset(cs);
+
+    /* All CPUs start halted.  CPU0 is unhalted from the machine level
+     * reset code and the rest are explicitly started up by the guest
+     * using an RTAS call */
+    cs->halted = 1;
+
+    env->spr[SPR_HIOR] = 0;
+
+    ppc_hash64_set_external_hpt(cpu, spapr->htab, spapr->htab_shift,
+                                &error_fatal);
+}
+
+void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu, Error **errp)
+{
+    CPUPPCState *env = &cpu->env;
+
+    /* Set time-base frequency to 512 MHz */
+    cpu_ppc_tb_init(env, SPAPR_TIMEBASE_FREQ);
+
+    /* Enable PAPR mode in TCG or KVM */
+    cpu_ppc_set_papr(cpu);
+
+    if (cpu->max_compat) {
+        Error *local_err = NULL;
+
+        ppc_set_compat(cpu, cpu->max_compat, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+
+    xics_cpu_setup(spapr->icp, cpu);
+
+    qemu_register_reset(spapr_cpu_reset, cpu);
+}
 
 static int spapr_cpu_core_realize_child(Object *child, void *opaque)
 {

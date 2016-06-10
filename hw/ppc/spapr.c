@@ -89,8 +89,6 @@
 
 #define MIN_RMA_SLOF            128UL
 
-#define TIMEBASE_FREQ           512000000ULL
-
 #define PHANDLE_XICP            0x00001111
 
 #define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
@@ -599,7 +597,8 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
     int index = ppc_get_vcpu_dt_id(cpu);
     uint32_t segs[] = {cpu_to_be32(28), cpu_to_be32(40),
                        0xffffffff, 0xffffffff};
-    uint32_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TIMEBASE_FREQ;
+    uint32_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq()
+        : SPAPR_TIMEBASE_FREQ;
     uint32_t cpufreq = kvm_enabled() ? kvmppc_get_clockfreq() : 1000000000;
     uint32_t page_sizes_prop[64];
     size_t page_sizes_prop_size;
@@ -1198,26 +1197,6 @@ static void ppc_spapr_reset(void)
 
 }
 
-static void spapr_cpu_reset(void *opaque)
-{
-    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
-    PowerPCCPU *cpu = opaque;
-    CPUState *cs = CPU(cpu);
-    CPUPPCState *env = &cpu->env;
-
-    cpu_reset(cs);
-
-    /* All CPUs start halted.  CPU0 is unhalted from the machine level
-     * reset code and the rest are explicitly started up by the guest
-     * using an RTAS call */
-    cs->halted = 1;
-
-    env->spr[SPR_HIOR] = 0;
-
-    ppc_hash64_set_external_hpt(cpu, spapr->htab, spapr->htab_shift,
-                                &error_fatal);
-}
-
 static void spapr_create_nvram(sPAPRMachineState *spapr)
 {
     DeviceState *dev = qdev_create(&spapr->vio_bus->bus, "spapr-nvram");
@@ -1621,31 +1600,6 @@ static void spapr_boot_set(void *opaque, const char *boot_device,
 {
     MachineState *machine = MACHINE(qdev_get_machine());
     machine->boot_order = g_strdup(boot_device);
-}
-
-void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu, Error **errp)
-{
-    CPUPPCState *env = &cpu->env;
-
-    /* Set time-base frequency to 512 MHz */
-    cpu_ppc_tb_init(env, TIMEBASE_FREQ);
-
-    /* Enable PAPR mode in TCG or KVM */
-    cpu_ppc_set_papr(cpu);
-
-    if (cpu->max_compat) {
-        Error *local_err = NULL;
-
-        ppc_set_compat(cpu, cpu->max_compat, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-    }
-
-    xics_cpu_setup(spapr->icp, cpu);
-
-    qemu_register_reset(spapr_cpu_reset, cpu);
 }
 
 /*
