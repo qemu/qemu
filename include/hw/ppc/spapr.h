@@ -582,6 +582,7 @@ void spapr_hotplug_req_add_by_count(sPAPRDRConnectorType drc_type,
                                        uint32_t count);
 void spapr_hotplug_req_remove_by_count(sPAPRDRConnectorType drc_type,
                                           uint32_t count);
+void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu, Error **errp);
 
 /* rtas-configure-connector state */
 struct sPAPRConfigureConnectorState {
