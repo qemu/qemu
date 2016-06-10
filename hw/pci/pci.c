@@ -2228,10 +2228,8 @@ int pci_add_capability2(PCIDevice *pdev, uint8_t cap_id,
 
     if (!offset) {
         offset = pci_find_space(pdev, size);
-        if (!offset) {
-            error_setg(errp, "out of PCI config space");
-            return -ENOSPC;
-        }
+        /* out of PCI config space is programming error */
+        assert(offset);
     } else {
         /* Verify that capabilities don't overlap.  Note: device assignment
          * depends on this check to verify that the device is not broken.
