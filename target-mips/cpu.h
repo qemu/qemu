@@ -113,6 +113,7 @@ struct CPUMIPSFPUContext {
     /* fcsr */
     uint32_t fcr31_rw_bitmask;
     uint32_t fcr31;
+#define FCR31_FS 24
 #define FCR31_ABS2008 19
 #define FCR31_NAN2008 18
 #define SET_FP_COND(num,env)     do { ((env).fcr31) |= ((num) ? (1 << ((num) + 24)) : (1 << 23)); } while(0)
@@ -850,7 +851,7 @@ static inline void restore_rounding_mode(CPUMIPSState *env)
 
 static inline void restore_flush_mode(CPUMIPSState *env)
 {
-    set_flush_to_zero((env->active_fpu.fcr31 & (1 << 24)) != 0,
+    set_flush_to_zero((env->active_fpu.fcr31 & (1 << FCR31_FS)) != 0,
                       &env->active_fpu.fp_status);
 }
 
