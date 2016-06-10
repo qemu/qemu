@@ -31,4 +31,6 @@ void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 char *spapr_get_cpu_core_type(const char *model);
 void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                      Error **errp);
+void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                       Error **errp);
 #endif

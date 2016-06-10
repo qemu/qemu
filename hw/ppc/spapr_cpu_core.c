@@ -38,6 +38,14 @@ static void spapr_cpu_reset(void *opaque)
                                 &error_fatal);
 }
 
+static void spapr_cpu_destroy(PowerPCCPU *cpu)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+
+    xics_cpu_destroy(spapr->icp, cpu);
+    qemu_unregister_reset(spapr_cpu_reset, cpu);
+}
+
 void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu, Error **errp)
 {
     CPUPPCState *env = &cpu->env;
@@ -86,6 +94,57 @@ char *spapr_get_cpu_core_type(const char *model)
     core_type = g_strdup_printf("%s-%s", model_pieces[0], TYPE_SPAPR_CPU_CORE);
     g_strfreev(model_pieces);
     return core_type;
+}
+
+static void spapr_core_release(DeviceState *dev, void *opaque)
+{
+    sPAPRCPUCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
+    const char *typename = object_class_get_name(sc->cpu_class);
+    size_t size = object_type_get_instance_size(typename);
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    sPAPRCPUCore *core = SPAPR_CPU_CORE(OBJECT(dev));
+    CPUCore *cc = CPU_CORE(dev);
+    int smt = kvmppc_smt_threads();
+    int i;
+
+    for (i = 0; i < cc->nr_threads; i++) {
+        void *obj = sc->threads + i * size;
+        DeviceState *dev = DEVICE(obj);
+        CPUState *cs = CPU(dev);
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        spapr_cpu_destroy(cpu);
+        cpu_remove_sync(cs);
+        object_unparent(obj);
+    }
+
+    spapr->cores[cc->core_id / smt] = NULL;
+
+    g_free(core->threads);
+    object_unparent(OBJECT(dev));
+}
+
+void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                       Error **errp)
+{
+    sPAPRCPUCore *core = SPAPR_CPU_CORE(OBJECT(dev));
+    PowerPCCPU *cpu = POWERPC_CPU(core->threads);
+    int id = ppc_get_vcpu_dt_id(cpu);
+    sPAPRDRConnector *drc =
+        spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_CPU, id);
+    sPAPRDRConnectorClass *drck;
+    Error *local_err = NULL;
+
+    g_assert(drc);
+
+    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    drck->detach(drc, dev, spapr_core_release, NULL, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    spapr_hotplug_req_remove_by_index(drc);
 }
 
 void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
