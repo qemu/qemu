@@ -2291,14 +2291,6 @@ void bdrv_replace_in_backing_chain(BlockDriverState *old, BlockDriverState *new)
 
     change_parent_backing_link(old, new);
 
-    /* Change backing files if a previously independent node is added to the
-     * chain. For active commit, we replace top by its own (indirect) backing
-     * file and don't do anything here so we don't build a loop. */
-    if (new->backing == NULL && !bdrv_chain_contains(backing_bs(old), new)) {
-        bdrv_set_backing_hd(new, backing_bs(old));
-        bdrv_set_backing_hd(old, NULL);
-    }
-
     bdrv_unref(old);
 }
 
