@@ -55,7 +55,7 @@ static void sh_pci_reg_write (void *p, hwaddr addr, uint64_t val,
 
     switch(addr) {
     case 0 ... 0xfc:
-        cpu_to_le32w((uint32_t*)(pcic->dev->config + addr), val);
+        stl_le_p(pcic->dev->config + addr, val);
         break;
     case 0x1c0:
         pcic->par = val;
@@ -85,7 +85,7 @@ static uint64_t sh_pci_reg_read (void *p, hwaddr addr,
 
     switch(addr) {
     case 0 ... 0xfc:
-        return le32_to_cpup((uint32_t*)(pcic->dev->config + addr));
+        return ldl_le_p(pcic->dev->config + addr);
     case 0x1c0:
         return pcic->par;
     case 0x1c4:
