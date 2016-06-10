@@ -1,1 +1,2 @@
 common-obj-$(CONFIG_SMBIOS) += smbios.o
+common-obj-$(call land,$(CONFIG_SMBIOS),$(CONFIG_IPMI)) += smbios_type_38.o

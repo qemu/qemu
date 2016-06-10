@@ -25,6 +25,7 @@
 #include "hw/loader.h"
 #include "exec/cpu-common.h"
 #include "smbios_build.h"
+#include "hw/smbios/ipmi.h"
 
 /* legacy structures and constants for <= 2.0 machines */
 struct smbios_header {
@@ -848,6 +849,7 @@ void smbios_get_tables(const struct smbios_phys_mem_area *mem_array,
         }
 
         smbios_build_type_32_table();
+        smbios_build_type_38_table();
         smbios_build_type_127_table();
 
         smbios_validate_table();
