@@ -823,9 +823,9 @@ void qemu_savevm_send_postcopy_ram_discard(QEMUFile *f, const char *name,
     buf[tmplen++] = '\0';
 
     for (t = 0; t < len; t++) {
-        cpu_to_be64w((uint64_t *)(buf + tmplen), start_list[t]);
+        stq_be_p(buf + tmplen, start_list[t]);
         tmplen += 8;
-        cpu_to_be64w((uint64_t *)(buf + tmplen), length_list[t]);
+        stq_be_p(buf + tmplen, length_list[t]);
         tmplen += 8;
     }
     qemu_savevm_command_send(f, MIG_CMD_POSTCOPY_RAM_DISCARD, tmplen, buf);
