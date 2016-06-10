@@ -1848,9 +1848,16 @@ int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
         .iov_base   = (void *) buf,
         .iov_len    = size,
     };
+    int ret;
 
     qemu_iovec_init_external(&qiov, &iov, 1);
-    return bdrv_writev_vmstate(bs, &qiov, pos);
+
+    ret = bdrv_writev_vmstate(bs, &qiov, pos);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return size;
 }
 
 int bdrv_writev_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
@@ -1876,9 +1883,15 @@ int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
         .iov_base   = buf,
         .iov_len    = size,
     };
+    int ret;
 
     qemu_iovec_init_external(&qiov, &iov, 1);
-    return bdrv_readv_vmstate(bs, &qiov, pos);
+    ret = bdrv_readv_vmstate(bs, &qiov, pos);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return size;
 }
 
 int bdrv_readv_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
