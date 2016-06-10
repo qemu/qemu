@@ -571,19 +571,36 @@ static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
         return 3;
     }
 
-    /* Prefer sNaN over qNaN, in the a, b, c order. */
-    if (aIsSNaN) {
-        return 0;
-    } else if (bIsSNaN) {
-        return 1;
-    } else if (cIsSNaN) {
-        return 2;
-    } else if (aIsQNaN) {
-        return 0;
-    } else if (bIsQNaN) {
-        return 1;
+    if (status->snan_bit_is_one) {
+        /* Prefer sNaN over qNaN, in the a, b, c order. */
+        if (aIsSNaN) {
+            return 0;
+        } else if (bIsSNaN) {
+            return 1;
+        } else if (cIsSNaN) {
+            return 2;
+        } else if (aIsQNaN) {
+            return 0;
+        } else if (bIsQNaN) {
+            return 1;
+        } else {
+            return 2;
+        }
     } else {
-        return 2;
+        /* Prefer sNaN over qNaN, in the c, a, b order. */
+        if (cIsSNaN) {
+            return 2;
+        } else if (aIsSNaN) {
+            return 0;
+        } else if (bIsSNaN) {
+            return 1;
+        } else if (cIsQNaN) {
+            return 2;
+        } else if (aIsQNaN) {
+            return 0;
+        } else {
+            return 1;
+        }
     }
 }
 #elif defined(TARGET_PPC)
