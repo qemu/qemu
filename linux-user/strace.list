@@ -337,7 +337,8 @@
 { TARGET_NR_getsockopt, "getsockopt" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_get_thread_area
-{ TARGET_NR_get_thread_area, "get_thread_area" , NULL, NULL, NULL },
+{ TARGET_NR_get_thread_area, "get_thread_area", "%s(0x"TARGET_ABI_FMT_lx")",
+  NULL, NULL },
 #endif
 #ifdef TARGET_NR_gettid
 { TARGET_NR_gettid, "gettid" , NULL, NULL, NULL },
@@ -1234,7 +1235,8 @@
 { TARGET_NR_setsockopt, "setsockopt" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_set_thread_area
-{ TARGET_NR_set_thread_area, "set_thread_area" , NULL, NULL, NULL },
+{ TARGET_NR_set_thread_area, "set_thread_area", "%s(0x"TARGET_ABI_FMT_lx")",
+  NULL, NULL },
 #endif
 #ifdef TARGET_NR_set_tid_address
 { TARGET_NR_set_tid_address, "set_tid_address" , NULL, NULL, NULL },
