@@ -1294,7 +1294,7 @@
 { TARGET_NR_socket, "socket" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_socketcall
-{ TARGET_NR_socketcall, "socketcall" , NULL, NULL, NULL },
+{ TARGET_NR_socketcall, "socketcall" , NULL, print_socketcall, NULL },
 #endif
 #ifdef TARGET_NR_socketpair
 { TARGET_NR_socketpair, "socketpair" , NULL, NULL, NULL },

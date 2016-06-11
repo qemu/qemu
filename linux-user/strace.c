@@ -5,6 +5,9 @@
 #include <sys/shm.h>
 #include <sys/select.h>
 #include <sys/mount.h>
+#include <arpa/inet.h>
+#include <netinet/tcp.h>
+#include <linux/if_packet.h>
 #include <sched.h>
 #include "qemu.h"
 
@@ -57,10 +60,15 @@ UNUSED static void print_open_flags(abi_long, int);
 UNUSED static void print_syscall_prologue(const struct syscallname *);
 UNUSED static void print_syscall_epilogue(const struct syscallname *);
 UNUSED static void print_string(abi_long, int);
+UNUSED static void print_buf(abi_long addr, abi_long len, int last);
 UNUSED static void print_raw_param(const char *, abi_long, int);
 UNUSED static void print_timeval(abi_ulong, int);
 UNUSED static void print_number(abi_long, int);
 UNUSED static void print_signal(abi_ulong, int);
+UNUSED static void print_sockaddr(abi_ulong addr, abi_long addrlen);
+UNUSED static void print_socket_domain(int domain);
+UNUSED static void print_socket_type(int type);
+UNUSED static void print_socket_protocol(int domain, int type, int protocol);
 
 /*
  * Utility functions
@@ -145,6 +153,165 @@ print_signal(abi_ulong arg, int last)
     }
     gemu_log("%s%s", signal_name, get_comma(last));
 }
+
+static void
+print_sockaddr(abi_ulong addr, abi_long addrlen)
+{
+    struct target_sockaddr *sa;
+    int i;
+    int sa_family;
+
+    sa = lock_user(VERIFY_READ, addr, addrlen, 1);
+    if (sa) {
+        sa_family = tswap16(sa->sa_family);
+        switch (sa_family) {
+        case AF_UNIX: {
+            struct target_sockaddr_un *un = (struct target_sockaddr_un *)sa;
+            int i;
+            gemu_log("{sun_family=AF_UNIX,sun_path=\"");
+            for (i = 0; i < addrlen -
+                            offsetof(struct target_sockaddr_un, sun_path) &&
+                 un->sun_path[i]; i++) {
+                gemu_log("%c", un->sun_path[i]);
+            }
+            gemu_log("\"}");
+            break;
+        }
+        case AF_INET: {
+            struct target_sockaddr_in *in = (struct target_sockaddr_in *)sa;
+            uint8_t *c = (uint8_t *)&in->sin_addr.s_addr;
+            gemu_log("{sin_family=AF_INET,sin_port=htons(%d),",
+                     ntohs(in->sin_port));
+            gemu_log("sin_addr=inet_addr(\"%d.%d.%d.%d\")",
+                     c[0], c[1], c[2], c[3]);
+            gemu_log("}");
+            break;
+        }
+        case AF_PACKET: {
+            struct target_sockaddr_ll *ll = (struct target_sockaddr_ll *)sa;
+            uint8_t *c = (uint8_t *)&ll->sll_addr;
+            gemu_log("{sll_family=AF_PACKET,"
+                     "sll_protocol=htons(0x%04x),if%d,pkttype=",
+                     ntohs(ll->sll_protocol), ll->sll_ifindex);
+            switch (ll->sll_pkttype) {
+            case PACKET_HOST:
+                gemu_log("PACKET_HOST");
+                break;
+            case PACKET_BROADCAST:
+                gemu_log("PACKET_BROADCAST");
+                break;
+            case PACKET_MULTICAST:
+                gemu_log("PACKET_MULTICAST");
+                break;
+            case PACKET_OTHERHOST:
+                gemu_log("PACKET_OTHERHOST");
+                break;
+            case PACKET_OUTGOING:
+                gemu_log("PACKET_OUTGOING");
+                break;
+            default:
+                gemu_log("%d", ll->sll_pkttype);
+                break;
+            }
+            gemu_log(",sll_addr=%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
+                     c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
+            gemu_log("}");
+            break;
+        }
+        default:
+            gemu_log("{sa_family=%d, sa_data={", sa->sa_family);
+            for (i = 0; i < 13; i++) {
+                gemu_log("%02x, ", sa->sa_data[i]);
+            }
+            gemu_log("%02x}", sa->sa_data[i]);
+            gemu_log("}");
+            break;
+        }
+        unlock_user(sa, addr, 0);
+    } else {
+        print_raw_param("0x"TARGET_ABI_FMT_lx, addr, 0);
+    }
+    gemu_log(", "TARGET_ABI_FMT_ld, addrlen);
+}
+
+static void
+print_socket_domain(int domain)
+{
+    switch (domain) {
+    case PF_UNIX:
+        gemu_log("PF_UNIX");
+        break;
+    case PF_INET:
+        gemu_log("PF_INET");
+        break;
+    case PF_PACKET:
+        gemu_log("PF_PACKET");
+        break;
+    default:
+        gemu_log("%d", domain);
+        break;
+    }
+}
+
+static void
+print_socket_type(int type)
+{
+    switch (type) {
+    case TARGET_SOCK_DGRAM:
+        gemu_log("SOCK_DGRAM");
+        break;
+    case TARGET_SOCK_STREAM:
+        gemu_log("SOCK_STREAM");
+        break;
+    case TARGET_SOCK_RAW:
+        gemu_log("SOCK_RAW");
+        break;
+    case TARGET_SOCK_RDM:
+        gemu_log("SOCK_RDM");
+        break;
+    case TARGET_SOCK_SEQPACKET:
+        gemu_log("SOCK_SEQPACKET");
+        break;
+    case TARGET_SOCK_PACKET:
+        gemu_log("SOCK_PACKET");
+        break;
+    }
+}
+
+static void
+print_socket_protocol(int domain, int type, int protocol)
+{
+    if (domain == AF_PACKET ||
+        (domain == AF_INET && type == TARGET_SOCK_PACKET)) {
+        switch (protocol) {
+        case 0x0003:
+            gemu_log("ETH_P_ALL");
+            break;
+        default:
+            gemu_log("%d", protocol);
+        }
+        return;
+    }
+
+    switch (protocol) {
+    case IPPROTO_IP:
+        gemu_log("IPPROTO_IP");
+        break;
+    case IPPROTO_TCP:
+        gemu_log("IPPROTO_TCP");
+        break;
+    case IPPROTO_UDP:
+        gemu_log("IPPROTO_UDP");
+        break;
+    case IPPROTO_RAW:
+        gemu_log("IPPROTO_RAW");
+        break;
+    default:
+        gemu_log("%d", protocol);
+        break;
+    }
+}
+
 
 #ifdef TARGET_NR__newselect
 static void
@@ -497,6 +664,26 @@ UNUSED static struct flags clone_flags[] = {
     FLAG_END,
 };
 
+UNUSED static struct flags msg_flags[] = {
+    /* send */
+    FLAG_GENERIC(MSG_CONFIRM),
+    FLAG_GENERIC(MSG_DONTROUTE),
+    FLAG_GENERIC(MSG_DONTWAIT),
+    FLAG_GENERIC(MSG_EOR),
+    FLAG_GENERIC(MSG_MORE),
+    FLAG_GENERIC(MSG_NOSIGNAL),
+    FLAG_GENERIC(MSG_OOB),
+    /* recv */
+    FLAG_GENERIC(MSG_CMSG_CLOEXEC),
+    FLAG_GENERIC(MSG_ERRQUEUE),
+    FLAG_GENERIC(MSG_PEEK),
+    FLAG_GENERIC(MSG_TRUNC),
+    FLAG_GENERIC(MSG_WAITALL),
+    /* recvmsg */
+    FLAG_GENERIC(MSG_CTRUNC),
+    FLAG_END,
+};
+
 /*
  * print_xxx utility functions.  These are used to print syscall
  * parameters in certain format.  All of these have parameter
@@ -614,6 +801,36 @@ print_string(abi_long addr, int last)
         unlock_user(s, addr, 0);
     } else {
         /* can't get string out of it, so print it as pointer */
+        print_pointer(addr, last);
+    }
+}
+
+#define MAX_PRINT_BUF 40
+static void
+print_buf(abi_long addr, abi_long len, int last)
+{
+    uint8_t *s;
+    int i;
+
+    s = lock_user(VERIFY_READ, addr, len, 1);
+    if (s) {
+        gemu_log("\"");
+        for (i = 0; i < MAX_PRINT_BUF && i < len; i++) {
+            if (isprint(s[i])) {
+                gemu_log("%c", s[i]);
+            } else {
+                gemu_log("\\%o", s[i]);
+            }
+        }
+        gemu_log("\"");
+        if (i != len) {
+            gemu_log("...");
+        }
+        if (!last) {
+            gemu_log(",");
+        }
+        unlock_user(s, addr, 0);
+    } else {
         print_pointer(addr, last);
     }
 }
@@ -1006,6 +1223,338 @@ print__llseek(const struct syscallname *name,
     case SEEK_END: whence = "SEEK_END"; break;
     }
     gemu_log("%s",whence);
+    print_syscall_epilogue(name);
+}
+#endif
+
+#if defined(TARGET_NR_socketcall)
+
+#define get_user_ualx(x, gaddr, idx) \
+        get_user_ual(x, (gaddr) + (idx) * sizeof(abi_long))
+
+static void do_print_socket(const char *name, abi_long arg1)
+{
+    abi_ulong domain, type, protocol;
+
+    get_user_ualx(domain, arg1, 0);
+    get_user_ualx(type, arg1, 1);
+    get_user_ualx(protocol, arg1, 2);
+    gemu_log("%s(", name);
+    print_socket_domain(domain);
+    gemu_log(",");
+    print_socket_type(type);
+    gemu_log(",");
+    if (domain == AF_PACKET ||
+        (domain == AF_INET && type == TARGET_SOCK_PACKET)) {
+        protocol = tswap16(protocol);
+    }
+    print_socket_protocol(domain, type, protocol);
+    gemu_log(")");
+}
+
+static void do_print_sockaddr(const char *name, abi_long arg1)
+{
+    abi_ulong sockfd, addr, addrlen;
+
+    get_user_ualx(sockfd, arg1, 0);
+    get_user_ualx(addr, arg1, 1);
+    get_user_ualx(addrlen, arg1, 2);
+
+    gemu_log("%s(", name);
+    print_raw_param(TARGET_ABI_FMT_ld, sockfd, 0);
+    print_sockaddr(addr, addrlen);
+    gemu_log(")");
+}
+
+static void do_print_listen(const char *name, abi_long arg1)
+{
+    abi_ulong sockfd, backlog;
+
+    get_user_ualx(sockfd, arg1, 0);
+    get_user_ualx(backlog, arg1, 1);
+
+    gemu_log("%s(", name);
+    print_raw_param(TARGET_ABI_FMT_ld, sockfd, 0);
+    print_raw_param(TARGET_ABI_FMT_ld, backlog, 1);
+    gemu_log(")");
+}
+
+static void do_print_socketpair(const char *name, abi_long arg1)
+{
+    abi_ulong domain, type, protocol, tab;
+
+    get_user_ualx(domain, arg1, 0);
+    get_user_ualx(type, arg1, 1);
+    get_user_ualx(protocol, arg1, 2);
+    get_user_ualx(tab, arg1, 3);
+
+    gemu_log("%s(", name);
+    print_socket_domain(domain);
+    gemu_log(",");
+    print_socket_type(type);
+    gemu_log(",");
+    print_socket_protocol(domain, type, protocol);
+    gemu_log(",");
+    print_raw_param(TARGET_ABI_FMT_lx, tab, 1);
+    gemu_log(")");
+}
+
+static void do_print_sendrecv(const char *name, abi_long arg1)
+{
+    abi_ulong sockfd, msg, len, flags;
+
+    get_user_ualx(sockfd, arg1, 0);
+    get_user_ualx(msg, arg1, 1);
+    get_user_ualx(len, arg1, 2);
+    get_user_ualx(flags, arg1, 3);
+
+    gemu_log("%s(", name);
+    print_raw_param(TARGET_ABI_FMT_ld, sockfd, 0);
+    print_buf(msg, len, 0);
+    print_raw_param(TARGET_ABI_FMT_ld, len, 0);
+    print_flags(msg_flags, flags, 1);
+    gemu_log(")");
+}
+
+static void do_print_msgaddr(const char *name, abi_long arg1)
+{
+    abi_ulong sockfd, msg, len, flags, addr, addrlen;
+
+    get_user_ualx(sockfd, arg1, 0);
+    get_user_ualx(msg, arg1, 1);
+    get_user_ualx(len, arg1, 2);
+    get_user_ualx(flags, arg1, 3);
+    get_user_ualx(addr, arg1, 4);
+    get_user_ualx(addrlen, arg1, 5);
+
+    gemu_log("%s(", name);
+    print_raw_param(TARGET_ABI_FMT_ld, sockfd, 0);
+    print_buf(msg, len, 0);
+    print_raw_param(TARGET_ABI_FMT_ld, len, 0);
+    print_flags(msg_flags, flags, 0);
+    print_sockaddr(addr, addrlen);
+    gemu_log(")");
+}
+
+static void do_print_shutdown(const char *name, abi_long arg1)
+{
+    abi_ulong sockfd, how;
+
+    get_user_ualx(sockfd, arg1, 0);
+    get_user_ualx(how, arg1, 1);
+
+    gemu_log("shutdown(");
+    print_raw_param(TARGET_ABI_FMT_ld, sockfd, 0);
+    switch (how) {
+    case SHUT_RD:
+        gemu_log("SHUT_RD");
+        break;
+    case SHUT_WR:
+        gemu_log("SHUT_WR");
+        break;
+    case SHUT_RDWR:
+        gemu_log("SHUT_RDWR");
+        break;
+    default:
+        print_raw_param(TARGET_ABI_FMT_ld, how, 1);
+        break;
+    }
+    gemu_log(")");
+}
+
+static void do_print_msg(const char *name, abi_long arg1)
+{
+    abi_ulong sockfd, msg, flags;
+
+    get_user_ualx(sockfd, arg1, 0);
+    get_user_ualx(msg, arg1, 1);
+    get_user_ualx(flags, arg1, 2);
+
+    gemu_log("%s(", name);
+    print_raw_param(TARGET_ABI_FMT_ld, sockfd, 0);
+    print_pointer(msg, 0);
+    print_flags(msg_flags, flags, 1);
+    gemu_log(")");
+}
+
+static void do_print_sockopt(const char *name, abi_long arg1)
+{
+    abi_ulong sockfd, level, optname, optval, optlen;
+
+    get_user_ualx(sockfd, arg1, 0);
+    get_user_ualx(level, arg1, 1);
+    get_user_ualx(optname, arg1, 2);
+    get_user_ualx(optval, arg1, 3);
+    get_user_ualx(optlen, arg1, 4);
+
+    gemu_log("%s(", name);
+    print_raw_param(TARGET_ABI_FMT_ld, sockfd, 0);
+    switch (level) {
+    case SOL_TCP:
+        gemu_log("SOL_TCP,");
+        print_raw_param(TARGET_ABI_FMT_ld, optname, 0);
+        print_pointer(optval, 0);
+        break;
+    case SOL_IP:
+        gemu_log("SOL_IP,");
+        print_raw_param(TARGET_ABI_FMT_ld, optname, 0);
+        print_pointer(optval, 0);
+        break;
+    case SOL_RAW:
+        gemu_log("SOL_RAW,");
+        print_raw_param(TARGET_ABI_FMT_ld, optname, 0);
+        print_pointer(optval, 0);
+        break;
+    case TARGET_SOL_SOCKET:
+        gemu_log("SOL_SOCKET,");
+        switch (optname) {
+        case TARGET_SO_DEBUG:
+            gemu_log("SO_DEBUG,");
+print_optint:
+            print_number(optval, 0);
+            break;
+        case TARGET_SO_REUSEADDR:
+            gemu_log("SO_REUSEADDR,");
+            goto print_optint;
+        case TARGET_SO_TYPE:
+            gemu_log("SO_TYPE,");
+            goto print_optint;
+        case TARGET_SO_ERROR:
+            gemu_log("SO_ERROR,");
+            goto print_optint;
+        case TARGET_SO_DONTROUTE:
+            gemu_log("SO_DONTROUTE,");
+            goto print_optint;
+        case TARGET_SO_BROADCAST:
+            gemu_log("SO_BROADCAST,");
+            goto print_optint;
+        case TARGET_SO_SNDBUF:
+            gemu_log("SO_SNDBUF,");
+            goto print_optint;
+        case TARGET_SO_RCVBUF:
+            gemu_log("SO_RCVBUF,");
+            goto print_optint;
+        case TARGET_SO_KEEPALIVE:
+            gemu_log("SO_KEEPALIVE,");
+            goto print_optint;
+        case TARGET_SO_OOBINLINE:
+            gemu_log("SO_OOBINLINE,");
+            goto print_optint;
+        case TARGET_SO_NO_CHECK:
+            gemu_log("SO_NO_CHECK,");
+            goto print_optint;
+        case TARGET_SO_PRIORITY:
+            gemu_log("SO_PRIORITY,");
+            goto print_optint;
+        case TARGET_SO_BSDCOMPAT:
+            gemu_log("SO_BSDCOMPAT,");
+            goto print_optint;
+        case TARGET_SO_PASSCRED:
+            gemu_log("SO_PASSCRED,");
+            goto print_optint;
+        case TARGET_SO_TIMESTAMP:
+            gemu_log("SO_TIMESTAMP,");
+            goto print_optint;
+        case TARGET_SO_RCVLOWAT:
+            gemu_log("SO_RCVLOWAT,");
+            goto print_optint;
+        case TARGET_SO_RCVTIMEO:
+            gemu_log("SO_RCVTIMEO,");
+            print_timeval(optval, 0);
+            break;
+        case TARGET_SO_SNDTIMEO:
+            gemu_log("SO_SNDTIMEO,");
+            print_timeval(optval, 0);
+            break;
+        case TARGET_SO_ATTACH_FILTER: {
+            struct target_sock_fprog *fprog;
+
+            gemu_log("SO_ATTACH_FILTER,");
+
+            if (lock_user_struct(VERIFY_READ, fprog, optval,  0)) {
+                struct target_sock_filter *filter;
+                gemu_log("{");
+                if (lock_user_struct(VERIFY_READ, filter,
+                                     tswapal(fprog->filter),  0)) {
+                    int i;
+                    for (i = 0; i < tswap16(fprog->len) - 1; i++) {
+                        gemu_log("[%d]{0x%x,%d,%d,0x%x},",
+                                 i, tswap16(filter[i].code),
+                                 filter[i].jt, filter[i].jf,
+                                 tswap32(filter[i].k));
+                    }
+                    gemu_log("[%d]{0x%x,%d,%d,0x%x}",
+                             i, tswap16(filter[i].code),
+                             filter[i].jt, filter[i].jf,
+                             tswap32(filter[i].k));
+                } else {
+                    gemu_log(TARGET_ABI_FMT_lx, tswapal(fprog->filter));
+                }
+                gemu_log(",%d},", tswap16(fprog->len));
+                unlock_user(fprog, optval, 0);
+            } else {
+                print_pointer(optval, 0);
+            }
+            break;
+        }
+        default:
+            print_raw_param(TARGET_ABI_FMT_ld, optname, 0);
+            print_pointer(optval, 0);
+            break;
+        }
+        break;
+    default:
+        print_raw_param(TARGET_ABI_FMT_ld, level, 0);
+        print_raw_param(TARGET_ABI_FMT_ld, optname, 0);
+        print_pointer(optval, 0);
+        break;
+    }
+    print_raw_param(TARGET_ABI_FMT_ld, optlen, 1);
+    gemu_log(")");
+}
+
+#define PRINT_SOCKOP(name, func) \
+    [SOCKOP_##name] = { #name, func }
+
+static struct {
+    const char *name;
+    void (*print)(const char *, abi_long);
+} scall[] = {
+    PRINT_SOCKOP(socket, do_print_socket),
+    PRINT_SOCKOP(bind, do_print_sockaddr),
+    PRINT_SOCKOP(connect, do_print_sockaddr),
+    PRINT_SOCKOP(listen, do_print_listen),
+    PRINT_SOCKOP(accept, do_print_sockaddr),
+    PRINT_SOCKOP(getsockname, do_print_sockaddr),
+    PRINT_SOCKOP(getpeername, do_print_sockaddr),
+    PRINT_SOCKOP(socketpair, do_print_socketpair),
+    PRINT_SOCKOP(send, do_print_sendrecv),
+    PRINT_SOCKOP(recv, do_print_sendrecv),
+    PRINT_SOCKOP(sendto, do_print_msgaddr),
+    PRINT_SOCKOP(recvfrom, do_print_msgaddr),
+    PRINT_SOCKOP(shutdown, do_print_shutdown),
+    PRINT_SOCKOP(sendmsg, do_print_msg),
+    PRINT_SOCKOP(recvmsg, do_print_msg),
+    PRINT_SOCKOP(setsockopt, do_print_sockopt),
+    PRINT_SOCKOP(getsockopt, do_print_sockopt),
+};
+
+static void
+print_socketcall(const struct syscallname *name,
+                 abi_long arg0, abi_long arg1, abi_long arg2,
+                 abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    if (arg0 >= 0 && arg0 < ARRAY_SIZE(scall) && scall[arg0].print) {
+        scall[arg0].print(scall[arg0].name, arg1);
+        return;
+    }
+    print_syscall_prologue(name);
+    print_raw_param(TARGET_ABI_FMT_ld, arg0, 0);
+    print_raw_param(TARGET_ABI_FMT_ld, arg1, 0);
+    print_raw_param(TARGET_ABI_FMT_ld, arg2, 0);
+    print_raw_param(TARGET_ABI_FMT_ld, arg3, 0);
+    print_raw_param(TARGET_ABI_FMT_ld, arg4, 0);
+    print_raw_param(TARGET_ABI_FMT_ld, arg5, 0);
     print_syscall_epilogue(name);
 }
 #endif
