@@ -1227,6 +1227,29 @@ print__llseek(const struct syscallname *name,
 }
 #endif
 
+#if defined(TARGET_NR_socket)
+static void
+print_socket(const struct syscallname *name,
+             abi_long arg0, abi_long arg1, abi_long arg2,
+             abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    abi_ulong domain = arg0, type = arg1, protocol = arg2;
+
+    print_syscall_prologue(name);
+    print_socket_domain(domain);
+    gemu_log(",");
+    print_socket_type(type);
+    gemu_log(",");
+    if (domain == AF_PACKET ||
+        (domain == AF_INET && type == TARGET_SOCK_PACKET)) {
+        protocol = tswap16(protocol);
+    }
+    print_socket_protocol(domain, type, protocol);
+    print_syscall_epilogue(name);
+}
+
+#endif
+
 #if defined(TARGET_NR_socketcall)
 
 #define get_user_ualx(x, gaddr, idx) \

@@ -1291,7 +1291,7 @@
 { TARGET_NR_sigsuspend, "sigsuspend" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_socket
-{ TARGET_NR_socket, "socket" , NULL, NULL, NULL },
+{ TARGET_NR_socket, "socket" , NULL, print_socket, NULL },
 #endif
 #ifdef TARGET_NR_socketcall
 { TARGET_NR_socketcall, "socketcall" , NULL, print_socketcall, NULL },
