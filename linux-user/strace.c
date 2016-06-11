@@ -957,33 +957,31 @@ print_chmod(const struct syscallname *name,
 #endif
 
 #ifdef TARGET_NR_clone
+static void do_print_clone(unsigned int flags, abi_ulong newsp,
+                           abi_ulong parent_tidptr, target_ulong newtls,
+                           abi_ulong child_tidptr)
+{
+    print_flags(clone_flags, flags, 0);
+    print_raw_param("child_stack=0x" TARGET_ABI_FMT_lx, newsp, 0);
+    print_raw_param("parent_tidptr=0x" TARGET_ABI_FMT_lx, parent_tidptr, 0);
+    print_raw_param("tls=0x" TARGET_ABI_FMT_lx, newtls, 0);
+    print_raw_param("child_tidptr=0x" TARGET_ABI_FMT_lx, child_tidptr, 1);
+}
+
 static void
 print_clone(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
+    abi_long arg1, abi_long arg2, abi_long arg3,
+    abi_long arg4, abi_long arg5, abi_long arg6)
 {
     print_syscall_prologue(name);
-#if defined(TARGET_M68K)
-    print_flags(clone_flags, arg0, 0);
-    print_raw_param("newsp=0x" TARGET_ABI_FMT_lx, arg1, 1);
-#elif defined(TARGET_SH4) || defined(TARGET_ALPHA)
-    print_flags(clone_flags, arg0, 0);
-    print_raw_param("child_stack=0x" TARGET_ABI_FMT_lx, arg1, 0);
-    print_raw_param("parent_tidptr=0x" TARGET_ABI_FMT_lx, arg2, 0);
-    print_raw_param("child_tidptr=0x" TARGET_ABI_FMT_lx, arg3, 0);
-    print_raw_param("tls=0x" TARGET_ABI_FMT_lx, arg4, 1);
-#elif defined(TARGET_CRIS)
-    print_raw_param("child_stack=0x" TARGET_ABI_FMT_lx, arg0, 0);
-    print_flags(clone_flags, arg1, 0);
-    print_raw_param("parent_tidptr=0x" TARGET_ABI_FMT_lx, arg2, 0);
-    print_raw_param("tls=0x" TARGET_ABI_FMT_lx, arg3, 0);
-    print_raw_param("child_tidptr=0x" TARGET_ABI_FMT_lx, arg4, 1);
+#if defined(TARGET_MICROBLAZE)
+    do_print_clone(arg1, arg2, arg4, arg6, arg5);
+#elif defined(TARGET_CLONE_BACKWARDS)
+    do_print_clone(arg1, arg2, arg3, arg4, arg5);
+#elif defined(TARGET_CLONE_BACKWARDS2)
+    do_print_clone(arg2, arg1, arg3, arg5, arg4);
 #else
-    print_flags(clone_flags, arg0, 0);
-    print_raw_param("child_stack=0x" TARGET_ABI_FMT_lx, arg1, 0);
-    print_raw_param("parent_tidptr=0x" TARGET_ABI_FMT_lx, arg2, 0);
-    print_raw_param("tls=0x" TARGET_ABI_FMT_lx, arg3, 0);
-    print_raw_param("child_tidptr=0x" TARGET_ABI_FMT_lx, arg4, 1);
+    do_print_clone(arg1, arg2, arg3, arg5, arg4);
 #endif
     print_syscall_epilogue(name);
 }
