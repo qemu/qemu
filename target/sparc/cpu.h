@@ -736,8 +736,9 @@ static inline int cpu_interrupts_enabled(CPUSPARCState *env1)
     if (env1->psret != 0)
         return 1;
 #else
-    if (env1->pstate & PS_IE)
+    if ((env1->pstate & PS_IE) && !cpu_hypervisor_mode(env1)) {
         return 1;
+    }
 #endif
 
     return 0;
