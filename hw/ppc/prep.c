@@ -649,7 +649,7 @@ static void ppc_prep_init(MachineState *machine)
     memory_region_add_subregion(sysmem, 0xFEFF0000, xcsr);
 #endif
 
-    if (usb_enabled()) {
+    if (machine_usb(machine)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
     }
 

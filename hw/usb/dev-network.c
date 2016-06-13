@@ -670,48 +670,49 @@ static int ndis_query(USBNetState *s, uint32_t oid,
     /* general oids (table 4-1) */
     /* mandatory */
     case OID_GEN_SUPPORTED_LIST:
-        for (i = 0; i < ARRAY_SIZE(oid_supported_list); i++)
-            ((le32 *) outbuf)[i] = cpu_to_le32(oid_supported_list[i]);
+        for (i = 0; i < ARRAY_SIZE(oid_supported_list); i++) {
+            stl_le_p(outbuf + (i * sizeof(le32)), oid_supported_list[i]);
+        }
         return sizeof(oid_supported_list);
 
     /* mandatory */
     case OID_GEN_HARDWARE_STATUS:
-        *((le32 *) outbuf) = cpu_to_le32(0);
+        stl_le_p(outbuf, 0);
         return sizeof(le32);
 
     /* mandatory */
     case OID_GEN_MEDIA_SUPPORTED:
-        *((le32 *) outbuf) = cpu_to_le32(s->medium);
+        stl_le_p(outbuf, s->medium);
         return sizeof(le32);
 
     /* mandatory */
     case OID_GEN_MEDIA_IN_USE:
-        *((le32 *) outbuf) = cpu_to_le32(s->medium);
+        stl_le_p(outbuf, s->medium);
         return sizeof(le32);
 
     /* mandatory */
     case OID_GEN_MAXIMUM_FRAME_SIZE:
-        *((le32 *) outbuf) = cpu_to_le32(ETH_FRAME_LEN);
+        stl_le_p(outbuf, ETH_FRAME_LEN);
         return sizeof(le32);
 
     /* mandatory */
     case OID_GEN_LINK_SPEED:
-        *((le32 *) outbuf) = cpu_to_le32(s->speed);
+        stl_le_p(outbuf, s->speed);
         return sizeof(le32);
 
     /* mandatory */
     case OID_GEN_TRANSMIT_BLOCK_SIZE:
-        *((le32 *) outbuf) = cpu_to_le32(ETH_FRAME_LEN);
+        stl_le_p(outbuf, ETH_FRAME_LEN);
         return sizeof(le32);
 
     /* mandatory */
     case OID_GEN_RECEIVE_BLOCK_SIZE:
-        *((le32 *) outbuf) = cpu_to_le32(ETH_FRAME_LEN);
+        stl_le_p(outbuf, ETH_FRAME_LEN);
         return sizeof(le32);
 
     /* mandatory */
     case OID_GEN_VENDOR_ID:
-        *((le32 *) outbuf) = cpu_to_le32(s->vendorid);
+        stl_le_p(outbuf, s->vendorid);
         return sizeof(le32);
 
     /* mandatory */
@@ -720,58 +721,57 @@ static int ndis_query(USBNetState *s, uint32_t oid,
         return strlen((char *)outbuf) + 1;
 
     case OID_GEN_VENDOR_DRIVER_VERSION:
-        *((le32 *) outbuf) = cpu_to_le32(1);
+        stl_le_p(outbuf, 1);
         return sizeof(le32);
 
     /* mandatory */
     case OID_GEN_CURRENT_PACKET_FILTER:
-        *((le32 *) outbuf) = cpu_to_le32(s->filter);
+        stl_le_p(outbuf, s->filter);
         return sizeof(le32);
 
     /* mandatory */
     case OID_GEN_MAXIMUM_TOTAL_SIZE:
-        *((le32 *) outbuf) = cpu_to_le32(RNDIS_MAX_TOTAL_SIZE);
+        stl_le_p(outbuf, RNDIS_MAX_TOTAL_SIZE);
         return sizeof(le32);
 
     /* mandatory */
     case OID_GEN_MEDIA_CONNECT_STATUS:
-        *((le32 *) outbuf) = cpu_to_le32(s->media_state);
+        stl_le_p(outbuf, s->media_state);
         return sizeof(le32);
 
     case OID_GEN_PHYSICAL_MEDIUM:
-        *((le32 *) outbuf) = cpu_to_le32(0);
+        stl_le_p(outbuf, 0);
         return sizeof(le32);
 
     case OID_GEN_MAC_OPTIONS:
-        *((le32 *) outbuf) = cpu_to_le32(
-                        NDIS_MAC_OPTION_RECEIVE_SERIALIZED |
-                        NDIS_MAC_OPTION_FULL_DUPLEX);
+        stl_le_p(outbuf, NDIS_MAC_OPTION_RECEIVE_SERIALIZED |
+                 NDIS_MAC_OPTION_FULL_DUPLEX);
         return sizeof(le32);
 
     /* statistics OIDs (table 4-2) */
     /* mandatory */
     case OID_GEN_XMIT_OK:
-        *((le32 *) outbuf) = cpu_to_le32(0);
+        stl_le_p(outbuf, 0);
         return sizeof(le32);
 
     /* mandatory */
     case OID_GEN_RCV_OK:
-        *((le32 *) outbuf) = cpu_to_le32(0);
+        stl_le_p(outbuf, 0);
         return sizeof(le32);
 
     /* mandatory */
     case OID_GEN_XMIT_ERROR:
-        *((le32 *) outbuf) = cpu_to_le32(0);
+        stl_le_p(outbuf, 0);
         return sizeof(le32);
 
     /* mandatory */
     case OID_GEN_RCV_ERROR:
-        *((le32 *) outbuf) = cpu_to_le32(0);
+        stl_le_p(outbuf, 0);
         return sizeof(le32);
 
     /* mandatory */
     case OID_GEN_RCV_NO_BUFFER:
-        *((le32 *) outbuf) = cpu_to_le32(0);
+        stl_le_p(outbuf, 0);
         return sizeof(le32);
 
     /* ieee802.3 OIDs (table 4-3) */
@@ -787,12 +787,12 @@ static int ndis_query(USBNetState *s, uint32_t oid,
 
     /* mandatory */
     case OID_802_3_MULTICAST_LIST:
-        *((le32 *) outbuf) = cpu_to_le32(0xe0000000);
+        stl_le_p(outbuf, 0xe0000000);
         return sizeof(le32);
 
     /* mandatory */
     case OID_802_3_MAXIMUM_LIST_SIZE:
-        *((le32 *) outbuf) = cpu_to_le32(1);
+        stl_le_p(outbuf, 1);
         return sizeof(le32);
 
     case OID_802_3_MAC_OPTIONS:
@@ -801,17 +801,17 @@ static int ndis_query(USBNetState *s, uint32_t oid,
     /* ieee802.3 statistics OIDs (table 4-4) */
     /* mandatory */
     case OID_802_3_RCV_ERROR_ALIGNMENT:
-        *((le32 *) outbuf) = cpu_to_le32(0);
+        stl_le_p(outbuf, 0);
         return sizeof(le32);
 
     /* mandatory */
     case OID_802_3_XMIT_ONE_COLLISION:
-        *((le32 *) outbuf) = cpu_to_le32(0);
+        stl_le_p(outbuf, 0);
         return sizeof(le32);
 
     /* mandatory */
     case OID_802_3_XMIT_MORE_COLLISIONS:
-        *((le32 *) outbuf) = cpu_to_le32(0);
+        stl_le_p(outbuf, 0);
         return sizeof(le32);
 
     default:
@@ -826,7 +826,7 @@ static int ndis_set(USBNetState *s, uint32_t oid,
 {
     switch (oid) {
     case OID_GEN_CURRENT_PACKET_FILTER:
-        s->filter = le32_to_cpup((le32 *) inbuf);
+        s->filter = ldl_le_p(inbuf);
         if (s->filter) {
             s->rndis_state = RNDIS_DATA_INITIALIZED;
         } else {
@@ -1026,10 +1026,7 @@ static void usb_net_reset_in_buf(USBNetState *s)
 
 static int rndis_parse(USBNetState *s, uint8_t *data, int length)
 {
-    uint32_t msg_type;
-    le32 *tmp = (le32 *) data;
-
-    msg_type = le32_to_cpup(tmp);
+    uint32_t msg_type = ldl_le_p(data);
 
     switch (msg_type) {
     case RNDIS_INITIALIZE_MSG:

@@ -262,7 +262,7 @@ static void pc_init1(MachineState *machine,
 
     pc_cmos_init(pcms, idebus[0], idebus[1], rtc_state);
 
-    if (pcmc->pci_enabled && usb_enabled()) {
+    if (pcmc->pci_enabled && machine_usb(machine)) {
         pci_create_simple(pci_bus, piix3_devfn + 2, "piix3-usb-uhci");
     }
 

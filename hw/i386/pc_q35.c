@@ -234,7 +234,7 @@ static void pc_q35_init(MachineState *machine)
     ide_drive_get(hd, ICH_AHCI(ahci)->ahci.ports);
     ahci_ide_create_devs(ahci, hd);
 
-    if (usb_enabled()) {
+    if (machine_usb(machine)) {
         /* Should we create 6 UHCI according to ich9 spec? */
         ehci_create_ich9_with_companions(host_bus, 0x1d);
     }

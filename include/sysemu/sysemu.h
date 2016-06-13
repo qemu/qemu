@@ -233,7 +233,6 @@ void qemu_boot_set(const char *boot_order, Error **errp);
 QemuOpts *qemu_get_machine_opts(void);
 
 bool defaults_enabled(void);
-bool usb_enabled(void);
 
 extern QemuOptsList qemu_legacy_drive_opts;
 extern QemuOptsList qemu_common_drive_opts;
