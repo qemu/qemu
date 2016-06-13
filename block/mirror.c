@@ -157,8 +157,7 @@ static void mirror_read_complete(void *opaque, int ret)
         return;
     }
     blk_aio_pwritev(s->target, op->sector_num * BDRV_SECTOR_SIZE, &op->qiov,
-                    op->nb_sectors * BDRV_SECTOR_SIZE,
-                    mirror_write_complete, op);
+                    0, mirror_write_complete, op);
 }
 
 static inline void mirror_clip_sectors(MirrorBlockJob *s,
@@ -274,8 +273,7 @@ static int mirror_do_read(MirrorBlockJob *s, int64_t sector_num,
     s->sectors_in_flight += nb_sectors;
     trace_mirror_one_iteration(s, sector_num, nb_sectors);
 
-    blk_aio_preadv(source, sector_num * BDRV_SECTOR_SIZE, &op->qiov,
-                   nb_sectors * BDRV_SECTOR_SIZE,
+    blk_aio_preadv(source, sector_num * BDRV_SECTOR_SIZE, &op->qiov, 0,
                    mirror_read_complete, op);
     return ret;
 }
