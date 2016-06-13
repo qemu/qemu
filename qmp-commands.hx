@@ -587,6 +587,33 @@ Example:
 EQMP
 
     {
+        .name       = "xen-load-devices-state",
+        .args_type  = "filename:F",
+        .mhandler.cmd_new = qmp_marshal_xen_load_devices_state,
+    },
+
+SQMP
+xen-load-devices-state
+----------------------
+
+Load the state of all devices from file. The RAM and the block devices
+of the VM are not loaded by this command.
+
+Arguments:
+
+- "filename": the file to load the state of the devices from as binary
+data. See xen-save-devices-state.txt for a description of the binary
+format.
+
+Example:
+
+-> { "execute": "xen-load-devices-state",
+     "arguments": { "filename": "/tmp/resume" } }
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "xen-set-global-dirty-log",
         .args_type  = "enable:b",
         .mhandler.cmd_new = qmp_marshal_xen_set_global_dirty_log,

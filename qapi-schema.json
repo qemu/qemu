@@ -4201,6 +4201,20 @@
   'data': [ 'none', 'record', 'play' ] }
 
 ##
+# @xen-load-devices-state:
+#
+# Load the state of all devices from file. The RAM and the block devices
+# of the VM are not loaded by this command.
+#
+# @filename: the file to load the state of the devices from as binary
+# data. See xen-save-devices-state.txt for a description of the binary
+# format.
+#
+# Since: 2.7
+##
+{ 'command': 'xen-load-devices-state', 'data': {'filename': 'str'} }
+
+##
 # @GICCapability:
 #
 # The struct describes capability for a specific GIC (Generic
