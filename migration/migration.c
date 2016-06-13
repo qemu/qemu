@@ -720,6 +720,7 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
 {
     MigrationState *s = migrate_get_current();
     MigrationCapabilityStatusList *cap;
+    bool old_postcopy_cap = migrate_postcopy_ram();
 
     if (migration_is_setup_or_active(s->state)) {
         error_setg(errp, QERR_MIGRATION_ACTIVE);
@@ -739,6 +740,19 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
              */
             error_report("Postcopy is not currently compatible with "
                          "compression");
+            s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_RAM] =
+                false;
+        }
+        /* This check is reasonably expensive, so only when it's being
+         * set the first time, also it's only the destination that needs
+         * special support.
+         */
+        if (!old_postcopy_cap && runstate_check(RUN_STATE_INMIGRATE) &&
+            !postcopy_ram_supported_by_host()) {
+            /* postcopy_ram_supported_by_host will have emitted a more
+             * detailed message
+             */
+            error_report("Postcopy is not supported");
             s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_RAM] =
                 false;
         }
