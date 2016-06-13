@@ -256,6 +256,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
 
         stq_p(&resquery->sdma, ZPCI_SDMA_ADDR);
         stq_p(&resquery->edma, ZPCI_EDMA_ADDR);
+        stl_p(&resquery->fid, pbdev->fid);
         stw_p(&resquery->pchid, 0);
         stw_p(&resquery->ug, 1);
         stl_p(&resquery->uid, pbdev->fid);
