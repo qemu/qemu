@@ -494,24 +494,6 @@ int cpu_signal_handler(int host_signum, void *pinfo, void *puc)
                              is_write, &uc->uc_sigmask);
 }
 
-#elif defined(__mc68000)
-
-int cpu_signal_handler(int host_signum, void *pinfo,
-                       void *puc)
-{
-    siginfo_t *info = pinfo;
-    struct ucontext *uc = puc;
-    unsigned long pc;
-    int is_write;
-
-    pc = uc->uc_mcontext.gregs[16];
-    /* XXX: compute is_write */
-    is_write = 0;
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr,
-                             is_write,
-                             &uc->uc_sigmask);
-}
-
 #elif defined(__ia64)
 
 #ifndef __ISR_VALID
@@ -612,48 +594,6 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 
     /* XXX: compute is_write */
     is_write = 0;
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr,
-                             is_write, &uc->uc_sigmask);
-}
-
-#elif defined(__hppa__)
-
-int cpu_signal_handler(int host_signum, void *pinfo,
-                       void *puc)
-{
-    siginfo_t *info = pinfo;
-    struct ucontext *uc = puc;
-    unsigned long pc = uc->uc_mcontext.sc_iaoq[0];
-    uint32_t insn = *(uint32_t *)pc;
-    int is_write = 0;
-
-    /* XXX: need kernel patch to get write flag faster.  */
-    switch (insn >> 26) {
-    case 0x1a: /* STW */
-    case 0x19: /* STH */
-    case 0x18: /* STB */
-    case 0x1b: /* STWM */
-        is_write = 1;
-        break;
-
-    case 0x09: /* CSTWX, FSTWX, FSTWS */
-    case 0x0b: /* CSTDX, FSTDX, FSTDS */
-        /* Distinguish from coprocessor load ... */
-        is_write = (insn >> 9) & 1;
-        break;
-
-    case 0x03:
-        switch ((insn >> 6) & 15) {
-        case 0xa: /* STWS */
-        case 0x9: /* STHS */
-        case 0x8: /* STBS */
-        case 0xe: /* STWAS */
-        case 0xc: /* STBYS */
-            is_write = 1;
-        }
-        break;
-    }
-
     return handle_cpu_signal(pc, (unsigned long)info->si_addr,
                              is_write, &uc->uc_sigmask);
 }
