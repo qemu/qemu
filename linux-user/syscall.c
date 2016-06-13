@@ -783,6 +783,16 @@ safe_syscall5(int, mq_timedreceive, int, mqdes, char *, msg_ptr,
  * the libc function.
  */
 #define safe_ioctl(...) safe_syscall(__NR_ioctl, __VA_ARGS__)
+/* Similarly for fcntl. Note that callers must always:
+ *  pass the F_GETLK64 etc constants rather than the unsuffixed F_GETLK
+ *  use the flock64 struct rather than unsuffixed flock
+ * This will then work and use a 64-bit offset for both 32-bit and 64-bit hosts.
+ */
+#ifdef __NR_fcntl64
+#define safe_fcntl(...) safe_syscall(__NR_fcntl64, __VA_ARGS__)
+#else
+#define safe_fcntl(...) safe_syscall(__NR_fcntl, __VA_ARGS__)
+#endif
 
 static inline int host_to_target_sock_type(int host_type)
 {
@@ -5740,7 +5750,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         if (ret) {
             return ret;
         }
-        ret = get_errno(fcntl(fd, host_cmd, &fl64));
+        ret = get_errno(safe_fcntl(fd, host_cmd, &fl64));
         if (ret == 0) {
             ret = copy_to_user_flock(arg, &fl64);
         }
@@ -5752,7 +5762,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         if (ret) {
             return ret;
         }
-        ret = get_errno(fcntl(fd, host_cmd, &fl64));
+        ret = get_errno(safe_fcntl(fd, host_cmd, &fl64));
         break;
 
     case TARGET_F_GETLK64:
@@ -5760,7 +5770,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         if (ret) {
             return ret;
         }
-        ret = get_errno(fcntl(fd, host_cmd, &fl64));
+        ret = get_errno(safe_fcntl(fd, host_cmd, &fl64));
         if (ret == 0) {
             ret = copy_to_user_flock64(arg, &fl64);
         }
@@ -5771,23 +5781,25 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         if (ret) {
             return ret;
         }
-        ret = get_errno(fcntl(fd, host_cmd, &fl64));
+        ret = get_errno(safe_fcntl(fd, host_cmd, &fl64));
         break;
 
     case TARGET_F_GETFL:
-        ret = get_errno(fcntl(fd, host_cmd, arg));
+        ret = get_errno(safe_fcntl(fd, host_cmd, arg));
         if (ret >= 0) {
             ret = host_to_target_bitmask(ret, fcntl_flags_tbl);
         }
         break;
 
     case TARGET_F_SETFL:
-        ret = get_errno(fcntl(fd, host_cmd, target_to_host_bitmask(arg, fcntl_flags_tbl)));
+        ret = get_errno(safe_fcntl(fd, host_cmd,
+                                   target_to_host_bitmask(arg,
+                                                          fcntl_flags_tbl)));
         break;
 
 #ifdef F_GETOWN_EX
     case TARGET_F_GETOWN_EX:
-        ret = get_errno(fcntl(fd, host_cmd, &fox));
+        ret = get_errno(safe_fcntl(fd, host_cmd, &fox));
         if (ret >= 0) {
             if (!lock_user_struct(VERIFY_WRITE, target_fox, arg, 0))
                 return -TARGET_EFAULT;
@@ -5805,7 +5817,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         fox.type = tswap32(target_fox->type);
         fox.pid = tswap32(target_fox->pid);
         unlock_user_struct(target_fox, arg, 0);
-        ret = get_errno(fcntl(fd, host_cmd, &fox));
+        ret = get_errno(safe_fcntl(fd, host_cmd, &fox));
         break;
 #endif
 
@@ -5815,11 +5827,11 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
     case TARGET_F_GETSIG:
     case TARGET_F_SETLEASE:
     case TARGET_F_GETLEASE:
-        ret = get_errno(fcntl(fd, host_cmd, arg));
+        ret = get_errno(safe_fcntl(fd, host_cmd, arg));
         break;
 
     default:
-        ret = get_errno(fcntl(fd, cmd, arg));
+        ret = get_errno(safe_fcntl(fd, cmd, arg));
         break;
     }
     return ret;
@@ -10252,7 +10264,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             if (ret) {
                 break;
             }
-            ret = get_errno(fcntl(arg1, cmd, &fl));
+            ret = get_errno(safe_fcntl(arg1, cmd, &fl));
 	    break;
         default:
             ret = do_fcntl(arg1, arg2, arg3);
