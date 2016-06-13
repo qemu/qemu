@@ -194,9 +194,7 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
     int ret;
 
     ret = bdrv_create_file(filename, opts, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
+    error_propagate(errp, local_err);
     return ret;
 }
 

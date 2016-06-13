@@ -247,9 +247,7 @@ out:
     if (token) {
         CloseHandle(token);
     }
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
+    error_propagate(errp, local_err);
 }
 
 static void execute_async(DWORD WINAPI (*func)(LPVOID), LPVOID opaque,
@@ -882,9 +880,7 @@ static void check_suspend_mode(GuestSuspendMode mode, Error **errp)
     }
 
 out:
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
+    error_propagate(errp, local_err);
 }
 
 static DWORD WINAPI do_suspend(LPVOID opaque)

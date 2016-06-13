@@ -233,9 +233,7 @@ static void ide_dev_set_bootindex(Object *obj, Visitor *v, const char *name,
                              d->unit ? "/disk@1" : "/disk@0");
     }
 out:
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
+    error_propagate(errp, local_err);
 }
 
 static void ide_dev_instance_init(Object *obj)

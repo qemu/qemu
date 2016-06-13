@@ -301,9 +301,7 @@ static void coroutine_fn bdrv_create_co_entry(void *opaque)
     assert(cco->drv);
 
     ret = cco->drv->bdrv_create(cco->filename, cco->opts, &local_err);
-    if (local_err) {
-        error_propagate(&cco->err, local_err);
-    }
+    error_propagate(&cco->err, local_err);
     cco->ret = ret;
 }
 
@@ -364,9 +362,7 @@ int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     ret = bdrv_create(drv, filename, opts, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
+    error_propagate(errp, local_err);
     return ret;
 }
 
@@ -1763,18 +1759,14 @@ fail:
     QDECREF(options);
     bs->options = NULL;
     bdrv_unref(bs);
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
+    error_propagate(errp, local_err);
     return NULL;
 
 close_and_fail:
     bdrv_unref(bs);
     QDECREF(snapshot_options);
     QDECREF(options);
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
+    error_propagate(errp, local_err);
     return NULL;
 }
 
@@ -3599,9 +3591,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
 out:
     qemu_opts_del(opts);
     qemu_opts_free(create_opts);
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
+    error_propagate(errp, local_err);
 }
 
 AioContext *bdrv_get_aio_context(BlockDriverState *bs)

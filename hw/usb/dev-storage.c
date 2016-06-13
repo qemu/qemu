@@ -818,9 +818,7 @@ static void usb_msd_set_bootindex(Object *obj, Visitor *v, const char *name,
     }
 
 out:
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
+    error_propagate(errp, local_err);
 }
 
 static const TypeInfo usb_storage_dev_type_info = {

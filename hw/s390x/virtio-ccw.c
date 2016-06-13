@@ -890,9 +890,7 @@ static void virtio_ccw_net_realize(VirtioCcwDevice *ccw_dev, Error **errp)
                                   object_get_typename(OBJECT(qdev)));
     qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
     object_property_set_bool(OBJECT(vdev), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
-    }
+    error_propagate(errp, err);
 }
 
 static void virtio_ccw_net_instance_init(Object *obj)
@@ -913,9 +911,7 @@ static void virtio_ccw_blk_realize(VirtioCcwDevice *ccw_dev, Error **errp)
 
     qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
     object_property_set_bool(OBJECT(vdev), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
-    }
+    error_propagate(errp, err);
 }
 
 static void virtio_ccw_blk_instance_init(Object *obj)
@@ -950,9 +946,7 @@ static void virtio_ccw_serial_realize(VirtioCcwDevice *ccw_dev, Error **errp)
 
     qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
     object_property_set_bool(OBJECT(vdev), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
-    }
+    error_propagate(errp, err);
 }
 
 
@@ -972,9 +966,7 @@ static void virtio_ccw_balloon_realize(VirtioCcwDevice *ccw_dev, Error **errp)
 
     qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
     object_property_set_bool(OBJECT(vdev), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
-    }
+    error_propagate(errp, err);
 }
 
 static void virtio_ccw_balloon_instance_init(Object *obj)
@@ -1010,9 +1002,7 @@ static void virtio_ccw_scsi_realize(VirtioCcwDevice *ccw_dev, Error **errp)
 
     qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
     object_property_set_bool(OBJECT(vdev), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
-    }
+    error_propagate(errp, err);
 }
 
 static void virtio_ccw_scsi_instance_init(Object *obj)
@@ -1034,9 +1024,7 @@ static void vhost_ccw_scsi_realize(VirtioCcwDevice *ccw_dev, Error **errp)
 
     qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
     object_property_set_bool(OBJECT(vdev), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
-    }
+    error_propagate(errp, err);
 }
 
 static void vhost_ccw_scsi_instance_init(Object *obj)
@@ -1858,9 +1846,7 @@ static void virtio_ccw_9p_realize(VirtioCcwDevice *ccw_dev, Error **errp)
 
     qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
     object_property_set_bool(OBJECT(vdev), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
-    }
+    error_propagate(errp, err);
 }
 
 static void virtio_ccw_9p_class_init(ObjectClass *klass, void *data)
