@@ -49,7 +49,7 @@ static void test_secret_indirect_good(void)
 {
     Object *sec;
     char *fname = NULL;
-    int fd = g_file_open_tmp("secretXXXXXX",
+    int fd = g_file_open_tmp("qemu-test-crypto-secret-XXXXXX",
                              &fname,
                              NULL);
 
@@ -74,6 +74,7 @@ static void test_secret_indirect_good(void)
     object_unparent(sec);
     g_free(pw);
     close(fd);
+    unlink(fname);
     g_free(fname);
 }
 
@@ -96,7 +97,7 @@ static void test_secret_indirect_emptyfile(void)
 {
     Object *sec;
     char *fname = NULL;
-    int fd = g_file_open_tmp("secretXXXXXX",
+    int fd = g_file_open_tmp("qemu-test-crypto-secretXXXXXX",
                              &fname,
                              NULL);
 
@@ -119,6 +120,7 @@ static void test_secret_indirect_emptyfile(void)
     object_unparent(sec);
     g_free(pw);
     close(fd);
+    unlink(fname);
     g_free(fname);
 }
 

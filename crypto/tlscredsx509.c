@@ -392,11 +392,14 @@ qcrypto_tls_creds_load_cert(QCryptoTLSCredsX509 *creds,
     gsize buflen;
     GError *gerr;
     int ret = -1;
+    int err;
 
     trace_qcrypto_tls_creds_x509_load_cert(creds, isServer, certFile);
 
-    if (gnutls_x509_crt_init(&cert) < 0) {
-        error_setg(errp, "Unable to initialize certificate");
+    err = gnutls_x509_crt_init(&cert);
+    if (err < 0) {
+        error_setg(errp, "Unable to initialize certificate: %s",
+                   gnutls_strerror(err));
         goto cleanup;
     }
 
@@ -410,11 +413,13 @@ qcrypto_tls_creds_load_cert(QCryptoTLSCredsX509 *creds,
     data.data = (unsigned char *)buf;
     data.size = strlen(buf);
 
-    if (gnutls_x509_crt_import(cert, &data, GNUTLS_X509_FMT_PEM) < 0) {
+    err = gnutls_x509_crt_import(cert, &data, GNUTLS_X509_FMT_PEM);
+    if (err < 0) {
         error_setg(errp, isServer ?
-                   "Unable to import server certificate %s" :
-                   "Unable to import client certificate %s",
-                   certFile);
+                   "Unable to import server certificate %s: %s" :
+                   "Unable to import client certificate %s: %s",
+                   certFile,
+                   gnutls_strerror(err));
         goto cleanup;
     }
 
