@@ -7498,7 +7498,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
          * is unpredictable. Flag this as a guest error.  */
         if (sign != sext) {
             qemu_log_mask(LOG_GUEST_ERROR,
-                          "AArch32: VTCR.S / VTCR.T0SZ[3] missmatch\n");
+                          "AArch32: VTCR.S / VTCR.T0SZ[3] mismatch\n");
         }
     }
     t1sz = extract32(tcr->raw_tcr, 16, 6);
