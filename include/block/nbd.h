@@ -25,19 +25,20 @@
 #include "io/channel-socket.h"
 #include "crypto/tlscreds.h"
 
+/* Note: these are _NOT_ the same as the network representation of an NBD
+ * request and reply!
+ */
 struct nbd_request {
-    uint32_t magic;
-    uint32_t type;
     uint64_t handle;
     uint64_t from;
     uint32_t len;
-} QEMU_PACKED;
+    uint32_t type;
+};
 
 struct nbd_reply {
-    uint32_t magic;
-    uint32_t error;
     uint64_t handle;
-} QEMU_PACKED;
+    uint32_t error;
+};
 
 #define NBD_FLAG_HAS_FLAGS      (1 << 0)        /* Flags are there */
 #define NBD_FLAG_READ_ONLY      (1 << 1)        /* Device is read-only */
