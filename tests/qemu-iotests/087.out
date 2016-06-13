@@ -42,22 +42,14 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 encryption=on
 Testing: -S
 QMP_VERSION
 {"return": {}}
-IMGFMT built-in AES encryption is deprecated
-Support for it will be removed in a future release.
-You can use 'qemu-img convert' to switch to an
-unencrypted IMGFMT image, or a LUKS raw image.
-{"error": {"class": "GenericError", "desc": "blockdev-add doesn't support encrypted devices"}}
+{"error": {"class": "GenericError", "desc": "Use of AES-CBC encrypted IMGFMT images is no longer supported in system emulators"}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
 
 Testing:
 QMP_VERSION
 {"return": {}}
-IMGFMT built-in AES encryption is deprecated
-Support for it will be removed in a future release.
-You can use 'qemu-img convert' to switch to an
-unencrypted IMGFMT image, or a LUKS raw image.
-{"error": {"class": "GenericError", "desc": "Guest must be stopped for opening of encrypted image"}}
+{"error": {"class": "GenericError", "desc": "Use of AES-CBC encrypted IMGFMT images is no longer supported in system emulators"}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
 
