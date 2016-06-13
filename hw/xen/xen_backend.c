@@ -26,11 +26,16 @@
 #include <sys/signal.h>
 
 #include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "sysemu/char.h"
 #include "qemu/log.h"
 #include "hw/xen/xen_backend.h"
 
 #include <xen/grant_table.h>
+
+#define TYPE_XENSYSDEV "xensysdev"
+
+DeviceState *xen_sysdev;
 
 /* ------------------------------------------------------------- */
 
@@ -762,6 +767,10 @@ int xen_be_init(void)
         /* Check if xen_init() have been called */
         goto err;
     }
+
+    xen_sysdev = qdev_create(NULL, TYPE_XENSYSDEV);
+    qdev_init_nofail(xen_sysdev);
+
     return 0;
 
 err:
@@ -862,3 +871,35 @@ void xen_be_printf(struct XenDevice *xendev, int msg_level, const char *fmt, ...
     }
     qemu_log_flush();
 }
+
+static int xen_sysdev_init(SysBusDevice *dev)
+{
+    return 0;
+}
+
+static Property xen_sysdev_properties[] = {
+    {/* end of property list */},
+};
+
+static void xen_sysdev_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = xen_sysdev_init;
+    dc->props = xen_sysdev_properties;
+}
+
+static const TypeInfo xensysdev_info = {
+    .name          = TYPE_XENSYSDEV,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SysBusDevice),
+    .class_init    = xen_sysdev_class_init,
+};
+
+static void xenbe_register_types(void)
+{
+    type_register_static(&xensysdev_info);
+}
+
+type_init(xenbe_register_types);
