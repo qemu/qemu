@@ -1380,7 +1380,6 @@ fi
 if test "$ARCH" = "unknown"; then
     if test "$tcg_interpreter" = "yes" ; then
         echo "Unsupported CPU = $cpu, will use TCG with TCI (experimental)"
-        ARCH=tci
     else
         error_exit "Unsupported CPU = $cpu, try --enable-tcg-interpreter"
     fi
