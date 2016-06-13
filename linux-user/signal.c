@@ -278,6 +278,14 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
     tinfo->si_errno = 0;
     tinfo->si_code = info->si_code;
 
+    /* This memset serves two purposes:
+     * (1) ensure we don't leak random junk to the guest later
+     * (2) placate false positives from gcc about fields
+     *     being used uninitialized if it chooses to inline both this
+     *     function and tswap_siginfo() into host_to_target_siginfo().
+     */
+    memset(tinfo->_sifields._pad, 0, sizeof(tinfo->_sifields._pad));
+
     /* This is awkward, because we have to use a combination of
      * the si_code and si_signo to figure out which of the union's
      * members are valid. (Within the host kernel it is always possible
@@ -397,8 +405,9 @@ static void tswap_siginfo(target_siginfo_t *tinfo,
 
 void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info)
 {
-    host_to_target_siginfo_noswap(tinfo, info);
-    tswap_siginfo(tinfo, tinfo);
+    target_siginfo_t tgt_tmp;
+    host_to_target_siginfo_noswap(&tgt_tmp, info);
+    tswap_siginfo(tinfo, &tgt_tmp);
 }
 
 /* XXX: we support only POSIX RT signals are used. */
