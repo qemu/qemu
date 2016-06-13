@@ -190,11 +190,9 @@ static int raw_has_zero_init(BlockDriverState *bs)
 
 static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
 {
-    Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_create_file(filename, opts, &local_err);
-    error_propagate(errp, local_err);
+    ret = bdrv_create_file(filename, opts, errp);
     return ret;
 }
 
