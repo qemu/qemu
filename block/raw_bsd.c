@@ -190,10 +190,7 @@ static int raw_has_zero_init(BlockDriverState *bs)
 
 static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
 {
-    int ret;
-
-    ret = bdrv_create_file(filename, opts, errp);
-    return ret;
+    return bdrv_create_file(filename, opts, errp);
 }
 
 static int raw_open(BlockDriverState *bs, QDict *options, int flags,

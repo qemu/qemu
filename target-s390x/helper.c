@@ -70,11 +70,7 @@ void s390x_cpu_timer(void *opaque)
 
 S390CPU *cpu_s390x_create(const char *cpu_model, Error **errp)
 {
-    S390CPU *cpu;
-
-    cpu = S390_CPU(object_new(TYPE_S390_CPU));
-
-    return cpu;
+    return S390_CPU(object_new(TYPE_S390_CPU));
 }
 
 S390CPU *s390x_new_cpu(const char *cpu_model, int64_t id, Error **errp)

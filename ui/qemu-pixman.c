@@ -180,14 +180,11 @@ void qemu_pixman_linebuf_copy(pixman_image_t *fb, int width, int x, int y,
 pixman_image_t *qemu_pixman_mirror_create(pixman_format_code_t format,
                                           pixman_image_t *image)
 {
-    pixman_image_t *mirror;
-
-    mirror = pixman_image_create_bits(format,
-                                      pixman_image_get_width(image),
-                                      pixman_image_get_height(image),
-                                      NULL,
-                                      pixman_image_get_stride(image));
-    return mirror;
+    return pixman_image_create_bits(format,
+                                    pixman_image_get_width(image),
+                                    pixman_image_get_height(image),
+                                    NULL,
+                                    pixman_image_get_stride(image));
 }
 
 void qemu_pixman_image_unref(pixman_image_t *image)

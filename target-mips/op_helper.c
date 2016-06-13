@@ -133,10 +133,8 @@ static inline uint64_t get_HILO(CPUMIPSState *env)
 
 static inline target_ulong set_HIT0_LO(CPUMIPSState *env, uint64_t HILO)
 {
-    target_ulong tmp;
     env->active_tc.LO[0] = (int32_t)(HILO & 0xFFFFFFFF);
-    tmp = env->active_tc.HI[0] = (int32_t)(HILO >> 32);
-    return tmp;
+    return env->active_tc.HI[0] = (int32_t)(HILO >> 32);
 }
 
 static inline target_ulong set_HI_LOT0(CPUMIPSState *env, uint64_t HILO)

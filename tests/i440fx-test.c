@@ -394,7 +394,6 @@ static void request_pflash(FirmwareTestFixture *fixture,
 int main(int argc, char **argv)
 {
     TestData data;
-    int ret;
 
     g_test_init(&argc, &argv, NULL);
 
@@ -405,6 +404,5 @@ int main(int argc, char **argv)
     add_firmware_test("i440fx/firmware/bios", request_bios);
     add_firmware_test("i440fx/firmware/pflash", request_pflash);
 
-    ret = g_test_run();
-    return ret;
+    return g_test_run();
 }

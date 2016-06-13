@@ -81,18 +81,12 @@ void cursor_print_ascii_art(QEMUCursor *c, const char *prefix)
 
 QEMUCursor *cursor_builtin_hidden(void)
 {
-    QEMUCursor *c;
-
-    c = cursor_parse_xpm(cursor_hidden_xpm);
-    return c;
+    return cursor_parse_xpm(cursor_hidden_xpm);
 }
 
 QEMUCursor *cursor_builtin_left_ptr(void)
 {
-    QEMUCursor *c;
-
-    c = cursor_parse_xpm(cursor_left_ptr_xpm);
-    return c;
+    return cursor_parse_xpm(cursor_left_ptr_xpm);
 }
 
 QEMUCursor *cursor_alloc(int width, int height)

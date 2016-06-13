@@ -1150,7 +1150,6 @@ out:
 int64_t qmp_guest_get_time(Error **errp)
 {
     SYSTEMTIME ts = {0};
-    int64_t time_ns;
     FILETIME tf;
 
     GetSystemTime(&ts);
@@ -1164,10 +1163,8 @@ int64_t qmp_guest_get_time(Error **errp)
         return -1;
     }
 
-    time_ns = ((((int64_t)tf.dwHighDateTime << 32) | tf.dwLowDateTime)
+    return ((((int64_t)tf.dwHighDateTime << 32) | tf.dwLowDateTime)
                 - W32_FT_OFFSET) * 100;
-
-    return time_ns;
 }
 
 void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)

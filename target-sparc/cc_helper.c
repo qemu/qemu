@@ -200,10 +200,7 @@ static uint32_t compute_all_addx_xcc(CPUSPARCState *env)
 
 static uint32_t compute_C_addx_xcc(CPUSPARCState *env)
 {
-    uint32_t ret;
-
-    ret = get_C_addx_xcc(CC_DST, CC_SRC, CC_SRC2);
-    return ret;
+    return get_C_addx_xcc(CC_DST, CC_SRC, CC_SRC2);
 }
 #endif
 
@@ -219,10 +216,7 @@ static uint32_t compute_all_addx(CPUSPARCState *env)
 
 static uint32_t compute_C_addx(CPUSPARCState *env)
 {
-    uint32_t ret;
-
-    ret = get_C_addx_icc(CC_DST, CC_SRC, CC_SRC2);
-    return ret;
+    return get_C_addx_icc(CC_DST, CC_SRC, CC_SRC2);
 }
 
 static inline uint32_t get_V_tag_icc(target_ulong src1, target_ulong src2)
@@ -365,10 +359,7 @@ static uint32_t compute_all_subx_xcc(CPUSPARCState *env)
 
 static uint32_t compute_C_subx_xcc(CPUSPARCState *env)
 {
-    uint32_t ret;
-
-    ret = get_C_subx_xcc(CC_DST, CC_SRC, CC_SRC2);
-    return ret;
+    return get_C_subx_xcc(CC_DST, CC_SRC, CC_SRC2);
 }
 #endif
 
@@ -384,10 +375,7 @@ static uint32_t compute_all_subx(CPUSPARCState *env)
 
 static uint32_t compute_C_subx(CPUSPARCState *env)
 {
-    uint32_t ret;
-
-    ret = get_C_subx_icc(CC_DST, CC_SRC, CC_SRC2);
-    return ret;
+    return get_C_subx_icc(CC_DST, CC_SRC, CC_SRC2);
 }
 
 static uint32_t compute_all_tsub(CPUSPARCState *env)
@@ -479,8 +467,5 @@ void helper_compute_psr(CPUSPARCState *env)
 
 uint32_t helper_compute_C_icc(CPUSPARCState *env)
 {
-    uint32_t ret;
-
-    ret = icc_table[CC_OP].compute_c(env) >> PSR_CARRY_SHIFT;
-    return ret;
+    return icc_table[CC_OP].compute_c(env) >> PSR_CARRY_SHIFT;
 }

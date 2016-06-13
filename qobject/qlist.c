@@ -100,7 +100,6 @@ QObject *qlist_pop(QList *qlist)
 QObject *qlist_peek(QList *qlist)
 {
     QListEntry *entry;
-    QObject *ret;
 
     if (qlist == NULL || QTAILQ_EMPTY(&qlist->head)) {
         return NULL;
@@ -108,9 +107,7 @@ QObject *qlist_peek(QList *qlist)
 
     entry = QTAILQ_FIRST(&qlist->head);
 
-    ret = entry->value;
-
-    return ret;
+    return entry->value;
 }
 
 int qlist_empty(const QList *qlist)

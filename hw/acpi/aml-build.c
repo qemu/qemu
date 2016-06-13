@@ -324,12 +324,9 @@ static void aml_free(gpointer data, gpointer user_data)
 
 Aml *init_aml_allocator(void)
 {
-    Aml *var;
-
     assert(!alloc_list);
     alloc_list = g_ptr_array_new();
-    var = aml_alloc();
-    return var;
+    return aml_alloc();
 }
 
 void free_aml_allocator(void)
@@ -451,12 +448,10 @@ Aml *aml_name_decl(const char *name, Aml *val)
 /* ACPI 1.0b: 16.2.6.1 Arg Objects Encoding */
 Aml *aml_arg(int pos)
 {
-    Aml *var;
     uint8_t op = 0x68 /* ARG0 op */ + pos;
 
     assert(pos <= 6);
-    var = aml_opcode(op);
-    return var;
+    return aml_opcode(op);
 }
 
 /* ACPI 2.0a: 17.2.4.4 Type 2 Opcodes Encoding: DefToInteger */
@@ -1082,12 +1077,10 @@ Aml *aml_string(const char *name_format, ...)
 /* ACPI 1.0b: 16.2.6.2 Local Objects Encoding */
 Aml *aml_local(int num)
 {
-    Aml *var;
     uint8_t op = 0x60 /* Local0Op */ + num;
 
     assert(num <= 7);
-    var = aml_opcode(op);
-    return var;
+    return aml_opcode(op);
 }
 
 /* ACPI 2.0a: 17.2.2 Data Objects Encoding: DefVarPackage */

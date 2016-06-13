@@ -195,7 +195,7 @@ static int kvm_s390_register_io_adapter(S390FLICState *fs, uint32_t id,
         .swap = swap,
     };
     KVMS390FLICState *flic = KVM_S390_FLIC(fs);
-    int r, ret;
+    int r;
     struct kvm_device_attr attr = {
         .group = KVM_DEV_FLIC_ADAPTER_REGISTER,
         .addr = (uint64_t)&adapter,
@@ -208,8 +208,7 @@ static int kvm_s390_register_io_adapter(S390FLICState *fs, uint32_t id,
 
     r = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
 
-    ret = r ? -errno : 0;
-    return ret;
+    return r ? -errno : 0;
 }
 
 static int kvm_s390_io_adapter_map(S390FLICState *fs, uint32_t id,

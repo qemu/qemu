@@ -55,13 +55,9 @@ static void init_lists(void)
 
 static ModuleTypeList *find_type(module_init_type type)
 {
-    ModuleTypeList *l;
-
     init_lists();
 
-    l = &init_type_list[type];
-
-    return l;
+    return &init_type_list[type];
 }
 
 void register_module_init(void (*fn)(void), module_init_type type)

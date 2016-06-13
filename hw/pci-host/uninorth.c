@@ -62,12 +62,9 @@ typedef struct UNINState {
 
 static int pci_unin_map_irq(PCIDevice *pci_dev, int irq_num)
 {
-    int retval;
     int devfn = pci_dev->devfn & 0x00FFFFFF;
 
-    retval = (((devfn >> 11) & 0x1F) + irq_num) & 3;
-
-    return retval;
+    return (((devfn >> 11) & 0x1F) + irq_num) & 3;
 }
 
 static void pci_unin_set_irq(void *opaque, int irq_num, int level)
