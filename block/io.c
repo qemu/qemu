@@ -776,6 +776,8 @@ static int coroutine_fn bdrv_driver_preadv(BlockDriverState *bs,
     int64_t sector_num;
     unsigned int nb_sectors;
 
+    assert(!(flags & ~BDRV_REQ_MASK));
+
     if (drv->bdrv_co_preadv) {
         return drv->bdrv_co_preadv(bs, offset, bytes, qiov, flags);
     }
@@ -814,6 +816,8 @@ static int coroutine_fn bdrv_driver_pwritev(BlockDriverState *bs,
     int64_t sector_num;
     unsigned int nb_sectors;
     int ret;
+
+    assert(!(flags & ~BDRV_REQ_MASK));
 
     if (drv->bdrv_co_pwritev) {
         ret = drv->bdrv_co_pwritev(bs, offset, bytes, qiov,
@@ -953,6 +957,7 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
     assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
     assert(!qiov || bytes == qiov->size);
     assert((bs->open_flags & BDRV_O_NO_IO) == 0);
+    assert(!(flags & ~BDRV_REQ_MASK));
 
     /* Handle Copy on Read and associated serialisation */
     if (flags & BDRV_REQ_COPY_ON_READ) {
@@ -1242,6 +1247,7 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
     assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
     assert(!qiov || bytes == qiov->size);
     assert((bs->open_flags & BDRV_O_NO_IO) == 0);
+    assert(!(flags & ~BDRV_REQ_MASK));
 
     waited = wait_serialising_requests(req);
     assert(!waited || !req->serialising);
