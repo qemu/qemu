@@ -67,8 +67,8 @@ safe_syscall_base:
          */
 safe_syscall_start:
         /* if signal_pending is non-zero, don't do the call */
-        testl   $1, (%rbp)
-        jnz     return_ERESTARTSYS
+        cmpl	$0, (%rbp)
+        jnz     1f
         syscall
 safe_syscall_end:
         /* code path for having successfully executed the syscall */
@@ -78,7 +78,7 @@ safe_syscall_end:
         .cfi_restore rbp
         ret
 
-return_ERESTARTSYS:
+1:
         /* code path when we didn't execute the syscall */
         .cfi_restore_state
         mov     $-TARGET_ERESTARTSYS, %rax
