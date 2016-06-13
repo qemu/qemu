@@ -4,7 +4,6 @@
 #ifndef CONFIG_USER_ONLY
 
 #ifdef TARGET_PPC64
-void ppc_hash64_check_page_sizes(PowerPCCPU *cpu, Error **errp);
 void dump_slb(FILE *f, fprintf_function cpu_fprintf, PowerPCCPU *cpu);
 int ppc_store_slb(PowerPCCPU *cpu, target_ulong slot,
                   target_ulong esid, target_ulong vsid);

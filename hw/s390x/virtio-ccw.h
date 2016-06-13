@@ -183,7 +183,6 @@ typedef struct VirtIORNGCcw {
     VirtIORNG vdev;
 } VirtIORNGCcw;
 
-void virtio_ccw_device_update_status(SubchDev *sch);
 VirtIODevice *virtio_ccw_get_vdev(SubchDev *sch);
 
 #ifdef CONFIG_VIRTFS

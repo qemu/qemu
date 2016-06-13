@@ -264,12 +264,6 @@ sh_dsp_reg_nums;
    be some confusion between DSP and FPU etc.  */
 #define SH_ARCH_UNKNOWN_ARCH 0xffffffff
 
-/* These are defined in bfd/cpu-sh.c .  */
-unsigned int sh_get_arch_from_bfd_mach (unsigned long mach);
-unsigned int sh_get_arch_up_from_bfd_mach (unsigned long mach);
-unsigned long sh_get_bfd_mach_from_arch_set (unsigned int arch_set);
-/* bfd_boolean sh_merge_bfd_arch (bfd *ibfd, bfd *obfd); */
-
 /* Below are the 'architecture sets'.
    They describe the following inheritance graph:
 

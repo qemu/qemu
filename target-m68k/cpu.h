@@ -196,7 +196,6 @@ enum {
 #define MACSR_EV    0x001
 
 void m68k_set_irq_level(M68kCPU *cpu, int level, uint8_t vector);
-void m68k_set_macsr(CPUM68KState *env, uint32_t val);
 void m68k_switch_sp(CPUM68KState *env);
 
 #define M68K_FPCR_PREC (1 << 6)

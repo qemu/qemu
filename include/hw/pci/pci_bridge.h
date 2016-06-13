@@ -45,7 +45,6 @@ void pci_bridge_update_mappings(PCIBridge *br);
 void pci_bridge_write_config(PCIDevice *d,
                              uint32_t address, uint32_t val, int len);
 void pci_bridge_disable_base_limit(PCIDevice *dev);
-void pci_bridge_reset_reg(PCIDevice *dev);
 void pci_bridge_reset(DeviceState *qdev);
 
 void pci_bridge_initfn(PCIDevice *pci_dev, const char *typename);

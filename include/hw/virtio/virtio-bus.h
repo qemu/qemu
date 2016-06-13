@@ -111,9 +111,6 @@ void virtio_bus_device_unplugged(VirtIODevice *bus);
 uint16_t virtio_bus_get_vdev_id(VirtioBusState *bus);
 /* Get the config_len field of the plugged device. */
 size_t virtio_bus_get_vdev_config_len(VirtioBusState *bus);
-/* Get the features of the plugged device. */
-uint32_t virtio_bus_get_vdev_features(VirtioBusState *bus,
-                                    uint32_t requested_features);
 /* Get bad features of the plugged device. */
 uint32_t virtio_bus_get_vdev_bad_features(VirtioBusState *bus);
 /* Get config of the plugged device. */
