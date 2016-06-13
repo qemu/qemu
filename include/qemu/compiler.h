@@ -41,6 +41,8 @@
 # define QEMU_PACKED __attribute__((packed))
 #endif
 
+#define QEMU_ALIGNED(X) __attribute__((aligned(X)))
+
 #ifndef glue
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)

@@ -735,6 +735,13 @@ static inline void code_gen_alloc(size_t tb_size)
     qemu_mutex_init(&tcg_ctx.tb_ctx.tb_lock);
 }
 
+static void tb_htable_init(void)
+{
+    unsigned int mode = QHT_MODE_AUTO_RESIZE;
+
+    qht_init(&tcg_ctx.tb_ctx.htable, CODE_GEN_HTABLE_SIZE, mode);
+}
+
 /* Must be called before using the QEMU cpus. 'tb_size' is the size
    (in bytes) allocated to the translation buffer. Zero means default
    size. */
@@ -742,6 +749,7 @@ void tcg_exec_init(unsigned long tb_size)
 {
     cpu_gen_init();
     page_init();
+    tb_htable_init();
     code_gen_alloc(tb_size);
 #if defined(CONFIG_SOFTMMU)
     /* There's no guest base to take into account, so go ahead and
@@ -846,7 +854,7 @@ void tb_flush(CPUState *cpu)
         cpu->tb_flushed = true;
     }
 
-    memset(tcg_ctx.tb_ctx.tb_phys_hash, 0, sizeof(tcg_ctx.tb_ctx.tb_phys_hash));
+    qht_reset_size(&tcg_ctx.tb_ctx.htable, CODE_GEN_HTABLE_SIZE);
     page_flush_tb();
 
     tcg_ctx.code_gen_ptr = tcg_ctx.code_gen_buffer;
@@ -857,59 +865,45 @@ void tb_flush(CPUState *cpu)
 
 #ifdef DEBUG_TB_CHECK
 
+static void
+do_tb_invalidate_check(struct qht *ht, void *p, uint32_t hash, void *userp)
+{
+    TranslationBlock *tb = p;
+    target_ulong addr = *(target_ulong *)userp;
+
+    if (!(addr + TARGET_PAGE_SIZE <= tb->pc || addr >= tb->pc + tb->size)) {
+        printf("ERROR invalidate: address=" TARGET_FMT_lx
+               " PC=%08lx size=%04x\n", addr, (long)tb->pc, tb->size);
+    }
+}
+
 static void tb_invalidate_check(target_ulong address)
 {
-    TranslationBlock *tb;
-    int i;
-
     address &= TARGET_PAGE_MASK;
-    for (i = 0; i < CODE_GEN_PHYS_HASH_SIZE; i++) {
-        for (tb = tcg_ctx.tb_ctx.tb_phys_hash[i]; tb != NULL;
-             tb = tb->phys_hash_next) {
-            if (!(address + TARGET_PAGE_SIZE <= tb->pc ||
-                  address >= tb->pc + tb->size)) {
-                printf("ERROR invalidate: address=" TARGET_FMT_lx
-                       " PC=%08lx size=%04x\n",
-                       address, (long)tb->pc, tb->size);
-            }
-        }
+    qht_iter(&tcg_ctx.tb_ctx.htable, do_tb_invalidate_check, &address);
+}
+
+static void
+do_tb_page_check(struct qht *ht, void *p, uint32_t hash, void *userp)
+{
+    TranslationBlock *tb = p;
+    int flags1, flags2;
+
+    flags1 = page_get_flags(tb->pc);
+    flags2 = page_get_flags(tb->pc + tb->size - 1);
+    if ((flags1 & PAGE_WRITE) || (flags2 & PAGE_WRITE)) {
+        printf("ERROR page flags: PC=%08lx size=%04x f1=%x f2=%x\n",
+               (long)tb->pc, tb->size, flags1, flags2);
     }
 }
 
 /* verify that all the pages have correct rights for code */
 static void tb_page_check(void)
 {
-    TranslationBlock *tb;
-    int i, flags1, flags2;
-
-    for (i = 0; i < CODE_GEN_PHYS_HASH_SIZE; i++) {
-        for (tb = tcg_ctx.tb_ctx.tb_phys_hash[i]; tb != NULL;
-                tb = tb->phys_hash_next) {
-            flags1 = page_get_flags(tb->pc);
-            flags2 = page_get_flags(tb->pc + tb->size - 1);
-            if ((flags1 & PAGE_WRITE) || (flags2 & PAGE_WRITE)) {
-                printf("ERROR page flags: PC=%08lx size=%04x f1=%x f2=%x\n",
-                       (long)tb->pc, tb->size, flags1, flags2);
-            }
-        }
-    }
+    qht_iter(&tcg_ctx.tb_ctx.htable, do_tb_page_check, NULL);
 }
 
 #endif
-
-static inline void tb_hash_remove(TranslationBlock **ptb, TranslationBlock *tb)
-{
-    TranslationBlock *tb1;
-
-    for (;;) {
-        tb1 = *ptb;
-        if (tb1 == tb) {
-            *ptb = tb1->phys_hash_next;
-            break;
-        }
-        ptb = &tb1->phys_hash_next;
-    }
-}
 
 static inline void tb_page_remove(TranslationBlock **ptb, TranslationBlock *tb)
 {
@@ -992,13 +986,13 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 {
     CPUState *cpu;
     PageDesc *p;
-    unsigned int h;
+    uint32_t h;
     tb_page_addr_t phys_pc;
 
     /* remove the TB from the hash list */
     phys_pc = tb->page_addr[0] + (tb->pc & ~TARGET_PAGE_MASK);
-    h = tb_phys_hash_func(phys_pc);
-    tb_hash_remove(&tcg_ctx.tb_ctx.tb_phys_hash[h], tb);
+    h = tb_hash_func(phys_pc, tb->pc, tb->flags);
+    qht_remove(&tcg_ctx.tb_ctx.htable, tb, h);
 
     /* remove the TB from the page list */
     if (tb->page_addr[0] != page_addr) {
@@ -1127,14 +1121,11 @@ static inline void tb_alloc_page(TranslationBlock *tb,
 static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
                          tb_page_addr_t phys_page2)
 {
-    unsigned int h;
-    TranslationBlock **ptb;
+    uint32_t h;
 
-    /* add in the physical hash table */
-    h = tb_phys_hash_func(phys_pc);
-    ptb = &tcg_ctx.tb_ctx.tb_phys_hash[h];
-    tb->phys_hash_next = *ptb;
-    *ptb = tb;
+    /* add in the hash table */
+    h = tb_hash_func(phys_pc, tb->pc, tb->flags);
+    qht_insert(&tcg_ctx.tb_ctx.htable, tb, h);
 
     /* add in the page list */
     tb_alloc_page(tb, 0, phys_pc & TARGET_PAGE_MASK);
@@ -1677,6 +1668,10 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
     int i, target_code_size, max_target_code_size;
     int direct_jmp_count, direct_jmp2_count, cross_page;
     TranslationBlock *tb;
+    struct qht_stats hst;
+    uint32_t hgram_opts;
+    size_t hgram_bins;
+    char *hgram;
 
     target_code_size = 0;
     max_target_code_size = 0;
@@ -1727,6 +1722,38 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
                 direct_jmp2_count,
                 tcg_ctx.tb_ctx.nb_tbs ? (direct_jmp2_count * 100) /
                         tcg_ctx.tb_ctx.nb_tbs : 0);
+
+    qht_statistics_init(&tcg_ctx.tb_ctx.htable, &hst);
+
+    cpu_fprintf(f, "TB hash buckets     %zu/%zu (%0.2f%% head buckets used)\n",
+                hst.used_head_buckets, hst.head_buckets,
+                (double)hst.used_head_buckets / hst.head_buckets * 100);
+
+    hgram_opts =  QDIST_PR_BORDER | QDIST_PR_LABELS;
+    hgram_opts |= QDIST_PR_100X   | QDIST_PR_PERCENT;
+    if (qdist_xmax(&hst.occupancy) - qdist_xmin(&hst.occupancy) == 1) {
+        hgram_opts |= QDIST_PR_NODECIMAL;
+    }
+    hgram = qdist_pr(&hst.occupancy, 10, hgram_opts);
+    cpu_fprintf(f, "TB hash occupancy   %0.2f%% avg chain occ. Histogram: %s\n",
+                qdist_avg(&hst.occupancy) * 100, hgram);
+    g_free(hgram);
+
+    hgram_opts = QDIST_PR_BORDER | QDIST_PR_LABELS;
+    hgram_bins = qdist_xmax(&hst.chain) - qdist_xmin(&hst.chain);
+    if (hgram_bins > 10) {
+        hgram_bins = 10;
+    } else {
+        hgram_bins = 0;
+        hgram_opts |= QDIST_PR_NODECIMAL | QDIST_PR_NOBINRANGE;
+    }
+    hgram = qdist_pr(&hst.chain, hgram_bins, hgram_opts);
+    cpu_fprintf(f, "TB hash avg chain   %0.3f buckets. Histogram: %s\n",
+                qdist_avg(&hst.chain), hgram);
+    g_free(hgram);
+
+    qht_statistics_destroy(&hst);
+
     cpu_fprintf(f, "\nStatistics:\n");
     cpu_fprintf(f, "TB flush count      %d\n", tcg_ctx.tb_ctx.tb_flush_count);
     cpu_fprintf(f, "TB invalidate count %d\n",
