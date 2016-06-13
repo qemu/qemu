@@ -117,14 +117,7 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
 
 #if defined(__i386__)
 
-#if defined(__APPLE__)
-#include <sys/ucontext.h>
-
-#define EIP_sig(context)  (*((unsigned long *)&(context)->uc_mcontext->ss.eip))
-#define TRAP_sig(context)    ((context)->uc_mcontext->es.trapno)
-#define ERROR_sig(context)   ((context)->uc_mcontext->es.err)
-#define MASK_sig(context)    ((context)->uc_sigmask)
-#elif defined(__NetBSD__)
+#if defined(__NetBSD__)
 #include <ucontext.h>
 
 #define EIP_sig(context)     ((context)->uc_mcontext.__gregs[_REG_EIP])
@@ -273,44 +266,6 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 #define DSISR_sig(context)             ((context)->uc_mcontext.mc_dsisr)
 #define TRAP_sig(context)              ((context)->uc_mcontext.mc_exc)
 #endif /* __FreeBSD__|| __FreeBSD_kernel__ */
-
-#ifdef __APPLE__
-#include <sys/ucontext.h>
-typedef struct ucontext SIGCONTEXT;
-/* All Registers access - only for local access */
-#define REG_sig(reg_name, context)              \
-    ((context)->uc_mcontext->ss.reg_name)
-#define FLOATREG_sig(reg_name, context)         \
-    ((context)->uc_mcontext->fs.reg_name)
-#define EXCEPREG_sig(reg_name, context)         \
-    ((context)->uc_mcontext->es.reg_name)
-#define VECREG_sig(reg_name, context)           \
-    ((context)->uc_mcontext->vs.reg_name)
-/* Gpr Registers access */
-#define GPR_sig(reg_num, context)              REG_sig(r##reg_num, context)
-/* Program counter */
-#define IAR_sig(context)                       REG_sig(srr0, context)
-/* Machine State Register (Supervisor) */
-#define MSR_sig(context)                       REG_sig(srr1, context)
-#define CTR_sig(context)                       REG_sig(ctr, context)
-/* Link register */
-#define XER_sig(context)                       REG_sig(xer, context)
-/* User's integer exception register */
-#define LR_sig(context)                        REG_sig(lr, context)
-/* Condition register */
-#define CR_sig(context)                        REG_sig(cr, context)
-/* Float Registers access */
-#define FLOAT_sig(reg_num, context)             \
-    FLOATREG_sig(fpregs[reg_num], context)
-#define FPSCR_sig(context)                      \
-    ((double)FLOATREG_sig(fpscr, context))
-/* Exception Registers access */
-/* Fault registers for coredump */
-#define DAR_sig(context)                       EXCEPREG_sig(dar, context)
-#define DSISR_sig(context)                     EXCEPREG_sig(dsisr, context)
-/* number of powerpc exception taken */
-#define TRAP_sig(context)                      EXCEPREG_sig(exception, context)
-#endif /* __APPLE__ */
 
 int cpu_signal_handler(int host_signum, void *pinfo,
                        void *puc)
