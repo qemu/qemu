@@ -2828,11 +2828,11 @@ static inline void QEMU_NORETURN do_raise_exception_err(CPUTriCoreState *env,
     cpu_loop_exit(cs);
 }
 
-void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
-              uintptr_t retaddr)
+void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
+              int mmu_idx, uintptr_t retaddr)
 {
     int ret;
-    ret = cpu_tricore_handle_mmu_fault(cs, addr, is_write, mmu_idx);
+    ret = cpu_tricore_handle_mmu_fault(cs, addr, access_type, mmu_idx);
     if (ret) {
         TriCoreCPU *cpu = TRICORE_CPU(cs);
         CPUTriCoreState *env = &cpu->env;

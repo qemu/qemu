@@ -2420,9 +2420,10 @@ void sparc_cpu_unassigned_access(CPUState *cs, hwaddr addr,
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
-void QEMU_NORETURN sparc_cpu_do_unaligned_access(CPUState *cs,
-                                                 vaddr addr, int is_write,
-                                                 int is_user, uintptr_t retaddr)
+void QEMU_NORETURN sparc_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                                                 MMUAccessType access_type,
+                                                 int mmu_idx,
+                                                 uintptr_t retaddr)
 {
     SPARCCPU *cpu = SPARC_CPU(cs);
     CPUSPARCState *env = &cpu->env;
@@ -2441,12 +2442,12 @@ void QEMU_NORETURN sparc_cpu_do_unaligned_access(CPUState *cs,
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
-              uintptr_t retaddr)
+void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
+              int mmu_idx, uintptr_t retaddr)
 {
     int ret;
 
-    ret = sparc_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
+    ret = sparc_cpu_handle_mmu_fault(cs, addr, access_type, mmu_idx);
     if (ret) {
         if (retaddr) {
             cpu_restore_state(cs, retaddr);

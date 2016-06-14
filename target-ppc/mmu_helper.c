@@ -2878,8 +2878,8 @@ void helper_check_tlb_flush(CPUPPCState *env)
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
-              uintptr_t retaddr)
+void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
+              int mmu_idx, uintptr_t retaddr)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
@@ -2887,9 +2887,9 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
     int ret;
 
     if (pcc->handle_mmu_fault) {
-        ret = pcc->handle_mmu_fault(cpu, addr, is_write, mmu_idx);
+        ret = pcc->handle_mmu_fault(cpu, addr, access_type, mmu_idx);
     } else {
-        ret = cpu_ppc_handle_mmu_fault(env, addr, is_write, mmu_idx);
+        ret = cpu_ppc_handle_mmu_fault(env, addr, access_type, mmu_idx);
     }
     if (unlikely(ret != 0)) {
         if (likely(retaddr)) {

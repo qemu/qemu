@@ -140,12 +140,12 @@ void helper_boundl(CPUX86State *env, target_ulong a0, int v)
  * from generated code or from helper.c)
  */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
-              uintptr_t retaddr)
+void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
+              int mmu_idx, uintptr_t retaddr)
 {
     int ret;
 
-    ret = x86_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
+    ret = x86_cpu_handle_mmu_fault(cs, addr, access_type, mmu_idx);
     if (ret) {
         X86CPU *cpu = X86_CPU(cs);
         CPUX86State *env = &cpu->env;

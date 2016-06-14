@@ -24,12 +24,12 @@
 
 #ifndef CONFIG_USER_ONLY
 
-void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
-              uintptr_t retaddr)
+void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
+              int mmu_idx, uintptr_t retaddr)
 {
     int ret;
 
-    ret = superh_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
+    ret = superh_cpu_handle_mmu_fault(cs, addr, access_type, mmu_idx);
     if (ret) {
         /* now we have a real cpu fault */
         if (retaddr) {
