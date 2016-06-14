@@ -80,7 +80,7 @@ typedef struct VirtIOCCWDeviceClass {
 struct VirtioCcwDevice {
     DeviceState parent_obj;
     SubchDev *sch;
-    char *bus_id;
+    CssDevId bus_id;
     int revision;
     uint32_t max_rev;
     VirtioBusState bus;

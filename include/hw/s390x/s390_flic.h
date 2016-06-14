@@ -49,6 +49,8 @@ typedef struct S390FLICStateClass {
                           bool do_map);
     int (*add_adapter_routes)(S390FLICState *fs, AdapterRoutes *routes);
     void (*release_adapter_routes)(S390FLICState *fs, AdapterRoutes *routes);
+    int (*clear_io_irq)(S390FLICState *fs, uint16_t subchannel_id,
+                        uint16_t subchannel_nr);
 } S390FLICStateClass;
 
 #define TYPE_KVM_S390_FLIC "s390-flic-kvm"

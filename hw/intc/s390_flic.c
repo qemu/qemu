@@ -67,6 +67,13 @@ static void qemu_s390_release_adapter_routes(S390FLICState *fs,
 {
 }
 
+static int qemu_s390_clear_io_flic(S390FLICState *fs, uint16_t subchannel_id,
+                           uint16_t subchannel_nr)
+{
+    /* Fixme TCG */
+    return -ENOSYS;
+}
+
 static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
 {
     S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(oc);
@@ -75,6 +82,7 @@ static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
     fsc->io_adapter_map = qemu_s390_io_adapter_map;
     fsc->add_adapter_routes = qemu_s390_add_adapter_routes;
     fsc->release_adapter_routes = qemu_s390_release_adapter_routes;
+    fsc->clear_io_irq = qemu_s390_clear_io_flic;
 }
 
 static const TypeInfo qemu_s390_flic_info = {
