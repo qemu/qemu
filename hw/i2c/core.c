@@ -10,11 +10,19 @@
 #include "qemu/osdep.h"
 #include "hw/i2c/i2c.h"
 
+typedef struct I2CNode I2CNode;
+
+struct I2CNode {
+    I2CSlave *elt;
+    QLIST_ENTRY(I2CNode) next;
+};
+
 struct I2CBus
 {
     BusState qbus;
-    I2CSlave *current_dev;
+    QLIST_HEAD(, I2CNode) current_devs;
     uint8_t saved_address;
+    bool broadcast;
 };
 
 static Property i2c_props[] = {
@@ -35,17 +43,12 @@ static void i2c_bus_pre_save(void *opaque)
 {
     I2CBus *bus = opaque;
 
-    bus->saved_address = bus->current_dev ? bus->current_dev->address : -1;
-}
-
-static int i2c_bus_post_load(void *opaque, int version_id)
-{
-    I2CBus *bus = opaque;
-
-    /* The bus is loaded before attached devices, so load and save the
-       current device id.  Devices will check themselves as loaded.  */
-    bus->current_dev = NULL;
-    return 0;
+    bus->saved_address = -1;
+    if (!QLIST_EMPTY(&bus->current_devs)) {
+        if (!bus->broadcast) {
+            bus->saved_address = QLIST_FIRST(&bus->current_devs)->elt->address;
+        }
+    }
 }
 
 static const VMStateDescription vmstate_i2c_bus = {
@@ -53,9 +56,9 @@ static const VMStateDescription vmstate_i2c_bus = {
     .version_id = 1,
     .minimum_version_id = 1,
     .pre_save = i2c_bus_pre_save,
-    .post_load = i2c_bus_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(saved_address, I2CBus),
+        VMSTATE_BOOL(broadcast, I2CBus),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -66,6 +69,7 @@ I2CBus *i2c_init_bus(DeviceState *parent, const char *name)
     I2CBus *bus;
 
     bus = I2C_BUS(qbus_create(TYPE_I2C_BUS, parent, name));
+    QLIST_INIT(&bus->current_devs);
     vmstate_register(NULL, -1, &vmstate_i2c_bus, bus);
     return bus;
 }
@@ -78,7 +82,7 @@ void i2c_set_slave_address(I2CSlave *dev, uint8_t address)
 /* Return nonzero if bus is busy.  */
 int i2c_bus_busy(I2CBus *bus)
 {
-    return bus->current_dev != NULL;
+    return !QLIST_EMPTY(&bus->current_devs);
 }
 
 /* Returns non-zero if the address is not valid.  */
@@ -86,95 +90,111 @@ int i2c_bus_busy(I2CBus *bus)
 int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv)
 {
     BusChild *kid;
-    I2CSlave *slave = NULL;
     I2CSlaveClass *sc;
+    I2CNode *node;
+
+    if (address == 0x00) {
+        /*
+         * This is a broadcast, the current_devs will be all the devices of the
+         * bus.
+         */
+        bus->broadcast = true;
+    }
 
     QTAILQ_FOREACH(kid, &bus->qbus.children, sibling) {
         DeviceState *qdev = kid->child;
         I2CSlave *candidate = I2C_SLAVE(qdev);
-        if (candidate->address == address) {
-            slave = candidate;
-            break;
+        if ((candidate->address == address) || (bus->broadcast)) {
+            node = g_malloc(sizeof(struct I2CNode));
+            node->elt = candidate;
+            QLIST_INSERT_HEAD(&bus->current_devs, node, next);
+            if (!bus->broadcast) {
+                break;
+            }
         }
     }
 
-    if (!slave) {
+    if (QLIST_EMPTY(&bus->current_devs)) {
         return 1;
     }
 
-    sc = I2C_SLAVE_GET_CLASS(slave);
-    /* If the bus is already busy, assume this is a repeated
-       start condition.  */
-    bus->current_dev = slave;
-    if (sc->event) {
-        sc->event(slave, recv ? I2C_START_RECV : I2C_START_SEND);
+    QLIST_FOREACH(node, &bus->current_devs, next) {
+        sc = I2C_SLAVE_GET_CLASS(node->elt);
+        /* If the bus is already busy, assume this is a repeated
+           start condition.  */
+        if (sc->event) {
+            sc->event(node->elt, recv ? I2C_START_RECV : I2C_START_SEND);
+        }
     }
     return 0;
 }
 
 void i2c_end_transfer(I2CBus *bus)
 {
-    I2CSlave *dev = bus->current_dev;
     I2CSlaveClass *sc;
+    I2CNode *node, *next;
 
-    if (!dev) {
+    if (QLIST_EMPTY(&bus->current_devs)) {
         return;
     }
 
-    sc = I2C_SLAVE_GET_CLASS(dev);
-    if (sc->event) {
-        sc->event(dev, I2C_FINISH);
+    QLIST_FOREACH_SAFE(node, &bus->current_devs, next, next) {
+        sc = I2C_SLAVE_GET_CLASS(node->elt);
+        if (sc->event) {
+            sc->event(node->elt, I2C_FINISH);
+        }
+        QLIST_REMOVE(node, next);
+        g_free(node);
     }
-
-    bus->current_dev = NULL;
+    bus->broadcast = false;
 }
 
 int i2c_send(I2CBus *bus, uint8_t data)
 {
-    I2CSlave *dev = bus->current_dev;
     I2CSlaveClass *sc;
+    I2CNode *node;
+    int ret = 0;
 
-    if (!dev) {
-        return -1;
+    QLIST_FOREACH(node, &bus->current_devs, next) {
+        sc = I2C_SLAVE_GET_CLASS(node->elt);
+        if (sc->send) {
+            ret = ret || sc->send(node->elt, data);
+        } else {
+            ret = -1;
+        }
     }
-
-    sc = I2C_SLAVE_GET_CLASS(dev);
-    if (sc->send) {
-        return sc->send(dev, data);
-    }
-
-    return -1;
+    return ret ? -1 : 0;
 }
 
 int i2c_recv(I2CBus *bus)
 {
-    I2CSlave *dev = bus->current_dev;
     I2CSlaveClass *sc;
 
-    if (!dev) {
+    if ((QLIST_EMPTY(&bus->current_devs)) || (bus->broadcast)) {
         return -1;
     }
 
-    sc = I2C_SLAVE_GET_CLASS(dev);
+    sc = I2C_SLAVE_GET_CLASS(QLIST_FIRST(&bus->current_devs)->elt);
     if (sc->recv) {
-        return sc->recv(dev);
+        return sc->recv(QLIST_FIRST(&bus->current_devs)->elt);
     }
-
     return -1;
 }
 
 void i2c_nack(I2CBus *bus)
 {
-    I2CSlave *dev = bus->current_dev;
     I2CSlaveClass *sc;
+    I2CNode *node;
 
-    if (!dev) {
+    if (QLIST_EMPTY(&bus->current_devs)) {
         return;
     }
 
-    sc = I2C_SLAVE_GET_CLASS(dev);
-    if (sc->event) {
-        sc->event(dev, I2C_NACK);
+    QLIST_FOREACH(node, &bus->current_devs, next) {
+        sc = I2C_SLAVE_GET_CLASS(node->elt);
+        if (sc->event) {
+            sc->event(node->elt, I2C_NACK);
+        }
     }
 }
 
@@ -182,9 +202,13 @@ static int i2c_slave_post_load(void *opaque, int version_id)
 {
     I2CSlave *dev = opaque;
     I2CBus *bus;
+    I2CNode *node;
+
     bus = I2C_BUS(qdev_get_parent_bus(DEVICE(dev)));
-    if (bus->saved_address == dev->address) {
-        bus->current_dev = dev;
+    if ((bus->saved_address == dev->address) || (bus->broadcast)) {
+        node = g_malloc(sizeof(struct I2CNode));
+        node->elt = dev;
+        QLIST_INSERT_HEAD(&bus->current_devs, node, next);
     }
     return 0;
 }
