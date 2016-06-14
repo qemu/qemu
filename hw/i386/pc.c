@@ -1707,6 +1707,49 @@ static void pc_cpu_plug(HotplugHandler *hotplug_dev,
 out:
     error_propagate(errp, local_err);
 }
+static void pc_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
+                                     DeviceState *dev, Error **errp)
+{
+    HotplugHandlerClass *hhc;
+    Error *local_err = NULL;
+    PCMachineState *pcms = PC_MACHINE(hotplug_dev);
+
+    hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
+    hhc->unplug_request(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
+
+    if (local_err) {
+        goto out;
+    }
+
+ out:
+    error_propagate(errp, local_err);
+
+}
+
+static void pc_cpu_unplug_cb(HotplugHandler *hotplug_dev,
+                             DeviceState *dev, Error **errp)
+{
+    HotplugHandlerClass *hhc;
+    Error *local_err = NULL;
+    PCMachineState *pcms = PC_MACHINE(hotplug_dev);
+
+    hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
+    hhc->unplug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
+
+    if (local_err) {
+        goto out;
+    }
+
+    /*
+     * TODO: enable unplug once generic CPU remove bits land
+     * for now guest will be able to eject CPU ACPI wise but
+     * it will come back again on machine reset.
+     */
+    /*  object_unparent(OBJECT(dev)); */
+
+ out:
+    error_propagate(errp, local_err);
+}
 
 static void pc_machine_device_plug_cb(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
@@ -1723,6 +1766,8 @@ static void pc_machine_device_unplug_request_cb(HotplugHandler *hotplug_dev,
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         pc_dimm_unplug_request(hotplug_dev, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+        pc_cpu_unplug_request_cb(hotplug_dev, dev, errp);
     } else {
         error_setg(errp, "acpi: device unplug request for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
@@ -1734,6 +1779,8 @@ static void pc_machine_device_unplug_cb(HotplugHandler *hotplug_dev,
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         pc_dimm_unplug(hotplug_dev, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+        pc_cpu_unplug_cb(hotplug_dev, dev, errp);
     } else {
         error_setg(errp, "acpi: device unplug for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));

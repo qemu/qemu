@@ -21,6 +21,7 @@ typedef struct AcpiCpuStatus {
     struct CPUState *cpu;
     uint64_t arch_id;
     bool is_inserting;
+    bool is_removing;
 } AcpiCpuStatus;
 
 typedef struct CPUHotplugState {
@@ -33,6 +34,13 @@ typedef struct CPUHotplugState {
 
 void acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
                       CPUHotplugState *cpu_st, DeviceState *dev, Error **errp);
+
+void acpi_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
+                                CPUHotplugState *cpu_st,
+                                DeviceState *dev, Error **errp);
+
+void acpi_cpu_unplug_cb(CPUHotplugState *cpu_st,
+                        DeviceState *dev, Error **errp);
 
 void cpu_hotplug_hw_init(MemoryRegion *as, Object *owner,
                          CPUHotplugState *state, hwaddr base_addr);

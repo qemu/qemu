@@ -481,6 +481,10 @@ void ich9_pm_device_unplug_request_cb(HotplugHandler *hotplug_dev,
         acpi_memory_unplug_request_cb(hotplug_dev,
                                       &lpc->pm.acpi_memory_hotplug, dev,
                                       errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU) &&
+               !lpc->pm.cpu_hotplug_legacy) {
+        acpi_cpu_unplug_request_cb(hotplug_dev, &lpc->pm.cpuhp_state,
+                                   dev, errp);
     } else {
         error_setg(errp, "acpi: device unplug request for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
@@ -495,6 +499,9 @@ void ich9_pm_device_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     if (lpc->pm.acpi_memory_hotplug.is_enabled &&
         object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         acpi_memory_unplug_cb(&lpc->pm.acpi_memory_hotplug, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU) &&
+               !lpc->pm.cpu_hotplug_legacy) {
+        acpi_cpu_unplug_cb(&lpc->pm.cpuhp_state, dev, errp);
     } else {
         error_setg(errp, "acpi: device unplug for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
