@@ -12,6 +12,7 @@
 #include "hw/hw.h"
 #include "hw/arm/pxa.h"
 #include "hw/sysbus.h"
+#include "qapi/error.h"
 
 #define PXA255_DMA_NUM_CHANNELS 16
 #define PXA27X_DMA_NUM_CHANNELS 32
@@ -450,31 +451,36 @@ static void pxa2xx_dma_request(void *opaque, int req_num, int on)
     }
 }
 
-static int pxa2xx_dma_init(SysBusDevice *sbd)
+static void pxa2xx_dma_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
+    DeviceState *dev = DEVICE(obj);
+    PXA2xxDMAState *s = PXA2XX_DMA(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+
+    memset(s->req, 0, sizeof(uint8_t) * PXA2XX_DMA_NUM_REQUESTS);
+
+    qdev_init_gpio_in(dev, pxa2xx_dma_request, PXA2XX_DMA_NUM_REQUESTS);
+
+    memory_region_init_io(&s->iomem, obj, &pxa2xx_dma_ops, s,
+                          "pxa2xx.dma", 0x00010000);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
+}
+
+static void pxa2xx_dma_realize(DeviceState *dev, Error **errp)
+{
     PXA2xxDMAState *s = PXA2XX_DMA(dev);
     int i;
 
     if (s->channels <= 0) {
-        return -1;
+        error_setg(errp, "channels value invalid");
+        return;
     }
 
     s->chan = g_new0(PXA2xxDMAChannel, s->channels);
 
     for (i = 0; i < s->channels; i ++)
         s->chan[i].state = DCSR_STOPINTR;
-
-    memset(s->req, 0, sizeof(uint8_t) * PXA2XX_DMA_NUM_REQUESTS);
-
-    qdev_init_gpio_in(dev, pxa2xx_dma_request, PXA2XX_DMA_NUM_REQUESTS);
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &pxa2xx_dma_ops, s,
-                          "pxa2xx.dma", 0x00010000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
-
-    return 0;
 }
 
 DeviceState *pxa27x_dma_init(hwaddr base, qemu_irq irq)
@@ -553,18 +559,18 @@ static Property pxa2xx_dma_properties[] = {
 static void pxa2xx_dma_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = pxa2xx_dma_init;
     dc->desc = "PXA2xx DMA controller";
     dc->vmsd = &vmstate_pxa2xx_dma;
     dc->props = pxa2xx_dma_properties;
+    dc->realize = pxa2xx_dma_realize;
 }
 
 static const TypeInfo pxa2xx_dma_info = {
     .name          = TYPE_PXA2XX_DMA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxDMAState),
+    .instance_init = pxa2xx_dma_init,
     .class_init    = pxa2xx_dma_class_init,
 };
 
