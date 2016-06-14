@@ -340,7 +340,7 @@ static void test_xts_aes_decrypt(const void *ctx,
 static void test_xts(const void *opaque)
 {
     const QCryptoXTSTestData *data = opaque;
-    unsigned char OUT[512], Torg[16], T[16];
+    unsigned char out[512], Torg[16], T[16];
     uint64_t seq;
     int j;
     unsigned long len;
@@ -371,38 +371,38 @@ static void test_xts(const void *opaque)
             xts_encrypt(&aesdata, &aestweak,
                         test_xts_aes_encrypt,
                         test_xts_aes_decrypt,
-                        T, data->PTLEN, OUT, data->PTX);
+                        T, data->PTLEN, out, data->PTX);
         } else {
             xts_encrypt(&aesdata, &aestweak,
                         test_xts_aes_encrypt,
                         test_xts_aes_decrypt,
-                        T, len, OUT, data->PTX);
+                        T, len, out, data->PTX);
             xts_encrypt(&aesdata, &aestweak,
                         test_xts_aes_encrypt,
                         test_xts_aes_decrypt,
-                        T, len, &OUT[len], &data->PTX[len]);
+                        T, len, &out[len], &data->PTX[len]);
         }
 
-        g_assert(memcmp(OUT, data->CTX, data->PTLEN) == 0);
+        g_assert(memcmp(out, data->CTX, data->PTLEN) == 0);
 
         memcpy(T, Torg, sizeof(T));
         if (j == 0) {
             xts_decrypt(&aesdata, &aestweak,
                         test_xts_aes_encrypt,
                         test_xts_aes_decrypt,
-                        T, data->PTLEN, OUT, data->CTX);
+                        T, data->PTLEN, out, data->CTX);
         } else {
             xts_decrypt(&aesdata, &aestweak,
                         test_xts_aes_encrypt,
                         test_xts_aes_decrypt,
-                        T, len, OUT, data->CTX);
+                        T, len, out, data->CTX);
             xts_decrypt(&aesdata, &aestweak,
                         test_xts_aes_encrypt,
                         test_xts_aes_decrypt,
-                        T, len, &OUT[len], &data->CTX[len]);
+                        T, len, &out[len], &data->CTX[len]);
         }
 
-        g_assert(memcmp(OUT, data->PTX, data->PTLEN) == 0);
+        g_assert(memcmp(out, data->PTX, data->PTLEN) == 0);
     }
 }
 
