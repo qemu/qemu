@@ -200,10 +200,11 @@ static int mst_fpga_post_load(void *opaque, int version_id)
 	return 0;
 }
 
-static int mst_fpga_init(SysBusDevice *sbd)
+static void mst_fpga_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    mst_irq_state *s = MAINSTONE_FPGA(dev);
+    DeviceState *dev = DEVICE(obj);
+    mst_irq_state *s = MAINSTONE_FPGA(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     s->pcmcia0 = MST_PCMCIAx_READY | MST_PCMCIAx_nCD;
     s->pcmcia1 = MST_PCMCIAx_READY | MST_PCMCIAx_nCD;
@@ -213,10 +214,9 @@ static int mst_fpga_init(SysBusDevice *sbd)
     /* alloc the external 16 irqs */
     qdev_init_gpio_in(dev, mst_fpga_set_irq, MST_NUM_IRQS);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &mst_fpga_ops, s,
+    memory_region_init_io(&s->iomem, obj, &mst_fpga_ops, s,
                           "fpga", 0x00100000);
     sysbus_init_mmio(sbd, &s->iomem);
-    return 0;
 }
 
 static VMStateDescription vmstate_mst_fpga_regs = {
@@ -245,9 +245,7 @@ static VMStateDescription vmstate_mst_fpga_regs = {
 static void mst_fpga_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = mst_fpga_init;
     dc->desc = "Mainstone II FPGA";
     dc->vmsd = &vmstate_mst_fpga_regs;
 }
@@ -256,6 +254,7 @@ static const TypeInfo mst_fpga_info = {
     .name          = TYPE_MAINSTONE_FPGA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mst_irq_state),
+    .instance_init = mst_fpga_init,
     .class_init    = mst_fpga_class_init,
 };
 
