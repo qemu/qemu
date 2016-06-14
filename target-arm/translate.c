@@ -5311,6 +5311,30 @@ static int neon_2rm_is_float_op(int op)
             op >= NEON_2RM_VRECPE_F);
 }
 
+static bool neon_2rm_is_v8_op(int op)
+{
+    /* Return true if this neon 2reg-misc op is ARMv8 and up */
+    switch (op) {
+    case NEON_2RM_VRINTN:
+    case NEON_2RM_VRINTA:
+    case NEON_2RM_VRINTM:
+    case NEON_2RM_VRINTP:
+    case NEON_2RM_VRINTZ:
+    case NEON_2RM_VRINTX:
+    case NEON_2RM_VCVTAU:
+    case NEON_2RM_VCVTAS:
+    case NEON_2RM_VCVTNU:
+    case NEON_2RM_VCVTNS:
+    case NEON_2RM_VCVTPU:
+    case NEON_2RM_VCVTPS:
+    case NEON_2RM_VCVTMU:
+    case NEON_2RM_VCVTMS:
+        return true;
+    default:
+        return false;
+    }
+}
+
 /* Each entry in this array has bit n set if the insn allows
  * size value n (otherwise it will UNDEF). Since unallocated
  * op values will have no bits set they always UNDEF.
@@ -6796,6 +6820,10 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 size = (insn >> 18) & 3;
                 /* UNDEF for unknown op values and bad op-size combinations */
                 if ((neon_2rm_sizes[op] & (1 << size)) == 0) {
+                    return 1;
+                }
+                if (neon_2rm_is_v8_op(op) &&
+                    !arm_dc_feature(s, ARM_FEATURE_V8)) {
                     return 1;
                 }
                 if ((op != NEON_2RM_VMOVN && op != NEON_2RM_VQMOVN) &&
