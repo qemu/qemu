@@ -79,32 +79,25 @@ static const MemoryRegionOps versatile_i2c_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int versatile_i2c_init(SysBusDevice *sbd)
+static void versatile_i2c_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    VersatileI2CState *s = VERSATILE_I2C(dev);
+    DeviceState *dev = DEVICE(obj);
+    VersatileI2CState *s = VERSATILE_I2C(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     I2CBus *bus;
 
     bus = i2c_init_bus(dev, "i2c");
     s->bitbang = bitbang_i2c_init(bus);
-    memory_region_init_io(&s->iomem, OBJECT(s), &versatile_i2c_ops, s,
+    memory_region_init_io(&s->iomem, obj, &versatile_i2c_ops, s,
                           "versatile_i2c", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
-    return 0;
-}
-
-static void versatile_i2c_class_init(ObjectClass *klass, void *data)
-{
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-
-    k->init = versatile_i2c_init;
 }
 
 static const TypeInfo versatile_i2c_info = {
     .name          = TYPE_VERSATILE_I2C,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(VersatileI2CState),
-    .class_init    = versatile_i2c_class_init,
+    .instance_init = versatile_i2c_init,
 };
 
 static void versatile_i2c_register_types(void)
