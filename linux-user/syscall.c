@@ -1692,6 +1692,7 @@ static abi_long target_to_host_for_each_nlmsg(struct nlmsghdr *nlh,
             struct nlmsgerr *e = NLMSG_DATA(nlh);
             e->error = tswap32(e->error);
             tswap_nlmsghdr(&e->msg);
+            return 0;
         }
         default:
             ret = target_to_host_nlmsg(nlh);
