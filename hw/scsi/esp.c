@@ -222,7 +222,7 @@ static void write_response(ESPState *s)
     } else {
         s->ti_size = 2;
         s->ti_rptr = 0;
-        s->ti_wptr = 0;
+        s->ti_wptr = 2;
         s->rregs[ESP_RFLAGS] = 2;
     }
     esp_raise_irq(s);
