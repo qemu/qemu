@@ -14,7 +14,6 @@ struct I2CBus
 {
     BusState qbus;
     I2CSlave *current_dev;
-    I2CSlave *dev;
     uint8_t saved_address;
 };
 
