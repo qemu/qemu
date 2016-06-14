@@ -55,7 +55,7 @@ struct SerialState {
     int last_break_enable;
     int it_shift;
     int baudbase;
-    int tsr_retry;
+    uint32_t tsr_retry;
     uint32_t wakeup;
 
     /* Time when the last byte was successfully sent out of the tsr */

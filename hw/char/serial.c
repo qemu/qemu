@@ -229,7 +229,7 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
 
     do {
         assert(!(s->lsr & UART_LSR_TEMT));
-        if (s->tsr_retry <= 0) {
+        if (s->tsr_retry == 0) {
             assert(!(s->lsr & UART_LSR_THRE));
 
             if (s->fcr & UART_FCR_FE) {
@@ -252,7 +252,7 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
             /* in loopback mode, say that we just received a char */
             serial_receive1(s, &s->tsr, 1);
         } else if (qemu_chr_fe_write(s->chr, &s->tsr, 1) != 1) {
-            if (s->tsr_retry >= 0 && s->tsr_retry < MAX_XMIT_RETRY &&
+            if (s->tsr_retry < MAX_XMIT_RETRY &&
                 qemu_chr_fe_add_watch(s->chr, G_IO_OUT|G_IO_HUP,
                                       serial_xmit, s) > 0) {
                 s->tsr_retry++;
@@ -330,7 +330,7 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
             s->lsr &= ~UART_LSR_THRE;
             s->lsr &= ~UART_LSR_TEMT;
             serial_update_irq(s);
-            if (s->tsr_retry <= 0) {
+            if (s->tsr_retry == 0) {
                 serial_xmit(NULL, G_IO_OUT, s);
             }
         }
@@ -639,6 +639,10 @@ static int serial_post_load(void *opaque, int version_id)
     if (s->thr_ipending == -1) {
         s->thr_ipending = ((s->iir & UART_IIR_ID) == UART_IIR_THRI);
     }
+    if (s->tsr_retry > MAX_XMIT_RETRY) {
+        s->tsr_retry = MAX_XMIT_RETRY;
+    }
+
     s->last_break_enable = (s->lcr >> 6) & 1;
     /* Initialize fcr via setter to perform essential side-effects */
     serial_write_fcr(s, s->fcr_vmstate);
@@ -685,7 +689,7 @@ static const VMStateDescription vmstate_serial_tsr = {
     .minimum_version_id = 1,
     .needed = serial_tsr_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_INT32(tsr_retry, SerialState),
+        VMSTATE_UINT32(tsr_retry, SerialState),
         VMSTATE_UINT8(thr, SerialState),
         VMSTATE_UINT8(tsr, SerialState),
         VMSTATE_END_OF_LIST()
