@@ -32,6 +32,7 @@ static int vmstate_n_elems(void *opaque, VMStateField *field)
         n_elems *= field->num;
     }
 
+    trace_vmstate_n_elems(field->name, n_elems);
     return n_elems;
 }
 
@@ -381,25 +382,25 @@ static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
         len = qemu_peek_byte(f, 1);
         if (len < strlen(vmsd->name) + 1) {
             /* subsection name has be be "section_name/a" */
-            trace_vmstate_subsection_load_bad(vmsd->name, "(short)");
+            trace_vmstate_subsection_load_bad(vmsd->name, "(short)", "");
             return 0;
         }
         size = qemu_peek_buffer(f, (uint8_t **)&idstr_ret, len, 2);
         if (size != len) {
-            trace_vmstate_subsection_load_bad(vmsd->name, "(peek fail)");
+            trace_vmstate_subsection_load_bad(vmsd->name, "(peek fail)", "");
             return 0;
         }
         memcpy(idstr, idstr_ret, size);
         idstr[size] = 0;
 
         if (strncmp(vmsd->name, idstr, strlen(vmsd->name)) != 0) {
-            trace_vmstate_subsection_load_bad(vmsd->name, idstr);
-            /* it don't have a valid subsection name */
+            trace_vmstate_subsection_load_bad(vmsd->name, idstr, "(prefix)");
+            /* it doesn't have a valid subsection name */
             return 0;
         }
         sub_vmsd = vmstate_get_subsection(vmsd->subsections, idstr);
         if (sub_vmsd == NULL) {
-            trace_vmstate_subsection_load_bad(vmsd->name, "(lookup)");
+            trace_vmstate_subsection_load_bad(vmsd->name, idstr, "(lookup)");
             return -ENOENT;
         }
         qemu_file_skip(f, 1); /* subsection */
@@ -409,7 +410,7 @@ static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
 
         ret = vmstate_load_state(f, sub_vmsd, opaque, version_id);
         if (ret) {
-            trace_vmstate_subsection_load_bad(vmsd->name, "(child)");
+            trace_vmstate_subsection_load_bad(vmsd->name, idstr, "(child)");
             return ret;
         }
     }
