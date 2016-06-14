@@ -123,11 +123,6 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #define	VFAT_IOCTL_READDIR_BOTH		_IOR('r', 1, struct linux_dirent [2])
 #define	VFAT_IOCTL_READDIR_SHORT	_IOR('r', 2, struct linux_dirent [2])
 
-/* This is the size of the host kernel's sigset_t, needed where we make
- * direct system calls that take a sigset_t pointer and a size.
- */
-#define SIGSET_T_SIZE (_NSIG / 8)
-
 #undef _syscall0
 #undef _syscall1
 #undef _syscall2
