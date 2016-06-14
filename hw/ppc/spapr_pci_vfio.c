@@ -27,6 +27,7 @@
 #include "linux/vfio.h"
 #include "hw/vfio/vfio.h"
 #include "qemu/error-report.h"
+#include "sysemu/qtest.h"
 
 #define TYPE_SPAPR_PCI_VFIO_HOST_BRIDGE "spapr-pci-vfio-host-bridge"
 
@@ -48,7 +49,9 @@ static Property spapr_phb_vfio_properties[] = {
 
 static void spapr_phb_vfio_instance_init(Object *obj)
 {
-    error_report("spapr-pci-vfio-host-bridge is deprecated");
+    if (!qtest_enabled()) {
+        error_report("spapr-pci-vfio-host-bridge is deprecated");
+    }
 }
 
 bool spapr_phb_eeh_available(sPAPRPHBState *sphb)
