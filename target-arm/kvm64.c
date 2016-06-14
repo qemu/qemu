@@ -382,6 +382,47 @@ static CPUWatchpoint *find_hw_watchpoint(CPUState *cpu, target_ulong addr)
     return NULL;
 }
 
+static bool kvm_arm_pmu_support_ctrl(CPUState *cs, struct kvm_device_attr *attr)
+{
+    return kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, attr) == 0;
+}
+
+int kvm_arm_pmu_create(CPUState *cs, int irq)
+{
+    int err;
+
+    struct kvm_device_attr attr = {
+        .group = KVM_ARM_VCPU_PMU_V3_CTRL,
+        .addr = (intptr_t)&irq,
+        .attr = KVM_ARM_VCPU_PMU_V3_IRQ,
+        .flags = 0,
+    };
+
+    if (!kvm_arm_pmu_support_ctrl(cs, &attr)) {
+        return 0;
+    }
+
+    err = kvm_vcpu_ioctl(cs, KVM_SET_DEVICE_ATTR, &attr);
+    if (err < 0) {
+        fprintf(stderr, "KVM_SET_DEVICE_ATTR failed: %s\n",
+                strerror(-err));
+        abort();
+    }
+
+    attr.group = KVM_ARM_VCPU_PMU_V3_CTRL;
+    attr.attr = KVM_ARM_VCPU_PMU_V3_INIT;
+    attr.addr = 0;
+    attr.flags = 0;
+
+    err = kvm_vcpu_ioctl(cs, KVM_SET_DEVICE_ATTR, &attr);
+    if (err < 0) {
+        fprintf(stderr, "KVM_SET_DEVICE_ATTR failed: %s\n",
+                strerror(-err));
+        abort();
+    }
+
+    return 1;
+}
 
 static inline void set_feature(uint64_t *features, int feature)
 {
