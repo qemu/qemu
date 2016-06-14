@@ -149,36 +149,52 @@ void i2c_end_transfer(I2CBus *bus)
     bus->broadcast = false;
 }
 
-int i2c_send(I2CBus *bus, uint8_t data)
+int i2c_send_recv(I2CBus *bus, uint8_t *data, bool send)
 {
     I2CSlaveClass *sc;
     I2CNode *node;
     int ret = 0;
 
-    QLIST_FOREACH(node, &bus->current_devs, next) {
-        sc = I2C_SLAVE_GET_CLASS(node->elt);
-        if (sc->send) {
-            ret = ret || sc->send(node->elt, data);
-        } else {
-            ret = -1;
+    if (send) {
+        QLIST_FOREACH(node, &bus->current_devs, next) {
+            sc = I2C_SLAVE_GET_CLASS(node->elt);
+            if (sc->send) {
+                ret = ret || sc->send(node->elt, *data);
+            } else {
+                ret = -1;
+            }
         }
+        return ret ? -1 : 0;
+    } else {
+        if ((QLIST_EMPTY(&bus->current_devs)) || (bus->broadcast)) {
+            return -1;
+        }
+
+        sc = I2C_SLAVE_GET_CLASS(QLIST_FIRST(&bus->current_devs)->elt);
+        if (sc->recv) {
+            ret = sc->recv(QLIST_FIRST(&bus->current_devs)->elt);
+            if (ret < 0) {
+                return ret;
+            } else {
+                *data = ret;
+                return 0;
+            }
+        }
+        return -1;
     }
-    return ret ? -1 : 0;
+}
+
+int i2c_send(I2CBus *bus, uint8_t data)
+{
+    return i2c_send_recv(bus, &data, true);
 }
 
 int i2c_recv(I2CBus *bus)
 {
-    I2CSlaveClass *sc;
+    uint8_t data;
+    int ret = i2c_send_recv(bus, &data, false);
 
-    if ((QLIST_EMPTY(&bus->current_devs)) || (bus->broadcast)) {
-        return -1;
-    }
-
-    sc = I2C_SLAVE_GET_CLASS(QLIST_FIRST(&bus->current_devs)->elt);
-    if (sc->recv) {
-        return sc->recv(QLIST_FIRST(&bus->current_devs)->elt);
-    }
-    return -1;
+    return ret < 0 ? ret : data;
 }
 
 void i2c_nack(I2CBus *bus)
