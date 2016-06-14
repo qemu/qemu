@@ -1420,6 +1420,12 @@ static const TypeInfo virt_machine_info = {
     .class_init    = virt_machine_class_init,
 };
 
+static void machvirt_machine_init(void)
+{
+    type_register_static(&virt_machine_info);
+}
+type_init(machvirt_machine_init);
+
 static void virt_2_6_instance_init(Object *obj)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
@@ -1461,17 +1467,15 @@ static void virt_2_6_class_init(ObjectClass *oc, void *data)
     mc->alias = "virt";
 }
 
-static const TypeInfo machvirt_info = {
+static const TypeInfo machvirt_2_6_info = {
     .name = MACHINE_TYPE_NAME("virt-2.6"),
     .parent = TYPE_VIRT_MACHINE,
     .instance_init = virt_2_6_instance_init,
     .class_init = virt_2_6_class_init,
 };
 
-static void machvirt_machine_init(void)
+static void machvirt_machine_2_6_init(void)
 {
-    type_register_static(&virt_machine_info);
-    type_register_static(&machvirt_info);
+    type_register_static(&machvirt_2_6_info);
 }
-
-type_init(machvirt_machine_init);
+type_init(machvirt_machine_2_6_init);
