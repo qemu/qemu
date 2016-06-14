@@ -341,20 +341,6 @@ static const MemoryRegionOps pl061_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int pl061_initfn(SysBusDevice *sbd)
-{
-    DeviceState *dev = DEVICE(sbd);
-    PL061State *s = PL061(dev);
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &pl061_ops, s, "pl061", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
-    qdev_init_gpio_in(dev, pl061_set_irq, 8);
-    qdev_init_gpio_out(dev, s->out, 8);
-
-    return 0;
-}
-
 static void pl061_luminary_init(Object *obj)
 {
     PL061State *s = PL061(obj);
@@ -366,17 +352,23 @@ static void pl061_luminary_init(Object *obj)
 static void pl061_init(Object *obj)
 {
     PL061State *s = PL061(obj);
+    DeviceState *dev = DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     s->id = pl061_id;
     s->rsvd_start = 0x424;
+
+    memory_region_init_io(&s->iomem, obj, &pl061_ops, s, "pl061", 0x1000);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
+    qdev_init_gpio_in(dev, pl061_set_irq, 8);
+    qdev_init_gpio_out(dev, s->out, 8);
 }
 
 static void pl061_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = pl061_initfn;
     dc->vmsd = &vmstate_pl061;
     dc->reset = &pl061_reset;
 }
