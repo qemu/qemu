@@ -99,13 +99,16 @@ typedef struct {
     OBJECT_CLASS_CHECK(VirtMachineClass, klass, TYPE_VIRT_MACHINE)
 
 
-#define DEFINE_VIRT_MACHINE(major, minor) \
+#define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
                                                     void *data) \
     { \
         MachineClass *mc = MACHINE_CLASS(oc); \
         virt_machine_##major##_##minor##_options(mc); \
         mc->desc = "QEMU " # major "." # minor " ARM Virtual Machine"; \
+        if (latest) { \
+            mc->alias = "virt"; \
+        } \
     } \
     static const TypeInfo machvirt_##major##_##minor##_info = { \
         .name = MACHINE_TYPE_NAME("virt-" # major "." # minor), \
@@ -118,6 +121,11 @@ typedef struct {
         type_register_static(&machvirt_##major##_##minor##_info); \
     } \
     type_init(machvirt_machine_##major##_##minor##_init);
+
+#define DEFINE_VIRT_MACHINE_AS_LATEST(major, minor) \
+    DEFINE_VIRT_MACHINE_LATEST(major, minor, true)
+#define DEFINE_VIRT_MACHINE(major, minor) \
+    DEFINE_VIRT_MACHINE_LATEST(major, minor, false)
 
 
 /* RAM limit in GB. Since VIRT_MEM starts at the 1GB mark, this means
@@ -1483,6 +1491,5 @@ static void virt_2_6_instance_init(Object *obj)
 
 static void virt_machine_2_6_options(MachineClass *mc)
 {
-    mc->alias = "virt";
 }
-DEFINE_VIRT_MACHINE(2, 6)
+DEFINE_VIRT_MACHINE_AS_LATEST(2, 6)
