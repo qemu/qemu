@@ -13,6 +13,7 @@
 #include "hw/sysbus.h"
 #include "hw/sd/sd.h"
 #include "qemu/log.h"
+#include "qapi/error.h"
 
 //#define DEBUG_PL181 1
 
@@ -481,43 +482,48 @@ static void pl181_reset(DeviceState *d)
     sd_set_cb(s->card, s->cardstatus[0], s->cardstatus[1]);
 }
 
-static int pl181_init(SysBusDevice *sbd)
+static void pl181_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    PL181State *s = PL181(dev);
-    DriveInfo *dinfo;
+    DeviceState *dev = DEVICE(obj);
+    PL181State *s = PL181(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &pl181_ops, s, "pl181", 0x1000);
+    memory_region_init_io(&s->iomem, obj, &pl181_ops, s, "pl181", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq[0]);
     sysbus_init_irq(sbd, &s->irq[1]);
     qdev_init_gpio_out(dev, s->cardstatus, 2);
+}
+
+static void pl181_realize(DeviceState *dev, Error **errp)
+{
+    PL181State *s = PL181(dev);
+    DriveInfo *dinfo;
+
     /* FIXME use a qdev drive property instead of drive_get_next() */
     dinfo = drive_get_next(IF_SD);
     s->card = sd_init(dinfo ? blk_by_legacy_dinfo(dinfo) : NULL, false);
     if (s->card == NULL) {
-        return -1;
+        error_setg(errp, "sd_init failed");
     }
-
-    return 0;
 }
 
 static void pl181_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
     DeviceClass *k = DEVICE_CLASS(klass);
 
-    sdc->init = pl181_init;
     k->vmsd = &vmstate_pl181;
     k->reset = pl181_reset;
     /* Reason: init() method uses drive_get_next() */
     k->cannot_instantiate_with_device_add_yet = true;
+    k->realize = pl181_realize;
 }
 
 static const TypeInfo pl181_info = {
     .name          = TYPE_PL181,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL181State),
+    .instance_init = pl181_init,
     .class_init    = pl181_class_init,
 };
 
