@@ -19,13 +19,10 @@
  *  GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include <libusb.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/mman.h>
-#include <sys/time.h>
-
 #include "qemu/osdep.h"
+#include <libusb.h>
+#include <sys/mman.h>
+
 #include "qemu-common.h"
 #include "qemu/config-file.h"
 #include "hw/sysbus.h"
