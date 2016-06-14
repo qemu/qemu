@@ -98,6 +98,28 @@ typedef struct {
 #define VIRT_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(VirtMachineClass, klass, TYPE_VIRT_MACHINE)
 
+
+#define DEFINE_VIRT_MACHINE(major, minor) \
+    static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
+                                                    void *data) \
+    { \
+        MachineClass *mc = MACHINE_CLASS(oc); \
+        virt_machine_##major##_##minor##_options(mc); \
+        mc->desc = "QEMU " # major "." # minor " ARM Virtual Machine"; \
+    } \
+    static const TypeInfo machvirt_##major##_##minor##_info = { \
+        .name = MACHINE_TYPE_NAME("virt-" # major "." # minor), \
+        .parent = TYPE_VIRT_MACHINE, \
+        .instance_init = virt_##major##_##minor##_instance_init, \
+        .class_init = virt_##major##_##minor##_class_init, \
+    }; \
+    static void machvirt_machine_##major##_##minor##_init(void) \
+    { \
+        type_register_static(&machvirt_##major##_##minor##_info); \
+    } \
+    type_init(machvirt_machine_##major##_##minor##_init);
+
+
 /* RAM limit in GB. Since VIRT_MEM starts at the 1GB mark, this means
  * RAM can go up to the 256GB mark, leaving 256GB of the physical
  * address space unallocated and free for future use between 256G and 512G.
@@ -1459,23 +1481,8 @@ static void virt_2_6_instance_init(Object *obj)
                                     "Valid values are 2, 3 and host", NULL);
 }
 
-static void virt_2_6_class_init(ObjectClass *oc, void *data)
+static void virt_machine_2_6_options(MachineClass *mc)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-
-    mc->desc = "QEMU 2.6 ARM Virtual Machine";
     mc->alias = "virt";
 }
-
-static const TypeInfo machvirt_2_6_info = {
-    .name = MACHINE_TYPE_NAME("virt-2.6"),
-    .parent = TYPE_VIRT_MACHINE,
-    .instance_init = virt_2_6_instance_init,
-    .class_init = virt_2_6_class_init,
-};
-
-static void machvirt_machine_2_6_init(void)
-{
-    type_register_static(&machvirt_2_6_info);
-}
-type_init(machvirt_machine_2_6_init);
+DEFINE_VIRT_MACHINE(2, 6)
