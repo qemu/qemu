@@ -688,6 +688,7 @@ static int interface_client_monitors_config(QXLInstance *sin,
 {
     SimpleSpiceDisplay *ssd = container_of(sin, SimpleSpiceDisplay, qxl);
     QemuUIInfo info;
+    int head;
 
     if (!dpy_ui_info_supported(ssd->dcl.con)) {
         return 0; /* == not supported by guest */
@@ -697,14 +698,12 @@ static int interface_client_monitors_config(QXLInstance *sin,
         return 1;
     }
 
-    /*
-     * FIXME: multihead is tricky due to the way
-     * spice has multihead implemented.
-     */
     memset(&info, 0, sizeof(info));
-    if (mc->num_of_monitors > 0) {
-        info.width  = mc->monitors[0].width;
-        info.height = mc->monitors[0].height;
+
+    head = qemu_console_get_head(ssd->dcl.con);
+    if (mc->num_of_monitors > head) {
+        info.width  = mc->monitors[head].width;
+        info.height = mc->monitors[head].height;
     }
     dpy_set_ui_info(ssd->dcl.con, &info);
     dprint(1, "%s/%d: size %dx%d\n", __func__, ssd->qxl.id,
