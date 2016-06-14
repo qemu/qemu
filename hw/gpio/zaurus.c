@@ -167,19 +167,18 @@ static void scoop_gpio_set(void *opaque, int line, int level)
         s->gpio_level &= ~(1 << line);
 }
 
-static int scoop_init(SysBusDevice *sbd)
+static void scoop_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    ScoopInfo *s = SCOOP(dev);
+    DeviceState *dev = DEVICE(obj);
+    ScoopInfo *s = SCOOP(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     s->status = 0x02;
     qdev_init_gpio_out(dev, s->handler, 16);
     qdev_init_gpio_in(dev, scoop_gpio_set, 16);
-    memory_region_init_io(&s->iomem, OBJECT(s), &scoop_ops, s, "scoop", 0x1000);
+    memory_region_init_io(&s->iomem, obj, &scoop_ops, s, "scoop", 0x1000);
 
     sysbus_init_mmio(sbd, &s->iomem);
-
-    return 0;
 }
 
 static int scoop_post_load(void *opaque, int version_id)
@@ -239,9 +238,7 @@ static const VMStateDescription vmstate_scoop_regs = {
 static void scoop_sysbus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = scoop_init;
     dc->desc = "Scoop2 Sharp custom ASIC";
     dc->vmsd = &vmstate_scoop_regs;
 }
@@ -250,6 +247,7 @@ static const TypeInfo scoop_sysbus_info = {
     .name          = TYPE_SCOOP,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ScoopInfo),
+    .instance_init = scoop_init,
     .class_init    = scoop_sysbus_class_init,
 };
 
