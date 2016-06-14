@@ -34,6 +34,7 @@
 #include "hw/acpi/piix4.h"
 #include "hw/acpi/pcihp.h"
 #include "hw/acpi/cpu_hotplug.h"
+#include "hw/acpi/cpu.h"
 #include "hw/hotplug.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/acpi/memory_hotplug.h"
@@ -88,6 +89,7 @@ typedef struct PIIX4PMState {
 
     bool cpu_hotplug_legacy;
     AcpiCpuHotplug gpe_cpu;
+    CPUHotplugState cpuhp_state;
 
     MemHotplugState acpi_memory_hotplug;
 } PIIX4PMState;
@@ -352,9 +354,12 @@ static void piix4_device_plug_cb(HotplugHandler *hotplug_dev,
         acpi_memory_plug_cb(hotplug_dev, &s->acpi_memory_hotplug, dev, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         acpi_pcihp_device_plug_cb(hotplug_dev, &s->acpi_pci_hotplug, dev, errp);
-    } else if (s->cpu_hotplug_legacy &&
-               object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
-        legacy_acpi_cpu_plug_cb(hotplug_dev, &s->gpe_cpu, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+        if (s->cpu_hotplug_legacy) {
+            legacy_acpi_cpu_plug_cb(hotplug_dev, &s->gpe_cpu, dev, errp);
+        } else {
+            acpi_cpu_plug_cb(hotplug_dev, &s->cpuhp_state, dev, errp);
+        }
     } else {
         error_setg(errp, "acpi: device plug request for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
