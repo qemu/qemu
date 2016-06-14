@@ -861,6 +861,8 @@ static QEMUGLContext qemu_spice_gl_create_context(DisplayChangeListener *dcl,
 static void qemu_spice_gl_scanout(DisplayChangeListener *dcl,
                                   uint32_t tex_id,
                                   bool y_0_top,
+                                  uint32_t backing_width,
+                                  uint32_t backing_height,
                                   uint32_t x, uint32_t y,
                                   uint32_t w, uint32_t h)
 {
@@ -883,9 +885,7 @@ static void qemu_spice_gl_scanout(DisplayChangeListener *dcl,
     assert(!tex_id || fd >= 0);
 
     /* note: spice server will close the fd */
-    spice_qxl_gl_scanout(&ssd->qxl, fd,
-                         surface_width(ssd->ds),
-                         surface_height(ssd->ds),
+    spice_qxl_gl_scanout(&ssd->qxl, fd, backing_width, backing_height,
                          stride, fourcc, y_0_top);
 
     qemu_spice_gl_monitor_config(ssd, x, y, w, h);
