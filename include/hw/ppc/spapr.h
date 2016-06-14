@@ -620,9 +620,11 @@ int spapr_rng_populate_dt(void *fdt);
 #define SPAPR_DR_LMB_LIST_ENTRY_SIZE 6
 
 /*
- * This flag value defines the LMB as assigned in ibm,dynamic-memory
- * property under ibm,dynamic-reconfiguration-memory node.
+ * Defines for flag value in ibm,dynamic-memory property under
+ * ibm,dynamic-reconfiguration-memory node.
  */
 #define SPAPR_LMB_FLAGS_ASSIGNED 0x00000008
+#define SPAPR_LMB_FLAGS_DRC_INVALID 0x00000020
+#define SPAPR_LMB_FLAGS_RESERVED 0x00000080
 
 #endif /* !defined (__HW_SPAPR_H__) */
