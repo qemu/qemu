@@ -644,8 +644,29 @@ static int serial_post_load(void *opaque, int version_id)
     if (s->thr_ipending == -1) {
         s->thr_ipending = ((s->iir & UART_IIR_ID) == UART_IIR_THRI);
     }
-    if (s->tsr_retry > MAX_XMIT_RETRY) {
-        s->tsr_retry = MAX_XMIT_RETRY;
+
+    if (s->tsr_retry > 0) {
+        /* tsr_retry > 0 implies LSR.TEMT = 0 (transmitter not empty).  */
+        if (s->lsr & UART_LSR_TEMT) {
+            error_report("inconsistent state in serial device "
+                         "(tsr empty, tsr_retry=%d", s->tsr_retry);
+            return -1;
+        }
+
+        if (s->tsr_retry > MAX_XMIT_RETRY) {
+            s->tsr_retry = MAX_XMIT_RETRY;
+        }
+
+        assert(s->watch_tag == 0);
+        s->watch_tag = qemu_chr_fe_add_watch(s->chr, G_IO_OUT|G_IO_HUP,
+                                             serial_watch_cb, s);
+    } else {
+        /* tsr_retry == 0 implies LSR.TEMT = 1 (transmitter empty).  */
+        if (!(s->lsr & UART_LSR_TEMT)) {
+            error_report("inconsistent state in serial device "
+                         "(tsr not empty, tsr_retry=0");
+            return -1;
+        }
     }
 
     s->last_break_enable = (s->lcr >> 6) & 1;
