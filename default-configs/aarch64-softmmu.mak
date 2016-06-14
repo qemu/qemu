@@ -4,4 +4,5 @@
 include arm-softmmu.mak
 
 CONFIG_AUX=y
+CONFIG_DPCD=y
 CONFIG_XLNX_ZYNQMP=y
