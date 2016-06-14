@@ -299,33 +299,32 @@ static void exynos4210_i2c_reset(DeviceState *d)
     s->scl_free = true;
 }
 
-static int exynos4210_i2c_realize(SysBusDevice *sbd)
+static void exynos4210_i2c_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    Exynos4210I2CState *s = EXYNOS4_I2C(dev);
+    DeviceState *dev = DEVICE(obj);
+    Exynos4210I2CState *s = EXYNOS4_I2C(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &exynos4210_i2c_ops, s,
+    memory_region_init_io(&s->iomem, obj, &exynos4210_i2c_ops, s,
                           TYPE_EXYNOS4_I2C, EXYNOS4_I2C_MEM_SIZE);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
     s->bus = i2c_init_bus(dev, "i2c");
-    return 0;
 }
 
 static void exynos4210_i2c_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *sbdc = SYS_BUS_DEVICE_CLASS(klass);
 
     dc->vmsd = &exynos4210_i2c_vmstate;
     dc->reset = exynos4210_i2c_reset;
-    sbdc->init = exynos4210_i2c_realize;
 }
 
 static const TypeInfo exynos4210_i2c_type_info = {
     .name = TYPE_EXYNOS4_I2C,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210I2CState),
+    .instance_init = exynos4210_i2c_init,
     .class_init = exynos4210_i2c_class_init,
 };
 

@@ -1,4 +1,5 @@
 common-obj-y += core.o smbus.o smbus_eeprom.o
+common-obj-$(CONFIG_DDC) += i2c-ddc.o
 common-obj-$(CONFIG_VERSATILE_I2C) += versatile_i2c.o
 common-obj-$(CONFIG_ACPI_X86) += smbus_ich9.o
 common-obj-$(CONFIG_APM) += pm_smbus.o

@@ -159,14 +159,14 @@ static const MemoryRegionOps l2x0_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
  };
 
-static int l2x0_priv_init(SysBusDevice *dev)
+static void l2x0_priv_init(Object *obj)
 {
-    L2x0State *s = ARM_L2X0(dev);
+    L2x0State *s = ARM_L2X0(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_io(&s->iomem, OBJECT(dev), &l2x0_mem_ops, s,
+    memory_region_init_io(&s->iomem, obj, &l2x0_mem_ops, s,
                           "l2x0_cc", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
-    return 0;
 }
 
 static Property l2x0_properties[] = {
@@ -176,10 +176,8 @@ static Property l2x0_properties[] = {
 
 static void l2x0_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init = l2x0_priv_init;
     dc->vmsd = &vmstate_l2x0;
     dc->props = l2x0_properties;
     dc->reset = l2x0_priv_reset;
@@ -189,6 +187,7 @@ static const TypeInfo l2x0_info = {
     .name = TYPE_ARM_L2X0,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(L2x0State),
+    .instance_init = l2x0_priv_init,
     .class_init = l2x0_class_init,
 };
 

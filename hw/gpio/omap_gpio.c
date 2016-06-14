@@ -23,6 +23,7 @@
 #include "hw/arm/omap.h"
 #include "hw/sysbus.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
 
 struct omap_gpio_s {
     qemu_irq irq;
@@ -678,48 +679,46 @@ static const MemoryRegionOps omap2_gpif_top_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int omap_gpio_init(SysBusDevice *sbd)
+static void omap_gpio_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    struct omap_gpif_s *s = OMAP1_GPIO(dev);
+    DeviceState *dev = DEVICE(obj);
+    struct omap_gpif_s *s = OMAP1_GPIO(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    if (!s->clk) {
-        error_report("omap-gpio: clk not connected");
-        return -1;
-    }
     qdev_init_gpio_in(dev, omap_gpio_set, 16);
     qdev_init_gpio_out(dev, s->omap1.handler, 16);
     sysbus_init_irq(sbd, &s->omap1.irq);
-    memory_region_init_io(&s->iomem, OBJECT(s), &omap_gpio_ops, &s->omap1,
+    memory_region_init_io(&s->iomem, obj, &omap_gpio_ops, &s->omap1,
                           "omap.gpio", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
-    return 0;
 }
 
-static int omap2_gpio_init(SysBusDevice *sbd)
+static void omap_gpio_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(sbd);
+    struct omap_gpif_s *s = OMAP1_GPIO(dev);
+
+    if (!s->clk) {
+        error_setg(errp, "omap-gpio: clk not connected");
+    }
+}
+
+static void omap2_gpio_realize(DeviceState *dev, Error **errp)
+{
     struct omap2_gpif_s *s = OMAP2_GPIO(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     int i;
 
     if (!s->iclk) {
-        error_report("omap2-gpio: iclk not connected");
-        return -1;
+        error_setg(errp, "omap2-gpio: iclk not connected");
+        return;
     }
 
     s->modulecount = s->mpu_model < omap2430 ? 4
-                   : s->mpu_model < omap3430 ? 5
-                   : 6;
-
-    for (i = 0; i < s->modulecount; i++) {
-        if (!s->fclk[i]) {
-            error_report("omap2-gpio: fclk%d not connected", i);
-            return -1;
-        }
-    }
+        : s->mpu_model < omap3430 ? 5
+        : 6;
 
     if (s->mpu_model < omap3430) {
-        memory_region_init_io(&s->iomem, OBJECT(s), &omap2_gpif_top_ops, s,
+        memory_region_init_io(&s->iomem, OBJECT(dev), &omap2_gpif_top_ops, s,
                               "omap2.gpio", 0x1000);
         sysbus_init_mmio(sbd, &s->iomem);
     }
@@ -732,17 +731,20 @@ static int omap2_gpio_init(SysBusDevice *sbd)
     for (i = 0; i < s->modulecount; i++) {
         struct omap2_gpio_s *m = &s->modules[i];
 
+        if (!s->fclk[i]) {
+            error_setg(errp, "omap2-gpio: fclk%d not connected", i);
+            return;
+        }
+
         m->revision = (s->mpu_model < omap3430) ? 0x18 : 0x25;
         m->handler = &s->handler[i * 32];
         sysbus_init_irq(sbd, &m->irq[0]); /* mpu irq */
         sysbus_init_irq(sbd, &m->irq[1]); /* dsp irq */
         sysbus_init_irq(sbd, &m->wkup);
-        memory_region_init_io(&m->iomem, OBJECT(s), &omap2_gpio_module_ops, m,
+        memory_region_init_io(&m->iomem, OBJECT(dev), &omap2_gpio_module_ops, m,
                               "omap.gpio-module", 0x1000);
         sysbus_init_mmio(sbd, &m->iomem);
     }
-
-    return 0;
 }
 
 /* Using qdev pointer properties for the clocks is not ideal.
@@ -766,9 +768,8 @@ static Property omap_gpio_properties[] = {
 static void omap_gpio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = omap_gpio_init;
+    dc->realize = omap_gpio_realize;
     dc->reset = omap_gpif_reset;
     dc->props = omap_gpio_properties;
     /* Reason: pointer property "clk" */
@@ -779,6 +780,7 @@ static const TypeInfo omap_gpio_info = {
     .name          = TYPE_OMAP1_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct omap_gpif_s),
+    .instance_init = omap_gpio_init,
     .class_init    = omap_gpio_class_init,
 };
 
@@ -797,9 +799,8 @@ static Property omap2_gpio_properties[] = {
 static void omap2_gpio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = omap2_gpio_init;
+    dc->realize = omap2_gpio_realize;
     dc->reset = omap2_gpif_reset;
     dc->props = omap2_gpio_properties;
     /* Reason: pointer properties "iclk", "fclk0", ..., "fclk5" */

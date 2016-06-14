@@ -457,15 +457,15 @@ static void exynos4210_pmu_reset(DeviceState *dev)
     }
 }
 
-static int exynos4210_pmu_init(SysBusDevice *dev)
+static void exynos4210_pmu_init(Object *obj)
 {
-    Exynos4210PmuState *s = EXYNOS4210_PMU(dev);
+    Exynos4210PmuState *s = EXYNOS4210_PMU(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
     /* memory mapping */
-    memory_region_init_io(&s->iomem, OBJECT(dev), &exynos4210_pmu_ops, s,
+    memory_region_init_io(&s->iomem, obj, &exynos4210_pmu_ops, s,
                           "exynos4210.pmu", EXYNOS4210_PMU_REGS_MEM_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
-    return 0;
 }
 
 static const VMStateDescription exynos4210_pmu_vmstate = {
@@ -481,9 +481,7 @@ static const VMStateDescription exynos4210_pmu_vmstate = {
 static void exynos4210_pmu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = exynos4210_pmu_init;
     dc->reset = exynos4210_pmu_reset;
     dc->vmsd = &exynos4210_pmu_vmstate;
 }
@@ -492,6 +490,7 @@ static const TypeInfo exynos4210_pmu_info = {
     .name          = TYPE_EXYNOS4210_PMU,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210PmuState),
+    .instance_init = exynos4210_pmu_init,
     .class_init    = exynos4210_pmu_class_init,
 };
 

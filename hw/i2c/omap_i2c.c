@@ -22,6 +22,7 @@
 #include "hw/arm/omap.h"
 #include "hw/sysbus.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
 
 #define TYPE_OMAP_I2C "omap_i2c"
 #define OMAP_I2C(obj) OBJECT_CHECK(OMAPI2CState, (obj), TYPE_OMAP_I2C)
@@ -445,29 +446,35 @@ static const MemoryRegionOps omap_i2c_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int omap_i2c_init(SysBusDevice *sbd)
+static void omap_i2c_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    OMAPI2CState *s = OMAP_I2C(dev);
-
-    if (!s->fclk) {
-        error_report("omap_i2c: fclk not connected");
-        return -1;
-    }
-    if (s->revision >= OMAP2_INTR_REV && !s->iclk) {
-        /* Note that OMAP1 doesn't have a separate interface clock */
-        error_report("omap_i2c: iclk not connected");
-        return -1;
-    }
+    DeviceState *dev = DEVICE(obj);
+    OMAPI2CState *s = OMAP_I2C(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     sysbus_init_irq(sbd, &s->irq);
     sysbus_init_irq(sbd, &s->drq[0]);
     sysbus_init_irq(sbd, &s->drq[1]);
-    memory_region_init_io(&s->iomem, OBJECT(s), &omap_i2c_ops, s, "omap.i2c",
-                          (s->revision < OMAP2_INTR_REV) ? 0x800 : 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     s->bus = i2c_init_bus(dev, NULL);
-    return 0;
+}
+
+static void omap_i2c_realize(DeviceState *dev, Error **errp)
+{
+    OMAPI2CState *s = OMAP_I2C(dev);
+
+    memory_region_init_io(&s->iomem, OBJECT(dev), &omap_i2c_ops, s, "omap.i2c",
+                          (s->revision < OMAP2_INTR_REV) ? 0x800 : 0x1000);
+
+    if (!s->fclk) {
+        error_setg(errp, "omap_i2c: fclk not connected");
+        return;
+    }
+    if (s->revision >= OMAP2_INTR_REV && !s->iclk) {
+        /* Note that OMAP1 doesn't have a separate interface clock */
+        error_setg(errp, "omap_i2c: iclk not connected");
+        return;
+    }
 }
 
 static Property omap_i2c_properties[] = {
@@ -480,18 +487,19 @@ static Property omap_i2c_properties[] = {
 static void omap_i2c_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-    k->init = omap_i2c_init;
+
     dc->props = omap_i2c_properties;
     dc->reset = omap_i2c_reset;
     /* Reason: pointer properties "iclk", "fclk" */
     dc->cannot_instantiate_with_device_add_yet = true;
+    dc->realize = omap_i2c_realize;
 }
 
 static const TypeInfo omap_i2c_info = {
     .name = TYPE_OMAP_I2C,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OMAPI2CState),
+    .instance_init = omap_i2c_init,
     .class_init = omap_i2c_class_init,
 };
 
