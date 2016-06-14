@@ -38,6 +38,12 @@
 #define SATA_ADDR           0xFD0C0000
 #define SATA_NUM_PORTS      2
 
+#define DP_ADDR             0xfd4a0000
+#define DP_IRQ              113
+
+#define DPDMA_ADDR          0xfd4c0000
+#define DPDMA_IRQ           116
+
 static const uint64_t gem_addr[XLNX_ZYNQMP_NUM_GEMS] = {
     0xFF0B0000, 0xFF0C0000, 0xFF0D0000, 0xFF0E0000,
 };
@@ -165,6 +171,12 @@ static void xlnx_zynqmp_init(Object *obj)
                           TYPE_XILINX_SPIPS);
         qdev_set_parent_bus(DEVICE(&s->spi[i]), sysbus_get_default());
     }
+
+    object_initialize(&s->dp, sizeof(s->dp), TYPE_XLNX_DP);
+    qdev_set_parent_bus(DEVICE(&s->dp), sysbus_get_default());
+
+    object_initialize(&s->dpdma, sizeof(s->dpdma), TYPE_XLNX_DPDMA);
+    qdev_set_parent_bus(DEVICE(&s->dpdma), sysbus_get_default());
 }
 
 static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
@@ -388,8 +400,26 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         object_property_add_alias(OBJECT(s), bus_name,
                                   OBJECT(&s->spi[i]), "spi0",
                                   &error_abort);
-	g_free(bus_name);
+        g_free(bus_name);
     }
+
+    object_property_set_bool(OBJECT(&s->dp), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dp), 0, DP_ADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->dp), 0, gic_spi[DP_IRQ]);
+
+    object_property_set_bool(OBJECT(&s->dpdma), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    object_property_set_link(OBJECT(&s->dp), OBJECT(&s->dpdma), "dpdma",
+                             &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dpdma), 0, DPDMA_ADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->dpdma), 0, gic_spi[DPDMA_IRQ]);
 }
 
 static Property xlnx_zynqmp_props[] = {

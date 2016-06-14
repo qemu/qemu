@@ -26,6 +26,8 @@
 #include "hw/ide/ahci.h"
 #include "hw/sd/sdhci.h"
 #include "hw/ssi/xilinx_spips.h"
+#include "hw/dma/xlnx_dpdma.h"
+#include "hw/display/xlnx_dp.h"
 
 #define TYPE_XLNX_ZYNQMP "xlnx,zynqmp"
 #define XLNX_ZYNQMP(obj) OBJECT_CHECK(XlnxZynqMPState, (obj), \
@@ -81,6 +83,8 @@ typedef struct XlnxZynqMPState {
     SysbusAHCIState sata;
     SDHCIState sdhci[XLNX_ZYNQMP_NUM_SDHCI];
     XilinxSPIPS spi[XLNX_ZYNQMP_NUM_SPIS];
+    XlnxDPState dp;
+    XlnxDPDMAState dpdma;
 
     char *boot_cpu;
     ARMCPU *boot_cpu_ptr;
