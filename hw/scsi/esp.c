@@ -245,15 +245,10 @@ static void esp_do_dma(ESPState *s)
     uint32_t len;
     int to_device;
 
-    to_device = (s->ti_size < 0);
     len = s->dma_left;
     if (s->do_cmd) {
         trace_esp_do_dma(s->cmdlen, len);
         s->dma_memory_read(s->dma_opaque, &s->cmdbuf[s->cmdlen], len);
-        s->ti_size = 0;
-        s->cmdlen = 0;
-        s->do_cmd = 0;
-        do_cmd(s, s->cmdbuf);
         return;
     }
     if (s->async_len == 0) {
@@ -263,6 +258,7 @@ static void esp_do_dma(ESPState *s)
     if (len > s->async_len) {
         len = s->async_len;
     }
+    to_device = (s->ti_size < 0);
     if (to_device) {
         s->dma_memory_read(s->dma_opaque, s->async_buf, len);
     } else {
@@ -318,6 +314,7 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
 {
     ESPState *s = req->hba_private;
 
+    assert(!s->do_cmd);
     trace_esp_transfer_data(s->dma_left, s->ti_size);
     s->async_len = len;
     s->async_buf = scsi_req_get_buf(req);
@@ -358,13 +355,13 @@ static void handle_ti(ESPState *s)
         s->dma_left = minlen;
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
         esp_do_dma(s);
-    } else if (s->do_cmd) {
+    }
+    if (s->do_cmd) {
         trace_esp_handle_ti_cmd(s->cmdlen);
         s->ti_size = 0;
         s->cmdlen = 0;
         s->do_cmd = 0;
         do_cmd(s, s->cmdbuf);
-        return;
     }
 }
 
