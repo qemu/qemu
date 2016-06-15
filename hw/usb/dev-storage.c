@@ -556,21 +556,6 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static void usb_msd_password_cb(void *opaque, int err)
-{
-    MSDState *s = opaque;
-    Error *local_err = NULL;
-
-    if (!err) {
-        usb_device_attach(&s->dev, &local_err);
-    }
-
-    if (local_err) {
-        error_report_err(local_err);
-        qdev_unplug(&s->dev.qdev, NULL);
-    }
-}
-
 static void *usb_msd_load_request(QEMUFile *f, SCSIRequest *req)
 {
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
@@ -614,25 +599,6 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
     if (!blk) {
         error_setg(errp, "drive property not set");
         return;
-    }
-
-    if (blk_bs(blk)) {
-        bdrv_add_key(blk_bs(blk), NULL, &err);
-        if (err) {
-            if (monitor_cur_is_qmp()) {
-                error_propagate(errp, err);
-                return;
-            }
-            error_free(err);
-            err = NULL;
-            if (cur_mon) {
-                monitor_read_bdrv_key_start(cur_mon, blk_bs(blk),
-                                            usb_msd_password_cb, s);
-                s->dev.auto_attach = 0;
-            } else {
-                autostart = 0;
-            }
-        }
     }
 
     blkconf_serial(&s->conf, &dev->serial);
