@@ -347,6 +347,7 @@ typedef struct USBDeviceClass {
 
     const char *product_desc;
     const USBDesc *usb_desc;
+    bool attached_settable;
 } USBDeviceClass;
 
 typedef struct USBPortOps {
