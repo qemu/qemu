@@ -944,6 +944,7 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
 int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
 {
     CPUS390XState *env = &cpu->env;
+    uint8_t dmaas;
     uint32_t fh;
     ZpciFib fib;
     S390PCIBusDevice *pbdev;
@@ -956,13 +957,20 @@ int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
     }
 
     fh = env->regs[r1] >> 32;
+    dmaas = (env->regs[r1] >> 16) & 0xff;
+
+    if (dmaas) {
+        setcc(cpu, ZPCI_PCI_LS_ERR);
+        s390_set_status_code(env, r1, ZPCI_STPCIFC_ST_INVAL_DMAAS);
+        return 0;
+    }
 
     if (fiba & 0x7) {
         program_interrupt(env, PGM_SPECIFICATION, 6);
         return 0;
     }
 
-    pbdev = s390_pci_find_dev_by_fh(fh);
+    pbdev = s390_pci_find_dev_by_idx(fh & FH_MASK_INDEX);
     if (!pbdev) {
         setcc(cpu, ZPCI_PCI_LS_INVAL_HANDLE);
         return 0;
