@@ -263,7 +263,6 @@ static void i440fx_pcihost_get_pci_hole64_end(Object *obj, Visitor *v,
 static void i440fx_pcihost_initfn(Object *obj)
 {
     PCIHostState *s = PCI_HOST_BRIDGE(obj);
-    I440FXState *d = I440FX_PCI_HOST_BRIDGE(obj);
 
     memory_region_init_io(&s->conf_mem, obj, &pci_host_conf_le_ops, s,
                           "pci-conf-idx", 4);
@@ -285,8 +284,6 @@ static void i440fx_pcihost_initfn(Object *obj)
     object_property_add(obj, PCI_HOST_PROP_PCI_HOLE64_END, "int",
                         i440fx_pcihost_get_pci_hole64_end,
                         NULL, NULL, NULL, NULL);
-
-    d->pci_info.w32.end = IO_APIC_DEFAULT_ADDRESS;
 }
 
 static void i440fx_pcihost_realize(DeviceState *dev, Error **errp)
@@ -348,6 +345,7 @@ PCIBus *i440fx_init(const char *host_type, const char *pci_type,
 
     i440fx = I440FX_PCI_HOST_BRIDGE(dev);
     i440fx->pci_info.w32.begin = below_4g_mem_size;
+    i440fx->pci_info.w32.end = IO_APIC_DEFAULT_ADDRESS;
 
     /* setup pci memory mapping */
     pc_pci_as_mapping_init(OBJECT(f), f->system_memory,
