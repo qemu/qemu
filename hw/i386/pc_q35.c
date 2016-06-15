@@ -283,10 +283,20 @@ static void pc_q35_machine_options(MachineClass *m)
     m->no_floppy = 1;
 }
 
-static void pc_q35_2_6_machine_options(MachineClass *m)
+static void pc_q35_2_7_machine_options(MachineClass *m)
 {
     pc_q35_machine_options(m);
     m->alias = "q35";
+}
+
+DEFINE_Q35_MACHINE(v2_7, "pc-q35-2.7", NULL,
+                   pc_q35_2_7_machine_options);
+
+static void pc_q35_2_6_machine_options(MachineClass *m)
+{
+    pc_q35_2_7_machine_options(m);
+    m->alias = NULL;
+    SET_MACHINE_COMPAT(m, PC_COMPAT_2_6);
 }
 
 DEFINE_Q35_MACHINE(v2_6, "pc-q35-2.6", NULL,
@@ -296,7 +306,6 @@ static void pc_q35_2_5_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_q35_2_6_machine_options(m);
-    m->alias = NULL;
     pcmc->save_tsc_khz = false;
     m->legacy_fw_cfg_order = 1;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_5);
