@@ -48,7 +48,7 @@
 
 typedef struct I440FXState {
     PCIHostState parent_obj;
-    PcPciInfo pci_info;
+    Range pci_hole;
     uint64_t pci_hole64_size;
     uint32_t short_root_bus;
 } I440FXState;
@@ -221,7 +221,7 @@ static void i440fx_pcihost_get_pci_hole_start(Object *obj, Visitor *v,
                                               Error **errp)
 {
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
-    uint32_t value = s->pci_info.w32.begin;
+    uint32_t value = s->pci_hole.begin;
 
     visit_type_uint32(v, name, &value, errp);
 }
@@ -231,7 +231,7 @@ static void i440fx_pcihost_get_pci_hole_end(Object *obj, Visitor *v,
                                             Error **errp)
 {
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
-    uint32_t value = s->pci_info.w32.end;
+    uint32_t value = s->pci_hole.end;
 
     visit_type_uint32(v, name, &value, errp);
 }
@@ -344,8 +344,8 @@ PCIBus *i440fx_init(const char *host_type, const char *pci_type,
     f->ram_memory = ram_memory;
 
     i440fx = I440FX_PCI_HOST_BRIDGE(dev);
-    i440fx->pci_info.w32.begin = below_4g_mem_size;
-    i440fx->pci_info.w32.end = IO_APIC_DEFAULT_ADDRESS;
+    i440fx->pci_hole.begin = below_4g_mem_size;
+    i440fx->pci_hole.end = IO_APIC_DEFAULT_ADDRESS;
 
     /* setup pci memory mapping */
     pc_pci_as_mapping_init(OBJECT(f), f->system_memory,

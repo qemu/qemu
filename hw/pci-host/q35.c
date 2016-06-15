@@ -74,7 +74,7 @@ static void q35_host_get_pci_hole_start(Object *obj, Visitor *v,
                                         Error **errp)
 {
     Q35PCIHost *s = Q35_HOST_DEVICE(obj);
-    uint32_t value = s->mch.pci_info.w32.begin;
+    uint32_t value = s->mch.pci_hole.begin;
 
     visit_type_uint32(v, name, &value, errp);
 }
@@ -84,7 +84,7 @@ static void q35_host_get_pci_hole_end(Object *obj, Visitor *v,
                                       Error **errp)
 {
     Q35PCIHost *s = Q35_HOST_DEVICE(obj);
-    uint32_t value = s->mch.pci_info.w32.end;
+    uint32_t value = s->mch.pci_hole.end;
 
     visit_type_uint32(v, name, &value, errp);
 }
@@ -205,9 +205,9 @@ static void q35_host_initfn(Object *obj)
      * it's not a power of two, which means an MTRR
      * can't cover it exactly.
      */
-    s->mch.pci_info.w32.begin = MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT +
+    s->mch.pci_hole.begin = MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT +
         MCH_HOST_BRIDGE_PCIEXBAR_MAX;
-    s->mch.pci_info.w32.end = IO_APIC_DEFAULT_ADDRESS;
+    s->mch.pci_hole.end = IO_APIC_DEFAULT_ADDRESS;
 }
 
 static const TypeInfo q35_host_info = {
@@ -288,9 +288,9 @@ static void mch_update_pciexbar(MCHPCIState *mch)
      * which means an MTRR can't cover it exactly.
      */
     if (enable) {
-        mch->pci_info.w32.begin = addr + length;
+        mch->pci_hole.begin = addr + length;
     } else {
-        mch->pci_info.w32.begin = MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT;
+        mch->pci_hole.begin = MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT;
     }
 }
 

@@ -229,26 +229,25 @@ static Object *acpi_get_i386_pci_host(void)
     return OBJECT(host);
 }
 
-static void acpi_get_pci_info(PcPciInfo *info)
+static void acpi_get_pci_holes(Range *hole, Range *hole64)
 {
     Object *pci_host;
-
 
     pci_host = acpi_get_i386_pci_host();
     g_assert(pci_host);
 
-    info->w32.begin = object_property_get_int(pci_host,
-                                              PCI_HOST_PROP_PCI_HOLE_START,
-                                              NULL);
-    info->w32.end = object_property_get_int(pci_host,
-                                            PCI_HOST_PROP_PCI_HOLE_END,
+    hole->begin = object_property_get_int(pci_host,
+                                          PCI_HOST_PROP_PCI_HOLE_START,
+                                          NULL);
+    hole->end = object_property_get_int(pci_host,
+                                        PCI_HOST_PROP_PCI_HOLE_END,
+                                        NULL);
+    hole64->begin = object_property_get_int(pci_host,
+                                            PCI_HOST_PROP_PCI_HOLE64_START,
                                             NULL);
-    info->w64.begin = object_property_get_int(pci_host,
-                                              PCI_HOST_PROP_PCI_HOLE64_START,
-                                              NULL);
-    info->w64.end = object_property_get_int(pci_host,
-                                            PCI_HOST_PROP_PCI_HOLE64_END,
-                                            NULL);
+    hole64->end = object_property_get_int(pci_host,
+                                          PCI_HOST_PROP_PCI_HOLE64_END,
+                                          NULL);
 }
 
 #define ACPI_PORT_SMI_CMD           0x00b2 /* TODO: this is APM_CNT_IOPORT */
@@ -1890,7 +1889,7 @@ static Aml *build_q35_osc_method(void)
 static void
 build_dsdt(GArray *table_data, BIOSLinker *linker,
            AcpiPmInfo *pm, AcpiMiscInfo *misc,
-           PcPciInfo *pci, MachineState *machine)
+           Range *pci_hole, Range *pci_hole64, MachineState *machine)
 {
     CrsRangeEntry *entry;
     Aml *dsdt, *sb_scope, *scope, *dev, *method, *field, *pkg, *crs;
@@ -2047,7 +2046,8 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                          AML_CACHEABLE, AML_READ_WRITE,
                          0, 0x000A0000, 0x000BFFFF, 0, 0x00020000));
 
-    crs_replace_with_free_ranges(mem_ranges, pci->w32.begin, pci->w32.end - 1);
+    crs_replace_with_free_ranges(mem_ranges,
+                                 pci_hole->begin, pci_hole->end - 1);
     for (i = 0; i < mem_ranges->len; i++) {
         entry = g_ptr_array_index(mem_ranges, i);
         aml_append(crs,
@@ -2057,12 +2057,12 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                              0, entry->limit - entry->base + 1));
     }
 
-    if (pci->w64.begin) {
+    if (pci_hole64->begin) {
         aml_append(crs,
             aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
                              AML_CACHEABLE, AML_READ_WRITE,
-                             0, pci->w64.begin, pci->w64.end - 1, 0,
-                             pci->w64.end - pci->w64.begin));
+                             0, pci_hole64->begin, pci_hole64->end - 1, 0,
+                             pci_hole64->end - pci_hole64->begin));
     }
 
     if (misc->tpm_version != TPM_VERSION_UNSPEC) {
@@ -2554,7 +2554,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     AcpiPmInfo pm;
     AcpiMiscInfo misc;
     AcpiMcfgInfo mcfg;
-    PcPciInfo pci;
+    Range pci_hole, pci_hole64;
     uint8_t *u;
     size_t aml_len = 0;
     GArray *tables_blob = tables->table_data;
@@ -2562,7 +2562,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
 
     acpi_get_pm_info(&pm);
     acpi_get_misc_info(&misc);
-    acpi_get_pci_info(&pci);
+    acpi_get_pci_holes(&pci_hole, &pci_hole64);
     acpi_get_slic_oem(&slic_oem);
 
     table_offsets = g_array_new(false, true /* clear */,
@@ -2584,7 +2584,8 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
 
     /* DSDT is pointed to by FADT */
     dsdt = tables_blob->len;
-    build_dsdt(tables_blob, tables->linker, &pm, &misc, &pci, machine);
+    build_dsdt(tables_blob, tables->linker, &pm, &misc,
+               &pci_hole, &pci_hole64, machine);
 
     /* Count the size of the DSDT and SSDT, we will need it for legacy
      * sizing of ACPI tables.
