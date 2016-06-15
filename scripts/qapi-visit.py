@@ -170,6 +170,9 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
     if (err) {
         goto out;
     }
+    if (!*obj) {
+        goto out_obj;
+    }
     switch ((*obj)->type) {
 ''',
                  c_name=c_name(name), promote_int=promote_int)
@@ -203,10 +206,13 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
 ''')
 
     ret += mcgen('''
+    case QTYPE_NONE:
+        abort();
     default:
         error_setg(&err, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                    "%(name)s");
     }
+out_obj:
     visit_end_alternate(v);
 out:
     error_propagate(errp, err);

@@ -739,6 +739,8 @@ static void test_visitor_in_errors(TestInputVisitorData *data,
     Error *err = NULL;
     Visitor *v;
     strList *q = NULL;
+    UserDefTwo *r = NULL;
+    WrapAlternate *s = NULL;
 
     v = visitor_input_test_init(data, "{ 'integer': false, 'boolean': 'foo', "
                                 "'string': -42 }");
@@ -757,6 +759,18 @@ static void test_visitor_in_errors(TestInputVisitorData *data,
     error_free_or_abort(&err);
     assert(q);
     qapi_free_strList(q);
+
+    v = visitor_input_test_init(data, "{ 'str':'hi' }");
+    visit_type_UserDefTwo(v, NULL, &r, &err);
+    error_free_or_abort(&err);
+    assert(r);
+    qapi_free_UserDefTwo(r);
+
+    v = visitor_input_test_init(data, "{ }");
+    visit_type_WrapAlternate(v, NULL, &s, &err);
+    error_free_or_abort(&err);
+    assert(s);
+    qapi_free_WrapAlternate(s);
 }
 
 static void test_visitor_in_wrong_type(TestInputVisitorData *data,
