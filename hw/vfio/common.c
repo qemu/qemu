@@ -1257,7 +1257,7 @@ static int vfio_eeh_container_op(VFIOContainer *container, uint32_t op)
         return -errno;
     }
 
-    return 0;
+    return ret;
 }
 
 static VFIOContainer *vfio_eeh_as_container(AddressSpace *as)
