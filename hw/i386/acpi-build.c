@@ -33,6 +33,7 @@
 #include "hw/timer/hpet.h"
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/acpi.h"
+#include "hw/acpi/cpu.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/loader.h"
@@ -1895,6 +1896,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     GPtrArray *mem_ranges = g_ptr_array_new_with_free_func(crs_range_free);
     GPtrArray *io_ranges = g_ptr_array_new_with_free_func(crs_range_free);
     PCMachineState *pcms = PC_MACHINE(machine);
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(machine);
     uint32_t nr_mem = machine->ram_slots;
     int root_bus_limit = 0xFF;
     PCIBus *bus = NULL;
@@ -1950,7 +1952,15 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         build_q35_pci0_int(dsdt);
     }
 
-    build_legacy_cpu_hotplug_aml(dsdt, machine, pm->cpu_hp_io_base);
+    if (pcmc->legacy_cpu_hotplug) {
+        build_legacy_cpu_hotplug_aml(dsdt, machine, pm->cpu_hp_io_base);
+    } else {
+        CPUHotplugFeatures opts = {
+            .apci_1_compatible = true, .has_legacy_cphp = true
+        };
+        build_cpus_aml(dsdt, machine, opts, pm->cpu_hp_io_base,
+                       "\\_SB.PCI0", "\\_GPE._E02");
+    }
     build_memory_hotplug_aml(dsdt, nr_mem, pm->mem_hp_io_base,
                              pm->mem_hp_io_len);
 

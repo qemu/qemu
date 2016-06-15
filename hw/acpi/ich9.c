@@ -189,6 +189,33 @@ static const VMStateDescription vmstate_tco_io_state = {
     }
 };
 
+static bool vmstate_test_use_cpuhp(void *opaque)
+{
+    ICH9LPCPMRegs *s = opaque;
+    return !s->cpu_hotplug_legacy;
+}
+
+static int vmstate_cpuhp_pre_load(void *opaque)
+{
+    ICH9LPCPMRegs *s = opaque;
+    Object *obj = OBJECT(s->gpe_cpu.device);
+    object_property_set_bool(obj, false, "cpu-hotplug-legacy", &error_abort);
+    return 0;
+}
+
+static const VMStateDescription vmstate_cpuhp_state = {
+    .name = "ich9_pm/cpuhp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .needed = vmstate_test_use_cpuhp,
+    .pre_load = vmstate_cpuhp_pre_load,
+    .fields      = (VMStateField[]) {
+        VMSTATE_CPU_HOTPLUG(cpuhp_state, ICH9LPCPMRegs),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_ich9_pm = {
     .name = "ich9_pm",
     .version_id = 1,
@@ -209,6 +236,7 @@ const VMStateDescription vmstate_ich9_pm = {
     .subsections = (const VMStateDescription*[]) {
         &vmstate_memhp_state,
         &vmstate_tco_io_state,
+        &vmstate_cpuhp_state,
         NULL
     }
 };
@@ -318,6 +346,11 @@ static void ich9_pm_set_cpu_hotplug_legacy(Object *obj, bool value,
 {
     ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
 
+    assert(!value);
+    if (s->pm.cpu_hotplug_legacy && value == false) {
+        acpi_switch_to_modern_cphp(&s->pm.gpe_cpu, &s->pm.cpuhp_state,
+                                   ICH9_CPU_HOTPLUG_IO_BASE);
+    }
     s->pm.cpu_hotplug_legacy = value;
 }
 

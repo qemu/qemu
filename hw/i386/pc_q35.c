@@ -294,8 +294,10 @@ DEFINE_Q35_MACHINE(v2_7, "pc-q35-2.7", NULL,
 
 static void pc_q35_2_6_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_q35_2_7_machine_options(m);
     m->alias = NULL;
+    pcmc->legacy_cpu_hotplug = true;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_6);
 }
 

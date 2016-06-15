@@ -276,6 +276,32 @@ static const VMStateDescription vmstate_memhp_state = {
     }
 };
 
+static bool vmstate_test_use_cpuhp(void *opaque)
+{
+    PIIX4PMState *s = opaque;
+    return !s->cpu_hotplug_legacy;
+}
+
+static int vmstate_cpuhp_pre_load(void *opaque)
+{
+    Object *obj = OBJECT(opaque);
+    object_property_set_bool(obj, false, "cpu-hotplug-legacy", &error_abort);
+    return 0;
+}
+
+static const VMStateDescription vmstate_cpuhp_state = {
+    .name = "piix4_pm/cpuhp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .needed = vmstate_test_use_cpuhp,
+    .pre_load = vmstate_cpuhp_pre_load,
+    .fields      = (VMStateField[]) {
+        VMSTATE_CPU_HOTPLUG(cpuhp_state, PIIX4PMState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 /* qemu-kvm 1.2 uses version 3 but advertised as 2
  * To support incoming qemu-kvm 1.2 migration, change version_id
  * and minimum_version_id to 2 below (which breaks migration from
@@ -310,6 +336,7 @@ static const VMStateDescription vmstate_acpi = {
     },
     .subsections = (const VMStateDescription*[]) {
          &vmstate_memhp_state,
+         &vmstate_cpuhp_state,
          NULL
     }
 };
@@ -585,6 +612,11 @@ static void piix4_set_cpu_hotplug_legacy(Object *obj, bool value, Error **errp)
 {
     PIIX4PMState *s = PIIX4_PM(obj);
 
+    assert(!value);
+    if (s->cpu_hotplug_legacy && value == false) {
+        acpi_switch_to_modern_cphp(&s->gpe_cpu, &s->cpuhp_state,
+                                   PIIX4_CPU_HOTPLUG_IO_BASE);
+    }
     s->cpu_hotplug_legacy = value;
 }
 

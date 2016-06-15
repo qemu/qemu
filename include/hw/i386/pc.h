@@ -137,6 +137,8 @@ struct PCMachineClass {
 
     /* TSC rate migration: */
     bool save_tsc_khz;
+    /* generate legacy CPU hotplug AML */
+    bool legacy_cpu_hotplug;
 };
 
 #define TYPE_PC_MACHINE "generic-pc-machine"

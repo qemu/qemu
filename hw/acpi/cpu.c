@@ -373,6 +373,15 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
         aml_append(field, aml_named_field(CPU_DATA, 32));
         aml_append(cpu_ctrl_dev, field);
 
+        if (opts.has_legacy_cphp) {
+            method = aml_method("_INI", 0, AML_SERIALIZED);
+            /* switch off legacy CPU hotplug HW and use new one,
+             * on reboot system is in new mode and writing 0
+             * in CPU_SELECTOR selects BSP, which is NOP at
+             * the time _INI is called */
+            aml_append(method, aml_store(zero, aml_name(CPU_SELECTOR)));
+            aml_append(cpu_ctrl_dev, method);
+        }
     }
     aml_append(sb_scope, cpu_ctrl_dev);
 
