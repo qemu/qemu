@@ -4244,7 +4244,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     env->regs[5] = 0; // FIXME: no clue... current->thread.prot_addr;
 
     /* Place signal number on stack to allow backtrace from handler.  */
-    __put_user(env->regs[2], (int *) &frame->signo);
+    __put_user(env->regs[2], &frame->signo);
     unlock_user_struct(frame, frame_addr, 1);
     return;
 
