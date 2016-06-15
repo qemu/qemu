@@ -55,9 +55,9 @@ static int usb_device_post_load(void *opaque, int version_id)
     USBDevice *dev = opaque;
 
     if (dev->state == USB_STATE_NOTATTACHED) {
-        dev->attached = 0;
+        dev->attached = false;
     } else {
-        dev->attached = 1;
+        dev->attached = true;
     }
     if (dev->setup_index < 0 ||
         dev->setup_len < 0 ||
@@ -533,7 +533,7 @@ void usb_device_attach(USBDevice *dev, Error **errp)
         return;
     }
 
-    dev->attached++;
+    dev->attached = true;
     usb_attach(port);
 }
 
@@ -547,7 +547,7 @@ int usb_device_detach(USBDevice *dev)
     trace_usb_port_detach(bus->busnr, port->path);
 
     usb_detach(port);
-    dev->attached--;
+    dev->attached = false;
     return 0;
 }
 
