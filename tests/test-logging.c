@@ -27,11 +27,14 @@
 #include "qemu/osdep.h"
 
 #include "qemu-common.h"
-#include "include/qemu/log.h"
+#include "qapi/error.h"
+#include "qemu/log.h"
 
 static void test_parse_range(void)
 {
-    qemu_set_dfilter_ranges("0x1000+0x100");
+    Error *err = NULL;
+
+    qemu_set_dfilter_ranges("0x1000+0x100", &error_abort);
 
     g_assert_false(qemu_log_in_addr_range(0xfff));
     g_assert(qemu_log_in_addr_range(0x1000));
@@ -39,56 +42,40 @@ static void test_parse_range(void)
     g_assert(qemu_log_in_addr_range(0x10ff));
     g_assert_false(qemu_log_in_addr_range(0x1100));
 
-    qemu_set_dfilter_ranges("0x1000-0x100");
+    qemu_set_dfilter_ranges("0x1000-0x100", &error_abort);
 
     g_assert_false(qemu_log_in_addr_range(0x1001));
     g_assert(qemu_log_in_addr_range(0x1000));
     g_assert(qemu_log_in_addr_range(0x0f01));
     g_assert_false(qemu_log_in_addr_range(0x0f00));
 
-    qemu_set_dfilter_ranges("0x1000..0x1100");
+    qemu_set_dfilter_ranges("0x1000..0x1100", &error_abort);
 
     g_assert_false(qemu_log_in_addr_range(0xfff));
     g_assert(qemu_log_in_addr_range(0x1000));
     g_assert(qemu_log_in_addr_range(0x1100));
     g_assert_false(qemu_log_in_addr_range(0x1101));
 
-    qemu_set_dfilter_ranges("0x1000..0x1000");
+    qemu_set_dfilter_ranges("0x1000..0x1000", &error_abort);
 
     g_assert_false(qemu_log_in_addr_range(0xfff));
     g_assert(qemu_log_in_addr_range(0x1000));
     g_assert_false(qemu_log_in_addr_range(0x1001));
 
-    qemu_set_dfilter_ranges("0x1000+0x100,0x2100-0x100,0x3000..0x3100");
+    qemu_set_dfilter_ranges("0x1000+0x100,0x2100-0x100,0x3000..0x3100",
+                            &error_abort);
     g_assert(qemu_log_in_addr_range(0x1050));
     g_assert(qemu_log_in_addr_range(0x2050));
     g_assert(qemu_log_in_addr_range(0x3050));
+
+    qemu_set_dfilter_ranges("0x1000+onehundred", &err);
+    error_free_or_abort(&err);
+
+    qemu_set_dfilter_ranges("0x1000+0", &err);
+    error_free_or_abort(&err);
 }
 
 #ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
-static void test_parse_invalid_range_subprocess(void)
-{
-    qemu_set_dfilter_ranges("0x1000+onehundred");
-}
-static void test_parse_invalid_range(void)
-{
-    g_test_trap_subprocess("/logging/parse_invalid_range/subprocess", 0, 0);
-    g_test_trap_assert_failed();
-    g_test_trap_assert_stdout("");
-    g_test_trap_assert_stderr("*Failed to parse range in: 0x1000+onehundred\n");
-}
-static void test_parse_zero_range_subprocess(void)
-{
-    qemu_set_dfilter_ranges("0x1000+0");
-}
-static void test_parse_zero_range(void)
-{
-    g_test_trap_subprocess("/logging/parse_zero_range/subprocess", 0, 0);
-    g_test_trap_assert_failed();
-    g_test_trap_assert_stdout("");
-    g_test_trap_assert_stderr("*Failed to parse range in: 0x1000+0\n");
-}
-
 /* As the only real failure from a bad log filename path spec is
  * reporting to the user we have to use the g_test_trap_subprocess
  * mechanism and check no errors reported on stderr.
@@ -126,10 +113,6 @@ int main(int argc, char **argv)
 
     g_test_add_func("/logging/parse_range", test_parse_range);
 #ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
-    g_test_add_func("/logging/parse_invalid_range/subprocess", test_parse_invalid_range_subprocess);
-    g_test_add_func("/logging/parse_invalid_range", test_parse_invalid_range);
-    g_test_add_func("/logging/parse_zero_range/subprocess", test_parse_zero_range_subprocess);
-    g_test_add_func("/logging/parse_zero_range", test_parse_zero_range);
     g_test_add_func("/logging/parse_path", test_parse_path);
     g_test_add_func("/logging/parse_path/subprocess", test_parse_path_subprocess);
     g_test_add_func("/logging/parse_invalid_path", test_parse_invalid_path);

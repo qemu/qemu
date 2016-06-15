@@ -3339,7 +3339,7 @@ int main(int argc, char **argv, char **envp)
                 log_file = optarg;
                 break;
             case QEMU_OPTION_DFILTER:
-                qemu_set_dfilter_ranges(optarg);
+                qemu_set_dfilter_ranges(optarg, &error_fatal);
                 break;
             case QEMU_OPTION_s:
                 add_device_config(DEV_GDB, "tcp::" DEFAULT_GDBSTUB_PORT);
