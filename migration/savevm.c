@@ -1150,10 +1150,12 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
         .shared = 0
     };
     MigrationState *ms = migrate_init(&params);
+    MigrationStatus status;
     ms->to_dst_file = f;
 
     if (migration_is_blocked(errp)) {
-        return -EINVAL;
+        ret = -EINVAL;
+        goto done;
     }
 
     qemu_mutex_unlock_iothread();
@@ -1176,6 +1178,14 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
     if (ret != 0) {
         error_setg_errno(errp, -ret, "Error while writing VM state");
     }
+
+done:
+    if (ret != 0) {
+        status = MIGRATION_STATUS_FAILED;
+    } else {
+        status = MIGRATION_STATUS_COMPLETED;
+    }
+    migrate_set_state(&ms->state, MIGRATION_STATUS_SETUP, status);
     return ret;
 }
 
