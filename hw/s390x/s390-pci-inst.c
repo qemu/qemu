@@ -212,12 +212,33 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
 
         switch (reqsetpci->oc) {
         case CLP_SET_ENABLE_PCI_FN:
+            switch (reqsetpci->ndas) {
+            case 0:
+                stw_p(&ressetpci->hdr.rsp, CLP_RC_SETPCIFN_DMAAS);
+                goto out;
+            case 1:
+                break;
+            default:
+                stw_p(&ressetpci->hdr.rsp, CLP_RC_SETPCIFN_RES);
+                goto out;
+            }
+
+            if (pbdev->fh & FH_MASK_ENABLE) {
+                stw_p(&ressetpci->hdr.rsp, CLP_RC_SETPCIFN_FHOP);
+                goto out;
+            }
+
             pbdev->fh |= FH_MASK_ENABLE;
             pbdev->state = ZPCI_FS_ENABLED;
             stl_p(&ressetpci->fh, pbdev->fh);
             stw_p(&ressetpci->hdr.rsp, CLP_RC_OK);
             break;
         case CLP_SET_DISABLE_PCI_FN:
+            if (!(pbdev->fh & FH_MASK_ENABLE)) {
+                stw_p(&ressetpci->hdr.rsp, CLP_RC_SETPCIFN_FHOP);
+                goto out;
+            }
+            device_reset(DEVICE(pbdev));
             pbdev->fh &= ~FH_MASK_ENABLE;
             pbdev->state = ZPCI_FS_DISABLED;
             stl_p(&ressetpci->fh, pbdev->fh);
