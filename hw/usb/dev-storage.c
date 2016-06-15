@@ -634,9 +634,14 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
 static void usb_msd_realize_bot(USBDevice *dev, Error **errp)
 {
     MSDState *s = USB_STORAGE_DEV(dev);
+    DeviceState *d = DEVICE(dev);
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
+    if (d->hotplugged) {
+        s->dev.auto_attach = 0;
+    }
+
     scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
                  &usb_msd_scsi_info_bot, NULL);
     usb_msd_handle_reset(dev);
@@ -806,10 +811,9 @@ static void usb_msd_instance_init(Object *obj)
 static void usb_msd_class_initfn_bot(ObjectClass *klass, void *data)
 {
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     uc->realize = usb_msd_realize_bot;
-    dc->hotpluggable = false;
+    uc->attached_settable = true;
 }
 
 static const TypeInfo msd_info = {
