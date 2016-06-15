@@ -4448,13 +4448,8 @@ int main(int argc, char **argv, char **envp)
             exit (i == 1 ? 1 : 0);
     }
 
-    if (machine_class->compat_props) {
-        GlobalProperty *p;
-        for (i = 0; i < machine_class->compat_props->len; i++) {
-            p = g_array_index(machine_class->compat_props, GlobalProperty *, i);
-            qdev_prop_register_global(p);
-        }
-    }
+    machine_register_compat_props(current_machine);
+
     qemu_opts_foreach(qemu_find_opts("global"),
                       global_init_func, NULL, NULL);
 

@@ -40,6 +40,7 @@ int machine_kvm_shadow_mem(MachineState *machine);
 int machine_phandle_start(MachineState *machine);
 bool machine_dump_guest_core(MachineState *machine);
 bool machine_mem_merge(MachineState *machine);
+void machine_register_compat_props(MachineState *machine);
 
 /**
  * CPUArchId:
