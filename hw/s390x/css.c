@@ -1340,6 +1340,116 @@ SubchDev *css_find_subch(uint8_t m, uint8_t cssid, uint8_t ssid, uint16_t schid)
     return channel_subsys.css[real_cssid]->sch_set[ssid]->sch[schid];
 }
 
+/**
+ * Return free device number in subchannel set.
+ *
+ * Return index of the first free device number in the subchannel set
+ * identified by @p cssid and @p ssid, beginning the search at @p
+ * start and wrapping around at MAX_DEVNO. Return a value exceeding
+ * MAX_SCHID if there are no free device numbers in the subchannel
+ * set.
+ */
+static uint32_t css_find_free_devno(uint8_t cssid, uint8_t ssid,
+                                    uint16_t start)
+{
+    uint32_t round;
+
+    for (round = 0; round <= MAX_DEVNO; round++) {
+        uint16_t devno = (start + round) % MAX_DEVNO;
+
+        if (!css_devno_used(cssid, ssid, devno)) {
+            return devno;
+        }
+    }
+    return MAX_DEVNO + 1;
+}
+
+/**
+ * Return first free subchannel (id) in subchannel set.
+ *
+ * Return index of the first free subchannel in the subchannel set
+ * identified by @p cssid and @p ssid, if there is any. Return a value
+ * exceeding MAX_SCHID if there are no free subchannels in the
+ * subchannel set.
+ */
+static uint32_t css_find_free_subch(uint8_t cssid, uint8_t ssid)
+{
+    uint32_t schid;
+
+    for (schid = 0; schid <= MAX_SCHID; schid++) {
+        if (!css_find_subch(1, cssid, ssid, schid)) {
+            return schid;
+        }
+    }
+    return MAX_SCHID + 1;
+}
+
+/**
+ * Return first free subchannel (id) in subchannel set for a device number
+ *
+ * Verify the device number @p devno is not used yet in the subchannel
+ * set identified by @p cssid and @p ssid. Set @p schid to the index
+ * of the first free subchannel in the subchannel set, if there is
+ * any. Return true if everything succeeded and false otherwise.
+ */
+static bool css_find_free_subch_for_devno(uint8_t cssid, uint8_t ssid,
+                                          uint16_t devno, uint16_t *schid,
+                                          Error **errp)
+{
+    uint32_t free_schid;
+
+    assert(schid);
+    if (css_devno_used(cssid, ssid, devno)) {
+        error_setg(errp, "Device %x.%x.%04x already exists",
+                   cssid, ssid, devno);
+        return false;
+    }
+    free_schid = css_find_free_subch(cssid, ssid);
+    if (free_schid > MAX_SCHID) {
+        error_setg(errp, "No free subchannel found for %x.%x.%04x",
+                   cssid, ssid, devno);
+        return false;
+    }
+    *schid = free_schid;
+    return true;
+}
+
+/**
+ * Return first free subchannel (id) and device number
+ *
+ * Locate the first free subchannel and first free device number in
+ * any of the subchannel sets of the channel subsystem identified by
+ * @p cssid. Return false if no free subchannel / device number could
+ * be found. Otherwise set @p ssid, @p devno and @p schid to identify
+ * the available subchannel and device number and return true.
+ *
+ * May modify @p ssid, @p devno and / or @p schid even if no free
+ * subchannel / device number could be found.
+ */
+static bool css_find_free_subch_and_devno(uint8_t cssid, uint8_t *ssid,
+                                          uint16_t *devno, uint16_t *schid,
+                                          Error **errp)
+{
+    uint32_t free_schid, free_devno;
+
+    assert(ssid && devno && schid);
+    for (*ssid = 0; *ssid <= MAX_SSID; (*ssid)++) {
+        free_schid = css_find_free_subch(cssid, *ssid);
+        if (free_schid > MAX_SCHID) {
+            continue;
+        }
+        free_devno = css_find_free_devno(cssid, *ssid, free_schid);
+        if (free_devno > MAX_DEVNO) {
+            continue;
+        }
+        *schid = free_schid;
+        *devno = free_devno;
+        return true;
+    }
+    error_setg(errp, "Virtual channel subsystem is full!");
+    return false;
+}
+
 bool css_subch_visible(SubchDev *sch)
 {
     if (sch->ssid > channel_subsys.max_ssid) {
@@ -1762,3 +1872,36 @@ PropertyInfo css_devid_propinfo = {
     .get = get_css_devid,
     .set = set_css_devid,
 };
+
+SubchDev *css_create_virtual_sch(CssDevId bus_id, Error **errp)
+{
+    uint16_t schid = 0;
+    SubchDev *sch;
+
+    if (bus_id.valid) {
+        /* Enforce use of virtual cssid. */
+        if (bus_id.cssid != VIRTUAL_CSSID) {
+            error_setg(errp, "cssid %hhx not valid for virtual devices",
+                       bus_id.cssid);
+            return NULL;
+        }
+        if (!css_find_free_subch_for_devno(bus_id.cssid, bus_id.ssid,
+                                           bus_id.devid, &schid, errp)) {
+            return NULL;
+        }
+    } else {
+        bus_id.cssid = VIRTUAL_CSSID;
+        if (!css_find_free_subch_and_devno(bus_id.cssid, &bus_id.ssid,
+                                           &bus_id.devid, &schid, errp)) {
+            return NULL;
+        }
+    }
+
+    sch = g_malloc0(sizeof(*sch));
+    sch->cssid = bus_id.cssid;
+    sch->ssid = bus_id.ssid;
+    sch->devno = bus_id.devid;
+    sch->schid = schid;
+    css_subch_assign(sch->cssid, sch->ssid, schid, sch->devno, sch);
+    return sch;
+}

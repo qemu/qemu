@@ -703,116 +703,27 @@ static void virtio_sch_disable_cb(SubchDev *sch)
 
 static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
 {
-    unsigned int schid;
-    bool found = false;
-    SubchDev *sch;
-    Error *err = NULL;
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_GET_CLASS(dev);
+    SubchDev *sch = css_create_virtual_sch(dev->bus_id, errp);
+    Error *err = NULL;
 
-    sch = g_malloc0(sizeof(SubchDev));
-
-    sch->driver_data = dev;
-    dev->sch = sch;
-
-    dev->indicators = NULL;
-
-    /* Initialize subchannel structure. */
-    sch->channel_prog = 0x0;
-    sch->last_cmd_valid = false;
-    sch->thinint_active = false;
-    /*
-     * Use a device number if provided. Otherwise, fall back to subchannel
-     * number.
-     */
-    if (dev->bus_id.valid) {
-        /* Enforce use of virtual cssid. */
-        if (dev->bus_id.cssid != VIRTUAL_CSSID) {
-            error_setg(errp, "cssid %x not valid for virtio devices",
-                       dev->bus_id.cssid);
-            goto out_err;
-        }
-        if (css_devno_used(dev->bus_id.cssid, dev->bus_id.ssid,
-                           dev->bus_id.devid)) {
-                error_setg(errp, "Device %x.%x.%04x already exists",
-                           dev->bus_id.cssid, dev->bus_id.ssid,
-                           dev->bus_id.devid);
-                goto out_err;
-        }
-        sch->cssid = dev->bus_id.cssid;
-        sch->ssid = dev->bus_id.ssid;
-        sch->devno = dev->bus_id.devid;
-
-        /* Find the next free id. */
-        for (schid = 0; schid <= MAX_SCHID; schid++) {
-            if (!css_find_subch(1, sch->cssid, sch->ssid, schid)) {
-                sch->schid = schid;
-                css_subch_assign(sch->cssid, sch->ssid, sch->schid,
-                                 sch->devno, sch);
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            error_setg(errp, "No free subchannel found for %x.%x.%04x",
-                       sch->cssid, sch->ssid, sch->devno);
-            goto out_err;
-        }
-        trace_virtio_ccw_new_device(sch->cssid, sch->ssid, sch->schid,
-                                    sch->devno, "user-configured");
-    } else {
-        unsigned int cssid = VIRTUAL_CSSID, ssid, devno;
-
-        for (ssid = 0; ssid <= MAX_SSID; ssid++) {
-            for (schid = 0; schid <= MAX_SCHID; schid++) {
-                if (!css_find_subch(1, cssid, ssid, schid)) {
-                    sch->cssid = cssid;
-                    sch->ssid = ssid;
-                    sch->schid = schid;
-                    devno = schid;
-                    /*
-                     * If the devno is already taken, look further in this
-                     * subchannel set.
-                     */
-                    while (css_devno_used(cssid, ssid, devno)) {
-                        if (devno == MAX_SCHID) {
-                            devno = 0;
-                        } else if (devno == schid - 1) {
-                            error_setg(errp, "No free devno found");
-                            goto out_err;
-                        } else {
-                            devno++;
-                        }
-                    }
-                    sch->devno = devno;
-                    css_subch_assign(cssid, ssid, schid, devno, sch);
-                    found = true;
-                    break;
-                }
-            }
-            if (found) {
-                break;
-            }
-        }
-        if (!found) {
-            error_setg(errp, "Virtual channel subsystem is full!");
-            goto out_err;
-        }
-        trace_virtio_ccw_new_device(cssid, ssid, schid, devno,
-                                    "auto-configured");
+    if (!sch) {
+        return;
     }
 
-    /* Build initial schib. */
-    css_sch_build_virtual_schib(sch, 0, VIRTIO_CCW_CHPID_TYPE);
-
+    sch->driver_data = dev;
     sch->ccw_cb = virtio_ccw_cb;
     sch->disable_cb = virtio_sch_disable_cb;
-
-    /* Build senseid data. */
-    memset(&sch->id, 0, sizeof(SenseId));
     sch->id.reserved = 0xff;
     sch->id.cu_type = VIRTIO_CCW_CU_TYPE;
-
+    dev->sch = sch;
+    dev->indicators = NULL;
     dev->revision = -1;
+    css_sch_build_virtual_schib(sch, 0, VIRTIO_CCW_CHPID_TYPE);
+
+    trace_virtio_ccw_new_device(
+        sch->cssid, sch->ssid, sch->schid, sch->devno,
+        dev->bus_id.valid ? "user-configured" : "auto-configured");
 
     if (k->realize) {
         k->realize(dev, &err);
@@ -820,14 +731,9 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
     if (err) {
         error_propagate(errp, err);
         css_subch_assign(sch->cssid, sch->ssid, sch->schid, sch->devno, NULL);
-        goto out_err;
+        dev->sch = NULL;
+        g_free(sch);
     }
-
-    return;
-
-out_err:
-    dev->sch = NULL;
-    g_free(sch);
 }
 
 static int virtio_ccw_exit(VirtioCcwDevice *dev)

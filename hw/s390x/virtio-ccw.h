@@ -27,8 +27,6 @@
 #include <hw/s390x/s390_flic.h>
 #include <hw/s390x/css.h>
 
-#define VIRTUAL_CSSID 0xfe
-
 #define VIRTIO_CCW_CU_TYPE 0x3832
 #define VIRTIO_CCW_CHPID_TYPE 0x32
 
