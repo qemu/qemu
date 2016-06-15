@@ -766,6 +766,8 @@ static void test_visitor_in_errors(TestInputVisitorData *data,
     Error *err = NULL;
     Visitor *v;
     strList *q = NULL;
+    UserDefTwo *r = NULL;
+    WrapAlternate *s = NULL;
 
     v = visitor_input_test_init(data, "{ 'integer': false, 'boolean': 'foo', "
                                 "'string': -42 }");
@@ -778,6 +780,16 @@ static void test_visitor_in_errors(TestInputVisitorData *data,
     visit_type_strList(v, NULL, &q, &err);
     error_free_or_abort(&err);
     assert(!q);
+
+    v = visitor_input_test_init(data, "{ 'str':'hi' }");
+    visit_type_UserDefTwo(v, NULL, &r, &err);
+    error_free_or_abort(&err);
+    assert(!r);
+
+    v = visitor_input_test_init(data, "{ }");
+    visit_type_WrapAlternate(v, NULL, &s, &err);
+    error_free_or_abort(&err);
+    assert(!s);
 }
 
 static void test_visitor_in_wrong_type(TestInputVisitorData *data,
