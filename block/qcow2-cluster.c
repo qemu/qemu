@@ -65,7 +65,8 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
         }
     }
 
-    if (new_l1_size > INT_MAX / sizeof(uint64_t)) {
+    QEMU_BUILD_BUG_ON(QCOW_MAX_L1_SIZE > INT_MAX);
+    if (new_l1_size > QCOW_MAX_L1_SIZE / sizeof(uint64_t)) {
         return -EFBIG;
     }
 
