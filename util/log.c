@@ -145,9 +145,16 @@ bool qemu_log_in_addr_range(uint64_t addr)
 void qemu_set_dfilter_ranges(const char *filter_spec)
 {
     gchar **ranges = g_strsplit(filter_spec, ",", 0);
+
+    if (debug_regions) {
+        g_array_unref(debug_regions);
+        debug_regions = NULL;
+    }
+
     if (ranges) {
         gchar **next = ranges;
         gchar *r = *next++;
+
         debug_regions = g_array_sized_new(FALSE, FALSE,
                                           sizeof(Range), g_strv_length(ranges));
         while (r) {
