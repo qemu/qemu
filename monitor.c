@@ -1111,7 +1111,12 @@ void qmp_client_migrate_info(const char *protocol, const char *hostname,
 
 static void hmp_logfile(Monitor *mon, const QDict *qdict)
 {
-    qemu_set_log_filename(qdict_get_str(qdict, "filename"));
+    Error *err = NULL;
+
+    qemu_set_log_filename(qdict_get_str(qdict, "filename"), &err);
+    if (err) {
+        error_report_err(err);
+    }
 }
 
 static void hmp_log(Monitor *mon, const QDict *qdict)

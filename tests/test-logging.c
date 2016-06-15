@@ -75,49 +75,24 @@ static void test_parse_range(void)
     error_free_or_abort(&err);
 }
 
-#ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
-/* As the only real failure from a bad log filename path spec is
- * reporting to the user we have to use the g_test_trap_subprocess
- * mechanism and check no errors reported on stderr.
- */
-static void test_parse_path_subprocess(void)
-{
-    /* All these should work without issue */
-    qemu_set_log_filename("/tmp/qemu.log");
-    qemu_set_log_filename("/tmp/qemu-%d.log");
-    qemu_set_log_filename("/tmp/qemu.log.%d");
-}
 static void test_parse_path(void)
 {
-    g_test_trap_subprocess ("/logging/parse_path/subprocess", 0, 0);
-    g_test_trap_assert_passed();
-    g_test_trap_assert_stdout("");
-    g_test_trap_assert_stderr("");
+    Error *err = NULL;
+
+    qemu_set_log_filename("/tmp/qemu.log", &error_abort);
+    qemu_set_log_filename("/tmp/qemu-%d.log", &error_abort);
+    qemu_set_log_filename("/tmp/qemu.log.%d", &error_abort);
+
+    qemu_set_log_filename("/tmp/qemu-%d%d.log", &err);
+    error_free_or_abort(&err);
 }
-static void test_parse_invalid_path_subprocess(void)
-{
-    qemu_set_log_filename("/tmp/qemu-%d%d.log");
-}
-static void test_parse_invalid_path(void)
-{
-    g_test_trap_subprocess ("/logging/parse_invalid_path/subprocess", 0, 0);
-    g_test_trap_assert_passed();
-    g_test_trap_assert_stdout("");
-    g_test_trap_assert_stderr("Bad logfile format: /tmp/qemu-%d%d.log\n");
-}
-#endif /* CONFIG_HAS_GLIB_SUBPROCESS_TESTS */
 
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
     g_test_add_func("/logging/parse_range", test_parse_range);
-#ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
     g_test_add_func("/logging/parse_path", test_parse_path);
-    g_test_add_func("/logging/parse_path/subprocess", test_parse_path_subprocess);
-    g_test_add_func("/logging/parse_invalid_path", test_parse_invalid_path);
-    g_test_add_func("/logging/parse_invalid_path/subprocess", test_parse_invalid_path_subprocess);
-#endif
 
     return g_test_run();
 }

@@ -103,7 +103,7 @@ void qemu_log_needs_buffers(void)
  * substituted with the current PID. This is useful for debugging many
  * nested linux-user tasks but will result in lots of logs.
  */
-void qemu_set_log_filename(const char *filename)
+void qemu_set_log_filename(const char *filename, Error **errp)
 {
     char *pidstr;
     g_free(logfilename);
@@ -112,8 +112,8 @@ void qemu_set_log_filename(const char *filename)
     if (pidstr) {
         /* We only accept one %d, no other format strings */
         if (pidstr[1] != 'd' || strchr(pidstr + 2, '%')) {
-            error_report("Bad logfile format: %s", filename);
-            logfilename = NULL;
+            error_setg(errp, "Bad logfile format: %s", filename);
+            return;
         } else {
             logfilename = g_strdup_printf(filename, getpid());
         }

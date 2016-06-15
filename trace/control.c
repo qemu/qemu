@@ -19,6 +19,7 @@
 #ifdef CONFIG_TRACE_LOG
 #include "qemu/log.h"
 #endif
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "monitor/monitor.h"
 
@@ -187,7 +188,7 @@ void trace_init_file(const char *file)
      * only applies to the simple backend; use "-D" for the log backend.
      */
     if (file) {
-        qemu_set_log_filename(file);
+        qemu_set_log_filename(file, &error_fatal);
     }
 #else
     if (file) {
