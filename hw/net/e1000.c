@@ -536,7 +536,7 @@ e1000_send_packet(E1000State *s, const uint8_t *buf, int size)
 static void
 xmit_seg(E1000State *s)
 {
-    uint16_t len, *sp;
+    uint16_t len;
     unsigned int frames = s->tx.tso_frames, css, sofar;
     struct e1000_tx *tp = &s->tx;
 
@@ -547,7 +547,7 @@ xmit_seg(E1000State *s)
         if (tp->props.ip) {    /* IPv4 */
             stw_be_p(tp->data+css+2, tp->size - css);
             stw_be_p(tp->data+css+4,
-                     be16_to_cpup((uint16_t *)(tp->data+css+4))+frames);
+                     lduw_be_p(tp->data + css + 4) + frames);
         } else {         /* IPv6 */
             stw_be_p(tp->data+css+4, tp->size - css);
         }
@@ -567,8 +567,9 @@ xmit_seg(E1000State *s)
         if (tp->props.sum_needed & E1000_TXD_POPTS_TXSM) {
             unsigned int phsum;
             // add pseudo-header length before checksum calculation
-            sp = (uint16_t *)(tp->data + tp->props.tucso);
-            phsum = be16_to_cpup(sp) + len;
+            void *sp = tp->data + tp->props.tucso;
+
+            phsum = lduw_be_p(sp) + len;
             phsum = (phsum >> 16) + (phsum & 0xffff);
             stw_be_p(sp, phsum);
         }
@@ -759,9 +760,9 @@ receive_filter(E1000State *s, const uint8_t *buf, int size)
 
     if (e1000x_is_vlan_packet(buf, le16_to_cpu(s->mac_reg[VET])) &&
         e1000x_vlan_rx_filter_enabled(s->mac_reg)) {
-        uint16_t vid = be16_to_cpup((uint16_t *)(buf + 14));
-        uint32_t vfta = le32_to_cpup((uint32_t *)(s->mac_reg + VFTA) +
-                                     ((vid >> 5) & 0x7f));
+        uint16_t vid = lduw_be_p(buf + 14);
+        uint32_t vfta = ldl_le_p((uint32_t*)(s->mac_reg + VFTA) +
+                                 ((vid >> 5) & 0x7f));
         if ((vfta & (1 << (vid & 0x1f))) == 0)
             return 0;
     }
@@ -889,8 +890,7 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
 
     if (e1000x_vlan_enabled(s->mac_reg) &&
         e1000x_is_vlan_packet(filter_buf, le16_to_cpu(s->mac_reg[VET]))) {
-        vlan_special = cpu_to_le16(be16_to_cpup((uint16_t *)(filter_buf
-                                                                + 14)));
+        vlan_special = cpu_to_le16(lduw_be_p(filter_buf + 14));
         iov_ofs = 4;
         if (filter_buf == iov->iov_base) {
             memmove(filter_buf + 4, filter_buf, 12);

@@ -1019,9 +1019,9 @@ e1000e_receive_filter(E1000ECore *core, const uint8_t *buf, int size)
 
     if (e1000x_is_vlan_packet(buf, core->vet) &&
         e1000x_vlan_rx_filter_enabled(core->mac)) {
-        uint16_t vid = be16_to_cpup((uint16_t *)(buf + 14));
-        uint32_t vfta = le32_to_cpup((uint32_t *)(core->mac + VFTA) +
-                                     ((vid >> 5) & 0x7f));
+        uint16_t vid = lduw_be_p(buf + 14);
+        uint32_t vfta = ldl_le_p((uint32_t *)(core->mac + VFTA) +
+                                 ((vid >> 5) & 0x7f));
         if ((vfta & (1 << (vid & 0x1f))) == 0) {
             trace_e1000e_rx_flt_vlan_mismatch(vid);
             return false;
