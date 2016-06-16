@@ -42,12 +42,6 @@ virtio_balloon_get_config(uint32_t num_pages, uint32_t actual) "num_pages: %d ac
 virtio_balloon_set_config(uint32_t actual, uint32_t oldactual) "actual: %d oldactual: %d"
 virtio_balloon_to_target(uint64_t target, uint32_t num_pages) "balloon target: %"PRIx64" num_pages: %d"
 
-# hw/sparc/sun4m.c
-sun4m_cpu_interrupt(unsigned int level) "Set CPU IRQ %d"
-sun4m_cpu_reset_interrupt(unsigned int level) "Reset CPU IRQ %d"
-sun4m_cpu_set_irq_raise(int level) "Raise CPU IRQ %d"
-sun4m_cpu_set_irq_lower(int level) "Lower CPU IRQ %d"
-
 # vl.c
 vm_state_notify(int running, int reason) "running %d reason %d"
 load_file(const char *name, const char *path) "name %s location %s"
@@ -55,10 +49,6 @@ runstate_set(int new_state) "new state %d"
 system_wakeup_request(int reason) "reason=%d"
 qemu_system_shutdown_request(void) ""
 qemu_system_powerdown_request(void) ""
-
-# hw/sparc/leon3.c
-leon3_set_irq(int intno) "Set CPU IRQ %d"
-leon3_reset_irq(int intno) "Reset CPU IRQ %d"
 
 # spice-qemu-char.c
 spice_vmc_write(ssize_t out, int len) "spice wrottn %zd of requested %d"
