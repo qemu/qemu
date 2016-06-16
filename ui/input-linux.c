@@ -265,6 +265,58 @@ static void input_linux_event_mouse_button(int button)
     qemu_input_event_sync();
 }
 
+static void input_linux_handle_mouse(InputLinux *il, struct input_event *event)
+{
+    if (!il->grab_active) {
+        return;
+    }
+
+    switch (event->type) {
+    case EV_KEY:
+        switch (event->code) {
+        case BTN_LEFT:
+            qemu_input_queue_btn(NULL, INPUT_BUTTON_LEFT, event->value);
+            break;
+        case BTN_RIGHT:
+            qemu_input_queue_btn(NULL, INPUT_BUTTON_RIGHT, event->value);
+            break;
+        case BTN_MIDDLE:
+            qemu_input_queue_btn(NULL, INPUT_BUTTON_MIDDLE, event->value);
+            break;
+        case BTN_GEAR_UP:
+            qemu_input_queue_btn(NULL, INPUT_BUTTON_WHEEL_UP, event->value);
+            break;
+        case BTN_GEAR_DOWN:
+            qemu_input_queue_btn(NULL, INPUT_BUTTON_WHEEL_DOWN,
+                                 event->value);
+            break;
+        };
+        break;
+    case EV_REL:
+        switch (event->code) {
+        case REL_X:
+            qemu_input_queue_rel(NULL, INPUT_AXIS_X, event->value);
+            break;
+        case REL_Y:
+            qemu_input_queue_rel(NULL, INPUT_AXIS_Y, event->value);
+            break;
+        case REL_WHEEL:
+            il->wheel = event->value;
+            break;
+        }
+        break;
+    case EV_SYN:
+        qemu_input_event_sync();
+        if (il->wheel != 0) {
+            input_linux_event_mouse_button((il->wheel > 0)
+                                           ? INPUT_BUTTON_WHEEL_UP
+                                           : INPUT_BUTTON_WHEEL_DOWN);
+            il->wheel = 0;
+        }
+        break;
+    }
+}
+
 static void input_linux_event_mouse(void *opaque)
 {
     InputLinux *il = opaque;
@@ -282,55 +334,7 @@ static void input_linux_event_mouse(void *opaque)
             break;
         }
 
-        /* only send event to guest when grab is active */
-        if (!il->grab_active) {
-            continue;
-        }
-
-        switch (event.type) {
-        case EV_KEY:
-            switch (event.code) {
-            case BTN_LEFT:
-                qemu_input_queue_btn(NULL, INPUT_BUTTON_LEFT, event.value);
-                break;
-            case BTN_RIGHT:
-                qemu_input_queue_btn(NULL, INPUT_BUTTON_RIGHT, event.value);
-                break;
-            case BTN_MIDDLE:
-                qemu_input_queue_btn(NULL, INPUT_BUTTON_MIDDLE, event.value);
-                break;
-            case BTN_GEAR_UP:
-                qemu_input_queue_btn(NULL, INPUT_BUTTON_WHEEL_UP, event.value);
-                break;
-            case BTN_GEAR_DOWN:
-                qemu_input_queue_btn(NULL, INPUT_BUTTON_WHEEL_DOWN,
-                                     event.value);
-                break;
-            };
-            break;
-        case EV_REL:
-            switch (event.code) {
-            case REL_X:
-                qemu_input_queue_rel(NULL, INPUT_AXIS_X, event.value);
-                break;
-            case REL_Y:
-                qemu_input_queue_rel(NULL, INPUT_AXIS_Y, event.value);
-                break;
-            case REL_WHEEL:
-                il->wheel = event.value;
-                break;
-            }
-            break;
-        case EV_SYN:
-            qemu_input_event_sync();
-            if (il->wheel != 0) {
-                input_linux_event_mouse_button((il->wheel > 0)
-                                               ? INPUT_BUTTON_WHEEL_UP
-                                               : INPUT_BUTTON_WHEEL_DOWN);
-                il->wheel = 0;
-            }
-            break;
-        }
+        input_linux_handle_mouse(il, &event);
     }
 }
 
