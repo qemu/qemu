@@ -1,0 +1,123 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# hw/intc/apic_common.c
+cpu_set_apic_base(uint64_t val) "%016"PRIx64
+cpu_get_apic_base(uint64_t val) "%016"PRIx64
+# coalescing
+apic_report_irq_delivered(int apic_irq_delivered) "coalescing %d"
+apic_reset_irq_delivered(int apic_irq_delivered) "old coalescing %d"
+apic_get_irq_delivered(int apic_irq_delivered) "returning coalescing %d"
+
+# hw/intc/apic.c
+apic_local_deliver(int vector, uint32_t lvt) "vector %d delivery mode %d"
+apic_deliver_irq(uint8_t dest, uint8_t dest_mode, uint8_t delivery_mode, uint8_t vector_num, uint8_t trigger_mode) "dest %d dest_mode %d delivery_mode %d vector %d trigger_mode %d"
+apic_mem_readl(uint64_t addr, uint32_t val)  "%"PRIx64" = %08x"
+apic_mem_writel(uint64_t addr, uint32_t val) "%"PRIx64" = %08x"
+
+# hw/intc/slavio_intctl.c
+slavio_intctl_mem_readl(uint32_t cpu, uint64_t addr, uint32_t ret) "read cpu %d reg 0x%"PRIx64" = %x"
+slavio_intctl_mem_writel(uint32_t cpu, uint64_t addr, uint32_t val) "write cpu %d reg 0x%"PRIx64" = %x"
+slavio_intctl_mem_writel_clear(uint32_t cpu, uint32_t val, uint32_t intreg_pending) "Cleared cpu %d irq mask %x, curmask %x"
+slavio_intctl_mem_writel_set(uint32_t cpu, uint32_t val, uint32_t intreg_pending) "Set cpu %d irq mask %x, curmask %x"
+slavio_intctlm_mem_readl(uint64_t addr, uint32_t ret) "read system reg 0x%"PRIx64" = %x"
+slavio_intctlm_mem_writel(uint64_t addr, uint32_t val) "write system reg 0x%"PRIx64" = %x"
+slavio_intctlm_mem_writel_enable(uint32_t val, uint32_t intregm_disabled) "Enabled master irq mask %x, curmask %x"
+slavio_intctlm_mem_writel_disable(uint32_t val, uint32_t intregm_disabled) "Disabled master irq mask %x, curmask %x"
+slavio_intctlm_mem_writel_target(uint32_t cpu) "Set master irq cpu %d"
+slavio_check_interrupts(uint32_t pending, uint32_t intregm_disabled) "pending %x disabled %x"
+slavio_set_irq(uint32_t target_cpu, int irq, uint32_t pil, int level) "Set cpu %d irq %d -> pil %d level %d"
+slavio_set_timer_irq_cpu(int cpu, int level) "Set cpu %d local timer level %d"
+
+# hw/intc/grlib_irqmp.c
+grlib_irqmp_check_irqs(uint32_t pend, uint32_t force, uint32_t mask, uint32_t lvl1, uint32_t lvl2) "pend:0x%04x force:0x%04x mask:0x%04x lvl1:0x%04x lvl0:0x%04x"
+grlib_irqmp_ack(int intno) "interrupt:%d"
+grlib_irqmp_set_irq(int irq) "Raise CPU IRQ %d"
+grlib_irqmp_readl_unknown(uint64_t addr) "addr 0x%"PRIx64
+grlib_irqmp_writel_unknown(uint64_t addr, uint32_t value) "addr 0x%"PRIx64" value 0x%x"
+
+# hw/intc/lm32_pic.c
+lm32_pic_raise_irq(void) "Raise CPU interrupt"
+lm32_pic_lower_irq(void) "Lower CPU interrupt"
+lm32_pic_interrupt(int irq, int level) "Set IRQ%d %d"
+lm32_pic_set_im(uint32_t im) "im 0x%08x"
+lm32_pic_set_ip(uint32_t ip) "ip 0x%08x"
+lm32_pic_get_im(uint32_t im) "im 0x%08x"
+lm32_pic_get_ip(uint32_t ip) "ip 0x%08x"
+
+# hw/intc/xics.c
+xics_icp_check_ipi(int server, uint8_t mfrr) "CPU %d can take IPI mfrr=%#x"
+xics_icp_accept(uint32_t old_xirr, uint32_t new_xirr) "icp_accept: XIRR %#"PRIx32"->%#"PRIx32
+xics_icp_eoi(int server, uint32_t xirr, uint32_t new_xirr) "icp_eoi: server %d given XIRR %#"PRIx32" new XIRR %#"PRIx32
+xics_icp_irq(int server, int nr, uint8_t priority) "cpu %d trying to deliver irq %#"PRIx32" priority %#x"
+xics_icp_raise(uint32_t xirr, uint8_t pending_priority) "raising IRQ new XIRR=%#x new pending priority=%#x"
+xics_set_irq_msi(int srcno, int nr) "set_irq_msi: srcno %d [irq %#x]"
+xics_masked_pending(void) "set_irq_msi: masked pending"
+xics_set_irq_lsi(int srcno, int nr) "set_irq_lsi: srcno %d [irq %#x]"
+xics_ics_write_xive(int nr, int srcno, int server, uint8_t priority) "ics_write_xive: irq %#x [src %d] server %#x prio %#x"
+xics_ics_reject(int nr, int srcno) "reject irq %#x [src %d]"
+xics_ics_eoi(int nr) "ics_eoi: irq %#x"
+xics_alloc(int src, int irq) "source#%d, irq %d"
+xics_alloc_block(int src, int first, int num, bool lsi, int align) "source#%d, first irq %d, %d irqs, lsi=%d, alignnum %d"
+xics_ics_free(int src, int irq, int num) "Source#%d, first irq %d, %d irqs"
+xics_ics_free_warn(int src, int irq) "Source#%d, irq %d is already free"
+
+# hw/intc/s390_flic_kvm.c
+flic_create_device(int err) "flic: create device failed %d"
+flic_no_device_api(int err) "flic: no Device Contral API support %d"
+flic_reset_failed(int err) "flic: reset failed %d"
+
+# hw/intc/aspeed_vic.c
+aspeed_vic_set_irq(int irq, int level) "Enabling IRQ %d: %d"
+aspeed_vic_update_fiq(int flags) "Raising FIQ: %d"
+aspeed_vic_update_irq(int flags) "Raising IRQ: %d"
+aspeed_vic_read(uint64_t offset, unsigned size, uint32_t value) "From 0x%" PRIx64 " of size %u: 0x%" PRIx32
+aspeed_vic_write(uint64_t offset, unsigned size, uint32_t data) "To 0x%" PRIx64 " of size %u: 0x%" PRIx32
+
+# hw/intc/arm_gic.c
+gic_enable_irq(int irq) "irq %d enabled"
+gic_disable_irq(int irq) "irq %d disabled"
+gic_set_irq(int irq, int level, int cpumask, int target) "irq %d level %d cpumask 0x%x target 0x%x"
+gic_update_bestirq(int cpu, int irq, int prio, int priority_mask, int running_priority) "cpu %d irq %d priority %d cpu priority mask %d cpu running priority %d"
+gic_update_set_irq(int cpu, const char *name, int level) "cpu[%d]: %s = %d"
+gic_acknowledge_irq(int cpu, int irq) "cpu %d acknowledged irq %d"
+
+# hw/intc/arm_gicv3_cpuif.c
+gicv3_icc_pmr_read(uint32_t cpu, uint64_t val) "GICv3 ICC_PMR read cpu %x value 0x%" PRIx64
+gicv3_icc_pmr_write(uint32_t cpu, uint64_t val) "GICv3 ICC_PMR write cpu %x value 0x%" PRIx64
+gicv3_icc_bpr_read(uint32_t cpu, uint64_t val) "GICv3 ICC_BPR read cpu %x value 0x%" PRIx64
+gicv3_icc_bpr_write(uint32_t cpu, uint64_t val) "GICv3 ICC_BPR write cpu %x value 0x%" PRIx64
+gicv3_icc_ap_read(int regno, uint32_t cpu, uint64_t val) "GICv3 ICC_AP%dR read cpu %x value 0x%" PRIx64
+gicv3_icc_ap_write(int regno, uint32_t cpu, uint64_t val) "GICv3 ICC_AP%dR write cpu %x value 0x%" PRIx64
+gicv3_icc_igrpen_read(uint32_t cpu, uint64_t val) "GICv3 ICC_IGRPEN read cpu %x value 0x%" PRIx64
+gicv3_icc_igrpen_write(uint32_t cpu, uint64_t val) "GICv3 ICC_IGRPEN write cpu %x value 0x%" PRIx64
+gicv3_icc_igrpen1_el3_read(uint32_t cpu, uint64_t val) "GICv3 ICC_IGRPEN1_EL3 read cpu %x value 0x%" PRIx64
+gicv3_icc_igrpen1_el3_write(uint32_t cpu, uint64_t val) "GICv3 ICC_IGRPEN1_EL3 write cpu %x value 0x%" PRIx64
+gicv3_icc_ctlr_read(uint32_t cpu, uint64_t val) "GICv3 ICC_CTLR read cpu %x value 0x%" PRIx64
+gicv3_icc_ctlr_write(uint32_t cpu, uint64_t val) "GICv3 ICC_CTLR write cpu %x value 0x%" PRIx64
+gicv3_icc_ctlr_el3_read(uint32_t cpu, uint64_t val) "GICv3 ICC_CTLR_EL3 read cpu %x value 0x%" PRIx64
+gicv3_icc_ctlr_el3_write(uint32_t cpu, uint64_t val) "GICv3 ICC_CTLR_EL3 write cpu %x value 0x%" PRIx64
+gicv3_cpuif_update(uint32_t cpuid, int irq, int grp, int prio) "GICv3 CPU i/f %x HPPI update: irq %d group %d prio %d"
+gicv3_cpuif_set_irqs(uint32_t cpuid, int fiqlevel, int irqlevel) "GICv3 CPU i/f %x HPPI update: setting FIQ %d IRQ %d"
+gicv3_icc_generate_sgi(uint32_t cpuid, int irq, int irm, uint32_t aff, uint32_t targetlist) "GICv3 CPU i/f %x generating SGI %d IRM %d target affinity 0x%xxx targetlist 0x%x"
+gicv3_icc_iar0_read(uint32_t cpu, uint64_t val) "GICv3 ICC_IAR0 read cpu %x value 0x%" PRIx64
+gicv3_icc_iar1_read(uint32_t cpu, uint64_t val) "GICv3 ICC_IAR1 read cpu %x value 0x%" PRIx64
+gicv3_icc_eoir_write(uint32_t cpu, uint64_t val) "GICv3 ICC_EOIR write cpu %x value 0x%" PRIx64
+gicv3_icc_hppir0_read(uint32_t cpu, uint64_t val) "GICv3 ICC_HPPIR0 read cpu %x value 0x%" PRIx64
+gicv3_icc_hppir1_read(uint32_t cpu, uint64_t val) "GICv3 ICC_HPPIR1 read cpu %x value 0x%" PRIx64
+gicv3_icc_dir_write(uint32_t cpu, uint64_t val) "GICv3 ICC_DIR write cpu %x value 0x%" PRIx64
+gicv3_icc_rpr_read(uint32_t cpu, uint64_t val) "GICv3 ICC_RPR read cpu %x value 0x%" PRIx64
+
+# hw/intc/arm_gicv3_dist.c
+gicv3_dist_read(uint64_t offset, uint64_t data, unsigned size, bool secure) "GICv3 distributor read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u secure %d"
+gicv3_dist_badread(uint64_t offset, unsigned size, bool secure) "GICv3 distributor read: offset 0x%" PRIx64 " size %u secure %d: error"
+gicv3_dist_write(uint64_t offset, uint64_t data, unsigned size, bool secure) "GICv3 distributor write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u secure %d"
+gicv3_dist_badwrite(uint64_t offset, uint64_t data, unsigned size, bool secure) "GICv3 distributor write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u secure %d: error"
+gicv3_dist_set_irq(int irq, int level) "GICv3 distributor interrupt %d level changed to %d"
+
+# hw/intc/arm_gicv3_redist.c
+gicv3_redist_read(uint32_t cpu, uint64_t offset, uint64_t data, unsigned size, bool secure) "GICv3 redistributor %x read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u secure %d"
+gicv3_redist_badread(uint32_t cpu, uint64_t offset, unsigned size, bool secure) "GICv3 redistributor %x read: offset 0x%" PRIx64 " size %u secure %d: error"
+gicv3_redist_write(uint32_t cpu, uint64_t offset, uint64_t data, unsigned size, bool secure) "GICv3 redistributor %x write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u secure %d"
+gicv3_redist_badwrite(uint32_t cpu, uint64_t offset, uint64_t data, unsigned size, bool secure) "GICv3 redistributor %x write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u secure %d: error"
+gicv3_redist_set_irq(uint32_t cpu, int irq, int level) "GICv3 redistributor %x interrupt %d level changed to %d"
+gicv3_redist_send_sgi(uint32_t cpu, int irq) "GICv3 redistributor %x pending SGI %d"

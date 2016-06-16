@@ -56,20 +56,6 @@ virtio_balloon_get_config(uint32_t num_pages, uint32_t actual) "num_pages: %d ac
 virtio_balloon_set_config(uint32_t actual, uint32_t oldactual) "actual: %d oldactual: %d"
 virtio_balloon_to_target(uint64_t target, uint32_t num_pages) "balloon target: %"PRIx64" num_pages: %d"
 
-# hw/intc/apic_common.c
-cpu_set_apic_base(uint64_t val) "%016"PRIx64
-cpu_get_apic_base(uint64_t val) "%016"PRIx64
-# coalescing
-apic_report_irq_delivered(int apic_irq_delivered) "coalescing %d"
-apic_reset_irq_delivered(int apic_irq_delivered) "old coalescing %d"
-apic_get_irq_delivered(int apic_irq_delivered) "returning coalescing %d"
-
-# hw/intc/apic.c
-apic_local_deliver(int vector, uint32_t lvt) "vector %d delivery mode %d"
-apic_deliver_irq(uint8_t dest, uint8_t dest_mode, uint8_t delivery_mode, uint8_t vector_num, uint8_t trigger_mode) "dest %d dest_mode %d delivery_mode %d vector %d trigger_mode %d"
-apic_mem_readl(uint64_t addr, uint32_t val)  "%"PRIx64" = %08x"
-apic_mem_writel(uint64_t addr, uint32_t val) "%"PRIx64" = %08x"
-
 # hw/audio/cs4231.c
 cs4231_mem_readl_dreg(uint32_t reg, uint32_t ret) "read dreg %d: 0x%02x"
 cs4231_mem_readl_reg(uint32_t reg, uint32_t ret) "read reg %d: 0x%08x"
@@ -116,20 +102,6 @@ xenfb_input_connected(void *xendev, int abs_pointer_wanted) "%p abs %d"
 # hw/net/lance.c
 lance_mem_readw(uint64_t addr, uint32_t ret) "addr=%"PRIx64"val=0x%04x"
 lance_mem_writew(uint64_t addr, uint32_t val) "addr=%"PRIx64"val=0x%04x"
-
-# hw/intc/slavio_intctl.c
-slavio_intctl_mem_readl(uint32_t cpu, uint64_t addr, uint32_t ret) "read cpu %d reg 0x%"PRIx64" = %x"
-slavio_intctl_mem_writel(uint32_t cpu, uint64_t addr, uint32_t val) "write cpu %d reg 0x%"PRIx64" = %x"
-slavio_intctl_mem_writel_clear(uint32_t cpu, uint32_t val, uint32_t intreg_pending) "Cleared cpu %d irq mask %x, curmask %x"
-slavio_intctl_mem_writel_set(uint32_t cpu, uint32_t val, uint32_t intreg_pending) "Set cpu %d irq mask %x, curmask %x"
-slavio_intctlm_mem_readl(uint64_t addr, uint32_t ret) "read system reg 0x%"PRIx64" = %x"
-slavio_intctlm_mem_writel(uint64_t addr, uint32_t val) "write system reg 0x%"PRIx64" = %x"
-slavio_intctlm_mem_writel_enable(uint32_t val, uint32_t intregm_disabled) "Enabled master irq mask %x, curmask %x"
-slavio_intctlm_mem_writel_disable(uint32_t val, uint32_t intregm_disabled) "Disabled master irq mask %x, curmask %x"
-slavio_intctlm_mem_writel_target(uint32_t cpu) "Set master irq cpu %d"
-slavio_check_interrupts(uint32_t pending, uint32_t intregm_disabled) "pending %x disabled %x"
-slavio_set_irq(uint32_t target_cpu, int irq, uint32_t pil, int level) "Set cpu %d irq %d -> pil %d level %d"
-slavio_set_timer_irq_cpu(int cpu, int level) "Set cpu %d local timer level %d"
 
 # hw/input/ps2.c
 ps2_put_keycode(void *opaque, int keycode) "%p keycode %d"
@@ -524,13 +496,6 @@ grlib_gptimer_hit(int id) "timer:%d HIT"
 grlib_gptimer_readl(int id, uint64_t addr, uint32_t val) "timer:%d addr 0x%"PRIx64" 0x%x"
 grlib_gptimer_writel(int id, uint64_t addr, uint32_t val) "timer:%d addr 0x%"PRIx64" 0x%x"
 
-# hw/intc/grlib_irqmp.c
-grlib_irqmp_check_irqs(uint32_t pend, uint32_t force, uint32_t mask, uint32_t lvl1, uint32_t lvl2) "pend:0x%04x force:0x%04x mask:0x%04x lvl1:0x%04x lvl0:0x%04x"
-grlib_irqmp_ack(int intno) "interrupt:%d"
-grlib_irqmp_set_irq(int irq) "Raise CPU IRQ %d"
-grlib_irqmp_readl_unknown(uint64_t addr) "addr 0x%"PRIx64
-grlib_irqmp_writel_unknown(uint64_t addr, uint32_t value) "addr 0x%"PRIx64" value 0x%x"
-
 # hw/sparc/leon3.c
 leon3_set_irq(int intno) "Set CPU IRQ %d"
 leon3_reset_irq(int intno) "Reset CPU IRQ %d"
@@ -541,15 +506,6 @@ spice_vmc_read(int bytes, int len) "spice read %d of requested %d"
 spice_vmc_register_interface(void *scd) "spice vmc registered interface %p"
 spice_vmc_unregister_interface(void *scd) "spice vmc unregistered interface %p"
 spice_vmc_event(int event) "spice vmc event %d"
-
-# hw/intc/lm32_pic.c
-lm32_pic_raise_irq(void) "Raise CPU interrupt"
-lm32_pic_lower_irq(void) "Lower CPU interrupt"
-lm32_pic_interrupt(int irq, int level) "Set IRQ%d %d"
-lm32_pic_set_im(uint32_t im) "im 0x%08x"
-lm32_pic_set_ip(uint32_t ip) "ip 0x%08x"
-lm32_pic_get_im(uint32_t im) "im 0x%08x"
-lm32_pic_get_ip(uint32_t ip) "ip 0x%08x"
 
 # hw/timer/lm32_timer.c
 lm32_timer_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
@@ -1145,23 +1101,6 @@ pcnet_mmio_readb(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=%#"P
 pcnet_mmio_readw(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=%#"PRIx64" val=0x%x"
 pcnet_mmio_readl(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=%#"PRIx64" val=0x%x"
 
-# hw/intc/xics.c
-xics_icp_check_ipi(int server, uint8_t mfrr) "CPU %d can take IPI mfrr=%#x"
-xics_icp_accept(uint32_t old_xirr, uint32_t new_xirr) "icp_accept: XIRR %#"PRIx32"->%#"PRIx32
-xics_icp_eoi(int server, uint32_t xirr, uint32_t new_xirr) "icp_eoi: server %d given XIRR %#"PRIx32" new XIRR %#"PRIx32
-xics_icp_irq(int server, int nr, uint8_t priority) "cpu %d trying to deliver irq %#"PRIx32" priority %#x"
-xics_icp_raise(uint32_t xirr, uint8_t pending_priority) "raising IRQ new XIRR=%#x new pending priority=%#x"
-xics_set_irq_msi(int srcno, int nr) "set_irq_msi: srcno %d [irq %#x]"
-xics_masked_pending(void) "set_irq_msi: masked pending"
-xics_set_irq_lsi(int srcno, int nr) "set_irq_lsi: srcno %d [irq %#x]"
-xics_ics_write_xive(int nr, int srcno, int server, uint8_t priority) "ics_write_xive: irq %#x [src %d] server %#x prio %#x"
-xics_ics_reject(int nr, int srcno) "reject irq %#x [src %d]"
-xics_ics_eoi(int nr) "ics_eoi: irq %#x"
-xics_alloc(int src, int irq) "source#%d, irq %d"
-xics_alloc_block(int src, int first, int num, bool lsi, int align) "source#%d, first irq %d, %d irqs, lsi=%d, alignnum %d"
-xics_ics_free(int src, int irq, int num) "Source#%d, first irq %d, %d irqs"
-xics_ics_free_warn(int src, int irq) "Source#%d, irq %d is already free"
-
 # hw/ppc/spapr.c
 spapr_cas_failed(unsigned long n) "DT diff buffer is too small: %ld bytes"
 spapr_cas_continue(unsigned long n) "Copy changes to the guest: %ld bytes"
@@ -1214,11 +1153,6 @@ css_adapter_interrupt(uint8_t isc) "CSS: adapter I/O interrupt (isc %x)"
 virtio_ccw_interpret_ccw(int cssid, int ssid, int schid, int cmd_code) "VIRTIO-CCW: %x.%x.%04x: interpret command %x"
 virtio_ccw_new_device(int cssid, int ssid, int schid, int devno, const char *devno_mode) "VIRTIO-CCW: add subchannel %x.%x.%04x, devno %04x (%s)"
 virtio_ccw_set_ind(uint64_t ind_loc, uint8_t ind_old, uint8_t ind_new) "VIRTIO-CCW: indicator at %" PRIu64 ": %x->%x"
-
-# hw/intc/s390_flic_kvm.c
-flic_create_device(int err) "flic: create device failed %d"
-flic_no_device_api(int err) "flic: no Device Contral API support %d"
-flic_reset_failed(int err) "flic: reset failed %d"
 
 # kvm-all.c
 kvm_ioctl(int type, void *arg) "type 0x%x, arg %p"
@@ -1457,21 +1391,6 @@ aspeed_timer_ctrl_pulse_enable(uint8_t i, bool enable) "Timer %" PRIu8 ": %d"
 aspeed_timer_set_ctrl2(uint32_t value) "Value: 0x%" PRIx32
 aspeed_timer_set_value(int timer, int reg, uint32_t value) "Timer %d register %d: 0x%" PRIx32
 aspeed_timer_read(uint64_t offset, unsigned size, uint64_t value) "From 0x%" PRIx64 ": of size %u: 0x%" PRIx64
-
-# hw/intc/aspeed_vic.c
-aspeed_vic_set_irq(int irq, int level) "Enabling IRQ %d: %d"
-aspeed_vic_update_fiq(int flags) "Raising FIQ: %d"
-aspeed_vic_update_irq(int flags) "Raising IRQ: %d"
-aspeed_vic_read(uint64_t offset, unsigned size, uint32_t value) "From 0x%" PRIx64 " of size %u: 0x%" PRIx32
-aspeed_vic_write(uint64_t offset, unsigned size, uint32_t data) "To 0x%" PRIx64 " of size %u: 0x%" PRIx32
-
-# hw/intc/arm_gic.c
-gic_enable_irq(int irq) "irq %d enabled"
-gic_disable_irq(int irq) "irq %d disabled"
-gic_set_irq(int irq, int level, int cpumask, int target) "irq %d level %d cpumask 0x%x target 0x%x"
-gic_update_bestirq(int cpu, int irq, int prio, int priority_mask, int running_priority) "cpu %d irq %d priority %d cpu priority mask %d cpu running priority %d"
-gic_update_set_irq(int cpu, const char *name, int level) "cpu[%d]: %s = %d"
-gic_acknowledge_irq(int cpu, int irq) "cpu %d acknowledged irq %d"
 
 # hw/net/net_rx_pkt.c
 net_rx_pkt_parsed(bool ip4, bool ip6, bool udp, bool tcp, size_t l3o, size_t l4o, size_t l5o) "RX packet parsed: ip4: %d, ip6: %d, udp: %d, tcp: %d, l3 offset: %zu, l4 offset: %zu, l5 offset: %zu"
