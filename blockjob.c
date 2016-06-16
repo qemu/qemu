@@ -60,6 +60,17 @@ BlockJob *block_job_next(BlockJob *job)
     return QLIST_NEXT(job, job_list);
 }
 
+/* Normally the job runs in its BlockBackend's AioContext.  The exception is
+ * block_job_defer_to_main_loop() where it runs in the QEMU main loop.  Code
+ * that supports both cases uses this helper function.
+ */
+static AioContext *block_job_get_aio_context(BlockJob *job)
+{
+    return job->deferred_to_main_loop ?
+           qemu_get_aio_context() :
+           blk_get_aio_context(job->blk);
+}
+
 void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
                        int64_t speed, BlockCompletionFunc *cb,
                        void *opaque, Error **errp)
@@ -337,9 +348,7 @@ static int block_job_finish_sync(BlockJob *job,
         return -EBUSY;
     }
     while (!job->completed) {
-        aio_poll(job->deferred_to_main_loop ? qemu_get_aio_context() :
-                                              blk_get_aio_context(job->blk),
-                 true);
+        aio_poll(block_job_get_aio_context(job), true);
     }
     ret = (job->cancelled && job->ret == 0) ? -ECANCELED : job->ret;
     block_job_unref(job);
