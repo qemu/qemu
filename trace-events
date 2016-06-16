@@ -239,9 +239,6 @@ cpu_set_state(int cpu_index, uint8_t state) "setting cpu %d state to %" PRIu8
 cpu_halt(int cpu_index) "halting cpu %d"
 cpu_unhalt(int cpu_index) "unhalting cpu %d"
 
-# hw/arm/virt-acpi-build.c
-virt_acpi_setup(void) "No fw cfg or ACPI disabled. Bailing out."
-
 # hw/alpha/pci.c
 alpha_pci_iack_write(void) ""
 
