@@ -188,6 +188,59 @@ static void input_linux_toggle_grab(InputLinux *il)
     }
 }
 
+static void input_linux_handle_keyboard(InputLinux *il,
+                                        struct input_event *event)
+{
+    if (event->type == EV_KEY) {
+        if (event->value > 2 || (event->value > 1 && !il->repeat)) {
+            /*
+             * ignore autorepeat + unknown key events
+             * 0 == up, 1 == down, 2 == autorepeat, other == undefined
+             */
+            return;
+        }
+        if (event->code >= KEY_CNT) {
+            /*
+             * Should not happen.  But better safe than sorry,
+             * and we make Coverity happy too.
+             */
+            return;
+        }
+
+        /* keep track of key state */
+        if (!il->keydown[event->code] && event->value) {
+            il->keydown[event->code] = true;
+            il->keycount++;
+        }
+        if (il->keydown[event->code] && !event->value) {
+            il->keydown[event->code] = false;
+            il->keycount--;
+        }
+
+        /* send event to guest when grab is active */
+        if (il->grab_active) {
+            int qcode = qemu_input_linux_to_qcode(event->code);
+            qemu_input_event_send_key_qcode(NULL, qcode, event->value);
+        }
+
+        /* hotkey -> record switch request ... */
+        if (il->keydown[KEY_LEFTCTRL] &&
+            il->keydown[KEY_RIGHTCTRL]) {
+            il->grab_request = true;
+        }
+
+        /*
+         * ... and do the switch when all keys are lifted, so we
+         * confuse neither guest nor host with keys which seem to
+         * be stuck due to missing key-up events.
+         */
+        if (il->grab_request && !il->keycount) {
+            il->grab_request = false;
+            input_linux_toggle_grab(il);
+        }
+    }
+}
+
 static void input_linux_event_keyboard(void *opaque)
 {
     InputLinux *il = opaque;
@@ -205,55 +258,7 @@ static void input_linux_event_keyboard(void *opaque)
             break;
         }
 
-        switch (event.type) {
-        case EV_KEY:
-            if (event.value > 2 || (event.value > 1 && !il->repeat)) {
-                /*
-                 * ignore autorepeat + unknown key events
-                 * 0 == up, 1 == down, 2 == autorepeat, other == undefined
-                 */
-                continue;
-            }
-            if (event.code >= KEY_CNT) {
-                /*
-                 * Should not happen.  But better safe than sorry,
-                 * and we make Coverity happy too.
-                 */
-                continue;
-            }
-            /* keep track of key state */
-            if (!il->keydown[event.code] && event.value) {
-                il->keydown[event.code] = true;
-                il->keycount++;
-            }
-            if (il->keydown[event.code] && !event.value) {
-                il->keydown[event.code] = false;
-                il->keycount--;
-            }
-
-            /* send event to guest when grab is active */
-            if (il->grab_active) {
-                int qcode = qemu_input_linux_to_qcode(event.code);
-                qemu_input_event_send_key_qcode(NULL, qcode, event.value);
-            }
-
-            /* hotkey -> record switch request ... */
-            if (il->keydown[KEY_LEFTCTRL] &&
-                il->keydown[KEY_RIGHTCTRL]) {
-                il->grab_request = true;
-            }
-
-            /*
-             * ... and do the switch when all keys are lifted, so we
-             * confuse neither guest nor host with keys which seem to
-             * be stuck due to missing key-up events.
-             */
-            if (il->grab_request && !il->keycount) {
-                il->grab_request = false;
-                input_linux_toggle_grab(il);
-            }
-            break;
-        }
+        input_linux_handle_keyboard(il, &event);
     }
 }
 
