@@ -4549,6 +4549,15 @@ void qmp_chardev_remove(const char *id, Error **errp)
     qemu_chr_delete(chr);
 }
 
+static void qemu_chr_cleanup(void)
+{
+    CharDriverState *chr, *tmp;
+
+    QTAILQ_FOREACH_SAFE(chr, &chardevs, next, tmp) {
+        qemu_chr_delete(chr);
+    }
+}
+
 static void register_types(void)
 {
     register_char_driver("null", CHARDEV_BACKEND_KIND_NULL, NULL,
@@ -4595,6 +4604,8 @@ static void register_types(void)
      * is specified
      */
     qemu_add_machine_init_done_notifier(&muxes_realize_notify);
+
+    atexit(qemu_chr_cleanup);
 }
 
 type_init(register_types);
