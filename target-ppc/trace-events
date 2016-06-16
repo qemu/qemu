@@ -1,0 +1,5 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# target-ppc/kvm.c
+kvm_failed_spr_set(int str, const char *msg) "Warning: Unable to set SPR %d to KVM: %s"
+kvm_failed_spr_get(int str, const char *msg) "Warning: Unable to retrieve SPR %d from KVM: %s"
