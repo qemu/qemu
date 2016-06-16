@@ -400,7 +400,17 @@ static void qio_channel_socket_init(Object *obj)
 static void qio_channel_socket_finalize(Object *obj)
 {
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(obj);
+
     if (ioc->fd != -1) {
+        if (QIO_CHANNEL(ioc)->features & QIO_CHANNEL_FEATURE_LISTEN) {
+            Error *err = NULL;
+
+            socket_listen_cleanup(ioc->fd, &err);
+            if (err) {
+                error_report_err(err);
+                err = NULL;
+            }
+        }
 #ifdef WIN32
         WSAEventSelect(ioc->fd, NULL, 0);
 #endif
