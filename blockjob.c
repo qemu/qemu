@@ -71,6 +71,38 @@ static AioContext *block_job_get_aio_context(BlockJob *job)
            blk_get_aio_context(job->blk);
 }
 
+static void block_job_attached_aio_context(AioContext *new_context,
+                                           void *opaque)
+{
+    BlockJob *job = opaque;
+
+    if (job->driver->attached_aio_context) {
+        job->driver->attached_aio_context(job, new_context);
+    }
+
+    block_job_resume(job);
+}
+
+static void block_job_detach_aio_context(void *opaque)
+{
+    BlockJob *job = opaque;
+
+    /* In case the job terminates during aio_poll()... */
+    block_job_ref(job);
+
+    block_job_pause(job);
+
+    if (!job->paused) {
+        /* If job is !job->busy this kicks it into the next pause point. */
+        block_job_enter(job);
+    }
+    while (!job->paused && !job->completed) {
+        aio_poll(block_job_get_aio_context(job), true);
+    }
+
+    block_job_unref(job);
+}
+
 void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
                        int64_t speed, BlockCompletionFunc *cb,
                        void *opaque, Error **errp)
@@ -103,6 +135,9 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
 
     QLIST_INSERT_HEAD(&block_jobs, job, job_list);
 
+    blk_add_aio_context_notifier(blk, block_job_attached_aio_context,
+                                 block_job_detach_aio_context, job);
+
     /* Only set speed when necessary to avoid NotSupported error */
     if (speed != 0) {
         Error *local_err = NULL;
@@ -128,6 +163,9 @@ void block_job_unref(BlockJob *job)
         BlockDriverState *bs = blk_bs(job->blk);
         bs->job = NULL;
         bdrv_op_unblock_all(bs, job->blocker);
+        blk_remove_aio_context_notifier(job->blk,
+                                        block_job_attached_aio_context,
+                                        block_job_detach_aio_context, job);
         blk_unref(job->blk);
         error_free(job->blocker);
         g_free(job->id);

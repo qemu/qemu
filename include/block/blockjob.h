@@ -84,6 +84,13 @@ typedef struct BlockJobDriver {
      * should be restarted from this callback.
      */
     void coroutine_fn (*resume)(BlockJob *job);
+
+    /*
+     * If the callback is not NULL, it will be invoked before the job is
+     * resumed in a new AioContext.  This is the place to move any resources
+     * besides job->blk to the new AioContext.
+     */
+    void (*attached_aio_context)(BlockJob *job, AioContext *new_context);
 } BlockJobDriver;
 
 /**
