@@ -121,3 +121,4 @@ ivshmem-server-obj-y = contrib/ivshmem-server/
 trace-events-y = trace-events
 trace-events-y += util/trace-events
 trace-events-y += crypto/trace-events
+trace-events-y += io/trace-events
