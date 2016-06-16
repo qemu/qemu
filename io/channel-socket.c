@@ -71,6 +71,9 @@ qio_channel_socket_set_fd(QIOChannelSocket *sioc,
                           int fd,
                           Error **errp)
 {
+    int val;
+    socklen_t len = sizeof(val);
+
     if (sioc->fd != -1) {
         error_setg(errp, "Socket is already open");
         return -1;
@@ -106,6 +109,10 @@ qio_channel_socket_set_fd(QIOChannelSocket *sioc,
         ioc->features |= (1 << QIO_CHANNEL_FEATURE_FD_PASS);
     }
 #endif /* WIN32 */
+    if (getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, &val, &len) == 0 && val) {
+        QIOChannel *ioc = QIO_CHANNEL(sioc);
+        ioc->features |= (1 << QIO_CHANNEL_FEATURE_LISTEN);
+    }
 
     return 0;
 
