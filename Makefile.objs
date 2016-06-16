@@ -154,3 +154,4 @@ trace-events-y += ui/trace-events
 trace-events-y += audio/trace-events
 trace-events-y += net/trace-events
 trace-events-y += target-sparc/trace-events
+trace-events-y += target-s390x/trace-events

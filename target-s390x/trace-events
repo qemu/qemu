@@ -1,0 +1,22 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# target-s390x/mmu_helper.c
+get_skeys_nonzero(int rc) "SKEY: Call to get_skeys unexpectedly returned %d"
+set_skeys_nonzero(int rc) "SKEY: Call to set_skeys unexpectedly returned %d"
+
+# target-s390x/ioinst.c
+ioinst(const char *insn) "IOINST: %s"
+ioinst_sch_id(const char *insn, int cssid, int ssid, int schid) "IOINST: %s (%x.%x.%04x)"
+ioinst_chp_id(const char *insn, int cssid, int chpid) "IOINST: %s (%x.%02x)"
+ioinst_chsc_cmd(uint16_t cmd, uint16_t len) "IOINST: chsc command %04x, len %04x"
+
+# target-s390x/kvm.c
+kvm_enable_cmma(int rc) "CMMA: enabling with result code %d"
+kvm_clear_cmma(int rc) "CMMA: clearing with result code %d"
+kvm_failed_cpu_state_set(int cpu_index, uint8_t state, const char *msg) "Warning: Unable to set cpu %d state %" PRIu8 " to KVM: %s"
+kvm_sigp_finished(uint8_t order, int cpu_index, int dst_index, int cc) "SIGP: Finished order %u on cpu %d -> cpu %d with cc=%d"
+
+# target-s390x/cpu.c
+cpu_set_state(int cpu_index, uint8_t state) "setting cpu %d state to %" PRIu8
+cpu_halt(int cpu_index) "halting cpu %d"
+cpu_unhalt(int cpu_index) "unhalting cpu %d"
