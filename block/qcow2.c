@@ -2739,9 +2739,9 @@ static int make_completely_empty(BlockDriverState *bs)
     /* "Create" an empty reftable (one cluster) directly after the image
      * header and an empty L1 table three clusters after the image header;
      * the cluster between those two will be used as the first refblock */
-    cpu_to_be64w(&l1_ofs_rt_ofs_cls.l1_offset, 3 * s->cluster_size);
-    cpu_to_be64w(&l1_ofs_rt_ofs_cls.reftable_offset, s->cluster_size);
-    cpu_to_be32w(&l1_ofs_rt_ofs_cls.reftable_clusters, 1);
+    l1_ofs_rt_ofs_cls.l1_offset = cpu_to_be64(3 * s->cluster_size);
+    l1_ofs_rt_ofs_cls.reftable_offset = cpu_to_be64(s->cluster_size);
+    l1_ofs_rt_ofs_cls.reftable_clusters = cpu_to_be32(1);
     ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, l1_table_offset),
                            &l1_ofs_rt_ofs_cls, sizeof(l1_ofs_rt_ofs_cls));
     if (ret < 0) {
