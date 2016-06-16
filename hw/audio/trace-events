@@ -1,0 +1,19 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# hw/audio/cs4231.c
+cs4231_mem_readl_dreg(uint32_t reg, uint32_t ret) "read dreg %d: 0x%02x"
+cs4231_mem_readl_reg(uint32_t reg, uint32_t ret) "read reg %d: 0x%08x"
+cs4231_mem_writel_reg(uint32_t reg, uint32_t old, uint32_t val) "write reg %d: 0x%08x -> 0x%08x"
+cs4231_mem_writel_dreg(uint32_t reg, uint32_t old, uint32_t val) "write dreg %d: 0x%02x -> 0x%02x"
+
+# hw/audio/milkymist-ac97.c
+milkymist_ac97_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+milkymist_ac97_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+milkymist_ac97_pulse_irq_crrequest(void) "Pulse IRQ CR request"
+milkymist_ac97_pulse_irq_crreply(void) "Pulse IRQ CR reply"
+milkymist_ac97_pulse_irq_dmaw(void) "Pulse IRQ DMA write"
+milkymist_ac97_pulse_irq_dmar(void) "Pulse IRQ DMA read"
+milkymist_ac97_in_cb(int avail, uint32_t remaining) "avail %d remaining %u"
+milkymist_ac97_in_cb_transferred(int transferred) "transferred %d"
+milkymist_ac97_out_cb(int free, uint32_t remaining) "free %d remaining %u"
+milkymist_ac97_out_cb_transferred(int transferred) "transferred %d"
