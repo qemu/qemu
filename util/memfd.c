@@ -29,8 +29,6 @@
 
 #include <glib/gprintf.h>
 
-#include <sys/mman.h>
-
 #include "qemu/memfd.h"
 
 #ifdef CONFIG_MEMFD

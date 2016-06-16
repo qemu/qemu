@@ -22,7 +22,6 @@
 #include "qemu/osdep.h"
 #include <sys/select.h>
 #include <termios.h>
-#include <sys/mman.h>
 
 #include "hw/hw.h"
 #include "sysemu/char.h"

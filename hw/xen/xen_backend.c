@@ -23,7 +23,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <sys/mman.h>
 #include <sys/signal.h>
 
 #include "hw/hw.h"

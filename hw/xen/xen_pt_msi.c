@@ -10,7 +10,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <sys/mman.h>
 
 #include "hw/xen/xen_backend.h"
 #include "xen_pt.h"

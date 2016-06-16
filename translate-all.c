@@ -18,8 +18,6 @@
  */
 #ifdef _WIN32
 #include <windows.h>
-#else
-#include <sys/mman.h>
 #endif
 #include "qemu/osdep.h"
 

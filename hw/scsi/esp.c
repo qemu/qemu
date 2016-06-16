@@ -98,6 +98,9 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf, uint8_t buflen)
         s->dma_memory_read(s->dma_opaque, buf, dmalen);
     } else {
         dmalen = s->ti_size;
+        if (dmalen > TI_BUFSZ) {
+            return 0;
+        }
         memcpy(buf, s->ti_buf, dmalen);
         buf[0] = buf[2] >> 5;
     }
@@ -219,7 +222,7 @@ static void write_response(ESPState *s)
     } else {
         s->ti_size = 2;
         s->ti_rptr = 0;
-        s->ti_wptr = 0;
+        s->ti_wptr = 2;
         s->rregs[ESP_RFLAGS] = 2;
     }
     esp_raise_irq(s);
@@ -242,15 +245,12 @@ static void esp_do_dma(ESPState *s)
     uint32_t len;
     int to_device;
 
-    to_device = (s->ti_size < 0);
     len = s->dma_left;
     if (s->do_cmd) {
         trace_esp_do_dma(s->cmdlen, len);
+        assert (s->cmdlen <= sizeof(s->cmdbuf) &&
+                len <= sizeof(s->cmdbuf) - s->cmdlen);
         s->dma_memory_read(s->dma_opaque, &s->cmdbuf[s->cmdlen], len);
-        s->ti_size = 0;
-        s->cmdlen = 0;
-        s->do_cmd = 0;
-        do_cmd(s, s->cmdbuf);
         return;
     }
     if (s->async_len == 0) {
@@ -260,6 +260,7 @@ static void esp_do_dma(ESPState *s)
     if (len > s->async_len) {
         len = s->async_len;
     }
+    to_device = (s->ti_size < 0);
     if (to_device) {
         s->dma_memory_read(s->dma_opaque, s->async_buf, len);
     } else {
@@ -315,6 +316,7 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
 {
     ESPState *s = req->hba_private;
 
+    assert(!s->do_cmd);
     trace_esp_transfer_data(s->dma_left, s->ti_size);
     s->async_len = len;
     s->async_buf = scsi_req_get_buf(req);
@@ -345,7 +347,7 @@ static void handle_ti(ESPState *s)
     s->dma_counter = dmalen;
 
     if (s->do_cmd)
-        minlen = (dmalen < 32) ? dmalen : 32;
+        minlen = (dmalen < ESP_CMDBUF_SZ) ? dmalen : ESP_CMDBUF_SZ;
     else if (s->ti_size < 0)
         minlen = (dmalen < -s->ti_size) ? dmalen : -s->ti_size;
     else
@@ -355,13 +357,13 @@ static void handle_ti(ESPState *s)
         s->dma_left = minlen;
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
         esp_do_dma(s);
-    } else if (s->do_cmd) {
+    }
+    if (s->do_cmd) {
         trace_esp_handle_ti_cmd(s->cmdlen);
         s->ti_size = 0;
         s->cmdlen = 0;
         s->do_cmd = 0;
         do_cmd(s, s->cmdbuf);
-        return;
     }
 }
 
@@ -449,7 +451,7 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
         break;
     case ESP_FIFO:
         if (s->do_cmd) {
-            if (s->cmdlen < TI_BUFSZ) {
+            if (s->cmdlen < ESP_CMDBUF_SZ) {
                 s->cmdbuf[s->cmdlen++] = val & 0xff;
             } else {
                 trace_esp_error_fifo_overrun();

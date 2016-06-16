@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/soundcard.h>
 #include "qemu-common.h"

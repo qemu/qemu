@@ -36,7 +36,6 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "qemu/sockets.h"
-#include <sys/mman.h>
 #include <libgen.h>
 #include <sys/signal.h>
 #include "qemu/cutils.h"

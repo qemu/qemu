@@ -13,7 +13,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <sys/mman.h>
 
 #include "libqtest.h"
 #include "libqos/pci.h"

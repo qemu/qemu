@@ -26,6 +26,7 @@
 #ifndef QEMU_OS_POSIX_H
 #define QEMU_OS_POSIX_H
 
+#include <sys/mman.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>

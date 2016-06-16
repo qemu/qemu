@@ -36,8 +36,6 @@
 
 #include "hw/misc/ivshmem.h"
 
-#include <sys/mman.h>
-
 #define PCI_VENDOR_ID_IVSHMEM   PCI_VENDOR_ID_REDHAT_QUMRANET
 #define PCI_DEVICE_ID_IVSHMEM   0x1110
 

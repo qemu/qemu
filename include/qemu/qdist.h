@@ -7,7 +7,6 @@
 #ifndef QEMU_QDIST_H
 #define QEMU_QDIST_H
 
-#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/bitops.h"
 

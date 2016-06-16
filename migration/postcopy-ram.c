@@ -51,7 +51,6 @@ struct PostcopyDiscardState {
 #if defined(__linux__)
 
 #include <poll.h>
-#include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
 #include <asm/types.h> /* for __u64 */

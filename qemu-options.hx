@@ -3214,6 +3214,8 @@ STEXI
 @item -L  @var{path}
 @findex -L
 Set the directory for the BIOS, VGA BIOS and keymaps.
+
+To list all the data directories, use @code{-L help}.
 ETEXI
 
 DEF("bios", HAS_ARG, QEMU_OPTION_bios, \

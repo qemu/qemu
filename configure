@@ -270,7 +270,6 @@ aix="no"
 blobs="yes"
 pkgversion=""
 pie=""
-zero_malloc=""
 qom_cast_debug="yes"
 trace_backends="log"
 trace_file="trace"
@@ -1389,11 +1388,9 @@ fi
 
 # Consult white-list to determine whether to enable werror
 # by default.  Only enable by default for git builds
-z_version=$(cut -f3 -d. $source_path/VERSION)
-
 if test -z "$werror" ; then
     if test -d "$source_path/.git" -a \
-        "$linux" = "yes" ; then
+        \( "$linux" = "yes" -o "$mingw32" = "yes" \) ; then
         werror="yes"
     else
         werror="no"
@@ -1782,13 +1779,20 @@ fi
 # avx2 optimization requirement check
 
 cat > $TMPC << EOF
-static void bar(void) {}
+#pragma GCC push_options
+#pragma GCC target("avx2")
+#include <cpuid.h>
+#include <immintrin.h>
+
+static int bar(void *a) {
+    return _mm256_movemask_epi8(_mm256_cmpeq_epi8(*(__m256i *)a, (__m256i){0}));
+}
 static void *bar_ifunc(void) {return (void*) bar;}
-static void foo(void) __attribute__((ifunc("bar_ifunc")));
-int main(void) { foo(); return 0; }
+int foo(void *a) __attribute__((ifunc("bar_ifunc")));
+int main(int argc, char *argv[]) { return foo(argv[0]);}
 EOF
-if compile_prog "-mavx2" "" ; then
-    if readelf --syms $TMPE |grep "IFUNC.*foo" >/dev/null 2>&1; then
+if compile_object "" ; then
+    if readelf --syms $TMPO |grep "IFUNC.*foo" >/dev/null 2>&1; then
         avx2_opt="yes"
     fi
 fi
@@ -4178,24 +4182,6 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
-# check if we have usable SIGEV_THREAD_ID
-
-sigev_thread_id=no
-cat > $TMPC << EOF
-#include <signal.h>
-int main(void) {
-  struct sigevent ev;
-  ev.sigev_notify = SIGEV_THREAD_ID;
-  ev._sigev_un._tid = 0;
-  asm volatile("" : : "g"(&ev));
-  return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    sigev_thread_id=yes
-fi
-
-##########################################
 # check if trace backend exists
 
 $python "$source_path/scripts/tracetool.py" "--backends=$trace_backends" --check-backends  > /dev/null 2> /dev/null
@@ -4574,16 +4560,6 @@ if test "$libnfs" != "no" ; then
   fi
 fi
 
-# Disable zero malloc errors for official releases unless explicitly told to
-# enable/disable
-if test -z "$zero_malloc" ; then
-    if test "$z_version" = "50" ; then
-	zero_malloc="no"
-    else
-	zero_malloc="yes"
-    fi
-fi
-
 # Now we've finished running tests it's OK to add -Werror to the compiler flags
 if test "$werror" = "yes"; then
     QEMU_CFLAGS="-Werror $QEMU_CFLAGS"
@@ -4862,7 +4838,6 @@ echo "preadv support    $preadv"
 echo "fdatasync         $fdatasync"
 echo "madvise           $madvise"
 echo "posix_madvise     $posix_madvise"
-echo "sigev_thread_id   $sigev_thread_id"
 echo "uuid support      $uuid"
 echo "libcap-ng support $cap_ng"
 echo "vhost-net support $vhost_net"
@@ -5277,9 +5252,6 @@ fi
 if test "$posix_madvise" = "yes" ; then
   echo "CONFIG_POSIX_MADVISE=y" >> $config_host_mak
 fi
-if test "$sigev_thread_id" = "yes" ; then
-  echo "CONFIG_SIGEV_THREAD_ID=y" >> $config_host_mak
-fi
 
 if test "$spice" = "yes" ; then
   echo "CONFIG_SPICE=y" >> $config_host_mak
@@ -5342,9 +5314,6 @@ if [ "$bsd" = "yes" ] ; then
   echo "CONFIG_BSD=y" >> $config_host_mak
 fi
 
-if test "$zero_malloc" = "yes" ; then
-  echo "CONFIG_ZERO_MALLOC=y" >> $config_host_mak
-fi
 if test "$localtime_r" = "yes" ; then
   echo "CONFIG_LOCALTIME_R=y" >> $config_host_mak
 fi

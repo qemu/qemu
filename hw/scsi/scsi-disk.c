@@ -2060,13 +2060,13 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         }
         break;
     case MODE_SELECT:
-        DPRINTF("Mode Select(6) (len %lu)\n", (long)r->req.cmd.xfer);
+        DPRINTF("Mode Select(6) (len %lu)\n", (unsigned long)r->req.cmd.xfer);
         break;
     case MODE_SELECT_10:
-        DPRINTF("Mode Select(10) (len %lu)\n", (long)r->req.cmd.xfer);
+        DPRINTF("Mode Select(10) (len %lu)\n", (unsigned long)r->req.cmd.xfer);
         break;
     case UNMAP:
-        DPRINTF("Unmap (len %lu)\n", (long)r->req.cmd.xfer);
+        DPRINTF("Unmap (len %lu)\n", (unsigned long)r->req.cmd.xfer);
         break;
     case VERIFY_10:
     case VERIFY_12:
@@ -2080,7 +2080,7 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
     case WRITE_SAME_16:
         DPRINTF("WRITE SAME %d (len %lu)\n",
                 req->cmd.buf[0] == WRITE_SAME_10 ? 10 : 16,
-                (long)r->req.cmd.xfer);
+                (unsigned long)r->req.cmd.xfer);
         break;
     default:
         DPRINTF("Unknown SCSI command (%2.2x=%s)\n", buf[0],

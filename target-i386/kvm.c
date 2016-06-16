@@ -15,7 +15,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include <sys/ioctl.h>
-#include <sys/mman.h>
 #include <sys/utsname.h>
 
 #include <linux/kvm.h>
@@ -106,6 +105,8 @@ static uint32_t num_architectural_pmu_counters;
 static int has_xsave;
 static int has_xcrs;
 static int has_pit_state2;
+
+static struct kvm_cpuid2 *cpuid_cache;
 
 int kvm_has_pit_state2(void)
 {
@@ -200,9 +201,14 @@ static struct kvm_cpuid2 *get_supported_cpuid(KVMState *s)
 {
     struct kvm_cpuid2 *cpuid;
     int max = 1;
+
+    if (cpuid_cache != NULL) {
+        return cpuid_cache;
+    }
     while ((cpuid = try_get_cpuid(s, max)) == NULL) {
         max *= 2;
     }
+    cpuid_cache = cpuid;
     return cpuid;
 }
 
@@ -319,8 +325,6 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         cpuid_1_edx = kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
         ret |= cpuid_1_edx & CPUID_EXT2_AMD_ALIASES;
     }
-
-    g_free(cpuid);
 
     /* fallback for older kernels */
     if ((function == KVM_CPUID_FEATURES) && !found) {

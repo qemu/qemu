@@ -17,7 +17,6 @@
 #include "sysemu/sysemu.h"
 
 #include <linux/vhost.h>
-#include <sys/mman.h>
 #include <sys/vfs.h>
 #include <qemu/sockets.h>
 

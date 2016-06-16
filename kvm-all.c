@@ -15,7 +15,6 @@
 
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
-#include <sys/mman.h>
 
 #include <linux/kvm.h>
 
@@ -1520,10 +1519,16 @@ static int kvm_max_vcpus(KVMState *s)
     return (ret) ? ret : kvm_recommended_vcpus(s);
 }
 
+static int kvm_max_vcpu_id(KVMState *s)
+{
+    int ret = kvm_check_extension(s, KVM_CAP_MAX_VCPU_ID);
+    return (ret) ? ret : kvm_max_vcpus(s);
+}
+
 bool kvm_vcpu_id_is_valid(int vcpu_id)
 {
     KVMState *s = KVM_STATE(current_machine->accelerator);
-    return vcpu_id >= 0 && vcpu_id < kvm_max_vcpus(s);
+    return vcpu_id >= 0 && vcpu_id < kvm_max_vcpu_id(s);
 }
 
 static int kvm_init(MachineState *ms)

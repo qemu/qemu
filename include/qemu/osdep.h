@@ -197,8 +197,6 @@ void qemu_anon_ram_free(void *ptr, size_t size);
 
 #if defined(CONFIG_MADVISE)
 
-#include <sys/mman.h>
-
 #define QEMU_MADV_WILLNEED  MADV_WILLNEED
 #define QEMU_MADV_DONTNEED  MADV_DONTNEED
 #ifdef MADV_DONTFORK

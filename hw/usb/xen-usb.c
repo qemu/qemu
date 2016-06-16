@@ -21,7 +21,6 @@
 
 #include "qemu/osdep.h"
 #include <libusb.h>
-#include <sys/mman.h>
 
 #include "qemu-common.h"
 #include "qemu/config-file.h"

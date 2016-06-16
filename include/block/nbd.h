@@ -25,19 +25,20 @@
 #include "io/channel-socket.h"
 #include "crypto/tlscreds.h"
 
+/* Note: these are _NOT_ the same as the network representation of an NBD
+ * request and reply!
+ */
 struct nbd_request {
-    uint32_t magic;
-    uint32_t type;
     uint64_t handle;
     uint64_t from;
     uint32_t len;
-} QEMU_PACKED;
+    uint32_t type;
+};
 
 struct nbd_reply {
-    uint32_t magic;
-    uint32_t error;
     uint64_t handle;
-} QEMU_PACKED;
+    uint32_t error;
+};
 
 #define NBD_FLAG_HAS_FLAGS      (1 << 0)        /* Flags are there */
 #define NBD_FLAG_READ_ONLY      (1 << 1)        /* Device is read-only */
@@ -76,6 +77,12 @@ enum {
 
 /* Maximum size of a single READ/WRITE data buffer */
 #define NBD_MAX_BUFFER_SIZE (32 * 1024 * 1024)
+/* Maximum size of an export name. The NBD spec requires 256 and
+ * suggests that servers support up to 4096, but we stick to only the
+ * required size so that we can stack-allocate the names, and because
+ * going larger would require an audit of more code to make sure we
+ * aren't overflowing some other buffer. */
+#define NBD_MAX_NAME_SIZE 256
 
 ssize_t nbd_wr_syncv(QIOChannel *ioc,
                      struct iovec *iov,

@@ -10,7 +10,6 @@
 #include "qemu/host-utils.h"
 #include "qemu/sockets.h"
 
-#include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 

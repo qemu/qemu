@@ -11,7 +11,6 @@
 
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
-#include <sys/mman.h>
 #include <sys/ptrace.h>
 
 #include <linux/elf.h>
