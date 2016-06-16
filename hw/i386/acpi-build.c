@@ -44,6 +44,7 @@
 #include "hw/acpi/tpm.h"
 #include "sysemu/tpm_backend.h"
 #include "hw/timer/mc146818rtc_regs.h"
+#include "sysemu/numa.h"
 
 /* Supported chipsets: */
 #include "hw/acpi/piix4.h"
@@ -2328,7 +2329,6 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     AcpiSratMemoryAffinity *numamem;
 
     int i;
-    uint64_t curnode;
     int srat_start, numa_start, slots;
     uint64_t mem_len, mem_base, next_base;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -2344,14 +2344,19 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     srat->reserved1 = cpu_to_le32(1);
 
     for (i = 0; i < apic_ids->len; i++) {
+        int j;
         int apic_id = apic_ids->cpus[i].arch_id;
 
         core = acpi_data_push(table_data, sizeof *core);
         core->type = ACPI_SRAT_PROCESSOR_APIC;
         core->length = sizeof(*core);
         core->local_apic_id = apic_id;
-        curnode = pcms->node_cpu[apic_id];
-        core->proximity_lo = curnode;
+        for (j = 0; j < nb_numa_nodes; j++) {
+            if (test_bit(i, numa_info[j].node_cpu)) {
+                core->proximity_lo = j;
+                break;
+            }
+        }
         memset(core->proximity_hi, 0, 3);
         core->local_sapic_eid = 0;
         core->flags = cpu_to_le32(1);

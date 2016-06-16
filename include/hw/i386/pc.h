@@ -72,7 +72,6 @@ struct PCMachineState {
     /* NUMA information: */
     uint64_t numa_nodes;
     uint64_t *node_mem;
-    uint64_t *node_cpu;
 };
 
 #define PC_MACHINE_ACPI_DEVICE_PROP "acpi-device"
