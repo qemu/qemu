@@ -137,3 +137,4 @@ trace-events-y += hw/nvram/trace-events
 trace-events-y += hw/display/trace-events
 trace-events-y += hw/input/trace-events
 trace-events-y += hw/timer/trace-events
+trace-events-y += hw/dma/trace-events

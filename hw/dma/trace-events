@@ -1,0 +1,32 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# hw/dma/rc4030.c
+jazzio_read(uint64_t addr, uint32_t ret) "read reg[0x%"PRIx64"] = 0x%x"
+jazzio_write(uint64_t addr, uint32_t val) "write reg[0x%"PRIx64"] = 0x%x"
+rc4030_read(uint64_t addr, uint32_t ret) "read reg[0x%"PRIx64"] = 0x%x"
+rc4030_write(uint64_t addr, uint32_t val) "write reg[0x%"PRIx64"] = 0x%x"
+
+# hw/dma/sparc32_dma.c
+ledma_memory_read(uint64_t addr) "DMA read addr 0x%"PRIx64
+ledma_memory_write(uint64_t addr) "DMA write addr 0x%"PRIx64
+sparc32_dma_set_irq_raise(void) "Raise IRQ"
+sparc32_dma_set_irq_lower(void) "Lower IRQ"
+espdma_memory_read(uint32_t addr) "DMA read addr 0x%08x"
+espdma_memory_write(uint32_t addr) "DMA write addr 0x%08x"
+sparc32_dma_mem_readl(uint64_t addr, uint32_t ret) "read dmareg %"PRIx64": 0x%08x"
+sparc32_dma_mem_writel(uint64_t addr, uint32_t old, uint32_t val) "write dmareg %"PRIx64": 0x%08x -> 0x%08x"
+sparc32_dma_enable_raise(void) "Raise DMA enable"
+sparc32_dma_enable_lower(void) "Lower DMA enable"
+
+# hw/dma/sun4m_iommu.c
+sun4m_iommu_mem_readl(uint64_t addr, uint32_t ret) "read reg[%"PRIx64"] = %x"
+sun4m_iommu_mem_writel(uint64_t addr, uint32_t val) "write reg[%"PRIx64"] = %x"
+sun4m_iommu_mem_writel_ctrl(uint64_t iostart) "iostart = %"PRIx64
+sun4m_iommu_mem_writel_tlbflush(uint32_t val) "tlb flush %x"
+sun4m_iommu_mem_writel_pgflush(uint32_t val) "page flush %x"
+sun4m_iommu_page_get_flags(uint64_t pa, uint64_t iopte, uint32_t ret) "get flags addr %"PRIx64" => pte %"PRIx64", *pte = %x"
+sun4m_iommu_translate_pa(uint64_t addr, uint64_t pa, uint32_t iopte) "xlate dva %"PRIx64" => pa %"PRIx64" iopte = %x"
+sun4m_iommu_bad_addr(uint64_t addr) "bad addr %"PRIx64
+
+# hw/dma/i8257.c
+i8257_unregistered_dma(int nchan, int dma_pos, int dma_len) "unregistered DMA channel used nchan=%d dma_pos=%d dma_len=%d"
