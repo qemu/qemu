@@ -1,0 +1,28 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# target-sparc/mmu_helper.c
+mmu_helper_dfault(uint64_t address, uint64_t context, int mmu_idx, uint32_t tl) "DFAULT at %"PRIx64" context %"PRIx64" mmu_idx=%d tl=%d"
+mmu_helper_dprot(uint64_t address, uint64_t context, int mmu_idx, uint32_t tl) "DPROT at %"PRIx64" context %"PRIx64" mmu_idx=%d tl=%d"
+mmu_helper_dmiss(uint64_t address, uint64_t context) "DMISS at %"PRIx64" context %"PRIx64
+mmu_helper_tfault(uint64_t address, uint64_t context) "TFAULT at %"PRIx64" context %"PRIx64
+mmu_helper_tmiss(uint64_t address, uint64_t context) "TMISS at %"PRIx64" context %"PRIx64
+mmu_helper_get_phys_addr_code(uint32_t tl, int mmu_idx, uint64_t prim_context, uint64_t sec_context, uint64_t address) "tl=%d mmu_idx=%d primary context=%"PRIx64" secondary context=%"PRIx64" address=%"PRIx64
+mmu_helper_get_phys_addr_data(uint32_t tl, int mmu_idx, uint64_t prim_context, uint64_t sec_context, uint64_t address) "tl=%d mmu_idx=%d primary context=%"PRIx64" secondary context=%"PRIx64" address=%"PRIx64
+mmu_helper_mmu_fault(uint64_t address, uint64_t paddr, int mmu_idx, uint32_t tl, uint64_t prim_context, uint64_t sec_context) "Translate at %"PRIx64" -> %"PRIx64", mmu_idx=%d tl=%d primary context=%"PRIx64" secondary context=%"PRIx64
+
+# target-sparc/int64_helper.c
+int_helper_set_softint(uint32_t softint) "new %08x"
+int_helper_clear_softint(uint32_t softint) "new %08x"
+int_helper_write_softint(uint32_t softint) "new %08x"
+
+# target-sparc/int32_helper.c
+int_helper_icache_freeze(void) "Instruction cache: freeze"
+int_helper_dcache_freeze(void) "Data cache: freeze"
+
+# target-sparc/win_helper.c
+win_helper_gregset_error(uint32_t pstate) "ERROR in get_gregset: active pstate bits=%x"
+win_helper_switch_pstate(uint32_t pstate_regs, uint32_t new_pstate_regs) "change_pstate: switching regs old=%x new=%x"
+win_helper_no_switch_pstate(uint32_t new_pstate_regs) "change_pstate: regs new=%x (unchanged)"
+win_helper_wrpil(uint32_t psrpil, uint32_t new_pil) "old=%x new=%x"
+win_helper_done(uint32_t tl) "tl=%d"
+win_helper_retry(uint32_t tl) "tl=%d"
