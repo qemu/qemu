@@ -115,3 +115,7 @@ qga-vss-dll-obj-y = qga/
 # contrib
 ivshmem-client-obj-y = contrib/ivshmem-client/
 ivshmem-server-obj-y = contrib/ivshmem-server/
+
+
+######################################################################
+trace-events-y = trace-events
