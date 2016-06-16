@@ -348,15 +348,6 @@ void block_job_event_completed(BlockJob *job, const char *msg);
 void block_job_event_ready(BlockJob *job);
 
 /**
- * block_job_is_paused:
- * @job: The job being queried.
- *
- * Returns whether the job is currently paused, or will pause
- * as soon as it reaches a sleeping point.
- */
-bool block_job_is_paused(BlockJob *job);
-
-/**
  * block_job_cancel_sync:
  * @job: The job to be canceled.
  *
