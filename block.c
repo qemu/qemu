@@ -684,6 +684,10 @@ static void bdrv_temp_snapshot_options(int *child_flags, QDict *child_options,
     /* For temporary files, unconditional cache=unsafe is fine */
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_NO_FLUSH, "on");
+
+    /* aio=native doesn't work for cache.direct=off, so disable it for the
+     * temporary snapshot */
+    *child_flags &= ~BDRV_O_NATIVE_AIO;
 }
 
 /*
