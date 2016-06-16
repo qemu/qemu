@@ -2709,7 +2709,7 @@ static int make_completely_empty(BlockDriverState *bs)
     /* After this call, neither the in-memory nor the on-disk refcount
      * information accurately describe the actual references */
 
-    ret = bdrv_pwrite_zeroes(bs->file->bs, s->l1_table_offset,
+    ret = bdrv_pwrite_zeroes(bs->file, s->l1_table_offset,
                              l1_clusters * s->cluster_size, 0);
     if (ret < 0) {
         goto fail_broken_refcounts;
@@ -2723,7 +2723,7 @@ static int make_completely_empty(BlockDriverState *bs)
      * overwrite parts of the existing refcount and L1 table, which is not
      * an issue because the dirty flag is set, complete data loss is in fact
      * desired and partial data loss is consequently fine as well */
-    ret = bdrv_pwrite_zeroes(bs->file->bs, s->cluster_size,
+    ret = bdrv_pwrite_zeroes(bs->file, s->cluster_size,
                              (2 + l1_clusters) * s->cluster_size, 0);
     /* This call (even if it failed overall) may have overwritten on-disk
      * refcount structures; in that case, the in-memory refcount information

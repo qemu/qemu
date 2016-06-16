@@ -649,7 +649,7 @@ int bdrv_write(BdrvChild *child, int64_t sector_num,
                       true, 0);
 }
 
-int bdrv_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
+int bdrv_pwrite_zeroes(BdrvChild *child, int64_t offset,
                        int count, BdrvRequestFlags flags)
 {
     QEMUIOVector qiov;
@@ -659,7 +659,7 @@ int bdrv_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
     };
 
     qemu_iovec_init_external(&qiov, &iov, 1);
-    return bdrv_prwv_co(bs, offset, &qiov, true,
+    return bdrv_prwv_co(child->bs, offset, &qiov, true,
                         BDRV_REQ_ZERO_WRITE | flags);
 }
 
@@ -672,9 +672,10 @@ int bdrv_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
  *
  * Returns < 0 on error, 0 on success. For error codes see bdrv_write().
  */
-int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags)
+int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
 {
     int64_t target_sectors, ret, nb_sectors, sector_num = 0;
+    BlockDriverState *bs = child->bs;
     BlockDriverState *file;
     int n;
 
@@ -698,7 +699,7 @@ int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags)
             sector_num += n;
             continue;
         }
-        ret = bdrv_pwrite_zeroes(bs, sector_num << BDRV_SECTOR_BITS,
+        ret = bdrv_pwrite_zeroes(child, sector_num << BDRV_SECTOR_BITS,
                                  n << BDRV_SECTOR_BITS, flags);
         if (ret < 0) {
             error_report("error writing zeroes at sector %" PRId64 ": %s",

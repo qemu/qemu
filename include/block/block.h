@@ -230,9 +230,9 @@ int bdrv_read(BdrvChild *child, int64_t sector_num,
               uint8_t *buf, int nb_sectors);
 int bdrv_write(BdrvChild *child, int64_t sector_num,
                const uint8_t *buf, int nb_sectors);
-int bdrv_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
+int bdrv_pwrite_zeroes(BdrvChild *child, int64_t offset,
                        int count, BdrvRequestFlags flags);
-int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags);
+int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags);
 int bdrv_pread(BdrvChild *child, int64_t offset, void *buf, int bytes);
 int bdrv_preadv(BdrvChild *child, int64_t offset, QEMUIOVector *qiov);
 int bdrv_pwrite(BdrvChild *child, int64_t offset, const void *buf, int bytes);

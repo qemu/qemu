@@ -124,6 +124,7 @@ int blk_pwrite_zeroes(BlockBackend *blk, int64_t offset,
 BlockAIOCB *blk_aio_pwrite_zeroes(BlockBackend *blk, int64_t offset,
                                   int count, BdrvRequestFlags flags,
                                   BlockCompletionFunc *cb, void *opaque);
+int blk_make_zero(BlockBackend *blk, BdrvRequestFlags flags);
 int blk_pread(BlockBackend *blk, int64_t offset, void *buf, int count);
 int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count,
                BdrvRequestFlags flags);

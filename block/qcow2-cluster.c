@@ -1752,7 +1752,7 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                 goto fail;
             }
 
-            ret = bdrv_pwrite_zeroes(bs->file->bs, offset, s->cluster_size, 0);
+            ret = bdrv_pwrite_zeroes(bs->file, offset, s->cluster_size, 0);
             if (ret < 0) {
                 if (!preallocated) {
                     qcow2_free_clusters(bs, offset, s->cluster_size,

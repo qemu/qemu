@@ -870,6 +870,11 @@ int blk_pwrite_zeroes(BlockBackend *blk, int64_t offset,
                    flags | BDRV_REQ_ZERO_WRITE);
 }
 
+int blk_make_zero(BlockBackend *blk, BdrvRequestFlags flags)
+{
+    return bdrv_make_zero(blk->root, flags);
+}
+
 static void error_callback_bh(void *opaque)
 {
     struct BlockBackendAIOCB *acb = opaque;
