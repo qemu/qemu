@@ -57,14 +57,6 @@ spice_vmc_register_interface(void *scd) "spice vmc registered interface %p"
 spice_vmc_unregister_interface(void *scd) "spice vmc unregistered interface %p"
 spice_vmc_event(int event) "spice vmc event %d"
 
-# hw/isa/pc87312.c
-pc87312_io_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
-pc87312_io_write(uint32_t addr, uint32_t val) "write addr=%x val=%x"
-pc87312_info_floppy(uint32_t base) "base 0x%x"
-pc87312_info_ide(uint32_t base) "base 0x%x"
-pc87312_info_parallel(uint32_t base, uint32_t irq) "base 0x%x, irq %u"
-pc87312_info_serial(int n, uint32_t base, uint32_t irq) "id=%d, base 0x%x, irq %u"
-
 # xen-hvm.c
 xen_ram_alloc(unsigned long ram_addr, unsigned long size) "requested: %#lx, size %#lx"
 xen_client_set_memory(uint64_t start_addr, unsigned long size, bool log_dirty) "%#"PRIx64" size %#lx, log_dirty %i"
