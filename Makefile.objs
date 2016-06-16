@@ -146,3 +146,4 @@ trace-events-y += hw/9pfs/trace-events
 trace-events-y += hw/ppc/trace-events
 trace-events-y += hw/pci/trace-events
 trace-events-y += hw/s390x/trace-events
+trace-events-y += hw/vfio/trace-events
