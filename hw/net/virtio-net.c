@@ -1051,7 +1051,7 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
     ptr += n->host_hdr_len;
 
     if (!memcmp(&ptr[12], vlan, sizeof(vlan))) {
-        int vid = be16_to_cpup((uint16_t *)(ptr + 14)) & 0xfff;
+        int vid = lduw_be_p(ptr + 14) & 0xfff;
         if (!(n->vlans[vid >> 5] & (1U << (vid & 0x1f))))
             return 0;
     }
