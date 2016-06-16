@@ -269,7 +269,6 @@ void block_job_resume(BlockJob *job)
 
 void block_job_enter(BlockJob *job)
 {
-    block_job_iostatus_reset(job);
     if (job->co && !job->busy) {
         qemu_coroutine_enter(job->co, NULL);
     }
@@ -278,6 +277,7 @@ void block_job_enter(BlockJob *job)
 void block_job_cancel(BlockJob *job)
 {
     job->cancelled = true;
+    block_job_iostatus_reset(job);
     block_job_enter(job);
 }
 
