@@ -106,17 +106,17 @@ static inline uint64_t rocker_tlv_get_u64(const RockerTlv *tlv)
 
 static inline uint16_t rocker_tlv_get_le16(const RockerTlv *tlv)
 {
-    return le16_to_cpup((uint16_t *) rocker_tlv_data(tlv));
+    return lduw_le_p(rocker_tlv_data(tlv));
 }
 
 static inline uint32_t rocker_tlv_get_le32(const RockerTlv *tlv)
 {
-    return le32_to_cpup((uint32_t *) rocker_tlv_data(tlv));
+    return ldl_le_p(rocker_tlv_data(tlv));
 }
 
 static inline uint64_t rocker_tlv_get_le64(const RockerTlv *tlv)
 {
-    return le64_to_cpup((uint64_t *) rocker_tlv_data(tlv));
+    return ldq_le_p(rocker_tlv_data(tlv));
 }
 
 static inline void rocker_tlv_parse(RockerTlv **tb, int maxtype,
