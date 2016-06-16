@@ -157,3 +157,4 @@ trace-events-y += target-sparc/trace-events
 trace-events-y += target-s390x/trace-events
 trace-events-y += target-ppc/trace-events
 trace-events-y += qom/trace-events
+trace-events-y += linux-user/trace-events
