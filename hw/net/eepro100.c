@@ -352,14 +352,14 @@ static unsigned e100_compute_mcast_idx(const uint8_t *ep)
 static uint16_t e100_read_reg2(EEPRO100State *s, E100RegisterOffset addr)
 {
     assert(!((uintptr_t)&s->mem[addr] & 1));
-    return le16_to_cpup((uint16_t *)&s->mem[addr]);
+    return lduw_le_p(&s->mem[addr]);
 }
 
 /* Read a 32 bit control/status (CSR) register. */
 static uint32_t e100_read_reg4(EEPRO100State *s, E100RegisterOffset addr)
 {
     assert(!((uintptr_t)&s->mem[addr] & 3));
-    return le32_to_cpup((uint32_t *)&s->mem[addr]);
+    return ldl_le_p(&s->mem[addr]);
 }
 
 /* Write a 16 bit control/status (CSR) register. */
@@ -367,7 +367,7 @@ static void e100_write_reg2(EEPRO100State *s, E100RegisterOffset addr,
                             uint16_t val)
 {
     assert(!((uintptr_t)&s->mem[addr] & 1));
-    cpu_to_le16w((uint16_t *)&s->mem[addr], val);
+    stw_le_p(&s->mem[addr], val);
 }
 
 /* Read a 32 bit control/status (CSR) register. */
@@ -375,7 +375,7 @@ static void e100_write_reg4(EEPRO100State *s, E100RegisterOffset addr,
                             uint32_t val)
 {
     assert(!((uintptr_t)&s->mem[addr] & 3));
-    cpu_to_le32w((uint32_t *)&s->mem[addr], val);
+    stl_le_p(&s->mem[addr], val);
 }
 
 #if defined(DEBUG_EEPRO100)
