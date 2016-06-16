@@ -130,3 +130,4 @@ trace-events-y += hw/intc/trace-events
 trace-events-y += hw/net/trace-events
 trace-events-y += hw/virtio/trace-events
 trace-events-y += hw/audio/trace-events
+trace-events-y += hw/misc/trace-events
