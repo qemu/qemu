@@ -302,8 +302,8 @@ typedef struct Qcow2COWRegion {
      */
     uint64_t    offset;
 
-    /** Number of sectors to copy */
-    int         nb_sectors;
+    /** Number of bytes to copy */
+    int         nb_bytes;
 } Qcow2COWRegion;
 
 /**
@@ -317,12 +317,6 @@ typedef struct QCowL2Meta
 
     /** Host offset of the first newly allocated cluster */
     uint64_t alloc_offset;
-
-    /**
-     * Number of sectors from the start of the first allocated cluster to
-     * the end of the (possibly shortened) request
-     */
-    int nb_available;
 
     /** Number of newly allocated clusters */
     int nb_clusters;
@@ -471,8 +465,7 @@ static inline uint64_t l2meta_cow_start(QCowL2Meta *m)
 
 static inline uint64_t l2meta_cow_end(QCowL2Meta *m)
 {
-    return m->offset + m->cow_end.offset
-        + (m->cow_end.nb_sectors << BDRV_SECTOR_BITS);
+    return m->offset + m->cow_end.offset + m->cow_end.nb_bytes;
 }
 
 static inline uint64_t refcount_diff(uint64_t r1, uint64_t r2)
@@ -544,9 +537,10 @@ int qcow2_encrypt_sectors(BDRVQcow2State *s, int64_t sector_num,
                           int nb_sectors, bool enc, Error **errp);
 
 int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
-    int *num, uint64_t *cluster_offset);
+                             unsigned int *bytes, uint64_t *cluster_offset);
 int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
-    int *num, uint64_t *host_offset, QCowL2Meta **m);
+                               unsigned int *bytes, uint64_t *host_offset,
+                               QCowL2Meta **m);
 uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
                                          uint64_t offset,
                                          int compressed_size);

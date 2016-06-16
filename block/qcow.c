@@ -162,10 +162,16 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     if (s->crypt_method_header) {
         if (bdrv_uses_whitelist() &&
             s->crypt_method_header == QCOW_CRYPT_AES) {
-            error_report("qcow built-in AES encryption is deprecated");
-            error_printf("Support for it will be removed in a future release.\n"
-                         "You can use 'qemu-img convert' to switch to an\n"
-                         "unencrypted qcow image, or a LUKS raw image.\n");
+            error_setg(errp,
+                       "Use of AES-CBC encrypted qcow images is no longer "
+                       "supported in system emulators");
+            error_append_hint(errp,
+                              "You can use 'qemu-img convert' to convert your "
+                              "image to an alternative supported format, such "
+                              "as unencrypted qcow, or raw with the LUKS "
+                              "format instead.\n");
+            ret = -ENOSYS;
+            goto fail;
         }
 
         bs->encrypted = 1;

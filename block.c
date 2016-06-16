@@ -684,6 +684,10 @@ static void bdrv_temp_snapshot_options(int *child_flags, QDict *child_options,
     /* For temporary files, unconditional cache=unsafe is fine */
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_NO_FLUSH, "on");
+
+    /* aio=native doesn't work for cache.direct=off, so disable it for the
+     * temporary snapshot */
+    *child_flags &= ~BDRV_O_NATIVE_AIO;
 }
 
 /*
@@ -937,8 +941,7 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
         goto fail_opts;
     }
 
-    bs->request_alignment = 512;
-    bs->zero_beyond_eof = true;
+    bs->request_alignment = drv->bdrv_co_preadv ? 1 : 512;
     bs->read_only = !(bs->open_flags & BDRV_O_RDWR);
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv, bs->read_only)) {
@@ -2192,7 +2195,6 @@ static void bdrv_close(BlockDriverState *bs)
         bs->encrypted = 0;
         bs->valid_key = 0;
         bs->sg = 0;
-        bs->zero_beyond_eof = false;
         QDECREF(bs->options);
         QDECREF(bs->explicit_options);
         bs->options = NULL;
@@ -2224,9 +2226,23 @@ void bdrv_close_all(void)
 static void change_parent_backing_link(BlockDriverState *from,
                                        BlockDriverState *to)
 {
-    BdrvChild *c, *next;
+    BdrvChild *c, *next, *to_c;
 
     QLIST_FOREACH_SAFE(c, &from->parents, next_parent, next) {
+        if (c->role == &child_backing) {
+            /* @from is generally not allowed to be a backing file, except for
+             * when @to is the overlay. In that case, @from may not be replaced
+             * by @to as @to's backing node. */
+            QLIST_FOREACH(to_c, &to->children, next) {
+                if (to_c == c) {
+                    break;
+                }
+            }
+            if (to_c) {
+                continue;
+            }
+        }
+
         assert(c->role != &child_backing);
         bdrv_ref(to);
         bdrv_replace_child(c, to);
@@ -2274,14 +2290,6 @@ void bdrv_replace_in_backing_chain(BlockDriverState *old, BlockDriverState *new)
     bdrv_ref(old);
 
     change_parent_backing_link(old, new);
-
-    /* Change backing files if a previously independent node is added to the
-     * chain. For active commit, we replace top by its own (indirect) backing
-     * file and don't do anything here so we don't build a loop. */
-    if (new->backing == NULL && !bdrv_chain_contains(backing_bs(old), new)) {
-        bdrv_set_backing_hd(new, backing_bs(old));
-        bdrv_set_backing_hd(old, NULL);
-    }
 
     bdrv_unref(old);
 }

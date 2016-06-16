@@ -224,10 +224,12 @@ struct BlockDriver {
     int (*bdrv_get_info)(BlockDriverState *bs, BlockDriverInfo *bdi);
     ImageInfoSpecific *(*bdrv_get_specific_info)(BlockDriverState *bs);
 
-    int (*bdrv_save_vmstate)(BlockDriverState *bs, QEMUIOVector *qiov,
-                             int64_t pos);
-    int (*bdrv_load_vmstate)(BlockDriverState *bs, uint8_t *buf,
-                             int64_t pos, int size);
+    int coroutine_fn (*bdrv_save_vmstate)(BlockDriverState *bs,
+                                          QEMUIOVector *qiov,
+                                          int64_t pos);
+    int coroutine_fn (*bdrv_load_vmstate)(BlockDriverState *bs,
+                                          QEMUIOVector *qiov,
+                                          int64_t pos);
 
     int (*bdrv_change_backing_file)(BlockDriverState *bs,
         const char *backing_file, const char *backing_fmt);
@@ -449,9 +451,6 @@ struct BlockDriverState {
     /* I/O Limits */
     BlockLimits bl;
 
-    /* Whether produces zeros when read beyond eof */
-    bool zero_beyond_eof;
-
     /* Alignment requirement for offset/length of I/O requests */
     unsigned int request_alignment;
     /* Flags honored during pwrite (so far: BDRV_REQ_FUA) */
@@ -509,6 +508,20 @@ struct BlockBackendRootState {
     bool read_only;
     BlockdevDetectZeroesOptions detect_zeroes;
 };
+
+typedef enum BlockMirrorBackingMode {
+    /* Reuse the existing backing chain from the source for the target.
+     * - sync=full: Set backing BDS to NULL.
+     * - sync=top:  Use source's backing BDS.
+     * - sync=none: Use source as the backing BDS. */
+    MIRROR_SOURCE_BACKING_CHAIN,
+
+    /* Open the target's backing chain completely anew */
+    MIRROR_OPEN_BACKING_CHAIN,
+
+    /* Do not change the target's backing BDS after job completion */
+    MIRROR_LEAVE_BACKING_CHAIN,
+} BlockMirrorBackingMode;
 
 static inline BlockDriverState *backing_bs(BlockDriverState *bs)
 {
@@ -672,6 +685,7 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
  * @granularity: The chosen granularity for the dirty bitmap.
  * @buf_size: The amount of data that can be in flight at one time.
  * @mode: Whether to collapse all images in the chain to the target.
+ * @backing_mode: How to establish the target's backing chain after completion.
  * @on_source_error: The action to take upon error reading from the source.
  * @on_target_error: The action to take upon error writing to the target.
  * @unmap: Whether to unmap target where source sectors only contain zeroes.
@@ -687,7 +701,8 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
 void mirror_start(BlockDriverState *bs, BlockDriverState *target,
                   const char *replaces,
                   int64_t speed, uint32_t granularity, int64_t buf_size,
-                  MirrorSyncMode mode, BlockdevOnError on_source_error,
+                  MirrorSyncMode mode, BlockMirrorBackingMode backing_mode,
+                  BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   bool unmap,
                   BlockCompletionFunc *cb,

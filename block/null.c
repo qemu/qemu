@@ -12,6 +12,8 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qstring.h"
 #include "block/block_int.h"
 
 #define NULL_OPT_LATENCY "latency-ns"
@@ -223,6 +225,20 @@ static int64_t coroutine_fn null_co_get_block_status(BlockDriverState *bs,
     }
 }
 
+static void null_refresh_filename(BlockDriverState *bs, QDict *opts)
+{
+    QINCREF(opts);
+    qdict_del(opts, "filename");
+
+    if (!qdict_size(opts)) {
+        snprintf(bs->exact_filename, sizeof(bs->exact_filename), "%s://",
+                 bs->drv->format_name);
+    }
+
+    qdict_put(opts, "driver", qstring_from_str(bs->drv->format_name));
+    bs->full_open_options = opts;
+}
+
 static BlockDriver bdrv_null_co = {
     .format_name            = "null-co",
     .protocol_name          = "null-co",
@@ -238,6 +254,8 @@ static BlockDriver bdrv_null_co = {
     .bdrv_reopen_prepare    = null_reopen_prepare,
 
     .bdrv_co_get_block_status   = null_co_get_block_status,
+
+    .bdrv_refresh_filename  = null_refresh_filename,
 };
 
 static BlockDriver bdrv_null_aio = {
@@ -255,6 +273,8 @@ static BlockDriver bdrv_null_aio = {
     .bdrv_reopen_prepare    = null_reopen_prepare,
 
     .bdrv_co_get_block_status   = null_co_get_block_status,
+
+    .bdrv_refresh_filename  = null_refresh_filename,
 };
 
 static void bdrv_null_init(void)

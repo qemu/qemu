@@ -65,6 +65,9 @@ typedef enum {
     BDRV_REQ_MAY_UNMAP          = 0x4,
     BDRV_REQ_NO_SERIALISING     = 0x8,
     BDRV_REQ_FUA                = 0x10,
+
+    /* Mask of valid flags */
+    BDRV_REQ_MASK               = 0x1f,
 } BdrvRequestFlags;
 
 typedef struct BlockSizes {
@@ -232,6 +235,7 @@ int bdrv_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
 int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags);
 int bdrv_pread(BlockDriverState *bs, int64_t offset,
                void *buf, int count);
+int bdrv_preadv(BlockDriverState *bs, int64_t offset, QEMUIOVector *qiov);
 int bdrv_pwrite(BlockDriverState *bs, int64_t offset,
                 const void *buf, int count);
 int bdrv_pwritev(BlockDriverState *bs, int64_t offset, QEMUIOVector *qiov);
@@ -401,10 +405,14 @@ int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
                           const uint8_t *buf, int nb_sectors);
 int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
 ImageInfoSpecific *bdrv_get_specific_info(BlockDriverState *bs);
+void bdrv_round_sectors_to_clusters(BlockDriverState *bs,
+                                    int64_t sector_num, int nb_sectors,
+                                    int64_t *cluster_sector_num,
+                                    int *cluster_nb_sectors);
 void bdrv_round_to_clusters(BlockDriverState *bs,
-                            int64_t sector_num, int nb_sectors,
-                            int64_t *cluster_sector_num,
-                            int *cluster_nb_sectors);
+                            int64_t offset, unsigned int bytes,
+                            int64_t *cluster_offset,
+                            unsigned int *cluster_bytes);
 
 const char *bdrv_get_encrypted_filename(BlockDriverState *bs);
 void bdrv_get_backing_filename(BlockDriverState *bs,
@@ -423,6 +431,7 @@ void path_combine(char *dest, int dest_size,
                   const char *base_path,
                   const char *filename);
 
+int bdrv_readv_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
 int bdrv_writev_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
 int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
                       int64_t pos, int size);

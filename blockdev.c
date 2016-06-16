@@ -2544,6 +2544,7 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
     BlockBackend *blk;
     BlockDriverState *medium_bs = NULL;
     int bdrv_flags;
+    int rc;
     QDict *options = NULL;
     Error *err = NULL;
 
@@ -2598,11 +2599,13 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
         goto fail;
     }
 
-    qmp_blockdev_open_tray(device, false, false, &err);
-    if (err) {
+    rc = do_open_tray(device, false, &err);
+    if (rc && rc != -ENOSYS) {
         error_propagate(errp, err);
         goto fail;
     }
+    error_free(err);
+    err = NULL;
 
     qmp_x_blockdev_remove_medium(device, &err);
     if (err) {
@@ -3423,6 +3426,7 @@ static void blockdev_mirror_common(BlockDriverState *bs,
                                    BlockDriverState *target,
                                    bool has_replaces, const char *replaces,
                                    enum MirrorSyncMode sync,
+                                   BlockMirrorBackingMode backing_mode,
                                    bool has_speed, int64_t speed,
                                    bool has_granularity, uint32_t granularity,
                                    bool has_buf_size, int64_t buf_size,
@@ -3480,7 +3484,7 @@ static void blockdev_mirror_common(BlockDriverState *bs,
      */
     mirror_start(bs, target,
                  has_replaces ? replaces : NULL,
-                 speed, granularity, buf_size, sync,
+                 speed, granularity, buf_size, sync, backing_mode,
                  on_source_error, on_target_error, unmap,
                  block_job_cb, bs, errp);
 }
@@ -3503,6 +3507,7 @@ void qmp_drive_mirror(const char *device, const char *target,
     BlockBackend *blk;
     BlockDriverState *source, *target_bs;
     AioContext *aio_context;
+    BlockMirrorBackingMode backing_mode;
     Error *local_err = NULL;
     QDict *options = NULL;
     int flags;
@@ -3576,6 +3581,12 @@ void qmp_drive_mirror(const char *device, const char *target,
         }
     }
 
+    if (mode == NEW_IMAGE_MODE_ABSOLUTE_PATHS) {
+        backing_mode = MIRROR_SOURCE_BACKING_CHAIN;
+    } else {
+        backing_mode = MIRROR_OPEN_BACKING_CHAIN;
+    }
+
     if ((sync == MIRROR_SYNC_MODE_FULL || !source)
         && mode != NEW_IMAGE_MODE_EXISTING)
     {
@@ -3624,7 +3635,7 @@ void qmp_drive_mirror(const char *device, const char *target,
     bdrv_set_aio_context(target_bs, aio_context);
 
     blockdev_mirror_common(bs, target_bs,
-                           has_replaces, replaces, sync,
+                           has_replaces, replaces, sync, backing_mode,
                            has_speed, speed,
                            has_granularity, granularity,
                            has_buf_size, buf_size,
@@ -3656,6 +3667,7 @@ void qmp_blockdev_mirror(const char *device, const char *target,
     BlockBackend *blk;
     BlockDriverState *target_bs;
     AioContext *aio_context;
+    BlockMirrorBackingMode backing_mode = MIRROR_LEAVE_BACKING_CHAIN;
     Error *local_err = NULL;
 
     blk = blk_by_name(device);
@@ -3681,7 +3693,7 @@ void qmp_blockdev_mirror(const char *device, const char *target,
     bdrv_set_aio_context(target_bs, aio_context);
 
     blockdev_mirror_common(bs, target_bs,
-                           has_replaces, replaces, sync,
+                           has_replaces, replaces, sync, backing_mode,
                            has_speed, speed,
                            has_granularity, granularity,
                            has_buf_size, buf_size,
@@ -4154,22 +4166,18 @@ void qmp_x_blockdev_change(const char *parent, bool has_child,
 BlockJobInfoList *qmp_query_block_jobs(Error **errp)
 {
     BlockJobInfoList *head = NULL, **p_next = &head;
-    BlockDriverState *bs;
-    BdrvNextIterator it;
+    BlockJob *job;
 
-    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
+    for (job = block_job_next(NULL); job; job = block_job_next(job)) {
+        BlockJobInfoList *elem = g_new0(BlockJobInfoList, 1);
+        AioContext *aio_context = blk_get_aio_context(job->blk);
 
         aio_context_acquire(aio_context);
-
-        if (bs->job) {
-            BlockJobInfoList *elem = g_new0(BlockJobInfoList, 1);
-            elem->value = block_job_query(bs->job);
-            *p_next = elem;
-            p_next = &elem->next;
-        }
-
+        elem->value = block_job_query(job);
         aio_context_release(aio_context);
+
+        *p_next = elem;
+        p_next = &elem->next;
     }
 
     return head;

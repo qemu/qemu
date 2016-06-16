@@ -269,6 +269,7 @@ void hbitmap_set(HBitmap *hb, uint64_t start, uint64_t count)
     start >>= hb->granularity;
     last >>= hb->granularity;
     count = last - start + 1;
+    assert(last < hb->size);
 
     hb->count += count - hb_count_between(hb, start, last);
     hb_set_between(hb, HBITMAP_LEVELS - 1, start, last);
@@ -348,6 +349,7 @@ void hbitmap_reset(HBitmap *hb, uint64_t start, uint64_t count)
 
     start >>= hb->granularity;
     last >>= hb->granularity;
+    assert(last < hb->size);
 
     hb->count -= hb_count_between(hb, start, last);
     hb_reset_between(hb, HBITMAP_LEVELS - 1, start, last);
@@ -371,6 +373,7 @@ bool hbitmap_get(const HBitmap *hb, uint64_t item)
     /* Compute position and bit in the last layer.  */
     uint64_t pos = item >> hb->granularity;
     unsigned long bit = 1UL << (pos & (BITS_PER_LONG - 1));
+    assert(pos < hb->size);
 
     return (hb->levels[HBITMAP_LEVELS - 1][pos >> BITS_PER_LEVEL] & bit) != 0;
 }

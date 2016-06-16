@@ -3570,7 +3570,7 @@ static int img_bench(int argc, char **argv)
     BlockBackend *blk = NULL;
     BenchData data = {};
     int flags = 0;
-    bool writethrough;
+    bool writethrough = false;
     struct timeval t1, t2;
     int i;
 

@@ -17,4 +17,5 @@ additional options to test further image formats or I/O methods.
 * Feedback and patches
 
 Please send improvements to the test suite, general feedback or just
-reports of failing tests cases to qemu-devel@savannah.nongnu.org.
+reports of failing tests cases to qemu-devel@nongnu.org with a CC:
+to qemu-block@nongnu.org.

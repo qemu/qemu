@@ -15,6 +15,7 @@
 #ifndef QEMU_RAW_AIO_H
 #define QEMU_RAW_AIO_H
 
+#include "qemu/coroutine.h"
 #include "qemu/iov.h"
 
 /* AIO request types */
@@ -38,6 +39,8 @@
 typedef struct LinuxAioState LinuxAioState;
 LinuxAioState *laio_init(void);
 void laio_cleanup(LinuxAioState *s);
+int coroutine_fn laio_co_submit(BlockDriverState *bs, LinuxAioState *s, int fd,
+                                uint64_t offset, QEMUIOVector *qiov, int type);
 BlockAIOCB *laio_submit(BlockDriverState *bs, LinuxAioState *s, int fd,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockCompletionFunc *cb, void *opaque, int type);
