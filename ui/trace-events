@@ -1,0 +1,48 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# ui/console.c
+console_gfx_new(void) ""
+console_putchar_csi(int esc_param0, int esc_param1, int ch, int nb_esc_params) "escape sequence CSI%d;%d%c, %d parameters"
+console_putchar_unhandled(int ch) "unhandled escape character '%c'"
+console_txt_new(int w, int h) "%dx%d"
+console_select(int nr) "%d"
+console_refresh(int interval) "interval %d ms"
+displaysurface_create(void *display_surface, int w, int h) "surface=%p, %dx%d"
+displaysurface_create_from(void *display_surface, int w, int h, uint32_t format) "surface=%p, %dx%d, format 0x%x"
+displaysurface_create_pixman(void *display_surface) "surface=%p"
+displaysurface_free(void *display_surface) "surface=%p"
+displaychangelistener_register(void *dcl, const char *name) "%p [ %s ]"
+displaychangelistener_unregister(void *dcl, const char *name) "%p [ %s ]"
+ppm_save(const char *filename, void *display_surface) "%s surface=%p"
+
+# ui/gtk.c
+gd_switch(const char *tab, int width, int height) "tab=%s, width=%d, height=%d"
+gd_update(const char *tab, int x, int y, int w, int h) "tab=%s, x=%d, y=%d, w=%d, h=%d"
+gd_key_event(const char *tab, int gdk_keycode, int qemu_keycode, const char *action) "tab=%s, translated GDK keycode %d to QEMU keycode %d (%s)"
+gd_grab(const char *tab, const char *device, const char *reason) "tab=%s, dev=%s, reason=%s"
+gd_ungrab(const char *tab, const char *device) "tab=%s, dev=%s"
+
+# ui/vnc.c
+vnc_key_guest_leds(bool caps, bool num, bool scroll) "caps %d, num %d, scroll %d"
+vnc_key_map_init(const char *layout) "%s"
+vnc_key_event_ext(bool down, int sym, int keycode, const char *name) "down %d, sym 0x%x, keycode 0x%x [%s]"
+vnc_key_event_map(bool down, int sym, int keycode, const char *name) "down %d, sym 0x%x -> keycode 0x%x [%s]"
+vnc_key_sync_numlock(bool on) "%d"
+vnc_key_sync_capslock(bool on) "%d"
+
+# ui/input.c
+input_event_key_number(int conidx, int number, const char *qcode, bool down) "con %d, key number 0x%x [%s], down %d"
+input_event_key_qcode(int conidx, const char *qcode, bool down) "con %d, key qcode %s, down %d"
+input_event_btn(int conidx, const char *btn, bool down) "con %d, button %s, down %d"
+input_event_rel(int conidx, const char *axis, int value) "con %d, axis %s, value %d"
+input_event_abs(int conidx, const char *axis, int value) "con %d, axis %s, value 0x%x"
+input_event_sync(void) ""
+input_mouse_mode(int absolute) "absolute %d"
+
+# ui/spice-display.c
+qemu_spice_add_memslot(int qid, uint32_t slot_id, unsigned long virt_start, unsigned long virt_end, int async) "%d %u: host virt 0x%lx - 0x%lx async=%d"
+qemu_spice_del_memslot(int qid, uint32_t gid, uint32_t slot_id) "%d gid=%u sid=%u"
+qemu_spice_create_primary_surface(int qid, uint32_t sid, void *surface, int async) "%d sid=%u surface=%p async=%d"
+qemu_spice_destroy_primary_surface(int qid, uint32_t sid, int async) "%d sid=%u async=%d"
+qemu_spice_wakeup(uint32_t qid) "%d"
+qemu_spice_create_update(uint32_t left, uint32_t right, uint32_t top, uint32_t bottom) "lr %d -> %d,  tb -> %d -> %d"
