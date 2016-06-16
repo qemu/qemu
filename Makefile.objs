@@ -142,3 +142,4 @@ trace-events-y += hw/sparc/trace-events
 trace-events-y += hw/sd/trace-events
 trace-events-y += hw/isa/trace-events
 trace-events-y += hw/i386/trace-events
+trace-events-y += hw/9pfs/trace-events
