@@ -83,7 +83,7 @@ static void socket_outgoing_migration(Object *src,
         migrate_fd_error(data->s, err);
     } else {
         trace_migration_socket_outgoing_connected(data->hostname);
-        migration_set_outgoing_channel(data->s, sioc, data->hostname);
+        migration_channel_connect(data->s, sioc, data->hostname);
     }
     object_unref(src);
 }
@@ -140,8 +140,8 @@ static gboolean socket_accept_incoming_migration(QIOChannel *ioc,
 
     trace_migration_socket_incoming_accepted();
 
-    migration_set_incoming_channel(migrate_get_current(),
-                                   QIO_CHANNEL(sioc));
+    migration_channel_process_incoming(migrate_get_current(),
+                                       QIO_CHANNEL(sioc));
     object_unref(OBJECT(sioc));
 
 out:

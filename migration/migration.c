@@ -416,7 +416,7 @@ static void process_incoming_migration_co(void *opaque)
     qemu_bh_schedule(mis->bh);
 }
 
-void process_incoming_migration(QEMUFile *f)
+void migration_fd_process_incoming(QEMUFile *f)
 {
     Coroutine *co = qemu_coroutine_create(process_incoming_migration_co);
 
@@ -426,8 +426,8 @@ void process_incoming_migration(QEMUFile *f)
 }
 
 
-void migration_set_incoming_channel(MigrationState *s,
-                                    QIOChannel *ioc)
+void migration_channel_process_incoming(MigrationState *s,
+                                        QIOChannel *ioc)
 {
     trace_migration_set_incoming_channel(
         ioc, object_get_typename(OBJECT(ioc)));
@@ -436,20 +436,20 @@ void migration_set_incoming_channel(MigrationState *s,
         !object_dynamic_cast(OBJECT(ioc),
                              TYPE_QIO_CHANNEL_TLS)) {
         Error *local_err = NULL;
-        migration_tls_set_incoming_channel(s, ioc, &local_err);
+        migration_tls_channel_process_incoming(s, ioc, &local_err);
         if (local_err) {
             error_report_err(local_err);
         }
     } else {
         QEMUFile *f = qemu_fopen_channel_input(ioc);
-        process_incoming_migration(f);
+        migration_fd_process_incoming(f);
     }
 }
 
 
-void migration_set_outgoing_channel(MigrationState *s,
-                                    QIOChannel *ioc,
-                                    const char *hostname)
+void migration_channel_connect(MigrationState *s,
+                               QIOChannel *ioc,
+                               const char *hostname)
 {
     trace_migration_set_outgoing_channel(
         ioc, object_get_typename(OBJECT(ioc)), hostname);
@@ -458,7 +458,7 @@ void migration_set_outgoing_channel(MigrationState *s,
         !object_dynamic_cast(OBJECT(ioc),
                              TYPE_QIO_CHANNEL_TLS)) {
         Error *local_err = NULL;
-        migration_tls_set_outgoing_channel(s, ioc, hostname, &local_err);
+        migration_tls_channel_connect(s, ioc, hostname, &local_err);
         if (local_err) {
             migrate_fd_error(s, local_err);
             error_free(local_err);
@@ -602,6 +602,26 @@ static void get_xbzrle_cache_stats(MigrationInfo *info)
     }
 }
 
+static void populate_ram_info(MigrationInfo *info, MigrationState *s)
+{
+    info->has_ram = true;
+    info->ram = g_malloc0(sizeof(*info->ram));
+    info->ram->transferred = ram_bytes_transferred();
+    info->ram->total = ram_bytes_total();
+    info->ram->duplicate = dup_mig_pages_transferred();
+    info->ram->skipped = skipped_mig_pages_transferred();
+    info->ram->normal = norm_mig_pages_transferred();
+    info->ram->normal_bytes = norm_mig_bytes_transferred();
+    info->ram->mbps = s->mbps;
+    info->ram->dirty_sync_count = s->dirty_sync_count;
+    info->ram->postcopy_requests = s->postcopy_requests;
+
+    if (s->state != MIGRATION_STATUS_COMPLETED) {
+        info->ram->remaining = ram_bytes_remaining();
+        info->ram->dirty_pages_rate = s->dirty_pages_rate;
+    }
+}
+
 MigrationInfo *qmp_query_migrate(Error **errp)
 {
     MigrationInfo *info = g_malloc0(sizeof(*info));
@@ -626,18 +646,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->has_setup_time = true;
         info->setup_time = s->setup_time;
 
-        info->has_ram = true;
-        info->ram = g_malloc0(sizeof(*info->ram));
-        info->ram->transferred = ram_bytes_transferred();
-        info->ram->remaining = ram_bytes_remaining();
-        info->ram->total = ram_bytes_total();
-        info->ram->duplicate = dup_mig_pages_transferred();
-        info->ram->skipped = skipped_mig_pages_transferred();
-        info->ram->normal = norm_mig_pages_transferred();
-        info->ram->normal_bytes = norm_mig_bytes_transferred();
-        info->ram->dirty_pages_rate = s->dirty_pages_rate;
-        info->ram->mbps = s->mbps;
-        info->ram->dirty_sync_count = s->dirty_sync_count;
+        populate_ram_info(info, s);
 
         if (blk_mig_active()) {
             info->has_disk = true;
@@ -665,18 +674,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->has_setup_time = true;
         info->setup_time = s->setup_time;
 
-        info->has_ram = true;
-        info->ram = g_malloc0(sizeof(*info->ram));
-        info->ram->transferred = ram_bytes_transferred();
-        info->ram->remaining = ram_bytes_remaining();
-        info->ram->total = ram_bytes_total();
-        info->ram->duplicate = dup_mig_pages_transferred();
-        info->ram->skipped = skipped_mig_pages_transferred();
-        info->ram->normal = norm_mig_pages_transferred();
-        info->ram->normal_bytes = norm_mig_bytes_transferred();
-        info->ram->dirty_pages_rate = s->dirty_pages_rate;
-        info->ram->mbps = s->mbps;
-        info->ram->dirty_sync_count = s->dirty_sync_count;
+        populate_ram_info(info, s);
 
         if (blk_mig_active()) {
             info->has_disk = true;
@@ -699,17 +697,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->has_setup_time = true;
         info->setup_time = s->setup_time;
 
-        info->has_ram = true;
-        info->ram = g_malloc0(sizeof(*info->ram));
-        info->ram->transferred = ram_bytes_transferred();
-        info->ram->remaining = 0;
-        info->ram->total = ram_bytes_total();
-        info->ram->duplicate = dup_mig_pages_transferred();
-        info->ram->skipped = skipped_mig_pages_transferred();
-        info->ram->normal = norm_mig_pages_transferred();
-        info->ram->normal_bytes = norm_mig_bytes_transferred();
-        info->ram->mbps = s->mbps;
-        info->ram->dirty_sync_count = s->dirty_sync_count;
+        populate_ram_info(info, s);
         break;
     case MIGRATION_STATUS_FAILED:
         info->has_status = true;
@@ -732,6 +720,7 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
 {
     MigrationState *s = migrate_get_current();
     MigrationCapabilityStatusList *cap;
+    bool old_postcopy_cap = migrate_postcopy_ram();
 
     if (migration_is_setup_or_active(s->state)) {
         error_setg(errp, QERR_MIGRATION_ACTIVE);
@@ -751,6 +740,19 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
              */
             error_report("Postcopy is not currently compatible with "
                          "compression");
+            s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_RAM] =
+                false;
+        }
+        /* This check is reasonably expensive, so only when it's being
+         * set the first time, also it's only the destination that needs
+         * special support.
+         */
+        if (!old_postcopy_cap && runstate_check(RUN_STATE_INMIGRATE) &&
+            !postcopy_ram_supported_by_host()) {
+            /* postcopy_ram_supported_by_host will have emitted a more
+             * detailed message
+             */
+            error_report("Postcopy is not supported");
             s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_RAM] =
                 false;
         }
@@ -1004,6 +1006,7 @@ MigrationState *migrate_init(const MigrationParams *params)
     s->dirty_sync_count = 0;
     s->start_postcopy = false;
     s->postcopy_after_devices = false;
+    s->postcopy_requests = 0;
     s->migration_thread_running = false;
     s->last_req_rb = NULL;
     error_free(s->error);

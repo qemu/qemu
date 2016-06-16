@@ -160,6 +160,8 @@ struct MigrationState
     int64_t xbzrle_cache_size;
     int64_t setup_time;
     int64_t dirty_sync_count;
+    /* Count of requests incoming from destination */
+    int64_t postcopy_requests;
 
     /* Flag set once the migration has been asked to enter postcopy */
     bool start_postcopy;
@@ -181,25 +183,25 @@ struct MigrationState
 
 void migrate_set_state(int *state, int old_state, int new_state);
 
-void process_incoming_migration(QEMUFile *f);
+void migration_fd_process_incoming(QEMUFile *f);
 
 void qemu_start_incoming_migration(const char *uri, Error **errp);
 
-void migration_set_incoming_channel(MigrationState *s,
-                                    QIOChannel *ioc);
+void migration_channel_process_incoming(MigrationState *s,
+                                        QIOChannel *ioc);
 
-void migration_tls_set_incoming_channel(MigrationState *s,
-                                        QIOChannel *ioc,
-                                        Error **errp);
+void migration_tls_channel_process_incoming(MigrationState *s,
+                                            QIOChannel *ioc,
+                                            Error **errp);
 
-void migration_set_outgoing_channel(MigrationState *s,
-                                    QIOChannel *ioc,
-                                    const char *hostname);
+void migration_channel_connect(MigrationState *s,
+                               QIOChannel *ioc,
+                               const char *hostname);
 
-void migration_tls_set_outgoing_channel(MigrationState *s,
-                                        QIOChannel *ioc,
-                                        const char *hostname,
-                                        Error **errp);
+void migration_tls_channel_connect(MigrationState *s,
+                                   QIOChannel *ioc,
+                                   const char *hostname,
+                                   Error **errp);
 
 uint64_t migrate_max_downtime(void);
 

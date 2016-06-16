@@ -38,7 +38,7 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
         return;
     }
 
-    migration_set_outgoing_channel(s, ioc, NULL);
+    migration_channel_connect(s, ioc, NULL);
     object_unref(OBJECT(ioc));
 }
 
@@ -46,7 +46,7 @@ static gboolean fd_accept_incoming_migration(QIOChannel *ioc,
                                              GIOCondition condition,
                                              gpointer opaque)
 {
-    migration_set_incoming_channel(migrate_get_current(), ioc);
+    migration_channel_process_incoming(migrate_get_current(), ioc);
     object_unref(OBJECT(ioc));
     return FALSE; /* unregister */
 }
