@@ -25,13 +25,6 @@
 #
 # The <format-string> should be a sprintf()-compatible format string.
 
-# util/oslib-win32.c
-# util/oslib-posix.c
-qemu_memalign(size_t alignment, size_t size, void *ptr) "alignment %zu size %zu ptr %p"
-qemu_anon_ram_alloc(size_t size, void *ptr) "size %zu ptr %p"
-qemu_vfree(void *ptr) "ptr %p"
-qemu_anon_ram_free(void *ptr, size_t size) "ptr %p size %zu"
-
 # hw/virtio/virtio.c
 virtqueue_fill(void *vq, const void *elem, unsigned int len, unsigned int idx) "vq %p elem %p len %u idx %u"
 virtqueue_flush(void *vq, unsigned int count) "vq %p count %u"
@@ -1448,11 +1441,6 @@ buffer_resize(const char *buf, size_t olen, size_t len) "%s: old %zd, new %zd"
 buffer_move_empty(const char *buf, size_t len, const char *from) "%s: %zd bytes from %s"
 buffer_move(const char *buf, size_t len, const char *from) "%s: %zd bytes from %s"
 buffer_free(const char *buf, size_t len) "%s: capacity %zd"
-
-# util/hbitmap.c
-hbitmap_iter_skip_words(const void *hb, void *hbi, uint64_t pos, unsigned long cur) "hb %p hbi %p pos %"PRId64" cur 0x%lx"
-hbitmap_reset(void *hb, uint64_t start, uint64_t count, uint64_t sbit, uint64_t ebit) "hb %p items %"PRIu64",%"PRIu64" bits %"PRIu64"..%"PRIu64
-hbitmap_set(void *hb, uint64_t start, uint64_t count, uint64_t sbit, uint64_t ebit) "hb %p items %"PRIu64",%"PRIu64" bits %"PRIu64"..%"PRIu64
 
 # target-s390x/mmu_helper.c
 get_skeys_nonzero(int rc) "SKEY: Call to get_skeys unexpectedly returned %d"
