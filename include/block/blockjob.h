@@ -70,6 +70,20 @@ typedef struct BlockJobDriver {
      * never both.
      */
     void (*abort)(BlockJob *job);
+
+    /**
+     * If the callback is not NULL, it will be invoked when the job transitions
+     * into the paused state.  Paused jobs must not perform any asynchronous
+     * I/O or event loop activity.  This callback is used to quiesce jobs.
+     */
+    void coroutine_fn (*pause)(BlockJob *job);
+
+    /**
+     * If the callback is not NULL, it will be invoked when the job transitions
+     * out of the paused state.  Any asynchronous I/O or event loop activity
+     * should be restarted from this callback.
+     */
+    void coroutine_fn (*resume)(BlockJob *job);
 } BlockJobDriver;
 
 /**
@@ -119,11 +133,17 @@ struct BlockJob {
     bool user_paused;
 
     /**
-     * Set to false by the job while it is in a quiescent state, where
-     * no I/O is pending and the job has yielded on any condition
-     * that is not detected by #aio_poll, such as a timer.
+     * Set to false by the job while the coroutine has yielded and may be
+     * re-entered by block_job_enter().  There may still be I/O or event loop
+     * activity pending.
      */
     bool busy;
+
+    /**
+     * Set to true by the job while it is in a quiescent state, where
+     * no I/O or event loop activity is pending.
+     */
+    bool paused;
 
     /**
      * Set to true when the job is ready to be completed.
@@ -297,6 +317,15 @@ bool block_job_is_cancelled(BlockJob *job);
  * Return information about a job.
  */
 BlockJobInfo *block_job_query(BlockJob *job);
+
+/**
+ * block_job_pause_point:
+ * @job: The job that is ready to pause.
+ *
+ * Pause now if block_job_pause() has been called.  Block jobs that perform
+ * lots of I/O must call this between requests so that the job can be paused.
+ */
+void coroutine_fn block_job_pause_point(BlockJob *job);
 
 /**
  * block_job_pause:
