@@ -1,0 +1,261 @@
+#!/usr/bin/env python
+#
+# Test whether the backing BDSs are correct after completion of a
+# mirror block job; in "existing" modes (drive-mirror with
+# mode=existing and blockdev-mirror) the backing chain should not be
+# overridden.
+#
+# Copyright (C) 2016 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+from iotests import qemu_img
+
+back0_img = os.path.join(iotests.test_dir, 'back0.' + iotests.imgfmt)
+back1_img = os.path.join(iotests.test_dir, 'back1.' + iotests.imgfmt)
+back2_img = os.path.join(iotests.test_dir, 'back2.' + iotests.imgfmt)
+source_img = os.path.join(iotests.test_dir, 'source.' + iotests.imgfmt)
+target_img = os.path.join(iotests.test_dir, 'target.' + iotests.imgfmt)
+
+
+# Class variables for controlling its behavior:
+#
+# existing: If True, explicitly create the target image and blockdev-add it
+# target_backing: If existing is True: Use this filename as the backing file
+#                 of the target image
+#                 (None: no backing file)
+# target_blockdev_backing: If existing is True: Pass this dict as "backing"
+#                          for the blockdev-add command
+#                          (None: do not pass "backing")
+# target_real_backing: If existing is True: The real filename of the backing
+#                      image during runtime, only makes sense if
+#                      target_blockdev_backing is not None
+#                      (None: same as target_backing)
+
+class BaseClass(iotests.QMPTestCase):
+    target_blockdev_backing = None
+    target_real_backing = None
+
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, back0_img, '1M')
+        qemu_img('create', '-f', iotests.imgfmt, '-b', back0_img, back1_img)
+        qemu_img('create', '-f', iotests.imgfmt, '-b', back1_img, back2_img)
+        qemu_img('create', '-f', iotests.imgfmt, '-b', back2_img, source_img)
+
+        self.vm = iotests.VM()
+        self.vm.add_drive(None, '', 'none')
+        self.vm.launch()
+
+        # Add the BDS via blockdev-add so it stays around after the mirror block
+        # job has been completed
+        result = self.vm.qmp('blockdev-add',
+                             options={'node-name': 'source',
+                                      'driver': iotests.imgfmt,
+                                      'file': {'driver': 'file',
+                                               'filename': source_img}})
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('x-blockdev-insert-medium',
+                             device='drive0', node_name='source')
+        self.assert_qmp(result, 'return', {})
+
+        self.assertIntactSourceBackingChain()
+
+        if self.existing:
+            if self.target_backing:
+                qemu_img('create', '-f', iotests.imgfmt,
+                         '-b', self.target_backing, target_img, '1M')
+            else:
+                qemu_img('create', '-f', iotests.imgfmt, target_img, '1M')
+
+            if self.cmd == 'blockdev-mirror':
+                options = { 'node-name': 'target',
+                            'driver': iotests.imgfmt,
+                            'file': { 'driver': 'file',
+                                      'filename': target_img } }
+                if self.target_blockdev_backing:
+                    options['backing'] = self.target_blockdev_backing
+
+                result = self.vm.qmp('blockdev-add', options=options)
+                self.assert_qmp(result, 'return', {})
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(source_img)
+        os.remove(back2_img)
+        os.remove(back1_img)
+        os.remove(back0_img)
+        try:
+            os.remove(target_img)
+        except OSError:
+            pass
+
+    def findBlockNode(self, node_name, id=None):
+        if id:
+            result = self.vm.qmp('query-block')
+            for device in result['return']:
+                if device['device'] == id:
+                    if node_name:
+                        self.assert_qmp(device, 'inserted/node-name', node_name)
+                    return device['inserted']
+        else:
+            result = self.vm.qmp('query-named-block-nodes')
+            for node in result['return']:
+                if node['node-name'] == node_name:
+                    return node
+
+        self.fail('Cannot find node %s/%s' % (id, node_name))
+
+    def assertIntactSourceBackingChain(self):
+        node = self.findBlockNode('source')
+
+        self.assert_qmp(node, 'image' + '/backing-image' * 0 + '/filename',
+                        source_img)
+        self.assert_qmp(node, 'image' + '/backing-image' * 1 + '/filename',
+                        back2_img)
+        self.assert_qmp(node, 'image' + '/backing-image' * 2 + '/filename',
+                        back1_img)
+        self.assert_qmp(node, 'image' + '/backing-image' * 3 + '/filename',
+                        back0_img)
+        self.assert_qmp_absent(node, 'image' + '/backing-image' * 4)
+
+    def assertCorrectBackingImage(self, node, default_image):
+        if self.existing:
+            if self.target_real_backing:
+                image = self.target_real_backing
+            else:
+                image = self.target_backing
+        else:
+            image = default_image
+
+        if image:
+            self.assert_qmp(node, 'image/backing-image/filename', image)
+        else:
+            self.assert_qmp_absent(node, 'image/backing-image')
+
+
+# Class variables for controlling its behavior:
+#
+# cmd: Mirroring command to execute, either drive-mirror or blockdev-mirror
+
+class MirrorBaseClass(BaseClass):
+    def runMirror(self, sync):
+        if self.cmd == 'blockdev-mirror':
+            result = self.vm.qmp(self.cmd, device='drive0', sync=sync,
+                                 target='target')
+        else:
+            if self.existing:
+                mode = 'existing'
+            else:
+                mode = 'absolute-paths'
+            result = self.vm.qmp(self.cmd, device='drive0', sync=sync,
+                                 target=target_img, format=iotests.imgfmt,
+                                 mode=mode, node_name='target')
+
+        self.assert_qmp(result, 'return', {})
+
+        self.vm.event_wait('BLOCK_JOB_READY')
+
+        result = self.vm.qmp('block-job-complete', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        self.vm.event_wait('BLOCK_JOB_COMPLETED')
+
+    def testFull(self):
+        self.runMirror('full')
+
+        node = self.findBlockNode('target', 'drive0')
+        self.assertCorrectBackingImage(node, None)
+        self.assertIntactSourceBackingChain()
+
+    def testTop(self):
+        self.runMirror('top')
+
+        node = self.findBlockNode('target', 'drive0')
+        self.assertCorrectBackingImage(node, back2_img)
+        self.assertIntactSourceBackingChain()
+
+    def testNone(self):
+        self.runMirror('none')
+
+        node = self.findBlockNode('target', 'drive0')
+        self.assertCorrectBackingImage(node, source_img)
+        self.assertIntactSourceBackingChain()
+
+
+class TestDriveMirrorAbsolutePaths(MirrorBaseClass):
+    cmd = 'drive-mirror'
+    existing = False
+
+class TestDriveMirrorExistingNoBacking(MirrorBaseClass):
+    cmd = 'drive-mirror'
+    existing = True
+    target_backing = None
+
+class TestDriveMirrorExistingBacking(MirrorBaseClass):
+    cmd = 'drive-mirror'
+    existing = True
+    target_backing = 'null-co://'
+
+class TestBlockdevMirrorNoBacking(MirrorBaseClass):
+    cmd = 'blockdev-mirror'
+    existing = True
+    target_backing = None
+
+class TestBlockdevMirrorBacking(MirrorBaseClass):
+    cmd = 'blockdev-mirror'
+    existing = True
+    target_backing = 'null-co://'
+
+class TestBlockdevMirrorForcedBacking(MirrorBaseClass):
+    cmd = 'blockdev-mirror'
+    existing = True
+    target_backing = None
+    target_blockdev_backing = { 'driver': 'null-co' }
+    target_real_backing = 'null-co://'
+
+
+class TestCommit(BaseClass):
+    existing = False
+
+    def testCommit(self):
+        result = self.vm.qmp('block-commit', device='drive0', base=back1_img)
+        self.assert_qmp(result, 'return', {})
+
+        self.vm.event_wait('BLOCK_JOB_READY')
+
+        result = self.vm.qmp('block-job-complete', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        self.vm.event_wait('BLOCK_JOB_COMPLETED')
+
+        node = self.findBlockNode(None, 'drive0')
+        self.assert_qmp(node, 'image' + '/backing-image' * 0 + '/filename',
+                        back1_img)
+        self.assert_qmp(node, 'image' + '/backing-image' * 1 + '/filename',
+                        back0_img)
+        self.assert_qmp_absent(node, 'image' + '/backing-image' * 2 +
+                               '/filename')
+
+        self.assertIntactSourceBackingChain()
+
+
+BaseClass = None
+MirrorBaseClass = None
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2'])

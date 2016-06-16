@@ -509,6 +509,20 @@ struct BlockBackendRootState {
     BlockdevDetectZeroesOptions detect_zeroes;
 };
 
+typedef enum BlockMirrorBackingMode {
+    /* Reuse the existing backing chain from the source for the target.
+     * - sync=full: Set backing BDS to NULL.
+     * - sync=top:  Use source's backing BDS.
+     * - sync=none: Use source as the backing BDS. */
+    MIRROR_SOURCE_BACKING_CHAIN,
+
+    /* Open the target's backing chain completely anew */
+    MIRROR_OPEN_BACKING_CHAIN,
+
+    /* Do not change the target's backing BDS after job completion */
+    MIRROR_LEAVE_BACKING_CHAIN,
+} BlockMirrorBackingMode;
+
 static inline BlockDriverState *backing_bs(BlockDriverState *bs)
 {
     return bs->backing ? bs->backing->bs : NULL;
@@ -671,6 +685,7 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
  * @granularity: The chosen granularity for the dirty bitmap.
  * @buf_size: The amount of data that can be in flight at one time.
  * @mode: Whether to collapse all images in the chain to the target.
+ * @backing_mode: How to establish the target's backing chain after completion.
  * @on_source_error: The action to take upon error reading from the source.
  * @on_target_error: The action to take upon error writing to the target.
  * @unmap: Whether to unmap target where source sectors only contain zeroes.
@@ -686,7 +701,8 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
 void mirror_start(BlockDriverState *bs, BlockDriverState *target,
                   const char *replaces,
                   int64_t speed, uint32_t granularity, int64_t buf_size,
-                  MirrorSyncMode mode, BlockdevOnError on_source_error,
+                  MirrorSyncMode mode, BlockMirrorBackingMode backing_mode,
+                  BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   bool unmap,
                   BlockCompletionFunc *cb,

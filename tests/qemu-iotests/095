@@ -74,6 +74,8 @@ _send_qemu_cmd $h "{ 'execute': 'block-commit',
                                  'arguments': { 'device': 'test',
                                  'top': '"${TEST_IMG}.snp1"' } }" "BLOCK_JOB_COMPLETED"
 
+_cleanup_qemu
+
 echo
 echo "=== Base image info after commit and resize ==="
 TEST_IMG="${TEST_IMG}.base" _img_info | _filter_img_info

@@ -2226,9 +2226,23 @@ void bdrv_close_all(void)
 static void change_parent_backing_link(BlockDriverState *from,
                                        BlockDriverState *to)
 {
-    BdrvChild *c, *next;
+    BdrvChild *c, *next, *to_c;
 
     QLIST_FOREACH_SAFE(c, &from->parents, next_parent, next) {
+        if (c->role == &child_backing) {
+            /* @from is generally not allowed to be a backing file, except for
+             * when @to is the overlay. In that case, @from may not be replaced
+             * by @to as @to's backing node. */
+            QLIST_FOREACH(to_c, &to->children, next) {
+                if (to_c == c) {
+                    break;
+                }
+            }
+            if (to_c) {
+                continue;
+            }
+        }
+
         assert(c->role != &child_backing);
         bdrv_ref(to);
         bdrv_replace_child(c, to);
@@ -2276,14 +2290,6 @@ void bdrv_replace_in_backing_chain(BlockDriverState *old, BlockDriverState *new)
     bdrv_ref(old);
 
     change_parent_backing_link(old, new);
-
-    /* Change backing files if a previously independent node is added to the
-     * chain. For active commit, we replace top by its own (indirect) backing
-     * file and don't do anything here so we don't build a loop. */
-    if (new->backing == NULL && !bdrv_chain_contains(backing_bs(old), new)) {
-        bdrv_set_backing_hd(new, backing_bs(old));
-        bdrv_set_backing_hd(old, NULL);
-    }
 
     bdrv_unref(old);
 }

@@ -290,7 +290,8 @@ static int qemu_rbd_set_conf(rados_t cluster, const char *conf,
             if (only_read_conf_file) {
                 ret = rados_conf_read_file(cluster, value);
                 if (ret < 0) {
-                    error_setg(errp, "error reading conf file %s", value);
+                    error_setg_errno(errp, -ret, "error reading conf file %s",
+                                     value);
                     break;
                 }
             }
@@ -299,7 +300,7 @@ static int qemu_rbd_set_conf(rados_t cluster, const char *conf,
         } else if (!only_read_conf_file) {
             ret = rados_conf_set(cluster, name, value);
             if (ret < 0) {
-                error_setg(errp, "invalid conf option %s", name);
+                error_setg_errno(errp, -ret, "invalid conf option %s", name);
                 ret = -EINVAL;
                 break;
             }
@@ -354,9 +355,10 @@ static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     clientname = qemu_rbd_parse_clientname(conf, clientname_buf);
-    if (rados_create(&cluster, clientname) < 0) {
-        error_setg(errp, "error initializing");
-        return -EIO;
+    ret = rados_create(&cluster, clientname);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "error initializing");
+        return ret;
     }
 
     if (strstr(conf, "conf=") == NULL) {
@@ -381,21 +383,27 @@ static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
         return -EIO;
     }
 
-    if (rados_connect(cluster) < 0) {
-        error_setg(errp, "error connecting");
+    ret = rados_connect(cluster);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "error connecting");
         rados_shutdown(cluster);
-        return -EIO;
+        return ret;
     }
 
-    if (rados_ioctx_create(cluster, pool, &io_ctx) < 0) {
-        error_setg(errp, "error opening pool %s", pool);
+    ret = rados_ioctx_create(cluster, pool, &io_ctx);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "error opening pool %s", pool);
         rados_shutdown(cluster);
-        return -EIO;
+        return ret;
     }
 
     ret = rbd_create(io_ctx, name, bytes, &obj_order);
     rados_ioctx_destroy(io_ctx);
     rados_shutdown(cluster);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "error rbd create");
+        return ret;
+    }
 
     return ret;
 }
@@ -500,7 +508,7 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     clientname = qemu_rbd_parse_clientname(conf, clientname_buf);
     r = rados_create(&s->cluster, clientname);
     if (r < 0) {
-        error_setg(errp, "error initializing");
+        error_setg_errno(errp, -r, "error initializing");
         goto failed_opts;
     }
 
@@ -546,19 +554,19 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
 
     r = rados_connect(s->cluster);
     if (r < 0) {
-        error_setg(errp, "error connecting");
+        error_setg_errno(errp, -r, "error connecting");
         goto failed_shutdown;
     }
 
     r = rados_ioctx_create(s->cluster, pool, &s->io_ctx);
     if (r < 0) {
-        error_setg(errp, "error opening pool %s", pool);
+        error_setg_errno(errp, -r, "error opening pool %s", pool);
         goto failed_shutdown;
     }
 
     r = rbd_open(s->io_ctx, s->name, &s->image, s->snap);
     if (r < 0) {
-        error_setg(errp, "error reading header from %s", s->name);
+        error_setg_errno(errp, -r, "error reading header from %s", s->name);
         goto failed_open;
     }
 

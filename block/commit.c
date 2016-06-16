@@ -236,6 +236,11 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
         return;
     }
 
+    s = block_job_create(&commit_job_driver, bs, speed, cb, opaque, errp);
+    if (!s) {
+        return;
+    }
+
     orig_base_flags    = bdrv_get_flags(base);
     orig_overlay_flags = bdrv_get_flags(overlay_bs);
 
@@ -252,15 +257,11 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
         bdrv_reopen_multiple(reopen_queue, &local_err);
         if (local_err != NULL) {
             error_propagate(errp, local_err);
+            block_job_unref(&s->common);
             return;
         }
     }
 
-
-    s = block_job_create(&commit_job_driver, bs, speed, cb, opaque, errp);
-    if (!s) {
-        return;
-    }
 
     s->base = blk_new();
     blk_insert_bs(s->base, base);

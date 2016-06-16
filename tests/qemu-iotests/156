@@ -1,0 +1,174 @@
+#!/bin/bash
+#
+# Tests oVirt-like storage migration:
+#  - Create snapshot
+#  - Create target image with (not yet existing) target backing chain
+#    (i.e. just write the name of a soon-to-be-copied-over backing file into it)
+#  - drive-mirror the snapshot to the target with mode=existing and sync=top
+#  - In the meantime, copy the original source files to the destination via
+#    conventional means (i.e. outside of qemu)
+#  - Complete the drive-mirror job
+#  - Delete all source images
+#
+# Copyright (C) 2016 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+status=1	# failure is the default!
+
+_cleanup()
+{
+    rm -f "$TEST_IMG{,.target}{,.backing,.overlay}"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2 qed
+_supported_proto generic
+_supported_os Linux
+
+# Create source disk
+TEST_IMG="$TEST_IMG.backing" _make_test_img 1M
+_make_test_img -b "$TEST_IMG.backing" 1M
+
+$QEMU_IO -c 'write -P 1 0 256k' "$TEST_IMG.backing" | _filter_qemu_io
+$QEMU_IO -c 'write -P 2 64k 192k' "$TEST_IMG" | _filter_qemu_io
+
+_launch_qemu -drive if=none,id=source,file="$TEST_IMG"
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'qmp_capabilities' }" \
+    'return'
+
+# Create snapshot
+TEST_IMG="$TEST_IMG.overlay" _make_test_img -b "$TEST_IMG" 1M
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'blockdev-snapshot-sync',
+       'arguments': { 'device': 'source',
+                      'snapshot-file': '$TEST_IMG.overlay',
+                      'format': '$IMGFMT',
+                      'mode': 'existing' } }" \
+    'return'
+
+# Write something to the snapshot
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line':
+                      'qemu-io source \"write -P 3 128k 128k\"' } }" \
+    'return'
+
+# Create target image
+TEST_IMG="$TEST_IMG.target.overlay" _make_test_img -b "$TEST_IMG.target" 1M
+
+# Mirror snapshot
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'drive-mirror',
+       'arguments': { 'device': 'source',
+                      'target': '$TEST_IMG.target.overlay',
+                      'mode': 'existing',
+                      'sync': 'top' } }" \
+    'return'
+
+# Wait for convergence
+_send_qemu_cmd $QEMU_HANDLE \
+    '' \
+    'BLOCK_JOB_READY'
+
+# Write some more
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line':
+                      'qemu-io source \"write -P 4 192k 64k\"' } }" \
+    'return'
+
+# Copy source backing chain to the target before completing the job
+cp "$TEST_IMG.backing" "$TEST_IMG.target.backing"
+cp "$TEST_IMG" "$TEST_IMG.target"
+$QEMU_IMG rebase -u -b "$TEST_IMG.target.backing" "$TEST_IMG.target"
+
+# Complete block job
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'block-job-complete',
+       'arguments': { 'device': 'source' } }" \
+    ''
+
+_send_qemu_cmd $QEMU_HANDLE \
+    '' \
+    'BLOCK_JOB_COMPLETED'
+
+# Remove the source images
+rm -f "$TEST_IMG{,.backing,.overlay}"
+
+echo
+
+# Check online disk contents
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line':
+                      'qemu-io source \"read -P 1 0k 64k\"' } }" \
+    'return'
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line':
+                      'qemu-io source \"read -P 2 64k 64k\"' } }" \
+    'return'
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line':
+                      'qemu-io source \"read -P 3 128k 64k\"' } }" \
+    'return'
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line':
+                      'qemu-io source \"read -P 4 192k 64k\"' } }" \
+    'return'
+
+echo
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'quit' }" \
+    'return'
+
+wait=1 _cleanup_qemu
+
+echo
+
+# Check offline disk contents
+$QEMU_IO -c 'read -P 1 0k 64k' \
+         -c 'read -P 2 64k 64k' \
+         -c 'read -P 3 128k 64k' \
+         -c 'read -P 4 192k 64k' \
+         "$TEST_IMG.target.overlay" | _filter_qemu_io
+
+echo
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0
