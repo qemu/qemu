@@ -125,3 +125,4 @@ trace-events-y += io/trace-events
 trace-events-y += migration/trace-events
 trace-events-y += block/trace-events
 trace-events-y += hw/block/trace-events
+trace-events-y += hw/char/trace-events
