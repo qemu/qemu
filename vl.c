@@ -4564,8 +4564,10 @@ int main(int argc, char **argv, char **envp)
     os_setup_signal_handling();
 
     /* init remote displays */
+#ifdef CONFIG_VNC
     qemu_opts_foreach(qemu_find_opts("vnc"),
                       vnc_init_func, NULL, NULL);
+#endif
     if (show_vnc_port) {
         char *ret = vnc_display_local_addr("default");
         printf("VNC server running on '%s'\n", ret);
