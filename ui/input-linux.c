@@ -129,6 +129,17 @@ static int qemu_input_linux_to_qcode(unsigned int lnx)
     return linux_to_qcode[lnx];
 }
 
+static bool linux_is_button(unsigned int lnx)
+{
+    if (lnx < 0x100) {
+        return false;
+    }
+    if (lnx >= 0x160 && lnx < 0x2c0) {
+        return false;
+    }
+    return true;
+}
+
 #define TYPE_INPUT_LINUX "input-linux"
 #define INPUT_LINUX(obj) \
     OBJECT_CHECK(InputLinux, (obj), TYPE_INPUT_LINUX)
@@ -153,6 +164,12 @@ struct InputLinux {
     int         keycount;
     int         wheel;
     bool        initialized;
+
+    bool        has_rel_x;
+    bool        has_abs_x;
+    int         num_keys;
+    int         num_btns;
+
     QTAILQ_ENTRY(InputLinux) next;
 };
 
@@ -241,27 +258,6 @@ static void input_linux_handle_keyboard(InputLinux *il,
     }
 }
 
-static void input_linux_event_keyboard(void *opaque)
-{
-    InputLinux *il = opaque;
-    struct input_event event;
-    int rc;
-
-    for (;;) {
-        rc = read(il->fd, &event, sizeof(event));
-        if (rc != sizeof(event)) {
-            if (rc < 0 && errno != EAGAIN) {
-                fprintf(stderr, "%s: read: %s\n", __func__, strerror(errno));
-                qemu_set_fd_handler(il->fd, NULL, NULL, NULL);
-                close(il->fd);
-            }
-            break;
-        }
-
-        input_linux_handle_keyboard(il, &event);
-    }
-}
-
 static void input_linux_event_mouse_button(int button)
 {
     qemu_input_queue_btn(NULL, button, true);
@@ -322,7 +318,7 @@ static void input_linux_handle_mouse(InputLinux *il, struct input_event *event)
     }
 }
 
-static void input_linux_event_mouse(void *opaque)
+static void input_linux_event(void *opaque)
 {
     InputLinux *il = opaque;
     struct input_event event;
@@ -339,14 +335,20 @@ static void input_linux_event_mouse(void *opaque)
             break;
         }
 
-        input_linux_handle_mouse(il, &event);
+        if (il->num_keys) {
+            input_linux_handle_keyboard(il, &event);
+        }
+        if (il->has_rel_x && il->num_btns) {
+            input_linux_handle_mouse(il, &event);
+        }
     }
 }
 
 static void input_linux_complete(UserCreatable *uc, Error **errp)
 {
     InputLinux *il = INPUT_LINUX(uc);
-    uint32_t evtmap, relmap, absmap;
+    uint8_t evtmap, relmap, absmap, keymap[KEY_CNT / 8];
+    unsigned int i;
     int rc, ver;
 
     if (!il->evdev) {
@@ -374,36 +376,36 @@ static void input_linux_complete(UserCreatable *uc, Error **errp)
     }
 
     if (evtmap & (1 << EV_REL)) {
+        relmap = 0;
         rc = ioctl(il->fd, EVIOCGBIT(EV_REL, sizeof(relmap)), &relmap);
-        if (rc < 0) {
-            relmap = 0;
+        if (relmap & (1 << REL_X)) {
+            il->has_rel_x = true;
         }
     }
 
     if (evtmap & (1 << EV_ABS)) {
-        ioctl(il->fd, EVIOCGBIT(EV_ABS, sizeof(absmap)), &absmap);
-        if (rc < 0) {
-            absmap = 0;
+        absmap = 0;
+        rc = ioctl(il->fd, EVIOCGBIT(EV_ABS, sizeof(absmap)), &absmap);
+        if (absmap & (1 << ABS_X)) {
+            il->has_abs_x = true;
         }
     }
 
-    if ((evtmap & (1 << EV_REL)) &&
-        (relmap & (1 << REL_X))) {
-        /* has relative x axis -> assume mouse */
-        qemu_set_fd_handler(il->fd, input_linux_event_mouse, NULL, il);
-    } else if ((evtmap & (1 << EV_ABS)) &&
-               (absmap & (1 << ABS_X))) {
-        /* has absolute x axis -> not supported */
-        error_setg(errp, "tablet/touchscreen not supported");
-        goto err_close;
-    } else if (evtmap & (1 << EV_KEY)) {
-        /* has keys/buttons (and no x axis) -> assume keyboard */
-        qemu_set_fd_handler(il->fd, input_linux_event_keyboard, NULL, il);
-    } else {
-        /* Huh? What is this? */
-        error_setg(errp, "unknown kind of input device");
-        goto err_close;
+    if (evtmap & (1 << EV_KEY)) {
+        memset(keymap, 0, sizeof(keymap));
+        rc = ioctl(il->fd, EVIOCGBIT(EV_KEY, sizeof(keymap)), keymap);
+        for (i = 0; i < KEY_CNT; i++) {
+            if (keymap[i / 8] & (1 << (i % 8))) {
+                if (linux_is_button(i)) {
+                    il->num_btns++;
+                } else {
+                    il->num_keys++;
+                }
+            }
+        }
     }
+
+    qemu_set_fd_handler(il->fd, input_linux_event, NULL, il);
     input_linux_toggle_grab(il);
     QTAILQ_INSERT_TAIL(&inputs, il, next);
     il->initialized = true;
