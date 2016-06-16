@@ -42,21 +42,6 @@ virtio_balloon_get_config(uint32_t num_pages, uint32_t actual) "num_pages: %d ac
 virtio_balloon_set_config(uint32_t actual, uint32_t oldactual) "actual: %d oldactual: %d"
 virtio_balloon_to_target(uint64_t target, uint32_t num_pages) "balloon target: %"PRIx64" num_pages: %d"
 
-# hw/timer/slavio_timer.c
-slavio_timer_get_out(uint64_t limit, uint32_t counthigh, uint32_t count) "limit %"PRIx64" count %x%08x"
-slavio_timer_irq(uint32_t counthigh, uint32_t count) "callback: count %x%08x"
-slavio_timer_mem_readl_invalid(uint64_t addr) "invalid read address %"PRIx64
-slavio_timer_mem_readl(uint64_t addr, uint32_t ret) "read %"PRIx64" = %08x"
-slavio_timer_mem_writel(uint64_t addr, uint32_t val) "write %"PRIx64" = %08x"
-slavio_timer_mem_writel_limit(unsigned int timer_index, uint64_t count) "processor %d user timer set to %016"PRIx64
-slavio_timer_mem_writel_counter_invalid(void) "not user timer"
-slavio_timer_mem_writel_status_start(unsigned int timer_index) "processor %d user timer started"
-slavio_timer_mem_writel_status_stop(unsigned int timer_index) "processor %d user timer stopped"
-slavio_timer_mem_writel_mode_user(unsigned int timer_index) "processor %d changed from counter to user timer"
-slavio_timer_mem_writel_mode_counter(unsigned int timer_index) "processor %d changed from user timer to counter"
-slavio_timer_mem_writel_mode_invalid(void) "not system timer"
-slavio_timer_mem_writel_invalid(uint64_t addr) "invalid write address %"PRIx64
-
 # hw/dma/rc4030.c
 jazzio_read(uint64_t addr, uint32_t ret) "read reg[0x%"PRIx64"] = 0x%x"
 jazzio_write(uint64_t addr, uint32_t val) "write reg[0x%"PRIx64"] = 0x%x"
@@ -99,15 +84,6 @@ system_wakeup_request(int reason) "reason=%d"
 qemu_system_shutdown_request(void) ""
 qemu_system_powerdown_request(void) ""
 
-# hw/timer/grlib_gptimer.c
-grlib_gptimer_enable(int id, uint32_t count) "timer:%d set count 0x%x and run"
-grlib_gptimer_disabled(int id, uint32_t config) "timer:%d Timer disable config 0x%x"
-grlib_gptimer_restart(int id, uint32_t reload) "timer:%d reload val: 0x%x"
-grlib_gptimer_set_scaler(uint32_t scaler, uint32_t freq) "scaler:0x%x freq: 0x%x"
-grlib_gptimer_hit(int id) "timer:%d HIT"
-grlib_gptimer_readl(int id, uint64_t addr, uint32_t val) "timer:%d addr 0x%"PRIx64" 0x%x"
-grlib_gptimer_writel(int id, uint64_t addr, uint32_t val) "timer:%d addr 0x%"PRIx64" 0x%x"
-
 # hw/sparc/leon3.c
 leon3_set_irq(int intno) "Set CPU IRQ %d"
 leon3_reset_irq(int intno) "Reset CPU IRQ %d"
@@ -119,26 +95,9 @@ spice_vmc_register_interface(void *scd) "spice vmc registered interface %p"
 spice_vmc_unregister_interface(void *scd) "spice vmc unregistered interface %p"
 spice_vmc_event(int event) "spice vmc event %d"
 
-# hw/timer/lm32_timer.c
-lm32_timer_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
-lm32_timer_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
-lm32_timer_hit(void) "timer hit"
-lm32_timer_irq_state(int level) "irq state %d"
-
 # hw/sd/milkymist-memcard.c
 milkymist_memcard_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
 milkymist_memcard_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
-
-# hw/timer/milkymist-sysctl.c
-milkymist_sysctl_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
-milkymist_sysctl_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
-milkymist_sysctl_icap_write(uint32_t value) "value %08x"
-milkymist_sysctl_start_timer0(void) "Start timer0"
-milkymist_sysctl_stop_timer0(void) "Stop timer0"
-milkymist_sysctl_start_timer1(void) "Start timer1"
-milkymist_sysctl_stop_timer1(void) "Stop timer1"
-milkymist_sysctl_pulse_irq_timer0(void) "Pulse IRQ Timer0"
-milkymist_sysctl_pulse_irq_timer1(void) "Pulse IRQ Timer1"
 
 # hw/isa/pc87312.c
 pc87312_io_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
@@ -618,15 +577,6 @@ user_handle_signal(void *env, int target_sig) "env=%p signal %d"
 user_host_signal(void *env, int host_sig, int target_sig) "env=%p signal %d (target %d("
 user_queue_signal(void *env, int target_sig) "env=%p signal %d"
 user_s390x_restore_sigregs(void *env, uint64_t sc_psw_addr, uint64_t env_psw_addr) "env=%p frame psw.addr %"PRIx64 " current psw.addr %"PRIx64
-
-# hw/timer/aspeed_timer.c
-aspeed_timer_ctrl_enable(uint8_t i, bool enable) "Timer %" PRIu8 ": %d"
-aspeed_timer_ctrl_external_clock(uint8_t i, bool enable) "Timer %" PRIu8 ": %d"
-aspeed_timer_ctrl_overflow_interrupt(uint8_t i, bool enable) "Timer %" PRIu8 ": %d"
-aspeed_timer_ctrl_pulse_enable(uint8_t i, bool enable) "Timer %" PRIu8 ": %d"
-aspeed_timer_set_ctrl2(uint32_t value) "Value: 0x%" PRIx32
-aspeed_timer_set_value(int timer, int reg, uint32_t value) "Timer %d register %d: 0x%" PRIx32
-aspeed_timer_read(uint64_t offset, unsigned size, uint64_t value) "From 0x%" PRIx64 ": of size %u: 0x%" PRIx64
 
 ### Guest events, keep at bottom
 
