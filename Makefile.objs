@@ -134,3 +134,4 @@ trace-events-y += hw/misc/trace-events
 trace-events-y += hw/usb/trace-events
 trace-events-y += hw/scsi/trace-events
 trace-events-y += hw/nvram/trace-events
+trace-events-y += hw/display/trace-events
