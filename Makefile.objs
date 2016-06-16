@@ -127,3 +127,4 @@ trace-events-y += block/trace-events
 trace-events-y += hw/block/trace-events
 trace-events-y += hw/char/trace-events
 trace-events-y += hw/intc/trace-events
+trace-events-y += hw/net/trace-events

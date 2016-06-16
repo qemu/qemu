@@ -1,0 +1,272 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# hw/net/lance.c
+lance_mem_readw(uint64_t addr, uint32_t ret) "addr=%"PRIx64"val=0x%04x"
+lance_mem_writew(uint64_t addr, uint32_t val) "addr=%"PRIx64"val=0x%04x"
+
+# hw/net/milkymist-minimac2.c
+milkymist_minimac2_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+milkymist_minimac2_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+milkymist_minimac2_mdio_write(uint8_t phy_addr, uint8_t addr, uint16_t value) "phy_addr %02x addr %02x value %04x"
+milkymist_minimac2_mdio_read(uint8_t phy_addr, uint8_t addr, uint16_t value) "phy_addr %02x addr %02x value %04x"
+milkymist_minimac2_tx_frame(uint32_t length) "length %u"
+milkymist_minimac2_rx_frame(const void *buf, uint32_t length) "buf %p length %u"
+milkymist_minimac2_rx_transfer(const void *buf, uint32_t length) "buf %p length %d"
+milkymist_minimac2_raise_irq_rx(void) "Raise IRQ RX"
+milkymist_minimac2_lower_irq_rx(void) "Lower IRQ RX"
+milkymist_minimac2_pulse_irq_tx(void) "Pulse IRQ TX"
+
+# hw/net/mipsnet.c
+mipsnet_send(uint32_t size) "sending len=%u"
+mipsnet_receive(uint32_t size) "receiving len=%u"
+mipsnet_read(uint64_t addr, uint32_t val) "read addr=0x%" PRIx64 " val=0x%x"
+mipsnet_write(uint64_t addr, uint64_t val) "write addr=0x%" PRIx64 " val=0x%" PRIx64
+mipsnet_irq(uint32_t isr, uint32_t intctl) "set irq to %d (%02x)"
+
+# hw/net/opencores_eth.c
+open_eth_mii_write(unsigned idx, uint16_t v) "MII[%02x] <- %04x"
+open_eth_mii_read(unsigned idx, uint16_t v) "MII[%02x] -> %04x"
+open_eth_update_irq(uint32_t v) "IRQ <- %x"
+open_eth_receive(unsigned len) "RX: len: %u"
+open_eth_receive_mcast(unsigned idx, uint32_t h0, uint32_t h1) "MCAST: idx = %u, hash: %08x:%08x"
+open_eth_receive_reject(void) "RX: rejected"
+open_eth_receive_desc(uint32_t addr, uint32_t len_flags) "RX: %08x, len_flags: %08x"
+open_eth_start_xmit(uint32_t addr, unsigned len, unsigned tx_len) "TX: %08x, len: %u, tx_len: %u"
+open_eth_reg_read(uint32_t addr, uint32_t v) "MAC[%02x] -> %08x"
+open_eth_reg_write(uint32_t addr, uint32_t v) "MAC[%02x] <- %08x"
+open_eth_desc_read(uint32_t addr, uint32_t v) "DESC[%04x] -> %08x"
+open_eth_desc_write(uint32_t addr, uint32_t v) "DESC[%04x] <- %08x"
+
+# hw/net/pcnet.c
+pcnet_s_reset(void *s) "s=%p"
+pcnet_user_int(void *s) "s=%p"
+pcnet_isr_change(void *s, uint32_t isr, uint32_t isr_old) "s=%p INTA=%d<=%d"
+pcnet_init(void *s, uint64_t init_addr) "s=%p init_addr=%#"PRIx64
+pcnet_rlen_tlen(void *s, uint32_t rlen, uint32_t tlen) "s=%p rlen=%d tlen=%d"
+pcnet_ss32_rdra_tdra(void *s, uint32_t ss32, uint32_t rdra, uint32_t rcvrl, uint32_t tdra, uint32_t xmtrl) "s=%p ss32=%d rdra=0x%08x[%d] tdra=0x%08x[%d]"
+
+# hw/net/pcnet-pci.c
+pcnet_aprom_writeb(void *opaque, uint32_t addr, uint32_t val) "opaque=%p addr=0x%08x val=0x%02x"
+pcnet_aprom_readb(void *opaque, uint32_t addr, uint32_t val) "opaque=%p addr=0x%08x val=0x%02x"
+pcnet_ioport_read(void *opaque, uint64_t addr, unsigned size) "opaque=%p addr=%#"PRIx64" size=%d"
+pcnet_ioport_write(void *opaque, uint64_t addr, uint64_t data, unsigned size) "opaque=%p addr=%#"PRIx64" data=%#"PRIx64" size=%d"
+pcnet_mmio_writeb(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=%#"PRIx64" val=0x%x"
+pcnet_mmio_writew(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=%#"PRIx64" val=0x%x"
+pcnet_mmio_writel(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=%#"PRIx64" val=0x%x"
+pcnet_mmio_readb(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=%#"PRIx64" val=0x%x"
+pcnet_mmio_readw(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=%#"PRIx64" val=0x%x"
+pcnet_mmio_readl(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=%#"PRIx64" val=0x%x"
+
+# hw/net/net_rx_pkt.c
+net_rx_pkt_parsed(bool ip4, bool ip6, bool udp, bool tcp, size_t l3o, size_t l4o, size_t l5o) "RX packet parsed: ip4: %d, ip6: %d, udp: %d, tcp: %d, l3 offset: %zu, l4 offset: %zu, l5 offset: %zu"
+net_rx_pkt_l4_csum_validate_entry(void) "Starting L4 checksum validation"
+net_rx_pkt_l4_csum_validate_not_xxp(void) "Not a TCP/UDP packet"
+net_rx_pkt_l4_csum_validate_udp_with_no_checksum(void) "UDP packet without checksum"
+net_rx_pkt_l4_csum_validate_ip4_fragment(void) "IP4 fragment"
+net_rx_pkt_l4_csum_validate_ip4_udp(void) "IP4/UDP packet"
+net_rx_pkt_l4_csum_validate_ip4_tcp(void) "IP4/TCP packet"
+net_rx_pkt_l4_csum_validate_ip6_udp(void) "IP6/UDP packet"
+net_rx_pkt_l4_csum_validate_ip6_tcp(void) "IP6/TCP packet"
+net_rx_pkt_l4_csum_validate_csum(bool csum_valid) "Checksum valid: %d"
+
+net_rx_pkt_l4_csum_calc_entry(void) "Starting L4 checksum calculation"
+net_rx_pkt_l4_csum_calc_ip4_udp(void) "IP4/UDP packet"
+net_rx_pkt_l4_csum_calc_ip4_tcp(void) "IP4/TCP packet"
+net_rx_pkt_l4_csum_calc_ip6_udp(void) "IP6/UDP packet"
+net_rx_pkt_l4_csum_calc_ip6_tcp(void) "IP6/TCP packet"
+net_rx_pkt_l4_csum_calc_ph_csum(uint32_t cntr, uint16_t csl) "Pseudo-header: checksum counter %u, length %u"
+net_rx_pkt_l4_csum_calc_csum(size_t l4hdr_off, uint16_t csl, uint32_t cntr, uint16_t csum) "L4 Checksum: L4 header offset: %zu, length: %u, counter: 0x%X, final checksum: 0x%X"
+
+net_rx_pkt_l4_csum_fix_entry(void) "Starting L4 checksum correction"
+net_rx_pkt_l4_csum_fix_tcp(uint32_t l4_cso) "TCP packet, L4 cso: %u"
+net_rx_pkt_l4_csum_fix_udp(uint32_t l4_cso) "UDP packet, L4 cso: %u"
+net_rx_pkt_l4_csum_fix_not_xxp(void) "Not an IP4 packet"
+net_rx_pkt_l4_csum_fix_ip4_fragment(void) "IP4 fragment"
+net_rx_pkt_l4_csum_fix_udp_with_no_checksum(void) "UDP packet without checksum"
+net_rx_pkt_l4_csum_fix_csum(uint32_t cso, uint16_t csum) "L4 Checksum: Offset: %u, value 0x%X"
+
+net_rx_pkt_l3_csum_validate_entry(void) "Starting L3 checksum validation"
+net_rx_pkt_l3_csum_validate_not_ip4(void) "Not an IP4 packet"
+net_rx_pkt_l3_csum_validate_csum(size_t l3hdr_off, uint32_t csl, uint32_t cntr, uint16_t csum, bool csum_valid) "L3 Checksum: L3 header offset: %zu, length: %u, counter: 0x%X, final checksum: 0x%X, valid: %d"
+
+net_rx_pkt_rss_ip4(void) "Calculating IPv4 RSS  hash"
+net_rx_pkt_rss_ip4_tcp(void) "Calculating IPv4/TCP RSS  hash"
+net_rx_pkt_rss_ip6_tcp(void) "Calculating IPv6/TCP RSS  hash"
+net_rx_pkt_rss_ip6(void) "Calculating IPv6 RSS  hash"
+net_rx_pkt_rss_ip6_ex(void) "Calculating IPv6/EX RSS  hash"
+net_rx_pkt_rss_hash(size_t rss_length, uint32_t rss_hash) "RSS hash for %zu bytes: 0x%X"
+net_rx_pkt_rss_add_chunk(void* ptr, size_t size, size_t input_offset) "Add RSS chunk %p, %zu bytes, RSS input offset %zu bytes"
+
+# hw/net/e1000x_common.c
+e1000x_rx_can_recv_disabled(bool link_up, bool rx_enabled, bool pci_master) "link_up: %d, rx_enabled %d, pci_master %d"
+e1000x_vlan_is_vlan_pkt(bool is_vlan_pkt, uint16_t eth_proto, uint16_t vet) "Is VLAN packet: %d, ETH proto: 0x%X, VET: 0x%X"
+e1000x_rx_flt_ucast_match(uint32_t idx, uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "unicast match[%d]: %02x:%02x:%02x:%02x:%02x:%02x"
+e1000x_rx_flt_ucast_mismatch(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "unicast mismatch: %02x:%02x:%02x:%02x:%02x:%02x"
+e1000x_rx_flt_inexact_mismatch(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5, uint32_t mo, uint32_t mta, uint32_t mta_val) "inexact mismatch: %02x:%02x:%02x:%02x:%02x:%02x MO %d MTA[%d] %x"
+e1000x_rx_link_down(uint32_t status_reg) "Received packet dropped because the link is down STATUS = %u"
+e1000x_rx_disabled(uint32_t rctl_reg) "Received packet dropped because receive is disabled RCTL = %u"
+e1000x_rx_oversized(size_t size) "Received packet dropped because it was oversized (%zu bytes)"
+e1000x_mac_indicate(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "Indicating MAC to guest: %02x:%02x:%02x:%02x:%02x:%02x"
+e1000x_link_negotiation_start(void) "Start link auto negotiation"
+e1000x_link_negotiation_done(void) "Auto negotiation is completed"
+
+# hw/net/e1000e_core.c
+e1000e_core_write(uint64_t index, uint32_t size, uint64_t val) "Write to register 0x%"PRIx64", %d byte(s), value: 0x%"PRIx64
+e1000e_core_read(uint64_t index, uint32_t size, uint64_t val) "Read from register 0x%"PRIx64", %d byte(s), value: 0x%"PRIx64
+e1000e_core_mdic_read(uint8_t page, uint32_t addr, uint32_t data) "MDIC READ: PHY[%u][%u] = 0x%x"
+e1000e_core_mdic_read_unhandled(uint8_t page, uint32_t addr) "MDIC READ: PHY[%u][%u] UNHANDLED"
+e1000e_core_mdic_write(uint8_t page, uint32_t addr, uint32_t data) "MDIC WRITE: PHY[%u][%u] = 0x%x"
+e1000e_core_mdic_write_unhandled(uint8_t page, uint32_t addr) "MDIC WRITE: PHY[%u][%u] UNHANDLED"
+e1000e_core_eeeprom_write(uint16_t bit_in, uint16_t bit_out, uint16_t reading) "eeprom bitnum in %d out %d, reading %d"
+e1000e_core_ctrl_write(uint64_t index, uint32_t val) "Write CTRL register 0x%"PRIx64", value: 0x%X"
+e1000e_core_ctrl_sw_reset(void) "Doing SW reset"
+e1000e_core_ctrl_phy_reset(void) "Doing PHY reset"
+
+e1000e_link_autoneg_flowctl(bool enabled) "Auto-negotiated flow control state is %d"
+e1000e_link_set_params(bool autodetect, uint32_t speed, bool force_spd, bool force_dplx, bool rx_fctl, bool tx_fctl) "Set link params: Autodetect: %d, Speed: %d, Force speed: %d, Force duplex: %d, RX flow control %d, TX flow control %d"
+e1000e_link_read_params(bool autodetect, uint32_t speed, bool force_spd, bool force_dplx, bool rx_fctl, bool tx_fctl) "Get link params: Autodetect: %d, Speed: %d, Force speed: %d, Force duplex: %d, RX flow control %d, TX flow control %d"
+e1000e_link_set_ext_params(bool asd_check, bool speed_select_bypass) "Set extended link params: ASD check: %d, Speed select bypass: %d"
+e1000e_link_status(bool link_up, bool full_dplx, uint32_t speed, uint32_t asdv) "Link up: %d, Duplex: %d, Speed: %d, ASDV: %d"
+e1000e_link_status_changed(bool status) "New link status: %d"
+
+e1000e_wrn_regs_write_ro(uint64_t index, uint32_t size, uint64_t val) "WARNING: Write to RO register 0x%"PRIx64", %d byte(s), value: 0x%"PRIx64
+e1000e_wrn_regs_write_unknown(uint64_t index, uint32_t size, uint64_t val) "WARNING: Write to unknown register 0x%"PRIx64", %d byte(s), value: 0x%"PRIx64
+e1000e_wrn_regs_read_unknown(uint64_t index, uint32_t size) "WARNING: Read from unknown register 0x%"PRIx64", %d byte(s)"
+e1000e_wrn_regs_read_trivial(uint32_t index) "WARNING: Reading register at offset: 0x%05x. It is not fully implemented."
+e1000e_wrn_regs_write_trivial(uint32_t index) "WARNING: Writing to register at offset: 0x%05x. It is not fully implemented."
+e1000e_wrn_no_ts_support(void) "WARNING: Guest requested TX timestamping which is not supported"
+e1000e_wrn_no_snap_support(void) "WARNING: Guest requested TX SNAP header update which is not supported"
+e1000e_wrn_iscsi_filtering_not_supported(void) "WARNING: Guest requested iSCSI filtering  which is not supported"
+e1000e_wrn_nfsw_filtering_not_supported(void) "WARNING: Guest requested NFS write filtering  which is not supported"
+e1000e_wrn_nfsr_filtering_not_supported(void) "WARNING: Guest requested NFS read filtering  which is not supported"
+
+e1000e_tx_disabled(void) "TX Disabled"
+e1000e_tx_descr(void *addr, uint32_t lower, uint32_t upper) "%p : %x %x"
+
+e1000e_ring_free_space(int ridx, uint32_t rdlen, uint32_t rdh, uint32_t rdt) "ring #%d: LEN: %u, DH: %u, DT: %u"
+
+e1000e_rx_can_recv_rings_full(void) "Cannot receive: all rings are full"
+e1000e_rx_can_recv(void) "Can receive"
+e1000e_rx_has_buffers(int ridx, uint32_t free_desc, size_t total_size, uint32_t desc_buf_size) "ring #%d: free descr: %u, packet size %zu, descr buffer size %u"
+e1000e_rx_null_descriptor(void) "Null RX descriptor!!"
+e1000e_rx_flt_vlan_mismatch(uint16_t vid) "VID mismatch: 0x%X"
+e1000e_rx_flt_vlan_match(uint16_t vid) "VID match: 0x%X"
+e1000e_rx_desc_ps_read(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3) "buffers: [0x%"PRIx64", 0x%"PRIx64", 0x%"PRIx64", 0x%"PRIx64"]"
+e1000e_rx_desc_ps_write(uint16_t a0, uint16_t a1, uint16_t a2, uint16_t a3) "bytes written: [%u, %u, %u, %u]"
+e1000e_rx_desc_buff_sizes(uint32_t b0, uint32_t b1, uint32_t b2, uint32_t b3) "buffer sizes: [%u, %u, %u, %u]"
+e1000e_rx_desc_len(uint8_t rx_desc_len) "RX descriptor length: %u"
+e1000e_rx_desc_buff_write(uint8_t idx, uint64_t addr, uint16_t offset, const void* source, uint32_t len) "buffer #%u, addr: 0x%"PRIx64", offset: %u, from: %p, length: %u"
+e1000e_rx_descr(int ridx, uint64_t base, uint8_t len) "Next RX descriptor: ring #%d, PA: 0x%"PRIx64", length: %u"
+e1000e_rx_set_rctl(uint32_t rctl) "RCTL = 0x%x"
+e1000e_rx_receive_iov(int iovcnt) "Received vector of %d fragments"
+e1000e_rx_packet_size(size_t full, size_t vhdr, size_t data) "Received packet of %zu bytes total, %zu virt header, %zu data"
+e1000e_rx_flt_dropped(void) "Received packet dropped by RX filter"
+e1000e_rx_written_to_guest(uint32_t causes) "Received packet written to guest (ICR causes %u)"
+e1000e_rx_not_written_to_guest(uint32_t causes) "Received packet NOT written to guest (ICR causes %u)"
+e1000e_rx_interrupt_set(uint32_t causes) "Receive interrupt set (ICR causes %u)"
+e1000e_rx_interrupt_delayed(uint32_t causes) "Receive interrupt delayed (ICR causes %u)"
+e1000e_rx_set_cso(int cso_state) "RX CSO state set to %d"
+e1000e_rx_set_rdt(int queue_idx, uint32_t val) "Setting RDT[%d] = %u"
+e1000e_rx_set_rfctl(uint32_t val) "Setting RFCTL = 0x%X"
+e1000e_rx_start_recv(void)
+
+e1000e_rx_rss_started(void) "Starting RSS processing"
+e1000e_rx_rss_disabled(void) "RSS is disabled"
+e1000e_rx_rss_type(uint32_t type) "RSS type is %u"
+e1000e_rx_rss_ip4(bool isfragment, bool istcp, uint32_t mrqc, bool tcpipv4_enabled, bool ipv4_enabled) "RSS IPv4: fragment %d, tcp %d, mrqc 0x%X, tcpipv4 enabled %d, ipv4 enabled %d"
+e1000e_rx_rss_ip6_rfctl(uint32_t rfctl) "RSS IPv6: rfctl 0x%X"
+e1000e_rx_rss_ip6(bool ex_dis, bool new_ex_dis, bool istcp, bool has_ext_headers, bool ex_dst_valid, bool ex_src_valid, uint32_t mrqc, bool tcpipv6_enabled, bool ipv6ex_enabled, bool ipv6_enabled) "RSS IPv6: ex_dis: %d, new_ex_dis: %d, tcp %d, has_ext_headers %d, ex_dst_valid %d, ex_src_valid %d, mrqc 0x%X, tcpipv6 enabled %d, ipv6ex enabled %d, ipv6 enabled %d"
+e1000e_rx_rss_dispatched_to_queue(int queue_idx) "Packet being dispatched to queue %d"
+
+e1000e_rx_metadata_protocols(bool isip4, bool isip6, bool isudp, bool istcp) "protocols: ip4: %d, ip6: %d, udp: %d, tcp: %d"
+e1000e_rx_metadata_vlan(uint16_t vlan_tag) "VLAN tag is 0x%X"
+e1000e_rx_metadata_rss(uint32_t rss, uint32_t mrq) "RSS data: rss: 0x%X, mrq: 0x%X"
+e1000e_rx_metadata_ip_id(uint16_t ip_id) "the IPv4 ID is 0x%X"
+e1000e_rx_metadata_ack(void) "the packet is TCP ACK"
+e1000e_rx_metadata_pkt_type(uint32_t pkt_type) "the packet type is %u"
+e1000e_rx_metadata_no_virthdr(void) "the packet has no virt-header"
+e1000e_rx_metadata_virthdr_no_csum_info(void) "virt-header does not contain checksum info"
+e1000e_rx_metadata_l3_cso_disabled(void) "IP4 CSO is disabled"
+e1000e_rx_metadata_l4_cso_disabled(void) "TCP/UDP CSO is disabled"
+e1000e_rx_metadata_l3_csum_validation_failed(void) "Cannot validate L3 checksum"
+e1000e_rx_metadata_l4_csum_validation_failed(void) "Cannot validate L4 checksum"
+e1000e_rx_metadata_status_flags(uint32_t status_flags) "status_flags is 0x%X"
+e1000e_rx_metadata_ipv6_sum_disabled(void) "IPv6 RX checksummimg disabled by RFCTL"
+e1000e_rx_metadata_ipv6_filtering_disabled(void) "IPv6 RX filtering disabled by RFCTL"
+
+e1000e_vlan_vet(uint16_t vet) "Setting VLAN ethernet type 0x%X"
+
+e1000e_irq_set_cause(uint32_t cause) "IRQ cause set 0x%x"
+e1000e_irq_msi_notify(uint32_t cause) "MSI notify 0x%x"
+e1000e_irq_throttling_no_pending_interrupts(void) "No pending interrupts to notify"
+e1000e_irq_msi_notify_postponed(void) "Sending MSI postponed by ITR"
+e1000e_irq_legacy_notify_postponed(void) "Raising legacy IRQ postponed by ITR"
+e1000e_irq_throttling_no_pending_vec(int idx) "No pending interrupts for vector %d"
+e1000e_irq_msix_notify_postponed_vec(int idx) "Sending MSI-X postponed by EITR[%d]"
+e1000e_irq_msix_notify(uint32_t cause) "MSI-X notify 0x%x"
+e1000e_irq_legacy_notify(bool level) "IRQ line state: %d"
+e1000e_irq_msix_notify_vec(uint32_t vector) "MSI-X notify vector 0x%x"
+e1000e_irq_postponed_by_xitr(uint32_t reg) "Interrupt postponed by [E]ITR register 0x%x"
+e1000e_irq_clear_ims(uint32_t bits, uint32_t old_ims, uint32_t new_ims) "Clearing IMS bits 0x%x: 0x%x --> 0x%x"
+e1000e_irq_set_ims(uint32_t bits, uint32_t old_ims, uint32_t new_ims) "Setting IMS bits 0x%x: 0x%x --> 0x%x"
+e1000e_irq_fix_icr_asserted(uint32_t new_val) "ICR_ASSERTED bit fixed: 0x%x"
+e1000e_irq_add_msi_other(uint32_t new_val) "ICR_OTHER bit added: 0x%x"
+e1000e_irq_pending_interrupts(uint32_t pending, uint32_t icr, uint32_t ims) "ICR PENDING: 0x%x (ICR: 0x%x, IMS: 0x%x)"
+e1000e_irq_set_cause_entry(uint32_t val, uint32_t icr) "Going to set IRQ cause 0x%x, ICR: 0x%x"
+e1000e_irq_set_cause_exit(uint32_t val, uint32_t icr) "Set IRQ cause 0x%x, ICR: 0x%x"
+e1000e_irq_icr_write(uint32_t bits, uint32_t old_icr, uint32_t new_icr) "Clearing ICR bits 0x%x: 0x%x --> 0x%x"
+e1000e_irq_write_ics(uint32_t val) "Adding ICR bits 0x%x"
+e1000e_irq_icr_process_iame(void) "Clearing IMS bits due to IAME"
+e1000e_irq_read_ics(uint32_t ics) "Current ICS: 0x%x"
+e1000e_irq_read_ims(uint32_t ims) "Current IMS: 0x%x"
+e1000e_irq_icr_read_entry(uint32_t icr) "Starting ICR read. Current ICR: 0x%x"
+e1000e_irq_icr_read_exit(uint32_t icr) "Ending ICR read. Current ICR: 0x%x"
+e1000e_irq_icr_clear_zero_ims(void) "Clearing ICR on read due to zero IMS"
+e1000e_irq_icr_clear_iame(void) "Clearing ICR on read due to IAME"
+e1000e_irq_ims_clear_eiame(uint32_t iam, uint32_t cause) "Clearing IMS due to EIAME, IAM: 0x%X, cause: 0x%X"
+e1000e_irq_icr_clear_eiac(uint32_t icr, uint32_t eiac) "Clearing ICR bits due to EIAC, ICR: 0x%X, EIAC: 0x%X"
+e1000e_irq_ims_clear_set_imc(uint32_t val) "Clearing IMS bits due to IMC write 0x%x"
+e1000e_irq_fire_delayed_interrupts(void) "Firing delayed interrupts"
+e1000e_irq_rearm_timer(uint32_t reg, int64_t delay_ns) "Mitigation timer armed for register 0x%X, delay %"PRId64" ns"
+e1000e_irq_throttling_timer(uint32_t reg) "Mitigation timer shot for register 0x%X"
+e1000e_irq_rdtr_fpd_running(void) "FPD written while RDTR was running"
+e1000e_irq_rdtr_fpd_not_running(void) "FPD written while RDTR was not running"
+e1000e_irq_tidv_fpd_running(void) "FPD written while TIDV was running"
+e1000e_irq_tidv_fpd_not_running(void) "FPD written while TIDV was not running"
+e1000e_irq_eitr_set(uint32_t eitr_num, uint32_t val) "EITR[%u] = %u"
+e1000e_irq_itr_set(uint32_t val) "ITR = %u"
+e1000e_irq_fire_all_timers(uint32_t val) "Firing all delay/throttling timers on all interrupts enable (0x%X written to IMS)"
+e1000e_irq_adding_delayed_causes(uint32_t val, uint32_t icr) "Merging delayed causes 0x%X to ICR 0x%X"
+e1000e_irq_msix_pending_clearing(uint32_t cause, uint32_t int_cfg, uint32_t vec) "Clearing MSI-X pending bit for cause 0x%x, IVAR config 0x%x, vector %u"
+
+e1000e_wrn_msix_vec_wrong(uint32_t cause, uint32_t cfg) "Invalid configuration for cause 0x%x: 0x%x"
+e1000e_wrn_msix_invalid(uint32_t cause, uint32_t cfg) "Invalid entry for cause 0x%x: 0x%x"
+
+e1000e_mac_set_permanent(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "Set permanent MAC: %02x:%02x:%02x:%02x:%02x:%02x"
+e1000e_mac_set_sw(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "Set SW MAC: %02x:%02x:%02x:%02x:%02x:%02x"
+
+# hw/net/e1000e.c
+e1000e_cb_pci_realize(void) "E1000E PCI realize entry"
+e1000e_cb_pci_uninit(void) "E1000E PCI unit entry"
+e1000e_cb_qdev_reset(void) "E1000E qdev reset entry"
+e1000e_cb_pre_save(void) "E1000E pre save entry"
+e1000e_cb_post_load(void) "E1000E post load entry"
+
+e1000e_io_write_addr(uint64_t addr) "IOADDR write 0x%"PRIx64
+e1000e_io_write_data(uint64_t addr, uint64_t val) "IODATA write 0x%"PRIx64", value: 0x%"PRIx64
+e1000e_io_read_addr(uint64_t addr) "IOADDR read 0x%"PRIx64
+e1000e_io_read_data(uint64_t addr, uint64_t val) "IODATA read 0x%"PRIx64", value: 0x%"PRIx64
+e1000e_wrn_io_write_unknown(uint64_t addr) "IO write unknown address 0x%"PRIx64
+e1000e_wrn_io_read_unknown(uint64_t addr) "IO read unknown address 0x%"PRIx64
+e1000e_wrn_io_addr_undefined(uint64_t addr) "IO undefined register 0x%"PRIx64
+e1000e_wrn_io_addr_flash(uint64_t addr) "IO flash access (0x%"PRIx64") not implemented"
+e1000e_wrn_io_addr_unknown(uint64_t addr) "IO unknown register 0x%"PRIx64
+
+e1000e_msi_init_fail(int32_t res) "Failed to initialize MSI, error %d"
+e1000e_msix_init_fail(int32_t res) "Failed to initialize MSI-X, error %d"
+e1000e_msix_use_vector_fail(uint32_t vec, int32_t res) "Failed to use MSI-X vector %d, error %d"
+
+e1000e_cfg_support_virtio(bool support) "Virtio header supported: %d"
+
+e1000e_vm_state_running(void) "VM state is running"
+e1000e_vm_state_stopped(void) "VM state is stopped"
