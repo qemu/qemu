@@ -42,23 +42,6 @@ virtio_balloon_get_config(uint32_t num_pages, uint32_t actual) "num_pages: %d ac
 virtio_balloon_set_config(uint32_t actual, uint32_t oldactual) "actual: %d oldactual: %d"
 virtio_balloon_to_target(uint64_t target, uint32_t num_pages) "balloon target: %"PRIx64" num_pages: %d"
 
-# hw/input/ps2.c
-ps2_put_keycode(void *opaque, int keycode) "%p keycode %d"
-ps2_read_data(void *opaque) "%p"
-ps2_set_ledstate(void *s, int ledstate) "%p ledstate %d"
-ps2_reset_keyboard(void *s) "%p"
-ps2_write_keyboard(void *opaque, int val) "%p val %d"
-ps2_keyboard_set_translation(void *opaque, int mode) "%p mode %d"
-ps2_mouse_send_packet(void *s, int dx1, int dy1, int dz1, int b) "%p x %d y %d z %d bs %#x"
-ps2_mouse_event_disabled(void *opaque, int dx, int dy, int dz, int buttons_state, int mouse_dx, int mouse_dy, int mouse_dz) "%p x %d y %d z %d bs %#x mx %d my %d mz %d "
-ps2_mouse_event(void *opaque, int dx, int dy, int dz, int buttons_state, int mouse_dx, int mouse_dy, int mouse_dz) "%p x %d y %d z %d bs %#x mx %d my %d mz %d "
-ps2_mouse_fake_event(void *opaque) "%p"
-ps2_write_mouse(void *opaque, int val) "%p val %d"
-ps2_kbd_reset(void *opaque) "%p"
-ps2_mouse_reset(void *opaque) "%p"
-ps2_kbd_init(void *s) "%p"
-ps2_mouse_init(void *s) "%p"
-
 # hw/timer/slavio_timer.c
 slavio_timer_get_out(uint64_t limit, uint32_t counthigh, uint32_t count) "limit %"PRIx64" count %x%08x"
 slavio_timer_irq(uint32_t counthigh, uint32_t count) "callback: count %x%08x"
@@ -145,13 +128,6 @@ lm32_timer_irq_state(int level) "irq state %d"
 # hw/sd/milkymist-memcard.c
 milkymist_memcard_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
 milkymist_memcard_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
-
-# hw/input/milkymist-softusb.c
-milkymist_softusb_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
-milkymist_softusb_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
-milkymist_softusb_mevt(uint8_t m) "m %d"
-milkymist_softusb_kevt(uint8_t m) "m %d"
-milkymist_softusb_pulse_irq(void) "Pulse IRQ"
 
 # hw/timer/milkymist-sysctl.c
 milkymist_sysctl_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
