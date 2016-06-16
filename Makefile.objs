@@ -149,3 +149,4 @@ trace-events-y += hw/s390x/trace-events
 trace-events-y += hw/vfio/trace-events
 trace-events-y += hw/acpi/trace-events
 trace-events-y += hw/arm/trace-events
+trace-events-y += hw/alpha/trace-events

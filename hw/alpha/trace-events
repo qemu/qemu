@@ -1,0 +1,4 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# hw/alpha/pci.c
+alpha_pci_iack_write(void) ""
