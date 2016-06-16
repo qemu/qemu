@@ -2347,8 +2347,8 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
         return 0;
     }
 
-    tracked_request_begin(&req, bs, sector_num, nb_sectors,
-                          BDRV_TRACKED_DISCARD);
+    tracked_request_begin(&req, bs, sector_num << BDRV_SECTOR_BITS,
+                          nb_sectors << BDRV_SECTOR_BITS, BDRV_TRACKED_DISCARD);
     bdrv_set_dirty(bs, sector_num, nb_sectors);
 
     max_discard = MIN_NON_ZERO(bs->bl.max_discard, BDRV_REQUEST_MAX_SECTORS);
