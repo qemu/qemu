@@ -888,12 +888,13 @@ F: include/hw/virtio/
 
 virtio-9p
 M: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-M: Greg Kurz <gkurz@linux.vnet.ibm.com>
+M: Greg Kurz <groug@kaod.org>
 S: Supported
 F: hw/9pfs/
 F: fsdev/
 F: tests/virtio-9p-test.c
 T: git git://github.com/kvaneesh/QEMU.git
+T: git git://github.com/gkurz/qemu.git 9p-next
 
 virtio-blk
 M: Stefan Hajnoczi <stefanha@redhat.com>
