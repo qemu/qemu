@@ -36,6 +36,142 @@ static bool gicv3_use_ns_bank(CPUARMState *env)
     return !arm_is_secure_below_el3(env);
 }
 
+static int icc_highest_active_prio(GICv3CPUState *cs)
+{
+    /* Calculate the current running priority based on the set bits
+     * in the Active Priority Registers.
+     */
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(cs->icc_apr[0]); i++) {
+        uint32_t apr = cs->icc_apr[GICV3_G0][i] |
+            cs->icc_apr[GICV3_G1][i] | cs->icc_apr[GICV3_G1NS][i];
+
+        if (!apr) {
+            continue;
+        }
+        return (i * 32 + ctz32(apr)) << (GIC_MIN_BPR + 1);
+    }
+    /* No current active interrupts: return idle priority */
+    return 0xff;
+}
+
+static uint32_t icc_gprio_mask(GICv3CPUState *cs, int group)
+{
+    /* Return a mask word which clears the subpriority bits from
+     * a priority value for an interrupt in the specified group.
+     * This depends on the BPR value:
+     *  a BPR of 0 means the group priority bits are [7:1];
+     *  a BPR of 1 means they are [7:2], and so on down to
+     *  a BPR of 7 meaning no group priority bits at all.
+     * Which BPR to use depends on the group of the interrupt and
+     * the current ICC_CTLR.CBPR settings.
+     */
+    if ((group == GICV3_G1 && cs->icc_ctlr_el1[GICV3_S] & ICC_CTLR_EL1_CBPR) ||
+        (group == GICV3_G1NS &&
+         cs->icc_ctlr_el1[GICV3_NS] & ICC_CTLR_EL1_CBPR)) {
+        group = GICV3_G0;
+    }
+
+    return ~0U << ((cs->icc_bpr[group] & 7) + 1);
+}
+
+static bool icc_no_enabled_hppi(GICv3CPUState *cs)
+{
+    /* Return true if there is no pending interrupt, or the
+     * highest priority pending interrupt is in a group which has been
+     * disabled at the CPU interface by the ICC_IGRPEN* register enable bits.
+     */
+    return cs->hppi.prio == 0xff || (cs->icc_igrpen[cs->hppi.grp] == 0);
+}
+
+static bool icc_hppi_can_preempt(GICv3CPUState *cs)
+{
+    /* Return true if we have a pending interrupt of sufficient
+     * priority to preempt.
+     */
+    int rprio;
+    uint32_t mask;
+
+    if (icc_no_enabled_hppi(cs)) {
+        return false;
+    }
+
+    if (cs->hppi.prio >= cs->icc_pmr_el1) {
+        /* Priority mask masks this interrupt */
+        return false;
+    }
+
+    rprio = icc_highest_active_prio(cs);
+    if (rprio == 0xff) {
+        /* No currently running interrupt so we can preempt */
+        return true;
+    }
+
+    mask = icc_gprio_mask(cs, cs->hppi.grp);
+
+    /* We only preempt a running interrupt if the pending interrupt's
+     * group priority is sufficient (the subpriorities are not considered).
+     */
+    if ((cs->hppi.prio & mask) < (rprio & mask)) {
+        return true;
+    }
+
+    return false;
+}
+
+void gicv3_cpuif_update(GICv3CPUState *cs)
+{
+    /* Tell the CPU about its highest priority pending interrupt */
+    int irqlevel = 0;
+    int fiqlevel = 0;
+    ARMCPU *cpu = ARM_CPU(cs->cpu);
+    CPUARMState *env = &cpu->env;
+
+    trace_gicv3_cpuif_update(gicv3_redist_affid(cs), cs->hppi.irq,
+                             cs->hppi.grp, cs->hppi.prio);
+
+    if (cs->hppi.grp == GICV3_G1 && !arm_feature(env, ARM_FEATURE_EL3)) {
+        /* If a Security-enabled GIC sends a G1S interrupt to a
+         * Security-disabled CPU, we must treat it as if it were G0.
+         */
+        cs->hppi.grp = GICV3_G0;
+    }
+
+    if (icc_hppi_can_preempt(cs)) {
+        /* We have an interrupt: should we signal it as IRQ or FIQ?
+         * This is described in the GICv3 spec section 4.6.2.
+         */
+        bool isfiq;
+
+        switch (cs->hppi.grp) {
+        case GICV3_G0:
+            isfiq = true;
+            break;
+        case GICV3_G1:
+            isfiq = (!arm_is_secure(env) ||
+                     (arm_current_el(env) == 3 && arm_el_is_aa64(env, 3)));
+            break;
+        case GICV3_G1NS:
+            isfiq = arm_is_secure(env);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
+        if (isfiq) {
+            fiqlevel = 1;
+        } else {
+            irqlevel = 1;
+        }
+    }
+
+    trace_gicv3_cpuif_set_irqs(gicv3_redist_affid(cs), fiqlevel, irqlevel);
+
+    qemu_set_irq(cs->parent_fiq, fiqlevel);
+    qemu_set_irq(cs->parent_irq, irqlevel);
+}
+
 static uint64_t icc_pmr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     GICv3CPUState *cs = icc_cs_from_env(env);
@@ -617,7 +753,9 @@ static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
 
 static void gicv3_cpuif_el_change_hook(ARMCPU *cpu, void *opaque)
 {
-    /* Do nothing for now. */
+    GICv3CPUState *cs = opaque;
+
+    gicv3_cpuif_update(cs);
 }
 
 void gicv3_init_cpuif(GICv3State *s)

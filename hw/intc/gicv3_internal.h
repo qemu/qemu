@@ -222,10 +222,7 @@ void gicv3_init_cpuif(GICv3State *s);
  * current running priority or the CPU's current exception level or
  * security state.
  */
-static inline void gicv3_cpuif_update(GICv3CPUState *cs)
-{
-    /* This will be implemented in a later commit. */
-}
+void gicv3_cpuif_update(GICv3CPUState *cs);
 
 static inline uint32_t gicv3_iidr(void)
 {
