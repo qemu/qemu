@@ -49,11 +49,59 @@ static int gicv3_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateDescription vmstate_gicv3_cpu = {
+    .name = "arm_gicv3_cpu",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(level, GICv3CPUState),
+        VMSTATE_UINT32(gicr_ctlr, GICv3CPUState),
+        VMSTATE_UINT32_ARRAY(gicr_statusr, GICv3CPUState, 2),
+        VMSTATE_UINT32(gicr_waker, GICv3CPUState),
+        VMSTATE_UINT64(gicr_propbaser, GICv3CPUState),
+        VMSTATE_UINT64(gicr_pendbaser, GICv3CPUState),
+        VMSTATE_UINT32(gicr_igroupr0, GICv3CPUState),
+        VMSTATE_UINT32(gicr_ienabler0, GICv3CPUState),
+        VMSTATE_UINT32(gicr_ipendr0, GICv3CPUState),
+        VMSTATE_UINT32(gicr_iactiver0, GICv3CPUState),
+        VMSTATE_UINT32(edge_trigger, GICv3CPUState),
+        VMSTATE_UINT32(gicr_igrpmodr0, GICv3CPUState),
+        VMSTATE_UINT32(gicr_nsacr, GICv3CPUState),
+        VMSTATE_UINT8_ARRAY(gicr_ipriorityr, GICv3CPUState, GIC_INTERNAL),
+        VMSTATE_UINT64_ARRAY(icc_ctlr_el1, GICv3CPUState, 2),
+        VMSTATE_UINT64(icc_pmr_el1, GICv3CPUState),
+        VMSTATE_UINT64_ARRAY(icc_bpr, GICv3CPUState, 3),
+        VMSTATE_UINT64_2DARRAY(icc_apr, GICv3CPUState, 3, 4),
+        VMSTATE_UINT64_ARRAY(icc_igrpen, GICv3CPUState, 3),
+        VMSTATE_UINT64(icc_ctlr_el3, GICv3CPUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_gicv3 = {
     .name = "arm_gicv3",
-    .unmigratable = 1,
+    .version_id = 1,
+    .minimum_version_id = 1,
     .pre_save = gicv3_pre_save,
     .post_load = gicv3_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(gicd_ctlr, GICv3State),
+        VMSTATE_UINT32_ARRAY(gicd_statusr, GICv3State, 2),
+        VMSTATE_UINT32_ARRAY(group, GICv3State, GICV3_BMP_SIZE),
+        VMSTATE_UINT32_ARRAY(grpmod, GICv3State, GICV3_BMP_SIZE),
+        VMSTATE_UINT32_ARRAY(enabled, GICv3State, GICV3_BMP_SIZE),
+        VMSTATE_UINT32_ARRAY(pending, GICv3State, GICV3_BMP_SIZE),
+        VMSTATE_UINT32_ARRAY(active, GICv3State, GICV3_BMP_SIZE),
+        VMSTATE_UINT32_ARRAY(level, GICv3State, GICV3_BMP_SIZE),
+        VMSTATE_UINT32_ARRAY(edge_trigger, GICv3State, GICV3_BMP_SIZE),
+        VMSTATE_UINT8_ARRAY(gicd_ipriority, GICv3State, GICV3_MAXIRQ),
+        VMSTATE_UINT64_ARRAY(gicd_irouter, GICv3State, GICV3_MAXIRQ),
+        VMSTATE_UINT32_ARRAY(gicd_nsacr, GICv3State,
+                             DIV_ROUND_UP(GICV3_MAXIRQ, 16)),
+        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(cpu, GICv3State, num_cpu,
+                                             vmstate_gicv3_cpu, GICv3CPUState),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
