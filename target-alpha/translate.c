@@ -449,10 +449,13 @@ static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
 
 static bool in_superpage(DisasContext *ctx, int64_t addr)
 {
+#ifndef CONFIG_USER_ONLY
     return ((ctx->tb->flags & TB_FLAGS_USER_MODE) == 0
-            && addr < 0
-            && ((addr >> 41) & 3) == 2
-            && addr >> TARGET_VIRT_ADDR_SPACE_BITS == addr >> 63);
+            && addr >> TARGET_VIRT_ADDR_SPACE_BITS == -1
+            && ((addr >> 41) & 3) == 2);
+#else
+    return false;
+#endif
 }
 
 static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
