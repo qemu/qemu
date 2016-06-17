@@ -159,6 +159,63 @@
 #define ICC_CTLR_EL3_A3V (1U << 15)
 #define ICC_CTLR_EL3_NDS (1U << 17)
 
+/* Functions internal to the emulated GICv3 */
+
+/**
+ * gicv3_redist_update:
+ * @cs: GICv3CPUState for this redistributor
+ *
+ * Recalculate the highest priority pending interrupt after a
+ * change to redistributor state, and inform the CPU accordingly.
+ */
+void gicv3_redist_update(GICv3CPUState *cs);
+
+/**
+ * gicv3_update:
+ * @s: GICv3State
+ * @start: first interrupt whose state changed
+ * @len: length of the range of interrupts whose state changed
+ *
+ * Recalculate the highest priority pending interrupts after a
+ * change to the distributor state affecting @len interrupts
+ * starting at @start, and inform the CPUs accordingly.
+ */
+void gicv3_update(GICv3State *s, int start, int len);
+
+/**
+ * gicv3_full_update_noirqset:
+ * @s: GICv3State
+ *
+ * Recalculate the cached information about highest priority
+ * pending interrupts, but don't inform the CPUs. This should be
+ * called after an incoming migration has loaded new state.
+ */
+void gicv3_full_update_noirqset(GICv3State *s);
+
+/**
+ * gicv3_full_update:
+ * @s: GICv3State
+ *
+ * Recalculate the highest priority pending interrupts after
+ * a change that could affect the status of all interrupts,
+ * and inform the CPUs accordingly.
+ */
+void gicv3_full_update(GICv3State *s);
+
+/**
+ * gicv3_cpuif_update:
+ * @cs: GICv3CPUState for the CPU to update
+ *
+ * Recalculate whether to assert the IRQ or FIQ lines after a change
+ * to the current highest priority pending interrupt, the CPU's
+ * current running priority or the CPU's current exception level or
+ * security state.
+ */
+static inline void gicv3_cpuif_update(GICv3CPUState *cs)
+{
+    /* This will be implemented in a later commit. */
+}
+
 static inline uint32_t gicv3_iidr(void)
 {
     /* Return the Implementer Identification Register value
@@ -184,6 +241,32 @@ static inline uint32_t gicv3_idreg(int regoffset)
 }
 
 /**
+ * gicv3_irq_group:
+ *
+ * Return the group which this interrupt is configured as (GICV3_G0,
+ * GICV3_G1 or GICV3_G1NS).
+ */
+static inline int gicv3_irq_group(GICv3State *s, GICv3CPUState *cs, int irq)
+{
+    bool grpbit, grpmodbit;
+
+    if (irq < GIC_INTERNAL) {
+        grpbit = extract32(cs->gicr_igroupr0, irq, 1);
+        grpmodbit = extract32(cs->gicr_igrpmodr0, irq, 1);
+    } else {
+        grpbit = gicv3_gicd_group_test(s, irq);
+        grpmodbit = gicv3_gicd_grpmod_test(s, irq);
+    }
+    if (grpbit) {
+        return GICV3_G1NS;
+    }
+    if (s->gicd_ctlr & GICD_CTLR_DS) {
+        return GICV3_G0;
+    }
+    return grpmodbit ? GICV3_G1 : GICV3_G0;
+}
+
+/**
  * gicv3_redist_affid:
  *
  * Return the 32-bit affinity ID of the CPU connected to this redistributor
@@ -191,6 +274,44 @@ static inline uint32_t gicv3_idreg(int regoffset)
 static inline uint32_t gicv3_redist_affid(GICv3CPUState *cs)
 {
     return cs->gicr_typer >> 32;
+}
+
+/**
+ * gicv3_cache_target_cpustate:
+ *
+ * Update the cached CPU state corresponding to the target for this interrupt
+ * (which is kept in s->gicd_irouter_target[]).
+ */
+static inline void gicv3_cache_target_cpustate(GICv3State *s, int irq)
+{
+    GICv3CPUState *cs = NULL;
+    int i;
+    uint32_t tgtaff = extract64(s->gicd_irouter[irq], 0, 24) |
+        extract64(s->gicd_irouter[irq], 32, 8) << 24;
+
+    for (i = 0; i < s->num_cpu; i++) {
+        if (s->cpu[i].gicr_typer >> 32 == tgtaff) {
+            cs = &s->cpu[i];
+            break;
+        }
+    }
+
+    s->gicd_irouter_target[irq] = cs;
+}
+
+/**
+ * gicv3_cache_all_target_cpustates:
+ *
+ * Populate the entire cache of CPU state pointers for interrupt targets
+ * (eg after inbound migration or CPU reset)
+ */
+static inline void gicv3_cache_all_target_cpustates(GICv3State *s)
+{
+    int irq;
+
+    for (irq = GIC_INTERNAL; irq < GICV3_MAXIRQ; irq++) {
+        gicv3_cache_target_cpustate(s, irq);
+    }
 }
 
 #endif /* !QEMU_ARM_GIC_INTERNAL_H */

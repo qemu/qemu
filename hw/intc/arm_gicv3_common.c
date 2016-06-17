@@ -246,6 +246,8 @@ static void arm_gicv3_common_reset(DeviceState *dev)
         cs->gicr_nsacr = 0;
         memset(cs->gicr_ipriorityr, 0, sizeof(cs->gicr_ipriorityr));
 
+        cs->hppi.prio = 0xff;
+
         /* State in the CPU interface must *not* be reset here, because it
          * is part of the CPU's reset domain, not the GIC device's.
          */
@@ -271,6 +273,13 @@ static void arm_gicv3_common_reset(DeviceState *dev)
     memset(s->gicd_ipriority, 0, sizeof(s->gicd_ipriority));
     memset(s->gicd_irouter, 0, sizeof(s->gicd_irouter));
     memset(s->gicd_nsacr, 0, sizeof(s->gicd_nsacr));
+    /* GICD_IROUTER are UNKNOWN at reset so in theory the guest must
+     * write these to get sane behaviour and we need not populate the
+     * pointer cache here; however having the cache be different for
+     * "happened to be 0 from reset" and "guest wrote 0" would be
+     * too confusing.
+     */
+    gicv3_cache_all_target_cpustates(s);
 
     if (s->irq_reset_nonsecure) {
         /* If we're resetting a TZ-aware GIC as if secure firmware

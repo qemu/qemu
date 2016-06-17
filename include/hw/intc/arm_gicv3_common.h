@@ -131,6 +131,12 @@ typedef struct GICv3CPUState GICv3CPUState;
 #define GICV3_S 0
 #define GICV3_NS 1
 
+typedef struct {
+    int irq;
+    uint8_t prio;
+    int grp;
+} PendingIrq;
+
 struct GICv3CPUState {
     GICv3State *gic;
     CPUState *cpu;
@@ -163,6 +169,14 @@ struct GICv3CPUState {
     uint64_t icc_apr[3][4];
     uint64_t icc_igrpen[3];
     uint64_t icc_ctlr_el3;
+
+    /* Current highest priority pending interrupt for this CPU.
+     * This is cached information that can be recalculated from the
+     * real state above; it doesn't need to be migrated.
+     */
+    PendingIrq hppi;
+    /* This is temporary working state, to avoid a malloc in gicv3_update() */
+    bool seenbetter;
 };
 
 struct GICv3State {
@@ -198,6 +212,10 @@ struct GICv3State {
     GIC_DECLARE_BITMAP(edge_trigger); /* GICD_ICFGR even bits */
     uint8_t gicd_ipriority[GICV3_MAXIRQ];
     uint64_t gicd_irouter[GICV3_MAXIRQ];
+    /* Cached information: pointer to the cpu i/f for the CPUs specified
+     * in the IROUTER registers
+     */
+    GICv3CPUState *gicd_irouter_target[GICV3_MAXIRQ];
     uint32_t gicd_nsacr[DIV_ROUND_UP(GICV3_MAXIRQ, 16)];
 
     GICv3CPUState *cpu;
