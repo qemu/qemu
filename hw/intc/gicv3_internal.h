@@ -159,6 +159,30 @@
 #define ICC_CTLR_EL3_A3V (1U << 15)
 #define ICC_CTLR_EL3_NDS (1U << 17)
 
+static inline uint32_t gicv3_iidr(void)
+{
+    /* Return the Implementer Identification Register value
+     * for the emulated GICv3, as reported in GICD_IIDR and GICR_IIDR.
+     *
+     * We claim to be an ARM r0p0 with a zero ProductID.
+     * This is the same as an r0p0 GIC-500.
+     */
+    return 0x43b;
+}
+
+static inline uint32_t gicv3_idreg(int regoffset)
+{
+    /* Return the value of the CoreSight ID register at the specified
+     * offset from the first ID register (as found in the distributor
+     * and redistributor register banks).
+     * These values indicate an ARM implementation of a GICv3.
+     */
+    static const uint8_t gicd_ids[] = {
+        0x44, 0x00, 0x00, 0x00, 0x92, 0xB4, 0x3B, 0x00, 0x0D, 0xF0, 0x05, 0xB1
+    };
+    return gicd_ids[regoffset / 4];
+}
+
 /**
  * gicv3_redist_affid:
  *
