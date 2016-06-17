@@ -205,6 +205,10 @@ MemTxResult gicv3_dist_read(void *opaque, hwaddr offset, uint64_t *data,
                             unsigned size, MemTxAttrs attrs);
 MemTxResult gicv3_dist_write(void *opaque, hwaddr addr, uint64_t data,
                              unsigned size, MemTxAttrs attrs);
+MemTxResult gicv3_redist_read(void *opaque, hwaddr offset, uint64_t *data,
+                              unsigned size, MemTxAttrs attrs);
+MemTxResult gicv3_redist_write(void *opaque, hwaddr offset, uint64_t data,
+                               unsigned size, MemTxAttrs attrs);
 
 /**
  * gicv3_cpuif_update:
