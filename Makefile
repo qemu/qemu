@@ -566,7 +566,7 @@ qemu.1: qemu-doc.texi qemu-options.texi qemu-monitor.texi qemu-monitor-info.texi
 	  "  GEN   $@")
 qemu.1: qemu-option-trace.texi
 
-qemu-img.1: qemu-img.texi qemu-img-cmds.texi
+qemu-img.1: qemu-img.texi qemu-option-trace.texi qemu-img-cmds.texi
 	$(call quiet-command, \
 	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu-img.pod && \
 	  $(POD2MAN) --section=1 --center=" " --release=" " qemu-img.pod > $@, \
