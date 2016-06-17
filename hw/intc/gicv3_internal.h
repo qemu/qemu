@@ -159,6 +159,11 @@
 #define ICC_CTLR_EL3_A3V (1U << 15)
 #define ICC_CTLR_EL3_NDS (1U << 17)
 
+/* Special interrupt IDs */
+#define INTID_SECURE 1020
+#define INTID_NONSECURE 1021
+#define INTID_SPURIOUS 1023
+
 /* Functions internal to the emulated GICv3 */
 
 /**
