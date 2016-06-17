@@ -856,3 +856,24 @@ MemTxResult gicv3_dist_write(void *opaque, hwaddr offset, uint64_t data,
     }
     return r;
 }
+
+void gicv3_dist_set_irq(GICv3State *s, int irq, int level)
+{
+    /* Update distributor state for a change in an external SPI input line */
+    if (level == gicv3_gicd_level_test(s, irq)) {
+        return;
+    }
+
+    trace_gicv3_dist_set_irq(irq, level);
+
+    gicv3_gicd_level_replace(s, irq, level);
+
+    if (level) {
+        /* 0->1 edges latch the pending bit for edge-triggered interrupts */
+        if (gicv3_gicd_edge_trigger_test(s, irq)) {
+            gicv3_gicd_pending_set(s, irq);
+        }
+    }
+
+    gicv3_update(s, irq, 1);
+}

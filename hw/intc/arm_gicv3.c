@@ -311,7 +311,25 @@ static void gicv3_set_irq(void *opaque, int irq, int level)
      *  [N+32..N+63] : PPI (internal interrupts for CPU 1
      *  ...
      */
-    /* Do nothing for now */
+    GICv3State *s = opaque;
+
+    if (irq < (s->num_irq - GIC_INTERNAL)) {
+        /* external interrupt (SPI) */
+        gicv3_dist_set_irq(s, irq + GIC_INTERNAL, level);
+    } else {
+        /* per-cpu interrupt (PPI) */
+        int cpu;
+
+        irq -= (s->num_irq - GIC_INTERNAL);
+        cpu = irq / GIC_INTERNAL;
+        irq %= GIC_INTERNAL;
+        assert(cpu < s->num_cpu);
+        /* Raising SGIs via this function would be a bug in how the board
+         * model wires up interrupts.
+         */
+        assert(irq >= GIC_NR_SGIS);
+        gicv3_redist_set_irq(&s->cpu[cpu], irq, level);
+    }
 }
 
 static void arm_gicv3_post_load(GICv3State *s)

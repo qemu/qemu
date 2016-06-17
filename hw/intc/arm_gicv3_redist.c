@@ -499,3 +499,24 @@ MemTxResult gicv3_redist_write(void *opaque, hwaddr offset, uint64_t data,
     }
     return r;
 }
+
+void gicv3_redist_set_irq(GICv3CPUState *cs, int irq, int level)
+{
+    /* Update redistributor state for a change in an external PPI input line */
+    if (level == extract32(cs->level, irq, 1)) {
+        return;
+    }
+
+    trace_gicv3_redist_set_irq(gicv3_redist_affid(cs), irq, level);
+
+    cs->level = deposit32(cs->level, irq, 1, level);
+
+    if (level) {
+        /* 0->1 edges latch the pending bit for edge-triggered interrupts */
+        if (extract32(cs->edge_trigger, irq, 1)) {
+            cs->gicr_ipendr0 = deposit32(cs->gicr_ipendr0, irq, 1, 1);
+        }
+    }
+
+    gicv3_redist_update(cs);
+}
