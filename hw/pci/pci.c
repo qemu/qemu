@@ -836,6 +836,81 @@ static void do_pci_unregister_device(PCIDevice *pci_dev)
     address_space_destroy(&pci_dev->bus_master_as);
 }
 
+/* Extract PCIReqIDCache into BDF format */
+static uint16_t pci_req_id_cache_extract(PCIReqIDCache *cache)
+{
+    uint8_t bus_n;
+    uint16_t result;
+
+    switch (cache->type) {
+    case PCI_REQ_ID_BDF:
+        result = pci_get_bdf(cache->dev);
+        break;
+    case PCI_REQ_ID_SECONDARY_BUS:
+        bus_n = pci_bus_num(cache->dev->bus);
+        result = PCI_BUILD_BDF(bus_n, 0);
+        break;
+    default:
+        error_printf("Invalid PCI requester ID cache type: %d\n",
+                     cache->type);
+        exit(1);
+        break;
+    }
+
+    return result;
+}
+
+/* Parse bridges up to the root complex and return requester ID
+ * cache for specific device.  For full PCIe topology, the cache
+ * result would be exactly the same as getting BDF of the device.
+ * However, several tricks are required when system mixed up with
+ * legacy PCI devices and PCIe-to-PCI bridges.
+ *
+ * Here we cache the proxy device (and type) not requester ID since
+ * bus number might change from time to time.
+ */
+static PCIReqIDCache pci_req_id_cache_get(PCIDevice *dev)
+{
+    PCIDevice *parent;
+    PCIReqIDCache cache = {
+        .dev = dev,
+        .type = PCI_REQ_ID_BDF,
+    };
+
+    while (!pci_bus_is_root(dev->bus)) {
+        /* We are under PCI/PCIe bridges */
+        parent = dev->bus->parent_dev;
+        if (pci_is_express(parent)) {
+            if (pcie_cap_get_type(parent) == PCI_EXP_TYPE_PCI_BRIDGE) {
+                /* When we pass through PCIe-to-PCI/PCIX bridges, we
+                 * override the requester ID using secondary bus
+                 * number of parent bridge with zeroed devfn
+                 * (pcie-to-pci bridge spec chap 2.3). */
+                cache.type = PCI_REQ_ID_SECONDARY_BUS;
+                cache.dev = dev;
+            }
+        } else {
+            /* Legacy PCI, override requester ID with the bridge's
+             * BDF upstream.  When the root complex connects to
+             * legacy PCI devices (including buses), it can only
+             * obtain requester ID info from directly attached
+             * devices.  If devices are attached under bridges, only
+             * the requester ID of the bridge that is directly
+             * attached to the root complex can be recognized. */
+            cache.type = PCI_REQ_ID_BDF;
+            cache.dev = parent;
+        }
+        dev = parent;
+    }
+
+    return cache;
+}
+
+uint16_t pci_requester_id(PCIDevice *dev)
+{
+    return pci_req_id_cache_extract(&dev->requester_id_cache);
+}
+
 /* -1 for devfn means auto assign */
 static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
                                          const char *name, int devfn,
@@ -885,6 +960,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     }
 
     pci_dev->devfn = devfn;
+    pci_dev->requester_id_cache = pci_req_id_cache_get(pci_dev);
     dma_as = pci_device_iommu_address_space(pci_dev);
 
     memory_region_init_alias(&pci_dev->bus_master_enable_region,
@@ -2152,10 +2228,8 @@ int pci_add_capability2(PCIDevice *pdev, uint8_t cap_id,
 
     if (!offset) {
         offset = pci_find_space(pdev, size);
-        if (!offset) {
-            error_setg(errp, "out of PCI config space");
-            return -ENOSPC;
-        }
+        /* out of PCI config space is programming error */
+        assert(offset);
     } else {
         /* Verify that capabilities don't overlap.  Note: device assignment
          * depends on this check to verify that the device is not broken.

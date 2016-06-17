@@ -106,12 +106,14 @@ static int ioh3420_initfn(PCIDevice *d)
     if (rc < 0) {
         goto err_bridge;
     }
+
     rc = msi_init(d, IOH_EP_MSI_OFFSET, IOH_EP_MSI_NR_VECTOR,
                   IOH_EP_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_64BIT,
                   IOH_EP_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_MASKBIT);
     if (rc < 0) {
         goto err_bridge;
     }
+
     rc = pcie_cap_init(d, IOH_EP_EXP_OFFSET, PCI_EXP_TYPE_ROOT_PORT, p->port);
     if (rc < 0) {
         goto err_msi;
@@ -120,18 +122,21 @@ static int ioh3420_initfn(PCIDevice *d)
     pcie_cap_arifwd_init(d);
     pcie_cap_deverr_init(d);
     pcie_cap_slot_init(d, s->slot);
+    pcie_cap_root_init(d);
+
     pcie_chassis_create(s->chassis);
     rc = pcie_chassis_add_slot(s);
     if (rc < 0) {
         goto err_pcie_cap;
     }
-    pcie_cap_root_init(d);
+
     rc = pcie_aer_init(d, IOH_EP_AER_OFFSET, PCI_ERR_SIZEOF);
     if (rc < 0) {
         goto err;
     }
     pcie_aer_root_init(d);
     ioh3420_aer_vector_update(d);
+
     return 0;
 
 err:

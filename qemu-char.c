@@ -4011,6 +4011,13 @@ void qemu_chr_fe_release(CharDriverState *s)
     s->avail_connections++;
 }
 
+void qemu_chr_disconnect(CharDriverState *chr)
+{
+    if (chr->chr_disconnect) {
+        chr->chr_disconnect(chr);
+    }
+}
+
 static void qemu_chr_free_common(CharDriverState *chr)
 {
     g_free(chr->filename);
@@ -4388,6 +4395,7 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
     chr->chr_write = tcp_chr_write;
     chr->chr_sync_read = tcp_chr_sync_read;
     chr->chr_close = tcp_chr_close;
+    chr->chr_disconnect = tcp_chr_disconnect;
     chr->get_msgfds = tcp_get_msgfds;
     chr->set_msgfds = tcp_set_msgfds;
     chr->chr_add_client = tcp_chr_add_client;

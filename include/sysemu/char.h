@@ -75,6 +75,7 @@ struct CharDriverState {
     IOReadHandler *chr_read;
     void *handler_opaque;
     void (*chr_close)(struct CharDriverState *chr);
+    void (*chr_disconnect)(struct CharDriverState *chr);
     void (*chr_accept_input)(struct CharDriverState *chr);
     void (*chr_set_echo)(struct CharDriverState *chr, bool echo);
     void (*chr_set_fe_open)(struct CharDriverState *chr, int fe_open);
@@ -143,6 +144,12 @@ void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend);
  */
 CharDriverState *qemu_chr_new(const char *label, const char *filename,
                               void (*init)(struct CharDriverState *s));
+/**
+ * @qemu_chr_disconnect:
+ *
+ * Close a fd accpeted by character backend.
+ */
+void qemu_chr_disconnect(CharDriverState *chr);
 
 /**
  * @qemu_chr_new_noreplay:

@@ -68,10 +68,12 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
         /* MSI is not applicable without SHPC */
         bridge_dev->flags &= ~(1 << PCI_BRIDGE_DEV_F_MSI_REQ);
     }
+
     err = slotid_cap_init(dev, 0, bridge_dev->chassis_nr, 0);
     if (err) {
         goto slotid_error;
     }
+
     if ((bridge_dev->flags & (1 << PCI_BRIDGE_DEV_F_MSI_REQ)) &&
         msi_nonbroken) {
         err = msi_init(dev, 0, 1, true, true);
@@ -79,6 +81,7 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
             goto msi_error;
         }
     }
+
     if (shpc_present(dev)) {
         /* TODO: spec recommends using 64 bit prefetcheable BAR.
          * Check whether that works well. */
@@ -86,6 +89,7 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
                          PCI_BASE_ADDRESS_MEM_TYPE_64, &bridge_dev->bar);
     }
     return 0;
+
 msi_error:
     slotid_cap_cleanup(dev);
 slotid_error:

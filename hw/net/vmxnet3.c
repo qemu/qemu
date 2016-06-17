@@ -348,7 +348,7 @@ typedef struct {
 /* Interrupt management */
 
 /*
- *This function returns sign whether interrupt line is in asserted state
+ * This function returns sign whether interrupt line is in asserted state
  * This depends on the type of interrupt used. For INTX interrupt line will
  * be asserted until explicit deassertion, for MSI(X) interrupt line will
  * be deasserted automatically due to notification semantics of the MSI(X)
