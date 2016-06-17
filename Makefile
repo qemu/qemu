@@ -578,7 +578,7 @@ fsdev/virtfs-proxy-helper.1: fsdev/virtfs-proxy-helper.texi
 	  $(POD2MAN) --section=1 --center=" " --release=" " fsdev/virtfs-proxy-helper.pod > $@, \
 	  "  GEN   $@")
 
-qemu-nbd.8: qemu-nbd.texi
+qemu-nbd.8: qemu-nbd.texi qemu-option-trace.texi
 	$(call quiet-command, \
 	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu-nbd.pod && \
 	  $(POD2MAN) --section=8 --center=" " --release=" " qemu-nbd.pod > $@, \

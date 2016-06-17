@@ -27,12 +27,14 @@
 #include "qemu/error-report.h"
 #include "qemu/config-file.h"
 #include "qemu/bswap.h"
+#include "qemu/log.h"
 #include "block/snapshot.h"
 #include "qapi/util.h"
 #include "qapi/qmp/qstring.h"
 #include "qom/object_interfaces.h"
 #include "io/channel-socket.h"
 #include "crypto/init.h"
+#include "trace/control.h"
 
 #include <getopt.h>
 #include <libgen.h>
@@ -88,6 +90,8 @@ static void usage(const char *name)
 "General purpose options:\n"
 "  --object type,id=ID,...   define an object such as 'secret' for providing\n"
 "                            passwords and/or encryption keys\n"
+"  -T, --trace [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
+"                            specify tracing options\n"
 #ifdef __linux__
 "Kernel NBD client support:\n"
 "  -c, --connect=DEV         connect FILE to the local NBD device DEV\n"
@@ -470,7 +474,7 @@ int main(int argc, char **argv)
     off_t fd_size;
     QemuOpts *sn_opts = NULL;
     const char *sn_id_or_name = NULL;
-    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:";
+    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:T:";
     struct option lopt[] = {
         { "help", no_argument, NULL, 'h' },
         { "version", no_argument, NULL, 'V' },
@@ -498,6 +502,7 @@ int main(int argc, char **argv)
         { "export-name", required_argument, NULL, 'x' },
         { "tls-creds", required_argument, NULL, QEMU_NBD_OPT_TLSCREDS },
         { "image-opts", no_argument, NULL, QEMU_NBD_OPT_IMAGE_OPTS },
+        { "trace", required_argument, NULL, 'T' },
         { NULL, 0, NULL, 0 }
     };
     int ch;
@@ -518,6 +523,7 @@ int main(int argc, char **argv)
     const char *tlscredsid = NULL;
     bool imageOpts = false;
     bool writethrough = true;
+    char *trace_file = NULL;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
@@ -531,6 +537,7 @@ int main(int argc, char **argv)
 
     module_call_init(MODULE_INIT_QOM);
     qemu_add_opts(&qemu_object_opts);
+    qemu_add_opts(&qemu_trace_opts);
     qemu_init_exec_dir(argv[0]);
 
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
@@ -703,6 +710,10 @@ int main(int argc, char **argv)
         case QEMU_NBD_OPT_IMAGE_OPTS:
             imageOpts = true;
             break;
+        case 'T':
+            g_free(trace_file);
+            trace_file = trace_opt_parse(optarg);
+            break;
         }
     }
 
@@ -717,6 +728,12 @@ int main(int argc, char **argv)
                           NULL, NULL)) {
         exit(EXIT_FAILURE);
     }
+
+    if (!trace_init_backends()) {
+        exit(1);
+    }
+    trace_init_file(trace_file);
+    qemu_set_log(LOG_TRACE);
 
     if (tlscredsid) {
         if (sockpath) {
