@@ -51,6 +51,15 @@ static bool arm_cpu_has_work(CPUState *cs)
          | CPU_INTERRUPT_EXITTB);
 }
 
+void arm_register_el_change_hook(ARMCPU *cpu, ARMELChangeHook *hook,
+                                 void *opaque)
+{
+    /* We currently only support registering a single hook function */
+    assert(!cpu->el_change_hook);
+    cpu->el_change_hook = hook;
+    cpu->el_change_hook_opaque = opaque;
+}
+
 static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
 {
     /* Reset a single ARMCPRegInfo register */

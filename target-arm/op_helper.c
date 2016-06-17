@@ -474,6 +474,8 @@ void HELPER(cpsr_write)(CPUARMState *env, uint32_t val, uint32_t mask)
 void HELPER(cpsr_write_eret)(CPUARMState *env, uint32_t val)
 {
     cpsr_write(env, val, CPSR_ERET_MASK, CPSRWriteExceptionReturn);
+
+    arm_call_el_change_hook(arm_env_get_cpu(env));
 }
 
 /* Access to user mode registers from privileged modes.  */
@@ -968,6 +970,8 @@ void HELPER(exception_return)(CPUARMState *env)
         aarch64_restore_sp(env, new_el);
         env->pc = env->elr_el[cur_el];
     }
+
+    arm_call_el_change_hook(arm_env_get_cpu(env));
 
     return;
 
