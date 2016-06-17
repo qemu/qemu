@@ -3669,7 +3669,7 @@ DEF("trace", HAS_ARG, QEMU_OPTION_trace,
 STEXI
 HXCOMM This line is not accurate, as some sub-options are backend-specific but
 HXCOMM HX does not support conditional compilation of text.
-@item -trace [events=@var{file}][,file=@var{file}]
+@item -trace [[enable=]@var{pattern}][,events=@var{file}][,file=@var{file}]
 @findex -trace
 
 Specify tracing options.
