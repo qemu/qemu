@@ -51,6 +51,15 @@ static bool arm_cpu_has_work(CPUState *cs)
          | CPU_INTERRUPT_EXITTB);
 }
 
+void arm_register_el_change_hook(ARMCPU *cpu, ARMELChangeHook *hook,
+                                 void *opaque)
+{
+    /* We currently only support registering a single hook function */
+    assert(!cpu->el_change_hook);
+    cpu->el_change_hook = hook;
+    cpu->el_change_hook_opaque = opaque;
+}
+
 static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
 {
     /* Reset a single ARMCPRegInfo register */
@@ -1406,6 +1415,7 @@ static Property arm_cpu_properties[] = {
     DEFINE_PROP_BOOL("start-powered-off", ARMCPU, start_powered_off, false),
     DEFINE_PROP_UINT32("psci-conduit", ARMCPU, psci_conduit, 0),
     DEFINE_PROP_UINT32("midr", ARMCPU, midr, 0),
+    DEFINE_PROP_UINT64("mp-affinity", ARMCPU, mp_affinity, 0),
     DEFINE_PROP_END_OF_LIST()
 };
 

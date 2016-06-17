@@ -13,6 +13,9 @@ common-obj-$(CONFIG_ARM_GIC) += arm_gic_common.o
 common-obj-$(CONFIG_ARM_GIC) += arm_gic.o
 common-obj-$(CONFIG_ARM_GIC) += arm_gicv2m.o
 common-obj-$(CONFIG_ARM_GIC) += arm_gicv3_common.o
+common-obj-$(CONFIG_ARM_GIC) += arm_gicv3.o
+common-obj-$(CONFIG_ARM_GIC) += arm_gicv3_dist.o
+common-obj-$(CONFIG_ARM_GIC) += arm_gicv3_redist.o
 common-obj-$(CONFIG_OPENPIC) += openpic.o
 
 obj-$(CONFIG_APIC) += apic.o apic_common.o
@@ -32,3 +35,4 @@ obj-$(CONFIG_ALLWINNER_A10_PIC) += allwinner-a10-pic.o
 obj-$(CONFIG_S390_FLIC) += s390_flic.o
 obj-$(CONFIG_S390_FLIC_KVM) += s390_flic_kvm.o
 obj-$(CONFIG_ASPEED_SOC) += aspeed_vic.o
+obj-$(CONFIG_ARM_GIC) += arm_gicv3_cpuif.o

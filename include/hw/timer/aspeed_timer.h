@@ -22,7 +22,7 @@
 #ifndef ASPEED_TIMER_H
 #define ASPEED_TIMER_H
 
-#include "hw/ptimer.h"
+#include "qemu/timer.h"
 
 #define ASPEED_TIMER(obj) \
     OBJECT_CHECK(AspeedTimerCtrlState, (obj), TYPE_ASPEED_TIMER);
@@ -33,15 +33,16 @@ typedef struct AspeedTimer {
     qemu_irq irq;
 
     uint8_t id;
+    QEMUTimer timer;
 
     /**
      * Track the line level as the ASPEED timers implement edge triggered
      * interrupts, signalling with both the rising and falling edge.
      */
     int32_t level;
-    ptimer_state *timer;
     uint32_t reload;
     uint32_t match[2];
+    uint64_t start;
 } AspeedTimer;
 
 typedef struct AspeedTimerCtrlState {

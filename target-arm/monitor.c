@@ -72,8 +72,7 @@ GICCapabilityList *qmp_query_gic_capabilities(Error **errp)
     GICCapability *v2 = gic_cap_new(2), *v3 = gic_cap_new(3);
 
     v2->emulated = true;
-    /* TODO: we'd change to true after we get emulated GICv3. */
-    v3->emulated = false;
+    v3->emulated = true;
 
     gic_cap_kvm_probe(v2, v3);
 

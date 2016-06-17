@@ -342,8 +342,7 @@ const char *gicv3_class_name(void)
                      "platform");
 #endif
     } else {
-        /* TODO: Software emulation is not implemented yet */
-        error_report("KVM is currently required for GICv3 emulation");
+        return "arm-gicv3";
     }
 
     exit(1);

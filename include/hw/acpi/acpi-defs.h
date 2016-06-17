@@ -367,7 +367,9 @@ struct AcpiMadtGenericDistributor {
     uint32_t gic_id;
     uint64_t base_address;
     uint32_t global_irq_base;
-    uint32_t reserved2;
+    /* ACPI 5.1 Errata 1228 Present GIC version in MADT table */
+    uint8_t version;
+    uint8_t reserved2[3];
 } QEMU_PACKED;
 
 typedef struct AcpiMadtGenericDistributor AcpiMadtGenericDistributor;

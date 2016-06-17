@@ -515,6 +515,13 @@ typedef struct CPUARMState {
 } CPUARMState;
 
 /**
+ * ARMELChangeHook:
+ * type of a function which can be registered via arm_register_el_change_hook()
+ * to get callbacks when the CPU changes its exception level or mode.
+ */
+typedef void ARMELChangeHook(ARMCPU *cpu, void *opaque);
+
+/**
  * ARMCPU:
  * @env: #CPUARMState
  *
@@ -654,6 +661,9 @@ struct ARMCPU {
     /* DCZ blocksize, in log_2(words), ie low 4 bits of DCZID_EL0 */
     uint32_t dcz_blocksize;
     uint64_t rvbar;
+
+    ARMELChangeHook *el_change_hook;
+    void *el_change_hook_opaque;
 };
 
 static inline ARMCPU *arm_env_get_cpu(CPUARMState *env)
@@ -1146,8 +1156,8 @@ static inline bool arm_is_secure_below_el3(CPUARMState *env)
     }
 }
 
-/* Return true if the processor is in secure state */
-static inline bool arm_is_secure(CPUARMState *env)
+/* Return true if the CPU is AArch64 EL3 or AArch32 Mon */
+static inline bool arm_is_el3_or_mon(CPUARMState *env)
 {
     if (arm_feature(env, ARM_FEATURE_EL3)) {
         if (is_a64(env) && extract32(env->pstate, 2, 2) == 3) {
@@ -1158,6 +1168,15 @@ static inline bool arm_is_secure(CPUARMState *env)
             /* CPU currently in AArch32 state and monitor mode */
             return true;
         }
+    }
+    return false;
+}
+
+/* Return true if the processor is in secure state */
+static inline bool arm_is_secure(CPUARMState *env)
+{
+    if (arm_is_el3_or_mon(env)) {
+        return true;
     }
     return arm_is_secure_below_el3(env);
 }
@@ -2376,5 +2395,29 @@ static inline AddressSpace *arm_addressspace(CPUState *cs, MemTxAttrs attrs)
     return cpu_get_address_space(cs, arm_asidx_from_attrs(cs, attrs));
 }
 #endif
+
+/**
+ * arm_register_el_change_hook:
+ * Register a hook function which will be called back whenever this
+ * CPU changes exception level or mode. The hook function will be
+ * passed a pointer to the ARMCPU and the opaque data pointer passed
+ * to this function when the hook was registered.
+ *
+ * Note that we currently only support registering a single hook function,
+ * and will assert if this function is called twice.
+ * This facility is intended for the use of the GICv3 emulation.
+ */
+void arm_register_el_change_hook(ARMCPU *cpu, ARMELChangeHook *hook,
+                                 void *opaque);
+
+/**
+ * arm_get_el_change_hook_opaque:
+ * Return the opaque data that will be used by the el_change_hook
+ * for this CPU.
+ */
+static inline void *arm_get_el_change_hook_opaque(ARMCPU *cpu)
+{
+    return cpu->el_change_hook_opaque;
+}
 
 #endif
