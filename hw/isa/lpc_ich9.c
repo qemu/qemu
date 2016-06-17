@@ -204,10 +204,12 @@ static void ich9_lpc_pic_irq(ICH9LPCState *lpc, int pirq_num,
     abort();
 }
 
-/* pic_irq: i8254 irq 0-15 */
-static void ich9_lpc_update_pic(ICH9LPCState *lpc, int pic_irq)
+/* gsi: i8259+ioapic irq 0-15, otherwise assert */
+static void ich9_lpc_update_pic(ICH9LPCState *lpc, int gsi)
 {
     int i, pic_level;
+
+    assert(gsi < ICH9_LPC_PIC_NUM_PINS);
 
     /* The pic level is the logical OR of all the PCI irqs mapped to it */
     pic_level = 0;
@@ -215,27 +217,15 @@ static void ich9_lpc_update_pic(ICH9LPCState *lpc, int pic_irq)
         int tmp_irq;
         int tmp_dis;
         ich9_lpc_pic_irq(lpc, i, &tmp_irq, &tmp_dis);
-        if (!tmp_dis && pic_irq == tmp_irq) {
+        if (!tmp_dis && tmp_irq == gsi) {
             pic_level |= pci_bus_get_irq_level(lpc->d.bus, i);
         }
     }
-    if (pic_irq == ich9_lpc_sci_irq(lpc)) {
+    if (gsi == ich9_lpc_sci_irq(lpc)) {
         pic_level |= lpc->sci_level;
     }
 
-    qemu_set_irq(lpc->pic[pic_irq], pic_level);
-}
-
-/* pirq: pirq[A-H] 0-7*/
-static void ich9_lpc_update_by_pirq(ICH9LPCState *lpc, int pirq)
-{
-    int pic_irq;
-    int pic_dis;
-
-    ich9_lpc_pic_irq(lpc, pirq, &pic_irq, &pic_dis);
-    assert(pic_irq < ICH9_LPC_PIC_NUM_PINS);
-
-    ich9_lpc_update_pic(lpc, pic_irq);
+    qemu_set_irq(lpc->pic[gsi], pic_level);
 }
 
 /* APIC mode: GSIx: PIRQ[A-H] -> GSI 16, ... no pirq shares same APIC pins. */
@@ -249,13 +239,14 @@ static int ich9_gsi_to_pirq(int gsi)
     return gsi - ICH9_LPC_PIC_NUM_PINS;
 }
 
+/* gsi: ioapic irq 16-23, otherwise assert */
 static void ich9_lpc_update_apic(ICH9LPCState *lpc, int gsi)
 {
     int level = 0;
 
-    if (gsi >= ICH9_LPC_PIC_NUM_PINS) {
-        level |= pci_bus_get_irq_level(lpc->d.bus, ich9_gsi_to_pirq(gsi));
-    }
+    assert(gsi >= ICH9_LPC_PIC_NUM_PINS);
+
+    level |= pci_bus_get_irq_level(lpc->d.bus, ich9_gsi_to_pirq(gsi));
     if (gsi == ich9_lpc_sci_irq(lpc)) {
         level |= lpc->sci_level;
     }
@@ -266,12 +257,14 @@ static void ich9_lpc_update_apic(ICH9LPCState *lpc, int gsi)
 void ich9_lpc_set_irq(void *opaque, int pirq, int level)
 {
     ICH9LPCState *lpc = opaque;
+    int pic_irq, pic_dis;
 
     assert(0 <= pirq);
     assert(pirq < ICH9_LPC_NB_PIRQS);
 
     ich9_lpc_update_apic(lpc, ich9_pirq_to_gsi(pirq));
-    ich9_lpc_update_by_pirq(lpc, pirq);
+    ich9_lpc_pic_irq(lpc, pirq, &pic_irq, &pic_dis);
+    ich9_lpc_update_pic(lpc, pic_irq);
 }
 
 /* return the pirq number (PIRQ[A-H]:0-7) corresponding to
@@ -362,8 +355,9 @@ static void ich9_set_sci(void *opaque, int irq_num, int level)
         return;
     }
 
-    ich9_lpc_update_apic(lpc, irq);
-    if (irq < ICH9_LPC_PIC_NUM_PINS) {
+    if (irq >= ICH9_LPC_PIC_NUM_PINS) {
+        ich9_lpc_update_apic(lpc, irq);
+    } else {
         ich9_lpc_update_pic(lpc, irq);
     }
 }
