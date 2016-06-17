@@ -81,6 +81,10 @@ typedef struct {
  *    Returns an array of @CPUArchId architecture-dependent CPU IDs
  *    which includes CPU IDs for present and possible to hotplug CPUs.
  *    Caller is responsible for freeing returned list.
+ * @query_hotpluggable_cpus:
+ *    Returns a @HotpluggableCPUList, which describes CPUs objects which
+ *    could be added with -device/device_add.
+ *    Caller is responsible for freeing returned list.
  */
 struct MachineClass {
     /*< private >*/
@@ -124,6 +128,7 @@ struct MachineClass {
                                            DeviceState *dev);
     unsigned (*cpu_index_to_socket_id)(unsigned cpu_index);
     CPUArchIdList *(*possible_cpu_arch_ids)(MachineState *machine);
+    HotpluggableCPUList *(*query_hotpluggable_cpus)(MachineState *machine);
 };
 
 /**

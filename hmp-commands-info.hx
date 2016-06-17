@@ -800,6 +800,20 @@ STEXI
 Display the latest dump status.
 ETEXI
 
+    {
+        .name       = "hotpluggable-cpus",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Show information about hotpluggable CPUs",
+        .mhandler.cmd = hmp_hotpluggable_cpus,
+    },
+
+STEXI
+@item info hotpluggable-cpus
+@findex hotpluggable-cpus
+Show information about hotpluggable CPUs
+ETEXI
+
 STEXI
 @end table
 ETEXI

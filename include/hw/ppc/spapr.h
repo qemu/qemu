@@ -16,6 +16,8 @@ typedef struct sPAPREventLogEntry sPAPREventLogEntry;
 #define HPTE64_V_HPTE_DIRTY     0x0000000000000040ULL
 #define SPAPR_ENTRY_POINT       0x100
 
+#define SPAPR_TIMEBASE_FREQ     512000000ULL
+
 typedef struct sPAPRMachineClass sPAPRMachineClass;
 typedef struct sPAPRMachineState sPAPRMachineState;
 
@@ -36,6 +38,7 @@ struct sPAPRMachineClass {
 
     /*< public >*/
     bool dr_lmb_enabled;       /* enable dynamic-reconfig/hotplug of LMBs */
+    bool dr_cpu_enabled;       /* enable dynamic-reconfig/hotplug of CPUs */
     bool use_ohci_by_default;  /* use USB-OHCI instead of XHCI */
 };
 
@@ -79,6 +82,7 @@ struct sPAPRMachineState {
     /*< public >*/
     char *kvm_type;
     MemoryHotplugState hotplug_memory;
+    Object **cores;
 };
 
 #define H_SUCCESS         0
@@ -582,6 +586,9 @@ void spapr_hotplug_req_add_by_count(sPAPRDRConnectorType drc_type,
                                        uint32_t count);
 void spapr_hotplug_req_remove_by_count(sPAPRDRConnectorType drc_type,
                                           uint32_t count);
+void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu, Error **errp);
+void *spapr_populate_hotplug_cpu_dt(CPUState *cs, int *fdt_offset,
+                                    sPAPRMachineState *spapr);
 
 /* rtas-configure-connector state */
 struct sPAPRConfigureConnectorState {

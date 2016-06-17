@@ -2,4 +2,5 @@ obj-$(CONFIG_ARM11MPCORE) += arm11mpcore.o
 obj-$(CONFIG_REALVIEW) += realview_mpcore.o
 obj-$(CONFIG_A9MPCORE) += a9mpcore.o
 obj-$(CONFIG_A15MPCORE) += a15mpcore.o
+obj-y += core.o
 
