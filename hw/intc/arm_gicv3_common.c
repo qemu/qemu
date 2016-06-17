@@ -3,8 +3,9 @@
  *
  * Copyright (c) 2012 Linaro Limited
  * Copyright (c) 2015 Huawei.
+ * Copyright (c) 2015 Samsung Electronics Co., Ltd.
  * Written by Peter Maydell
- * Extended to 64 cores by Shlomo Pongratz
+ * Reworked for GICv3 by Shlomo Pongratz and Pavel Fedin
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +23,10 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qom/cpu.h"
 #include "hw/intc/arm_gicv3_common.h"
+#include "gicv3_internal.h"
+#include "hw/arm/linux-boot-if.h"
 
 static void gicv3_pre_save(void *opaque)
 {
@@ -90,6 +94,7 @@ void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
 static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
 {
     GICv3State *s = ARM_GICV3_COMMON(dev);
+    int i;
 
     /* revision property is actually reserved and currently used only in order
      * to keep the interface compatible with GICv2 code, avoiding extra
@@ -100,11 +105,155 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "unsupported GIC revision %d", s->revision);
         return;
     }
+
+    if (s->num_irq > GICV3_MAXIRQ) {
+        error_setg(errp,
+                   "requested %u interrupt lines exceeds GIC maximum %d",
+                   s->num_irq, GICV3_MAXIRQ);
+        return;
+    }
+    if (s->num_irq < GIC_INTERNAL) {
+        error_setg(errp,
+                   "requested %u interrupt lines is below GIC minimum %d",
+                   s->num_irq, GIC_INTERNAL);
+        return;
+    }
+
+    /* ITLinesNumber is represented as (N / 32) - 1, so this is an
+     * implementation imposed restriction, not an architectural one,
+     * so we don't have to deal with bitfields where only some of the
+     * bits in a 32-bit word should be valid.
+     */
+    if (s->num_irq % 32) {
+        error_setg(errp,
+                   "%d interrupt lines unsupported: not divisible by 32",
+                   s->num_irq);
+        return;
+    }
+
+    s->cpu = g_new0(GICv3CPUState, s->num_cpu);
+
+    for (i = 0; i < s->num_cpu; i++) {
+        CPUState *cpu = qemu_get_cpu(i);
+        uint64_t cpu_affid;
+        int last;
+
+        s->cpu[i].cpu = cpu;
+        s->cpu[i].gic = s;
+
+        /* Pre-construct the GICR_TYPER:
+         * For our implementation:
+         *  Top 32 bits are the affinity value of the associated CPU
+         *  CommonLPIAff == 01 (redistributors with same Aff3 share LPI table)
+         *  Processor_Number == CPU index starting from 0
+         *  DPGS == 0 (GICR_CTLR.DPG* not supported)
+         *  Last == 1 if this is the last redistributor in a series of
+         *            contiguous redistributor pages
+         *  DirectLPI == 0 (direct injection of LPIs not supported)
+         *  VLPIS == 0 (virtual LPIs not supported)
+         *  PLPIS == 0 (physical LPIs not supported)
+         */
+        cpu_affid = object_property_get_int(OBJECT(cpu), "mp-affinity", NULL);
+        last = (i == s->num_cpu - 1);
+
+        /* The CPU mp-affinity property is in MPIDR register format; squash
+         * the affinity bytes into 32 bits as the GICR_TYPER has them.
+         */
+        cpu_affid = (cpu_affid & 0xFF00000000ULL >> 8) | (cpu_affid & 0xFFFFFF);
+        s->cpu[i].gicr_typer = (cpu_affid << 32) |
+            (1 << 24) |
+            (i << 8) |
+            (last << 4);
+    }
 }
 
 static void arm_gicv3_common_reset(DeviceState *dev)
 {
-    /* TODO */
+    GICv3State *s = ARM_GICV3_COMMON(dev);
+    int i;
+
+    for (i = 0; i < s->num_cpu; i++) {
+        GICv3CPUState *cs = &s->cpu[i];
+
+        cs->level = 0;
+        cs->gicr_ctlr = 0;
+        cs->gicr_statusr[GICV3_S] = 0;
+        cs->gicr_statusr[GICV3_NS] = 0;
+        cs->gicr_waker = GICR_WAKER_ProcessorSleep | GICR_WAKER_ChildrenAsleep;
+        cs->gicr_propbaser = 0;
+        cs->gicr_pendbaser = 0;
+        /* If we're resetting a TZ-aware GIC as if secure firmware
+         * had set it up ready to start a kernel in non-secure, we
+         * need to set interrupts to group 1 so the kernel can use them.
+         * Otherwise they reset to group 0 like the hardware.
+         */
+        if (s->irq_reset_nonsecure) {
+            cs->gicr_igroupr0 = 0xffffffff;
+        } else {
+            cs->gicr_igroupr0 = 0;
+        }
+
+        cs->gicr_ienabler0 = 0;
+        cs->gicr_ipendr0 = 0;
+        cs->gicr_iactiver0 = 0;
+        cs->edge_trigger = 0xffff;
+        cs->gicr_igrpmodr0 = 0;
+        cs->gicr_nsacr = 0;
+        memset(cs->gicr_ipriorityr, 0, sizeof(cs->gicr_ipriorityr));
+
+        /* State in the CPU interface must *not* be reset here, because it
+         * is part of the CPU's reset domain, not the GIC device's.
+         */
+    }
+
+    /* For our implementation affinity routing is always enabled */
+    if (s->security_extn) {
+        s->gicd_ctlr = GICD_CTLR_ARE_S | GICD_CTLR_ARE_NS;
+    } else {
+        s->gicd_ctlr = GICD_CTLR_DS | GICD_CTLR_ARE;
+    }
+
+    s->gicd_statusr[GICV3_S] = 0;
+    s->gicd_statusr[GICV3_NS] = 0;
+
+    memset(s->group, 0, sizeof(s->group));
+    memset(s->grpmod, 0, sizeof(s->grpmod));
+    memset(s->enabled, 0, sizeof(s->enabled));
+    memset(s->pending, 0, sizeof(s->pending));
+    memset(s->active, 0, sizeof(s->active));
+    memset(s->level, 0, sizeof(s->level));
+    memset(s->edge_trigger, 0, sizeof(s->edge_trigger));
+    memset(s->gicd_ipriority, 0, sizeof(s->gicd_ipriority));
+    memset(s->gicd_irouter, 0, sizeof(s->gicd_irouter));
+    memset(s->gicd_nsacr, 0, sizeof(s->gicd_nsacr));
+
+    if (s->irq_reset_nonsecure) {
+        /* If we're resetting a TZ-aware GIC as if secure firmware
+         * had set it up ready to start a kernel in non-secure, we
+         * need to set interrupts to group 1 so the kernel can use them.
+         * Otherwise they reset to group 0 like the hardware.
+         */
+        for (i = GIC_INTERNAL; i < s->num_irq; i++) {
+            gicv3_gicd_group_set(s, i);
+        }
+    }
+}
+
+static void arm_gic_common_linux_init(ARMLinuxBootIf *obj,
+                                      bool secure_boot)
+{
+    GICv3State *s = ARM_GICV3_COMMON(obj);
+
+    if (s->security_extn && !secure_boot) {
+        /* We're directly booting a kernel into NonSecure. If this GIC
+         * implements the security extensions then we must configure it
+         * to have all the interrupts be NonSecure (this is a job that
+         * is done by the Secure boot firmware in real hardware, and in
+         * this mode QEMU is acting as a minimalist firmware-and-bootloader
+         * equivalent).
+         */
+        s->irq_reset_nonsecure = true;
+    }
 }
 
 static Property arm_gicv3_common_properties[] = {
@@ -118,11 +267,13 @@ static Property arm_gicv3_common_properties[] = {
 static void arm_gicv3_common_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ARMLinuxBootIfClass *albifc = ARM_LINUX_BOOT_IF_CLASS(klass);
 
     dc->reset = arm_gicv3_common_reset;
     dc->realize = arm_gicv3_common_realize;
     dc->props = arm_gicv3_common_properties;
     dc->vmsd = &vmstate_gicv3;
+    albifc->arm_linux_init = arm_gic_common_linux_init;
 }
 
 static const TypeInfo arm_gicv3_common_type = {
@@ -132,6 +283,10 @@ static const TypeInfo arm_gicv3_common_type = {
     .class_size = sizeof(ARMGICv3CommonClass),
     .class_init = arm_gicv3_common_class_init,
     .abstract = true,
+    .interfaces = (InterfaceInfo []) {
+        { TYPE_ARM_LINUX_BOOT_IF },
+        { },
+    },
 };
 
 static void register_types(void)
