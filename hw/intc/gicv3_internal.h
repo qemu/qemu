@@ -201,6 +201,10 @@ void gicv3_full_update_noirqset(GICv3State *s);
  * and inform the CPUs accordingly.
  */
 void gicv3_full_update(GICv3State *s);
+MemTxResult gicv3_dist_read(void *opaque, hwaddr offset, uint64_t *data,
+                            unsigned size, MemTxAttrs attrs);
+MemTxResult gicv3_dist_write(void *opaque, hwaddr addr, uint64_t data,
+                             unsigned size, MemTxAttrs attrs);
 
 /**
  * gicv3_cpuif_update:
