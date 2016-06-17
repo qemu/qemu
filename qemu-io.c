@@ -18,6 +18,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu/readline.h"
+#include "qemu/log.h"
 #include "qapi/qmp/qstring.h"
 #include "qom/object_interfaces.h"
 #include "sysemu/block-backend.h"
@@ -253,7 +254,9 @@ static void usage(const char *name)
 "  -k, --native-aio     use kernel AIO implementation (on Linux only)\n"
 "  -t, --cache=MODE     use the given cache mode for the image\n"
 "  -d, --discard=MODE   use the given discard mode for the image\n"
-"  -T, --trace FILE     enable trace events listed in the given file\n"
+"  -T, --trace [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
+"                       specify tracing options\n"
+"                       see qemu-img(1) man page for full description\n"
 "  -h, --help           display this help and exit\n"
 "  -V, --version        output version information and exit\n"
 "\n"
@@ -458,6 +461,7 @@ int main(int argc, char **argv)
     Error *local_error = NULL;
     QDict *opts = NULL;
     const char *format = NULL;
+    char *trace_file = NULL;
 
 #ifdef CONFIG_POSIX
     signal(SIGPIPE, SIG_IGN);
@@ -470,6 +474,7 @@ int main(int argc, char **argv)
 
     module_call_init(MODULE_INIT_QOM);
     qemu_add_opts(&qemu_object_opts);
+    qemu_add_opts(&qemu_trace_opts);
     bdrv_init();
 
     while ((c = getopt_long(argc, argv, sopt, lopt, &opt_index)) != -1) {
@@ -509,9 +514,8 @@ int main(int argc, char **argv)
             }
             break;
         case 'T':
-            if (!trace_init_backends()) {
-                exit(1); /* error message will have been printed */
-            }
+            g_free(trace_file);
+            trace_file = trace_opt_parse(optarg);
             break;
         case 'V':
             printf("%s version %s\n", progname, QEMU_VERSION);
@@ -556,6 +560,12 @@ int main(int argc, char **argv)
                           NULL, NULL)) {
         exit(1);
     }
+
+    if (!trace_init_backends()) {
+        exit(1);
+    }
+    trace_init_file(trace_file);
+    qemu_set_log(LOG_TRACE);
 
     /* initialize commands */
     qemuio_add_command(&quit_cmd);
