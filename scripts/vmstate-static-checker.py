@@ -185,7 +185,7 @@ def check_fields(src_fields, dest_fields, desc, sec):
             if unused_count == 0:
                 advance_dest = True
 
-        if unused_count > 0:
+        if unused_count != 0:
             if advance_dest == False:
                 unused_count = unused_count - s_item["size"]
                 if unused_count == 0:

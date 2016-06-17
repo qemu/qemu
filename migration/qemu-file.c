@@ -615,8 +615,14 @@ uint64_t qemu_get_be64(QEMUFile *f)
     return v;
 }
 
-/* compress size bytes of data start at p with specific compression
+/* Compress size bytes of data start at p with specific compression
  * level and store the compressed data to the buffer of f.
+ *
+ * When f is not writable, return -1 if f has no space to save the
+ * compressed data.
+ * When f is wirtable and it has no space to save the compressed data,
+ * do fflush first, if f still has no space to save the compressed
+ * data, return -1.
  */
 
 ssize_t qemu_put_compression_data(QEMUFile *f, const uint8_t *p, size_t size,
@@ -625,7 +631,14 @@ ssize_t qemu_put_compression_data(QEMUFile *f, const uint8_t *p, size_t size,
     ssize_t blen = IO_BUF_SIZE - f->buf_index - sizeof(int32_t);
 
     if (blen < compressBound(size)) {
-        return 0;
+        if (!qemu_file_is_writable(f)) {
+            return -1;
+        }
+        qemu_fflush(f);
+        blen = IO_BUF_SIZE - sizeof(int32_t);
+        if (blen < compressBound(size)) {
+            return -1;
+        }
     }
     if (compress2(f->buf + f->buf_index + sizeof(int32_t), (uLongf *)&blen,
                   (Bytef *)p, size, level) != Z_OK) {
@@ -633,7 +646,13 @@ ssize_t qemu_put_compression_data(QEMUFile *f, const uint8_t *p, size_t size,
         return 0;
     }
     qemu_put_be32(f, blen);
+    if (f->ops->writev_buffer) {
+        add_to_iovec(f, f->buf + f->buf_index, blen);
+    }
     f->buf_index += blen;
+    if (f->buf_index == IO_BUF_SIZE) {
+        qemu_fflush(f);
+    }
     return blen + sizeof(int32_t);
 }
 

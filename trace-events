@@ -1271,8 +1271,9 @@ vmstate_load_field_error(const char *field, int ret) "field \"%s\" load failed, 
 vmstate_load_state(const char *name, int version_id) "%s v%d"
 vmstate_load_state_end(const char *name, const char *reason, int val) "%s %s/%d"
 vmstate_load_state_field(const char *name, const char *field) "%s:%s"
+vmstate_n_elems(const char *name, int n_elems) "%s: %d"
 vmstate_subsection_load(const char *parent) "%s"
-vmstate_subsection_load_bad(const char *parent,  const char *sub) "%s: %s"
+vmstate_subsection_load_bad(const char *parent,  const char *sub, const char *sub2) "%s: %s/%s"
 vmstate_subsection_load_good(const char *parent) "%s"
 
 # qemu-file.c
