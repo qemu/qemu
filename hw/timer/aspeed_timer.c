@@ -10,12 +10,10 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/ptimer.h"
 #include "hw/sysbus.h"
 #include "hw/timer/aspeed_timer.h"
 #include "qemu-common.h"
 #include "qemu/bitops.h"
-#include "qemu/main-loop.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "trace.h"
@@ -77,21 +75,96 @@ static inline bool timer_can_pulse(AspeedTimer *t)
     return t->id >= TIMER_FIRST_CAP_PULSE;
 }
 
+static inline bool timer_external_clock(AspeedTimer *t)
+{
+    return timer_ctrl_status(t, op_external_clock);
+}
+
+static uint32_t clock_rates[] = { TIMER_CLOCK_APB_HZ, TIMER_CLOCK_EXT_HZ };
+
+static inline uint32_t calculate_rate(struct AspeedTimer *t)
+{
+    return clock_rates[timer_external_clock(t)];
+}
+
+static inline uint32_t calculate_ticks(struct AspeedTimer *t, uint64_t now_ns)
+{
+    uint64_t delta_ns = now_ns - MIN(now_ns, t->start);
+    uint32_t rate = calculate_rate(t);
+    uint64_t ticks = muldiv64(delta_ns, rate, NANOSECONDS_PER_SECOND);
+
+    return t->reload - MIN(t->reload, ticks);
+}
+
+static inline uint64_t calculate_time(struct AspeedTimer *t, uint32_t ticks)
+{
+    uint64_t delta_ns;
+    uint64_t delta_ticks;
+
+    delta_ticks = t->reload - MIN(t->reload, ticks);
+    delta_ns = muldiv64(delta_ticks, NANOSECONDS_PER_SECOND, calculate_rate(t));
+
+    return t->start + delta_ns;
+}
+
+static uint64_t calculate_next(struct AspeedTimer *t)
+{
+    uint64_t next = 0;
+    uint32_t rate = calculate_rate(t);
+
+    while (!next) {
+        /* We don't know the relationship between the values in the match
+         * registers, so sort using MAX/MIN/zero. We sort in that order as the
+         * timer counts down to zero. */
+        uint64_t seq[] = {
+            calculate_time(t, MAX(t->match[0], t->match[1])),
+            calculate_time(t, MIN(t->match[0], t->match[1])),
+            calculate_time(t, 0),
+        };
+        uint64_t reload_ns;
+        uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+        if (now < seq[0]) {
+            next = seq[0];
+        } else if (now < seq[1]) {
+            next = seq[1];
+        } else if (now < seq[2]) {
+            next = seq[2];
+        } else {
+            reload_ns = muldiv64(t->reload, NANOSECONDS_PER_SECOND, rate);
+            t->start = now - ((now - t->start) % reload_ns);
+        }
+    }
+
+    return next;
+}
+
 static void aspeed_timer_expire(void *opaque)
 {
     AspeedTimer *t = opaque;
+    bool interrupt = false;
+    uint32_t ticks;
 
-    /* Only support interrupts on match values of zero for the moment - this is
-     * sufficient to boot an aspeed_defconfig Linux kernel.
-     *
-     * TODO: matching on arbitrary values (see e.g. hw/timer/a9gtimer.c)
-     */
-    bool match = !(t->match[0] && t->match[1]);
-    bool interrupt = timer_overflow_interrupt(t) || match;
-    if (timer_enabled(t) && interrupt) {
+    if (!timer_enabled(t)) {
+        return;
+    }
+
+    ticks = calculate_ticks(t, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+
+    if (!ticks) {
+        interrupt = timer_overflow_interrupt(t) || !t->match[0] || !t->match[1];
+    } else if (ticks <= MIN(t->match[0], t->match[1])) {
+        interrupt = true;
+    } else if (ticks <= MAX(t->match[0], t->match[1])) {
+        interrupt = true;
+    }
+
+    if (interrupt) {
         t->level = !t->level;
         qemu_set_irq(t->irq, t->level);
     }
+
+    timer_mod(&t->timer, calculate_next(t));
 }
 
 static uint64_t aspeed_timer_get_value(AspeedTimer *t, int reg)
@@ -100,7 +173,7 @@ static uint64_t aspeed_timer_get_value(AspeedTimer *t, int reg)
 
     switch (reg) {
     case TIMER_REG_STATUS:
-        value = ptimer_get_count(t->timer);
+        value = calculate_ticks(t, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         break;
     case TIMER_REG_RELOAD:
         value = t->reload;
@@ -160,24 +233,22 @@ static void aspeed_timer_set_value(AspeedTimerCtrlState *s, int timer, int reg,
     switch (reg) {
     case TIMER_REG_STATUS:
         if (timer_enabled(t)) {
-            ptimer_set_count(t->timer, value);
+            uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            int64_t delta = (int64_t) value - (int64_t) calculate_ticks(t, now);
+            uint32_t rate = calculate_rate(t);
+
+            t->start += muldiv64(delta, NANOSECONDS_PER_SECOND, rate);
+            timer_mod(&t->timer, calculate_next(t));
         }
         break;
     case TIMER_REG_RELOAD:
         t->reload = value;
-        ptimer_set_limit(t->timer, value, 1);
         break;
     case TIMER_REG_MATCH_FIRST:
     case TIMER_REG_MATCH_SECOND:
-        if (value) {
-            /* Non-zero match values are unsupported. As such an interrupt will
-             * always be triggered when the timer reaches zero even if the
-             * overflow interrupt control bit is clear.
-             */
-            qemu_log_mask(LOG_UNIMP, "%s: Match value unsupported by device: "
-                    "0x%" PRIx32 "\n", __func__, value);
-        } else {
-            t->match[reg - 2] = value;
+        t->match[reg - 2] = value;
+        if (timer_enabled(t)) {
+            timer_mod(&t->timer, calculate_next(t));
         }
         break;
     default:
@@ -196,21 +267,16 @@ static void aspeed_timer_ctrl_enable(AspeedTimer *t, bool enable)
 {
     trace_aspeed_timer_ctrl_enable(t->id, enable);
     if (enable) {
-        ptimer_run(t->timer, 0);
+        t->start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        timer_mod(&t->timer, calculate_next(t));
     } else {
-        ptimer_stop(t->timer);
-        ptimer_set_limit(t->timer, t->reload, 1);
+        timer_del(&t->timer);
     }
 }
 
 static void aspeed_timer_ctrl_external_clock(AspeedTimer *t, bool enable)
 {
     trace_aspeed_timer_ctrl_external_clock(t->id, enable);
-    if (enable) {
-        ptimer_set_freq(t->timer, TIMER_CLOCK_EXT_HZ);
-    } else {
-        ptimer_set_freq(t->timer, TIMER_CLOCK_APB_HZ);
-    }
 }
 
 static void aspeed_timer_ctrl_overflow_interrupt(AspeedTimer *t, bool enable)
@@ -351,12 +417,10 @@ static const MemoryRegionOps aspeed_timer_ops = {
 
 static void aspeed_init_one_timer(AspeedTimerCtrlState *s, uint8_t id)
 {
-    QEMUBH *bh;
     AspeedTimer *t = &s->timers[id];
 
     t->id = id;
-    bh = qemu_bh_new(aspeed_timer_expire, t);
-    t->timer = ptimer_init(bh);
+    timer_init_ns(&t->timer, QEMU_CLOCK_VIRTUAL, aspeed_timer_expire, t);
 }
 
 static void aspeed_timer_realize(DeviceState *dev, Error **errp)
@@ -399,12 +463,12 @@ static void aspeed_timer_reset(DeviceState *dev)
 
 static const VMStateDescription vmstate_aspeed_timer = {
     .name = "aspeed.timer",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(id, AspeedTimer),
         VMSTATE_INT32(level, AspeedTimer),
-        VMSTATE_PTIMER(timer, AspeedTimer),
+        VMSTATE_TIMER(timer, AspeedTimer),
         VMSTATE_UINT32(reload, AspeedTimer),
         VMSTATE_UINT32_ARRAY(match, AspeedTimer, 2),
         VMSTATE_END_OF_LIST()
@@ -419,7 +483,7 @@ static const VMStateDescription vmstate_aspeed_timer_state = {
         VMSTATE_UINT32(ctrl, AspeedTimerCtrlState),
         VMSTATE_UINT32(ctrl2, AspeedTimerCtrlState),
         VMSTATE_STRUCT_ARRAY(timers, AspeedTimerCtrlState,
-                             ASPEED_TIMER_NR_TIMERS, 1, vmstate_aspeed_timer,
+                             ASPEED_TIMER_NR_TIMERS, 2, vmstate_aspeed_timer,
                              AspeedTimer),
         VMSTATE_END_OF_LIST()
     }
