@@ -190,8 +190,7 @@ static void pc_q35_init(MachineState *machine)
                              PC_MACHINE_ACPI_DEVICE_PROP, &error_abort);
 
     ich9_lpc = ICH9_LPC_DEVICE(lpc);
-    ich9_lpc->pic = gsi;
-    ich9_lpc->ioapic = gsi_state->ioapic_irq;
+    ich9_lpc->gsi = gsi;
     pci_bus_irqs(host_bus, ich9_lpc_set_irq, ich9_lpc_map_irq, ich9_lpc,
                  ICH9_LPC_NB_PIRQS);
     pci_bus_set_route_irq_fn(host_bus, ich9_route_intx_pin_to_irq);

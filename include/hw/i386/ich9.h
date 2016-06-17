@@ -68,8 +68,7 @@ typedef struct ICH9LPCState {
     MemoryRegion rcrb_mem; /* root complex register block */
     Notifier machine_ready;
 
-    qemu_irq *pic;
-    qemu_irq *ioapic;
+    qemu_irq *gsi;
 } ICH9LPCState;
 
 Object *ich9_lpc_find(void);

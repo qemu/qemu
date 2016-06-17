@@ -225,7 +225,7 @@ static void ich9_lpc_update_pic(ICH9LPCState *lpc, int gsi)
         pic_level |= lpc->sci_level;
     }
 
-    qemu_set_irq(lpc->pic[gsi], pic_level);
+    qemu_set_irq(lpc->gsi[gsi], pic_level);
 }
 
 /* APIC mode: GSIx: PIRQ[A-H] -> GSI 16, ... no pirq shares same APIC pins. */
@@ -251,7 +251,7 @@ static void ich9_lpc_update_apic(ICH9LPCState *lpc, int gsi)
         level |= lpc->sci_level;
     }
 
-    qemu_set_irq(lpc->ioapic[gsi], level);
+    qemu_set_irq(lpc->gsi[gsi], level);
 }
 
 void ich9_lpc_set_irq(void *opaque, int pirq, int level)
