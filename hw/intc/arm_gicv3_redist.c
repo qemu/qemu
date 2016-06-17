@@ -27,6 +27,13 @@ static uint32_t mask_group(GICv3CPUState *cs, MemTxAttrs attrs)
     return 0xFFFFFFFFU;
 }
 
+static int gicr_ns_access(GICv3CPUState *cs, int irq)
+{
+    /* Return the 2 bit NSACR.NS_access field for this SGI */
+    assert(irq < 16);
+    return extract32(cs->gicr_nsacr, irq * 2, 2);
+}
+
 static void gicr_write_set_bitmap_reg(GICv3CPUState *cs, MemTxAttrs attrs,
                                       uint32_t *reg, uint32_t val)
 {
@@ -518,5 +525,38 @@ void gicv3_redist_set_irq(GICv3CPUState *cs, int irq, int level)
         }
     }
 
+    gicv3_redist_update(cs);
+}
+
+void gicv3_redist_send_sgi(GICv3CPUState *cs, int grp, int irq, bool ns)
+{
+    /* Update redistributor state for a generated SGI */
+    int irqgrp = gicv3_irq_group(cs->gic, cs, irq);
+
+    /* If we are asked for a Secure Group 1 SGI and it's actually
+     * configured as Secure Group 0 this is OK (subject to the usual
+     * NSACR checks).
+     */
+    if (grp == GICV3_G1 && irqgrp == GICV3_G0) {
+        grp = GICV3_G0;
+    }
+
+    if (grp != irqgrp) {
+        return;
+    }
+
+    if (ns && !(cs->gic->gicd_ctlr & GICD_CTLR_DS)) {
+        /* If security is enabled we must test the NSACR bits */
+        int nsaccess = gicr_ns_access(cs, irq);
+
+        if ((irqgrp == GICV3_G0 && nsaccess < 1) ||
+            (irqgrp == GICV3_G1 && nsaccess < 2)) {
+            return;
+        }
+    }
+
+    /* OK, we can accept the SGI */
+    trace_gicv3_redist_send_sgi(gicv3_redist_affid(cs), irq);
+    cs->gicr_ipendr0 = deposit32(cs->gicr_ipendr0, irq, 1, 1);
     gicv3_redist_update(cs);
 }

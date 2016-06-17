@@ -331,6 +331,95 @@ static void icc_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
     gicv3_cpuif_update(cs);
 }
 
+static void icc_generate_sgi(CPUARMState *env, GICv3CPUState *cs,
+                             uint64_t value, int grp, bool ns)
+{
+    GICv3State *s = cs->gic;
+
+    /* Extract Aff3/Aff2/Aff1 and shift into the bottom 24 bits */
+    uint64_t aff = extract64(value, 48, 8) << 16 |
+        extract64(value, 32, 8) << 8 |
+        extract64(value, 16, 8);
+    uint32_t targetlist = extract64(value, 0, 16);
+    uint32_t irq = extract64(value, 24, 4);
+    bool irm = extract64(value, 40, 1);
+    int i;
+
+    if (grp == GICV3_G1 && s->gicd_ctlr & GICD_CTLR_DS) {
+        /* If GICD_CTLR.DS == 1, the Distributor treats Secure Group 1
+         * interrupts as Group 0 interrupts and must send Secure Group 0
+         * interrupts to the target CPUs.
+         */
+        grp = GICV3_G0;
+    }
+
+    trace_gicv3_icc_generate_sgi(gicv3_redist_affid(cs), irq, irm,
+                                 aff, targetlist);
+
+    for (i = 0; i < s->num_cpu; i++) {
+        GICv3CPUState *ocs = &s->cpu[i];
+
+        if (irm) {
+            /* IRM == 1 : route to all CPUs except self */
+            if (cs == ocs) {
+                continue;
+            }
+        } else {
+            /* IRM == 0 : route to Aff3.Aff2.Aff1.n for all n in [0..15]
+             * where the corresponding bit is set in targetlist
+             */
+            int aff0;
+
+            if (ocs->gicr_typer >> 40 != aff) {
+                continue;
+            }
+            aff0 = extract64(ocs->gicr_typer, 32, 8);
+            if (aff0 > 15 || extract32(targetlist, aff0, 1) == 0) {
+                continue;
+            }
+        }
+
+        /* The redistributor will check against its own GICR_NSACR as needed */
+        gicv3_redist_send_sgi(ocs, grp, irq, ns);
+    }
+}
+
+static void icc_sgi0r_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                           uint64_t value)
+{
+    /* Generate Secure Group 0 SGI. */
+    GICv3CPUState *cs = icc_cs_from_env(env);
+    bool ns = !arm_is_secure(env);
+
+    icc_generate_sgi(env, cs, value, GICV3_G0, ns);
+}
+
+static void icc_sgi1r_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                           uint64_t value)
+{
+    /* Generate Group 1 SGI for the current Security state */
+    GICv3CPUState *cs = icc_cs_from_env(env);
+    int grp;
+    bool ns = !arm_is_secure(env);
+
+    grp = ns ? GICV3_G1NS : GICV3_G1;
+    icc_generate_sgi(env, cs, value, grp, ns);
+}
+
+static void icc_asgi1r_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value)
+{
+    /* Generate Group 1 SGI for the Security state that is not
+     * the current state
+     */
+    GICv3CPUState *cs = icc_cs_from_env(env);
+    int grp;
+    bool ns = !arm_is_secure(env);
+
+    grp = ns ? GICV3_G1 : GICV3_G1NS;
+    icc_generate_sgi(env, cs, value, grp, ns);
+}
+
 static uint64_t icc_igrpen_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     GICv3CPUState *cs = icc_cs_from_env(env);
@@ -672,6 +761,42 @@ static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
       .access = PL1_RW, .accessfn = gicv3_irq_access,
       .readfn = icc_ap_read,
       .writefn = icc_ap_write,
+    },
+    { .name = "ICC_SGI1R_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 11, .opc2 = 5,
+      .type = ARM_CP_IO | ARM_CP_NO_RAW,
+      .access = PL1_W, .accessfn = gicv3_irqfiq_access,
+      .writefn = icc_sgi1r_write,
+    },
+    { .name = "ICC_SGI1R",
+      .cp = 15, .opc1 = 0, .crm = 12,
+      .type = ARM_CP_64BIT | ARM_CP_IO | ARM_CP_NO_RAW,
+      .access = PL1_W, .accessfn = gicv3_irqfiq_access,
+      .writefn = icc_sgi1r_write,
+    },
+    { .name = "ICC_ASGI1R_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 11, .opc2 = 6,
+      .type = ARM_CP_IO | ARM_CP_NO_RAW,
+      .access = PL1_W, .accessfn = gicv3_irqfiq_access,
+      .writefn = icc_asgi1r_write,
+    },
+    { .name = "ICC_ASGI1R",
+      .cp = 15, .opc1 = 1, .crm = 12,
+      .type = ARM_CP_64BIT | ARM_CP_IO | ARM_CP_NO_RAW,
+      .access = PL1_W, .accessfn = gicv3_irqfiq_access,
+      .writefn = icc_asgi1r_write,
+    },
+    { .name = "ICC_SGI0R_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 11, .opc2 = 7,
+      .type = ARM_CP_IO | ARM_CP_NO_RAW,
+      .access = PL1_W, .accessfn = gicv3_irqfiq_access,
+      .writefn = icc_sgi0r_write,
+    },
+    { .name = "ICC_SGI0R",
+      .cp = 15, .opc1 = 2, .crm = 12,
+      .type = ARM_CP_64BIT | ARM_CP_IO | ARM_CP_NO_RAW,
+      .access = PL1_W, .accessfn = gicv3_irqfiq_access,
+      .writefn = icc_sgi0r_write,
     },
     /* This register is banked */
     { .name = "ICC_BPR1_EL1", .state = ARM_CP_STATE_BOTH,
