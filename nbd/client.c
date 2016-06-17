@@ -711,7 +711,7 @@ ssize_t nbd_send_request(QIOChannel *ioc, struct nbd_request *request)
 
     TRACE("Sending request to server: "
           "{ .from = %" PRIu64", .len = %" PRIu32 ", .handle = %" PRIu64
-          ", .type=%" PRIu16 " }",
+          ", .type=%" PRIu32 " }",
           request->from, request->len, request->handle, request->type);
 
     stl_be_p(buf, NBD_REQUEST_MAGIC);
