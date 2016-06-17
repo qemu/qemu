@@ -1146,8 +1146,8 @@ static inline bool arm_is_secure_below_el3(CPUARMState *env)
     }
 }
 
-/* Return true if the processor is in secure state */
-static inline bool arm_is_secure(CPUARMState *env)
+/* Return true if the CPU is AArch64 EL3 or AArch32 Mon */
+static inline bool arm_is_el3_or_mon(CPUARMState *env)
 {
     if (arm_feature(env, ARM_FEATURE_EL3)) {
         if (is_a64(env) && extract32(env->pstate, 2, 2) == 3) {
@@ -1158,6 +1158,15 @@ static inline bool arm_is_secure(CPUARMState *env)
             /* CPU currently in AArch32 state and monitor mode */
             return true;
         }
+    }
+    return false;
+}
+
+/* Return true if the processor is in secure state */
+static inline bool arm_is_secure(CPUARMState *env)
+{
+    if (arm_is_el3_or_mon(env)) {
+        return true;
     }
     return arm_is_secure_below_el3(env);
 }
