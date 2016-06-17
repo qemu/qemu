@@ -262,26 +262,6 @@ static QemuOptsList qemu_sandbox_opts = {
     },
 };
 
-static QemuOptsList qemu_trace_opts = {
-    .name = "trace",
-    .implied_opt_name = "enable",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_trace_opts.head),
-    .desc = {
-        {
-            .name = "enable",
-            .type = QEMU_OPT_STRING,
-        },
-        {
-            .name = "events",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "file",
-            .type = QEMU_OPT_STRING,
-        },
-        { /* end of list */ }
-    },
-};
-
 static QemuOptsList qemu_option_rom_opts = {
     .name = "option-rom",
     .implied_opt_name = "romfile",
@@ -3864,23 +3844,9 @@ int main(int argc, char **argv, char **envp)
                 xen_mode = XEN_ATTACH;
                 break;
             case QEMU_OPTION_trace:
-            {
-                opts = qemu_opts_parse_noisily(qemu_find_opts("trace"),
-                                               optarg, true);
-                if (!opts) {
-                    exit(1);
-                }
-                if (qemu_opt_get(opts, "enable")) {
-                    trace_enable_events(qemu_opt_get(opts, "enable"));
-                }
-                trace_init_events(qemu_opt_get(opts, "events"));
-                if (trace_file) {
-                    g_free(trace_file);
-                }
-                trace_file = g_strdup(qemu_opt_get(opts, "file"));
-                qemu_opts_del(opts);
+                g_free(trace_file);
+                trace_file = trace_opt_parse(optarg);
                 break;
-            }
             case QEMU_OPTION_readconfig:
                 {
                     int ret = qemu_read_config_file(optarg);

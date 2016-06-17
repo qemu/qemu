@@ -21,10 +21,32 @@
 #endif
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/config-file.h"
 #include "monitor/monitor.h"
 
 int trace_events_enabled_count;
 bool trace_events_dstate[TRACE_EVENT_COUNT];
+
+QemuOptsList qemu_trace_opts = {
+    .name = "trace",
+    .implied_opt_name = "enable",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_trace_opts.head),
+    .desc = {
+        {
+            .name = "enable",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "events",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "file",
+            .type = QEMU_OPT_STRING,
+        },
+        { /* end of list */ }
+    },
+};
+
 
 TraceEvent *trace_event_name(const char *name)
 {
@@ -142,7 +164,7 @@ void trace_enable_events(const char *line_buf)
     }
 }
 
-void trace_init_events(const char *fname)
+static void trace_init_events(const char *fname)
 {
     Location loc;
     FILE *fp;
@@ -216,4 +238,22 @@ bool trace_init_backends(void)
 #endif
 
     return true;
+}
+
+char *trace_opt_parse(const char *optarg)
+{
+    char *trace_file;
+    QemuOpts *opts = qemu_opts_parse_noisily(qemu_find_opts("trace"),
+                                             optarg, true);
+    if (!opts) {
+        exit(1);
+    }
+    if (qemu_opt_get(opts, "enable")) {
+        trace_enable_events(qemu_opt_get(opts, "enable"));
+    }
+    trace_init_events(qemu_opt_get(opts, "events"));
+    trace_file = g_strdup(qemu_opt_get(opts, "file"));
+    qemu_opts_del(opts);
+
+    return trace_file;
 }
