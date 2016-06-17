@@ -1,6 +1,6 @@
 @example
 @c man begin SYNOPSIS
-@command{qemu-img} @var{command} [@var{command} @var{options}]
+@command{qemu-img} [@var{standard} @var{options}] @var{command} [@var{command} @var{options}]
 @c man end
 @end example
 
@@ -15,6 +15,14 @@ inconsistent state.
 @c man end
 
 @c man begin OPTIONS
+
+Standard options:
+@table @option
+@item -h, --help
+Display this help and exit
+@item -V, --version
+Display version information and exit
+@end table
 
 The following commands are supported:
 

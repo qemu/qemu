@@ -91,8 +91,11 @@ static void QEMU_NORETURN help(void)
 {
     const char *help_msg =
            QEMU_IMG_VERSION
-           "usage: qemu-img command [command options]\n"
+           "usage: qemu-img [standard options] command [command options]\n"
            "QEMU disk image utility\n"
+           "\n"
+           "    '-h', '--help'       display this help and exit\n"
+           "    '-V', '--version'    output version information and exit\n"
            "\n"
            "Command syntax:\n"
 #define DEF(option, callback, arg_string)        \
@@ -3806,7 +3809,7 @@ int main(int argc, char **argv)
     int c;
     static const struct option long_options[] = {
         {"help", no_argument, 0, 'h'},
-        {"version", no_argument, 0, 'v'},
+        {"version", no_argument, 0, 'V'},
         {0, 0, 0, 0}
     };
 
@@ -3829,26 +3832,36 @@ int main(int argc, char **argv)
     if (argc < 2) {
         error_exit("Not enough arguments");
     }
-    cmdname = argv[1];
 
     qemu_add_opts(&qemu_object_opts);
     qemu_add_opts(&qemu_source_opts);
 
-    /* find the command */
-    for (cmd = img_cmds; cmd->name != NULL; cmd++) {
-        if (!strcmp(cmdname, cmd->name)) {
-            return cmd->handler(argc - 1, argv + 1);
+    while ((c = getopt_long(argc, argv, "+hV", long_options, NULL)) != -1) {
+        switch (c) {
+        case 'h':
+            help();
+            return 0;
+        case 'V':
+            printf(QEMU_IMG_VERSION);
+            return 0;
         }
     }
 
-    c = getopt_long(argc, argv, "h", long_options, NULL);
+    cmdname = argv[optind];
 
-    if (c == 'h') {
-        help();
-    }
-    if (c == 'v') {
-        printf(QEMU_IMG_VERSION);
+    /* reset getopt_long scanning */
+    argc -= optind;
+    if (argc < 1) {
         return 0;
+    }
+    argv += optind;
+    optind = 1;
+
+    /* find the command */
+    for (cmd = img_cmds; cmd->name != NULL; cmd++) {
+        if (!strcmp(cmdname, cmd->name)) {
+            return cmd->handler(argc, argv);
+        }
     }
 
     /* not found */
