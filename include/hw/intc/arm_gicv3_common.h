@@ -134,6 +134,8 @@ typedef struct GICv3CPUState GICv3CPUState;
 struct GICv3CPUState {
     GICv3State *gic;
     CPUState *cpu;
+    qemu_irq parent_irq;
+    qemu_irq parent_fiq;
 
     /* Redistributor */
     uint32_t level;                  /* Current IRQ level */
@@ -167,9 +169,6 @@ struct GICv3State {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
-
-    qemu_irq *parent_irq;
-    qemu_irq *parent_fiq;
 
     MemoryRegion iomem_dist; /* Distributor */
     MemoryRegion iomem_redist; /* Redistributors */

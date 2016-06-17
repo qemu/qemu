@@ -72,14 +72,11 @@ void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
     i = s->num_irq - GIC_INTERNAL + GIC_INTERNAL * s->num_cpu;
     qdev_init_gpio_in(DEVICE(s), handler, i);
 
-    s->parent_irq = g_malloc(s->num_cpu * sizeof(qemu_irq));
-    s->parent_fiq = g_malloc(s->num_cpu * sizeof(qemu_irq));
-
     for (i = 0; i < s->num_cpu; i++) {
-        sysbus_init_irq(sbd, &s->parent_irq[i]);
+        sysbus_init_irq(sbd, &s->cpu[i].parent_irq);
     }
     for (i = 0; i < s->num_cpu; i++) {
-        sysbus_init_irq(sbd, &s->parent_fiq[i]);
+        sysbus_init_irq(sbd, &s->cpu[i].parent_fiq);
     }
 
     memory_region_init_io(&s->iomem_dist, OBJECT(s), ops, s,
