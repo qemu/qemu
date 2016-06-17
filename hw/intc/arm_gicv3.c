@@ -324,6 +324,19 @@ static void arm_gicv3_post_load(GICv3State *s)
     gicv3_cache_all_target_cpustates(s);
 }
 
+static const MemoryRegionOps gic_ops[] = {
+    {
+        .read_with_attrs = gicv3_dist_read,
+        .write_with_attrs = gicv3_dist_write,
+        .endianness = DEVICE_NATIVE_ENDIAN,
+    },
+    {
+        .read_with_attrs = gicv3_redist_read,
+        .write_with_attrs = gicv3_redist_write,
+        .endianness = DEVICE_NATIVE_ENDIAN,
+    }
+};
+
 static void arm_gic_realize(DeviceState *dev, Error **errp)
 {
     /* Device instance realize function for the GIC sysbus device */
@@ -337,7 +350,7 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    gicv3_init_irqs_and_mmio(s, gicv3_set_irq, NULL);
+    gicv3_init_irqs_and_mmio(s, gicv3_set_irq, gic_ops);
 }
 
 static void arm_gicv3_class_init(ObjectClass *klass, void *data)
