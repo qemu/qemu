@@ -234,9 +234,6 @@ static void ich9_lpc_update_by_pirq(ICH9LPCState *lpc, int pirq)
 
     ich9_lpc_pic_irq(lpc, pirq, &pic_irq, &pic_dis);
     assert(pic_irq < ICH9_LPC_PIC_NUM_PINS);
-    if (pic_dis) {
-        return;
-    }
 
     ich9_lpc_update_pic(lpc, pic_irq);
 }
