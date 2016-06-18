@@ -4703,7 +4703,7 @@ if test "$cpu" = "s390x" ; then
 fi
 
 # Probe for the need for relocating the user-only binary.
-if test "$pie" = "no" ; then
+if ( [ "$linux_user" = yes ] || [ "$bsd_user" = yes ] ) && [ "$pie" = no ]; then
   textseg_addr=
   case "$cpu" in
     arm | i386 | ppc* | s390* | sparc* | x86_64 | x32)
@@ -4725,6 +4725,16 @@ EOF
       # In case ld does not support -Ttext-segment, edit the default linker
       # script via sed to set the .text start addr.  This is needed on FreeBSD
       # at least.
+      if ! $ld --verbose >/dev/null 2>&1; then
+        error_exit \
+            "We need to link the QEMU user mode binaries at a" \
+            "specific text address. Unfortunately your linker" \
+            "doesn't support either the -Ttext-segment option or" \
+            "printing the default linker script with --verbose." \
+            "If you don't want the user mode binaries, pass the" \
+            "--disable-user option to configure."
+      fi
+
       $ld --verbose | sed \
         -e '1,/==================================================/d' \
         -e '/==================================================/,$d' \
