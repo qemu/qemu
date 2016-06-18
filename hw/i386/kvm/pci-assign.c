@@ -36,8 +36,6 @@
 #include "kvm_i386.h"
 #include "hw/pci/pci-assign.h"
 
-#define MSIX_PAGE_SIZE 0x1000
-
 /* From linux/ioport.h */
 #define IORESOURCE_IO       0x00000100  /* Resource type */
 #define IORESOURCE_MEM      0x00000200
@@ -122,6 +120,7 @@ typedef struct AssignedDevice {
     int *msi_virq;
     MSIXTableEntry *msix_table;
     hwaddr msix_table_addr;
+    uint16_t msix_table_size;
     uint16_t msix_max;
     MemoryRegion mmio;
     char *configfd_name;
@@ -1310,6 +1309,7 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
         bar_nr = msix_table_entry & PCI_MSIX_FLAGS_BIRMASK;
         msix_table_entry &= ~PCI_MSIX_FLAGS_BIRMASK;
         dev->msix_table_addr = pci_region[bar_nr].base_addr + msix_table_entry;
+        dev->msix_table_size = msix_max * sizeof(MSIXTableEntry);
         dev->msix_max = msix_max;
     }
 
@@ -1633,7 +1633,7 @@ static void assigned_dev_msix_reset(AssignedDevice *dev)
         return;
     }
 
-    memset(dev->msix_table, 0, MSIX_PAGE_SIZE);
+    memset(dev->msix_table, 0, dev->msix_table_size);
 
     for (i = 0, entry = dev->msix_table; i < dev->msix_max; i++, entry++) {
         entry->ctrl = cpu_to_le32(0x1); /* Masked */
@@ -1642,8 +1642,8 @@ static void assigned_dev_msix_reset(AssignedDevice *dev)
 
 static void assigned_dev_register_msix_mmio(AssignedDevice *dev, Error **errp)
 {
-    dev->msix_table = mmap(NULL, MSIX_PAGE_SIZE, PROT_READ|PROT_WRITE,
-                           MAP_ANONYMOUS|MAP_PRIVATE, 0, 0);
+    dev->msix_table = mmap(NULL, dev->msix_table_size, PROT_READ | PROT_WRITE,
+                           MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
     if (dev->msix_table == MAP_FAILED) {
         error_setg_errno(errp, errno, "failed to allocate msix_table");
         dev->msix_table = NULL;
@@ -1653,7 +1653,7 @@ static void assigned_dev_register_msix_mmio(AssignedDevice *dev, Error **errp)
     assigned_dev_msix_reset(dev);
 
     memory_region_init_io(&dev->mmio, OBJECT(dev), &assigned_dev_msix_mmio_ops,
-                          dev, "assigned-dev-msix", MSIX_PAGE_SIZE);
+                          dev, "assigned-dev-msix", dev->msix_table_size);
 }
 
 static void assigned_dev_unregister_msix_mmio(AssignedDevice *dev)
@@ -1662,7 +1662,7 @@ static void assigned_dev_unregister_msix_mmio(AssignedDevice *dev)
         return;
     }
 
-    if (munmap(dev->msix_table, MSIX_PAGE_SIZE) == -1) {
+    if (munmap(dev->msix_table, dev->msix_table_size) == -1) {
         error_report("error unmapping msix_table! %s", strerror(errno));
     }
     dev->msix_table = NULL;
