@@ -1792,8 +1792,10 @@ int foo(void *a) __attribute__((ifunc("bar_ifunc")));
 int main(int argc, char *argv[]) { return foo(argv[0]);}
 EOF
 if compile_object "" ; then
-    if readelf --syms $TMPO |grep "IFUNC.*foo" >/dev/null 2>&1; then
-        avx2_opt="yes"
+    if has readelf; then
+        if readelf --syms $TMPO 2>/dev/null |grep -q "IFUNC.*foo"; then
+            avx2_opt="yes"
+        fi
     fi
 fi
 
