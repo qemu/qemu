@@ -209,12 +209,12 @@ struct target_termios {
 #define TARGET_TIOCSBRK	0x5427  /* BSD compatibility */
 #define TARGET_TIOCCBRK	0x5428  /* BSD compatibility */
 #define TARGET_TIOCGSID	0x5429  /* Return the session ID of FD */
-#define TARGET_TCGETS2		_IOR('T',0x2A, struct termios2)
-#define TARGET_TCSETS2		_IOW('T',0x2B, struct termios2)
-#define TARGET_TCSETSW2	_IOW('T',0x2C, struct termios2)
-#define TARGET_TCSETSF2	_IOW('T',0x2D, struct termios2)
-#define TARGET_TIOCGPTN	_IOR('T',0x30, unsigned int) /* Get Pty Number (of pty-mux device) */
-#define TARGET_TIOCSPTLCK	_IOW('T',0x31, int)  /* Lock/unlock Pty */
+#define TARGET_TCGETS2          TARGET_IOR('T',0x2A, struct termios2)
+#define TARGET_TCSETS2          TARGET_IOW('T',0x2B, struct termios2)
+#define TARGET_TCSETSW2         TARGET_IOW('T',0x2C, struct termios2)
+#define TARGET_TCSETSF2         TARGET_IOW('T',0x2D, struct termios2)
+#define TARGET_TIOCGPTN         TARGET_IOR('T',0x30, unsigned int) /* Get Pty Number (of pty-mux device) */
+#define TARGET_TIOCSPTLCK       TARGET_IOW('T',0x31, int)  /* Lock/unlock Pty */
 
 #define TARGET_FIONCLEX	0x5450  /* these numbers need to be adjusted. */
 #define TARGET_FIOCLEX		0x5451
