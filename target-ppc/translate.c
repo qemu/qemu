@@ -1394,7 +1394,7 @@ GEN_LOGICAL2(nand, tcg_gen_nand_tl, 0x0E, PPC_INTEGER);
 /* nor & nor. */
 GEN_LOGICAL2(nor, tcg_gen_nor_tl, 0x03, PPC_INTEGER);
 
-#if defined(TARGET_PPC64)
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
 static void gen_pause(DisasContext *ctx)
 {
     TCGv_i32 t0 = tcg_const_i32(0);
@@ -1482,7 +1482,9 @@ static void gen_or(DisasContext *ctx)
             /* Pause us out of TCG otherwise spin loops with smt_low
              * eat too much CPU and the kernel hangs
              */
+#if !defined(CONFIG_USER_ONLY)
             gen_pause(ctx);
+#endif
         }
 #endif
     }
