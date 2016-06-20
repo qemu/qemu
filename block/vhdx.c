@@ -298,9 +298,10 @@ static int vhdx_probe(const uint8_t *buf, int buf_size, const char *filename)
  * and then update the header checksum.  Header is converted to proper
  * endianness before being written to the specified file offset
  */
-static int vhdx_write_header(BlockDriverState *bs_file, VHDXHeader *hdr,
+static int vhdx_write_header(BdrvChild *file, VHDXHeader *hdr,
                              uint64_t offset, bool read)
 {
+    BlockDriverState *bs_file = file->bs;
     uint8_t *buffer = NULL;
     int ret;
     VHDXHeader *header_le;
@@ -315,7 +316,7 @@ static int vhdx_write_header(BlockDriverState *bs_file, VHDXHeader *hdr,
     buffer = qemu_blockalign(bs_file, VHDX_HEADER_SIZE);
     if (read) {
         /* if true, we can't assume the extra reserved bytes are 0 */
-        ret = bdrv_pread(bs_file, offset, buffer, VHDX_HEADER_SIZE);
+        ret = bdrv_pread(file, offset, buffer, VHDX_HEADER_SIZE);
         if (ret < 0) {
             goto exit;
         }
@@ -378,7 +379,7 @@ static int vhdx_update_header(BlockDriverState *bs, BDRVVHDXState *s,
         inactive_header->log_guid = *log_guid;
     }
 
-    ret = vhdx_write_header(bs->file->bs, inactive_header, header_offset, true);
+    ret = vhdx_write_header(bs->file, inactive_header, header_offset, true);
     if (ret < 0) {
         goto exit;
     }
@@ -430,7 +431,7 @@ static void vhdx_parse_header(BlockDriverState *bs, BDRVVHDXState *s,
     /* We have to read the whole VHDX_HEADER_SIZE instead of
      * sizeof(VHDXHeader), because the checksum is over the whole
      * region */
-    ret = bdrv_pread(bs->file->bs, VHDX_HEADER1_OFFSET, buffer,
+    ret = bdrv_pread(bs->file, VHDX_HEADER1_OFFSET, buffer,
                      VHDX_HEADER_SIZE);
     if (ret < 0) {
         goto fail;
@@ -447,7 +448,7 @@ static void vhdx_parse_header(BlockDriverState *bs, BDRVVHDXState *s,
         }
     }
 
-    ret = bdrv_pread(bs->file->bs, VHDX_HEADER2_OFFSET, buffer,
+    ret = bdrv_pread(bs->file, VHDX_HEADER2_OFFSET, buffer,
                      VHDX_HEADER_SIZE);
     if (ret < 0) {
         goto fail;
@@ -521,7 +522,7 @@ static int vhdx_open_region_tables(BlockDriverState *bs, BDRVVHDXState *s)
      * whole block */
     buffer = qemu_blockalign(bs, VHDX_HEADER_BLOCK_SIZE);
 
-    ret = bdrv_pread(bs->file->bs, VHDX_REGION_TABLE_OFFSET, buffer,
+    ret = bdrv_pread(bs->file, VHDX_REGION_TABLE_OFFSET, buffer,
                      VHDX_HEADER_BLOCK_SIZE);
     if (ret < 0) {
         goto fail;
@@ -634,7 +635,7 @@ static int vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
 
     buffer = qemu_blockalign(bs, VHDX_METADATA_TABLE_MAX_SIZE);
 
-    ret = bdrv_pread(bs->file->bs, s->metadata_rt.file_offset, buffer,
+    ret = bdrv_pread(bs->file, s->metadata_rt.file_offset, buffer,
                      VHDX_METADATA_TABLE_MAX_SIZE);
     if (ret < 0) {
         goto exit;
@@ -737,7 +738,7 @@ static int vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
         goto exit;
     }
 
-    ret = bdrv_pread(bs->file->bs,
+    ret = bdrv_pread(bs->file,
                      s->metadata_entries.file_parameters_entry.offset
                                          + s->metadata_rt.file_offset,
                      &s->params,
@@ -772,7 +773,7 @@ static int vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
     /* determine virtual disk size, logical sector size,
      * and phys sector size */
 
-    ret = bdrv_pread(bs->file->bs,
+    ret = bdrv_pread(bs->file,
                      s->metadata_entries.virtual_disk_size_entry.offset
                                            + s->metadata_rt.file_offset,
                      &s->virtual_disk_size,
@@ -780,7 +781,7 @@ static int vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
     if (ret < 0) {
         goto exit;
     }
-    ret = bdrv_pread(bs->file->bs,
+    ret = bdrv_pread(bs->file,
                      s->metadata_entries.logical_sector_size_entry.offset
                                              + s->metadata_rt.file_offset,
                      &s->logical_sector_size,
@@ -788,7 +789,7 @@ static int vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
     if (ret < 0) {
         goto exit;
     }
-    ret = bdrv_pread(bs->file->bs,
+    ret = bdrv_pread(bs->file,
                      s->metadata_entries.phys_sector_size_entry.offset
                                           + s->metadata_rt.file_offset,
                      &s->physical_sector_size,
@@ -905,7 +906,7 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
     QLIST_INIT(&s->regions);
 
     /* validate the file signature */
-    ret = bdrv_pread(bs->file->bs, 0, &signature, sizeof(uint64_t));
+    ret = bdrv_pread(bs->file, 0, &signature, sizeof(uint64_t));
     if (ret < 0) {
         goto fail;
     }
@@ -964,7 +965,7 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    ret = bdrv_pread(bs->file->bs, s->bat_offset, s->bat, s->bat_rt.length);
+    ret = bdrv_pread(bs->file, s->bat_offset, s->bat, s->bat_rt.length);
     if (ret < 0) {
         goto fail;
     }
@@ -1391,6 +1392,7 @@ static int vhdx_create_new_headers(BlockBackend *blk, uint64_t image_size,
                                    uint32_t log_size)
 {
     BlockDriverState *bs = blk_bs(blk);
+    BdrvChild *child;
     int ret = 0;
     VHDXHeader *hdr = NULL;
 
@@ -1405,12 +1407,18 @@ static int vhdx_create_new_headers(BlockBackend *blk, uint64_t image_size,
     vhdx_guid_generate(&hdr->file_write_guid);
     vhdx_guid_generate(&hdr->data_write_guid);
 
-    ret = vhdx_write_header(bs, hdr, VHDX_HEADER1_OFFSET, false);
+    /* XXX Ugly way to get blk->root, but that's a feature, not a bug. This
+     * hack makes it obvious that vhdx_write_header() bypasses the BlockBackend
+     * here, which it really shouldn't be doing. */
+    child = QLIST_FIRST(&bs->parents);
+    assert(!QLIST_NEXT(child, next_parent));
+
+    ret = vhdx_write_header(child, hdr, VHDX_HEADER1_OFFSET, false);
     if (ret < 0) {
         goto exit;
     }
     hdr->sequence_number++;
-    ret = vhdx_write_header(bs, hdr, VHDX_HEADER2_OFFSET, false);
+    ret = vhdx_write_header(child, hdr, VHDX_HEADER2_OFFSET, false);
     if (ret < 0) {
         goto exit;
     }

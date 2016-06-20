@@ -69,7 +69,7 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
     bs->read_only = true;
 
     /* read header */
-    ret = bdrv_pread(bs->file->bs, 128, &s->block_size, 4);
+    ret = bdrv_pread(bs->file, 128, &s->block_size, 4);
     if (ret < 0) {
         return ret;
     }
@@ -95,7 +95,7 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
-    ret = bdrv_pread(bs->file->bs, 128 + 4, &s->n_blocks, 4);
+    ret = bdrv_pread(bs->file, 128 + 4, &s->n_blocks, 4);
     if (ret < 0) {
         return ret;
     }
@@ -126,7 +126,7 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
         return -ENOMEM;
     }
 
-    ret = bdrv_pread(bs->file->bs, 128 + 4 + 4, s->offsets, offsets_size);
+    ret = bdrv_pread(bs->file, 128 + 4 + 4, s->offsets, offsets_size);
     if (ret < 0) {
         goto fail;
     }
@@ -211,7 +211,7 @@ static inline int cloop_read_block(BlockDriverState *bs, int block_num)
         int ret;
         uint32_t bytes = s->offsets[block_num + 1] - s->offsets[block_num];
 
-        ret = bdrv_pread(bs->file->bs, s->offsets[block_num],
+        ret = bdrv_pread(bs->file, s->offsets[block_num],
                          s->compressed_block, bytes);
         if (ret != bytes) {
             return -1;

@@ -105,7 +105,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
     QCowHeader header;
 
-    ret = bdrv_pread(bs->file->bs, 0, &header, sizeof(header));
+    ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
     if (ret < 0) {
         goto fail;
     }
@@ -208,7 +208,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    ret = bdrv_pread(bs->file->bs, s->l1_table_offset, s->l1_table,
+    ret = bdrv_pread(bs->file, s->l1_table_offset, s->l1_table,
                s->l1_size * sizeof(uint64_t));
     if (ret < 0) {
         goto fail;
@@ -239,7 +239,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
             ret = -EINVAL;
             goto fail;
         }
-        ret = bdrv_pread(bs->file->bs, header.backing_file_offset,
+        ret = bdrv_pread(bs->file, header.backing_file_offset,
                    bs->backing_file, len);
         if (ret < 0) {
             goto fail;
@@ -424,7 +424,7 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
                 s->l2_size * sizeof(uint64_t)) < 0)
             return 0;
     } else {
-        if (bdrv_pread(bs->file->bs, l2_offset, l2_table,
+        if (bdrv_pread(bs->file, l2_offset, l2_table,
                        s->l2_size * sizeof(uint64_t)) !=
             s->l2_size * sizeof(uint64_t))
             return 0;
@@ -565,7 +565,7 @@ static int decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
     if (s->cluster_cache_offset != coffset) {
         csize = cluster_offset >> (63 - s->cluster_bits);
         csize &= (s->cluster_size - 1);
-        ret = bdrv_pread(bs->file->bs, coffset, s->cluster_data, csize);
+        ret = bdrv_pread(bs->file, coffset, s->cluster_data, csize);
         if (ret != csize)
             return -1;
         if (decompress_buffer(s->cluster_cache, s->cluster_size,

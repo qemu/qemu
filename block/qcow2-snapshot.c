@@ -67,7 +67,7 @@ int qcow2_read_snapshots(BlockDriverState *bs)
     for(i = 0; i < s->nb_snapshots; i++) {
         /* Read statically sized part of the snapshot header */
         offset = align_offset(offset, 8);
-        ret = bdrv_pread(bs->file->bs, offset, &h, sizeof(h));
+        ret = bdrv_pread(bs->file, offset, &h, sizeof(h));
         if (ret < 0) {
             goto fail;
         }
@@ -86,7 +86,7 @@ int qcow2_read_snapshots(BlockDriverState *bs)
         name_size = be16_to_cpu(h.name_size);
 
         /* Read extra data */
-        ret = bdrv_pread(bs->file->bs, offset, &extra,
+        ret = bdrv_pread(bs->file, offset, &extra,
                          MIN(sizeof(extra), extra_data_size));
         if (ret < 0) {
             goto fail;
@@ -105,7 +105,7 @@ int qcow2_read_snapshots(BlockDriverState *bs)
 
         /* Read snapshot ID */
         sn->id_str = g_malloc(id_str_size + 1);
-        ret = bdrv_pread(bs->file->bs, offset, sn->id_str, id_str_size);
+        ret = bdrv_pread(bs->file, offset, sn->id_str, id_str_size);
         if (ret < 0) {
             goto fail;
         }
@@ -114,7 +114,7 @@ int qcow2_read_snapshots(BlockDriverState *bs)
 
         /* Read snapshot name */
         sn->name = g_malloc(name_size + 1);
-        ret = bdrv_pread(bs->file->bs, offset, sn->name, name_size);
+        ret = bdrv_pread(bs->file, offset, sn->name, name_size);
         if (ret < 0) {
             goto fail;
         }
@@ -512,7 +512,7 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
         goto fail;
     }
 
-    ret = bdrv_pread(bs->file->bs, sn->l1_table_offset,
+    ret = bdrv_pread(bs->file, sn->l1_table_offset,
                      sn_l1_table, sn_l1_bytes);
     if (ret < 0) {
         goto fail;
@@ -716,7 +716,7 @@ int qcow2_snapshot_load_tmp(BlockDriverState *bs,
         return -ENOMEM;
     }
 
-    ret = bdrv_pread(bs->file->bs, sn->l1_table_offset,
+    ret = bdrv_pread(bs->file, sn->l1_table_offset,
                      new_l1_table, new_l1_bytes);
     if (ret < 0) {
         error_setg(errp, "Failed to read l1 table for snapshot");

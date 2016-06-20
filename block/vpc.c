@@ -237,7 +237,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    ret = bdrv_pread(bs->file->bs, 0, s->footer_buf, HEADER_SIZE);
+    ret = bdrv_pread(bs->file, 0, s->footer_buf, HEADER_SIZE);
     if (ret < 0) {
         error_setg(errp, "Unable to read VHD header");
         goto fail;
@@ -257,7 +257,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
         }
 
         /* If a fixed disk, the footer is found only at the end of the file */
-        ret = bdrv_pread(bs->file->bs, offset-HEADER_SIZE, s->footer_buf,
+        ret = bdrv_pread(bs->file, offset-HEADER_SIZE, s->footer_buf,
                          HEADER_SIZE);
         if (ret < 0) {
             goto fail;
@@ -328,7 +328,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (disk_type == VHD_DYNAMIC) {
-        ret = bdrv_pread(bs->file->bs, be64_to_cpu(footer->data_offset), buf,
+        ret = bdrv_pread(bs->file, be64_to_cpu(footer->data_offset), buf,
                          HEADER_SIZE);
         if (ret < 0) {
             error_setg(errp, "Error reading dynamic VHD header");
@@ -385,7 +385,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
 
         s->bat_offset = be64_to_cpu(dyndisk_header->table_offset);
 
-        ret = bdrv_pread(bs->file->bs, s->bat_offset, s->pagetable,
+        ret = bdrv_pread(bs->file, s->bat_offset, s->pagetable,
                          pagetable_size);
         if (ret < 0) {
             error_setg(errp, "Error reading pagetable");

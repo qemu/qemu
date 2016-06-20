@@ -576,7 +576,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     Error *local_err = NULL;
     char *buf;
 
-    ret = bdrv_pread(bs->file->bs, 0, &ph, sizeof(ph));
+    ret = bdrv_pread(bs->file, 0, &ph, sizeof(ph));
     if (ret < 0) {
         goto fail;
     }
@@ -631,7 +631,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         s->header_size = size;
     }
 
-    ret = bdrv_pread(bs->file->bs, 0, s->header, s->header_size);
+    ret = bdrv_pread(bs->file, 0, s->header, s->header_size);
     if (ret < 0) {
         goto fail;
     }

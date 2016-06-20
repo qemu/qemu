@@ -84,7 +84,7 @@ static int vhdx_log_peek_hdr(BlockDriverState *bs, VHDXLogEntries *log,
 
     offset = log->offset + read;
 
-    ret = bdrv_pread(bs->file->bs, offset, hdr, sizeof(VHDXLogEntryHeader));
+    ret = bdrv_pread(bs->file, offset, hdr, sizeof(VHDXLogEntryHeader));
     if (ret < 0) {
         goto exit;
     }
@@ -144,7 +144,7 @@ static int vhdx_log_read_sectors(BlockDriverState *bs, VHDXLogEntries *log,
         }
         offset = log->offset + read;
 
-        ret = bdrv_pread(bs->file->bs, offset, buffer, VHDX_LOG_SECTOR_SIZE);
+        ret = bdrv_pread(bs->file, offset, buffer, VHDX_LOG_SECTOR_SIZE);
         if (ret < 0) {
             goto exit;
         }
@@ -945,7 +945,7 @@ static int vhdx_log_write(BlockDriverState *bs, BDRVVHDXState *s,
 
         if (i == 0 && leading_length) {
             /* partial sector at the front of the buffer */
-            ret = bdrv_pread(bs->file->bs, file_offset, merged_sector,
+            ret = bdrv_pread(bs->file, file_offset, merged_sector,
                              VHDX_LOG_SECTOR_SIZE);
             if (ret < 0) {
                 goto exit;
@@ -955,7 +955,7 @@ static int vhdx_log_write(BlockDriverState *bs, BDRVVHDXState *s,
             sector_write = merged_sector;
         } else if (i == sectors - 1 && trailing_length) {
             /* partial sector at the end of the buffer */
-            ret = bdrv_pread(bs->file->bs,
+            ret = bdrv_pread(bs->file,
                             file_offset,
                             merged_sector + trailing_length,
                             VHDX_LOG_SECTOR_SIZE - trailing_length);

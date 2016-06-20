@@ -357,7 +357,7 @@ static int qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c,
             BLKDBG_EVENT(bs->file, BLKDBG_L2_LOAD);
         }
 
-        ret = bdrv_pread(bs->file->bs, offset,
+        ret = bdrv_pread(bs->file, offset,
                          qcow2_cache_get_table_addr(bs, c, i),
                          s->cluster_size);
         if (ret < 0) {

@@ -218,7 +218,7 @@ static bool qed_is_image_size_valid(uint64_t image_size, uint32_t cluster_size,
  *
  * The string is NUL-terminated.
  */
-static int qed_read_string(BlockDriverState *file, uint64_t offset, size_t n,
+static int qed_read_string(BdrvChild *file, uint64_t offset, size_t n,
                            char *buf, size_t buflen)
 {
     int ret;
@@ -389,7 +389,7 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
     s->bs = bs;
     QSIMPLEQ_INIT(&s->allocating_write_reqs);
 
-    ret = bdrv_pread(bs->file->bs, 0, &le_header, sizeof(le_header));
+    ret = bdrv_pread(bs->file, 0, &le_header, sizeof(le_header));
     if (ret < 0) {
         return ret;
     }
@@ -446,7 +446,7 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
             return -EINVAL;
         }
 
-        ret = qed_read_string(bs->file->bs, s->header.backing_filename_offset,
+        ret = qed_read_string(bs->file, s->header.backing_filename_offset,
                               s->header.backing_filename_size, bs->backing_file,
                               sizeof(bs->backing_file));
         if (ret < 0) {

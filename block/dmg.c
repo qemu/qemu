@@ -86,7 +86,7 @@ static int read_uint64(BlockDriverState *bs, int64_t offset, uint64_t *result)
     uint64_t buffer;
     int ret;
 
-    ret = bdrv_pread(bs->file->bs, offset, &buffer, 8);
+    ret = bdrv_pread(bs->file, offset, &buffer, 8);
     if (ret < 0) {
         return ret;
     }
@@ -100,7 +100,7 @@ static int read_uint32(BlockDriverState *bs, int64_t offset, uint32_t *result)
     uint32_t buffer;
     int ret;
 
-    ret = bdrv_pread(bs->file->bs, offset, &buffer, 4);
+    ret = bdrv_pread(bs->file, offset, &buffer, 4);
     if (ret < 0) {
         return ret;
     }
@@ -153,8 +153,9 @@ static void update_max_chunk_size(BDRVDMGState *s, uint32_t chunk,
     }
 }
 
-static int64_t dmg_find_koly_offset(BlockDriverState *file_bs, Error **errp)
+static int64_t dmg_find_koly_offset(BdrvChild *file, Error **errp)
 {
+    BlockDriverState *file_bs = file->bs;
     int64_t length;
     int64_t offset = 0;
     uint8_t buffer[515];
@@ -178,7 +179,7 @@ static int64_t dmg_find_koly_offset(BlockDriverState *file_bs, Error **errp)
         offset = length - 511 - 512;
     }
     length = length < 515 ? length : 515;
-    ret = bdrv_pread(file_bs, offset, buffer, length);
+    ret = bdrv_pread(file, offset, buffer, length);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed while reading UDIF trailer");
         return ret;
@@ -355,7 +356,7 @@ static int dmg_read_resource_fork(BlockDriverState *bs, DmgHeaderState *ds,
         offset += 4;
 
         buffer = g_realloc(buffer, count);
-        ret = bdrv_pread(bs->file->bs, offset, buffer, count);
+        ret = bdrv_pread(bs->file, offset, buffer, count);
         if (ret < 0) {
             goto fail;
         }
@@ -392,7 +393,7 @@ static int dmg_read_plist_xml(BlockDriverState *bs, DmgHeaderState *ds,
 
     buffer = g_malloc(info_length + 1);
     buffer[info_length] = '\0';
-    ret = bdrv_pread(bs->file->bs, info_begin, buffer, info_length);
+    ret = bdrv_pread(bs->file, info_begin, buffer, info_length);
     if (ret != info_length) {
         ret = -EINVAL;
         goto fail;
@@ -448,7 +449,7 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
     ds.max_sectors_per_chunk = 1;
 
     /* locate the UDIF trailer */
-    offset = dmg_find_koly_offset(bs->file->bs, errp);
+    offset = dmg_find_koly_offset(bs->file, errp);
     if (offset < 0) {
         ret = offset;
         goto fail;
@@ -599,7 +600,7 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
         case 0x80000005: { /* zlib compressed */
             /* we need to buffer, because only the chunk as whole can be
              * inflated. */
-            ret = bdrv_pread(bs->file->bs, s->offsets[chunk],
+            ret = bdrv_pread(bs->file, s->offsets[chunk],
                              s->compressed_chunk, s->lengths[chunk]);
             if (ret != s->lengths[chunk]) {
                 return -1;
@@ -623,7 +624,7 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
         case 0x80000006: /* bzip2 compressed */
             /* we need to buffer, because only the chunk as whole can be
              * inflated. */
-            ret = bdrv_pread(bs->file->bs, s->offsets[chunk],
+            ret = bdrv_pread(bs->file, s->offsets[chunk],
                              s->compressed_chunk, s->lengths[chunk]);
             if (ret != s->lengths[chunk]) {
                 return -1;
@@ -648,7 +649,7 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
             break;
 #endif /* CONFIG_BZIP2 */
         case 1: /* copy */
-            ret = bdrv_pread(bs->file->bs, s->offsets[chunk],
+            ret = bdrv_pread(bs->file, s->offsets[chunk],
                              s->uncompressed_chunk, s->lengths[chunk]);
             if (ret != s->lengths[chunk]) {
                 return -1;

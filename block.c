@@ -536,9 +536,10 @@ BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
     return drv;
 }
 
-static int find_image_format(BlockDriverState *bs, const char *filename,
+static int find_image_format(BdrvChild *file, const char *filename,
                              BlockDriver **pdrv, Error **errp)
 {
+    BlockDriverState *bs = file->bs;
     BlockDriver *drv;
     uint8_t buf[BLOCK_PROBE_BUF_SIZE];
     int ret = 0;
@@ -549,7 +550,7 @@ static int find_image_format(BlockDriverState *bs, const char *filename,
         return ret;
     }
 
-    ret = bdrv_pread(bs, 0, buf, sizeof(buf));
+    ret = bdrv_pread(file, 0, buf, sizeof(buf));
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not read image for determining its "
                          "format");
@@ -1652,7 +1653,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
     /* Image format probing */
     bs->probed = !drv;
     if (!drv && file) {
-        ret = find_image_format(file->bs, filename, &drv, &local_err);
+        ret = find_image_format(file, filename, &drv, &local_err);
         if (ret < 0) {
             goto fail;
         }
