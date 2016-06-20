@@ -166,3 +166,44 @@ void ppc_store_msr(CPUPPCState *env, target_ulong value)
 {
     hreg_store_msr(env, value, 0);
 }
+
+/* This code is lifted from MacOnLinux. It is called whenever
+ * THRM1,2 or 3 is read an fixes up the values in such a way
+ * that will make MacOS not hang. These registers exist on some
+ * 75x and 74xx processors.
+ */
+void helper_fixup_thrm(CPUPPCState *env)
+{
+    target_ulong v, t;
+    int i;
+
+#define THRM1_TIN       (1 << 31)
+#define THRM1_TIV       (1 << 30)
+#define THRM1_THRES(x)  (((x) & 0x7f) << 23)
+#define THRM1_TID       (1 << 2)
+#define THRM1_TIE       (1 << 1)
+#define THRM1_V         (1 << 0)
+#define THRM3_E         (1 << 0)
+
+    if (!(env->spr[SPR_THRM3] & THRM3_E)) {
+        return;
+    }
+
+    /* Note: Thermal interrupts are unimplemented */
+    for (i = SPR_THRM1; i <= SPR_THRM2; i++) {
+        v = env->spr[i];
+        if (!(v & THRM1_V)) {
+            continue;
+        }
+        v |= THRM1_TIV;
+        v &= ~THRM1_TIN;
+        t = v & THRM1_THRES(127);
+        if ((v & THRM1_TID) && t < THRM1_THRES(24)) {
+            v |= THRM1_TIN;
+        }
+        if (!(v & THRM1_TID) && t > THRM1_THRES(24)) {
+            v |= THRM1_TIN;
+        }
+        env->spr[i] = v;
+    }
+}

@@ -670,3 +670,4 @@ DEF_HELPER_4(dscli, void, env, fprp, fprp, i32)
 DEF_HELPER_4(dscliq, void, env, fprp, fprp, i32)
 
 DEF_HELPER_1(tbegin, void, env)
+DEF_HELPER_1(fixup_thrm, void, env)
