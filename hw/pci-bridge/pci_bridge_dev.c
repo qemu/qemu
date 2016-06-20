@@ -42,9 +42,10 @@ struct PCIBridgeDev {
 
     MemoryRegion bar;
     uint8_t chassis_nr;
-#define PCI_BRIDGE_DEV_F_MSI_REQ 0
-#define PCI_BRIDGE_DEV_F_SHPC_REQ 1
+#define PCI_BRIDGE_DEV_F_SHPC_REQ 0
     uint32_t flags;
+
+    OnOffAuto msi;
 };
 typedef struct PCIBridgeDev PCIBridgeDev;
 
@@ -66,7 +67,7 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
         }
     } else {
         /* MSI is not applicable without SHPC */
-        bridge_dev->flags &= ~(1 << PCI_BRIDGE_DEV_F_MSI_REQ);
+        bridge_dev->msi = ON_OFF_AUTO_OFF;
     }
 
     err = slotid_cap_init(dev, 0, bridge_dev->chassis_nr, 0);
@@ -74,7 +75,7 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
         goto slotid_error;
     }
 
-    if ((bridge_dev->flags & (1 << PCI_BRIDGE_DEV_F_MSI_REQ)) &&
+    if (bridge_dev->msi != ON_OFF_AUTO_OFF &&
         msi_nonbroken) {
         err = msi_init(dev, 0, 1, true, true);
         if (err < 0) {
@@ -147,8 +148,8 @@ static Property pci_bridge_dev_properties[] = {
                     /* Note: 0 is not a legal chassis number. */
     DEFINE_PROP_UINT8(PCI_BRIDGE_DEV_PROP_CHASSIS_NR, PCIBridgeDev, chassis_nr,
                       0),
-    DEFINE_PROP_BIT(PCI_BRIDGE_DEV_PROP_MSI, PCIBridgeDev, flags,
-                    PCI_BRIDGE_DEV_F_MSI_REQ, true),
+    DEFINE_PROP_ON_OFF_AUTO(PCI_BRIDGE_DEV_PROP_MSI, PCIBridgeDev, msi,
+                            ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BIT(PCI_BRIDGE_DEV_PROP_SHPC, PCIBridgeDev, flags,
                     PCI_BRIDGE_DEV_F_SHPC_REQ, true),
     DEFINE_PROP_END_OF_LIST(),
