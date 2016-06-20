@@ -417,7 +417,7 @@ static bool is_byte_request_lun_aligned(int64_t offset, int count,
 static bool is_sector_request_lun_aligned(int64_t sector_num, int nb_sectors,
                                           IscsiLun *iscsilun)
 {
-    assert(nb_sectors < BDRV_REQUEST_MAX_SECTORS);
+    assert(nb_sectors <= BDRV_REQUEST_MAX_SECTORS);
     return is_byte_request_lun_aligned(sector_num << BDRV_SECTOR_BITS,
                                        nb_sectors << BDRV_SECTOR_BITS,
                                        iscsilun);
@@ -661,7 +661,8 @@ static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
         int64_t ret;
         int pnum;
         BlockDriverState *file;
-        ret = iscsi_co_get_block_status(bs, sector_num, INT_MAX, &pnum, &file);
+        ret = iscsi_co_get_block_status(bs, sector_num,
+                                        BDRV_REQUEST_MAX_SECTORS, &pnum, &file);
         if (ret < 0) {
             return ret;
         }
