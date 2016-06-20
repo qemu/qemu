@@ -106,6 +106,7 @@ do {} while (0)
 #endif
 
 static void serial_receive1(void *opaque, const uint8_t *buf, int size);
+static void serial_xmit(SerialState *s);
 
 static inline void recv_fifo_put(SerialState *s, uint8_t chr)
 {
@@ -223,10 +224,16 @@ static void serial_update_msl(SerialState *s)
     }
 }
 
-static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
+static gboolean serial_watch_cb(GIOChannel *chan, GIOCondition cond,
+                                void *opaque)
 {
     SerialState *s = opaque;
+    serial_xmit(s);
+    return FALSE;
+}
 
+static void serial_xmit(SerialState *s)
+{
     do {
         assert(!(s->lsr & UART_LSR_TEMT));
         if (s->tsr_retry == 0) {
@@ -254,9 +261,9 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
         } else if (qemu_chr_fe_write(s->chr, &s->tsr, 1) != 1) {
             if (s->tsr_retry < MAX_XMIT_RETRY &&
                 qemu_chr_fe_add_watch(s->chr, G_IO_OUT|G_IO_HUP,
-                                      serial_xmit, s) > 0) {
+                                      serial_watch_cb, s) > 0) {
                 s->tsr_retry++;
-                return FALSE;
+                return;
             }
         }
         s->tsr_retry = 0;
@@ -267,10 +274,7 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
 
     s->last_xmit_ts = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     s->lsr |= UART_LSR_TEMT;
-
-    return FALSE;
 }
-
 
 /* Setter for FCR.
    is_load flag means, that value is set while loading VM state
@@ -329,7 +333,7 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
             s->lsr &= ~UART_LSR_TEMT;
             serial_update_irq(s);
             if (s->tsr_retry == 0) {
-                serial_xmit(NULL, G_IO_OUT, s);
+                serial_xmit(s);
             }
         }
         break;
