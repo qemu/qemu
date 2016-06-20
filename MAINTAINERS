@@ -189,7 +189,6 @@ F: hw/sh4/
 F: disas/sh4.c
 
 SPARC
-M: Blue Swirl <blauwirbel@gmail.com>
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
 M: Artyom Tarasenko <atar4qemu@gmail.com>
 S: Maintained
