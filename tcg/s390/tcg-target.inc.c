@@ -798,6 +798,12 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg data,
     }
 }
 
+static inline bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
+                               TCGReg base, intptr_t ofs)
+{
+    return false;
+}
+
 /* load data from an absolute host address */
 static void tcg_out_ld_abs(TCGContext *s, TCGType type, TCGReg dest, void *abs)
 {

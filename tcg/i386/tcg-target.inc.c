@@ -710,12 +710,19 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
     tcg_out_modrm_offset(s, opc, arg, arg1, arg2);
 }
 
-static inline void tcg_out_sti(TCGContext *s, TCGType type, TCGReg base,
-                               tcg_target_long ofs, tcg_target_long val)
+static bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
+                        TCGReg base, intptr_t ofs)
 {
-    int opc = OPC_MOVL_EvIz + (type == TCG_TYPE_I64 ? P_REXW : 0);
-    tcg_out_modrm_offset(s, opc, 0, base, ofs);
+    int rexw = 0;
+    if (TCG_TARGET_REG_BITS == 64 && type == TCG_TYPE_I64) {
+        if (val != (int32_t)val) {
+            return false;
+        }
+        rexw = P_REXW;
+    }
+    tcg_out_modrm_offset(s, OPC_MOVL_EvIz | rexw, 0, base, ofs);
     tcg_out32(s, val);
+    return true;
 }
 
 static void tcg_out_shifti(TCGContext *s, int subopc, int reg, int count)
@@ -1321,10 +1328,10 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
             ofs += 4;
         }
 
-        tcg_out_sti(s, TCG_TYPE_I32, TCG_REG_ESP, ofs, oi);
+        tcg_out_sti(s, TCG_TYPE_I32, oi, TCG_REG_ESP, ofs);
         ofs += 4;
 
-        tcg_out_sti(s, TCG_TYPE_PTR, TCG_REG_ESP, ofs, (uintptr_t)l->raddr);
+        tcg_out_sti(s, TCG_TYPE_PTR, (uintptr_t)l->raddr, TCG_REG_ESP, ofs);
     } else {
         tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0], TCG_AREG0);
         /* The second argument is already loaded with addrlo.  */
@@ -1413,7 +1420,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
             ofs += 4;
         }
 
-        tcg_out_sti(s, TCG_TYPE_I32, TCG_REG_ESP, ofs, oi);
+        tcg_out_sti(s, TCG_TYPE_I32, oi, TCG_REG_ESP, ofs);
         ofs += 4;
 
         retaddr = TCG_REG_EAX;

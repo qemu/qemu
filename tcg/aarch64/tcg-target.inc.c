@@ -716,6 +716,16 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
                  arg, arg1, arg2);
 }
 
+static inline bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
+                               TCGReg base, intptr_t ofs)
+{
+    if (val == 0) {
+        tcg_out_st(s, type, TCG_REG_XZR, base, ofs);
+        return true;
+    }
+    return false;
+}
+
 static inline void tcg_out_bfm(TCGContext *s, TCGType ext, TCGReg rd,
                                TCGReg rn, unsigned int a, unsigned int b)
 {
