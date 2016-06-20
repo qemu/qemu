@@ -22,7 +22,7 @@ typedef struct VhostUserState {
     NetClientState nc;
     CharDriverState *chr;
     VHostNetState *vhost_net;
-    int watch;
+    guint watch;
     uint64_t acked_features;
 } VhostUserState;
 
