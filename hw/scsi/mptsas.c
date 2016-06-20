@@ -1269,7 +1269,7 @@ static const struct SCSIBusInfo mptsas_scsi_info = {
     .load_request = mptsas_load_request,
 };
 
-static void mptsas_scsi_init(PCIDevice *dev, Error **errp)
+static void mptsas_scsi_realize(PCIDevice *dev, Error **errp)
 {
     DeviceState *d = DEVICE(dev);
     MPTSASState *s = MPT_SAS(dev);
@@ -1426,7 +1426,7 @@ static void mptsas1068_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
 
-    pc->realize = mptsas_scsi_init;
+    pc->realize = mptsas_scsi_realize;
     pc->exit = mptsas_scsi_uninit;
     pc->romfile = 0;
     pc->vendor_id = PCI_VENDOR_ID_LSI_LOGIC;
