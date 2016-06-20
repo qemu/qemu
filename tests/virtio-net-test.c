@@ -250,8 +250,6 @@ static void hotplug(void)
 
 int main(int argc, char **argv)
 {
-    int ret;
-
     g_test_init(&argc, &argv, NULL);
 #ifndef _WIN32
     qtest_add_data_func("/virtio/net/pci/basic", send_recv_test, pci_basic);
@@ -260,7 +258,5 @@ int main(int argc, char **argv)
 #endif
     qtest_add_func("/virtio/net/pci/hotplug", hotplug);
 
-    ret = g_test_run();
-
-    return ret;
+    return g_test_run();
 }

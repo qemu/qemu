@@ -918,9 +918,7 @@ static void write_dump_header(DumpState *s, Error **errp)
     } else {
         create_header64(s, &local_err);
     }
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
+    error_propagate(errp, local_err);
 }
 
 static size_t dump_bitmap_get_bufsize(DumpState *s)

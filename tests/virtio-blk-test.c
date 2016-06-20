@@ -753,7 +753,6 @@ static void mmio_basic(void)
 
 int main(int argc, char **argv)
 {
-    int ret;
     const char *arch = qtest_get_arch();
 
     g_test_init(&argc, &argv, NULL);
@@ -769,7 +768,5 @@ int main(int argc, char **argv)
         qtest_add_func("/virtio/blk/mmio/basic", mmio_basic);
     }
 
-    ret = g_test_run();
-
-    return ret;
+    return g_test_run();
 }

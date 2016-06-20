@@ -971,9 +971,7 @@ close_exit:
 exit:
     qemu_opts_del(opts);
     /* propagate error */
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
+    error_propagate(errp, local_err);
     return ret;
 }
 

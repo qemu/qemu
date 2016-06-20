@@ -549,9 +549,7 @@ Object *object_new_with_propv(const char *typename,
     return obj;
 
  error:
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
+    error_propagate(errp, local_err);
     object_unref(obj);
     return NULL;
 }

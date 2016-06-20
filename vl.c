@@ -2352,10 +2352,7 @@ static int chardev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 #ifdef CONFIG_VIRTFS
 static int fsdev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
-    int ret;
-    ret = qemu_fsdev_add(opts);
-
-    return ret;
+    return qemu_fsdev_add(opts);
 }
 #endif
 
@@ -3068,7 +3065,7 @@ int main(int argc, char **argv, char **envp)
 
             popt = lookup_opt(argc, argv, &optarg, &optind);
             if (!(popt->arch_mask & arch_type)) {
-                printf("Option %s not supported for this target\n", popt->name);
+                error_report("Option not supported for this target");
                 exit(1);
             }
             switch(popt->index) {
@@ -3342,7 +3339,7 @@ int main(int argc, char **argv, char **envp)
                 log_file = optarg;
                 break;
             case QEMU_OPTION_DFILTER:
-                qemu_set_dfilter_ranges(optarg);
+                qemu_set_dfilter_ranges(optarg, &error_fatal);
                 break;
             case QEMU_OPTION_s:
                 add_device_config(DEV_GDB, "tcp::" DEFAULT_GDBSTUB_PORT);
@@ -3846,21 +3843,21 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_xen_domid:
                 if (!(xen_available())) {
-                    printf("Option %s not supported for this target\n", popt->name);
+                    error_report("Option not supported for this target");
                     exit(1);
                 }
                 xen_domid = atoi(optarg);
                 break;
             case QEMU_OPTION_xen_create:
                 if (!(xen_available())) {
-                    printf("Option %s not supported for this target\n", popt->name);
+                    error_report("Option not supported for this target");
                     exit(1);
                 }
                 xen_mode = XEN_CREATE;
                 break;
             case QEMU_OPTION_xen_attach:
                 if (!(xen_available())) {
-                    printf("Option %s not supported for this target\n", popt->name);
+                    error_report("Option not supported for this target");
                     exit(1);
                 }
                 xen_mode = XEN_ATTACH;
@@ -4057,7 +4054,7 @@ int main(int argc, char **argv, char **envp)
     /* Open the logfile at this point and set the log mask if necessary.
      */
     if (log_file) {
-        qemu_set_log_filename(log_file);
+        qemu_set_log_filename(log_file, &error_fatal);
     }
 
     if (log_mask) {

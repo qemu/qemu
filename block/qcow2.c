@@ -2403,9 +2403,7 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
     ret = qcow2_create2(filename, size, backing_file, backing_fmt, flags,
                         cluster_size, prealloc, opts, version, refcount_order,
                         &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
+    error_propagate(errp, local_err);
 
 finish:
     g_free(backing_file);

@@ -2117,7 +2117,7 @@ uint64_t helper_dvadj(uint64_t r1, uint32_t r2)
     int32_t eq_pos = x_sign & ((r1 >> 32) == r2);
     int32_t eq_neg = x_sign & ((r1 >> 32) == -r2);
     uint32_t quotient;
-    uint64_t ret, remainder;
+    uint64_t remainder;
 
     if ((q_sign & ~eq_neg) | eq_pos) {
         quotient = (r1 + 1) & 0xffffffff;
@@ -2130,8 +2130,7 @@ uint64_t helper_dvadj(uint64_t r1, uint32_t r2)
     } else {
         remainder = (r1 & 0xffffffff00000000ull);
     }
-    ret = remainder|quotient;
-    return ret;
+    return remainder | quotient;
 }
 
 uint64_t helper_dvstep(uint64_t r1, uint32_t r2)
@@ -2236,7 +2235,6 @@ uint64_t helper_divide_u(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
 uint64_t helper_mul_h(uint32_t arg00, uint32_t arg01,
                       uint32_t arg10, uint32_t arg11, uint32_t n)
 {
-    uint64_t ret;
     uint32_t result0, result1;
 
     int32_t sc1 = ((arg00 & 0xffff) == 0x8000) &&
@@ -2253,8 +2251,7 @@ uint64_t helper_mul_h(uint32_t arg00, uint32_t arg01,
     } else {
         result0 = (((uint32_t)(arg01 * arg11)) << n);
     }
-    ret = (((uint64_t)result1 << 32)) | result0;
-    return ret;
+    return (((uint64_t)result1 << 32)) | result0;
 }
 
 uint64_t helper_mulm_h(uint32_t arg00, uint32_t arg01,
@@ -2308,11 +2305,9 @@ uint32_t helper_mulr_h(uint32_t arg00, uint32_t arg01,
 uint32_t helper_crc32(uint32_t arg0, uint32_t arg1)
 {
     uint8_t buf[4];
-    uint32_t ret;
     stl_be_p(buf, arg0);
 
-    ret = crc32(arg1, buf, 4);
-    return ret;
+    return crc32(arg1, buf, 4);
 }
 
 /* context save area (CSA) related helpers */

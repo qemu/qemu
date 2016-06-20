@@ -127,9 +127,7 @@ static void isa_ne2000_set_bootindex(Object *obj, Visitor *v,
     s->c.bootindex = boot_index;
 
 out:
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
+    error_propagate(errp, local_err);
 }
 
 static void isa_ne2000_instance_init(Object *obj)

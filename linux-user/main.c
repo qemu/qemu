@@ -21,6 +21,7 @@
 #include <sys/syscall.h>
 #include <sys/resource.h>
 
+#include "qapi/error.h"
 #include "qemu.h"
 #include "qemu/path.h"
 #include "qemu/cutils.h"
@@ -3845,7 +3846,7 @@ static void handle_arg_log(const char *arg)
 
 static void handle_arg_log_filename(const char *arg)
 {
-    qemu_set_log_filename(arg);
+    qemu_set_log_filename(arg, &error_fatal);
 }
 
 static void handle_arg_set_env(const char *arg)

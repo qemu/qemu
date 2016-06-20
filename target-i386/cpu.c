@@ -1875,7 +1875,6 @@ static void x86_cpu_get_feature_words(Object *obj, Visitor *v,
 {
     uint32_t *array = (uint32_t *)opaque;
     FeatureWord w;
-    Error *err = NULL;
     X86CPUFeatureWordInfo word_infos[FEATURE_WORDS] = { };
     X86CPUFeatureWordInfoList list_entries[FEATURE_WORDS] = { };
     X86CPUFeatureWordInfoList *list = NULL;
@@ -1895,8 +1894,7 @@ static void x86_cpu_get_feature_words(Object *obj, Visitor *v,
         list = &list_entries[w];
     }
 
-    visit_type_X86CPUFeatureWordInfoList(v, "feature-words", &list, &err);
-    error_propagate(errp, err);
+    visit_type_X86CPUFeatureWordInfoList(v, "feature-words", &list, errp);
 }
 
 static void x86_get_hv_spinlocks(Object *obj, Visitor *v, const char *name,

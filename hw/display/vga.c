@@ -700,9 +700,7 @@ static void vbe_update_vgaregs(VGACommonState *s)
 static uint32_t vbe_ioport_read_index(void *opaque, uint32_t addr)
 {
     VGACommonState *s = opaque;
-    uint32_t val;
-    val = s->vbe_index;
-    return val;
+    return s->vbe_index;
 }
 
 uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr)

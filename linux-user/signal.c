@@ -195,7 +195,6 @@ int block_signals(void)
 {
     TaskState *ts = (TaskState *)thread_cpu->opaque;
     sigset_t set;
-    int pending;
 
     /* It's OK to block everything including SIGSEGV, because we won't
      * run any further guest code before unblocking signals in
@@ -204,9 +203,7 @@ int block_signals(void)
     sigfillset(&set);
     sigprocmask(SIG_SETMASK, &set, 0);
 
-    pending = atomic_xchg(&ts->signal_pending, 1);
-
-    return pending;
+    return atomic_xchg(&ts->signal_pending, 1);
 }
 
 /* Wrapper for sigprocmask function
@@ -3956,9 +3953,7 @@ static void setup_sigcontext(struct target_sigcontext *sc,
 
 static inline unsigned long align_sigframe(unsigned long sp)
 {
-    unsigned long i;
-    i = sp & ~3UL;
-    return i;
+    return sp & ~3UL;
 }
 
 static inline abi_ulong get_sigframe(struct target_sigaction *ka,
@@ -4555,7 +4550,7 @@ static target_ulong get_sigframe(struct target_sigaction *ka,
                                  CPUPPCState *env,
                                  int frame_size)
 {
-    target_ulong oldsp, newsp;
+    target_ulong oldsp;
 
     oldsp = env->gpr[1];
 
@@ -4565,9 +4560,7 @@ static target_ulong get_sigframe(struct target_sigaction *ka,
                  + target_sigaltstack_used.ss_size);
     }
 
-    newsp = (oldsp - frame_size) & ~0xFUL;
-
-    return newsp;
+    return (oldsp - frame_size) & ~0xFUL;
 }
 
 static void save_user_regs(CPUPPCState *env, struct target_mcontext *frame)

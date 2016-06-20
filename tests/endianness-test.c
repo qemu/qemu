@@ -282,7 +282,6 @@ static void test_endianness_combine(gconstpointer data)
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
-    int ret;
     int i;
 
     g_test_init(&argc, &argv, NULL);
@@ -305,7 +304,5 @@ int main(int argc, char **argv)
         qtest_add_data_func(path, &test_cases[i], test_endianness_combine);
     }
 
-    ret = g_test_run();
-
-    return ret;
+    return g_test_run();
 }
