@@ -1262,7 +1262,6 @@ F: docs/tracing.txt
 T: git git://github.com/stefanha/qemu.git tracing
 
 Checkpatch
-M: Blue Swirl <blauwirbel@gmail.com>
 S: Odd Fixes
 F: scripts/checkpatch.pl
 
@@ -1335,8 +1334,7 @@ F: thunk.c
 F: user-exec.c
 
 BSD user
-M: Blue Swirl <blauwirbel@gmail.com>
-S: Maintained
+S: Orphan
 F: bsd-user/
 
 Linux user
@@ -1399,8 +1397,7 @@ F: tcg/s390/
 F: disas/s390.c
 
 SPARC target
-M: Blue Swirl <blauwirbel@gmail.com>
-S: Maintained
+S: Odd Fixes
 F: tcg/sparc/
 F: disas/sparc.c
 
