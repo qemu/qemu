@@ -760,7 +760,7 @@ int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
         throttle_group_co_io_limits_intercept(blk, bytes, false);
     }
 
-    return bdrv_co_preadv(blk_bs(blk), offset, bytes, qiov, flags);
+    return bdrv_co_preadv(blk->root, offset, bytes, qiov, flags);
 }
 
 int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
@@ -785,7 +785,7 @@ int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
         flags |= BDRV_REQ_FUA;
     }
 
-    return bdrv_co_pwritev(blk_bs(blk), offset, bytes, qiov, flags);
+    return bdrv_co_pwritev(blk->root, offset, bytes, qiov, flags);
 }
 
 typedef struct BlkRwCo {

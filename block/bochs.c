@@ -255,7 +255,7 @@ bochs_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
         qemu_iovec_concat(&local_qiov, qiov, bytes_done, 512);
 
         if (block_offset > 0) {
-            ret = bdrv_co_preadv(bs->file->bs, block_offset, 512,
+            ret = bdrv_co_preadv(bs->file, block_offset, 512,
                                  &local_qiov, 0);
             if (ret < 0) {
                 goto fail;

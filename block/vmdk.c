@@ -1369,7 +1369,7 @@ static int vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
     }
 
     write_offset = cluster_offset + offset_in_cluster,
-    ret = bdrv_co_pwritev(extent->file->bs, write_offset, n_bytes,
+    ret = bdrv_co_pwritev(extent->file, write_offset, n_bytes,
                           &local_qiov, 0);
 
     write_end_sector = DIV_ROUND_UP(write_offset + n_bytes, BDRV_SECTOR_SIZE);
@@ -1407,7 +1407,7 @@ static int vmdk_read_extent(VmdkExtent *extent, int64_t cluster_offset,
 
 
     if (!extent->compressed) {
-        ret = bdrv_co_preadv(extent->file->bs,
+        ret = bdrv_co_preadv(extent->file,
                              cluster_offset + offset_in_cluster, bytes,
                              qiov, 0);
         if (ret < 0) {
@@ -1497,7 +1497,7 @@ vmdk_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
                 qemu_iovec_reset(&local_qiov);
                 qemu_iovec_concat(&local_qiov, qiov, bytes_done, n_bytes);
 
-                ret = bdrv_co_preadv(bs->backing->bs, offset, n_bytes,
+                ret = bdrv_co_preadv(bs->backing, offset, n_bytes,
                                      &local_qiov, 0);
                 if (ret < 0) {
                     goto fail;

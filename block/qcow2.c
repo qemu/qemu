@@ -1443,7 +1443,7 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
 
                     BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
                     qemu_co_mutex_unlock(&s->lock);
-                    ret = bdrv_co_preadv(bs->backing->bs, offset, n1,
+                    ret = bdrv_co_preadv(bs->backing, offset, n1,
                                          &local_qiov, 0);
                     qemu_co_mutex_lock(&s->lock);
 
@@ -1506,7 +1506,7 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
 
             BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
             qemu_co_mutex_unlock(&s->lock);
-            ret = bdrv_co_preadv(bs->file->bs,
+            ret = bdrv_co_preadv(bs->file,
                                  cluster_offset + offset_in_cluster,
                                  cur_bytes, &hd_qiov, 0);
             qemu_co_mutex_lock(&s->lock);
@@ -1637,7 +1637,7 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
         BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
         trace_qcow2_writev_data(qemu_coroutine_self(),
                                 cluster_offset + offset_in_cluster);
-        ret = bdrv_co_pwritev(bs->file->bs,
+        ret = bdrv_co_pwritev(bs->file,
                               cluster_offset + offset_in_cluster,
                               cur_bytes, &hd_qiov, 0);
         qemu_co_mutex_lock(&s->lock);

@@ -249,8 +249,8 @@ int coroutine_fn bdrv_co_writev(BdrvChild *child, int64_t sector_num,
  * function is not suitable for zeroing the entire image in a single request
  * because it may allocate memory for the entire region.
  */
-int coroutine_fn bdrv_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
-    int count, BdrvRequestFlags flags);
+int coroutine_fn bdrv_co_pwrite_zeroes(BdrvChild *child, int64_t offset,
+                                       int count, BdrvRequestFlags flags);
 BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
     const char *backing_file);
 int bdrv_get_backing_file_depth(BlockDriverState *bs);

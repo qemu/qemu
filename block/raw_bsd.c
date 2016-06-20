@@ -105,7 +105,7 @@ raw_co_writev_flags(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
-    ret = bdrv_co_pwritev(bs->file->bs, sector_num * BDRV_SECTOR_SIZE,
+    ret = bdrv_co_pwritev(bs->file, sector_num * BDRV_SECTOR_SIZE,
                           nb_sectors * BDRV_SECTOR_SIZE, qiov, flags);
 
 fail:
@@ -131,7 +131,7 @@ static int coroutine_fn raw_co_pwrite_zeroes(BlockDriverState *bs,
                                              int64_t offset, int count,
                                              BdrvRequestFlags flags)
 {
-    return bdrv_co_pwrite_zeroes(bs->file->bs, offset, count, flags);
+    return bdrv_co_pwrite_zeroes(bs->file, offset, count, flags);
 }
 
 static int coroutine_fn raw_co_discard(BlockDriverState *bs,

@@ -597,7 +597,7 @@ vdi_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
             qemu_iovec_reset(&local_qiov);
             qemu_iovec_concat(&local_qiov, qiov, bytes_done, n_bytes);
 
-            ret = bdrv_co_preadv(bs->file->bs, data_offset, n_bytes,
+            ret = bdrv_co_preadv(bs->file, data_offset, n_bytes,
                                  &local_qiov, 0);
         }
         logout("%u bytes read\n", n_bytes);
@@ -690,7 +690,7 @@ vdi_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
             qemu_iovec_reset(&local_qiov);
             qemu_iovec_concat(&local_qiov, qiov, bytes_done, n_bytes);
 
-            ret = bdrv_co_pwritev(bs->file->bs, data_offset, n_bytes,
+            ret = bdrv_co_pwritev(bs->file, data_offset, n_bytes,
                                   &local_qiov, 0);
         }
 

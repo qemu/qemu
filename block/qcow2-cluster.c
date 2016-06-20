@@ -446,7 +446,7 @@ static int coroutine_fn do_perform_cow(BlockDriverState *bs,
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_COW_WRITE);
-    ret = bdrv_co_pwritev(bs->file->bs, cluster_offset + offset_in_cluster,
+    ret = bdrv_co_pwritev(bs->file, cluster_offset + offset_in_cluster,
                           bytes, &qiov, 0);
     if (ret < 0) {
         goto out;
