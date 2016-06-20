@@ -155,11 +155,6 @@ static bool megasas_use_queue64(MegasasState *s)
     return s->flags & MEGASAS_MASK_USE_QUEUE64;
 }
 
-static bool megasas_use_msi(MegasasState *s)
-{
-    return s->msi != ON_OFF_AUTO_OFF;
-}
-
 static bool megasas_use_msix(MegasasState *s)
 {
     return s->msix != ON_OFF_AUTO_OFF;
@@ -2307,9 +2302,7 @@ static void megasas_scsi_uninit(PCIDevice *d)
     if (megasas_use_msix(s)) {
         msix_uninit(d, &s->mmio_io, &s->mmio_io);
     }
-    if (megasas_use_msi(s)) {
-        msi_uninit(d);
-    }
+    msi_uninit(d);
 }
 
 static const struct SCSIBusInfo megasas_scsi_info = {
@@ -2340,7 +2333,7 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
     /* Interrupt pin 1 */
     pci_conf[PCI_INTERRUPT_PIN] = 0x01;
 
-    if (megasas_use_msi(s)) {
+    if (s->msi != ON_OFF_AUTO_OFF) {
         ret = msi_init(dev, 0x50, 1, true, false, &err);
         /* Any error other than -ENOTSUP(board's MSI support is broken)
          * is a programming error */
