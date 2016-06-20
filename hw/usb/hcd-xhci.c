@@ -26,6 +26,7 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "trace.h"
+#include "qapi/error.h"
 
 //#define DEBUG_XHCI
 //#define DEBUG_DATA
@@ -3581,6 +3582,7 @@ static void usb_xhci_init(XHCIState *xhci)
 static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
 {
     int i, ret;
+    Error *err = NULL;
 
     XHCIState *xhci = XHCI(dev);
 
@@ -3590,6 +3592,23 @@ static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
     dev->config[0x60] = 0x30; /* release number */
 
     usb_xhci_init(xhci);
+
+    if (xhci->msi != ON_OFF_AUTO_OFF) {
+        ret = msi_init(dev, 0x70, xhci->numintrs, true, false, &err);
+        /* Any error other than -ENOTSUP(board's MSI support is broken)
+         * is a programming error */
+        assert(!ret || ret == -ENOTSUP);
+        if (ret && xhci->msi == ON_OFF_AUTO_ON) {
+            /* Can't satisfy user's explicit msi=on request, fail */
+            error_append_hint(&err, "You have to use msi=auto (default) or "
+                    "msi=off with this machine type.\n");
+            error_propagate(errp, err);
+            return;
+        }
+        assert(!err || xhci->msi == ON_OFF_AUTO_AUTO);
+        /* With msi=auto, we fall back to MSI off silently */
+        error_free(err);
+    }
 
     if (xhci->numintrs > MAXINTRS) {
         xhci->numintrs = MAXINTRS;
@@ -3648,10 +3667,6 @@ static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
         assert(ret >= 0);
     }
 
-    if (xhci->msi != ON_OFF_AUTO_OFF) {
-        /* TODO check for errors */
-        msi_init(dev, 0x70, xhci->numintrs, true, false);
-    }
     if (xhci->msix != ON_OFF_AUTO_OFF) {
         /* TODO check for errors */
         msix_init(dev, xhci->numintrs,

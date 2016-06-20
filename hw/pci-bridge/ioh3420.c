@@ -25,6 +25,7 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/pcie.h"
 #include "ioh3420.h"
+#include "qapi/error.h"
 
 #define PCI_DEVICE_ID_IOH_EPORT         0x3420  /* D0:F0 express mode */
 #define PCI_DEVICE_ID_IOH_REV           0x2
@@ -97,6 +98,7 @@ static int ioh3420_initfn(PCIDevice *d)
     PCIEPort *p = PCIE_PORT(d);
     PCIESlot *s = PCIE_SLOT(d);
     int rc;
+    Error *err = NULL;
 
     pci_bridge_initfn(d, TYPE_PCIE_BUS);
     pcie_port_init_reg(d);
@@ -109,8 +111,10 @@ static int ioh3420_initfn(PCIDevice *d)
 
     rc = msi_init(d, IOH_EP_MSI_OFFSET, IOH_EP_MSI_NR_VECTOR,
                   IOH_EP_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_64BIT,
-                  IOH_EP_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_MASKBIT);
+                  IOH_EP_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_MASKBIT, &err);
     if (rc < 0) {
+        assert(rc == -ENOTSUP);
+        error_report_err(err);
         goto err_bridge;
     }
 

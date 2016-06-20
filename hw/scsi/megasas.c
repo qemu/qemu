@@ -29,7 +29,7 @@
 #include "hw/scsi/scsi.h"
 #include "block/scsi.h"
 #include "trace.h"
-
+#include "qapi/error.h"
 #include "mfi.h"
 
 #define MEGASAS_VERSION_GEN1 "1.70"
@@ -2330,6 +2330,8 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
     MegasasBaseClass *b = MEGASAS_DEVICE_GET_CLASS(s);
     uint8_t *pci_conf;
     int i, bar_type;
+    Error *err = NULL;
+    int ret;
 
     pci_conf = dev->config;
 
@@ -2338,6 +2340,24 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
     /* Interrupt pin 1 */
     pci_conf[PCI_INTERRUPT_PIN] = 0x01;
 
+    if (megasas_use_msi(s)) {
+        ret = msi_init(dev, 0x50, 1, true, false, &err);
+        /* Any error other than -ENOTSUP(board's MSI support is broken)
+         * is a programming error */
+        assert(!ret || ret == -ENOTSUP);
+        if (ret && s->msi == ON_OFF_AUTO_ON) {
+            /* Can't satisfy user's explicit msi=on request, fail */
+            error_append_hint(&err, "You have to use msi=auto (default) or "
+                    "msi=off with this machine type.\n");
+            error_propagate(errp, err);
+            return;
+        } else if (ret) {
+            /* With msi=auto, we fall back to MSI off silently */
+            s->msi = ON_OFF_AUTO_OFF;
+            error_free(err);
+        }
+    }
+
     memory_region_init_io(&s->mmio_io, OBJECT(s), &megasas_mmio_ops, s,
                           "megasas-mmio", 0x4000);
     memory_region_init_io(&s->port_io, OBJECT(s), &megasas_port_ops, s,
@@ -2345,10 +2365,6 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
     memory_region_init_io(&s->queue_io, OBJECT(s), &megasas_queue_ops, s,
                           "megasas-queue", 0x40000);
 
-    if (megasas_use_msi(s) &&
-        msi_init(dev, 0x50, 1, true, false)) {
-        s->msi = ON_OFF_AUTO_OFF;
-    }
     if (megasas_use_msix(s) &&
         msix_init(dev, 15, &s->mmio_io, b->mmio_bar, 0x2000,
                   &s->mmio_io, b->mmio_bar, 0x3800, 0x68)) {

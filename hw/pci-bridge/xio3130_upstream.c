@@ -24,6 +24,7 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/pcie.h"
 #include "xio3130_upstream.h"
+#include "qapi/error.h"
 
 #define PCI_DEVICE_ID_TI_XIO3130U       0x8232  /* upstream port */
 #define XIO3130_REVISION                0x2
@@ -56,14 +57,17 @@ static int xio3130_upstream_initfn(PCIDevice *d)
 {
     PCIEPort *p = PCIE_PORT(d);
     int rc;
+    Error *err = NULL;
 
     pci_bridge_initfn(d, TYPE_PCIE_BUS);
     pcie_port_init_reg(d);
 
     rc = msi_init(d, XIO3130_MSI_OFFSET, XIO3130_MSI_NR_VECTOR,
                   XIO3130_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_64BIT,
-                  XIO3130_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_MASKBIT);
+                  XIO3130_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_MASKBIT, &err);
     if (rc < 0) {
+        assert(rc == -ENOTSUP);
+        error_report_err(err);
         goto err_bridge;
     }
 
