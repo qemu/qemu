@@ -31,8 +31,6 @@ struct MPTSASState {
     OnOffAuto msi;
     uint64_t sas_addr;
 
-    bool msi_in_use;
-
     /* Doorbell register */
     uint32_t state;
     uint8_t who_init;

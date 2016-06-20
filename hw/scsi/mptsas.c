@@ -63,7 +63,7 @@ static void mptsas_update_interrupt(MPTSASState *s)
     PCIDevice *pci = (PCIDevice *) s;
     uint32_t state = s->intr_status & ~(s->intr_mask | MPI_HIS_IOP_DOORBELL_STATUS);
 
-    if (s->msi_in_use && msi_enabled(pci)) {
+    if (msi_enabled(pci)) {
         if (state) {
             trace_mptsas_irq_msi(s);
             msi_notify(pci, 0);
@@ -1289,15 +1289,12 @@ static void mptsas_scsi_init(PCIDevice *dev, Error **errp)
             error_append_hint(&err, "You have to use msi=auto (default) or "
                     "msi=off with this machine type.\n");
             error_propagate(errp, err);
-            s->msi_in_use = false;
             return;
-        } else if (ret) {
-            /* With msi=auto, we fall back to MSI off silently */
-            error_free(err);
-            s->msi_in_use = false;
-        } else {
-            s->msi_in_use = true;
         }
+        assert(!err || s->msi == ON_OFF_AUTO_AUTO);
+        /* With msi=auto, we fall back to MSI off silently */
+        error_free(err);
+
     }
 
     memory_region_init_io(&s->mmio_io, OBJECT(s), &mptsas_mmio_ops, s,
@@ -1337,9 +1334,7 @@ static void mptsas_scsi_uninit(PCIDevice *dev)
     MPTSASState *s = MPT_SAS(dev);
 
     qemu_bh_delete(s->request_bh);
-    if (s->msi_in_use) {
-        msi_uninit(dev);
-    }
+    msi_uninit(dev);
 }
 
 static void mptsas_reset(DeviceState *dev)
@@ -1375,7 +1370,6 @@ static const VMStateDescription vmstate_mptsas = {
     .post_load = mptsas_post_load,
     .fields      = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, MPTSASState),
-        VMSTATE_BOOL(msi_in_use, MPTSASState),
 
         VMSTATE_UINT32(state, MPTSASState),
         VMSTATE_UINT8(who_init, MPTSASState),
