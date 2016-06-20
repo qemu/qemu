@@ -461,6 +461,8 @@ struct XHCIState {
     uint32_t numslots;
     uint32_t flags;
     uint32_t max_pstreams_mask;
+    OnOffAuto msi;
+    OnOffAuto msix;
 
     /* Operational Registers */
     uint32_t usbcmd;
@@ -498,9 +500,7 @@ typedef struct XHCIEvRingSeg {
 } XHCIEvRingSeg;
 
 enum xhci_flags {
-    XHCI_FLAG_USE_MSI = 1,
-    XHCI_FLAG_USE_MSI_X,
-    XHCI_FLAG_SS_FIRST,
+    XHCI_FLAG_SS_FIRST = 1,
     XHCI_FLAG_FORCE_PCIE_ENDCAP,
     XHCI_FLAG_ENABLE_STREAMS,
 };
@@ -3648,10 +3648,12 @@ static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
         assert(ret >= 0);
     }
 
-    if (xhci_get_flag(xhci, XHCI_FLAG_USE_MSI)) {
+    if (xhci->msi != ON_OFF_AUTO_OFF) {
+        /* TODO check for errors */
         msi_init(dev, 0x70, xhci->numintrs, true, false);
     }
-    if (xhci_get_flag(xhci, XHCI_FLAG_USE_MSI_X)) {
+    if (xhci->msix != ON_OFF_AUTO_OFF) {
+        /* TODO check for errors */
         msix_init(dev, xhci->numintrs,
                   &xhci->mem, 0, OFF_MSIX_TABLE,
                   &xhci->mem, 0, OFF_MSIX_PBA,
@@ -3872,8 +3874,8 @@ static const VMStateDescription vmstate_xhci = {
 };
 
 static Property xhci_properties[] = {
-    DEFINE_PROP_BIT("msi",      XHCIState, flags, XHCI_FLAG_USE_MSI, true),
-    DEFINE_PROP_BIT("msix",     XHCIState, flags, XHCI_FLAG_USE_MSI_X, true),
+    DEFINE_PROP_ON_OFF_AUTO("msi", XHCIState, msi, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO("msix", XHCIState, msix, ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BIT("superspeed-ports-first",
                     XHCIState, flags, XHCI_FLAG_SS_FIRST, true),
     DEFINE_PROP_BIT("force-pcie-endcap", XHCIState, flags,
