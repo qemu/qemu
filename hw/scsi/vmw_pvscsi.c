@@ -1056,7 +1056,7 @@ pvscsi_io_read(void *opaque, hwaddr addr, unsigned size)
 }
 
 
-static bool
+static void
 pvscsi_init_msi(PVSCSIState *s)
 {
     int res;
@@ -1070,8 +1070,6 @@ pvscsi_init_msi(PVSCSIState *s)
     } else {
         s->msi_used = true;
     }
-
-    return s->msi_used;
 }
 
 static void
