@@ -1284,8 +1284,9 @@ static void mptsas_scsi_init(PCIDevice *dev, Error **errp)
     memory_region_init_io(&s->diag_io, OBJECT(s), &mptsas_diag_ops, s,
                           "mptsas-diag", 0x10000);
 
-    if (s->msi_available &&
+    if (s->msi != ON_OFF_AUTO_OFF &&
         msi_init(dev, 0, 1, true, false) >= 0) {
+        /* TODO check for errors */
         s->msi_in_use = true;
     }
 
@@ -1403,7 +1404,7 @@ static const VMStateDescription vmstate_mptsas = {
 static Property mptsas_properties[] = {
     DEFINE_PROP_UINT64("sas_address", MPTSASState, sas_addr, 0),
     /* TODO: test MSI support under Windows */
-    DEFINE_PROP_BIT("msi", MPTSASState, msi_available, 0, true),
+    DEFINE_PROP_ON_OFF_AUTO("msi", MPTSASState, msi, ON_OFF_AUTO_AUTO),
     DEFINE_PROP_END_OF_LIST(),
 };
 
