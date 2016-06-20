@@ -1351,29 +1351,6 @@ static void RTL8139TallyCounters_dma_write(RTL8139State *s, dma_addr_t tc_addr)
     pci_dma_write(d, tc_addr + 62,    (uint8_t *)&val16, 2);
 }
 
-/* Loads values of tally counters from VM state file */
-
-static const VMStateDescription vmstate_tally_counters = {
-    .name = "tally_counters",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT64(TxOk, RTL8139TallyCounters),
-        VMSTATE_UINT64(RxOk, RTL8139TallyCounters),
-        VMSTATE_UINT64(TxERR, RTL8139TallyCounters),
-        VMSTATE_UINT32(RxERR, RTL8139TallyCounters),
-        VMSTATE_UINT16(MissPkt, RTL8139TallyCounters),
-        VMSTATE_UINT16(FAE, RTL8139TallyCounters),
-        VMSTATE_UINT32(Tx1Col, RTL8139TallyCounters),
-        VMSTATE_UINT32(TxMCol, RTL8139TallyCounters),
-        VMSTATE_UINT64(RxOkPhy, RTL8139TallyCounters),
-        VMSTATE_UINT64(RxOkBrd, RTL8139TallyCounters),
-        VMSTATE_UINT16(TxAbt, RTL8139TallyCounters),
-        VMSTATE_UINT16(TxUndrn, RTL8139TallyCounters),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
 static void rtl8139_ChipCmd_write(RTL8139State *s, uint32_t val)
 {
     DeviceState *d = DEVICE(s);
@@ -3221,7 +3198,7 @@ static void rtl8139_pre_save(void *opaque)
 
 static const VMStateDescription vmstate_rtl8139 = {
     .name = "rtl8139",
-    .version_id = 4,
+    .version_id = 5,
     .minimum_version_id = 3,
     .post_load = rtl8139_post_load,
     .pre_save  = rtl8139_pre_save,
@@ -3292,8 +3269,19 @@ static const VMStateDescription vmstate_rtl8139 = {
         VMSTATE_UINT32(TimerInt, RTL8139State),
         VMSTATE_INT64(TCTR_base, RTL8139State),
 
-        VMSTATE_STRUCT(tally_counters, RTL8139State, 0,
-                       vmstate_tally_counters, RTL8139TallyCounters),
+        VMSTATE_UINT64(tally_counters.TxOk, RTL8139State),
+        VMSTATE_UINT64(tally_counters.RxOk, RTL8139State),
+        VMSTATE_UINT64(tally_counters.TxERR, RTL8139State),
+        VMSTATE_UINT32(tally_counters.RxERR, RTL8139State),
+        VMSTATE_UINT16(tally_counters.MissPkt, RTL8139State),
+        VMSTATE_UINT16(tally_counters.FAE, RTL8139State),
+        VMSTATE_UINT32(tally_counters.Tx1Col, RTL8139State),
+        VMSTATE_UINT32(tally_counters.TxMCol, RTL8139State),
+        VMSTATE_UINT64(tally_counters.RxOkPhy, RTL8139State),
+        VMSTATE_UINT64(tally_counters.RxOkBrd, RTL8139State),
+        VMSTATE_UINT32_V(tally_counters.RxOkMul, RTL8139State, 5),
+        VMSTATE_UINT16(tally_counters.TxAbt, RTL8139State),
+        VMSTATE_UINT16(tally_counters.TxUndrn, RTL8139State),
 
         VMSTATE_UINT32_V(cplus_enabled, RTL8139State, 4),
         VMSTATE_END_OF_LIST()
