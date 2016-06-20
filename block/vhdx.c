@@ -1387,9 +1387,10 @@ exit:
  * There are 2 headers, and the highest sequence number will represent
  * the active header
  */
-static int vhdx_create_new_headers(BlockDriverState *bs, uint64_t image_size,
+static int vhdx_create_new_headers(BlockBackend *blk, uint64_t image_size,
                                    uint32_t log_size)
 {
+    BlockDriverState *bs = blk_bs(blk);
     int ret = 0;
     VHDXHeader *hdr = NULL;
 
@@ -1442,7 +1443,7 @@ exit:
  * The first 64KB of the Metadata section is reserved for the metadata
  * header and entries; beyond that, the metadata items themselves reside.
  */
-static int vhdx_create_new_metadata(BlockDriverState *bs,
+static int vhdx_create_new_metadata(BlockBackend *blk,
                                     uint64_t image_size,
                                     uint32_t block_size,
                                     uint32_t sector_size,
@@ -1538,13 +1539,13 @@ static int vhdx_create_new_metadata(BlockDriverState *bs,
                                    VHDX_META_FLAGS_IS_VIRTUAL_DISK;
     vhdx_metadata_entry_le_export(&md_table_entry[4]);
 
-    ret = bdrv_pwrite(bs, metadata_offset, buffer, VHDX_HEADER_BLOCK_SIZE);
+    ret = blk_pwrite(blk, metadata_offset, buffer, VHDX_HEADER_BLOCK_SIZE, 0);
     if (ret < 0) {
         goto exit;
     }
 
-    ret = bdrv_pwrite(bs, metadata_offset + (64 * KiB), entry_buffer,
-                      VHDX_METADATA_ENTRY_BUFFER_SIZE);
+    ret = blk_pwrite(blk, metadata_offset + (64 * KiB), entry_buffer,
+                     VHDX_METADATA_ENTRY_BUFFER_SIZE, 0);
     if (ret < 0) {
         goto exit;
     }
@@ -1564,7 +1565,7 @@ exit:
  *  Fixed images: default state of the BAT is fully populated, with
  *                file offsets and state PAYLOAD_BLOCK_FULLY_PRESENT.
  */
-static int vhdx_create_bat(BlockDriverState *bs, BDRVVHDXState *s,
+static int vhdx_create_bat(BlockBackend *blk, BDRVVHDXState *s,
                            uint64_t image_size, VHDXImageType type,
                            bool use_zero_blocks, uint64_t file_offset,
                            uint32_t length)
@@ -1588,12 +1589,12 @@ static int vhdx_create_bat(BlockDriverState *bs, BDRVVHDXState *s,
     if (type == VHDX_TYPE_DYNAMIC) {
         /* All zeroes, so we can just extend the file - the end of the BAT
          * is the furthest thing we have written yet */
-        ret = bdrv_truncate(bs, data_file_offset);
+        ret = blk_truncate(blk, data_file_offset);
         if (ret < 0) {
             goto exit;
         }
     } else if (type == VHDX_TYPE_FIXED) {
-        ret = bdrv_truncate(bs, data_file_offset + image_size);
+        ret = blk_truncate(blk, data_file_offset + image_size);
         if (ret < 0) {
             goto exit;
         }
@@ -1604,7 +1605,7 @@ static int vhdx_create_bat(BlockDriverState *bs, BDRVVHDXState *s,
 
     if (type == VHDX_TYPE_FIXED ||
                 use_zero_blocks ||
-                bdrv_has_zero_init(bs) == 0) {
+                bdrv_has_zero_init(blk_bs(blk)) == 0) {
         /* for a fixed file, the default BAT entry is not zero */
         s->bat = g_try_malloc0(length);
         if (length && s->bat == NULL) {
@@ -1620,12 +1621,12 @@ static int vhdx_create_bat(BlockDriverState *bs, BDRVVHDXState *s,
             sinfo.file_offset = data_file_offset +
                                 (sector_num << s->logical_sector_size_bits);
             sinfo.file_offset = ROUND_UP(sinfo.file_offset, MiB);
-            vhdx_update_bat_table_entry(bs, s, &sinfo, &unused, &unused,
+            vhdx_update_bat_table_entry(blk_bs(blk), s, &sinfo, &unused, &unused,
                                         block_state);
             cpu_to_le64s(&s->bat[sinfo.bat_idx]);
             sector_num += s->sectors_per_block;
         }
-        ret = bdrv_pwrite(bs, file_offset, s->bat, length);
+        ret = blk_pwrite(blk, file_offset, s->bat, length, 0);
         if (ret < 0) {
             goto exit;
         }
@@ -1645,7 +1646,7 @@ exit:
  * to create the BAT itself, we will also cause the BAT to be
  * created.
  */
-static int vhdx_create_new_region_table(BlockDriverState *bs,
+static int vhdx_create_new_region_table(BlockBackend *blk,
                                         uint64_t image_size,
                                         uint32_t block_size,
                                         uint32_t sector_size,
@@ -1720,21 +1721,21 @@ static int vhdx_create_new_region_table(BlockDriverState *bs,
 
     /* The region table gives us the data we need to create the BAT,
      * so do that now */
-    ret = vhdx_create_bat(bs, s, image_size, type, use_zero_blocks,
+    ret = vhdx_create_bat(blk, s, image_size, type, use_zero_blocks,
                           bat_file_offset, bat_length);
     if (ret < 0) {
         goto exit;
     }
 
     /* Now write out the region headers to disk */
-    ret = bdrv_pwrite(bs, VHDX_REGION_TABLE_OFFSET, buffer,
-                      VHDX_HEADER_BLOCK_SIZE);
+    ret = blk_pwrite(blk, VHDX_REGION_TABLE_OFFSET, buffer,
+                     VHDX_HEADER_BLOCK_SIZE, 0);
     if (ret < 0) {
         goto exit;
     }
 
-    ret = bdrv_pwrite(bs, VHDX_REGION_TABLE2_OFFSET, buffer,
-                      VHDX_HEADER_BLOCK_SIZE);
+    ret = blk_pwrite(blk, VHDX_REGION_TABLE2_OFFSET, buffer,
+                     VHDX_HEADER_BLOCK_SIZE, 0);
     if (ret < 0) {
         goto exit;
     }
@@ -1871,13 +1872,13 @@ static int vhdx_create(const char *filename, QemuOpts *opts, Error **errp)
 
 
     /* Creates (B),(C) */
-    ret = vhdx_create_new_headers(blk_bs(blk), image_size, log_size);
+    ret = vhdx_create_new_headers(blk, image_size, log_size);
     if (ret < 0) {
         goto delete_and_exit;
     }
 
     /* Creates (D),(E),(G) explicitly. (F) created as by-product */
-    ret = vhdx_create_new_region_table(blk_bs(blk), image_size, block_size, 512,
+    ret = vhdx_create_new_region_table(blk, image_size, block_size, 512,
                                        log_size, use_zero_blocks, image_type,
                                        &metadata_offset);
     if (ret < 0) {
@@ -1885,7 +1886,7 @@ static int vhdx_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     /* Creates (H) */
-    ret = vhdx_create_new_metadata(blk_bs(blk), image_size, block_size, 512,
+    ret = vhdx_create_new_metadata(blk, image_size, block_size, 512,
                                    metadata_offset, image_type);
     if (ret < 0) {
         goto delete_and_exit;
