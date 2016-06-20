@@ -191,7 +191,7 @@ struct IntelHDAState {
 
     /* properties */
     uint32_t debug;
-    uint32_t msi;
+    OnOffAuto msi;
     bool old_msi_addr;
 };
 
@@ -256,7 +256,7 @@ static void intel_hda_update_int_sts(IntelHDAState *d)
 
 static void intel_hda_update_irq(IntelHDAState *d)
 {
-    int msi = d->msi && msi_enabled(&d->pci);
+    bool msi = msi_enabled(&d->pci);
     int level;
 
     intel_hda_update_int_sts(d);
@@ -1143,7 +1143,8 @@ static void intel_hda_realize(PCIDevice *pci, Error **errp)
     memory_region_init_io(&d->mmio, OBJECT(d), &intel_hda_mmio_ops, d,
                           "intel-hda", 0x4000);
     pci_register_bar(&d->pci, 0, 0, &d->mmio);
-    if (d->msi) {
+    if (d->msi != ON_OFF_AUTO_OFF) {
+         /* TODO check for errors */
         msi_init(&d->pci, d->old_msi_addr ? 0x50 : 0x60, 1, true, false);
     }
 
@@ -1235,7 +1236,7 @@ static const VMStateDescription vmstate_intel_hda = {
 
 static Property intel_hda_properties[] = {
     DEFINE_PROP_UINT32("debug", IntelHDAState, debug, 0),
-    DEFINE_PROP_UINT32("msi", IntelHDAState, msi, 1),
+    DEFINE_PROP_ON_OFF_AUTO("msi", IntelHDAState, msi, ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BOOL("old_msi_addr", IntelHDAState, old_msi_addr, false),
     DEFINE_PROP_END_OF_LIST(),
 };
