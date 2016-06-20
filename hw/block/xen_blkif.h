@@ -28,6 +28,14 @@ struct blkif_x86_32_request {
     blkif_sector_t sector_number;    /* start sector idx on disk (r/w only)  */
     struct blkif_request_segment seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 };
+struct blkif_x86_32_request_discard {
+    uint8_t        operation;        /* BLKIF_OP_DISCARD                     */
+    uint8_t        flag;             /* nr_segments in request struct        */
+    blkif_vdev_t   handle;           /* only for read/write requests         */
+    uint64_t       id;               /* private guest value, echoed in resp  */
+    blkif_sector_t sector_number;    /* start sector idx on disk (r/w only)  */
+    uint64_t       nr_sectors;       /* # of contiguous sectors to discard   */
+};
 struct blkif_x86_32_response {
     uint64_t        id;              /* copied from request */
     uint8_t         operation;       /* copied from request */
@@ -45,6 +53,14 @@ struct blkif_x86_64_request {
     uint64_t       __attribute__((__aligned__(8))) id;
     blkif_sector_t sector_number;    /* start sector idx on disk (r/w only)  */
     struct blkif_request_segment seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+};
+struct blkif_x86_64_request_discard {
+    uint8_t        operation;        /* BLKIF_OP_DISCARD                     */
+    uint8_t        flag;             /* nr_segments in request struct        */
+    blkif_vdev_t   handle;           /* only for read/write requests         */
+    uint64_t       __attribute__((__aligned__(8))) id;
+    blkif_sector_t sector_number;    /* start sector idx on disk (r/w only)  */
+    uint64_t       nr_sectors;       /* # of contiguous sectors to discard   */
 };
 struct blkif_x86_64_response {
     uint64_t       __attribute__((__aligned__(8))) id;
@@ -88,7 +104,7 @@ static inline void blkif_get_x86_32_req(blkif_request_t *dst,
     /* Prevent the compiler from using src->... instead. */
     barrier();
     if (dst->operation == BLKIF_OP_DISCARD) {
-        struct blkif_request_discard *s = (void *)src;
+        struct blkif_x86_32_request_discard *s = (void *)src;
         struct blkif_request_discard *d = (void *)dst;
         d->nr_sectors = s->nr_sectors;
         return;
@@ -114,7 +130,7 @@ static inline void blkif_get_x86_64_req(blkif_request_t *dst,
     /* Prevent the compiler from using src->... instead. */
     barrier();
     if (dst->operation == BLKIF_OP_DISCARD) {
-        struct blkif_request_discard *s = (void *)src;
+        struct blkif_x86_64_request_discard *s = (void *)src;
         struct blkif_request_discard *d = (void *)dst;
         d->nr_sectors = s->nr_sectors;
         return;
