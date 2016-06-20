@@ -18,7 +18,7 @@
  *
  *
  * Specification available at:
- *   http://www.milkymist.org/socdoc/memcard.pdf
+ *   http://milkymist.walle.cc/socdoc/memcard.pdf
  */
 
 #include "qemu/osdep.h"

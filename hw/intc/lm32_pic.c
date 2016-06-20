@@ -152,17 +152,16 @@ static void pic_reset(DeviceState *d)
     }
 }
 
-static int lm32_pic_init(SysBusDevice *sbd)
+static void lm32_pic_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    LM32PicState *s = LM32_PIC(dev);
+    DeviceState *dev = DEVICE(obj);
+    LM32PicState *s = LM32_PIC(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     qdev_init_gpio_in(dev, irq_handler, 32);
     sysbus_init_irq(sbd, &s->parent_irq);
 
     pic = s;
-
-    return 0;
 }
 
 static const VMStateDescription vmstate_lm32_pic = {
@@ -181,9 +180,7 @@ static const VMStateDescription vmstate_lm32_pic = {
 static void lm32_pic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = lm32_pic_init;
     dc->reset = pic_reset;
     dc->vmsd = &vmstate_lm32_pic;
 }
@@ -192,6 +189,7 @@ static const TypeInfo lm32_pic_info = {
     .name          = TYPE_LM32_PIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LM32PicState),
+    .instance_init = lm32_pic_init,
     .class_init    = lm32_pic_class_init,
 };
 

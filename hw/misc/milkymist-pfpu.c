@@ -18,7 +18,7 @@
  *
  *
  * Specification available at:
- *   http://www.milkymist.org/socdoc/pfpu.pdf
+ *   http://milkymist.walle.cc/socdoc/pfpu.pdf
  *
  */
 

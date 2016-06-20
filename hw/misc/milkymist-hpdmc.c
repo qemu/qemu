@@ -18,7 +18,7 @@
  *
  *
  * Specification available at:
- *   http://www.milkymist.org/socdoc/hpdmc.pdf
+ *   http://milkymist.walle.cc/socdoc/hpdmc.pdf
  */
 
 #include "qemu/osdep.h"
