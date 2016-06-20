@@ -918,6 +918,13 @@ print_fcntl(const struct syscallname *name,
     case TARGET_F_GETLEASE:
         gemu_log("F_GETLEASE");
         break;
+    case TARGET_F_SETPIPE_SZ:
+        gemu_log("F_SETPIPE_SZ,");
+        print_raw_param(TARGET_ABI_FMT_ld, arg2, 1);
+        break;
+    case TARGET_F_GETPIPE_SZ:
+        gemu_log("F_GETPIPE_SZ");
+        break;
     case TARGET_F_DUPFD_CLOEXEC:
         gemu_log("F_DUPFD_CLOEXEC,");
         print_raw_param(TARGET_ABI_FMT_ld, arg2, 1);

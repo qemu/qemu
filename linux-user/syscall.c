@@ -5585,6 +5585,10 @@ static int target_to_host_fcntl_cmd(int cmd)
 	case TARGET_F_SETOWN_EX:
 	    return F_SETOWN_EX;
 #endif
+        case TARGET_F_SETPIPE_SZ:
+            return F_SETPIPE_SZ;
+        case TARGET_F_GETPIPE_SZ:
+            return F_GETPIPE_SZ;
 	default:
             return -TARGET_EINVAL;
     }
@@ -5822,6 +5826,8 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
     case TARGET_F_GETSIG:
     case TARGET_F_SETLEASE:
     case TARGET_F_GETLEASE:
+    case TARGET_F_SETPIPE_SZ:
+    case TARGET_F_GETPIPE_SZ:
         ret = get_errno(safe_fcntl(fd, host_cmd, arg));
         break;
 
