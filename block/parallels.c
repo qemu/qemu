@@ -250,7 +250,7 @@ static coroutine_fn int parallels_co_flush_to_os(BlockDriverState *bs)
         if (off + to_write > s->header_size) {
             to_write = s->header_size - off;
         }
-        ret = bdrv_pwrite(bs->file->bs, off, (uint8_t *)s->header + off,
+        ret = bdrv_pwrite(bs->file, off, (uint8_t *)s->header + off,
                           to_write);
         if (ret < 0) {
             qemu_co_mutex_unlock(&s->lock);
@@ -432,7 +432,7 @@ static int parallels_check(BlockDriverState *bs, BdrvCheckResult *res,
     }
 
     if (flush_bat) {
-        ret = bdrv_pwrite_sync(bs->file->bs, 0, s->header, s->header_size);
+        ret = bdrv_pwrite_sync(bs->file, 0, s->header, s->header_size);
         if (ret < 0) {
             res->check_errors++;
             return ret;
@@ -563,7 +563,7 @@ static int parallels_update_header(BlockDriverState *bs)
     if (size > s->header_size) {
         size = s->header_size;
     }
-    return bdrv_pwrite_sync(bs->file->bs, 0, s->header, size);
+    return bdrv_pwrite_sync(bs->file, 0, s->header, size);
 }
 
 static int parallels_open(BlockDriverState *bs, QDict *options, int flags,

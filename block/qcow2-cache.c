@@ -210,7 +210,7 @@ static int qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
         BLKDBG_EVENT(bs->file, BLKDBG_L2_UPDATE);
     }
 
-    ret = bdrv_pwrite(bs->file->bs, c->entries[i].offset,
+    ret = bdrv_pwrite(bs->file, c->entries[i].offset,
                       qcow2_cache_get_table_addr(bs, c, i), s->cluster_size);
     if (ret < 0) {
         return ret;

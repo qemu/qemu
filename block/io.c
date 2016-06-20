@@ -737,11 +737,11 @@ int bdrv_pread(BdrvChild *child, int64_t offset, void *buf, int bytes)
     return bdrv_preadv(child, offset, &qiov);
 }
 
-int bdrv_pwritev(BlockDriverState *bs, int64_t offset, QEMUIOVector *qiov)
+int bdrv_pwritev(BdrvChild *child, int64_t offset, QEMUIOVector *qiov)
 {
     int ret;
 
-    ret = bdrv_prwv_co(bs, offset, qiov, true, 0);
+    ret = bdrv_prwv_co(child->bs, offset, qiov, true, 0);
     if (ret < 0) {
         return ret;
     }
@@ -749,8 +749,7 @@ int bdrv_pwritev(BlockDriverState *bs, int64_t offset, QEMUIOVector *qiov)
     return qiov->size;
 }
 
-int bdrv_pwrite(BlockDriverState *bs, int64_t offset,
-                const void *buf, int bytes)
+int bdrv_pwrite(BdrvChild *child, int64_t offset, const void *buf, int bytes)
 {
     QEMUIOVector qiov;
     struct iovec iov = {
@@ -763,7 +762,7 @@ int bdrv_pwrite(BlockDriverState *bs, int64_t offset,
     }
 
     qemu_iovec_init_external(&qiov, &iov, 1);
-    return bdrv_pwritev(bs, offset, &qiov);
+    return bdrv_pwritev(child, offset, &qiov);
 }
 
 /*
@@ -772,17 +771,17 @@ int bdrv_pwrite(BlockDriverState *bs, int64_t offset,
  *
  * Returns 0 on success, -errno in error cases.
  */
-int bdrv_pwrite_sync(BlockDriverState *bs, int64_t offset,
-    const void *buf, int count)
+int bdrv_pwrite_sync(BdrvChild *child, int64_t offset,
+                     const void *buf, int count)
 {
     int ret;
 
-    ret = bdrv_pwrite(bs, offset, buf, count);
+    ret = bdrv_pwrite(child, offset, buf, count);
     if (ret < 0) {
         return ret;
     }
 
-    ret = bdrv_flush(bs);
+    ret = bdrv_flush(child->bs);
     if (ret < 0) {
         return ret;
     }

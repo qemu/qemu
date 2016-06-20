@@ -330,7 +330,7 @@ static int vhdx_write_header(BdrvChild *file, VHDXHeader *hdr,
     vhdx_header_le_export(hdr, header_le);
     vhdx_update_checksum(buffer, VHDX_HEADER_SIZE,
                          offsetof(VHDXHeader, checksum));
-    ret = bdrv_pwrite_sync(bs_file, offset, header_le, sizeof(VHDXHeader));
+    ret = bdrv_pwrite_sync(file, offset, header_le, sizeof(VHDXHeader));
 
 exit:
     qemu_vfree(buffer);

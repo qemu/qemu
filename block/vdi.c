@@ -670,7 +670,7 @@ vdi_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
              * acquire the lock and thus the padded cluster is written before
              * the other coroutines can write to the affected area. */
             qemu_co_mutex_lock(&s->write_lock);
-            ret = bdrv_pwrite(bs->file->bs, data_offset, block, s->block_size);
+            ret = bdrv_pwrite(bs->file, data_offset, block, s->block_size);
             qemu_co_mutex_unlock(&s->write_lock);
         } else {
             uint64_t data_offset = s->header.offset_data +

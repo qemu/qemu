@@ -249,7 +249,7 @@ int qcow2_mark_dirty(BlockDriverState *bs)
     }
 
     val = cpu_to_be64(s->incompatible_features | QCOW2_INCOMPAT_DIRTY);
-    ret = bdrv_pwrite(bs->file->bs, offsetof(QCowHeader, incompatible_features),
+    ret = bdrv_pwrite(bs->file, offsetof(QCowHeader, incompatible_features),
                       &val, sizeof(val));
     if (ret < 0) {
         return ret;
@@ -1976,7 +1976,7 @@ int qcow2_update_header(BlockDriverState *bs)
     }
 
     /* Write the new header */
-    ret = bdrv_pwrite(bs->file->bs, 0, header, s->cluster_size);
+    ret = bdrv_pwrite(bs->file, 0, header, s->cluster_size);
     if (ret < 0) {
         goto fail;
     }
@@ -2059,7 +2059,7 @@ static int preallocate(BlockDriverState *bs)
      */
     if (host_offset != 0) {
         uint8_t data = 0;
-        ret = bdrv_pwrite(bs->file->bs, (host_offset + cur_bytes) - 1,
+        ret = bdrv_pwrite(bs->file, (host_offset + cur_bytes) - 1,
                           &data, 1);
         if (ret < 0) {
             return ret;
@@ -2523,7 +2523,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset)
 
     /* write updated header.size */
     offset = cpu_to_be64(offset);
-    ret = bdrv_pwrite_sync(bs->file->bs, offsetof(QCowHeader, size),
+    ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, size),
                            &offset, sizeof(uint64_t));
     if (ret < 0) {
         return ret;
@@ -2660,7 +2660,7 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
         }
 
         BLKDBG_EVENT(bs->file, BLKDBG_WRITE_COMPRESSED);
-        ret = bdrv_pwrite(bs->file->bs, cluster_offset, out_buf, out_len);
+        ret = bdrv_pwrite(bs->file, cluster_offset, out_buf, out_len);
         if (ret < 0) {
             goto fail;
         }
@@ -2742,7 +2742,7 @@ static int make_completely_empty(BlockDriverState *bs)
     cpu_to_be64w(&l1_ofs_rt_ofs_cls.l1_offset, 3 * s->cluster_size);
     cpu_to_be64w(&l1_ofs_rt_ofs_cls.reftable_offset, s->cluster_size);
     cpu_to_be32w(&l1_ofs_rt_ofs_cls.reftable_clusters, 1);
-    ret = bdrv_pwrite_sync(bs->file->bs, offsetof(QCowHeader, l1_table_offset),
+    ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, l1_table_offset),
                            &l1_ofs_rt_ofs_cls, sizeof(l1_ofs_rt_ofs_cls));
     if (ret < 0) {
         goto fail_broken_refcounts;
@@ -2773,7 +2773,7 @@ static int make_completely_empty(BlockDriverState *bs)
 
     /* Enter the first refblock into the reftable */
     rt_entry = cpu_to_be64(2 * s->cluster_size);
-    ret = bdrv_pwrite_sync(bs->file->bs, s->cluster_size,
+    ret = bdrv_pwrite_sync(bs->file, s->cluster_size,
                            &rt_entry, sizeof(rt_entry));
     if (ret < 0) {
         goto fail_broken_refcounts;

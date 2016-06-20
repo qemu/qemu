@@ -306,7 +306,7 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
         pstrcat(desc, DESC_SIZE, tmp_desc);
     }
 
-    ret = bdrv_pwrite_sync(bs->file->bs, s->desc_offset, desc, DESC_SIZE);
+    ret = bdrv_pwrite_sync(bs->file, s->desc_offset, desc, DESC_SIZE);
 
 out:
     g_free(desc);
@@ -1052,7 +1052,7 @@ static int get_whole_cluster(BlockDriverState *bs,
                 goto exit;
             }
         }
-        ret = bdrv_pwrite(extent->file->bs, cluster_offset, whole_grain,
+        ret = bdrv_pwrite(extent->file, cluster_offset, whole_grain,
                           skip_start_bytes);
         if (ret < 0) {
             ret = VMDK_ERROR;
@@ -1070,7 +1070,7 @@ static int get_whole_cluster(BlockDriverState *bs,
                 goto exit;
             }
         }
-        ret = bdrv_pwrite(extent->file->bs, cluster_offset + skip_end_bytes,
+        ret = bdrv_pwrite(extent->file, cluster_offset + skip_end_bytes,
                           whole_grain + skip_end_bytes,
                           cluster_bytes - skip_end_bytes);
         if (ret < 0) {
@@ -1090,8 +1090,7 @@ static int vmdk_L2update(VmdkExtent *extent, VmdkMetaData *m_data,
 {
     offset = cpu_to_le32(offset);
     /* update L2 table */
-    if (bdrv_pwrite_sync(
-                extent->file->bs,
+    if (bdrv_pwrite_sync(extent->file,
                 ((int64_t)m_data->l2_offset * 512)
                     + (m_data->l2_index * sizeof(offset)),
                 &offset, sizeof(offset)) < 0) {
@@ -1100,8 +1099,7 @@ static int vmdk_L2update(VmdkExtent *extent, VmdkMetaData *m_data,
     /* update backup L2 table */
     if (extent->l1_backup_table_offset != 0) {
         m_data->l2_offset = extent->l1_backup_table[m_data->l1_index];
-        if (bdrv_pwrite_sync(
-                    extent->file->bs,
+        if (bdrv_pwrite_sync(extent->file,
                     ((int64_t)m_data->l2_offset * 512)
                         + (m_data->l2_index * sizeof(offset)),
                     &offset, sizeof(offset)) < 0) {

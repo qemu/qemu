@@ -194,7 +194,7 @@ static int vhdx_log_write_sectors(BlockDriverState *bs, VHDXLogEntries *log,
             /* full */
             break;
         }
-        ret = bdrv_pwrite(bs->file->bs, offset, buffer_tmp,
+        ret = bdrv_pwrite(bs->file, offset, buffer_tmp,
                           VHDX_LOG_SECTOR_SIZE);
         if (ret < 0) {
             goto exit;
@@ -466,7 +466,7 @@ static int vhdx_log_flush_desc(BlockDriverState *bs, VHDXLogDescriptor *desc,
 
     /* count is only > 1 if we are writing zeroes */
     for (i = 0; i < count; i++) {
-        ret = bdrv_pwrite_sync(bs->file->bs, file_offset, buffer,
+        ret = bdrv_pwrite_sync(bs->file, file_offset, buffer,
                                VHDX_LOG_SECTOR_SIZE);
         if (ret < 0) {
             goto exit;

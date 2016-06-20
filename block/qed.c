@@ -86,7 +86,7 @@ int qed_write_header_sync(BDRVQEDState *s)
     int ret;
 
     qed_header_cpu_to_le(&s->header, &le);
-    ret = bdrv_pwrite(s->bs->file->bs, 0, &le, sizeof(le));
+    ret = bdrv_pwrite(s->bs->file, 0, &le, sizeof(le));
     if (ret != sizeof(le)) {
         return ret;
     }
@@ -1575,7 +1575,7 @@ static int bdrv_qed_change_backing_file(BlockDriverState *bs,
     }
 
     /* Write new header */
-    ret = bdrv_pwrite_sync(bs->file->bs, 0, buffer, buffer_len);
+    ret = bdrv_pwrite_sync(bs->file, 0, buffer, buffer_len);
     g_free(buffer);
     if (ret == 0) {
         memcpy(&s->header, &new_header, sizeof(new_header));

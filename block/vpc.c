@@ -481,7 +481,7 @@ static inline int64_t get_image_offset(BlockDriverState *bs, uint64_t offset,
 
         s->last_bitmap_offset = bitmap_offset;
         memset(bitmap, 0xff, s->bitmap_size);
-        bdrv_pwrite_sync(bs->file->bs, bitmap_offset, bitmap, s->bitmap_size);
+        bdrv_pwrite_sync(bs->file, bitmap_offset, bitmap, s->bitmap_size);
     }
 
     return block_offset;
@@ -505,7 +505,7 @@ static int rewrite_footer(BlockDriverState* bs)
     BDRVVPCState *s = bs->opaque;
     int64_t offset = s->free_data_block_offset;
 
-    ret = bdrv_pwrite_sync(bs->file->bs, offset, s->footer_buf, HEADER_SIZE);
+    ret = bdrv_pwrite_sync(bs->file, offset, s->footer_buf, HEADER_SIZE);
     if (ret < 0)
         return ret;
 
@@ -539,7 +539,7 @@ static int64_t alloc_block(BlockDriverState* bs, int64_t offset)
 
     /* Initialize the block's bitmap */
     memset(bitmap, 0xff, s->bitmap_size);
-    ret = bdrv_pwrite_sync(bs->file->bs, s->free_data_block_offset, bitmap,
+    ret = bdrv_pwrite_sync(bs->file, s->free_data_block_offset, bitmap,
         s->bitmap_size);
     if (ret < 0) {
         return ret;
@@ -554,7 +554,7 @@ static int64_t alloc_block(BlockDriverState* bs, int64_t offset)
     /* Write BAT entry to disk */
     bat_offset = s->bat_offset + (4 * index);
     bat_value = cpu_to_be32(s->pagetable[index]);
-    ret = bdrv_pwrite_sync(bs->file->bs, bat_offset, &bat_value, 4);
+    ret = bdrv_pwrite_sync(bs->file, bat_offset, &bat_value, 4);
     if (ret < 0)
         goto fail;
 
