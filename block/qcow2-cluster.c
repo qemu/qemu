@@ -483,8 +483,8 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     unsigned int l2_index;
     uint64_t l1_index, l2_offset, *l2_table;
     int l1_bits, c;
-    unsigned int offset_in_cluster, nb_clusters;
-    uint64_t bytes_available, bytes_needed;
+    unsigned int offset_in_cluster;
+    uint64_t bytes_available, bytes_needed, nb_clusters;
     int ret;
 
     offset_in_cluster = offset_into_cluster(s, offset);
@@ -500,7 +500,6 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     if (bytes_needed > bytes_available) {
         bytes_needed = bytes_available;
     }
-    assert(bytes_needed <= INT_MAX);
 
     *cluster_offset = 0;
 
@@ -537,8 +536,11 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     l2_index = (offset >> s->cluster_bits) & (s->l2_size - 1);
     *cluster_offset = be64_to_cpu(l2_table[l2_index]);
 
-    /* nb_needed <= INT_MAX, thus nb_clusters <= INT_MAX, too */
     nb_clusters = size_to_clusters(s, bytes_needed);
+    /* bytes_needed <= *bytes + offset_in_cluster, both of which are unsigned
+     * integers; the minimum cluster size is 512, so this assertion is always
+     * true */
+    assert(nb_clusters <= INT_MAX);
 
     ret = qcow2_get_cluster_type(*cluster_offset);
     switch (ret) {
@@ -585,13 +587,17 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
 
     qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
 
-    bytes_available = (c * s->cluster_size);
+    bytes_available = (int64_t)c * s->cluster_size;
 
 out:
     if (bytes_available > bytes_needed) {
         bytes_available = bytes_needed;
     }
 
+    /* bytes_available <= bytes_needed <= *bytes + offset_in_cluster;
+     * subtracting offset_in_cluster will therefore definitely yield something
+     * not exceeding UINT_MAX */
+    assert(bytes_available - offset_in_cluster <= UINT_MAX);
     *bytes = bytes_available - offset_in_cluster;
 
     return ret;
