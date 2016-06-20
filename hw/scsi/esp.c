@@ -574,7 +574,7 @@ static bool esp_mem_accepts(void *opaque, hwaddr addr,
 
 const VMStateDescription vmstate_esp = {
     .name ="esp",
-    .version_id = 3,
+    .version_id = 4,
     .minimum_version_id = 3,
     .fields = (VMStateField[]) {
         VMSTATE_BUFFER(rregs, ESPState),
@@ -585,7 +585,8 @@ const VMStateDescription vmstate_esp = {
         VMSTATE_BUFFER(ti_buf, ESPState),
         VMSTATE_UINT32(status, ESPState),
         VMSTATE_UINT32(dma, ESPState),
-        VMSTATE_BUFFER(cmdbuf, ESPState),
+        VMSTATE_PARTIAL_BUFFER(cmdbuf, ESPState, 16),
+        VMSTATE_BUFFER_START_MIDDLE_V(cmdbuf, ESPState, 16, 4),
         VMSTATE_UINT32(cmdlen, ESPState),
         VMSTATE_UINT32(do_cmd, ESPState),
         VMSTATE_UINT32(dma_left, ESPState),
