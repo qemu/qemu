@@ -1884,6 +1884,9 @@ if test "$seccomp" != "no" ; then
     arm|aarch64)
         libseccomp_minver="2.2.3"
         ;;
+    ppc|ppc64)
+        libseccomp_minver="2.3.0"
+        ;;
     *)
         libseccomp_minver=""
         ;;
