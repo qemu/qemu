@@ -1696,9 +1696,7 @@ static void gen_rlwinm(DisasContext *ctx)
 #endif
         mask = MASK(mb, me);
 
-        if (sh == 0) {
-            tcg_gen_andi_tl(t_ra, t_rs, mask);
-        } else if (mask <= 0xffffffffu) {
+        if (mask <= 0xffffffffu) {
             TCGv_i32 t0 = tcg_temp_new_i32();
             tcg_gen_trunc_tl_i32(t0, t_rs);
             tcg_gen_rotli_i32(t0, t0, sh);
