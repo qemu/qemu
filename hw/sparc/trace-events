@@ -1,0 +1,11 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# hw/sparc/sun4m.c
+sun4m_cpu_interrupt(unsigned int level) "Set CPU IRQ %d"
+sun4m_cpu_reset_interrupt(unsigned int level) "Reset CPU IRQ %d"
+sun4m_cpu_set_irq_raise(int level) "Raise CPU IRQ %d"
+sun4m_cpu_set_irq_lower(int level) "Lower CPU IRQ %d"
+
+# hw/sparc/leon3.c
+leon3_set_irq(int intno) "Set CPU IRQ %d"
+leon3_reset_irq(int intno) "Reset CPU IRQ %d"

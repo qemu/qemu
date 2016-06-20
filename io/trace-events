@@ -1,0 +1,63 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# io/buffer.c
+buffer_resize(const char *buf, size_t olen, size_t len) "%s: old %zd, new %zd"
+buffer_move_empty(const char *buf, size_t len, const char *from) "%s: %zd bytes from %s"
+buffer_move(const char *buf, size_t len, const char *from) "%s: %zd bytes from %s"
+buffer_free(const char *buf, size_t len) "%s: capacity %zd"
+
+# io/task.c
+qio_task_new(void *task, void *source, void *func, void *opaque) "Task new task=%p source=%p func=%p opaque=%p"
+qio_task_complete(void *task) "Task complete task=%p"
+qio_task_abort(void *task) "Task abort task=%p"
+qio_task_thread_start(void *task, void *worker, void *opaque) "Task thread start task=%p worker=%p opaque=%p"
+qio_task_thread_run(void *task) "Task thread run task=%p"
+qio_task_thread_exit(void *task) "Task thread exit task=%p"
+qio_task_thread_result(void *task) "Task thread result task=%p"
+
+# io/channel-socket.c
+qio_channel_socket_new(void *ioc) "Socket new ioc=%p"
+qio_channel_socket_new_fd(void *ioc, int fd) "Socket new ioc=%p fd=%d"
+qio_channel_socket_connect_sync(void *ioc, void *addr) "Socket connect sync ioc=%p addr=%p"
+qio_channel_socket_connect_async(void *ioc, void *addr) "Socket connect async ioc=%p addr=%p"
+qio_channel_socket_connect_fail(void *ioc) "Socket connect fail ioc=%p"
+qio_channel_socket_connect_complete(void *ioc, int fd) "Socket connect complete ioc=%p fd=%d"
+qio_channel_socket_listen_sync(void *ioc, void *addr) "Socket listen sync ioc=%p addr=%p"
+qio_channel_socket_listen_async(void *ioc, void *addr) "Socket listen async ioc=%p addr=%p"
+qio_channel_socket_listen_fail(void *ioc) "Socket listen fail ioc=%p"
+qio_channel_socket_listen_complete(void *ioc, int fd) "Socket listen complete ioc=%p fd=%d"
+qio_channel_socket_dgram_sync(void *ioc, void *localAddr, void *remoteAddr) "Socket dgram sync ioc=%p localAddr=%p remoteAddr=%p"
+qio_channel_socket_dgram_async(void *ioc, void *localAddr, void *remoteAddr) "Socket dgram async ioc=%p localAddr=%p remoteAddr=%p"
+qio_channel_socket_dgram_fail(void *ioc) "Socket dgram fail ioc=%p"
+qio_channel_socket_dgram_complete(void *ioc, int fd) "Socket dgram complete ioc=%p fd=%d"
+qio_channel_socket_accept(void *ioc) "Socket accept start ioc=%p"
+qio_channel_socket_accept_fail(void *ioc) "Socket accept fail ioc=%p"
+qio_channel_socket_accept_complete(void *ioc, void *cioc, int fd) "Socket accept complete ioc=%p cioc=%p fd=%d"
+
+# io/channel-file.c
+qio_channel_file_new_fd(void *ioc, int fd) "File new fd ioc=%p fd=%d"
+qio_channel_file_new_path(void *ioc, const char *path, int flags, int mode, int fd) "File new fd ioc=%p path=%s flags=%d mode=%d fd=%d"
+
+# io/channel-tls.c
+qio_channel_tls_new_client(void *ioc, void *master, void *creds, const char *hostname) "TLS new client ioc=%p master=%p creds=%p hostname=%s"
+qio_channel_tls_new_server(void *ioc, void *master, void *creds, const char *aclname) "TLS new client ioc=%p master=%p creds=%p acltname=%s"
+qio_channel_tls_handshake_start(void *ioc) "TLS handshake start ioc=%p"
+qio_channel_tls_handshake_pending(void *ioc, int status) "TLS handshake pending ioc=%p status=%d"
+qio_channel_tls_handshake_fail(void *ioc) "TLS handshake fail ioc=%p"
+qio_channel_tls_handshake_complete(void *ioc) "TLS handshake complete ioc=%p"
+qio_channel_tls_credentials_allow(void *ioc) "TLS credentials allow ioc=%p"
+qio_channel_tls_credentials_deny(void *ioc) "TLS credentials deny ioc=%p"
+
+# io/channel-websock.c
+qio_channel_websock_new_server(void *ioc, void *master) "Websock new client ioc=%p master=%p"
+qio_channel_websock_handshake_start(void *ioc) "Websock handshake start ioc=%p"
+qio_channel_websock_handshake_pending(void *ioc, int status) "Websock handshake pending ioc=%p status=%d"
+qio_channel_websock_handshake_reply(void *ioc) "Websock handshake reply ioc=%p"
+qio_channel_websock_handshake_fail(void *ioc) "Websock handshake fail ioc=%p"
+qio_channel_websock_handshake_complete(void *ioc) "Websock handshake complete ioc=%p"
+
+# io/channel-command.c
+qio_channel_command_new_pid(void *ioc, int writefd, int readfd, int pid) "Command new pid ioc=%p writefd=%d readfd=%d pid=%d"
+qio_channel_command_new_spawn(void *ioc, const char *binary, int flags) "Command new spawn ioc=%p binary=%s flags=%d"
+qio_channel_command_abort(void *ioc, int pid) "Command abort ioc=%p pid=%d"
+qio_channel_command_wait(void *ioc, int pid, int ret, int status) "Command abort ioc=%p pid=%d ret=%d status=%d"

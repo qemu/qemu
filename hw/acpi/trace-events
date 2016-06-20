@@ -1,0 +1,18 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# hw/acpi/memory_hotplug.c
+mhp_acpi_invalid_slot_selected(uint32_t slot) "0x%"PRIx32
+mhp_acpi_ejecting_invalid_slot(uint32_t slot) "0x%"PRIx32
+mhp_acpi_read_addr_lo(uint32_t slot, uint32_t addr) "slot[0x%"PRIx32"] addr lo: 0x%"PRIx32
+mhp_acpi_read_addr_hi(uint32_t slot, uint32_t addr) "slot[0x%"PRIx32"] addr hi: 0x%"PRIx32
+mhp_acpi_read_size_lo(uint32_t slot, uint32_t size) "slot[0x%"PRIx32"] size lo: 0x%"PRIx32
+mhp_acpi_read_size_hi(uint32_t slot, uint32_t size) "slot[0x%"PRIx32"] size hi: 0x%"PRIx32
+mhp_acpi_read_pxm(uint32_t slot, uint32_t pxm) "slot[0x%"PRIx32"] proximity: 0x%"PRIx32
+mhp_acpi_read_flags(uint32_t slot, uint32_t flags) "slot[0x%"PRIx32"] flags: 0x%"PRIx32
+mhp_acpi_write_slot(uint32_t slot) "set active slot: 0x%"PRIx32
+mhp_acpi_write_ost_ev(uint32_t slot, uint32_t ev) "slot[0x%"PRIx32"] OST EVENT: 0x%"PRIx32
+mhp_acpi_write_ost_status(uint32_t slot, uint32_t st) "slot[0x%"PRIx32"] OST STATUS: 0x%"PRIx32
+mhp_acpi_clear_insert_evt(uint32_t slot) "slot[0x%"PRIx32"] clear insert event"
+mhp_acpi_clear_remove_evt(uint32_t slot) "slot[0x%"PRIx32"] clear remove event"
+mhp_acpi_pc_dimm_deleted(uint32_t slot) "slot[0x%"PRIx32"] pc-dimm deleted"
+mhp_acpi_pc_dimm_delete_failed(uint32_t slot) "slot[0x%"PRIx32"] pc-dimm delete failed"

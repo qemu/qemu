@@ -115,3 +115,46 @@ qga-vss-dll-obj-y = qga/
 # contrib
 ivshmem-client-obj-y = contrib/ivshmem-client/
 ivshmem-server-obj-y = contrib/ivshmem-server/
+
+
+######################################################################
+trace-events-y = trace-events
+trace-events-y += util/trace-events
+trace-events-y += crypto/trace-events
+trace-events-y += io/trace-events
+trace-events-y += migration/trace-events
+trace-events-y += block/trace-events
+trace-events-y += hw/block/trace-events
+trace-events-y += hw/char/trace-events
+trace-events-y += hw/intc/trace-events
+trace-events-y += hw/net/trace-events
+trace-events-y += hw/virtio/trace-events
+trace-events-y += hw/audio/trace-events
+trace-events-y += hw/misc/trace-events
+trace-events-y += hw/usb/trace-events
+trace-events-y += hw/scsi/trace-events
+trace-events-y += hw/nvram/trace-events
+trace-events-y += hw/display/trace-events
+trace-events-y += hw/input/trace-events
+trace-events-y += hw/timer/trace-events
+trace-events-y += hw/dma/trace-events
+trace-events-y += hw/sparc/trace-events
+trace-events-y += hw/sd/trace-events
+trace-events-y += hw/isa/trace-events
+trace-events-y += hw/i386/trace-events
+trace-events-y += hw/9pfs/trace-events
+trace-events-y += hw/ppc/trace-events
+trace-events-y += hw/pci/trace-events
+trace-events-y += hw/s390x/trace-events
+trace-events-y += hw/vfio/trace-events
+trace-events-y += hw/acpi/trace-events
+trace-events-y += hw/arm/trace-events
+trace-events-y += hw/alpha/trace-events
+trace-events-y += ui/trace-events
+trace-events-y += audio/trace-events
+trace-events-y += net/trace-events
+trace-events-y += target-sparc/trace-events
+trace-events-y += target-s390x/trace-events
+trace-events-y += target-ppc/trace-events
+trace-events-y += qom/trace-events
+trace-events-y += linux-user/trace-events

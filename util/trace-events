@@ -1,0 +1,13 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# util/oslib-win32.c
+# util/oslib-posix.c
+qemu_memalign(size_t alignment, size_t size, void *ptr) "alignment %zu size %zu ptr %p"
+qemu_anon_ram_alloc(size_t size, void *ptr) "size %zu ptr %p"
+qemu_vfree(void *ptr) "ptr %p"
+qemu_anon_ram_free(void *ptr, size_t size) "ptr %p size %zu"
+
+# util/hbitmap.c
+hbitmap_iter_skip_words(const void *hb, void *hbi, uint64_t pos, unsigned long cur) "hb %p hbi %p pos %"PRId64" cur 0x%lx"
+hbitmap_reset(void *hb, uint64_t start, uint64_t count, uint64_t sbit, uint64_t ebit) "hb %p items %"PRIu64",%"PRIu64" bits %"PRIu64"..%"PRIu64
+hbitmap_set(void *hb, uint64_t start, uint64_t count, uint64_t sbit, uint64_t ebit) "hb %p items %"PRIu64",%"PRIu64" bits %"PRIu64"..%"PRIu64

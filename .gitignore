@@ -5,6 +5,7 @@
 /config-target.*
 /config.status
 /config-temp
+/trace-events-all
 /trace/generated-tracers.h
 /trace/generated-tracers.c
 /trace/generated-tracers-dtrace.h

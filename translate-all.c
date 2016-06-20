@@ -1182,7 +1182,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 
     tcg_func_start(&tcg_ctx);
 
+    tcg_ctx.cpu = ENV_GET_CPU(env);
     gen_intermediate_code(env, tb);
+    tcg_ctx.cpu = NULL;
 
     trace_translate_block(tb, tb->pc, tb->tc_ptr);
 

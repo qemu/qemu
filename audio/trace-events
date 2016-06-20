@@ -1,0 +1,17 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# audio/alsaaudio.c
+alsa_revents(int revents) "revents = %d"
+alsa_pollout(int i, int fd) "i = %d fd = %d"
+alsa_set_handler(int events, int index, int fd, int err) "events=%#x index=%d fd=%d err=%d"
+alsa_wrote_zero(int len) "Failed to write %d frames (wrote zero)"
+alsa_read_zero(long len) "Failed to read %ld frames (read zero)"
+alsa_xrun_out(void) "Recovering from playback xrun"
+alsa_xrun_in(void) "Recovering from capture xrun"
+alsa_resume_out(void) "Resuming suspended output stream"
+alsa_resume_in(void) "Resuming suspended input stream"
+alsa_no_frames(int state) "No frames available and ALSA state is %d"
+
+# audio/ossaudio.c
+oss_version(int version) "OSS version = %#x"
+oss_invalid_available_size(int size, int bufsize) "Invalid available size, size=%d bufsize=%d"

@@ -1,0 +1,116 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# block.c
+bdrv_open_common(void *bs, const char *filename, int flags, const char *format_name) "bs %p filename \"%s\" flags %#x format_name \"%s\""
+bdrv_lock_medium(void *bs, bool locked) "bs %p locked %d"
+
+# block/block-backend.c
+blk_co_preadv(void *blk, void *bs, int64_t offset, unsigned int bytes, int flags) "blk %p bs %p offset %"PRId64" bytes %u flags %x"
+blk_co_pwritev(void *blk, void *bs, int64_t offset, unsigned int bytes, int flags) "blk %p bs %p offset %"PRId64" bytes %u flags %x"
+
+# block/io.c
+bdrv_aio_discard(void *bs, int64_t sector_num, int nb_sectors, void *opaque) "bs %p sector_num %"PRId64" nb_sectors %d opaque %p"
+bdrv_aio_flush(void *bs, void *opaque) "bs %p opaque %p"
+bdrv_aio_readv(void *bs, int64_t sector_num, int nb_sectors, void *opaque) "bs %p sector_num %"PRId64" nb_sectors %d opaque %p"
+bdrv_aio_writev(void *bs, int64_t sector_num, int nb_sectors, void *opaque) "bs %p sector_num %"PRId64" nb_sectors %d opaque %p"
+bdrv_co_readv(void *bs, int64_t sector_num, int nb_sector) "bs %p sector_num %"PRId64" nb_sectors %d"
+bdrv_co_writev(void *bs, int64_t sector_num, int nb_sector) "bs %p sector_num %"PRId64" nb_sectors %d"
+bdrv_co_pwrite_zeroes(void *bs, int64_t offset, int count, int flags) "bs %p offset %"PRId64" count %d flags %#x"
+bdrv_co_do_copy_on_readv(void *bs, int64_t offset, unsigned int bytes, int64_t cluster_offset, unsigned int cluster_bytes) "bs %p offset %"PRId64" bytes %u cluster_offset %"PRId64" cluster_bytes %u"
+
+# block/stream.c
+stream_one_iteration(void *s, int64_t sector_num, int nb_sectors, int is_allocated) "s %p sector_num %"PRId64" nb_sectors %d is_allocated %d"
+stream_start(void *bs, void *base, void *s, void *co, void *opaque) "bs %p base %p s %p co %p opaque %p"
+
+# block/commit.c
+commit_one_iteration(void *s, int64_t sector_num, int nb_sectors, int is_allocated) "s %p sector_num %"PRId64" nb_sectors %d is_allocated %d"
+commit_start(void *bs, void *base, void *top, void *s, void *co, void *opaque) "bs %p base %p top %p s %p co %p opaque %p"
+
+# block/mirror.c
+mirror_start(void *bs, void *s, void *co, void *opaque) "bs %p s %p co %p opaque %p"
+mirror_restart_iter(void *s, int64_t cnt) "s %p dirty count %"PRId64
+mirror_before_flush(void *s) "s %p"
+mirror_before_drain(void *s, int64_t cnt) "s %p dirty count %"PRId64
+mirror_before_sleep(void *s, int64_t cnt, int synced, uint64_t delay_ns) "s %p dirty count %"PRId64" synced %d delay %"PRIu64"ns"
+mirror_one_iteration(void *s, int64_t sector_num, int nb_sectors) "s %p sector_num %"PRId64" nb_sectors %d"
+mirror_iteration_done(void *s, int64_t sector_num, int nb_sectors, int ret) "s %p sector_num %"PRId64" nb_sectors %d ret %d"
+mirror_yield(void *s, int64_t cnt, int buf_free_count, int in_flight) "s %p dirty count %"PRId64" free buffers %d in_flight %d"
+mirror_yield_in_flight(void *s, int64_t sector_num, int in_flight) "s %p sector_num %"PRId64" in_flight %d"
+mirror_yield_buf_busy(void *s, int nb_chunks, int in_flight) "s %p requested chunks %d in_flight %d"
+mirror_break_buf_busy(void *s, int nb_chunks, int in_flight) "s %p requested chunks %d in_flight %d"
+
+# block/backup.c
+backup_do_cow_enter(void *job, int64_t start, int64_t sector_num, int nb_sectors) "job %p start %"PRId64" sector_num %"PRId64" nb_sectors %d"
+backup_do_cow_return(void *job, int64_t sector_num, int nb_sectors, int ret) "job %p sector_num %"PRId64" nb_sectors %d ret %d"
+backup_do_cow_skip(void *job, int64_t start) "job %p start %"PRId64
+backup_do_cow_process(void *job, int64_t start) "job %p start %"PRId64
+backup_do_cow_read_fail(void *job, int64_t start, int ret) "job %p start %"PRId64" ret %d"
+backup_do_cow_write_fail(void *job, int64_t start, int ret) "job %p start %"PRId64" ret %d"
+
+# blockdev.c
+qmp_block_job_cancel(void *job) "job %p"
+qmp_block_job_pause(void *job) "job %p"
+qmp_block_job_resume(void *job) "job %p"
+qmp_block_job_complete(void *job) "job %p"
+block_job_cb(void *bs, void *job, int ret) "bs %p job %p ret %d"
+qmp_block_stream(void *bs, void *job) "bs %p job %p"
+
+# block/raw-win32.c
+# block/raw-posix.c
+paio_submit_co(int64_t offset, int count, int type) "offset %"PRId64" count %d type %d"
+paio_submit(void *acb, void *opaque, int64_t sector_num, int nb_sectors, int type) "acb %p opaque %p sector_num %"PRId64" nb_sectors %d type %d"
+
+# block/qcow2.c
+qcow2_writev_start_req(void *co, int64_t offset, int bytes) "co %p offset %" PRIx64 " bytes %d"
+qcow2_writev_done_req(void *co, int ret) "co %p ret %d"
+qcow2_writev_start_part(void *co) "co %p"
+qcow2_writev_done_part(void *co, int cur_bytes) "co %p cur_bytes %d"
+qcow2_writev_data(void *co, uint64_t offset) "co %p offset %" PRIx64
+qcow2_pwrite_zeroes_start_req(void *co, int64_t offset, int count) "co %p offset %" PRIx64 " count %d"
+qcow2_pwrite_zeroes(void *co, int64_t offset, int count) "co %p offset %" PRIx64 " count %d"
+
+# block/qcow2-cluster.c
+qcow2_alloc_clusters_offset(void *co, uint64_t offset, int bytes) "co %p offset %" PRIx64 " bytes %d"
+qcow2_handle_copied(void *co, uint64_t guest_offset, uint64_t host_offset, uint64_t bytes) "co %p guest_offset %" PRIx64 " host_offset %" PRIx64 " bytes %" PRIx64
+qcow2_handle_alloc(void *co, uint64_t guest_offset, uint64_t host_offset, uint64_t bytes) "co %p guest_offset %" PRIx64 " host_offset %" PRIx64 " bytes %" PRIx64
+qcow2_do_alloc_clusters_offset(void *co, uint64_t guest_offset, uint64_t host_offset, int nb_clusters) "co %p guest_offset %" PRIx64 " host_offset %" PRIx64 " nb_clusters %d"
+qcow2_cluster_alloc_phys(void *co) "co %p"
+qcow2_cluster_link_l2(void *co, int nb_clusters) "co %p nb_clusters %d"
+
+qcow2_l2_allocate(void *bs, int l1_index) "bs %p l1_index %d"
+qcow2_l2_allocate_get_empty(void *bs, int l1_index) "bs %p l1_index %d"
+qcow2_l2_allocate_write_l2(void *bs, int l1_index) "bs %p l1_index %d"
+qcow2_l2_allocate_write_l1(void *bs, int l1_index) "bs %p l1_index %d"
+qcow2_l2_allocate_done(void *bs, int l1_index, int ret) "bs %p l1_index %d ret %d"
+
+# block/qcow2-cache.c
+qcow2_cache_get(void *co, int c, uint64_t offset, bool read_from_disk) "co %p is_l2_cache %d offset %" PRIx64 " read_from_disk %d"
+qcow2_cache_get_replace_entry(void *co, int c, int i) "co %p is_l2_cache %d index %d"
+qcow2_cache_get_read(void *co, int c, int i) "co %p is_l2_cache %d index %d"
+qcow2_cache_get_done(void *co, int c, int i) "co %p is_l2_cache %d index %d"
+qcow2_cache_flush(void *co, int c) "co %p is_l2_cache %d"
+qcow2_cache_entry_flush(void *co, int c, int i) "co %p is_l2_cache %d index %d"
+
+# block/qed-l2-cache.c
+qed_alloc_l2_cache_entry(void *l2_cache, void *entry) "l2_cache %p entry %p"
+qed_unref_l2_cache_entry(void *entry, int ref) "entry %p ref %d"
+qed_find_l2_cache_entry(void *l2_cache, void *entry, uint64_t offset, int ref) "l2_cache %p entry %p offset %"PRIu64" ref %d"
+
+# block/qed-table.c
+qed_read_table(void *s, uint64_t offset, void *table) "s %p offset %"PRIu64" table %p"
+qed_read_table_cb(void *s, void *table, int ret) "s %p table %p ret %d"
+qed_write_table(void *s, uint64_t offset, void *table, unsigned int index, unsigned int n) "s %p offset %"PRIu64" table %p index %u n %u"
+qed_write_table_cb(void *s, void *table, int flush, int ret) "s %p table %p flush %d ret %d"
+
+# block/qed.c
+qed_need_check_timer_cb(void *s) "s %p"
+qed_start_need_check_timer(void *s) "s %p"
+qed_cancel_need_check_timer(void *s) "s %p"
+qed_aio_complete(void *s, void *acb, int ret) "s %p acb %p ret %d"
+qed_aio_setup(void *s, void *acb, int64_t sector_num, int nb_sectors, void *opaque, int flags) "s %p acb %p sector_num %"PRId64" nb_sectors %d opaque %p flags %#x"
+qed_aio_next_io(void *s, void *acb, int ret, uint64_t cur_pos) "s %p acb %p ret %d cur_pos %"PRIu64
+qed_aio_read_data(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"
+qed_aio_write_data(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"
+qed_aio_write_prefill(void *s, void *acb, uint64_t start, size_t len, uint64_t offset) "s %p acb %p start %"PRIu64" len %zu offset %"PRIu64
+qed_aio_write_postfill(void *s, void *acb, uint64_t start, size_t len, uint64_t offset) "s %p acb %p start %"PRIu64" len %zu offset %"PRIu64
+qed_aio_write_main(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"

@@ -3677,8 +3677,8 @@ Specify tracing options.
 @table @option
 @item [enable=]@var{pattern}
 Immediately enable events matching @var{pattern}.
-The file must contain one event name (as listed in the @file{trace-events} file)
-per line; globbing patterns are accepted too.  This option is only
+The file must contain one event name (as listed in the @file{trace-events-all}
+file) per line; globbing patterns are accepted too.  This option is only
 available if QEMU has been compiled with the @var{simple}, @var{stderr}
 or @var{ftrace} tracing backend.  To specify multiple events or patterns,
 specify the @option{-trace} option multiple times.
@@ -3687,8 +3687,8 @@ Use @code{-trace help} to print a list of names of trace points.
 
 @item events=@var{file}
 Immediately enable events listed in @var{file}.
-The file must contain one event name (as listed in the @file{trace-events} file)
-per line; globbing patterns are accepted too.  This option is only
+The file must contain one event name (as listed in the @file{trace-events-all}
+file) per line; globbing patterns are accepted too.  This option is only
 available if QEMU has been compiled with the @var{simple}, @var{stderr} or
 @var{ftrace} tracing backend.
 

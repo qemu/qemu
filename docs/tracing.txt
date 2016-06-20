@@ -23,20 +23,24 @@ for debugging, profiling, and observing execution.
 
 4. Pretty-print the binary trace file:
 
-    ./scripts/simpletrace.py trace-events trace-* # Override * with QEMU <pid>
+    ./scripts/simpletrace.py trace-events-all trace-* # Override * with QEMU <pid>
 
 == Trace events ==
 
-There is a set of static trace events declared in the "trace-events" source
-file.  Each trace event declaration names the event, its arguments, and the
-format string which can be used for pretty-printing:
+Each directory in the source tree can declare a set of static trace events
+in a "trace-events" file. Each trace event declaration names the event, its
+arguments, and the format string which can be used for pretty-printing:
 
     qemu_vmalloc(size_t size, void *ptr) "size %zu ptr %p"
     qemu_vfree(void *ptr) "ptr %p"
 
-The "trace-events" file is processed by the "tracetool" script during build to
-generate code for the trace events.  Trace events are invoked directly from
-source code like this:
+All "trace-events" files must be listed in the "trace-event-y" make variable
+in the top level Makefile.objs. During build the individual files are combined
+to create a "trace-events-all" file, which is processed by the "tracetool"
+script during build to generate code for the trace events. The
+"trace-events-all" file is also installed into "/usr/share/qemu".
+
+Trace events are invoked directly from source code like this:
 
     #include "trace.h"  /* needed for trace event prototype */
     
@@ -196,12 +200,12 @@ Restriction: "ftrace" backend is restricted to Linux only.
 ==== Analyzing trace files ====
 
 The "simple" backend produces binary trace files that can be formatted with the
-simpletrace.py script.  The script takes the "trace-events" file and the binary
-trace:
+simpletrace.py script.  The script takes the "trace-events-all" file and the
+binary trace:
 
-    ./scripts/simpletrace.py trace-events trace-12345
+    ./scripts/simpletrace.py trace-events-all trace-12345
 
-You must ensure that the same "trace-events" file was used to build QEMU,
+You must ensure that the same "trace-events-all" file was used to build QEMU,
 otherwise trace event declarations may have changed and output will not be
 consistent.
 
@@ -259,11 +263,11 @@ probes:
                          --binary path/to/qemu-binary \
                          --target-type system \
                          --target-name x86_64 \
-                         <trace-events >qemu.stp
+                         <trace-events-all >qemu.stp
 
 == Trace event properties ==
 
-Each event in the "trace-events" file can be prefixed with a space-separated
+Each event in the "trace-events-all" file can be prefixed with a space-separated
 list of zero or more of the following event properties.
 
 === "disable" ===
@@ -275,7 +279,7 @@ programmatically disabled.
 In this case you should declare such event with the "disable" property. This
 will effectively disable the event at compile time (by using the "nop" backend),
 thus having no performance impact at all on regular builds (i.e., unless you
-edit the "trace-events" file).
+edit the "trace-events-all" file).
 
 In addition, there might be cases where relatively complex computations must be
 performed to generate values that are only used as arguments for a trace

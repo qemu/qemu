@@ -1,0 +1,17 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# hw/block/virtio-blk.c
+virtio_blk_req_complete(void *req, int status) "req %p status %d"
+virtio_blk_rw_complete(void *req, int ret) "req %p ret %d"
+virtio_blk_handle_write(void *req, uint64_t sector, size_t nsectors) "req %p sector %"PRIu64" nsectors %zu"
+virtio_blk_handle_read(void *req, uint64_t sector, size_t nsectors) "req %p sector %"PRIu64" nsectors %zu"
+virtio_blk_submit_multireq(void *mrb, int start, int num_reqs, uint64_t offset, size_t size, bool is_write) "mrb %p start %d num_reqs %d offset %"PRIu64" size %zu is_write %d"
+
+# hw/block/dataplane/virtio-blk.c
+virtio_blk_data_plane_start(void *s) "dataplane %p"
+virtio_blk_data_plane_stop(void *s) "dataplane %p"
+virtio_blk_data_plane_process_request(void *s, unsigned int out_num, unsigned int in_num, unsigned int head) "dataplane %p out_num %u in_num %u head %u"
+
+# hw/block/hd-geometry.c
+hd_geometry_lchs_guess(void *blk, int cyls, int heads, int secs) "blk %p LCHS %d %d %d"
+hd_geometry_guess(void *blk, uint32_t cyls, uint32_t heads, uint32_t secs, int trans) "blk %p CHS %u %u %u trans %d"

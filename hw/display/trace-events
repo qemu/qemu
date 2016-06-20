@@ -1,0 +1,122 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# hw/display/jazz_led.c
+jazz_led_read(uint64_t addr, uint8_t val) "read addr=0x%"PRIx64": 0x%x"
+jazz_led_write(uint64_t addr, uint8_t new) "write addr=0x%"PRIx64": 0x%x"
+
+# hw/display/xenfb.c
+xenfb_mouse_event(void *opaque, int dx, int dy, int dz, int button_state, int abs_pointer_wanted) "%p x %d y %d z %d bs %#x abs %d"
+xenfb_input_connected(void *xendev, int abs_pointer_wanted) "%p abs %d"
+
+# hw/display/g364fb.c
+g364fb_read(uint64_t addr, uint32_t val) "read addr=0x%"PRIx64": 0x%x"
+g364fb_write(uint64_t addr, uint32_t new) "write addr=0x%"PRIx64": 0x%x"
+
+# hw/display/milkymist-tmu2.c
+milkymist_tmu2_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+milkymist_tmu2_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+milkymist_tmu2_start(void) "Start TMU"
+milkymist_tmu2_pulse_irq(void) "Pulse IRQ"
+
+# hw/display/milkymist-vgafb.c
+milkymist_vgafb_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+milkymist_vgafb_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+
+# hw/display/vmware_vga.c
+vmware_value_read(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_value_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_palette_read(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_palette_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_scratch_read(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_scratch_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_setmode(uint32_t w, uint32_t h, uint32_t bpp) "%dx%d @ %d bpp"
+
+# hw/display/virtio-gpu.c
+virtio_gpu_features(bool virgl) "virgl %d"
+virtio_gpu_cmd_get_display_info(void) ""
+virtio_gpu_cmd_get_caps(void) ""
+virtio_gpu_cmd_set_scanout(uint32_t id, uint32_t res, uint32_t w, uint32_t h, uint32_t x, uint32_t y) "id %d, res 0x%x, w %d, h %d, x %d, y %d"
+virtio_gpu_cmd_res_create_2d(uint32_t res, uint32_t fmt, uint32_t w, uint32_t h) "res 0x%x, fmt 0x%x, w %d, h %d"
+virtio_gpu_cmd_res_create_3d(uint32_t res, uint32_t fmt, uint32_t w, uint32_t h, uint32_t d) "res 0x%x, fmt 0x%x, w %d, h %d, d %d"
+virtio_gpu_cmd_res_unref(uint32_t res) "res 0x%x"
+virtio_gpu_cmd_res_back_attach(uint32_t res) "res 0x%x"
+virtio_gpu_cmd_res_back_detach(uint32_t res) "res 0x%x"
+virtio_gpu_cmd_res_xfer_toh_2d(uint32_t res) "res 0x%x"
+virtio_gpu_cmd_res_xfer_toh_3d(uint32_t res) "res 0x%x"
+virtio_gpu_cmd_res_xfer_fromh_3d(uint32_t res) "res 0x%x"
+virtio_gpu_cmd_res_flush(uint32_t res, uint32_t w, uint32_t h, uint32_t x, uint32_t y) "res 0x%x, w %d, h %d, x %d, y %d"
+virtio_gpu_cmd_ctx_create(uint32_t ctx, const char *name) "ctx 0x%x, name %s"
+virtio_gpu_cmd_ctx_destroy(uint32_t ctx) "ctx 0x%x"
+virtio_gpu_cmd_ctx_res_attach(uint32_t ctx, uint32_t res) "ctx 0x%x, res 0x%x"
+virtio_gpu_cmd_ctx_res_detach(uint32_t ctx, uint32_t res) "ctx 0x%x, res 0x%x"
+virtio_gpu_cmd_ctx_submit(uint32_t ctx, uint32_t size) "ctx 0x%x, size %d"
+virtio_gpu_update_cursor(uint32_t scanout, uint32_t x, uint32_t y, const char *type, uint32_t res) "scanout %d, x %d, y %d, %s, res 0x%x"
+virtio_gpu_fence_ctrl(uint64_t fence, uint32_t type) "fence 0x%" PRIx64 ", type 0x%x"
+virtio_gpu_fence_resp(uint64_t fence) "fence 0x%" PRIx64
+
+# hw/display/qxl.c
+disable qxl_interface_set_mm_time(int qid, uint32_t mm_time) "%d %d"
+disable qxl_io_write_vga(int qid, const char *mode, uint32_t addr, uint32_t val) "%d %s addr=%u val=%u"
+qxl_create_guest_primary(int qid, uint32_t width, uint32_t height, uint64_t mem, uint32_t format, uint32_t position) "%d %ux%u mem=%" PRIx64 " %u,%u"
+qxl_create_guest_primary_rest(int qid, int32_t stride, uint32_t type, uint32_t flags) "%d %d,%d,%d"
+qxl_destroy_primary(int qid) "%d"
+qxl_enter_vga_mode(int qid) "%d"
+qxl_exit_vga_mode(int qid) "%d"
+qxl_hard_reset(int qid, int64_t loadvm) "%d loadvm=%"PRId64
+qxl_interface_async_complete_io(int qid, uint32_t current_async, void *cookie) "%d current=%d cookie=%p"
+qxl_interface_attach_worker(int qid) "%d"
+qxl_interface_get_init_info(int qid) "%d"
+qxl_interface_set_compression_level(int qid, int64_t level) "%d %"PRId64
+qxl_interface_update_area_complete(int qid, uint32_t surface_id, uint32_t dirty_left, uint32_t dirty_right, uint32_t dirty_top, uint32_t dirty_bottom) "%d surface=%d [%d,%d,%d,%d]"
+qxl_interface_update_area_complete_rest(int qid, uint32_t num_updated_rects) "%d #=%d"
+qxl_interface_update_area_complete_overflow(int qid, int max) "%d max=%d"
+qxl_interface_update_area_complete_schedule_bh(int qid, uint32_t num_dirty) "%d #dirty=%d"
+qxl_io_destroy_primary_ignored(int qid, const char *mode) "%d %s"
+qxl_io_log(int qid, const uint8_t *log_buf) "%d %s"
+qxl_io_read_unexpected(int qid) "%d"
+qxl_io_unexpected_vga_mode(int qid, uint64_t addr, uint64_t val, const char *desc) "%d 0x%"PRIx64"=%"PRIu64" (%s)"
+qxl_io_write(int qid, const char *mode, uint64_t addr, const char *aname, uint64_t val, unsigned size, int async) "%d %s addr=%"PRIu64 " (%s) val=%"PRIu64" size=%u async=%d"
+qxl_memslot_add_guest(int qid, uint32_t slot_id, uint64_t guest_start, uint64_t guest_end) "%d %u: guest phys 0x%"PRIx64 " - 0x%" PRIx64
+qxl_post_load(int qid, const char *mode) "%d %s"
+qxl_pre_load(int qid) "%d"
+qxl_pre_save(int qid) "%d"
+qxl_reset_surfaces(int qid) "%d"
+qxl_ring_command_check(int qid, const char *mode) "%d %s"
+qxl_ring_command_get(int qid, const char *mode) "%d %s"
+qxl_ring_command_req_notification(int qid) "%d"
+qxl_ring_cursor_check(int qid, const char *mode) "%d %s"
+qxl_ring_cursor_get(int qid, const char *mode) "%d %s"
+qxl_ring_cursor_req_notification(int qid) "%d"
+qxl_ring_res_push(int qid, const char *mode, uint32_t surface_count, uint32_t free_res, void *last_release, const char *notify) "%d %s s#=%d res#=%d last=%p notify=%s"
+qxl_ring_res_push_rest(int qid, uint32_t ring_has, uint32_t ring_size, uint32_t prod, uint32_t cons) "%d ring %d/%d [%d,%d]"
+qxl_ring_res_put(int qid, uint32_t free_res) "%d #res=%d"
+qxl_set_mode(int qid, int modenr, uint32_t x_res, uint32_t y_res, uint32_t bits, uint64_t devmem) "%d mode=%d [ x=%d y=%d @ bpp=%d devmem=0x%" PRIx64 " ]"
+qxl_soft_reset(int qid) "%d"
+qxl_spice_destroy_surfaces_complete(int qid) "%d"
+qxl_spice_destroy_surfaces(int qid, int async) "%d async=%d"
+qxl_spice_destroy_surface_wait_complete(int qid, uint32_t id) "%d sid=%d"
+qxl_spice_destroy_surface_wait(int qid, uint32_t id, int async) "%d sid=%d async=%d"
+qxl_spice_flush_surfaces_async(int qid, uint32_t surface_count, uint32_t num_free_res) "%d s#=%d, res#=%d"
+qxl_spice_monitors_config(int qid) "%d"
+qxl_spice_loadvm_commands(int qid, void *ext, uint32_t count) "%d ext=%p count=%d"
+qxl_spice_oom(int qid) "%d"
+qxl_spice_reset_cursor(int qid) "%d"
+qxl_spice_reset_image_cache(int qid) "%d"
+qxl_spice_reset_memslots(int qid) "%d"
+qxl_spice_update_area(int qid, uint32_t surface_id, uint32_t left, uint32_t right, uint32_t top, uint32_t bottom) "%d sid=%d [%d,%d,%d,%d]"
+qxl_spice_update_area_rest(int qid, uint32_t num_dirty_rects, uint32_t clear_dirty_region) "%d #d=%d clear=%d"
+qxl_surfaces_dirty(int qid, int surface, int offset, int size) "%d surface=%d offset=%d size=%d"
+qxl_send_events(int qid, uint32_t events) "%d %d"
+qxl_send_events_vm_stopped(int qid, uint32_t events) "%d %d"
+qxl_set_guest_bug(int qid) "%d"
+qxl_interrupt_client_monitors_config(int qid, int num_heads, void *heads) "%d %d %p"
+qxl_client_monitors_config_unsupported_by_guest(int qid, uint32_t int_mask, void *client_monitors_config) "%d %X %p"
+qxl_client_monitors_config_unsupported_by_device(int qid, int revision) "%d revision=%d"
+qxl_client_monitors_config_capped(int qid, int requested, int limit) "%d %d %d"
+qxl_client_monitors_config_crc(int qid, unsigned size, uint32_t crc32) "%d %u %u"
+qxl_set_client_capabilities_unsupported_by_revision(int qid, int revision) "%d revision=%d"
+
+# hw/display/qxl-render.c
+qxl_render_blit(int32_t stride, int32_t left, int32_t right, int32_t top, int32_t bottom) "stride=%d [%d, %d, %d, %d]"
+qxl_render_guest_primary_resized(int32_t width, int32_t height, int32_t stride, int32_t bytes_pp, int32_t bits_pp) "%dx%d, stride %d, bpp %d, depth %d"
+qxl_render_update_area_done(void *cookie) "%p"

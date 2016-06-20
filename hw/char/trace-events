@@ -1,0 +1,49 @@
+# See docs/trace-events.txt for syntax documentation.
+
+# hw/char/virtio-serial-bus.c
+virtio_serial_send_control_event(unsigned int port, uint16_t event, uint16_t value) "port %u, event %u, value %u"
+virtio_serial_throttle_port(unsigned int port, bool throttle) "port %u, throttle %d"
+virtio_serial_handle_control_message(uint16_t event, uint16_t value) "event %u, value %u"
+virtio_serial_handle_control_message_port(unsigned int port) "port %u"
+
+# hw/char/virtio-console.c
+virtio_console_flush_buf(unsigned int port, size_t len, ssize_t ret) "port %u, in_len %zu, out_len %zd"
+virtio_console_chr_read(unsigned int port, int size) "port %u, size %d"
+virtio_console_chr_event(unsigned int port, int event) "port %u, event %d"
+
+# hw/char/grlib_apbuart.c
+grlib_apbuart_event(int event) "event:%d"
+grlib_apbuart_writel_unknown(uint64_t addr, uint32_t value) "addr 0x%"PRIx64" value 0x%x"
+grlib_apbuart_readl_unknown(uint64_t addr) "addr 0x%"PRIx64
+
+# hw/char/lm32_juart.c
+lm32_juart_get_jtx(uint32_t value) "jtx 0x%08x"
+lm32_juart_set_jtx(uint32_t value) "jtx 0x%08x"
+lm32_juart_get_jrx(uint32_t value) "jrx 0x%08x"
+lm32_juart_set_jrx(uint32_t value) "jrx 0x%08x"
+
+# hw/char/lm32_uart.c
+lm32_uart_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+lm32_uart_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+lm32_uart_irq_state(int level) "irq state %d"
+
+# hw/char/milkymist-uart.c
+milkymist_uart_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+milkymist_uart_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+milkymist_uart_raise_irq(void) "Raise IRQ"
+milkymist_uart_lower_irq(void) "Lower IRQ"
+
+# hw/char/escc.c
+escc_put_queue(char channel, int b) "channel %c put: 0x%02x"
+escc_get_queue(char channel, int val) "channel %c get 0x%02x"
+escc_update_irq(int irq) "IRQ = %d"
+escc_update_parameters(char channel, int speed, int parity, int data_bits, int stop_bits) "channel %c: speed=%d parity=%c data=%d stop=%d"
+escc_mem_writeb_ctrl(char channel, uint32_t reg, uint32_t val) "Write channel %c, reg[%d] = %2.2x"
+escc_mem_writeb_data(char channel, uint32_t val) "Write channel %c, ch %d"
+escc_mem_readb_ctrl(char channel, uint32_t reg, uint8_t val) "Read channel %c, reg[%d] = %2.2x"
+escc_mem_readb_data(char channel, uint32_t ret) "Read channel %c, ch %d"
+escc_serial_receive_byte(char channel, int ch) "channel %c put ch %d"
+escc_sunkbd_event_in(int ch, const char *name, int down) "QKeyCode 0x%2.2x [%s], down %d"
+escc_sunkbd_event_out(int ch) "Translated keycode 0x%2.2x"
+escc_kbd_command(int val) "Command %d"
+escc_sunmouse_event(int dx, int dy, int buttons_state) "dx=%d dy=%d buttons=%01x"
