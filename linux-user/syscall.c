@@ -7876,8 +7876,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_rt_sigqueueinfo:
         {
             siginfo_t uinfo;
-            if (!(p = lock_user(VERIFY_READ, arg3, sizeof(target_sigset_t), 1)))
+
+            p = lock_user(VERIFY_READ, arg3, sizeof(target_siginfo_t), 1);
+            if (!p) {
                 goto efault;
+            }
             target_to_host_siginfo(&uinfo, p);
             unlock_user(p, arg1, 0);
             ret = get_errno(sys_rt_sigqueueinfo(arg1, arg2, &uinfo));
