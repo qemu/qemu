@@ -89,8 +89,7 @@ typedef struct E1000EState {
 #define E1000E_MSIX_TABLE   (0x0000)
 #define E1000E_MSIX_PBA     (0x2000)
 
-#define E1000E_USE_MSI     BIT(0)
-#define E1000E_USE_MSIX    BIT(1)
+#define E1000E_USE_MSIX    BIT(0)
 
 static uint64_t
 e1000e_mmio_read(void *opaque, hwaddr addr, unsigned size)
@@ -264,28 +263,6 @@ static void e1000e_core_realize(E1000EState *s)
 }
 
 static void
-e1000e_init_msi(E1000EState *s)
-{
-    int res;
-
-    res = msi_init(PCI_DEVICE(s), 0xD0, 1, true, false, NULL);
-
-    if (!res) {
-        s->intr_state |= E1000E_USE_MSI;
-    } else {
-        trace_e1000e_msi_init_fail(res);
-    }
-}
-
-static void
-e1000e_cleanup_msi(E1000EState *s)
-{
-    if (s->intr_state & E1000E_USE_MSI) {
-        msi_uninit(PCI_DEVICE(s));
-    }
-}
-
-static void
 e1000e_unuse_msix_vectors(E1000EState *s, int num_vectors)
 {
     int i;
@@ -440,6 +417,7 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     static const uint16_t e1000e_dsn_offset =  0x140;
     E1000EState *s = E1000E(pci_dev);
     uint8_t *macaddr;
+    int ret;
 
     trace_e1000e_cb_pci_realize();
 
@@ -489,7 +467,10 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
         hw_error("Failed to initialize PCIe capability");
     }
 
-    e1000e_init_msi(s);
+    ret = msi_init(PCI_DEVICE(s), 0xD0, 1, true, false, NULL);
+    if (ret) {
+        trace_e1000e_msi_init_fail(ret);
+    }
 
     if (e1000e_add_pm_capability(pci_dev, e1000e_pmrb_offset,
                                   PCI_PM_CAP_DSI) < 0) {
@@ -528,7 +509,7 @@ static void e1000e_pci_uninit(PCIDevice *pci_dev)
     qemu_del_nic(s->nic);
 
     e1000e_cleanup_msix(s);
-    e1000e_cleanup_msi(s);
+    msi_uninit(pci_dev);
 }
 
 static void e1000e_qdev_reset(DeviceState *dev)
