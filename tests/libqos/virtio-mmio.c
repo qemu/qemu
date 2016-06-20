@@ -13,6 +13,7 @@
 #include "libqos/virtio-mmio.h"
 #include "libqos/malloc.h"
 #include "libqos/malloc-generic.h"
+#include "standard-headers/linux/virtio_ring.h"
 
 static uint8_t qvirtio_mmio_config_readb(QVirtioDevice *d, uint64_t addr)
 {
@@ -135,8 +136,8 @@ static QVirtQueue *qvirtio_mmio_virtqueue_setup(QVirtioDevice *d,
     vq->free_head = 0;
     vq->num_free = vq->size;
     vq->align = dev->page_size;
-    vq->indirect = (dev->features & QVIRTIO_F_RING_INDIRECT_DESC) != 0;
-    vq->event = (dev->features & QVIRTIO_F_RING_EVENT_IDX) != 0;
+    vq->indirect = (dev->features & (1u << VIRTIO_RING_F_INDIRECT_DESC)) != 0;
+    vq->event = (dev->features & (1u << VIRTIO_RING_F_EVENT_IDX)) != 0;
 
     writel(dev->addr + QVIRTIO_MMIO_QUEUE_NUM, vq->size);
 
@@ -151,6 +152,13 @@ static QVirtQueue *qvirtio_mmio_virtqueue_setup(QVirtioDevice *d,
     qvirtio_mmio_set_queue_address(d, vq->desc / dev->page_size);
 
     return vq;
+}
+
+static void qvirtio_mmio_virtqueue_cleanup(QVirtQueue *vq,
+                                           QGuestAllocator *alloc)
+{
+    guest_free(alloc, vq->desc);
+    g_free(vq);
 }
 
 static void qvirtio_mmio_virtqueue_kick(QVirtioDevice *d, QVirtQueue *vq)
@@ -175,6 +183,7 @@ const QVirtioBus qvirtio_mmio = {
     .get_queue_size = qvirtio_mmio_get_queue_size,
     .set_queue_address = qvirtio_mmio_set_queue_address,
     .virtqueue_setup = qvirtio_mmio_virtqueue_setup,
+    .virtqueue_cleanup = qvirtio_mmio_virtqueue_cleanup,
     .virtqueue_kick = qvirtio_mmio_virtqueue_kick,
 };
 

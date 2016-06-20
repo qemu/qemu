@@ -20,6 +20,8 @@
 #include "libqos/malloc-generic.h"
 #include "qemu/bswap.h"
 #include "hw/virtio/virtio-net.h"
+#include "standard-headers/linux/virtio_ids.h"
+#include "standard-headers/linux/virtio_ring.h"
 
 #define PCI_SLOT_HP             0x06
 #define PCI_SLOT                0x04
@@ -39,9 +41,9 @@ static QVirtioPCIDevice *virtio_net_pci_init(QPCIBus *bus, int slot)
 {
     QVirtioPCIDevice *dev;
 
-    dev = qvirtio_pci_device_find(bus, QVIRTIO_NET_DEVICE_ID);
+    dev = qvirtio_pci_device_find(bus, VIRTIO_ID_NET);
     g_assert(dev != NULL);
-    g_assert_cmphex(dev->vdev.device_type, ==, QVIRTIO_NET_DEVICE_ID);
+    g_assert_cmphex(dev->vdev.device_type, ==, VIRTIO_ID_NET);
 
     qvirtio_pci_device_enable(dev);
     qvirtio_reset(&qvirtio_pci, &dev->vdev);
@@ -69,8 +71,8 @@ static void driver_init(const QVirtioBus *bus, QVirtioDevice *dev)
 
     features = qvirtio_get_features(bus, dev);
     features = features & ~(QVIRTIO_F_BAD_FEATURE |
-                            QVIRTIO_F_RING_INDIRECT_DESC |
-                            QVIRTIO_F_RING_EVENT_IDX);
+                            (1u << VIRTIO_RING_F_INDIRECT_DESC) |
+                            (1u << VIRTIO_RING_F_EVENT_IDX));
     qvirtio_set_features(bus, dev, features);
 
     qvirtio_set_driver_ok(bus, dev);
@@ -227,7 +229,7 @@ static void pci_basic(gconstpointer data)
 
     /* End test */
     close(sv[0]);
-    guest_free(alloc, tx->vq.desc);
+    qvirtqueue_cleanup(&qvirtio_pci, &tx->vq, alloc);
     pc_alloc_uninit(alloc);
     qvirtio_pci_device_disable(dev);
     g_free(dev);

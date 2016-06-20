@@ -361,6 +361,7 @@ typedef struct BdrvAioNotifier {
     void (*detach_aio_context)(void *opaque);
 
     void *opaque;
+    bool deleted;
 
     QLIST_ENTRY(BdrvAioNotifier) list;
 } BdrvAioNotifier;
@@ -427,6 +428,7 @@ struct BlockDriverState {
      * BDS may register themselves in this list to be notified of changes
      * regarding this BDS's context */
     QLIST_HEAD(, BdrvAioNotifier) aio_notifiers;
+    bool walking_aio_notifiers; /* to make removal during iteration safe */
 
     char filename[PATH_MAX];
     char backing_file[PATH_MAX]; /* if non zero, the image is a diff of
