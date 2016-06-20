@@ -18,7 +18,7 @@
  *
  *
  * Specification available at:
- *   http://www.milkymist.org/socdoc/uart.pdf
+ *   http://milkymist.walle.cc/socdoc/uart.pdf
  */
 
 #include "qemu/osdep.h"

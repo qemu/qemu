@@ -19,7 +19,7 @@
  *
  *
  * Specification available at:
- *   http://www.milkymist.org/socdoc/vgafb.pdf
+ *   http://milkymist.walle.cc/socdoc/vgafb.pdf
  */
 
 #include "qemu/osdep.h"

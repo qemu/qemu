@@ -20,7 +20,7 @@
  *
  *
  * Specification available at:
- *   http://www.milkymist.org/socdoc/tmu2.pdf
+ *   http://milkymist.walle.cc/socdoc/tmu2.pdf
  *
  */
 

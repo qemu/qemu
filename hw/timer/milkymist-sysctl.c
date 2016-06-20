@@ -18,7 +18,7 @@
  *
  *
  * Specification available at:
- *   http://www.milkymist.org/socdoc/sysctl.pdf
+ *   http://milkymist.walle.cc/socdoc/sysctl.pdf
  */
 
 #include "qemu/osdep.h"

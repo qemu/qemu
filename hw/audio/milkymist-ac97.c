@@ -18,7 +18,7 @@
  *
  *
  * Specification available at:
- *   http://www.milkymist.org/socdoc/ac97.pdf
+ *   http://milkymist.walle.cc/socdoc/ac97.pdf
  */
 
 #include "qemu/osdep.h"
