@@ -1721,6 +1721,7 @@ void cpu_loop(CPUPPCState *env)
             queue_signal(env, info.si_signo, &info);
             break;
         case POWERPC_EXCP_PROGRAM:  /* Program exception                     */
+        case POWERPC_EXCP_HV_EMU:   /* HV emulation                          */
             /* XXX: check this */
             switch (env->error_code & ~0xF) {
             case POWERPC_EXCP_FP:

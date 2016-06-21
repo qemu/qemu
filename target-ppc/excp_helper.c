@@ -128,6 +128,19 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         ail = 0;
     }
 
+    /* Hypervisor emulation assistance interrupt only exists on server
+     * arch 2.05 server or later. We also don't want to generate it if
+     * we don't have HVB in msr_mask (PAPR mode).
+     */
+    if (excp == POWERPC_EXCP_HV_EMU
+#if defined(TARGET_PPC64)
+        && !((env->mmu_model & POWERPC_MMU_64) && (env->msr_mask & MSR_HVB))
+#endif /* defined(TARGET_PPC64) */
+
+    ) {
+        excp = POWERPC_EXCP_PROGRAM;
+    }
+
     switch (excp) {
     case POWERPC_EXCP_NONE:
         /* Should never happen */
@@ -248,6 +261,12 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
                       env->error_code);
             break;
         }
+        goto store_current;
+    case POWERPC_EXCP_HV_EMU:
+        srr0 = SPR_HSRR0;
+        srr1 = SPR_HSRR1;
+        new_msr |= (target_ulong)MSR_HVB;
+        new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
         goto store_current;
     case POWERPC_EXCP_FPU:       /* Floating-point unavailable exception     */
         goto store_current;
