@@ -284,7 +284,7 @@ void gen_update_current_nip(void *opaque)
     tcg_gen_movi_tl(cpu_nip, ctx->nip);
 }
 
-static inline void gen_exception_err(DisasContext *ctx, uint32_t excp, uint32_t error)
+static void gen_exception_err(DisasContext *ctx, uint32_t excp, uint32_t error)
 {
     TCGv_i32 t0, t1;
     if (ctx->exception == POWERPC_EXCP_NONE) {
@@ -298,7 +298,7 @@ static inline void gen_exception_err(DisasContext *ctx, uint32_t excp, uint32_t 
     ctx->exception = (excp);
 }
 
-static inline void gen_exception(DisasContext *ctx, uint32_t excp)
+static void gen_exception(DisasContext *ctx, uint32_t excp)
 {
     TCGv_i32 t0;
     if (ctx->exception == POWERPC_EXCP_NONE) {
@@ -310,7 +310,7 @@ static inline void gen_exception(DisasContext *ctx, uint32_t excp)
     ctx->exception = (excp);
 }
 
-static inline void gen_debug_exception(DisasContext *ctx)
+static void gen_debug_exception(DisasContext *ctx)
 {
     TCGv_i32 t0;
 
