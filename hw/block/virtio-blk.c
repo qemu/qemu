@@ -710,6 +710,7 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     blkcfg.physical_block_exp = get_physical_block_exp(conf);
     blkcfg.alignment_offset = 0;
     blkcfg.wce = blk_enable_write_cache(s->blk);
+    virtio_stw_p(vdev, &blkcfg.num_queues, s->conf.num_queues);
     memcpy(config, &blkcfg, sizeof(struct virtio_blk_config));
 }
 
@@ -752,6 +753,9 @@ static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features,
     }
     if (blk_is_read_only(s->blk)) {
         virtio_add_feature(&features, VIRTIO_BLK_F_RO);
+    }
+    if (s->conf.num_queues > 1) {
+        virtio_add_feature(&features, VIRTIO_BLK_F_MQ);
     }
 
     return features;
@@ -877,6 +881,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     VirtIOBlkConf *conf = &s->conf;
     Error *err = NULL;
     static int virtio_blk_id;
+    unsigned i;
 
     if (!conf->conf.blk) {
         error_setg(errp, "drive property not set");
@@ -884,6 +889,10 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     }
     if (!blk_is_inserted(conf->conf.blk)) {
         error_setg(errp, "Device needs media, but drive is empty");
+        return;
+    }
+    if (!conf->num_queues) {
+        error_setg(errp, "num-queues property must be larger than 0");
         return;
     }
 
@@ -903,8 +912,9 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     s->rq = NULL;
     s->sector_mask = (s->conf.conf.logical_block_size / BDRV_SECTOR_SIZE) - 1;
 
-    conf->num_queues = 1;
-    s->vq = virtio_add_queue(vdev, 128, virtio_blk_handle_output);
+    for (i = 0; i < conf->num_queues; i++) {
+        virtio_add_queue(vdev, 128, virtio_blk_handle_output);
+    }
     virtio_blk_data_plane_create(vdev, conf, &s->dataplane, &err);
     if (err != NULL) {
         error_propagate(errp, err);
@@ -957,6 +967,7 @@ static Property virtio_blk_properties[] = {
 #endif
     DEFINE_PROP_BIT("request-merging", VirtIOBlock, conf.request_merging, 0,
                     true),
+    DEFINE_PROP_UINT16("num-queues", VirtIOBlock, conf.num_queues, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
 

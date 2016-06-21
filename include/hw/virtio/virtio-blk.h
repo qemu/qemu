@@ -47,7 +47,6 @@ struct VirtIOBlockReq;
 typedef struct VirtIOBlock {
     VirtIODevice parent_obj;
     BlockBackend *blk;
-    VirtQueue *vq;
     void *rq;
     QEMUBH *bh;
     VirtIOBlkConf conf;
