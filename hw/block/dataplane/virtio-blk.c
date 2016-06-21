@@ -34,8 +34,8 @@ struct VirtIOBlockDataPlane {
 
     VirtIODevice *vdev;
     VirtQueue *vq;                  /* virtqueue vring */
-    EventNotifier *guest_notifier;  /* irq */
     QEMUBH *bh;                     /* bh for guest notification */
+    unsigned long *batch_notify_vqs;
 
     /* Note that these EventNotifiers are assigned by value.  This is
      * fine as long as you do not call event_notifier_cleanup on them
@@ -49,18 +49,34 @@ struct VirtIOBlockDataPlane {
 /* Raise an interrupt to signal guest, if necessary */
 void virtio_blk_data_plane_notify(VirtIOBlockDataPlane *s)
 {
+    set_bit(0, s->batch_notify_vqs);
     qemu_bh_schedule(s->bh);
 }
 
 static void notify_guest_bh(void *opaque)
 {
     VirtIOBlockDataPlane *s = opaque;
+    unsigned nvqs = s->conf->num_queues;
+    unsigned long bitmap[BITS_TO_LONGS(nvqs)];
+    unsigned j;
 
-    if (!virtio_should_notify(s->vdev, s->vq)) {
-        return;
+    memcpy(bitmap, s->batch_notify_vqs, sizeof(bitmap));
+    memset(s->batch_notify_vqs, 0, sizeof(bitmap));
+
+    for (j = 0; j < nvqs; j += BITS_PER_LONG) {
+        unsigned long bits = bitmap[j];
+
+        while (bits != 0) {
+            unsigned i = j + ctzl(bits);
+            VirtQueue *vq = virtio_get_queue(s->vdev, i);
+
+            if (virtio_should_notify(s->vdev, vq)) {
+                event_notifier_set(virtio_queue_get_guest_notifier(vq));
+            }
+
+            bits &= bits - 1; /* clear right-most bit */
+        }
     }
-
-    event_notifier_set(s->guest_notifier);
 }
 
 /* Context: QEMU global mutex held */
@@ -104,6 +120,7 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
     }
     s->ctx = iothread_get_aio_context(s->iothread);
     s->bh = aio_bh_new(s->ctx, notify_guest_bh, s);
+    s->batch_notify_vqs = bitmap_new(conf->num_queues);
 
     *dataplane = s;
 }
@@ -116,6 +133,7 @@ void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
     }
 
     virtio_blk_data_plane_stop(s);
+    g_free(s->batch_notify_vqs);
     qemu_bh_delete(s->bh);
     object_unref(OBJECT(s->iothread));
     g_free(s);
@@ -154,7 +172,6 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
                 "ensure -enable-kvm is set\n", r);
         goto fail_guest_notifiers;
     }
-    s->guest_notifier = virtio_queue_get_guest_notifier(s->vq);
 
     /* Set up virtqueue notify */
     r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), 0, true);
