@@ -609,10 +609,12 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
      * a SCSI bus that can serve only a single device, which it
      * creates automatically.  But first it needs to detach from its
      * blockdev, or else scsi_bus_legacy_add_drive() dies when it
-     * attaches again.
+     * attaches again. We also need to take another reference so that
+     * blk_detach_dev() doesn't free blk while we still need it.
      *
      * The hack is probably a bad idea.
      */
+    blk_ref(blk);
     blk_detach_dev(blk, &s->dev.qdev);
     s->conf.blk = NULL;
 
@@ -623,6 +625,7 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
     scsi_dev = scsi_bus_legacy_add_drive(&s->bus, blk, 0, !!s->removable,
                                          s->conf.bootindex, dev->serial,
                                          &err);
+    blk_unref(blk);
     if (!scsi_dev) {
         error_propagate(errp, err);
         return;
