@@ -2826,12 +2826,26 @@ static TargetFdTrans target_packet_trans = {
 #ifdef CONFIG_RTNETLINK
 static abi_long netlink_route_target_to_host(void *buf, size_t len)
 {
-    return target_to_host_nlmsg_route(buf, len);
+    abi_long ret;
+
+    ret = target_to_host_nlmsg_route(buf, len);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return len;
 }
 
 static abi_long netlink_route_host_to_target(void *buf, size_t len)
 {
-    return host_to_target_nlmsg_route(buf, len);
+    abi_long ret;
+
+    ret = host_to_target_nlmsg_route(buf, len);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return len;
 }
 
 static TargetFdTrans target_netlink_route_trans = {
@@ -2842,12 +2856,26 @@ static TargetFdTrans target_netlink_route_trans = {
 
 static abi_long netlink_audit_target_to_host(void *buf, size_t len)
 {
-    return target_to_host_nlmsg_audit(buf, len);
+    abi_long ret;
+
+    ret = target_to_host_nlmsg_audit(buf, len);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return len;
 }
 
 static abi_long netlink_audit_host_to_target(void *buf, size_t len)
 {
-    return host_to_target_nlmsg_audit(buf, len);
+    abi_long ret;
+
+    ret = host_to_target_nlmsg_audit(buf, len);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return len;
 }
 
 static TargetFdTrans target_netlink_audit_trans = {
