@@ -116,6 +116,9 @@ enum {
     POWERPC_EXCP_HYPPRIV  = 41, /* Embedded hypervisor priv instruction      */
     /* Vectors 42 to 63 are reserved                                         */
     /* Exceptions defined in the PowerPC server specification                */
+    /* Server doorbell variants */
+#define POWERPC_EXCP_SDOOR      POWERPC_EXCP_GDOORI
+#define POWERPC_EXCP_SDOOR_HV   POWERPC_EXCP_DOORI
     POWERPC_EXCP_RESET    = 64, /* System reset exception                    */
     POWERPC_EXCP_DSEG     = 65, /* Data segment exception                    */
     POWERPC_EXCP_ISEG     = 66, /* Instruction segment exception             */
@@ -158,8 +161,12 @@ enum {
     /* VSX Unavailable (Power ISA 2.06 and later)                            */
     POWERPC_EXCP_VSXU     = 94, /* VSX Unavailable                           */
     POWERPC_EXCP_FU       = 95, /* Facility Unavailable                      */
+    /* Additional ISA 2.06 and later server exceptions                       */
+    POWERPC_EXCP_HV_EMU   = 96, /* HV emulation assistance                   */
+    POWERPC_EXCP_HV_MAINT = 97, /* HMI                                       */
+    POWERPC_EXCP_HV_FU    = 98, /* Hypervisor Facility unavailable           */
     /* EOL                                                                   */
-    POWERPC_EXCP_NB       = 96,
+    POWERPC_EXCP_NB       = 99,
     /* QEMU exceptions: used internally during code translation              */
     POWERPC_EXCP_STOP         = 0x200, /* stop translation                   */
     POWERPC_EXCP_BRANCH       = 0x201, /* branch instruction                 */
@@ -2196,6 +2203,8 @@ enum {
     PPC_INTERRUPT_CDOORBELL,      /* Critical doorbell interrupt          */
     PPC_INTERRUPT_DOORBELL,       /* Doorbell interrupt                   */
     PPC_INTERRUPT_PERFM,          /* Performance monitor interrupt        */
+    PPC_INTERRUPT_HMI,            /* Hypervisor Maintainance interrupt    */
+    PPC_INTERRUPT_HDOORBELL,      /* Hypervisor Doorbell interrupt        */
 };
 
 /* Processor Compatibility mask (PCR) */

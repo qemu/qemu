@@ -3180,18 +3180,30 @@ static void init_excp_POWER7 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_HDECR]    = 0x00000980;
     env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
     env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
+    env->excp_vectors[POWERPC_EXCP_HDSI]     = 0x00000E00;
+    env->excp_vectors[POWERPC_EXCP_HISI]     = 0x00000E20;
+    env->excp_vectors[POWERPC_EXCP_HV_EMU]   = 0x00000E40;
+    env->excp_vectors[POWERPC_EXCP_HV_MAINT] = 0x00000E60;
     env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
     env->excp_vectors[POWERPC_EXCP_VPU]      = 0x00000F20;
     env->excp_vectors[POWERPC_EXCP_VSXU]     = 0x00000F40;
-    env->excp_vectors[POWERPC_EXCP_FU]       = 0x00000F60;
-    env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
-    env->excp_vectors[POWERPC_EXCP_MAINT]    = 0x00001600;
-    env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001700;
-    env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001800;
     /* Hardware reset vector */
     env->hreset_vector = 0x0000000000000100ULL;
 #endif
 }
+
+static void init_excp_POWER8(CPUPPCState *env)
+{
+    init_excp_POWER7(env);
+
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_vectors[POWERPC_EXCP_SDOOR]    = 0x00000A00;
+    env->excp_vectors[POWERPC_EXCP_FU]       = 0x00000F60;
+    env->excp_vectors[POWERPC_EXCP_HV_FU]    = 0x00000F80;
+    env->excp_vectors[POWERPC_EXCP_SDOOR_HV] = 0x00000E80;
+#endif
+}
+
 #endif
 
 /*****************************************************************************/
@@ -8132,8 +8144,11 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
         ppc970_irq_init(ppc_env_get_cpu(env));
         break;
     case BOOK3S_CPU_POWER7:
-    case BOOK3S_CPU_POWER8:
         init_excp_POWER7(env);
+        ppcPOWER7_irq_init(ppc_env_get_cpu(env));
+        break;
+    case BOOK3S_CPU_POWER8:
+        init_excp_POWER8(env);
         ppcPOWER7_irq_init(ppc_env_get_cpu(env));
         break;
     default:
