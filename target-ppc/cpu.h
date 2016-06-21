@@ -1912,6 +1912,8 @@ enum {
     PPC_POPCNTB        = 0x0000000000001000ULL,
     /*   string load / store                                                 */
     PPC_STRING         = 0x0000000000002000ULL,
+    /*   real mode cache inhibited load / store                              */
+    PPC_CILDST         = 0x0000000000004000ULL,
 
     /* Floating-point unit extensions                                        */
     /*   Optional floating point instructions                                */
@@ -2026,7 +2028,7 @@ enum {
                         | PPC_MFAPIDI | PPC_TLBIVA | PPC_TLBIVAX \
                         | PPC_4xx_COMMON | PPC_40x_ICBT | PPC_RFMCI \
                         | PPC_RFDI | PPC_DCR | PPC_DCRX | PPC_DCRUX \
-                        | PPC_POPCNTWD)
+                        | PPC_POPCNTWD | PPC_CILDST)
 
     /* extended type values */
 
