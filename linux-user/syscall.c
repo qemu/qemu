@@ -3316,6 +3316,9 @@ static abi_long do_recvfrom(int fd, abi_ulong msg, size_t len, int flags,
         ret = get_errno(safe_recvfrom(fd, host_msg, len, flags, NULL, 0));
     }
     if (!is_error(ret)) {
+        if (fd_trans_host_to_target_data(fd)) {
+            ret = fd_trans_host_to_target_data(fd)(host_msg, ret);
+        }
         if (target_addr) {
             host_to_target_sockaddr(target_addr, addr, addrlen);
             if (put_user_u32(addrlen, target_addrlen)) {
