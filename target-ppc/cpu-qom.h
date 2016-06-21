@@ -126,6 +126,15 @@ enum powerpc_excp_t {
 };
 
 /*****************************************************************************/
+/* PM instructions */
+typedef enum {
+    PPC_PM_DOZE,
+    PPC_PM_NAP,
+    PPC_PM_SLEEP,
+    PPC_PM_RVWINKLE,
+} powerpc_pm_insn_t;
+
+/*****************************************************************************/
 /* Input pins model                                                          */
 typedef enum powerpc_input_t powerpc_input_t;
 enum powerpc_input_t {

@@ -8380,10 +8380,45 @@ static bool ppc_pvr_match_power7(PowerPCCPUClass *pcc, uint32_t pvr)
     return false;
 }
 
+static bool cpu_has_work_POWER7(CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
+    if (cs->halted) {
+        if (!(cs->interrupt_request & CPU_INTERRUPT_HARD)) {
+            return false;
+        }
+        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_EXT)) &&
+            (env->spr[SPR_LPCR] & LPCR_P7_PECE0)) {
+            return true;
+        }
+        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_DECR)) &&
+            (env->spr[SPR_LPCR] & LPCR_P7_PECE1)) {
+            return true;
+        }
+        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_MCK)) &&
+            (env->spr[SPR_LPCR] & LPCR_P7_PECE2)) {
+            return true;
+        }
+        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_HMI)) &&
+            (env->spr[SPR_LPCR] & LPCR_P7_PECE2)) {
+            return true;
+        }
+        if (env->pending_interrupts & (1u << PPC_INTERRUPT_RESET)) {
+            return true;
+        }
+        return false;
+    } else {
+        return msr_ee && (cs->interrupt_request & CPU_INTERRUPT_HARD);
+    }
+}
+
 POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+    CPUClass *cc = CPU_CLASS(oc);
 
     dc->fw_name = "PowerPC,POWER7";
     dc->desc = "POWER7";
@@ -8393,6 +8428,7 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
     pcc->pcr_supported = PCR_COMPAT_2_06 | PCR_COMPAT_2_05;
     pcc->init_proc = init_proc_POWER7;
     pcc->check_pow = check_pow_nocheck;
+    cc->has_work = cpu_has_work_POWER7;
     pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL | PPC_STRING | PPC_MFTB |
                        PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
                        PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
@@ -8409,7 +8445,8 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC2_VSX | PPC2_DFP | PPC2_DBRX | PPC2_ISA205 |
                         PPC2_PERM_ISA206 | PPC2_DIVE_ISA206 |
                         PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206 |
-                        PPC2_FP_TST_ISA206 | PPC2_FP_CVT_S64;
+                        PPC2_FP_TST_ISA206 | PPC2_FP_CVT_S64 |
+                        PPC2_PM_ISA206;
     pcc->msr_mask = (1ull << MSR_SF) |
                     (1ull << MSR_VR) |
                     (1ull << MSR_VSX) |
@@ -8462,10 +8499,53 @@ static bool ppc_pvr_match_power8(PowerPCCPUClass *pcc, uint32_t pvr)
     return false;
 }
 
+static bool cpu_has_work_POWER8(CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
+    if (cs->halted) {
+        if (!(cs->interrupt_request & CPU_INTERRUPT_HARD)) {
+            return false;
+        }
+        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_EXT)) &&
+            (env->spr[SPR_LPCR] & LPCR_P8_PECE2)) {
+            return true;
+        }
+        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_DECR)) &&
+            (env->spr[SPR_LPCR] & LPCR_P8_PECE3)) {
+            return true;
+        }
+        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_MCK)) &&
+            (env->spr[SPR_LPCR] & LPCR_P8_PECE4)) {
+            return true;
+        }
+        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_HMI)) &&
+            (env->spr[SPR_LPCR] & LPCR_P8_PECE4)) {
+            return true;
+        }
+        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_DOORBELL)) &&
+            (env->spr[SPR_LPCR] & LPCR_P8_PECE0)) {
+            return true;
+        }
+        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_HDOORBELL)) &&
+            (env->spr[SPR_LPCR] & LPCR_P8_PECE1)) {
+            return true;
+        }
+        if (env->pending_interrupts & (1u << PPC_INTERRUPT_RESET)) {
+            return true;
+        }
+        return false;
+    } else {
+        return msr_ee && (cs->interrupt_request & CPU_INTERRUPT_HARD);
+    }
+}
+
 POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+    CPUClass *cc = CPU_CLASS(oc);
 
     dc->fw_name = "PowerPC,POWER8";
     dc->desc = "POWER8";
@@ -8475,6 +8555,7 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
     pcc->pcr_supported = PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_COMPAT_2_05;
     pcc->init_proc = init_proc_POWER8;
     pcc->check_pow = check_pow_nocheck;
+    cc->has_work = cpu_has_work_POWER8;
     pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL | PPC_STRING | PPC_MFTB |
                        PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
                        PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
@@ -8494,7 +8575,7 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
                         PPC2_FP_TST_ISA206 | PPC2_BCTAR_ISA207 |
                         PPC2_LSQ_ISA207 | PPC2_ALTIVEC_207 |
                         PPC2_ISA205 | PPC2_ISA207S | PPC2_FP_CVT_S64 |
-                        PPC2_TM;
+                        PPC2_TM | PPC2_PM_ISA206;
     pcc->msr_mask = (1ull << MSR_SF) |
                     (1ull << MSR_SHV) |
                     (1ull << MSR_TM) |
@@ -8552,6 +8633,13 @@ void cpu_ppc_set_papr(PowerPCCPU *cpu)
      */
     lpcr->default_value &= ~(LPCR_VPM0 | LPCR_VPM1 | LPCR_ISL | LPCR_KBV);
     lpcr->default_value |= LPCR_LPES0 | LPCR_LPES1;
+
+    /* P7 and P8 has slightly different PECE bits, mostly because P8 adds
+     * bit 47 and 48 which are reserved on P7. Here we set them all, which
+     * will work as expected for both implementations
+     */
+    lpcr->default_value |= LPCR_P8_PECE0 | LPCR_P8_PECE1 | LPCR_P8_PECE2 |
+                           LPCR_P8_PECE3 | LPCR_P8_PECE4;
 
     /* We should be followed by a CPU reset but update the active value
      * just in case...

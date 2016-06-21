@@ -101,6 +101,44 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     asrr0 = -1;
     asrr1 = -1;
 
+    /* check for special resume at 0x100 from doze/nap/sleep/winkle on P7/P8 */
+    if (env->in_pm_state) {
+        env->in_pm_state = false;
+
+        /* Pretend to be returning from doze always as we don't lose state */
+        msr |= (0x1ull << (63 - 47));
+
+        /* Non-machine check are routed to 0x100 with a wakeup cause
+         * encoded in SRR1
+         */
+        if (excp != POWERPC_EXCP_MCHECK) {
+            switch (excp) {
+            case POWERPC_EXCP_RESET:
+                msr |= 0x4ull << (63 - 45);
+                break;
+            case POWERPC_EXCP_EXTERNAL:
+                msr |= 0x8ull << (63 - 45);
+                break;
+            case POWERPC_EXCP_DECR:
+                msr |= 0x6ull << (63 - 45);
+                break;
+            case POWERPC_EXCP_SDOOR:
+                msr |= 0x5ull << (63 - 45);
+                break;
+            case POWERPC_EXCP_SDOOR_HV:
+                msr |= 0x3ull << (63 - 45);
+                break;
+            case POWERPC_EXCP_HV_MAINT:
+                msr |= 0xaull << (63 - 45);
+                break;
+            default:
+                cpu_abort(cs, "Unsupported exception %d in Power Save mode\n",
+                          excp);
+            }
+            excp = POWERPC_EXCP_RESET;
+        }
+    }
+
     /* Exception targetting modifiers
      *
      * LPES0 is supported on POWER7/8
@@ -896,6 +934,27 @@ void helper_store_msr(CPUPPCState *env, target_ulong val)
         helper_raise_exception(env, val);
     }
 }
+
+#if defined(TARGET_PPC64)
+void helper_pminsn(CPUPPCState *env, powerpc_pm_insn_t insn)
+{
+    CPUState *cs;
+
+    cs = CPU(ppc_env_get_cpu(env));
+    cs->halted = 1;
+    env->in_pm_state = true;
+
+    /* Technically, nap doesn't set EE, but if we don't set it
+     * then ppc_hw_interrupt() won't deliver. We could add some
+     * other tests there based on LPCR but it's simpler to just
+     * whack EE in. It will be cleared by the 0x100 at wakeup
+     * anyway. It will still be observable by the guest in SRR1
+     * but this doesn't seem to be a problem.
+     */
+    env->msr |= (1ull << MSR_EE);
+    helper_raise_exception(env, EXCP_HLT);
+}
+#endif /* defined(TARGET_PPC64) */
 
 static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
 {

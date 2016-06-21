@@ -383,6 +383,14 @@ struct ppc_slb_t {
 #define LPCR_LPES1        (1ull << (63 - 61))
 #define LPCR_AIL_SHIFT    (63 - 40)      /* Alternate interrupt location */
 #define LPCR_AIL          (3ull << LPCR_AIL_SHIFT)
+#define LPCR_P7_PECE0     (1ull << (63 - 49))
+#define LPCR_P7_PECE1     (1ull << (63 - 50))
+#define LPCR_P7_PECE2     (1ull << (63 - 51))
+#define LPCR_P8_PECE0     (1ull << (63 - 47))
+#define LPCR_P8_PECE1     (1ull << (63 - 48))
+#define LPCR_P8_PECE2     (1ull << (63 - 49))
+#define LPCR_P8_PECE3     (1ull << (63 - 50))
+#define LPCR_P8_PECE4     (1ull << (63 - 51))
 
 #define msr_sf   ((env->msr >> MSR_SF)   & 1)
 #define msr_isf  ((env->msr >> MSR_ISF)  & 1)
@@ -1059,6 +1067,11 @@ struct CPUPPCState {
      * instructions and SPRs are diallowed if MSR:HV is 0
      */
     bool has_hv_mode;
+    /* On P7/P8, set when in PM state, we need to handle resume
+     * in a special way (such as routing some resume causes to
+     * 0x100), so flag this here.
+     */
+    bool in_pm_state;
 #endif
 
     /* Those resources are used only during code translation */
@@ -2068,6 +2081,8 @@ enum {
     PPC2_FP_CVT_S64    = 0x0000000000010000ULL,
     /* Transactional Memory (ISA 2.07, Book II)                              */
     PPC2_TM            = 0x0000000000020000ULL,
+    /* Server PM instructgions (ISA 2.06, Book III)                          */
+    PPC2_PM_ISA206     = 0x0000000000040000ULL,
 
 #define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_VSX | PPC2_PRCNTL | PPC2_DBRX | \
                         PPC2_ISA205 | PPC2_VSX207 | PPC2_PERM_ISA206 | \
@@ -2075,7 +2090,7 @@ enum {
                         PPC2_FP_CVT_ISA206 | PPC2_FP_TST_ISA206 | \
                         PPC2_BCTAR_ISA207 | PPC2_LSQ_ISA207 | \
                         PPC2_ALTIVEC_207 | PPC2_ISA207S | PPC2_DFP | \
-                        PPC2_FP_CVT_S64 | PPC2_TM)
+                        PPC2_FP_CVT_S64 | PPC2_TM | PPC2_PM_ISA206)
 };
 
 /*****************************************************************************/

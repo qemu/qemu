@@ -3603,6 +3603,68 @@ static void gen_wait(DisasContext *ctx)
     gen_exception_err(ctx, EXCP_HLT, 1);
 }
 
+#if defined(TARGET_PPC64)
+static void gen_doze(DisasContext *ctx)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_PRIV;
+#else
+    TCGv_i32 t;
+
+    CHK_HV;
+    t = tcg_const_i32(PPC_PM_DOZE);
+    gen_helper_pminsn(cpu_env, t);
+    tcg_temp_free_i32(t);
+    gen_stop_exception(ctx);
+#endif /* defined(CONFIG_USER_ONLY) */
+}
+
+static void gen_nap(DisasContext *ctx)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_PRIV;
+#else
+    TCGv_i32 t;
+
+    CHK_HV;
+    t = tcg_const_i32(PPC_PM_NAP);
+    gen_helper_pminsn(cpu_env, t);
+    tcg_temp_free_i32(t);
+    gen_stop_exception(ctx);
+#endif /* defined(CONFIG_USER_ONLY) */
+}
+
+static void gen_sleep(DisasContext *ctx)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_PRIV;
+#else
+    TCGv_i32 t;
+
+    CHK_HV;
+    t = tcg_const_i32(PPC_PM_SLEEP);
+    gen_helper_pminsn(cpu_env, t);
+    tcg_temp_free_i32(t);
+    gen_stop_exception(ctx);
+#endif /* defined(CONFIG_USER_ONLY) */
+}
+
+static void gen_rvwinkle(DisasContext *ctx)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_PRIV;
+#else
+    TCGv_i32 t;
+
+    CHK_HV;
+    t = tcg_const_i32(PPC_PM_RVWINKLE);
+    gen_helper_pminsn(cpu_env, t);
+    tcg_temp_free_i32(t);
+    gen_stop_exception(ctx);
+#endif /* defined(CONFIG_USER_ONLY) */
+}
+#endif /* #if defined(TARGET_PPC64) */
+
 /***                         Floating-point load                           ***/
 #define GEN_LDF(name, ldop, opc, type)                                        \
 static void glue(gen_, name)(DisasContext *ctx)                                       \
@@ -9911,6 +9973,10 @@ GEN_HANDLER(mcrf, 0x13, 0x00, 0xFF, 0x00000001, PPC_INTEGER),
 GEN_HANDLER(rfi, 0x13, 0x12, 0x01, 0x03FF8001, PPC_FLOW),
 #if defined(TARGET_PPC64)
 GEN_HANDLER(rfid, 0x13, 0x12, 0x00, 0x03FF8001, PPC_64B),
+GEN_HANDLER_E(doze, 0x13, 0x12, 0x0c, 0x03FFF801, PPC_NONE, PPC2_PM_ISA206),
+GEN_HANDLER_E(nap, 0x13, 0x12, 0x0d, 0x03FFF801, PPC_NONE, PPC2_PM_ISA206),
+GEN_HANDLER_E(sleep, 0x13, 0x12, 0x0e, 0x03FFF801, PPC_NONE, PPC2_PM_ISA206),
+GEN_HANDLER_E(rvwinkle, 0x13, 0x12, 0x0f, 0x03FFF801, PPC_NONE, PPC2_PM_ISA206),
 GEN_HANDLER(hrfid, 0x13, 0x12, 0x08, 0x03FF8001, PPC_64H),
 #endif
 GEN_HANDLER(sc, 0x11, 0xFF, 0xFF, 0x03FFF01D, PPC_FLOW),
