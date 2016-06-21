@@ -193,22 +193,21 @@ struct DisasContext {
     uint32_t opcode;
     uint32_t exception;
     /* Routine used to access memory */
-    bool pr, hv, dr;
+    bool pr, hv, dr, le_mode;
     bool lazy_tlb_flush;
     int mem_idx;
     int access_type;
     /* Translation flags */
-    int le_mode;
     TCGMemOp default_tcg_memop_mask;
 #if defined(TARGET_PPC64)
-    int sf_mode;
-    int has_cfar;
+    bool sf_mode;
+    bool has_cfar;
 #endif
-    int fpu_enabled;
-    int altivec_enabled;
-    int vsx_enabled;
-    int spe_enabled;
-    int tm_enabled;
+    bool fpu_enabled;
+    bool altivec_enabled;
+    bool vsx_enabled;
+    bool spe_enabled;
+    bool tm_enabled;
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
     uint64_t insns_flags;
@@ -11496,7 +11495,7 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
     ctx.insns_flags = env->insns_flags;
     ctx.insns_flags2 = env->insns_flags2;
     ctx.access_type = -1;
-    ctx.le_mode = env->hflags & (1 << MSR_LE) ? 1 : 0;
+    ctx.le_mode = !!(env->hflags & (1 << MSR_LE));
     ctx.default_tcg_memop_mask = ctx.le_mode ? MO_LE : MO_BE;
 #if defined(TARGET_PPC64)
     ctx.sf_mode = msr_is_64bit(env, env->msr);
@@ -11507,25 +11506,25 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
         (env->mmu_model & POWERPC_MMU_64B))
             ctx.lazy_tlb_flush = true;
 
-    ctx.fpu_enabled = msr_fp;
+    ctx.fpu_enabled = !!msr_fp;
     if ((env->flags & POWERPC_FLAG_SPE) && msr_spe)
-        ctx.spe_enabled = msr_spe;
+        ctx.spe_enabled = !!msr_spe;
     else
-        ctx.spe_enabled = 0;
+        ctx.spe_enabled = false;
     if ((env->flags & POWERPC_FLAG_VRE) && msr_vr)
-        ctx.altivec_enabled = msr_vr;
+        ctx.altivec_enabled = !!msr_vr;
     else
-        ctx.altivec_enabled = 0;
+        ctx.altivec_enabled = false;
     if ((env->flags & POWERPC_FLAG_VSX) && msr_vsx) {
-        ctx.vsx_enabled = msr_vsx;
+        ctx.vsx_enabled = !!msr_vsx;
     } else {
-        ctx.vsx_enabled = 0;
+        ctx.vsx_enabled = false;
     }
 #if defined(TARGET_PPC64)
     if ((env->flags & POWERPC_FLAG_TM) && msr_tm) {
-        ctx.tm_enabled = msr_tm;
+        ctx.tm_enabled = !!msr_tm;
     } else {
-        ctx.tm_enabled = 0;
+        ctx.tm_enabled = false;
     }
 #endif
     if ((env->flags & POWERPC_FLAG_SE) && msr_se)
