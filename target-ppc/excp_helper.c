@@ -922,25 +922,20 @@ void helper_store_msr(CPUPPCState *env, target_ulong val)
     }
 }
 
-static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr,
-                          target_ulong msrm, int keep_msrh)
+static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
 {
     CPUState *cs = CPU(ppc_env_get_cpu(env));
 
+    /* MSR:POW cannot be set by any form of rfi */
+    msr &= ~(1ULL << MSR_POW);
+
 #if defined(TARGET_PPC64)
-    if (msr_is_64bit(env, msr)) {
-        nip = (uint64_t)nip;
-        msr &= (uint64_t)msrm;
-    } else {
+    /* Switching to 32-bit ? Crop the nip */
+    if (!msr_is_64bit(env, msr)) {
         nip = (uint32_t)nip;
-        msr = (uint32_t)(msr & msrm);
-        if (keep_msrh) {
-            msr |= env->msr & ~((uint64_t)0xFFFFFFFF);
-        }
     }
 #else
     nip = (uint32_t)nip;
-    msr &= (uint32_t)msrm;
 #endif
     /* XXX: beware: this is false if VLE is supported */
     env->nip = nip & ~((target_ulong)0x00000003);
@@ -959,26 +954,24 @@ static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr,
 
 void helper_rfi(CPUPPCState *env)
 {
-    if (env->excp_model == POWERPC_EXCP_BOOKE) {
-        do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1],
-               ~((target_ulong)0), 0);
-    } else {
-        do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1],
-               ~((target_ulong)0x783F0000), 1);
-    }
+    do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1] & 0xfffffffful);
 }
 
+#define MSR_BOOK3S_MASK
 #if defined(TARGET_PPC64)
 void helper_rfid(CPUPPCState *env)
 {
-    do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1],
-           ~((target_ulong)0x783F0000), 0);
+    /* The architeture defines a number of rules for which bits
+     * can change but in practice, we handle this in hreg_store_msr()
+     * which will be called by do_rfi(), so there is no need to filter
+     * here
+     */
+    do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1]);
 }
 
 void helper_hrfid(CPUPPCState *env)
 {
-    do_rfi(env, env->spr[SPR_HSRR0], env->spr[SPR_HSRR1],
-           ~((target_ulong)0x783F0000), 0);
+    do_rfi(env, env->spr[SPR_HSRR0], env->spr[SPR_HSRR1]);
 }
 #endif
 
@@ -986,28 +979,24 @@ void helper_hrfid(CPUPPCState *env)
 /* Embedded PowerPC specific helpers */
 void helper_40x_rfci(CPUPPCState *env)
 {
-    do_rfi(env, env->spr[SPR_40x_SRR2], env->spr[SPR_40x_SRR3],
-           ~((target_ulong)0xFFFF0000), 0);
+    do_rfi(env, env->spr[SPR_40x_SRR2], env->spr[SPR_40x_SRR3]);
 }
 
 void helper_rfci(CPUPPCState *env)
 {
-    do_rfi(env, env->spr[SPR_BOOKE_CSRR0], env->spr[SPR_BOOKE_CSRR1],
-           ~((target_ulong)0), 0);
+    do_rfi(env, env->spr[SPR_BOOKE_CSRR0], env->spr[SPR_BOOKE_CSRR1]);
 }
 
 void helper_rfdi(CPUPPCState *env)
 {
     /* FIXME: choose CSRR1 or DSRR1 based on cpu type */
-    do_rfi(env, env->spr[SPR_BOOKE_DSRR0], env->spr[SPR_BOOKE_DSRR1],
-           ~((target_ulong)0), 0);
+    do_rfi(env, env->spr[SPR_BOOKE_DSRR0], env->spr[SPR_BOOKE_DSRR1]);
 }
 
 void helper_rfmci(CPUPPCState *env)
 {
     /* FIXME: choose CSRR1 or MCSRR1 based on cpu type */
-    do_rfi(env, env->spr[SPR_BOOKE_MCSRR0], env->spr[SPR_BOOKE_MCSRR1],
-           ~((target_ulong)0), 0);
+    do_rfi(env, env->spr[SPR_BOOKE_MCSRR0], env->spr[SPR_BOOKE_MCSRR1]);
 }
 #endif
 
@@ -1045,7 +1034,7 @@ void helper_td(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
 
 void helper_rfsvc(CPUPPCState *env)
 {
-    do_rfi(env, env->lr, env->ctr, 0x0000FFFF, 0);
+    do_rfi(env, env->lr, env->ctr & 0x0000FFFF);
 }
 
 /* Embedded.Processor Control */
