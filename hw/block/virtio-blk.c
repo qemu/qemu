@@ -795,11 +795,6 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
 static void virtio_blk_save(QEMUFile *f, void *opaque)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
-    VirtIOBlock *s = VIRTIO_BLK(vdev);
-
-    if (s->dataplane) {
-        virtio_blk_data_plane_stop(s->dataplane);
-    }
 
     virtio_save(vdev, f);
 }
