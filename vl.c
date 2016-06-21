@@ -1234,8 +1234,10 @@ static void smp_parse(QemuOpts *opts)
         } else if (cores == 0) {
             threads = threads > 0 ? threads : 1;
             cores = cpus / (sockets * threads);
+            cores = cores > 0 ? cores : 1;
         } else if (threads == 0) {
             threads = cpus / (cores * sockets);
+            threads = threads > 0 ? threads : 1;
         } else if (sockets * cores * threads < cpus) {
             error_report("cpu topology: "
                          "sockets (%u) * cores (%u) * threads (%u) < "
