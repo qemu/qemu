@@ -3017,13 +3017,22 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
 
     if (send) {
         if (fd_trans_target_to_host_data(fd)) {
-            ret = fd_trans_target_to_host_data(fd)(msg.msg_iov->iov_base,
+            void *host_msg;
+
+            host_msg = g_malloc(msg.msg_iov->iov_len);
+            memcpy(host_msg, msg.msg_iov->iov_base, msg.msg_iov->iov_len);
+            ret = fd_trans_target_to_host_data(fd)(host_msg,
                                                    msg.msg_iov->iov_len);
+            if (ret >= 0) {
+                msg.msg_iov->iov_base = host_msg;
+                ret = get_errno(safe_sendmsg(fd, &msg, flags));
+            }
+            g_free(host_msg);
         } else {
             ret = target_to_host_cmsg(&msg, msgp);
-        }
-        if (ret == 0) {
-            ret = get_errno(safe_sendmsg(fd, &msg, flags));
+            if (ret == 0) {
+                ret = get_errno(safe_sendmsg(fd, &msg, flags));
+            }
         }
     } else {
         ret = get_errno(safe_recvmsg(fd, &msg, flags));
@@ -3239,6 +3248,7 @@ static abi_long do_sendto(int fd, abi_ulong msg, size_t len, int flags,
 {
     void *addr;
     void *host_msg;
+    void *copy_msg = NULL;
     abi_long ret;
 
     if ((int)addrlen < 0) {
@@ -3249,22 +3259,28 @@ static abi_long do_sendto(int fd, abi_ulong msg, size_t len, int flags,
     if (!host_msg)
         return -TARGET_EFAULT;
     if (fd_trans_target_to_host_data(fd)) {
+        copy_msg = host_msg;
+        host_msg = g_malloc(len);
+        memcpy(host_msg, copy_msg, len);
         ret = fd_trans_target_to_host_data(fd)(host_msg, len);
         if (ret < 0) {
-            unlock_user(host_msg, msg, 0);
-            return ret;
+            goto fail;
         }
     }
     if (target_addr) {
         addr = alloca(addrlen+1);
         ret = target_to_host_sockaddr(fd, addr, target_addr, addrlen);
         if (ret) {
-            unlock_user(host_msg, msg, 0);
-            return ret;
+            goto fail;
         }
         ret = get_errno(safe_sendto(fd, host_msg, len, flags, addr, addrlen));
     } else {
         ret = get_errno(safe_sendto(fd, host_msg, len, flags, NULL, 0));
+    }
+fail:
+    if (copy_msg) {
+        g_free(host_msg);
+        host_msg = copy_msg;
     }
     unlock_user(host_msg, msg, 0);
     return ret;
