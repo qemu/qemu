@@ -47,9 +47,9 @@ struct VirtIOBlockDataPlane {
 };
 
 /* Raise an interrupt to signal guest, if necessary */
-void virtio_blk_data_plane_notify(VirtIOBlockDataPlane *s)
+void virtio_blk_data_plane_notify(VirtIOBlockDataPlane *s, VirtQueue *vq)
 {
-    set_bit(0, s->batch_notify_vqs);
+    set_bit(virtio_get_queue_index(vq), s->batch_notify_vqs);
     qemu_bh_schedule(s->bh);
 }
 
