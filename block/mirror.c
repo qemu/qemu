@@ -327,7 +327,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
 
     first_chunk = sector_num / sectors_per_chunk;
     while (test_bit(first_chunk, s->in_flight_bitmap)) {
-        trace_mirror_yield_in_flight(s, first_chunk, s->in_flight);
+        trace_mirror_yield_in_flight(s, sector_num, s->in_flight);
         mirror_wait_for_io(s);
     }
 
