@@ -29,9 +29,11 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 
-void virtio_blk_init_request(VirtIOBlock *s, VirtIOBlockReq *req)
+void virtio_blk_init_request(VirtIOBlock *s, VirtQueue *vq,
+                             VirtIOBlockReq *req)
 {
     req->dev = s;
+    req->vq = vq;
     req->qiov.size = 0;
     req->in_len = 0;
     req->next = NULL;
@@ -53,11 +55,11 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, unsigned char status)
     trace_virtio_blk_req_complete(req, status);
 
     stb_p(&req->in->status, status);
-    virtqueue_push(s->vq, &req->elem, req->in_len);
+    virtqueue_push(req->vq, &req->elem, req->in_len);
     if (s->dataplane_started && !s->dataplane_disabled) {
-        virtio_blk_data_plane_notify(s->dataplane, s->vq);
+        virtio_blk_data_plane_notify(s->dataplane, req->vq);
     } else {
-        virtio_notify(vdev, s->vq);
+        virtio_notify(vdev, req->vq);
     }
 }
 
@@ -187,12 +189,12 @@ out:
 
 #endif
 
-static VirtIOBlockReq *virtio_blk_get_request(VirtIOBlock *s)
+static VirtIOBlockReq *virtio_blk_get_request(VirtIOBlock *s, VirtQueue *vq)
 {
-    VirtIOBlockReq *req = virtqueue_pop(s->vq, sizeof(VirtIOBlockReq));
+    VirtIOBlockReq *req = virtqueue_pop(vq, sizeof(VirtIOBlockReq));
 
     if (req) {
-        virtio_blk_init_request(s, req);
+        virtio_blk_init_request(s, vq, req);
     }
     return req;
 }
@@ -583,7 +585,7 @@ void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
 
     blk_io_plug(s->blk);
 
-    while ((req = virtio_blk_get_request(s))) {
+    while ((req = virtio_blk_get_request(s, vq))) {
         virtio_blk_handle_request(req, &mrb);
     }
 
@@ -831,7 +833,7 @@ static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
     while (qemu_get_sbyte(f)) {
         VirtIOBlockReq *req;
         req = qemu_get_virtqueue_element(f, sizeof(VirtIOBlockReq));
-        virtio_blk_init_request(s, req);
+        virtio_blk_init_request(s, s->vq, req);
         req->next = s->rq;
         s->rq = req;
     }
