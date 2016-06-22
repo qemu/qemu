@@ -2236,6 +2236,50 @@ static CPUArchIdList *pc_possible_cpu_arch_ids(MachineState *machine)
     return list;
 }
 
+static HotpluggableCPUList *pc_query_hotpluggable_cpus(MachineState *machine)
+{
+    int i;
+    CPUState *cpu;
+    HotpluggableCPUList *head = NULL;
+    PCMachineState *pcms = PC_MACHINE(machine);
+    const char *cpu_type;
+
+    cpu = pcms->possible_cpus->cpus[0].cpu;
+    assert(cpu); /* BSP is always present */
+    cpu_type = object_class_get_name(OBJECT_CLASS(CPU_GET_CLASS(cpu)));
+
+    for (i = 0; i < pcms->possible_cpus->len; i++) {
+        X86CPUTopoInfo topo;
+        HotpluggableCPUList *list_item = g_new0(typeof(*list_item), 1);
+        HotpluggableCPU *cpu_item = g_new0(typeof(*cpu_item), 1);
+        CpuInstanceProperties *cpu_props = g_new0(typeof(*cpu_props), 1);
+        const uint32_t apic_id = pcms->possible_cpus->cpus[i].arch_id;
+
+        x86_topo_ids_from_apicid(apic_id, smp_cores, smp_threads, &topo);
+
+        cpu_item->type = g_strdup(cpu_type);
+        cpu_item->vcpus_count = 1;
+        cpu_props->has_socket_id = true;
+        cpu_props->socket_id = topo.pkg_id;
+        cpu_props->has_core_id = true;
+        cpu_props->core_id = topo.core_id;
+        cpu_props->has_thread_id = true;
+        cpu_props->thread_id = topo.smt_id;
+        cpu_item->props = cpu_props;
+
+        cpu = pcms->possible_cpus->cpus[i].cpu;
+        if (cpu) {
+            cpu_item->has_qom_path = true;
+            cpu_item->qom_path = object_get_canonical_path(OBJECT(cpu));
+        }
+
+        list_item->value = cpu_item;
+        list_item->next = head;
+        head = list_item;
+    }
+    return head;
+}
+
 static void x86_nmi(NMIState *n, int cpu_index, Error **errp)
 {
     /* cpu index isn't used */
@@ -2276,6 +2320,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     mc->get_hotplug_handler = pc_get_hotpug_handler;
     mc->cpu_index_to_socket_id = pc_cpu_index_to_socket_id;
     mc->possible_cpu_arch_ids = pc_possible_cpu_arch_ids;
+    mc->query_hotpluggable_cpus = pc_query_hotpluggable_cpus;
     mc->default_boot_order = "cad";
     mc->hot_add_cpu = pc_hot_add_cpu;
     mc->max_cpus = 255;

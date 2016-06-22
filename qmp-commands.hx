@@ -5026,3 +5026,18 @@ Example for pseries machine type started with
      { "props": { "core-id": 0 }, "type": "POWER8-spapr-cpu-core",
        "vcpus-count": 1, "qom-path": "/machine/unattached/device[0]"}
    ]}'
+
+Example for pc machine type started with
+-smp 1,maxcpus=2:
+    -> { "execute": "query-hotpluggable-cpus" }
+    <- {"return": [
+         {
+            "type": "qemu64-x86_64-cpu", "vcpus-count": 1,
+            "props": {"core-id": 0, "socket-id": 1, "thread-id": 0}
+         },
+         {
+            "qom-path": "/machine/unattached/device[0]",
+            "type": "qemu64-x86_64-cpu", "vcpus-count": 1,
+            "props": {"core-id": 0, "socket-id": 0, "thread-id": 0}
+         }
+       ]}
