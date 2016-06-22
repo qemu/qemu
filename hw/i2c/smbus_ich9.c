@@ -35,7 +35,6 @@
 
 #include "hw/i386/ich9.h"
 
-#define TYPE_ICH9_SMB_DEVICE "ICH9 SMB"
 #define ICH9_SMB_DEVICE(obj) \
      OBJECT_CHECK(ICH9SMBState, (obj), TYPE_ICH9_SMB_DEVICE)
 
