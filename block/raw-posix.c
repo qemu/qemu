@@ -639,15 +639,7 @@ static int raw_reopen_prepare(BDRVReopenState *state,
 
     if ((raw_s->open_flags & ~fcntl_flags) == (s->open_flags & ~fcntl_flags)) {
         /* dup the original fd */
-        /* TODO: use qemu fcntl wrapper */
-#ifdef F_DUPFD_CLOEXEC
-        raw_s->fd = fcntl(s->fd, F_DUPFD_CLOEXEC, 0);
-#else
-        raw_s->fd = dup(s->fd);
-        if (raw_s->fd != -1) {
-            qemu_set_cloexec(raw_s->fd);
-        }
-#endif
+        raw_s->fd = qemu_dup(s->fd);
         if (raw_s->fd >= 0) {
             ret = fcntl_setfl(raw_s->fd, raw_s->open_flags);
             if (ret) {
