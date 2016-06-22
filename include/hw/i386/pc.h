@@ -214,6 +214,7 @@ void vmmouse_get_data(uint32_t *data);
 void vmmouse_set_data(const uint32_t *data);
 
 /* pckbd.c */
+#define I8042_A20_LINE "a20"
 
 void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base);
 void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
