@@ -27,6 +27,7 @@
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
+#include "sysemu/numa.h"
 #include "kvm_ppc.h"
 #include "sysemu/cpus.h"
 #include "sysemu/device_tree.h"
@@ -388,7 +389,21 @@ static long getrampagesize(void)
 
     object_child_foreach(memdev_root, find_max_supported_pagesize, &hpsize);
 
-    return (hpsize == LONG_MAX) ? getpagesize() : hpsize;
+    if (hpsize == LONG_MAX) {
+        return getpagesize();
+    }
+
+    if (nb_numa_nodes == 0 && hpsize > getpagesize()) {
+        /* No NUMA nodes and normal RAM without -mem-path ==> no huge pages! */
+        static bool warned;
+        if (!warned) {
+            error_report("Huge page support disabled (n/a for main memory).");
+            warned = true;
+        }
+        return getpagesize();
+    }
+
+    return hpsize;
 }
 
 static bool kvm_valid_page_size(uint32_t flags, long rampgsize, uint32_t shift)
