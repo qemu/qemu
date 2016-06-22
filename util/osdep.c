@@ -83,14 +83,7 @@ static int qemu_dup_flags(int fd, int flags)
     int serrno;
     int dup_flags;
 
-#ifdef F_DUPFD_CLOEXEC
-    ret = fcntl(fd, F_DUPFD_CLOEXEC, 0);
-#else
-    ret = dup(fd);
-    if (ret != -1) {
-        qemu_set_cloexec(ret);
-    }
-#endif
+    ret = qemu_dup(fd);
     if (ret == -1) {
         goto fail;
     }
@@ -127,6 +120,20 @@ fail:
     }
     errno = serrno;
     return -1;
+}
+
+int qemu_dup(int fd)
+{
+    int ret;
+#ifdef F_DUPFD_CLOEXEC
+    ret = fcntl(fd, F_DUPFD_CLOEXEC, 0);
+#else
+    ret = dup(fd);
+    if (ret != -1) {
+        qemu_set_cloexec(ret);
+    }
+#endif
+    return ret;
 }
 
 static int qemu_parse_fdset(const char *param)
