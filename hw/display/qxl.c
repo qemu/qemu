@@ -1338,36 +1338,53 @@ static void qxl_reset_surfaces(PCIQXLDevice *d)
 }
 
 /* can be also called from spice server thread context */
-void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL pqxl, int group_id)
+static bool qxl_get_check_slot_offset(PCIQXLDevice *qxl, QXLPHYSICAL pqxl,
+                                      uint32_t *s, uint64_t *o)
 {
     uint64_t phys   = le64_to_cpu(pqxl);
     uint32_t slot   = (phys >> (64 -  8)) & 0xff;
     uint64_t offset = phys & 0xffffffffffff;
 
-    switch (group_id) {
-    case MEMSLOT_GROUP_HOST:
-        return (void *)(intptr_t)offset;
-    case MEMSLOT_GROUP_GUEST:
-        if (slot >= NUM_MEMSLOTS) {
-            qxl_set_guest_bug(qxl, "slot too large %d >= %d", slot,
-                              NUM_MEMSLOTS);
-            return NULL;
-        }
-        if (!qxl->guest_slots[slot].active) {
-            qxl_set_guest_bug(qxl, "inactive slot %d\n", slot);
-            return NULL;
-        }
-        if (offset < qxl->guest_slots[slot].delta) {
-            qxl_set_guest_bug(qxl,
+    if (slot >= NUM_MEMSLOTS) {
+        qxl_set_guest_bug(qxl, "slot too large %d >= %d", slot,
+                          NUM_MEMSLOTS);
+        return false;
+    }
+    if (!qxl->guest_slots[slot].active) {
+        qxl_set_guest_bug(qxl, "inactive slot %d\n", slot);
+        return false;
+    }
+    if (offset < qxl->guest_slots[slot].delta) {
+        qxl_set_guest_bug(qxl,
                           "slot %d offset %"PRIu64" < delta %"PRIu64"\n",
                           slot, offset, qxl->guest_slots[slot].delta);
-            return NULL;
-        }
-        offset -= qxl->guest_slots[slot].delta;
-        if (offset > qxl->guest_slots[slot].size) {
-            qxl_set_guest_bug(qxl,
+        return false;
+    }
+    offset -= qxl->guest_slots[slot].delta;
+    if (offset > qxl->guest_slots[slot].size) {
+        qxl_set_guest_bug(qxl,
                           "slot %d offset %"PRIu64" > size %"PRIu64"\n",
                           slot, offset, qxl->guest_slots[slot].size);
+        return false;
+    }
+
+    *s = slot;
+    *o = offset;
+    return true;
+}
+
+/* can be also called from spice server thread context */
+void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL pqxl, int group_id)
+{
+    uint64_t offset;
+    uint32_t slot;
+
+    switch (group_id) {
+    case MEMSLOT_GROUP_HOST:
+        offset = le64_to_cpu(pqxl) & 0xffffffffffff;
+        return (void *)(intptr_t)offset;
+    case MEMSLOT_GROUP_GUEST:
+        if (!qxl_get_check_slot_offset(qxl, pqxl, &slot, &offset)) {
             return NULL;
         }
         return qxl->guest_slots[slot].ptr + offset;
