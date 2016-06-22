@@ -97,6 +97,13 @@ void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq)
     dev->nirqs++;
 }
 
+void isa_connect_gpio_out(ISADevice *isadev, int gpioirq, int isairq)
+{
+    qemu_irq irq;
+    isa_init_irq(isadev, &irq, isairq);
+    qdev_connect_gpio_out(DEVICE(isadev), gpioirq, irq);
+}
+
 void isa_bus_dma(ISABus *bus, IsaDma *dma8, IsaDma *dma16)
 {
     assert(bus && dma8 && dma16);
