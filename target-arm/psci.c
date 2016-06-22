@@ -16,10 +16,10 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
-#include <cpu.h>
-#include <exec/helper-proto.h>
-#include <kvm-consts.h>
-#include <sysemu/sysemu.h>
+#include "cpu.h"
+#include "exec/helper-proto.h"
+#include "kvm-consts.h"
+#include "sysemu/sysemu.h"
 #include "internals.h"
 #include "arm-powerctl.h"
 #include "exec/exec-all.h"

@@ -20,7 +20,7 @@
 #ifndef __IMX_GPIO_H_
 #define __IMX_GPIO_H_
 
-#include <hw/sysbus.h>
+#include "hw/sysbus.h"
 
 #define TYPE_IMX_GPIO "imx.gpio"
 #define IMX_GPIO(obj) OBJECT_CHECK(IMXGPIOState, (obj), TYPE_IMX_GPIO)

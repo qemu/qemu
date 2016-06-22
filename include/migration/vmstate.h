@@ -27,7 +27,7 @@
 #define QEMU_VMSTATE_H 1
 
 #ifndef CONFIG_USER_ONLY
-#include <migration/qemu-file.h>
+#include "migration/qemu-file.h"
 #endif
 #include "migration/qjson.h"
 

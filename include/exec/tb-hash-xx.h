@@ -33,7 +33,7 @@
 #ifndef EXEC_TB_HASH_XX
 #define EXEC_TB_HASH_XX
 
-#include <qemu/bitops.h>
+#include "qemu/bitops.h"
 
 #define PRIME32_1   2654435761U
 #define PRIME32_2   2246822519U

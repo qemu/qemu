@@ -19,9 +19,9 @@
  */
 
 #include "qemu/osdep.h"
+#include <gcrypt.h>
 #include "qapi/error.h"
 #include "crypto/hash.h"
-#include "gcrypt.h"
 
 
 static int qcrypto_hash_alg_map[QCRYPTO_HASH_ALG__MAX] = {

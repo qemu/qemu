@@ -39,7 +39,7 @@
  */
 
 #include "qemu/osdep.h"
-#include <slirp.h>
+#include "slirp.h"
 
 /* patchable/settable parameters for tcp */
 /* Don't do rfc1323 performance enhancements */

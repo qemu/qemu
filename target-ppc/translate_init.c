@@ -21,7 +21,7 @@
 #include "qemu/osdep.h"
 #include "disas/bfd.h"
 #include "exec/gdbstub.h"
-#include <sysemu/kvm.h>
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/cpus.h"

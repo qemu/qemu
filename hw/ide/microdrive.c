@@ -23,13 +23,13 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include <hw/hw.h>
-#include <hw/i386/pc.h>
-#include <hw/pcmcia.h>
+#include "hw/hw.h"
+#include "hw/i386/pc.h"
+#include "hw/pcmcia.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/dma.h"
 
-#include <hw/ide/internal.h>
+#include "hw/ide/internal.h"
 
 #define TYPE_MICRODRIVE "microdrive"
 #define MICRODRIVE(obj) OBJECT_CHECK(MicroDriveState, (obj), TYPE_MICRODRIVE)

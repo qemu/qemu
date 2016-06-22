@@ -15,10 +15,9 @@
 #include "libqtest.h"
 #include "qemu/option.h"
 #include "qemu/range.h"
+#include "qemu/sockets.h"
 #include "sysemu/char.h"
 #include "sysemu/sysemu.h"
-
-#include <qemu/sockets.h>
 
 const unsigned start_address = 1024 * 1024;
 const unsigned end_address = 100 * 1024 * 1024;

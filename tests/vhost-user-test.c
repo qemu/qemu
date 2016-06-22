@@ -13,12 +13,12 @@
 #include "libqtest.h"
 #include "qemu/option.h"
 #include "qemu/range.h"
+#include "qemu/sockets.h"
 #include "sysemu/char.h"
 #include "sysemu/sysemu.h"
 
 #include <linux/vhost.h>
 #include <sys/vfs.h>
-#include <qemu/sockets.h>
 
 /* GLIB version compatibility flags */
 #if !GLIB_CHECK_VERSION(2, 26, 0)

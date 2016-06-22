@@ -21,7 +21,7 @@
 #ifndef __IMX_I2C_H_
 #define __IMX_I2C_H_
 
-#include <hw/sysbus.h>
+#include "hw/sysbus.h"
 
 #define TYPE_IMX_I2C "imx.i2c"
 #define IMX_I2C(obj) OBJECT_CHECK(IMXI2CState, (obj), TYPE_IMX_I2C)

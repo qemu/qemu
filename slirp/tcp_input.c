@@ -39,7 +39,7 @@
  */
 
 #include "qemu/osdep.h"
-#include <slirp.h>
+#include "slirp.h"
 #include "ip_icmp.h"
 
 #define	TCPREXMTTHRESH 3

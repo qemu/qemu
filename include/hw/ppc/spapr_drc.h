@@ -12,9 +12,9 @@
 #if !defined(__HW_SPAPR_DRC_H__)
 #define __HW_SPAPR_DRC_H__
 
+#include <libfdt.h>
 #include "qom/object.h"
 #include "hw/qdev.h"
-#include "libfdt.h"
 
 #define TYPE_SPAPR_DR_CONNECTOR "spapr-dr-connector"
 #define SPAPR_DR_CONNECTOR_GET_CLASS(obj) \

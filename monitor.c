@@ -58,7 +58,7 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/json-streamer.h"
 #include "qapi/qmp/json-parser.h"
-#include <qom/object_interfaces.h>
+#include "qom/object_interfaces.h"
 #include "cpu.h"
 #include "trace.h"
 #include "trace/control.h"

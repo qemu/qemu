@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include <slirp.h>
+#include "slirp.h"
 #include "qemu-common.h"
 #include "qemu/cutils.h"
 

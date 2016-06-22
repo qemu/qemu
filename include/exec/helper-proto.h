@@ -4,7 +4,7 @@
 #ifndef HELPER_PROTO_H
 #define HELPER_PROTO_H 1
 
-#include <exec/helper-head.h>
+#include "exec/helper-head.h"
 
 #define DEF_HELPER_FLAGS_0(name, flags, ret) \
 dh_ctype(ret) HELPER(name) (void);

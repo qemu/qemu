@@ -48,7 +48,7 @@
 #include <sys/sysctl.h>
 #endif
 
-#include <qemu/mmap-alloc.h>
+#include "qemu/mmap-alloc.h"
 
 int qemu_get_thread_id(void)
 {

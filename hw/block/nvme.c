@@ -21,10 +21,10 @@
  */
 
 #include "qemu/osdep.h"
-#include <hw/block/block.h>
-#include <hw/hw.h>
-#include <hw/pci/msix.h>
-#include <hw/pci/pci.h>
+#include "hw/block/block.h"
+#include "hw/hw.h"
+#include "hw/pci/msix.h"
+#include "hw/pci/pci.h"
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"

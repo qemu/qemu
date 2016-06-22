@@ -21,8 +21,7 @@
 #ifndef __FPA11_H__
 #define __FPA11_H__
 
-
-#include <cpu.h>
+#include "cpu.h"
 
 #define GET_FPA11() (qemufpa)
 

@@ -14,8 +14,8 @@
 #ifndef HW_S390_PCI_BUS_H
 #define HW_S390_PCI_BUS_H
 
-#include <hw/pci/pci.h>
-#include <hw/pci/pci_host.h>
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/css.h"

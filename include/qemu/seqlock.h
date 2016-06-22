@@ -13,8 +13,8 @@
 #ifndef QEMU_SEQLOCK_H
 #define QEMU_SEQLOCK_H 1
 
-#include <qemu/atomic.h>
-#include <qemu/thread.h>
+#include "qemu/atomic.h"
+#include "qemu/thread.h"
 
 typedef struct QemuSeqLock QemuSeqLock;
 

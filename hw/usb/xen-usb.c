@@ -21,6 +21,7 @@
 
 #include "qemu/osdep.h"
 #include <libusb.h>
+#include <sys/user.h>
 
 #include "qemu-common.h"
 #include "qemu/config-file.h"
@@ -31,7 +32,6 @@
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qstring.h"
-#include "sys/user.h"
 
 #include <xen/io/ring.h>
 #include <xen/io/usbif.h>

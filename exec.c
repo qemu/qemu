@@ -36,7 +36,7 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #if defined(CONFIG_USER_ONLY)
-#include <qemu.h>
+#include "qemu.h"
 #else /* !CONFIG_USER_ONLY */
 #include "hw/hw.h"
 #include "exec/memory.h"

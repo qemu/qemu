@@ -14,8 +14,8 @@
 #ifndef HW_S390_SCLP_H
 #define HW_S390_SCLP_H
 
-#include <hw/sysbus.h>
-#include <hw/qdev.h>
+#include "hw/sysbus.h"
+#include "hw/qdev.h"
 
 #define SCLP_CMD_CODE_MASK                      0xffff00ff
 

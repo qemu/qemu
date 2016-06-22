@@ -46,7 +46,6 @@
 
 #ifdef __linux__
 #include <scsi/sg.h>
-#include <block/scsi.h>
 #endif
 
 typedef struct IscsiLun {

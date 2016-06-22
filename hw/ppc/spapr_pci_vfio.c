@@ -18,13 +18,13 @@
  */
 
 #include "qemu/osdep.h"
+#include <linux/vfio.h>
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/ppc/spapr.h"
 #include "hw/pci-host/spapr.h"
 #include "hw/pci/msix.h"
-#include "linux/vfio.h"
 #include "hw/vfio/vfio.h"
 #include "qemu/error-report.h"
 #include "sysemu/qtest.h"

@@ -19,9 +19,9 @@
  */
 
 #include "qemu/osdep.h"
+#include <gcrypt.h>
 #include "qapi/error.h"
 #include "crypto/pbkdf.h"
-#include "gcrypt.h"
 
 bool qcrypto_pbkdf2_supports(QCryptoHashAlgorithm hash)
 {
