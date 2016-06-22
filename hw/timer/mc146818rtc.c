@@ -906,6 +906,8 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
 
     object_property_add_alias(qdev_get_machine(), "rtc-time",
                               OBJECT(s), "date", NULL);
+
+    qdev_init_gpio_out(dev, &s->irq, 1);
 }
 
 ISADevice *rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
@@ -920,9 +922,9 @@ ISADevice *rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
     qdev_prop_set_int32(dev, "base_year", base_year);
     qdev_init_nofail(dev);
     if (intercept_irq) {
-        s->irq = intercept_irq;
+        qdev_connect_gpio_out(dev, 0, intercept_irq);
     } else {
-        isa_init_irq(isadev, &s->irq, RTC_ISA_IRQ);
+        isa_connect_gpio_out(isadev, 0, RTC_ISA_IRQ);
     }
     QLIST_INSERT_HEAD(&rtc_devices, s, link);
 
