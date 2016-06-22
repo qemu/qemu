@@ -407,6 +407,11 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
             }
         }
 
+        while (s->in_flight >= MAX_IN_FLIGHT) {
+            trace_mirror_yield_in_flight(s, sector_num, s->in_flight);
+            mirror_wait_for_io(s);
+        }
+
         mirror_clip_sectors(s, sector_num, &io_sectors);
         switch (mirror_method) {
         case MIRROR_METHOD_COPY:
@@ -695,7 +700,7 @@ static void coroutine_fn mirror_run(void *opaque)
         delta = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - s->last_pause_ns;
         if (delta < SLICE_TIME &&
             s->common.iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
-            if (s->in_flight == MAX_IN_FLIGHT || s->buf_free_count == 0 ||
+            if (s->in_flight >= MAX_IN_FLIGHT || s->buf_free_count == 0 ||
                 (cnt == 0 && s->in_flight > 0)) {
                 trace_mirror_yield(s, s->in_flight, s->buf_free_count, cnt);
                 mirror_wait_for_io(s);
