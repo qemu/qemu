@@ -218,7 +218,9 @@ static inline void mirror_wait_for_io(MirrorBlockJob *s)
 }
 
 /* Submit async read while handling COW.
- * Returns: nb_sectors if no alignment is necessary, or
+ * Returns: The number of sectors copied after and including sector_num,
+ *          excluding any sectors copied prior to sector_num due to alignment.
+ *          This will be nb_sectors if no alignment is necessary, or
  *          (new_end - sector_num) if tail is rounded up or down due to
  *          alignment or buffer limit.
  */
@@ -227,7 +229,7 @@ static int mirror_do_read(MirrorBlockJob *s, int64_t sector_num,
 {
     BlockBackend *source = s->common.blk;
     int sectors_per_chunk, nb_chunks;
-    int ret = nb_sectors;
+    int ret;
     MirrorOp *op;
 
     sectors_per_chunk = s->granularity >> BDRV_SECTOR_BITS;
@@ -235,6 +237,7 @@ static int mirror_do_read(MirrorBlockJob *s, int64_t sector_num,
     /* We can only handle as much as buf_size at a time. */
     nb_sectors = MIN(s->buf_size >> BDRV_SECTOR_BITS, nb_sectors);
     assert(nb_sectors);
+    ret = nb_sectors;
 
     if (s->cow_bitmap) {
         ret += mirror_cow_align(s, &sector_num, &nb_sectors);
