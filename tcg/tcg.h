@@ -575,6 +575,14 @@ typedef struct TCGTempSet {
     unsigned long l[BITS_TO_LONGS(TCG_MAX_TEMPS)];
 } TCGTempSet;
 
+/* While we limit helpers to 6 arguments, for 32-bit hosts, with padding,
+   this imples a max of 6*2 (64-bit in) + 2 (64-bit out) = 14 operands.
+   There are never more than 2 outputs, which means that we can store all
+   dead + sync data within 16 bits.  */
+#define DEAD_ARG  4
+#define SYNC_ARG  1
+typedef uint16_t TCGLifeData;
+
 typedef struct TCGOp {
     TCGOpcode opc   : 8;
 
@@ -608,12 +616,8 @@ struct TCGContext {
     uintptr_t *tb_jmp_target_addr; /* tb->jmp_target_addr if !USE_DIRECT_JUMP */
 
     /* liveness analysis */
-    uint16_t *op_dead_args; /* for each operation, each bit tells if the
-                               corresponding argument is dead */
-    uint8_t *op_sync_args;  /* for each operation, each bit tells if the
-                               corresponding output argument needs to be
-                               sync to memory. */
-    
+    TCGLifeData *op_arg_life;
+
     TCGRegSet reserved_regs;
     intptr_t current_frame_offset;
     intptr_t frame_start;
