@@ -599,6 +599,7 @@ static void ich9_lpc_initfn(Object *obj)
 static void ich9_lpc_realize(PCIDevice *d, Error **errp)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(d);
+    DeviceState *dev = DEVICE(d);
     ISABus *isa_bus;
 
     isa_bus = isa_bus_new(DEVICE(d), get_system_memory(), get_system_io(),
@@ -626,6 +627,8 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
     memory_region_add_subregion_overlap(pci_address_space_io(d),
                                         ICH9_RST_CNT_IOPORT, &lpc->rst_cnt_mem,
                                         1);
+
+    qdev_init_gpio_out_named(dev, lpc->gsi, ICH9_GPIO_GSI, GSI_NUM_PINS);
 }
 
 static bool ich9_rst_cnt_needed(void *opaque)

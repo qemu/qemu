@@ -68,7 +68,7 @@ typedef struct ICH9LPCState {
     MemoryRegion rcrb_mem; /* root complex register block */
     Notifier machine_ready;
 
-    qemu_irq *gsi;
+    qemu_irq gsi[GSI_NUM_PINS];
 } ICH9LPCState;
 
 Object *ich9_lpc_find(void);
@@ -175,6 +175,8 @@ Object *ich9_lpc_find(void);
 
 #define ICH9_LPC_PIC_NUM_PINS                   16
 #define ICH9_LPC_IOAPIC_NUM_PINS                24
+
+#define ICH9_GPIO_GSI "gsi"
 
 /* D31:F2 SATA Controller #1 */
 #define ICH9_SATA1_DEV                          31

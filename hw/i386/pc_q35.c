@@ -60,6 +60,7 @@ static void pc_q35_init(MachineState *machine)
     PCIHostState *phb;
     PCIBus *host_bus;
     PCIDevice *lpc;
+    DeviceState *lpc_dev;
     BusState *idebus[MAX_SATA_PORTS];
     ISADevice *rtc_state;
     MemoryRegion *system_io = get_system_io();
@@ -190,7 +191,10 @@ static void pc_q35_init(MachineState *machine)
                              PC_MACHINE_ACPI_DEVICE_PROP, &error_abort);
 
     ich9_lpc = ICH9_LPC_DEVICE(lpc);
-    ich9_lpc->gsi = gsi;
+    lpc_dev = DEVICE(lpc);
+    for (i = 0; i < GSI_NUM_PINS; i++) {
+        qdev_connect_gpio_out_named(lpc_dev, ICH9_GPIO_GSI, i, gsi[i]);
+    }
     pci_bus_irqs(host_bus, ich9_lpc_set_irq, ich9_lpc_map_irq, ich9_lpc,
                  ICH9_LPC_NB_PIRQS);
     pci_bus_set_route_irq_fn(host_bus, ich9_route_intx_pin_to_irq);
