@@ -629,6 +629,8 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
                                         1);
 
     qdev_init_gpio_out_named(dev, lpc->gsi, ICH9_GPIO_GSI, GSI_NUM_PINS);
+
+    isa_bus_irqs(isa_bus, lpc->gsi);
 }
 
 static bool ich9_rst_cnt_needed(void *opaque)
