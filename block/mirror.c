@@ -231,11 +231,14 @@ static int mirror_do_read(MirrorBlockJob *s, int64_t sector_num,
     int sectors_per_chunk, nb_chunks;
     int ret;
     MirrorOp *op;
+    int max_sectors;
 
     sectors_per_chunk = s->granularity >> BDRV_SECTOR_BITS;
+    max_sectors = sectors_per_chunk * s->max_iov;
 
     /* We can only handle as much as buf_size at a time. */
     nb_sectors = MIN(s->buf_size >> BDRV_SECTOR_BITS, nb_sectors);
+    nb_sectors = MIN(max_sectors, nb_sectors);
     assert(nb_sectors);
     ret = nb_sectors;
 
