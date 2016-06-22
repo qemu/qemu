@@ -1547,6 +1547,17 @@ static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
 
 #ifdef CONFIG_KVM
 
+static bool lmce_supported(void)
+{
+    uint64_t mce_cap;
+
+    if (kvm_ioctl(kvm_state, KVM_X86_GET_MCE_CAP_SUPPORTED, &mce_cap) < 0) {
+        return false;
+    }
+
+    return !!(mce_cap & MCG_LMCE_P);
+}
+
 static int cpu_x86_fill_model_id(char *str)
 {
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
@@ -1619,6 +1630,10 @@ static void host_x86_cpu_initfn(Object *obj)
         env->cpuid_level = kvm_arch_get_supported_cpuid(s, 0x0, 0, R_EAX);
         env->cpuid_xlevel = kvm_arch_get_supported_cpuid(s, 0x80000000, 0, R_EAX);
         env->cpuid_xlevel2 = kvm_arch_get_supported_cpuid(s, 0xC0000000, 0, R_EAX);
+
+        if (lmce_supported()) {
+            object_property_set_bool(OBJECT(cpu), true, "lmce", &error_abort);
+        }
     }
 
     object_property_set_bool(OBJECT(cpu), true, "pmu", &error_abort);
