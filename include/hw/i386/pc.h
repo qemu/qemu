@@ -240,6 +240,8 @@ void pc_guest_info_init(PCMachineState *pcms);
 #define PCI_HOST_PROP_PCI_HOLE64_START "pci-hole64-start"
 #define PCI_HOST_PROP_PCI_HOLE64_END   "pci-hole64-end"
 #define PCI_HOST_PROP_PCI_HOLE64_SIZE  "pci-hole64-size"
+#define PCI_HOST_BELOW_4G_MEM_SIZE     "below-4g-mem-size"
+#define PCI_HOST_ABOVE_4G_MEM_SIZE     "above-4g-mem-size"
 #define DEFAULT_PCI_HOLE64_SIZE (~0x0ULL)
 
 
