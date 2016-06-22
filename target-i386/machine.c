@@ -896,6 +896,24 @@ static const VMStateDescription vmstate_tsc_khz = {
     }
 };
 
+static bool mcg_ext_ctl_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+    return cpu->enable_lmce && env->mcg_ext_ctl;
+}
+
+static const VMStateDescription vmstate_mcg_ext_ctl = {
+    .name = "cpu/mcg_ext_ctl",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = mcg_ext_ctl_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(env.mcg_ext_ctl, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 VMStateDescription vmstate_x86_cpu = {
     .name = "cpu",
     .version_id = 12,
@@ -1022,6 +1040,7 @@ VMStateDescription vmstate_x86_cpu = {
 #ifdef TARGET_X86_64
         &vmstate_pkru,
 #endif
+        &vmstate_mcg_ext_ctl,
         NULL
     }
 };

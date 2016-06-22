@@ -106,6 +106,8 @@ static int has_xsave;
 static int has_xcrs;
 static int has_pit_state2;
 
+static bool has_msr_mcg_ext_ctl;
+
 static struct kvm_cpuid2 *cpuid_cache;
 
 int kvm_has_pit_state2(void)
@@ -382,10 +384,12 @@ static int kvm_get_mce_cap_supported(KVMState *s, uint64_t *mce_cap,
 
 static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
 {
+    CPUState *cs = CPU(cpu);
     CPUX86State *env = &cpu->env;
     uint64_t status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN |
                       MCI_STATUS_MISCV | MCI_STATUS_ADDRV | MCI_STATUS_S;
     uint64_t mcg_status = MCG_STATUS_MCIP;
+    int flags = 0;
 
     if (code == BUS_MCEERR_AR) {
         status |= MCI_STATUS_AR | 0x134;
@@ -394,10 +398,19 @@ static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
         status |= 0xc0;
         mcg_status |= MCG_STATUS_RIPV;
     }
+
+    flags = cpu_x86_support_mca_broadcast(env) ? MCE_INJECT_BROADCAST : 0;
+    /* We need to read back the value of MSR_EXT_MCG_CTL that was set by the
+     * guest kernel back into env->mcg_ext_ctl.
+     */
+    cpu_synchronize_state(cs);
+    if (env->mcg_ext_ctl & MCG_EXT_CTL_LMCE_EN) {
+        mcg_status |= MCG_STATUS_LMCE;
+        flags = 0;
+    }
+
     cpu_x86_inject_mce(NULL, cpu, 9, status, mcg_status, paddr,
-                       (MCM_ADDR_PHYS << 6) | 0xc,
-                       cpu_x86_support_mca_broadcast(env) ?
-                       MCE_INJECT_BROADCAST : 0);
+                       (MCM_ADDR_PHYS << 6) | 0xc, flags);
 }
 
 static void hardware_memory_error(void)
@@ -883,6 +896,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
         unsupported_caps = env->mcg_cap & ~(mcg_cap | MCG_CAP_BANKS_MASK);
         if (unsupported_caps) {
+            if (unsupported_caps & MCG_LMCE_P) {
+                error_report("kvm: LMCE not supported");
+                return -ENOTSUP;
+            }
             error_report("warning: Unsupported MCG_CAP bits: 0x%" PRIx64,
                          unsupported_caps);
         }
@@ -901,6 +918,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (c) {
         has_msr_feature_control = !!(c->ecx & CPUID_EXT_VMX) ||
                                   !!(c->ecx & CPUID_EXT_SMX);
+    }
+
+    if (env->mcg_cap & MCG_LMCE_P) {
+        has_msr_mcg_ext_ctl = has_msr_feature_control = true;
     }
 
     c = cpuid_find_entry(&cpuid_data.cpuid, 0x80000007, 0);
@@ -1723,6 +1744,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
 
         kvm_msr_entry_add(cpu, MSR_MCG_STATUS, env->mcg_status);
         kvm_msr_entry_add(cpu, MSR_MCG_CTL, env->mcg_ctl);
+        if (has_msr_mcg_ext_ctl) {
+            kvm_msr_entry_add(cpu, MSR_MCG_EXT_CTL, env->mcg_ext_ctl);
+        }
         for (i = 0; i < (env->mcg_cap & 0xff) * 4; i++) {
             kvm_msr_entry_add(cpu, MSR_MC0_CTL + i, env->mce_banks[i]);
         }
@@ -2026,6 +2050,9 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (env->mcg_cap) {
         kvm_msr_entry_add(cpu, MSR_MCG_STATUS, 0);
         kvm_msr_entry_add(cpu, MSR_MCG_CTL, 0);
+        if (has_msr_mcg_ext_ctl) {
+            kvm_msr_entry_add(cpu, MSR_MCG_EXT_CTL, 0);
+        }
         for (i = 0; i < (env->mcg_cap & 0xff) * 4; i++) {
             kvm_msr_entry_add(cpu, MSR_MC0_CTL + i, 0);
         }
@@ -2153,6 +2180,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_MCG_CTL:
             env->mcg_ctl = msrs[i].data;
+            break;
+        case MSR_MCG_EXT_CTL:
+            env->mcg_ext_ctl = msrs[i].data;
             break;
         case MSR_IA32_MISC_ENABLE:
             env->msr_ia32_misc_enable = msrs[i].data;
