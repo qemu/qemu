@@ -1809,9 +1809,23 @@ static void qxl_hw_update(void *opaque)
     qxl_render_update(qxl);
 }
 
+static void qxl_dirty_one_surface(PCIQXLDevice *qxl, QXLPHYSICAL pqxl,
+                                  uint32_t height, int32_t stride)
+{
+    uint64_t offset;
+    uint32_t slot, size;
+    bool rc;
+
+    rc = qxl_get_check_slot_offset(qxl, pqxl, &slot, &offset);
+    assert(rc == true);
+    size = height * abs(stride);
+    trace_qxl_surfaces_dirty(qxl->id, (int)offset, size);
+    qxl_set_dirty(qxl->guest_slots[slot].mr,
+                  qxl->guest_slots[slot].offset + offset, size);
+}
+
 static void qxl_dirty_surfaces(PCIQXLDevice *qxl)
 {
-    uintptr_t vram_start;
     int i;
 
     if (qxl->mode != QXL_MODE_NATIVE && qxl->mode != QXL_MODE_COMPAT) {
@@ -1819,16 +1833,13 @@ static void qxl_dirty_surfaces(PCIQXLDevice *qxl)
     }
 
     /* dirty the primary surface */
-    qxl_set_dirty(&qxl->vga.vram, qxl->shadow_rom.draw_area_offset,
-                  qxl->shadow_rom.surface0_area_size);
-
-    vram_start = (uintptr_t)memory_region_get_ram_ptr(&qxl->vram_bar);
+    qxl_dirty_one_surface(qxl, qxl->guest_primary.surface.mem,
+                          qxl->guest_primary.surface.height,
+                          qxl->guest_primary.surface.stride);
 
     /* dirty the off-screen surfaces */
     for (i = 0; i < qxl->ssd.num_surfaces; i++) {
         QXLSurfaceCmd *cmd;
-        intptr_t surface_offset;
-        int surface_size;
 
         if (qxl->guest_surfaces.cmds[i] == 0) {
             continue;
@@ -1838,15 +1849,9 @@ static void qxl_dirty_surfaces(PCIQXLDevice *qxl)
                             MEMSLOT_GROUP_GUEST);
         assert(cmd);
         assert(cmd->type == QXL_SURFACE_CMD_CREATE);
-        surface_offset = (intptr_t)qxl_phys2virt(qxl,
-                                                 cmd->u.surface_create.data,
-                                                 MEMSLOT_GROUP_GUEST);
-        assert(surface_offset);
-        surface_offset -= vram_start;
-        surface_size = cmd->u.surface_create.height *
-                       abs(cmd->u.surface_create.stride);
-        trace_qxl_surfaces_dirty(qxl->id, i, (int)surface_offset, surface_size);
-        qxl_set_dirty(&qxl->vram_bar, surface_offset, surface_size);
+        qxl_dirty_one_surface(qxl, cmd->u.surface_create.data,
+                              cmd->u.surface_create.height,
+                              cmd->u.surface_create.stride);
     }
 }
 
