@@ -201,11 +201,12 @@ typedef struct GSIState {
 void gsi_handler(void *opaque, int n, int level);
 
 /* vmport.c */
+#define TYPE_VMPORT "vmport"
 typedef uint32_t (VMPortReadFunc)(void *opaque, uint32_t address);
 
 static inline void vmport_init(ISABus *bus)
 {
-    isa_create_simple(bus, "vmport");
+    isa_create_simple(bus, TYPE_VMPORT);
 }
 
 void vmport_register(unsigned char command, VMPortReadFunc *func, void *opaque);
