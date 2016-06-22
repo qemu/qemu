@@ -31,6 +31,7 @@
 #include "qemu/timer.h"
 #include "hw/timer/i8254.h"
 #include "hw/audio/pcspk.h"
+#include "qapi/error.h"
 
 #define PCSPK_BUF_LEN 1792
 #define PCSPK_SAMPLE_RATE 32000
@@ -169,6 +170,11 @@ static void pcspk_initfn(Object *obj)
     PCSpkState *s = PC_SPEAKER(obj);
 
     memory_region_init_io(&s->ioport, OBJECT(s), &pcspk_io_ops, s, "pcspk", 1);
+
+    object_property_add_link(obj, "pit", TYPE_I8254,
+                             (Object **)&s->pit,
+                             qdev_prop_allow_set_link_before_realize,
+                             0, &error_abort);
 }
 
 static void pcspk_realizefn(DeviceState *dev, Error **errp)
@@ -183,7 +189,6 @@ static void pcspk_realizefn(DeviceState *dev, Error **errp)
 
 static Property pcspk_properties[] = {
     DEFINE_PROP_UINT32("iobase", PCSpkState, iobase,  -1),
-    DEFINE_PROP_PTR("pit", PCSpkState, pit),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -194,7 +199,7 @@ static void pcspk_class_initfn(ObjectClass *klass, void *data)
     dc->realize = pcspk_realizefn;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->props = pcspk_properties;
-    /* Reason: pointer property "pit", realize sets global pcspk_state */
+    /* Reason: realize sets global pcspk_state */
     dc->cannot_instantiate_with_device_add_yet = true;
 }
 
