@@ -5,6 +5,9 @@
 
 #include "exec/memory.h"
 
+#define TYPE_CFI_PFLASH01 "cfi.pflash01"
+#define TYPE_CFI_PFLASH02 "cfi.pflash02"
+
 typedef struct pflash_t pflash_t;
 
 /* pflash_cfi01.c */
