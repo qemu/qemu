@@ -277,6 +277,8 @@ int cmos_get_fd_drive_type(FloppyDriveType fd0);
 
 #define FW_CFG_IO_BASE     0x510
 
+#define PORT92_A20_LINE "a20"
+
 /* acpi_piix.c */
 
 I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
