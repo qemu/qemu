@@ -1088,21 +1088,6 @@ Example:
 -> { "execute": "balloon", "arguments": { "value": 536870912 } }
 <- { "return": {} }
 
-set_link
---------
-
-Change the link status of a network adapter.
-
-Arguments:
-
-- "name": network device name (json-string)
-- "up": status is up (json-bool)
-
-Example:
-
--> { "execute": "set_link", "arguments": { "name": "e1000.0", "up": false } }
-<- { "return": {} }
-
 getfd
 -----
 

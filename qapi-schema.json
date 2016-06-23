@@ -2352,6 +2352,13 @@
 # Notes: Not all network adapters support setting link status.  This command
 #        will succeed even if the network adapter does not support link status
 #        notification.
+#
+# Example:
+#
+# -> { "execute": "set_link",
+#      "arguments": { "name": "e1000.0", "up": false } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'set_link', 'data': {'name': 'str', 'up': 'bool'} }
 
