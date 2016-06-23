@@ -208,54 +208,6 @@ Example:
                                                "base": "/tmp/master.qcow2" } }
 <- { "return": {} }
 
-drive-backup
-------------
-
-Start a point-in-time copy of a block device to a new destination.  The
-status of ongoing drive-backup operations can be checked with
-query-block-jobs where the BlockJobInfo.type field has the value 'backup'.
-The operation can be stopped before it has completed using the
-block-job-cancel command.
-
-Arguments:
-
-- "job-id": Identifier for the newly-created block job. If omitted,
-            the device name will be used. (json-string, optional)
-- "device": the device name or node-name of a root node which should be copied.
-            (json-string)
-- "target": the target of the new image. If the file exists, or if it is a
-            device, the existing file/device will be used as the new
-            destination.  If it does not exist, a new file will be created.
-            (json-string)
-- "format": the format of the new destination, default is to probe if 'mode' is
-            'existing', else the format of the source
-            (json-string, optional)
-- "sync": what parts of the disk image should be copied to the destination;
-  possibilities include "full" for all the disk, "top" for only the sectors
-  allocated in the topmost image, "incremental" for only the dirty sectors in
-  the bitmap, or "none" to only replicate new I/O (MirrorSyncMode).
-- "bitmap": dirty bitmap name for sync==incremental. Must be present if sync
-            is "incremental", must NOT be present otherwise.
-- "mode": whether and how QEMU should create a new image
-          (NewImageMode, optional, default 'absolute-paths')
-- "speed": the maximum speed, in bytes per second (json-int, optional)
-- "compress": true to compress data, if the target format supports it.
-              (json-bool, optional, default false)
-- "on-source-error": the action to take on an error on the source, default
-                     'report'.  'stop' and 'enospc' can only be used
-                     if the block device supports io-status.
-                     (BlockdevOnError, optional)
-- "on-target-error": the action to take on an error on the target, default
-                     'report' (no limitations, since this applies to
-                     a different block device than device).
-                     (BlockdevOnError, optional)
-
-Example:
--> { "execute": "drive-backup", "arguments": { "device": "drive0",
-                                               "sync": "full",
-                                               "target": "backup.img" } }
-<- { "return": {} }
-
 blockdev-backup
 ---------------
 

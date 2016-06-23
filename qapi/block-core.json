@@ -1340,6 +1340,15 @@
 #          If @device is not a valid block device, GenericError
 #
 # Since: 1.6
+#
+# Example:
+#
+# -> { "execute": "drive-backup",
+#      "arguments": { "device": "drive0",
+#                     "sync": "full",
+#                     "target": "backup.img" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'drive-backup', 'boxed': true,
   'data': 'DriveBackup' }
