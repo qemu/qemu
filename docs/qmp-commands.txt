@@ -219,26 +219,6 @@ Example:
 
 Note: CPUs' indexes are obtained with the 'query-cpus' command.
 
-memsave
--------
-
-Save to disk virtual memory dump starting at 'val' of size 'size'.
-
-Arguments:
-
-- "val": the starting address (json-int)
-- "size": the memory size, in bytes (json-int)
-- "filename": file path (json-string)
-- "cpu": virtual CPU index (json-int, optional)
-
-Example:
-
--> { "execute": "memsave",
-             "arguments": { "val": 10,
-                            "size": 100,
-                            "filename": "/tmp/virtual-mem-dump" } }
-<- { "return": {} }
-
 pmemsave
 --------
 

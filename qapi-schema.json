@@ -2231,6 +2231,15 @@
 # Since: 0.14.0
 #
 # Notes: Errors were not reliably returned until 1.1
+#
+# Example:
+#
+# -> { "execute": "memsave",
+#      "arguments": { "val": 10,
+#                     "size": 100,
+#                     "filename": "/tmp/virtual-mem-dump" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'memsave',
   'data': {'val': 'int', 'size': 'int', 'filename': 'str', '*cpu-index': 'int'} }
