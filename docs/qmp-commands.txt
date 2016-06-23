@@ -438,25 +438,6 @@ Example:
 -> { "execute": "trace-event-set-state", "arguments": { "name": "qemu_memalign", "enable": "true" } }
 <- { "return": {} }
 
-block-set-write-threshold
-------------
-
-Change the write threshold for a block drive. The threshold is an offset,
-thus must be non-negative. Default is no write threshold.
-Setting the threshold to zero disables it.
-
-Arguments:
-
-- "node-name": the node name in the block driver state graph (json-string)
-- "write-threshold": the write threshold in bytes (json-int)
-
-Example:
-
--> { "execute": "block-set-write-threshold",
-  "arguments": { "node-name": "mydev",
-                 "write-threshold": 17179869184 } }
-<- { "return": {} }
-
 Show rocker switch
 ------------------
 
