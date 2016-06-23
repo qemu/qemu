@@ -3059,6 +3059,23 @@
 # Stay away from it unless you want to help with its development.
 #
 # Since: 2.5
+#
+# Example:
+#
+# -> { "execute": "blockdev-add",
+#      "arguments": {
+#          "options": { "node-name": "node0",
+#                       "driver": "raw",
+#                       "file": { "driver": "file",
+#                                 "filename": "fedora.iso" } } } }
+# <- { "return": {} }
+#
+# -> { "execute": "x-blockdev-insert-medium",
+#      "arguments": { "id": "ide0-1-0",
+#                     "node-name": "node0" } }
+#
+# <- { "return": {} }
+#
 ##
 { 'command': 'x-blockdev-insert-medium',
   'data': { '*device': 'str',

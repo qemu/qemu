@@ -343,39 +343,6 @@ named schema entities.  Entities are commands, events and various
 types.  See docs/qapi-code-gen.txt for information on their structure
 and intended use.
 
-x-blockdev-insert-medium
-------------------------
-
-Inserts a medium (a block driver state tree) into a block device. That block
-device's tray must currently be open (unless there is no attached guest device)
-and there must be no medium inserted already.
-
-This command is still a work in progress and is considered experimental.
-Stay away from it unless you want to help with its development.
-
-Arguments:
-
-- "device": block device name (deprecated, use @id instead)
-            (json-string, optional)
-- "id": the name or QOM path of the guest device (json-string, optional)
-- "node-name": root node of the BDS tree to insert into the block device
-
-Example:
-
--> { "execute": "blockdev-add",
-     "arguments": { { "node-name": "node0",
-                      "driver": "raw",
-                      "file": { "driver": "file",
-                                "filename": "fedora.iso" } } }
-
-<- { "return": {} }
-
--> { "execute": "x-blockdev-insert-medium",
-     "arguments": { "id": "ide0-1-0",
-                    "node-name": "node0" } }
-
-<- { "return": {} }
-
 x-blockdev-change
 -----------------
 
