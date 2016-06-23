@@ -221,22 +221,6 @@ Example:
 
 Note: this event is rate-limited.
 
-SHUTDOWN
---------
-
-Emitted when the Virtual Machine has shut down, indicating that qemu
-is about to exit.
-
-Data: None.
-
-Example:
-
-{ "event": "SHUTDOWN",
-    "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
-
-Note: If the command-line option "-no-shutdown" has been specified, a STOP
-event will eventually follow the SHUTDOWN event.
-
 SPICE_CONNECTED
 ---------------
 
