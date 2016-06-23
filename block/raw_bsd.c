@@ -1,6 +1,6 @@
 /* BlockDriver implementation for "raw"
  *
- * Copyright (C) 2010, 2013, Red Hat, Inc.
+ * Copyright (C) 2010-2016 Red Hat, Inc.
  * Copyright (C) 2010, Blue Swirl <blauwirbel@gmail.com>
  * Copyright (C) 2009, Anthony Liguori <aliguori@us.ibm.com>
  *
@@ -150,11 +150,6 @@ static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return bdrv_get_info(bs->file->bs, bdi);
 }
 
-static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
-{
-    bs->bl = bs->file->bs->bl;
-}
-
 static int raw_truncate(BlockDriverState *bs, int64_t offset)
 {
     return bdrv_truncate(bs->file->bs, offset);
@@ -252,7 +247,6 @@ BlockDriver bdrv_raw = {
     .bdrv_getlength       = &raw_getlength,
     .has_variable_length  = true,
     .bdrv_get_info        = &raw_get_info,
-    .bdrv_refresh_limits  = &raw_refresh_limits,
     .bdrv_probe_blocksizes = &raw_probe_blocksizes,
     .bdrv_probe_geometry  = &raw_probe_geometry,
     .bdrv_media_changed   = &raw_media_changed,
