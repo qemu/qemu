@@ -81,19 +81,33 @@
 ##
 # @blockdev-snapshot-internal-sync:
 #
-# Synchronously take an internal snapshot of a block device, when the format
-# of the image used supports it.
+# Synchronously take an internal snapshot of a block device, when the
+# format of the image used supports it. If the name is an empty
+# string, or a snapshot with name already exists, the operation will
+# fail.
 #
 # For the arguments, see the documentation of BlockdevSnapshotInternal.
 #
 # Returns: nothing on success
+#
 #          If @device is not a valid block device, GenericError
+#
 #          If any snapshot matching @name exists, or @name is empty,
 #          GenericError
+#
 #          If the format of the image used does not support it,
 #          BlockFormatFeatureNotSupported
 #
 # Since: 1.7
+#
+# Example:
+#
+# -> { "execute": "blockdev-snapshot-internal-sync",
+#      "arguments": { "device": "ide-hd0",
+#                     "name": "snapshot0" }
+#    }
+# <- { "return": {} }
+#
 ##
 { 'command': 'blockdev-snapshot-internal-sync',
   'data': 'BlockdevSnapshotInternal' }
