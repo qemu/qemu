@@ -208,25 +208,6 @@ Example:
                                                "base": "/tmp/master.qcow2" } }
 <- { "return": {} }
 
-block-dirty-bitmap-clear
-------------------------
-Since 2.4
-
-Reset the dirty bitmap associated with a node so that an incremental backup
-from this point in time forward will only backup clusters modified after this
-clear operation.
-
-Arguments:
-
-- "node": device/node on which to remove dirty bitmap (json-string)
-- "name": name of the dirty bitmap to remove (json-string)
-
-Example:
-
--> { "execute": "block-dirty-bitmap-clear", "arguments": { "node": "drive0",
-                                                           "name": "bitmap0" } }
-<- { "return": {} }
-
 blockdev-snapshot-internal-sync
 -------------------------------
 
