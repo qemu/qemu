@@ -3096,6 +3096,7 @@
 # @read-write:  Makes the device writable
 #
 # Since: 2.3
+#
 ##
 { 'enum': 'BlockdevChangeReadOnlyMode',
   'data': ['retain', 'read-only', 'read-write'] }
@@ -3123,6 +3124,37 @@
 #                   to 'retain'
 #
 # Since: 2.5
+#
+# Examples:
+#
+# 1. Change a removable medium
+#
+# -> { "execute": "blockdev-change-medium",
+#      "arguments": { "id": "ide0-1-0",
+#                     "filename": "/srv/images/Fedora-12-x86_64-DVD.iso",
+#                     "format": "raw" } }
+# <- { "return": {} }
+#
+# 2. Load a read-only medium into a writable drive
+#
+# -> { "execute": "blockdev-change-medium",
+#      "arguments": { "id": "floppyA",
+#                     "filename": "/srv/images/ro.img",
+#                     "format": "raw",
+#                     "read-only-mode": "retain" } }
+#
+# <- { "error":
+#      { "class": "GenericError",
+#        "desc": "Could not open '/srv/images/ro.img': Permission denied" } }
+#
+# -> { "execute": "blockdev-change-medium",
+#      "arguments": { "id": "floppyA",
+#                     "filename": "/srv/images/ro.img",
+#                     "format": "raw",
+#                     "read-only-mode": "read-only" } }
+#
+# <- { "return": {} }
+#
 ##
 { 'command': 'blockdev-change-medium',
   'data': { '*device': 'str',
