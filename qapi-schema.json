@@ -2289,6 +2289,12 @@
 #         this case, the effect of the command is to make sure the guest
 #         starts once migration finishes, removing the effect of the -S
 #         command line option if it was passed.
+#
+# Example:
+#
+# -> { "execute": "cont" }
+# <- { "return": {} }
+#
 ##
 { 'command': 'cont' }
 

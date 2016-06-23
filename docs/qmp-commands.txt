@@ -113,18 +113,6 @@ Example:
 -> { "execute": "screendump", "arguments": { "filename": "/tmp/image" } }
 <- { "return": {} }
 
-cont
-----
-
-Resume emulation.
-
-Arguments: None.
-
-Example:
-
--> { "execute": "cont" }
-<- { "return": {} }
-
 system_wakeup
 -------------
 
