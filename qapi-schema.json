@@ -2622,13 +2622,19 @@
 #
 # Set maximum speed for migration.
 #
-# @value: maximum speed in bytes.
+# @value: maximum speed in bytes per second.
 #
 # Returns: nothing on success
 #
 # Notes: This command is deprecated in favor of 'migrate-set-parameters'
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "migrate_set_speed", "arguments": { "value": 1024 } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'migrate_set_speed', 'data': {'value': 'int'} }
 

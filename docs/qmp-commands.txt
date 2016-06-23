@@ -318,20 +318,6 @@ Example:
 -> { "execute": "query-migrate-cache-size" }
 <- { "return": 67108864 }
 
-migrate_set_speed
------------------
-
-Set maximum speed for migrations.
-
-Arguments:
-
-- "value": maximum speed, in bytes per second (json-int)
-
-Example:
-
--> { "execute": "migrate_set_speed", "arguments": { "value": 1024 } }
-<- { "return": {} }
-
 x-colo-lost-heartbeat
 --------------------
 
