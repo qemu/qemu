@@ -1368,6 +1368,14 @@
 #          If @device is not a valid block device, DeviceNotFound
 #
 # Since: 2.3
+#
+# Example:
+# -> { "execute": "blockdev-backup",
+#      "arguments": { "device": "src-id",
+#                     "sync": "full",
+#                     "target": "tgt-id" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'blockdev-backup', 'boxed': true,
   'data': 'BlockdevBackup' }

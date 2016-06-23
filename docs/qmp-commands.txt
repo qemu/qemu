@@ -208,41 +208,6 @@ Example:
                                                "base": "/tmp/master.qcow2" } }
 <- { "return": {} }
 
-blockdev-backup
----------------
-
-The device version of drive-backup: this command takes an existing named device
-as backup target.
-
-Arguments:
-
-- "job-id": Identifier for the newly-created block job. If omitted,
-            the device name will be used. (json-string, optional)
-- "device": the device name or node-name of a root node which should be copied.
-            (json-string)
-- "target": the name of the backup target device. (json-string)
-- "sync": what parts of the disk image should be copied to the destination;
-          possibilities include "full" for all the disk, "top" for only the
-          sectors allocated in the topmost image, or "none" to only replicate
-          new I/O (MirrorSyncMode).
-- "speed": the maximum speed, in bytes per second (json-int, optional)
-- "compress": true to compress data, if the target format supports it.
-              (json-bool, optional, default false)
-- "on-source-error": the action to take on an error on the source, default
-                     'report'.  'stop' and 'enospc' can only be used
-                     if the block device supports io-status.
-                     (BlockdevOnError, optional)
-- "on-target-error": the action to take on an error on the target, default
-                     'report' (no limitations, since this applies to
-                     a different block device than device).
-                     (BlockdevOnError, optional)
-
-Example:
--> { "execute": "blockdev-backup", "arguments": { "device": "src-id",
-                                                  "sync": "full",
-                                                  "target": "tgt-id" } }
-<- { "return": {} }
-
 block-dirty-bitmap-add
 ----------------------
 Since 2.4
