@@ -338,11 +338,14 @@ typedef struct BlockLimits {
      * power of 2, and less than max_pwrite_zeroes if that is set */
     uint32_t pwrite_zeroes_alignment;
 
-    /* optimal transfer length in sectors */
-    int opt_transfer_length;
+    /* optimal transfer length in bytes (must be power of 2, and
+     * multiple of bs->request_alignment), or 0 if no preferred size */
+    uint32_t opt_transfer;
 
-    /* maximal transfer length in sectors */
-    int max_transfer_length;
+    /* maximal transfer length in bytes (need not be power of 2, but
+     * should be multiple of opt_transfer), or 0 for no 32-bit limit.
+     * For now, anything larger than INT_MAX is clamped down. */
+    uint32_t max_transfer;
 
     /* memory alignment so that no bounce buffer is needed */
     size_t min_mem_alignment;

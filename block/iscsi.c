@@ -473,9 +473,10 @@ iscsi_co_writev_flags(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
         return -EINVAL;
     }
 
-    if (bs->bl.max_transfer_length && nb_sectors > bs->bl.max_transfer_length) {
+    if (bs->bl.max_transfer &&
+        nb_sectors << BDRV_SECTOR_BITS > bs->bl.max_transfer) {
         error_report("iSCSI Error: Write of %d sectors exceeds max_xfer_len "
-                     "of %d sectors", nb_sectors, bs->bl.max_transfer_length);
+                     "of %" PRIu32 " bytes", nb_sectors, bs->bl.max_transfer);
         return -EINVAL;
     }
 
@@ -650,9 +651,10 @@ static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
         return -EINVAL;
     }
 
-    if (bs->bl.max_transfer_length && nb_sectors > bs->bl.max_transfer_length) {
+    if (bs->bl.max_transfer &&
+        nb_sectors << BDRV_SECTOR_BITS > bs->bl.max_transfer) {
         error_report("iSCSI Error: Read of %d sectors exceeds max_xfer_len "
-                     "of %d sectors", nb_sectors, bs->bl.max_transfer_length);
+                     "of %" PRIu32 " bytes", nb_sectors, bs->bl.max_transfer);
         return -EINVAL;
     }
 
@@ -1708,7 +1710,7 @@ static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
      * iscsi_open(): iscsi targets don't change their limits. */
 
     IscsiLun *iscsilun = bs->opaque;
-    uint32_t max_xfer_len = iscsilun->use_16_for_rw ? 0xffffffff : 0xffff;
+    uint64_t max_xfer_len = iscsilun->use_16_for_rw ? 0xffffffff : 0xffff;
 
     bs->request_alignment = iscsilun->block_size;
 
@@ -1716,7 +1718,9 @@ static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
         max_xfer_len = MIN(max_xfer_len, iscsilun->bl.max_xfer_len);
     }
 
-    bs->bl.max_transfer_length = sector_limits_lun2qemu(max_xfer_len, iscsilun);
+    if (max_xfer_len * iscsilun->block_size < INT_MAX) {
+        bs->bl.max_transfer = max_xfer_len * iscsilun->block_size;
+    }
 
     if (iscsilun->lbp.lbpu) {
         if (iscsilun->bl.max_unmap < 0xffffffff) {
@@ -1739,8 +1743,11 @@ static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
     } else {
         bs->bl.pwrite_zeroes_alignment = iscsilun->block_size;
     }
-    bs->bl.opt_transfer_length =
-        sector_limits_lun2qemu(iscsilun->bl.opt_xfer_len, iscsilun);
+    if (iscsilun->bl.opt_xfer_len &&
+        iscsilun->bl.opt_xfer_len < INT_MAX / iscsilun->block_size) {
+        bs->bl.opt_transfer = pow2floor(iscsilun->bl.opt_xfer_len *
+                                        iscsilun->block_size);
+    }
 }
 
 /* Note that this will not re-establish a connection with an iSCSI target - it

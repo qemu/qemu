@@ -384,7 +384,7 @@ static int multireq_compare(const void *a, const void *b)
 void virtio_blk_submit_multireq(BlockBackend *blk, MultiReqBuffer *mrb)
 {
     int i = 0, start = 0, num_reqs = 0, niov = 0, nb_sectors = 0;
-    int max_xfer_len;
+    uint32_t max_transfer;
     int64_t sector_num = 0;
 
     if (mrb->num_reqs == 1) {
@@ -393,7 +393,7 @@ void virtio_blk_submit_multireq(BlockBackend *blk, MultiReqBuffer *mrb)
         return;
     }
 
-    max_xfer_len = blk_get_max_transfer_length(mrb->reqs[0]->dev->blk);
+    max_transfer = blk_get_max_transfer(mrb->reqs[0]->dev->blk);
 
     qsort(mrb->reqs, mrb->num_reqs, sizeof(*mrb->reqs),
           &multireq_compare);
@@ -409,8 +409,9 @@ void virtio_blk_submit_multireq(BlockBackend *blk, MultiReqBuffer *mrb)
              */
             if (sector_num + nb_sectors != req->sector_num ||
                 niov > blk_get_max_iov(blk) - req->qiov.niov ||
-                req->qiov.size / BDRV_SECTOR_SIZE > max_xfer_len ||
-                nb_sectors > max_xfer_len - req->qiov.size / BDRV_SECTOR_SIZE) {
+                req->qiov.size > max_transfer ||
+                nb_sectors > (max_transfer -
+                              req->qiov.size) / BDRV_SECTOR_SIZE) {
                 submit_requests(blk, mrb, start, num_reqs, niov);
                 num_reqs = 0;
             }

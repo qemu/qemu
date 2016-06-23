@@ -1303,16 +1303,16 @@ int blk_get_flags(BlockBackend *blk)
     }
 }
 
-/* Returns the maximum transfer length, in sectors; guaranteed nonzero */
-int blk_get_max_transfer_length(BlockBackend *blk)
+/* Returns the maximum transfer length, in bytes; guaranteed nonzero */
+uint32_t blk_get_max_transfer(BlockBackend *blk)
 {
     BlockDriverState *bs = blk_bs(blk);
-    int max = 0;
+    uint32_t max = 0;
 
     if (bs) {
-        max = bs->bl.max_transfer_length;
+        max = bs->bl.max_transfer;
     }
-    return MIN_NON_ZERO(max, BDRV_REQUEST_MAX_SECTORS);
+    return MIN_NON_ZERO(max, INT_MAX);
 }
 
 int blk_get_max_iov(BlockBackend *blk)

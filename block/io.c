@@ -88,8 +88,8 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
             error_propagate(errp, local_err);
             return;
         }
-        bs->bl.opt_transfer_length = bs->file->bs->bl.opt_transfer_length;
-        bs->bl.max_transfer_length = bs->file->bs->bl.max_transfer_length;
+        bs->bl.opt_transfer = bs->file->bs->bl.opt_transfer;
+        bs->bl.max_transfer = bs->file->bs->bl.max_transfer;
         bs->bl.min_mem_alignment = bs->file->bs->bl.min_mem_alignment;
         bs->bl.opt_mem_alignment = bs->file->bs->bl.opt_mem_alignment;
         bs->bl.max_iov = bs->file->bs->bl.max_iov;
@@ -107,12 +107,10 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
             error_propagate(errp, local_err);
             return;
         }
-        bs->bl.opt_transfer_length =
-            MAX(bs->bl.opt_transfer_length,
-                bs->backing->bs->bl.opt_transfer_length);
-        bs->bl.max_transfer_length =
-            MIN_NON_ZERO(bs->bl.max_transfer_length,
-                         bs->backing->bs->bl.max_transfer_length);
+        bs->bl.opt_transfer = MAX(bs->bl.opt_transfer,
+                                  bs->backing->bs->bl.opt_transfer);
+        bs->bl.max_transfer = MIN_NON_ZERO(bs->bl.max_transfer,
+                                           bs->backing->bs->bl.max_transfer);
         bs->bl.opt_mem_alignment =
             MAX(bs->bl.opt_mem_alignment,
                 bs->backing->bs->bl.opt_mem_alignment);
@@ -1156,7 +1154,8 @@ int coroutine_fn bdrv_co_readv(BlockDriverState *bs, int64_t sector_num,
     return bdrv_co_do_readv(bs, sector_num, nb_sectors, qiov, 0);
 }
 
-#define MAX_WRITE_ZEROES_BOUNCE_BUFFER 32768
+/* Maximum buffer for write zeroes fallback, in bytes */
+#define MAX_WRITE_ZEROES_BOUNCE_BUFFER (32768 << BDRV_SECTOR_BITS)
 
 static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int count, BdrvRequestFlags flags)
@@ -1214,7 +1213,7 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
 
         if (ret == -ENOTSUP) {
             /* Fall back to bounce buffer if write zeroes is unsupported */
-            int max_xfer_len = MIN_NON_ZERO(bs->bl.max_transfer_length,
+            int max_transfer = MIN_NON_ZERO(bs->bl.max_transfer,
                                             MAX_WRITE_ZEROES_BOUNCE_BUFFER);
             BdrvRequestFlags write_flags = flags & ~BDRV_REQ_ZERO_WRITE;
 
@@ -1225,7 +1224,7 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
                 write_flags &= ~BDRV_REQ_FUA;
                 need_flush = true;
             }
-            num = MIN(num, max_xfer_len << BDRV_SECTOR_BITS);
+            num = MIN(num, max_transfer);
             iov.iov_len = num;
             if (iov.iov_base == NULL) {
                 iov.iov_base = qemu_try_blockalign(bs, num);
@@ -1242,7 +1241,7 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
             /* Keep bounce buffer around if it is big enough for all
              * all future requests.
              */
-            if (num < max_xfer_len << BDRV_SECTOR_BITS) {
+            if (num < max_transfer) {
                 qemu_vfree(iov.iov_base);
                 iov.iov_base = NULL;
             }
