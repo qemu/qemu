@@ -169,45 +169,6 @@ Example:
 <- { "return": { "status": "active", "completed": 1024000,
                  "total": 2048000 } }
 
-block-stream
-------------
-
-Copy data from a backing file into a block device.
-
-Arguments:
-
-- "job-id": Identifier for the newly-created block job. If omitted,
-            the device name will be used. (json-string, optional)
-- "device": The device name or node-name of a root node (json-string)
-- "base": The file name of the backing image above which copying starts.
-          It cannot be set if 'base-node' is also set (json-string, optional)
-- "base-node": the node name of the backing image above which copying starts.
-               It cannot be set if 'base' is also set.
-               (json-string, optional) (Since 2.8)
-- "backing-file": The backing file string to write into the active layer. This
-                  filename is not validated.
-
-                  If a pathname string is such that it cannot be resolved by
-                  QEMU, that means that subsequent QMP or HMP commands must use
-                  node-names for the image in question, as filename lookup
-                  methods will fail.
-
-                  If not specified, QEMU will automatically determine the
-                  backing file string to use, or error out if there is no
-                  obvious choice.  Care should be taken when specifying the
-                  string, to specify a valid filename or protocol.
-                  (json-string, optional) (Since 2.1)
-- "speed":  the maximum speed, in bytes per second (json-int, optional)
-- "on-error": the action to take on an error (default 'report').  'stop' and
-              'enospc' can only be used if the block device supports io-status.
-              (json-string, optional) (Since 2.1)
-
-Example:
-
--> { "execute": "block-stream", "arguments": { "device": "virtio0",
-                                               "base": "/tmp/master.qcow2" } }
-<- { "return": {} }
-
 blockdev-snapshot-internal-sync
 -------------------------------
 
