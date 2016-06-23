@@ -410,6 +410,13 @@
 # @status: @MigrationStatus describing the current migration status.
 #
 # Since: 2.4
+#
+# Example:
+#
+# <- {"timestamp": {"seconds": 1432121972, "microseconds": 744001},
+#     "event": "MIGRATION",
+#     "data": {"status": "completed"} }
+#
 ##
 { 'event': 'MIGRATION',
   'data': {'status': 'MigrationStatus'}}
