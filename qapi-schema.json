@@ -2471,6 +2471,28 @@
 # operation fails, then the entire set of actions will be abandoned and the
 # appropriate error returned.
 #
+# For external snapshots, the dictionary contains the device, the file to use for
+# the new snapshot, and the format.  The default format, if not specified, is
+# qcow2.
+#
+# Each new snapshot defaults to being created by QEMU (wiping any
+# contents if the file already exists), but it is also possible to reuse
+# an externally-created file.  In the latter case, you should ensure that
+# the new image file has the same contents as the current one; QEMU cannot
+# perform any meaningful check.  Typically this is achieved by using the
+# current image file as the backing file for the new image.
+#
+# On failure, the original disks pre-snapshot attempt will be used.
+#
+# For internal snapshots, the dictionary contains the device and the snapshot's
+# name.  If an internal snapshot matching name already exists, the request will
+# be rejected.  Only some image formats support it, for example, qcow2, rbd,
+# and sheepdog.
+#
+# On failure, qemu will try delete the newly created internal snapshot in the
+# transaction.  When an I/O error occurs during deletion, the user needs to fix
+# it later with qemu-img or other command.
+#
 # @actions: List of @TransactionAction;
 #           information needed for the respective operations.
 #
@@ -2479,6 +2501,7 @@
 #              for additional detail.
 #
 # Returns: nothing on success
+#
 #          Errors depend on the operations of the transaction
 #
 # Note: The transaction aborts on the first failure.  Therefore, there will be
@@ -2486,6 +2509,28 @@
 # subsequent actions will not have been attempted.
 #
 # Since: 1.1
+#
+# Example:
+#
+# -> { "execute": "transaction",
+#      "arguments": { "actions": [
+#          { "type": "blockdev-snapshot-sync", "data" : { "device": "ide-hd0",
+#                                      "snapshot-file": "/some/place/my-image",
+#                                      "format": "qcow2" } },
+#          { "type": "blockdev-snapshot-sync", "data" : { "node-name": "myfile",
+#                                      "snapshot-file": "/some/place/my-image2",
+#                                      "snapshot-node-name": "node3432",
+#                                      "mode": "existing",
+#                                      "format": "qcow2" } },
+#          { "type": "blockdev-snapshot-sync", "data" : { "device": "ide-hd1",
+#                                      "snapshot-file": "/some/place/my-image2",
+#                                      "mode": "existing",
+#                                      "format": "qcow2" } },
+#          { "type": "blockdev-snapshot-internal-sync", "data" : {
+#                                      "device": "ide-hd2",
+#                                      "name": "snapshot0" } } ] } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'transaction',
   'data': { 'actions': [ 'TransactionAction' ],
