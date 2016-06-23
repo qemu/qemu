@@ -430,6 +430,12 @@
 # @pass: An incrementing count (starting at 1 on the first pass)
 #
 # Since: 2.6
+#
+# Example:
+#
+# { "timestamp": {"seconds": 1449669631, "microseconds": 239225},
+#   "event": "MIGRATION_PASS", "data": {"pass": 2} }
+#
 ##
 { 'event': 'MIGRATION_PASS',
   'data': { 'pass': 'int' } }
