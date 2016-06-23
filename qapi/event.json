@@ -293,6 +293,17 @@
 # @client: client information
 #
 # Since: 0.13.0
+#
+# Example:
+#
+# <- { "event": "VNC_DISCONNECTED",
+#      "data": {
+#            "server": { "auth": "sasl", "family": "ipv4",
+#                        "service": "5901", "host": "0.0.0.0" },
+#            "client": { "family": "ipv4", "service": "58425",
+#                        "host": "127.0.0.1", "sasl_username": "luiz" } },
+#      "timestamp": { "seconds": 1262976601, "microseconds": 975795 } }
+#
 ##
 { 'event': 'VNC_DISCONNECTED',
   'data': { 'server': 'VncServerInfo',
