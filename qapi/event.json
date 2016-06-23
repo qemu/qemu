@@ -504,7 +504,16 @@
 #
 # @sectors-count: failed read operation sector count
 #
+# Note: This event is rate-limited.
+#
 # Since: 2.0
+#
+# Example:
+#
+# <- { "event": "QUORUM_FAILURE",
+#      "data": { "reference": "usr1", "sector-num": 345435, "sectors-count": 5 },
+#      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
+#
 ##
 { 'event': 'QUORUM_FAILURE',
   'data': { 'reference': 'str', 'sector-num': 'int', 'sectors-count': 'int' } }

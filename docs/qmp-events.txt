@@ -36,25 +36,6 @@ Example:
   },
   "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 
-QUORUM_FAILURE
---------------
-
-Emitted by the Quorum block driver if it fails to establish a quorum.
-
-Data:
-
-- "reference":     device name if defined else node name.
-- "sector-num":    Number of the first sector of the failed read operation.
-- "sectors-count": Failed read operation sector count.
-
-Example:
-
-{ "event": "QUORUM_FAILURE",
-     "data": { "reference": "usr1", "sector-num": 345435, "sectors-count": 5 },
-     "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
-
-Note: this event is rate-limited.
-
 QUORUM_REPORT_BAD
 -----------------
 
