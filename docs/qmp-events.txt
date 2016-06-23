@@ -166,18 +166,6 @@ Flush operation:
 
 Note: this event is rate-limited.
 
-RESET
------
-
-Emitted when the Virtual Machine is reset.
-
-Data: None.
-
-Example:
-
-{ "event": "RESET",
-    "timestamp": { "seconds": 1267041653, "microseconds": 9518 } }
-
 RESUME
 ------
 
