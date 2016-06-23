@@ -1584,6 +1584,26 @@
 # Returns: @VncInfo
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-vnc" }
+# <- { "return": {
+#          "enabled":true,
+#          "host":"0.0.0.0",
+#          "service":"50402",
+#          "auth":"vnc",
+#          "family":"ipv4",
+#          "clients":[
+#             {
+#                "host":"127.0.0.1",
+#                "service":"50401",
+#                "family":"ipv4"
+#             }
+#          ]
+#       }
+#    }
+#
 ##
 { 'command': 'query-vnc', 'returns': 'VncInfo' }
 
