@@ -1166,6 +1166,34 @@ void pc_cpus_init(PCMachineState *pcms)
     smbios_set_cpuid(cpu->env.cpuid_version, cpu->env.features[FEAT_1_EDX]);
 }
 
+static void pc_build_feature_control_file(PCMachineState *pcms)
+{
+    X86CPU *cpu = X86_CPU(pcms->possible_cpus->cpus[0].cpu);
+    CPUX86State *env = &cpu->env;
+    uint32_t unused, ecx, edx;
+    uint64_t feature_control_bits = 0;
+    uint64_t *val;
+
+    cpu_x86_cpuid(env, 1, 0, &unused, &unused, &ecx, &edx);
+    if (ecx & CPUID_EXT_VMX) {
+        feature_control_bits |= FEATURE_CONTROL_VMXON_ENABLED_OUTSIDE_SMX;
+    }
+
+    if ((edx & (CPUID_EXT2_MCE | CPUID_EXT2_MCA)) ==
+        (CPUID_EXT2_MCE | CPUID_EXT2_MCA) &&
+        (env->mcg_cap & MCG_LMCE_P)) {
+        feature_control_bits |= FEATURE_CONTROL_LMCE;
+    }
+
+    if (!feature_control_bits) {
+        return;
+    }
+
+    val = g_malloc(sizeof(*val));
+    *val = cpu_to_le64(feature_control_bits | FEATURE_CONTROL_LOCKED);
+    fw_cfg_add_file(pcms->fw_cfg, "etc/msr_feature_control", val, sizeof(*val));
+}
+
 static
 void pc_machine_done(Notifier *notifier, void *data)
 {
@@ -1193,6 +1221,7 @@ void pc_machine_done(Notifier *notifier, void *data)
     acpi_setup();
     if (pcms->fw_cfg) {
         pc_build_smbios(pcms->fw_cfg);
+        pc_build_feature_control_file(pcms);
     }
 }
 
