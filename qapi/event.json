@@ -345,6 +345,18 @@
 # @client: client information
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# <- { "timestamp": {"seconds": 1290688046, "microseconds": 417172},
+#      "event": "SPICE_INITIALIZED",
+#      "data": {"server": {"auth": "spice", "port": "5921",
+#                          "family": "ipv4", "host": "127.0.0.1"},
+#               "client": {"port": "49004", "family": "ipv4", "channel-type": 3,
+#                          "connection-id": 1804289383, "host": "127.0.0.1",
+#                          "channel-id": 0, "tls": true}
+#    }}
+#
 ##
 { 'event': 'SPICE_INITIALIZED',
   'data': { 'server': 'SpiceServerInfo',
