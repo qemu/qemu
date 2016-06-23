@@ -1747,7 +1747,8 @@ Arguments:
 
 - "job-id": Identifier for the newly-created block job. If omitted,
             the device name will be used. (json-string, optional)
-- "device": device name to operate on (json-string)
+- "device": The device name or node-name of a root node whose writes should be
+            mirrored (json-string)
 - "target": device name to mirror to (json-string)
 - "replaces": the block driver node name to replace when finished
               (json-string, optional)

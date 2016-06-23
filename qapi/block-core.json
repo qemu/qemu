@@ -1277,7 +1277,8 @@
 # @job-id: #optional identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
 #
-# @device: the name of the device whose writes should be mirrored.
+# @device: The device name or node-name of a root node whose writes should be
+#          mirrored.
 #
 # @target: the id or node-name of the block device to mirror to. This mustn't be
 #          attached to guest.

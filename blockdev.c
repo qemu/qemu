@@ -3627,21 +3627,13 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
                          Error **errp)
 {
     BlockDriverState *bs;
-    BlockBackend *blk;
     BlockDriverState *target_bs;
     AioContext *aio_context;
     BlockMirrorBackingMode backing_mode = MIRROR_LEAVE_BACKING_CHAIN;
     Error *local_err = NULL;
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_setg(errp, "Device '%s' not found", device);
-        return;
-    }
-    bs = blk_bs(blk);
-
+    bs = qmp_get_root_bs(device, errp);
     if (!bs) {
-        error_setg(errp, "Device '%s' has no media", device);
         return;
     }
 
