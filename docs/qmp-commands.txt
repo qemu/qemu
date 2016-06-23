@@ -205,21 +205,6 @@ Example:
 <- { "return": { "status": "active", "completed": 1024000,
                  "total": 2048000 } }
 
-object-del
-----------
-
-Remove QOM object.
-
-Arguments:
-
-- "id": the object's ID (json-string)
-
-Example:
-
--> { "execute": "object-del", "arguments": { "id": "rng1" } }
-<- { "return": {} }
-
-
 block_resize
 ------------
 

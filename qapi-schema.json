@@ -3413,6 +3413,12 @@
 #          Error if @id is not a valid id for a QOM object
 #
 # Since: 2.0
+#
+# Example:
+#
+# -> { "execute": "object-del", "arguments": { "id": "rng1" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'object-del', 'data': {'id': 'str'} }
 
