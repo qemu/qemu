@@ -343,35 +343,6 @@ named schema entities.  Entities are commands, events and various
 types.  See docs/qapi-code-gen.txt for information on their structure
 and intended use.
 
-blockdev-close-tray
--------------------
-
-Closes a block device's tray. If there is a block driver state tree associated
-with the block device (which is currently ejected), that tree will be loaded as
-the medium.
-
-If the tray was already closed before, this will be a no-op.
-
-Arguments:
-
-- "device": block device name (deprecated, use @id instead)
-            (json-string, optional)
-- "id": the name or QOM path of the guest device (json-string, optional)
-
-Example:
-
--> { "execute": "blockdev-close-tray",
-     "arguments": { "id": "ide0-1-0" } }
-
-<- { "timestamp": { "seconds": 1418751345,
-                    "microseconds": 272147 },
-     "event": "DEVICE_TRAY_MOVED",
-     "data": { "device": "ide1-cd0",
-               "id": "ide0-1-0",
-               "tray-open": false } }
-
-<- { "return": {} }
-
 x-blockdev-remove-medium
 ------------------------
 

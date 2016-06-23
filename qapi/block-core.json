@@ -2974,6 +2974,21 @@
 # @id:      #optional The name or QOM path of the guest device (since: 2.8)
 #
 # Since: 2.5
+#
+# Example:
+#
+# -> { "execute": "blockdev-close-tray",
+#      "arguments": { "id": "ide0-1-0" } }
+#
+# <- { "timestamp": { "seconds": 1418751345,
+#                     "microseconds": 272147 },
+#      "event": "DEVICE_TRAY_MOVED",
+#      "data": { "device": "ide1-cd0",
+#                "id": "ide0-1-0",
+#                "tray-open": false } }
+#
+# <- { "return": {} }
+#
 ##
 { 'command': 'blockdev-close-tray',
   'data': { '*device': 'str',
