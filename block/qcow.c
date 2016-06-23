@@ -174,7 +174,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
             goto fail;
         }
 
-        bs->encrypted = 1;
+        bs->encrypted = true;
     }
     s->cluster_bits = header.cluster_bits;
     s->cluster_size = 1 << s->cluster_bits;

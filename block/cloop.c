@@ -66,7 +66,7 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
     uint32_t offsets_size, max_compressed_block_size = 1, i;
     int ret;
 
-    bs->read_only = 1;
+    bs->read_only = true;
 
     /* read header */
     ret = bdrv_pread(bs->file->bs, 128, &s->block_size, 4);

@@ -2183,9 +2183,9 @@ static void bdrv_close(BlockDriverState *bs)
         bs->backing_file[0] = '\0';
         bs->backing_format[0] = '\0';
         bs->total_sectors = 0;
-        bs->encrypted = 0;
-        bs->valid_key = 0;
-        bs->sg = 0;
+        bs->encrypted = false;
+        bs->valid_key = false;
+        bs->sg = false;
         QDECREF(bs->options);
         QDECREF(bs->explicit_options);
         bs->options = NULL;
@@ -2643,30 +2643,30 @@ void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr)
     *nb_sectors_ptr = nb_sectors < 0 ? 0 : nb_sectors;
 }
 
-int bdrv_is_read_only(BlockDriverState *bs)
+bool bdrv_is_read_only(BlockDriverState *bs)
 {
     return bs->read_only;
 }
 
-int bdrv_is_sg(BlockDriverState *bs)
+bool bdrv_is_sg(BlockDriverState *bs)
 {
     return bs->sg;
 }
 
-int bdrv_is_encrypted(BlockDriverState *bs)
+bool bdrv_is_encrypted(BlockDriverState *bs)
 {
     if (bs->backing && bs->backing->bs->encrypted) {
-        return 1;
+        return true;
     }
     return bs->encrypted;
 }
 
-int bdrv_key_required(BlockDriverState *bs)
+bool bdrv_key_required(BlockDriverState *bs)
 {
     BdrvChild *backing = bs->backing;
 
     if (backing && backing->bs->encrypted && !backing->bs->valid_key) {
-        return 1;
+        return true;
     }
     return (bs->encrypted && !bs->valid_key);
 }
@@ -2688,10 +2688,10 @@ int bdrv_set_key(BlockDriverState *bs, const char *key)
     }
     ret = bs->drv->bdrv_set_key(bs, key);
     if (ret < 0) {
-        bs->valid_key = 0;
+        bs->valid_key = false;
     } else if (!bs->valid_key) {
         /* call the change callback now, we skipped it on open */
-        bs->valid_key = 1;
+        bs->valid_key = true;
         bdrv_parent_cb_change_media(bs, true);
     }
     return ret;

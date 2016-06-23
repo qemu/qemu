@@ -1597,7 +1597,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
      * will try to read from the device to guess the image format.
      */
     if (iscsilun->type != TYPE_DISK && iscsilun->type != TYPE_ROM) {
-        bs->sg = 1;
+        bs->sg = true;
     }
 
     task = iscsi_do_inquiry(iscsilun->iscsi, iscsilun->lun, 1,

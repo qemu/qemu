@@ -362,8 +362,8 @@ int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
 int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
                             int64_t sector_num, int nb_sectors, int *pnum);
 
-int bdrv_is_read_only(BlockDriverState *bs);
-int bdrv_is_sg(BlockDriverState *bs);
+bool bdrv_is_read_only(BlockDriverState *bs);
+bool bdrv_is_sg(BlockDriverState *bs);
 bool bdrv_is_inserted(BlockDriverState *bs);
 int bdrv_media_changed(BlockDriverState *bs);
 void bdrv_lock_medium(BlockDriverState *bs, bool locked);
@@ -390,8 +390,8 @@ BlockDriverState *bdrv_first(BdrvNextIterator *it);
 BlockDriverState *bdrv_next(BdrvNextIterator *it);
 
 BlockDriverState *bdrv_next_monitor_owned(BlockDriverState *bs);
-int bdrv_is_encrypted(BlockDriverState *bs);
-int bdrv_key_required(BlockDriverState *bs);
+bool bdrv_is_encrypted(BlockDriverState *bs);
+bool bdrv_key_required(BlockDriverState *bs);
 int bdrv_set_key(BlockDriverState *bs, const char *key);
 void bdrv_add_key(BlockDriverState *bs, const char *key, Error **errp);
 int bdrv_query_missing_keys(void);

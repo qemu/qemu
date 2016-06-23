@@ -104,7 +104,7 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
     struct bochs_header bochs;
     int ret;
 
-    bs->read_only = 1; // no write support yet
+    bs->read_only = true; /* no write support yet */
 
     ret = bdrv_pread(bs->file->bs, 0, &bochs, sizeof(bochs));
     if (ret < 0) {

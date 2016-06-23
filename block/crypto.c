@@ -322,8 +322,8 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
         goto cleanup;
     }
 
-    bs->encrypted = 1;
-    bs->valid_key = 1;
+    bs->encrypted = true;
+    bs->valid_key = true;
 
     ret = 0;
  cleanup:

@@ -429,14 +429,15 @@ struct BdrvChild {
 struct BlockDriverState {
     int64_t total_sectors; /* if we are reading a disk image, give its
                               size in sectors */
-    int read_only; /* if true, the media is read only */
     int open_flags; /* flags used to open the file, re-used for re-open */
-    int encrypted; /* if true, the media is encrypted */
-    int valid_key; /* if true, a valid encryption key has been set */
-    int sg;        /* if true, the device is a /dev/sg* */
-    int copy_on_read; /* if true, copy read backing sectors into image
+    bool read_only; /* if true, the media is read only */
+    bool encrypted; /* if true, the media is encrypted */
+    bool valid_key; /* if true, a valid encryption key has been set */
+    bool sg;        /* if true, the device is a /dev/sg* */
+    bool probed;    /* if true, format was probed rather than specified */
+
+    int copy_on_read; /* if nonzero, copy read backing sectors into image.
                          note this is a reference count */
-    bool probed;
 
     BlockDriver *drv; /* NULL means no media */
     void *opaque;
