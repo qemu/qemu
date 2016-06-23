@@ -2784,6 +2784,13 @@
 #          If Spice is not enabled, DeviceNotFound
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "set_password", "arguments": { "protocol": "vnc",
+#                                                "password": "secret" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'set_password',
   'data': {'protocol': 'str', 'password': 'str', '*connected': 'str'} }
