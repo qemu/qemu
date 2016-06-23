@@ -343,42 +343,6 @@ named schema entities.  Entities are commands, events and various
 types.  See docs/qapi-code-gen.txt for information on their structure
 and intended use.
 
-x-blockdev-del
-------------
-Since 2.5
-
-Deletes a block device that has been added using blockdev-add.
-The command will fail if the node is attached to a device or is
-otherwise being used.
-
-This command is still a work in progress and is considered
-experimental. Stay away from it unless you want to help with its
-development.
-
-Arguments:
-
-- "node-name": Name of the graph node to delete (json-string)
-
-Example:
-
--> { "execute": "blockdev-add",
-     "arguments": {
-         "driver": "qcow2",
-         "node-name": "node0",
-         "file": {
-             "driver": "file",
-             "filename": "test.qcow2"
-         }
-     }
-   }
-
-<- { "return": {} }
-
--> { "execute": "x-blockdev-del",
-     "arguments": { "node-name": "node0" }
-   }
-<- { "return": {} }
-
 blockdev-open-tray
 ------------------
 

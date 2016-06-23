@@ -2886,6 +2886,28 @@
 # development.
 #
 # Since: 2.5
+#
+# Example:
+#
+# -> { "execute": "blockdev-add",
+#      "arguments": {
+#          "options": {
+#              "driver": "qcow2",
+#              "node-name": "node0",
+#              "file": {
+#                  "driver": "file",
+#                  "filename": "test.qcow2"
+#              }
+#          }
+#      }
+#    }
+# <- { "return": {} }
+#
+# -> { "execute": "x-blockdev-del",
+#      "arguments": { "node-name": "node0" }
+#    }
+# <- { "return": {} }
+#
 ##
 { 'command': 'x-blockdev-del', 'data': { 'node-name': 'str' } }
 
