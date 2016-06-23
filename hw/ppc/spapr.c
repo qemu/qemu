@@ -2367,8 +2367,8 @@ static HotpluggableCPUList *spapr_query_hotpluggable_cpus(MachineState *machine)
 
         cpu_item->type = spapr_get_cpu_core_type(machine->cpu_model);
         cpu_item->vcpus_count = smp_threads;
-        cpu_props->has_core = true;
-        cpu_props->core = i * smt;
+        cpu_props->has_core_id = true;
+        cpu_props->core_id = i * smt;
         /* TODO: add 'has_node/node' here to describe
            to which node core belongs */
 

@@ -2457,17 +2457,17 @@ void hmp_hotpluggable_cpus(Monitor *mon, const QDict *qdict)
 
         c = l->value->props;
         monitor_printf(mon, "  CPUInstance Properties:\n");
-        if (c->has_node) {
-            monitor_printf(mon, "    node: \"%" PRIu64 "\"\n", c->node);
+        if (c->has_node_id) {
+            monitor_printf(mon, "    node-id: \"%" PRIu64 "\"\n", c->node_id);
         }
-        if (c->has_socket) {
-            monitor_printf(mon, "    socket: \"%" PRIu64 "\"\n", c->socket);
+        if (c->has_socket_id) {
+            monitor_printf(mon, "    socket-id: \"%" PRIu64 "\"\n", c->socket_id);
         }
-        if (c->has_core) {
-            monitor_printf(mon, "    core: \"%" PRIu64 "\"\n", c->core);
+        if (c->has_core_id) {
+            monitor_printf(mon, "    core-id: \"%" PRIu64 "\"\n", c->core_id);
         }
-        if (c->has_thread) {
-            monitor_printf(mon, "    thread: \"%" PRIu64 "\"\n", c->thread);
+        if (c->has_thread_id) {
+            monitor_printf(mon, "    thread-id: \"%" PRIu64 "\"\n", c->thread_id);
         }
 
         l = l->next;

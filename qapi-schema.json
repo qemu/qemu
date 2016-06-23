@@ -4268,20 +4268,21 @@
 # Note: currently there are 4 properties that could be present
 # but management should be prepared to pass through other
 # properties with device_add command to allow for future
-# interface extension.
+# interface extension. This also requires the filed names to be kept in
+# sync with the properties passed to -device/device_add.
 #
-# @node: #optional NUMA node ID the CPU belongs to
-# @socket: #optional socket number within node/board the CPU belongs to
-# @core: #optional core number within socket the CPU belongs to
-# @thread: #optional thread number within core the CPU belongs to
+# @node-id: #optional NUMA node ID the CPU belongs to
+# @socket-id: #optional socket number within node/board the CPU belongs to
+# @core-id: #optional core number within socket the CPU belongs to
+# @thread-id: #optional thread number within core the CPU belongs to
 #
 # Since: 2.7
 ##
 { 'struct': 'CpuInstanceProperties',
-  'data': { '*node': 'int',
-            '*socket': 'int',
-            '*core': 'int',
-            '*thread': 'int'
+  'data': { '*node-id': 'int',
+            '*socket-id': 'int',
+            '*core-id': 'int',
+            '*thread-id': 'int'
   }
 }
 
