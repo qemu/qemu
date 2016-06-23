@@ -104,7 +104,7 @@ static void spin_kick(void *data)
     hwaddr map_start;
 
     cpu_synchronize_state(cpu);
-    stl_p(&curspin->pir, env->spr[SPR_PIR]);
+    stl_p(&curspin->pir, env->spr[SPR_BOOKE_PIR]);
     env->nip = ldq_p(&curspin->addr) & (map_size - 1);
     env->gpr[3] = ldq_p(&curspin->r3);
     env->gpr[4] = 0;
