@@ -311,9 +311,28 @@
 # @type: #optional group type.  If type is not specified, returns
 # group information for all group types.
 #
-# Returns: @Rocker OF-DPA group information
+# Returns: rocker OF-DPA group information
 #
 # Since: 2.4
+#
+# Example:
+#
+# -> { "execute": "query-rocker-of-dpa-groups",
+#      "arguments": { "name": "sw1" } }
+# <- { "return": [ {"type": 0, "out-pport": 2,
+#                   "pport": 2, "vlan-id": 3841,
+#                   "pop-vlan": 1, "id": 251723778},
+#                  {"type": 0, "out-pport": 0,
+#                   "pport": 0, "vlan-id": 3841,
+#                   "pop-vlan": 1, "id": 251723776},
+#                  {"type": 0, "out-pport": 1,
+#                   "pport": 1, "vlan-id": 3840,
+#                   "pop-vlan": 1, "id": 251658241},
+#                  {"type": 0, "out-pport": 0,
+#                   "pport": 0, "vlan-id": 3840,
+#                   "pop-vlan": 1, "id": 251658240}
+#    ]}
+#
 ##
 { 'command': 'query-rocker-of-dpa-groups',
   'data': { 'name': 'str', '*type': 'uint8' },
