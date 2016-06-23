@@ -195,20 +195,6 @@ Example:
 
 Note: CPUs' indexes are obtained with the 'query-cpus' command.
 
-inject-nmi
-----------
-
-Inject an NMI on the default CPU (x86/s390) or all CPUs (ppc64).
-
-Arguments: None.
-
-Example:
-
--> { "execute": "inject-nmi" }
-<- { "return": {} }
-
-Note: inject-nmi fails when the guest doesn't support injecting.
-
 xen-save-devices-state
 -------
 
