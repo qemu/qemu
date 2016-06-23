@@ -1386,6 +1386,22 @@
 # Returns: a list of @IOThreadInfo for each iothread
 #
 # Since: 2.0
+#
+# Example:
+#
+# -> { "execute": "query-iothreads" }
+# <- { "return": [
+#          {
+#             "id":"iothread0",
+#             "thread-id":3134
+#          },
+#          {
+#             "id":"iothread1",
+#             "thread-id":3135
+#          }
+#       ]
+#    }
+#
 ##
 { 'command': 'query-iothreads', 'returns': ['IOThreadInfo'] }
 
