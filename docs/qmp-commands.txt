@@ -334,26 +334,6 @@ Example:
 
 Note: inject-nmi fails when the guest doesn't support injecting.
 
-ringbuf-write
--------------
-
-Write to a ring buffer character device.
-
-Arguments:
-
-- "device": ring buffer character device name (json-string)
-- "data": data to write (json-string)
-- "format": data format (json-string, optional)
-          - Possible values: "utf8" (default), "base64"
-
-Example:
-
--> { "execute": "ringbuf-write",
-                "arguments": { "device": "foo",
-                               "data": "abcdefgh",
-                               "format": "utf8" } }
-<- { "return": {} }
-
 ringbuf-read
 -------------
 

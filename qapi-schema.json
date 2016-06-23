@@ -410,6 +410,15 @@
 # Returns: Nothing on success
 #
 # Since: 1.4
+#
+# Example:
+#
+# -> { "execute": "ringbuf-write",
+#      "arguments": { "device": "foo",
+#                     "data": "abcdefgh",
+#                     "format": "utf8" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'ringbuf-write',
   'data': {'device': 'str', 'data': 'str',
