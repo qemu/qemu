@@ -456,16 +456,6 @@ Example:
 -> { "execute": "migrate-set-cache-size", "arguments": { "value": 536870912 } }
 <- { "return": {} }
 
-migrate-start-postcopy
-----------------------
-
-Switch an in-progress migration to postcopy mode. Ignored after the end of
-migration (or once already in postcopy).
-
-Example:
--> { "execute": "migrate-start-postcopy" }
-<- { "return": {} }
-
 query-migrate-cache-size
 ------------------------
 
