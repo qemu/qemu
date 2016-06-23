@@ -186,21 +186,6 @@ Example:
      "arguments": { "filename": "/tmp/resume" } }
 <- { "return": {} }
 
-xen-set-global-dirty-log
--------
-
-Enable or disable the global dirty log mode.
-
-Arguments:
-
-- "enable": Enable it or disable it.
-
-Example:
-
--> { "execute": "xen-set-global-dirty-log",
-     "arguments": { "enable": true } }
-<- { "return": {} }
-
 migrate-set-cache-size
 ----------------------
 
