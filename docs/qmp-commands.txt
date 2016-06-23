@@ -1074,20 +1074,6 @@ Arguments:
 Returns: Nothing on success
          If "device" does not exist or cannot be determined, DeviceNotFound
 
-balloon
--------
-
-Request VM to change its memory allocation (in bytes).
-
-Arguments:
-
-- "value": New memory allocation (json-int)
-
-Example:
-
--> { "execute": "balloon", "arguments": { "value": 536870912 } }
-<- { "return": {} }
-
 getfd
 -----
 

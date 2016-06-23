@@ -2379,6 +2379,12 @@
 #        size independent of this command.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "balloon", "arguments": { "value": 536870912 } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'balloon', 'data': {'value': 'int'} }
 
