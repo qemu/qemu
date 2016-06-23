@@ -77,6 +77,21 @@
 # Returns:  A @VersionInfo object describing the current version of QEMU.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-version" }
+# <- {
+#       "return":{
+#          "qemu":{
+#             "major":0,
+#             "minor":11,
+#             "micro":5
+#          },
+#          "package":""
+#       }
+#    }
+#
 ##
 { 'command': 'query-version', 'returns': 'VersionInfo' }
 

@@ -209,33 +209,6 @@ Note: This command must be issued before issuing any other command.
 =================
 
 
-query-version
--------------
-
-Show QEMU version.
-
-Return a json-object with the following information:
-
-- "qemu": A json-object containing three integer values:
-    - "major": QEMU's major version (json-int)
-    - "minor": QEMU's minor version (json-int)
-    - "micro": QEMU's micro version (json-int)
-- "package": package's version (json-string)
-
-Example:
-
--> { "execute": "query-version" }
-<- {
-      "return":{
-         "qemu":{
-            "major":0,
-            "minor":11,
-            "micro":5
-         },
-         "package":""
-      }
-   }
-
 query-commands
 --------------
 
