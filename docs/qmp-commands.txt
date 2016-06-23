@@ -312,26 +312,6 @@ Example:
 -> { "execute": "trace-event-set-state", "arguments": { "name": "qemu_memalign", "enable": "true" } }
 <- { "return": {} }
 
-Show rocker switch OF-DPA flow tables
--------------------------------------
-
-Arguments:
-
-- "name": switch name
-- "tbl-id": (optional) flow table ID
-
-Example:
-
--> { "execute": "query-rocker-of-dpa-flows", "arguments": { "name": "sw1" } }
-<- { "return": [ {"key": {"in-pport": 0, "priority": 1, "tbl-id": 0},
-                  "hits": 138,
-                  "cookie": 0,
-                  "action": {"goto-tbl": 10},
-                  "mask": {"in-pport": 4294901760}
-                 },
-                 {...more...},
-   ]}
-
 Show rocker OF-DPA group tables
 -------------------------------
 

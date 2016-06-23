@@ -235,9 +235,23 @@
 # @tbl-id: #optional flow table ID.  If tbl-id is not specified, returns
 # flow information for all tables.
 #
-# Returns: @Rocker OF-DPA flow information
+# Returns: rocker OF-DPA flow information
 #
 # Since: 2.4
+#
+# Example:
+#
+# -> { "execute": "query-rocker-of-dpa-flows",
+#      "arguments": { "name": "sw1" } }
+# <- { "return": [ {"key": {"in-pport": 0, "priority": 1, "tbl-id": 0},
+#                   "hits": 138,
+#                   "cookie": 0,
+#                   "action": {"goto-tbl": 10},
+#                   "mask": {"in-pport": 4294901760}
+#                  },
+#                  {...more...},
+#    ]}
+#
 ##
 { 'command': 'query-rocker-of-dpa-flows',
   'data': { 'name': 'str', '*tbl-id': 'uint32' },
