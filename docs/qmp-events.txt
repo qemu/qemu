@@ -166,24 +166,6 @@ Flush operation:
 
 Note: this event is rate-limited.
 
-RTC_CHANGE
-----------
-
-Emitted when the guest changes the RTC time.
-
-Data:
-
-- "offset": Offset between base RTC clock (as specified by -rtc base), and
-new RTC clock value (json-number)
-
-Example:
-
-{ "event": "RTC_CHANGE",
-    "data": { "offset": 78 },
-    "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
-
-Note: this event is rate-limited.
-
 SPICE_CONNECTED
 ---------------
 
