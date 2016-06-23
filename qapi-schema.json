@@ -1701,7 +1701,7 @@
 # @enabled: true if the SPICE server is enabled, false otherwise
 #
 # @migrated: true if the last guest migration completed and spice
-#            migration had completed as well. false otherwise.
+#            migration had completed as well. false otherwise. (since 1.4)
 #
 # @host: #optional The hostname the SPICE server is bound to.  This depends on
 #        the name resolution on the host and may be an IP address.
@@ -1719,9 +1719,7 @@
 #
 # @mouse-mode: The mode in which the mouse cursor is displayed currently. Can
 #              be determined by the client or the server, or unknown if spice
-#              server doesn't provide this information.
-#
-#              Since: 1.1
+#              server doesn't provide this information. (since: 1.1)
 #
 # @channels: a list of @SpiceChannel for each active spice channel
 #
@@ -1740,6 +1738,40 @@
 # Returns: @SpiceInfo
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-spice" }
+# <- { "return": {
+#          "enabled": true,
+#          "auth": "spice",
+#          "port": 5920,
+#          "tls-port": 5921,
+#          "host": "0.0.0.0",
+#          "channels": [
+#             {
+#                "port": "54924",
+#                "family": "ipv4",
+#                "channel-type": 1,
+#                "connection-id": 1804289383,
+#                "host": "127.0.0.1",
+#                "channel-id": 0,
+#                "tls": true
+#             },
+#             {
+#                "port": "36710",
+#                "family": "ipv4",
+#                "channel-type": 4,
+#                "connection-id": 1804289383,
+#                "host": "127.0.0.1",
+#                "channel-id": 0,
+#                "tls": false
+#             },
+#             [ ... more channels follow ... ]
+#          ]
+#       }
+#    }
+#
 ##
 { 'command': 'query-spice', 'returns': 'SpiceInfo' }
 
