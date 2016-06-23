@@ -312,18 +312,6 @@ Example:
 -> { "execute": "trace-event-set-state", "arguments": { "name": "qemu_memalign", "enable": "true" } }
 <- { "return": {} }
 
-Show rocker switch
-------------------
-
-Arguments:
-
-- "name": switch name
-
-Example:
-
--> { "execute": "query-rocker", "arguments": { "name": "sw1" } }
-<- { "return": {"name": "sw1", "ports": 2, "id": 1327446905938}}
-
 Show rocker switch ports
 ------------------------
 

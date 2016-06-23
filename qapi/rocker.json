@@ -26,6 +26,12 @@
 # Returns: @Rocker information
 #
 # Since: 2.4
+#
+# Example:
+#
+# -> { "execute": "query-rocker", "arguments": { "name": "sw1" } }
+# <- { "return": {"name": "sw1", "ports": 2, "id": 1327446905938}}
+#
 ##
 { 'command': 'query-rocker',
   'data': { 'name': 'str' },
