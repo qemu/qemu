@@ -688,28 +688,6 @@ Arguments:
 Returns: Nothing on success
          If "device" does not exist or cannot be determined, DeviceNotFound
 
-remove-fd
----------
-
-Remove a file descriptor from an fd set.
-
-Arguments:
-
-- "fdset-id": The ID of the fd set that the file descriptor belongs to.
-              (json-int)
-- "fd": The file descriptor that is to be removed. (json-int, optional)
-
-Example:
-
--> { "execute": "remove-fd", "arguments": { "fdset-id": 1, "fd": 3 } }
-<- { "return": {} }
-
-Notes:
-
-(1) The list of fd sets is shared by all monitor connections.
-(2) If "fd" is not specified, all file descriptors in "fdset-id" will be
-    removed.
-
 query-fdsets
 -------------
 

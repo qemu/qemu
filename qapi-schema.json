@@ -4411,6 +4411,12 @@
 #
 #        If @fd is not specified, all file descriptors in @fdset-id
 #        will be removed.
+#
+# Example:
+#
+# -> { "execute": "remove-fd", "arguments": { "fdset-id": 1, "fd": 3 } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'remove-fd', 'data': {'fdset-id': 'int', '*fd': 'int'} }
 
