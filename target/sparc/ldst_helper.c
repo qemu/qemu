@@ -70,44 +70,35 @@
 #define QT1 (env->qt1)
 
 #if defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
-static uint64_t ultrasparc_tsb_pointer(CPUSPARCState *env, uint64_t tsb,
-                                       uint64_t *tsb_ptr,
-                                       uint64_t tag_access_register,
-                                       int idx, uint64_t *cfg_ptr)
 /* Calculates TSB pointer value for fault page size
  * UltraSPARC IIi has fixed sizes (8k or 64k) for the page pointers
  * UA2005 holds the page size configuration in mmu_ctx registers */
+static uint64_t ultrasparc_tsb_pointer(CPUSPARCState *env,
+                                       const SparcV9MMU *mmu, const int idx)
 {
     uint64_t tsb_register;
     int page_size;
     if (cpu_has_hypervisor(env)) {
         int tsb_index = 0;
-        int ctx = tag_access_register & 0x1fffULL;
-        uint64_t ctx_register = cfg_ptr[ctx ? 1 : 0];
+        int ctx = mmu->tag_access & 0x1fffULL;
+        uint64_t ctx_register = mmu->sun4v_ctx_config[ctx ? 1 : 0];
         tsb_index = idx;
         tsb_index |= ctx ? 2 : 0;
         page_size = idx ? ctx_register >> 8 : ctx_register;
         page_size &= 7;
-        tsb_register = tsb_ptr[tsb_index];
+        tsb_register = mmu->sun4v_tsb_pointers[tsb_index];
     } else {
         page_size = idx;
-        tsb_register = tsb;
+        tsb_register = mmu->tsb;
     }
-    uint64_t tsb_base = tsb_register & ~0x1fffULL;
     int tsb_split = (tsb_register & 0x1000ULL) ? 1 : 0;
     int tsb_size  = tsb_register & 0xf;
 
-    /* discard lower 13 bits which hold tag access context */
-    uint64_t tag_access_va = tag_access_register & ~0x1fffULL;
+    uint64_t tsb_base_mask = (~0x1fffULL) << tsb_size;
 
-    /* now reorder bits */
-    uint64_t tsb_base_mask = ~0x1fffULL;
-    uint64_t va = tag_access_va;
-
-    /* move va bits to correct position */
-    va >>= 3 * page_size + 9;
-
-    tsb_base_mask <<= tsb_size;
+    /* move va bits to correct position,
+     * the context bits will be masked out later */
+    uint64_t va = mmu->tag_access >> (3 * page_size + 9);
 
     /* calculate tsb_base mask and adjust va if split is in use */
     if (tsb_split) {
@@ -119,7 +110,7 @@ static uint64_t ultrasparc_tsb_pointer(CPUSPARCState *env, uint64_t tsb,
         tsb_base_mask <<= 1;
     }
 
-    return ((tsb_base & tsb_base_mask) | (va & ~tsb_base_mask)) & ~0xfULL;
+    return ((tsb_register & tsb_base_mask) | (va & ~tsb_base_mask)) & ~0xfULL;
 }
 
 /* Calculates tag target register value by reordering bits
@@ -1268,20 +1259,14 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
         {
             /* env->immuregs[5] holds I-MMU TSB register value
                env->immuregs[6] holds I-MMU Tag Access register value */
-            ret = ultrasparc_tsb_pointer(env, env->immu.tsb,
-                                         env->immu.sun4v_tsb_pointers,
-                                         env->immu.tag_access,
-                                         0, env->immu.sun4v_ctx_config);
+            ret = ultrasparc_tsb_pointer(env, &env->immu, 0);
             break;
         }
     case ASI_IMMU_TSB_64KB_PTR: /* I-MMU 64k TSB pointer */
         {
             /* env->immuregs[5] holds I-MMU TSB register value
                env->immuregs[6] holds I-MMU Tag Access register value */
-            ret = ultrasparc_tsb_pointer(env, env->immu.tsb,
-                                         env->immu.sun4v_tsb_pointers,
-                                         env->immu.tag_access,
-                                         1, env->immu.sun4v_ctx_config);
+            ret = ultrasparc_tsb_pointer(env, &env->immu, 1);
             break;
         }
     case ASI_ITLB_DATA_ACCESS: /* I-MMU data access */
@@ -1340,20 +1325,14 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
         {
             /* env->dmmuregs[5] holds D-MMU TSB register value
                env->dmmuregs[6] holds D-MMU Tag Access register value */
-            ret = ultrasparc_tsb_pointer(env, env->dmmu.tsb,
-                                         env->dmmu.sun4v_tsb_pointers,
-                                         env->dmmu.tag_access,
-                                         0, env->dmmu.sun4v_ctx_config);
+            ret = ultrasparc_tsb_pointer(env, &env->dmmu, 0);
             break;
         }
     case ASI_DMMU_TSB_64KB_PTR: /* D-MMU 64k TSB pointer */
         {
             /* env->dmmuregs[5] holds D-MMU TSB register value
                env->dmmuregs[6] holds D-MMU Tag Access register value */
-            ret = ultrasparc_tsb_pointer(env, env->dmmu.tsb,
-                                         env->dmmu.sun4v_tsb_pointers,
-                                         env->dmmu.tag_access,
-                                         1, env->dmmu.sun4v_ctx_config);
+            ret = ultrasparc_tsb_pointer(env, &env->dmmu, 1);
             break;
         }
     case ASI_DTLB_DATA_ACCESS: /* D-MMU data access */
