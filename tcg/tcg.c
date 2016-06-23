@@ -1342,10 +1342,7 @@ static inline void tcg_la_bb_end(TCGContext *s, uint8_t *dead_temps,
 static void tcg_liveness_analysis(TCGContext *s)
 {
     uint8_t *dead_temps, *mem_temps;
-    int oi, oi_prev, nb_ops;
-
-    nb_ops = s->gen_next_op_idx;
-    s->op_arg_life = tcg_malloc(nb_ops * sizeof(TCGLifeData));
+    int oi, oi_prev;
 
     dead_temps = tcg_malloc(s->nb_temps);
     mem_temps = tcg_malloc(s->nb_temps);
@@ -1568,7 +1565,7 @@ static void tcg_liveness_analysis(TCGContext *s)
             }
             break;
         }
-        s->op_arg_life[oi] = arg_life;
+        op->life = arg_life;
     }
 }
 #else
@@ -2410,7 +2407,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
         TCGArg * const args = &s->gen_opparam_buf[op->args];
         TCGOpcode opc = op->opc;
         const TCGOpDef *def = &tcg_op_defs[opc];
-        TCGLifeData arg_life = s->op_arg_life[oi];
+        TCGLifeData arg_life = op->life;
 
         oi_next = op->next;
 #ifdef CONFIG_PROFILER

@@ -583,25 +583,30 @@ typedef struct TCGTempSet {
 #define SYNC_ARG  1
 typedef uint16_t TCGLifeData;
 
+/* The layout here is designed to avoid crossing of a 32-bit boundary.
+   If we do so, gcc adds padding, expanding the size to 12.  */
 typedef struct TCGOp {
-    TCGOpcode opc   : 8;
-
-    /* The number of out and in parameter for a call.  */
-    unsigned callo  : 2;
-    unsigned calli  : 6;
-
-    /* Index of the arguments for this op, or 0 for zero-operand ops.  */
-    unsigned args   : 16;
+    TCGOpcode opc   : 8;        /*  8 */
 
     /* Index of the prev/next op, or 0 for the end of the list.  */
-    unsigned prev   : 16;
-    unsigned next   : 16;
+    unsigned prev   : 10;       /* 18 */
+    unsigned next   : 10;       /* 28 */
+
+    /* The number of out and in parameter for a call.  */
+    unsigned calli  : 4;        /* 32 */
+    unsigned callo  : 2;        /* 34 */
+
+    /* Index of the arguments for this op, or 0 for zero-operand ops.  */
+    unsigned args   : 14;       /* 48 */
+
+    /* Lifetime data of the operands.  */
+    unsigned life   : 16;       /* 64 */
 } TCGOp;
 
 /* Make sure operands fit in the bitfields above.  */
 QEMU_BUILD_BUG_ON(NB_OPS > (1 << 8));
-QEMU_BUILD_BUG_ON(OPC_BUF_SIZE > (1 << 16));
-QEMU_BUILD_BUG_ON(OPPARAM_BUF_SIZE > (1 << 16));
+QEMU_BUILD_BUG_ON(OPC_BUF_SIZE > (1 << 10));
+QEMU_BUILD_BUG_ON(OPPARAM_BUF_SIZE > (1 << 14));
 
 /* Make sure that we don't overflow 64 bits without noticing.  */
 QEMU_BUILD_BUG_ON(sizeof(TCGOp) > 8);
@@ -618,9 +623,6 @@ struct TCGContext {
     uint16_t *tb_jmp_reset_offset; /* tb->jmp_reset_offset */
     uint16_t *tb_jmp_insn_offset; /* tb->jmp_insn_offset if USE_DIRECT_JUMP */
     uintptr_t *tb_jmp_target_addr; /* tb->jmp_target_addr if !USE_DIRECT_JUMP */
-
-    /* liveness analysis */
-    TCGLifeData *op_arg_life;
 
     TCGRegSet reserved_regs;
     intptr_t current_frame_offset;
