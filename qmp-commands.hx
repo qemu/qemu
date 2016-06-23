@@ -1639,7 +1639,7 @@ fail.
 
 Arguments:
 
-- "device": device name (json-string)
+- "device": the device name or node-name of a root node (json-string)
 - "id": ID of the snapshot (json-string, optional)
 - "name": name of the snapshot (json-string, optional)
 
