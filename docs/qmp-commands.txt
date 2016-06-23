@@ -168,24 +168,6 @@ Example:
 
 Note: CPUs' indexes are obtained with the 'query-cpus' command.
 
-xen-save-devices-state
--------
-
-Save the state of all devices to file. The RAM and the block devices
-of the VM are not saved by this command.
-
-Arguments:
-
-- "filename": the file to save the state of the devices to as binary
-data. See xen-save-devices-state.txt for a description of the binary
-format.
-
-Example:
-
--> { "execute": "xen-save-devices-state",
-     "arguments": { "filename": "/tmp/save" } }
-<- { "return": {} }
-
 xen-load-devices-state
 ----------------------
 

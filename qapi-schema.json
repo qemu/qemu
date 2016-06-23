@@ -3039,6 +3039,13 @@
 # Returns: Nothing on success
 #
 # Since: 1.1
+#
+# Example:
+#
+# -> { "execute": "xen-save-devices-state",
+#      "arguments": { "filename": "/tmp/save" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'xen-save-devices-state', 'data': {'filename': 'str'} }
 
