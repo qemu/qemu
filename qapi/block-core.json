@@ -3218,6 +3218,9 @@
 #        event and must be repaired (Since 2.2; before, every
 #        BLOCK_IMAGE_CORRUPTED event was fatal)
 #
+# Note: If action is "stop", a STOP event will eventually follow the
+#       BLOCK_IO_ERROR event.
+#
 # Example:
 #
 # <- { "event": "BLOCK_IMAGE_CORRUPTED",
@@ -3266,6 +3269,16 @@
 # BLOCK_IO_ERROR event
 #
 # Since: 0.13.0
+#
+# Example:
+#
+# <- { "event": "BLOCK_IO_ERROR",
+#      "data": { "device": "ide0-hd1",
+#                "node-name": "#block212",
+#                "operation": "write",
+#                "action": "stop" },
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
 ##
 { 'event': 'BLOCK_IO_ERROR',
   'data': { 'device': 'str', 'node-name': 'str', 'operation': 'IoOperationType',
