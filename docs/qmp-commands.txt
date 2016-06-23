@@ -402,35 +402,6 @@ Example:
                                                            "name": "bitmap0" } }
 <- { "return": {} }
 
-blockdev-snapshot
------------------
-Since 2.5
-
-Create a snapshot, by installing 'node' as the backing image of
-'overlay'. Additionally, if 'node' is associated with a block
-device, the block device changes to using 'overlay' as its new active
-image.
-
-Arguments:
-
-- "node": device that will have a snapshot created (json-string)
-- "overlay": device that will have 'node' as its backing image (json-string)
-
-Example:
-
--> { "execute": "blockdev-add",
-                "arguments": { "driver": "qcow2",
-                               "node-name": "node1534",
-                               "file": { "driver": "file",
-                                         "filename": "hd1.qcow2" },
-                               "backing": "" } }
-
-<- { "return": {} }
-
--> { "execute": "blockdev-snapshot", "arguments": { "node": "ide-hd0",
-                                                    "overlay": "node1534" } }
-<- { "return": {} }
-
 blockdev-snapshot-internal-sync
 -------------------------------
 
