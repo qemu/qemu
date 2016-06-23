@@ -2458,30 +2458,6 @@ Example:
      ]
    }
 
-migrate-set-parameters
-----------------------
-
-Set migration parameters
-
-- "compress-level": set compression level during migration (json-int)
-- "compress-threads": set compression thread count for migration (json-int)
-- "decompress-threads": set decompression thread count for migration (json-int)
-- "cpu-throttle-initial": set initial percentage of time guest cpus are
-                          throttled for auto-converge (json-int)
-- "cpu-throttle-increment": set throttle increasing percentage for
-                            auto-converge (json-int)
-- "max-bandwidth": set maximum speed for migrations (in bytes/sec) (json-int)
-- "downtime-limit": set maximum tolerated downtime (in milliseconds) for
-                    migrations (json-int)
-- "x-checkpoint-delay": set the delay time for periodic checkpoint (json-int)
-
-Arguments:
-
-Example:
-
--> { "execute": "migrate-set-parameters" , "arguments":
-      { "compress-level": 1 } }
-
 query-migrate-parameters
 ------------------------
 

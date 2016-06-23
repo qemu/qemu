@@ -947,6 +947,12 @@
 # Set various migration parameters.  See MigrationParameters for details.
 #
 # Since: 2.4
+#
+# Example:
+#
+# -> { "execute": "migrate-set-parameters" ,
+#      "arguments": { "compress-level": 1 } }
+#
 ##
 { 'command': 'migrate-set-parameters', 'boxed': true,
   'data': 'MigrationParameters' }
