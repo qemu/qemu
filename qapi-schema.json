@@ -4586,6 +4586,14 @@
 #
 # Since: 1.3.0
 #
+# Example:
+#
+# -> { "execute": "send-key",
+#      "arguments": { "keys": [ { "type": "qcode", "data": "ctrl" },
+#                               { "type": "qcode", "data": "alt" },
+#                               { "type": "qcode", "data": "delete" } ] } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'send-key',
   'data': { 'keys': ['KeyValue'], '*hold-time': 'int' } }
