@@ -688,34 +688,6 @@ Arguments:
 Returns: Nothing on success
          If "device" does not exist or cannot be determined, DeviceNotFound
 
-add-fd
--------
-
-Add a file descriptor, that was passed via SCM rights, to an fd set.
-
-Arguments:
-
-- "fdset-id": The ID of the fd set to add the file descriptor to.
-              (json-int, optional)
-- "opaque": A free-form string that can be used to describe the fd.
-            (json-string, optional)
-
-Return a json-object with the following information:
-
-- "fdset-id": The ID of the fd set that the fd was added to. (json-int)
-- "fd": The file descriptor that was received via SCM rights and added to the
-        fd set. (json-int)
-
-Example:
-
--> { "execute": "add-fd", "arguments": { "fdset-id": 1 } }
-<- { "return": { "fdset-id": 1, "fd": 3 } }
-
-Notes:
-
-(1) The list of fd sets is shared by all monitor connections.
-(2) If "fdset-id" is not specified, a new fd set will be created.
-
 remove-fd
 ---------
 
