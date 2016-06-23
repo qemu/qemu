@@ -112,21 +112,6 @@ Example:
      "arguments": { "filename": "/tmp/resume" } }
 <- { "return": {} }
 
-migrate-set-cache-size
-----------------------
-
-Set cache size to be used by XBZRLE migration, the cache size will be rounded
-down to the nearest power of 2
-
-Arguments:
-
-- "value": cache size in bytes (json-int)
-
-Example:
-
--> { "execute": "migrate-set-cache-size", "arguments": { "value": 536870912 } }
-<- { "return": {} }
-
 x-colo-lost-heartbeat
 --------------------
 

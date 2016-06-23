@@ -2641,7 +2641,7 @@
 ##
 # @migrate-set-cache-size:
 #
-# Set XBZRLE cache size
+# Set cache size to be used by XBZRLE migration
 #
 # @value: cache size in bytes
 #
@@ -2651,6 +2651,13 @@
 # Returns: nothing on success
 #
 # Since: 1.2
+#
+# Example:
+#
+# -> { "execute": "migrate-set-cache-size",
+#      "arguments": { "value": 536870912 } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'migrate-set-cache-size', 'data': {'value': 'int'} }
 
