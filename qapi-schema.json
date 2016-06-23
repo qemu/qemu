@@ -655,11 +655,124 @@
 ##
 # @query-migrate:
 #
-# Returns information about current migration process.
+# Returns information about current migration process. If migration
+# is active there will be another json-object with RAM migration
+# status and if block migration is active another one with block
+# migration status.
 #
 # Returns: @MigrationInfo
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# 1. Before the first migration
+#
+# -> { "execute": "query-migrate" }
+# <- { "return": {} }
+#
+# 2. Migration is done and has succeeded
+#
+# -> { "execute": "query-migrate" }
+# <- { "return": {
+#         "status": "completed",
+#         "ram":{
+#           "transferred":123,
+#           "remaining":123,
+#           "total":246,
+#           "total-time":12345,
+#           "setup-time":12345,
+#           "downtime":12345,
+#           "duplicate":123,
+#           "normal":123,
+#           "normal-bytes":123456,
+#           "dirty-sync-count":15
+#         }
+#      }
+#    }
+#
+# 3. Migration is done and has failed
+#
+# -> { "execute": "query-migrate" }
+# <- { "return": { "status": "failed" } }
+#
+# 4. Migration is being performed and is not a block migration:
+#
+# -> { "execute": "query-migrate" }
+# <- {
+#       "return":{
+#          "status":"active",
+#          "ram":{
+#             "transferred":123,
+#             "remaining":123,
+#             "total":246,
+#             "total-time":12345,
+#             "setup-time":12345,
+#             "expected-downtime":12345,
+#             "duplicate":123,
+#             "normal":123,
+#             "normal-bytes":123456,
+#             "dirty-sync-count":15
+#          }
+#       }
+#    }
+#
+# 5. Migration is being performed and is a block migration:
+#
+# -> { "execute": "query-migrate" }
+# <- {
+#       "return":{
+#          "status":"active",
+#          "ram":{
+#             "total":1057024,
+#             "remaining":1053304,
+#             "transferred":3720,
+#             "total-time":12345,
+#             "setup-time":12345,
+#             "expected-downtime":12345,
+#             "duplicate":123,
+#             "normal":123,
+#             "normal-bytes":123456,
+#             "dirty-sync-count":15
+#          },
+#          "disk":{
+#             "total":20971520,
+#             "remaining":20880384,
+#             "transferred":91136
+#          }
+#       }
+#    }
+#
+# 6. Migration is being performed and XBZRLE is active:
+#
+# -> { "execute": "query-migrate" }
+# <- {
+#       "return":{
+#          "status":"active",
+#          "capabilities" : [ { "capability": "xbzrle", "state" : true } ],
+#          "ram":{
+#             "total":1057024,
+#             "remaining":1053304,
+#             "transferred":3720,
+#             "total-time":12345,
+#             "setup-time":12345,
+#             "expected-downtime":12345,
+#             "duplicate":10,
+#             "normal":3333,
+#             "normal-bytes":3412992,
+#             "dirty-sync-count":15
+#          },
+#          "xbzrle-cache":{
+#             "cache-size":67108864,
+#             "bytes":20971520,
+#             "pages":2444343,
+#             "cache-miss":2244,
+#             "cache-miss-rate":0.123,
+#             "overflow":34434
+#          }
+#       }
+#    }
+#
 ##
 { 'command': 'query-migrate', 'returns': 'MigrationInfo' }
 
