@@ -259,11 +259,11 @@ check-qtest-ppc-y += tests/boot-order-test$(EXESUF)
 check-qtest-ppc64-y += tests/boot-order-test$(EXESUF)
 check-qtest-ppc64-y += tests/spapr-phb-test$(EXESUF)
 gcov-files-ppc64-y += ppc64-softmmu/hw/ppc/spapr_pci.c
-check-qtest-ppc-y = tests/prom-env-test$(EXESUF)
-check-qtest-ppc64-y = tests/prom-env-test$(EXESUF)
-check-qtest-sparc-y = tests/prom-env-test$(EXESUF)
+check-qtest-ppc-y += tests/prom-env-test$(EXESUF)
+check-qtest-ppc64-y += tests/prom-env-test$(EXESUF)
+check-qtest-sparc-y += tests/prom-env-test$(EXESUF)
 #Disabled for now, triggers a TCG bug on 32-bit hosts
-#check-qtest-sparc64-y = tests/prom-env-test$(EXESUF)
+#check-qtest-sparc64-y += tests/prom-env-test$(EXESUF)
 check-qtest-microblazeel-y = $(check-qtest-microblaze-y)
 check-qtest-xtensaeb-y = $(check-qtest-xtensa-y)
 

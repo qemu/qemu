@@ -116,6 +116,9 @@ enum {
     POWERPC_EXCP_HYPPRIV  = 41, /* Embedded hypervisor priv instruction      */
     /* Vectors 42 to 63 are reserved                                         */
     /* Exceptions defined in the PowerPC server specification                */
+    /* Server doorbell variants */
+#define POWERPC_EXCP_SDOOR      POWERPC_EXCP_GDOORI
+#define POWERPC_EXCP_SDOOR_HV   POWERPC_EXCP_DOORI
     POWERPC_EXCP_RESET    = 64, /* System reset exception                    */
     POWERPC_EXCP_DSEG     = 65, /* Data segment exception                    */
     POWERPC_EXCP_ISEG     = 66, /* Instruction segment exception             */
@@ -158,8 +161,12 @@ enum {
     /* VSX Unavailable (Power ISA 2.06 and later)                            */
     POWERPC_EXCP_VSXU     = 94, /* VSX Unavailable                           */
     POWERPC_EXCP_FU       = 95, /* Facility Unavailable                      */
+    /* Additional ISA 2.06 and later server exceptions                       */
+    POWERPC_EXCP_HV_EMU   = 96, /* HV emulation assistance                   */
+    POWERPC_EXCP_HV_MAINT = 97, /* HMI                                       */
+    POWERPC_EXCP_HV_FU    = 98, /* Hypervisor Facility unavailable           */
     /* EOL                                                                   */
-    POWERPC_EXCP_NB       = 96,
+    POWERPC_EXCP_NB       = 99,
     /* QEMU exceptions: used internally during code translation              */
     POWERPC_EXCP_STOP         = 0x200, /* stop translation                   */
     POWERPC_EXCP_BRANCH       = 0x201, /* branch instruction                 */
@@ -376,6 +383,14 @@ struct ppc_slb_t {
 #define LPCR_LPES1        (1ull << (63 - 61))
 #define LPCR_AIL_SHIFT    (63 - 40)      /* Alternate interrupt location */
 #define LPCR_AIL          (3ull << LPCR_AIL_SHIFT)
+#define LPCR_P7_PECE0     (1ull << (63 - 49))
+#define LPCR_P7_PECE1     (1ull << (63 - 50))
+#define LPCR_P7_PECE2     (1ull << (63 - 51))
+#define LPCR_P8_PECE0     (1ull << (63 - 47))
+#define LPCR_P8_PECE1     (1ull << (63 - 48))
+#define LPCR_P8_PECE2     (1ull << (63 - 49))
+#define LPCR_P8_PECE3     (1ull << (63 - 50))
+#define LPCR_P8_PECE4     (1ull << (63 - 51))
 
 #define msr_sf   ((env->msr >> MSR_SF)   & 1)
 #define msr_isf  ((env->msr >> MSR_ISF)  & 1)
@@ -1052,6 +1067,11 @@ struct CPUPPCState {
      * instructions and SPRs are diallowed if MSR:HV is 0
      */
     bool has_hv_mode;
+    /* On P7/P8, set when in PM state, we need to handle resume
+     * in a special way (such as routing some resume causes to
+     * 0x100), so flag this here.
+     */
+    bool in_pm_state;
 #endif
 
     /* Those resources are used only during code translation */
@@ -1905,6 +1925,8 @@ enum {
     PPC_POPCNTB        = 0x0000000000001000ULL,
     /*   string load / store                                                 */
     PPC_STRING         = 0x0000000000002000ULL,
+    /*   real mode cache inhibited load / store                              */
+    PPC_CILDST         = 0x0000000000004000ULL,
 
     /* Floating-point unit extensions                                        */
     /*   Optional floating point instructions                                */
@@ -2019,7 +2041,7 @@ enum {
                         | PPC_MFAPIDI | PPC_TLBIVA | PPC_TLBIVAX \
                         | PPC_4xx_COMMON | PPC_40x_ICBT | PPC_RFMCI \
                         | PPC_RFDI | PPC_DCR | PPC_DCRX | PPC_DCRUX \
-                        | PPC_POPCNTWD)
+                        | PPC_POPCNTWD | PPC_CILDST)
 
     /* extended type values */
 
@@ -2059,6 +2081,8 @@ enum {
     PPC2_FP_CVT_S64    = 0x0000000000010000ULL,
     /* Transactional Memory (ISA 2.07, Book II)                              */
     PPC2_TM            = 0x0000000000020000ULL,
+    /* Server PM instructgions (ISA 2.06, Book III)                          */
+    PPC2_PM_ISA206     = 0x0000000000040000ULL,
 
 #define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_VSX | PPC2_PRCNTL | PPC2_DBRX | \
                         PPC2_ISA205 | PPC2_VSX207 | PPC2_PERM_ISA206 | \
@@ -2066,7 +2090,7 @@ enum {
                         PPC2_FP_CVT_ISA206 | PPC2_FP_TST_ISA206 | \
                         PPC2_BCTAR_ISA207 | PPC2_LSQ_ISA207 | \
                         PPC2_ALTIVEC_207 | PPC2_ISA207S | PPC2_DFP | \
-                        PPC2_FP_CVT_S64 | PPC2_TM)
+                        PPC2_FP_CVT_S64 | PPC2_TM | PPC2_PM_ISA206)
 };
 
 /*****************************************************************************/
@@ -2196,6 +2220,8 @@ enum {
     PPC_INTERRUPT_CDOORBELL,      /* Critical doorbell interrupt          */
     PPC_INTERRUPT_DOORBELL,       /* Doorbell interrupt                   */
     PPC_INTERRUPT_PERFM,          /* Performance monitor interrupt        */
+    PPC_INTERRUPT_HMI,            /* Hypervisor Maintainance interrupt    */
+    PPC_INTERRUPT_HDOORBELL,      /* Hypervisor Doorbell interrupt        */
 };
 
 /* Processor Compatibility mask (PCR) */

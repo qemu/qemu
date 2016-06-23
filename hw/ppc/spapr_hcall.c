@@ -102,11 +102,15 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPRMachineState *spapr,
             return H_PARAMETER;
         }
     } else {
+        target_ulong wimg_flags;
         /* Looks like an IO address */
         /* FIXME: What WIMG combinations could be sensible for IO?
          * For now we allow WIMG=010x, but are there others? */
         /* FIXME: Should we check against registered IO addresses? */
-        if ((ptel & (HPTE64_R_W | HPTE64_R_I | HPTE64_R_M)) != HPTE64_R_I) {
+        wimg_flags = (ptel & (HPTE64_R_W | HPTE64_R_I | HPTE64_R_M));
+
+        if (wimg_flags != HPTE64_R_I &&
+            wimg_flags != (HPTE64_R_I | HPTE64_R_M)) {
             return H_PARAMETER;
         }
     }

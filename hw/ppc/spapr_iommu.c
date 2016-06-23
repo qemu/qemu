@@ -149,6 +149,13 @@ static void spapr_tce_table_pre_save(void *opaque)
                                tcet->bus_offset, tcet->page_shift);
 }
 
+static uint64_t spapr_tce_get_min_page_size(MemoryRegion *iommu)
+{
+    sPAPRTCETable *tcet = container_of(iommu, sPAPRTCETable, iommu);
+
+    return 1ULL << tcet->page_shift;
+}
+
 static int spapr_tce_table_post_load(void *opaque, int version_id)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(opaque);
@@ -228,6 +235,7 @@ static const VMStateDescription vmstate_spapr_tce_table = {
 
 static MemoryRegionIOMMUOps spapr_iommu_ops = {
     .translate = spapr_tce_translate_iommu,
+    .get_min_page_size = spapr_tce_get_min_page_size,
 };
 
 static int spapr_tce_table_realize(DeviceState *dev)

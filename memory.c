@@ -1502,11 +1502,21 @@ void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n)
     notifier_list_add(&mr->iommu_notify, n);
 }
 
-void memory_region_iommu_replay(MemoryRegion *mr, Notifier *n,
-                                hwaddr granularity, bool is_write)
+uint64_t memory_region_iommu_get_min_page_size(MemoryRegion *mr)
 {
-    hwaddr addr;
+    assert(memory_region_is_iommu(mr));
+    if (mr->iommu_ops && mr->iommu_ops->get_min_page_size) {
+        return mr->iommu_ops->get_min_page_size(mr);
+    }
+    return TARGET_PAGE_SIZE;
+}
+
+void memory_region_iommu_replay(MemoryRegion *mr, Notifier *n, bool is_write)
+{
+    hwaddr addr, granularity;
     IOMMUTLBEntry iotlb;
+
+    granularity = memory_region_iommu_get_min_page_size(mr);
 
     for (addr = 0; addr < memory_region_size(mr); addr += granularity) {
         iotlb = mr->iommu_ops->translate(mr, addr, is_write);
