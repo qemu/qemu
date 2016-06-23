@@ -334,33 +334,6 @@ Example:
 
 Note: inject-nmi fails when the guest doesn't support injecting.
 
-ringbuf-read
--------------
-
-Read from a ring buffer character device.
-
-Arguments:
-
-- "device": ring buffer character device name (json-string)
-- "size": how many bytes to read at most (json-int)
-          - Number of data bytes, not number of characters in encoded data
-- "format": data format (json-string, optional)
-          - Possible values: "utf8" (default), "base64"
-          - Naturally, format "utf8" works only when the ring buffer
-            contains valid UTF-8 text.  Invalid UTF-8 sequences get
-            replaced.  Bug: replacement doesn't work.  Bug: can screw
-            up on encountering NUL characters, after the ring buffer
-            lost data, and when reading stops because the size limit
-            is reached.
-
-Example:
-
--> { "execute": "ringbuf-read",
-                "arguments": { "device": "foo",
-                               "size": 1000,
-                               "format": "utf8" } }
-<- {"return": "abcdefgh"}
-
 xen-save-devices-state
 -------
 

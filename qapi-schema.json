@@ -446,6 +446,15 @@
 # Returns: data read from the device
 #
 # Since: 1.4
+#
+# Example:
+#
+# -> { "execute": "ringbuf-read",
+#      "arguments": { "device": "foo",
+#                     "size": 1000,
+#                     "format": "utf8" } }
+# <- { "return": "abcdefgh" }
+#
 ##
 { 'command': 'ringbuf-read',
   'data': {'device': 'str', 'size': 'int', '*format': 'DataFormat'},
