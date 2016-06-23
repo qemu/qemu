@@ -2306,6 +2306,12 @@
 # Since:  1.1
 #
 # Returns:  nothing.
+#
+# Example:
+#
+# -> { "execute": "system_wakeup" }
+# <- { "return": {} }
+#
 ##
 { 'command': 'system_wakeup' }
 

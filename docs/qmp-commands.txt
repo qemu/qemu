@@ -113,18 +113,6 @@ Example:
 -> { "execute": "screendump", "arguments": { "filename": "/tmp/image" } }
 <- { "return": {} }
 
-system_wakeup
--------------
-
-Wakeup guest from suspend.
-
-Arguments: None.
-
-Example:
-
--> { "execute": "system_wakeup" }
-<- { "return": {} }
-
 device_add
 ----------
 
