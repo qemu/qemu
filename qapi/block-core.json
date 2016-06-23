@@ -1567,13 +1567,20 @@
 ##
 # @block-dirty-bitmap-add:
 #
-# Create a dirty bitmap with a name on the node
+# Create a dirty bitmap with a name on the node, and start tracking the writes.
 #
 # Returns: nothing on success
 #          If @node is not a valid block device or node, DeviceNotFound
 #          If @name is already taken, GenericError with an explanation
 #
 # Since: 2.4
+#
+# Example:
+#
+# -> { "execute": "block-dirty-bitmap-add",
+#      "arguments": { "node": "drive0", "name": "bitmap0" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'block-dirty-bitmap-add',
   'data': 'BlockDirtyBitmapAdd' }

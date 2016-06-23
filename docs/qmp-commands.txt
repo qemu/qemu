@@ -208,24 +208,6 @@ Example:
                                                "base": "/tmp/master.qcow2" } }
 <- { "return": {} }
 
-block-dirty-bitmap-add
-----------------------
-Since 2.4
-
-Create a dirty bitmap with a name on the device, and start tracking the writes.
-
-Arguments:
-
-- "node": device/node on which to create dirty bitmap (json-string)
-- "name": name of the new dirty bitmap (json-string)
-- "granularity": granularity to track writes with (int, optional)
-
-Example:
-
--> { "execute": "block-dirty-bitmap-add", "arguments": { "node": "drive0",
-                                                   "name": "bitmap0" } }
-<- { "return": {} }
-
 block-dirty-bitmap-remove
 -------------------------
 Since 2.4
