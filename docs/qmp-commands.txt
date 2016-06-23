@@ -2458,37 +2458,6 @@ Example:
      ]
    }
 
-query-migrate-capabilities
---------------------------
-
-Query current migration capabilities
-
-- "capabilities": migration capabilities state
-         - "xbzrle" : XBZRLE state (json-bool)
-         - "rdma-pin-all" : RDMA Pin Page state (json-bool)
-         - "auto-converge" : Auto Converge state (json-bool)
-         - "zero-blocks" : Zero Blocks state (json-bool)
-         - "compress": Multiple compression threads state (json-bool)
-         - "events": Migration state change event state (json-bool)
-         - "postcopy-ram": postcopy ram state (json-bool)
-         - "x-colo": COarse-Grain LOck Stepping for Non-stop Service (json-bool)
-
-Arguments:
-
-Example:
-
--> { "execute": "query-migrate-capabilities" }
-<- {"return": [
-     {"state": false, "capability": "xbzrle"},
-     {"state": false, "capability": "rdma-pin-all"},
-     {"state": false, "capability": "auto-converge"},
-     {"state": false, "capability": "zero-blocks"},
-     {"state": false, "capability": "compress"},
-     {"state": true, "capability": "events"},
-     {"state": false, "capability": "postcopy-ram"},
-     {"state": false, "capability": "x-colo"}
-   ]}
-
 migrate-set-parameters
 ----------------------
 

@@ -864,6 +864,21 @@
 # Returns: @MigrationCapabilitiesStatus
 #
 # Since: 1.2
+#
+# Example:
+#
+# -> { "execute": "query-migrate-capabilities" }
+# <- { "return": [
+#       {"state": false, "capability": "xbzrle"},
+#       {"state": false, "capability": "rdma-pin-all"},
+#       {"state": false, "capability": "auto-converge"},
+#       {"state": false, "capability": "zero-blocks"},
+#       {"state": false, "capability": "compress"},
+#       {"state": true, "capability": "events"},
+#       {"state": false, "capability": "postcopy-ram"},
+#       {"state": false, "capability": "x-colo"}
+#    ]}
+#
 ##
 { 'command': 'query-migrate-capabilities', 'returns':   ['MigrationCapabilityStatus']}
 
