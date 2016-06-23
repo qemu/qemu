@@ -1959,21 +1959,14 @@ static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
 {
     BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
     BlockdevBackup *backup;
-    BlockBackend *blk;
-    BlockDriverState *target;
+    BlockDriverState *bs, *target;
     Error *local_err = NULL;
 
     assert(common->action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP);
     backup = common->action->u.blockdev_backup.data;
 
-    blk = blk_by_name(backup->device);
-    if (!blk) {
-        error_setg(errp, "Device '%s' not found", backup->device);
-        return;
-    }
-
-    if (!blk_is_available(blk)) {
-        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, backup->device);
+    bs = qmp_get_root_bs(backup->device, errp);
+    if (!bs) {
         return;
     }
 
@@ -1983,14 +1976,14 @@ static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
     }
 
     /* AioContext is released in .clean() */
-    state->aio_context = blk_get_aio_context(blk);
+    state->aio_context = bdrv_get_aio_context(bs);
     if (state->aio_context != bdrv_get_aio_context(target)) {
         state->aio_context = NULL;
         error_setg(errp, "Backup between two IO threads is not implemented");
         return;
     }
     aio_context_acquire(state->aio_context);
-    state->bs = blk_bs(blk);
+    state->bs = bs;
     bdrv_drained_begin(state->bs);
 
     do_blockdev_backup(backup->has_job_id ? backup->job_id : NULL,
@@ -3335,7 +3328,6 @@ void do_blockdev_backup(const char *job_id, const char *device,
                          BlockdevOnError on_target_error,
                          BlockJobTxn *txn, Error **errp)
 {
-    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriverState *target_bs;
     Error *local_err = NULL;
@@ -3351,20 +3343,13 @@ void do_blockdev_backup(const char *job_id, const char *device,
         on_target_error = BLOCKDEV_ON_ERROR_REPORT;
     }
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_setg(errp, "Device '%s' not found", device);
+    bs = qmp_get_root_bs(device, errp);
+    if (!bs) {
         return;
     }
 
-    aio_context = blk_get_aio_context(blk);
+    aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
-
-    if (!blk_is_available(blk)) {
-        error_setg(errp, "Device '%s' has no medium", device);
-        goto out;
-    }
-    bs = blk_bs(blk);
 
     target_bs = bdrv_lookup_bs(target, target, errp);
     if (!target_bs) {

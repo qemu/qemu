@@ -925,7 +925,7 @@
 # @job-id: #optional identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
 #
-# @device: the name of the device which should be copied.
+# @device: the device name or node-name of a root node which should be copied.
 #
 # @target: the device name or node-name of the backup target node.
 #

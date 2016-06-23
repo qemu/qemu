@@ -1288,7 +1288,7 @@ Arguments:
 
 - "job-id": Identifier for the newly-created block job. If omitted,
             the device name will be used. (json-string, optional)
-- "device": the name of the device which should be copied.
+- "device": the device name or node-name of a root node which should be copied.
             (json-string)
 - "target": the name of the backup target device. (json-string)
 - "sync": what parts of the disk image should be copied to the destination;
