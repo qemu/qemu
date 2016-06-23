@@ -1233,7 +1233,9 @@
 # updated.
 #
 # @image-node-name: The name of the block driver state node of the
-#                   image to modify.
+#                   image to modify. The "device" argument is used
+#                   to verify "image-node-name" is in the chain
+#                   described by "device".
 #
 # @device:          The device name or node-name of the root node that owns
 #                   image-node-name.
@@ -1242,6 +1244,10 @@
 #                   string is not validated, so care should be taken
 #                   when specifying the string or the image chain may
 #                   not be able to be reopened again.
+#
+# Returns: Nothing on success
+#
+#          If "device" does not exist or cannot be determined, DeviceNotFound
 #
 # Since: 2.1
 ##
