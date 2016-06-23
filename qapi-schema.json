@@ -5563,6 +5563,31 @@
 # Returns: a list of @Memdev.
 #
 # Since: 2.1
+#
+# Example:
+#
+# -> { "execute": "query-memdev" }
+# <- { "return": [
+#        {
+#          "id": "mem1",
+#          "size": 536870912,
+#          "merge": false,
+#          "dump": true,
+#          "prealloc": false,
+#          "host-nodes": [0, 1],
+#          "policy": "bind"
+#        },
+#        {
+#          "size": 536870912,
+#          "merge": false,
+#          "dump": true,
+#          "prealloc": true,
+#          "host-nodes": [2, 3],
+#          "policy": "preferred"
+#        }
+#      ]
+#    }
+#
 ##
 { 'command': 'query-memdev', 'returns': ['Memdev'] }
 
