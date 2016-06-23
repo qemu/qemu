@@ -3266,6 +3266,13 @@
 # Returns: A @DumpStatus object showing the dump status.
 #
 # Since: 2.6
+#
+# Example:
+#
+# -> { "execute": "query-dump" }
+# <- { "return": { "status": "active", "completed": 1024000,
+#                  "total": 2048000 } }
+#
 ##
 { 'command': 'query-dump', 'returns': 'DumpQueryResult' }
 

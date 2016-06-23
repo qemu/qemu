@@ -137,19 +137,6 @@ Example:
 -> { "execute": "x-colo-lost-heartbeat" }
 <- { "return": {} }
 
-query-dump
-----------
-
-Query background dump status.
-
-Arguments: None.
-
-Example:
-
--> { "execute": "query-dump" }
-<- { "return": { "status": "active", "completed": 1024000,
-                 "total": 2048000 } }
-
 qmp_capabilities
 ----------------
 
