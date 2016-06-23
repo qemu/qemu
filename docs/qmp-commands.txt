@@ -53,25 +53,6 @@ If you're planning to adopt QMP, please observe the following:
 Server's responses in the examples below are always a success response, please
 refer to the QMP specification for more details on error responses.
 
-eject
------
-
-Eject a removable medium.
-
-Arguments:
-
-- "force": force ejection (json-bool, optional)
-- "device": block device name (deprecated, use @id instead)
-            (json-string, optional)
-- "id": the name or QOM path of the guest device (json-string, optional)
-
-Example:
-
--> { "execute": "eject", "arguments": { "id": "ide0-1-0" } }
-<- { "return": {} }
-
-Note: The "force" argument defaults to false.
-
 device_add
 ----------
 

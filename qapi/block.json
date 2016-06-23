@@ -167,15 +167,21 @@
 #
 # @id:      #optional The name or QOM path of the guest device (since: 2.8)
 #
-# @force:   @optional If true, eject regardless of whether the drive is locked.
+# @force:   #optional If true, eject regardless of whether the drive is locked.
 #           If not specified, the default value is false.
 #
 # Returns:  Nothing on success
+#
 #           If @device is not a valid block device, DeviceNotFound
 #
-# Notes:    Ejecting a device will no media results in success
+# Notes:    Ejecting a device with no media results in success
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "eject", "arguments": { "device": "ide1-0-1" } }
+# <- { "return": {} }
 ##
 { 'command': 'eject',
   'data': { '*device': 'str',
