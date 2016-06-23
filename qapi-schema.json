@@ -250,7 +250,7 @@
 ##
 # @UuidInfo:
 #
-# Guest UUID information.
+# Guest UUID information (Universally Unique Identifier).
 #
 # @UUID: the UUID of the guest
 #
@@ -268,6 +268,12 @@
 # Returns: The @UuidInfo for the guest
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-uuid" }
+# <- { "return": { "UUID": "550e8400-e29b-41d4-a716-446655440000" } }
+#
 ##
 { 'command': 'query-uuid', 'returns': 'UuidInfo' }
 
