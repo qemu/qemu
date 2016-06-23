@@ -192,17 +192,6 @@ Example:
 -> { "execute": "x-colo-lost-heartbeat" }
 <- { "return": {} }
 
-query-dump-guest-memory-capability
-----------
-
-Show available formats for 'dump-guest-memory'
-
-Example:
-
--> { "execute": "query-dump-guest-memory-capability" }
-<- { "return": { "formats":
-                    ["elf", "kdump-zlib", "kdump-lzo", "kdump-snappy"] }
-
 query-dump
 ----------
 
