@@ -169,22 +169,6 @@ Example:
 <- { "return": { "status": "active", "completed": 1024000,
                  "total": 2048000 } }
 
-block_resize
-------------
-
-Resize a block image while a guest is running.
-
-Arguments:
-
-- "device": the device's ID, must be unique (json-string)
-- "node-name": the node name in the block driver state graph (json-string)
-- "size": new size
-
-Example:
-
--> { "execute": "block_resize", "arguments": { "device": "scratch", "size": 1073741824 } }
-<- { "return": {} }
-
 block-stream
 ------------
 

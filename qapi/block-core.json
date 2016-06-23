@@ -999,6 +999,13 @@
 #          If @device is not a valid block device, DeviceNotFound
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "block_resize",
+#      "arguments": { "device": "scratch", "size": 1073741824 } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'block_resize', 'data': { '*device': 'str',
                                        '*node-name': 'str',
