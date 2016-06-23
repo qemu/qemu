@@ -3993,8 +3993,15 @@
 # Notes: If @fdname already exists, the file descriptor assigned to
 #        it will be closed and replaced by the received file
 #        descriptor.
+#
 #        The 'closefd' command can be used to explicitly close the
 #        file descriptor when it is no longer needed.
+#
+# Example:
+#
+# -> { "execute": "getfd", "arguments": { "fdname": "fd1" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'getfd', 'data': {'fdname': 'str'} }
 

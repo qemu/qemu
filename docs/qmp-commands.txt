@@ -688,28 +688,6 @@ Arguments:
 Returns: Nothing on success
          If "device" does not exist or cannot be determined, DeviceNotFound
 
-getfd
------
-
-Receive a file descriptor via SCM rights and assign it a name.
-
-Arguments:
-
-- "fdname": file descriptor name (json-string)
-
-Example:
-
--> { "execute": "getfd", "arguments": { "fdname": "fd1" } }
-<- { "return": {} }
-
-Notes:
-
-(1) If the name specified by the "fdname" argument already exists,
-    the file descriptor assigned to it will be closed and replaced
-    by the received file descriptor.
-(2) The 'closefd' command can be used to explicitly close the file
-    descriptor when it is no longer needed.
-
 closefd
 -------
 
