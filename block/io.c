@@ -945,6 +945,9 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
 
     if (drv->bdrv_co_pwrite_zeroes &&
         buffer_is_zero(bounce_buffer, iov.iov_len)) {
+        /* FIXME: Should we (perhaps conditionally) be setting
+         * BDRV_REQ_MAY_UNMAP, if it will allow for a sparser copy
+         * that still correctly reads as zero? */
         ret = bdrv_co_do_pwrite_zeroes(bs, cluster_offset, cluster_bytes, 0);
     } else {
         /* This does not change the data on the disk, it is not necessary
@@ -987,7 +990,12 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
     assert((bytes & (align - 1)) == 0);
     assert(!qiov || bytes == qiov->size);
     assert((bs->open_flags & BDRV_O_NO_IO) == 0);
-    assert(!(flags & ~BDRV_REQ_MASK));
+
+    /* TODO: We would need a per-BDS .supported_read_flags and
+     * potential fallback support, if we ever implement any read flags
+     * to pass through to drivers.  For now, there aren't any
+     * passthrough flags.  */
+    assert(!(flags & ~(BDRV_REQ_NO_SERIALISING | BDRV_REQ_COPY_ON_READ)));
 
     /* Handle Copy on Read and associated serialisation */
     if (flags & BDRV_REQ_COPY_ON_READ) {
