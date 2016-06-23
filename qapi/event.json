@@ -91,6 +91,12 @@
 # which is sometimes called standby state
 #
 # Since: 1.1
+#
+# Example:
+#
+# <- { "event": "SUSPEND",
+#      "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
+#
 ##
 { 'event': 'SUSPEND' }
 

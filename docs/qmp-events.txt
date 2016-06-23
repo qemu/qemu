@@ -312,18 +312,6 @@ Example:
 {"timestamp": {"seconds": 1449669631, "microseconds": 239225},
  "event": "MIGRATION_PASS", "data": {"pass": 2}}
 
-SUSPEND
--------
-
-Emitted when guest enters S3 state.
-
-Data: None.
-
-Example:
-
-{ "event": "SUSPEND",
-     "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
-
 SUSPEND_DISK
 ------------
 
