@@ -2405,21 +2405,6 @@ Example:
 
 Note: This example has been shortened as the real response is too long.
 
-query-kvm
----------
-
-Show KVM information.
-
-Return a json-object with the following information:
-
-- "enabled": true if KVM support is enabled, false otherwise (json-bool)
-- "present": true if QEMU has KVM support, false otherwise (json-bool)
-
-Example:
-
--> { "execute": "query-kvm" }
-<- { "return": { "enabled": true, "present": true } }
-
 query-status
 ------------
 

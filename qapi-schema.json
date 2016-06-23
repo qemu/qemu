@@ -150,6 +150,12 @@
 # Returns: @KvmInfo
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-kvm" }
+# <- { "return": { "enabled": true, "present": true } }
+#
 ##
 { 'command': 'query-kvm', 'returns': 'KvmInfo' }
 
