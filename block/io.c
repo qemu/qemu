@@ -1036,7 +1036,7 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
     }
 
     max_bytes = ROUND_UP(MAX(0, total_bytes - offset), align);
-    if (bytes < max_bytes) {
+    if (bytes <= max_bytes) {
         ret = bdrv_driver_preadv(bs, offset, bytes, qiov, 0);
     } else if (max_bytes > 0) {
         QEMUIOVector local_qiov;
