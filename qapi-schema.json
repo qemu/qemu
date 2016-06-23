@@ -846,6 +846,12 @@
 # @capabilities: json array of capability modifications to make
 #
 # Since: 1.2
+#
+# Example:
+#
+# -> { "execute": "migrate-set-capabilities" , "arguments":
+#      { "capabilities": [ { "capability": "xbzrle", "state": true } ] } }
+#
 ##
 { 'command': 'migrate-set-capabilities',
   'data': { 'capabilities': ['MigrationCapabilityStatus'] } }

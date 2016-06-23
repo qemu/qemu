@@ -2458,27 +2458,6 @@ Example:
      ]
    }
 
-migrate-set-capabilities
-------------------------
-
-Enable/Disable migration capabilities
-
-- "xbzrle": XBZRLE support
-- "rdma-pin-all": pin all pages when using RDMA during migration
-- "auto-converge": throttle down guest to help convergence of migration
-- "zero-blocks": compress zero blocks during block migration
-- "compress": use multiple compression threads to accelerate live migration
-- "events": generate events for each migration state change
-- "postcopy-ram": postcopy mode for live migration
-- "x-colo": COarse-Grain LOck Stepping (COLO) for Non-stop Service
-
-Arguments:
-
-Example:
-
--> { "execute": "migrate-set-capabilities" , "arguments":
-     { "capabilities": [ { "capability": "xbzrle", "state": true } ] } }
-
 query-migrate-capabilities
 --------------------------
 
