@@ -3455,6 +3455,28 @@
 # the rest of the array.
 #
 # Since: 2.7
+#
+# Example:
+#
+# 1. Add a new node to a quorum
+# -> { "execute": "blockdev-add",
+#      "arguments": {
+#          "options": { "driver": "raw",
+#                       "node-name": "new_node",
+#                        "file": { "driver": "file",
+#                                  "filename": "test.raw" } } } }
+# <- { "return": {} }
+# -> { "execute": "x-blockdev-change",
+#      "arguments": { "parent": "disk1",
+#                     "node": "new_node" } }
+# <- { "return": {} }
+#
+# 2. Delete a quorum's node
+# -> { "execute": "x-blockdev-change",
+#      "arguments": { "parent": "disk1",
+#                     "child": "children.1" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'x-blockdev-change',
   'data' : { 'parent': 'str',
