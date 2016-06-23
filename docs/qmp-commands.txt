@@ -312,22 +312,6 @@ Example:
 -> { "execute": "trace-event-set-state", "arguments": { "name": "qemu_memalign", "enable": "true" } }
 <- { "return": {} }
 
-Show rocker switch ports
-------------------------
-
-Arguments:
-
-- "name": switch name
-
-Example:
-
--> { "execute": "query-rocker-ports", "arguments": { "name": "sw1" } }
-<- { "return": [ {"duplex": "full", "enabled": true, "name": "sw1.1",
-                  "autoneg": "off", "link-up": true, "speed": 10000},
-                 {"duplex": "full", "enabled": true, "name": "sw1.2",
-                  "autoneg": "off", "link-up": true, "speed": 10000}
-   ]}
-
 Show rocker switch OF-DPA flow tables
 -------------------------------------
 

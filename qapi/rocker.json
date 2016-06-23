@@ -90,11 +90,21 @@
 ##
 # @query-rocker-ports:
 #
-# Return rocker switch information.
+# Return rocker switch port information.
 #
-# Returns: @Rocker information
+# Returns: a list of @RockerPort information
 #
 # Since: 2.4
+#
+# Example:
+#
+# -> { "execute": "query-rocker-ports", "arguments": { "name": "sw1" } }
+# <- { "return": [ {"duplex": "full", "enabled": true, "name": "sw1.1",
+#                   "autoneg": "off", "link-up": true, "speed": 10000},
+#                  {"duplex": "full", "enabled": true, "name": "sw1.2",
+#                   "autoneg": "off", "link-up": true, "speed": 10000}
+#    ]}
+#
 ##
 { 'command': 'query-rocker-ports',
   'data': { 'name': 'str' },
