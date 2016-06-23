@@ -205,23 +205,6 @@ Example:
 <- { "return": { "status": "active", "completed": 1024000,
                  "total": 2048000 } }
 
-object-add
-----------
-
-Create QOM object.
-
-Arguments:
-
-- "qom-type": the object's QOM type, i.e. the class name (json-string)
-- "id": the object's ID, must be unique (json-string)
-- "props": a dictionary of object property values (optional, json-dict)
-
-Example:
-
--> { "execute": "object-add", "arguments": { "qom-type": "rng-random", "id": "rng1",
-     "props": { "filename": "/dev/hwrng" } } }
-<- { "return": {} }
-
 object-del
 ----------
 
