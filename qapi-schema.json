@@ -3114,7 +3114,7 @@
 #
 # Remove a device from a guest
 #
-# @id: the name or QOM path of the device
+# @id: the device's ID or QOM path
 #
 # Returns: Nothing on success
 #          If @id is not a valid device, DeviceNotFound
@@ -3127,6 +3127,17 @@
 #        for all devices.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "device_del",
+#      "arguments": { "id": "net1" } }
+# <- { "return": {} }
+#
+# -> { "execute": "device_del",
+#      "arguments": { "id": "/machine/peripheral-anon/device[0]" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'device_del', 'data': {'id': 'str'} }
 

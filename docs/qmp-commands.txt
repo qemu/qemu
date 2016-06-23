@@ -111,25 +111,6 @@ Notes:
 (2) It's possible to list device properties by running QEMU with the
     "-device DEVICE,\?" command-line argument, where DEVICE is the device's name
 
-device_del
-----------
-
-Remove a device.
-
-Arguments:
-
-- "id": the device's ID or QOM path (json-string)
-
-Example:
-
--> { "execute": "device_del", "arguments": { "id": "net1" } }
-<- { "return": {} }
-
-Example:
-
--> { "execute": "device_del", "arguments": { "id": "/machine/peripheral-anon/device[0]" } }
-<- { "return": {} }
-
 send-key
 ----------
 
