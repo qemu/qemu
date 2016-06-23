@@ -5854,6 +5854,13 @@
 # Returns: a list of GICCapability objects.
 #
 # Since: 2.6
+#
+# Example:
+#
+# -> { "execute": "query-gic-capabilities" }
+# <- { "return": [{ "version": 2, "emulated": true, "kernel": false },
+#                 { "version": 3, "emulated": false, "kernel": true } ] }
+#
 ##
 { 'command': 'query-gic-capabilities', 'returns': ['GICCapability'] }
 

@@ -260,17 +260,3 @@ Delete a quorum's node
      "arguments": { "parent": "disk1",
                     "child": "children.1" } }
 <- { "return": {} }
-
-query-gic-capabilities
----------------
-
-Return a list of GICCapability objects, describing supported GIC
-(Generic Interrupt Controller) versions.
-
-Arguments: None
-
-Example:
-
--> { "execute": "query-gic-capabilities" }
-<- { "return": [{ "version": 2, "emulated": true, "kernel": false },
-                { "version": 3, "emulated": false, "kernel": true } ] }
