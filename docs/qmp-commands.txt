@@ -1128,22 +1128,6 @@ Example:
                                                "iops_size": 0 } }
 <- { "return": {} }
 
-expire_password
----------------
-
-Set the password expire time for vnc/spice protocols.
-
-Arguments:
-
-- "protocol": protocol name (json-string)
-- "time": [ now | never | +secs | secs ] (json-string)
-
-Example:
-
--> { "execute": "expire_password", "arguments": { "protocol": "vnc",
-                                                  "time": "+60" } }
-<- { "return": {} }
-
 qmp_capabilities
 ----------------
 

@@ -2817,6 +2817,13 @@
 #        coordinate server time with client time.  It is not recommended to
 #        use the absolute time version of the @time parameter unless you're
 #        sure you are on the same machine as the QEMU instance.
+#
+# Example:
+#
+# -> { "execute": "expire_password", "arguments": { "protocol": "vnc",
+#                                                   "time": "+60" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'expire_password', 'data': {'protocol': 'str', 'time': 'str'} }
 
