@@ -51,6 +51,22 @@ void blkconf_blocksizes(BlockConf *conf)
     }
 }
 
+void blkconf_apply_backend_options(BlockConf *conf)
+{
+    BlockBackend *blk = conf->blk;
+    bool wce;
+
+    switch (conf->wce) {
+    case ON_OFF_AUTO_ON:    wce = true; break;
+    case ON_OFF_AUTO_OFF:   wce = false; break;
+    case ON_OFF_AUTO_AUTO:  wce = blk_enable_write_cache(blk); break;
+    default:
+        abort();
+    }
+
+    blk_set_enable_write_cache(blk, wce);
+}
+
 void blkconf_geometry(BlockConf *conf, int *ptrans,
                       unsigned cyls_max, unsigned heads_max, unsigned secs_max,
                       Error **errp)

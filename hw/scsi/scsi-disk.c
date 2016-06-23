@@ -2309,6 +2309,7 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
             return;
         }
     }
+    blkconf_apply_backend_options(&dev->conf);
 
     if (s->qdev.conf.discard_granularity == -1) {
         s->qdev.conf.discard_granularity =
