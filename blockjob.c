@@ -110,6 +110,7 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
     BlockBackend *blk;
     BlockJob *job;
 
+    assert(cb);
     if (bs->job) {
         error_setg(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
         return NULL;
