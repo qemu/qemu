@@ -259,37 +259,6 @@ Example:
 {"timestamp": {"seconds": 1449669631, "microseconds": 239225},
  "event": "MIGRATION_PASS", "data": {"pass": 2}}
 
-VNC_CONNECTED
--------------
-
-Emitted when a VNC client establishes a connection.
-
-Data:
-
-- "server": Server information (json-object)
-  - "host": IP address (json-string)
-  - "service": port number (json-string)
-  - "family": address family (json-string, "ipv4" or "ipv6")
-  - "auth": authentication method (json-string, optional)
-- "client": Client information (json-object)
-  - "host": IP address (json-string)
-  - "service": port number (json-string)
-  - "family": address family (json-string, "ipv4" or "ipv6")
-
-Example:
-
-{ "event": "VNC_CONNECTED",
-    "data": {
-        "server": { "auth": "sasl", "family": "ipv4",
-                    "service": "5901", "host": "0.0.0.0" },
-        "client": { "family": "ipv4", "service": "58425",
-                    "host": "127.0.0.1" } },
-    "timestamp": { "seconds": 1262976601, "microseconds": 975795 } }
-
-
-Note: This event is emitted before any authentication takes place, thus
-the authentication ID is not provided.
-
 VNC_DISCONNECTED
 ----------------
 
