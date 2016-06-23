@@ -401,24 +401,3 @@ Example:
     "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
 
 Note: this event is rate-limited separately for each "id".
-
-WATCHDOG
---------
-
-Emitted when the watchdog device's timer is expired.
-
-Data:
-
-- "action": Action that has been taken, it's one of the following (json-string):
-            "reset", "shutdown", "poweroff", "pause", "debug", or "none"
-
-Example:
-
-{ "event": "WATCHDOG",
-     "data": { "action": "reset" },
-     "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
-
-Note: If action is "reset", "shutdown", or "pause" the WATCHDOG event is
-followed respectively by the RESET, SHUTDOWN, or STOP events.
-
-Note: this event is rate-limited.

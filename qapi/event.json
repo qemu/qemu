@@ -165,7 +165,16 @@
 # Note: If action is "reset", "shutdown", or "pause" the WATCHDOG event is
 # followed respectively by the RESET, SHUTDOWN, or STOP events
 #
+# Note: This event is rate-limited.
+#
 # Since: 0.13.0
+#
+# Example:
+#
+# <- { "event": "WATCHDOG",
+#      "data": { "action": "reset" },
+#      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+#
 ##
 { 'event': 'WATCHDOG',
   'data': { 'action': 'WatchdogExpirationAction' } }
