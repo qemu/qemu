@@ -998,7 +998,8 @@
 # @image-node-name: The name of the block driver state node of the
 #                   image to modify.
 #
-# @device:          The name of the device that owns image-node-name.
+# @device:          The device name or node-name of the root node that owns
+#                   image-node-name.
 #
 # @backing-file:    The string to write as the backing file.  This
 #                   string is not validated, so care should be taken

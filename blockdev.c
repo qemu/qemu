@@ -3755,7 +3755,6 @@ void qmp_change_backing_file(const char *device,
                              const char *backing_file,
                              Error **errp)
 {
-    BlockBackend *blk;
     BlockDriverState *bs = NULL;
     AioContext *aio_context;
     BlockDriverState *image_bs = NULL;
@@ -3764,21 +3763,13 @@ void qmp_change_backing_file(const char *device,
     int open_flags;
     int ret;
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
+    bs = qmp_get_root_bs(device, errp);
+    if (!bs) {
         return;
     }
 
-    aio_context = blk_get_aio_context(blk);
+    aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
-
-    if (!blk_is_available(blk)) {
-        error_setg(errp, "Device '%s' has no medium", device);
-        goto out;
-    }
-    bs = blk_bs(blk);
 
     image_bs = bdrv_lookup_bs(NULL, image_node_name, &local_err);
     if (local_err) {

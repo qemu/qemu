@@ -1806,7 +1806,8 @@ Arguments:
                         "device".
                         (json-string, optional)
 
-- "device":             The name of the device.
+- "device":             The device name or node-name of the root node that owns
+                        image-node-name.
                         (json-string)
 
 - "backing-file":       The string to write as the backing file.  This string is
