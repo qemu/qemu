@@ -887,11 +887,21 @@ static void apic_realize(DeviceState *dev, Error **errp)
     msi_nonbroken = true;
 }
 
+static void apic_unrealize(DeviceState *dev, Error **errp)
+{
+    APICCommonState *s = APIC_COMMON(dev);
+
+    timer_del(s->timer);
+    timer_free(s->timer);
+    local_apics[s->id] = NULL;
+}
+
 static void apic_class_init(ObjectClass *klass, void *data)
 {
     APICCommonClass *k = APIC_COMMON_CLASS(klass);
 
     k->realize = apic_realize;
+    k->unrealize = apic_unrealize;
     k->set_base = apic_set_base;
     k->set_tpr = apic_set_tpr;
     k->get_tpr = apic_get_tpr;

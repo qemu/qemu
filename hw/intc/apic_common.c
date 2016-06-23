@@ -315,6 +315,18 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
 
 }
 
+static void apic_common_unrealize(DeviceState *dev, Error **errp)
+{
+    APICCommonState *s = APIC_COMMON(dev);
+    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+
+    info->unrealize(dev, errp);
+
+    if (apic_report_tpr_access && info->enable_tpr_reporting) {
+        info->enable_tpr_reporting(s, false);
+    }
+}
+
 static int apic_pre_load(void *opaque)
 {
     APICCommonState *s = APIC_COMMON(opaque);
@@ -421,6 +433,7 @@ static void apic_common_class_init(ObjectClass *klass, void *data)
     dc->reset = apic_reset_common;
     dc->props = apic_properties_common;
     dc->realize = apic_common_realize;
+    dc->unrealize = apic_common_unrealize;
     /*
      * Reason: APIC and CPU need to be wired up by
      * x86_cpu_apic_create()
