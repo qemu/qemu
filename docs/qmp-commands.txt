@@ -652,23 +652,6 @@ Arguments:
 Returns: Nothing on success
          If "device" does not exist or cannot be determined, DeviceNotFound
 
-block_passwd
-------------
-
-Set the password of encrypted block devices.
-
-Arguments:
-
-- "device": device name (json-string)
-- "node-name": name in the block driver state graph (json-string)
-- "password": password (json-string)
-
-Example:
-
--> { "execute": "block_passwd", "arguments": { "device": "ide0-hd0",
-                                               "password": "12345" } }
-<- { "return": {} }
-
 block_set_io_throttle
 ------------
 

@@ -971,6 +971,13 @@
 #         occur if an invalid password is specified.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "block_passwd", "arguments": { "device": "ide0-hd0",
+#                                                "password": "12345" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'block_passwd', 'data': {'*device': 'str',
                                       '*node-name': 'str', 'password': 'str'} }
