@@ -19,23 +19,6 @@ Example:
   "data": {"result": {"total": 1090650112, "status": "completed",
                       "completed": 1090650112} } }
 
-MEM_UNPLUG_ERROR
---------------------
-Emitted when memory hot unplug error occurs.
-
-Data:
-
-- "device": device name (json-string)
-- "msg": Informative message (e.g., reason for the error) (json-string)
-
-Example:
-
-{ "event": "MEM_UNPLUG_ERROR"
-  "data": { "device": "dimm1",
-            "msg": "acpi: device unplug for unsupported device"
-  },
-  "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
-
 MIGRATION_PASS
 --------------
 
