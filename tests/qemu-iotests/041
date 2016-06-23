@@ -38,7 +38,6 @@ class TestSingleDrive(iotests.QMPTestCase):
     image_len = 1 * 1024 * 1024 # MB
     qmp_cmd = 'drive-mirror'
     qmp_target = target_img
-    not_found_error = 'DeviceNotFound'
 
     def setUp(self):
         iotests.create_image(backing_img, self.image_len)
@@ -176,7 +175,7 @@ class TestSingleDrive(iotests.QMPTestCase):
 
         result = self.vm.qmp(self.qmp_cmd, device='ide1-cd0', sync='full',
                              target=self.qmp_target)
-        self.assert_qmp(result, 'error/class', self.not_found_error)
+        self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_image_not_found(self):
         result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
@@ -186,12 +185,11 @@ class TestSingleDrive(iotests.QMPTestCase):
     def test_device_not_found(self):
         result = self.vm.qmp(self.qmp_cmd, device='nonexistent', sync='full',
                              target=self.qmp_target)
-        self.assert_qmp(result, 'error/class', self.not_found_error)
+        self.assert_qmp(result, 'error/class', 'GenericError')
 
 class TestSingleBlockdev(TestSingleDrive):
     qmp_cmd = 'blockdev-mirror'
     qmp_target = 'node1'
-    not_found_error = 'GenericError'
 
     def setUp(self):
         TestSingleDrive.setUp(self)
@@ -922,7 +920,7 @@ class TestRepairQuorum(iotests.QMPTestCase):
                              node_name='repair0',
                              replaces='img1',
                              target=quorum_repair_img, format=iotests.imgfmt)
-        self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+        self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_wrong_sync_mode(self):
         if not self.has_quorum():

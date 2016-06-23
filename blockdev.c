@@ -3429,7 +3429,6 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
 void qmp_drive_mirror(DriveMirror *arg, Error **errp)
 {
     BlockDriverState *bs;
-    BlockBackend *blk;
     BlockDriverState *source, *target_bs;
     AioContext *aio_context;
     BlockMirrorBackingMode backing_mode;
@@ -3439,21 +3438,14 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     int64_t size;
     const char *format = arg->format;
 
-    blk = blk_by_name(arg->device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", arg->device);
+    bs = qmp_get_root_bs(arg->device, errp);
+    if (!bs) {
         return;
     }
 
-    aio_context = blk_get_aio_context(blk);
+    aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    if (!blk_is_available(blk)) {
-        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, arg->device);
-        goto out;
-    }
-    bs = blk_bs(blk);
     if (!arg->has_mode) {
         arg->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
