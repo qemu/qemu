@@ -36,39 +36,6 @@ Example:
   },
   "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 
-QUORUM_REPORT_BAD
------------------
-
-Emitted to report a corruption of a Quorum file.
-
-Data:
-
-- "type":          Quorum operation type
-- "error":         Error message (json-string, optional)
-                   Only present on failure.  This field contains a human-readable
-                   error message.  There are no semantics other than that the
-                   block layer reported an error and clients should not try to
-                   interpret the error string.
-- "node-name":     The graph node name of the block driver state.
-- "sector-num":    Number of the first sector of the failed read operation.
-- "sectors-count": Failed read operation sector count.
-
-Example:
-
-Read operation:
-{ "event": "QUORUM_REPORT_BAD",
-     "data": { "node-name": "node0", "sector-num": 345435, "sectors-count": 5,
-               "type": "read" },
-     "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
-
-Flush operation:
-{ "event": "QUORUM_REPORT_BAD",
-     "data": { "node-name": "node0", "sector-num": 0, "sectors-count": 2097120,
-               "type": "flush", "error": "Broken pipe" },
-     "timestamp": { "seconds": 1456406829, "microseconds": 291763 } }
-
-Note: this event is rate-limited.
-
 MIGRATION_PASS
 --------------
 
