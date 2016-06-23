@@ -1674,6 +1674,15 @@
 # Returns: nothing on success.
 #
 # Since: 2.6
+#
+# Example:
+#
+# -> { "execute": "blockdev-mirror",
+#      "arguments": { "device": "ide-hd0",
+#                     "target": "target0",
+#                     "sync": "full" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'blockdev-mirror',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
