@@ -571,6 +571,13 @@
 # @open: true if the guest has opened the virtio-serial port
 #
 # Since: 2.1
+#
+# Example:
+#
+# <- { "event": "VSERPORT_CHANGE",
+#      "data": { "id": "channel0", "open": true },
+#      "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
+#
 ##
 { 'event': 'VSERPORT_CHANGE',
   'data': { 'id': 'str', 'open': 'bool' } }

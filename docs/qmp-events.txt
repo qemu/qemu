@@ -49,21 +49,3 @@ Data: None.
 Example:
 {"timestamp": {"seconds": 1449669631, "microseconds": 239225},
  "event": "MIGRATION_PASS", "data": {"pass": 2}}
-
-VSERPORT_CHANGE
----------------
-
-Emitted when the guest opens or closes a virtio-serial port.
-
-Data:
-
-- "id": device identifier of the virtio-serial port (json-string)
-- "open": true if the guest has opened the virtio-serial port (json-bool)
-
-Example:
-
-{ "event": "VSERPORT_CHANGE",
-    "data": { "id": "channel0", "open": true },
-    "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
-
-Note: this event is rate-limited separately for each "id".
