@@ -30,34 +30,6 @@ Example:
 
 Note: this event is rate-limited.
 
-BLOCK_IMAGE_CORRUPTED
----------------------
-
-Emitted when a disk image is being marked corrupt. The image can be
-identified by its device or node name. The 'device' field is always
-present for compatibility reasons, but it can be empty ("") if the
-image does not have a device name associated.
-
-Data:
-
-- "device":    Device name (json-string)
-- "node-name": Node name (json-string, optional)
-- "msg":       Informative message (e.g., reason for the corruption)
-               (json-string)
-- "offset":    If the corruption resulted from an image access, this
-               is the host's access offset into the image
-               (json-int, optional)
-- "size":      If the corruption resulted from an image access, this
-               is the access size (json-int, optional)
-
-Example:
-
-{ "event": "BLOCK_IMAGE_CORRUPTED",
-    "data": { "device": "ide0-hd0", "node-name": "node0",
-        "msg": "Prevented active L1 table overwrite", "offset": 196608,
-        "size": 65536 },
-    "timestamp": { "seconds": 1378126126, "microseconds": 966463 } }
-
 BLOCK_IO_ERROR
 --------------
 
