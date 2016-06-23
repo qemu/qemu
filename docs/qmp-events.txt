@@ -30,33 +30,6 @@ Example:
 
 Note: this event is rate-limited.
 
-BLOCK_JOB_READY
----------------
-
-Emitted when a block job is ready to complete.
-
-Data:
-
-- "type":     Job type (json-string; "stream" for image streaming
-                                     "commit" for block commit)
-- "device":   Job identifier. Originally the device name but other
-              values are allowed since QEMU 2.7 (json-string)
-- "len":      Maximum progress value (json-int)
-- "offset":   Current progress value (json-int)
-              On success this is equal to len.
-              On failure this is less than len.
-- "speed":    Rate limit, bytes per second (json-int)
-
-Example:
-
-{ "event": "BLOCK_JOB_READY",
-    "data": { "device": "drive0", "type": "mirror", "speed": 0,
-              "len": 2097152, "offset": 2097152 }
-    "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
-
-Note: The "ready to complete" status is always reset by a BLOCK_JOB_ERROR
-event.
-
 DEVICE_DELETED
 --------------
 
