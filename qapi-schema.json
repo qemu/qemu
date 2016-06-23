@@ -2552,7 +2552,11 @@
 # Since: 0.14.0
 #
 # Notes: This command only exists as a stop-gap.  Its use is highly
-#        discouraged.  The semantics of this command are not guaranteed.
+#        discouraged.  The semantics of this command are not
+#        guaranteed: this means that command names, arguments and
+#        responses can change or be removed at ANY time.  Applications
+#        that rely on long term stability guarantees should NOT
+#        use this command.
 #
 #        Known limitations:
 #
@@ -2561,6 +2565,13 @@
 #
 #        * Commands that prompt the user for data (eg. 'cont' when the block
 #          device is encrypted) don't currently work
+#
+# Example:
+#
+# -> { "execute": "human-monitor-command",
+#      "arguments": { "command-line": "info kvm" } }
+# <- { "return": "kvm support: enabled\r\n" }
+#
 ##
 { 'command': 'human-monitor-command',
   'data': {'command-line': 'str', '*cpu-index': 'int'},
