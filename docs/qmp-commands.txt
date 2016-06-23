@@ -205,20 +205,6 @@ Example:
 <- { "return": { "status": "active", "completed": 1024000,
                  "total": 2048000 } }
 
-dump-skeys
-----------
-
-Save guest storage keys to file.
-
-Arguments:
-
-- "filename": file path (json-string)
-
-Example:
-
--> { "execute": "dump-skeys", "arguments": { "filename": "/tmp/skeys" } }
-<- { "return": {} }
-
 netdev_add
 ----------
 

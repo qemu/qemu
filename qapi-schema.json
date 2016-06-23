@@ -3310,6 +3310,13 @@
 # This command is only supported on s390 architecture.
 #
 # Since: 2.5
+#
+# Example:
+#
+# -> { "execute": "dump-skeys",
+#      "arguments": { "filename": "/tmp/skeys" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'dump-skeys',
   'data': { 'filename': 'str' } }
