@@ -137,18 +137,6 @@ Example:
 -> { "execute": "system_wakeup" }
 <- { "return": {} }
 
-system_powerdown
-----------------
-
-Send system power down event.
-
-Arguments: None.
-
-Example:
-
--> { "execute": "system_powerdown" }
-<- { "return": {} }
-
 device_add
 ----------
 
