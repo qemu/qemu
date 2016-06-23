@@ -1589,7 +1589,6 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
     bs->total_sectors = sector_lun2qemu(iscsilun->num_blocks, iscsilun);
-    bs->request_alignment = iscsilun->block_size;
 
     /* We don't have any emulation for devices other than disks and CD-ROMs, so
      * this must be sg ioctl compatible. We force it to be sg, otherwise qemu
@@ -1710,6 +1709,8 @@ static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
 
     IscsiLun *iscsilun = bs->opaque;
     uint32_t max_xfer_len = iscsilun->use_16_for_rw ? 0xffffffff : 0xffff;
+
+    bs->request_alignment = iscsilun->block_size;
 
     if (iscsilun->bl.max_xfer_len) {
         max_xfer_len = MIN(max_xfer_len, iscsilun->bl.max_xfer_len);
