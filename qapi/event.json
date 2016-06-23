@@ -483,6 +483,12 @@
 # @action: action that has been taken, currently always "pause"
 #
 # Since: 1.5
+#
+# Example:
+#
+# <- { "event": "GUEST_PANICKED",
+#      "data": { "action": "pause" } }
+#
 ##
 { 'event': 'GUEST_PANICKED',
   'data': { 'action': 'GuestPanicAction' } }

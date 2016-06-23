@@ -19,20 +19,6 @@ Example:
   "data": {"result": {"total": 1090650112, "status": "completed",
                       "completed": 1090650112} } }
 
-GUEST_PANICKED
---------------
-
-Emitted when guest OS panic is detected.
-
-Data:
-
-- "action": Action that has been taken (json-string, currently always "pause").
-
-Example:
-
-{ "event": "GUEST_PANICKED",
-     "data": { "action": "pause" } }
-
 MEM_UNPLUG_ERROR
 --------------------
 Emitted when memory hot unplug error occurs.
