@@ -2368,19 +2368,21 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
         goto out;
     }
 
-    max_discard = MIN_NON_ZERO(bs->bl.max_discard, BDRV_REQUEST_MAX_SECTORS);
+    max_discard = MIN_NON_ZERO(bs->bl.max_pdiscard >> BDRV_SECTOR_BITS,
+                               BDRV_REQUEST_MAX_SECTORS);
     while (nb_sectors > 0) {
         int ret;
         int num = nb_sectors;
+        int discard_alignment = bs->bl.pdiscard_alignment >> BDRV_SECTOR_BITS;
 
         /* align request */
-        if (bs->bl.discard_alignment &&
-            num >= bs->bl.discard_alignment &&
-            sector_num % bs->bl.discard_alignment) {
-            if (num > bs->bl.discard_alignment) {
-                num = bs->bl.discard_alignment;
+        if (discard_alignment &&
+            num >= discard_alignment &&
+            sector_num % discard_alignment) {
+            if (num > discard_alignment) {
+                num = discard_alignment;
             }
-            num -= sector_num % bs->bl.discard_alignment;
+            num -= sector_num % discard_alignment;
         }
 
         /* limit request size */

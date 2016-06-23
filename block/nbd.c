@@ -362,7 +362,7 @@ static int nbd_co_flush(BlockDriverState *bs)
 
 static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
 {
-    bs->bl.max_discard = NBD_MAX_SECTORS;
+    bs->bl.max_pdiscard = NBD_MAX_BUFFER_SIZE;
     bs->bl.max_transfer = NBD_MAX_BUFFER_SIZE;
 }
 

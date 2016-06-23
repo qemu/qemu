@@ -324,11 +324,17 @@ struct BlockDriver {
 };
 
 typedef struct BlockLimits {
-    /* maximum number of sectors that can be discarded at once */
-    int max_discard;
+    /* maximum number of bytes that can be discarded at once (since it
+     * is signed, it must be < 2G, if set), should be multiple of
+     * pdiscard_alignment, but need not be power of 2. May be 0 if no
+     * inherent 32-bit limit */
+    int32_t max_pdiscard;
 
-    /* optimal alignment for discard requests in sectors */
-    int64_t discard_alignment;
+    /* optimal alignment for discard requests in bytes, must be power
+     * of 2, less than max_pdiscard if that is set, and multiple of
+     * bs->request_alignment. May be 0 if bs->request_alignment is
+     * good enough */
+    uint32_t pdiscard_alignment;
 
     /* maximum number of bytes that can zeroized at once (since it is
      * signed, it must be < 2G, if set), should be multiple of

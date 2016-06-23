@@ -1697,13 +1697,6 @@ static void iscsi_close(BlockDriverState *bs)
     memset(iscsilun, 0, sizeof(IscsiLun));
 }
 
-static int sector_limits_lun2qemu(int64_t sector, IscsiLun *iscsilun)
-{
-    int limit = MIN(sector_lun2qemu(sector, iscsilun), INT_MAX / 2 + 1);
-
-    return limit < BDRV_REQUEST_MAX_SECTORS ? limit : 0;
-}
-
 static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     /* We don't actually refresh here, but just return data queried in
@@ -1723,14 +1716,14 @@ static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
     }
 
     if (iscsilun->lbp.lbpu) {
-        if (iscsilun->bl.max_unmap < 0xffffffff) {
-            bs->bl.max_discard =
-                sector_limits_lun2qemu(iscsilun->bl.max_unmap, iscsilun);
+        if (iscsilun->bl.max_unmap < 0xffffffff / iscsilun->block_size) {
+            bs->bl.max_pdiscard =
+                iscsilun->bl.max_unmap * iscsilun->block_size;
         }
-        bs->bl.discard_alignment =
-            sector_limits_lun2qemu(iscsilun->bl.opt_unmap_gran, iscsilun);
+        bs->bl.pdiscard_alignment =
+            iscsilun->bl.opt_unmap_gran * iscsilun->block_size;
     } else {
-        bs->bl.discard_alignment = iscsilun->block_size >> BDRV_SECTOR_BITS;
+        bs->bl.pdiscard_alignment = iscsilun->block_size;
     }
 
     if (iscsilun->bl.max_ws_len < 0xffffffff / iscsilun->block_size) {

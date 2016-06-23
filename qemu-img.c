@@ -2091,7 +2091,8 @@ static int img_convert(int argc, char **argv)
     bufsectors = MIN(32768,
                      MAX(bufsectors,
                          MAX(out_bs->bl.opt_transfer >> BDRV_SECTOR_BITS,
-                             out_bs->bl.discard_alignment)));
+                             out_bs->bl.pdiscard_alignment >>
+                             BDRV_SECTOR_BITS)));
 
     if (skip_create) {
         int64_t output_sectors = blk_nb_sectors(out_blk);
