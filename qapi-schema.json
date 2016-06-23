@@ -4608,6 +4608,13 @@
 # Returns: Nothing on success
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "screendump",
+#      "arguments": { "filename": "/tmp/image" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'screendump', 'data': {'filename': 'str'} }
 

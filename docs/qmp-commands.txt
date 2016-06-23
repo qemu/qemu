@@ -72,20 +72,6 @@ Example:
 
 Note: The "force" argument defaults to false.
 
-screendump
-----------
-
-Save screen into PPM image.
-
-Arguments:
-
-- "filename": file path (json-string)
-
-Example:
-
--> { "execute": "screendump", "arguments": { "filename": "/tmp/image" } }
-<- { "return": {} }
-
 device_add
 ----------
 
