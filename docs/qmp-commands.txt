@@ -261,30 +261,6 @@ Delete a quorum's node
                     "child": "children.1" } }
 <- { "return": {} }
 
-trace-event-get-state
----------------------
-
-Query the state of events.
-
-Arguments:
-
-- "name": Event name pattern (json-string).
-- "vcpu": The vCPU to query, any vCPU by default (json-int, optional).
-
-An event is returned if:
-- its name matches the "name" pattern, and
-- if "vcpu" is given, the event has the "vcpu" property.
-
-Therefore, if "vcpu" is given, the operation will only match per-vCPU events,
-returning their state on the specified vCPU. Special case: if "name" is an exact
-match, "vcpu" is given and the event does not have the "vcpu" property, an error
-is returned.
-
-Example:
-
--> { "execute": "trace-event-get-state", "arguments": { "name": "qemu_memalign" } }
-<- { "return": [ { "name": "qemu_memalign", "state": "disabled" } ] }
-
 trace-event-set-state
 ---------------------
 

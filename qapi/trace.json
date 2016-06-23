@@ -62,6 +62,13 @@
 # an error is returned.
 #
 # Since: 2.2
+#
+# Example:
+#
+# -> { "execute": "trace-event-get-state",
+#      "arguments": { "name": "qemu_memalign" } }
+# <- { "return": [ { "name": "qemu_memalign", "state": "disabled" } ] }
+#
 ##
 { 'command': 'trace-event-get-state',
   'data': {'name': 'str', '*vcpu': 'int'},
