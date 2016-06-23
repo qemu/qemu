@@ -1690,38 +1690,6 @@ named schema entities.  Entities are commands, events and various
 types.  See docs/qapi-code-gen.txt for information on their structure
 and intended use.
 
-query-chardev-backends
--------------
-
-List available character device backends.
-
-Each backend is represented by a json-object, the returned value is a json-array
-of all backends.
-
-Each json-object contains:
-
-- "name": backend name (json-string)
-
-Example:
-
--> { "execute": "query-chardev-backends" }
-<- {
-      "return":[
-         {
-            "name":"udp"
-         },
-         {
-            "name":"tcp"
-         },
-         {
-            "name":"unix"
-         },
-         {
-            "name":"spiceport"
-         }
-      ]
-   }
-
 query-block
 -----------
 
