@@ -1462,7 +1462,7 @@
 # @job-id: #optional identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
 #
-# @device: the device name
+# @device: the device name or node-name of a root node
 #
 # @base:   #optional the common backing file name
 #
@@ -1486,9 +1486,6 @@
 # @on-error: #optional the action to take on an error (default report).
 #            'stop' and 'enospc' can only be used if the block device
 #            supports io-status (see BlockInfo).  Since 1.3.
-#
-# Returns: Nothing on success
-#          If @device does not exist, DeviceNotFound
 #
 # Since: 1.1
 ##

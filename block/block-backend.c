@@ -410,6 +410,22 @@ bool bdrv_has_blk(BlockDriverState *bs)
 }
 
 /*
+ * Returns true if @bs has only BlockBackends as parents.
+ */
+bool bdrv_is_root_node(BlockDriverState *bs)
+{
+    BdrvChild *c;
+
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
+        if (c->role != &child_root) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/*
  * Return @blk's DriveInfo if any, else null.
  */
 DriveInfo *blk_legacy_dinfo(BlockBackend *blk)
