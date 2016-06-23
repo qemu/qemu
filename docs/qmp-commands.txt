@@ -305,19 +305,6 @@ Example:
 -> { "execute": "migrate-set-cache-size", "arguments": { "value": 536870912 } }
 <- { "return": {} }
 
-query-migrate-cache-size
-------------------------
-
-Show cache size to be used by XBZRLE migration
-
-returns a json-object with the following information:
-- "size" : json-int
-
-Example:
-
--> { "execute": "query-migrate-cache-size" }
-<- { "return": 67108864 }
-
 x-colo-lost-heartbeat
 --------------------
 

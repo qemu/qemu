@@ -2657,11 +2657,17 @@
 ##
 # @query-migrate-cache-size:
 #
-# query XBZRLE cache size
+# Query migration XBZRLE cache size
 #
 # Returns: XBZRLE cache size in bytes
 #
 # Since: 1.2
+#
+# Example:
+#
+# -> { "execute": "query-migrate-cache-size" }
+# <- { "return": 67108864 }
+#
 ##
 { 'command': 'query-migrate-cache-size', 'returns': 'int' }
 
