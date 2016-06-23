@@ -1534,18 +1534,6 @@ Examples:
 
 <- { "return": {} }
 
-rtc-reset-reinjection
----------------------
-
-Reset the RTC interrupt reinjection backlog.
-
-Arguments: None.
-
-Example:
-
--> { "execute": "rtc-reset-reinjection" }
-<- { "return": {} }
-
 trace-event-get-state
 ---------------------
 

@@ -5777,6 +5777,12 @@
 # command.
 #
 # Since: 2.1
+#
+# Example:
+#
+# -> { "execute": "rtc-reset-reinjection" }
+# <- { "return": {} }
+#
 ##
 { 'command': 'rtc-reset-reinjection' }
 
