@@ -205,21 +205,6 @@ Example:
 <- { "return": { "status": "active", "completed": 1024000,
                  "total": 2048000 } }
 
-netdev_del
-----------
-
-Remove host network device.
-
-Arguments:
-
-- "id": the device's ID, must be unique (json-string)
-
-Example:
-
--> { "execute": "netdev_del", "arguments": { "id": "netdev1" } }
-<- { "return": {} }
-
-
 object-add
 ----------
 

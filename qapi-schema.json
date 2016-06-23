@@ -3366,6 +3366,12 @@
 #          If @id is not a valid network backend, DeviceNotFound
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "netdev_del", "arguments": { "id": "netdev1" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'netdev_del', 'data': {'id': 'str'} }
 
