@@ -688,20 +688,6 @@ Arguments:
 Returns: Nothing on success
          If "device" does not exist or cannot be determined, DeviceNotFound
 
-closefd
--------
-
-Close a file descriptor previously passed via SCM rights.
-
-Arguments:
-
-- "fdname": file descriptor name (json-string)
-
-Example:
-
--> { "execute": "closefd", "arguments": { "fdname": "fd1" } }
-<- { "return": {} }
-
 add-fd
 -------
 

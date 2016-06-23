@@ -4015,6 +4015,12 @@
 # Returns: Nothing on success
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "closefd", "arguments": { "fdname": "fd1" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'closefd', 'data': {'fdname': 'str'} }
 
