@@ -1548,24 +1548,6 @@ Example:
                                                   "time": "+60" } }
 <- { "return": {} }
 
-add_client
-----------
-
-Add a graphics client
-
-Arguments:
-
-- "protocol": protocol name (json-string)
-- "fdname": file descriptor name (json-string)
-- "skipauth": whether to skip authentication (json-bool, optional)
-- "tls": whether to perform TLS (json-bool, optional)
-
-Example:
-
--> { "execute": "add_client", "arguments": { "protocol": "vnc",
-                                             "fdname": "myclient" } }
-<- { "return": {} }
-
 qmp_capabilities
 ----------------
 
