@@ -461,7 +461,16 @@
 #
 # @actual: actual level of the guest memory balloon in bytes
 #
+# Note: this event is rate-limited.
+#
 # Since: 1.2
+#
+# Example:
+#
+# <- { "event": "BALLOON_CHANGE",
+#      "data": { "actual": 944766976 },
+#      "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
+#
 ##
 { 'event': 'BALLOON_CHANGE',
   'data': { 'actual': 'int' } }
