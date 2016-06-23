@@ -67,6 +67,17 @@ static void bdrv_parent_drained_end(BlockDriverState *bs)
     }
 }
 
+static void bdrv_merge_limits(BlockLimits *dst, const BlockLimits *src)
+{
+    dst->opt_transfer = MAX(dst->opt_transfer, src->opt_transfer);
+    dst->max_transfer = MIN_NON_ZERO(dst->max_transfer, src->max_transfer);
+    dst->opt_mem_alignment = MAX(dst->opt_mem_alignment,
+                                 src->opt_mem_alignment);
+    dst->min_mem_alignment = MAX(dst->min_mem_alignment,
+                                 src->min_mem_alignment);
+    dst->max_iov = MIN_NON_ZERO(dst->max_iov, src->max_iov);
+}
+
 void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BlockDriver *drv = bs->drv;
@@ -88,11 +99,7 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
             error_propagate(errp, local_err);
             return;
         }
-        bs->bl.opt_transfer = bs->file->bs->bl.opt_transfer;
-        bs->bl.max_transfer = bs->file->bs->bl.max_transfer;
-        bs->bl.min_mem_alignment = bs->file->bs->bl.min_mem_alignment;
-        bs->bl.opt_mem_alignment = bs->file->bs->bl.opt_mem_alignment;
-        bs->bl.max_iov = bs->file->bs->bl.max_iov;
+        bdrv_merge_limits(&bs->bl, &bs->file->bs->bl);
     } else {
         bs->bl.min_mem_alignment = 512;
         bs->bl.opt_mem_alignment = getpagesize();
@@ -107,19 +114,7 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
             error_propagate(errp, local_err);
             return;
         }
-        bs->bl.opt_transfer = MAX(bs->bl.opt_transfer,
-                                  bs->backing->bs->bl.opt_transfer);
-        bs->bl.max_transfer = MIN_NON_ZERO(bs->bl.max_transfer,
-                                           bs->backing->bs->bl.max_transfer);
-        bs->bl.opt_mem_alignment =
-            MAX(bs->bl.opt_mem_alignment,
-                bs->backing->bs->bl.opt_mem_alignment);
-        bs->bl.min_mem_alignment =
-            MAX(bs->bl.min_mem_alignment,
-                bs->backing->bs->bl.min_mem_alignment);
-        bs->bl.max_iov =
-            MIN(bs->bl.max_iov,
-                bs->backing->bs->bl.max_iov);
+        bdrv_merge_limits(&bs->bl, &bs->backing->bs->bl);
     }
 
     /* Then let the driver override it */
