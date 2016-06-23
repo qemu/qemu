@@ -307,6 +307,30 @@
 # Returns: a list of @ChardevInfo
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-chardev" }
+# <- {
+#       "return": [
+#          {
+#             "label": "charchannel0",
+#             "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.agent,server",
+#             "frontend-open": false
+#          },
+#          {
+#             "label": "charmonitor",
+#             "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.monitor,server",
+#             "frontend-open": true
+#          },
+#          {
+#             "label": "charserial0",
+#             "filename": "pty:/dev/pts/2",
+#             "frontend-open": true
+#          }
+#       ]
+#    }
+#
 ##
 { 'command': 'query-chardev', 'returns': ['ChardevInfo'] }
 

@@ -1690,42 +1690,6 @@ named schema entities.  Entities are commands, events and various
 types.  See docs/qapi-code-gen.txt for information on their structure
 and intended use.
 
-query-chardev
--------------
-
-Each device is represented by a json-object. The returned value is a json-array
-of all devices.
-
-Each json-object contain the following:
-
-- "label": device's label (json-string)
-- "filename": device's file (json-string)
-- "frontend-open": open/closed state of the frontend device attached to this
-                   backend (json-bool)
-
-Example:
-
--> { "execute": "query-chardev" }
-<- {
-      "return": [
-         {
-            "label": "charchannel0",
-            "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.agent,server",
-            "frontend-open": false
-         },
-         {
-            "label": "charmonitor",
-            "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.monitor,server",
-            "frontend-open": true
-         },
-         {
-            "label": "charserial0",
-            "filename": "pty:/dev/pts/2",
-            "frontend-open": true
-         }
-      ]
-   }
-
 query-chardev-backends
 -------------
 
