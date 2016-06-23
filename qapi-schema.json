@@ -3204,9 +3204,18 @@
 #          @length is not allowed to be specified with non-elf @format at the
 #          same time (since 2.0)
 #
+# Note: All boolean arguments default to false
+#
 # Returns: nothing on success
 #
 # Since: 1.2
+#
+# Example:
+#
+# -> { "execute": "dump-guest-memory",
+#      "arguments": { "protocol": "fd:dump" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'dump-guest-memory',
   'data': { 'paging': 'bool', 'protocol': 'str', '*detach': 'bool',
