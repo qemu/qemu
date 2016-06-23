@@ -1511,7 +1511,6 @@ static void internal_snapshot_prepare(BlkActionState *common,
     Error *local_err = NULL;
     const char *device;
     const char *name;
-    BlockBackend *blk;
     BlockDriverState *bs;
     QEMUSnapshotInfo old_sn, *sn;
     bool ret;
@@ -1534,22 +1533,14 @@ static void internal_snapshot_prepare(BlkActionState *common,
         return;
     }
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
+    bs = qmp_get_root_bs(device, errp);
+    if (!bs) {
         return;
     }
 
     /* AioContext is released in .clean() */
-    state->aio_context = blk_get_aio_context(blk);
+    state->aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(state->aio_context);
-
-    if (!blk_is_available(blk)) {
-        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
-        return;
-    }
-    bs = blk_bs(blk);
 
     state->bs = bs;
     bdrv_drained_begin(bs);

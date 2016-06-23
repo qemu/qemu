@@ -58,7 +58,8 @@
 ##
 # @BlockdevSnapshotInternal
 #
-# @device: the name of the device to generate the snapshot from
+# @device: the device name or node-name of a root node to generate the snapshot
+#          from
 #
 # @name: the name of the internal snapshot to be created
 #
@@ -80,7 +81,7 @@
 # For the arguments, see the documentation of BlockdevSnapshotInternal.
 #
 # Returns: nothing on success
-#          If @device is not a valid block device, DeviceNotFound
+#          If @device is not a valid block device, GenericError
 #          If any snapshot matching @name exists, or @name is empty,
 #          GenericError
 #          If the format of the image used does not support it,

@@ -1407,7 +1407,8 @@ actions array:
       - "mode": whether and how QEMU should create the snapshot file
         (NewImageMode, optional, default "absolute-paths")
       When "type" is "blockdev-snapshot-internal-sync":
-      - "device": device name to snapshot (json-string)
+      - "device": the device name or node-name of a root node to snapshot
+                  (json-string)
       - "name": name of the new snapshot (json-string)
 
 Example:
@@ -1608,7 +1609,8 @@ name already exists, the operation will fail.
 
 Arguments:
 
-- "device": device name to snapshot (json-string)
+- "device": the device name or node-name of a root node to snapshot
+            (json-string)
 - "name": name of the new snapshot (json-string)
 
 Example:

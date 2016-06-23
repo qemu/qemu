@@ -182,7 +182,7 @@ class TestSingleTransaction(ImageSnapshotTestCase):
                               'name': 'a' },
                   }]
         result = self.vm.qmp('transaction', actions = actions)
-        self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+        self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_error_exist(self):
         self.createSnapshotInTransaction(1)
