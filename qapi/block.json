@@ -135,6 +135,24 @@
 #          If @id and @name are both not specified, GenericError
 #
 # Since: 1.7
+#
+# Example:
+#
+# -> { "execute": "blockdev-snapshot-delete-internal-sync",
+#      "arguments": { "device": "ide-hd0",
+#                     "name": "snapshot0" }
+#    }
+# <- { "return": {
+#                    "id": "1",
+#                    "name": "snapshot0",
+#                    "vm-state-size": 0,
+#                    "date-sec": 1000012,
+#                    "date-nsec": 10,
+#                    "vm-clock-sec": 100,
+#                    "vm-clock-nsec": 20
+#      }
+#    }
+#
 ##
 { 'command': 'blockdev-snapshot-delete-internal-sync',
   'data': { 'device': 'str', '*id': 'str', '*name': 'str'},

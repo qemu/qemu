@@ -169,37 +169,6 @@ Example:
 <- { "return": { "status": "active", "completed": 1024000,
                  "total": 2048000 } }
 
-blockdev-snapshot-delete-internal-sync
---------------------------------------
-
-Synchronously delete an internal snapshot of a block device when the format of
-image used supports it.  The snapshot is identified by name or id or both.  One
-of name or id is required.  If the snapshot is not found, the operation will
-fail.
-
-Arguments:
-
-- "device": the device name or node-name of a root node (json-string)
-- "id": ID of the snapshot (json-string, optional)
-- "name": name of the snapshot (json-string, optional)
-
-Example:
-
--> { "execute": "blockdev-snapshot-delete-internal-sync",
-                "arguments": { "device": "ide-hd0",
-                               "name": "snapshot0" }
-   }
-<- { "return": {
-                   "id": "1",
-                   "name": "snapshot0",
-                   "vm-state-size": 0,
-                   "date-sec": 1000012,
-                   "date-nsec": 10,
-                   "vm-clock-sec": 100,
-                   "vm-clock-nsec": 20
-     }
-   }
-
 blockdev-mirror
 ------------
 
