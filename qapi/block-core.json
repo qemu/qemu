@@ -1037,7 +1037,9 @@
 #
 # @node-name: #optional graph node name to generate the snapshot from (Since 2.0)
 #
-# @snapshot-file: the target of the new image. A new file will be created.
+# @snapshot-file: the target of the new image. If the file exists, or
+# if it is a device, the snapshot will be created in the existing
+# file/device. Otherwise, a new file will be created.
 #
 # @snapshot-node-name: #optional the graph node name of the new image (Since 2.0)
 #
@@ -1171,6 +1173,16 @@
 #          If @device is not a valid block device, DeviceNotFound
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "blockdev-snapshot-sync",
+#      "arguments": { "device": "ide-hd0",
+#                     "snapshot-file":
+#                     "/some/place/my-image",
+#                     "format": "qcow2" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'blockdev-snapshot-sync',
   'data': 'BlockdevSnapshotSync' }
