@@ -1235,7 +1235,7 @@ Arguments:
 
 - "job-id": Identifier for the newly-created block job. If omitted,
             the device name will be used. (json-string, optional)
-- "device": the name of the device which should be copied.
+- "device": the device name or node-name of a root node which should be copied.
             (json-string)
 - "target": the target of the new image. If the file exists, or if it is a
             device, the existing file/device will be used as the new

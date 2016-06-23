@@ -1856,30 +1856,23 @@ static void do_drive_backup(const char *job_id, const char *device,
 static void drive_backup_prepare(BlkActionState *common, Error **errp)
 {
     DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
-    BlockBackend *blk;
+    BlockDriverState *bs;
     DriveBackup *backup;
     Error *local_err = NULL;
 
     assert(common->action->type == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
     backup = common->action->u.drive_backup.data;
 
-    blk = blk_by_name(backup->device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", backup->device);
-        return;
-    }
-
-    if (!blk_is_available(blk)) {
-        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, backup->device);
+    bs = qmp_get_root_bs(backup->device, errp);
+    if (!bs) {
         return;
     }
 
     /* AioContext is released in .clean() */
-    state->aio_context = blk_get_aio_context(blk);
+    state->aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(state->aio_context);
-    bdrv_drained_begin(blk_bs(blk));
-    state->bs = blk_bs(blk);
+    bdrv_drained_begin(bs);
+    state->bs = bs;
 
     do_drive_backup(backup->has_job_id ? backup->job_id : NULL,
                     backup->device, backup->target,
@@ -3153,7 +3146,6 @@ static void do_drive_backup(const char *job_id, const char *device,
                             BlockdevOnError on_target_error,
                             BlockJobTxn *txn, Error **errp)
 {
-    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriverState *target_bs;
     BlockDriverState *source = NULL;
@@ -3177,23 +3169,13 @@ static void do_drive_backup(const char *job_id, const char *device,
         mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
+    bs = qmp_get_root_bs(device, errp);
+    if (!bs) {
         return;
     }
 
-    aio_context = blk_get_aio_context(blk);
+    aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
-
-    /* Although backup_run has this check too, we need to use bs->drv below, so
-     * do an early check redundantly. */
-    if (!blk_is_available(blk)) {
-        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
-        goto out;
-    }
-    bs = blk_bs(blk);
 
     if (!has_format) {
         format = mode == NEW_IMAGE_MODE_EXISTING ? NULL : bs->drv->format_name;
