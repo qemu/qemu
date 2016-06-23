@@ -590,17 +590,21 @@ typedef struct TCGOp {
     unsigned callo  : 2;
     unsigned calli  : 6;
 
-    /* Index of the arguments for this op, or -1 for zero-operand ops.  */
-    signed args     : 16;
+    /* Index of the arguments for this op, or 0 for zero-operand ops.  */
+    unsigned args   : 16;
 
-    /* Index of the prex/next op, or -1 for the end of the list.  */
-    signed prev     : 16;
-    signed next     : 16;
+    /* Index of the prev/next op, or 0 for the end of the list.  */
+    unsigned prev   : 16;
+    unsigned next   : 16;
 } TCGOp;
 
-QEMU_BUILD_BUG_ON(NB_OPS > 0xff);
-QEMU_BUILD_BUG_ON(OPC_BUF_SIZE >= 0x7fff);
-QEMU_BUILD_BUG_ON(OPPARAM_BUF_SIZE >= 0x7fff);
+/* Make sure operands fit in the bitfields above.  */
+QEMU_BUILD_BUG_ON(NB_OPS > (1 << 8));
+QEMU_BUILD_BUG_ON(OPC_BUF_SIZE > (1 << 16));
+QEMU_BUILD_BUG_ON(OPPARAM_BUF_SIZE > (1 << 16));
+
+/* Make sure that we don't overflow 64 bits without noticing.  */
+QEMU_BUILD_BUG_ON(sizeof(TCGOp) > 8);
 
 struct TCGContext {
     uint8_t *pool_cur, *pool_end;
@@ -653,8 +657,6 @@ struct TCGContext {
     int goto_tb_issue_mask;
 #endif
 
-    int gen_first_op_idx;
-    int gen_last_op_idx;
     int gen_next_op_idx;
     int gen_next_parm_idx;
 
