@@ -332,20 +332,6 @@ Example:
 -> { "execute": "migrate_set_speed", "arguments": { "value": 1024 } }
 <- { "return": {} }
 
-migrate_set_downtime
---------------------
-
-Set maximum tolerated downtime (in seconds) for migrations.
-
-Arguments:
-
-- "value": maximum downtime (json-number)
-
-Example:
-
--> { "execute": "migrate_set_downtime", "arguments": { "value": 0.1 } }
-<- { "return": {} }
-
 x-colo-lost-heartbeat
 --------------------
 

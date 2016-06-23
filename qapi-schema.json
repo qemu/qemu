@@ -2608,6 +2608,12 @@
 # Notes: This command is deprecated in favor of 'migrate-set-parameters'
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "migrate_set_downtime", "arguments": { "value": 0.1 } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'migrate_set_downtime', 'data': {'value': 'number'} }
 
