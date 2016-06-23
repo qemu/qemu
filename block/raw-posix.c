@@ -350,8 +350,8 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
     }
 
     if (!s->buf_align || !bs->bl.request_alignment) {
-        error_setg(errp, "Could not find working O_DIRECT alignment. "
-                         "Try cache.direct=off.");
+        error_setg(errp, "Could not find working O_DIRECT alignment");
+        error_append_hint(errp, "Try cache.direct=off\n");
     }
 }
 
