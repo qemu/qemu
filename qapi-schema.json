@@ -236,6 +236,14 @@
 # Returns: @StatusInfo reflecting all VCPUs
 #
 # Since:  0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-status" }
+# <- { "return": { "running": true,
+#                  "singlestep": false,
+#                  "status": "running" } }
+#
 ##
 { 'command': 'query-status', 'returns': 'StatusInfo' }
 
