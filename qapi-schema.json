@@ -3005,9 +3005,24 @@
 # Returns: nothing on success
 #
 # Since: 2.3
-# Note: It's a bad idea to use a string for the uri, but it needs to stay
-# compatible with -incoming and the format of the uri is already exposed
-# above libvirt
+#
+# Notes:
+#
+# 1. It's a bad idea to use a string for the uri, but it needs to stay
+#    compatible with -incoming and the format of the uri is already exposed
+#    above libvirt.
+#
+# 2. QEMU must be started with -incoming defer to allow migrate-incoming to
+#    be used.
+#
+# 3. The uri format is the same as for -incoming
+#
+# Example:
+#
+# -> { "execute": "migrate-incoming",
+#      "arguments": { "uri": "tcp::4446" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'migrate-incoming', 'data': {'uri': 'str' } }
 
