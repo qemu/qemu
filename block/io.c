@@ -90,7 +90,7 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
     }
 
     /* Default alignment based on whether driver has byte interface */
-    bs->request_alignment = drv->bdrv_co_preadv ? 1 : 512;
+    bs->bl.request_alignment = drv->bdrv_co_preadv ? 1 : 512;
 
     /* Take some limits from the children as a default */
     if (bs->file) {
@@ -459,7 +459,7 @@ static int bdrv_get_cluster_size(BlockDriverState *bs)
 
     ret = bdrv_get_info(bs, &bdi);
     if (ret < 0 || bdi.cluster_size == 0) {
-        return bs->request_alignment;
+        return bs->bl.request_alignment;
     } else {
         return bdi.cluster_size;
     }
@@ -1068,7 +1068,7 @@ int coroutine_fn bdrv_co_preadv(BlockDriverState *bs,
     BlockDriver *drv = bs->drv;
     BdrvTrackedRequest req;
 
-    uint64_t align = bs->request_alignment;
+    uint64_t align = bs->bl.request_alignment;
     uint8_t *head_buf = NULL;
     uint8_t *tail_buf = NULL;
     QEMUIOVector local_qiov;
@@ -1164,8 +1164,8 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int tail = 0;
 
     int max_write_zeroes = MIN_NON_ZERO(bs->bl.max_pwrite_zeroes, INT_MAX);
-    int alignment = MAX(bs->bl.pwrite_zeroes_alignment ?: 1,
-                        bs->request_alignment);
+    int alignment = MAX(bs->bl.pwrite_zeroes_alignment,
+                        bs->bl.request_alignment);
 
     assert(is_power_of_2(alignment));
     head = offset & (alignment - 1);
@@ -1324,7 +1324,7 @@ static int coroutine_fn bdrv_co_do_zero_pwritev(BlockDriverState *bs,
     uint8_t *buf = NULL;
     QEMUIOVector local_qiov;
     struct iovec iov;
-    uint64_t align = bs->request_alignment;
+    uint64_t align = bs->bl.request_alignment;
     unsigned int head_padding_bytes, tail_padding_bytes;
     int ret = 0;
 
@@ -1411,7 +1411,7 @@ int coroutine_fn bdrv_co_pwritev(BlockDriverState *bs,
     BdrvRequestFlags flags)
 {
     BdrvTrackedRequest req;
-    uint64_t align = bs->request_alignment;
+    uint64_t align = bs->bl.request_alignment;
     uint8_t *head_buf = NULL;
     uint8_t *tail_buf = NULL;
     QEMUIOVector local_qiov;

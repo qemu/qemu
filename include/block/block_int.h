@@ -324,6 +324,12 @@ struct BlockDriver {
 };
 
 typedef struct BlockLimits {
+    /* Alignment requirement, in bytes, for offset/length of I/O
+     * requests. Must be a power of 2 less than INT_MAX; defaults to
+     * 1 for drivers with modern byte interfaces, and to 512
+     * otherwise. */
+    uint32_t request_alignment;
+
     /* maximum number of bytes that can be discarded at once (since it
      * is signed, it must be < 2G, if set), should be multiple of
      * pdiscard_alignment, but need not be power of 2. May be 0 if no
@@ -332,8 +338,8 @@ typedef struct BlockLimits {
 
     /* optimal alignment for discard requests in bytes, must be power
      * of 2, less than max_pdiscard if that is set, and multiple of
-     * bs->request_alignment. May be 0 if bs->request_alignment is
-     * good enough */
+     * bl.request_alignment. May be 0 if bl.request_alignment is good
+     * enough */
     uint32_t pdiscard_alignment;
 
     /* maximum number of bytes that can zeroized at once (since it is
@@ -343,12 +349,12 @@ typedef struct BlockLimits {
 
     /* optimal alignment for write zeroes requests in bytes, must be
      * power of 2, less than max_pwrite_zeroes if that is set, and
-     * multiple of bs->request_alignment. May be 0 if
-     * bs->request_alignment is good enough */
+     * multiple of bl.request_alignment. May be 0 if
+     * bl.request_alignment is good enough */
     uint32_t pwrite_zeroes_alignment;
 
     /* optimal transfer length in bytes (must be power of 2, and
-     * multiple of bs->request_alignment), or 0 if no preferred size */
+     * multiple of bl.request_alignment), or 0 if no preferred size */
     uint32_t opt_transfer;
 
     /* maximal transfer length in bytes (need not be power of 2, but
@@ -356,10 +362,10 @@ typedef struct BlockLimits {
      * For now, anything larger than INT_MAX is clamped down. */
     uint32_t max_transfer;
 
-    /* memory alignment so that no bounce buffer is needed */
+    /* memory alignment, in bytes so that no bounce buffer is needed */
     size_t min_mem_alignment;
 
-    /* memory alignment for bounce buffer */
+    /* memory alignment, in bytes, for bounce buffer */
     size_t opt_mem_alignment;
 
     /* maximum number of iovec elements */
@@ -465,8 +471,6 @@ struct BlockDriverState {
     /* I/O Limits */
     BlockLimits bl;
 
-    /* Alignment requirement for offset/length of I/O requests */
-    unsigned int request_alignment;
     /* Flags honored during pwrite (so far: BDRV_REQ_FUA) */
     unsigned int supported_write_flags;
     /* Flags honored during pwrite_zeroes (so far: BDRV_REQ_FUA,

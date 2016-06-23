@@ -1016,7 +1016,7 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
 
     assert(bdrv_opt_mem_align(bs) != 0);
     assert(bdrv_min_mem_align(bs) != 0);
-    assert(is_power_of_2(bs->request_alignment) || bdrv_is_sg(bs));
+    assert(is_power_of_2(bs->bl.request_alignment));
 
     qemu_opts_del(opts);
     return 0;

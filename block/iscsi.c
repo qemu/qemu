@@ -1705,7 +1705,7 @@ static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
     IscsiLun *iscsilun = bs->opaque;
     uint64_t max_xfer_len = iscsilun->use_16_for_rw ? 0xffffffff : 0xffff;
 
-    bs->request_alignment = iscsilun->block_size;
+    bs->bl.request_alignment = iscsilun->block_size;
 
     if (iscsilun->bl.max_xfer_len) {
         max_xfer_len = MIN(max_xfer_len, iscsilun->bl.max_xfer_len);

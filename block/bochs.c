@@ -190,7 +190,7 @@ fail:
 
 static void bochs_refresh_limits(BlockDriverState *bs, Error **errp)
 {
-    bs->request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O supported */
+    bs->bl.request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O */
 }
 
 static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)

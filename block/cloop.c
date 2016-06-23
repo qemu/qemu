@@ -200,7 +200,7 @@ fail:
 
 static void cloop_refresh_limits(BlockDriverState *bs, Error **errp)
 {
-    bs->request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O supported */
+    bs->bl.request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O */
 }
 
 static inline int cloop_read_block(BlockDriverState *bs, int block_num)
