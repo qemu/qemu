@@ -775,7 +775,7 @@ static void mirror_complete(BlockJob *job, Error **errp)
         }
     }
 
-    /* check the target bs is not blocked and block all operations on it */
+    /* block all operations on to_replace bs */
     if (s->replaces) {
         AioContext *replace_aio_context;
 
