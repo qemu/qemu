@@ -384,7 +384,7 @@ static int multireq_compare(const void *a, const void *b)
 void virtio_blk_submit_multireq(BlockBackend *blk, MultiReqBuffer *mrb)
 {
     int i = 0, start = 0, num_reqs = 0, niov = 0, nb_sectors = 0;
-    int max_xfer_len = 0;
+    int max_xfer_len;
     int64_t sector_num = 0;
 
     if (mrb->num_reqs == 1) {
@@ -394,7 +394,6 @@ void virtio_blk_submit_multireq(BlockBackend *blk, MultiReqBuffer *mrb)
     }
 
     max_xfer_len = blk_get_max_transfer_length(mrb->reqs[0]->dev->blk);
-    max_xfer_len = MIN_NON_ZERO(max_xfer_len, BDRV_REQUEST_MAX_SECTORS);
 
     qsort(mrb->reqs, mrb->num_reqs, sizeof(*mrb->reqs),
           &multireq_compare);
