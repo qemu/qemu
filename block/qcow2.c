@@ -981,9 +981,6 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         }
 
         bs->encrypted = 1;
-
-        /* Encryption works on a sector granularity */
-        bs->request_alignment = BDRV_SECTOR_SIZE;
     }
 
     s->l2_bits = s->cluster_bits - 3; /* L2 is always one cluster */
@@ -1202,6 +1199,10 @@ static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
 
+    if (bs->encrypted) {
+        /* Encryption works on a sector granularity */
+        bs->request_alignment = BDRV_SECTOR_SIZE;
+    }
     bs->bl.pwrite_zeroes_alignment = s->cluster_size;
 }
 
