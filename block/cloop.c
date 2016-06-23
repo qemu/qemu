@@ -67,7 +67,6 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
 
     bs->read_only = 1;
-    bs->request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O supported */
 
     /* read header */
     ret = bdrv_pread(bs->file->bs, 128, &s->block_size, 4);
@@ -199,6 +198,11 @@ fail:
     return ret;
 }
 
+static void cloop_refresh_limits(BlockDriverState *bs, Error **errp)
+{
+    bs->request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O supported */
+}
+
 static inline int cloop_read_block(BlockDriverState *bs, int block_num)
 {
     BDRVCloopState *s = bs->opaque;
@@ -280,6 +284,7 @@ static BlockDriver bdrv_cloop = {
     .instance_size  = sizeof(BDRVCloopState),
     .bdrv_probe     = cloop_probe,
     .bdrv_open      = cloop_open,
+    .bdrv_refresh_limits = cloop_refresh_limits,
     .bdrv_co_preadv = cloop_co_preadv,
     .bdrv_close     = cloop_close,
 };

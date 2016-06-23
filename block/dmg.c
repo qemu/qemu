@@ -439,7 +439,6 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
 
     bs->read_only = 1;
-    bs->request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O supported */
 
     s->n_chunks = 0;
     s->offsets = s->lengths = s->sectors = s->sectorcounts = NULL;
@@ -545,6 +544,11 @@ fail:
     qemu_vfree(s->compressed_chunk);
     qemu_vfree(s->uncompressed_chunk);
     return ret;
+}
+
+static void dmg_refresh_limits(BlockDriverState *bs, Error **errp)
+{
+    bs->request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O supported */
 }
 
 static inline int is_sector_in_chunk(BDRVDMGState* s,
@@ -720,6 +724,7 @@ static BlockDriver bdrv_dmg = {
     .instance_size  = sizeof(BDRVDMGState),
     .bdrv_probe     = dmg_probe,
     .bdrv_open      = dmg_open,
+    .bdrv_refresh_limits = dmg_refresh_limits,
     .bdrv_co_preadv = dmg_co_preadv,
     .bdrv_close     = dmg_close,
 };

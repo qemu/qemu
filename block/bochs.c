@@ -105,7 +105,6 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
 
     bs->read_only = 1; // no write support yet
-    bs->request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O supported */
 
     ret = bdrv_pread(bs->file->bs, 0, &bochs, sizeof(bochs));
     if (ret < 0) {
@@ -187,6 +186,11 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
 fail:
     g_free(s->catalog_bitmap);
     return ret;
+}
+
+static void bochs_refresh_limits(BlockDriverState *bs, Error **errp)
+{
+    bs->request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O supported */
 }
 
 static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
@@ -283,6 +287,7 @@ static BlockDriver bdrv_bochs = {
     .instance_size	= sizeof(BDRVBochsState),
     .bdrv_probe		= bochs_probe,
     .bdrv_open		= bochs_open,
+    .bdrv_refresh_limits = bochs_refresh_limits,
     .bdrv_co_preadv = bochs_co_preadv,
     .bdrv_close		= bochs_close,
 };

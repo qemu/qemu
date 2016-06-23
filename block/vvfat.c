@@ -1177,7 +1177,6 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
         bs->read_only = 0;
     }
 
-    bs->request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O supported */
     bs->total_sectors = cyls * heads * secs;
 
     if (init_directories(s, dirname, heads, secs, errp)) {
@@ -1207,6 +1206,11 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
 fail:
     qemu_opts_del(opts);
     return ret;
+}
+
+static void vvfat_refresh_limits(BlockDriverState *bs, Error **errp)
+{
+    bs->request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O supported */
 }
 
 static inline void vvfat_close_current_file(BDRVVVFATState *s)
@@ -3046,6 +3050,7 @@ static BlockDriver bdrv_vvfat = {
 
     .bdrv_parse_filename    = vvfat_parse_filename,
     .bdrv_file_open         = vvfat_open,
+    .bdrv_refresh_limits    = vvfat_refresh_limits,
     .bdrv_close             = vvfat_close,
 
     .bdrv_co_preadv         = vvfat_co_preadv,
