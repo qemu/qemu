@@ -76,6 +76,7 @@ enum {
 
 /* Maximum size of a single READ/WRITE data buffer */
 #define NBD_MAX_BUFFER_SIZE (32 * 1024 * 1024)
+#define NBD_MAX_SECTORS (NBD_MAX_BUFFER_SIZE / BDRV_SECTOR_SIZE)
 
 ssize_t nbd_wr_syncv(QIOChannel *ioc,
                      struct iovec *iov,
