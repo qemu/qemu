@@ -37,6 +37,7 @@
 typedef struct BDRVBlkdebugState {
     int state;
     int new_state;
+    int align;
 
     QLIST_HEAD(, BlkdebugRule) rules[BLKDBG__MAX];
     QSIMPLEQ_HEAD(, BlkdebugRule) active_rules;
@@ -382,10 +383,10 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Set request alignment */
-    align = qemu_opt_get_size(opts, "align", bs->request_alignment);
-    if (align > 0 && align < INT_MAX && !(align & (align - 1))) {
-        bs->request_alignment = align;
-    } else {
+    align = qemu_opt_get_size(opts, "align", 0);
+    if (align < INT_MAX && is_power_of_2(align)) {
+        s->align = align;
+    } else if (align) {
         error_setg(errp, "Invalid alignment");
         ret = -EINVAL;
         goto fail_unref;
@@ -720,6 +721,15 @@ static void blkdebug_refresh_filename(BlockDriverState *bs, QDict *options)
     bs->full_open_options = opts;
 }
 
+static void blkdebug_refresh_limits(BlockDriverState *bs, Error **errp)
+{
+    BDRVBlkdebugState *s = bs->opaque;
+
+    if (s->align) {
+        bs->request_alignment = s->align;
+    }
+}
+
 static int blkdebug_reopen_prepare(BDRVReopenState *reopen_state,
                                    BlockReopenQueue *queue, Error **errp)
 {
@@ -738,6 +748,7 @@ static BlockDriver bdrv_blkdebug = {
     .bdrv_getlength         = blkdebug_getlength,
     .bdrv_truncate          = blkdebug_truncate,
     .bdrv_refresh_filename  = blkdebug_refresh_filename,
+    .bdrv_refresh_limits    = blkdebug_refresh_limits,
 
     .bdrv_aio_readv         = blkdebug_aio_readv,
     .bdrv_aio_writev        = blkdebug_aio_writev,

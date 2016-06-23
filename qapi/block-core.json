@@ -1961,7 +1961,8 @@
 #
 # @config:          #optional filename of the configuration file
 #
-# @align:           #optional required alignment for requests in bytes
+# @align:           #optional required alignment for requests in bytes,
+#                   must be power of 2, or 0 for default
 #
 # @inject-error:    #optional array of error injection descriptions
 #
