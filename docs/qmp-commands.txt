@@ -1228,18 +1228,6 @@ Example:
      ]
    }
 
-query-tpm-types
----------------
-
-Return a list of supported TPM types.
-
-Arguments: None
-
-Example:
-
--> { "execute": "query-tpm-types" }
-<- { "return": [ "passthrough" ] }
-
 query-rx-filter
 ---------------
 

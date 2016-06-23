@@ -4929,6 +4929,12 @@
 # Returns: a list of TpmType
 #
 # Since: 1.5
+#
+# Example:
+#
+# -> { "execute": "query-tpm-types" }
+# <- { "return": [ "passthrough" ] }
+#
 ##
 { 'command': 'query-tpm-types', 'returns': ['TpmType'] }
 
