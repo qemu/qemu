@@ -94,24 +94,6 @@ Example:
 
 Note: CPUs' indexes are obtained with the 'query-cpus' command.
 
-xen-load-devices-state
-----------------------
-
-Load the state of all devices from file. The RAM and the block devices
-of the VM are not loaded by this command.
-
-Arguments:
-
-- "filename": the file to load the state of the devices from as binary
-data. See xen-save-devices-state.txt for a description of the binary
-format.
-
-Example:
-
--> { "execute": "xen-load-devices-state",
-     "arguments": { "filename": "/tmp/resume" } }
-<- { "return": {} }
-
 x-colo-lost-heartbeat
 --------------------
 

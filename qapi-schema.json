@@ -5832,6 +5832,13 @@
 # format.
 #
 # Since: 2.7
+#
+# Example:
+#
+# -> { "execute": "xen-load-devices-state",
+#      "arguments": { "filename": "/tmp/resume" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'xen-load-devices-state', 'data': {'filename': 'str'} }
 
