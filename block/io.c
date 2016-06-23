@@ -1254,7 +1254,7 @@ fail:
  */
 static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
     BdrvTrackedRequest *req, int64_t offset, unsigned int bytes,
-    QEMUIOVector *qiov, int flags)
+    int64_t align, QEMUIOVector *qiov, int flags)
 {
     BlockDriver *drv = bs->drv;
     bool waited;
@@ -1263,6 +1263,9 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
     int64_t start_sector = offset >> BDRV_SECTOR_BITS;
     int64_t end_sector = DIV_ROUND_UP(offset + bytes, BDRV_SECTOR_SIZE);
 
+    assert(is_power_of_2(align));
+    assert((offset & (align - 1)) == 0);
+    assert((bytes & (align - 1)) == 0);
     assert(!qiov || bytes == qiov->size);
     assert((bs->open_flags & BDRV_O_NO_IO) == 0);
     assert(!(flags & ~BDRV_REQ_MASK));
@@ -1349,7 +1352,7 @@ static int coroutine_fn bdrv_co_do_zero_pwritev(BlockDriverState *bs,
 
         memset(buf + head_padding_bytes, 0, zero_bytes);
         ret = bdrv_aligned_pwritev(bs, req, offset & ~(align - 1), align,
-                                   &local_qiov,
+                                   align, &local_qiov,
                                    flags & ~BDRV_REQ_ZERO_WRITE);
         if (ret < 0) {
             goto fail;
@@ -1362,7 +1365,7 @@ static int coroutine_fn bdrv_co_do_zero_pwritev(BlockDriverState *bs,
     if (bytes >= align) {
         /* Write the aligned part in the middle. */
         uint64_t aligned_bytes = bytes & ~(align - 1);
-        ret = bdrv_aligned_pwritev(bs, req, offset, aligned_bytes,
+        ret = bdrv_aligned_pwritev(bs, req, offset, aligned_bytes, align,
                                    NULL, flags);
         if (ret < 0) {
             goto fail;
@@ -1386,7 +1389,7 @@ static int coroutine_fn bdrv_co_do_zero_pwritev(BlockDriverState *bs,
         bdrv_debug_event(bs, BLKDBG_PWRITEV_RMW_AFTER_TAIL);
 
         memset(buf, 0, bytes);
-        ret = bdrv_aligned_pwritev(bs, req, offset, align,
+        ret = bdrv_aligned_pwritev(bs, req, offset, align, align,
                                    &local_qiov, flags & ~BDRV_REQ_ZERO_WRITE);
     }
 fail:
@@ -1511,7 +1514,7 @@ int coroutine_fn bdrv_co_pwritev(BlockDriverState *bs,
         bytes = ROUND_UP(bytes, align);
     }
 
-    ret = bdrv_aligned_pwritev(bs, &req, offset, bytes,
+    ret = bdrv_aligned_pwritev(bs, &req, offset, bytes, align,
                                use_local_qiov ? &local_qiov : qiov,
                                flags);
 
