@@ -2139,6 +2139,12 @@
 #         state.  In "inmigrate" state, it will ensure that the guest
 #         remains paused once migration finishes, as if the -S option was
 #         passed on the command line.
+#
+# Example:
+#
+# -> { "execute": "stop" }
+# <- { "return": {} }
+#
 ##
 { 'command': 'stop' }
 

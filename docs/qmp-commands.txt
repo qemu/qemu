@@ -113,18 +113,6 @@ Example:
 -> { "execute": "screendump", "arguments": { "filename": "/tmp/image" } }
 <- { "return": {} }
 
-stop
-----
-
-Stop the emulator.
-
-Arguments: None.
-
-Example:
-
--> { "execute": "stop" }
-<- { "return": {} }
-
 cont
 ----
 
