@@ -4873,6 +4873,12 @@
 # Returns: Nothing on success
 #
 # Since: 1.4
+#
+# Example:
+#
+# -> { "execute": "chardev-remove", "arguments": { "id" : "foo" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'chardev-remove', 'data': {'id': 'str'} }
 

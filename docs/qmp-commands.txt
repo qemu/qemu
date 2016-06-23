@@ -1252,20 +1252,6 @@ Example:
 -> { "execute": "query-tpm-types" }
 <- { "return": [ "passthrough" ] }
 
-chardev-remove
---------------
-
-Remove a chardev.
-
-Arguments:
-
-- "id": the chardev's ID, must exist and not be in use (json-string)
-
-Example:
-
--> { "execute": "chardev-remove", "arguments": { "id" : "foo" } }
-<- { "return": {} }
-
 query-rx-filter
 ---------------
 
