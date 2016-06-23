@@ -3011,6 +3011,32 @@
 # Stay away from it unless you want to help with its development.
 #
 # Since: 2.5
+#
+# Example:
+#
+# -> { "execute": "x-blockdev-remove-medium",
+#      "arguments": { "id": "ide0-1-0" } }
+#
+# <- { "error": { "class": "GenericError",
+#                 "desc": "Tray of device 'ide0-1-0' is not open" } }
+#
+# -> { "execute": "blockdev-open-tray",
+#      "arguments": { "id": "ide0-1-0" } }
+#
+# <- { "timestamp": { "seconds": 1418751627,
+#                     "microseconds": 549958 },
+#      "event": "DEVICE_TRAY_MOVED",
+#      "data": { "device": "ide1-cd0",
+#                "id": "ide0-1-0",
+#                "tray-open": true } }
+#
+# <- { "return": {} }
+#
+# -> { "execute": "x-blockdev-remove-medium",
+#      "arguments": { "device": "ide0-1-0" } }
+#
+# <- { "return": {} }
+#
 ##
 { 'command': 'x-blockdev-remove-medium',
   'data': { '*device': 'str',

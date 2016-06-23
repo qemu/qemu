@@ -343,48 +343,6 @@ named schema entities.  Entities are commands, events and various
 types.  See docs/qapi-code-gen.txt for information on their structure
 and intended use.
 
-x-blockdev-remove-medium
-------------------------
-
-Removes a medium (a block driver state tree) from a block device. That block
-device's tray must currently be open (unless there is no attached guest device).
-
-If the tray is open and there is no medium inserted, this will be a no-op.
-
-This command is still a work in progress and is considered experimental.
-Stay away from it unless you want to help with its development.
-
-Arguments:
-
-- "device": block device name (deprecated, use @id instead)
-            (json-string, optional)
-- "id": the name or QOM path of the guest device (json-string, optional)
-
-Example:
-
--> { "execute": "x-blockdev-remove-medium",
-     "arguments": { "id": "ide0-1-0" } }
-
-<- { "error": { "class": "GenericError",
-                "desc": "Tray of device 'ide0-1-0' is not open" } }
-
--> { "execute": "blockdev-open-tray",
-     "arguments": { "id": "ide0-1-0" } }
-
-<- { "timestamp": { "seconds": 1418751627,
-                    "microseconds": 549958 },
-     "event": "DEVICE_TRAY_MOVED",
-     "data": { "device": "ide1-cd0",
-               "id": "ide0-1-0",
-               "tray-open": true } }
-
-<- { "return": {} }
-
--> { "execute": "x-blockdev-remove-medium",
-     "arguments": { "device": "ide0-1-0" } }
-
-<- { "return": {} }
-
 x-blockdev-insert-medium
 ------------------------
 
