@@ -372,6 +372,16 @@
 # @client: client information
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# <- { "timestamp": {"seconds": 1290688046, "microseconds": 388707},
+#      "event": "SPICE_DISCONNECTED",
+#      "data": {
+#        "server": { "port": "5920", "family": "ipv4", "host": "127.0.0.1"},
+#        "client": {"port": "52873", "family": "ipv4", "host": "127.0.0.1"}
+#    }}
+#
 ##
 { 'event': 'SPICE_DISCONNECTED',
   'data': { 'server': 'SpiceBasicInfo',
