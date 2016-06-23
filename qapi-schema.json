@@ -1793,11 +1793,22 @@
 # Return information about the balloon device.
 #
 # Returns: @BalloonInfo on success
+#
 #          If the balloon driver is enabled but not functional because the KVM
 #          kernel module cannot support it, KvmMissingCap
+#
 #          If no balloon device is present, DeviceNotActive
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-balloon" }
+# <- { "return": {
+#          "actual": 1073741824,
+#       }
+#    }
+#
 ##
 { 'command': 'query-balloon', 'returns': 'BalloonInfo' }
 

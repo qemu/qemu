@@ -2193,25 +2193,6 @@ Example:
      ]
    }
 
-query-balloon
--------------
-
-Show balloon information.
-
-Make an asynchronous request for balloon info. When the request completes a
-json-object will be returned containing the following data:
-
-- "actual": current balloon value in bytes (json-int)
-
-Example:
-
--> { "execute": "query-balloon" }
-<- {
-      "return":{
-         "actual":1073741824,
-      }
-   }
-
 query-tpm
 ---------
 
