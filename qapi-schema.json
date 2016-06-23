@@ -5279,6 +5279,36 @@
 #          isn't a NIC.
 #
 # Since: 1.6
+#
+# Example:
+#
+# -> { "execute": "query-rx-filter", "arguments": { "name": "vnet0" } }
+# <- { "return": [
+#         {
+#             "promiscuous": true,
+#             "name": "vnet0",
+#             "main-mac": "52:54:00:12:34:56",
+#             "unicast": "normal",
+#             "vlan": "normal",
+#             "vlan-table": [
+#                 4,
+#                 0
+#             ],
+#             "unicast-table": [
+#             ],
+#             "multicast": "normal",
+#             "multicast-overflow": false,
+#             "unicast-overflow": false,
+#             "multicast-table": [
+#                 "01:00:5e:00:00:01",
+#                 "33:33:00:00:00:01",
+#                 "33:33:ff:12:34:56"
+#             ],
+#             "broadcast-allowed": false
+#         }
+#       ]
+#    }
+#
 ##
 { 'command': 'query-rx-filter', 'data': { '*name': 'str' },
   'returns': ['RxFilterInfo'] }
