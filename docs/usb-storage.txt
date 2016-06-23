@@ -40,6 +40,18 @@ numbers must be continuous, i.e. for three devices you must use 0+1+2.
 The 0+1+5 numbering from the "usb-uas" example isn't going to work
 with "usb-bot".
 
+Starting with qemu version 2.7 usb-bot and usb-uas devices can be
+hotplugged.  In the hotplug case they are added with "attached =
+false" so the guest will not see the device until the "attached"
+property is explicitly set to true.  That allows to attach one or more
+scsi devices before making the device visible to the guest, i.e. the
+workflow looks like this:
+
+   (1) device-add usb-bot,id=foo
+   (2) device-add scsi-{hd,cd},bus=foo.0,lun=0
+   (2b) optionally add more devices (luns 1 ... 15).
+   (3) scripts/qmp/qom-set foo.attached = true
+
 enjoy,
   Gerd
 
