@@ -78,6 +78,9 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
         return;
     }
 
+    /* Default alignment based on whether driver has byte interface */
+    bs->request_alignment = drv->bdrv_co_preadv ? 1 : 512;
+
     /* Take some limits from the children as a default */
     if (bs->file) {
         bdrv_refresh_limits(bs->file->bs, &local_err);
