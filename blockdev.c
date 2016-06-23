@@ -3068,7 +3068,6 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
                       bool has_speed, int64_t speed,
                       Error **errp)
 {
-    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriverState *base_bs, *top_bs;
     AioContext *aio_context;
@@ -3087,21 +3086,21 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
      *  live commit feature versions; for this to work, we must make sure to
      *  perform the device lookup before any generic errors that may occur in a
      *  scenario in which all optional arguments are omitted. */
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
+    bs = qmp_get_root_bs(device, &local_err);
+    if (!bs) {
+        bs = bdrv_lookup_bs(device, device, NULL);
+        if (!bs) {
+            error_free(local_err);
+            error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                      "Device '%s' not found", device);
+        } else {
+            error_propagate(errp, local_err);
+        }
         return;
     }
 
-    aio_context = blk_get_aio_context(blk);
+    aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
-
-    if (!blk_is_available(blk)) {
-        error_setg(errp, "Device '%s' has no medium", device);
-        goto out;
-    }
-    bs = blk_bs(blk);
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT_SOURCE, errp)) {
         goto out;

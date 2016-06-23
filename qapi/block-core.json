@@ -1020,7 +1020,7 @@
 # @job-id: #optional identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
 #
-# @device:  the name of the device
+# @device:  the device name or node-name of a root node
 #
 # @base:   #optional The file name of the backing image to write data into.
 #                    If not specified, this is the deepest backing image

@@ -1166,7 +1166,7 @@ Arguments:
 
 - "job-id": Identifier for the newly-created block job. If omitted,
             the device name will be used. (json-string, optional)
-- "device": The device's ID, must be unique (json-string)
+- "device": The device name or node-name of a root node (json-string)
 - "base": The file name of the backing image to write data into.
           If not specified, this is the deepest backing image
           (json-string, optional)
