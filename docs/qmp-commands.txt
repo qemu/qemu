@@ -137,18 +137,6 @@ Example:
 -> { "execute": "system_wakeup" }
 <- { "return": {} }
 
-system_reset
-------------
-
-Reset the system.
-
-Arguments: None.
-
-Example:
-
--> { "execute": "system_reset" }
-<- { "return": {} }
-
 system_powerdown
 ----------------
 
