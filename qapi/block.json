@@ -248,6 +248,16 @@
 # @tray-open: true if the tray has been opened or false if it has been closed
 #
 # Since: 1.1
+#
+# Example:
+#
+# <- { "event": "DEVICE_TRAY_MOVED",
+#      "data": { "device": "ide1-cd0",
+#                "id": "/machine/unattached/device[22]",
+#                "tray-open": true
+#      },
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
 ##
 { 'event': 'DEVICE_TRAY_MOVED',
   'data': { 'device': 'str', 'id': 'str', 'tray-open': 'bool' } }

@@ -48,28 +48,6 @@ Data:
             "path": "/machine/peripheral/virtio-net-pci-0" },
   "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 
-DEVICE_TRAY_MOVED
------------------
-
-It's emitted whenever the tray of a removable device is moved by the guest
-or by HMP/QMP commands.
-
-Data:
-
-- "device": Block device name. This is always present for compatibility
-            reasons, but it can be empty ("") if the image does not have a
-            device name associated. (json-string)
-- "id": The name or QOM path of the guest device (json-string)
-- "tray-open": true if the tray has been opened or false if it has been closed
-               (json-bool)
-
-{ "event": "DEVICE_TRAY_MOVED",
-  "data": { "device": "ide1-cd0",
-            "id": "/machine/unattached/device[22]",
-            "tray-open": true
-  },
-  "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
-
 DUMP_COMPLETED
 --------------
 
