@@ -30,29 +30,6 @@ Example:
 
 Note: this event is rate-limited.
 
-BLOCK_JOB_ERROR
----------------
-
-Emitted when a block job encounters an error.
-
-Data:
-
-- "device": Job identifier. Originally the device name but other
-            values are allowed since QEMU 2.7 (json-string)
-- "operation": I/O operation (json-string, "read" or "write")
-- "action": action that has been taken, it's one of the following (json-string):
-    "ignore": error has been ignored, the job may fail later
-    "report": error will be reported and the job canceled
-    "stop": error caused job to be paused
-
-Example:
-
-{ "event": "BLOCK_JOB_ERROR",
-    "data": { "device": "ide0-hd1",
-              "operation": "write",
-              "action": "stop" },
-    "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
-
 BLOCK_JOB_READY
 ---------------
 

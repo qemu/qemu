@@ -3374,6 +3374,15 @@
 # @action: action that has been taken
 #
 # Since: 1.3
+#
+# Example:
+#
+# <- { "event": "BLOCK_JOB_ERROR",
+#      "data": { "device": "ide0-hd1",
+#                "operation": "write",
+#                "action": "stop" },
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
 ##
 { 'event': 'BLOCK_JOB_ERROR',
   'data': { 'device'   : 'str',
