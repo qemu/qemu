@@ -1588,7 +1588,8 @@
 ##
 # @block-dirty-bitmap-remove:
 #
-# Remove a dirty bitmap on the node
+# Stop write tracking and remove the dirty bitmap that was created
+# with block-dirty-bitmap-add.
 #
 # Returns: nothing on success
 #          If @node is not a valid block device or node, DeviceNotFound
@@ -1596,6 +1597,13 @@
 #          if @name is frozen by an operation, GenericError
 #
 # Since: 2.4
+#
+# Example:
+#
+# -> { "execute": "block-dirty-bitmap-remove",
+#      "arguments": { "node": "drive0", "name": "bitmap0" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'block-dirty-bitmap-remove',
   'data': 'BlockDirtyBitmap' }
