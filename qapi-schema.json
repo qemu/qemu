@@ -3342,6 +3342,14 @@
 #
 # Returns: Nothing on success
 #          If @type is not a valid network backend, DeviceNotFound
+#
+# Example:
+#
+# -> { "execute": "netdev_add",
+#      "arguments": { "type": "user", "id": "netdev1",
+#                     "dnssearch": "example.org" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'netdev_add',
   'data': {'type': 'str', 'id': 'str'},

@@ -205,28 +205,6 @@ Example:
 <- { "return": { "status": "active", "completed": 1024000,
                  "total": 2048000 } }
 
-netdev_add
-----------
-
-Add host network device.
-
-Arguments:
-
-- "type": the device type, "tap", "user", ... (json-string)
-- "id": the device's ID, must be unique (json-string)
-- device options
-
-Example:
-
--> { "execute": "netdev_add",
-     "arguments": { "type": "user", "id": "netdev1",
-                    "dnssearch": "example.org" } }
-<- { "return": {} }
-
-Note: The supported device options are the same ones supported by the '-netdev'
-      command-line argument, which are listed in the '-help' output or QEMU's
-      manual
-
 netdev_del
 ----------
 
