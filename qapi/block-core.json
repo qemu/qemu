@@ -3344,6 +3344,15 @@
 # @speed: rate limit, bytes per second
 #
 # Since: 1.1
+#
+# Example:
+#
+# <- { "event": "BLOCK_JOB_CANCELLED",
+#      "data": { "type": "stream", "device": "virtio-disk0",
+#                "len": 10737418240, "offset": 134217728,
+#                "speed": 0 },
+#      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+#
 ##
 { 'event': 'BLOCK_JOB_CANCELLED',
   'data': { 'type'  : 'BlockJobType',
