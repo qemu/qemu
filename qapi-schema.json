@@ -479,6 +479,23 @@
 # Returns: A list of @EventInfo for all supported events
 #
 # Since: 1.2.0
+#
+# Example:
+#
+# -> { "execute": "query-events" }
+# <- {
+#      "return": [
+#          {
+#             "name":"SHUTDOWN"
+#          },
+#          {
+#             "name":"RESET"
+#          }
+#       ]
+#    }
+#
+# Note: This example has been shortened as the real response is too long.
+#
 ##
 { 'command': 'query-events', 'returns': ['EventInfo'] }
 
