@@ -343,52 +343,6 @@ named schema entities.  Entities are commands, events and various
 types.  See docs/qapi-code-gen.txt for information on their structure
 and intended use.
 
-blockdev-add
-------------
-
-Add a block device.
-
-This command is still a work in progress.  It doesn't support all
-block drivers among other things.  Stay away from it unless you want
-to help with its development.
-
-For the arguments, see the QAPI schema documentation of BlockdevOptions.
-
-Example (1):
-
--> { "execute": "blockdev-add",
-    "arguments": { "driver": "qcow2",
-                   "file": { "driver": "file",
-                             "filename": "test.qcow2" } } }
-<- { "return": {} }
-
-Example (2):
-
--> { "execute": "blockdev-add",
-     "arguments": {
-         "driver": "qcow2",
-         "node-name": "my_disk",
-         "discard": "unmap",
-         "cache": {
-             "direct": true,
-             "writeback": true
-         },
-         "file": {
-             "driver": "file",
-             "filename": "/tmp/test.qcow2"
-         },
-         "backing": {
-             "driver": "raw",
-             "file": {
-                 "driver": "file",
-                 "filename": "/dev/fdset/4"
-             }
-         }
-       }
-     }
-
-<- { "return": {} }
-
 x-blockdev-del
 ------------
 Since 2.5
