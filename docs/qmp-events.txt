@@ -114,19 +114,6 @@ Data:
   "timestamp": { "seconds": 1368697518, "microseconds": 326866 } }
 }
 
-POWERDOWN
----------
-
-Emitted when the Virtual Machine is powered down through the power
-control system, such as via ACPI.
-
-Data: None.
-
-Example:
-
-{ "event": "POWERDOWN",
-    "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
-
 QUORUM_FAILURE
 --------------
 

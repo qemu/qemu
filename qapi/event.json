@@ -30,6 +30,12 @@
 # system, such as via ACPI.
 #
 # Since: 0.12.0
+#
+# Example:
+#
+# <- { "event": "POWERDOWN",
+#      "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
+#
 ##
 { 'event': 'POWERDOWN' }
 
