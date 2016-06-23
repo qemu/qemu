@@ -53,18 +53,6 @@ If you're planning to adopt QMP, please observe the following:
 Server's responses in the examples below are always a success response, please
 refer to the QMP specification for more details on error responses.
 
-quit
-----
-
-Quit the emulator.
-
-Arguments: None.
-
-Example:
-
--> { "execute": "quit" }
-<- { "return": {} }
-
 eject
 -----
 
