@@ -1267,7 +1267,7 @@
 # @device:  the device name or node-name of a root node
 #
 # @base:   #optional The file name of the backing image to write data into.
-#                    If not specified, this is the deepest backing image
+#                    If not specified, this is the deepest backing image.
 #
 # @top:    #optional The file name of the backing image within the image chain,
 #                    which contains the topmost data to be committed down. If
@@ -1312,6 +1312,13 @@
 #          If @speed is invalid, InvalidParameter
 #
 # Since: 1.3
+#
+# Example:
+#
+# -> { "execute": "block-commit",
+#      "arguments": { "device": "virtio0",
+#                     "top": "/tmp/snap1.qcow2" } }
+# <- { "return": {} }
 #
 ##
 { 'command': 'block-commit',
