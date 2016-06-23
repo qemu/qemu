@@ -4839,6 +4839,25 @@
 # Returns: ChardevReturn.
 #
 # Since: 1.4
+#
+# Example:
+#
+# -> { "execute" : "chardev-add",
+#      "arguments" : { "id" : "foo",
+#                      "backend" : { "type" : "null", "data" : {} } } }
+# <- { "return": {} }
+#
+# -> { "execute" : "chardev-add",
+#      "arguments" : { "id" : "bar",
+#                      "backend" : { "type" : "file",
+#                                    "data" : { "out" : "/tmp/bar.log" } } } }
+# <- { "return": {} }
+#
+# -> { "execute" : "chardev-add",
+#      "arguments" : { "id" : "baz",
+#                      "backend" : { "type" : "pty", "data" : {} } } }
+# <- { "return": { "pty" : "/dev/pty/42" } }
+#
 ##
 { 'command': 'chardev-add', 'data': {'id'      : 'str',
                                      'backend' : 'ChardevBackend' },
