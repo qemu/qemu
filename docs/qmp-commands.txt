@@ -219,30 +219,6 @@ Example:
      "arguments": { "enable": true } }
 <- { "return": {} }
 
-migrate
--------
-
-Migrate to URI.
-
-Arguments:
-
-- "blk": block migration, full disk copy (json-bool, optional)
-- "inc": incremental disk copy (json-bool, optional)
-- "uri": Destination URI (json-string)
-
-Example:
-
--> { "execute": "migrate", "arguments": { "uri": "tcp:0:4446" } }
-<- { "return": {} }
-
-Notes:
-
-(1) The 'query-migrate' command should be used to check migration's progress
-    and final result (this information is provided by the 'status' member)
-(2) All boolean arguments default to false
-(3) The user Monitor's "detach" argument is invalid in QMP and should not
-    be used
-
 migrate-incoming
 ----------------
 

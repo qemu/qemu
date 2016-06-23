@@ -2973,6 +2973,22 @@
 # Returns: nothing on success
 #
 # Since: 0.14.0
+#
+# Notes:
+#
+# 1. The 'query-migrate' command should be used to check migration's progress
+#    and final result (this information is provided by the 'status' member)
+#
+# 2. All boolean arguments default to false
+#
+# 3. The user Monitor's "detach" argument is invalid in QMP and should not
+#    be used
+#
+# Example:
+#
+# -> { "execute": "migrate", "arguments": { "uri": "tcp:0:4446" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'migrate',
   'data': {'uri': 'str', '*blk': 'bool', '*inc': 'bool', '*detach': 'bool' } }
