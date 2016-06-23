@@ -261,33 +261,6 @@ Delete a quorum's node
                     "child": "children.1" } }
 <- { "return": {} }
 
-trace-event-set-state
----------------------
-
-Set the state of events.
-
-Arguments:
-
-- "name": Event name pattern (json-string).
-- "enable": Whether to enable or disable the event (json-bool).
-- "ignore-unavailable": Whether to ignore errors for events that cannot be
-  changed (json-bool, optional).
-- "vcpu": The vCPU to act upon, all vCPUs by default (json-int, optional).
-
-An event's state is modified if:
-- its name matches the "name" pattern, and
-- if "vcpu" is given, the event has the "vcpu" property.
-
-Therefore, if "vcpu" is given, the operation will only match per-vCPU events,
-setting their state on the specified vCPU. Special case: if "name" is an exact
-match, "vcpu" is given and the event does not have the "vcpu" property, an error
-is returned.
-
-Example:
-
--> { "execute": "trace-event-set-state", "arguments": { "name": "qemu_memalign", "enable": "true" } }
-<- { "return": {} }
-
 query-gic-capabilities
 ---------------
 
