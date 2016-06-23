@@ -324,18 +324,6 @@ Example:
 {"timestamp": {"seconds": 1449669631, "microseconds": 239225},
  "event": "MIGRATION_PASS", "data": {"pass": 2}}
 
-STOP
-----
-
-Emitted when the Virtual Machine is stopped.
-
-Data: None.
-
-Example:
-
-{ "event": "STOP",
-    "timestamp": { "seconds": 1267041730, "microseconds": 281295 } }
-
 SUSPEND
 -------
 

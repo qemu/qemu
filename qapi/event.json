@@ -60,6 +60,12 @@
 # Emitted when the virtual machine is stopped
 #
 # Since: 0.12.0
+#
+# Example:
+#
+# <- { "event": "STOP",
+#      "timestamp": { "seconds": 1267041730, "microseconds": 281295 } }
+#
 ##
 { 'event': 'STOP' }
 
