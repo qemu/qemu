@@ -124,6 +124,12 @@
 # Emitted when the guest has woken up from suspend state and is running
 #
 # Since: 1.1
+#
+# Example:
+#
+# <- { "event": "WAKEUP",
+#      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
+#
 ##
 { 'event': 'WAKEUP' }
 

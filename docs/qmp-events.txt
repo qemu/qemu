@@ -420,18 +420,6 @@ Example:
 
 Note: this event is rate-limited separately for each "id".
 
-WAKEUP
-------
-
-Emitted when the guest has woken up from S3 and is running.
-
-Data: None.
-
-Example:
-
-{ "event": "WAKEUP",
-     "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
-
 WATCHDOG
 --------
 
