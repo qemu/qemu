@@ -72,33 +72,6 @@ Example:
 
 Note: The "force" argument defaults to false.
 
-change
-------
-
-Change a removable medium or VNC configuration.
-
-Arguments:
-
-- "device": device name (json-string)
-- "target": filename or item (json-string)
-- "arg": additional argument (json-string, optional)
-
-Examples:
-
-1. Change a removable medium
-
--> { "execute": "change",
-             "arguments": { "device": "ide1-cd0",
-                            "target": "/srv/images/Fedora-12-x86_64-DVD.iso" } }
-<- { "return": {} }
-
-2. Change VNC password
-
--> { "execute": "change",
-             "arguments": { "device": "vnc", "target": "password",
-                            "arg": "foobar1" } }
-<- { "return": {} }
-
 screendump
 ----------
 

@@ -2874,6 +2874,23 @@
 #         change-vnc-password.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# 1. Change a removable medium
+#
+# -> { "execute": "change",
+#      "arguments": { "device": "ide1-cd0",
+#                     "target": "/srv/images/Fedora-12-x86_64-DVD.iso" } }
+# <- { "return": {} }
+#
+# 2. Change VNC password
+#
+# -> { "execute": "change",
+#      "arguments": { "device": "vnc", "target": "password",
+#                     "arg": "foobar1" } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'change',
   'data': {'device': 'str', 'target': 'str', '*arg': 'str'} }
