@@ -4459,6 +4459,37 @@
 #
 # Note: The list of fd sets is shared by all monitor connections.
 #
+# Example:
+#
+# -> { "execute": "query-fdsets" }
+# <- { "return": [
+#        {
+#          "fds": [
+#            {
+#              "fd": 30,
+#              "opaque": "rdonly:/path/to/file"
+#            },
+#            {
+#              "fd": 24,
+#              "opaque": "rdwr:/path/to/file"
+#            }
+#          ],
+#          "fdset-id": 1
+#        },
+#        {
+#          "fds": [
+#            {
+#              "fd": 28
+#            },
+#            {
+#              "fd": 29
+#            }
+#          ],
+#          "fdset-id": 0
+#        }
+#      ]
+#    }
+#
 ##
 { 'command': 'query-fdsets', 'returns': ['FdsetInfo'] }
 
