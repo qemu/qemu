@@ -301,56 +301,6 @@ Example:
                                                   "sync": "full" } }
 <- { "return": {} }
 
-block_set_io_throttle
-------------
-
-Change I/O throttle limits for a block drive.
-
-Arguments:
-
-- "device": block device name (deprecated, use @id instead)
-            (json-string, optional)
-- "id": the name or QOM path of the guest device (json-string, optional)
-- "bps": total throughput limit in bytes per second (json-int)
-- "bps_rd": read throughput limit in bytes per second (json-int)
-- "bps_wr": write throughput limit in bytes per second (json-int)
-- "iops": total I/O operations per second (json-int)
-- "iops_rd": read I/O operations per second (json-int)
-- "iops_wr": write I/O operations per second (json-int)
-- "bps_max": total throughput limit during bursts, in bytes (json-int, optional)
-- "bps_rd_max": read throughput limit during bursts, in bytes (json-int, optional)
-- "bps_wr_max": write throughput limit during bursts, in bytes (json-int, optional)
-- "iops_max": total I/O operations per second during bursts (json-int, optional)
-- "iops_rd_max": read I/O operations per second during bursts (json-int, optional)
-- "iops_wr_max": write I/O operations per second during bursts (json-int, optional)
-- "bps_max_length": maximum length of the @bps_max burst period, in seconds (json-int, optional)
-- "bps_rd_max_length": maximum length of the @bps_rd_max burst period, in seconds (json-int, optional)
-- "bps_wr_max_length": maximum length of the @bps_wr_max burst period, in seconds (json-int, optional)
-- "iops_max_length": maximum length of the @iops_max burst period, in seconds (json-int, optional)
-- "iops_rd_max_length": maximum length of the @iops_rd_max burst period, in seconds (json-int, optional)
-- "iops_wr_max_length": maximum length of the @iops_wr_max burst period, in seconds (json-int, optional)
-- "iops_size":  I/O size in bytes when limiting (json-int, optional)
-- "group": throttle group name (json-string, optional)
-
-Example:
-
--> { "execute": "block_set_io_throttle", "arguments": { "id": "ide0-1-0",
-                                               "bps": 1000000,
-                                               "bps_rd": 0,
-                                               "bps_wr": 0,
-                                               "iops": 0,
-                                               "iops_rd": 0,
-                                               "iops_wr": 0,
-                                               "bps_max": 8000000,
-                                               "bps_rd_max": 0,
-                                               "bps_wr_max": 0,
-                                               "iops_max": 0,
-                                               "iops_rd_max": 0,
-                                               "iops_wr_max": 0,
-                                               "bps_max_length": 60,
-                                               "iops_size": 0 } }
-<- { "return": {} }
-
 qmp_capabilities
 ----------------
 
