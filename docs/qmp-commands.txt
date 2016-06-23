@@ -1228,18 +1228,6 @@ Example:
      ]
    }
 
-query-tpm-models
-----------------
-
-Return a list of supported TPM models.
-
-Arguments: None
-
-Example:
-
--> { "execute": "query-tpm-models" }
-<- { "return": [ "tpm-tis" ] }
-
 query-tpm-types
 ---------------
 

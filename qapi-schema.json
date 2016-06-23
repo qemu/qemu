@@ -4901,6 +4901,12 @@
 # Returns: a list of TpmModel
 #
 # Since: 1.5
+#
+# Example:
+#
+# -> { "execute": "query-tpm-models" }
+# <- { "return": [ "tpm-tis" ] }
+#
 ##
 { 'command': 'query-tpm-models', 'returns': ['TpmModel'] }
 
