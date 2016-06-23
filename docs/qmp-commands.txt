@@ -2607,20 +2607,6 @@ Example:
       }
    }
 
-query-name
-----------
-
-Show VM name.
-
-Return a json-object with the following information:
-
-- "name": VM's name (json-string, optional)
-
-Example:
-
--> { "execute": "query-name" }
-<- { "return": { "name": "qemu-name" } }
-
 query-uuid
 ----------
 

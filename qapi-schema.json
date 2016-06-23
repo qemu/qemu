@@ -120,6 +120,12 @@
 # Returns: @NameInfo of the guest
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-name" }
+# <- { "return": { "name": "qemu-name" } }
+#
 ##
 { 'command': 'query-name', 'returns': 'NameInfo' }
 
