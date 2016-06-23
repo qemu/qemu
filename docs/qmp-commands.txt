@@ -219,20 +219,6 @@ Example:
 
 Note: CPUs' indexes are obtained with the 'query-cpus' command.
 
-cpu-add
--------
-
-Adds virtual cpu
-
-Arguments:
-
-- "id": cpu id (json-int)
-
-Example:
-
--> { "execute": "cpu-add", "arguments": { "id": 2 } }
-<- { "return": {} }
-
 memsave
 -------
 
