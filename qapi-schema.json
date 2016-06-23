@@ -2587,6 +2587,12 @@
 # Notes: This command succeeds even if there is no migration process running.
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "migrate_cancel" }
+# <- { "return": {} }
+#
 ##
 { 'command': 'migrate_cancel' }
 

@@ -270,18 +270,6 @@ Notes:
 (3) The user Monitor's "detach" argument is invalid in QMP and should not
     be used
 
-migrate_cancel
---------------
-
-Cancel the current migration.
-
-Arguments: None.
-
-Example:
-
--> { "execute": "migrate_cancel" }
-<- { "return": {} }
-
 migrate-incoming
 ----------------
 
