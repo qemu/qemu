@@ -517,29 +517,6 @@ Example:
 -> { "execute": "x-colo-lost-heartbeat" }
 <- { "return": {} }
 
-client_migrate_info
--------------------
-
-Set migration information for remote display.  This makes the server
-ask the client to automatically reconnect using the new parameters
-once migration finished successfully.  Only implemented for SPICE.
-
-Arguments:
-
-- "protocol":     must be "spice" (json-string)
-- "hostname":     migration target hostname (json-string)
-- "port":         spice tcp port for plaintext channels (json-int, optional)
-- "tls-port":     spice tcp port for tls-secured channels (json-int, optional)
-- "cert-subject": server certificate subject (json-string, optional)
-
-Example:
-
--> { "execute": "client_migrate_info",
-     "arguments": { "protocol": "spice",
-                    "hostname": "virt42.lab.kraxel.org",
-                    "port": 1234 } }
-<- { "return": {} }
-
 dump
 
 
