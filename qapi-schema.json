@@ -5136,6 +5136,28 @@
 #          @option).  Returns an error if the given @option doesn't exist.
 #
 # Since: 1.5
+#
+# Example:
+#
+# -> { "execute": "query-command-line-options",
+#      "arguments": { "option": "option-rom" } }
+# <- { "return": [
+#         {
+#             "parameters": [
+#                 {
+#                     "name": "romfile",
+#                     "type": "string"
+#                 },
+#                 {
+#                     "name": "bootindex",
+#                     "type": "number"
+#                 }
+#             ],
+#             "option": "option-rom"
+#         }
+#      ]
+#    }
+#
 ##
 {'command': 'query-command-line-options', 'data': { '*option': 'str' },
  'returns': ['CommandLineOptionInfo'] }
