@@ -209,34 +209,6 @@ Note: This command must be issued before issuing any other command.
 =================
 
 
-query-commands
---------------
-
-List QMP available commands.
-
-Each command is represented by a json-object, the returned value is a json-array
-of all commands.
-
-Each json-object contain:
-
-- "name": command's name (json-string)
-
-Example:
-
--> { "execute": "query-commands" }
-<- {
-      "return":[
-         {
-            "name":"query-balloon"
-         },
-         {
-            "name":"system_powerdown"
-         }
-      ]
-   }
-
-Note: This example has been shortened as the real response is too long.
-
 query-qmp-schema
 ----------------
 
