@@ -393,6 +393,12 @@
 # Emitted when SPICE migration has completed
 #
 # Since: 1.3
+#
+# Example:
+#
+# <- { "timestamp": {"seconds": 1290688046, "microseconds": 417172},
+#      "event": "SPICE_MIGRATE_COMPLETED" }
+#
 ##
 { 'event': 'SPICE_MIGRATE_COMPLETED' }
 

@@ -131,18 +131,6 @@ Flush operation:
 
 Note: this event is rate-limited.
 
-SPICE_MIGRATE_COMPLETED
------------------------
-
-Emitted when SPICE migration has completed
-
-Data: None.
-
-Example:
-
-{ "timestamp": {"seconds": 1290688046, "microseconds": 417172},
-  "event": "SPICE_MIGRATE_COMPLETED" }
-
 MIGRATION
 ---------
 
