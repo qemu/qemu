@@ -1505,18 +1505,19 @@ QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table[NB_MMU_MODES - 1][1])
 static TCGReg tcg_out_tlb_read(TCGContext* s, TCGReg addr_reg, TCGMemOp opc,
                                int mem_index, bool is_ld)
 {
-    int s_mask = (1 << (opc & MO_SIZE)) - 1;
+    int a_bits = get_alignment_bits(opc);
     int ofs, a_off;
     uint64_t tlb_mask;
 
     /* For aligned accesses, we check the first byte and include the alignment
        bits within the address.  For unaligned access, we check that we don't
        cross pages using the address of the last byte of the access.  */
-    if ((opc & MO_AMASK) == MO_ALIGN || s_mask == 0) {
+    if (a_bits >= 0) {
+        /* A byte access or an alignment check required */
         a_off = 0;
-        tlb_mask = TARGET_PAGE_MASK | s_mask;
+        tlb_mask = TARGET_PAGE_MASK | ((1 << a_bits) - 1);
     } else {
-        a_off = s_mask;
+        a_off = (1 << (opc & MO_SIZE)) - 1;
         tlb_mask = TARGET_PAGE_MASK;
     }
 
