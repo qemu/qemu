@@ -394,10 +394,16 @@ static void ich9_apm_ctrl_changed(uint32_t val, void *arg)
 
 /* config:PMBASE */
 static void
-ich9_lpc_pmbase_update(ICH9LPCState *lpc)
+ich9_lpc_pmbase_sci_update(ICH9LPCState *lpc)
 {
     uint32_t pm_io_base = pci_get_long(lpc->d.config + ICH9_LPC_PMBASE);
-    pm_io_base &= ICH9_LPC_PMBASE_BASE_ADDRESS_MASK;
+    uint8_t acpi_cntl = pci_get_long(lpc->d.config + ICH9_LPC_ACPI_CTRL);
+
+    if (acpi_cntl & ICH9_LPC_ACPI_CTRL_ACPI_EN) {
+        pm_io_base &= ICH9_LPC_PMBASE_BASE_ADDRESS_MASK;
+    } else {
+        pm_io_base = 0;
+    }
 
     ich9_pm_iospace_update(&lpc->pm, pm_io_base);
 }
@@ -449,7 +455,8 @@ static void ich9_lpc_config_write(PCIDevice *d,
     uint32_t rcba_old = pci_get_long(d->config + ICH9_LPC_RCBA);
 
     pci_default_write_config(d, addr, val, len);
-    if (ranges_overlap(addr, len, ICH9_LPC_PMBASE, 4)) {
+    if (ranges_overlap(addr, len, ICH9_LPC_PMBASE, 4) ||
+        ranges_overlap(addr, len, ICH9_LPC_ACPI_CTRL, 1)) {
         ich9_lpc_pmbase_update(lpc);
     }
     if (ranges_overlap(addr, len, ICH9_LPC_RCBA, 4)) {
@@ -610,6 +617,8 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
 
     pci_set_long(d->wmask + ICH9_LPC_PMBASE,
                  ICH9_LPC_PMBASE_BASE_ADDRESS_MASK);
+    pci_set_byte(d->wmask + ICH9_LPC_PMBASE,
+                 ICH9_LPC_ACPI_CTRL_ACPI_EN);
 
     memory_region_init_io(&lpc->rcrb_mem, OBJECT(d), &rcrb_mmio_ops, lpc,
                           "lpc-rcrb-mmio", ICH9_CC_SIZE);
