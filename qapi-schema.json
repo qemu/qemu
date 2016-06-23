@@ -1187,6 +1187,26 @@
 # Returns: a list of @MouseInfo for each device
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-mice" }
+# <- { "return": [
+#          {
+#             "name":"QEMU Microsoft Mouse",
+#             "index":0,
+#             "current":false,
+#             "absolute":false
+#          },
+#          {
+#             "name":"QEMU PS/2 Mouse",
+#             "index":1,
+#             "current":true,
+#             "absolute":true
+#          }
+#       ]
+#    }
+#
 ##
 { 'command': 'query-mice', 'returns': ['MouseInfo'] }
 

@@ -2229,41 +2229,6 @@ Example:
 
 Note: This example has been shortened as the real response is too long.
 
-query-mice
-----------
-
-Show VM mice information.
-
-Each mouse is represented by a json-object, the returned value is a json-array
-of all mice.
-
-The mouse json-object contains the following:
-
-- "name": mouse's name (json-string)
-- "index": mouse's index (json-int)
-- "current": true if this mouse is receiving events, false otherwise (json-bool)
-- "absolute": true if the mouse generates absolute input events (json-bool)
-
-Example:
-
--> { "execute": "query-mice" }
-<- {
-      "return":[
-         {
-            "name":"QEMU Microsoft Mouse",
-            "index":0,
-            "current":false,
-            "absolute":false
-         },
-         {
-            "name":"QEMU PS/2 Mouse",
-            "index":1,
-            "current":true,
-            "absolute":true
-         }
-      ]
-   }
-
 query-vnc
 ---------
 
