@@ -1024,6 +1024,21 @@
 # Returns: @MigrationParameters
 #
 # Since: 2.4
+#
+# Example:
+#
+# -> { "execute": "query-migrate-parameters" }
+# <- { "return": {
+#          "decompress-threads": 2,
+#          "cpu-throttle-increment": 10,
+#          "compress-threads": 8,
+#          "compress-level": 1,
+#          "cpu-throttle-initial": 20,
+#          "max-bandwidth": 33554432,
+#          "downtime-limit": 300
+#       }
+#    }
+#
 ##
 { 'command': 'query-migrate-parameters',
   'returns': 'MigrationParameters' }

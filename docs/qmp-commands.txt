@@ -2458,40 +2458,6 @@ Example:
      ]
    }
 
-query-migrate-parameters
-------------------------
-
-Query current migration parameters
-
-- "parameters": migration parameters value
-         - "compress-level" : compression level value (json-int)
-         - "compress-threads" : compression thread count value (json-int)
-         - "decompress-threads" : decompression thread count value (json-int)
-         - "cpu-throttle-initial" : initial percentage of time guest cpus are
-                                    throttled (json-int)
-         - "cpu-throttle-increment" : throttle increasing percentage for
-                                      auto-converge (json-int)
-         - "max-bandwidth" : maximium migration speed in bytes per second
-                             (json-int)
-         - "downtime-limit" : maximum tolerated downtime of migration in
-                              milliseconds (json-int)
-Arguments:
-
-Example:
-
--> { "execute": "query-migrate-parameters" }
-<- {
-      "return": {
-         "decompress-threads": 2,
-         "cpu-throttle-increment": 10,
-         "compress-threads": 8,
-         "compress-level": 1,
-         "cpu-throttle-initial": 20,
-         "max-bandwidth": 33554432,
-         "downtime-limit": 300
-      }
-   }
-
 query-balloon
 -------------
 
