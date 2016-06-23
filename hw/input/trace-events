@@ -23,3 +23,9 @@ milkymist_softusb_memory_write(uint32_t addr, uint32_t value) "addr %08x value %
 milkymist_softusb_mevt(uint8_t m) "m %d"
 milkymist_softusb_kevt(uint8_t m) "m %d"
 milkymist_softusb_pulse_irq(void) "Pulse IRQ"
+
+# hw/input/hid.c
+hid_kbd_queue_full(void) "queue full"
+
+# hw/input/virtio
+virtio_input_queue_full(void) "queue full"
