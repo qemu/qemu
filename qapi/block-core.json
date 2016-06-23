@@ -3308,6 +3308,15 @@
 #         interpret the error string
 #
 # Since: 1.1
+#
+# Example:
+#
+# <- { "event": "BLOCK_JOB_COMPLETED",
+#      "data": { "type": "stream", "device": "virtio-disk0",
+#                "len": 10737418240, "offset": 10737418240,
+#                "speed": 0 },
+#      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+#
 ##
 { 'event': 'BLOCK_JOB_COMPLETED',
   'data': { 'type'  : 'BlockJobType',
