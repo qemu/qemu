@@ -3114,6 +3114,21 @@ out:
     }
 }
 
+static void x86_cpu_unrealizefn(DeviceState *dev, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(dev);
+
+#ifndef CONFIG_USER_ONLY
+    cpu_remove_sync(CPU(dev));
+    qemu_unregister_reset(x86_cpu_machine_reset_cb, dev);
+#endif
+
+    if (cpu->apic_state) {
+        object_unparent(OBJECT(cpu->apic_state));
+        cpu->apic_state = NULL;
+    }
+}
+
 typedef struct BitProperty {
     uint32_t *ptr;
     uint32_t mask;
@@ -3360,6 +3375,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 
     xcc->parent_realize = dc->realize;
     dc->realize = x86_cpu_realizefn;
+    dc->unrealize = x86_cpu_unrealizefn;
     dc->props = x86_cpu_properties;
 
     xcc->parent_reset = cc->reset;
