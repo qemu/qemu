@@ -1847,6 +1847,7 @@ static void pc_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
 static void pc_cpu_unplug_cb(HotplugHandler *hotplug_dev,
                              DeviceState *dev, Error **errp)
 {
+    CPUArchId *found_cpu;
     HotplugHandlerClass *hhc;
     Error *local_err = NULL;
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
@@ -1858,13 +1859,11 @@ static void pc_cpu_unplug_cb(HotplugHandler *hotplug_dev,
         goto out;
     }
 
-    /*
-     * TODO: enable unplug once generic CPU remove bits land
-     * for now guest will be able to eject CPU ACPI wise but
-     * it will come back again on machine reset.
-     */
-    /*  object_unparent(OBJECT(dev)); */
+    found_cpu = pc_find_cpu_slot(pcms, CPU(dev), NULL);
+    found_cpu->cpu = NULL;
+    object_unparent(OBJECT(dev));
 
+    rtc_set_memory(pcms->rtc, 0x5f, rtc_get_memory(pcms->rtc, 0x5f) - 1);
  out:
     error_propagate(errp, local_err);
 }
