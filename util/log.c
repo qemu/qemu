@@ -32,15 +32,22 @@ int qemu_loglevel;
 static int log_append = 0;
 static GArray *debug_regions;
 
-void qemu_log(const char *fmt, ...)
+/* Return the number of characters emitted.  */
+int qemu_log(const char *fmt, ...)
 {
-    va_list ap;
-
-    va_start(ap, fmt);
+    int ret = 0;
     if (qemu_logfile) {
-        vfprintf(qemu_logfile, fmt, ap);
+        va_list ap;
+        va_start(ap, fmt);
+        ret = vfprintf(qemu_logfile, fmt, ap);
+        va_end(ap);
+
+        /* Don't pass back error results.  */
+        if (ret < 0) {
+            ret = 0;
+        }
     }
-    va_end(ap);
+    return ret;
 }
 
 static bool log_uses_own_buffers;

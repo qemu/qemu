@@ -1026,6 +1026,7 @@ void tcg_dump_ops(TCGContext *s)
         const TCGOpDef *def;
         const TCGArg *args;
         TCGOpcode c;
+        int col = 0;
 
         op = &s->gen_op_buf[oi];
         c = op->opc;
@@ -1033,7 +1034,7 @@ void tcg_dump_ops(TCGContext *s)
         args = &s->gen_opparam_buf[op->args];
 
         if (c == INDEX_op_insn_start) {
-            qemu_log("%s ----", oi != s->gen_op_buf[0].next ? "\n" : "");
+            col += qemu_log("%s ----", oi != s->gen_op_buf[0].next ? "\n" : "");
 
             for (i = 0; i < TARGET_INSN_START_WORDS; ++i) {
                 target_ulong a;
@@ -1042,7 +1043,7 @@ void tcg_dump_ops(TCGContext *s)
 #else
                 a = args[i];
 #endif
-                qemu_log(" " TARGET_FMT_lx, a);
+                col += qemu_log(" " TARGET_FMT_lx, a);
             }
         } else if (c == INDEX_op_call) {
             /* variable number of arguments */
@@ -1051,12 +1052,12 @@ void tcg_dump_ops(TCGContext *s)
             nb_cargs = def->nb_cargs;
 
             /* function name, flags, out args */
-            qemu_log(" %s %s,$0x%" TCG_PRIlx ",$%d", def->name,
-                     tcg_find_helper(s, args[nb_oargs + nb_iargs]),
-                     args[nb_oargs + nb_iargs + 1], nb_oargs);
+            col += qemu_log(" %s %s,$0x%" TCG_PRIlx ",$%d", def->name,
+                            tcg_find_helper(s, args[nb_oargs + nb_iargs]),
+                            args[nb_oargs + nb_iargs + 1], nb_oargs);
             for (i = 0; i < nb_oargs; i++) {
-                qemu_log(",%s", tcg_get_arg_str_idx(s, buf, sizeof(buf),
-                                                   args[i]));
+                col += qemu_log(",%s", tcg_get_arg_str_idx(s, buf, sizeof(buf),
+                                                           args[i]));
             }
             for (i = 0; i < nb_iargs; i++) {
                 TCGArg arg = args[nb_oargs + i];
@@ -1064,10 +1065,10 @@ void tcg_dump_ops(TCGContext *s)
                 if (arg != TCG_CALL_DUMMY_ARG) {
                     t = tcg_get_arg_str_idx(s, buf, sizeof(buf), arg);
                 }
-                qemu_log(",%s", t);
+                col += qemu_log(",%s", t);
             }
         } else {
-            qemu_log(" %s ", def->name);
+            col += qemu_log(" %s ", def->name);
 
             nb_oargs = def->nb_oargs;
             nb_iargs = def->nb_iargs;
@@ -1076,17 +1077,17 @@ void tcg_dump_ops(TCGContext *s)
             k = 0;
             for (i = 0; i < nb_oargs; i++) {
                 if (k != 0) {
-                    qemu_log(",");
+                    col += qemu_log(",");
                 }
-                qemu_log("%s", tcg_get_arg_str_idx(s, buf, sizeof(buf),
-                                                   args[k++]));
+                col += qemu_log("%s", tcg_get_arg_str_idx(s, buf, sizeof(buf),
+                                                          args[k++]));
             }
             for (i = 0; i < nb_iargs; i++) {
                 if (k != 0) {
-                    qemu_log(",");
+                    col += qemu_log(",");
                 }
-                qemu_log("%s", tcg_get_arg_str_idx(s, buf, sizeof(buf),
-                                                   args[k++]));
+                col += qemu_log("%s", tcg_get_arg_str_idx(s, buf, sizeof(buf),
+                                                          args[k++]));
             }
             switch (c) {
             case INDEX_op_brcond_i32:
@@ -1098,9 +1099,9 @@ void tcg_dump_ops(TCGContext *s)
             case INDEX_op_setcond_i64:
             case INDEX_op_movcond_i64:
                 if (args[k] < ARRAY_SIZE(cond_name) && cond_name[args[k]]) {
-                    qemu_log(",%s", cond_name[args[k++]]);
+                    col += qemu_log(",%s", cond_name[args[k++]]);
                 } else {
-                    qemu_log(",$0x%" TCG_PRIlx, args[k++]);
+                    col += qemu_log(",$0x%" TCG_PRIlx, args[k++]);
                 }
                 i = 1;
                 break;
@@ -1114,12 +1115,12 @@ void tcg_dump_ops(TCGContext *s)
                     unsigned ix = get_mmuidx(oi);
 
                     if (op & ~(MO_AMASK | MO_BSWAP | MO_SSIZE)) {
-                        qemu_log(",$0x%x,%u", op, ix);
+                        col += qemu_log(",$0x%x,%u", op, ix);
                     } else {
                         const char *s_al, *s_op;
                         s_al = alignment_name[(op & MO_AMASK) >> MO_ASHIFT];
                         s_op = ldst_name[op & (MO_BSWAP | MO_SSIZE)];
-                        qemu_log(",%s%s,%u", s_al, s_op, ix);
+                        col += qemu_log(",%s%s,%u", s_al, s_op, ix);
                     }
                     i = 1;
                 }
@@ -1134,14 +1135,39 @@ void tcg_dump_ops(TCGContext *s)
             case INDEX_op_brcond_i32:
             case INDEX_op_brcond_i64:
             case INDEX_op_brcond2_i32:
-                qemu_log("%s$L%d", k ? "," : "", arg_label(args[k])->id);
+                col += qemu_log("%s$L%d", k ? "," : "", arg_label(args[k])->id);
                 i++, k++;
                 break;
             default:
                 break;
             }
             for (; i < nb_cargs; i++, k++) {
-                qemu_log("%s$0x%" TCG_PRIlx, k ? "," : "", args[k]);
+                col += qemu_log("%s$0x%" TCG_PRIlx, k ? "," : "", args[k]);
+            }
+        }
+        if (op->life) {
+            unsigned life = op->life;
+
+            for (; col < 48; ++col) {
+                putc(' ', qemu_logfile);
+            }
+
+            if (life & (SYNC_ARG * 3)) {
+                qemu_log("  sync:");
+                for (i = 0; i < 2; ++i) {
+                    if (life & (SYNC_ARG << i)) {
+                        qemu_log(" %d", i);
+                    }
+                }
+            }
+            life /= DEAD_ARG;
+            if (life) {
+                qemu_log("  dead:");
+                for (i = 0; life; ++i, life >>= 1) {
+                    if (life & 1) {
+                        qemu_log(" %d", i);
+                    }
+                }
             }
         }
         qemu_log("\n");
