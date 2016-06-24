@@ -17,6 +17,7 @@
 #include "hw/compat.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"
+#include "hw/acpi/acpi_dev_interface.h"
 
 #define HPET_INTCAP "hpet-intcap"
 
@@ -71,7 +72,6 @@ struct PCMachineState {
     /* NUMA information: */
     uint64_t numa_nodes;
     uint64_t *node_mem;
-    uint64_t *node_cpu;
 };
 
 #define PC_MACHINE_ACPI_DEVICE_PROP "acpi-device"
@@ -136,6 +136,8 @@ struct PCMachineClass {
 
     /* TSC rate migration: */
     bool save_tsc_khz;
+    /* generate legacy CPU hotplug AML */
+    bool legacy_cpu_hotplug;
 };
 
 #define TYPE_PC_MACHINE "generic-pc-machine"
@@ -344,6 +346,10 @@ void pc_system_firmware_init(MemoryRegion *rom_memory,
 
 /* pvpanic.c */
 uint16_t pvpanic_port(void);
+
+/* acpi-build.c */
+void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
+                       CPUArchIdList *apic_ids, GArray *entry);
 
 /* e820 types */
 #define E820_RAM        1

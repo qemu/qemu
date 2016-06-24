@@ -33,6 +33,7 @@
 #include "hw/timer/hpet.h"
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/acpi.h"
+#include "hw/acpi/cpu.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/loader.h"
@@ -43,6 +44,7 @@
 #include "hw/acpi/tpm.h"
 #include "sysemu/tpm_backend.h"
 #include "hw/timer/mc146818rtc_regs.h"
+#include "sysemu/numa.h"
 
 /* Supported chipsets: */
 #include "hw/acpi/piix4.h"
@@ -57,6 +59,8 @@
 
 #include "qapi/qmp/qint.h"
 #include "qom/qom-qobject.h"
+
+#include "hw/acpi/ipmi.h"
 
 /* These are used to size the ACPI tables for -M pc-i440fx-1.7 and
  * -M pc-i440fx-2.0.  Even if the actual amount of AML generated grows
@@ -327,12 +331,38 @@ build_fadt(GArray *table_data, BIOSLinker *linker, AcpiPmInfo *pm,
                  (void *)fadt, "FACP", sizeof(*fadt), 1, oem_id, oem_table_id);
 }
 
+void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
+                       CPUArchIdList *apic_ids, GArray *entry)
+{
+    int apic_id;
+    AcpiMadtProcessorApic *apic = acpi_data_push(entry, sizeof *apic);
+
+    apic_id = apic_ids->cpus[uid].arch_id;
+    apic->type = ACPI_APIC_PROCESSOR;
+    apic->length = sizeof(*apic);
+    apic->processor_id = uid;
+    apic->local_apic_id = apic_id;
+    if (apic_ids->cpus[uid].cpu != NULL) {
+        apic->flags = cpu_to_le32(1);
+    } else {
+        /* ACPI spec says that LAPIC entry for non present
+         * CPU may be omitted from MADT or it must be marked
+         * as disabled. However omitting non present CPU from
+         * MADT breaks hotplug on linux. So possible CPUs
+         * should be put in MADT but kept disabled.
+         */
+        apic->flags = cpu_to_le32(0);
+    }
+}
+
 static void
 build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(pcms);
     CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(MACHINE(pcms));
     int madt_start = table_data->len;
+    AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(pcms->acpi_dev);
+    AcpiDeviceIf *adev = ACPI_DEVICE_IF(pcms->acpi_dev);
 
     AcpiMultipleApicTable *madt;
     AcpiMadtIoApic *io_apic;
@@ -345,24 +375,7 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
     madt->flags = cpu_to_le32(1);
 
     for (i = 0; i < apic_ids->len; i++) {
-        AcpiMadtProcessorApic *apic = acpi_data_push(table_data, sizeof *apic);
-        int apic_id = apic_ids->cpus[i].arch_id;
-
-        apic->type = ACPI_APIC_PROCESSOR;
-        apic->length = sizeof(*apic);
-        apic->processor_id = i;
-        apic->local_apic_id = apic_id;
-        if (apic_ids->cpus[i].cpu != NULL) {
-            apic->flags = cpu_to_le32(1);
-        } else {
-            /* ACPI spec says that LAPIC entry for non present
-             * CPU may be omitted from MADT or it must be marked
-             * as disabled. However omitting non present CPU from
-             * MADT breaks hotplug on linux. So possible CPUs
-             * should be put in MADT but kept disabled.
-             */
-            apic->flags = cpu_to_le32(0);
-        }
+        adevc->madt_cpu(adev, i, apic_ids, table_data);
     }
     g_free(apic_ids);
 
@@ -1334,8 +1347,10 @@ static Aml *build_com_device_aml(uint8_t uid)
 static void build_isa_devices_aml(Aml *table)
 {
     ISADevice *fdc = pc_find_fdc0();
+    bool ambiguous;
 
     Aml *scope = aml_scope("_SB.PCI0.ISA");
+    Object *obj = object_resolve_path_type("", TYPE_ISA_BUS, &ambiguous);
 
     aml_append(scope, build_rtc_device_aml());
     aml_append(scope, build_kbd_device_aml());
@@ -1346,6 +1361,14 @@ static void build_isa_devices_aml(Aml *table)
     aml_append(scope, build_lpt_device_aml());
     aml_append(scope, build_com_device_aml(1));
     aml_append(scope, build_com_device_aml(2));
+
+    if (ambiguous) {
+        error_report("Multiple ISA busses, unable to define IPMI ACPI data");
+    } else if (!obj) {
+        error_report("No ISA bus, unable to define IPMI ACPI data");
+    } else {
+        build_acpi_ipmi_devices(scope, BUS(obj));
+    }
 
     aml_append(table, scope);
 }
@@ -1874,6 +1897,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     GPtrArray *mem_ranges = g_ptr_array_new_with_free_func(crs_range_free);
     GPtrArray *io_ranges = g_ptr_array_new_with_free_func(crs_range_free);
     PCMachineState *pcms = PC_MACHINE(machine);
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(machine);
     uint32_t nr_mem = machine->ram_slots;
     int root_bus_limit = 0xFF;
     PCIBus *bus = NULL;
@@ -1929,7 +1953,15 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         build_q35_pci0_int(dsdt);
     }
 
-    build_legacy_cpu_hotplug_aml(dsdt, machine, pm->cpu_hp_io_base);
+    if (pcmc->legacy_cpu_hotplug) {
+        build_legacy_cpu_hotplug_aml(dsdt, machine, pm->cpu_hp_io_base);
+    } else {
+        CPUHotplugFeatures opts = {
+            .apci_1_compatible = true, .has_legacy_cphp = true
+        };
+        build_cpus_aml(dsdt, machine, opts, pm->cpu_hp_io_base,
+                       "\\_SB.PCI0", "\\_GPE._E02");
+    }
     build_memory_hotplug_aml(dsdt, nr_mem, pm->mem_hp_io_base,
                              pm->mem_hp_io_len);
 
@@ -2297,7 +2329,6 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     AcpiSratMemoryAffinity *numamem;
 
     int i;
-    uint64_t curnode;
     int srat_start, numa_start, slots;
     uint64_t mem_len, mem_base, next_base;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -2313,14 +2344,19 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     srat->reserved1 = cpu_to_le32(1);
 
     for (i = 0; i < apic_ids->len; i++) {
+        int j;
         int apic_id = apic_ids->cpus[i].arch_id;
 
         core = acpi_data_push(table_data, sizeof *core);
         core->type = ACPI_SRAT_PROCESSOR_APIC;
         core->length = sizeof(*core);
         core->local_apic_id = apic_id;
-        curnode = pcms->node_cpu[apic_id];
-        core->proximity_lo = curnode;
+        for (j = 0; j < nb_numa_nodes; j++) {
+            if (test_bit(i, numa_info[j].node_cpu)) {
+                core->proximity_lo = j;
+                break;
+            }
+        }
         memset(core->proximity_hi, 0, 3);
         core->local_sapic_eid = 0;
         core->flags = cpu_to_le32(1);

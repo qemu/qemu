@@ -34,6 +34,7 @@
 #include "hw/acpi/piix4.h"
 #include "hw/acpi/pcihp.h"
 #include "hw/acpi/cpu_hotplug.h"
+#include "hw/acpi/cpu.h"
 #include "hw/hotplug.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/acpi/memory_hotplug.h"
@@ -86,7 +87,9 @@ typedef struct PIIX4PMState {
     uint8_t disable_s4;
     uint8_t s4_val;
 
+    bool cpu_hotplug_legacy;
     AcpiCpuHotplug gpe_cpu;
+    CPUHotplugState cpuhp_state;
 
     MemHotplugState acpi_memory_hotplug;
 } PIIX4PMState;
@@ -273,6 +276,32 @@ static const VMStateDescription vmstate_memhp_state = {
     }
 };
 
+static bool vmstate_test_use_cpuhp(void *opaque)
+{
+    PIIX4PMState *s = opaque;
+    return !s->cpu_hotplug_legacy;
+}
+
+static int vmstate_cpuhp_pre_load(void *opaque)
+{
+    Object *obj = OBJECT(opaque);
+    object_property_set_bool(obj, false, "cpu-hotplug-legacy", &error_abort);
+    return 0;
+}
+
+static const VMStateDescription vmstate_cpuhp_state = {
+    .name = "piix4_pm/cpuhp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .needed = vmstate_test_use_cpuhp,
+    .pre_load = vmstate_cpuhp_pre_load,
+    .fields      = (VMStateField[]) {
+        VMSTATE_CPU_HOTPLUG(cpuhp_state, PIIX4PMState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 /* qemu-kvm 1.2 uses version 3 but advertised as 2
  * To support incoming qemu-kvm 1.2 migration, change version_id
  * and minimum_version_id to 2 below (which breaks migration from
@@ -307,6 +336,7 @@ static const VMStateDescription vmstate_acpi = {
     },
     .subsections = (const VMStateDescription*[]) {
          &vmstate_memhp_state,
+         &vmstate_cpuhp_state,
          NULL
     }
 };
@@ -352,7 +382,11 @@ static void piix4_device_plug_cb(HotplugHandler *hotplug_dev,
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         acpi_pcihp_device_plug_cb(hotplug_dev, &s->acpi_pci_hotplug, dev, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
-        legacy_acpi_cpu_plug_cb(hotplug_dev, &s->gpe_cpu, dev, errp);
+        if (s->cpu_hotplug_legacy) {
+            legacy_acpi_cpu_plug_cb(hotplug_dev, &s->gpe_cpu, dev, errp);
+        } else {
+            acpi_cpu_plug_cb(hotplug_dev, &s->cpuhp_state, dev, errp);
+        }
     } else {
         error_setg(errp, "acpi: device plug request for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
@@ -371,6 +405,9 @@ static void piix4_device_unplug_request_cb(HotplugHandler *hotplug_dev,
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         acpi_pcihp_device_unplug_cb(hotplug_dev, &s->acpi_pci_hotplug, dev,
                                     errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU) &&
+               !s->cpu_hotplug_legacy) {
+        acpi_cpu_unplug_request_cb(hotplug_dev, &s->cpuhp_state, dev, errp);
     } else {
         error_setg(errp, "acpi: device unplug request for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
@@ -385,6 +422,9 @@ static void piix4_device_unplug_cb(HotplugHandler *hotplug_dev,
     if (s->acpi_memory_hotplug.is_enabled &&
         object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         acpi_memory_unplug_cb(&s->acpi_memory_hotplug, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU) &&
+               !s->cpu_hotplug_legacy) {
+        acpi_cpu_unplug_cb(&s->cpuhp_state, dev, errp);
     } else {
         error_setg(errp, "acpi: device unplug for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
@@ -560,6 +600,26 @@ static const MemoryRegionOps piix4_gpe_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+
+static bool piix4_get_cpu_hotplug_legacy(Object *obj, Error **errp)
+{
+    PIIX4PMState *s = PIIX4_PM(obj);
+
+    return s->cpu_hotplug_legacy;
+}
+
+static void piix4_set_cpu_hotplug_legacy(Object *obj, bool value, Error **errp)
+{
+    PIIX4PMState *s = PIIX4_PM(obj);
+
+    assert(!value);
+    if (s->cpu_hotplug_legacy && value == false) {
+        acpi_switch_to_modern_cphp(&s->gpe_cpu, &s->cpuhp_state,
+                                   PIIX4_CPU_HOTPLUG_IO_BASE);
+    }
+    s->cpu_hotplug_legacy = value;
+}
+
 static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
                                            PCIBus *bus, PIIX4PMState *s)
 {
@@ -570,6 +630,11 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
     acpi_pcihp_init(OBJECT(s), &s->acpi_pci_hotplug, bus, parent,
                     s->use_acpi_pci_hotplug);
 
+    s->cpu_hotplug_legacy = true;
+    object_property_add_bool(OBJECT(s), "cpu-hotplug-legacy",
+                             piix4_get_cpu_hotplug_legacy,
+                             piix4_set_cpu_hotplug_legacy,
+                             NULL);
     legacy_acpi_cpu_hotplug_init(parent, OBJECT(s), &s->gpe_cpu,
                                  PIIX4_CPU_HOTPLUG_IO_BASE);
 
@@ -583,6 +648,9 @@ static void piix4_ospm_status(AcpiDeviceIf *adev, ACPIOSTInfoList ***list)
     PIIX4PMState *s = PIIX4_PM(adev);
 
     acpi_memory_ospm_status(&s->acpi_memory_hotplug, list);
+    if (!s->cpu_hotplug_legacy) {
+        acpi_cpu_ospm_status(&s->cpuhp_state, list);
+    }
 }
 
 static void piix4_send_gpe(AcpiDeviceIf *adev, AcpiEventStatusBits ev)
@@ -631,6 +699,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
     hc->unplug = piix4_device_unplug_cb;
     adevc->ospm_status = piix4_ospm_status;
     adevc->send_event = piix4_send_gpe;
+    adevc->madt_cpu = pc_madt_cpu_entry;
 }
 
 static const TypeInfo piix4_pm_info = {

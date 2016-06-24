@@ -40,6 +40,8 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
     int slot;
     MachineState *machine = MACHINE(qdev_get_machine());
     PCDIMMDevice *dimm = PC_DIMM(dev);
+    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm);
     Error *local_err = NULL;
     uint64_t existing_dimms_capacity = 0;
     uint64_t addr;
@@ -105,7 +107,7 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
     }
 
     memory_region_add_subregion(&hpms->mr, addr - hpms->base, mr);
-    vmstate_register_ram(mr, dev);
+    vmstate_register_ram(vmstate_mr, dev);
     numa_set_mem_node_id(addr, memory_region_size(mr), dimm->node);
 
 out:
@@ -116,10 +118,12 @@ void pc_dimm_memory_unplug(DeviceState *dev, MemoryHotplugState *hpms,
                            MemoryRegion *mr)
 {
     PCDIMMDevice *dimm = PC_DIMM(dev);
+    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm);
 
     numa_unset_mem_node_id(dimm->addr, memory_region_size(mr), dimm->node);
     memory_region_del_subregion(&hpms->mr, mr);
-    vmstate_unregister_ram(mr, dev);
+    vmstate_unregister_ram(vmstate_mr, dev);
 }
 
 static int pc_existing_dimms_capacity_internal(Object *obj, void *opaque)
@@ -424,6 +428,11 @@ static MemoryRegion *pc_dimm_get_memory_region(PCDIMMDevice *dimm)
     return host_memory_backend_get_memory(dimm->hostmem, &error_abort);
 }
 
+static MemoryRegion *pc_dimm_get_vmstate_memory_region(PCDIMMDevice *dimm)
+{
+    return host_memory_backend_get_memory(dimm->hostmem, &error_abort);
+}
+
 static void pc_dimm_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -434,6 +443,7 @@ static void pc_dimm_class_init(ObjectClass *oc, void *data)
     dc->desc = "DIMM memory module";
 
     ddc->get_memory_region = pc_dimm_get_memory_region;
+    ddc->get_vmstate_memory_region = pc_dimm_get_vmstate_memory_region;
 }
 
 static TypeInfo pc_dimm_info = {

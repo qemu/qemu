@@ -660,6 +660,20 @@ Aml *aml_call4(const char *method, Aml *arg1, Aml *arg2, Aml *arg3, Aml *arg4)
     return var;
 }
 
+/* helper to call method with 5 arguments */
+Aml *aml_call5(const char *method, Aml *arg1, Aml *arg2, Aml *arg3, Aml *arg4,
+               Aml *arg5)
+{
+    Aml *var = aml_alloc();
+    build_append_namestring(var->buf, "%s", method);
+    aml_append(var, arg1);
+    aml_append(var, arg2);
+    aml_append(var, arg3);
+    aml_append(var, arg4);
+    aml_append(var, arg5);
+    return var;
+}
+
 /*
  * ACPI 5.0: 6.4.3.8.1 GPIO Connection Descriptor
  * Type 1, Large Item Name 0xC
@@ -1479,6 +1493,14 @@ Aml *aml_concatenate(Aml *source1, Aml *source2, Aml *target)
 {
     return build_opcode_2arg_dst(0x73 /* ConcatOp */, source1, source2,
                                  target);
+}
+
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefObjectType */
+Aml *aml_object_type(Aml *object)
+{
+    Aml *var = aml_opcode(0x8E /* ObjectTypeOp */);
+    aml_append(var, object);
+    return var;
 }
 
 void

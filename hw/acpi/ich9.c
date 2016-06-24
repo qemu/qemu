@@ -189,6 +189,33 @@ static const VMStateDescription vmstate_tco_io_state = {
     }
 };
 
+static bool vmstate_test_use_cpuhp(void *opaque)
+{
+    ICH9LPCPMRegs *s = opaque;
+    return !s->cpu_hotplug_legacy;
+}
+
+static int vmstate_cpuhp_pre_load(void *opaque)
+{
+    ICH9LPCPMRegs *s = opaque;
+    Object *obj = OBJECT(s->gpe_cpu.device);
+    object_property_set_bool(obj, false, "cpu-hotplug-legacy", &error_abort);
+    return 0;
+}
+
+static const VMStateDescription vmstate_cpuhp_state = {
+    .name = "ich9_pm/cpuhp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .needed = vmstate_test_use_cpuhp,
+    .pre_load = vmstate_cpuhp_pre_load,
+    .fields      = (VMStateField[]) {
+        VMSTATE_CPU_HOTPLUG(cpuhp_state, ICH9LPCPMRegs),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_ich9_pm = {
     .name = "ich9_pm",
     .version_id = 1,
@@ -209,6 +236,7 @@ const VMStateDescription vmstate_ich9_pm = {
     .subsections = (const VMStateDescription*[]) {
         &vmstate_memhp_state,
         &vmstate_tco_io_state,
+        &vmstate_cpuhp_state,
         NULL
     }
 };
@@ -306,6 +334,26 @@ static void ich9_pm_set_memory_hotplug_support(Object *obj, bool value,
     s->pm.acpi_memory_hotplug.is_enabled = value;
 }
 
+static bool ich9_pm_get_cpu_hotplug_legacy(Object *obj, Error **errp)
+{
+    ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
+
+    return s->pm.cpu_hotplug_legacy;
+}
+
+static void ich9_pm_set_cpu_hotplug_legacy(Object *obj, bool value,
+                                           Error **errp)
+{
+    ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
+
+    assert(!value);
+    if (s->pm.cpu_hotplug_legacy && value == false) {
+        acpi_switch_to_modern_cphp(&s->pm.gpe_cpu, &s->pm.cpuhp_state,
+                                   ICH9_CPU_HOTPLUG_IO_BASE);
+    }
+    s->pm.cpu_hotplug_legacy = value;
+}
+
 static void ich9_pm_get_disable_s3(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
@@ -397,6 +445,7 @@ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm, Error **errp)
 {
     static const uint32_t gpe0_len = ICH9_PMIO_GPE0_LEN;
     pm->acpi_memory_hotplug.is_enabled = true;
+    pm->cpu_hotplug_legacy = true;
     pm->disable_s3 = 0;
     pm->disable_s4 = 0;
     pm->s4_val = 2;
@@ -411,6 +460,10 @@ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm, Error **errp)
     object_property_add_bool(obj, "memory-hotplug-support",
                              ich9_pm_get_memory_hotplug_support,
                              ich9_pm_set_memory_hotplug_support,
+                             NULL);
+    object_property_add_bool(obj, "cpu-hotplug-legacy",
+                             ich9_pm_get_cpu_hotplug_legacy,
+                             ich9_pm_set_cpu_hotplug_legacy,
                              NULL);
     object_property_add(obj, ACPI_PM_PROP_S3_DISABLED, "uint8",
                         ich9_pm_get_disable_s3,
@@ -440,7 +493,11 @@ void ich9_pm_device_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
         acpi_memory_plug_cb(hotplug_dev, &lpc->pm.acpi_memory_hotplug,
                             dev, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
-        legacy_acpi_cpu_plug_cb(hotplug_dev, &lpc->pm.gpe_cpu, dev, errp);
+        if (lpc->pm.cpu_hotplug_legacy) {
+            legacy_acpi_cpu_plug_cb(hotplug_dev, &lpc->pm.gpe_cpu, dev, errp);
+        } else {
+            acpi_cpu_plug_cb(hotplug_dev, &lpc->pm.cpuhp_state, dev, errp);
+        }
     } else {
         error_setg(errp, "acpi: device plug request for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
@@ -457,6 +514,10 @@ void ich9_pm_device_unplug_request_cb(HotplugHandler *hotplug_dev,
         acpi_memory_unplug_request_cb(hotplug_dev,
                                       &lpc->pm.acpi_memory_hotplug, dev,
                                       errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU) &&
+               !lpc->pm.cpu_hotplug_legacy) {
+        acpi_cpu_unplug_request_cb(hotplug_dev, &lpc->pm.cpuhp_state,
+                                   dev, errp);
     } else {
         error_setg(errp, "acpi: device unplug request for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
@@ -471,6 +532,9 @@ void ich9_pm_device_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     if (lpc->pm.acpi_memory_hotplug.is_enabled &&
         object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         acpi_memory_unplug_cb(&lpc->pm.acpi_memory_hotplug, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU) &&
+               !lpc->pm.cpu_hotplug_legacy) {
+        acpi_cpu_unplug_cb(&lpc->pm.cpuhp_state, dev, errp);
     } else {
         error_setg(errp, "acpi: device unplug for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
@@ -482,4 +546,7 @@ void ich9_pm_ospm_status(AcpiDeviceIf *adev, ACPIOSTInfoList ***list)
     ICH9LPCState *s = ICH9_LPC_DEVICE(adev);
 
     acpi_memory_ospm_status(&s->pm.acpi_memory_hotplug, list);
+    if (!s->pm.cpu_hotplug_legacy) {
+        acpi_cpu_ospm_status(&s->pm.cpuhp_state, list);
+    }
 }
