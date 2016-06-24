@@ -1471,7 +1471,7 @@ static void gen_or(DisasContext *ctx)
     } else if (unlikely(Rc(ctx->opcode) != 0)) {
         gen_set_Rc0(ctx, cpu_gpr[rs]);
 #if defined(TARGET_PPC64)
-    } else {
+    } else if (rs != 0) { /* 0 is nop */
         int prio = 0;
 
         switch (rs) {
@@ -1514,7 +1514,6 @@ static void gen_or(DisasContext *ctx)
             break;
 #endif
         default:
-            /* nop */
             break;
         }
         if (prio) {
@@ -1524,13 +1523,15 @@ static void gen_or(DisasContext *ctx)
             tcg_gen_ori_tl(t0, t0, ((uint64_t)prio) << 50);
             gen_store_spr(SPR_PPR, t0);
             tcg_temp_free(t0);
-            /* Pause us out of TCG otherwise spin loops with smt_low
-             * eat too much CPU and the kernel hangs
-             */
-#if !defined(CONFIG_USER_ONLY)
-            gen_pause(ctx);
-#endif
         }
+#if !defined(CONFIG_USER_ONLY)
+        /* Pause out of TCG otherwise spin loops with smt_low eat too much
+         * CPU and the kernel hangs.  This applies to all encodings other
+         * than no-op, e.g., miso(rs=26), yield(27), mdoio(29), mdoom(30),
+         * and all currently undefined.
+         */
+        gen_pause(ctx);
+#endif
 #endif
     }
 }
