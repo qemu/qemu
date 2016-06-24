@@ -174,7 +174,6 @@ struct APICCommonState {
     uint32_t initial_count;
     int64_t initial_count_load_time;
     int64_t next_time;
-    int idx; /* not actually common, used only by 'apic' derived class */
     QEMUTimer *timer;
     int64_t timer_expiry;
     int sipi_vector;
