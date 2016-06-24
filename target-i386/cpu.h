@@ -440,6 +440,9 @@ typedef enum FeatureWord {
     FEAT_8000_0007_EDX, /* CPUID[8000_0007].EDX */
     FEAT_C000_0001_EDX, /* CPUID[C000_0001].EDX */
     FEAT_KVM,           /* CPUID[4000_0001].EAX (KVM_CPUID_FEATURES) */
+    FEAT_HYPERV_EAX,    /* CPUID[4000_0003].EAX */
+    FEAT_HYPERV_EBX,    /* CPUID[4000_0003].EBX */
+    FEAT_HYPERV_EDX,    /* CPUID[4000_0003].EDX */
     FEAT_SVM,           /* CPUID[8000_000A].EDX */
     FEAT_XSAVE,         /* CPUID[EAX=0xd,ECX=1].EAX */
     FEAT_6_EAX,         /* CPUID[6].EAX */

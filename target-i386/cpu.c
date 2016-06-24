@@ -245,6 +245,47 @@ static const char *kvm_feature_name[] = {
     NULL, NULL, NULL, NULL,
 };
 
+static const char *hyperv_priv_feature_name[] = {
+    NULL /* hv_msr_vp_runtime_access */, NULL /* hv_msr_time_refcount_access */,
+    NULL /* hv_msr_synic_access */, NULL /* hv_msr_stimer_access */,
+    NULL /* hv_msr_apic_access */, NULL /* hv_msr_hypercall_access */,
+    NULL /* hv_vpindex_access */, NULL /* hv_msr_reset_access */,
+    NULL /* hv_msr_stats_access */, NULL /* hv_reftsc_access */,
+    NULL /* hv_msr_idle_access */, NULL /* hv_msr_frequency_access */,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+};
+
+static const char *hyperv_ident_feature_name[] = {
+    NULL /* hv_create_partitions */, NULL /* hv_access_partition_id */,
+    NULL /* hv_access_memory_pool */, NULL /* hv_adjust_message_buffers */,
+    NULL /* hv_post_messages */, NULL /* hv_signal_events */,
+    NULL /* hv_create_port */, NULL /* hv_connect_port */,
+    NULL /* hv_access_stats */, NULL, NULL, NULL /* hv_debugging */,
+    NULL /* hv_cpu_power_management */, NULL /* hv_configure_profiler */,
+    NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+};
+
+static const char *hyperv_misc_feature_name[] = {
+    NULL /* hv_mwait */, NULL /* hv_guest_debugging */,
+    NULL /* hv_perf_monitor */, NULL /* hv_cpu_dynamic_part */,
+    NULL /* hv_hypercall_params_xmm */, NULL /* hv_guest_idle_state */,
+    NULL, NULL,
+    NULL, NULL, NULL /* hv_guest_crash_msr */, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+};
+
 static const char *svm_feature_name[] = {
     "npt", "lbrv", "svm_lock", "nrip_save",
     "tsc_scale", "vmcb_clean",  "flushbyasid", "decodeassists",
@@ -411,6 +452,18 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .feat_names = kvm_feature_name,
         .cpuid_eax = KVM_CPUID_FEATURES, .cpuid_reg = R_EAX,
         .tcg_features = TCG_KVM_FEATURES,
+    },
+    [FEAT_HYPERV_EAX] = {
+        .feat_names = hyperv_priv_feature_name,
+        .cpuid_eax = 0x40000003, .cpuid_reg = R_EAX,
+    },
+    [FEAT_HYPERV_EBX] = {
+        .feat_names = hyperv_ident_feature_name,
+        .cpuid_eax = 0x40000003, .cpuid_reg = R_EBX,
+    },
+    [FEAT_HYPERV_EDX] = {
+        .feat_names = hyperv_misc_feature_name,
+        .cpuid_eax = 0x40000003, .cpuid_reg = R_EDX,
     },
     [FEAT_SVM] = {
         .feat_names = svm_feature_name,
