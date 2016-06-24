@@ -42,6 +42,7 @@ static inline bool qemu_log_separate(void)
 #define CPU_LOG_TB_NOCHAIN (1 << 13)
 #define CPU_LOG_PAGE       (1 << 14)
 #define LOG_TRACE          (1 << 15)
+#define CPU_LOG_TB_OP_IND  (1 << 16)
 
 /* Returns true if a bit is set in the current loglevel mask
  */

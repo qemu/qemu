@@ -617,6 +617,7 @@ struct TCGContext {
     int nb_labels;
     int nb_globals;
     int nb_temps;
+    int nb_indirects;
 
     /* goto_tb support */
     tcg_insn_unit *code_buf;
@@ -898,6 +899,9 @@ void tcg_gen_callN(TCGContext *s, void *func,
                    TCGArg ret, int nargs, TCGArg *args);
 
 void tcg_op_remove(TCGContext *s, TCGOp *op);
+TCGOp *tcg_op_insert_before(TCGContext *s, TCGOp *op, TCGOpcode opc, int narg);
+TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *op, TCGOpcode opc, int narg);
+
 void tcg_optimize(TCGContext *s);
 
 /* only used for debugging purposes */

@@ -247,8 +247,9 @@ const QEMULogItem qemu_log_items[] = {
     { CPU_LOG_TB_OP, "op",
       "show micro ops for each compiled TB" },
     { CPU_LOG_TB_OP_OPT, "op_opt",
-      "show micro ops (x86 only: before eflags optimization) and\n"
-      "after liveness analysis" },
+      "show micro ops after optimization" },
+    { CPU_LOG_TB_OP_IND, "op_ind",
+      "show micro ops before indirect lowering" },
     { CPU_LOG_INT, "int",
       "show interrupts/exceptions in short format" },
     { CPU_LOG_EXEC, "exec",
