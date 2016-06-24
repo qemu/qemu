@@ -2385,20 +2385,23 @@ static void gen_ldf_asi(DisasContext *dc, TCGv addr,
     case GET_ASI_BLOCK:
         /* Valid for lddfa on aligned registers only.  */
         if (size == 8 && (rd & 7) == 0) {
+            TCGMemOp memop;
             TCGv eight;
             int i;
 
-            gen_check_align(addr, 0x3f);
             gen_address_mask(dc, addr);
 
+            /* The first operation checks required alignment.  */
+            memop = da.memop | MO_ALIGN_64;
             eight = tcg_const_tl(8);
             for (i = 0; ; ++i) {
                 tcg_gen_qemu_ld_i64(cpu_fpr[rd / 2 + i], addr,
-                                    da.mem_idx, da.memop);
+                                    da.mem_idx, memop);
                 if (i == 7) {
                     break;
                 }
                 tcg_gen_add_tl(addr, addr, eight);
+                memop = da.memop;
             }
             tcg_temp_free(eight);
         } else {
@@ -2488,20 +2491,23 @@ static void gen_stf_asi(DisasContext *dc, TCGv addr,
     case GET_ASI_BLOCK:
         /* Valid for stdfa on aligned registers only.  */
         if (size == 8 && (rd & 7) == 0) {
+            TCGMemOp memop;
             TCGv eight;
             int i;
 
-            gen_check_align(addr, 0x3f);
             gen_address_mask(dc, addr);
 
+            /* The first operation checks required alignment.  */
+            memop = da.memop | MO_ALIGN_64;
             eight = tcg_const_tl(8);
             for (i = 0; ; ++i) {
                 tcg_gen_qemu_st_i64(cpu_fpr[rd / 2 + i], addr,
-                                    da.mem_idx, da.memop);
+                                    da.mem_idx, memop);
                 if (i == 7) {
                     break;
                 }
                 tcg_gen_add_tl(addr, addr, eight);
+                memop = da.memop;
             }
             tcg_temp_free(eight);
         } else {
@@ -2539,9 +2545,8 @@ static void gen_ldda_asi(DisasContext *dc, TCGv addr, int insn, int rd)
         return;
 
     case GET_ASI_DTWINX:
-        gen_check_align(addr, 15);
         gen_address_mask(dc, addr);
-        tcg_gen_qemu_ld_i64(hi, addr, da.mem_idx, da.memop);
+        tcg_gen_qemu_ld_i64(hi, addr, da.mem_idx, da.memop | MO_ALIGN_16);
         tcg_gen_addi_tl(addr, addr, 8);
         tcg_gen_qemu_ld_i64(lo, addr, da.mem_idx, da.memop);
         break;
@@ -2594,9 +2599,8 @@ static void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
         break;
 
     case GET_ASI_DTWINX:
-        gen_check_align(addr, 15);
         gen_address_mask(dc, addr);
-        tcg_gen_qemu_st_i64(hi, addr, da.mem_idx, da.memop);
+        tcg_gen_qemu_st_i64(hi, addr, da.mem_idx, da.memop | MO_ALIGN_16);
         tcg_gen_addi_tl(addr, addr, 8);
         tcg_gen_qemu_st_i64(lo, addr, da.mem_idx, da.memop);
         break;
@@ -5468,7 +5472,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         if (gen_trap_ifnofpu(dc)) {
                             goto jmp_insn;
                         }
-                        gen_check_align(cpu_addr, 7);
                         gen_stf_asi(dc, cpu_addr, insn, 16, QFPREG(rd));
                     }
                     break;
