@@ -1,0 +1,90 @@
+# Bulgarian translation of qemu po-file.
+# Copyright (C) 2016 Alexander Shopov <ash@kambanaria.org>
+# This file is distributed under the same license as the qemu package.
+# Alexander Shopov <ash@kambanaria.org>, 2016.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: QEMU 2.6.50\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2016-06-26 10:16+0300\n"
+"PO-Revision-Date: 2016-06-09 15:54+0300\n"
+"Last-Translator: Alexander Shopov <ash@kambanaria.org>\n"
+"Language-Team: Bulgarian <dict@ludost.net>\n"
+"Language: bg\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: ui/gtk.c:274
+msgid " - Press Ctrl+Alt+G to release grab"
+msgstr " — натиснете Ctrl+Alt+G, за да освободите фокуса"
+
+#: ui/gtk.c:278
+msgid " [Paused]"
+msgstr " [пауза]"
+
+#: ui/gtk.c:1906
+msgid "_Pause"
+msgstr "_Пауза"
+
+#: ui/gtk.c:1912
+msgid "_Reset"
+msgstr "_Рестартиране"
+
+#: ui/gtk.c:1915
+msgid "Power _Down"
+msgstr "_Изключване"
+
+#: ui/gtk.c:1921
+msgid "_Quit"
+msgstr "_Спиране на програмата"
+
+#: ui/gtk.c:2013
+msgid "_Fullscreen"
+msgstr "На _цял екран"
+
+#: ui/gtk.c:2016
+msgid "_Copy"
+msgstr "_Копиране"
+
+#: ui/gtk.c:2032
+msgid "Zoom _In"
+msgstr "_Увеличаване"
+
+#: ui/gtk.c:2039
+msgid "Zoom _Out"
+msgstr "_Намаляване"
+
+#: ui/gtk.c:2046
+msgid "Best _Fit"
+msgstr "По_местване"
+
+#: ui/gtk.c:2053
+msgid "Zoom To _Fit"
+msgstr "Напас_ване"
+
+#: ui/gtk.c:2059
+msgid "Grab On _Hover"
+msgstr "Прихващане при посо_чване"
+
+#: ui/gtk.c:2062
+msgid "_Grab Input"
+msgstr "Прихващане на _фокуса"
+
+#: ui/gtk.c:2091
+msgid "Show _Tabs"
+msgstr "Подпро_зорци"
+
+#: ui/gtk.c:2094
+msgid "Detach Tab"
+msgstr "Към самостоятелен подпрозорец"
+
+#: ui/gtk.c:2106
+msgid "_Machine"
+msgstr "_Машина"
+
+#: ui/gtk.c:2111
+msgid "_View"
+msgstr "_Изглед"
