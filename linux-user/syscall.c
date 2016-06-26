@@ -100,6 +100,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/route.h>
 #include <linux/filter.h>
 #include <linux/blkpg.h>
+#include <netpacket/packet.h>
 #include <linux/netlink.h>
 #ifdef CONFIG_RTNETLINK
 #include <linux/rtnetlink.h>
@@ -1383,6 +1384,10 @@ static inline abi_long host_to_target_sockaddr(abi_ulong target_addr,
         struct sockaddr_nl *target_nl = (struct sockaddr_nl *)target_saddr;
         target_nl->nl_pid = tswap32(target_nl->nl_pid);
         target_nl->nl_groups = tswap32(target_nl->nl_groups);
+    } else if (addr->sa_family == AF_PACKET) {
+        struct sockaddr_ll *target_ll = (struct sockaddr_ll *)target_saddr;
+        target_ll->sll_ifindex = tswap32(target_ll->sll_ifindex);
+        target_ll->sll_hatype = tswap16(target_ll->sll_hatype);
     }
     unlock_user(target_saddr, target_addr, len);
 
