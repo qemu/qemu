@@ -343,6 +343,7 @@ struct CPUMIPSState {
     int32_t CP0_Count;
     target_ulong CP0_EntryHi;
 #define CP0EnHi_EHINV 10
+    target_ulong CP0_EntryHi_ASID_mask;
     int32_t CP0_Compare;
     int32_t CP0_Status;
 #define CP0St_CU3   31
@@ -503,6 +504,7 @@ struct CPUMIPSState {
     int CP0_LLAddr_shift;
     target_ulong CP0_WatchLo[8];
     int32_t CP0_WatchHi[8];
+#define CP0WH_ASID 16
     target_ulong CP0_XContext;
     int32_t CP0_Framemask;
     int32_t CP0_Debug;
