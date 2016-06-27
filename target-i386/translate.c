@@ -4536,10 +4536,6 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     s->aflag = aflag;
     s->dflag = dflag;
 
-    /* lock generation */
-    if (prefixes & PREFIX_LOCK)
-        gen_helper_lock();
-
     /* now check op code */
  reswitch:
     switch(b) {
@@ -8211,20 +8207,11 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     default:
         goto unknown_op;
     }
-    /* lock generation */
-    if (s->prefix & PREFIX_LOCK)
-        gen_helper_unlock();
     return s->pc;
  illegal_op:
-    if (s->prefix & PREFIX_LOCK)
-        gen_helper_unlock();
-    /* XXX: ensure that no lock was generated */
     gen_illegal_opcode(s);
     return s->pc;
  unknown_op:
-    if (s->prefix & PREFIX_LOCK)
-        gen_helper_unlock();
-    /* XXX: ensure that no lock was generated */
     gen_unknown_opcode(env, s);
     return s->pc;
 }
@@ -8316,8 +8303,6 @@ void tcg_x86_init(void)
                                      offsetof(CPUX86State, bnd_regs[i].ub),
                                      bnd_regu_names[i]);
     }
-
-    helper_lock_init();
 }
 
 /* generate intermediate code for basic block 'tb'.  */
