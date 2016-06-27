@@ -794,6 +794,14 @@ static void ppc_hw_interrupt(CPUPPCState *env)
             return;
         }
     }
+    /* Extermal interrupt can ignore MSR:EE under some circumstances */
+    if (env->pending_interrupts & (1 << PPC_INTERRUPT_EXT)) {
+        bool lpes0 = !!(env->spr[SPR_LPCR] & LPCR_LPES0);
+        if (msr_ee != 0 || (env->has_hv_mode && msr_hv == 0 && !lpes0)) {
+            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_EXTERNAL);
+            return;
+        }
+    }
     if (msr_ce != 0) {
         /* External critical interrupt */
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_CEXT)) {
@@ -837,17 +845,6 @@ static void ppc_hw_interrupt(CPUPPCState *env)
                 env->pending_interrupts &= ~(1 << PPC_INTERRUPT_DECR);
             }
             powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_DECR);
-            return;
-        }
-        /* External interrupt */
-        if (env->pending_interrupts & (1 << PPC_INTERRUPT_EXT)) {
-            /* Taking an external interrupt does not clear the external
-             * interrupt status
-             */
-#if 0
-            env->pending_interrupts &= ~(1 << PPC_INTERRUPT_EXT);
-#endif
-            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_EXTERNAL);
             return;
         }
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_DOORBELL)) {
