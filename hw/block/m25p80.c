@@ -330,6 +330,7 @@ typedef enum {
     STATE_PAGE_PROGRAM,
     STATE_READ,
     STATE_COLLECTING_DATA,
+    STATE_COLLECTING_VAR_LEN_DATA,
     STATE_READING_DATA,
 } CMDState;
 
@@ -872,6 +873,9 @@ static int m25p80_cs(SSISlave *ss, bool select)
     Flash *s = M25P80(ss);
 
     if (select) {
+        if (s->state == STATE_COLLECTING_VAR_LEN_DATA) {
+            complete_collecting_data(s);
+        }
         s->len = 0;
         s->pos = 0;
         s->state = STATE_IDLE;
@@ -905,6 +909,7 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
         break;
 
     case STATE_COLLECTING_DATA:
+    case STATE_COLLECTING_VAR_LEN_DATA:
         s->data[s->len] = (uint8_t)tx;
         s->len++;
 
