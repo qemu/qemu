@@ -468,6 +468,7 @@ struct CPUMIPSState {
     int32_t CP0_Config4_rw_bitmask;
 #define CP0C4_M    31
 #define CP0C4_IE   29
+#define CP0C4_AE   28
 #define CP0C4_KScrExist 16
 #define CP0C4_MMUExtDef 14
 #define CP0C4_FTLBPageSize 8
