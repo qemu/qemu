@@ -274,6 +274,11 @@ static inline unsigned tx_desc_get_last(unsigned *desc)
     return (desc[1] & DESC_1_TX_LAST) ? 1 : 0;
 }
 
+static inline void tx_desc_set_last(unsigned *desc)
+{
+    desc[1] |= DESC_1_TX_LAST;
+}
+
 static inline unsigned tx_desc_get_length(unsigned *desc)
 {
     return desc[1] & DESC_1_LENGTH;
@@ -939,6 +944,7 @@ static void gem_transmit(CadenceGEMState *s)
 
         /* read next descriptor */
         if (tx_desc_get_wrap(desc)) {
+            tx_desc_set_last(desc);
             packet_desc_addr = s->regs[GEM_TXQBASE];
         } else {
             packet_desc_addr += 8;
