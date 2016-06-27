@@ -34,10 +34,13 @@ addons:
       - sparse
       - uuid-dev
 
+# The channel name "irc.oftc.net#qemu" is encrypted against qemu/qemu
+# to prevent IRC notifications from forks. This was created using:
+# $ travis encrypt -r "qemu/qemu" "irc.oftc.net#qemu"
 notifications:
   irc:
     channels:
-      - "irc.oftc.net#qemu"
+      - secure: "F7GDRgjuOo5IUyRLqSkmDL7kvdU4UcH3Lm/W2db2JnDHTGCqgEdaYEYKciyCLZ57vOTsTsOgesN8iUT7hNHBd1KWKjZe9KDTZWppWRYVwAwQMzVeSOsbbU4tRoJ6Pp+3qhH1Z0eGYR9ZgKYAoTumDFgSAYRp4IscKS8jkoedOqM="
     on_success: change
     on_failure: always
 env:
