@@ -4674,10 +4674,15 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         rm = (modrm & 7) | REX_B(s);
         op = (modrm >> 3) & 7;
         if (mod != 3) {
-            if (op == 0)
+            if (op == 0) {
                 s->rip_offset = insn_const_size(ot);
+            }
             gen_lea_modrm(env, s, modrm);
-            gen_op_ld_v(s, ot, cpu_T0, cpu_A0);
+            /* For those below that handle locked memory, don't load here.  */
+            if (!(s->prefix & PREFIX_LOCK)
+                || op != 2) {
+                gen_op_ld_v(s, ot, cpu_T0, cpu_A0);
+            }
         } else {
             gen_op_mov_v_reg(ot, cpu_T0, rm);
         }
@@ -4690,11 +4695,20 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             set_cc_op(s, CC_OP_LOGICB + ot);
             break;
         case 2: /* not */
-            tcg_gen_not_tl(cpu_T0, cpu_T0);
-            if (mod != 3) {
-                gen_op_st_v(s, ot, cpu_T0, cpu_A0);
+            if (s->prefix & PREFIX_LOCK) {
+                if (mod == 3) {
+                    goto illegal_op;
+                }
+                tcg_gen_movi_tl(cpu_T0, ~0);
+                tcg_gen_atomic_xor_fetch_tl(cpu_T0, cpu_A0, cpu_T0,
+                                            s->mem_index, ot | MO_LE);
             } else {
-                gen_op_mov_reg_v(ot, rm, cpu_T0);
+                tcg_gen_not_tl(cpu_T0, cpu_T0);
+                if (mod != 3) {
+                    gen_op_st_v(s, ot, cpu_T0, cpu_A0);
+                } else {
+                    gen_op_mov_reg_v(ot, rm, cpu_T0);
+                }
             }
             break;
         case 3: /* neg */
