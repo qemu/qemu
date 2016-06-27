@@ -129,7 +129,6 @@ typedef struct FlashPartInfo {
 #define EVCFG_QUAD_IO_ENABLED (1 << 7)
 #define NVCFG_4BYTE_ADDR_MASK (1 << 0)
 #define NVCFG_LOWER_SEGMENT_MASK (1 << 1)
-#define CFG_UPPER_128MB_SEG_ENABLED 0x3
 
 /* Numonyx (Micron) Flag Status Register macros */
 #define FSR_4BYTE_ADDR_MODE_ENABLED 0x1
@@ -545,7 +544,7 @@ static void complete_collecting_data(Flash *s)
     }
 
     if (get_addr_length(s) == 3) {
-        s->cur_addr += (s->ear & 0x3) * MAX_3BYTES_SIZE;
+        s->cur_addr += s->ear * MAX_3BYTES_SIZE;
     }
 
     s->state = STATE_IDLE;
@@ -644,7 +643,7 @@ static void reset_memory(Flash *s)
             s->four_bytes_address_mode = true;
         }
         if (!(s->nonvolatile_cfg & NVCFG_LOWER_SEGMENT_MASK)) {
-            s->ear = CFG_UPPER_128MB_SEG_ENABLED;
+            s->ear = s->size / MAX_3BYTES_SIZE - 1;
         }
         break;
     default:
