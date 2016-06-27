@@ -11407,6 +11407,13 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
                 env->spr[SPR_SPRG4], env->spr[SPR_SPRG5],
                 env->spr[SPR_SPRG6], env->spr[SPR_SPRG7]);
 
+#if defined(TARGET_PPC64)
+    if (env->excp_model == POWERPC_EXCP_POWER7 ||
+        env->excp_model == POWERPC_EXCP_POWER8) {
+        cpu_fprintf(f, "HSRR0 " TARGET_FMT_lx " HSRR1 " TARGET_FMT_lx "\n",
+                    env->spr[SPR_HSRR0], env->spr[SPR_HSRR1]);
+    }
+#endif
     if (env->excp_model == POWERPC_EXCP_BOOKE) {
         cpu_fprintf(f, "CSRR0 " TARGET_FMT_lx " CSRR1 " TARGET_FMT_lx
                        " MCSRR0 " TARGET_FMT_lx " MCSRR1 " TARGET_FMT_lx "\n",
