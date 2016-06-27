@@ -199,6 +199,8 @@ static const FlashPartInfo known_devices[] = {
     { INFO("mx25l12855e", 0xc22618,      0,  64 << 10, 256, 0) },
     { INFO("mx25l25635e", 0xc22019,      0,  64 << 10, 512, 0) },
     { INFO("mx25l25655e", 0xc22619,      0,  64 << 10, 512, 0) },
+    { INFO("mx66u51235f", 0xc2253a,      0,  64 << 10, 1024, ER_4K | ER_32K) },
+    { INFO("mx66u1g45g",  0xc2253b,      0,  64 << 10, 2048, ER_4K | ER_32K) },
 
     /* Micron */
     { INFO("n25q032a11",  0x20bb16,      0,  64 << 10,  64, ER_4K) },
@@ -209,6 +211,11 @@ static const FlashPartInfo known_devices[] = {
     { INFO("n25q128a13",  0x20ba18,      0,  64 << 10, 256, ER_4K) },
     { INFO("n25q256a11",  0x20bb19,      0,  64 << 10, 512, ER_4K) },
     { INFO("n25q256a13",  0x20ba19,      0,  64 << 10, 512, ER_4K) },
+    { INFO("n25q128",     0x20ba18,      0,  64 << 10, 256, 0) },
+    { INFO("n25q256a",    0x20ba19,      0,  64 << 10, 512, ER_4K) },
+    { INFO("n25q512a",    0x20ba20,      0,  64 << 10, 1024, ER_4K) },
+    { INFO("mt25ql01g",   0x20ba21,      0,  64 << 10, 2048, ER_4K) },
+    { INFO("mt25qu01g",   0x20bb21,      0,  64 << 10, 2048, ER_4K) },
 
     /* Spansion -- single (large) sector size only, at least
      * for the chips listed here (without boot sectors).
@@ -217,8 +224,8 @@ static const FlashPartInfo known_devices[] = {
     { INFO("s25sl064p",   0x010216, 0x4d00,  64 << 10, 128, ER_4K) },
     { INFO("s25fl256s0",  0x010219, 0x4d00, 256 << 10, 128, 0) },
     { INFO("s25fl256s1",  0x010219, 0x4d01,  64 << 10, 512, 0) },
-    { INFO("s25fl512s",   0x010220, 0x4d00, 256 << 10, 256, 0) },
-    { INFO("s70fl01gs",   0x010221, 0x4d00, 256 << 10, 256, 0) },
+    { INFO6("s25fl512s",  0x010220, 0x4d0080, 256 << 10, 256, 0) },
+    { INFO6("s70fl01gs",  0x010221, 0x4d0080, 256 << 10, 512, 0) },
     { INFO("s25sl12800",  0x012018, 0x0300, 256 << 10,  64, 0) },
     { INFO("s25sl12801",  0x012018, 0x0301,  64 << 10, 256, 0) },
     { INFO("s25fl129p0",  0x012018, 0x4d00, 256 << 10,  64, 0) },
@@ -230,6 +237,10 @@ static const FlashPartInfo known_devices[] = {
     { INFO("s25sl064a",   0x010216,      0,  64 << 10, 128, 0) },
     { INFO("s25fl016k",   0xef4015,      0,  64 << 10,  32, ER_4K | ER_32K) },
     { INFO("s25fl064k",   0xef4017,      0,  64 << 10, 128, ER_4K | ER_32K) },
+
+    /* Spansion --  boot sectors support  */
+    { INFO6("s25fs512s",    0x010220, 0x4d0081, 256 << 10, 256, 0) },
+    { INFO6("s70fs01gs",    0x010221, 0x4d0081, 256 << 10, 512, 0) },
 
     /* SST -- large erase sizes are "overlays", "sectors" are 4<< 10 */
     { INFO("sst25vf040b", 0xbf258d,      0,  64 << 10,   8, ER_4K) },
@@ -281,10 +292,6 @@ static const FlashPartInfo known_devices[] = {
     { INFO("w25q80",      0xef5014,      0,  64 << 10,  16, ER_4K) },
     { INFO("w25q80bl",    0xef4014,      0,  64 << 10,  16, ER_4K) },
     { INFO("w25q256",     0xef4019,      0,  64 << 10, 512, ER_4K) },
-
-    { INFO("n25q128",      0x20ba18,      0,  64 << 10, 256, 0) },
-    { INFO("n25q256a",     0x20ba19,      0,  64 << 10, 512, ER_4K) },
-    { INFO("n25q512a",     0x20ba20,      0,  64 << 10, 1024, ER_4K) },
 };
 
 typedef enum {
