@@ -309,10 +309,9 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
     }
 
 err:
-    while (i >= 0) {
+    while (--i >= 0) {
         obj = sc->threads + i * size;
         object_unparent(obj);
-        i--;
     }
     g_free(sc->threads);
     error_propagate(errp, local_err);
