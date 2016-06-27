@@ -1436,8 +1436,9 @@ static void vnc_jobs_bh(void *opaque)
  * First function called whenever there is more data to be read from
  * the client socket. Will delegate actual work according to whether
  * SASL SSF layers are enabled (thus requiring decryption calls)
+ * Returns 0 on success, -1 if client disconnected
  */
-static void vnc_client_read(VncState *vs)
+static int vnc_client_read(VncState *vs)
 {
     ssize_t ret;
 
@@ -1450,8 +1451,9 @@ static void vnc_client_read(VncState *vs)
     if (!ret) {
         if (vs->disconnecting) {
             vnc_disconnect_finish(vs);
+            return -1;
         }
-        return;
+        return 0;
     }
 
     while (vs->read_handler && vs->input.offset >= vs->read_handler_expect) {
@@ -1461,7 +1463,7 @@ static void vnc_client_read(VncState *vs)
         ret = vs->read_handler(vs, vs->input.buffer, len);
         if (vs->disconnecting) {
             vnc_disconnect_finish(vs);
-            return;
+            return -1;
         }
 
         if (!ret) {
@@ -1470,6 +1472,7 @@ static void vnc_client_read(VncState *vs)
             vs->read_handler_expect = ret;
         }
     }
+    return 0;
 }
 
 gboolean vnc_client_io(QIOChannel *ioc G_GNUC_UNUSED,
@@ -1477,7 +1480,9 @@ gboolean vnc_client_io(QIOChannel *ioc G_GNUC_UNUSED,
 {
     VncState *vs = opaque;
     if (condition & G_IO_IN) {
-        vnc_client_read(vs);
+        if (vnc_client_read(vs) < 0) {
+            return TRUE;
+        }
     }
     if (condition & G_IO_OUT) {
         vnc_client_write(vs);
