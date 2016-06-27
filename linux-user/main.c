@@ -553,94 +553,6 @@ do_kernel_trap(CPUARMState *env)
     return 0;
 }
 
-/* Store exclusive handling for AArch32 */
-static int do_strex(CPUARMState *env)
-{
-    uint64_t val;
-    int size;
-    int rc = 1;
-    int segv = 0;
-    uint32_t addr;
-    start_exclusive();
-    if (env->exclusive_addr != env->exclusive_test) {
-        goto fail;
-    }
-    /* We know we're always AArch32 so the address is in uint32_t range
-     * unless it was the -1 exclusive-monitor-lost value (which won't
-     * match exclusive_test above).
-     */
-    assert(extract64(env->exclusive_addr, 32, 32) == 0);
-    addr = env->exclusive_addr;
-    size = env->exclusive_info & 0xf;
-    switch (size) {
-    case 0:
-        segv = get_user_u8(val, addr);
-        break;
-    case 1:
-        segv = get_user_data_u16(val, addr, env);
-        break;
-    case 2:
-    case 3:
-        segv = get_user_data_u32(val, addr, env);
-        break;
-    default:
-        abort();
-    }
-    if (segv) {
-        env->exception.vaddress = addr;
-        goto done;
-    }
-    if (size == 3) {
-        uint32_t valhi;
-        segv = get_user_data_u32(valhi, addr + 4, env);
-        if (segv) {
-            env->exception.vaddress = addr + 4;
-            goto done;
-        }
-        if (arm_cpu_bswap_data(env)) {
-            val = deposit64((uint64_t)valhi, 32, 32, val);
-        } else {
-            val = deposit64(val, 32, 32, valhi);
-        }
-    }
-    if (val != env->exclusive_val) {
-        goto fail;
-    }
-
-    val = env->regs[(env->exclusive_info >> 8) & 0xf];
-    switch (size) {
-    case 0:
-        segv = put_user_u8(val, addr);
-        break;
-    case 1:
-        segv = put_user_data_u16(val, addr, env);
-        break;
-    case 2:
-    case 3:
-        segv = put_user_data_u32(val, addr, env);
-        break;
-    }
-    if (segv) {
-        env->exception.vaddress = addr;
-        goto done;
-    }
-    if (size == 3) {
-        val = env->regs[(env->exclusive_info >> 12) & 0xf];
-        segv = put_user_data_u32(val, addr + 4, env);
-        if (segv) {
-            env->exception.vaddress = addr + 4;
-            goto done;
-        }
-    }
-    rc = 0;
-fail:
-    env->regs[15] += 4;
-    env->regs[(env->exclusive_info >> 4) & 0xf] = rc;
-done:
-    end_exclusive();
-    return segv;
-}
-
 void cpu_loop(CPUARMState *env)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
@@ -815,11 +727,6 @@ void cpu_loop(CPUARMState *env)
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */
             break;
-        case EXCP_STREX:
-            if (!do_strex(env)) {
-                break;
-            }
-            /* fall through for segv */
         case EXCP_PREFETCH_ABORT:
         case EXCP_DATA_ABORT:
             addr = env->exception.vaddress;
