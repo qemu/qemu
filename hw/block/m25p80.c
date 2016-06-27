@@ -134,6 +134,14 @@ typedef struct FlashPartInfo {
 #define FSR_4BYTE_ADDR_MODE_ENABLED 0x1
 #define FSR_FLASH_READY (1 << 7)
 
+/* Spansion configuration registers macros. */
+#define SPANSION_QUAD_CFG_POS 0
+#define SPANSION_QUAD_CFG_LEN 1
+#define SPANSION_DUMMY_CLK_POS 0
+#define SPANSION_DUMMY_CLK_LEN 4
+#define SPANSION_ADDR_LEN_POS 7
+#define SPANSION_ADDR_LEN_LEN 1
+
 static const FlashPartInfo known_devices[] = {
     /* Atmel -- some are (confusingly) marketed as "DataFlash" */
     { INFO("at25fs010",   0x1f6601,      0,  32 << 10,   4, ER_4K) },
@@ -369,8 +377,18 @@ typedef struct Flash {
     uint8_t cmd_in_progress;
     uint64_t cur_addr;
     uint32_t nonvolatile_cfg;
+    /* Configuration register for Macronix */
     uint32_t volatile_cfg;
     uint32_t enh_volatile_cfg;
+    /* Spansion cfg registers. */
+    uint8_t spansion_cr1nv;
+    uint8_t spansion_cr2nv;
+    uint8_t spansion_cr3nv;
+    uint8_t spansion_cr4nv;
+    uint8_t spansion_cr1v;
+    uint8_t spansion_cr2v;
+    uint8_t spansion_cr3v;
+    uint8_t spansion_cr4v;
     bool write_enable;
     bool four_bytes_address_mode;
     bool reset_enable;
@@ -601,6 +619,9 @@ static void complete_collecting_data(Flash *s)
             break;
         case MAN_MACRONIX:
             s->quad_enable = extract32(s->data[0], 6, 1);
+            if (s->len > 1) {
+                s->four_bytes_address_mode = extract32(s->data[1], 5, 1);
+            }
             break;
         default:
             break;
@@ -673,6 +694,23 @@ static void reset_memory(Flash *s)
         if (!(s->nonvolatile_cfg & NVCFG_LOWER_SEGMENT_MASK)) {
             s->ear = s->size / MAX_3BYTES_SIZE - 1;
         }
+        break;
+    case MAN_MACRONIX:
+        s->volatile_cfg = 0x7;
+        break;
+    case MAN_SPANSION:
+        s->spansion_cr1v = s->spansion_cr1nv;
+        s->spansion_cr2v = s->spansion_cr2nv;
+        s->spansion_cr3v = s->spansion_cr3nv;
+        s->spansion_cr4v = s->spansion_cr4nv;
+        s->quad_enable = extract32(s->spansion_cr1v,
+                                   SPANSION_QUAD_CFG_POS,
+                                   SPANSION_QUAD_CFG_LEN
+                                   );
+        s->four_bytes_address_mode = extract32(s->spansion_cr2v,
+                SPANSION_ADDR_LEN_POS,
+                SPANSION_ADDR_LEN_LEN
+                );
         break;
     default:
         break;
@@ -1052,7 +1090,12 @@ static void m25p80_pre_save(void *opaque)
 }
 
 static Property m25p80_properties[] = {
+    /* This is default value for Micron flash */
     DEFINE_PROP_UINT32("nonvolatile-cfg", Flash, nonvolatile_cfg, 0x8FFF),
+    DEFINE_PROP_UINT8("spansion-cr1nv", Flash, spansion_cr1nv, 0x0),
+    DEFINE_PROP_UINT8("spansion-cr2nv", Flash, spansion_cr2nv, 0x8),
+    DEFINE_PROP_UINT8("spansion-cr3nv", Flash, spansion_cr3nv, 0x2),
+    DEFINE_PROP_UINT8("spansion-cr4nv", Flash, spansion_cr4nv, 0x10),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1077,6 +1120,10 @@ static const VMStateDescription vmstate_m25p80 = {
         VMSTATE_UINT32_V(volatile_cfg, Flash, 2),
         VMSTATE_UINT32_V(enh_volatile_cfg, Flash, 2),
         VMSTATE_BOOL_V(quad_enable, Flash, 3),
+        VMSTATE_UINT8_V(spansion_cr1nv, Flash, 3),
+        VMSTATE_UINT8_V(spansion_cr2nv, Flash, 3),
+        VMSTATE_UINT8_V(spansion_cr3nv, Flash, 3),
+        VMSTATE_UINT8_V(spansion_cr4nv, Flash, 3),
         VMSTATE_END_OF_LIST()
     }
 };
