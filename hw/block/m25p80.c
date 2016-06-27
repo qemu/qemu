@@ -738,6 +738,9 @@ static void decode_fast_read_cmd(Flash *s)
     s->needed_bytes = get_addr_length(s);
     switch (get_man(s)) {
     /* Dummy cycles - modeled with bytes writes instead of bits */
+    case MAN_WINBOND:
+        s->needed_bytes += 8;
+        break;
     case MAN_NUMONYX:
         s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
         break;
@@ -768,7 +771,7 @@ static void decode_dio_read_cmd(Flash *s)
     /* Dummy cycles modeled with bytes writes instead of bits */
     switch (get_man(s)) {
     case MAN_WINBOND:
-        s->needed_bytes = 4;
+        s->needed_bytes += 8;
         break;
     case MAN_SPANSION:
         s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
@@ -807,7 +810,7 @@ static void decode_qio_read_cmd(Flash *s)
     /* Dummy cycles modeled with bytes writes instead of bits */
     switch (get_man(s)) {
     case MAN_WINBOND:
-        s->needed_bytes = 6;
+        s->needed_bytes += 8;
         break;
     case MAN_SPANSION:
         s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
