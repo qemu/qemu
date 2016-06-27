@@ -149,6 +149,8 @@ static void pxb_host_class_init(ObjectClass *class, void *data)
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(class);
 
     dc->fw_name = "pci";
+    /* Reason: Internal part of the pxb/pxb-pcie device, not usable by itself */
+    dc->cannot_instantiate_with_device_add_yet = true;
     sbc->explicit_ofw_unit_address = pxb_host_ofw_unit_address;
     hc->root_bus_path = pxb_host_root_bus_path;
 }
