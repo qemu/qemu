@@ -297,12 +297,14 @@ typedef enum {
 
     PP = 0x02,
     PP4 = 0x12,
+    PP4_4 = 0x3e,
     DPP = 0xa2,
     QPP = 0x32,
 
     ERASE_4K = 0x20,
     ERASE4_4K = 0x21,
     ERASE_32K = 0x52,
+    ERASE4_32K = 0x5c,
     ERASE_SECTOR = 0xd8,
     ERASE4_SECTOR = 0xdc,
 
@@ -449,6 +451,7 @@ static void flash_erase(Flash *s, int offset, FlashCMD cmd)
         capa_to_assert = ER_4K;
         break;
     case ERASE_32K:
+    case ERASE4_32K:
         len = 32 << 10;
         capa_to_assert = ER_32K;
         break;
@@ -519,9 +522,11 @@ static inline int get_addr_length(Flash *s)
 
    switch (s->cmd_in_progress) {
    case PP4:
+   case PP4_4:
    case READ4:
    case QIOR4:
    case ERASE4_4K:
+   case ERASE4_32K:
    case ERASE4_SECTOR:
    case FAST_READ4:
    case DOR4:
@@ -555,6 +560,7 @@ static void complete_collecting_data(Flash *s)
     case QPP:
     case PP:
     case PP4:
+    case PP4_4:
         s->state = STATE_PAGE_PROGRAM;
         break;
     case READ:
@@ -574,6 +580,7 @@ static void complete_collecting_data(Flash *s)
     case ERASE_4K:
     case ERASE4_4K:
     case ERASE_32K:
+    case ERASE4_32K:
     case ERASE_SECTOR:
     case ERASE4_SECTOR:
         flash_erase(s, s->cur_addr, s->cmd_in_progress);
@@ -669,6 +676,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case ERASE_4K:
     case ERASE4_4K:
     case ERASE_32K:
+    case ERASE4_32K:
     case ERASE_SECTOR:
     case ERASE4_SECTOR:
     case READ:
@@ -677,6 +685,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case QPP:
     case PP:
     case PP4:
+    case PP4_4:
         s->needed_bytes = get_addr_length(s);
         s->pos = 0;
         s->len = 0;
