@@ -267,7 +267,7 @@ uint64_t HELPER(ldeb)(CPUS390XState *env, uint64_t f2)
 {
     float64 ret = float32_to_float64(f2, &env->fpu_status);
     handle_exceptions(env, GETPC());
-    return float64_maybe_silence_nan(ret);
+    return float64_maybe_silence_nan(ret, &env->fpu_status);
 }
 
 /* convert 128-bit float to 64-bit float */
@@ -275,7 +275,7 @@ uint64_t HELPER(ldxb)(CPUS390XState *env, uint64_t ah, uint64_t al)
 {
     float64 ret = float128_to_float64(make_float128(ah, al), &env->fpu_status);
     handle_exceptions(env, GETPC());
-    return float64_maybe_silence_nan(ret);
+    return float64_maybe_silence_nan(ret, &env->fpu_status);
 }
 
 /* convert 64-bit float to 128-bit float */
@@ -283,7 +283,7 @@ uint64_t HELPER(lxdb)(CPUS390XState *env, uint64_t f2)
 {
     float128 ret = float64_to_float128(f2, &env->fpu_status);
     handle_exceptions(env, GETPC());
-    return RET128(float128_maybe_silence_nan(ret));
+    return RET128(float128_maybe_silence_nan(ret, &env->fpu_status));
 }
 
 /* convert 32-bit float to 128-bit float */
@@ -291,7 +291,7 @@ uint64_t HELPER(lxeb)(CPUS390XState *env, uint64_t f2)
 {
     float128 ret = float32_to_float128(f2, &env->fpu_status);
     handle_exceptions(env, GETPC());
-    return RET128(float128_maybe_silence_nan(ret));
+    return RET128(float128_maybe_silence_nan(ret, &env->fpu_status));
 }
 
 /* convert 64-bit float to 32-bit float */
@@ -299,7 +299,7 @@ uint64_t HELPER(ledb)(CPUS390XState *env, uint64_t f2)
 {
     float32 ret = float64_to_float32(f2, &env->fpu_status);
     handle_exceptions(env, GETPC());
-    return float32_maybe_silence_nan(ret);
+    return float32_maybe_silence_nan(ret, &env->fpu_status);
 }
 
 /* convert 128-bit float to 32-bit float */
@@ -307,7 +307,7 @@ uint64_t HELPER(lexb)(CPUS390XState *env, uint64_t ah, uint64_t al)
 {
     float32 ret = float128_to_float32(make_float128(ah, al), &env->fpu_status);
     handle_exceptions(env, GETPC());
-    return float32_maybe_silence_nan(ret);
+    return float32_maybe_silence_nan(ret, &env->fpu_status);
 }
 
 /* 32-bit FP compare */
@@ -624,7 +624,7 @@ uint64_t HELPER(msdb)(CPUS390XState *env, uint64_t f1,
 }
 
 /* test data class 32-bit */
-uint32_t HELPER(tceb)(uint64_t f1, uint64_t m2)
+uint32_t HELPER(tceb)(CPUS390XState *env, uint64_t f1, uint64_t m2)
 {
     float32 v1 = f1;
     int neg = float32_is_neg(v1);
@@ -633,7 +633,8 @@ uint32_t HELPER(tceb)(uint64_t f1, uint64_t m2)
     if ((float32_is_zero(v1) && (m2 & (1 << (11-neg)))) ||
         (float32_is_infinity(v1) && (m2 & (1 << (5-neg)))) ||
         (float32_is_any_nan(v1) && (m2 & (1 << (3-neg)))) ||
-        (float32_is_signaling_nan(v1) && (m2 & (1 << (1-neg))))) {
+        (float32_is_signaling_nan(v1, &env->fpu_status) &&
+         (m2 & (1 << (1-neg))))) {
         cc = 1;
     } else if (m2 & (1 << (9-neg))) {
         /* assume normalized number */
@@ -644,7 +645,7 @@ uint32_t HELPER(tceb)(uint64_t f1, uint64_t m2)
 }
 
 /* test data class 64-bit */
-uint32_t HELPER(tcdb)(uint64_t v1, uint64_t m2)
+uint32_t HELPER(tcdb)(CPUS390XState *env, uint64_t v1, uint64_t m2)
 {
     int neg = float64_is_neg(v1);
     uint32_t cc = 0;
@@ -652,7 +653,8 @@ uint32_t HELPER(tcdb)(uint64_t v1, uint64_t m2)
     if ((float64_is_zero(v1) && (m2 & (1 << (11-neg)))) ||
         (float64_is_infinity(v1) && (m2 & (1 << (5-neg)))) ||
         (float64_is_any_nan(v1) && (m2 & (1 << (3-neg)))) ||
-        (float64_is_signaling_nan(v1) && (m2 & (1 << (1-neg))))) {
+        (float64_is_signaling_nan(v1, &env->fpu_status) &&
+         (m2 & (1 << (1-neg))))) {
         cc = 1;
     } else if (m2 & (1 << (9-neg))) {
         /* assume normalized number */
@@ -663,7 +665,8 @@ uint32_t HELPER(tcdb)(uint64_t v1, uint64_t m2)
 }
 
 /* test data class 128-bit */
-uint32_t HELPER(tcxb)(uint64_t ah, uint64_t al, uint64_t m2)
+uint32_t HELPER(tcxb)(CPUS390XState *env, uint64_t ah,
+                      uint64_t al, uint64_t m2)
 {
     float128 v1 = make_float128(ah, al);
     int neg = float128_is_neg(v1);
@@ -672,7 +675,8 @@ uint32_t HELPER(tcxb)(uint64_t ah, uint64_t al, uint64_t m2)
     if ((float128_is_zero(v1) && (m2 & (1 << (11-neg)))) ||
         (float128_is_infinity(v1) && (m2 & (1 << (5-neg)))) ||
         (float128_is_any_nan(v1) && (m2 & (1 << (3-neg)))) ||
-        (float128_is_signaling_nan(v1) && (m2 & (1 << (1-neg))))) {
+        (float128_is_signaling_nan(v1, &env->fpu_status) &&
+         (m2 & (1 << (1-neg))))) {
         cc = 1;
     } else if (m2 & (1 << (9-neg))) {
         /* assume normalized number */

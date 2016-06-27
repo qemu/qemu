@@ -53,6 +53,8 @@ typedef int64_t  Elf64_Sxword;
 #define EF_MIPS_OPTIONS_FIRST	0x00000080
 #define EF_MIPS_32BITMODE	0x00000100
 #define EF_MIPS_ABI		0x0000f000
+#define EF_MIPS_FP64      0x00000200
+#define EF_MIPS_NAN2008   0x00000400
 #define EF_MIPS_ARCH      0xf0000000
 
 /* These constants define the different elf file types */

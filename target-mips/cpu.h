@@ -111,7 +111,9 @@ struct CPUMIPSFPUContext {
 #define FCR0_PRID 8
 #define FCR0_REV 0
     /* fcsr */
+    uint32_t fcr31_rw_bitmask;
     uint32_t fcr31;
+#define FCR31_FS 24
 #define FCR31_ABS2008 19
 #define FCR31_NAN2008 18
 #define SET_FP_COND(num,env)     do { ((env).fcr31) |= ((num) ? (1 << ((num) + 24)) : (1 << 23)); } while(0)
@@ -825,6 +827,11 @@ void cpu_mips_soft_irq(CPUMIPSState *env, int irq, int level);
 /* helper.c */
 int mips_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
                               int mmu_idx);
+
+/* op_helper.c */
+uint32_t float_class_s(uint32_t arg, float_status *fst);
+uint64_t float_class_d(uint64_t arg, float_status *fst);
+
 #if !defined(CONFIG_USER_ONLY)
 void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra);
 hwaddr cpu_mips_translate_address (CPUMIPSState *env, target_ulong address,
@@ -844,14 +851,21 @@ static inline void restore_rounding_mode(CPUMIPSState *env)
 
 static inline void restore_flush_mode(CPUMIPSState *env)
 {
-    set_flush_to_zero((env->active_fpu.fcr31 & (1 << 24)) != 0,
+    set_flush_to_zero((env->active_fpu.fcr31 & (1 << FCR31_FS)) != 0,
                       &env->active_fpu.fp_status);
+}
+
+static inline void restore_snan_bit_mode(CPUMIPSState *env)
+{
+    set_snan_bit_is_one((env->active_fpu.fcr31 & (1 << FCR31_NAN2008)) == 0,
+                        &env->active_fpu.fp_status);
 }
 
 static inline void restore_fp_status(CPUMIPSState *env)
 {
     restore_rounding_mode(env);
     restore_flush_mode(env);
+    restore_snan_bit_mode(env);
 }
 
 static inline void restore_msa_fp_status(CPUMIPSState *env)
