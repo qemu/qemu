@@ -142,6 +142,13 @@ typedef struct FlashPartInfo {
 #define SPANSION_ADDR_LEN_POS 7
 #define SPANSION_ADDR_LEN_LEN 1
 
+/*
+ * Spansion read mode command length in bytes,
+ * the mode is currently not supported.
+*/
+
+#define SPANSION_CONTINUOUS_READ_MODE_CMD_LEN 1
+
 static const FlashPartInfo known_devices[] = {
     /* Atmel -- some are (confusingly) marketed as "DataFlash" */
     { INFO("at25fs010",   0x1f6601,      0,  32 << 10,   4, ER_4K) },
@@ -719,6 +726,113 @@ static void reset_memory(Flash *s)
     DB_PRINT_L(0, "Reset done.\n");
 }
 
+static void decode_fast_read_cmd(Flash *s)
+{
+    s->needed_bytes = get_addr_length(s);
+    switch (get_man(s)) {
+    /* Dummy cycles - modeled with bytes writes instead of bits */
+    case MAN_NUMONYX:
+        s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+        break;
+    case MAN_MACRONIX:
+        if (extract32(s->volatile_cfg, 6, 2) == 1) {
+            s->needed_bytes += 6;
+        } else {
+            s->needed_bytes += 8;
+        }
+        break;
+    case MAN_SPANSION:
+        s->needed_bytes += extract32(s->spansion_cr2v,
+                                    SPANSION_DUMMY_CLK_POS,
+                                    SPANSION_DUMMY_CLK_LEN
+                                    );
+        break;
+    default:
+        break;
+    }
+    s->pos = 0;
+    s->len = 0;
+    s->state = STATE_COLLECTING_DATA;
+}
+
+static void decode_dio_read_cmd(Flash *s)
+{
+    s->needed_bytes = get_addr_length(s);
+    /* Dummy cycles modeled with bytes writes instead of bits */
+    switch (get_man(s)) {
+    case MAN_WINBOND:
+        s->needed_bytes = 4;
+        break;
+    case MAN_SPANSION:
+        s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
+        s->needed_bytes += extract32(s->spansion_cr2v,
+                                    SPANSION_DUMMY_CLK_POS,
+                                    SPANSION_DUMMY_CLK_LEN
+                                    );
+        break;
+    case MAN_NUMONYX:
+        s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+        break;
+    case MAN_MACRONIX:
+        switch (extract32(s->volatile_cfg, 6, 2)) {
+        case 1:
+            s->needed_bytes += 6;
+            break;
+        case 2:
+            s->needed_bytes += 8;
+            break;
+        default:
+            s->needed_bytes += 4;
+            break;
+        }
+        break;
+    default:
+        break;
+    }
+    s->pos = 0;
+    s->len = 0;
+    s->state = STATE_COLLECTING_DATA;
+}
+
+static void decode_qio_read_cmd(Flash *s)
+{
+    s->needed_bytes = get_addr_length(s);
+    /* Dummy cycles modeled with bytes writes instead of bits */
+    switch (get_man(s)) {
+    case MAN_WINBOND:
+        s->needed_bytes = 6;
+        break;
+    case MAN_SPANSION:
+        s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
+        s->needed_bytes += extract32(s->spansion_cr2v,
+                                    SPANSION_DUMMY_CLK_POS,
+                                    SPANSION_DUMMY_CLK_LEN
+                                    );
+        break;
+    case MAN_NUMONYX:
+        s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+        break;
+    case MAN_MACRONIX:
+        switch (extract32(s->volatile_cfg, 6, 2)) {
+        case 1:
+            s->needed_bytes += 4;
+            break;
+        case 2:
+            s->needed_bytes += 8;
+            break;
+        default:
+            s->needed_bytes += 6;
+            break;
+        }
+        break;
+    default:
+        break;
+    }
+    s->pos = 0;
+    s->len = 0;
+    s->state = STATE_COLLECTING_DATA;
+}
+
 static void decode_new_cmd(Flash *s, uint32_t value)
 {
     s->cmd_in_progress = value;
@@ -756,51 +870,17 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case DOR4:
     case QOR:
     case QOR4:
-        s->needed_bytes = get_addr_length(s);
-        switch (get_man(s)) {
-        case MAN_NUMONYX:
-            s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
-            break;
-        default:
-            break;
-        }
-        s->pos = 0;
-        s->len = 0;
-        s->state = STATE_COLLECTING_DATA;
+        decode_fast_read_cmd(s);
         break;
 
     case DIOR:
     case DIOR4:
-        switch (get_man(s)) {
-        case MAN_WINBOND:
-        case MAN_SPANSION:
-            s->needed_bytes = 4;
-            break;
-        default:
-            s->needed_bytes = get_addr_length(s);
-            /* Dummy cycles modeled with bytes writes instead of bits */
-            s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
-        }
-        s->pos = 0;
-        s->len = 0;
-        s->state = STATE_COLLECTING_DATA;
+        decode_dio_read_cmd(s);
         break;
 
     case QIOR:
     case QIOR4:
-        switch (get_man(s)) {
-        case MAN_WINBOND:
-        case MAN_SPANSION:
-            s->needed_bytes = 6;
-            break;
-        default:
-            s->needed_bytes = get_addr_length(s);
-            /* Dummy cycles modeled with bytes writes instead of bits */
-            s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
-        }
-        s->pos = 0;
-        s->len = 0;
-        s->state = STATE_COLLECTING_DATA;
+        decode_qio_read_cmd(s);
         break;
 
     case WRSR:
