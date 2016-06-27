@@ -2013,7 +2013,7 @@ void r4k_helper_tlbinv(CPUMIPSState *env)
 {
     int idx;
     r4k_tlb_t *tlb;
-    uint8_t ASID = env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask;
+    uint16_t ASID = env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask;
 
     for (idx = 0; idx < env->tlb->nb_tlb; idx++) {
         tlb = &env->tlb->mmu.r4k.tlb[idx];
@@ -2039,7 +2039,7 @@ void r4k_helper_tlbwi(CPUMIPSState *env)
     r4k_tlb_t *tlb;
     int idx;
     target_ulong VPN;
-    uint8_t ASID;
+    uint16_t ASID;
     bool G, V0, D0, V1, D1;
 
     idx = (env->CP0_Index & ~0x80000000) % env->tlb->nb_tlb;
@@ -2081,7 +2081,7 @@ void r4k_helper_tlbp(CPUMIPSState *env)
     target_ulong mask;
     target_ulong tag;
     target_ulong VPN;
-    uint8_t ASID;
+    uint16_t ASID;
     int i;
 
     ASID = env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask;
@@ -2136,7 +2136,7 @@ static inline uint64_t get_entrylo_pfn_from_tlb(uint64_t tlb_pfn)
 void r4k_helper_tlbr(CPUMIPSState *env)
 {
     r4k_tlb_t *tlb;
-    uint8_t ASID;
+    uint16_t ASID;
     int idx;
 
     ASID = env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask;

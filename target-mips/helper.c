@@ -67,7 +67,7 @@ int fixed_mmu_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
 int r4k_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
                      target_ulong address, int rw, int access_type)
 {
-    uint8_t ASID = env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask;
+    uint16_t ASID = env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask;
     int i;
 
     for (i = 0; i < env->tlb->tlb_in_use; i++) {
@@ -898,7 +898,7 @@ void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra)
     r4k_tlb_t *tlb;
     target_ulong addr;
     target_ulong end;
-    uint8_t ASID = env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask;
+    uint16_t ASID = env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask;
     target_ulong mask;
 
     tlb = &env->tlb->mmu.r4k.tlb[idx];
