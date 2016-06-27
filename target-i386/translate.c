@@ -6655,7 +6655,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         if (mod != 3) {
             s->rip_offset = 1;
             gen_lea_modrm(env, s, modrm);
-            gen_op_ld_v(s, ot, cpu_T0, cpu_A0);
+            if (!(s->prefix & PREFIX_LOCK)) {
+                gen_op_ld_v(s, ot, cpu_T0, cpu_A0);
+            }
         } else {
             gen_op_mov_v_reg(ot, cpu_T0, rm);
         }
@@ -6685,44 +6687,69 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         rm = (modrm & 7) | REX_B(s);
         gen_op_mov_v_reg(MO_32, cpu_T1, reg);
         if (mod != 3) {
-            gen_lea_modrm(env, s, modrm);
+            AddressParts a = gen_lea_modrm_0(env, s, modrm);
             /* specific case: we need to add a displacement */
             gen_exts(ot, cpu_T1);
             tcg_gen_sari_tl(cpu_tmp0, cpu_T1, 3 + ot);
             tcg_gen_shli_tl(cpu_tmp0, cpu_tmp0, ot);
-            tcg_gen_add_tl(cpu_A0, cpu_A0, cpu_tmp0);
-            gen_op_ld_v(s, ot, cpu_T0, cpu_A0);
+            tcg_gen_add_tl(cpu_A0, gen_lea_modrm_1(a), cpu_tmp0);
+            gen_lea_v_seg(s, s->aflag, cpu_A0, a.def_seg, s->override);
+            if (!(s->prefix & PREFIX_LOCK)) {
+                gen_op_ld_v(s, ot, cpu_T0, cpu_A0);
+            }
         } else {
             gen_op_mov_v_reg(ot, cpu_T0, rm);
         }
     bt_op:
         tcg_gen_andi_tl(cpu_T1, cpu_T1, (1 << (3 + ot)) - 1);
-        tcg_gen_shr_tl(cpu_tmp4, cpu_T0, cpu_T1);
-        switch(op) {
-        case 0:
-            break;
-        case 1:
-            tcg_gen_movi_tl(cpu_tmp0, 1);
-            tcg_gen_shl_tl(cpu_tmp0, cpu_tmp0, cpu_T1);
-            tcg_gen_or_tl(cpu_T0, cpu_T0, cpu_tmp0);
-            break;
-        case 2:
-            tcg_gen_movi_tl(cpu_tmp0, 1);
-            tcg_gen_shl_tl(cpu_tmp0, cpu_tmp0, cpu_T1);
-            tcg_gen_andc_tl(cpu_T0, cpu_T0, cpu_tmp0);
-            break;
-        default:
-        case 3:
-            tcg_gen_movi_tl(cpu_tmp0, 1);
-            tcg_gen_shl_tl(cpu_tmp0, cpu_tmp0, cpu_T1);
-            tcg_gen_xor_tl(cpu_T0, cpu_T0, cpu_tmp0);
-            break;
-        }
-        if (op != 0) {
-            if (mod != 3) {
-                gen_op_st_v(s, ot, cpu_T0, cpu_A0);
-            } else {
-                gen_op_mov_reg_v(ot, rm, cpu_T0);
+        tcg_gen_movi_tl(cpu_tmp0, 1);
+        tcg_gen_shl_tl(cpu_tmp0, cpu_tmp0, cpu_T1);
+        if (s->prefix & PREFIX_LOCK) {
+            switch (op) {
+            case 0: /* bt */
+                /* Needs no atomic ops; we surpressed the normal
+                   memory load for LOCK above so do it now.  */
+                gen_op_ld_v(s, ot, cpu_T0, cpu_A0);
+                break;
+            case 1: /* bts */
+                tcg_gen_atomic_fetch_or_tl(cpu_T0, cpu_A0, cpu_tmp0,
+                                           s->mem_index, ot | MO_LE);
+                break;
+            case 2: /* btr */
+                tcg_gen_not_tl(cpu_tmp0, cpu_tmp0);
+                tcg_gen_atomic_fetch_and_tl(cpu_T0, cpu_A0, cpu_tmp0,
+                                            s->mem_index, ot | MO_LE);
+                break;
+            default:
+            case 3: /* btc */
+                tcg_gen_atomic_fetch_xor_tl(cpu_T0, cpu_A0, cpu_tmp0,
+                                            s->mem_index, ot | MO_LE);
+                break;
+            }
+            tcg_gen_shr_tl(cpu_tmp4, cpu_T0, cpu_T1);
+        } else {
+            tcg_gen_shr_tl(cpu_tmp4, cpu_T0, cpu_T1);
+            switch (op) {
+            case 0: /* bt */
+                /* Data already loaded; nothing to do.  */
+                break;
+            case 1: /* bts */
+                tcg_gen_or_tl(cpu_T0, cpu_T0, cpu_tmp0);
+                break;
+            case 2: /* btr */
+                tcg_gen_andc_tl(cpu_T0, cpu_T0, cpu_tmp0);
+                break;
+            default:
+            case 3: /* btc */
+                tcg_gen_xor_tl(cpu_T0, cpu_T0, cpu_tmp0);
+                break;
+            }
+            if (op != 0) {
+                if (mod != 3) {
+                    gen_op_st_v(s, ot, cpu_T0, cpu_A0);
+                } else {
+                    gen_op_mov_reg_v(ot, rm, cpu_T0);
+                }
             }
         }
 
