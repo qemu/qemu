@@ -447,14 +447,6 @@ static void mch_reset(DeviceState *qdev)
     mch_update(mch);
 }
 
-static void mch_init_dmar(MCHPCIState *mch)
-{
-    mch->iommu = INTEL_IOMMU_DEVICE(qdev_create(NULL, TYPE_INTEL_IOMMU_DEVICE));
-    object_property_add_child(OBJECT(mch), "intel-iommu",
-                              OBJECT(mch->iommu), NULL);
-    qdev_init_nofail(DEVICE(mch->iommu));
-}
-
 static void mch_realize(PCIDevice *d, Error **errp)
 {
     int i;
@@ -512,10 +504,6 @@ static void mch_realize(PCIDevice *d, Error **errp)
         init_pam(DEVICE(mch), mch->ram_memory, mch->system_memory,
                  mch->pci_address_space, &mch->pam_regions[i+1],
                  PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE, PAM_EXPAN_SIZE);
-    }
-    /* Intel IOMMU (VT-d) */
-    if (object_property_get_bool(qdev_get_machine(), "iommu", NULL)) {
-        mch_init_dmar(mch);
     }
 }
 
