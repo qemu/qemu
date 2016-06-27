@@ -164,7 +164,8 @@ static int set_host_notifier_internal(DeviceState *proxy, VirtioBusState *bus,
     if (assign) {
         r = event_notifier_init(notifier, 1);
         if (r < 0) {
-            error_report("%s: unable to init event notifier: %d", __func__, r);
+            error_report("%s: unable to init event notifier: %s (%d)",
+                         __func__, strerror(-r), r);
             return r;
         }
         virtio_queue_set_host_notifier_fd_handler(vq, true, set_handler);
