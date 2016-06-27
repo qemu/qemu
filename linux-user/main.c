@@ -775,124 +775,6 @@ void cpu_loop(CPUARMState *env)
 
 #else
 
-/*
- * Handle AArch64 store-release exclusive
- *
- * rs = gets the status result of store exclusive
- * rt = is the register that is stored
- * rt2 = is the second register store (in STP)
- *
- */
-static int do_strex_a64(CPUARMState *env)
-{
-    uint64_t val;
-    int size;
-    bool is_pair;
-    int rc = 1;
-    int segv = 0;
-    uint64_t addr;
-    int rs, rt, rt2;
-
-    start_exclusive();
-    /* size | is_pair << 2 | (rs << 4) | (rt << 9) | (rt2 << 14)); */
-    size = extract32(env->exclusive_info, 0, 2);
-    is_pair = extract32(env->exclusive_info, 2, 1);
-    rs = extract32(env->exclusive_info, 4, 5);
-    rt = extract32(env->exclusive_info, 9, 5);
-    rt2 = extract32(env->exclusive_info, 14, 5);
-
-    addr = env->exclusive_addr;
-
-    if (addr != env->exclusive_test) {
-        goto finish;
-    }
-
-    switch (size) {
-    case 0:
-        segv = get_user_u8(val, addr);
-        break;
-    case 1:
-        segv = get_user_u16(val, addr);
-        break;
-    case 2:
-        segv = get_user_u32(val, addr);
-        break;
-    case 3:
-        segv = get_user_u64(val, addr);
-        break;
-    default:
-        abort();
-    }
-    if (segv) {
-        env->exception.vaddress = addr;
-        goto error;
-    }
-    if (val != env->exclusive_val) {
-        goto finish;
-    }
-    if (is_pair) {
-        if (size == 2) {
-            segv = get_user_u32(val, addr + 4);
-        } else {
-            segv = get_user_u64(val, addr + 8);
-        }
-        if (segv) {
-            env->exception.vaddress = addr + (size == 2 ? 4 : 8);
-            goto error;
-        }
-        if (val != env->exclusive_high) {
-            goto finish;
-        }
-    }
-    /* handle the zero register */
-    val = rt == 31 ? 0 : env->xregs[rt];
-    switch (size) {
-    case 0:
-        segv = put_user_u8(val, addr);
-        break;
-    case 1:
-        segv = put_user_u16(val, addr);
-        break;
-    case 2:
-        segv = put_user_u32(val, addr);
-        break;
-    case 3:
-        segv = put_user_u64(val, addr);
-        break;
-    }
-    if (segv) {
-        goto error;
-    }
-    if (is_pair) {
-        /* handle the zero register */
-        val = rt2 == 31 ? 0 : env->xregs[rt2];
-        if (size == 2) {
-            segv = put_user_u32(val, addr + 4);
-        } else {
-            segv = put_user_u64(val, addr + 8);
-        }
-        if (segv) {
-            env->exception.vaddress = addr + (size == 2 ? 4 : 8);
-            goto error;
-        }
-    }
-    rc = 0;
-finish:
-    env->pc += 4;
-    /* rs == 31 encodes a write to the ZR, thus throwing away
-     * the status return. This is rather silly but valid.
-     */
-    if (rs < 31) {
-        env->xregs[rs] = rc;
-    }
-error:
-    /* instruction faulted, PC does not advance */
-    /* either way a strex releases any exclusive lock we have */
-    env->exclusive_addr = -1;
-    end_exclusive();
-    return segv;
-}
-
 /* AArch64 main loop */
 void cpu_loop(CPUARMState *env)
 {
@@ -934,11 +816,6 @@ void cpu_loop(CPUARMState *env)
             info._sifields._sigfault._addr = env->pc;
             queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             break;
-        case EXCP_STREX:
-            if (!do_strex_a64(env)) {
-                break;
-            }
-            /* fall through for segv */
         case EXCP_PREFETCH_ABORT:
         case EXCP_DATA_ABORT:
             info.si_signo = TARGET_SIGSEGV;
@@ -974,8 +851,6 @@ void cpu_loop(CPUARMState *env)
         process_pending_signals(env);
         /* Exception return on AArch64 always clears the exclusive monitor,
          * so any return to running guest code implies this.
-         * A strex (successful or otherwise) also clears the monitor, so
-         * we don't need to specialcase EXCP_STREX.
          */
         env->exclusive_addr = -1;
     }
