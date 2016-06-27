@@ -173,6 +173,7 @@
 #define atomic_fetch_sub(ptr, n) __atomic_fetch_sub(ptr, n, __ATOMIC_SEQ_CST)
 #define atomic_fetch_and(ptr, n) __atomic_fetch_and(ptr, n, __ATOMIC_SEQ_CST)
 #define atomic_fetch_or(ptr, n)  __atomic_fetch_or(ptr, n, __ATOMIC_SEQ_CST)
+#define atomic_fetch_xor(ptr, n) __atomic_fetch_xor(ptr, n, __ATOMIC_SEQ_CST)
 
 /* And even shorter names that return void.  */
 #define atomic_inc(ptr)    ((void) __atomic_fetch_add(ptr, 1, __ATOMIC_SEQ_CST))
@@ -181,6 +182,7 @@
 #define atomic_sub(ptr, n) ((void) __atomic_fetch_sub(ptr, n, __ATOMIC_SEQ_CST))
 #define atomic_and(ptr, n) ((void) __atomic_fetch_and(ptr, n, __ATOMIC_SEQ_CST))
 #define atomic_or(ptr, n)  ((void) __atomic_fetch_or(ptr, n, __ATOMIC_SEQ_CST))
+#define atomic_xor(ptr, n) ((void) __atomic_fetch_xor(ptr, n, __ATOMIC_SEQ_CST))
 
 #else /* __ATOMIC_RELAXED */
 
@@ -339,6 +341,7 @@
 #define atomic_fetch_sub(ptr, n) __sync_fetch_and_sub(ptr, n)
 #define atomic_fetch_and(ptr, n) __sync_fetch_and_and(ptr, n)
 #define atomic_fetch_or(ptr, n) __sync_fetch_and_or(ptr, n)
+#define atomic_fetch_xor(ptr, n) __sync_fetch_and_xor(ptr, n)
 #define atomic_cmpxchg(ptr, old, new) __sync_val_compare_and_swap(ptr, old, new)
 
 /* And even shorter names that return void.  */
@@ -348,6 +351,7 @@
 #define atomic_sub(ptr, n)     ((void) __sync_fetch_and_sub(ptr, n))
 #define atomic_and(ptr, n)     ((void) __sync_fetch_and_and(ptr, n))
 #define atomic_or(ptr, n)      ((void) __sync_fetch_and_or(ptr, n))
+#define atomic_xor(ptr, n)     ((void) __sync_fetch_and_xor(ptr, n))
 
 #endif /* __ATOMIC_RELAXED */
 
