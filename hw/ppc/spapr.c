@@ -339,6 +339,9 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     add_str(hypertas, "hcall-splpar");
     add_str(hypertas, "hcall-bulk");
     add_str(hypertas, "hcall-set-mode");
+    add_str(hypertas, "hcall-sprg0");
+    add_str(hypertas, "hcall-copy");
+    add_str(hypertas, "hcall-debug");
     add_str(qemu_hypertas, "hcall-memop1");
 
     fdt = g_malloc0(FDT_MAX_SIZE);
