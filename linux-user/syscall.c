@@ -104,6 +104,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/netlink.h>
 #ifdef CONFIG_RTNETLINK
 #include <linux/rtnetlink.h>
+#include <linux/if_bridge.h>
 #endif
 #include <linux/audit.h>
 #include "linux_loop.h"
@@ -1712,6 +1713,33 @@ static abi_long target_to_host_for_each_nlmsg(struct nlmsghdr *nlh,
 }
 
 #ifdef CONFIG_RTNETLINK
+static abi_long host_to_target_for_each_nlattr(struct nlattr *nlattr,
+                                               size_t len, void *context,
+                                               abi_long (*host_to_target_nlattr)
+                                                        (struct nlattr *,
+                                                         void *context))
+{
+    unsigned short nla_len;
+    abi_long ret;
+
+    while (len > sizeof(struct nlattr)) {
+        nla_len = nlattr->nla_len;
+        if (nla_len < sizeof(struct nlattr) ||
+            nla_len > len) {
+            break;
+        }
+        ret = host_to_target_nlattr(nlattr, context);
+        nlattr->nla_len = tswap16(nlattr->nla_len);
+        nlattr->nla_type = tswap16(nlattr->nla_type);
+        if (ret < 0) {
+            return ret;
+        }
+        len -= NLA_ALIGN(nla_len);
+        nlattr = (struct nlattr *)(((char *)nlattr) + NLA_ALIGN(nla_len));
+    }
+    return 0;
+}
+
 static abi_long host_to_target_for_each_rtattr(struct rtattr *rtattr,
                                                size_t len,
                                                abi_long (*host_to_target_rtattr)
@@ -1738,12 +1766,292 @@ static abi_long host_to_target_for_each_rtattr(struct rtattr *rtattr,
     return 0;
 }
 
+#define NLA_DATA(nla) ((void *)((char *)(nla)) + NLA_HDRLEN)
+
+static abi_long host_to_target_data_bridge_nlattr(struct nlattr *nlattr,
+                                                  void *context)
+{
+    uint16_t *u16;
+    uint32_t *u32;
+    uint64_t *u64;
+
+    switch (nlattr->nla_type) {
+    /* no data */
+    case IFLA_BR_FDB_FLUSH:
+        break;
+    /* binary */
+    case IFLA_BR_GROUP_ADDR:
+        break;
+    /* uint8_t */
+    case IFLA_BR_VLAN_FILTERING:
+    case IFLA_BR_TOPOLOGY_CHANGE:
+    case IFLA_BR_TOPOLOGY_CHANGE_DETECTED:
+    case IFLA_BR_MCAST_ROUTER:
+    case IFLA_BR_MCAST_SNOOPING:
+    case IFLA_BR_MCAST_QUERY_USE_IFADDR:
+    case IFLA_BR_MCAST_QUERIER:
+    case IFLA_BR_NF_CALL_IPTABLES:
+    case IFLA_BR_NF_CALL_IP6TABLES:
+    case IFLA_BR_NF_CALL_ARPTABLES:
+        break;
+    /* uint16_t */
+    case IFLA_BR_PRIORITY:
+    case IFLA_BR_VLAN_PROTOCOL:
+    case IFLA_BR_GROUP_FWD_MASK:
+    case IFLA_BR_ROOT_PORT:
+    case IFLA_BR_VLAN_DEFAULT_PVID:
+        u16 = NLA_DATA(nlattr);
+        *u16 = tswap16(*u16);
+        break;
+    /* uint32_t */
+    case IFLA_BR_FORWARD_DELAY:
+    case IFLA_BR_HELLO_TIME:
+    case IFLA_BR_MAX_AGE:
+    case IFLA_BR_AGEING_TIME:
+    case IFLA_BR_STP_STATE:
+    case IFLA_BR_ROOT_PATH_COST:
+    case IFLA_BR_MCAST_HASH_ELASTICITY:
+    case IFLA_BR_MCAST_HASH_MAX:
+    case IFLA_BR_MCAST_LAST_MEMBER_CNT:
+    case IFLA_BR_MCAST_STARTUP_QUERY_CNT:
+        u32 = NLA_DATA(nlattr);
+        *u32 = tswap32(*u32);
+        break;
+    /* uint64_t */
+    case IFLA_BR_HELLO_TIMER:
+    case IFLA_BR_TCN_TIMER:
+    case IFLA_BR_GC_TIMER:
+    case IFLA_BR_TOPOLOGY_CHANGE_TIMER:
+    case IFLA_BR_MCAST_LAST_MEMBER_INTVL:
+    case IFLA_BR_MCAST_MEMBERSHIP_INTVL:
+    case IFLA_BR_MCAST_QUERIER_INTVL:
+    case IFLA_BR_MCAST_QUERY_INTVL:
+    case IFLA_BR_MCAST_QUERY_RESPONSE_INTVL:
+    case IFLA_BR_MCAST_STARTUP_QUERY_INTVL:
+        u64 = NLA_DATA(nlattr);
+        *u64 = tswap64(*u64);
+        break;
+    /* ifla_bridge_id: uin8_t[] */
+    case IFLA_BR_ROOT_ID:
+    case IFLA_BR_BRIDGE_ID:
+        break;
+    default:
+        gemu_log("Unknown IFLA_BR type %d\n", nlattr->nla_type);
+        break;
+    }
+    return 0;
+}
+
+static abi_long host_to_target_slave_data_bridge_nlattr(struct nlattr *nlattr,
+                                                        void *context)
+{
+    uint16_t *u16;
+    uint32_t *u32;
+    uint64_t *u64;
+
+    switch (nlattr->nla_type) {
+    /* uint8_t */
+    case IFLA_BRPORT_STATE:
+    case IFLA_BRPORT_MODE:
+    case IFLA_BRPORT_GUARD:
+    case IFLA_BRPORT_PROTECT:
+    case IFLA_BRPORT_FAST_LEAVE:
+    case IFLA_BRPORT_LEARNING:
+    case IFLA_BRPORT_UNICAST_FLOOD:
+    case IFLA_BRPORT_PROXYARP:
+    case IFLA_BRPORT_LEARNING_SYNC:
+    case IFLA_BRPORT_PROXYARP_WIFI:
+    case IFLA_BRPORT_TOPOLOGY_CHANGE_ACK:
+    case IFLA_BRPORT_CONFIG_PENDING:
+    case IFLA_BRPORT_MULTICAST_ROUTER:
+        break;
+    /* uint16_t */
+    case IFLA_BRPORT_PRIORITY:
+    case IFLA_BRPORT_DESIGNATED_PORT:
+    case IFLA_BRPORT_DESIGNATED_COST:
+    case IFLA_BRPORT_ID:
+    case IFLA_BRPORT_NO:
+        u16 = NLA_DATA(nlattr);
+        *u16 = tswap16(*u16);
+        break;
+    /* uin32_t */
+    case IFLA_BRPORT_COST:
+        u32 = NLA_DATA(nlattr);
+        *u32 = tswap32(*u32);
+        break;
+    /* uint64_t */
+    case IFLA_BRPORT_MESSAGE_AGE_TIMER:
+    case IFLA_BRPORT_FORWARD_DELAY_TIMER:
+    case IFLA_BRPORT_HOLD_TIMER:
+        u64 = NLA_DATA(nlattr);
+        *u64 = tswap64(*u64);
+        break;
+    /* ifla_bridge_id: uint8_t[] */
+    case IFLA_BRPORT_ROOT_ID:
+    case IFLA_BRPORT_BRIDGE_ID:
+        break;
+    default:
+        gemu_log("Unknown IFLA_BRPORT type %d\n", nlattr->nla_type);
+        break;
+    }
+    return 0;
+}
+
+struct linkinfo_context {
+    int len;
+    char *name;
+    int slave_len;
+    char *slave_name;
+};
+
+static abi_long host_to_target_data_linkinfo_nlattr(struct nlattr *nlattr,
+                                                    void *context)
+{
+    struct linkinfo_context *li_context = context;
+
+    switch (nlattr->nla_type) {
+    /* string */
+    case IFLA_INFO_KIND:
+        li_context->name = NLA_DATA(nlattr);
+        li_context->len = nlattr->nla_len - NLA_HDRLEN;
+        break;
+    case IFLA_INFO_SLAVE_KIND:
+        li_context->slave_name = NLA_DATA(nlattr);
+        li_context->slave_len = nlattr->nla_len - NLA_HDRLEN;
+        break;
+    /* stats */
+    case IFLA_INFO_XSTATS:
+        /* FIXME: only used by CAN */
+        break;
+    /* nested */
+    case IFLA_INFO_DATA:
+        if (strncmp(li_context->name, "bridge",
+                    li_context->len) == 0) {
+            return host_to_target_for_each_nlattr(NLA_DATA(nlattr),
+                                                  nlattr->nla_len,
+                                                  NULL,
+                                             host_to_target_data_bridge_nlattr);
+        } else {
+            gemu_log("Unknown IFLA_INFO_KIND %s\n", li_context->name);
+        }
+        break;
+    case IFLA_INFO_SLAVE_DATA:
+        if (strncmp(li_context->slave_name, "bridge",
+                    li_context->slave_len) == 0) {
+            return host_to_target_for_each_nlattr(NLA_DATA(nlattr),
+                                                  nlattr->nla_len,
+                                                  NULL,
+                                       host_to_target_slave_data_bridge_nlattr);
+        } else {
+            gemu_log("Unknown IFLA_INFO_SLAVE_KIND %s\n",
+                     li_context->slave_name);
+        }
+        break;
+    default:
+        gemu_log("Unknown host IFLA_INFO type: %d\n", nlattr->nla_type);
+        break;
+    }
+
+    return 0;
+}
+
+static abi_long host_to_target_data_inet_nlattr(struct nlattr *nlattr,
+                                                void *context)
+{
+    uint32_t *u32;
+    int i;
+
+    switch (nlattr->nla_type) {
+    case IFLA_INET_CONF:
+        u32 = NLA_DATA(nlattr);
+        for (i = 0; i < (nlattr->nla_len - NLA_HDRLEN) / sizeof(*u32);
+             i++) {
+            u32[i] = tswap32(u32[i]);
+        }
+        break;
+    default:
+        gemu_log("Unknown host AF_INET type: %d\n", nlattr->nla_type);
+    }
+    return 0;
+}
+
+static abi_long host_to_target_data_inet6_nlattr(struct nlattr *nlattr,
+                                                void *context)
+{
+    uint32_t *u32;
+    uint64_t *u64;
+    struct ifla_cacheinfo *ci;
+    int i;
+
+    switch (nlattr->nla_type) {
+    /* binaries */
+    case IFLA_INET6_TOKEN:
+        break;
+    /* uint8_t */
+    case IFLA_INET6_ADDR_GEN_MODE:
+        break;
+    /* uint32_t */
+    case IFLA_INET6_FLAGS:
+        u32 = NLA_DATA(nlattr);
+        *u32 = tswap32(*u32);
+        break;
+    /* uint32_t[] */
+    case IFLA_INET6_CONF:
+        u32 = NLA_DATA(nlattr);
+        for (i = 0; i < (nlattr->nla_len - NLA_HDRLEN) / sizeof(*u32);
+             i++) {
+            u32[i] = tswap32(u32[i]);
+        }
+        break;
+    /* ifla_cacheinfo */
+    case IFLA_INET6_CACHEINFO:
+        ci = NLA_DATA(nlattr);
+        ci->max_reasm_len = tswap32(ci->max_reasm_len);
+        ci->tstamp = tswap32(ci->tstamp);
+        ci->reachable_time = tswap32(ci->reachable_time);
+        ci->retrans_time = tswap32(ci->retrans_time);
+        break;
+    /* uint64_t[] */
+    case IFLA_INET6_STATS:
+    case IFLA_INET6_ICMP6STATS:
+        u64 = NLA_DATA(nlattr);
+        for (i = 0; i < (nlattr->nla_len - NLA_HDRLEN) / sizeof(*u64);
+             i++) {
+            u64[i] = tswap64(u64[i]);
+        }
+        break;
+    default:
+        gemu_log("Unknown host AF_INET6 type: %d\n", nlattr->nla_type);
+    }
+    return 0;
+}
+
+static abi_long host_to_target_data_spec_nlattr(struct nlattr *nlattr,
+                                                    void *context)
+{
+    switch (nlattr->nla_type) {
+    case AF_INET:
+        return host_to_target_for_each_nlattr(NLA_DATA(nlattr), nlattr->nla_len,
+                                              NULL,
+                                             host_to_target_data_inet_nlattr);
+    case AF_INET6:
+        return host_to_target_for_each_nlattr(NLA_DATA(nlattr), nlattr->nla_len,
+                                              NULL,
+                                             host_to_target_data_inet6_nlattr);
+    default:
+        gemu_log("Unknown host AF_SPEC type: %d\n", nlattr->nla_type);
+        break;
+    }
+    return 0;
+}
+
 static abi_long host_to_target_data_link_rtattr(struct rtattr *rtattr)
 {
     uint32_t *u32;
     struct rtnl_link_stats *st;
     struct rtnl_link_stats64 *st64;
     struct rtnl_link_ifmap *map;
+    struct linkinfo_context li_context;
 
     switch (rtattr->rta_type) {
     /* binary stream */
@@ -1851,11 +2159,15 @@ static abi_long host_to_target_data_link_rtattr(struct rtattr *rtattr)
         map->irq = tswap16(map->irq);
         break;
     /* nested */
-    case IFLA_AF_SPEC:
     case IFLA_LINKINFO:
-        /* FIXME: implement nested type */
-        gemu_log("Unimplemented nested type %d\n", rtattr->rta_type);
-        break;
+        memset(&li_context, 0, sizeof(li_context));
+        return host_to_target_for_each_nlattr(RTA_DATA(rtattr), rtattr->rta_len,
+                                              &li_context,
+                                           host_to_target_data_linkinfo_nlattr);
+    case IFLA_AF_SPEC:
+        return host_to_target_for_each_nlattr(RTA_DATA(rtattr), rtattr->rta_len,
+                                              NULL,
+                                             host_to_target_data_spec_nlattr);
     default:
         gemu_log("Unknown host IFLA type: %d\n", rtattr->rta_type);
         break;
