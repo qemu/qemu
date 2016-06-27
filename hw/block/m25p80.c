@@ -53,12 +53,17 @@
 /* 16 MiB max in 3 byte address mode */
 #define MAX_3BYTES_SIZE 0x1000000
 
+#define SPI_NOR_MAX_ID_LEN 6
+
 typedef struct FlashPartInfo {
     const char *part_name;
-    /* jedec code. (jedec >> 16) & 0xff is the 1st byte, >> 8 the 2nd etc */
-    uint32_t jedec;
-    /* extended jedec code */
-    uint16_t ext_jedec;
+    /*
+     * This array stores the ID bytes.
+     * The first three bytes are the JEDIC ID.
+     * JEDEC ID zero means "no ID" (mostly older chips).
+     */
+    uint8_t id[SPI_NOR_MAX_ID_LEN];
+    uint8_t id_len;
     /* there is confusion between manufacturers as to what a sector is. In this
      * device model, a "sector" is the size that is erased by the ERASE_SECTOR
      * command (opcode 0xd8).
@@ -70,11 +75,33 @@ typedef struct FlashPartInfo {
 } FlashPartInfo;
 
 /* adapted from linux */
+/* Used when the "_ext_id" is two bytes at most */
+#define INFO(_part_name, _jedec_id, _ext_id, _sector_size, _n_sectors, _flags)\
+    .part_name = _part_name,\
+    .id = {\
+        ((_jedec_id) >> 16) & 0xff,\
+        ((_jedec_id) >> 8) & 0xff,\
+        (_jedec_id) & 0xff,\
+        ((_ext_id) >> 8) & 0xff,\
+        (_ext_id) & 0xff,\
+          },\
+    .id_len = (!(_jedec_id) ? 0 : (3 + ((_ext_id) ? 2 : 0))),\
+    .sector_size = (_sector_size),\
+    .n_sectors = (_n_sectors),\
+    .page_size = 256,\
+    .flags = (_flags),
 
-#define INFO(_part_name, _jedec, _ext_jedec, _sector_size, _n_sectors, _flags)\
-    .part_name = (_part_name),\
-    .jedec = (_jedec),\
-    .ext_jedec = (_ext_jedec),\
+#define INFO6(_part_name, _jedec_id, _ext_id, _sector_size, _n_sectors, _flags)\
+    .part_name = _part_name,\
+    .id = {\
+        ((_jedec_id) >> 16) & 0xff,\
+        ((_jedec_id) >> 8) & 0xff,\
+        (_jedec_id) & 0xff,\
+        ((_ext_id) >> 16) & 0xff,\
+        ((_ext_id) >> 8) & 0xff,\
+        (_ext_id) & 0xff,\
+          },\
+    .id_len = 6,\
     .sector_size = (_sector_size),\
     .n_sectors = (_n_sectors),\
     .page_size = 256,\
@@ -102,11 +129,25 @@ typedef struct FlashPartInfo {
 #define EVCFG_QUAD_IO_ENABLED (1 << 7)
 #define NVCFG_4BYTE_ADDR_MASK (1 << 0)
 #define NVCFG_LOWER_SEGMENT_MASK (1 << 1)
-#define CFG_UPPER_128MB_SEG_ENABLED 0x3
 
 /* Numonyx (Micron) Flag Status Register macros */
 #define FSR_4BYTE_ADDR_MODE_ENABLED 0x1
 #define FSR_FLASH_READY (1 << 7)
+
+/* Spansion configuration registers macros. */
+#define SPANSION_QUAD_CFG_POS 0
+#define SPANSION_QUAD_CFG_LEN 1
+#define SPANSION_DUMMY_CLK_POS 0
+#define SPANSION_DUMMY_CLK_LEN 4
+#define SPANSION_ADDR_LEN_POS 7
+#define SPANSION_ADDR_LEN_LEN 1
+
+/*
+ * Spansion read mode command length in bytes,
+ * the mode is currently not supported.
+*/
+
+#define SPANSION_CONTINUOUS_READ_MODE_CMD_LEN 1
 
 static const FlashPartInfo known_devices[] = {
     /* Atmel -- some are (confusingly) marketed as "DataFlash" */
@@ -158,6 +199,8 @@ static const FlashPartInfo known_devices[] = {
     { INFO("mx25l12855e", 0xc22618,      0,  64 << 10, 256, 0) },
     { INFO("mx25l25635e", 0xc22019,      0,  64 << 10, 512, 0) },
     { INFO("mx25l25655e", 0xc22619,      0,  64 << 10, 512, 0) },
+    { INFO("mx66u51235f", 0xc2253a,      0,  64 << 10, 1024, ER_4K | ER_32K) },
+    { INFO("mx66u1g45g",  0xc2253b,      0,  64 << 10, 2048, ER_4K | ER_32K) },
 
     /* Micron */
     { INFO("n25q032a11",  0x20bb16,      0,  64 << 10,  64, ER_4K) },
@@ -168,6 +211,11 @@ static const FlashPartInfo known_devices[] = {
     { INFO("n25q128a13",  0x20ba18,      0,  64 << 10, 256, ER_4K) },
     { INFO("n25q256a11",  0x20bb19,      0,  64 << 10, 512, ER_4K) },
     { INFO("n25q256a13",  0x20ba19,      0,  64 << 10, 512, ER_4K) },
+    { INFO("n25q128",     0x20ba18,      0,  64 << 10, 256, 0) },
+    { INFO("n25q256a",    0x20ba19,      0,  64 << 10, 512, ER_4K) },
+    { INFO("n25q512a",    0x20ba20,      0,  64 << 10, 1024, ER_4K) },
+    { INFO("mt25ql01g",   0x20ba21,      0,  64 << 10, 2048, ER_4K) },
+    { INFO("mt25qu01g",   0x20bb21,      0,  64 << 10, 2048, ER_4K) },
 
     /* Spansion -- single (large) sector size only, at least
      * for the chips listed here (without boot sectors).
@@ -176,8 +224,8 @@ static const FlashPartInfo known_devices[] = {
     { INFO("s25sl064p",   0x010216, 0x4d00,  64 << 10, 128, ER_4K) },
     { INFO("s25fl256s0",  0x010219, 0x4d00, 256 << 10, 128, 0) },
     { INFO("s25fl256s1",  0x010219, 0x4d01,  64 << 10, 512, 0) },
-    { INFO("s25fl512s",   0x010220, 0x4d00, 256 << 10, 256, 0) },
-    { INFO("s70fl01gs",   0x010221, 0x4d00, 256 << 10, 256, 0) },
+    { INFO6("s25fl512s",  0x010220, 0x4d0080, 256 << 10, 256, 0) },
+    { INFO6("s70fl01gs",  0x010221, 0x4d0080, 256 << 10, 512, 0) },
     { INFO("s25sl12800",  0x012018, 0x0300, 256 << 10,  64, 0) },
     { INFO("s25sl12801",  0x012018, 0x0301,  64 << 10, 256, 0) },
     { INFO("s25fl129p0",  0x012018, 0x4d00, 256 << 10,  64, 0) },
@@ -189,6 +237,10 @@ static const FlashPartInfo known_devices[] = {
     { INFO("s25sl064a",   0x010216,      0,  64 << 10, 128, 0) },
     { INFO("s25fl016k",   0xef4015,      0,  64 << 10,  32, ER_4K | ER_32K) },
     { INFO("s25fl064k",   0xef4017,      0,  64 << 10, 128, ER_4K | ER_32K) },
+
+    /* Spansion --  boot sectors support  */
+    { INFO6("s25fs512s",    0x010220, 0x4d0081, 256 << 10, 256, 0) },
+    { INFO6("s70fs01gs",    0x010221, 0x4d0081, 256 << 10, 512, 0) },
 
     /* SST -- large erase sizes are "overlays", "sectors" are 4<< 10 */
     { INFO("sst25vf040b", 0xbf258d,      0,  64 << 10,   8, ER_4K) },
@@ -240,10 +292,6 @@ static const FlashPartInfo known_devices[] = {
     { INFO("w25q80",      0xef5014,      0,  64 << 10,  16, ER_4K) },
     { INFO("w25q80bl",    0xef4014,      0,  64 << 10,  16, ER_4K) },
     { INFO("w25q256",     0xef4019,      0,  64 << 10, 512, ER_4K) },
-
-    { INFO("n25q128",      0x20ba18,      0,  64 << 10, 256, 0) },
-    { INFO("n25q256a",     0x20ba19,      0,  64 << 10, 512, ER_4K) },
-    { INFO("n25q512a",     0x20ba20,      0,  64 << 10, 1024, ER_4K) },
 };
 
 typedef enum {
@@ -255,6 +303,7 @@ typedef enum {
     JEDEC_READ = 0x9f,
     BULK_ERASE = 0xc7,
     READ_FSR = 0x70,
+    RDCR = 0x15,
 
     READ = 0x03,
     READ4 = 0x13,
@@ -271,12 +320,14 @@ typedef enum {
 
     PP = 0x02,
     PP4 = 0x12,
+    PP4_4 = 0x3e,
     DPP = 0xa2,
     QPP = 0x32,
 
     ERASE_4K = 0x20,
     ERASE4_4K = 0x21,
     ERASE_32K = 0x52,
+    ERASE4_32K = 0x5c,
     ERASE_SECTOR = 0xd8,
     ERASE4_SECTOR = 0xdc,
 
@@ -288,6 +339,13 @@ typedef enum {
 
     RESET_ENABLE = 0x66,
     RESET_MEMORY = 0x99,
+
+    /*
+     * Micron: 0x35 - enable QPI
+     * Spansion: 0x35 - read control register
+     */
+    RDCR_EQIO = 0x35,
+    RSTQIO = 0xf5,
 
     RNVCR = 0xB5,
     WNVCR = 0xB1,
@@ -304,8 +362,17 @@ typedef enum {
     STATE_PAGE_PROGRAM,
     STATE_READ,
     STATE_COLLECTING_DATA,
+    STATE_COLLECTING_VAR_LEN_DATA,
     STATE_READING_DATA,
 } CMDState;
+
+typedef enum {
+    MAN_SPANSION,
+    MAN_MACRONIX,
+    MAN_NUMONYX,
+    MAN_WINBOND,
+    MAN_GENERIC,
+} Manufacturer;
 
 typedef struct Flash {
     SSISlave parent_obj;
@@ -324,11 +391,22 @@ typedef struct Flash {
     uint8_t cmd_in_progress;
     uint64_t cur_addr;
     uint32_t nonvolatile_cfg;
+    /* Configuration register for Macronix */
     uint32_t volatile_cfg;
     uint32_t enh_volatile_cfg;
+    /* Spansion cfg registers. */
+    uint8_t spansion_cr1nv;
+    uint8_t spansion_cr2nv;
+    uint8_t spansion_cr3nv;
+    uint8_t spansion_cr4nv;
+    uint8_t spansion_cr1v;
+    uint8_t spansion_cr2v;
+    uint8_t spansion_cr3v;
+    uint8_t spansion_cr4v;
     bool write_enable;
     bool four_bytes_address_mode;
     bool reset_enable;
+    bool quad_enable;
     uint8_t ear;
 
     int64_t dirty_page;
@@ -349,6 +427,22 @@ typedef struct M25P80Class {
      OBJECT_CLASS_CHECK(M25P80Class, (klass), TYPE_M25P80)
 #define M25P80_GET_CLASS(obj) \
      OBJECT_GET_CLASS(M25P80Class, (obj), TYPE_M25P80)
+
+static inline Manufacturer get_man(Flash *s)
+{
+    switch (s->pi->id[0]) {
+    case 0x20:
+        return MAN_NUMONYX;
+    case 0xEF:
+        return MAN_WINBOND;
+    case 0x01:
+        return MAN_SPANSION;
+    case 0xC2:
+        return MAN_MACRONIX;
+    default:
+        return MAN_GENERIC;
+    }
+}
 
 static void blk_sync_complete(void *opaque, int ret)
 {
@@ -398,6 +492,7 @@ static void flash_erase(Flash *s, int offset, FlashCMD cmd)
         capa_to_assert = ER_4K;
         break;
     case ERASE_32K:
+    case ERASE4_32K:
         len = 32 << 10;
         capa_to_assert = ER_32K;
         break;
@@ -468,9 +563,11 @@ static inline int get_addr_length(Flash *s)
 
    switch (s->cmd_in_progress) {
    case PP4:
+   case PP4_4:
    case READ4:
    case QIOR4:
    case ERASE4_4K:
+   case ERASE4_32K:
    case ERASE4_SECTOR:
    case FAST_READ4:
    case DOR4:
@@ -494,7 +591,7 @@ static void complete_collecting_data(Flash *s)
     }
 
     if (get_addr_length(s) == 3) {
-        s->cur_addr += (s->ear & 0x3) * MAX_3BYTES_SIZE;
+        s->cur_addr += s->ear * MAX_3BYTES_SIZE;
     }
 
     s->state = STATE_IDLE;
@@ -504,6 +601,7 @@ static void complete_collecting_data(Flash *s)
     case QPP:
     case PP:
     case PP4:
+    case PP4_4:
         s->state = STATE_PAGE_PROGRAM;
         break;
     case READ:
@@ -523,11 +621,25 @@ static void complete_collecting_data(Flash *s)
     case ERASE_4K:
     case ERASE4_4K:
     case ERASE_32K:
+    case ERASE4_32K:
     case ERASE_SECTOR:
     case ERASE4_SECTOR:
         flash_erase(s, s->cur_addr, s->cmd_in_progress);
         break;
     case WRSR:
+        switch (get_man(s)) {
+        case MAN_SPANSION:
+            s->quad_enable = !!(s->data[1] & 0x02);
+            break;
+        case MAN_MACRONIX:
+            s->quad_enable = extract32(s->data[0], 6, 1);
+            if (s->len > 1) {
+                s->four_bytes_address_mode = extract32(s->data[1], 5, 1);
+            }
+            break;
+        default:
+            break;
+        }
         if (s->write_enable) {
             s->write_enable = false;
         }
@@ -561,8 +673,10 @@ static void reset_memory(Flash *s)
     s->state = STATE_IDLE;
     s->write_enable = false;
     s->reset_enable = false;
+    s->quad_enable = false;
 
-    if (((s->pi->jedec >> 16) & 0xFF) == JEDEC_NUMONYX) {
+    switch (get_man(s)) {
+    case MAN_NUMONYX:
         s->volatile_cfg = 0;
         s->volatile_cfg |= VCFG_DUMMY;
         s->volatile_cfg |= VCFG_WRAP_SEQUENTIAL;
@@ -592,16 +706,147 @@ static void reset_memory(Flash *s)
             s->four_bytes_address_mode = true;
         }
         if (!(s->nonvolatile_cfg & NVCFG_LOWER_SEGMENT_MASK)) {
-            s->ear = CFG_UPPER_128MB_SEG_ENABLED;
+            s->ear = s->size / MAX_3BYTES_SIZE - 1;
         }
+        break;
+    case MAN_MACRONIX:
+        s->volatile_cfg = 0x7;
+        break;
+    case MAN_SPANSION:
+        s->spansion_cr1v = s->spansion_cr1nv;
+        s->spansion_cr2v = s->spansion_cr2nv;
+        s->spansion_cr3v = s->spansion_cr3nv;
+        s->spansion_cr4v = s->spansion_cr4nv;
+        s->quad_enable = extract32(s->spansion_cr1v,
+                                   SPANSION_QUAD_CFG_POS,
+                                   SPANSION_QUAD_CFG_LEN
+                                   );
+        s->four_bytes_address_mode = extract32(s->spansion_cr2v,
+                SPANSION_ADDR_LEN_POS,
+                SPANSION_ADDR_LEN_LEN
+                );
+        break;
+    default:
+        break;
     }
 
     DB_PRINT_L(0, "Reset done.\n");
 }
 
+static void decode_fast_read_cmd(Flash *s)
+{
+    s->needed_bytes = get_addr_length(s);
+    switch (get_man(s)) {
+    /* Dummy cycles - modeled with bytes writes instead of bits */
+    case MAN_WINBOND:
+        s->needed_bytes += 8;
+        break;
+    case MAN_NUMONYX:
+        s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+        break;
+    case MAN_MACRONIX:
+        if (extract32(s->volatile_cfg, 6, 2) == 1) {
+            s->needed_bytes += 6;
+        } else {
+            s->needed_bytes += 8;
+        }
+        break;
+    case MAN_SPANSION:
+        s->needed_bytes += extract32(s->spansion_cr2v,
+                                    SPANSION_DUMMY_CLK_POS,
+                                    SPANSION_DUMMY_CLK_LEN
+                                    );
+        break;
+    default:
+        break;
+    }
+    s->pos = 0;
+    s->len = 0;
+    s->state = STATE_COLLECTING_DATA;
+}
+
+static void decode_dio_read_cmd(Flash *s)
+{
+    s->needed_bytes = get_addr_length(s);
+    /* Dummy cycles modeled with bytes writes instead of bits */
+    switch (get_man(s)) {
+    case MAN_WINBOND:
+        s->needed_bytes += 8;
+        break;
+    case MAN_SPANSION:
+        s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
+        s->needed_bytes += extract32(s->spansion_cr2v,
+                                    SPANSION_DUMMY_CLK_POS,
+                                    SPANSION_DUMMY_CLK_LEN
+                                    );
+        break;
+    case MAN_NUMONYX:
+        s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+        break;
+    case MAN_MACRONIX:
+        switch (extract32(s->volatile_cfg, 6, 2)) {
+        case 1:
+            s->needed_bytes += 6;
+            break;
+        case 2:
+            s->needed_bytes += 8;
+            break;
+        default:
+            s->needed_bytes += 4;
+            break;
+        }
+        break;
+    default:
+        break;
+    }
+    s->pos = 0;
+    s->len = 0;
+    s->state = STATE_COLLECTING_DATA;
+}
+
+static void decode_qio_read_cmd(Flash *s)
+{
+    s->needed_bytes = get_addr_length(s);
+    /* Dummy cycles modeled with bytes writes instead of bits */
+    switch (get_man(s)) {
+    case MAN_WINBOND:
+        s->needed_bytes += 8;
+        break;
+    case MAN_SPANSION:
+        s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
+        s->needed_bytes += extract32(s->spansion_cr2v,
+                                    SPANSION_DUMMY_CLK_POS,
+                                    SPANSION_DUMMY_CLK_LEN
+                                    );
+        break;
+    case MAN_NUMONYX:
+        s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+        break;
+    case MAN_MACRONIX:
+        switch (extract32(s->volatile_cfg, 6, 2)) {
+        case 1:
+            s->needed_bytes += 4;
+            break;
+        case 2:
+            s->needed_bytes += 8;
+            break;
+        default:
+            s->needed_bytes += 6;
+            break;
+        }
+        break;
+    default:
+        break;
+    }
+    s->pos = 0;
+    s->len = 0;
+    s->state = STATE_COLLECTING_DATA;
+}
+
 static void decode_new_cmd(Flash *s, uint32_t value)
 {
     s->cmd_in_progress = value;
+    int i;
     DB_PRINT_L(0, "decoded new command:%x\n", value);
 
     if (value != RESET_MEMORY) {
@@ -613,6 +858,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case ERASE_4K:
     case ERASE4_4K:
     case ERASE_32K:
+    case ERASE4_32K:
     case ERASE_SECTOR:
     case ERASE4_SECTOR:
     case READ:
@@ -621,6 +867,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case QPP:
     case PP:
     case PP4:
+    case PP4_4:
         s->needed_bytes = get_addr_length(s);
         s->pos = 0;
         s->len = 0;
@@ -633,56 +880,35 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case DOR4:
     case QOR:
     case QOR4:
-        s->needed_bytes = get_addr_length(s);
-        if (((s->pi->jedec >> 16) & 0xFF) == JEDEC_NUMONYX) {
-            /* Dummy cycles modeled with bytes writes instead of bits */
-            s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
-        }
-        s->pos = 0;
-        s->len = 0;
-        s->state = STATE_COLLECTING_DATA;
+        decode_fast_read_cmd(s);
         break;
 
     case DIOR:
     case DIOR4:
-        switch ((s->pi->jedec >> 16) & 0xFF) {
-        case JEDEC_WINBOND:
-        case JEDEC_SPANSION:
-            s->needed_bytes = 4;
-            break;
-        default:
-            s->needed_bytes = get_addr_length(s);
-            /* Dummy cycles modeled with bytes writes instead of bits */
-            s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
-        }
-        s->pos = 0;
-        s->len = 0;
-        s->state = STATE_COLLECTING_DATA;
+        decode_dio_read_cmd(s);
         break;
 
     case QIOR:
     case QIOR4:
-        switch ((s->pi->jedec >> 16) & 0xFF) {
-        case JEDEC_WINBOND:
-        case JEDEC_SPANSION:
-            s->needed_bytes = 6;
-            break;
-        default:
-            s->needed_bytes = get_addr_length(s);
-            /* Dummy cycles modeled with bytes writes instead of bits */
-            s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
-        }
-        s->pos = 0;
-        s->len = 0;
-        s->state = STATE_COLLECTING_DATA;
+        decode_qio_read_cmd(s);
         break;
 
     case WRSR:
         if (s->write_enable) {
-            s->needed_bytes = 1;
+            switch (get_man(s)) {
+            case MAN_SPANSION:
+                s->needed_bytes = 2;
+                s->state = STATE_COLLECTING_DATA;
+                break;
+            case MAN_MACRONIX:
+                s->needed_bytes = 2;
+                s->state = STATE_COLLECTING_VAR_LEN_DATA;
+                break;
+            default:
+                s->needed_bytes = 1;
+                s->state = STATE_COLLECTING_DATA;
+            }
             s->pos = 0;
-            s->len = 0;
-            s->state = STATE_COLLECTING_DATA;
         }
         break;
 
@@ -695,6 +921,9 @@ static void decode_new_cmd(Flash *s, uint32_t value)
 
     case RDSR:
         s->data[0] = (!!s->write_enable) << 1;
+        if (get_man(s) == MAN_MACRONIX) {
+            s->data[0] |= (!!s->quad_enable) << 6;
+        }
         s->pos = 0;
         s->len = 1;
         s->state = STATE_READING_DATA;
@@ -712,17 +941,20 @@ static void decode_new_cmd(Flash *s, uint32_t value)
 
     case JEDEC_READ:
         DB_PRINT_L(0, "populated jedec code\n");
-        s->data[0] = (s->pi->jedec >> 16) & 0xff;
-        s->data[1] = (s->pi->jedec >> 8) & 0xff;
-        s->data[2] = s->pi->jedec & 0xff;
-        if (s->pi->ext_jedec) {
-            s->data[3] = (s->pi->ext_jedec >> 8) & 0xff;
-            s->data[4] = s->pi->ext_jedec & 0xff;
-            s->len = 5;
-        } else {
-            s->len = 3;
+        for (i = 0; i < s->pi->id_len; i++) {
+            s->data[i] = s->pi->id[i];
         }
+
+        s->len = s->pi->id_len;
         s->pos = 0;
+        s->state = STATE_READING_DATA;
+        break;
+
+    case RDCR:
+        s->data[0] = s->volatile_cfg & 0xFF;
+        s->data[0] |= (!!s->four_bytes_address_mode) << 5;
+        s->pos = 0;
+        s->len = 1;
         s->state = STATE_READING_DATA;
         break;
 
@@ -765,7 +997,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         s->state = STATE_READING_DATA;
         break;
     case WNVCR:
-        if (s->write_enable) {
+        if (s->write_enable && get_man(s) == MAN_NUMONYX) {
             s->needed_bytes = 2;
             s->pos = 0;
             s->len = 0;
@@ -808,6 +1040,24 @@ static void decode_new_cmd(Flash *s, uint32_t value)
             reset_memory(s);
         }
         break;
+    case RDCR_EQIO:
+        switch (get_man(s)) {
+        case MAN_SPANSION:
+            s->data[0] = (!!s->quad_enable) << 1;
+            s->pos = 0;
+            s->len = 1;
+            s->state = STATE_READING_DATA;
+            break;
+        case MAN_MACRONIX:
+            s->quad_enable = true;
+            break;
+        default:
+            break;
+        }
+        break;
+    case RSTQIO:
+        s->quad_enable = false;
+        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Unknown cmd %x\n", value);
         break;
@@ -819,6 +1069,9 @@ static int m25p80_cs(SSISlave *ss, bool select)
     Flash *s = M25P80(ss);
 
     if (select) {
+        if (s->state == STATE_COLLECTING_VAR_LEN_DATA) {
+            complete_collecting_data(s);
+        }
         s->len = 0;
         s->pos = 0;
         s->state = STATE_IDLE;
@@ -852,6 +1105,7 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
         break;
 
     case STATE_COLLECTING_DATA:
+    case STATE_COLLECTING_VAR_LEN_DATA:
         s->data[s->len] = (uint8_t)tx;
         s->len++;
 
@@ -926,13 +1180,18 @@ static void m25p80_pre_save(void *opaque)
 }
 
 static Property m25p80_properties[] = {
+    /* This is default value for Micron flash */
     DEFINE_PROP_UINT32("nonvolatile-cfg", Flash, nonvolatile_cfg, 0x8FFF),
+    DEFINE_PROP_UINT8("spansion-cr1nv", Flash, spansion_cr1nv, 0x0),
+    DEFINE_PROP_UINT8("spansion-cr2nv", Flash, spansion_cr2nv, 0x8),
+    DEFINE_PROP_UINT8("spansion-cr3nv", Flash, spansion_cr3nv, 0x2),
+    DEFINE_PROP_UINT8("spansion-cr4nv", Flash, spansion_cr4nv, 0x10),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_m25p80 = {
     .name = "xilinx_spi",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 1,
     .pre_save = m25p80_pre_save,
     .fields = (VMStateField[]) {
@@ -950,6 +1209,11 @@ static const VMStateDescription vmstate_m25p80 = {
         VMSTATE_UINT32_V(nonvolatile_cfg, Flash, 2),
         VMSTATE_UINT32_V(volatile_cfg, Flash, 2),
         VMSTATE_UINT32_V(enh_volatile_cfg, Flash, 2),
+        VMSTATE_BOOL_V(quad_enable, Flash, 3),
+        VMSTATE_UINT8_V(spansion_cr1nv, Flash, 3),
+        VMSTATE_UINT8_V(spansion_cr2nv, Flash, 3),
+        VMSTATE_UINT8_V(spansion_cr3nv, Flash, 3),
+        VMSTATE_UINT8_V(spansion_cr4nv, Flash, 3),
         VMSTATE_END_OF_LIST()
     }
 };

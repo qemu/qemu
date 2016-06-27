@@ -975,6 +975,7 @@ static CPAccessResult gicv3_irqfiq_access(CPUARMState *env,
             if (!is_a64(env) && !arm_is_el3_or_mon(env)) {
                 r = CP_ACCESS_TRAP_EL3;
             }
+            break;
         default:
             g_assert_not_reached();
         }
@@ -1006,6 +1007,7 @@ static CPAccessResult gicv3_fiq_access(CPUARMState *env,
             if (!is_a64(env) && !arm_is_el3_or_mon(env)) {
                 r = CP_ACCESS_TRAP_EL3;
             }
+            break;
         default:
             g_assert_not_reached();
         }
