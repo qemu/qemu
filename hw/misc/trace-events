@@ -50,3 +50,6 @@ milkymist_pfpu_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
 milkymist_pfpu_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
 milkymist_pfpu_vectout(uint32_t a, uint32_t b, uint32_t dma_ptr) "a %08x b %08x dma_ptr %08x"
 milkymist_pfpu_pulse_irq(void) "Pulse IRQ"
+
+# hw/misc/aspeed_scu.c
+aspeed_scu_write(uint64_t offset, unsigned size, uint32_t data) "To 0x%" PRIx64 " of size %u: 0x%" PRIx32
