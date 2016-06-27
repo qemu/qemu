@@ -694,17 +694,6 @@ static void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
         lsi ? XICS_FLAGS_IRQ_LSI : XICS_FLAGS_IRQ_MSI;
 }
 
-void xics_set_irq_type(XICSState *icp, int irq, bool lsi)
-{
-    int src = xics_find_source(icp, irq);
-    ICSState *ics;
-
-    assert(src >= 0);
-
-    ics = &icp->ics[src];
-    ics_set_irq_type(ics, irq - ics->offset, lsi);
-}
-
 #define ICS_IRQ_FREE(ics, srcno)   \
     (!((ics)->irqs[(srcno)].flags & (XICS_FLAGS_IRQ_MASK)))
 

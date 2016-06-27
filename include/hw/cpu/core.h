@@ -26,6 +26,9 @@ typedef struct CPUCore {
     int nr_threads;
 } CPUCore;
 
+/* Note: topology field names need to be kept in sync with
+ * 'CpuInstanceProperties' */
+
 #define CPU_CORE_PROP_CORE_ID "core-id"
 
 #endif
