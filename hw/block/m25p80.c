@@ -307,6 +307,14 @@ typedef enum {
     STATE_READING_DATA,
 } CMDState;
 
+typedef enum {
+    MAN_SPANSION,
+    MAN_MACRONIX,
+    MAN_NUMONYX,
+    MAN_WINBOND,
+    MAN_GENERIC,
+} Manufacturer;
+
 typedef struct Flash {
     SSISlave parent_obj;
 
@@ -349,6 +357,22 @@ typedef struct M25P80Class {
      OBJECT_CLASS_CHECK(M25P80Class, (klass), TYPE_M25P80)
 #define M25P80_GET_CLASS(obj) \
      OBJECT_GET_CLASS(M25P80Class, (obj), TYPE_M25P80)
+
+static inline Manufacturer get_man(Flash *s)
+{
+    switch (((s->pi->jedec >> 16) & 0xFF)) {
+    case 0x20:
+        return MAN_NUMONYX;
+    case 0xEF:
+        return MAN_WINBOND;
+    case 0x01:
+        return MAN_SPANSION;
+    case 0xC2:
+        return MAN_MACRONIX;
+    default:
+        return MAN_GENERIC;
+    }
+}
 
 static void blk_sync_complete(void *opaque, int ret)
 {
@@ -562,7 +586,8 @@ static void reset_memory(Flash *s)
     s->write_enable = false;
     s->reset_enable = false;
 
-    if (((s->pi->jedec >> 16) & 0xFF) == JEDEC_NUMONYX) {
+    switch (get_man(s)) {
+    case MAN_NUMONYX:
         s->volatile_cfg = 0;
         s->volatile_cfg |= VCFG_DUMMY;
         s->volatile_cfg |= VCFG_WRAP_SEQUENTIAL;
@@ -594,6 +619,9 @@ static void reset_memory(Flash *s)
         if (!(s->nonvolatile_cfg & NVCFG_LOWER_SEGMENT_MASK)) {
             s->ear = CFG_UPPER_128MB_SEG_ENABLED;
         }
+        break;
+    default:
+        break;
     }
 
     DB_PRINT_L(0, "Reset done.\n");
@@ -634,9 +662,12 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case QOR:
     case QOR4:
         s->needed_bytes = get_addr_length(s);
-        if (((s->pi->jedec >> 16) & 0xFF) == JEDEC_NUMONYX) {
-            /* Dummy cycles modeled with bytes writes instead of bits */
+        switch (get_man(s)) {
+        case MAN_NUMONYX:
             s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+            break;
+        default:
+            break;
         }
         s->pos = 0;
         s->len = 0;
@@ -645,9 +676,9 @@ static void decode_new_cmd(Flash *s, uint32_t value)
 
     case DIOR:
     case DIOR4:
-        switch ((s->pi->jedec >> 16) & 0xFF) {
-        case JEDEC_WINBOND:
-        case JEDEC_SPANSION:
+        switch (get_man(s)) {
+        case MAN_WINBOND:
+        case MAN_SPANSION:
             s->needed_bytes = 4;
             break;
         default:
@@ -662,9 +693,9 @@ static void decode_new_cmd(Flash *s, uint32_t value)
 
     case QIOR:
     case QIOR4:
-        switch ((s->pi->jedec >> 16) & 0xFF) {
-        case JEDEC_WINBOND:
-        case JEDEC_SPANSION:
+        switch (get_man(s)) {
+        case MAN_WINBOND:
+        case MAN_SPANSION:
             s->needed_bytes = 6;
             break;
         default:
