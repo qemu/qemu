@@ -8789,25 +8789,27 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                         }
                         tcg_temp_free_i32(addr);
                     } else {
+                        TCGv taddr;
+                        TCGMemOp opc = s->be_data;
+
                         /* SWP instruction */
                         rm = (insn) & 0xf;
 
-                        /* ??? This is not really atomic.  However we know
-                           we never have multiple CPUs running in parallel,
-                           so it is good enough.  */
-                        addr = load_reg(s, rn);
-                        tmp = load_reg(s, rm);
-                        tmp2 = tcg_temp_new_i32();
                         if (insn & (1 << 22)) {
-                            gen_aa32_ld8u(s, tmp2, addr, get_mem_index(s));
-                            gen_aa32_st8(s, tmp, addr, get_mem_index(s));
+                            opc |= MO_UB;
                         } else {
-                            gen_aa32_ld32u(s, tmp2, addr, get_mem_index(s));
-                            gen_aa32_st32(s, tmp, addr, get_mem_index(s));
+                            opc |= MO_UL | MO_ALIGN;
                         }
-                        tcg_temp_free_i32(tmp);
+
+                        addr = load_reg(s, rn);
+                        taddr = gen_aa32_addr(s, addr, opc);
                         tcg_temp_free_i32(addr);
-                        store_reg(s, rd, tmp2);
+
+                        tmp = load_reg(s, rm);
+                        tcg_gen_atomic_xchg_i32(tmp, taddr, tmp,
+                                                get_mem_index(s), opc);
+                        tcg_temp_free(taddr);
+                        store_reg(s, rd, tmp);
                     }
                 }
             } else {
