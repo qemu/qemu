@@ -5134,19 +5134,24 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         modrm = cpu_ldub_code(env, s->pc++);
         reg = ((modrm >> 3) & 7) | rex_r;
         mod = (modrm >> 6) & 3;
+        gen_op_mov_v_reg(ot, cpu_T0, reg);
         if (mod == 3) {
             rm = (modrm & 7) | REX_B(s);
-            gen_op_mov_v_reg(ot, cpu_T0, reg);
             gen_op_mov_v_reg(ot, cpu_T1, rm);
             tcg_gen_add_tl(cpu_T0, cpu_T0, cpu_T1);
             gen_op_mov_reg_v(ot, reg, cpu_T1);
             gen_op_mov_reg_v(ot, rm, cpu_T0);
         } else {
             gen_lea_modrm(env, s, modrm);
-            gen_op_mov_v_reg(ot, cpu_T0, reg);
-            gen_op_ld_v(s, ot, cpu_T1, cpu_A0);
-            tcg_gen_add_tl(cpu_T0, cpu_T0, cpu_T1);
-            gen_op_st_v(s, ot, cpu_T0, cpu_A0);
+            if (s->prefix & PREFIX_LOCK) {
+                tcg_gen_atomic_fetch_add_tl(cpu_T1, cpu_A0, cpu_T0,
+                                            s->mem_index, ot | MO_LE);
+                tcg_gen_add_tl(cpu_T0, cpu_T0, cpu_T1);
+            } else {
+                gen_op_ld_v(s, ot, cpu_T1, cpu_A0);
+                tcg_gen_add_tl(cpu_T0, cpu_T0, cpu_T1);
+                gen_op_st_v(s, ot, cpu_T0, cpu_A0);
+            }
             gen_op_mov_reg_v(ot, reg, cpu_T1);
         }
         gen_op_update2_cc();
