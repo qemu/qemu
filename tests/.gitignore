@@ -1,3 +1,4 @@
+atomic_add-bench
 check-qdict
 check-qfloat
 check-qint
