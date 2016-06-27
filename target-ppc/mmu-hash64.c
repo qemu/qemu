@@ -851,3 +851,60 @@ void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu,
      */
     tlb_flush(CPU(cpu), 1);
 }
+
+void helper_store_lpcr(CPUPPCState *env, target_ulong val)
+{
+    uint64_t lpcr = 0;
+
+    /* Filter out bits */
+    switch (env->mmu_model) {
+    case POWERPC_MMU_64B: /* 970 */
+        if (val & 0x40) {
+            lpcr |= LPCR_LPES0;
+        }
+        if (val & 0x8000000000000000ull) {
+            lpcr |= LPCR_LPES1;
+        }
+        if (val & 0x20) {
+            lpcr |= (0x4ull << LPCR_RMLS_SHIFT);
+        }
+        if (val & 0x4000000000000000ull) {
+            lpcr |= (0x2ull << LPCR_RMLS_SHIFT);
+        }
+        if (val & 0x2000000000000000ull) {
+            lpcr |= (0x1ull << LPCR_RMLS_SHIFT);
+        }
+        env->spr[SPR_RMOR] = ((lpcr >> 41) & 0xffffull) << 26;
+
+        /* XXX We could also write LPID from HID4 here
+         * but since we don't tag any translation on it
+         * it doesn't actually matter
+         */
+        /* XXX For proper emulation of 970 we also need
+         * to dig HRMOR out of HID5
+         */
+        break;
+    case POWERPC_MMU_2_03: /* P5p */
+        lpcr = val & (LPCR_RMLS | LPCR_ILE |
+                      LPCR_LPES0 | LPCR_LPES1 |
+                      LPCR_RMI | LPCR_HDICE);
+        break;
+    case POWERPC_MMU_2_06: /* P7 */
+        lpcr = val & (LPCR_VPM0 | LPCR_VPM1 | LPCR_ISL | LPCR_DPFD |
+                      LPCR_VRMASD | LPCR_RMLS | LPCR_ILE |
+                      LPCR_P7_PECE0 | LPCR_P7_PECE1 | LPCR_P7_PECE2 |
+                      LPCR_MER | LPCR_TC |
+                      LPCR_LPES0 | LPCR_LPES1 | LPCR_HDICE);
+        break;
+    case POWERPC_MMU_2_07: /* P8 */
+        lpcr = val & (LPCR_VPM0 | LPCR_VPM1 | LPCR_ISL | LPCR_KBV |
+                      LPCR_DPFD | LPCR_VRMASD | LPCR_RMLS | LPCR_ILE |
+                      LPCR_AIL | LPCR_ONL | LPCR_P8_PECE0 | LPCR_P8_PECE1 |
+                      LPCR_P8_PECE2 | LPCR_P8_PECE3 | LPCR_P8_PECE4 |
+                      LPCR_MER | LPCR_TC | LPCR_LPES0 | LPCR_HDICE);
+        break;
+    default:
+        ;
+    }
+    env->spr[SPR_LPCR] = lpcr;
+}
