@@ -53,12 +53,17 @@
 /* 16 MiB max in 3 byte address mode */
 #define MAX_3BYTES_SIZE 0x1000000
 
+#define SPI_NOR_MAX_ID_LEN 6
+
 typedef struct FlashPartInfo {
     const char *part_name;
-    /* jedec code. (jedec >> 16) & 0xff is the 1st byte, >> 8 the 2nd etc */
-    uint32_t jedec;
-    /* extended jedec code */
-    uint16_t ext_jedec;
+    /*
+     * This array stores the ID bytes.
+     * The first three bytes are the JEDIC ID.
+     * JEDEC ID zero means "no ID" (mostly older chips).
+     */
+    uint8_t id[SPI_NOR_MAX_ID_LEN];
+    uint8_t id_len;
     /* there is confusion between manufacturers as to what a sector is. In this
      * device model, a "sector" is the size that is erased by the ERASE_SECTOR
      * command (opcode 0xd8).
@@ -70,11 +75,33 @@ typedef struct FlashPartInfo {
 } FlashPartInfo;
 
 /* adapted from linux */
+/* Used when the "_ext_id" is two bytes at most */
+#define INFO(_part_name, _jedec_id, _ext_id, _sector_size, _n_sectors, _flags)\
+    .part_name = _part_name,\
+    .id = {\
+        ((_jedec_id) >> 16) & 0xff,\
+        ((_jedec_id) >> 8) & 0xff,\
+        (_jedec_id) & 0xff,\
+        ((_ext_id) >> 8) & 0xff,\
+        (_ext_id) & 0xff,\
+          },\
+    .id_len = (!(_jedec_id) ? 0 : (3 + ((_ext_id) ? 2 : 0))),\
+    .sector_size = (_sector_size),\
+    .n_sectors = (_n_sectors),\
+    .page_size = 256,\
+    .flags = (_flags),
 
-#define INFO(_part_name, _jedec, _ext_jedec, _sector_size, _n_sectors, _flags)\
-    .part_name = (_part_name),\
-    .jedec = (_jedec),\
-    .ext_jedec = (_ext_jedec),\
+#define INFO6(_part_name, _jedec_id, _ext_id, _sector_size, _n_sectors, _flags)\
+    .part_name = _part_name,\
+    .id = {\
+        ((_jedec_id) >> 16) & 0xff,\
+        ((_jedec_id) >> 8) & 0xff,\
+        (_jedec_id) & 0xff,\
+        ((_ext_id) >> 16) & 0xff,\
+        ((_ext_id) >> 8) & 0xff,\
+        (_ext_id) & 0xff,\
+          },\
+    .id_len = 6,\
     .sector_size = (_sector_size),\
     .n_sectors = (_n_sectors),\
     .page_size = 256,\
@@ -360,7 +387,7 @@ typedef struct M25P80Class {
 
 static inline Manufacturer get_man(Flash *s)
 {
-    switch (((s->pi->jedec >> 16) & 0xFF)) {
+    switch (s->pi->id[0]) {
     case 0x20:
         return MAN_NUMONYX;
     case 0xEF:
@@ -630,6 +657,7 @@ static void reset_memory(Flash *s)
 static void decode_new_cmd(Flash *s, uint32_t value)
 {
     s->cmd_in_progress = value;
+    int i;
     DB_PRINT_L(0, "decoded new command:%x\n", value);
 
     if (value != RESET_MEMORY) {
@@ -743,16 +771,11 @@ static void decode_new_cmd(Flash *s, uint32_t value)
 
     case JEDEC_READ:
         DB_PRINT_L(0, "populated jedec code\n");
-        s->data[0] = (s->pi->jedec >> 16) & 0xff;
-        s->data[1] = (s->pi->jedec >> 8) & 0xff;
-        s->data[2] = s->pi->jedec & 0xff;
-        if (s->pi->ext_jedec) {
-            s->data[3] = (s->pi->ext_jedec >> 8) & 0xff;
-            s->data[4] = s->pi->ext_jedec & 0xff;
-            s->len = 5;
-        } else {
-            s->len = 3;
+        for (i = 0; i < s->pi->id_len; i++) {
+            s->data[i] = s->pi->id[i];
         }
+
+        s->len = s->pi->id_len;
         s->pos = 0;
         s->state = STATE_READING_DATA;
         break;
