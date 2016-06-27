@@ -699,9 +699,18 @@ static inline void cpu_ppc_decr_lower(PowerPCCPU *cpu)
 
 static inline void cpu_ppc_hdecr_excp(PowerPCCPU *cpu)
 {
+    CPUPPCState *env = &cpu->env;
+
     /* Raise it */
-    LOG_TB("raise decrementer exception\n");
-    ppc_set_irq(cpu, PPC_INTERRUPT_HDECR, 1);
+    LOG_TB("raise hv decrementer exception\n");
+
+    /* The architecture specifies that we don't deliver HDEC
+     * interrupts in a PM state. Not only they don't cause a
+     * wakeup but they also get effectively discarded.
+     */
+    if (!env->in_pm_state) {
+        ppc_set_irq(cpu, PPC_INTERRUPT_HDECR, 1);
+    }
 }
 
 static inline void cpu_ppc_hdecr_lower(PowerPCCPU *cpu)
@@ -928,9 +937,7 @@ clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)
     }
     /* Create new timer */
     tb_env->decr_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &cpu_ppc_decr_cb, cpu);
-    if (0) {
-        /* XXX: find a suitable condition to enable the hypervisor decrementer
-         */
+    if (env->has_hv_mode) {
         tb_env->hdecr_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &cpu_ppc_hdecr_cb,
                                                 cpu);
     } else {

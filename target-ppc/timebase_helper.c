@@ -102,6 +102,16 @@ void helper_store_decr(CPUPPCState *env, target_ulong val)
     cpu_ppc_store_decr(env, val);
 }
 
+target_ulong helper_load_hdecr(CPUPPCState *env)
+{
+    return cpu_ppc_load_hdecr(env);
+}
+
+void helper_store_hdecr(CPUPPCState *env, target_ulong val)
+{
+    cpu_ppc_store_hdecr(env, val);
+}
+
 target_ulong helper_load_40x_pit(CPUPPCState *env)
 {
     return load_40x_pit(env);

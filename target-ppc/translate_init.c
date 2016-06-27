@@ -277,6 +277,32 @@ static void spr_read_purr (DisasContext *ctx, int gprn, int sprn)
 {
     gen_helper_load_purr(cpu_gpr[gprn], cpu_env);
 }
+
+/* HDECR */
+static void spr_read_hdecr(DisasContext *ctx, int gprn, int sprn)
+{
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
+    gen_helper_load_hdecr(cpu_gpr[gprn], cpu_env);
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
+        gen_io_end();
+        gen_stop_exception(ctx);
+    }
+}
+
+static void spr_write_hdecr(DisasContext *ctx, int sprn, int gprn)
+{
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
+    gen_helper_store_hdecr(cpu_env, cpu_gpr[gprn]);
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
+        gen_io_end();
+        gen_stop_exception(ctx);
+    }
+}
+
 #endif
 #endif
 
@@ -7824,6 +7850,10 @@ static void gen_spr_power5p_lpar(CPUPPCState *env)
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_lpcr,
                      KVM_REG_PPC_LPCR, LPCR_LPES0 | LPCR_LPES1);
+    spr_register_hv(env, SPR_HDEC, "HDEC",
+                    SPR_NOACCESS, SPR_NOACCESS,
+                    SPR_NOACCESS, SPR_NOACCESS,
+                    &spr_read_hdecr, &spr_write_hdecr, 0);
 #endif
 }
 
