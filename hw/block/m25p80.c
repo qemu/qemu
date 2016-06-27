@@ -281,6 +281,7 @@ typedef enum {
     JEDEC_READ = 0x9f,
     BULK_ERASE = 0xc7,
     READ_FSR = 0x70,
+    RDCR = 0x15,
 
     READ = 0x03,
     READ4 = 0x13,
@@ -316,6 +317,13 @@ typedef enum {
 
     RESET_ENABLE = 0x66,
     RESET_MEMORY = 0x99,
+
+    /*
+     * Micron: 0x35 - enable QPI
+     * Spansion: 0x35 - read control register
+     */
+    RDCR_EQIO = 0x35,
+    RSTQIO = 0xf5,
 
     RNVCR = 0xB5,
     WNVCR = 0xB1,
@@ -366,6 +374,7 @@ typedef struct Flash {
     bool write_enable;
     bool four_bytes_address_mode;
     bool reset_enable;
+    bool quad_enable;
     uint8_t ear;
 
     int64_t dirty_page;
@@ -586,6 +595,16 @@ static void complete_collecting_data(Flash *s)
         flash_erase(s, s->cur_addr, s->cmd_in_progress);
         break;
     case WRSR:
+        switch (get_man(s)) {
+        case MAN_SPANSION:
+            s->quad_enable = !!(s->data[1] & 0x02);
+            break;
+        case MAN_MACRONIX:
+            s->quad_enable = extract32(s->data[0], 6, 1);
+            break;
+        default:
+            break;
+        }
         if (s->write_enable) {
             s->write_enable = false;
         }
@@ -619,6 +638,7 @@ static void reset_memory(Flash *s)
     s->state = STATE_IDLE;
     s->write_enable = false;
     s->reset_enable = false;
+    s->quad_enable = false;
 
     switch (get_man(s)) {
     case MAN_NUMONYX:
@@ -747,10 +767,20 @@ static void decode_new_cmd(Flash *s, uint32_t value)
 
     case WRSR:
         if (s->write_enable) {
-            s->needed_bytes = 1;
+            switch (get_man(s)) {
+            case MAN_SPANSION:
+                s->needed_bytes = 2;
+                s->state = STATE_COLLECTING_DATA;
+                break;
+            case MAN_MACRONIX:
+                s->needed_bytes = 2;
+                s->state = STATE_COLLECTING_VAR_LEN_DATA;
+                break;
+            default:
+                s->needed_bytes = 1;
+                s->state = STATE_COLLECTING_DATA;
+            }
             s->pos = 0;
-            s->len = 0;
-            s->state = STATE_COLLECTING_DATA;
         }
         break;
 
@@ -763,6 +793,9 @@ static void decode_new_cmd(Flash *s, uint32_t value)
 
     case RDSR:
         s->data[0] = (!!s->write_enable) << 1;
+        if (get_man(s) == MAN_MACRONIX) {
+            s->data[0] |= (!!s->quad_enable) << 6;
+        }
         s->pos = 0;
         s->len = 1;
         s->state = STATE_READING_DATA;
@@ -786,6 +819,14 @@ static void decode_new_cmd(Flash *s, uint32_t value)
 
         s->len = s->pi->id_len;
         s->pos = 0;
+        s->state = STATE_READING_DATA;
+        break;
+
+    case RDCR:
+        s->data[0] = s->volatile_cfg & 0xFF;
+        s->data[0] |= (!!s->four_bytes_address_mode) << 5;
+        s->pos = 0;
+        s->len = 1;
         s->state = STATE_READING_DATA;
         break;
 
@@ -828,7 +869,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         s->state = STATE_READING_DATA;
         break;
     case WNVCR:
-        if (s->write_enable) {
+        if (s->write_enable && get_man(s) == MAN_NUMONYX) {
             s->needed_bytes = 2;
             s->pos = 0;
             s->len = 0;
@@ -870,6 +911,24 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         if (s->reset_enable) {
             reset_memory(s);
         }
+        break;
+    case RDCR_EQIO:
+        switch (get_man(s)) {
+        case MAN_SPANSION:
+            s->data[0] = (!!s->quad_enable) << 1;
+            s->pos = 0;
+            s->len = 1;
+            s->state = STATE_READING_DATA;
+            break;
+        case MAN_MACRONIX:
+            s->quad_enable = true;
+            break;
+        default:
+            break;
+        }
+        break;
+    case RSTQIO:
+        s->quad_enable = false;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Unknown cmd %x\n", value);
@@ -999,7 +1058,7 @@ static Property m25p80_properties[] = {
 
 static const VMStateDescription vmstate_m25p80 = {
     .name = "xilinx_spi",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 1,
     .pre_save = m25p80_pre_save,
     .fields = (VMStateField[]) {
@@ -1017,6 +1076,7 @@ static const VMStateDescription vmstate_m25p80 = {
         VMSTATE_UINT32_V(nonvolatile_cfg, Flash, 2),
         VMSTATE_UINT32_V(volatile_cfg, Flash, 2),
         VMSTATE_UINT32_V(enh_volatile_cfg, Flash, 2),
+        VMSTATE_BOOL_V(quad_enable, Flash, 3),
         VMSTATE_END_OF_LIST()
     }
 };
