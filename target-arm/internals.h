@@ -46,8 +46,7 @@ static inline bool excp_is_internal(int excp)
         || excp == EXCP_HALTED
         || excp == EXCP_EXCEPTION_EXIT
         || excp == EXCP_KERNEL_TRAP
-        || excp == EXCP_SEMIHOST
-        || excp == EXCP_STREX;
+        || excp == EXCP_SEMIHOST;
 }
 
 /* Exception names for debug logging; note that not all of these
@@ -63,7 +62,6 @@ static const char * const excnames[] = {
     [EXCP_BKPT] = "Breakpoint",
     [EXCP_EXCEPTION_EXIT] = "QEMU v7M exception exit",
     [EXCP_KERNEL_TRAP] = "QEMU intercept of kernel commpage",
-    [EXCP_STREX] = "QEMU intercept of STREX",
     [EXCP_HVC] = "Hypervisor Call",
     [EXCP_HYP_TRAP] = "Hypervisor Trap",
     [EXCP_SMC] = "Secure Monitor Call",
