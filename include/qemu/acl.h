@@ -64,11 +64,3 @@ int qemu_acl_remove(qemu_acl *acl,
 		    const char *match);
 
 #endif /* __QEMU_ACL_H__ */
-
-/*
- * Local variables:
- *  c-indent-level: 4
- *  c-basic-offset: 4
- *  tab-width: 8
- * End:
- */
