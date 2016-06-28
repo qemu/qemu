@@ -489,41 +489,30 @@ static int net_socket_listen_init(NetClientState *peer,
 {
     NetClientState *nc;
     NetSocketState *s;
-    struct sockaddr_in saddr;
-    int fd, ret;
+    SocketAddress *saddr;
+    int ret;
+    Error *local_error = NULL;
 
-    if (parse_host_port(&saddr, host_str) < 0)
-        return -1;
-
-    fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
-    if (fd < 0) {
-        perror("socket");
+    saddr = socket_parse(host_str, &local_error);
+    if (saddr == NULL) {
+        error_report_err(local_error);
         return -1;
     }
-    qemu_set_nonblock(fd);
 
-    socket_set_fast_reuse(fd);
-
-    ret = bind(fd, (struct sockaddr *)&saddr, sizeof(saddr));
+    ret = socket_listen(saddr, &local_error);
     if (ret < 0) {
-        perror("bind");
-        closesocket(fd);
-        return -1;
-    }
-    ret = listen(fd, 0);
-    if (ret < 0) {
-        perror("listen");
-        closesocket(fd);
+        error_report_err(local_error);
         return -1;
     }
 
     nc = qemu_new_net_client(&net_socket_info, peer, model, name);
     s = DO_UPCAST(NetSocketState, nc, nc);
     s->fd = -1;
-    s->listen_fd = fd;
+    s->listen_fd = ret;
     s->nc.link_down = true;
 
     qemu_set_fd_handler(s->listen_fd, net_socket_accept, NULL, s);
+    qapi_free_SocketAddress(saddr);
     return 0;
 }
 
@@ -534,10 +523,15 @@ static int net_socket_connect_init(NetClientState *peer,
 {
     NetSocketState *s;
     int fd, connected, ret;
-    struct sockaddr_in saddr;
+    char *addr_str;
+    SocketAddress *saddr;
+    Error *local_error = NULL;
 
-    if (parse_host_port(&saddr, host_str) < 0)
+    saddr = socket_parse(host_str, &local_error);
+    if (saddr == NULL) {
+        error_report_err(local_error);
         return -1;
+    }
 
     fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
@@ -545,10 +539,9 @@ static int net_socket_connect_init(NetClientState *peer,
         return -1;
     }
     qemu_set_nonblock(fd);
-
     connected = 0;
     for(;;) {
-        ret = connect(fd, (struct sockaddr *)&saddr, sizeof(saddr));
+        ret = socket_connect(saddr, &local_error, NULL, NULL);
         if (ret < 0) {
             if (errno == EINTR || errno == EWOULDBLOCK) {
                 /* continue */
@@ -557,7 +550,7 @@ static int net_socket_connect_init(NetClientState *peer,
                        errno == EINVAL) {
                 break;
             } else {
-                perror("connect");
+                error_report_err(local_error);
                 closesocket(fd);
                 return -1;
             }
@@ -569,9 +562,15 @@ static int net_socket_connect_init(NetClientState *peer,
     s = net_socket_fd_init(peer, model, name, fd, connected);
     if (!s)
         return -1;
+
+    addr_str = socket_address_to_string(saddr, &local_error);
+    if (addr_str == NULL)
+        return -1;
+
     snprintf(s->nc.info_str, sizeof(s->nc.info_str),
-             "socket: connect to %s:%d",
-             inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
+             "socket: connect to %s", addr_str);
+    qapi_free_SocketAddress(saddr);
+    g_free(addr_str);
     return 0;
 }
 
