@@ -127,24 +127,11 @@ typedef struct TestServer {
     int fds_num;
     int fds[VHOST_MEMORY_MAX_NREGIONS];
     VhostUserMemory memory;
-    GMutex data_mutex;
-    GCond data_cond;
+    CompatGMutex data_mutex;
+    CompatGCond data_cond;
     int log_fd;
     uint64_t rings;
 } TestServer;
-
-#if !GLIB_CHECK_VERSION(2, 32, 0)
-static gboolean g_cond_wait_until(CompatGCond cond, CompatGMutex mutex,
-                                  gint64 end_time)
-{
-    gboolean ret = FALSE;
-    end_time -= g_get_monotonic_time();
-    GTimeVal time = { end_time / G_TIME_SPAN_SECOND,
-                      end_time % G_TIME_SPAN_SECOND };
-    ret = g_cond_timed_wait(cond, mutex, &time);
-    return ret;
-}
-#endif
 
 static const char *tmpfs;
 static const char *root;

@@ -149,6 +149,32 @@ static inline void (g_cond_signal)(CompatGCond *cond)
 }
 #undef g_cond_signal
 
+static inline gboolean (g_cond_timed_wait)(CompatGCond *cond,
+                                           CompatGMutex *mutex,
+                                           GTimeVal *time)
+{
+    g_assert(mutex->once.status != G_ONCE_STATUS_PROGRESS);
+    g_once(&cond->once, do_g_cond_new, NULL);
+    return g_cond_timed_wait((GCond *) cond->once.retval,
+                             (GMutex *) mutex->once.retval, time);
+}
+#undef g_cond_timed_wait
+
+/* This is not a macro, because it didn't exist until 2.32.  */
+static inline gboolean g_cond_wait_until(CompatGCond *cond, CompatGMutex *mutex,
+                                         gint64 end_time)
+{
+    GTimeVal time;
+
+    /* Convert from monotonic to CLOCK_REALTIME.  */
+    end_time -= g_get_monotonic_time();
+    g_get_current_time(&time);
+    end_time += time.tv_sec * G_TIME_SPAN_SECOND + time.tv_usec;
+
+    time.tv_sec = end_time / G_TIME_SPAN_SECOND;
+    time.tv_usec = end_time % G_TIME_SPAN_SECOND;
+    return g_cond_timed_wait(cond, mutex, &time);
+}
 
 /* before 2.31 there was no g_thread_new() */
 static inline GThread *g_thread_new(const char *name,
