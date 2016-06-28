@@ -145,7 +145,7 @@ static const TypeInfo icp_kvm_info = {
  */
 static void ics_get_kvm_state(ICSState *ics)
 {
-    KVMXICSState *icpkvm = KVM_XICS(ics->icp);
+    KVMXICSState *icpkvm = XICS_SPAPR_KVM(ics->icp);
     uint64_t state;
     struct kvm_device_attr attr = {
         .flags = 0,
@@ -204,7 +204,7 @@ static void ics_get_kvm_state(ICSState *ics)
 
 static int ics_set_kvm_state(ICSState *ics, int version_id)
 {
-    KVMXICSState *icpkvm = KVM_XICS(ics->icp);
+    KVMXICSState *icpkvm = XICS_SPAPR_KVM(ics->icp);
     uint64_t state;
     struct kvm_device_attr attr = {
         .flags = 0,
@@ -328,7 +328,7 @@ static void xics_kvm_cpu_setup(XICSState *icp, PowerPCCPU *cpu)
 {
     CPUState *cs;
     ICPState *ss;
-    KVMXICSState *icpkvm = KVM_XICS(icp);
+    KVMXICSState *icpkvm = XICS_SPAPR_KVM(icp);
 
     cs = CPU(cpu);
     ss = &icp->ss[cs->cpu_index];
@@ -394,7 +394,7 @@ static void rtas_dummy(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
 static void xics_kvm_realize(DeviceState *dev, Error **errp)
 {
-    KVMXICSState *icpkvm = KVM_XICS(dev);
+    KVMXICSState *icpkvm = XICS_SPAPR_KVM(dev);
     XICSState *icp = XICS_COMMON(dev);
     int i, rc;
     Error *error = NULL;
@@ -495,8 +495,8 @@ static void xics_kvm_class_init(ObjectClass *oc, void *data)
     xsc->set_nr_servers = xics_kvm_set_nr_servers;
 }
 
-static const TypeInfo xics_kvm_info = {
-    .name          = TYPE_KVM_XICS,
+static const TypeInfo xics_spapr_kvm_info = {
+    .name          = TYPE_XICS_SPAPR_KVM,
     .parent        = TYPE_XICS_COMMON,
     .instance_size = sizeof(KVMXICSState),
     .class_init    = xics_kvm_class_init,
@@ -505,7 +505,7 @@ static const TypeInfo xics_kvm_info = {
 
 static void xics_kvm_register_types(void)
 {
-    type_register_static(&xics_kvm_info);
+    type_register_static(&xics_spapr_kvm_info);
     type_register_static(&ics_kvm_info);
     type_register_static(&icp_kvm_info);
 }

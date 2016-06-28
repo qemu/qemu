@@ -718,7 +718,8 @@ static int ics_find_free_block(ICSState *ics, int num, int alignnum)
     return -1;
 }
 
-int xics_alloc(XICSState *icp, int src, int irq_hint, bool lsi, Error **errp)
+int xics_spapr_alloc(XICSState *icp, int src, int irq_hint, bool lsi,
+                     Error **errp)
 {
     ICSState *ics = &icp->ics[src];
     int irq;
@@ -749,8 +750,8 @@ int xics_alloc(XICSState *icp, int src, int irq_hint, bool lsi, Error **errp)
  * Allocate block of consecutive IRQs, and return the number of the first IRQ in the block.
  * If align==true, aligns the first IRQ number to num.
  */
-int xics_alloc_block(XICSState *icp, int src, int num, bool lsi, bool align,
-                     Error **errp)
+int xics_spapr_alloc_block(XICSState *icp, int src, int num, bool lsi,
+                           bool align, Error **errp)
 {
     int i, first = -1;
     ICSState *ics = &icp->ics[src];
@@ -799,7 +800,7 @@ static void ics_free(ICSState *ics, int srcno, int num)
     }
 }
 
-void xics_free(XICSState *icp, int irq, int num)
+void xics_spapr_free(XICSState *icp, int irq, int num)
 {
     int src = xics_find_source(icp, irq);
 
@@ -1018,9 +1019,9 @@ static void xics_set_nr_servers(XICSState *icp, uint32_t nr_servers,
     }
 }
 
-static void xics_realize(DeviceState *dev, Error **errp)
+static void xics_spapr_realize(DeviceState *dev, Error **errp)
 {
-    XICSState *icp = XICS(dev);
+    XICSState *icp = XICS_SPAPR(dev);
     Error *error = NULL;
     int i;
 
@@ -1057,38 +1058,38 @@ static void xics_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void xics_initfn(Object *obj)
+static void xics_spapr_initfn(Object *obj)
 {
-    XICSState *xics = XICS(obj);
+    XICSState *xics = XICS_SPAPR(obj);
 
     xics->ics = ICS(object_new(TYPE_ICS));
     object_property_add_child(obj, "ics", OBJECT(xics->ics), NULL);
     xics->ics->icp = xics;
 }
 
-static void xics_class_init(ObjectClass *oc, void *data)
+static void xics_spapr_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    XICSStateClass *xsc = XICS_CLASS(oc);
+    XICSStateClass *xsc = XICS_SPAPR_CLASS(oc);
 
-    dc->realize = xics_realize;
+    dc->realize = xics_spapr_realize;
     xsc->set_nr_irqs = xics_set_nr_irqs;
     xsc->set_nr_servers = xics_set_nr_servers;
 }
 
-static const TypeInfo xics_info = {
-    .name          = TYPE_XICS,
+static const TypeInfo xics_spapr_info = {
+    .name          = TYPE_XICS_SPAPR,
     .parent        = TYPE_XICS_COMMON,
     .instance_size = sizeof(XICSState),
     .class_size = sizeof(XICSStateClass),
-    .class_init    = xics_class_init,
-    .instance_init = xics_initfn,
+    .class_init    = xics_spapr_class_init,
+    .instance_init = xics_spapr_initfn,
 };
 
 static void xics_register_types(void)
 {
     type_register_static(&xics_common_info);
-    type_register_static(&xics_info);
+    type_register_static(&xics_spapr_info);
     type_register_static(&ics_info);
     type_register_static(&icp_info);
 }
