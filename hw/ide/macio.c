@@ -406,7 +406,7 @@ static void pmac_ide_flush(DBDMA_io *io)
     IDEState *s = idebus_active_if(&m->bus);
 
     if (s->bus->dma->aiocb) {
-        blk_drain_all();
+        blk_drain(s->blk);
     }
 }
 
