@@ -450,9 +450,31 @@ void ppc_hash64_stop_access(PowerPCCPU *cpu, uint64_t token)
     }
 }
 
+/* Returns the effective page shift or 0. MPSS isn't supported yet so
+ * this will always be the slb_pshift or 0
+ */
+static uint32_t ppc_hash64_pte_size_decode(uint64_t pte1, uint32_t slb_pshift)
+{
+    switch (slb_pshift) {
+    case 12:
+        return 12;
+    case 16:
+        if ((pte1 & 0xf000) == 0x1000) {
+            return 16;
+        }
+        return 0;
+    case 24:
+        if ((pte1 & 0xff000) == 0) {
+            return 24;
+        }
+        return 0;
+    }
+    return 0;
+}
+
 static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
-                                     bool secondary, target_ulong ptem,
-                                     ppc_hash_pte64_t *pte)
+                                     uint32_t slb_pshift, bool secondary,
+                                     target_ulong ptem, ppc_hash_pte64_t *pte)
 {
     CPUPPCState *env = &cpu->env;
     int i;
@@ -472,6 +494,13 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
         if ((pte0 & HPTE64_V_VALID)
             && (secondary == !!(pte0 & HPTE64_V_SECONDARY))
             && HPTE64_V_COMPARE(pte0, ptem)) {
+            uint32_t pshift = ppc_hash64_pte_size_decode(pte1, slb_pshift);
+            if (pshift == 0) {
+                continue;
+            }
+            /* We don't do anything with pshift yet as qemu TLB only deals
+             * with 4K pages anyway
+             */
             pte->pte0 = pte0;
             pte->pte1 = pte1;
             ppc_hash64_stop_access(cpu, token);
@@ -525,7 +554,8 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
             " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
             " hash=" TARGET_FMT_plx "\n",
             env->htab_base, env->htab_mask, vsid, ptem,  hash);
-    pte_offset = ppc_hash64_pteg_search(cpu, hash, 0, ptem, pte);
+    pte_offset = ppc_hash64_pteg_search(cpu, hash, slb->sps->page_shift,
+                                        0, ptem, pte);
 
     if (pte_offset == -1) {
         /* Secondary PTEG lookup */
@@ -535,7 +565,8 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
                 " hash=" TARGET_FMT_plx "\n", env->htab_base,
                 env->htab_mask, vsid, ptem, ~hash);
 
-        pte_offset = ppc_hash64_pteg_search(cpu, ~hash, 1, ptem, pte);
+        pte_offset = ppc_hash64_pteg_search(cpu, ~hash, slb->sps->page_shift, 1,
+                                            ptem, pte);
     }
 
     return pte_offset;
