@@ -386,7 +386,7 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
 
     rtas_event_log_queue(RTAS_LOG_TYPE_EPOW, new_epow, true);
 
-    qemu_irq_pulse(xics_get_qirq(spapr->icp, spapr->check_exception_irq));
+    qemu_irq_pulse(xics_get_qirq(spapr->xics, spapr->check_exception_irq));
 }
 
 static void spapr_hotplug_set_signalled(uint32_t drc_index)
@@ -468,7 +468,7 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
 
     rtas_event_log_queue(RTAS_LOG_TYPE_HOTPLUG, new_hp, true);
 
-    qemu_irq_pulse(xics_get_qirq(spapr->icp, spapr->check_exception_irq));
+    qemu_irq_pulse(xics_get_qirq(spapr->xics, spapr->check_exception_irq));
 }
 
 void spapr_hotplug_req_add_by_index(sPAPRDRConnector *drc)
@@ -551,7 +551,7 @@ static void check_exception(PowerPCCPU *cpu, sPAPRMachineState *spapr,
      * interrupts.
      */
     if (rtas_event_log_contains(mask, true)) {
-        qemu_irq_pulse(xics_get_qirq(spapr->icp, spapr->check_exception_irq));
+        qemu_irq_pulse(xics_get_qirq(spapr->xics, spapr->check_exception_irq));
     }
 
     return;
@@ -603,7 +603,7 @@ out_no_events:
 void spapr_events_init(sPAPRMachineState *spapr)
 {
     QTAILQ_INIT(&spapr->pending_events);
-    spapr->check_exception_irq = xics_spapr_alloc(spapr->icp, 0, 0, false,
+    spapr->check_exception_irq = xics_spapr_alloc(spapr->xics, 0, 0, false,
                                             &error_fatal);
     spapr->epow_notifier.notify = spapr_powerdown_req;
     qemu_register_powerdown_notifier(&spapr->epow_notifier);

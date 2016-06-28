@@ -143,7 +143,7 @@ struct ICSState {
     uint32_t offset;
     qemu_irq *qirqs;
     ICSIRQState *irqs;
-    XICSState *icp;
+    XICSState *xics;
 };
 
 static inline bool ics_valid_irq(ICSState *ics, uint32_t nr)

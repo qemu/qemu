@@ -42,7 +42,7 @@ static void spapr_cpu_destroy(PowerPCCPU *cpu)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
 
-    xics_cpu_destroy(spapr->icp, cpu);
+    xics_cpu_destroy(spapr->xics, cpu);
     qemu_unregister_reset(spapr_cpu_reset, cpu);
 }
 
@@ -76,7 +76,7 @@ void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu, Error **errp)
         }
     }
 
-    xics_cpu_setup(spapr->icp, cpu);
+    xics_cpu_setup(spapr->xics, cpu);
 
     qemu_register_reset(spapr_cpu_reset, cpu);
     spapr_cpu_reset(cpu);
