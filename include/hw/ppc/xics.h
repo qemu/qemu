@@ -186,6 +186,7 @@ int xics_get_cpu_index_by_dt_id(int cpu_dt_id);
 void icp_set_cppr(XICSState *icp, int server, uint8_t cppr);
 void icp_set_mfrr(XICSState *icp, int server, uint8_t mfrr);
 uint32_t icp_accept(ICPState *ss);
+uint32_t icp_ipoll(ICPState *ss, uint32_t *mfrr);
 void icp_eoi(XICSState *icp, int server, uint32_t xirr);
 
 void ics_write_xive(ICSState *ics, int nr, int server,

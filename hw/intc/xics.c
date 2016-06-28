@@ -288,6 +288,14 @@ uint32_t icp_accept(ICPState *ss)
     return xirr;
 }
 
+uint32_t icp_ipoll(ICPState *ss, uint32_t *mfrr)
+{
+    if (mfrr) {
+        *mfrr = ss->mfrr;
+    }
+    return ss->xirr;
+}
+
 void icp_eoi(XICSState *icp, int server, uint32_t xirr)
 {
     ICPState *ss = icp->ss + server;

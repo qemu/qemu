@@ -99,10 +99,11 @@ static target_ulong h_ipoll(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                             target_ulong opcode, target_ulong *args)
 {
     CPUState *cs = CPU(cpu);
-    ICPState *ss = &spapr->icp->ss[cs->cpu_index];
+    uint32_t mfrr;
+    uint32_t xirr = icp_ipoll(spapr->icp->ss + cs->cpu_index, &mfrr);
 
-    args[0] = ss->xirr;
-    args[1] = ss->mfrr;
+    args[0] = xirr;
+    args[1] = mfrr;
 
     return H_SUCCESS;
 }
