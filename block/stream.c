@@ -95,6 +95,7 @@ static void coroutine_fn stream_run(void *opaque)
     BlockDriverState *base = s->base;
     int64_t sector_num = 0;
     int64_t end = -1;
+    uint64_t delay_ns = 0;
     int error = 0;
     int ret = 0;
     int n = 0;
@@ -123,10 +124,8 @@ static void coroutine_fn stream_run(void *opaque)
     }
 
     for (sector_num = 0; sector_num < end; sector_num += n) {
-        uint64_t delay_ns = 0;
         bool copy;
 
-wait:
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
          */
@@ -156,12 +155,6 @@ wait:
         }
         trace_stream_one_iteration(s, sector_num, n, ret);
         if (copy) {
-            if (s->common.speed) {
-                delay_ns = ratelimit_calculate_delay(&s->limit, n);
-                if (delay_ns > 0) {
-                    goto wait;
-                }
-            }
             ret = stream_populate(blk, sector_num, n, buf);
         }
         if (ret < 0) {
@@ -182,6 +175,9 @@ wait:
 
         /* Publish progress */
         s->common.offset += n * BDRV_SECTOR_SIZE;
+        if (copy && s->common.speed) {
+            delay_ns = ratelimit_calculate_delay(&s->limit, n);
+        }
     }
 
     if (!base) {
