@@ -16,8 +16,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _CPU_MOXIE_H
-#define _CPU_MOXIE_H
+
+#ifndef MOXIE_CPU_H
+#define MOXIE_CPU_H
 
 #include "qemu-common.h"
 
@@ -139,4 +140,4 @@ static inline void cpu_get_tb_cpu_state(CPUMoxieState *env, target_ulong *pc,
 int moxie_cpu_handle_mmu_fault(CPUState *cpu, vaddr address,
                                int rw, int mmu_idx);
 
-#endif /* _CPU_MOXIE_H */
+#endif /* MOXIE_CPU_H */

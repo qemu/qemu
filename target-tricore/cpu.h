@@ -16,8 +16,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#if !defined(__TRICORE_CPU_H__)
-#define __TRICORE_CPU_H__
+
+#ifndef TRICORE_CPU_H
+#define TRICORE_CPU_H
 
 #include "tricore-defs.h"
 #include "qemu-common.h"
@@ -420,4 +421,4 @@ int cpu_tricore_handle_mmu_fault(CPUState *cpu, target_ulong address,
                                  int rw, int mmu_idx);
 #define cpu_handle_mmu_fault cpu_tricore_handle_mmu_fault
 
-#endif /*__TRICORE_CPU_H__ */
+#endif /* TRICORE_CPU_H */

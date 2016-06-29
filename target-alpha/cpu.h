@@ -17,8 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#if !defined (__CPU_ALPHA_H__)
-#define __CPU_ALPHA_H__
+#ifndef ALPHA_CPU_H
+#define ALPHA_CPU_H
 
 #include "qemu-common.h"
 #include "cpu-qom.h"
@@ -524,4 +524,4 @@ static inline void cpu_get_tb_cpu_state(CPUAlphaState *env, target_ulong *pc,
     *pflags = flags;
 }
 
-#endif /* !defined (__CPU_ALPHA_H__) */
+#endif /* ALPHA_CPU_H */

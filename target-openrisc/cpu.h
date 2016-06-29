@@ -17,8 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CPU_OPENRISC_H
-#define CPU_OPENRISC_H
+#ifndef OPENRISC_CPU_H
+#define OPENRISC_CPU_H
 
 #define TARGET_LONG_BITS 32
 
@@ -408,4 +408,4 @@ static inline int cpu_mmu_index(CPUOpenRISCState *env, bool ifetch)
 
 #define CPU_INTERRUPT_TIMER   CPU_INTERRUPT_TGT_INT_0
 
-#endif /* CPU_OPENRISC_H */
+#endif /* OPENRISC_CPU_H */

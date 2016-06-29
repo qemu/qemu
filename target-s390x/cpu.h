@@ -19,8 +19,9 @@
  * You should have received a copy of the GNU (Lesser) General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CPU_S390X_H
-#define CPU_S390X_H
+
+#ifndef S390X_CPU_H
+#define S390X_CPU_H
 
 #include "qemu-common.h"
 #include "cpu-qom.h"

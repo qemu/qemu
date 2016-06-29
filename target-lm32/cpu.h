@@ -17,8 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CPU_LM32_H
-#define CPU_LM32_H
+#ifndef LM32_CPU_H
+#define LM32_CPU_H
 
 #define TARGET_LONG_BITS 32
 

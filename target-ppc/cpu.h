@@ -16,8 +16,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#if !defined (__CPU_PPC_H__)
-#define __CPU_PPC_H__
+
+#ifndef PPC_CPU_H
+#define PPC_CPU_H
 
 #include "qemu-common.h"
 
@@ -2432,4 +2433,4 @@ int ppc_get_vcpu_dt_id(PowerPCCPU *cpu);
 PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id);
 
 void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len);
-#endif /* !defined (__CPU_PPC_H__) */
+#endif /* PPC_CPU_H */

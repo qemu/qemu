@@ -16,8 +16,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CPU_I386_H
-#define CPU_I386_H
+
+#ifndef I386_CPU_H
+#define I386_CPU_H
 
 #include "qemu-common.h"
 #include "cpu-qom.h"
@@ -1607,4 +1608,4 @@ void x86_cpu_dump_local_apic_state(CPUState *cs, FILE *f,
 /* cpu.c */
 bool cpu_is_bsp(X86CPU *cpu);
 
-#endif /* CPU_I386_H */
+#endif /* I386_CPU_H */

@@ -16,8 +16,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CPU_TILEGX_H
-#define CPU_TILEGX_H
+
+#ifndef TILEGX_CPU_H
+#define TILEGX_CPU_H
 
 #include "qemu-common.h"
 
