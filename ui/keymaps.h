@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef __QEMU_KEYMAPS_H__
-#define __QEMU_KEYMAPS_H__
+#ifndef QEMU_KEYMAPS_H
+#define QEMU_KEYMAPS_H
 
 #include "qemu-common.h"
 
@@ -74,4 +74,4 @@ int keysym2scancode(void *kbd_layout, int keysym);
 int keycode_is_keypad(void *kbd_layout, int keycode);
 int keysym_is_numlock(void *kbd_layout, int keysym);
 
-#endif /* __QEMU_KEYMAPS_H__ */
+#endif /* QEMU_KEYMAPS_H */

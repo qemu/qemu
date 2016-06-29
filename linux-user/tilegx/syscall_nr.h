@@ -1,5 +1,5 @@
-#ifndef TILEGX_SYSCALL_NR
-#define TILEGX_SYSCALL_NR
+#ifndef TILEGX_SYSCALL_NR_H
+#define TILEGX_SYSCALL_NR_H
 
 /*
  * Copy from linux kernel asm-generic/unistd.h, which tilegx uses.

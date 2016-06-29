@@ -30,8 +30,8 @@
  * ip_icmp.h,v 1.4 1995/05/30 08:09:43 rgrimes Exp
  */
 
-#ifndef _NETINET_IP_ICMP_H_
-#define _NETINET_IP_ICMP_H_
+#ifndef NETINET_IP_ICMP_H
+#define NETINET_IP_ICMP_H
 
 /*
  * Interface Control Message Protocol Definitions.

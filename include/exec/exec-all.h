@@ -17,8 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _EXEC_ALL_H_
-#define _EXEC_ALL_H_
+#ifndef EXEC_ALL_H
+#define EXEC_ALL_H
 
 #include "qemu-common.h"
 #include "exec/tb-context.h"

@@ -1,5 +1,5 @@
-#ifndef _QEMU_9P_IOV_MARSHAL_H
-#define _QEMU_9P_IOV_MARSHAL_H
+#ifndef QEMU_9P_IOV_MARSHAL_H
+#define QEMU_9P_IOV_MARSHAL_H
 
 #include "9p-marshal.h"
 

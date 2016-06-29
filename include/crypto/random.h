@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QCRYPTO_RANDOM_H__
-#define QCRYPTO_RANDOM_H__
+#ifndef QCRYPTO_RANDOM_H
+#define QCRYPTO_RANDOM_H
 
 #include "qemu-common.h"
 #include "qapi/error.h"
@@ -41,4 +41,4 @@ int qcrypto_random_bytes(uint8_t *buf,
                          Error **errp);
 
 
-#endif /* QCRYPTO_RANDOM_H__ */
+#endif /* QCRYPTO_RANDOM_H */

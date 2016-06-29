@@ -1,5 +1,5 @@
-#if !defined (__MMU_HASH32_H__)
-#define __MMU_HASH32_H__
+#ifndef MMU_HASH32_H
+#define MMU_HASH32_H
 
 #ifndef CONFIG_USER_ONLY
 
@@ -109,4 +109,4 @@ typedef struct {
 
 #endif /* CONFIG_USER_ONLY */
 
-#endif /* __MMU_HASH32_H__ */
+#endif /* MMU_HASH32_H */

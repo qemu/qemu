@@ -16,8 +16,8 @@
  * @(#) sh7750_regs.h,v 1.2.4.1 2003/09/04 18:46:00 joel Exp
  */
 
-#ifndef __SH7750_REGS_H__
-#define __SH7750_REGS_H__
+#ifndef SH7750_REGS_H
+#define SH7750_REGS_H
 
 /*
  * All register has 2 addresses: in 0xff000000 - 0xffffffff (P4 address)  and

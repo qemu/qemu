@@ -1,5 +1,5 @@
-#ifndef __QEMU_THREAD_H
-#define __QEMU_THREAD_H 1
+#ifndef QEMU_THREAD_H
+#define QEMU_THREAD_H
 
 #include "qemu/processor.h"
 #include "qemu/atomic.h"

@@ -1,5 +1,5 @@
-#if !defined (__QEMU_MIPS_DEFS_H__)
-#define __QEMU_MIPS_DEFS_H__
+#ifndef QEMU_MIPS_DEFS_H
+#define QEMU_MIPS_DEFS_H
 
 /* If we want to use host float regs... */
 //#define USE_HOST_FLOAT_REGS
@@ -88,4 +88,4 @@
    Note that we still maintain Count/Compare to match the host clock. */
 //#define MIPS_STRICT_STANDARD 1
 
-#endif /* !defined (__QEMU_MIPS_DEFS_H__) */
+#endif /* QEMU_MIPS_DEFS_H */

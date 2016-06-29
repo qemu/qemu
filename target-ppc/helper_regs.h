@@ -17,8 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#if !defined(__HELPER_REGS_H__)
-#define __HELPER_REGS_H__
+#ifndef HELPER_REGS_H
+#define HELPER_REGS_H
 
 /* Swap temporary saved registers with GPRs */
 static inline void hreg_swap_gpr_tgpr(CPUPPCState *env)
@@ -168,4 +168,4 @@ static inline void check_tlb_flush(CPUPPCState *env)
 static inline void check_tlb_flush(CPUPPCState *env) { }
 #endif
 
-#endif /* !defined(__HELPER_REGS_H__) */
+#endif /* HELPER_REGS_H */

@@ -1,5 +1,5 @@
-#ifndef __libqos_ahci_h
-#define __libqos_ahci_h
+#ifndef LIBQOS_AHCI_H
+#define LIBQOS_AHCI_H
 
 /*
  * AHCI qtest library functions and definitions

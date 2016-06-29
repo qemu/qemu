@@ -16,8 +16,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef _ROCKER_H_
-#define _ROCKER_H_
+#ifndef ROCKER_H
+#define ROCKER_H
 
 #include "qemu/sockets.h"
 
@@ -81,4 +81,4 @@ int rx_produce(World *world, uint32_t pport,
 int rocker_port_eg(Rocker *r, uint32_t pport,
                    const struct iovec *iov, int iovcnt);
 
-#endif /* _ROCKER_H_ */
+#endif /* ROCKER_H */

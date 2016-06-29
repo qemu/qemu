@@ -25,8 +25,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef _QEMU_OPTIONS_H_
-#define _QEMU_OPTIONS_H_
+#ifndef QEMU_OPTIONS_H
+#define QEMU_OPTIONS_H
 
 enum {
 #define QEMU_OPTIONS_GENERATE_ENUM

@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef _QEMU_VIRTIO_H
-#define _QEMU_VIRTIO_H
+#ifndef QEMU_VIRTIO_H
+#define QEMU_VIRTIO_H
 
 #include "hw/hw.h"
 #include "net/net.h"

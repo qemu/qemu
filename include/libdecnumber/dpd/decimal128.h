@@ -32,8 +32,9 @@
 /* Decimal 128-bit format module header				      */
 /* ------------------------------------------------------------------ */
 
-#if !defined(DECIMAL128)
-  #define DECIMAL128
+#ifndef DECIMAL128_H
+#define DECIMAL128_H
+
   #define DEC128NAME	 "decimal128"		      /* Short name   */
   #define DEC128FULLNAME "Decimal 128-bit Number"     /* Verbose name */
   #define DEC128AUTHOR	 "Mike Cowlishaw"	      /* Who to blame */

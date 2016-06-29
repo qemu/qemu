@@ -10,8 +10,8 @@
  * directory.
  */
 
-#ifndef __HW_S390_FLIC_H
-#define __HW_S390_FLIC_H
+#ifndef HW_S390_FLIC_H
+#define HW_S390_FLIC_H
 
 #include "hw/sysbus.h"
 #include "hw/s390x/adapter.h"
@@ -78,4 +78,4 @@ static inline DeviceState *s390_flic_kvm_create(void)
 }
 #endif
 
-#endif /* __HW_S390_FLIC_H */
+#endif /* HW_S390_FLIC_H */

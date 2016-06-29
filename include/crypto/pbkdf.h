@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QCRYPTO_PBKDF_H__
-#define QCRYPTO_PBKDF_H__
+#ifndef QCRYPTO_PBKDF_H
+#define QCRYPTO_PBKDF_H
 
 #include "crypto/hash.h"
 
@@ -149,4 +149,4 @@ int qcrypto_pbkdf2_count_iters(QCryptoHashAlgorithm hash,
                                const uint8_t *salt, size_t nsalt,
                                Error **errp);
 
-#endif /* QCRYPTO_PBKDF_H__ */
+#endif /* QCRYPTO_PBKDF_H */

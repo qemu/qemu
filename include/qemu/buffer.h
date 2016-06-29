@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QEMU_BUFFER_H__
-#define QEMU_BUFFER_H__
+#ifndef QEMU_BUFFER_H
+#define QEMU_BUFFER_H
 
 #include "qemu-common.h"
 
@@ -158,4 +158,4 @@ void buffer_move_empty(Buffer *to, Buffer *from);
  */
 void buffer_move(Buffer *to, Buffer *from);
 
-#endif /* QEMU_BUFFER_H__ */
+#endif /* QEMU_BUFFER_H */

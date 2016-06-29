@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef _QEMU_BALLOON_H
-#define _QEMU_BALLOON_H
+#ifndef QEMU_BALLOON_H
+#define QEMU_BALLOON_H
 
 #include "qapi-types.h"
 

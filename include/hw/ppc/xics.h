@@ -24,8 +24,9 @@
  * THE SOFTWARE.
  *
  */
-#if !defined(__XICS_H__)
-#define __XICS_H__
+
+#ifndef XICS_H
+#define XICS_H
 
 #include "hw/sysbus.h"
 
@@ -196,4 +197,4 @@ void ics_set_irq_type(ICSState *ics, int srcno, bool lsi);
 
 int xics_find_source(XICSState *icp, int irq);
 
-#endif /* __XICS_H__ */
+#endif /* XICS_H */

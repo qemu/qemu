@@ -22,9 +22,8 @@
  *
  */
 
-
-#ifndef EXYNOS4210_H_
-#define EXYNOS4210_H_
+#ifndef EXYNOS4210_H
+#define EXYNOS4210_H
 
 #include "qemu-common.h"
 #include "exec/memory.h"
@@ -135,4 +134,4 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
                                     CharDriverState *chr,
                                     qemu_irq irq);
 
-#endif /* EXYNOS4210_H_ */
+#endif /* EXYNOS4210_H */

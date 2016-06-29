@@ -1,5 +1,5 @@
-#ifndef __XEN_BLKIF_H__
-#define __XEN_BLKIF_H__
+#ifndef XEN_BLKIF_H
+#define XEN_BLKIF_H
 
 #include <xen/io/ring.h>
 #include <xen/io/blkif.h>
@@ -143,4 +143,4 @@ static inline void blkif_get_x86_64_req(blkif_request_t *dst,
     }
 }
 
-#endif /* __XEN_BLKIF_H__ */
+#endif /* XEN_BLKIF_H */

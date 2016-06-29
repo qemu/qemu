@@ -16,8 +16,8 @@
  *  with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef I2C_DDC
-#define I2C_DDC
+#ifndef I2C_DDC_H
+#define I2C_DDC_H
 
 /* A simple I2C slave which just returns the contents of its EDID blob. */
 
@@ -35,4 +35,4 @@ typedef struct I2CDDCState I2CDDCState;
 #define TYPE_I2CDDC "i2c-ddc"
 #define I2CDDC(obj) OBJECT_CHECK(I2CDDCState, (obj), TYPE_I2CDDC)
 
-#endif /* !I2C_DDC */
+#endif /* I2C_DDC_H */

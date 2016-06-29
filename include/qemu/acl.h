@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef __QEMU_ACL_H__
-#define __QEMU_ACL_H__
+#ifndef QEMU_ACL_H
+#define QEMU_ACL_H
 
 #include "qemu/queue.h"
 
@@ -63,4 +63,4 @@ int qemu_acl_insert(qemu_acl *acl,
 int qemu_acl_remove(qemu_acl *acl,
 		    const char *match);
 
-#endif /* __QEMU_ACL_H__ */
+#endif /* QEMU_ACL_H */

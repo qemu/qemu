@@ -10,8 +10,9 @@
  * the COPYING file in the top-level directory.
  *
  */
-#ifndef _QEMU_9P_XATTR_H
-#define _QEMU_9P_XATTR_H
+
+#ifndef QEMU_9P_XATTR_H
+#define QEMU_9P_XATTR_H
 
 #include "qemu/xattr.h"
 

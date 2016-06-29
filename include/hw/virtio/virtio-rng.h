@@ -9,8 +9,8 @@
  * top-level directory.
  */
 
-#ifndef _QEMU_VIRTIO_RNG_H
-#define _QEMU_VIRTIO_RNG_H
+#ifndef QEMU_VIRTIO_RNG_H
+#define QEMU_VIRTIO_RNG_H
 
 #include "sysemu/rng.h"
 #include "sysemu/rng-random.h"

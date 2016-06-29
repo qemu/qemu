@@ -17,8 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef QEMU_TB_CONTEXT_H_
-#define QEMU_TB_CONTEXT_H_
+#ifndef QEMU_TB_CONTEXT_H
+#define QEMU_TB_CONTEXT_H
 
 #include "qemu/thread.h"
 #include "qemu/qht.h"

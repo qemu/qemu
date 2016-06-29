@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QIO_CHANNEL_FILE_H__
-#define QIO_CHANNEL_FILE_H__
+#ifndef QIO_CHANNEL_FILE_H
+#define QIO_CHANNEL_FILE_H
 
 #include "io/channel.h"
 
@@ -90,4 +90,4 @@ qio_channel_file_new_path(const char *path,
                           mode_t mode,
                           Error **errp);
 
-#endif /* QIO_CHANNEL_FILE_H__ */
+#endif /* QIO_CHANNEL_FILE_H */

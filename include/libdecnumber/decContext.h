@@ -50,8 +50,9 @@
 /*								      */
 /* ------------------------------------------------------------------ */
 
-#if !defined(DECCONTEXT)
-  #define DECCONTEXT
+#ifndef DECCONTEXT_H
+#define DECCONTEXT_H
+
   #define DECCNAME     "decContext"			/* Short name */
   #define DECCFULLNAME "Decimal Context Descriptor"   /* Verbose name */
   #define DECCAUTHOR   "Mike Cowlishaw"		      /* Who to blame */

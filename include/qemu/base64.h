@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QEMU_BASE64_H__
-#define QEMU_BASE64_H__
+#ifndef QEMU_BASE64_H
+#define QEMU_BASE64_H
 
 #include "qemu-common.h"
 
@@ -55,4 +55,4 @@ uint8_t *qbase64_decode(const char *input,
                         Error **errp);
 
 
-#endif /* QEMU_BUFFER_H__ */
+#endif /* QEMU_BASE64_H */

@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef _QEMU_VIRTIO_SCSI_H
-#define _QEMU_VIRTIO_SCSI_H
+#ifndef QEMU_VIRTIO_SCSI_H
+#define QEMU_VIRTIO_SCSI_H
 
 /* Override CDB/sense data size: they are dynamic (guest controlled) in QEMU */
 #define VIRTIO_SCSI_CDB_SIZE 0
@@ -141,4 +141,4 @@ void virtio_scsi_dataplane_start(VirtIOSCSI *s);
 void virtio_scsi_dataplane_stop(VirtIOSCSI *s);
 void virtio_scsi_dataplane_notify(VirtIODevice *vdev, VirtIOSCSIReq *req);
 
-#endif /* _QEMU_VIRTIO_SCSI_H */
+#endif /* QEMU_VIRTIO_SCSI_H */

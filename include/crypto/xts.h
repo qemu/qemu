@@ -23,9 +23,8 @@
  *
  */
 
-
-#ifndef QCRYPTO_XTS_H_
-#define QCRYPTO_XTS_H_
+#ifndef QCRYPTO_XTS_H
+#define QCRYPTO_XTS_H
 
 #include "qemu-common.h"
 #include "qapi/error.h"
@@ -83,4 +82,4 @@ void xts_encrypt(const void *datactx,
                  const uint8_t *src);
 
 
-#endif /* QCRYPTO_XTS_H_ */
+#endif /* QCRYPTO_XTS_H */

@@ -7,8 +7,8 @@
  *
  */
 
-#ifndef _MIPS_GICTIMER_H_
-#define _MIPS_GICTIMER_H_
+#ifndef MIPS_GICTIMER_H
+#define MIPS_GICTIMER_H
 
 typedef struct MIPSGICTimerVPState MIPSGICTimerVPState;
 typedef struct MIPSGICTimerState MIPSGICTimerState;
@@ -43,4 +43,4 @@ void mips_gictimer_stop_count(MIPSGICTimerState *gic);
 MIPSGICTimerState *mips_gictimer_init(void *opaque, uint32_t nvps,
                                       MIPSGICTimerCB *cb);
 
-#endif /* _MIPS_GICTIMER_H_ */
+#endif /* MIPS_GICTIMER_H */

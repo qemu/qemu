@@ -14,8 +14,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef _ROCKER_FP_H_
-#define _ROCKER_FP_H_
+#ifndef ROCKER_FP_H
+#define ROCKER_FP_H
 
 #include "net/net.h"
 #include "qemu/iov.h"
@@ -51,4 +51,4 @@ FpPort *fp_port_alloc(Rocker *r, char *sw_name,
 void fp_port_free(FpPort *port);
 void fp_port_reset(FpPort *port);
 
-#endif /* _ROCKER_FP_H_ */
+#endif /* ROCKER_FP_H */

@@ -14,8 +14,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef _ROCKER_WORLD_H_
-#define _ROCKER_WORLD_H_
+#ifndef ROCKER_WORLD_H
+#define ROCKER_WORLD_H
 
 #include "rocker_hw.h"
 
@@ -58,4 +58,4 @@ const char *world_name(World *world);
 
 World *rocker_get_world(Rocker *r, enum rocker_world_type type);
 
-#endif /* _ROCKER_WORLD_H_ */
+#endif /* ROCKER_WORLD_H */

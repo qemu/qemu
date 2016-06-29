@@ -18,8 +18,8 @@
     along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __FPSR_H__
-#define __FPSR_H__
+#ifndef FPSR_H
+#define FPSR_H
 
 /*
 The FPSR is a 32 bit register consisting of 4 parts, each exactly

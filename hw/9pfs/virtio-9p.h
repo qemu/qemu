@@ -1,5 +1,5 @@
-#ifndef _QEMU_VIRTIO_9P_H
-#define _QEMU_VIRTIO_9P_H
+#ifndef QEMU_VIRTIO_9P_H
+#define QEMU_VIRTIO_9P_H
 
 #include "standard-headers/linux/virtio_9p.h"
 #include "hw/virtio/virtio.h"

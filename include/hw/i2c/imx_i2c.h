@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef __IMX_I2C_H_
-#define __IMX_I2C_H_
+#ifndef IMX_I2C_H
+#define IMX_I2C_H
 
 #include "hw/sysbus.h"
 
@@ -84,4 +84,4 @@ typedef struct IMXI2CState {
     uint16_t i2dr_write;
 } IMXI2CState;
 
-#endif /* __IMX_I2C_H_ */
+#endif /* IMX_I2C_H */

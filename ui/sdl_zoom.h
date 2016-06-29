@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef SDL_zoom_h
-#define SDL_zoom_h
+#ifndef SDL_ZOOM_H
+#define SDL_ZOOM_H
 
 #include <SDL.h>
 
@@ -22,4 +22,4 @@
 int sdl_zoom_blit(SDL_Surface *src_sfc, SDL_Surface *dst_sfc,
                   int smooth, SDL_Rect *src_rect);
 
-#endif /* SDL_zoom_h */
+#endif /* SDL_ZOOM_H */

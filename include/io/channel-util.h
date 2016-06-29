@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QIO_CHANNEL_UTIL_H__
-#define QIO_CHANNEL_UTIL_H__
+#ifndef QIO_CHANNEL_UTIL_H
+#define QIO_CHANNEL_UTIL_H
 
 #include "io/channel.h"
 
@@ -49,4 +49,4 @@
 QIOChannel *qio_channel_new_fd(int fd,
                                Error **errp);
 
-#endif /* QIO_CHANNEL_UTIL_H__ */
+#endif /* QIO_CHANNEL_UTIL_H */

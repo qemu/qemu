@@ -1,5 +1,5 @@
-#ifndef __SVM_H
-#define __SVM_H
+#ifndef SVM_H
+#define SVM_H
 
 #define TLB_CONTROL_DO_NOTHING 0
 #define TLB_CONTROL_FLUSH_ALL_ASID 1

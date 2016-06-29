@@ -6,8 +6,8 @@
  * top-level directory.
  */
 
-#ifndef _IVSHMEM_SERVER_H_
-#define _IVSHMEM_SERVER_H_
+#ifndef IVSHMEM_SERVER_H
+#define IVSHMEM_SERVER_H
 
 /**
  * The ivshmem server is a daemon that creates a unix socket in listen
@@ -163,4 +163,4 @@ ivshmem_server_search_peer(IvshmemServer *server, int64_t peer_id);
  */
 void ivshmem_server_dump(const IvshmemServer *server);
 
-#endif /* _IVSHMEM_SERVER_H_ */
+#endif /* IVSHMEM_SERVER_H */

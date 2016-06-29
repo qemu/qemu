@@ -14,8 +14,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef _ROCKER_TLV_H_
-#define _ROCKER_TLV_H_
+#ifndef ROCKER_TLV_H
+#define ROCKER_TLV_H
 
 #define ROCKER_TLV_ALIGNTO 8U
 #define ROCKER_TLV_ALIGN(len) \

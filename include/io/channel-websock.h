@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QIO_CHANNEL_WEBSOCK_H__
-#define QIO_CHANNEL_WEBSOCK_H__
+#ifndef QIO_CHANNEL_WEBSOCK_H
+#define QIO_CHANNEL_WEBSOCK_H
 
 #include "io/channel.h"
 #include "qemu/buffer.h"
@@ -105,4 +105,4 @@ void qio_channel_websock_handshake(QIOChannelWebsock *ioc,
                                    gpointer opaque,
                                    GDestroyNotify destroy);
 
-#endif /* QIO_CHANNEL_WEBSOCK_H__ */
+#endif /* QIO_CHANNEL_WEBSOCK_H */

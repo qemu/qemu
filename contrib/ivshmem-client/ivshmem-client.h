@@ -6,8 +6,8 @@
  * top-level directory.
  */
 
-#ifndef _IVSHMEM_CLIENT_H_
-#define _IVSHMEM_CLIENT_H_
+#ifndef IVSHMEM_CLIENT_H
+#define IVSHMEM_CLIENT_H
 
 /**
  * This file provides helper to implement an ivshmem client. It is used
@@ -209,4 +209,4 @@ ivshmem_client_search_peer(IvshmemClient *client, int64_t peer_id);
  */
 void ivshmem_client_dump(const IvshmemClient *client);
 
-#endif /* _IVSHMEM_CLIENT_H_ */
+#endif /* IVSHMEM_CLIENT_H */

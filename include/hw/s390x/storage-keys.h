@@ -9,8 +9,8 @@
  * directory.
  */
 
-#ifndef __S390_STORAGE_KEYS_H
-#define __S390_STORAGE_KEYS_H
+#ifndef S390_STORAGE_KEYS_H
+#define S390_STORAGE_KEYS_H
 
 #include "hw/qdev.h"
 #include "monitor/monitor.h"
@@ -57,4 +57,4 @@ S390SKeysState *s390_get_skeys_device(void);
 void hmp_dump_skeys(Monitor *mon, const QDict *qdict);
 void hmp_info_skeys(Monitor *mon, const QDict *qdict);
 
-#endif /* __S390_STORAGE_KEYS_H */
+#endif /* S390_STORAGE_KEYS_H */

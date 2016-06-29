@@ -12,8 +12,9 @@
  * the COPYING file in the top-level directory.
  *
  */
-#ifndef _QEMU_VIRTIO_SERIAL_H
-#define _QEMU_VIRTIO_SERIAL_H
+
+#ifndef QEMU_VIRTIO_SERIAL_H
+#define QEMU_VIRTIO_SERIAL_H
 
 #include "standard-headers/linux/virtio_console.h"
 #include "hw/qdev.h"

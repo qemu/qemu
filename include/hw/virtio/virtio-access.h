@@ -12,8 +12,10 @@
  * (at your option) any later version.
  *
  */
-#ifndef _QEMU_VIRTIO_ACCESS_H
-#define _QEMU_VIRTIO_ACCESS_H
+
+#ifndef QEMU_VIRTIO_ACCESS_H
+#define QEMU_VIRTIO_ACCESS_H
+
 #include "hw/virtio/virtio.h"
 #include "exec/address-spaces.h"
 
@@ -175,4 +177,4 @@ static inline void virtio_tswap64s(VirtIODevice *vdev, uint64_t *s)
 {
     *s = virtio_tswap64(vdev, *s);
 }
-#endif /* _QEMU_VIRTIO_ACCESS_H */
+#endif /* QEMU_VIRTIO_ACCESS_H */

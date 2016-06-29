@@ -21,9 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef _ETSEC_REGISTERS_H_
-#define _ETSEC_REGISTERS_H_
 
+#ifndef ETSEC_REGISTERS_H
+#define ETSEC_REGISTERS_H
 
 enum eTSEC_Register_Access_Type {
     ACC_RW      = 1,            /* Read/Write */
@@ -316,4 +316,4 @@ extern const eTSEC_Register_Definition eTSEC_registers_def[];
 #define TMR_ETTS2_H  (0xEA8 / 4)
 #define TMR_ETTS2_L  (0xEAC / 4)
 
-#endif /* ! _ETSEC_REGISTERS_H_ */
+#endif /* ETSEC_REGISTERS_H */

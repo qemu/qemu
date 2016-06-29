@@ -5,8 +5,8 @@
  * terms and conditions of the copyright.
  */
 
-#ifndef _MISC_H_
-#define _MISC_H_
+#ifndef MISC_H
+#define MISC_H
 
 struct ex_list {
 	int ex_pty;			/* Do we want a pty? */

@@ -1,6 +1,7 @@
 /* Copied from 2.6.25 kernel headers to avoid problems on older hosts.  */
-#ifndef _LINUX_LOOP_H
-#define _LINUX_LOOP_H
+
+#ifndef LINUX_LOOP_H
+#define LINUX_LOOP_H
 
 /*
  * include/linux/loop.h

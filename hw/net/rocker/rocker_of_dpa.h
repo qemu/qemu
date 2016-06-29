@@ -14,9 +14,9 @@
  * GNU General Public License for more details.
  */
 
-#ifndef _ROCKER_OF_DPA_H_
-#define _ROCKER_OF_DPA_H_
+#ifndef ROCKER_OF_DPA_H
+#define ROCKER_OF_DPA_H
 
 World *of_dpa_world_alloc(Rocker *r);
 
-#endif /* _ROCKER_OF_DPA_H_ */
+#endif /* ROCKER_OF_DPA_H */

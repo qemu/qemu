@@ -21,8 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef _ETSEC_H_
-#define _ETSEC_H_
+
+#ifndef ETSEC_H
+#define ETSEC_H
 
 #include "hw/qdev.h"
 #include "hw/sysbus.h"
@@ -173,4 +174,4 @@ void etsec_write_miim(eTSEC          *etsec,
 
 void etsec_miim_link_status(eTSEC *etsec, NetClientState *nc);
 
-#endif /* ! _ETSEC_H_ */
+#endif /* ETSEC_H */

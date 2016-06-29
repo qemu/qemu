@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef _QEMU_VIRTIO_BLK_H
-#define _QEMU_VIRTIO_BLK_H
+#ifndef QEMU_VIRTIO_BLK_H
+#define QEMU_VIRTIO_BLK_H
 
 #include "standard-headers/linux/virtio_blk.h"
 #include "hw/virtio/virtio.h"

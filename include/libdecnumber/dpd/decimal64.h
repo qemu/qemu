@@ -32,8 +32,9 @@
 /* Decimal 64-bit format module header				      */
 /* ------------------------------------------------------------------ */
 
-#if !defined(DECIMAL64)
-  #define DECIMAL64
+#ifndef DECIMAL64_H
+#define DECIMAL64_H
+
   #define DEC64NAME	"decimal64"		      /* Short name   */
   #define DEC64FULLNAME "Decimal 64-bit Number"	      /* Verbose name */
   #define DEC64AUTHOR	"Mike Cowlishaw"	      /* Who to blame */
