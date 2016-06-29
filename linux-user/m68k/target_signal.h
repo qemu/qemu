@@ -1,5 +1,5 @@
-#ifndef TARGET_SIGNAL_H
-#define TARGET_SIGNAL_H
+#ifndef M68K_TARGET_SIGNAL_H
+#define M68K_TARGET_SIGNAL_H
 
 #include "cpu.h"
 
@@ -27,4 +27,4 @@ static inline abi_ulong get_sp_from_cpustate(CPUM68KState *state)
 }
 
 
-#endif /* TARGET_SIGNAL_H */
+#endif /* M68K_TARGET_SIGNAL_H */
