@@ -7,8 +7,8 @@
  *
  */
 
-#ifndef _MIPS_GCR_H
-#define _MIPS_GCR_H
+#ifndef MIPS_CMGCR_H
+#define MIPS_CMGCR_H
 
 #define TYPE_MIPS_GCR "mips-gcr"
 #define MIPS_GCR(obj) OBJECT_CHECK(MIPSGCRState, (obj), TYPE_MIPS_GCR)
@@ -83,4 +83,4 @@ struct MIPSGCRState {
     MIPSGCRVPState *vps;
 };
 
-#endif /* _MIPS_GCR_H */
+#endif /* MIPS_CMGCR_H */

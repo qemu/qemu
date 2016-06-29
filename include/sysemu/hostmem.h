@@ -9,8 +9,9 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
-#ifndef QEMU_RAM_H
-#define QEMU_RAM_H
+
+#ifndef SYSEMU_HOSTMEM_H
+#define SYSEMU_HOSTMEM_H
 
 #include "sysemu/sysemu.h" /* for MAX_NODES */
 #include "qom/object.h"

@@ -17,8 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#if !defined(__HW_SPAPR_PCI_H__)
-#define __HW_SPAPR_PCI_H__
+#ifndef PCI_HOST_SPAPR_H
+#define PCI_HOST_SPAPR_H
 
 #include "hw/ppc/spapr.h"
 #include "hw/pci/pci.h"
@@ -153,4 +153,4 @@ static inline void spapr_phb_vfio_reset(DeviceState *qdev)
 
 void spapr_phb_dma_reset(sPAPRPHBState *sphb);
 
-#endif /* __HW_SPAPR_PCI_H__ */
+#endif /* PCI_HOST_SPAPR_H */

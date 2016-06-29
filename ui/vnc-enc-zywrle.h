@@ -41,8 +41,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ********************************************************************/
 
-#ifndef VNC_ENCODING_ZYWRLE_H
-#define VNC_ENCODING_ZYWRLE_H
+#ifndef VNC_ENC_ZYWRLE_H
+#define VNC_ENC_ZYWRLE_H
 
 /* Tables for Coefficients filtering. */
 #ifndef ZYWRLE_QUANTIZE

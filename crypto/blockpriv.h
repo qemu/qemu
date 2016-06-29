@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QCRYPTO_BLOCK_PRIV_H__
-#define QCRYPTO_BLOCK_PRIV_H__
+#ifndef QCRYPTO_BLOCKPRIV_H
+#define QCRYPTO_BLOCKPRIV_H
 
 #include "crypto/block.h"
 
@@ -89,4 +89,4 @@ int qcrypto_block_encrypt_helper(QCryptoCipher *cipher,
                                  size_t len,
                                  Error **errp);
 
-#endif /* QCRYPTO_BLOCK_PRIV_H__ */
+#endif /* QCRYPTO_BLOCKPRIV_H */

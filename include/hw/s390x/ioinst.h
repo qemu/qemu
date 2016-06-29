@@ -9,8 +9,8 @@
  * directory.
 */
 
-#ifndef IOINST_S390X_H
-#define IOINST_S390X_H
+#ifndef S390X_IOINST_H
+#define S390X_IOINST_H
 
 /*
  * Channel I/O related definitions, as defined in the Principles

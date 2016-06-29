@@ -1,5 +1,5 @@
-#ifndef HW_ACPI_GEN_UTILS_H
-#define HW_ACPI_GEN_UTILS_H
+#ifndef HW_ACPI_AML_BUILD_H
+#define HW_ACPI_AML_BUILD_H
 
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/bios-linker-loader.h"

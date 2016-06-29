@@ -8,9 +8,8 @@
  * Copyright (c) 1999-2007 Tensilica Inc.
  */
 
-#ifndef _XTENSA_CORE_CONFIGURATION_H
-#define _XTENSA_CORE_CONFIGURATION_H
-
+#ifndef XTENSA_DC232B_CORE_ISA_H
+#define XTENSA_DC232B_CORE_ISA_H
 
 /****************************************************************************
             Parameters Useful for Any Code, USER or PRIVILEGED
@@ -420,4 +419,4 @@
 #endif /* !XTENSA_HAL_NON_PRIVILEGED_ONLY */
 
 
-#endif /* _XTENSA_CORE_CONFIGURATION_H */
+#endif /* XTENSA_DC232B_CORE_ISA_H */

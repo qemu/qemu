@@ -1,5 +1,5 @@
-#ifndef QEMU_HW_MILKYMIST_H
-#define QEMU_HW_MILKYMIST_H
+#ifndef QEMU_HW_MILKYMIST_HW_H
+#define QEMU_HW_MILKYMIST_HW_H
 
 #include "hw/qdev.h"
 #include "net/net.h"
@@ -203,4 +203,4 @@ static inline DeviceState *milkymist_softusb_create(hwaddr base,
     return dev;
 }
 
-#endif /* QEMU_HW_MILKYMIST_H */
+#endif /* QEMU_HW_MILKYMIST_HW_H */

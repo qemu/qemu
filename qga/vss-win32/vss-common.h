@@ -10,8 +10,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef VSS_WIN32_H
-#define VSS_WIN32_H
+#ifndef VSS_COMMON_H
+#define VSS_COMMON_H
 
 #define __MIDL_user_allocate_free_DEFINED__
 #include <windows.h>

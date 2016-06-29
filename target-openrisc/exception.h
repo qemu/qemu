@@ -17,12 +17,12 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef QEMU_OPENRISC_EXCP_H
-#define QEMU_OPENRISC_EXCP_H
+#ifndef TARGET_OPENRISC_EXCEPTION_H
+#define TARGET_OPENRISC_EXCEPTION_H
 
 #include "cpu.h"
 #include "qemu-common.h"
 
 void QEMU_NORETURN raise_exception(OpenRISCCPU *cpu, uint32_t excp);
 
-#endif /* QEMU_OPENRISC_EXCP_H */
+#endif /* TARGET_OPENRISC_EXCEPTION_H */

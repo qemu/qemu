@@ -23,8 +23,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef QEMU_TAP_H
-#define QEMU_TAP_H
+#ifndef NET_TAP_INT_H
+#define NET_TAP_INT_H
 
 #include "qemu-common.h"
 #include "qapi-types.h"
@@ -46,4 +46,4 @@ int tap_fd_enable(int fd);
 int tap_fd_disable(int fd);
 int tap_fd_get_ifname(int fd, char *ifname);
 
-#endif /* QEMU_TAP_H */
+#endif /* NET_TAP_INT_H */

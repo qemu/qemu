@@ -1,5 +1,5 @@
-#ifndef AW_A10_PIC_H
-#define AW_A10_PIC_H
+#ifndef ALLWINNER_A10_PIC_H
+#define ALLWINNER_A10_PIC_H
 
 #define TYPE_AW_A10_PIC  "allwinner-a10-pic"
 #define AW_A10_PIC(obj) OBJECT_CHECK(AwA10PICState, (obj), TYPE_AW_A10_PIC)

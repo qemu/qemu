@@ -1,5 +1,5 @@
-#ifndef __COMMON_H__
-#define __COMMON_H__
+#ifndef SLIRP_H
+#define SLIRP_H
 
 #include "qemu/host-utils.h"
 #include "slirp_config.h"

@@ -27,8 +27,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef VNC_ENCODING_TIGHT_H
-#define VNC_ENCODING_TIGHT_H
+#ifndef VNC_ENC_TIGHT_H
+#define VNC_ENC_TIGHT_H
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  * Tight Encoding.
@@ -180,4 +180,4 @@
 #define VNC_TIGHT_DETECT_MIN_WIDTH           8
 #define VNC_TIGHT_DETECT_MIN_HEIGHT          8
 
-#endif /* VNC_ENCODING_TIGHT_H */
+#endif /* VNC_ENC_TIGHT_H */

@@ -37,8 +37,9 @@
 /* decNumber.h or one of decDouble (etc.) must be included first.     */
 /* ------------------------------------------------------------------ */
 
-#if !defined(DECNUMBERLOC)
-  #define DECNUMBERLOC
+#ifndef DECNUMBERLOCAL_H
+#define DECNUMBERLOCAL_H
+
   #define DECVERSION	"decNumber 3.53" /* Package Version [16 max.] */
   #define DECNLAUTHOR	"Mike Cowlishaw"	      /* Who to blame */
 

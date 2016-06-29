@@ -8,8 +8,8 @@
  * later.  See the COPYING file in the top-level directory.
  */
 
-#ifndef HW_BLOCK_COMMON_H
-#define HW_BLOCK_COMMON_H
+#ifndef HW_BLOCK_H
+#define HW_BLOCK_H
 
 #include "qemu-common.h"
 

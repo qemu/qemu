@@ -10,8 +10,10 @@
  * the COPYING file in the top-level directory.
  *
  */
-#ifndef _FILEOP_H
-#define _FILEOP_H
+
+#ifndef FILE_OP_9P_H
+#define FILE_OP_9P_H
+
 #include <dirent.h>
 #include <utime.h>
 #include <sys/vfs.h>

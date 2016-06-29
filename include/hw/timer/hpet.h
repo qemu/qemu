@@ -10,8 +10,9 @@
  * the COPYING file in the top-level directory.
  *
  */
-#ifndef QEMU_HPET_EMUL_H
-#define QEMU_HPET_EMUL_H
+
+#ifndef HW_HPET_H
+#define HW_HPET_H
 
 #include "qom/object.h"
 

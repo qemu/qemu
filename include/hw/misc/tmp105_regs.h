@@ -11,8 +11,9 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or
  * later. See the COPYING file in the top-level directory.
  */
-#ifndef QEMU_TMP105_MSGS_H
-#define QEMU_TMP105_MSGS_H
+
+#ifndef TMP105_REGS_H
+#define TMP105_REGS_H
 
 /**
  * TMP105Reg:

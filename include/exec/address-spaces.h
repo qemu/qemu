@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef EXEC_MEMORY_H
-#define EXEC_MEMORY_H
+#ifndef EXEC_ADDRESS_SPACES_H
+#define EXEC_ADDRESS_SPACES_H
 
 /*
  * Internal interfaces between memory.c/exec.c/vl.c.  Do not #include unless

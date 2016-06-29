@@ -1,5 +1,5 @@
-#ifndef BT_HOST_H
-#define BT_HOST_H
+#ifndef SYSEMU_BT_H
+#define SYSEMU_BT_H
 
 /* BT HCI info */
 

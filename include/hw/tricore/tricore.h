@@ -1,5 +1,5 @@
-#ifndef TRICORE_MISC_H
-#define TRICORE_MISC_H 1
+#ifndef HW_TRICORE_H
+#define HW_TRICORE_H
 
 #include "exec/memory.h"
 #include "hw/irq.h"

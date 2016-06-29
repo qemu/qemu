@@ -1,5 +1,5 @@
-#ifndef DEC_PCI_H
-#define DEC_PCI_H
+#ifndef HW_PCI_BRIDGE_DEC_H
+#define HW_PCI_BRIDGE_DEC_H
 
 #include "qemu-common.h"
 

@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#if !defined(PPC_405_H)
-#define PPC_405_H
+#ifndef PPC405_H
+#define PPC405_H
 
 #include "hw/ppc/ppc4xx.h"
 
@@ -78,4 +78,4 @@ CPUPPCState *ppc_stb025_init (MemoryRegion ram_memories[2],
                            uint32_t sysclk, qemu_irq **picp,
                            ram_addr_t *offsetp);
 
-#endif /* !defined(PPC_405_H) */
+#endif /* PPC405_H */

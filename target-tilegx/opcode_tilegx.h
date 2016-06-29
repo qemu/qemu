@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef __ARCH_OPCODE_H__
-#define __ARCH_OPCODE_H__
+#ifndef OPCODE_TILEGX_H
+#define OPCODE_TILEGX_H
 
 #ifndef __ASSEMBLER__
 
@@ -1403,4 +1403,4 @@ enum
 
 #endif /* __ASSEMBLER__ */
 
-#endif /* __ARCH_OPCODE_H__ */
+#endif /* OPCODE_TILEGX_H */

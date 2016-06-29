@@ -30,8 +30,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef MFI_REG_H
-#define MFI_REG_H
+#ifndef SCSI_MFI_H
+#define SCSI_MFI_H
 
 /*
  * MegaRAID SAS MFI firmware definitions
@@ -1269,4 +1269,4 @@ struct mfi_config_data {
 #define MFI_SCSI_MAX_CMDS       8
 #define MFI_SCSI_MAX_CDB_LEN   16
 
-#endif /* MFI_REG_H */
+#endif /* SCSI_MFI_H */

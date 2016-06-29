@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QCRYPTO_TLSCRED_X509_H__
-#define QCRYPTO_TLSCRED_X509_H__
+#ifndef QCRYPTO_TLSCREDSX509_H
+#define QCRYPTO_TLSCREDSX509_H
 
 #include "crypto/tlscreds.h"
 
@@ -110,5 +110,4 @@ struct QCryptoTLSCredsX509Class {
 };
 
 
-#endif /* QCRYPTO_TLSCRED_X509_H__ */
-
+#endif /* QCRYPTO_TLSCREDSX509_H */
