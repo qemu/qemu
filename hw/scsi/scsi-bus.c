@@ -461,6 +461,14 @@ static bool scsi_target_emulate_inquiry(SCSITargetReq *r)
     return true;
 }
 
+static size_t scsi_sense_len(SCSIRequest *req)
+{
+    if (req->dev->type == TYPE_SCANNER)
+        return SCSI_SENSE_LEN_SCANNER;
+    else
+        return SCSI_SENSE_LEN;
+}
+
 static int32_t scsi_target_send_command(SCSIRequest *req, uint8_t *buf)
 {
     SCSITargetReq *r = DO_UPCAST(SCSITargetReq, req, req);
@@ -477,7 +485,7 @@ static int32_t scsi_target_send_command(SCSIRequest *req, uint8_t *buf)
         }
         break;
     case REQUEST_SENSE:
-        scsi_target_alloc_buf(&r->req, SCSI_SENSE_LEN);
+        scsi_target_alloc_buf(&r->req, scsi_sense_len(req));
         r->len = scsi_device_get_sense(r->req.dev, r->buf,
                                        MIN(req->cmd.xfer, r->buf_len),
                                        (req->cmd.buf[1] & 1) == 0);
