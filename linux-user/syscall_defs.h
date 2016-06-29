@@ -135,6 +135,24 @@ struct target_sockaddr_ll {
     uint8_t  sll_addr[8];  /* Physical layer address */
 };
 
+struct target_sockaddr_un {
+    uint16_t su_family;
+    uint8_t sun_path[108];
+};
+
+struct target_in_addr {
+    uint32_t s_addr; /* big endian */
+};
+
+struct target_sockaddr_in {
+  uint16_t sin_family;
+  int16_t sin_port; /* big endian */
+  struct target_in_addr sin_addr;
+  uint8_t __pad[sizeof(struct target_sockaddr) -
+                sizeof(uint16_t) - sizeof(int16_t) -
+                sizeof(struct target_in_addr)];
+};
+
 struct target_sock_filter {
     abi_ushort code;
     uint8_t jt;
@@ -145,10 +163,6 @@ struct target_sock_filter {
 struct target_sock_fprog {
     abi_ushort len;
     abi_ulong filter;
-};
-
-struct target_in_addr {
-    uint32_t s_addr; /* big endian */
 };
 
 struct target_ip_mreq {
@@ -2166,6 +2180,8 @@ struct target_statfs64 {
 #define TARGET_F_SETLEASE (TARGET_F_LINUX_SPECIFIC_BASE + 0)
 #define TARGET_F_GETLEASE (TARGET_F_LINUX_SPECIFIC_BASE + 1)
 #define TARGET_F_DUPFD_CLOEXEC (TARGET_F_LINUX_SPECIFIC_BASE + 6)
+#define TARGET_F_SETPIPE_SZ (TARGET_F_LINUX_SPECIFIC_BASE + 7)
+#define TARGET_F_GETPIPE_SZ (TARGET_F_LINUX_SPECIFIC_BASE + 8)
 #define TARGET_F_NOTIFY  (TARGET_F_LINUX_SPECIFIC_BASE+2)
 
 #if defined(TARGET_ALPHA)

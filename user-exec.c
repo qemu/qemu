@@ -117,14 +117,7 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
 
 #if defined(__i386__)
 
-#if defined(__APPLE__)
-#include <sys/ucontext.h>
-
-#define EIP_sig(context)  (*((unsigned long *)&(context)->uc_mcontext->ss.eip))
-#define TRAP_sig(context)    ((context)->uc_mcontext->es.trapno)
-#define ERROR_sig(context)   ((context)->uc_mcontext->es.err)
-#define MASK_sig(context)    ((context)->uc_sigmask)
-#elif defined(__NetBSD__)
+#if defined(__NetBSD__)
 #include <ucontext.h>
 
 #define EIP_sig(context)     ((context)->uc_mcontext.__gregs[_REG_EIP])
@@ -273,44 +266,6 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 #define DSISR_sig(context)             ((context)->uc_mcontext.mc_dsisr)
 #define TRAP_sig(context)              ((context)->uc_mcontext.mc_exc)
 #endif /* __FreeBSD__|| __FreeBSD_kernel__ */
-
-#ifdef __APPLE__
-#include <sys/ucontext.h>
-typedef struct ucontext SIGCONTEXT;
-/* All Registers access - only for local access */
-#define REG_sig(reg_name, context)              \
-    ((context)->uc_mcontext->ss.reg_name)
-#define FLOATREG_sig(reg_name, context)         \
-    ((context)->uc_mcontext->fs.reg_name)
-#define EXCEPREG_sig(reg_name, context)         \
-    ((context)->uc_mcontext->es.reg_name)
-#define VECREG_sig(reg_name, context)           \
-    ((context)->uc_mcontext->vs.reg_name)
-/* Gpr Registers access */
-#define GPR_sig(reg_num, context)              REG_sig(r##reg_num, context)
-/* Program counter */
-#define IAR_sig(context)                       REG_sig(srr0, context)
-/* Machine State Register (Supervisor) */
-#define MSR_sig(context)                       REG_sig(srr1, context)
-#define CTR_sig(context)                       REG_sig(ctr, context)
-/* Link register */
-#define XER_sig(context)                       REG_sig(xer, context)
-/* User's integer exception register */
-#define LR_sig(context)                        REG_sig(lr, context)
-/* Condition register */
-#define CR_sig(context)                        REG_sig(cr, context)
-/* Float Registers access */
-#define FLOAT_sig(reg_num, context)             \
-    FLOATREG_sig(fpregs[reg_num], context)
-#define FPSCR_sig(context)                      \
-    ((double)FLOATREG_sig(fpscr, context))
-/* Exception Registers access */
-/* Fault registers for coredump */
-#define DAR_sig(context)                       EXCEPREG_sig(dar, context)
-#define DSISR_sig(context)                     EXCEPREG_sig(dsisr, context)
-/* number of powerpc exception taken */
-#define TRAP_sig(context)                      EXCEPREG_sig(exception, context)
-#endif /* __APPLE__ */
 
 int cpu_signal_handler(int host_signum, void *pinfo,
                        void *puc)
@@ -494,24 +449,6 @@ int cpu_signal_handler(int host_signum, void *pinfo, void *puc)
                              is_write, &uc->uc_sigmask);
 }
 
-#elif defined(__mc68000)
-
-int cpu_signal_handler(int host_signum, void *pinfo,
-                       void *puc)
-{
-    siginfo_t *info = pinfo;
-    struct ucontext *uc = puc;
-    unsigned long pc;
-    int is_write;
-
-    pc = uc->uc_mcontext.gregs[16];
-    /* XXX: compute is_write */
-    is_write = 0;
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr,
-                             is_write,
-                             &uc->uc_sigmask);
-}
-
 #elif defined(__ia64)
 
 #ifndef __ISR_VALID
@@ -612,48 +549,6 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 
     /* XXX: compute is_write */
     is_write = 0;
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr,
-                             is_write, &uc->uc_sigmask);
-}
-
-#elif defined(__hppa__)
-
-int cpu_signal_handler(int host_signum, void *pinfo,
-                       void *puc)
-{
-    siginfo_t *info = pinfo;
-    struct ucontext *uc = puc;
-    unsigned long pc = uc->uc_mcontext.sc_iaoq[0];
-    uint32_t insn = *(uint32_t *)pc;
-    int is_write = 0;
-
-    /* XXX: need kernel patch to get write flag faster.  */
-    switch (insn >> 26) {
-    case 0x1a: /* STW */
-    case 0x19: /* STH */
-    case 0x18: /* STB */
-    case 0x1b: /* STWM */
-        is_write = 1;
-        break;
-
-    case 0x09: /* CSTWX, FSTWX, FSTWS */
-    case 0x0b: /* CSTDX, FSTDX, FSTDS */
-        /* Distinguish from coprocessor load ... */
-        is_write = (insn >> 9) & 1;
-        break;
-
-    case 0x03:
-        switch ((insn >> 6) & 15) {
-        case 0xa: /* STWS */
-        case 0x9: /* STHS */
-        case 0x8: /* STBS */
-        case 0xe: /* STWAS */
-        case 0xc: /* STBYS */
-            is_write = 1;
-        }
-        break;
-    }
-
     return handle_cpu_signal(pc, (unsigned long)info->si_addr,
                              is_write, &uc->uc_sigmask);
 }

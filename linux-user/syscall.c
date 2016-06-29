@@ -123,11 +123,6 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #define	VFAT_IOCTL_READDIR_BOTH		_IOR('r', 1, struct linux_dirent [2])
 #define	VFAT_IOCTL_READDIR_SHORT	_IOR('r', 2, struct linux_dirent [2])
 
-/* This is the size of the host kernel's sigset_t, needed where we make
- * direct system calls that take a sigset_t pointer and a size.
- */
-#define SIGSET_T_SIZE (_NSIG / 8)
-
 #undef _syscall0
 #undef _syscall1
 #undef _syscall2
@@ -783,6 +778,16 @@ safe_syscall5(int, mq_timedreceive, int, mqdes, char *, msg_ptr,
  * the libc function.
  */
 #define safe_ioctl(...) safe_syscall(__NR_ioctl, __VA_ARGS__)
+/* Similarly for fcntl. Note that callers must always:
+ *  pass the F_GETLK64 etc constants rather than the unsuffixed F_GETLK
+ *  use the flock64 struct rather than unsuffixed flock
+ * This will then work and use a 64-bit offset for both 32-bit and 64-bit hosts.
+ */
+#ifdef __NR_fcntl64
+#define safe_fcntl(...) safe_syscall(__NR_fcntl64, __VA_ARGS__)
+#else
+#define safe_fcntl(...) safe_syscall(__NR_fcntl, __VA_ARGS__)
+#endif
 
 static inline int host_to_target_sock_type(int host_type)
 {
@@ -1687,6 +1692,7 @@ static abi_long target_to_host_for_each_nlmsg(struct nlmsghdr *nlh,
             struct nlmsgerr *e = NLMSG_DATA(nlh);
             e->error = tswap32(e->error);
             tswap_nlmsghdr(&e->msg);
+            return 0;
         }
         default:
             ret = target_to_host_nlmsg(nlh);
@@ -1942,29 +1948,35 @@ static abi_long host_to_target_data_route(struct nlmsghdr *nlh)
     case RTM_NEWLINK:
     case RTM_DELLINK:
     case RTM_GETLINK:
-        ifi = NLMSG_DATA(nlh);
-        ifi->ifi_type = tswap16(ifi->ifi_type);
-        ifi->ifi_index = tswap32(ifi->ifi_index);
-        ifi->ifi_flags = tswap32(ifi->ifi_flags);
-        ifi->ifi_change = tswap32(ifi->ifi_change);
-        host_to_target_link_rtattr(IFLA_RTA(ifi),
-                                   nlmsg_len - NLMSG_LENGTH(sizeof(*ifi)));
+        if (nlh->nlmsg_len >= NLMSG_LENGTH(sizeof(*ifi))) {
+            ifi = NLMSG_DATA(nlh);
+            ifi->ifi_type = tswap16(ifi->ifi_type);
+            ifi->ifi_index = tswap32(ifi->ifi_index);
+            ifi->ifi_flags = tswap32(ifi->ifi_flags);
+            ifi->ifi_change = tswap32(ifi->ifi_change);
+            host_to_target_link_rtattr(IFLA_RTA(ifi),
+                                       nlmsg_len - NLMSG_LENGTH(sizeof(*ifi)));
+        }
         break;
     case RTM_NEWADDR:
     case RTM_DELADDR:
     case RTM_GETADDR:
-        ifa = NLMSG_DATA(nlh);
-        ifa->ifa_index = tswap32(ifa->ifa_index);
-        host_to_target_addr_rtattr(IFA_RTA(ifa),
-                                   nlmsg_len - NLMSG_LENGTH(sizeof(*ifa)));
+        if (nlh->nlmsg_len >= NLMSG_LENGTH(sizeof(*ifa))) {
+            ifa = NLMSG_DATA(nlh);
+            ifa->ifa_index = tswap32(ifa->ifa_index);
+            host_to_target_addr_rtattr(IFA_RTA(ifa),
+                                       nlmsg_len - NLMSG_LENGTH(sizeof(*ifa)));
+        }
         break;
     case RTM_NEWROUTE:
     case RTM_DELROUTE:
     case RTM_GETROUTE:
-        rtm = NLMSG_DATA(nlh);
-        rtm->rtm_flags = tswap32(rtm->rtm_flags);
-        host_to_target_route_rtattr(RTM_RTA(rtm),
-                                    nlmsg_len - NLMSG_LENGTH(sizeof(*rtm)));
+        if (nlh->nlmsg_len >= NLMSG_LENGTH(sizeof(*rtm))) {
+            rtm = NLMSG_DATA(nlh);
+            rtm->rtm_flags = tswap32(rtm->rtm_flags);
+            host_to_target_route_rtattr(RTM_RTA(rtm),
+                                        nlmsg_len - NLMSG_LENGTH(sizeof(*rtm)));
+        }
         break;
     default:
         return -TARGET_EINVAL;
@@ -2080,30 +2092,36 @@ static abi_long target_to_host_data_route(struct nlmsghdr *nlh)
         break;
     case RTM_NEWLINK:
     case RTM_DELLINK:
-        ifi = NLMSG_DATA(nlh);
-        ifi->ifi_type = tswap16(ifi->ifi_type);
-        ifi->ifi_index = tswap32(ifi->ifi_index);
-        ifi->ifi_flags = tswap32(ifi->ifi_flags);
-        ifi->ifi_change = tswap32(ifi->ifi_change);
-        target_to_host_link_rtattr(IFLA_RTA(ifi), nlh->nlmsg_len -
-                                   NLMSG_LENGTH(sizeof(*ifi)));
+        if (nlh->nlmsg_len >= NLMSG_LENGTH(sizeof(*ifi))) {
+            ifi = NLMSG_DATA(nlh);
+            ifi->ifi_type = tswap16(ifi->ifi_type);
+            ifi->ifi_index = tswap32(ifi->ifi_index);
+            ifi->ifi_flags = tswap32(ifi->ifi_flags);
+            ifi->ifi_change = tswap32(ifi->ifi_change);
+            target_to_host_link_rtattr(IFLA_RTA(ifi), nlh->nlmsg_len -
+                                       NLMSG_LENGTH(sizeof(*ifi)));
+        }
         break;
     case RTM_GETADDR:
     case RTM_NEWADDR:
     case RTM_DELADDR:
-        ifa = NLMSG_DATA(nlh);
-        ifa->ifa_index = tswap32(ifa->ifa_index);
-        target_to_host_addr_rtattr(IFA_RTA(ifa), nlh->nlmsg_len -
-                                   NLMSG_LENGTH(sizeof(*ifa)));
+        if (nlh->nlmsg_len >= NLMSG_LENGTH(sizeof(*ifa))) {
+            ifa = NLMSG_DATA(nlh);
+            ifa->ifa_index = tswap32(ifa->ifa_index);
+            target_to_host_addr_rtattr(IFA_RTA(ifa), nlh->nlmsg_len -
+                                       NLMSG_LENGTH(sizeof(*ifa)));
+        }
         break;
     case RTM_GETROUTE:
         break;
     case RTM_NEWROUTE:
     case RTM_DELROUTE:
-        rtm = NLMSG_DATA(nlh);
-        rtm->rtm_flags = tswap32(rtm->rtm_flags);
-        target_to_host_route_rtattr(RTM_RTA(rtm), nlh->nlmsg_len -
-                                    NLMSG_LENGTH(sizeof(*rtm)));
+        if (nlh->nlmsg_len >= NLMSG_LENGTH(sizeof(*rtm))) {
+            rtm = NLMSG_DATA(nlh);
+            rtm->rtm_flags = tswap32(rtm->rtm_flags);
+            target_to_host_route_rtattr(RTM_RTA(rtm), nlh->nlmsg_len -
+                                        NLMSG_LENGTH(sizeof(*rtm)));
+        }
         break;
     default:
         return -TARGET_EOPNOTSUPP;
@@ -2985,7 +3003,7 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
             len = ret;
             if (fd_trans_host_to_target_data(fd)) {
                 ret = fd_trans_host_to_target_data(fd)(msg.msg_iov->iov_base,
-                                                       msg.msg_iov->iov_len);
+                                                       len);
             } else {
                 ret = host_to_target_cmsg(msgp, &msg);
             }
@@ -5541,11 +5559,11 @@ static int target_to_host_fcntl_cmd(int cmd)
 	case TARGET_F_SETFL:
             return cmd;
         case TARGET_F_GETLK:
-	    return F_GETLK;
-	case TARGET_F_SETLK:
-	    return F_SETLK;
-	case TARGET_F_SETLKW:
-	    return F_SETLKW;
+            return F_GETLK64;
+        case TARGET_F_SETLK:
+            return F_SETLK64;
+        case TARGET_F_SETLKW:
+            return F_SETLKW64;
 	case TARGET_F_GETOWN:
 	    return F_GETOWN;
 	case TARGET_F_SETOWN:
@@ -5580,6 +5598,10 @@ static int target_to_host_fcntl_cmd(int cmd)
 	case TARGET_F_SETOWN_EX:
 	    return F_SETOWN_EX;
 #endif
+        case TARGET_F_SETPIPE_SZ:
+            return F_SETPIPE_SZ;
+        case TARGET_F_GETPIPE_SZ:
+            return F_GETPIPE_SZ;
 	default:
             return -TARGET_EINVAL;
     }
@@ -5596,12 +5618,134 @@ static const bitmask_transtbl flock_tbl[] = {
     { 0, 0, 0, 0 }
 };
 
+static inline abi_long copy_from_user_flock(struct flock64 *fl,
+                                            abi_ulong target_flock_addr)
+{
+    struct target_flock *target_fl;
+    short l_type;
+
+    if (!lock_user_struct(VERIFY_READ, target_fl, target_flock_addr, 1)) {
+        return -TARGET_EFAULT;
+    }
+
+    __get_user(l_type, &target_fl->l_type);
+    fl->l_type = target_to_host_bitmask(l_type, flock_tbl);
+    __get_user(fl->l_whence, &target_fl->l_whence);
+    __get_user(fl->l_start, &target_fl->l_start);
+    __get_user(fl->l_len, &target_fl->l_len);
+    __get_user(fl->l_pid, &target_fl->l_pid);
+    unlock_user_struct(target_fl, target_flock_addr, 0);
+    return 0;
+}
+
+static inline abi_long copy_to_user_flock(abi_ulong target_flock_addr,
+                                          const struct flock64 *fl)
+{
+    struct target_flock *target_fl;
+    short l_type;
+
+    if (!lock_user_struct(VERIFY_WRITE, target_fl, target_flock_addr, 0)) {
+        return -TARGET_EFAULT;
+    }
+
+    l_type = host_to_target_bitmask(fl->l_type, flock_tbl);
+    __put_user(l_type, &target_fl->l_type);
+    __put_user(fl->l_whence, &target_fl->l_whence);
+    __put_user(fl->l_start, &target_fl->l_start);
+    __put_user(fl->l_len, &target_fl->l_len);
+    __put_user(fl->l_pid, &target_fl->l_pid);
+    unlock_user_struct(target_fl, target_flock_addr, 1);
+    return 0;
+}
+
+typedef abi_long from_flock64_fn(struct flock64 *fl, abi_ulong target_addr);
+typedef abi_long to_flock64_fn(abi_ulong target_addr, const struct flock64 *fl);
+
+#if defined(TARGET_ARM) && TARGET_ABI_BITS == 32
+static inline abi_long copy_from_user_eabi_flock64(struct flock64 *fl,
+                                                   abi_ulong target_flock_addr)
+{
+    struct target_eabi_flock64 *target_fl;
+    short l_type;
+
+    if (!lock_user_struct(VERIFY_READ, target_fl, target_flock_addr, 1)) {
+        return -TARGET_EFAULT;
+    }
+
+    __get_user(l_type, &target_fl->l_type);
+    fl->l_type = target_to_host_bitmask(l_type, flock_tbl);
+    __get_user(fl->l_whence, &target_fl->l_whence);
+    __get_user(fl->l_start, &target_fl->l_start);
+    __get_user(fl->l_len, &target_fl->l_len);
+    __get_user(fl->l_pid, &target_fl->l_pid);
+    unlock_user_struct(target_fl, target_flock_addr, 0);
+    return 0;
+}
+
+static inline abi_long copy_to_user_eabi_flock64(abi_ulong target_flock_addr,
+                                                 const struct flock64 *fl)
+{
+    struct target_eabi_flock64 *target_fl;
+    short l_type;
+
+    if (!lock_user_struct(VERIFY_WRITE, target_fl, target_flock_addr, 0)) {
+        return -TARGET_EFAULT;
+    }
+
+    l_type = host_to_target_bitmask(fl->l_type, flock_tbl);
+    __put_user(l_type, &target_fl->l_type);
+    __put_user(fl->l_whence, &target_fl->l_whence);
+    __put_user(fl->l_start, &target_fl->l_start);
+    __put_user(fl->l_len, &target_fl->l_len);
+    __put_user(fl->l_pid, &target_fl->l_pid);
+    unlock_user_struct(target_fl, target_flock_addr, 1);
+    return 0;
+}
+#endif
+
+static inline abi_long copy_from_user_flock64(struct flock64 *fl,
+                                              abi_ulong target_flock_addr)
+{
+    struct target_flock64 *target_fl;
+    short l_type;
+
+    if (!lock_user_struct(VERIFY_READ, target_fl, target_flock_addr, 1)) {
+        return -TARGET_EFAULT;
+    }
+
+    __get_user(l_type, &target_fl->l_type);
+    fl->l_type = target_to_host_bitmask(l_type, flock_tbl);
+    __get_user(fl->l_whence, &target_fl->l_whence);
+    __get_user(fl->l_start, &target_fl->l_start);
+    __get_user(fl->l_len, &target_fl->l_len);
+    __get_user(fl->l_pid, &target_fl->l_pid);
+    unlock_user_struct(target_fl, target_flock_addr, 0);
+    return 0;
+}
+
+static inline abi_long copy_to_user_flock64(abi_ulong target_flock_addr,
+                                            const struct flock64 *fl)
+{
+    struct target_flock64 *target_fl;
+    short l_type;
+
+    if (!lock_user_struct(VERIFY_WRITE, target_fl, target_flock_addr, 0)) {
+        return -TARGET_EFAULT;
+    }
+
+    l_type = host_to_target_bitmask(fl->l_type, flock_tbl);
+    __put_user(l_type, &target_fl->l_type);
+    __put_user(fl->l_whence, &target_fl->l_whence);
+    __put_user(fl->l_start, &target_fl->l_start);
+    __put_user(fl->l_len, &target_fl->l_len);
+    __put_user(fl->l_pid, &target_fl->l_pid);
+    unlock_user_struct(target_fl, target_flock_addr, 1);
+    return 0;
+}
+
 static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
 {
-    struct flock fl;
-    struct target_flock *target_fl;
     struct flock64 fl64;
-    struct target_flock64 *target_fl64;
 #ifdef F_GETOWN_EX
     struct f_owner_ex fox;
     struct target_f_owner_ex *target_fox;
@@ -5614,94 +5758,60 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
 
     switch(cmd) {
     case TARGET_F_GETLK:
-        if (!lock_user_struct(VERIFY_READ, target_fl, arg, 1))
-            return -TARGET_EFAULT;
-        fl.l_type =
-                  target_to_host_bitmask(tswap16(target_fl->l_type), flock_tbl);
-        fl.l_whence = tswap16(target_fl->l_whence);
-        fl.l_start = tswapal(target_fl->l_start);
-        fl.l_len = tswapal(target_fl->l_len);
-        fl.l_pid = tswap32(target_fl->l_pid);
-        unlock_user_struct(target_fl, arg, 0);
-        ret = get_errno(fcntl(fd, host_cmd, &fl));
+        ret = copy_from_user_flock(&fl64, arg);
+        if (ret) {
+            return ret;
+        }
+        ret = get_errno(safe_fcntl(fd, host_cmd, &fl64));
         if (ret == 0) {
-            if (!lock_user_struct(VERIFY_WRITE, target_fl, arg, 0))
-                return -TARGET_EFAULT;
-            target_fl->l_type =
-                          host_to_target_bitmask(tswap16(fl.l_type), flock_tbl);
-            target_fl->l_whence = tswap16(fl.l_whence);
-            target_fl->l_start = tswapal(fl.l_start);
-            target_fl->l_len = tswapal(fl.l_len);
-            target_fl->l_pid = tswap32(fl.l_pid);
-            unlock_user_struct(target_fl, arg, 1);
+            ret = copy_to_user_flock(arg, &fl64);
         }
         break;
 
     case TARGET_F_SETLK:
     case TARGET_F_SETLKW:
-        if (!lock_user_struct(VERIFY_READ, target_fl, arg, 1))
-            return -TARGET_EFAULT;
-        fl.l_type =
-                  target_to_host_bitmask(tswap16(target_fl->l_type), flock_tbl);
-        fl.l_whence = tswap16(target_fl->l_whence);
-        fl.l_start = tswapal(target_fl->l_start);
-        fl.l_len = tswapal(target_fl->l_len);
-        fl.l_pid = tswap32(target_fl->l_pid);
-        unlock_user_struct(target_fl, arg, 0);
-        ret = get_errno(fcntl(fd, host_cmd, &fl));
+        ret = copy_from_user_flock(&fl64, arg);
+        if (ret) {
+            return ret;
+        }
+        ret = get_errno(safe_fcntl(fd, host_cmd, &fl64));
         break;
 
     case TARGET_F_GETLK64:
-        if (!lock_user_struct(VERIFY_READ, target_fl64, arg, 1))
-            return -TARGET_EFAULT;
-        fl64.l_type =
-           target_to_host_bitmask(tswap16(target_fl64->l_type), flock_tbl) >> 1;
-        fl64.l_whence = tswap16(target_fl64->l_whence);
-        fl64.l_start = tswap64(target_fl64->l_start);
-        fl64.l_len = tswap64(target_fl64->l_len);
-        fl64.l_pid = tswap32(target_fl64->l_pid);
-        unlock_user_struct(target_fl64, arg, 0);
-        ret = get_errno(fcntl(fd, host_cmd, &fl64));
+        ret = copy_from_user_flock64(&fl64, arg);
+        if (ret) {
+            return ret;
+        }
+        ret = get_errno(safe_fcntl(fd, host_cmd, &fl64));
         if (ret == 0) {
-            if (!lock_user_struct(VERIFY_WRITE, target_fl64, arg, 0))
-                return -TARGET_EFAULT;
-            target_fl64->l_type =
-                   host_to_target_bitmask(tswap16(fl64.l_type), flock_tbl) >> 1;
-            target_fl64->l_whence = tswap16(fl64.l_whence);
-            target_fl64->l_start = tswap64(fl64.l_start);
-            target_fl64->l_len = tswap64(fl64.l_len);
-            target_fl64->l_pid = tswap32(fl64.l_pid);
-            unlock_user_struct(target_fl64, arg, 1);
+            ret = copy_to_user_flock64(arg, &fl64);
         }
         break;
     case TARGET_F_SETLK64:
     case TARGET_F_SETLKW64:
-        if (!lock_user_struct(VERIFY_READ, target_fl64, arg, 1))
-            return -TARGET_EFAULT;
-        fl64.l_type =
-           target_to_host_bitmask(tswap16(target_fl64->l_type), flock_tbl) >> 1;
-        fl64.l_whence = tswap16(target_fl64->l_whence);
-        fl64.l_start = tswap64(target_fl64->l_start);
-        fl64.l_len = tswap64(target_fl64->l_len);
-        fl64.l_pid = tswap32(target_fl64->l_pid);
-        unlock_user_struct(target_fl64, arg, 0);
-        ret = get_errno(fcntl(fd, host_cmd, &fl64));
+        ret = copy_from_user_flock64(&fl64, arg);
+        if (ret) {
+            return ret;
+        }
+        ret = get_errno(safe_fcntl(fd, host_cmd, &fl64));
         break;
 
     case TARGET_F_GETFL:
-        ret = get_errno(fcntl(fd, host_cmd, arg));
+        ret = get_errno(safe_fcntl(fd, host_cmd, arg));
         if (ret >= 0) {
             ret = host_to_target_bitmask(ret, fcntl_flags_tbl);
         }
         break;
 
     case TARGET_F_SETFL:
-        ret = get_errno(fcntl(fd, host_cmd, target_to_host_bitmask(arg, fcntl_flags_tbl)));
+        ret = get_errno(safe_fcntl(fd, host_cmd,
+                                   target_to_host_bitmask(arg,
+                                                          fcntl_flags_tbl)));
         break;
 
 #ifdef F_GETOWN_EX
     case TARGET_F_GETOWN_EX:
-        ret = get_errno(fcntl(fd, host_cmd, &fox));
+        ret = get_errno(safe_fcntl(fd, host_cmd, &fox));
         if (ret >= 0) {
             if (!lock_user_struct(VERIFY_WRITE, target_fox, arg, 0))
                 return -TARGET_EFAULT;
@@ -5719,7 +5829,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         fox.type = tswap32(target_fox->type);
         fox.pid = tswap32(target_fox->pid);
         unlock_user_struct(target_fox, arg, 0);
-        ret = get_errno(fcntl(fd, host_cmd, &fox));
+        ret = get_errno(safe_fcntl(fd, host_cmd, &fox));
         break;
 #endif
 
@@ -5729,11 +5839,13 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
     case TARGET_F_GETSIG:
     case TARGET_F_SETLEASE:
     case TARGET_F_GETLEASE:
-        ret = get_errno(fcntl(fd, host_cmd, arg));
+    case TARGET_F_SETPIPE_SZ:
+    case TARGET_F_GETPIPE_SZ:
+        ret = get_errno(safe_fcntl(fd, host_cmd, arg));
         break;
 
     default:
-        ret = get_errno(fcntl(fd, cmd, arg));
+        ret = get_errno(safe_fcntl(fd, cmd, arg));
         break;
     }
     return ret;
@@ -7783,8 +7895,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_rt_sigqueueinfo:
         {
             siginfo_t uinfo;
-            if (!(p = lock_user(VERIFY_READ, arg3, sizeof(target_sigset_t), 1)))
+
+            p = lock_user(VERIFY_READ, arg3, sizeof(target_siginfo_t), 1);
+            if (!p) {
                 goto efault;
+            }
             target_to_host_siginfo(&uinfo, p);
             unlock_user(p, arg1, 0);
             ret = get_errno(sys_rt_sigqueueinfo(arg1, arg2, &uinfo));
@@ -10132,9 +10247,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     {
 	int cmd;
 	struct flock64 fl;
-	struct target_flock64 *target_fl;
+        from_flock64_fn *copyfrom = copy_from_user_flock64;
+        to_flock64_fn *copyto = copy_to_user_flock64;
+
 #ifdef TARGET_ARM
-	struct target_eabi_flock64 *target_efl;
+        if (((CPUARMState *)cpu_env)->eabi) {
+            copyfrom = copy_from_user_eabi_flock64;
+            copyto = copy_to_user_eabi_flock64;
+        }
 #endif
 
 	cmd = target_to_host_fcntl_cmd(arg2);
@@ -10145,80 +10265,23 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
         switch(arg2) {
         case TARGET_F_GETLK64:
-#ifdef TARGET_ARM
-            if (((CPUARMState *)cpu_env)->eabi) {
-                if (!lock_user_struct(VERIFY_READ, target_efl, arg3, 1)) 
-                    goto efault;
-                fl.l_type = tswap16(target_efl->l_type);
-                fl.l_whence = tswap16(target_efl->l_whence);
-                fl.l_start = tswap64(target_efl->l_start);
-                fl.l_len = tswap64(target_efl->l_len);
-                fl.l_pid = tswap32(target_efl->l_pid);
-                unlock_user_struct(target_efl, arg3, 0);
-            } else
-#endif
-            {
-                if (!lock_user_struct(VERIFY_READ, target_fl, arg3, 1)) 
-                    goto efault;
-                fl.l_type = tswap16(target_fl->l_type);
-                fl.l_whence = tswap16(target_fl->l_whence);
-                fl.l_start = tswap64(target_fl->l_start);
-                fl.l_len = tswap64(target_fl->l_len);
-                fl.l_pid = tswap32(target_fl->l_pid);
-                unlock_user_struct(target_fl, arg3, 0);
+            ret = copyfrom(&fl, arg3);
+            if (ret) {
+                break;
             }
             ret = get_errno(fcntl(arg1, cmd, &fl));
-	    if (ret == 0) {
-#ifdef TARGET_ARM
-                if (((CPUARMState *)cpu_env)->eabi) {
-                    if (!lock_user_struct(VERIFY_WRITE, target_efl, arg3, 0)) 
-                        goto efault;
-                    target_efl->l_type = tswap16(fl.l_type);
-                    target_efl->l_whence = tswap16(fl.l_whence);
-                    target_efl->l_start = tswap64(fl.l_start);
-                    target_efl->l_len = tswap64(fl.l_len);
-                    target_efl->l_pid = tswap32(fl.l_pid);
-                    unlock_user_struct(target_efl, arg3, 1);
-                } else
-#endif
-                {
-                    if (!lock_user_struct(VERIFY_WRITE, target_fl, arg3, 0)) 
-                        goto efault;
-                    target_fl->l_type = tswap16(fl.l_type);
-                    target_fl->l_whence = tswap16(fl.l_whence);
-                    target_fl->l_start = tswap64(fl.l_start);
-                    target_fl->l_len = tswap64(fl.l_len);
-                    target_fl->l_pid = tswap32(fl.l_pid);
-                    unlock_user_struct(target_fl, arg3, 1);
-                }
-	    }
+            if (ret == 0) {
+                ret = copyto(arg3, &fl);
+            }
 	    break;
 
         case TARGET_F_SETLK64:
         case TARGET_F_SETLKW64:
-#ifdef TARGET_ARM
-            if (((CPUARMState *)cpu_env)->eabi) {
-                if (!lock_user_struct(VERIFY_READ, target_efl, arg3, 1)) 
-                    goto efault;
-                fl.l_type = tswap16(target_efl->l_type);
-                fl.l_whence = tswap16(target_efl->l_whence);
-                fl.l_start = tswap64(target_efl->l_start);
-                fl.l_len = tswap64(target_efl->l_len);
-                fl.l_pid = tswap32(target_efl->l_pid);
-                unlock_user_struct(target_efl, arg3, 0);
-            } else
-#endif
-            {
-                if (!lock_user_struct(VERIFY_READ, target_fl, arg3, 1)) 
-                    goto efault;
-                fl.l_type = tswap16(target_fl->l_type);
-                fl.l_whence = tswap16(target_fl->l_whence);
-                fl.l_start = tswap64(target_fl->l_start);
-                fl.l_len = tswap64(target_fl->l_len);
-                fl.l_pid = tswap32(target_fl->l_pid);
-                unlock_user_struct(target_fl, arg3, 0);
+            ret = copyfrom(&fl, arg3);
+            if (ret) {
+                break;
             }
-            ret = get_errno(fcntl(arg1, cmd, &fl));
+            ret = get_errno(safe_fcntl(arg1, cmd, &fl));
 	    break;
         default:
             ret = do_fcntl(arg1, arg2, arg3);

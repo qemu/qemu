@@ -1,6 +1,5 @@
 /*
- * hostdep.h : fallback generic version of header for things
- * which are dependent on the host architecture
+ * hostdep.h : things which are dependent on the host architecture
  *
  *  * Written by Peter Maydell <peter.maydell@linaro.org>
  *
@@ -12,9 +11,5 @@
 
 #ifndef QEMU_HOSTDEP_H
 #define QEMU_HOSTDEP_H
-
-/* This is the fallback header which is only used if the host
- * architecture doesn't provide one in linux-user/host/$ARCH.
- */
 
 #endif
