@@ -9,8 +9,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef QEMU_HOSTDEP_H
-#define QEMU_HOSTDEP_H
+#ifndef S390X_HOSTDEP_H
+#define S390X_HOSTDEP_H
 
 /* We have a safe-syscall.inc.S */
 #define HAVE_SAFE_SYSCALL

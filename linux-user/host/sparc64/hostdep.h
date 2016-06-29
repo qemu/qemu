@@ -9,7 +9,7 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef QEMU_HOSTDEP_H
-#define QEMU_HOSTDEP_H
+#ifndef SPARC64_HOSTDEP_H
+#define SPARC64_HOSTDEP_H
 
 #endif

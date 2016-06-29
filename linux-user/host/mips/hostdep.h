@@ -9,7 +9,7 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef QEMU_HOSTDEP_H
-#define QEMU_HOSTDEP_H
+#ifndef MIPS_HOSTDEP_H
+#define MIPS_HOSTDEP_H
 
 #endif
