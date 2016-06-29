@@ -2849,6 +2849,7 @@ static const TypeInfo scsi_disk_base_info = {
 
 #define DEFINE_SCSI_DISK_PROPERTIES()                                \
     DEFINE_BLOCK_PROPERTIES(SCSIDiskState, qdev.conf),               \
+    DEFINE_BLOCK_ERROR_PROPERTIES(SCSIDiskState, qdev.conf),         \
     DEFINE_PROP_STRING("ver", SCSIDiskState, version),               \
     DEFINE_PROP_STRING("serial", SCSIDiskState, serial),             \
     DEFINE_PROP_STRING("vendor", SCSIDiskState, vendor),             \

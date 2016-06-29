@@ -26,6 +26,8 @@ typedef struct BlockConf {
     /* geometry, not all devices use this */
     uint32_t cyls, heads, secs;
     OnOffAuto wce;
+    BlockdevOnError rerror;
+    BlockdevOnError werror;
 } BlockConf;
 
 static inline unsigned int get_physical_block_exp(BlockConf *conf)
@@ -57,6 +59,12 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
     DEFINE_PROP_UINT32("cyls", _state, _conf.cyls, 0),  \
     DEFINE_PROP_UINT32("heads", _state, _conf.heads, 0), \
     DEFINE_PROP_UINT32("secs", _state, _conf.secs, 0)
+
+#define DEFINE_BLOCK_ERROR_PROPERTIES(_state, _conf)                    \
+    DEFINE_PROP_BLOCKDEV_ON_ERROR("rerror", _state, _conf.rerror,       \
+                                  BLOCKDEV_ON_ERROR_AUTO),              \
+    DEFINE_PROP_BLOCKDEV_ON_ERROR("werror", _state, _conf.werror,       \
+                                  BLOCKDEV_ON_ERROR_AUTO)
 
 /* Configuration helpers */
 

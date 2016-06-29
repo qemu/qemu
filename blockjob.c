@@ -553,6 +553,7 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
 
     switch (on_err) {
     case BLOCKDEV_ON_ERROR_ENOSPC:
+    case BLOCKDEV_ON_ERROR_AUTO:
         action = (error == ENOSPC) ?
                  BLOCK_ERROR_ACTION_STOP : BLOCK_ERROR_ACTION_REPORT;
         break;

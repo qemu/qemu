@@ -54,6 +54,7 @@ void blkconf_blocksizes(BlockConf *conf)
 void blkconf_apply_backend_options(BlockConf *conf)
 {
     BlockBackend *blk = conf->blk;
+    BlockdevOnError rerror, werror;
     bool wce;
 
     switch (conf->wce) {
@@ -64,7 +65,18 @@ void blkconf_apply_backend_options(BlockConf *conf)
         abort();
     }
 
+    rerror = conf->rerror;
+    if (rerror == BLOCKDEV_ON_ERROR_AUTO) {
+        rerror = blk_get_on_error(blk, true);
+    }
+
+    werror = conf->werror;
+    if (werror == BLOCKDEV_ON_ERROR_AUTO) {
+        werror = blk_get_on_error(blk, false);
+    }
+
     blk_set_enable_write_cache(blk, wce);
+    blk_set_on_error(blk, rerror, werror);
 }
 
 void blkconf_geometry(BlockConf *conf, int *ptrans,

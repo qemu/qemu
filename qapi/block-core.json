@@ -664,10 +664,12 @@
 # @stop: for guest operations, stop the virtual machine;
 #        for jobs, pause the job
 #
+# @auto: inherit the error handling policy of the backend (since: 2.7)
+#
 # Since: 1.3
 ##
 { 'enum': 'BlockdevOnError',
-  'data': ['report', 'ignore', 'enospc', 'stop'] }
+  'data': ['report', 'ignore', 'enospc', 'stop', 'auto'] }
 
 ##
 # @MirrorSyncMode:
