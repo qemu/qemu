@@ -171,9 +171,9 @@ wait:
             bytes_written += n * BDRV_SECTOR_SIZE;
         }
         if (ret < 0) {
-            if (s->on_error == BLOCKDEV_ON_ERROR_STOP ||
-                s->on_error == BLOCKDEV_ON_ERROR_REPORT||
-                (s->on_error == BLOCKDEV_ON_ERROR_ENOSPC && ret == -ENOSPC)) {
+            BlockErrorAction action =
+                block_job_error_action(&s->common, false, s->on_error, -ret);
+            if (action == BLOCK_ERROR_ACTION_REPORT) {
                 goto out;
             } else {
                 n = 0;
