@@ -102,7 +102,6 @@ static void spapr_core_release(DeviceState *dev, void *opaque)
     const char *typename = object_class_get_name(sc->cpu_class);
     size_t size = object_type_get_instance_size(typename);
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
-    sPAPRCPUCore *core = SPAPR_CPU_CORE(OBJECT(dev));
     CPUCore *cc = CPU_CORE(dev);
     int smt = kvmppc_smt_threads();
     int i;
@@ -120,7 +119,7 @@ static void spapr_core_release(DeviceState *dev, void *opaque)
 
     spapr->cores[cc->core_id / smt] = NULL;
 
-    g_free(core->threads);
+    g_free(sc->threads);
     object_unparent(OBJECT(dev));
 }
 
