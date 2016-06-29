@@ -61,9 +61,7 @@
   #ifndef DECNUMDIGITS
     #define DECNUMDIGITS DECIMAL64_Pmax /* size if not already defined*/
   #endif
-  #ifndef DECNUMBER
-    #include "libdecnumber/decNumber.h"
-  #endif
+  #include "libdecnumber/decNumber.h"
 
   /* Decimal 64-bit type, accessible by bytes			      */
   typedef struct {

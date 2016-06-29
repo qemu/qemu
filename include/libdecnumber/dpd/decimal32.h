@@ -59,9 +59,7 @@
   #ifndef DECNUMDIGITS
     #define DECNUMDIGITS DECIMAL32_Pmax /* size if not already defined*/
   #endif
-  #ifndef DECNUMBER
-    #include "libdecnumber/decNumber.h"
-  #endif
+  #include "libdecnumber/decNumber.h"
 
   /* Decimal 32-bit type, accessible by bytes */
   typedef struct {
