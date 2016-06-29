@@ -218,7 +218,9 @@ static inline void mirror_wait_for_io(MirrorBlockJob *s)
 }
 
 /* Submit async read while handling COW.
- * Returns: nb_sectors if no alignment is necessary, or
+ * Returns: The number of sectors copied after and including sector_num,
+ *          excluding any sectors copied prior to sector_num due to alignment.
+ *          This will be nb_sectors if no alignment is necessary, or
  *          (new_end - sector_num) if tail is rounded up or down due to
  *          alignment or buffer limit.
  */
@@ -227,14 +229,18 @@ static int mirror_do_read(MirrorBlockJob *s, int64_t sector_num,
 {
     BlockBackend *source = s->common.blk;
     int sectors_per_chunk, nb_chunks;
-    int ret = nb_sectors;
+    int ret;
     MirrorOp *op;
+    int max_sectors;
 
     sectors_per_chunk = s->granularity >> BDRV_SECTOR_BITS;
+    max_sectors = sectors_per_chunk * s->max_iov;
 
     /* We can only handle as much as buf_size at a time. */
     nb_sectors = MIN(s->buf_size >> BDRV_SECTOR_BITS, nb_sectors);
+    nb_sectors = MIN(max_sectors, nb_sectors);
     assert(nb_sectors);
+    ret = nb_sectors;
 
     if (s->cow_bitmap) {
         ret += mirror_cow_align(s, &sector_num, &nb_sectors);
@@ -327,7 +333,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
 
     first_chunk = sector_num / sectors_per_chunk;
     while (test_bit(first_chunk, s->in_flight_bitmap)) {
-        trace_mirror_yield_in_flight(s, first_chunk, s->in_flight);
+        trace_mirror_yield_in_flight(s, sector_num, s->in_flight);
         mirror_wait_for_io(s);
     }
 
@@ -769,7 +775,7 @@ static void mirror_complete(BlockJob *job, Error **errp)
         }
     }
 
-    /* check the target bs is not blocked and block all operations on it */
+    /* block all operations on to_replace bs */
     if (s->replaces) {
         AioContext *replace_aio_context;
 

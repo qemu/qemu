@@ -489,7 +489,6 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
 
     assert(bs);
     assert(target);
-    assert(cb);
 
     if (bs == target) {
         error_setg(errp, "Source and target cannot be the same");
