@@ -41,7 +41,7 @@ static Int128 expand(uint32_t x)
     uint64_t l, h;
     l = expand16(x & 65535);
     h = expand16(x >> 16);
-    return (Int128) {l, h};
+    return (Int128) int128_make128(l, h);
 };
 
 static void test_and(void)
@@ -54,8 +54,8 @@ static void test_and(void)
             Int128 b = expand(tests[j]);
             Int128 r = expand(tests[i] & tests[j]);
             Int128 s = int128_and(a, b);
-            g_assert_cmpuint(r.lo, ==, s.lo);
-            g_assert_cmpuint(r.hi, ==, s.hi);
+            g_assert_cmpuint(int128_getlo(r), ==, int128_getlo(s));
+            g_assert_cmpuint(int128_gethi(r), ==, int128_gethi(s));
         }
     }
 }
@@ -70,8 +70,8 @@ static void test_add(void)
             Int128 b = expand(tests[j]);
             Int128 r = expand(tests[i] + tests[j]);
             Int128 s = int128_add(a, b);
-            g_assert_cmpuint(r.lo, ==, s.lo);
-            g_assert_cmpuint(r.hi, ==, s.hi);
+            g_assert_cmpuint(int128_getlo(r), ==, int128_getlo(s));
+            g_assert_cmpuint(int128_gethi(r), ==, int128_gethi(s));
         }
     }
 }
@@ -86,8 +86,8 @@ static void test_sub(void)
             Int128 b = expand(tests[j]);
             Int128 r = expand(tests[i] - tests[j]);
             Int128 s = int128_sub(a, b);
-            g_assert_cmpuint(r.lo, ==, s.lo);
-            g_assert_cmpuint(r.hi, ==, s.hi);
+            g_assert_cmpuint(int128_getlo(r), ==, int128_getlo(s));
+            g_assert_cmpuint(int128_gethi(r), ==, int128_gethi(s));
         }
     }
 }
@@ -100,8 +100,8 @@ static void test_neg(void)
         Int128 a = expand(tests[i]);
         Int128 r = expand(-tests[i]);
         Int128 s = int128_neg(a);
-        g_assert_cmpuint(r.lo, ==, s.lo);
-        g_assert_cmpuint(r.hi, ==, s.hi);
+        g_assert_cmpuint(int128_getlo(r), ==, int128_getlo(s));
+        g_assert_cmpuint(int128_gethi(r), ==, int128_gethi(s));
     }
 }
 
@@ -180,8 +180,8 @@ test_rshift_one(uint32_t x, int n, uint64_t h, uint64_t l)
 {
     Int128 a = expand(x);
     Int128 r = int128_rshift(a, n);
-    g_assert_cmpuint(r.lo, ==, l);
-    g_assert_cmpuint(r.hi, ==, h);
+    g_assert_cmpuint(int128_getlo(r), ==, l);
+    g_assert_cmpuint(int128_gethi(r), ==, h);
 }
 
 static void test_rshift(void)
