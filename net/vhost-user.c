@@ -151,6 +151,11 @@ static void vhost_user_cleanup(NetClientState *nc)
         vhost_net_cleanup(s->vhost_net);
         s->vhost_net = NULL;
     }
+    if (s->chr) {
+        qemu_chr_add_handlers(s->chr, NULL, NULL, NULL, NULL);
+        qemu_chr_fe_release(s->chr);
+        s->chr = NULL;
+    }
 
     qemu_purge_queued_packets(nc);
 }
