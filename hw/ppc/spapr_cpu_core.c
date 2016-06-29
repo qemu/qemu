@@ -337,12 +337,15 @@ static void glue(glue(spapr_cpu_core_, _fname), _initfn(Object *obj)) \
     core->cpu_class = oc; \
 }
 
+SPAPR_CPU_CORE_INITFN(970mp_v1.0, 970MP_v10);
+SPAPR_CPU_CORE_INITFN(970mp_v1.1, 970MP_v11);
 SPAPR_CPU_CORE_INITFN(970_v2.2, 970);
 SPAPR_CPU_CORE_INITFN(POWER5+_v2.1, POWER5plus);
 SPAPR_CPU_CORE_INITFN(POWER7_v2.3, POWER7);
 SPAPR_CPU_CORE_INITFN(POWER7+_v2.1, POWER7plus);
 SPAPR_CPU_CORE_INITFN(POWER8_v2.0, POWER8);
 SPAPR_CPU_CORE_INITFN(POWER8E_v2.1, POWER8E);
+SPAPR_CPU_CORE_INITFN(POWER8NVL_v1.0, POWER8NVL);
 
 typedef struct SPAPRCoreInfo {
     const char *name;
@@ -350,10 +353,19 @@ typedef struct SPAPRCoreInfo {
 } SPAPRCoreInfo;
 
 static const SPAPRCoreInfo spapr_cores[] = {
-    /* 970 */
+    /* 970 and aliaes */
+    { .name = "970_v2.2", .initfn = spapr_cpu_core_970_initfn },
     { .name = "970", .initfn = spapr_cpu_core_970_initfn },
 
-    /* POWER5 */
+    /* 970MP variants and aliases */
+    { .name = "970MP_v1.0", .initfn = spapr_cpu_core_970MP_v10_initfn },
+    { .name = "970mp_v1.0", .initfn = spapr_cpu_core_970MP_v10_initfn },
+    { .name = "970MP_v1.1", .initfn = spapr_cpu_core_970MP_v11_initfn },
+    { .name = "970mp_v1.1", .initfn = spapr_cpu_core_970MP_v11_initfn },
+    { .name = "970mp", .initfn = spapr_cpu_core_970MP_v11_initfn },
+
+    /* POWER5 and aliases */
+    { .name = "POWER5+_v2.1", .initfn = spapr_cpu_core_POWER5plus_initfn },
     { .name = "POWER5+", .initfn = spapr_cpu_core_POWER5plus_initfn },
 
     /* POWER7 and aliases */
@@ -372,6 +384,10 @@ static const SPAPRCoreInfo spapr_cores[] = {
     /* POWER8E and aliases */
     { .name = "POWER8E_v2.1", .initfn = spapr_cpu_core_POWER8E_initfn },
     { .name = "POWER8E", .initfn = spapr_cpu_core_POWER8E_initfn },
+
+    /* POWER8NVL and aliases */
+    { .name = "POWER8NVL_v1.0", .initfn = spapr_cpu_core_POWER8NVL_initfn },
+    { .name = "POWER8NVL", .initfn = spapr_cpu_core_POWER8NVL_initfn },
 
     { .name = NULL }
 };
