@@ -1,5 +1,5 @@
-#ifndef TARGET_SYSCALL_H
-#define TARGET_SYSCALL_H
+#ifndef MIPS_TARGET_SYSCALL_H
+#define MIPS_TARGET_SYSCALL_H
 
 /* this struct defines the way the registers are stored on the
    stack during a system call. */
@@ -230,4 +230,4 @@ struct target_pt_regs {
 #define TARGET_MLOCKALL_MCL_CURRENT 1
 #define TARGET_MLOCKALL_MCL_FUTURE  2
 
-#endif  /* TARGET_SYSCALL_H */
+#endif /* MIPS_TARGET_SYSCALL_H */

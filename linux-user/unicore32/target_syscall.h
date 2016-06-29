@@ -5,8 +5,10 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifndef __UC32_SYSCALL_H__
-#define __UC32_SYSCALL_H__
+
+#ifndef UNICORE32_TARGET_SYSCALL_H
+#define UNICORE32_TARGET_SYSCALL_H
+
 struct target_pt_regs {
     abi_ulong uregs[34];
 };
@@ -57,4 +59,4 @@ struct target_pt_regs {
 #define TARGET_MLOCKALL_MCL_CURRENT 1
 #define TARGET_MLOCKALL_MCL_FUTURE  2
 
-#endif /* __UC32_SYSCALL_H__ */
+#endif /* UNICORE32_TARGET_SYSCALL_H */

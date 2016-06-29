@@ -1,5 +1,5 @@
-#ifndef TARGET_SYSCALL_H
-#define TARGET_SYSCALL_H
+#ifndef SPARC_TARGET_SYSCALL_H
+#define SPARC_TARGET_SYSCALL_H
 
 struct target_pt_regs {
 	abi_ulong psr;
@@ -22,4 +22,4 @@ struct target_pt_regs {
 #define TARGET_MLOCKALL_MCL_CURRENT 0x2000
 #define TARGET_MLOCKALL_MCL_FUTURE  0x4000
 
-#endif  /* TARGET_SYSCALL_H */
+#endif /* SPARC_TARGET_SYSCALL_H */

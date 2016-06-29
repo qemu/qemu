@@ -1,5 +1,5 @@
-#ifndef TARGET_SYSCALL_H
-#define TARGET_SYSCALL_H
+#ifndef SH4_TARGET_SYSCALL_H
+#define SH4_TARGET_SYSCALL_H
 
 struct target_pt_regs {
         unsigned long regs[16];
@@ -19,4 +19,4 @@ struct target_pt_regs {
 #define TARGET_MLOCKALL_MCL_CURRENT 1
 #define TARGET_MLOCKALL_MCL_FUTURE  2
 
-#endif  /* TARGET_SYSCALL_H */
+#endif /* SH4_TARGET_SYSCALL_H */

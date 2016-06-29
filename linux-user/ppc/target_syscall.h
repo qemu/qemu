@@ -17,8 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TARGET_SYSCALL_H
-#define TARGET_SYSCALL_H
+#ifndef PPC_TARGET_SYSCALL_H
+#define PPC_TARGET_SYSCALL_H
 
 /* XXX: ABSOLUTELY BUGGY:
  * for now, this is quite just a cut-and-paste from i386 target...
@@ -75,4 +75,4 @@ struct target_revectored_struct {
 #define TARGET_MLOCKALL_MCL_CURRENT 0x2000
 #define TARGET_MLOCKALL_MCL_FUTURE  0x4000
 
-#endif  /* TARGET_SYSCALL_H */
+#endif /* PPC_TARGET_SYSCALL_H */

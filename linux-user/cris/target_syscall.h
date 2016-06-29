@@ -1,5 +1,5 @@
-#ifndef CRIS_SYSCALL_H
-#define CRIS_SYSCALL_H 1
+#ifndef CRIS_TARGET_SYSCALL_H
+#define CRIS_TARGET_SYSCALL_H
 
 #define UNAME_MACHINE "cris"
 #define UNAME_MINIMUM_RELEASE "2.6.32"

@@ -1,5 +1,5 @@
-#ifndef TARGET_SYSCALL_H
-#define TARGET_SYSCALL_H
+#ifndef S390X_TARGET_SYSCALL_H
+#define S390X_TARGET_SYSCALL_H
 
 /* this typedef defines how a Program Status Word looks like */
 typedef struct {
@@ -31,4 +31,4 @@ struct target_pt_regs {
 #define TARGET_MLOCKALL_MCL_CURRENT 1
 #define TARGET_MLOCKALL_MCL_FUTURE  2
 
-#endif  /* TARGET_SYSCALL_H */
+#endif /* S390X_TARGET_SYSCALL_H */
