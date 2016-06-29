@@ -16,13 +16,11 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#if !defined(__HW_SPAPR_H__)
-#error Please include spapr.h before this file!
-#endif
 
 #if !defined(__HW_SPAPR_PCI_H__)
 #define __HW_SPAPR_PCI_H__
 
+#include "hw/ppc/spapr.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
 #include "hw/ppc/xics.h"
