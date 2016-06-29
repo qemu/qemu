@@ -20,6 +20,16 @@ static inline uint64_t int128_get64(Int128 a)
     return a.lo;
 }
 
+static inline uint64_t int128_getlo(Int128 a)
+{
+    return a.lo;
+}
+
+static inline int64_t int128_gethi(Int128 a)
+{
+    return a.hi;
+}
+
 static inline Int128 int128_zero(void)
 {
     return int128_make64(0);

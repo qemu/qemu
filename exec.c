@@ -352,9 +352,9 @@ static inline bool section_covers_addr(const MemoryRegionSection *section,
     /* Memory topology clips a memory region to [0, 2^64); size.hi > 0 means
      * the section must cover the entire address space.
      */
-    return section->size.hi ||
+    return int128_gethi(section->size) ||
            range_covers_byte(section->offset_within_address_space,
-                             section->size.lo, addr);
+                             int128_getlo(section->size), addr);
 }
 
 static MemoryRegionSection *phys_page_find(PhysPageEntry lp, hwaddr addr,
