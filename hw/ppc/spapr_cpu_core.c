@@ -300,6 +300,7 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
         if (local_err) {
             goto err;
         }
+        object_unref(obj);
     }
     object_child_foreach(OBJECT(dev), spapr_cpu_core_realize_child, &local_err);
     if (local_err) {
