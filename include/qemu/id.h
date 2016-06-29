@@ -1,5 +1,5 @@
 #ifndef QEMU_ID_H
-#define QEMU_ID_H 1
+#define QEMU_ID_H
 
 typedef enum IdSubSystems {
     ID_QDEV,

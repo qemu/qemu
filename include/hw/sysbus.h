@@ -1,5 +1,5 @@
 #ifndef HW_SYSBUS_H
-#define HW_SYSBUS_H 1
+#define HW_SYSBUS_H
 
 /* Devices attached directly to the main system bus.  */
 
@@ -118,4 +118,4 @@ static inline DeviceState *sysbus_try_create_simple(const char *name,
     return sysbus_try_create_varargs(name, addr, irq, NULL);
 }
 
-#endif /* !HW_SYSBUS_H */
+#endif /* HW_SYSBUS_H */

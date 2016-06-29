@@ -4,4 +4,4 @@
 #include "trace/generated-tracers.h"
 #include "trace/generated-events.h"
 
-#endif  /* TRACE_H */
+#endif /* TRACE_H */

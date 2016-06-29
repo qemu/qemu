@@ -17,4 +17,4 @@ typedef struct PMSMBus {
 
 void pm_smbus_init(DeviceState *parent, PMSMBus *smb);
 
-#endif /* !PM_SMBUS_H */
+#endif /* PM_SMBUS_H */

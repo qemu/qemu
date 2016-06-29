@@ -21,8 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #ifndef HW_VGA_INT_H
-#define HW_VGA_INT_H 1
+#define HW_VGA_INT_H
 
 #include "hw/hw.h"
 #include "exec/memory.h"

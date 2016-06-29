@@ -102,4 +102,4 @@ typedef struct DPCDState DPCDState;
 #define DPCD_SINK_STATUS                        0x205
 #define DPCD_RECEIVE_PORT_0_STATUS              0x01
 
-#endif /* !DPCD_H */
+#endif /* DPCD_H */

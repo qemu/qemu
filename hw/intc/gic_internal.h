@@ -100,4 +100,4 @@ static inline bool gic_test_pending(GICState *s, int irq, int cm)
     }
 }
 
-#endif /* !QEMU_ARM_GIC_INTERNAL_H */
+#endif /* QEMU_ARM_GIC_INTERNAL_H */

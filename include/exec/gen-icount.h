@@ -1,5 +1,5 @@
 #ifndef GEN_ICOUNT_H
-#define GEN_ICOUNT_H 1
+#define GEN_ICOUNT_H
 
 #include "qemu/timer.h"
 

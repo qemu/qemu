@@ -1,5 +1,5 @@
 #ifndef HW_ESCC_H
-#define HW_ESCC_H 1
+#define HW_ESCC_H
 
 /* escc.c */
 #define TYPE_ESCC "escc"

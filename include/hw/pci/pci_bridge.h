@@ -67,4 +67,4 @@ void pci_bridge_map_irq(PCIBridge *br, const char* bus_name,
 #define  PCI_BRIDGE_CTL_DISCARD_STATUS	0x400	/* Discard timer status */
 #define  PCI_BRIDGE_CTL_DISCARD_SERR	0x800	/* Discard timer SERR# enable */
 
-#endif  /* QEMU_PCI_BRIDGE_H */
+#endif /* QEMU_PCI_BRIDGE_H */

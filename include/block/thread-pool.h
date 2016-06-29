@@ -16,7 +16,7 @@
  */
 
 #ifndef QEMU_THREAD_POOL_H
-#define QEMU_THREAD_POOL_H 1
+#define QEMU_THREAD_POOL_H
 
 #include "block/block.h"
 

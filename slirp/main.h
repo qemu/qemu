@@ -4,8 +4,9 @@
  * Please read the file COPYRIGHT for the
  * terms and conditions of the copyright.
  */
+
 #ifndef SLIRP_MAIN_H
-#define SLIRP_MAIN_H 1
+#define SLIRP_MAIN_H
 
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>

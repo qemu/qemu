@@ -12,4 +12,4 @@ struct target_pt_regs {
 
 #define UNAME_MACHINE "sun4u"
 
-#endif  /* TARGET_SYSCALL_H */
+#endif /* TARGET_SYSCALL_H */

@@ -1,7 +1,5 @@
 #ifndef QEMU_HW_XEN_COMMON_H
-#define QEMU_HW_XEN_COMMON_H 1
-
-
+#define QEMU_HW_XEN_COMMON_H
 
 /*
  * If we have new enough libxenctrl then we do not want/need these compat

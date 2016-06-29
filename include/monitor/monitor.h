@@ -51,4 +51,4 @@ int monitor_fdset_dup_fd_add(int64_t fdset_id, int dup_fd);
 void monitor_fdset_dup_fd_remove(int dup_fd);
 int monitor_fdset_dup_fd_find(int dup_fd);
 
-#endif /* !MONITOR_H */
+#endif /* MONITOR_H */

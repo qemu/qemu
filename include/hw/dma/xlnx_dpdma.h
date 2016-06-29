@@ -82,4 +82,4 @@ void xlnx_dpdma_set_host_data_location(XlnxDPDMAState *s, uint8_t channel,
  */
 void xlnx_dpdma_trigger_vsync_irq(XlnxDPDMAState *s);
 
-#endif /* !XLNX_DPDMA_H */
+#endif /* XLNX_DPDMA_H */

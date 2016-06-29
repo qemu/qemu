@@ -22,8 +22,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #ifndef HW_SERIAL_H
-#define HW_SERIAL_H 1
+#define HW_SERIAL_H
 
 #include "hw/hw.h"
 #include "sysemu/sysemu.h"

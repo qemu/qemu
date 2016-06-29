@@ -1,5 +1,5 @@
 #ifndef QEMU_HW_XEN_DOMAINBUILD_H
-#define QEMU_HW_XEN_DOMAINBUILD_H 1
+#define QEMU_HW_XEN_DOMAINBUILD_H
 
 #include "hw/xen/xen_common.h"
 

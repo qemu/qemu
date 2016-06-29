@@ -1,5 +1,5 @@
 #ifndef HW_USB_UHCI_REGS_H
-#define HW_USB_UHCI_REGS_H 1
+#define HW_USB_UHCI_REGS_H
 
 #define UHCI_CMD_FGR      (1 << 4)
 #define UHCI_CMD_EGSM     (1 << 3)

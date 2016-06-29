@@ -132,4 +132,4 @@ enum {
 #define RXTOFEC3     (1 << 11)
 #define RXTOFEC4     (1 << 12)
 
-#endif /* #ifndef HW_PL041_H */
+#endif /* HW_PL041_H */

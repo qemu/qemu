@@ -10,8 +10,9 @@
  * See the COPYING file in the top-level directory.
  *
  */
+
 #ifndef QEMU_SEQLOCK_H
-#define QEMU_SEQLOCK_H 1
+#define QEMU_SEQLOCK_H
 
 #include "qemu/atomic.h"
 #include "qemu/thread.h"

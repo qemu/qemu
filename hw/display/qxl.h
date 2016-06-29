@@ -1,5 +1,5 @@
 #ifndef HW_QXL_H
-#define HW_QXL_H 1
+#define HW_QXL_H
 
 #include "qemu-common.h"
 

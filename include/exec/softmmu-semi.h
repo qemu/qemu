@@ -6,8 +6,9 @@
  *
  * This code is licensed under the GPL
  */
+
 #ifndef SOFTMMU_SEMI_H
-#define SOFTMMU_SEMI_H 1
+#define SOFTMMU_SEMI_H
 
 static inline uint64_t softmmu_tget64(CPUArchState *env, target_ulong addr)
 {

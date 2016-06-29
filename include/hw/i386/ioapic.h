@@ -25,4 +25,4 @@
 
 void ioapic_eoi_broadcast(int vector);
 
-#endif /* !HW_IOAPIC_H */
+#endif /* HW_IOAPIC_H */

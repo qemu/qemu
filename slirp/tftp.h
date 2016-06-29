@@ -1,6 +1,7 @@
 /* tftp defines */
+
 #ifndef SLIRP_TFTP_H
-#define SLIRP_TFTP_H 1
+#define SLIRP_TFTP_H
 
 #define TFTP_SESSIONS_MAX 20
 

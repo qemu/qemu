@@ -8,6 +8,7 @@
  * published by the Free Software Foundation, or any later version.
  * See the COPYING file in the top-level directory.
  */
+
 #ifndef QEMU_HW_PUV3_H
 #define QEMU_HW_PUV3_H
 
@@ -46,4 +47,4 @@
 #define DPRINTF(fmt, ...) do {} while (0)
 #endif
 
-#endif /* !QEMU_HW_PUV3_H */
+#endif /* QEMU_HW_PUV3_H */

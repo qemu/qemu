@@ -1,5 +1,6 @@
 #ifndef QEMU_HW_XEN_H
-#define QEMU_HW_XEN_H 1
+#define QEMU_HW_XEN_H
+
 /*
  * public xen header
  *   stuff needed outside xen-*.c, i.e. interfaces to qemu.

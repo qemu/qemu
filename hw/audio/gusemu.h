@@ -101,4 +101,4 @@ void gus_irqgen(GUSEmuState *state, unsigned int elapsed_time);
 /* lower values won´t provide any benefit at all, higher values can cause audible timing delays */
 /* note: masked timers are also calculated by this function, thus it might be needed even without any IRQs in use! */
 
-#endif  /* gusemu.h */
+#endif /* GUSEMU_H */

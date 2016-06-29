@@ -6,8 +6,9 @@
  *
  * This code is licensed under the GNU GPL v2.
  */
+
 #ifndef PXA_H
-# define PXA_H			"pxa.h"
+#define PXA_H
 
 #include "exec/memory.h"
 #include "target-arm/cpu-qom.h"
@@ -189,4 +190,4 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space, unsigned int sdram_size,
                          const char *revision);
 PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size);
 
-#endif	/* PXA_H */
+#endif /* PXA_H */

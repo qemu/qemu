@@ -129,4 +129,4 @@
 
 #define gusdataend (VSRegsEnd+4)
 
-#endif  /* gustate.h */
+#endif /* GUSTATE_H */

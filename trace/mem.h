@@ -31,4 +31,4 @@ static uint8_t trace_mem_build_info(TCGMemOp size, bool sign_extend,
 
 #include "trace/mem-internal.h"
 
-#endif  /* TRACE__MEM_H */
+#endif /* TRACE__MEM_H */

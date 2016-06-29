@@ -1,5 +1,5 @@
 #ifndef HW_LM32_H
-#define HW_LM32_H 1
+#define HW_LM32_H
 
 #include "hw/char/lm32_juart.h"
 

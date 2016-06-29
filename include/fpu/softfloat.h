@@ -751,4 +751,4 @@ static inline int float128_is_any_nan(float128 a)
 *----------------------------------------------------------------------------*/
 float128 float128_default_nan(float_status *status);
 
-#endif /* !SOFTFLOAT_H */
+#endif /* SOFTFLOAT_H */

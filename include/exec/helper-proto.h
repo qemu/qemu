@@ -2,7 +2,7 @@
    This one expands prototypes for the helper functions.  */
 
 #ifndef HELPER_PROTO_H
-#define HELPER_PROTO_H 1
+#define HELPER_PROTO_H
 
 #include "exec/helper-head.h"
 

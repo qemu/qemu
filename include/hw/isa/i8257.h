@@ -39,4 +39,3 @@ typedef struct I8257State {
 } I8257State;
 
 #endif
-

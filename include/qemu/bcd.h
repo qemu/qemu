@@ -1,5 +1,5 @@
 #ifndef QEMU_BCD_H
-#define QEMU_BCD_H 1
+#define QEMU_BCD_H
 
 /* Convert a byte between binary and BCD.  */
 static inline uint8_t to_bcd(uint8_t val)

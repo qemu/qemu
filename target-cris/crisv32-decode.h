@@ -17,8 +17,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+
 #ifndef CRISV32_DECODE_H
-#define CRISV32_DECODE_H 1
+#define CRISV32_DECODE_H
 
 /* Convenient binary macros.  */
 #define HEX__(n) 0x##n##LU

@@ -10,7 +10,7 @@
  */
 
 #ifndef HBITMAP_H
-#define HBITMAP_H 1
+#define HBITMAP_H
 
 #include "bitops.h"
 #include "host-utils.h"

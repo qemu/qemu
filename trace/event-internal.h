@@ -28,4 +28,4 @@ typedef struct TraceEvent {
 } TraceEvent;
 
 
-#endif  /* TRACE__EVENT_INTERNAL_H */
+#endif /* TRACE__EVENT_INTERNAL_H */

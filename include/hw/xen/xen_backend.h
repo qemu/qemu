@@ -1,5 +1,5 @@
 #ifndef QEMU_HW_XEN_BACKEND_H
-#define QEMU_HW_XEN_BACKEND_H 1
+#define QEMU_HW_XEN_BACKEND_H
 
 #include "hw/xen/xen_common.h"
 #include "sysemu/sysemu.h"

@@ -10,7 +10,7 @@
  */
 
 #ifndef HW_S390_VIRTIO_H
-#define HW_S390_VIRTIO_H 1
+#define HW_S390_VIRTIO_H
 
 #include "hw/nmi.h"
 #include "standard-headers/asm-s390/kvm_virtio.h"

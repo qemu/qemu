@@ -118,4 +118,4 @@ struct target_msqid64_ds {
 #define TARGET_ARCH_GET_FS 0x1003
 #define TARGET_ARCH_GET_GS 0x1004
 
-#endif  /* TARGET_SYSCALL_H */
+#endif /* TARGET_SYSCALL_H */

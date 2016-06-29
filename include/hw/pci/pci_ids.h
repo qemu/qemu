@@ -7,8 +7,9 @@
  *
  *      QEMU-specific definitions belong in pci.h
  */
+
 #ifndef HW_PCI_IDS_H
-#define HW_PCI_IDS_H 1
+#define HW_PCI_IDS_H
 
 /* Device classes and subclasses */
 

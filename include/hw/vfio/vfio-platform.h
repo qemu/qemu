@@ -74,4 +74,4 @@ typedef struct VFIOPlatformDeviceClass {
 #define VFIO_PLATFORM_DEVICE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(VFIOPlatformDeviceClass, (obj), TYPE_VFIO_PLATFORM)
 
-#endif /*HW_VFIO_VFIO_PLATFORM_H*/
+#endif /* HW_VFIO_VFIO_PLATFORM_H */

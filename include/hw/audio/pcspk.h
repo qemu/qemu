@@ -44,4 +44,4 @@ static inline ISADevice *pcspk_init(ISABus *bus, ISADevice *pit)
     return isadev;
 }
 
-#endif /* !HW_PCSPK_H */
+#endif /* HW_PCSPK_H */

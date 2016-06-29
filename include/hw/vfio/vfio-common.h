@@ -17,6 +17,7 @@
  *  Copyright (C) 2008, Red Hat, Amit Shah (amit.shah@redhat.com)
  *  Copyright (C) 2008, IBM, Muli Ben-Yehuda (muli@il.ibm.com)
  */
+
 #ifndef HW_VFIO_VFIO_COMMON_H
 #define HW_VFIO_VFIO_COMMON_H
 
@@ -174,4 +175,4 @@ int vfio_spapr_create_window(VFIOContainer *container,
 int vfio_spapr_remove_window(VFIOContainer *container,
                              hwaddr offset_within_address_space);
 
-#endif /* !HW_VFIO_VFIO_COMMON_H */
+#endif /* HW_VFIO_VFIO_COMMON_H */

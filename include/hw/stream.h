@@ -1,5 +1,5 @@
 #ifndef STREAM_H
-#define STREAM_H 1
+#define STREAM_H
 
 #include "qemu-common.h"
 #include "qom/object.h"
