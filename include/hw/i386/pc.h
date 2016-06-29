@@ -201,11 +201,12 @@ typedef struct GSIState {
 void gsi_handler(void *opaque, int n, int level);
 
 /* vmport.c */
+#define TYPE_VMPORT "vmport"
 typedef uint32_t (VMPortReadFunc)(void *opaque, uint32_t address);
 
 static inline void vmport_init(ISABus *bus)
 {
-    isa_create_simple(bus, "vmport");
+    isa_create_simple(bus, TYPE_VMPORT);
 }
 
 void vmport_register(unsigned char command, VMPortReadFunc *func, void *opaque);
@@ -213,6 +214,7 @@ void vmmouse_get_data(uint32_t *data);
 void vmmouse_set_data(const uint32_t *data);
 
 /* pckbd.c */
+#define I8042_A20_LINE "a20"
 
 void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base);
 void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
@@ -239,6 +241,8 @@ void pc_guest_info_init(PCMachineState *pcms);
 #define PCI_HOST_PROP_PCI_HOLE64_START "pci-hole64-start"
 #define PCI_HOST_PROP_PCI_HOLE64_END   "pci-hole64-end"
 #define PCI_HOST_PROP_PCI_HOLE64_SIZE  "pci-hole64-size"
+#define PCI_HOST_BELOW_4G_MEM_SIZE     "below-4g-mem-size"
+#define PCI_HOST_ABOVE_4G_MEM_SIZE     "above-4g-mem-size"
 #define DEFAULT_PCI_HOLE64_SIZE (~0x0ULL)
 
 
@@ -272,6 +276,8 @@ ISADevice *pc_find_fdc0(void);
 int cmos_get_fd_drive_type(FloppyDriveType fd0);
 
 #define FW_CFG_IO_BASE     0x510
+
+#define PORT92_A20_LINE "a20"
 
 /* acpi_piix.c */
 

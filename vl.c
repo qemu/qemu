@@ -1214,8 +1214,10 @@ static void smp_parse(QemuOpts *opts)
         } else if (cores == 0) {
             threads = threads > 0 ? threads : 1;
             cores = cpus / (sockets * threads);
+            cores = cores > 0 ? cores : 1;
         } else if (threads == 0) {
             threads = cpus / (cores * sockets);
+            threads = threads > 0 ? threads : 1;
         } else if (sockets * cores * threads < cpus) {
             error_report("cpu topology: "
                          "sockets (%u) * cores (%u) * threads (%u) < "
@@ -2928,7 +2930,6 @@ int main(int argc, char **argv, char **envp)
     const char *qtest_log = NULL;
     const char *pid_file = NULL;
     const char *incoming = NULL;
-    int show_vnc_port = 0;
     bool defconfig = true;
     bool userconfig = true;
     bool nographic = false;
@@ -4183,7 +4184,6 @@ int main(int argc, char **argv, char **envp)
         display_type = DT_COCOA;
 #elif defined(CONFIG_VNC)
         vnc_parse("localhost:0,to=99,id=default", &error_abort);
-        show_vnc_port = 1;
 #else
         display_type = DT_NONE;
 #endif
@@ -4532,11 +4532,6 @@ int main(int argc, char **argv, char **envp)
     qemu_opts_foreach(qemu_find_opts("vnc"),
                       vnc_init_func, NULL, NULL);
 #endif
-    if (show_vnc_port) {
-        char *ret = vnc_display_local_addr("default");
-        printf("VNC server running on '%s'\n", ret);
-        g_free(ret);
-    }
 
     if (using_spice) {
         qemu_spice_display_init();

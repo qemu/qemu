@@ -221,8 +221,20 @@ void qemu_chr_fe_event(CharDriverState *s, int event);
 void qemu_chr_fe_printf(CharDriverState *s, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 
-int qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
-                          GIOFunc func, void *user_data);
+/**
+ * @qemu_chr_fe_add_watch:
+ *
+ * If the backend is connected, create and add a #GSource that fires
+ * when the given condition (typically G_IO_OUT|G_IO_HUP or G_IO_HUP)
+ * is active; return the #GSource's tag.  If it is disconnected,
+ * return 0.
+ *
+ * @cond the condition to poll for
+ * @func the function to call when the condition happens
+ * @user_data the opaque pointer to pass to @func
+ */
+guint qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
+                            GIOFunc func, void *user_data);
 
 /**
  * @qemu_chr_fe_write:

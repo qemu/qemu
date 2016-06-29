@@ -40,6 +40,9 @@ void *pci_assign_dev_load_option_rom(PCIDevice *dev, struct Object *owner,
              domain, bus, slot, function);
 
     if (stat(rom_file, &st)) {
+        if (errno != ENOENT) {
+            error_report("pci-assign: Invalid ROM.");
+        }
         return NULL;
     }
 

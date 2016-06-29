@@ -56,8 +56,8 @@ typedef struct MCHPCIState {
     MemoryRegion smram, low_smram, high_smram;
     MemoryRegion tseg_blackhole, tseg_window;
     PcPciInfo pci_info;
-    ram_addr_t below_4g_mem_size;
-    ram_addr_t above_4g_mem_size;
+    uint64_t below_4g_mem_size;
+    uint64_t above_4g_mem_size;
     uint64_t pci_hole64_size;
     uint32_t short_root_bus;
     IntelIOMMUState *iommu;
@@ -77,6 +77,11 @@ typedef struct Q35PCIHost {
 /*
  * gmch part
  */
+
+#define MCH_HOST_PROP_RAM_MEM "ram-mem"
+#define MCH_HOST_PROP_PCI_MEM "pci-mem"
+#define MCH_HOST_PROP_SYSTEM_MEM "system-mem"
+#define MCH_HOST_PROP_IO_MEM "io-mem"
 
 /* PCI configuration */
 #define MCH_HOST_BRIDGE                        "MCH"

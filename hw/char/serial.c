@@ -106,6 +106,7 @@ do {} while (0)
 #endif
 
 static void serial_receive1(void *opaque, const uint8_t *buf, int size);
+static void serial_xmit(SerialState *s);
 
 static inline void recv_fifo_put(SerialState *s, uint8_t chr)
 {
@@ -223,13 +224,20 @@ static void serial_update_msl(SerialState *s)
     }
 }
 
-static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
+static gboolean serial_watch_cb(GIOChannel *chan, GIOCondition cond,
+                                void *opaque)
 {
     SerialState *s = opaque;
+    s->watch_tag = 0;
+    serial_xmit(s);
+    return FALSE;
+}
 
+static void serial_xmit(SerialState *s)
+{
     do {
         assert(!(s->lsr & UART_LSR_TEMT));
-        if (s->tsr_retry <= 0) {
+        if (s->tsr_retry == 0) {
             assert(!(s->lsr & UART_LSR_THRE));
 
             if (s->fcr & UART_FCR_FE) {
@@ -251,17 +259,17 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
         if (s->mcr & UART_MCR_LOOP) {
             /* in loopback mode, say that we just received a char */
             serial_receive1(s, &s->tsr, 1);
-        } else if (qemu_chr_fe_write(s->chr, &s->tsr, 1) != 1) {
-            if (s->tsr_retry >= 0 && s->tsr_retry < MAX_XMIT_RETRY &&
-                qemu_chr_fe_add_watch(s->chr, G_IO_OUT|G_IO_HUP,
-                                      serial_xmit, s) > 0) {
+        } else if (qemu_chr_fe_write(s->chr, &s->tsr, 1) != 1 &&
+                   s->tsr_retry < MAX_XMIT_RETRY) {
+            assert(s->watch_tag == 0);
+            s->watch_tag = qemu_chr_fe_add_watch(s->chr, G_IO_OUT|G_IO_HUP,
+                                                 serial_watch_cb, s);
+            if (s->watch_tag > 0) {
                 s->tsr_retry++;
-                return FALSE;
+                return;
             }
-            s->tsr_retry = 0;
-        } else {
-            s->tsr_retry = 0;
         }
+        s->tsr_retry = 0;
 
         /* Transmit another byte if it is already available. It is only
            possible when FIFO is enabled and not empty. */
@@ -269,10 +277,7 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
 
     s->last_xmit_ts = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     s->lsr |= UART_LSR_TEMT;
-
-    return FALSE;
 }
-
 
 /* Setter for FCR.
    is_load flag means, that value is set while loading VM state
@@ -330,8 +335,8 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
             s->lsr &= ~UART_LSR_THRE;
             s->lsr &= ~UART_LSR_TEMT;
             serial_update_irq(s);
-            if (s->tsr_retry <= 0) {
-                serial_xmit(NULL, G_IO_OUT, s);
+            if (s->tsr_retry == 0) {
+                serial_xmit(s);
             }
         }
         break;
@@ -639,6 +644,31 @@ static int serial_post_load(void *opaque, int version_id)
     if (s->thr_ipending == -1) {
         s->thr_ipending = ((s->iir & UART_IIR_ID) == UART_IIR_THRI);
     }
+
+    if (s->tsr_retry > 0) {
+        /* tsr_retry > 0 implies LSR.TEMT = 0 (transmitter not empty).  */
+        if (s->lsr & UART_LSR_TEMT) {
+            error_report("inconsistent state in serial device "
+                         "(tsr empty, tsr_retry=%d", s->tsr_retry);
+            return -1;
+        }
+
+        if (s->tsr_retry > MAX_XMIT_RETRY) {
+            s->tsr_retry = MAX_XMIT_RETRY;
+        }
+
+        assert(s->watch_tag == 0);
+        s->watch_tag = qemu_chr_fe_add_watch(s->chr, G_IO_OUT|G_IO_HUP,
+                                             serial_watch_cb, s);
+    } else {
+        /* tsr_retry == 0 implies LSR.TEMT = 1 (transmitter empty).  */
+        if (!(s->lsr & UART_LSR_TEMT)) {
+            error_report("inconsistent state in serial device "
+                         "(tsr not empty, tsr_retry=0");
+            return -1;
+        }
+    }
+
     s->last_break_enable = (s->lcr >> 6) & 1;
     /* Initialize fcr via setter to perform essential side-effects */
     serial_write_fcr(s, s->fcr_vmstate);
@@ -685,7 +715,7 @@ static const VMStateDescription vmstate_serial_tsr = {
     .minimum_version_id = 1,
     .needed = serial_tsr_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_INT32(tsr_retry, SerialState),
+        VMSTATE_UINT32(tsr_retry, SerialState),
         VMSTATE_UINT8(thr, SerialState),
         VMSTATE_UINT8(tsr, SerialState),
         VMSTATE_END_OF_LIST()
@@ -814,6 +844,11 @@ const VMStateDescription vmstate_serial = {
 static void serial_reset(void *opaque)
 {
     SerialState *s = opaque;
+
+    if (s->watch_tag > 0) {
+        g_source_remove(s->watch_tag);
+        s->watch_tag = 0;
+    }
 
     s->rbr = 0;
     s->ier = 0;

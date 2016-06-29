@@ -60,6 +60,7 @@ static void pc_q35_init(MachineState *machine)
     PCIHostState *phb;
     PCIBus *host_bus;
     PCIDevice *lpc;
+    DeviceState *lpc_dev;
     BusState *idebus[MAX_SATA_PORTS];
     ISADevice *rtc_state;
     MemoryRegion *system_io = get_system_io();
@@ -159,12 +160,18 @@ static void pc_q35_init(MachineState *machine)
     q35_host = Q35_HOST_DEVICE(qdev_create(NULL, TYPE_Q35_HOST_DEVICE));
 
     object_property_add_child(qdev_get_machine(), "q35", OBJECT(q35_host), NULL);
-    q35_host->mch.ram_memory = ram_memory;
-    q35_host->mch.pci_address_space = pci_memory;
-    q35_host->mch.system_memory = get_system_memory();
-    q35_host->mch.address_space_io = system_io;
-    q35_host->mch.below_4g_mem_size = pcms->below_4g_mem_size;
-    q35_host->mch.above_4g_mem_size = pcms->above_4g_mem_size;
+    object_property_set_link(OBJECT(q35_host), OBJECT(ram_memory),
+                             MCH_HOST_PROP_RAM_MEM, NULL);
+    object_property_set_link(OBJECT(q35_host), OBJECT(pci_memory),
+                             MCH_HOST_PROP_PCI_MEM, NULL);
+    object_property_set_link(OBJECT(q35_host), OBJECT(get_system_memory()),
+                             MCH_HOST_PROP_SYSTEM_MEM, NULL);
+    object_property_set_link(OBJECT(q35_host), OBJECT(system_io),
+                             MCH_HOST_PROP_IO_MEM, NULL);
+    object_property_set_int(OBJECT(q35_host), pcms->below_4g_mem_size,
+                            PCI_HOST_BELOW_4G_MEM_SIZE, NULL);
+    object_property_set_int(OBJECT(q35_host), pcms->above_4g_mem_size,
+                            PCI_HOST_ABOVE_4G_MEM_SIZE, NULL);
     /* pci */
     qdev_init_nofail(DEVICE(q35_host));
     phb = PCI_HOST_BRIDGE(q35_host);
@@ -184,15 +191,14 @@ static void pc_q35_init(MachineState *machine)
                              PC_MACHINE_ACPI_DEVICE_PROP, &error_abort);
 
     ich9_lpc = ICH9_LPC_DEVICE(lpc);
-    ich9_lpc->pic = gsi;
-    ich9_lpc->ioapic = gsi_state->ioapic_irq;
+    lpc_dev = DEVICE(lpc);
+    for (i = 0; i < GSI_NUM_PINS; i++) {
+        qdev_connect_gpio_out_named(lpc_dev, ICH9_GPIO_GSI, i, gsi[i]);
+    }
     pci_bus_irqs(host_bus, ich9_lpc_set_irq, ich9_lpc_map_irq, ich9_lpc,
                  ICH9_LPC_NB_PIRQS);
     pci_bus_set_route_irq_fn(host_bus, ich9_route_intx_pin_to_irq);
     isa_bus = ich9_lpc->isa_bus;
-
-    /*end early*/
-    isa_bus_irqs(isa_bus, gsi);
 
     if (kvm_pic_in_kernel()) {
         i8259 = kvm_i8259_init(isa_bus);

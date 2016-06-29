@@ -505,7 +505,7 @@ typedef struct Port92State {
 
     MemoryRegion io;
     uint8_t outport;
-    qemu_irq *a20_out;
+    qemu_irq a20_out;
 } Port92State;
 
 static void port92_write(void *opaque, hwaddr addr, uint64_t val,
@@ -516,7 +516,7 @@ static void port92_write(void *opaque, hwaddr addr, uint64_t val,
 
     DPRINTF("port92: write 0x%02" PRIx64 "\n", val);
     s->outport = val;
-    qemu_set_irq(*s->a20_out, (val >> 1) & 1);
+    qemu_set_irq(s->a20_out, (val >> 1) & 1);
     if ((val & 1) && !(oldval & 1)) {
         qemu_system_reset_request();
     }
@@ -535,9 +535,7 @@ static uint64_t port92_read(void *opaque, hwaddr addr,
 
 static void port92_init(ISADevice *dev, qemu_irq *a20_out)
 {
-    Port92State *s = PORT92(dev);
-
-    s->a20_out = a20_out;
+    qdev_connect_gpio_out_named(DEVICE(dev), PORT92_A20_LINE, 0, *a20_out);
 }
 
 static const VMStateDescription vmstate_port92_isa = {
@@ -574,6 +572,8 @@ static void port92_initfn(Object *obj)
     memory_region_init_io(&s->io, OBJECT(s), &port92_ops, s, "port92", 1);
 
     s->outport = 0;
+
+    qdev_init_gpio_out_named(DEVICE(obj), &s->a20_out, PORT92_A20_LINE, 1);
 }
 
 static void port92_realizefn(DeviceState *dev, Error **errp)

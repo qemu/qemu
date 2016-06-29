@@ -22,7 +22,7 @@ typedef struct VhostUserState {
     NetClientState nc;
     CharDriverState *chr;
     VHostNetState *vhost_net;
-    int watch;
+    guint watch;
     uint64_t acked_features;
 } VhostUserState;
 
@@ -150,6 +150,11 @@ static void vhost_user_cleanup(NetClientState *nc)
     if (s->vhost_net) {
         vhost_net_cleanup(s->vhost_net);
         s->vhost_net = NULL;
+    }
+    if (s->chr) {
+        qemu_chr_add_handlers(s->chr, NULL, NULL, NULL, NULL);
+        qemu_chr_fe_release(s->chr);
+        s->chr = NULL;
     }
 
     qemu_purge_queued_packets(nc);

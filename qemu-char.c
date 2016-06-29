@@ -3966,19 +3966,19 @@ void qemu_chr_fe_event(struct CharDriverState *chr, int event)
     }
 }
 
-int qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
-                          GIOFunc func, void *user_data)
+guint qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
+                            GIOFunc func, void *user_data)
 {
     GSource *src;
     guint tag;
 
     if (s->chr_add_watch == NULL) {
-        return -ENOSYS;
+        return 0;
     }
 
     src = s->chr_add_watch(s, cond);
     if (!src) {
-        return -EINVAL;
+        return 0;
     }
 
     g_source_set_callback(src, (GSourceFunc)func, user_data, NULL);
@@ -4549,6 +4549,15 @@ void qmp_chardev_remove(const char *id, Error **errp)
     qemu_chr_delete(chr);
 }
 
+static void qemu_chr_cleanup(void)
+{
+    CharDriverState *chr, *tmp;
+
+    QTAILQ_FOREACH_SAFE(chr, &chardevs, next, tmp) {
+        qemu_chr_delete(chr);
+    }
+}
+
 static void register_types(void)
 {
     register_char_driver("null", CHARDEV_BACKEND_KIND_NULL, NULL,
@@ -4595,6 +4604,8 @@ static void register_types(void)
      * is specified
      */
     qemu_add_machine_init_done_notifier(&muxes_realize_notify);
+
+    atexit(qemu_chr_cleanup);
 }
 
 type_init(register_types);

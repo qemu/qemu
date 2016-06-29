@@ -49,8 +49,6 @@
 #include "sysemu/sysemu.h"
 #include "qom/cpu.h"
 
-static int ich9_lpc_sci_irq(ICH9LPCState *lpc);
-
 /*****************************************************************************/
 /* ICH9 LPC PCI to ISA bridge */
 
@@ -204,10 +202,12 @@ static void ich9_lpc_pic_irq(ICH9LPCState *lpc, int pirq_num,
     abort();
 }
 
-/* pic_irq: i8254 irq 0-15 */
-static void ich9_lpc_update_pic(ICH9LPCState *lpc, int pic_irq)
+/* gsi: i8259+ioapic irq 0-15, otherwise assert */
+static void ich9_lpc_update_pic(ICH9LPCState *lpc, int gsi)
 {
     int i, pic_level;
+
+    assert(gsi < ICH9_LPC_PIC_NUM_PINS);
 
     /* The pic level is the logical OR of all the PCI irqs mapped to it */
     pic_level = 0;
@@ -215,30 +215,15 @@ static void ich9_lpc_update_pic(ICH9LPCState *lpc, int pic_irq)
         int tmp_irq;
         int tmp_dis;
         ich9_lpc_pic_irq(lpc, i, &tmp_irq, &tmp_dis);
-        if (!tmp_dis && pic_irq == tmp_irq) {
+        if (!tmp_dis && tmp_irq == gsi) {
             pic_level |= pci_bus_get_irq_level(lpc->d.bus, i);
         }
     }
-    if (pic_irq == ich9_lpc_sci_irq(lpc)) {
+    if (gsi == lpc->sci_gsi) {
         pic_level |= lpc->sci_level;
     }
 
-    qemu_set_irq(lpc->pic[pic_irq], pic_level);
-}
-
-/* pirq: pirq[A-H] 0-7*/
-static void ich9_lpc_update_by_pirq(ICH9LPCState *lpc, int pirq)
-{
-    int pic_irq;
-    int pic_dis;
-
-    ich9_lpc_pic_irq(lpc, pirq, &pic_irq, &pic_dis);
-    assert(pic_irq < ICH9_LPC_PIC_NUM_PINS);
-    if (pic_dis) {
-        return;
-    }
-
-    ich9_lpc_update_pic(lpc, pic_irq);
+    qemu_set_irq(lpc->gsi[gsi], pic_level);
 }
 
 /* APIC mode: GSIx: PIRQ[A-H] -> GSI 16, ... no pirq shares same APIC pins. */
@@ -252,29 +237,32 @@ static int ich9_gsi_to_pirq(int gsi)
     return gsi - ICH9_LPC_PIC_NUM_PINS;
 }
 
+/* gsi: ioapic irq 16-23, otherwise assert */
 static void ich9_lpc_update_apic(ICH9LPCState *lpc, int gsi)
 {
     int level = 0;
 
-    if (gsi >= ICH9_LPC_PIC_NUM_PINS) {
-        level |= pci_bus_get_irq_level(lpc->d.bus, ich9_gsi_to_pirq(gsi));
-    }
-    if (gsi == ich9_lpc_sci_irq(lpc)) {
+    assert(gsi >= ICH9_LPC_PIC_NUM_PINS);
+
+    level |= pci_bus_get_irq_level(lpc->d.bus, ich9_gsi_to_pirq(gsi));
+    if (gsi == lpc->sci_gsi) {
         level |= lpc->sci_level;
     }
 
-    qemu_set_irq(lpc->ioapic[gsi], level);
+    qemu_set_irq(lpc->gsi[gsi], level);
 }
 
 void ich9_lpc_set_irq(void *opaque, int pirq, int level)
 {
     ICH9LPCState *lpc = opaque;
+    int pic_irq, pic_dis;
 
     assert(0 <= pirq);
     assert(pirq < ICH9_LPC_NB_PIRQS);
 
     ich9_lpc_update_apic(lpc, ich9_pirq_to_gsi(pirq));
-    ich9_lpc_update_by_pirq(lpc, pirq);
+    ich9_lpc_pic_irq(lpc, pirq, &pic_irq, &pic_dis);
+    ich9_lpc_update_pic(lpc, pic_irq);
 }
 
 /* return the pirq number (PIRQ[A-H]:0-7) corresponding to
@@ -360,13 +348,14 @@ static void ich9_set_sci(void *opaque, int irq_num, int level)
     }
     lpc->sci_level = level;
 
-    irq = ich9_lpc_sci_irq(lpc);
+    irq = lpc->sci_gsi;
     if (irq < 0) {
         return;
     }
 
-    ich9_lpc_update_apic(lpc, irq);
-    if (irq < ICH9_LPC_PIC_NUM_PINS) {
+    if (irq >= ICH9_LPC_PIC_NUM_PINS) {
+        ich9_lpc_update_apic(lpc, irq);
+    } else {
         ich9_lpc_update_pic(lpc, irq);
     }
 }
@@ -403,12 +392,27 @@ static void ich9_apm_ctrl_changed(uint32_t val, void *arg)
 
 /* config:PMBASE */
 static void
-ich9_lpc_pmbase_update(ICH9LPCState *lpc)
+ich9_lpc_pmbase_sci_update(ICH9LPCState *lpc)
 {
     uint32_t pm_io_base = pci_get_long(lpc->d.config + ICH9_LPC_PMBASE);
-    pm_io_base &= ICH9_LPC_PMBASE_BASE_ADDRESS_MASK;
+    uint8_t acpi_cntl = pci_get_long(lpc->d.config + ICH9_LPC_ACPI_CTRL);
+    uint8_t new_gsi;
+
+    if (acpi_cntl & ICH9_LPC_ACPI_CTRL_ACPI_EN) {
+        pm_io_base &= ICH9_LPC_PMBASE_BASE_ADDRESS_MASK;
+    } else {
+        pm_io_base = 0;
+    }
 
     ich9_pm_iospace_update(&lpc->pm, pm_io_base);
+
+    new_gsi = ich9_lpc_sci_irq(lpc);
+    if (lpc->sci_level && new_gsi != lpc->sci_gsi) {
+        qemu_set_irq(lpc->pm.irq, 0);
+        lpc->sci_gsi = new_gsi;
+        qemu_set_irq(lpc->pm.irq, 1);
+    }
+    lpc->sci_gsi = new_gsi;
 }
 
 /* config:RCBA */
@@ -445,7 +449,7 @@ static int ich9_lpc_post_load(void *opaque, int version_id)
 {
     ICH9LPCState *lpc = opaque;
 
-    ich9_lpc_pmbase_update(lpc);
+    ich9_lpc_pmbase_sci_update(lpc);
     ich9_lpc_rcba_update(lpc, 0 /* disabled ICH9_LPC_RCBA_EN */);
     ich9_lpc_pmcon_update(lpc);
     return 0;
@@ -458,8 +462,9 @@ static void ich9_lpc_config_write(PCIDevice *d,
     uint32_t rcba_old = pci_get_long(d->config + ICH9_LPC_RCBA);
 
     pci_default_write_config(d, addr, val, len);
-    if (ranges_overlap(addr, len, ICH9_LPC_PMBASE, 4)) {
-        ich9_lpc_pmbase_update(lpc);
+    if (ranges_overlap(addr, len, ICH9_LPC_PMBASE, 4) ||
+        ranges_overlap(addr, len, ICH9_LPC_ACPI_CTRL, 1)) {
+        ich9_lpc_pmbase_sci_update(lpc);
     }
     if (ranges_overlap(addr, len, ICH9_LPC_RCBA, 4)) {
         ich9_lpc_rcba_update(lpc, rcba_old);
@@ -497,7 +502,7 @@ static void ich9_lpc_reset(DeviceState *qdev)
 
     ich9_cc_reset(lpc);
 
-    ich9_lpc_pmbase_update(lpc);
+    ich9_lpc_pmbase_sci_update(lpc);
     ich9_lpc_rcba_update(lpc, rcba_old);
 
     lpc->sci_level = 0;
@@ -577,7 +582,7 @@ static void ich9_lpc_get_sci_int(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(obj);
-    uint32_t value = ich9_lpc_sci_irq(lpc);
+    uint32_t value = lpc->sci_gsi;
 
     visit_type_uint32(v, name, &value, errp);
 }
@@ -608,6 +613,7 @@ static void ich9_lpc_initfn(Object *obj)
 static void ich9_lpc_realize(PCIDevice *d, Error **errp)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(d);
+    DeviceState *dev = DEVICE(d);
     ISABus *isa_bus;
 
     isa_bus = isa_bus_new(DEVICE(d), get_system_memory(), get_system_io(),
@@ -618,6 +624,9 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
 
     pci_set_long(d->wmask + ICH9_LPC_PMBASE,
                  ICH9_LPC_PMBASE_BASE_ADDRESS_MASK);
+    pci_set_byte(d->wmask + ICH9_LPC_PMBASE,
+                 ICH9_LPC_ACPI_CTRL_ACPI_EN |
+                 ICH9_LPC_ACPI_CTRL_SCI_IRQ_SEL_MASK);
 
     memory_region_init_io(&lpc->rcrb_mem, OBJECT(d), &rcrb_mmio_ops, lpc,
                           "lpc-rcrb-mmio", ICH9_CC_SIZE);
@@ -635,6 +644,10 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
     memory_region_add_subregion_overlap(pci_address_space_io(d),
                                         ICH9_RST_CNT_IOPORT, &lpc->rst_cnt_mem,
                                         1);
+
+    qdev_init_gpio_out_named(dev, lpc->gsi, ICH9_GPIO_GSI, GSI_NUM_PINS);
+
+    isa_bus_irqs(isa_bus, lpc->gsi);
 }
 
 static bool ich9_rst_cnt_needed(void *opaque)

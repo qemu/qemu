@@ -127,6 +127,10 @@ static Property mch_props[] = {
     DEFINE_PROP_SIZE(PCI_HOST_PROP_PCI_HOLE64_SIZE, Q35PCIHost,
                      mch.pci_hole64_size, DEFAULT_PCI_HOLE64_SIZE),
     DEFINE_PROP_UINT32("short_root_bus", Q35PCIHost, mch.short_root_bus, 0),
+    DEFINE_PROP_SIZE(PCI_HOST_BELOW_4G_MEM_SIZE, Q35PCIHost,
+                     mch.below_4g_mem_size, 0),
+    DEFINE_PROP_SIZE(PCI_HOST_ABOVE_4G_MEM_SIZE, Q35PCIHost,
+                     mch.above_4g_mem_size, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -176,6 +180,22 @@ static void q35_host_initfn(Object *obj)
     object_property_add(obj, PCIE_HOST_MCFG_SIZE, "int",
                         q35_host_get_mmcfg_size,
                         NULL, NULL, NULL, NULL);
+
+    object_property_add_link(obj, MCH_HOST_PROP_RAM_MEM, TYPE_MEMORY_REGION,
+                             (Object **) &s->mch.ram_memory,
+                             qdev_prop_allow_set_link_before_realize, 0, NULL);
+
+    object_property_add_link(obj, MCH_HOST_PROP_PCI_MEM, TYPE_MEMORY_REGION,
+                             (Object **) &s->mch.pci_address_space,
+                             qdev_prop_allow_set_link_before_realize, 0, NULL);
+
+    object_property_add_link(obj, MCH_HOST_PROP_SYSTEM_MEM, TYPE_MEMORY_REGION,
+                             (Object **) &s->mch.system_memory,
+                             qdev_prop_allow_set_link_before_realize, 0, NULL);
+
+    object_property_add_link(obj, MCH_HOST_PROP_IO_MEM, TYPE_MEMORY_REGION,
+                             (Object **) &s->mch.address_space_io,
+                             qdev_prop_allow_set_link_before_realize, 0, NULL);
 
     /* Leave enough space for the biggest MCFG BAR */
     /* TODO: this matches current bios behaviour, but

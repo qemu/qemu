@@ -904,8 +904,11 @@ extern const VMStateInfo vmstate_info_bitmap;
 #define VMSTATE_PARTIAL_BUFFER(_f, _s, _size)                         \
     VMSTATE_STATIC_BUFFER(_f, _s, 0, NULL, 0, _size)
 
+#define VMSTATE_BUFFER_START_MIDDLE_V(_f, _s, _start, _v) \
+    VMSTATE_STATIC_BUFFER(_f, _s, _v, NULL, _start, sizeof(typeof_field(_s, _f)))
+
 #define VMSTATE_BUFFER_START_MIDDLE(_f, _s, _start) \
-    VMSTATE_STATIC_BUFFER(_f, _s, 0, NULL, _start, sizeof(typeof_field(_s, _f)))
+    VMSTATE_BUFFER_START_MIDDLE_V(_f, _s, _start, 0)
 
 #define VMSTATE_PARTIAL_VBUFFER(_f, _s, _size)                        \
     VMSTATE_VBUFFER(_f, _s, 0, NULL, 0, _size)

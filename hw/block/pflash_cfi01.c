@@ -65,7 +65,6 @@ do {                                                        \
 #define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
-#define TYPE_CFI_PFLASH01 "cfi.pflash01"
 #define CFI_PFLASH01(obj) OBJECT_CHECK(pflash_t, (obj), TYPE_CFI_PFLASH01)
 
 #define PFLASH_BE          0

@@ -1891,8 +1891,4 @@ static void assigned_dev_load_option_rom(AssignedDevice *dev)
     pci_assign_dev_load_option_rom(&dev->dev, OBJECT(dev), &size,
                                    dev->host.domain, dev->host.bus,
                                    dev->host.slot, dev->host.function);
-
-    if (!size) {
-        error_report("pci-assign: Invalid ROM.");
-    }
 }
