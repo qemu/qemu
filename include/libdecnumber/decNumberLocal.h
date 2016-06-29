@@ -659,6 +659,4 @@
   /* [end of format-dependent macros and constants]		      */
   #endif
 
-#else
-  #error decNumberLocal included more than once
 #endif
