@@ -564,8 +564,9 @@ qemu.1: qemu-doc.texi qemu-options.texi qemu-monitor.texi qemu-monitor-info.texi
 	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu.pod && \
 	  $(POD2MAN) --section=1 --center=" " --release=" " qemu.pod > $@, \
 	  "  GEN   $@")
+qemu.1: qemu-option-trace.texi
 
-qemu-img.1: qemu-img.texi qemu-img-cmds.texi
+qemu-img.1: qemu-img.texi qemu-option-trace.texi qemu-img-cmds.texi
 	$(call quiet-command, \
 	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu-img.pod && \
 	  $(POD2MAN) --section=1 --center=" " --release=" " qemu-img.pod > $@, \
@@ -577,7 +578,7 @@ fsdev/virtfs-proxy-helper.1: fsdev/virtfs-proxy-helper.texi
 	  $(POD2MAN) --section=1 --center=" " --release=" " fsdev/virtfs-proxy-helper.pod > $@, \
 	  "  GEN   $@")
 
-qemu-nbd.8: qemu-nbd.texi
+qemu-nbd.8: qemu-nbd.texi qemu-option-trace.texi
 	$(call quiet-command, \
 	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu-nbd.pod && \
 	  $(POD2MAN) --section=8 --center=" " --release=" " qemu-nbd.pod > $@, \
@@ -595,7 +596,7 @@ info: qemu-doc.info qemu-tech.info
 pdf: qemu-doc.pdf qemu-tech.pdf
 
 qemu-doc.dvi qemu-doc.html qemu-doc.info qemu-doc.pdf: \
-	qemu-img.texi qemu-nbd.texi qemu-options.texi \
+	qemu-img.texi qemu-nbd.texi qemu-options.texi qemu-option-trace.texi \
 	qemu-monitor.texi qemu-img-cmds.texi qemu-ga.texi \
 	qemu-monitor-info.texi
 

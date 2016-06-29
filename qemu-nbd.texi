@@ -92,6 +92,9 @@ Display extra debugging information
 Display this help and exit
 @item -V, --version
 Display version information and exit
+@item -T, --trace [[enable=]@var{pattern}][,events=@var{file}][,file=@var{file}]
+@findex --trace
+@include qemu-option-trace.texi
 @end table
 
 @c man end
