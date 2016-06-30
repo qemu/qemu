@@ -2364,6 +2364,8 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
     slot->uport = uport;
     slot->ctx = octx;
 
+    /* Make sure device is in USB_STATE_DEFAULT state */
+    usb_device_reset(dev);
     if (bsr) {
         slot_ctx[3] = SLOT_DEFAULT << SLOT_STATE_SHIFT;
     } else {
@@ -2371,7 +2373,6 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
         uint8_t buf[1];
 
         slot_ctx[3] = (SLOT_ADDRESSED << SLOT_STATE_SHIFT) | slotid;
-        usb_device_reset(dev);
         memset(&p, 0, sizeof(p));
         usb_packet_addbuf(&p, buf, sizeof(buf));
         usb_packet_setup(&p, USB_TOKEN_OUT,
