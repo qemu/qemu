@@ -24,6 +24,7 @@
 #include "exec/address-spaces.h"
 #include "intel_iommu_internal.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_bus.h"
 
 /*#define DEBUG_INTEL_IOMMU*/
 #ifdef DEBUG_INTEL_IOMMU
@@ -1871,6 +1872,16 @@ static IOMMUTLBEntry vtd_iommu_translate(MemoryRegion *iommu, hwaddr addr,
     return ret;
 }
 
+static void vtd_iommu_notify_started(MemoryRegion *iommu)
+{
+    VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
+
+    hw_error("Device at bus %s addr %02x.%d requires iommu notifier which "
+             "is currently not supported by intel-iommu emulation",
+             vtd_as->bus->qbus.name, PCI_SLOT(vtd_as->devfn),
+             PCI_FUNC(vtd_as->devfn));
+}
+
 static const VMStateDescription vtd_vmstate = {
     .name = "iommu-intel",
     .unmigratable = 1,
@@ -1938,6 +1949,7 @@ static void vtd_init(IntelIOMMUState *s)
     memset(s->womask, 0, DMAR_REG_SIZE);
 
     s->iommu_ops.translate = vtd_iommu_translate;
+    s->iommu_ops.notify_started = vtd_iommu_notify_started;
     s->root = 0;
     s->root_extended = false;
     s->dmar_enabled = false;
