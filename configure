@@ -1216,7 +1216,10 @@ case "$cpu" in
            cc_i386='$(CC) -m32'
            ;;
     x86_64)
-           CPU_CFLAGS="-m64"
+           # ??? Only extremely old AMD cpus do not have cmpxchg16b.
+           # If we truly care, we should simply detect this case at
+           # runtime and generate the fallback to serial emulation.
+           CPU_CFLAGS="-m64 -mcx16"
            LDFLAGS="-m64 $LDFLAGS"
            cc_i386='$(CC) -m32'
            ;;
@@ -4521,6 +4524,26 @@ if compile_prog "" "" ; then
     int128=yes
 fi
 
+#########################################
+# See if 128-bit atomic operations are supported.
+
+atomic128=no
+if test "$int128" = "yes"; then
+  cat > $TMPC << EOF
+int main(void)
+{
+  unsigned __int128 x = 0, y = 0;
+  y = __atomic_load_16(&x, 0);
+  __atomic_store_16(&x, y, 0);
+  __atomic_compare_exchange_16(&x, &y, x, 0, 0, 0);
+  return 0;
+}
+EOF
+  if compile_prog "" "" ; then
+    atomic128=yes
+  fi
+fi
+
 ########################################
 # check if getauxval is available.
 
@@ -5481,6 +5504,10 @@ fi
 
 if test "$int128" = "yes" ; then
   echo "CONFIG_INT128=y" >> $config_host_mak
+fi
+
+if test "$atomic128" = "yes" ; then
+  echo "CONFIG_ATOMIC128=y" >> $config_host_mak
 fi
 
 if test "$getauxval" = "yes" ; then

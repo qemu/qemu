@@ -18,7 +18,11 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#if DATA_SIZE == 8
+#if DATA_SIZE == 16
+# define SUFFIX     o
+# define DATA_TYPE  Int128
+# define BSWAP      bswap128
+#elif DATA_SIZE == 8
 # define SUFFIX     q
 # define DATA_TYPE  uint64_t
 # define BSWAP      bswap64
@@ -61,6 +65,21 @@ ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, target_ulong addr,
     return atomic_cmpxchg__nocheck(haddr, cmpv, newv);
 }
 
+#if DATA_SIZE >= 16
+ABI_TYPE ATOMIC_NAME(ld)(CPUArchState *env, target_ulong addr EXTRA_ARGS)
+{
+    DATA_TYPE val, *haddr = ATOMIC_MMU_LOOKUP;
+    __atomic_load(haddr, &val, __ATOMIC_RELAXED);
+    return val;
+}
+
+void ATOMIC_NAME(st)(CPUArchState *env, target_ulong addr,
+                     ABI_TYPE val EXTRA_ARGS)
+{
+    DATA_TYPE *haddr = ATOMIC_MMU_LOOKUP;
+    __atomic_store(haddr, &val, __ATOMIC_RELAXED);
+}
+#else
 ABI_TYPE ATOMIC_NAME(xchg)(CPUArchState *env, target_ulong addr,
                            ABI_TYPE val EXTRA_ARGS)
 {
@@ -86,6 +105,8 @@ GEN_ATOMIC_HELPER(or_fetch)
 GEN_ATOMIC_HELPER(xor_fetch)
 
 #undef GEN_ATOMIC_HELPER
+#endif /* DATA SIZE >= 16 */
+
 #undef END
 
 #if DATA_SIZE > 1
@@ -105,6 +126,22 @@ ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, target_ulong addr,
     return BSWAP(atomic_cmpxchg__nocheck(haddr, BSWAP(cmpv), BSWAP(newv)));
 }
 
+#if DATA_SIZE >= 16
+ABI_TYPE ATOMIC_NAME(ld)(CPUArchState *env, target_ulong addr EXTRA_ARGS)
+{
+    DATA_TYPE val, *haddr = ATOMIC_MMU_LOOKUP;
+    __atomic_load(haddr, &val, __ATOMIC_RELAXED);
+    return BSWAP(val);
+}
+
+void ATOMIC_NAME(st)(CPUArchState *env, target_ulong addr,
+                     ABI_TYPE val EXTRA_ARGS)
+{
+    DATA_TYPE *haddr = ATOMIC_MMU_LOOKUP;
+    val = BSWAP(val);
+    __atomic_store(haddr, &val, __ATOMIC_RELAXED);
+}
+#else
 ABI_TYPE ATOMIC_NAME(xchg)(CPUArchState *env, target_ulong addr,
                            ABI_TYPE val EXTRA_ARGS)
 {
@@ -166,6 +203,7 @@ ABI_TYPE ATOMIC_NAME(add_fetch)(CPUArchState *env, target_ulong addr,
         ldo = ldn;
     }
 }
+#endif /* DATA_SIZE >= 16 */
 
 #undef END
 #endif /* DATA_SIZE > 1 */

@@ -690,6 +690,11 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 #define DATA_SIZE 8
 #include "atomic_template.h"
 
+#ifdef CONFIG_ATOMIC128
+#define DATA_SIZE 16
+#include "atomic_template.h"
+#endif
+
 /* Second set of helpers are directly callable from TCG as helpers.  */
 
 #undef EXTRA_ARGS

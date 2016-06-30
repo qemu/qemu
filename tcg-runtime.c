@@ -133,4 +133,22 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 #define DATA_SIZE 8
 #include "atomic_template.h"
 
+/* The following is only callable from other helpers, and matches up
+   with the softmmu version.  */
+
+#ifdef CONFIG_ATOMIC128
+
+#undef EXTRA_ARGS
+#undef ATOMIC_NAME
+#undef ATOMIC_MMU_LOOKUP
+
+#define EXTRA_ARGS     , TCGMemOpIdx oi, uintptr_t retaddr
+#define ATOMIC_NAME(X) \
+    HELPER(glue(glue(glue(atomic_ ## X, SUFFIX), END), _mmu))
+#define ATOMIC_MMU_LOOKUP  atomic_mmu_lookup(env, addr, DATA_SIZE, retaddr)
+
+#define DATA_SIZE 16
+#include "atomic_template.h"
+#endif /* CONFIG_ATOMIC128 */
+
 #endif /* !CONFIG_SOFTMMU */

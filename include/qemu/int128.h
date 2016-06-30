@@ -2,6 +2,7 @@
 #define INT128_H
 
 #ifdef CONFIG_INT128
+#include "qemu/bswap.h"
 
 typedef __int128_t Int128;
 
@@ -135,6 +136,11 @@ static inline void int128_addto(Int128 *a, Int128 b)
 static inline void int128_subfrom(Int128 *a, Int128 b)
 {
     *a -= b;
+}
+
+static inline Int128 bswap128(Int128 a)
+{
+    return int128_make128(bswap64(int128_gethi(a)), bswap64(int128_getlo(a)));
 }
 
 #else /* !CONFIG_INT128 */
