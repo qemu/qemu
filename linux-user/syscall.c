@@ -7978,7 +7978,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_ALPHA)
             struct target_sigaction act, oact, *pact = 0;
             struct target_rt_sigaction *rt_act;
-            /* ??? arg4 == sizeof(sigset_t).  */
+
+            if (arg4 != sizeof(target_sigset_t)) {
+                ret = -TARGET_EINVAL;
+                break;
+            }
             if (arg2) {
                 if (!lock_user_struct(VERIFY_READ, rt_act, arg2, 1))
                     goto efault;
@@ -8002,6 +8006,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             struct target_sigaction *act;
             struct target_sigaction *oact;
 
+            if (arg4 != sizeof(target_sigset_t)) {
+                ret = -TARGET_EINVAL;
+                break;
+            }
             if (arg2) {
                 if (!lock_user_struct(VERIFY_READ, act, arg2, 1))
                     goto efault;
@@ -8133,6 +8141,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             int how = arg1;
             sigset_t set, oldset, *set_ptr;
 
+            if (arg4 != sizeof(target_sigset_t)) {
+                ret = -TARGET_EINVAL;
+                break;
+            }
+
             if (arg2) {
                 switch(how) {
                 case TARGET_SIG_BLOCK:
@@ -8183,6 +8196,17 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_rt_sigpending:
         {
             sigset_t set;
+
+            /* Yes, this check is >, not != like most. We follow the kernel's
+             * logic and it does it like this because it implements
+             * NR_sigpending through the same code path, and in that case
+             * the old_sigset_t is smaller in size.
+             */
+            if (arg2 > sizeof(target_sigset_t)) {
+                ret = -TARGET_EINVAL;
+                break;
+            }
+
             ret = get_errno(sigpending(&set));
             if (!is_error(ret)) {
                 if (!(p = lock_user(VERIFY_WRITE, arg1, sizeof(target_sigset_t), 0)))
@@ -8216,6 +8240,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_rt_sigsuspend:
         {
             TaskState *ts = cpu->opaque;
+
+            if (arg2 != sizeof(target_sigset_t)) {
+                ret = -TARGET_EINVAL;
+                break;
+            }
             if (!(p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1)))
                 goto efault;
             target_to_host_sigset(&ts->sigsuspend_mask, p);
@@ -8232,6 +8261,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             sigset_t set;
             struct timespec uts, *puts;
             siginfo_t uinfo;
+
+            if (arg4 != sizeof(target_sigset_t)) {
+                ret = -TARGET_EINVAL;
+                break;
+            }
 
             if (!(p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1)))
                 goto efault;
@@ -9484,6 +9518,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 }
 
                 if (arg4) {
+                    if (arg5 != sizeof(target_sigset_t)) {
+                        unlock_user(target_pfd, arg1, 0);
+                        ret = -TARGET_EINVAL;
+                        break;
+                    }
+
                     target_set = lock_user(VERIFY_READ, arg4, sizeof(target_sigset_t), 1);
                     if (!target_set) {
                         unlock_user(target_pfd, arg1, 0);
@@ -11303,6 +11343,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             sigset_t _set, *set = &_set;
 
             if (arg5) {
+                if (arg6 != sizeof(target_sigset_t)) {
+                    ret = -TARGET_EINVAL;
+                    break;
+                }
+
                 target_set = lock_user(VERIFY_READ, arg5,
                                        sizeof(target_sigset_t), 1);
                 if (!target_set) {
