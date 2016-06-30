@@ -135,7 +135,6 @@ typedef struct VFIOPCIDevice {
     int32_t bootindex;
     uint32_t igd_gms;
     uint8_t pm_cap;
-    bool has_vga;
     bool pci_aer;
     bool req_enabled;
     bool has_flr;
