@@ -153,6 +153,10 @@ struct MemoryRegionIOMMUOps {
     IOMMUTLBEntry (*translate)(MemoryRegion *iommu, hwaddr addr, bool is_write);
     /* Returns minimum supported page size */
     uint64_t (*get_min_page_size)(MemoryRegion *iommu);
+    /* Called when the first notifier is set */
+    void (*notify_started)(MemoryRegion *iommu);
+    /* Called when the last notifier is removed */
+    void (*notify_stopped)(MemoryRegion *iommu);
 };
 
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
@@ -622,9 +626,11 @@ void memory_region_iommu_replay(MemoryRegion *mr, Notifier *n, bool is_write);
  * memory_region_unregister_iommu_notifier: unregister a notifier for
  * changes to IOMMU translation entries.
  *
+ * @mr: the memory region which was observed and for which notity_stopped()
+ *      needs to be called
  * @n: the notifier to be removed.
  */
-void memory_region_unregister_iommu_notifier(Notifier *n);
+void memory_region_unregister_iommu_notifier(MemoryRegion *mr, Notifier *n);
 
 /**
  * memory_region_name: get a memory region's name
