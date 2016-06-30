@@ -5598,10 +5598,12 @@ static int target_to_host_fcntl_cmd(int cmd)
 	case TARGET_F_SETOWN_EX:
 	    return F_SETOWN_EX;
 #endif
+#ifdef F_SETPIPE_SZ
         case TARGET_F_SETPIPE_SZ:
             return F_SETPIPE_SZ;
         case TARGET_F_GETPIPE_SZ:
             return F_GETPIPE_SZ;
+#endif
 	default:
             return -TARGET_EINVAL;
     }
