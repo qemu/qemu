@@ -94,7 +94,7 @@ Bytes:
               Bit 0: Empty Image bit. If set, the image should be
                      considered clear.
 
-              Bits 2-31: Unused.
+              Bits 1-31: Unused.
 
   56 - 63:    ext_off
               Format Extension offset, an offset, in sectors, from the start of
