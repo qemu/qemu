@@ -130,7 +130,6 @@ typedef struct VFIOPCIDevice {
 #define VFIO_FEATURE_ENABLE_REQ (1 << VFIO_FEATURE_ENABLE_REQ_BIT)
     int32_t bootindex;
     uint8_t pm_cap;
-    bool has_vga;
     bool pci_aer;
     bool req_enabled;
     bool has_flr;
