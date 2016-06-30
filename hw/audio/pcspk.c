@@ -171,7 +171,7 @@ static void pcspk_initfn(Object *obj)
 
     memory_region_init_io(&s->ioport, OBJECT(s), &pcspk_io_ops, s, "pcspk", 1);
 
-    object_property_add_link(obj, "pit", TYPE_I8254,
+    object_property_add_link(obj, "pit", TYPE_PIT_COMMON,
                              (Object **)&s->pit,
                              qdev_prop_allow_set_link_before_realize,
                              0, &error_abort);
