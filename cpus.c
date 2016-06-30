@@ -1497,6 +1497,8 @@ static void tcg_exec_all(void)
             if (r == EXCP_DEBUG) {
                 cpu_handle_guest_debug(cpu);
                 break;
+            } else if (r == EXCP_ATOMIC) {
+                cpu_exec_step_atomic(cpu);
             }
         } else if (cpu->stop || cpu->stopped) {
             if (cpu->unplug) {

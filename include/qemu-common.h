@@ -80,6 +80,7 @@ void tcg_exec_init(unsigned long tb_size);
 bool tcg_enabled(void);
 
 void cpu_exec_init_all(void);
+void cpu_exec_step_atomic(CPUState *cpu);
 
 /**
  * set_preferred_target_page_bits:
