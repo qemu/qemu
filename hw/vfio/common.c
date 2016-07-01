@@ -455,7 +455,8 @@ static void vfio_listener_region_del(MemoryListener *listener,
 
         QLIST_FOREACH(giommu, &container->giommu_list, giommu_next) {
             if (giommu->iommu == section->mr) {
-                memory_region_unregister_iommu_notifier(&giommu->n);
+                memory_region_unregister_iommu_notifier(giommu->iommu,
+                                                        &giommu->n);
                 QLIST_REMOVE(giommu, giommu_next);
                 g_free(giommu);
                 break;
@@ -991,7 +992,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
         QLIST_REMOVE(container, next);
 
         QLIST_FOREACH_SAFE(giommu, &container->giommu_list, giommu_next, tmp) {
-            memory_region_unregister_iommu_notifier(&giommu->n);
+            memory_region_unregister_iommu_notifier(giommu->iommu, &giommu->n);
             QLIST_REMOVE(giommu, giommu_next);
             g_free(giommu);
         }

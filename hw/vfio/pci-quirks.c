@@ -318,7 +318,7 @@ static void vfio_probe_ati_bar4_quirk(VFIOPCIDevice *vdev, int nr)
 
     /* This windows doesn't seem to be used except by legacy VGA code */
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_ATI, PCI_ANY_ID) ||
-        !vdev->has_vga || nr != 4) {
+        !vdev->vga || nr != 4) {
         return;
     }
 
@@ -366,7 +366,7 @@ static void vfio_probe_ati_bar2_quirk(VFIOPCIDevice *vdev, int nr)
 
     /* Only enable on newer devices where BAR2 is 64bit */
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_ATI, PCI_ANY_ID) ||
-        !vdev->has_vga || nr != 2 || !vdev->bars[2].mem64) {
+        !vdev->vga || nr != 2 || !vdev->bars[2].mem64) {
         return;
     }
 
@@ -660,7 +660,7 @@ static void vfio_probe_nvidia_bar5_quirk(VFIOPCIDevice *vdev, int nr)
     VFIOConfigWindowQuirk *window;
 
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID) ||
-        !vdev->has_vga || nr != 5) {
+        !vdev->vga || nr != 5) {
         return;
     }
 
@@ -776,7 +776,7 @@ static void vfio_probe_nvidia_bar0_quirk(VFIOPCIDevice *vdev, int nr)
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
     /* The 0x1800 offset mirror only seems to get used by legacy VGA */
-    if (vdev->has_vga) {
+    if (vdev->vga) {
         quirk = g_malloc0(sizeof(*quirk));
         mirror = quirk->data = g_malloc0(sizeof(*mirror));
         mirror->mem = quirk->mem = g_new0(MemoryRegion, 1);
