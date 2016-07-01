@@ -801,6 +801,32 @@ static void test_acpi_q35_tcg_bridge(void)
     free_test_data(&data);
 }
 
+static void test_acpi_piix4_tcg_cphp(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_PC;
+    data.variant = ".cphp";
+    test_acpi_one("-machine accel=tcg"
+                  " -smp 2,cores=3,sockets=2,maxcpus=6",
+                  &data);
+    free_test_data(&data);
+}
+
+static void test_acpi_q35_tcg_cphp(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_Q35;
+    data.variant = ".cphp";
+    test_acpi_one("-machine q35,accel=tcg"
+                  " -smp 2,cores=3,sockets=2,maxcpus=6",
+                  &data);
+    free_test_data(&data);
+}
+
 static uint8_t ipmi_required_struct_types[] = {
     0, 1, 3, 4, 16, 17, 19, 32, 38, 127
 };
@@ -856,6 +882,8 @@ int main(int argc, char *argv[])
         qtest_add_func("acpi/q35/tcg/bridge", test_acpi_q35_tcg_bridge);
         qtest_add_func("acpi/piix4/tcg/ipmi", test_acpi_piix4_tcg_ipmi);
         qtest_add_func("acpi/q35/tcg/ipmi", test_acpi_q35_tcg_ipmi);
+        qtest_add_func("acpi/piix4/tcg/cpuhp", test_acpi_piix4_tcg_cphp);
+        qtest_add_func("acpi/q35/tcg/cpuhp", test_acpi_q35_tcg_cphp);
     }
     ret = g_test_run();
     boot_sector_cleanup(disk);
