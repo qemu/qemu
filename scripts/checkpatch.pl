@@ -2453,7 +2453,7 @@ sub process {
 		}
 
 # recommend qemu_strto* over strto* for numeric conversions
-		if ($line =~ /\b(strto[^k].*?)\s*\(/) {
+		if ($line =~ /\b(strto[^kd].*?)\s*\(/) {
 			WARN("consider using qemu_$1 in preference to $1\n" . $herecurr);
 		}
 # check for module_init(), use category-specific init macros explicitly please

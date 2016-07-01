@@ -20,9 +20,15 @@
 #define MAX_TOKEN_COUNT (2ULL << 20)
 #define MAX_NESTING (1ULL << 10)
 
+static void json_message_free_token(void *token, void *opaque)
+{
+    g_free(token);
+}
+
 static void json_message_free_tokens(JSONMessageParser *parser)
 {
     if (parser->tokens) {
+        g_queue_foreach(parser->tokens, json_message_free_token, NULL);
         g_queue_free(parser->tokens);
         parser->tokens = NULL;
     }
