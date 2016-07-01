@@ -21,19 +21,19 @@
 #include "qemu/cutils.h"
 
 /* Root node for synth file system */
-static V9fsSynthNode v9fs_synth_root = {
+static V9fsSynthNode synth_root = {
     .name = "/",
     .actual_attr = {
         .mode = 0555 | S_IFDIR,
         .nlink = 1,
     },
-    .attr = &v9fs_synth_root.actual_attr,
+    .attr = &synth_root.actual_attr,
 };
 
-static QemuMutex  v9fs_synth_mutex;
-static int v9fs_synth_node_count;
+static QemuMutex  synth_mutex;
+static int synth_node_count;
 /* set to 1 when the synth fs is ready */
-static int v9fs_synth_fs;
+static int synth_fs;
 
 static V9fsSynthNode *v9fs_add_dir_node(V9fsSynthNode *parent, int mode,
                                         const char *name,
@@ -69,16 +69,16 @@ int qemu_v9fs_synth_mkdir(V9fsSynthNode *parent, int mode,
     int ret;
     V9fsSynthNode *node, *tmp;
 
-    if (!v9fs_synth_fs) {
+    if (!synth_fs) {
         return EAGAIN;
     }
     if (!name || (strlen(name) >= NAME_MAX)) {
         return EINVAL;
     }
     if (!parent) {
-        parent = &v9fs_synth_root;
+        parent = &synth_root;
     }
-    qemu_mutex_lock(&v9fs_synth_mutex);
+    qemu_mutex_lock(&synth_mutex);
     QLIST_FOREACH(tmp, &parent->child, sibling) {
         if (!strcmp(tmp->name, name)) {
             ret = EEXIST;
@@ -86,7 +86,7 @@ int qemu_v9fs_synth_mkdir(V9fsSynthNode *parent, int mode,
         }
     }
     /* Add the name */
-    node = v9fs_add_dir_node(parent, mode, name, NULL, v9fs_synth_node_count++);
+    node = v9fs_add_dir_node(parent, mode, name, NULL, synth_node_count++);
     v9fs_add_dir_node(node, parent->attr->mode, "..",
                       parent->attr, parent->attr->inode);
     v9fs_add_dir_node(node, node->attr->mode, ".",
@@ -94,7 +94,7 @@ int qemu_v9fs_synth_mkdir(V9fsSynthNode *parent, int mode,
     *result = node;
     ret = 0;
 err_out:
-    qemu_mutex_unlock(&v9fs_synth_mutex);
+    qemu_mutex_unlock(&synth_mutex);
     return ret;
 }
 
@@ -105,17 +105,17 @@ int qemu_v9fs_synth_add_file(V9fsSynthNode *parent, int mode,
     int ret;
     V9fsSynthNode *node, *tmp;
 
-    if (!v9fs_synth_fs) {
+    if (!synth_fs) {
         return EAGAIN;
     }
     if (!name || (strlen(name) >= NAME_MAX)) {
         return EINVAL;
     }
     if (!parent) {
-        parent = &v9fs_synth_root;
+        parent = &synth_root;
     }
 
-    qemu_mutex_lock(&v9fs_synth_mutex);
+    qemu_mutex_lock(&synth_mutex);
     QLIST_FOREACH(tmp, &parent->child, sibling) {
         if (!strcmp(tmp->name, name)) {
             ret = EEXIST;
@@ -126,7 +126,7 @@ int qemu_v9fs_synth_add_file(V9fsSynthNode *parent, int mode,
     mode = ((mode & 0777) | S_IFREG);
     node = g_malloc0(sizeof(V9fsSynthNode));
     node->attr         = &node->actual_attr;
-    node->attr->inode  = v9fs_synth_node_count++;
+    node->attr->inode  = synth_node_count++;
     node->attr->nlink  = 1;
     node->attr->read   = read;
     node->attr->write  = write;
@@ -136,11 +136,11 @@ int qemu_v9fs_synth_add_file(V9fsSynthNode *parent, int mode,
     QLIST_INSERT_HEAD_RCU(&parent->child, node, sibling);
     ret = 0;
 err_out:
-    qemu_mutex_unlock(&v9fs_synth_mutex);
+    qemu_mutex_unlock(&synth_mutex);
     return ret;
 }
 
-static void v9fs_synth_fill_statbuf(V9fsSynthNode *node, struct stat *stbuf)
+static void synth_fill_statbuf(V9fsSynthNode *node, struct stat *stbuf)
 {
     stbuf->st_dev = 0;
     stbuf->st_ino = node->attr->inode;
@@ -157,24 +157,24 @@ static void v9fs_synth_fill_statbuf(V9fsSynthNode *node, struct stat *stbuf)
     stbuf->st_ctime = 0;
 }
 
-static int v9fs_synth_lstat(FsContext *fs_ctx,
+static int synth_lstat(FsContext *fs_ctx,
                             V9fsPath *fs_path, struct stat *stbuf)
 {
     V9fsSynthNode *node = *(V9fsSynthNode **)fs_path->data;
 
-    v9fs_synth_fill_statbuf(node, stbuf);
+    synth_fill_statbuf(node, stbuf);
     return 0;
 }
 
-static int v9fs_synth_fstat(FsContext *fs_ctx, int fid_type,
+static int synth_fstat(FsContext *fs_ctx, int fid_type,
                             V9fsFidOpenState *fs, struct stat *stbuf)
 {
     V9fsSynthOpenState *synth_open = fs->private;
-    v9fs_synth_fill_statbuf(synth_open->node, stbuf);
+    synth_fill_statbuf(synth_open->node, stbuf);
     return 0;
 }
 
-static int v9fs_synth_opendir(FsContext *ctx,
+static int synth_opendir(FsContext *ctx,
                              V9fsPath *fs_path, V9fsFidOpenState *fs)
 {
     V9fsSynthOpenState *synth_open;
@@ -187,7 +187,7 @@ static int v9fs_synth_opendir(FsContext *ctx,
     return 0;
 }
 
-static int v9fs_synth_closedir(FsContext *ctx, V9fsFidOpenState *fs)
+static int synth_closedir(FsContext *ctx, V9fsFidOpenState *fs)
 {
     V9fsSynthOpenState *synth_open = fs->private;
     V9fsSynthNode *node = synth_open->node;
@@ -198,24 +198,24 @@ static int v9fs_synth_closedir(FsContext *ctx, V9fsFidOpenState *fs)
     return 0;
 }
 
-static off_t v9fs_synth_telldir(FsContext *ctx, V9fsFidOpenState *fs)
+static off_t synth_telldir(FsContext *ctx, V9fsFidOpenState *fs)
 {
     V9fsSynthOpenState *synth_open = fs->private;
     return synth_open->offset;
 }
 
-static void v9fs_synth_seekdir(FsContext *ctx, V9fsFidOpenState *fs, off_t off)
+static void synth_seekdir(FsContext *ctx, V9fsFidOpenState *fs, off_t off)
 {
     V9fsSynthOpenState *synth_open = fs->private;
     synth_open->offset = off;
 }
 
-static void v9fs_synth_rewinddir(FsContext *ctx, V9fsFidOpenState *fs)
+static void synth_rewinddir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    v9fs_synth_seekdir(ctx, fs, 0);
+    synth_seekdir(ctx, fs, 0);
 }
 
-static void v9fs_synth_direntry(V9fsSynthNode *node,
+static void synth_direntry(V9fsSynthNode *node,
                                 struct dirent *entry, off_t off)
 {
     strcpy(entry->d_name, node->name);
@@ -223,7 +223,7 @@ static void v9fs_synth_direntry(V9fsSynthNode *node,
     entry->d_off = off + 1;
 }
 
-static struct dirent *v9fs_synth_get_dentry(V9fsSynthNode *dir,
+static struct dirent *synth_get_dentry(V9fsSynthNode *dir,
                                             struct dirent *entry, off_t off)
 {
     int i = 0;
@@ -242,23 +242,23 @@ static struct dirent *v9fs_synth_get_dentry(V9fsSynthNode *dir,
         /* end of directory */
         return NULL;
     }
-    v9fs_synth_direntry(node, entry, off);
+    synth_direntry(node, entry, off);
     return entry;
 }
 
-static struct dirent *v9fs_synth_readdir(FsContext *ctx, V9fsFidOpenState *fs)
+static struct dirent *synth_readdir(FsContext *ctx, V9fsFidOpenState *fs)
 {
     struct dirent *entry;
     V9fsSynthOpenState *synth_open = fs->private;
     V9fsSynthNode *node = synth_open->node;
-    entry = v9fs_synth_get_dentry(node, &synth_open->dent, synth_open->offset);
+    entry = synth_get_dentry(node, &synth_open->dent, synth_open->offset);
     if (entry) {
         synth_open->offset++;
     }
     return entry;
 }
 
-static int v9fs_synth_open(FsContext *ctx, V9fsPath *fs_path,
+static int synth_open(FsContext *ctx, V9fsPath *fs_path,
                            int flags, V9fsFidOpenState *fs)
 {
     V9fsSynthOpenState *synth_open;
@@ -271,7 +271,7 @@ static int v9fs_synth_open(FsContext *ctx, V9fsPath *fs_path,
     return 0;
 }
 
-static int v9fs_synth_open2(FsContext *fs_ctx, V9fsPath *dir_path,
+static int synth_open2(FsContext *fs_ctx, V9fsPath *dir_path,
                             const char *name, int flags,
                             FsCred *credp, V9fsFidOpenState *fs)
 {
@@ -279,7 +279,7 @@ static int v9fs_synth_open2(FsContext *fs_ctx, V9fsPath *dir_path,
     return -1;
 }
 
-static int v9fs_synth_close(FsContext *ctx, V9fsFidOpenState *fs)
+static int synth_close(FsContext *ctx, V9fsFidOpenState *fs)
 {
     V9fsSynthOpenState *synth_open = fs->private;
     V9fsSynthNode *node = synth_open->node;
@@ -290,7 +290,7 @@ static int v9fs_synth_close(FsContext *ctx, V9fsFidOpenState *fs)
     return 0;
 }
 
-static ssize_t v9fs_synth_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
+static ssize_t synth_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
                                   const struct iovec *iov,
                                   int iovcnt, off_t offset)
 {
@@ -314,7 +314,7 @@ static ssize_t v9fs_synth_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
     return count;
 }
 
-static ssize_t v9fs_synth_preadv(FsContext *ctx, V9fsFidOpenState *fs,
+static ssize_t synth_preadv(FsContext *ctx, V9fsFidOpenState *fs,
                                  const struct iovec *iov,
                                  int iovcnt, off_t offset)
 {
@@ -338,112 +338,112 @@ static ssize_t v9fs_synth_preadv(FsContext *ctx, V9fsFidOpenState *fs,
     return count;
 }
 
-static int v9fs_synth_truncate(FsContext *ctx, V9fsPath *path, off_t offset)
+static int synth_truncate(FsContext *ctx, V9fsPath *path, off_t offset)
 {
     errno = ENOSYS;
     return -1;
 }
 
-static int v9fs_synth_chmod(FsContext *fs_ctx, V9fsPath *path, FsCred *credp)
+static int synth_chmod(FsContext *fs_ctx, V9fsPath *path, FsCred *credp)
 {
     errno = EPERM;
     return -1;
 }
 
-static int v9fs_synth_mknod(FsContext *fs_ctx, V9fsPath *path,
+static int synth_mknod(FsContext *fs_ctx, V9fsPath *path,
                        const char *buf, FsCred *credp)
 {
     errno = EPERM;
     return -1;
 }
 
-static int v9fs_synth_mkdir(FsContext *fs_ctx, V9fsPath *path,
+static int synth_mkdir(FsContext *fs_ctx, V9fsPath *path,
                        const char *buf, FsCred *credp)
 {
     errno = EPERM;
     return -1;
 }
 
-static ssize_t v9fs_synth_readlink(FsContext *fs_ctx, V9fsPath *path,
+static ssize_t synth_readlink(FsContext *fs_ctx, V9fsPath *path,
                                    char *buf, size_t bufsz)
 {
     errno = ENOSYS;
     return -1;
 }
 
-static int v9fs_synth_symlink(FsContext *fs_ctx, const char *oldpath,
+static int synth_symlink(FsContext *fs_ctx, const char *oldpath,
                               V9fsPath *newpath, const char *buf, FsCred *credp)
 {
     errno = EPERM;
     return -1;
 }
 
-static int v9fs_synth_link(FsContext *fs_ctx, V9fsPath *oldpath,
+static int synth_link(FsContext *fs_ctx, V9fsPath *oldpath,
                            V9fsPath *newpath, const char *buf)
 {
     errno = EPERM;
     return -1;
 }
 
-static int v9fs_synth_rename(FsContext *ctx, const char *oldpath,
+static int synth_rename(FsContext *ctx, const char *oldpath,
                              const char *newpath)
 {
     errno = EPERM;
     return -1;
 }
 
-static int v9fs_synth_chown(FsContext *fs_ctx, V9fsPath *path, FsCred *credp)
+static int synth_chown(FsContext *fs_ctx, V9fsPath *path, FsCred *credp)
 {
     errno = EPERM;
     return -1;
 }
 
-static int v9fs_synth_utimensat(FsContext *fs_ctx, V9fsPath *path,
+static int synth_utimensat(FsContext *fs_ctx, V9fsPath *path,
                                 const struct timespec *buf)
 {
     errno = EPERM;
     return 0;
 }
 
-static int v9fs_synth_remove(FsContext *ctx, const char *path)
+static int synth_remove(FsContext *ctx, const char *path)
 {
     errno = EPERM;
     return -1;
 }
 
-static int v9fs_synth_fsync(FsContext *ctx, int fid_type,
+static int synth_fsync(FsContext *ctx, int fid_type,
                             V9fsFidOpenState *fs, int datasync)
 {
     errno = ENOSYS;
     return 0;
 }
 
-static int v9fs_synth_statfs(FsContext *s, V9fsPath *fs_path,
+static int synth_statfs(FsContext *s, V9fsPath *fs_path,
                              struct statfs *stbuf)
 {
     stbuf->f_type = 0xABCD;
     stbuf->f_bsize = 512;
     stbuf->f_blocks = 0;
-    stbuf->f_files = v9fs_synth_node_count;
+    stbuf->f_files = synth_node_count;
     stbuf->f_namelen = NAME_MAX;
     return 0;
 }
 
-static ssize_t v9fs_synth_lgetxattr(FsContext *ctx, V9fsPath *path,
+static ssize_t synth_lgetxattr(FsContext *ctx, V9fsPath *path,
                                     const char *name, void *value, size_t size)
 {
     errno = ENOTSUP;
     return -1;
 }
 
-static ssize_t v9fs_synth_llistxattr(FsContext *ctx, V9fsPath *path,
+static ssize_t synth_llistxattr(FsContext *ctx, V9fsPath *path,
                                      void *value, size_t size)
 {
     errno = ENOTSUP;
     return -1;
 }
 
-static int v9fs_synth_lsetxattr(FsContext *ctx, V9fsPath *path,
+static int synth_lsetxattr(FsContext *ctx, V9fsPath *path,
                                 const char *name, void *value,
                                 size_t size, int flags)
 {
@@ -451,14 +451,14 @@ static int v9fs_synth_lsetxattr(FsContext *ctx, V9fsPath *path,
     return -1;
 }
 
-static int v9fs_synth_lremovexattr(FsContext *ctx,
+static int synth_lremovexattr(FsContext *ctx,
                                    V9fsPath *path, const char *name)
 {
     errno = ENOTSUP;
     return -1;
 }
 
-static int v9fs_synth_name_to_path(FsContext *ctx, V9fsPath *dir_path,
+static int synth_name_to_path(FsContext *ctx, V9fsPath *dir_path,
                                    const char *name, V9fsPath *target)
 {
     V9fsSynthNode *node;
@@ -471,7 +471,7 @@ static int v9fs_synth_name_to_path(FsContext *ctx, V9fsPath *dir_path,
 
     }
     if (!dir_path) {
-        dir_node = &v9fs_synth_root;
+        dir_node = &synth_root;
     } else {
         dir_node = *(V9fsSynthNode **)dir_path->data;
     }
@@ -500,7 +500,7 @@ out:
     return 0;
 }
 
-static int v9fs_synth_renameat(FsContext *ctx, V9fsPath *olddir,
+static int synth_renameat(FsContext *ctx, V9fsPath *olddir,
                                const char *old_name, V9fsPath *newdir,
                                const char *new_name)
 {
@@ -508,62 +508,62 @@ static int v9fs_synth_renameat(FsContext *ctx, V9fsPath *olddir,
     return -1;
 }
 
-static int v9fs_synth_unlinkat(FsContext *ctx, V9fsPath *dir,
+static int synth_unlinkat(FsContext *ctx, V9fsPath *dir,
                                const char *name, int flags)
 {
     errno = EPERM;
     return -1;
 }
 
-static int v9fs_synth_init(FsContext *ctx)
+static int synth_init(FsContext *ctx)
 {
-    QLIST_INIT(&v9fs_synth_root.child);
-    qemu_mutex_init(&v9fs_synth_mutex);
+    QLIST_INIT(&synth_root.child);
+    qemu_mutex_init(&synth_mutex);
 
     /* Add "." and ".." entries for root */
-    v9fs_add_dir_node(&v9fs_synth_root, v9fs_synth_root.attr->mode,
-                      "..", v9fs_synth_root.attr, v9fs_synth_root.attr->inode);
-    v9fs_add_dir_node(&v9fs_synth_root, v9fs_synth_root.attr->mode,
-                      ".", v9fs_synth_root.attr, v9fs_synth_root.attr->inode);
+    v9fs_add_dir_node(&synth_root, synth_root.attr->mode,
+                      "..", synth_root.attr, synth_root.attr->inode);
+    v9fs_add_dir_node(&synth_root, synth_root.attr->mode,
+                      ".", synth_root.attr, synth_root.attr->inode);
 
     /* Mark the subsystem is ready for use */
-    v9fs_synth_fs = 1;
+    synth_fs = 1;
     return 0;
 }
 
 FileOperations synth_ops = {
-    .init         = v9fs_synth_init,
-    .lstat        = v9fs_synth_lstat,
-    .readlink     = v9fs_synth_readlink,
-    .close        = v9fs_synth_close,
-    .closedir     = v9fs_synth_closedir,
-    .open         = v9fs_synth_open,
-    .opendir      = v9fs_synth_opendir,
-    .rewinddir    = v9fs_synth_rewinddir,
-    .telldir      = v9fs_synth_telldir,
-    .readdir      = v9fs_synth_readdir,
-    .seekdir      = v9fs_synth_seekdir,
-    .preadv       = v9fs_synth_preadv,
-    .pwritev      = v9fs_synth_pwritev,
-    .chmod        = v9fs_synth_chmod,
-    .mknod        = v9fs_synth_mknod,
-    .mkdir        = v9fs_synth_mkdir,
-    .fstat        = v9fs_synth_fstat,
-    .open2        = v9fs_synth_open2,
-    .symlink      = v9fs_synth_symlink,
-    .link         = v9fs_synth_link,
-    .truncate     = v9fs_synth_truncate,
-    .rename       = v9fs_synth_rename,
-    .chown        = v9fs_synth_chown,
-    .utimensat    = v9fs_synth_utimensat,
-    .remove       = v9fs_synth_remove,
-    .fsync        = v9fs_synth_fsync,
-    .statfs       = v9fs_synth_statfs,
-    .lgetxattr    = v9fs_synth_lgetxattr,
-    .llistxattr   = v9fs_synth_llistxattr,
-    .lsetxattr    = v9fs_synth_lsetxattr,
-    .lremovexattr = v9fs_synth_lremovexattr,
-    .name_to_path = v9fs_synth_name_to_path,
-    .renameat     = v9fs_synth_renameat,
-    .unlinkat     = v9fs_synth_unlinkat,
+    .init         = synth_init,
+    .lstat        = synth_lstat,
+    .readlink     = synth_readlink,
+    .close        = synth_close,
+    .closedir     = synth_closedir,
+    .open         = synth_open,
+    .opendir      = synth_opendir,
+    .rewinddir    = synth_rewinddir,
+    .telldir      = synth_telldir,
+    .readdir      = synth_readdir,
+    .seekdir      = synth_seekdir,
+    .preadv       = synth_preadv,
+    .pwritev      = synth_pwritev,
+    .chmod        = synth_chmod,
+    .mknod        = synth_mknod,
+    .mkdir        = synth_mkdir,
+    .fstat        = synth_fstat,
+    .open2        = synth_open2,
+    .symlink      = synth_symlink,
+    .link         = synth_link,
+    .truncate     = synth_truncate,
+    .rename       = synth_rename,
+    .chown        = synth_chown,
+    .utimensat    = synth_utimensat,
+    .remove       = synth_remove,
+    .fsync        = synth_fsync,
+    .statfs       = synth_statfs,
+    .lgetxattr    = synth_lgetxattr,
+    .llistxattr   = synth_llistxattr,
+    .lsetxattr    = synth_lsetxattr,
+    .lremovexattr = synth_lremovexattr,
+    .name_to_path = synth_name_to_path,
+    .renameat     = synth_renameat,
+    .unlinkat     = synth_unlinkat,
 };
