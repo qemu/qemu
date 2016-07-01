@@ -46,8 +46,7 @@ GList *range_list_insert(GList *list, Range *data)
 {
     GList *l;
 
-    /* Range lists require no empty ranges */
-    assert(data->begin < data->end || (data->begin && !data->end));
+    assert(!range_is_empty(data));
 
     /* Skip all list elements strictly less than data */
     for (l = list; l && range_compare(l->data, data) < 0; l = l->next) {

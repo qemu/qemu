@@ -132,7 +132,7 @@ bool qemu_log_in_addr_range(uint64_t addr)
         int i = 0;
         for (i = 0; i < debug_regions->len; i++) {
             Range *range = &g_array_index(debug_regions, Range, i);
-            if (addr >= range->begin && addr <= range->end - 1) {
+            if (range_contains(range, addr)) {
                 return true;
             }
         }
@@ -208,8 +208,7 @@ void qemu_set_dfilter_ranges(const char *filter_spec, Error **errp)
             error_setg(errp, "Invalid range");
             goto out;
         }
-        range.begin = lob;
-        range.end = upb + 1;
+        range_set_bounds(&range, lob, upb);
         g_array_append_val(debug_regions, range);
     }
 out:

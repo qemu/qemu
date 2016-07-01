@@ -221,8 +221,12 @@ static void i440fx_pcihost_get_pci_hole_start(Object *obj, Visitor *v,
                                               Error **errp)
 {
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
-    uint32_t value = s->pci_hole.begin;
+    uint64_t val64;
+    uint32_t value;
 
+    val64 = range_is_empty(&s->pci_hole) ? 0 : range_lob(&s->pci_hole);
+    value = val64;
+    assert(value == val64);
     visit_type_uint32(v, name, &value, errp);
 }
 
@@ -231,8 +235,12 @@ static void i440fx_pcihost_get_pci_hole_end(Object *obj, Visitor *v,
                                             Error **errp)
 {
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
-    uint32_t value = s->pci_hole.end;
+    uint64_t val64;
+    uint32_t value;
 
+    val64 = range_is_empty(&s->pci_hole) ? 0 : range_upb(&s->pci_hole) + 1;
+    value = val64;
+    assert(value == val64);
     visit_type_uint32(v, name, &value, errp);
 }
 
@@ -242,10 +250,11 @@ static void i440fx_pcihost_get_pci_hole64_start(Object *obj, Visitor *v,
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
     Range w64;
+    uint64_t value;
 
     pci_bus_get_w64_range(h->bus, &w64);
-
-    visit_type_uint64(v, name, &w64.begin, errp);
+    value = range_is_empty(&w64) ? 0 : range_lob(&w64);
+    visit_type_uint64(v, name, &value, errp);
 }
 
 static void i440fx_pcihost_get_pci_hole64_end(Object *obj, Visitor *v,
@@ -254,10 +263,11 @@ static void i440fx_pcihost_get_pci_hole64_end(Object *obj, Visitor *v,
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
     Range w64;
+    uint64_t value;
 
     pci_bus_get_w64_range(h->bus, &w64);
-
-    visit_type_uint64(v, name, &w64.end, errp);
+    value = range_is_empty(&w64) ? 0 : range_upb(&w64) + 1;
+    visit_type_uint64(v, name, &value, errp);
 }
 
 static void i440fx_pcihost_initfn(Object *obj)
@@ -344,8 +354,8 @@ PCIBus *i440fx_init(const char *host_type, const char *pci_type,
     f->ram_memory = ram_memory;
 
     i440fx = I440FX_PCI_HOST_BRIDGE(dev);
-    i440fx->pci_hole.begin = below_4g_mem_size;
-    i440fx->pci_hole.end = IO_APIC_DEFAULT_ADDRESS;
+    range_set_bounds(&i440fx->pci_hole, below_4g_mem_size,
+                     IO_APIC_DEFAULT_ADDRESS - 1);
 
     /* setup pci memory mapping */
     pc_pci_as_mapping_init(OBJECT(f), f->system_memory,

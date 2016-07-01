@@ -236,18 +236,20 @@ static void acpi_get_pci_holes(Range *hole, Range *hole64)
     pci_host = acpi_get_i386_pci_host();
     g_assert(pci_host);
 
-    hole->begin = object_property_get_int(pci_host,
-                                          PCI_HOST_PROP_PCI_HOLE_START,
-                                          NULL);
-    hole->end = object_property_get_int(pci_host,
-                                        PCI_HOST_PROP_PCI_HOLE_END,
-                                        NULL);
-    hole64->begin = object_property_get_int(pci_host,
-                                            PCI_HOST_PROP_PCI_HOLE64_START,
-                                            NULL);
-    hole64->end = object_property_get_int(pci_host,
-                                          PCI_HOST_PROP_PCI_HOLE64_END,
-                                          NULL);
+    range_set_bounds1(hole,
+                      object_property_get_int(pci_host,
+                                              PCI_HOST_PROP_PCI_HOLE_START,
+                                              NULL),
+                      object_property_get_int(pci_host,
+                                              PCI_HOST_PROP_PCI_HOLE_END,
+                                              NULL));
+    range_set_bounds1(hole64,
+                      object_property_get_int(pci_host,
+                                              PCI_HOST_PROP_PCI_HOLE64_START,
+                                              NULL),
+                      object_property_get_int(pci_host,
+                                              PCI_HOST_PROP_PCI_HOLE64_END,
+                                              NULL));
 }
 
 #define ACPI_PORT_SMI_CMD           0x00b2 /* TODO: this is APM_CNT_IOPORT */
@@ -2047,7 +2049,8 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                          0, 0x000A0000, 0x000BFFFF, 0, 0x00020000));
 
     crs_replace_with_free_ranges(mem_ranges,
-                                 pci_hole->begin, pci_hole->end - 1);
+                                 range_lob(pci_hole),
+                                 range_upb(pci_hole));
     for (i = 0; i < mem_ranges->len; i++) {
         entry = g_ptr_array_index(mem_ranges, i);
         aml_append(crs,
@@ -2057,12 +2060,12 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                              0, entry->limit - entry->base + 1));
     }
 
-    if (pci_hole64->begin) {
+    if (!range_is_empty(pci_hole64)) {
         aml_append(crs,
             aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
                              AML_CACHEABLE, AML_READ_WRITE,
-                             0, pci_hole64->begin, pci_hole64->end - 1, 0,
-                             pci_hole64->end - pci_hole64->begin));
+                             0, range_lob(pci_hole64), range_upb(pci_hole64), 0,
+                             range_upb(pci_hole64) + 1 - range_lob(pci_hole64)));
     }
 
     if (misc->tpm_version != TPM_VERSION_UNSPEC) {

@@ -2533,13 +2533,13 @@ static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
 
         if (limit >= base) {
             Range pref_range;
-            pref_range.begin = base;
-            pref_range.end = limit + 1;
+            range_set_bounds(&pref_range, base, limit);
             range_extend(range, &pref_range);
         }
     }
     for (i = 0; i < PCI_NUM_REGIONS; ++i) {
         PCIIORegion *r = &dev->io_regions[i];
+        pcibus_t lob, upb;
         Range region_range;
 
         if (!r->size ||
@@ -2547,16 +2547,17 @@ static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
             !(r->type & PCI_BASE_ADDRESS_MEM_TYPE_64)) {
             continue;
         }
-        region_range.begin = pci_bar_address(dev, i, r->type, r->size);
-        region_range.end = region_range.begin + r->size;
 
-        if (region_range.begin == PCI_BAR_UNMAPPED) {
+        lob = pci_bar_address(dev, i, r->type, r->size);
+        upb = lob + r->size - 1;
+        if (lob == PCI_BAR_UNMAPPED) {
             continue;
         }
 
-        region_range.begin = MAX(region_range.begin, 0x1ULL << 32);
+        lob = MAX(lob, 0x1ULL << 32);
 
-        if (region_range.end - 1 >= region_range.begin) {
+        if (upb >= lob) {
+            range_set_bounds(&region_range, lob, upb);
             range_extend(range, &region_range);
         }
     }
@@ -2564,7 +2565,7 @@ static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
 
 void pci_bus_get_w64_range(PCIBus *bus, Range *range)
 {
-    range->begin = range->end = 0;
+    range_make_empty(range);
     pci_for_each_device_under_bus(bus, pci_dev_get_w64, range);
 }
 

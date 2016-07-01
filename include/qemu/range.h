@@ -36,12 +36,91 @@ struct Range {
     uint64_t end;   /* 1 + the last byte. 0 if range empty or ends at ~0x0LL. */
 };
 
+static inline void range_invariant(Range *range)
+{
+    assert((!range->begin && !range->end) /* empty */
+           || range->begin <= range->end - 1); /* non-empty */
+}
+
+/* Compound literal encoding the empty range */
+#define range_empty ((Range){ .begin = 0, .end = 0 })
+
+/* Is @range empty? */
+static inline bool range_is_empty(Range *range)
+{
+    range_invariant(range);
+    return !range->begin && !range->end;
+}
+
+/* Does @range contain @val? */
+static inline bool range_contains(Range *range, uint64_t val)
+{
+    return !range_is_empty(range)
+        && val >= range->begin && val <= range->end - 1;
+}
+
+/* Initialize @range to the empty range */
+static inline void range_make_empty(Range *range)
+{
+    *range = range_empty;
+    assert(range_is_empty(range));
+}
+
+/*
+ * Initialize @range to span the interval [@lob,@upb].
+ * Both bounds are inclusive.
+ * The interval must not be empty, i.e. @lob must be less than or
+ * equal @upb.
+ * The interval must not be [0,UINT64_MAX], because Range can't
+ * represent that.
+ */
+static inline void range_set_bounds(Range *range, uint64_t lob, uint64_t upb)
+{
+    assert(lob <= upb);
+    range->begin = lob;
+    range->end = upb + 1;       /* may wrap to zero, that's okay */
+    assert(!range_is_empty(range));
+}
+
+/*
+ * Initialize @range to span the interval [@lob,@upb_plus1).
+ * The lower bound is inclusive, the upper bound is exclusive.
+ * Zero @upb_plus1 is special: if @lob is also zero, set @range to the
+ * empty range.  Else, set @range to [@lob,UINT64_MAX].
+ */
+static inline void range_set_bounds1(Range *range,
+                                     uint64_t lob, uint64_t upb_plus1)
+{
+    range->begin = lob;
+    range->end = upb_plus1;
+    range_invariant(range);
+}
+
+/* Return @range's lower bound.  @range must not be empty. */
+static inline uint64_t range_lob(Range *range)
+{
+    assert(!range_is_empty(range));
+    return range->begin;
+}
+
+/* Return @range's upper bound.  @range must not be empty. */
+static inline uint64_t range_upb(Range *range)
+{
+    assert(!range_is_empty(range));
+    return range->end - 1;
+}
+
+/*
+ * Extend @range to the smallest interval that includes @extend_by, too.
+ * This must not extend @range to cover the interval [0,UINT64_MAX],
+ * because Range can't represent that.
+ */
 static inline void range_extend(Range *range, Range *extend_by)
 {
-    if (!extend_by->begin && !extend_by->end) {
+    if (range_is_empty(extend_by)) {
         return;
     }
-    if (!range->begin && !range->end) {
+    if (range_is_empty(range)) {
         *range = *extend_by;
         return;
     }
@@ -52,6 +131,8 @@ static inline void range_extend(Range *range, Range *extend_by)
     if (range->end - 1 < extend_by->end - 1) {
         range->end = extend_by->end;
     }
+    /* Must not extend to { .begin = 0, .end = 0 }: */
+    assert(!range_is_empty(range));
 }
 
 /* Get last byte of a range from offset + length.

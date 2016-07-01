@@ -74,8 +74,13 @@ static void q35_host_get_pci_hole_start(Object *obj, Visitor *v,
                                         Error **errp)
 {
     Q35PCIHost *s = Q35_HOST_DEVICE(obj);
-    uint32_t value = s->mch.pci_hole.begin;
+    uint64_t val64;
+    uint32_t value;
 
+    val64 = range_is_empty(&s->mch.pci_hole)
+        ? 0 : range_lob(&s->mch.pci_hole);
+    value = val64;
+    assert(value == val64);
     visit_type_uint32(v, name, &value, errp);
 }
 
@@ -84,8 +89,13 @@ static void q35_host_get_pci_hole_end(Object *obj, Visitor *v,
                                       Error **errp)
 {
     Q35PCIHost *s = Q35_HOST_DEVICE(obj);
-    uint32_t value = s->mch.pci_hole.end;
+    uint64_t val64;
+    uint32_t value;
 
+    val64 = range_is_empty(&s->mch.pci_hole)
+        ? 0 : range_upb(&s->mch.pci_hole) + 1;
+    value = val64;
+    assert(value == val64);
     visit_type_uint32(v, name, &value, errp);
 }
 
@@ -95,10 +105,11 @@ static void q35_host_get_pci_hole64_start(Object *obj, Visitor *v,
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
     Range w64;
+    uint64_t value;
 
     pci_bus_get_w64_range(h->bus, &w64);
-
-    visit_type_uint64(v, name, &w64.begin, errp);
+    value = range_is_empty(&w64) ? 0 : range_lob(&w64);
+    visit_type_uint64(v, name, &value, errp);
 }
 
 static void q35_host_get_pci_hole64_end(Object *obj, Visitor *v,
@@ -107,10 +118,11 @@ static void q35_host_get_pci_hole64_end(Object *obj, Visitor *v,
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
     Range w64;
+    uint64_t value;
 
     pci_bus_get_w64_range(h->bus, &w64);
-
-    visit_type_uint64(v, name, &w64.end, errp);
+    value = range_is_empty(&w64) ? 0 : range_upb(&w64) + 1;
+    visit_type_uint64(v, name, &value, errp);
 }
 
 static void q35_host_get_mmcfg_size(Object *obj, Visitor *v, const char *name,
@@ -205,9 +217,9 @@ static void q35_host_initfn(Object *obj)
      * it's not a power of two, which means an MTRR
      * can't cover it exactly.
      */
-    s->mch.pci_hole.begin = MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT +
-        MCH_HOST_BRIDGE_PCIEXBAR_MAX;
-    s->mch.pci_hole.end = IO_APIC_DEFAULT_ADDRESS;
+    range_set_bounds(&s->mch.pci_hole,
+            MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT + MCH_HOST_BRIDGE_PCIEXBAR_MAX,
+            IO_APIC_DEFAULT_ADDRESS - 1);
 }
 
 static const TypeInfo q35_host_info = {
@@ -275,10 +287,7 @@ static void mch_update_pciexbar(MCHPCIState *mch)
         break;
     case MCH_HOST_BRIDGE_PCIEXBAR_LENGTH_RVD:
     default:
-        enable = 0;
-        length = 0;
         abort();
-        break;
     }
     addr = pciexbar & addr_mask;
     pcie_host_mmcfg_update(pehb, enable, addr, length);
@@ -288,9 +297,13 @@ static void mch_update_pciexbar(MCHPCIState *mch)
      * which means an MTRR can't cover it exactly.
      */
     if (enable) {
-        mch->pci_hole.begin = addr + length;
+        range_set_bounds(&mch->pci_hole,
+                         addr + length,
+                         IO_APIC_DEFAULT_ADDRESS - 1);
     } else {
-        mch->pci_hole.begin = MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT;
+        range_set_bounds(&mch->pci_hole,
+                         MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT,
+                         IO_APIC_DEFAULT_ADDRESS - 1);
     }
 }
 
