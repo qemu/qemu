@@ -68,6 +68,16 @@ static void test_parse_range(void)
     g_assert(qemu_log_in_addr_range(0x2050));
     g_assert(qemu_log_in_addr_range(0x3050));
 
+    qemu_set_dfilter_ranges("0xffffffffffffffff-1", &error_abort);
+    g_assert(qemu_log_in_addr_range(UINT64_MAX));
+    g_assert_false(qemu_log_in_addr_range(UINT64_MAX - 1));
+
+    qemu_set_dfilter_ranges("0..0xffffffffffffffff", &err);
+    error_free_or_abort(&err);
+
+    qemu_set_dfilter_ranges("2..1", &err);
+    error_free_or_abort(&err);
+
     qemu_set_dfilter_ranges("0x1000+onehundred", &err);
     error_free_or_abort(&err);
 
