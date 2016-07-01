@@ -73,8 +73,9 @@ static void test_parse_range(void)
     g_assert_false(qemu_log_in_addr_range(UINT64_MAX - 1));
 
     qemu_set_dfilter_ranges("0..0xffffffffffffffff", &err);
-    error_free_or_abort(&err);
-
+    g_assert(qemu_log_in_addr_range(0));
+    g_assert(qemu_log_in_addr_range(UINT64_MAX));
+ 
     qemu_set_dfilter_ranges("2..1", &err);
     error_free_or_abort(&err);
 

@@ -204,7 +204,7 @@ void qemu_set_dfilter_ranges(const char *filter_spec, Error **errp)
         default:
             g_assert_not_reached();
         }
-        if (lob > upb || (lob == 0 && upb == UINT64_MAX)) {
+        if (lob > upb) {
             error_setg(errp, "Invalid range");
             goto out;
         }
