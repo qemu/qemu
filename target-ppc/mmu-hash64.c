@@ -610,14 +610,12 @@ static unsigned hpte_page_shift(const struct ppc_one_seg_page_size *sps,
 }
 
 unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
-                                          uint64_t pte0, uint64_t pte1,
-                                          unsigned *seg_page_shift)
+                                          uint64_t pte0, uint64_t pte1)
 {
     CPUPPCState *env = &cpu->env;
     int i;
 
     if (!(pte0 & HPTE64_V_LARGE)) {
-        *seg_page_shift = 12;
         return 12;
     }
 
@@ -635,12 +633,10 @@ unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
 
         shift = hpte_page_shift(sps, pte0, pte1);
         if (shift) {
-            *seg_page_shift = sps->page_shift;
             return shift;
         }
     }
 
-    *seg_page_shift = 0;
     return 0;
 }
 

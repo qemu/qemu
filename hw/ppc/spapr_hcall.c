@@ -83,12 +83,12 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     target_ulong pte_index = args[1];
     target_ulong pteh = args[2];
     target_ulong ptel = args[3];
-    unsigned apshift, spshift;
+    unsigned apshift;
     target_ulong raddr;
     target_ulong index;
     uint64_t token;
 
-    apshift = ppc_hash64_hpte_page_shift_noslb(cpu, pteh, ptel, &spshift);
+    apshift = ppc_hash64_hpte_page_shift_noslb(cpu, pteh, ptel);
     if (!apshift) {
         /* Bad page size encoding */
         return H_PARAMETER;
