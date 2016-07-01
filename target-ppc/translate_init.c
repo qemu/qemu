@@ -9516,7 +9516,7 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     Error *local_err = NULL;
 #if !defined(CONFIG_USER_ONLY)
-    int max_smt = kvm_enabled() ? kvmppc_smt_threads() : 1;
+    int max_smt = kvmppc_smt_threads();
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
