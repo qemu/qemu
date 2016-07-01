@@ -753,7 +753,6 @@ void ppc_cpu_do_interrupt(CPUState *cs)
 static void ppc_hw_interrupt(CPUPPCState *env)
 {
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
-    int hdice;
 #if 0
     CPUState *cs = CPU(cpu);
 
@@ -781,16 +780,22 @@ static void ppc_hw_interrupt(CPUPPCState *env)
         return;
     }
 #endif
-    if (0) {
-        /* XXX: find a suitable condition to enable the hypervisor mode */
-        hdice = env->spr[SPR_LPCR] & 1;
-    } else {
-        hdice = 0;
-    }
-    if ((msr_ee != 0 || msr_hv == 0 || msr_pr != 0) && hdice != 0) {
-        /* Hypervisor decrementer exception */
-        if (env->pending_interrupts & (1 << PPC_INTERRUPT_HDECR)) {
+    /* Hypervisor decrementer exception */
+    if (env->pending_interrupts & (1 << PPC_INTERRUPT_HDECR)) {
+        /* LPCR will be clear when not supported so this will work */
+        bool hdice = !!(env->spr[SPR_LPCR] & LPCR_HDICE);
+        if ((msr_ee != 0 || msr_hv == 0) && hdice) {
+            /* HDEC clears on delivery */
+            env->pending_interrupts &= ~(1 << PPC_INTERRUPT_HDECR);
             powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_HDECR);
+            return;
+        }
+    }
+    /* Extermal interrupt can ignore MSR:EE under some circumstances */
+    if (env->pending_interrupts & (1 << PPC_INTERRUPT_EXT)) {
+        bool lpes0 = !!(env->spr[SPR_LPCR] & LPCR_LPES0);
+        if (msr_ee != 0 || (env->has_hv_mode && msr_hv == 0 && !lpes0)) {
+            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_EXTERNAL);
             return;
         }
     }
@@ -837,17 +842,6 @@ static void ppc_hw_interrupt(CPUPPCState *env)
                 env->pending_interrupts &= ~(1 << PPC_INTERRUPT_DECR);
             }
             powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_DECR);
-            return;
-        }
-        /* External interrupt */
-        if (env->pending_interrupts & (1 << PPC_INTERRUPT_EXT)) {
-            /* Taking an external interrupt does not clear the external
-             * interrupt status
-             */
-#if 0
-            env->pending_interrupts &= ~(1 << PPC_INTERRUPT_EXT);
-#endif
-            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_EXTERNAL);
             return;
         }
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_DOORBELL)) {
@@ -943,6 +937,11 @@ void helper_pminsn(CPUPPCState *env, powerpc_pm_insn_t insn)
     cs = CPU(ppc_env_get_cpu(env));
     cs->halted = 1;
     env->in_pm_state = true;
+
+    /* The architecture specifies that HDEC interrupts are
+     * discarded in PM states
+     */
+    env->pending_interrupts &= ~(1 << PPC_INTERRUPT_HDECR);
 
     /* Technically, nap doesn't set EE, but if we don't set it
      * then ppc_hw_interrupt() won't deliver. We could add some

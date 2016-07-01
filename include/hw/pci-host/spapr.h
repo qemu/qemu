@@ -93,7 +93,7 @@ static inline qemu_irq spapr_phb_lsi_qirq(struct sPAPRPHBState *phb, int pin)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
 
-    return xics_get_qirq(spapr->icp, phb->lsi_table[pin].irq);
+    return xics_get_qirq(spapr->xics, phb->lsi_table[pin].irq);
 }
 
 PCIHostState *spapr_create_phb(sPAPRMachineState *spapr, int index);

@@ -32,20 +32,25 @@
 #define TYPE_XICS_COMMON "xics-common"
 #define XICS_COMMON(obj) OBJECT_CHECK(XICSState, (obj), TYPE_XICS_COMMON)
 
-#define TYPE_XICS "xics"
-#define XICS(obj) OBJECT_CHECK(XICSState, (obj), TYPE_XICS)
+/*
+ * Retain xics as the type name to be compatible for migration. Rest all the
+ * functions, class and variables are renamed as xics_spapr.
+ */
+#define TYPE_XICS_SPAPR "xics"
+#define XICS_SPAPR(obj) OBJECT_CHECK(XICSState, (obj), TYPE_XICS_SPAPR)
 
-#define TYPE_KVM_XICS "xics-kvm"
-#define KVM_XICS(obj) OBJECT_CHECK(KVMXICSState, (obj), TYPE_KVM_XICS)
+#define TYPE_XICS_SPAPR_KVM "xics-spapr-kvm"
+#define XICS_SPAPR_KVM(obj) \
+     OBJECT_CHECK(KVMXICSState, (obj), TYPE_XICS_SPAPR_KVM)
 
 #define XICS_COMMON_CLASS(klass) \
      OBJECT_CLASS_CHECK(XICSStateClass, (klass), TYPE_XICS_COMMON)
-#define XICS_CLASS(klass) \
-     OBJECT_CLASS_CHECK(XICSStateClass, (klass), TYPE_XICS)
+#define XICS_SPAPR_CLASS(klass) \
+     OBJECT_CLASS_CHECK(XICSStateClass, (klass), TYPE_XICS_SPAPR)
 #define XICS_COMMON_GET_CLASS(obj) \
      OBJECT_GET_CLASS(XICSStateClass, (obj), TYPE_XICS_COMMON)
-#define XICS_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(XICSStateClass, (obj), TYPE_XICS)
+#define XICS_SPAPR_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(XICSStateClass, (obj), TYPE_XICS_SPAPR)
 
 #define XICS_IPI        0x2
 #define XICS_BUID       0x1
@@ -138,8 +143,14 @@ struct ICSState {
     uint32_t offset;
     qemu_irq *qirqs;
     ICSIRQState *irqs;
-    XICSState *icp;
+    XICSState *xics;
 };
+
+static inline bool ics_valid_irq(ICSState *ics, uint32_t nr)
+{
+    return (nr >= ics->offset)
+        && (nr < (ics->offset + ics->nr_irqs));
+}
 
 struct ICSIRQState {
     uint32_t server;
@@ -157,15 +168,32 @@ struct ICSIRQState {
     uint8_t flags;
 };
 
-#define XICS_IRQS               1024
+#define XICS_IRQS_SPAPR               1024
 
 qemu_irq xics_get_qirq(XICSState *icp, int irq);
-int xics_alloc(XICSState *icp, int src, int irq_hint, bool lsi, Error **errp);
-int xics_alloc_block(XICSState *icp, int src, int num, bool lsi, bool align,
+int xics_spapr_alloc(XICSState *icp, int src, int irq_hint, bool lsi,
                      Error **errp);
-void xics_free(XICSState *icp, int irq, int num);
+int xics_spapr_alloc_block(XICSState *icp, int src, int num, bool lsi,
+                           bool align, Error **errp);
+void xics_spapr_free(XICSState *icp, int irq, int num);
 
 void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu);
 void xics_cpu_destroy(XICSState *icp, PowerPCCPU *cpu);
+
+/* Internal XICS interfaces */
+int xics_get_cpu_index_by_dt_id(int cpu_dt_id);
+
+void icp_set_cppr(XICSState *icp, int server, uint8_t cppr);
+void icp_set_mfrr(XICSState *icp, int server, uint8_t mfrr);
+uint32_t icp_accept(ICPState *ss);
+uint32_t icp_ipoll(ICPState *ss, uint32_t *mfrr);
+void icp_eoi(XICSState *icp, int server, uint32_t xirr);
+
+void ics_write_xive(ICSState *ics, int nr, int server,
+                    uint8_t priority, uint8_t saved_priority);
+
+void ics_set_irq_type(ICSState *ics, int srcno, bool lsi);
+
+int xics_find_source(XICSState *icp, int irq);
 
 #endif /* __XICS_H__ */

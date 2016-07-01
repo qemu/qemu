@@ -277,6 +277,32 @@ static void spr_read_purr (DisasContext *ctx, int gprn, int sprn)
 {
     gen_helper_load_purr(cpu_gpr[gprn], cpu_env);
 }
+
+/* HDECR */
+static void spr_read_hdecr(DisasContext *ctx, int gprn, int sprn)
+{
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
+    gen_helper_load_hdecr(cpu_gpr[gprn], cpu_env);
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
+        gen_io_end();
+        gen_stop_exception(ctx);
+    }
+}
+
+static void spr_write_hdecr(DisasContext *ctx, int sprn, int gprn)
+{
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
+    gen_helper_store_hdecr(cpu_env, cpu_gpr[gprn]);
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
+        gen_io_end();
+        gen_stop_exception(ctx);
+    }
+}
+
 #endif
 #endif
 
@@ -7525,16 +7551,6 @@ static void gen_spr_970_hior(CPUPPCState *env)
                  0x00000000);
 }
 
-static void gen_spr_970_lpar(CPUPPCState *env)
-{
-    /* Logical partitionning */
-    /* PPC970: HID4 is effectively the LPCR */
-    spr_register(env, SPR_970_HID4, "HID4",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-}
-
 static void gen_spr_book3s_common(CPUPPCState *env)
 {
     spr_register(env, SPR_CTRL, "SPR_CTRL",
@@ -7787,21 +7803,155 @@ static void gen_spr_power5p_ear(CPUPPCState *env)
                  0x00000000);
 }
 
+#if !defined(CONFIG_USER_ONLY)
+static void spr_write_hmer(DisasContext *ctx, int sprn, int gprn)
+{
+    TCGv hmer = tcg_temp_new();
+
+    gen_load_spr(hmer, sprn);
+    tcg_gen_and_tl(hmer, cpu_gpr[gprn], hmer);
+    gen_store_spr(sprn, hmer);
+    spr_store_dump_spr(sprn);
+    tcg_temp_free(hmer);
+}
+
+static void spr_write_lpcr(DisasContext *ctx, int sprn, int gprn)
+{
+    gen_helper_store_lpcr(cpu_env, cpu_gpr[gprn]);
+}
+
+static void spr_write_970_hid4(DisasContext *ctx, int sprn, int gprn)
+{
+#if defined(TARGET_PPC64)
+    spr_write_generic(ctx, sprn, gprn);
+    gen_helper_store_lpcr(cpu_env, cpu_gpr[gprn]);
+#endif
+}
+
+#endif /* !defined(CONFIG_USER_ONLY) */
+
+static void gen_spr_970_lpar(CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    /* Logical partitionning */
+    /* PPC970: HID4 is effectively the LPCR */
+    spr_register(env, SPR_970_HID4, "HID4",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_970_hid4,
+                 0x00000000);
+#endif
+}
+
 static void gen_spr_power5p_lpar(CPUPPCState *env)
 {
+#if !defined(CONFIG_USER_ONLY)
     /* Logical partitionning */
-    spr_register_kvm(env, SPR_LPCR, "LPCR",
-                     SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
-                     KVM_REG_PPC_LPCR, 0x00000000);
+    spr_register_kvm_hv(env, SPR_LPCR, "LPCR",
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        &spr_read_generic, &spr_write_lpcr,
+                        KVM_REG_PPC_LPCR, LPCR_LPES0 | LPCR_LPES1);
+    spr_register_hv(env, SPR_HDEC, "HDEC",
+                    SPR_NOACCESS, SPR_NOACCESS,
+                    SPR_NOACCESS, SPR_NOACCESS,
+                    &spr_read_hdecr, &spr_write_hdecr, 0);
+#endif
 }
 
 static void gen_spr_book3s_ids(CPUPPCState *env)
 {
+    /* FIXME: Will need to deal with thread vs core only SPRs */
+
     /* Processor identification */
-    spr_register(env, SPR_PIR, "PIR",
+    spr_register_hv(env, SPR_PIR, "PIR",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_pir,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, NULL,
+                 0x00000000);
+    spr_register_hv(env, SPR_HID0, "HID0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register_hv(env, SPR_TSCR, "TSCR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register_hv(env, SPR_HMER, "HMER",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_hmer,
+                 0x00000000);
+    spr_register_hv(env, SPR_HMEER, "HMEER",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register_hv(env, SPR_TFMR, "TFMR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register_hv(env, SPR_LPIDR, "LPIDR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register_hv(env, SPR_HFSCR, "HFSCR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register_hv(env, SPR_MMCRC, "MMCRC",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register_hv(env, SPR_MMCRH, "MMCRH",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register_hv(env, SPR_HSPRG0, "HSPRG0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register_hv(env, SPR_HSPRG1, "HSPRG1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register_hv(env, SPR_HSRR0, "HSRR0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register_hv(env, SPR_HSRR1, "HSRR1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register_hv(env, SPR_HDAR, "HDAR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register_hv(env, SPR_HDSISR, "HDSISR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register_hv(env, SPR_RMOR, "RMOR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register_hv(env, SPR_HRMOR, "HRMOR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
                  0x00000000);
 }
 
@@ -8060,6 +8210,17 @@ static void gen_spr_power7_book4(CPUPPCState *env)
 #endif
 }
 
+static void gen_spr_power8_rpr(CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    spr_register_hv(env, SPR_RPR, "RPR",
+                    SPR_NOACCESS, SPR_NOACCESS,
+                    SPR_NOACCESS, SPR_NOACCESS,
+                    &spr_read_generic, &spr_write_generic,
+                    0x00000103070F1F3F);
+#endif
+}
+
 static void init_proc_book3s_64(CPUPPCState *env, int version)
 {
     gen_spr_ne_601(env);
@@ -8117,6 +8278,7 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
         gen_spr_vtb(env);
         gen_spr_power8_ic(env);
         gen_spr_power8_book4(env);
+        gen_spr_power8_rpr(env);
     }
     if (version < BOOK3S_CPU_POWER8) {
         gen_spr_book3s_dbg(env);
@@ -10131,8 +10293,8 @@ static void ppc_cpu_initfn(Object *obj)
     if (pcc->sps) {
         env->sps = *pcc->sps;
     } else if (env->mmu_model & POWERPC_MMU_64) {
-        /* Use default sets of page sizes */
-        static const struct ppc_segment_page_sizes defsps = {
+        /* Use default sets of page sizes. We don't support MPSS */
+        static const struct ppc_segment_page_sizes defsps_4k = {
             .sps = {
                 { .page_shift = 12, /* 4K */
                   .slb_enc = 0,
@@ -10144,7 +10306,23 @@ static void ppc_cpu_initfn(Object *obj)
                 },
             },
         };
-        env->sps = defsps;
+        static const struct ppc_segment_page_sizes defsps_64k = {
+            .sps = {
+                { .page_shift = 12, /* 4K */
+                  .slb_enc = 0,
+                  .enc = { { .page_shift = 12, .pte_enc = 0 } }
+                },
+                { .page_shift = 16, /* 64K */
+                  .slb_enc = 0x110,
+                  .enc = { { .page_shift = 16, .pte_enc = 1 } }
+                },
+                { .page_shift = 24, /* 16M */
+                  .slb_enc = 0x100,
+                  .enc = { { .page_shift = 24, .pte_enc = 0 } }
+                },
+            },
+        };
+        env->sps = (env->mmu_model & POWERPC_MMU_64K) ? defsps_64k : defsps_4k;
     }
 #endif /* defined(TARGET_PPC64) */
 

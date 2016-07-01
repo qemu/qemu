@@ -136,6 +136,10 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
         /* Change the exception prefix on PowerPC 601 */
         env->excp_prefix = ((value >> MSR_EP) & 1) * 0xFFF00000;
     }
+    /* If PR=1 then EE, IR and DR must be 1 */
+    if ((value >> MSR_PR) & 1) {
+        value |= (1 << MSR_EE) | (1 << MSR_DR) | (1 << MSR_IR);
+    }
 #endif
     env->msr = value;
     hreg_compute_hflags(env);
