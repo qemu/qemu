@@ -183,6 +183,7 @@ struct APICCommonState {
     uint32_t vapic_control;
     DeviceState *vapic;
     hwaddr vapic_paddr; /* note: persistence via kvmvapic */
+    bool legacy_instance_id;
 };
 
 typedef struct VAPICState {
