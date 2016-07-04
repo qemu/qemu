@@ -305,8 +305,8 @@ archipelago="no"
 gtk=""
 gtkabi=""
 gtk_gl="no"
+tls_priority="NORMAL"
 gnutls=""
-gnutls_hash=""
 gnutls_rnd=""
 nettle=""
 nettle_kdf="no"
@@ -1097,6 +1097,8 @@ for opt do
   ;;
   --enable-gtk) gtk="yes"
   ;;
+  --tls-priority=*) tls_priority="$optarg"
+  ;;
   --disable-gnutls) gnutls="no"
   ;;
   --enable-gnutls) gnutls="yes"
@@ -1308,6 +1310,7 @@ Advanced options (experts only):
   --disable-blobs          disable installing provided firmware blobs
   --with-vss-sdk=SDK-path  enable Windows VSS support in QEMU Guest Agent
   --with-win-sdk=SDK-path  path to Windows Platform SDK (to build VSS .tlb)
+  --tls-priority           default TLS protocol/cipher priority string
 
 Optional features, enabled with --enable-FEATURE and
 disabled with --disable-FEATURE, default is enabled if available:
@@ -2218,13 +2221,6 @@ if test "$gnutls" != "no"; then
 	QEMU_CFLAGS="$QEMU_CFLAGS $gnutls_cflags"
         gnutls="yes"
 
-	# gnutls_hash_init requires >= 2.9.10
-	if $pkg_config --exists "gnutls >= 2.9.10"; then
-            gnutls_hash="yes"
-	else
-	    gnutls_hash="no"
-	fi
-
 	# gnutls_rnd requires >= 2.11.0
 	if $pkg_config --exists "gnutls >= 2.11.0"; then
 	    gnutls_rnd="yes"
@@ -2258,11 +2254,9 @@ if test "$gnutls" != "no"; then
 	feature_not_found "gnutls" "Install gnutls devel"
     else
         gnutls="no"
-        gnutls_hash="no"
         gnutls_rnd="no"
     fi
 else
-    gnutls_hash="no"
     gnutls_rnd="no"
 fi
 
@@ -4812,8 +4806,8 @@ echo "SDL support       $sdl $(echo_version $sdl $sdlversion)"
 echo "GTK support       $gtk $(echo_version $gtk $gtk_version)"
 echo "GTK GL support    $gtk_gl"
 echo "VTE support       $vte $(echo_version $vte $vteversion)"
+echo "TLS priority      $tls_priority"
 echo "GNUTLS support    $gnutls"
-echo "GNUTLS hash       $gnutls_hash"
 echo "GNUTLS rnd        $gnutls_rnd"
 echo "libgcrypt         $gcrypt"
 echo "libgcrypt kdf     $gcrypt_kdf"
@@ -5176,11 +5170,9 @@ if test "$gtk" = "yes" ; then
     echo "CONFIG_GTK_GL=y" >> $config_host_mak
   fi
 fi
+echo "CONFIG_TLS_PRIORITY=\"$tls_priority\"" >> $config_host_mak
 if test "$gnutls" = "yes" ; then
   echo "CONFIG_GNUTLS=y" >> $config_host_mak
-fi
-if test "$gnutls_hash" = "yes" ; then
-  echo "CONFIG_GNUTLS_HASH=y" >> $config_host_mak
 fi
 if test "$gnutls_rnd" = "yes" ; then
   echo "CONFIG_GNUTLS_RND=y" >> $config_host_mak

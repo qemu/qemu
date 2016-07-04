@@ -1,5 +1,7 @@
 crypto-obj-y = init.o
 crypto-obj-y += hash.o
+crypto-obj-$(CONFIG_NETTLE) += hash-nettle.o
+crypto-obj-$(if $(CONFIG_NETTLE),n,$(CONFIG_GCRYPT)) += hash-gcrypt.o
 crypto-obj-y += aes.o
 crypto-obj-y += desrfb.o
 crypto-obj-y += cipher.o
@@ -28,3 +30,4 @@ crypto-aes-obj-y = aes.o
 
 stub-obj-y += random-stub.o
 stub-obj-y += pbkdf-stub.o
+stub-obj-y += hash-stub.o

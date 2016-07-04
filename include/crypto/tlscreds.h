@@ -54,6 +54,7 @@ struct QCryptoTLSCreds {
     gnutls_dh_params_t dh_params;
 #endif
     bool verifyPeer;
+    char *priority;
 };
 
 

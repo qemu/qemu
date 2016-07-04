@@ -153,6 +153,8 @@ def cryptsetup_format(config):
     cipher = config.cipher + "-" + config.mode + "-" + config.ivgen
     if config.ivgen_hash is not None:
         cipher = cipher + ":" + config.ivgen_hash
+    elif config.ivgen == "essiv":
+        cipher = cipher + ":" + "sha256"
     args.extend(["--cipher", cipher])
     if config.mode == "xts":
         args.extend(["--key-size", str(config.keylen * 2)])
@@ -479,6 +481,16 @@ configs = [
                    "6": "slot6",
                    "7": "slot7",
                }),
+
+    # Check handling of default hash alg (sha256) with essiv
+    LUKSConfig("aes-256-cbc-essiv-auto-sha1",
+               "aes", 256, "cbc", "essiv", None, "sha1"),
+
+    # Check that a useless hash provided for 'plain64' iv gen
+    # is ignored and no error raised
+    LUKSConfig("aes-256-cbc-plain64-sha256-sha1",
+               "aes", 256, "cbc", "plain64", "sha256", "sha1"),
+
 ]
 
 blacklist = [

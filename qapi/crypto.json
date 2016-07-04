@@ -42,12 +42,16 @@
 #
 # @md5: MD5. Should not be used in any new code, legacy compat only
 # @sha1: SHA-1. Should not be used in any new code, legacy compat only
+# @sha224: SHA-224. (since 2.7)
 # @sha256: SHA-256. Current recommended strong hash.
+# @sha384: SHA-384. (since 2.7)
+# @sha512: SHA-512. (since 2.7)
+# @ripemd160: RIPEMD-160. (since 2.7)
 # Since: 2.6
 ##
 { 'enum': 'QCryptoHashAlgorithm',
   'prefix': 'QCRYPTO_HASH_ALG',
-  'data': ['md5', 'sha1', 'sha256']}
+  'data': ['md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512', 'ripemd160']}
 
 
 ##
