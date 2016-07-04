@@ -15,6 +15,7 @@
 
 typedef struct RegisterInfo RegisterInfo;
 typedef struct RegisterAccessInfo RegisterAccessInfo;
+typedef struct RegisterInfoArray RegisterInfoArray;
 
 /**
  * Access description for a register that is part of guest accessible device
@@ -51,6 +52,8 @@ struct RegisterAccessInfo {
     void (*post_write)(RegisterInfo *reg, uint64_t val);
 
     uint64_t (*post_read)(RegisterInfo *reg, uint64_t val);
+
+    hwaddr addr;
 };
 
 /**
@@ -76,6 +79,25 @@ struct RegisterInfo {
     const RegisterAccessInfo *access;
 
     void *opaque;
+};
+
+/**
+ * This structure is used to group all of the individual registers which are
+ * modeled using the RegisterInfo structure.
+ *
+ * @r is an aray containing of all the relevent RegisterInfo structures.
+ *
+ * @num_elements is the number of elements in the array r
+ *
+ * @mem: optional Memory region for the register
+ */
+
+struct RegisterInfoArray {
+    int num_elements;
+    RegisterInfo **r;
+
+    bool debug;
+    const char *prefix;
 };
 
 /**
@@ -108,5 +130,26 @@ uint64_t register_read(RegisterInfo *reg, uint64_t re, const char* prefix,
  */
 
 void register_reset(RegisterInfo *reg);
+
+/**
+ * Memory API MMIO write handler that will write to a Register API register.
+ * @opaque: RegisterInfo to write to
+ * @addr: Address to write
+ * @value: Value to write
+ * @size: Number of bytes to write
+ */
+
+void register_write_memory(void *opaque, hwaddr addr, uint64_t value,
+                           unsigned size);
+
+/**
+ * Memory API MMIO read handler that will read from a Register API register.
+ * @opaque: RegisterInfo to read from
+ * @addr: Address to read
+ * @size: Number of bytes to read
+ * returns: Value read from register
+ */
+
+uint64_t register_read_memory(void *opaque, hwaddr addr, unsigned size);
 
 #endif

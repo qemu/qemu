@@ -158,3 +158,62 @@ void register_reset(RegisterInfo *reg)
 
     register_write_val(reg, reg->access->reset);
 }
+
+void register_write_memory(void *opaque, hwaddr addr,
+                           uint64_t value, unsigned size)
+{
+    RegisterInfoArray *reg_array = opaque;
+    RegisterInfo *reg = NULL;
+    uint64_t we;
+    int i;
+
+    for (i = 0; i < reg_array->num_elements; i++) {
+        if (reg_array->r[i]->access->addr == addr) {
+            reg = reg_array->r[i];
+            break;
+        }
+    }
+
+    if (!reg) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Write to unimplemented register at " \
+                      "address: %#" PRIx64 "\n", addr);
+        return;
+    }
+
+    /* Generate appropriate write enable mask */
+    if (reg->data_size < size) {
+        we = MAKE_64BIT_MASK(0, reg->data_size * 8);
+    } else {
+        we = MAKE_64BIT_MASK(0, size * 8);
+    }
+
+    register_write(reg, value, we, reg_array->prefix,
+                   reg_array->debug);
+}
+
+uint64_t register_read_memory(void *opaque, hwaddr addr,
+                              unsigned size)
+{
+    RegisterInfoArray *reg_array = opaque;
+    RegisterInfo *reg = NULL;
+    uint64_t read_val;
+    int i;
+
+    for (i = 0; i < reg_array->num_elements; i++) {
+        if (reg_array->r[i]->access->addr == addr) {
+            reg = reg_array->r[i];
+            break;
+        }
+    }
+
+    if (!reg) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Read to unimplemented register at " \
+                      "address: %#" PRIx64 "\n", addr);
+        return 0;
+    }
+
+    read_val = register_read(reg, size * 8, reg_array->prefix,
+                             reg_array->debug);
+
+    return extract64(read_val, 0, size * 8);
+}
