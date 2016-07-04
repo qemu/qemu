@@ -41,8 +41,13 @@ MemoryRegion):
   MemoryRegionOps structure describing the callbacks.
 
 - ROM: a ROM memory region works like RAM for reads (directly accessing
-  a region of host memory), but like MMIO for writes (invoking a callback).
-  You initialize these with memory_region_init_rom_device().
+  a region of host memory), and forbids writes. You initialize these with
+  memory_region_init_rom().
+
+- ROM device: a ROM device memory region works like RAM for reads
+  (directly accessing a region of host memory), but like MMIO for
+  writes (invoking a callback).  You initialize these with
+  memory_region_init_rom_device().
 
 - IOMMU region: an IOMMU region translates addresses of accesses made to it
   and forwards them to some other target memory region.  As the name suggests,
