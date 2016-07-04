@@ -100,6 +100,8 @@ struct RegisterInfo {
  */
 
 struct RegisterInfoArray {
+    MemoryRegion mem;
+
     int num_elements;
     RegisterInfo **r;
 
@@ -165,6 +167,44 @@ void register_write_memory(void *opaque, hwaddr addr, uint64_t value,
  */
 
 uint64_t register_read_memory(void *opaque, hwaddr addr, unsigned size);
+
+/**
+ * Init a block of registers into a container MemoryRegion. A
+ * number of constant register definitions are parsed to create a corresponding
+ * array of RegisterInfo's.
+ *
+ * @owner: device owning the registers
+ * @rae: Register definitions to init
+ * @num: number of registers to init (length of @rae)
+ * @ri: Register array to init, must already be allocated
+ * @data: Array to use for register data, must already be allocated
+ * @ops: Memory region ops to access registers.
+ * @debug enabled: turn on/off verbose debug information
+ * returns: A structure containing all of the registers and an initialized
+ *          memory region (r_array->mem) the caller should add to a container.
+ */
+
+RegisterInfoArray *register_init_block32(DeviceState *owner,
+                                         const RegisterAccessInfo *rae,
+                                         int num, RegisterInfo *ri,
+                                         uint32_t *data,
+                                         const MemoryRegionOps *ops,
+                                         bool debug_enabled,
+                                         uint64_t memory_size);
+
+/**
+ * This function should be called to cleanup the registers that were initialized
+ * when calling register_init_block32(). This function should only be called
+ * from the device's instance_finalize function.
+ *
+ * Any memory operations that the device performed that require cleanup (such
+ * as creating subregions) need to be called before calling this function.
+ *
+ * @r_array: A structure containing all of the registers, as returned by
+ *           register_init_block32()
+ */
+
+void register_finalize_block(RegisterInfoArray *r_array);
 
 /* Define constants for a 32 bit register */
 

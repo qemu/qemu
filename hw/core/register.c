@@ -229,6 +229,51 @@ uint64_t register_read_memory(void *opaque, hwaddr addr,
     return extract64(read_val, 0, size * 8);
 }
 
+RegisterInfoArray *register_init_block32(DeviceState *owner,
+                                         const RegisterAccessInfo *rae,
+                                         int num, RegisterInfo *ri,
+                                         uint32_t *data,
+                                         const MemoryRegionOps *ops,
+                                         bool debug_enabled,
+                                         uint64_t memory_size)
+{
+    const char *device_prefix = object_get_typename(OBJECT(owner));
+    RegisterInfoArray *r_array = g_new0(RegisterInfoArray, 1);
+    int i;
+
+    r_array->r = g_new0(RegisterInfo *, num);
+    r_array->num_elements = num;
+    r_array->debug = debug_enabled;
+    r_array->prefix = device_prefix;
+
+    for (i = 0; i < num; i++) {
+        int index = rae[i].addr / 4;
+        RegisterInfo *r = &ri[index];
+
+        *r = (RegisterInfo) {
+            .data = &data[index],
+            .data_size = sizeof(uint32_t),
+            .access = &rae[i],
+            .opaque = owner,
+        };
+        register_init(r);
+
+        r_array->r[i] = r;
+    }
+
+    memory_region_init_io(&r_array->mem, OBJECT(owner), ops, r_array,
+                          device_prefix, memory_size);
+
+    return r_array;
+}
+
+void register_finalize_block(RegisterInfoArray *r_array)
+{
+    object_unparent(OBJECT(&r_array->mem));
+    g_free(r_array->r);
+    g_free(r_array);
+}
+
 static const TypeInfo register_info = {
     .name  = TYPE_REGISTER,
     .parent = TYPE_DEVICE,
