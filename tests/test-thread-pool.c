@@ -91,9 +91,9 @@ static void co_test_cb(void *opaque)
 static void test_submit_co(void)
 {
     WorkerTestData data;
-    Coroutine *co = qemu_coroutine_create(co_test_cb);
+    Coroutine *co = qemu_coroutine_create(co_test_cb, &data);
 
-    qemu_coroutine_enter(co, &data);
+    qemu_coroutine_enter(co);
 
     /* Back here once the worker has started.  */
 

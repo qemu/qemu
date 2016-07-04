@@ -621,7 +621,7 @@ static int blkdebug_debug_resume(BlockDriverState *bs, const char *tag)
 
     QLIST_FOREACH_SAFE(r, &s->suspended_reqs, next, next) {
         if (!strcmp(r->tag, tag)) {
-            qemu_coroutine_enter(r->co, NULL);
+            qemu_coroutine_enter(r->co);
             return 0;
         }
     }
@@ -647,7 +647,7 @@ static int blkdebug_debug_remove_breakpoint(BlockDriverState *bs,
     }
     QLIST_FOREACH_SAFE(r, &s->suspended_reqs, next, r_next) {
         if (!strcmp(r->tag, tag)) {
-            qemu_coroutine_enter(r->co, NULL);
+            qemu_coroutine_enter(r->co);
             ret = 0;
         }
     }

@@ -3278,8 +3278,8 @@ void pdu_submit(V9fsPDU *pdu)
     if (is_ro_export(&s->ctx) && !is_read_only_op(pdu)) {
         handler = v9fs_fs_ro;
     }
-    co = qemu_coroutine_create(handler);
-    qemu_coroutine_enter(co, pdu);
+    co = qemu_coroutine_create(handler, pdu);
+    qemu_coroutine_enter(co);
 }
 
 /* Returns 0 on success, 1 on failure. */

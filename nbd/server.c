@@ -106,7 +106,7 @@ static gboolean nbd_negotiate_continue(QIOChannel *ioc,
                                        GIOCondition condition,
                                        void *opaque)
 {
-    qemu_coroutine_enter(opaque, NULL);
+    qemu_coroutine_enter(opaque);
     return TRUE;
 }
 
@@ -1230,9 +1230,9 @@ static void nbd_read(void *opaque)
     NBDClient *client = opaque;
 
     if (client->recv_coroutine) {
-        qemu_coroutine_enter(client->recv_coroutine, NULL);
+        qemu_coroutine_enter(client->recv_coroutine);
     } else {
-        qemu_coroutine_enter(qemu_coroutine_create(nbd_trip), client);
+        qemu_coroutine_enter(qemu_coroutine_create(nbd_trip, client));
     }
 }
 
@@ -1240,7 +1240,7 @@ static void nbd_restart_write(void *opaque)
 {
     NBDClient *client = opaque;
 
-    qemu_coroutine_enter(client->send_coroutine, NULL);
+    qemu_coroutine_enter(client->send_coroutine);
 }
 
 static void nbd_set_handlers(NBDClient *client)
@@ -1324,6 +1324,6 @@ void nbd_client_new(NBDExport *exp,
     client->close = close_fn;
 
     data->client = client;
-    data->co = qemu_coroutine_create(nbd_co_client_start);
-    qemu_coroutine_enter(data->co, data);
+    data->co = qemu_coroutine_create(nbd_co_client_start, data);
+    qemu_coroutine_enter(data->co);
 }

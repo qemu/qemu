@@ -777,7 +777,7 @@ static void restart_coroutine(void *opaque)
 
     DPRINTF("co=%p", co);
 
-    qemu_coroutine_enter(co, NULL);
+    qemu_coroutine_enter(co);
 }
 
 static coroutine_fn void set_fd_handler(BDRVSSHState *s, BlockDriverState *bs)

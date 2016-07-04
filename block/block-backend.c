@@ -836,8 +836,8 @@ static int blk_prw(BlockBackend *blk, int64_t offset, uint8_t *buf,
         .ret    = NOT_DONE,
     };
 
-    co = qemu_coroutine_create(co_entry);
-    qemu_coroutine_enter(co, &rwco);
+    co = qemu_coroutine_create(co_entry, &rwco);
+    qemu_coroutine_enter(co);
 
     aio_context = blk_get_aio_context(blk);
     while (rwco.ret == NOT_DONE) {
@@ -950,8 +950,8 @@ static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
     acb->bh = NULL;
     acb->has_returned = false;
 
-    co = qemu_coroutine_create(co_entry);
-    qemu_coroutine_enter(co, acb);
+    co = qemu_coroutine_create(co_entry, acb);
+    qemu_coroutine_enter(co);
 
     acb->has_returned = true;
     if (acb->rwco.ret != NOT_DONE) {

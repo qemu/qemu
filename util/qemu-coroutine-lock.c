@@ -57,7 +57,7 @@ void qemu_co_queue_run_restart(Coroutine *co)
     trace_qemu_co_queue_run_restart(co);
     while ((next = QSIMPLEQ_FIRST(&co->co_queue_wakeup))) {
         QSIMPLEQ_REMOVE_HEAD(&co->co_queue_wakeup, co_queue_next);
-        qemu_coroutine_enter(next, NULL);
+        qemu_coroutine_enter(next);
     }
 }
 
@@ -103,7 +103,7 @@ bool qemu_co_enter_next(CoQueue *queue)
     }
 
     QSIMPLEQ_REMOVE_HEAD(&queue->entries, co_queue_next);
-    qemu_coroutine_enter(next, NULL);
+    qemu_coroutine_enter(next);
     return true;
 }
 

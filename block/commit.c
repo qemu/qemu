@@ -278,10 +278,10 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     s->backing_file_str = g_strdup(backing_file_str);
 
     s->on_error = on_error;
-    s->common.co = qemu_coroutine_create(commit_run);
+    s->common.co = qemu_coroutine_create(commit_run, s);
 
     trace_commit_start(bs, base, top, s, s->common.co, opaque);
-    qemu_coroutine_enter(s->common.co, s);
+    qemu_coroutine_enter(s->common.co);
 }
 
 

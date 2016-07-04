@@ -375,7 +375,7 @@ void block_job_resume(BlockJob *job)
 void block_job_enter(BlockJob *job)
 {
     if (job->co && !job->busy) {
-        qemu_coroutine_enter(job->co, NULL);
+        qemu_coroutine_enter(job->co);
     }
 }
 

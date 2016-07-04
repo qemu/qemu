@@ -30,8 +30,8 @@ static void test_in_coroutine(void)
 
     g_assert(!qemu_in_coroutine());
 
-    coroutine = qemu_coroutine_create(verify_in_coroutine);
-    qemu_coroutine_enter(coroutine, NULL);
+    coroutine = qemu_coroutine_create(verify_in_coroutine, NULL);
+    qemu_coroutine_enter(coroutine);
 }
 
 /*
@@ -48,8 +48,8 @@ static void test_self(void)
 {
     Coroutine *coroutine;
 
-    coroutine = qemu_coroutine_create(verify_self);
-    qemu_coroutine_enter(coroutine, &coroutine);
+    coroutine = qemu_coroutine_create(verify_self, &coroutine);
+    qemu_coroutine_enter(coroutine);
 }
 
 /*
@@ -71,8 +71,8 @@ static void coroutine_fn nest(void *opaque)
     if (nd->n_enter < nd->max) {
         Coroutine *child;
 
-        child = qemu_coroutine_create(nest);
-        qemu_coroutine_enter(child, nd);
+        child = qemu_coroutine_create(nest, nd);
+        qemu_coroutine_enter(child);
     }
 
     nd->n_return++;
@@ -87,8 +87,8 @@ static void test_nesting(void)
         .max      = 128,
     };
 
-    root = qemu_coroutine_create(nest);
-    qemu_coroutine_enter(root, &nd);
+    root = qemu_coroutine_create(nest, &nd);
+    qemu_coroutine_enter(root);
 
     /* Must enter and return from max nesting level */
     g_assert_cmpint(nd.n_enter, ==, nd.max);
@@ -116,9 +116,9 @@ static void test_yield(void)
     bool done = false;
     int i = -1; /* one extra time to return from coroutine */
 
-    coroutine = qemu_coroutine_create(yield_5_times);
+    coroutine = qemu_coroutine_create(yield_5_times, &done);
     while (!done) {
-        qemu_coroutine_enter(coroutine, &done);
+        qemu_coroutine_enter(coroutine);
         i++;
     }
     g_assert_cmpint(i, ==, 5); /* coroutine must yield 5 times */
@@ -132,7 +132,7 @@ static void coroutine_fn c2_fn(void *opaque)
 static void coroutine_fn c1_fn(void *opaque)
 {
     Coroutine *c2 = opaque;
-    qemu_coroutine_enter(c2, NULL);
+    qemu_coroutine_enter(c2);
 }
 
 static void test_co_queue(void)
@@ -140,12 +140,12 @@ static void test_co_queue(void)
     Coroutine *c1;
     Coroutine *c2;
 
-    c1 = qemu_coroutine_create(c1_fn);
-    c2 = qemu_coroutine_create(c2_fn);
+    c2 = qemu_coroutine_create(c2_fn, NULL);
+    c1 = qemu_coroutine_create(c1_fn, c2);
 
-    qemu_coroutine_enter(c1, c2);
+    qemu_coroutine_enter(c1);
     memset(c1, 0xff, sizeof(Coroutine));
-    qemu_coroutine_enter(c2, NULL);
+    qemu_coroutine_enter(c2);
 }
 
 /*
@@ -165,14 +165,14 @@ static void test_lifecycle(void)
     bool done = false;
 
     /* Create, enter, and return from coroutine */
-    coroutine = qemu_coroutine_create(set_and_exit);
-    qemu_coroutine_enter(coroutine, &done);
+    coroutine = qemu_coroutine_create(set_and_exit, &done);
+    qemu_coroutine_enter(coroutine);
     g_assert(done); /* expect done to be true (first time) */
 
     /* Repeat to check that no state affects this test */
     done = false;
-    coroutine = qemu_coroutine_create(set_and_exit);
-    qemu_coroutine_enter(coroutine, &done);
+    coroutine = qemu_coroutine_create(set_and_exit, &done);
+    qemu_coroutine_enter(coroutine);
     g_assert(done); /* expect done to be true (second time) */
 }
 
@@ -206,12 +206,12 @@ static void do_order_test(void)
 {
     Coroutine *co;
 
-    co = qemu_coroutine_create(co_order_test);
+    co = qemu_coroutine_create(co_order_test, NULL);
     record_push(1, 1);
-    qemu_coroutine_enter(co, NULL);
+    qemu_coroutine_enter(co);
     record_push(1, 2);
     g_assert(!qemu_in_coroutine());
-    qemu_coroutine_enter(co, NULL);
+    qemu_coroutine_enter(co);
     record_push(1, 3);
     g_assert(!qemu_in_coroutine());
 }
@@ -248,8 +248,8 @@ static void perf_lifecycle(void)
 
     g_test_timer_start();
     for (i = 0; i < max; i++) {
-        coroutine = qemu_coroutine_create(empty_coroutine);
-        qemu_coroutine_enter(coroutine, NULL);
+        coroutine = qemu_coroutine_create(empty_coroutine, NULL);
+        qemu_coroutine_enter(coroutine);
     }
     duration = g_test_timer_elapsed();
 
@@ -272,8 +272,8 @@ static void perf_nesting(void)
             .n_return = 0,
             .max      = maxnesting,
         };
-        root = qemu_coroutine_create(nest);
-        qemu_coroutine_enter(root, &nd);
+        root = qemu_coroutine_create(nest, &nd);
+        qemu_coroutine_enter(root);
     }
     duration = g_test_timer_elapsed();
 
@@ -302,11 +302,11 @@ static void perf_yield(void)
 
     maxcycles = 100000000;
     i = maxcycles;
-    Coroutine *coroutine = qemu_coroutine_create(yield_loop);
+    Coroutine *coroutine = qemu_coroutine_create(yield_loop, &i);
 
     g_test_timer_start();
     while (i > 0) {
-        qemu_coroutine_enter(coroutine, &i);
+        qemu_coroutine_enter(coroutine);
     }
     duration = g_test_timer_elapsed();
 
@@ -352,9 +352,9 @@ static void perf_cost(void)
 
     g_test_timer_start();
     while (i++ < maxcycles) {
-        co = qemu_coroutine_create(perf_cost_func);
-        qemu_coroutine_enter(co, &i);
-        qemu_coroutine_enter(co, NULL);
+        co = qemu_coroutine_create(perf_cost_func, &i);
+        qemu_coroutine_enter(co);
+        qemu_coroutine_enter(co);
     }
     duration = g_test_timer_elapsed();
     ops = (long)(maxcycles / (duration * 1000));

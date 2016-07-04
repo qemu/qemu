@@ -708,7 +708,7 @@ static void qed_is_allocated_cb(void *opaque, int ret, uint64_t offset, size_t l
     }
 
     if (cb->co) {
-        qemu_coroutine_enter(cb->co, NULL);
+        qemu_coroutine_enter(cb->co);
     }
 }
 
@@ -1425,7 +1425,7 @@ static void coroutine_fn qed_co_pwrite_zeroes_cb(void *opaque, int ret)
     cb->done = true;
     cb->ret = ret;
     if (cb->co) {
-        qemu_coroutine_enter(cb->co, NULL);
+        qemu_coroutine_enter(cb->co);
     }
 }
 

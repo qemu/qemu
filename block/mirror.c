@@ -121,7 +121,7 @@ static void mirror_iteration_done(MirrorOp *op, int ret)
     g_free(op);
 
     if (s->waiting_for_io) {
-        qemu_coroutine_enter(s->common.co, NULL);
+        qemu_coroutine_enter(s->common.co);
     }
 }
 
@@ -901,9 +901,9 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
 
     bdrv_op_block_all(target, s->common.blocker);
 
-    s->common.co = qemu_coroutine_create(mirror_run);
+    s->common.co = qemu_coroutine_create(mirror_run, s);
     trace_mirror_start(bs, s, s->common.co, opaque);
-    qemu_coroutine_enter(s->common.co, s);
+    qemu_coroutine_enter(s->common.co);
 }
 
 void mirror_start(const char *job_id, BlockDriverState *bs,

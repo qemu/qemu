@@ -1686,8 +1686,8 @@ static int vmdk_write_compressed(BlockDriverState *bs,
             .nb_sectors = nb_sectors,
             .ret        = -EINPROGRESS,
         };
-        co = qemu_coroutine_create(vmdk_co_write_compressed);
-        qemu_coroutine_enter(co, &data);
+        co = qemu_coroutine_create(vmdk_co_write_compressed, &data);
+        qemu_coroutine_enter(co);
         while (data.ret == -EINPROGRESS) {
             aio_poll(aio_context, true);
         }

@@ -42,7 +42,7 @@ static void coroutine_pool_cleanup(Notifier *n, void *value)
     }
 }
 
-Coroutine *qemu_coroutine_create(CoroutineEntry *entry)
+Coroutine *qemu_coroutine_create(CoroutineEntry *entry, void *opaque)
 {
     Coroutine *co = NULL;
 
@@ -76,6 +76,7 @@ Coroutine *qemu_coroutine_create(CoroutineEntry *entry)
     }
 
     co->entry = entry;
+    co->entry_arg = opaque;
     QSIMPLEQ_INIT(&co->co_queue_wakeup);
     return co;
 }
@@ -100,12 +101,12 @@ static void coroutine_delete(Coroutine *co)
     qemu_coroutine_delete(co);
 }
 
-void qemu_coroutine_enter(Coroutine *co, void *opaque)
+void qemu_coroutine_enter(Coroutine *co)
 {
     Coroutine *self = qemu_coroutine_self();
     CoroutineAction ret;
 
-    trace_qemu_coroutine_enter(self, co, opaque);
+    trace_qemu_coroutine_enter(self, co, co->entry_arg);
 
     if (co->caller) {
         fprintf(stderr, "Co-routine re-entered recursively\n");
@@ -113,7 +114,6 @@ void qemu_coroutine_enter(Coroutine *co, void *opaque)
     }
 
     co->caller = self;
-    co->entry_arg = opaque;
     ret = qemu_coroutine_switch(self, co, COROUTINE_ENTER);
 
     qemu_co_queue_run_restart(co);

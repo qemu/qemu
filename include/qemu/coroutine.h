@@ -61,16 +61,14 @@ typedef void coroutine_fn CoroutineEntry(void *opaque);
  * Create a new coroutine
  *
  * Use qemu_coroutine_enter() to actually transfer control to the coroutine.
+ * The opaque argument is passed as the argument to the entry point.
  */
-Coroutine *qemu_coroutine_create(CoroutineEntry *entry);
+Coroutine *qemu_coroutine_create(CoroutineEntry *entry, void *opaque);
 
 /**
  * Transfer control to a coroutine
- *
- * The opaque argument is passed as the argument to the entry point when
- * entering the coroutine for the first time.  It is subsequently ignored.
  */
-void qemu_coroutine_enter(Coroutine *coroutine, void *opaque);
+void qemu_coroutine_enter(Coroutine *coroutine);
 
 /**
  * Transfer control back to a coroutine's caller
