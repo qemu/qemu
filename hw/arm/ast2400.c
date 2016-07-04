@@ -23,6 +23,9 @@
 #define AST2400_UART_5_BASE      0x00184000
 #define AST2400_IOMEM_SIZE       0x00200000
 #define AST2400_IOMEM_BASE       0x1E600000
+#define AST2400_SMC_BASE         AST2400_IOMEM_BASE /* Legacy SMC */
+#define AST2400_FMC_BASE         0X1E620000
+#define AST2400_SPI_BASE         0X1E630000
 #define AST2400_VIC_BASE         0x1E6C0000
 #define AST2400_SCU_BASE         0x1E6E2000
 #define AST2400_TIMER_BASE       0x1E782000
@@ -85,13 +88,21 @@ static void ast2400_init(Object *obj)
                               "hw-strap1", &error_abort);
     object_property_add_alias(obj, "hw-strap2", OBJECT(&s->scu),
                               "hw-strap2", &error_abort);
+
+    object_initialize(&s->smc, sizeof(s->smc), "aspeed.smc.fmc");
+    object_property_add_child(obj, "smc", OBJECT(&s->smc), NULL);
+    qdev_set_parent_bus(DEVICE(&s->smc), sysbus_get_default());
+
+    object_initialize(&s->spi, sizeof(s->spi), "aspeed.smc.spi");
+    object_property_add_child(obj, "spi", OBJECT(&s->spi), NULL);
+    qdev_set_parent_bus(DEVICE(&s->spi), sysbus_get_default());
 }
 
 static void ast2400_realize(DeviceState *dev, Error **errp)
 {
     int i;
     AST2400State *s = AST2400(dev);
-    Error *err = NULL;
+    Error *err = NULL, *local_err = NULL;
 
     /* IO space */
     memory_region_init_io(&s->iomem, NULL, &ast2400_io_ops, NULL,
@@ -147,6 +158,28 @@ static void ast2400_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c), 0, AST2400_I2C_BASE);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c), 0,
                        qdev_get_gpio_in(DEVICE(&s->vic), 12));
+
+    /* SMC */
+    object_property_set_int(OBJECT(&s->smc), 1, "num-cs", &err);
+    object_property_set_bool(OBJECT(&s->smc), true, "realized", &local_err);
+    error_propagate(&err, local_err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->smc), 0, AST2400_FMC_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->smc), 0,
+                       qdev_get_gpio_in(DEVICE(&s->vic), 19));
+
+    /* SPI */
+    object_property_set_int(OBJECT(&s->spi), 1, "num-cs", &err);
+    object_property_set_bool(OBJECT(&s->spi), true, "realized", &local_err);
+    error_propagate(&err, local_err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi), 0, AST2400_SPI_BASE);
 }
 
 static void ast2400_class_init(ObjectClass *oc, void *data)
