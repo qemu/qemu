@@ -587,18 +587,16 @@ static inline int get_addr_length(Flash *s)
 
 static void complete_collecting_data(Flash *s)
 {
-    int i;
+    int i, n;
 
-    s->cur_addr = 0;
-
-    for (i = 0; i < get_addr_length(s); ++i) {
+    n = get_addr_length(s);
+    s->cur_addr = (n == 3 ? s->ear : 0);
+    for (i = 0; i < n; ++i) {
         s->cur_addr <<= 8;
         s->cur_addr |= s->data[i];
     }
 
-    if (get_addr_length(s) == 3) {
-        s->cur_addr += s->ear * MAX_3BYTES_SIZE;
-    }
+    s->cur_addr &= s->size - 1;
 
     s->state = STATE_IDLE;
 
@@ -1100,14 +1098,14 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
         DB_PRINT_L(1, "page program cur_addr=%#" PRIx64 " data=%" PRIx8 "\n",
                    s->cur_addr, (uint8_t)tx);
         flash_write8(s, s->cur_addr, (uint8_t)tx);
-        s->cur_addr++;
+        s->cur_addr = (s->cur_addr + 1) & (s->size - 1);
         break;
 
     case STATE_READ:
         r = s->storage[s->cur_addr];
         DB_PRINT_L(1, "READ 0x%" PRIx64 "=%" PRIx8 "\n", s->cur_addr,
                    (uint8_t)r);
-        s->cur_addr = (s->cur_addr + 1) % s->size;
+        s->cur_addr = (s->cur_addr + 1) & (s->size - 1);
         break;
 
     case STATE_COLLECTING_DATA:
