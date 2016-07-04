@@ -1021,6 +1021,7 @@ static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic,
     qemu_fdt_setprop_cell(vbi->fdt, nodename, "#size-cells", 2);
     qemu_fdt_setprop_cells(vbi->fdt, nodename, "bus-range", 0,
                            nr_pcie_buses - 1);
+    qemu_fdt_setprop(vbi->fdt, nodename, "dma-coherent", NULL, 0);
 
     if (vbi->v2m_phandle) {
         qemu_fdt_setprop_cells(vbi->fdt, nodename, "msi-parent",
