@@ -61,9 +61,11 @@ default:
 	@echo "  slof           -- update slof.bin"
 	@echo "  u-boot.e500    -- update u-boot.e500"
 
-bios: build-seabios-config-seabios-128k build-seabios-config-seabios-256k
+bios: build-seabios-config-seabios-128k build-seabios-config-seabios-256k \
+      build-seabios-config-seabios-fast
 	cp seabios/builds/seabios-128k/bios.bin ../pc-bios/bios.bin
 	cp seabios/builds/seabios-256k/bios.bin ../pc-bios/bios-256k.bin
+	cp seabios/builds/seabios-fast/bios.bin ../pc-bios/bios-fast.bin
 
 seavgabios: $(patsubst %,seavgabios-%,$(vgabios_variants))
 
