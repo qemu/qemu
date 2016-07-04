@@ -18,6 +18,8 @@ void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu,
                                target_ulong pte0, target_ulong pte1);
 unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
                                           uint64_t pte0, uint64_t pte1);
+void ppc_hash64_update_vrma(CPUPPCState *env);
+void ppc_hash64_update_rmls(CPUPPCState *env);
 #endif
 
 /*
@@ -36,6 +38,7 @@ unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
 #define SLB_VSID_B_256M         0x0000000000000000ULL
 #define SLB_VSID_B_1T           0x4000000000000000ULL
 #define SLB_VSID_VSID           0x3FFFFFFFFFFFF000ULL
+#define SLB_VSID_VRMA           (0x0001FFFFFF000000ULL | SLB_VSID_B_1T)
 #define SLB_VSID_PTEM           (SLB_VSID_B | SLB_VSID_VSID)
 #define SLB_VSID_KS             0x0000000000000800ULL
 #define SLB_VSID_KP             0x0000000000000400ULL

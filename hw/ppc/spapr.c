@@ -1771,6 +1771,13 @@ static void ppc_spapr_init(MachineState *machine)
             spapr->vrma_adjust = 1;
             spapr->rma_size = MIN(spapr->rma_size, 0x10000000);
         }
+
+        /* Actually we don't support unbounded RMA anymore since we
+         * added proper emulation of HV mode. The max we can get is
+         * 16G which also happens to be what we configure for PAPR
+         * mode so make sure we don't do anything bigger than that
+         */
+        spapr->rma_size = MIN(spapr->rma_size, 0x400000000ull);
     }
 
     if (spapr->rma_size > node0_size) {

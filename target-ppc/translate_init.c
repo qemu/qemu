@@ -8791,10 +8791,18 @@ void cpu_ppc_set_papr(PowerPCCPU *cpu)
     /* Set emulated LPCR to not send interrupts to hypervisor. Note that
      * under KVM, the actual HW LPCR will be set differently by KVM itself,
      * the settings below ensure proper operations with TCG in absence of
-     * a real hypervisor
+     * a real hypervisor.
+     *
+     * Clearing VPM0 will also cause us to use RMOR in mmu-hash64.c for
+     * real mode accesses, which thankfully defaults to 0 and isn't
+     * accessible in guest mode.
      */
     lpcr->default_value &= ~(LPCR_VPM0 | LPCR_VPM1 | LPCR_ISL | LPCR_KBV);
     lpcr->default_value |= LPCR_LPES0 | LPCR_LPES1;
+
+    /* Set RMLS to the max (ie, 16G) */
+    lpcr->default_value &= ~LPCR_RMLS;
+    lpcr->default_value |= 1ull << LPCR_RMLS_SHIFT;
 
     /* P7 and P8 has slightly different PECE bits, mostly because P8 adds
      * bit 47 and 48 which are reserved on P7. Here we set them all, which
@@ -8810,6 +8818,10 @@ void cpu_ppc_set_papr(PowerPCCPU *cpu)
 
     /* Set a full AMOR so guest can use the AMR as it sees fit */
     env->spr[SPR_AMOR] = amor->default_value = 0xffffffffffffffffull;
+
+    /* Update some env bits based on new LPCR value */
+    ppc_hash64_update_rmls(env);
+    ppc_hash64_update_vrma(env);
 
     /* Tell KVM that we're in PAPR mode */
     if (kvm_enabled()) {
