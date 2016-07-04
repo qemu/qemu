@@ -29,6 +29,11 @@
 #define MSMOUSE_LO6(n) ((n) & 0x3f)
 #define MSMOUSE_HI2(n) (((n) & 0xc0) >> 6)
 
+typedef struct {
+    CharDriverState *chr;
+    QEMUPutMouseEntry *entry;
+} MouseState;
+
 static void msmouse_event(void *opaque,
                           int dx, int dy, int dz, int buttons_state)
 {
@@ -60,7 +65,11 @@ static int msmouse_chr_write (struct CharDriverState *s, const uint8_t *buf, int
 
 static void msmouse_chr_close (struct CharDriverState *chr)
 {
-    g_free (chr);
+    MouseState *mouse = chr->opaque;
+
+    qemu_remove_mouse_event_handler(mouse->entry);
+    g_free(mouse);
+    g_free(chr);
 }
 
 static CharDriverState *qemu_chr_open_msmouse(const char *id,
@@ -69,17 +78,20 @@ static CharDriverState *qemu_chr_open_msmouse(const char *id,
                                               Error **errp)
 {
     ChardevCommon *common = backend->u.msmouse.data;
+    MouseState *mouse;
     CharDriverState *chr;
 
     chr = qemu_chr_alloc(common, errp);
-    if (!chr) {
-        return NULL;
-    }
     chr->chr_write = msmouse_chr_write;
     chr->chr_close = msmouse_chr_close;
     chr->explicit_be_open = true;
 
-    qemu_add_mouse_event_handler(msmouse_event, chr, 0, "QEMU Microsoft Mouse");
+    mouse = g_new0(MouseState, 1);
+    mouse->entry = qemu_add_mouse_event_handler(msmouse_event, chr, 0,
+                                                "QEMU Microsoft Mouse");
+
+    mouse->chr = chr;
+    chr->opaque = mouse;
 
     return chr;
 }
