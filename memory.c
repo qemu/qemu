@@ -1399,6 +1399,7 @@ void memory_region_init_rom_device(MemoryRegion *mr,
                                    uint64_t size,
                                    Error **errp)
 {
+    assert(ops);
     memory_region_init(mr, owner, name, size);
     mr->ops = ops;
     mr->opaque = opaque;
