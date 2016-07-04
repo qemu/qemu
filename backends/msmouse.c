@@ -35,6 +35,7 @@ typedef struct {
     QemuInputHandlerState *hs;
     int axis[INPUT_AXIS__MAX];
     bool btns[INPUT_BUTTON__MAX];
+    bool btnc[INPUT_BUTTON__MAX];
     uint8_t outbuf[32];
     int outlen;
 } MouseState;
@@ -62,7 +63,7 @@ static void msmouse_chr_accept_input(CharDriverState *chr)
 static void msmouse_queue_event(MouseState *mouse)
 {
     unsigned char bytes[4] = { 0x40, 0x00, 0x00, 0x00 };
-    int dx, dy;
+    int dx, dy, count = 3;
 
     dx = mouse->axis[INPUT_AXIS_X];
     mouse->axis[INPUT_AXIS_X] = 0;
@@ -78,14 +79,16 @@ static void msmouse_queue_event(MouseState *mouse)
     /* Buttons */
     bytes[0] |= (mouse->btns[INPUT_BUTTON_LEFT]   ? 0x20 : 0x00);
     bytes[0] |= (mouse->btns[INPUT_BUTTON_RIGHT]  ? 0x10 : 0x00);
-    bytes[3] |= (mouse->btns[INPUT_BUTTON_MIDDLE] ? 0x20 : 0x00);
+    if (mouse->btns[INPUT_BUTTON_MIDDLE] ||
+        mouse->btnc[INPUT_BUTTON_MIDDLE]) {
+        bytes[3] |= (mouse->btns[INPUT_BUTTON_MIDDLE] ? 0x20 : 0x00);
+        mouse->btnc[INPUT_BUTTON_MIDDLE] = false;
+        count = 4;
+    }
 
-    if (mouse->outlen <= sizeof(mouse->outbuf) - 4) {
-        /* We always send the packet of, so that we do not have to keep track
-           of previous state of the middle button. This can potentially confuse
-           some very old drivers for two button mice though. */
-        memcpy(mouse->outbuf + mouse->outlen, bytes, 4);
-        mouse->outlen += 4;
+    if (mouse->outlen <= sizeof(mouse->outbuf) - count) {
+        memcpy(mouse->outbuf + mouse->outlen, bytes, count);
+        mouse->outlen += count;
     } else {
         /* queue full -> drop event */
     }
@@ -107,6 +110,7 @@ static void msmouse_input_event(DeviceState *dev, QemuConsole *src,
     case INPUT_EVENT_KIND_BTN:
         btn = evt->u.btn.data;
         mouse->btns[btn->button] = btn->down;
+        mouse->btnc[btn->button] = true;
         break;
 
     default:
