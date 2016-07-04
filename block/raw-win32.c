@@ -27,7 +27,7 @@
 #include "qemu/timer.h"
 #include "block/block_int.h"
 #include "qemu/module.h"
-#include "raw-aio.h"
+#include "block/raw-aio.h"
 #include "trace.h"
 #include "block/thread-pool.h"
 #include "qemu/iov.h"

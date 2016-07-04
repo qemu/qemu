@@ -47,6 +47,9 @@ typedef struct AioHandler AioHandler;
 typedef void QEMUBHFunc(void *opaque);
 typedef void IOHandler(void *opaque);
 
+struct ThreadPool;
+struct LinuxAioState;
+
 struct AioContext {
     GSource source;
 
@@ -118,6 +121,13 @@ struct AioContext {
 
     /* Thread pool for performing work and receiving completion callbacks */
     struct ThreadPool *thread_pool;
+
+#ifdef CONFIG_LINUX_AIO
+    /* State for native Linux AIO.  Uses aio_context_acquire/release for
+     * locking.
+     */
+    struct LinuxAioState *linux_aio;
+#endif
 
     /* TimerLists for calling timers - one per clock type */
     QEMUTimerListGroup tlg;
@@ -334,6 +344,9 @@ GSource *aio_get_g_source(AioContext *ctx);
 
 /* Return the ThreadPool bound to this AioContext */
 struct ThreadPool *aio_get_thread_pool(AioContext *ctx);
+
+/* Return the LinuxAioState bound to this AioContext */
+struct LinuxAioState *aio_get_linux_aio(AioContext *ctx);
 
 /**
  * aio_timer_new:

@@ -50,6 +50,8 @@ typedef struct {
 } LaioQueue;
 
 struct LinuxAioState {
+    AioContext *aio_context;
+
     io_context_t ctx;
     EventNotifier e;
 
@@ -227,15 +229,14 @@ static void ioq_submit(LinuxAioState *s)
 
 void laio_io_plug(BlockDriverState *bs, LinuxAioState *s)
 {
-    assert(!s->io_q.plugged);
-    s->io_q.plugged = 1;
+    s->io_q.plugged++;
 }
 
 void laio_io_unplug(BlockDriverState *bs, LinuxAioState *s)
 {
     assert(s->io_q.plugged);
-    s->io_q.plugged = 0;
-    if (!s->io_q.blocked && !QSIMPLEQ_EMPTY(&s->io_q.pending)) {
+    if (--s->io_q.plugged == 0 &&
+        !s->io_q.blocked && !QSIMPLEQ_EMPTY(&s->io_q.pending)) {
         ioq_submit(s);
     }
 }
@@ -325,6 +326,7 @@ void laio_detach_aio_context(LinuxAioState *s, AioContext *old_context)
 
 void laio_attach_aio_context(LinuxAioState *s, AioContext *new_context)
 {
+    s->aio_context = new_context;
     s->completion_bh = aio_bh_new(new_context, qemu_laio_completion_bh, s);
     aio_set_event_notifier(new_context, &s->e, false,
                            qemu_laio_completion_cb);

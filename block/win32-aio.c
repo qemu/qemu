@@ -27,7 +27,7 @@
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include "block/aio.h"
-#include "raw-aio.h"
+#include "block/raw-aio.h"
 #include "qemu/event_notifier.h"
 #include "qemu/iov.h"
 #include <windows.h>
