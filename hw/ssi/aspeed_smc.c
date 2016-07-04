@@ -127,13 +127,129 @@
 #define R_SPI_MISC_CTRL   (0x10 / 4)
 #define R_SPI_TIMINGS     (0x14 / 4)
 
+/*
+ * Default segments mapping addresses and size for each slave per
+ * controller. These can be changed when board is initialized with the
+ * Segment Address Registers but they don't seem do be used on the
+ * field.
+ */
+static const AspeedSegments aspeed_segments_legacy[] = {
+    { 0x10000000, 32 * 1024 * 1024 },
+};
+
+static const AspeedSegments aspeed_segments_fmc[] = {
+    { 0x20000000, 64 * 1024 * 1024 },
+    { 0x24000000, 32 * 1024 * 1024 },
+    { 0x26000000, 32 * 1024 * 1024 },
+    { 0x28000000, 32 * 1024 * 1024 },
+    { 0x2A000000, 32 * 1024 * 1024 }
+};
+
+static const AspeedSegments aspeed_segments_spi[] = {
+    { 0x30000000, 64 * 1024 * 1024 },
+};
+
 static const AspeedSMCController controllers[] = {
     { "aspeed.smc.smc", R_CONF, R_CE_CTRL, R_CTRL0, R_TIMINGS,
-      CONF_ENABLE_W0, 5 },
+      CONF_ENABLE_W0, 5, aspeed_segments_legacy, 0x6000000 },
     { "aspeed.smc.fmc", R_CONF, R_CE_CTRL, R_CTRL0, R_TIMINGS,
-      CONF_ENABLE_W0, 5 },
+      CONF_ENABLE_W0, 5, aspeed_segments_fmc, 0x10000000 },
     { "aspeed.smc.spi", R_SPI_CONF, 0xff, R_SPI_CTRL0, R_SPI_TIMINGS,
-      SPI_CONF_ENABLE_W0, 1 },
+      SPI_CONF_ENABLE_W0, 1, aspeed_segments_spi, 0x10000000 },
+};
+
+static uint64_t aspeed_smc_flash_default_read(void *opaque, hwaddr addr,
+                                              unsigned size)
+{
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: To 0x%" HWADDR_PRIx " of size %u"
+                  PRIx64 "\n", __func__, addr, size);
+    return 0;
+}
+
+static void aspeed_smc_flash_default_write(void *opaque, hwaddr addr,
+                                           uint64_t data, unsigned size)
+{
+   qemu_log_mask(LOG_GUEST_ERROR, "%s: To 0x%" HWADDR_PRIx " of size %u: 0x%"
+                 PRIx64 "\n", __func__, addr, size, data);
+}
+
+static const MemoryRegionOps aspeed_smc_flash_default_ops = {
+    .read = aspeed_smc_flash_default_read,
+    .write = aspeed_smc_flash_default_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
+};
+
+static inline int aspeed_smc_flash_mode(const AspeedSMCState *s, int cs)
+{
+    return s->regs[s->r_ctrl0 + cs] & CTRL_CMD_MODE_MASK;
+}
+
+static inline bool aspeed_smc_is_usermode(const AspeedSMCState *s, int cs)
+{
+    return aspeed_smc_flash_mode(s, cs) == CTRL_USERMODE;
+}
+
+static inline bool aspeed_smc_is_writable(const AspeedSMCState *s, int cs)
+{
+    return s->regs[s->r_conf] & (1 << (s->conf_enable_w0 + cs));
+}
+
+static uint64_t aspeed_smc_flash_read(void *opaque, hwaddr addr, unsigned size)
+{
+    AspeedSMCFlash *fl = opaque;
+    const AspeedSMCState *s = fl->controller;
+    uint64_t ret = 0;
+    int i;
+
+    if (aspeed_smc_is_usermode(s, fl->id)) {
+        for (i = 0; i < size; i++) {
+            ret |= ssi_transfer(s->spi, 0x0) << (8 * i);
+        }
+    } else {
+        qemu_log_mask(LOG_UNIMP, "%s: usermode not implemented\n",
+                      __func__);
+        ret = -1;
+    }
+
+    return ret;
+}
+
+static void aspeed_smc_flash_write(void *opaque, hwaddr addr, uint64_t data,
+                           unsigned size)
+{
+    AspeedSMCFlash *fl = opaque;
+    const AspeedSMCState *s = fl->controller;
+    int i;
+
+    if (!aspeed_smc_is_writable(s, fl->id)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: flash is not writable at 0x%"
+                      HWADDR_PRIx "\n", __func__, addr);
+        return;
+    }
+
+    if (!aspeed_smc_is_usermode(s, fl->id)) {
+        qemu_log_mask(LOG_UNIMP, "%s: usermode not implemented\n",
+                      __func__);
+        return;
+    }
+
+    for (i = 0; i < size; i++) {
+        ssi_transfer(s->spi, (data >> (8 * i)) & 0xff);
+    }
+}
+
+static const MemoryRegionOps aspeed_smc_flash_ops = {
+    .read = aspeed_smc_flash_read,
+    .write = aspeed_smc_flash_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
 };
 
 static bool aspeed_smc_is_ce_stop_active(const AspeedSMCState *s, int cs)
@@ -237,6 +353,8 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
     AspeedSMCState *s = ASPEED_SMC(dev);
     AspeedSMCClass *mc = ASPEED_SMC_GET_CLASS(s);
     int i;
+    char name[32];
+    hwaddr offset = 0;
 
     s->ctrl = mc->ctrl;
 
@@ -270,6 +388,32 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->mmio, OBJECT(s), &aspeed_smc_ops, s,
                           s->ctrl->name, ASPEED_SMC_R_MAX * 4);
     sysbus_init_mmio(sbd, &s->mmio);
+
+    /*
+     * Memory region where flash modules are remapped
+     */
+    snprintf(name, sizeof(name), "%s.flash", s->ctrl->name);
+
+    memory_region_init_io(&s->mmio_flash, OBJECT(s),
+                          &aspeed_smc_flash_default_ops, s, name,
+                          s->ctrl->mapping_window_size);
+    sysbus_init_mmio(sbd, &s->mmio_flash);
+
+    s->flashes = g_new0(AspeedSMCFlash, s->num_cs);
+
+    for (i = 0; i < s->num_cs; ++i) {
+        AspeedSMCFlash *fl = &s->flashes[i];
+
+        snprintf(name, sizeof(name), "%s.%d", s->ctrl->name, i);
+
+        fl->id = i;
+        fl->controller = s;
+        fl->size = s->ctrl->segments[i].size;
+        memory_region_init_io(&fl->mmio, OBJECT(s), &aspeed_smc_flash_ops,
+                              fl, name, fl->size);
+        memory_region_add_subregion(&s->mmio_flash, offset, &fl->mmio);
+        offset += fl->size;
+    }
 }
 
 static const VMStateDescription vmstate_aspeed_smc = {

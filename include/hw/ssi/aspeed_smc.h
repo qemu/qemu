@@ -27,6 +27,12 @@
 
 #include "hw/ssi/ssi.h"
 
+typedef struct AspeedSegments {
+    hwaddr addr;
+    uint32_t size;
+} AspeedSegments;
+
+struct AspeedSMCState;
 typedef struct AspeedSMCController {
     const char *name;
     uint8_t r_conf;
@@ -35,7 +41,19 @@ typedef struct AspeedSMCController {
     uint8_t r_timings;
     uint8_t conf_enable_w0;
     uint8_t max_slaves;
+    const AspeedSegments *segments;
+    uint32_t mapping_window_size;
 } AspeedSMCController;
+
+typedef struct AspeedSMCFlash {
+    const struct AspeedSMCState *controller;
+
+    uint8_t id;
+    uint32_t size;
+
+    MemoryRegion mmio;
+    DeviceState *flash;
+} AspeedSMCFlash;
 
 #define TYPE_ASPEED_SMC "aspeed.smc"
 #define ASPEED_SMC(obj) OBJECT_CHECK(AspeedSMCState, (obj), TYPE_ASPEED_SMC)
@@ -57,6 +75,7 @@ typedef struct AspeedSMCState {
     const AspeedSMCController *ctrl;
 
     MemoryRegion mmio;
+    MemoryRegion mmio_flash;
 
     qemu_irq irq;
     int irqline;
@@ -74,6 +93,8 @@ typedef struct AspeedSMCState {
     uint8_t r_ctrl0;
     uint8_t r_timings;
     uint8_t conf_enable_w0;
+
+    AspeedSMCFlash *flashes;
 } AspeedSMCState;
 
 #endif /* ASPEED_SMC_H */

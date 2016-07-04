@@ -31,6 +31,9 @@
 #define AST2400_TIMER_BASE       0x1E782000
 #define AST2400_I2C_BASE         0x1E78A000
 
+#define AST2400_FMC_FLASH_BASE   0x20000000
+#define AST2400_SPI_FLASH_BASE   0x30000000
+
 #define AST2400_A0_SILICON_REV   0x02000303
 
 static const int uart_irqs[] = { 9, 32, 33, 34, 10 };
@@ -168,6 +171,7 @@ static void ast2400_realize(DeviceState *dev, Error **errp)
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->smc), 0, AST2400_FMC_BASE);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->smc), 1, AST2400_FMC_FLASH_BASE);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->smc), 0,
                        qdev_get_gpio_in(DEVICE(&s->vic), 19));
 
@@ -180,6 +184,7 @@ static void ast2400_realize(DeviceState *dev, Error **errp)
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi), 0, AST2400_SPI_BASE);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi), 1, AST2400_SPI_FLASH_BASE);
 }
 
 static void ast2400_class_init(ObjectClass *oc, void *data)
