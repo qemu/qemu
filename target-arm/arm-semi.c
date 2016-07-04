@@ -564,8 +564,10 @@ target_ulong do_arm_semihosting(CPUARMState *env)
         }
     case TARGET_SYS_HEAPINFO:
         {
-            uint32_t *ptr;
+            target_ulong retvals[4];
             uint32_t limit;
+            int i;
+
             GET_ARG(0);
 
 #ifdef CONFIG_USER_ONLY
@@ -587,30 +589,33 @@ target_ulong do_arm_semihosting(CPUARMState *env)
                 ts->heap_limit = limit;
             }
 
-            ptr = lock_user(VERIFY_WRITE, arg0, 16, 0);
-            if (!ptr) {
-                /* FIXME - should this error code be -TARGET_EFAULT ? */
-                return (uint32_t)-1;
-            }
-            ptr[0] = tswap32(ts->heap_base);
-            ptr[1] = tswap32(ts->heap_limit);
-            ptr[2] = tswap32(ts->stack_base);
-            ptr[3] = tswap32(0); /* Stack limit.  */
-            unlock_user(ptr, arg0, 16);
+            retvals[0] = ts->heap_base;
+            retvals[1] = ts->heap_limit;
+            retvals[2] = ts->stack_base;
+            retvals[3] = 0; /* Stack limit.  */
 #else
             limit = ram_size;
-            ptr = lock_user(VERIFY_WRITE, arg0, 16, 0);
-            if (!ptr) {
-                /* FIXME - should this error code be -TARGET_EFAULT ? */
-                return (uint32_t)-1;
-            }
             /* TODO: Make this use the limit of the loaded application.  */
-            ptr[0] = tswap32(limit / 2);
-            ptr[1] = tswap32(limit);
-            ptr[2] = tswap32(limit); /* Stack base */
-            ptr[3] = tswap32(0); /* Stack limit.  */
-            unlock_user(ptr, arg0, 16);
+            retvals[0] = limit / 2;
+            retvals[1] = limit;
+            retvals[2] = limit; /* Stack base */
+            retvals[3] = 0; /* Stack limit.  */
 #endif
+
+            for (i = 0; i < ARRAY_SIZE(retvals); i++) {
+                bool fail;
+
+                if (is_a64(env)) {
+                    fail = put_user_u64(retvals[i], arg0 + i * 8);
+                } else {
+                    fail = put_user_u32(retvals[i], arg0 + i * 4);
+                }
+
+                if (fail) {
+                    /* Couldn't write back to argument block */
+                    return -1;
+                }
+            }
             return 0;
         }
     case TARGET_SYS_EXIT:
