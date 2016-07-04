@@ -127,10 +127,9 @@ static uint32_t tosa_ssp_tansfer(SSISlave *dev, uint32_t value)
     return 0;
 }
 
-static int tosa_ssp_init(SSISlave *dev)
+static void tosa_ssp_realize(SSISlave *dev, Error **errp)
 {
     /* Nothing to do.  */
-    return 0;
 }
 
 #define TYPE_TOSA_DAC "tosa_dac"
@@ -283,7 +282,7 @@ static void tosa_ssp_class_init(ObjectClass *klass, void *data)
 {
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
 
-    k->init = tosa_ssp_init;
+    k->realize = tosa_ssp_realize;
     k->transfer = tosa_ssp_tansfer;
 }
 

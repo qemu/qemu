@@ -28,6 +28,7 @@
 #include "hw/ssi/ssi.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
+#include "qapi/error.h"
 
 #ifndef M25P80_ERR_DEBUG
 #define M25P80_ERR_DEBUG 0
@@ -1132,7 +1133,7 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
     return r;
 }
 
-static int m25p80_init(SSISlave *ss)
+static void m25p80_realize(SSISlave *ss, Error **errp)
 {
     DriveInfo *dinfo;
     Flash *s = M25P80(ss);
@@ -1153,18 +1154,15 @@ static int m25p80_init(SSISlave *ss)
 
         s->storage = blk_blockalign(s->blk, s->size);
 
-        /* FIXME: Move to late init */
         if (blk_pread(s->blk, 0, s->storage, s->size) != s->size) {
-            fprintf(stderr, "Failed to initialize SPI flash!\n");
-            return 1;
+            error_setg(errp, "failed to read the initial flash content");
+            return;
         }
     } else {
         DB_PRINT_L(0, "No BDRV - binding to RAM\n");
         s->storage = blk_blockalign(NULL, s->size);
         memset(s->storage, 0xFF, s->size);
     }
-
-    return 0;
 }
 
 static void m25p80_reset(DeviceState *d)
@@ -1224,7 +1222,7 @@ static void m25p80_class_init(ObjectClass *klass, void *data)
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
     M25P80Class *mc = M25P80_CLASS(klass);
 
-    k->init = m25p80_init;
+    k->realize = m25p80_realize;
     k->transfer = m25p80_transfer8;
     k->set_cs = m25p80_cs;
     k->cs_polarity = SSI_CS_LOW;

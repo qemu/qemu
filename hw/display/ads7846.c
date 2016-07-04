@@ -133,7 +133,7 @@ static const VMStateDescription vmstate_ads7846 = {
     }
 };
 
-static int ads7846_init(SSISlave *d)
+static void ads7846_realize(SSISlave *d, Error **errp)
 {
     DeviceState *dev = DEVICE(d);
     ADS7846State *s = FROM_SSI_SLAVE(ADS7846State, d);
@@ -152,14 +152,13 @@ static int ads7846_init(SSISlave *d)
     ads7846_int_update(s);
 
     vmstate_register(NULL, -1, &vmstate_ads7846, s);
-    return 0;
 }
 
 static void ads7846_class_init(ObjectClass *klass, void *data)
 {
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
 
-    k->init = ads7846_init;
+    k->realize = ads7846_realize;
     k->transfer = ads7846_transfer;
 }
 

@@ -598,15 +598,13 @@ static uint32_t spitz_lcdtg_transfer(SSISlave *dev, uint32_t value)
     return 0;
 }
 
-static int spitz_lcdtg_init(SSISlave *dev)
+static void spitz_lcdtg_realize(SSISlave *dev, Error **errp)
 {
     SpitzLCDTG *s = FROM_SSI_SLAVE(SpitzLCDTG, dev);
 
     spitz_lcdtg = s;
     s->bl_power = 0;
     s->bl_intensity = 0x20;
-
-    return 0;
 }
 
 /* SSP devices */
@@ -666,7 +664,7 @@ static void spitz_adc_temp_on(void *opaque, int line, int level)
         max111x_set_input(max1111, MAX1111_BATT_TEMP, 0);
 }
 
-static int corgi_ssp_init(SSISlave *d)
+static void corgi_ssp_realize(SSISlave *d, Error **errp)
 {
     DeviceState *dev = DEVICE(d);
     CorgiSSPState *s = FROM_SSI_SLAVE(CorgiSSPState, d);
@@ -675,8 +673,6 @@ static int corgi_ssp_init(SSISlave *d)
     s->bus[0] = ssi_create_bus(dev, "ssi0");
     s->bus[1] = ssi_create_bus(dev, "ssi1");
     s->bus[2] = ssi_create_bus(dev, "ssi2");
-
-    return 0;
 }
 
 static void spitz_ssp_attach(PXA2xxState *cpu)
@@ -1121,7 +1117,7 @@ static void corgi_ssp_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
 
-    k->init = corgi_ssp_init;
+    k->realize = corgi_ssp_realize;
     k->transfer = corgi_ssp_transfer;
     dc->vmsd = &vmstate_corgi_ssp_regs;
 }
@@ -1150,7 +1146,7 @@ static void spitz_lcdtg_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
 
-    k->init = spitz_lcdtg_init;
+    k->realize = spitz_lcdtg_realize;
     k->transfer = spitz_lcdtg_transfer;
     dc->vmsd = &vmstate_spitz_lcdtg_regs;
 }
