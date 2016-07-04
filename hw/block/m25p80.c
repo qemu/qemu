@@ -390,7 +390,7 @@ typedef struct Flash {
     uint32_t pos;
     uint8_t needed_bytes;
     uint8_t cmd_in_progress;
-    uint64_t cur_addr;
+    uint32_t cur_addr;
     uint32_t nonvolatile_cfg;
     /* Configuration register for Macronix */
     uint32_t volatile_cfg;
@@ -536,9 +536,9 @@ static inline void flash_sync_dirty(Flash *s, int64_t newpage)
 }
 
 static inline
-void flash_write8(Flash *s, uint64_t addr, uint8_t data)
+void flash_write8(Flash *s, uint32_t addr, uint8_t data)
 {
-    int64_t page = addr / s->pi->page_size;
+    uint32_t page = addr / s->pi->page_size;
     uint8_t prev = s->storage[s->cur_addr];
 
     if (!s->write_enable) {
@@ -546,7 +546,7 @@ void flash_write8(Flash *s, uint64_t addr, uint8_t data)
     }
 
     if ((prev ^ data) & data) {
-        DB_PRINT_L(1, "programming zero to one! addr=%" PRIx64 "  %" PRIx8
+        DB_PRINT_L(1, "programming zero to one! addr=%" PRIx32 "  %" PRIx8
                    " -> %" PRIx8 "\n", addr, prev, data);
     }
 
@@ -1095,7 +1095,7 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
     switch (s->state) {
 
     case STATE_PAGE_PROGRAM:
-        DB_PRINT_L(1, "page program cur_addr=%#" PRIx64 " data=%" PRIx8 "\n",
+        DB_PRINT_L(1, "page program cur_addr=%#" PRIx32 " data=%" PRIx8 "\n",
                    s->cur_addr, (uint8_t)tx);
         flash_write8(s, s->cur_addr, (uint8_t)tx);
         s->cur_addr = (s->cur_addr + 1) & (s->size - 1);
@@ -1103,7 +1103,7 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
 
     case STATE_READ:
         r = s->storage[s->cur_addr];
-        DB_PRINT_L(1, "READ 0x%" PRIx64 "=%" PRIx8 "\n", s->cur_addr,
+        DB_PRINT_L(1, "READ 0x%" PRIx32 "=%" PRIx8 "\n", s->cur_addr,
                    (uint8_t)r);
         s->cur_addr = (s->cur_addr + 1) & (s->size - 1);
         break;
@@ -1202,7 +1202,8 @@ static const VMStateDescription vmstate_m25p80 = {
         VMSTATE_UINT32(pos, Flash),
         VMSTATE_UINT8(needed_bytes, Flash),
         VMSTATE_UINT8(cmd_in_progress, Flash),
-        VMSTATE_UINT64(cur_addr, Flash),
+        VMSTATE_UNUSED(4),
+        VMSTATE_UINT32(cur_addr, Flash),
         VMSTATE_BOOL(write_enable, Flash),
         VMSTATE_BOOL_V(reset_enable, Flash, 2),
         VMSTATE_UINT8_V(ear, Flash, 2),
