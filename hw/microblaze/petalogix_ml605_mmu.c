@@ -191,9 +191,16 @@ petalogix_ml605_init(MachineState *machine)
         spi = (SSIBus *)qdev_get_child_bus(dev, "spi");
 
         for (i = 0; i < NUM_SPI_FLASHES; i++) {
+            DriveInfo *dinfo = drive_get_next(IF_MTD);
             qemu_irq cs_line;
 
-            dev = ssi_create_slave(spi, "n25q128");
+            dev = ssi_create_slave_no_init(spi, "n25q128");
+            if (dinfo) {
+                qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo),
+                                    &error_fatal);
+            }
+            qdev_init_nofail(dev);
+
             cs_line = qdev_get_gpio_in_named(dev, SSI_GPIO_CS, 0);
             sysbus_connect_irq(busdev, i+1, cs_line);
         }

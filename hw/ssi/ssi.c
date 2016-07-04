@@ -54,7 +54,7 @@ static uint32_t ssi_transfer_raw_default(SSISlave *dev, uint32_t val)
     return 0;
 }
 
-static int ssi_slave_init(DeviceState *dev)
+static void ssi_slave_realize(DeviceState *dev, Error **errp)
 {
     SSISlave *s = SSI_SLAVE(dev);
     SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(s);
@@ -64,7 +64,7 @@ static int ssi_slave_init(DeviceState *dev)
         qdev_init_gpio_in_named(dev, ssi_cs_default, SSI_GPIO_CS, 1);
     }
 
-    return ssc->init(s);
+    ssc->realize(s, errp);
 }
 
 static void ssi_slave_class_init(ObjectClass *klass, void *data)
@@ -72,7 +72,7 @@ static void ssi_slave_class_init(ObjectClass *klass, void *data)
     SSISlaveClass *ssc = SSI_SLAVE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->init = ssi_slave_init;
+    dc->realize = ssi_slave_realize;
     dc->bus_type = TYPE_SSI_BUS;
     if (!ssc->transfer_raw) {
         ssc->transfer_raw = ssi_transfer_raw_default;

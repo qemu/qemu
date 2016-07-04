@@ -37,7 +37,7 @@ enum SSICSMode {
 struct SSISlaveClass {
     DeviceClass parent_class;
 
-    int (*init)(SSISlave *dev);
+    void (*realize)(SSISlave *dev, Error **errp);
 
     /* if you have standard or no CS behaviour, just override transfer.
      * This is called when the device cs is active (true by default).

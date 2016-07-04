@@ -147,14 +147,14 @@ static int max111x_init(SSISlave *d, int inputs)
     return 0;
 }
 
-static int max1110_init(SSISlave *dev)
+static void max1110_realize(SSISlave *dev, Error **errp)
 {
-    return max111x_init(dev, 8);
+    max111x_init(dev, 8);
 }
 
-static int max1111_init(SSISlave *dev)
+static void max1111_realize(SSISlave *dev, Error **errp)
 {
-    return max111x_init(dev, 4);
+    max111x_init(dev, 4);
 }
 
 void max111x_set_input(DeviceState *dev, int line, uint8_t value)
@@ -183,7 +183,7 @@ static void max1110_class_init(ObjectClass *klass, void *data)
 {
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
 
-    k->init = max1110_init;
+    k->realize = max1110_realize;
 }
 
 static const TypeInfo max1110_info = {
@@ -196,7 +196,7 @@ static void max1111_class_init(ObjectClass *klass, void *data)
 {
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
 
-    k->init = max1111_init;
+    k->realize = max1111_realize;
 }
 
 static const TypeInfo max1111_info = {

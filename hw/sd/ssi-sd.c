@@ -15,6 +15,7 @@
 #include "sysemu/blockdev.h"
 #include "hw/ssi/ssi.h"
 #include "hw/sd/sd.h"
+#include "qapi/error.h"
 
 //#define DEBUG_SSI_SD 1
 
@@ -249,7 +250,7 @@ static int ssi_sd_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int ssi_sd_init(SSISlave *d)
+static void ssi_sd_realize(SSISlave *d, Error **errp)
 {
     DeviceState *dev = DEVICE(d);
     ssi_sd_state *s = FROM_SSI_SLAVE(ssi_sd_state, d);
@@ -260,17 +261,17 @@ static int ssi_sd_init(SSISlave *d)
     dinfo = drive_get_next(IF_SD);
     s->sd = sd_init(dinfo ? blk_by_legacy_dinfo(dinfo) : NULL, true);
     if (s->sd == NULL) {
-        return -1;
+        error_setg(errp, "Device initialization failed.");
+        return;
     }
     register_savevm(dev, "ssi_sd", -1, 1, ssi_sd_save, ssi_sd_load, s);
-    return 0;
 }
 
 static void ssi_sd_class_init(ObjectClass *klass, void *data)
 {
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
 
-    k->init = ssi_sd_init;
+    k->realize = ssi_sd_realize;
     k->transfer = ssi_sd_transfer;
     k->cs_polarity = SSI_CS_LOW;
 }

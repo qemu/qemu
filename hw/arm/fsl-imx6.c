@@ -399,8 +399,8 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
                                         FSL_IMX6_ENET_MAC_1588_IRQ));
 
     /* ROM memory */
-    memory_region_init_rom_device(&s->rom, NULL, NULL, NULL, "imx6.rom",
-                                  FSL_IMX6_ROM_SIZE, &err);
+    memory_region_init_rom(&s->rom, NULL, "imx6.rom",
+                           FSL_IMX6_ROM_SIZE, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -409,8 +409,8 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
                                 &s->rom);
 
     /* CAAM memory */
-    memory_region_init_rom_device(&s->caam, NULL, NULL, NULL, "imx6.caam",
-                                  FSL_IMX6_CAAM_MEM_SIZE, &err);
+    memory_region_init_rom(&s->caam, NULL, "imx6.caam",
+                           FSL_IMX6_CAAM_MEM_SIZE, &err);
     if (err) {
         error_propagate(errp, err);
         return;
