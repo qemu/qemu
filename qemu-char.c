@@ -4548,7 +4548,7 @@ void qmp_chardev_remove(const char *id, Error **errp)
     qemu_chr_delete(chr);
 }
 
-static void qemu_chr_cleanup(void)
+void qemu_chr_cleanup(void)
 {
     CharDriverState *chr, *tmp;
 
@@ -4603,8 +4603,6 @@ static void register_types(void)
      * is specified
      */
     qemu_add_machine_init_done_notifier(&muxes_realize_notify);
-
-    atexit(qemu_chr_cleanup);
 }
 
 type_init(register_types);

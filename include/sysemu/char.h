@@ -152,6 +152,13 @@ CharDriverState *qemu_chr_new(const char *label, const char *filename,
 void qemu_chr_disconnect(CharDriverState *chr);
 
 /**
+ * @qemu_chr_cleanup:
+ *
+ * Delete all chardevs (when leaving qemu)
+ */
+void qemu_chr_cleanup(void);
+
+/**
  * @qemu_chr_new_noreplay:
  *
  * Create a new character backend from a URI.

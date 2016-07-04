@@ -4608,7 +4608,9 @@ int main(int argc, char **argv, char **envp)
     tpm_cleanup();
 #endif
 
+    /* vhost-user must be cleaned up before chardevs.  */
     net_cleanup();
+    qemu_chr_cleanup();
 
     return 0;
 }
