@@ -3866,7 +3866,7 @@ int main(int argc, char **argv)
         return 0;
     }
     argv += optind;
-    optind = 1;
+    optind = 0;
 
     if (!trace_init_backends()) {
         exit(1);
