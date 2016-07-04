@@ -816,9 +816,12 @@ void sotranslate_out(struct socket *so, struct sockaddr_storage *addr)
         if (in6_equal_net(&so->so_faddr6, &slirp->vprefix_addr6,
                     slirp->vprefix_len)) {
             if (in6_equal(&so->so_faddr6, &slirp->vnameserver_addr6)) {
-                /*if (get_dns_addr(&addr) < 0) {*/ /* TODO */
+                uint32_t scope_id;
+                if (get_dns6_addr(&sin6->sin6_addr, &scope_id) >= 0) {
+                    sin6->sin6_scope_id = scope_id;
+                } else {
                     sin6->sin6_addr = in6addr_loopback;
-                /*}*/
+                }
             } else {
                 sin6->sin6_addr = in6addr_loopback;
             }

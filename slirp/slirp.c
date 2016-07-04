@@ -30,6 +30,10 @@
 #include "hw/hw.h"
 #include "qemu/cutils.h"
 
+#ifndef _WIN32
+#include <net/if.h>
+#endif
+
 /* host loopback address */
 struct in_addr loopback_addr;
 /* host loopback network mask */
@@ -46,7 +50,13 @@ static QTAILQ_HEAD(slirp_instances, Slirp) slirp_instances =
     QTAILQ_HEAD_INITIALIZER(slirp_instances);
 
 static struct in_addr dns_addr;
+#ifndef _WIN32
+static struct in6_addr dns6_addr;
+#endif
 static u_int dns_addr_time;
+#ifndef _WIN32
+static u_int dns6_addr_time;
+#endif
 
 #define TIMEOUT_FAST 2  /* milliseconds */
 #define TIMEOUT_SLOW 499  /* milliseconds */
@@ -100,6 +110,11 @@ int get_dns_addr(struct in_addr *pdns_addr)
     return 0;
 }
 
+int get_dns6_addr(struct in6_addr *pdns6_addr, uint32_t *scope_id)
+{
+    return -1;
+}
+
 static void winsock_cleanup(void)
 {
     WSACleanup();
@@ -107,33 +122,39 @@ static void winsock_cleanup(void)
 
 #else
 
-static struct stat dns_addr_stat;
+static int get_dns_addr_cached(void *pdns_addr, void *cached_addr,
+                               socklen_t addrlen,
+                               struct stat *cached_stat, u_int *cached_time)
+{
+    struct stat old_stat;
+    if (curtime - *cached_time < TIMEOUT_DEFAULT) {
+        memcpy(pdns_addr, cached_addr, addrlen);
+        return 0;
+    }
+    old_stat = *cached_stat;
+    if (stat("/etc/resolv.conf", cached_stat) != 0) {
+        return -1;
+    }
+    if (cached_stat->st_dev == old_stat.st_dev
+        && cached_stat->st_ino == old_stat.st_ino
+        && cached_stat->st_size == old_stat.st_size
+        && cached_stat->st_mtime == old_stat.st_mtime) {
+        memcpy(pdns_addr, cached_addr, addrlen);
+        return 0;
+    }
+    return 1;
+}
 
-int get_dns_addr(struct in_addr *pdns_addr)
+static int get_dns_addr_resolv_conf(int af, void *pdns_addr, void *cached_addr,
+                                    socklen_t addrlen, uint32_t *scope_id,
+                                    u_int *cached_time)
 {
     char buff[512];
     char buff2[257];
     FILE *f;
     int found = 0;
-    struct in_addr tmp_addr;
-
-    if (dns_addr.s_addr != 0) {
-        struct stat old_stat;
-        if ((curtime - dns_addr_time) < TIMEOUT_DEFAULT) {
-            *pdns_addr = dns_addr;
-            return 0;
-        }
-        old_stat = dns_addr_stat;
-        if (stat("/etc/resolv.conf", &dns_addr_stat) != 0)
-            return -1;
-        if ((dns_addr_stat.st_dev == old_stat.st_dev)
-            && (dns_addr_stat.st_ino == old_stat.st_ino)
-            && (dns_addr_stat.st_size == old_stat.st_size)
-            && (dns_addr_stat.st_mtime == old_stat.st_mtime)) {
-            *pdns_addr = dns_addr;
-            return 0;
-        }
-    }
+    void *tmp_addr = alloca(addrlen);
+    unsigned if_index;
 
     f = fopen("/etc/resolv.conf", "r");
     if (!f)
@@ -144,13 +165,25 @@ int get_dns_addr(struct in_addr *pdns_addr)
 #endif
     while (fgets(buff, 512, f) != NULL) {
         if (sscanf(buff, "nameserver%*[ \t]%256s", buff2) == 1) {
-            if (!inet_aton(buff2, &tmp_addr))
+            char *c = strchr(buff2, '%');
+            if (c) {
+                if_index = if_nametoindex(c + 1);
+                *c = '\0';
+            } else {
+                if_index = 0;
+            }
+
+            if (!inet_pton(af, buff2, tmp_addr)) {
                 continue;
+            }
             /* If it's the first one, set it to dns_addr */
             if (!found) {
-                *pdns_addr = tmp_addr;
-                dns_addr = tmp_addr;
-                dns_addr_time = curtime;
+                memcpy(pdns_addr, tmp_addr, addrlen);
+                memcpy(cached_addr, tmp_addr, addrlen);
+                if (scope_id) {
+                    *scope_id = if_index;
+                }
+                *cached_time = curtime;
             }
 #ifdef DEBUG
             else
@@ -163,8 +196,14 @@ int get_dns_addr(struct in_addr *pdns_addr)
                 break;
             }
 #ifdef DEBUG
-            else
-                fprintf(stderr, "%s", inet_ntoa(tmp_addr));
+            else {
+                char s[INET6_ADDRSTRLEN];
+                char *res = inet_ntop(af, tmp_addr, s, sizeof(s));
+                if (!res) {
+                    res = "(string conversion error)";
+                }
+                fprintf(stderr, "%s", res);
+            }
 #endif
         }
     }
@@ -172,6 +211,39 @@ int get_dns_addr(struct in_addr *pdns_addr)
     if (!found)
         return -1;
     return 0;
+}
+
+int get_dns_addr(struct in_addr *pdns_addr)
+{
+    static struct stat dns_addr_stat;
+
+    if (dns_addr.s_addr != 0) {
+        int ret;
+        ret = get_dns_addr_cached(pdns_addr, &dns_addr, sizeof(dns_addr),
+                                  &dns_addr_stat, &dns_addr_time);
+        if (ret <= 0) {
+            return ret;
+        }
+    }
+    return get_dns_addr_resolv_conf(AF_INET, pdns_addr, &dns_addr,
+                                    sizeof(dns_addr), NULL, &dns_addr_time);
+}
+
+int get_dns6_addr(struct in6_addr *pdns6_addr, uint32_t *scope_id)
+{
+    static struct stat dns6_addr_stat;
+
+    if (!in6_zero(&dns6_addr)) {
+        int ret;
+        ret = get_dns_addr_cached(pdns6_addr, &dns6_addr, sizeof(dns6_addr),
+                                  &dns6_addr_stat, &dns6_addr_time);
+        if (ret <= 0) {
+            return ret;
+        }
+    }
+    return get_dns_addr_resolv_conf(AF_INET6, pdns6_addr, &dns6_addr,
+                                    sizeof(dns6_addr),
+                                    scope_id, &dns6_addr_time);
 }
 
 #endif

@@ -122,6 +122,7 @@ struct ndpopt {
     uint8_t     ndpopt_len;                     /* /!\ In units of 8 octets */
     union {
         unsigned char   linklayer_addr[6];      /* Source/Target Link-layer */
+#define ndpopt_linklayer ndpopt_body.linklayer_addr
         struct prefixinfo {                     /* Prefix Information */
             uint8_t     prefix_length;
 #ifdef HOST_WORDS_BIGENDIAN
@@ -134,19 +135,26 @@ struct ndpopt {
             uint32_t    reserved2;
             struct in6_addr prefix;
         } QEMU_PACKED prefixinfo;
-    } ndpopt_body;
-#define ndpopt_linklayer ndpopt_body.linklayer_addr
 #define ndpopt_prefixinfo ndpopt_body.prefixinfo
+        struct rdnss {
+            uint16_t reserved;
+            uint32_t lifetime;
+            struct in6_addr addr;
+        } QEMU_PACKED rdnss;
+#define ndpopt_rdnss ndpopt_body.rdnss
+    } ndpopt_body;
 } QEMU_PACKED;
 
 /* NDP options type */
 #define NDPOPT_LINKLAYER_SOURCE     1   /* Source Link-Layer Address */
 #define NDPOPT_LINKLAYER_TARGET     2   /* Target Link-Layer Address */
 #define NDPOPT_PREFIX_INFO          3   /* Prefix Information */
+#define NDPOPT_RDNSS                25  /* Recursive DNS Server Address */
 
 /* NDP options size, in octets. */
 #define NDPOPT_LINKLAYER_LEN    8
 #define NDPOPT_PREFIXINFO_LEN   32
+#define NDPOPT_RDNSS_LEN        24
 
 /*
  * Definition of type and code field values.
