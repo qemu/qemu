@@ -76,7 +76,7 @@ Coroutine *qemu_coroutine_create(CoroutineEntry *entry)
     }
 
     co->entry = entry;
-    QTAILQ_INIT(&co->co_queue_wakeup);
+    QSIMPLEQ_INIT(&co->co_queue_wakeup);
     return co;
 }
 

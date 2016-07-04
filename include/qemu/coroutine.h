@@ -102,7 +102,7 @@ bool qemu_in_coroutine(void);
  * are built.
  */
 typedef struct CoQueue {
-    QTAILQ_HEAD(, Coroutine) entries;
+    QSIMPLEQ_HEAD(, Coroutine) entries;
 } CoQueue;
 
 /**
