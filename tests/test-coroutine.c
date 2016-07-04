@@ -40,7 +40,8 @@ static void test_in_coroutine(void)
 
 static void coroutine_fn verify_self(void *opaque)
 {
-    g_assert(qemu_coroutine_self() == opaque);
+    Coroutine **p_co = opaque;
+    g_assert(qemu_coroutine_self() == *p_co);
 }
 
 static void test_self(void)
@@ -48,7 +49,7 @@ static void test_self(void)
     Coroutine *coroutine;
 
     coroutine = qemu_coroutine_create(verify_self);
-    qemu_coroutine_enter(coroutine, coroutine);
+    qemu_coroutine_enter(coroutine, &coroutine);
 }
 
 /*
