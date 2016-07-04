@@ -159,6 +159,17 @@ void register_reset(RegisterInfo *reg)
     register_write_val(reg, reg->access->reset);
 }
 
+void register_init(RegisterInfo *reg)
+{
+    assert(reg);
+
+    if (!reg->data || !reg->access) {
+        return;
+    }
+
+    object_initialize((void *)reg, sizeof(*reg), TYPE_REGISTER);
+}
+
 void register_write_memory(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
@@ -217,3 +228,15 @@ uint64_t register_read_memory(void *opaque, hwaddr addr,
 
     return extract64(read_val, 0, size * 8);
 }
+
+static const TypeInfo register_info = {
+    .name  = TYPE_REGISTER,
+    .parent = TYPE_DEVICE,
+};
+
+static void register_register_types(void)
+{
+    type_register_static(&register_info);
+}
+
+type_init(register_register_types)
