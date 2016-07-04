@@ -447,6 +447,11 @@ static inline Manufacturer get_man(Flash *s)
 
 static void blk_sync_complete(void *opaque, int ret)
 {
+    QEMUIOVector *iov = opaque;
+
+    qemu_iovec_destroy(iov);
+    g_free(iov);
+
     /* do nothing. Masters do not directly interact with the backing store,
      * only the working copy so no mutexing required.
      */
@@ -454,31 +459,31 @@ static void blk_sync_complete(void *opaque, int ret)
 
 static void flash_sync_page(Flash *s, int page)
 {
-    QEMUIOVector iov;
+    QEMUIOVector *iov = g_new(QEMUIOVector, 1);
 
     if (!s->blk || blk_is_read_only(s->blk)) {
         return;
     }
 
-    qemu_iovec_init(&iov, 1);
-    qemu_iovec_add(&iov, s->storage + page * s->pi->page_size,
+    qemu_iovec_init(iov, 1);
+    qemu_iovec_add(iov, s->storage + page * s->pi->page_size,
                    s->pi->page_size);
-    blk_aio_pwritev(s->blk, page * s->pi->page_size, &iov, 0,
-                    blk_sync_complete, NULL);
+    blk_aio_pwritev(s->blk, page * s->pi->page_size, iov, 0,
+                    blk_sync_complete, iov);
 }
 
 static inline void flash_sync_area(Flash *s, int64_t off, int64_t len)
 {
-    QEMUIOVector iov;
+    QEMUIOVector *iov = g_new(QEMUIOVector, 1);
 
     if (!s->blk || blk_is_read_only(s->blk)) {
         return;
     }
 
     assert(!(len % BDRV_SECTOR_SIZE));
-    qemu_iovec_init(&iov, 1);
-    qemu_iovec_add(&iov, s->storage + off, len);
-    blk_aio_pwritev(s->blk, off, &iov, 0, blk_sync_complete, NULL);
+    qemu_iovec_init(iov, 1);
+    qemu_iovec_add(iov, s->storage + off, len);
+    blk_aio_pwritev(s->blk, off, iov, 0, blk_sync_complete, iov);
 }
 
 static void flash_erase(Flash *s, int offset, FlashCMD cmd)
