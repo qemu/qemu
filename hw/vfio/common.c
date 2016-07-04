@@ -28,6 +28,7 @@
 #include "exec/memory.h"
 #include "hw/hw.h"
 #include "qemu/error-report.h"
+#include "qemu/range.h"
 #include "sysemu/kvm.h"
 #ifdef CONFIG_KVM
 #include "linux/kvm.h"
@@ -241,6 +242,29 @@ static int vfio_dma_map(VFIOContainer *container, hwaddr iova,
     return -errno;
 }
 
+static void vfio_host_win_add(VFIOContainer *container,
+                              hwaddr min_iova, hwaddr max_iova,
+                              uint64_t iova_pgsizes)
+{
+    VFIOHostDMAWindow *hostwin;
+
+    QLIST_FOREACH(hostwin, &container->hostwin_list, hostwin_next) {
+        if (ranges_overlap(hostwin->min_iova,
+                           hostwin->max_iova - hostwin->min_iova + 1,
+                           min_iova,
+                           max_iova - min_iova + 1)) {
+            hw_error("%s: Overlapped IOMMU are not enabled", __func__);
+        }
+    }
+
+    hostwin = g_malloc0(sizeof(*hostwin));
+
+    hostwin->min_iova = min_iova;
+    hostwin->max_iova = max_iova;
+    hostwin->iova_pgsizes = iova_pgsizes;
+    QLIST_INSERT_HEAD(&container->hostwin_list, hostwin, hostwin_next);
+}
+
 static bool vfio_listener_skipped_section(MemoryRegionSection *section)
 {
     return (!memory_region_is_ram(section->mr) &&
@@ -329,6 +353,8 @@ static void vfio_listener_region_add(MemoryListener *listener,
     Int128 llend, llsize;
     void *vaddr;
     int ret;
+    VFIOHostDMAWindow *hostwin;
+    bool hostwin_found;
 
     if (vfio_listener_skipped_section(section)) {
         trace_vfio_listener_region_add_skip(
@@ -354,7 +380,15 @@ static void vfio_listener_region_add(MemoryListener *listener,
     }
     end = int128_get64(int128_sub(llend, int128_one()));
 
-    if ((iova < container->min_iova) || (end > container->max_iova)) {
+    hostwin_found = false;
+    QLIST_FOREACH(hostwin, &container->hostwin_list, hostwin_next) {
+        if (hostwin->min_iova <= iova && end <= hostwin->max_iova) {
+            hostwin_found = true;
+            break;
+        }
+    }
+
+    if (!hostwin_found) {
         error_report("vfio: IOMMU container %p can't map guest IOVA region"
                      " 0x%"HWADDR_PRIx"..0x%"HWADDR_PRIx,
                      container, iova, end);
@@ -369,10 +403,6 @@ static void vfio_listener_region_add(MemoryListener *listener,
 
         trace_vfio_listener_region_add_iommu(iova, end);
         /*
-         * FIXME: We should do some checking to see if the
-         * capabilities of the host VFIO IOMMU are adequate to model
-         * the guest IOMMU
-         *
          * FIXME: For VFIO iommu types which have KVM acceleration to
          * avoid bouncing all map/unmaps through qemu this way, this
          * would be the right place to wire that up (tell the KVM
@@ -879,17 +909,14 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
          * existing Type1 IOMMUs generally support any IOVA we're
          * going to actually try in practice.
          */
-        container->min_iova = 0;
-        container->max_iova = (hwaddr)-1;
-
-        /* Assume just 4K IOVA page size */
-        container->iova_pgsizes = 0x1000;
         info.argsz = sizeof(info);
         ret = ioctl(fd, VFIO_IOMMU_GET_INFO, &info);
         /* Ignore errors */
-        if ((ret == 0) && (info.flags & VFIO_IOMMU_INFO_PGSIZES)) {
-            container->iova_pgsizes = info.iova_pgsizes;
+        if (ret || !(info.flags & VFIO_IOMMU_INFO_PGSIZES)) {
+            /* Assume 4k IOVA page size */
+            info.iova_pgsizes = 4096;
         }
+        vfio_host_win_add(container, 0, (hwaddr)-1, info.iova_pgsizes);
     } else if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_IOMMU) ||
                ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_v2_IOMMU)) {
         struct vfio_iommu_spapr_tce_info info;
@@ -949,11 +976,12 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
             }
             goto free_container_exit;
         }
-        container->min_iova = info.dma32_window_start;
-        container->max_iova = container->min_iova + info.dma32_window_size - 1;
 
-        /* Assume just 4K IOVA pages for now */
-        container->iova_pgsizes = 0x1000;
+        /* The default table uses 4K pages */
+        vfio_host_win_add(container, info.dma32_window_start,
+                          info.dma32_window_start +
+                          info.dma32_window_size - 1,
+                          0x1000);
     } else {
         error_report("vfio: No available IOMMU models");
         ret = -EINVAL;
