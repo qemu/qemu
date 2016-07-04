@@ -32,13 +32,35 @@
 typedef struct {
     CharDriverState *chr;
     QEMUPutMouseEntry *entry;
+    uint8_t outbuf[32];
+    int outlen;
 } MouseState;
+
+static void msmouse_chr_accept_input(CharDriverState *chr)
+{
+    MouseState *mouse = chr->opaque;
+    int len;
+
+    len = qemu_chr_be_can_write(chr);
+    if (len > mouse->outlen) {
+        len = mouse->outlen;
+    }
+    if (!len) {
+        return;
+    }
+
+    qemu_chr_be_write(chr, mouse->outbuf, len);
+    mouse->outlen -= len;
+    if (mouse->outlen) {
+        memmove(mouse->outbuf, mouse->outbuf + len, mouse->outlen);
+    }
+}
 
 static void msmouse_event(void *opaque,
                           int dx, int dy, int dz, int buttons_state)
 {
     CharDriverState *chr = (CharDriverState *)opaque;
-
+    MouseState *mouse = chr->opaque;
     unsigned char bytes[4] = { 0x40, 0x00, 0x00, 0x00 };
 
     /* Movement deltas */
@@ -51,10 +73,17 @@ static void msmouse_event(void *opaque,
     bytes[0] |= (buttons_state & 0x02 ? 0x10 : 0x00);
     bytes[3] |= (buttons_state & 0x04 ? 0x20 : 0x00);
 
-    /* We always send the packet of, so that we do not have to keep track
-       of previous state of the middle button. This can potentially confuse
-       some very old drivers for two button mice though. */
-    qemu_chr_be_write(chr, bytes, 4);
+    if (mouse->outlen <= sizeof(mouse->outbuf) - 4) {
+        /* We always send the packet of, so that we do not have to keep track
+           of previous state of the middle button. This can potentially confuse
+           some very old drivers for two button mice though. */
+        memcpy(mouse->outbuf + mouse->outlen, bytes, 4);
+        mouse->outlen += 4;
+    } else {
+        /* queue full -> drop event */
+    }
+
+    msmouse_chr_accept_input(chr);
 }
 
 static int msmouse_chr_write (struct CharDriverState *s, const uint8_t *buf, int len)
@@ -84,6 +113,7 @@ static CharDriverState *qemu_chr_open_msmouse(const char *id,
     chr = qemu_chr_alloc(common, errp);
     chr->chr_write = msmouse_chr_write;
     chr->chr_close = msmouse_chr_close;
+    chr->chr_accept_input = msmouse_chr_accept_input;
     chr->explicit_be_open = true;
 
     mouse = g_new0(MouseState, 1);
