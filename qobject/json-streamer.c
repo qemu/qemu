@@ -39,6 +39,7 @@ static void json_message_process_token(JSONLexer *lexer, GString *input,
 {
     JSONMessageParser *parser = container_of(lexer, JSONMessageParser, lexer);
     JSONToken *token;
+    GQueue *tokens;
 
     switch (type) {
     case JSON_LCURLY:
@@ -96,9 +97,12 @@ out_emit:
     /* send current list of tokens to parser and reset tokenizer */
     parser->brace_count = 0;
     parser->bracket_count = 0;
-    /* parser->emit takes ownership of parser->tokens.  */
-    parser->emit(parser, parser->tokens);
+    /* parser->emit takes ownership of parser->tokens.  Remove our own
+     * reference to parser->tokens before handing it out to parser->emit.
+     */
+    tokens = parser->tokens;
     parser->tokens = g_queue_new();
+    parser->emit(parser, tokens);
     parser->token_size = 0;
 }
 
