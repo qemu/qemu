@@ -488,7 +488,8 @@ static unsigned hpte_page_shift(const struct ppc_one_seg_page_size *sps,
 }
 
 static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
-                                     ppc_slb_t *slb, target_ulong ptem,
+                                     const struct ppc_one_seg_page_size *sps,
+                                     target_ulong ptem,
                                      ppc_hash_pte64_t *pte, unsigned *pshift)
 {
     CPUPPCState *env = &cpu->env;
@@ -508,7 +509,7 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
 
         /* This compares V, B, H (secondary) and the AVPN */
         if (HPTE64_V_COMPARE(pte0, ptem)) {
-            *pshift = hpte_page_shift(slb->sps, pte0, pte1);
+            *pshift = hpte_page_shift(sps, pte0, pte1);
             /*
              * If there is no match, ignore the PTE, it could simply
              * be for a different segment size encoding and the
@@ -543,23 +544,31 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
     hwaddr pte_offset;
     hwaddr hash;
     uint64_t vsid, epnmask, epn, ptem;
+    const struct ppc_one_seg_page_size *sps = slb->sps;
 
     /* The SLB store path should prevent any bad page size encodings
      * getting in there, so: */
-    assert(slb->sps);
+    assert(sps);
 
-    epnmask = ~((1ULL << slb->sps->page_shift) - 1);
+    /* If ISL is set in LPCR we need to clamp the page size to 4K */
+    if (env->spr[SPR_LPCR] & LPCR_ISL) {
+        /* We assume that when using TCG, 4k is first entry of SPS */
+        sps = &env->sps.sps[0];
+        assert(sps->page_shift == 12);
+    }
+
+    epnmask = ~((1ULL << sps->page_shift) - 1);
 
     if (slb->vsid & SLB_VSID_B) {
         /* 1TB segment */
         vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT_1T;
         epn = (eaddr & ~SEGMENT_MASK_1T) & epnmask;
-        hash = vsid ^ (vsid << 25) ^ (epn >> slb->sps->page_shift);
+        hash = vsid ^ (vsid << 25) ^ (epn >> sps->page_shift);
     } else {
         /* 256M segment */
         vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT;
         epn = (eaddr & ~SEGMENT_MASK_256M) & epnmask;
-        hash = vsid ^ (epn >> slb->sps->page_shift);
+        hash = vsid ^ (epn >> sps->page_shift);
     }
     ptem = (slb->vsid & SLB_VSID_PTEM) | ((epn >> 16) & HPTE64_V_AVPN);
     ptem |= HPTE64_V_VALID;
@@ -576,7 +585,7 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
             " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
             " hash=" TARGET_FMT_plx "\n",
             env->htab_base, env->htab_mask, vsid, ptem,  hash);
-    pte_offset = ppc_hash64_pteg_search(cpu, hash, slb, ptem, pte, pshift);
+    pte_offset = ppc_hash64_pteg_search(cpu, hash, sps, ptem, pte, pshift);
 
     if (pte_offset == -1) {
         /* Secondary PTEG lookup */
@@ -587,7 +596,7 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
                 " hash=" TARGET_FMT_plx "\n", env->htab_base,
                 env->htab_mask, vsid, ptem, ~hash);
 
-        pte_offset = ppc_hash64_pteg_search(cpu, ~hash, slb, ptem, pte, pshift);
+        pte_offset = ppc_hash64_pteg_search(cpu, ~hash, sps, ptem, pte, pshift);
     }
 
     return pte_offset;
