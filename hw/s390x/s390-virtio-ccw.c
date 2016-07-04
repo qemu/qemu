@@ -29,7 +29,7 @@
 #include "hw/s390x/s390-virtio-ccw.h"
 
 static const char *const reset_dev_types[] = {
-    "virtual-css-bridge",
+    TYPE_VIRTUAL_CSS_BRIDGE,
     "s390-sclp-event-facility",
     "s390-flic",
     "diag288",

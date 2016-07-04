@@ -130,7 +130,7 @@ VirtualCssBus *virtual_css_bus_init(void)
     DeviceState *dev;
 
     /* Create bridge device */
-    dev = qdev_create(NULL, "virtual-css-bridge");
+    dev = qdev_create(NULL, TYPE_VIRTUAL_CSS_BRIDGE);
     qdev_init_nofail(dev);
 
     /* Create bus on bridge device */
@@ -1626,7 +1626,7 @@ static void virtual_css_bridge_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo virtual_css_bridge_info = {
-    .name          = "virtual-css-bridge",
+    .name          = TYPE_VIRTUAL_CSS_BRIDGE,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusDevice),
     .class_init    = virtual_css_bridge_class_init,

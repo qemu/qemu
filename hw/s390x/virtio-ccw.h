@@ -101,6 +101,9 @@ static inline int virtio_ccw_rev_max(VirtioCcwDevice *dev)
     return dev->max_rev;
 }
 
+/* virtual css bridge type */
+#define TYPE_VIRTUAL_CSS_BRIDGE "virtual-css-bridge"
+
 /* virtual css bus type */
 typedef struct VirtualCssBus {
     BusState parent_obj;
