@@ -57,8 +57,7 @@ int qcrypto_hash_bytesv(QCryptoHashAlgorithm alg,
     int i, ret;
     GChecksum *cs;
 
-    if (alg >= G_N_ELEMENTS(qcrypto_hash_alg_map) ||
-        qcrypto_hash_alg_map[alg] == -1) {
+    if (!qcrypto_hash_supports(alg)) {
         error_setg(errp,
                    "Unknown hash algorithm %d",
                    alg);
