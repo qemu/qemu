@@ -68,7 +68,6 @@
 #include <hw/isa/isa.h>
 #include "sysemu/block-backend.h"
 #include "sysemu/dma.h"
-
 #include <hw/ide/pci.h>
 #include <hw/ide/ahci.h>
 
@@ -111,6 +110,7 @@ static void pci_ich9_ahci_realize(PCIDevice *dev, Error **errp)
     int sata_cap_offset;
     uint8_t *sata_cap;
     d = ICH_AHCI(dev);
+    int ret;
 
     ahci_realize(&d->ahci, DEVICE(dev), pci_get_address_space(dev), 6);
 
@@ -146,7 +146,10 @@ static void pci_ich9_ahci_realize(PCIDevice *dev, Error **errp)
     /* Although the AHCI 1.3 specification states that the first capability
      * should be PMCAP, the Intel ICH9 data sheet specifies that the ICH9
      * AHCI device puts the MSI capability first, pointing to 0x80. */
-    msi_init(dev, ICH9_MSI_CAP_OFFSET, 1, true, false);
+    ret = msi_init(dev, ICH9_MSI_CAP_OFFSET, 1, true, false, NULL);
+    /* Any error other than -ENOTSUP(board's MSI support is broken)
+     * is a programming error.  Fall back to INTx silently on -ENOTSUP */
+    assert(!ret || ret == -ENOTSUP);
 }
 
 static void pci_ich9_uninit(PCIDevice *dev)

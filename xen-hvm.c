@@ -190,6 +190,9 @@ static void xen_ram_init(PCMachineState *pcms,
     /* Handle the machine opt max-ram-below-4g.  It is basically doing
      * min(xen limit, user limit).
      */
+    if (!user_lowmem) {
+        user_lowmem = HVM_BELOW_4G_RAM_END; /* default */
+    }
     if (HVM_BELOW_4G_RAM_END <= user_lowmem) {
         user_lowmem = HVM_BELOW_4G_RAM_END;
     }

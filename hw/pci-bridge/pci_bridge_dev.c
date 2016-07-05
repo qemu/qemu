@@ -42,9 +42,10 @@ struct PCIBridgeDev {
 
     MemoryRegion bar;
     uint8_t chassis_nr;
-#define PCI_BRIDGE_DEV_F_MSI_REQ 0
-#define PCI_BRIDGE_DEV_F_SHPC_REQ 1
+#define PCI_BRIDGE_DEV_F_SHPC_REQ 0
     uint32_t flags;
+
+    OnOffAuto msi;
 };
 typedef struct PCIBridgeDev PCIBridgeDev;
 
@@ -53,6 +54,7 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
     PCIBridge *br = PCI_BRIDGE(dev);
     PCIBridgeDev *bridge_dev = PCI_BRIDGE_DEV(dev);
     int err;
+    Error *local_err = NULL;
 
     pci_bridge_initfn(dev, TYPE_PCI_BUS);
 
@@ -66,7 +68,7 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
         }
     } else {
         /* MSI is not applicable without SHPC */
-        bridge_dev->flags &= ~(1 << PCI_BRIDGE_DEV_F_MSI_REQ);
+        bridge_dev->msi = ON_OFF_AUTO_OFF;
     }
 
     err = slotid_cap_init(dev, 0, bridge_dev->chassis_nr, 0);
@@ -74,12 +76,23 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
         goto slotid_error;
     }
 
-    if ((bridge_dev->flags & (1 << PCI_BRIDGE_DEV_F_MSI_REQ)) &&
-        msi_nonbroken) {
-        err = msi_init(dev, 0, 1, true, true);
-        if (err < 0) {
+    if (bridge_dev->msi != ON_OFF_AUTO_OFF) {
+        /* it means SHPC exists, because MSI is needed by SHPC */
+
+        err = msi_init(dev, 0, 1, true, true, &local_err);
+        /* Any error other than -ENOTSUP(board's MSI support is broken)
+         * is a programming error */
+        assert(!err || err == -ENOTSUP);
+        if (err && bridge_dev->msi == ON_OFF_AUTO_ON) {
+            /* Can't satisfy user's explicit msi=on request, fail */
+            error_append_hint(&local_err, "You have to use msi=auto (default) "
+                    "or msi=off with this machine type.\n");
+            error_report_err(local_err);
             goto msi_error;
         }
+        assert(!local_err || bridge_dev->msi == ON_OFF_AUTO_AUTO);
+        /* With msi=auto, we fall back to MSI off silently */
+        error_free(local_err);
     }
 
     if (shpc_present(dev)) {
@@ -147,8 +160,8 @@ static Property pci_bridge_dev_properties[] = {
                     /* Note: 0 is not a legal chassis number. */
     DEFINE_PROP_UINT8(PCI_BRIDGE_DEV_PROP_CHASSIS_NR, PCIBridgeDev, chassis_nr,
                       0),
-    DEFINE_PROP_BIT(PCI_BRIDGE_DEV_PROP_MSI, PCIBridgeDev, flags,
-                    PCI_BRIDGE_DEV_F_MSI_REQ, true),
+    DEFINE_PROP_ON_OFF_AUTO(PCI_BRIDGE_DEV_PROP_MSI, PCIBridgeDev, msi,
+                            ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BIT(PCI_BRIDGE_DEV_PROP_SHPC, PCIBridgeDev, flags,
                     PCI_BRIDGE_DEV_F_SHPC_REQ, true),
     DEFINE_PROP_END_OF_LIST(),

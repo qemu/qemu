@@ -108,37 +108,43 @@ static void pc_init1(MachineState *machine,
      *    so legacy non-PAE guests can get as much memory as possible in
      *    the 32bit address space below 4G.
      *
+     *  - Note that Xen has its own ram setp code in xen_ram_init(),
+     *    called via xen_hvm_init().
+     *
      * Examples:
      *    qemu -M pc-1.7 -m 4G    (old default)    -> 3584M low,  512M high
      *    qemu -M pc -m 4G        (new default)    -> 3072M low, 1024M high
      *    qemu -M pc,max-ram-below-4g=2G -m 4G     -> 2048M low, 2048M high
      *    qemu -M pc,max-ram-below-4g=4G -m 3968M  -> 3968M low (=4G-128M)
      */
-    lowmem = pcms->max_ram_below_4g;
-    if (machine->ram_size >= pcms->max_ram_below_4g) {
-        if (pcmc->gigabyte_align) {
-            if (lowmem > 0xc0000000) {
-                lowmem = 0xc0000000;
-            }
-            if (lowmem & ((1ULL << 30) - 1)) {
-                error_report("Warning: Large machine and max_ram_below_4g "
-                             "(%" PRIu64 ") not a multiple of 1G; "
-                             "possible bad performance.",
-                             pcms->max_ram_below_4g);
-            }
-        }
-    }
-
-    if (machine->ram_size >= lowmem) {
-        pcms->above_4g_mem_size = machine->ram_size - lowmem;
-        pcms->below_4g_mem_size = lowmem;
-    } else {
-        pcms->above_4g_mem_size = 0;
-        pcms->below_4g_mem_size = machine->ram_size;
-    }
-
     if (xen_enabled()) {
         xen_hvm_init(pcms, &ram_memory);
+    } else {
+        if (!pcms->max_ram_below_4g) {
+            pcms->max_ram_below_4g = 0xe0000000; /* default: 3.5G */
+        }
+        lowmem = pcms->max_ram_below_4g;
+        if (machine->ram_size >= pcms->max_ram_below_4g) {
+            if (pcmc->gigabyte_align) {
+                if (lowmem > 0xc0000000) {
+                    lowmem = 0xc0000000;
+                }
+                if (lowmem & ((1ULL << 30) - 1)) {
+                    error_report("Warning: Large machine and max_ram_below_4g "
+                                 "(%" PRIu64 ") not a multiple of 1G; "
+                                 "possible bad performance.",
+                                 pcms->max_ram_below_4g);
+                }
+            }
+        }
+
+        if (machine->ram_size >= lowmem) {
+            pcms->above_4g_mem_size = machine->ram_size - lowmem;
+            pcms->below_4g_mem_size = lowmem;
+        } else {
+            pcms->above_4g_mem_size = 0;
+            pcms->below_4g_mem_size = machine->ram_size;
+        }
     }
 
     pc_cpus_init(pcms);

@@ -26,6 +26,7 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "trace.h"
+#include "qapi/error.h"
 
 //#define DEBUG_XHCI
 //#define DEBUG_DATA
@@ -461,6 +462,8 @@ struct XHCIState {
     uint32_t numslots;
     uint32_t flags;
     uint32_t max_pstreams_mask;
+    OnOffAuto msi;
+    OnOffAuto msix;
 
     /* Operational Registers */
     uint32_t usbcmd;
@@ -498,9 +501,7 @@ typedef struct XHCIEvRingSeg {
 } XHCIEvRingSeg;
 
 enum xhci_flags {
-    XHCI_FLAG_USE_MSI = 1,
-    XHCI_FLAG_USE_MSI_X,
-    XHCI_FLAG_SS_FIRST,
+    XHCI_FLAG_SS_FIRST = 1,
     XHCI_FLAG_FORCE_PCIE_ENDCAP,
     XHCI_FLAG_ENABLE_STREAMS,
 };
@@ -3581,6 +3582,7 @@ static void usb_xhci_init(XHCIState *xhci)
 static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
 {
     int i, ret;
+    Error *err = NULL;
 
     XHCIState *xhci = XHCI(dev);
 
@@ -3590,6 +3592,23 @@ static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
     dev->config[0x60] = 0x30; /* release number */
 
     usb_xhci_init(xhci);
+
+    if (xhci->msi != ON_OFF_AUTO_OFF) {
+        ret = msi_init(dev, 0x70, xhci->numintrs, true, false, &err);
+        /* Any error other than -ENOTSUP(board's MSI support is broken)
+         * is a programming error */
+        assert(!ret || ret == -ENOTSUP);
+        if (ret && xhci->msi == ON_OFF_AUTO_ON) {
+            /* Can't satisfy user's explicit msi=on request, fail */
+            error_append_hint(&err, "You have to use msi=auto (default) or "
+                    "msi=off with this machine type.\n");
+            error_propagate(errp, err);
+            return;
+        }
+        assert(!err || xhci->msi == ON_OFF_AUTO_AUTO);
+        /* With msi=auto, we fall back to MSI off silently */
+        error_free(err);
+    }
 
     if (xhci->numintrs > MAXINTRS) {
         xhci->numintrs = MAXINTRS;
@@ -3648,10 +3667,8 @@ static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
         assert(ret >= 0);
     }
 
-    if (xhci_get_flag(xhci, XHCI_FLAG_USE_MSI)) {
-        msi_init(dev, 0x70, xhci->numintrs, true, false);
-    }
-    if (xhci_get_flag(xhci, XHCI_FLAG_USE_MSI_X)) {
+    if (xhci->msix != ON_OFF_AUTO_OFF) {
+        /* TODO check for errors */
         msix_init(dev, xhci->numintrs,
                   &xhci->mem, 0, OFF_MSIX_TABLE,
                   &xhci->mem, 0, OFF_MSIX_PBA,
@@ -3872,8 +3889,8 @@ static const VMStateDescription vmstate_xhci = {
 };
 
 static Property xhci_properties[] = {
-    DEFINE_PROP_BIT("msi",      XHCIState, flags, XHCI_FLAG_USE_MSI, true),
-    DEFINE_PROP_BIT("msix",     XHCIState, flags, XHCI_FLAG_USE_MSI_X, true),
+    DEFINE_PROP_ON_OFF_AUTO("msi", XHCIState, msi, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO("msix", XHCIState, msix, ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BIT("superspeed-ports-first",
                     XHCIState, flags, XHCI_FLAG_SS_FIRST, true),
     DEFINE_PROP_BIT("force-pcie-endcap", XHCIState, flags,

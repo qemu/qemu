@@ -32,7 +32,7 @@
 #include "hw/scsi/scsi.h"
 #include "block/scsi.h"
 #include "trace.h"
-
+#include "qapi/error.h"
 #include "mptsas.h"
 #include "mpi.h"
 
@@ -63,7 +63,7 @@ static void mptsas_update_interrupt(MPTSASState *s)
     PCIDevice *pci = (PCIDevice *) s;
     uint32_t state = s->intr_status & ~(s->intr_mask | MPI_HIS_IOP_DOORBELL_STATUS);
 
-    if (s->msi_in_use && msi_enabled(pci)) {
+    if (msi_enabled(pci)) {
         if (state) {
             trace_mptsas_irq_msi(s);
             msi_notify(pci, 0);
@@ -1273,9 +1273,29 @@ static void mptsas_scsi_init(PCIDevice *dev, Error **errp)
 {
     DeviceState *d = DEVICE(dev);
     MPTSASState *s = MPT_SAS(dev);
+    Error *err = NULL;
+    int ret;
 
     dev->config[PCI_LATENCY_TIMER] = 0;
     dev->config[PCI_INTERRUPT_PIN] = 0x01;
+
+    if (s->msi != ON_OFF_AUTO_OFF) {
+        ret = msi_init(dev, 0, 1, true, false, &err);
+        /* Any error other than -ENOTSUP(board's MSI support is broken)
+         * is a programming error */
+        assert(!ret || ret == -ENOTSUP);
+        if (ret && s->msi == ON_OFF_AUTO_ON) {
+            /* Can't satisfy user's explicit msi=on request, fail */
+            error_append_hint(&err, "You have to use msi=auto (default) or "
+                    "msi=off with this machine type.\n");
+            error_propagate(errp, err);
+            return;
+        }
+        assert(!err || s->msi == ON_OFF_AUTO_AUTO);
+        /* With msi=auto, we fall back to MSI off silently */
+        error_free(err);
+
+    }
 
     memory_region_init_io(&s->mmio_io, OBJECT(s), &mptsas_mmio_ops, s,
                           "mptsas-mmio", 0x4000);
@@ -1283,11 +1303,6 @@ static void mptsas_scsi_init(PCIDevice *dev, Error **errp)
                           "mptsas-io", 256);
     memory_region_init_io(&s->diag_io, OBJECT(s), &mptsas_diag_ops, s,
                           "mptsas-diag", 0x10000);
-
-    if (s->msi_available &&
-        msi_init(dev, 0, 1, true, false) >= 0) {
-        s->msi_in_use = true;
-    }
 
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->port_io);
     pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY |
@@ -1319,9 +1334,7 @@ static void mptsas_scsi_uninit(PCIDevice *dev)
     MPTSASState *s = MPT_SAS(dev);
 
     qemu_bh_delete(s->request_bh);
-    if (s->msi_in_use) {
-        msi_uninit(dev);
-    }
+    msi_uninit(dev);
 }
 
 static void mptsas_reset(DeviceState *dev)
@@ -1357,7 +1370,6 @@ static const VMStateDescription vmstate_mptsas = {
     .post_load = mptsas_post_load,
     .fields      = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, MPTSASState),
-        VMSTATE_BOOL(msi_in_use, MPTSASState),
 
         VMSTATE_UINT32(state, MPTSASState),
         VMSTATE_UINT8(who_init, MPTSASState),
@@ -1403,7 +1415,7 @@ static const VMStateDescription vmstate_mptsas = {
 static Property mptsas_properties[] = {
     DEFINE_PROP_UINT64("sas_address", MPTSASState, sas_addr, 0),
     /* TODO: test MSI support under Windows */
-    DEFINE_PROP_BIT("msi", MPTSASState, msi_available, 0, true),
+    DEFINE_PROP_ON_OFF_AUTO("msi", MPTSASState, msi, ON_OFF_AUTO_AUTO),
     DEFINE_PROP_END_OF_LIST(),
 };
 

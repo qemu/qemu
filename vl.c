@@ -2675,6 +2675,11 @@ void qemu_add_machine_init_done_notifier(Notifier *notify)
     }
 }
 
+void qemu_remove_machine_init_done_notifier(Notifier *notify)
+{
+    notifier_remove(notify);
+}
+
 static void qemu_run_machine_init_done_notifiers(void)
 {
     notifier_list_notify(&machine_init_done_notifiers, NULL);

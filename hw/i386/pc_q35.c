@@ -94,6 +94,9 @@ static void pc_q35_init(MachineState *machine)
     /* Handle the machine opt max-ram-below-4g.  It is basically doing
      * min(qemu limit, user limit).
      */
+    if (!pcms->max_ram_below_4g) {
+        pcms->max_ram_below_4g = 1ULL << 32; /* default: 4G */;
+    }
     if (lowmem > pcms->max_ram_below_4g) {
         lowmem = pcms->max_ram_below_4g;
         if (machine->ram_size - lowmem > lowmem &&
@@ -176,7 +179,6 @@ static void pc_q35_init(MachineState *machine)
     qdev_init_nofail(DEVICE(q35_host));
     phb = PCI_HOST_BRIDGE(q35_host);
     host_bus = phb->bus;
-    pcms->bus = phb->bus;
     /* create ISA bus */
     lpc = pci_create_simple_multifunction(host_bus, PCI_DEVFN(ICH9_LPC_DEV,
                                           ICH9_LPC_FUNC), true,
@@ -287,6 +289,7 @@ static void pc_q35_machine_options(MachineClass *m)
     m->default_machine_opts = "firmware=bios-256k.bin";
     m->default_display = "std";
     m->no_floppy = 1;
+    m->has_dynamic_sysbus = true;
 }
 
 static void pc_q35_2_7_machine_options(MachineClass *m)

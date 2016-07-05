@@ -380,6 +380,7 @@ static void ppc_core99_init(MachineState *machine)
         pci_bus = pci_pmac_init(pic, get_system_memory(), get_system_io());
         machine_arch = ARCH_MAC99;
     }
+    object_property_set_bool(OBJECT(pci_bus), true, "realized", &error_abort);
 
     machine->usb |= defaults_enabled() && !machine->usb_disabled;
 

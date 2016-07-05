@@ -1499,6 +1499,16 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     }
     qemu_get_be32s(f, &features);
 
+    /*
+     * Temporarily set guest_features low bits - needed by
+     * virtio net load code testing for VIRTIO_NET_F_CTRL_GUEST_OFFLOADS
+     * VIRTIO_NET_F_GUEST_ANNOUNCE and VIRTIO_NET_F_CTRL_VQ.
+     *
+     * Note: devices should always test host features in future - don't create
+     * new dependencies like this.
+     */
+    vdev->guest_features = features;
+
     config_len = qemu_get_be32(f);
 
     /*

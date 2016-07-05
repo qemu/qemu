@@ -83,8 +83,8 @@ static void string_output_set(StringOutputVisitor *sov, char *string)
 static void string_output_append(StringOutputVisitor *sov, int64_t a)
 {
     Range *r = g_malloc0(sizeof(*r));
-    r->begin = a;
-    r->end = a + 1;
+
+    range_set_bounds(r, a, a);
     sov->ranges = range_list_insert(sov->ranges, r);
 }
 
@@ -92,28 +92,28 @@ static void string_output_append_range(StringOutputVisitor *sov,
                                        int64_t s, int64_t e)
 {
     Range *r = g_malloc0(sizeof(*r));
-    r->begin = s;
-    r->end = e + 1;
+
+    range_set_bounds(r, s, e);
     sov->ranges = range_list_insert(sov->ranges, r);
 }
 
 static void format_string(StringOutputVisitor *sov, Range *r, bool next,
                           bool human)
 {
-    if (r->end - r->begin > 1) {
+    if (range_lob(r) != range_upb(r)) {
         if (human) {
             g_string_append_printf(sov->string, "0x%" PRIx64 "-0x%" PRIx64,
-                                   r->begin, r->end - 1);
+                                   range_lob(r), range_upb(r));
 
         } else {
             g_string_append_printf(sov->string, "%" PRId64 "-%" PRId64,
-                                   r->begin, r->end - 1);
+                                   range_lob(r), range_upb(r));
         }
     } else {
         if (human) {
-            g_string_append_printf(sov->string, "0x%" PRIx64, r->begin);
+            g_string_append_printf(sov->string, "0x%" PRIx64, range_lob(r));
         } else {
-            g_string_append_printf(sov->string, "%" PRId64, r->begin);
+            g_string_append_printf(sov->string, "%" PRId64, range_lob(r));
         }
     }
     if (next) {

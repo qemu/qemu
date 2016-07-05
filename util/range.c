@@ -22,20 +22,18 @@
 #include "qemu/range.h"
 
 /*
- * Operations on 64 bit address ranges.
- * Notes:
- *   - ranges must not wrap around 0, but can include the last byte ~0x0LL.
- *   - this can not represent a full 0 to ~0x0LL range.
+ * Return -1 if @a < @b, 1 @a > @b, and 0 if they touch or overlap.
+ * Both @a and @b must not be empty.
  */
-
-/* Return -1 if @a < @b, 1 if greater, and 0 if they touch or overlap. */
 static inline int range_compare(Range *a, Range *b)
 {
-    /* Zero a->end is 2**64, and therefore not less than any b->begin */
-    if (a->end && a->end < b->begin) {
+    assert(!range_is_empty(a) && !range_is_empty(b));
+
+    /* Careful, avoid wraparound */
+    if (b->lob && b->lob - 1 > a->upb) {
         return -1;
     }
-    if (b->end && a->begin > b->end) {
+    if (a->lob && a->lob - 1 > b->upb) {
         return 1;
     }
     return 0;
@@ -46,8 +44,7 @@ GList *range_list_insert(GList *list, Range *data)
 {
     GList *l;
 
-    /* Range lists require no empty ranges */
-    assert(data->begin < data->end || (data->begin && !data->end));
+    assert(!range_is_empty(data));
 
     /* Skip all list elements strictly less than data */
     for (l = list; l && range_compare(l->data, data) < 0; l = l->next) {

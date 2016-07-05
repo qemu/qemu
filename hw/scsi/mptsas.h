@@ -27,10 +27,9 @@ struct MPTSASState {
     MemoryRegion diag_io;
     QEMUBH *request_bh;
 
-    uint32_t msi_available;
+    /* properties */
+    OnOffAuto msi;
     uint64_t sas_addr;
-
-    bool msi_in_use;
 
     /* Doorbell register */
     uint32_t state;

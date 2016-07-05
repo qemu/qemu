@@ -78,9 +78,36 @@ static const VMStateDescription vmstate_pcibus = {
     }
 };
 
+static void pci_init_bus_master(PCIDevice *pci_dev)
+{
+    AddressSpace *dma_as = pci_device_iommu_address_space(pci_dev);
+
+    memory_region_init_alias(&pci_dev->bus_master_enable_region,
+                             OBJECT(pci_dev), "bus master",
+                             dma_as->root, 0, memory_region_size(dma_as->root));
+    memory_region_set_enabled(&pci_dev->bus_master_enable_region, false);
+    address_space_init(&pci_dev->bus_master_as,
+                       &pci_dev->bus_master_enable_region, pci_dev->name);
+}
+
+static void pcibus_machine_done(Notifier *notifier, void *data)
+{
+    PCIBus *bus = container_of(notifier, PCIBus, machine_done);
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
+        if (bus->devices[i]) {
+            pci_init_bus_master(bus->devices[i]);
+        }
+    }
+}
+
 static void pci_bus_realize(BusState *qbus, Error **errp)
 {
     PCIBus *bus = PCI_BUS(qbus);
+
+    bus->machine_done.notify = pcibus_machine_done;
+    qemu_add_machine_init_done_notifier(&bus->machine_done);
 
     vmstate_register(NULL, -1, &vmstate_pcibus, bus);
 }
@@ -88,6 +115,8 @@ static void pci_bus_realize(BusState *qbus, Error **errp)
 static void pci_bus_unrealize(BusState *qbus, Error **errp)
 {
     PCIBus *bus = PCI_BUS(qbus);
+
+    qemu_remove_machine_init_done_notifier(&bus->machine_done);
 
     vmstate_unregister(NULL, &vmstate_pcibus, bus);
 }
@@ -920,7 +949,6 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     PCIConfigReadFunc *config_read = pc->config_read;
     PCIConfigWriteFunc *config_write = pc->config_write;
     Error *local_err = NULL;
-    AddressSpace *dma_as;
     DeviceState *dev = DEVICE(pci_dev);
 
     pci_dev->bus = bus;
@@ -961,15 +989,10 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
 
     pci_dev->devfn = devfn;
     pci_dev->requester_id_cache = pci_req_id_cache_get(pci_dev);
-    dma_as = pci_device_iommu_address_space(pci_dev);
 
-    memory_region_init_alias(&pci_dev->bus_master_enable_region,
-                             OBJECT(pci_dev), "bus master",
-                             dma_as->root, 0, memory_region_size(dma_as->root));
-    memory_region_set_enabled(&pci_dev->bus_master_enable_region, false);
-    address_space_init(&pci_dev->bus_master_as, &pci_dev->bus_master_enable_region,
-                       name);
-
+    if (qdev_hotplug) {
+        pci_init_bus_master(pci_dev);
+    }
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
     pci_dev->irq_state = 0;
     pci_config_alloc(pci_dev);
@@ -1051,7 +1074,7 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
                       uint8_t type, MemoryRegion *memory)
 {
     PCIIORegion *r;
-    uint32_t addr;
+    uint32_t addr; /* offset in pci config space */
     uint64_t wmask;
     pcibus_t size = memory_region_size(memory);
 
@@ -1067,15 +1090,20 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
     r->addr = PCI_BAR_UNMAPPED;
     r->size = size;
     r->type = type;
-    r->memory = NULL;
+    r->memory = memory;
+    r->address_space = type & PCI_BASE_ADDRESS_SPACE_IO
+                        ? pci_dev->bus->address_space_io
+                        : pci_dev->bus->address_space_mem;
 
     wmask = ~(size - 1);
-    addr = pci_bar(pci_dev, region_num);
     if (region_num == PCI_ROM_SLOT) {
         /* ROM enable bit is writable */
         wmask |= PCI_ROM_ADDRESS_ENABLE;
     }
+
+    addr = pci_bar(pci_dev, region_num);
     pci_set_long(pci_dev->config + addr, type);
+
     if (!(r->type & PCI_BASE_ADDRESS_SPACE_IO) &&
         r->type & PCI_BASE_ADDRESS_MEM_TYPE_64) {
         pci_set_quad(pci_dev->wmask + addr, wmask);
@@ -1084,11 +1112,6 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
         pci_set_long(pci_dev->wmask + addr, wmask & 0xffffffff);
         pci_set_long(pci_dev->cmask + addr, 0xffffffff);
     }
-    pci_dev->io_regions[region_num].memory = memory;
-    pci_dev->io_regions[region_num].address_space
-        = type & PCI_BASE_ADDRESS_SPACE_IO
-        ? pci_dev->bus->address_space_io
-        : pci_dev->bus->address_space_mem;
 }
 
 static void pci_update_vga(PCIDevice *pci_dev)
@@ -2510,13 +2533,13 @@ static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
 
         if (limit >= base) {
             Range pref_range;
-            pref_range.begin = base;
-            pref_range.end = limit + 1;
+            range_set_bounds(&pref_range, base, limit);
             range_extend(range, &pref_range);
         }
     }
     for (i = 0; i < PCI_NUM_REGIONS; ++i) {
         PCIIORegion *r = &dev->io_regions[i];
+        pcibus_t lob, upb;
         Range region_range;
 
         if (!r->size ||
@@ -2524,16 +2547,17 @@ static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
             !(r->type & PCI_BASE_ADDRESS_MEM_TYPE_64)) {
             continue;
         }
-        region_range.begin = pci_bar_address(dev, i, r->type, r->size);
-        region_range.end = region_range.begin + r->size;
 
-        if (region_range.begin == PCI_BAR_UNMAPPED) {
+        lob = pci_bar_address(dev, i, r->type, r->size);
+        upb = lob + r->size - 1;
+        if (lob == PCI_BAR_UNMAPPED) {
             continue;
         }
 
-        region_range.begin = MAX(region_range.begin, 0x1ULL << 32);
+        lob = MAX(lob, 0x1ULL << 32);
 
-        if (region_range.end - 1 >= region_range.begin) {
+        if (upb >= lob) {
+            range_set_bounds(&region_range, lob, upb);
             range_extend(range, &region_range);
         }
     }
@@ -2541,7 +2565,7 @@ static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
 
 void pci_bus_get_w64_range(PCIBus *bus, Range *range)
 {
-    range->begin = range->end = 0;
+    range_make_empty(range);
     pci_for_each_device_under_bus(bus, pci_dev_get_w64, range);
 }
 

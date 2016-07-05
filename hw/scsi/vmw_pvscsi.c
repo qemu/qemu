@@ -121,8 +121,7 @@ typedef struct {
     uint8_t msg_ring_info_valid;         /* Whether message ring initialized */
     uint8_t use_msg;                     /* Whether to use message ring      */
 
-    uint8_t msi_used;    /* Whether MSI support was installed successfully   */
-
+    uint8_t msi_used;                    /* For migration compatibility      */
     PVSCSIRingInfo rings;                /* Data transfer rings manager      */
     uint32_t resetting;                  /* Reset in progress                */
 
@@ -362,7 +361,7 @@ pvscsi_update_irq_status(PVSCSIState *s)
     trace_pvscsi_update_irq_level(should_raise, s->reg_interrupt_enabled,
                                   s->reg_interrupt_status);
 
-    if (s->msi_used && msi_enabled(d)) {
+    if (msi_enabled(d)) {
         if (should_raise) {
             trace_pvscsi_update_irq_msi();
             msi_notify(d, PVSCSI_VECTOR_COMPLETION);
@@ -1056,22 +1055,20 @@ pvscsi_io_read(void *opaque, hwaddr addr, unsigned size)
 }
 
 
-static bool
+static void
 pvscsi_init_msi(PVSCSIState *s)
 {
     int res;
     PCIDevice *d = PCI_DEVICE(s);
 
     res = msi_init(d, PVSCSI_MSI_OFFSET(s), PVSCSI_MSIX_NUM_VECTORS,
-                   PVSCSI_USE_64BIT, PVSCSI_PER_VECTOR_MASK);
+                   PVSCSI_USE_64BIT, PVSCSI_PER_VECTOR_MASK, NULL);
     if (res < 0) {
         trace_pvscsi_init_msi_fail(res);
         s->msi_used = false;
     } else {
         s->msi_used = true;
     }
-
-    return s->msi_used;
 }
 
 static void
@@ -1079,9 +1076,7 @@ pvscsi_cleanup_msi(PVSCSIState *s)
 {
     PCIDevice *d = PCI_DEVICE(s);
 
-    if (s->msi_used) {
-        msi_uninit(d);
-    }
+    msi_uninit(d);
 }
 
 static const MemoryRegionOps pvscsi_ops = {

@@ -150,11 +150,6 @@ struct PCMachineClass {
 
 /* PC-style peripherals (also used by other machines).  */
 
-typedef struct PcPciInfo {
-    Range w32;
-    Range w64;
-} PcPciInfo;
-
 #define ACPI_PM_PROP_S3_DISABLED "disable_s3"
 #define ACPI_PM_PROP_S4_DISABLED "disable_s4"
 #define ACPI_PM_PROP_S4_VAL "s4_val"

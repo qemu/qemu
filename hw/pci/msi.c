@@ -22,6 +22,7 @@
 #include "hw/pci/msi.h"
 #include "hw/xen/xen.h"
 #include "qemu/range.h"
+#include "qapi/error.h"
 
 /* PCI_MSI_ADDRESS_LO */
 #define PCI_MSI_ADDRESS_LO_MASK         (~0x3)
@@ -173,7 +174,8 @@ bool msi_enabled(const PCIDevice *dev)
  * If @msi64bit, make the device capable of sending a 64-bit message
  * address.
  * If @msi_per_vector_mask, make the device support per-vector masking.
- * Return 0 on success, return -errno on error.
+ * @errp is for returning errors.
+ * Return 0 on success; set @errp and return -errno on error.
  *
  * -ENOTSUP means lacking msi support for a msi-capable platform.
  * -EINVAL means capability overlap, happens when @offset is non-zero,
@@ -181,7 +183,8 @@ bool msi_enabled(const PCIDevice *dev)
  *  if a real HW is broken.
  */
 int msi_init(struct PCIDevice *dev, uint8_t offset,
-             unsigned int nr_vectors, bool msi64bit, bool msi_per_vector_mask)
+             unsigned int nr_vectors, bool msi64bit,
+             bool msi_per_vector_mask, Error **errp)
 {
     unsigned int vectors_order;
     uint16_t flags;
@@ -189,6 +192,7 @@ int msi_init(struct PCIDevice *dev, uint8_t offset,
     int config_offset;
 
     if (!msi_nonbroken) {
+        error_setg(errp, "MSI is not supported by interrupt controller");
         return -ENOTSUP;
     }
 
@@ -212,7 +216,8 @@ int msi_init(struct PCIDevice *dev, uint8_t offset,
     }
 
     cap_size = msi_cap_sizeof(flags);
-    config_offset = pci_add_capability(dev, PCI_CAP_ID_MSI, offset, cap_size);
+    config_offset = pci_add_capability2(dev, PCI_CAP_ID_MSI, offset,
+                                        cap_size, errp);
     if (config_offset < 0) {
         return config_offset;
     }
