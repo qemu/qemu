@@ -1106,7 +1106,7 @@ EQMP
 
     {
         .name       = "block-stream",
-        .args_type  = "device:B,base:s?,speed:o?,backing-file:s?,on-error:s?",
+        .args_type  = "job-id:s?,device:B,base:s?,speed:o?,backing-file:s?,on-error:s?",
         .mhandler.cmd_new = qmp_marshal_block_stream,
     },
 
@@ -1118,6 +1118,8 @@ Copy data from a backing file into a block device.
 
 Arguments:
 
+- "job-id": Identifier for the newly-created block job. If omitted,
+            the device name will be used. (json-string, optional)
 - "device": The device's ID, must be unique (json-string)
 - "base": The file name of the backing image above which copying starts
           (json-string, optional)

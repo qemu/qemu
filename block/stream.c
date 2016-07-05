@@ -218,15 +218,15 @@ static const BlockJobDriver stream_job_driver = {
     .set_speed     = stream_set_speed,
 };
 
-void stream_start(BlockDriverState *bs, BlockDriverState *base,
-                  const char *backing_file_str, int64_t speed,
-                  BlockdevOnError on_error,
-                  BlockCompletionFunc *cb,
-                  void *opaque, Error **errp)
+void stream_start(const char *job_id, BlockDriverState *bs,
+                  BlockDriverState *base, const char *backing_file_str,
+                  int64_t speed, BlockdevOnError on_error,
+                  BlockCompletionFunc *cb, void *opaque, Error **errp)
 {
     StreamBlockJob *s;
 
-    s = block_job_create(NULL, &stream_job_driver, bs, speed, cb, opaque, errp);
+    s = block_job_create(job_id, &stream_job_driver, bs, speed,
+                         cb, opaque, errp);
     if (!s) {
         return;
     }

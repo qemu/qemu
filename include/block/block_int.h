@@ -639,6 +639,8 @@ int is_windows_drive(const char *filename);
 
 /**
  * stream_start:
+ * @job_id: The id of the newly-created job, or %NULL to use the
+ * device name of @bs.
  * @bs: Block device to operate on.
  * @base: Block device that will become the new base, or %NULL to
  * flatten the whole backing file chain onto @bs.
@@ -657,10 +659,10 @@ int is_windows_drive(const char *filename);
  * @backing_file_str in the written image and to @base in the live
  * BlockDriverState.
  */
-void stream_start(BlockDriverState *bs, BlockDriverState *base,
-                  const char *backing_file_str, int64_t speed,
-                  BlockdevOnError on_error, BlockCompletionFunc *cb,
-                  void *opaque, Error **errp);
+void stream_start(const char *job_id, BlockDriverState *bs,
+                  BlockDriverState *base, const char *backing_file_str,
+                  int64_t speed, BlockdevOnError on_error,
+                  BlockCompletionFunc *cb, void *opaque, Error **errp);
 
 /**
  * commit_start:

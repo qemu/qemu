@@ -3005,7 +3005,7 @@ static void block_job_cb(void *opaque, int ret)
     }
 }
 
-void qmp_block_stream(const char *device,
+void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
                       bool has_base, const char *base,
                       bool has_backing_file, const char *backing_file,
                       bool has_speed, int64_t speed,
@@ -3064,8 +3064,8 @@ void qmp_block_stream(const char *device,
     /* backing_file string overrides base bs filename */
     base_name = has_backing_file ? backing_file : base_name;
 
-    stream_start(bs, base_bs, base_name, has_speed ? speed : 0,
-                 on_error, block_job_cb, bs, &local_err);
+    stream_start(has_job_id ? job_id : NULL, bs, base_bs, base_name,
+                 has_speed ? speed : 0, on_error, block_job_cb, bs, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto out;
