@@ -132,12 +132,6 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 
     if (job_id == NULL) {
         job_id = bdrv_get_device_name(bs);
-        /* Assign a default ID if the BDS does not have a device
-         * name. We'll get rid of this soon when we finish extending
-         * the API of all commands that create block jobs. */
-        if (job_id[0] == '\0') {
-            job_id = "default_job";
-        }
     }
 
     if (!id_wellformed(job_id)) {
