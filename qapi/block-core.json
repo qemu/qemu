@@ -1010,6 +1010,9 @@
 # Live commit of data from overlay image nodes into backing nodes - i.e.,
 # writes data between 'top' and 'base' into 'base'.
 #
+# @job-id: #optional identifier for the newly-created block job. If
+#          omitted, the device name will be used. (Since 2.7)
+#
 # @device:  the name of the device
 #
 # @base:   #optional The file name of the backing image to write data into.
@@ -1061,7 +1064,7 @@
 #
 ##
 { 'command': 'block-commit',
-  'data': { 'device': 'str', '*base': 'str', '*top': 'str',
+  'data': { '*job-id': 'str', 'device': 'str', '*base': 'str', '*top': 'str',
             '*backing-file': 'str', '*speed': 'int' } }
 
 ##

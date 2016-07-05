@@ -931,8 +931,8 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                      &mirror_job_driver, is_none_mode, base);
 }
 
-void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
-                         int64_t speed,
+void commit_active_start(const char *job_id, BlockDriverState *bs,
+                         BlockDriverState *base, int64_t speed,
                          BlockdevOnError on_error,
                          BlockCompletionFunc *cb,
                          void *opaque, Error **errp)
@@ -973,7 +973,7 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
         }
     }
 
-    mirror_start_job(NULL, bs, base, NULL, speed, 0, 0,
+    mirror_start_job(job_id, bs, base, NULL, speed, 0, 0,
                      MIRROR_LEAVE_BACKING_CHAIN,
                      on_error, on_error, false, cb, opaque, &local_err,
                      &commit_active_job_driver, false, base);

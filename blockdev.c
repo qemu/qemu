@@ -3077,7 +3077,7 @@ out:
     aio_context_release(aio_context);
 }
 
-void qmp_block_commit(const char *device,
+void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
                       bool has_base, const char *base,
                       bool has_top, const char *top,
                       bool has_backing_file, const char *backing_file,
@@ -3168,10 +3168,11 @@ void qmp_block_commit(const char *device,
                              " but 'top' is the active layer");
             goto out;
         }
-        commit_active_start(bs, base_bs, speed, on_error, block_job_cb,
-                            bs, &local_err);
+        commit_active_start(has_job_id ? job_id : NULL, bs, base_bs, speed,
+                            on_error, block_job_cb, bs, &local_err);
     } else {
-        commit_start(bs, base_bs, top_bs, speed, on_error, block_job_cb, bs,
+        commit_start(has_job_id ? job_id : NULL, bs, base_bs, top_bs, speed,
+                     on_error, block_job_cb, bs,
                      has_backing_file ? backing_file : NULL, &local_err);
     }
     if (local_err != NULL) {

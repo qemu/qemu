@@ -666,6 +666,8 @@ void stream_start(const char *job_id, BlockDriverState *bs,
 
 /**
  * commit_start:
+ * @job_id: The id of the newly-created job, or %NULL to use the
+ * device name of @bs.
  * @bs: Active block device.
  * @top: Top block device to be committed.
  * @base: Block device that will be written into, and become the new top.
@@ -677,12 +679,14 @@ void stream_start(const char *job_id, BlockDriverState *bs,
  * @errp: Error object.
  *
  */
-void commit_start(BlockDriverState *bs, BlockDriverState *base,
-                 BlockDriverState *top, int64_t speed,
-                 BlockdevOnError on_error, BlockCompletionFunc *cb,
-                 void *opaque, const char *backing_file_str, Error **errp);
+void commit_start(const char *job_id, BlockDriverState *bs,
+                  BlockDriverState *base, BlockDriverState *top, int64_t speed,
+                  BlockdevOnError on_error, BlockCompletionFunc *cb,
+                  void *opaque, const char *backing_file_str, Error **errp);
 /**
  * commit_active_start:
+ * @job_id: The id of the newly-created job, or %NULL to use the
+ * device name of @bs.
  * @bs: Active block device to be committed.
  * @base: Block device that will be written into, and become the new top.
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
@@ -692,8 +696,8 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
  * @errp: Error object.
  *
  */
-void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
-                         int64_t speed,
+void commit_active_start(const char *job_id, BlockDriverState *bs,
+                         BlockDriverState *base, int64_t speed,
                          BlockdevOnError on_error,
                          BlockCompletionFunc *cb,
                          void *opaque, Error **errp);
