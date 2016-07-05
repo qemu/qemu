@@ -2689,19 +2689,19 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                    \
     helper_float_check_status(env);                                    \
 }
 
-VSX_ROUND(xsrdpi, 1, float64, VsrD(0), float_round_nearest_even, 1)
+VSX_ROUND(xsrdpi, 1, float64, VsrD(0), float_round_ties_away, 1)
 VSX_ROUND(xsrdpic, 1, float64, VsrD(0), FLOAT_ROUND_CURRENT, 1)
 VSX_ROUND(xsrdpim, 1, float64, VsrD(0), float_round_down, 1)
 VSX_ROUND(xsrdpip, 1, float64, VsrD(0), float_round_up, 1)
 VSX_ROUND(xsrdpiz, 1, float64, VsrD(0), float_round_to_zero, 1)
 
-VSX_ROUND(xvrdpi, 2, float64, VsrD(i), float_round_nearest_even, 0)
+VSX_ROUND(xvrdpi, 2, float64, VsrD(i), float_round_ties_away, 0)
 VSX_ROUND(xvrdpic, 2, float64, VsrD(i), FLOAT_ROUND_CURRENT, 0)
 VSX_ROUND(xvrdpim, 2, float64, VsrD(i), float_round_down, 0)
 VSX_ROUND(xvrdpip, 2, float64, VsrD(i), float_round_up, 0)
 VSX_ROUND(xvrdpiz, 2, float64, VsrD(i), float_round_to_zero, 0)
 
-VSX_ROUND(xvrspi, 4, float32, VsrW(i), float_round_nearest_even, 0)
+VSX_ROUND(xvrspi, 4, float32, VsrW(i), float_round_ties_away, 0)
 VSX_ROUND(xvrspic, 4, float32, VsrW(i), FLOAT_ROUND_CURRENT, 0)
 VSX_ROUND(xvrspim, 4, float32, VsrW(i), float_round_down, 0)
 VSX_ROUND(xvrspip, 4, float32, VsrW(i), float_round_up, 0)

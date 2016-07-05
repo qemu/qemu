@@ -1047,6 +1047,8 @@ struct CPUPPCState {
     uint64_t insns_flags2;
 #if defined(TARGET_PPC64)
     struct ppc_segment_page_sizes sps;
+    ppc_slb_t vrma_slb;
+    target_ulong rmls;
     bool ci_large_pages;
 #endif
 

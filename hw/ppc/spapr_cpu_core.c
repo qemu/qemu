@@ -259,9 +259,9 @@ out:
     error_propagate(errp, local_err);
 }
 
-static int spapr_cpu_core_realize_child(Object *child, void *opaque)
+static void spapr_cpu_core_realize_child(Object *child, Error **errp)
 {
-    Error **errp = opaque, *local_err = NULL;
+    Error *local_err = NULL;
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     CPUState *cs = CPU(child);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -269,15 +269,14 @@ static int spapr_cpu_core_realize_child(Object *child, void *opaque)
     object_property_set_bool(child, true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return 1;
+        return;
     }
 
     spapr_cpu_init(spapr, cpu, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return 1;
+        return;
     }
-    return 0;
 }
 
 static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
@@ -287,13 +286,13 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
     const char *typename = object_class_get_name(sc->cpu_class);
     size_t size = object_type_get_instance_size(typename);
     Error *local_err = NULL;
-    Object *obj;
-    int i;
+    void *obj;
+    int i, j;
 
     sc->threads = g_malloc0(size * cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
         char id[32];
-        void *obj = sc->threads + i * size;
+        obj = sc->threads + i * size;
 
         object_initialize(obj, size, typename);
         snprintf(id, sizeof(id), "thread[%d]", i);
@@ -303,12 +302,16 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
         }
         object_unref(obj);
     }
-    object_child_foreach(OBJECT(dev), spapr_cpu_core_realize_child, &local_err);
-    if (local_err) {
-        goto err;
-    } else {
-        return;
+
+    for (j = 0; j < cc->nr_threads; j++) {
+        obj = sc->threads + j * size;
+
+        spapr_cpu_core_realize_child(obj, &local_err);
+        if (local_err) {
+            goto err;
+        }
     }
+    return;
 
 err:
     while (--i >= 0) {

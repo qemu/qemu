@@ -450,128 +450,6 @@ void ppc_hash64_stop_access(PowerPCCPU *cpu, uint64_t token)
     }
 }
 
-/* Returns the effective page shift or 0. MPSS isn't supported yet so
- * this will always be the slb_pshift or 0
- */
-static uint32_t ppc_hash64_pte_size_decode(uint64_t pte1, uint32_t slb_pshift)
-{
-    switch (slb_pshift) {
-    case 12:
-        return 12;
-    case 16:
-        if ((pte1 & 0xf000) == 0x1000) {
-            return 16;
-        }
-        return 0;
-    case 24:
-        if ((pte1 & 0xff000) == 0) {
-            return 24;
-        }
-        return 0;
-    }
-    return 0;
-}
-
-static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
-                                     uint32_t slb_pshift, bool secondary,
-                                     target_ulong ptem, ppc_hash_pte64_t *pte)
-{
-    CPUPPCState *env = &cpu->env;
-    int i;
-    uint64_t token;
-    target_ulong pte0, pte1;
-    target_ulong pte_index;
-
-    pte_index = (hash & env->htab_mask) * HPTES_PER_GROUP;
-    token = ppc_hash64_start_access(cpu, pte_index);
-    if (!token) {
-        return -1;
-    }
-    for (i = 0; i < HPTES_PER_GROUP; i++) {
-        pte0 = ppc_hash64_load_hpte0(cpu, token, i);
-        pte1 = ppc_hash64_load_hpte1(cpu, token, i);
-
-        if ((pte0 & HPTE64_V_VALID)
-            && (secondary == !!(pte0 & HPTE64_V_SECONDARY))
-            && HPTE64_V_COMPARE(pte0, ptem)) {
-            uint32_t pshift = ppc_hash64_pte_size_decode(pte1, slb_pshift);
-            if (pshift == 0) {
-                continue;
-            }
-            /* We don't do anything with pshift yet as qemu TLB only deals
-             * with 4K pages anyway
-             */
-            pte->pte0 = pte0;
-            pte->pte1 = pte1;
-            ppc_hash64_stop_access(cpu, token);
-            return (pte_index + i) * HASH_PTE_SIZE_64;
-        }
-    }
-    ppc_hash64_stop_access(cpu, token);
-    /*
-     * We didn't find a valid entry.
-     */
-    return -1;
-}
-
-static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
-                                     ppc_slb_t *slb, target_ulong eaddr,
-                                     ppc_hash_pte64_t *pte)
-{
-    CPUPPCState *env = &cpu->env;
-    hwaddr pte_offset;
-    hwaddr hash;
-    uint64_t vsid, epnmask, epn, ptem;
-
-    /* The SLB store path should prevent any bad page size encodings
-     * getting in there, so: */
-    assert(slb->sps);
-
-    epnmask = ~((1ULL << slb->sps->page_shift) - 1);
-
-    if (slb->vsid & SLB_VSID_B) {
-        /* 1TB segment */
-        vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT_1T;
-        epn = (eaddr & ~SEGMENT_MASK_1T) & epnmask;
-        hash = vsid ^ (vsid << 25) ^ (epn >> slb->sps->page_shift);
-    } else {
-        /* 256M segment */
-        vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT;
-        epn = (eaddr & ~SEGMENT_MASK_256M) & epnmask;
-        hash = vsid ^ (epn >> slb->sps->page_shift);
-    }
-    ptem = (slb->vsid & SLB_VSID_PTEM) | ((epn >> 16) & HPTE64_V_AVPN);
-
-    /* Page address translation */
-    qemu_log_mask(CPU_LOG_MMU,
-            "htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
-            " hash " TARGET_FMT_plx "\n",
-            env->htab_base, env->htab_mask, hash);
-
-    /* Primary PTEG lookup */
-    qemu_log_mask(CPU_LOG_MMU,
-            "0 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
-            " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
-            " hash=" TARGET_FMT_plx "\n",
-            env->htab_base, env->htab_mask, vsid, ptem,  hash);
-    pte_offset = ppc_hash64_pteg_search(cpu, hash, slb->sps->page_shift,
-                                        0, ptem, pte);
-
-    if (pte_offset == -1) {
-        /* Secondary PTEG lookup */
-        qemu_log_mask(CPU_LOG_MMU,
-                "1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
-                " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
-                " hash=" TARGET_FMT_plx "\n", env->htab_base,
-                env->htab_mask, vsid, ptem, ~hash);
-
-        pte_offset = ppc_hash64_pteg_search(cpu, ~hash, slb->sps->page_shift, 1,
-                                            ptem, pte);
-    }
-
-    return pte_offset;
-}
-
 static unsigned hpte_page_shift(const struct ppc_one_seg_page_size *sps,
     uint64_t pte0, uint64_t pte1)
 {
@@ -609,15 +487,128 @@ static unsigned hpte_page_shift(const struct ppc_one_seg_page_size *sps,
     return 0; /* Bad page size encoding */
 }
 
+static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
+                                     const struct ppc_one_seg_page_size *sps,
+                                     target_ulong ptem,
+                                     ppc_hash_pte64_t *pte, unsigned *pshift)
+{
+    CPUPPCState *env = &cpu->env;
+    int i;
+    uint64_t token;
+    target_ulong pte0, pte1;
+    target_ulong pte_index;
+
+    pte_index = (hash & env->htab_mask) * HPTES_PER_GROUP;
+    token = ppc_hash64_start_access(cpu, pte_index);
+    if (!token) {
+        return -1;
+    }
+    for (i = 0; i < HPTES_PER_GROUP; i++) {
+        pte0 = ppc_hash64_load_hpte0(cpu, token, i);
+        pte1 = ppc_hash64_load_hpte1(cpu, token, i);
+
+        /* This compares V, B, H (secondary) and the AVPN */
+        if (HPTE64_V_COMPARE(pte0, ptem)) {
+            *pshift = hpte_page_shift(sps, pte0, pte1);
+            /*
+             * If there is no match, ignore the PTE, it could simply
+             * be for a different segment size encoding and the
+             * architecture specifies we should not match. Linux will
+             * potentially leave behind PTEs for the wrong base page
+             * size when demoting segments.
+             */
+            if (*pshift == 0) {
+                continue;
+            }
+            /* We don't do anything with pshift yet as qemu TLB only deals
+             * with 4K pages anyway
+             */
+            pte->pte0 = pte0;
+            pte->pte1 = pte1;
+            ppc_hash64_stop_access(cpu, token);
+            return (pte_index + i) * HASH_PTE_SIZE_64;
+        }
+    }
+    ppc_hash64_stop_access(cpu, token);
+    /*
+     * We didn't find a valid entry.
+     */
+    return -1;
+}
+
+static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
+                                     ppc_slb_t *slb, target_ulong eaddr,
+                                     ppc_hash_pte64_t *pte, unsigned *pshift)
+{
+    CPUPPCState *env = &cpu->env;
+    hwaddr pte_offset;
+    hwaddr hash;
+    uint64_t vsid, epnmask, epn, ptem;
+    const struct ppc_one_seg_page_size *sps = slb->sps;
+
+    /* The SLB store path should prevent any bad page size encodings
+     * getting in there, so: */
+    assert(sps);
+
+    /* If ISL is set in LPCR we need to clamp the page size to 4K */
+    if (env->spr[SPR_LPCR] & LPCR_ISL) {
+        /* We assume that when using TCG, 4k is first entry of SPS */
+        sps = &env->sps.sps[0];
+        assert(sps->page_shift == 12);
+    }
+
+    epnmask = ~((1ULL << sps->page_shift) - 1);
+
+    if (slb->vsid & SLB_VSID_B) {
+        /* 1TB segment */
+        vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT_1T;
+        epn = (eaddr & ~SEGMENT_MASK_1T) & epnmask;
+        hash = vsid ^ (vsid << 25) ^ (epn >> sps->page_shift);
+    } else {
+        /* 256M segment */
+        vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT;
+        epn = (eaddr & ~SEGMENT_MASK_256M) & epnmask;
+        hash = vsid ^ (epn >> sps->page_shift);
+    }
+    ptem = (slb->vsid & SLB_VSID_PTEM) | ((epn >> 16) & HPTE64_V_AVPN);
+    ptem |= HPTE64_V_VALID;
+
+    /* Page address translation */
+    qemu_log_mask(CPU_LOG_MMU,
+            "htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
+            " hash " TARGET_FMT_plx "\n",
+            env->htab_base, env->htab_mask, hash);
+
+    /* Primary PTEG lookup */
+    qemu_log_mask(CPU_LOG_MMU,
+            "0 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
+            " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
+            " hash=" TARGET_FMT_plx "\n",
+            env->htab_base, env->htab_mask, vsid, ptem,  hash);
+    pte_offset = ppc_hash64_pteg_search(cpu, hash, sps, ptem, pte, pshift);
+
+    if (pte_offset == -1) {
+        /* Secondary PTEG lookup */
+        ptem |= HPTE64_V_SECONDARY;
+        qemu_log_mask(CPU_LOG_MMU,
+                "1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
+                " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
+                " hash=" TARGET_FMT_plx "\n", env->htab_base,
+                env->htab_mask, vsid, ptem, ~hash);
+
+        pte_offset = ppc_hash64_pteg_search(cpu, ~hash, sps, ptem, pte, pshift);
+    }
+
+    return pte_offset;
+}
+
 unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
-                                          uint64_t pte0, uint64_t pte1,
-                                          unsigned *seg_page_shift)
+                                          uint64_t pte0, uint64_t pte1)
 {
     CPUPPCState *env = &cpu->env;
     int i;
 
     if (!(pte0 & HPTE64_V_LARGE)) {
-        *seg_page_shift = 12;
         return 12;
     }
 
@@ -635,12 +626,10 @@ unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
 
         shift = hpte_page_shift(sps, pte0, pte1);
         if (shift) {
-            *seg_page_shift = sps->page_shift;
             return shift;
         }
     }
 
-    *seg_page_shift = 0;
     return 0;
 }
 
@@ -701,11 +690,52 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
 
     assert((rwx == 0) || (rwx == 1) || (rwx == 2));
 
+    /* Note on LPCR usage: 970 uses HID4, but our special variant
+     * of store_spr copies relevant fields into env->spr[SPR_LPCR].
+     * Similarily we filter unimplemented bits when storing into
+     * LPCR depending on the MMU version. This code can thus just
+     * use the LPCR "as-is".
+     */
+
     /* 1. Handle real mode accesses */
     if (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0))) {
-        /* Translation is off */
-        /* In real mode the top 4 effective address bits are ignored */
+        /* Translation is supposedly "off"  */
+        /* In real mode the top 4 effective address bits are (mostly) ignored */
         raddr = eaddr & 0x0FFFFFFFFFFFFFFFULL;
+
+        /* In HV mode, add HRMOR if top EA bit is clear */
+        if (msr_hv || !env->has_hv_mode) {
+            if (!(eaddr >> 63)) {
+                raddr |= env->spr[SPR_HRMOR];
+            }
+        } else {
+            /* Otherwise, check VPM for RMA vs VRMA */
+            if (env->spr[SPR_LPCR] & LPCR_VPM0) {
+                slb = &env->vrma_slb;
+                if (slb->sps) {
+                    goto skip_slb_search;
+                }
+                /* Not much else to do here */
+                cs->exception_index = POWERPC_EXCP_MCHECK;
+                env->error_code = 0;
+                return 1;
+            } else if (raddr < env->rmls) {
+                /* RMA. Check bounds in RMLS */
+                raddr |= env->spr[SPR_RMOR];
+            } else {
+                /* The access failed, generate the approriate interrupt */
+                if (rwx == 2) {
+                    ppc_hash64_set_isi(cs, env, 0x08000000);
+                } else {
+                    dsisr = 0x08000000;
+                    if (rwx == 1) {
+                        dsisr |= 0x02000000;
+                    }
+                    ppc_hash64_set_dsi(cs, env, eaddr, dsisr);
+                }
+                return 1;
+            }
+        }
         tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
                      PAGE_READ | PAGE_WRITE | PAGE_EXEC, mmu_idx,
                      TARGET_PAGE_SIZE);
@@ -714,7 +744,6 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
 
     /* 2. Translation is on, so look up the SLB */
     slb = slb_lookup(cpu, eaddr);
-
     if (!slb) {
         if (rwx == 2) {
             cs->exception_index = POWERPC_EXCP_ISEG;
@@ -727,6 +756,8 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
         return 1;
     }
 
+skip_slb_search:
+
     /* 3. Check for segment level no-execute violation */
     if ((rwx == 2) && (slb->vsid & SLB_VSID_N)) {
         ppc_hash64_set_isi(cs, env, 0x10000000);
@@ -734,7 +765,7 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     }
 
     /* 4. Locate the PTE in the hash table */
-    pte_offset = ppc_hash64_htab_lookup(cpu, slb, eaddr, &pte);
+    pte_offset = ppc_hash64_htab_lookup(cpu, slb, eaddr, &pte, &apshift);
     if (pte_offset == -1) {
         dsisr = 0x40000000;
         if (rwx == 2) {
@@ -749,18 +780,6 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     }
     qemu_log_mask(CPU_LOG_MMU,
                 "found PTE at offset %08" HWADDR_PRIx "\n", pte_offset);
-
-    /* Validate page size encoding */
-    apshift = hpte_page_shift(slb->sps, pte.pte0, pte.pte1);
-    if (!apshift) {
-        error_report("Bad page size encoding in HPTE 0x%"PRIx64" - 0x%"PRIx64
-                     " @ 0x%"HWADDR_PRIx, pte.pte0, pte.pte1, pte_offset);
-        /* Not entirely sure what the right action here, but machine
-         * check seems reasonable */
-        cs->exception_index = POWERPC_EXCP_MCHECK;
-        env->error_code = 0;
-        return 1;
-    }
 
     /* 5. Check access permissions */
 
@@ -821,27 +840,41 @@ hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
 {
     CPUPPCState *env = &cpu->env;
     ppc_slb_t *slb;
-    hwaddr pte_offset;
+    hwaddr pte_offset, raddr;
     ppc_hash_pte64_t pte;
     unsigned apshift;
 
+    /* Handle real mode */
     if (msr_dr == 0) {
         /* In real mode the top 4 effective address bits are ignored */
-        return addr & 0x0FFFFFFFFFFFFFFFULL;
+        raddr = addr & 0x0FFFFFFFFFFFFFFFULL;
+
+        /* In HV mode, add HRMOR if top EA bit is clear */
+        if ((msr_hv || !env->has_hv_mode) && !(addr >> 63)) {
+            return raddr | env->spr[SPR_HRMOR];
+        }
+
+        /* Otherwise, check VPM for RMA vs VRMA */
+        if (env->spr[SPR_LPCR] & LPCR_VPM0) {
+            slb = &env->vrma_slb;
+            if (!slb->sps) {
+                return -1;
+            }
+        } else if (raddr < env->rmls) {
+            /* RMA. Check bounds in RMLS */
+            return raddr | env->spr[SPR_RMOR];
+        } else {
+            return -1;
+        }
+    } else {
+        slb = slb_lookup(cpu, addr);
+        if (!slb) {
+            return -1;
+        }
     }
 
-    slb = slb_lookup(cpu, addr);
-    if (!slb) {
-        return -1;
-    }
-
-    pte_offset = ppc_hash64_htab_lookup(cpu, slb, addr, &pte);
+    pte_offset = ppc_hash64_htab_lookup(cpu, slb, addr, &pte, &apshift);
     if (pte_offset == -1) {
-        return -1;
-    }
-
-    apshift = hpte_page_shift(slb->sps, pte.pte0, pte.pte1);
-    if (!apshift) {
         return -1;
     }
 
@@ -881,6 +914,90 @@ void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu,
      * mask) in QEMU, we just invalidate all TLBs
      */
     tlb_flush(CPU(cpu), 1);
+}
+
+void ppc_hash64_update_rmls(CPUPPCState *env)
+{
+    uint64_t lpcr = env->spr[SPR_LPCR];
+
+    /*
+     * This is the full 4 bits encoding of POWER8. Previous
+     * CPUs only support a subset of these but the filtering
+     * is done when writing LPCR
+     */
+    switch ((lpcr & LPCR_RMLS) >> LPCR_RMLS_SHIFT) {
+    case 0x8: /* 32MB */
+        env->rmls = 0x2000000ull;
+        break;
+    case 0x3: /* 64MB */
+        env->rmls = 0x4000000ull;
+        break;
+    case 0x7: /* 128MB */
+        env->rmls = 0x8000000ull;
+        break;
+    case 0x4: /* 256MB */
+        env->rmls = 0x10000000ull;
+        break;
+    case 0x2: /* 1GB */
+        env->rmls = 0x40000000ull;
+        break;
+    case 0x1: /* 16GB */
+        env->rmls = 0x400000000ull;
+        break;
+    default:
+        /* What to do here ??? */
+        env->rmls = 0;
+    }
+}
+
+void ppc_hash64_update_vrma(CPUPPCState *env)
+{
+    const struct ppc_one_seg_page_size *sps = NULL;
+    target_ulong esid, vsid, lpcr;
+    ppc_slb_t *slb = &env->vrma_slb;
+    uint32_t vrmasd;
+    int i;
+
+    /* First clear it */
+    slb->esid = slb->vsid = 0;
+    slb->sps = NULL;
+
+    /* Is VRMA enabled ? */
+    lpcr = env->spr[SPR_LPCR];
+    if (!(lpcr & LPCR_VPM0)) {
+        return;
+    }
+
+    /* Make one up. Mostly ignore the ESID which will not be
+     * needed for translation
+     */
+    vsid = SLB_VSID_VRMA;
+    vrmasd = (lpcr & LPCR_VRMASD) >> LPCR_VRMASD_SHIFT;
+    vsid |= (vrmasd << 4) & (SLB_VSID_L | SLB_VSID_LP);
+    esid = SLB_ESID_V;
+
+   for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
+        const struct ppc_one_seg_page_size *sps1 = &env->sps.sps[i];
+
+        if (!sps1->page_shift) {
+            break;
+        }
+
+        if ((vsid & SLB_VSID_LLP_MASK) == sps1->slb_enc) {
+            sps = sps1;
+            break;
+        }
+    }
+
+    if (!sps) {
+        error_report("Bad page size encoding esid 0x"TARGET_FMT_lx
+                     " vsid 0x"TARGET_FMT_lx, esid, vsid);
+        return;
+    }
+
+    slb->vsid = vsid;
+    slb->esid = esid;
+    slb->sps = sps;
 }
 
 void helper_store_lpcr(CPUPPCState *env, target_ulong val)
@@ -938,4 +1055,6 @@ void helper_store_lpcr(CPUPPCState *env, target_ulong val)
         ;
     }
     env->spr[SPR_LPCR] = lpcr;
+    ppc_hash64_update_rmls(env);
+    ppc_hash64_update_vrma(env);
 }
