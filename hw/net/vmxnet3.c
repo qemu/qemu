@@ -2719,6 +2719,7 @@ static void vmxnet3_class_init(ObjectClass *class, void *data)
     c->vendor_id = PCI_VENDOR_ID_VMWARE;
     c->device_id = PCI_DEVICE_ID_VMWARE_VMXNET3;
     c->revision = PCI_DEVICE_ID_VMWARE_VMXNET3_REVISION;
+    c->romfile = "efi-vmxnet3.rom";
     c->class_id = PCI_CLASS_NETWORK_ETHERNET;
     c->subsystem_vendor_id = PCI_VENDOR_ID_VMWARE;
     c->subsystem_id = PCI_DEVICE_ID_VMWARE_VMXNET3;

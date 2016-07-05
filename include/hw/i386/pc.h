@@ -374,6 +374,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .driver   = TYPE_X86_CPU,\
         .property = "cpuid-0xb",\
         .value    = "off",\
+    },{\
+        .driver   = "vmxnet3",\
+        .property = "romfile",\
+        .value    = "",\
     },
 
 #define PC_COMPAT_2_5 \
