@@ -1127,7 +1127,7 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
         mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
 
-    qmp_drive_backup(device, filename, !!format, format,
+    qmp_drive_backup(false, NULL, device, filename, !!format, format,
                      full ? MIRROR_SYNC_MODE_FULL : MIRROR_SYNC_MODE_TOP,
                      true, mode, false, 0, false, NULL,
                      false, 0, false, 0, &err);

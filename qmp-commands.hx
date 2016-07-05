@@ -1212,8 +1212,8 @@ EQMP
 
     {
         .name       = "drive-backup",
-        .args_type  = "sync:s,device:B,target:s,speed:i?,mode:s?,format:s?,"
-                      "bitmap:s?,on-source-error:s?,on-target-error:s?",
+        .args_type  = "job-id:s?,sync:s,device:B,target:s,speed:i?,mode:s?,"
+                      "format:s?,bitmap:s?,on-source-error:s?,on-target-error:s?",
         .mhandler.cmd_new = qmp_marshal_drive_backup,
     },
 
@@ -1229,6 +1229,8 @@ block-job-cancel command.
 
 Arguments:
 
+- "job-id": Identifier for the newly-created block job. If omitted,
+            the device name will be used. (json-string, optional)
 - "device": the name of the device which should be copied.
             (json-string)
 - "target": the target of the new image. If the file exists, or if it is a
@@ -1266,7 +1268,7 @@ EQMP
 
     {
         .name       = "blockdev-backup",
-        .args_type  = "sync:s,device:B,target:B,speed:i?,"
+        .args_type  = "job-id:s?,sync:s,device:B,target:B,speed:i?,"
                       "on-source-error:s?,on-target-error:s?",
         .mhandler.cmd_new = qmp_marshal_blockdev_backup,
     },
@@ -1280,6 +1282,8 @@ as backup target.
 
 Arguments:
 
+- "job-id": Identifier for the newly-created block job. If omitted,
+            the device name will be used. (json-string, optional)
 - "device": the name of the device which should be copied.
             (json-string)
 - "target": the name of the backup target device. (json-string)

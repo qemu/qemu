@@ -866,6 +866,9 @@
 ##
 # @DriveBackup
 #
+# @job-id: #optional identifier for the newly-created block job. If
+#          omitted, the device name will be used. (Since 2.7)
+#
 # @device: the name of the device which should be copied.
 #
 # @target: the target of the new image. If the file exists, or if it
@@ -903,14 +906,17 @@
 # Since: 1.6
 ##
 { 'struct': 'DriveBackup',
-  'data': { 'device': 'str', 'target': 'str', '*format': 'str',
-            'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
+  'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
+            '*format': 'str', 'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
             '*speed': 'int', '*bitmap': 'str',
             '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError' } }
 
 ##
 # @BlockdevBackup
+#
+# @job-id: #optional identifier for the newly-created block job. If
+#          omitted, the device name will be used. (Since 2.7)
 #
 # @device: the name of the device which should be copied.
 #
@@ -938,7 +944,7 @@
 # Since: 2.3
 ##
 { 'struct': 'BlockdevBackup',
-  'data': { 'device': 'str', 'target': 'str',
+  'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             'sync': 'MirrorSyncMode',
             '*speed': 'int',
             '*on-source-error': 'BlockdevOnError',

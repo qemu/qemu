@@ -474,9 +474,9 @@ static void coroutine_fn backup_run(void *opaque)
     block_job_defer_to_main_loop(&job->common, backup_complete, data);
 }
 
-void backup_start(BlockDriverState *bs, BlockDriverState *target,
-                  int64_t speed, MirrorSyncMode sync_mode,
-                  BdrvDirtyBitmap *sync_bitmap,
+void backup_start(const char *job_id, BlockDriverState *bs,
+                  BlockDriverState *target, int64_t speed,
+                  MirrorSyncMode sync_mode, BdrvDirtyBitmap *sync_bitmap,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   BlockCompletionFunc *cb, void *opaque,
@@ -541,7 +541,7 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
         goto error;
     }
 
-    job = block_job_create(NULL, &backup_job_driver, bs, speed,
+    job = block_job_create(job_id, &backup_job_driver, bs, speed,
                            cb, opaque, errp);
     if (!job) {
         goto error;

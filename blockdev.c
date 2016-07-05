@@ -1836,9 +1836,9 @@ typedef struct DriveBackupState {
     BlockJob *job;
 } DriveBackupState;
 
-static void do_drive_backup(const char *device, const char *target,
-                            bool has_format, const char *format,
-                            enum MirrorSyncMode sync,
+static void do_drive_backup(const char *job_id, const char *device,
+                            const char *target, bool has_format,
+                            const char *format, enum MirrorSyncMode sync,
                             bool has_mode, enum NewImageMode mode,
                             bool has_speed, int64_t speed,
                             bool has_bitmap, const char *bitmap,
@@ -1876,7 +1876,8 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
     bdrv_drained_begin(blk_bs(blk));
     state->bs = blk_bs(blk);
 
-    do_drive_backup(backup->device, backup->target,
+    do_drive_backup(backup->has_job_id ? backup->job_id : NULL,
+                    backup->device, backup->target,
                     backup->has_format, backup->format,
                     backup->sync,
                     backup->has_mode, backup->mode,
@@ -1921,8 +1922,8 @@ typedef struct BlockdevBackupState {
     AioContext *aio_context;
 } BlockdevBackupState;
 
-static void do_blockdev_backup(const char *device, const char *target,
-                               enum MirrorSyncMode sync,
+static void do_blockdev_backup(const char *job_id, const char *device,
+                               const char *target, enum MirrorSyncMode sync,
                                bool has_speed, int64_t speed,
                                bool has_on_source_error,
                                BlockdevOnError on_source_error,
@@ -1968,8 +1969,8 @@ static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
     state->bs = blk_bs(blk);
     bdrv_drained_begin(state->bs);
 
-    do_blockdev_backup(backup->device, backup->target,
-                       backup->sync,
+    do_blockdev_backup(backup->has_job_id ? backup->job_id : NULL,
+                       backup->device, backup->target, backup->sync,
                        backup->has_speed, backup->speed,
                        backup->has_on_source_error, backup->on_source_error,
                        backup->has_on_target_error, backup->on_target_error,
@@ -3182,9 +3183,9 @@ out:
     aio_context_release(aio_context);
 }
 
-static void do_drive_backup(const char *device, const char *target,
-                            bool has_format, const char *format,
-                            enum MirrorSyncMode sync,
+static void do_drive_backup(const char *job_id, const char *device,
+                            const char *target, bool has_format,
+                            const char *format, enum MirrorSyncMode sync,
                             bool has_mode, enum NewImageMode mode,
                             bool has_speed, int64_t speed,
                             bool has_bitmap, const char *bitmap,
@@ -3303,7 +3304,7 @@ static void do_drive_backup(const char *device, const char *target,
         }
     }
 
-    backup_start(bs, target_bs, speed, sync, bmap,
+    backup_start(job_id, bs, target_bs, speed, sync, bmap,
                  on_source_error, on_target_error,
                  block_job_cb, bs, txn, &local_err);
     bdrv_unref(target_bs);
@@ -3316,7 +3317,8 @@ out:
     aio_context_release(aio_context);
 }
 
-void qmp_drive_backup(const char *device, const char *target,
+void qmp_drive_backup(bool has_job_id, const char *job_id,
+                      const char *device, const char *target,
                       bool has_format, const char *format,
                       enum MirrorSyncMode sync,
                       bool has_mode, enum NewImageMode mode,
@@ -3326,7 +3328,8 @@ void qmp_drive_backup(const char *device, const char *target,
                       bool has_on_target_error, BlockdevOnError on_target_error,
                       Error **errp)
 {
-    return do_drive_backup(device, target, has_format, format, sync,
+    return do_drive_backup(has_job_id ? job_id : NULL, device, target,
+                           has_format, format, sync,
                            has_mode, mode, has_speed, speed,
                            has_bitmap, bitmap,
                            has_on_source_error, on_source_error,
@@ -3339,8 +3342,8 @@ BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
     return bdrv_named_nodes_list(errp);
 }
 
-void do_blockdev_backup(const char *device, const char *target,
-                         enum MirrorSyncMode sync,
+void do_blockdev_backup(const char *job_id, const char *device,
+                        const char *target, enum MirrorSyncMode sync,
                          bool has_speed, int64_t speed,
                          bool has_on_source_error,
                          BlockdevOnError on_source_error,
@@ -3395,7 +3398,7 @@ void do_blockdev_backup(const char *device, const char *target,
             goto out;
         }
     }
-    backup_start(bs, target_bs, speed, sync, NULL, on_source_error,
+    backup_start(job_id, bs, target_bs, speed, sync, NULL, on_source_error,
                  on_target_error, block_job_cb, bs, txn, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
@@ -3404,7 +3407,8 @@ out:
     aio_context_release(aio_context);
 }
 
-void qmp_blockdev_backup(const char *device, const char *target,
+void qmp_blockdev_backup(bool has_job_id, const char *job_id,
+                         const char *device, const char *target,
                          enum MirrorSyncMode sync,
                          bool has_speed, int64_t speed,
                          bool has_on_source_error,
@@ -3413,7 +3417,8 @@ void qmp_blockdev_backup(const char *device, const char *target,
                          BlockdevOnError on_target_error,
                          Error **errp)
 {
-    do_blockdev_backup(device, target, sync, has_speed, speed,
+    do_blockdev_backup(has_job_id ? job_id : NULL, device, target,
+                       sync, has_speed, speed,
                        has_on_source_error, on_source_error,
                        has_on_target_error, on_target_error,
                        NULL, errp);
