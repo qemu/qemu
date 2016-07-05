@@ -91,11 +91,14 @@ static BlockJob *test_block_job_start(unsigned int iterations,
     BlockDriverState *bs;
     TestBlockJob *s;
     TestBlockJobCBData *data;
+    static unsigned counter;
+    char job_id[24];
 
     data = g_new0(TestBlockJobCBData, 1);
     bs = bdrv_new();
-    s = block_job_create(&test_block_job_driver, bs, 0, test_block_job_cb,
-                         data, &error_abort);
+    snprintf(job_id, sizeof(job_id), "job%u", counter++);
+    s = block_job_create(job_id, &test_block_job_driver, bs, 0,
+                         test_block_job_cb, data, &error_abort);
     s->iterations = iterations;
     s->use_timer = use_timer;
     s->rc = rc;

@@ -226,7 +226,7 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
 {
     StreamBlockJob *s;
 
-    s = block_job_create(&stream_job_driver, bs, speed, cb, opaque, errp);
+    s = block_job_create(NULL, &stream_job_driver, bs, speed, cb, opaque, errp);
     if (!s) {
         return;
     }

@@ -33,6 +33,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"
 #include "qemu/coroutine.h"
+#include "qemu/id.h"
 #include "qmp-commands.h"
 #include "qemu/timer.h"
 #include "qapi-event.h"
@@ -116,9 +117,9 @@ static void block_job_detach_aio_context(void *opaque)
     block_job_unref(job);
 }
 
-void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
-                       int64_t speed, BlockCompletionFunc *cb,
-                       void *opaque, Error **errp)
+void *block_job_create(const char *job_id, const BlockJobDriver *driver,
+                       BlockDriverState *bs, int64_t speed,
+                       BlockCompletionFunc *cb, void *opaque, Error **errp)
 {
     BlockBackend *blk;
     BlockJob *job;
@@ -126,6 +127,26 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
     assert(cb);
     if (bs->job) {
         error_setg(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
+        return NULL;
+    }
+
+    if (job_id == NULL) {
+        job_id = bdrv_get_device_name(bs);
+        /* Assign a default ID if the BDS does not have a device
+         * name. We'll get rid of this soon when we finish extending
+         * the API of all commands that create block jobs. */
+        if (job_id[0] == '\0') {
+            job_id = "default_job";
+        }
+    }
+
+    if (!id_wellformed(job_id)) {
+        error_setg(errp, "Invalid job ID '%s'", job_id);
+        return NULL;
+    }
+
+    if (block_job_get(job_id)) {
+        error_setg(errp, "Job ID '%s' already in use", job_id);
         return NULL;
     }
 
@@ -139,7 +160,7 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
     bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
 
     job->driver        = driver;
-    job->id            = g_strdup(bdrv_get_device_name(bs));
+    job->id            = g_strdup(job_id);
     job->blk           = blk;
     job->cb            = cb;
     job->opaque        = opaque;

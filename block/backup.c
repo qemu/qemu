@@ -541,7 +541,8 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
         goto error;
     }
 
-    job = block_job_create(&backup_job_driver, bs, speed, cb, opaque, errp);
+    job = block_job_create(NULL, &backup_job_driver, bs, speed,
+                           cb, opaque, errp);
     if (!job) {
         goto error;
     }

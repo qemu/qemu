@@ -223,6 +223,8 @@ BlockJob *block_job_get(const char *id);
 
 /**
  * block_job_create:
+ * @job_id: The id of the newly-created job, or %NULL to have one
+ * generated automatically.
  * @job_type: The class object for the newly-created job.
  * @bs: The block
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
@@ -239,9 +241,9 @@ BlockJob *block_job_get(const char *id);
  * This function is not part of the public job interface; it should be
  * called from a wrapper that is specific to the job type.
  */
-void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
-                       int64_t speed, BlockCompletionFunc *cb,
-                       void *opaque, Error **errp);
+void *block_job_create(const char *job_id, const BlockJobDriver *driver,
+                       BlockDriverState *bs, int64_t speed,
+                       BlockCompletionFunc *cb, void *opaque, Error **errp);
 
 /**
  * block_job_sleep_ns:
