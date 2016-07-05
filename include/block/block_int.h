@@ -642,8 +642,8 @@ int is_windows_drive(const char *filename);
  * @bs: Block device to operate on.
  * @base: Block device that will become the new base, or %NULL to
  * flatten the whole backing file chain onto @bs.
- * @base_id: The file name that will be written to @bs as the new
- * backing file if the job completes.  Ignored if @base is %NULL.
+ * @backing_file_str: The file name that will be written to @bs as the
+ * the new backing file if the job completes. Ignored if @base is %NULL.
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
  * @on_error: The action to take upon error.
  * @cb: Completion function for the job.
@@ -654,11 +654,12 @@ int is_windows_drive(const char *filename);
  * in @bs, but allocated in any image between @base and @bs (both
  * exclusive) will be written to @bs.  At the end of a successful
  * streaming job, the backing file of @bs will be changed to
- * @base_id in the written image and to @base in the live BlockDriverState.
+ * @backing_file_str in the written image and to @base in the live
+ * BlockDriverState.
  */
 void stream_start(BlockDriverState *bs, BlockDriverState *base,
-                  const char *base_id, int64_t speed, BlockdevOnError on_error,
-                  BlockCompletionFunc *cb,
+                  const char *backing_file_str, int64_t speed,
+                  BlockdevOnError on_error, BlockCompletionFunc *cb,
                   void *opaque, Error **errp);
 
 /**
