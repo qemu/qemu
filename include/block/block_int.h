@@ -697,6 +697,8 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
                          void *opaque, Error **errp);
 /*
  * mirror_start:
+ * @job_id: The id of the newly-created job, or %NULL to use the
+ * device name of @bs.
  * @bs: Block device to operate on.
  * @target: Block device to write to.
  * @replaces: Block graph node name to replace once the mirror is done. Can
@@ -718,8 +720,8 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
  * manually completed.  At the end of a successful mirroring job,
  * @bs will be switched to read from @target.
  */
-void mirror_start(BlockDriverState *bs, BlockDriverState *target,
-                  const char *replaces,
+void mirror_start(const char *job_id, BlockDriverState *bs,
+                  BlockDriverState *target, const char *replaces,
                   int64_t speed, uint32_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockMirrorBackingMode backing_mode,
                   BlockdevOnError on_source_error,

@@ -3422,7 +3422,7 @@ void qmp_blockdev_backup(const char *device, const char *target,
 /* Parameter check and block job starting for drive mirroring.
  * Caller should hold @device and @target's aio context (must be the same).
  **/
-static void blockdev_mirror_common(BlockDriverState *bs,
+static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    BlockDriverState *target,
                                    bool has_replaces, const char *replaces,
                                    enum MirrorSyncMode sync,
@@ -3482,15 +3482,15 @@ static void blockdev_mirror_common(BlockDriverState *bs,
     /* pass the node name to replace to mirror start since it's loose coupling
      * and will allow to check whether the node still exist at mirror completion
      */
-    mirror_start(bs, target,
+    mirror_start(job_id, bs, target,
                  has_replaces ? replaces : NULL,
                  speed, granularity, buf_size, sync, backing_mode,
                  on_source_error, on_target_error, unmap,
                  block_job_cb, bs, errp);
 }
 
-void qmp_drive_mirror(const char *device, const char *target,
-                      bool has_format, const char *format,
+void qmp_drive_mirror(bool has_job_id, const char *job_id, const char *device,
+                      const char *target, bool has_format, const char *format,
                       bool has_node_name, const char *node_name,
                       bool has_replaces, const char *replaces,
                       enum MirrorSyncMode sync,
@@ -3634,7 +3634,7 @@ void qmp_drive_mirror(const char *device, const char *target,
 
     bdrv_set_aio_context(target_bs, aio_context);
 
-    blockdev_mirror_common(bs, target_bs,
+    blockdev_mirror_common(has_job_id ? job_id : NULL, bs, target_bs,
                            has_replaces, replaces, sync, backing_mode,
                            has_speed, speed,
                            has_granularity, granularity,
@@ -3649,7 +3649,8 @@ out:
     aio_context_release(aio_context);
 }
 
-void qmp_blockdev_mirror(const char *device, const char *target,
+void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
+                         const char *device, const char *target,
                          bool has_replaces, const char *replaces,
                          MirrorSyncMode sync,
                          bool has_speed, int64_t speed,
@@ -3690,7 +3691,7 @@ void qmp_blockdev_mirror(const char *device, const char *target,
 
     bdrv_set_aio_context(target_bs, aio_context);
 
-    blockdev_mirror_common(bs, target_bs,
+    blockdev_mirror_common(has_job_id ? job_id : NULL, bs, target_bs,
                            has_replaces, replaces, sync, backing_mode,
                            has_speed, speed,
                            has_granularity, granularity,

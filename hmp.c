@@ -1097,7 +1097,7 @@ void hmp_drive_mirror(Monitor *mon, const QDict *qdict)
         mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
 
-    qmp_drive_mirror(device, filename, !!format, format,
+    qmp_drive_mirror(false, NULL, device, filename, !!format, format,
                      false, NULL, false, NULL,
                      full ? MIRROR_SYNC_MODE_FULL : MIRROR_SYNC_MODE_TOP,
                      true, mode, false, 0, false, 0, false, 0,
