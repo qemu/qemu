@@ -489,7 +489,7 @@ static unsigned hpte_page_shift(const struct ppc_one_seg_page_size *sps,
 
 static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
                                      ppc_slb_t *slb, target_ulong ptem,
-                                     ppc_hash_pte64_t *pte)
+                                     ppc_hash_pte64_t *pte, unsigned *pshift)
 {
     CPUPPCState *env = &cpu->env;
     int i;
@@ -508,7 +508,7 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
 
         /* This compares V, B, H (secondary) and the AVPN */
         if (HPTE64_V_COMPARE(pte0, ptem)) {
-            unsigned pshift = hpte_page_shift(slb->sps, pte0, pte1);
+            *pshift = hpte_page_shift(slb->sps, pte0, pte1);
             /*
              * If there is no match, ignore the PTE, it could simply
              * be for a different segment size encoding and the
@@ -516,7 +516,7 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
              * potentially leave behind PTEs for the wrong base page
              * size when demoting segments.
              */
-            if (pshift == 0) {
+            if (*pshift == 0) {
                 continue;
             }
             /* We don't do anything with pshift yet as qemu TLB only deals
@@ -537,7 +537,7 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
 
 static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
                                      ppc_slb_t *slb, target_ulong eaddr,
-                                     ppc_hash_pte64_t *pte)
+                                     ppc_hash_pte64_t *pte, unsigned *pshift)
 {
     CPUPPCState *env = &cpu->env;
     hwaddr pte_offset;
@@ -576,7 +576,7 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
             " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
             " hash=" TARGET_FMT_plx "\n",
             env->htab_base, env->htab_mask, vsid, ptem,  hash);
-    pte_offset = ppc_hash64_pteg_search(cpu, hash, slb, ptem, pte);
+    pte_offset = ppc_hash64_pteg_search(cpu, hash, slb, ptem, pte, pshift);
 
     if (pte_offset == -1) {
         /* Secondary PTEG lookup */
@@ -587,7 +587,7 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
                 " hash=" TARGET_FMT_plx "\n", env->htab_base,
                 env->htab_mask, vsid, ptem, ~hash);
 
-        pte_offset = ppc_hash64_pteg_search(cpu, ~hash, slb, ptem, pte);
+        pte_offset = ppc_hash64_pteg_search(cpu, ~hash, slb, ptem, pte, pshift);
     }
 
     return pte_offset;
@@ -714,7 +714,7 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     }
 
     /* 4. Locate the PTE in the hash table */
-    pte_offset = ppc_hash64_htab_lookup(cpu, slb, eaddr, &pte);
+    pte_offset = ppc_hash64_htab_lookup(cpu, slb, eaddr, &pte, &apshift);
     if (pte_offset == -1) {
         dsisr = 0x40000000;
         if (rwx == 2) {
@@ -729,18 +729,6 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     }
     qemu_log_mask(CPU_LOG_MMU,
                 "found PTE at offset %08" HWADDR_PRIx "\n", pte_offset);
-
-    /* Validate page size encoding */
-    apshift = hpte_page_shift(slb->sps, pte.pte0, pte.pte1);
-    if (!apshift) {
-        error_report("Bad page size encoding in HPTE 0x%"PRIx64" - 0x%"PRIx64
-                     " @ 0x%"HWADDR_PRIx, pte.pte0, pte.pte1, pte_offset);
-        /* Not entirely sure what the right action here, but machine
-         * check seems reasonable */
-        cs->exception_index = POWERPC_EXCP_MCHECK;
-        env->error_code = 0;
-        return 1;
-    }
 
     /* 5. Check access permissions */
 
@@ -815,13 +803,8 @@ hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
         return -1;
     }
 
-    pte_offset = ppc_hash64_htab_lookup(cpu, slb, addr, &pte);
+    pte_offset = ppc_hash64_htab_lookup(cpu, slb, addr, &pte, &apshift);
     if (pte_offset == -1) {
-        return -1;
-    }
-
-    apshift = hpte_page_shift(slb->sps, pte.pte0, pte.pte1);
-    if (!apshift) {
         return -1;
     }
 
