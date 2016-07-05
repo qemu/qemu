@@ -212,6 +212,16 @@ struct BlockJob {
 BlockJob *block_job_next(BlockJob *job);
 
 /**
+ * block_job_get:
+ * @id: The id of the block job.
+ *
+ * Get the block job identified by @id (which must not be %NULL).
+ *
+ * Returns the requested job, or %NULL if it doesn't exist.
+ */
+BlockJob *block_job_get(const char *id);
+
+/**
  * block_job_create:
  * @job_type: The class object for the newly-created job.
  * @bs: The block

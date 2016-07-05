@@ -60,6 +60,19 @@ BlockJob *block_job_next(BlockJob *job)
     return QLIST_NEXT(job, job_list);
 }
 
+BlockJob *block_job_get(const char *id)
+{
+    BlockJob *job;
+
+    QLIST_FOREACH(job, &block_jobs, job_list) {
+        if (!strcmp(id, job->id)) {
+            return job;
+        }
+    }
+
+    return NULL;
+}
+
 /* Normally the job runs in its BlockBackend's AioContext.  The exception is
  * block_job_defer_to_main_loop() where it runs in the QEMU main loop.  Code
  * that supports both cases uses this helper function.
