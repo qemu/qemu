@@ -450,30 +450,45 @@ void ppc_hash64_stop_access(PowerPCCPU *cpu, uint64_t token)
     }
 }
 
-/* Returns the effective page shift or 0. MPSS isn't supported yet so
- * this will always be the slb_pshift or 0
- */
-static uint32_t ppc_hash64_pte_size_decode(uint64_t pte1, uint32_t slb_pshift)
+static unsigned hpte_page_shift(const struct ppc_one_seg_page_size *sps,
+    uint64_t pte0, uint64_t pte1)
 {
-    switch (slb_pshift) {
-    case 12:
+    int i;
+
+    if (!(pte0 & HPTE64_V_LARGE)) {
+        if (sps->page_shift != 12) {
+            /* 4kiB page in a non 4kiB segment */
+            return 0;
+        }
+        /* Normal 4kiB page */
         return 12;
-    case 16:
-        if ((pte1 & 0xf000) == 0x1000) {
-            return 16;
-        }
-        return 0;
-    case 24:
-        if ((pte1 & 0xff000) == 0) {
-            return 24;
-        }
-        return 0;
     }
-    return 0;
+
+    for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
+        const struct ppc_one_page_size *ps = &sps->enc[i];
+        uint64_t mask;
+
+        if (!ps->page_shift) {
+            break;
+        }
+
+        if (ps->page_shift == 12) {
+            /* L bit is set so this can't be a 4kiB page */
+            continue;
+        }
+
+        mask = ((1ULL << ps->page_shift) - 1) & HPTE64_R_RPN;
+
+        if ((pte1 & mask) == (ps->pte_enc << HPTE64_R_RPN_SHIFT)) {
+            return ps->page_shift;
+        }
+    }
+
+    return 0; /* Bad page size encoding */
 }
 
 static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
-                                     uint32_t slb_pshift, bool secondary,
+                                     ppc_slb_t *slb, bool secondary,
                                      target_ulong ptem, ppc_hash_pte64_t *pte)
 {
     CPUPPCState *env = &cpu->env;
@@ -494,7 +509,14 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
         if ((pte0 & HPTE64_V_VALID)
             && (secondary == !!(pte0 & HPTE64_V_SECONDARY))
             && HPTE64_V_COMPARE(pte0, ptem)) {
-            uint32_t pshift = ppc_hash64_pte_size_decode(pte1, slb_pshift);
+            unsigned pshift = hpte_page_shift(slb->sps, pte0, pte1);
+            /*
+             * If there is no match, ignore the PTE, it could simply
+             * be for a different segment size encoding and the
+             * architecture specifies we should not match. Linux will
+             * potentially leave behind PTEs for the wrong base page
+             * size when demoting segments.
+             */
             if (pshift == 0) {
                 continue;
             }
@@ -554,8 +576,7 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
             " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
             " hash=" TARGET_FMT_plx "\n",
             env->htab_base, env->htab_mask, vsid, ptem,  hash);
-    pte_offset = ppc_hash64_pteg_search(cpu, hash, slb->sps->page_shift,
-                                        0, ptem, pte);
+    pte_offset = ppc_hash64_pteg_search(cpu, hash, slb, 0, ptem, pte);
 
     if (pte_offset == -1) {
         /* Secondary PTEG lookup */
@@ -565,48 +586,10 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
                 " hash=" TARGET_FMT_plx "\n", env->htab_base,
                 env->htab_mask, vsid, ptem, ~hash);
 
-        pte_offset = ppc_hash64_pteg_search(cpu, ~hash, slb->sps->page_shift, 1,
-                                            ptem, pte);
+        pte_offset = ppc_hash64_pteg_search(cpu, ~hash, slb, 1, ptem, pte);
     }
 
     return pte_offset;
-}
-
-static unsigned hpte_page_shift(const struct ppc_one_seg_page_size *sps,
-    uint64_t pte0, uint64_t pte1)
-{
-    int i;
-
-    if (!(pte0 & HPTE64_V_LARGE)) {
-        if (sps->page_shift != 12) {
-            /* 4kiB page in a non 4kiB segment */
-            return 0;
-        }
-        /* Normal 4kiB page */
-        return 12;
-    }
-
-    for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
-        const struct ppc_one_page_size *ps = &sps->enc[i];
-        uint64_t mask;
-
-        if (!ps->page_shift) {
-            break;
-        }
-
-        if (ps->page_shift == 12) {
-            /* L bit is set so this can't be a 4kiB page */
-            continue;
-        }
-
-        mask = ((1ULL << ps->page_shift) - 1) & HPTE64_R_RPN;
-
-        if ((pte1 & mask) == (ps->pte_enc << HPTE64_R_RPN_SHIFT)) {
-            return ps->page_shift;
-        }
-    }
-
-    return 0; /* Bad page size encoding */
 }
 
 unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
