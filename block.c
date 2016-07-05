@@ -536,9 +536,10 @@ BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
     return drv;
 }
 
-static int find_image_format(BlockDriverState *bs, const char *filename,
+static int find_image_format(BdrvChild *file, const char *filename,
                              BlockDriver **pdrv, Error **errp)
 {
+    BlockDriverState *bs = file->bs;
     BlockDriver *drv;
     uint8_t buf[BLOCK_PROBE_BUF_SIZE];
     int ret = 0;
@@ -549,7 +550,7 @@ static int find_image_format(BlockDriverState *bs, const char *filename,
         return ret;
     }
 
-    ret = bdrv_pread(bs, 0, buf, sizeof(buf));
+    ret = bdrv_pread(file, 0, buf, sizeof(buf));
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not read image for determining its "
                          "format");
@@ -937,7 +938,6 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
         goto fail_opts;
     }
 
-    bs->request_alignment = drv->bdrv_co_preadv ? 1 : 512;
     bs->read_only = !(bs->open_flags & BDRV_O_RDWR);
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv, bs->read_only)) {
@@ -1017,7 +1017,7 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
 
     assert(bdrv_opt_mem_align(bs) != 0);
     assert(bdrv_min_mem_align(bs) != 0);
-    assert(is_power_of_2(bs->request_alignment) || bdrv_is_sg(bs));
+    assert(is_power_of_2(bs->bl.request_alignment));
 
     qemu_opts_del(opts);
     return 0;
@@ -1653,7 +1653,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
     /* Image format probing */
     bs->probed = !drv;
     if (!drv && file) {
-        ret = find_image_format(file->bs, filename, &drv, &local_err);
+        ret = find_image_format(file, filename, &drv, &local_err);
         if (ret < 0) {
             goto fail;
         }
@@ -2184,9 +2184,9 @@ static void bdrv_close(BlockDriverState *bs)
         bs->backing_file[0] = '\0';
         bs->backing_format[0] = '\0';
         bs->total_sectors = 0;
-        bs->encrypted = 0;
-        bs->valid_key = 0;
-        bs->sg = 0;
+        bs->encrypted = false;
+        bs->valid_key = false;
+        bs->sg = false;
         QDECREF(bs->options);
         QDECREF(bs->explicit_options);
         bs->options = NULL;
@@ -2321,116 +2321,6 @@ int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix)
 
     memset(res, 0, sizeof(*res));
     return bs->drv->bdrv_check(bs, res, fix);
-}
-
-#define COMMIT_BUF_SECTORS 2048
-
-/* commit COW file into the raw image */
-int bdrv_commit(BlockDriverState *bs)
-{
-    BlockDriver *drv = bs->drv;
-    int64_t sector, total_sectors, length, backing_length;
-    int n, ro, open_flags;
-    int ret = 0;
-    uint8_t *buf = NULL;
-
-    if (!drv)
-        return -ENOMEDIUM;
-
-    if (!bs->backing) {
-        return -ENOTSUP;
-    }
-
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT_SOURCE, NULL) ||
-        bdrv_op_is_blocked(bs->backing->bs, BLOCK_OP_TYPE_COMMIT_TARGET, NULL)) {
-        return -EBUSY;
-    }
-
-    ro = bs->backing->bs->read_only;
-    open_flags =  bs->backing->bs->open_flags;
-
-    if (ro) {
-        if (bdrv_reopen(bs->backing->bs, open_flags | BDRV_O_RDWR, NULL)) {
-            return -EACCES;
-        }
-    }
-
-    length = bdrv_getlength(bs);
-    if (length < 0) {
-        ret = length;
-        goto ro_cleanup;
-    }
-
-    backing_length = bdrv_getlength(bs->backing->bs);
-    if (backing_length < 0) {
-        ret = backing_length;
-        goto ro_cleanup;
-    }
-
-    /* If our top snapshot is larger than the backing file image,
-     * grow the backing file image if possible.  If not possible,
-     * we must return an error */
-    if (length > backing_length) {
-        ret = bdrv_truncate(bs->backing->bs, length);
-        if (ret < 0) {
-            goto ro_cleanup;
-        }
-    }
-
-    total_sectors = length >> BDRV_SECTOR_BITS;
-
-    /* qemu_try_blockalign() for bs will choose an alignment that works for
-     * bs->backing->bs as well, so no need to compare the alignment manually. */
-    buf = qemu_try_blockalign(bs, COMMIT_BUF_SECTORS * BDRV_SECTOR_SIZE);
-    if (buf == NULL) {
-        ret = -ENOMEM;
-        goto ro_cleanup;
-    }
-
-    for (sector = 0; sector < total_sectors; sector += n) {
-        ret = bdrv_is_allocated(bs, sector, COMMIT_BUF_SECTORS, &n);
-        if (ret < 0) {
-            goto ro_cleanup;
-        }
-        if (ret) {
-            ret = bdrv_read(bs, sector, buf, n);
-            if (ret < 0) {
-                goto ro_cleanup;
-            }
-
-            ret = bdrv_write(bs->backing->bs, sector, buf, n);
-            if (ret < 0) {
-                goto ro_cleanup;
-            }
-        }
-    }
-
-    if (drv->bdrv_make_empty) {
-        ret = drv->bdrv_make_empty(bs);
-        if (ret < 0) {
-            goto ro_cleanup;
-        }
-        bdrv_flush(bs);
-    }
-
-    /*
-     * Make sure all data we wrote to the backing device is actually
-     * stable on disk.
-     */
-    if (bs->backing) {
-        bdrv_flush(bs->backing->bs);
-    }
-
-    ret = 0;
-ro_cleanup:
-    qemu_vfree(buf);
-
-    if (ro) {
-        /* ignoring error return here */
-        bdrv_reopen(bs->backing->bs, open_flags & ~BDRV_O_RDWR, NULL);
-    }
-
-    return ret;
 }
 
 /*
@@ -2644,30 +2534,30 @@ void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr)
     *nb_sectors_ptr = nb_sectors < 0 ? 0 : nb_sectors;
 }
 
-int bdrv_is_read_only(BlockDriverState *bs)
+bool bdrv_is_read_only(BlockDriverState *bs)
 {
     return bs->read_only;
 }
 
-int bdrv_is_sg(BlockDriverState *bs)
+bool bdrv_is_sg(BlockDriverState *bs)
 {
     return bs->sg;
 }
 
-int bdrv_is_encrypted(BlockDriverState *bs)
+bool bdrv_is_encrypted(BlockDriverState *bs)
 {
     if (bs->backing && bs->backing->bs->encrypted) {
-        return 1;
+        return true;
     }
     return bs->encrypted;
 }
 
-int bdrv_key_required(BlockDriverState *bs)
+bool bdrv_key_required(BlockDriverState *bs)
 {
     BdrvChild *backing = bs->backing;
 
     if (backing && backing->bs->encrypted && !backing->bs->valid_key) {
-        return 1;
+        return true;
     }
     return (bs->encrypted && !bs->valid_key);
 }
@@ -2689,10 +2579,10 @@ int bdrv_set_key(BlockDriverState *bs, const char *key)
     }
     ret = bs->drv->bdrv_set_key(bs, key);
     if (ret < 0) {
-        bs->valid_key = 0;
+        bs->valid_key = false;
     } else if (!bs->valid_key) {
         /* call the change callback now, we skipped it on open */
-        bs->valid_key = 1;
+        bs->valid_key = true;
         bdrv_parent_cb_change_media(bs, true);
     }
     return ret;

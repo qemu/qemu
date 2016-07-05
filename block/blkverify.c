@@ -247,9 +247,9 @@ static BlockAIOCB *blkverify_aio_readv(BlockDriverState *bs,
     qemu_iovec_init(&acb->raw_qiov, acb->qiov->niov);
     qemu_iovec_clone(&acb->raw_qiov, qiov, acb->buf);
 
-    bdrv_aio_readv(s->test_file->bs, sector_num, qiov, nb_sectors,
+    bdrv_aio_readv(s->test_file, sector_num, qiov, nb_sectors,
                    blkverify_aio_cb, acb);
-    bdrv_aio_readv(bs->file->bs, sector_num, &acb->raw_qiov, nb_sectors,
+    bdrv_aio_readv(bs->file, sector_num, &acb->raw_qiov, nb_sectors,
                    blkverify_aio_cb, acb);
     return &acb->common;
 }
@@ -262,9 +262,9 @@ static BlockAIOCB *blkverify_aio_writev(BlockDriverState *bs,
     BlkverifyAIOCB *acb = blkverify_aio_get(bs, true, sector_num, qiov,
                                             nb_sectors, cb, opaque);
 
-    bdrv_aio_writev(s->test_file->bs, sector_num, qiov, nb_sectors,
+    bdrv_aio_writev(s->test_file, sector_num, qiov, nb_sectors,
                     blkverify_aio_cb, acb);
-    bdrv_aio_writev(bs->file->bs, sector_num, qiov, nb_sectors,
+    bdrv_aio_writev(bs->file, sector_num, qiov, nb_sectors,
                     blkverify_aio_cb, acb);
     return &acb->common;
 }

@@ -324,30 +324,48 @@ struct BlockDriver {
 };
 
 typedef struct BlockLimits {
-    /* maximum number of sectors that can be discarded at once */
-    int max_discard;
+    /* Alignment requirement, in bytes, for offset/length of I/O
+     * requests. Must be a power of 2 less than INT_MAX; defaults to
+     * 1 for drivers with modern byte interfaces, and to 512
+     * otherwise. */
+    uint32_t request_alignment;
 
-    /* optimal alignment for discard requests in sectors */
-    int64_t discard_alignment;
+    /* maximum number of bytes that can be discarded at once (since it
+     * is signed, it must be < 2G, if set), should be multiple of
+     * pdiscard_alignment, but need not be power of 2. May be 0 if no
+     * inherent 32-bit limit */
+    int32_t max_pdiscard;
+
+    /* optimal alignment for discard requests in bytes, must be power
+     * of 2, less than max_pdiscard if that is set, and multiple of
+     * bl.request_alignment. May be 0 if bl.request_alignment is good
+     * enough */
+    uint32_t pdiscard_alignment;
 
     /* maximum number of bytes that can zeroized at once (since it is
-     * signed, it must be < 2G, if set) */
+     * signed, it must be < 2G, if set), should be multiple of
+     * pwrite_zeroes_alignment. May be 0 if no inherent 32-bit limit */
     int32_t max_pwrite_zeroes;
 
     /* optimal alignment for write zeroes requests in bytes, must be
-     * power of 2, and less than max_pwrite_zeroes if that is set */
+     * power of 2, less than max_pwrite_zeroes if that is set, and
+     * multiple of bl.request_alignment. May be 0 if
+     * bl.request_alignment is good enough */
     uint32_t pwrite_zeroes_alignment;
 
-    /* optimal transfer length in sectors */
-    int opt_transfer_length;
+    /* optimal transfer length in bytes (must be power of 2, and
+     * multiple of bl.request_alignment), or 0 if no preferred size */
+    uint32_t opt_transfer;
 
-    /* maximal transfer length in sectors */
-    int max_transfer_length;
+    /* maximal transfer length in bytes (need not be power of 2, but
+     * should be multiple of opt_transfer), or 0 for no 32-bit limit.
+     * For now, anything larger than INT_MAX is clamped down. */
+    uint32_t max_transfer;
 
-    /* memory alignment so that no bounce buffer is needed */
+    /* memory alignment, in bytes so that no bounce buffer is needed */
     size_t min_mem_alignment;
 
-    /* memory alignment for bounce buffer */
+    /* memory alignment, in bytes, for bounce buffer */
     size_t opt_mem_alignment;
 
     /* maximum number of iovec elements */
@@ -411,14 +429,15 @@ struct BdrvChild {
 struct BlockDriverState {
     int64_t total_sectors; /* if we are reading a disk image, give its
                               size in sectors */
-    int read_only; /* if true, the media is read only */
     int open_flags; /* flags used to open the file, re-used for re-open */
-    int encrypted; /* if true, the media is encrypted */
-    int valid_key; /* if true, a valid encryption key has been set */
-    int sg;        /* if true, the device is a /dev/sg* */
-    int copy_on_read; /* if true, copy read backing sectors into image
+    bool read_only; /* if true, the media is read only */
+    bool encrypted; /* if true, the media is encrypted */
+    bool valid_key; /* if true, a valid encryption key has been set */
+    bool sg;        /* if true, the device is a /dev/sg* */
+    bool probed;    /* if true, format was probed rather than specified */
+
+    int copy_on_read; /* if nonzero, copy read backing sectors into image.
                          note this is a reference count */
-    bool probed;
 
     BlockDriver *drv; /* NULL means no media */
     void *opaque;
@@ -453,8 +472,6 @@ struct BlockDriverState {
     /* I/O Limits */
     BlockLimits bl;
 
-    /* Alignment requirement for offset/length of I/O requests */
-    unsigned int request_alignment;
     /* Flags honored during pwrite (so far: BDRV_REQ_FUA) */
     unsigned int supported_write_flags;
     /* Flags honored during pwrite_zeroes (so far: BDRV_REQ_FUA,
@@ -546,10 +563,10 @@ extern BlockDriver bdrv_qcow2;
  */
 void bdrv_setup_io_funcs(BlockDriver *bdrv);
 
-int coroutine_fn bdrv_co_preadv(BlockDriverState *bs,
+int coroutine_fn bdrv_co_preadv(BdrvChild *child,
     int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags);
-int coroutine_fn bdrv_co_pwritev(BlockDriverState *bs,
+int coroutine_fn bdrv_co_pwritev(BdrvChild *child,
     int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags);
 

@@ -210,7 +210,7 @@ static int64_t allocate_clusters(BlockDriverState *bs, int64_t sector_num,
         int ret;
         space += s->prealloc_size;
         if (s->prealloc_mode == PRL_PREALLOC_MODE_FALLOCATE) {
-            ret = bdrv_pwrite_zeroes(bs->file->bs,
+            ret = bdrv_pwrite_zeroes(bs->file,
                                      s->data_end << BDRV_SECTOR_BITS,
                                      space << BDRV_SECTOR_BITS, 0);
         } else {
@@ -250,7 +250,7 @@ static coroutine_fn int parallels_co_flush_to_os(BlockDriverState *bs)
         if (off + to_write > s->header_size) {
             to_write = s->header_size - off;
         }
-        ret = bdrv_pwrite(bs->file->bs, off, (uint8_t *)s->header + off,
+        ret = bdrv_pwrite(bs->file, off, (uint8_t *)s->header + off,
                           to_write);
         if (ret < 0) {
             qemu_co_mutex_unlock(&s->lock);
@@ -311,7 +311,7 @@ static coroutine_fn int parallels_co_writev(BlockDriverState *bs,
         qemu_iovec_reset(&hd_qiov);
         qemu_iovec_concat(&hd_qiov, qiov, bytes_done, nbytes);
 
-        ret = bdrv_co_writev(bs->file->bs, position, n, &hd_qiov);
+        ret = bdrv_co_writev(bs->file, position, n, &hd_qiov);
         if (ret < 0) {
             break;
         }
@@ -351,7 +351,7 @@ static coroutine_fn int parallels_co_readv(BlockDriverState *bs,
             qemu_iovec_reset(&hd_qiov);
             qemu_iovec_concat(&hd_qiov, qiov, bytes_done, nbytes);
 
-            ret = bdrv_co_readv(bs->file->bs, position, n, &hd_qiov);
+            ret = bdrv_co_readv(bs->file, position, n, &hd_qiov);
             if (ret < 0) {
                 break;
             }
@@ -432,7 +432,7 @@ static int parallels_check(BlockDriverState *bs, BdrvCheckResult *res,
     }
 
     if (flush_bat) {
-        ret = bdrv_pwrite_sync(bs->file->bs, 0, s->header, s->header_size);
+        ret = bdrv_pwrite_sync(bs->file, 0, s->header, s->header_size);
         if (ret < 0) {
             res->check_errors++;
             return ret;
@@ -563,7 +563,7 @@ static int parallels_update_header(BlockDriverState *bs)
     if (size > s->header_size) {
         size = s->header_size;
     }
-    return bdrv_pwrite_sync(bs->file->bs, 0, s->header, size);
+    return bdrv_pwrite_sync(bs->file, 0, s->header, size);
 }
 
 static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
@@ -576,7 +576,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     Error *local_err = NULL;
     char *buf;
 
-    ret = bdrv_pread(bs->file->bs, 0, &ph, sizeof(ph));
+    ret = bdrv_pread(bs->file, 0, &ph, sizeof(ph));
     if (ret < 0) {
         goto fail;
     }
@@ -631,7 +631,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         s->header_size = size;
     }
 
-    ret = bdrv_pread(bs->file->bs, 0, s->header, s->header_size);
+    ret = bdrv_pread(bs->file, 0, s->header, s->header_size);
     if (ret < 0) {
         goto fail;
     }

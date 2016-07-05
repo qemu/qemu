@@ -82,7 +82,7 @@ static void parse_drive(DeviceState *dev, const char *str, void **ptr,
     if (blk_attach_dev(blk, dev) < 0) {
         DriveInfo *dinfo = blk_legacy_dinfo(blk);
 
-        if (dinfo->type != IF_NONE) {
+        if (dinfo && dinfo->type != IF_NONE) {
             error_setg(errp, "Drive '%s' is already in use because "
                        "it has been automatically connected to another "
                        "device (did you need 'if=none' in the drive options?)",

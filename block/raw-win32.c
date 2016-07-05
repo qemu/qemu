@@ -222,7 +222,7 @@ static void raw_attach_aio_context(BlockDriverState *bs,
     }
 }
 
-static void raw_probe_alignment(BlockDriverState *bs)
+static void raw_probe_alignment(BlockDriverState *bs, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     DWORD sectorsPerCluster, freeClusters, totalClusters, count;
@@ -230,14 +230,14 @@ static void raw_probe_alignment(BlockDriverState *bs)
     BOOL status;
 
     if (s->type == FTYPE_CD) {
-        bs->request_alignment = 2048;
+        bs->bl.request_alignment = 2048;
         return;
     }
     if (s->type == FTYPE_HARDDISK) {
         status = DeviceIoControl(s->hfile, IOCTL_DISK_GET_DRIVE_GEOMETRY_EX,
                                  NULL, 0, &dg, sizeof(dg), &count, NULL);
         if (status != 0) {
-            bs->request_alignment = dg.Geometry.BytesPerSector;
+            bs->bl.request_alignment = dg.Geometry.BytesPerSector;
             return;
         }
         /* try GetDiskFreeSpace too */
@@ -247,7 +247,7 @@ static void raw_probe_alignment(BlockDriverState *bs)
         GetDiskFreeSpace(s->drive_path, &sectorsPerCluster,
                          &dg.Geometry.BytesPerSector,
                          &freeClusters, &totalClusters);
-        bs->request_alignment = dg.Geometry.BytesPerSector;
+        bs->bl.request_alignment = dg.Geometry.BytesPerSector;
     }
 }
 
@@ -365,7 +365,6 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
         win32_aio_attach_aio_context(s->aio, bdrv_get_aio_context(bs));
     }
 
-    raw_probe_alignment(bs);
     ret = 0;
 fail:
     qemu_opts_del(opts);
@@ -550,6 +549,7 @@ BlockDriver bdrv_file = {
     .bdrv_needs_filename = true,
     .bdrv_parse_filename = raw_parse_filename,
     .bdrv_file_open     = raw_open,
+    .bdrv_refresh_limits = raw_probe_alignment,
     .bdrv_close         = raw_close,
     .bdrv_create        = raw_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,

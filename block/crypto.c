@@ -64,7 +64,7 @@ static ssize_t block_crypto_read_func(QCryptoBlock *block,
     BlockDriverState *bs = opaque;
     ssize_t ret;
 
-    ret = bdrv_pread(bs->file->bs, offset, buf, buflen);
+    ret = bdrv_pread(bs->file, offset, buf, buflen);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not read encryption header");
         return ret;
@@ -322,8 +322,8 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
         goto cleanup;
     }
 
-    bs->encrypted = 1;
-    bs->valid_key = 1;
+    bs->encrypted = true;
+    bs->valid_key = true;
 
     ret = 0;
  cleanup:
@@ -428,7 +428,7 @@ block_crypto_co_readv(BlockDriverState *bs, int64_t sector_num,
         qemu_iovec_reset(&hd_qiov);
         qemu_iovec_add(&hd_qiov, cipher_data, cur_nr_sectors * 512);
 
-        ret = bdrv_co_readv(bs->file->bs,
+        ret = bdrv_co_readv(bs->file,
                             payload_offset + sector_num,
                             cur_nr_sectors, &hd_qiov);
         if (ret < 0) {
@@ -507,7 +507,7 @@ block_crypto_co_writev(BlockDriverState *bs, int64_t sector_num,
         qemu_iovec_reset(&hd_qiov);
         qemu_iovec_add(&hd_qiov, cipher_data, cur_nr_sectors * 512);
 
-        ret = bdrv_co_writev(bs->file->bs,
+        ret = bdrv_co_writev(bs->file,
                              payload_offset + sector_num,
                              cur_nr_sectors, &hd_qiov);
         if (ret < 0) {

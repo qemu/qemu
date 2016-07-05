@@ -66,11 +66,10 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
     uint32_t offsets_size, max_compressed_block_size = 1, i;
     int ret;
 
-    bs->read_only = 1;
-    bs->request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O supported */
+    bs->read_only = true;
 
     /* read header */
-    ret = bdrv_pread(bs->file->bs, 128, &s->block_size, 4);
+    ret = bdrv_pread(bs->file, 128, &s->block_size, 4);
     if (ret < 0) {
         return ret;
     }
@@ -96,7 +95,7 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
-    ret = bdrv_pread(bs->file->bs, 128 + 4, &s->n_blocks, 4);
+    ret = bdrv_pread(bs->file, 128 + 4, &s->n_blocks, 4);
     if (ret < 0) {
         return ret;
     }
@@ -127,7 +126,7 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
         return -ENOMEM;
     }
 
-    ret = bdrv_pread(bs->file->bs, 128 + 4 + 4, s->offsets, offsets_size);
+    ret = bdrv_pread(bs->file, 128 + 4 + 4, s->offsets, offsets_size);
     if (ret < 0) {
         goto fail;
     }
@@ -199,6 +198,11 @@ fail:
     return ret;
 }
 
+static void cloop_refresh_limits(BlockDriverState *bs, Error **errp)
+{
+    bs->bl.request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O */
+}
+
 static inline int cloop_read_block(BlockDriverState *bs, int block_num)
 {
     BDRVCloopState *s = bs->opaque;
@@ -207,7 +211,7 @@ static inline int cloop_read_block(BlockDriverState *bs, int block_num)
         int ret;
         uint32_t bytes = s->offsets[block_num + 1] - s->offsets[block_num];
 
-        ret = bdrv_pread(bs->file->bs, s->offsets[block_num],
+        ret = bdrv_pread(bs->file, s->offsets[block_num],
                          s->compressed_block, bytes);
         if (ret != bytes) {
             return -1;
@@ -280,6 +284,7 @@ static BlockDriver bdrv_cloop = {
     .instance_size  = sizeof(BDRVCloopState),
     .bdrv_probe     = cloop_probe,
     .bdrv_open      = cloop_open,
+    .bdrv_refresh_limits = cloop_refresh_limits,
     .bdrv_co_preadv = cloop_co_preadv,
     .bdrv_close     = cloop_close,
 };

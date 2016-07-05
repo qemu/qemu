@@ -107,7 +107,7 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
         printf("attempting to read extended header in offset %lu\n", offset);
 #endif
 
-        ret = bdrv_pread(bs->file->bs, offset, &ext, sizeof(ext));
+        ret = bdrv_pread(bs->file, offset, &ext, sizeof(ext));
         if (ret < 0) {
             error_setg_errno(errp, -ret, "qcow2_read_extension: ERROR: "
                              "pread fail from offset %" PRIu64, offset);
@@ -135,7 +135,7 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
                            sizeof(bs->backing_format));
                 return 2;
             }
-            ret = bdrv_pread(bs->file->bs, offset, bs->backing_format, ext.len);
+            ret = bdrv_pread(bs->file, offset, bs->backing_format, ext.len);
             if (ret < 0) {
                 error_setg_errno(errp, -ret, "ERROR: ext_backing_format: "
                                  "Could not read format name");
@@ -151,7 +151,7 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
         case QCOW2_EXT_MAGIC_FEATURE_TABLE:
             if (p_feature_table != NULL) {
                 void* feature_table = g_malloc0(ext.len + 2 * sizeof(Qcow2Feature));
-                ret = bdrv_pread(bs->file->bs, offset , feature_table, ext.len);
+                ret = bdrv_pread(bs->file, offset , feature_table, ext.len);
                 if (ret < 0) {
                     error_setg_errno(errp, -ret, "ERROR: ext_feature_table: "
                                      "Could not read table");
@@ -172,7 +172,7 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
                 uext->len = ext.len;
                 QLIST_INSERT_HEAD(&s->unknown_header_ext, uext, next);
 
-                ret = bdrv_pread(bs->file->bs, offset , uext->data, uext->len);
+                ret = bdrv_pread(bs->file, offset , uext->data, uext->len);
                 if (ret < 0) {
                     error_setg_errno(errp, -ret, "ERROR: unknown extension: "
                                      "Could not read data");
@@ -249,7 +249,7 @@ int qcow2_mark_dirty(BlockDriverState *bs)
     }
 
     val = cpu_to_be64(s->incompatible_features | QCOW2_INCOMPAT_DIRTY);
-    ret = bdrv_pwrite(bs->file->bs, offsetof(QCowHeader, incompatible_features),
+    ret = bdrv_pwrite(bs->file, offsetof(QCowHeader, incompatible_features),
                       &val, sizeof(val));
     if (ret < 0) {
         return ret;
@@ -817,7 +817,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     uint64_t ext_end;
     uint64_t l1_vm_state_index;
 
-    ret = bdrv_pread(bs->file->bs, 0, &header, sizeof(header));
+    ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not read qcow2 header");
         goto fail;
@@ -892,7 +892,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     if (header.header_length > sizeof(header)) {
         s->unknown_header_fields_size = header.header_length - sizeof(header);
         s->unknown_header_fields = g_malloc(s->unknown_header_fields_size);
-        ret = bdrv_pread(bs->file->bs, sizeof(header), s->unknown_header_fields,
+        ret = bdrv_pread(bs->file, sizeof(header), s->unknown_header_fields,
                          s->unknown_header_fields_size);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not read unknown qcow2 header "
@@ -980,10 +980,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
             goto fail;
         }
 
-        bs->encrypted = 1;
-
-        /* Encryption works on a sector granularity */
-        bs->request_alignment = BDRV_SECTOR_SIZE;
+        bs->encrypted = true;
     }
 
     s->l2_bits = s->cluster_bits - 3; /* L2 is always one cluster */
@@ -1069,7 +1066,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
             ret = -ENOMEM;
             goto fail;
         }
-        ret = bdrv_pread(bs->file->bs, s->l1_table_offset, s->l1_table,
+        ret = bdrv_pread(bs->file, s->l1_table_offset, s->l1_table,
                          s->l1_size * sizeof(uint64_t));
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not read L1 table");
@@ -1125,7 +1122,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
             ret = -EINVAL;
             goto fail;
         }
-        ret = bdrv_pread(bs->file->bs, header.backing_file_offset,
+        ret = bdrv_pread(bs->file, header.backing_file_offset,
                          bs->backing_file, len);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not read backing file name");
@@ -1202,6 +1199,10 @@ static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
 
+    if (bs->encrypted) {
+        /* Encryption works on a sector granularity */
+        bs->bl.request_alignment = BDRV_SECTOR_SIZE;
+    }
     bs->bl.pwrite_zeroes_alignment = s->cluster_size;
 }
 
@@ -1442,7 +1443,7 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
 
                     BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
                     qemu_co_mutex_unlock(&s->lock);
-                    ret = bdrv_co_preadv(bs->backing->bs, offset, n1,
+                    ret = bdrv_co_preadv(bs->backing, offset, n1,
                                          &local_qiov, 0);
                     qemu_co_mutex_lock(&s->lock);
 
@@ -1505,7 +1506,7 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
 
             BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
             qemu_co_mutex_unlock(&s->lock);
-            ret = bdrv_co_preadv(bs->file->bs,
+            ret = bdrv_co_preadv(bs->file,
                                  cluster_offset + offset_in_cluster,
                                  cur_bytes, &hd_qiov, 0);
             qemu_co_mutex_lock(&s->lock);
@@ -1636,7 +1637,7 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
         BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
         trace_qcow2_writev_data(qemu_coroutine_self(),
                                 cluster_offset + offset_in_cluster);
-        ret = bdrv_co_pwritev(bs->file->bs,
+        ret = bdrv_co_pwritev(bs->file,
                               cluster_offset + offset_in_cluster,
                               cur_bytes, &hd_qiov, 0);
         qemu_co_mutex_lock(&s->lock);
@@ -1975,7 +1976,7 @@ int qcow2_update_header(BlockDriverState *bs)
     }
 
     /* Write the new header */
-    ret = bdrv_pwrite(bs->file->bs, 0, header, s->cluster_size);
+    ret = bdrv_pwrite(bs->file, 0, header, s->cluster_size);
     if (ret < 0) {
         goto fail;
     }
@@ -2058,7 +2059,7 @@ static int preallocate(BlockDriverState *bs)
      */
     if (host_offset != 0) {
         uint8_t data = 0;
-        ret = bdrv_pwrite(bs->file->bs, (host_offset + cur_bytes) - 1,
+        ret = bdrv_pwrite(bs->file, (host_offset + cur_bytes) - 1,
                           &data, 1);
         if (ret < 0) {
             return ret;
@@ -2522,7 +2523,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset)
 
     /* write updated header.size */
     offset = cpu_to_be64(offset);
-    ret = bdrv_pwrite_sync(bs->file->bs, offsetof(QCowHeader, size),
+    ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, size),
                            &offset, sizeof(uint64_t));
     if (ret < 0) {
         return ret;
@@ -2530,6 +2531,51 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset)
 
     s->l1_vm_state_index = new_l1_size;
     return 0;
+}
+
+typedef struct Qcow2WriteCo {
+    BlockDriverState *bs;
+    int64_t sector_num;
+    const uint8_t *buf;
+    int nb_sectors;
+    int ret;
+} Qcow2WriteCo;
+
+static void qcow2_write_co_entry(void *opaque)
+{
+    Qcow2WriteCo *co = opaque;
+    QEMUIOVector qiov;
+    uint64_t offset = co->sector_num * BDRV_SECTOR_SIZE;
+    uint64_t bytes = co->nb_sectors * BDRV_SECTOR_SIZE;
+
+    struct iovec iov = (struct iovec) {
+        .iov_base   = (uint8_t*) co->buf,
+        .iov_len    = bytes,
+    };
+    qemu_iovec_init_external(&qiov, &iov, 1);
+
+    co->ret = qcow2_co_pwritev(co->bs, offset, bytes, &qiov, 0);
+}
+
+/* Wrapper for non-coroutine contexts */
+static int qcow2_write(BlockDriverState *bs, int64_t sector_num,
+                       const uint8_t *buf, int nb_sectors)
+{
+    Coroutine *co;
+    AioContext *aio_context = bdrv_get_aio_context(bs);
+    Qcow2WriteCo data = {
+        .bs         = bs,
+        .sector_num = sector_num,
+        .buf        = buf,
+        .nb_sectors = nb_sectors,
+        .ret        = -EINPROGRESS,
+    };
+    co = qemu_coroutine_create(qcow2_write_co_entry);
+    qemu_coroutine_enter(co, &data);
+    while (data.ret == -EINPROGRESS) {
+        aio_poll(aio_context, true);
+    }
+    return data.ret;
 }
 
 /* XXX: put compressed sectors first, then all the cluster aligned
@@ -2595,7 +2641,7 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
     if (ret != Z_STREAM_END || out_len >= s->cluster_size) {
         /* could not compress: write normal cluster */
-        ret = bdrv_write(bs, sector_num, buf, s->cluster_sectors);
+        ret = qcow2_write(bs, sector_num, buf, s->cluster_sectors);
         if (ret < 0) {
             goto fail;
         }
@@ -2614,7 +2660,7 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
         }
 
         BLKDBG_EVENT(bs->file, BLKDBG_WRITE_COMPRESSED);
-        ret = bdrv_pwrite(bs->file->bs, cluster_offset, out_buf, out_len);
+        ret = bdrv_pwrite(bs->file, cluster_offset, out_buf, out_len);
         if (ret < 0) {
             goto fail;
         }
@@ -2663,7 +2709,7 @@ static int make_completely_empty(BlockDriverState *bs)
     /* After this call, neither the in-memory nor the on-disk refcount
      * information accurately describe the actual references */
 
-    ret = bdrv_pwrite_zeroes(bs->file->bs, s->l1_table_offset,
+    ret = bdrv_pwrite_zeroes(bs->file, s->l1_table_offset,
                              l1_clusters * s->cluster_size, 0);
     if (ret < 0) {
         goto fail_broken_refcounts;
@@ -2677,7 +2723,7 @@ static int make_completely_empty(BlockDriverState *bs)
      * overwrite parts of the existing refcount and L1 table, which is not
      * an issue because the dirty flag is set, complete data loss is in fact
      * desired and partial data loss is consequently fine as well */
-    ret = bdrv_pwrite_zeroes(bs->file->bs, s->cluster_size,
+    ret = bdrv_pwrite_zeroes(bs->file, s->cluster_size,
                              (2 + l1_clusters) * s->cluster_size, 0);
     /* This call (even if it failed overall) may have overwritten on-disk
      * refcount structures; in that case, the in-memory refcount information
@@ -2693,10 +2739,10 @@ static int make_completely_empty(BlockDriverState *bs)
     /* "Create" an empty reftable (one cluster) directly after the image
      * header and an empty L1 table three clusters after the image header;
      * the cluster between those two will be used as the first refblock */
-    cpu_to_be64w(&l1_ofs_rt_ofs_cls.l1_offset, 3 * s->cluster_size);
-    cpu_to_be64w(&l1_ofs_rt_ofs_cls.reftable_offset, s->cluster_size);
-    cpu_to_be32w(&l1_ofs_rt_ofs_cls.reftable_clusters, 1);
-    ret = bdrv_pwrite_sync(bs->file->bs, offsetof(QCowHeader, l1_table_offset),
+    l1_ofs_rt_ofs_cls.l1_offset = cpu_to_be64(3 * s->cluster_size);
+    l1_ofs_rt_ofs_cls.reftable_offset = cpu_to_be64(s->cluster_size);
+    l1_ofs_rt_ofs_cls.reftable_clusters = cpu_to_be32(1);
+    ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, l1_table_offset),
                            &l1_ofs_rt_ofs_cls, sizeof(l1_ofs_rt_ofs_cls));
     if (ret < 0) {
         goto fail_broken_refcounts;
@@ -2727,7 +2773,7 @@ static int make_completely_empty(BlockDriverState *bs)
 
     /* Enter the first refblock into the reftable */
     rt_entry = cpu_to_be64(2 * s->cluster_size);
-    ret = bdrv_pwrite_sync(bs->file->bs, s->cluster_size,
+    ret = bdrv_pwrite_sync(bs->file, s->cluster_size,
                            &rt_entry, sizeof(rt_entry));
     if (ret < 0) {
         goto fail_broken_refcounts;

@@ -86,7 +86,7 @@ int qed_write_header_sync(BDRVQEDState *s)
     int ret;
 
     qed_header_cpu_to_le(&s->header, &le);
-    ret = bdrv_pwrite(s->bs->file->bs, 0, &le, sizeof(le));
+    ret = bdrv_pwrite(s->bs->file, 0, &le, sizeof(le));
     if (ret != sizeof(le)) {
         return ret;
     }
@@ -123,7 +123,7 @@ static void qed_write_header_read_cb(void *opaque, int ret)
     /* Update header */
     qed_header_cpu_to_le(&s->header, (QEDHeader *)write_header_cb->buf);
 
-    bdrv_aio_writev(s->bs->file->bs, 0, &write_header_cb->qiov,
+    bdrv_aio_writev(s->bs->file, 0, &write_header_cb->qiov,
                     write_header_cb->nsectors, qed_write_header_cb,
                     write_header_cb);
 }
@@ -155,7 +155,7 @@ static void qed_write_header(BDRVQEDState *s, BlockCompletionFunc cb,
     write_header_cb->iov.iov_len = len;
     qemu_iovec_init_external(&write_header_cb->qiov, &write_header_cb->iov, 1);
 
-    bdrv_aio_readv(s->bs->file->bs, 0, &write_header_cb->qiov, nsectors,
+    bdrv_aio_readv(s->bs->file, 0, &write_header_cb->qiov, nsectors,
                    qed_write_header_read_cb, write_header_cb);
 }
 
@@ -218,7 +218,7 @@ static bool qed_is_image_size_valid(uint64_t image_size, uint32_t cluster_size,
  *
  * The string is NUL-terminated.
  */
-static int qed_read_string(BlockDriverState *file, uint64_t offset, size_t n,
+static int qed_read_string(BdrvChild *file, uint64_t offset, size_t n,
                            char *buf, size_t buflen)
 {
     int ret;
@@ -389,7 +389,7 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
     s->bs = bs;
     QSIMPLEQ_INIT(&s->allocating_write_reqs);
 
-    ret = bdrv_pread(bs->file->bs, 0, &le_header, sizeof(le_header));
+    ret = bdrv_pread(bs->file, 0, &le_header, sizeof(le_header));
     if (ret < 0) {
         return ret;
     }
@@ -446,7 +446,7 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
             return -EINVAL;
         }
 
-        ret = qed_read_string(bs->file->bs, s->header.backing_filename_offset,
+        ret = qed_read_string(bs->file, s->header.backing_filename_offset,
                               s->header.backing_filename_size, bs->backing_file,
                               sizeof(bs->backing_file));
         if (ret < 0) {
@@ -800,7 +800,7 @@ static void qed_read_backing_file(BDRVQEDState *s, uint64_t pos,
     qemu_iovec_concat(*backing_qiov, qiov, 0, size);
 
     BLKDBG_EVENT(s->bs->file, BLKDBG_READ_BACKING_AIO);
-    bdrv_aio_readv(s->bs->backing->bs, pos / BDRV_SECTOR_SIZE,
+    bdrv_aio_readv(s->bs->backing, pos / BDRV_SECTOR_SIZE,
                    *backing_qiov, size / BDRV_SECTOR_SIZE, cb, opaque);
 }
 
@@ -837,7 +837,7 @@ static void qed_copy_from_backing_file_write(void *opaque, int ret)
     }
 
     BLKDBG_EVENT(s->bs->file, BLKDBG_COW_WRITE);
-    bdrv_aio_writev(s->bs->file->bs, copy_cb->offset / BDRV_SECTOR_SIZE,
+    bdrv_aio_writev(s->bs->file, copy_cb->offset / BDRV_SECTOR_SIZE,
                     &copy_cb->qiov, copy_cb->qiov.size / BDRV_SECTOR_SIZE,
                     qed_copy_from_backing_file_cb, copy_cb);
 }
@@ -1087,7 +1087,7 @@ static void qed_aio_write_main(void *opaque, int ret)
     }
 
     BLKDBG_EVENT(s->bs->file, BLKDBG_WRITE_AIO);
-    bdrv_aio_writev(s->bs->file->bs, offset / BDRV_SECTOR_SIZE,
+    bdrv_aio_writev(s->bs->file, offset / BDRV_SECTOR_SIZE,
                     &acb->cur_qiov, acb->cur_qiov.size / BDRV_SECTOR_SIZE,
                     next_fn, acb);
 }
@@ -1319,7 +1319,7 @@ static void qed_aio_read_data(void *opaque, int ret,
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
-    bdrv_aio_readv(bs->file->bs, offset / BDRV_SECTOR_SIZE,
+    bdrv_aio_readv(bs->file, offset / BDRV_SECTOR_SIZE,
                    &acb->cur_qiov, acb->cur_qiov.size / BDRV_SECTOR_SIZE,
                    qed_aio_next_io, acb);
     return;
@@ -1575,7 +1575,7 @@ static int bdrv_qed_change_backing_file(BlockDriverState *bs,
     }
 
     /* Write new header */
-    ret = bdrv_pwrite_sync(bs->file->bs, 0, buffer, buffer_len);
+    ret = bdrv_pwrite_sync(bs->file, 0, buffer, buffer_len);
     g_free(buffer);
     if (ret == 0) {
         memcpy(&s->header, &new_header, sizeof(new_header));

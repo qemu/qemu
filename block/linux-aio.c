@@ -87,7 +87,7 @@ static void qemu_laio_process_completion(struct qemu_laiocb *laiocb)
                 qemu_iovec_memset(laiocb->qiov, ret, 0,
                     laiocb->qiov->size - ret);
             } else {
-                ret = -EINVAL;
+                ret = -ENOSPC;
             }
         }
     }

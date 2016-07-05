@@ -1,6 +1,6 @@
 /* BlockDriver implementation for "raw"
  *
- * Copyright (C) 2010, 2013, Red Hat, Inc.
+ * Copyright (C) 2010-2016 Red Hat, Inc.
  * Copyright (C) 2010, Blue Swirl <blauwirbel@gmail.com>
  * Copyright (C) 2009, Anthony Liguori <aliguori@us.ibm.com>
  *
@@ -54,7 +54,7 @@ static int coroutine_fn raw_co_readv(BlockDriverState *bs, int64_t sector_num,
                                      int nb_sectors, QEMUIOVector *qiov)
 {
     BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
-    return bdrv_co_readv(bs->file->bs, sector_num, nb_sectors, qiov);
+    return bdrv_co_readv(bs->file, sector_num, nb_sectors, qiov);
 }
 
 static int coroutine_fn
@@ -105,7 +105,7 @@ raw_co_writev_flags(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
-    ret = bdrv_co_pwritev(bs->file->bs, sector_num * BDRV_SECTOR_SIZE,
+    ret = bdrv_co_pwritev(bs->file, sector_num * BDRV_SECTOR_SIZE,
                           nb_sectors * BDRV_SECTOR_SIZE, qiov, flags);
 
 fail:
@@ -131,7 +131,7 @@ static int coroutine_fn raw_co_pwrite_zeroes(BlockDriverState *bs,
                                              int64_t offset, int count,
                                              BdrvRequestFlags flags)
 {
-    return bdrv_co_pwrite_zeroes(bs->file->bs, offset, count, flags);
+    return bdrv_co_pwrite_zeroes(bs->file, offset, count, flags);
 }
 
 static int coroutine_fn raw_co_discard(BlockDriverState *bs,
@@ -148,11 +148,6 @@ static int64_t raw_getlength(BlockDriverState *bs)
 static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     return bdrv_get_info(bs->file->bs, bdi);
-}
-
-static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
-{
-    bs->bl = bs->file->bs->bl;
 }
 
 static int raw_truncate(BlockDriverState *bs, int64_t offset)
@@ -252,7 +247,6 @@ BlockDriver bdrv_raw = {
     .bdrv_getlength       = &raw_getlength,
     .has_variable_length  = true,
     .bdrv_get_info        = &raw_get_info,
-    .bdrv_refresh_limits  = &raw_refresh_limits,
     .bdrv_probe_blocksizes = &raw_probe_blocksizes,
     .bdrv_probe_geometry  = &raw_probe_geometry,
     .bdrv_media_changed   = &raw_media_changed,

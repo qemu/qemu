@@ -269,10 +269,6 @@ static int nbd_co_writev_1(BlockDriverState *bs, int64_t sector_num,
     return -reply.error;
 }
 
-/* qemu-nbd has a limit of slightly less than 1M per request.  Try to
- * remain aligned to 4K. */
-#define NBD_MAX_SECTORS 2040
-
 int nbd_client_co_readv(BlockDriverState *bs, int64_t sector_num,
                         int nb_sectors, QEMUIOVector *qiov)
 {

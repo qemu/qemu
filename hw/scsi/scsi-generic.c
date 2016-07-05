@@ -225,13 +225,14 @@ static void scsi_read_complete(void * opaque, int ret)
     if (s->type == TYPE_DISK &&
         r->req.cmd.buf[0] == INQUIRY &&
         r->req.cmd.buf[2] == 0xb0) {
-        uint32_t max_xfer_len = blk_get_max_transfer_length(s->conf.blk);
-        if (max_xfer_len) {
-            stl_be_p(&r->buf[8], max_xfer_len);
-            /* Also take care of the opt xfer len. */
-            if (ldl_be_p(&r->buf[12]) > max_xfer_len) {
-                stl_be_p(&r->buf[12], max_xfer_len);
-            }
+        uint32_t max_transfer =
+            blk_get_max_transfer(s->conf.blk) / s->blocksize;
+
+        assert(max_transfer);
+        stl_be_p(&r->buf[8], max_transfer);
+        /* Also take care of the opt xfer len. */
+        if (ldl_be_p(&r->buf[12]) > max_transfer) {
+            stl_be_p(&r->buf[12], max_transfer);
         }
     }
     scsi_req_data(&r->req, len);
