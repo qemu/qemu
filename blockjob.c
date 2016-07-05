@@ -290,7 +290,8 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 void block_job_complete(BlockJob *job, Error **errp)
 {
     if (job->pause_count || job->cancelled || !job->driver->complete) {
-        error_setg(errp, QERR_BLOCK_JOB_NOT_READY, job->id);
+        error_setg(errp, "The active block job '%s' cannot be completed",
+                   job->id);
         return;
     }
 

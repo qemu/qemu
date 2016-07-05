@@ -761,7 +761,8 @@ static void mirror_complete(BlockJob *job, Error **errp)
     target = blk_bs(s->target);
 
     if (!s->synced) {
-        error_setg(errp, QERR_BLOCK_JOB_NOT_READY, job->id);
+        error_setg(errp, "The active block job '%s' cannot be completed",
+                   job->id);
         return;
     }
 
