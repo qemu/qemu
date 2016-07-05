@@ -488,8 +488,8 @@ static unsigned hpte_page_shift(const struct ppc_one_seg_page_size *sps,
 }
 
 static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
-                                     ppc_slb_t *slb, bool secondary,
-                                     target_ulong ptem, ppc_hash_pte64_t *pte)
+                                     ppc_slb_t *slb, target_ulong ptem,
+                                     ppc_hash_pte64_t *pte)
 {
     CPUPPCState *env = &cpu->env;
     int i;
@@ -506,9 +506,8 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
         pte0 = ppc_hash64_load_hpte0(cpu, token, i);
         pte1 = ppc_hash64_load_hpte1(cpu, token, i);
 
-        if ((pte0 & HPTE64_V_VALID)
-            && (secondary == !!(pte0 & HPTE64_V_SECONDARY))
-            && HPTE64_V_COMPARE(pte0, ptem)) {
+        /* This compares V, B, H (secondary) and the AVPN */
+        if (HPTE64_V_COMPARE(pte0, ptem)) {
             unsigned pshift = hpte_page_shift(slb->sps, pte0, pte1);
             /*
              * If there is no match, ignore the PTE, it could simply
@@ -563,6 +562,7 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
         hash = vsid ^ (epn >> slb->sps->page_shift);
     }
     ptem = (slb->vsid & SLB_VSID_PTEM) | ((epn >> 16) & HPTE64_V_AVPN);
+    ptem |= HPTE64_V_VALID;
 
     /* Page address translation */
     qemu_log_mask(CPU_LOG_MMU,
@@ -576,17 +576,18 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
             " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
             " hash=" TARGET_FMT_plx "\n",
             env->htab_base, env->htab_mask, vsid, ptem,  hash);
-    pte_offset = ppc_hash64_pteg_search(cpu, hash, slb, 0, ptem, pte);
+    pte_offset = ppc_hash64_pteg_search(cpu, hash, slb, ptem, pte);
 
     if (pte_offset == -1) {
         /* Secondary PTEG lookup */
+        ptem |= HPTE64_V_SECONDARY;
         qemu_log_mask(CPU_LOG_MMU,
                 "1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
                 " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
                 " hash=" TARGET_FMT_plx "\n", env->htab_base,
                 env->htab_mask, vsid, ptem, ~hash);
 
-        pte_offset = ppc_hash64_pteg_search(cpu, ~hash, slb, 1, ptem, pte);
+        pte_offset = ppc_hash64_pteg_search(cpu, ~hash, slb, ptem, pte);
     }
 
     return pte_offset;

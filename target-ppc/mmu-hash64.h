@@ -62,7 +62,7 @@ unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
 #define HPTE64_V_AVPN_SHIFT     7
 #define HPTE64_V_AVPN           0x3fffffffffffff80ULL
 #define HPTE64_V_AVPN_VAL(x)    (((x) & HPTE64_V_AVPN) >> HPTE64_V_AVPN_SHIFT)
-#define HPTE64_V_COMPARE(x, y)  (!(((x) ^ (y)) & 0xffffffffffffff80ULL))
+#define HPTE64_V_COMPARE(x, y)  (!(((x) ^ (y)) & 0xffffffffffffff83ULL))
 #define HPTE64_V_LARGE          0x0000000000000004ULL
 #define HPTE64_V_SECONDARY      0x0000000000000002ULL
 #define HPTE64_V_VALID          0x0000000000000001ULL
