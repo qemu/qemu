@@ -3704,42 +3704,28 @@ void qmp_blockdev_mirror(const char *device, const char *target,
     aio_context_release(aio_context);
 }
 
-/* Get the block job for a given device name and acquire its AioContext */
-static BlockJob *find_block_job(const char *device, AioContext **aio_context,
+/* Get a block job using its ID and acquire its AioContext */
+static BlockJob *find_block_job(const char *id, AioContext **aio_context,
                                 Error **errp)
 {
-    BlockBackend *blk;
-    BlockDriverState *bs;
+    BlockJob *job;
+
+    assert(id != NULL);
 
     *aio_context = NULL;
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        goto notfound;
+    job = block_job_get(id);
+
+    if (!job) {
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_ACTIVE,
+                  "Block job '%s' not found", id);
+        return NULL;
     }
 
-    *aio_context = blk_get_aio_context(blk);
+    *aio_context = blk_get_aio_context(job->blk);
     aio_context_acquire(*aio_context);
 
-    if (!blk_is_available(blk)) {
-        goto notfound;
-    }
-    bs = blk_bs(blk);
-
-    if (!bs->job) {
-        goto notfound;
-    }
-
-    return bs->job;
-
-notfound:
-    error_set(errp, ERROR_CLASS_DEVICE_NOT_ACTIVE,
-              "No active block job on device '%s'", device);
-    if (*aio_context) {
-        aio_context_release(*aio_context);
-        *aio_context = NULL;
-    }
-    return NULL;
+    return job;
 }
 
 void qmp_block_job_set_speed(const char *device, int64_t speed, Error **errp)
