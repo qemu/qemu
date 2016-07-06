@@ -161,9 +161,9 @@
 ##
 # @nbd-server-add:
 #
-# Export a device to QEMU's embedded NBD server.
+# Export a block node to QEMU's embedded NBD server.
 #
-# @device: Block device to be exported
+# @device: The device name or node name of the node to be exported
 #
 # @writable: Whether clients should be able to write to the device via the
 #     NBD connection (default false). #optional
