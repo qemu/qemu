@@ -217,6 +217,7 @@ typedef struct DisplayChangeListenerOps {
 
     void (*dpy_gl_scanout)(DisplayChangeListener *dcl,
                            uint32_t backing_id, bool backing_y_0_top,
+                           uint32_t backing_width, uint32_t backing_height,
                            uint32_t x, uint32_t y, uint32_t w, uint32_t h);
     void (*dpy_gl_update)(DisplayChangeListener *dcl,
                           uint32_t x, uint32_t y, uint32_t w, uint32_t h);
@@ -285,6 +286,7 @@ bool dpy_gfx_check_format(QemuConsole *con,
 
 void dpy_gl_scanout(QemuConsole *con,
                     uint32_t backing_id, bool backing_y_0_top,
+                    uint32_t backing_width, uint32_t backing_height,
                     uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 void dpy_gl_update(QemuConsole *con,
                    uint32_t x, uint32_t y, uint32_t w, uint32_t h);
