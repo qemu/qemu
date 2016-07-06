@@ -18,14 +18,18 @@
 typedef struct StringOutputVisitor StringOutputVisitor;
 
 /*
+ * Create a new string output visitor.
+ *
+ * Using @human creates output that is a bit easier for humans to read
+ * (for example, showing integer values in both decimal and hex).
+ *
+ * If everything else succeeds, pass @result to visit_complete() to
+ * collect the result of the visit.
+ *
  * The string output visitor does not implement support for visiting
  * QAPI structs, alternates, null, or arbitrary QTypes.  It also
  * requires a non-null list argument to visit_start_list().
  */
-StringOutputVisitor *string_output_visitor_new(bool human);
-void string_output_visitor_cleanup(StringOutputVisitor *v);
-
-char *string_output_get_string(StringOutputVisitor *v);
-Visitor *string_output_get_visitor(StringOutputVisitor *v);
+Visitor *string_output_visitor_new(bool human, char **result);
 
 #endif

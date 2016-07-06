@@ -22,6 +22,8 @@ check-unit-y += tests/check-qjson$(EXESUF)
 gcov-files-check-qjson-y = qobject/qjson.c
 check-unit-y += tests/test-qmp-output-visitor$(EXESUF)
 gcov-files-test-qmp-output-visitor-y = qapi/qmp-output-visitor.c
+check-unit-y += tests/test-clone-visitor$(EXESUF)
+gcov-files-test-clone-visitor-y = qapi/qapi-clone-visitor.c
 check-unit-y += tests/test-qmp-input-visitor$(EXESUF)
 gcov-files-test-qmp-input-visitor-y = qapi/qmp-input-visitor.c
 check-unit-y += tests/test-qmp-input-strict$(EXESUF)
@@ -402,6 +404,7 @@ test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 	tests/check-qjson.o \
 	tests/test-coroutine.o tests/test-string-output-visitor.o \
 	tests/test-string-input-visitor.o tests/test-qmp-output-visitor.o \
+	tests/test-clone-visitor.o \
 	tests/test-qmp-input-visitor.o tests/test-qmp-input-strict.o \
 	tests/test-qmp-commands.o tests/test-visitor-serialization.o \
 	tests/test-x86-cpuid.o tests/test-mul64.o tests/test-int128.o \
@@ -499,6 +502,7 @@ tests/test-string-output-visitor$(EXESUF): tests/test-string-output-visitor.o $(
 tests/test-string-input-visitor$(EXESUF): tests/test-string-input-visitor.o $(test-qapi-obj-y)
 tests/test-qmp-event$(EXESUF): tests/test-qmp-event.o $(test-qapi-obj-y)
 tests/test-qmp-output-visitor$(EXESUF): tests/test-qmp-output-visitor.o $(test-qapi-obj-y)
+tests/test-clone-visitor$(EXESUF): tests/test-clone-visitor.o $(test-qapi-obj-y)
 tests/test-qmp-input-visitor$(EXESUF): tests/test-qmp-input-visitor.o $(test-qapi-obj-y)
 tests/test-qmp-input-strict$(EXESUF): tests/test-qmp-input-strict.o $(test-qapi-obj-y)
 tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marshal.o $(test-qapi-obj-y)

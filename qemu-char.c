@@ -32,8 +32,7 @@
 #include "sysemu/char.h"
 #include "hw/usb.h"
 #include "qmp-commands.h"
-#include "qapi/qmp-input-visitor.h"
-#include "qapi/qmp-output-visitor.h"
+#include "qapi/clone-visitor.h"
 #include "qapi-visit.h"
 #include "qemu/base64.h"
 #include "io/channel-socket.h"
@@ -4389,7 +4388,7 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
         }
     }
 
-    qapi_copy_SocketAddress(&s->addr, sock->addr);
+    s->addr = QAPI_CLONE(SocketAddress, sock->addr);
 
     chr->opaque = s;
     chr->chr_write = tcp_chr_write;

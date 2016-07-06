@@ -16,6 +16,7 @@
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/dispatch.h"
 #include "qapi/qmp/json-parser.h"
+#include "qapi/qmp/qjson.h"
 #include "qapi-types.h"
 #include "qapi/qmp/qerror.h"
 

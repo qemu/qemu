@@ -20,39 +20,53 @@
 #include "qapi/qmp/types.h"
 
 typedef struct TestOutputVisitorData {
-    StringOutputVisitor *sov;
     Visitor *ov;
+    char *str;
     bool human;
 } TestOutputVisitorData;
+
+static void visitor_output_setup_internal(TestOutputVisitorData *data,
+                                          bool human)
+{
+    data->human = human;
+    data->ov = string_output_visitor_new(human, &data->str);
+    g_assert(data->ov);
+}
 
 static void visitor_output_setup(TestOutputVisitorData *data,
                                  const void *unused)
 {
-    data->human = false;
-    data->sov = string_output_visitor_new(data->human);
-    g_assert(data->sov != NULL);
-
-    data->ov = string_output_get_visitor(data->sov);
-    g_assert(data->ov != NULL);
+    return visitor_output_setup_internal(data, false);
 }
 
 static void visitor_output_setup_human(TestOutputVisitorData *data,
                                        const void *unused)
 {
-    data->human = true;
-    data->sov = string_output_visitor_new(data->human);
-    g_assert(data->sov != NULL);
-
-    data->ov = string_output_get_visitor(data->sov);
-    g_assert(data->ov != NULL);
+    return visitor_output_setup_internal(data, true);
 }
 
 static void visitor_output_teardown(TestOutputVisitorData *data,
                                     const void *unused)
 {
-    string_output_visitor_cleanup(data->sov);
-    data->sov = NULL;
+    visit_free(data->ov);
     data->ov = NULL;
+    g_free(data->str);
+    data->str = NULL;
+}
+
+static char *visitor_get(TestOutputVisitorData *data)
+{
+    visit_complete(data->ov, &data->str);
+    g_assert(data->str);
+    return data->str;
+}
+
+static void visitor_reset(TestOutputVisitorData *data)
+{
+    bool human = data->human;
+
+    visitor_output_teardown(data, NULL);
+    visitor_output_setup_internal(data, human);
 }
 
 static void test_visitor_out_int(TestOutputVisitorData *data,
@@ -65,14 +79,12 @@ static void test_visitor_out_int(TestOutputVisitorData *data,
     visit_type_int(data->ov, NULL, &value, &err);
     g_assert(!err);
 
-    str = string_output_get_string(data->sov);
-    g_assert(str != NULL);
+    str = visitor_get(data);
     if (data->human) {
         g_assert_cmpstr(str, ==, "42 (0x2a)");
     } else {
         g_assert_cmpstr(str, ==, "42");
     }
-    g_free(str);
 }
 
 static void test_visitor_out_intList(TestOutputVisitorData *data,
@@ -94,8 +106,7 @@ static void test_visitor_out_intList(TestOutputVisitorData *data,
     visit_type_intList(data->ov, NULL, &list, &err);
     g_assert(err == NULL);
 
-    str = string_output_get_string(data->sov);
-    g_assert(str != NULL);
+    str = visitor_get(data);
     if (data->human) {
         g_assert_cmpstr(str, ==,
             "0-1,3-6,9-16,21-22,9223372036854775806-9223372036854775807 "
@@ -105,13 +116,7 @@ static void test_visitor_out_intList(TestOutputVisitorData *data,
         g_assert_cmpstr(str, ==,
             "0-1,3-6,9-16,21-22,9223372036854775806-9223372036854775807");
     }
-    g_free(str);
-    while (list) {
-        intList *tmp2;
-        tmp2 = list->next;
-        g_free(list);
-        list = tmp2;
-    }
+    qapi_free_intList(list);
 }
 
 static void test_visitor_out_bool(TestOutputVisitorData *data,
@@ -124,10 +129,8 @@ static void test_visitor_out_bool(TestOutputVisitorData *data,
     visit_type_bool(data->ov, NULL, &value, &err);
     g_assert(!err);
 
-    str = string_output_get_string(data->sov);
-    g_assert(str != NULL);
+    str = visitor_get(data);
     g_assert_cmpstr(str, ==, "true");
-    g_free(str);
 }
 
 static void test_visitor_out_number(TestOutputVisitorData *data,
@@ -140,10 +143,8 @@ static void test_visitor_out_number(TestOutputVisitorData *data,
     visit_type_number(data->ov, NULL, &value, &err);
     g_assert(!err);
 
-    str = string_output_get_string(data->sov);
-    g_assert(str != NULL);
+    str = visitor_get(data);
     g_assert_cmpstr(str, ==, "3.140000");
-    g_free(str);
 }
 
 static void test_visitor_out_string(TestOutputVisitorData *data,
@@ -157,61 +158,50 @@ static void test_visitor_out_string(TestOutputVisitorData *data,
     visit_type_str(data->ov, NULL, &string, &err);
     g_assert(!err);
 
-    str = string_output_get_string(data->sov);
-    g_assert(str != NULL);
+    str = visitor_get(data);
     if (data->human) {
         g_assert_cmpstr(str, ==, string_human);
     } else {
         g_assert_cmpstr(str, ==, string);
     }
-    g_free(str);
 }
 
 static void test_visitor_out_no_string(TestOutputVisitorData *data,
                                        const void *unused)
 {
     char *string = NULL;
-    Error *err = NULL;
     char *str;
 
     /* A null string should return "" */
-    visit_type_str(data->ov, NULL, &string, &err);
-    g_assert(!err);
+    visit_type_str(data->ov, NULL, &string, &error_abort);
 
-    str = string_output_get_string(data->sov);
-    g_assert(str != NULL);
+    str = visitor_get(data);
     if (data->human) {
         g_assert_cmpstr(str, ==, "<null>");
     } else {
         g_assert_cmpstr(str, ==, "");
     }
-    g_free(str);
 }
 
 static void test_visitor_out_enum(TestOutputVisitorData *data,
                                   const void *unused)
 {
-    Error *err = NULL;
     char *str;
     EnumOne i;
 
     for (i = 0; i < ENUM_ONE__MAX; i++) {
-        char *str_human;
+        visit_type_EnumOne(data->ov, "unused", &i, &error_abort);
 
-        visit_type_EnumOne(data->ov, "unused", &i, &err);
-        g_assert(!err);
-
-        str_human = g_strdup_printf("\"%s\"", EnumOne_lookup[i]);
-
-        str = string_output_get_string(data->sov);
-        g_assert(str != NULL);
+        str = visitor_get(data);
         if (data->human) {
+            char *str_human = g_strdup_printf("\"%s\"", EnumOne_lookup[i]);
+
             g_assert_cmpstr(str, ==, str_human);
+            g_free(str_human);
         } else {
             g_assert_cmpstr(str, ==, EnumOne_lookup[i]);
         }
-        g_free(str_human);
-	g_free(str);
+        visitor_reset(data);
     }
 }
 
@@ -224,8 +214,7 @@ static void test_visitor_out_enum_errors(TestOutputVisitorData *data,
     for (i = 0; i < ARRAY_SIZE(bad_values) ; i++) {
         err = NULL;
         visit_type_EnumOne(data->ov, "unused", &bad_values[i], &err);
-        g_assert(err);
-        error_free(err);
+        error_free_or_abort(&err);
     }
 }
 

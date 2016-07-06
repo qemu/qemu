@@ -1722,7 +1722,7 @@ void hmp_object_add(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
     QemuOpts *opts;
-    OptsVisitor *ov;
+    Visitor *v;
     Object *obj = NULL;
 
     opts = qemu_opts_from_qdict(qemu_find_opts("object"), qdict, &err);
@@ -1731,9 +1731,9 @@ void hmp_object_add(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    ov = opts_visitor_new(opts);
-    obj = user_creatable_add(qdict, opts_get_visitor(ov), &err);
-    opts_visitor_cleanup(ov);
+    v = opts_visitor_new(opts);
+    obj = user_creatable_add(qdict, v, &err);
+    visit_free(v);
     qemu_opts_del(opts);
 
     if (err) {
@@ -1983,15 +1983,14 @@ void hmp_info_memdev(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
     MemdevList *memdev_list = qmp_query_memdev(&err);
     MemdevList *m = memdev_list;
-    StringOutputVisitor *ov;
+    Visitor *v;
     char *str;
     int i = 0;
 
 
     while (m) {
-        ov = string_output_visitor_new(false);
-        visit_type_uint16List(string_output_get_visitor(ov), NULL,
-                              &m->value->host_nodes, NULL);
+        v = string_output_visitor_new(false, &str);
+        visit_type_uint16List(v, NULL, &m->value->host_nodes, NULL);
         monitor_printf(mon, "memory backend: %d\n", i);
         monitor_printf(mon, "  size:  %" PRId64 "\n", m->value->size);
         monitor_printf(mon, "  merge: %s\n",
@@ -2002,11 +2001,11 @@ void hmp_info_memdev(Monitor *mon, const QDict *qdict)
                        m->value->prealloc ? "true" : "false");
         monitor_printf(mon, "  policy: %s\n",
                        HostMemPolicy_lookup[m->value->policy]);
-        str = string_output_get_string(ov);
+        visit_complete(v, &str);
         monitor_printf(mon, "  host nodes: %s\n", str);
 
         g_free(str);
-        string_output_visitor_cleanup(ov);
+        visit_free(v);
         m = m->next;
         i++;
     }

@@ -20,6 +20,5 @@
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"
-#include "qapi/qmp/qjson.h"
 
 #endif /* QEMU_OBJECTS_H */

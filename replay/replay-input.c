@@ -16,35 +16,7 @@
 #include "replay-internal.h"
 #include "qemu/notify.h"
 #include "ui/input.h"
-#include "qapi/qmp-output-visitor.h"
-#include "qapi/qmp-input-visitor.h"
-#include "qapi-visit.h"
-
-static InputEvent *qapi_clone_InputEvent(InputEvent *src)
-{
-    QmpOutputVisitor *qov;
-    QmpInputVisitor *qiv;
-    Visitor *ov, *iv;
-    QObject *obj;
-    InputEvent *dst = NULL;
-
-    qov = qmp_output_visitor_new();
-    ov = qmp_output_get_visitor(qov);
-    visit_type_InputEvent(ov, NULL, &src, &error_abort);
-    obj = qmp_output_get_qobject(qov);
-    qmp_output_visitor_cleanup(qov);
-    if (!obj) {
-        return NULL;
-    }
-
-    qiv = qmp_input_visitor_new(obj, true);
-    iv = qmp_input_get_visitor(qiv);
-    visit_type_InputEvent(iv, NULL, &dst, &error_abort);
-    qmp_input_visitor_cleanup(qiv);
-    qobject_decref(obj);
-
-    return dst;
-}
+#include "qapi/clone-visitor.h"
 
 void replay_save_input_event(InputEvent *evt)
 {
@@ -143,7 +115,7 @@ InputEvent *replay_read_input_event(void)
         break;
     }
 
-    return qapi_clone_InputEvent(&evt);
+    return QAPI_CLONE(InputEvent, &evt);
 }
 
 void replay_input_event(QemuConsole *src, InputEvent *evt)
@@ -151,7 +123,7 @@ void replay_input_event(QemuConsole *src, InputEvent *evt)
     if (replay_mode == REPLAY_MODE_PLAY) {
         /* Nothing */
     } else if (replay_mode == REPLAY_MODE_RECORD) {
-        replay_add_input_event(qapi_clone_InputEvent(evt));
+        replay_add_input_event(QAPI_CLONE(InputEvent, evt));
     } else {
         qemu_input_event_send_impl(src, evt);
     }

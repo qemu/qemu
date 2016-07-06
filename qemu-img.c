@@ -490,18 +490,17 @@ fail:
 
 static void dump_json_image_check(ImageCheck *check, bool quiet)
 {
-    Error *local_err = NULL;
     QString *str;
-    QmpOutputVisitor *ov = qmp_output_visitor_new();
     QObject *obj;
-    visit_type_ImageCheck(qmp_output_get_visitor(ov), NULL, &check,
-                          &local_err);
-    obj = qmp_output_get_qobject(ov);
+    Visitor *v = qmp_output_visitor_new(&obj);
+
+    visit_type_ImageCheck(v, NULL, &check, &error_abort);
+    visit_complete(v, &obj);
     str = qobject_to_json_pretty(obj);
     assert(str != NULL);
     qprintf(quiet, "%s\n", qstring_get_str(str));
     qobject_decref(obj);
-    qmp_output_visitor_cleanup(ov);
+    visit_free(v);
     QDECREF(str);
 }
 
@@ -2182,34 +2181,33 @@ static void dump_snapshots(BlockDriverState *bs)
 
 static void dump_json_image_info_list(ImageInfoList *list)
 {
-    Error *local_err = NULL;
     QString *str;
-    QmpOutputVisitor *ov = qmp_output_visitor_new();
     QObject *obj;
-    visit_type_ImageInfoList(qmp_output_get_visitor(ov), NULL, &list,
-                             &local_err);
-    obj = qmp_output_get_qobject(ov);
+    Visitor *v = qmp_output_visitor_new(&obj);
+
+    visit_type_ImageInfoList(v, NULL, &list, &error_abort);
+    visit_complete(v, &obj);
     str = qobject_to_json_pretty(obj);
     assert(str != NULL);
     printf("%s\n", qstring_get_str(str));
     qobject_decref(obj);
-    qmp_output_visitor_cleanup(ov);
+    visit_free(v);
     QDECREF(str);
 }
 
 static void dump_json_image_info(ImageInfo *info)
 {
-    Error *local_err = NULL;
     QString *str;
-    QmpOutputVisitor *ov = qmp_output_visitor_new();
     QObject *obj;
-    visit_type_ImageInfo(qmp_output_get_visitor(ov), NULL, &info, &local_err);
-    obj = qmp_output_get_qobject(ov);
+    Visitor *v = qmp_output_visitor_new(&obj);
+
+    visit_type_ImageInfo(v, NULL, &info, &error_abort);
+    visit_complete(v, &obj);
     str = qobject_to_json_pretty(obj);
     assert(str != NULL);
     printf("%s\n", qstring_get_str(str));
     qobject_decref(obj);
-    qmp_output_visitor_cleanup(ov);
+    visit_free(v);
     QDECREF(str);
 }
 

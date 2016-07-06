@@ -129,7 +129,7 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
         }
     }
 
-    visit_end_list(v);
+    visit_end_list(v, (void **)obj);
     if (err && visit_is_input(v)) {
         qapi_free_%(c_name)s(*obj);
         *obj = NULL;
@@ -194,7 +194,7 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
         if (!err) {
             visit_check_struct(v, &err);
         }
-        visit_end_struct(v);
+        visit_end_struct(v, NULL);
 ''',
                          c_type=var.type.c_name(),
                          c_name=c_name(var.name))
@@ -216,7 +216,7 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
                    "%(name)s");
     }
 out_obj:
-    visit_end_alternate(v);
+    visit_end_alternate(v, (void **)obj);
     if (err && visit_is_input(v)) {
         qapi_free_%(c_name)s(*obj);
         *obj = NULL;
@@ -250,7 +250,7 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
     }
     visit_check_struct(v, &err);
 out_obj:
-    visit_end_struct(v);
+    visit_end_struct(v, (void **)obj);
     if (err && visit_is_input(v)) {
         qapi_free_%(c_name)s(*obj);
         *obj = NULL;

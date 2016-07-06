@@ -180,7 +180,7 @@ opts_check_struct(Visitor *v, Error **errp)
 
 
 static void
-opts_end_struct(Visitor *v)
+opts_end_struct(Visitor *v, void **obj)
 {
     OptsVisitor *ov = to_ov(v);
 
@@ -273,7 +273,7 @@ opts_next_list(Visitor *v, GenericList *tail, size_t size)
 
 
 static void
-opts_end_list(Visitor *v)
+opts_end_list(Visitor *v, void **obj)
 {
     OptsVisitor *ov = to_ov(v);
 
@@ -513,7 +513,20 @@ opts_optional(Visitor *v, const char *name, bool *present)
 }
 
 
-OptsVisitor *
+static void
+opts_free(Visitor *v)
+{
+    OptsVisitor *ov = to_ov(v);
+
+    if (ov->unprocessed_opts != NULL) {
+        g_hash_table_destroy(ov->unprocessed_opts);
+    }
+    g_free(ov->fake_id_opt);
+    g_free(ov);
+}
+
+
+Visitor *
 opts_visitor_new(const QemuOpts *opts)
 {
     OptsVisitor *ov;
@@ -540,26 +553,9 @@ opts_visitor_new(const QemuOpts *opts)
      * skip some mandatory methods... */
 
     ov->visitor.optional = &opts_optional;
+    ov->visitor.free = opts_free;
 
     ov->opts_root = opts;
 
-    return ov;
-}
-
-
-void
-opts_visitor_cleanup(OptsVisitor *ov)
-{
-    if (ov->unprocessed_opts != NULL) {
-        g_hash_table_destroy(ov->unprocessed_opts);
-    }
-    g_free(ov->fake_id_opt);
-    g_free(ov);
-}
-
-
-Visitor *
-opts_get_visitor(OptsVisitor *ov)
-{
     return &ov->visitor;
 }

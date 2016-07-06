@@ -13,6 +13,7 @@ test-aio
 test-base64
 test-bitops
 test-blockjob-txn
+test-clone-visitor
 test-coroutine
 test-crypto-afsplit
 test-crypto-block

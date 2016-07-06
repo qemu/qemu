@@ -655,7 +655,7 @@ void qmp_object_add(const char *type, const char *id,
                     bool has_props, QObject *props, Error **errp)
 {
     const QDict *pdict = NULL;
-    QmpInputVisitor *qiv;
+    Visitor *v;
     Object *obj;
 
     if (props) {
@@ -666,10 +666,9 @@ void qmp_object_add(const char *type, const char *id,
         }
     }
 
-    qiv = qmp_input_visitor_new(props, true);
-    obj = user_creatable_add_type(type, id, pdict,
-                                  qmp_input_get_visitor(qiv), errp);
-    qmp_input_visitor_cleanup(qiv);
+    v = qmp_input_visitor_new(props, true);
+    obj = user_creatable_add_type(type, id, pdict, v, errp);
+    visit_free(v);
     if (obj) {
         object_unref(obj);
     }

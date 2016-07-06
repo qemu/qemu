@@ -1221,8 +1221,7 @@ int object_property_get_enum(Object *obj, const char *name,
                              const char *typename, Error **errp)
 {
     Error *err = NULL;
-    StringOutputVisitor *sov;
-    StringInputVisitor *siv;
+    Visitor *v;
     char *str;
     int ret;
     ObjectProperty *prop = object_property_find(obj, name, errp);
@@ -1241,21 +1240,20 @@ int object_property_get_enum(Object *obj, const char *name,
 
     enumprop = prop->opaque;
 
-    sov = string_output_visitor_new(false);
-    object_property_get(obj, string_output_get_visitor(sov), name, &err);
+    v = string_output_visitor_new(false, &str);
+    object_property_get(obj, v, name, &err);
     if (err) {
         error_propagate(errp, err);
-        string_output_visitor_cleanup(sov);
+        visit_free(v);
         return 0;
     }
-    str = string_output_get_string(sov);
-    siv = string_input_visitor_new(str);
-    string_output_visitor_cleanup(sov);
-    visit_type_enum(string_input_get_visitor(siv), name, &ret,
-                    enumprop->strings, errp);
+    visit_complete(v, &str);
+    visit_free(v);
+    v = string_input_visitor_new(str);
+    visit_type_enum(v, name, &ret, enumprop->strings, errp);
 
     g_free(str);
-    string_input_visitor_cleanup(siv);
+    visit_free(v);
 
     return ret;
 }
@@ -1264,55 +1262,51 @@ void object_property_get_uint16List(Object *obj, const char *name,
                                     uint16List **list, Error **errp)
 {
     Error *err = NULL;
-    StringOutputVisitor *ov;
-    StringInputVisitor *iv;
+    Visitor *v;
     char *str;
 
-    ov = string_output_visitor_new(false);
-    object_property_get(obj, string_output_get_visitor(ov),
-                        name, &err);
+    v = string_output_visitor_new(false, &str);
+    object_property_get(obj, v, name, &err);
     if (err) {
         error_propagate(errp, err);
         goto out;
     }
-    str = string_output_get_string(ov);
-    iv = string_input_visitor_new(str);
-    visit_type_uint16List(string_input_get_visitor(iv), NULL, list, errp);
+    visit_complete(v, &str);
+    visit_free(v);
+    v = string_input_visitor_new(str);
+    visit_type_uint16List(v, NULL, list, errp);
 
     g_free(str);
-    string_input_visitor_cleanup(iv);
 out:
-    string_output_visitor_cleanup(ov);
+    visit_free(v);
 }
 
 void object_property_parse(Object *obj, const char *string,
                            const char *name, Error **errp)
 {
-    StringInputVisitor *siv;
-    siv = string_input_visitor_new(string);
-    object_property_set(obj, string_input_get_visitor(siv), name, errp);
-
-    string_input_visitor_cleanup(siv);
+    Visitor *v = string_input_visitor_new(string);
+    object_property_set(obj, v, name, errp);
+    visit_free(v);
 }
 
 char *object_property_print(Object *obj, const char *name, bool human,
                             Error **errp)
 {
-    StringOutputVisitor *sov;
+    Visitor *v;
     char *string = NULL;
     Error *local_err = NULL;
 
-    sov = string_output_visitor_new(human);
-    object_property_get(obj, string_output_get_visitor(sov), name, &local_err);
+    v = string_output_visitor_new(human, &string);
+    object_property_get(obj, v, name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto out;
     }
 
-    string = string_output_get_string(sov);
+    visit_complete(v, &string);
 
 out:
-    string_output_visitor_cleanup(sov);
+    visit_free(v);
     return string;
 }
 
@@ -2044,7 +2038,7 @@ static void property_get_tm(Object *obj, Visitor *v, const char *name,
     }
     visit_check_struct(v, &err);
 out_end:
-    visit_end_struct(v);
+    visit_end_struct(v, NULL);
 out:
     error_propagate(errp, err);
 

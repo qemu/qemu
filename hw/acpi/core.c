@@ -239,11 +239,11 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
     char unsigned *blob = NULL;
 
     {
-        OptsVisitor *ov;
+        Visitor *v;
 
-        ov = opts_visitor_new(opts);
-        visit_type_AcpiTableOptions(opts_get_visitor(ov), NULL, &hdrs, &err);
-        opts_visitor_cleanup(ov);
+        v = opts_visitor_new(opts);
+        visit_type_AcpiTableOptions(v, NULL, &hdrs, &err);
+        visit_free(v);
     }
 
     if (err) {

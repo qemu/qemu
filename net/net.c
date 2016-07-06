@@ -1024,8 +1024,7 @@ int net_client_init(QemuOpts *opts, int is_netdev, Error **errp)
     void *object = NULL;
     Error *err = NULL;
     int ret = -1;
-    OptsVisitor *ov = opts_visitor_new(opts);
-    Visitor *v = opts_get_visitor(ov);
+    Visitor *v = opts_visitor_new(opts);
 
     {
         /* Parse convenience option format ip6-net=fec0::0[/64] */
@@ -1075,7 +1074,7 @@ int net_client_init(QemuOpts *opts, int is_netdev, Error **errp)
     }
 
     error_propagate(errp, err);
-    opts_visitor_cleanup(ov);
+    visit_free(v);
     return ret;
 }
 
@@ -1199,7 +1198,7 @@ static void netfilter_print_info(Monitor *mon, NetFilterState *nf)
     char *str;
     ObjectProperty *prop;
     ObjectPropertyIterator iter;
-    StringOutputVisitor *ov;
+    Visitor *v;
 
     /* generate info str */
     object_property_iter_init(&iter, OBJECT(nf));
@@ -1207,11 +1206,10 @@ static void netfilter_print_info(Monitor *mon, NetFilterState *nf)
         if (!strcmp(prop->name, "type")) {
             continue;
         }
-        ov = string_output_visitor_new(false);
-        object_property_get(OBJECT(nf), string_output_get_visitor(ov),
-                            prop->name, NULL);
-        str = string_output_get_string(ov);
-        string_output_visitor_cleanup(ov);
+        v = string_output_visitor_new(false, &str);
+        object_property_get(OBJECT(nf), v, prop->name, NULL);
+        visit_complete(v, &str);
+        visit_free(v);
         monitor_printf(mon, ",%s=%s", prop->name, str);
         g_free(str);
     }

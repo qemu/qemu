@@ -217,9 +217,9 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
     Error *err = NULL;
 
     {
-        OptsVisitor *ov = opts_visitor_new(opts);
-        visit_type_NumaOptions(opts_get_visitor(ov), NULL, &object, &err);
-        opts_visitor_cleanup(ov);
+        Visitor *v = opts_visitor_new(opts);
+        visit_type_NumaOptions(v, NULL, &object, &err);
+        visit_free(v);
     }
 
     if (err) {

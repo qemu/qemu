@@ -24,18 +24,31 @@
  * for doing work at each node of a QAPI graph; it can also be used
  * for a virtual walk, where there is no actual QAPI C struct.
  *
- * There are three kinds of visitor classes: input visitors (QMP,
+ * There are four kinds of visitor classes: input visitors (QMP,
  * string, and QemuOpts) parse an external representation and build
  * the corresponding QAPI graph, output visitors (QMP and string) take
- * a completed QAPI graph and generate an external representation, and
- * the dealloc visitor can take a QAPI graph (possibly partially
- * constructed) and recursively free its resources.  While the dealloc
- * and QMP input/output visitors are general, the string and QemuOpts
- * visitors have some implementation limitations; see the
- * documentation for each visitor for more details on what it
+ * a completed QAPI graph and generate an external representation, the
+ * dealloc visitor can take a QAPI graph (possibly partially
+ * constructed) and recursively free its resources, and the clone
+ * visitor performs a deep clone of one QAPI object to another.  While
+ * the dealloc and QMP input/output visitors are general, the string,
+ * QemuOpts, and clone visitors have some implementation limitations;
+ * see the documentation for each visitor for more details on what it
  * supports.  Also, see visitor-impl.h for the callback contracts
  * implemented by each visitor, and docs/qapi-code-gen.txt for more
  * about the QAPI code generator.
+ *
+ * All of the visitors are created via:
+ *
+ * Visitor *subtype_visitor_new(parameters...);
+ *
+ * A visitor should be used for exactly one top-level visit_type_FOO()
+ * or virtual walk; if that is successful, the caller can optionally
+ * call visit_complete() (for now, useful only for output visits, but
+ * safe to call on all visits).  Then, regardless of success or
+ * failure, the user should call visit_free() to clean up resources.
+ * It is okay to free the visitor without completing the visit, if
+ * some other error is detected in the meantime.
  *
  * All QAPI types have a corresponding function with a signature
  * roughly compatible with this:
@@ -68,9 +81,9 @@
  *
  * If an error is detected during visit_type_FOO() with an input
  * visitor, then *@obj will be NULL for pointer types, and left
- * unchanged for scalar types.  Using an output visitor with an
- * incomplete object has undefined behavior (other than a special case
- * for visit_type_str() treating NULL like ""), while the dealloc
+ * unchanged for scalar types.  Using an output or clone visitor with
+ * an incomplete object has undefined behavior (other than a special
+ * case for visit_type_str() treating NULL like ""), while the dealloc
  * visitor safely handles incomplete objects.  Since input visitors
  * never produce an incomplete object, such an object is possible only
  * by manual construction.
@@ -90,11 +103,19 @@
  *
  * void qapi_free_FOO(FOO *obj);
  *
- * which behaves like free() in that @obj may be NULL.  Because of
- * these functions, the dealloc visitor is seldom used directly
- * outside of generated code.  QAPI types can also inherit from a base
- * class; when this happens, a function is generated for easily going
- * from the derived type to the base type:
+ * where behaves like free() in that @obj may be NULL.  Such objects
+ * may also be used with the following macro, provided alongside the
+ * clone visitor:
+ *
+ * Type *QAPI_CLONE(Type, src);
+ *
+ * in order to perform a deep clone of @src.  Because of the generated
+ * qapi_free functions and the QAPI_CLONE() macro, the clone and
+ * dealloc visitor should not be used directly outside of QAPI code.
+ *
+ * QAPI types can also inherit from a base class; when this happens, a
+ * function is generated for easily going from the derived type to the
+ * base type:
  *
  * BASE *qapi_CHILD_base(CHILD *obj);
  *
@@ -105,14 +126,14 @@
  *  Error *err = NULL;
  *  Visitor *v;
  *
- *  v = ...obtain input visitor...
+ *  v = FOO_visitor_new(...);
  *  visit_type_Foo(v, NULL, &f, &err);
  *  if (err) {
  *      ...handle error...
  *  } else {
  *      ...use f...
  *  }
- *  ...clean up v...
+ *  visit_free(v);
  *  qapi_free_Foo(f);
  * </example>
  *
@@ -122,7 +143,7 @@
  *  Error *err = NULL;
  *  Visitor *v;
  *
- *  v = ...obtain input visitor...
+ *  v = FOO_visitor_new(...);
  *  visit_type_FooList(v, NULL, &l, &err);
  *  if (err) {
  *      ...handle error...
@@ -131,7 +152,7 @@
  *          ...use l->value...
  *      }
  *  }
- *  ...clean up v...
+ *  visit_free(v);
  *  qapi_free_FooList(l);
  * </example>
  *
@@ -141,13 +162,17 @@
  *  Foo *f = ...obtain populated object...
  *  Error *err = NULL;
  *  Visitor *v;
+ *  Type *result;
  *
- *  v = ...obtain output visitor...
+ *  v = FOO_visitor_new(..., &result);
  *  visit_type_Foo(v, NULL, &f, &err);
  *  if (err) {
  *      ...handle error...
+ *  } else {
+ *      visit_complete(v, &result);
+ *      ...use result...
  *  }
- *  ...clean up v...
+ *  visit_free(v);
  * </example>
  *
  * When visiting a real QAPI struct, this file provides several
@@ -173,7 +198,7 @@
  *  Error *err = NULL;
  *  int value;
  *
- *  v = ...obtain visitor...
+ *  v = FOO_visitor_new(...);
  *  visit_start_struct(v, NULL, NULL, 0, &err);
  *  if (err) {
  *      goto out;
@@ -193,15 +218,15 @@
  *      goto outlist;
  *  }
  * outlist:
- *  visit_end_list(v);
+ *  visit_end_list(v, NULL);
  *  if (!err) {
  *      visit_check_struct(v, &err);
  *  }
  * outobj:
- *  visit_end_struct(v);
+ *  visit_end_struct(v, NULL);
  * out:
  *  error_propagate(errp, err);
- *  ...clean up v...
+ *  visit_free(v);
  * </example>
  */
 
@@ -222,6 +247,31 @@ typedef struct GenericAlternate {
     char padding[];
 } GenericAlternate;
 
+/*** Visitor cleanup ***/
+
+/*
+ * Complete the visit, collecting any output.
+ *
+ * May only be called only once after a successful top-level
+ * visit_type_FOO() or visit_end_ITEM(), and marks the end of the
+ * visit.  The @opaque pointer should match the output parameter
+ * passed to the subtype_visitor_new() used to create an output
+ * visitor, or NULL for any other visitor.  Needed for output
+ * visitors, but may also be called with other visitors.
+ */
+void visit_complete(Visitor *v, void *opaque);
+
+/*
+ * Free @v and any resources it has tied up.
+ *
+ * May be called whether or not the visit has been successfully
+ * completed, but should not be called until a top-level
+ * visit_type_FOO() or visit_start_ITEM() has been performed on the
+ * visitor.  Safe if @v is NULL.
+ */
+void visit_free(Visitor *v);
+
+
 /*** Visiting structures ***/
 
 /*
@@ -231,9 +281,9 @@ typedef struct GenericAlternate {
  * container; see the general description of @name above.
  *
  * @obj must be non-NULL for a real walk, in which case @size
- * determines how much memory an input visitor will allocate into
- * *@obj.  @obj may also be NULL for a virtual walk, in which case
- * @size is ignored.
+ * determines how much memory an input or clone visitor will allocate
+ * into *@obj.  @obj may also be NULL for a virtual walk, in which
+ * case @size is ignored.
  *
  * @errp obeys typical error usage, and reports failures such as a
  * member @name is not present, or present but not an object.  On
@@ -242,8 +292,8 @@ typedef struct GenericAlternate {
  * After visit_start_struct() succeeds, the caller may visit its
  * members one after the other, passing the member's name and address
  * within the struct.  Finally, visit_end_struct() needs to be called
- * to clean up, even if intermediate visits fail.  See the examples
- * above.
+ * with the same @obj to clean up, even if intermediate visits fail.
+ * See the examples above.
  *
  * FIXME Should this be named visit_start_object, since it is also
  * used for QAPI unions, and maps to JSON objects?
@@ -267,12 +317,14 @@ void visit_check_struct(Visitor *v, Error **errp);
 /*
  * Complete an object visit started earlier.
  *
+ * @obj must match what was passed to the paired visit_start_struct().
+ *
  * Must be called after any successful use of visit_start_struct(),
  * even if intermediate processing was skipped due to errors, to allow
  * the backend to release any resources.  Destroying the visitor early
- * behaves as if this was implicitly called.
+ * with visit_free() behaves as if this was implicitly called.
  */
-void visit_end_struct(Visitor *v);
+void visit_end_struct(Visitor *v, void **obj);
 
 
 /*** Visiting lists ***/
@@ -284,9 +336,9 @@ void visit_end_struct(Visitor *v);
  * container; see the general description of @name above.
  *
  * @list must be non-NULL for a real walk, in which case @size
- * determines how much memory an input visitor will allocate into
- * *@list (at least sizeof(GenericList)).  Some visitors also allow
- * @list to be NULL for a virtual walk, in which case @size is
+ * determines how much memory an input or clone visitor will allocate
+ * into *@list (at least sizeof(GenericList)).  Some visitors also
+ * allow @list to be NULL for a virtual walk, in which case @size is
  * ignored.
  *
  * @errp obeys typical error usage, and reports failures such as a
@@ -299,8 +351,9 @@ void visit_end_struct(Visitor *v);
  * visit (where @obj is NULL) uses other means.  For each list
  * element, call the appropriate visit_type_FOO() with name set to
  * NULL and obj set to the address of the value member of the list
- * element.  Finally, visit_end_list() needs to be called to clean up,
- * even if intermediate visits fail.  See the examples above.
+ * element.  Finally, visit_end_list() needs to be called with the
+ * same @list to clean up, even if intermediate visits fail.  See the
+ * examples above.
  */
 void visit_start_list(Visitor *v, const char *name, GenericList **list,
                       size_t size, Error **errp);
@@ -324,12 +377,14 @@ GenericList *visit_next_list(Visitor *v, GenericList *tail, size_t size);
 /*
  * Complete a list visit started earlier.
  *
+ * @list must match what was passed to the paired visit_start_list().
+ *
  * Must be called after any successful use of visit_start_list(), even
  * if intermediate processing was skipped due to errors, to allow the
  * backend to release any resources.  Destroying the visitor early
- * behaves as if this was implicitly called.
+ * with visit_free() behaves as if this was implicitly called.
  */
-void visit_end_list(Visitor *v);
+void visit_end_list(Visitor *v, void **list);
 
 
 /*** Visiting alternates ***/
@@ -340,15 +395,16 @@ void visit_end_list(Visitor *v);
  * @name expresses the relationship of this alternate to its parent
  * container; see the general description of @name above.
  *
- * @obj must not be NULL. Input visitors use @size to determine how
- * much memory to allocate into *@obj, then determine the qtype of the
- * next thing to be visited, stored in (*@obj)->type.  Other visitors
- * will leave @obj unchanged.
+ * @obj must not be NULL. Input and clone visitors use @size to
+ * determine how much memory to allocate into *@obj, then determine
+ * the qtype of the next thing to be visited, stored in (*@obj)->type.
+ * Other visitors will leave @obj unchanged.
  *
  * If @promote_int, treat integers as QTYPE_FLOAT.
  *
- * If successful, this must be paired with visit_end_alternate() to
- * clean up, even if visiting the contents of the alternate fails.
+ * If successful, this must be paired with visit_end_alternate() with
+ * the same @obj to clean up, even if visiting the contents of the
+ * alternate fails.
  */
 void visit_start_alternate(Visitor *v, const char *name,
                            GenericAlternate **obj, size_t size,
@@ -357,15 +413,15 @@ void visit_start_alternate(Visitor *v, const char *name,
 /*
  * Finish visiting an alternate type.
  *
+ * @obj must match what was passed to the paired visit_start_alternate().
+ *
  * Must be called after any successful use of visit_start_alternate(),
  * even if intermediate processing was skipped due to errors, to allow
  * the backend to release any resources.  Destroying the visitor early
- * behaves as if this was implicitly called.
+ * with visit_free() behaves as if this was implicitly called.
  *
- * TODO: Should all the visit_end_* interfaces take obj parameter, so
- * that dealloc visitor need not track what was passed in visit_start?
  */
-void visit_end_alternate(Visitor *v);
+void visit_end_alternate(Visitor *v, void **obj);
 
 
 /*** Other helpers ***/
@@ -507,9 +563,10 @@ void visit_type_bool(Visitor *v, const char *name, bool *obj, Error **errp);
  * @name expresses the relationship of this string to its parent
  * container; see the general description of @name above.
  *
- * @obj must be non-NULL.  Input visitors set *@obj to the value
- * (never NULL).  Other visitors leave *@obj unchanged, and commonly
- * treat NULL like "".
+ * @obj must be non-NULL.  Input and clone visitors set *@obj to the
+ * value (always using "" rather than NULL for an empty string).
+ * Other visitors leave *@obj unchanged, and commonly treat NULL like
+ * "".
  *
  * It is safe to cast away const when preparing a (const char *) value
  * into @obj for use by an output visitor.

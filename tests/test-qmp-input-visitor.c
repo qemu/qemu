@@ -18,10 +18,11 @@
 #include "test-qapi-types.h"
 #include "test-qapi-visit.h"
 #include "qapi/qmp/types.h"
+#include "qapi/qmp/qjson.h"
 
 typedef struct TestInputVisitorData {
     QObject *obj;
-    QmpInputVisitor *qiv;
+    Visitor *qiv;
 } TestInputVisitorData;
 
 static void visitor_input_teardown(TestInputVisitorData *data,
@@ -31,7 +32,7 @@ static void visitor_input_teardown(TestInputVisitorData *data,
     data->obj = NULL;
 
     if (data->qiv) {
-        qmp_input_visitor_cleanup(data->qiv);
+        visit_free(data->qiv);
         data->qiv = NULL;
     }
 }
@@ -43,8 +44,6 @@ static Visitor *visitor_input_test_init_internal(TestInputVisitorData *data,
                                                  const char *json_string,
                                                  va_list *ap)
 {
-    Visitor *v;
-
     visitor_input_teardown(data, NULL);
 
     data->obj = qobject_from_jsonv(json_string, ap);
@@ -52,11 +51,7 @@ static Visitor *visitor_input_test_init_internal(TestInputVisitorData *data,
 
     data->qiv = qmp_input_visitor_new(data->obj, false);
     g_assert(data->qiv);
-
-    v = qmp_input_get_visitor(data->qiv);
-    g_assert(v);
-
-    return v;
+    return data->qiv;
 }
 
 static GCC_FMT_ATTR(2, 3)
@@ -303,7 +298,7 @@ static void test_visitor_in_null(TestInputVisitorData *data,
     visit_type_null(v, "b", &err);
     error_free_or_abort(&err);
     visit_check_struct(v, &error_abort);
-    visit_end_struct(v);
+    visit_end_struct(v, NULL);
 }
 
 static void test_visitor_in_union_flat(TestInputVisitorData *data,

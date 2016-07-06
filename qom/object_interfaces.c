@@ -71,7 +71,7 @@ Object *user_creatable_add(const QDict *qdict,
     obj = user_creatable_add_type(type, id, pdict, v, &local_err);
 
 out_visit:
-    visit_end_struct(v);
+    visit_end_struct(v, NULL);
 
 out:
     QDECREF(pdict);
@@ -127,7 +127,7 @@ Object *user_creatable_add_type(const char *type, const char *id,
     if (!local_err) {
         visit_check_struct(v, &local_err);
     }
-    visit_end_struct(v);
+    visit_end_struct(v, NULL);
     if (local_err) {
         goto out;
     }
@@ -156,15 +156,15 @@ out:
 
 Object *user_creatable_add_opts(QemuOpts *opts, Error **errp)
 {
-    OptsVisitor *ov;
+    Visitor *v;
     QDict *pdict;
     Object *obj = NULL;
 
-    ov = opts_visitor_new(opts);
+    v = opts_visitor_new(opts);
     pdict = qemu_opts_to_qdict(opts, NULL);
 
-    obj = user_creatable_add(pdict, opts_get_visitor(ov), errp);
-    opts_visitor_cleanup(ov);
+    obj = user_creatable_add(pdict, v, errp);
+    visit_free(v);
     QDECREF(pdict);
     return obj;
 }
