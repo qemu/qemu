@@ -716,6 +716,16 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
                  arg, arg1, arg2);
 }
 
+static inline bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
+                               TCGReg base, intptr_t ofs)
+{
+    if (val == 0) {
+        tcg_out_st(s, type, TCG_REG_XZR, base, ofs);
+        return true;
+    }
+    return false;
+}
+
 static inline void tcg_out_bfm(TCGContext *s, TCGType ext, TCGReg rd,
                                TCGReg rn, unsigned int a, unsigned int b)
 {
@@ -1071,19 +1081,20 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, TCGMemOp opc,
     int tlb_offset = is_read ?
         offsetof(CPUArchState, tlb_table[mem_index][0].addr_read)
         : offsetof(CPUArchState, tlb_table[mem_index][0].addr_write);
-    int s_mask = (1 << (opc & MO_SIZE)) - 1;
+    int a_bits = get_alignment_bits(opc);
     TCGReg base = TCG_AREG0, x3;
     uint64_t tlb_mask;
 
     /* For aligned accesses, we check the first byte and include the alignment
        bits within the address.  For unaligned access, we check that we don't
        cross pages using the address of the last byte of the access.  */
-    if ((opc & MO_AMASK) == MO_ALIGN || s_mask == 0) {
-        tlb_mask = TARGET_PAGE_MASK | s_mask;
+    if (a_bits >= 0) {
+        /* A byte access or an alignment check required */
+        tlb_mask = TARGET_PAGE_MASK | ((1 << a_bits) - 1);
         x3 = addr_reg;
     } else {
         tcg_out_insn(s, 3401, ADDI, TARGET_LONG_BITS == 64,
-                     TCG_REG_X3, addr_reg, s_mask);
+                     TCG_REG_X3, addr_reg, (1 << (opc & MO_SIZE)) - 1);
         tlb_mask = TARGET_PAGE_MASK;
         x3 = TCG_REG_X3;
     }

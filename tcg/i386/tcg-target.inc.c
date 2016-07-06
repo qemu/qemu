@@ -710,12 +710,19 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
     tcg_out_modrm_offset(s, opc, arg, arg1, arg2);
 }
 
-static inline void tcg_out_sti(TCGContext *s, TCGType type, TCGReg base,
-                               tcg_target_long ofs, tcg_target_long val)
+static bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
+                        TCGReg base, intptr_t ofs)
 {
-    int opc = OPC_MOVL_EvIz + (type == TCG_TYPE_I64 ? P_REXW : 0);
-    tcg_out_modrm_offset(s, opc, 0, base, ofs);
+    int rexw = 0;
+    if (TCG_TARGET_REG_BITS == 64 && type == TCG_TYPE_I64) {
+        if (val != (int32_t)val) {
+            return false;
+        }
+        rexw = P_REXW;
+    }
+    tcg_out_modrm_offset(s, OPC_MOVL_EvIz | rexw, 0, base, ofs);
     tcg_out32(s, val);
+    return true;
 }
 
 static void tcg_out_shifti(TCGContext *s, int subopc, int reg, int count)
@@ -1195,8 +1202,8 @@ static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     TCGType ttype = TCG_TYPE_I32;
     TCGType tlbtype = TCG_TYPE_I32;
     int trexw = 0, hrexw = 0, tlbrexw = 0;
-    int s_mask = (1 << (opc & MO_SIZE)) - 1;
-    bool aligned = (opc & MO_AMASK) == MO_ALIGN || s_mask == 0;
+    int a_bits = get_alignment_bits(opc);
+    target_ulong tlb_mask;
 
     if (TCG_TARGET_REG_BITS == 64) {
         if (TARGET_LONG_BITS == 64) {
@@ -1213,19 +1220,22 @@ static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     }
 
     tcg_out_mov(s, tlbtype, r0, addrlo);
-    if (aligned) {
+    if (a_bits >= 0) {
+        /* A byte access or an alignment check required */
         tcg_out_mov(s, ttype, r1, addrlo);
+        tlb_mask = TARGET_PAGE_MASK | ((1 << a_bits) - 1);
     } else {
         /* For unaligned access check that we don't cross pages using
            the page address of the last byte.  */
-        tcg_out_modrm_offset(s, OPC_LEA + trexw, r1, addrlo, s_mask);
+        tcg_out_modrm_offset(s, OPC_LEA + trexw, r1, addrlo,
+                             (1 << (opc & MO_SIZE)) - 1);
+        tlb_mask = TARGET_PAGE_MASK;
     }
 
     tcg_out_shifti(s, SHIFT_SHR + tlbrexw, r0,
                    TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
 
-    tgen_arithi(s, ARITH_AND + trexw, r1,
-                TARGET_PAGE_MASK | (aligned ? s_mask : 0), 0);
+    tgen_arithi(s, ARITH_AND + trexw, r1, tlb_mask, 0);
     tgen_arithi(s, ARITH_AND + tlbrexw, r0,
                 (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS, 0);
 
@@ -1321,10 +1331,10 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
             ofs += 4;
         }
 
-        tcg_out_sti(s, TCG_TYPE_I32, TCG_REG_ESP, ofs, oi);
+        tcg_out_sti(s, TCG_TYPE_I32, oi, TCG_REG_ESP, ofs);
         ofs += 4;
 
-        tcg_out_sti(s, TCG_TYPE_PTR, TCG_REG_ESP, ofs, (uintptr_t)l->raddr);
+        tcg_out_sti(s, TCG_TYPE_PTR, (uintptr_t)l->raddr, TCG_REG_ESP, ofs);
     } else {
         tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0], TCG_AREG0);
         /* The second argument is already loaded with addrlo.  */
@@ -1413,7 +1423,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
             ofs += 4;
         }
 
-        tcg_out_sti(s, TCG_TYPE_I32, TCG_REG_ESP, ofs, oi);
+        tcg_out_sti(s, TCG_TYPE_I32, oi, TCG_REG_ESP, ofs);
         ofs += 4;
 
         retaddr = TCG_REG_EAX;

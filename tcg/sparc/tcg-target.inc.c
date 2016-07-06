@@ -504,6 +504,16 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
     tcg_out_ldst(s, arg, arg1, arg2, (type == TCG_TYPE_I32 ? STW : STX));
 }
 
+static inline bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
+                               TCGReg base, intptr_t ofs)
+{
+    if (val == 0) {
+        tcg_out_st(s, type, TCG_REG_G0, base, ofs);
+        return true;
+    }
+    return false;
+}
+
 static void tcg_out_ld_ptr(TCGContext *s, TCGReg ret, uintptr_t arg)
 {
     tcg_out_movi(s, TCG_TYPE_PTR, ret, arg & ~0x3ff);

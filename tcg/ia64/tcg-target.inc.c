@@ -973,6 +973,16 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
     }
 }
 
+static inline bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
+                               TCGReg base, intptr_t ofs)
+{
+    if (val == 0) {
+        tcg_out_st(s, type, TCG_REG_R0, base, ofs);
+        return true;
+    }
+    return false;
+}
+
 static inline void tcg_out_alu(TCGContext *s, uint64_t opc_a1, uint64_t opc_a3,
                                TCGReg ret, TCGArg arg1, int const_arg1,
                                TCGArg arg2, int const_arg2)

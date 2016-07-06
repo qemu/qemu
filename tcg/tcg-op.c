@@ -1851,6 +1851,9 @@ void tcg_gen_goto_tb(unsigned idx)
 
 static inline TCGMemOp tcg_canonicalize_memop(TCGMemOp op, bool is64, bool st)
 {
+    /* Trigger the asserts within as early as possible.  */
+    (void)get_alignment_bits(op);
+
     switch (op & MO_SIZE) {
     case MO_8:
         op &= ~MO_BSWAP;
