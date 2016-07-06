@@ -5826,7 +5826,8 @@ long do_rt_sigreturn(CPUArchState *env)
 
 #endif
 
-static void handle_pending_signal(CPUArchState *cpu_env, int sig)
+static void handle_pending_signal(CPUArchState *cpu_env, int sig,
+                                  struct emulated_sigtable *k)
 {
     CPUState *cpu = ENV_GET_CPU(cpu_env);
     abi_ulong handler;
@@ -5834,7 +5835,6 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig)
     target_sigset_t target_old_set;
     struct target_sigaction *sa;
     TaskState *ts = cpu->opaque;
-    struct emulated_sigtable *k = &ts->sigtab[sig - 1];
 
     trace_user_handle_signal(cpu_env, sig);
     /* dequeue signal */
@@ -5937,7 +5937,7 @@ void process_pending_signals(CPUArchState *cpu_env)
                 sigact_table[sig - 1]._sa_handler = TARGET_SIG_DFL;
             }
 
-            handle_pending_signal(cpu_env, sig);
+            handle_pending_signal(cpu_env, sig, &ts->sync_signal);
         }
 
         for (sig = 1; sig <= TARGET_NSIG; sig++) {
@@ -5947,7 +5947,7 @@ void process_pending_signals(CPUArchState *cpu_env)
             if (ts->sigtab[sig - 1].pending &&
                 (!sigismember(blocked_set,
                               target_to_host_signal_table[sig]))) {
-                handle_pending_signal(cpu_env, sig);
+                handle_pending_signal(cpu_env, sig, &ts->sigtab[sig - 1]);
                 /* Restart scan from the beginning */
                 sig = 1;
             }
