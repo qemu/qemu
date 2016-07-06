@@ -1122,18 +1122,6 @@ void pc_hot_add_cpu(const int64_t id, Error **errp)
         return;
     }
 
-    if (cpu_exists(apic_id)) {
-        error_setg(errp, "Unable to add CPU: %" PRIi64
-                   ", it already exists", id);
-        return;
-    }
-
-    if (id >= max_cpus) {
-        error_setg(errp, "Unable to add CPU: %" PRIi64
-                   ", max allowed: %d", id, max_cpus - 1);
-        return;
-    }
-
     if (apic_id >= ACPI_CPU_HOTPLUG_ID_LIMIT) {
         error_setg(errp, "Unable to add CPU: %" PRIi64
                    ", resulting APIC ID (%" PRIi64 ") is too large",
@@ -1852,6 +1840,36 @@ static void pc_cpu_unplug_cb(HotplugHandler *hotplug_dev,
     error_propagate(errp, local_err);
 }
 
+static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
+                            DeviceState *dev, Error **errp)
+{
+    int idx;
+    X86CPU *cpu = X86_CPU(dev);
+    PCMachineState *pcms = PC_MACHINE(hotplug_dev);
+    CPUArchId *cpu_slot = pc_find_cpu_slot(pcms, CPU(dev), &idx);
+
+    if (!cpu_slot) {
+        error_setg(errp, "Invalid CPU index with APIC ID (%" PRIu32
+                   "), valid range 0:%d", cpu->apic_id,
+                   pcms->possible_cpus->len - 1);
+        return;
+    }
+
+    if (cpu_slot->cpu) {
+        error_setg(errp, "CPU[%d] with APIC ID %" PRIu32 " exists",
+                   idx, cpu->apic_id);
+        return;
+    }
+}
+
+static void pc_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
+                                          DeviceState *dev, Error **errp)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+        pc_cpu_pre_plug(hotplug_dev, dev, errp);
+    }
+}
+
 static void pc_machine_device_plug_cb(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
@@ -2149,6 +2167,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     mc->hot_add_cpu = pc_hot_add_cpu;
     mc->max_cpus = 255;
     mc->reset = pc_machine_reset;
+    hc->pre_plug = pc_machine_device_pre_plug_cb;
     hc->plug = pc_machine_device_plug_cb;
     hc->unplug_request = pc_machine_device_unplug_request_cb;
     hc->unplug = pc_machine_device_unplug_cb;
