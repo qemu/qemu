@@ -845,6 +845,11 @@ typedef struct {
 
 #define NB_OPMASK_REGS 8
 
+/* CPU can't have 0xFFFFFFFF APIC ID, use that value to distinguish
+ * that APIC ID hasn't been set yet
+ */
+#define UNASSIGNED_APIC_ID 0xFFFFFFFF
+
 typedef union X86LegacyXSaveArea {
     struct {
         uint16_t fcw;
@@ -1174,7 +1179,7 @@ struct X86CPU {
     bool expose_kvm;
     bool migratable;
     bool host_features;
-    int64_t apic_id;
+    uint32_t apic_id;
 
     /* if true the CPUID code directly forward host cache leaves to the guest */
     bool cache_info_passthrough;
