@@ -176,8 +176,8 @@ void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
         writable = false;
     }
 
-    exp = nbd_export_new(blk, 0, -1, writable ? 0 : NBD_FLAG_READ_ONLY, NULL,
-                         errp);
+    exp = nbd_export_new(blk_bs(blk), 0, -1, writable ? 0 : NBD_FLAG_READ_ONLY,
+                         NULL, false, blk, errp);
     if (!exp) {
         return;
     }

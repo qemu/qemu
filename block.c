@@ -25,6 +25,7 @@
 #include "trace.h"
 #include "block/block_int.h"
 #include "block/blockjob.h"
+#include "block/nbd.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qapi/qmp/qerror.h"
@@ -2206,6 +2207,7 @@ static void bdrv_close(BlockDriverState *bs)
 void bdrv_close_all(void)
 {
     block_job_cancel_sync_all();
+    nbd_export_close_all();
 
     /* Drop references from requests still in flight, such as canceled block
      * jobs whose AIO context has not been polled yet */

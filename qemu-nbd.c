@@ -910,8 +910,8 @@ int main(int argc, char **argv)
         }
     }
 
-    exp = nbd_export_new(blk, dev_offset, fd_size, nbdflags, nbd_export_closed,
-                         &local_err);
+    exp = nbd_export_new(bs, dev_offset, fd_size, nbdflags, nbd_export_closed,
+                         writethrough, NULL, &local_err);
     if (!exp) {
         error_report_err(local_err);
         exit(EXIT_FAILURE);
