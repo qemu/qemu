@@ -1219,6 +1219,10 @@ struct X86CPU {
     Notifier machine_done;
 
     struct kvm_msrs *kvm_msr_buf;
+
+    int32_t socket_id;
+    int32_t core_id;
+    int32_t thread_id;
 };
 
 static inline X86CPU *x86_env_get_cpu(CPUX86State *env)

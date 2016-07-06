@@ -1844,6 +1844,7 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
                             DeviceState *dev, Error **errp)
 {
     int idx;
+    X86CPUTopoInfo topo;
     X86CPU *cpu = X86_CPU(dev);
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
     CPUArchId *cpu_slot = pc_find_cpu_slot(pcms, CPU(dev), &idx);
@@ -1860,6 +1861,34 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
                    idx, cpu->apic_id);
         return;
     }
+
+    /* if 'address' properties socket-id/core-id/thread-id are not set, set them
+     * so that query_hotpluggable_cpus would show correct values
+     */
+    /* TODO: move socket_id/core_id/thread_id checks into x86_cpu_realizefn()
+     * once -smp refactoring is complete and there will be CPU private
+     * CPUState::nr_cores and CPUState::nr_threads fields instead of globals */
+    x86_topo_ids_from_apicid(cpu->apic_id, smp_cores, smp_threads, &topo);
+    if (cpu->socket_id != -1 && cpu->socket_id != topo.pkg_id) {
+        error_setg(errp, "property socket-id: %u doesn't match set apic-id:"
+            " 0x%x (socket-id: %u)", cpu->socket_id, cpu->apic_id, topo.pkg_id);
+        return;
+    }
+    cpu->socket_id = topo.pkg_id;
+
+    if (cpu->core_id != -1 && cpu->core_id != topo.core_id) {
+        error_setg(errp, "property core-id: %u doesn't match set apic-id:"
+            " 0x%x (core-id: %u)", cpu->core_id, cpu->apic_id, topo.core_id);
+        return;
+    }
+    cpu->core_id = topo.core_id;
+
+    if (cpu->thread_id != -1 && cpu->thread_id != topo.smt_id) {
+        error_setg(errp, "property thread-id: %u doesn't match set apic-id:"
+            " 0x%x (thread-id: %u)", cpu->thread_id, cpu->apic_id, topo.smt_id);
+        return;
+    }
+    cpu->thread_id = topo.smt_id;
 }
 
 static void pc_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
