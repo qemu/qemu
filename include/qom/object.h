@@ -901,7 +901,7 @@ GSList *object_class_get_list(const char *implements_type,
 void object_ref(Object *obj);
 
 /**
- * qdef_unref:
+ * object_unref:
  * @obj: the object
  *
  * Decrease the reference count of a object.  A object cannot be freed as long
