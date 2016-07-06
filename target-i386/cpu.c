@@ -538,7 +538,12 @@ static const X86RegisterInfo32 x86_reg_info_32[CPU_NB_REGS32] = {
 };
 #undef REGISTER
 
-const ExtSaveArea x86_ext_save_areas[] = {
+typedef struct ExtSaveArea {
+    uint32_t feature, bits;
+    uint32_t offset, size;
+} ExtSaveArea;
+
+static const ExtSaveArea x86_ext_save_areas[] = {
     [XSTATE_YMM_BIT] =
           { .feature = FEAT_1_ECX, .bits = CPUID_EXT_AVX,
             .offset = offsetof(X86XSaveArea, avx_state),
