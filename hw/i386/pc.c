@@ -1756,11 +1756,30 @@ static int pc_apic_cmp(const void *a, const void *b)
    return apic_a->arch_id - apic_b->arch_id;
 }
 
+/* returns pointer to CPUArchId descriptor that matches CPU's apic_id
+ * in pcms->possible_cpus->cpus, if pcms->possible_cpus->cpus has no
+ * entry correponding to CPU's apic_id returns NULL.
+ */
+static CPUArchId *pc_find_cpu_slot(PCMachineState *pcms, CPUState *cpu,
+                                   int *idx)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    CPUArchId apic_id, *found_cpu;
+
+    apic_id.arch_id = cc->get_arch_id(CPU(cpu));
+    found_cpu = bsearch(&apic_id, pcms->possible_cpus->cpus,
+        pcms->possible_cpus->len, sizeof(*pcms->possible_cpus->cpus),
+        pc_apic_cmp);
+    if (found_cpu && idx) {
+        *idx = found_cpu - pcms->possible_cpus->cpus;
+    }
+    return found_cpu;
+}
+
 static void pc_cpu_plug(HotplugHandler *hotplug_dev,
                         DeviceState *dev, Error **errp)
 {
-    CPUClass *cc = CPU_GET_CLASS(dev);
-    CPUArchId apic_id, *found_cpu;
+    CPUArchId *found_cpu;
     HotplugHandlerClass *hhc;
     Error *local_err = NULL;
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
@@ -1784,11 +1803,7 @@ static void pc_cpu_plug(HotplugHandler *hotplug_dev,
     /* increment the number of CPUs */
     rtc_set_memory(pcms->rtc, 0x5f, rtc_get_memory(pcms->rtc, 0x5f) + 1);
 
-    apic_id.arch_id = cc->get_arch_id(CPU(dev));
-    found_cpu = bsearch(&apic_id, pcms->possible_cpus->cpus,
-        pcms->possible_cpus->len, sizeof(*pcms->possible_cpus->cpus),
-        pc_apic_cmp);
-    assert(found_cpu);
+    found_cpu = pc_find_cpu_slot(pcms, CPU(dev), NULL);
     found_cpu->cpu = CPU(dev);
 out:
     error_propagate(errp, local_err);
