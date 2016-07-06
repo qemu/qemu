@@ -523,9 +523,9 @@ static bool victim_tlb_hit(CPUArchState *env, size_t mmu_idx, size_t index,
 }
 
 /* Macro to call the above, with local variables from the use context.  */
-#define VICTIM_TLB_HIT(TY) \
+#define VICTIM_TLB_HIT(TY, ADDR) \
   victim_tlb_hit(env, mmu_idx, index, offsetof(CPUTLBEntry, TY), \
-                 addr & TARGET_PAGE_MASK)
+                 (ADDR) & TARGET_PAGE_MASK)
 
 #define MMUSUFFIX _mmu
 
