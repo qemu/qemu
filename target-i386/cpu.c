@@ -2826,8 +2826,9 @@ static void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
 
     cpu->apic_state = DEVICE(object_new(apic_type));
 
-    object_property_add_child(OBJECT(cpu), "apic",
-                              OBJECT(cpu->apic_state), NULL);
+    object_property_add_child(OBJECT(cpu), "lapic",
+                              OBJECT(cpu->apic_state), &error_abort);
+
     qdev_prop_set_uint8(cpu->apic_state, "id", cpu->apic_id);
     /* TODO: convert to link<> */
     apic = APIC_COMMON(cpu->apic_state);
