@@ -51,7 +51,7 @@ static void fsl_imx25_init(Object *obj)
     }
 
     for (i = 0; i < FSL_IMX25_NUM_GPTS; i++) {
-        object_initialize(&s->gpt[i], sizeof(s->gpt[i]), TYPE_IMX_GPT);
+        object_initialize(&s->gpt[i], sizeof(s->gpt[i]), TYPE_IMX25_GPT);
         qdev_set_parent_bus(DEVICE(&s->gpt[i]), sysbus_get_default());
     }
 

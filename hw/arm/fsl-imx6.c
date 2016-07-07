@@ -67,7 +67,7 @@ static void fsl_imx6_init(Object *obj)
         object_property_add_child(obj, name, OBJECT(&s->uart[i]), NULL);
     }
 
-    object_initialize(&s->gpt, sizeof(s->gpt), TYPE_IMX_GPT);
+    object_initialize(&s->gpt, sizeof(s->gpt), TYPE_IMX6_GPT);
     qdev_set_parent_bus(DEVICE(&s->gpt), sysbus_get_default());
     object_property_add_child(obj, "gpt", OBJECT(&s->gpt), NULL);
 

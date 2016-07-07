@@ -47,7 +47,7 @@ static void fsl_imx31_init(Object *obj)
         qdev_set_parent_bus(DEVICE(&s->uart[i]), sysbus_get_default());
     }
 
-    object_initialize(&s->gpt, sizeof(s->gpt), TYPE_IMX_GPT);
+    object_initialize(&s->gpt, sizeof(s->gpt), TYPE_IMX31_GPT);
     qdev_set_parent_bus(DEVICE(&s->gpt), sysbus_get_default());
 
     for (i = 0; i < FSL_IMX31_NUM_EPITS; i++) {
