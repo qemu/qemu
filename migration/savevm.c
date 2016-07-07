@@ -2230,7 +2230,7 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
     available_snapshots = g_new0(int, nb_sns);
     total = 0;
     for (i = 0; i < nb_sns; i++) {
-        if (bdrv_all_find_snapshot(sn_tab[i].id_str, &bs1) == 0) {
+        if (bdrv_all_find_snapshot(sn_tab[i].name, &bs1) == 0) {
             available_snapshots[total] = i;
             total++;
         }
@@ -2241,6 +2241,10 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "\n");
         for (i = 0; i < total; i++) {
             sn = &sn_tab[available_snapshots[i]];
+            /* The ID is not guaranteed to be the same on all images, so
+             * overwrite it.
+             */
+            pstrcpy(sn->id_str, sizeof(sn->id_str), "--");
             bdrv_snapshot_dump((fprintf_function)monitor_printf, mon, sn);
             monitor_printf(mon, "\n");
         }
