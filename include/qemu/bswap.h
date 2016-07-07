@@ -99,16 +99,6 @@ static inline void endian ## size ## _to_cpus(type *p)\
 static inline void cpu_to_ ## endian ## size ## s(type *p)\
 {\
     glue(endian, _bswaps)(p, size);\
-}\
-\
-static inline type endian ## size ## _to_cpup(const type *p)\
-{\
-    return glue(glue(endian, size), _to_cpu)(*p);\
-}\
-\
-static inline void cpu_to_ ## endian ## size ## w(type *p, type v)\
-{\
-    *p = glue(glue(cpu_to_, endian), size)(v);\
 }
 
 CPU_CONVERT(be, 16, uint16_t)
