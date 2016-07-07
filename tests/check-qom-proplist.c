@@ -230,6 +230,13 @@ struct DummyBackendClass {
 };
 
 
+static void dummy_dev_finalize(Object *obj)
+{
+    DummyDev *dev = DUMMY_DEV(obj);
+
+    object_unref(OBJECT(dev->bus));
+}
+
 static void dummy_dev_init(Object *obj)
 {
     DummyDev *dev = DUMMY_DEV(obj);
@@ -257,6 +264,13 @@ static void dummy_dev_class_init(ObjectClass *klass, void *opaque)
 }
 
 
+static void dummy_bus_finalize(Object *obj)
+{
+    DummyBus *bus = DUMMY_BUS(obj);
+
+    object_unref(OBJECT(bus->backend));
+}
+
 static void dummy_bus_init(Object *obj)
 {
 }
@@ -283,6 +297,7 @@ static const TypeInfo dummy_dev_info = {
     .parent        = TYPE_OBJECT,
     .instance_size = sizeof(DummyDev),
     .instance_init = dummy_dev_init,
+    .instance_finalize = dummy_dev_finalize,
     .class_size = sizeof(DummyDevClass),
     .class_init = dummy_dev_class_init,
 };
@@ -292,6 +307,7 @@ static const TypeInfo dummy_bus_info = {
     .parent        = TYPE_OBJECT,
     .instance_size = sizeof(DummyBus),
     .instance_init = dummy_bus_init,
+    .instance_finalize = dummy_bus_finalize,
     .class_size = sizeof(DummyBusClass),
     .class_init = dummy_bus_class_init,
 };
