@@ -526,9 +526,9 @@ static int l2cap_channel_config(struct l2cap_instance_s *l2cap,
             }
 
             /* MTU */
-            val = le16_to_cpup((void *) opt->val);
+            val = lduw_le_p(opt->val);
             if (val < ch->min_mtu) {
-                cpu_to_le16w((void *) opt->val, ch->min_mtu);
+                stw_le_p(opt->val, ch->min_mtu);
                 result = L2CAP_CONF_UNACCEPT;
                 break;
             }
@@ -543,7 +543,7 @@ static int l2cap_channel_config(struct l2cap_instance_s *l2cap,
             }
 
             /* Flush Timeout */
-            val = le16_to_cpup((void *) opt->val);
+            val = lduw_le_p(opt->val);
             if (val < 0x0001) {
                 opt->val[0] = 0xff;
                 opt->val[1] = 0xff;
@@ -987,7 +987,7 @@ static void l2cap_bframe_in(struct l2cap_chan_s *ch, uint16_t cid,
 static void l2cap_iframe_in(struct l2cap_chan_s *ch, uint16_t cid,
                 const l2cap_hdr *hdr, int len)
 {
-    uint16_t fcs = le16_to_cpup((void *) (hdr->data + len - 2));
+    uint16_t fcs = lduw_le_p(hdr->data + len - 2);
 
     if (len < 4)
         goto len_error;
@@ -1002,7 +1002,7 @@ static void l2cap_iframe_in(struct l2cap_chan_s *ch, uint16_t cid,
             /* TODO: Signal an error? */
             return;
         }
-        l2cap_sframe_in(ch, le16_to_cpup((void *) hdr->data));
+        l2cap_sframe_in(ch, lduw_le_p(hdr->data));
         return;
     }
 
@@ -1022,7 +1022,7 @@ static void l2cap_iframe_in(struct l2cap_chan_s *ch, uint16_t cid,
         if (len - 6 > ch->mps)
             goto len_error;
 
-        ch->len_total = le16_to_cpup((void *) (hdr->data + 2));
+        ch->len_total = lduw_le_p(hdr->data + 2);
         if (len >= 6 + ch->len_total)
             goto seg_error;
 
