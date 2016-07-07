@@ -2000,6 +2000,7 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
 int page_unprotect(target_ulong address, uintptr_t pc)
 {
     unsigned int prot;
+    bool current_tb_invalidated;
     PageDesc *p;
     target_ulong host_start, host_end, addr;
 
@@ -2021,6 +2022,7 @@ int page_unprotect(target_ulong address, uintptr_t pc)
         host_end = host_start + qemu_host_page_size;
 
         prot = 0;
+        current_tb_invalidated = false;
         for (addr = host_start ; addr < host_end ; addr += TARGET_PAGE_SIZE) {
             p = page_find(addr >> TARGET_PAGE_BITS);
             p->flags |= PAGE_WRITE;
@@ -2028,10 +2030,7 @@ int page_unprotect(target_ulong address, uintptr_t pc)
 
             /* and since the content will be modified, we must invalidate
                the corresponding translated code. */
-            if (tb_invalidate_phys_page(addr, pc)) {
-                mmap_unlock();
-                return 2;
-            }
+            current_tb_invalidated |= tb_invalidate_phys_page(addr, pc);
 #ifdef DEBUG_TB_CHECK
             tb_invalidate_check(addr);
 #endif
@@ -2040,7 +2039,8 @@ int page_unprotect(target_ulong address, uintptr_t pc)
                  prot & PAGE_BITS);
 
         mmap_unlock();
-        return 1;
+        /* If current TB was invalidated return to main loop */
+        return current_tb_invalidated ? 2 : 1;
     }
     mmap_unlock();
     return 0;
