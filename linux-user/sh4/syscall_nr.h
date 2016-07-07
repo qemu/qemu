@@ -84,7 +84,7 @@
 #define TARGET_NR_settimeofday	 79
 #define TARGET_NR_getgroups		 80
 #define TARGET_NR_setgroups		 81
-#define TARGET_NR_select		 82
+                                         /* 82 was sys_oldselect */
 #define TARGET_NR_symlink		 83
 #define TARGET_NR_oldlstat		 84
 #define TARGET_NR_readlink		 85

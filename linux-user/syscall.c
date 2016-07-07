@@ -1444,6 +1444,29 @@ static abi_long do_select(int n,
 
     return ret;
 }
+
+#if defined(TARGET_WANT_OLD_SYS_SELECT)
+static abi_long do_old_select(abi_ulong arg1)
+{
+    struct target_sel_arg_struct *sel;
+    abi_ulong inp, outp, exp, tvp;
+    long nsel;
+
+    if (!lock_user_struct(VERIFY_READ, sel, arg1, 1)) {
+        return -TARGET_EFAULT;
+    }
+
+    nsel = tswapal(sel->n);
+    inp = tswapal(sel->inp);
+    outp = tswapal(sel->outp);
+    exp = tswapal(sel->exp);
+    tvp = tswapal(sel->tvp);
+
+    unlock_user_struct(sel, arg1, 0);
+
+    return do_select(nsel, inp, outp, exp, tvp);
+}
+#endif
 #endif
 
 static abi_long do_pipe2(int host_pipe[], int flags)
@@ -8668,24 +8691,15 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #if defined(TARGET_NR_select)
     case TARGET_NR_select:
-#if defined(TARGET_S390X) || defined(TARGET_ALPHA)
-        ret = do_select(arg1, arg2, arg3, arg4, arg5);
+#if defined(TARGET_WANT_NI_OLD_SELECT)
+        /* some architectures used to have old_select here
+         * but now ENOSYS it.
+         */
+        ret = -TARGET_ENOSYS;
+#elif defined(TARGET_WANT_OLD_SYS_SELECT)
+        ret = do_old_select(arg1);
 #else
-        {
-            struct target_sel_arg_struct *sel;
-            abi_ulong inp, outp, exp, tvp;
-            long nsel;
-
-            if (!lock_user_struct(VERIFY_READ, sel, arg1, 1))
-                goto efault;
-            nsel = tswapal(sel->n);
-            inp = tswapal(sel->inp);
-            outp = tswapal(sel->outp);
-            exp = tswapal(sel->exp);
-            tvp = tswapal(sel->tvp);
-            unlock_user_struct(sel, arg1, 0);
-            ret = do_select(nsel, inp, outp, exp, tvp);
-        }
+        ret = do_select(arg1, arg2, arg3, arg4, arg5);
 #endif
         break;
 #endif

@@ -459,8 +459,6 @@
 #define TARGET_NR_getdents 1065
 #define __ARCH_WANT_SYS_GETDENTS
 #define TARGET_NR_futimesat 1066
-#define TARGET_NR_select 1067
-#define __ARCH_WANT_SYS_SELECT
 #define TARGET_NR_poll 1068
 #define TARGET_NR_epoll_wait 1069
 #define TARGET_NR_ustat 1070
