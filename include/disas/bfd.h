@@ -9,7 +9,7 @@
 #ifndef DIS_ASM_H
 #define DIS_ASM_H
 
-#include "qemu-common.h"
+#include "qemu/fprintf-fn.h"
 
 typedef void *PTR;
 typedef uint64_t bfd_vma;
