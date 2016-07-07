@@ -663,6 +663,11 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
 
         options.backend_type = VHOST_BACKEND_TYPE_KERNEL;
         options.net_backend = &s->nc;
+        if (tap->has_poll_us) {
+            options.busyloop_timeout = tap->poll_us;
+        } else {
+            options.busyloop_timeout = 0;
+        }
 
         if (vhostfdname) {
             vhostfd = monitor_fd_param(cur_mon, vhostfdname, &err);
@@ -687,7 +692,7 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
             return;
         }
     } else if (vhostfdname) {
-        error_setg(errp, "vhostfd= is not valid without vhost");
+        error_setg(errp, "vhostfd(s)= is not valid without vhost");
     }
 }
 

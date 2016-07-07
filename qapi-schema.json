@@ -2592,6 +2592,9 @@
 #
 # @queues: #optional number of queues to be created for multiqueue capable tap
 #
+# @poll-us: #optional maximum number of microseconds that could
+# be spent on busy polling for tap (since 2.7)
+#
 # Since 1.2
 ##
 { 'struct': 'NetdevTapOptions',
@@ -2608,7 +2611,8 @@
     '*vhostfd':    'str',
     '*vhostfds':   'str',
     '*vhostforce': 'bool',
-    '*queues':     'uint32'} }
+    '*queues':     'uint32',
+    '*poll-us':    'uint32'} }
 
 ##
 # @NetdevSocketOptions

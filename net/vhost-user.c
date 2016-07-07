@@ -91,6 +91,7 @@ static int vhost_user_start(int queues, NetClientState *ncs[])
 
         options.net_backend = ncs[i];
         options.opaque      = s->chr;
+        options.busyloop_timeout = 0;
         s->vhost_net = vhost_net_init(&options);
         if (!s->vhost_net) {
             error_report("failed to init vhost_net for queue %d", i);

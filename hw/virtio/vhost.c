@@ -960,6 +960,28 @@ static void vhost_eventfd_del(MemoryListener *listener,
 {
 }
 
+static int vhost_virtqueue_set_busyloop_timeout(struct vhost_dev *dev,
+                                                int n, uint32_t timeout)
+{
+    int vhost_vq_index = dev->vhost_ops->vhost_get_vq_index(dev, n);
+    struct vhost_vring_state state = {
+        .index = vhost_vq_index,
+        .num = timeout,
+    };
+    int r;
+
+    if (!dev->vhost_ops->vhost_set_vring_busyloop_timeout) {
+        return -EINVAL;
+    }
+
+    r = dev->vhost_ops->vhost_set_vring_busyloop_timeout(dev, &state);
+    if (r) {
+        return r;
+    }
+
+    return 0;
+}
+
 static int vhost_virtqueue_init(struct vhost_dev *dev,
                                 struct vhost_virtqueue *vq, int n)
 {
@@ -990,7 +1012,7 @@ static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
 }
 
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
-                   VhostBackendType backend_type)
+                   VhostBackendType backend_type, uint32_t busyloop_timeout)
 {
     uint64_t features;
     int i, r;
@@ -1031,6 +1053,17 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
             goto fail_vq;
         }
     }
+
+    if (busyloop_timeout) {
+        for (i = 0; i < hdev->nvqs; ++i) {
+            r = vhost_virtqueue_set_busyloop_timeout(hdev, hdev->vq_index + i,
+                                                     busyloop_timeout);
+            if (r < 0) {
+                goto fail_busyloop;
+            }
+        }
+    }
+
     hdev->features = features;
 
     hdev->memory_listener = (MemoryListener) {
@@ -1073,6 +1106,11 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->memory_changed = false;
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
     return 0;
+fail_busyloop:
+    while (--i >= 0) {
+        vhost_virtqueue_set_busyloop_timeout(hdev, hdev->vq_index + i, 0);
+    }
+    i = hdev->nvqs;
 fail_vq:
     while (--i >= 0) {
         vhost_virtqueue_cleanup(hdev->vqs + i);
