@@ -179,7 +179,7 @@ int64_t qemu_clock_deadline_ns_all(QEMUClockType type);
  * qemu_clock_get_main_loop_timerlist:
  * @type: the clock type
  *
- * Return the default timer list assocatiated with a clock.
+ * Return the default timer list associated with a clock.
  *
  * Returns: the default timer list
  */
@@ -509,7 +509,7 @@ static inline void timer_init_ms(QEMUTimer *ts, QEMUClockType type,
  * @cb: the callback to be called when the timer expires
  * @opaque: the opaque pointer to be passed to the callback
  *
- * Creeate a new timer and associate it with @timer_list.
+ * Create a new timer and associate it with @timer_list.
  * The memory is allocated by the function.
  *
  * This is not the preferred interface unless you know you
@@ -534,7 +534,7 @@ static inline QEMUTimer *timer_new_tl(QEMUTimerList *timer_list,
  * @cb: the callback to be called when the timer expires
  * @opaque: the opaque pointer to be passed to the callback
  *
- * Creeate a new timer and associate it with the default
+ * Create a new timer and associate it with the default
  * timer list for the clock type @type.
  *
  * Returns: a pointer to the timer
