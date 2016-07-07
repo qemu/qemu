@@ -1,5 +1,5 @@
 /*
- * aux.h
+ * auxbus.h
  *
  *  Copyright (C)2014 : GreenSocs Ltd
  *      http://www.greensocs.com/ , email: info@greensocs.com

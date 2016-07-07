@@ -1,5 +1,5 @@
 /*
- * aux.c
+ * auxbus.c
  *
  *  Copyright 2015 : GreenSocs Ltd
  *      http://www.greensocs.com/ , email: info@greensocs.com
@@ -28,7 +28,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "hw/misc/aux.h"
+#include "hw/misc/auxbus.h"
 #include "hw/i2c/i2c.h"
 #include "monitor/monitor.h"
 
