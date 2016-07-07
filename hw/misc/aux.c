@@ -153,12 +153,12 @@ AUXReply aux_request(AUXBus *bus, AUXCommand cmd, uint32_t address,
     case WRITE_I2C_MOT:
     case READ_I2C_MOT:
         is_write = cmd == READ_I2C_MOT ? false : true;
+        ret = AUX_I2C_NACK;
         if (!i2c_bus_busy(i2c_bus)) {
             /*
              * No transactions started..
              */
             if (i2c_start_transfer(i2c_bus, address, is_write)) {
-                ret = AUX_I2C_NACK;
                 break;
             }
         } else if ((address != bus->last_i2c_address) ||
@@ -168,22 +168,22 @@ AUXReply aux_request(AUXBus *bus, AUXCommand cmd, uint32_t address,
              */
             i2c_end_transfer(i2c_bus);
             if (i2c_start_transfer(i2c_bus, address, is_write)) {
-                ret = AUX_I2C_NACK;
                 break;
             }
         }
 
+        bus->last_transaction = cmd;
+        bus->last_i2c_address = address;
         while (len > 0) {
             if (i2c_send_recv(i2c_bus, data++, is_write) < 0) {
-                ret = AUX_I2C_NACK;
                 i2c_end_transfer(i2c_bus);
                 break;
             }
             len--;
         }
-        bus->last_transaction = cmd;
-        bus->last_i2c_address = address;
-        ret = AUX_I2C_ACK;
+        if (len == 0) {
+            ret = AUX_I2C_ACK;
+        }
         break;
     default:
         DPRINTF("Not implemented!\n");
