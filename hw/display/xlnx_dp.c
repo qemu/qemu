@@ -438,10 +438,10 @@ static void xlnx_dp_aux_clear_tx_fifo(XlnxDPState *s)
     fifo8_reset(&s->tx_fifo);
 }
 
-static void xlnx_dp_aux_push_tx_fifo(XlnxDPState *s, uint8_t val, size_t len)
+static void xlnx_dp_aux_push_tx_fifo(XlnxDPState *s, uint8_t *buf, size_t len)
 {
     DPRINTF("Push %u data in tx_fifo\n", (unsigned)len);
-    fifo8_push_all(&s->tx_fifo, &val, len);
+    fifo8_push_all(&s->tx_fifo, buf, len);
 }
 
 static uint8_t xlnx_dp_aux_pop_tx_fifo(XlnxDPState *s)
@@ -806,9 +806,11 @@ static void xlnx_dp_write(void *opaque, hwaddr offset, uint64_t value,
          * TODO: Power down things?
          */
         break;
-    case DP_AUX_WRITE_FIFO:
-        xlnx_dp_aux_push_tx_fifo(s, value, 1);
+    case DP_AUX_WRITE_FIFO: {
+        uint8_t c = value;
+        xlnx_dp_aux_push_tx_fifo(s, &c, 1);
         break;
+    }
     case DP_AUX_CLOCK_DIVIDER:
         break;
     case DP_AUX_REPLY_COUNT:
