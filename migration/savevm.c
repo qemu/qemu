@@ -2200,11 +2200,30 @@ void hmp_delvm(Monitor *mon, const QDict *qdict)
 void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
 {
     BlockDriverState *bs, *bs1;
+    BdrvNextIterator it1;
     QEMUSnapshotInfo *sn_tab, *sn;
+    bool no_snapshot = true;
     int nb_sns, i;
     int total;
-    int *available_snapshots;
+    int *global_snapshots;
     AioContext *aio_context;
+
+    typedef struct SnapshotEntry {
+        QEMUSnapshotInfo sn;
+        QTAILQ_ENTRY(SnapshotEntry) next;
+    } SnapshotEntry;
+
+    typedef struct ImageEntry {
+        const char *imagename;
+        QTAILQ_ENTRY(ImageEntry) next;
+        QTAILQ_HEAD(, SnapshotEntry) snapshots;
+    } ImageEntry;
+
+    QTAILQ_HEAD(, ImageEntry) image_list =
+        QTAILQ_HEAD_INITIALIZER(image_list);
+
+    ImageEntry *image_entry, *next_ie;
+    SnapshotEntry *snapshot_entry;
 
     bs = bdrv_all_find_vmstate_bs();
     if (!bs) {
@@ -2222,25 +2241,65 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    if (nb_sns == 0) {
+    for (bs1 = bdrv_first(&it1); bs1; bs1 = bdrv_next(&it1)) {
+        int bs1_nb_sns = 0;
+        ImageEntry *ie;
+        SnapshotEntry *se;
+        AioContext *ctx = bdrv_get_aio_context(bs1);
+
+        aio_context_acquire(ctx);
+        if (bdrv_can_snapshot(bs1)) {
+            sn = NULL;
+            bs1_nb_sns = bdrv_snapshot_list(bs1, &sn);
+            if (bs1_nb_sns > 0) {
+                no_snapshot = false;
+                ie = g_new0(ImageEntry, 1);
+                ie->imagename = bdrv_get_device_name(bs1);
+                QTAILQ_INIT(&ie->snapshots);
+                QTAILQ_INSERT_TAIL(&image_list, ie, next);
+                for (i = 0; i < bs1_nb_sns; i++) {
+                    se = g_new0(SnapshotEntry, 1);
+                    se->sn = sn[i];
+                    QTAILQ_INSERT_TAIL(&ie->snapshots, se, next);
+                }
+            }
+            g_free(sn);
+        }
+        aio_context_release(ctx);
+    }
+
+    if (no_snapshot) {
         monitor_printf(mon, "There is no snapshot available.\n");
         return;
     }
 
-    available_snapshots = g_new0(int, nb_sns);
+    global_snapshots = g_new0(int, nb_sns);
     total = 0;
     for (i = 0; i < nb_sns; i++) {
+        SnapshotEntry *next_sn;
         if (bdrv_all_find_snapshot(sn_tab[i].name, &bs1) == 0) {
-            available_snapshots[total] = i;
+            global_snapshots[total] = i;
             total++;
+            QTAILQ_FOREACH(image_entry, &image_list, next) {
+                QTAILQ_FOREACH_SAFE(snapshot_entry, &image_entry->snapshots,
+                                    next, next_sn) {
+                    if (!strcmp(sn_tab[i].name, snapshot_entry->sn.name)) {
+                        QTAILQ_REMOVE(&image_entry->snapshots, snapshot_entry,
+                                      next);
+                        g_free(snapshot_entry);
+                    }
+                }
+            }
         }
     }
+
+    monitor_printf(mon, "List of snapshots present on all disks:\n");
 
     if (total > 0) {
         bdrv_snapshot_dump((fprintf_function)monitor_printf, mon, NULL);
         monitor_printf(mon, "\n");
         for (i = 0; i < total; i++) {
-            sn = &sn_tab[available_snapshots[i]];
+            sn = &sn_tab[global_snapshots[i]];
             /* The ID is not guaranteed to be the same on all images, so
              * overwrite it.
              */
@@ -2249,11 +2308,35 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
             monitor_printf(mon, "\n");
         }
     } else {
-        monitor_printf(mon, "There is no suitable snapshot available\n");
+        monitor_printf(mon, "None\n");
     }
 
+    QTAILQ_FOREACH(image_entry, &image_list, next) {
+        if (QTAILQ_EMPTY(&image_entry->snapshots)) {
+            continue;
+        }
+        monitor_printf(mon,
+                       "\nList of partial (non-loadable) snapshots on '%s':\n",
+                       image_entry->imagename);
+        bdrv_snapshot_dump((fprintf_function)monitor_printf, mon, NULL);
+        monitor_printf(mon, "\n");
+        QTAILQ_FOREACH(snapshot_entry, &image_entry->snapshots, next) {
+            bdrv_snapshot_dump((fprintf_function)monitor_printf, mon,
+                               &snapshot_entry->sn);
+            monitor_printf(mon, "\n");
+        }
+    }
+
+    QTAILQ_FOREACH_SAFE(image_entry, &image_list, next, next_ie) {
+        SnapshotEntry *next_sn;
+        QTAILQ_FOREACH_SAFE(snapshot_entry, &image_entry->snapshots, next,
+                            next_sn) {
+            g_free(snapshot_entry);
+        }
+        g_free(image_entry);
+    }
     g_free(sn_tab);
-    g_free(available_snapshots);
+    g_free(global_snapshots);
 
 }
 
