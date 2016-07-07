@@ -207,31 +207,25 @@ ssize_t v9fs_iov_vmarshal(struct iovec *in_sg, int in_num, size_t offset,
             break;
         }
         case 'w': {
-            uint16_t val;
+            uint16_t val = va_arg(ap, int);
             if (bswap) {
-                cpu_to_le16w(&val, va_arg(ap, int));
-            } else {
-                val =  va_arg(ap, int);
+                val = cpu_to_le16(val);
             }
             copied = v9fs_pack(in_sg, in_num, offset, &val, sizeof(val));
             break;
         }
         case 'd': {
-            uint32_t val;
+            uint32_t val = va_arg(ap, uint32_t);
             if (bswap) {
-                cpu_to_le32w(&val, va_arg(ap, uint32_t));
-            } else {
-                val =  va_arg(ap, uint32_t);
+                val = cpu_to_le32(val);
             }
             copied = v9fs_pack(in_sg, in_num, offset, &val, sizeof(val));
             break;
         }
         case 'q': {
-            uint64_t val;
+            uint64_t val = va_arg(ap, uint64_t);
             if (bswap) {
-                cpu_to_le64w(&val, va_arg(ap, uint64_t));
-            } else {
-                val =  va_arg(ap, uint64_t);
+                val = cpu_to_le64(val);
             }
             copied = v9fs_pack(in_sg, in_num, offset, &val, sizeof(val));
             break;
