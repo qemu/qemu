@@ -46,7 +46,10 @@ typedef enum  {
     CLK_NONE,
     CLK_IPG,
     CLK_IPG_HIGH,
-    CLK_32k
+    CLK_32k,
+    CLK_EXT,
+    CLK_HIGH_DIV,
+    CLK_HIGH,
 } IMXClk;
 
 typedef struct IMXCCMClass {

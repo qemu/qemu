@@ -459,12 +459,13 @@ static void blk_sync_complete(void *opaque, int ret)
 
 static void flash_sync_page(Flash *s, int page)
 {
-    QEMUIOVector *iov = g_new(QEMUIOVector, 1);
+    QEMUIOVector *iov;
 
     if (!s->blk || blk_is_read_only(s->blk)) {
         return;
     }
 
+    iov = g_new(QEMUIOVector, 1);
     qemu_iovec_init(iov, 1);
     qemu_iovec_add(iov, s->storage + page * s->pi->page_size,
                    s->pi->page_size);
@@ -474,13 +475,14 @@ static void flash_sync_page(Flash *s, int page)
 
 static inline void flash_sync_area(Flash *s, int64_t off, int64_t len)
 {
-    QEMUIOVector *iov = g_new(QEMUIOVector, 1);
+    QEMUIOVector *iov;
 
     if (!s->blk || blk_is_read_only(s->blk)) {
         return;
     }
 
     assert(!(len % BDRV_SECTOR_SIZE));
+    iov = g_new(QEMUIOVector, 1);
     qemu_iovec_init(iov, 1);
     qemu_iovec_add(iov, s->storage + off, len);
     blk_aio_pwritev(s->blk, off, iov, 0, blk_sync_complete, iov);

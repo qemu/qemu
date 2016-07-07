@@ -24,7 +24,7 @@
 
 #include "hw/sysbus.h"
 #include "ui/console.h"
-#include "hw/misc/aux.h"
+#include "hw/misc/auxbus.h"
 #include "hw/i2c/i2c.h"
 #include "hw/display/dpcd.h"
 #include "hw/i2c/i2c-ddc.h"
