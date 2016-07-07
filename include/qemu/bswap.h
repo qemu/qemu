@@ -116,7 +116,7 @@ static inline uint32_t qemu_bswap_len(uint32_t value, int len)
 }
 
 /*
- * Same as cpu_to_le{16,23}, except that gcc will figure the result is
+ * Same as cpu_to_le{16,32}, except that gcc will figure the result is
  * a compile-time constant if you pass in a constant.  So this can be
  * used to initialize static variables.
  */
