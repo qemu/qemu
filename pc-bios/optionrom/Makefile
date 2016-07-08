@@ -20,6 +20,9 @@ build-all: multiboot.bin linuxboot.bin kvmvapic.bin
 # suppress auto-removal of intermediate files
 .SECONDARY:
 
+%.o: %.S
+	$(call quiet-command,$(CPP) $(QEMU_INCLUDES) $(QEMU_DGFLAGS) $(CFLAGS) -c -o - $< | $(AS) $(ASFLAGS) -o $@,"  AS    $(TARGET_DIR)$@")
+
 %.img: %.o
 	$(call quiet-command,$(LD) $(LDFLAGS_NOPIE) -Ttext 0 -e _start -s -o $@ $<,"  Building $(TARGET_DIR)$@")
 
