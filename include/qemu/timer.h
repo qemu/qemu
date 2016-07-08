@@ -802,7 +802,7 @@ static inline int64_t get_max_clock_jump(void)
  * Low level clock functions
  */
 
-/* real time host monotonic timer */
+/* get host real time in nanosecond */
 static inline int64_t get_clock_realtime(void)
 {
     struct timeval tv;

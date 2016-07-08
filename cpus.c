@@ -229,7 +229,7 @@ static int64_t cpu_get_clock_locked(void)
     return ticks;
 }
 
-/* return the host CPU monotonic timer and handle stop/restart */
+/* return the host CPU monotonic time */
 int64_t cpu_get_clock(void)
 {
     int64_t ti;
@@ -244,7 +244,7 @@ int64_t cpu_get_clock(void)
 }
 
 /* enable cpu_get_ticks()
- * Caller must hold BQL which server as mutex for vm_clock_seqlock.
+ * Caller must hold BQL which serves as mutex for vm_clock_seqlock.
  */
 void cpu_enable_ticks(void)
 {
@@ -260,7 +260,7 @@ void cpu_enable_ticks(void)
 
 /* disable cpu_get_ticks() : the clock is stopped. You must not call
  * cpu_get_ticks() after that.
- * Caller must hold BQL which server as mutex for vm_clock_seqlock.
+ * Caller must hold BQL which serves as mutex for vm_clock_seqlock.
  */
 void cpu_disable_ticks(void)
 {
