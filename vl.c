@@ -4345,9 +4345,6 @@ int main(int argc, char **argv, char **envp)
         qemu_opts_del(icount_opts);
     }
 
-    /* clean up network at qemu process termination */
-    atexit(&net_cleanup);
-
     if (default_net) {
         QemuOptsList *net = qemu_find_opts("net");
         qemu_opts_set(net, NULL, "type", "nic", &error_abort);
@@ -4610,6 +4607,8 @@ int main(int argc, char **argv, char **envp)
 #ifdef CONFIG_TPM
     tpm_cleanup();
 #endif
+
+    net_cleanup();
 
     return 0;
 }
