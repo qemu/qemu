@@ -126,11 +126,9 @@ static void spapr_core_release(DeviceState *dev, void *opaque)
 void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
                        Error **errp)
 {
-    sPAPRCPUCore *core = SPAPR_CPU_CORE(OBJECT(dev));
-    PowerPCCPU *cpu = POWERPC_CPU(core->threads);
-    int id = ppc_get_vcpu_dt_id(cpu);
+    CPUCore *cc = CPU_CORE(dev);
     sPAPRDRConnector *drc =
-        spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_CPU, id);
+        spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_CPU, cc->core_id);
     sPAPRDRConnectorClass *drck;
     Error *local_err = NULL;
 
