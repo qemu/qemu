@@ -1198,6 +1198,9 @@ struct X86CPU {
     /* Compatibility bits for old machine types: */
     bool enable_cpuid_0xb;
 
+    /* Number of physical address bits supported */
+    uint32_t phys_bits;
+
     /* in order to simplify APIC support, we leave this pointer to the
        user */
     struct DeviceState *apic_state;
