@@ -370,12 +370,25 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     if (DATA_SIZE > 1
         && unlikely((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1
                      >= TARGET_PAGE_SIZE)) {
-        int i;
+        int i, index2;
+        target_ulong page2, tlb_addr2;
     do_unaligned_access:
-        /* XXX: not efficient, but simple */
-        /* Note: relies on the fact that tlb_fill() does not remove the
-         * previous page from the TLB cache.  */
-        for (i = DATA_SIZE - 1; i >= 0; i--) {
+        /* Ensure the second page is in the TLB.  Note that the first page
+           is already guaranteed to be filled, and that the second page
+           cannot evict the first.  */
+        page2 = (addr + DATA_SIZE) & TARGET_PAGE_MASK;
+        index2 = (page2 >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+        tlb_addr2 = env->tlb_table[mmu_idx][index2].addr_write;
+        if (page2 != (tlb_addr2 & (TARGET_PAGE_MASK | TLB_INVALID_MASK))
+            && !VICTIM_TLB_HIT(addr_write, page2)) {
+            tlb_fill(ENV_GET_CPU(env), page2, MMU_DATA_STORE,
+                     mmu_idx, retaddr);
+        }
+
+        /* XXX: not efficient, but simple.  */
+        /* This loop must go in the forward direction to avoid issues
+           with self-modifying code in Windows 64-bit.  */
+        for (i = 0; i < DATA_SIZE; ++i) {
             /* Little-endian extract.  */
             uint8_t val8 = val >> (i * 8);
             /* Note the adjustment at the beginning of the function.
@@ -440,12 +453,25 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     if (DATA_SIZE > 1
         && unlikely((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1
                      >= TARGET_PAGE_SIZE)) {
-        int i;
+        int i, index2;
+        target_ulong page2, tlb_addr2;
     do_unaligned_access:
+        /* Ensure the second page is in the TLB.  Note that the first page
+           is already guaranteed to be filled, and that the second page
+           cannot evict the first.  */
+        page2 = (addr + DATA_SIZE) & TARGET_PAGE_MASK;
+        index2 = (page2 >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+        tlb_addr2 = env->tlb_table[mmu_idx][index2].addr_write;
+        if (page2 != (tlb_addr2 & (TARGET_PAGE_MASK | TLB_INVALID_MASK))
+            && !VICTIM_TLB_HIT(addr_write, page2)) {
+            tlb_fill(ENV_GET_CPU(env), page2, MMU_DATA_STORE,
+                     mmu_idx, retaddr);
+        }
+
         /* XXX: not efficient, but simple */
-        /* Note: relies on the fact that tlb_fill() does not remove the
-         * previous page from the TLB cache.  */
-        for (i = DATA_SIZE - 1; i >= 0; i--) {
+        /* This loop must go in the forward direction to avoid issues
+           with self-modifying code.  */
+        for (i = 0; i < DATA_SIZE; ++i) {
             /* Big-endian extract.  */
             uint8_t val8 = val >> (((DATA_SIZE - 1) * 8) - (i * 8));
             /* Note the adjustment at the beginning of the function.
