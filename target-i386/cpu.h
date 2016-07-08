@@ -1198,6 +1198,9 @@ struct X86CPU {
     /* Compatibility bits for old machine types: */
     bool enable_cpuid_0xb;
 
+    /* if true fill the top bits of the MTRR_PHYSMASKn variable range */
+    bool fill_mtrr_mask;
+
     /* Number of physical address bits supported */
     uint32_t phys_bits;
 
