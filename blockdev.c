@@ -512,6 +512,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     writethrough = !qemu_opt_get_bool(opts, BDRV_OPT_CACHE_WB, true);
 
+    id = qemu_opts_id(opts);
+
     qdict_extract_subqdict(bs_opts, &interval_dict, "stats-intervals.");
     qdict_array_split(interval_dict, &interval_list);
 
@@ -616,7 +618,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     /* disk I/O throttling */
     if (throttle_enabled(&cfg)) {
         if (!throttling_group) {
-            throttling_group = blk_name(blk);
+            throttling_group = id;
         }
         blk_io_limits_enable(blk, throttling_group);
         blk_set_io_limits(blk, &cfg);
@@ -625,7 +627,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     blk_set_enable_write_cache(blk, !writethrough);
     blk_set_on_error(blk, on_read_error, on_write_error);
 
-    if (!monitor_add_blk(blk, qemu_opts_id(opts), errp)) {
+    if (!monitor_add_blk(blk, id, errp)) {
         blk_unref(blk);
         blk = NULL;
         goto err_no_bs_opts;
