@@ -1025,7 +1025,7 @@ static int find_and_clear_dirty_height(VncState *vs,
 static int vnc_update_client(VncState *vs, int has_dirty, bool sync)
 {
     vs->has_dirty += has_dirty;
-    if (vs->need_update && vs->ioc != NULL) {
+    if (vs->need_update && !vs->disconnecting) {
         VncDisplay *vd = vs->vd;
         VncJob *job;
         int y;
