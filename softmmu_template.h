@@ -116,31 +116,6 @@
 # define helper_te_st_name  helper_le_st_name
 #endif
 
-/* macro to check the victim tlb */
-#define VICTIM_TLB_HIT(ty)                                                    \
-({                                                                            \
-    /* we are about to do a page table walk. our last hope is the             \
-     * victim tlb. try to refill from the victim tlb before walking the       \
-     * page table. */                                                         \
-    int vidx;                                                                 \
-    CPUIOTLBEntry tmpiotlb;                                                   \
-    CPUTLBEntry tmptlb;                                                       \
-    for (vidx = CPU_VTLB_SIZE-1; vidx >= 0; --vidx) {                         \
-        if (env->tlb_v_table[mmu_idx][vidx].ty == (addr & TARGET_PAGE_MASK)) {\
-            /* found entry in victim tlb, swap tlb and iotlb */               \
-            tmptlb = env->tlb_table[mmu_idx][index];                          \
-            env->tlb_table[mmu_idx][index] = env->tlb_v_table[mmu_idx][vidx]; \
-            env->tlb_v_table[mmu_idx][vidx] = tmptlb;                         \
-            tmpiotlb = env->iotlb[mmu_idx][index];                            \
-            env->iotlb[mmu_idx][index] = env->iotlb_v[mmu_idx][vidx];         \
-            env->iotlb_v[mmu_idx][vidx] = tmpiotlb;                           \
-            break;                                                            \
-        }                                                                     \
-    }                                                                         \
-    /* return true when there is a vtlb hit, i.e. vidx >=0 */                 \
-    vidx >= 0;                                                                \
-})
-
 #ifndef SOFTMMU_CODE_ACCESS
 static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
                                               CPUIOTLBEntry *iotlbentry,
