@@ -585,6 +585,14 @@ void probe_write(CPUArchState *env, target_ulong addr, int mmu_idx,
     }
 }
 
+#ifdef TARGET_WORDS_BIGENDIAN
+# define TGT_BE(X)  (X)
+# define TGT_LE(X)  BSWAP(X)
+#else
+# define TGT_BE(X)  BSWAP(X)
+# define TGT_LE(X)  (X)
+#endif
+
 #define MMUSUFFIX _mmu
 
 #define DATA_SIZE 1

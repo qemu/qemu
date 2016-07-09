@@ -78,14 +78,6 @@
 # define BSWAP(X)  (X)
 #endif
 
-#ifdef TARGET_WORDS_BIGENDIAN
-# define TGT_BE(X)  (X)
-# define TGT_LE(X)  BSWAP(X)
-#else
-# define TGT_BE(X)  BSWAP(X)
-# define TGT_LE(X)  (X)
-#endif
-
 #if DATA_SIZE == 1
 # define helper_le_ld_name  glue(glue(helper_ret_ld, USUFFIX), MMUSUFFIX)
 # define helper_be_ld_name  helper_le_ld_name
@@ -100,14 +92,6 @@
 # define helper_be_lds_name glue(glue(helper_be_ld, SSUFFIX), MMUSUFFIX)
 # define helper_le_st_name  glue(glue(helper_le_st, SUFFIX), MMUSUFFIX)
 # define helper_be_st_name  glue(glue(helper_be_st, SUFFIX), MMUSUFFIX)
-#endif
-
-#ifdef TARGET_WORDS_BIGENDIAN
-# define helper_te_ld_name  helper_be_ld_name
-# define helper_te_st_name  helper_be_st_name
-#else
-# define helper_te_ld_name  helper_le_ld_name
-# define helper_te_st_name  helper_le_st_name
 #endif
 
 #ifndef SOFTMMU_CODE_ACCESS
@@ -441,15 +425,9 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
 #undef USUFFIX
 #undef SSUFFIX
 #undef BSWAP
-#undef TGT_BE
-#undef TGT_LE
-#undef CPU_BE
-#undef CPU_LE
 #undef helper_le_ld_name
 #undef helper_be_ld_name
 #undef helper_le_lds_name
 #undef helper_be_lds_name
 #undef helper_le_st_name
 #undef helper_be_st_name
-#undef helper_te_ld_name
-#undef helper_te_st_name
