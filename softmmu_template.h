@@ -112,25 +112,12 @@
 
 #ifndef SOFTMMU_CODE_ACCESS
 static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
-                                              CPUIOTLBEntry *iotlbentry,
+                                              size_t mmu_idx, size_t index,
                                               target_ulong addr,
                                               uintptr_t retaddr)
 {
-    uint64_t val;
-    CPUState *cpu = ENV_GET_CPU(env);
-    hwaddr physaddr = iotlbentry->addr;
-    MemoryRegion *mr = iotlb_to_region(cpu, physaddr, iotlbentry->attrs);
-
-    physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
-    cpu->mem_io_pc = retaddr;
-    if (mr != &io_mem_rom && mr != &io_mem_notdirty && !cpu->can_do_io) {
-        cpu_io_recompile(cpu, retaddr);
-    }
-
-    cpu->mem_io_vaddr = addr;
-    memory_region_dispatch_read(mr, physaddr, &val, DATA_SIZE,
-                                iotlbentry->attrs);
-    return val;
+    CPUIOTLBEntry *iotlbentry = &env->iotlb[mmu_idx][index];
+    return io_readx(env, iotlbentry, addr, retaddr, DATA_SIZE);
 }
 #endif
 
@@ -161,15 +148,13 @@ WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr,
 
     /* Handle an IO access.  */
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
-        CPUIOTLBEntry *iotlbentry;
         if ((addr & (DATA_SIZE - 1)) != 0) {
             goto do_unaligned_access;
         }
-        iotlbentry = &env->iotlb[mmu_idx][index];
 
         /* ??? Note that the io helpers always read data in the target
            byte ordering.  We should push the LE/BE request down into io.  */
-        res = glue(io_read, SUFFIX)(env, iotlbentry, addr, retaddr);
+        res = glue(io_read, SUFFIX)(env, mmu_idx, index, addr, retaddr);
         res = TGT_LE(res);
         return res;
     }
@@ -230,15 +215,13 @@ WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr,
 
     /* Handle an IO access.  */
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
-        CPUIOTLBEntry *iotlbentry;
         if ((addr & (DATA_SIZE - 1)) != 0) {
             goto do_unaligned_access;
         }
-        iotlbentry = &env->iotlb[mmu_idx][index];
 
         /* ??? Note that the io helpers always read data in the target
            byte ordering.  We should push the LE/BE request down into io.  */
-        res = glue(io_read, SUFFIX)(env, iotlbentry, addr, retaddr);
+        res = glue(io_read, SUFFIX)(env, mmu_idx, index, addr, retaddr);
         res = TGT_BE(res);
         return res;
     }
@@ -289,24 +272,13 @@ WORD_TYPE helper_be_lds_name(CPUArchState *env, target_ulong addr,
 #endif
 
 static inline void glue(io_write, SUFFIX)(CPUArchState *env,
-                                          CPUIOTLBEntry *iotlbentry,
+                                          size_t mmu_idx, size_t index,
                                           DATA_TYPE val,
                                           target_ulong addr,
                                           uintptr_t retaddr)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-    hwaddr physaddr = iotlbentry->addr;
-    MemoryRegion *mr = iotlb_to_region(cpu, physaddr, iotlbentry->attrs);
-
-    physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
-    if (mr != &io_mem_rom && mr != &io_mem_notdirty && !cpu->can_do_io) {
-        cpu_io_recompile(cpu, retaddr);
-    }
-
-    cpu->mem_io_vaddr = addr;
-    cpu->mem_io_pc = retaddr;
-    memory_region_dispatch_write(mr, physaddr, val, DATA_SIZE,
-                                 iotlbentry->attrs);
+    CPUIOTLBEntry *iotlbentry = &env->iotlb[mmu_idx][index];
+    return io_writex(env, iotlbentry, val, addr, retaddr, DATA_SIZE);
 }
 
 void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
@@ -334,16 +306,14 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
 
     /* Handle an IO access.  */
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
-        CPUIOTLBEntry *iotlbentry;
         if ((addr & (DATA_SIZE - 1)) != 0) {
             goto do_unaligned_access;
         }
-        iotlbentry = &env->iotlb[mmu_idx][index];
 
         /* ??? Note that the io helpers always read data in the target
            byte ordering.  We should push the LE/BE request down into io.  */
         val = TGT_LE(val);
-        glue(io_write, SUFFIX)(env, iotlbentry, val, addr, retaddr);
+        glue(io_write, SUFFIX)(env, mmu_idx, index, val, addr, retaddr);
         return;
     }
 
@@ -412,16 +382,14 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
 
     /* Handle an IO access.  */
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
-        CPUIOTLBEntry *iotlbentry;
         if ((addr & (DATA_SIZE - 1)) != 0) {
             goto do_unaligned_access;
         }
-        iotlbentry = &env->iotlb[mmu_idx][index];
 
         /* ??? Note that the io helpers always read data in the target
            byte ordering.  We should push the LE/BE request down into io.  */
         val = TGT_BE(val);
-        glue(io_write, SUFFIX)(env, iotlbentry, val, addr, retaddr);
+        glue(io_write, SUFFIX)(env, mmu_idx, index, val, addr, retaddr);
         return;
     }
 
