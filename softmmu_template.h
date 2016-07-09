@@ -21,10 +21,6 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "qemu/timer.h"
-#include "exec/address-spaces.h"
-#include "exec/memory.h"
-
 #if DATA_SIZE == 8
 #define SUFFIX q
 #define LSUFFIX q
