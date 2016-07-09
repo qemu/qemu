@@ -25,8 +25,6 @@
 #include "exec/address-spaces.h"
 #include "exec/memory.h"
 
-#define DATA_SIZE (1 << SHIFT)
-
 #if DATA_SIZE == 8
 #define SUFFIX q
 #define LSUFFIX q
@@ -134,7 +132,7 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
     }
 
     cpu->mem_io_vaddr = addr;
-    memory_region_dispatch_read(mr, physaddr, &val, 1 << SHIFT,
+    memory_region_dispatch_read(mr, physaddr, &val, DATA_SIZE,
                                 iotlbentry->attrs);
     return val;
 }
@@ -311,7 +309,7 @@ static inline void glue(io_write, SUFFIX)(CPUArchState *env,
 
     cpu->mem_io_vaddr = addr;
     cpu->mem_io_pc = retaddr;
-    memory_region_dispatch_write(mr, physaddr, val, 1 << SHIFT,
+    memory_region_dispatch_write(mr, physaddr, val, DATA_SIZE,
                                  iotlbentry->attrs);
 }
 
@@ -492,7 +490,6 @@ void probe_write(CPUArchState *env, target_ulong addr, int mmu_idx,
 #endif /* !defined(SOFTMMU_CODE_ACCESS) */
 
 #undef READ_ACCESS_TYPE
-#undef SHIFT
 #undef DATA_TYPE
 #undef SUFFIX
 #undef LSUFFIX

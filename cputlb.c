@@ -529,16 +529,16 @@ static bool victim_tlb_hit(CPUArchState *env, size_t mmu_idx, size_t index,
 
 #define MMUSUFFIX _mmu
 
-#define SHIFT 0
+#define DATA_SIZE 1
 #include "softmmu_template.h"
 
-#define SHIFT 1
+#define DATA_SIZE 2
 #include "softmmu_template.h"
 
-#define SHIFT 2
+#define DATA_SIZE 4
 #include "softmmu_template.h"
 
-#define SHIFT 3
+#define DATA_SIZE 8
 #include "softmmu_template.h"
 #undef MMUSUFFIX
 
@@ -547,14 +547,14 @@ static bool victim_tlb_hit(CPUArchState *env, size_t mmu_idx, size_t index,
 #define GETPC() ((uintptr_t)0)
 #define SOFTMMU_CODE_ACCESS
 
-#define SHIFT 0
+#define DATA_SIZE 1
 #include "softmmu_template.h"
 
-#define SHIFT 1
+#define DATA_SIZE 2
 #include "softmmu_template.h"
 
-#define SHIFT 2
+#define DATA_SIZE 4
 #include "softmmu_template.h"
 
-#define SHIFT 3
+#define DATA_SIZE 8
 #include "softmmu_template.h"
