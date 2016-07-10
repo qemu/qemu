@@ -778,6 +778,7 @@ static void dbdma_unassigned_rw(DBDMA_io *io)
     DBDMA_channel *ch = io->channel;
     qemu_log_mask(LOG_GUEST_ERROR, "%s: use of unassigned channel %d\n",
                   __func__, ch->channel);
+    ch->io.processing = false;
 }
 
 static void dbdma_unassigned_flush(DBDMA_io *io)
