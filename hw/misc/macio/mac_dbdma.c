@@ -783,8 +783,18 @@ static void dbdma_unassigned_rw(DBDMA_io *io)
 static void dbdma_unassigned_flush(DBDMA_io *io)
 {
     DBDMA_channel *ch = io->channel;
+    dbdma_cmd *current = &ch->current;
+    uint16_t cmd;
     qemu_log_mask(LOG_GUEST_ERROR, "%s: use of unassigned channel %d\n",
                   __func__, ch->channel);
+
+    cmd = le16_to_cpu(current->command) & COMMAND_MASK;
+    if (cmd == OUTPUT_MORE || cmd == OUTPUT_LAST ||
+        cmd == INPUT_MORE || cmd == INPUT_LAST) {
+        current->xfer_status = cpu_to_le16(ch->regs[DBDMA_STATUS] | FLUSH);
+        current->res_count = cpu_to_le16(io->len);
+        dbdma_cmdptr_save(ch);
+    }
 }
 
 void* DBDMA_init (MemoryRegion **dbdma_mem)
