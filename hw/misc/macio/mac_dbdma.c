@@ -45,14 +45,13 @@
 #include "sysemu/dma.h"
 
 /* debug DBDMA */
-//#define DEBUG_DBDMA
+#define DEBUG_DBDMA 0
 
-#ifdef DEBUG_DBDMA
-#define DBDMA_DPRINTF(fmt, ...)                                 \
-    do { printf("DBDMA: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DBDMA_DPRINTF(fmt, ...)
-#endif
+#define DBDMA_DPRINTF(fmt, ...) do { \
+    if (DEBUG_DBDMA) { \
+        printf("DBDMA: " fmt , ## __VA_ARGS__); \
+    } \
+} while (0);
 
 /*
  */
@@ -62,7 +61,7 @@ static DBDMAState *dbdma_from_ch(DBDMA_channel *ch)
     return container_of(ch, DBDMAState, channels[ch->channel]);
 }
 
-#ifdef DEBUG_DBDMA
+#if DEBUG_DBDMA
 static void dump_dbdma_cmd(dbdma_cmd *cmd)
 {
     printf("dbdma_cmd %p\n", cmd);
