@@ -1206,6 +1206,9 @@ struct X86CPU {
     /* if true fill the top bits of the MTRR_PHYSMASKn variable range */
     bool fill_mtrr_mask;
 
+    /* if true override the phys_bits value with a value read from the host */
+    bool host_phys_bits;
+
     /* Number of physical address bits supported */
     uint32_t phys_bits;
 

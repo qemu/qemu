@@ -2922,6 +2922,31 @@ static void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
 }
 #endif
 
+/* Note: Only safe for use on x86(-64) hosts */
+static uint32_t x86_host_phys_bits(void)
+{
+    uint32_t eax;
+    uint32_t host_phys_bits;
+
+    host_cpuid(0x80000000, 0, &eax, NULL, NULL, NULL);
+    if (eax >= 0x80000008) {
+        host_cpuid(0x80000008, 0, &eax, NULL, NULL, NULL);
+        /* Note: According to AMD doc 25481 rev 2.34 they have a field
+         * at 23:16 that can specify a maximum physical address bits for
+         * the guest that can override this value; but I've not seen
+         * anything with that set.
+         */
+        host_phys_bits = eax & 0xff;
+    } else {
+        /* It's an odd 64 bit machine that doesn't have the leaf for
+         * physical address bits; fall back to 36 that's most older
+         * Intel.
+         */
+        host_phys_bits = 36;
+    }
+
+    return host_phys_bits;
+}
 
 #define IS_INTEL_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_INTEL_1 && \
                            (env)->cpuid_vendor2 == CPUID_VENDOR_INTEL_2 && \
@@ -2989,28 +3014,54 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
            & CPUID_EXT2_AMD_ALIASES);
     }
 
+    /* For 64bit systems think about the number of physical bits to present.
+     * ideally this should be the same as the host; anything other than matching
+     * the host can cause incorrect guest behaviour.
+     * QEMU used to pick the magic value of 40 bits that corresponds to
+     * consumer AMD devices but nothing else.
+     */
     if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
-        /* 0 means it was not explicitly set by the user (or by machine
-         * compat_props). In this case, the default is the value used by
-         * TCG (40).
-         */
-        if (cpu->phys_bits == 0) {
-            cpu->phys_bits = TCG_PHYS_ADDR_BITS;
-        }
         if (kvm_enabled()) {
-            if (cpu->phys_bits > TARGET_PHYS_ADDR_SPACE_BITS ||
-                cpu->phys_bits < 32) {
+            uint32_t host_phys_bits = x86_host_phys_bits();
+            static bool warned;
+
+            if (cpu->host_phys_bits) {
+                /* The user asked for us to use the host physical bits */
+                cpu->phys_bits = host_phys_bits;
+            }
+
+            /* Print a warning if the user set it to a value that's not the
+             * host value.
+             */
+            if (cpu->phys_bits != host_phys_bits && cpu->phys_bits != 0 &&
+                !warned) {
+                error_report("Warning: Host physical bits (%u)"
+                                 " does not match phys-bits property (%u)",
+                                 host_phys_bits, cpu->phys_bits);
+                warned = true;
+            }
+
+            if (cpu->phys_bits &&
+                (cpu->phys_bits > TARGET_PHYS_ADDR_SPACE_BITS ||
+                cpu->phys_bits < 32)) {
                 error_setg(errp, "phys-bits should be between 32 and %u "
                                  " (but is %u)",
                                  TARGET_PHYS_ADDR_SPACE_BITS, cpu->phys_bits);
                 return;
             }
         } else {
-            if (cpu->phys_bits != TCG_PHYS_ADDR_BITS) {
+            if (cpu->phys_bits && cpu->phys_bits != TCG_PHYS_ADDR_BITS) {
                 error_setg(errp, "TCG only supports phys-bits=%u",
                                   TCG_PHYS_ADDR_BITS);
                 return;
             }
+        }
+        /* 0 means it was not explicitly set by the user (or by machine
+         * compat_props or by the host code above). In this case, the default
+         * is the value used by TCG (40).
+         */
+        if (cpu->phys_bits == 0) {
+            cpu->phys_bits = TCG_PHYS_ADDR_BITS;
         }
     } else {
         /* For 32 bit systems don't use the user set value, but keep
@@ -3328,6 +3379,7 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("enforce", X86CPU, enforce_cpuid, false),
     DEFINE_PROP_BOOL("kvm", X86CPU, expose_kvm, true),
     DEFINE_PROP_UINT32("phys-bits", X86CPU, phys_bits, 0),
+    DEFINE_PROP_BOOL("host-phys-bits", X86CPU, host_phys_bits, false),
     DEFINE_PROP_BOOL("fill-mtrr-mask", X86CPU, fill_mtrr_mask, true),
     DEFINE_PROP_UINT32("level", X86CPU, env.cpuid_level, 0),
     DEFINE_PROP_UINT32("xlevel", X86CPU, env.cpuid_xlevel, 0),
