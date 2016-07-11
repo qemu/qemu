@@ -4575,18 +4575,50 @@ static inline abi_long do_shmctl(int shmid, int cmd, abi_long buf)
     return ret;
 }
 
-static inline abi_ulong do_shmat(int shmid, abi_ulong shmaddr, int shmflg)
+#ifndef TARGET_FORCE_SHMLBA
+/* For most architectures, SHMLBA is the same as the page size;
+ * some architectures have larger values, in which case they should
+ * define TARGET_FORCE_SHMLBA and provide a target_shmlba() function.
+ * This corresponds to the kernel arch code defining __ARCH_FORCE_SHMLBA
+ * and defining its own value for SHMLBA.
+ *
+ * The kernel also permits SHMLBA to be set by the architecture to a
+ * value larger than the page size without setting __ARCH_FORCE_SHMLBA;
+ * this means that addresses are rounded to the large size if
+ * SHM_RND is set but addresses not aligned to that size are not rejected
+ * as long as they are at least page-aligned. Since the only architecture
+ * which uses this is ia64 this code doesn't provide for that oddity.
+ */
+static inline abi_ulong target_shmlba(CPUArchState *cpu_env)
+{
+    return TARGET_PAGE_SIZE;
+}
+#endif
+
+static inline abi_ulong do_shmat(CPUArchState *cpu_env,
+                                 int shmid, abi_ulong shmaddr, int shmflg)
 {
     abi_long raddr;
     void *host_raddr;
     struct shmid_ds shm_info;
     int i,ret;
+    abi_ulong shmlba;
 
     /* find out the length of the shared memory segment */
     ret = get_errno(shmctl(shmid, IPC_STAT, &shm_info));
     if (is_error(ret)) {
         /* can't get length, bail out */
         return ret;
+    }
+
+    shmlba = target_shmlba(cpu_env);
+
+    if (shmaddr & (shmlba - 1)) {
+        if (shmflg & SHM_RND) {
+            shmaddr &= ~(shmlba - 1);
+        } else {
+            return -TARGET_EINVAL;
+        }
     }
 
     mmap_lock();
@@ -4647,7 +4679,8 @@ static inline abi_long do_shmdt(abi_ulong shmaddr)
 #ifdef TARGET_NR_ipc
 /* ??? This only works with linear mappings.  */
 /* do_ipc() must return target values and target errnos. */
-static abi_long do_ipc(unsigned int call, abi_long first,
+static abi_long do_ipc(CPUArchState *cpu_env,
+                       unsigned int call, abi_long first,
                        abi_long second, abi_long third,
                        abi_long ptr, abi_long fifth)
 {
@@ -4716,7 +4749,7 @@ static abi_long do_ipc(unsigned int call, abi_long first,
         default:
         {
             abi_ulong raddr;
-            raddr = do_shmat(first, ptr, second);
+            raddr = do_shmat(cpu_env, first, ptr, second);
             if (is_error(raddr))
                 return get_errno(raddr);
             if (put_user_ual(raddr, third))
@@ -9304,8 +9337,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #ifdef TARGET_NR_ipc
     case TARGET_NR_ipc:
-	ret = do_ipc(arg1, arg2, arg3, arg4, arg5, arg6);
-	break;
+        ret = do_ipc(cpu_env, arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
 #endif
 #ifdef TARGET_NR_semget
     case TARGET_NR_semget:
@@ -9354,7 +9387,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_shmat
     case TARGET_NR_shmat:
-        ret = do_shmat(arg1, arg2, arg3);
+        ret = do_shmat(cpu_env, arg1, arg2, arg3);
         break;
 #endif
 #ifdef TARGET_NR_shmdt

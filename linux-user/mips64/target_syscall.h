@@ -227,4 +227,11 @@ struct target_pt_regs {
 #define TARGET_MLOCKALL_MCL_CURRENT 1
 #define TARGET_MLOCKALL_MCL_FUTURE  2
 
+#define TARGET_FORCE_SHMLBA
+
+static inline abi_ulong target_shmlba(CPUMIPSState *env)
+{
+    return 0x40000;
+}
+
 #endif /* MIPS64_TARGET_SYSCALL_H */
