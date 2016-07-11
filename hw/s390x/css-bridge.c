@@ -59,11 +59,28 @@ static void virtual_css_bus_reset(BusState *qbus)
     css_reset();
 }
 
+static char *virtual_css_bus_get_dev_path(DeviceState *dev)
+{
+    CcwDevice *ccw_dev = CCW_DEVICE(dev);
+    SubchDev *sch = ccw_dev->sch;
+    VirtualCssBridge *bridge =
+        VIRTUAL_CSS_BRIDGE(qdev_get_parent_bus(dev)->parent);
+
+    /*
+     * We can't provide a dev path for backward compatibility on
+     * older machines, as it is visible in the migration stream.
+     */
+    return bridge->css_dev_path ?
+        g_strdup_printf("/%02x.%1x.%04x", sch->cssid, sch->ssid, sch->devno) :
+        NULL;
+}
+
 static void virtual_css_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
 
     k->reset = virtual_css_bus_reset;
+    k->get_dev_path = virtual_css_bus_get_dev_path;
 }
 
 static const TypeInfo virtual_css_bus_info = {
@@ -95,6 +112,12 @@ VirtualCssBus *virtual_css_bus_init(void)
 
 /***************** Virtual-css Bus Bridge Device ********************/
 
+static Property virtual_css_bridge_properties[] = {
+    DEFINE_PROP_BOOL("css_dev_path", VirtualCssBridge, css_dev_path,
+                     true),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void virtual_css_bridge_class_init(ObjectClass *klass, void *data)
 {
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
@@ -102,12 +125,13 @@ static void virtual_css_bridge_class_init(ObjectClass *klass, void *data)
 
     hc->unplug = ccw_device_unplug;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->props = virtual_css_bridge_properties;
 }
 
 static const TypeInfo virtual_css_bridge_info = {
     .name          = TYPE_VIRTUAL_CSS_BRIDGE,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SysBusDevice),
+    .instance_size = sizeof(VirtualCssBridge),
     .class_init    = virtual_css_bridge_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
