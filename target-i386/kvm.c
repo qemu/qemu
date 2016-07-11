@@ -106,6 +106,8 @@ static int has_xsave;
 static int has_xcrs;
 static int has_pit_state2;
 
+static bool has_msr_mcg_ext_ctl;
+
 static struct kvm_cpuid2 *cpuid_cache;
 
 int kvm_has_pit_state2(void)
@@ -382,10 +384,12 @@ static int kvm_get_mce_cap_supported(KVMState *s, uint64_t *mce_cap,
 
 static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
 {
+    CPUState *cs = CPU(cpu);
     CPUX86State *env = &cpu->env;
     uint64_t status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN |
                       MCI_STATUS_MISCV | MCI_STATUS_ADDRV | MCI_STATUS_S;
     uint64_t mcg_status = MCG_STATUS_MCIP;
+    int flags = 0;
 
     if (code == BUS_MCEERR_AR) {
         status |= MCI_STATUS_AR | 0x134;
@@ -394,10 +398,19 @@ static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
         status |= 0xc0;
         mcg_status |= MCG_STATUS_RIPV;
     }
+
+    flags = cpu_x86_support_mca_broadcast(env) ? MCE_INJECT_BROADCAST : 0;
+    /* We need to read back the value of MSR_EXT_MCG_CTL that was set by the
+     * guest kernel back into env->mcg_ext_ctl.
+     */
+    cpu_synchronize_state(cs);
+    if (env->mcg_ext_ctl & MCG_EXT_CTL_LMCE_EN) {
+        mcg_status |= MCG_STATUS_LMCE;
+        flags = 0;
+    }
+
     cpu_x86_inject_mce(NULL, cpu, 9, status, mcg_status, paddr,
-                       (MCM_ADDR_PHYS << 6) | 0xc,
-                       cpu_x86_support_mca_broadcast(env) ?
-                       MCE_INJECT_BROADCAST : 0);
+                       (MCM_ADDR_PHYS << 6) | 0xc, flags);
 }
 
 static void hardware_memory_error(void)
@@ -566,11 +579,71 @@ static int kvm_arch_set_tsc_khz(CPUState *cs)
                        -ENOTSUP;
         if (cur_freq <= 0 || cur_freq != env->tsc_khz) {
             error_report("warning: TSC frequency mismatch between "
-                         "VM and host, and TSC scaling unavailable");
+                         "VM (%" PRId64 " kHz) and host (%d kHz), "
+                         "and TSC scaling unavailable",
+                         env->tsc_khz, cur_freq);
             return r;
         }
     }
 
+    return 0;
+}
+
+static int hyperv_handle_properties(CPUState *cs)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+
+    if (cpu->hyperv_relaxed_timing) {
+        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_HYPERCALL_AVAILABLE;
+    }
+    if (cpu->hyperv_vapic) {
+        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_HYPERCALL_AVAILABLE;
+        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_APIC_ACCESS_AVAILABLE;
+        has_msr_hv_vapic = true;
+    }
+    if (cpu->hyperv_time &&
+            kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV_TIME) > 0) {
+        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_HYPERCALL_AVAILABLE;
+        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_TIME_REF_COUNT_AVAILABLE;
+        env->features[FEAT_HYPERV_EAX] |= 0x200;
+        has_msr_hv_tsc = true;
+    }
+    if (cpu->hyperv_crash && has_msr_hv_crash) {
+        env->features[FEAT_HYPERV_EDX] |= HV_X64_GUEST_CRASH_MSR_AVAILABLE;
+    }
+    env->features[FEAT_HYPERV_EDX] |= HV_X64_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
+    if (cpu->hyperv_reset && has_msr_hv_reset) {
+        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_RESET_AVAILABLE;
+    }
+    if (cpu->hyperv_vpindex && has_msr_hv_vpindex) {
+        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_VP_INDEX_AVAILABLE;
+    }
+    if (cpu->hyperv_runtime && has_msr_hv_runtime) {
+        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_VP_RUNTIME_AVAILABLE;
+    }
+    if (cpu->hyperv_synic) {
+        int sint;
+
+        if (!has_msr_hv_synic ||
+            kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_SYNIC, 0)) {
+            fprintf(stderr, "Hyper-V SynIC is not supported by kernel\n");
+            return -ENOSYS;
+        }
+
+        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_SYNIC_AVAILABLE;
+        env->msr_hv_synic_version = HV_SYNIC_VERSION_1;
+        for (sint = 0; sint < ARRAY_SIZE(env->msr_hv_synic_sint); sint++) {
+            env->msr_hv_synic_sint[sint] = HV_SYNIC_SINT_MASKED;
+        }
+    }
+    if (cpu->hyperv_stimer) {
+        if (!has_msr_hv_stimer) {
+            fprintf(stderr, "Hyper-V timers aren't supported by kernel\n");
+            return -ENOSYS;
+        }
+        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_SYNTIMER_AVAILABLE;
+    }
     return 0;
 }
 
@@ -633,56 +706,14 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
         c = &cpuid_data.entries[cpuid_i++];
         c->function = HYPERV_CPUID_FEATURES;
-        if (cpu->hyperv_relaxed_timing) {
-            c->eax |= HV_X64_MSR_HYPERCALL_AVAILABLE;
+        r = hyperv_handle_properties(cs);
+        if (r) {
+            return r;
         }
-        if (cpu->hyperv_vapic) {
-            c->eax |= HV_X64_MSR_HYPERCALL_AVAILABLE;
-            c->eax |= HV_X64_MSR_APIC_ACCESS_AVAILABLE;
-            has_msr_hv_vapic = true;
-        }
-        if (cpu->hyperv_time &&
-            kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV_TIME) > 0) {
-            c->eax |= HV_X64_MSR_HYPERCALL_AVAILABLE;
-            c->eax |= HV_X64_MSR_TIME_REF_COUNT_AVAILABLE;
-            c->eax |= 0x200;
-            has_msr_hv_tsc = true;
-        }
-        if (cpu->hyperv_crash && has_msr_hv_crash) {
-            c->edx |= HV_X64_GUEST_CRASH_MSR_AVAILABLE;
-        }
-        c->edx |= HV_X64_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
-        if (cpu->hyperv_reset && has_msr_hv_reset) {
-            c->eax |= HV_X64_MSR_RESET_AVAILABLE;
-        }
-        if (cpu->hyperv_vpindex && has_msr_hv_vpindex) {
-            c->eax |= HV_X64_MSR_VP_INDEX_AVAILABLE;
-        }
-        if (cpu->hyperv_runtime && has_msr_hv_runtime) {
-            c->eax |= HV_X64_MSR_VP_RUNTIME_AVAILABLE;
-        }
-        if (cpu->hyperv_synic) {
-            int sint;
+        c->eax = env->features[FEAT_HYPERV_EAX];
+        c->ebx = env->features[FEAT_HYPERV_EBX];
+        c->edx = env->features[FEAT_HYPERV_EDX];
 
-            if (!has_msr_hv_synic ||
-                kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_SYNIC, 0)) {
-                fprintf(stderr, "Hyper-V SynIC is not supported by kernel\n");
-                return -ENOSYS;
-            }
-
-            c->eax |= HV_X64_MSR_SYNIC_AVAILABLE;
-            env->msr_hv_synic_version = HV_SYNIC_VERSION_1;
-            for (sint = 0; sint < ARRAY_SIZE(env->msr_hv_synic_sint); sint++) {
-                env->msr_hv_synic_sint[sint] = HV_SYNIC_SINT_MASKED;
-            }
-        }
-        if (cpu->hyperv_stimer) {
-            if (!has_msr_hv_stimer) {
-                fprintf(stderr, "Hyper-V timers aren't supported by kernel\n");
-                return -ENOSYS;
-            }
-            c->eax |= HV_X64_MSR_SYNTIMER_AVAILABLE;
-        }
         c = &cpuid_data.entries[cpuid_i++];
         c->function = HYPERV_CPUID_ENLIGHTMENT_INFO;
         if (cpu->hyperv_relaxed_timing) {
@@ -865,6 +896,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
         unsupported_caps = env->mcg_cap & ~(mcg_cap | MCG_CAP_BANKS_MASK);
         if (unsupported_caps) {
+            if (unsupported_caps & MCG_LMCE_P) {
+                error_report("kvm: LMCE not supported");
+                return -ENOTSUP;
+            }
             error_report("warning: Unsupported MCG_CAP bits: 0x%" PRIx64,
                          unsupported_caps);
         }
@@ -883,6 +918,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (c) {
         has_msr_feature_control = !!(c->ecx & CPUID_EXT_VMX) ||
                                   !!(c->ecx & CPUID_EXT_SMX);
+    }
+
+    if (env->mcg_cap & MCG_LMCE_P) {
+        has_msr_mcg_ext_ctl = has_msr_feature_control = true;
     }
 
     c = cpuid_find_entry(&cpuid_data.cpuid, 0x80000007, 0);
@@ -1705,6 +1744,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
 
         kvm_msr_entry_add(cpu, MSR_MCG_STATUS, env->mcg_status);
         kvm_msr_entry_add(cpu, MSR_MCG_CTL, env->mcg_ctl);
+        if (has_msr_mcg_ext_ctl) {
+            kvm_msr_entry_add(cpu, MSR_MCG_EXT_CTL, env->mcg_ext_ctl);
+        }
         for (i = 0; i < (env->mcg_cap & 0xff) * 4; i++) {
             kvm_msr_entry_add(cpu, MSR_MC0_CTL + i, env->mce_banks[i]);
         }
@@ -2008,6 +2050,9 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (env->mcg_cap) {
         kvm_msr_entry_add(cpu, MSR_MCG_STATUS, 0);
         kvm_msr_entry_add(cpu, MSR_MCG_CTL, 0);
+        if (has_msr_mcg_ext_ctl) {
+            kvm_msr_entry_add(cpu, MSR_MCG_EXT_CTL, 0);
+        }
         for (i = 0; i < (env->mcg_cap & 0xff) * 4; i++) {
             kvm_msr_entry_add(cpu, MSR_MC0_CTL + i, 0);
         }
@@ -2135,6 +2180,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_MCG_CTL:
             env->mcg_ctl = msrs[i].data;
+            break;
+        case MSR_MCG_EXT_CTL:
+            env->mcg_ext_ctl = msrs[i].data;
             break;
         case MSR_IA32_MISC_ENABLE:
             env->msr_ia32_misc_enable = msrs[i].data;

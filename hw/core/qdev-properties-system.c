@@ -1,5 +1,5 @@
 /*
- * qdev property parsing and global properties
+ * qdev property parsing
  * (parts specific for qemu-system-*)
  *
  * This file is based on code from hw/qdev-properties.c from
@@ -393,23 +393,4 @@ void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)
         qdev_prop_set_uint32(dev, "vectors", nd->nvectors);
     }
     nd->instantiated = 1;
-}
-
-static int qdev_add_one_global(void *opaque, QemuOpts *opts, Error **errp)
-{
-    GlobalProperty *g;
-
-    g = g_malloc0(sizeof(*g));
-    g->driver   = qemu_opt_get(opts, "driver");
-    g->property = qemu_opt_get(opts, "property");
-    g->value    = qemu_opt_get(opts, "value");
-    g->user_provided = true;
-    qdev_prop_register_global(g);
-    return 0;
-}
-
-void qemu_add_globals(void)
-{
-    qemu_opts_foreach(qemu_find_opts("global"),
-                      qdev_add_one_global, NULL, NULL);
 }

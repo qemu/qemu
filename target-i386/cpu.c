@@ -245,6 +245,47 @@ static const char *kvm_feature_name[] = {
     NULL, NULL, NULL, NULL,
 };
 
+static const char *hyperv_priv_feature_name[] = {
+    NULL /* hv_msr_vp_runtime_access */, NULL /* hv_msr_time_refcount_access */,
+    NULL /* hv_msr_synic_access */, NULL /* hv_msr_stimer_access */,
+    NULL /* hv_msr_apic_access */, NULL /* hv_msr_hypercall_access */,
+    NULL /* hv_vpindex_access */, NULL /* hv_msr_reset_access */,
+    NULL /* hv_msr_stats_access */, NULL /* hv_reftsc_access */,
+    NULL /* hv_msr_idle_access */, NULL /* hv_msr_frequency_access */,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+};
+
+static const char *hyperv_ident_feature_name[] = {
+    NULL /* hv_create_partitions */, NULL /* hv_access_partition_id */,
+    NULL /* hv_access_memory_pool */, NULL /* hv_adjust_message_buffers */,
+    NULL /* hv_post_messages */, NULL /* hv_signal_events */,
+    NULL /* hv_create_port */, NULL /* hv_connect_port */,
+    NULL /* hv_access_stats */, NULL, NULL, NULL /* hv_debugging */,
+    NULL /* hv_cpu_power_management */, NULL /* hv_configure_profiler */,
+    NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+};
+
+static const char *hyperv_misc_feature_name[] = {
+    NULL /* hv_mwait */, NULL /* hv_guest_debugging */,
+    NULL /* hv_perf_monitor */, NULL /* hv_cpu_dynamic_part */,
+    NULL /* hv_hypercall_params_xmm */, NULL /* hv_guest_idle_state */,
+    NULL, NULL,
+    NULL, NULL, NULL /* hv_guest_crash_msr */, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+};
+
 static const char *svm_feature_name[] = {
     "npt", "lbrv", "svm_lock", "nrip_save",
     "tsc_scale", "vmcb_clean",  "flushbyasid", "decodeassists",
@@ -358,10 +399,11 @@ static const char *cpuid_6_feature_name[] = {
 #define TCG_7_0_EBX_FEATURES (CPUID_7_0_EBX_SMEP | CPUID_7_0_EBX_SMAP | \
           CPUID_7_0_EBX_BMI1 | CPUID_7_0_EBX_BMI2 | CPUID_7_0_EBX_ADX | \
           CPUID_7_0_EBX_PCOMMIT | CPUID_7_0_EBX_CLFLUSHOPT |            \
-          CPUID_7_0_EBX_CLWB | CPUID_7_0_EBX_MPX | CPUID_7_0_EBX_FSGSBASE)
+          CPUID_7_0_EBX_CLWB | CPUID_7_0_EBX_MPX | CPUID_7_0_EBX_FSGSBASE | \
+          CPUID_7_0_EBX_ERMS)
           /* missing:
           CPUID_7_0_EBX_HLE, CPUID_7_0_EBX_AVX2,
-          CPUID_7_0_EBX_ERMS, CPUID_7_0_EBX_INVPCID, CPUID_7_0_EBX_RTM,
+          CPUID_7_0_EBX_INVPCID, CPUID_7_0_EBX_RTM,
           CPUID_7_0_EBX_RDSEED */
 #define TCG_7_0_ECX_FEATURES (CPUID_7_0_ECX_PKU | CPUID_7_0_ECX_OSPKE)
 #define TCG_APM_FEATURES 0
@@ -410,6 +452,18 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .feat_names = kvm_feature_name,
         .cpuid_eax = KVM_CPUID_FEATURES, .cpuid_reg = R_EAX,
         .tcg_features = TCG_KVM_FEATURES,
+    },
+    [FEAT_HYPERV_EAX] = {
+        .feat_names = hyperv_priv_feature_name,
+        .cpuid_eax = 0x40000003, .cpuid_reg = R_EAX,
+    },
+    [FEAT_HYPERV_EBX] = {
+        .feat_names = hyperv_ident_feature_name,
+        .cpuid_eax = 0x40000003, .cpuid_reg = R_EBX,
+    },
+    [FEAT_HYPERV_EDX] = {
+        .feat_names = hyperv_misc_feature_name,
+        .cpuid_eax = 0x40000003, .cpuid_reg = R_EDX,
     },
     [FEAT_SVM] = {
         .feat_names = svm_feature_name,
@@ -1493,6 +1547,17 @@ static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
 
 #ifdef CONFIG_KVM
 
+static bool lmce_supported(void)
+{
+    uint64_t mce_cap;
+
+    if (kvm_ioctl(kvm_state, KVM_X86_GET_MCE_CAP_SUPPORTED, &mce_cap) < 0) {
+        return false;
+    }
+
+    return !!(mce_cap & MCG_LMCE_P);
+}
+
 static int cpu_x86_fill_model_id(char *str)
 {
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
@@ -1565,6 +1630,10 @@ static void host_x86_cpu_initfn(Object *obj)
         env->cpuid_level = kvm_arch_get_supported_cpuid(s, 0x0, 0, R_EAX);
         env->cpuid_xlevel = kvm_arch_get_supported_cpuid(s, 0x80000000, 0, R_EAX);
         env->cpuid_xlevel2 = kvm_arch_get_supported_cpuid(s, 0xC0000000, 0, R_EAX);
+
+        if (lmce_supported()) {
+            object_property_set_bool(OBJECT(cpu), true, "lmce", &error_abort);
+        }
     }
 
     object_property_set_bool(OBJECT(cpu), true, "pmu", &error_abort);
@@ -1957,12 +2026,17 @@ static FeatureWordArray minus_features = { 0 };
 
 /* Parse "+feature,-feature,feature=foo" CPU feature string
  */
-static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
+static void x86_cpu_parse_featurestr(const char *typename, char *features,
                                      Error **errp)
 {
-    X86CPU *cpu = X86_CPU(cs);
     char *featurestr; /* Single 'key=value" string being parsed */
     Error *local_err = NULL;
+    static bool cpu_globals_initialized;
+
+    if (cpu_globals_initialized) {
+        return;
+    }
+    cpu_globals_initialized = true;
 
     if (!features) {
         return;
@@ -1974,6 +2048,8 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
         const char *name;
         const char *val = NULL;
         char *eq = NULL;
+        char num[32];
+        GlobalProperty *prop;
 
         /* Compatibility syntax: */
         if (featurestr[0] == '+') {
@@ -1999,7 +2075,6 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
         if (!strcmp(name, "tsc-freq")) {
             int64_t tsc_freq;
             char *err;
-            char num[32];
 
             tsc_freq = qemu_strtosz_suffix_unit(val, &err,
                                            QEMU_STRTOSZ_DEFSUFFIX_B, 1000);
@@ -2012,7 +2087,12 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
             name = "tsc-frequency";
         }
 
-        object_property_parse(OBJECT(cpu), val, name, &local_err);
+        prop = g_new0(typeof(*prop), 1);
+        prop->driver = typename;
+        prop->property = g_strdup(name);
+        prop->value = g_strdup(val);
+        prop->errp = &error_fatal;
+        qdev_prop_register_global(prop);
     }
 
     if (local_err) {
@@ -2195,47 +2275,6 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
 
     object_property_set_str(OBJECT(cpu), vendor, "vendor", errp);
 
-}
-
-X86CPU *cpu_x86_create(const char *cpu_model, Error **errp)
-{
-    X86CPU *cpu = NULL;
-    ObjectClass *oc;
-    gchar **model_pieces;
-    char *name, *features;
-    Error *error = NULL;
-
-    model_pieces = g_strsplit(cpu_model, ",", 2);
-    if (!model_pieces[0]) {
-        error_setg(&error, "Invalid/empty CPU model name");
-        goto out;
-    }
-    name = model_pieces[0];
-    features = model_pieces[1];
-
-    oc = x86_cpu_class_by_name(name);
-    if (oc == NULL) {
-        error_setg(&error, "Unable to find CPU definition: %s", name);
-        goto out;
-    }
-
-    cpu = X86_CPU(object_new(object_class_get_name(oc)));
-
-    x86_cpu_parse_featurestr(CPU(cpu), features, &error);
-    if (error) {
-        goto out;
-    }
-
-out:
-    if (error != NULL) {
-        error_propagate(errp, error);
-        if (cpu) {
-            object_unref(OBJECT(cpu));
-            cpu = NULL;
-        }
-    }
-    g_strfreev(model_pieces);
-    return cpu;
 }
 
 X86CPU *cpu_x86_init(const char *cpu_model)
@@ -2815,7 +2854,8 @@ static void mce_init(X86CPU *cpu)
     if (((cenv->cpuid_version >> 8) & 0xf) >= 6
         && (cenv->features[FEAT_1_EDX] & (CPUID_MCE | CPUID_MCA)) ==
             (CPUID_MCE | CPUID_MCA)) {
-        cenv->mcg_cap = MCE_CAP_DEF | MCE_BANKS_DEF;
+        cenv->mcg_cap = MCE_CAP_DEF | MCE_BANKS_DEF |
+                        (cpu->enable_lmce ? MCG_LMCE_P : 0);
         cenv->mcg_ctl = ~(uint64_t)0;
         for (bank = 0; bank < MCE_BANKS_DEF; bank++) {
             cenv->mce_banks[bank * 4] = ~(uint64_t)0;
@@ -3262,6 +3302,7 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_UINT32("xlevel2", X86CPU, env.cpuid_xlevel2, 0),
     DEFINE_PROP_STRING("hv-vendor-id", X86CPU, hyperv_vendor_id),
     DEFINE_PROP_BOOL("cpuid-0xb", X86CPU, enable_cpuid_0xb, true),
+    DEFINE_PROP_BOOL("lmce", X86CPU, enable_lmce, false),
     DEFINE_PROP_END_OF_LIST()
 };
 
