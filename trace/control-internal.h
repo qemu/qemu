@@ -1,7 +1,7 @@
 /*
  * Interface for configuring and controlling the state of tracing events.
  *
- * Copyright (C) 2011-2014 Lluís Vilanova <vilanova@ac.upc.edu>
+ * Copyright (C) 2011-2016 Lluís Vilanova <vilanova@ac.upc.edu>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -36,6 +36,16 @@ static inline TraceEventID trace_event_get_id(TraceEvent *ev)
 {
     assert(ev != NULL);
     return ev->id;
+}
+
+static inline TraceEventVCPUID trace_event_get_vcpu_id(TraceEvent *ev)
+{
+    return ev->vcpu_id;
+}
+
+static inline bool trace_event_is_vcpu(TraceEvent *ev)
+{
+    return ev->vcpu_id != TRACE_VCPU_EVENT_COUNT;
 }
 
 static inline const char * trace_event_get_name(TraceEvent *ev)
