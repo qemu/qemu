@@ -904,9 +904,16 @@ static void hmp_trace_event(Monitor *mon, const QDict *qdict)
 {
     const char *tp_name = qdict_get_str(qdict, "name");
     bool new_state = qdict_get_bool(qdict, "option");
+    bool has_vcpu = qdict_haskey(qdict, "vcpu");
+    int vcpu = qdict_get_try_int(qdict, "vcpu", 0);
     Error *local_err = NULL;
 
-    qmp_trace_event_set_state(tp_name, new_state, true, true, &local_err);
+    if (vcpu < 0) {
+        monitor_printf(mon, "argument vcpu must be positive");
+        return;
+    }
+
+    qmp_trace_event_set_state(tp_name, new_state, true, true, has_vcpu, vcpu, &local_err);
     if (local_err) {
         error_report_err(local_err);
     }
@@ -1066,6 +1073,8 @@ static void hmp_info_cpustats(Monitor *mon, const QDict *qdict)
 static void hmp_info_trace_events(Monitor *mon, const QDict *qdict)
 {
     const char *name = qdict_get_try_str(qdict, "name");
+    bool has_vcpu = qdict_haskey(qdict, "vcpu");
+    int vcpu = qdict_get_try_int(qdict, "vcpu", 0);
     TraceEventInfoList *events;
     TraceEventInfoList *elem;
     Error *local_err = NULL;
@@ -1073,8 +1082,12 @@ static void hmp_info_trace_events(Monitor *mon, const QDict *qdict)
     if (name == NULL) {
         name = "*";
     }
+    if (vcpu < 0) {
+        monitor_printf(mon, "argument vcpu must be positive");
+        return;
+    }
 
-    events = qmp_trace_event_get_state(name, &local_err);
+    events = qmp_trace_event_get_state(name, has_vcpu, vcpu, &local_err);
     if (local_err) {
         error_report_err(local_err);
         return;

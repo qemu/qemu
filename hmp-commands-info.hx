@@ -646,10 +646,10 @@ ETEXI
 
     {
         .name       = "trace-events",
-        .args_type  = "name:s?",
-        .params     = "[name]",
+        .args_type  = "name:s?,vcpu:i?",
+        .params     = "[name] [vcpu]",
         .help       = "show available trace-events & their state "
-                      "(name: event name pattern)",
+                      "(name: event name pattern; vcpu: vCPU to query, default is any)",
         .mhandler.cmd = hmp_info_trace_events,
         .command_completion = info_trace_events_completion,
     },

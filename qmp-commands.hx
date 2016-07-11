@@ -4715,7 +4715,7 @@ EQMP
 
     {
         .name       = "trace-event-get-state",
-        .args_type  = "name:s",
+        .args_type  = "name:s,vcpu:i?",
         .mhandler.cmd_new = qmp_marshal_trace_event_get_state,
     },
 
@@ -4725,6 +4725,20 @@ trace-event-get-state
 
 Query the state of events.
 
+Arguments:
+
+- "name": Event name pattern (json-string).
+- "vcpu": The vCPU to query, any vCPU by default (json-int, optional).
+
+An event is returned if:
+- its name matches the "name" pattern, and
+- if "vcpu" is given, the event has the "vcpu" property.
+
+Therefore, if "vcpu" is given, the operation will only match per-vCPU events,
+returning their state on the specified vCPU. Special case: if "name" is an exact
+match, "vcpu" is given and the event does not have the "vcpu" property, an error
+is returned.
+
 Example:
 
 -> { "execute": "trace-event-get-state", "arguments": { "name": "qemu_memalign" } }
@@ -4733,7 +4747,7 @@ EQMP
 
     {
         .name       = "trace-event-set-state",
-        .args_type  = "name:s,enable:b,ignore-unavailable:b?",
+        .args_type  = "name:s,enable:b,ignore-unavailable:b?,vcpu:i?",
         .mhandler.cmd_new = qmp_marshal_trace_event_set_state,
     },
 
@@ -4742,6 +4756,23 @@ trace-event-set-state
 ---------------------
 
 Set the state of events.
+
+Arguments:
+
+- "name": Event name pattern (json-string).
+- "enable": Whether to enable or disable the event (json-bool).
+- "ignore-unavailable": Whether to ignore errors for events that cannot be
+  changed (json-bool, optional).
+- "vcpu": The vCPU to act upon, all vCPUs by default (json-int, optional).
+
+An event's state is modified if:
+- its name matches the "name" pattern, and
+- if "vcpu" is given, the event has the "vcpu" property.
+
+Therefore, if "vcpu" is given, the operation will only match per-vCPU events,
+setting their state on the specified vCPU. Special case: if "name" is an exact
+match, "vcpu" is given and the event does not have the "vcpu" property, an error
+is returned.
 
 Example:
 
