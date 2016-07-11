@@ -116,31 +116,6 @@
 # define helper_te_st_name  helper_le_st_name
 #endif
 
-/* macro to check the victim tlb */
-#define VICTIM_TLB_HIT(ty)                                                    \
-({                                                                            \
-    /* we are about to do a page table walk. our last hope is the             \
-     * victim tlb. try to refill from the victim tlb before walking the       \
-     * page table. */                                                         \
-    int vidx;                                                                 \
-    CPUIOTLBEntry tmpiotlb;                                                   \
-    CPUTLBEntry tmptlb;                                                       \
-    for (vidx = CPU_VTLB_SIZE-1; vidx >= 0; --vidx) {                         \
-        if (env->tlb_v_table[mmu_idx][vidx].ty == (addr & TARGET_PAGE_MASK)) {\
-            /* found entry in victim tlb, swap tlb and iotlb */               \
-            tmptlb = env->tlb_table[mmu_idx][index];                          \
-            env->tlb_table[mmu_idx][index] = env->tlb_v_table[mmu_idx][vidx]; \
-            env->tlb_v_table[mmu_idx][vidx] = tmptlb;                         \
-            tmpiotlb = env->iotlb[mmu_idx][index];                            \
-            env->iotlb[mmu_idx][index] = env->iotlb_v[mmu_idx][vidx];         \
-            env->iotlb_v[mmu_idx][vidx] = tmpiotlb;                           \
-            break;                                                            \
-        }                                                                     \
-    }                                                                         \
-    /* return true when there is a vtlb hit, i.e. vidx >=0 */                 \
-    vidx >= 0;                                                                \
-})
-
 #ifndef SOFTMMU_CODE_ACCESS
 static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
                                               CPUIOTLBEntry *iotlbentry,
@@ -186,7 +161,7 @@ WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr,
     /* If the TLB entry is for a different page, reload and try again.  */
     if ((addr & TARGET_PAGE_MASK)
          != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        if (!VICTIM_TLB_HIT(ADDR_READ)) {
+        if (!VICTIM_TLB_HIT(ADDR_READ, addr)) {
             tlb_fill(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
                      mmu_idx, retaddr);
         }
@@ -260,7 +235,7 @@ WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr,
     /* If the TLB entry is for a different page, reload and try again.  */
     if ((addr & TARGET_PAGE_MASK)
          != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        if (!VICTIM_TLB_HIT(ADDR_READ)) {
+        if (!VICTIM_TLB_HIT(ADDR_READ, addr)) {
             tlb_fill(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
                      mmu_idx, retaddr);
         }
@@ -370,7 +345,7 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     /* If the TLB entry is for a different page, reload and try again.  */
     if ((addr & TARGET_PAGE_MASK)
         != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        if (!VICTIM_TLB_HIT(addr_write)) {
+        if (!VICTIM_TLB_HIT(addr_write, addr)) {
             tlb_fill(ENV_GET_CPU(env), addr, MMU_DATA_STORE, mmu_idx, retaddr);
         }
         tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
@@ -395,12 +370,25 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     if (DATA_SIZE > 1
         && unlikely((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1
                      >= TARGET_PAGE_SIZE)) {
-        int i;
+        int i, index2;
+        target_ulong page2, tlb_addr2;
     do_unaligned_access:
-        /* XXX: not efficient, but simple */
-        /* Note: relies on the fact that tlb_fill() does not remove the
-         * previous page from the TLB cache.  */
-        for (i = DATA_SIZE - 1; i >= 0; i--) {
+        /* Ensure the second page is in the TLB.  Note that the first page
+           is already guaranteed to be filled, and that the second page
+           cannot evict the first.  */
+        page2 = (addr + DATA_SIZE) & TARGET_PAGE_MASK;
+        index2 = (page2 >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+        tlb_addr2 = env->tlb_table[mmu_idx][index2].addr_write;
+        if (page2 != (tlb_addr2 & (TARGET_PAGE_MASK | TLB_INVALID_MASK))
+            && !VICTIM_TLB_HIT(addr_write, page2)) {
+            tlb_fill(ENV_GET_CPU(env), page2, MMU_DATA_STORE,
+                     mmu_idx, retaddr);
+        }
+
+        /* XXX: not efficient, but simple.  */
+        /* This loop must go in the forward direction to avoid issues
+           with self-modifying code in Windows 64-bit.  */
+        for (i = 0; i < DATA_SIZE; ++i) {
             /* Little-endian extract.  */
             uint8_t val8 = val >> (i * 8);
             /* Note the adjustment at the beginning of the function.
@@ -440,7 +428,7 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     /* If the TLB entry is for a different page, reload and try again.  */
     if ((addr & TARGET_PAGE_MASK)
         != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        if (!VICTIM_TLB_HIT(addr_write)) {
+        if (!VICTIM_TLB_HIT(addr_write, addr)) {
             tlb_fill(ENV_GET_CPU(env), addr, MMU_DATA_STORE, mmu_idx, retaddr);
         }
         tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
@@ -465,12 +453,25 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     if (DATA_SIZE > 1
         && unlikely((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1
                      >= TARGET_PAGE_SIZE)) {
-        int i;
+        int i, index2;
+        target_ulong page2, tlb_addr2;
     do_unaligned_access:
+        /* Ensure the second page is in the TLB.  Note that the first page
+           is already guaranteed to be filled, and that the second page
+           cannot evict the first.  */
+        page2 = (addr + DATA_SIZE) & TARGET_PAGE_MASK;
+        index2 = (page2 >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+        tlb_addr2 = env->tlb_table[mmu_idx][index2].addr_write;
+        if (page2 != (tlb_addr2 & (TARGET_PAGE_MASK | TLB_INVALID_MASK))
+            && !VICTIM_TLB_HIT(addr_write, page2)) {
+            tlb_fill(ENV_GET_CPU(env), page2, MMU_DATA_STORE,
+                     mmu_idx, retaddr);
+        }
+
         /* XXX: not efficient, but simple */
-        /* Note: relies on the fact that tlb_fill() does not remove the
-         * previous page from the TLB cache.  */
-        for (i = DATA_SIZE - 1; i >= 0; i--) {
+        /* This loop must go in the forward direction to avoid issues
+           with self-modifying code.  */
+        for (i = 0; i < DATA_SIZE; ++i) {
             /* Big-endian extract.  */
             uint8_t val8 = val >> (((DATA_SIZE - 1) * 8) - (i * 8));
             /* Note the adjustment at the beginning of the function.
@@ -502,7 +503,7 @@ void probe_write(CPUArchState *env, target_ulong addr, int mmu_idx,
     if ((addr & TARGET_PAGE_MASK)
         != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
         /* TLB entry is for a different page */
-        if (!VICTIM_TLB_HIT(addr_write)) {
+        if (!VICTIM_TLB_HIT(addr_write, addr)) {
             tlb_fill(ENV_GET_CPU(env), addr, MMU_DATA_STORE, mmu_idx, retaddr);
         }
     }
