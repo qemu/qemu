@@ -69,7 +69,7 @@ safe_syscall_base:
 safe_syscall_start:
 	/* if signal_pending is non-zero, don't do the call */
 	mov	4+16(%esp), %eax	/* signal_pending */
-	cmp	$0, (%eax)
+	cmpl	$0, (%eax)
 	jnz	1f
 	mov	8+16(%esp), %eax	/* syscall number */
 	int	$0x80
@@ -77,16 +77,16 @@ safe_syscall_end:
 	/* code path for having successfully executed the syscall */
 	pop	%ebx
 	.cfi_remember_state
-	.cfi_def_cfa_offset -4
+	.cfi_adjust_cfa_offset -4
 	.cfi_restore ebx
 	pop	%edi
-	.cfi_def_cfa_offset -4
+	.cfi_adjust_cfa_offset -4
 	.cfi_restore edi
 	pop	%esi
-	.cfi_def_cfa_offset -4
+	.cfi_adjust_cfa_offset -4
 	.cfi_restore esi
 	pop	%ebp
-	.cfi_def_cfa_offset -4
+	.cfi_adjust_cfa_offset -4
 	.cfi_restore ebp
 	ret
 
@@ -94,19 +94,7 @@ safe_syscall_end:
 	/* code path when we didn't execute the syscall */
 	.cfi_restore_state
 	mov	$-TARGET_ERESTARTSYS, %eax
-	pop	%ebx
-	.cfi_def_cfa_offset -4
-	.cfi_restore ebx
-	pop	%edi
-	.cfi_def_cfa_offset -4
-	.cfi_restore edi
-	pop	%esi
-	.cfi_def_cfa_offset -4
-	.cfi_restore esi
-	pop	%ebp
-	.cfi_def_cfa_offset -4
-	.cfi_restore ebp
-	ret
+	jmp	safe_syscall_end
 	.cfi_endproc
 
 	.size	safe_syscall_base, .-safe_syscall_base
