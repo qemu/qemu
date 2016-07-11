@@ -646,10 +646,12 @@ ETEXI
 
     {
         .name       = "trace-events",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show available trace-events & their state",
+        .args_type  = "name:s?",
+        .params     = "[name]",
+        .help       = "show available trace-events & their state "
+                      "(name: event name pattern)",
         .mhandler.cmd = hmp_info_trace_events,
+        .command_completion = info_trace_events_completion,
     },
 
 STEXI

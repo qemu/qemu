@@ -115,6 +115,7 @@ void set_link_completion(ReadLineState *rs, int nb_args, const char *str);
 void netdev_add_completion(ReadLineState *rs, int nb_args, const char *str);
 void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str);
 void ringbuf_write_completion(ReadLineState *rs, int nb_args, const char *str);
+void info_trace_events_completion(ReadLineState *rs, int nb_args, const char *str);
 void trace_event_completion(ReadLineState *rs, int nb_args, const char *str);
 void watchdog_action_completion(ReadLineState *rs, int nb_args,
                                 const char *str);
