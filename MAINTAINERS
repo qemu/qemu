@@ -971,7 +971,6 @@ F: hw/net/vmxnet*
 F: hw/scsi/vmw_pvscsi*
 
 Rocker
-M: Scott Feldman <sfeldma@gmail.com>
 M: Jiri Pirko <jiri@resnulli.us>
 S: Maintained
 F: hw/net/rocker/
