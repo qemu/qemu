@@ -60,14 +60,17 @@ static inline bool trace_event_get_state_static(TraceEvent *ev)
     return ev->sstate;
 }
 
-static inline bool trace_event_get_state_dynamic_by_id(int id)
+static inline bool trace_event_get_state_dynamic_by_id(TraceEventID id)
 {
+    /* it's on fast path, avoid consistency checks (asserts) */
     return unlikely(trace_events_enabled_count) && trace_events_dstate[id];
 }
 
 static inline bool trace_event_get_state_dynamic(TraceEvent *ev)
 {
-    int id = trace_event_get_id(ev);
+    TraceEventID id;
+    assert(trace_event_get_state_static(ev));
+    id = trace_event_get_id(ev);
     return trace_event_get_state_dynamic_by_id(id);
 }
 
