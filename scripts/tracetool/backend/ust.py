@@ -6,7 +6,7 @@ LTTng User Space Tracing backend.
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2016, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -30,6 +30,6 @@ def generate_h(event):
     if len(event.args) > 0:
         argnames = ", " + argnames
 
-    out('    tracepoint(qemu, %(name)s%(tp_args)s);',
+    out('        tracepoint(qemu, %(name)s%(tp_args)s);',
         name=event.name,
         tp_args=argnames)

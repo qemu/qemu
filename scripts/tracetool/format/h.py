@@ -23,21 +23,36 @@ def generate(events, backend):
         '#define TRACE__GENERATED_TRACERS_H',
         '',
         '#include "qemu-common.h"',
+        '#include "trace/control.h"',
         '')
 
     backend.generate_begin(events)
 
     for e in events:
+        if "vcpu" in e.properties:
+            trace_cpu = next(iter(e.args))[1]
+            cond = "trace_event_get_vcpu_state(%(cpu)s,"\
+                   " TRACE_%(id)s,"\
+                   " TRACE_VCPU_%(id)s)"\
+                   % dict(
+                       cpu=trace_cpu,
+                       id=e.name.upper())
+        else:
+            cond = "true"
+
         out('',
             'static inline void %(api)s(%(args)s)',
             '{',
+            '    if (%(cond)s) {',
             api=e.api(),
-            args=e.args)
+            args=e.args,
+            cond=cond)
 
         if "disable" not in e.properties:
             backend.generate(e)
 
-        out('}')
+        out('    }',
+            '}')
 
     backend.generate_end(events)
 
