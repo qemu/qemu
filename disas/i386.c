@@ -3406,7 +3406,7 @@ static const struct dis386 three_byte_table[][256] = {
   }
 };
 
-#define INTERNAL_DISASSEMBLER_ERROR _("<internal disassembler error>")
+#define INTERNAL_DISASSEMBLER_ERROR "<internal disassembler error>"
 
 static void
 ckprefix (void)

@@ -4257,7 +4257,7 @@ print_insn_args (const char *d,
 	    case '\0':
 	      /* xgettext:c-format */
 	      (*info->fprintf_func) (info->stream,
-				     _("# internal error, incomplete extension sequence (+)"));
+				     "# internal error, incomplete extension sequence (+)");
 	      return;
 
 	    case 'A':
@@ -4515,7 +4515,7 @@ print_insn_args (const char *d,
 	    default:
 	      /* xgettext:c-format */
 	      (*info->fprintf_func) (info->stream,
-				     _("# internal error, undefined extension sequence (+%c)"),
+				     "# internal error, undefined extension sequence (+%c)",
 				     *d);
 	      return;
 	    }
@@ -4875,7 +4875,7 @@ print_insn_args (const char *d,
 	default:
 	  /* xgettext:c-format */
 	  (*info->fprintf_func) (info->stream,
-				 _("# internal error, undefined modifier(%c)"),
+				 "# internal error, undefined modifier(%c)",
 				 *d);
 	  return;
 	}
@@ -5739,7 +5739,7 @@ print_mips16_insn_arg (char type,
       /* xgettext:c-format */
       (*info->fprintf_func)
 	(info->stream,
-	 _("# internal disassembler error, unrecognised modifier (%c)"),
+	 "# internal disassembler error, unrecognised modifier (%c)",
 	 type);
       abort ();
     }
@@ -5750,51 +5750,51 @@ print_mips_disassembler_options (FILE *stream)
 {
   unsigned int i;
 
-  fprintf (stream, _("\n\
+  fprintf (stream, "\n\
 The following MIPS specific disassembler options are supported for use\n\
-with the -M switch (multiple options should be separated by commas):\n"));
+with the -M switch (multiple options should be separated by commas):\n");
 
-  fprintf (stream, _("\n\
+  fprintf (stream, "\n\
   gpr-names=ABI            Print GPR names according to  specified ABI.\n\
-                           Default: based on binary being disassembled.\n"));
+                           Default: based on binary being disassembled.\n");
 
-  fprintf (stream, _("\n\
+  fprintf (stream, "\n\
   fpr-names=ABI            Print FPR names according to specified ABI.\n\
-                           Default: numeric.\n"));
+                           Default: numeric.\n");
 
-  fprintf (stream, _("\n\
+  fprintf (stream, "\n\
   cp0-names=ARCH           Print CP0 register names according to\n\
                            specified architecture.\n\
-                           Default: based on binary being disassembled.\n"));
+                           Default: based on binary being disassembled.\n");
 
-  fprintf (stream, _("\n\
+  fprintf (stream, "\n\
   hwr-names=ARCH           Print HWR names according to specified\n\
 			   architecture.\n\
-                           Default: based on binary being disassembled.\n"));
+                           Default: based on binary being disassembled.\n");
 
-  fprintf (stream, _("\n\
+  fprintf (stream, "\n\
   reg-names=ABI            Print GPR and FPR names according to\n\
-                           specified ABI.\n"));
+                           specified ABI.\n");
 
-  fprintf (stream, _("\n\
+  fprintf (stream, "\n\
   reg-names=ARCH           Print CP0 register and HWR names according to\n\
-                           specified architecture.\n"));
+                           specified architecture.\n");
 
-  fprintf (stream, _("\n\
+  fprintf (stream, "\n\
   For the options above, the following values are supported for \"ABI\":\n\
-   "));
+   ");
   for (i = 0; i < ARRAY_SIZE (mips_abi_choices); i++)
     fprintf (stream, " %s", mips_abi_choices[i].name);
-  fprintf (stream, _("\n"));
+  fprintf (stream, "\n");
 
-  fprintf (stream, _("\n\
+  fprintf (stream, "\n\
   For the options above, The following values are supported for \"ARCH\":\n\
-   "));
+   ");
   for (i = 0; i < ARRAY_SIZE (mips_arch_choices); i++)
     if (*mips_arch_choices[i].name != '\0')
       fprintf (stream, " %s", mips_arch_choices[i].name);
-  fprintf (stream, _("\n"));
+  fprintf (stream, "\n");
 
-  fprintf (stream, _("\n"));
+  fprintf (stream, "\n");
 }
 #endif

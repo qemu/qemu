@@ -1120,7 +1120,7 @@ insert_bo (unsigned long insn,
 	   const char **errmsg)
 {
   if (!valid_bo (value, dialect, 0))
-    *errmsg = _("invalid conditional option");
+    *errmsg = "invalid conditional option";
   return insn | ((value & 0x1f) << 21);
 }
 
@@ -1148,9 +1148,9 @@ insert_boe (unsigned long insn,
 	    const char **errmsg)
 {
   if (!valid_bo (value, dialect, 0))
-    *errmsg = _("invalid conditional option");
+    *errmsg = "invalid conditional option";
   else if ((value & 1) != 0)
-    *errmsg = _("attempt to set y bit when using + or - modifier");
+    *errmsg = "attempt to set y bit when using + or - modifier";
 
   return insn | ((value & 0x1f) << 21);
 }
@@ -1182,7 +1182,7 @@ insert_fxm (unsigned long insn,
     {
       if (value == 0 || (value & -value) != value)
 	{
-	  *errmsg = _("invalid mask field");
+	  *errmsg = "invalid mask field";
 	  value = 0;
 	}
     }
@@ -1208,7 +1208,7 @@ insert_fxm (unsigned long insn,
   /* Any other value on mfcr is an error.  */
   else if ((insn & (0x3ff << 1)) == 19 << 1)
     {
-      *errmsg = _("ignoring invalid mfcr mask");
+      *errmsg = "ignoring invalid mfcr mask";
       value = 0;
     }
 
@@ -1258,7 +1258,7 @@ insert_mbe (unsigned long insn,
 
   if (uval == 0)
     {
-      *errmsg = _("illegal bitmask");
+      *errmsg = "illegal bitmask";
       return insn;
     }
 
@@ -1293,7 +1293,7 @@ insert_mbe (unsigned long insn,
     me = 32;
 
   if (count != 2 && (count != 0 || ! last))
-    *errmsg = _("illegal bitmask");
+    *errmsg = "illegal bitmask";
 
   return insn | (mb << 6) | ((me - 1) << 1);
 }
@@ -1413,7 +1413,7 @@ insert_ram (unsigned long insn,
 	    const char **errmsg)
 {
   if ((unsigned long) value >= ((insn >> 21) & 0x1f))
-    *errmsg = _("index register in load range");
+    *errmsg = "index register in load range";
   return insn | ((value & 0x1f) << 16);
 }
 
@@ -1429,7 +1429,7 @@ insert_raq (unsigned long insn,
   long rtvalue = (insn & RT_MASK) >> 21;
 
   if (value == rtvalue)
-    *errmsg = _("source and target register operands must be different");
+    *errmsg = "source and target register operands must be different";
   return insn | ((value & 0x1f) << 16);
 }
 
@@ -1444,7 +1444,7 @@ insert_ras (unsigned long insn,
 	    const char **errmsg)
 {
   if (value == 0)
-    *errmsg = _("invalid register operand when updating");
+    *errmsg = "invalid register operand when updating";
   return insn | ((value & 0x1f) << 16);
 }
 
@@ -1526,7 +1526,7 @@ insert_sprg (unsigned long insn,
   if (value > 7
       || (value > 3
 	  && (dialect & (PPC_OPCODE_BOOKE | PPC_OPCODE_403)) == 0))
-    *errmsg = _("invalid sprg number");
+    *errmsg = "invalid sprg number";
 
   /* If this is mfsprg4..7 then use spr 260..263 which can be read in
      user mode.  Anything else must use spr 272..279.  */

@@ -2494,7 +2494,7 @@ compare_opcodes (const void * a, const void * b)
       fprintf
         (stderr,
          /* xgettext:c-format */
-         _("Internal error:  bad sparc-opcode.h: \"%s\", %#.8lx, %#.8lx\n"),
+         "Internal error:  bad sparc-opcode.h: \"%s\", %#.8lx, %#.8lx\n",
          op0->name, match0, lose0);
       op0->lose &= ~op0->match;
       lose0 = op0->lose;
@@ -2505,7 +2505,7 @@ compare_opcodes (const void * a, const void * b)
       fprintf
         (stderr,
          /* xgettext:c-format */
-         _("Internal error: bad sparc-opcode.h: \"%s\", %#.8lx, %#.8lx\n"),
+         "Internal error: bad sparc-opcode.h: \"%s\", %#.8lx, %#.8lx\n",
          op1->name, match1, lose1);
       op1->lose &= ~op1->match;
       lose1 = op1->lose;
@@ -2555,7 +2555,7 @@ compare_opcodes (const void * a, const void * b)
       else
         fprintf (stderr,
                  /* xgettext:c-format */
-                 _("Internal error: bad sparc-opcode.h: \"%s\" == \"%s\"\n"),
+                 "Internal error: bad sparc-opcode.h: \"%s\" == \"%s\"\n",
                  op0->name, op1->name);
     }
 

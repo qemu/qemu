@@ -1676,7 +1676,7 @@ print_insn_arg (const char *d,
 	  (*info->fprintf_func) (info->stream, "%%sfc");
 	else
 	  /* xgettext:c-format */
-	  (*info->fprintf_func) (info->stream, _("<function code %d>"), fc);
+	  (*info->fprintf_func) (info->stream, "<function code %d>", fc);
       }
       break;
 
@@ -1827,7 +1827,7 @@ match_insn_m68k (bfd_vma memaddr,
 	{
 	  info->fprintf_func (info->stream,
 			      /* xgettext:c-format */
-			      _("<internal error in opcode table: %s %s>\n"),
+			      "<internal error in opcode table: %s %s>\n",
 			      best->name,  best->args);
 	  info->fprintf_func = save_printer;
 	  info->print_address_func = save_print_address;

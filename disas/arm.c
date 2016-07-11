@@ -1817,7 +1817,7 @@ print_insn_coprocessor (bfd_vma pc, struct disassemble_info *info, long given,
 			  func (stream, "e");
 			  break;
 			default:
-			  func (stream, _("<illegal precision>"));
+			  func (stream, "<illegal precision>");
 			  break;
 			}
 		      break;
