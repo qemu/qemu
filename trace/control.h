@@ -124,6 +124,23 @@ static const char * trace_event_get_name(TraceEvent *ev);
     ((id ##_ENABLED) && trace_event_get_state_dynamic_by_id(id))
 
 /**
+ * trace_event_get_vcpu_state:
+ * @vcpu: Target vCPU.
+ * @id: Event identifier (TraceEventID).
+ * @vcpu_id: Per-vCPU event identifier (TraceEventVCPUID).
+ *
+ * Get the tracing state of an event (both static and dynamic) for the given
+ * vCPU.
+ *
+ * If the event has the disabled property, the check will have no performance
+ * impact.
+ *
+ * As a down side, you must always use an immediate #TraceEventID value.
+ */
+#define trace_event_get_vcpu_state(vcpu, id, vcpu_id)                   \
+    ((id ##_ENABLED) && trace_event_get_vcpu_state_dynamic_by_vcpu_id(vcpu, vcpu_id))
+
+/**
  * trace_event_get_state_static:
  * @id: Event identifier.
  *
@@ -138,8 +155,17 @@ static bool trace_event_get_state_static(TraceEvent *ev);
  * trace_event_get_state_dynamic:
  *
  * Get the dynamic tracing state of an event.
+ *
+ * If the event has the 'vcpu' property, gets the OR'ed state of all vCPUs.
  */
 static bool trace_event_get_state_dynamic(TraceEvent *ev);
+
+/**
+ * trace_event_get_vcpu_state_dynamic:
+ *
+ * Get the dynamic tracing state of an event for the given vCPU.
+ */
+static bool trace_event_get_vcpu_state_dynamic(CPUState *vcpu, TraceEvent *ev);
 
 /**
  * trace_event_set_state:
@@ -155,13 +181,38 @@ static bool trace_event_get_state_dynamic(TraceEvent *ev);
     } while (0)
 
 /**
+ * trace_event_set_vcpu_state:
+ *
+ * Set the tracing state of an event for the given vCPU (only if not disabled).
+ */
+#define trace_event_set_vcpu_state(vcpu, id, state)                     \
+    do {                                                                \
+        if ((id ##_ENABLED)) {                                          \
+            TraceEvent *_e = trace_event_id(id);                        \
+            trace_event_set_vcpu_state_dynamic(vcpu, _e, state);        \
+        }                                                               \
+    } while (0)
+
+/**
  * trace_event_set_state_dynamic:
  *
  * Set the dynamic tracing state of an event.
  *
+ * If the event has the 'vcpu' property, sets the state on all vCPUs.
+ *
  * Pre-condition: trace_event_get_state_static(ev) == true
  */
-static void trace_event_set_state_dynamic(TraceEvent *ev, bool state);
+void trace_event_set_state_dynamic(TraceEvent *ev, bool state);
+
+/**
+ * trace_event_set_vcpu_state_dynamic:
+ *
+ * Set the dynamic tracing state of an event for the given vCPU.
+ *
+ * Pre-condition: trace_event_get_vcpu_state_static(ev) == true
+ */
+void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
+                                        TraceEvent *ev, bool state);
 
 
 
@@ -217,6 +268,15 @@ extern QemuOptsList qemu_trace_opts;
  * Returns the filename to save trace to.  It must be freed with g_free().
  */
 char *trace_opt_parse(const char *optarg);
+
+/**
+ * trace_init_vcpu_events:
+ *
+ * Re-synchronize initial event state with vCPUs (which can be created after
+ * trace_init_events()).
+ */
+void trace_init_vcpu_events(void);
+
 
 #include "trace/control-internal.h"
 

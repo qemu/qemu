@@ -19,6 +19,9 @@
 #ifndef TRANSLATE_ALL_H
 #define TRANSLATE_ALL_H
 
+#include "exec/exec-all.h"
+
+
 /* translate-all.c */
 void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len);
 void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,

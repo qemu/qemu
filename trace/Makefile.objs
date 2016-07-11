@@ -15,6 +15,7 @@ $(BUILD_DIR)/trace-events-all: $(trace-events-y:%=$(SRC_PATH)/%)
 # Auto-generated event descriptions for LTTng ust code
 
 ifeq ($(findstring ust,$(TRACE_BACKENDS)),ust)
+
 $(obj)/generated-ust-provider.h: $(obj)/generated-ust-provider.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
 $(obj)/generated-ust-provider.h-timestamp: $(BUILD_DIR)/trace-events-all $(tracetool-y)
@@ -33,6 +34,7 @@ $(obj)/generated-ust.c-timestamp: $(BUILD_DIR)/trace-events-all $(tracetool-y)
 
 $(obj)/generated-events.h: $(obj)/generated-ust-provider.h
 $(obj)/generated-events.c: $(obj)/generated-ust.c
+
 endif
 
 ######################################################################
@@ -91,6 +93,7 @@ $(obj)/generated-tracers.o: $(obj)/generated-tracers.c $(obj)/generated-tracers.
 # but that gets picked up by QEMU's Makefile as an external dependency
 # rule file. So we use '.dtrace' instead
 ifeq ($(findstring dtrace,$(TRACE_BACKENDS)),dtrace)
+
 $(obj)/generated-tracers-dtrace.dtrace: $(obj)/generated-tracers-dtrace.dtrace-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
 $(obj)/generated-tracers-dtrace.dtrace-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)/config-host.mak $(tracetool-y)
@@ -155,4 +158,5 @@ util-obj-$(CONFIG_TRACE_SIMPLE) += simple.o generated-tracers.o
 util-obj-$(CONFIG_TRACE_FTRACE) += ftrace.o
 util-obj-$(CONFIG_TRACE_UST) += generated-ust.o
 util-obj-y += control.o
+target-obj-y += control-target.o
 util-obj-y += qmp.o

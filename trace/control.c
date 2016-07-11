@@ -1,7 +1,7 @@
 /*
  * Interface for configuring and controlling the state of tracing events.
  *
- * Copyright (C) 2011-2014 Lluís Vilanova <vilanova@ac.upc.edu>
+ * Copyright (C) 2011-2016 Lluís Vilanova <vilanova@ac.upc.edu>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -25,7 +25,14 @@
 #include "monitor/monitor.h"
 
 int trace_events_enabled_count;
-bool trace_events_dstate[TRACE_EVENT_COUNT];
+/*
+ * Interpretation depends on wether the event has the 'vcpu' property:
+ * - false: Boolean value indicating whether the event is active.
+ * - true : Integral counting the number of vCPUs that have this event enabled.
+ */
+uint16_t trace_events_dstate[TRACE_EVENT_COUNT];
+/* Marks events for late vCPU state init */
+static bool trace_events_dstate_init[TRACE_EVENT_COUNT];
 
 QemuOptsList qemu_trace_opts = {
     .name = "trace",
@@ -135,7 +142,10 @@ static void do_trace_enable_events(const char *line_buf)
         TraceEvent *ev = NULL;
         while ((ev = trace_event_pattern(line_ptr, ev)) != NULL) {
             if (trace_event_get_state_static(ev)) {
+                /* start tracing */
                 trace_event_set_state_dynamic(ev, enable);
+                /* mark for late vCPU init */
+                trace_events_dstate_init[ev->id] = true;
             }
         }
     } else {
@@ -147,7 +157,10 @@ static void do_trace_enable_events(const char *line_buf)
             error_report("WARNING: trace event '%s' is not traceable",
                          line_ptr);
         } else {
+            /* start tracing */
             trace_event_set_state_dynamic(ev, enable);
+            /* mark for late vCPU init */
+            trace_events_dstate_init[ev->id] = true;
         }
     }
 }
@@ -256,4 +269,16 @@ char *trace_opt_parse(const char *optarg)
     qemu_opts_del(opts);
 
     return trace_file;
+}
+
+void trace_init_vcpu_events(void)
+{
+    TraceEvent *ev = NULL;
+    while ((ev = trace_event_pattern("*", ev)) != NULL) {
+        if (trace_event_is_vcpu(ev) &&
+            trace_event_get_state_static(ev) &&
+            trace_events_dstate_init[ev->id]) {
+            trace_event_set_state_dynamic(ev, true);
+        }
+    }
 }
