@@ -26,8 +26,8 @@
 
 #include <hw/s390x/s390_flic.h>
 #include <hw/s390x/css.h>
-
-#define VIRTUAL_CSSID 0xfe
+#include "ccw-device.h"
+#include "hw/s390x/css-bridge.h"
 
 #define VIRTIO_CCW_CU_TYPE 0x3832
 #define VIRTIO_CCW_CHPID_TYPE 0x32
@@ -67,7 +67,7 @@ typedef struct VirtioBusClass VirtioCcwBusClass;
 typedef struct VirtioCcwDevice VirtioCcwDevice;
 
 typedef struct VirtIOCCWDeviceClass {
-    DeviceClass parent_class;
+    CCWDeviceClass parent_class;
     void (*realize)(VirtioCcwDevice *dev, Error **errp);
     int (*exit)(VirtioCcwDevice *dev);
 } VirtIOCCWDeviceClass;
@@ -78,9 +78,7 @@ typedef struct VirtIOCCWDeviceClass {
 #define VIRTIO_CCW_FLAG_USE_IOEVENTFD   (1 << VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT)
 
 struct VirtioCcwDevice {
-    DeviceState parent_obj;
-    SubchDev *sch;
-    CssDevId bus_id;
+    CcwDevice parent_obj;
     int revision;
     uint32_t max_rev;
     VirtioBusState bus;
@@ -102,15 +100,6 @@ static inline int virtio_ccw_rev_max(VirtioCcwDevice *dev)
 {
     return dev->max_rev;
 }
-
-/* virtual css bus type */
-typedef struct VirtualCssBus {
-    BusState parent_obj;
-} VirtualCssBus;
-
-#define TYPE_VIRTUAL_CSS_BUS "virtual-css-bus"
-#define VIRTUAL_CSS_BUS(obj) \
-     OBJECT_CHECK(VirtualCssBus, (obj), TYPE_VIRTUAL_CSS_BUS)
 
 /* virtio-scsi-ccw */
 
@@ -191,7 +180,6 @@ typedef struct VirtIORNGCcw {
     VirtIORNG vdev;
 } VirtIORNGCcw;
 
-VirtualCssBus *virtual_css_bus_init(void);
 void virtio_ccw_device_update_status(SubchDev *sch);
 VirtIODevice *virtio_ccw_get_vdev(SubchDev *sch);
 

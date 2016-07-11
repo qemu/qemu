@@ -274,6 +274,8 @@ struct VDev {
     uint64_t scsi_last_block;
     uint32_t scsi_dev_cyls;
     uint8_t scsi_dev_heads;
+    bool scsi_device_selected;
+    ScsiDevice selected_scsi_device;
 };
 typedef struct VDev VDev;
 

@@ -69,8 +69,8 @@ static const VMStateDescription vmstate_ipl = {
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(start_addr, S390IPLState),
-        VMSTATE_UINT64(bios_start_addr, S390IPLState),
+        VMSTATE_UINT64(compat_start_addr, S390IPLState),
+        VMSTATE_UINT64(compat_bios_start_addr, S390IPLState),
         VMSTATE_STRUCT(iplb, S390IPLState, 0, vmstate_iplb, IplParameterBlock),
         VMSTATE_BOOL(iplb_valid, S390IPLState),
         VMSTATE_UINT8(cssid, S390IPLState),
@@ -192,6 +192,13 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
             stq_p(rom_ptr(INITRD_PARM_SIZE), initrd_size);
         }
     }
+    /*
+     * Don't ever use the migrated values, they could come from a different
+     * BIOS and therefore don't work. But still migrate the values, so
+     * QEMUs relying on it don't break.
+     */
+    ipl->compat_start_addr = ipl->start_addr;
+    ipl->compat_bios_start_addr = ipl->bios_start_addr;
     qemu_register_reset(qdev_reset_all_fn, dev);
 error:
     error_propagate(errp, err);
@@ -214,16 +221,36 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
 
     dev_st = get_boot_device(0);
     if (dev_st) {
-        VirtioCcwDevice *ccw_dev = (VirtioCcwDevice *) object_dynamic_cast(
-            OBJECT(qdev_get_parent_bus(dev_st)->parent),
+        VirtioCcwDevice *virtio_ccw_dev = (VirtioCcwDevice *)
+            object_dynamic_cast(OBJECT(qdev_get_parent_bus(dev_st)->parent),
                 TYPE_VIRTIO_CCW_DEVICE);
-        if (ccw_dev) {
+        SCSIDevice *sd = (SCSIDevice *) object_dynamic_cast(OBJECT(dev_st),
+                                                            TYPE_SCSI_DEVICE);
+        if (virtio_ccw_dev) {
+            CcwDevice *ccw_dev = CCW_DEVICE(virtio_ccw_dev);
+
             ipl->iplb.len = cpu_to_be32(S390_IPLB_MIN_CCW_LEN);
             ipl->iplb.blk0_len =
                 cpu_to_be32(S390_IPLB_MIN_CCW_LEN - S390_IPLB_HEADER_LEN);
             ipl->iplb.pbt = S390_IPL_TYPE_CCW;
             ipl->iplb.ccw.devno = cpu_to_be16(ccw_dev->sch->devno);
             ipl->iplb.ccw.ssid = ccw_dev->sch->ssid & 3;
+            return true;
+        } else if (sd) {
+            SCSIBus *bus = scsi_bus_from_device(sd);
+            VirtIOSCSI *vdev = container_of(bus, VirtIOSCSI, bus);
+            VirtIOSCSICcw *scsi_ccw = container_of(vdev, VirtIOSCSICcw, vdev);
+            CcwDevice *ccw_dev = CCW_DEVICE(scsi_ccw);
+
+            ipl->iplb.len = cpu_to_be32(S390_IPLB_MIN_QEMU_SCSI_LEN);
+            ipl->iplb.blk0_len =
+                cpu_to_be32(S390_IPLB_MIN_QEMU_SCSI_LEN - S390_IPLB_HEADER_LEN);
+            ipl->iplb.pbt = S390_IPL_TYPE_QEMU_SCSI;
+            ipl->iplb.scsi.lun = cpu_to_be32(sd->lun);
+            ipl->iplb.scsi.target = cpu_to_be16(sd->id);
+            ipl->iplb.scsi.channel = cpu_to_be16(sd->channel);
+            ipl->iplb.scsi.devno = cpu_to_be16(ccw_dev->sch->devno);
+            ipl->iplb.scsi.ssid = ccw_dev->sch->ssid & 3;
             return true;
         }
     }

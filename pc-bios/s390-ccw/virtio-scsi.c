@@ -204,6 +204,17 @@ static void virtio_scsi_locate_device(VDev *vdev)
     debug_print_int("config.scsi.max_target ", vdev->config.scsi.max_target);
     debug_print_int("config.scsi.max_lun    ", vdev->config.scsi.max_lun);
 
+    if (vdev->scsi_device_selected) {
+        sdev->channel = vdev->selected_scsi_device.channel;
+        sdev->target = vdev->selected_scsi_device.target;
+        sdev->lun = vdev->selected_scsi_device.lun;
+
+        IPL_check(sdev->channel == 0, "non-zero channel requested");
+        IPL_check(sdev->target <= vdev->config.scsi.max_target, "target# high");
+        IPL_check(sdev->lun <= vdev->config.scsi.max_lun, "LUN# high");
+        return;
+    }
+
     for (target = 0; target <= vdev->config.scsi.max_target; target++) {
         sdev->channel = channel;
         sdev->target = target; /* sdev->lun will be 0 here */

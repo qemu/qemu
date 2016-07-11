@@ -104,7 +104,7 @@ typedef struct ClpRspListPci {
     uint64_t resume_token;
     uint32_t mdd;
     uint16_t max_fn;
-    uint8_t reserved2;
+    uint8_t flags;
     uint8_t entry_size;
     ClpFhListEntry fh_list[CLP_FH_LIST_NR_ENTRIES];
 } QEMU_PACKED ClpRspListPci;
@@ -248,6 +248,11 @@ typedef struct ClpReqRspQueryPciGrp {
 #define ZPCI_MOD_FC_RESET_ERROR 7
 #define ZPCI_MOD_FC_RESET_BLOCK 9
 #define ZPCI_MOD_FC_SET_MEASURE 10
+
+/* Store PCI Function Controls status codes */
+#define ZPCI_STPCIFC_ST_PERM_ERROR    8
+#define ZPCI_STPCIFC_ST_INVAL_DMAAS   28
+#define ZPCI_STPCIFC_ST_ERROR_RECOVER 40
 
 /* FIB function controls */
 #define ZPCI_FIB_FC_ENABLED     0x80

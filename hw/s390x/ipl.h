@@ -46,6 +46,16 @@ struct IplBlockFcp {
 } QEMU_PACKED;
 typedef struct IplBlockFcp IplBlockFcp;
 
+struct IplBlockQemuScsi {
+    uint32_t lun;
+    uint16_t target;
+    uint16_t channel;
+    uint8_t  reserved0[77];
+    uint8_t  ssid;
+    uint16_t devno;
+} QEMU_PACKED;
+typedef struct IplBlockQemuScsi IplBlockQemuScsi;
+
 union IplParameterBlock {
     struct {
         uint32_t len;
@@ -59,6 +69,7 @@ union IplParameterBlock {
         union {
             IplBlockCcw ccw;
             IplBlockFcp fcp;
+            IplBlockQemuScsi scsi;
         };
     } QEMU_PACKED;
     struct {
@@ -82,7 +93,9 @@ struct S390IPLState {
     /*< private >*/
     DeviceState parent_obj;
     uint64_t start_addr;
+    uint64_t compat_start_addr;
     uint64_t bios_start_addr;
+    uint64_t compat_bios_start_addr;
     bool enforce_bios;
     IplParameterBlock iplb;
     bool iplb_valid;
@@ -102,10 +115,12 @@ typedef struct S390IPLState S390IPLState;
 
 #define S390_IPL_TYPE_FCP 0x00
 #define S390_IPL_TYPE_CCW 0x02
+#define S390_IPL_TYPE_QEMU_SCSI 0xff
 
 #define S390_IPLB_HEADER_LEN 8
 #define S390_IPLB_MIN_CCW_LEN 200
 #define S390_IPLB_MIN_FCP_LEN 384
+#define S390_IPLB_MIN_QEMU_SCSI_LEN 200
 
 static inline bool iplb_valid_len(IplParameterBlock *iplb)
 {

@@ -21,16 +21,31 @@
 #include "hw/s390x/css.h"
 
 #define TYPE_S390_PCI_HOST_BRIDGE "s390-pcihost"
-#define FH_VIRT 0x00ff0000
-#define ENABLE_BIT_OFFSET 31
-#define FH_ENABLED (1 << ENABLE_BIT_OFFSET)
+#define TYPE_S390_PCI_BUS "s390-pcibus"
+#define TYPE_S390_PCI_DEVICE "zpci"
+#define FH_MASK_ENABLE   0x80000000
+#define FH_MASK_INSTANCE 0x7f000000
+#define FH_MASK_SHM      0x00ff0000
+#define FH_MASK_INDEX    0x0000001f
+#define FH_SHM_VFIO      0x00010000
+#define FH_SHM_EMUL      0x00020000
 #define S390_PCIPT_ADAPTER 2
+#define ZPCI_MAX_FID 0xffffffff
+#define ZPCI_MAX_UID 0xffff
+#define UID_UNDEFINED 0
+#define UID_CHECKING_ENABLED 0x01
+#define HOT_UNPLUG_TIMEOUT (NANOSECONDS_PER_SECOND * 60 * 5)
 
 #define S390_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(S390pciState, (obj), TYPE_S390_PCI_HOST_BRIDGE)
+#define S390_PCI_BUS(obj) \
+    OBJECT_CHECK(S390PCIBus, (obj), TYPE_S390_PCI_BUS)
+#define S390_PCI_DEVICE(obj) \
+    OBJECT_CHECK(S390PCIBusDevice, (obj), TYPE_S390_PCI_DEVICE)
 
 #define HP_EVENT_TO_CONFIGURED        0x0301
 #define HP_EVENT_RESERVED_TO_STANDBY  0x0302
+#define HP_EVENT_DECONFIGURE_REQUEST  0x0303
 #define HP_EVENT_CONFIGURED_TO_STBRES 0x0304
 #define HP_EVENT_STANDBY_TO_RESERVED  0x0308
 
@@ -150,6 +165,34 @@ enum ZpciIoatDtype {
 #define ZPCI_TABLE_VALID_MASK           0x20
 #define ZPCI_TABLE_PROT_MASK            0x200
 
+/* PCI Function States
+ *
+ * reserved: default; device has just been plugged or is in progress of being
+ *           unplugged
+ * standby: device is present but not configured; transition from any
+ *          configured state/to this state via sclp configure/deconfigure
+ *
+ * The following states make up the "configured" meta-state:
+ * disabled: device is configured but not enabled; transition between this
+ *           state and enabled via clp enable/disable
+ * enbaled: device is ready for use; transition to disabled via clp disable;
+ *          may enter an error state
+ * blocked: ignore all DMA and interrupts; transition back to enabled or from
+ *          error state via mpcifc
+ * error: an error occured; transition back to enabled via mpcifc
+ * permanent error: an unrecoverable error occured; transition to standby via
+ *                  sclp deconfigure
+ */
+typedef enum {
+    ZPCI_FS_RESERVED,
+    ZPCI_FS_STANDBY,
+    ZPCI_FS_DISABLED,
+    ZPCI_FS_ENABLED,
+    ZPCI_FS_BLOCKED,
+    ZPCI_FS_ERROR,
+    ZPCI_FS_PERMANENT_ERROR,
+} ZpciState;
+
 typedef struct SeiContainer {
     QTAILQ_ENTRY(SeiContainer) link;
     uint32_t fid;
@@ -214,14 +257,21 @@ typedef struct S390MsixInfo {
     uint32_t pba_offset;
 } S390MsixInfo;
 
+typedef struct S390PCIIOMMU {
+    AddressSpace as;
+    MemoryRegion mr;
+} S390PCIIOMMU;
+
 typedef struct S390PCIBusDevice {
+    DeviceState qdev;
     PCIDevice *pdev;
-    bool configured;
-    bool error_state;
-    bool lgstg_blocked;
+    ZpciState state;
     bool iommu_enabled;
+    char *target;
+    uint16_t uid;
     uint32_t fh;
     uint32_t fid;
+    bool fid_defined;
     uint64_t g_iota;
     uint64_t pba;
     uint64_t pal;
@@ -231,16 +281,22 @@ typedef struct S390PCIBusDevice {
     uint8_t sum;
     S390MsixInfo msix;
     AdapterRoutes routes;
-    AddressSpace as;
-    MemoryRegion mr;
+    S390PCIIOMMU *iommu;
     MemoryRegion iommu_mr;
     IndAddr *summary_ind;
     IndAddr *indicator;
+    QEMUTimer *release_timer;
 } S390PCIBusDevice;
+
+typedef struct S390PCIBus {
+    BusState qbus;
+} S390PCIBus;
 
 typedef struct S390pciState {
     PCIHostState parent_obj;
-    S390PCIBusDevice pbdev[PCI_SLOT_MAX];
+    S390PCIBus *bus;
+    S390PCIBusDevice *pbdev[PCI_SLOT_MAX];
+    S390PCIIOMMU *iommu[PCI_SLOT_MAX];
     AddressSpace msix_notify_as;
     MemoryRegion msix_notify_mr;
     QTAILQ_HEAD(, SeiContainer) pending_sei;
@@ -252,8 +308,11 @@ void s390_pci_sclp_configure(SCCB *sccb);
 void s390_pci_sclp_deconfigure(SCCB *sccb);
 void s390_pci_iommu_enable(S390PCIBusDevice *pbdev);
 void s390_pci_iommu_disable(S390PCIBusDevice *pbdev);
+void s390_pci_generate_error_event(uint16_t pec, uint32_t fh, uint32_t fid,
+                                   uint64_t faddr, uint32_t e);
 S390PCIBusDevice *s390_pci_find_dev_by_idx(uint32_t idx);
 S390PCIBusDevice *s390_pci_find_dev_by_fh(uint32_t fh);
 S390PCIBusDevice *s390_pci_find_dev_by_fid(uint32_t fid);
+S390PCIBusDevice *s390_pci_find_next_avail_dev(S390PCIBusDevice *pbdev);
 
 #endif
