@@ -67,7 +67,7 @@ int fixed_mmu_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
 int r4k_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
                      target_ulong address, int rw, int access_type)
 {
-    uint8_t ASID = env->CP0_EntryHi & 0xFF;
+    uint16_t ASID = env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask;
     int i;
 
     for (i = 0; i < env->tlb->tlb_in_use; i++) {
@@ -249,7 +249,7 @@ void sync_c0_status(CPUMIPSState *env, CPUMIPSState *cpu, int tc)
     cu = (v >> CP0St_CU0) & 0xf;
     mx = (v >> CP0St_MX) & 0x1;
     ksu = (v >> CP0St_KSU) & 0x3;
-    asid = env->CP0_EntryHi & 0xff;
+    asid = env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask;
 
     tcstatus = cu << CP0TCSt_TCU0;
     tcstatus |= mx << CP0TCSt_TMX;
@@ -395,8 +395,8 @@ static void raise_mmu_exception(CPUMIPSState *env, target_ulong address,
     env->CP0_BadVAddr = address;
     env->CP0_Context = (env->CP0_Context & ~0x007fffff) |
                        ((address >> 9) & 0x007ffff0);
-    env->CP0_EntryHi =
-        (env->CP0_EntryHi & 0xFF) | (address & (TARGET_PAGE_MASK << 1));
+    env->CP0_EntryHi = (env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask) |
+                       (address & (TARGET_PAGE_MASK << 1));
 #if defined(TARGET_MIPS64)
     env->CP0_EntryHi &= env->SEGMask;
     env->CP0_XContext =
@@ -640,7 +640,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
         /* EJTAG probe trap enable is not implemented... */
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
             env->CP0_Cause &= ~(1U << CP0Ca_BD);
-        env->active_tc.PC = (int32_t)0xBFC00480;
+        env->active_tc.PC = env->exception_base + 0x480;
         set_hflags_for_handler(env);
         break;
     case EXCP_RESET:
@@ -667,7 +667,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
         env->hflags &= ~(MIPS_HFLAG_KSU);
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
             env->CP0_Cause &= ~(1U << CP0Ca_BD);
-        env->active_tc.PC = (int32_t)0xBFC00000;
+        env->active_tc.PC = env->exception_base;
         set_hflags_for_handler(env);
         break;
     case EXCP_EXT_INTERRUPT:
@@ -849,7 +849,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
         }
         env->hflags &= ~MIPS_HFLAG_BMASK;
         if (env->CP0_Status & (1 << CP0St_BEV)) {
-            env->active_tc.PC = (int32_t)0xBFC00200;
+            env->active_tc.PC = env->exception_base + 0x200;
         } else {
             env->active_tc.PC = (int32_t)(env->CP0_EBase & ~0x3ff);
         }
@@ -898,7 +898,7 @@ void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra)
     r4k_tlb_t *tlb;
     target_ulong addr;
     target_ulong end;
-    uint8_t ASID = env->CP0_EntryHi & 0xFF;
+    uint16_t ASID = env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask;
     target_ulong mask;
 
     tlb = &env->tlb->mmu.r4k.tlb[idx];

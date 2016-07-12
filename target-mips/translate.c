@@ -20169,6 +20169,7 @@ MIPSCPU *cpu_mips_init(const char *cpu_model)
     cpu = MIPS_CPU(object_new(TYPE_MIPS_CPU));
     env = &cpu->env;
     env->cpu_model = def;
+    env->exception_base = (int32_t)0xBFC00000;
 
 #ifndef CONFIG_USER_ONLY
     mmu_init(env, def);
@@ -20189,6 +20190,12 @@ bool cpu_supports_cps_smp(const char *cpu_model)
     }
 
     return (def->CP0_Config3 & (1 << CP0C3_CMGCR)) != 0;
+}
+
+void cpu_set_exception_base(int vp_index, target_ulong address)
+{
+    MIPSCPU *vp = MIPS_CPU(qemu_get_cpu(vp_index));
+    vp->env.exception_base = address;
 }
 
 void cpu_state_reset(CPUMIPSState *env)
@@ -20281,7 +20288,7 @@ void cpu_state_reset(CPUMIPSState *env)
     } else {
         env->CP0_ErrorEPC = env->active_tc.PC;
     }
-    env->active_tc.PC = (int32_t)0xBFC00000;
+    env->active_tc.PC = env->exception_base;
     env->CP0_Random = env->tlb->nb_tlb - 1;
     env->tlb->tlb_in_use = env->tlb->nb_tlb;
     env->CP0_Wired = 0;
@@ -20295,6 +20302,8 @@ void cpu_state_reset(CPUMIPSState *env)
     if (env->CP0_Config3 & (1 << CP0C3_CMGCR)) {
         env->CP0_CMGCRBase = 0x1fbf8000 >> 4;
     }
+    env->CP0_EntryHi_ASID_mask = (env->CP0_Config4 & (1 << CP0C4_AE)) ?
+                                 0x3ff : 0xff;
     env->CP0_Status = (1 << CP0St_BEV) | (1 << CP0St_ERL);
     /* vectored interrupts not implemented, timer on int 7,
        no performance counters. */

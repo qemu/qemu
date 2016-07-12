@@ -132,7 +132,7 @@ static int get_tlb(QEMUFile *f, void *pv, size_t size)
 
     qemu_get_betls(f, &v->VPN);
     qemu_get_be32s(f, &v->PageMask);
-    qemu_get_8s(f, &v->ASID);
+    qemu_get_be16s(f, &v->ASID);
     qemu_get_be16s(f, &flags);
     v->G = (flags >> 10) & 1;
     v->C0 = (flags >> 7) & 3;
@@ -156,7 +156,7 @@ static void put_tlb(QEMUFile *f, void *pv, size_t size)
 {
     r4k_tlb_t *v = pv;
 
-    uint8_t asid = v->ASID;
+    uint16_t asid = v->ASID;
     uint16_t flags = ((v->EHINV << 15) |
                       (v->RI1 << 14) |
                       (v->RI0 << 13) |
@@ -172,7 +172,7 @@ static void put_tlb(QEMUFile *f, void *pv, size_t size)
 
     qemu_put_betls(f, &v->VPN);
     qemu_put_be32s(f, &v->PageMask);
-    qemu_put_8s(f, &asid);
+    qemu_put_be16s(f, &asid);
     qemu_put_be16s(f, &flags);
     qemu_put_be64s(f, &v->PFN[0]);
     qemu_put_be64s(f, &v->PFN[1]);
@@ -192,8 +192,8 @@ const VMStateInfo vmstate_info_tlb = {
 
 const VMStateDescription vmstate_tlb = {
     .name = "cpu/tlb",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(nb_tlb, CPUMIPSTLBContext),
         VMSTATE_UINT32(tlb_in_use, CPUMIPSTLBContext),

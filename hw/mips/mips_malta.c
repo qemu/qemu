@@ -955,9 +955,7 @@ static void create_cps(MaltaState *s, const char *cpu_model,
 
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(s->cps), 0, 0, 1);
 
-    /* FIXME: When GIC is present then we should use GIC's IRQ 3.
-       Until then CPS exposes CPU's IRQs thus use the default IRQ 2. */
-    *i8259_irq = get_cps_irq(s->cps, 2);
+    *i8259_irq = get_cps_irq(s->cps, 3);
     *cbus_irq = NULL;
 }
 
