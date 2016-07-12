@@ -5001,7 +5001,7 @@ static abi_long do_ioctl_dm(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
 
     guest_data = arg + host_dm->data_start;
     if ((guest_data - arg) < 0) {
-        ret = -EINVAL;
+        ret = -TARGET_EINVAL;
         goto out;
     }
     guest_data_size = host_dm->data_size - host_dm->data_start;
