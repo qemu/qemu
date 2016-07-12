@@ -461,9 +461,10 @@ static int tight_fill_palette(VncState *vs, int x, int y,
                                                                         \
         src = (uint##bpp##_t *) buf;                                    \
                                                                         \
-        for (i = 0; i < count; i++) {                                   \
+        for (i = 0; i < count; ) {                                      \
                                                                         \
             rgb = *src++;                                               \
+            i++;                                                        \
             rep = 0;                                                    \
             while (i < count && *src == rgb) {                          \
                 rep++, src++, i++;                                      \
