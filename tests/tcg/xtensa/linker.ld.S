@@ -1,4 +1,4 @@
-#include <core-isa.h>
+#include "core-isa.h"
 
 #if XTENSA_HAVE_BE
 OUTPUT_FORMAT("elf32-xtensa-be")

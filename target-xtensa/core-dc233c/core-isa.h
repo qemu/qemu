@@ -28,9 +28,8 @@
    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
-#ifndef _XTENSA_CORE_CONFIGURATION_H
-#define _XTENSA_CORE_CONFIGURATION_H
-
+#ifndef XTENSA_DC233C_CORE_ISA_H
+#define XTENSA_DC233C_CORE_ISA_H
 
 /****************************************************************************
             Parameters Useful for Any Code, USER or PRIVILEGED
@@ -471,4 +470,4 @@ usable for an MMU-based OS */
 #endif /* !XTENSA_HAL_NON_PRIVILEGED_ONLY */
 
 
-#endif /* _XTENSA_CORE_CONFIGURATION_H */
+#endif /* XTENSA_DC233C_CORE_ISA_H */

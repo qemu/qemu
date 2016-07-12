@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QCRYPTO_AFSPLIT_H__
-#define QCRYPTO_AFSPLIT_H__
+#ifndef QCRYPTO_AFSPLIT_H
+#define QCRYPTO_AFSPLIT_H
 
 #include "crypto/hash.h"
 
@@ -132,4 +132,4 @@ int qcrypto_afsplit_decode(QCryptoHashAlgorithm hash,
                            uint8_t *out,
                            Error **errp);
 
-#endif /* QCRYPTO_AFSPLIT_H__ */
+#endif /* QCRYPTO_AFSPLIT_H */

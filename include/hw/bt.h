@@ -24,7 +24,7 @@
  */
 
 #ifndef HW_BT_H
-#define HW_BT_H 1
+#define HW_BT_H
 
 #include "hw/irq.h"
 

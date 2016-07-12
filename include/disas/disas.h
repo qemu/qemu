@@ -1,5 +1,5 @@
-#ifndef _QEMU_DISAS_H
-#define _QEMU_DISAS_H
+#ifndef QEMU_DISAS_H
+#define QEMU_DISAS_H
 
 #include "qemu-common.h"
 
@@ -42,4 +42,4 @@ struct syminfo {
 /* Filled in by elfload.c.  Simplistic, but will do for now. */
 extern struct syminfo *syminfos;
 
-#endif /* _QEMU_DISAS_H */
+#endif /* QEMU_DISAS_H */

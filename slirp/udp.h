@@ -30,8 +30,8 @@
  * udp.h,v 1.3 1994/08/21 05:27:41 paul Exp
  */
 
-#ifndef _UDP_H_
-#define _UDP_H_
+#ifndef UDP_H
+#define UDP_H
 
 #define UDP_TTL 0x60
 #define UDP_UDPDATALEN 16192

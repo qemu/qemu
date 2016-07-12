@@ -9,12 +9,11 @@
  */
 
 #include "qemu/osdep.h"
+#include <linux/vhost.h>
+#include <sys/ioctl.h>
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-backend.h"
 #include "qemu/error-report.h"
-#include "linux/vhost.h"
-
-#include <sys/ioctl.h>
 
 static int vhost_kernel_call(struct vhost_dev *dev, unsigned long int request,
                              void *arg)

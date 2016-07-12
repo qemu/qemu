@@ -26,8 +26,8 @@
  ********************************************************************
  */
 
-#ifndef __UBOOT_IMAGE_H__
-#define __UBOOT_IMAGE_H__
+#ifndef UBOOT_IMAGE_H
+#define UBOOT_IMAGE_H
 
 /*
  * Operating System Codes
@@ -155,4 +155,4 @@ typedef struct uboot_image_header {
 } uboot_image_header_t;
 
 
-#endif	/* __IMAGE_H__ */
+#endif /* UBOOT_IMAGE_H */

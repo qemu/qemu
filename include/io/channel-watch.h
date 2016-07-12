@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QIO_CHANNEL_WATCH_H__
-#define QIO_CHANNEL_WATCH_H__
+#ifndef QIO_CHANNEL_WATCH_H
+#define QIO_CHANNEL_WATCH_H
 
 #include "io/channel.h"
 
@@ -87,4 +87,4 @@ GSource *qio_channel_create_fd_pair_watch(QIOChannel *ioc,
                                           int fdwrite,
                                           GIOCondition condition);
 
-#endif /* QIO_CHANNEL_WATCH_H__ */
+#endif /* QIO_CHANNEL_WATCH_H */

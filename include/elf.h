@@ -1,6 +1,5 @@
-#ifndef _QEMU_ELF_H
-#define _QEMU_ELF_H
-
+#ifndef QEMU_ELF_H
+#define QEMU_ELF_H
 
 /* 32-bit ELF base types. */
 typedef uint32_t Elf32_Addr;
@@ -1573,4 +1572,4 @@ struct elf32_fdpic_loadmap {
 #endif /* ELF_CLASS */
 
 
-#endif /* _QEMU_ELF_H */
+#endif /* QEMU_ELF_H */

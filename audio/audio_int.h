@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #ifndef QEMU_AUDIO_INT_H
 #define QEMU_AUDIO_INT_H
 
@@ -257,4 +258,4 @@ static inline int audio_ring_dist (int dst, int src, int len)
 #define AUDIO_FUNC __FILE__ ":" AUDIO_STRINGIFY (__LINE__)
 #endif
 
-#endif /* audio_int.h */
+#endif /* QEMU_AUDIO_INT_H */

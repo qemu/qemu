@@ -15,9 +15,8 @@
     GEN_HELPER 2 to do runtime registration helper functions.
  */
 
-#ifndef DEF_HELPER_H
-#define DEF_HELPER_H 1
-
+#ifndef EXEC_HELPER_HEAD_H
+#define EXEC_HELPER_HEAD_H
 
 #define HELPER(name) glue(helper_, name)
 
@@ -133,4 +132,4 @@
 
 /* MAX_OPC_PARAM_IARGS must be set to n if last entry is DEF_HELPER_FLAGS_n. */
 
-#endif /* DEF_HELPER_H */
+#endif /* EXEC_HELPER_HEAD_H */

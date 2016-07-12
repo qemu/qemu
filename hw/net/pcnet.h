@@ -1,5 +1,5 @@
 #ifndef HW_PCNET_H
-#define HW_PCNET_H 1
+#define HW_PCNET_H
 
 #define PCNET_IOPORT_SIZE       0x20
 #define PCNET_PNPMMIO_SIZE      0x20

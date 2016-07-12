@@ -14,8 +14,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef HW_USB_EHCI_H
-#define HW_USB_EHCI_H 1
+
+#ifndef HW_USB_HCD_EHCI_H
+#define HW_USB_HCD_EHCI_H
 
 #include "hw/hw.h"
 #include "qemu/timer.h"

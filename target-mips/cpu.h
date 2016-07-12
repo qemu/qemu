@@ -1,5 +1,5 @@
-#if !defined (__MIPS_CPU_H__)
-#define __MIPS_CPU_H__
+#ifndef MIPS_CPU_H
+#define MIPS_CPU_H
 
 //#define DEBUG_OP
 
@@ -1066,4 +1066,4 @@ static inline void QEMU_NORETURN do_raise_exception(CPUMIPSState *env,
     do_raise_exception_err(env, exception, 0, pc);
 }
 
-#endif /* !defined (__MIPS_CPU_H__) */
+#endif /* MIPS_CPU_H */

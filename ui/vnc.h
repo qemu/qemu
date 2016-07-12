@@ -24,8 +24,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef __QEMU_VNC_H
-#define __QEMU_VNC_H
+#ifndef QEMU_VNC_H
+#define QEMU_VNC_H
 
 #include "qemu-common.h"
 #include "qemu/queue.h"
@@ -577,4 +577,4 @@ int vnc_zrle_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
 int vnc_zywrle_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
 void vnc_zrle_clear(VncState *vs);
 
-#endif /* __QEMU_VNC_H */
+#endif /* QEMU_VNC_H */

@@ -18,8 +18,8 @@
     along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __FPOPCODE_H__
-#define __FPOPCODE_H__
+#ifndef FPOPCODE_H
+#define FPOPCODE_H
 
 /*
 ARM Floating Point Instruction Classes

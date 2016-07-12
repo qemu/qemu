@@ -1,6 +1,7 @@
-#ifndef __QEMU_THREAD_WIN32_H
-#define __QEMU_THREAD_WIN32_H 1
-#include "windows.h"
+#ifndef QEMU_THREAD_WIN32_H
+#define QEMU_THREAD_WIN32_H
+
+#include <windows.h>
 
 struct QemuMutex {
     CRITICAL_SECTION lock;

@@ -1,7 +1,7 @@
 #ifndef HW_IDE_PCI_H
 #define HW_IDE_PCI_H
 
-#include <hw/ide/internal.h>
+#include "hw/ide/internal.h"
 
 #define BM_STATUS_DMAING 0x01
 #define BM_STATUS_ERROR  0x02

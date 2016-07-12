@@ -1,5 +1,5 @@
-#ifndef NVRAM_H
-#define NVRAM_H
+#ifndef HW_M48T59_H
+#define HW_M48T59_H
 
 #include "qemu-common.h"
 #include "qom/object.h"
@@ -31,4 +31,4 @@ Nvram *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
                    uint32_t io_base, uint16_t size, int base_year,
                    int type);
 
-#endif /* !NVRAM_H */
+#endif /* HW_M48T59_H */

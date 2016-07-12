@@ -19,8 +19,9 @@
  * You should have received a copy of the GNU (Lesser) General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CPU_S390X_H
-#define CPU_S390X_H
+
+#ifndef S390X_CPU_H
+#define S390X_CPU_H
 
 #include "qemu-common.h"
 #include "cpu-qom.h"
@@ -219,7 +220,7 @@ int s390_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 void s390_cpu_gdb_init(CPUState *cs);
 void s390x_cpu_debug_excp_handler(CPUState *cs);
 
-#include <sysemu/kvm.h>
+#include "sysemu/kvm.h"
 
 /* distinguish between 24 bit and 31 bit addressing */
 #define HIGH_ORDER_BIT 0x80000000

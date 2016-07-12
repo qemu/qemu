@@ -12,7 +12,7 @@
  */
 
 #ifndef QEMU_RATELIMIT_H
-#define QEMU_RATELIMIT_H 1
+#define QEMU_RATELIMIT_H
 
 typedef struct {
     int64_t next_slice_time;

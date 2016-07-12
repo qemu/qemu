@@ -21,8 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef MONITOR_COMMON_H
-#define MONITOR_COMMON_H
+
+#ifndef MONITOR_HMP_TARGET_H
+#define MONITOR_HMP_TARGET_H
 
 #define MD_TLONG 0
 #define MD_I32   1
@@ -46,4 +47,4 @@ void hmp_mce(Monitor *mon, const QDict *qdict);
 void hmp_info_local_apic(Monitor *mon, const QDict *qdict);
 void hmp_info_io_apic(Monitor *mon, const QDict *qdict);
 
-#endif /* MONITOR_COMMON */
+#endif /* MONITOR_HMP_TARGET_H */

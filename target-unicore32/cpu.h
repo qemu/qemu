@@ -8,8 +8,9 @@
  * published by the Free Software Foundation, or (at your option) any
  * later version. See the COPYING file in the top-level directory.
  */
-#ifndef QEMU_UNICORE32_CPU_H
-#define QEMU_UNICORE32_CPU_H
+
+#ifndef UNICORE32_CPU_H
+#define UNICORE32_CPU_H
 
 #define TARGET_LONG_BITS                32
 #define TARGET_PAGE_BITS                12
@@ -184,4 +185,4 @@ int uc32_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
 void uc32_translate_init(void);
 void switch_mode(CPUUniCore32State *, int);
 
-#endif /* QEMU_UNICORE32_CPU_H */
+#endif /* UNICORE32_CPU_H */

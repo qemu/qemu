@@ -20,9 +20,9 @@
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
 #include "sysemu/block-backend.h"
-#include <hw/scsi/scsi.h>
-#include <block/scsi.h>
-#include <hw/virtio/virtio-bus.h>
+#include "hw/scsi/scsi.h"
+#include "block/scsi.h"
+#include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 
 static inline int virtio_scsi_get_lun(uint8_t *lun)

@@ -8,8 +8,8 @@
  * published by the Free Software Foundation, or (at your option) any
  * later version. See the COPYING file in the top-level directory.
  */
-#ifndef TARGET_CPU_H
-#define TARGET_CPU_H
+#ifndef UNICORE32_TARGET_CPU_H
+#define UNICORE32_TARGET_CPU_H
 
 static inline void cpu_clone_regs(CPUUniCore32State *env, target_ulong newsp)
 {

@@ -6,9 +6,8 @@
  */
 
 #include "qemu/osdep.h"
-#include <slirp.h>
-#include <libslirp.h>
-
+#include "slirp.h"
+#include "libslirp.h"
 #include "monitor/monitor.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"

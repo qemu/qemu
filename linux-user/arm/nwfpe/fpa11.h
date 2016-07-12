@@ -18,11 +18,10 @@
     along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __FPA11_H__
-#define __FPA11_H__
+#ifndef FPA11_H
+#define FPA11_H
 
-
-#include <cpu.h>
+#include "cpu.h"
 
 #define GET_FPA11() (qemufpa)
 

@@ -162,4 +162,4 @@ struct target_vm86plus_struct {
 
 #define UNAME_MACHINE "i386"
 
-#endif  /* TARGET_SYSCALL_H */
+#endif /* TARGET_SYSCALL_H */

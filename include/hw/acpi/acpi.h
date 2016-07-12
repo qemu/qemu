@@ -1,5 +1,6 @@
 #ifndef QEMU_HW_ACPI_H
 #define QEMU_HW_ACPI_H
+
 /*
  *  Copyright (c) 2009 Isaku Yamahata <yamahata at valinux co jp>
  *                     VA Linux Systems Japan K.K.
@@ -188,4 +189,4 @@ struct AcpiSlicOem {
 };
 int acpi_get_slic_oem(AcpiSlicOem *oem);
 
-#endif /* !QEMU_HW_ACPI_H */
+#endif /* QEMU_HW_ACPI_H */

@@ -5,8 +5,8 @@
  * terms and conditions of the copyright.
  */
 
-#ifndef _SLIRP_SOCKET_H_
-#define _SLIRP_SOCKET_H_
+#ifndef SLIRP_SOCKET_H
+#define SLIRP_SOCKET_H
 
 #define SO_EXPIRE 240000
 #define SO_EXPIREFAST 10000
@@ -158,4 +158,4 @@ void sotranslate_in(struct socket *, struct sockaddr_storage *);
 void sotranslate_accept(struct socket *);
 
 
-#endif /* _SOCKET_H_ */
+#endif /* SLIRP_SOCKET_H */

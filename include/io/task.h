@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QIO_TASK_H__
-#define QIO_TASK_H__
+#ifndef QIO_TASK_H
+#define QIO_TASK_H
 
 #include "qemu-common.h"
 #include "qom/object.h"
@@ -252,4 +252,4 @@ void qio_task_abort(QIOTask *task,
  */
 Object *qio_task_get_source(QIOTask *task);
 
-#endif /* QIO_TASK_H__ */
+#endif /* QIO_TASK_H */

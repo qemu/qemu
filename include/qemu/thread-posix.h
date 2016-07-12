@@ -1,6 +1,7 @@
-#ifndef __QEMU_THREAD_POSIX_H
-#define __QEMU_THREAD_POSIX_H 1
-#include "pthread.h"
+#ifndef QEMU_THREAD_POSIX_H
+#define QEMU_THREAD_POSIX_H
+
+#include <pthread.h>
 #include <semaphore.h>
 
 struct QemuMutex {

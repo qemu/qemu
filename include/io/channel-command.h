@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QIO_CHANNEL_COMMAND_H__
-#define QIO_CHANNEL_COMMAND_H__
+#ifndef QIO_CHANNEL_COMMAND_H
+#define QIO_CHANNEL_COMMAND_H
 
 #include "io/channel.h"
 
@@ -88,4 +88,4 @@ qio_channel_command_new_spawn(const char *const argv[],
                               Error **errp);
 
 
-#endif /* QIO_CHANNEL_COMMAND_H__ */
+#endif /* QIO_CHANNEL_COMMAND_H */

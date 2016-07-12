@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef HYPERV_I386_H
-#define HYPERV_I386_H
+#ifndef TARGET_I386_HYPERV_H
+#define TARGET_I386_HYPERV_H
 
 #include "cpu.h"
 #include "sysemu/kvm.h"

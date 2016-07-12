@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef HW_ARM_STM32F205SOC_H
-#define HW_ARM_STM32F205SOC_H
+#ifndef HW_ARM_STM32F205_SOC_H
+#define HW_ARM_STM32F205_SOC_H
 
 #include "hw/misc/stm32f2xx_syscfg.h"
 #include "hw/timer/stm32f2xx_timer.h"

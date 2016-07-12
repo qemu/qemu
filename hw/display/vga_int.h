@@ -21,10 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef HW_VGA_INT_H
-#define HW_VGA_INT_H 1
 
-#include <hw/hw.h>
+#ifndef HW_VGA_INT_H
+#define HW_VGA_INT_H
+
+#include "hw/hw.h"
 #include "exec/memory.h"
 
 #define ST01_V_RETRACE      0x08

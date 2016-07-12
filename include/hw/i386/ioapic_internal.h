@@ -112,4 +112,4 @@ void ioapic_reset_common(DeviceState *dev);
 
 void ioapic_print_redtbl(Monitor *mon, IOAPICCommonState *s);
 
-#endif /* !QEMU_IOAPIC_INTERNAL_H */
+#endif /* QEMU_IOAPIC_INTERNAL_H */

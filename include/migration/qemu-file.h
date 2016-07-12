@@ -21,8 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #ifndef QEMU_FILE_H
-#define QEMU_FILE_H 1
+#define QEMU_FILE_H
+
 #include "qemu-common.h"
 #include "exec/cpu-common.h"
 #include "io/channel.h"

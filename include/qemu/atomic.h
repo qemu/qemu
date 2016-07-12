@@ -12,10 +12,8 @@
  * atomic primitive is meant to provide.
  */
 
-#ifndef __QEMU_ATOMIC_H
-#define __QEMU_ATOMIC_H 1
-
-
+#ifndef QEMU_ATOMIC_H
+#define QEMU_ATOMIC_H
 
 /* Compiler barrier */
 #define barrier()   ({ asm volatile("" ::: "memory"); (void)0; })
@@ -366,4 +364,4 @@
 #define atomic_or(ptr, n)      ((void) __sync_fetch_and_or(ptr, n))
 
 #endif /* __ATOMIC_RELAXED */
-#endif /* __QEMU_ATOMIC_H */
+#endif /* QEMU_ATOMIC_H */

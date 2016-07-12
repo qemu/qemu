@@ -16,8 +16,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _CPU_SH4_H
-#define _CPU_SH4_H
+
+#ifndef SH4_CPU_H
+#define SH4_CPU_H
 
 #include "qemu-common.h"
 #include "cpu-qom.h"
@@ -387,4 +388,4 @@ static inline void cpu_get_tb_cpu_state(CPUSH4State *env, target_ulong *pc,
             | (env->movcal_backup ? TB_FLAG_PENDING_MOVCA : 0); /* Bit 4 */
 }
 
-#endif				/* _CPU_SH4_H */
+#endif /* SH4_CPU_H */

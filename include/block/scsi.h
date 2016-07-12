@@ -19,8 +19,9 @@
  * This header file contains public constants and structures used by
  * the scsi code for linux.
  */
-#ifndef HW_SCSI_DEFS_H
-#define HW_SCSI_DEFS_H 1
+
+#ifndef BLOCK_SCSI_H
+#define BLOCK_SCSI_H
 
 /*
  *      SCSI opcodes

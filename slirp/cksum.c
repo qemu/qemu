@@ -31,7 +31,7 @@
  */
 
 #include "qemu/osdep.h"
-#include <slirp.h>
+#include "slirp.h"
 
 /*
  * Checksum routine for Internet Protocol family headers (Portable Version).

@@ -20,7 +20,7 @@
  */
 
 #ifndef NMI_H
-#define NMI_H 1
+#define NMI_H
 
 #include "qemu-common.h"
 #include "qom/object.h"

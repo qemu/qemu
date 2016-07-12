@@ -32,8 +32,9 @@
 /* Decimal 128-bit format module header				      */
 /* ------------------------------------------------------------------ */
 
-#if !defined(DECIMAL128)
-  #define DECIMAL128
+#ifndef DECIMAL128_H
+#define DECIMAL128_H
+
   #define DEC128NAME	 "decimal128"		      /* Short name   */
   #define DEC128FULLNAME "Decimal 128-bit Number"     /* Verbose name */
   #define DEC128AUTHOR	 "Mike Cowlishaw"	      /* Who to blame */
@@ -59,9 +60,7 @@
   #ifndef DECNUMDIGITS
     #define DECNUMDIGITS DECIMAL128_Pmax /* size if not already defined*/
   #endif
-  #ifndef DECNUMBER
-    #include "libdecnumber/decNumber.h"
-  #endif
+  #include "libdecnumber/decNumber.h"
 
   /* Decimal 128-bit type, accessible by bytes			      */
   typedef struct {

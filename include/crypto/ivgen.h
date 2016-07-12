@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QCRYPTO_IVGEN_H__
-#define QCRYPTO_IVGEN_H__
+#ifndef QCRYPTO_IVGEN_H
+#define QCRYPTO_IVGEN_H
 
 #include "crypto/cipher.h"
 #include "crypto/hash.h"
@@ -203,4 +203,4 @@ QCryptoHashAlgorithm qcrypto_ivgen_get_hash(QCryptoIVGen *ivgen);
  */
 void qcrypto_ivgen_free(QCryptoIVGen *ivgen);
 
-#endif /* QCRYPTO_IVGEN_H__ */
+#endif /* QCRYPTO_IVGEN_H */

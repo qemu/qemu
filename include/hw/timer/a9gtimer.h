@@ -20,8 +20,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HW_TIMER_A9_GTIMER_H_H
-#define HW_TIMER_A9_GTIMER_H_H
+#ifndef A9GTIMER_H
+#define A9GTIMER_H
 
 #include "hw/sysbus.h"
 
@@ -94,4 +94,4 @@ typedef struct A9GTimerUpdate {
     uint64_t new;
 } A9GTimerUpdate;
 
-#endif /* #ifdef HW_TIMER_A9_GTIMER_H_H */
+#endif /* A9GTIMER_H */

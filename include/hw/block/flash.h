@@ -1,5 +1,5 @@
 #ifndef HW_FLASH_H
-#define HW_FLASH_H 1
+#define HW_FLASH_H
 
 /* NOR flash devices */
 

@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef __DEVICE_TREE_H__
-#define __DEVICE_TREE_H__
+#ifndef DEVICE_TREE_H
+#define DEVICE_TREE_H
 
 void *create_device_tree(int *sizep);
 void *load_device_tree(const char *filename_path, int *sizep);
@@ -168,4 +168,4 @@ int qemu_fdt_setprop_sized_cells_from_array(void *fdt,
 #define FDT_PCI_RANGE_IOPORT               0x01000000
 #define FDT_PCI_RANGE_CONFIG               0x00000000
 
-#endif /* __DEVICE_TREE_H__ */
+#endif /* DEVICE_TREE_H */

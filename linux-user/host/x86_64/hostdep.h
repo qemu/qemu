@@ -9,8 +9,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef QEMU_HOSTDEP_H
-#define QEMU_HOSTDEP_H
+#ifndef X86_64_HOSTDEP_H
+#define X86_64_HOSTDEP_H
 
 /* We have a safe-syscall.inc.S */
 #define HAVE_SAFE_SYSCALL

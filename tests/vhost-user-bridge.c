@@ -36,8 +36,6 @@
 #include <sys/eventfd.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <qemu/osdep.h>
-
 #include <linux/vhost.h>
 
 #include "qemu/atomic.h"

@@ -15,7 +15,7 @@
 #define HW_S390_PCI_INST_H
 
 #include "s390-pci-bus.h"
-#include <sysemu/dma.h>
+#include "sysemu/dma.h"
 
 /* CLP common request & response block size */
 #define CLP_BLK_SIZE 4096

@@ -23,11 +23,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #ifndef QEMU_VMSTATE_H
-#define QEMU_VMSTATE_H 1
+#define QEMU_VMSTATE_H
 
 #ifndef CONFIG_USER_ONLY
-#include <migration/qemu-file.h>
+#include "migration/qemu-file.h"
 #endif
 #include "migration/qjson.h"
 

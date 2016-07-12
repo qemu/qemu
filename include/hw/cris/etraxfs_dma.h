@@ -1,5 +1,5 @@
 #ifndef HW_ETRAXFS_DMA_H
-#define HW_ETRAXFS_DMA_H 1
+#define HW_ETRAXFS_DMA_H
 
 struct dma_context_metadata {
 	/* data descriptor md */

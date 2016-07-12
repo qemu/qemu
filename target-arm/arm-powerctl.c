@@ -9,8 +9,8 @@
  */
 
 #include "qemu/osdep.h"
-#include <cpu.h>
-#include <cpu-qom.h>
+#include "cpu.h"
+#include "cpu-qom.h"
 #include "internals.h"
 #include "arm-powerctl.h"
 #include "qemu/log.h"

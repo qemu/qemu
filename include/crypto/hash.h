@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QCRYPTO_HASH_H__
-#define QCRYPTO_HASH_H__
+#ifndef QCRYPTO_HASH_H
+#define QCRYPTO_HASH_H
 
 #include "qapi-types.h"
 
@@ -189,4 +189,4 @@ int qcrypto_hash_base64(QCryptoHashAlgorithm alg,
                         char **base64,
                         Error **errp);
 
-#endif /* QCRYPTO_HASH_H__ */
+#endif /* QCRYPTO_HASH_H */

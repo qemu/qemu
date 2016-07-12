@@ -15,8 +15,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#if !defined(__QEMU_TRICORE_DEFS_H__)
-#define __QEMU_TRICORE_DEFS_H__
+#ifndef QEMU_TRICORE_DEFS_H
+#define QEMU_TRICORE_DEFS_H
 
 #define TARGET_PAGE_BITS 14
 #define TARGET_LONG_BITS 32
@@ -25,4 +25,4 @@
 
 #define TRICORE_TLB_MAX 128
 
-#endif /* __QEMU_TRICORE_DEFS_H__ */
+#endif /* QEMU_TRICORE_DEFS_H */

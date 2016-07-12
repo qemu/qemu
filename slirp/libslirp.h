@@ -1,5 +1,5 @@
-#ifndef _LIBSLIRP_H
-#define _LIBSLIRP_H
+#ifndef LIBSLIRP_H
+#define LIBSLIRP_H
 
 #include "qemu-common.h"
 

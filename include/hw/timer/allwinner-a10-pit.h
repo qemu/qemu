@@ -1,5 +1,5 @@
-#ifndef AW_A10_PIT_H
-#define AW_A10_PIT_H
+#ifndef ALLWINNER_A10_PIT_H
+#define ALLWINNER_A10_PIT_H
 
 #include "hw/ptimer.h"
 

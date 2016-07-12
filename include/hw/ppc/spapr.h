@@ -1,5 +1,5 @@
-#if !defined(__HW_SPAPR_H__)
-#define __HW_SPAPR_H__
+#ifndef HW_SPAPR_H
+#define HW_SPAPR_H
 
 #include "sysemu/dma.h"
 #include "hw/boards.h"
@@ -648,4 +648,4 @@ int spapr_rng_populate_dt(void *fdt);
 #define SPAPR_LMB_FLAGS_DRC_INVALID 0x00000020
 #define SPAPR_LMB_FLAGS_RESERVED 0x00000080
 
-#endif /* !defined (__HW_SPAPR_H__) */
+#endif /* HW_SPAPR_H */

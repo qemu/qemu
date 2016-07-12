@@ -203,12 +203,3 @@ static void xio3130_downstream_register_types(void)
 }
 
 type_init(xio3130_downstream_register_types)
-
-/*
- * Local variables:
- *  c-indent-level: 4
- *  c-basic-offset: 4
- *  tab-width: 8
- *  indent-tab-mode: nil
- * End:
- */

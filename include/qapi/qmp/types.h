@@ -10,8 +10,8 @@
  * See the COPYING.LIB file in the top-level directory.
  */
 
-#ifndef QEMU_OBJECTS_H
-#define QEMU_OBJECTS_H
+#ifndef QAPI_QMP_TYPES_H
+#define QAPI_QMP_TYPES_H
 
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qint.h"
@@ -21,4 +21,4 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"
 
-#endif /* QEMU_OBJECTS_H */
+#endif /* QAPI_QMP_TYPES_H */

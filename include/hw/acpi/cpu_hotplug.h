@@ -9,8 +9,9 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
-#ifndef ACPI_HOTPLUG_H
-#define ACPI_HOTPLUG_H
+
+#ifndef HW_ACPI_CPU_HOTPLUG_H
+#define HW_ACPI_CPU_HOTPLUG_H
 
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/pc-hotplug.h"

@@ -29,9 +29,8 @@
  * Structures, enums, and macros for the MAC
  */
 
-#ifndef _E1000_HW_H_
-#define _E1000_HW_H_
-
+#ifndef HW_E1000_REGS_H
+#define HW_E1000_REGS_H
 
 /* PCI Device IDs */
 #define E1000_DEV_ID_82542               0x1000
@@ -1248,4 +1247,4 @@ struct e1000_data_desc {
 #define E1000_IOADDR 0x00
 #define E1000_IODATA 0x04
 
-#endif /* _E1000_HW_H_ */
+#endif /* HW_E1000_REGS_H */

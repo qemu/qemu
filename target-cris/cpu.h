@@ -17,8 +17,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CPU_CRIS_H
-#define CPU_CRIS_H
+
+#ifndef CRIS_CPU_H
+#define CRIS_CPU_H
 
 #include "qemu-common.h"
 #include "cpu-qom.h"

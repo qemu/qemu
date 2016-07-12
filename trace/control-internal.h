@@ -10,8 +10,6 @@
 #ifndef TRACE__CONTROL_INTERNAL_H
 #define TRACE__CONTROL_INTERNAL_H
 
-
-
 extern TraceEvent trace_events[];
 extern bool trace_events_dstate[];
 extern int trace_events_enabled_count;
@@ -72,4 +70,4 @@ static inline void trace_event_set_state_dynamic(TraceEvent *ev, bool state)
     trace_events_dstate[id] = state;
 }
 
-#endif  /* TRACE__CONTROL_INTERNAL_H */
+#endif /* TRACE__CONTROL_INTERNAL_H */

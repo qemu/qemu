@@ -10,9 +10,9 @@
  * the COPYING file in the top-level directory.
  *
  */
-#ifndef HW_9PFS_SYNTH_H
-#define HW_9PFS_SYNTH_H 1
 
+#ifndef QEMU_9P_SYNTH_H
+#define QEMU_9P_SYNTH_H
 
 typedef struct V9fsSynthNode V9fsSynthNode;
 typedef ssize_t (*v9fs_synth_read)(void *buf, int len, off_t offset,

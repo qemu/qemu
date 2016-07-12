@@ -9,8 +9,8 @@
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
 */
 
-#ifndef __KVM_MIPS_H__
-#define __KVM_MIPS_H__
+#ifndef KVM_MIPS_H
+#define KVM_MIPS_H
 
 /**
  * kvm_mips_reset_vcpu:
@@ -23,4 +23,4 @@ void kvm_mips_reset_vcpu(MIPSCPU *cpu);
 int kvm_mips_set_interrupt(MIPSCPU *cpu, int irq, int level);
 int kvm_mips_set_ipi_interrupt(MIPSCPU *cpu, int irq, int level);
 
-#endif /* __KVM_MIPS_H__ */
+#endif /* KVM_MIPS_H */

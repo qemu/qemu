@@ -40,4 +40,4 @@ uint32_t lm4549_read(lm4549_state *s, hwaddr offset);
 void lm4549_write(lm4549_state *s, hwaddr offset, uint32_t value);
 uint32_t lm4549_write_samples(lm4549_state *s, uint32_t left, uint32_t right);
 
-#endif /* #ifndef HW_LM4549_H */
+#endif /* HW_LM4549_H */

@@ -9,8 +9,8 @@
  *
  */
 
-#ifndef EBCDIC_H_
-#define EBCDIC_H_
+#ifndef EBCDIC_H
+#define EBCDIC_H
 
 /* EBCDIC handling */
 static const uint8_t ebcdic2ascii[] = {
@@ -101,4 +101,4 @@ static inline void ascii_put(uint8_t *p, const char *ebcdic, int len)
     }
 }
 
-#endif /* EBCDIC_H_ */
+#endif /* EBCDIC_H */

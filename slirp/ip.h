@@ -30,8 +30,8 @@
  * ip.h,v 1.3 1994/08/21 05:27:30 paul Exp
  */
 
-#ifndef _IP_H_
-#define _IP_H_
+#ifndef IP_H
+#define IP_H
 
 #ifdef HOST_WORDS_BIGENDIAN
 # undef NTOHL

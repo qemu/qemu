@@ -17,8 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef EXEC_TB_HASH
-#define EXEC_TB_HASH
+#ifndef EXEC_TB_HASH_H
+#define EXEC_TB_HASH_H
 
 #include "exec/tb-hash-xx.h"
 

@@ -22,17 +22,17 @@
  */
 
 #include "qemu/osdep.h"
-#include <hw/hw.h>
-#include <hw/pci/msi.h>
-#include <hw/i386/pc.h>
-#include <hw/pci/pci.h>
+#include "hw/hw.h"
+#include "hw/pci/msi.h"
+#include "hw/i386/pc.h"
+#include "hw/pci/pci.h"
 
 #include "qemu/error-report.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/dma.h"
-#include <hw/ide/internal.h>
-#include <hw/ide/pci.h>
-#include <hw/ide/ahci.h>
+#include "hw/ide/internal.h"
+#include "hw/ide/pci.h"
+#include "hw/ide/ahci.h"
 
 #define DEBUG_AHCI 0
 

@@ -1,5 +1,5 @@
-#ifndef QEMU_QDEV_MONITOR_H
-#define QEMU_QDEV_MONITOR_H
+#ifndef MONITOR_QDEV_H
+#define MONITOR_QDEV_H
 
 #include "hw/qdev-core.h"
 

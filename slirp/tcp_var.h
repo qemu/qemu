@@ -30,8 +30,8 @@
  * tcp_var.h,v 1.3 1994/08/21 05:27:39 paul Exp
  */
 
-#ifndef _TCP_VAR_H_
-#define _TCP_VAR_H_
+#ifndef TCP_VAR_H
+#define TCP_VAR_H
 
 #include "tcpip.h"
 #include "tcp_timer.h"

@@ -73,4 +73,4 @@ void pit_get_channel_info_common(PITCommonState *s, PITChannelState *sc,
                                  PITChannelInfo *info);
 void pit_reset_common(PITCommonState *s);
 
-#endif /* !QEMU_I8254_INTERNAL_H */
+#endif /* QEMU_I8254_INTERNAL_H */

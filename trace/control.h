@@ -203,4 +203,4 @@ char *trace_opt_parse(const char *optarg);
 
 #include "trace/control-internal.h"
 
-#endif  /* TRACE__CONTROL_H */
+#endif /* TRACE__CONTROL_H */

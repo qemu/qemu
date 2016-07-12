@@ -23,7 +23,7 @@
  */
 
 #ifndef QEMU_CURSES_KEYS_H
-#define QEMU_CURSES_KEYS_H 1
+#define QEMU_CURSES_KEYS_H
 
 #include <curses.h>
 #include "keymaps.h"

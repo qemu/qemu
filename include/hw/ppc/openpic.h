@@ -1,5 +1,5 @@
-#if !defined(__OPENPIC_H__)
-#define __OPENPIC_H__
+#ifndef OPENPIC_H
+#define OPENPIC_H
 
 #include "qemu-common.h"
 #include "hw/qdev-core.h"
@@ -30,4 +30,4 @@ enum {
 #define TYPE_KVM_OPENPIC "kvm-openpic"
 int kvm_openpic_connect_vcpu(DeviceState *d, CPUState *cs);
 
-#endif /* __OPENPIC_H__ */
+#endif /* OPENPIC_H */

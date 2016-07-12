@@ -16,7 +16,7 @@
  */
 
 #include "qemu/osdep.h"
-#include <slirp.h>
+#include "slirp.h"
 
 #define MBUF_THRESH 30
 

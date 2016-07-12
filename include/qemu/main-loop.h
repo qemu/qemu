@@ -23,7 +23,7 @@
  */
 
 #ifndef QEMU_MAIN_LOOP_H
-#define QEMU_MAIN_LOOP_H 1
+#define QEMU_MAIN_LOOP_H
 
 #include "block/aio.h"
 

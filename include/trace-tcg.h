@@ -4,4 +4,4 @@
 #include "trace/generated-tcg-tracers.h"
 #include "trace/generated-events.h"
 
-#endif  /* TRACE_TCG_H */
+#endif /* TRACE_TCG_H */

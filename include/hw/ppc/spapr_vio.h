@@ -1,5 +1,6 @@
-#ifndef _HW_SPAPR_VIO_H
-#define _HW_SPAPR_VIO_H
+#ifndef HW_SPAPR_VIO_H
+#define HW_SPAPR_VIO_H
+
 /*
  * QEMU sPAPR VIO bus definitions
  *
@@ -145,4 +146,4 @@ extern const VMStateDescription vmstate_spapr_vio;
 
 void spapr_vio_set_bypass(VIOsPAPRDevice *dev, bool bypass);
 
-#endif /* _HW_SPAPR_VIO_H */
+#endif /* HW_SPAPR_VIO_H */

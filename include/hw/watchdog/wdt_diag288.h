@@ -33,4 +33,4 @@ typedef struct DIAG288Class {
                         uint64_t func, uint64_t timeout);
 } DIAG288Class;
 
-#endif  /* WDT_DIAG288_H */
+#endif /* WDT_DIAG288_H */

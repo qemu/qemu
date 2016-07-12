@@ -1,5 +1,5 @@
 #ifndef QEMU_HELP_OPTION_H
-#define QEMU_HELP_OPTION_H 1
+#define QEMU_HELP_OPTION_H
 
 /**
  * is_help_option:

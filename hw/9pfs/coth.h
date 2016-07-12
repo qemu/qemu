@@ -12,8 +12,8 @@
  *
  */
 
-#ifndef _QEMU_9P_COTH_H
-#define _QEMU_9P_COTH_H
+#ifndef QEMU_9P_COTH_H
+#define QEMU_9P_COTH_H
 
 #include "qemu/thread.h"
 #include "qemu/coroutine.h"

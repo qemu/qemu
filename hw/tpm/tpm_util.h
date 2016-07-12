@@ -18,11 +18,12 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
-#ifndef TPM_TPM_UTILS_H
-#define TPM_TPM_UTILS_H
+
+#ifndef TPM_TPM_UTIL_H
+#define TPM_TPM_UTIL_H
 
 #include "sysemu/tpm_backend.h"
 
 int tpm_util_test_tpmdev(int tpm_fd, TPMVersion *tpm_version);
 
-#endif /* TPM_TPM_UTILS_H */
+#endif /* TPM_TPM_UTIL_H */

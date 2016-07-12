@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#if !defined(PPC_4XX_H)
-#define PPC_4XX_H
+#ifndef PPC4XX_H
+#define PPC4XX_H
 
 #include "hw/pci/pci.h"
 
@@ -61,4 +61,4 @@ PCIBus *ppc4xx_pci_init(CPUPPCState *env, qemu_irq pci_irqs[4],
                         hwaddr special_cycle,
                         hwaddr registers);
 
-#endif /* !defined(PPC_4XX_H) */
+#endif /* PPC4XX_H */

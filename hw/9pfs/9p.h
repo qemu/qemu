@@ -1,5 +1,5 @@
-#ifndef _QEMU_9P_H
-#define _QEMU_9P_H
+#ifndef QEMU_9P_H
+#define QEMU_9P_H
 
 #include <dirent.h>
 #include <utime.h>

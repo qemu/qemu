@@ -19,8 +19,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #ifndef HW_MAC_DBDMA_H
-#define HW_MAC_DBDMA_H 1
+#define HW_MAC_DBDMA_H
 
 #include "exec/memory.h"
 #include "qemu/iov.h"

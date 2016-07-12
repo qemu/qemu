@@ -30,10 +30,11 @@
  * You can contact the author at :
  * - xxHash source repository : https://github.com/Cyan4973/xxHash
  */
-#ifndef EXEC_TB_HASH_XX
-#define EXEC_TB_HASH_XX
 
-#include <qemu/bitops.h>
+#ifndef EXEC_TB_HASH_XX_H
+#define EXEC_TB_HASH_XX_H
+
+#include "qemu/bitops.h"
 
 #define PRIME32_1   2654435761U
 #define PRIME32_2   2246822519U
@@ -91,4 +92,4 @@ uint32_t tb_hash_func5(uint64_t a0, uint64_t b0, uint32_t e)
     return h32;
 }
 
-#endif /* EXEC_TB_HASH_XX */
+#endif /* EXEC_TB_HASH_XX_H */

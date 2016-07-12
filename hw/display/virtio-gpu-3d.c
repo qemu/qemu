@@ -21,7 +21,7 @@
 
 #ifdef CONFIG_VIRGL
 
-#include "virglrenderer.h"
+#include <virglrenderer.h>
 
 static struct virgl_renderer_callbacks virtio_gpu_3d_cbs;
 

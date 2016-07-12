@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QCRYPTO_BLOCK_H__
-#define QCRYPTO_BLOCK_H__
+#ifndef QCRYPTO_BLOCK_H
+#define QCRYPTO_BLOCK_H
 
 #include "crypto/cipher.h"
 #include "crypto/ivgen.h"
@@ -229,4 +229,4 @@ uint64_t qcrypto_block_get_payload_offset(QCryptoBlock *block);
  */
 void qcrypto_block_free(QCryptoBlock *block);
 
-#endif /* QCRYPTO_BLOCK_H__ */
+#endif /* QCRYPTO_BLOCK_H */

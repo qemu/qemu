@@ -1,5 +1,6 @@
-#ifndef QEMU_TYPES_H
-#define QEMU_TYPES_H
+#ifndef EXEC_USER_ABITYPES_H
+#define EXEC_USER_ABITYPES_H
+
 #include "cpu.h"
 
 #ifdef TARGET_ABI32

@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef XLNX_SPIPS_H
-#define XLNX_SPIPS_H
+#ifndef XILINX_SPIPS_H
+#define XILINX_SPIPS_H
 
 #include "hw/ssi/ssi.h"
 #include "qemu/fifo8.h"
@@ -69,4 +69,4 @@ struct XilinxSPIPS {
 #define XILINX_QSPIPS(obj) \
      OBJECT_CHECK(XilinxQSPIPS, (obj), TYPE_XILINX_QSPIPS)
 
-#endif /* XLNX_SPIPS_H */
+#endif /* XILINX_SPIPS_H */

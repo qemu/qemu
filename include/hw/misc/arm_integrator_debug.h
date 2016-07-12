@@ -10,8 +10,9 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
-#ifndef QEMU_INTEGRATOR_DEBUG_H
-#define QEMU_INTEGRATOR_DEBUG_H
+
+#ifndef ARM_INTEGRATOR_DEBUG_H
+#define ARM_INTEGRATOR_DEBUG_H
 
 #define TYPE_INTEGRATOR_DEBUG "integrator_debug"
 

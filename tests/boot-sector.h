@@ -11,8 +11,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef TEST_BOOT_SECTOR
-#define TEST_BOOT_SECTOR
+#ifndef TEST_BOOT_SECTOR_H
+#define TEST_BOOT_SECTOR_H
 
 /* Create boot disk file.  */
 int boot_sector_init(const char *fname);
@@ -23,4 +23,4 @@ void boot_sector_test(void);
 /* unlink boot disk file.  */
 void boot_sector_cleanup(const char *fname);
 
-#endif /* TEST_BOOT_SECTOR */
+#endif /* TEST_BOOT_SECTOR_H */

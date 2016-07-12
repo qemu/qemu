@@ -15,9 +15,9 @@
 #include "hw/virtio/virtio-scsi.h"
 #include "qemu/error-report.h"
 #include "sysemu/block-backend.h"
-#include <hw/scsi/scsi.h>
-#include <block/scsi.h>
-#include <hw/virtio/virtio-bus.h>
+#include "hw/scsi/scsi.h"
+#include "block/scsi.h"
+#include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 
 /* Context: QEMU global mutex held */

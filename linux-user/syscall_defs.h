@@ -5,8 +5,7 @@
    necessary */
 
 #ifndef SYSCALL_DEFS_H
-#define SYSCALL_DEFS_H 1
-
+#define SYSCALL_DEFS_H
 
 #include "syscall_nr.h"
 
@@ -2577,8 +2576,6 @@ struct target_ucred {
     uint32_t gid;
 };
 
-#endif
-
 typedef int32_t target_timer_t;
 
 #define TARGET_SIGEV_MAX_SIZE 64
@@ -2620,3 +2617,5 @@ struct target_user_cap_data {
     uint32_t permitted;
     uint32_t inheritable;
 };
+
+#endif

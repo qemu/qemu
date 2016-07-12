@@ -55,4 +55,4 @@ int xen_host_pci_set_block(XenHostPCIDevice *d, int pos, uint8_t *buf,
 
 int xen_host_pci_find_ext_cap_offset(XenHostPCIDevice *s, uint32_t cap);
 
-#endif /* !XEN_HOST_PCI_DEVICE_H_ */
+#endif /* XEN_HOST_PCI_DEVICE_H */

@@ -2,9 +2,9 @@
    This one expands generation functions for tcg opcodes.  */
 
 #ifndef HELPER_GEN_H
-#define HELPER_GEN_H 1
+#define HELPER_GEN_H
 
-#include <exec/helper-head.h>
+#include "exec/helper-head.h"
 
 #define DEF_HELPER_FLAGS_0(name, flags, ret)                            \
 static inline void glue(gen_helper_, name)(dh_retvar_decl0(ret))        \

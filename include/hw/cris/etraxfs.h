@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef HW_EXTRAXFS_H
-#define HW_EXTRAXFS_H 1
+#ifndef HW_ETRAXFS_H
+#define HW_ETRAXFS_H
 
 #include "net/net.h"
 #include "hw/cris/etraxfs_dma.h"

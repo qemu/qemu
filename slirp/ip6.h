@@ -3,8 +3,8 @@
  * Guillaume Subiron, Yann Bordenave, Serigne Modou Wagne.
  */
 
-#ifndef SLIRP_IP6_H_
-#define SLIRP_IP6_H_
+#ifndef SLIRP_IP6_H
+#define SLIRP_IP6_H
 
 #include "net/eth.h"
 

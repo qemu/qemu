@@ -1,5 +1,5 @@
-#ifndef TARGET_SIGNAL_H
-#define TARGET_SIGNAL_H
+#ifndef MIPS_TARGET_SIGNAL_H
+#define MIPS_TARGET_SIGNAL_H
 
 #include "cpu.h"
 
@@ -27,4 +27,4 @@ static inline abi_ulong get_sp_from_cpustate(CPUMIPSState *state)
 }
 
 
-#endif /* TARGET_SIGNAL_H */
+#endif /* MIPS_TARGET_SIGNAL_H */

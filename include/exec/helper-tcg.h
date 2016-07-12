@@ -2,9 +2,9 @@
    This one defines data structures private to tcg.c.  */
 
 #ifndef HELPER_TCG_H
-#define HELPER_TCG_H 1
+#define HELPER_TCG_H
 
-#include <exec/helper-head.h>
+#include "exec/helper-head.h"
 
 #define DEF_HELPER_FLAGS_0(NAME, FLAGS, ret) \
   { .func = HELPER(NAME), .name = #NAME, .flags = FLAGS, \

@@ -1,5 +1,5 @@
 #ifndef HW_PLATFORM_BUS_H
-#define HW_PLATFORM_BUS_H 1
+#define HW_PLATFORM_BUS_H
 
 /*
  *  Platform Bus device to support dynamic Sysbus devices
@@ -54,4 +54,4 @@ int platform_bus_get_irqn(PlatformBusDevice *platform_bus, SysBusDevice *sbdev,
 hwaddr platform_bus_get_mmio_addr(PlatformBusDevice *pbus, SysBusDevice *sbdev,
                                   int n);
 
-#endif /* !HW_PLATFORM_BUS_H */
+#endif /* HW_PLATFORM_BUS_H */

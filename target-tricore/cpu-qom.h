@@ -41,4 +41,4 @@ typedef struct TriCoreCPUClass {
 
 typedef struct TriCoreCPU TriCoreCPU;
 
-#endif /*QEMU_TRICORE_CPU_QOM_H */
+#endif /* QEMU_TRICORE_CPU_QOM_H */

@@ -1,5 +1,5 @@
-#ifndef QEMU_CONFIG_H
-#define QEMU_CONFIG_H
+#ifndef QEMU_CONFIG_FILE_H
+#define QEMU_CONFIG_FILE_H
 
 #include "qemu/option.h"
 #include "qapi/qmp/qdict.h"
@@ -27,4 +27,4 @@ void qemu_config_parse_qdict(QDict *options, QemuOptsList **lists,
  */
 int qemu_read_default_config_files(bool userconfig);
 
-#endif /* QEMU_CONFIG_H */
+#endif /* QEMU_CONFIG_FILE_H */

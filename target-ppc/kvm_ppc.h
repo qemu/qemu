@@ -6,8 +6,8 @@
  *
  */
 
-#ifndef __KVM_PPC_H__
-#define __KVM_PPC_H__
+#ifndef KVM_PPC_H
+#define KVM_PPC_H
 
 #define TYPE_HOST_POWERPC_CPU "host-" TYPE_POWERPC_CPU
 
@@ -316,4 +316,4 @@ static inline void kvmppc_icbi_range(PowerPCCPU *cpu, uint8_t *addr, int len)
 #define KVM_INTERRUPT_SET_LEVEL -3
 #endif
 
-#endif /* __KVM_PPC_H__ */
+#endif /* KVM_PPC_H */

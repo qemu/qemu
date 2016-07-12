@@ -30,8 +30,8 @@
  * mbuf.h,v 1.9 1994/11/14 13:54:20 bde Exp
  */
 
-#ifndef _MBUF_H_
-#define _MBUF_H_
+#ifndef MBUF_H
+#define MBUF_H
 
 #define MINCSIZE 4096	/* Amount to increase mbuf if too small */
 

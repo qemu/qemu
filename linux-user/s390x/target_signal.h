@@ -1,5 +1,5 @@
-#ifndef TARGET_SIGNAL_H
-#define TARGET_SIGNAL_H
+#ifndef S390X_TARGET_SIGNAL_H
+#define S390X_TARGET_SIGNAL_H
 
 #include "cpu.h"
 
@@ -24,4 +24,4 @@ static inline abi_ulong get_sp_from_cpustate(CPUS390XState *state)
 }
 
 
-#endif /* TARGET_SIGNAL_H */
+#endif /* S390X_TARGET_SIGNAL_H */

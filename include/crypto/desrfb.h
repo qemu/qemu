@@ -9,8 +9,9 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  */
-#ifndef D3DES_H
-#define D3DES_H 1
+
+#ifndef QCRYPTO_DESRFB_H
+#define QCRYPTO_DESRFB_H
 
 /* d3des.h -
  *

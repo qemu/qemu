@@ -1,5 +1,5 @@
-#ifndef _STRONGARM_H
-#define _STRONGARM_H
+#ifndef STRONGARM_H
+#define STRONGARM_H
 
 #include "exec/memory.h"
 #include "target-arm/cpu-qom.h"

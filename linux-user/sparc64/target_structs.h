@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TARGET_STRUCTS_H
-#define TARGET_STRUCTS_H
+#ifndef SPARC64_TARGET_STRUCTS_H
+#define SPARC64_TARGET_STRUCTS_H
 
 struct target_ipc_perm {
     abi_int __key;                      /* Key.  */

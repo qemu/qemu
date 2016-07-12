@@ -1,5 +1,5 @@
-#ifndef TARGET_SIGNAL_H
-#define TARGET_SIGNAL_H
+#ifndef PPC_TARGET_SIGNAL_H
+#define PPC_TARGET_SIGNAL_H
 
 #include "cpu.h"
 
@@ -27,4 +27,4 @@ static inline abi_ulong get_sp_from_cpustate(CPUPPCState *state)
 }
 
 
-#endif /* TARGET_SIGNAL_H */
+#endif /* PPC_TARGET_SIGNAL_H */

@@ -12,8 +12,8 @@
  *
  */
 
-#ifndef _QEMU_VIRTIO_BALLOON_H
-#define _QEMU_VIRTIO_BALLOON_H
+#ifndef QEMU_VIRTIO_BALLOON_H
+#define QEMU_VIRTIO_BALLOON_H
 
 #include "standard-headers/linux/virtio_balloon.h"
 #include "hw/virtio/virtio.h"

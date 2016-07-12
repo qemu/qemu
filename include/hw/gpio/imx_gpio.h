@@ -17,10 +17,10 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __IMX_GPIO_H_
-#define __IMX_GPIO_H_
+#ifndef IMX_GPIO_H
+#define IMX_GPIO_H
 
-#include <hw/sysbus.h>
+#include "hw/sysbus.h"
 
 #define TYPE_IMX_GPIO "imx.gpio"
 #define IMX_GPIO(obj) OBJECT_CHECK(IMXGPIOState, (obj), TYPE_IMX_GPIO)
@@ -60,4 +60,4 @@ typedef struct IMXGPIOState {
     qemu_irq output[IMX_GPIO_PIN_COUNT];
 } IMXGPIOState;
 
-#endif /* __IMX_GPIO_H_ */
+#endif /* IMX_GPIO_H */

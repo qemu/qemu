@@ -16,7 +16,7 @@
  */
 
 #ifndef FW_PATH_PROVIDER_H
-#define FW_PATH_PROVIDER_H 1
+#define FW_PATH_PROVIDER_H
 
 #include "qemu-common.h"
 #include "qom/object.h"

@@ -28,7 +28,7 @@ static struct virtio_gpu_simple_resource*
 virtio_gpu_find_resource(VirtIOGPU *g, uint32_t resource_id);
 
 #ifdef CONFIG_VIRGL
-#include "virglrenderer.h"
+#include <virglrenderer.h>
 #define VIRGL(_g, _virgl, _simple, ...)                     \
     do {                                                    \
         if (_g->use_virgl_renderer) {                       \

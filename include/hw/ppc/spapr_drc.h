@@ -9,12 +9,13 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
-#if !defined(__HW_SPAPR_DRC_H__)
-#define __HW_SPAPR_DRC_H__
 
+#ifndef HW_SPAPR_DRC_H
+#define HW_SPAPR_DRC_H
+
+#include <libfdt.h>
 #include "qom/object.h"
 #include "hw/qdev.h"
-#include "libfdt.h"
 
 #define TYPE_SPAPR_DR_CONNECTOR "spapr-dr-connector"
 #define SPAPR_DR_CONNECTOR_GET_CLASS(obj) \
@@ -202,4 +203,4 @@ sPAPRDRConnector *spapr_dr_connector_by_id(sPAPRDRConnectorType type,
 int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
                           uint32_t drc_type_mask);
 
-#endif /* __HW_SPAPR_DRC_H__ */
+#endif /* HW_SPAPR_DRC_H */

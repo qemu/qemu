@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include <slirp.h>
+#include "slirp.h"
 
 #if defined(_WIN32)
 /* Windows ntohl() returns an u_long value.

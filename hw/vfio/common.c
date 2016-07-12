@@ -20,6 +20,9 @@
 
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
+#ifdef CONFIG_KVM
+#include <linux/kvm.h>
+#endif
 #include <linux/vfio.h>
 
 #include "hw/vfio/vfio-common.h"
@@ -30,9 +33,6 @@
 #include "qemu/error-report.h"
 #include "qemu/range.h"
 #include "sysemu/kvm.h"
-#ifdef CONFIG_KVM
-#include "linux/kvm.h"
-#endif
 #include "trace.h"
 
 struct vfio_group_head vfio_group_list =

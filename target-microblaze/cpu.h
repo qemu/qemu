@@ -16,8 +16,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CPU_MICROBLAZE_H
-#define CPU_MICROBLAZE_H
+
+#ifndef MICROBLAZE_CPU_H
+#define MICROBLAZE_CPU_H
 
 #include "qemu-common.h"
 #include "cpu-qom.h"

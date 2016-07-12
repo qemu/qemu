@@ -20,7 +20,9 @@
  *  Copyright (C) 2008, Red Hat, Amit Shah (amit.shah@redhat.com)
  *  Copyright (C) 2008, IBM, Muli Ben-Yehuda (muli@il.ibm.com)
  */
+
 #include "qemu/osdep.h"
+#include <linux/kvm.h>
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
@@ -32,7 +34,6 @@
 #include "sysemu/sysemu.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/msi.h"
-#include "linux/kvm.h"
 #include "kvm_i386.h"
 #include "hw/pci/pci-assign.h"
 

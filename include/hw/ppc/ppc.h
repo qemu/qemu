@@ -1,5 +1,5 @@
 #ifndef HW_PPC_H
-#define HW_PPC_H 1
+#define HW_PPC_H
 
 #include "target-ppc/cpu-qom.h"
 

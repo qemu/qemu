@@ -328,4 +328,4 @@ static inline void gicv3_cache_all_target_cpustates(GICv3State *s)
     }
 }
 
-#endif /* !QEMU_ARM_GIC_INTERNAL_H */
+#endif /* QEMU_ARM_GICV3_INTERNAL_H */

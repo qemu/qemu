@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QCRYPTO_SECRET_H__
-#define QCRYPTO_SECRET_H__
+#ifndef QCRYPTO_SECRET_H
+#define QCRYPTO_SECRET_H
 
 #include "qom/object.h"
 
@@ -143,4 +143,4 @@ extern char *qcrypto_secret_lookup_as_utf8(const char *secretid,
 extern char *qcrypto_secret_lookup_as_base64(const char *secretid,
                                              Error **errp);
 
-#endif /* QCRYPTO_SECRET_H__ */
+#endif /* QCRYPTO_SECRET_H */

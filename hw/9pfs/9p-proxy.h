@@ -9,8 +9,9 @@
  * This work is licensed under the terms of the GNU GPL, version 2.  See
  * the COPYING file in the top-level directory.
  */
-#ifndef _QEMU_9P_PROXY_H
-#define _QEMU_9P_PROXY_H
+
+#ifndef QEMU_9P_PROXY_H
+#define QEMU_9P_PROXY_H
 
 #define PROXY_MAX_IO_SZ (64 * 1024)
 #define V9FS_FD_VALID INT_MAX

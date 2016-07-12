@@ -43,4 +43,4 @@ static inline uint8_t trace_mem_build_info(
     return res;
 }
 
-#endif  /* TRACE__MEM_INTERNAL_H */
+#endif /* TRACE__MEM_INTERNAL_H */

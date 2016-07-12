@@ -10,8 +10,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef VSS_WIN32_H
-#define VSS_WIN32_H
+#ifndef VSS_COMMON_H
+#define VSS_COMMON_H
 
 #define __MIDL_user_allocate_free_DEFINED__
 #include <windows.h>
@@ -50,7 +50,7 @@
  * VSS headers must be installed from Microsoft VSS SDK 7.2 available at:
  * http://www.microsoft.com/en-us/download/details.aspx?id=23490
  */
-#include "inc/win2003/vss.h"
+#include <inc/win2003/vss.h>
 
 /* Macros to convert char definitions to wchar */
 #define _L(a) L##a

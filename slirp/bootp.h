@@ -1,6 +1,7 @@
 /* bootp/dhcp defines */
+
 #ifndef SLIRP_BOOTP_H
-#define SLIRP_BOOTP_H 1
+#define SLIRP_BOOTP_H
 
 #define BOOTP_SERVER	67
 #define BOOTP_CLIENT	68

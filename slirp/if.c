@@ -6,7 +6,7 @@
  */
 
 #include "qemu/osdep.h"
-#include <slirp.h>
+#include "slirp.h"
 #include "qemu/timer.h"
 
 static void

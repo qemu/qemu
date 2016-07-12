@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QCRYPTO_IVGEN_PRIV_H__
-#define QCRYPTO_IVGEN_PRIV_H__
+#ifndef QCRYPTO_IVGENPRIV_H
+#define QCRYPTO_IVGENPRIV_H
 
 #include "crypto/ivgen.h"
 
@@ -46,4 +46,4 @@ struct QCryptoIVGen {
 };
 
 
-#endif /* QCRYPTO_IVGEN_PRIV_H__ */
+#endif /* QCRYPTO_IVGENPRIV_H */

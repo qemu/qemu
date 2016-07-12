@@ -12,11 +12,11 @@
 #include "hw/ppc/spapr.h"
 #include "hw/boards.h"
 #include "qapi/error.h"
-#include <sysemu/cpus.h>
+#include "sysemu/cpus.h"
 #include "target-ppc/kvm_ppc.h"
 #include "hw/ppc/ppc.h"
 #include "target-ppc/mmu-hash64.h"
-#include <sysemu/numa.h>
+#include "sysemu/numa.h"
 
 static void spapr_cpu_reset(void *opaque)
 {

@@ -22,8 +22,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #ifndef HOST_UTILS_H
-#define HOST_UTILS_H 1
+#define HOST_UTILS_H
 
 #include "qemu/bswap.h"
 

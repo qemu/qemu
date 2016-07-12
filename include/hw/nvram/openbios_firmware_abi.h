@@ -1,5 +1,5 @@
-#ifndef FIRMWARE_ABI_H
-#define FIRMWARE_ABI_H
+#ifndef OPENBIOS_FIRMWARE_ABI_H
+#define OPENBIOS_FIRMWARE_ABI_H
 
 /* OpenBIOS NVRAM partition */
 struct OpenBIOS_nvpart_v1 {
@@ -72,4 +72,4 @@ Sun_init_header(struct Sun_nvram *header, const uint8_t *macaddr, int machine_id
 
     header->checksum = tmp;
 }
-#endif /* FIRMWARE_ABI_H */
+#endif /* OPENBIOS_FIRMWARE_ABI_H */

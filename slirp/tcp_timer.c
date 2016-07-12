@@ -31,7 +31,7 @@
  */
 
 #include "qemu/osdep.h"
-#include <slirp.h>
+#include "slirp.h"
 
 static struct tcpcb *tcp_timers(register struct tcpcb *tp, int timer);
 

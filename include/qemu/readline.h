@@ -60,4 +60,4 @@ ReadLineState *readline_init(ReadLinePrintfFunc *printf_func,
                              void *opaque,
                              ReadLineCompletionFunc *completion_finder);
 
-#endif /* !READLINE_H */
+#endif /* READLINE_H */

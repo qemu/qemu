@@ -131,4 +131,4 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-#endif /* QEMU_RCU_QUEUE.H */
+#endif /* QEMU_RCU_QUEUE_H */

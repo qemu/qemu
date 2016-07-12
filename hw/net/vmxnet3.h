@@ -15,8 +15,8 @@
  *
  */
 
-#ifndef _QEMU_VMXNET3_H
-#define _QEMU_VMXNET3_H
+#ifndef QEMU_VMXNET3_H
+#define QEMU_VMXNET3_H
 
 #define VMXNET3_DEVICE_MAX_TX_QUEUES 8
 #define VMXNET3_DEVICE_MAX_RX_QUEUES 8   /* Keep this value as a power of 2 */

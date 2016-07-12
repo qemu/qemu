@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef _GRLIB_H_
-#define _GRLIB_H_
+#ifndef GRLIB_H
+#define GRLIB_H
 
 #include "hw/qdev.h"
 #include "hw/sysbus.h"
@@ -117,4 +117,4 @@ DeviceState *grlib_apbuart_create(hwaddr  base,
     return dev;
 }
 
-#endif /* ! _GRLIB_H_ */
+#endif /* GRLIB_H */

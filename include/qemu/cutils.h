@@ -1,5 +1,5 @@
 #ifndef QEMU_CUTILS_H
-#define QEMU_CUTILS_H 1
+#define QEMU_CUTILS_H
 
 #include "qemu/fprintf-fn.h"
 

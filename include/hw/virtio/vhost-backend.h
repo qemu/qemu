@@ -8,9 +8,8 @@
  *
  */
 
-#ifndef VHOST_BACKEND_H_
-#define VHOST_BACKEND_H_
-
+#ifndef VHOST_BACKEND_H
+#define VHOST_BACKEND_H
 
 typedef enum VhostBackendType {
     VHOST_BACKEND_TYPE_NONE = 0,
@@ -110,4 +109,4 @@ extern const VhostOps user_ops;
 int vhost_set_backend_type(struct vhost_dev *dev,
                            VhostBackendType backend_type);
 
-#endif /* VHOST_BACKEND_H_ */
+#endif /* VHOST_BACKEND_H */

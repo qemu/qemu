@@ -1,5 +1,5 @@
-#ifndef APB_PCI_H
-#define APB_PCI_H
+#ifndef PCI_HOST_APB_H
+#define PCI_HOST_APB_H
 
 #include "qemu-common.h"
 

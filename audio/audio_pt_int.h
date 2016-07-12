@@ -19,4 +19,4 @@ int audio_pt_wait (struct audio_pt *, const char *);
 int audio_pt_unlock_and_signal (struct audio_pt *, const char *);
 int audio_pt_join (struct audio_pt *, void **, const char *);
 
-#endif /* audio_pt_int.h */
+#endif /* QEMU_AUDIO_PT_INT_H */

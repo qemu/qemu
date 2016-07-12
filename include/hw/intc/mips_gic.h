@@ -8,8 +8,8 @@
  *
  */
 
-#ifndef _MIPS_GIC_H
-#define _MIPS_GIC_H
+#ifndef MIPS_GIC_H
+#define MIPS_GIC_H
 
 #include "hw/timer/mips_gictimer.h"
 #include "cpu.h"
@@ -213,4 +213,4 @@ struct MIPSGICState {
     int32_t num_irq;
 };
 
-#endif /* _MIPS_GIC_H */
+#endif /* MIPS_GIC_H */

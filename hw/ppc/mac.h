@@ -22,8 +22,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#if !defined(__PPC_MAC_H__)
-#define __PPC_MAC_H__
+
+#ifndef PPC_MAC_H
+#define PPC_MAC_H
 
 #include "exec/memory.h"
 #include "hw/sysbus.h"
@@ -184,4 +185,4 @@ typedef struct MacIONVRAMState {
 } MacIONVRAMState;
 
 void pmac_format_nvram_partition (MacIONVRAMState *nvr, int len);
-#endif /* !defined(__PPC_MAC_H__) */
+#endif /* PPC_MAC_H */
