@@ -560,63 +560,10 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
             break;
         }
         break;
-    case ASI_USERDATA: /* User data access */
-        switch (size) {
-        case 1:
-            ret = cpu_ldub_user(env, addr);
-            break;
-        case 2:
-            ret = cpu_lduw_user(env, addr);
-            break;
-        default:
-        case 4:
-            ret = cpu_ldl_user(env, addr);
-            break;
-        case 8:
-            ret = cpu_ldq_user(env, addr);
-            break;
-        }
-        break;
-    case ASI_KERNELDATA: /* Supervisor data access */
-    case ASI_P: /* Implicit primary context data access (v9 only?) */
-        switch (size) {
-        case 1:
-            ret = cpu_ldub_kernel(env, addr);
-            break;
-        case 2:
-            ret = cpu_lduw_kernel(env, addr);
-            break;
-        default:
-        case 4:
-            ret = cpu_ldl_kernel(env, addr);
-            break;
-        case 8:
-            ret = cpu_ldq_kernel(env, addr);
-            break;
-        }
-        break;
     case ASI_M_TXTC_TAG:   /* SparcStation 5 I-cache tag */
     case ASI_M_TXTC_DATA:  /* SparcStation 5 I-cache data */
     case ASI_M_DATAC_TAG:  /* SparcStation 5 D-cache tag */
     case ASI_M_DATAC_DATA: /* SparcStation 5 D-cache data */
-        break;
-    case ASI_M_BYPASS:    /* MMU passthrough */
-    case ASI_LEON_BYPASS: /* LEON MMU passthrough */
-        switch (size) {
-        case 1:
-            ret = ldub_phys(cs->as, addr);
-            break;
-        case 2:
-            ret = lduw_phys(cs->as, addr);
-            break;
-        default:
-        case 4:
-            ret = ldl_phys(cs->as, addr);
-            break;
-        case 8:
-            ret = ldq_phys(cs->as, addr);
-            break;
-        }
         break;
     case 0x21 ... 0x2f: /* MMU passthrough, 0x100000000 to 0xfffffffff */
         switch (size) {
@@ -685,6 +632,14 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
         cpu_unassigned_access(cs, addr, false, false, asi, size);
         ret = 0;
         break;
+
+    case ASI_USERDATA: /* User data access */
+    case ASI_KERNELDATA: /* Supervisor data access */
+    case ASI_P: /* Implicit primary context data access (v9 only?) */
+    case ASI_M_BYPASS:    /* MMU passthrough */
+    case ASI_LEON_BYPASS: /* LEON MMU passthrough */
+        /* These are always handled inline.  */
+        g_assert_not_reached();
     }
     if (sign) {
         switch (size) {
@@ -935,41 +890,6 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val,
     case ASI_M_DIAGS:   /* Turbosparc DTLB Diagnostic */
     case ASI_M_IODIAG:  /* Turbosparc IOTLB Diagnostic */
         break;
-    case ASI_USERDATA: /* User data access */
-        switch (size) {
-        case 1:
-            cpu_stb_user(env, addr, val);
-            break;
-        case 2:
-            cpu_stw_user(env, addr, val);
-            break;
-        default:
-        case 4:
-            cpu_stl_user(env, addr, val);
-            break;
-        case 8:
-            cpu_stq_user(env, addr, val);
-            break;
-        }
-        break;
-    case ASI_KERNELDATA: /* Supervisor data access */
-    case ASI_P:
-        switch (size) {
-        case 1:
-            cpu_stb_kernel(env, addr, val);
-            break;
-        case 2:
-            cpu_stw_kernel(env, addr, val);
-            break;
-        default:
-        case 4:
-            cpu_stl_kernel(env, addr, val);
-            break;
-        case 8:
-            cpu_stq_kernel(env, addr, val);
-            break;
-        }
-        break;
     case ASI_M_TXTC_TAG:   /* I-cache tag */
     case ASI_M_TXTC_DATA:  /* I-cache data */
     case ASI_M_DATAC_TAG:  /* D-cache tag */
@@ -979,52 +899,6 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val,
     case ASI_M_FLUSH_REGION: /* I/D-cache flush region */
     case ASI_M_FLUSH_CTX:    /* I/D-cache flush context */
     case ASI_M_FLUSH_USER:   /* I/D-cache flush user */
-        break;
-    case ASI_M_BCOPY: /* Block copy, sta access */
-        {
-            /* val = src
-               addr = dst
-               copy 32 bytes */
-            unsigned int i;
-            uint32_t src = val & ~3, dst = addr & ~3, temp;
-
-            for (i = 0; i < 32; i += 4, src += 4, dst += 4) {
-                temp = cpu_ldl_kernel(env, src);
-                cpu_stl_kernel(env, dst, temp);
-            }
-        }
-        break;
-    case ASI_M_BFILL: /* Block fill, stda access */
-        {
-            /* addr = dst
-               fill 32 bytes with val */
-            unsigned int i;
-            uint32_t dst = addr & ~7;
-
-            for (i = 0; i < 32; i += 8, dst += 8) {
-                cpu_stq_kernel(env, dst, val);
-            }
-        }
-        break;
-    case ASI_M_BYPASS:    /* MMU passthrough */
-    case ASI_LEON_BYPASS: /* LEON MMU passthrough */
-        {
-            switch (size) {
-            case 1:
-                stb_phys(cs->as, addr, val);
-                break;
-            case 2:
-                stw_phys(cs->as, addr, val);
-                break;
-            case 4:
-            default:
-                stl_phys(cs->as, addr, val);
-                break;
-            case 8:
-                stq_phys(cs->as, addr, val);
-                break;
-            }
-        }
         break;
     case 0x21 ... 0x2f: /* MMU passthrough, 0x100000000 to 0xfffffffff */
         {
@@ -1097,6 +971,16 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val,
         cpu_unassigned_access(CPU(sparc_env_get_cpu(env)),
                               addr, true, false, asi, size);
         break;
+
+    case ASI_USERDATA: /* User data access */
+    case ASI_KERNELDATA: /* Supervisor data access */
+    case ASI_P:
+    case ASI_M_BYPASS:    /* MMU passthrough */
+    case ASI_LEON_BYPASS: /* LEON MMU passthrough */
+    case ASI_M_BCOPY: /* Block copy, sta access */
+    case ASI_M_BFILL: /* Block fill, stda access */
+        /* These are always handled inline.  */
+        g_assert_not_reached();
     }
 #ifdef DEBUG_ASI
     dump_asi("write", addr, asi, size, val);
@@ -1113,68 +997,54 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
     int size = 1 << (memop & MO_SIZE);
     int sign = memop & MO_SIGN;
     uint64_t ret = 0;
-#if defined(DEBUG_ASI)
-    target_ulong last_addr = addr;
-#endif
 
     if (asi < 0x80) {
         cpu_raise_exception_ra(env, TT_PRIV_ACT, GETPC());
     }
-
     do_check_align(env, addr, size - 1, GETPC());
     addr = asi_address_mask(env, asi, addr);
 
     switch (asi) {
     case ASI_PNF:  /* Primary no-fault */
     case ASI_PNFL: /* Primary no-fault LE */
-        if (page_check_range(addr, size, PAGE_READ) == -1) {
-#ifdef DEBUG_ASI
-            dump_asi("read ", last_addr, asi, size, ret);
-#endif
-            return 0;
-        }
-        /* Fall through */
-    case ASI_P: /* Primary */
-    case ASI_PL: /* Primary LE */
-        {
-            switch (size) {
-            case 1:
-                ret = cpu_ldub_data(env, addr);
-                break;
-            case 2:
-                ret = cpu_lduw_data(env, addr);
-                break;
-            case 4:
-                ret = cpu_ldl_data(env, addr);
-                break;
-            default:
-            case 8:
-                ret = cpu_ldq_data(env, addr);
-                break;
-            }
-        }
-        break;
     case ASI_SNF:  /* Secondary no-fault */
     case ASI_SNFL: /* Secondary no-fault LE */
         if (page_check_range(addr, size, PAGE_READ) == -1) {
-#ifdef DEBUG_ASI
-            dump_asi("read ", last_addr, asi, size, ret);
-#endif
-            return 0;
+            ret = 0;
+            break;
         }
-        /* Fall through */
+        switch (size) {
+        case 1:
+            ret = cpu_ldub_data(env, addr);
+            break;
+        case 2:
+            ret = cpu_lduw_data(env, addr);
+            break;
+        case 4:
+            ret = cpu_ldl_data(env, addr);
+            break;
+        case 8:
+            ret = cpu_ldq_data(env, addr);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        break;
+        break;
+
+    case ASI_P: /* Primary */
+    case ASI_PL: /* Primary LE */
     case ASI_S:  /* Secondary */
     case ASI_SL: /* Secondary LE */
-        /* XXX */
-        break;
+        /* These are always handled inline.  */
+        g_assert_not_reached();
+
     default:
-        break;
+        cpu_raise_exception_ra(env, TT_DATA_ACCESS, GETPC());
     }
 
     /* Convert from little endian */
     switch (asi) {
-    case ASI_PL:   /* Primary LE */
-    case ASI_SL:   /* Secondary LE */
     case ASI_PNFL: /* Primary no-fault LE */
     case ASI_SNFL: /* Secondary no-fault LE */
         switch (size) {
@@ -1187,11 +1057,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
         case 8:
             ret = bswap64(ret);
             break;
-        default:
-            break;
         }
-    default:
-        break;
     }
 
     /* Convert to signed number */
@@ -1206,12 +1072,10 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
         case 4:
             ret = (int32_t) ret;
             break;
-        default:
-            break;
         }
     }
 #ifdef DEBUG_ASI
-    dump_asi("read ", last_addr, asi, size, ret);
+    dump_asi("read", addr, asi, size, ret);
 #endif
     return ret;
 }
@@ -1227,54 +1091,14 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
         cpu_raise_exception_ra(env, TT_PRIV_ACT, GETPC());
     }
     do_check_align(env, addr, size - 1, GETPC());
-    addr = asi_address_mask(env, asi, addr);
-
-    /* Convert to little endian */
-    switch (asi) {
-    case ASI_PL: /* Primary LE */
-    case ASI_SL: /* Secondary LE */
-        switch (size) {
-        case 2:
-            val = bswap16(val);
-            break;
-        case 4:
-            val = bswap32(val);
-            break;
-        case 8:
-            val = bswap64(val);
-            break;
-        default:
-            break;
-        }
-    default:
-        break;
-    }
 
     switch (asi) {
     case ASI_P:  /* Primary */
     case ASI_PL: /* Primary LE */
-        {
-            switch (size) {
-            case 1:
-                cpu_stb_data(env, addr, val);
-                break;
-            case 2:
-                cpu_stw_data(env, addr, val);
-                break;
-            case 4:
-                cpu_stl_data(env, addr, val);
-                break;
-            case 8:
-            default:
-                cpu_stq_data(env, addr, val);
-                break;
-            }
-        }
-        break;
     case ASI_S:  /* Secondary */
     case ASI_SL: /* Secondary LE */
-        /* XXX */
-        return;
+        /* These are always handled inline.  */
+        g_assert_not_reached();
 
     case ASI_PNF:  /* Primary no-fault, RO */
     case ASI_SNF:  /* Secondary no-fault, RO */
@@ -1282,7 +1106,6 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
     case ASI_SNFL: /* Secondary no-fault LE, RO */
     default:
         cpu_raise_exception_ra(env, TT_DATA_ACCESS, GETPC());
-        return;
     }
 }
 
@@ -1311,30 +1134,56 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
     do_check_align(env, addr, size - 1, GETPC());
     addr = asi_address_mask(env, asi, addr);
 
-    /* process nonfaulting loads first */
-    if ((asi & 0xf6) == 0x82) {
-        int mmu_idx;
-
-        /* secondary space access has lowest asi bit equal to 1 */
-        if (env->pstate & PS_PRIV) {
-            mmu_idx = (asi & 1) ? MMU_KERNEL_SECONDARY_IDX : MMU_KERNEL_IDX;
-        } else {
-            mmu_idx = (asi & 1) ? MMU_USER_SECONDARY_IDX : MMU_USER_IDX;
-        }
-
-        if (cpu_get_phys_page_nofault(env, addr, mmu_idx) == -1ULL) {
-#ifdef DEBUG_ASI
-            dump_asi("read ", last_addr, asi, size, ret);
-#endif
-            /* env->exception_index is set in get_physical_address_data(). */
-            cpu_raise_exception_ra(env, cs->exception_index, GETPC());
-        }
-
-        /* convert nonfaulting load ASIs to normal load ASIs */
-        asi &= ~0x02;
-    }
-
     switch (asi) {
+    case ASI_PNF:
+    case ASI_PNFL:
+    case ASI_SNF:
+    case ASI_SNFL:
+        {
+            TCGMemOpIdx oi;
+            int idx = (env->pstate & PS_PRIV
+                       ? (asi & 1 ? MMU_KERNEL_SECONDARY_IDX : MMU_KERNEL_IDX)
+                       : (asi & 1 ? MMU_USER_SECONDARY_IDX : MMU_USER_IDX));
+
+            if (cpu_get_phys_page_nofault(env, addr, idx) == -1ULL) {
+#ifdef DEBUG_ASI
+                dump_asi("read ", last_addr, asi, size, ret);
+#endif
+                /* exception_index is set in get_physical_address_data. */
+                cpu_raise_exception_ra(env, cs->exception_index, GETPC());
+            }
+            oi = make_memop_idx(memop, idx);
+            switch (size) {
+            case 1:
+                ret = helper_ret_ldub_mmu(env, addr, oi, GETPC());
+                break;
+            case 2:
+                if (asi & 8) {
+                    ret = helper_le_lduw_mmu(env, addr, oi, GETPC());
+                } else {
+                    ret = helper_be_lduw_mmu(env, addr, oi, GETPC());
+                }
+                break;
+            case 4:
+                if (asi & 8) {
+                    ret = helper_le_ldul_mmu(env, addr, oi, GETPC());
+                } else {
+                    ret = helper_be_ldul_mmu(env, addr, oi, GETPC());
+                }
+                break;
+            case 8:
+                if (asi & 8) {
+                    ret = helper_le_ldq_mmu(env, addr, oi, GETPC());
+                } else {
+                    ret = helper_be_ldq_mmu(env, addr, oi, GETPC());
+                }
+                break;
+            default:
+                g_assert_not_reached();
+            }
+        }
+        break;
+
     case ASI_AIUP:  /* As if user primary */
     case ASI_AIUS:  /* As if user secondary */
     case ASI_AIUPL: /* As if user primary LE */
@@ -1343,138 +1192,30 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
     case ASI_S:  /* Secondary */
     case ASI_PL: /* Primary LE */
     case ASI_SL: /* Secondary LE */
-        if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
-            if (cpu_hypervisor_mode(env)) {
-                switch (size) {
-                case 1:
-                    ret = cpu_ldub_hypv(env, addr);
-                    break;
-                case 2:
-                    ret = cpu_lduw_hypv(env, addr);
-                    break;
-                case 4:
-                    ret = cpu_ldl_hypv(env, addr);
-                    break;
-                default:
-                case 8:
-                    ret = cpu_ldq_hypv(env, addr);
-                    break;
-                }
-            } else {
-                /* secondary space access has lowest asi bit equal to 1 */
-                if (asi & 1) {
-                    switch (size) {
-                    case 1:
-                        ret = cpu_ldub_kernel_secondary(env, addr);
-                        break;
-                    case 2:
-                        ret = cpu_lduw_kernel_secondary(env, addr);
-                        break;
-                    case 4:
-                        ret = cpu_ldl_kernel_secondary(env, addr);
-                        break;
-                    default:
-                    case 8:
-                        ret = cpu_ldq_kernel_secondary(env, addr);
-                        break;
-                    }
-                } else {
-                    switch (size) {
-                    case 1:
-                        ret = cpu_ldub_kernel(env, addr);
-                        break;
-                    case 2:
-                        ret = cpu_lduw_kernel(env, addr);
-                        break;
-                    case 4:
-                        ret = cpu_ldl_kernel(env, addr);
-                        break;
-                    default:
-                    case 8:
-                        ret = cpu_ldq_kernel(env, addr);
-                        break;
-                    }
-                }
-            }
-        } else {
-            /* secondary space access has lowest asi bit equal to 1 */
-            if (asi & 1) {
-                switch (size) {
-                case 1:
-                    ret = cpu_ldub_user_secondary(env, addr);
-                    break;
-                case 2:
-                    ret = cpu_lduw_user_secondary(env, addr);
-                    break;
-                case 4:
-                    ret = cpu_ldl_user_secondary(env, addr);
-                    break;
-                default:
-                case 8:
-                    ret = cpu_ldq_user_secondary(env, addr);
-                    break;
-                }
-            } else {
-                switch (size) {
-                case 1:
-                    ret = cpu_ldub_user(env, addr);
-                    break;
-                case 2:
-                    ret = cpu_lduw_user(env, addr);
-                    break;
-                case 4:
-                    ret = cpu_ldl_user(env, addr);
-                    break;
-                default:
-                case 8:
-                    ret = cpu_ldq_user(env, addr);
-                    break;
-                }
-            }
-        }
-        break;
-    case ASI_REAL:        /* Bypass */
+    case ASI_REAL:      /* Bypass */
     case ASI_REAL_IO:   /* Bypass, non-cacheable */
-    case ASI_REAL_L:      /* Bypass LE */
+    case ASI_REAL_L:    /* Bypass LE */
     case ASI_REAL_IO_L: /* Bypass, non-cacheable LE */
-        {
-            switch (size) {
-            case 1:
-                ret = ldub_phys(cs->as, addr);
-                break;
-            case 2:
-                ret = lduw_phys(cs->as, addr);
-                break;
-            case 4:
-                ret = ldl_phys(cs->as, addr);
-                break;
-            default:
-            case 8:
-                ret = ldq_phys(cs->as, addr);
-                break;
-            }
-            break;
-        }
     case ASI_N:  /* Nucleus */
     case ASI_NL: /* Nucleus Little Endian (LE) */
-        {
-            switch (size) {
-            case 1:
-                ret = cpu_ldub_nucleus(env, addr);
-                break;
-            case 2:
-                ret = cpu_lduw_nucleus(env, addr);
-                break;
-            case 4:
-                ret = cpu_ldl_nucleus(env, addr);
-                break;
-            default:
-            case 8:
-                ret = cpu_ldq_nucleus(env, addr);
-                break;
-            }
-            break;
-        }
+    case ASI_NUCLEUS_QUAD_LDD:   /* Nucleus quad LDD 128 bit atomic */
+    case ASI_NUCLEUS_QUAD_LDD_L: /* Nucleus quad LDD 128 bit atomic LE */
+    case ASI_TWINX_AIUP:   /* As if user primary, twinx */
+    case ASI_TWINX_AIUS:   /* As if user secondary, twinx */
+    case ASI_TWINX_REAL:   /* Real address, twinx */
+    case ASI_TWINX_AIUP_L: /* As if user primary, twinx, LE */
+    case ASI_TWINX_AIUS_L: /* As if user secondary, twinx, LE */
+    case ASI_TWINX_REAL_L: /* Real address, twinx, LE */
+    case ASI_TWINX_N:  /* Nucleus, twinx */
+    case ASI_TWINX_NL: /* Nucleus, twinx, LE */
+    /* ??? From the UA2011 document; overlaps BLK_INIT_QUAD_LDD_* */
+    case ASI_TWINX_P:  /* Primary, twinx */
+    case ASI_TWINX_PL: /* Primary, twinx, LE */
+    case ASI_TWINX_S:  /* Secondary, twinx */
+    case ASI_TWINX_SL: /* Secondary, twinx, LE */
+        /* These are always handled inline.  */
+        g_assert_not_reached();
+
     case ASI_UPA_CONFIG: /* UPA config */
         /* XXX */
         break;
@@ -1602,51 +1343,6 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
         cpu_unassigned_access(cs, addr, false, false, 1, size);
         ret = 0;
         break;
-
-    case ASI_NUCLEUS_QUAD_LDD:   /* Nucleus quad LDD 128 bit atomic */
-    case ASI_NUCLEUS_QUAD_LDD_L: /* Nucleus quad LDD 128 bit atomic LE */
-    case ASI_TWINX_AIUP:   /* As if user primary, twinx */
-    case ASI_TWINX_AIUS:   /* As if user secondary, twinx */
-    case ASI_TWINX_REAL:   /* Real address, twinx */
-    case ASI_TWINX_AIUP_L: /* As if user primary, twinx, LE */
-    case ASI_TWINX_AIUS_L: /* As if user secondary, twinx, LE */
-    case ASI_TWINX_REAL_L: /* Real address, twinx, LE */
-    case ASI_TWINX_N:  /* Nucleus, twinx */
-    case ASI_TWINX_NL: /* Nucleus, twinx, LE */
-    /* ??? From the UA2011 document; overlaps BLK_INIT_QUAD_LDD_* */
-    case ASI_TWINX_P:  /* Primary, twinx */
-    case ASI_TWINX_PL: /* Primary, twinx, LE */
-    case ASI_TWINX_S:  /* Secondary, twinx */
-    case ASI_TWINX_SL: /* Secondary, twinx, LE */
-        /* These are all 128-bit atomic; only ldda (now ldtxa) allowed */
-        cpu_raise_exception_ra(env, TT_ILL_INSN, GETPC());
-        return 0;
-    }
-
-    /* Convert from little endian */
-    switch (asi) {
-    case ASI_NL: /* Nucleus Little Endian (LE) */
-    case ASI_AIUPL: /* As if user primary LE */
-    case ASI_AIUSL: /* As if user secondary LE */
-    case ASI_REAL_L:      /* Bypass LE */
-    case ASI_REAL_IO_L: /* Bypass, non-cacheable LE */
-    case ASI_PL: /* Primary LE */
-    case ASI_SL: /* Secondary LE */
-        switch(size) {
-        case 2:
-            ret = bswap16(ret);
-            break;
-        case 4:
-            ret = bswap32(ret);
-            break;
-        case 8:
-            ret = bswap64(ret);
-            break;
-        default:
-            break;
-        }
-    default:
-        break;
     }
 
     /* Convert to signed number */
@@ -1694,32 +1390,6 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
     do_check_align(env, addr, size - 1, GETPC());
     addr = asi_address_mask(env, asi, addr);
 
-    /* Convert to little endian */
-    switch (asi) {
-    case ASI_NL: /* Nucleus Little Endian (LE) */
-    case ASI_AIUPL: /* As if user primary LE */
-    case ASI_AIUSL: /* As if user secondary LE */
-    case ASI_REAL_L: /* Bypass LE */
-    case ASI_REAL_IO_L: /* Bypass, non-cacheable LE */
-    case ASI_PL: /* Primary LE */
-    case ASI_SL: /* Secondary LE */
-        switch (size) {
-        case 2:
-            val = bswap16(val);
-            break;
-        case 4:
-            val = bswap32(val);
-            break;
-        case 8:
-            val = bswap64(val);
-            break;
-        default:
-            break;
-        }
-    default:
-        break;
-    }
-
     switch (asi) {
     case ASI_AIUP:  /* As if user primary */
     case ASI_AIUS:  /* As if user secondary */
@@ -1729,138 +1399,29 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
     case ASI_S:  /* Secondary */
     case ASI_PL: /* Primary LE */
     case ASI_SL: /* Secondary LE */
-        if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
-            if (cpu_hypervisor_mode(env)) {
-                switch (size) {
-                case 1:
-                    cpu_stb_hypv(env, addr, val);
-                    break;
-                case 2:
-                    cpu_stw_hypv(env, addr, val);
-                    break;
-                case 4:
-                    cpu_stl_hypv(env, addr, val);
-                    break;
-                case 8:
-                default:
-                    cpu_stq_hypv(env, addr, val);
-                    break;
-                }
-            } else {
-                /* secondary space access has lowest asi bit equal to 1 */
-                if (asi & 1) {
-                    switch (size) {
-                    case 1:
-                        cpu_stb_kernel_secondary(env, addr, val);
-                        break;
-                    case 2:
-                        cpu_stw_kernel_secondary(env, addr, val);
-                        break;
-                    case 4:
-                        cpu_stl_kernel_secondary(env, addr, val);
-                        break;
-                    case 8:
-                    default:
-                        cpu_stq_kernel_secondary(env, addr, val);
-                        break;
-                    }
-                } else {
-                    switch (size) {
-                    case 1:
-                        cpu_stb_kernel(env, addr, val);
-                        break;
-                    case 2:
-                        cpu_stw_kernel(env, addr, val);
-                        break;
-                    case 4:
-                        cpu_stl_kernel(env, addr, val);
-                        break;
-                    case 8:
-                    default:
-                        cpu_stq_kernel(env, addr, val);
-                        break;
-                    }
-                }
-            }
-        } else {
-            /* secondary space access has lowest asi bit equal to 1 */
-            if (asi & 1) {
-                switch (size) {
-                case 1:
-                    cpu_stb_user_secondary(env, addr, val);
-                    break;
-                case 2:
-                    cpu_stw_user_secondary(env, addr, val);
-                    break;
-                case 4:
-                    cpu_stl_user_secondary(env, addr, val);
-                    break;
-                case 8:
-                default:
-                    cpu_stq_user_secondary(env, addr, val);
-                    break;
-                }
-            } else {
-                switch (size) {
-                case 1:
-                    cpu_stb_user(env, addr, val);
-                    break;
-                case 2:
-                    cpu_stw_user(env, addr, val);
-                    break;
-                case 4:
-                    cpu_stl_user(env, addr, val);
-                    break;
-                case 8:
-                default:
-                    cpu_stq_user(env, addr, val);
-                    break;
-                }
-            }
-        }
-        break;
     case ASI_REAL:      /* Bypass */
     case ASI_REAL_IO:   /* Bypass, non-cacheable */
     case ASI_REAL_L:    /* Bypass LE */
     case ASI_REAL_IO_L: /* Bypass, non-cacheable LE */
-        {
-            switch (size) {
-            case 1:
-                stb_phys(cs->as, addr, val);
-                break;
-            case 2:
-                stw_phys(cs->as, addr, val);
-                break;
-            case 4:
-                stl_phys(cs->as, addr, val);
-                break;
-            case 8:
-            default:
-                stq_phys(cs->as, addr, val);
-                break;
-            }
-        }
-        return;
     case ASI_N:  /* Nucleus */
     case ASI_NL: /* Nucleus Little Endian (LE) */
-        {
-            switch (size) {
-            case 1:
-                cpu_stb_nucleus(env, addr, val);
-                break;
-            case 2:
-                cpu_stw_nucleus(env, addr, val);
-                break;
-            case 4:
-                cpu_stl_nucleus(env, addr, val);
-                break;
-            default:
-            case 8:
-                cpu_stq_nucleus(env, addr, val);
-                break;
-            }
-            break;
-        }
+    case ASI_NUCLEUS_QUAD_LDD:   /* Nucleus quad LDD 128 bit atomic */
+    case ASI_NUCLEUS_QUAD_LDD_L: /* Nucleus quad LDD 128 bit atomic LE */
+    case ASI_TWINX_AIUP:   /* As if user primary, twinx */
+    case ASI_TWINX_AIUS:   /* As if user secondary, twinx */
+    case ASI_TWINX_REAL:   /* Real address, twinx */
+    case ASI_TWINX_AIUP_L: /* As if user primary, twinx, LE */
+    case ASI_TWINX_AIUS_L: /* As if user secondary, twinx, LE */
+    case ASI_TWINX_REAL_L: /* Real address, twinx, LE */
+    case ASI_TWINX_N:  /* Nucleus, twinx */
+    case ASI_TWINX_NL: /* Nucleus, twinx, LE */
+    /* ??? From the UA2011 document; overlaps BLK_INIT_QUAD_LDD_* */
+    case ASI_TWINX_P:  /* Primary, twinx */
+    case ASI_TWINX_PL: /* Primary, twinx, LE */
+    case ASI_TWINX_S:  /* Secondary, twinx */
+    case ASI_TWINX_SL: /* Secondary, twinx, LE */
+        /* These are always handled inline.  */
+        g_assert_not_reached();
 
     case ASI_UPA_CONFIG: /* UPA config */
         /* XXX */
@@ -2006,24 +1567,6 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
     case ASI_INTR_RECEIVE: /* Interrupt data receive */
         env->ivec_status = val & 0x20;
         return;
-    case ASI_NUCLEUS_QUAD_LDD:   /* Nucleus quad LDD 128 bit atomic */
-    case ASI_NUCLEUS_QUAD_LDD_L: /* Nucleus quad LDD 128 bit atomic LE */
-    case ASI_TWINX_AIUP:   /* As if user primary, twinx */
-    case ASI_TWINX_AIUS:   /* As if user secondary, twinx */
-    case ASI_TWINX_REAL:   /* Real address, twinx */
-    case ASI_TWINX_AIUP_L: /* As if user primary, twinx, LE */
-    case ASI_TWINX_AIUS_L: /* As if user secondary, twinx, LE */
-    case ASI_TWINX_REAL_L: /* Real address, twinx, LE */
-    case ASI_TWINX_N:  /* Nucleus, twinx */
-    case ASI_TWINX_NL: /* Nucleus, twinx, LE */
-    /* ??? From the UA2011 document; overlaps BLK_INIT_QUAD_LDD_* */
-    case ASI_TWINX_P:  /* Primary, twinx */
-    case ASI_TWINX_PL: /* Primary, twinx, LE */
-    case ASI_TWINX_S:  /* Secondary, twinx */
-    case ASI_TWINX_SL: /* Secondary, twinx, LE */
-        /* Only stda allowed */
-        cpu_raise_exception_ra(env, TT_ILL_INSN, GETPC());
-        return;
     case ASI_DCACHE_DATA: /* D-cache data */
     case ASI_DCACHE_TAG: /* D-cache tag access */
     case ASI_ESTATE_ERROR_EN: /* E-cache error enable */
@@ -2056,100 +1599,6 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
     }
 }
 #endif /* CONFIG_USER_ONLY */
-
-/* 128-bit LDDA; result returned in QT0.  */
-void helper_ldda_asi(CPUSPARCState *env, target_ulong addr, int asi)
-{
-    uint64_t h, l;
-
-    if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-        || (cpu_has_hypervisor(env)
-            && asi >= 0x30 && asi < 0x80
-            && !(env->hpstate & HS_PRIV))) {
-        cpu_raise_exception_ra(env, TT_PRIV_ACT, GETPC());
-    }
-
-    addr = asi_address_mask(env, asi, addr);
-
-    switch (asi) {
-#if !defined(CONFIG_USER_ONLY)
-    case ASI_TWINX_AIUP:   /* As if user primary, twinx */
-    case ASI_TWINX_AIUP_L: /* As if user primary, twinx, LE */
-        do_check_align(env, addr, 0xf, GETPC());
-        h = cpu_ldq_user(env, addr);
-        l = cpu_ldq_user(env, addr + 8);
-        break;
-    case ASI_TWINX_AIUS:   /* As if user secondary, twinx */
-    case ASI_TWINX_AIUS_L: /* As if user secondary, twinx, LE */
-        do_check_align(env, addr, 0xf, GETPC());
-        h = cpu_ldq_user_secondary(env, addr);
-        l = cpu_ldq_user_secondary(env, addr + 8);
-        break;
-    case ASI_TWINX_REAL:   /* Real address, twinx */
-    case ASI_TWINX_REAL_L: /* Real address, twinx, LE */
-        do_check_align(env, addr, 0xf, GETPC());
-        {
-            CPUState *cs = CPU(sparc_env_get_cpu(env));
-            h = ldq_phys(cs->as, addr);
-            l = ldq_phys(cs->as, addr + 8);
-        }
-        break;
-    case ASI_NUCLEUS_QUAD_LDD:
-    case ASI_NUCLEUS_QUAD_LDD_L:
-    case ASI_TWINX_N:  /* Nucleus, twinx */
-    case ASI_TWINX_NL: /* Nucleus, twinx, LE */
-        do_check_align(env, addr, 0xf, GETPC());
-        h = cpu_ldq_nucleus(env, addr);
-        l = cpu_ldq_nucleus(env, addr + 8);
-        break;
-    case ASI_TWINX_S: /* Secondary, twinx */
-    case ASI_TWINX_SL: /* Secondary, twinx, LE */
-        if (!cpu_hypervisor_mode(env)) {
-            do_check_align(env, addr, 0xf, GETPC());
-            if (env->pstate & PS_PRIV) {
-                h = cpu_ldq_kernel_secondary(env, addr);
-                l = cpu_ldq_kernel_secondary(env, addr + 8);
-            } else {
-                h = cpu_ldq_user_secondary(env, addr);
-                l = cpu_ldq_user_secondary(env, addr + 8);
-            }
-            break;
-        }
-        /* fallthru */
-    case ASI_TWINX_P:  /* Primary, twinx */
-    case ASI_TWINX_PL: /* Primary, twinx, LE */
-        do_check_align(env, addr, 0xf, GETPC());
-        h = cpu_ldq_data(env, addr);
-        l = cpu_ldq_data(env, addr + 8);
-        break;
-#else
-    case ASI_TWINX_P:  /* Primary, twinx */
-    case ASI_TWINX_PL: /* Primary, twinx, LE */
-    case ASI_TWINX_S:  /* Primary, twinx */
-    case ASI_TWINX_SL: /* Primary, twinx, LE */
-        /* ??? Should be available, but we need to implement
-           an atomic 128-bit load.  */
-        cpu_raise_exception_ra(env, TT_PRIV_ACT, GETPC());
-#endif
-    default:
-        /* Non-twinx asi, so this is the legacy ldda insn, which
-           performs two word sized operations.  */
-        /* ??? The UA2011 manual recommends emulating this with
-           a single 64-bit load.  However, LE asis *are* treated
-           as two 32-bit loads individually byte swapped.  */
-        do_check_align(env, addr, 7, GETPC());
-        QT0.high = (uint32_t)helper_ld_asi(env, addr, asi, MO_UL);
-        QT0.low = (uint32_t)helper_ld_asi(env, addr + 4, asi, MO_UL);
-        return;
-    }
-
-    if (asi & 8) {
-        h = bswap64(h);
-        l = bswap64(l);
-    }
-    QT0.high = h;
-    QT0.low = l;
-}
 #endif /* TARGET_SPARC64 */
 
 void helper_ldqf(CPUSPARCState *env, target_ulong addr, int mem_idx)
