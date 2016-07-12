@@ -2338,24 +2338,37 @@ static void gen_swap_asi(DisasContext *dc, TCGv dst, TCGv src,
     }
 }
 
-static void gen_cas_asi(DisasContext *dc, TCGv addr, TCGv val2,
+static void gen_cas_asi(DisasContext *dc, TCGv addr, TCGv cmpr,
                         int insn, int rd)
 {
     DisasASI da = get_asi(dc, insn, MO_TEUL);
-    TCGv val1, dst;
-    TCGv_i32 r_asi;
+    TCGv cmpv, oldv, tmpv;
 
-    if (da.type == GET_ASI_EXCP) {
+    switch (da.type) {
+    case GET_ASI_EXCP:
         return;
-    }
+    case GET_ASI_DIRECT:
+        cmpv = tcg_temp_new();
+        oldv = tcg_temp_new();
+        tmpv = tcg_temp_new();
+        tcg_gen_ext32u_tl(cmpv, cmpr);
 
-    save_state(dc);
-    val1 = gen_load_gpr(dc, rd);
-    dst = gen_dest_gpr(dc, rd);
-    r_asi = tcg_const_i32(da.asi);
-    gen_helper_cas_asi(dst, cpu_env, addr, val1, val2, r_asi);
-    tcg_temp_free_i32(r_asi);
-    gen_store_gpr(dc, rd, dst);
+        /* ??? Should be atomic.  */
+        tcg_gen_qemu_ld_tl(oldv, addr, da.mem_idx, da.memop);
+        tcg_gen_movcond_tl(TCG_COND_EQ, tmpv, oldv, cmpv,
+                           gen_load_gpr(dc, rd), oldv);
+        tcg_gen_qemu_st_tl(tmpv, addr, da.mem_idx, da.memop);
+
+        gen_store_gpr(dc, rd, oldv);
+        tcg_temp_free(cmpv);
+        tcg_temp_free(oldv);
+        tcg_temp_free(tmpv);
+        break;
+    default:
+        /* ??? Should be DAE_invalid_asi.  */
+        gen_exception(dc, TT_DATA_ACCESS);
+        break;
+    }
 }
 
 static void gen_ldstub_asi(DisasContext *dc, TCGv dst, TCGv addr, int insn)
@@ -2668,23 +2681,34 @@ static void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
     }
 }
 
-static void gen_casx_asi(DisasContext *dc, TCGv addr, TCGv val2,
+static void gen_casx_asi(DisasContext *dc, TCGv addr, TCGv cmpv,
                          int insn, int rd)
 {
     DisasASI da = get_asi(dc, insn, MO_TEQ);
-    TCGv val1 = gen_load_gpr(dc, rd);
-    TCGv dst = gen_dest_gpr(dc, rd);
-    TCGv_i32 r_asi;
+    TCGv oldv, tmpv;
 
-    if (da.type == GET_ASI_EXCP) {
+    switch (da.type) {
+    case GET_ASI_EXCP:
         return;
-    }
+    case GET_ASI_DIRECT:
+        oldv = tcg_temp_new();
+        tmpv = tcg_temp_new();
 
-    save_state(dc);
-    r_asi = tcg_const_i32(da.asi);
-    gen_helper_casx_asi(dst, cpu_env, addr, val1, val2, r_asi);
-    tcg_temp_free_i32(r_asi);
-    gen_store_gpr(dc, rd, dst);
+        /* ??? Should be atomic.  */
+        tcg_gen_qemu_ld_tl(oldv, addr, da.mem_idx, da.memop);
+        tcg_gen_movcond_tl(TCG_COND_EQ, tmpv, oldv, cmpv,
+                           gen_load_gpr(dc, rd), oldv);
+        tcg_gen_qemu_st_tl(tmpv, addr, da.mem_idx, da.memop);
+
+        gen_store_gpr(dc, rd, oldv);
+        tcg_temp_free(oldv);
+        tcg_temp_free(tmpv);
+        break;
+    default:
+        /* ??? Should be DAE_invalid_asi.  */
+        gen_exception(dc, TT_DATA_ACCESS);
+        break;
+    }
 }
 
 #elif !defined(CONFIG_USER_ONLY)

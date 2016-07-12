@@ -2150,36 +2150,7 @@ void helper_ldda_asi(CPUSPARCState *env, target_ulong addr, int asi)
     QT0.high = h;
     QT0.low = l;
 }
-
-target_ulong helper_casx_asi(CPUSPARCState *env, target_ulong addr,
-                             target_ulong val1, target_ulong val2,
-                             uint32_t asi)
-{
-    target_ulong ret;
-
-    ret = helper_ld_asi(env, addr, asi, MO_Q);
-    if (val2 == ret) {
-        helper_st_asi(env, addr, val1, asi, MO_Q);
-    }
-    return ret;
-}
 #endif /* TARGET_SPARC64 */
-
-#if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
-target_ulong helper_cas_asi(CPUSPARCState *env, target_ulong addr,
-                            target_ulong val1, target_ulong val2, uint32_t asi)
-{
-    target_ulong ret;
-
-    val2 &= 0xffffffffUL;
-    ret = helper_ld_asi(env, addr, asi, MO_UL);
-    ret &= 0xffffffffUL;
-    if (val2 == ret) {
-        helper_st_asi(env, addr, val1 & 0xffffffffUL, asi, MO_UL);
-    }
-    return ret;
-}
-#endif /* !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64) */
 
 void helper_ldqf(CPUSPARCState *env, target_ulong addr, int mem_idx)
 {
