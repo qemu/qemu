@@ -549,6 +549,7 @@ void QEMU_NORETURN sparc_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
                                                  MMUAccessType access_type,
                                                  int mmu_idx,
                                                  uintptr_t retaddr);
+void cpu_raise_exception_ra(CPUSPARCState *, int, uintptr_t) QEMU_NORETURN;
 
 #ifndef NO_CPU_IO_DEFS
 /* cpu_init.c */
