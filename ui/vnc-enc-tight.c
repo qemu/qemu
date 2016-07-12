@@ -349,7 +349,7 @@ tight_detect_smooth_image(VncState *vs, int w, int h)
     tight_fill_palette##bpp(VncState *vs, int x, int y,                 \
                             int max, size_t count,                      \
                             uint32_t *bg, uint32_t *fg,                 \
-                            VncPalette **palette) {                     \
+                            VncPalette *palette) {                      \
         uint##bpp##_t *data;                                            \
         uint##bpp##_t c0, c1, ci;                                       \
         int i, n0, n1;                                                  \
@@ -396,23 +396,23 @@ tight_detect_smooth_image(VncState *vs, int w, int h)
             return 0;                                                   \
         }                                                               \
                                                                         \
-        *palette = palette_new(max, bpp);                               \
-        palette_put(*palette, c0);                                      \
-        palette_put(*palette, c1);                                      \
-        palette_put(*palette, ci);                                      \
+        palette_init(palette, max, bpp);                                \
+        palette_put(palette, c0);                                       \
+        palette_put(palette, c1);                                       \
+        palette_put(palette, ci);                                       \
                                                                         \
         for (i++; i < count; i++) {                                     \
             if (data[i] == ci) {                                        \
                 continue;                                               \
             } else {                                                    \
                 ci = data[i];                                           \
-                if (!palette_put(*palette, (uint32_t)ci)) {             \
+                if (!palette_put(palette, (uint32_t)ci)) {              \
                     return 0;                                           \
                 }                                                       \
             }                                                           \
         }                                                               \
                                                                         \
-        return palette_size(*palette);                                  \
+        return palette_size(palette);                                   \
     }
 
 DEFINE_FILL_PALETTE_FUNCTION(8)
@@ -421,7 +421,7 @@ DEFINE_FILL_PALETTE_FUNCTION(32)
 
 static int tight_fill_palette(VncState *vs, int x, int y,
                               size_t count, uint32_t *bg, uint32_t *fg,
-                              VncPalette **palette)
+                              VncPalette *palette)
 {
     int max;
 
@@ -1457,9 +1457,11 @@ static int send_sub_rect_jpeg(VncState *vs, int x, int y, int w, int h,
 }
 #endif
 
+static __thread VncPalette color_count_palette;
+
 static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
 {
-    VncPalette *palette = NULL;
+    VncPalette *palette = &color_count_palette;
     uint32_t bg = 0, fg = 0;
     int colors;
     int ret = 0;
@@ -1488,7 +1490,7 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
     }
 #endif
 
-    colors = tight_fill_palette(vs, x, y, w * h, &bg, &fg, &palette);
+    colors = tight_fill_palette(vs, x, y, w * h, &bg, &fg, palette);
 
 #ifdef CONFIG_VNC_JPEG
     if (allow_jpeg && vs->tight.quality != (uint8_t)-1) {
@@ -1501,7 +1503,6 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
     ret = send_sub_rect_nojpeg(vs, x, y, w, h, bg, fg, colors, palette);
 #endif
 
-    palette_destroy(palette);
     return ret;
 }
 
