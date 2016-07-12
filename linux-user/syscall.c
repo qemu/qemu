@@ -9237,12 +9237,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 goto efault;
             ret = get_errno(sys_uname(buf));
             if (!is_error(ret)) {
-                /* Overrite the native machine name with whatever is being
+                /* Overwrite the native machine name with whatever is being
                    emulated. */
                 strcpy (buf->machine, cpu_to_uname_machine(cpu_env));
                 /* Allow the user to override the reported release.  */
-                if (qemu_uname_release && *qemu_uname_release)
-                  strcpy (buf->release, qemu_uname_release);
+                if (qemu_uname_release && *qemu_uname_release) {
+                    g_strlcpy(buf->release, qemu_uname_release,
+                              sizeof(buf->release));
+                }
             }
             unlock_user_struct(buf, arg1, 1);
         }
