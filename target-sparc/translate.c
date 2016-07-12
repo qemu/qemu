@@ -2013,6 +2013,20 @@ static void gen_swap(DisasContext *dc, TCGv dst, TCGv src,
     tcg_temp_free(t0);
 }
 
+static void gen_ldstub(DisasContext *dc, TCGv dst, TCGv addr, int mmu_idx)
+{
+    /* ??? Should be atomic.  */
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t1 = tcg_const_i32(0xff);
+
+    gen_address_mask(dc, addr);
+    tcg_gen_qemu_ld_i32(t0, addr, mmu_idx, MO_UB);
+    tcg_gen_qemu_st_i32(t1, addr, mmu_idx, MO_UB);
+    tcg_gen_extu_i32_tl(dst, t0);
+    tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(t1);
+}
+
 /* asi moves */
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
 typedef enum {
@@ -2351,25 +2365,12 @@ static void gen_ldstub_asi(DisasContext *dc, TCGv dst, TCGv addr, int insn)
     switch (da.type) {
     case GET_ASI_EXCP:
         break;
+    case GET_ASI_DIRECT:
+        gen_ldstub(dc, dst, addr, da.mem_idx);
+        break;
     default:
-        {
-            TCGv_i32 r_asi = tcg_const_i32(da.asi);
-            TCGv_i32 r_mop = tcg_const_i32(MO_UB);
-            TCGv_i64 s64, t64;
-
-            save_state(dc);
-            t64 = tcg_temp_new_i64();
-            gen_helper_ld_asi(t64, cpu_env, addr, r_asi, r_mop);
-
-            s64 = tcg_const_i64(0xff);
-            gen_helper_st_asi(cpu_env, addr, s64, r_asi, r_mop);
-            tcg_temp_free_i64(s64);
-            tcg_temp_free_i32(r_mop);
-            tcg_temp_free_i32(r_asi);
-
-            tcg_gen_trunc_i64_tl(dst, t64);
-            tcg_temp_free_i64(t64);
-        }
+        /* ??? Should be DAE_invalid_asi.  */
+        gen_exception(dc, TT_DATA_ACCESS);
         break;
     }
 }
@@ -5189,19 +5190,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     gen_address_mask(dc, cpu_addr);
                     tcg_gen_qemu_ld16s(cpu_val, cpu_addr, dc->mem_idx);
                     break;
-                case 0xd:       /* ldstub -- XXX: should be atomically */
-                    {
-                        TCGv r_const;
-                        TCGv tmp = tcg_temp_new();
-
-                        gen_address_mask(dc, cpu_addr);
-                        tcg_gen_qemu_ld8u(tmp, cpu_addr, dc->mem_idx);
-                        r_const = tcg_const_tl(0xff);
-                        tcg_gen_qemu_st8(r_const, cpu_addr, dc->mem_idx);
-                        tcg_gen_mov_tl(cpu_val, tmp);
-                        tcg_temp_free(r_const);
-                        tcg_temp_free(tmp);
-                    }
+                case 0xd:       /* ldstub */
+                    gen_ldstub(dc, cpu_val, cpu_addr, dc->mem_idx);
                     break;
                 case 0x0f:
                     /* swap, swap register with memory. Also atomically */
