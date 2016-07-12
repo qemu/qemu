@@ -129,6 +129,17 @@ static int qemu_input_linux_to_qcode(unsigned int lnx)
     return linux_to_qcode[lnx];
 }
 
+static bool linux_is_button(unsigned int lnx)
+{
+    if (lnx < 0x100) {
+        return false;
+    }
+    if (lnx >= 0x160 && lnx < 0x2c0) {
+        return false;
+    }
+    return true;
+}
+
 #define TYPE_INPUT_LINUX "input-linux"
 #define INPUT_LINUX(obj) \
     OBJECT_CHECK(InputLinux, (obj), TYPE_INPUT_LINUX)
@@ -153,6 +164,12 @@ struct InputLinux {
     int         keycount;
     int         wheel;
     bool        initialized;
+
+    bool        has_rel_x;
+    bool        has_abs_x;
+    int         num_keys;
+    int         num_btns;
+
     QTAILQ_ENTRY(InputLinux) next;
 };
 
@@ -188,71 +205,55 @@ static void input_linux_toggle_grab(InputLinux *il)
     }
 }
 
-static void input_linux_event_keyboard(void *opaque)
+static void input_linux_handle_keyboard(InputLinux *il,
+                                        struct input_event *event)
 {
-    InputLinux *il = opaque;
-    struct input_event event;
-    int rc;
-
-    for (;;) {
-        rc = read(il->fd, &event, sizeof(event));
-        if (rc != sizeof(event)) {
-            if (rc < 0 && errno != EAGAIN) {
-                fprintf(stderr, "%s: read: %s\n", __func__, strerror(errno));
-                qemu_set_fd_handler(il->fd, NULL, NULL, NULL);
-                close(il->fd);
-            }
-            break;
+    if (event->type == EV_KEY) {
+        if (event->value > 2 || (event->value > 1 && !il->repeat)) {
+            /*
+             * ignore autorepeat + unknown key events
+             * 0 == up, 1 == down, 2 == autorepeat, other == undefined
+             */
+            return;
+        }
+        if (event->code >= KEY_CNT) {
+            /*
+             * Should not happen.  But better safe than sorry,
+             * and we make Coverity happy too.
+             */
+            return;
         }
 
-        switch (event.type) {
-        case EV_KEY:
-            if (event.value > 2 || (event.value > 1 && !il->repeat)) {
-                /*
-                 * ignore autorepeat + unknown key events
-                 * 0 == up, 1 == down, 2 == autorepeat, other == undefined
-                 */
-                continue;
-            }
-            if (event.code >= KEY_CNT) {
-                /*
-                 * Should not happen.  But better safe than sorry,
-                 * and we make Coverity happy too.
-                 */
-                continue;
-            }
-            /* keep track of key state */
-            if (!il->keydown[event.code] && event.value) {
-                il->keydown[event.code] = true;
-                il->keycount++;
-            }
-            if (il->keydown[event.code] && !event.value) {
-                il->keydown[event.code] = false;
-                il->keycount--;
-            }
+        /* keep track of key state */
+        if (!il->keydown[event->code] && event->value) {
+            il->keydown[event->code] = true;
+            il->keycount++;
+        }
+        if (il->keydown[event->code] && !event->value) {
+            il->keydown[event->code] = false;
+            il->keycount--;
+        }
 
-            /* send event to guest when grab is active */
-            if (il->grab_active) {
-                int qcode = qemu_input_linux_to_qcode(event.code);
-                qemu_input_event_send_key_qcode(NULL, qcode, event.value);
-            }
+        /* send event to guest when grab is active */
+        if (il->grab_active) {
+            int qcode = qemu_input_linux_to_qcode(event->code);
+            qemu_input_event_send_key_qcode(NULL, qcode, event->value);
+        }
 
-            /* hotkey -> record switch request ... */
-            if (il->keydown[KEY_LEFTCTRL] &&
-                il->keydown[KEY_RIGHTCTRL]) {
-                il->grab_request = true;
-            }
+        /* hotkey -> record switch request ... */
+        if (il->keydown[KEY_LEFTCTRL] &&
+            il->keydown[KEY_RIGHTCTRL]) {
+            il->grab_request = true;
+        }
 
-            /*
-             * ... and do the switch when all keys are lifted, so we
-             * confuse neither guest nor host with keys which seem to
-             * be stuck due to missing key-up events.
-             */
-            if (il->grab_request && !il->keycount) {
-                il->grab_request = false;
-                input_linux_toggle_grab(il);
-            }
-            break;
+        /*
+         * ... and do the switch when all keys are lifted, so we
+         * confuse neither guest nor host with keys which seem to
+         * be stuck due to missing key-up events.
+         */
+        if (il->grab_request && !il->keycount) {
+            il->grab_request = false;
+            input_linux_toggle_grab(il);
         }
     }
 }
@@ -265,7 +266,59 @@ static void input_linux_event_mouse_button(int button)
     qemu_input_event_sync();
 }
 
-static void input_linux_event_mouse(void *opaque)
+static void input_linux_handle_mouse(InputLinux *il, struct input_event *event)
+{
+    if (!il->grab_active) {
+        return;
+    }
+
+    switch (event->type) {
+    case EV_KEY:
+        switch (event->code) {
+        case BTN_LEFT:
+            qemu_input_queue_btn(NULL, INPUT_BUTTON_LEFT, event->value);
+            break;
+        case BTN_RIGHT:
+            qemu_input_queue_btn(NULL, INPUT_BUTTON_RIGHT, event->value);
+            break;
+        case BTN_MIDDLE:
+            qemu_input_queue_btn(NULL, INPUT_BUTTON_MIDDLE, event->value);
+            break;
+        case BTN_GEAR_UP:
+            qemu_input_queue_btn(NULL, INPUT_BUTTON_WHEEL_UP, event->value);
+            break;
+        case BTN_GEAR_DOWN:
+            qemu_input_queue_btn(NULL, INPUT_BUTTON_WHEEL_DOWN,
+                                 event->value);
+            break;
+        };
+        break;
+    case EV_REL:
+        switch (event->code) {
+        case REL_X:
+            qemu_input_queue_rel(NULL, INPUT_AXIS_X, event->value);
+            break;
+        case REL_Y:
+            qemu_input_queue_rel(NULL, INPUT_AXIS_Y, event->value);
+            break;
+        case REL_WHEEL:
+            il->wheel = event->value;
+            break;
+        }
+        break;
+    case EV_SYN:
+        qemu_input_event_sync();
+        if (il->wheel != 0) {
+            input_linux_event_mouse_button((il->wheel > 0)
+                                           ? INPUT_BUTTON_WHEEL_UP
+                                           : INPUT_BUTTON_WHEEL_DOWN);
+            il->wheel = 0;
+        }
+        break;
+    }
+}
+
+static void input_linux_event(void *opaque)
 {
     InputLinux *il = opaque;
     struct input_event event;
@@ -282,54 +335,11 @@ static void input_linux_event_mouse(void *opaque)
             break;
         }
 
-        /* only send event to guest when grab is active */
-        if (!il->grab_active) {
-            continue;
+        if (il->num_keys) {
+            input_linux_handle_keyboard(il, &event);
         }
-
-        switch (event.type) {
-        case EV_KEY:
-            switch (event.code) {
-            case BTN_LEFT:
-                qemu_input_queue_btn(NULL, INPUT_BUTTON_LEFT, event.value);
-                break;
-            case BTN_RIGHT:
-                qemu_input_queue_btn(NULL, INPUT_BUTTON_RIGHT, event.value);
-                break;
-            case BTN_MIDDLE:
-                qemu_input_queue_btn(NULL, INPUT_BUTTON_MIDDLE, event.value);
-                break;
-            case BTN_GEAR_UP:
-                qemu_input_queue_btn(NULL, INPUT_BUTTON_WHEEL_UP, event.value);
-                break;
-            case BTN_GEAR_DOWN:
-                qemu_input_queue_btn(NULL, INPUT_BUTTON_WHEEL_DOWN,
-                                     event.value);
-                break;
-            };
-            break;
-        case EV_REL:
-            switch (event.code) {
-            case REL_X:
-                qemu_input_queue_rel(NULL, INPUT_AXIS_X, event.value);
-                break;
-            case REL_Y:
-                qemu_input_queue_rel(NULL, INPUT_AXIS_Y, event.value);
-                break;
-            case REL_WHEEL:
-                il->wheel = event.value;
-                break;
-            }
-            break;
-        case EV_SYN:
-            qemu_input_event_sync();
-            if (il->wheel != 0) {
-                input_linux_event_mouse_button((il->wheel > 0)
-                                               ? INPUT_BUTTON_WHEEL_UP
-                                               : INPUT_BUTTON_WHEEL_DOWN);
-                il->wheel = 0;
-            }
-            break;
+        if (il->has_rel_x && il->num_btns) {
+            input_linux_handle_mouse(il, &event);
         }
     }
 }
@@ -337,7 +347,8 @@ static void input_linux_event_mouse(void *opaque)
 static void input_linux_complete(UserCreatable *uc, Error **errp)
 {
     InputLinux *il = INPUT_LINUX(uc);
-    uint32_t evtmap, relmap, absmap;
+    uint8_t evtmap, relmap, absmap, keymap[KEY_CNT / 8];
+    unsigned int i;
     int rc, ver;
 
     if (!il->evdev) {
@@ -365,36 +376,36 @@ static void input_linux_complete(UserCreatable *uc, Error **errp)
     }
 
     if (evtmap & (1 << EV_REL)) {
+        relmap = 0;
         rc = ioctl(il->fd, EVIOCGBIT(EV_REL, sizeof(relmap)), &relmap);
-        if (rc < 0) {
-            relmap = 0;
+        if (relmap & (1 << REL_X)) {
+            il->has_rel_x = true;
         }
     }
 
     if (evtmap & (1 << EV_ABS)) {
-        ioctl(il->fd, EVIOCGBIT(EV_ABS, sizeof(absmap)), &absmap);
-        if (rc < 0) {
-            absmap = 0;
+        absmap = 0;
+        rc = ioctl(il->fd, EVIOCGBIT(EV_ABS, sizeof(absmap)), &absmap);
+        if (absmap & (1 << ABS_X)) {
+            il->has_abs_x = true;
         }
     }
 
-    if ((evtmap & (1 << EV_REL)) &&
-        (relmap & (1 << REL_X))) {
-        /* has relative x axis -> assume mouse */
-        qemu_set_fd_handler(il->fd, input_linux_event_mouse, NULL, il);
-    } else if ((evtmap & (1 << EV_ABS)) &&
-               (absmap & (1 << ABS_X))) {
-        /* has absolute x axis -> not supported */
-        error_setg(errp, "tablet/touchscreen not supported");
-        goto err_close;
-    } else if (evtmap & (1 << EV_KEY)) {
-        /* has keys/buttons (and no x axis) -> assume keyboard */
-        qemu_set_fd_handler(il->fd, input_linux_event_keyboard, NULL, il);
-    } else {
-        /* Huh? What is this? */
-        error_setg(errp, "unknown kind of input device");
-        goto err_close;
+    if (evtmap & (1 << EV_KEY)) {
+        memset(keymap, 0, sizeof(keymap));
+        rc = ioctl(il->fd, EVIOCGBIT(EV_KEY, sizeof(keymap)), keymap);
+        for (i = 0; i < KEY_CNT; i++) {
+            if (keymap[i / 8] & (1 << (i % 8))) {
+                if (linux_is_button(i)) {
+                    il->num_btns++;
+                } else {
+                    il->num_keys++;
+                }
+            }
+        }
     }
+
+    qemu_set_fd_handler(il->fd, input_linux_event, NULL, il);
     input_linux_toggle_grab(il);
     QTAILQ_INSERT_TAIL(&inputs, il, next);
     il->initialized = true;

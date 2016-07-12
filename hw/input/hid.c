@@ -27,6 +27,7 @@
 #include "ui/console.h"
 #include "qemu/timer.h"
 #include "hw/input/hid.h"
+#include "trace.h"
 
 #define HID_USAGE_ERROR_ROLLOVER        0x01
 #define HID_USAGE_POSTFAIL              0x02
@@ -234,7 +235,7 @@ static void hid_keyboard_event(DeviceState *dev, QemuConsole *src,
                                              key->down,
                                              scancodes);
     if (hs->n + count > QUEUE_LENGTH) {
-        fprintf(stderr, "usb-kbd: warning: key event queue full\n");
+        trace_hid_kbd_queue_full();
         return;
     }
     for (i = 0; i < count; i++) {

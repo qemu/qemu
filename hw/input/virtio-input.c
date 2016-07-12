@@ -7,6 +7,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/iov.h"
+#include "trace.h"
 
 #include "hw/qdev.h"
 #include "hw/virtio/virtio.h"
@@ -47,7 +48,7 @@ void virtio_input_send(VirtIOInput *vinput, virtio_input_event *event)
     virtqueue_get_avail_bytes(vinput->evt, &have, NULL, need, 0);
     if (have < need) {
         vinput->qindex = 0;
-        fprintf(stderr, "%s: ENOSPC in vq, dropping events\n", __func__);
+        trace_virtio_input_queue_full();
         return;
     }
 
