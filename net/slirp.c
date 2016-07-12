@@ -38,6 +38,7 @@
 #include "slirp/libslirp.h"
 #include "slirp/ip6.h"
 #include "sysemu/char.h"
+#include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
 
 static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
@@ -76,6 +77,7 @@ typedef struct SlirpState {
     NetClientState nc;
     QTAILQ_ENTRY(SlirpState) entry;
     Slirp *slirp;
+    Notifier exit_notifier;
 #ifndef _WIN32
     char smb_dir[128];
 #endif
@@ -118,11 +120,18 @@ static ssize_t net_slirp_receive(NetClientState *nc, const uint8_t *buf, size_t 
     return size;
 }
 
+static void slirp_smb_exit(Notifier *n, void *data)
+{
+    SlirpState *s = container_of(n, SlirpState, exit_notifier);
+    slirp_smb_cleanup(s);
+}
+
 static void net_slirp_cleanup(NetClientState *nc)
 {
     SlirpState *s = DO_UPCAST(SlirpState, nc, nc);
 
     slirp_cleanup(s->slirp);
+    qemu_remove_exit_notifier(&s->exit_notifier);
     slirp_smb_cleanup(s);
     QTAILQ_REMOVE(&slirp_stacks, s, entry);
 }
@@ -349,6 +358,8 @@ static int net_slirp_init(NetClientState *peer, const char *model,
     }
 #endif
 
+    s->exit_notifier.notify = slirp_smb_exit;
+    qemu_add_exit_notifier(&s->exit_notifier);
     return 0;
 
 error:
