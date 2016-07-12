@@ -305,12 +305,12 @@ static const char *cpuid_7_0_ebx_feature_name[] = {
 };
 
 static const char *cpuid_7_0_ecx_feature_name[] = {
-    NULL, NULL, NULL, "pku",
+    NULL, NULL, "umip", "pku",
     "ospke", NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
+    NULL, NULL, "rdpid", NULL,
     NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
 };
