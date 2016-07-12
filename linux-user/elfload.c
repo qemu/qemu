@@ -3050,7 +3050,9 @@ static int elf_core_dump(int signr, const CPUArchState *env)
         phdr.p_align = ELF_EXEC_PAGESIZE;
 
         bswap_phdr(&phdr, 1);
-        dump_write(fd, &phdr, sizeof (phdr));
+        if (dump_write(fd, &phdr, sizeof(phdr)) != 0) {
+            goto out;
+        }
     }
 
     /*
