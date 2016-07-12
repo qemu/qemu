@@ -5008,6 +5008,11 @@ static abi_long do_ioctl_dm(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
     host_data = (char*)host_dm + host_dm->data_start;
 
     argptr = lock_user(VERIFY_READ, guest_data, guest_data_size, 1);
+    if (!argptr) {
+        ret = -TARGET_EFAULT;
+        goto out;
+    }
+
     switch (ie->host_cmd) {
     case DM_REMOVE_ALL:
     case DM_LIST_DEVICES:
@@ -11271,6 +11276,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
     case TARGET_NR_mq_unlink:
         p = lock_user_string(arg1 - 1);
+        if (!p) {
+            ret = -TARGET_EFAULT;
+            break;
+        }
         ret = get_errno(mq_unlink(p));
         unlock_user (p, arg1, 0);
         break;
