@@ -6856,7 +6856,7 @@ static int open_self_cmdline(void *cpu_env, int fd)
         if (!word_skipped) {
             /* Skip the first string, which is the path to qemu-*-static
                instead of the actual command. */
-            cp_buf = memchr(buf, 0, sizeof(buf));
+            cp_buf = memchr(buf, 0, nb_read);
             if (cp_buf) {
                 /* Null byte found, skip one string */
                 cp_buf++;
