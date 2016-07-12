@@ -2111,19 +2111,19 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
 
  found:
     /* Now know where the strtab and symtab are.  Snarf them.  */
-    s = malloc(sizeof(*s));
+    s = g_try_new(struct syminfo, 1);
     if (!s) {
         goto give_up;
     }
 
     i = shdr[str_idx].sh_size;
-    s->disas_strtab = strings = malloc(i);
+    s->disas_strtab = strings = g_try_malloc(i);
     if (!strings || pread(fd, strings, i, shdr[str_idx].sh_offset) != i) {
         goto give_up;
     }
 
     i = shdr[sym_idx].sh_size;
-    syms = malloc(i);
+    syms = g_try_malloc(i);
     if (!syms || pread(fd, syms, i, shdr[sym_idx].sh_offset) != i) {
         goto give_up;
     }
@@ -2157,7 +2157,7 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
        that we threw away.  Whether or not this has any effect on the
        memory allocation depends on the malloc implementation and how
        many symbols we managed to discard.  */
-    new_syms = realloc(syms, nsyms * sizeof(*syms));
+    new_syms = g_try_renew(struct elf_sym, syms, nsyms);
     if (new_syms == NULL) {
         goto give_up;
     }
@@ -2178,9 +2178,9 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
     return;
 
 give_up:
-    free(s);
-    free(strings);
-    free(syms);
+    g_free(s);
+    g_free(strings);
+    g_free(syms);
 }
 
 int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
