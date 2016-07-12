@@ -177,7 +177,6 @@ int vfio_spapr_create_window(VFIOContainer *container,
         error_report("Host doesn't support DMA window at %"HWADDR_PRIx", must be %"PRIx64,
                      section->offset_within_address_space,
                      (uint64_t)create.start_addr);
-        ioctl(container->fd, VFIO_IOMMU_SPAPR_TCE_REMOVE, &remove);
         return -EINVAL;
     }
     trace_vfio_spapr_create_window(create.page_shift,
