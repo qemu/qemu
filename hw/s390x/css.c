@@ -511,6 +511,7 @@ static void sch_handle_start_func(SubchDev *sch, ORB *orb)
     path = 0x80;
 
     if (!(s->ctrl & SCSW_ACTL_SUSP)) {
+        /* Start Function triggered via ssch, i.e. we have an ORB */
         s->cstat = 0;
         s->dstat = 0;
         /* Look at the orb and try to execute the channel program. */
@@ -528,6 +529,8 @@ static void sch_handle_start_func(SubchDev *sch, ORB *orb)
         sch->ccw_no_data_cnt = 0;
         suspend_allowed = !!(orb->ctrl0 & ORB_CTRL0_MASK_SPND);
     } else {
+        /* Start Function resumed via rsch, i.e. we don't have an
+         * ORB */
         s->ctrl &= ~(SCSW_ACTL_SUSP | SCSW_ACTL_RESUME_PEND);
         /* The channel program had been suspended before. */
         suspend_allowed = true;
@@ -610,6 +613,7 @@ static void do_subchannel_work(SubchDev *sch, ORB *orb)
     } else if (s->ctrl & SCSW_FCTL_HALT_FUNC) {
         sch_handle_halt_func(sch);
     } else if (s->ctrl & SCSW_FCTL_START_FUNC) {
+        /* Triggered by both ssch and rsch. */
         sch_handle_start_func(sch, orb);
     } else {
         /* Cannot happen. */
