@@ -2233,7 +2233,7 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
                we do not have the power to recompile these, we emulate
                the SVr4 behavior.  Sigh.  */
             target_mmap(0, qemu_host_page_size, PROT_READ | PROT_EXEC,
-                        MAP_FIXED | MAP_PRIVATE, -1, 0);
+                        MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         }
     }
 
