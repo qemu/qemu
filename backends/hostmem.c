@@ -64,6 +64,14 @@ out:
     error_propagate(errp, local_err);
 }
 
+static uint16List **host_memory_append_node(uint16List **node,
+                                            unsigned long value)
+{
+     *node = g_malloc0(sizeof(**node));
+     (*node)->value = value;
+     return &(*node)->next;
+}
+
 static void
 host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
@@ -74,13 +82,12 @@ host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
     unsigned long value;
 
     value = find_first_bit(backend->host_nodes, MAX_NODES);
-    if (value == MAX_NODES) {
-        return;
-    }
 
-    *node = g_malloc0(sizeof(**node));
-    (*node)->value = value;
-    node = &(*node)->next;
+    node = host_memory_append_node(node, value);
+
+    if (value == MAX_NODES) {
+        goto out;
+    }
 
     do {
         value = find_next_bit(backend->host_nodes, MAX_NODES, value + 1);
@@ -88,11 +95,10 @@ host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
             break;
         }
 
-        *node = g_malloc0(sizeof(**node));
-        (*node)->value = value;
-        node = &(*node)->next;
+        node = host_memory_append_node(node, value);
     } while (true);
 
+out:
     visit_type_uint16List(v, name, &host_nodes, errp);
 }
 
