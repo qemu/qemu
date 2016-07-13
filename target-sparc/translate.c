@@ -2077,12 +2077,16 @@ static DisasASI get_asi(DisasContext *dc, int insn, TCGMemOp memop)
         case ASI_REAL_IO_L: /* Bypass, non-cacheable LE */
         case ASI_TWINX_REAL:   /* Real address, twinx */
         case ASI_TWINX_REAL_L: /* Real address, twinx, LE */
+        case ASI_QUAD_LDD_PHYS:
+        case ASI_QUAD_LDD_PHYS_L:
             mem_idx = MMU_PHYS_IDX;
             break;
         case ASI_N:  /* Nucleus */
         case ASI_NL: /* Nucleus LE */
         case ASI_TWINX_N:
         case ASI_TWINX_NL:
+        case ASI_NUCLEUS_QUAD_LDD:
+        case ASI_NUCLEUS_QUAD_LDD_L:
             mem_idx = MMU_NUCLEUS_IDX;
             break;
         case ASI_AIUP:  /* As if user primary */
@@ -2164,6 +2168,10 @@ static DisasASI get_asi(DisasContext *dc, int insn, TCGMemOp memop)
         case ASI_TWINX_PL:
         case ASI_TWINX_S:
         case ASI_TWINX_SL:
+        case ASI_QUAD_LDD_PHYS:
+        case ASI_QUAD_LDD_PHYS_L:
+        case ASI_NUCLEUS_QUAD_LDD:
+        case ASI_NUCLEUS_QUAD_LDD_L:
             type = GET_ASI_DTWINX;
             break;
         case ASI_BLK_COMMIT_P:
