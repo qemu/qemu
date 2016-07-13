@@ -1923,11 +1923,22 @@ void hmp_chardev_remove(Monitor *mon, const QDict *qdict)
 void hmp_qemu_io(Monitor *mon, const QDict *qdict)
 {
     BlockBackend *blk;
+    BlockBackend *local_blk = NULL;
     const char* device = qdict_get_str(qdict, "device");
     const char* command = qdict_get_str(qdict, "command");
     Error *err = NULL;
 
     blk = blk_by_name(device);
+    if (!blk) {
+        BlockDriverState *bs = bdrv_lookup_bs(NULL, device, &err);
+        if (bs) {
+            blk = local_blk = blk_new();
+            blk_insert_bs(blk, bs);
+        } else {
+            goto fail;
+        }
+    }
+
     if (blk) {
         AioContext *aio_context = blk_get_aio_context(blk);
         aio_context_acquire(aio_context);
@@ -1940,6 +1951,8 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
                   "Device '%s' not found", device);
     }
 
+fail:
+    blk_unref(local_blk);
     hmp_handle_error(mon, &err);
 }
 
