@@ -60,6 +60,8 @@ typedef struct GUSState {
     int64_t last_ticks;
     qemu_irq pic;
     IsaDma *isa_dma;
+    PortioList portio_list1;
+    PortioList portio_list2;
 } GUSState;
 
 static uint32_t gus_readb(void *opaque, uint32_t nport)
@@ -265,9 +267,10 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
     s->samples = AUD_get_buffer_size_out (s->voice) >> s->shift;
     s->mixbuf = g_malloc0 (s->samples << s->shift);
 
-    isa_register_portio_list (d, s->port, gus_portio_list1, s, "gus");
-    isa_register_portio_list (d, (s->port + 0x100) & 0xf00,
-                              gus_portio_list2, s, "gus");
+    isa_register_portio_list(d, &s->portio_list1, s->port,
+                             gus_portio_list1, s, "gus");
+    isa_register_portio_list(d, &s->portio_list2, (s->port + 0x100) & 0xf00,
+                             gus_portio_list2, s, "gus");
 
     s->isa_dma = isa_get_dma(isa_bus_from_device(d), s->emu.gusdma);
     k = ISADMA_GET_CLASS(s->isa_dma);

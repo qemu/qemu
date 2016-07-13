@@ -553,10 +553,12 @@ static void i8257_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(isa_address_space_io(isa),
                                 d->base, &d->channel_io);
 
-    isa_register_portio_list(isa, d->page_base, page_portio_list, d,
+    isa_register_portio_list(isa, &d->portio_page,
+                             d->page_base, page_portio_list, d,
                              "dma-page");
     if (d->pageh_base >= 0) {
-        isa_register_portio_list(isa, d->pageh_base, pageh_portio_list, d,
+        isa_register_portio_list(isa, &d->portio_pageh,
+                                 d->pageh_base, pageh_portio_list, d,
                                  "dma-pageh");
     }
 
