@@ -113,6 +113,7 @@ static void coroutine_fn commit_run(void *opaque)
     CommitBlockJob *s = opaque;
     CommitCompleteData *data;
     int64_t sector_num, end;
+    uint64_t delay_ns = 0;
     int ret = 0;
     int n = 0;
     void *buf = NULL;
@@ -142,10 +143,8 @@ static void coroutine_fn commit_run(void *opaque)
     buf = blk_blockalign(s->top, COMMIT_BUFFER_SIZE);
 
     for (sector_num = 0; sector_num < end; sector_num += n) {
-        uint64_t delay_ns = 0;
         bool copy;
 
-wait:
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
          */
@@ -161,12 +160,6 @@ wait:
         copy = (ret == 1);
         trace_commit_one_iteration(s, sector_num, n, ret);
         if (copy) {
-            if (s->common.speed) {
-                delay_ns = ratelimit_calculate_delay(&s->limit, n);
-                if (delay_ns > 0) {
-                    goto wait;
-                }
-            }
             ret = commit_populate(s->top, s->base, sector_num, n, buf);
             bytes_written += n * BDRV_SECTOR_SIZE;
         }
@@ -182,6 +175,10 @@ wait:
         }
         /* Publish progress */
         s->common.offset += n * BDRV_SECTOR_SIZE;
+
+        if (copy && s->common.speed) {
+            delay_ns = ratelimit_calculate_delay(&s->limit, n);
+        }
     }
 
     ret = 0;

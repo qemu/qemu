@@ -3018,9 +3018,10 @@ static int enable_write_target(BlockDriverState *bs, Error **errp)
     }
 
     options = qdict_new();
-    qdict_put(options, "driver", qstring_from_str("qcow"));
+    qdict_put(options, "write-target.driver", qstring_from_str("qcow"));
     s->qcow = bdrv_open_child(s->qcow_filename, options, "write-target", bs,
                               &child_vvfat_qcow, false, errp);
+    QDECREF(options);
     if (!s->qcow) {
         ret = -EINVAL;
         goto err;

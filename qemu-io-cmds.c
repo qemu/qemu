@@ -389,9 +389,9 @@ create_iovec(BlockBackend *blk, QEMUIOVector *qiov, char **argv, int nr_iov,
             goto fail;
         }
 
-        /* should be SIZE_T_MAX, but that doesn't exist */
-        if (len > INT_MAX) {
-            printf("Argument '%s' exceeds maximum size %d\n", arg, INT_MAX);
+        if (len > SIZE_MAX) {
+            printf("Argument '%s' exceeds maximum size %llu\n", arg,
+                   (unsigned long long)SIZE_MAX);
             goto fail;
         }
 
@@ -479,7 +479,7 @@ static int do_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
         .done   = false,
     };
 
-    if (count >> BDRV_SECTOR_BITS > INT_MAX) {
+    if (count > INT_MAX) {
         return -ERANGE;
     }
 
@@ -500,7 +500,7 @@ static int do_write_compressed(BlockBackend *blk, char *buf, int64_t offset,
 {
     int ret;
 
-    if (count >> 9 > INT_MAX) {
+    if (count >> 9 > BDRV_REQUEST_MAX_SECTORS) {
         return -ERANGE;
     }
 
@@ -1688,9 +1688,9 @@ static int discard_f(BlockBackend *blk, int argc, char **argv)
     if (count < 0) {
         print_cvtnum_err(count, argv[optind]);
         return 0;
-    } else if (count >> BDRV_SECTOR_BITS > INT_MAX) {
+    } else if (count >> BDRV_SECTOR_BITS > BDRV_REQUEST_MAX_SECTORS) {
         printf("length cannot exceed %"PRIu64", given %s\n",
-               (uint64_t)INT_MAX << BDRV_SECTOR_BITS,
+               (uint64_t)BDRV_REQUEST_MAX_SECTORS << BDRV_SECTOR_BITS,
                argv[optind]);
         return 0;
     }

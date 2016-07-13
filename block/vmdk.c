@@ -1202,13 +1202,6 @@ static int get_cluster_offset(BlockDriverState *bs,
     l2_index = ((offset >> 9) / extent->cluster_sectors) % extent->l2_size;
     cluster_sector = le32_to_cpu(l2_table[l2_index]);
 
-    if (m_data) {
-        m_data->valid = 1;
-        m_data->l1_index = l1_index;
-        m_data->l2_index = l2_index;
-        m_data->l2_offset = l2_offset;
-        m_data->l2_cache_entry = &l2_table[l2_index];
-    }
     if (extent->has_zero_grain && cluster_sector == VMDK_GTE_ZEROED) {
         zeroed = true;
     }
@@ -1230,6 +1223,13 @@ static int get_cluster_offset(BlockDriverState *bs,
                                 offset, skip_start_bytes, skip_end_bytes);
         if (ret) {
             return ret;
+        }
+        if (m_data) {
+            m_data->valid = 1;
+            m_data->l1_index = l1_index;
+            m_data->l2_index = l2_index;
+            m_data->l2_offset = l2_offset;
+            m_data->l2_cache_entry = &l2_table[l2_index];
         }
     }
     *cluster_offset = cluster_sector << BDRV_SECTOR_BITS;

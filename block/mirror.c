@@ -422,7 +422,9 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         assert(io_sectors);
         sector_num += io_sectors;
         nb_chunks -= DIV_ROUND_UP(io_sectors, sectors_per_chunk);
-        delay_ns += ratelimit_calculate_delay(&s->limit, io_sectors);
+        if (s->common.speed) {
+            delay_ns = ratelimit_calculate_delay(&s->limit, io_sectors);
+        }
     }
     return delay_ns;
 }
