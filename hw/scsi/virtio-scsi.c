@@ -824,8 +824,9 @@ static struct SCSIBusInfo virtio_scsi_scsi_info = {
 };
 
 void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
-                                HandleOutput ctrl, HandleOutput evt,
-                                HandleOutput cmd)
+                                VirtIOHandleOutput ctrl,
+                                VirtIOHandleOutput evt,
+                                VirtIOHandleOutput cmd)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOSCSICommon *s = VIRTIO_SCSI_COMMON(dev);

@@ -121,11 +121,9 @@ typedef struct VirtIOSCSIReq {
     } req;
 } VirtIOSCSIReq;
 
-typedef void (*HandleOutput)(VirtIODevice *, VirtQueue *);
-
 void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
-                                HandleOutput ctrl, HandleOutput evt,
-                                HandleOutput cmd);
+                                VirtIOHandleOutput ctrl, VirtIOHandleOutput evt,
+                                VirtIOHandleOutput cmd);
 
 void virtio_scsi_common_unrealize(DeviceState *dev, Error **errp);
 void virtio_scsi_handle_event_vq(VirtIOSCSI *s, VirtQueue *vq);
