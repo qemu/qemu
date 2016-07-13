@@ -903,7 +903,6 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
     { \
         MachineClass *mc = MACHINE_CLASS(oc); \
         optsfn(mc); \
-        mc->name = namestr; \
         mc->init = initfn; \
     } \
     static const TypeInfo pc_machine_type_##suffix = { \
