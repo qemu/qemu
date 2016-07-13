@@ -887,10 +887,10 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val,
             case 0: /* Control Register */
                 env->mmuregs[reg] = (env->mmuregs[reg] & 0xff000000) |
                     (val & 0x00ffffff);
-                /* Mappings generated during no-fault mode or MMU
-                   disabled mode are invalid in normal mode */
-                if ((oldreg & (MMU_E | MMU_NF | env->def->mmu_bm)) !=
-                    (env->mmuregs[reg] & (MMU_E | MMU_NF | env->def->mmu_bm))) {
+                /* Mappings generated during no-fault mode
+                   are invalid in normal mode.  */
+                if ((oldreg ^ env->mmuregs[reg])
+                    & (MMU_NF | env->def->mmu_bm)) {
                     tlb_flush(CPU(cpu), 1);
                 }
                 break;
@@ -1866,23 +1866,8 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
         /* XXX */
         return;
     case ASI_LSU_CONTROL: /* LSU */
-        {
-            uint64_t oldreg;
-
-            oldreg = env->lsu;
-            env->lsu = val & (DMMU_E | IMMU_E);
-            /* Mappings generated during D/I MMU disabled mode are
-               invalid in normal mode */
-            if (oldreg != env->lsu) {
-                DPRINTF_MMU("LSU change: 0x%" PRIx64 " -> 0x%" PRIx64 "\n",
-                            oldreg, env->lsu);
-#ifdef DEBUG_MMU
-                dump_mmu(stdout, fprintf, env);
-#endif
-                tlb_flush(CPU(cpu), 1);
-            }
-            return;
-        }
+        env->lsu = val & (DMMU_E | IMMU_E);
+        return;
     case ASI_IMMU: /* I-MMU regs */
         {
             int reg = (addr >> 3) & 0xf;
