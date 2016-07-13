@@ -28,8 +28,6 @@
  */
 #define MAX_EVENTS 128
 
-#define MAX_QUEUED_IO  128
-
 struct qemu_laiocb {
     BlockAIOCB common;
     Coroutine *co;
@@ -44,7 +42,8 @@ struct qemu_laiocb {
 
 typedef struct {
     int plugged;
-    unsigned int n;
+    unsigned int in_queue;
+    unsigned int in_flight;
     bool blocked;
     QSIMPLEQ_HEAD(, qemu_laiocb) pending;
 } LaioQueue;
@@ -131,6 +130,7 @@ static void qemu_laio_completion_bh(void *opaque)
             s->event_max = 0;
             return; /* no more events */
         }
+        s->io_q.in_flight -= s->event_max;
     }
 
     /* Reschedule so nested event loops see currently pending completions */
@@ -192,7 +192,8 @@ static void ioq_init(LaioQueue *io_q)
 {
     QSIMPLEQ_INIT(&io_q->pending);
     io_q->plugged = 0;
-    io_q->n = 0;
+    io_q->in_queue = 0;
+    io_q->in_flight = 0;
     io_q->blocked = false;
 }
 
@@ -200,14 +201,17 @@ static void ioq_submit(LinuxAioState *s)
 {
     int ret, len;
     struct qemu_laiocb *aiocb;
-    struct iocb *iocbs[MAX_QUEUED_IO];
+    struct iocb *iocbs[MAX_EVENTS];
     QSIMPLEQ_HEAD(, qemu_laiocb) completed;
 
     do {
+        if (s->io_q.in_flight >= MAX_EVENTS) {
+            break;
+        }
         len = 0;
         QSIMPLEQ_FOREACH(aiocb, &s->io_q.pending, next) {
             iocbs[len++] = &aiocb->iocb;
-            if (len == MAX_QUEUED_IO) {
+            if (s->io_q.in_flight + len >= MAX_EVENTS) {
                 break;
             }
         }
@@ -220,11 +224,12 @@ static void ioq_submit(LinuxAioState *s)
             abort();
         }
 
-        s->io_q.n -= ret;
+        s->io_q.in_flight += ret;
+        s->io_q.in_queue  -= ret;
         aiocb = container_of(iocbs[ret - 1], struct qemu_laiocb, iocb);
         QSIMPLEQ_SPLIT_AFTER(&s->io_q.pending, aiocb, next, &completed);
     } while (ret == len && !QSIMPLEQ_EMPTY(&s->io_q.pending));
-    s->io_q.blocked = (s->io_q.n > 0);
+    s->io_q.blocked = (s->io_q.in_queue > 0);
 }
 
 void laio_io_plug(BlockDriverState *bs, LinuxAioState *s)
@@ -264,9 +269,10 @@ static int laio_do_submit(int fd, struct qemu_laiocb *laiocb, off_t offset,
     io_set_eventfd(&laiocb->iocb, event_notifier_get_fd(&s->e));
 
     QSIMPLEQ_INSERT_TAIL(&s->io_q.pending, laiocb, next);
-    s->io_q.n++;
+    s->io_q.in_queue++;
     if (!s->io_q.blocked &&
-        (!s->io_q.plugged || s->io_q.n >= MAX_QUEUED_IO)) {
+        (!s->io_q.plugged ||
+         s->io_q.in_flight + s->io_q.in_queue >= MAX_EVENTS)) {
         ioq_submit(s);
     }
 
