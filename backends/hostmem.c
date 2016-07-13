@@ -264,6 +264,16 @@ host_memory_backend_get_memory(HostMemoryBackend *backend, Error **errp)
     return memory_region_size(&backend->mr) ? &backend->mr : NULL;
 }
 
+void host_memory_backend_set_mapped(HostMemoryBackend *backend, bool mapped)
+{
+    backend->is_mapped = mapped;
+}
+
+bool host_memory_backend_is_mapped(HostMemoryBackend *backend)
+{
+    return backend->is_mapped;
+}
+
 static void
 host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
 {
@@ -341,10 +351,7 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
 static bool
 host_memory_backend_can_be_deleted(UserCreatable *uc, Error **errp)
 {
-    MemoryRegion *mr;
-
-    mr = host_memory_backend_get_memory(MEMORY_BACKEND(uc), errp);
-    if (memory_region_is_mapped(mr)) {
+    if (host_memory_backend_is_mapped(MEMORY_BACKEND(uc))) {
         return false;
     } else {
         return true;

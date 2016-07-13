@@ -1008,10 +1008,7 @@ static const TypeInfo ivshmem_common_info = {
 static void ivshmem_check_memdev_is_busy(Object *obj, const char *name,
                                          Object *val, Error **errp)
 {
-    MemoryRegion *mr;
-
-    mr = host_memory_backend_get_memory(MEMORY_BACKEND(val), &error_abort);
-    if (memory_region_is_mapped(mr)) {
+    if (host_memory_backend_is_mapped(MEMORY_BACKEND(val))) {
         char *path = object_get_canonical_path_component(val);
         error_setg(errp, "can't use already busy memdev: %s", path);
         g_free(path);
@@ -1060,6 +1057,14 @@ static void ivshmem_plain_realize(PCIDevice *dev, Error **errp)
     }
 
     ivshmem_common_realize(dev, errp);
+    host_memory_backend_set_mapped(s->hostmem, true);
+}
+
+static void ivshmem_plain_exit(PCIDevice *pci_dev)
+{
+    IVShmemState *s = IVSHMEM_COMMON(pci_dev);
+
+    host_memory_backend_set_mapped(s->hostmem, false);
 }
 
 static void ivshmem_plain_class_init(ObjectClass *klass, void *data)
@@ -1068,6 +1073,7 @@ static void ivshmem_plain_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = ivshmem_plain_realize;
+    k->exit = ivshmem_plain_exit;
     dc->props = ivshmem_plain_properties;
     dc->vmsd = &ivshmem_plain_vmsd;
 }
