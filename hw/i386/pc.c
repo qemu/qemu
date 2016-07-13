@@ -1608,6 +1608,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
     }
     port92 = isa_create_simple(isa_bus, "port92");
     port92_init(port92, a20_line[1]);
+    g_free(a20_line);
 
     DMA_init(isa_bus, 0);
 
