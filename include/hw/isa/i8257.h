@@ -36,6 +36,8 @@ typedef struct I8257State {
     QEMUBH *dma_bh;
     bool dma_bh_scheduled;
     int running;
+    PortioList portio_page;
+    PortioList portio_pageh;
 } I8257State;
 
 #endif

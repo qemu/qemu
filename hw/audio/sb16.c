@@ -106,6 +106,7 @@ typedef struct SB16State {
     /* mixer state */
     int mixer_nreg;
     uint8_t mixer_regs[256];
+    PortioList portio_list;
 } SB16State;
 
 static void SB_audio_callback (void *opaque, int free);
@@ -1378,7 +1379,8 @@ static void sb16_realizefn (DeviceState *dev, Error **errp)
         dolog ("warning: Could not create auxiliary timer\n");
     }
 
-    isa_register_portio_list (isadev, s->port, sb16_ioport_list, s, "sb16");
+    isa_register_portio_list(isadev, &s->portio_list, s->port,
+                             sb16_ioport_list, s, "sb16");
 
     s->isa_hdma = isa_get_dma(isa_bus_from_device(isadev), s->hdma);
     k = ISADMA_GET_CLASS(s->isa_hdma);

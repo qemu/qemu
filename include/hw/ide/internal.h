@@ -480,6 +480,8 @@ struct IDEBus {
     uint8_t retry_unit;
     int64_t retry_sector_num;
     uint32_t retry_nsector;
+    PortioList portio_list;
+    PortioList portio2_list;
 };
 
 #define TYPE_IDE_DEVICE "ide-device"
