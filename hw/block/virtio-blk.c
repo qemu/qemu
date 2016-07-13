@@ -914,7 +914,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     s->sector_mask = (s->conf.conf.logical_block_size / BDRV_SECTOR_SIZE) - 1;
 
     for (i = 0; i < conf->num_queues; i++) {
-        virtio_add_queue(vdev, 128, virtio_blk_handle_output);
+        virtio_add_queue_aio(vdev, 128, virtio_blk_handle_output);
     }
     virtio_blk_data_plane_create(vdev, conf, &s->dataplane, &err);
     if (err != NULL) {
