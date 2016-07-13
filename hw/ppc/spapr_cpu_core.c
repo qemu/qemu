@@ -126,12 +126,23 @@ static void spapr_core_release(DeviceState *dev, void *opaque)
 void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
                        Error **errp)
 {
+    sPAPRMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
     CPUCore *cc = CPU_CORE(dev);
     sPAPRDRConnector *drc =
         spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_CPU, cc->core_id);
     sPAPRDRConnectorClass *drck;
     Error *local_err = NULL;
+    int smt = kvmppc_smt_threads();
+    int index = cc->core_id / smt;
+    int spapr_max_cores = max_cpus / smp_threads;
+    int i;
 
+    for (i = spapr_max_cores - 1; i > index; i--) {
+        if (spapr->cores[i]) {
+            error_setg(errp, "core-id %d should be removed first", i * smt);
+            return;
+        }
+    }
     g_assert(drc);
 
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
@@ -214,7 +225,7 @@ void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(OBJECT(hotplug_dev));
     sPAPRMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
     int spapr_max_cores = max_cpus / smp_threads;
-    int index;
+    int index, i;
     int smt = kvmppc_smt_threads();
     Error *local_err = NULL;
     CPUCore *cc = CPU_CORE(dev);
@@ -250,6 +261,14 @@ void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     if (spapr->cores[index]) {
         error_setg(&local_err, "core %d already populated", cc->core_id);
         goto out;
+    }
+
+    for (i = 0; i < index; i++) {
+        if (!spapr->cores[i]) {
+            error_setg(&local_err, "core-id %d should be added first",
+                       i * smt);
+            goto out;
+        }
     }
 
 out:
