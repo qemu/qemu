@@ -223,14 +223,14 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
     }
 
     if (err) {
-        goto error;
+        goto end;
     }
 
     switch (object->type) {
     case NUMA_OPTIONS_KIND_NODE:
         numa_node_parse(object->u.node.data, opts, &err);
         if (err) {
-            goto error;
+            goto end;
         }
         nb_numa_nodes++;
         break;
@@ -238,13 +238,14 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
         abort();
     }
 
-    return 0;
-
-error:
-    error_report_err(err);
+end:
     qapi_free_NumaOptions(object);
+    if (err) {
+        error_report_err(err);
+        return -1;
+    }
 
-    return -1;
+    return 0;
 }
 
 static char *enumerate_cpus(unsigned long *cpus, int max_cpus)
