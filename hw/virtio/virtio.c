@@ -95,8 +95,8 @@ struct VirtQueue
     int inuse;
 
     uint16_t vector;
-    void (*handle_output)(VirtIODevice *vdev, VirtQueue *vq);
-    void (*handle_aio_output)(VirtIODevice *vdev, VirtQueue *vq);
+    VirtIOHandleOutput handle_output;
+    VirtIOHandleOutput handle_aio_output;
     VirtIODevice *vdev;
     EventNotifier guest_notifier;
     EventNotifier host_notifier;
@@ -1131,7 +1131,7 @@ void virtio_queue_set_vector(VirtIODevice *vdev, int n, uint16_t vector)
 }
 
 VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
-                            void (*handle_output)(VirtIODevice *, VirtQueue *))
+                            VirtIOHandleOutput handle_output)
 {
     int i;
 
@@ -1804,8 +1804,7 @@ static void virtio_queue_host_notifier_aio_read(EventNotifier *n)
 }
 
 void virtio_queue_aio_set_host_notifier_handler(VirtQueue *vq, AioContext *ctx,
-                                                void (*handle_output)(VirtIODevice *,
-                                                                      VirtQueue *))
+                                                VirtIOHandleOutput handle_output)
 {
     if (handle_output) {
         vq->handle_aio_output = handle_output;
