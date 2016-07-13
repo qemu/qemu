@@ -8446,8 +8446,8 @@ static void powerpc_get_compat(Object *obj, Visitor *v, const char *name,
     case 0:
         break;
     default:
-        error_setg(errp, "Internal error: compat is set to %x",
-                   max_compat ? *max_compat : -1);
+        error_report("Internal error: compat is set to %x", *max_compat);
+        abort();
         break;
     }
 
