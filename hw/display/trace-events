@@ -105,7 +105,7 @@ qxl_spice_reset_image_cache(int qid) "%d"
 qxl_spice_reset_memslots(int qid) "%d"
 qxl_spice_update_area(int qid, uint32_t surface_id, uint32_t left, uint32_t right, uint32_t top, uint32_t bottom) "%d sid=%d [%d,%d,%d,%d]"
 qxl_spice_update_area_rest(int qid, uint32_t num_dirty_rects, uint32_t clear_dirty_region) "%d #d=%d clear=%d"
-qxl_surfaces_dirty(int qid, int offset, int size) "%d offset=%d size=%d"
+qxl_surfaces_dirty(int qid, uint64_t offset, uint64_t size) "%d offset=0x%"PRIx64" size=0x%"PRIx64
 qxl_send_events(int qid, uint32_t events) "%d %d"
 qxl_send_events_vm_stopped(int qid, uint32_t events) "%d %d"
 qxl_set_guest_bug(int qid) "%d"
