@@ -65,6 +65,9 @@ static void machine_set_kernel_irqchip(Object *obj, Visitor *v,
             ms->kernel_irqchip_split = true;
             break;
         default:
+            /* The value was checked in visit_type_OnOffSplit() above. If
+             * we get here, then something is wrong in QEMU.
+             */
             abort();
         }
     }
