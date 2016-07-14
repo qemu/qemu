@@ -217,26 +217,14 @@ static void virtio_input_reset(VirtIODevice *vdev)
     }
 }
 
-static void virtio_input_save(QEMUFile *f, void *opaque)
-{
-    VirtIOInput *vinput = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(vinput);
-
-    virtio_save(vdev, f);
-}
-
-static int virtio_input_load(QEMUFile *f, void *opaque, int version_id)
+static int virtio_input_load(QEMUFile *f, void *opaque, size_t size)
 {
     VirtIOInput *vinput = opaque;
     VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(vinput);
     VirtIODevice *vdev = VIRTIO_DEVICE(vinput);
     int ret;
 
-    if (version_id != VIRTIO_INPUT_VM_VERSION) {
-        return -EINVAL;
-    }
-
-    ret = virtio_load(vdev, f, version_id);
+    ret = virtio_load(vdev, f, VIRTIO_INPUT_VM_VERSION);
     if (ret) {
         return ret;
     }
@@ -280,19 +268,13 @@ static void virtio_input_device_realize(DeviceState *dev, Error **errp)
                 vinput->cfg_size);
     vinput->evt = virtio_add_queue(vdev, 64, virtio_input_handle_evt);
     vinput->sts = virtio_add_queue(vdev, 64, virtio_input_handle_sts);
-
-    register_savevm(dev, "virtio-input", -1, VIRTIO_INPUT_VM_VERSION,
-                    virtio_input_save, virtio_input_load, vinput);
 }
 
 static void virtio_input_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(dev);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    VirtIOInput *vinput = VIRTIO_INPUT(dev);
     Error *local_err = NULL;
-
-    unregister_savevm(dev, "virtio-input", vinput);
 
     if (vic->unrealize) {
         vic->unrealize(dev, &local_err);
@@ -303,6 +285,9 @@ static void virtio_input_device_unrealize(DeviceState *dev, Error **errp)
     }
     virtio_cleanup(vdev);
 }
+
+VMSTATE_VIRTIO_DEVICE(input, VIRTIO_INPUT_VM_VERSION, virtio_input_load,
+                      virtio_vmstate_save);
 
 static Property virtio_input_properties[] = {
     DEFINE_PROP_STRING("serial", VirtIOInput, serial),
@@ -315,6 +300,7 @@ static void virtio_input_class_init(ObjectClass *klass, void *data)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     dc->props          = virtio_input_properties;
+    dc->vmsd           = &vmstate_virtio_input;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     vdc->realize      = virtio_input_device_realize;
     vdc->unrealize    = virtio_input_device_unrealize;
