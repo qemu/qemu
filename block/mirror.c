@@ -60,7 +60,7 @@ typedef struct MirrorBlockJob {
 
     unsigned long *in_flight_bitmap;
     int in_flight;
-    int sectors_in_flight;
+    int64_t sectors_in_flight;
     int ret;
     bool unmap;
     bool waiting_for_io;
