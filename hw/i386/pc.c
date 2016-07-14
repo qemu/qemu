@@ -1844,14 +1844,52 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
                             DeviceState *dev, Error **errp)
 {
     int idx;
+    CPUArchId *cpu_slot;
     X86CPUTopoInfo topo;
     X86CPU *cpu = X86_CPU(dev);
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
-    CPUArchId *cpu_slot = pc_find_cpu_slot(pcms, CPU(dev), &idx);
 
+    /* if APIC ID is not set, set it based on socket/core/thread properties */
+    if (cpu->apic_id == UNASSIGNED_APIC_ID) {
+        int max_socket = (max_cpus - 1) / smp_threads / smp_cores;
+
+        if (cpu->socket_id < 0) {
+            error_setg(errp, "CPU socket-id is not set");
+            return;
+        } else if (cpu->socket_id > max_socket) {
+            error_setg(errp, "Invalid CPU socket-id: %u must be in range 0:%u",
+                       cpu->socket_id, max_socket);
+            return;
+        }
+        if (cpu->core_id < 0) {
+            error_setg(errp, "CPU core-id is not set");
+            return;
+        } else if (cpu->core_id > (smp_cores - 1)) {
+            error_setg(errp, "Invalid CPU core-id: %u must be in range 0:%u",
+                       cpu->core_id, smp_cores - 1);
+            return;
+        }
+        if (cpu->thread_id < 0) {
+            error_setg(errp, "CPU thread-id is not set");
+            return;
+        } else if (cpu->thread_id > (smp_threads - 1)) {
+            error_setg(errp, "Invalid CPU thread-id: %u must be in range 0:%u",
+                       cpu->thread_id, smp_threads - 1);
+            return;
+        }
+
+        topo.pkg_id = cpu->socket_id;
+        topo.core_id = cpu->core_id;
+        topo.smt_id = cpu->thread_id;
+        cpu->apic_id = apicid_from_topo_ids(smp_cores, smp_threads, &topo);
+    }
+
+    cpu_slot = pc_find_cpu_slot(pcms, CPU(dev), &idx);
     if (!cpu_slot) {
-        error_setg(errp, "Invalid CPU index with APIC ID (%" PRIu32
-                   "), valid range 0:%d", cpu->apic_id,
+        x86_topo_ids_from_apicid(cpu->apic_id, smp_cores, smp_threads, &topo);
+        error_setg(errp, "Invalid CPU [socket: %u, core: %u, thread: %u] with"
+                  " APIC ID %" PRIu32 ", valid index range 0:%d",
+                   topo.pkg_id, topo.core_id, topo.smt_id, cpu->apic_id,
                    pcms->possible_cpus->len - 1);
         return;
     }
