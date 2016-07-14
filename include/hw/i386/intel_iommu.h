@@ -44,6 +44,8 @@
 #define VTD_HOST_ADDRESS_WIDTH      39
 #define VTD_HAW_MASK                ((1ULL << VTD_HOST_ADDRESS_WIDTH) - 1)
 
+#define DMAR_REPORT_F_INTR          (1)
+
 typedef struct VTDContextEntry VTDContextEntry;
 typedef struct VTDContextCacheEntry VTDContextCacheEntry;
 typedef struct IntelIOMMUState IntelIOMMUState;

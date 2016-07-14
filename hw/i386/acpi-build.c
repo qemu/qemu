@@ -59,6 +59,7 @@
 
 #include "qapi/qmp/qint.h"
 #include "qom/qom-qobject.h"
+#include "hw/i386/x86-iommu.h"
 
 #include "hw/acpi/ipmi.h"
 
@@ -2454,6 +2455,10 @@ build_mcfg_q35(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
     build_header(linker, table_data, (void *)mcfg, sig, len, 1, NULL, NULL);
 }
 
+/*
+ * VT-d spec 8.1 DMA Remapping Reporting Structure
+ * (version Oct. 2014 or later)
+ */
 static void
 build_dmar_q35(GArray *table_data, BIOSLinker *linker)
 {
@@ -2461,10 +2466,17 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker)
 
     AcpiTableDmar *dmar;
     AcpiDmarHardwareUnit *drhd;
+    uint8_t dmar_flags = 0;
+    X86IOMMUState *iommu = x86_iommu_get_default();
+
+    assert(iommu);
+    if (iommu->intr_supported) {
+        dmar_flags |= 0x1;      /* Flags: 0x1: INT_REMAP */
+    }
 
     dmar = acpi_data_push(table_data, sizeof(*dmar));
     dmar->host_address_width = VTD_HOST_ADDRESS_WIDTH - 1;
-    dmar->flags = 0;    /* No intr_remap for now */
+    dmar->flags = dmar_flags;
 
     /* DMAR Remapping Hardware Unit Definition structure */
     drhd = acpi_data_push(table_data, sizeof(*drhd));
