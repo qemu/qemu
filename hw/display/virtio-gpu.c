@@ -19,6 +19,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-bus.h"
+#include "migration/migration.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
 
@@ -986,11 +987,6 @@ static const VMStateDescription vmstate_virtio_gpu_scanouts = {
     },
 };
 
-static const VMStateDescription vmstate_virtio_gpu_unmigratable = {
-    .name = "virtio-gpu-with-virgl",
-    .unmigratable = 1,
-};
-
 static void virtio_gpu_save(QEMUFile *f, void *opaque)
 {
     VirtIOGPU *g = opaque;
@@ -1169,10 +1165,20 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     }
 
     if (virtio_gpu_virgl_enabled(g->conf)) {
-        vmstate_register(qdev, -1, &vmstate_virtio_gpu_unmigratable, g);
+        error_setg(&g->migration_blocker, "virgl is not yet migratable");
+        migrate_add_blocker(g->migration_blocker);
     } else {
         register_savevm(qdev, "virtio-gpu", -1, VIRTIO_GPU_VM_VERSION,
                         virtio_gpu_save, virtio_gpu_load, g);
+    }
+}
+
+static void virtio_gpu_device_unrealize(DeviceState *qdev, Error **errp)
+{
+    VirtIOGPU *g = VIRTIO_GPU(qdev);
+    if (g->migration_blocker) {
+        migrate_del_blocker(g->migration_blocker);
+        error_free(g->migration_blocker);
     }
 }
 
@@ -1237,6 +1243,7 @@ static void virtio_gpu_class_init(ObjectClass *klass, void *data)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     vdc->realize = virtio_gpu_device_realize;
+    vdc->unrealize = virtio_gpu_device_unrealize;
     vdc->get_config = virtio_gpu_get_config;
     vdc->set_config = virtio_gpu_set_config;
     vdc->get_features = virtio_gpu_get_features;
