@@ -81,6 +81,9 @@
 #define ACPI_BUILD_DPRINTF(fmt, ...)
 #endif
 
+/* Default IOAPIC ID */
+#define ACPI_BUILD_IOAPIC_ID 0x0
+
 typedef struct AcpiMcfgInfo {
     uint64_t mcfg_base;
     uint32_t mcfg_size;
@@ -384,7 +387,6 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
     io_apic = acpi_data_push(table_data, sizeof *io_apic);
     io_apic->type = ACPI_APIC_IO;
     io_apic->length = sizeof(*io_apic);
-#define ACPI_BUILD_IOAPIC_ID 0x0
     io_apic->io_apic_id = ACPI_BUILD_IOAPIC_ID;
     io_apic->address = cpu_to_le32(IO_APIC_DEFAULT_ADDRESS);
     io_apic->interrupt = cpu_to_le32(0);
@@ -2468,6 +2470,9 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker)
     AcpiDmarHardwareUnit *drhd;
     uint8_t dmar_flags = 0;
     X86IOMMUState *iommu = x86_iommu_get_default();
+    AcpiDmarDeviceScope *scope = NULL;
+    /* Root complex IOAPIC use one path[0] only */
+    size_t ioapic_scope_size = sizeof(*scope) + sizeof(scope->path[0]);
 
     assert(iommu);
     if (iommu->intr_supported) {
@@ -2479,12 +2484,21 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker)
     dmar->flags = dmar_flags;
 
     /* DMAR Remapping Hardware Unit Definition structure */
-    drhd = acpi_data_push(table_data, sizeof(*drhd));
+    drhd = acpi_data_push(table_data, sizeof(*drhd) + ioapic_scope_size);
     drhd->type = cpu_to_le16(ACPI_DMAR_TYPE_HARDWARE_UNIT);
-    drhd->length = cpu_to_le16(sizeof(*drhd));   /* No device scope now */
+    drhd->length = cpu_to_le16(sizeof(*drhd) + ioapic_scope_size);
     drhd->flags = ACPI_DMAR_INCLUDE_PCI_ALL;
     drhd->pci_segment = cpu_to_le16(0);
     drhd->address = cpu_to_le64(Q35_HOST_BRIDGE_IOMMU_ADDR);
+
+    /* Scope definition for the root-complex IOAPIC. See VT-d spec
+     * 8.3.1 (version Oct. 2014 or later). */
+    scope = &drhd->scope[0];
+    scope->entry_type = 0x03;   /* Type: 0x03 for IOAPIC */
+    scope->length = ioapic_scope_size;
+    scope->enumeration_id = ACPI_BUILD_IOAPIC_ID;
+    scope->bus = Q35_PSEUDO_BUS_PLATFORM;
+    scope->path[0] = cpu_to_le16(Q35_PSEUDO_DEVFN_IOAPIC);
 
     build_header(linker, table_data, (void *)(table_data->data + dmar_start),
                  "DMAR", table_data->len - dmar_start, 1, NULL, NULL);
