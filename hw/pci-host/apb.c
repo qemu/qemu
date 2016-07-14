@@ -670,6 +670,13 @@ PCIBus *pci_apb_init(hwaddr special_base,
 
     /* Ultrasparc PBM main bus */
     dev = qdev_create(NULL, TYPE_APB);
+    d = APB_DEVICE(dev);
+    phb = PCI_HOST_BRIDGE(dev);
+    phb->bus = pci_register_bus(DEVICE(phb), "pci",
+                                pci_apb_set_irq, pci_pbm_map_irq, d,
+                                &d->pci_mmio,
+                                get_system_io(),
+                                0, 32, TYPE_PCI_BUS);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
     /* apb_config */
@@ -678,17 +685,9 @@ PCIBus *pci_apb_init(hwaddr special_base,
     sysbus_mmio_map(s, 1, special_base + 0x1000000ULL);
     /* pci_ioport */
     sysbus_mmio_map(s, 2, special_base + 0x2000000ULL);
-    d = APB_DEVICE(dev);
 
     memory_region_init(&d->pci_mmio, OBJECT(s), "pci-mmio", 0x100000000ULL);
     memory_region_add_subregion(get_system_memory(), mem_base, &d->pci_mmio);
-
-    phb = PCI_HOST_BRIDGE(dev);
-    phb->bus = pci_register_bus(DEVICE(phb), "pci",
-                                pci_apb_set_irq, pci_pbm_map_irq, d,
-                                &d->pci_mmio,
-                                get_system_io(),
-                                0, 32, TYPE_PCI_BUS);
 
     *pbm_irqs = d->pbm_irqs;
     d->ivec_irqs = ivec_irqs;
