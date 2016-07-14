@@ -69,7 +69,6 @@ static void pc_q35_init(MachineState *machine)
     MemoryRegion *ram_memory;
     GSIState *gsi_state;
     ISABus *isa_bus;
-    qemu_irq *gsi;
     qemu_irq *i8259;
     int i;
     ICH9LPCState *ich9_lpc;
@@ -153,10 +152,10 @@ static void pc_q35_init(MachineState *machine)
     gsi_state = g_malloc0(sizeof(*gsi_state));
     if (kvm_ioapic_in_kernel()) {
         kvm_pc_setup_irq_routing(pcmc->pci_enabled);
-        gsi = qemu_allocate_irqs(kvm_pc_gsi_handler, gsi_state,
-                                 GSI_NUM_PINS);
+        pcms->gsi = qemu_allocate_irqs(kvm_pc_gsi_handler, gsi_state,
+                                       GSI_NUM_PINS);
     } else {
-        gsi = qemu_allocate_irqs(gsi_handler, gsi_state, GSI_NUM_PINS);
+        pcms->gsi = qemu_allocate_irqs(gsi_handler, gsi_state, GSI_NUM_PINS);
     }
 
     /* create pci host bus */
@@ -195,7 +194,7 @@ static void pc_q35_init(MachineState *machine)
     ich9_lpc = ICH9_LPC_DEVICE(lpc);
     lpc_dev = DEVICE(lpc);
     for (i = 0; i < GSI_NUM_PINS; i++) {
-        qdev_connect_gpio_out_named(lpc_dev, ICH9_GPIO_GSI, i, gsi[i]);
+        qdev_connect_gpio_out_named(lpc_dev, ICH9_GPIO_GSI, i, pcms->gsi[i]);
     }
     pci_bus_irqs(host_bus, ich9_lpc_set_irq, ich9_lpc_map_irq, ich9_lpc,
                  ICH9_LPC_NB_PIRQS);
@@ -219,7 +218,7 @@ static void pc_q35_init(MachineState *machine)
         ioapic_init_gsi(gsi_state, "q35");
     }
 
-    pc_register_ferr_irq(gsi[13]);
+    pc_register_ferr_irq(pcms->gsi[13]);
 
     assert(pcms->vmport != ON_OFF_AUTO__MAX);
     if (pcms->vmport == ON_OFF_AUTO_AUTO) {
@@ -227,7 +226,7 @@ static void pc_q35_init(MachineState *machine)
     }
 
     /* init basic PC hardware */
-    pc_basic_device_init(isa_bus, gsi, &rtc_state, !mc->no_floppy,
+    pc_basic_device_init(isa_bus, pcms->gsi, &rtc_state, !mc->no_floppy,
                          (pcms->vmport != ON_OFF_AUTO_ON), 0xff0104);
 
     /* connect pm stuff to lpc */

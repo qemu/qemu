@@ -53,6 +53,7 @@ struct PCMachineState {
     ISADevice *rtc;
     PCIBus *bus;
     FWCfgState *fw_cfg;
+    qemu_irq *gsi;
 
     /* Configuration options: */
     uint64_t max_ram_below_4g;
