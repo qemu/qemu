@@ -1478,6 +1478,7 @@ void ahci_realize(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)
         ad->port.dma->ops = &ahci_dma_ops;
         ide_register_restart_cb(&ad->port);
     }
+    g_free(irqs);
 }
 
 void ahci_uninit(AHCIState *s)
