@@ -30,7 +30,7 @@ static void check_guest_memory(void)
     int i;
 
     /* Poll until code has run and modified memory. Wait at most 30 seconds */
-    for (i = 0; i < 3000; ++i) {
+    for (i = 0; i < 10000; ++i) {
         signature = readl(ADDRESS);
         if (signature == MAGIC) {
             break;
