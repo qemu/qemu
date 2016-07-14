@@ -3400,6 +3400,54 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
     return 0;
 }
 
+typedef struct MSIRouteEntry MSIRouteEntry;
+
+struct MSIRouteEntry {
+    PCIDevice *dev;             /* Device pointer */
+    int vector;                 /* MSI/MSIX vector index */
+    int virq;                   /* Virtual IRQ index */
+    QLIST_ENTRY(MSIRouteEntry) list;
+};
+
+/* List of used GSI routes */
+static QLIST_HEAD(, MSIRouteEntry) msi_route_list = \
+    QLIST_HEAD_INITIALIZER(msi_route_list);
+
+int kvm_arch_add_msi_route_post(struct kvm_irq_routing_entry *route,
+                                int vector, PCIDevice *dev)
+{
+    MSIRouteEntry *entry;
+
+    if (!dev) {
+        /* These are (possibly) IOAPIC routes only used for split
+         * kernel irqchip mode, while what we are housekeeping are
+         * PCI devices only. */
+        return 0;
+    }
+
+    entry = g_new0(MSIRouteEntry, 1);
+    entry->dev = dev;
+    entry->vector = vector;
+    entry->virq = route->gsi;
+    QLIST_INSERT_HEAD(&msi_route_list, entry, list);
+
+    trace_kvm_x86_add_msi_route(route->gsi);
+    return 0;
+}
+
+int kvm_arch_release_virq_post(int virq)
+{
+    MSIRouteEntry *entry, *next;
+    QLIST_FOREACH_SAFE(entry, &msi_route_list, list, next) {
+        if (entry->virq == virq) {
+            trace_kvm_x86_remove_msi_route(virq);
+            QLIST_REMOVE(entry, list);
+            break;
+        }
+    }
+    return 0;
+}
+
 int kvm_arch_msi_data_to_gsi(uint32_t data)
 {
     abort();

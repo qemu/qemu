@@ -359,6 +359,12 @@ void kvm_arch_init_irq_routing(KVMState *s);
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
                              uint64_t address, uint32_t data, PCIDevice *dev);
 
+/* Notify arch about newly added MSI routes */
+int kvm_arch_add_msi_route_post(struct kvm_irq_routing_entry *route,
+                                int vector, PCIDevice *dev);
+/* Notify arch about released MSI routes */
+int kvm_arch_release_virq_post(int virq);
+
 int kvm_arch_msi_data_to_gsi(uint32_t data);
 
 int kvm_set_irq(KVMState *s, int irq, int level);

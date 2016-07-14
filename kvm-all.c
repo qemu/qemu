@@ -1133,6 +1133,7 @@ void kvm_irqchip_release_virq(KVMState *s, int virq)
         }
     }
     clear_gsi(s, virq);
+    kvm_arch_release_virq_post(virq);
 }
 
 static unsigned int kvm_hash_msi(uint32_t data)
@@ -1281,6 +1282,7 @@ int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)
     }
 
     kvm_add_routing_entry(s, &kroute);
+    kvm_arch_add_msi_route_post(&kroute, vector, dev);
     kvm_irqchip_commit_routes(s);
 
     return virq;
