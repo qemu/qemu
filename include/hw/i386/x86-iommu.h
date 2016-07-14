@@ -30,6 +30,8 @@
 #define  X86_IOMMU_GET_CLASS(obj) \
     OBJECT_GET_CLASS(X86IOMMUClass, obj, TYPE_X86_IOMMU_DEVICE)
 
+#define X86_IOMMU_PCI_DEVFN_MAX           256
+
 typedef struct X86IOMMUState X86IOMMUState;
 typedef struct X86IOMMUClass X86IOMMUClass;
 
