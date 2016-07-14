@@ -1464,6 +1464,12 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
     vmstate_save_state(f, &vmstate_virtio, vdev, NULL);
 }
 
+/* A wrapper for use as a VMState .put function */
+void virtio_vmstate_save(QEMUFile *f, void *opaque, size_t size)
+{
+    virtio_save(VIRTIO_DEVICE(opaque), f);
+}
+
 static int virtio_set_features_nocheck(VirtIODevice *vdev, uint64_t val)
 {
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
