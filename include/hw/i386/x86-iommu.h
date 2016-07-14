@@ -43,6 +43,7 @@ struct X86IOMMUClass {
 
 struct X86IOMMUState {
     SysBusDevice busdev;
+    bool intr_supported;        /* Whether vIOMMU supports IR */
 };
 
 /**
