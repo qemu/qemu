@@ -213,6 +213,8 @@ static void pc_q35_init(MachineState *machine)
     for (i = 0; i < ISA_NUM_IRQS; i++) {
         gsi_state->i8259_irq[i] = i8259[i];
     }
+    g_free(i8259);
+
     if (pcmc->pci_enabled) {
         ioapic_init_gsi(gsi_state, "q35");
     }
