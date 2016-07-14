@@ -826,10 +826,10 @@ class QAPISchemaVisitor(object):
         pass
 
     def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response):
+                      gen, success_response, boxed):
         pass
 
-    def visit_event(self, name, info, arg_type):
+    def visit_event(self, name, info, arg_type, boxed):
         pass
 
 
@@ -1165,7 +1165,8 @@ class QAPISchemaAlternateType(QAPISchemaType):
 
 
 class QAPISchemaCommand(QAPISchemaEntity):
-    def __init__(self, name, info, arg_type, ret_type, gen, success_response):
+    def __init__(self, name, info, arg_type, ret_type, gen, success_response,
+                 boxed):
         QAPISchemaEntity.__init__(self, name, info)
         assert not arg_type or isinstance(arg_type, str)
         assert not ret_type or isinstance(ret_type, str)
@@ -1175,12 +1176,14 @@ class QAPISchemaCommand(QAPISchemaEntity):
         self.ret_type = None
         self.gen = gen
         self.success_response = success_response
+        self.boxed = boxed
 
     def check(self, schema):
         if self._arg_type_name:
             self.arg_type = schema.lookup_type(self._arg_type_name)
             assert isinstance(self.arg_type, QAPISchemaObjectType)
             assert not self.arg_type.variants   # not implemented
+            assert not self.boxed               # not implemented
         if self._ret_type_name:
             self.ret_type = schema.lookup_type(self._ret_type_name)
             assert isinstance(self.ret_type, QAPISchemaType)
@@ -1188,24 +1191,26 @@ class QAPISchemaCommand(QAPISchemaEntity):
     def visit(self, visitor):
         visitor.visit_command(self.name, self.info,
                               self.arg_type, self.ret_type,
-                              self.gen, self.success_response)
+                              self.gen, self.success_response, self.boxed)
 
 
 class QAPISchemaEvent(QAPISchemaEntity):
-    def __init__(self, name, info, arg_type):
+    def __init__(self, name, info, arg_type, boxed):
         QAPISchemaEntity.__init__(self, name, info)
         assert not arg_type or isinstance(arg_type, str)
         self._arg_type_name = arg_type
         self.arg_type = None
+        self.boxed = boxed
 
     def check(self, schema):
         if self._arg_type_name:
             self.arg_type = schema.lookup_type(self._arg_type_name)
             assert isinstance(self.arg_type, QAPISchemaObjectType)
             assert not self.arg_type.variants   # not implemented
+            assert not self.boxed               # not implemented
 
     def visit(self, visitor):
-        visitor.visit_event(self.name, self.info, self.arg_type)
+        visitor.visit_event(self.name, self.info, self.arg_type, self.boxed)
 
 
 class QAPISchema(object):
@@ -1381,6 +1386,7 @@ class QAPISchema(object):
         rets = expr.get('returns')
         gen = expr.get('gen', True)
         success_response = expr.get('success-response', True)
+        boxed = expr.get('boxed', False)
         if isinstance(data, OrderedDict):
             data = self._make_implicit_object_type(
                 name, info, 'arg', self._make_members(data, info))
@@ -1388,15 +1394,16 @@ class QAPISchema(object):
             assert len(rets) == 1
             rets = self._make_array_type(rets[0], info)
         self._def_entity(QAPISchemaCommand(name, info, data, rets, gen,
-                                           success_response))
+                                           success_response, boxed))
 
     def _def_event(self, expr, info):
         name = expr['event']
         data = expr.get('data')
+        boxed = expr.get('boxed', False)
         if isinstance(data, OrderedDict):
             data = self._make_implicit_object_type(
                 name, info, 'arg', self._make_members(data, info))
-        self._def_entity(QAPISchemaEvent(name, info, data))
+        self._def_entity(QAPISchemaEvent(name, info, data, boxed))
 
     def _def_exprs(self):
         for expr_elem in self.exprs:
@@ -1639,18 +1646,22 @@ extern const char *const %(c_name)s_lookup[];
     return ret
 
 
-def gen_params(arg_type, extra):
+def gen_params(arg_type, boxed, extra):
     if not arg_type:
         return extra
-    assert not arg_type.variants
     ret = ''
     sep = ''
-    for memb in arg_type.members:
-        ret += sep
-        sep = ', '
-        if memb.optional:
-            ret += 'bool has_%s, ' % c_name(memb.name)
-        ret += '%s %s' % (memb.type.c_param_type(), c_name(memb.name))
+    if boxed:
+        assert False     # not implemented
+    else:
+        assert not arg_type.variants
+        for memb in arg_type.members:
+            ret += sep
+            sep = ', '
+            if memb.optional:
+                ret += 'bool has_%s, ' % c_name(memb.name)
+            ret += '%s %s' % (memb.type.c_param_type(),
+                              c_name(memb.name))
     if extra:
         ret += sep + extra
     return ret
