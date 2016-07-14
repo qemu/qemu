@@ -179,7 +179,7 @@ static NetClientInfo net_dump_info = {
     .cleanup = dumpclient_cleanup,
 };
 
-int net_init_dump(const NetClientOptions *opts, const char *name,
+int net_init_dump(const Netdev *netdev, const char *name,
                   NetClientState *peer, Error **errp)
 {
     int len, rc;
@@ -189,8 +189,8 @@ int net_init_dump(const NetClientOptions *opts, const char *name,
     NetClientState *nc;
     DumpNetClient *dnc;
 
-    assert(opts->type == NET_CLIENT_OPTIONS_KIND_DUMP);
-    dump = opts->u.dump.data;
+    assert(netdev->opts->type == NET_CLIENT_OPTIONS_KIND_DUMP);
+    dump = netdev->opts->u.dump.data;
 
     assert(peer);
 

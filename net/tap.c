@@ -571,7 +571,7 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
     }
 }
 
-int net_init_bridge(const NetClientOptions *opts, const char *name,
+int net_init_bridge(const Netdev *netdev, const char *name,
                     NetClientState *peer, Error **errp)
 {
     const NetdevBridgeOptions *bridge;
@@ -579,8 +579,8 @@ int net_init_bridge(const NetClientOptions *opts, const char *name,
     TAPState *s;
     int fd, vnet_hdr;
 
-    assert(opts->type == NET_CLIENT_OPTIONS_KIND_BRIDGE);
-    bridge = opts->u.bridge.data;
+    assert(netdev->opts->type == NET_CLIENT_OPTIONS_KIND_BRIDGE);
+    bridge = netdev->opts->u.bridge.data;
 
     helper = bridge->has_helper ? bridge->helper : DEFAULT_BRIDGE_HELPER;
     br     = bridge->has_br     ? bridge->br     : DEFAULT_BRIDGE_INTERFACE;
@@ -735,7 +735,7 @@ static int get_fds(char *str, char *fds[], int max)
     return i;
 }
 
-int net_init_tap(const NetClientOptions *opts, const char *name,
+int net_init_tap(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp)
 {
     const NetdevTapOptions *tap;
@@ -747,8 +747,8 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
     const char *vhostfdname;
     char ifname[128];
 
-    assert(opts->type == NET_CLIENT_OPTIONS_KIND_TAP);
-    tap = opts->u.tap.data;
+    assert(netdev->opts->type == NET_CLIENT_OPTIONS_KIND_TAP);
+    tap = netdev->opts->u.tap.data;
     queues = tap->has_queues ? tap->queues : 1;
     vhostfdname = tap->has_vhostfd ? tap->vhostfd : NULL;
 

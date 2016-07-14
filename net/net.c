@@ -862,15 +862,15 @@ int qemu_find_nic_model(NICInfo *nd, const char * const *models,
     return -1;
 }
 
-static int net_init_nic(const NetClientOptions *opts, const char *name,
+static int net_init_nic(const Netdev *netdev, const char *name,
                         NetClientState *peer, Error **errp)
 {
     int idx;
     NICInfo *nd;
     const NetLegacyNicOptions *nic;
 
-    assert(opts->type == NET_CLIENT_OPTIONS_KIND_NIC);
-    nic = opts->u.nic.data;
+    assert(netdev->opts->type == NET_CLIENT_OPTIONS_KIND_NIC);
+    nic = netdev->opts->u.nic.data;
 
     idx = nic_get_free_idx();
     if (idx == -1 || nb_nics >= MAX_NICS) {
@@ -931,7 +931,7 @@ static int net_init_nic(const NetClientOptions *opts, const char *name,
 
 
 static int (* const net_client_init_fun[NET_CLIENT_OPTIONS_KIND__MAX])(
-    const NetClientOptions *opts,
+    const Netdev *netdev,
     const char *name,
     NetClientState *peer, Error **errp) = {
         [NET_CLIENT_OPTIONS_KIND_NIC]       = net_init_nic,
@@ -963,11 +963,13 @@ static int (* const net_client_init_fun[NET_CLIENT_OPTIONS_KIND__MAX])(
 static int net_client_init1(const void *object, int is_netdev, Error **errp)
 {
     const NetClientOptions *opts;
+    Netdev legacy = {0};
+    const Netdev *netdev;
     const char *name;
     NetClientState *peer = NULL;
 
     if (is_netdev) {
-        const Netdev *netdev = object;
+        netdev = object;
         opts = netdev->opts;
         name = netdev->id;
 
@@ -980,7 +982,9 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
         }
     } else {
         const NetLegacy *net = object;
-        opts = net->opts;
+        legacy.id = net->id;
+        opts = legacy.opts = net->opts;
+        netdev = &legacy;
         /* missing optional values have been initialized to "all bits zero" */
         name = net->has_id ? net->id : net->name;
 
@@ -1007,7 +1011,7 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
         }
     }
 
-    if (net_client_init_fun[opts->type](opts, name, peer, errp) < 0) {
+    if (net_client_init_fun[opts->type](netdev, name, peer, errp) < 0) {
         /* FIXME drop when all init functions store an Error */
         if (errp && !*errp) {
             error_setg(errp, QERR_DEVICE_INIT_FAILED,

@@ -524,7 +524,7 @@ static NetClientInfo net_l2tpv3_info = {
     .cleanup = net_l2tpv3_cleanup,
 };
 
-int net_init_l2tpv3(const NetClientOptions *opts,
+int net_init_l2tpv3(const Netdev *netdev,
                     const char *name,
                     NetClientState *peer, Error **errp)
 {
@@ -545,8 +545,8 @@ int net_init_l2tpv3(const NetClientOptions *opts,
     s->queue_tail = 0;
     s->header_mismatch = false;
 
-    assert(opts->type == NET_CLIENT_OPTIONS_KIND_L2TPV3);
-    l2tpv3 = opts->u.l2tpv3.data;
+    assert(netdev->opts->type == NET_CLIENT_OPTIONS_KIND_L2TPV3);
+    l2tpv3 = netdev->opts->u.l2tpv3.data;
 
     if (l2tpv3->has_ipv6 && l2tpv3->ipv6) {
         s->ipv6 = l2tpv3->ipv6;

@@ -281,14 +281,14 @@ int net_hub_id_for_client(NetClientState *nc, int *id)
     return 0;
 }
 
-int net_init_hubport(const NetClientOptions *opts, const char *name,
+int net_init_hubport(const Netdev *netdev, const char *name,
                      NetClientState *peer, Error **errp)
 {
     const NetdevHubPortOptions *hubport;
 
-    assert(opts->type == NET_CLIENT_OPTIONS_KIND_HUBPORT);
+    assert(netdev->opts->type == NET_CLIENT_OPTIONS_KIND_HUBPORT);
     assert(!peer);
-    hubport = opts->u.hubport.data;
+    hubport = netdev->opts->u.hubport.data;
 
     net_hub_add_port(hubport->hubid, name);
     return 0;

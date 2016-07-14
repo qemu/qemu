@@ -663,15 +663,15 @@ static int net_socket_udp_init(NetClientState *peer,
     return 0;
 }
 
-int net_init_socket(const NetClientOptions *opts, const char *name,
+int net_init_socket(const Netdev *netdev, const char *name,
                     NetClientState *peer, Error **errp)
 {
     /* FIXME error_setg(errp, ...) on failure */
     Error *err = NULL;
     const NetdevSocketOptions *sock;
 
-    assert(opts->type == NET_CLIENT_OPTIONS_KIND_SOCKET);
-    sock = opts->u.socket.data;
+    assert(netdev->opts->type == NET_CLIENT_OPTIONS_KIND_SOCKET);
+    sock = netdev->opts->u.socket.data;
 
     if (sock->has_fd + sock->has_listen + sock->has_connect + sock->has_mcast +
         sock->has_udp != 1) {

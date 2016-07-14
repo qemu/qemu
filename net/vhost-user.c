@@ -334,15 +334,15 @@ static int net_vhost_check_net(void *opaque, QemuOpts *opts, Error **errp)
     return 0;
 }
 
-int net_init_vhost_user(const NetClientOptions *opts, const char *name,
+int net_init_vhost_user(const Netdev *netdev, const char *name,
                         NetClientState *peer, Error **errp)
 {
     int queues;
     const NetdevVhostUserOptions *vhost_user_opts;
     CharDriverState *chr;
 
-    assert(opts->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
-    vhost_user_opts = opts->u.vhost_user.data;
+    assert(netdev->opts->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
+    vhost_user_opts = netdev->opts->u.vhost_user.data;
 
     chr = net_vhost_parse_chardev(vhost_user_opts, errp);
     if (!chr) {
