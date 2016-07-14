@@ -146,14 +146,14 @@ WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr,
     unsigned mmu_idx = get_mmuidx(oi);
     int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     target_ulong tlb_addr = env->tlb_table[mmu_idx][index].ADDR_READ;
-    int a_bits = get_alignment_bits(get_memop(oi));
+    unsigned a_bits = get_alignment_bits(get_memop(oi));
     uintptr_t haddr;
     DATA_TYPE res;
 
     /* Adjust the given return address.  */
     retaddr -= GETPC_ADJ;
 
-    if (a_bits > 0 && (addr & ((1 << a_bits) - 1)) != 0) {
+    if (addr & ((1 << a_bits) - 1)) {
         cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
                              mmu_idx, retaddr);
     }
@@ -220,14 +220,14 @@ WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr,
     unsigned mmu_idx = get_mmuidx(oi);
     int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     target_ulong tlb_addr = env->tlb_table[mmu_idx][index].ADDR_READ;
-    int a_bits = get_alignment_bits(get_memop(oi));
+    unsigned a_bits = get_alignment_bits(get_memop(oi));
     uintptr_t haddr;
     DATA_TYPE res;
 
     /* Adjust the given return address.  */
     retaddr -= GETPC_ADJ;
 
-    if (a_bits > 0 && (addr & ((1 << a_bits) - 1)) != 0) {
+    if (addr & ((1 << a_bits) - 1)) {
         cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
                              mmu_idx, retaddr);
     }
@@ -331,13 +331,13 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     unsigned mmu_idx = get_mmuidx(oi);
     int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     target_ulong tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
-    int a_bits = get_alignment_bits(get_memop(oi));
+    unsigned a_bits = get_alignment_bits(get_memop(oi));
     uintptr_t haddr;
 
     /* Adjust the given return address.  */
     retaddr -= GETPC_ADJ;
 
-    if (a_bits > 0 && (addr & ((1 << a_bits) - 1)) != 0) {
+    if (addr & ((1 << a_bits) - 1)) {
         cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
                              mmu_idx, retaddr);
     }
@@ -414,13 +414,13 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     unsigned mmu_idx = get_mmuidx(oi);
     int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     target_ulong tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
-    int a_bits = get_alignment_bits(get_memop(oi));
+    unsigned a_bits = get_alignment_bits(get_memop(oi));
     uintptr_t haddr;
 
     /* Adjust the given return address.  */
     retaddr -= GETPC_ADJ;
 
-    if (a_bits > 0 && (addr & ((1 << a_bits) - 1)) != 0) {
+    if (addr & ((1 << a_bits) - 1)) {
         cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
                              mmu_idx, retaddr);
     }

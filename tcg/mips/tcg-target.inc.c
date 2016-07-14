@@ -1040,7 +1040,9 @@ static void tcg_out_tlb_load(TCGContext *s, TCGReg base, TCGReg addrl,
                              TCGReg addrh, TCGMemOpIdx oi,
                              tcg_insn_unit *label_ptr[2], bool is_load)
 {
-    TCGMemOp s_bits = get_memop(oi) & MO_SIZE;
+    TCGMemOp opc = get_memop(oi);
+    unsigned s_bits = opc & MO_SIZE;
+    unsigned a_bits = get_alignment_bits(opc);
     int mem_index = get_mmuidx(oi);
     int cmp_off
         = (is_load
@@ -1071,10 +1073,15 @@ static void tcg_out_tlb_load(TCGContext *s, TCGReg base, TCGReg addrl,
     tcg_out_opc_imm(s, OPC_LW, TCG_TMP0, TCG_REG_A0,
                     cmp_off + (TARGET_LONG_BITS == 64 ? LO_OFF : 0));
 
+    /* We don't currently support unaligned accesses.
+       We could do so with mips32r6.  */
+    if (a_bits < s_bits) {
+        a_bits = s_bits;
+    }
     /* Mask the page bits, keeping the alignment bits to compare against.
        In between on 32-bit targets, load the tlb addend for the fast path.  */
     tcg_out_movi(s, TCG_TYPE_I32, TCG_TMP1,
-                 TARGET_PAGE_MASK | ((1 << s_bits) - 1));
+                 TARGET_PAGE_MASK | ((1 << a_bits) - 1));
     if (TARGET_LONG_BITS == 32) {
         tcg_out_opc_imm(s, OPC_LW, TCG_REG_A0, TCG_REG_A0, add_off);
     }

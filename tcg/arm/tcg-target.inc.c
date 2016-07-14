@@ -1168,7 +1168,7 @@ QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table[NB_MMU_MODES - 1][1])
    containing the addend of the tlb entry.  Clobbers R0, R1, R2, TMP.  */
 
 static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
-                               TCGMemOp s_bits, int mem_index, bool is_load)
+                               TCGMemOp opc, int mem_index, bool is_load)
 {
     TCGReg base = TCG_AREG0;
     int cmp_off =
@@ -1176,6 +1176,8 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
          ? offsetof(CPUArchState, tlb_table[mem_index][0].addr_read)
          : offsetof(CPUArchState, tlb_table[mem_index][0].addr_write));
     int add_off = offsetof(CPUArchState, tlb_table[mem_index][0].addend);
+    unsigned s_bits = opc & MO_SIZE;
+    unsigned a_bits = get_alignment_bits(opc);
 
     /* Should generate something like the following:
      *   shr    tmp, addrlo, #TARGET_PAGE_BITS                    (1)
@@ -1216,10 +1218,13 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
         }
     }
 
-    /* Check alignment.  */
-    if (s_bits) {
-        tcg_out_dat_imm(s, COND_AL, ARITH_TST,
-                        0, addrlo, (1 << s_bits) - 1);
+    /* Check alignment.  We don't support inline unaligned acceses,
+       but we can easily support overalignment checks.  */
+    if (a_bits < s_bits) {
+        a_bits = s_bits;
+    }
+    if (a_bits) {
+        tcg_out_dat_imm(s, COND_AL, ARITH_TST, 0, addrlo, (1 << a_bits) - 1);
     }
 
     /* Load the tlb addend.  */
@@ -1499,7 +1504,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
 
 #ifdef CONFIG_SOFTMMU
     mem_index = get_mmuidx(oi);
-    addend = tcg_out_tlb_read(s, addrlo, addrhi, opc & MO_SIZE, mem_index, 1);
+    addend = tcg_out_tlb_read(s, addrlo, addrhi, opc, mem_index, 1);
 
     /* This a conditional BL only to load a pointer within this opcode into LR
        for the slow path.  We will not be using the value for a tail call.  */
@@ -1630,7 +1635,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 
 #ifdef CONFIG_SOFTMMU
     mem_index = get_mmuidx(oi);
-    addend = tcg_out_tlb_read(s, addrlo, addrhi, opc & MO_SIZE, mem_index, 0);
+    addend = tcg_out_tlb_read(s, addrlo, addrhi, opc, mem_index, 0);
 
     tcg_out_qemu_st_index(s, COND_EQ, opc, datalo, datahi, addrlo, addend);
 

@@ -996,19 +996,25 @@ static void tcg_target_qemu_prologue(TCGContext *s)
    is in the returned register, maybe %o0.  The TLB addend is in %o1.  */
 
 static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addr, int mem_index,
-                               TCGMemOp s_bits, int which)
+                               TCGMemOp opc, int which)
 {
     const TCGReg r0 = TCG_REG_O0;
     const TCGReg r1 = TCG_REG_O1;
     const TCGReg r2 = TCG_REG_O2;
+    unsigned s_bits = opc & MO_SIZE;
+    unsigned a_bits = get_alignment_bits(opc);
     int tlb_ofs;
 
     /* Shift the page number down.  */
     tcg_out_arithi(s, r1, addr, TARGET_PAGE_BITS, SHIFT_SRL);
 
-    /* Mask out the page offset, except for the required alignment.  */
+    /* Mask out the page offset, except for the required alignment.
+       We don't support unaligned accesses.  */
+    if (a_bits < s_bits) {
+        a_bits = s_bits;
+    }
     tcg_out_movi(s, TCG_TYPE_TL, TCG_REG_T1,
-                 TARGET_PAGE_MASK | ((1 << s_bits) - 1));
+                 TARGET_PAGE_MASK | ((1 << a_bits) - 1));
 
     /* Mask the tlb index.  */
     tcg_out_arithi(s, r1, r1, CPU_TLB_SIZE - 1, ARITH_AND);
@@ -1087,7 +1093,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
     tcg_insn_unit *func;
     tcg_insn_unit *label_ptr;
 
-    addrz = tcg_out_tlb_load(s, addr, memi, memop & MO_SIZE,
+    addrz = tcg_out_tlb_load(s, addr, memi, memop,
                              offsetof(CPUTLBEntry, addr_read));
 
     /* The fast path is exactly one insn.  Thus we can perform the
@@ -1169,7 +1175,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
     tcg_insn_unit *func;
     tcg_insn_unit *label_ptr;
 
-    addrz = tcg_out_tlb_load(s, addr, memi, memop & MO_SIZE,
+    addrz = tcg_out_tlb_load(s, addr, memi, memop,
                              offsetof(CPUTLBEntry, addr_write));
 
     /* The fast path is exactly one insn.  Thus we can perform the entire
