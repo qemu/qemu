@@ -88,8 +88,6 @@
 #define PROT_KEY_UNLOCK 0x1688A8A8
 #define SCU_IO_REGION_SIZE 0x20000
 
-#define AST2400_A0_SILICON_REV     0x02000303U
-
 static const uint32_t ast2400_a0_resets[ASPEED_SCU_NR_REGS] = {
      [SYS_RST_CTRL]    = 0xFFCFFEDCU,
      [CLK_SEL]         = 0xF3F40000U,
@@ -212,7 +210,7 @@ static void aspeed_scu_reset(DeviceState *dev)
 
 static uint32_t aspeed_silicon_revs[] = { AST2400_A0_SILICON_REV, };
 
-static bool is_supported_silicon_rev(uint32_t silicon_rev)
+bool is_supported_silicon_rev(uint32_t silicon_rev)
 {
     int i;
 
