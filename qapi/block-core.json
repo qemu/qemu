@@ -1330,6 +1330,21 @@
 # the device will be removed from its group and the rest of its
 # members will not be affected. The 'group' parameter is ignored.
 #
+# See BlockIOThrottle for parameter descriptions.
+#
+# Returns: Nothing on success
+#          If @device is not a valid block device, DeviceNotFound
+#
+# Since: 1.1
+##
+{ 'command': 'block_set_io_throttle', 'boxed': true,
+  'data': 'BlockIOThrottle' }
+
+##
+# BlockIOThrottle
+#
+# A set of parameters describing block throttling.
+#
 # @device: The name of the device
 #
 # @bps: total throughput limit in bytes per second
@@ -1396,12 +1411,9 @@
 #
 # @group: #optional throttle group name (Since 2.4)
 #
-# Returns: Nothing on success
-#          If @device is not a valid block device, DeviceNotFound
-#
 # Since: 1.1
 ##
-{ 'command': 'block_set_io_throttle',
+{ 'struct': 'BlockIOThrottle',
   'data': { 'device': 'str', 'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
             'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
             '*bps_max': 'int', '*bps_rd_max': 'int',

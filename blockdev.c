@@ -2634,49 +2634,17 @@ fail:
 }
 
 /* throttling disk I/O limits */
-void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
-                               int64_t bps_wr,
-                               int64_t iops,
-                               int64_t iops_rd,
-                               int64_t iops_wr,
-                               bool has_bps_max,
-                               int64_t bps_max,
-                               bool has_bps_rd_max,
-                               int64_t bps_rd_max,
-                               bool has_bps_wr_max,
-                               int64_t bps_wr_max,
-                               bool has_iops_max,
-                               int64_t iops_max,
-                               bool has_iops_rd_max,
-                               int64_t iops_rd_max,
-                               bool has_iops_wr_max,
-                               int64_t iops_wr_max,
-                               bool has_bps_max_length,
-                               int64_t bps_max_length,
-                               bool has_bps_rd_max_length,
-                               int64_t bps_rd_max_length,
-                               bool has_bps_wr_max_length,
-                               int64_t bps_wr_max_length,
-                               bool has_iops_max_length,
-                               int64_t iops_max_length,
-                               bool has_iops_rd_max_length,
-                               int64_t iops_rd_max_length,
-                               bool has_iops_wr_max_length,
-                               int64_t iops_wr_max_length,
-                               bool has_iops_size,
-                               int64_t iops_size,
-                               bool has_group,
-                               const char *group, Error **errp)
+void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
 {
     ThrottleConfig cfg;
     BlockDriverState *bs;
     BlockBackend *blk;
     AioContext *aio_context;
 
-    blk = blk_by_name(device);
+    blk = blk_by_name(arg->device);
     if (!blk) {
         error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
+                  "Device '%s' not found", arg->device);
         return;
     }
 
@@ -2685,59 +2653,59 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
 
     bs = blk_bs(blk);
     if (!bs) {
-        error_setg(errp, "Device '%s' has no medium", device);
+        error_setg(errp, "Device '%s' has no medium", arg->device);
         goto out;
     }
 
     throttle_config_init(&cfg);
-    cfg.buckets[THROTTLE_BPS_TOTAL].avg = bps;
-    cfg.buckets[THROTTLE_BPS_READ].avg  = bps_rd;
-    cfg.buckets[THROTTLE_BPS_WRITE].avg = bps_wr;
+    cfg.buckets[THROTTLE_BPS_TOTAL].avg = arg->bps;
+    cfg.buckets[THROTTLE_BPS_READ].avg  = arg->bps_rd;
+    cfg.buckets[THROTTLE_BPS_WRITE].avg = arg->bps_wr;
 
-    cfg.buckets[THROTTLE_OPS_TOTAL].avg = iops;
-    cfg.buckets[THROTTLE_OPS_READ].avg  = iops_rd;
-    cfg.buckets[THROTTLE_OPS_WRITE].avg = iops_wr;
+    cfg.buckets[THROTTLE_OPS_TOTAL].avg = arg->iops;
+    cfg.buckets[THROTTLE_OPS_READ].avg  = arg->iops_rd;
+    cfg.buckets[THROTTLE_OPS_WRITE].avg = arg->iops_wr;
 
-    if (has_bps_max) {
-        cfg.buckets[THROTTLE_BPS_TOTAL].max = bps_max;
+    if (arg->has_bps_max) {
+        cfg.buckets[THROTTLE_BPS_TOTAL].max = arg->bps_max;
     }
-    if (has_bps_rd_max) {
-        cfg.buckets[THROTTLE_BPS_READ].max = bps_rd_max;
+    if (arg->has_bps_rd_max) {
+        cfg.buckets[THROTTLE_BPS_READ].max = arg->bps_rd_max;
     }
-    if (has_bps_wr_max) {
-        cfg.buckets[THROTTLE_BPS_WRITE].max = bps_wr_max;
+    if (arg->has_bps_wr_max) {
+        cfg.buckets[THROTTLE_BPS_WRITE].max = arg->bps_wr_max;
     }
-    if (has_iops_max) {
-        cfg.buckets[THROTTLE_OPS_TOTAL].max = iops_max;
+    if (arg->has_iops_max) {
+        cfg.buckets[THROTTLE_OPS_TOTAL].max = arg->iops_max;
     }
-    if (has_iops_rd_max) {
-        cfg.buckets[THROTTLE_OPS_READ].max = iops_rd_max;
+    if (arg->has_iops_rd_max) {
+        cfg.buckets[THROTTLE_OPS_READ].max = arg->iops_rd_max;
     }
-    if (has_iops_wr_max) {
-        cfg.buckets[THROTTLE_OPS_WRITE].max = iops_wr_max;
-    }
-
-    if (has_bps_max_length) {
-        cfg.buckets[THROTTLE_BPS_TOTAL].burst_length = bps_max_length;
-    }
-    if (has_bps_rd_max_length) {
-        cfg.buckets[THROTTLE_BPS_READ].burst_length = bps_rd_max_length;
-    }
-    if (has_bps_wr_max_length) {
-        cfg.buckets[THROTTLE_BPS_WRITE].burst_length = bps_wr_max_length;
-    }
-    if (has_iops_max_length) {
-        cfg.buckets[THROTTLE_OPS_TOTAL].burst_length = iops_max_length;
-    }
-    if (has_iops_rd_max_length) {
-        cfg.buckets[THROTTLE_OPS_READ].burst_length = iops_rd_max_length;
-    }
-    if (has_iops_wr_max_length) {
-        cfg.buckets[THROTTLE_OPS_WRITE].burst_length = iops_wr_max_length;
+    if (arg->has_iops_wr_max) {
+        cfg.buckets[THROTTLE_OPS_WRITE].max = arg->iops_wr_max;
     }
 
-    if (has_iops_size) {
-        cfg.op_size = iops_size;
+    if (arg->has_bps_max_length) {
+        cfg.buckets[THROTTLE_BPS_TOTAL].burst_length = arg->bps_max_length;
+    }
+    if (arg->has_bps_rd_max_length) {
+        cfg.buckets[THROTTLE_BPS_READ].burst_length = arg->bps_rd_max_length;
+    }
+    if (arg->has_bps_wr_max_length) {
+        cfg.buckets[THROTTLE_BPS_WRITE].burst_length = arg->bps_wr_max_length;
+    }
+    if (arg->has_iops_max_length) {
+        cfg.buckets[THROTTLE_OPS_TOTAL].burst_length = arg->iops_max_length;
+    }
+    if (arg->has_iops_rd_max_length) {
+        cfg.buckets[THROTTLE_OPS_READ].burst_length = arg->iops_rd_max_length;
+    }
+    if (arg->has_iops_wr_max_length) {
+        cfg.buckets[THROTTLE_OPS_WRITE].burst_length = arg->iops_wr_max_length;
+    }
+
+    if (arg->has_iops_size) {
+        cfg.op_size = arg->iops_size;
     }
 
     if (!throttle_is_valid(&cfg, errp)) {
@@ -2748,9 +2716,10 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
         /* Enable I/O limits if they're not enabled yet, otherwise
          * just update the throttling group. */
         if (!blk_get_public(blk)->throttle_state) {
-            blk_io_limits_enable(blk, has_group ? group : device);
-        } else if (has_group) {
-            blk_io_limits_update_group(blk, group);
+            blk_io_limits_enable(blk,
+                                 arg->has_group ? arg->group : arg->device);
+        } else if (arg->has_group) {
+            blk_io_limits_update_group(blk, arg->group);
         }
         /* Set the new throttling configuration */
         blk_set_io_limits(blk, &cfg);

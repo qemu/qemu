@@ -1439,42 +1439,17 @@ void hmp_change(Monitor *mon, const QDict *qdict)
 void hmp_block_set_io_throttle(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
+    BlockIOThrottle throttle = {
+        .device = (char *) qdict_get_str(qdict, "device"),
+        .bps = qdict_get_int(qdict, "bps"),
+        .bps_rd = qdict_get_int(qdict, "bps_rd"),
+        .bps_wr = qdict_get_int(qdict, "bps_wr"),
+        .iops = qdict_get_int(qdict, "iops"),
+        .iops_rd = qdict_get_int(qdict, "iops_rd"),
+        .iops_wr = qdict_get_int(qdict, "iops_wr"),
+    };
 
-    qmp_block_set_io_throttle(qdict_get_str(qdict, "device"),
-                              qdict_get_int(qdict, "bps"),
-                              qdict_get_int(qdict, "bps_rd"),
-                              qdict_get_int(qdict, "bps_wr"),
-                              qdict_get_int(qdict, "iops"),
-                              qdict_get_int(qdict, "iops_rd"),
-                              qdict_get_int(qdict, "iops_wr"),
-                              false, /* no burst max via HMP */
-                              0,
-                              false,
-                              0,
-                              false,
-                              0,
-                              false,
-                              0,
-                              false,
-                              0,
-                              false,
-                              0,
-                              false, /* no burst length via HMP */
-                              0,
-                              false,
-                              0,
-                              false,
-                              0,
-                              false,
-                              0,
-                              false,
-                              0,
-                              false,
-                              0,
-                              false, /* No default I/O size */
-                              0,
-                              false,
-                              NULL, &err);
+    qmp_block_set_io_throttle(&throttle, &err);
     hmp_handle_error(mon, &err);
 }
 
