@@ -1120,6 +1120,21 @@
 #
 # Start mirroring a block device's writes to a new destination.
 #
+# See DriveMirror for parameter descriptions
+#
+# Returns: nothing on success
+#          If @device is not a valid block device, DeviceNotFound
+#
+# Since 1.3
+##
+{ 'command': 'drive-mirror', 'boxed': true,
+  'data': 'DriveMirror' }
+
+##
+# DriveMirror
+#
+# A set of parameters describing drive mirror setup.
+#
 # @job-id: #optional identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
 #
@@ -1169,12 +1184,9 @@
 #         written. Both will result in identical contents.
 #         Default is true. (Since 2.4)
 #
-# Returns: nothing on success
-#          If @device is not a valid block device, DeviceNotFound
-#
 # Since 1.3
 ##
-{ 'command': 'drive-mirror',
+{ 'struct': 'DriveMirror',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             '*format': 'str', '*node-name': 'str', '*replaces': 'str',
             'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
