@@ -1093,7 +1093,7 @@ class QAPISchemaObjectTypeVariants(object):
         assert len(variants) > 0
         for v in variants:
             assert isinstance(v, QAPISchemaObjectTypeVariant)
-        self.tag_name = tag_name
+        self._tag_name = tag_name
         self.tag_member = tag_member
         self.variants = variants
 
@@ -1103,8 +1103,8 @@ class QAPISchemaObjectTypeVariants(object):
 
     def check(self, schema, seen):
         if not self.tag_member:    # flat union
-            self.tag_member = seen[c_name(self.tag_name)]
-            assert self.tag_name == self.tag_member.name
+            self.tag_member = seen[c_name(self._tag_name)]
+            assert self._tag_name == self.tag_member.name
         assert isinstance(self.tag_member.type, QAPISchemaEnumType)
         for v in self.variants:
             v.check(schema)
@@ -1134,7 +1134,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
     def __init__(self, name, info, variants):
         QAPISchemaType.__init__(self, name, info)
         assert isinstance(variants, QAPISchemaObjectTypeVariants)
-        assert not variants.tag_name
+        assert variants.tag_member
         variants.set_owner(name)
         variants.tag_member.set_owner(self.name)
         self.variants = variants

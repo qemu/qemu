@@ -47,8 +47,7 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
     @staticmethod
     def _print_variants(variants):
         if variants:
-            if variants.tag_name:
-                print '    tag %s' % variants.tag_name
+            print '    tag %s' % variants.tag_member.name
             for v in variants.variants:
                 print '    case %s: %s' % (v.name, v.type.name)
 

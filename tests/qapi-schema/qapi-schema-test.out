@@ -1,19 +1,25 @@
 alternate AltIntNum
+    tag type
     case i: int
     case n: number
 alternate AltNumInt
+    tag type
     case n: number
     case i: int
 alternate AltNumStr
+    tag type
     case n: number
     case s: str
 alternate AltStrBool
+    tag type
     case s: str
     case b: bool
 alternate AltStrInt
+    tag type
     case s: str
     case i: int
 alternate AltStrNum
+    tag type
     case s: str
     case n: number
 event EVENT_A None
@@ -50,6 +56,7 @@ object UserDefA
     member boolean: bool optional=False
     member a_b: int optional=True
 alternate UserDefAlternate
+    tag type
     case udfu: UserDefFlatUnion
     case s: str
     case i: int
@@ -72,6 +79,7 @@ object UserDefFlatUnion2
     case value2: UserDefB
 object UserDefNativeListUnion
     member type: UserDefNativeListUnionKind optional=False
+    tag type
     case integer: q_obj_intList-wrapper
     case s8: q_obj_int8List-wrapper
     case s16: q_obj_int16List-wrapper
@@ -117,6 +125,7 @@ object WrapAlternate
     member alt: UserDefAlternate optional=False
 event __ORG.QEMU_X-EVENT __org.qemu_x-Struct
 alternate __org.qemu_x-Alt
+    tag type
     case __org.qemu_x-branch: str
     case b: __org.qemu_x-Base
 object __org.qemu_x-Base
@@ -130,6 +139,7 @@ object __org.qemu_x-Struct2
     member array: __org.qemu_x-Union1List optional=False
 object __org.qemu_x-Union1
     member type: __org.qemu_x-Union1Kind optional=False
+    tag type
     case __org.qemu_x-branch: q_obj_str-wrapper
 enum __org.qemu_x-Union1Kind ['__org.qemu_x-branch']
 object __org.qemu_x-Union2
