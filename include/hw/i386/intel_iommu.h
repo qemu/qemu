@@ -52,6 +52,8 @@ typedef struct IntelIOMMUState IntelIOMMUState;
 typedef struct VTDAddressSpace VTDAddressSpace;
 typedef struct VTDIOTLBEntry VTDIOTLBEntry;
 typedef struct VTDBus VTDBus;
+typedef union VTD_IRTE VTD_IRTE;
+typedef union VTD_IR_MSIAddress VTD_IR_MSIAddress;
 
 /* Context-Entry */
 struct VTDContextEntry {
@@ -89,6 +91,78 @@ struct VTDIOTLBEntry {
     bool read_flags;
     bool write_flags;
 };
+
+/* Interrupt Remapping Table Entry Definition */
+union VTD_IRTE {
+    struct {
+#ifdef HOST_WORDS_BIGENDIAN
+        uint32_t dest_id:32;         /* Destination ID */
+        uint32_t __reserved_1:8;     /* Reserved 1 */
+        uint32_t vector:8;           /* Interrupt Vector */
+        uint32_t irte_mode:1;        /* IRTE Mode */
+        uint32_t __reserved_0:3;     /* Reserved 0 */
+        uint32_t __avail:4;          /* Available spaces for software */
+        uint32_t delivery_mode:3;    /* Delivery Mode */
+        uint32_t trigger_mode:1;     /* Trigger Mode */
+        uint32_t redir_hint:1;       /* Redirection Hint */
+        uint32_t dest_mode:1;        /* Destination Mode */
+        uint32_t fault_disable:1;    /* Fault Processing Disable */
+        uint32_t present:1;          /* Whether entry present/available */
+#else
+        uint32_t present:1;          /* Whether entry present/available */
+        uint32_t fault_disable:1;    /* Fault Processing Disable */
+        uint32_t dest_mode:1;        /* Destination Mode */
+        uint32_t redir_hint:1;       /* Redirection Hint */
+        uint32_t trigger_mode:1;     /* Trigger Mode */
+        uint32_t delivery_mode:3;    /* Delivery Mode */
+        uint32_t __avail:4;          /* Available spaces for software */
+        uint32_t __reserved_0:3;     /* Reserved 0 */
+        uint32_t irte_mode:1;        /* IRTE Mode */
+        uint32_t vector:8;           /* Interrupt Vector */
+        uint32_t __reserved_1:8;     /* Reserved 1 */
+        uint32_t dest_id:32;         /* Destination ID */
+#endif
+        uint16_t source_id:16;       /* Source-ID */
+#ifdef HOST_WORDS_BIGENDIAN
+        uint64_t __reserved_2:44;    /* Reserved 2 */
+        uint64_t sid_vtype:2;        /* Source-ID Validation Type */
+        uint64_t sid_q:2;            /* Source-ID Qualifier */
+#else
+        uint64_t sid_q:2;            /* Source-ID Qualifier */
+        uint64_t sid_vtype:2;        /* Source-ID Validation Type */
+        uint64_t __reserved_2:44;    /* Reserved 2 */
+#endif
+    } QEMU_PACKED;
+    uint64_t data[2];
+};
+
+#define VTD_IR_INT_FORMAT_COMPAT     (0) /* Compatible Interrupt */
+#define VTD_IR_INT_FORMAT_REMAP      (1) /* Remappable Interrupt */
+
+/* Programming format for MSI/MSI-X addresses */
+union VTD_IR_MSIAddress {
+    struct {
+#ifdef HOST_WORDS_BIGENDIAN
+        uint32_t __head:12;          /* Should always be: 0x0fee */
+        uint32_t index_l:15;         /* Interrupt index bit 14-0 */
+        uint32_t int_mode:1;         /* Interrupt format */
+        uint32_t sub_valid:1;        /* SHV: Sub-Handle Valid bit */
+        uint32_t index_h:1;          /* Interrupt index bit 15 */
+        uint32_t __not_care:2;
+#else
+        uint32_t __not_care:2;
+        uint32_t index_h:1;          /* Interrupt index bit 15 */
+        uint32_t sub_valid:1;        /* SHV: Sub-Handle Valid bit */
+        uint32_t int_mode:1;         /* Interrupt format */
+        uint32_t index_l:15;         /* Interrupt index bit 14-0 */
+        uint32_t __head:12;          /* Should always be: 0x0fee */
+#endif
+    } QEMU_PACKED;
+    uint32_t data;
+};
+
+/* When IR is enabled, all MSI/MSI-X data bits should be zero */
+#define VTD_IR_MSI_DATA          (0)
 
 /* The iommu (DMAR) device state struct */
 struct IntelIOMMUState {
