@@ -916,6 +916,7 @@ static void vtd_interrupt_remap_table_setup(IntelIOMMUState *s)
     value = vtd_get_quad_raw(s, DMAR_IRTA_REG);
     s->intr_size = 1UL << ((value & VTD_IRTA_SIZE_MASK) + 1);
     s->intr_root = value & VTD_IRTA_ADDR_MASK;
+    s->intr_eime = value & VTD_IRTA_EIME;
 
     /* Notify global invalidation */
     vtd_iec_notify_all(s, true, 0, 0);
@@ -2058,11 +2059,13 @@ static int vtd_remap_irq_get(IntelIOMMUState *iommu, uint16_t index, VTDIrq *irq
     irq->trigger_mode = irte.trigger_mode;
     irq->vector = irte.vector;
     irq->delivery_mode = irte.delivery_mode;
-    /* Not support EIM yet: please refer to vt-d 9.10 DST bits */
+    irq->dest = le32_to_cpu(irte.dest_id);
+    if (!iommu->intr_eime) {
 #define  VTD_IR_APIC_DEST_MASK         (0xff00ULL)
 #define  VTD_IR_APIC_DEST_SHIFT        (8)
-    irq->dest = (le32_to_cpu(irte.dest_id) & VTD_IR_APIC_DEST_MASK) >> \
-        VTD_IR_APIC_DEST_SHIFT;
+        irq->dest = (irq->dest & VTD_IR_APIC_DEST_MASK) >>
+            VTD_IR_APIC_DEST_SHIFT;
+    }
     irq->dest_mode = irte.dest_mode;
     irq->redir_hint = irte.redir_hint;
 
@@ -2312,7 +2315,7 @@ static void vtd_init(IntelIOMMUState *s)
     s->ecap = VTD_ECAP_QI | VTD_ECAP_IRO;
 
     if (x86_iommu->intr_supported) {
-        s->ecap |= VTD_ECAP_IR;
+        s->ecap |= VTD_ECAP_IR | VTD_ECAP_EIM;
     }
 
     vtd_reset_context_cache(s);
@@ -2366,10 +2369,9 @@ static void vtd_init(IntelIOMMUState *s)
     vtd_define_quad(s, DMAR_FRCD_REG_0_2, 0, 0, 0x8000000000000000ULL);
 
     /*
-     * Interrupt remapping registers, not support extended interrupt
-     * mode for now.
+     * Interrupt remapping registers.
      */
-    vtd_define_quad(s, DMAR_IRTA_REG, 0, 0xfffffffffffff00fULL, 0);
+    vtd_define_quad(s, DMAR_IRTA_REG, 0, 0xfffffffffffff80fULL, 0);
 }
 
 /* Should not reset address_spaces when reset because devices will still use

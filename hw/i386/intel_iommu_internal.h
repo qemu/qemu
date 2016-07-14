@@ -176,6 +176,7 @@
 
 /* IRTA_REG */
 #define VTD_IRTA_ADDR_MASK          (VTD_HAW_MASK ^ 0xfffULL)
+#define VTD_IRTA_EIME               (1ULL << 11)
 #define VTD_IRTA_SIZE_MASK          (0xfULL)
 
 /* ECAP_REG */
@@ -184,6 +185,7 @@
 #define VTD_ECAP_QI                 (1ULL << 1)
 /* Interrupt Remapping support */
 #define VTD_ECAP_IR                 (1ULL << 3)
+#define VTD_ECAP_EIM                (1ULL << 4)
 
 /* CAP_REG */
 /* (offset >> 4) << 24 */
