@@ -323,6 +323,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     int nb_chunks = 1;
     int64_t end = s->bdev_length / BDRV_SECTOR_SIZE;
     int sectors_per_chunk = s->granularity >> BDRV_SECTOR_BITS;
+    bool write_zeroes_ok = bdrv_can_write_zeroes_with_unmap(blk_bs(s->target));
 
     sector_num = hbitmap_iter_next(&s->hbi);
     if (sector_num < 0) {
@@ -373,7 +374,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     bitmap_set(s->in_flight_bitmap, sector_num / sectors_per_chunk, nb_chunks);
     while (nb_chunks > 0 && sector_num < end) {
         int ret;
-        int io_sectors;
+        int io_sectors, io_sectors_acct;
         BlockDriverState *file;
         enum MirrorMethod {
             MIRROR_METHOD_COPY,
@@ -410,12 +411,17 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         switch (mirror_method) {
         case MIRROR_METHOD_COPY:
             io_sectors = mirror_do_read(s, sector_num, io_sectors);
+            io_sectors_acct = io_sectors;
             break;
         case MIRROR_METHOD_ZERO:
-            mirror_do_zero_or_discard(s, sector_num, io_sectors, false);
-            break;
         case MIRROR_METHOD_DISCARD:
-            mirror_do_zero_or_discard(s, sector_num, io_sectors, true);
+            mirror_do_zero_or_discard(s, sector_num, io_sectors,
+                                      mirror_method == MIRROR_METHOD_DISCARD);
+            if (write_zeroes_ok) {
+                io_sectors_acct = 0;
+            } else {
+                io_sectors_acct = io_sectors;
+            }
             break;
         default:
             abort();
@@ -424,7 +430,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         sector_num += io_sectors;
         nb_chunks -= DIV_ROUND_UP(io_sectors, sectors_per_chunk);
         if (s->common.speed) {
-            delay_ns = ratelimit_calculate_delay(&s->limit, io_sectors);
+            delay_ns = ratelimit_calculate_delay(&s->limit, io_sectors_acct);
         }
     }
     return delay_ns;
