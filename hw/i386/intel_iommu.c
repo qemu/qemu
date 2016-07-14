@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "intel_iommu_internal.h"
@@ -29,6 +30,7 @@
 #include "hw/boards.h"
 #include "hw/i386/x86-iommu.h"
 #include "hw/pci-host/q35.h"
+#include "sysemu/kvm.h"
 
 /*#define DEBUG_INTEL_IOMMU*/
 #ifdef DEBUG_INTEL_IOMMU
@@ -2448,6 +2450,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
     PCIBus *bus = pcms->bus;
     IntelIOMMUState *s = INTEL_IOMMU_DEVICE(dev);
+    X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(dev);
 
     VTD_DPRINTF(GENERAL, "");
     memset(s->vtd_as_by_bus_num, 0, sizeof(s->vtd_as_by_bus_num));
@@ -2464,6 +2467,14 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     pci_setup_iommu(bus, vtd_host_dma_iommu, dev);
     /* Pseudo address space under root PCI bus. */
     pcms->ioapic_as = vtd_host_dma_iommu(bus, s, Q35_PSEUDO_DEVFN_IOAPIC);
+
+    /* Currently Intel IOMMU IR only support "kernel-irqchip={off|split}" */
+    if (x86_iommu->intr_supported && kvm_irqchip_in_kernel() &&
+        !kvm_irqchip_is_split()) {
+        error_report("Intel Interrupt Remapping cannot work with "
+                     "kernel-irqchip=on, please use 'split|off'.");
+        exit(1);
+    }
 }
 
 static void vtd_class_init(ObjectClass *klass, void *data)
