@@ -102,6 +102,23 @@ struct VTDIOTLBEntry {
     bool write_flags;
 };
 
+/* VT-d Source-ID Qualifier types */
+enum {
+    VTD_SQ_FULL = 0x00,     /* Full SID verification */
+    VTD_SQ_IGN_3 = 0x01,    /* Ignore bit 3 */
+    VTD_SQ_IGN_2_3 = 0x02,  /* Ignore bits 2 & 3 */
+    VTD_SQ_IGN_1_3 = 0x03,  /* Ignore bits 1-3 */
+    VTD_SQ_MAX,
+};
+
+/* VT-d Source Validation Types */
+enum {
+    VTD_SVT_NONE = 0x00,    /* No validation */
+    VTD_SVT_ALL = 0x01,     /* Do full validation */
+    VTD_SVT_BUS = 0x02,     /* Validate bus range */
+    VTD_SVT_MAX,
+};
+
 /* Interrupt Remapping Table Entry Definition */
 union VTD_IRTE {
     struct {
