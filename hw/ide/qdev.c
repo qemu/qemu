@@ -75,10 +75,6 @@ static int ide_qdev_init(DeviceState *qdev)
     IDEDeviceClass *dc = IDE_DEVICE_GET_CLASS(dev);
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, qdev->parent_bus);
 
-    if (!dev->conf.blk) {
-        error_report("No drive specified");
-        goto err;
-    }
     if (dev->unit == -1) {
         dev->unit = bus->master ? 1 : 0;
     }
@@ -157,6 +153,16 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
     IDEState *s = bus->ifs + dev->unit;
     Error *err = NULL;
+
+    if (!dev->conf.blk) {
+        if (kind != IDE_CD) {
+            error_report("No drive specified");
+            return -1;
+        } else {
+            /* Anonymous BlockBackend for an empty drive */
+            dev->conf.blk = blk_new();
+        }
+    }
 
     if (dev->conf.discard_granularity == -1) {
         dev->conf.discard_granularity = 512;
@@ -257,7 +263,11 @@ static int ide_cd_initfn(IDEDevice *dev)
 
 static int ide_drive_initfn(IDEDevice *dev)
 {
-    DriveInfo *dinfo = blk_legacy_dinfo(dev->conf.blk);
+    DriveInfo *dinfo = NULL;
+
+    if (dev->conf.blk) {
+        dinfo = blk_legacy_dinfo(dev->conf.blk);
+    }
 
     return ide_dev_initfn(dev, dinfo && dinfo->media_cd ? IDE_CD : IDE_HD);
 }
