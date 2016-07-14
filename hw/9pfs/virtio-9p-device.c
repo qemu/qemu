@@ -97,14 +97,9 @@ static void virtio_9p_get_config(VirtIODevice *vdev, uint8_t *config)
     g_free(cfg);
 }
 
-static void virtio_9p_save(QEMUFile *f, void *opaque)
+static int virtio_9p_load(QEMUFile *f, void *opaque, size_t size)
 {
-    virtio_save(VIRTIO_DEVICE(opaque), f);
-}
-
-static int virtio_9p_load(QEMUFile *f, void *opaque, int version_id)
-{
-    return virtio_load(VIRTIO_DEVICE(opaque), f, version_id);
+    return virtio_load(VIRTIO_DEVICE(opaque), f, 1);
 }
 
 static void virtio_9p_device_realize(DeviceState *dev, Error **errp)
@@ -120,7 +115,6 @@ static void virtio_9p_device_realize(DeviceState *dev, Error **errp)
     v->config_size = sizeof(struct virtio_9p_config) + strlen(s->fsconf.tag);
     virtio_init(vdev, "virtio-9p", VIRTIO_ID_9P, v->config_size);
     v->vq = virtio_add_queue(vdev, MAX_REQ, handle_9p_output);
-    register_savevm(dev, "virtio-9p", -1, 1, virtio_9p_save, virtio_9p_load, v);
 
 out:
     return;
@@ -133,7 +127,6 @@ static void virtio_9p_device_unrealize(DeviceState *dev, Error **errp)
     V9fsState *s = &v->state;
 
     virtio_cleanup(vdev);
-    unregister_savevm(dev, "virtio-9p", v);
     v9fs_device_unrealize_common(s, errp);
 }
 
@@ -175,6 +168,8 @@ void virtio_init_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
 
 /* virtio-9p device */
 
+VMSTATE_VIRTIO_DEVICE(9p, 1, virtio_9p_load, virtio_vmstate_save);
+
 static Property virtio_9p_properties[] = {
     DEFINE_PROP_STRING("mount_tag", V9fsVirtioState, state.fsconf.tag),
     DEFINE_PROP_STRING("fsdev", V9fsVirtioState, state.fsconf.fsdev_id),
@@ -187,6 +182,7 @@ static void virtio_9p_class_init(ObjectClass *klass, void *data)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     dc->props = virtio_9p_properties;
+    dc->vmsd = &vmstate_virtio_9p;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     vdc->realize = virtio_9p_device_realize;
     vdc->unrealize = virtio_9p_device_unrealize;
