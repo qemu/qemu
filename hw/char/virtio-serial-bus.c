@@ -685,7 +685,7 @@ static void virtio_serial_post_load_timer_cb(void *opaque)
     s->post_load = NULL;
 }
 
-static int fetch_active_ports_list(QEMUFile *f, int version_id,
+static int fetch_active_ports_list(QEMUFile *f,
                                    VirtIOSerial *s, uint32_t nr_active_ports)
 {
     uint32_t i;
@@ -702,6 +702,7 @@ static int fetch_active_ports_list(QEMUFile *f, int version_id,
     /* Items in struct VirtIOSerialPort */
     for (i = 0; i < nr_active_ports; i++) {
         VirtIOSerialPort *port;
+        uint32_t elem_popped;
         uint32_t id;
 
         id = qemu_get_be32(f);
@@ -714,23 +715,19 @@ static int fetch_active_ports_list(QEMUFile *f, int version_id,
         s->post_load->connected[i].port = port;
         s->post_load->connected[i].host_connected = qemu_get_byte(f);
 
-        if (version_id > 2) {
-            uint32_t elem_popped;
+        qemu_get_be32s(f, &elem_popped);
+        if (elem_popped) {
+            qemu_get_be32s(f, &port->iov_idx);
+            qemu_get_be64s(f, &port->iov_offset);
 
-            qemu_get_be32s(f, &elem_popped);
-            if (elem_popped) {
-                qemu_get_be32s(f, &port->iov_idx);
-                qemu_get_be64s(f, &port->iov_offset);
+            port->elem =
+                qemu_get_virtqueue_element(f, sizeof(VirtQueueElement));
 
-                port->elem =
-                    qemu_get_virtqueue_element(f, sizeof(VirtQueueElement));
-
-                /*
-                 *  Port was throttled on source machine.  Let's
-                 *  unthrottle it here so data starts flowing again.
-                 */
-                virtio_serial_throttle_port(port, false);
-            }
+            /*
+             *  Port was throttled on source machine.  Let's
+             *  unthrottle it here so data starts flowing again.
+             */
+            virtio_serial_throttle_port(port, false);
         }
     }
     timer_mod(s->post_load->timer, 1);
@@ -739,7 +736,7 @@ static int fetch_active_ports_list(QEMUFile *f, int version_id,
 
 static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
 {
-    if (version_id > 3) {
+    if (version_id != 3) {
         return -EINVAL;
     }
 
@@ -755,10 +752,6 @@ static int virtio_serial_load_device(VirtIODevice *vdev, QEMUFile *f,
     unsigned int i;
     int ret;
     uint32_t tmp;
-
-    if (version_id < 2) {
-        return 0;
-    }
 
     /* Unused */
     qemu_get_be16s(f, (uint16_t *) &tmp);
@@ -781,7 +774,7 @@ static int virtio_serial_load_device(VirtIODevice *vdev, QEMUFile *f,
     qemu_get_be32s(f, &nr_active_ports);
 
     if (nr_active_ports) {
-        ret = fetch_active_ports_list(f, version_id, s, nr_active_ports);
+        ret = fetch_active_ports_list(f, s, nr_active_ports);
         if (ret) {
             return ret;
         }
