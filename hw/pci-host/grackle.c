@@ -72,7 +72,6 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic,
     GrackleState *d;
 
     dev = qdev_create(NULL, TYPE_GRACKLE_PCI_HOST_BRIDGE);
-    qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
     phb = PCI_HOST_BRIDGE(dev);
     d = GRACKLE_PCI_HOST_BRIDGE(dev);
@@ -92,6 +91,7 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic,
                                 0, 4, TYPE_PCI_BUS);
 
     pci_create_simple(phb->bus, 0, "grackle");
+    qdev_init_nofail(dev);
 
     sysbus_mmio_map(s, 0, base);
     sysbus_mmio_map(s, 1, base + 0x00200000);
