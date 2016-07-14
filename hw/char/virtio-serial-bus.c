@@ -594,12 +594,6 @@ static void vser_reset(VirtIODevice *vdev)
     guest_reset(vser);
 }
 
-static void virtio_serial_save(QEMUFile *f, void *opaque)
-{
-    /* The virtio device */
-    virtio_save(VIRTIO_DEVICE(opaque), f);
-}
-
 static void virtio_serial_save_device(VirtIODevice *vdev, QEMUFile *f)
 {
     VirtIOSerial *s = VIRTIO_SERIAL(vdev);
@@ -734,14 +728,10 @@ static int fetch_active_ports_list(QEMUFile *f,
     return 0;
 }
 
-static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
+static int virtio_serial_load(QEMUFile *f, void *opaque, size_t size)
 {
-    if (version_id != 3) {
-        return -EINVAL;
-    }
-
     /* The virtio device */
-    return virtio_load(VIRTIO_DEVICE(opaque), f, version_id);
+    return virtio_load(VIRTIO_DEVICE(opaque), f, 3);
 }
 
 static int virtio_serial_load_device(VirtIODevice *vdev, QEMUFile *f,
@@ -1042,13 +1032,6 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
 
     vser->post_load = NULL;
 
-    /*
-     * Register for the savevm section with the virtio-console name
-     * to preserve backward compat
-     */
-    register_savevm(dev, "virtio-console", -1, 3, virtio_serial_save,
-                    virtio_serial_load, vser);
-
     QLIST_INSERT_HEAD(&vserdevices.devices, vser, next);
 }
 
@@ -1079,8 +1062,6 @@ static void virtio_serial_device_unrealize(DeviceState *dev, Error **errp)
 
     QLIST_REMOVE(vser, next);
 
-    unregister_savevm(dev, "virtio-console", vser);
-
     g_free(vser->ivqs);
     g_free(vser->ovqs);
     g_free(vser->ports_map);
@@ -1092,6 +1073,9 @@ static void virtio_serial_device_unrealize(DeviceState *dev, Error **errp)
     }
     virtio_cleanup(vdev);
 }
+
+/* Note: 'console' is used for backwards compatibility */
+VMSTATE_VIRTIO_DEVICE(console, 3, virtio_serial_load, virtio_vmstate_save);
 
 static Property virtio_serial_properties[] = {
     DEFINE_PROP_UINT32("max_ports", VirtIOSerial, serial.max_virtserial_ports,
@@ -1108,6 +1092,7 @@ static void virtio_serial_class_init(ObjectClass *klass, void *data)
     QLIST_INIT(&vserdevices.devices);
 
     dc->props = virtio_serial_properties;
+    dc->vmsd = &vmstate_virtio_console;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     vdc->realize = virtio_serial_device_realize;
     vdc->unrealize = virtio_serial_device_unrealize;
