@@ -686,6 +686,18 @@ static inline void tcg_out_pushi(TCGContext *s, tcg_target_long val)
     }
 }
 
+static inline void tcg_out_mb(TCGContext *s, TCGArg a0)
+{
+    /* Given the strength of x86 memory ordering, we only need care for
+       store-load ordering.  Experimentally, "lock orl $0,0(%esp)" is
+       faster than "mfence", so don't bother with the sse insn.  */
+    if (a0 & TCG_MO_ST_LD) {
+        tcg_out8(s, 0xf0);
+        tcg_out_modrm_offset(s, OPC_ARITH_EvIb, ARITH_OR, TCG_REG_ESP, 0);
+        tcg_out8(s, 0);
+    }
+}
+
 static inline void tcg_out_push(TCGContext *s, int reg)
 {
     tcg_out_opc(s, OPC_PUSH_r32 + LOWREGMASK(reg), 0, reg, 0);
@@ -2131,6 +2143,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
+    case INDEX_op_mb:
+        tcg_out_mb(s, args[0]);
+        break;
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
     case INDEX_op_movi_i32: /* Always emitted via tcg_out_movi.  */
@@ -2195,6 +2210,8 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_muls2_i32, { "a", "d", "a", "r" } },
     { INDEX_op_add2_i32, { "r", "r", "0", "1", "ri", "ri" } },
     { INDEX_op_sub2_i32, { "r", "r", "0", "1", "ri", "ri" } },
+
+    { INDEX_op_mb, { } },
 
 #if TCG_TARGET_REG_BITS == 32
     { INDEX_op_brcond2_i32, { "r", "r", "ri", "ri" } },
