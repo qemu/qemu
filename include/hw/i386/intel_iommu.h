@@ -125,6 +125,11 @@ struct IntelIOMMUState {
     MemoryRegionIOMMUOps iommu_ops;
     GHashTable *vtd_as_by_busptr;   /* VTDBus objects indexed by PCIBus* reference */
     VTDBus *vtd_as_by_bus_num[VTD_PCI_BUS_MAX]; /* VTDBus objects indexed by bus number */
+
+    /* interrupt remapping */
+    bool intr_enabled;              /* Whether guest enabled IR */
+    dma_addr_t intr_root;           /* Interrupt remapping table pointer */
+    uint32_t intr_size;             /* Number of IR table entries */
 };
 
 /* Find the VTD Address space associated with the given bus pointer,

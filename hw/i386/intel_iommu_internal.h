@@ -172,6 +172,10 @@
 #define VTD_RTADDR_RTT              (1ULL << 11)
 #define VTD_RTADDR_ADDR_MASK        (VTD_HAW_MASK ^ 0xfffULL)
 
+/* IRTA_REG */
+#define VTD_IRTA_ADDR_MASK          (VTD_HAW_MASK ^ 0xfffULL)
+#define VTD_IRTA_SIZE_MASK          (0xfULL)
+
 /* ECAP_REG */
 /* (offset >> 4) << 8 */
 #define VTD_ECAP_IRO                (DMAR_IOTLB_REG_OFFSET << 4)
