@@ -149,6 +149,7 @@ typedef struct FlashPartInfo {
 */
 
 #define SPANSION_CONTINUOUS_READ_MODE_CMD_LEN 1
+#define WINBOND_CONTINUOUS_READ_MODE_CMD_LEN 1
 
 static const FlashPartInfo known_devices[] = {
     /* Atmel -- some are (confusingly) marketed as "DataFlash" */
@@ -777,7 +778,7 @@ static void decode_dio_read_cmd(Flash *s)
     /* Dummy cycles modeled with bytes writes instead of bits */
     switch (get_man(s)) {
     case MAN_WINBOND:
-        s->needed_bytes += 8;
+        s->needed_bytes += WINBOND_CONTINUOUS_READ_MODE_CMD_LEN;
         break;
     case MAN_SPANSION:
         s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
@@ -816,7 +817,8 @@ static void decode_qio_read_cmd(Flash *s)
     /* Dummy cycles modeled with bytes writes instead of bits */
     switch (get_man(s)) {
     case MAN_WINBOND:
-        s->needed_bytes += 8;
+        s->needed_bytes += WINBOND_CONTINUOUS_READ_MODE_CMD_LEN;
+        s->needed_bytes += 4;
         break;
     case MAN_SPANSION:
         s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
