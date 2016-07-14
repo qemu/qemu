@@ -69,7 +69,7 @@ def gen_event_send(name, arg_type):
 ''',
                 proto=gen_event_send_proto(name, arg_type))
 
-    if arg_type and arg_type.members:
+    if arg_type and not arg_type.is_empty():
         ret += mcgen('''
     QObject *obj;
     Visitor *v;
@@ -88,7 +88,7 @@ def gen_event_send(name, arg_type):
 ''',
                  name=name)
 
-    if arg_type and arg_type.members:
+    if arg_type and not arg_type.is_empty():
         ret += mcgen('''
     v = qmp_output_visitor_new(&obj);
 
@@ -116,7 +116,7 @@ def gen_event_send(name, arg_type):
 ''',
                  c_enum=c_enum_const(event_enum_name, name))
 
-    if arg_type and arg_type.members:
+    if arg_type and not arg_type.is_empty():
         ret += mcgen('''
 out:
     visit_free(v);

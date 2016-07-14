@@ -999,6 +999,10 @@ class QAPISchemaObjectType(QAPISchemaType):
         # _def_predefineds()
         return self.name.startswith('q_')
 
+    def is_empty(self):
+        assert self.members is not None
+        return not self.members and not self.variants
+
     def c_name(self):
         assert self.name != 'q_empty'
         return QAPISchemaType.c_name(self)

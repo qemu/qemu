@@ -107,7 +107,7 @@ def gen_marshal(name, arg_type, ret_type):
 ''',
                      c_type=ret_type.c_type())
 
-    if arg_type and arg_type.members:
+    if arg_type and not arg_type.is_empty():
         ret += mcgen('''
     Visitor *v;
     %(c_name)s arg = {0};
@@ -137,7 +137,7 @@ def gen_marshal(name, arg_type, ret_type):
     ret += gen_call(name, arg_type, ret_type)
 
     # 'goto out' produced above for arg_type, and by gen_call() for ret_type
-    if (arg_type and arg_type.members) or ret_type:
+    if (arg_type and not arg_type.is_empty()) or ret_type:
         ret += mcgen('''
 
 out:
@@ -145,7 +145,7 @@ out:
     ret += mcgen('''
     error_propagate(errp, err);
 ''')
-    if arg_type and arg_type.members:
+    if arg_type and not arg_type.is_empty():
         ret += mcgen('''
     visit_free(v);
     v = qapi_dealloc_visitor_new();

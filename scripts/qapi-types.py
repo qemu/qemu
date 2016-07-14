@@ -91,7 +91,7 @@ struct %(c_name)s {
     # potential issues with attempting to malloc space for zero-length
     # structs in C, and also incompatibility with C++ (where an empty
     # struct is size 1).
-    if not (base and base.members) and not members and not variants:
+    if (not base or base.is_empty()) and not members and not variants:
         ret += mcgen('''
     char qapi_dummy_for_empty_struct;
 ''')
