@@ -26,6 +26,7 @@
 #include "hw/i386/x86-iommu.h"
 #include "hw/i386/ioapic.h"
 #include "hw/pci/msi.h"
+#include "hw/sysbus.h"
 
 #define TYPE_INTEL_IOMMU_DEVICE "intel-iommu"
 #define INTEL_IOMMU_DEVICE(obj) \

@@ -2165,6 +2165,12 @@ do_not_translate:
     return 0;
 }
 
+static int vtd_int_remap(X86IOMMUState *iommu, MSIMessage *src,
+                         MSIMessage *dst, uint16_t sid)
+{
+    return vtd_interrupt_remap_msi(INTEL_IOMMU_DEVICE(iommu), src, dst);
+}
+
 static MemTxResult vtd_mem_ir_read(void *opaque, hwaddr addr,
                                    uint64_t *data, unsigned size,
                                    MemTxAttrs attrs)
@@ -2399,6 +2405,7 @@ static void vtd_class_init(ObjectClass *klass, void *data)
     dc->props = vtd_properties;
     dc->hotpluggable = false;
     x86_class->realize = vtd_realize;
+    x86_class->int_remap = vtd_int_remap;
 }
 
 static const TypeInfo vtd_info = {

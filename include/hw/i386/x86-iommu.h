@@ -21,6 +21,7 @@
 #define IOMMU_COMMON_H
 
 #include "hw/sysbus.h"
+#include "hw/pci/pci.h"
 
 #define  TYPE_X86_IOMMU_DEVICE  ("x86-iommu")
 #define  X86_IOMMU_DEVICE(obj) \
@@ -31,6 +32,7 @@
     OBJECT_GET_CLASS(X86IOMMUClass, obj, TYPE_X86_IOMMU_DEVICE)
 
 #define X86_IOMMU_PCI_DEVFN_MAX           256
+#define X86_IOMMU_SID_INVALID             (0xffff)
 
 typedef struct X86IOMMUState X86IOMMUState;
 typedef struct X86IOMMUClass X86IOMMUClass;
@@ -39,6 +41,9 @@ struct X86IOMMUClass {
     SysBusDeviceClass parent;
     /* Intel/AMD specific realize() hook */
     DeviceRealize realize;
+    /* MSI-based interrupt remapping */
+    int (*int_remap)(X86IOMMUState *iommu, MSIMessage *src,
+                     MSIMessage *dst, uint16_t sid);
 };
 
 struct X86IOMMUState {
