@@ -812,7 +812,7 @@ static void dp8393x_reset(DeviceState *dev)
 }
 
 static NetClientInfo net_dp83932_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_NIC,
+    .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
     .can_receive = dp8393x_can_receive,
     .receive = dp8393x_receive,

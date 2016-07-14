@@ -447,7 +447,7 @@ static void milkymist_minimac2_reset(DeviceState *d)
 }
 
 static NetClientInfo net_milkymist_minimac2_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_NIC,
+    .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
     .receive = minimac2_rx,
 };

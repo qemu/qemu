@@ -371,7 +371,7 @@ out:
 }
 
 static NetClientInfo net_xgmac_enet_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_NIC,
+    .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
     .receive = eth_rx,
 };

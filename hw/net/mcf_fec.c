@@ -507,7 +507,7 @@ static const MemoryRegionOps mcf_fec_ops = {
 };
 
 static NetClientInfo net_mcf_fec_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_NIC,
+    .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
     .receive = mcf_fec_receive,
 };

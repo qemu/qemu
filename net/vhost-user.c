@@ -34,14 +34,14 @@ typedef struct VhostUserChardevProps {
 VHostNetState *vhost_user_get_vhost_net(NetClientState *nc)
 {
     VhostUserState *s = DO_UPCAST(VhostUserState, nc, nc);
-    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
+    assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_USER);
     return s->vhost_net;
 }
 
 uint64_t vhost_user_get_acked_features(NetClientState *nc)
 {
     VhostUserState *s = DO_UPCAST(VhostUserState, nc, nc);
-    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
+    assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_USER);
     return s->acked_features;
 }
 
@@ -56,7 +56,7 @@ static void vhost_user_stop(int queues, NetClientState *ncs[])
     int i;
 
     for (i = 0; i < queues; i++) {
-        assert (ncs[i]->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
+        assert(ncs[i]->info->type == NET_CLIENT_DRIVER_VHOST_USER);
 
         s = DO_UPCAST(VhostUserState, nc, ncs[i]);
         if (!vhost_user_running(s)) {
@@ -82,7 +82,7 @@ static int vhost_user_start(int queues, NetClientState *ncs[])
     options.backend_type = VHOST_BACKEND_TYPE_USER;
 
     for (i = 0; i < queues; i++) {
-        assert (ncs[i]->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
+        assert(ncs[i]->info->type == NET_CLIENT_DRIVER_VHOST_USER);
 
         s = DO_UPCAST(VhostUserState, nc, ncs[i]);
         if (vhost_user_running(s)) {
@@ -163,20 +163,20 @@ static void vhost_user_cleanup(NetClientState *nc)
 
 static bool vhost_user_has_vnet_hdr(NetClientState *nc)
 {
-    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
+    assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_USER);
 
     return true;
 }
 
 static bool vhost_user_has_ufo(NetClientState *nc)
 {
-    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
+    assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_USER);
 
     return true;
 }
 
 static NetClientInfo net_vhost_user_info = {
-        .type = NET_CLIENT_OPTIONS_KIND_VHOST_USER,
+        .type = NET_CLIENT_DRIVER_VHOST_USER,
         .size = sizeof(VhostUserState),
         .receive = vhost_user_receive,
         .cleanup = vhost_user_cleanup,
@@ -207,7 +207,7 @@ static void net_vhost_user_event(void *opaque, int event)
     int queues;
 
     queues = qemu_find_net_clients_except(name, ncs,
-                                          NET_CLIENT_OPTIONS_KIND_NIC,
+                                          NET_CLIENT_DRIVER_NIC,
                                           MAX_QUEUE_NUM);
     assert(queues < MAX_QUEUE_NUM);
 
@@ -341,8 +341,8 @@ int net_init_vhost_user(const Netdev *netdev, const char *name,
     const NetdevVhostUserOptions *vhost_user_opts;
     CharDriverState *chr;
 
-    assert(netdev->opts->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
-    vhost_user_opts = netdev->opts->u.vhost_user.data;
+    assert(netdev->type == NET_CLIENT_DRIVER_VHOST_USER);
+    vhost_user_opts = &netdev->u.vhost_user;
 
     chr = net_vhost_parse_chardev(vhost_user_opts, errp);
     if (!chr) {

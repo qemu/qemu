@@ -272,7 +272,7 @@ static void pci_pcnet_uninit(PCIDevice *dev)
 }
 
 static NetClientInfo net_pci_pcnet_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_NIC,
+    .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
     .receive = pcnet_receive,
     .link_status_changed = pcnet_set_link_status,

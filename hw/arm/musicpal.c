@@ -378,7 +378,7 @@ static void eth_cleanup(NetClientState *nc)
 }
 
 static NetClientInfo net_mv88w8618_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_NIC,
+    .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
     .receive = eth_receive,
     .cleanup = eth_cleanup,

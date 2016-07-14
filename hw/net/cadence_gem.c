@@ -1207,7 +1207,7 @@ static void gem_set_link(NetClientState *nc)
 }
 
 static NetClientInfo net_gem_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_NIC,
+    .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
     .can_receive = gem_can_receive,
     .receive = gem_receive,

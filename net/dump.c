@@ -172,7 +172,7 @@ static void dumpclient_cleanup(NetClientState *nc)
 }
 
 static NetClientInfo net_dump_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_DUMP,
+    .type = NET_CLIENT_DRIVER_DUMP,
     .size = sizeof(DumpNetClient),
     .receive = dumpclient_receive,
     .receive_iov = dumpclient_receive_iov,
@@ -189,8 +189,8 @@ int net_init_dump(const Netdev *netdev, const char *name,
     NetClientState *nc;
     DumpNetClient *dnc;
 
-    assert(netdev->opts->type == NET_CLIENT_OPTIONS_KIND_DUMP);
-    dump = netdev->opts->u.dump.data;
+    assert(netdev->type == NET_CLIENT_DRIVER_DUMP);
+    dump = &netdev->u.dump;
 
     assert(peer);
 

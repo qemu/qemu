@@ -1334,7 +1334,7 @@ static void usb_net_handle_destroy(USBDevice *dev)
 }
 
 static NetClientInfo net_usbnet_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_NIC,
+    .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
     .receive = usbnet_receive,
     .cleanup = usbnet_cleanup,

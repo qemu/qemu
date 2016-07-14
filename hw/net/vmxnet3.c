@@ -2087,7 +2087,7 @@ static void vmxnet3_set_link_status(NetClientState *nc)
 }
 
 static NetClientInfo net_vmxnet3_info = {
-        .type = NET_CLIENT_OPTIONS_KIND_NIC,
+        .type = NET_CLIENT_DRIVER_NIC,
         .size = sizeof(NICState),
         .receive = vmxnet3_receive,
         .link_status_changed = vmxnet3_set_link_status,

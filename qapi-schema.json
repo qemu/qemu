@@ -2809,16 +2809,32 @@
     '*queues':        'int' } }
 
 ##
-# @NetClientOptions
+# @NetClientDriver
 #
-# A discriminated record of network device traits.
+# Available netdev drivers.
+#
+# Since 2.7
+##
+{ 'enum': 'NetClientDriver',
+  'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde', 'dump',
+            'bridge', 'hubport', 'netmap', 'vhost-user' ] }
+
+##
+# @Netdev
+#
+# Captures the configuration of a network device.
+#
+# @id: identifier for monitor commands.
+#
+# @type: Specify the driver used for interpreting remaining arguments.
 #
 # Since 1.2
 #
 # 'l2tpv3' - since 2.1
-#
 ##
-{ 'union': 'NetClientOptions',
+{ 'union': 'Netdev',
+  'base': { 'id': 'str', 'type': 'NetClientDriver' },
+  'discriminator': 'type',
   'data': {
     'none':     'NetdevNoneOptions',
     'nic':      'NetLegacyNicOptions',
@@ -2853,23 +2869,28 @@
     '*vlan': 'int32',
     '*id':   'str',
     '*name': 'str',
-    'opts':  'NetClientOptions' } }
+    'opts':  'NetLegacyOptions' } }
 
 ##
-# @Netdev
+# @NetLegacyOptions
 #
-# Captures the configuration of a network device.
-#
-# @id: identifier for monitor commands.
-#
-# @opts: device type specific properties
+# Like Netdev, but for use only by the legacy command line options
 #
 # Since 1.2
 ##
-{ 'struct': 'Netdev',
+{ 'union': 'NetLegacyOptions',
   'data': {
-    'id':   'str',
-    'opts': 'NetClientOptions' } }
+    'none':     'NetdevNoneOptions',
+    'nic':      'NetLegacyNicOptions',
+    'user':     'NetdevUserOptions',
+    'tap':      'NetdevTapOptions',
+    'l2tpv3':   'NetdevL2TPv3Options',
+    'socket':   'NetdevSocketOptions',
+    'vde':      'NetdevVdeOptions',
+    'dump':     'NetdevDumpOptions',
+    'bridge':   'NetdevBridgeOptions',
+    'netmap':   'NetdevNetmapOptions',
+    'vhost-user': 'NetdevVhostUserOptions' } }
 
 ##
 # @NetFilterDirection

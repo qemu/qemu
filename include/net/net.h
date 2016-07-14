@@ -66,7 +66,7 @@ typedef struct SocketReadState SocketReadState;
 typedef void (SocketReadStateFinalize)(SocketReadState *rs);
 
 typedef struct NetClientInfo {
-    NetClientOptionsKind type;
+    NetClientDriver type;
     size_t size;
     NetReceive *receive;
     NetReceive *receive_raw;
@@ -122,7 +122,7 @@ int net_fill_rstate(SocketReadState *rs, const uint8_t *buf, int size);
 char *qemu_mac_strdup_printf(const uint8_t *macaddr);
 NetClientState *qemu_find_netdev(const char *id);
 int qemu_find_net_clients_except(const char *id, NetClientState **ncs,
-                                 NetClientOptionsKind type, int max);
+                                 NetClientDriver type, int max);
 NetClientState *qemu_new_net_client(NetClientInfo *info,
                                     NetClientState *peer,
                                     const char *model,

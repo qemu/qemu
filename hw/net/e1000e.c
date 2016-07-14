@@ -225,7 +225,7 @@ e1000e_set_link_status(NetClientState *nc)
 }
 
 static NetClientInfo net_e1000e_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_NIC,
+    .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
     .can_receive = e1000e_nc_can_receive,
     .receive = e1000e_nc_receive,
