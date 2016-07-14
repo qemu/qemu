@@ -247,6 +247,7 @@ enum {
     OPC_LD4_M3                = 0x0a080000000ull,
     OPC_LD8_M1                = 0x080c0000000ull,
     OPC_LD8_M3                = 0x0a0c0000000ull,
+    OPC_MF_M24                = 0x00110000000ull,
     OPC_MUX1_I3               = 0x0eca0000000ull,
     OPC_NOP_B9                = 0x04008000000ull,
     OPC_NOP_F16               = 0x00008000000ull,
@@ -2231,6 +2232,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_qemu_st(s, args);
         break;
 
+    case INDEX_op_mb:
+        tcg_out_bundle(s, mmI, OPC_MF_M24, INSN_NOP_M, INSN_NOP_I);
+        break;
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
     case INDEX_op_movi_i32: /* Always emitted via tcg_out_movi.  */
@@ -2344,6 +2348,7 @@ static const TCGTargetOpDef ia64_op_defs[] = {
     { INDEX_op_qemu_st_i32, { "SZ", "r" } },
     { INDEX_op_qemu_st_i64, { "SZ", "r" } },
 
+    { INDEX_op_mb, { } },
     { -1 },
 };
 
