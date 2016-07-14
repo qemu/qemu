@@ -471,9 +471,6 @@ void pc_cmos_init(PCMachineState *pcms,
     rtc_set_memory(s, 0x5c, val >> 8);
     rtc_set_memory(s, 0x5d, val >> 16);
 
-    /* set the number of CPU */
-    rtc_set_memory(s, 0x5f, smp_cpus - 1);
-
     object_property_add_link(OBJECT(pcms), "rtc_state",
                              TYPE_ISA_DEVICE,
                              (Object **)&pcms->rtc,
@@ -1090,6 +1087,17 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     }
 }
 
+static int pc_present_cpus_count(PCMachineState *pcms)
+{
+    int i, boot_cpus = 0;
+    for (i = 0; i < pcms->possible_cpus->len; i++) {
+        if (pcms->possible_cpus->cpus[i].cpu) {
+            boot_cpus++;
+        }
+    }
+    return boot_cpus;
+}
+
 static X86CPU *pc_new_cpu(const char *typename, int64_t apic_id,
                           Error **errp)
 {
@@ -1239,6 +1247,9 @@ void pc_machine_done(Notifier *notifier, void *data)
     PCMachineState *pcms = container_of(notifier,
                                         PCMachineState, machine_done);
     PCIBus *bus = pcms->bus;
+
+    /* set the number of CPUs */
+    rtc_set_memory(pcms->rtc, 0x5f, pc_present_cpus_count(pcms) - 1);
 
     if (bus) {
         int extra_hosts = 0;
