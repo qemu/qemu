@@ -1,0 +1,1 @@
+tests/qapi-schema/args-bad-boxed.json:2: 'boxed' of command 'foo' should only use true value

@@ -30,7 +30,8 @@ def gen_call(name, arg_type, boxed, ret_type):
 
     argstr = ''
     if boxed:
-        assert False    # not implemented
+        assert arg_type and not arg_type.is_empty()
+        argstr = '&arg, '
     elif arg_type:
         assert not arg_type.variants
         for memb in arg_type.members:

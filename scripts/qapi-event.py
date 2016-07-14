@@ -79,7 +79,10 @@ def gen_event_send(name, arg_type, boxed):
     QObject *obj;
     Visitor *v;
 ''')
-        ret += gen_param_var(arg_type)
+        if not boxed:
+            ret += gen_param_var(arg_type)
+    else:
+        assert not boxed
 
     ret += mcgen('''
 

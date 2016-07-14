@@ -30,6 +30,10 @@ event EVENT_C q_obj_EVENT_C-arg
    boxed=False
 event EVENT_D q_obj_EVENT_D-arg
    boxed=False
+event EVENT_E UserDefZero
+   boxed=True
+event EVENT_F UserDefAlternate
+   boxed=True
 object Empty1
 object Empty2
     base Empty1
@@ -153,6 +157,10 @@ object __org.qemu_x-Union2
     case __org.qemu_x-value: __org.qemu_x-Struct2
 command __org.qemu_x-command q_obj___org.qemu_x-command-arg -> __org.qemu_x-Union1
    gen=True success_response=True boxed=False
+command boxed-struct UserDefZero -> None
+   gen=True success_response=True boxed=True
+command boxed-union UserDefNativeListUnion -> None
+   gen=True success_response=True boxed=True
 command guest-get-time q_obj_guest-get-time-arg -> int
    gen=True success_response=True boxed=False
 command guest-sync q_obj_guest-sync-arg -> any
