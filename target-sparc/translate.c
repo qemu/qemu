@@ -242,7 +242,29 @@ static void gen_op_store_QT0_fpr(unsigned int dst)
                    offsetof(CPU_QuadU, ll.lower));
 }
 
+static void gen_store_fpr_Q(DisasContext *dc, unsigned int dst,
+                            TCGv_i64 v1, TCGv_i64 v2)
+{
+    dst = QFPREG(dst);
+
+    tcg_gen_mov_i64(cpu_fpr[dst / 2], v1);
+    tcg_gen_mov_i64(cpu_fpr[dst / 2 + 1], v2);
+    gen_update_fprs_dirty(dc, dst);
+}
+
 #ifdef TARGET_SPARC64
+static TCGv_i64 gen_load_fpr_Q0(DisasContext *dc, unsigned int src)
+{
+    src = QFPREG(src);
+    return cpu_fpr[src / 2];
+}
+
+static TCGv_i64 gen_load_fpr_Q1(DisasContext *dc, unsigned int src)
+{
+    src = QFPREG(src);
+    return cpu_fpr[src / 2 + 1];
+}
+
 static void gen_move_Q(DisasContext *dc, unsigned int rd, unsigned int rs)
 {
     rd = QFPREG(rd);
@@ -2557,10 +2579,17 @@ static void gen_stf_asi(DisasContext *dc, TCGv addr,
             tcg_gen_qemu_st_i32(d32, addr, da.mem_idx, da.memop);
             break;
         case 8:
+            /* ??? Only 4-byte alignment required.  However, it is legal
+               for the cpu to signal the alignment fault, and the OS trap
+               handler is required to fix it up.  */
             tcg_gen_qemu_st_i64(cpu_fpr[rd / 2], addr, da.mem_idx, da.memop);
             break;
         case 16:
-            tcg_gen_qemu_st_i64(cpu_fpr[rd / 2], addr, da.mem_idx, da.memop);
+            /* Only 4-byte alignment required.  See above.  Requiring
+               16-byte alignment here avoids having to probe the second
+               page before performing the first write.  */
+            tcg_gen_qemu_st_i64(cpu_fpr[rd / 2], addr, da.mem_idx,
+                                da.memop | MO_ALIGN_16);
             tcg_gen_addi_tl(addr, addr, 8);
             tcg_gen_qemu_st_i64(cpu_fpr[rd/2+1], addr, da.mem_idx, da.memop);
             break;
@@ -5426,17 +5455,16 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     gen_helper_ldfsr(cpu_fsr, cpu_env, cpu_fsr, cpu_dst_32);
                     break;
                 case 0x22:      /* ldqf, load quad fpreg */
-                    {
-                        TCGv_i32 r_const;
-
-                        CHECK_FPU_FEATURE(dc, FLOAT128);
-                        r_const = tcg_const_i32(dc->mem_idx);
-                        gen_address_mask(dc, cpu_addr);
-                        gen_helper_ldqf(cpu_env, cpu_addr, r_const);
-                        tcg_temp_free_i32(r_const);
-                        gen_op_store_QT0_fpr(QFPREG(rd));
-                        gen_update_fprs_dirty(dc, QFPREG(rd));
-                    }
+                    CHECK_FPU_FEATURE(dc, FLOAT128);
+                    gen_address_mask(dc, cpu_addr);
+                    cpu_src1_64 = tcg_temp_new_i64();
+                    tcg_gen_qemu_ld64(cpu_src1_64, cpu_addr, dc->mem_idx);
+                    tcg_gen_addi_tl(cpu_addr, cpu_addr, 8);
+                    cpu_src2_64 = tcg_temp_new_i64();
+                    tcg_gen_qemu_ld64(cpu_src2_64, cpu_addr, dc->mem_idx);
+                    gen_store_fpr_Q(dc, rd, cpu_src1_64, cpu_src2_64);
+                    tcg_temp_free_i64(cpu_src1_64);
+                    tcg_temp_free_i64(cpu_src2_64);
                     break;
                 case 0x23:      /* lddf, load double fpreg */
                     gen_address_mask(dc, cpu_addr);
@@ -5537,16 +5565,20 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 case 0x26:
 #ifdef TARGET_SPARC64
                     /* V9 stqf, store quad fpreg */
-                    {
-                        TCGv_i32 r_const;
-
-                        CHECK_FPU_FEATURE(dc, FLOAT128);
-                        gen_op_load_fpr_QT0(QFPREG(rd));
-                        r_const = tcg_const_i32(dc->mem_idx);
-                        gen_address_mask(dc, cpu_addr);
-                        gen_helper_stqf(cpu_env, cpu_addr, r_const);
-                        tcg_temp_free_i32(r_const);
-                    }
+                    CHECK_FPU_FEATURE(dc, FLOAT128);
+                    gen_address_mask(dc, cpu_addr);
+                    /* ??? While stqf only requires 4-byte alignment, it is
+                       legal for the cpu to signal the unaligned exception.
+                       The OS trap handler is then required to fix it up.
+                       For qemu, this avoids having to probe the second page
+                       before performing the first write.  */
+                    cpu_src1_64 = gen_load_fpr_Q0(dc, rd);
+                    tcg_gen_qemu_st_i64(cpu_src1_64, cpu_addr,
+                                        dc->mem_idx, MO_TEQ | MO_ALIGN_16);
+                    tcg_gen_addi_tl(cpu_addr, cpu_addr, 8);
+                    cpu_src2_64 = gen_load_fpr_Q1(dc, rd);
+                    tcg_gen_qemu_st_i64(cpu_src1_64, cpu_addr,
+                                        dc->mem_idx, MO_TEQ);
                     break;
 #else /* !TARGET_SPARC64 */
                     /* stdfq, store floating point queue */
@@ -5562,6 +5594,9 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 #endif
 #endif
                 case 0x27: /* stdf, store double fpreg */
+                    /* ??? Only 4-byte alignment required.  However, it is
+                       legal for the cpu to signal the alignment fault, and
+                       the OS trap handler is required to fix it up.  */
                     gen_address_mask(dc, cpu_addr);
                     cpu_src1_64 = gen_load_fpr_D(dc, rd);
                     tcg_gen_qemu_st64(cpu_src1_64, cpu_addr, dc->mem_idx);

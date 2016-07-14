@@ -38,8 +38,6 @@ DEF_HELPER_3(tsubcctv, tl, env, tl, tl)
 DEF_HELPER_FLAGS_3(sdivx, TCG_CALL_NO_WG, s64, env, s64, s64)
 DEF_HELPER_FLAGS_3(udivx, TCG_CALL_NO_WG, i64, env, i64, i64)
 #endif
-DEF_HELPER_FLAGS_3(ldqf, TCG_CALL_NO_WG, void, env, tl, int)
-DEF_HELPER_FLAGS_3(stqf, TCG_CALL_NO_WG, void, env, tl, int)
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
 DEF_HELPER_FLAGS_4(ld_asi, TCG_CALL_NO_WG, i64, env, tl, int, i32)
 DEF_HELPER_FLAGS_5(st_asi, TCG_CALL_NO_WG, void, env, tl, i64, int, i32)

@@ -254,18 +254,6 @@ static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
 
 #endif
 
-#if defined(TARGET_SPARC64) || defined(CONFIG_USER_ONLY)
-static inline target_ulong address_mask(CPUSPARCState *env1, target_ulong addr)
-{
-#ifdef TARGET_SPARC64
-    if (AM_CHECK(env1)) {
-        addr &= 0xffffffffULL;
-    }
-#endif
-    return addr;
-}
-#endif
-
 #ifdef TARGET_SPARC64
 /* returns true if access using this ASI is to have address translated by MMU
    otherwise access is to raw physical address */
@@ -290,14 +278,21 @@ static inline int is_translating_asi(int asi)
     }
 }
 
+static inline target_ulong address_mask(CPUSPARCState *env1, target_ulong addr)
+{
+    if (AM_CHECK(env1)) {
+        addr &= 0xffffffffULL;
+    }
+    return addr;
+}
+
 static inline target_ulong asi_address_mask(CPUSPARCState *env,
                                             int asi, target_ulong addr)
 {
     if (is_translating_asi(asi)) {
-        return address_mask(env, addr);
-    } else {
-        return addr;
+        addr = address_mask(env, addr);
     }
+    return addr;
 }
 #endif
 
@@ -1600,78 +1595,6 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
 }
 #endif /* CONFIG_USER_ONLY */
 #endif /* TARGET_SPARC64 */
-
-void helper_ldqf(CPUSPARCState *env, target_ulong addr, int mem_idx)
-{
-    /* XXX add 128 bit load */
-    CPU_QuadU u;
-
-    do_check_align(env, addr, 7, GETPC());
-#if !defined(CONFIG_USER_ONLY)
-    switch (mem_idx) {
-    case MMU_USER_IDX:
-        u.ll.upper = cpu_ldq_user(env, addr);
-        u.ll.lower = cpu_ldq_user(env, addr + 8);
-        QT0 = u.q;
-        break;
-    case MMU_KERNEL_IDX:
-        u.ll.upper = cpu_ldq_kernel(env, addr);
-        u.ll.lower = cpu_ldq_kernel(env, addr + 8);
-        QT0 = u.q;
-        break;
-#ifdef TARGET_SPARC64
-    case MMU_HYPV_IDX:
-        u.ll.upper = cpu_ldq_hypv(env, addr);
-        u.ll.lower = cpu_ldq_hypv(env, addr + 8);
-        QT0 = u.q;
-        break;
-#endif
-    default:
-        DPRINTF_MMU("helper_ldqf: need to check MMU idx %d\n", mem_idx);
-        break;
-    }
-#else
-    u.ll.upper = cpu_ldq_data(env, address_mask(env, addr));
-    u.ll.lower = cpu_ldq_data(env, address_mask(env, addr + 8));
-    QT0 = u.q;
-#endif
-}
-
-void helper_stqf(CPUSPARCState *env, target_ulong addr, int mem_idx)
-{
-    /* XXX add 128 bit store */
-    CPU_QuadU u;
-
-    do_check_align(env, addr, 7, GETPC());
-#if !defined(CONFIG_USER_ONLY)
-    switch (mem_idx) {
-    case MMU_USER_IDX:
-        u.q = QT0;
-        cpu_stq_user(env, addr, u.ll.upper);
-        cpu_stq_user(env, addr + 8, u.ll.lower);
-        break;
-    case MMU_KERNEL_IDX:
-        u.q = QT0;
-        cpu_stq_kernel(env, addr, u.ll.upper);
-        cpu_stq_kernel(env, addr + 8, u.ll.lower);
-        break;
-#ifdef TARGET_SPARC64
-    case MMU_HYPV_IDX:
-        u.q = QT0;
-        cpu_stq_hypv(env, addr, u.ll.upper);
-        cpu_stq_hypv(env, addr + 8, u.ll.lower);
-        break;
-#endif
-    default:
-        DPRINTF_MMU("helper_stqf: need to check MMU idx %d\n", mem_idx);
-        break;
-    }
-#else
-    u.q = QT0;
-    cpu_stq_data(env, address_mask(env, addr), u.ll.upper);
-    cpu_stq_data(env, address_mask(env, addr + 8), u.ll.lower);
-#endif
-}
 
 #if !defined(CONFIG_USER_ONLY)
 #ifndef TARGET_SPARC64
