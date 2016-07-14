@@ -35,6 +35,9 @@
 #define GICV3_MAXIRQ 1020
 #define GICV3_MAXSPI (GICV3_MAXIRQ - GIC_INTERNAL)
 
+/* Number of SGI target-list bits */
+#define GICV3_TARGETLIST_BITS 16
+
 /* Minimum BPR for Secure, or when security not enabled */
 #define GIC_MIN_BPR 0
 /* Minimum BPR for Nonsecure when security is enabled */

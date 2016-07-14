@@ -23,6 +23,9 @@
 
 #include "arm_gic_common.h"
 
+/* Number of SGI target-list bits */
+#define GIC_TARGETLIST_BITS 8
+
 #define TYPE_ARM_GIC "arm_gic"
 #define ARM_GIC(obj) \
      OBJECT_CHECK(GICState, (obj), TYPE_ARM_GIC)
