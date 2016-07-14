@@ -31,6 +31,7 @@
 #include "sysemu/kvm.h"
 #include "target-i386/cpu.h"
 #include "hw/i386/apic-msidef.h"
+#include "hw/i386/x86-iommu.h"
 
 //#define DEBUG_IOAPIC
 
@@ -198,6 +199,16 @@ static void ioapic_update_kvm_routes(IOAPICCommonState *s)
 #endif
 }
 
+#ifdef CONFIG_KVM
+static void ioapic_iec_notifier(void *private, bool global,
+                                uint32_t index, uint32_t mask)
+{
+    IOAPICCommonState *s = (IOAPICCommonState *)private;
+    /* For simplicity, we just update all the routes */
+    ioapic_update_kvm_routes(s);
+}
+#endif
+
 void ioapic_eoi_broadcast(int vector)
 {
     IOAPICCommonState *s;
@@ -354,6 +365,24 @@ static const MemoryRegionOps ioapic_io_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void ioapic_machine_done_notify(Notifier *notifier, void *data)
+{
+#ifdef CONFIG_KVM
+    IOAPICCommonState *s = container_of(notifier, IOAPICCommonState,
+                                        machine_done);
+
+    if (kvm_irqchip_is_split()) {
+        X86IOMMUState *iommu = x86_iommu_get_default();
+        if (iommu) {
+            /* Register this IOAPIC with IOMMU IEC notifier, so that
+             * when there are IR invalidates, we can be notified to
+             * update kernel IR cache. */
+            x86_iommu_iec_register_notifier(iommu, ioapic_iec_notifier, s);
+        }
+    }
+#endif
+}
+
 static void ioapic_realize(DeviceState *dev, Error **errp)
 {
     IOAPICCommonState *s = IOAPIC_COMMON(dev);
@@ -364,6 +393,8 @@ static void ioapic_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_in(dev, ioapic_set_irq, IOAPIC_NUM_PINS);
 
     ioapics[ioapic_no] = s;
+    s->machine_done.notify = ioapic_machine_done_notify;
+    qemu_add_machine_init_done_notifier(&s->machine_done);
 }
 
 static void ioapic_class_init(ObjectClass *klass, void *data)

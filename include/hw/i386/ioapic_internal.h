@@ -25,6 +25,7 @@
 #include "hw/hw.h"
 #include "exec/memory.h"
 #include "hw/sysbus.h"
+#include "qemu/notify.h"
 
 #define MAX_IOAPICS                     1
 
@@ -107,6 +108,7 @@ struct IOAPICCommonState {
     uint8_t ioregsel;
     uint32_t irr;
     uint64_t ioredtbl[IOAPIC_NUM_PINS];
+    Notifier machine_done;
 };
 
 void ioapic_reset_common(DeviceState *dev);
