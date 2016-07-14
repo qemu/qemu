@@ -286,6 +286,8 @@ typedef struct VTDInvDesc VTDInvDesc;
 #define VTD_INV_DESC_TYPE               0xf
 #define VTD_INV_DESC_CC                 0x1 /* Context-cache Invalidate Desc */
 #define VTD_INV_DESC_IOTLB              0x2
+#define VTD_INV_DESC_IEC                0x4 /* Interrupt Entry Cache
+                                               Invalidate Descriptor */
 #define VTD_INV_DESC_WAIT               0x5 /* Invalidation Wait Descriptor */
 #define VTD_INV_DESC_NONE               0   /* Not an Invalidate Descriptor */
 

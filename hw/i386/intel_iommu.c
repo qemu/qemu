@@ -1404,6 +1404,15 @@ static bool vtd_process_inv_desc(IntelIOMMUState *s)
         }
         break;
 
+    case VTD_INV_DESC_IEC:
+        VTD_DPRINTF(INV, "Interrupt Entry Cache Invalidation "
+                    "not implemented yet");
+        /*
+         * Since currently we do not cache interrupt entries, we can
+         * just mark this descriptor as "good" and move on.
+         */
+        break;
+
     default:
         VTD_DPRINTF(GENERAL, "error: unkonw Invalidation Descriptor type "
                     "hi 0x%"PRIx64 " lo 0x%"PRIx64 " type %"PRIu8,
