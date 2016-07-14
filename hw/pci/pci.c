@@ -2596,6 +2596,21 @@ PCIDevice *pci_get_function_0(PCIDevice *pci_dev)
     }
 }
 
+MSIMessage pci_get_msi_message(PCIDevice *dev, int vector)
+{
+    MSIMessage msg;
+    if (msix_enabled(dev)) {
+        msg = msix_get_message(dev, vector);
+    } else if (msi_enabled(dev)) {
+        msg = msi_get_message(dev, vector);
+    } else {
+        /* Should never happen */
+        error_report("%s: unknown interrupt type", __func__);
+        abort();
+    }
+    return msg;
+}
+
 static const TypeInfo pci_device_type_info = {
     .name = TYPE_PCI_DEVICE,
     .parent = TYPE_DEVICE,

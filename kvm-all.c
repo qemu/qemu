@@ -1246,15 +1246,7 @@ int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)
     MSIMessage msg = {0, 0};
 
     if (dev) {
-        if (msix_enabled(dev)) {
-            msg = msix_get_message(dev, vector);
-        } else if (msi_enabled(dev)) {
-            msg = msi_get_message(dev, vector);
-        } else {
-            /* Should never happen */
-            error_report("%s: unknown interrupt type", __func__);
-            abort();
-        }
+        msg = pci_get_msi_message(dev, vector);
     }
 
     if (kvm_gsi_direct_mapping()) {
