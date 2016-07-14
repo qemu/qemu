@@ -638,23 +638,15 @@ int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 /* MMU modes definitions */
 #if defined (TARGET_SPARC64)
 #define MMU_USER_IDX   0
-#define MMU_MODE0_SUFFIX _user
 #define MMU_USER_SECONDARY_IDX   1
-#define MMU_MODE1_SUFFIX _user_secondary
 #define MMU_KERNEL_IDX 2
-#define MMU_MODE2_SUFFIX _kernel
 #define MMU_KERNEL_SECONDARY_IDX 3
-#define MMU_MODE3_SUFFIX _kernel_secondary
 #define MMU_NUCLEUS_IDX 4
-#define MMU_MODE4_SUFFIX _nucleus
 #define MMU_HYPV_IDX   5
-#define MMU_MODE5_SUFFIX _hypv
 #define MMU_PHYS_IDX   6
 #else
 #define MMU_USER_IDX   0
-#define MMU_MODE0_SUFFIX _user
 #define MMU_KERNEL_IDX 1
-#define MMU_MODE1_SUFFIX _kernel
 #define MMU_PHYS_IDX   2
 #endif
 
