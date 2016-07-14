@@ -1294,6 +1294,8 @@ static void gen_clrex(DisasContext *s, uint32_t insn)
 static void handle_sync(DisasContext *s, uint32_t insn,
                         unsigned int op1, unsigned int op2, unsigned int crm)
 {
+    TCGBar bar;
+
     if (op1 != 3) {
         unallocated_encoding(s);
         return;
@@ -1305,7 +1307,18 @@ static void handle_sync(DisasContext *s, uint32_t insn,
         return;
     case 4: /* DSB */
     case 5: /* DMB */
-        /* We don't emulate caches so barriers are no-ops */
+        switch (crm & 3) {
+        case 1: /* MBReqTypes_Reads */
+            bar = TCG_BAR_SC | TCG_MO_LD_LD | TCG_MO_LD_ST;
+            break;
+        case 2: /* MBReqTypes_Writes */
+            bar = TCG_BAR_SC | TCG_MO_ST_ST;
+            break;
+        default: /* MBReqTypes_All */
+            bar = TCG_BAR_SC | TCG_MO_ALL;
+            break;
+        }
+        tcg_gen_mb(bar);
         return;
     case 6: /* ISB */
         /* We need to break the TB after this insn to execute
@@ -1934,7 +1947,13 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
         if (!is_store) {
             s->is_ldex = true;
             gen_load_exclusive(s, rt, rt2, tcg_addr, size, is_pair);
+            if (is_lasr) {
+                tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+            }
         } else {
+            if (is_lasr) {
+                tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
+            }
             gen_store_exclusive(s, rs, rt, rt2, tcg_addr, size, is_pair);
         }
     } else {
@@ -1943,11 +1962,17 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
 
         /* Generate ISS for non-exclusive accesses including LASR.  */
         if (is_store) {
+            if (is_lasr) {
+                tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
+            }
             do_gpr_st(s, tcg_rt, tcg_addr, size,
                       true, rt, iss_sf, is_lasr);
         } else {
             do_gpr_ld(s, tcg_rt, tcg_addr, size, false, false,
                       true, rt, iss_sf, is_lasr);
+            if (is_lasr) {
+                tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+            }
         }
     }
 }
