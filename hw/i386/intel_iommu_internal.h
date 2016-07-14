@@ -110,6 +110,8 @@
 /* Interrupt Address Range */
 #define VTD_INTERRUPT_ADDR_FIRST    0xfee00000ULL
 #define VTD_INTERRUPT_ADDR_LAST     0xfeefffffULL
+#define VTD_INTERRUPT_ADDR_SIZE     (VTD_INTERRUPT_ADDR_LAST - \
+                                     VTD_INTERRUPT_ADDR_FIRST + 1)
 
 /* The shift of source_id in the key of IOTLB hash table */
 #define VTD_IOTLB_SID_SHIFT         36
