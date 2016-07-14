@@ -322,6 +322,7 @@ static int ivshmem_vector_unmask(PCIDevice *dev, unsigned vector,
     if (ret < 0) {
         return ret;
     }
+    kvm_irqchip_commit_routes(kvm_state);
 
     return kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, n, NULL, v->virq);
 }

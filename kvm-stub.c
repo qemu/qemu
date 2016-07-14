@@ -135,6 +135,10 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
     return -ENOSYS;
 }
 
+void kvm_irqchip_commit_routes(KVMState *s)
+{
+}
+
 int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter)
 {
     return -ENOSYS;

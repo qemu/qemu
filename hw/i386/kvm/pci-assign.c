@@ -1015,6 +1015,7 @@ static void assigned_dev_update_msi_msg(PCIDevice *pci_dev)
 
     kvm_irqchip_update_msi_route(kvm_state, assigned_dev->msi_virq[0],
                                  msi_get_message(pci_dev, 0), pci_dev);
+    kvm_irqchip_commit_routes(kvm_state);
 }
 
 static bool assigned_dev_msix_masked(MSIXTableEntry *entry)
@@ -1602,6 +1603,7 @@ static void assigned_dev_msix_mmio_write(void *opaque, hwaddr addr,
                 if (ret) {
                     error_report("Error updating irq routing entry (%d)", ret);
                 }
+                kvm_irqchip_commit_routes(kvm_state);
             }
         }
     }

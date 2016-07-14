@@ -3427,6 +3427,7 @@ static void kvm_update_msi_routes_all(void *private, bool global,
         kvm_irqchip_update_msi_route(kvm_state, entry->virq,
                                      msg, entry->dev);
     }
+    kvm_irqchip_commit_routes(kvm_state);
     trace_kvm_x86_update_msi_routes(cnt);
 }
 

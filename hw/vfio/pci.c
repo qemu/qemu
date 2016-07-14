@@ -458,6 +458,7 @@ static void vfio_update_kvm_msi_virq(VFIOMSIVector *vector, MSIMessage msg,
                                      PCIDevice *pdev)
 {
     kvm_irqchip_update_msi_route(kvm_state, vector->virq, msg, pdev);
+    kvm_irqchip_commit_routes(kvm_state);
 }
 
 static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
