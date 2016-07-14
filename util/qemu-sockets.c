@@ -1012,7 +1012,7 @@ void socket_listen_cleanup(int fd, Error **errp)
         }
     }
 
-    g_free(addr);
+    qapi_free_SocketAddress(addr);
 }
 
 int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp)

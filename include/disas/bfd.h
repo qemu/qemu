@@ -9,7 +9,7 @@
 #ifndef DISAS_BFD_H
 #define DISAS_BFD_H
 
-#include "qemu-common.h"
+#include "qemu/fprintf-fn.h"
 
 typedef void *PTR;
 typedef uint64_t bfd_vma;

@@ -54,7 +54,7 @@ struct HostMemoryBackend {
     /* protected */
     uint64_t size;
     bool merge, dump;
-    bool prealloc, force_prealloc;
+    bool prealloc, force_prealloc, is_mapped;
     DECLARE_BITMAP(host_nodes, MAX_NODES + 1);
     HostMemPolicy policy;
 
@@ -64,4 +64,6 @@ struct HostMemoryBackend {
 MemoryRegion *host_memory_backend_get_memory(HostMemoryBackend *backend,
                                              Error **errp);
 
+void host_memory_backend_set_mapped(HostMemoryBackend *backend, bool mapped);
+bool host_memory_backend_is_mapped(HostMemoryBackend *backend);
 #endif

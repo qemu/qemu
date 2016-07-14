@@ -369,14 +369,9 @@ static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
 static void pc_dimm_check_memdev_is_busy(Object *obj, const char *name,
                                       Object *val, Error **errp)
 {
-    MemoryRegion *mr;
     Error *local_err = NULL;
 
-    mr = host_memory_backend_get_memory(MEMORY_BACKEND(val), &local_err);
-    if (local_err) {
-        goto out;
-    }
-    if (memory_region_is_mapped(mr)) {
+    if (host_memory_backend_is_mapped(MEMORY_BACKEND(val))) {
         char *path = object_get_canonical_path_component(val);
         error_setg(&local_err, "can't use already busy memdev: %s", path);
         g_free(path);
@@ -384,7 +379,6 @@ static void pc_dimm_check_memdev_is_busy(Object *obj, const char *name,
         qdev_prop_allow_set_link_before_realize(obj, name, val, &local_err);
     }
 
-out:
     error_propagate(errp, local_err);
 }
 
@@ -421,6 +415,15 @@ static void pc_dimm_realize(DeviceState *dev, Error **errp)
     if (ddc->realize) {
         ddc->realize(dimm, errp);
     }
+
+    host_memory_backend_set_mapped(dimm->hostmem, true);
+}
+
+static void pc_dimm_unrealize(DeviceState *dev, Error **errp)
+{
+    PCDIMMDevice *dimm = PC_DIMM(dev);
+
+    host_memory_backend_set_mapped(dimm->hostmem, false);
 }
 
 static MemoryRegion *pc_dimm_get_memory_region(PCDIMMDevice *dimm)
@@ -439,6 +442,7 @@ static void pc_dimm_class_init(ObjectClass *oc, void *data)
     PCDIMMDeviceClass *ddc = PC_DIMM_CLASS(oc);
 
     dc->realize = pc_dimm_realize;
+    dc->unrealize = pc_dimm_unrealize;
     dc->props = pc_dimm_properties;
     dc->desc = "DIMM memory module";
 

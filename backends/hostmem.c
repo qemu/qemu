@@ -64,6 +64,14 @@ out:
     error_propagate(errp, local_err);
 }
 
+static uint16List **host_memory_append_node(uint16List **node,
+                                            unsigned long value)
+{
+     *node = g_malloc0(sizeof(**node));
+     (*node)->value = value;
+     return &(*node)->next;
+}
+
 static void
 host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
@@ -74,13 +82,12 @@ host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
     unsigned long value;
 
     value = find_first_bit(backend->host_nodes, MAX_NODES);
-    if (value == MAX_NODES) {
-        return;
-    }
 
-    *node = g_malloc0(sizeof(**node));
-    (*node)->value = value;
-    node = &(*node)->next;
+    node = host_memory_append_node(node, value);
+
+    if (value == MAX_NODES) {
+        goto out;
+    }
 
     do {
         value = find_next_bit(backend->host_nodes, MAX_NODES, value + 1);
@@ -88,11 +95,10 @@ host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
             break;
         }
 
-        *node = g_malloc0(sizeof(**node));
-        (*node)->value = value;
-        node = &(*node)->next;
+        node = host_memory_append_node(node, value);
     } while (true);
 
+out:
     visit_type_uint16List(v, name, &host_nodes, errp);
 }
 
@@ -258,6 +264,16 @@ host_memory_backend_get_memory(HostMemoryBackend *backend, Error **errp)
     return memory_region_size(&backend->mr) ? &backend->mr : NULL;
 }
 
+void host_memory_backend_set_mapped(HostMemoryBackend *backend, bool mapped)
+{
+    backend->is_mapped = mapped;
+}
+
+bool host_memory_backend_is_mapped(HostMemoryBackend *backend)
+{
+    return backend->is_mapped;
+}
+
 static void
 host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
 {
@@ -335,10 +351,7 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
 static bool
 host_memory_backend_can_be_deleted(UserCreatable *uc, Error **errp)
 {
-    MemoryRegion *mr;
-
-    mr = host_memory_backend_get_memory(MEMORY_BACKEND(uc), errp);
-    if (memory_region_is_mapped(mr)) {
+    if (host_memory_backend_is_mapped(MEMORY_BACKEND(uc))) {
         return false;
     } else {
         return true;
