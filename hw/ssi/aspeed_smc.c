@@ -281,12 +281,6 @@ static void aspeed_smc_reset(DeviceState *d)
     aspeed_smc_update_cs(s);
 }
 
-static bool aspeed_smc_is_implemented(AspeedSMCState *s, hwaddr addr)
-{
-    return (addr == s->r_conf || addr == s->r_timings || addr == s->r_ce_ctrl ||
-            (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + s->num_cs));
-}
-
 static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedSMCState *s = ASPEED_SMC(opaque);
@@ -300,13 +294,16 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
         return 0;
     }
 
-    if (!aspeed_smc_is_implemented(s, addr)) {
+    if (addr == s->r_conf ||
+        addr == s->r_timings ||
+        addr == s->r_ce_ctrl ||
+        (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + s->num_cs)) {
+        return s->regs[addr];
+    } else {
         qemu_log_mask(LOG_UNIMP, "%s: not implemented: 0x%" HWADDR_PRIx "\n",
-                __func__, addr);
+                      __func__, addr);
         return 0;
     }
-
-    return s->regs[addr];
 }
 
 static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
@@ -324,19 +321,17 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
         return;
     }
 
-    if (!aspeed_smc_is_implemented(s, addr)) {
+    if (addr == s->r_conf ||
+        addr == s->r_timings ||
+        addr == s->r_ce_ctrl) {
+        s->regs[addr] = value;
+    } else if (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + s->num_cs) {
+        s->regs[addr] = value;
+        aspeed_smc_update_cs(s);
+    } else {
         qemu_log_mask(LOG_UNIMP, "%s: not implemented: 0x%" HWADDR_PRIx "\n",
                       __func__, addr);
         return;
-    }
-
-    /*
-     * Not much to do apart from storing the value and set the cs
-     * lines if the register is a controlling one.
-     */
-    s->regs[addr] = value;
-    if (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + s->num_cs) {
-        aspeed_smc_update_cs(s);
     }
 }
 
