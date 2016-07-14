@@ -474,7 +474,18 @@ static inline void cpu_synchronize_post_init(CPUState *cpu)
     }
 }
 
-int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg, PCIDevice *dev);
+/**
+ * kvm_irqchip_add_msi_route - Add MSI route for specific vector
+ * @s:      KVM state
+ * @vector: which vector to add. This can be either MSI/MSIX
+ *          vector. The function will automatically detect whether
+ *          MSI/MSIX is enabled, and fetch corresponding MSI
+ *          message.
+ * @dev:    Owner PCI device to add the route. If @dev is specified
+ *          as @NULL, an empty MSI message will be inited.
+ * @return: virq (>=0) when success, errno (<0) when failed.
+ */
+int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev);
 int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
                                  PCIDevice *dev);
 void kvm_irqchip_release_virq(KVMState *s, int virq);
