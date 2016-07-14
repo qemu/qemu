@@ -8012,13 +8012,21 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 || (prefixes & PREFIX_LOCK)) {
                 goto illegal_op;
             }
+            tcg_gen_mb(TCG_MO_ST_ST | TCG_BAR_SC);
             break;
         case 0xe8 ... 0xef: /* lfence */
+            if (!(s->cpuid_features & CPUID_SSE)
+                || (prefixes & PREFIX_LOCK)) {
+                goto illegal_op;
+            }
+            tcg_gen_mb(TCG_MO_LD_LD | TCG_BAR_SC);
+            break;
         case 0xf0 ... 0xf7: /* mfence */
             if (!(s->cpuid_features & CPUID_SSE2)
                 || (prefixes & PREFIX_LOCK)) {
                 goto illegal_op;
             }
+            tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
             break;
 
         default:
