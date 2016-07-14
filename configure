@@ -1788,7 +1788,9 @@ fi
 ##########################################
 # avx2 optimization requirement check
 
-cat > $TMPC << EOF
+
+if test "$static" = "no" ; then
+  cat > $TMPC << EOF
 #pragma GCC push_options
 #pragma GCC target("avx2")
 #include <cpuid.h>
@@ -1801,12 +1803,13 @@ static void *bar_ifunc(void) {return (void*) bar;}
 int foo(void *a) __attribute__((ifunc("bar_ifunc")));
 int main(int argc, char *argv[]) { return foo(argv[0]);}
 EOF
-if compile_object "" ; then
-    if has readelf; then
-        if readelf --syms $TMPO 2>/dev/null |grep -q "IFUNC.*foo"; then
-            avx2_opt="yes"
-        fi
-    fi
+  if compile_object "" ; then
+      if has readelf; then
+          if readelf --syms $TMPO 2>/dev/null |grep -q "IFUNC.*foo"; then
+              avx2_opt="yes"
+          fi
+      fi
+  fi
 fi
 
 #########################################
