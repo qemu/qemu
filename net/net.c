@@ -960,7 +960,7 @@ static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
 };
 
 
-static int net_client_init1(const void *object, int is_netdev, Error **errp)
+static int net_client_init1(const void *object, bool is_netdev, Error **errp)
 {
     Netdev legacy = {0};
     const Netdev *netdev;
@@ -1060,7 +1060,7 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
 }
 
 
-int net_client_init(QemuOpts *opts, int is_netdev, Error **errp)
+int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
 {
     void *object = NULL;
     Error *err = NULL;
@@ -1153,7 +1153,7 @@ void hmp_host_net_add(Monitor *mon, const QDict *qdict)
 
     qemu_opt_set(opts, "type", device, &error_abort);
 
-    net_client_init(opts, 0, &local_err);
+    net_client_init(opts, false, &local_err);
     if (local_err) {
         error_report_err(local_err);
         monitor_printf(mon, "adding host network device %s failed\n", device);
@@ -1183,7 +1183,7 @@ void hmp_host_net_remove(Monitor *mon, const QDict *qdict)
 
 void netdev_add(QemuOpts *opts, Error **errp)
 {
-    net_client_init(opts, 1, errp);
+    net_client_init(opts, true, errp);
 }
 
 void qmp_netdev_add(QDict *qdict, QObject **ret, Error **errp)
@@ -1481,7 +1481,7 @@ static int net_init_client(void *dummy, QemuOpts *opts, Error **errp)
 {
     Error *local_err = NULL;
 
-    net_client_init(opts, 0, &local_err);
+    net_client_init(opts, false, &local_err);
     if (local_err) {
         error_report_err(local_err);
         return -1;
@@ -1495,7 +1495,7 @@ static int net_init_netdev(void *dummy, QemuOpts *opts, Error **errp)
     Error *local_err = NULL;
     int ret;
 
-    ret = net_client_init(opts, 1, &local_err);
+    ret = net_client_init(opts, true, &local_err);
     if (local_err) {
         error_report_err(local_err);
         return -1;
