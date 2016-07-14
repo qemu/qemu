@@ -23,6 +23,7 @@
 #define INTEL_IOMMU_H
 #include "hw/qdev.h"
 #include "sysemu/dma.h"
+#include "hw/i386/x86-iommu.h"
 
 #define TYPE_INTEL_IOMMU_DEVICE "intel-iommu"
 #define INTEL_IOMMU_DEVICE(obj) \
@@ -90,7 +91,7 @@ struct VTDIOTLBEntry {
 
 /* The iommu (DMAR) device state struct */
 struct IntelIOMMUState {
-    SysBusDevice busdev;
+    X86IOMMUState x86_iommu;
     MemoryRegion csrmem;
     uint8_t csr[DMAR_REG_SIZE];     /* register values */
     uint8_t wmask[DMAR_REG_SIZE];   /* R/W bytes */

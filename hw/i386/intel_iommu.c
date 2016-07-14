@@ -2061,17 +2061,18 @@ static void vtd_realize(DeviceState *dev, Error **errp)
 static void vtd_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    X86IOMMUClass *x86_class = X86_IOMMU_CLASS(klass);
 
     dc->reset = vtd_reset;
-    dc->realize = vtd_realize;
     dc->vmsd = &vtd_vmstate;
     dc->props = vtd_properties;
     dc->hotpluggable = false;
+    x86_class->realize = vtd_realize;
 }
 
 static const TypeInfo vtd_info = {
     .name          = TYPE_INTEL_IOMMU_DEVICE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_X86_IOMMU_DEVICE,
     .instance_size = sizeof(IntelIOMMUState),
     .class_init    = vtd_class_init,
 };
