@@ -72,12 +72,21 @@ static void parse_drive(DeviceState *dev, const char *str, void **ptr,
                         const char *propname, Error **errp)
 {
     BlockBackend *blk;
+    bool blk_created = false;
 
     blk = blk_by_name(str);
     if (!blk) {
+        BlockDriverState *bs = bdrv_lookup_bs(NULL, str, NULL);
+        if (bs) {
+            blk = blk_new();
+            blk_insert_bs(blk, bs);
+            blk_created = true;
+        }
+    }
+    if (!blk) {
         error_setg(errp, "Property '%s.%s' can't find value '%s'",
                    object_get_typename(OBJECT(dev)), propname, str);
-        return;
+        goto fail;
     }
     if (blk_attach_dev(blk, dev) < 0) {
         DriveInfo *dinfo = blk_legacy_dinfo(blk);
@@ -91,9 +100,16 @@ static void parse_drive(DeviceState *dev, const char *str, void **ptr,
             error_setg(errp, "Drive '%s' is already in use by another device",
                        str);
         }
-        return;
+        goto fail;
     }
+
     *ptr = blk;
+
+fail:
+    if (blk_created) {
+        /* If we need to keep a reference, blk_attach_dev() took it */
+        blk_unref(blk);
+    }
 }
 
 static void release_drive(Object *obj, const char *name, void *opaque)
@@ -103,8 +119,8 @@ static void release_drive(Object *obj, const char *name, void *opaque)
     BlockBackend **ptr = qdev_get_prop_ptr(dev, prop);
 
     if (*ptr) {
-        blk_detach_dev(*ptr, dev);
         blockdev_auto_del(*ptr);
+        blk_detach_dev(*ptr, dev);
     }
 }
 
@@ -127,7 +143,7 @@ static void set_drive(Object *obj, Visitor *v, const char *name, void *opaque,
 
 PropertyInfo qdev_prop_drive = {
     .name  = "str",
-    .description = "ID of a drive to use as a backend",
+    .description = "Node name or ID of a block device to use as a backend",
     .get   = get_drive,
     .set   = set_drive,
     .release = release_drive,
@@ -362,8 +378,19 @@ PropertyInfo qdev_prop_vlan = {
 void qdev_prop_set_drive(DeviceState *dev, const char *name,
                          BlockBackend *value, Error **errp)
 {
-    object_property_set_str(OBJECT(dev), value ? blk_name(value) : "",
-                            name, errp);
+    const char *ref = "";
+
+    if (value) {
+        ref = blk_name(value);
+        if (!*ref) {
+            BlockDriverState *bs = blk_bs(value);
+            if (bs) {
+                ref = bdrv_get_node_name(bs);
+            }
+        }
+    }
+
+    object_property_set_str(OBJECT(dev), ref, name, errp);
 }
 
 void qdev_prop_set_chr(DeviceState *dev, const char *name,

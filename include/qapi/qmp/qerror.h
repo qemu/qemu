@@ -19,9 +19,6 @@
 #define QERR_BASE_NOT_FOUND \
     "Base '%s' not found"
 
-#define QERR_BLOCK_JOB_NOT_READY \
-    "The active block job for device '%s' cannot be completed"
-
 #define QERR_BUS_NO_HOTPLUG \
     "Bus '%s' does not support hotplugging"
 

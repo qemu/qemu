@@ -20,6 +20,7 @@ extern PropertyInfo qdev_prop_ptr;
 extern PropertyInfo qdev_prop_macaddr;
 extern PropertyInfo qdev_prop_on_off_auto;
 extern PropertyInfo qdev_prop_losttickpolicy;
+extern PropertyInfo qdev_prop_blockdev_on_error;
 extern PropertyInfo qdev_prop_bios_chs_trans;
 extern PropertyInfo qdev_prop_fdc_drive_type;
 extern PropertyInfo qdev_prop_drive;
@@ -161,6 +162,9 @@ extern PropertyInfo qdev_prop_arraylen;
 #define DEFINE_PROP_LOSTTICKPOLICY(_n, _s, _f, _d) \
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_losttickpolicy, \
                         LostTickPolicy)
+#define DEFINE_PROP_BLOCKDEV_ON_ERROR(_n, _s, _f, _d) \
+    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_blockdev_on_error, \
+                        BlockdevOnError)
 #define DEFINE_PROP_BIOS_CHS_TRANS(_n, _s, _f, _d) \
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_bios_chs_trans, int)
 #define DEFINE_PROP_BLOCKSIZE(_n, _s, _f) \

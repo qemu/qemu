@@ -664,10 +664,12 @@
 # @stop: for guest operations, stop the virtual machine;
 #        for jobs, pause the job
 #
+# @auto: inherit the error handling policy of the backend (since: 2.7)
+#
 # Since: 1.3
 ##
 { 'enum': 'BlockdevOnError',
-  'data': ['report', 'ignore', 'enospc', 'stop'] }
+  'data': ['report', 'ignore', 'enospc', 'stop', 'auto'] }
 
 ##
 # @MirrorSyncMode:
@@ -713,7 +715,8 @@
 #
 # @type: the job type ('stream' for image streaming)
 #
-# @device: the block device name
+# @device: The job identifier. Originally the device name but other
+#          values are allowed since QEMU 2.7
 #
 # @len: the maximum progress value
 #
@@ -866,6 +869,9 @@
 ##
 # @DriveBackup
 #
+# @job-id: #optional identifier for the newly-created block job. If
+#          omitted, the device name will be used. (Since 2.7)
+#
 # @device: the name of the device which should be copied.
 #
 # @target: the target of the new image. If the file exists, or if it
@@ -903,14 +909,17 @@
 # Since: 1.6
 ##
 { 'struct': 'DriveBackup',
-  'data': { 'device': 'str', 'target': 'str', '*format': 'str',
-            'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
+  'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
+            '*format': 'str', 'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
             '*speed': 'int', '*bitmap': 'str',
             '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError' } }
 
 ##
 # @BlockdevBackup
+#
+# @job-id: #optional identifier for the newly-created block job. If
+#          omitted, the device name will be used. (Since 2.7)
 #
 # @device: the name of the device which should be copied.
 #
@@ -938,7 +947,7 @@
 # Since: 2.3
 ##
 { 'struct': 'BlockdevBackup',
-  'data': { 'device': 'str', 'target': 'str',
+  'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             'sync': 'MirrorSyncMode',
             '*speed': 'int',
             '*on-source-error': 'BlockdevOnError',
@@ -1004,6 +1013,9 @@
 # Live commit of data from overlay image nodes into backing nodes - i.e.,
 # writes data between 'top' and 'base' into 'base'.
 #
+# @job-id: #optional identifier for the newly-created block job. If
+#          omitted, the device name will be used. (Since 2.7)
+#
 # @device:  the name of the device
 #
 # @base:   #optional The file name of the backing image to write data into.
@@ -1055,7 +1067,7 @@
 #
 ##
 { 'command': 'block-commit',
-  'data': { 'device': 'str', '*base': 'str', '*top': 'str',
+  'data': { '*job-id': 'str', 'device': 'str', '*base': 'str', '*top': 'str',
             '*backing-file': 'str', '*speed': 'int' } }
 
 ##
@@ -1107,6 +1119,9 @@
 # @drive-mirror
 #
 # Start mirroring a block device's writes to a new destination.
+#
+# @job-id: #optional identifier for the newly-created block job. If
+#          omitted, the device name will be used. (Since 2.7)
 #
 # @device:  the name of the device whose writes should be mirrored.
 #
@@ -1160,8 +1175,8 @@
 # Since 1.3
 ##
 { 'command': 'drive-mirror',
-  'data': { 'device': 'str', 'target': 'str', '*format': 'str',
-            '*node-name': 'str', '*replaces': 'str',
+  'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
+            '*format': 'str', '*node-name': 'str', '*replaces': 'str',
             'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
             '*speed': 'int', '*granularity': 'uint32',
             '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
@@ -1243,6 +1258,9 @@
 #
 # Start mirroring a block device's writes to a new destination.
 #
+# @job-id: #optional identifier for the newly-created block job. If
+#          omitted, the device name will be used. (Since 2.7)
+#
 # @device: the name of the device whose writes should be mirrored.
 #
 # @target: the id or node-name of the block device to mirror to. This mustn't be
@@ -1279,7 +1297,7 @@
 # Since 2.6
 ##
 { 'command': 'blockdev-mirror',
-  'data': { 'device': 'str', 'target': 'str',
+  'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             '*replaces': 'str',
             'sync': 'MirrorSyncMode',
             '*speed': 'int', '*granularity': 'uint32',
@@ -1413,6 +1431,9 @@
 # On successful completion the image file is updated to drop the backing file
 # and the BLOCK_JOB_COMPLETED event is emitted.
 #
+# @job-id: #optional identifier for the newly-created block job. If
+#          omitted, the device name will be used. (Since 2.7)
+#
 # @device: the device name
 #
 # @base:   #optional the common backing file name
@@ -1444,8 +1465,9 @@
 # Since: 1.1
 ##
 { 'command': 'block-stream',
-  'data': { 'device': 'str', '*base': 'str', '*backing-file': 'str',
-            '*speed': 'int', '*on-error': 'BlockdevOnError' } }
+  'data': { '*job-id': 'str', 'device': 'str', '*base': 'str',
+            '*backing-file': 'str', '*speed': 'int',
+            '*on-error': 'BlockdevOnError' } }
 
 ##
 # @block-job-set-speed:
@@ -1456,7 +1478,9 @@
 #
 # Throttling can be disabled by setting the speed to 0.
 #
-# @device: the device name
+# @device: The job identifier. This used to be a device name (hence
+#          the name of the parameter), but since QEMU 2.7 it can have
+#          other values.
 #
 # @speed:  the maximum speed, in bytes per second, or 0 for unlimited.
 #          Defaults to 0.
@@ -1487,7 +1511,9 @@
 # operation can be started at a later time to finish copying all data from the
 # backing file.
 #
-# @device: the device name
+# @device: The job identifier. This used to be a device name (hence
+#          the name of the parameter), but since QEMU 2.7 it can have
+#          other values.
 #
 # @force: #optional whether to allow cancellation of a paused job (default
 #         false).  Since 1.3.
@@ -1513,7 +1539,9 @@
 # the operation is actually paused.  Cancelling a paused job automatically
 # resumes it.
 #
-# @device: the device name
+# @device: The job identifier. This used to be a device name (hence
+#          the name of the parameter), but since QEMU 2.7 it can have
+#          other values.
 #
 # Returns: Nothing on success
 #          If no background operation is active on this device, DeviceNotActive
@@ -1533,7 +1561,9 @@
 #
 # This command also clears the error status of the job.
 #
-# @device: the device name
+# @device: The job identifier. This used to be a device name (hence
+#          the name of the parameter), but since QEMU 2.7 it can have
+#          other values.
 #
 # Returns: Nothing on success
 #          If no background operation is active on this device, DeviceNotActive
@@ -1559,7 +1589,9 @@
 #
 # A cancelled or paused job cannot be completed.
 #
-# @device: the device name
+# @device: The job identifier. This used to be a device name (hence
+#          the name of the parameter), but since QEMU 2.7 it can have
+#          other values.
 #
 # Returns: Nothing on success
 #          If no background operation is active on this device, DeviceNotActive
@@ -2049,20 +2081,8 @@
 # @discard:       #optional discard-related options (default: ignore)
 # @cache:         #optional cache-related options
 # @aio:           #optional AIO backend (default: threads)
-# @rerror:        #optional how to handle read errors on the device
-#                 (default: report)
-# @werror:        #optional how to handle write errors on the device
-#                 (default: enospc)
 # @read-only:     #optional whether the block device should be read-only
 #                 (default: false)
-# @stats-account-invalid: #optional whether to include invalid
-#                         operations when computing last access statistics
-#                         (default: true) (Since 2.5)
-# @stats-account-failed: #optional whether to include failed
-#                         operations when computing latency and last
-#                         access statistics (default: true) (Since 2.5)
-# @stats-intervals: #optional list of intervals for collecting I/O
-#                   statistics, in seconds (default: none) (Since 2.5)
 # @detect-zeroes: #optional detect and optimize zero writes (Since 2.1)
 #                 (default: off)
 #
@@ -2072,17 +2092,13 @@
 ##
 { 'union': 'BlockdevOptions',
   'base': { 'driver': 'BlockdevDriver',
+# TODO 'id' is a BB-level option, remove it
             '*id': 'str',
             '*node-name': 'str',
             '*discard': 'BlockdevDiscardOptions',
             '*cache': 'BlockdevCacheOptions',
             '*aio': 'BlockdevAioOptions',
-            '*rerror': 'BlockdevOnError',
-            '*werror': 'BlockdevOnError',
             '*read-only': 'bool',
-            '*stats-account-invalid': 'bool',
-            '*stats-account-failed': 'bool',
-            '*stats-intervals': ['int'],
             '*detect-zeroes': 'BlockdevDetectZeroesOptions' },
   'discriminator': 'driver',
   'data': {
@@ -2405,7 +2421,8 @@
 #
 # @type: job type
 #
-# @device: device name
+# @device: The job identifier. Originally the device name but other
+#          values are allowed since QEMU 2.7
 #
 # @len: maximum progress value
 #
@@ -2436,7 +2453,8 @@
 #
 # @type: job type
 #
-# @device: device name
+# @device: The job identifier. Originally the device name but other
+#          values are allowed since QEMU 2.7
 #
 # @len: maximum progress value
 #
@@ -2459,7 +2477,8 @@
 #
 # Emitted when a block job encounters an error
 #
-# @device: device name
+# @device: The job identifier. Originally the device name but other
+#          values are allowed since QEMU 2.7
 #
 # @operation: I/O operation
 #
@@ -2479,7 +2498,8 @@
 #
 # @type: job type
 #
-# @device: device name
+# @device: The job identifier. Originally the device name but other
+#          values are allowed since QEMU 2.7
 #
 # @len: maximum progress value
 #

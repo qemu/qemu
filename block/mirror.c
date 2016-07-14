@@ -121,7 +121,7 @@ static void mirror_iteration_done(MirrorOp *op, int ret)
     g_free(op);
 
     if (s->waiting_for_io) {
-        qemu_coroutine_enter(s->common.co, NULL);
+        qemu_coroutine_enter(s->common.co);
     }
 }
 
@@ -422,7 +422,9 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         assert(io_sectors);
         sector_num += io_sectors;
         nb_chunks -= DIV_ROUND_UP(io_sectors, sectors_per_chunk);
-        delay_ns += ratelimit_calculate_delay(&s->limit, io_sectors);
+        if (s->common.speed) {
+            delay_ns = ratelimit_calculate_delay(&s->limit, io_sectors);
+        }
     }
     return delay_ns;
 }
@@ -761,7 +763,8 @@ static void mirror_complete(BlockJob *job, Error **errp)
     target = blk_bs(s->target);
 
     if (!s->synced) {
-        error_setg(errp, QERR_BLOCK_JOB_NOT_READY, job->id);
+        error_setg(errp, "The active block job '%s' cannot be completed",
+                   job->id);
         return;
     }
 
@@ -842,8 +845,8 @@ static const BlockJobDriver commit_active_job_driver = {
     .attached_aio_context   = mirror_attached_aio_context,
 };
 
-static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
-                             const char *replaces,
+static void mirror_start_job(const char *job_id, BlockDriverState *bs,
+                             BlockDriverState *target, const char *replaces,
                              int64_t speed, uint32_t granularity,
                              int64_t buf_size,
                              BlockMirrorBackingMode backing_mode,
@@ -872,7 +875,7 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
         buf_size = DEFAULT_MIRROR_BUF_SIZE;
     }
 
-    s = block_job_create(driver, bs, speed, cb, opaque, errp);
+    s = block_job_create(job_id, driver, bs, speed, cb, opaque, errp);
     if (!s) {
         return;
     }
@@ -900,13 +903,13 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
 
     bdrv_op_block_all(target, s->common.blocker);
 
-    s->common.co = qemu_coroutine_create(mirror_run);
+    s->common.co = qemu_coroutine_create(mirror_run, s);
     trace_mirror_start(bs, s, s->common.co, opaque);
-    qemu_coroutine_enter(s->common.co, s);
+    qemu_coroutine_enter(s->common.co);
 }
 
-void mirror_start(BlockDriverState *bs, BlockDriverState *target,
-                  const char *replaces,
+void mirror_start(const char *job_id, BlockDriverState *bs,
+                  BlockDriverState *target, const char *replaces,
                   int64_t speed, uint32_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockMirrorBackingMode backing_mode,
                   BlockdevOnError on_source_error,
@@ -924,14 +927,14 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
     }
     is_none_mode = mode == MIRROR_SYNC_MODE_NONE;
     base = mode == MIRROR_SYNC_MODE_TOP ? backing_bs(bs) : NULL;
-    mirror_start_job(bs, target, replaces,
+    mirror_start_job(job_id, bs, target, replaces,
                      speed, granularity, buf_size, backing_mode,
                      on_source_error, on_target_error, unmap, cb, opaque, errp,
                      &mirror_job_driver, is_none_mode, base);
 }
 
-void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
-                         int64_t speed,
+void commit_active_start(const char *job_id, BlockDriverState *bs,
+                         BlockDriverState *base, int64_t speed,
                          BlockdevOnError on_error,
                          BlockCompletionFunc *cb,
                          void *opaque, Error **errp)
@@ -972,7 +975,8 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
         }
     }
 
-    mirror_start_job(bs, base, NULL, speed, 0, 0, MIRROR_LEAVE_BACKING_CHAIN,
+    mirror_start_job(job_id, bs, base, NULL, speed, 0, 0,
+                     MIRROR_LEAVE_BACKING_CHAIN,
                      on_error, on_error, false, cb, opaque, &local_err,
                      &commit_active_job_driver, false, base);
     if (local_err) {

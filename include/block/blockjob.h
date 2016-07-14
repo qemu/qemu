@@ -107,10 +107,7 @@ struct BlockJob {
     BlockBackend *blk;
 
     /**
-     * The ID of the block job. Currently the BlockBackend name of the BDS
-     * owning the job at the time when the job is started.
-     *
-     * TODO Decouple block job IDs from BlockBackend names
+     * The ID of the block job.
      */
     char *id;
 
@@ -215,7 +212,19 @@ struct BlockJob {
 BlockJob *block_job_next(BlockJob *job);
 
 /**
+ * block_job_get:
+ * @id: The id of the block job.
+ *
+ * Get the block job identified by @id (which must not be %NULL).
+ *
+ * Returns the requested job, or %NULL if it doesn't exist.
+ */
+BlockJob *block_job_get(const char *id);
+
+/**
  * block_job_create:
+ * @job_id: The id of the newly-created job, or %NULL to have one
+ * generated automatically.
  * @job_type: The class object for the newly-created job.
  * @bs: The block
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
@@ -232,9 +241,9 @@ BlockJob *block_job_next(BlockJob *job);
  * This function is not part of the public job interface; it should be
  * called from a wrapper that is specific to the job type.
  */
-void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
-                       int64_t speed, BlockCompletionFunc *cb,
-                       void *opaque, Error **errp);
+void *block_job_create(const char *job_id, const BlockJobDriver *driver,
+                       BlockDriverState *bs, int64_t speed,
+                       BlockCompletionFunc *cb, void *opaque, Error **errp);
 
 /**
  * block_job_sleep_ns:

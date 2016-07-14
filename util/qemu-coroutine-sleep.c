@@ -25,7 +25,7 @@ static void co_sleep_cb(void *opaque)
 {
     CoSleepCB *sleep_cb = opaque;
 
-    qemu_coroutine_enter(sleep_cb->co, NULL);
+    qemu_coroutine_enter(sleep_cb->co);
 }
 
 void coroutine_fn co_aio_sleep_ns(AioContext *ctx, QEMUClockType type,

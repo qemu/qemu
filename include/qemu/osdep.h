@@ -278,6 +278,9 @@ int qemu_madvise(void *addr, size_t len, int advice);
 
 int qemu_open(const char *name, int flags, ...);
 int qemu_close(int fd);
+#ifndef _WIN32
+int qemu_dup(int fd);
+#endif
 
 #if defined(__HAIKU__) && defined(__i386__)
 #define FMT_pid "%ld"

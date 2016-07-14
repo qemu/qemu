@@ -233,7 +233,7 @@ static void qemu_gluster_complete_aio(void *opaque)
 
     qemu_bh_delete(acb->bh);
     acb->bh = NULL;
-    qemu_coroutine_enter(acb->coroutine, NULL);
+    qemu_coroutine_enter(acb->coroutine);
 }
 
 /*

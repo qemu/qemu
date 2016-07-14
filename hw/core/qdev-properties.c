@@ -539,6 +539,19 @@ PropertyInfo qdev_prop_losttickpolicy = {
     .set   = set_enum,
 };
 
+/* --- Block device error handling policy --- */
+
+QEMU_BUILD_BUG_ON(sizeof(BlockdevOnError) != sizeof(int));
+
+PropertyInfo qdev_prop_blockdev_on_error = {
+    .name = "BlockdevOnError",
+    .description = "Error handling policy, "
+                   "report/ignore/enospc/stop/auto",
+    .enum_table = BlockdevOnError_lookup,
+    .get = get_enum,
+    .set = set_enum,
+};
+
 /* --- BIOS CHS translation */
 
 QEMU_BUILD_BUG_ON(sizeof(BiosAtaTranslation) != sizeof(int));

@@ -1097,7 +1097,7 @@ void hmp_drive_mirror(Monitor *mon, const QDict *qdict)
         mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
 
-    qmp_drive_mirror(device, filename, !!format, format,
+    qmp_drive_mirror(false, NULL, device, filename, !!format, format,
                      false, NULL, false, NULL,
                      full ? MIRROR_SYNC_MODE_FULL : MIRROR_SYNC_MODE_TOP,
                      true, mode, false, 0, false, 0, false, 0,
@@ -1127,7 +1127,7 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
         mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
 
-    qmp_drive_backup(device, filename, !!format, format,
+    qmp_drive_backup(false, NULL, device, filename, !!format, format,
                      full ? MIRROR_SYNC_MODE_FULL : MIRROR_SYNC_MODE_TOP,
                      true, mode, false, 0, false, NULL,
                      false, 0, false, 0, &err);
@@ -1485,7 +1485,7 @@ void hmp_block_stream(Monitor *mon, const QDict *qdict)
     const char *base = qdict_get_try_str(qdict, "base");
     int64_t speed = qdict_get_try_int(qdict, "speed", 0);
 
-    qmp_block_stream(device, base != NULL, base, false, NULL,
+    qmp_block_stream(false, NULL, device, base != NULL, base, false, NULL,
                      qdict_haskey(qdict, "speed"), speed,
                      true, BLOCKDEV_ON_ERROR_REPORT, &error);
 

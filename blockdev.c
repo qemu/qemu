@@ -512,6 +512,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     writethrough = !qemu_opt_get_bool(opts, BDRV_OPT_CACHE_WB, true);
 
+    id = qemu_opts_id(opts);
+
     qdict_extract_subqdict(bs_opts, &interval_dict, "stats-intervals.");
     qdict_array_split(interval_dict, &interval_list);
 
@@ -616,7 +618,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     /* disk I/O throttling */
     if (throttle_enabled(&cfg)) {
         if (!throttling_group) {
-            throttling_group = blk_name(blk);
+            throttling_group = id;
         }
         blk_io_limits_enable(blk, throttling_group);
         blk_set_io_limits(blk, &cfg);
@@ -625,7 +627,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     blk_set_enable_write_cache(blk, !writethrough);
     blk_set_on_error(blk, on_read_error, on_write_error);
 
-    if (!monitor_add_blk(blk, qemu_opts_id(opts), errp)) {
+    if (!monitor_add_blk(blk, id, errp)) {
         blk_unref(blk);
         blk = NULL;
         goto err_no_bs_opts;
@@ -1836,9 +1838,9 @@ typedef struct DriveBackupState {
     BlockJob *job;
 } DriveBackupState;
 
-static void do_drive_backup(const char *device, const char *target,
-                            bool has_format, const char *format,
-                            enum MirrorSyncMode sync,
+static void do_drive_backup(const char *job_id, const char *device,
+                            const char *target, bool has_format,
+                            const char *format, enum MirrorSyncMode sync,
                             bool has_mode, enum NewImageMode mode,
                             bool has_speed, int64_t speed,
                             bool has_bitmap, const char *bitmap,
@@ -1876,7 +1878,8 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
     bdrv_drained_begin(blk_bs(blk));
     state->bs = blk_bs(blk);
 
-    do_drive_backup(backup->device, backup->target,
+    do_drive_backup(backup->has_job_id ? backup->job_id : NULL,
+                    backup->device, backup->target,
                     backup->has_format, backup->format,
                     backup->sync,
                     backup->has_mode, backup->mode,
@@ -1921,8 +1924,8 @@ typedef struct BlockdevBackupState {
     AioContext *aio_context;
 } BlockdevBackupState;
 
-static void do_blockdev_backup(const char *device, const char *target,
-                               enum MirrorSyncMode sync,
+static void do_blockdev_backup(const char *job_id, const char *device,
+                               const char *target, enum MirrorSyncMode sync,
                                bool has_speed, int64_t speed,
                                bool has_on_source_error,
                                BlockdevOnError on_source_error,
@@ -1968,8 +1971,8 @@ static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
     state->bs = blk_bs(blk);
     bdrv_drained_begin(state->bs);
 
-    do_blockdev_backup(backup->device, backup->target,
-                       backup->sync,
+    do_blockdev_backup(backup->has_job_id ? backup->job_id : NULL,
+                       backup->device, backup->target, backup->sync,
                        backup->has_speed, backup->speed,
                        backup->has_on_source_error, backup->on_source_error,
                        backup->has_on_target_error, backup->on_target_error,
@@ -3004,7 +3007,7 @@ static void block_job_cb(void *opaque, int ret)
     }
 }
 
-void qmp_block_stream(const char *device,
+void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
                       bool has_base, const char *base,
                       bool has_backing_file, const char *backing_file,
                       bool has_speed, int64_t speed,
@@ -3063,8 +3066,8 @@ void qmp_block_stream(const char *device,
     /* backing_file string overrides base bs filename */
     base_name = has_backing_file ? backing_file : base_name;
 
-    stream_start(bs, base_bs, base_name, has_speed ? speed : 0,
-                 on_error, block_job_cb, bs, &local_err);
+    stream_start(has_job_id ? job_id : NULL, bs, base_bs, base_name,
+                 has_speed ? speed : 0, on_error, block_job_cb, bs, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto out;
@@ -3076,7 +3079,7 @@ out:
     aio_context_release(aio_context);
 }
 
-void qmp_block_commit(const char *device,
+void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
                       bool has_base, const char *base,
                       bool has_top, const char *top,
                       bool has_backing_file, const char *backing_file,
@@ -3167,10 +3170,11 @@ void qmp_block_commit(const char *device,
                              " but 'top' is the active layer");
             goto out;
         }
-        commit_active_start(bs, base_bs, speed, on_error, block_job_cb,
-                            bs, &local_err);
+        commit_active_start(has_job_id ? job_id : NULL, bs, base_bs, speed,
+                            on_error, block_job_cb, bs, &local_err);
     } else {
-        commit_start(bs, base_bs, top_bs, speed, on_error, block_job_cb, bs,
+        commit_start(has_job_id ? job_id : NULL, bs, base_bs, top_bs, speed,
+                     on_error, block_job_cb, bs,
                      has_backing_file ? backing_file : NULL, &local_err);
     }
     if (local_err != NULL) {
@@ -3182,9 +3186,9 @@ out:
     aio_context_release(aio_context);
 }
 
-static void do_drive_backup(const char *device, const char *target,
-                            bool has_format, const char *format,
-                            enum MirrorSyncMode sync,
+static void do_drive_backup(const char *job_id, const char *device,
+                            const char *target, bool has_format,
+                            const char *format, enum MirrorSyncMode sync,
                             bool has_mode, enum NewImageMode mode,
                             bool has_speed, int64_t speed,
                             bool has_bitmap, const char *bitmap,
@@ -3303,7 +3307,7 @@ static void do_drive_backup(const char *device, const char *target,
         }
     }
 
-    backup_start(bs, target_bs, speed, sync, bmap,
+    backup_start(job_id, bs, target_bs, speed, sync, bmap,
                  on_source_error, on_target_error,
                  block_job_cb, bs, txn, &local_err);
     bdrv_unref(target_bs);
@@ -3316,7 +3320,8 @@ out:
     aio_context_release(aio_context);
 }
 
-void qmp_drive_backup(const char *device, const char *target,
+void qmp_drive_backup(bool has_job_id, const char *job_id,
+                      const char *device, const char *target,
                       bool has_format, const char *format,
                       enum MirrorSyncMode sync,
                       bool has_mode, enum NewImageMode mode,
@@ -3326,7 +3331,8 @@ void qmp_drive_backup(const char *device, const char *target,
                       bool has_on_target_error, BlockdevOnError on_target_error,
                       Error **errp)
 {
-    return do_drive_backup(device, target, has_format, format, sync,
+    return do_drive_backup(has_job_id ? job_id : NULL, device, target,
+                           has_format, format, sync,
                            has_mode, mode, has_speed, speed,
                            has_bitmap, bitmap,
                            has_on_source_error, on_source_error,
@@ -3339,8 +3345,8 @@ BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
     return bdrv_named_nodes_list(errp);
 }
 
-void do_blockdev_backup(const char *device, const char *target,
-                         enum MirrorSyncMode sync,
+void do_blockdev_backup(const char *job_id, const char *device,
+                        const char *target, enum MirrorSyncMode sync,
                          bool has_speed, int64_t speed,
                          bool has_on_source_error,
                          BlockdevOnError on_source_error,
@@ -3395,7 +3401,7 @@ void do_blockdev_backup(const char *device, const char *target,
             goto out;
         }
     }
-    backup_start(bs, target_bs, speed, sync, NULL, on_source_error,
+    backup_start(job_id, bs, target_bs, speed, sync, NULL, on_source_error,
                  on_target_error, block_job_cb, bs, txn, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
@@ -3404,7 +3410,8 @@ out:
     aio_context_release(aio_context);
 }
 
-void qmp_blockdev_backup(const char *device, const char *target,
+void qmp_blockdev_backup(bool has_job_id, const char *job_id,
+                         const char *device, const char *target,
                          enum MirrorSyncMode sync,
                          bool has_speed, int64_t speed,
                          bool has_on_source_error,
@@ -3413,7 +3420,8 @@ void qmp_blockdev_backup(const char *device, const char *target,
                          BlockdevOnError on_target_error,
                          Error **errp)
 {
-    do_blockdev_backup(device, target, sync, has_speed, speed,
+    do_blockdev_backup(has_job_id ? job_id : NULL, device, target,
+                       sync, has_speed, speed,
                        has_on_source_error, on_source_error,
                        has_on_target_error, on_target_error,
                        NULL, errp);
@@ -3422,7 +3430,7 @@ void qmp_blockdev_backup(const char *device, const char *target,
 /* Parameter check and block job starting for drive mirroring.
  * Caller should hold @device and @target's aio context (must be the same).
  **/
-static void blockdev_mirror_common(BlockDriverState *bs,
+static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    BlockDriverState *target,
                                    bool has_replaces, const char *replaces,
                                    enum MirrorSyncMode sync,
@@ -3482,15 +3490,15 @@ static void blockdev_mirror_common(BlockDriverState *bs,
     /* pass the node name to replace to mirror start since it's loose coupling
      * and will allow to check whether the node still exist at mirror completion
      */
-    mirror_start(bs, target,
+    mirror_start(job_id, bs, target,
                  has_replaces ? replaces : NULL,
                  speed, granularity, buf_size, sync, backing_mode,
                  on_source_error, on_target_error, unmap,
                  block_job_cb, bs, errp);
 }
 
-void qmp_drive_mirror(const char *device, const char *target,
-                      bool has_format, const char *format,
+void qmp_drive_mirror(bool has_job_id, const char *job_id, const char *device,
+                      const char *target, bool has_format, const char *format,
                       bool has_node_name, const char *node_name,
                       bool has_replaces, const char *replaces,
                       enum MirrorSyncMode sync,
@@ -3634,7 +3642,7 @@ void qmp_drive_mirror(const char *device, const char *target,
 
     bdrv_set_aio_context(target_bs, aio_context);
 
-    blockdev_mirror_common(bs, target_bs,
+    blockdev_mirror_common(has_job_id ? job_id : NULL, bs, target_bs,
                            has_replaces, replaces, sync, backing_mode,
                            has_speed, speed,
                            has_granularity, granularity,
@@ -3649,7 +3657,8 @@ out:
     aio_context_release(aio_context);
 }
 
-void qmp_blockdev_mirror(const char *device, const char *target,
+void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
+                         const char *device, const char *target,
                          bool has_replaces, const char *replaces,
                          MirrorSyncMode sync,
                          bool has_speed, int64_t speed,
@@ -3690,7 +3699,7 @@ void qmp_blockdev_mirror(const char *device, const char *target,
 
     bdrv_set_aio_context(target_bs, aio_context);
 
-    blockdev_mirror_common(bs, target_bs,
+    blockdev_mirror_common(has_job_id ? job_id : NULL, bs, target_bs,
                            has_replaces, replaces, sync, backing_mode,
                            has_speed, speed,
                            has_granularity, granularity,
@@ -3704,42 +3713,28 @@ void qmp_blockdev_mirror(const char *device, const char *target,
     aio_context_release(aio_context);
 }
 
-/* Get the block job for a given device name and acquire its AioContext */
-static BlockJob *find_block_job(const char *device, AioContext **aio_context,
+/* Get a block job using its ID and acquire its AioContext */
+static BlockJob *find_block_job(const char *id, AioContext **aio_context,
                                 Error **errp)
 {
-    BlockBackend *blk;
-    BlockDriverState *bs;
+    BlockJob *job;
+
+    assert(id != NULL);
 
     *aio_context = NULL;
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        goto notfound;
+    job = block_job_get(id);
+
+    if (!job) {
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_ACTIVE,
+                  "Block job '%s' not found", id);
+        return NULL;
     }
 
-    *aio_context = blk_get_aio_context(blk);
+    *aio_context = blk_get_aio_context(job->blk);
     aio_context_acquire(*aio_context);
 
-    if (!blk_is_available(blk)) {
-        goto notfound;
-    }
-    bs = blk_bs(blk);
-
-    if (!bs->job) {
-        goto notfound;
-    }
-
-    return bs->job;
-
-notfound:
-    error_set(errp, ERROR_CLASS_DEVICE_NOT_ACTIVE,
-              "No active block job on device '%s'", device);
-    if (*aio_context) {
-        aio_context_release(*aio_context);
-        *aio_context = NULL;
-    }
-    return NULL;
+    return job;
 }
 
 void qmp_block_job_set_speed(const char *device, int64_t speed, Error **errp)

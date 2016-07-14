@@ -474,9 +474,9 @@ static void coroutine_fn backup_run(void *opaque)
     block_job_defer_to_main_loop(&job->common, backup_complete, data);
 }
 
-void backup_start(BlockDriverState *bs, BlockDriverState *target,
-                  int64_t speed, MirrorSyncMode sync_mode,
-                  BdrvDirtyBitmap *sync_bitmap,
+void backup_start(const char *job_id, BlockDriverState *bs,
+                  BlockDriverState *target, int64_t speed,
+                  MirrorSyncMode sync_mode, BdrvDirtyBitmap *sync_bitmap,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   BlockCompletionFunc *cb, void *opaque,
@@ -541,7 +541,8 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
         goto error;
     }
 
-    job = block_job_create(&backup_job_driver, bs, speed, cb, opaque, errp);
+    job = block_job_create(job_id, &backup_job_driver, bs, speed,
+                           cb, opaque, errp);
     if (!job) {
         goto error;
     }
@@ -575,9 +576,9 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
 
     bdrv_op_block_all(target, job->common.blocker);
     job->common.len = len;
-    job->common.co = qemu_coroutine_create(backup_run);
+    job->common.co = qemu_coroutine_create(backup_run, job);
     block_job_txn_add_job(txn, &job->common);
-    qemu_coroutine_enter(job->common.co, job);
+    qemu_coroutine_enter(job->common.co);
     return;
 
  error:

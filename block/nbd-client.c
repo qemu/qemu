@@ -38,7 +38,7 @@ static void nbd_recv_coroutines_enter_all(NbdClientSession *s)
 
     for (i = 0; i < MAX_NBD_REQUESTS; i++) {
         if (s->recv_coroutine[i]) {
-            qemu_coroutine_enter(s->recv_coroutine[i], NULL);
+            qemu_coroutine_enter(s->recv_coroutine[i]);
         }
     }
 }
@@ -99,7 +99,7 @@ static void nbd_reply_ready(void *opaque)
     }
 
     if (s->recv_coroutine[i]) {
-        qemu_coroutine_enter(s->recv_coroutine[i], NULL);
+        qemu_coroutine_enter(s->recv_coroutine[i]);
         return;
     }
 
@@ -111,7 +111,7 @@ static void nbd_restart_write(void *opaque)
 {
     BlockDriverState *bs = opaque;
 
-    qemu_coroutine_enter(nbd_get_client_session(bs)->send_coroutine, NULL);
+    qemu_coroutine_enter(nbd_get_client_session(bs)->send_coroutine);
 }
 
 static int nbd_co_send_request(BlockDriverState *bs,

@@ -1,0 +1,89 @@
+#!/bin/bash
+#
+# Test command line configuration of block devices with qdev
+#
+# Copyright (C) 2016 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt generic
+_supported_proto file
+_supported_os Linux
+
+function do_run_qemu()
+{
+    echo Testing: "$@"
+    (
+        if ! test -t 0; then
+            while read cmd; do
+                echo $cmd
+            done
+        fi
+        echo quit
+    ) | $QEMU -nodefaults -nographic -monitor stdio -serial none "$@"
+    echo
+}
+
+function run_qemu()
+{
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_imgfmt \
+                          | _filter_qemu | _filter_generated_node_ids
+}
+
+
+size=128M
+drive="if=none,file=$TEST_IMG,driver=$IMGFMT"
+
+_make_test_img $size
+
+echo
+echo "=== Setting WCE with qdev and with manually created BB ==="
+echo
+
+# The qdev option takes precedence, but if it isn't given or 'auto', the BB
+# option is used instead.
+
+for cache in "writeback" "writethrough"; do
+    for wce in "" ",write-cache=auto" ",write-cache=on" ",write-cache=off"; do
+        echo "info block" \
+            | run_qemu -drive "$drive,cache=$cache" \
+                       -device "virtio-blk,drive=none0$wce" \
+            | grep -e "Testing" -e "Cache mode"
+    done
+done
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

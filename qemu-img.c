@@ -920,7 +920,7 @@ static int img_commit(int argc, char **argv)
         .bs   = bs,
     };
 
-    commit_active_start(bs, base_bs, 0, BLOCKDEV_ON_ERROR_REPORT,
+    commit_active_start("commit", bs, base_bs, 0, BLOCKDEV_ON_ERROR_REPORT,
                         common_block_job_cb, &cbi, &local_err);
     if (local_err) {
         goto done;
@@ -3283,7 +3283,7 @@ static int img_resize(int argc, char **argv)
         error_report("Image is read-only");
         break;
     default:
-        error_report("Error resizing image (%d)", -ret);
+        error_report("Error resizing image: %s", strerror(-ret));
         break;
     }
 out:

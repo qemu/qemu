@@ -113,6 +113,7 @@ static void coroutine_fn commit_run(void *opaque)
     CommitBlockJob *s = opaque;
     CommitCompleteData *data;
     int64_t sector_num, end;
+    uint64_t delay_ns = 0;
     int ret = 0;
     int n = 0;
     void *buf = NULL;
@@ -142,10 +143,8 @@ static void coroutine_fn commit_run(void *opaque)
     buf = blk_blockalign(s->top, COMMIT_BUFFER_SIZE);
 
     for (sector_num = 0; sector_num < end; sector_num += n) {
-        uint64_t delay_ns = 0;
         bool copy;
 
-wait:
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
          */
@@ -161,19 +160,13 @@ wait:
         copy = (ret == 1);
         trace_commit_one_iteration(s, sector_num, n, ret);
         if (copy) {
-            if (s->common.speed) {
-                delay_ns = ratelimit_calculate_delay(&s->limit, n);
-                if (delay_ns > 0) {
-                    goto wait;
-                }
-            }
             ret = commit_populate(s->top, s->base, sector_num, n, buf);
             bytes_written += n * BDRV_SECTOR_SIZE;
         }
         if (ret < 0) {
-            if (s->on_error == BLOCKDEV_ON_ERROR_STOP ||
-                s->on_error == BLOCKDEV_ON_ERROR_REPORT||
-                (s->on_error == BLOCKDEV_ON_ERROR_ENOSPC && ret == -ENOSPC)) {
+            BlockErrorAction action =
+                block_job_error_action(&s->common, false, s->on_error, -ret);
+            if (action == BLOCK_ERROR_ACTION_REPORT) {
                 goto out;
             } else {
                 n = 0;
@@ -182,6 +175,10 @@ wait:
         }
         /* Publish progress */
         s->common.offset += n * BDRV_SECTOR_SIZE;
+
+        if (copy && s->common.speed) {
+            delay_ns = ratelimit_calculate_delay(&s->limit, n);
+        }
     }
 
     ret = 0;
@@ -211,8 +208,8 @@ static const BlockJobDriver commit_job_driver = {
     .set_speed     = commit_set_speed,
 };
 
-void commit_start(BlockDriverState *bs, BlockDriverState *base,
-                  BlockDriverState *top, int64_t speed,
+void commit_start(const char *job_id, BlockDriverState *bs,
+                  BlockDriverState *base, BlockDriverState *top, int64_t speed,
                   BlockdevOnError on_error, BlockCompletionFunc *cb,
                   void *opaque, const char *backing_file_str, Error **errp)
 {
@@ -236,7 +233,8 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
         return;
     }
 
-    s = block_job_create(&commit_job_driver, bs, speed, cb, opaque, errp);
+    s = block_job_create(job_id, &commit_job_driver, bs, speed,
+                         cb, opaque, errp);
     if (!s) {
         return;
     }
@@ -277,10 +275,10 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
     s->backing_file_str = g_strdup(backing_file_str);
 
     s->on_error = on_error;
-    s->common.co = qemu_coroutine_create(commit_run);
+    s->common.co = qemu_coroutine_create(commit_run, s);
 
     trace_commit_start(bs, base, top, s, s->common.co, opaque);
-    qemu_coroutine_enter(s->common.co, s);
+    qemu_coroutine_enter(s->common.co);
 }
 
 

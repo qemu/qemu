@@ -33,6 +33,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"
 #include "qemu/coroutine.h"
+#include "qemu/id.h"
 #include "qmp-commands.h"
 #include "qemu/timer.h"
 #include "qapi-event.h"
@@ -58,6 +59,19 @@ BlockJob *block_job_next(BlockJob *job)
         return QLIST_FIRST(&block_jobs);
     }
     return QLIST_NEXT(job, job_list);
+}
+
+BlockJob *block_job_get(const char *id)
+{
+    BlockJob *job;
+
+    QLIST_FOREACH(job, &block_jobs, job_list) {
+        if (!strcmp(id, job->id)) {
+            return job;
+        }
+    }
+
+    return NULL;
 }
 
 /* Normally the job runs in its BlockBackend's AioContext.  The exception is
@@ -103,9 +117,9 @@ static void block_job_detach_aio_context(void *opaque)
     block_job_unref(job);
 }
 
-void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
-                       int64_t speed, BlockCompletionFunc *cb,
-                       void *opaque, Error **errp)
+void *block_job_create(const char *job_id, const BlockJobDriver *driver,
+                       BlockDriverState *bs, int64_t speed,
+                       BlockCompletionFunc *cb, void *opaque, Error **errp)
 {
     BlockBackend *blk;
     BlockJob *job;
@@ -113,6 +127,20 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
     assert(cb);
     if (bs->job) {
         error_setg(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
+        return NULL;
+    }
+
+    if (job_id == NULL) {
+        job_id = bdrv_get_device_name(bs);
+    }
+
+    if (!id_wellformed(job_id)) {
+        error_setg(errp, "Invalid job ID '%s'", job_id);
+        return NULL;
+    }
+
+    if (block_job_get(job_id)) {
+        error_setg(errp, "Job ID '%s' already in use", job_id);
         return NULL;
     }
 
@@ -126,7 +154,7 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
     bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
 
     job->driver        = driver;
-    job->id            = g_strdup(bdrv_get_device_name(bs));
+    job->id            = g_strdup(job_id);
     job->blk           = blk;
     job->cb            = cb;
     job->opaque        = opaque;
@@ -290,7 +318,8 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 void block_job_complete(BlockJob *job, Error **errp)
 {
     if (job->pause_count || job->cancelled || !job->driver->complete) {
-        error_setg(errp, QERR_BLOCK_JOB_NOT_READY, job->id);
+        error_setg(errp, "The active block job '%s' cannot be completed",
+                   job->id);
         return;
     }
 
@@ -346,7 +375,7 @@ void block_job_resume(BlockJob *job)
 void block_job_enter(BlockJob *job)
 {
     if (job->co && !job->busy) {
-        qemu_coroutine_enter(job->co, NULL);
+        qemu_coroutine_enter(job->co);
     }
 }
 
@@ -524,6 +553,7 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
 
     switch (on_err) {
     case BLOCKDEV_ON_ERROR_ENOSPC:
+    case BLOCKDEV_ON_ERROR_AUTO:
         action = (error == ENOSPC) ?
                  BLOCK_ERROR_ACTION_STOP : BLOCK_ERROR_ACTION_REPORT;
         break;

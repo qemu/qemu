@@ -94,7 +94,7 @@ static void qemu_laio_process_completion(struct qemu_laiocb *laiocb)
 
     laiocb->ret = ret;
     if (laiocb->co) {
-        qemu_coroutine_enter(laiocb->co, NULL);
+        qemu_coroutine_enter(laiocb->co);
     } else {
         laiocb->common.cb(laiocb->common.opaque, ret);
         qemu_aio_unref(laiocb);
