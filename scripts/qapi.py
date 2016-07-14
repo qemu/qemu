@@ -1000,6 +1000,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         return self.name.startswith('q_')
 
     def c_name(self):
+        assert self.name != 'q_empty'
         return QAPISchemaType.c_name(self)
 
     def c_type(self):
