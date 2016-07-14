@@ -1204,7 +1204,6 @@ void pc_cpus_init(PCMachineState *pcms)
         if (i < smp_cpus) {
             cpu = pc_new_cpu(typename, x86_cpu_apic_id_from_index(i),
                              &error_fatal);
-            pcms->possible_cpus->cpus[i].cpu = CPU(cpu);
             object_unref(OBJECT(cpu));
         }
     }
@@ -1783,24 +1782,18 @@ static void pc_cpu_plug(HotplugHandler *hotplug_dev,
     Error *local_err = NULL;
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
 
-    if (!dev->hotplugged) {
-        goto out;
+    if (pcms->acpi_dev) {
+        hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
+        hhc->plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
+        if (local_err) {
+            goto out;
+        }
     }
 
-    if (!pcms->acpi_dev) {
-        error_setg(&local_err,
-                   "cpu hotplug is not enabled: missing acpi device");
-        goto out;
+    if (dev->hotplugged) {
+        /* increment the number of CPUs */
+        rtc_set_memory(pcms->rtc, 0x5f, rtc_get_memory(pcms->rtc, 0x5f) + 1);
     }
-
-    hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
-    hhc->plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
-    if (local_err) {
-        goto out;
-    }
-
-    /* increment the number of CPUs */
-    rtc_set_memory(pcms->rtc, 0x5f, rtc_get_memory(pcms->rtc, 0x5f) + 1);
 
     found_cpu = pc_find_cpu_slot(pcms, CPU(dev), NULL);
     found_cpu->cpu = CPU(dev);
