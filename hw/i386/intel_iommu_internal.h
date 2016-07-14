@@ -271,6 +271,19 @@ typedef enum VTDFaultReason {
      * context-entry.
      */
     VTD_FR_CONTEXT_ENTRY_TT,
+
+    /* Interrupt remapping transition faults */
+    VTD_FR_IR_REQ_RSVD = 0x20, /* One or more IR request reserved
+                                * fields set */
+    VTD_FR_IR_INDEX_OVER = 0x21, /* Index value greater than max */
+    VTD_FR_IR_ENTRY_P = 0x22,    /* Present (P) not set in IRTE */
+    VTD_FR_IR_ROOT_INVAL = 0x23, /* IR Root table invalid */
+    VTD_FR_IR_IRTE_RSVD = 0x24,  /* IRTE Rsvd field non-zero with
+                                  * Present flag set */
+    VTD_FR_IR_REQ_COMPAT = 0x25, /* Encountered compatible IR
+                                  * request while disabled */
+    VTD_FR_IR_SID_ERR = 0x26,   /* Invalid Source-ID */
+
     /* This is not a normal fault reason. We use this to indicate some faults
      * that are not referenced by the VT-d specification.
      * Fault event with such reason should not be recorded.
