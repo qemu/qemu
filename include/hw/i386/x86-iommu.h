@@ -46,9 +46,28 @@ struct X86IOMMUClass {
                      MSIMessage *dst, uint16_t sid);
 };
 
+/**
+ * iec_notify_fn - IEC (Interrupt Entry Cache) notifier hook,
+ *                 triggered when IR invalidation happens.
+ * @private: private data
+ * @global: whether this is a global IEC invalidation
+ * @index: IRTE index to invalidate (start from)
+ * @mask: invalidation mask
+ */
+typedef void (*iec_notify_fn)(void *private, bool global,
+                              uint32_t index, uint32_t mask);
+
+struct IEC_Notifier {
+    iec_notify_fn iec_notify;
+    void *private;
+    QLIST_ENTRY(IEC_Notifier) list;
+};
+typedef struct IEC_Notifier IEC_Notifier;
+
 struct X86IOMMUState {
     SysBusDevice busdev;
     bool intr_supported;        /* Whether vIOMMU supports IR */
+    QLIST_HEAD(, IEC_Notifier) iec_notifiers; /* IEC notify list */
 };
 
 /**
@@ -56,5 +75,26 @@ struct X86IOMMUState {
  * @return: pointer to default IOMMU device
  */
 X86IOMMUState *x86_iommu_get_default(void);
+
+/**
+ * x86_iommu_iec_register_notifier - register IEC (Interrupt Entry
+ *                                   Cache) notifiers
+ * @iommu: IOMMU device to register
+ * @fn: IEC notifier hook function
+ * @data: notifier private data
+ */
+void x86_iommu_iec_register_notifier(X86IOMMUState *iommu,
+                                     iec_notify_fn fn, void *data);
+
+/**
+ * x86_iommu_iec_notify_all - Notify IEC invalidations
+ * @iommu: IOMMU device that sends the notification
+ * @global: whether this is a global invalidation. If true, @index
+ *          and @mask are undefined.
+ * @index: starting index of interrupt entry to invalidate
+ * @mask: index mask for the invalidation
+ */
+void x86_iommu_iec_notify_all(X86IOMMUState *iommu, bool global,
+                              uint32_t index, uint32_t mask);
 
 #endif

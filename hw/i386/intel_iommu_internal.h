@@ -296,12 +296,28 @@ typedef enum VTDFaultReason {
 
 #define VTD_CONTEXT_CACHE_GEN_MAX       0xffffffffUL
 
-/* Queued Invalidation Descriptor */
-struct VTDInvDesc {
-    uint64_t lo;
-    uint64_t hi;
+/* Interrupt Entry Cache Invalidation Descriptor: VT-d 6.5.2.7. */
+struct VTDInvDescIEC {
+    uint32_t type:4;            /* Should always be 0x4 */
+    uint32_t granularity:1;     /* If set, it's global IR invalidation */
+    uint32_t resved_1:22;
+    uint32_t index_mask:5;      /* 2^N for continuous int invalidation */
+    uint32_t index:16;          /* Start index to invalidate */
+    uint32_t reserved_2:16;
 };
-typedef struct VTDInvDesc VTDInvDesc;
+typedef struct VTDInvDescIEC VTDInvDescIEC;
+
+/* Queued Invalidation Descriptor */
+union VTDInvDesc {
+    struct {
+        uint64_t lo;
+        uint64_t hi;
+    };
+    union {
+        VTDInvDescIEC iec;
+    };
+};
+typedef union VTDInvDesc VTDInvDesc;
 
 /* Masks for struct VTDInvDesc */
 #define VTD_INV_DESC_TYPE               0xf

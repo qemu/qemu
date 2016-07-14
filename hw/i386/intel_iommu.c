@@ -904,6 +904,12 @@ static void vtd_root_table_setup(IntelIOMMUState *s)
                 (s->root_extended ? "(extended)" : ""));
 }
 
+static void vtd_iec_notify_all(IntelIOMMUState *s, bool global,
+                               uint32_t index, uint32_t mask)
+{
+    x86_iommu_iec_notify_all(X86_IOMMU_DEVICE(s), global, index, mask);
+}
+
 static void vtd_interrupt_remap_table_setup(IntelIOMMUState *s)
 {
     uint64_t value = 0;
@@ -911,7 +917,8 @@ static void vtd_interrupt_remap_table_setup(IntelIOMMUState *s)
     s->intr_size = 1UL << ((value & VTD_IRTA_SIZE_MASK) + 1);
     s->intr_root = value & VTD_IRTA_ADDR_MASK;
 
-    /* TODO: invalidate interrupt entry cache */
+    /* Notify global invalidation */
+    vtd_iec_notify_all(s, true, 0, 0);
 
     VTD_DPRINTF(CSR, "int remap table addr 0x%"PRIx64 " size %"PRIu32,
                 s->intr_root, s->intr_size);
@@ -1413,6 +1420,21 @@ static bool vtd_process_iotlb_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
     return true;
 }
 
+static bool vtd_process_inv_iec_desc(IntelIOMMUState *s,
+                                     VTDInvDesc *inv_desc)
+{
+    VTD_DPRINTF(INV, "inv ir glob %d index %d mask %d",
+                inv_desc->iec.granularity,
+                inv_desc->iec.index,
+                inv_desc->iec.index_mask);
+
+    vtd_iec_notify_all(s, !inv_desc->iec.granularity,
+                       inv_desc->iec.index,
+                       inv_desc->iec.index_mask);
+
+    return true;
+}
+
 static bool vtd_process_inv_desc(IntelIOMMUState *s)
 {
     VTDInvDesc inv_desc;
@@ -1453,12 +1475,12 @@ static bool vtd_process_inv_desc(IntelIOMMUState *s)
         break;
 
     case VTD_INV_DESC_IEC:
-        VTD_DPRINTF(INV, "Interrupt Entry Cache Invalidation "
-                    "not implemented yet");
-        /*
-         * Since currently we do not cache interrupt entries, we can
-         * just mark this descriptor as "good" and move on.
-         */
+        VTD_DPRINTF(INV, "Invalidation Interrupt Entry Cache "
+                    "Descriptor hi 0x%"PRIx64 " lo 0x%"PRIx64,
+                    inv_desc.hi, inv_desc.lo);
+        if (!vtd_process_inv_iec_desc(s, &inv_desc)) {
+            return false;
+        }
         break;
 
     default:
