@@ -176,6 +176,8 @@
 /* (offset >> 4) << 8 */
 #define VTD_ECAP_IRO                (DMAR_IOTLB_REG_OFFSET << 4)
 #define VTD_ECAP_QI                 (1ULL << 1)
+/* Interrupt Remapping support */
+#define VTD_ECAP_IR                 (1ULL << 3)
 
 /* CAP_REG */
 /* (offset >> 4) << 24 */

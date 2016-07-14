@@ -1956,6 +1956,8 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
  */
 static void vtd_init(IntelIOMMUState *s)
 {
+    X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
+
     memset(s->csr, 0, DMAR_REG_SIZE);
     memset(s->wmask, 0, DMAR_REG_SIZE);
     memset(s->w1cmask, 0, DMAR_REG_SIZE);
@@ -1976,6 +1978,10 @@ static void vtd_init(IntelIOMMUState *s)
     s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND | VTD_CAP_MGAW |
              VTD_CAP_SAGAW | VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SLLPS;
     s->ecap = VTD_ECAP_QI | VTD_ECAP_IRO;
+
+    if (x86_iommu->intr_supported) {
+        s->ecap |= VTD_ECAP_IR;
+    }
 
     vtd_reset_context_cache(s);
     vtd_reset_iotlb(s);
