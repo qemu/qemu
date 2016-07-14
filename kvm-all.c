@@ -1048,6 +1048,7 @@ void kvm_irqchip_commit_routes(KVMState *s)
     int ret;
 
     s->irq_routes->flags = 0;
+    trace_kvm_irqchip_commit_routes();
     ret = kvm_vm_ioctl(s, KVM_SET_GSI_ROUTING, s->irq_routes);
     assert(ret == 0);
 }
@@ -1271,6 +1272,8 @@ int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)
         return -EINVAL;
     }
 
+    trace_kvm_irqchip_add_msi_route(virq);
+
     kvm_add_routing_entry(s, &kroute);
     kvm_arch_add_msi_route_post(&kroute, vector, dev);
     kvm_irqchip_commit_routes(s);
@@ -1300,6 +1303,8 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
     if (kvm_arch_fixup_msi_route(&kroute, msg.address, msg.data, dev)) {
         return -EINVAL;
     }
+
+    trace_kvm_irqchip_update_msi_route(virq);
 
     return kvm_update_routing_entry(s, &kroute);
 }
