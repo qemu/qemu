@@ -2,7 +2,11 @@
 #define HW_COMPAT_H
 
 #define HW_COMPAT_2_6 \
-    /* empty */
+    {\
+        .driver   = "virtio-mmio",\
+        .property = "format_transport_address",\
+        .value    = "off",\
+    },
 
 #define HW_COMPAT_2_5 \
     {\
