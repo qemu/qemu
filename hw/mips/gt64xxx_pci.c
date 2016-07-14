@@ -1167,7 +1167,6 @@ PCIBus *gt64120_register(qemu_irq *pic)
     DeviceState *dev;
 
     dev = qdev_create(NULL, TYPE_GT64120_PCI_HOST_BRIDGE);
-    qdev_init_nofail(dev);
     d = GT64120_PCI_HOST_BRIDGE(dev);
     phb = PCI_HOST_BRIDGE(dev);
     memory_region_init(&d->pci0_mem, OBJECT(dev), "pci0-mem", UINT32_MAX);
@@ -1178,6 +1177,7 @@ PCIBus *gt64120_register(qemu_irq *pic)
                                 &d->pci0_mem,
                                 get_system_io(),
                                 PCI_DEVFN(18, 0), 4, TYPE_PCI_BUS);
+    qdev_init_nofail(dev);
     memory_region_init_io(&d->ISD_mem, OBJECT(dev), &isd_mem_ops, d, "isd-mem", 0x1000);
 
     pci_create_simple(phb->bus, PCI_DEVFN(0, 0), "gt64120_pci");
