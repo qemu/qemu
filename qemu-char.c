@@ -786,6 +786,13 @@ static GSource *mux_chr_add_watch(CharDriverState *s, GIOCondition cond)
     return d->drv->chr_add_watch(d->drv, cond);
 }
 
+static void mux_chr_close(struct CharDriverState *chr)
+{
+    MuxDriver *d = chr->opaque;
+
+    g_free(d);
+}
+
 static CharDriverState *qemu_chr_open_mux(const char *id,
                                           ChardevBackend *backend,
                                           ChardevReturn *ret, Error **errp)
@@ -810,6 +817,7 @@ static CharDriverState *qemu_chr_open_mux(const char *id,
     chr->opaque = d;
     d->drv = drv;
     d->focus = -1;
+    chr->chr_close = mux_chr_close;
     chr->chr_write = mux_chr_write;
     chr->chr_update_read_handler = mux_chr_update_read_handler;
     chr->chr_accept_input = mux_chr_accept_input;
