@@ -612,6 +612,14 @@ def check_union(expr, expr_info):
                                     "enum '%s'" %
                                     (key, enum_define["enum_name"]))
 
+    # If discriminator is user-defined, ensure all values are covered
+    if enum_define:
+        for value in enum_define['enum_values']:
+            if value not in members.keys():
+                raise QAPIExprError(expr_info,
+                                    "Union '%s' data missing '%s' branch"
+                                    % (name, value))
+
 
 def check_alternate(expr, expr_info):
     name = expr['alternate']
