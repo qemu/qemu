@@ -533,10 +533,14 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
     BlockDriverState *base = s->base;
     BlockDriverState *bs = blk_bs(s->common.blk);
     BlockDriverState *target_bs = blk_bs(s->target);
-    bool mark_all_dirty = base == NULL && !bdrv_has_zero_init(target_bs);
     int ret, n;
 
     end = s->bdev_length / BDRV_SECTOR_SIZE;
+
+    if (base == NULL && !bdrv_has_zero_init(target_bs)) {
+        bdrv_set_dirty_bitmap(s->dirty_bitmap, 0, end);
+        return 0;
+    }
 
     /* First part, loop on the sectors and initialize the dirty bitmap.  */
     for (sector_num = 0; sector_num < end; ) {
@@ -556,7 +560,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
         }
 
         assert(n > 0);
-        if (ret == 1 || mark_all_dirty) {
+        if (ret == 1) {
             bdrv_set_dirty_bitmap(s->dirty_bitmap, sector_num, n);
         }
         sector_num += n;
