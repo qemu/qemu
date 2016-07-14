@@ -29,6 +29,8 @@
 #include "hw/i386/ioapic_internal.h"
 #include "include/hw/pci/msi.h"
 #include "sysemu/kvm.h"
+#include "target-i386/cpu.h"
+#include "hw/i386/apic-msidef.h"
 
 //#define DEBUG_IOAPIC
 
@@ -50,13 +52,15 @@ extern int ioapic_no;
 
 static void ioapic_service(IOAPICCommonState *s)
 {
+    AddressSpace *ioapic_as = PC_MACHINE(qdev_get_machine())->ioapic_as;
+    uint32_t addr, data;
     uint8_t i;
     uint8_t trig_mode;
     uint8_t vector;
     uint8_t delivery_mode;
     uint32_t mask;
     uint64_t entry;
-    uint8_t dest;
+    uint16_t dest_idx;
     uint8_t dest_mode;
 
     for (i = 0; i < IOAPIC_NUM_PINS; i++) {
@@ -67,7 +71,14 @@ static void ioapic_service(IOAPICCommonState *s)
             entry = s->ioredtbl[i];
             if (!(entry & IOAPIC_LVT_MASKED)) {
                 trig_mode = ((entry >> IOAPIC_LVT_TRIGGER_MODE_SHIFT) & 1);
-                dest = entry >> IOAPIC_LVT_DEST_SHIFT;
+                /*
+                 * By default, this would be dest_id[8] +
+                 * reserved[8]. When IR is enabled, this would be
+                 * interrupt_index[15] + interrupt_format[1]. This
+                 * field never means anything, but only used to
+                 * generate corresponding MSI.
+                 */
+                dest_idx = entry >> IOAPIC_LVT_DEST_IDX_SHIFT;
                 dest_mode = (entry >> IOAPIC_LVT_DEST_MODE_SHIFT) & 1;
                 delivery_mode =
                     (entry >> IOAPIC_LVT_DELIV_MODE_SHIFT) & IOAPIC_DM_MASK;
@@ -97,8 +108,17 @@ static void ioapic_service(IOAPICCommonState *s)
 #else
                 (void)coalesce;
 #endif
-                apic_deliver_irq(dest, dest_mode, delivery_mode, vector,
-                                 trig_mode);
+                /* No matter whether IR is enabled, we translate
+                 * the IOAPIC message into a MSI one, and its
+                 * address space will decide whether we need a
+                 * translation. */
+                addr = APIC_DEFAULT_ADDRESS | \
+                    (dest_idx << MSI_ADDR_DEST_IDX_SHIFT) |
+                    (dest_mode << MSI_ADDR_DEST_MODE_SHIFT);
+                data = (vector << MSI_DATA_VECTOR_SHIFT) |
+                    (trig_mode << MSI_DATA_TRIGGER_SHIFT) |
+                    (delivery_mode << MSI_DATA_DELIVERY_MODE_SHIFT);
+                stl_le_phys(ioapic_as, addr, data);
             }
         }
     }

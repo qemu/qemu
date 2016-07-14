@@ -31,6 +31,7 @@
 #define IOAPIC_VERSION                  0x11
 
 #define IOAPIC_LVT_DEST_SHIFT           56
+#define IOAPIC_LVT_DEST_IDX_SHIFT       48
 #define IOAPIC_LVT_MASKED_SHIFT         16
 #define IOAPIC_LVT_TRIGGER_MODE_SHIFT   15
 #define IOAPIC_LVT_REMOTE_IRR_SHIFT     14

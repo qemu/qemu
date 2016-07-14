@@ -28,6 +28,7 @@
 #include "hw/i386/pc.h"
 #include "hw/boards.h"
 #include "hw/i386/x86-iommu.h"
+#include "hw/pci-host/q35.h"
 
 /*#define DEBUG_INTEL_IOMMU*/
 #ifdef DEBUG_INTEL_IOMMU
@@ -2367,7 +2368,8 @@ static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 
 static void vtd_realize(DeviceState *dev, Error **errp)
 {
-    PCIBus *bus = PC_MACHINE(qdev_get_machine())->bus;
+    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+    PCIBus *bus = pcms->bus;
     IntelIOMMUState *s = INTEL_IOMMU_DEVICE(dev);
 
     VTD_DPRINTF(GENERAL, "");
@@ -2383,6 +2385,8 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     vtd_init(s);
     sysbus_mmio_map(SYS_BUS_DEVICE(s), 0, Q35_HOST_BRIDGE_IOMMU_ADDR);
     pci_setup_iommu(bus, vtd_host_dma_iommu, dev);
+    /* Pseudo address space under root PCI bus. */
+    pcms->ioapic_as = vtd_host_dma_iommu(bus, s, Q35_PSEUDO_DEVFN_IOAPIC);
 }
 
 static void vtd_class_init(ObjectClass *klass, void *data)
