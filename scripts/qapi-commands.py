@@ -46,8 +46,10 @@ def gen_call(name, arg_type, ret_type):
 ''',
                 c_name=c_name(name), args=argstr, lhs=lhs)
     if ret_type:
-        ret += gen_err_check()
         ret += mcgen('''
+    if (err) {
+        goto out;
+    }
 
     qmp_marshal_output_%(c_name)s(retval, ret, &err);
 ''',
