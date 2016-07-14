@@ -527,18 +527,54 @@ static void mirror_throttle(MirrorBlockJob *s)
     }
 }
 
+static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
+{
+    int64_t sector_num, end;
+    BlockDriverState *base = s->base;
+    BlockDriverState *bs = blk_bs(s->common.blk);
+    BlockDriverState *target_bs = blk_bs(s->target);
+    bool mark_all_dirty = base == NULL && !bdrv_has_zero_init(target_bs);
+    int ret, n;
+
+    end = s->bdev_length / BDRV_SECTOR_SIZE;
+
+    /* First part, loop on the sectors and initialize the dirty bitmap.  */
+    for (sector_num = 0; sector_num < end; ) {
+        /* Just to make sure we are not exceeding int limit. */
+        int nb_sectors = MIN(INT_MAX >> BDRV_SECTOR_BITS,
+                             end - sector_num);
+
+        mirror_throttle(s);
+
+        if (block_job_is_cancelled(&s->common)) {
+            return 0;
+        }
+
+        ret = bdrv_is_allocated_above(bs, base, sector_num, nb_sectors, &n);
+        if (ret < 0) {
+            return ret;
+        }
+
+        assert(n > 0);
+        if (ret == 1 || mark_all_dirty) {
+            bdrv_set_dirty_bitmap(s->dirty_bitmap, sector_num, n);
+        }
+        sector_num += n;
+    }
+    return 0;
+}
+
 static void coroutine_fn mirror_run(void *opaque)
 {
     MirrorBlockJob *s = opaque;
     MirrorExitData *data;
     BlockDriverState *bs = blk_bs(s->common.blk);
     BlockDriverState *target_bs = blk_bs(s->target);
-    int64_t sector_num, end, length;
+    int64_t length;
     BlockDriverInfo bdi;
     char backing_filename[2]; /* we only need 2 characters because we are only
                                  checking for a NULL string */
     int ret = 0;
-    int n;
     int target_cluster_size = BDRV_SECTOR_SIZE;
 
     if (block_job_is_cancelled(&s->common)) {
@@ -580,7 +616,6 @@ static void coroutine_fn mirror_run(void *opaque)
     s->target_cluster_sectors = target_cluster_size >> BDRV_SECTOR_BITS;
     s->max_iov = MIN(bs->bl.max_iov, target_bs->bl.max_iov);
 
-    end = s->bdev_length / BDRV_SECTOR_SIZE;
     s->buf = qemu_try_blockalign(bs, s->buf_size);
     if (s->buf == NULL) {
         ret = -ENOMEM;
@@ -591,32 +626,9 @@ static void coroutine_fn mirror_run(void *opaque)
 
     s->last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     if (!s->is_none_mode) {
-        /* First part, loop on the sectors and initialize the dirty bitmap.  */
-        BlockDriverState *base = s->base;
-        bool mark_all_dirty = s->base == NULL && !bdrv_has_zero_init(target_bs);
-
-        for (sector_num = 0; sector_num < end; ) {
-            /* Just to make sure we are not exceeding int limit. */
-            int nb_sectors = MIN(INT_MAX >> BDRV_SECTOR_BITS,
-                                 end - sector_num);
-
-            mirror_throttle(s);
-
-            if (block_job_is_cancelled(&s->common)) {
-                goto immediate_exit;
-            }
-
-            ret = bdrv_is_allocated_above(bs, base, sector_num, nb_sectors, &n);
-
-            if (ret < 0) {
-                goto immediate_exit;
-            }
-
-            assert(n > 0);
-            if (ret == 1 || mark_all_dirty) {
-                bdrv_set_dirty_bitmap(s->dirty_bitmap, sector_num, n);
-            }
-            sector_num += n;
+        ret = mirror_dirty_init(s);
+        if (ret < 0 || block_job_is_cancelled(&s->common)) {
+            goto immediate_exit;
         }
     }
 
