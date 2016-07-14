@@ -21,6 +21,28 @@
 #include "hw/sysbus.h"
 #include "hw/boards.h"
 #include "hw/i386/x86-iommu.h"
+#include "qemu/error-report.h"
+
+/* Default X86 IOMMU device */
+static X86IOMMUState *x86_iommu_default = NULL;
+
+static void x86_iommu_set_default(X86IOMMUState *x86_iommu)
+{
+    assert(x86_iommu);
+
+    if (x86_iommu_default) {
+        error_report("QEMU does not support multiple vIOMMUs "
+                     "for x86 yet.");
+        exit(1);
+    }
+
+    x86_iommu_default = x86_iommu;
+}
+
+X86IOMMUState *x86_iommu_get_default(void)
+{
+    return x86_iommu_default;
+}
 
 static void x86_iommu_realize(DeviceState *dev, Error **errp)
 {
@@ -28,6 +50,7 @@ static void x86_iommu_realize(DeviceState *dev, Error **errp)
     if (x86_class->realize) {
         x86_class->realize(dev, errp);
     }
+    x86_iommu_set_default(X86_IOMMU_DEVICE(dev));
 }
 
 static void x86_iommu_class_init(ObjectClass *klass, void *data)

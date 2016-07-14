@@ -45,4 +45,10 @@ struct X86IOMMUState {
     SysBusDevice busdev;
 };
 
+/**
+ * x86_iommu_get_default - get default IOMMU device
+ * @return: pointer to default IOMMU device
+ */
+X86IOMMUState *x86_iommu_get_default(void);
+
 #endif
