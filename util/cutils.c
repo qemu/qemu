@@ -184,6 +184,13 @@ int qemu_fdatasync(int fd)
 #define SPLAT(p)       _mm_set1_epi8(*(p))
 #define ALL_EQ(v1, v2) (_mm_movemask_epi8(_mm_cmpeq_epi8(v1, v2)) == 0xFFFF)
 #define VEC_OR(v1, v2) (_mm_or_si128(v1, v2))
+#elif defined(__aarch64__)
+#include "arm_neon.h"
+#define VECTYPE        uint64x2_t
+#define ALL_EQ(v1, v2) \
+        ((vgetq_lane_u64(v1, 0) == vgetq_lane_u64(v2, 0)) && \
+         (vgetq_lane_u64(v1, 1) == vgetq_lane_u64(v2, 1)))
+#define VEC_OR(v1, v2) ((v1) | (v2))
 #else
 #define VECTYPE        unsigned long
 #define SPLAT(p)       (*(p) * (~0UL / 255))

@@ -34,8 +34,6 @@
 #define AST2400_FMC_FLASH_BASE   0x20000000
 #define AST2400_SPI_FLASH_BASE   0x30000000
 
-#define AST2400_A0_SILICON_REV   0x02000303
-
 static const int uart_irqs[] = { 9, 32, 33, 34, 10 };
 static const int timer_irqs[] = { 16, 17, 18, 35, 36, 37, 38, 39, };
 

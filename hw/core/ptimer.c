@@ -93,7 +93,7 @@ uint64_t ptimer_get_count(ptimer_state *s)
         bool oneshot = (s->enabled == 2);
 
         /* Figure out the current counter value.  */
-        if (s->period == 0 || (expired && (oneshot || use_icount))) {
+        if (expired) {
             /* Prevent timer underflowing if it should already have
                triggered.  */
             counter = 0;
@@ -120,7 +120,7 @@ uint64_t ptimer_get_count(ptimer_state *s)
                backwards.
             */
 
-            rem = expired ? now - next : next - now;
+            rem = next - now;
             div = period;
 
             clz1 = clz64(rem);
@@ -140,11 +140,6 @@ uint64_t ptimer_get_count(ptimer_state *s)
                     div += 1;
             }
             counter = rem / div;
-
-            if (expired && counter != 0) {
-                /* Wrap around periodic counter.  */
-                counter = s->limit - (counter - 1) % s->limit;
-            }
         }
     } else {
         counter = s->delta;
