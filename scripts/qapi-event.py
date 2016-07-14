@@ -49,6 +49,11 @@ def gen_param_var(typ):
 
     };
 ''')
+    if not typ.is_implicit():
+        ret += mcgen('''
+    %(c_name)s *arg = &param;
+''',
+                     c_name=typ.c_name())
     return ret
 
 
@@ -91,6 +96,14 @@ def gen_event_send(name, arg_type):
     if arg_type and not arg_type.is_empty():
         ret += mcgen('''
     v = qmp_output_visitor_new(&obj);
+''')
+        if not arg_type.is_implicit():
+            ret += mcgen('''
+    visit_type_%(c_name)s(v, "%(name)s", &arg, &err);
+''',
+                         name=name, c_name=arg_type.c_name())
+        else:
+            ret += mcgen('''
 
     visit_start_struct(v, "%(name)s", NULL, 0, &err);
     if (err) {
@@ -101,14 +114,16 @@ def gen_event_send(name, arg_type):
         visit_check_struct(v, &err);
     }
     visit_end_struct(v, NULL);
+''',
+                         name=name, c_name=arg_type.c_name())
+        ret += mcgen('''
     if (err) {
         goto out;
     }
 
     visit_complete(v, &obj);
     qdict_put_obj(qmp, "data", obj);
-''',
-                     name=name, c_name=arg_type.c_name())
+''')
 
     ret += mcgen('''
     emit(%(c_enum)s, qmp, &err);
