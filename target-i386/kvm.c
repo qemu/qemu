@@ -91,7 +91,6 @@ static bool has_msr_bndcfgs;
 static bool has_msr_kvm_steal_time;
 static int lm_capable_kernel;
 static bool has_msr_hv_hypercall;
-static bool has_msr_hv_vapic;
 static bool has_msr_hv_tsc;
 static bool has_msr_hv_crash;
 static bool has_msr_hv_reset;
@@ -609,7 +608,6 @@ static int hyperv_handle_properties(CPUState *cs)
     if (cpu->hyperv_vapic) {
         env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_HYPERCALL_AVAILABLE;
         env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_APIC_ACCESS_AVAILABLE;
-        has_msr_hv_vapic = true;
     }
     if (cpu->hyperv_time &&
             kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV_TIME) > 0) {
@@ -728,7 +726,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         if (cpu->hyperv_relaxed_timing) {
             c->eax |= HV_X64_RELAXED_TIMING_RECOMMENDED;
         }
-        if (has_msr_hv_vapic) {
+        if (cpu->hyperv_vapic) {
             c->eax |= HV_X64_APIC_ACCESS_RECOMMENDED;
         }
         c->ebx = cpu->hyperv_spinlock_attempts;
@@ -1681,7 +1679,7 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_add(cpu, HV_X64_MSR_HYPERCALL,
                               env->msr_hv_hypercall);
         }
-        if (has_msr_hv_vapic) {
+        if (cpu->hyperv_vapic) {
             kvm_msr_entry_add(cpu, HV_X64_MSR_APIC_ASSIST_PAGE,
                               env->msr_hv_vapic);
         }
@@ -2086,7 +2084,7 @@ static int kvm_get_msrs(X86CPU *cpu)
         kvm_msr_entry_add(cpu, HV_X64_MSR_HYPERCALL, 0);
         kvm_msr_entry_add(cpu, HV_X64_MSR_GUEST_OS_ID, 0);
     }
-    if (has_msr_hv_vapic) {
+    if (cpu->hyperv_vapic) {
         kvm_msr_entry_add(cpu, HV_X64_MSR_APIC_ASSIST_PAGE, 0);
     }
     if (has_msr_hv_tsc) {
