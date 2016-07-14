@@ -1183,6 +1183,22 @@ static void vtd_handle_gcmd_te(IntelIOMMUState *s, bool en)
     }
 }
 
+/* Handle Interrupt Remap Enable/Disable */
+static void vtd_handle_gcmd_ire(IntelIOMMUState *s, bool en)
+{
+    VTD_DPRINTF(CSR, "Interrupt Remap Enable %s", (en ? "on" : "off"));
+
+    if (en) {
+        s->intr_enabled = true;
+        /* Ok - report back to driver */
+        vtd_set_clear_mask_long(s, DMAR_GSTS_REG, 0, VTD_GSTS_IRES);
+    } else {
+        s->intr_enabled = false;
+        /* Ok - report back to driver */
+        vtd_set_clear_mask_long(s, DMAR_GSTS_REG, VTD_GSTS_IRES, 0);
+    }
+}
+
 /* Handle write to Global Command Register */
 static void vtd_handle_gcmd_write(IntelIOMMUState *s)
 {
@@ -1206,6 +1222,10 @@ static void vtd_handle_gcmd_write(IntelIOMMUState *s)
     if (val & VTD_GCMD_SIRTP) {
         /* Set/update the interrupt remapping root-table pointer */
         vtd_handle_gcmd_sirtp(s);
+    }
+    if (changed & VTD_GCMD_IRE) {
+        /* Interrupt remap enable/disable */
+        vtd_handle_gcmd_ire(s, val & VTD_GCMD_IRE);
     }
 }
 
