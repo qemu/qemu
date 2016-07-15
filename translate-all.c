@@ -1131,10 +1131,6 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
 {
     uint32_t h;
 
-    /* add in the hash table */
-    h = tb_hash_func(phys_pc, tb->pc, tb->flags);
-    qht_insert(&tcg_ctx.tb_ctx.htable, tb, h);
-
     /* add in the page list */
     tb_alloc_page(tb, 0, phys_pc & TARGET_PAGE_MASK);
     if (phys_page2 != -1) {
@@ -1142,6 +1138,10 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
     } else {
         tb->page_addr[1] = -1;
     }
+
+    /* add in the hash table */
+    h = tb_hash_func(phys_pc, tb->pc, tb->flags);
+    qht_insert(&tcg_ctx.tb_ctx.htable, tb, h);
 
 #ifdef DEBUG_TB_CHECK
     tb_page_check();
