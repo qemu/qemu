@@ -452,6 +452,6 @@ static inline bool aio_node_check(AioContext *ctx, bool is_external)
  *
  * Initialize the aio context.
  */
-void aio_context_setup(AioContext *ctx, Error **errp);
+void aio_context_setup(AioContext *ctx);
 
 #endif

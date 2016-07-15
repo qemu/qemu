@@ -347,14 +347,10 @@ AioContext *aio_context_new(Error **errp)
 {
     int ret;
     AioContext *ctx;
-    Error *local_err = NULL;
 
     ctx = (AioContext *) g_source_new(&aio_source_funcs, sizeof(AioContext));
-    aio_context_setup(ctx, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto fail;
-    }
+    aio_context_setup(ctx);
+
     ret = event_notifier_init(&ctx->notifier, false);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to initialize event notifier");
