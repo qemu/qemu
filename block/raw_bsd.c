@@ -50,33 +50,30 @@ static int raw_reopen_prepare(BDRVReopenState *reopen_state,
     return 0;
 }
 
-static int coroutine_fn raw_co_readv(BlockDriverState *bs, int64_t sector_num,
-                                     int nb_sectors, QEMUIOVector *qiov)
+static int coroutine_fn raw_co_preadv(BlockDriverState *bs, uint64_t offset,
+                                      uint64_t bytes, QEMUIOVector *qiov,
+                                      int flags)
 {
     BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
-    return bdrv_co_readv(bs->file, sector_num, nb_sectors, qiov);
+    return bdrv_co_preadv(bs->file, offset, bytes, qiov, flags);
 }
 
-static int coroutine_fn
-raw_co_writev_flags(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
-                    QEMUIOVector *qiov, int flags)
+static int coroutine_fn raw_co_pwritev(BlockDriverState *bs, uint64_t offset,
+                                       uint64_t bytes, QEMUIOVector *qiov,
+                                       int flags)
 {
     void *buf = NULL;
     BlockDriver *drv;
     QEMUIOVector local_qiov;
     int ret;
 
-    if (bs->probed && sector_num == 0) {
-        /* As long as these conditions are true, we can't get partial writes to
-         * the probe buffer and can just directly check the request. */
+    if (bs->probed && offset < BLOCK_PROBE_BUF_SIZE && bytes) {
+        /* Handling partial writes would be a pain - so we just
+         * require that guests have 512-byte request alignment if
+         * probing occurred */
         QEMU_BUILD_BUG_ON(BLOCK_PROBE_BUF_SIZE != 512);
         QEMU_BUILD_BUG_ON(BDRV_SECTOR_SIZE != 512);
-
-        if (nb_sectors == 0) {
-            /* qemu_iovec_to_buf() would fail, but we want to return success
-             * instead of -EINVAL in this case. */
-            return 0;
-        }
+        assert(offset == 0 && bytes >= BLOCK_PROBE_BUF_SIZE);
 
         buf = qemu_try_blockalign(bs->file->bs, 512);
         if (!buf) {
@@ -105,8 +102,7 @@ raw_co_writev_flags(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
-    ret = bdrv_co_pwritev(bs->file, sector_num * BDRV_SECTOR_SIZE,
-                          nb_sectors * BDRV_SECTOR_SIZE, qiov, flags);
+    ret = bdrv_co_pwritev(bs->file, offset, bytes, qiov, flags);
 
 fail:
     if (qiov == &local_qiov) {
@@ -148,6 +144,16 @@ static int64_t raw_getlength(BlockDriverState *bs)
 static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     return bdrv_get_info(bs->file->bs, bdi);
+}
+
+static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
+{
+    if (bs->probed) {
+        /* To make it easier to protect the first sector, any probed
+         * image is restricted to read-modify-write on sub-sector
+         * operations. */
+        bs->bl.request_alignment = BDRV_SECTOR_SIZE;
+    }
 }
 
 static int raw_truncate(BlockDriverState *bs, int64_t offset)
@@ -240,8 +246,8 @@ BlockDriver bdrv_raw = {
     .bdrv_open            = &raw_open,
     .bdrv_close           = &raw_close,
     .bdrv_create          = &raw_create,
-    .bdrv_co_readv        = &raw_co_readv,
-    .bdrv_co_writev_flags = &raw_co_writev_flags,
+    .bdrv_co_preadv       = &raw_co_preadv,
+    .bdrv_co_pwritev      = &raw_co_pwritev,
     .bdrv_co_pwrite_zeroes = &raw_co_pwrite_zeroes,
     .bdrv_co_pdiscard     = &raw_co_pdiscard,
     .bdrv_co_get_block_status = &raw_co_get_block_status,
@@ -249,6 +255,7 @@ BlockDriver bdrv_raw = {
     .bdrv_getlength       = &raw_getlength,
     .has_variable_length  = true,
     .bdrv_get_info        = &raw_get_info,
+    .bdrv_refresh_limits  = &raw_refresh_limits,
     .bdrv_probe_blocksizes = &raw_probe_blocksizes,
     .bdrv_probe_geometry  = &raw_probe_geometry,
     .bdrv_media_changed   = &raw_media_changed,
