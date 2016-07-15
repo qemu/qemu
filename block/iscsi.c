@@ -586,11 +586,8 @@ iscsi_co_writev_flags(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
         return -EINVAL;
     }
 
-    if (bs->bl.max_transfer &&
-        nb_sectors << BDRV_SECTOR_BITS > bs->bl.max_transfer) {
-        error_report("iSCSI Error: Write of %d sectors exceeds max_xfer_len "
-                     "of %" PRIu32 " bytes", nb_sectors, bs->bl.max_transfer);
-        return -EINVAL;
+    if (bs->bl.max_transfer) {
+        assert(nb_sectors << BDRV_SECTOR_BITS <= bs->bl.max_transfer);
     }
 
     lba = sector_qemu2lun(sector_num, iscsilun);
@@ -754,11 +751,8 @@ static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
         return -EINVAL;
     }
 
-    if (bs->bl.max_transfer &&
-        nb_sectors << BDRV_SECTOR_BITS > bs->bl.max_transfer) {
-        error_report("iSCSI Error: Read of %d sectors exceeds max_xfer_len "
-                     "of %" PRIu32 " bytes", nb_sectors, bs->bl.max_transfer);
-        return -EINVAL;
+    if (bs->bl.max_transfer) {
+        assert(nb_sectors << BDRV_SECTOR_BITS <= bs->bl.max_transfer);
     }
 
     /* if cache.direct is off and we have a valid entry in our allocation map
