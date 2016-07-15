@@ -3472,7 +3472,14 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
         ret = target_to_host_sockaddr(fd, msg.msg_name,
                                       tswapal(msgp->msg_name),
                                       msg.msg_namelen);
-        if (ret) {
+        if (ret == -TARGET_EFAULT) {
+            /* For connected sockets msg_name and msg_namelen must
+             * be ignored, so returning EFAULT immediately is wrong.
+             * Instead, pass a bad msg_name to the host kernel, and
+             * let it decide whether to return EFAULT or not.
+             */
+            msg.msg_name = (void *)-1;
+        } else if (ret) {
             goto out2;
         }
     } else {
@@ -3534,7 +3541,7 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
             }
             if (!is_error(ret)) {
                 msgp->msg_namelen = tswap32(msg.msg_namelen);
-                if (msg.msg_name != NULL) {
+                if (msg.msg_name != NULL && msg.msg_name != (void *)-1) {
                     ret = host_to_target_sockaddr(tswapal(msgp->msg_name),
                                     msg.msg_name, msg.msg_namelen);
                     if (ret) {
