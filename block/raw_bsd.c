@@ -134,11 +134,10 @@ static int coroutine_fn raw_co_pwrite_zeroes(BlockDriverState *bs,
     return bdrv_co_pwrite_zeroes(bs->file, offset, count, flags);
 }
 
-static int coroutine_fn raw_co_discard(BlockDriverState *bs,
-                                       int64_t sector_num, int nb_sectors)
+static int coroutine_fn raw_co_pdiscard(BlockDriverState *bs,
+                                        int64_t offset, int count)
 {
-    return bdrv_co_pdiscard(bs->file->bs, sector_num << BDRV_SECTOR_BITS,
-                            nb_sectors << BDRV_SECTOR_BITS);
+    return bdrv_co_pdiscard(bs->file->bs, offset, count);
 }
 
 static int64_t raw_getlength(BlockDriverState *bs)
@@ -244,7 +243,7 @@ BlockDriver bdrv_raw = {
     .bdrv_co_readv        = &raw_co_readv,
     .bdrv_co_writev_flags = &raw_co_writev_flags,
     .bdrv_co_pwrite_zeroes = &raw_co_pwrite_zeroes,
-    .bdrv_co_discard      = &raw_co_discard,
+    .bdrv_co_pdiscard     = &raw_co_pdiscard,
     .bdrv_co_get_block_status = &raw_co_get_block_status,
     .bdrv_truncate        = &raw_truncate,
     .bdrv_getlength       = &raw_getlength,
