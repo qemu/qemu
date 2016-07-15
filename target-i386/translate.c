@@ -8224,9 +8224,9 @@ void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb)
     dc->popl_esp_hack = 0;
     /* select memory access functions */
     dc->mem_index = 0;
-    if (flags & HF_SOFTMMU_MASK) {
-	dc->mem_index = cpu_mmu_index(env, false);
-    }
+#ifdef CONFIG_SOFTMMU
+    dc->mem_index = cpu_mmu_index(env, false);
+#endif
     dc->cpuid_features = env->features[FEAT_1_EDX];
     dc->cpuid_ext_features = env->features[FEAT_1_ECX];
     dc->cpuid_ext2_features = env->features[FEAT_8000_0001_EDX];
@@ -8239,11 +8239,7 @@ void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb)
 #endif
     dc->flags = flags;
     dc->jmp_opt = !(dc->tf || cs->singlestep_enabled ||
-                    (flags & HF_INHIBIT_IRQ_MASK)
-#ifndef CONFIG_SOFTMMU
-                    || (flags & HF_SOFTMMU_MASK)
-#endif
-                    );
+                    (flags & HF_INHIBIT_IRQ_MASK));
     /* Do not optimize repz jumps at all in icount mode, because
        rep movsS instructions are execured with different paths
        in !repz_opt and repz_opt modes. The first one was used
