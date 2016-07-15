@@ -3754,27 +3754,30 @@ static struct shm_region {
     bool in_use;
 } shm_regions[N_SHM_REGIONS];
 
-struct target_semid_ds
+#ifndef TARGET_SEMID64_DS
+/* asm-generic version of this struct */
+struct target_semid64_ds
 {
   struct target_ipc_perm sem_perm;
   abi_ulong sem_otime;
-#if !defined(TARGET_PPC64)
+#if TARGET_ABI_BITS == 32
   abi_ulong __unused1;
 #endif
   abi_ulong sem_ctime;
-#if !defined(TARGET_PPC64)
+#if TARGET_ABI_BITS == 32
   abi_ulong __unused2;
 #endif
   abi_ulong sem_nsems;
   abi_ulong __unused3;
   abi_ulong __unused4;
 };
+#endif
 
 static inline abi_long target_to_host_ipc_perm(struct ipc_perm *host_ip,
                                                abi_ulong target_addr)
 {
     struct target_ipc_perm *target_ip;
-    struct target_semid_ds *target_sd;
+    struct target_semid64_ds *target_sd;
 
     if (!lock_user_struct(VERIFY_READ, target_sd, target_addr, 1))
         return -TARGET_EFAULT;
@@ -3802,7 +3805,7 @@ static inline abi_long host_to_target_ipc_perm(abi_ulong target_addr,
                                                struct ipc_perm *host_ip)
 {
     struct target_ipc_perm *target_ip;
-    struct target_semid_ds *target_sd;
+    struct target_semid64_ds *target_sd;
 
     if (!lock_user_struct(VERIFY_WRITE, target_sd, target_addr, 0))
         return -TARGET_EFAULT;
@@ -3829,7 +3832,7 @@ static inline abi_long host_to_target_ipc_perm(abi_ulong target_addr,
 static inline abi_long target_to_host_semid_ds(struct semid_ds *host_sd,
                                                abi_ulong target_addr)
 {
-    struct target_semid_ds *target_sd;
+    struct target_semid64_ds *target_sd;
 
     if (!lock_user_struct(VERIFY_READ, target_sd, target_addr, 1))
         return -TARGET_EFAULT;
@@ -3845,7 +3848,7 @@ static inline abi_long target_to_host_semid_ds(struct semid_ds *host_sd,
 static inline abi_long host_to_target_semid_ds(abi_ulong target_addr,
                                                struct semid_ds *host_sd)
 {
-    struct target_semid_ds *target_sd;
+    struct target_semid64_ds *target_sd;
 
     if (!lock_user_struct(VERIFY_WRITE, target_sd, target_addr, 0))
         return -TARGET_EFAULT;

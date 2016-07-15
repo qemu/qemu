@@ -55,4 +55,19 @@ struct target_shmid_ds {
     abi_ulong __unused5;
 };
 
+/* The x86 definition differs from the generic one in that the
+ * two padding fields exist whether the ABI is 32 bits or 64 bits.
+ */
+#define TARGET_SEMID64_DS
+struct target_semid64_ds {
+    struct target_ipc_perm sem_perm;
+    abi_ulong sem_otime;
+    abi_ulong __unused1;
+    abi_ulong sem_ctime;
+    abi_ulong __unused2;
+    abi_ulong sem_nsems;
+    abi_ulong __unused3;
+    abi_ulong __unused4;
+};
+
 #endif
