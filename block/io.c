@@ -2199,7 +2199,8 @@ static void coroutine_fn bdrv_aio_discard_co_entry(void *opaque)
     BlockAIOCBCoroutine *acb = opaque;
     BlockDriverState *bs = acb->common.bs;
 
-    acb->req.error = bdrv_co_discard(bs, acb->req.sector, acb->req.nb_sectors);
+    acb->req.error = bdrv_co_pdiscard(bs, acb->req.sector << BDRV_SECTOR_BITS,
+                                      acb->req.nb_sectors << BDRV_SECTOR_BITS);
     bdrv_co_complete(acb);
 }
 
@@ -2398,20 +2399,22 @@ static void coroutine_fn bdrv_discard_co_entry(void *opaque)
 {
     DiscardCo *rwco = opaque;
 
-    rwco->ret = bdrv_co_discard(rwco->bs, rwco->sector_num, rwco->nb_sectors);
+    rwco->ret = bdrv_co_pdiscard(rwco->bs, rwco->sector_num << BDRV_SECTOR_BITS,
+                                 rwco->nb_sectors << BDRV_SECTOR_BITS);
 }
 
-int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
-                                 int nb_sectors)
+int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
+                                  int count)
 {
     BdrvTrackedRequest req;
-    int max_discard, ret;
+    int max_pdiscard, ret;
+    int head, align;
 
     if (!bs->drv) {
         return -ENOMEDIUM;
     }
 
-    ret = bdrv_check_request(bs, sector_num, nb_sectors);
+    ret = bdrv_check_byte_request(bs, offset, count);
     if (ret < 0) {
         return ret;
     } else if (bs->read_only) {
@@ -2428,45 +2431,45 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
         return 0;
     }
 
-    tracked_request_begin(&req, bs, sector_num << BDRV_SECTOR_BITS,
-                          nb_sectors << BDRV_SECTOR_BITS, BDRV_TRACKED_DISCARD);
+    /* Discard is advisory, so ignore any unaligned head or tail */
+    align = MAX(BDRV_SECTOR_SIZE,
+                MAX(bs->bl.pdiscard_alignment, bs->bl.request_alignment));
+    assert(is_power_of_2(align));
+    head = MIN(count, -offset & (align - 1));
+    if (head) {
+        count -= head;
+        offset += head;
+    }
+    count = QEMU_ALIGN_DOWN(count, align);
+    if (!count) {
+        return 0;
+    }
+
+    tracked_request_begin(&req, bs, offset, count, BDRV_TRACKED_DISCARD);
 
     ret = notifier_with_return_list_notify(&bs->before_write_notifiers, &req);
     if (ret < 0) {
         goto out;
     }
 
-    max_discard = MIN_NON_ZERO(bs->bl.max_pdiscard >> BDRV_SECTOR_BITS,
-                               BDRV_REQUEST_MAX_SECTORS);
-    while (nb_sectors > 0) {
+    max_pdiscard = QEMU_ALIGN_DOWN(MIN_NON_ZERO(bs->bl.max_pdiscard, INT_MAX),
+                                   align);
+
+    while (count > 0) {
         int ret;
-        int num = nb_sectors;
-        int discard_alignment = bs->bl.pdiscard_alignment >> BDRV_SECTOR_BITS;
-
-        /* align request */
-        if (discard_alignment &&
-            num >= discard_alignment &&
-            sector_num % discard_alignment) {
-            if (num > discard_alignment) {
-                num = discard_alignment;
-            }
-            num -= sector_num % discard_alignment;
-        }
-
-        /* limit request size */
-        if (num > max_discard) {
-            num = max_discard;
-        }
+        int num = MIN(count, max_pdiscard);
 
         if (bs->drv->bdrv_co_discard) {
-            ret = bs->drv->bdrv_co_discard(bs, sector_num, num);
+            ret = bs->drv->bdrv_co_discard(bs, offset >> BDRV_SECTOR_BITS,
+                                           num >> BDRV_SECTOR_BITS);
         } else {
             BlockAIOCB *acb;
             CoroutineIOCompletion co = {
                 .coroutine = qemu_coroutine_self(),
             };
 
-            acb = bs->drv->bdrv_aio_discard(bs, sector_num, nb_sectors,
+            acb = bs->drv->bdrv_aio_discard(bs, offset >> BDRV_SECTOR_BITS,
+                                            num >> BDRV_SECTOR_BITS,
                                             bdrv_co_io_em_complete, &co);
             if (acb == NULL) {
                 ret = -EIO;
@@ -2480,8 +2483,8 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
             goto out;
         }
 
-        sector_num += num;
-        nb_sectors -= num;
+        offset += num;
+        count -= num;
     }
     ret = 0;
 out:

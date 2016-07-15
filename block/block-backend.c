@@ -1113,7 +1113,8 @@ int blk_co_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors)
         return ret;
     }
 
-    return bdrv_co_discard(blk_bs(blk), sector_num, nb_sectors);
+    return bdrv_co_pdiscard(blk_bs(blk), sector_num << BDRV_SECTOR_BITS,
+                            nb_sectors << BDRV_SECTOR_BITS);
 }
 
 int blk_co_flush(BlockBackend *blk)

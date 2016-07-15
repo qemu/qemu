@@ -342,7 +342,7 @@ void coroutine_fn bdrv_co_drain(BlockDriverState *bs);
 void bdrv_drain_all(void);
 
 int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors);
-int bdrv_co_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors);
+int bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset, int count);
 int bdrv_has_zero_init_1(BlockDriverState *bs);
 int bdrv_has_zero_init(BlockDriverState *bs);
 bool bdrv_unallocated_blocks_are_zero(BlockDriverState *bs);
