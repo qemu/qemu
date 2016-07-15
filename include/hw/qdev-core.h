@@ -224,7 +224,7 @@ typedef struct BusChild {
 struct BusState {
     Object obj;
     DeviceState *parent;
-    const char *name;
+    char *name;
     HotplugHandler *hotplug_handler;
     int max_index;
     bool realized;
