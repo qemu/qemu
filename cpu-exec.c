@@ -279,45 +279,9 @@ static TranslationBlock *tb_find_physical(CPUState *cpu,
     return qht_lookup(&tcg_ctx.tb_ctx.htable, tb_cmp, &desc, h);
 }
 
-static TranslationBlock *tb_find_slow(CPUState *cpu,
-                                      target_ulong pc,
-                                      target_ulong cs_base,
-                                      uint32_t flags,
-                                      bool *have_tb_lock)
-{
-    TranslationBlock *tb;
-
-    tb = tb_find_physical(cpu, pc, cs_base, flags);
-    if (!tb) {
-
-        /* mmap_lock is needed by tb_gen_code, and mmap_lock must be
-         * taken outside tb_lock. As system emulation is currently
-         * single threaded the locks are NOPs.
-         */
-        mmap_lock();
-        tb_lock();
-        *have_tb_lock = true;
-
-        /* There's a chance that our desired tb has been translated while
-         * taking the locks so we check again inside the lock.
-         */
-        tb = tb_find_physical(cpu, pc, cs_base, flags);
-        if (!tb) {
-            /* if no translated code available, then translate it now */
-            tb = tb_gen_code(cpu, pc, cs_base, flags, 0);
-        }
-
-        mmap_unlock();
-    }
-
-    /* We add the TB in the virtual pc hash table for the fast lookup */
-    atomic_set(&cpu->tb_jmp_cache[tb_jmp_cache_hash_func(pc)], tb);
-    return tb;
-}
-
-static inline TranslationBlock *tb_find_fast(CPUState *cpu,
-                                             TranslationBlock *last_tb,
-                                             int tb_exit)
+static inline TranslationBlock *tb_find(CPUState *cpu,
+                                        TranslationBlock *last_tb,
+                                        int tb_exit)
 {
     CPUArchState *env = (CPUArchState *)cpu->env_ptr;
     TranslationBlock *tb;
@@ -332,7 +296,31 @@ static inline TranslationBlock *tb_find_fast(CPUState *cpu,
     tb = atomic_rcu_read(&cpu->tb_jmp_cache[tb_jmp_cache_hash_func(pc)]);
     if (unlikely(!tb || tb->pc != pc || tb->cs_base != cs_base ||
                  tb->flags != flags)) {
-        tb = tb_find_slow(cpu, pc, cs_base, flags, &have_tb_lock);
+        tb = tb_find_physical(cpu, pc, cs_base, flags);
+        if (!tb) {
+
+            /* mmap_lock is needed by tb_gen_code, and mmap_lock must be
+             * taken outside tb_lock. As system emulation is currently
+             * single threaded the locks are NOPs.
+             */
+            mmap_lock();
+            tb_lock();
+            have_tb_lock = true;
+
+            /* There's a chance that our desired tb has been translated while
+             * taking the locks so we check again inside the lock.
+             */
+            tb = tb_find_physical(cpu, pc, cs_base, flags);
+            if (!tb) {
+                /* if no translated code available, then translate it now */
+                tb = tb_gen_code(cpu, pc, cs_base, flags, 0);
+            }
+
+            mmap_unlock();
+        }
+
+        /* We add the TB in the virtual pc hash table for the fast lookup */
+        atomic_set(&cpu->tb_jmp_cache[tb_jmp_cache_hash_func(pc)], tb);
     }
 #ifndef CONFIG_USER_ONLY
     /* We don't take care of direct jumps when address mapping changes in
@@ -437,7 +425,7 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
     } else if (replay_has_exception()
                && cpu->icount_decr.u16.low + cpu->icount_extra == 0) {
         /* try to cause an exception pending in the log */
-        cpu_exec_nocache(cpu, 1, tb_find_fast(cpu, NULL, 0), true);
+        cpu_exec_nocache(cpu, 1, tb_find(cpu, NULL, 0), true);
         *ret = -1;
         return true;
 #endif
@@ -620,7 +608,7 @@ int cpu_exec(CPUState *cpu)
             atomic_mb_set(&cpu->tb_flushed, false); /* reset before first TB lookup */
             for(;;) {
                 cpu_handle_interrupt(cpu, &last_tb);
-                tb = tb_find_fast(cpu, last_tb, tb_exit);
+                tb = tb_find(cpu, last_tb, tb_exit);
                 cpu_loop_exec_tb(cpu, tb, &last_tb, &tb_exit, &sc);
                 /* Try to align the host and virtual clocks
                    if the guest is in advance */
