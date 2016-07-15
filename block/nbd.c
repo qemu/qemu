@@ -349,12 +349,6 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     return ret;
 }
 
-static int nbd_co_readv(BlockDriverState *bs, int64_t sector_num,
-                        int nb_sectors, QEMUIOVector *qiov)
-{
-    return nbd_client_co_readv(bs, sector_num, nb_sectors, qiov);
-}
-
 static int nbd_co_flush(BlockDriverState *bs)
 {
     return nbd_client_co_flush(bs);
@@ -450,7 +444,7 @@ static BlockDriver bdrv_nbd = {
     .instance_size              = sizeof(BDRVNBDState),
     .bdrv_parse_filename        = nbd_parse_filename,
     .bdrv_file_open             = nbd_open,
-    .bdrv_co_readv              = nbd_co_readv,
+    .bdrv_co_readv              = nbd_client_co_readv,
     .bdrv_co_writev_flags       = nbd_client_co_writev,
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
@@ -468,7 +462,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .instance_size              = sizeof(BDRVNBDState),
     .bdrv_parse_filename        = nbd_parse_filename,
     .bdrv_file_open             = nbd_open,
-    .bdrv_co_readv              = nbd_co_readv,
+    .bdrv_co_readv              = nbd_client_co_readv,
     .bdrv_co_writev_flags       = nbd_client_co_writev,
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
@@ -486,7 +480,7 @@ static BlockDriver bdrv_nbd_unix = {
     .instance_size              = sizeof(BDRVNBDState),
     .bdrv_parse_filename        = nbd_parse_filename,
     .bdrv_file_open             = nbd_open,
-    .bdrv_co_readv              = nbd_co_readv,
+    .bdrv_co_readv              = nbd_client_co_readv,
     .bdrv_co_writev_flags       = nbd_client_co_writev,
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
