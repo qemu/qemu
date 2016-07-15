@@ -2391,16 +2391,15 @@ int bdrv_flush(BlockDriverState *bs)
 
 typedef struct DiscardCo {
     BlockDriverState *bs;
-    int64_t sector_num;
-    int nb_sectors;
+    int64_t offset;
+    int count;
     int ret;
 } DiscardCo;
-static void coroutine_fn bdrv_discard_co_entry(void *opaque)
+static void coroutine_fn bdrv_pdiscard_co_entry(void *opaque)
 {
     DiscardCo *rwco = opaque;
 
-    rwco->ret = bdrv_co_pdiscard(rwco->bs, rwco->sector_num << BDRV_SECTOR_BITS,
-                                 rwco->nb_sectors << BDRV_SECTOR_BITS);
+    rwco->ret = bdrv_co_pdiscard(rwco->bs, rwco->offset, rwco->count);
 }
 
 int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
@@ -2495,23 +2494,23 @@ out:
     return ret;
 }
 
-int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors)
+int bdrv_pdiscard(BlockDriverState *bs, int64_t offset, int count)
 {
     Coroutine *co;
     DiscardCo rwco = {
         .bs = bs,
-        .sector_num = sector_num,
-        .nb_sectors = nb_sectors,
+        .offset = offset,
+        .count = count,
         .ret = NOT_DONE,
     };
 
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
-        bdrv_discard_co_entry(&rwco);
+        bdrv_pdiscard_co_entry(&rwco);
     } else {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
-        co = qemu_coroutine_create(bdrv_discard_co_entry, &rwco);
+        co = qemu_coroutine_create(bdrv_pdiscard_co_entry, &rwco);
         qemu_coroutine_enter(co);
         while (rwco.ret == NOT_DONE) {
             aio_poll(aio_context, true);

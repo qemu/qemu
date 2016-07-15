@@ -1512,7 +1512,8 @@ int blk_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors)
         return ret;
     }
 
-    return bdrv_discard(blk_bs(blk), sector_num, nb_sectors);
+    return bdrv_pdiscard(blk_bs(blk), sector_num << BDRV_SECTOR_BITS,
+                         nb_sectors << BDRV_SECTOR_BITS);
 }
 
 int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
