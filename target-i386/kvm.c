@@ -91,7 +91,6 @@ static bool has_msr_bndcfgs;
 static bool has_msr_kvm_steal_time;
 static int lm_capable_kernel;
 static bool has_msr_hv_hypercall;
-static bool has_msr_hv_tsc;
 static bool has_msr_hv_crash;
 static bool has_msr_hv_reset;
 static bool has_msr_hv_vpindex;
@@ -602,6 +601,11 @@ static int hyperv_handle_properties(CPUState *cs)
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
 
+    if (cpu->hyperv_time &&
+            kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV_TIME) <= 0) {
+        cpu->hyperv_time = false;
+    }
+
     if (cpu->hyperv_relaxed_timing) {
         env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_HYPERCALL_AVAILABLE;
     }
@@ -609,12 +613,10 @@ static int hyperv_handle_properties(CPUState *cs)
         env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_HYPERCALL_AVAILABLE;
         env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_APIC_ACCESS_AVAILABLE;
     }
-    if (cpu->hyperv_time &&
-            kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV_TIME) > 0) {
+    if (cpu->hyperv_time) {
         env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_HYPERCALL_AVAILABLE;
         env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_TIME_REF_COUNT_AVAILABLE;
         env->features[FEAT_HYPERV_EAX] |= 0x200;
-        has_msr_hv_tsc = true;
     }
     if (cpu->hyperv_crash && has_msr_hv_crash) {
         env->features[FEAT_HYPERV_EDX] |= HV_X64_GUEST_CRASH_MSR_AVAILABLE;
@@ -1683,7 +1685,7 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_add(cpu, HV_X64_MSR_APIC_ASSIST_PAGE,
                               env->msr_hv_vapic);
         }
-        if (has_msr_hv_tsc) {
+        if (cpu->hyperv_time) {
             kvm_msr_entry_add(cpu, HV_X64_MSR_REFERENCE_TSC, env->msr_hv_tsc);
         }
         if (has_msr_hv_crash) {
@@ -2087,7 +2089,7 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (cpu->hyperv_vapic) {
         kvm_msr_entry_add(cpu, HV_X64_MSR_APIC_ASSIST_PAGE, 0);
     }
-    if (has_msr_hv_tsc) {
+    if (cpu->hyperv_time) {
         kvm_msr_entry_add(cpu, HV_X64_MSR_REFERENCE_TSC, 0);
     }
     if (has_msr_hv_crash) {
