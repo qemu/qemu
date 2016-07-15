@@ -1458,11 +1458,17 @@ static int send_sub_rect_jpeg(VncState *vs, int x, int y, int w, int h,
 }
 #endif
 
-static __thread VncPalette color_count_palette;
+static __thread VncPalette *color_count_palette;
+static __thread Notifier vnc_tight_cleanup_notifier;
+
+static void vnc_tight_cleanup(Notifier *n, void *value)
+{
+    g_free(color_count_palette);
+    color_count_palette = NULL;
+}
 
 static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
 {
-    VncPalette *palette = &color_count_palette;
     uint32_t bg = 0, fg = 0;
     int colors;
     int ret = 0;
@@ -1470,6 +1476,12 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
     bool force_jpeg = false;
     bool allow_jpeg = true;
 #endif
+
+    if (!color_count_palette) {
+        color_count_palette = g_malloc(sizeof(VncPalette));
+        vnc_tight_cleanup_notifier.notify = vnc_tight_cleanup;
+        qemu_thread_atexit_add(&vnc_tight_cleanup_notifier);
+    }
 
     vnc_framebuffer_update(vs, x, y, w, h, vs->tight.type);
 
@@ -1491,17 +1503,19 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
     }
 #endif
 
-    colors = tight_fill_palette(vs, x, y, w * h, &bg, &fg, palette);
+    colors = tight_fill_palette(vs, x, y, w * h, &bg, &fg, color_count_palette);
 
 #ifdef CONFIG_VNC_JPEG
     if (allow_jpeg && vs->tight.quality != (uint8_t)-1) {
-        ret = send_sub_rect_jpeg(vs, x, y, w, h, bg, fg, colors, palette,
-                                 force_jpeg);
+        ret = send_sub_rect_jpeg(vs, x, y, w, h, bg, fg, colors,
+                                 color_count_palette, force_jpeg);
     } else {
-        ret = send_sub_rect_nojpeg(vs, x, y, w, h, bg, fg, colors, palette);
+        ret = send_sub_rect_nojpeg(vs, x, y, w, h, bg, fg, colors,
+                                   color_count_palette);
     }
 #else
-    ret = send_sub_rect_nojpeg(vs, x, y, w, h, bg, fg, colors, palette);
+    ret = send_sub_rect_nojpeg(vs, x, y, w, h, bg, fg, colors,
+                               color_count_palette);
 #endif
 
     return ret;
