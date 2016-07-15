@@ -224,8 +224,11 @@
 #define RCC_BDCR_LSEON_BIT 0
 
 #define RCC_CSR_OFFSET 0x24
-#define RCC_CSR_LSIRDY_BIT 1
-#define RCC_CSR_LSION_BIT 0
+#define RCC_CSR_LPWRRSTF_BIT	31
+#define RCC_CSR_WWDGRSTF_BIT	30
+#define RCC_CSR_IWDGRSTF_BIT	29
+#define RCC_CSR_LSIRDY_BIT 	1
+#define RCC_CSR_LSION_BIT 	0
 
 #define RCC_AHBRSTR 0x28
 
@@ -276,6 +279,12 @@ struct Stm32Rcc {
         RCC_CFGR_HPRE,
         RCC_CFGR_SW,
         RTC_SEL;
+
+    /* Bit CSR register values */
+    bool
+	RCC_CSR_LPWRRSTFb,
+	RCC_CSR_WWDGRSTFb,
+	RCC_CSR_IWDGRSTFb;
 
     Clk
         HSICLK,
@@ -560,9 +569,11 @@ static void stm32_rcc_RCC_BDCR_write(Stm32Rcc *s, uint32_t new_value, bool init)
 static uint32_t stm32_rcc_RCC_CSR_read(Stm32Rcc *s)
 {
     int lseon_bit = clktree_is_enabled(s->LSICLK) ? 1 : 0;
+    int iwdg_flag = s->RCC_CSR_IWDGRSTFb;
 
     return lseon_bit << RCC_CSR_LSIRDY_BIT |
-           lseon_bit << RCC_CSR_LSION_BIT;
+           lseon_bit << RCC_CSR_LSION_BIT |
+	   iwdg_flag << RCC_CSR_IWDGRSTF_BIT;
 }
 
 /* Works the same way as stm32_rcc_RCC_CR_write */
@@ -570,8 +581,6 @@ static void stm32_rcc_RCC_CSR_write(Stm32Rcc *s, uint32_t new_value, bool init)
 {
     clktree_set_enabled(s->LSICLK, new_value & BIT(RCC_CSR_LSION_BIT));
 }
-
-
 
 static uint64_t stm32_rcc_readw(void *opaque, hwaddr offset)
 {
@@ -783,6 +792,13 @@ uint32_t stm32_rcc_get_periph_freq(
     assert(clk != NULL);
 
     return clktree_get_output_freq(clk);
+}
+
+void stm32_RCC_CSR_write(Stm32Rcc *s, uint32_t new_value, bool init)
+{
+    s->RCC_CSR_LPWRRSTFb = new_value >> RCC_CSR_LPWRRSTF_BIT;
+    s->RCC_CSR_WWDGRSTFb = new_value >> RCC_CSR_WWDGRSTF_BIT;
+    s->RCC_CSR_IWDGRSTFb = new_value >> RCC_CSR_IWDGRSTF_BIT;
 }
 
 /* DEVICE INITIALIZATION */

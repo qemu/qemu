@@ -269,6 +269,10 @@ uint32_t stm32_rcc_get_periph_freq(
 uint32_t stm32_rcc_get_rtc_freq(
         Stm32Rcc *s);
 
+void stm32_RCC_CSR_write(
+    Stm32Rcc *s,
+    uint32_t new_value,
+    bool init);
 
 /* ADC */
 
@@ -290,6 +294,14 @@ void stm32_adc_connect(Stm32Adc *s, CharDriverState *chr,
 
 #define STM32_ADC3_NO_REMAP 0
 #define STM32_ADC3_REMAP 1
+
+
+/* IWDG */
+typedef struct Stm32Iwdg Stm32Iwdg;
+
+#define TYPE_STM32_IWDG "stm32_iwdg"
+#define STM32_IWDG(obj) OBJECT_CHECK(Stm32Iwdg, (obj), TYPE_STM32_IWDG)
+
 
 /*RTC*/
 
