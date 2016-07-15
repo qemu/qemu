@@ -3485,6 +3485,15 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
 
     count = tswapal(msgp->msg_iovlen);
     target_vec = tswapal(msgp->msg_iov);
+
+    if (count > IOV_MAX) {
+        /* sendrcvmsg returns a different errno for this condition than
+         * readv/writev, so we must catch it here before lock_iovec() does.
+         */
+        ret = -TARGET_EMSGSIZE;
+        goto out2;
+    }
+
     vec = lock_iovec(send ? VERIFY_READ : VERIFY_WRITE,
                      target_vec, count, send);
     if (vec == NULL) {
