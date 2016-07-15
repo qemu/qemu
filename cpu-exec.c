@@ -338,13 +338,6 @@ static inline TranslationBlock *tb_find_fast(CPUState *cpu,
                  tb->flags != flags)) {
         tb = tb_find_slow(cpu, pc, cs_base, flags);
     }
-    if (cpu->tb_flushed) {
-        /* Ensure that no TB jump will be modified as the
-         * translation buffer has been flushed.
-         */
-        last_tb = NULL;
-        cpu->tb_flushed = false;
-    }
 #ifndef CONFIG_USER_ONLY
     /* We don't take care of direct jumps when address mapping changes in
      * system emulation. So it's not safe to make a direct jump to a TB
@@ -356,7 +349,12 @@ static inline TranslationBlock *tb_find_fast(CPUState *cpu,
 #endif
     /* See if we can patch the calling TB. */
     if (last_tb && !qemu_loglevel_mask(CPU_LOG_TB_NOCHAIN)) {
-        tb_add_jump(last_tb, tb_exit, tb);
+        /* Check if translation buffer has been flushed */
+        if (cpu->tb_flushed) {
+            cpu->tb_flushed = false;
+        } else {
+            tb_add_jump(last_tb, tb_exit, tb);
+        }
     }
     tb_unlock();
     return tb;
@@ -617,7 +615,7 @@ int cpu_exec(CPUState *cpu)
                 break;
             }
 
-            cpu->tb_flushed = false; /* reset before first TB lookup */
+            atomic_mb_set(&cpu->tb_flushed, false); /* reset before first TB lookup */
             for(;;) {
                 cpu_handle_interrupt(cpu, &last_tb);
                 tb = tb_find_fast(cpu, last_tb, tb_exit);
