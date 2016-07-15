@@ -2423,7 +2423,8 @@ int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
         return 0;
     }
 
-    if (!bs->drv->bdrv_co_discard && !bs->drv->bdrv_aio_pdiscard) {
+    if (!bs->drv->bdrv_co_discard && !bs->drv->bdrv_co_pdiscard &&
+        !bs->drv->bdrv_aio_pdiscard) {
         return 0;
     }
 
@@ -2455,7 +2456,9 @@ int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
         int ret;
         int num = MIN(count, max_pdiscard);
 
-        if (bs->drv->bdrv_co_discard) {
+        if (bs->drv->bdrv_co_pdiscard) {
+            ret = bs->drv->bdrv_co_pdiscard(bs, offset, num);
+        } else if (bs->drv->bdrv_co_discard) {
             ret = bs->drv->bdrv_co_discard(bs, offset >> BDRV_SECTOR_BITS,
                                            num >> BDRV_SECTOR_BITS);
         } else {
