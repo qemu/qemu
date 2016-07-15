@@ -33,6 +33,8 @@ void stm32_hw_warn(const char *fmt, ...)
     __attribute__ ((__format__ (__printf__, 1, 2)));
 
 
+#define ENUM_STRING(x) [x] = #x
+#define ARRAY_LENGTH(array) (sizeof((array))/sizeof((array)[0]))
 
 /* PERIPHERALS - COMMON */
 /* Indexes used for accessing a GPIO array */
@@ -59,52 +61,79 @@ typedef int32_t stm32_periph_t;
 #define DEFINE_PROP_PERIPH_T DEFINE_PROP_INT32
 #define QDEV_PROP_SET_PERIPH_T qdev_prop_set_int32
 
-#define STM32_PERIPH_UNDEFINED -1
-#define STM32_RCC_PERIPH 0
-#define STM32_GPIOA 1
-#define STM32_GPIOB 2
-#define STM32_GPIOC 3
-#define STM32_GPIOD 4
-#define STM32_GPIOE 5
-#define STM32_GPIOF 6
-#define STM32_GPIOG 7
-#define STM32_AFIO_PERIPH 8
-#define STM32_UART1 9
-#define STM32_UART2 10
-#define STM32_UART3 11
-#define STM32_UART4 12
-#define STM32_UART5 13
-#define STM32_ADC1 14
-#define STM32_ADC2 15
-#define STM32_ADC3 16
-#define STM32_DAC 17
-#define STM32_TIM1 18
-#define STM32_TIM2 19
-#define STM32_TIM3 20
-#define STM32_TIM4 21
-#define STM32_TIM5 22
-#define STM32_TIM6 23
-#define STM32_TIM7 24
-#define STM32_TIM8 25
-#define STM32_BKP 26
-#define STM32_PWR 27
-#define STM32_I2C1 28
-#define STM32_I2C2 29
-#define STM32_I2S2 30
-#define STM32_I2S3 31
-#define STM32_WWDG 32
-#define STM32_CAN1 33
-#define STM32_CAN2 34
-#define STM32_CAN 35
-#define STM32_USB 36
-#define STM32_SPI1 37
-#define STM32_SPI2 38
-#define STM32_SPI3 39
-#define STM32_EXTI_PERIPH 40
-#define STM32_SDIO 41
-#define STM32_FSMC 42
-#define STM32_RTC 43
-#define STM32_PERIPH_COUNT 44
+enum {
+    STM32_PERIPH_UNDEFINED = -1,
+    STM32_RCC_PERIPH = 0,
+    STM32_GPIOA,
+    STM32_GPIOB,
+    STM32_GPIOC,
+    STM32_GPIOD,
+    STM32_GPIOE,
+    STM32_GPIOF,
+    STM32_GPIOG,
+    STM32_GPIOH,
+    STM32_GPIOI,
+    STM32_GPIOJ,
+    STM32_GPIOK,
+    STM32_SYSCFG,
+    STM32_AFIO_PERIPH,
+    STM32_UART1,
+    STM32_UART2,
+    STM32_UART3,
+    STM32_UART4,
+    STM32_UART5,
+    STM32_UART6,
+    STM32_UART7,
+    STM32_UART8,
+    STM32_ADC1,
+    STM32_ADC2,
+    STM32_ADC3,
+    STM32_DAC,
+    STM32_TIM1,
+    STM32_TIM2,
+    STM32_TIM3,
+    STM32_TIM4,
+    STM32_TIM5,
+    STM32_TIM6,
+    STM32_TIM7,
+    STM32_TIM8,
+    STM32_TIM9,
+    STM32_TIM10,
+    STM32_TIM11,
+    STM32_TIM12,
+    STM32_TIM13,
+    STM32_TIM14,
+    STM32_BKP,
+    STM32_PWR,
+    STM32_I2C1,
+    STM32_I2C2,
+    STM32_I2C3,
+    STM32_I2S2,
+    STM32_I2S3,
+    STM32_WWDG,
+    STM32_IWDG,
+    STM32_CAN1,
+    STM32_CAN2,
+    STM32_CAN,
+    STM32_USB,
+    STM32_SPI1,
+    STM32_SPI2,
+    STM32_SPI3,
+    STM32_EXTI_PERIPH,
+    STM32_SDIO,
+    STM32_FSMC,
+    STM32_RTC,
+    STM32_COMP,
+    STM_LCD,
+    STM32_CRC,
+    STM32_DMA1,
+    STM32_DMA2,
+    STM32_DCMI_PERIPH,
+    STM32_CRYP_PERIPH,
+    STM32_HASH_PERIPH,
+    STM32_RNG_PERIPH,
+    STM32_PERIPH_COUNT,
+};
 
 const char *stm32_periph_name(stm32_periph_t periph);
 
@@ -269,6 +298,10 @@ uint32_t stm32_rcc_get_periph_freq(
 uint32_t stm32_rcc_get_rtc_freq(
         Stm32Rcc *s);
 
+void stm32_RCC_CSR_write(
+    Stm32Rcc *s,
+    uint32_t new_value,
+    bool init);
 
 /* ADC */
 
@@ -290,6 +323,14 @@ void stm32_adc_connect(Stm32Adc *s, CharDriverState *chr,
 
 #define STM32_ADC3_NO_REMAP 0
 #define STM32_ADC3_REMAP 1
+
+
+/* IWDG */
+typedef struct Stm32Iwdg Stm32Iwdg;
+
+#define TYPE_STM32_IWDG "stm32_iwdg"
+#define STM32_IWDG(obj) OBJECT_CHECK(Stm32Iwdg, (obj), TYPE_STM32_IWDG)
+
 
 /*RTC*/
 

@@ -77,6 +77,7 @@ const char *stm32_periph_name_arr[] =
      "I2C2",
      "I2S1",
      "I2S2",
+     "IWDG"
      "WWDG",
      "CAN1",
      "CAN2",
@@ -329,4 +330,9 @@ void stm32_init(
     stm32_create_adc_dev(stm32_container, STM32_ADC1, 1, rcc_dev, gpio_dev, 0x40012400,0 );
     stm32_create_rtc_dev(stm32_container,STM32_RTC, 1, rcc_dev, 0x40002800,pic[STM32_RTC_IRQ]);
     stm32_create_dac_dev(stm32_container,STM32_DAC, rcc_dev,gpio_dev, 0x40007400,0);
+    
+    /* IWDG */
+    DeviceState *iwdg_dev = qdev_create(NULL, "stm32_iwdg");
+    qdev_prop_set_ptr(iwdg_dev, "stm32_rcc", rcc_dev);
+    stm32_init_periph(iwdg_dev, STM32_IWDG, 0x40003000, NULL);
 }
