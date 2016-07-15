@@ -218,17 +218,20 @@ static void nbd_coroutine_end(NbdClientSession *s,
     }
 }
 
-int nbd_client_co_readv(BlockDriverState *bs, int64_t sector_num,
-                        int nb_sectors, QEMUIOVector *qiov)
+int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
+                         uint64_t bytes, QEMUIOVector *qiov, int flags)
 {
     NbdClientSession *client = nbd_get_client_session(bs);
-    struct nbd_request request = { .type = NBD_CMD_READ };
+    struct nbd_request request = {
+        .type = NBD_CMD_READ,
+        .from = offset,
+        .len = bytes,
+    };
     struct nbd_reply reply;
     ssize_t ret;
 
-    assert(nb_sectors <= NBD_MAX_SECTORS);
-    request.from = sector_num * 512;
-    request.len = nb_sectors * 512;
+    assert(bytes <= NBD_MAX_BUFFER_SIZE);
+    assert(!flags);
 
     nbd_coroutine_start(client, &request);
     ret = nbd_co_send_request(bs, &request, NULL);
@@ -239,14 +242,17 @@ int nbd_client_co_readv(BlockDriverState *bs, int64_t sector_num,
     }
     nbd_coroutine_end(client, &request);
     return -reply.error;
-
 }
 
-int nbd_client_co_writev(BlockDriverState *bs, int64_t sector_num,
-                         int nb_sectors, QEMUIOVector *qiov, int flags)
+int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
+                          uint64_t bytes, QEMUIOVector *qiov, int flags)
 {
     NbdClientSession *client = nbd_get_client_session(bs);
-    struct nbd_request request = { .type = NBD_CMD_WRITE };
+    struct nbd_request request = {
+        .type = NBD_CMD_WRITE,
+        .from = offset,
+        .len = bytes,
+    };
     struct nbd_reply reply;
     ssize_t ret;
 
@@ -255,9 +261,7 @@ int nbd_client_co_writev(BlockDriverState *bs, int64_t sector_num,
         request.type |= NBD_CMD_FLAG_FUA;
     }
 
-    assert(nb_sectors <= NBD_MAX_SECTORS);
-    request.from = sector_num * 512;
-    request.len = nb_sectors * 512;
+    assert(bytes <= NBD_MAX_BUFFER_SIZE);
 
     nbd_coroutine_start(client, &request);
     ret = nbd_co_send_request(bs, &request, qiov);
