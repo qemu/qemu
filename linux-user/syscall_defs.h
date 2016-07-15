@@ -998,6 +998,12 @@ struct target_pollfd {
 
 #define TARGET_FIBMAP     TARGET_IO(0x00,1)  /* bmap access */
 #define TARGET_FIGETBSZ   TARGET_IO(0x00,2)  /* get the block size used for bmap */
+/* Note that the ioctl numbers claim type "long" but the actual type
+ * used by the kernel is "int".
+ */
+#define TARGET_FS_IOC_GETFLAGS TARGET_IOR('f', 1, long)
+#define TARGET_FS_IOC_SETFLAGS TARGET_IOW('f', 2, long)
+
 #define TARGET_FS_IOC_FIEMAP TARGET_IOWR('f',11,struct fiemap)
 
 /* cdrom commands */
