@@ -2423,7 +2423,7 @@ int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
         return 0;
     }
 
-    if (!bs->drv->bdrv_co_discard && !bs->drv->bdrv_aio_discard) {
+    if (!bs->drv->bdrv_co_discard && !bs->drv->bdrv_aio_pdiscard) {
         return 0;
     }
 
@@ -2464,9 +2464,8 @@ int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
                 .coroutine = qemu_coroutine_self(),
             };
 
-            acb = bs->drv->bdrv_aio_discard(bs, offset >> BDRV_SECTOR_BITS,
-                                            num >> BDRV_SECTOR_BITS,
-                                            bdrv_co_io_em_complete, &co);
+            acb = bs->drv->bdrv_aio_pdiscard(bs, offset, num,
+                                             bdrv_co_io_em_complete, &co);
             if (acb == NULL) {
                 ret = -EIO;
                 goto out;

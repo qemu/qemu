@@ -930,14 +930,13 @@ static int qemu_rbd_snap_list(BlockDriverState *bs,
 }
 
 #ifdef LIBRBD_SUPPORTS_DISCARD
-static BlockAIOCB* qemu_rbd_aio_discard(BlockDriverState *bs,
-                                        int64_t sector_num,
-                                        int nb_sectors,
-                                        BlockCompletionFunc *cb,
-                                        void *opaque)
+static BlockAIOCB *qemu_rbd_aio_pdiscard(BlockDriverState *bs,
+                                         int64_t offset,
+                                         int count,
+                                         BlockCompletionFunc *cb,
+                                         void *opaque)
 {
-    return rbd_start_aio(bs, sector_num << BDRV_SECTOR_BITS, NULL,
-                         nb_sectors << BDRV_SECTOR_BITS, cb, opaque,
+    return rbd_start_aio(bs, offset, NULL, count, cb, opaque,
                          RBD_AIO_DISCARD);
 }
 #endif
@@ -1001,7 +1000,7 @@ static BlockDriver bdrv_rbd = {
 #endif
 
 #ifdef LIBRBD_SUPPORTS_DISCARD
-    .bdrv_aio_discard       = qemu_rbd_aio_discard,
+    .bdrv_aio_pdiscard      = qemu_rbd_aio_pdiscard,
 #endif
 
     .bdrv_snapshot_create   = qemu_rbd_snap_create,

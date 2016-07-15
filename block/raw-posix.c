@@ -1786,14 +1786,13 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
     return ret | BDRV_BLOCK_OFFSET_VALID | start;
 }
 
-static coroutine_fn BlockAIOCB *raw_aio_discard(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors,
+static coroutine_fn BlockAIOCB *raw_aio_pdiscard(BlockDriverState *bs,
+    int64_t offset, int count,
     BlockCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
 
-    return paio_submit(bs, s->fd, sector_num << BDRV_SECTOR_BITS, NULL,
-                       nb_sectors << BDRV_SECTOR_BITS,
+    return paio_submit(bs, s->fd, offset, NULL, count,
                        cb, opaque, QEMU_AIO_DISCARD);
 }
 
@@ -1865,7 +1864,7 @@ BlockDriver bdrv_file = {
     .bdrv_co_preadv         = raw_co_preadv,
     .bdrv_co_pwritev        = raw_co_pwritev,
     .bdrv_aio_flush = raw_aio_flush,
-    .bdrv_aio_discard = raw_aio_discard,
+    .bdrv_aio_pdiscard = raw_aio_pdiscard,
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
@@ -2204,8 +2203,8 @@ static int fd_open(BlockDriverState *bs)
     return -EIO;
 }
 
-static coroutine_fn BlockAIOCB *hdev_aio_discard(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors,
+static coroutine_fn BlockAIOCB *hdev_aio_pdiscard(BlockDriverState *bs,
+    int64_t offset, int count,
     BlockCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
@@ -2213,8 +2212,7 @@ static coroutine_fn BlockAIOCB *hdev_aio_discard(BlockDriverState *bs,
     if (fd_open(bs) < 0) {
         return NULL;
     }
-    return paio_submit(bs, s->fd, sector_num << BDRV_SECTOR_BITS, NULL,
-                       nb_sectors << BDRV_SECTOR_BITS,
+    return paio_submit(bs, s->fd, offset, NULL, count,
                        cb, opaque, QEMU_AIO_DISCARD|QEMU_AIO_BLKDEV);
 }
 
@@ -2309,7 +2307,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_co_preadv         = raw_co_preadv,
     .bdrv_co_pwritev        = raw_co_pwritev,
     .bdrv_aio_flush	= raw_aio_flush,
-    .bdrv_aio_discard   = hdev_aio_discard,
+    .bdrv_aio_pdiscard   = hdev_aio_pdiscard,
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
