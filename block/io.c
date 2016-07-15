@@ -2423,14 +2423,12 @@ int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
         return 0;
     }
 
-    if (!bs->drv->bdrv_co_discard && !bs->drv->bdrv_co_pdiscard &&
-        !bs->drv->bdrv_aio_pdiscard) {
+    if (!bs->drv->bdrv_co_pdiscard && !bs->drv->bdrv_aio_pdiscard) {
         return 0;
     }
 
     /* Discard is advisory, so ignore any unaligned head or tail */
-    align = MAX(BDRV_SECTOR_SIZE,
-                MAX(bs->bl.pdiscard_alignment, bs->bl.request_alignment));
+    align = MAX(bs->bl.pdiscard_alignment, bs->bl.request_alignment);
     assert(is_power_of_2(align));
     head = MIN(count, -offset & (align - 1));
     if (head) {
@@ -2458,9 +2456,6 @@ int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
 
         if (bs->drv->bdrv_co_pdiscard) {
             ret = bs->drv->bdrv_co_pdiscard(bs, offset, num);
-        } else if (bs->drv->bdrv_co_discard) {
-            ret = bs->drv->bdrv_co_discard(bs, offset >> BDRV_SECTOR_BITS,
-                                           num >> BDRV_SECTOR_BITS);
         } else {
             BlockAIOCB *acb;
             CoroutineIOCompletion co = {
