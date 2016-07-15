@@ -360,12 +360,6 @@ static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
     bs->bl.max_transfer = NBD_MAX_BUFFER_SIZE;
 }
 
-static int nbd_co_discard(BlockDriverState *bs, int64_t sector_num,
-                          int nb_sectors)
-{
-    return nbd_client_co_discard(bs, sector_num, nb_sectors);
-}
-
 static void nbd_close(BlockDriverState *bs)
 {
     nbd_client_close(bs);
@@ -448,7 +442,7 @@ static BlockDriver bdrv_nbd = {
     .bdrv_co_writev_flags       = nbd_client_co_writev,
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
-    .bdrv_co_discard            = nbd_co_discard,
+    .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
     .bdrv_refresh_limits        = nbd_refresh_limits,
     .bdrv_getlength             = nbd_getlength,
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
@@ -466,7 +460,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_co_writev_flags       = nbd_client_co_writev,
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
-    .bdrv_co_discard            = nbd_co_discard,
+    .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
     .bdrv_refresh_limits        = nbd_refresh_limits,
     .bdrv_getlength             = nbd_getlength,
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
@@ -484,7 +478,7 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_co_writev_flags       = nbd_client_co_writev,
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
-    .bdrv_co_discard            = nbd_co_discard,
+    .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
     .bdrv_refresh_limits        = nbd_refresh_limits,
     .bdrv_getlength             = nbd_getlength,
     .bdrv_detach_aio_context    = nbd_detach_aio_context,

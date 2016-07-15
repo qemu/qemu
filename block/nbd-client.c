@@ -295,19 +295,20 @@ int nbd_client_co_flush(BlockDriverState *bs)
     return -reply.error;
 }
 
-int nbd_client_co_discard(BlockDriverState *bs, int64_t sector_num,
-                          int nb_sectors)
+int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int count)
 {
     NbdClientSession *client = nbd_get_client_session(bs);
-    struct nbd_request request = { .type = NBD_CMD_TRIM };
+    struct nbd_request request = {
+        .type = NBD_CMD_TRIM,
+        .from = offset,
+        .len = count,
+    };
     struct nbd_reply reply;
     ssize_t ret;
 
     if (!(client->nbdflags & NBD_FLAG_SEND_TRIM)) {
         return 0;
     }
-    request.from = sector_num * 512;
-    request.len = nb_sectors * 512;
 
     nbd_coroutine_start(client, &request);
     ret = nbd_co_send_request(bs, &request, NULL);
