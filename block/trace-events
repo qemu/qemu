@@ -58,7 +58,7 @@ qmp_block_stream(void *bs, void *job) "bs %p job %p"
 # block/raw-win32.c
 # block/raw-posix.c
 paio_submit_co(int64_t offset, int count, int type) "offset %"PRId64" count %d type %d"
-paio_submit(void *acb, void *opaque, int64_t sector_num, int nb_sectors, int type) "acb %p opaque %p sector_num %"PRId64" nb_sectors %d type %d"
+paio_submit(void *acb, void *opaque, int64_t offset, int count, int type) "acb %p opaque %p offset %"PRId64" count %d type %d"
 
 # block/qcow2.c
 qcow2_writev_start_req(void *co, int64_t offset, int bytes) "co %p offset %" PRIx64 " bytes %d"
