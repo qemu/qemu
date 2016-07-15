@@ -211,7 +211,7 @@ void eth_get_protocols(const struct iovec *iov, int iovcnt,
                                      *l4hdr_off, sizeof(l4hdr_info->hdr.tcp),
                                      &l4hdr_info->hdr.tcp);
 
-            if (istcp) {
+            if (*istcp) {
                 *l5hdr_off = *l4hdr_off +
                     TCP_HEADER_DATA_OFFSET(&l4hdr_info->hdr.tcp);
 
