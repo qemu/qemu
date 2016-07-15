@@ -3119,7 +3119,7 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
 }
 
 static struct iovec *lock_iovec(int type, abi_ulong target_addr,
-                                int count, int copy)
+                                abi_ulong count, int copy)
 {
     struct target_iovec *target_vec;
     struct iovec *vec;
@@ -3132,7 +3132,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
         errno = 0;
         return NULL;
     }
-    if (count < 0 || count > IOV_MAX) {
+    if (count > IOV_MAX) {
         errno = EINVAL;
         return NULL;
     }
@@ -3207,7 +3207,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
 }
 
 static void unlock_iovec(struct iovec *vec, abi_ulong target_addr,
-                         int count, int copy)
+                         abi_ulong count, int copy)
 {
     struct target_iovec *target_vec;
     int i;
@@ -3462,7 +3462,7 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
 {
     abi_long ret, len;
     struct msghdr msg;
-    int count;
+    abi_ulong count;
     struct iovec *vec;
     abi_ulong target_vec;
 
