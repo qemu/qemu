@@ -114,12 +114,11 @@ static int coroutine_fn blkreplay_co_pwrite_zeroes(BlockDriverState *bs,
     return ret;
 }
 
-static int coroutine_fn blkreplay_co_discard(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors)
+static int coroutine_fn blkreplay_co_pdiscard(BlockDriverState *bs,
+                                              int64_t offset, int count)
 {
     uint64_t reqid = request_id++;
-    int ret = bdrv_co_pdiscard(bs->file->bs, sector_num << BDRV_SECTOR_BITS,
-                               nb_sectors << BDRV_SECTOR_BITS);
+    int ret = bdrv_co_pdiscard(bs->file->bs, offset, count);
     block_request_create(reqid, bs, qemu_coroutine_self());
     qemu_coroutine_yield();
 
@@ -149,7 +148,7 @@ static BlockDriver bdrv_blkreplay = {
     .bdrv_co_pwritev        = blkreplay_co_pwritev,
 
     .bdrv_co_pwrite_zeroes  = blkreplay_co_pwrite_zeroes,
-    .bdrv_co_discard        = blkreplay_co_discard,
+    .bdrv_co_pdiscard       = blkreplay_co_pdiscard,
     .bdrv_co_flush          = blkreplay_co_flush,
 };
 
