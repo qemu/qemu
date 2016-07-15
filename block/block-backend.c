@@ -1074,7 +1074,8 @@ BlockAIOCB *blk_aio_discard(BlockBackend *blk,
         return blk_abort_aio_request(blk, cb, opaque, ret);
     }
 
-    return bdrv_aio_discard(blk_bs(blk), sector_num, nb_sectors, cb, opaque);
+    return bdrv_aio_pdiscard(blk_bs(blk), sector_num << BDRV_SECTOR_BITS,
+                             nb_sectors << BDRV_SECTOR_BITS, cb, opaque);
 }
 
 void blk_aio_cancel(BlockAIOCB *acb)
