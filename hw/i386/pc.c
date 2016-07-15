@@ -530,9 +530,9 @@ static uint64_t port92_read(void *opaque, hwaddr addr,
     return ret;
 }
 
-static void port92_init(ISADevice *dev, qemu_irq *a20_out)
+static void port92_init(ISADevice *dev, qemu_irq a20_out)
 {
-    qdev_connect_gpio_out_named(DEVICE(dev), PORT92_A20_LINE, 0, *a20_out);
+    qdev_connect_gpio_out_named(DEVICE(dev), PORT92_A20_LINE, 0, a20_out);
 }
 
 static const VMStateDescription vmstate_port92_isa = {
@@ -1594,7 +1594,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
 
     a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 2);
     i8042 = isa_create_simple(isa_bus, "i8042");
-    i8042_setup_a20_line(i8042, &a20_line[0]);
+    i8042_setup_a20_line(i8042, a20_line[0]);
     if (!no_vmport) {
         vmport_init(isa_bus);
         vmmouse = isa_try_create(isa_bus, "vmmouse");
@@ -1607,7 +1607,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
         qdev_init_nofail(dev);
     }
     port92 = isa_create_simple(isa_bus, "port92");
-    port92_init(port92, &a20_line[1]);
+    port92_init(port92, a20_line[1]);
 
     DMA_init(isa_bus, 0);
 
