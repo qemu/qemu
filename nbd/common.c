@@ -23,7 +23,6 @@
 ssize_t nbd_wr_syncv(QIOChannel *ioc,
                      struct iovec *iov,
                      size_t niov,
-                     size_t offset,
                      size_t length,
                      bool do_read)
 {
@@ -33,9 +32,7 @@ ssize_t nbd_wr_syncv(QIOChannel *ioc,
     struct iovec *local_iov_head = local_iov;
     unsigned int nlocal_iov = niov;
 
-    nlocal_iov = iov_copy(local_iov, nlocal_iov,
-                          iov, niov,
-                          offset, length);
+    nlocal_iov = iov_copy(local_iov, nlocal_iov, iov, niov, 0, length);
 
     while (nlocal_iov > 0) {
         ssize_t len;

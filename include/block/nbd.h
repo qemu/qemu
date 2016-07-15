@@ -89,7 +89,6 @@ enum {
 ssize_t nbd_wr_syncv(QIOChannel *ioc,
                      struct iovec *iov,
                      size_t niov,
-                     size_t offset,
                      size_t length,
                      bool do_read);
 int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
