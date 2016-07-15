@@ -33,6 +33,8 @@ void stm32_hw_warn(const char *fmt, ...)
     __attribute__ ((__format__ (__printf__, 1, 2)));
 
 
+#define ENUM_STRING(x) [x] = #x
+#define ARRAY_LENGTH(array) (sizeof((array))/sizeof((array)[0]))
 
 /* PERIPHERALS - COMMON */
 /* Indexes used for accessing a GPIO array */
