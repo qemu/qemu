@@ -1042,29 +1042,26 @@ iscsi_getlength(BlockDriverState *bs)
 }
 
 static int
-coroutine_fn iscsi_co_discard(BlockDriverState *bs, int64_t sector_num,
-                                   int nb_sectors)
+coroutine_fn iscsi_co_pdiscard(BlockDriverState *bs, int64_t offset, int count)
 {
     IscsiLun *iscsilun = bs->opaque;
     struct IscsiTask iTask;
     struct unmap_list list;
 
-    if (!is_sector_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
-        return -EINVAL;
-    }
+    assert(is_byte_request_lun_aligned(offset, count, iscsilun));
 
     if (!iscsilun->lbp.lbpu) {
         /* UNMAP is not supported by the target */
         return 0;
     }
 
-    list.lba = sector_qemu2lun(sector_num, iscsilun);
-    list.num = sector_qemu2lun(nb_sectors, iscsilun);
+    list.lba = offset / iscsilun->block_size;
+    list.num = count / iscsilun->block_size;
 
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
     if (iscsi_unmap_task(iscsilun->iscsi, iscsilun->lun, 0, 0, &list, 1,
-                     iscsi_co_generic_cb, &iTask) == NULL) {
+                         iscsi_co_generic_cb, &iTask) == NULL) {
         return -ENOMEM;
     }
 
@@ -1094,7 +1091,8 @@ retry:
         return iTask.err_code;
     }
 
-    iscsi_allocmap_set_invalid(iscsilun, sector_num, nb_sectors);
+    iscsi_allocmap_set_invalid(iscsilun, offset >> BDRV_SECTOR_BITS,
+                               count >> BDRV_SECTOR_BITS);
 
     return 0;
 }
@@ -1998,7 +1996,7 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_refresh_limits = iscsi_refresh_limits,
 
     .bdrv_co_get_block_status = iscsi_co_get_block_status,
-    .bdrv_co_discard      = iscsi_co_discard,
+    .bdrv_co_pdiscard      = iscsi_co_pdiscard,
     .bdrv_co_pwrite_zeroes = iscsi_co_pwrite_zeroes,
     .bdrv_co_readv         = iscsi_co_readv,
     .bdrv_co_writev_flags  = iscsi_co_writev_flags,
