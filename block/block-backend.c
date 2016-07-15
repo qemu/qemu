@@ -1065,17 +1065,16 @@ BlockAIOCB *blk_aio_flush(BlockBackend *blk,
     return bdrv_aio_flush(blk_bs(blk), cb, opaque);
 }
 
-BlockAIOCB *blk_aio_discard(BlockBackend *blk,
-                            int64_t sector_num, int nb_sectors,
-                            BlockCompletionFunc *cb, void *opaque)
+BlockAIOCB *blk_aio_pdiscard(BlockBackend *blk,
+                             int64_t offset, int count,
+                             BlockCompletionFunc *cb, void *opaque)
 {
-    int ret = blk_check_request(blk, sector_num, nb_sectors);
+    int ret = blk_check_byte_request(blk, offset, count);
     if (ret < 0) {
         return blk_abort_aio_request(blk, cb, opaque, ret);
     }
 
-    return bdrv_aio_pdiscard(blk_bs(blk), sector_num << BDRV_SECTOR_BITS,
-                             nb_sectors << BDRV_SECTOR_BITS, cb, opaque);
+    return bdrv_aio_pdiscard(blk_bs(blk), offset, count, cb, opaque);
 }
 
 void blk_aio_cancel(BlockAIOCB *acb)
@@ -1107,15 +1106,14 @@ BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
     return bdrv_aio_ioctl(blk_bs(blk), req, buf, cb, opaque);
 }
 
-int blk_co_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors)
+int blk_co_pdiscard(BlockBackend *blk, int64_t offset, int count)
 {
-    int ret = blk_check_request(blk, sector_num, nb_sectors);
+    int ret = blk_check_byte_request(blk, offset, count);
     if (ret < 0) {
         return ret;
     }
 
-    return bdrv_co_pdiscard(blk_bs(blk), sector_num << BDRV_SECTOR_BITS,
-                            nb_sectors << BDRV_SECTOR_BITS);
+    return bdrv_co_pdiscard(blk_bs(blk), offset, count);
 }
 
 int blk_co_flush(BlockBackend *blk)
@@ -1506,15 +1504,14 @@ int blk_truncate(BlockBackend *blk, int64_t offset)
     return bdrv_truncate(blk_bs(blk), offset);
 }
 
-int blk_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors)
+int blk_pdiscard(BlockBackend *blk, int64_t offset, int count)
 {
-    int ret = blk_check_request(blk, sector_num, nb_sectors);
+    int ret = blk_check_byte_request(blk, offset, count);
     if (ret < 0) {
         return ret;
     }
 
-    return bdrv_pdiscard(blk_bs(blk), sector_num << BDRV_SECTOR_BITS,
-                         nb_sectors << BDRV_SECTOR_BITS);
+    return bdrv_pdiscard(blk_bs(blk), offset, count);
 }
 
 int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,

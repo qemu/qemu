@@ -1696,8 +1696,7 @@ static int discard_f(BlockBackend *blk, int argc, char **argv)
     }
 
     gettimeofday(&t1, NULL);
-    ret = blk_discard(blk, offset >> BDRV_SECTOR_BITS,
-                      count >> BDRV_SECTOR_BITS);
+    ret = blk_pdiscard(blk, offset, count);
     gettimeofday(&t2, NULL);
 
     if (ret < 0) {

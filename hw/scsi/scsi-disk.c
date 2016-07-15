@@ -1609,10 +1609,10 @@ static void scsi_unmap_complete_noio(UnmapCBData *data, int ret)
             goto done;
         }
 
-        r->req.aiocb = blk_aio_discard(s->qdev.conf.blk,
-                                       sector_num * (s->qdev.blocksize / 512),
-                                       nb_sectors * (s->qdev.blocksize / 512),
-                                       scsi_unmap_complete, data);
+        r->req.aiocb = blk_aio_pdiscard(s->qdev.conf.blk,
+                                        sector_num * s->qdev.blocksize,
+                                        nb_sectors * s->qdev.blocksize,
+                                        scsi_unmap_complete, data);
         data->count--;
         data->inbuf += 16;
         return;
