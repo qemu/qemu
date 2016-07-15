@@ -478,7 +478,7 @@ static unsigned hpte_page_shift(const struct ppc_one_seg_page_size *sps,
 
         mask = ((1ULL << ps->page_shift) - 1) & HPTE64_R_RPN;
 
-        if ((pte1 & mask) == (ps->pte_enc << HPTE64_R_RPN_SHIFT)) {
+        if ((pte1 & mask) == ((uint64_t)ps->pte_enc << HPTE64_R_RPN_SHIFT)) {
             return ps->page_shift;
         }
     }
