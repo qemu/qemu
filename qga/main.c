@@ -1371,6 +1371,8 @@ int main(int argc, char **argv)
 end:
     if (s->command_state) {
         ga_command_state_cleanup_all(s->command_state);
+        ga_command_state_free(s->command_state);
+        json_message_parser_destroy(&s->parser);
     }
     if (s->channel) {
         ga_channel_free(s->channel);
@@ -1383,6 +1385,10 @@ end:
     }
 
     config_free(config);
+    if (s->main_loop) {
+        g_main_loop_unref(s->main_loop);
+    }
+    g_free(s);
 
     return ret;
 }
