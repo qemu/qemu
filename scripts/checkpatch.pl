@@ -1279,6 +1279,11 @@ sub process {
 			}
 		}
 
+# Accept git diff extended headers as valid patches
+		if ($line =~ /^(?:rename|copy) (?:from|to) [\w\/\.\-]+\s*$/) {
+			$is_patch = 1;
+		}
+
 #check the patch for a signoff:
 		if ($line =~ /^\s*signed-off-by:/i) {
 			# This is a signoff, if ugly, so do not double report.
