@@ -33,14 +33,13 @@
 
 #define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
 
-static BlockAIOCB *bdrv_co_aio_rw_vector(BdrvChild *child,
-                                         int64_t sector_num,
-                                         QEMUIOVector *qiov,
-                                         int nb_sectors,
-                                         BdrvRequestFlags flags,
-                                         BlockCompletionFunc *cb,
-                                         void *opaque,
-                                         bool is_write);
+static BlockAIOCB *bdrv_co_aio_prw_vector(BdrvChild *child,
+                                          int64_t offset,
+                                          QEMUIOVector *qiov,
+                                          BdrvRequestFlags flags,
+                                          BlockCompletionFunc *cb,
+                                          void *opaque,
+                                          bool is_write);
 static void coroutine_fn bdrv_co_do_rw(void *opaque);
 static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int count, BdrvRequestFlags flags);
@@ -2015,8 +2014,9 @@ BlockAIOCB *bdrv_aio_readv(BdrvChild *child, int64_t sector_num,
 {
     trace_bdrv_aio_readv(child->bs, sector_num, nb_sectors, opaque);
 
-    return bdrv_co_aio_rw_vector(child, sector_num, qiov, nb_sectors, 0,
-                                 cb, opaque, false);
+    assert(nb_sectors << BDRV_SECTOR_BITS == qiov->size);
+    return bdrv_co_aio_prw_vector(child, sector_num << BDRV_SECTOR_BITS, qiov,
+                                  0, cb, opaque, false);
 }
 
 BlockAIOCB *bdrv_aio_writev(BdrvChild *child, int64_t sector_num,
@@ -2025,8 +2025,9 @@ BlockAIOCB *bdrv_aio_writev(BdrvChild *child, int64_t sector_num,
 {
     trace_bdrv_aio_writev(child->bs, sector_num, nb_sectors, opaque);
 
-    return bdrv_co_aio_rw_vector(child, sector_num, qiov, nb_sectors, 0,
-                                 cb, opaque, true);
+    assert(nb_sectors << BDRV_SECTOR_BITS == qiov->size);
+    return bdrv_co_aio_prw_vector(child, sector_num << BDRV_SECTOR_BITS, qiov,
+                                  0, cb, opaque, true);
 }
 
 void bdrv_aio_cancel(BlockAIOCB *acb)
@@ -2062,8 +2063,8 @@ typedef struct BlockRequest {
     union {
         /* Used during read, write, trim */
         struct {
-            int64_t sector;
-            int nb_sectors;
+            int64_t offset;
+            int bytes;
             int flags;
             QEMUIOVector *qiov;
         };
@@ -2127,24 +2128,23 @@ static void coroutine_fn bdrv_co_do_rw(void *opaque)
     BlockAIOCBCoroutine *acb = opaque;
 
     if (!acb->is_write) {
-        acb->req.error = bdrv_co_do_readv(acb->child, acb->req.sector,
-            acb->req.nb_sectors, acb->req.qiov, acb->req.flags);
+        acb->req.error = bdrv_co_preadv(acb->child, acb->req.offset,
+            acb->req.qiov->size, acb->req.qiov, acb->req.flags);
     } else {
-        acb->req.error = bdrv_co_do_writev(acb->child, acb->req.sector,
-            acb->req.nb_sectors, acb->req.qiov, acb->req.flags);
+        acb->req.error = bdrv_co_pwritev(acb->child, acb->req.offset,
+            acb->req.qiov->size, acb->req.qiov, acb->req.flags);
     }
 
     bdrv_co_complete(acb);
 }
 
-static BlockAIOCB *bdrv_co_aio_rw_vector(BdrvChild *child,
-                                         int64_t sector_num,
-                                         QEMUIOVector *qiov,
-                                         int nb_sectors,
-                                         BdrvRequestFlags flags,
-                                         BlockCompletionFunc *cb,
-                                         void *opaque,
-                                         bool is_write)
+static BlockAIOCB *bdrv_co_aio_prw_vector(BdrvChild *child,
+                                          int64_t offset,
+                                          QEMUIOVector *qiov,
+                                          BdrvRequestFlags flags,
+                                          BlockCompletionFunc *cb,
+                                          void *opaque,
+                                          bool is_write)
 {
     Coroutine *co;
     BlockAIOCBCoroutine *acb;
@@ -2153,8 +2153,7 @@ static BlockAIOCB *bdrv_co_aio_rw_vector(BdrvChild *child,
     acb->child = child;
     acb->need_bh = true;
     acb->req.error = -EINPROGRESS;
-    acb->req.sector = sector_num;
-    acb->req.nb_sectors = nb_sectors;
+    acb->req.offset = offset;
     acb->req.qiov = qiov;
     acb->req.flags = flags;
     acb->is_write = is_write;
@@ -2199,8 +2198,7 @@ static void coroutine_fn bdrv_aio_discard_co_entry(void *opaque)
     BlockAIOCBCoroutine *acb = opaque;
     BlockDriverState *bs = acb->common.bs;
 
-    acb->req.error = bdrv_co_pdiscard(bs, acb->req.sector << BDRV_SECTOR_BITS,
-                                      acb->req.nb_sectors << BDRV_SECTOR_BITS);
+    acb->req.error = bdrv_co_pdiscard(bs, acb->req.offset, acb->req.bytes);
     bdrv_co_complete(acb);
 }
 
@@ -2216,8 +2214,8 @@ BlockAIOCB *bdrv_aio_discard(BlockDriverState *bs,
     acb = qemu_aio_get(&bdrv_em_co_aiocb_info, bs, cb, opaque);
     acb->need_bh = true;
     acb->req.error = -EINPROGRESS;
-    acb->req.sector = sector_num;
-    acb->req.nb_sectors = nb_sectors;
+    acb->req.offset = sector_num << BDRV_SECTOR_BITS;
+    acb->req.bytes = nb_sectors << BDRV_SECTOR_BITS;
     co = qemu_coroutine_create(bdrv_aio_discard_co_entry, acb);
     qemu_coroutine_enter(co);
 
