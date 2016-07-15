@@ -24,6 +24,7 @@
 #include "qapi/error.h"
 #include "qemu.h"
 #include "qemu/path.h"
+#include "qemu/config-file.h"
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
 #include "cpu.h"
@@ -33,6 +34,8 @@
 #include "qemu/envlist.h"
 #include "elf.h"
 #include "exec/log.h"
+#include "trace/control.h"
+#include "glib-compat.h"
 
 char *exec_path;
 
@@ -4001,6 +4004,13 @@ static void handle_arg_version(const char *arg)
     exit(EXIT_SUCCESS);
 }
 
+static char *trace_file;
+static void handle_arg_trace(const char *arg)
+{
+    g_free(trace_file);
+    trace_file = trace_opt_parse(arg);
+}
+
 struct qemu_argument {
     const char *argv;
     const char *env;
@@ -4048,6 +4058,8 @@ static const struct qemu_argument arg_table[] = {
      "",           "log system calls"},
     {"seed",       "QEMU_RAND_SEED",   true,  handle_arg_randseed,
      "",           "Seed for pseudo-random number generator"},
+    {"trace",      "QEMU_TRACE",       true,  handle_arg_trace,
+     "",           "[[enable=]<pattern>][,events=<file>][,file=<file>]"},
     {"version",    "QEMU_VERSION",     false, handle_arg_version,
      "",           "display version information and exit"},
     {NULL, NULL, false, NULL, NULL, NULL}
@@ -4237,7 +4249,14 @@ int main(int argc, char **argv, char **envp)
 
     srand(time(NULL));
 
+    qemu_add_opts(&qemu_trace_opts);
+
     optind = parse_args(argc, argv);
+
+    if (!trace_init_backends()) {
+        exit(1);
+    }
+    trace_init_file(trace_file);
 
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));
