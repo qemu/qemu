@@ -74,7 +74,7 @@ struct AioContext {
      * event_notifier_set necessary.
      *
      * Bit 0 is reserved for GSource usage of the AioContext, and is 1
-     * between a call to aio_ctx_check and the next call to aio_ctx_dispatch.
+     * between a call to aio_ctx_prepare and the next call to aio_ctx_check.
      * Bits 1-31 simply count the number of active calls to aio_poll
      * that are in the prepare or poll phase.
      *
