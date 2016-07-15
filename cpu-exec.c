@@ -320,7 +320,7 @@ found:
 }
 
 static inline TranslationBlock *tb_find_fast(CPUState *cpu,
-                                             TranslationBlock **last_tb,
+                                             TranslationBlock *last_tb,
                                              int tb_exit)
 {
     CPUArchState *env = (CPUArchState *)cpu->env_ptr;
@@ -342,7 +342,7 @@ static inline TranslationBlock *tb_find_fast(CPUState *cpu,
         /* Ensure that no TB jump will be modified as the
          * translation buffer has been flushed.
          */
-        *last_tb = NULL;
+        last_tb = NULL;
         cpu->tb_flushed = false;
     }
 #ifndef CONFIG_USER_ONLY
@@ -351,12 +351,12 @@ static inline TranslationBlock *tb_find_fast(CPUState *cpu,
      * spanning two pages because the mapping for the second page can change.
      */
     if (tb->page_addr[1] != -1) {
-        *last_tb = NULL;
+        last_tb = NULL;
     }
 #endif
     /* See if we can patch the calling TB. */
-    if (*last_tb && !qemu_loglevel_mask(CPU_LOG_TB_NOCHAIN)) {
-        tb_add_jump(*last_tb, tb_exit, tb);
+    if (last_tb && !qemu_loglevel_mask(CPU_LOG_TB_NOCHAIN)) {
+        tb_add_jump(last_tb, tb_exit, tb);
     }
     tb_unlock();
     return tb;
@@ -437,8 +437,7 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
     } else if (replay_has_exception()
                && cpu->icount_decr.u16.low + cpu->icount_extra == 0) {
         /* try to cause an exception pending in the log */
-        TranslationBlock *last_tb = NULL; /* Avoid chaining TBs */
-        cpu_exec_nocache(cpu, 1, tb_find_fast(cpu, &last_tb, 0), true);
+        cpu_exec_nocache(cpu, 1, tb_find_fast(cpu, NULL, 0), true);
         *ret = -1;
         return true;
 #endif
@@ -621,7 +620,7 @@ int cpu_exec(CPUState *cpu)
             cpu->tb_flushed = false; /* reset before first TB lookup */
             for(;;) {
                 cpu_handle_interrupt(cpu, &last_tb);
-                tb = tb_find_fast(cpu, &last_tb, tb_exit);
+                tb = tb_find_fast(cpu, last_tb, tb_exit);
                 cpu_loop_exec_tb(cpu, tb, &last_tb, &tb_exit, &sc);
                 /* Try to align the host and virtual clocks
                    if the guest is in advance */
