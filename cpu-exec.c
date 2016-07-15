@@ -315,7 +315,7 @@ static TranslationBlock *tb_find_slow(CPUState *cpu,
 
 found:
     /* we add the TB in the virtual pc hash table */
-    cpu->tb_jmp_cache[tb_jmp_cache_hash_func(pc)] = tb;
+    atomic_set(&cpu->tb_jmp_cache[tb_jmp_cache_hash_func(pc)], tb);
     return tb;
 }
 
@@ -333,7 +333,7 @@ static inline TranslationBlock *tb_find_fast(CPUState *cpu,
        is executed. */
     cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
     tb_lock();
-    tb = cpu->tb_jmp_cache[tb_jmp_cache_hash_func(pc)];
+    tb = atomic_rcu_read(&cpu->tb_jmp_cache[tb_jmp_cache_hash_func(pc)]);
     if (unlikely(!tb || tb->pc != pc || tb->cs_base != cs_base ||
                  tb->flags != flags)) {
         tb = tb_find_slow(cpu, pc, cs_base, flags);

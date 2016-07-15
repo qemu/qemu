@@ -851,7 +851,11 @@ void tb_flush(CPUState *cpu)
     tcg_ctx.tb_ctx.nb_tbs = 0;
 
     CPU_FOREACH(cpu) {
-        memset(cpu->tb_jmp_cache, 0, sizeof(cpu->tb_jmp_cache));
+        int i;
+
+        for (i = 0; i < TB_JMP_CACHE_SIZE; ++i) {
+            atomic_set(&cpu->tb_jmp_cache[i], NULL);
+        }
         cpu->tb_flushed = true;
     }
 
@@ -1010,8 +1014,8 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     /* remove the TB from the hash list */
     h = tb_jmp_cache_hash_func(tb->pc);
     CPU_FOREACH(cpu) {
-        if (cpu->tb_jmp_cache[h] == tb) {
-            cpu->tb_jmp_cache[h] = NULL;
+        if (atomic_read(&cpu->tb_jmp_cache[h]) == tb) {
+            atomic_set(&cpu->tb_jmp_cache[h], NULL);
         }
     }
 
