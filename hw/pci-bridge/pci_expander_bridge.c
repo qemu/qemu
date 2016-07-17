@@ -310,6 +310,7 @@ static void pxb_dev_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "PCI Expander Bridge";
     dc->props = pxb_dev_properties;
+    dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
@@ -343,6 +344,7 @@ static void pxb_pcie_dev_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "PCI Express Expander Bridge";
     dc->props = pxb_dev_properties;
+    dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
