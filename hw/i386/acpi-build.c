@@ -600,6 +600,10 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
         QLIST_FOREACH(sec, &bus->child, sibling) {
             int32_t devfn = sec->parent_dev->devfn;
 
+            if (pci_bus_is_root(sec) || pci_bus_is_express(sec)) {
+                continue;
+            }
+
             aml_append(method, aml_name("^S%.02X.PCNT", devfn));
         }
     }
