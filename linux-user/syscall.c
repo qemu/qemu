@@ -9661,6 +9661,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             pfd = NULL;
             target_pfd = NULL;
             if (nfds) {
+                if (nfds > (INT_MAX / sizeof(struct target_pollfd))) {
+                    ret = -TARGET_EINVAL;
+                    break;
+                }
+
                 target_pfd = lock_user(VERIFY_WRITE, arg1,
                                        sizeof(struct target_pollfd) * nfds, 1);
                 if (!target_pfd) {
