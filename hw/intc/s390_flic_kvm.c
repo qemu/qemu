@@ -280,12 +280,13 @@ static void kvm_s390_release_adapter_routes(S390FLICState *fs,
  * kvm_flic_save - Save pending floating interrupts
  * @f: QEMUFile containing migration state
  * @opaque: pointer to flic device state
+ * @size: ignored
  *
  * Note: Pass buf and len to kernel. Start with one page and
  * increase until buffer is sufficient or maxium size is
  * reached
  */
-static void kvm_flic_save(QEMUFile *f, void *opaque)
+static void kvm_flic_save(QEMUFile *f, void *opaque, size_t size)
 {
     KVMS390FLICState *flic = opaque;
     int len = FLIC_SAVE_INITIAL_SIZE;
@@ -324,23 +325,18 @@ static void kvm_flic_save(QEMUFile *f, void *opaque)
  * kvm_flic_load - Load pending floating interrupts
  * @f: QEMUFile containing migration state
  * @opaque: pointer to flic device state
- * @version_id: version id for migration
+ * @size: ignored
  *
  * Returns: value of flic_enqueue_irqs, -EINVAL on error
  * Note: Do nothing when no interrupts where stored
  * in QEMUFile
  */
-static int kvm_flic_load(QEMUFile *f, void *opaque, int version_id)
+static int kvm_flic_load(QEMUFile *f, void *opaque, size_t size)
 {
     uint64_t len = 0;
     uint64_t count = 0;
     void *buf = NULL;
     int r = 0;
-
-    if (version_id != FLIC_SAVEVM_VERSION) {
-        r = -EINVAL;
-        goto out;
-    }
 
     flic_enable_pfault((struct KVMS390FLICState *) opaque);
 
@@ -372,6 +368,24 @@ out:
     return r;
 }
 
+static const VMStateDescription kvm_s390_flic_vmstate = {
+    .name = "s390-flic",
+    .version_id = FLIC_SAVEVM_VERSION,
+    .minimum_version_id = FLIC_SAVEVM_VERSION,
+    .fields = (VMStateField[]) {
+        {
+            .name = "irqs",
+            .info = &(const VMStateInfo) {
+                .name = "irqs",
+                .get = kvm_flic_load,
+                .put = kvm_flic_save,
+            },
+            .flags = VMS_SINGLE,
+        },
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
 {
     KVMS390FLICState *flic_state = KVM_S390_FLIC(dev);
@@ -398,16 +412,6 @@ static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
     flic_state->clear_io_supported = !ioctl(flic_state->fd,
                                             KVM_HAS_DEVICE_ATTR, test_attr);
 
-    /* Register savevm handler for floating interrupts */
-    register_savevm(NULL, "s390-flic", 0, 1, kvm_flic_save,
-                    kvm_flic_load, (void *) flic_state);
-}
-
-static void kvm_s390_flic_unrealize(DeviceState *dev, Error **errp)
-{
-    KVMS390FLICState *flic_state = KVM_S390_FLIC(dev);
-
-    unregister_savevm(DEVICE(flic_state), "s390-flic", flic_state);
 }
 
 static void kvm_s390_flic_reset(DeviceState *dev)
@@ -438,7 +442,7 @@ static void kvm_s390_flic_class_init(ObjectClass *oc, void *data)
     S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(oc);
 
     dc->realize = kvm_s390_flic_realize;
-    dc->unrealize = kvm_s390_flic_unrealize;
+    dc->vmsd = &kvm_s390_flic_vmstate;
     dc->reset = kvm_s390_flic_reset;
     fsc->register_io_adapter = kvm_s390_register_io_adapter;
     fsc->io_adapter_map = kvm_s390_io_adapter_map;
