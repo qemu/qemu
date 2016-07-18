@@ -30,14 +30,10 @@ blkverify: read sector_num=0 nb_sectors=1 contents mismatch in sector 0
 
 === Testing blkdebug through filename ===
 
-Failed to flush the L2 table cache: Input/output error
-Failed to flush the refcount block cache: Input/output error
 read failed: Input/output error
 
 === Testing blkdebug through file blockref ===
 
-Failed to flush the L2 table cache: Input/output error
-Failed to flush the refcount block cache: Input/output error
 read failed: Input/output error
 
 === Testing blkdebug on existing block device ===
@@ -51,8 +47,6 @@ read failed: Input/output error
 {"return": ""}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
-QEMU_PROG: Failed to flush the L2 table cache: Input/output error
-QEMU_PROG: Failed to flush the refcount block cache: Input/output error
 
 
 === Testing blkverify on existing block device ===
@@ -92,7 +86,5 @@ read failed: Input/output error
 {"return": ""}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
-QEMU_PROG: Failed to flush the L2 table cache: Input/output error
-QEMU_PROG: Failed to flush the refcount block cache: Input/output error
 
 *** done
