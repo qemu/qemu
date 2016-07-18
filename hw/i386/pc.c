@@ -1815,6 +1815,23 @@ static void pc_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
         goto out;
     }
 
+    if (idx < pcms->possible_cpus->len - 1 &&
+        pcms->possible_cpus->cpus[idx + 1].cpu != NULL) {
+        X86CPU *cpu;
+
+        for (idx = pcms->possible_cpus->len - 1;
+             pcms->possible_cpus->cpus[idx].cpu == NULL; idx--) {
+            ;;
+        }
+
+        cpu = X86_CPU(pcms->possible_cpus->cpus[idx].cpu);
+        error_setg(&local_err, "CPU [socket-id: %u, core-id: %u,"
+                   " thread-id: %u] should be removed first",
+                   cpu->socket_id, cpu->core_id, cpu->thread_id);
+        goto out;
+
+    }
+
     hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
     hhc->unplug_request(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
 
@@ -1910,6 +1927,23 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
         error_setg(errp, "CPU[%d] with APIC ID %" PRIu32 " exists",
                    idx, cpu->apic_id);
         return;
+    }
+
+    if (idx != 0 && pcms->possible_cpus->cpus[idx - 1].cpu == NULL) {
+        PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+
+        for (idx = 1; pcms->possible_cpus->cpus[idx].cpu != NULL; idx++) {
+            ;;
+        }
+
+        x86_topo_ids_from_apicid(pcms->possible_cpus->cpus[idx].arch_id,
+                                 smp_cores, smp_threads, &topo);
+
+        if (!pcmc->legacy_cpu_hotplug) {
+            error_setg(errp, "CPU [socket: %u, core: %u, thread: %u] should be"
+                       " added first", topo.pkg_id, topo.core_id, topo.smt_id);
+            return;
+        }
     }
 
     /* if 'address' properties socket-id/core-id/thread-id are not set, set them
