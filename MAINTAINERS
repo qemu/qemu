@@ -1027,6 +1027,7 @@ F: async.c
 F: aio-*.c
 F: block/io.c
 F: migration/block*
+F: include/block/aio.h
 T: git git://github.com/stefanha/qemu.git block
 
 Block Jobs
