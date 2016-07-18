@@ -485,12 +485,13 @@ bool aio_poll(AioContext *ctx, bool blocking)
     return progress;
 }
 
-void aio_context_setup(AioContext *ctx, Error **errp)
+void aio_context_setup(AioContext *ctx)
 {
 #ifdef CONFIG_EPOLL_CREATE1
     assert(!ctx->epollfd);
     ctx->epollfd = epoll_create1(EPOLL_CLOEXEC);
     if (ctx->epollfd == -1) {
+        fprintf(stderr, "Failed to create epoll instance: %s", strerror(errno));
         ctx->epoll_available = false;
     } else {
         ctx->epoll_available = true;

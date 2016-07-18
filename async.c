@@ -29,6 +29,7 @@
 #include "block/thread-pool.h"
 #include "qemu/main-loop.h"
 #include "qemu/atomic.h"
+#include "block/raw-aio.h"
 
 /***********************************************************/
 /* bottom halves (can be seen as timers which expire ASAP) */
@@ -217,7 +218,7 @@ aio_ctx_check(GSource *source)
     for (bh = ctx->first_bh; bh; bh = bh->next) {
         if (!bh->deleted && bh->scheduled) {
             return true;
-	}
+        }
     }
     return aio_pending(ctx) || (timerlistgroup_deadline_ns(&ctx->tlg) == 0);
 }
@@ -241,6 +242,14 @@ aio_ctx_finalize(GSource     *source)
 
     qemu_bh_delete(ctx->notify_dummy_bh);
     thread_pool_free(ctx->thread_pool);
+
+#ifdef CONFIG_LINUX_AIO
+    if (ctx->linux_aio) {
+        laio_detach_aio_context(ctx->linux_aio, ctx);
+        laio_cleanup(ctx->linux_aio);
+        ctx->linux_aio = NULL;
+    }
+#endif
 
     qemu_mutex_lock(&ctx->bh_lock);
     while (ctx->first_bh) {
@@ -281,6 +290,17 @@ ThreadPool *aio_get_thread_pool(AioContext *ctx)
     }
     return ctx->thread_pool;
 }
+
+#ifdef CONFIG_LINUX_AIO
+LinuxAioState *aio_get_linux_aio(AioContext *ctx)
+{
+    if (!ctx->linux_aio) {
+        ctx->linux_aio = laio_init();
+        laio_attach_aio_context(ctx->linux_aio, ctx);
+    }
+    return ctx->linux_aio;
+}
+#endif
 
 void aio_notify(AioContext *ctx)
 {
@@ -327,14 +347,10 @@ AioContext *aio_context_new(Error **errp)
 {
     int ret;
     AioContext *ctx;
-    Error *local_err = NULL;
 
     ctx = (AioContext *) g_source_new(&aio_source_funcs, sizeof(AioContext));
-    aio_context_setup(ctx, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto fail;
-    }
+    aio_context_setup(ctx);
+
     ret = event_notifier_init(&ctx->notifier, false);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to initialize event notifier");
@@ -345,6 +361,9 @@ AioContext *aio_context_new(Error **errp)
                            false,
                            (EventNotifierHandler *)
                            event_notifier_dummy_cb);
+#ifdef CONFIG_LINUX_AIO
+    ctx->linux_aio = NULL;
+#endif
     ctx->thread_pool = NULL;
     qemu_mutex_init(&ctx->bh_lock);
     rfifolock_init(&ctx->lock, aio_rfifolock_cb, ctx);

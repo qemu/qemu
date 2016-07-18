@@ -112,10 +112,8 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
     s->vdev = vdev;
     s->conf = conf;
 
-    if (conf->iothread) {
-        s->iothread = conf->iothread;
-        object_ref(OBJECT(s->iothread));
-    }
+    s->iothread = conf->iothread;
+    object_ref(OBJECT(s->iothread));
     s->ctx = iothread_get_aio_context(s->iothread);
     s->bh = aio_bh_new(s->ctx, notify_guest_bh, s);
     s->batch_notify_vqs = bitmap_new(conf->num_queues);
