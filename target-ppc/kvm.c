@@ -389,12 +389,16 @@ static long getrampagesize(void)
 
     object_child_foreach(memdev_root, find_max_supported_pagesize, &hpsize);
 
-    if (hpsize == LONG_MAX) {
+    if (hpsize == LONG_MAX || hpsize == getpagesize()) {
         return getpagesize();
     }
 
-    if (nb_numa_nodes == 0 && hpsize > getpagesize()) {
-        /* No NUMA nodes and normal RAM without -mem-path ==> no huge pages! */
+    /* If NUMA is disabled or the NUMA nodes are not backed with a
+     * memory-backend, then there is at least one node using "normal"
+     * RAM. And since normal RAM has not been configured with "-mem-path"
+     * (what we've checked earlier here already), we can not use huge pages!
+     */
+    if (nb_numa_nodes == 0 || numa_info[0].node_memdev == NULL) {
         static bool warned;
         if (!warned) {
             error_report("Huge page support disabled (n/a for main memory).");
