@@ -260,8 +260,8 @@ static uint64_t get_migration_pass(void)
     } else {
         rsp_ram = qdict_get_qdict(rsp_return, "ram");
         result = qdict_get_try_int(rsp_ram, "dirty-sync-count", 0);
-        QDECREF(rsp);
     }
+    QDECREF(rsp);
     return result;
 }
 
