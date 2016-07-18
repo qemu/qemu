@@ -1063,11 +1063,34 @@ static void test_dma_fragmented(void)
     g_free(tx);
 }
 
+/*
+ * Write sector 1 with random data to make AHCI storage dirty
+ * Needed for flush tests so that flushes actually go though the block layer
+ */
+static void make_dirty(AHCIQState* ahci, uint8_t port)
+{
+    uint64_t ptr;
+    unsigned bufsize = 512;
+
+    ptr = ahci_alloc(ahci, bufsize);
+    g_assert(ptr);
+
+    ahci_guest_io(ahci, port, CMD_WRITE_DMA, ptr, bufsize, 1);
+    ahci_free(ahci, ptr);
+}
+
 static void test_flush(void)
 {
     AHCIQState *ahci;
+    uint8_t port;
 
     ahci = ahci_boot_and_enable(NULL);
+
+    port = ahci_port_select(ahci);
+    ahci_port_clear(ahci, port);
+
+    make_dirty(ahci, port);
+
     ahci_test_flush(ahci);
     ahci_shutdown(ahci);
 }
@@ -1087,10 +1110,13 @@ static void test_flush_retry(void)
                                 debug_path,
                                 tmp_path, imgfmt);
 
-    /* Issue Flush Command and wait for error */
     port = ahci_port_select(ahci);
     ahci_port_clear(ahci, port);
 
+    /* Issue write so that flush actually goes to disk */
+    make_dirty(ahci, port);
+
+    /* Issue Flush Command and wait for error */
     cmd = ahci_guest_io_halt(ahci, port, CMD_FLUSH_CACHE, 0, 0, 0);
     ahci_guest_io_resume(ahci, cmd);
 
@@ -1343,9 +1369,13 @@ static void test_flush_migrate(void)
 
     set_context(src->parent);
 
-    /* Issue Flush Command */
     px = ahci_port_select(src);
     ahci_port_clear(src, px);
+
+    /* Dirty device so that flush reaches disk */
+    make_dirty(src, px);
+
+    /* Issue Flush Command */
     cmd = ahci_command_create(CMD_FLUSH_CACHE);
     ahci_command_commit(src, cmd, px);
     ahci_command_issue_async(src, cmd);
