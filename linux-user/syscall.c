@@ -11777,7 +11777,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             goto efault;
         }
 
-        ep = alloca(maxevents * sizeof(struct epoll_event));
+        ep = g_try_new(struct epoll_event, maxevents);
+        if (!ep) {
+            unlock_user(target_ep, arg2, 0);
+            ret = -TARGET_ENOMEM;
+            break;
+        }
 
         switch (num) {
 #if defined(TARGET_NR_epoll_pwait)
@@ -11795,8 +11800,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 target_set = lock_user(VERIFY_READ, arg5,
                                        sizeof(target_sigset_t), 1);
                 if (!target_set) {
-                    unlock_user(target_ep, arg2, 0);
-                    goto efault;
+                    ret = -TARGET_EFAULT;
+                    break;
                 }
                 target_to_host_sigset(set, target_set);
                 unlock_user(target_set, arg5, 0);
@@ -11824,8 +11829,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 target_ep[i].events = tswap32(ep[i].events);
                 target_ep[i].data.u64 = tswap64(ep[i].data.u64);
             }
+            unlock_user(target_ep, arg2,
+                        ret * sizeof(struct target_epoll_event));
+        } else {
+            unlock_user(target_ep, arg2, 0);
         }
-        unlock_user(target_ep, arg2, ret * sizeof(struct target_epoll_event));
+        g_free(ep);
         break;
     }
 #endif
