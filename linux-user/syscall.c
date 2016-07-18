@@ -11501,6 +11501,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         int maxevents = arg3;
         int timeout = arg4;
 
+        if (maxevents <= 0 || maxevents > TARGET_EP_MAX_EVENTS) {
+            ret = -TARGET_EINVAL;
+            break;
+        }
+
         target_ep = lock_user(VERIFY_WRITE, arg2,
                               maxevents * sizeof(struct target_epoll_event), 1);
         if (!target_ep) {

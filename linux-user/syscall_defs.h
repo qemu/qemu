@@ -2585,6 +2585,9 @@ struct target_epoll_event {
     abi_uint events;
     target_epoll_data_t data;
 } TARGET_EPOLL_PACKED;
+
+#define TARGET_EP_MAX_EVENTS (INT_MAX / sizeof(struct target_epoll_event))
+
 #endif
 struct target_rlimit64 {
     uint64_t rlim_cur;
