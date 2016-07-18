@@ -1803,9 +1803,17 @@ out:
 static void pc_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
+    int idx = -1;
     HotplugHandlerClass *hhc;
     Error *local_err = NULL;
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
+
+    pc_find_cpu_slot(pcms, CPU(dev), &idx);
+    assert(idx != -1);
+    if (idx == 0) {
+        error_setg(&local_err, "Boot CPU is unpluggable");
+        goto out;
+    }
 
     hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
     hhc->unplug_request(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
