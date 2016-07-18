@@ -176,6 +176,7 @@ static void wait_for_serial(const char *side)
     int started = (strcmp(side, "src_serial") == 0 &&
                    strcmp(arch, "ppc64") == 0) ? 0 : 1;
 
+    g_free(serialpath);
     do {
         int readvalue = fgetc(serialfile);
 
@@ -203,7 +204,6 @@ static void wait_for_serial(const char *side)
         case 'B':
             /* It's alive! */
             fclose(serialfile);
-            g_free(serialpath);
             return;
 
         case EOF:
@@ -350,6 +350,7 @@ static void cleanup(const char *filename)
     char *path = g_strdup_printf("%s/%s", tmpfs, filename);
 
     unlink(path);
+    g_free(path);
 }
 
 static void test_migrate(void)
@@ -393,6 +394,8 @@ static void test_migrate(void)
     } else {
         g_assert_not_reached();
     }
+
+    g_free(bootpath);
 
     from = qtest_start(cmd_src);
     g_free(cmd_src);
