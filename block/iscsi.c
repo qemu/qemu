@@ -432,12 +432,14 @@ static unsigned long *iscsi_allocationmap_init(IscsiLun *iscsilun)
 static void iscsi_allocationmap_set(IscsiLun *iscsilun, int64_t sector_num,
                                     int nb_sectors)
 {
+    int64_t cluster_num, nb_clusters;
     if (iscsilun->allocationmap == NULL) {
         return;
     }
-    bitmap_set(iscsilun->allocationmap,
-               sector_num / iscsilun->cluster_sectors,
-               DIV_ROUND_UP(nb_sectors, iscsilun->cluster_sectors));
+    cluster_num = sector_num / iscsilun->cluster_sectors;
+    nb_clusters = DIV_ROUND_UP(sector_num + nb_sectors,
+                               iscsilun->cluster_sectors) - cluster_num;
+    bitmap_set(iscsilun->allocationmap, cluster_num, nb_clusters);
 }
 
 static void iscsi_allocationmap_clear(IscsiLun *iscsilun, int64_t sector_num,
