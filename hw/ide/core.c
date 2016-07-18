@@ -487,6 +487,7 @@ void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
     s->end_transfer_func = end_transfer_func;
     s->data_ptr = buf;
     s->data_end = buf + size;
+    ide_set_retry(s);
     if (!(s->status & ERR_STAT)) {
         s->status |= DRQ_STAT;
     }
@@ -1056,6 +1057,7 @@ static void ide_flush_cache(IDEState *s)
     }
 
     s->status |= BUSY_STAT;
+    ide_set_retry(s);
     block_acct_start(blk_get_stats(s->blk), &s->acct, 0, BLOCK_ACCT_FLUSH);
     s->pio_aiocb = blk_aio_flush(s->blk, ide_flush_cb, s);
 }
