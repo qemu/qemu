@@ -11,6 +11,8 @@
 # or (at your option) any later version. See the COPYING file in
 # the top-level directory.
 
+set -e
+
 if test -n "$V"; then
     set -x
 fi
@@ -61,4 +63,6 @@ elif test -n "$DEBUG"; then
     echo
     # Force error after shell exits
     $SHELL && exit 1
+else
+    exit 1
 fi
