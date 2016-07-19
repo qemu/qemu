@@ -59,7 +59,6 @@ struct LinuxAioState {
 
     /* I/O completion processing */
     QEMUBH *completion_bh;
-    struct io_event events[MAX_EVENTS];
     int event_idx;
     int event_max;
 };
@@ -102,6 +101,85 @@ static void qemu_laio_process_completion(struct qemu_laiocb *laiocb)
     }
 }
 
+/**
+ * aio_ring buffer which is shared between userspace and kernel.
+ *
+ * This copied from linux/fs/aio.c, common header does not exist
+ * but AIO exists for ages so we assume ABI is stable.
+ */
+struct aio_ring {
+    unsigned    id;    /* kernel internal index number */
+    unsigned    nr;    /* number of io_events */
+    unsigned    head;  /* Written to by userland or by kernel. */
+    unsigned    tail;
+
+    unsigned    magic;
+    unsigned    compat_features;
+    unsigned    incompat_features;
+    unsigned    header_length;  /* size of aio_ring */
+
+    struct io_event io_events[0];
+};
+
+/**
+ * io_getevents_peek:
+ * @ctx: AIO context
+ * @events: pointer on events array, output value
+
+ * Returns the number of completed events and sets a pointer
+ * on events array.  This function does not update the internal
+ * ring buffer, only reads head and tail.  When @events has been
+ * processed io_getevents_commit() must be called.
+ */
+static inline unsigned int io_getevents_peek(io_context_t ctx,
+                                             struct io_event **events)
+{
+    struct aio_ring *ring = (struct aio_ring *)ctx;
+    unsigned int head = ring->head, tail = ring->tail;
+    unsigned int nr;
+
+    nr = tail >= head ? tail - head : ring->nr - head;
+    *events = ring->io_events + head;
+    /* To avoid speculative loads of s->events[i] before observing tail.
+       Paired with smp_wmb() inside linux/fs/aio.c: aio_complete(). */
+    smp_rmb();
+
+    return nr;
+}
+
+/**
+ * io_getevents_commit:
+ * @ctx: AIO context
+ * @nr: the number of events on which head should be advanced
+ *
+ * Advances head of a ring buffer.
+ */
+static inline void io_getevents_commit(io_context_t ctx, unsigned int nr)
+{
+    struct aio_ring *ring = (struct aio_ring *)ctx;
+
+    if (nr) {
+        ring->head = (ring->head + nr) % ring->nr;
+    }
+}
+
+/**
+ * io_getevents_advance_and_peek:
+ * @ctx: AIO context
+ * @events: pointer on events array, output value
+ * @nr: the number of events on which head should be advanced
+ *
+ * Advances head of a ring buffer and returns number of elements left.
+ */
+static inline unsigned int
+io_getevents_advance_and_peek(io_context_t ctx,
+                              struct io_event **events,
+                              unsigned int nr)
+{
+    io_getevents_commit(ctx, nr);
+    return io_getevents_peek(ctx, events);
+}
+
 /* The completion BH fetches completed I/O requests and invokes their
  * callbacks.
  *
@@ -116,43 +194,38 @@ static void qemu_laio_process_completion(struct qemu_laiocb *laiocb)
 static void qemu_laio_completion_bh(void *opaque)
 {
     LinuxAioState *s = opaque;
-
-    /* Fetch more completion events when empty */
-    if (s->event_idx == s->event_max) {
-        do {
-            struct timespec ts = { 0 };
-            s->event_max = io_getevents(s->ctx, MAX_EVENTS, MAX_EVENTS,
-                                        s->events, &ts);
-        } while (s->event_max == -EINTR);
-
-        s->event_idx = 0;
-        if (s->event_max <= 0) {
-            s->event_max = 0;
-            return; /* no more events */
-        }
-        s->io_q.in_flight -= s->event_max;
-    }
+    struct io_event *events;
 
     /* Reschedule so nested event loops see currently pending completions */
     qemu_bh_schedule(s->completion_bh);
 
-    /* Process completion events */
-    while (s->event_idx < s->event_max) {
-        struct iocb *iocb = s->events[s->event_idx].obj;
-        struct qemu_laiocb *laiocb =
+    while ((s->event_max = io_getevents_advance_and_peek(s->ctx, &events,
+                                                         s->event_idx))) {
+        for (s->event_idx = 0; s->event_idx < s->event_max; ) {
+            struct iocb *iocb = events[s->event_idx].obj;
+            struct qemu_laiocb *laiocb =
                 container_of(iocb, struct qemu_laiocb, iocb);
 
-        laiocb->ret = io_event_ret(&s->events[s->event_idx]);
-        s->event_idx++;
+            laiocb->ret = io_event_ret(&events[s->event_idx]);
 
-        qemu_laio_process_completion(laiocb);
+            /* Change counters one-by-one because we can be nested. */
+            s->io_q.in_flight--;
+            s->event_idx++;
+            qemu_laio_process_completion(laiocb);
+        }
     }
+
+    qemu_bh_cancel(s->completion_bh);
+
+    /* If we are nested we have to notify the level above that we are done
+     * by setting event_max to zero, upper level will then jump out of it's
+     * own `for` loop.  If we are the last all counters droped to zero. */
+    s->event_max = 0;
+    s->event_idx = 0;
 
     if (!s->io_q.plugged && !QSIMPLEQ_EMPTY(&s->io_q.pending)) {
         ioq_submit(s);
     }
-
-    qemu_bh_cancel(s->completion_bh);
 }
 
 static void qemu_laio_completion_cb(EventNotifier *e)
