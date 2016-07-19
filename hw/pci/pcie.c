@@ -47,6 +47,7 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
 {
     int pos;
     uint8_t *exp_cap;
+    uint8_t *cmask;
 
     assert(pci_is_express(dev));
 
@@ -57,6 +58,7 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
     }
     dev->exp.exp_cap = pos;
     exp_cap = dev->config + pos;
+    cmask = dev->cmask + pos;
 
     /* capability register
        interrupt message number defaults to 0 */
@@ -80,7 +82,18 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
                  PCI_EXP_LNK_LS_25);
 
     pci_set_word(exp_cap + PCI_EXP_LNKSTA,
-                 PCI_EXP_LNK_MLW_1 | PCI_EXP_LNK_LS_25 |PCI_EXP_LNKSTA_DLLLA);
+                 PCI_EXP_LNK_MLW_1 | PCI_EXP_LNK_LS_25);
+
+    if (dev->cap_present & QEMU_PCIE_LNKSTA_DLLLA) {
+        pci_word_test_and_set_mask(exp_cap + PCI_EXP_LNKSTA,
+                                   PCI_EXP_LNKSTA_DLLLA);
+    }
+
+    /* We changed link status bits over time, and changing them across
+     * migrations is generally fine as hardware changes them too.
+     * Let's not bother checking.
+     */
+    pci_set_word(cmask + PCI_EXP_LNKSTA, 0);
 
     pci_set_long(exp_cap + PCI_EXP_DEVCAP2,
                  PCI_EXP_DEVCAP2_EFF | PCI_EXP_DEVCAP2_EETLPP);
