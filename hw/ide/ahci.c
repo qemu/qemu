@@ -919,6 +919,7 @@ static void ncq_err(NCQTransferState *ncq_tfs)
     ide_state->error = ABRT_ERR;
     ide_state->status = READY_STAT | ERR_STAT;
     ncq_tfs->drive->port_regs.scr_err |= (1 << ncq_tfs->tag);
+    qemu_sglist_destroy(&ncq_tfs->sglist);
     ncq_tfs->used = 0;
 }
 
@@ -1025,7 +1026,6 @@ static void execute_ncq_command(NCQTransferState *ncq_tfs)
     default:
         DPRINTF(port, "error: unsupported NCQ command (0x%02x) received\n",
                 ncq_tfs->cmd);
-        qemu_sglist_destroy(&ncq_tfs->sglist);
         ncq_err(ncq_tfs);
     }
 }
@@ -1092,7 +1092,6 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
         error_report("ahci: PRDT length for NCQ command (0x%zx) "
                      "is smaller than the requested size (0x%zx)",
                      ncq_tfs->sglist.size, size);
-        qemu_sglist_destroy(&ncq_tfs->sglist);
         ncq_err(ncq_tfs);
         ahci_trigger_irq(ad->hba, ad, PORT_IRQ_OVERFLOW);
         return;
