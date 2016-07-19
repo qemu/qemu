@@ -20,6 +20,7 @@ import atexit
 import uuid
 import argparse
 import tempfile
+import re
 from shutil import copy, rmtree
 
 def _text_checksum(text):
@@ -37,6 +38,54 @@ def _guess_docker_command():
     commands_txt = "\n".join(["  " + " ".join(x) for x in commands])
     raise Exception("Cannot find working docker command. Tried:\n%s" % \
                     commands_txt)
+
+def _copy_with_mkdir(src, root_dir, sub_path):
+    """Copy src into root_dir, creating sub_path as needed."""
+    dest_dir = os.path.normpath("%s/%s" % (root_dir, sub_path))
+    try:
+        os.makedirs(dest_dir)
+    except OSError:
+        # we can safely ignore already created directories
+        pass
+
+    dest_file = "%s/%s" % (dest_dir, os.path.basename(src))
+    copy(src, dest_file)
+
+
+def _get_so_libs(executable):
+    """Return a list of libraries associated with an executable.
+
+    The paths may be symbolic links which would need to be resolved to
+    ensure theright data is copied."""
+
+    libs = []
+    ldd_re = re.compile(r"(/.*/)(\S*)")
+    try:
+        ldd_output = subprocess.check_output(["ldd", executable])
+        for line in ldd_output.split("\n"):
+            search = ldd_re.search(line)
+            if search and len(search.groups()) == 2:
+                so_path = search.groups()[0]
+                so_lib = search.groups()[1]
+                libs.append("%s/%s" % (so_path, so_lib))
+    except subprocess.CalledProcessError:
+        print "%s had no associated libraries (static build?)" % (executable)
+
+    return libs
+
+def _copy_binary_with_libs(src, dest_dir):
+    """Copy a binary executable and all its dependant libraries.
+
+    This does rely on the host file-system being fairly multi-arch
+    aware so the file don't clash with the guests layout."""
+
+    _copy_with_mkdir(src, dest_dir, "/usr/bin")
+
+    libs = _get_so_libs(src)
+    if libs:
+        for l in libs:
+            so_path = os.path.dirname(l)
+            _copy_with_mkdir(l , dest_dir, so_path)
 
 class Docker(object):
     """ Running Docker commands """
@@ -151,6 +200,10 @@ class BuildCommand(SubCommand):
     """ Build docker image out of a dockerfile. Arguments: <tag> <dockerfile>"""
     name = "build"
     def args(self, parser):
+        parser.add_argument("--include-executable", "-e",
+                            help="""Specify a binary that will be copied to the
+                            container together with all its dependent
+                            libraries""")
         parser.add_argument("tag",
                             help="Image Tag")
         parser.add_argument("dockerfile",
@@ -167,6 +220,11 @@ class BuildCommand(SubCommand):
         else:
             # Create a docker context directory for the build
             docker_dir = tempfile.mkdtemp(prefix="docker_build")
+
+            # Do we include a extra binary?
+            if args.include_executable:
+                _copy_binary_with_libs(args.include_executable,
+                                       docker_dir)
 
             dkr.build_image(tag, docker_dir, dockerfile,
                             quiet=args.quiet, argv=argv)
