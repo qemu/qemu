@@ -89,7 +89,7 @@ char *os_find_datadir(void)
     if (exec_dir == NULL) {
         return NULL;
     }
-    dir = dirname(exec_dir);
+    dir = g_path_get_dirname(exec_dir);
 
     max_len = strlen(dir) +
         MAX(strlen(SHARE_SUFFIX), strlen(BUILD_SUFFIX)) + 1;
@@ -103,6 +103,7 @@ char *os_find_datadir(void)
         }
     }
 
+    g_free(dir);
     g_free(exec_dir);
     return res;
 }

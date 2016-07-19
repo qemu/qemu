@@ -2725,9 +2725,6 @@ static void x86_cpu_reset(CPUState *s)
 
     /* init to reset state */
 
-#ifdef CONFIG_SOFTMMU
-    env->hflags |= HF_SOFTMMU_MASK;
-#endif
     env->hflags2 |= HF2_GIF_MASK;
 
     cpu_x86_update_cr0(env, 0x60000010);

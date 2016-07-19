@@ -608,17 +608,16 @@ int cpu_exec(CPUState *cpu)
     init_delay_params(&sc, cpu);
 
     for(;;) {
-        TranslationBlock *tb, *last_tb;
-        int tb_exit = 0;
-
         /* prepare setjmp context for exception handling */
         if (sigsetjmp(cpu->jmp_env, 0) == 0) {
+            TranslationBlock *tb, *last_tb = NULL;
+            int tb_exit = 0;
+
             /* if an exception is pending, we execute it here */
             if (cpu_handle_exception(cpu, &ret)) {
                 break;
             }
 
-            last_tb = NULL; /* forget the last executed TB after exception */
             cpu->tb_flushed = false; /* reset before first TB lookup */
             for(;;) {
                 cpu_handle_interrupt(cpu, &last_tb);

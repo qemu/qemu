@@ -191,7 +191,7 @@ typedef uint64_t tcg_insn_unit;
 #endif
 
 
-#ifdef CONFIG_DEBUG_TCG
+#if defined CONFIG_DEBUG_TCG || defined QEMU_STATIC_ANALYSIS
 # define tcg_debug_assert(X) do { assert(X); } while (0)
 #elif QEMU_GNUC_PREREQ(4, 5)
 # define tcg_debug_assert(X) \
