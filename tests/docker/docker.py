@@ -20,7 +20,7 @@ import atexit
 import uuid
 import argparse
 import tempfile
-from shutil import copy
+from shutil import copy, rmtree
 
 def _text_checksum(text):
     """Calculate a digest string unique to the text content"""
@@ -87,20 +87,20 @@ class Docker(object):
         labels = json.loads(resp)[0]["Config"].get("Labels", {})
         return labels.get("com.qemu.dockerfile-checksum", "")
 
-    def build_image(self, tag, dockerfile, df_path, quiet=True, argv=None):
+    def build_image(self, tag, docker_dir, dockerfile, quiet=True, argv=None):
         if argv == None:
             argv = []
-        tmp_dir = tempfile.mkdtemp(prefix="docker_build")
 
-        tmp_df = tempfile.NamedTemporaryFile(dir=tmp_dir, suffix=".docker")
+        tmp_df = tempfile.NamedTemporaryFile(dir=docker_dir, suffix=".docker")
         tmp_df.write(dockerfile)
 
         tmp_df.write("\n")
         tmp_df.write("LABEL com.qemu.dockerfile-checksum=%s" %
                      _text_checksum(dockerfile))
         tmp_df.flush()
+
         self._do(["build", "-t", tag, "-f", tmp_df.name] + argv + \
-                 [tmp_dir],
+                 [docker_dir],
                  quiet=quiet)
 
     def image_matches_dockerfile(self, tag, dockerfile):
@@ -164,10 +164,15 @@ class BuildCommand(SubCommand):
         if dkr.image_matches_dockerfile(tag, dockerfile):
             if not args.quiet:
                 print "Image is up to date."
-            return 0
+        else:
+            # Create a docker context directory for the build
+            docker_dir = tempfile.mkdtemp(prefix="docker_build")
 
-        dkr.build_image(tag, dockerfile, args.dockerfile,
-                        quiet=args.quiet, argv=argv)
+            dkr.build_image(tag, docker_dir, dockerfile,
+                            quiet=args.quiet, argv=argv)
+
+            rmtree(docker_dir)
+
         return 0
 
 class CleanCommand(SubCommand):
