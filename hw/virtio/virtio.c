@@ -562,6 +562,11 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
 
     max = vq->vring.num;
 
+    if (vq->inuse >= vq->vring.num) {
+        error_report("Virtqueue size exceeded");
+        exit(1);
+    }
+
     i = head = virtqueue_get_head(vq, vq->last_avail_idx++);
     if (virtio_vdev_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX)) {
         vring_set_avail_event(vq, vq->last_avail_idx);
