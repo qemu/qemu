@@ -1,7 +1,7 @@
 /*
  * Interface for configuring and controlling the state of tracing events.
  *
- * Copyright (C) 2012 Lluís Vilanova <vilanova@ac.upc.edu>
+ * Copyright (C) 2012-2016 Lluís Vilanova <vilanova@ac.upc.edu>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -16,6 +16,7 @@
 /**
  * TraceEvent:
  * @id: Unique event identifier.
+ * @vcpu_id: Unique per-vCPU event identifier.
  * @name: Event name.
  * @sstate: Static tracing state.
  *
@@ -23,6 +24,7 @@
  */
 typedef struct TraceEvent {
     TraceEventID id;
+    TraceEventVCPUID vcpu_id;
     const char * name;
     const bool sstate;
 } TraceEvent;

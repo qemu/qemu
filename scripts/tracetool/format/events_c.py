@@ -6,7 +6,7 @@ trace/generated-events.c
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2016, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -28,8 +28,15 @@ def generate(events, backend):
     out('TraceEvent trace_events[TRACE_EVENT_COUNT] = {')
 
     for e in events:
-        out('    { .id = %(id)s, .name = \"%(name)s\", .sstate = %(sstate)s },',
+        if "vcpu" in e.properties:
+            vcpu_id = "TRACE_VCPU_" + e.name.upper()
+        else:
+            vcpu_id = "TRACE_VCPU_EVENT_COUNT"
+        out('    { .id = %(id)s, .vcpu_id = %(vcpu_id)s,'
+            ' .name = \"%(name)s\",'
+            ' .sstate = %(sstate)s },',
             id = "TRACE_" + e.name.upper(),
+            vcpu_id = vcpu_id,
             name = e.name,
             sstate = "TRACE_%s_ENABLED" % e.name.upper())
 

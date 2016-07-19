@@ -36,7 +36,7 @@ def generate_h_begin(events):
 
 
 def generate_h(event):
-    out('    _simple_%(api)s(%(args)s);',
+    out('        _simple_%(api)s(%(args)s);',
         api=event.api(),
         args=", ".join(event.args.names()))
 
@@ -68,16 +68,23 @@ def generate_c(event):
     if len(event.args) == 0:
         sizestr = '0'
 
+    event_id = 'TRACE_' + event.name.upper()
+    if "vcpu" in event.properties:
+        # already checked on the generic format code
+        cond = "true"
+    else:
+        cond = "trace_event_get_state(%s)" % event_id
 
     out('',
-        '    if (!trace_event_get_state(%(event_id)s)) {',
+        '    if (!%(cond)s) {',
         '        return;',
         '    }',
         '',
         '    if (trace_record_start(&rec, %(event_id)s, %(size_str)s)) {',
         '        return; /* Trace Buffer Full, Event Dropped ! */',
         '    }',
-        event_id='TRACE_' + event.name.upper(),
+        cond=cond,
+        event_id=event_id,
         size_str=sizestr)
 
     if len(event.args) > 0:

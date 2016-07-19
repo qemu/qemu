@@ -1,6 +1,6 @@
 # -*- mode: python -*-
 #
-# Copyright (C) 2011-2014 Lluís Vilanova <vilanova@ac.upc.edu>
+# Copyright (C) 2011-2016 Lluís Vilanova <vilanova@ac.upc.edu>
 #
 # This work is licensed under the terms of the GNU GPL, version 2 or later.
 # See the COPYING file in the top-level directory.
@@ -29,11 +29,15 @@
 #
 # @name: Event name.
 # @state: Tracing state.
+# @vcpu: Whether this is a per-vCPU event (since 2.7).
+#
+# An event is per-vCPU if it has the "vcpu" property in the "trace-events"
+# files.
 #
 # Since 2.2
 ##
 { 'struct': 'TraceEventInfo',
-  'data': {'name': 'str', 'state': 'TraceEventState'} }
+  'data': {'name': 'str', 'state': 'TraceEventState', 'vcpu': 'bool'} }
 
 ##
 # @trace-event-get-state:
@@ -41,13 +45,23 @@
 # Query the state of events.
 #
 # @name: Event name pattern (case-sensitive glob).
+# @vcpu: #optional The vCPU to query (any by default; since 2.7).
 #
 # Returns: a list of @TraceEventInfo for the matching events
+#
+# An event is returned if:
+# - its name matches the @name pattern, and
+# - if @vcpu is given, the event has the "vcpu" property.
+#
+# Therefore, if @vcpu is given, the operation will only match per-vCPU events,
+# returning their state on the specified vCPU. Special case: if @name is an
+# exact match, @vcpu is given and the event does not have the "vcpu" property,
+# an error is returned.
 #
 # Since 2.2
 ##
 { 'command': 'trace-event-get-state',
-  'data': {'name': 'str'},
+  'data': {'name': 'str', '*vcpu': 'int'},
   'returns': ['TraceEventInfo'] }
 
 ##
@@ -58,8 +72,19 @@
 # @name: Event name pattern (case-sensitive glob).
 # @enable: Whether to enable tracing.
 # @ignore-unavailable: #optional Do not match unavailable events with @name.
+# @vcpu: #optional The vCPU to act upon (all by default; since 2.7).
+#
+# An event's state is modified if:
+# - its name matches the @name pattern, and
+# - if @vcpu is given, the event has the "vcpu" property.
+#
+# Therefore, if @vcpu is given, the operation will only match per-vCPU events,
+# setting their state on the specified vCPU. Special case: if @name is an exact
+# match, @vcpu is given and the event does not have the "vcpu" property, an
+# error is returned.
 #
 # Since 2.2
 ##
 { 'command': 'trace-event-set-state',
-  'data': {'name': 'str', 'enable': 'bool', '*ignore-unavailable': 'bool'} }
+  'data': {'name': 'str', 'enable': 'bool', '*ignore-unavailable': 'bool',
+           '*vcpu': 'int'} }

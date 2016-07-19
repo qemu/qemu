@@ -904,9 +904,16 @@ static void hmp_trace_event(Monitor *mon, const QDict *qdict)
 {
     const char *tp_name = qdict_get_str(qdict, "name");
     bool new_state = qdict_get_bool(qdict, "option");
+    bool has_vcpu = qdict_haskey(qdict, "vcpu");
+    int vcpu = qdict_get_try_int(qdict, "vcpu", 0);
     Error *local_err = NULL;
 
-    qmp_trace_event_set_state(tp_name, new_state, true, true, &local_err);
+    if (vcpu < 0) {
+        monitor_printf(mon, "argument vcpu must be positive");
+        return;
+    }
+
+    qmp_trace_event_set_state(tp_name, new_state, true, true, has_vcpu, vcpu, &local_err);
     if (local_err) {
         error_report_err(local_err);
     }
@@ -1065,8 +1072,26 @@ static void hmp_info_cpustats(Monitor *mon, const QDict *qdict)
 
 static void hmp_info_trace_events(Monitor *mon, const QDict *qdict)
 {
-    TraceEventInfoList *events = qmp_trace_event_get_state("*", NULL);
+    const char *name = qdict_get_try_str(qdict, "name");
+    bool has_vcpu = qdict_haskey(qdict, "vcpu");
+    int vcpu = qdict_get_try_int(qdict, "vcpu", 0);
+    TraceEventInfoList *events;
     TraceEventInfoList *elem;
+    Error *local_err = NULL;
+
+    if (name == NULL) {
+        name = "*";
+    }
+    if (vcpu < 0) {
+        monitor_printf(mon, "argument vcpu must be positive");
+        return;
+    }
+
+    events = qmp_trace_event_get_state(name, has_vcpu, vcpu, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return;
+    }
 
     for (elem = events; elem != NULL; elem = elem->next) {
         monitor_printf(mon, "%s : state %u\n",
@@ -3292,6 +3317,23 @@ void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str)
         opts = qemu_opts_find(qemu_find_opts_err("netdev", NULL), name);
         if (opts) {
             readline_add_completion(rs, name);
+        }
+    }
+}
+
+void info_trace_events_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    if (nb_args == 2) {
+        TraceEventID id;
+        for (id = 0; id < trace_event_count(); id++) {
+            const char *event_name = trace_event_get_name(trace_event_id(id));
+            if (!strncmp(str, event_name, len)) {
+                readline_add_completion(rs, event_name);
+            }
         }
     }
 }
