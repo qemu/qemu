@@ -1828,6 +1828,7 @@ static int vfio_add_ext_cap(VFIOPCIDevice *vdev)
 
         switch (cap_id) {
         case PCI_EXT_CAP_ID_SRIOV: /* Read-only VF BARs confuse OVMF */
+        case PCI_EXT_CAP_ID_ARI: /* XXX Needs next function virtualization */
             trace_vfio_add_ext_cap_dropped(vdev->vbasedev.name, cap_id, next);
             break;
         default:
