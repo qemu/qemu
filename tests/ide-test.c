@@ -499,6 +499,39 @@ static void test_identify(void)
     ide_test_quit();
 }
 
+/*
+ * Write sector 1 with random data to make IDE storage dirty
+ * Needed for flush tests so that flushes actually go though the block layer
+ */
+static void make_dirty(uint8_t device)
+{
+    uint8_t status;
+    size_t len = 512;
+    uintptr_t guest_buf;
+    void* buf;
+
+    guest_buf = guest_alloc(guest_malloc, len);
+    buf = g_malloc(len);
+    g_assert(guest_buf);
+    g_assert(buf);
+
+    memwrite(guest_buf, buf, len);
+
+    PrdtEntry prdt[] = {
+        {
+            .addr = cpu_to_le32(guest_buf),
+            .size = cpu_to_le32(len | PRDT_EOT),
+        },
+    };
+
+    status = send_dma_request(CMD_WRITE_DMA, 1, 1, prdt,
+                              ARRAY_SIZE(prdt), NULL);
+    g_assert_cmphex(status, ==, BM_STS_INTR);
+    assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
+
+    g_free(buf);
+}
+
 static void test_flush(void)
 {
     uint8_t data;
@@ -506,6 +539,11 @@ static void test_flush(void)
     ide_test_start(
         "-drive file=blkdebug::%s,if=ide,cache=writeback,format=raw",
         tmp_path);
+
+    qtest_irq_intercept_in(global_qtest, "ioapic");
+
+    /* Dirty media so that CMD_FLUSH_CACHE will actually go to disk */
+    make_dirty(0);
 
     /* Delay the completion of the flush request until we explicitly do it */
     g_free(hmp("qemu-io ide0-hd0 \"break flush_to_os A\""));
@@ -548,6 +586,11 @@ static void test_retry_flush(const char *machine)
         "-drive file=blkdebug:%s:%s,if=ide,cache=writeback,format=raw,"
         "rerror=stop,werror=stop",
         debug_path, tmp_path);
+
+    qtest_irq_intercept_in(global_qtest, "ioapic");
+
+    /* Dirty media so that CMD_FLUSH_CACHE will actually go to disk */
+    make_dirty(0);
 
     /* FLUSH CACHE command on device 0*/
     outb(IDE_BASE + reg_device, 0);

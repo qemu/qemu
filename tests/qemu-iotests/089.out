@@ -24,8 +24,6 @@ read 512/512 bytes at offset 0
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 512/512 bytes at offset 229376
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-Failed to flush the L2 table cache: Input/output error
-Failed to flush the refcount block cache: Input/output error
 read failed: Input/output error
 
 === Testing qemu-img info output ===

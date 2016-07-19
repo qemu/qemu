@@ -439,6 +439,11 @@ struct BlockDriverState {
     int copy_on_read; /* if nonzero, copy read backing sectors into image.
                          note this is a reference count */
 
+    CoQueue flush_queue;            /* Serializing flush queue */
+    unsigned int write_gen;         /* Current data generation */
+    unsigned int flush_started_gen; /* Generation for which flush has started */
+    unsigned int flushed_gen;       /* Flushed write generation */
+
     BlockDriver *drv; /* NULL means no media */
     void *opaque;
 

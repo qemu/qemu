@@ -466,6 +466,20 @@ void ide_abort_command(IDEState *s)
     s->error = ABRT_ERR;
 }
 
+static void ide_set_retry(IDEState *s)
+{
+    s->bus->retry_unit = s->unit;
+    s->bus->retry_sector_num = ide_get_sector(s);
+    s->bus->retry_nsector = s->nsector;
+}
+
+static void ide_clear_retry(IDEState *s)
+{
+    s->bus->retry_unit = -1;
+    s->bus->retry_sector_num = 0;
+    s->bus->retry_nsector = 0;
+}
+
 /* prepare data transfer and tell what to do after */
 void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
                         EndTransferFunc *end_transfer_func)
@@ -473,6 +487,7 @@ void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
     s->end_transfer_func = end_transfer_func;
     s->data_ptr = buf;
     s->data_end = buf + size;
+    ide_set_retry(s);
     if (!(s->status & ERR_STAT)) {
         s->status |= DRQ_STAT;
     }
@@ -756,9 +771,7 @@ void dma_buf_commit(IDEState *s, uint32_t tx_bytes)
 void ide_set_inactive(IDEState *s, bool more)
 {
     s->bus->dma->aiocb = NULL;
-    s->bus->retry_unit = -1;
-    s->bus->retry_sector_num = 0;
-    s->bus->retry_nsector = 0;
+    ide_clear_retry(s);
     if (s->bus->dma->ops->set_inactive) {
         s->bus->dma->ops->set_inactive(s->bus->dma, more);
     }
@@ -914,9 +927,7 @@ static void ide_sector_start_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
 void ide_start_dma(IDEState *s, BlockCompletionFunc *cb)
 {
     s->io_buffer_index = 0;
-    s->bus->retry_unit = s->unit;
-    s->bus->retry_sector_num = ide_get_sector(s);
-    s->bus->retry_nsector = s->nsector;
+    ide_set_retry(s);
     if (s->bus->dma->ops->start_dma) {
         s->bus->dma->ops->start_dma(s->bus->dma, s, cb);
     }
@@ -1046,6 +1057,7 @@ static void ide_flush_cache(IDEState *s)
     }
 
     s->status |= BUSY_STAT;
+    ide_set_retry(s);
     block_acct_start(blk_get_stats(s->blk), &s->acct, 0, BLOCK_ACCT_FLUSH);
     s->pio_aiocb = blk_aio_flush(s->blk, ide_flush_cb, s);
 }

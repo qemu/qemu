@@ -1303,6 +1303,7 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
     }
     bdrv_debug_event(bs, BLKDBG_PWRITEV_DONE);
 
+    ++bs->write_gen;
     bdrv_set_dirty(bs, start_sector, end_sector - start_sector);
 
     if (bs->wr_highest_offset < offset + bytes) {
@@ -2236,6 +2237,15 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 
     tracked_request_begin(&req, bs, 0, 0, BDRV_TRACKED_FLUSH);
 
+    int current_gen = bs->write_gen;
+
+    /* Wait until any previous flushes are completed */
+    while (bs->flush_started_gen != bs->flushed_gen) {
+        qemu_co_queue_wait(&bs->flush_queue);
+    }
+
+    bs->flush_started_gen = current_gen;
+
     /* Write back all layers by calling one driver function */
     if (bs->drv->bdrv_co_flush) {
         ret = bs->drv->bdrv_co_flush(bs);
@@ -2253,6 +2263,11 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 
     /* But don't actually force it to the disk with cache=unsafe */
     if (bs->open_flags & BDRV_O_NO_FLUSH) {
+        goto flush_parent;
+    }
+
+    /* Check if we really need to flush anything */
+    if (bs->flushed_gen == current_gen) {
         goto flush_parent;
     }
 
@@ -2286,6 +2301,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
          */
         ret = 0;
     }
+
     if (ret < 0) {
         goto out;
     }
@@ -2296,6 +2312,10 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 flush_parent:
     ret = bs->file ? bdrv_co_flush(bs->file->bs) : 0;
 out:
+    /* Notify any pending flushes that we have completed */
+    bs->flushed_gen = current_gen;
+    qemu_co_queue_restart_all(&bs->flush_queue);
+
     tracked_request_end(&req);
     return ret;
 }
@@ -2421,6 +2441,7 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
     }
     ret = 0;
 out:
+    ++bs->write_gen;
     bdrv_set_dirty(bs, req.offset >> BDRV_SECTOR_BITS,
                    req.bytes >> BDRV_SECTOR_BITS);
     tracked_request_end(&req);
