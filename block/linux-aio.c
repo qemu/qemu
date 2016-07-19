@@ -180,20 +180,20 @@ io_getevents_advance_and_peek(io_context_t ctx,
     return io_getevents_peek(ctx, events);
 }
 
-/* The completion BH fetches completed I/O requests and invokes their
- * callbacks.
+/**
+ * qemu_laio_process_completions:
+ * @s: AIO state
+ *
+ * Fetches completed I/O requests and invokes their callbacks.
  *
  * The function is somewhat tricky because it supports nested event loops, for
  * example when a request callback invokes aio_poll().  In order to do this,
- * the completion events array and index are kept in LinuxAioState.  The BH
- * reschedules itself as long as there are completions pending so it will
- * either be called again in a nested event loop or will be called after all
- * events have been completed.  When there are no events left to complete, the
- * BH returns without rescheduling.
+ * indices are kept in LinuxAioState.  Function schedules BH completion so it
+ * can be called again in a nested event loop.  When there are no events left
+ * to complete the BH is being canceled.
  */
-static void qemu_laio_completion_bh(void *opaque)
+static void qemu_laio_process_completions(LinuxAioState *s)
 {
-    LinuxAioState *s = opaque;
     struct io_event *events;
 
     /* Reschedule so nested event loops see currently pending completions */
@@ -222,10 +222,21 @@ static void qemu_laio_completion_bh(void *opaque)
      * own `for` loop.  If we are the last all counters droped to zero. */
     s->event_max = 0;
     s->event_idx = 0;
+}
 
+static void qemu_laio_process_completions_and_submit(LinuxAioState *s)
+{
+    qemu_laio_process_completions(s);
     if (!s->io_q.plugged && !QSIMPLEQ_EMPTY(&s->io_q.pending)) {
         ioq_submit(s);
     }
+}
+
+static void qemu_laio_completion_bh(void *opaque)
+{
+    LinuxAioState *s = opaque;
+
+    qemu_laio_process_completions_and_submit(s);
 }
 
 static void qemu_laio_completion_cb(EventNotifier *e)
@@ -233,7 +244,7 @@ static void qemu_laio_completion_cb(EventNotifier *e)
     LinuxAioState *s = container_of(e, LinuxAioState, e);
 
     if (event_notifier_test_and_clear(&s->e)) {
-        qemu_laio_completion_bh(s);
+        qemu_laio_process_completions_and_submit(s);
     }
 }
 
