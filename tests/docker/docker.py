@@ -179,6 +179,9 @@ class Docker(object):
             self._instances.remove(label)
         return ret
 
+    def command(self, cmd, argv, quiet):
+        return self._do([cmd] + argv, quiet=quiet)
+
 class SubCommand(object):
     """A SubCommand template base class"""
     name = None # Subcommand name
@@ -308,6 +311,12 @@ class CleanCommand(SubCommand):
     def run(self, args, argv):
         Docker().clean()
         return 0
+
+class ImagesCommand(SubCommand):
+    """Run "docker images" command"""
+    name = "images"
+    def run(self, args, argv):
+        return Docker().command("images", argv, args.quiet)
 
 def main():
     parser = argparse.ArgumentParser(description="A Docker helper",
