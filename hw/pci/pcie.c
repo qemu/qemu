@@ -45,8 +45,11 @@
  */
 
 static void
-pcie_cap_v1_fill(uint8_t *exp_cap, uint8_t port, uint8_t type, uint8_t version)
+pcie_cap_v1_fill(PCIDevice *dev, uint8_t port, uint8_t type, uint8_t version)
 {
+    uint8_t *exp_cap = dev->config + dev->exp.exp_cap;
+    uint8_t *cmask = dev->cmask + dev->exp.exp_cap;
+
     /* capability register
     interrupt message number defaults to 0 */
     pci_set_word(exp_cap + PCI_EXP_FLAGS,
@@ -69,7 +72,18 @@ pcie_cap_v1_fill(uint8_t *exp_cap, uint8_t port, uint8_t type, uint8_t version)
                  PCI_EXP_LNK_LS_25);
 
     pci_set_word(exp_cap + PCI_EXP_LNKSTA,
-                 PCI_EXP_LNK_MLW_1 | PCI_EXP_LNK_LS_25 |PCI_EXP_LNKSTA_DLLLA);
+                 PCI_EXP_LNK_MLW_1 | PCI_EXP_LNK_LS_25);
+
+    if (dev->cap_present & QEMU_PCIE_LNKSTA_DLLLA) {
+        pci_word_test_and_set_mask(exp_cap + PCI_EXP_LNKSTA,
+                                   PCI_EXP_LNKSTA_DLLLA);
+    }
+
+    /* We changed link status bits over time, and changing them across
+     * migrations is generally fine as hardware changes them too.
+     * Let's not bother checking.
+     */
+    pci_set_word(cmask + PCI_EXP_LNKSTA, 0);
 }
 
 int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
@@ -88,7 +102,7 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
     exp_cap = dev->config + pos;
 
     /* Filling values common with v1 */
-    pcie_cap_v1_fill(exp_cap, port, type, PCI_EXP_FLAGS_VER2);
+    pcie_cap_v1_fill(dev, port, type, PCI_EXP_FLAGS_VER2);
 
     /* Filling v2 specific values */
     pci_set_long(exp_cap + PCI_EXP_DEVCAP2,
@@ -103,7 +117,6 @@ int pcie_cap_v1_init(PCIDevice *dev, uint8_t offset, uint8_t type,
 {
     /* PCIe cap v1 init */
     int pos;
-    uint8_t *exp_cap;
 
     assert(pci_is_express(dev));
 
@@ -112,9 +125,8 @@ int pcie_cap_v1_init(PCIDevice *dev, uint8_t offset, uint8_t type,
         return pos;
     }
     dev->exp.exp_cap = pos;
-    exp_cap = dev->config + pos;
 
-    pcie_cap_v1_fill(exp_cap, port, type, PCI_EXP_FLAGS_VER1);
+    pcie_cap_v1_fill(dev, port, type, PCI_EXP_FLAGS_VER1);
 
     return pos;
 }

@@ -174,6 +174,9 @@ enum {
     /* PCI Express capability - Power Controller Present */
 #define QEMU_PCIE_SLTCAP_PCP_BITNR 7
     QEMU_PCIE_SLTCAP_PCP = (1 << QEMU_PCIE_SLTCAP_PCP_BITNR),
+    /* Link active status in endpoint capability is always set */
+#define QEMU_PCIE_LNKSTA_DLLLA_BITNR 8
+    QEMU_PCIE_LNKSTA_DLLLA = (1 << QEMU_PCIE_LNKSTA_DLLLA_BITNR),
 };
 
 #define TYPE_PCI_DEVICE "pci-device"

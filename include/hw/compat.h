@@ -80,6 +80,10 @@
         .driver   = "virtio-rng-pci",\
         .property = "any_layout",\
         .value    = "off",\
+    },{\
+        .driver   = TYPE_PCI_DEVICE,\
+        .property = "x-pcie-lnksta-dllla",\
+        .value    = "off",\
     },
 
 #define HW_COMPAT_2_2 \
