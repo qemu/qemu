@@ -46,7 +46,8 @@ docker-image: ${DOCKER_TARGETS}
 docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 	$(call quiet-command,\
 		$(SRC_PATH)/tests/docker/docker.py build qemu:$* $< \
-		$(if $V,,--quiet) $(if $(NOCACHE),--no-cache),\
+		$(if $V,,--quiet) $(if $(NOCACHE),--no-cache) \
+		$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE)),\
 		"  BUILD $*")
 
 # Expand all the pre-requistes for each docker image and test combination
@@ -95,6 +96,7 @@ docker:
 	@echo '    DEBUG=1              Stop and drop to shell in the created container'
 	@echo '                         before running the command.'
 	@echo '    NOCACHE=1            Ignore cache when build images.'
+	@echo '    EXECUTABLE=<path>    Include executable in image.'
 
 docker-run-%: CMD = $(shell echo '$@' | sed -e 's/docker-run-\([^@]*\)@\(.*\)/\1/')
 docker-run-%: IMAGE = $(shell echo '$@' | sed -e 's/docker-run-\([^@]*\)@\(.*\)/\2/')
