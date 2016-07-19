@@ -105,7 +105,10 @@ docker-run-%: docker-qemu-src
 	fi
 	$(if $(filter $(TESTS),$(CMD)),$(if $(filter $(IMAGES),$(IMAGE)), \
 		$(call quiet-command,\
-			$(SRC_PATH)/tests/docker/docker.py run $(if $V,,--rm) \
+			if $(SRC_PATH)/tests/docker/docker.py images \
+				--format={{.Repository}}:{{.Tag}} | \
+					grep -qx qemu:$(IMAGE); then \
+				$(SRC_PATH)/tests/docker/docker.py run $(if $V,,--rm) \
 				-t \
 				$(if $(DEBUG),-i,--net=none) \
 				-e TARGET_LIST=$(TARGET_LIST) \
@@ -117,6 +120,7 @@ docker-run-%: docker-qemu-src
 				qemu:$(IMAGE) \
 				/var/tmp/qemu/run \
 				$(CMD); \
+			fi \
 			, "  RUN $(CMD) in $(IMAGE)")))
 
 docker-clean:
