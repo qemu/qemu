@@ -281,7 +281,7 @@ e1000e_intrmgr_delay_rx_causes(E1000ECore *core, uint32_t *causes)
 
     /* Check if delayed RX interrupts disabled by client
        or if there are causes that cannot be delayed */
-    if ((rdtr == 0) || (causes != 0)) {
+    if ((rdtr == 0) || (*causes != 0)) {
         return false;
     }
 
@@ -322,7 +322,7 @@ e1000e_intrmgr_delay_tx_causes(E1000ECore *core, uint32_t *causes)
     *causes &= ~delayable_causes;
 
     /* If there are causes that cannot be delayed */
-    if (causes != 0) {
+    if (*causes != 0) {
         return false;
     }
 

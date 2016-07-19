@@ -211,7 +211,7 @@ void eth_get_protocols(const struct iovec *iov, int iovcnt,
                                      *l4hdr_off, sizeof(l4hdr_info->hdr.tcp),
                                      &l4hdr_info->hdr.tcp);
 
-            if (istcp) {
+            if (*istcp) {
                 *l5hdr_off = *l4hdr_off +
                     TCP_HEADER_DATA_OFFSET(&l4hdr_info->hdr.tcp);
 
@@ -418,7 +418,7 @@ _eth_get_rss_ex_dst_addr(const struct iovec *pkt, int pkt_frags,
 
         bytes_read = iov_to_buf(pkt, pkt_frags,
                                 rthdr_offset + sizeof(*ext_hdr),
-                                dst_addr, sizeof(dst_addr));
+                                dst_addr, sizeof(*dst_addr));
 
         return bytes_read == sizeof(dst_addr);
     }
@@ -467,7 +467,7 @@ _eth_get_rss_ex_src_addr(const struct iovec *pkt, int pkt_frags,
 
             bytes_read = iov_to_buf(pkt, pkt_frags,
                                     opt_offset + sizeof(opthdr),
-                                    src_addr, sizeof(src_addr));
+                                    src_addr, sizeof(*src_addr));
 
             return bytes_read == sizeof(src_addr);
         }

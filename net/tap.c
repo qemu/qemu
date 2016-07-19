@@ -787,8 +787,8 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
             return -1;
         }
     } else if (tap->has_fds) {
-        char **fds = g_new(char *, MAX_TAP_QUEUES);
-        char **vhost_fds = g_new(char *, MAX_TAP_QUEUES);
+        char **fds = g_new0(char *, MAX_TAP_QUEUES);
+        char **vhost_fds = g_new0(char *, MAX_TAP_QUEUES);
         int nfds, nvhosts;
 
         if (tap->has_ifname || tap->has_script || tap->has_downscript ||
@@ -806,7 +806,7 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
             if (nfds != nvhosts) {
                 error_setg(errp, "The number of fds passed does not match "
                            "the number of vhostfds passed");
-                return -1;
+                goto free_fail;
             }
         }
 
@@ -814,7 +814,7 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
             fd = monitor_fd_param(cur_mon, fds[i], &err);
             if (fd == -1) {
                 error_propagate(errp, err);
-                return -1;
+                goto free_fail;
             }
 
             fcntl(fd, F_SETFL, O_NONBLOCK);
@@ -824,7 +824,7 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
             } else if (vnet_hdr != tap_probe_vnet_hdr(fd)) {
                 error_setg(errp,
                            "vnet_hdr not consistent across given tap fds");
-                return -1;
+                goto free_fail;
             }
 
             net_init_tap_one(tap, peer, "tap", name, ifname,
@@ -833,11 +833,21 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
                              vnet_hdr, fd, &err);
             if (err) {
                 error_propagate(errp, err);
-                return -1;
+                goto free_fail;
             }
         }
         g_free(fds);
         g_free(vhost_fds);
+        return 0;
+
+free_fail:
+        for (i = 0; i < nfds; i++) {
+            g_free(fds[i]);
+            g_free(vhost_fds[i]);
+        }
+        g_free(fds);
+        g_free(vhost_fds);
+        return -1;
     } else if (tap->has_helper) {
         if (tap->has_ifname || tap->has_script || tap->has_downscript ||
             tap->has_vnet_hdr || tap->has_queues || tap->has_vhostfds) {
