@@ -426,6 +426,23 @@ void qtest_add_data_func(const char *str, const void *data,
                          void (*fn)(const void *));
 
 /**
+ * qtest_add_data_func_full:
+ * @str: Test case path.
+ * @data: Test case data
+ * @fn: Test case function
+ * @data_free_func: GDestroyNotify for data
+ *
+ * Add a GTester testcase with the given name, data and function.
+ * The path is prefixed with the architecture under test, as
+ * returned by qtest_get_arch().
+ *
+ * @data is passed to @data_free_func() on test completion.
+ */
+void qtest_add_data_func_full(const char *str, void *data,
+                              void (*fn)(const void *),
+                              GDestroyNotify data_free_func);
+
+/**
  * qtest_add:
  * @testpath: Test case path
  * @Fixture: Fixture type
