@@ -21,6 +21,8 @@ import uuid
 import argparse
 import tempfile
 import re
+from tarfile import TarFile, TarInfo
+from StringIO import StringIO
 from shutil import copy, rmtree
 
 def _text_checksum(text):
@@ -94,9 +96,11 @@ class Docker(object):
         self._instances = []
         atexit.register(self._kill_instances)
 
-    def _do(self, cmd, quiet=True, **kwargs):
+    def _do(self, cmd, quiet=True, infile=None, **kwargs):
         if quiet:
             kwargs["stdout"] = subprocess.PIPE
+        if infile:
+            kwargs["stdin"] = infile
         return subprocess.call(self._command + cmd, **kwargs)
 
     def _do_kill_instances(self, only_known, only_active=True):
@@ -151,6 +155,11 @@ class Docker(object):
         self._do(["build", "-t", tag, "-f", tmp_df.name] + argv + \
                  [docker_dir],
                  quiet=quiet)
+
+    def update_image(self, tag, tarball, quiet=True):
+        "Update a tagged image using "
+
+        self._do(["build", "-t", tag, "-"], quiet=quiet, infile=tarball)
 
     def image_matches_dockerfile(self, tag, dockerfile):
         try:
@@ -242,6 +251,54 @@ class BuildCommand(SubCommand):
                             quiet=args.quiet, argv=argv)
 
             rmtree(docker_dir)
+
+        return 0
+
+class UpdateCommand(SubCommand):
+    """ Update a docker image with new executables. Arguments: <tag> <executable>"""
+    name = "update"
+    def args(self, parser):
+        parser.add_argument("tag",
+                            help="Image Tag")
+        parser.add_argument("executable",
+                            help="Executable to copy")
+
+    def run(self, args, argv):
+        # Create a temporary tarball with our whole build context and
+        # dockerfile for the update
+        tmp = tempfile.NamedTemporaryFile(suffix="dckr.tar.gz")
+        tmp_tar = TarFile(fileobj=tmp, mode='w')
+
+        # Add the executable to the tarball
+        bn = os.path.basename(args.executable)
+        ff = "/usr/bin/%s" % bn
+        tmp_tar.add(args.executable, arcname=ff)
+
+        # Add any associated libraries
+        libs = _get_so_libs(args.executable)
+        if libs:
+            for l in libs:
+                tmp_tar.add(os.path.realpath(l), arcname=l)
+
+        # Create a Docker buildfile
+        df = StringIO()
+        df.write("FROM %s\n" % args.tag)
+        df.write("ADD . /\n")
+        df.seek(0)
+
+        df_tar = TarInfo(name="Dockerfile")
+        df_tar.size = len(df.buf)
+        tmp_tar.addfile(df_tar, fileobj=df)
+
+        tmp_tar.close()
+
+        # reset the file pointers
+        tmp.flush()
+        tmp.seek(0)
+
+        # Run the build with our tarball context
+        dkr = Docker()
+        dkr.update_image(args.tag, tmp, quiet=args.quiet)
 
         return 0
 
