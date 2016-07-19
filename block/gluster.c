@@ -12,6 +12,7 @@
 #include "block/block_int.h"
 #include "qapi/error.h"
 #include "qemu/uri.h"
+#include "qemu/error-report.h"
 
 #define GLUSTER_OPT_FILENAME        "filename"
 #define GLUSTER_OPT_DEBUG           "debug"
@@ -134,12 +135,10 @@ static int parse_volume_options(GlusterConf *gconf, char *path)
  *
  * 'transport' specifies the transport type used to connect to gluster
  * management daemon (glusterd). Valid transport types are
- * tcp, unix and rdma. If a transport type isn't specified, then tcp
- * type is assumed.
+ * tcp or unix. If a transport type isn't specified, then tcp type is assumed.
  *
  * 'host' specifies the host where the volume file specification for
- * the given volume resides. This can be either hostname, ipv4 address
- * or ipv6 address. ipv6 address needs to be within square brackets [ ].
+ * the given volume resides. This can be either hostname or ipv4 address.
  * If transport type is 'unix', then 'host' field should not be specified.
  * The 'socket' field needs to be populated with the path to unix domain
  * socket.
@@ -158,11 +157,8 @@ static int parse_volume_options(GlusterConf *gconf, char *path)
  * file=gluster://1.2.3.4/testvol/a.img
  * file=gluster+tcp://1.2.3.4/testvol/a.img
  * file=gluster+tcp://1.2.3.4:24007/testvol/dir/a.img
- * file=gluster+tcp://[1:2:3:4:5:6:7:8]/testvol/dir/a.img
- * file=gluster+tcp://[1:2:3:4:5:6:7:8]:24007/testvol/dir/a.img
  * file=gluster+tcp://host.domain.com:24007/testvol/dir/a.img
  * file=gluster+unix:///testvol/dir/a.img?socket=/tmp/glusterd.socket
- * file=gluster+rdma://1.2.3.4:24007/testvol/a.img
  */
 static int qemu_gluster_parseuri(GlusterConf *gconf, const char *filename)
 {
@@ -185,7 +181,9 @@ static int qemu_gluster_parseuri(GlusterConf *gconf, const char *filename)
         gconf->transport = g_strdup("unix");
         is_unix = true;
     } else if (!strcmp(uri->scheme, "gluster+rdma")) {
-        gconf->transport = g_strdup("rdma");
+        gconf->transport = g_strdup("tcp");
+        error_report("Warning: rdma feature is not supported, falling "
+                     "back to tcp");
     } else {
         ret = -EINVAL;
         goto out;
@@ -1048,6 +1046,12 @@ static BlockDriver bdrv_gluster_unix = {
     .create_opts                  = &qemu_gluster_create_opts,
 };
 
+/* rdma is deprecated (actually never supported for volfile fetch).
+ * Let's maintain it for the protocol compatibility, to make sure things
+ * won't break immediately. For now, gluster+rdma will fall back to gluster+tcp
+ * protocol with a warning.
+ * TODO: remove gluster+rdma interface support
+ */
 static BlockDriver bdrv_gluster_rdma = {
     .format_name                  = "gluster",
     .protocol_name                = "gluster+rdma",
