@@ -241,7 +241,8 @@ static bool tb_cmp(const void *p, const void *d)
     if (tb->pc == desc->pc &&
         tb->page_addr[0] == desc->phys_page1 &&
         tb->cs_base == desc->cs_base &&
-        tb->flags == desc->flags) {
+        tb->flags == desc->flags &&
+        !atomic_read(&tb->invalid)) {
         /* check next page if needed */
         if (tb->page_addr[1] == -1) {
             return true;
@@ -352,7 +353,7 @@ static inline TranslationBlock *tb_find_fast(CPUState *cpu,
         /* Check if translation buffer has been flushed */
         if (cpu->tb_flushed) {
             cpu->tb_flushed = false;
-        } else {
+        } else if (!tb->invalid) {
             tb_add_jump(last_tb, tb_exit, tb);
         }
     }
