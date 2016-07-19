@@ -114,10 +114,8 @@ docker-run-%: docker-qemu-src
 				-e CCACHE_DIR=/var/tmp/ccache \
 				-v $$(realpath $(DOCKER_SRC_COPY)):/var/tmp/qemu:z$(COMMA)ro \
 				-v $(DOCKER_CCACHE_DIR):/var/tmp/ccache:z \
-				-w /var/tmp/qemu \
 				qemu:$(IMAGE) \
-				$(if $V,/bin/bash -x ,) \
-				./run \
+				/var/tmp/qemu/run \
 				$(CMD); \
 			, "  RUN $(CMD) in $(IMAGE)")))
 

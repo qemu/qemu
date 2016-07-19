@@ -11,6 +11,12 @@
 # or (at your option) any later version. See the COPYING file in
 # the top-level directory.
 
+if test -n "$V"; then
+    set -x
+fi
+
+BASE="$(dirname $(readlink -e $0))"
+
 # Prepare the environment
 . /etc/profile || true
 export PATH=/usr/lib/ccache:$PATH
@@ -24,10 +30,10 @@ export TEST_DIR=/tmp/qemu-test
 mkdir -p $TEST_DIR/{src,build,install}
 
 # Extract the source tarballs
-tar -C $TEST_DIR/src -xzf qemu.tgz
+tar -C $TEST_DIR/src -xzf $BASE/qemu.tgz
 for p in dtc pixman; do
-    if test -f $p.tgz; then
-        tar -C $TEST_DIR/src/$p -xzf $p.tgz
+    if test -f $BASE/$p.tgz; then
+        tar -C $TEST_DIR/src/$p -xzf $BASE/$p.tgz
         export FEATURES="$FEATURES $p"
     fi
 done
