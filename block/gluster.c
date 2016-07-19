@@ -13,6 +13,12 @@
 #include "qapi/error.h"
 #include "qemu/uri.h"
 
+#define GLUSTER_OPT_FILENAME        "filename"
+#define GLUSTER_OPT_DEBUG           "debug"
+#define GLUSTER_DEBUG_DEFAULT       4
+#define GLUSTER_DEBUG_MAX           9
+
+
 typedef struct GlusterAIOCB {
     int64_t size;
     int ret;
@@ -28,6 +34,11 @@ typedef struct BDRVGlusterState {
     int debug_level;
 } BDRVGlusterState;
 
+typedef struct BDRVGlusterReopenState {
+    struct glfs *glfs;
+    struct glfs_fd *fd;
+} BDRVGlusterReopenState;
+
 typedef struct GlusterConf {
     char *host;
     int port;
@@ -36,6 +47,49 @@ typedef struct GlusterConf {
     char *transport;
     int debug_level;
 } GlusterConf;
+
+
+static QemuOptsList qemu_gluster_create_opts = {
+    .name = "qemu-gluster-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_gluster_create_opts.head),
+    .desc = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
+        {
+            .name = BLOCK_OPT_PREALLOC,
+            .type = QEMU_OPT_STRING,
+            .help = "Preallocation mode (allowed values: off, full)"
+        },
+        {
+            .name = GLUSTER_OPT_DEBUG,
+            .type = QEMU_OPT_NUMBER,
+            .help = "Gluster log level, valid range is 0-9",
+        },
+        { /* end of list */ }
+    }
+};
+
+static QemuOptsList runtime_opts = {
+    .name = "gluster",
+    .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
+    .desc = {
+        {
+            .name = GLUSTER_OPT_FILENAME,
+            .type = QEMU_OPT_STRING,
+            .help = "URL to the gluster image",
+        },
+        {
+            .name = GLUSTER_OPT_DEBUG,
+            .type = QEMU_OPT_NUMBER,
+            .help = "Gluster log level, valid range is 0-9",
+        },
+        { /* end of list */ }
+    },
+};
+
 
 static void qemu_gluster_gconf_free(GlusterConf *gconf)
 {
@@ -181,7 +235,7 @@ static struct glfs *qemu_gluster_init(GlusterConf *gconf, const char *filename,
     ret = qemu_gluster_parseuri(gconf, filename);
     if (ret < 0) {
         error_setg(errp, "Usage: file=gluster[+transport]://[host[:port]]/"
-                   "volume/path[?socket=...]");
+                         "volume/path[?socket=...]");
         errno = -ret;
         goto out;
     }
@@ -254,30 +308,6 @@ static void gluster_finish_aiocb(struct glfs_fd *fd, ssize_t ret, void *arg)
     acb->bh = aio_bh_new(acb->aio_context, qemu_gluster_complete_aio, acb);
     qemu_bh_schedule(acb->bh);
 }
-
-#define GLUSTER_OPT_FILENAME "filename"
-#define GLUSTER_OPT_DEBUG "debug"
-#define GLUSTER_DEBUG_DEFAULT 4
-#define GLUSTER_DEBUG_MAX 9
-
-/* TODO Convert to fine grained options */
-static QemuOptsList runtime_opts = {
-    .name = "gluster",
-    .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
-    .desc = {
-        {
-            .name = GLUSTER_OPT_FILENAME,
-            .type = QEMU_OPT_STRING,
-            .help = "URL to the gluster image",
-        },
-        {
-            .name = GLUSTER_OPT_DEBUG,
-            .type = QEMU_OPT_NUMBER,
-            .help = "Gluster log level, valid range is 0-9",
-        },
-        { /* end of list */ }
-    },
-};
 
 static void qemu_gluster_parse_flags(int bdrv_flags, int *open_flags)
 {
@@ -395,12 +425,6 @@ out:
     return ret;
 }
 
-typedef struct BDRVGlusterReopenState {
-    struct glfs *glfs;
-    struct glfs_fd *fd;
-} BDRVGlusterReopenState;
-
-
 static int qemu_gluster_reopen_prepare(BDRVReopenState *state,
                                        BlockReopenQueue *queue, Error **errp)
 {
@@ -501,7 +525,9 @@ static void qemu_gluster_reopen_abort(BDRVReopenState *state)
 
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
 static coroutine_fn int qemu_gluster_co_pwrite_zeroes(BlockDriverState *bs,
-        int64_t offset, int size, BdrvRequestFlags flags)
+                                                      int64_t offset,
+                                                      int size,
+                                                      BdrvRequestFlags flags)
 {
     int ret;
     GlusterAIOCB acb;
@@ -527,7 +553,7 @@ static inline bool gluster_supports_zerofill(void)
 }
 
 static inline int qemu_gluster_zerofill(struct glfs_fd *fd, int64_t offset,
-        int64_t size)
+                                        int64_t size)
 {
     return glfs_zerofill(fd, offset, size);
 }
@@ -539,7 +565,7 @@ static inline bool gluster_supports_zerofill(void)
 }
 
 static inline int qemu_gluster_zerofill(struct glfs_fd *fd, int64_t offset,
-        int64_t size)
+                                        int64_t size)
 {
     return 0;
 }
@@ -576,19 +602,17 @@ static int qemu_gluster_create(const char *filename,
     tmp = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
     if (!tmp || !strcmp(tmp, "off")) {
         prealloc = 0;
-    } else if (!strcmp(tmp, "full") &&
-               gluster_supports_zerofill()) {
+    } else if (!strcmp(tmp, "full") && gluster_supports_zerofill()) {
         prealloc = 1;
     } else {
         error_setg(errp, "Invalid preallocation mode: '%s'"
-            " or GlusterFS doesn't support zerofill API",
-            tmp);
+                         " or GlusterFS doesn't support zerofill API", tmp);
         ret = -EINVAL;
         goto out;
     }
 
     fd = glfs_creat(glfs, gconf->path,
-        O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, S_IRUSR | S_IWUSR);
+                    O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, S_IRUSR | S_IWUSR);
     if (!fd) {
         ret = -errno;
     } else {
@@ -614,7 +638,8 @@ out:
 }
 
 static coroutine_fn int qemu_gluster_co_rw(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, QEMUIOVector *qiov, int write)
+                                           int64_t sector_num, int nb_sectors,
+                                           QEMUIOVector *qiov, int write)
 {
     int ret;
     GlusterAIOCB acb;
@@ -629,10 +654,10 @@ static coroutine_fn int qemu_gluster_co_rw(BlockDriverState *bs,
 
     if (write) {
         ret = glfs_pwritev_async(s->fd, qiov->iov, qiov->niov, offset, 0,
-            gluster_finish_aiocb, &acb);
+                                 gluster_finish_aiocb, &acb);
     } else {
         ret = glfs_preadv_async(s->fd, qiov->iov, qiov->niov, offset, 0,
-            gluster_finish_aiocb, &acb);
+                                gluster_finish_aiocb, &acb);
     }
 
     if (ret < 0) {
@@ -657,13 +682,17 @@ static int qemu_gluster_truncate(BlockDriverState *bs, int64_t offset)
 }
 
 static coroutine_fn int qemu_gluster_co_readv(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
+                                              int64_t sector_num,
+                                              int nb_sectors,
+                                              QEMUIOVector *qiov)
 {
     return qemu_gluster_co_rw(bs, sector_num, nb_sectors, qiov, 0);
 }
 
 static coroutine_fn int qemu_gluster_co_writev(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
+                                               int64_t sector_num,
+                                               int nb_sectors,
+                                               QEMUIOVector *qiov)
 {
     return qemu_gluster_co_rw(bs, sector_num, nb_sectors, qiov, 1);
 }
@@ -725,7 +754,8 @@ error:
 
 #ifdef CONFIG_GLUSTERFS_DISCARD
 static coroutine_fn int qemu_gluster_co_discard(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors)
+                                                int64_t sector_num,
+                                                int nb_sectors)
 {
     int ret;
     GlusterAIOCB acb;
@@ -933,29 +963,6 @@ static int64_t coroutine_fn qemu_gluster_co_get_block_status(
     return ret | BDRV_BLOCK_OFFSET_VALID | start;
 }
 
-
-static QemuOptsList qemu_gluster_create_opts = {
-    .name = "qemu-gluster-create-opts",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_gluster_create_opts.head),
-    .desc = {
-        {
-            .name = BLOCK_OPT_SIZE,
-            .type = QEMU_OPT_SIZE,
-            .help = "Virtual disk size"
-        },
-        {
-            .name = BLOCK_OPT_PREALLOC,
-            .type = QEMU_OPT_STRING,
-            .help = "Preallocation mode (allowed values: off, full)"
-        },
-        {
-            .name = GLUSTER_OPT_DEBUG,
-            .type = QEMU_OPT_NUMBER,
-            .help = "Gluster log level, valid range is 0-9",
-        },
-        { /* end of list */ }
-    }
-};
 
 static BlockDriver bdrv_gluster = {
     .format_name                  = "gluster",
