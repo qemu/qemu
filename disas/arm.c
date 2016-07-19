@@ -24,7 +24,6 @@
 
 #include "qemu/osdep.h"
 #include "disas/bfd.h"
-#define ATTRIBUTE_UNUSED __attribute__((unused))
 #define ISSPACE(x) ((x) == ' ' || (x) == '\t' || (x) == '\n')
 
 #define ARM_EXT_V1	 0
