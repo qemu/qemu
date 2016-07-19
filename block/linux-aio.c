@@ -94,7 +94,11 @@ static void qemu_laio_process_completion(struct qemu_laiocb *laiocb)
 
     laiocb->ret = ret;
     if (laiocb->co) {
-        qemu_coroutine_enter(laiocb->co);
+        /* Jump and continue completion for foreign requests, don't do
+         * anything for current request, it will be completed shortly. */
+        if (laiocb->co != qemu_coroutine_self()) {
+            qemu_coroutine_enter(laiocb->co);
+        }
     } else {
         laiocb->common.cb(laiocb->common.opaque, ret);
         qemu_aio_unref(laiocb);
@@ -320,6 +324,19 @@ static void ioq_submit(LinuxAioState *s)
         QSIMPLEQ_SPLIT_AFTER(&s->io_q.pending, aiocb, next, &completed);
     } while (ret == len && !QSIMPLEQ_EMPTY(&s->io_q.pending));
     s->io_q.blocked = (s->io_q.in_queue > 0);
+
+    if (s->io_q.in_flight) {
+        /* We can try to complete something just right away if there are
+         * still requests in-flight. */
+        qemu_laio_process_completions(s);
+        /*
+         * Even we have completed everything (in_flight == 0), the queue can
+         * have still pended requests (in_queue > 0).  We do not attempt to
+         * repeat submission to avoid IO hang.  The reason is simple: s->e is
+         * still set and completion callback will be called shortly and all
+         * pended requests will be submitted from there.
+         */
+    }
 }
 
 void laio_io_plug(BlockDriverState *bs, LinuxAioState *s)
@@ -377,6 +394,7 @@ int coroutine_fn laio_co_submit(BlockDriverState *bs, LinuxAioState *s, int fd,
         .co         = qemu_coroutine_self(),
         .nbytes     = qiov->size,
         .ctx        = s,
+        .ret        = -EINPROGRESS,
         .is_read    = (type == QEMU_AIO_READ),
         .qiov       = qiov,
     };
@@ -386,7 +404,9 @@ int coroutine_fn laio_co_submit(BlockDriverState *bs, LinuxAioState *s, int fd,
         return ret;
     }
 
-    qemu_coroutine_yield();
+    if (laiocb.ret == -EINPROGRESS) {
+        qemu_coroutine_yield();
+    }
     return laiocb.ret;
 }
 
