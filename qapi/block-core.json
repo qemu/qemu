@@ -2119,7 +2119,7 @@
 { 'struct': 'BlockdevOptionsGluster',
   'data': { 'volume': 'str',
             'path': 'str',
-            'server': 'GlusterServer',
+            'server': ['GlusterServer'],
             '*debug_level': 'int' } }
 
 ##
