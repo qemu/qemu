@@ -1,0 +1,21 @@
+# Create Debian Bootstrap Image
+#
+# This is intended to be pre-poluated by:
+#  - a first stage debootstrap (see debian-bootstrap.pre)
+#  - a native qemu-$arch that binfmt_misc will run
+FROM scratch
+
+# Add everything from the context into the container
+ADD . /
+
+# Patch all mounts as docker already has stuff set up
+RUN sed -i 's/in_target mount/echo not for docker in_target mount/g' /debootstrap/functions
+
+# Run stage 2
+RUN /debootstrap/debootstrap --second-stage
+
+# At this point we can install additional packages if we want
+# Duplicate deb line as deb-src
+RUN cat /etc/apt/sources.list | sed "s/deb/deb-src/" >> /etc/apt/sources.list
+RUN apt-get update
+RUN apt-get -y build-dep qemu
