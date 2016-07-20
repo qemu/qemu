@@ -33,9 +33,9 @@ DirtyBitmapStatus bdrv_dirty_bitmap_status(BdrvDirtyBitmap *bitmap);
 int bdrv_get_dirty(BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
                    int64_t sector);
 void bdrv_set_dirty_bitmap(BdrvDirtyBitmap *bitmap,
-                           int64_t cur_sector, int nr_sectors);
+                           int64_t cur_sector, int64_t nr_sectors);
 void bdrv_reset_dirty_bitmap(BdrvDirtyBitmap *bitmap,
-                             int64_t cur_sector, int nr_sectors);
+                             int64_t cur_sector, int64_t nr_sectors);
 void bdrv_dirty_iter_init(BdrvDirtyBitmap *bitmap, struct HBitmapIter *hbi);
 void bdrv_set_dirty_iter(struct HBitmapIter *hbi, int64_t offset);
 int64_t bdrv_get_dirty_count(BdrvDirtyBitmap *bitmap);

@@ -326,14 +326,14 @@ void bdrv_dirty_iter_init(BdrvDirtyBitmap *bitmap, HBitmapIter *hbi)
 }
 
 void bdrv_set_dirty_bitmap(BdrvDirtyBitmap *bitmap,
-                           int64_t cur_sector, int nr_sectors)
+                           int64_t cur_sector, int64_t nr_sectors)
 {
     assert(bdrv_dirty_bitmap_enabled(bitmap));
     hbitmap_set(bitmap->bitmap, cur_sector, nr_sectors);
 }
 
 void bdrv_reset_dirty_bitmap(BdrvDirtyBitmap *bitmap,
-                             int64_t cur_sector, int nr_sectors)
+                             int64_t cur_sector, int64_t nr_sectors)
 {
     assert(bdrv_dirty_bitmap_enabled(bitmap));
     hbitmap_reset(bitmap->bitmap, cur_sector, nr_sectors);
@@ -361,7 +361,7 @@ void bdrv_undo_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap *in)
 }
 
 void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
-                    int nr_sectors)
+                    int64_t nr_sectors)
 {
     BdrvDirtyBitmap *bitmap;
     QLIST_FOREACH(bitmap, &bs->dirty_bitmaps, list) {
