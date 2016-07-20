@@ -43,6 +43,7 @@ class QEMUMonitorProtocol:
         self._debug = debug
         self.__sock = self.__get_sock()
         if server:
+            self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.__sock.bind(self.__address)
             self.__sock.listen(1)
 
