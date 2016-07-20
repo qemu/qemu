@@ -2201,7 +2201,9 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
         xfer->trb_count = length;
 
         for (i = 0; i < length; i++) {
-            assert(xhci_ring_fetch(xhci, ring, &xfer->trbs[i], NULL));
+            TRBType type;
+            type = xhci_ring_fetch(xhci, ring, &xfer->trbs[i], NULL);
+            assert(type);
         }
         xfer->streamid = streamid;
 
