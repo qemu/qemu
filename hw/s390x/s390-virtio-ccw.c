@@ -322,6 +322,10 @@ static const TypeInfo ccw_machine_info = {
             .driver   = TYPE_S390_IPL,\
             .property = "iplbext_migration",\
             .value    = "off",\
+        }, {\
+            .driver   = TYPE_VIRTUAL_CSS_BRIDGE,\
+            .property = "css_dev_path",\
+            .value    = "off",\
         },
 
 #define CCW_COMPAT_2_5 \
