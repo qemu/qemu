@@ -1,5 +1,5 @@
-QEMU
----
+         QEMU README
+         ===========
 
 QEMU is a generic and open source machine & userspace emulator and
 virtualizer.
@@ -31,31 +31,31 @@ version 2. For full licensing details, consult the LICENSE file.
 
 
 Building
----
+========
 
 QEMU is multi-platform software intended to be buildable on all modern
 Linux platforms, OS-X, Win32 (via the Mingw64 toolchain) and a variety
 of other UNIX targets. The simple steps to build QEMU are:
 
-	mkdir build
-	cd build
-	../configure
-	make
+  mkdir build
+  cd build
+  ../configure
+  make
 
 Complete details of the process for building and configuring QEMU for
 all supported host platforms can be found in the qemu-tech.html file.
 Additional information can also be found online via the QEMU website:
 
-	http://qemu-project.org/Hosts/Linux
-	http://qemu-project.org/Hosts/W32
+  http://qemu-project.org/Hosts/Linux
+  http://qemu-project.org/Hosts/W32
 
 
 Submitting patches
----
+==================
 
 The QEMU source code is maintained under the GIT version control system.
 
-	git clone git://git.qemu-project.org/qemu.git
+   git clone git://git.qemu-project.org/qemu.git
 
 When submitting patches, the preferred approach is to use 'git
 format-patch' and/or 'git send-email' to format & send the mail to the
@@ -66,18 +66,18 @@ guidelines set out in the HACKING and CODING_STYLE files.
 Additional information on submitting patches can be found online via
 the QEMU website
 
-	http://qemu-project.org/Contribute/SubmitAPatch
-	http://qemu-project.org/Contribute/TrivialPatches
+  http://qemu-project.org/Contribute/SubmitAPatch
+  http://qemu-project.org/Contribute/TrivialPatches
 
 
 Bug reporting
----
+=============
 
 The QEMU project uses Launchpad as its primary upstream bug tracker. Bugs
 found when running code built from QEMU git or upstream released sources
 should be reported via:
 
-	https://bugs.launchpad.net/qemu/
+  https://bugs.launchpad.net/qemu/
 
 If using QEMU via an operating system vendor pre-built binary package, it
 is preferable to report bugs to the vendor's own bug tracker first. If
@@ -86,21 +86,22 @@ reported via launchpad.
 
 For additional information on bug reporting consult:
 
-	http://qemu-project.org/Contribute/ReportABug
+  http://qemu-project.org/Contribute/ReportABug
 
 
 Contact
----
+=======
 
 The QEMU community can be contacted in a number of ways, with the two
 main methods being email and IRC
 
- - Mailing List: qemu-devel@nongnu.org
- - Archives: http://lists.nongnu.org/mailman/listinfo/qemu-devel
- - IRC: #qemu on irc.oftc.net
+ - qemu-devel@nongnu.org
+   http://lists.nongnu.org/mailman/listinfo/qemu-devel
+ - #qemu on irc.oftc.net
 
 Information on additional methods of contacting the community can be
 found online via the QEMU website:
 
   http://qemu-project.org/Contribute/StartHere
 
+-- End
