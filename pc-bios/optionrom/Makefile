@@ -30,7 +30,7 @@ QEMU_INCLUDES += -I$(SRC_PATH)
 
 Wa = -Wa,
 ASFLAGS += -32
-QEMU_CFLAGS += $(call cc-option, $(QEMU_CFLAGS), $(Wa)-32)
+QEMU_CFLAGS += $(call cc-c-option, $(QEMU_CFLAGS), $(Wa)-32)
 
 build-all: multiboot.bin linuxboot.bin linuxboot_dma.bin kvmvapic.bin
 
