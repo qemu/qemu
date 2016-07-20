@@ -184,12 +184,16 @@ static void kvm_apic_realize(DeviceState *dev, Error **errp)
 {
     APICCommonState *s = APIC_COMMON(dev);
 
-    memory_region_init_io(&s->io_memory, NULL, &kvm_apic_io_ops, s, "kvm-apic-msi",
-                          APIC_SPACE_SIZE);
+    memory_region_init_io(&s->io_memory, OBJECT(s), &kvm_apic_io_ops, s,
+                          "kvm-apic-msi", APIC_SPACE_SIZE);
 
     if (kvm_has_gsi_routing()) {
         msi_nonbroken = true;
     }
+}
+
+static void kvm_apic_unrealize(DeviceState *dev, Error **errp)
+{
 }
 
 static void kvm_apic_class_init(ObjectClass *klass, void *data)
@@ -197,6 +201,7 @@ static void kvm_apic_class_init(ObjectClass *klass, void *data)
     APICCommonClass *k = APIC_COMMON_CLASS(klass);
 
     k->realize = kvm_apic_realize;
+    k->unrealize = kvm_apic_unrealize;
     k->reset = kvm_apic_reset;
     k->set_base = kvm_apic_set_base;
     k->set_tpr = kvm_apic_set_tpr;

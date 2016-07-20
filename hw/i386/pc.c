@@ -471,9 +471,6 @@ void pc_cmos_init(PCMachineState *pcms,
     rtc_set_memory(s, 0x5c, val >> 8);
     rtc_set_memory(s, 0x5d, val >> 16);
 
-    /* set the number of CPU */
-    rtc_set_memory(s, 0x5f, smp_cpus - 1);
-
     object_property_add_link(OBJECT(pcms), "rtc_state",
                              TYPE_ISA_DEVICE,
                              (Object **)&pcms->rtc,
@@ -1090,6 +1087,17 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     }
 }
 
+static int pc_present_cpus_count(PCMachineState *pcms)
+{
+    int i, boot_cpus = 0;
+    for (i = 0; i < pcms->possible_cpus->len; i++) {
+        if (pcms->possible_cpus->cpus[i].cpu) {
+            boot_cpus++;
+        }
+    }
+    return boot_cpus;
+}
+
 static X86CPU *pc_new_cpu(const char *typename, int64_t apic_id,
                           Error **errp)
 {
@@ -1119,18 +1127,6 @@ void pc_hot_add_cpu(const int64_t id, Error **errp)
 
     if (id < 0) {
         error_setg(errp, "Invalid CPU id: %" PRIi64, id);
-        return;
-    }
-
-    if (cpu_exists(apic_id)) {
-        error_setg(errp, "Unable to add CPU: %" PRIi64
-                   ", it already exists", id);
-        return;
-    }
-
-    if (id >= max_cpus) {
-        error_setg(errp, "Unable to add CPU: %" PRIi64
-                   ", max allowed: %d", id, max_cpus - 1);
         return;
     }
 
@@ -1208,7 +1204,6 @@ void pc_cpus_init(PCMachineState *pcms)
         if (i < smp_cpus) {
             cpu = pc_new_cpu(typename, x86_cpu_apic_id_from_index(i),
                              &error_fatal);
-            pcms->possible_cpus->cpus[i].cpu = CPU(cpu);
             object_unref(OBJECT(cpu));
         }
     }
@@ -1251,6 +1246,9 @@ void pc_machine_done(Notifier *notifier, void *data)
     PCMachineState *pcms = container_of(notifier,
                                         PCMachineState, machine_done);
     PCIBus *bus = pcms->bus;
+
+    /* set the number of CPUs */
+    rtc_set_memory(pcms->rtc, 0x5f, pc_present_cpus_count(pcms) - 1);
 
     if (bus) {
         int extra_hosts = 0;
@@ -1756,39 +1754,48 @@ static int pc_apic_cmp(const void *a, const void *b)
    return apic_a->arch_id - apic_b->arch_id;
 }
 
+/* returns pointer to CPUArchId descriptor that matches CPU's apic_id
+ * in pcms->possible_cpus->cpus, if pcms->possible_cpus->cpus has no
+ * entry correponding to CPU's apic_id returns NULL.
+ */
+static CPUArchId *pc_find_cpu_slot(PCMachineState *pcms, CPUState *cpu,
+                                   int *idx)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    CPUArchId apic_id, *found_cpu;
+
+    apic_id.arch_id = cc->get_arch_id(CPU(cpu));
+    found_cpu = bsearch(&apic_id, pcms->possible_cpus->cpus,
+        pcms->possible_cpus->len, sizeof(*pcms->possible_cpus->cpus),
+        pc_apic_cmp);
+    if (found_cpu && idx) {
+        *idx = found_cpu - pcms->possible_cpus->cpus;
+    }
+    return found_cpu;
+}
+
 static void pc_cpu_plug(HotplugHandler *hotplug_dev,
                         DeviceState *dev, Error **errp)
 {
-    CPUClass *cc = CPU_GET_CLASS(dev);
-    CPUArchId apic_id, *found_cpu;
+    CPUArchId *found_cpu;
     HotplugHandlerClass *hhc;
     Error *local_err = NULL;
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
 
-    if (!dev->hotplugged) {
-        goto out;
+    if (pcms->acpi_dev) {
+        hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
+        hhc->plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
+        if (local_err) {
+            goto out;
+        }
     }
 
-    if (!pcms->acpi_dev) {
-        error_setg(&local_err,
-                   "cpu hotplug is not enabled: missing acpi device");
-        goto out;
+    if (dev->hotplugged) {
+        /* increment the number of CPUs */
+        rtc_set_memory(pcms->rtc, 0x5f, rtc_get_memory(pcms->rtc, 0x5f) + 1);
     }
 
-    hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
-    hhc->plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
-    if (local_err) {
-        goto out;
-    }
-
-    /* increment the number of CPUs */
-    rtc_set_memory(pcms->rtc, 0x5f, rtc_get_memory(pcms->rtc, 0x5f) + 1);
-
-    apic_id.arch_id = cc->get_arch_id(CPU(dev));
-    found_cpu = bsearch(&apic_id, pcms->possible_cpus->cpus,
-        pcms->possible_cpus->len, sizeof(*pcms->possible_cpus->cpus),
-        pc_apic_cmp);
-    assert(found_cpu);
+    found_cpu = pc_find_cpu_slot(pcms, CPU(dev), NULL);
     found_cpu->cpu = CPU(dev);
 out:
     error_propagate(errp, local_err);
@@ -1796,9 +1803,34 @@ out:
 static void pc_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
+    int idx = -1;
     HotplugHandlerClass *hhc;
     Error *local_err = NULL;
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
+
+    pc_find_cpu_slot(pcms, CPU(dev), &idx);
+    assert(idx != -1);
+    if (idx == 0) {
+        error_setg(&local_err, "Boot CPU is unpluggable");
+        goto out;
+    }
+
+    if (idx < pcms->possible_cpus->len - 1 &&
+        pcms->possible_cpus->cpus[idx + 1].cpu != NULL) {
+        X86CPU *cpu;
+
+        for (idx = pcms->possible_cpus->len - 1;
+             pcms->possible_cpus->cpus[idx].cpu == NULL; idx--) {
+            ;;
+        }
+
+        cpu = X86_CPU(pcms->possible_cpus->cpus[idx].cpu);
+        error_setg(&local_err, "CPU [socket-id: %u, core-id: %u,"
+                   " thread-id: %u] should be removed first",
+                   cpu->socket_id, cpu->core_id, cpu->thread_id);
+        goto out;
+
+    }
 
     hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
     hhc->unplug_request(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
@@ -1815,6 +1847,7 @@ static void pc_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
 static void pc_cpu_unplug_cb(HotplugHandler *hotplug_dev,
                              DeviceState *dev, Error **errp)
 {
+    CPUArchId *found_cpu;
     HotplugHandlerClass *hhc;
     Error *local_err = NULL;
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
@@ -1826,15 +1859,127 @@ static void pc_cpu_unplug_cb(HotplugHandler *hotplug_dev,
         goto out;
     }
 
-    /*
-     * TODO: enable unplug once generic CPU remove bits land
-     * for now guest will be able to eject CPU ACPI wise but
-     * it will come back again on machine reset.
-     */
-    /*  object_unparent(OBJECT(dev)); */
+    found_cpu = pc_find_cpu_slot(pcms, CPU(dev), NULL);
+    found_cpu->cpu = NULL;
+    object_unparent(OBJECT(dev));
 
+    rtc_set_memory(pcms->rtc, 0x5f, rtc_get_memory(pcms->rtc, 0x5f) - 1);
  out:
     error_propagate(errp, local_err);
+}
+
+static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
+                            DeviceState *dev, Error **errp)
+{
+    int idx;
+    CPUArchId *cpu_slot;
+    X86CPUTopoInfo topo;
+    X86CPU *cpu = X86_CPU(dev);
+    PCMachineState *pcms = PC_MACHINE(hotplug_dev);
+
+    /* if APIC ID is not set, set it based on socket/core/thread properties */
+    if (cpu->apic_id == UNASSIGNED_APIC_ID) {
+        int max_socket = (max_cpus - 1) / smp_threads / smp_cores;
+
+        if (cpu->socket_id < 0) {
+            error_setg(errp, "CPU socket-id is not set");
+            return;
+        } else if (cpu->socket_id > max_socket) {
+            error_setg(errp, "Invalid CPU socket-id: %u must be in range 0:%u",
+                       cpu->socket_id, max_socket);
+            return;
+        }
+        if (cpu->core_id < 0) {
+            error_setg(errp, "CPU core-id is not set");
+            return;
+        } else if (cpu->core_id > (smp_cores - 1)) {
+            error_setg(errp, "Invalid CPU core-id: %u must be in range 0:%u",
+                       cpu->core_id, smp_cores - 1);
+            return;
+        }
+        if (cpu->thread_id < 0) {
+            error_setg(errp, "CPU thread-id is not set");
+            return;
+        } else if (cpu->thread_id > (smp_threads - 1)) {
+            error_setg(errp, "Invalid CPU thread-id: %u must be in range 0:%u",
+                       cpu->thread_id, smp_threads - 1);
+            return;
+        }
+
+        topo.pkg_id = cpu->socket_id;
+        topo.core_id = cpu->core_id;
+        topo.smt_id = cpu->thread_id;
+        cpu->apic_id = apicid_from_topo_ids(smp_cores, smp_threads, &topo);
+    }
+
+    cpu_slot = pc_find_cpu_slot(pcms, CPU(dev), &idx);
+    if (!cpu_slot) {
+        x86_topo_ids_from_apicid(cpu->apic_id, smp_cores, smp_threads, &topo);
+        error_setg(errp, "Invalid CPU [socket: %u, core: %u, thread: %u] with"
+                  " APIC ID %" PRIu32 ", valid index range 0:%d",
+                   topo.pkg_id, topo.core_id, topo.smt_id, cpu->apic_id,
+                   pcms->possible_cpus->len - 1);
+        return;
+    }
+
+    if (cpu_slot->cpu) {
+        error_setg(errp, "CPU[%d] with APIC ID %" PRIu32 " exists",
+                   idx, cpu->apic_id);
+        return;
+    }
+
+    if (idx != 0 && pcms->possible_cpus->cpus[idx - 1].cpu == NULL) {
+        PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+
+        for (idx = 1; pcms->possible_cpus->cpus[idx].cpu != NULL; idx++) {
+            ;;
+        }
+
+        x86_topo_ids_from_apicid(pcms->possible_cpus->cpus[idx].arch_id,
+                                 smp_cores, smp_threads, &topo);
+
+        if (!pcmc->legacy_cpu_hotplug) {
+            error_setg(errp, "CPU [socket: %u, core: %u, thread: %u] should be"
+                       " added first", topo.pkg_id, topo.core_id, topo.smt_id);
+            return;
+        }
+    }
+
+    /* if 'address' properties socket-id/core-id/thread-id are not set, set them
+     * so that query_hotpluggable_cpus would show correct values
+     */
+    /* TODO: move socket_id/core_id/thread_id checks into x86_cpu_realizefn()
+     * once -smp refactoring is complete and there will be CPU private
+     * CPUState::nr_cores and CPUState::nr_threads fields instead of globals */
+    x86_topo_ids_from_apicid(cpu->apic_id, smp_cores, smp_threads, &topo);
+    if (cpu->socket_id != -1 && cpu->socket_id != topo.pkg_id) {
+        error_setg(errp, "property socket-id: %u doesn't match set apic-id:"
+            " 0x%x (socket-id: %u)", cpu->socket_id, cpu->apic_id, topo.pkg_id);
+        return;
+    }
+    cpu->socket_id = topo.pkg_id;
+
+    if (cpu->core_id != -1 && cpu->core_id != topo.core_id) {
+        error_setg(errp, "property core-id: %u doesn't match set apic-id:"
+            " 0x%x (core-id: %u)", cpu->core_id, cpu->apic_id, topo.core_id);
+        return;
+    }
+    cpu->core_id = topo.core_id;
+
+    if (cpu->thread_id != -1 && cpu->thread_id != topo.smt_id) {
+        error_setg(errp, "property thread-id: %u doesn't match set apic-id:"
+            " 0x%x (thread-id: %u)", cpu->thread_id, cpu->apic_id, topo.smt_id);
+        return;
+    }
+    cpu->thread_id = topo.smt_id;
+}
+
+static void pc_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
+                                          DeviceState *dev, Error **errp)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+        pc_cpu_pre_plug(hotplug_dev, dev, errp);
+    }
 }
 
 static void pc_machine_device_plug_cb(HotplugHandler *hotplug_dev,
@@ -2090,6 +2235,50 @@ static CPUArchIdList *pc_possible_cpu_arch_ids(MachineState *machine)
     return list;
 }
 
+static HotpluggableCPUList *pc_query_hotpluggable_cpus(MachineState *machine)
+{
+    int i;
+    CPUState *cpu;
+    HotpluggableCPUList *head = NULL;
+    PCMachineState *pcms = PC_MACHINE(machine);
+    const char *cpu_type;
+
+    cpu = pcms->possible_cpus->cpus[0].cpu;
+    assert(cpu); /* BSP is always present */
+    cpu_type = object_class_get_name(OBJECT_CLASS(CPU_GET_CLASS(cpu)));
+
+    for (i = 0; i < pcms->possible_cpus->len; i++) {
+        X86CPUTopoInfo topo;
+        HotpluggableCPUList *list_item = g_new0(typeof(*list_item), 1);
+        HotpluggableCPU *cpu_item = g_new0(typeof(*cpu_item), 1);
+        CpuInstanceProperties *cpu_props = g_new0(typeof(*cpu_props), 1);
+        const uint32_t apic_id = pcms->possible_cpus->cpus[i].arch_id;
+
+        x86_topo_ids_from_apicid(apic_id, smp_cores, smp_threads, &topo);
+
+        cpu_item->type = g_strdup(cpu_type);
+        cpu_item->vcpus_count = 1;
+        cpu_props->has_socket_id = true;
+        cpu_props->socket_id = topo.pkg_id;
+        cpu_props->has_core_id = true;
+        cpu_props->core_id = topo.core_id;
+        cpu_props->has_thread_id = true;
+        cpu_props->thread_id = topo.smt_id;
+        cpu_item->props = cpu_props;
+
+        cpu = pcms->possible_cpus->cpus[i].cpu;
+        if (cpu) {
+            cpu_item->has_qom_path = true;
+            cpu_item->qom_path = object_get_canonical_path(OBJECT(cpu));
+        }
+
+        list_item->value = cpu_item;
+        list_item->next = head;
+        head = list_item;
+    }
+    return head;
+}
+
 static void x86_nmi(NMIState *n, int cpu_index, Error **errp)
 {
     /* cpu index isn't used */
@@ -2130,10 +2319,12 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     mc->get_hotplug_handler = pc_get_hotpug_handler;
     mc->cpu_index_to_socket_id = pc_cpu_index_to_socket_id;
     mc->possible_cpu_arch_ids = pc_possible_cpu_arch_ids;
+    mc->query_hotpluggable_cpus = pc_query_hotpluggable_cpus;
     mc->default_boot_order = "cad";
     mc->hot_add_cpu = pc_hot_add_cpu;
     mc->max_cpus = 255;
     mc->reset = pc_machine_reset;
+    hc->pre_plug = pc_machine_device_pre_plug_cb;
     hc->plug = pc_machine_device_plug_cb;
     hc->unplug_request = pc_machine_device_unplug_request_cb;
     hc->unplug = pc_machine_device_unplug_cb;

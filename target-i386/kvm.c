@@ -1716,6 +1716,8 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             }
         }
         if (has_msr_mtrr) {
+            uint64_t phys_mask = MAKE_64BIT_MASK(0, cpu->phys_bits);
+
             kvm_msr_entry_add(cpu, MSR_MTRRdefType, env->mtrr_deftype);
             kvm_msr_entry_add(cpu, MSR_MTRRfix64K_00000, env->mtrr_fixed[0]);
             kvm_msr_entry_add(cpu, MSR_MTRRfix16K_80000, env->mtrr_fixed[1]);
@@ -1729,10 +1731,15 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_add(cpu, MSR_MTRRfix4K_F0000, env->mtrr_fixed[9]);
             kvm_msr_entry_add(cpu, MSR_MTRRfix4K_F8000, env->mtrr_fixed[10]);
             for (i = 0; i < MSR_MTRRcap_VCNT; i++) {
+                /* The CPU GPs if we write to a bit above the physical limit of
+                 * the host CPU (and KVM emulates that)
+                 */
+                uint64_t mask = env->mtrr_var[i].mask;
+                mask &= phys_mask;
+
                 kvm_msr_entry_add(cpu, MSR_MTRRphysBase(i),
                                   env->mtrr_var[i].base);
-                kvm_msr_entry_add(cpu, MSR_MTRRphysMask(i),
-                                  env->mtrr_var[i].mask);
+                kvm_msr_entry_add(cpu, MSR_MTRRphysMask(i), mask);
             }
         }
 
@@ -1970,6 +1977,7 @@ static int kvm_get_msrs(X86CPU *cpu)
     CPUX86State *env = &cpu->env;
     struct kvm_msr_entry *msrs = cpu->kvm_msr_buf->entries;
     int ret, i;
+    uint64_t mtrr_top_bits;
 
     kvm_msr_buf_reset(cpu);
 
@@ -2122,6 +2130,30 @@ static int kvm_get_msrs(X86CPU *cpu)
     }
 
     assert(ret == cpu->kvm_msr_buf->nmsrs);
+    /*
+     * MTRR masks: Each mask consists of 5 parts
+     * a  10..0: must be zero
+     * b  11   : valid bit
+     * c n-1.12: actual mask bits
+     * d  51..n: reserved must be zero
+     * e  63.52: reserved must be zero
+     *
+     * 'n' is the number of physical bits supported by the CPU and is
+     * apparently always <= 52.   We know our 'n' but don't know what
+     * the destinations 'n' is; it might be smaller, in which case
+     * it masks (c) on loading. It might be larger, in which case
+     * we fill 'd' so that d..c is consistent irrespetive of the 'n'
+     * we're migrating to.
+     */
+
+    if (cpu->fill_mtrr_mask) {
+        QEMU_BUILD_BUG_ON(TARGET_PHYS_ADDR_SPACE_BITS > 52);
+        assert(cpu->phys_bits <= TARGET_PHYS_ADDR_SPACE_BITS);
+        mtrr_top_bits = MAKE_64BIT_MASK(cpu->phys_bits, 52 - cpu->phys_bits);
+    } else {
+        mtrr_top_bits = 0;
+    }
+
     for (i = 0; i < ret; i++) {
         uint32_t index = msrs[i].index;
         switch (index) {
@@ -2320,7 +2352,8 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_MTRRphysBase(0) ... MSR_MTRRphysMask(MSR_MTRRcap_VCNT - 1):
             if (index & 1) {
-                env->mtrr_var[MSR_MTRRphysIndex(index)].mask = msrs[i].data;
+                env->mtrr_var[MSR_MTRRphysIndex(index)].mask = msrs[i].data |
+                                                               mtrr_top_bits;
             } else {
                 env->mtrr_var[MSR_MTRRphysIndex(index)].base = msrs[i].data;
             }

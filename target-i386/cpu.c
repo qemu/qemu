@@ -305,12 +305,12 @@ static const char *cpuid_7_0_ebx_feature_name[] = {
 };
 
 static const char *cpuid_7_0_ecx_feature_name[] = {
-    NULL, NULL, NULL, "pku",
+    NULL, NULL, "umip", "pku",
     "ospke", NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
+    NULL, NULL, "rdpid", NULL,
     NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
 };
@@ -1893,50 +1893,6 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, const char *name,
     cpu->env.tsc_khz = cpu->env.user_tsc_khz = value / 1000;
 }
 
-static void x86_cpuid_get_apic_id(Object *obj, Visitor *v, const char *name,
-                                  void *opaque, Error **errp)
-{
-    X86CPU *cpu = X86_CPU(obj);
-    int64_t value = cpu->apic_id;
-
-    visit_type_int(v, name, &value, errp);
-}
-
-static void x86_cpuid_set_apic_id(Object *obj, Visitor *v, const char *name,
-                                  void *opaque, Error **errp)
-{
-    X86CPU *cpu = X86_CPU(obj);
-    DeviceState *dev = DEVICE(obj);
-    const int64_t min = 0;
-    const int64_t max = UINT32_MAX;
-    Error *error = NULL;
-    int64_t value;
-
-    if (dev->realized) {
-        error_setg(errp, "Attempt to set property '%s' on '%s' after "
-                   "it was realized", name, object_get_typename(obj));
-        return;
-    }
-
-    visit_type_int(v, name, &value, &error);
-    if (error) {
-        error_propagate(errp, error);
-        return;
-    }
-    if (value < min || value > max) {
-        error_setg(errp, "Property %s.%s doesn't take value %" PRId64
-                   " (minimum: %" PRId64 ", maximum: %" PRId64 ")" ,
-                   object_get_typename(obj), name, value, min, max);
-        return;
-    }
-
-    if ((value != cpu->apic_id) && cpu_exists(value)) {
-        error_setg(errp, "CPU with APIC ID %" PRIi64 " exists", value);
-        return;
-    }
-    cpu->apic_id = value;
-}
-
 /* Generic getter for "feature-words" and "filtered-features" properties */
 static void x86_cpu_get_feature_words(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
@@ -2641,17 +2597,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 0x80000008:
         /* virtual & phys address size in low 2 bytes. */
-/* XXX: This value must match the one used in the MMU code. */
         if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
-            /* 64 bit processor */
-/* XXX: The physical address space is limited to 42 bits in exec.c. */
-            *eax = 0x00003028; /* 48 bits virtual, 40 bits physical */
+            /* 64 bit processor, 48 bits virtual, configurable
+             * physical bits.
+             */
+            *eax = 0x00003000 + cpu->phys_bits;
         } else {
-            if (env->features[FEAT_1_EDX] & CPUID_PSE36) {
-                *eax = 0x00000024; /* 36 bits physical */
-            } else {
-                *eax = 0x00000020; /* 32 bits physical */
-            }
+            *eax = cpu->phys_bits;
         }
         *ebx = 0;
         *ecx = 0;
@@ -2874,8 +2826,10 @@ static void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
 
     cpu->apic_state = DEVICE(object_new(apic_type));
 
-    object_property_add_child(OBJECT(cpu), "apic",
-                              OBJECT(cpu->apic_state), NULL);
+    object_property_add_child(OBJECT(cpu), "lapic",
+                              OBJECT(cpu->apic_state), &error_abort);
+    object_unref(OBJECT(cpu->apic_state));
+
     qdev_prop_set_uint8(cpu->apic_state, "id", cpu->apic_id);
     /* TODO: convert to link<> */
     apic = APIC_COMMON(cpu->apic_state);
@@ -2926,6 +2880,31 @@ static void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
 }
 #endif
 
+/* Note: Only safe for use on x86(-64) hosts */
+static uint32_t x86_host_phys_bits(void)
+{
+    uint32_t eax;
+    uint32_t host_phys_bits;
+
+    host_cpuid(0x80000000, 0, &eax, NULL, NULL, NULL);
+    if (eax >= 0x80000008) {
+        host_cpuid(0x80000008, 0, &eax, NULL, NULL, NULL);
+        /* Note: According to AMD doc 25481 rev 2.34 they have a field
+         * at 23:16 that can specify a maximum physical address bits for
+         * the guest that can override this value; but I've not seen
+         * anything with that set.
+         */
+        host_phys_bits = eax & 0xff;
+    } else {
+        /* It's an odd 64 bit machine that doesn't have the leaf for
+         * physical address bits; fall back to 36 that's most older
+         * Intel.
+         */
+        host_phys_bits = 36;
+    }
+
+    return host_phys_bits;
+}
 
 #define IS_INTEL_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_INTEL_1 && \
                            (env)->cpuid_vendor2 == CPUID_VENDOR_INTEL_2 && \
@@ -2950,7 +2929,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         goto out;
     }
 
-    if (cpu->apic_id < 0) {
+    if (cpu->apic_id == UNASSIGNED_APIC_ID) {
         error_setg(errp, "apic-id property was not initialized properly");
         return;
     }
@@ -2993,7 +2972,70 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
            & CPUID_EXT2_AMD_ALIASES);
     }
 
+    /* For 64bit systems think about the number of physical bits to present.
+     * ideally this should be the same as the host; anything other than matching
+     * the host can cause incorrect guest behaviour.
+     * QEMU used to pick the magic value of 40 bits that corresponds to
+     * consumer AMD devices but nothing else.
+     */
+    if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
+        if (kvm_enabled()) {
+            uint32_t host_phys_bits = x86_host_phys_bits();
+            static bool warned;
 
+            if (cpu->host_phys_bits) {
+                /* The user asked for us to use the host physical bits */
+                cpu->phys_bits = host_phys_bits;
+            }
+
+            /* Print a warning if the user set it to a value that's not the
+             * host value.
+             */
+            if (cpu->phys_bits != host_phys_bits && cpu->phys_bits != 0 &&
+                !warned) {
+                error_report("Warning: Host physical bits (%u)"
+                                 " does not match phys-bits property (%u)",
+                                 host_phys_bits, cpu->phys_bits);
+                warned = true;
+            }
+
+            if (cpu->phys_bits &&
+                (cpu->phys_bits > TARGET_PHYS_ADDR_SPACE_BITS ||
+                cpu->phys_bits < 32)) {
+                error_setg(errp, "phys-bits should be between 32 and %u "
+                                 " (but is %u)",
+                                 TARGET_PHYS_ADDR_SPACE_BITS, cpu->phys_bits);
+                return;
+            }
+        } else {
+            if (cpu->phys_bits && cpu->phys_bits != TCG_PHYS_ADDR_BITS) {
+                error_setg(errp, "TCG only supports phys-bits=%u",
+                                  TCG_PHYS_ADDR_BITS);
+                return;
+            }
+        }
+        /* 0 means it was not explicitly set by the user (or by machine
+         * compat_props or by the host code above). In this case, the default
+         * is the value used by TCG (40).
+         */
+        if (cpu->phys_bits == 0) {
+            cpu->phys_bits = TCG_PHYS_ADDR_BITS;
+        }
+    } else {
+        /* For 32 bit systems don't use the user set value, but keep
+         * phys_bits consistent with what we tell the guest.
+         */
+        if (cpu->phys_bits != 0) {
+            error_setg(errp, "phys-bits is not user-configurable in 32 bit");
+            return;
+        }
+
+        if (env->features[FEAT_1_EDX] & CPUID_PSE36) {
+            cpu->phys_bits = 36;
+        } else {
+            cpu->phys_bits = 32;
+        }
+    }
     cpu_exec_init(cs, &error_abort);
 
     if (tcg_enabled()) {
@@ -3069,6 +3111,21 @@ out:
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         return;
+    }
+}
+
+static void x86_cpu_unrealizefn(DeviceState *dev, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(dev);
+
+#ifndef CONFIG_USER_ONLY
+    cpu_remove_sync(CPU(dev));
+    qemu_unregister_reset(x86_cpu_machine_reset_cb, dev);
+#endif
+
+    if (cpu->apic_state) {
+        object_unparent(OBJECT(cpu->apic_state));
+        cpu->apic_state = NULL;
     }
 }
 
@@ -3207,9 +3264,6 @@ static void x86_cpu_initfn(Object *obj)
     object_property_add(obj, "tsc-frequency", "int",
                         x86_cpuid_get_tsc_freq,
                         x86_cpuid_set_tsc_freq, NULL, NULL, NULL);
-    object_property_add(obj, "apic-id", "int",
-                        x86_cpuid_get_apic_id,
-                        x86_cpuid_set_apic_id, NULL, NULL, NULL);
     object_property_add(obj, "feature-words", "X86CPUFeatureWordInfo",
                         x86_cpu_get_feature_words,
                         NULL, NULL, (void *)env->features, NULL);
@@ -3218,11 +3272,6 @@ static void x86_cpu_initfn(Object *obj)
                         NULL, NULL, (void *)cpu->filtered_features, NULL);
 
     cpu->hyperv_spinlock_attempts = HYPERV_SPINLOCK_NEVER_RETRY;
-
-#ifndef CONFIG_USER_ONLY
-    /* Any code creating new X86CPU objects have to set apic-id explicitly */
-    cpu->apic_id = -1;
-#endif
 
     for (w = 0; w < FEATURE_WORDS; w++) {
         int bitnr;
@@ -3280,6 +3329,18 @@ static bool x86_cpu_has_work(CPUState *cs)
 }
 
 static Property x86_cpu_properties[] = {
+#ifdef CONFIG_USER_ONLY
+    /* apic_id = 0 by default for *-user, see commit 9886e834 */
+    DEFINE_PROP_UINT32("apic-id", X86CPU, apic_id, 0),
+    DEFINE_PROP_INT32("thread-id", X86CPU, thread_id, 0),
+    DEFINE_PROP_INT32("core-id", X86CPU, core_id, 0),
+    DEFINE_PROP_INT32("socket-id", X86CPU, socket_id, 0),
+#else
+    DEFINE_PROP_UINT32("apic-id", X86CPU, apic_id, UNASSIGNED_APIC_ID),
+    DEFINE_PROP_INT32("thread-id", X86CPU, thread_id, -1),
+    DEFINE_PROP_INT32("core-id", X86CPU, core_id, -1),
+    DEFINE_PROP_INT32("socket-id", X86CPU, socket_id, -1),
+#endif
     DEFINE_PROP_BOOL("pmu", X86CPU, enable_pmu, false),
     { .name  = "hv-spinlocks", .info  = &qdev_prop_spinlocks },
     DEFINE_PROP_BOOL("hv-relaxed", X86CPU, hyperv_relaxed_timing, false),
@@ -3294,6 +3355,9 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("check", X86CPU, check_cpuid, true),
     DEFINE_PROP_BOOL("enforce", X86CPU, enforce_cpuid, false),
     DEFINE_PROP_BOOL("kvm", X86CPU, expose_kvm, true),
+    DEFINE_PROP_UINT32("phys-bits", X86CPU, phys_bits, 0),
+    DEFINE_PROP_BOOL("host-phys-bits", X86CPU, host_phys_bits, false),
+    DEFINE_PROP_BOOL("fill-mtrr-mask", X86CPU, fill_mtrr_mask, true),
     DEFINE_PROP_UINT32("level", X86CPU, env.cpuid_level, 0),
     DEFINE_PROP_UINT32("xlevel", X86CPU, env.cpuid_xlevel, 0),
     DEFINE_PROP_UINT32("xlevel2", X86CPU, env.cpuid_xlevel2, 0),
@@ -3311,6 +3375,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 
     xcc->parent_realize = dc->realize;
     dc->realize = x86_cpu_realizefn;
+    dc->unrealize = x86_cpu_unrealizefn;
     dc->props = x86_cpu_properties;
 
     xcc->parent_reset = cc->reset;
@@ -3347,6 +3412,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->cpu_exec_enter = x86_cpu_exec_enter;
     cc->cpu_exec_exit = x86_cpu_exec_exit;
 
+    dc->cannot_instantiate_with_device_add_yet = false;
     /*
      * Reason: x86_cpu_initfn() calls cpu_exec_init(), which saves the
      * object in cpus -> dangling pointer after final object_unref().

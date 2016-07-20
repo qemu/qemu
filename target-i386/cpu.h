@@ -616,8 +616,10 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_7_0_EBX_AVX512ER (1U << 27) /* AVX-512 Exponential and Reciprocal */
 #define CPUID_7_0_EBX_AVX512CD (1U << 28) /* AVX-512 Conflict Detection */
 
+#define CPUID_7_0_ECX_UMIP     (1U << 2)
 #define CPUID_7_0_ECX_PKU      (1U << 3)
 #define CPUID_7_0_ECX_OSPKE    (1U << 4)
+#define CPUID_7_0_ECX_RDPID    (1U << 22)
 
 #define CPUID_XSAVE_XSAVEOPT   (1U << 0)
 #define CPUID_XSAVE_XSAVEC     (1U << 1)
@@ -844,6 +846,11 @@ typedef struct {
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
 #define NB_OPMASK_REGS 8
+
+/* CPU can't have 0xFFFFFFFF APIC ID, use that value to distinguish
+ * that APIC ID hasn't been set yet
+ */
+#define UNASSIGNED_APIC_ID 0xFFFFFFFF
 
 typedef union X86LegacyXSaveArea {
     struct {
@@ -1174,7 +1181,7 @@ struct X86CPU {
     bool expose_kvm;
     bool migratable;
     bool host_features;
-    int64_t apic_id;
+    uint32_t apic_id;
 
     /* if true the CPUID code directly forward host cache leaves to the guest */
     bool cache_info_passthrough;
@@ -1198,6 +1205,15 @@ struct X86CPU {
     /* Compatibility bits for old machine types: */
     bool enable_cpuid_0xb;
 
+    /* if true fill the top bits of the MTRR_PHYSMASKn variable range */
+    bool fill_mtrr_mask;
+
+    /* if true override the phys_bits value with a value read from the host */
+    bool host_phys_bits;
+
+    /* Number of physical address bits supported */
+    uint32_t phys_bits;
+
     /* in order to simplify APIC support, we leave this pointer to the
        user */
     struct DeviceState *apic_state;
@@ -1205,6 +1221,10 @@ struct X86CPU {
     Notifier machine_done;
 
     struct kvm_msrs *kvm_msr_buf;
+
+    int32_t socket_id;
+    int32_t core_id;
+    int32_t thread_id;
 };
 
 static inline X86CPU *x86_env_get_cpu(CPUX86State *env)
@@ -1419,10 +1439,12 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 /* XXX: This value should match the one returned by CPUID
  * and in exec.c */
 # if defined(TARGET_X86_64)
-# define PHYS_ADDR_MASK 0xffffffffffLL
+# define TCG_PHYS_ADDR_BITS 40
 # else
-# define PHYS_ADDR_MASK 0xfffffffffLL
+# define TCG_PHYS_ADDR_BITS 36
 # endif
+
+#define PHYS_ADDR_MASK MAKE_64BIT_MASK(0, TCG_PHYS_ADDR_BITS)
 
 #define cpu_init(cpu_model) CPU(cpu_x86_init(cpu_model))
 
