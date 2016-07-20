@@ -179,6 +179,9 @@
 #define TARGET_NR_readahead          205 /* Linux Specific                              */
 #define TARGET_NR_socketcall         206 /* Linux Specific                              */
 #define TARGET_NR_syslog             207 /* Linux Specific                              */
+#define TARGET_NR_lookup_dcookie     208 /* Linux Specific                              */
+#define TARGET_NR_fadvise64          209 /* Linux Specific                              */
+#define TARGET_NR_fadvise64_64       210 /* Linux Specific                              */
 #define TARGET_NR_tgkill             211 /* Linux Specific                              */
 #define TARGET_NR_waitpid            212 /* Linux Specific                              */
 #define TARGET_NR_swapoff            213 /* Linux Specific                              */

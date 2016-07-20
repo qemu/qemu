@@ -86,8 +86,7 @@
 #define TARGET_NR_sync 81
 #define TARGET_NR_fsync 82
 #define TARGET_NR_fdatasync 83
-#define TARGET_NR_sync_file_range2 84
-/* #define TARGET_NR_sync_file_range 84 */
+#define TARGET_NR_sync_file_range 84
 #define TARGET_NR_timerfd_create 85
 #define TARGET_NR_timerfd_settime 86
 #define TARGET_NR_timerfd_gettime 87
