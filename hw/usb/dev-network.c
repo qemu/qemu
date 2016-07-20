@@ -1334,7 +1334,7 @@ static void usb_net_handle_destroy(USBDevice *dev)
 }
 
 static NetClientInfo net_usbnet_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_NIC,
+    .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
     .receive = usbnet_receive,
     .cleanup = usbnet_cleanup,
@@ -1396,7 +1396,7 @@ static USBDevice *usb_net_init(USBBus *bus, const char *cmdline)
     qemu_opt_set(opts, "type", "nic", &error_abort);
     qemu_opt_set(opts, "model", "usb", &error_abort);
 
-    idx = net_client_init(opts, 0, &local_err);
+    idx = net_client_init(opts, false, &local_err);
     if (local_err) {
         error_report_err(local_err);
         return NULL;

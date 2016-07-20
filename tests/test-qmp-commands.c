@@ -59,6 +59,14 @@ QObject *qmp_guest_sync(QObject *arg, Error **errp)
     return arg;
 }
 
+void qmp_boxed_struct(UserDefZero *arg, Error **errp)
+{
+}
+
+void qmp_boxed_union(UserDefNativeListUnion *arg, Error **errp)
+{
+}
+
 __org_qemu_x_Union1 *qmp___org_qemu_x_command(__org_qemu_x_EnumList *a,
                                               __org_qemu_x_StructList *b,
                                               __org_qemu_x_Union2 *c,

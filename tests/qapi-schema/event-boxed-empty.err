@@ -1,0 +1,1 @@
+tests/qapi-schema/event-boxed-empty.json:2: Use of 'boxed' requires 'data'

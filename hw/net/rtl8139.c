@@ -3393,7 +3393,7 @@ static void rtl8139_set_link_status(NetClientState *nc)
 }
 
 static NetClientInfo net_rtl8139_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_NIC,
+    .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
     .can_receive = rtl8139_can_receive,
     .receive = rtl8139_receive,

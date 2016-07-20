@@ -23,15 +23,13 @@ typedef struct QStackEntry
 {
     QObject *value;
     void *qapi; /* sanity check that caller uses same pointer */
-    QTAILQ_ENTRY(QStackEntry) node;
+    QSLIST_ENTRY(QStackEntry) node;
 } QStackEntry;
-
-typedef QTAILQ_HEAD(QStack, QStackEntry) QStack;
 
 struct QmpOutputVisitor
 {
     Visitor visitor;
-    QStack stack; /* Stack of containers that haven't yet been finished */
+    QSLIST_HEAD(, QStackEntry) stack; /* Stack of unfinished containers */
     QObject *root; /* Root of the output visit */
     QObject **result; /* User's storage location for result */
 };
@@ -56,18 +54,18 @@ static void qmp_output_push_obj(QmpOutputVisitor *qov, QObject *value,
     assert(value);
     e->value = value;
     e->qapi = qapi;
-    QTAILQ_INSERT_HEAD(&qov->stack, e, node);
+    QSLIST_INSERT_HEAD(&qov->stack, e, node);
 }
 
 /* Pop a value off the stack of QObjects being built, and return it. */
 static QObject *qmp_output_pop(QmpOutputVisitor *qov, void *qapi)
 {
-    QStackEntry *e = QTAILQ_FIRST(&qov->stack);
+    QStackEntry *e = QSLIST_FIRST(&qov->stack);
     QObject *value;
 
     assert(e);
     assert(e->qapi == qapi);
-    QTAILQ_REMOVE(&qov->stack, e, node);
+    QSLIST_REMOVE_HEAD(&qov->stack, node);
     value = e->value;
     assert(value);
     g_free(e);
@@ -80,7 +78,7 @@ static QObject *qmp_output_pop(QmpOutputVisitor *qov, void *qapi)
 static void qmp_output_add_obj(QmpOutputVisitor *qov, const char *name,
                                QObject *value)
 {
-    QStackEntry *e = QTAILQ_FIRST(&qov->stack);
+    QStackEntry *e = QSLIST_FIRST(&qov->stack);
     QObject *cur = e ? e->value : NULL;
 
     if (!cur) {
@@ -206,7 +204,7 @@ static void qmp_output_complete(Visitor *v, void *opaque)
     QmpOutputVisitor *qov = to_qov(v);
 
     /* A visit must have occurred, with each start paired with end.  */
-    assert(qov->root && QTAILQ_EMPTY(&qov->stack));
+    assert(qov->root && QSLIST_EMPTY(&qov->stack));
     assert(opaque == qov->result);
 
     qobject_incref(qov->root);
@@ -217,10 +215,11 @@ static void qmp_output_complete(Visitor *v, void *opaque)
 static void qmp_output_free(Visitor *v)
 {
     QmpOutputVisitor *qov = to_qov(v);
-    QStackEntry *e, *tmp;
+    QStackEntry *e;
 
-    QTAILQ_FOREACH_SAFE(e, &qov->stack, node, tmp) {
-        QTAILQ_REMOVE(&qov->stack, e, node);
+    while (!QSLIST_EMPTY(&qov->stack)) {
+        e = QSLIST_FIRST(&qov->stack);
+        QSLIST_REMOVE_HEAD(&qov->stack, node);
         g_free(e);
     }
 
@@ -250,7 +249,6 @@ Visitor *qmp_output_visitor_new(QObject **result)
     v->visitor.complete = qmp_output_complete;
     v->visitor.free = qmp_output_free;
 
-    QTAILQ_INIT(&v->stack);
     *result = NULL;
     v->result = result;
 

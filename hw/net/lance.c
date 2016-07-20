@@ -93,7 +93,7 @@ static const MemoryRegionOps lance_mem_ops = {
 };
 
 static NetClientInfo net_lance_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_NIC,
+    .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
     .receive = pcnet_receive,
     .link_status_changed = pcnet_set_link_status,

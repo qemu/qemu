@@ -16,20 +16,23 @@ from qapi import *
 import re
 
 
-def gen_command_decl(name, arg_type, ret_type):
+def gen_command_decl(name, arg_type, boxed, ret_type):
     return mcgen('''
 %(c_type)s qmp_%(c_name)s(%(params)s);
 ''',
                  c_type=(ret_type and ret_type.c_type()) or 'void',
                  c_name=c_name(name),
-                 params=gen_params(arg_type, 'Error **errp'))
+                 params=gen_params(arg_type, boxed, 'Error **errp'))
 
 
-def gen_call(name, arg_type, ret_type):
+def gen_call(name, arg_type, boxed, ret_type):
     ret = ''
 
     argstr = ''
-    if arg_type:
+    if boxed:
+        assert arg_type and not arg_type.is_empty()
+        argstr = '&arg, '
+    elif arg_type:
         assert not arg_type.variants
         for memb in arg_type.members:
             if memb.optional:
@@ -46,8 +49,10 @@ def gen_call(name, arg_type, ret_type):
 ''',
                 c_name=c_name(name), args=argstr, lhs=lhs)
     if ret_type:
-        ret += gen_err_check()
         ret += mcgen('''
+    if (err) {
+        goto out;
+    }
 
     qmp_marshal_output_%(c_name)s(retval, ret, &err);
 ''',
@@ -92,7 +97,7 @@ def gen_marshal_decl(name):
                  proto=gen_marshal_proto(name))
 
 
-def gen_marshal(name, arg_type, ret_type):
+def gen_marshal(name, arg_type, boxed, ret_type):
     ret = mcgen('''
 
 %(proto)s
@@ -107,7 +112,7 @@ def gen_marshal(name, arg_type, ret_type):
 ''',
                      c_type=ret_type.c_type())
 
-    if arg_type and arg_type.members:
+    if arg_type and not arg_type.is_empty():
         ret += mcgen('''
     Visitor *v;
     %(c_name)s arg = {0};
@@ -134,10 +139,10 @@ def gen_marshal(name, arg_type, ret_type):
     (void)args;
 ''')
 
-    ret += gen_call(name, arg_type, ret_type)
+    ret += gen_call(name, arg_type, boxed, ret_type)
 
     # 'goto out' produced above for arg_type, and by gen_call() for ret_type
-    if (arg_type and arg_type.members) or ret_type:
+    if (arg_type and not arg_type.is_empty()) or ret_type:
         ret += mcgen('''
 
 out:
@@ -145,7 +150,7 @@ out:
     ret += mcgen('''
     error_propagate(errp, err);
 ''')
-    if arg_type and arg_type.members:
+    if arg_type and not arg_type.is_empty():
         ret += mcgen('''
     visit_free(v);
     v = qapi_dealloc_visitor_new();
@@ -210,16 +215,16 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
         self._visited_ret_types = None
 
     def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response):
+                      gen, success_response, boxed):
         if not gen:
             return
-        self.decl += gen_command_decl(name, arg_type, ret_type)
+        self.decl += gen_command_decl(name, arg_type, boxed, ret_type)
         if ret_type and ret_type not in self._visited_ret_types:
             self._visited_ret_types.add(ret_type)
             self.defn += gen_marshal_output(ret_type)
         if middle_mode:
             self.decl += gen_marshal_decl(name)
-        self.defn += gen_marshal(name, arg_type, ret_type)
+        self.defn += gen_marshal(name, arg_type, boxed, ret_type)
         if not middle_mode:
             self._regy += gen_register_command(name, success_response)
 

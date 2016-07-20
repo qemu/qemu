@@ -223,7 +223,7 @@ static bool tap_has_ufo(NetClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
-    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
+    assert(nc->info->type == NET_CLIENT_DRIVER_TAP);
 
     return s->has_ufo;
 }
@@ -232,7 +232,7 @@ static bool tap_has_vnet_hdr(NetClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
-    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
+    assert(nc->info->type == NET_CLIENT_DRIVER_TAP);
 
     return !!s->host_vnet_hdr_len;
 }
@@ -241,7 +241,7 @@ static bool tap_has_vnet_hdr_len(NetClientState *nc, int len)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
-    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
+    assert(nc->info->type == NET_CLIENT_DRIVER_TAP);
 
     return !!tap_probe_vnet_hdr_len(s->fd, len);
 }
@@ -250,7 +250,7 @@ static void tap_set_vnet_hdr_len(NetClientState *nc, int len)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
-    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
+    assert(nc->info->type == NET_CLIENT_DRIVER_TAP);
     assert(len == sizeof(struct virtio_net_hdr_mrg_rxbuf) ||
            len == sizeof(struct virtio_net_hdr));
 
@@ -262,7 +262,7 @@ static void tap_using_vnet_hdr(NetClientState *nc, bool using_vnet_hdr)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
-    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
+    assert(nc->info->type == NET_CLIENT_DRIVER_TAP);
     assert(!!s->host_vnet_hdr_len == using_vnet_hdr);
 
     s->using_vnet_hdr = using_vnet_hdr;
@@ -336,14 +336,14 @@ static void tap_poll(NetClientState *nc, bool enable)
 int tap_get_fd(NetClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
-    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
+    assert(nc->info->type == NET_CLIENT_DRIVER_TAP);
     return s->fd;
 }
 
 /* fd support */
 
 static NetClientInfo net_tap_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_TAP,
+    .type = NET_CLIENT_DRIVER_TAP,
     .size = sizeof(TAPState),
     .receive = tap_receive,
     .receive_raw = tap_receive_raw,
@@ -571,7 +571,7 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
     }
 }
 
-int net_init_bridge(const NetClientOptions *opts, const char *name,
+int net_init_bridge(const Netdev *netdev, const char *name,
                     NetClientState *peer, Error **errp)
 {
     const NetdevBridgeOptions *bridge;
@@ -579,8 +579,8 @@ int net_init_bridge(const NetClientOptions *opts, const char *name,
     TAPState *s;
     int fd, vnet_hdr;
 
-    assert(opts->type == NET_CLIENT_OPTIONS_KIND_BRIDGE);
-    bridge = opts->u.bridge.data;
+    assert(netdev->type == NET_CLIENT_DRIVER_BRIDGE);
+    bridge = &netdev->u.bridge;
 
     helper = bridge->has_helper ? bridge->helper : DEFAULT_BRIDGE_HELPER;
     br     = bridge->has_br     ? bridge->br     : DEFAULT_BRIDGE_INTERFACE;
@@ -735,7 +735,7 @@ static int get_fds(char *str, char *fds[], int max)
     return i;
 }
 
-int net_init_tap(const NetClientOptions *opts, const char *name,
+int net_init_tap(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp)
 {
     const NetdevTapOptions *tap;
@@ -747,8 +747,8 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
     const char *vhostfdname;
     char ifname[128];
 
-    assert(opts->type == NET_CLIENT_OPTIONS_KIND_TAP);
-    tap = opts->u.tap.data;
+    assert(netdev->type == NET_CLIENT_DRIVER_TAP);
+    tap = &netdev->u.tap;
     queues = tap->has_queues ? tap->queues : 1;
     vhostfdname = tap->has_vhostfd ? tap->vhostfd : NULL;
 
@@ -921,7 +921,7 @@ free_fail:
 VHostNetState *tap_get_vhost_net(NetClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
-    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
+    assert(nc->info->type == NET_CLIENT_DRIVER_TAP);
     return s->vhost_net;
 }
 

@@ -3080,8 +3080,8 @@ void netdev_add_completion(ReadLineState *rs, int nb_args, const char *str)
     }
     len = strlen(str);
     readline_set_completion_index(rs, len);
-    for (i = 0; NetClientOptionsKind_lookup[i]; i++) {
-        add_completion_option(rs, str, NetClientOptionsKind_lookup[i]);
+    for (i = 0; NetClientDriver_lookup[i]; i++) {
+        add_completion_option(rs, str, NetClientDriver_lookup[i]);
     }
 }
 
@@ -3281,7 +3281,7 @@ void set_link_completion(ReadLineState *rs, int nb_args, const char *str)
         NetClientState *ncs[MAX_QUEUE_NUM];
         int count, i;
         count = qemu_find_net_clients_except(NULL, ncs,
-                                             NET_CLIENT_OPTIONS_KIND_NONE,
+                                             NET_CLIENT_DRIVER_NONE,
                                              MAX_QUEUE_NUM);
         for (i = 0; i < MIN(count, MAX_QUEUE_NUM); i++) {
             const char *name = ncs[i]->name;
@@ -3306,7 +3306,7 @@ void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str)
 
     len = strlen(str);
     readline_set_completion_index(rs, len);
-    count = qemu_find_net_clients_except(NULL, ncs, NET_CLIENT_OPTIONS_KIND_NIC,
+    count = qemu_find_net_clients_except(NULL, ncs, NET_CLIENT_DRIVER_NIC,
                                          MAX_QUEUE_NUM);
     for (i = 0; i < MIN(count, MAX_QUEUE_NUM); i++) {
         QemuOpts *opts;
@@ -3435,7 +3435,7 @@ void host_net_remove_completion(ReadLineState *rs, int nb_args, const char *str)
     readline_set_completion_index(rs, len);
     if (nb_args == 2) {
         count = qemu_find_net_clients_except(NULL, ncs,
-                                             NET_CLIENT_OPTIONS_KIND_NONE,
+                                             NET_CLIENT_DRIVER_NONE,
                                              MAX_QUEUE_NUM);
         for (i = 0; i < MIN(count, MAX_QUEUE_NUM); i++) {
             int id;
@@ -3452,13 +3452,13 @@ void host_net_remove_completion(ReadLineState *rs, int nb_args, const char *str)
         return;
     } else if (nb_args == 3) {
         count = qemu_find_net_clients_except(NULL, ncs,
-                                             NET_CLIENT_OPTIONS_KIND_NIC,
+                                             NET_CLIENT_DRIVER_NIC,
                                              MAX_QUEUE_NUM);
         for (i = 0; i < MIN(count, MAX_QUEUE_NUM); i++) {
             int id;
             const char *name;
 
-            if (ncs[i]->info->type == NET_CLIENT_OPTIONS_KIND_HUBPORT ||
+            if (ncs[i]->info->type == NET_CLIENT_DRIVER_HUBPORT ||
                 net_hub_id_for_client(ncs[i], &id)) {
                 continue;
             }

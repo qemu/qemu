@@ -201,7 +201,7 @@ static void netfilter_complete(UserCreatable *uc, Error **errp)
     }
 
     queues = qemu_find_net_clients_except(nf->netdev_id, ncs,
-                                          NET_CLIENT_OPTIONS_KIND_NIC,
+                                          NET_CLIENT_DRIVER_NIC,
                                           MAX_QUEUE_NUM);
     if (queues < 1) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "netdev",

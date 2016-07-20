@@ -311,7 +311,7 @@ static void net_socket_cleanup(NetClientState *nc)
 }
 
 static NetClientInfo net_dgram_socket_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_SOCKET,
+    .type = NET_CLIENT_DRIVER_SOCKET,
     .size = sizeof(NetSocketState),
     .receive = net_socket_receive_dgram,
     .cleanup = net_socket_cleanup,
@@ -395,7 +395,7 @@ static void net_socket_connect(void *opaque)
 }
 
 static NetClientInfo net_socket_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_SOCKET,
+    .type = NET_CLIENT_DRIVER_SOCKET,
     .size = sizeof(NetSocketState),
     .receive = net_socket_receive,
     .cleanup = net_socket_cleanup,
@@ -663,15 +663,15 @@ static int net_socket_udp_init(NetClientState *peer,
     return 0;
 }
 
-int net_init_socket(const NetClientOptions *opts, const char *name,
+int net_init_socket(const Netdev *netdev, const char *name,
                     NetClientState *peer, Error **errp)
 {
     /* FIXME error_setg(errp, ...) on failure */
     Error *err = NULL;
     const NetdevSocketOptions *sock;
 
-    assert(opts->type == NET_CLIENT_OPTIONS_KIND_SOCKET);
-    sock = opts->u.socket.data;
+    assert(netdev->type == NET_CLIENT_DRIVER_SOCKET);
+    sock = &netdev->u.socket;
 
     if (sock->has_fd + sock->has_listen + sock->has_connect + sock->has_mcast +
         sock->has_udp != 1) {

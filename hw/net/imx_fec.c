@@ -1147,7 +1147,7 @@ static void imx_eth_cleanup(NetClientState *nc)
 }
 
 static NetClientInfo imx_eth_net_info = {
-    .type                = NET_CLIENT_OPTIONS_KIND_NIC,
+    .type                = NET_CLIENT_DRIVER_NIC,
     .size                = sizeof(NICState),
     .can_receive         = imx_eth_can_receive,
     .receive             = imx_eth_receive,

@@ -578,7 +578,7 @@ static const MemoryRegionOps eth_ops = {
 };
 
 static NetClientInfo net_etraxfs_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_NIC,
+    .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
     .receive = eth_receive,
     .link_status_changed = eth_set_link,

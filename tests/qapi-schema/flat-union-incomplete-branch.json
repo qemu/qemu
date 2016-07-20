@@ -1,0 +1,9 @@
+# we require all branches of the union to be covered
+{ 'enum': 'TestEnum',
+  'data': [ 'value1', 'value2' ] }
+{ 'struct': 'TestTypeA',
+  'data': { 'string': 'str' } }
+{ 'union': 'TestUnion',
+  'base': { 'type': 'TestEnum' },
+  'discriminator': 'type',
+  'data': { 'value1': 'TestTypeA' } }

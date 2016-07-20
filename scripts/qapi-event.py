@@ -14,18 +14,18 @@
 from qapi import *
 
 
-def gen_event_send_proto(name, arg_type):
+def gen_event_send_proto(name, arg_type, boxed):
     return 'void qapi_event_send_%(c_name)s(%(param)s)' % {
         'c_name': c_name(name.lower()),
-        'param': gen_params(arg_type, 'Error **errp')}
+        'param': gen_params(arg_type, boxed, 'Error **errp')}
 
 
-def gen_event_send_decl(name, arg_type):
+def gen_event_send_decl(name, arg_type, boxed):
     return mcgen('''
 
 %(proto)s;
 ''',
-                 proto=gen_event_send_proto(name, arg_type))
+                 proto=gen_event_send_proto(name, arg_type, boxed))
 
 
 # Declare and initialize an object 'qapi' using parameters from gen_params()
@@ -49,10 +49,15 @@ def gen_param_var(typ):
 
     };
 ''')
+    if not typ.is_implicit():
+        ret += mcgen('''
+    %(c_name)s *arg = &param;
+''',
+                     c_name=typ.c_name())
     return ret
 
 
-def gen_event_send(name, arg_type):
+def gen_event_send(name, arg_type, boxed):
     # FIXME: Our declaration of local variables (and of 'errp' in the
     # parameter list) can collide with exploded members of the event's
     # data type passed in as parameters.  If this collision ever hits in
@@ -67,14 +72,17 @@ def gen_event_send(name, arg_type):
     Error *err = NULL;
     QMPEventFuncEmit emit;
 ''',
-                proto=gen_event_send_proto(name, arg_type))
+                proto=gen_event_send_proto(name, arg_type, boxed))
 
-    if arg_type and arg_type.members:
+    if arg_type and not arg_type.is_empty():
         ret += mcgen('''
     QObject *obj;
     Visitor *v;
 ''')
-        ret += gen_param_var(arg_type)
+        if not boxed:
+            ret += gen_param_var(arg_type)
+    else:
+        assert not boxed
 
     ret += mcgen('''
 
@@ -88,9 +96,17 @@ def gen_event_send(name, arg_type):
 ''',
                  name=name)
 
-    if arg_type and arg_type.members:
+    if arg_type and not arg_type.is_empty():
         ret += mcgen('''
     v = qmp_output_visitor_new(&obj);
+''')
+        if not arg_type.is_implicit():
+            ret += mcgen('''
+    visit_type_%(c_name)s(v, "%(name)s", &arg, &err);
+''',
+                         name=name, c_name=arg_type.c_name())
+        else:
+            ret += mcgen('''
 
     visit_start_struct(v, "%(name)s", NULL, 0, &err);
     if (err) {
@@ -101,14 +117,16 @@ def gen_event_send(name, arg_type):
         visit_check_struct(v, &err);
     }
     visit_end_struct(v, NULL);
+''',
+                         name=name, c_name=arg_type.c_name())
+        ret += mcgen('''
     if (err) {
         goto out;
     }
 
     visit_complete(v, &obj);
     qdict_put_obj(qmp, "data", obj);
-''',
-                     name=name, c_name=arg_type.c_name())
+''')
 
     ret += mcgen('''
     emit(%(c_enum)s, qmp, &err);
@@ -116,7 +134,7 @@ def gen_event_send(name, arg_type):
 ''',
                  c_enum=c_enum_const(event_enum_name, name))
 
-    if arg_type and arg_type.members:
+    if arg_type and not arg_type.is_empty():
         ret += mcgen('''
 out:
     visit_free(v);
@@ -145,9 +163,9 @@ class QAPISchemaGenEventVisitor(QAPISchemaVisitor):
         self.defn += gen_enum_lookup(event_enum_name, self._event_names)
         self._event_names = None
 
-    def visit_event(self, name, info, arg_type):
-        self.decl += gen_event_send_decl(name, arg_type)
-        self.defn += gen_event_send(name, arg_type)
+    def visit_event(self, name, info, arg_type, boxed):
+        self.decl += gen_event_send_decl(name, arg_type, boxed)
+        self.defn += gen_event_send(name, arg_type, boxed)
         self._event_names.append(name)
 
 

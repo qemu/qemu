@@ -1,0 +1,2 @@
+# 'boxed' should only appear with value true
+{ 'command': 'foo', 'boxed': false }

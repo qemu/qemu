@@ -269,7 +269,7 @@ static ssize_t net_rx_packet(NetClientState *nc, const uint8_t *buf, size_t size
 /* ------------------------------------------------------------- */
 
 static NetClientInfo net_xen_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_NIC,
+    .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
     .receive = net_rx_packet,
 };

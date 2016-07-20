@@ -473,7 +473,7 @@ static ssize_t open_eth_receive(NetClientState *nc,
 }
 
 static NetClientInfo net_open_eth_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_NIC,
+    .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
     .can_receive = open_eth_can_receive,
     .receive = open_eth_receive,

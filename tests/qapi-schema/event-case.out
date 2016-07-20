@@ -1,4 +1,5 @@
 enum QType ['none', 'qnull', 'qint', 'qstring', 'qdict', 'qlist', 'qfloat', 'qbool']
     prefix QTYPE
 event oops None
+   boxed=False
 object q_empty

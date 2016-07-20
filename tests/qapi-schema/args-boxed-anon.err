@@ -1,0 +1,1 @@
+tests/qapi-schema/args-boxed-anon.json:2: 'data' for command 'foo' should be a type name

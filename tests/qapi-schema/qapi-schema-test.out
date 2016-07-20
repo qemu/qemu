@@ -1,25 +1,39 @@
 alternate AltIntNum
+    tag type
     case i: int
     case n: number
 alternate AltNumInt
+    tag type
     case n: number
     case i: int
 alternate AltNumStr
+    tag type
     case n: number
     case s: str
 alternate AltStrBool
+    tag type
     case s: str
     case b: bool
 alternate AltStrInt
+    tag type
     case s: str
     case i: int
 alternate AltStrNum
+    tag type
     case s: str
     case n: number
 event EVENT_A None
+   boxed=False
 event EVENT_B None
+   boxed=False
 event EVENT_C q_obj_EVENT_C-arg
+   boxed=False
 event EVENT_D q_obj_EVENT_D-arg
+   boxed=False
+event EVENT_E UserDefZero
+   boxed=True
+event EVENT_F UserDefAlternate
+   boxed=True
 object Empty1
 object Empty2
     base Empty1
@@ -50,6 +64,7 @@ object UserDefA
     member boolean: bool optional=False
     member a_b: int optional=True
 alternate UserDefAlternate
+    tag type
     case udfu: UserDefFlatUnion
     case s: str
     case i: int
@@ -72,6 +87,7 @@ object UserDefFlatUnion2
     case value2: UserDefB
 object UserDefNativeListUnion
     member type: UserDefNativeListUnionKind optional=False
+    tag type
     case integer: q_obj_intList-wrapper
     case s8: q_obj_int8List-wrapper
     case s16: q_obj_int16List-wrapper
@@ -116,7 +132,9 @@ object UserDefZero
 object WrapAlternate
     member alt: UserDefAlternate optional=False
 event __ORG.QEMU_X-EVENT __org.qemu_x-Struct
+   boxed=False
 alternate __org.qemu_x-Alt
+    tag type
     case __org.qemu_x-branch: str
     case b: __org.qemu_x-Base
 object __org.qemu_x-Base
@@ -130,6 +148,7 @@ object __org.qemu_x-Struct2
     member array: __org.qemu_x-Union1List optional=False
 object __org.qemu_x-Union1
     member type: __org.qemu_x-Union1Kind optional=False
+    tag type
     case __org.qemu_x-branch: q_obj_str-wrapper
 enum __org.qemu_x-Union1Kind ['__org.qemu_x-branch']
 object __org.qemu_x-Union2
@@ -137,11 +156,15 @@ object __org.qemu_x-Union2
     tag __org.qemu_x-member1
     case __org.qemu_x-value: __org.qemu_x-Struct2
 command __org.qemu_x-command q_obj___org.qemu_x-command-arg -> __org.qemu_x-Union1
-   gen=True success_response=True
+   gen=True success_response=True boxed=False
+command boxed-struct UserDefZero -> None
+   gen=True success_response=True boxed=True
+command boxed-union UserDefNativeListUnion -> None
+   gen=True success_response=True boxed=True
 command guest-get-time q_obj_guest-get-time-arg -> int
-   gen=True success_response=True
+   gen=True success_response=True boxed=False
 command guest-sync q_obj_guest-sync-arg -> any
-   gen=True success_response=True
+   gen=True success_response=True boxed=False
 object q_empty
 object q_obj_EVENT_C-arg
     member a: int optional=True
@@ -202,10 +225,10 @@ object q_obj_user_def_cmd2-arg
     member ud1a: UserDefOne optional=False
     member ud1b: UserDefOne optional=True
 command user_def_cmd None -> None
-   gen=True success_response=True
+   gen=True success_response=True boxed=False
 command user_def_cmd0 Empty2 -> Empty2
-   gen=True success_response=True
+   gen=True success_response=True boxed=False
 command user_def_cmd1 q_obj_user_def_cmd1-arg -> None
-   gen=True success_response=True
+   gen=True success_response=True boxed=False
 command user_def_cmd2 q_obj_user_def_cmd2-arg -> UserDefTwo
-   gen=True success_response=True
+   gen=True success_response=True boxed=False
