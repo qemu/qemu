@@ -2544,7 +2544,7 @@ sub process {
 		}
 	}
 
-# check for non-portable ffs() calls that have portable alternatives in QEMU
+# check for non-portable libc calls that have portable alternatives in QEMU
 		if ($line =~ /\bffs\(/) {
 			ERROR("use ctz32() instead of ffs()\n" . $herecurr);
 		}
@@ -2553,6 +2553,9 @@ sub process {
 		}
 		if ($line =~ /\bffsll\(/) {
 			ERROR("use ctz64() instead of ffsll()\n" . $herecurr);
+		}
+		if ($line =~ /\bbzero\(/) {
+			ERROR("use memset() instead of bzero()\n" . $herecurr);
 		}
 	}
 
