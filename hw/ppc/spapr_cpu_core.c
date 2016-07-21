@@ -307,9 +307,13 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
     sc->threads = g_malloc0(size * cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
         char id[32];
+        CPUState *cs;
+
         obj = sc->threads + i * size;
 
         object_initialize(obj, size, typename);
+        cs = CPU(obj);
+        cs->cpu_index = cc->core_id + i;
         snprintf(id, sizeof(id), "thread[%d]", i);
         object_property_add_child(OBJECT(sc), id, obj, &local_err);
         if (local_err) {
