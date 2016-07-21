@@ -2800,8 +2800,8 @@ static int sd_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
 }
 
 
-static coroutine_fn int sd_co_discard(BlockDriverState *bs, int64_t sector_num,
-                                      int nb_sectors)
+static coroutine_fn int sd_co_pdiscard(BlockDriverState *bs, int64_t offset,
+                                      int count)
 {
     SheepdogAIOCB *acb;
     BDRVSheepdogState *s = bs->opaque;
@@ -2811,7 +2811,7 @@ static coroutine_fn int sd_co_discard(BlockDriverState *bs, int64_t sector_num,
     uint32_t zero = 0;
 
     if (!s->discard_supported) {
-            return 0;
+        return 0;
     }
 
     memset(&discard_iov, 0, sizeof(discard_iov));
@@ -2820,7 +2820,10 @@ static coroutine_fn int sd_co_discard(BlockDriverState *bs, int64_t sector_num,
     iov.iov_len = sizeof(zero);
     discard_iov.iov = &iov;
     discard_iov.niov = 1;
-    acb = sd_aio_setup(bs, &discard_iov, sector_num, nb_sectors);
+    assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert((count & (BDRV_SECTOR_SIZE - 1)) == 0);
+    acb = sd_aio_setup(bs, &discard_iov, offset >> BDRV_SECTOR_BITS,
+                       count >> BDRV_SECTOR_BITS);
     acb->aiocb_type = AIOCB_DISCARD_OBJ;
     acb->aio_done_func = sd_finish_aiocb;
 
@@ -2954,7 +2957,7 @@ static BlockDriver bdrv_sheepdog = {
     .bdrv_co_readv  = sd_co_readv,
     .bdrv_co_writev = sd_co_writev,
     .bdrv_co_flush_to_disk  = sd_co_flush_to_disk,
-    .bdrv_co_discard = sd_co_discard,
+    .bdrv_co_pdiscard = sd_co_pdiscard,
     .bdrv_co_get_block_status = sd_co_get_block_status,
 
     .bdrv_snapshot_create   = sd_snapshot_create,
@@ -2990,7 +2993,7 @@ static BlockDriver bdrv_sheepdog_tcp = {
     .bdrv_co_readv  = sd_co_readv,
     .bdrv_co_writev = sd_co_writev,
     .bdrv_co_flush_to_disk  = sd_co_flush_to_disk,
-    .bdrv_co_discard = sd_co_discard,
+    .bdrv_co_pdiscard = sd_co_pdiscard,
     .bdrv_co_get_block_status = sd_co_get_block_status,
 
     .bdrv_snapshot_create   = sd_snapshot_create,
@@ -3026,7 +3029,7 @@ static BlockDriver bdrv_sheepdog_unix = {
     .bdrv_co_readv  = sd_co_readv,
     .bdrv_co_writev = sd_co_writev,
     .bdrv_co_flush_to_disk  = sd_co_flush_to_disk,
-    .bdrv_co_discard = sd_co_discard,
+    .bdrv_co_pdiscard = sd_co_pdiscard,
     .bdrv_co_get_block_status = sd_co_get_block_status,
 
     .bdrv_snapshot_create   = sd_snapshot_create,

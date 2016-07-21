@@ -304,8 +304,9 @@ static void mirror_do_zero_or_discard(MirrorBlockJob *s,
     s->in_flight++;
     s->sectors_in_flight += nb_sectors;
     if (is_discard) {
-        blk_aio_discard(s->target, sector_num, op->nb_sectors,
-                        mirror_write_complete, op);
+        blk_aio_pdiscard(s->target, sector_num << BDRV_SECTOR_BITS,
+                         op->nb_sectors << BDRV_SECTOR_BITS,
+                         mirror_write_complete, op);
     } else {
         blk_aio_pwrite_zeroes(s->target, sector_num * BDRV_SECTOR_SIZE,
                               op->nb_sectors * BDRV_SECTOR_SIZE,

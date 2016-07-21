@@ -44,13 +44,12 @@ int nbd_client_init(BlockDriverState *bs,
                     Error **errp);
 void nbd_client_close(BlockDriverState *bs);
 
-int nbd_client_co_discard(BlockDriverState *bs, int64_t sector_num,
-                          int nb_sectors);
+int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int count);
 int nbd_client_co_flush(BlockDriverState *bs);
-int nbd_client_co_writev(BlockDriverState *bs, int64_t sector_num,
-                         int nb_sectors, QEMUIOVector *qiov, int flags);
-int nbd_client_co_readv(BlockDriverState *bs, int64_t sector_num,
-                        int nb_sectors, QEMUIOVector *qiov);
+int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
+                          uint64_t bytes, QEMUIOVector *qiov, int flags);
+int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
+                         uint64_t bytes, QEMUIOVector *qiov, int flags);
 
 void nbd_client_detach_aio_context(BlockDriverState *bs);
 void nbd_client_attach_aio_context(BlockDriverState *bs,

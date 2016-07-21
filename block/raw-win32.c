@@ -142,7 +142,7 @@ static int aio_worker(void *arg)
 }
 
 static BlockAIOCB *paio_submit(BlockDriverState *bs, HANDLE hfile,
-        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        int64_t offset, QEMUIOVector *qiov, int count,
         BlockCompletionFunc *cb, void *opaque, int type)
 {
     RawWin32AIOData *acb = g_new(RawWin32AIOData, 1);
@@ -155,11 +155,12 @@ static BlockAIOCB *paio_submit(BlockDriverState *bs, HANDLE hfile,
     if (qiov) {
         acb->aio_iov = qiov->iov;
         acb->aio_niov = qiov->niov;
+        assert(qiov->size == count);
     }
-    acb->aio_nbytes = nb_sectors * 512;
-    acb->aio_offset = sector_num * 512;
+    acb->aio_nbytes = count;
+    acb->aio_offset = offset;
 
-    trace_paio_submit(acb, opaque, sector_num, nb_sectors, type);
+    trace_paio_submit(acb, opaque, offset, count, type);
     pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
     return thread_pool_submit_aio(pool, aio_worker, acb, cb, opaque);
 }
@@ -378,9 +379,10 @@ static BlockAIOCB *raw_aio_readv(BlockDriverState *bs,
     BDRVRawState *s = bs->opaque;
     if (s->aio) {
         return win32_aio_submit(bs, s->aio, s->hfile, sector_num, qiov,
-                                nb_sectors, cb, opaque, QEMU_AIO_READ); 
+                                nb_sectors, cb, opaque, QEMU_AIO_READ);
     } else {
-        return paio_submit(bs, s->hfile, sector_num, qiov, nb_sectors,
+        return paio_submit(bs, s->hfile, sector_num << BDRV_SECTOR_BITS, qiov,
+                           nb_sectors << BDRV_SECTOR_BITS,
                            cb, opaque, QEMU_AIO_READ);
     }
 }
@@ -392,9 +394,10 @@ static BlockAIOCB *raw_aio_writev(BlockDriverState *bs,
     BDRVRawState *s = bs->opaque;
     if (s->aio) {
         return win32_aio_submit(bs, s->aio, s->hfile, sector_num, qiov,
-                                nb_sectors, cb, opaque, QEMU_AIO_WRITE); 
+                                nb_sectors, cb, opaque, QEMU_AIO_WRITE);
     } else {
-        return paio_submit(bs, s->hfile, sector_num, qiov, nb_sectors,
+        return paio_submit(bs, s->hfile, sector_num << BDRV_SECTOR_BITS, qiov,
+                           nb_sectors << BDRV_SECTOR_BITS,
                            cb, opaque, QEMU_AIO_WRITE);
     }
 }

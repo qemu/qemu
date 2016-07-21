@@ -2479,15 +2479,15 @@ static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
     return ret;
 }
 
-static coroutine_fn int qcow2_co_discard(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors)
+static coroutine_fn int qcow2_co_pdiscard(BlockDriverState *bs,
+                                          int64_t offset, int count)
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;
 
     qemu_co_mutex_lock(&s->lock);
-    ret = qcow2_discard_clusters(bs, sector_num << BDRV_SECTOR_BITS,
-        nb_sectors, QCOW2_DISCARD_REQUEST, false);
+    ret = qcow2_discard_clusters(bs, offset, count >> BDRV_SECTOR_BITS,
+                                 QCOW2_DISCARD_REQUEST, false);
     qemu_co_mutex_unlock(&s->lock);
     return ret;
 }
@@ -3410,7 +3410,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_co_flush_to_os    = qcow2_co_flush_to_os,
 
     .bdrv_co_pwrite_zeroes  = qcow2_co_pwrite_zeroes,
-    .bdrv_co_discard        = qcow2_co_discard,
+    .bdrv_co_pdiscard       = qcow2_co_pdiscard,
     .bdrv_truncate          = qcow2_truncate,
     .bdrv_write_compressed  = qcow2_write_compressed,
     .bdrv_make_empty        = qcow2_make_empty,

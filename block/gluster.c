@@ -1077,15 +1077,12 @@ error:
 }
 
 #ifdef CONFIG_GLUSTERFS_DISCARD
-static coroutine_fn int qemu_gluster_co_discard(BlockDriverState *bs,
-                                                int64_t sector_num,
-                                                int nb_sectors)
+static coroutine_fn int qemu_gluster_co_pdiscard(BlockDriverState *bs,
+                                                 int64_t offset, int size)
 {
     int ret;
     GlusterAIOCB acb;
     BDRVGlusterState *s = bs->opaque;
-    size_t size = nb_sectors * BDRV_SECTOR_SIZE;
-    off_t offset = sector_num * BDRV_SECTOR_SIZE;
 
     acb.size = 0;
     acb.ret = 0;
@@ -1307,7 +1304,7 @@ static BlockDriver bdrv_gluster = {
     .bdrv_co_flush_to_disk        = qemu_gluster_co_flush_to_disk,
     .bdrv_has_zero_init           = qemu_gluster_has_zero_init,
 #ifdef CONFIG_GLUSTERFS_DISCARD
-    .bdrv_co_discard              = qemu_gluster_co_discard,
+    .bdrv_co_pdiscard             = qemu_gluster_co_pdiscard,
 #endif
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
     .bdrv_co_pwrite_zeroes        = qemu_gluster_co_pwrite_zeroes,
@@ -1335,7 +1332,7 @@ static BlockDriver bdrv_gluster_tcp = {
     .bdrv_co_flush_to_disk        = qemu_gluster_co_flush_to_disk,
     .bdrv_has_zero_init           = qemu_gluster_has_zero_init,
 #ifdef CONFIG_GLUSTERFS_DISCARD
-    .bdrv_co_discard              = qemu_gluster_co_discard,
+    .bdrv_co_pdiscard             = qemu_gluster_co_pdiscard,
 #endif
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
     .bdrv_co_pwrite_zeroes        = qemu_gluster_co_pwrite_zeroes,
@@ -1363,7 +1360,7 @@ static BlockDriver bdrv_gluster_unix = {
     .bdrv_co_flush_to_disk        = qemu_gluster_co_flush_to_disk,
     .bdrv_has_zero_init           = qemu_gluster_has_zero_init,
 #ifdef CONFIG_GLUSTERFS_DISCARD
-    .bdrv_co_discard              = qemu_gluster_co_discard,
+    .bdrv_co_pdiscard             = qemu_gluster_co_pdiscard,
 #endif
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
     .bdrv_co_pwrite_zeroes        = qemu_gluster_co_pwrite_zeroes,
@@ -1397,7 +1394,7 @@ static BlockDriver bdrv_gluster_rdma = {
     .bdrv_co_flush_to_disk        = qemu_gluster_co_flush_to_disk,
     .bdrv_has_zero_init           = qemu_gluster_has_zero_init,
 #ifdef CONFIG_GLUSTERFS_DISCARD
-    .bdrv_co_discard              = qemu_gluster_co_discard,
+    .bdrv_co_pdiscard             = qemu_gluster_co_pdiscard,
 #endif
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
     .bdrv_co_pwrite_zeroes        = qemu_gluster_co_pwrite_zeroes,

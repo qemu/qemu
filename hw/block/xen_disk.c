@@ -574,9 +574,10 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
     {
         struct blkif_request_discard *discard_req = (void *)&ioreq->req;
         ioreq->aio_inflight++;
-        blk_aio_discard(blkdev->blk,
-                        discard_req->sector_number, discard_req->nr_sectors,
-                        qemu_aio_complete, ioreq);
+        blk_aio_pdiscard(blkdev->blk,
+                         discard_req->sector_number << BDRV_SECTOR_BITS,
+                         discard_req->nr_sectors << BDRV_SECTOR_BITS,
+                         qemu_aio_complete, ioreq);
         break;
     }
     default:

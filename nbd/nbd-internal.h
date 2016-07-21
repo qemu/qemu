@@ -101,14 +101,14 @@ static inline ssize_t read_sync(QIOChannel *ioc, void *buffer, size_t size)
      * our request/reply.  Synchronization is done with recv_coroutine, so
      * that this is coroutine-safe.
      */
-    return nbd_wr_syncv(ioc, &iov, 1, 0, size, true);
+    return nbd_wr_syncv(ioc, &iov, 1, size, true);
 }
 
 static inline ssize_t write_sync(QIOChannel *ioc, void *buffer, size_t size)
 {
     struct iovec iov = { .iov_base = buffer, .iov_len = size };
 
-    return nbd_wr_syncv(ioc, &iov, 1, 0, size, false);
+    return nbd_wr_syncv(ioc, &iov, 1, size, false);
 }
 
 struct NBDTLSHandshakeData {

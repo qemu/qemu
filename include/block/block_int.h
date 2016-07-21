@@ -142,8 +142,8 @@ struct BlockDriver {
         BlockCompletionFunc *cb, void *opaque);
     BlockAIOCB *(*bdrv_aio_flush)(BlockDriverState *bs,
         BlockCompletionFunc *cb, void *opaque);
-    BlockAIOCB *(*bdrv_aio_discard)(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors,
+    BlockAIOCB *(*bdrv_aio_pdiscard)(BlockDriverState *bs,
+        int64_t offset, int count,
         BlockCompletionFunc *cb, void *opaque);
 
     int coroutine_fn (*bdrv_co_readv)(BlockDriverState *bs,
@@ -165,8 +165,8 @@ struct BlockDriver {
      */
     int coroutine_fn (*bdrv_co_pwrite_zeroes)(BlockDriverState *bs,
         int64_t offset, int count, BdrvRequestFlags flags);
-    int coroutine_fn (*bdrv_co_discard)(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors);
+    int coroutine_fn (*bdrv_co_pdiscard)(BlockDriverState *bs,
+        int64_t offset, int count);
     int64_t coroutine_fn (*bdrv_co_get_block_status)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum,
         BlockDriverState **file);
