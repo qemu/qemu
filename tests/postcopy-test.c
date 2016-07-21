@@ -18,6 +18,9 @@
 #include "qemu/sockets.h"
 #include "sysemu/char.h"
 #include "sysemu/sysemu.h"
+#include "hw/nvram/openbios_firmware_abi.h"
+
+#define MIN_NVRAM_SIZE 8192 /* from spapr_nvram.c */
 
 const unsigned start_address = 1024 * 1024;
 const unsigned end_address = 100 * 1024 * 1024;
@@ -122,6 +125,44 @@ unsigned char bootsect[] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x55, 0xaa
 };
 
+static void init_bootfile_x86(const char *bootpath)
+{
+    FILE *bootfile = fopen(bootpath, "wb");
+
+    g_assert_cmpint(fwrite(bootsect, 512, 1, bootfile), ==, 1);
+    fclose(bootfile);
+}
+
+static void init_bootfile_ppc(const char *bootpath)
+{
+    FILE *bootfile;
+    char buf[MIN_NVRAM_SIZE];
+    struct OpenBIOS_nvpart_v1 *header = (struct OpenBIOS_nvpart_v1 *)buf;
+
+    memset(buf, 0, MIN_NVRAM_SIZE);
+
+    /* Create a "common" partition in nvram to store boot-command property */
+
+    header->signature = OPENBIOS_PART_SYSTEM;
+    memcpy(header->name, "common", 6);
+    OpenBIOS_finish_partition(header, MIN_NVRAM_SIZE);
+
+    /* FW_MAX_SIZE is 4MB, but slof.bin is only 900KB,
+     * so let's modify memory between 1MB and 100MB
+     * to do like PC bootsector
+     */
+
+    sprintf(buf + 16,
+            "boot-command=hex .\" _\" begin %x %x do i c@ 1 + i c! 1000 +loop "
+            ".\" B\" 0 until", end_address, start_address);
+
+    /* Write partition to the NVRAM file */
+
+    bootfile = fopen(bootpath, "wb");
+    g_assert_cmpint(fwrite(buf, MIN_NVRAM_SIZE, 1, bootfile), ==, 1);
+    fclose(bootfile);
+}
+
 /*
  * Wait for some output in the serial output file,
  * we get an 'A' followed by an endless string of 'B's
@@ -131,10 +172,29 @@ static void wait_for_serial(const char *side)
 {
     char *serialpath = g_strdup_printf("%s/%s", tmpfs, side);
     FILE *serialfile = fopen(serialpath, "r");
+    const char *arch = qtest_get_arch();
+    int started = (strcmp(side, "src_serial") == 0 &&
+                   strcmp(arch, "ppc64") == 0) ? 0 : 1;
 
     do {
         int readvalue = fgetc(serialfile);
 
+        if (!started) {
+            /* SLOF prints its banner before starting test,
+             * to ignore it, mark the start of the test with '_',
+             * ignore all characters until this marker
+             */
+            switch (readvalue) {
+            case '_':
+                started = 1;
+                break;
+            case EOF:
+                fseek(serialfile, 0, SEEK_SET);
+                usleep(1000);
+                break;
+            }
+            continue;
+        }
         switch (readvalue) {
         case 'A':
             /* Fine */
@@ -147,6 +207,8 @@ static void wait_for_serial(const char *side)
             return;
 
         case EOF:
+            started = (strcmp(side, "src_serial") == 0 &&
+                       strcmp(arch, "ppc64") == 0) ? 0 : 1;
             fseek(serialfile, 0, SEEK_SET);
             usleep(1000);
             break;
@@ -295,32 +357,48 @@ static void test_migrate(void)
     char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *global = global_qtest, *from, *to;
     unsigned char dest_byte_a, dest_byte_b, dest_byte_c, dest_byte_d;
-    gchar *cmd;
+    gchar *cmd, *cmd_src, *cmd_dst;
     QDict *rsp;
 
     char *bootpath = g_strdup_printf("%s/bootsect", tmpfs);
-    FILE *bootfile = fopen(bootpath, "wb");
+    const char *arch = qtest_get_arch();
 
     got_stop = false;
-    g_assert_cmpint(fwrite(bootsect, 512, 1, bootfile), ==, 1);
-    fclose(bootfile);
 
-    cmd = g_strdup_printf("-machine accel=kvm:tcg -m 150M"
-                          " -name pcsource,debug-threads=on"
-                          " -serial file:%s/src_serial"
-                          " -drive file=%s,format=raw",
-                          tmpfs, bootpath);
-    from = qtest_start(cmd);
-    g_free(cmd);
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        init_bootfile_x86(bootpath);
+        cmd_src = g_strdup_printf("-machine accel=kvm:tcg -m 150M"
+                                  " -name pcsource,debug-threads=on"
+                                  " -serial file:%s/src_serial"
+                                  " -drive file=%s,format=raw",
+                                  tmpfs, bootpath);
+        cmd_dst = g_strdup_printf("-machine accel=kvm:tcg -m 150M"
+                                  " -name pcdest,debug-threads=on"
+                                  " -serial file:%s/dest_serial"
+                                  " -drive file=%s,format=raw"
+                                  " -incoming %s",
+                                  tmpfs, bootpath, uri);
+    } else if (strcmp(arch, "ppc64") == 0) {
+        init_bootfile_ppc(bootpath);
+        cmd_src = g_strdup_printf("-machine accel=kvm:tcg -m 256M"
+                                  " -name pcsource,debug-threads=on"
+                                  " -serial file:%s/src_serial"
+                                  " -drive file=%s,if=pflash,format=raw",
+                                  tmpfs, bootpath);
+        cmd_dst = g_strdup_printf("-machine accel=kvm:tcg -m 256M"
+                                  " -name pcdest,debug-threads=on"
+                                  " -serial file:%s/dest_serial"
+                                  " -incoming %s",
+                                  tmpfs, uri);
+    } else {
+        g_assert_not_reached();
+    }
 
-    cmd = g_strdup_printf("-machine accel=kvm:tcg -m 150M"
-                          " -name pcdest,debug-threads=on"
-                          " -serial file:%s/dest_serial"
-                          " -drive file=%s,format=raw"
-                          " -incoming %s",
-                          tmpfs, bootpath, uri);
-    to = qtest_init(cmd);
-    g_free(cmd);
+    from = qtest_start(cmd_src);
+    g_free(cmd_src);
+
+    to = qtest_init(cmd_dst);
+    g_free(cmd_dst);
 
     global_qtest = from;
     rsp = qmp("{ 'execute': 'migrate-set-capabilities',"
