@@ -116,7 +116,7 @@ int kvm_on_sigbus(int code, void *addr)
 }
 
 #ifndef CONFIG_USER_ONLY
-int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg, PCIDevice *dev)
+int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)
 {
     return -ENOSYS;
 }
@@ -133,6 +133,10 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
                                  PCIDevice *dev)
 {
     return -ENOSYS;
+}
+
+void kvm_irqchip_commit_routes(KVMState *s)
+{
 }
 
 int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter)

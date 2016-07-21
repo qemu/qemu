@@ -19,6 +19,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-bus.h"
+#include "migration/migration.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
 
@@ -986,12 +987,7 @@ static const VMStateDescription vmstate_virtio_gpu_scanouts = {
     },
 };
 
-static const VMStateDescription vmstate_virtio_gpu_unmigratable = {
-    .name = "virtio-gpu-with-virgl",
-    .unmigratable = 1,
-};
-
-static void virtio_gpu_save(QEMUFile *f, void *opaque)
+static void virtio_gpu_save(QEMUFile *f, void *opaque, size_t size)
 {
     VirtIOGPU *g = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(g);
@@ -1021,7 +1017,7 @@ static void virtio_gpu_save(QEMUFile *f, void *opaque)
     vmstate_save_state(f, &vmstate_virtio_gpu_scanouts, g, NULL);
 }
 
-static int virtio_gpu_load(QEMUFile *f, void *opaque, int version_id)
+static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size)
 {
     VirtIOGPU *g = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(g);
@@ -1030,11 +1026,7 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, int version_id)
     uint32_t resource_id, pformat;
     int i, ret;
 
-    if (version_id != VIRTIO_GPU_VM_VERSION) {
-        return -EINVAL;
-    }
-
-    ret = virtio_load(vdev, f, version_id);
+    ret = virtio_load(vdev, f, VIRTIO_GPU_VM_VERSION);
     if (ret) {
         return ret;
     }
@@ -1169,10 +1161,17 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     }
 
     if (virtio_gpu_virgl_enabled(g->conf)) {
-        vmstate_register(qdev, -1, &vmstate_virtio_gpu_unmigratable, g);
-    } else {
-        register_savevm(qdev, "virtio-gpu", -1, VIRTIO_GPU_VM_VERSION,
-                        virtio_gpu_save, virtio_gpu_load, g);
+        error_setg(&g->migration_blocker, "virgl is not yet migratable");
+        migrate_add_blocker(g->migration_blocker);
+    }
+}
+
+static void virtio_gpu_device_unrealize(DeviceState *qdev, Error **errp)
+{
+    VirtIOGPU *g = VIRTIO_GPU(qdev);
+    if (g->migration_blocker) {
+        migrate_del_blocker(g->migration_blocker);
+        error_free(g->migration_blocker);
     }
 }
 
@@ -1220,6 +1219,9 @@ static void virtio_gpu_reset(VirtIODevice *vdev)
 #endif
 }
 
+VMSTATE_VIRTIO_DEVICE(gpu, VIRTIO_GPU_VM_VERSION, virtio_gpu_load,
+                      virtio_gpu_save);
+
 static Property virtio_gpu_properties[] = {
     DEFINE_PROP_UINT32("max_outputs", VirtIOGPU, conf.max_outputs, 1),
 #ifdef CONFIG_VIRGL
@@ -1237,6 +1239,7 @@ static void virtio_gpu_class_init(ObjectClass *klass, void *data)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     vdc->realize = virtio_gpu_device_realize;
+    vdc->unrealize = virtio_gpu_device_unrealize;
     vdc->get_config = virtio_gpu_get_config;
     vdc->set_config = virtio_gpu_set_config;
     vdc->get_features = virtio_gpu_get_features;
@@ -1245,6 +1248,7 @@ static void virtio_gpu_class_init(ObjectClass *klass, void *data)
     vdc->reset = virtio_gpu_reset;
 
     dc->props = virtio_gpu_properties;
+    dc->vmsd = &vmstate_virtio_gpu;
 }
 
 static const TypeInfo virtio_gpu_info = {

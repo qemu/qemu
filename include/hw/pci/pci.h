@@ -805,4 +805,6 @@ extern const VMStateDescription vmstate_pci_device;
     .offset     = vmstate_offset_pointer(_state, _field, PCIDevice), \
 }
 
+MSIMessage pci_get_msi_message(PCIDevice *dev, int vector);
+
 #endif

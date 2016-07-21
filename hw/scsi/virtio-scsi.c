@@ -663,22 +663,17 @@ static void virtio_scsi_reset(VirtIODevice *vdev)
 /* The device does not have anything to save beyond the virtio data.
  * Request data is saved with callbacks from SCSI devices.
  */
-static void virtio_scsi_save(QEMUFile *f, void *opaque)
+static void virtio_scsi_save(QEMUFile *f, void *opaque, size_t size)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
     virtio_save(vdev, f);
 }
 
-static int virtio_scsi_load(QEMUFile *f, void *opaque, int version_id)
+static int virtio_scsi_load(QEMUFile *f, void *opaque, size_t size)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
-    int ret;
 
-    ret = virtio_load(vdev, f, version_id);
-    if (ret) {
-        return ret;
-    }
-    return 0;
+    return virtio_load(vdev, f, 1);
 }
 
 void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
@@ -824,8 +819,9 @@ static struct SCSIBusInfo virtio_scsi_scsi_info = {
 };
 
 void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
-                                HandleOutput ctrl, HandleOutput evt,
-                                HandleOutput cmd)
+                                VirtIOHandleOutput ctrl,
+                                VirtIOHandleOutput evt,
+                                VirtIOHandleOutput cmd)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOSCSICommon *s = VIRTIO_SCSI_COMMON(dev);
@@ -846,13 +842,10 @@ void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
     s->sense_size = VIRTIO_SCSI_SENSE_DEFAULT_SIZE;
     s->cdb_size = VIRTIO_SCSI_CDB_DEFAULT_SIZE;
 
-    s->ctrl_vq = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE,
-                                  ctrl);
-    s->event_vq = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE,
-                                   evt);
+    s->ctrl_vq = virtio_add_queue_aio(vdev, VIRTIO_SCSI_VQ_SIZE, ctrl);
+    s->event_vq = virtio_add_queue_aio(vdev, VIRTIO_SCSI_VQ_SIZE, evt);
     for (i = 0; i < s->conf.num_queues; i++) {
-        s->cmd_vqs[i] = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE,
-                                         cmd);
+        s->cmd_vqs[i] = virtio_add_queue_aio(vdev, VIRTIO_SCSI_VQ_SIZE, cmd);
     }
 
     if (s->conf.iothread) {
@@ -864,7 +857,6 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOSCSI *s = VIRTIO_SCSI(dev);
-    static int virtio_scsi_id;
     Error *err = NULL;
 
     virtio_scsi_common_realize(dev, &err, virtio_scsi_handle_ctrl,
@@ -887,9 +879,6 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
             return;
         }
     }
-
-    register_savevm(dev, "virtio-scsi", virtio_scsi_id++, 1,
-                    virtio_scsi_save, virtio_scsi_load, s);
 }
 
 static void virtio_scsi_instance_init(Object *obj)
@@ -913,9 +902,6 @@ void virtio_scsi_common_unrealize(DeviceState *dev, Error **errp)
 
 static void virtio_scsi_device_unrealize(DeviceState *dev, Error **errp)
 {
-    VirtIOSCSI *s = VIRTIO_SCSI(dev);
-
-    unregister_savevm(dev, "virtio-scsi", s);
     virtio_scsi_common_unrealize(dev, errp);
 }
 
@@ -931,6 +917,8 @@ static Property virtio_scsi_properties[] = {
                                                 VIRTIO_SCSI_F_CHANGE, true),
     DEFINE_PROP_END_OF_LIST(),
 };
+
+VMSTATE_VIRTIO_DEVICE(scsi, 1, virtio_scsi_load, virtio_scsi_save);
 
 static void virtio_scsi_common_class_init(ObjectClass *klass, void *data)
 {
@@ -948,6 +936,7 @@ static void virtio_scsi_class_init(ObjectClass *klass, void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
     dc->props = virtio_scsi_properties;
+    dc->vmsd = &vmstate_virtio_scsi;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     vdc->realize = virtio_scsi_device_realize;
     vdc->unrealize = virtio_scsi_device_unrealize;

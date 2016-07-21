@@ -25,12 +25,14 @@
 #include "hw/hw.h"
 #include "exec/memory.h"
 #include "hw/sysbus.h"
+#include "qemu/notify.h"
 
 #define MAX_IOAPICS                     1
 
 #define IOAPIC_VERSION                  0x11
 
 #define IOAPIC_LVT_DEST_SHIFT           56
+#define IOAPIC_LVT_DEST_IDX_SHIFT       48
 #define IOAPIC_LVT_MASKED_SHIFT         16
 #define IOAPIC_LVT_TRIGGER_MODE_SHIFT   15
 #define IOAPIC_LVT_REMOTE_IRR_SHIFT     14
@@ -106,6 +108,7 @@ struct IOAPICCommonState {
     uint8_t ioregsel;
     uint32_t irr;
     uint64_t ioredtbl[IOAPIC_NUM_PINS];
+    Notifier machine_done;
 };
 
 void ioapic_reset_common(DeviceState *dev);

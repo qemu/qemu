@@ -29,6 +29,9 @@
 #include "hw/i386/ioapic_internal.h"
 #include "include/hw/pci/msi.h"
 #include "sysemu/kvm.h"
+#include "target-i386/cpu.h"
+#include "hw/i386/apic-msidef.h"
+#include "hw/i386/x86-iommu.h"
 
 //#define DEBUG_IOAPIC
 
@@ -48,16 +51,56 @@ static IOAPICCommonState *ioapics[MAX_IOAPICS];
 /* global variable from ioapic_common.c */
 extern int ioapic_no;
 
+struct ioapic_entry_info {
+    /* fields parsed from IOAPIC entries */
+    uint8_t masked;
+    uint8_t trig_mode;
+    uint16_t dest_idx;
+    uint8_t dest_mode;
+    uint8_t delivery_mode;
+    uint8_t vector;
+
+    /* MSI message generated from above parsed fields */
+    uint32_t addr;
+    uint32_t data;
+};
+
+static void ioapic_entry_parse(uint64_t entry, struct ioapic_entry_info *info)
+{
+    memset(info, 0, sizeof(*info));
+    info->masked = (entry >> IOAPIC_LVT_MASKED_SHIFT) & 1;
+    info->trig_mode = (entry >> IOAPIC_LVT_TRIGGER_MODE_SHIFT) & 1;
+    /*
+     * By default, this would be dest_id[8] + reserved[8]. When IR
+     * is enabled, this would be interrupt_index[15] +
+     * interrupt_format[1]. This field never means anything, but
+     * only used to generate corresponding MSI.
+     */
+    info->dest_idx = (entry >> IOAPIC_LVT_DEST_IDX_SHIFT) & 0xffff;
+    info->dest_mode = (entry >> IOAPIC_LVT_DEST_MODE_SHIFT) & 1;
+    info->delivery_mode = (entry >> IOAPIC_LVT_DELIV_MODE_SHIFT) \
+        & IOAPIC_DM_MASK;
+    if (info->delivery_mode == IOAPIC_DM_EXTINT) {
+        info->vector = pic_read_irq(isa_pic);
+    } else {
+        info->vector = entry & IOAPIC_VECTOR_MASK;
+    }
+
+    info->addr = APIC_DEFAULT_ADDRESS | \
+        (info->dest_idx << MSI_ADDR_DEST_IDX_SHIFT) | \
+        (info->dest_mode << MSI_ADDR_DEST_MODE_SHIFT);
+    info->data = (info->vector << MSI_DATA_VECTOR_SHIFT) | \
+        (info->trig_mode << MSI_DATA_TRIGGER_SHIFT) | \
+        (info->delivery_mode << MSI_DATA_DELIVERY_MODE_SHIFT);
+}
+
 static void ioapic_service(IOAPICCommonState *s)
 {
+    AddressSpace *ioapic_as = PC_MACHINE(qdev_get_machine())->ioapic_as;
+    struct ioapic_entry_info info;
     uint8_t i;
-    uint8_t trig_mode;
-    uint8_t vector;
-    uint8_t delivery_mode;
     uint32_t mask;
     uint64_t entry;
-    uint8_t dest;
-    uint8_t dest_mode;
 
     for (i = 0; i < IOAPIC_NUM_PINS; i++) {
         mask = 1 << i;
@@ -65,26 +108,18 @@ static void ioapic_service(IOAPICCommonState *s)
             int coalesce = 0;
 
             entry = s->ioredtbl[i];
-            if (!(entry & IOAPIC_LVT_MASKED)) {
-                trig_mode = ((entry >> IOAPIC_LVT_TRIGGER_MODE_SHIFT) & 1);
-                dest = entry >> IOAPIC_LVT_DEST_SHIFT;
-                dest_mode = (entry >> IOAPIC_LVT_DEST_MODE_SHIFT) & 1;
-                delivery_mode =
-                    (entry >> IOAPIC_LVT_DELIV_MODE_SHIFT) & IOAPIC_DM_MASK;
-                if (trig_mode == IOAPIC_TRIGGER_EDGE) {
+            ioapic_entry_parse(entry, &info);
+            if (!info.masked) {
+                if (info.trig_mode == IOAPIC_TRIGGER_EDGE) {
                     s->irr &= ~mask;
                 } else {
                     coalesce = s->ioredtbl[i] & IOAPIC_LVT_REMOTE_IRR;
                     s->ioredtbl[i] |= IOAPIC_LVT_REMOTE_IRR;
                 }
-                if (delivery_mode == IOAPIC_DM_EXTINT) {
-                    vector = pic_read_irq(isa_pic);
-                } else {
-                    vector = entry & IOAPIC_VECTOR_MASK;
-                }
+
 #ifdef CONFIG_KVM
                 if (kvm_irqchip_is_split()) {
-                    if (trig_mode == IOAPIC_TRIGGER_EDGE) {
+                    if (info.trig_mode == IOAPIC_TRIGGER_EDGE) {
                         kvm_set_irq(kvm_state, i, 1);
                         kvm_set_irq(kvm_state, i, 0);
                     } else {
@@ -97,8 +132,11 @@ static void ioapic_service(IOAPICCommonState *s)
 #else
                 (void)coalesce;
 #endif
-                apic_deliver_irq(dest, dest_mode, delivery_mode, vector,
-                                 trig_mode);
+                /* No matter whether IR is enabled, we translate
+                 * the IOAPIC message into a MSI one, and its
+                 * address space will decide whether we need a
+                 * translation. */
+                stl_le_phys(ioapic_as, info.addr, info.data);
             }
         }
     }
@@ -149,36 +187,27 @@ static void ioapic_update_kvm_routes(IOAPICCommonState *s)
 
     if (kvm_irqchip_is_split()) {
         for (i = 0; i < IOAPIC_NUM_PINS; i++) {
-            uint64_t entry = s->ioredtbl[i];
-            uint8_t trig_mode;
-            uint8_t delivery_mode;
-            uint8_t dest;
-            uint8_t dest_mode;
-            uint64_t pin_polarity;
             MSIMessage msg;
-
-            trig_mode = ((entry >> IOAPIC_LVT_TRIGGER_MODE_SHIFT) & 1);
-            dest = entry >> IOAPIC_LVT_DEST_SHIFT;
-            dest_mode = (entry >> IOAPIC_LVT_DEST_MODE_SHIFT) & 1;
-            pin_polarity = (entry >> IOAPIC_LVT_TRIGGER_MODE_SHIFT) & 1;
-            delivery_mode =
-                (entry >> IOAPIC_LVT_DELIV_MODE_SHIFT) & IOAPIC_DM_MASK;
-
-            msg.address = APIC_DEFAULT_ADDRESS;
-            msg.address |= dest_mode << 2;
-            msg.address |= dest << 12;
-
-            msg.data = entry & IOAPIC_VECTOR_MASK;
-            msg.data |= delivery_mode << APIC_DELIVERY_MODE_SHIFT;
-            msg.data |= pin_polarity << APIC_POLARITY_SHIFT;
-            msg.data |= trig_mode << APIC_TRIG_MODE_SHIFT;
-
+            struct ioapic_entry_info info;
+            ioapic_entry_parse(s->ioredtbl[i], &info);
+            msg.address = info.addr;
+            msg.data = info.data;
             kvm_irqchip_update_msi_route(kvm_state, i, msg, NULL);
         }
         kvm_irqchip_commit_routes(kvm_state);
     }
 #endif
 }
+
+#ifdef CONFIG_KVM
+static void ioapic_iec_notifier(void *private, bool global,
+                                uint32_t index, uint32_t mask)
+{
+    IOAPICCommonState *s = (IOAPICCommonState *)private;
+    /* For simplicity, we just update all the routes */
+    ioapic_update_kvm_routes(s);
+}
+#endif
 
 void ioapic_eoi_broadcast(int vector)
 {
@@ -336,6 +365,24 @@ static const MemoryRegionOps ioapic_io_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void ioapic_machine_done_notify(Notifier *notifier, void *data)
+{
+#ifdef CONFIG_KVM
+    IOAPICCommonState *s = container_of(notifier, IOAPICCommonState,
+                                        machine_done);
+
+    if (kvm_irqchip_is_split()) {
+        X86IOMMUState *iommu = x86_iommu_get_default();
+        if (iommu) {
+            /* Register this IOAPIC with IOMMU IEC notifier, so that
+             * when there are IR invalidates, we can be notified to
+             * update kernel IR cache. */
+            x86_iommu_iec_register_notifier(iommu, ioapic_iec_notifier, s);
+        }
+    }
+#endif
+}
+
 static void ioapic_realize(DeviceState *dev, Error **errp)
 {
     IOAPICCommonState *s = IOAPIC_COMMON(dev);
@@ -346,6 +393,8 @@ static void ioapic_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_in(dev, ioapic_set_irq, IOAPIC_NUM_PINS);
 
     ioapics[ioapic_no] = s;
+    s->machine_done.notify = ioapic_machine_done_notify;
+    qemu_add_machine_init_done_notifier(&s->machine_done);
 }
 
 static void ioapic_class_init(ObjectClass *klass, void *data)

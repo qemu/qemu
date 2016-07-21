@@ -521,9 +521,6 @@ static void mirror_exit(BlockJob *job, void *opaque)
     block_job_completed(&s->common, data->ret);
     g_free(data);
     bdrv_drained_end(src);
-    if (qemu_get_aio_context() == bdrv_get_aio_context(src)) {
-        aio_enable_external(iohandler_get_aio_context());
-    }
     bdrv_unref(src);
 }
 
@@ -793,12 +790,6 @@ immediate_exit:
     /* Before we switch to target in mirror_exit, make sure data doesn't
      * change. */
     bdrv_drained_begin(bs);
-    if (qemu_get_aio_context() == bdrv_get_aio_context(bs)) {
-        /* FIXME: virtio host notifiers run on iohandler_ctx, therefore the
-         * above bdrv_drained_end isn't enough to quiesce it. This is ugly, we
-         * need a block layer API change to achieve this. */
-        aio_disable_external(iohandler_get_aio_context());
-    }
     block_job_defer_to_main_loop(&s->common, mirror_exit, data);
 }
 

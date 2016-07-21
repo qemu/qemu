@@ -1473,6 +1473,9 @@ void pc_memory_init(PCMachineState *pcms,
         rom_add_option(option_rom[i].name, option_rom[i].bootindex);
     }
     pcms->fw_cfg = fw_cfg;
+
+    /* Init default IOAPIC address space */
+    pcms->ioapic_as = &address_space_memory;
 }
 
 qemu_irq pc_allocate_cpu_irq(void)

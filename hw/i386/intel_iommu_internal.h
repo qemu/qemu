@@ -110,6 +110,8 @@
 /* Interrupt Address Range */
 #define VTD_INTERRUPT_ADDR_FIRST    0xfee00000ULL
 #define VTD_INTERRUPT_ADDR_LAST     0xfeefffffULL
+#define VTD_INTERRUPT_ADDR_SIZE     (VTD_INTERRUPT_ADDR_LAST - \
+                                     VTD_INTERRUPT_ADDR_FIRST + 1)
 
 /* The shift of source_id in the key of IOTLB hash table */
 #define VTD_IOTLB_SID_SHIFT         36
@@ -172,10 +174,19 @@
 #define VTD_RTADDR_RTT              (1ULL << 11)
 #define VTD_RTADDR_ADDR_MASK        (VTD_HAW_MASK ^ 0xfffULL)
 
+/* IRTA_REG */
+#define VTD_IRTA_ADDR_MASK          (VTD_HAW_MASK ^ 0xfffULL)
+#define VTD_IRTA_EIME               (1ULL << 11)
+#define VTD_IRTA_SIZE_MASK          (0xfULL)
+
 /* ECAP_REG */
 /* (offset >> 4) << 8 */
 #define VTD_ECAP_IRO                (DMAR_IOTLB_REG_OFFSET << 4)
 #define VTD_ECAP_QI                 (1ULL << 1)
+/* Interrupt Remapping support */
+#define VTD_ECAP_IR                 (1ULL << 3)
+#define VTD_ECAP_EIM                (1ULL << 4)
+#define VTD_ECAP_MHMV               (15ULL << 20)
 
 /* CAP_REG */
 /* (offset >> 4) << 24 */
@@ -265,6 +276,19 @@ typedef enum VTDFaultReason {
      * context-entry.
      */
     VTD_FR_CONTEXT_ENTRY_TT,
+
+    /* Interrupt remapping transition faults */
+    VTD_FR_IR_REQ_RSVD = 0x20, /* One or more IR request reserved
+                                * fields set */
+    VTD_FR_IR_INDEX_OVER = 0x21, /* Index value greater than max */
+    VTD_FR_IR_ENTRY_P = 0x22,    /* Present (P) not set in IRTE */
+    VTD_FR_IR_ROOT_INVAL = 0x23, /* IR Root table invalid */
+    VTD_FR_IR_IRTE_RSVD = 0x24,  /* IRTE Rsvd field non-zero with
+                                  * Present flag set */
+    VTD_FR_IR_REQ_COMPAT = 0x25, /* Encountered compatible IR
+                                  * request while disabled */
+    VTD_FR_IR_SID_ERR = 0x26,   /* Invalid Source-ID */
+
     /* This is not a normal fault reason. We use this to indicate some faults
      * that are not referenced by the VT-d specification.
      * Fault event with such reason should not be recorded.
@@ -275,17 +299,35 @@ typedef enum VTDFaultReason {
 
 #define VTD_CONTEXT_CACHE_GEN_MAX       0xffffffffUL
 
-/* Queued Invalidation Descriptor */
-struct VTDInvDesc {
-    uint64_t lo;
-    uint64_t hi;
+/* Interrupt Entry Cache Invalidation Descriptor: VT-d 6.5.2.7. */
+struct VTDInvDescIEC {
+    uint32_t type:4;            /* Should always be 0x4 */
+    uint32_t granularity:1;     /* If set, it's global IR invalidation */
+    uint32_t resved_1:22;
+    uint32_t index_mask:5;      /* 2^N for continuous int invalidation */
+    uint32_t index:16;          /* Start index to invalidate */
+    uint32_t reserved_2:16;
 };
-typedef struct VTDInvDesc VTDInvDesc;
+typedef struct VTDInvDescIEC VTDInvDescIEC;
+
+/* Queued Invalidation Descriptor */
+union VTDInvDesc {
+    struct {
+        uint64_t lo;
+        uint64_t hi;
+    };
+    union {
+        VTDInvDescIEC iec;
+    };
+};
+typedef union VTDInvDesc VTDInvDesc;
 
 /* Masks for struct VTDInvDesc */
 #define VTD_INV_DESC_TYPE               0xf
 #define VTD_INV_DESC_CC                 0x1 /* Context-cache Invalidate Desc */
 #define VTD_INV_DESC_IOTLB              0x2
+#define VTD_INV_DESC_IEC                0x4 /* Interrupt Entry Cache
+                                               Invalidate Descriptor */
 #define VTD_INV_DESC_WAIT               0x5 /* Invalidation Wait Descriptor */
 #define VTD_INV_DESC_NONE               0   /* Not an Invalidate Descriptor */
 

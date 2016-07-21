@@ -118,6 +118,8 @@ typedef struct VirtIOGPU {
         uint32_t req_3d;
         uint32_t bytes_3d;
     } stats;
+
+    Error *migration_blocker;
 } VirtIOGPU;
 
 extern const GraphicHwOps virtio_gpu_ops;

@@ -98,6 +98,7 @@ static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
                    "small to contain nvdimm label (0x%" PRIx64 ") and "
                    "aligned PMEM (0x%" PRIx64 ")",
                    path, memory_region_size(mr), nvdimm->label_size, align);
+        g_free(path);
         return;
     }
 
