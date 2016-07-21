@@ -117,6 +117,32 @@ static void terminal_read(void *opaque, const uint8_t *buf, int size)
     }
 }
 
+static void chr_event(void *opaque, int event)
+{
+    Terminal3270 *t = opaque;
+    CcwDevice *ccw_dev = CCW_DEVICE(t);
+    SubchDev *sch = ccw_dev->sch;
+
+    /* Ensure the initial status correct, always reset them. */
+    t->in_len = 0;
+    t->out_len = 0;
+    t->handshake_done = false;
+
+    switch (event) {
+    case CHR_EVENT_OPENED:
+        /*
+         * 3270 does handshake firstly by the negotiate options in
+         * char-socket.c. Once qemu receives the terminal-type of the
+         * client, mark handshake done and trigger everything rolling again.
+         */
+        break;
+    case CHR_EVENT_CLOSED:
+        sch->curr_status.scsw.dstat = SCSW_DSTAT_DEVICE_END;
+        css_conditional_io_interrupt(sch);
+        break;
+    }
+}
+
 static void terminal_init(EmulatedCcw3270Device *dev, Error **errp)
 {
     Terminal3270 *t = TERMINAL_3270(dev);
@@ -128,7 +154,7 @@ static void terminal_init(EmulatedCcw3270Device *dev, Error **errp)
     }
     terminal_available = true;
     qemu_chr_fe_set_handlers(&t->chr, terminal_can_read,
-                             terminal_read, NULL, t, NULL, true);
+                             terminal_read, chr_event, t, NULL, true);
 }
 
 static int read_payload_3270(EmulatedCcw3270Device *dev, uint32_t cda,
