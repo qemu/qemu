@@ -1057,7 +1057,8 @@ static ssize_t nbd_co_receive_request(NBDRequest *req,
     if (request->type & ~NBD_CMD_MASK_COMMAND & ~NBD_CMD_FLAG_FUA) {
         LOG("unsupported flags (got 0x%x)",
             request->type & ~NBD_CMD_MASK_COMMAND);
-        return -EINVAL;
+        rc = -EINVAL;
+        goto out;
     }
 
     rc = 0;
