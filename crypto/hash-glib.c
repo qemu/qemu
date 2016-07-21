@@ -19,25 +19,28 @@
  */
 
 #include "qemu/osdep.h"
-#include <gcrypt.h>
 #include "qapi/error.h"
 #include "crypto/hash.h"
 
 
 static int qcrypto_hash_alg_map[QCRYPTO_HASH_ALG__MAX] = {
-    [QCRYPTO_HASH_ALG_MD5] = GCRY_MD_MD5,
-    [QCRYPTO_HASH_ALG_SHA1] = GCRY_MD_SHA1,
-    [QCRYPTO_HASH_ALG_SHA224] = GCRY_MD_SHA224,
-    [QCRYPTO_HASH_ALG_SHA256] = GCRY_MD_SHA256,
-    [QCRYPTO_HASH_ALG_SHA384] = GCRY_MD_SHA384,
-    [QCRYPTO_HASH_ALG_SHA512] = GCRY_MD_SHA512,
-    [QCRYPTO_HASH_ALG_RIPEMD160] = GCRY_MD_RMD160,
+    [QCRYPTO_HASH_ALG_MD5] = G_CHECKSUM_MD5,
+    [QCRYPTO_HASH_ALG_SHA1] = G_CHECKSUM_SHA1,
+    [QCRYPTO_HASH_ALG_SHA224] = -1,
+    [QCRYPTO_HASH_ALG_SHA256] = G_CHECKSUM_SHA256,
+    [QCRYPTO_HASH_ALG_SHA384] = -1,
+#if GLIB_CHECK_VERSION(2, 36, 0)
+    [QCRYPTO_HASH_ALG_SHA512] = G_CHECKSUM_SHA512,
+#else
+    [QCRYPTO_HASH_ALG_SHA512] = -1,
+#endif
+    [QCRYPTO_HASH_ALG_RIPEMD160] = -1,
 };
 
 gboolean qcrypto_hash_supports(QCryptoHashAlgorithm alg)
 {
     if (alg < G_N_ELEMENTS(qcrypto_hash_alg_map) &&
-        qcrypto_hash_alg_map[alg] != GCRY_MD_NONE) {
+        qcrypto_hash_alg_map[alg] != -1) {
         return true;
     }
     return false;
@@ -52,8 +55,7 @@ int qcrypto_hash_bytesv(QCryptoHashAlgorithm alg,
                         Error **errp)
 {
     int i, ret;
-    gcry_md_hd_t md;
-    unsigned char *digest;
+    GChecksum *cs;
 
     if (!qcrypto_hash_supports(alg)) {
         error_setg(errp,
@@ -62,24 +64,16 @@ int qcrypto_hash_bytesv(QCryptoHashAlgorithm alg,
         return -1;
     }
 
-    ret = gcry_md_open(&md, qcrypto_hash_alg_map[alg], 0);
-
-    if (ret < 0) {
-        error_setg(errp,
-                   "Unable to initialize hash algorithm: %s",
-                   gcry_strerror(ret));
-        return -1;
-    }
+    cs = g_checksum_new(qcrypto_hash_alg_map[alg]);
 
     for (i = 0; i < niov; i++) {
-        gcry_md_write(md, iov[i].iov_base, iov[i].iov_len);
+        g_checksum_update(cs, iov[i].iov_base, iov[i].iov_len);
     }
 
-    ret = gcry_md_get_algo_dlen(qcrypto_hash_alg_map[alg]);
-    if (ret <= 0) {
-        error_setg(errp,
-                   "Unable to get hash length: %s",
-                   gcry_strerror(ret));
+    ret = g_checksum_type_get_length(qcrypto_hash_alg_map[alg]);
+    if (ret < 0) {
+        error_setg(errp, "%s",
+                   "Unable to get hash length");
         goto error;
     }
     if (*resultlen == 0) {
@@ -92,18 +86,12 @@ int qcrypto_hash_bytesv(QCryptoHashAlgorithm alg,
         goto error;
     }
 
-    digest = gcry_md_read(md, 0);
-    if (!digest) {
-        error_setg(errp,
-                   "No digest produced");
-        goto error;
-    }
-    memcpy(*result, digest, *resultlen);
+    g_checksum_get_digest(cs, *result, resultlen);
 
-    gcry_md_close(md);
+    g_checksum_free(cs);
     return 0;
 
  error:
-    gcry_md_close(md);
+    g_checksum_free(cs);
     return -1;
 }
