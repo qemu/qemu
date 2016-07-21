@@ -39,6 +39,7 @@ typedef struct sPAPRNVRAM {
     uint32_t size;
     uint8_t *buf;
     BlockBackend *blk;
+    VMChangeStateEntry *vmstate;
 } sPAPRNVRAM;
 
 #define TYPE_VIO_SPAPR_NVRAM "spapr-nvram"
@@ -185,19 +186,25 @@ static int spapr_nvram_pre_load(void *opaque)
     return 0;
 }
 
+static void postload_update_cb(void *opaque, int running, RunState state)
+{
+    sPAPRNVRAM *nvram = opaque;
+
+    /* This is called after bdrv_invalidate_cache_all.  */
+
+    qemu_del_vm_change_state_handler(nvram->vmstate);
+    nvram->vmstate = NULL;
+
+    blk_pwrite(nvram->blk, 0, nvram->buf, nvram->size, 0);
+}
+
 static int spapr_nvram_post_load(void *opaque, int version_id)
 {
     sPAPRNVRAM *nvram = VIO_SPAPR_NVRAM(opaque);
 
     if (nvram->blk) {
-        int alen = blk_pwrite(nvram->blk, 0, nvram->buf, nvram->size, 0);
-
-        if (alen < 0) {
-            return alen;
-        }
-        if (alen != nvram->size) {
-            return -1;
-        }
+        nvram->vmstate = qemu_add_vm_change_state_handler(postload_update_cb,
+                                                          nvram);
     }
 
     return 0;
