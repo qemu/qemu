@@ -863,22 +863,6 @@ int unix_connect(const char *path, Error **errp)
 }
 
 
-int unix_nonblocking_connect(const char *path,
-                             NonBlockingConnectHandler *callback,
-                             void *opaque, Error **errp)
-{
-    UnixSocketAddress *saddr;
-    int sock = -1;
-
-    g_assert(callback != NULL);
-
-    saddr = g_new0(UnixSocketAddress, 1);
-    saddr->path = g_strdup(path);
-    sock = unix_connect_saddr(saddr, errp, callback, opaque);
-    qapi_free_UnixSocketAddress(saddr);
-    return sock;
-}
-
 SocketAddress *socket_parse(const char *str, Error **errp)
 {
     SocketAddress *addr;
