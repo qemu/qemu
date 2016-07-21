@@ -408,7 +408,7 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
 }
 
 
-int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
+int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
                           QCryptoTLSCreds *tlscreds, const char *hostname,
                           QIOChannel **outioc,
                           off_t *size, Error **errp)
@@ -468,7 +468,6 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
         uint32_t opt;
         uint32_t namesize;
         uint16_t globalflags;
-        uint16_t exportflags;
         bool fixedNewStyle = false;
 
         if (read_sync(ioc, &globalflags, sizeof(globalflags)) !=
@@ -477,7 +476,6 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
             goto fail;
         }
         globalflags = be16_to_cpu(globalflags);
-        *flags = globalflags << 16;
         TRACE("Global flags are %" PRIx32, globalflags);
         if (globalflags & NBD_FLAG_FIXED_NEWSTYLE) {
             fixedNewStyle = true;
@@ -545,17 +543,15 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
             goto fail;
         }
         *size = be64_to_cpu(s);
-        TRACE("Size is %" PRIu64, *size);
 
-        if (read_sync(ioc, &exportflags, sizeof(exportflags)) !=
-            sizeof(exportflags)) {
+        if (read_sync(ioc, flags, sizeof(*flags)) != sizeof(*flags)) {
             error_setg(errp, "Failed to read export flags");
             goto fail;
         }
-        exportflags = be16_to_cpu(exportflags);
-        *flags |= exportflags;
-        TRACE("Export flags are %" PRIx16, exportflags);
+        be16_to_cpus(flags);
     } else if (magic == NBD_CLIENT_MAGIC) {
+        uint32_t oldflags;
+
         if (name) {
             error_setg(errp, "Server does not support export names");
             goto fail;
@@ -572,16 +568,22 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint32_t *flags,
         *size = be64_to_cpu(s);
         TRACE("Size is %" PRIu64, *size);
 
-        if (read_sync(ioc, flags, sizeof(*flags)) != sizeof(*flags)) {
+        if (read_sync(ioc, &oldflags, sizeof(oldflags)) != sizeof(oldflags)) {
             error_setg(errp, "Failed to read export flags");
             goto fail;
         }
-        *flags = be32_to_cpu(*flags);
+        be32_to_cpus(&oldflags);
+        if (oldflags & ~0xffff) {
+            error_setg(errp, "Unexpected export flags %0x" PRIx32, oldflags);
+            goto fail;
+        }
+        *flags = oldflags;
     } else {
         error_setg(errp, "Bad magic received");
         goto fail;
     }
 
+    TRACE("Size is %" PRIu64 ", export flags %" PRIx16, *size, *flags);
     if (read_sync(ioc, &buf, 124) != 124) {
         error_setg(errp, "Failed to read reserved block");
         goto fail;
@@ -593,7 +595,7 @@ fail:
 }
 
 #ifdef __linux__
-int nbd_init(int fd, QIOChannelSocket *sioc, uint32_t flags, off_t size)
+int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size)
 {
     unsigned long sectors = size / BDRV_SECTOR_SIZE;
     if (size / BDRV_SECTOR_SIZE != sectors) {
@@ -689,7 +691,7 @@ int nbd_disconnect(int fd)
 }
 
 #else
-int nbd_init(int fd, QIOChannelSocket *ioc, uint32_t flags, off_t size)
+int nbd_init(int fd, QIOChannelSocket *ioc, uint16_t flags, off_t size)
 {
     return -ENOTSUP;
 }

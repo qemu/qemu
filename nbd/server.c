@@ -63,7 +63,7 @@ struct NBDExport {
     char *name;
     off_t dev_offset;
     off_t size;
-    uint32_t nbdflags;
+    uint16_t nbdflags;
     QTAILQ_HEAD(, NBDClient) clients;
     QTAILQ_ENTRY(NBDExport) next;
 
@@ -544,8 +544,8 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
     NBDClient *client = data->client;
     char buf[8 + 8 + 8 + 128];
     int rc;
-    const int myflags = (NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_TRIM |
-                         NBD_FLAG_SEND_FLUSH | NBD_FLAG_SEND_FUA);
+    const uint16_t myflags = (NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_TRIM |
+                              NBD_FLAG_SEND_FLUSH | NBD_FLAG_SEND_FUA);
     bool oldStyle;
 
     /* Old style negotiation header without options
@@ -575,7 +575,6 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
 
     oldStyle = client->exp != NULL && !client->tlscreds;
     if (oldStyle) {
-        assert ((client->exp->nbdflags & ~65535) == 0);
         TRACE("advertising size %" PRIu64 " and flags %x",
               client->exp->size, client->exp->nbdflags | myflags);
         stq_be_p(buf + 8, NBD_CLIENT_MAGIC);
@@ -606,7 +605,6 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
             goto fail;
         }
 
-        assert ((client->exp->nbdflags & ~65535) == 0);
         TRACE("advertising size %" PRIu64 " and flags %x",
               client->exp->size, client->exp->nbdflags | myflags);
         stq_be_p(buf + 18, client->exp->size);
@@ -810,7 +808,7 @@ static void nbd_eject_notifier(Notifier *n, void *data)
 }
 
 NBDExport *nbd_export_new(BlockBackend *blk, off_t dev_offset, off_t size,
-                          uint32_t nbdflags, void (*close)(NBDExport *),
+                          uint16_t nbdflags, void (*close)(NBDExport *),
                           Error **errp)
 {
     NBDExport *exp = g_malloc0(sizeof(NBDExport));
