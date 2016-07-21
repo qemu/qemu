@@ -1512,7 +1512,6 @@ static int htab_save_complete(QEMUFile *f, void *opaque)
         if (rc < 0) {
             return rc;
         }
-        close_htab_fd(spapr);
     } else {
         if (spapr->htab_first_pass) {
             htab_save_first_pass(f, spapr, -1);
@@ -1614,10 +1613,18 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+static void htab_cleanup(void *opaque)
+{
+    sPAPRMachineState *spapr = opaque;
+
+    close_htab_fd(spapr);
+}
+
 static SaveVMHandlers savevm_htab_handlers = {
     .save_live_setup = htab_save_setup,
     .save_live_iterate = htab_save_iterate,
     .save_live_complete_precopy = htab_save_complete,
+    .cleanup = htab_cleanup,
     .load_state = htab_load,
 };
 
