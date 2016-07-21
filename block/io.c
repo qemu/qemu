@@ -1180,10 +1180,11 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int alignment = MAX(bs->bl.pwrite_zeroes_alignment,
                         bs->bl.request_alignment);
 
-    assert(is_power_of_2(alignment));
-    head = offset & (alignment - 1);
-    tail = (offset + count) & (alignment - 1);
-    max_write_zeroes &= ~(alignment - 1);
+    assert(alignment % bs->bl.request_alignment == 0);
+    head = offset % alignment;
+    tail = (offset + count) % alignment;
+    max_write_zeroes = QEMU_ALIGN_DOWN(max_write_zeroes, alignment);
+    assert(max_write_zeroes >= bs->bl.request_alignment);
 
     while (count > 0 && !ret) {
         int num = count;
@@ -2429,9 +2430,10 @@ int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
 
     /* Discard is advisory, so ignore any unaligned head or tail */
     align = MAX(bs->bl.pdiscard_alignment, bs->bl.request_alignment);
-    assert(is_power_of_2(align));
-    head = MIN(count, -offset & (align - 1));
+    assert(align % bs->bl.request_alignment == 0);
+    head = offset % align;
     if (head) {
+        head = MIN(count, align - head);
         count -= head;
         offset += head;
     }
@@ -2449,6 +2451,7 @@ int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
 
     max_pdiscard = QEMU_ALIGN_DOWN(MIN_NON_ZERO(bs->bl.max_pdiscard, INT_MAX),
                                    align);
+    assert(max_pdiscard);
 
     while (count > 0) {
         int ret;
