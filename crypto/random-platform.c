@@ -26,6 +26,39 @@ int qcrypto_random_bytes(uint8_t *buf G_GNUC_UNUSED,
                          size_t buflen G_GNUC_UNUSED,
                          Error **errp)
 {
-    error_setg(errp, "No random byte source provided in this build");
-    return -1;
+    int fd;
+    int ret = -1;
+    int got;
+
+    /* TBD perhaps also add support for BSD getentropy / Linux
+     * getrandom syscalls directly */
+    fd = open("/dev/urandom", O_RDONLY);
+    if (fd == -1 && errno == ENOENT) {
+        fd = open("/dev/random", O_RDONLY);
+    }
+
+    if (fd < 0) {
+        error_setg(errp, "No /dev/urandom or /dev/random found");
+        return -1;
+    }
+
+    while (buflen > 0) {
+        got = read(fd, buf, buflen);
+        if (got < 0) {
+            error_setg_errno(errp, errno,
+                             "Unable to read random bytes");
+            goto cleanup;
+        } else if (!got) {
+            error_setg(errp,
+                       "Unexpected EOF reading random bytes");
+            goto cleanup;
+        }
+        buflen -= got;
+        buf += got;
+    }
+
+    ret = 0;
+ cleanup:
+    close(fd);
+    return ret;
 }
