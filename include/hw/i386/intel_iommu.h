@@ -59,7 +59,7 @@ typedef struct IntelIOMMUState IntelIOMMUState;
 typedef struct VTDAddressSpace VTDAddressSpace;
 typedef struct VTDIOTLBEntry VTDIOTLBEntry;
 typedef struct VTDBus VTDBus;
-typedef union VTD_IRTE VTD_IRTE;
+typedef union VTD_IR_TableEntry VTD_IR_TableEntry;
 typedef union VTD_IR_MSIAddress VTD_IR_MSIAddress;
 typedef struct VTDIrq VTDIrq;
 typedef struct VTD_MSIMessage VTD_MSIMessage;
@@ -120,7 +120,7 @@ enum {
 };
 
 /* Interrupt Remapping Table Entry Definition */
-union VTD_IRTE {
+union VTD_IR_TableEntry {
     struct {
 #ifdef HOST_WORDS_BIGENDIAN
         uint32_t dest_id:32;         /* Destination ID */
@@ -159,7 +159,7 @@ union VTD_IRTE {
         uint64_t sid_vtype:2;        /* Source-ID Validation Type */
         uint64_t __reserved_2:44;    /* Reserved 2 */
 #endif
-    } QEMU_PACKED;
+    } QEMU_PACKED irte;
     uint64_t data[2];
 };
 
@@ -184,7 +184,7 @@ union VTD_IR_MSIAddress {
         uint32_t index_l:15;         /* Interrupt index bit 14-0 */
         uint32_t __head:12;          /* Should always be: 0x0fee */
 #endif
-    } QEMU_PACKED;
+    } QEMU_PACKED addr;
     uint32_t data;
 };
 
