@@ -674,36 +674,6 @@ int inet_connect(const char *str, Error **errp)
     return sock;
 }
 
-/**
- * Create a non-blocking socket and connect it to an address.
- * Calls the callback function with fd in case of success or -1 in case of
- * error.
- *
- * @str: address string
- * @callback: callback function that is called when connect completes,
- *            cannot be NULL.
- * @opaque: opaque for callback function
- * @errp: set in case of an error
- *
- * Returns: -1 on immediate error, file descriptor on success.
- **/
-int inet_nonblocking_connect(const char *str,
-                             NonBlockingConnectHandler *callback,
-                             void *opaque, Error **errp)
-{
-    int sock = -1;
-    InetSocketAddress *addr;
-
-    g_assert(callback != NULL);
-
-    addr = inet_parse(str, errp);
-    if (addr != NULL) {
-        sock = inet_connect_saddr(addr, errp, callback, opaque);
-        qapi_free_InetSocketAddress(addr);
-    }
-    return sock;
-}
-
 #ifndef _WIN32
 
 static int unix_listen_saddr(UnixSocketAddress *saddr,
