@@ -2024,7 +2024,7 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
 /* Fetch IRQ information of specific IR index */
 static int vtd_remap_irq_get(IntelIOMMUState *iommu, uint16_t index, VTDIrq *irq)
 {
-    VTD_IRTE irte = { 0 };
+    VTD_IRTE irte = {};
     int ret = 0;
 
     ret = vtd_irte_get(iommu, index, &irte);
@@ -2082,7 +2082,7 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
     int ret = 0;
     VTD_IR_MSIAddress addr;
     uint16_t index;
-    VTDIrq irq = {0};
+    VTDIrq irq = {};
 
     assert(origin && translated);
 
@@ -2176,7 +2176,7 @@ static MemTxResult vtd_mem_ir_write(void *opaque, hwaddr addr,
                                     MemTxAttrs attrs)
 {
     int ret = 0;
-    MSIMessage from = {0}, to = {0};
+    MSIMessage from = {}, to = {};
 
     from.address = (uint64_t) addr + VTD_INTERRUPT_ADDR_FIRST;
     from.data = (uint32_t) value;
