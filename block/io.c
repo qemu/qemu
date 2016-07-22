@@ -886,6 +886,20 @@ emulate_flags:
     return ret;
 }
 
+static int coroutine_fn
+bdrv_driver_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
+                               uint64_t bytes, QEMUIOVector *qiov)
+{
+    BlockDriver *drv = bs->drv;
+
+    if (!drv->bdrv_co_pwritev_compressed) {
+        return -ENOTSUP;
+    }
+
+    assert(QLIST_EMPTY(&bs->dirty_bitmaps));
+    return drv->bdrv_co_pwritev_compressed(bs, offset, bytes, qiov);
+}
+
 static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
         int64_t offset, unsigned int bytes, QEMUIOVector *qiov)
 {
@@ -1555,9 +1569,14 @@ int coroutine_fn bdrv_co_pwritev(BdrvChild *child,
         bytes = ROUND_UP(bytes, align);
     }
 
-    ret = bdrv_aligned_pwritev(bs, &req, offset, bytes, align,
-                               use_local_qiov ? &local_qiov : qiov,
-                               flags);
+    if (flags & BDRV_REQ_WRITE_COMPRESSED) {
+        ret = bdrv_driver_pwritev_compressed(
+                bs, offset, bytes, use_local_qiov ? &local_qiov : qiov);
+    } else {
+        ret = bdrv_aligned_pwritev(bs, &req, offset, bytes, align,
+                                   use_local_qiov ? &local_qiov : qiov,
+                                   flags);
+    }
 
 fail:
 
@@ -1873,25 +1892,30 @@ int bdrv_pwrite_compressed(BdrvChild *child, int64_t offset,
 {
     BlockDriverState *bs = child->bs;
     BlockDriver *drv = bs->drv;
-    int ret;
+    QEMUIOVector qiov;
+    struct iovec iov;
 
     if (!drv) {
         return -ENOMEDIUM;
     }
-    if (!drv->bdrv_write_compressed) {
-        return -ENOTSUP;
+    if (drv->bdrv_write_compressed) {
+        int ret = bdrv_check_byte_request(bs, offset, bytes);
+        if (ret < 0) {
+            return ret;
+        }
+        assert(QLIST_EMPTY(&bs->dirty_bitmaps));
+        assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
+        assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
+        return drv->bdrv_write_compressed(bs, offset >> BDRV_SECTOR_BITS, buf,
+                                          bytes >> BDRV_SECTOR_BITS);
     }
-    ret = bdrv_check_byte_request(bs, offset, bytes);
-    if (ret < 0) {
-        return ret;
-    }
+    iov = (struct iovec) {
+        .iov_base = (void *)buf,
+        .iov_len = bytes,
+    };
+    qemu_iovec_init_external(&qiov, &iov, 1);
 
-    assert(QLIST_EMPTY(&bs->dirty_bitmaps));
-    assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
-    assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
-
-    return drv->bdrv_write_compressed(bs, offset >> BDRV_SECTOR_BITS, buf,
-                                      bytes >> BDRV_SECTOR_BITS);
+    return bdrv_prwv_co(child, offset, &qiov, true, BDRV_REQ_WRITE_COMPRESSED);
 }
 
 typedef struct BdrvVmstateCo {
