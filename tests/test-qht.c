@@ -95,8 +95,12 @@ static void iter_check(unsigned int count)
 
 static void qht_do_test(unsigned int mode, size_t init_entries)
 {
+    /* under KVM we might fetch stats from an uninitialized qht */
+    check_n(0);
+
     qht_init(&ht, 0, mode);
 
+    check_n(0);
     insert(0, N);
     check(0, N, true);
     check_n(N);

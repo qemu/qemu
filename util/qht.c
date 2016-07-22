@@ -789,11 +789,16 @@ void qht_statistics_init(struct qht *ht, struct qht_stats *stats)
 
     map = atomic_rcu_read(&ht->map);
 
-    stats->head_buckets = map->n_buckets;
     stats->used_head_buckets = 0;
     stats->entries = 0;
     qdist_init(&stats->chain);
     qdist_init(&stats->occupancy);
+    /* bail out if the qht has not yet been initialized */
+    if (unlikely(map == NULL)) {
+        stats->head_buckets = 0;
+        return;
+    }
+    stats->head_buckets = map->n_buckets;
 
     for (i = 0; i < map->n_buckets; i++) {
         struct qht_bucket *head = &map->buckets[i];
