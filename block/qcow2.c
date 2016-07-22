@@ -2554,27 +2554,17 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
         return bdrv_truncate(bs->file->bs, cluster_offset);
     }
 
-    if (bytes != s->cluster_size) {
-        ret = -EINVAL;
-
-        /* Zero-pad last write if image size is not cluster aligned */
-        if (offset + bytes == bs->total_sectors << BDRV_SECTOR_BITS &&
-            bytes < s->cluster_size)
-        {
-            uint8_t *pad_buf = qemu_blockalign(bs, s->cluster_size);
-            memset(pad_buf, 0, s->cluster_size);
-            qemu_iovec_to_buf(qiov, 0, pad_buf, s->cluster_size);
-            iov = (struct iovec) {
-                .iov_base   = pad_buf,
-                .iov_len    = s->cluster_size,
-            };
-            qemu_iovec_init_external(&hd_qiov, &iov, 1);
-            ret = qcow2_co_pwritev_compressed(bs, offset, bytes, &hd_qiov);
-            qemu_vfree(pad_buf);
-        }
-        return ret;
-    }
     buf = qemu_blockalign(bs, s->cluster_size);
+    if (bytes != s->cluster_size) {
+        if (bytes > s->cluster_size ||
+            offset + bytes != bs->total_sectors << BDRV_SECTOR_BITS)
+        {
+            qemu_vfree(buf);
+            return -EINVAL;
+        }
+        /* Zero-pad last write if image size is not cluster aligned */
+        memset(buf + bytes, 0, s->cluster_size - bytes);
+    }
     qemu_iovec_to_buf(qiov, 0, buf, s->cluster_size);
 
     out_buf = g_malloc(s->cluster_size);
