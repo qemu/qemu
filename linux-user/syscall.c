@@ -839,7 +839,7 @@ void target_set_brk(abi_ulong new_brk)
 abi_long do_brk(abi_ulong new_brk)
 {
     abi_long mapped_addr;
-    int	new_alloc_size;
+    abi_ulong new_alloc_size;
 
     DEBUGF_BRK("do_brk(" TARGET_ABI_FMT_lx ") -> ", new_brk);
 
