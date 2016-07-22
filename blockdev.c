@@ -3254,6 +3254,9 @@ void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn, Error **errp)
     if (!backup->has_job_id) {
         backup->job_id = NULL;
     }
+    if (!backup->has_compress) {
+        backup->compress = false;
+    }
 
     bs = qmp_get_root_bs(backup->device, errp);
     if (!bs) {
@@ -3280,8 +3283,8 @@ void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn, Error **errp)
         }
     }
     backup_start(backup->job_id, bs, target_bs, backup->speed, backup->sync,
-                 NULL, false, backup->on_source_error, backup->on_target_error,
-                 block_job_cb, bs, txn, &local_err);
+                 NULL, backup->compress, backup->on_source_error,
+                 backup->on_target_error, block_job_cb, bs, txn, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
     }

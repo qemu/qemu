@@ -1275,7 +1275,7 @@ EQMP
 
     {
         .name       = "blockdev-backup",
-        .args_type  = "job-id:s?,sync:s,device:B,target:B,speed:i?,"
+        .args_type  = "job-id:s?,sync:s,device:B,target:B,speed:i?,compress:b?,"
                       "on-source-error:s?,on-target-error:s?",
         .mhandler.cmd_new = qmp_marshal_blockdev_backup,
     },
@@ -1299,6 +1299,8 @@ Arguments:
           sectors allocated in the topmost image, or "none" to only replicate
           new I/O (MirrorSyncMode).
 - "speed": the maximum speed, in bytes per second (json-int, optional)
+- "compress": true to compress data, if the target format supports it.
+              (json-bool, optional, default false)
 - "on-source-error": the action to take on an error on the source, default
                      'report'.  'stop' and 'enospc' can only be used
                      if the block device supports io-status.

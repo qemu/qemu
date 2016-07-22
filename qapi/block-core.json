@@ -939,6 +939,9 @@
 # @speed: #optional the maximum speed, in bytes per second. The default is 0,
 #         for unlimited.
 #
+# @compress: #optional true to compress data, if the target format supports it.
+#            (default: false) (since 2.7)
+#
 # @on-source-error: #optional the action to take on an error on the source,
 #                   default 'report'.  'stop' and 'enospc' can only be used
 #                   if the block device supports io-status (see BlockInfo).
@@ -957,6 +960,7 @@
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             'sync': 'MirrorSyncMode',
             '*speed': 'int',
+            '*compress': 'bool',
             '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError' } }
 
