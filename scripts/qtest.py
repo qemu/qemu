@@ -13,6 +13,11 @@
 
 import errno
 import socket
+import string
+import os
+import subprocess
+import qmp.qmp
+import qemu
 
 class QEMUQtestProtocol(object):
     def __init__(self, address, server=False):
@@ -69,3 +74,32 @@ class QEMUQtestProtocol(object):
 
     def settimeout(self, timeout):
         self._sock.settimeout(timeout)
+
+
+class QEMUQtestMachine(qemu.QEMUMachine):
+    '''A QEMU VM'''
+
+    def __init__(self, binary, args=[], name=None, test_dir="/var/tmp"):
+        super(self, QEMUQtestMachine).__init__(binary, args, name, test_dir)
+        self._qtest_path = os.path.join(test_dir, name + "-qtest.sock")
+
+    def _base_args(self):
+        args = super(self, QEMUQtestMachine)._base_args()
+        args.extend(['-qtest', 'unix:path=' + self._qtest_path])
+        return args
+
+    def _pre_launch(self):
+        super(self, QEMUQtestMachine)._pre_launch()
+        self._qtest = QEMUQtestProtocol(self._qtest_path, server=True)
+
+    def _post_launch(self):
+        super(self, QEMUQtestMachine)._post_launch()
+        self._qtest.accept()
+
+    def _post_shutdown(self):
+        super(self, QEMUQtestMachine)._post_shutdown()
+        self._remove_if_exists(self._qtest_path)
+
+    def qtest(self, cmd):
+        '''Send a qtest command to guest'''
+        return self._qtest.cmd(cmd)

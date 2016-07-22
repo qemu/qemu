@@ -627,6 +627,18 @@ tests/test-filter-redirector$(EXESUF): tests/test-filter-redirector.o $(qtest-ob
 tests/ivshmem-test$(EXESUF): tests/ivshmem-test.o contrib/ivshmem-server/ivshmem-server.o $(libqos-pc-obj-y)
 tests/vhost-user-bridge$(EXESUF): tests/vhost-user-bridge.o
 
+tests/migration/stress$(EXESUF): tests/migration/stress.o
+	$(call quiet-command, $(LINKPROG) -static -O3 $(PTHREAD_LIB) -o $@ $< ,"  LINK  $(TARGET_DIR)$@")
+
+INITRD_WORK_DIR=tests/migration/initrd
+
+tests/migration/initrd-stress.img: tests/migration/stress$(EXESUF)
+	mkdir -p $(INITRD_WORK_DIR)
+	cp $< $(INITRD_WORK_DIR)/init
+	(cd $(INITRD_WORK_DIR) && (find | cpio --quiet -o -H newc | gzip -9)) > $@
+	rm $(INITRD_WORK_DIR)/init
+	rmdir $(INITRD_WORK_DIR)
+
 ifeq ($(CONFIG_POSIX),y)
 LIBS += -lutil
 endif

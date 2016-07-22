@@ -11,6 +11,7 @@
 import json
 import errno
 import socket
+import sys
 
 class QMPError(Exception):
     pass
@@ -25,7 +26,7 @@ class QMPTimeoutError(QMPError):
     pass
 
 class QEMUMonitorProtocol:
-    def __init__(self, address, server=False):
+    def __init__(self, address, server=False, debug=False):
         """
         Create a QEMUMonitorProtocol class.
 
@@ -39,8 +40,10 @@ class QEMUMonitorProtocol:
         """
         self.__events = []
         self.__address = address
+        self._debug = debug
         self.__sock = self.__get_sock()
         if server:
+            self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.__sock.bind(self.__address)
             self.__sock.listen(1)
 
@@ -68,6 +71,8 @@ class QEMUMonitorProtocol:
                 return
             resp = json.loads(data)
             if 'event' in resp:
+                if self._debug:
+                    print >>sys.stderr, "QMP:<<< %s" % resp
                 self.__events.append(resp)
                 if not only_event:
                     continue
@@ -136,6 +141,7 @@ class QEMUMonitorProtocol:
         @raise QMPConnectError if the greeting is not received
         @raise QMPCapabilitiesError if fails to negotiate capabilities
         """
+        self.__sock.settimeout(15)
         self.__sock, _ = self.__sock.accept()
         self.__sockfile = self.__sock.makefile()
         return self.__negotiate_capabilities()
@@ -148,13 +154,18 @@ class QEMUMonitorProtocol:
         @return QMP response as a Python dict or None if the connection has
                 been closed
         """
+        if self._debug:
+            print >>sys.stderr, "QMP:>>> %s" % qmp_cmd
         try:
             self.__sock.sendall(json.dumps(qmp_cmd))
         except socket.error as err:
             if err[0] == errno.EPIPE:
                 return
             raise socket.error(err)
-        return self.__json_read()
+        resp = self.__json_read()
+        if self._debug:
+            print >>sys.stderr, "QMP:<<< %s" % resp
+        return resp
 
     def cmd(self, name, args=None, id=None):
         """

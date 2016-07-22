@@ -1837,6 +1837,10 @@ static void *migration_thread(void *opaque)
     } else {
         if (old_vm_running && !entered_postcopy) {
             vm_start();
+        } else {
+            if (runstate_check(RUN_STATE_FINISH_MIGRATE)) {
+                runstate_set(RUN_STATE_POSTMIGRATE);
+            }
         }
     }
     qemu_bh_schedule(s->cleanup_bh);
