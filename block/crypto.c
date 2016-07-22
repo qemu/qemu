@@ -563,6 +563,53 @@ static int block_crypto_create_luks(const char *filename,
                                        filename, opts, errp);
 }
 
+static int block_crypto_get_info_luks(BlockDriverState *bs,
+                                      BlockDriverInfo *bdi)
+{
+    BlockDriverInfo subbdi;
+    int ret;
+
+    ret = bdrv_get_info(bs->file->bs, &subbdi);
+    if (ret != 0) {
+        return ret;
+    }
+
+    bdi->unallocated_blocks_are_zero = false;
+    bdi->can_write_zeroes_with_unmap = false;
+    bdi->cluster_size = subbdi.cluster_size;
+
+    return 0;
+}
+
+static ImageInfoSpecific *
+block_crypto_get_specific_info_luks(BlockDriverState *bs)
+{
+    BlockCrypto *crypto = bs->opaque;
+    ImageInfoSpecific *spec_info;
+    QCryptoBlockInfo *info;
+
+    info = qcrypto_block_get_info(crypto->block, NULL);
+    if (!info) {
+        return NULL;
+    }
+    if (info->format != Q_CRYPTO_BLOCK_FORMAT_LUKS) {
+        qapi_free_QCryptoBlockInfo(info);
+        return NULL;
+    }
+
+    spec_info = g_new(ImageInfoSpecific, 1);
+    spec_info->type = IMAGE_INFO_SPECIFIC_KIND_LUKS;
+    spec_info->u.luks.data = g_new(QCryptoBlockInfoLUKS, 1);
+    *spec_info->u.luks.data = info->u.luks;
+
+    /* Blank out pointers we've just stolen to avoid double free */
+    memset(&info->u.luks, 0, sizeof(info->u.luks));
+
+    qapi_free_QCryptoBlockInfo(info);
+
+    return spec_info;
+}
+
 BlockDriver bdrv_crypto_luks = {
     .format_name        = "luks",
     .instance_size      = sizeof(BlockCrypto),
@@ -576,6 +623,8 @@ BlockDriver bdrv_crypto_luks = {
     .bdrv_co_readv      = block_crypto_co_readv,
     .bdrv_co_writev     = block_crypto_co_writev,
     .bdrv_getlength     = block_crypto_getlength,
+    .bdrv_get_info      = block_crypto_get_info_luks,
+    .bdrv_get_specific_info = block_crypto_get_specific_info_luks,
 };
 
 static void block_crypto_init(void)
