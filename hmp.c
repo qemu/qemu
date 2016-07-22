@@ -1109,8 +1109,16 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
     const char *format = qdict_get_try_str(qdict, "format");
     bool reuse = qdict_get_try_bool(qdict, "reuse", false);
     bool full = qdict_get_try_bool(qdict, "full", false);
-    enum NewImageMode mode;
     Error *err = NULL;
+    DriveBackup backup = {
+        .device = (char *)device,
+        .target = (char *)filename,
+        .has_format = !!format,
+        .format = (char *)format,
+        .sync = full ? MIRROR_SYNC_MODE_FULL : MIRROR_SYNC_MODE_TOP,
+        .has_mode = true,
+        .mode = reuse ? NEW_IMAGE_MODE_EXISTING : NEW_IMAGE_MODE_ABSOLUTE_PATHS,
+    };
 
     if (!filename) {
         error_setg(&err, QERR_MISSING_PARAMETER, "target");
@@ -1118,16 +1126,7 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    if (reuse) {
-        mode = NEW_IMAGE_MODE_EXISTING;
-    } else {
-        mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
-    }
-
-    qmp_drive_backup(false, NULL, device, filename, !!format, format,
-                     full ? MIRROR_SYNC_MODE_FULL : MIRROR_SYNC_MODE_TOP,
-                     true, mode, false, 0, false, NULL,
-                     false, 0, false, 0, &err);
+    qmp_drive_backup(&backup, &err);
     hmp_handle_error(mon, &err);
 }
 

@@ -1091,7 +1091,8 @@
 #
 # Since 1.6
 ##
-{ 'command': 'drive-backup', 'data': 'DriveBackup' }
+{ 'command': 'drive-backup', 'boxed': true,
+  'data': 'DriveBackup' }
 
 ##
 # @blockdev-backup
