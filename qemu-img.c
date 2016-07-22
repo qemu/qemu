@@ -1590,7 +1590,9 @@ static int convert_write(ImgConvertState *s, int64_t sector_num, int nb_sectors,
                     break;
                 }
 
-                ret = blk_write_compressed(s->target, sector_num, buf, n);
+                ret = blk_pwrite_compressed(s->target,
+                                            sector_num << BDRV_SECTOR_BITS,
+                                            buf, n << BDRV_SECTOR_BITS);
                 if (ret < 0) {
                     return ret;
                 }
@@ -1727,7 +1729,7 @@ static int convert_do_copy(ImgConvertState *s)
 
     if (s->compressed) {
         /* signal EOF to align */
-        ret = blk_write_compressed(s->target, 0, NULL, 0);
+        ret = blk_pwrite_compressed(s->target, 0, NULL, 0);
         if (ret < 0) {
             goto fail;
         }
