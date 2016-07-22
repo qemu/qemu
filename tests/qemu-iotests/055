@@ -448,5 +448,102 @@ class TestSingleTransaction(iotests.QMPTestCase):
         self.assert_qmp(result, 'error/class', 'GenericError')
         self.assert_no_active_block_jobs()
 
+
+class TestDriveCompression(iotests.QMPTestCase):
+    image_len = 64 * 1024 * 1024 # MB
+    outfmt = 'qcow2'
+
+    def setUp(self):
+        # Write data to the image so we can compare later
+        qemu_img('create', '-f', iotests.imgfmt, test_img, str(TestDriveCompression.image_len))
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x11 0 64k', test_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x00 64k 128k', test_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x22 162k 32k', test_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x33 67043328 64k', test_img)
+
+        qemu_img('create', '-f', TestDriveCompression.outfmt, blockdev_target_img,
+                 str(TestDriveCompression.image_len))
+        self.vm = iotests.VM().add_drive(test_img).add_drive(blockdev_target_img,
+                                                             format=TestDriveCompression.outfmt)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+        os.remove(blockdev_target_img)
+        try:
+            os.remove(target_img)
+        except OSError:
+            pass
+
+    def do_test_compress_complete(self, cmd, **args):
+        self.assert_no_active_block_jobs()
+
+        result = self.vm.qmp(cmd, device='drive0', sync='full', compress=True, **args)
+        self.assert_qmp(result, 'return', {})
+
+        self.wait_until_completed()
+
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(test_img, blockdev_target_img,
+                                               iotests.imgfmt, TestDriveCompression.outfmt),
+                        'target image does not match source after backup')
+
+    def test_complete_compress_drive_backup(self):
+        self.do_test_compress_complete('drive-backup', target=blockdev_target_img, mode='existing')
+
+    def test_complete_compress_blockdev_backup(self):
+        self.do_test_compress_complete('blockdev-backup', target='drive1')
+
+    def do_test_compress_cancel(self, cmd, **args):
+        self.assert_no_active_block_jobs()
+
+        result = self.vm.qmp(cmd, device='drive0', sync='full', compress=True, **args)
+        self.assert_qmp(result, 'return', {})
+
+        event = self.cancel_and_wait()
+        self.assert_qmp(event, 'data/type', 'backup')
+
+    def test_compress_cancel_drive_backup(self):
+        self.do_test_compress_cancel('drive-backup', target=blockdev_target_img, mode='existing')
+
+    def test_compress_cancel_blockdev_backup(self):
+        self.do_test_compress_cancel('blockdev-backup', target='drive1')
+
+    def do_test_compress_pause(self, cmd, **args):
+        self.assert_no_active_block_jobs()
+
+        self.vm.pause_drive('drive0')
+        result = self.vm.qmp(cmd, device='drive0', sync='full', compress=True, **args)
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('block-job-pause', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        self.vm.resume_drive('drive0')
+        time.sleep(1)
+        result = self.vm.qmp('query-block-jobs')
+        offset = self.dictpath(result, 'return[0]/offset')
+
+        time.sleep(1)
+        result = self.vm.qmp('query-block-jobs')
+        self.assert_qmp(result, 'return[0]/offset', offset)
+
+        result = self.vm.qmp('block-job-resume', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        self.wait_until_completed()
+
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(test_img, blockdev_target_img,
+                                               iotests.imgfmt, TestDriveCompression.outfmt),
+                        'target image does not match source after backup')
+
+    def test_compress_pause_drive_backup(self):
+        self.do_test_compress_pause('drive-backup', target=blockdev_target_img, mode='existing')
+
+    def test_compress_pause_blockdev_backup(self):
+        self.do_test_compress_pause('blockdev-backup', target='drive1')
+
 if __name__ == '__main__':
     iotests.main(supported_fmts=['raw', 'qcow2'])

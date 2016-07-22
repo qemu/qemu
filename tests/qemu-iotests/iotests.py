@@ -86,10 +86,10 @@ def qemu_io(*args):
         sys.stderr.write('qemu-io received signal %i: %s\n' % (-exitcode, ' '.join(args)))
     return subp.communicate()[0]
 
-def compare_images(img1, img2):
+def compare_images(img1, img2, fmt1=imgfmt, fmt2=imgfmt):
     '''Return True if two image files are identical'''
-    return qemu_img('compare', '-f', imgfmt,
-                    '-F', imgfmt, img1, img2) == 0
+    return qemu_img('compare', '-f', fmt1,
+                    '-F', fmt2, img1, img2) == 0
 
 def create_image(name, size):
     '''Create a fully-allocated raw image with sector markers'''
@@ -141,14 +141,14 @@ class VM(qtest.QEMUQtestMachine):
         self._args.append(opts)
         return self
 
-    def add_drive(self, path, opts='', interface='virtio'):
+    def add_drive(self, path, opts='', interface='virtio', format=imgfmt):
         '''Add a virtio-blk drive to the VM'''
         options = ['if=%s' % interface,
                    'id=drive%d' % self._num_drives]
 
         if path is not None:
             options.append('file=%s' % path)
-            options.append('format=%s' % imgfmt)
+            options.append('format=%s' % format)
             options.append('cache=%s' % cachemode)
 
         if opts:
