@@ -1109,6 +1109,7 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
     const char *format = qdict_get_try_str(qdict, "format");
     bool reuse = qdict_get_try_bool(qdict, "reuse", false);
     bool full = qdict_get_try_bool(qdict, "full", false);
+    bool compress = qdict_get_try_bool(qdict, "compress", false);
     Error *err = NULL;
     DriveBackup backup = {
         .device = (char *)device,
@@ -1118,6 +1119,8 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
         .sync = full ? MIRROR_SYNC_MODE_FULL : MIRROR_SYNC_MODE_TOP,
         .has_mode = true,
         .mode = reuse ? NEW_IMAGE_MODE_EXISTING : NEW_IMAGE_MODE_ABSOLUTE_PATHS,
+        .has_compress = !!compress,
+        .compress = compress,
     };
 
     if (!filename) {

@@ -1182,8 +1182,8 @@ ETEXI
 
     {
         .name       = "drive_backup",
-        .args_type  = "reuse:-n,full:-f,device:B,target:s,format:s?",
-        .params     = "[-n] [-f] device target [format]",
+        .args_type  = "reuse:-n,full:-f,compress:-c,device:B,target:s,format:s?",
+        .params     = "[-n] [-f] [-c] device target [format]",
         .help       = "initiates a point-in-time\n\t\t\t"
                       "copy for a device. The device's contents are\n\t\t\t"
                       "copied to the new image file, excluding data that\n\t\t\t"
@@ -1191,7 +1191,9 @@ ETEXI
                       "The -n flag requests QEMU to reuse the image found\n\t\t\t"
                       "in new-image-file, instead of recreating it from scratch.\n\t\t\t"
                       "The -f flag requests QEMU to copy the whole disk,\n\t\t\t"
-                      "so that the result does not need a backing file.\n\t\t\t",
+                      "so that the result does not need a backing file.\n\t\t\t"
+                      "The -c flag requests QEMU to compress backup data\n\t\t\t"
+                      "(if the target format supports it).\n\t\t\t",
         .mhandler.cmd = hmp_drive_backup,
     },
 STEXI

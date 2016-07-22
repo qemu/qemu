@@ -1217,7 +1217,8 @@ EQMP
     {
         .name       = "drive-backup",
         .args_type  = "job-id:s?,sync:s,device:B,target:s,speed:i?,mode:s?,"
-                      "format:s?,bitmap:s?,on-source-error:s?,on-target-error:s?",
+                      "format:s?,bitmap:s?,compress:b?,"
+                      "on-source-error:s?,on-target-error:s?",
         .mhandler.cmd_new = qmp_marshal_drive_backup,
     },
 
@@ -1253,6 +1254,8 @@ Arguments:
 - "mode": whether and how QEMU should create a new image
           (NewImageMode, optional, default 'absolute-paths')
 - "speed": the maximum speed, in bytes per second (json-int, optional)
+- "compress": true to compress data, if the target format supports it.
+              (json-bool, optional, default false)
 - "on-source-error": the action to take on an error on the source, default
                      'report'.  'stop' and 'enospc' can only be used
                      if the block device supports io-status.

@@ -47,6 +47,7 @@ typedef struct BackupBlockJob {
     uint64_t sectors_read;
     unsigned long *done_bitmap;
     int64_t cluster_size;
+    bool compress;
     NotifierWithReturn before_write;
     QLIST_HEAD(, CowRequest) inflight_reqs;
 } BackupBlockJob;
@@ -154,7 +155,8 @@ static int coroutine_fn backup_do_cow(BackupBlockJob *job,
                                        bounce_qiov.size, BDRV_REQ_MAY_UNMAP);
         } else {
             ret = blk_co_pwritev(job->target, start * job->cluster_size,
-                                 bounce_qiov.size, &bounce_qiov, 0);
+                                 bounce_qiov.size, &bounce_qiov,
+                                 job->compress ? BDRV_REQ_WRITE_COMPRESSED : 0);
         }
         if (ret < 0) {
             trace_backup_do_cow_write_fail(job, start, ret);
@@ -477,6 +479,7 @@ static void coroutine_fn backup_run(void *opaque)
 void backup_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *target, int64_t speed,
                   MirrorSyncMode sync_mode, BdrvDirtyBitmap *sync_bitmap,
+                  bool compress,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   BlockCompletionFunc *cb, void *opaque,
@@ -503,6 +506,12 @@ void backup_start(const char *job_id, BlockDriverState *bs,
 
     if (!bdrv_is_inserted(target)) {
         error_setg(errp, "Device is not inserted: %s",
+                   bdrv_get_device_name(target));
+        return;
+    }
+
+    if (compress && target->drv->bdrv_co_pwritev_compressed == NULL) {
+        error_setg(errp, "Compression is not supported for this drive %s",
                    bdrv_get_device_name(target));
         return;
     }
@@ -555,6 +564,7 @@ void backup_start(const char *job_id, BlockDriverState *bs,
     job->sync_mode = sync_mode;
     job->sync_bitmap = sync_mode == MIRROR_SYNC_MODE_INCREMENTAL ?
                        sync_bitmap : NULL;
+    job->compress = compress;
 
     /* If there is no backing file on the target, we cannot rely on COW if our
      * backup cluster size is smaller than the target cluster size. Even for
