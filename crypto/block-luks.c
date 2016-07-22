@@ -201,6 +201,15 @@ QEMU_BUILD_BUG_ON(sizeof(struct QCryptoBlockLUKSHeader) != 592);
 
 struct QCryptoBlockLUKS {
     QCryptoBlockLUKSHeader header;
+
+    /* Cache parsed versions of what's in header fields,
+     * as we can't rely on QCryptoBlock.cipher being
+     * non-NULL */
+    QCryptoCipherAlgorithm cipher_alg;
+    QCryptoCipherMode cipher_mode;
+    QCryptoIVGenAlgorithm ivgen_alg;
+    QCryptoHashAlgorithm ivgen_hash_alg;
+    QCryptoHashAlgorithm hash_alg;
 };
 
 
@@ -847,6 +856,12 @@ qcrypto_block_luks_open(QCryptoBlock *block,
     block->payload_offset = luks->header.payload_offset *
         QCRYPTO_BLOCK_LUKS_SECTOR_SIZE;
 
+    luks->cipher_alg = cipheralg;
+    luks->cipher_mode = ciphermode;
+    luks->ivgen_alg = ivalg;
+    luks->ivgen_hash_alg = ivhash;
+    luks->hash_alg = hash;
+
     g_free(masterkey);
     g_free(password);
 
@@ -1271,6 +1286,12 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         goto error;
     }
 
+    luks->cipher_alg = luks_opts.cipher_alg;
+    luks->cipher_mode = luks_opts.cipher_mode;
+    luks->ivgen_alg = luks_opts.ivgen_alg;
+    luks->ivgen_hash_alg = luks_opts.ivgen_hash_alg;
+    luks->hash_alg = luks_opts.hash_alg;
+
     memset(masterkey, 0, luks->header.key_bytes);
     g_free(masterkey);
     memset(slotkey, 0, luks->header.key_bytes);
@@ -1302,6 +1323,51 @@ qcrypto_block_luks_create(QCryptoBlock *block,
 
     g_free(luks);
     return -1;
+}
+
+
+static int qcrypto_block_luks_get_info(QCryptoBlock *block,
+                                       QCryptoBlockInfo *info,
+                                       Error **errp)
+{
+    QCryptoBlockLUKS *luks = block->opaque;
+    QCryptoBlockInfoLUKSSlot *slot;
+    QCryptoBlockInfoLUKSSlotList *slots = NULL, **prev = &info->u.luks.slots;
+    size_t i;
+
+    info->u.luks.cipher_alg = luks->cipher_alg;
+    info->u.luks.cipher_mode = luks->cipher_mode;
+    info->u.luks.ivgen_alg = luks->ivgen_alg;
+    if (info->u.luks.ivgen_alg == QCRYPTO_IVGEN_ALG_ESSIV) {
+        info->u.luks.has_ivgen_hash_alg = true;
+        info->u.luks.ivgen_hash_alg = luks->ivgen_hash_alg;
+    }
+    info->u.luks.hash_alg = luks->hash_alg;
+    info->u.luks.payload_offset = block->payload_offset;
+    info->u.luks.master_key_iters = luks->header.master_key_iterations;
+    info->u.luks.uuid = g_strndup((const char *)luks->header.uuid,
+                                  sizeof(luks->header.uuid));
+
+    for (i = 0; i < QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS; i++) {
+        slots = g_new0(QCryptoBlockInfoLUKSSlotList, 1);
+        *prev = slots;
+
+        slots->value = slot = g_new0(QCryptoBlockInfoLUKSSlot, 1);
+        slot->active = luks->header.key_slots[i].active ==
+            QCRYPTO_BLOCK_LUKS_KEY_SLOT_ENABLED;
+        slot->key_offset = luks->header.key_slots[i].key_offset
+             * QCRYPTO_BLOCK_LUKS_SECTOR_SIZE;
+        if (slot->active) {
+            slot->has_iters = true;
+            slot->iters = luks->header.key_slots[i].iterations;
+            slot->has_stripes = true;
+            slot->stripes = luks->header.key_slots[i].stripes;
+        }
+
+        prev = &slots->next;
+    }
+
+    return 0;
 }
 
 
@@ -1342,6 +1408,7 @@ qcrypto_block_luks_encrypt(QCryptoBlock *block,
 const QCryptoBlockDriver qcrypto_block_driver_luks = {
     .open = qcrypto_block_luks_open,
     .create = qcrypto_block_luks_create,
+    .get_info = qcrypto_block_luks_get_info,
     .cleanup = qcrypto_block_luks_cleanup,
     .decrypt = qcrypto_block_luks_decrypt,
     .encrypt = qcrypto_block_luks_encrypt,

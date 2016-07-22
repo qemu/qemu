@@ -53,6 +53,10 @@ struct QCryptoBlockDriver {
                   void *opaque,
                   Error **errp);
 
+    int (*get_info)(QCryptoBlock *block,
+                    QCryptoBlockInfo *info,
+                    Error **errp);
+
     void (*cleanup)(QCryptoBlock *block);
 
     int (*encrypt)(QCryptoBlock *block,

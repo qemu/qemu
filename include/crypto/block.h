@@ -138,6 +138,22 @@ QCryptoBlock *qcrypto_block_create(QCryptoBlockCreateOptions *options,
                                    void *opaque,
                                    Error **errp);
 
+
+/**
+ * qcrypto_block_get_info:
+ * @block: the block encryption object
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Get information about the configuration options for the
+ * block encryption object. This includes details such as
+ * the cipher algorithms, modes, and initialization vector
+ * generators.
+ *
+ * Returns: a block encryption info object, or NULL on error
+ */
+QCryptoBlockInfo *qcrypto_block_get_info(QCryptoBlock *block,
+                                         Error **errp);
+
 /**
  * @qcrypto_block_decrypt:
  * @block: the block encryption object

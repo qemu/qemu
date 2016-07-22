@@ -224,3 +224,90 @@
   'discriminator': 'format',
   'data': { 'qcow': 'QCryptoBlockOptionsQCow',
             'luks': 'QCryptoBlockCreateOptionsLUKS' } }
+
+
+##
+# QCryptoBlockInfoBase:
+#
+# The common information that applies to all full disk
+# encryption formats
+#
+# @format: the encryption format
+#
+# Since: 2.7
+##
+{ 'struct': 'QCryptoBlockInfoBase',
+  'data': { 'format': 'QCryptoBlockFormat' }}
+
+
+##
+# QCryptoBlockInfoLUKSSlot:
+#
+# Information about the LUKS block encryption key
+# slot options
+#
+# @active: whether the key slot is currently in use
+# @key-offset: offset to the key material in bytes
+# @iters: #optional number of PBKDF2 iterations for key material
+# @stripes: #optional number of stripes for splitting key material
+#
+# Since: 2.7
+##
+{ 'struct': 'QCryptoBlockInfoLUKSSlot',
+  'data': {'active': 'bool',
+           '*iters': 'int',
+           '*stripes': 'int',
+           'key-offset': 'int' } }
+
+
+##
+# QCryptoBlockInfoLUKS:
+#
+# Information about the LUKS block encryption options
+#
+# @cipher-alg: the cipher algorithm for data encryption
+# @cipher-mode: the cipher mode for data encryption
+# @ivgen-alg: the initialization vector generator
+# @ivgen-hash-alg: #optional the initialization vector generator hash
+# @hash-alg: the master key hash algorithm
+# @payload-offset: offset to the payload data in bytes
+# @master-key-iters: number of PBKDF2 iterations for key material
+# @uuid: unique identifier for the volume
+# @slots: information about each key slot
+#
+# Since: 2.7
+##
+{ 'struct': 'QCryptoBlockInfoLUKS',
+  'data': {'cipher-alg': 'QCryptoCipherAlgorithm',
+           'cipher-mode': 'QCryptoCipherMode',
+           'ivgen-alg': 'QCryptoIVGenAlgorithm',
+           '*ivgen-hash-alg': 'QCryptoHashAlgorithm',
+           'hash-alg': 'QCryptoHashAlgorithm',
+           'payload-offset': 'int',
+           'master-key-iters': 'int',
+           'uuid': 'str',
+           'slots': [ 'QCryptoBlockInfoLUKSSlot' ] }}
+
+##
+# QCryptoBlockInfoQCow:
+#
+# Information about the QCow block encryption options
+#
+# Since: 2.7
+##
+{ 'struct': 'QCryptoBlockInfoQCow',
+  'data': { }}
+
+
+##
+# QCryptoBlockInfo:
+#
+# Information about the block encryption options
+#
+# Since: 2.7
+##
+{ 'union': 'QCryptoBlockInfo',
+  'base': 'QCryptoBlockInfoBase',
+  'discriminator': 'format',
+  'data': { 'qcow': 'QCryptoBlockInfoQCow',
+            'luks': 'QCryptoBlockInfoLUKS' } }
