@@ -1902,14 +1902,8 @@ typedef struct BlockdevBackupState {
     AioContext *aio_context;
 } BlockdevBackupState;
 
-static void do_blockdev_backup(const char *job_id, const char *device,
-                               const char *target, enum MirrorSyncMode sync,
-                               bool has_speed, int64_t speed,
-                               bool has_on_source_error,
-                               BlockdevOnError on_source_error,
-                               bool has_on_target_error,
-                               BlockdevOnError on_target_error,
-                               BlockJobTxn *txn, Error **errp);
+static void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn,
+                               Error **errp);
 
 static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
 {
@@ -1942,12 +1936,7 @@ static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
     state->bs = bs;
     bdrv_drained_begin(state->bs);
 
-    do_blockdev_backup(backup->has_job_id ? backup->job_id : NULL,
-                       backup->device, backup->target, backup->sync,
-                       backup->has_speed, backup->speed,
-                       backup->has_on_source_error, backup->on_source_error,
-                       backup->has_on_target_error, backup->on_target_error,
-                       common->block_job_txn, &local_err);
+    do_blockdev_backup(backup, common->block_job_txn, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -3243,31 +3232,27 @@ BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
     return bdrv_named_nodes_list(errp);
 }
 
-void do_blockdev_backup(const char *job_id, const char *device,
-                        const char *target, enum MirrorSyncMode sync,
-                         bool has_speed, int64_t speed,
-                         bool has_on_source_error,
-                         BlockdevOnError on_source_error,
-                         bool has_on_target_error,
-                         BlockdevOnError on_target_error,
-                         BlockJobTxn *txn, Error **errp)
+void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn, Error **errp)
 {
     BlockDriverState *bs;
     BlockDriverState *target_bs;
     Error *local_err = NULL;
     AioContext *aio_context;
 
-    if (!has_speed) {
-        speed = 0;
+    if (!backup->has_speed) {
+        backup->speed = 0;
     }
-    if (!has_on_source_error) {
-        on_source_error = BLOCKDEV_ON_ERROR_REPORT;
+    if (!backup->has_on_source_error) {
+        backup->on_source_error = BLOCKDEV_ON_ERROR_REPORT;
     }
-    if (!has_on_target_error) {
-        on_target_error = BLOCKDEV_ON_ERROR_REPORT;
+    if (!backup->has_on_target_error) {
+        backup->on_target_error = BLOCKDEV_ON_ERROR_REPORT;
+    }
+    if (!backup->has_job_id) {
+        backup->job_id = NULL;
     }
 
-    bs = qmp_get_root_bs(device, errp);
+    bs = qmp_get_root_bs(backup->device, errp);
     if (!bs) {
         return;
     }
@@ -3275,7 +3260,7 @@ void do_blockdev_backup(const char *job_id, const char *device,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    target_bs = bdrv_lookup_bs(target, target, errp);
+    target_bs = bdrv_lookup_bs(backup->target, backup->target, errp);
     if (!target_bs) {
         goto out;
     }
@@ -3291,8 +3276,9 @@ void do_blockdev_backup(const char *job_id, const char *device,
             goto out;
         }
     }
-    backup_start(job_id, bs, target_bs, speed, sync, NULL, on_source_error,
-                 on_target_error, block_job_cb, bs, txn, &local_err);
+    backup_start(backup->job_id, bs, target_bs, backup->speed, backup->sync,
+                 NULL, backup->on_source_error, backup->on_target_error,
+                 block_job_cb, bs, txn, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
     }
@@ -3300,21 +3286,9 @@ out:
     aio_context_release(aio_context);
 }
 
-void qmp_blockdev_backup(bool has_job_id, const char *job_id,
-                         const char *device, const char *target,
-                         enum MirrorSyncMode sync,
-                         bool has_speed, int64_t speed,
-                         bool has_on_source_error,
-                         BlockdevOnError on_source_error,
-                         bool has_on_target_error,
-                         BlockdevOnError on_target_error,
-                         Error **errp)
+void qmp_blockdev_backup(BlockdevBackup *arg, Error **errp)
 {
-    do_blockdev_backup(has_job_id ? job_id : NULL, device, target,
-                       sync, has_speed, speed,
-                       has_on_source_error, on_source_error,
-                       has_on_target_error, on_target_error,
-                       NULL, errp);
+    do_blockdev_backup(arg, NULL, errp);
 }
 
 /* Parameter check and block job starting for drive mirroring.
