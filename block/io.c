@@ -1868,9 +1868,10 @@ int bdrv_is_allocated_above(BlockDriverState *top,
     return 0;
 }
 
-int bdrv_pwrite_compressed(BlockDriverState *bs, int64_t offset,
+int bdrv_pwrite_compressed(BdrvChild *child, int64_t offset,
                            const void *buf, int bytes)
 {
+    BlockDriverState *bs = child->bs;
     BlockDriver *drv = bs->drv;
     int ret;
 

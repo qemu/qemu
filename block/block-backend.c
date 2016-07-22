@@ -1493,7 +1493,7 @@ int blk_pwrite_compressed(BlockBackend *blk, int64_t offset, const void *buf,
         return ret;
     }
 
-    return bdrv_pwrite_compressed(blk_bs(blk), offset, buf, count);
+    return bdrv_pwrite_compressed(blk->root, offset, buf, count);
 }
 
 int blk_truncate(BlockBackend *blk, int64_t offset)
