@@ -1688,9 +1688,9 @@
 # Drivers that are supported in block device operations.
 #
 # @host_device, @host_cdrom: Since 2.1
+# @gluster: Since 2.7
 #
 # Since: 2.0
-# @gluster: Since 2.7
 ##
 { 'enum': 'BlockdevDriver',
   'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop',
@@ -2134,7 +2134,7 @@
 #
 # @path:        absolute path to image file in gluster volume
 #
-# @server:      gluster server description
+# @server:      gluster servers description
 #
 # @debug-level: #optional libgfapi log level (default '4' which is Error)
 #
@@ -2144,7 +2144,7 @@
   'data': { 'volume': 'str',
             'path': 'str',
             'server': ['GlusterServer'],
-            '*debug_level': 'int' } }
+            '*debug-level': 'int' } }
 
 ##
 # @BlockdevOptions
