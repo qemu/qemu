@@ -1645,56 +1645,11 @@ vmdk_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     return ret;
 }
 
-typedef struct VmdkWriteCompressedCo {
-    BlockDriverState *bs;
-    int64_t sector_num;
-    const uint8_t *buf;
-    int nb_sectors;
-    int ret;
-} VmdkWriteCompressedCo;
-
-static void vmdk_co_write_compressed(void *opaque)
+static int coroutine_fn
+vmdk_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
+                           uint64_t bytes, QEMUIOVector *qiov)
 {
-    VmdkWriteCompressedCo *co = opaque;
-    QEMUIOVector local_qiov;
-    uint64_t offset = co->sector_num * BDRV_SECTOR_SIZE;
-    uint64_t bytes = co->nb_sectors * BDRV_SECTOR_SIZE;
-
-    struct iovec iov = (struct iovec) {
-        .iov_base   = (uint8_t*) co->buf,
-        .iov_len    = bytes,
-    };
-    qemu_iovec_init_external(&local_qiov, &iov, 1);
-
-    co->ret = vmdk_pwritev(co->bs, offset, bytes, &local_qiov, false, false);
-}
-
-static int vmdk_write_compressed(BlockDriverState *bs,
-                                 int64_t sector_num,
-                                 const uint8_t *buf,
-                                 int nb_sectors)
-{
-    BDRVVmdkState *s = bs->opaque;
-
-    if (s->num_extents == 1 && s->extents[0].compressed) {
-        Coroutine *co;
-        AioContext *aio_context = bdrv_get_aio_context(bs);
-        VmdkWriteCompressedCo data = {
-            .bs         = bs,
-            .sector_num = sector_num,
-            .buf        = buf,
-            .nb_sectors = nb_sectors,
-            .ret        = -EINPROGRESS,
-        };
-        co = qemu_coroutine_create(vmdk_co_write_compressed, &data);
-        qemu_coroutine_enter(co);
-        while (data.ret == -EINPROGRESS) {
-            aio_poll(aio_context, true);
-        }
-        return data.ret;
-    } else {
-        return -ENOTSUP;
-    }
+    return vmdk_co_pwritev(bs, offset, bytes, qiov, 0);
 }
 
 static int coroutine_fn vmdk_co_pwrite_zeroes(BlockDriverState *bs,
@@ -2393,7 +2348,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_reopen_prepare          = vmdk_reopen_prepare,
     .bdrv_co_preadv               = vmdk_co_preadv,
     .bdrv_co_pwritev              = vmdk_co_pwritev,
-    .bdrv_write_compressed        = vmdk_write_compressed,
+    .bdrv_co_pwritev_compressed   = vmdk_co_pwritev_compressed,
     .bdrv_co_pwrite_zeroes        = vmdk_co_pwrite_zeroes,
     .bdrv_close                   = vmdk_close,
     .bdrv_create                  = vmdk_create,
