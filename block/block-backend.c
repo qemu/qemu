@@ -1488,12 +1488,8 @@ int coroutine_fn blk_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
 int blk_pwrite_compressed(BlockBackend *blk, int64_t offset, const void *buf,
                           int count)
 {
-    int ret = blk_check_byte_request(blk, offset, count);
-    if (ret < 0) {
-        return ret;
-    }
-
-    return bdrv_pwrite_compressed(blk->root, offset, buf, count);
+    return blk_prw(blk, offset, (void *) buf, count, blk_write_entry,
+                   BDRV_REQ_WRITE_COMPRESSED);
 }
 
 int blk_truncate(BlockBackend *blk, int64_t offset)

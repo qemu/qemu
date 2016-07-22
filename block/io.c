@@ -1887,37 +1887,6 @@ int bdrv_is_allocated_above(BlockDriverState *top,
     return 0;
 }
 
-int bdrv_pwrite_compressed(BdrvChild *child, int64_t offset,
-                           const void *buf, int bytes)
-{
-    BlockDriverState *bs = child->bs;
-    BlockDriver *drv = bs->drv;
-    QEMUIOVector qiov;
-    struct iovec iov;
-
-    if (!drv) {
-        return -ENOMEDIUM;
-    }
-    if (drv->bdrv_write_compressed) {
-        int ret = bdrv_check_byte_request(bs, offset, bytes);
-        if (ret < 0) {
-            return ret;
-        }
-        assert(QLIST_EMPTY(&bs->dirty_bitmaps));
-        assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
-        assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
-        return drv->bdrv_write_compressed(bs, offset >> BDRV_SECTOR_BITS, buf,
-                                          bytes >> BDRV_SECTOR_BITS);
-    }
-    iov = (struct iovec) {
-        .iov_base = (void *)buf,
-        .iov_len = bytes,
-    };
-    qemu_iovec_init_external(&qiov, &iov, 1);
-
-    return bdrv_prwv_co(child, offset, &qiov, true, BDRV_REQ_WRITE_COMPRESSED);
-}
-
 typedef struct BdrvVmstateCo {
     BlockDriverState    *bs;
     QEMUIOVector        *qiov;

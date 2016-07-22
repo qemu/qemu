@@ -204,9 +204,6 @@ struct BlockDriver {
     bool has_variable_length;
     int64_t (*bdrv_get_allocated_file_size)(BlockDriverState *bs);
 
-    int (*bdrv_write_compressed)(BlockDriverState *bs, int64_t sector_num,
-                                 const uint8_t *buf, int nb_sectors);
-
     int coroutine_fn (*bdrv_co_pwritev_compressed)(BlockDriverState *bs,
         uint64_t offset, uint64_t bytes, QEMUIOVector *qiov);
 
