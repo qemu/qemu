@@ -7176,7 +7176,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_regs[R_ECX]);
             gen_helper_xsetbv(cpu_env, cpu_tmp2_i32, cpu_tmp1_i64);
             /* End TB because translation flags may change.  */
-            gen_jmp_im(s->pc - pc_start);
+            gen_jmp_im(s->pc - s->cs_base);
             gen_eob(s);
             break;
 
