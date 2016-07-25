@@ -885,6 +885,8 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
     HotplugHandler *hotplug_ctrl;
     BusState *bus;
     Error *local_err = NULL;
+    bool unattached_parent = false;
+    static int unattached_count;
 
     if (dev->hotplugged && !dc->hotpluggable) {
         error_setg(errp, QERR_DEVICE_NO_HOTPLUG, object_get_typename(obj));
@@ -893,12 +895,12 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
 
     if (value && !dev->realized) {
         if (!obj->parent) {
-            static int unattached_count;
             gchar *name = g_strdup_printf("device[%d]", unattached_count++);
 
             object_property_add_child(container_get(qdev_get_machine(),
                                                     "/unattached"),
                                       name, obj, &error_abort);
+            unattached_parent = true;
             g_free(name);
         }
 
@@ -987,6 +989,10 @@ post_realize_fail:
 
 fail:
     error_propagate(errp, local_err);
+    if (unattached_parent) {
+        object_unparent(OBJECT(dev));
+        unattached_count--;
+    }
 }
 
 static bool device_get_hotpluggable(Object *obj, Error **errp)
