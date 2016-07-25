@@ -642,23 +642,17 @@ void cpu_exec_exit(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-#if defined(CONFIG_USER_ONLY)
     cpu_list_lock();
-#endif
     if (cpu->cpu_index == -1) {
         /* cpu_index was never allocated by this @cpu or was already freed. */
-#if defined(CONFIG_USER_ONLY)
         cpu_list_unlock();
-#endif
         return;
     }
 
     QTAILQ_REMOVE(&cpus, cpu, node);
     cpu_release_index(cpu);
     cpu->cpu_index = -1;
-#if defined(CONFIG_USER_ONLY)
     cpu_list_unlock();
-#endif
 
     if (cc->vmsd != NULL) {
         vmstate_unregister(NULL, cc->vmsd, cpu);
@@ -670,7 +664,7 @@ void cpu_exec_exit(CPUState *cpu)
 
 void cpu_exec_init(CPUState *cpu, Error **errp)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    CPUClass *cc ATTRIBUTE_UNUSED = CPU_GET_CLASS(cpu);
     Error *local_err = NULL;
 
     cpu->as = NULL;
@@ -694,22 +688,17 @@ void cpu_exec_init(CPUState *cpu, Error **errp)
     object_ref(OBJECT(cpu->memory));
 #endif
 
-#if defined(CONFIG_USER_ONLY)
     cpu_list_lock();
-#endif
     cpu->cpu_index = cpu_get_free_index(&local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-#if defined(CONFIG_USER_ONLY)
         cpu_list_unlock();
-#endif
         return;
     }
     QTAILQ_INSERT_TAIL(&cpus, cpu, node);
-#if defined(CONFIG_USER_ONLY)
-    (void) cc;
     cpu_list_unlock();
-#else
+
+#ifndef CONFIG_USER_ONLY
     if (qdev_get_vmsd(DEVICE(cpu)) == NULL) {
         vmstate_register(NULL, cpu->cpu_index, &vmstate_cpu_common, cpu);
     }
