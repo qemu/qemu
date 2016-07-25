@@ -188,7 +188,7 @@ void qdist_bin__internal(struct qdist *to, const struct qdist *from, size_t n)
             }
         }
         /* they're equally spaced, so copy the dist and bail out */
-        to->entries = g_new(struct qdist_entry, from->n);
+        to->entries = g_realloc_n(to->entries, n, sizeof(*to->entries));
         to->n = from->n;
         memcpy(to->entries, from->entries, sizeof(*to->entries) * to->n);
         return;
