@@ -16,7 +16,7 @@
 
 void qdist_init(struct qdist *dist)
 {
-    dist->entries = g_malloc(sizeof(*dist->entries));
+    dist->entries = g_new(struct qdist_entry, 1);
     dist->size = 1;
     dist->n = 0;
 }
@@ -62,8 +62,7 @@ void qdist_add(struct qdist *dist, double x, long count)
 
     if (unlikely(dist->n == dist->size)) {
         dist->size *= 2;
-        dist->entries = g_realloc(dist->entries,
-                                  sizeof(*dist->entries) * (dist->size));
+        dist->entries = g_renew(struct qdist_entry, dist->entries, dist->size);
     }
     dist->n++;
     entry = &dist->entries[dist->n - 1];
@@ -188,7 +187,7 @@ void qdist_bin__internal(struct qdist *to, const struct qdist *from, size_t n)
             }
         }
         /* they're equally spaced, so copy the dist and bail out */
-        to->entries = g_realloc_n(to->entries, n, sizeof(*to->entries));
+        to->entries = g_renew(struct qdist_entry, to->entries, n);
         to->n = from->n;
         memcpy(to->entries, from->entries, sizeof(*to->entries) * to->n);
         return;
