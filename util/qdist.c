@@ -14,6 +14,8 @@
 #define NAN (0.0 / 0.0)
 #endif
 
+#define QDIST_EMPTY_STR "(empty)"
+
 void qdist_init(struct qdist *dist)
 {
     dist->entries = g_new(struct qdist_entry, 1);
@@ -233,7 +235,7 @@ char *qdist_pr_plain(const struct qdist *dist, size_t n)
     char *ret;
 
     if (dist->n == 0) {
-        return NULL;
+        return g_strdup(QDIST_EMPTY_STR);
     }
     qdist_bin__internal(&binned, dist, n);
     ret = qdist_pr_internal(&binned);
@@ -308,7 +310,7 @@ char *qdist_pr(const struct qdist *dist, size_t n_bins, uint32_t opt)
     GString *s;
 
     if (dist->n == 0) {
-        return NULL;
+        return g_strdup(QDIST_EMPTY_STR);
     }
 
     s = g_string_new("");
