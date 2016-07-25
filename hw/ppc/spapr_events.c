@@ -32,6 +32,7 @@
 #include "hw/qdev.h"
 #include "sysemu/device_tree.h"
 
+#include "hw/ppc/fdt.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 #include "hw/pci/pci.h"
@@ -209,16 +210,6 @@ struct hp_log_full {
 #define EVENT_MASK_EPOW                      0x40000000
 #define EVENT_MASK_HOTPLUG                   0x10000000
 #define EVENT_MASK_IO                        0x08000000
-
-#define _FDT(exp) \
-    do { \
-        int ret = (exp);                                           \
-        if (ret < 0) {                                             \
-            fprintf(stderr, "qemu: error creating device tree: %s: %s\n", \
-                    #exp, fdt_strerror(ret));                      \
-            exit(1);                                               \
-        }                                                          \
-    } while (0)
 
 void spapr_events_fdt_skel(void *fdt, uint32_t check_exception_irq)
 {

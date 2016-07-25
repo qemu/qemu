@@ -47,6 +47,7 @@
 #include "hw/ppc/ppc.h"
 #include "hw/loader.h"
 
+#include "hw/ppc/fdt.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 #include "hw/pci-host/spapr.h"
@@ -298,16 +299,6 @@ static hwaddr spapr_node0_size(void)
     }
     return machine->ram_size;
 }
-
-#define _FDT(exp) \
-    do { \
-        int ret = (exp);                                           \
-        if (ret < 0) {                                             \
-            fprintf(stderr, "qemu: error creating device tree: %s: %s\n", \
-                    #exp, fdt_strerror(ret));                      \
-            exit(1);                                               \
-        }                                                          \
-    } while (0)
 
 static void add_str(GString *s, const gchar *s1)
 {
