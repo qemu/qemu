@@ -617,7 +617,7 @@ void cpu_exec_exit(CPUState *cpu)
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
     cpu_list_lock();
-    if (cpu->node.tqe_prev == NULL) {
+    if (!QTAILQ_IN_USE(cpu, node)) {
         /* there is nothing to undo since cpu_exec_init() hasn't been called */
         cpu_list_unlock();
         return;
@@ -626,7 +626,6 @@ void cpu_exec_exit(CPUState *cpu)
     assert(!(cpu_index_auto_assigned && cpu != QTAILQ_LAST(&cpus, CPUTailQ)));
 
     QTAILQ_REMOVE(&cpus, cpu, node);
-    cpu->node.tqe_prev = NULL;
     cpu->cpu_index = UNASSIGNED_CPU_INDEX;
     cpu_list_unlock();
 
