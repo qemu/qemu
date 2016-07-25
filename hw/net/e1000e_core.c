@@ -52,7 +52,7 @@
                                      second according to spec 10.2.4.2 */
 #define E1000E_MAX_TX_FRAGS (64)
 
-static void
+static inline void
 e1000e_set_interrupt_cause(E1000ECore *core, uint32_t val);
 
 static inline void
