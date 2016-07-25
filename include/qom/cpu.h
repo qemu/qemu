@@ -883,4 +883,6 @@ extern const struct VMStateDescription vmstate_cpu_common;
     .offset = 0,                                                            \
 }
 
+#define UNASSIGNED_CPU_INDEX -1
+
 #endif
