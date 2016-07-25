@@ -643,13 +643,14 @@ void cpu_exec_exit(CPUState *cpu)
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
     cpu_list_lock();
-    if (cpu->cpu_index == -1) {
-        /* cpu_index was never allocated by this @cpu or was already freed. */
+    if (cpu->node.tqe_prev == NULL) {
+        /* there is nothing to undo since cpu_exec_init() hasn't been called */
         cpu_list_unlock();
         return;
     }
 
     QTAILQ_REMOVE(&cpus, cpu, node);
+    cpu->node.tqe_prev = NULL;
     cpu_release_index(cpu);
     cpu->cpu_index = -1;
     cpu_list_unlock();
