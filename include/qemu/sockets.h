@@ -33,8 +33,6 @@ int socket_set_fast_reuse(int fd);
 typedef void NonBlockingConnectHandler(int fd, Error *err, void *opaque);
 
 InetSocketAddress *inet_parse(const char *str, Error **errp);
-int inet_listen(const char *str, char *ostr, int olen,
-                int socktype, int port_offset, Error **errp);
 int inet_connect(const char *str, Error **errp);
 
 NetworkAddressFamily inet_netfamily(int family);

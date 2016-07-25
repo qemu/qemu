@@ -624,34 +624,6 @@ fail:
     return NULL;
 }
 
-int inet_listen(const char *str, char *ostr, int olen,
-                int socktype, int port_offset, Error **errp)
-{
-    char *optstr;
-    int sock = -1;
-    InetSocketAddress *addr;
-
-    addr = inet_parse(str, errp);
-    if (addr != NULL) {
-        sock = inet_listen_saddr(addr, port_offset, true, errp);
-        if (sock != -1 && ostr) {
-            optstr = strchr(str, ',');
-            if (addr->ipv6) {
-                snprintf(ostr, olen, "[%s]:%s%s",
-                         addr->host,
-                         addr->port,
-                         optstr ? optstr : "");
-            } else {
-                snprintf(ostr, olen, "%s:%s%s",
-                         addr->host,
-                         addr->port,
-                         optstr ? optstr : "");
-            }
-        }
-        qapi_free_InetSocketAddress(addr);
-    }
-    return sock;
-}
 
 /**
  * Create a blocking socket and connect it to an address.
