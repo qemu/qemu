@@ -1875,6 +1875,7 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
                             DeviceState *dev, Error **errp)
 {
     int idx;
+    CPUState *cs;
     CPUArchId *cpu_slot;
     X86CPUTopoInfo topo;
     X86CPU *cpu = X86_CPU(dev);
@@ -1975,6 +1976,9 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
         return;
     }
     cpu->thread_id = topo.smt_id;
+
+    cs = CPU(cpu);
+    cs->cpu_index = idx;
 }
 
 static void pc_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
