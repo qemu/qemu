@@ -24,7 +24,7 @@ class QEMUMachine(object):
     '''A QEMU VM'''
 
     def __init__(self, binary, args=[], wrapper=[], name=None, test_dir="/var/tmp",
-                 monitor_address=None, debug=False):
+                 monitor_address=None, socket_scm_helper=None, debug=False):
         if name is None:
             name = "qemu-%d" % os.getpid()
         if monitor_address is None:
@@ -33,10 +33,11 @@ class QEMUMachine(object):
         self._qemu_log_path = os.path.join(test_dir, name + ".log")
         self._popen = None
         self._binary = binary
-        self._args = args
+        self._args = list(args) # Force copy args in case we modify them
         self._wrapper = wrapper
         self._events = []
         self._iolog = None
+        self._socket_scm_helper = socket_scm_helper
         self._debug = debug
 
     # This can be used to add an unused monitor instance.
@@ -60,11 +61,13 @@ class QEMUMachine(object):
     def send_fd_scm(self, fd_file_path):
         # In iotest.py, the qmp should always use unix socket.
         assert self._qmp.is_scm_available()
-        bin = socket_scm_helper
-        if os.path.exists(bin) == False:
-            print "Scm help program does not present, path '%s'." % bin
+        if self._socket_scm_helper is None:
+            print >>sys.stderr, "No path to socket_scm_helper set"
             return -1
-        fd_param = ["%s" % bin,
+        if os.path.exists(self._socket_scm_helper) == False:
+            print >>sys.stderr, "%s does not exist" % self._socket_scm_helper
+            return -1
+        fd_param = ["%s" % self._socket_scm_helper,
                     "%d" % self._qmp.get_sock_fd(),
                     "%s" % fd_file_path]
         devnull = open('/dev/null', 'rb')
@@ -183,6 +186,23 @@ class QEMUMachine(object):
         return events
 
     def event_wait(self, name, timeout=60.0, match=None):
+        # Test if 'match' is a recursive subset of 'event'
+        def event_match(event, match=None):
+            if match is None:
+                return True
+
+            for key in match:
+                if key in event:
+                    if isinstance(event[key], dict):
+                        if not event_match(event[key], match[key]):
+                            return False
+                    elif event[key] != match[key]:
+                        return False
+                else:
+                    return False
+
+            return True
+
         # Search cached events
         for event in self._events:
             if (event['event'] == name) and event_match(event, match):

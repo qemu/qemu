@@ -39,7 +39,7 @@ qemu_io_args = [os.environ.get('QEMU_IO_PROG', 'qemu-io')]
 if os.environ.get('QEMU_IO_OPTIONS'):
     qemu_io_args += os.environ['QEMU_IO_OPTIONS'].strip().split(' ')
 
-qemu_prog = [os.environ.get('QEMU_PROG', 'qemu')]
+qemu_prog = os.environ.get('QEMU_PROG', 'qemu')
 qemu_opts = os.environ.get('QEMU_OPTIONS', '').strip().split(' ')
 
 imgfmt = os.environ.get('IMGFMT', 'raw')
@@ -128,28 +128,12 @@ def log(msg, filters=[]):
         msg = flt(msg)
     print msg
 
-# Test if 'match' is a recursive subset of 'event'
-def event_match(event, match=None):
-    if match is None:
-        return True
-
-    for key in match:
-        if key in event:
-            if isinstance(event[key], dict):
-                if not event_match(event[key], match[key]):
-                    return False
-            elif event[key] != match[key]:
-                return False
-        else:
-            return False
-
-    return True
-
-class VM(qtest.QEMUMachine):
+class VM(qtest.QEMUQtestMachine):
     '''A QEMU VM'''
 
     def __init__(self):
-        super(self, VM).__init__(qemu_prog, qemu_opts, test_dir)
+        super(VM, self).__init__(qemu_prog, qemu_opts, test_dir=test_dir,
+                                 socket_scm_helper=socket_scm_helper)
         self._num_drives = 0
 
     def add_drive_raw(self, opts):

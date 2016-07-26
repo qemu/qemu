@@ -85,7 +85,11 @@
 { 'union': 'ImageInfoSpecific',
   'data': {
       'qcow2': 'ImageInfoSpecificQCow2',
-      'vmdk': 'ImageInfoSpecificVmdk'
+      'vmdk': 'ImageInfoSpecificVmdk',
+      # If we need to add block driver specific parameters for
+      # LUKS in future, then we'll subclass QCryptoBlockInfoLUKS
+      # to define a ImageInfoSpecificLUKS
+      'luks': 'QCryptoBlockInfoLUKS'
   } }
 
 ##

@@ -2612,7 +2612,7 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
         return ret;
     }
 
-    out_buf = g_malloc(s->cluster_size + (s->cluster_size / 1000) + 128);
+    out_buf = g_malloc(s->cluster_size);
 
     /* best compression, small window, no zlib header */
     memset(&strm, 0, sizeof(strm));

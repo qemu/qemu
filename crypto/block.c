@@ -105,6 +105,23 @@ QCryptoBlock *qcrypto_block_create(QCryptoBlockCreateOptions *options,
 }
 
 
+QCryptoBlockInfo *qcrypto_block_get_info(QCryptoBlock *block,
+                                         Error **errp)
+{
+    QCryptoBlockInfo *info = g_new0(QCryptoBlockInfo, 1);
+
+    info->format = block->format;
+
+    if (block->driver->get_info &&
+        block->driver->get_info(block, info, errp) < 0) {
+        g_free(info);
+        return NULL;
+    }
+
+    return info;
+}
+
+
 int qcrypto_block_decrypt(QCryptoBlock *block,
                           uint64_t startsector,
                           uint8_t *buf,
