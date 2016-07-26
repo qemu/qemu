@@ -24,6 +24,7 @@ typedef struct VhostUserState {
     VHostNetState *vhost_net;
     guint watch;
     uint64_t acked_features;
+    bool started;
 } VhostUserState;
 
 typedef struct VhostUserChardevProps {
@@ -220,6 +221,7 @@ static void net_vhost_user_event(void *opaque, int event)
             return;
         }
         qmp_set_link(name, true, &err);
+        s->started = true;
         break;
     case CHR_EVENT_CLOSED:
         qmp_set_link(name, false, &err);
@@ -238,7 +240,7 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
                                const char *name, CharDriverState *chr,
                                int queues)
 {
-    NetClientState *nc;
+    NetClientState *nc, *nc0 = NULL;
     VhostUserState *s;
     int i;
 
@@ -247,6 +249,9 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
 
     for (i = 0; i < queues; i++) {
         nc = qemu_new_net_client(&net_vhost_user_info, peer, device, name);
+        if (!nc0) {
+            nc0 = nc;
+        }
 
         snprintf(nc->info_str, sizeof(nc->info_str), "vhost-user%d to %s",
                  i, chr->label);
@@ -257,7 +262,16 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
         s->chr = chr;
     }
 
-    qemu_chr_add_handlers(chr, NULL, NULL, net_vhost_user_event, nc[0].name);
+    s = DO_UPCAST(VhostUserState, nc, nc0);
+    do {
+        Error *err = NULL;
+        if (qemu_chr_wait_connected(chr, &err) < 0) {
+            error_report_err(err);
+            return -1;
+        }
+        qemu_chr_add_handlers(chr, NULL, NULL,
+                              net_vhost_user_event, nc0->name);
+    } while (!s->started);
 
     assert(s->vhost_net);
 
