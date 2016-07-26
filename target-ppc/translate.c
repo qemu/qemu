@@ -817,6 +817,44 @@ static void gen_cmpli(DisasContext *ctx)
     }
 }
 
+/* cmprb - range comparison: isupper, isaplha, islower*/
+static void gen_cmprb(DisasContext *ctx)
+{
+    TCGv_i32 src1 = tcg_temp_new_i32();
+    TCGv_i32 src2 = tcg_temp_new_i32();
+    TCGv_i32 src2lo = tcg_temp_new_i32();
+    TCGv_i32 src2hi = tcg_temp_new_i32();
+    TCGv_i32 crf = cpu_crf[crfD(ctx->opcode)];
+
+    tcg_gen_trunc_tl_i32(src1, cpu_gpr[rA(ctx->opcode)]);
+    tcg_gen_trunc_tl_i32(src2, cpu_gpr[rB(ctx->opcode)]);
+
+    tcg_gen_andi_i32(src1, src1, 0xFF);
+    tcg_gen_ext8u_i32(src2lo, src2);
+    tcg_gen_shri_i32(src2, src2, 8);
+    tcg_gen_ext8u_i32(src2hi, src2);
+
+    tcg_gen_setcond_i32(TCG_COND_LEU, src2lo, src2lo, src1);
+    tcg_gen_setcond_i32(TCG_COND_LEU, src2hi, src1, src2hi);
+    tcg_gen_and_i32(crf, src2lo, src2hi);
+
+    if (ctx->opcode & 0x00200000) {
+        tcg_gen_shri_i32(src2, src2, 8);
+        tcg_gen_ext8u_i32(src2lo, src2);
+        tcg_gen_shri_i32(src2, src2, 8);
+        tcg_gen_ext8u_i32(src2hi, src2);
+        tcg_gen_setcond_i32(TCG_COND_LEU, src2lo, src2lo, src1);
+        tcg_gen_setcond_i32(TCG_COND_LEU, src2hi, src1, src2hi);
+        tcg_gen_and_i32(src2lo, src2lo, src2hi);
+        tcg_gen_or_i32(crf, crf, src2lo);
+    }
+    tcg_gen_shli_i32(crf, crf, CRF_GT);
+    tcg_temp_free_i32(src1);
+    tcg_temp_free_i32(src2);
+    tcg_temp_free_i32(src2lo);
+    tcg_temp_free_i32(src2hi);
+}
+
 /* isel (PowerPC 2.03 specification) */
 static void gen_isel(DisasContext *ctx)
 {
@@ -9897,6 +9935,7 @@ GEN_HANDLER(cmpi, 0x0B, 0xFF, 0xFF, 0x00400000, PPC_INTEGER),
 GEN_HANDLER(cmpl, 0x1F, 0x00, 0x01, 0x00400000, PPC_INTEGER),
 GEN_HANDLER(cmpli, 0x0A, 0xFF, 0xFF, 0x00400000, PPC_INTEGER),
 GEN_HANDLER_E(cmpb, 0x1F, 0x1C, 0x0F, 0x00000001, PPC_NONE, PPC2_ISA205),
+GEN_HANDLER_E(cmprb, 0x1F, 0x00, 0x06, 0x00400001, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(isel, 0x1F, 0x0F, 0xFF, 0x00000001, PPC_ISEL),
 GEN_HANDLER(addi, 0x0E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(addic, 0x0C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
