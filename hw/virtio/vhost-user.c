@@ -187,9 +187,7 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
         return 0;
     }
 
-    if (fd_num) {
-        qemu_chr_fe_set_msgfds(chr, fds, fd_num);
-    }
+    qemu_chr_fe_set_msgfds(chr, fds, fd_num);
 
     return qemu_chr_fe_write_all(chr, (const uint8_t *) msg, size) == size ?
             0 : -1;
