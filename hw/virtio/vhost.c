@@ -362,6 +362,8 @@ static void vhost_log_put(struct vhost_dev *dev, bool sync)
     if (!log) {
         return;
     }
+    dev->log = NULL;
+    dev->log_size = 0;
 
     --log->refcnt;
     if (log->refcnt == 0) {
@@ -710,8 +712,6 @@ static int vhost_migration_log(MemoryListener *listener, int enable)
             return r;
         }
         vhost_log_put(dev, false);
-        dev->log = NULL;
-        dev->log_size = 0;
     } else {
         vhost_dev_log_resize(dev, vhost_get_log_size(dev));
         r = vhost_dev_set_log(dev, true);
@@ -1328,7 +1328,4 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
 
     vhost_log_put(hdev, true);
     hdev->started = false;
-    hdev->log = NULL;
-    hdev->log_size = 0;
 }
-
