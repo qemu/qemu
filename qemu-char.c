@@ -2760,13 +2760,15 @@ static int tcp_set_msgfds(CharDriverState *chr, int *fds, int num)
 {
     TCPCharDriver *s = chr->opaque;
 
-    if (!qio_channel_has_feature(s->ioc,
-                                 QIO_CHANNEL_FEATURE_FD_PASS)) {
-        return -1;
-    }
     /* clear old pending fd array */
     g_free(s->write_msgfds);
     s->write_msgfds = NULL;
+
+    if (!s->connected ||
+        !qio_channel_has_feature(s->ioc,
+                                 QIO_CHANNEL_FEATURE_FD_PASS)) {
+        return -1;
+    }
 
     if (num) {
         s->write_msgfds = g_new(int, num);
