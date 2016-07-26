@@ -3139,6 +3139,15 @@ static gboolean tcp_chr_accept(QIOChannel *channel,
     return TRUE;
 }
 
+int qemu_chr_wait_connected(CharDriverState *chr, Error **errp)
+{
+    if (chr->chr_wait_connected) {
+        return chr->chr_wait_connected(chr, errp);
+    }
+
+    return 0;
+}
+
 static void tcp_chr_close(CharDriverState *chr)
 {
     TCPCharDriver *s = chr->opaque;
