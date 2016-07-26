@@ -1222,6 +1222,52 @@ static void glue(gen_, name)(DisasContext *ctx)                             \
 GEN_INT_ARITH_MODW(moduw, 0x08, 0);
 GEN_INT_ARITH_MODW(modsw, 0x18, 1);
 
+#if defined(TARGET_PPC64)
+static inline void gen_op_arith_modd(DisasContext *ctx, TCGv ret, TCGv arg1,
+                                     TCGv arg2, int sign)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+
+    tcg_gen_mov_i64(t0, arg1);
+    tcg_gen_mov_i64(t1, arg2);
+    if (sign) {
+        TCGv_i64 t2 = tcg_temp_new_i64();
+        TCGv_i64 t3 = tcg_temp_new_i64();
+        tcg_gen_setcondi_i64(TCG_COND_EQ, t2, t0, INT64_MIN);
+        tcg_gen_setcondi_i64(TCG_COND_EQ, t3, t1, -1);
+        tcg_gen_and_i64(t2, t2, t3);
+        tcg_gen_setcondi_i64(TCG_COND_EQ, t3, t1, 0);
+        tcg_gen_or_i64(t2, t2, t3);
+        tcg_gen_movi_i64(t3, 0);
+        tcg_gen_movcond_i64(TCG_COND_NE, t1, t2, t3, t2, t1);
+        tcg_gen_rem_i64(ret, t0, t1);
+        tcg_temp_free_i64(t2);
+        tcg_temp_free_i64(t3);
+    } else {
+        TCGv_i64 t2 = tcg_const_i64(1);
+        TCGv_i64 t3 = tcg_const_i64(0);
+        tcg_gen_movcond_i64(TCG_COND_EQ, t1, t1, t3, t2, t1);
+        tcg_gen_remu_i64(ret, t0, t1);
+        tcg_temp_free_i64(t2);
+        tcg_temp_free_i64(t3);
+    }
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+}
+
+#define GEN_INT_ARITH_MODD(name, opc3, sign)                            \
+static void glue(gen_, name)(DisasContext *ctx)                           \
+{                                                                         \
+  gen_op_arith_modd(ctx, cpu_gpr[rD(ctx->opcode)],                        \
+                    cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],   \
+                    sign);                                                \
+}
+
+GEN_INT_ARITH_MODD(modud, 0x08, 0);
+GEN_INT_ARITH_MODD(modsd, 0x18, 1);
+#endif
+
 /* mulhw  mulhw. */
 static void gen_mulhw(DisasContext *ctx)
 {
@@ -10304,6 +10350,8 @@ GEN_HANDLER_E(divdeu, 0x1F, 0x09, 0x0C, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divdeuo, 0x1F, 0x09, 0x1C, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divde, 0x1F, 0x09, 0x0D, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divdeo, 0x1F, 0x09, 0x1D, 0, PPC_NONE, PPC2_DIVE_ISA206),
+GEN_HANDLER_E(modsd, 0x1F, 0x09, 0x18, 0x00000001, PPC_NONE, PPC2_ISA300),
+GEN_HANDLER_E(modud, 0x1F, 0x09, 0x08, 0x00000001, PPC_NONE, PPC2_ISA300),
 
 #undef GEN_INT_ARITH_MUL_HELPER
 #define GEN_INT_ARITH_MUL_HELPER(name, opc3)                                  \
