@@ -927,10 +927,25 @@ ETEXI
 
 DEF("display", HAS_ARG, QEMU_OPTION_display,
     "-display sdl[,frame=on|off][,alt_grab=on|off][,ctrl_grab=on|off]\n"
-    "            [,window_close=on|off]|curses|none|\n"
-    "            gtk[,grab_on_hover=on|off]|\n"
-    "            vnc=<display>[,<optargs>]\n"
-    "                select display type\n", QEMU_ARCH_ALL)
+    "            [,window_close=on|off][,gl=on|off]|curses|none|\n"
+    "-display gtk[,grab_on_hover=on|off][,gl=on|off]|\n"
+    "-display vnc=<display>[,<optargs>]\n"
+    "-display curses\n"
+    "-display none"
+    "                select display type\n"
+    "The default display is equivalent to\n"
+#if defined(CONFIG_GTK)
+            "\t\"-display gtk\"\n"
+#elif defined(CONFIG_SDL)
+            "\t\"-display sdl\"\n"
+#elif defined(CONFIG_COCOA)
+            "\t\"-display cocoa\"\n"
+#elif defined(CONFIG_VNC)
+            "\t\"-vnc localhost:0,to=99,id=default\"\n"
+#else
+            "\t\"-display none\"\n"
+#endif
+    , QEMU_ARCH_ALL)
 STEXI
 @item -display @var{type}
 @findex -display
@@ -977,7 +992,7 @@ the console and monitor.
 ETEXI
 
 DEF("curses", 0, QEMU_OPTION_curses,
-    "-curses         use a curses/ncurses interface instead of SDL\n",
+    "-curses         shorthand for -display curses\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -curses
@@ -1027,7 +1042,7 @@ Disable SDL window close capability.
 ETEXI
 
 DEF("sdl", 0, QEMU_OPTION_sdl,
-    "-sdl            enable SDL\n", QEMU_ARCH_ALL)
+    "-sdl            shorthand for -display sdl\n", QEMU_ARCH_ALL)
 STEXI
 @item -sdl
 @findex -sdl
@@ -1224,7 +1239,7 @@ Set the initial graphical resolution and depth (PPC, SPARC only).
 ETEXI
 
 DEF("vnc", HAS_ARG, QEMU_OPTION_vnc ,
-    "-vnc display    start a VNC server on display\n", QEMU_ARCH_ALL)
+    "-vnc <display>  shorthand for -display vnc=<display>\n", QEMU_ARCH_ALL)
 STEXI
 @item -vnc @var{display}[,@var{option}[,@var{option}[,...]]]
 @findex -vnc
