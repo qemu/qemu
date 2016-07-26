@@ -1369,3 +1369,13 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
     vhost_log_put(hdev, true);
     hdev->started = false;
 }
+
+int vhost_net_set_backend(struct vhost_dev *hdev,
+                          struct vhost_vring_file *file)
+{
+    if (hdev->vhost_ops->vhost_net_set_backend) {
+        return hdev->vhost_ops->vhost_net_set_backend(hdev, file);
+    }
+
+    return -1;
+}
