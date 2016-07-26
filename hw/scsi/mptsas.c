@@ -1370,7 +1370,7 @@ static const VMStateDescription vmstate_mptsas = {
     .post_load = mptsas_post_load,
     .fields      = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, MPTSASState),
-
+        VMSTATE_UNUSED(sizeof(bool)), /* Was msi_in_use */
         VMSTATE_UINT32(state, MPTSASState),
         VMSTATE_UINT8(who_init, MPTSASState),
         VMSTATE_UINT8(doorbell_state, MPTSASState),
