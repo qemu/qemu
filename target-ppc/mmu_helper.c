@@ -1941,7 +1941,7 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
         break;
     default:
         /* XXX: TODO */
-        cpu_abort(CPU(cpu), "Unknown MMU model\n");
+        cpu_abort(CPU(cpu), "Unknown MMU model %d\n", env->mmu_model);
         break;
     }
 }
