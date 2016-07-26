@@ -432,6 +432,20 @@ static inline uint32_t name(uint32_t opcode)                                  \
     return (((opcode >> (shift1)) & ((1 << (nb1)) - 1)) << nb2) |             \
             ((opcode >> (shift2)) & ((1 << (nb2)) - 1));                      \
 }
+
+#define EXTRACT_HELPER_DXFORM(name,                                           \
+                              d0_bits, shift_op_d0, shift_d0,                 \
+                              d1_bits, shift_op_d1, shift_d1,                 \
+                              d2_bits, shift_op_d2, shift_d2)                 \
+static inline int16_t name(uint32_t opcode)                                   \
+{                                                                             \
+    return                                                                    \
+        (((opcode >> (shift_op_d0)) & ((1 << (d0_bits)) - 1)) << (shift_d0)) | \
+        (((opcode >> (shift_op_d1)) & ((1 << (d1_bits)) - 1)) << (shift_d1)) | \
+        (((opcode >> (shift_op_d2)) & ((1 << (d2_bits)) - 1)) << (shift_d2));  \
+}
+
+
 /* Opcode part 1 */
 EXTRACT_HELPER(opc1, 26, 6);
 /* Opcode part 2 */
@@ -500,6 +514,9 @@ EXTRACT_HELPER(FPIMM, 12, 4);
 EXTRACT_HELPER(FPL, 25, 1);
 EXTRACT_HELPER(FPFLM, 17, 8);
 EXTRACT_HELPER(FPW, 16, 1);
+
+/* addpcis */
+EXTRACT_HELPER_DXFORM(DX, 10, 6, 6, 5, 16, 1, 1, 0, 0)
 
 /***                            Jump target decoding                       ***/
 /* Immediate address */
@@ -982,6 +999,14 @@ static void gen_addis(DisasContext *ctx)
         tcg_gen_addi_tl(cpu_gpr[rD(ctx->opcode)],
                         cpu_gpr[rA(ctx->opcode)], simm << 16);
     }
+}
+
+/* addpcis */
+static void gen_addpcis(DisasContext *ctx)
+{
+    target_long d = DX(ctx->opcode);
+
+    tcg_gen_movi_tl(cpu_gpr[rD(ctx->opcode)], ctx->nip + (d << 16));
 }
 
 static inline void gen_op_arith_divw(DisasContext *ctx, TCGv ret, TCGv arg1,
@@ -9877,6 +9902,7 @@ GEN_HANDLER(addi, 0x0E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(addic, 0x0C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER2(addic_, "addic.", 0x0D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(addis, 0x0F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER_E(addpcis, 0x13, 0x2, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(mulhw, 0x1F, 0x0B, 0x02, 0x00000400, PPC_INTEGER),
 GEN_HANDLER(mulhwu, 0x1F, 0x0B, 0x00, 0x00000400, PPC_INTEGER),
 GEN_HANDLER(mullw, 0x1F, 0x0B, 0x07, 0x00000000, PPC_INTEGER),
