@@ -1015,7 +1015,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type, uint32_t busyloop_timeout)
 {
     uint64_t features;
-    int i, r;
+    int i, r, n_initialized_vqs = 0;
 
     hdev->migration_blocker = NULL;
 
@@ -1044,10 +1044,10 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         goto fail;
     }
 
-    for (i = 0; i < hdev->nvqs; ++i) {
+    for (i = 0; i < hdev->nvqs; ++i, ++n_initialized_vqs) {
         r = vhost_virtqueue_init(hdev, hdev->vqs + i, hdev->vq_index + i);
         if (r < 0) {
-            goto fail_vq;
+            goto fail;
         }
     }
 
@@ -1104,19 +1104,14 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
     return 0;
+
 fail_busyloop:
     while (--i >= 0) {
         vhost_virtqueue_set_busyloop_timeout(hdev, hdev->vq_index + i, 0);
     }
-    i = hdev->nvqs;
-fail_vq:
-    while (--i >= 0) {
-        vhost_virtqueue_cleanup(hdev->vqs + i);
-    }
 fail:
-    r = -errno;
-    hdev->vhost_ops->vhost_backend_cleanup(hdev);
-    QLIST_REMOVE(hdev, entry);
+    hdev->nvqs = n_initialized_vqs;
+    vhost_dev_cleanup(hdev);
     return r;
 }
 
