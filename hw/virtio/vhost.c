@@ -439,11 +439,11 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
         l = vq->ring_size;
         p = cpu_physical_memory_map(vq->ring_phys, &l, 1);
         if (!p || l != vq->ring_size) {
-            fprintf(stderr, "Unable to map ring buffer for ring %d\n", i);
+            error_report("Unable to map ring buffer for ring %d", i);
             r = -ENOMEM;
         }
         if (p != vq->ring) {
-            fprintf(stderr, "Ring buffer relocated for ring %d\n", i);
+            error_report("Ring buffer relocated for ring %d", i);
             r = -EBUSY;
         }
         cpu_physical_memory_unmap(p, l, 0, 0);
@@ -1050,8 +1050,8 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     }
 
     if (used_memslots > hdev->vhost_ops->vhost_backend_memslots_limit(hdev)) {
-        fprintf(stderr, "vhost backend memory slots limit is less"
-                " than current number of present memory slots\n");
+        error_report("vhost backend memory slots limit is less"
+                " than current number of present memory slots");
         r = -1;
         goto fail;
     }
@@ -1174,8 +1174,9 @@ int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     int i, r, e;
+
     if (!k->ioeventfd_started) {
-        fprintf(stderr, "binding does not support host notifiers\n");
+        error_report("binding does not support host notifiers");
         r = -ENOSYS;
         goto fail;
     }
@@ -1184,7 +1185,7 @@ int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
         r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i,
                                          true);
         if (r < 0) {
-            fprintf(stderr, "vhost VQ %d notifier binding failed: %d\n", i, -r);
+            error_report("vhost VQ %d notifier binding failed: %d", i, -r);
             goto fail_vq;
         }
     }
@@ -1195,8 +1196,7 @@ fail_vq:
         e = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i,
                                          false);
         if (e < 0) {
-            fprintf(stderr, "vhost VQ %d notifier cleanup error: %d\n", i, -r);
-            fflush(stderr);
+            error_report("vhost VQ %d notifier cleanup error: %d", i, -r);
         }
         assert (e >= 0);
     }
@@ -1218,8 +1218,7 @@ void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
         r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i,
                                          false);
         if (r < 0) {
-            fprintf(stderr, "vhost VQ %d notifier cleanup failed: %d\n", i, -r);
-            fflush(stderr);
+            error_report("vhost VQ %d notifier cleanup failed: %d", i, -r);
         }
         assert (r >= 0);
     }
