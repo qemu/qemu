@@ -383,13 +383,11 @@ void vhost_net_cleanup(struct vhost_net *net)
 int vhost_net_notify_migration_done(struct vhost_net *net, char* mac_addr)
 {
     const VhostOps *vhost_ops = net->dev.vhost_ops;
-    int r = -1;
 
-    if (vhost_ops->vhost_migration_done) {
-        r = vhost_ops->vhost_migration_done(&net->dev, mac_addr);
-    }
+    assert(vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
+    assert(vhost_ops->vhost_migration_done);
 
-    return r;
+    return vhost_ops->vhost_migration_done(&net->dev, mac_addr);
 }
 
 bool vhost_net_virtqueue_pending(VHostNetState *net, int idx)
