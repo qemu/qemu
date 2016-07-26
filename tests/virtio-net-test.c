@@ -149,6 +149,7 @@ static void rx_stop_cont_test(const QVirtioBus *bus, QVirtioDevice *dev,
     char test[] = "TEST";
     char buffer[64];
     int len = htonl(sizeof(test));
+    QDict *rsp;
     struct iovec iov[] = {
         {
             .iov_base = &len,
@@ -165,7 +166,8 @@ static void rx_stop_cont_test(const QVirtioBus *bus, QVirtioDevice *dev,
     free_head = qvirtqueue_add(vq, req_addr, 64, true, false);
     qvirtqueue_kick(bus, dev, vq, free_head);
 
-    qmp("{ 'execute' : 'stop'}");
+    rsp = qmp("{ 'execute' : 'stop'}");
+    QDECREF(rsp);
 
     ret = iov_send(socket, iov, 2, 0, sizeof(len) + sizeof(test));
     g_assert_cmpint(ret, ==, sizeof(test) + sizeof(len));
@@ -173,8 +175,10 @@ static void rx_stop_cont_test(const QVirtioBus *bus, QVirtioDevice *dev,
     /* We could check the status, but this command is more importantly to
      * ensure the packet data gets queued in QEMU, before we do 'cont'.
      */
-    qmp("{ 'execute' : 'query-status'}");
-    qmp("{ 'execute' : 'cont'}");
+    rsp = qmp("{ 'execute' : 'query-status'}");
+    QDECREF(rsp);
+    rsp = qmp("{ 'execute' : 'cont'}");
+    QDECREF(rsp);
 
     qvirtio_wait_queue_isr(bus, dev, vq, QVIRTIO_NET_TIMEOUT_US);
     memread(req_addr + VNET_HDR_SIZE, buffer, sizeof(test));
@@ -230,8 +234,10 @@ static void pci_basic(gconstpointer data)
     /* End test */
     close(sv[0]);
     qvirtqueue_cleanup(&qvirtio_pci, &tx->vq, alloc);
+    qvirtqueue_cleanup(&qvirtio_pci, &rx->vq, alloc);
     pc_alloc_uninit(alloc);
     qvirtio_pci_device_disable(dev);
+    g_free(dev->pdev);
     g_free(dev);
     qpci_free_pc(bus);
     test_end();
