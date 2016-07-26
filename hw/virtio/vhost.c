@@ -945,8 +945,9 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
     r = dev->vhost_ops->vhost_get_vring_base(dev, &state);
     if (r < 0) {
         VHOST_OPS_DEBUG("vhost VQ %d ring restore failed: %d", idx, r);
+    } else {
+        virtio_queue_set_last_avail_idx(vdev, idx, state.num);
     }
-    virtio_queue_set_last_avail_idx(vdev, idx, state.num);
     virtio_queue_invalidate_signalled_used(vdev, idx);
 
     /* In the cross-endian case, we need to reset the vring endianness to
