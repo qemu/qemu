@@ -1242,6 +1242,9 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
     int r, index = n - hdev->vq_index;
     struct vhost_vring_file file;
 
+    /* should only be called after backend is connected */
+    assert(hdev->vhost_ops);
+
     if (mask) {
         assert(vdev->use_guest_notifier_mask);
         file.fd = event_notifier_get_fd(&hdev->vqs[index].masked_notifier);
@@ -1287,6 +1290,9 @@ void vhost_ack_features(struct vhost_dev *hdev, const int *feature_bits,
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
     int i, r;
+
+    /* should only be called after backend is connected */
+    assert(hdev->vhost_ops);
 
     hdev->started = true;
 
@@ -1349,6 +1355,9 @@ fail_features:
 void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
     int i;
+
+    /* should only be called after backend is connected */
+    assert(hdev->vhost_ops);
 
     for (i = 0; i < hdev->nvqs; ++i) {
         vhost_virtqueue_stop(hdev,
