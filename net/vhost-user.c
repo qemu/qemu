@@ -188,12 +188,8 @@ static gboolean net_vhost_user_watch(GIOChannel *chan, GIOCondition cond,
                                            void *opaque)
 {
     VhostUserState *s = opaque;
-    uint8_t buf[1];
 
-    /* We don't actually want to read anything, but CHR_EVENT_CLOSED will be
-     * raised as a side-effect of the read.
-     */
-    qemu_chr_fe_read_all(s->chr, buf, sizeof(buf));
+    qemu_chr_disconnect(s->chr);
 
     return FALSE;
 }
