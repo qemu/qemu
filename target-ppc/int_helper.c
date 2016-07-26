@@ -151,6 +151,28 @@ target_ulong helper_cnttzw(target_ulong t)
 }
 
 #if defined(TARGET_PPC64)
+/* if x = 0xab, returns 0xababababababababa */
+#define pattern(x) (((x) & 0xff) * (~(target_ulong)0 / 0xff))
+
+/* substract 1 from each byte, and with inverse, check if MSB is set at each
+ * byte.
+ * i.e. ((0x00 - 0x01) & ~(0x00)) & 0x80
+ *      (0xFF & 0xFF) & 0x80 = 0x80 (zero found)
+ */
+#define haszero(v) (((v) - pattern(0x01)) & ~(v) & pattern(0x80))
+
+/* When you XOR the pattern and there is a match, that byte will be zero */
+#define hasvalue(x, n)  (haszero((x) ^ pattern(n)))
+
+uint32_t helper_cmpeqb(target_ulong ra, target_ulong rb)
+{
+    return hasvalue(rb, ra) ? 1 << CRF_GT : 0;
+}
+
+#undef pattern
+#undef haszero
+#undef hasvalue
+
 target_ulong helper_cntlzd(target_ulong t)
 {
     return clz64(t);
