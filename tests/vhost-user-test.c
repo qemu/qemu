@@ -683,6 +683,7 @@ static void test_reconnect(void)
                                   qtest_get_arch());
     g_test_trap_subprocess(path, 0, 0);
     g_test_trap_assert_passed();
+    g_free(path);
 }
 #endif
 
