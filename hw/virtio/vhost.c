@@ -1123,6 +1123,7 @@ fail:
 void vhost_dev_cleanup(struct vhost_dev *hdev)
 {
     int i;
+
     for (i = 0; i < hdev->nvqs; ++i) {
         vhost_virtqueue_cleanup(hdev->vqs + i);
     }
@@ -1137,8 +1138,12 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     }
     g_free(hdev->mem);
     g_free(hdev->mem_sections);
-    hdev->vhost_ops->vhost_backend_cleanup(hdev);
+    if (hdev->vhost_ops) {
+        hdev->vhost_ops->vhost_backend_cleanup(hdev);
+    }
     assert(!hdev->log);
+
+    memset(hdev, 0, sizeof(struct vhost_dev));
 }
 
 /* Stop processing guest IO notifications in qemu.
