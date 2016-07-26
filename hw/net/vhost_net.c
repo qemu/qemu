@@ -313,7 +313,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
          * properly.
          */
         if (net->nc->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
-                dev->use_guest_notifier_mask = false;
+            dev->use_guest_notifier_mask = false;
         }
      }
 
