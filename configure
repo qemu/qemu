@@ -4051,13 +4051,13 @@ fi
 
 if test "$mingw32" = "yes" -a "$guest_agent" != "no" -a "$vss_win32_sdk" != "no" ; then
   case "$vss_win32_sdk" in
-    "")   vss_win32_include="-I$source_path" ;;
+    "")   vss_win32_include="-isystem $source_path" ;;
     *\ *) # The SDK is installed in "Program Files" by default, but we cannot
           # handle path with spaces. So we symlink the headers into ".sdk/vss".
-          vss_win32_include="-I$source_path/.sdk/vss"
+          vss_win32_include="-isystem $source_path/.sdk/vss"
 	  symlink "$vss_win32_sdk/inc" "$source_path/.sdk/vss/inc"
 	  ;;
-    *)    vss_win32_include="-I$vss_win32_sdk"
+    *)    vss_win32_include="-isystem $vss_win32_sdk"
   esac
   cat > $TMPC << EOF
 #define __MIDL_user_allocate_free_DEFINED__
@@ -5994,6 +5994,11 @@ for rom in seabios vgabios ; do
     echo "IASL=$iasl" >> $config_mak
     echo "LD=$ld" >> $config_mak
 done
+
+# set up tests data directory
+if [ ! -e tests/data ]; then
+    symlink "$source_path/tests/data" tests/data
+fi
 
 # set up qemu-iotests in this build directory
 iotests_common_env="tests/qemu-iotests/common.env"
