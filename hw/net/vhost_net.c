@@ -378,7 +378,6 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
 void vhost_net_cleanup(struct vhost_net *net)
 {
     vhost_dev_cleanup(&net->dev);
-    g_free(net);
 }
 
 int vhost_net_notify_migration_done(struct vhost_net *net, char* mac_addr)
