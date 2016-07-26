@@ -232,16 +232,16 @@ target_ulong helper_lscbx(CPUPPCState *env, target_ulong addr, uint32_t reg,
                                                                 \
         if (needs_byteswap(env)) {                              \
             r->element[LO_IDX ? index : (adjust - index)] =     \
-                swap(access(env, addr));                        \
+                swap(access(env, addr, GETPC()));               \
         } else {                                                \
             r->element[LO_IDX ? index : (adjust - index)] =     \
-                access(env, addr);                              \
+                access(env, addr, GETPC());                     \
         }                                                       \
     }
 #define I(x) (x)
-LVE(lvebx, cpu_ldub_data, I, u8)
-LVE(lvehx, cpu_lduw_data, bswap16, u16)
-LVE(lvewx, cpu_ldl_data, bswap32, u32)
+LVE(lvebx, cpu_ldub_data_ra, I, u8)
+LVE(lvehx, cpu_lduw_data_ra, bswap16, u16)
+LVE(lvewx, cpu_ldl_data_ra, bswap32, u32)
 #undef I
 #undef LVE
 
@@ -259,16 +259,17 @@ LVE(lvewx, cpu_ldl_data, bswap32, u32)
                                                                         \
         if (needs_byteswap(env)) {                                      \
             access(env, addr, swap(r->element[LO_IDX ? index :          \
-                                              (adjust - index)]));      \
+                                              (adjust - index)]),       \
+                        GETPC());                                       \
         } else {                                                        \
             access(env, addr, r->element[LO_IDX ? index :               \
-                                         (adjust - index)]);            \
+                                         (adjust - index)], GETPC());   \
         }                                                               \
     }
 #define I(x) (x)
-STVE(stvebx, cpu_stb_data, I, u8)
-STVE(stvehx, cpu_stw_data, bswap16, u16)
-STVE(stvewx, cpu_stl_data, bswap32, u32)
+STVE(stvebx, cpu_stb_data_ra, I, u8)
+STVE(stvehx, cpu_stw_data_ra, bswap16, u16)
+STVE(stvewx, cpu_stl_data_ra, bswap32, u32)
 #undef I
 #undef LVE
 
