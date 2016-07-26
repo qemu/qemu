@@ -150,6 +150,11 @@ target_ulong helper_cntlzd(target_ulong t)
 {
     return clz64(t);
 }
+
+target_ulong helper_cnttzd(target_ulong t)
+{
+    return ctz64(t);
+}
 #endif
 
 #if defined(TARGET_PPC64)
