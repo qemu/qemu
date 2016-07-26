@@ -668,6 +668,7 @@ static int vhost_virtqueue_set_addr(struct vhost_dev *dev,
     };
     int r = dev->vhost_ops->vhost_set_vring_addr(dev, &addr);
     if (r < 0) {
+        VHOST_OPS_DEBUG("vhost_set_vring_addr failed");
         return -errno;
     }
     return 0;
@@ -681,6 +682,9 @@ static int vhost_dev_set_features(struct vhost_dev *dev, bool enable_log)
         features |= 0x1ULL << VHOST_F_LOG_ALL;
     }
     r = dev->vhost_ops->vhost_set_features(dev, features);
+    if (r < 0) {
+        VHOST_OPS_DEBUG("vhost_set_features failed");
+    }
     return r < 0 ? -errno : 0;
 }
 
@@ -804,6 +808,7 @@ static int vhost_virtqueue_set_vring_endian_legacy(struct vhost_dev *dev,
         return 0;
     }
 
+    VHOST_OPS_DEBUG("vhost_set_vring_endian failed");
     if (errno == ENOTTY) {
         error_report("vhost does not support cross-endian");
         return -ENOSYS;
@@ -832,12 +837,14 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
     vq->num = state.num = virtio_queue_get_num(vdev, idx);
     r = dev->vhost_ops->vhost_set_vring_num(dev, &state);
     if (r) {
+        VHOST_OPS_DEBUG("vhost_set_vring_num failed");
         return -errno;
     }
 
     state.num = virtio_queue_get_last_avail_idx(vdev, idx);
     r = dev->vhost_ops->vhost_set_vring_base(dev, &state);
     if (r) {
+        VHOST_OPS_DEBUG("vhost_set_vring_base failed");
         return -errno;
     }
 
@@ -889,6 +896,7 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
     file.fd = event_notifier_get_fd(virtio_queue_get_host_notifier(vvq));
     r = dev->vhost_ops->vhost_set_vring_kick(dev, &file);
     if (r) {
+        VHOST_OPS_DEBUG("vhost_set_vring_kick failed");
         r = -errno;
         goto fail_kick;
     }
@@ -936,8 +944,7 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
 
     r = dev->vhost_ops->vhost_get_vring_base(dev, &state);
     if (r < 0) {
-        fprintf(stderr, "vhost VQ %d ring restore failed: %d\n", idx, r);
-        fflush(stderr);
+        VHOST_OPS_DEBUG("vhost VQ %d ring restore failed: %d", idx, r);
     }
     virtio_queue_set_last_avail_idx(vdev, idx, state.num);
     virtio_queue_invalidate_signalled_used(vdev, idx);
@@ -989,6 +996,7 @@ static int vhost_virtqueue_set_busyloop_timeout(struct vhost_dev *dev,
 
     r = dev->vhost_ops->vhost_set_vring_busyloop_timeout(dev, &state);
     if (r) {
+        VHOST_OPS_DEBUG("vhost_set_vring_busyloop_timeout failed");
         return r;
     }
 
@@ -1010,6 +1018,7 @@ static int vhost_virtqueue_init(struct vhost_dev *dev,
     file.fd = event_notifier_get_fd(&vq->masked_notifier);
     r = dev->vhost_ops->vhost_set_vring_call(dev, &file);
     if (r) {
+        VHOST_OPS_DEBUG("vhost_set_vring_call failed");
         r = -errno;
         goto fail_call;
     }
@@ -1049,11 +1058,13 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
 
     r = hdev->vhost_ops->vhost_set_owner(hdev);
     if (r < 0) {
+        VHOST_OPS_DEBUG("vhost_set_owner failed");
         goto fail;
     }
 
     r = hdev->vhost_ops->vhost_get_features(hdev, &features);
     if (r < 0) {
+        VHOST_OPS_DEBUG("vhost_get_features failed");
         goto fail;
     }
 
@@ -1286,6 +1297,7 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
     }
     r = hdev->vhost_ops->vhost_set_mem_table(hdev, hdev->mem);
     if (r < 0) {
+        VHOST_OPS_DEBUG("vhost_set_mem_table failed");
         r = -errno;
         goto fail_mem;
     }
@@ -1310,6 +1322,7 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
                                                 hdev->log_size ? log_base : 0,
                                                 hdev->log);
         if (r < 0) {
+            VHOST_OPS_DEBUG("vhost_set_log_base failed");
             r = -errno;
             goto fail_log;
         }
