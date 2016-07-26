@@ -140,7 +140,7 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
 {
     int r;
     bool backend_kernel = options->backend_type == VHOST_BACKEND_TYPE_KERNEL;
-    struct vhost_net *net = g_malloc(sizeof *net);
+    struct vhost_net *net = g_new0(struct vhost_net, 1);
     uint64_t features = 0;
 
     if (!options->net_backend) {
@@ -185,7 +185,6 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
             fprintf(stderr, "vhost lacks feature mask %" PRIu64
                    " for backend\n",
                    (uint64_t)(~net->dev.features & net->dev.backend_features));
-            vhost_dev_cleanup(&net->dev);
             goto fail;
         }
     }
@@ -197,7 +196,6 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
             fprintf(stderr, "vhost lacks feature mask %" PRIu64
                     " for backend\n",
                     (uint64_t)(~net->dev.features & features));
-            vhost_dev_cleanup(&net->dev);
             goto fail;
         }
     }
@@ -205,7 +203,9 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     vhost_net_ack_features(net, features);
 
     return net;
+
 fail:
+    vhost_dev_cleanup(&net->dev);
     g_free(net);
     return NULL;
 }
