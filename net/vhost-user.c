@@ -316,7 +316,6 @@ static int net_vhost_check_net(void *opaque, QemuOpts *opts, Error **errp)
 {
     const char *name = opaque;
     const char *driver, *netdev;
-    const char virtio_name[] = "virtio-net-";
 
     driver = qemu_opt_get(opts, "driver");
     netdev = qemu_opt_get(opts, "netdev");
@@ -326,7 +325,7 @@ static int net_vhost_check_net(void *opaque, QemuOpts *opts, Error **errp)
     }
 
     if (strcmp(netdev, name) == 0 &&
-        strncmp(driver, virtio_name, strlen(virtio_name)) != 0) {
+        !g_str_has_prefix(driver, "virtio-net-")) {
         error_setg(errp, "vhost-user requires frontend driver virtio-net-*");
         return -1;
     }
