@@ -3139,6 +3139,32 @@ static gboolean tcp_chr_accept(QIOChannel *channel,
     return TRUE;
 }
 
+static int tcp_chr_wait_connected(CharDriverState *chr, Error **errp)
+{
+    TCPCharDriver *s = chr->opaque;
+    QIOChannelSocket *sioc;
+
+    while (!s->connected) {
+        if (s->is_listen) {
+            fprintf(stderr, "QEMU waiting for connection on: %s\n",
+                    chr->filename);
+            qio_channel_set_blocking(QIO_CHANNEL(s->listen_ioc), true, NULL);
+            tcp_chr_accept(QIO_CHANNEL(s->listen_ioc), G_IO_IN, chr);
+            qio_channel_set_blocking(QIO_CHANNEL(s->listen_ioc), false, NULL);
+        } else {
+            sioc = qio_channel_socket_new();
+            if (qio_channel_socket_connect_sync(sioc, s->addr, errp) < 0) {
+                object_unref(OBJECT(sioc));
+                return -1;
+            }
+            tcp_chr_new_client(chr, sioc);
+            object_unref(OBJECT(sioc));
+        }
+    }
+
+    return 0;
+}
+
 int qemu_chr_wait_connected(CharDriverState *chr, Error **errp)
 {
     if (chr->chr_wait_connected) {
@@ -4402,6 +4428,7 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
     s->addr = QAPI_CLONE(SocketAddress, sock->addr);
 
     chr->opaque = s;
+    chr->chr_wait_connected = tcp_chr_wait_connected;
     chr->chr_write = tcp_chr_write;
     chr->chr_sync_read = tcp_chr_sync_read;
     chr->chr_close = tcp_chr_close;
@@ -4425,32 +4452,30 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
         s->reconnect_time = reconnect;
     }
 
-    sioc = qio_channel_socket_new();
     if (s->reconnect_time) {
+        sioc = qio_channel_socket_new();
         qio_channel_socket_connect_async(sioc, s->addr,
                                          qemu_chr_socket_connected,
                                          chr, NULL);
-    } else if (s->is_listen) {
-        if (qio_channel_socket_listen_sync(sioc, s->addr, errp) < 0) {
-            goto error;
-        }
-        s->listen_ioc = sioc;
-        if (is_waitconnect) {
-            fprintf(stderr, "QEMU waiting for connection on: %s\n",
-                    chr->filename);
-            tcp_chr_accept(QIO_CHANNEL(s->listen_ioc), G_IO_IN, chr);
-        }
-        qio_channel_set_blocking(QIO_CHANNEL(s->listen_ioc), false, NULL);
-        if (!s->ioc) {
-            s->listen_tag = qio_channel_add_watch(
-                QIO_CHANNEL(s->listen_ioc), G_IO_IN, tcp_chr_accept, chr, NULL);
-        }
     } else {
-        if (qio_channel_socket_connect_sync(sioc, s->addr, errp) < 0) {
+        if (s->is_listen) {
+            sioc = qio_channel_socket_new();
+            if (qio_channel_socket_listen_sync(sioc, s->addr, errp) < 0) {
+                goto error;
+            }
+            s->listen_ioc = sioc;
+            if (is_waitconnect &&
+                qemu_chr_wait_connected(chr, errp) < 0) {
+                goto error;
+            }
+            if (!s->ioc) {
+                s->listen_tag = qio_channel_add_watch(
+                    QIO_CHANNEL(s->listen_ioc), G_IO_IN,
+                    tcp_chr_accept, chr, NULL);
+            }
+        } else if (qemu_chr_wait_connected(chr, errp) < 0) {
             goto error;
         }
-        tcp_chr_new_client(chr, sioc);
-        object_unref(OBJECT(sioc));
     }
 
     return chr;
