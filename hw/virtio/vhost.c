@@ -1033,7 +1033,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         r = -1;
         goto fail;
     }
-    QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
 
     r = hdev->vhost_ops->vhost_set_owner(hdev);
     if (r < 0) {
@@ -1103,6 +1102,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->started = false;
     hdev->memory_changed = false;
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
+    QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
     return 0;
 fail_busyloop:
     while (--i >= 0) {
@@ -1126,7 +1126,11 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     for (i = 0; i < hdev->nvqs; ++i) {
         vhost_virtqueue_cleanup(hdev->vqs + i);
     }
-    memory_listener_unregister(&hdev->memory_listener);
+    if (hdev->mem) {
+        /* those are only safe after successful init */
+        memory_listener_unregister(&hdev->memory_listener);
+        QLIST_REMOVE(hdev, entry);
+    }
     if (hdev->migration_blocker) {
         migrate_del_blocker(hdev->migration_blocker);
         error_free(hdev->migration_blocker);
@@ -1135,7 +1139,6 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     g_free(hdev->mem_sections);
     hdev->vhost_ops->vhost_backend_cleanup(hdev);
     assert(!hdev->log);
-    QLIST_REMOVE(hdev, entry);
 }
 
 /* Stop processing guest IO notifications in qemu.
