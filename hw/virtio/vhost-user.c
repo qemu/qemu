@@ -176,7 +176,7 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
                             int *fds, int fd_num)
 {
     CharDriverState *chr = dev->opaque;
-    int size = VHOST_USER_HDR_SIZE + msg->size;
+    int ret, size = VHOST_USER_HDR_SIZE + msg->size;
 
     /*
      * For non-vring specific requests, like VHOST_USER_SET_MEM_TABLE,
@@ -188,11 +188,18 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
     }
 
     if (qemu_chr_fe_set_msgfds(chr, fds, fd_num) < 0) {
+        error_report("Failed to set msg fds.");
         return -1;
     }
 
-    return qemu_chr_fe_write_all(chr, (const uint8_t *) msg, size) == size ?
-            0 : -1;
+    ret = qemu_chr_fe_write_all(chr, (const uint8_t *) msg, size);
+    if (ret != size) {
+        error_report("Failed to write msg."
+                     " Wrote %d instead of %d.", ret, size);
+        return -1;
+    }
+
+    return 0;
 }
 
 static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
