@@ -1512,7 +1512,6 @@ static int htab_save_complete(QEMUFile *f, void *opaque)
         if (rc < 0) {
             return rc;
         }
-        close_htab_fd(spapr);
     } else {
         if (spapr->htab_first_pass) {
             htab_save_first_pass(f, spapr, -1);
@@ -1614,10 +1613,18 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+static void htab_cleanup(void *opaque)
+{
+    sPAPRMachineState *spapr = opaque;
+
+    close_htab_fd(spapr);
+}
+
 static SaveVMHandlers savevm_htab_handlers = {
     .save_live_setup = htab_save_setup,
     .save_live_iterate = htab_save_iterate,
     .save_live_complete_precopy = htab_save_complete,
+    .cleanup = htab_cleanup,
     .load_state = htab_load,
 };
 
@@ -1808,10 +1815,11 @@ static void ppc_spapr_init(MachineState *machine)
 
         spapr->cores = g_new0(Object *, spapr_max_cores);
         for (i = 0; i < spapr_max_cores; i++) {
-            int core_dt_id = i * smt;
+            int core_id = i * smp_threads;
             sPAPRDRConnector *drc =
                 spapr_dr_connector_new(OBJECT(spapr),
-                                       SPAPR_DR_CONNECTOR_TYPE_CPU, core_dt_id);
+                                       SPAPR_DR_CONNECTOR_TYPE_CPU,
+                                       (core_id / smp_threads) * smt);
 
             qemu_register_reset(spapr_drc_reset, drc);
 
@@ -1827,7 +1835,7 @@ static void ppc_spapr_init(MachineState *machine)
                 core  = object_new(type);
                 object_property_set_int(core, smp_threads, "nr-threads",
                                         &error_fatal);
-                object_property_set_int(core, core_dt_id, CPU_CORE_PROP_CORE_ID,
+                object_property_set_int(core, core_id, CPU_CORE_PROP_CORE_ID,
                                         &error_fatal);
                 object_property_set_bool(core, true, "realized", &error_fatal);
             }
@@ -2369,7 +2377,6 @@ static HotpluggableCPUList *spapr_query_hotpluggable_cpus(MachineState *machine)
     HotpluggableCPUList *head = NULL;
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
     int spapr_max_cores = max_cpus / smp_threads;
-    int smt = kvmppc_smt_threads();
 
     for (i = 0; i < spapr_max_cores; i++) {
         HotpluggableCPUList *list_item = g_new0(typeof(*list_item), 1);
@@ -2379,7 +2386,7 @@ static HotpluggableCPUList *spapr_query_hotpluggable_cpus(MachineState *machine)
         cpu_item->type = spapr_get_cpu_core_type(machine->cpu_model);
         cpu_item->vcpus_count = smp_threads;
         cpu_props->has_core_id = true;
-        cpu_props->core_id = i * smt;
+        cpu_props->core_id = i * smp_threads;
         /* TODO: add 'has_node/node' here to describe
            to which node core belongs */
 
