@@ -38,6 +38,7 @@ DEF_HELPER_4(divweu, tl, env, tl, tl, i32)
 DEF_HELPER_4(divwe, tl, env, tl, tl, i32)
 
 DEF_HELPER_FLAGS_1(cntlzw, TCG_CALL_NO_RWG_SE, tl, tl)
+DEF_HELPER_FLAGS_1(cnttzw, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_1(popcntb, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_1(popcntw, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_2(cmpb, TCG_CALL_NO_RWG_SE, tl, tl, tl)
