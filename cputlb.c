@@ -543,10 +543,8 @@ static bool victim_tlb_hit(CPUArchState *env, size_t mmu_idx, size_t index,
 #undef MMUSUFFIX
 
 #define MMUSUFFIX _cmmu
-#undef GETPC_ADJ
-#define GETPC_ADJ 0
-#undef GETRA
-#define GETRA() ((uintptr_t)0)
+#undef GETPC
+#define GETPC() ((uintptr_t)0)
 #define SOFTMMU_CODE_ACCESS
 
 #define SHIFT 0

@@ -105,8 +105,11 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
     if (ret == 0) {
         return 1; /* the MMU fault was handled without causing real CPU fault */
     }
-    /* now we have a real cpu fault */
-    cpu_restore_state(cpu, pc);
+
+    /* Now we have a real cpu fault.  Since this is the exact location of
+     * the exception, we must undo the adjustment done by cpu_restore_state
+     * for handling call return addresses.  */
+    cpu_restore_state(cpu, pc + GETPC_ADJ);
 
     sigprocmask(SIG_SETMASK, old_set, NULL);
     cpu_loop_exit(cpu);
