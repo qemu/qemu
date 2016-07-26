@@ -9253,13 +9253,47 @@ static int register_dblind_insn (opc_handler_t **ppc_opcodes,
     return 0;
 }
 
+static int register_trplind_insn(opc_handler_t **ppc_opcodes,
+                                 unsigned char idx1, unsigned char idx2,
+                                 unsigned char idx3, unsigned char idx4,
+                                 opc_handler_t *handler)
+{
+    opc_handler_t **table;
+
+    if (register_ind_in_table(ppc_opcodes, idx1, idx2, NULL) < 0) {
+        printf("*** ERROR: unable to join indirect table idx "
+               "[%02x-%02x]\n", idx1, idx2);
+        return -1;
+    }
+    table = ind_table(ppc_opcodes[idx1]);
+    if (register_ind_in_table(table, idx2, idx3, NULL) < 0) {
+        printf("*** ERROR: unable to join 2nd-level indirect table idx "
+               "[%02x-%02x-%02x]\n", idx1, idx2, idx3);
+        return -1;
+    }
+    table = ind_table(table[idx2]);
+    if (register_ind_in_table(table, idx3, idx4, handler) < 0) {
+        printf("*** ERROR: unable to insert opcode "
+               "[%02x-%02x-%02x-%02x]\n", idx1, idx2, idx3, idx4);
+        return -1;
+    }
+    return 0;
+}
 static int register_insn (opc_handler_t **ppc_opcodes, opcode_t *insn)
 {
     if (insn->opc2 != 0xFF) {
         if (insn->opc3 != 0xFF) {
-            if (register_dblind_insn(ppc_opcodes, insn->opc1, insn->opc2,
-                                     insn->opc3, &insn->handler) < 0)
-                return -1;
+            if (insn->opc4 != 0xFF) {
+                if (register_trplind_insn(ppc_opcodes, insn->opc1, insn->opc2,
+                                          insn->opc3, insn->opc4,
+                                          &insn->handler) < 0) {
+                    return -1;
+                }
+            } else {
+                if (register_dblind_insn(ppc_opcodes, insn->opc1, insn->opc2,
+                                         insn->opc3, &insn->handler) < 0)
+                    return -1;
+            }
         } else {
             if (register_ind_insn(ppc_opcodes, insn->opc1,
                                   insn->opc2, &insn->handler) < 0)
@@ -9335,7 +9369,7 @@ static void dump_ppc_insns (CPUPPCState *env)
 {
     opc_handler_t **table, *handler;
     const char *p, *q;
-    uint8_t opc1, opc2, opc3;
+    uint8_t opc1, opc2, opc3, opc4;
 
     printf("Instructions set:\n");
     /* opc1 is 6 bits long */
@@ -9355,34 +9389,51 @@ static void dump_ppc_insns (CPUPPCState *env)
                     for (opc3 = 0; opc3 < PPC_CPU_INDIRECT_OPCODES_LEN;
                             opc3++) {
                         handler = table[opc3];
-                        if (handler->handler != &gen_invalid) {
-                            /* Special hack to properly dump SPE insns */
-                            p = strchr(handler->oname, '_');
-                            if (p == NULL) {
-                                printf("INSN: %02x %02x %02x (%02d %04d) : "
-                                       "%s\n",
-                                       opc1, opc2, opc3, opc1,
-                                       (opc3 << 5) | opc2,
-                                       handler->oname);
-                            } else {
-                                q = "speundef";
-                                if ((p - handler->oname) != strlen(q) ||
-                                    memcmp(handler->oname, q, strlen(q)) != 0) {
-                                    /* First instruction */
-                                    printf("INSN: %02x %02x %02x (%02d %04d) : "
-                                           "%.*s\n",
-                                           opc1, opc2 << 1, opc3, opc1,
-                                           (opc3 << 6) | (opc2 << 1),
-                                           (int)(p - handler->oname),
+                        if (is_indirect_opcode(handler)) {
+                            table = ind_table(handler);
+                            /* opc4 is 5 bits long */
+                            for (opc4 = 0; opc4 < PPC_CPU_INDIRECT_OPCODES_LEN;
+                                 opc4++) {
+                                handler = table[opc4];
+                                if (handler->handler != &gen_invalid) {
+                                    printf("INSN: %02x %02x %02x %02x -- "
+                                           "(%02d %04d %02d) : %s\n",
+                                           opc1, opc2, opc3, opc4,
+                                           opc1, (opc3 << 5) | opc2, opc4,
                                            handler->oname);
                                 }
-                                if (strcmp(p + 1, q) != 0) {
-                                    /* Second instruction */
+                            }
+                        } else {
+                            if (handler->handler != &gen_invalid) {
+                                /* Special hack to properly dump SPE insns */
+                                p = strchr(handler->oname, '_');
+                                if (p == NULL) {
                                     printf("INSN: %02x %02x %02x (%02d %04d) : "
                                            "%s\n",
-                                           opc1, (opc2 << 1) | 1, opc3, opc1,
-                                           (opc3 << 6) | (opc2 << 1) | 1,
-                                           p + 1);
+                                           opc1, opc2, opc3, opc1,
+                                           (opc3 << 5) | opc2,
+                                           handler->oname);
+                                } else {
+                                    q = "speundef";
+                                    if ((p - handler->oname) != strlen(q)
+                                        || (memcmp(handler->oname, q, strlen(q))
+                                            != 0)) {
+                                        /* First instruction */
+                                        printf("INSN: %02x %02x %02x"
+                                               "(%02d %04d) : %.*s\n",
+                                               opc1, opc2 << 1, opc3, opc1,
+                                               (opc3 << 6) | (opc2 << 1),
+                                               (int)(p - handler->oname),
+                                               handler->oname);
+                                    }
+                                    if (strcmp(p + 1, q) != 0) {
+                                        /* Second instruction */
+                                        printf("INSN: %02x %02x %02x "
+                                               "(%02d %04d) : %s\n", opc1,
+                                               (opc2 << 1) | 1, opc3, opc1,
+                                               (opc3 << 6) | (opc2 << 1) | 1,
+                                               p + 1);
+                                    }
                                 }
                             }
                         }
@@ -9858,8 +9909,8 @@ static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
 {
     PowerPCCPU *cpu = POWERPC_CPU(dev);
     CPUPPCState *env = &cpu->env;
-    opc_handler_t **table;
-    int i, j;
+    opc_handler_t **table, **table_2;
+    int i, j, k;
 
     cpu_exec_exit(CPU(dev));
 
@@ -9870,10 +9921,20 @@ static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
         if (is_indirect_opcode(env->opcodes[i])) {
             table = ind_table(env->opcodes[i]);
             for (j = 0; j < PPC_CPU_INDIRECT_OPCODES_LEN; j++) {
-                if (table[j] != &invalid_handler &&
-                        is_indirect_opcode(table[j])) {
+                if (table[j] == &invalid_handler) {
+                    continue;
+                }
+                if (is_indirect_opcode(table[j])) {
+                    table_2 = ind_table(table[j]);
+                    for (k = 0; k < PPC_CPU_INDIRECT_OPCODES_LEN; k++) {
+                        if (table_2[k] != &invalid_handler &&
+                            is_indirect_opcode(table_2[k])) {
+                            g_free((opc_handler_t *)((uintptr_t)table_2[k] &
+                                                     ~PPC_INDIRECT));
+                        }
+                    }
                     g_free((opc_handler_t *)((uintptr_t)table[j] &
-                        ~PPC_INDIRECT));
+                                             ~PPC_INDIRECT));
                 }
             }
             g_free((opc_handler_t *)((uintptr_t)env->opcodes[i] &
