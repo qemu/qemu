@@ -17,6 +17,8 @@ struct I2CNode {
     QLIST_ENTRY(I2CNode) next;
 };
 
+#define I2C_BROADCAST 0x00
+
 struct I2CBus
 {
     BusState qbus;
@@ -47,6 +49,8 @@ static void i2c_bus_pre_save(void *opaque)
     if (!QLIST_EMPTY(&bus->current_devs)) {
         if (!bus->broadcast) {
             bus->saved_address = QLIST_FIRST(&bus->current_devs)->elt->address;
+        } else {
+            bus->saved_address = I2C_BROADCAST;
         }
     }
 }
@@ -58,7 +62,6 @@ static const VMStateDescription vmstate_i2c_bus = {
     .pre_save = i2c_bus_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(saved_address, I2CBus),
-        VMSTATE_BOOL(broadcast, I2CBus),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -93,7 +96,7 @@ int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv)
     I2CSlaveClass *sc;
     I2CNode *node;
 
-    if (address == 0x00) {
+    if (address == I2C_BROADCAST) {
         /*
          * This is a broadcast, the current_devs will be all the devices of the
          * bus.
@@ -221,7 +224,8 @@ static int i2c_slave_post_load(void *opaque, int version_id)
     I2CNode *node;
 
     bus = I2C_BUS(qdev_get_parent_bus(DEVICE(dev)));
-    if ((bus->saved_address == dev->address) || (bus->broadcast)) {
+    if ((bus->saved_address == dev->address) ||
+        (bus->saved_address == I2C_BROADCAST)) {
         node = g_malloc(sizeof(struct I2CNode));
         node->elt = dev;
         QLIST_INSERT_HEAD(&bus->current_devs, node, next);
