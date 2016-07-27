@@ -43,6 +43,7 @@
 #define HEADER_MAGIC2 "WithouFreSpacExt"
 #define HEADER_VERSION 2
 #define HEADER_INUSE_MAGIC  (0x746F6E59)
+#define MAX_PARALLELS_IMAGE_FACTOR (1ull << 32)
 
 #define DEFAULT_CLUSTER_SIZE 1048576        /* 1 MiB */
 
@@ -475,6 +476,10 @@ static int parallels_create(const char *filename, QemuOpts *opts, Error **errp)
                           BDRV_SECTOR_SIZE);
     cl_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_CLUSTER_SIZE,
                           DEFAULT_CLUSTER_SIZE), BDRV_SECTOR_SIZE);
+    if (total_size >= MAX_PARALLELS_IMAGE_FACTOR * cl_size) {
+        error_propagate(errp, local_err);
+        return -E2BIG;
+    }
 
     ret = bdrv_create_file(filename, opts, &local_err);
     if (ret < 0) {
