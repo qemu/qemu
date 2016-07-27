@@ -2427,6 +2427,12 @@ static inline void gen_check_align(DisasContext *ctx, TCGv EA, int mask)
     tcg_temp_free(t0);
 }
 
+static inline void gen_align_no_le(DisasContext *ctx)
+{
+    gen_exception_err(ctx, POWERPC_EXCP_ALIGN,
+                      (ctx->opcode & 0x03FF0000) | POWERPC_EXCP_ALIGN_LE);
+}
+
 /***                             Integer load                              ***/
 static inline void gen_qemu_ld8u(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
@@ -2647,10 +2653,9 @@ static void gen_lq(DisasContext *ctx)
     }
 
     if (!le_is_supported && ctx->le_mode) {
-        gen_exception_err(ctx, POWERPC_EXCP_ALIGN, POWERPC_EXCP_ALIGN_LE);
+        gen_align_no_le(ctx);
         return;
     }
-
     ra = rA(ctx->opcode);
     rd = rD(ctx->opcode);
     if (unlikely((rd & 1) || rd == ra)) {
@@ -2781,7 +2786,7 @@ static void gen_std(DisasContext *ctx)
         }
 
         if (!le_is_supported && ctx->le_mode) {
-            gen_exception_err(ctx, POWERPC_EXCP_ALIGN, POWERPC_EXCP_ALIGN_LE);
+            gen_align_no_le(ctx);
             return;
         }
 
