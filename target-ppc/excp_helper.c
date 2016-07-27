@@ -274,12 +274,13 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
                 env->error_code = 0;
                 return;
             }
+
+            /* FP exceptions always have NIP pointing to the faulting
+             * instruction, so always use store_next and claim we are
+             * precise in the MSR.
+             */
             msr |= 0x00100000;
-            if (msr_fe0 == msr_fe1) {
-                goto store_next;
-            }
-            msr |= 0x00010000;
-            break;
+            goto store_next;
         case POWERPC_EXCP_INVAL:
             LOG_EXCP("Invalid instruction at " TARGET_FMT_lx "\n", env->nip);
             msr |= 0x00080000;
