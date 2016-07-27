@@ -4435,6 +4435,41 @@ would look like:
      ...
 @end example
 
+@item -object authz-pam,id=@var{id},service=@var{string}
+
+Create an authorization object that will control access to network services.
+
+The @option{service} parameter provides the name of a PAM service to use
+for authorization. It requires that a file @code{/etc/pam.d/@var{service}}
+exist to provide the configuration for the @code{account} subsystem.
+
+An example authorization object to validate a TLS x509 distinguished
+name would look like:
+
+@example
+ # $QEMU \
+     ...
+     -object authz-pam,id=auth0,service=qemu-vnc
+     ...
+@end example
+
+There would then be a corresponding config file for PAM at
+@code{/etc/pam.d/qemu-vnc} that contains:
+
+@example
+account requisite  pam_listfile.so item=user sense=allow \
+           file=/etc/qemu/vnc.allow
+@end example
+
+Finally the @code{/etc/qemu/vnc.allow} file would contain
+the list of x509 distingished names that are permitted
+access
+
+@example
+CN=laptop.example.com,O=Example Home,L=London,ST=London,C=GB
+@end example
+
+
 @end table
 
 ETEXI

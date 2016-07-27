@@ -13,3 +13,6 @@ qauthz_list_default_policy(void *authz, const char *identity, int policy) "AuthZ
 # auth/listfile.c
 qauthz_list_file_load(void *authz, const char *filename) "AuthZ file %p load filename=%s"
 qauthz_list_file_refresh(void *authz, const char *filename, int success) "AuthZ file %p load filename=%s success=%d"
+
+# auth/pam.c
+qauthz_pam_check(void *authz, const char *identity, const char *service) "AuthZ PAM %p identity=%s service=%s"
