@@ -3575,10 +3575,30 @@ static void gen_sc(DisasContext *ctx)
 
 /***                                Trap                                   ***/
 
+/* Check for unconditional traps (always or never) */
+static bool check_unconditional_trap(DisasContext *ctx)
+{
+    /* Trap never */
+    if (TO(ctx->opcode) == 0) {
+        return true;
+    }
+    /* Trap always */
+    if (TO(ctx->opcode) == 31) {
+        gen_exception_err(ctx, POWERPC_EXCP_PROGRAM, POWERPC_EXCP_TRAP);
+        return true;
+    }
+    return false;
+}
+
 /* tw */
 static void gen_tw(DisasContext *ctx)
 {
-    TCGv_i32 t0 = tcg_const_i32(TO(ctx->opcode));
+    TCGv_i32 t0;
+
+    if (check_unconditional_trap(ctx)) {
+        return;
+    }
+    t0 = tcg_const_i32(TO(ctx->opcode));
     gen_helper_tw(cpu_env, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                   t0);
     tcg_temp_free_i32(t0);
@@ -3587,8 +3607,14 @@ static void gen_tw(DisasContext *ctx)
 /* twi */
 static void gen_twi(DisasContext *ctx)
 {
-    TCGv t0 = tcg_const_tl(SIMM(ctx->opcode));
-    TCGv_i32 t1 = tcg_const_i32(TO(ctx->opcode));
+    TCGv t0;
+    TCGv_i32 t1;
+
+    if (check_unconditional_trap(ctx)) {
+        return;
+    }
+    t0 = tcg_const_tl(SIMM(ctx->opcode));
+    t1 = tcg_const_i32(TO(ctx->opcode));
     gen_helper_tw(cpu_env, cpu_gpr[rA(ctx->opcode)], t0, t1);
     tcg_temp_free(t0);
     tcg_temp_free_i32(t1);
@@ -3598,7 +3624,12 @@ static void gen_twi(DisasContext *ctx)
 /* td */
 static void gen_td(DisasContext *ctx)
 {
-    TCGv_i32 t0 = tcg_const_i32(TO(ctx->opcode));
+    TCGv_i32 t0;
+
+    if (check_unconditional_trap(ctx)) {
+        return;
+    }
+    t0 = tcg_const_i32(TO(ctx->opcode));
     gen_helper_td(cpu_env, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                   t0);
     tcg_temp_free_i32(t0);
@@ -3607,8 +3638,14 @@ static void gen_td(DisasContext *ctx)
 /* tdi */
 static void gen_tdi(DisasContext *ctx)
 {
-    TCGv t0 = tcg_const_tl(SIMM(ctx->opcode));
-    TCGv_i32 t1 = tcg_const_i32(TO(ctx->opcode));
+    TCGv t0;
+    TCGv_i32 t1;
+
+    if (check_unconditional_trap(ctx)) {
+        return;
+    }
+    t0 = tcg_const_tl(SIMM(ctx->opcode));
+    t1 = tcg_const_i32(TO(ctx->opcode));
     gen_helper_td(cpu_env, cpu_gpr[rA(ctx->opcode)], t0, t1);
     tcg_temp_free(t0);
     tcg_temp_free_i32(t1);
