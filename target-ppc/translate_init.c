@@ -7470,7 +7470,6 @@ static void gen_fscr_facility_check(DisasContext *ctx, int facility_sprn,
     TCGv_i32 t2 = tcg_const_i32(sprn);
     TCGv_i32 t3 = tcg_const_i32(cause);
 
-    gen_update_current_nip(ctx);
     gen_helper_fscr_facility_check(cpu_env, t1, t2, t3);
 
     tcg_temp_free_i32(t3);
@@ -7485,7 +7484,6 @@ static void gen_msr_facility_check(DisasContext *ctx, int facility_sprn,
     TCGv_i32 t2 = tcg_const_i32(sprn);
     TCGv_i32 t3 = tcg_const_i32(cause);
 
-    gen_update_current_nip(ctx);
     gen_helper_msr_facility_check(cpu_env, t1, t2, t3);
 
     tcg_temp_free_i32(t3);
