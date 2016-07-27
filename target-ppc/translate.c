@@ -276,8 +276,12 @@ void gen_update_current_nip(void *opaque)
 static void gen_exception_err(DisasContext *ctx, uint32_t excp, uint32_t error)
 {
     TCGv_i32 t0, t1;
+
+    /* These are all synchronous exceptions, we set the PC back to
+     * the faulting instruction
+     */
     if (ctx->exception == POWERPC_EXCP_NONE) {
-        gen_update_nip(ctx, ctx->nip);
+        gen_update_nip(ctx, ctx->nip - 4);
     }
     t0 = tcg_const_i32(excp);
     t1 = tcg_const_i32(error);
@@ -290,9 +294,25 @@ static void gen_exception_err(DisasContext *ctx, uint32_t excp, uint32_t error)
 static void gen_exception(DisasContext *ctx, uint32_t excp)
 {
     TCGv_i32 t0;
+
+    /* These are all synchronous exceptions, we set the PC back to
+     * the faulting instruction
+     */
     if (ctx->exception == POWERPC_EXCP_NONE) {
-        gen_update_nip(ctx, ctx->nip);
+        gen_update_nip(ctx, ctx->nip - 4);
     }
+    t0 = tcg_const_i32(excp);
+    gen_helper_raise_exception(cpu_env, t0);
+    tcg_temp_free_i32(t0);
+    ctx->exception = (excp);
+}
+
+static void gen_exception_nip(DisasContext *ctx, uint32_t excp,
+                              target_ulong nip)
+{
+    TCGv_i32 t0;
+
+    gen_update_nip(ctx, nip);
     t0 = tcg_const_i32(excp);
     gen_helper_raise_exception(cpu_env, t0);
     tcg_temp_free_i32(t0);
@@ -303,9 +323,12 @@ static void gen_debug_exception(DisasContext *ctx)
 {
     TCGv_i32 t0;
 
+    /* These are all synchronous exceptions, we set the PC back to
+     * the faulting instruction
+     */
     if ((ctx->exception != POWERPC_EXCP_BRANCH) &&
         (ctx->exception != POWERPC_EXCP_SYNC)) {
-        gen_update_nip(ctx, ctx->nip);
+        gen_update_nip(ctx, ctx->nip - 4);
     }
     t0 = tcg_const_i32(EXCP_DEBUG);
     gen_helper_raise_exception(cpu_env, t0);
@@ -1643,7 +1666,7 @@ static void gen_pause(DisasContext *ctx)
     tcg_temp_free_i32(t0);
 
     /* Stop translation, this gives other CPUs a chance to run */
-    gen_exception_err(ctx, EXCP_HLT, 1);
+    gen_exception_nip(ctx, EXCP_HLT, ctx->nip);
 }
 #endif /* defined(TARGET_PPC64) */
 
@@ -2912,12 +2935,6 @@ static void gen_lswi(DisasContext *ctx)
         nb = 32;
     nr = (nb + 3) / 4;
     if (unlikely(lsw_reg_in_range(start, nr, ra))) {
-        /* The handler expects the PC to point to *this* instruction,
-         * so setting ctx->exception here prevents it from being
-         * improperly updated again by gen_inval_exception
-         */
-        gen_update_nip(ctx, ctx->nip - 4);
-        ctx->exception = POWERPC_EXCP_HV_EMU;
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_LSWX);
         return;
     }
@@ -3055,16 +3072,12 @@ static void gen_conditional_store(DisasContext *ctx, TCGv EA,
                                   int reg, int size)
 {
     TCGv t0 = tcg_temp_new();
-    uint32_t save_exception = ctx->exception;
 
     tcg_gen_st_tl(EA, cpu_env, offsetof(CPUPPCState, reserve_ea));
     tcg_gen_movi_tl(t0, (size << 5) | reg);
     tcg_gen_st_tl(t0, cpu_env, offsetof(CPUPPCState, reserve_info));
     tcg_temp_free(t0);
-    gen_update_nip(ctx, ctx->nip-4);
-    ctx->exception = POWERPC_EXCP_BRANCH;
-    gen_exception(ctx, POWERPC_EXCP_STCX);
-    ctx->exception = save_exception;
+    gen_exception_err(ctx, POWERPC_EXCP_STCX, 0);
 }
 #else
 static void gen_conditional_store(DisasContext *ctx, TCGv EA,
@@ -3203,7 +3216,7 @@ static void gen_wait(DisasContext *ctx)
                    -offsetof(PowerPCCPU, env) + offsetof(CPUState, halted));
     tcg_temp_free_i32(t0);
     /* Stop translation, as the CPU is supposed to sleep from now */
-    gen_exception_err(ctx, EXCP_HLT, 1);
+    gen_exception_nip(ctx, EXCP_HLT, ctx->nip);
 }
 
 #if defined(TARGET_PPC64)
@@ -3306,10 +3319,7 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
                 (CPU_BRANCH_STEP | CPU_SINGLE_STEP)) &&
                 (ctx->exception == POWERPC_EXCP_BRANCH ||
                  ctx->exception == POWERPC_EXCP_TRACE)) {
-                target_ulong tmp = ctx->nip;
-                ctx->nip = dest;
-                gen_exception(ctx, POWERPC_EXCP_TRACE);
-                ctx->nip = tmp;
+                gen_exception_nip(ctx, POWERPC_EXCP_TRACE, dest);
             }
             if (ctx->singlestep_enabled & GDBSTUB_SINGLE_STEP) {
                 gen_debug_exception(ctx);
@@ -3578,7 +3588,7 @@ static void gen_tw(DisasContext *ctx)
 {
     TCGv_i32 t0 = tcg_const_i32(TO(ctx->opcode));
     /* Update the nip since this might generate a trap exception */
-    gen_update_nip(ctx, ctx->nip);
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_tw(cpu_env, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                   t0);
     tcg_temp_free_i32(t0);
@@ -3590,7 +3600,7 @@ static void gen_twi(DisasContext *ctx)
     TCGv t0 = tcg_const_tl(SIMM(ctx->opcode));
     TCGv_i32 t1 = tcg_const_i32(TO(ctx->opcode));
     /* Update the nip since this might generate a trap exception */
-    gen_update_nip(ctx, ctx->nip);
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_tw(cpu_env, cpu_gpr[rA(ctx->opcode)], t0, t1);
     tcg_temp_free(t0);
     tcg_temp_free_i32(t1);
@@ -3602,7 +3612,7 @@ static void gen_td(DisasContext *ctx)
 {
     TCGv_i32 t0 = tcg_const_i32(TO(ctx->opcode));
     /* Update the nip since this might generate a trap exception */
-    gen_update_nip(ctx, ctx->nip);
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_td(cpu_env, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                   t0);
     tcg_temp_free_i32(t0);
@@ -3614,7 +3624,7 @@ static void gen_tdi(DisasContext *ctx)
     TCGv t0 = tcg_const_tl(SIMM(ctx->opcode));
     TCGv_i32 t1 = tcg_const_i32(TO(ctx->opcode));
     /* Update the nip since this might generate a trap exception */
-    gen_update_nip(ctx, ctx->nip);
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_td(cpu_env, cpu_gpr[rA(ctx->opcode)], t0, t1);
     tcg_temp_free(t0);
     tcg_temp_free_i32(t1);
@@ -7054,7 +7064,7 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
                      ctx.exception != POWERPC_SYSCALL &&
                      ctx.exception != POWERPC_EXCP_TRAP &&
                      ctx.exception != POWERPC_EXCP_BRANCH)) {
-            gen_exception(ctxp, POWERPC_EXCP_TRACE);
+            gen_exception_nip(ctxp, POWERPC_EXCP_TRACE, ctx.nip);
         } else if (unlikely(((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) ||
                             (cs->singlestep_enabled) ||
                             singlestep ||

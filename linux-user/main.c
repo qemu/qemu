@@ -1814,7 +1814,7 @@ void cpu_loop(CPUPPCState *env)
                           env->error_code);
                 break;
             }
-            info._sifields._sigfault._addr = env->nip - 4;
+            info._sifields._sigfault._addr = env->nip;
             queue_signal(env, info.si_signo, &info);
             break;
         case POWERPC_EXCP_FPU:      /* Floating-point unavailable exception  */
@@ -1822,7 +1822,7 @@ void cpu_loop(CPUPPCState *env)
             info.si_signo = TARGET_SIGILL;
             info.si_errno = 0;
             info.si_code = TARGET_ILL_COPROC;
-            info._sifields._sigfault._addr = env->nip - 4;
+            info._sifields._sigfault._addr = env->nip;
             queue_signal(env, info.si_signo, &info);
             break;
         case POWERPC_EXCP_SYSCALL:  /* System call exception                 */
@@ -1834,7 +1834,7 @@ void cpu_loop(CPUPPCState *env)
             info.si_signo = TARGET_SIGILL;
             info.si_errno = 0;
             info.si_code = TARGET_ILL_COPROC;
-            info._sifields._sigfault._addr = env->nip - 4;
+            info._sifields._sigfault._addr = env->nip;
             queue_signal(env, info.si_signo, &info);
             break;
         case POWERPC_EXCP_DECR:     /* Decrementer exception                 */
@@ -1862,7 +1862,7 @@ void cpu_loop(CPUPPCState *env)
             info.si_signo = TARGET_SIGILL;
             info.si_errno = 0;
             info.si_code = TARGET_ILL_COPROC;
-            info._sifields._sigfault._addr = env->nip - 4;
+            info._sifields._sigfault._addr = env->nip;
             queue_signal(env, info.si_signo, &info);
             break;
         case POWERPC_EXCP_EFPDI:    /* Embedded floating-point data IRQ      */
@@ -1926,7 +1926,7 @@ void cpu_loop(CPUPPCState *env)
             info.si_signo = TARGET_SIGILL;
             info.si_errno = 0;
             info.si_code = TARGET_ILL_COPROC;
-            info._sifields._sigfault._addr = env->nip - 4;
+            info._sifields._sigfault._addr = env->nip;
             queue_signal(env, info.si_signo, &info);
             break;
         case POWERPC_EXCP_PIT:      /* Programmable interval timer IRQ       */
@@ -2001,9 +2001,9 @@ void cpu_loop(CPUPPCState *env)
                              env->gpr[5], env->gpr[6], env->gpr[7],
                              env->gpr[8], 0, 0);
             if (ret == -TARGET_ERESTARTSYS) {
-                env->nip -= 4;
                 break;
             }
+            env->nip += 4;
             if (ret == (target_ulong)(-TARGET_QEMU_ESIGRETURN)) {
                 /* Returning from a successful sigreturn syscall.
                    Avoid corrupting register state.  */

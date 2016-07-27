@@ -198,7 +198,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         default:
             goto excp_invalid;
         }
-        goto store_next;
+        break;
     case POWERPC_EXCP_MCHECK:    /* Machine check exception                  */
         if (msr_me == 0) {
             /* Machine check exception is not enabled.
@@ -235,16 +235,16 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         default:
             break;
         }
-        goto store_next;
+        break;
     case POWERPC_EXCP_DSI:       /* Data storage exception                   */
         LOG_EXCP("DSI exception: DSISR=" TARGET_FMT_lx" DAR=" TARGET_FMT_lx
                  "\n", env->spr[SPR_DSISR], env->spr[SPR_DAR]);
-        goto store_next;
+        break;
     case POWERPC_EXCP_ISI:       /* Instruction storage exception            */
         LOG_EXCP("ISI exception: msr=" TARGET_FMT_lx ", nip=" TARGET_FMT_lx
                  "\n", msr, env->nip);
         msr |= env->error_code;
-        goto store_next;
+        break;
     case POWERPC_EXCP_EXTERNAL:  /* External input                           */
         cs = CPU(cpu);
 
@@ -258,13 +258,14 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             /* IACK the IRQ on delivery */
             env->spr[SPR_BOOKE_EPR] = ldl_phys(cs->as, env->mpic_iack);
         }
-        goto store_next;
+        break;
     case POWERPC_EXCP_ALIGN:     /* Alignment exception                      */
         /* XXX: this is false */
         /* Get rS/rD and rA from faulting opcode */
-        env->spr[SPR_DSISR] |= (cpu_ldl_code(env, (env->nip - 4))
+        /* Broken for LE mode */
+        env->spr[SPR_DSISR] |= (cpu_ldl_code(env, env->nip)
                                 & 0x03FF0000) >> 16;
-        goto store_next;
+        break;
     case POWERPC_EXCP_PROGRAM:   /* Program exception                        */
         switch (env->error_code & ~0xF) {
         case POWERPC_EXCP_FP:
@@ -280,15 +281,11 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
              * precise in the MSR.
              */
             msr |= 0x00100000;
-            goto store_next;
+            break;
         case POWERPC_EXCP_INVAL:
             LOG_EXCP("Invalid instruction at " TARGET_FMT_lx "\n", env->nip);
             msr |= 0x00080000;
             env->spr[SPR_BOOKE_ESR] = ESR_PIL;
-            /* Some invalids will have the PC in the right place already */
-            if (env->error_code & POWERPC_EXCP_INVAL_LSWX) {
-                goto store_next;
-            }
             break;
         case POWERPC_EXCP_PRIV:
             msr |= 0x00040000;
@@ -304,22 +301,15 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
                       env->error_code);
             break;
         }
-        goto store_current;
-    case POWERPC_EXCP_HV_EMU:
-        srr0 = SPR_HSRR0;
-        srr1 = SPR_HSRR1;
-        new_msr |= (target_ulong)MSR_HVB;
-        new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
-        /* Some invalids will have the PC in the right place already */
-        if (env->error_code == (POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_LSWX)) {
-                goto store_next;
-        }
-        goto store_current;
-    case POWERPC_EXCP_FPU:       /* Floating-point unavailable exception     */
-        goto store_current;
+        break;
     case POWERPC_EXCP_SYSCALL:   /* System call exception                    */
         dump_syscall(env);
         lev = env->error_code;
+
+        /* We need to correct the NIP which in this case is supposed
+         * to point to the next instruction
+         */
+        env->nip += 4;
 
         /* "PAPR mode" built-in hypercall emulation */
         if ((lev == 1) && cpu_ppc_hypercall) {
@@ -329,15 +319,15 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         if (lev == 1) {
             new_msr |= (target_ulong)MSR_HVB;
         }
-        goto store_next;
+        break;
+    case POWERPC_EXCP_FPU:       /* Floating-point unavailable exception     */
     case POWERPC_EXCP_APU:       /* Auxiliary processor unavailable          */
-        goto store_current;
     case POWERPC_EXCP_DECR:      /* Decrementer exception                    */
-        goto store_next;
+        break;
     case POWERPC_EXCP_FIT:       /* Fixed-interval timer interrupt           */
         /* FIT on 4xx */
         LOG_EXCP("FIT exception\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_WDT:       /* Watchdog timer interrupt                 */
         LOG_EXCP("WDT exception\n");
         switch (excp_model) {
@@ -348,11 +338,10 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         default:
             break;
         }
-        goto store_next;
+        break;
     case POWERPC_EXCP_DTLB:      /* Data TLB error                           */
-        goto store_next;
     case POWERPC_EXCP_ITLB:      /* Instruction TLB error                    */
-        goto store_next;
+        break;
     case POWERPC_EXCP_DEBUG:     /* Debug interrupt                          */
         switch (excp_model) {
         case POWERPC_EXCP_BOOKE:
@@ -367,33 +356,33 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         }
         /* XXX: TODO */
         cpu_abort(cs, "Debug exception is not implemented yet !\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_SPEU:      /* SPE/embedded floating-point unavailable  */
         env->spr[SPR_BOOKE_ESR] = ESR_SPV;
-        goto store_current;
+        break;
     case POWERPC_EXCP_EFPDI:     /* Embedded floating-point data interrupt   */
         /* XXX: TODO */
         cpu_abort(cs, "Embedded floating point data exception "
                   "is not implemented yet !\n");
         env->spr[SPR_BOOKE_ESR] = ESR_SPV;
-        goto store_next;
+        break;
     case POWERPC_EXCP_EFPRI:     /* Embedded floating-point round interrupt  */
         /* XXX: TODO */
         cpu_abort(cs, "Embedded floating point round exception "
                   "is not implemented yet !\n");
         env->spr[SPR_BOOKE_ESR] = ESR_SPV;
-        goto store_next;
+        break;
     case POWERPC_EXCP_EPERFM:    /* Embedded performance monitor interrupt   */
         /* XXX: TODO */
         cpu_abort(cs,
                   "Performance counter exception is not implemented yet !\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_DOORI:     /* Embedded doorbell interrupt              */
-        goto store_next;
+        break;
     case POWERPC_EXCP_DOORCI:    /* Embedded doorbell critical interrupt     */
         srr0 = SPR_BOOKE_CSRR0;
         srr1 = SPR_BOOKE_CSRR1;
-        goto store_next;
+        break;
     case POWERPC_EXCP_RESET:     /* System reset exception                   */
         if (msr_pow) {
             /* indicate that we resumed from power save mode */
@@ -404,65 +393,42 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
 
         new_msr |= (target_ulong)MSR_HVB;
         ail = 0;
-        goto store_next;
+        break;
     case POWERPC_EXCP_DSEG:      /* Data segment exception                   */
-        goto store_next;
     case POWERPC_EXCP_ISEG:      /* Instruction segment exception            */
-        goto store_next;
-    case POWERPC_EXCP_HDECR:     /* Hypervisor decrementer exception         */
-        srr0 = SPR_HSRR0;
-        srr1 = SPR_HSRR1;
-        new_msr |= (target_ulong)MSR_HVB;
-        new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
-        goto store_next;
     case POWERPC_EXCP_TRACE:     /* Trace exception                          */
-        goto store_next;
+        break;
+    case POWERPC_EXCP_HDECR:     /* Hypervisor decrementer exception         */
     case POWERPC_EXCP_HDSI:      /* Hypervisor data storage exception        */
-        srr0 = SPR_HSRR0;
-        srr1 = SPR_HSRR1;
-        new_msr |= (target_ulong)MSR_HVB;
-        new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
-        goto store_next;
     case POWERPC_EXCP_HISI:      /* Hypervisor instruction storage exception */
-        srr0 = SPR_HSRR0;
-        srr1 = SPR_HSRR1;
-        new_msr |= (target_ulong)MSR_HVB;
-        new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
-        goto store_next;
     case POWERPC_EXCP_HDSEG:     /* Hypervisor data segment exception        */
-        srr0 = SPR_HSRR0;
-        srr1 = SPR_HSRR1;
-        new_msr |= (target_ulong)MSR_HVB;
-        new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
-        goto store_next;
     case POWERPC_EXCP_HISEG:     /* Hypervisor instruction segment exception */
+    case POWERPC_EXCP_HV_EMU:
         srr0 = SPR_HSRR0;
         srr1 = SPR_HSRR1;
         new_msr |= (target_ulong)MSR_HVB;
         new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
-        goto store_next;
+        break;
     case POWERPC_EXCP_VPU:       /* Vector unavailable exception             */
-        goto store_current;
     case POWERPC_EXCP_VSXU:       /* VSX unavailable exception               */
-        goto store_current;
     case POWERPC_EXCP_FU:         /* Facility unavailable exception          */
-        goto store_current;
+        break;
     case POWERPC_EXCP_PIT:       /* Programmable interval timer interrupt    */
         LOG_EXCP("PIT exception\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_IO:        /* IO error exception                       */
         /* XXX: TODO */
         cpu_abort(cs, "601 IO error exception is not implemented yet !\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_RUNM:      /* Run mode exception                       */
         /* XXX: TODO */
         cpu_abort(cs, "601 run mode exception is not implemented yet !\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_EMUL:      /* Emulation trap exception                 */
         /* XXX: TODO */
         cpu_abort(cs, "602 emulation trap exception "
                   "is not implemented yet !\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_IFTLB:     /* Instruction fetch TLB error              */
         switch (excp_model) {
         case POWERPC_EXCP_602:
@@ -577,71 +543,67 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             cpu_abort(cs, "Invalid data store TLB miss exception\n");
             break;
         }
-        goto store_next;
+        break;
     case POWERPC_EXCP_FPA:       /* Floating-point assist exception          */
         /* XXX: TODO */
         cpu_abort(cs, "Floating point assist exception "
                   "is not implemented yet !\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_DABR:      /* Data address breakpoint                  */
         /* XXX: TODO */
         cpu_abort(cs, "DABR exception is not implemented yet !\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_IABR:      /* Instruction address breakpoint           */
         /* XXX: TODO */
         cpu_abort(cs, "IABR exception is not implemented yet !\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_SMI:       /* System management interrupt              */
         /* XXX: TODO */
         cpu_abort(cs, "SMI exception is not implemented yet !\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_THERM:     /* Thermal interrupt                        */
         /* XXX: TODO */
         cpu_abort(cs, "Thermal management exception "
                   "is not implemented yet !\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_PERFM:     /* Embedded performance monitor interrupt   */
         /* XXX: TODO */
         cpu_abort(cs,
                   "Performance counter exception is not implemented yet !\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_VPUA:      /* Vector assist exception                  */
         /* XXX: TODO */
         cpu_abort(cs, "VPU assist exception is not implemented yet !\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_SOFTP:     /* Soft patch exception                     */
         /* XXX: TODO */
         cpu_abort(cs,
                   "970 soft-patch exception is not implemented yet !\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_MAINT:     /* Maintenance exception                    */
         /* XXX: TODO */
         cpu_abort(cs,
                   "970 maintenance exception is not implemented yet !\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_MEXTBR:    /* Maskable external breakpoint             */
         /* XXX: TODO */
         cpu_abort(cs, "Maskable external exception "
                   "is not implemented yet !\n");
-        goto store_next;
+        break;
     case POWERPC_EXCP_NMEXTBR:   /* Non maskable external breakpoint         */
         /* XXX: TODO */
         cpu_abort(cs, "Non maskable external exception "
                   "is not implemented yet !\n");
-        goto store_next;
+        break;
     default:
     excp_invalid:
         cpu_abort(cs, "Invalid PowerPC exception %d. Aborting\n", excp);
         break;
-    store_current:
-        /* save current instruction location */
-        env->spr[srr0] = env->nip - 4;
-        break;
-    store_next:
-        /* save next instruction location */
-        env->spr[srr0] = env->nip;
-        break;
     }
+
+    /* Save PC */
+    env->spr[srr0] = env->nip;
+
     /* Save MSR */
     env->spr[srr1] = msr;
 

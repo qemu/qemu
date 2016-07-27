@@ -2892,10 +2892,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
         ret = cpu_ppc_handle_mmu_fault(env, addr, access_type, mmu_idx);
     }
     if (unlikely(ret != 0)) {
-        if (likely(retaddr)) {
-            /* now we have a real cpu fault */
-            cpu_restore_state(cs, retaddr);
-        }
-        helper_raise_exception_err(env, cs->exception_index, env->error_code);
+        raise_exception_err_ra(env, cs->exception_index, env->error_code,
+                               retaddr);
     }
 }
