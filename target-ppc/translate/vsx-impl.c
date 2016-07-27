@@ -380,8 +380,6 @@ static void gen_##name(DisasContext * ctx)                                    \
         gen_exception(ctx, POWERPC_EXCP_VSXU);                                \
         return;                                                               \
     }                                                                         \
-    /* NIP cannot be restored if the memory exception comes from an helper */ \
-    gen_update_nip(ctx, ctx->nip - 4);                                        \
     opc = tcg_const_i32(ctx->opcode);                                         \
     gen_helper_##name(cpu_env, opc);                                          \
     tcg_temp_free_i32(opc);                                                   \
@@ -394,10 +392,6 @@ static void gen_##name(DisasContext * ctx)                    \
         gen_exception(ctx, POWERPC_EXCP_VSXU);                \
         return;                                               \
     }                                                         \
-    /* NIP cannot be restored if the exception comes */       \
-    /* from a helper. */                                      \
-    gen_update_nip(ctx, ctx->nip - 4);                        \
-                                                              \
     gen_helper_##name(cpu_vsrh(xT(ctx->opcode)), cpu_env,     \
                       cpu_vsrh(xB(ctx->opcode)));             \
 }

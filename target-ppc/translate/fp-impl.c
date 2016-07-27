@@ -38,8 +38,6 @@ static void gen_f##name(DisasContext *ctx)                                    \
         gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
         return;                                                               \
     }                                                                         \
-    /* NIP cannot be restored if the memory exception comes from an helper */ \
-    gen_update_nip(ctx, ctx->nip - 4);                                        \
     gen_reset_fpstatus();                                                     \
     gen_helper_f##op(cpu_fpr[rD(ctx->opcode)], cpu_env,                       \
                      cpu_fpr[rA(ctx->opcode)],                                \
@@ -67,8 +65,6 @@ static void gen_f##name(DisasContext *ctx)                                    \
         gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
         return;                                                               \
     }                                                                         \
-    /* NIP cannot be restored if the memory exception comes from an helper */ \
-    gen_update_nip(ctx, ctx->nip - 4);                                        \
     gen_reset_fpstatus();                                                     \
     gen_helper_f##op(cpu_fpr[rD(ctx->opcode)], cpu_env,                       \
                      cpu_fpr[rA(ctx->opcode)],                                \
@@ -95,8 +91,6 @@ static void gen_f##name(DisasContext *ctx)                                    \
         gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
         return;                                                               \
     }                                                                         \
-    /* NIP cannot be restored if the memory exception comes from an helper */ \
-    gen_update_nip(ctx, ctx->nip - 4);                                        \
     gen_reset_fpstatus();                                                     \
     gen_helper_f##op(cpu_fpr[rD(ctx->opcode)], cpu_env,                       \
                      cpu_fpr[rA(ctx->opcode)],                                \
@@ -123,8 +117,6 @@ static void gen_f##name(DisasContext *ctx)                                    \
         gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
         return;                                                               \
     }                                                                         \
-    /* NIP cannot be restored if the memory exception comes from an helper */ \
-    gen_update_nip(ctx, ctx->nip - 4);                                        \
     gen_reset_fpstatus();                                                     \
     gen_helper_f##name(cpu_fpr[rD(ctx->opcode)], cpu_env,                     \
                        cpu_fpr[rB(ctx->opcode)]);                             \
@@ -143,8 +135,6 @@ static void gen_f##name(DisasContext *ctx)                                    \
         gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
         return;                                                               \
     }                                                                         \
-    /* NIP cannot be restored if the memory exception comes from an helper */ \
-    gen_update_nip(ctx, ctx->nip - 4);                                        \
     gen_reset_fpstatus();                                                     \
     gen_helper_f##name(cpu_fpr[rD(ctx->opcode)], cpu_env,                     \
                        cpu_fpr[rB(ctx->opcode)]);                             \
@@ -179,8 +169,6 @@ static void gen_frsqrtes(DisasContext *ctx)
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_reset_fpstatus();
     gen_helper_frsqrte(cpu_fpr[rD(ctx->opcode)], cpu_env,
                        cpu_fpr[rB(ctx->opcode)]);
@@ -205,8 +193,6 @@ static void gen_fsqrt(DisasContext *ctx)
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_reset_fpstatus();
     gen_helper_fsqrt(cpu_fpr[rD(ctx->opcode)], cpu_env,
                      cpu_fpr[rB(ctx->opcode)]);
@@ -222,8 +208,6 @@ static void gen_fsqrts(DisasContext *ctx)
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_reset_fpstatus();
     gen_helper_fsqrt(cpu_fpr[rD(ctx->opcode)], cpu_env,
                      cpu_fpr[rB(ctx->opcode)]);
@@ -313,8 +297,6 @@ static void gen_fcmpo(DisasContext *ctx)
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_reset_fpstatus();
     crf = tcg_const_i32(crfD(ctx->opcode));
     gen_helper_fcmpo(cpu_env, cpu_fpr[rA(ctx->opcode)],
@@ -331,8 +313,6 @@ static void gen_fcmpu(DisasContext *ctx)
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_reset_fpstatus();
     crf = tcg_const_i32(crfD(ctx->opcode));
     gen_helper_fcmpu(cpu_env, cpu_fpr[rA(ctx->opcode)],
@@ -502,8 +482,6 @@ static void gen_mtfsb0(DisasContext *ctx)
     gen_reset_fpstatus();
     if (likely(crb != FPSCR_FEX && crb != FPSCR_VX)) {
         TCGv_i32 t0;
-        /* NIP cannot be restored if the memory exception comes from an helper */
-        gen_update_nip(ctx, ctx->nip - 4);
         t0 = tcg_const_i32(crb);
         gen_helper_fpscr_clrbit(cpu_env, t0);
         tcg_temp_free_i32(t0);
@@ -528,8 +506,6 @@ static void gen_mtfsb1(DisasContext *ctx)
     /* XXX: we pretend we can only do IEEE floating-point computations */
     if (likely(crb != FPSCR_FEX && crb != FPSCR_VX && crb != FPSCR_NI)) {
         TCGv_i32 t0;
-        /* NIP cannot be restored if the memory exception comes from an helper */
-        gen_update_nip(ctx, ctx->nip - 4);
         t0 = tcg_const_i32(crb);
         gen_helper_fpscr_setbit(cpu_env, t0);
         tcg_temp_free_i32(t0);
@@ -559,8 +535,6 @@ static void gen_mtfsf(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
         return;
     }
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_reset_fpstatus();
     if (l) {
         t0 = tcg_const_i32((ctx->insns_flags2 & PPC2_ISA205) ? 0xffff : 0xff);
@@ -595,8 +569,6 @@ static void gen_mtfsfi(DisasContext *ctx)
         return;
     }
     sh = (8 * w) + 7 - bf;
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_reset_fpstatus();
     t0 = tcg_const_i64(((uint64_t)FPIMM(ctx->opcode)) << (4 * sh));
     t1 = tcg_const_i32(1 << sh);
