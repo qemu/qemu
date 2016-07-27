@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
+#include "exec/exec-all.h"
 
 #define float64_snan_to_qnan(x) ((x) | 0x0008000000000000ULL)
 #define float32_snan_to_qnan(x) ((x) | 0x00400000)
@@ -200,8 +201,9 @@ static inline uint64_t float_invalid_op_excp(CPUPPCState *env, int op,
         /* Update the floating-point enabled exception summary */
         env->fpscr |= 1 << FPSCR_FEX;
         if (msr_fe0 != 0 || msr_fe1 != 0) {
-            helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                                       POWERPC_EXCP_FP | op);
+            /* GETPC() works here because this is inline */
+            raise_exception_err_ra(env, POWERPC_EXCP_PROGRAM,
+                                   POWERPC_EXCP_FP | op, GETPC());
         }
     }
     return ret;
