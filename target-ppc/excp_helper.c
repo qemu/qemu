@@ -1031,7 +1031,8 @@ void helper_tw(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
                   ((int32_t)arg1 == (int32_t)arg2 && (flags & 0x04)) ||
                   ((uint32_t)arg1 < (uint32_t)arg2 && (flags & 0x02)) ||
                   ((uint32_t)arg1 > (uint32_t)arg2 && (flags & 0x01))))) {
-        raise_exception_err(env, POWERPC_EXCP_PROGRAM, POWERPC_EXCP_TRAP);
+        raise_exception_err_ra(env, POWERPC_EXCP_PROGRAM,
+                               POWERPC_EXCP_TRAP, GETPC());
     }
 }
 
@@ -1044,7 +1045,8 @@ void helper_td(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
                   ((int64_t)arg1 == (int64_t)arg2 && (flags & 0x04)) ||
                   ((uint64_t)arg1 < (uint64_t)arg2 && (flags & 0x02)) ||
                   ((uint64_t)arg1 > (uint64_t)arg2 && (flags & 0x01))))) {
-        raise_exception_err(env, POWERPC_EXCP_PROGRAM, POWERPC_EXCP_TRAP);
+        raise_exception_err_ra(env, POWERPC_EXCP_PROGRAM,
+                               POWERPC_EXCP_TRAP, GETPC());
     }
 }
 #endif

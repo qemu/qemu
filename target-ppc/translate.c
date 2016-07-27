@@ -3580,8 +3580,6 @@ static void gen_sc(DisasContext *ctx)
 static void gen_tw(DisasContext *ctx)
 {
     TCGv_i32 t0 = tcg_const_i32(TO(ctx->opcode));
-    /* Update the nip since this might generate a trap exception */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_tw(cpu_env, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                   t0);
     tcg_temp_free_i32(t0);
@@ -3592,8 +3590,6 @@ static void gen_twi(DisasContext *ctx)
 {
     TCGv t0 = tcg_const_tl(SIMM(ctx->opcode));
     TCGv_i32 t1 = tcg_const_i32(TO(ctx->opcode));
-    /* Update the nip since this might generate a trap exception */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_tw(cpu_env, cpu_gpr[rA(ctx->opcode)], t0, t1);
     tcg_temp_free(t0);
     tcg_temp_free_i32(t1);
@@ -3604,8 +3600,6 @@ static void gen_twi(DisasContext *ctx)
 static void gen_td(DisasContext *ctx)
 {
     TCGv_i32 t0 = tcg_const_i32(TO(ctx->opcode));
-    /* Update the nip since this might generate a trap exception */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_td(cpu_env, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                   t0);
     tcg_temp_free_i32(t0);
@@ -3616,8 +3610,6 @@ static void gen_tdi(DisasContext *ctx)
 {
     TCGv t0 = tcg_const_tl(SIMM(ctx->opcode));
     TCGv_i32 t1 = tcg_const_i32(TO(ctx->opcode));
-    /* Update the nip since this might generate a trap exception */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_td(cpu_env, cpu_gpr[rA(ctx->opcode)], t0, t1);
     tcg_temp_free(t0);
     tcg_temp_free_i32(t1);
