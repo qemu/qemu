@@ -3346,7 +3346,7 @@ static void gen_b(DisasContext *ctx)
     if (LK(ctx->opcode)) {
         gen_setlr(ctx, ctx->nip);
     }
-    gen_update_cfar(ctx, ctx->nip);
+    gen_update_cfar(ctx, ctx->nip - 4);
     gen_goto_tb(ctx, 0, target);
 }
 
@@ -3411,7 +3411,7 @@ static inline void gen_bcond(DisasContext *ctx, int type)
         }
         tcg_temp_free_i32(temp);
     }
-    gen_update_cfar(ctx, ctx->nip);
+    gen_update_cfar(ctx, ctx->nip - 4);
     if (type == BCOND_IM) {
         target_ulong li = (target_long)((int16_t)(BD(ctx->opcode)));
         if (likely(AA(ctx->opcode) == 0)) {
@@ -3526,7 +3526,7 @@ static void gen_rfi(DisasContext *ctx)
      */
     /* Restore CPU state */
     CHK_SV;
-    gen_update_cfar(ctx, ctx->nip);
+    gen_update_cfar(ctx, ctx->nip - 4);
     gen_helper_rfi(cpu_env);
     gen_sync_exception(ctx);
 #endif
@@ -3540,7 +3540,7 @@ static void gen_rfid(DisasContext *ctx)
 #else
     /* Restore CPU state */
     CHK_SV;
-    gen_update_cfar(ctx, ctx->nip);
+    gen_update_cfar(ctx, ctx->nip - 4);
     gen_helper_rfid(cpu_env);
     gen_sync_exception(ctx);
 #endif
