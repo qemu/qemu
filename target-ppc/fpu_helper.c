@@ -116,7 +116,7 @@ void helper_compute_fprf(CPUPPCState *env, uint64_t arg)
 }
 
 /* Floating-point invalid operations exception */
-static inline uint64_t fload_invalid_op_excp(CPUPPCState *env, int op,
+static inline uint64_t float_invalid_op_excp(CPUPPCState *env, int op,
                                              int set_fpcc)
 {
     CPUState *cs = CPU(ppc_env_get_cpu(env));
@@ -532,12 +532,12 @@ uint64_t helper_fadd(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
     if (unlikely(float64_is_infinity(farg1.d) && float64_is_infinity(farg2.d) &&
                  float64_is_neg(farg1.d) != float64_is_neg(farg2.d))) {
         /* Magnitude subtraction of infinities */
-        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
+        farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d, &env->fp_status) ||
                      float64_is_signaling_nan(farg2.d, &env->fp_status))) {
             /* sNaN addition */
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
         }
         farg1.d = float64_add(farg1.d, farg2.d, &env->fp_status);
     }
@@ -556,12 +556,12 @@ uint64_t helper_fsub(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
     if (unlikely(float64_is_infinity(farg1.d) && float64_is_infinity(farg2.d) &&
                  float64_is_neg(farg1.d) == float64_is_neg(farg2.d))) {
         /* Magnitude subtraction of infinities */
-        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
+        farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d, &env->fp_status) ||
                      float64_is_signaling_nan(farg2.d, &env->fp_status))) {
             /* sNaN subtraction */
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
         }
         farg1.d = float64_sub(farg1.d, farg2.d, &env->fp_status);
     }
@@ -580,12 +580,12 @@ uint64_t helper_fmul(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
     if (unlikely((float64_is_infinity(farg1.d) && float64_is_zero(farg2.d)) ||
                  (float64_is_zero(farg1.d) && float64_is_infinity(farg2.d)))) {
         /* Multiplication of zero by infinity */
-        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
+        farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d, &env->fp_status) ||
                      float64_is_signaling_nan(farg2.d, &env->fp_status))) {
             /* sNaN multiplication */
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
         }
         farg1.d = float64_mul(farg1.d, farg2.d, &env->fp_status);
     }
@@ -604,15 +604,15 @@ uint64_t helper_fdiv(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
     if (unlikely(float64_is_infinity(farg1.d) &&
                  float64_is_infinity(farg2.d))) {
         /* Division of infinity by infinity */
-        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXIDI, 1);
+        farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIDI, 1);
     } else if (unlikely(float64_is_zero(farg1.d) && float64_is_zero(farg2.d))) {
         /* Division of zero by zero */
-        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXZDZ, 1);
+        farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXZDZ, 1);
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d, &env->fp_status) ||
                      float64_is_signaling_nan(farg2.d, &env->fp_status))) {
             /* sNaN division */
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
         }
         farg1.d = float64_div(farg1.d, farg2.d, &env->fp_status);
     }
@@ -631,14 +631,14 @@ uint64_t helper_##op(CPUPPCState *env, uint64_t arg)                   \
                                                                        \
     if (unlikely(env->fp_status.float_exception_flags)) {              \
         if (float64_is_any_nan(arg)) {                                 \
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 1);      \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 1);      \
             if (float64_is_signaling_nan(arg, &env->fp_status)) {      \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1); \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1); \
             }                                                          \
             farg.ll = nanval;                                          \
         } else if (env->fp_status.float_exception_flags &              \
                    float_flag_invalid) {                               \
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 1);      \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 1);      \
         }                                                              \
         helper_float_check_status(env);                                \
     }                                                                  \
@@ -683,7 +683,7 @@ static inline uint64_t do_fri(CPUPPCState *env, uint64_t arg,
 
     if (unlikely(float64_is_signaling_nan(farg.d, &env->fp_status))) {
         /* sNaN round */
-        fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
         farg.ll = arg | 0x0008000000000000ULL;
     } else {
         int inexact = get_float_exception_flags(&env->fp_status) &
@@ -735,13 +735,13 @@ uint64_t helper_fmadd(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
     if (unlikely((float64_is_infinity(farg1.d) && float64_is_zero(farg2.d)) ||
                  (float64_is_zero(farg1.d) && float64_is_infinity(farg2.d)))) {
         /* Multiplication of zero by infinity */
-        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
+        farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d, &env->fp_status) ||
                      float64_is_signaling_nan(farg2.d, &env->fp_status) ||
                      float64_is_signaling_nan(farg3.d, &env->fp_status))) {
             /* sNaN operation */
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
         }
         /* This is the way the PowerPC specification defines it */
         float128 ft0_128, ft1_128;
@@ -753,7 +753,7 @@ uint64_t helper_fmadd(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
                      float64_is_infinity(farg3.d) &&
                      float128_is_neg(ft0_128) != float64_is_neg(farg3.d))) {
             /* Magnitude subtraction of infinities */
-            farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
+            farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
         } else {
             ft1_128 = float64_to_float128(farg3.d, &env->fp_status);
             ft0_128 = float128_add(ft0_128, ft1_128, &env->fp_status);
@@ -778,13 +778,13 @@ uint64_t helper_fmsub(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
                  (float64_is_zero(farg1.d) &&
                   float64_is_infinity(farg2.d)))) {
         /* Multiplication of zero by infinity */
-        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
+        farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d, &env->fp_status) ||
                      float64_is_signaling_nan(farg2.d, &env->fp_status) ||
                      float64_is_signaling_nan(farg3.d, &env->fp_status))) {
             /* sNaN operation */
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
         }
         /* This is the way the PowerPC specification defines it */
         float128 ft0_128, ft1_128;
@@ -796,7 +796,7 @@ uint64_t helper_fmsub(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
                      float64_is_infinity(farg3.d) &&
                      float128_is_neg(ft0_128) == float64_is_neg(farg3.d))) {
             /* Magnitude subtraction of infinities */
-            farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
+            farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
         } else {
             ft1_128 = float64_to_float128(farg3.d, &env->fp_status);
             ft0_128 = float128_sub(ft0_128, ft1_128, &env->fp_status);
@@ -819,13 +819,13 @@ uint64_t helper_fnmadd(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
     if (unlikely((float64_is_infinity(farg1.d) && float64_is_zero(farg2.d)) ||
                  (float64_is_zero(farg1.d) && float64_is_infinity(farg2.d)))) {
         /* Multiplication of zero by infinity */
-        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
+        farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d, &env->fp_status) ||
                      float64_is_signaling_nan(farg2.d, &env->fp_status) ||
                      float64_is_signaling_nan(farg3.d, &env->fp_status))) {
             /* sNaN operation */
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
         }
         /* This is the way the PowerPC specification defines it */
         float128 ft0_128, ft1_128;
@@ -837,7 +837,7 @@ uint64_t helper_fnmadd(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
                      float64_is_infinity(farg3.d) &&
                      float128_is_neg(ft0_128) != float64_is_neg(farg3.d))) {
             /* Magnitude subtraction of infinities */
-            farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
+            farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
         } else {
             ft1_128 = float64_to_float128(farg3.d, &env->fp_status);
             ft0_128 = float128_add(ft0_128, ft1_128, &env->fp_status);
@@ -864,13 +864,13 @@ uint64_t helper_fnmsub(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
                  (float64_is_zero(farg1.d) &&
                   float64_is_infinity(farg2.d)))) {
         /* Multiplication of zero by infinity */
-        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
+        farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d, &env->fp_status) ||
                      float64_is_signaling_nan(farg2.d, &env->fp_status) ||
                      float64_is_signaling_nan(farg3.d, &env->fp_status))) {
             /* sNaN operation */
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
         }
         /* This is the way the PowerPC specification defines it */
         float128 ft0_128, ft1_128;
@@ -882,7 +882,7 @@ uint64_t helper_fnmsub(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
                      float64_is_infinity(farg3.d) &&
                      float128_is_neg(ft0_128) == float64_is_neg(farg3.d))) {
             /* Magnitude subtraction of infinities */
-            farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
+            farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
         } else {
             ft1_128 = float64_to_float128(farg3.d, &env->fp_status);
             ft0_128 = float128_sub(ft0_128, ft1_128, &env->fp_status);
@@ -905,7 +905,7 @@ uint64_t helper_frsp(CPUPPCState *env, uint64_t arg)
 
     if (unlikely(float64_is_signaling_nan(farg.d, &env->fp_status))) {
         /* sNaN square root */
-        fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
     }
     f32 = float64_to_float32(farg.d, &env->fp_status);
     farg.d = float32_to_float64(f32, &env->fp_status);
@@ -923,12 +923,12 @@ uint64_t helper_fsqrt(CPUPPCState *env, uint64_t arg)
     if (unlikely(float64_is_any_nan(farg.d))) {
         if (unlikely(float64_is_signaling_nan(farg.d, &env->fp_status))) {
             /* sNaN reciprocal square root */
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
             farg.ll = float64_snan_to_qnan(farg.ll);
         }
     } else if (unlikely(float64_is_neg(farg.d) && !float64_is_zero(farg.d))) {
         /* Square root of a negative nonzero number */
-        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, 1);
+        farg.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, 1);
     } else {
         farg.d = float64_sqrt(farg.d, &env->fp_status);
     }
@@ -944,7 +944,7 @@ uint64_t helper_fre(CPUPPCState *env, uint64_t arg)
 
     if (unlikely(float64_is_signaling_nan(farg.d, &env->fp_status))) {
         /* sNaN reciprocal */
-        fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
     }
     farg.d = float64_div(float64_one, farg.d, &env->fp_status);
     return farg.d;
@@ -960,7 +960,7 @@ uint64_t helper_fres(CPUPPCState *env, uint64_t arg)
 
     if (unlikely(float64_is_signaling_nan(farg.d, &env->fp_status))) {
         /* sNaN reciprocal */
-        fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
     }
     farg.d = float64_div(float64_one, farg.d, &env->fp_status);
     f32 = float64_to_float32(farg.d, &env->fp_status);
@@ -979,12 +979,12 @@ uint64_t helper_frsqrte(CPUPPCState *env, uint64_t arg)
     if (unlikely(float64_is_any_nan(farg.d))) {
         if (unlikely(float64_is_signaling_nan(farg.d, &env->fp_status))) {
             /* sNaN reciprocal square root */
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
             farg.ll = float64_snan_to_qnan(farg.ll);
         }
     } else if (unlikely(float64_is_neg(farg.d) && !float64_is_zero(farg.d))) {
         /* Reciprocal square root of a negative nonzero number */
-        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, 1);
+        farg.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, 1);
     } else {
         farg.d = float64_sqrt(farg.d, &env->fp_status);
         farg.d = float64_div(float64_one, farg.d, &env->fp_status);
@@ -1103,7 +1103,7 @@ void helper_fcmpu(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
                  && (float64_is_signaling_nan(farg1.d, &env->fp_status) ||
                      float64_is_signaling_nan(farg2.d, &env->fp_status)))) {
         /* sNaN comparison */
-        fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
     }
 }
 
@@ -1134,11 +1134,11 @@ void helper_fcmpo(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
         if (float64_is_signaling_nan(farg1.d, &env->fp_status) ||
             float64_is_signaling_nan(farg2.d, &env->fp_status)) {
             /* sNaN comparison */
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN |
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN |
                                   POWERPC_EXCP_FP_VXVC, 1);
         } else {
             /* qNaN comparison */
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXVC, 1);
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXVC, 1);
         }
     }
 }
@@ -1838,10 +1838,10 @@ void helper_##name(CPUPPCState *env, uint32_t opcode)                        \
                                                                              \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {    \
             if (tp##_is_infinity(xa.fld) && tp##_is_infinity(xb.fld)) {      \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, sfprf);    \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, sfprf);    \
             } else if (tp##_is_signaling_nan(xa.fld, &tstat) ||              \
                        tp##_is_signaling_nan(xb.fld, &tstat)) {              \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);   \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);   \
             }                                                                \
         }                                                                    \
                                                                              \
@@ -1893,10 +1893,10 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {    \
             if ((tp##_is_infinity(xa.fld) && tp##_is_zero(xb.fld)) ||        \
                 (tp##_is_infinity(xb.fld) && tp##_is_zero(xa.fld))) {        \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, sfprf);    \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, sfprf);    \
             } else if (tp##_is_signaling_nan(xa.fld, &tstat) ||              \
                        tp##_is_signaling_nan(xb.fld, &tstat)) {              \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);   \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);   \
             }                                                                \
         }                                                                    \
                                                                              \
@@ -1944,13 +1944,13 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
                                                                               \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {     \
             if (tp##_is_infinity(xa.fld) && tp##_is_infinity(xb.fld)) {       \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXIDI, sfprf);     \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIDI, sfprf);     \
             } else if (tp##_is_zero(xa.fld) &&                                \
                 tp##_is_zero(xb.fld)) {                                       \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXZDZ, sfprf);     \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXZDZ, sfprf);     \
             } else if (tp##_is_signaling_nan(xa.fld, &tstat) ||               \
                 tp##_is_signaling_nan(xb.fld, &tstat)) {                      \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);    \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);    \
             }                                                                 \
         }                                                                     \
                                                                               \
@@ -1991,7 +1991,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
                                                                               \
     for (i = 0; i < nels; i++) {                                              \
         if (unlikely(tp##_is_signaling_nan(xb.fld, &env->fp_status))) {       \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);    \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);    \
         }                                                                     \
         xt.fld = tp##_div(tp##_one, xb.fld, &env->fp_status);                 \
                                                                               \
@@ -2038,9 +2038,9 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
                                                                              \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {    \
             if (tp##_is_neg(xb.fld) && !tp##_is_zero(xb.fld)) {              \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, sfprf);   \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, sfprf);   \
             } else if (tp##_is_signaling_nan(xb.fld, &tstat)) {              \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);   \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);   \
             }                                                                \
         }                                                                    \
                                                                              \
@@ -2088,9 +2088,9 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
                                                                              \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {    \
             if (tp##_is_neg(xb.fld) && !tp##_is_zero(xb.fld)) {              \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, sfprf);   \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, sfprf);   \
             } else if (tp##_is_signaling_nan(xb.fld, &tstat)) {              \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);   \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);   \
             }                                                                \
         }                                                                    \
                                                                              \
@@ -2277,12 +2277,12 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
             if (tp##_is_signaling_nan(xa.fld, &tstat) ||                      \
                 tp##_is_signaling_nan(b->fld, &tstat) ||                      \
                 tp##_is_signaling_nan(c->fld, &tstat)) {                      \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);    \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);    \
                 tstat.float_exception_flags &= ~float_flag_invalid;           \
             }                                                                 \
             if ((tp##_is_infinity(xa.fld) && tp##_is_zero(b->fld)) ||         \
                 (tp##_is_zero(xa.fld) && tp##_is_infinity(b->fld))) {         \
-                xt_out.fld = float64_to_##tp(fload_invalid_op_excp(env,       \
+                xt_out.fld = float64_to_##tp(float_invalid_op_excp(env,       \
                     POWERPC_EXCP_FP_VXIMZ, sfprf), &env->fp_status);          \
                 tstat.float_exception_flags &= ~float_flag_invalid;           \
             }                                                                 \
@@ -2290,7 +2290,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
                 ((tp##_is_infinity(xa.fld) ||                                 \
                   tp##_is_infinity(b->fld)) &&                                \
                   tp##_is_infinity(c->fld))) {                                \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, sfprf);     \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, sfprf);     \
             }                                                                 \
         }                                                                     \
                                                                               \
@@ -2360,10 +2360,10 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                      \
                  float64_is_any_nan(xb.VsrD(0)))) {                      \
         if (float64_is_signaling_nan(xa.VsrD(0), &env->fp_status) ||     \
             float64_is_signaling_nan(xb.VsrD(0), &env->fp_status)) {     \
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);       \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);       \
         }                                                                \
         if (ordered) {                                                   \
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXVC, 0);         \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXVC, 0);         \
         }                                                                \
         cc = 1;                                                          \
     } else {                                                             \
@@ -2408,7 +2408,7 @@ void helper_##name(CPUPPCState *env, uint32_t opcode)                         \
         xt.fld = tp##_##op(xa.fld, xb.fld, &env->fp_status);                  \
         if (unlikely(tp##_is_signaling_nan(xa.fld, &env->fp_status) ||        \
                      tp##_is_signaling_nan(xb.fld, &env->fp_status))) {       \
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);            \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);            \
         }                                                                     \
     }                                                                         \
                                                                               \
@@ -2448,10 +2448,10 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                       \
                      tp##_is_any_nan(xb.fld))) {                          \
             if (tp##_is_signaling_nan(xa.fld, &env->fp_status) ||         \
                 tp##_is_signaling_nan(xb.fld, &env->fp_status)) {         \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);    \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);    \
             }                                                             \
             if (svxvc) {                                                  \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXVC, 0);      \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXVC, 0);      \
             }                                                             \
             xt.fld = 0;                                                   \
             all_true = 0;                                                 \
@@ -2502,7 +2502,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                \
         xt.tfld = stp##_to_##ttp(xb.sfld, &env->fp_status);        \
         if (unlikely(stp##_is_signaling_nan(xb.sfld,               \
                                             &env->fp_status))) {   \
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0); \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0); \
             xt.tfld = ttp##_snan_to_qnan(xt.tfld);                 \
         }                                                          \
         if (sfprf) {                                               \
@@ -2557,15 +2557,15 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
     for (i = 0; i < nels; i++) {                                             \
         if (unlikely(stp##_is_any_nan(xb.sfld))) {                           \
             if (stp##_is_signaling_nan(xb.sfld, &env->fp_status)) {          \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);       \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);       \
             }                                                                \
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 0);            \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 0);            \
             xt.tfld = rnan;                                                  \
         } else {                                                             \
             xt.tfld = stp##_to_##ttp##_round_to_zero(xb.sfld,                \
                           &env->fp_status);                                  \
             if (env->fp_status.float_exception_flags & float_flag_invalid) { \
-                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 0);        \
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 0);        \
             }                                                                \
         }                                                                    \
     }                                                                        \
@@ -2667,7 +2667,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                    \
     for (i = 0; i < nels; i++) {                                       \
         if (unlikely(tp##_is_signaling_nan(xb.fld,                     \
                                            &env->fp_status))) {        \
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);     \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);     \
             xt.fld = tp##_snan_to_qnan(xb.fld);                        \
         } else {                                                       \
             xt.fld = tp##_round_to_int(xb.fld, &env->fp_status);       \
