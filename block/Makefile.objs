@@ -22,11 +22,11 @@ block-obj-$(CONFIG_ARCHIPELAGO) += archipelago.o
 block-obj-$(CONFIG_LIBSSH2) += ssh.o
 block-obj-y += accounting.o dirty-bitmap.o
 block-obj-y += write-threshold.o
+block-obj-y += backup.o
 
 block-obj-y += crypto.o
 
 common-obj-y += stream.o
-common-obj-y += backup.o
 
 iscsi.o-cflags     := $(LIBISCSI_CFLAGS)
 iscsi.o-libs       := $(LIBISCSI_LIBS)
