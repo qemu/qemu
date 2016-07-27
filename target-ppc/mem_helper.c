@@ -141,35 +141,39 @@ void helper_stsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
     }
 }
 
-static void do_dcbz(CPUPPCState *env, target_ulong addr, int dcache_line_size,
-                    uintptr_t raddr)
+void helper_dcbz(CPUPPCState *env, target_ulong addr, uint32_t opcode)
 {
-    int i;
-
-    addr &= ~(dcache_line_size - 1);
-    for (i = 0; i < dcache_line_size; i += 4) {
-        cpu_stl_data_ra(env, addr + i, 0, raddr);
-    }
-    if (env->reserve_addr == addr) {
-        env->reserve_addr = (target_ulong)-1ULL;
-    }
-}
-
-void helper_dcbz(CPUPPCState *env, target_ulong addr, uint32_t is_dcbzl)
-{
-    int dcbz_size = env->dcache_line_size;
+    target_ulong mask, dcbz_size = env->dcache_line_size;
+    uint32_t i;
+    void *haddr;
 
 #if defined(TARGET_PPC64)
-    if (!is_dcbzl &&
-        (env->excp_model == POWERPC_EXCP_970) &&
-        ((env->spr[SPR_970_HID5] >> 7) & 0x3) == 1) {
+    /* Check for dcbz vs dcbzl on 970 */
+    if (env->excp_model == POWERPC_EXCP_970 &&
+        !(opcode & 0x00200000) && ((env->spr[SPR_970_HID5] >> 7) & 0x3) == 1) {
         dcbz_size = 32;
     }
 #endif
 
-    /* XXX add e500mc support */
+    /* Align address */
+    mask = ~(dcbz_size - 1);
+    addr &= mask;
 
-    do_dcbz(env, addr, dcbz_size, GETPC());
+    /* Check reservation */
+    if ((env->reserve_addr & mask) == (addr & mask))  {
+        env->reserve_addr = (target_ulong)-1ULL;
+    }
+
+    /* Try fast path translate */
+    haddr = tlb_vaddr_to_host(env, addr, MMU_DATA_STORE, env->dmmu_idx);
+    if (haddr) {
+        memset(haddr, 0, dcbz_size);
+    } else {
+        /* Slow path */
+        for (i = 0; i < dcbz_size; i += 8) {
+            cpu_stq_data_ra(env, addr + i, 0, GETPC());
+        }
+    }
 }
 
 void helper_icbi(CPUPPCState *env, target_ulong addr)
