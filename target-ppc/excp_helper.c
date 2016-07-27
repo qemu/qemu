@@ -285,6 +285,10 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             LOG_EXCP("Invalid instruction at " TARGET_FMT_lx "\n", env->nip);
             msr |= 0x00080000;
             env->spr[SPR_BOOKE_ESR] = ESR_PIL;
+            /* Some invalids will have the PC in the right place already */
+            if (env->error_code & POWERPC_EXCP_INVAL_LSWX) {
+                goto store_next;
+            }
             break;
         case POWERPC_EXCP_PRIV:
             msr |= 0x00040000;
@@ -306,6 +310,10 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         srr1 = SPR_HSRR1;
         new_msr |= (target_ulong)MSR_HVB;
         new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
+        /* Some invalids will have the PC in the right place already */
+        if (env->error_code == (POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_LSWX)) {
+                goto store_next;
+        }
         goto store_current;
     case POWERPC_EXCP_FPU:       /* Floating-point unavailable exception     */
         goto store_current;

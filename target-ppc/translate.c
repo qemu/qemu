@@ -2916,12 +2916,16 @@ static void gen_lswi(DisasContext *ctx)
         nb = 32;
     nr = (nb + 3) / 4;
     if (unlikely(lsw_reg_in_range(start, nr, ra))) {
+        /* The handler expects the PC to point to *this* instruction,
+         * so setting ctx->exception here prevents it from being
+         * improperly updated again by gen_inval_exception
+         */
+        gen_update_nip(ctx, ctx->nip - 4);
+        ctx->exception = POWERPC_EXCP_HV_EMU;
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_LSWX);
         return;
     }
     gen_set_access_type(ctx, ACCESS_INT);
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     t0 = tcg_temp_new();
     gen_addr_register(ctx, t0);
     t1 = tcg_const_i32(nb);
@@ -2938,8 +2942,6 @@ static void gen_lswx(DisasContext *ctx)
     TCGv t0;
     TCGv_i32 t1, t2, t3;
     gen_set_access_type(ctx, ACCESS_INT);
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
     t1 = tcg_const_i32(rD(ctx->opcode));
@@ -2959,8 +2961,6 @@ static void gen_stswi(DisasContext *ctx)
     TCGv_i32 t1, t2;
     int nb = NB(ctx->opcode);
     gen_set_access_type(ctx, ACCESS_INT);
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     t0 = tcg_temp_new();
     gen_addr_register(ctx, t0);
     if (nb == 0)
@@ -2979,8 +2979,6 @@ static void gen_stswx(DisasContext *ctx)
     TCGv t0;
     TCGv_i32 t1, t2;
     gen_set_access_type(ctx, ACCESS_INT);
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
     t1 = tcg_temp_new_i32();
@@ -4083,7 +4081,7 @@ static void gen_dcbz(DisasContext *ctx)
 static void gen_dst(DisasContext *ctx)
 {
     if (rA(ctx->opcode) == 0) {
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_LSWX);
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
     } else {
         /* interpreted as no-op */
     }
@@ -4093,7 +4091,7 @@ static void gen_dst(DisasContext *ctx)
 static void gen_dstst(DisasContext *ctx)
 {
     if (rA(ctx->opcode) == 0) {
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_LSWX);
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
     } else {
         /* interpreted as no-op */
     }

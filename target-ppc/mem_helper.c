@@ -77,23 +77,30 @@ void helper_stmw(CPUPPCState *env, target_ulong addr, uint32_t reg)
     }
 }
 
-void helper_lsw(CPUPPCState *env, target_ulong addr, uint32_t nb, uint32_t reg)
+static void do_lsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
+                   uint32_t reg, uintptr_t raddr)
 {
     int sh;
 
     for (; nb > 3; nb -= 4) {
-        env->gpr[reg] = cpu_ldl_data(env, addr);
+        env->gpr[reg] = cpu_ldl_data_ra(env, addr, raddr);
         reg = (reg + 1) % 32;
         addr = addr_add(env, addr, 4);
     }
     if (unlikely(nb > 0)) {
         env->gpr[reg] = 0;
         for (sh = 24; nb > 0; nb--, sh -= 8) {
-            env->gpr[reg] |= cpu_ldub_data(env, addr) << sh;
+            env->gpr[reg] |= cpu_ldub_data_ra(env, addr, raddr) << sh;
             addr = addr_add(env, addr, 1);
         }
     }
 }
+
+void helper_lsw(CPUPPCState *env, target_ulong addr, uint32_t nb, uint32_t reg)
+{
+    do_lsw(env, addr, nb, reg, GETPC());
+}
+
 /* PPC32 specification says we must generate an exception if
  * rA is in the range of registers to be loaded.
  * In an other hand, IBM says this is valid, but rA won't be loaded.
@@ -106,12 +113,11 @@ void helper_lswx(CPUPPCState *env, target_ulong addr, uint32_t reg,
         int num_used_regs = (xer_bc + 3) / 4;
         if (unlikely((ra != 0 && lsw_reg_in_range(reg, num_used_regs, ra)) ||
                      lsw_reg_in_range(reg, num_used_regs, rb))) {
-            env->nip += 4;     /* Compensate the "nip - 4" from gen_lswx() */
-            helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                                       POWERPC_EXCP_INVAL |
-                                       POWERPC_EXCP_INVAL_LSWX);
+            raise_exception_err_ra(env, POWERPC_EXCP_PROGRAM,
+                                   POWERPC_EXCP_INVAL |
+                                   POWERPC_EXCP_INVAL_LSWX, GETPC());
         } else {
-            helper_lsw(env, addr, xer_bc, reg);
+            do_lsw(env, addr, xer_bc, reg, GETPC());
         }
     }
 }
@@ -122,13 +128,13 @@ void helper_stsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
     int sh;
 
     for (; nb > 3; nb -= 4) {
-        cpu_stl_data(env, addr, env->gpr[reg]);
+        cpu_stl_data_ra(env, addr, env->gpr[reg], GETPC());
         reg = (reg + 1) % 32;
         addr = addr_add(env, addr, 4);
     }
     if (unlikely(nb > 0)) {
         for (sh = 24; nb > 0; nb--, sh -= 8) {
-            cpu_stb_data(env, addr, (env->gpr[reg] >> sh) & 0xFF);
+            cpu_stb_data_ra(env, addr, (env->gpr[reg] >> sh) & 0xFF, GETPC());
             addr = addr_add(env, addr, 1);
         }
     }
