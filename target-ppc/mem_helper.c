@@ -57,9 +57,9 @@ void helper_lmw(CPUPPCState *env, target_ulong addr, uint32_t reg)
 {
     for (; reg < 32; reg++) {
         if (needs_byteswap(env)) {
-            env->gpr[reg] = bswap32(cpu_ldl_data(env, addr));
+            env->gpr[reg] = bswap32(cpu_ldl_data_ra(env, addr, GETPC()));
         } else {
-            env->gpr[reg] = cpu_ldl_data(env, addr);
+            env->gpr[reg] = cpu_ldl_data_ra(env, addr, GETPC());
         }
         addr = addr_add(env, addr, 4);
     }
@@ -69,9 +69,10 @@ void helper_stmw(CPUPPCState *env, target_ulong addr, uint32_t reg)
 {
     for (; reg < 32; reg++) {
         if (needs_byteswap(env)) {
-            cpu_stl_data(env, addr, bswap32((uint32_t)env->gpr[reg]));
+            cpu_stl_data_ra(env, addr, bswap32((uint32_t)env->gpr[reg]),
+                                                   GETPC());
         } else {
-            cpu_stl_data(env, addr, (uint32_t)env->gpr[reg]);
+            cpu_stl_data_ra(env, addr, (uint32_t)env->gpr[reg], GETPC());
         }
         addr = addr_add(env, addr, 4);
     }
@@ -178,7 +179,7 @@ void helper_icbi(CPUPPCState *env, target_ulong addr)
      * (not a fetch) by the MMU. To be sure it will be so,
      * do the load "by hand".
      */
-    cpu_ldl_data(env, addr);
+    cpu_ldl_data_ra(env, addr, GETPC());
 }
 
 /* XXX: to be tested */
