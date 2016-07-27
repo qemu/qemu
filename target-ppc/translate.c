@@ -2417,7 +2417,7 @@ static inline void gen_check_align(DisasContext *ctx, TCGv EA, int mask)
     tcg_gen_andi_tl(t0, EA, mask);
     tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
     t1 = tcg_const_i32(POWERPC_EXCP_ALIGN);
-    t2 = tcg_const_i32(0);
+    t2 = tcg_const_i32(ctx->opcode & 0x03FF0000);
     gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_raise_exception_err(cpu_env, t1, t2);
     tcg_temp_free_i32(t1);

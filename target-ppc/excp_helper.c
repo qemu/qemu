@@ -260,11 +260,12 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         }
         break;
     case POWERPC_EXCP_ALIGN:     /* Alignment exception                      */
-        /* XXX: this is false */
         /* Get rS/rD and rA from faulting opcode */
-        /* Broken for LE mode */
-        env->spr[SPR_DSISR] |= (cpu_ldl_code(env, env->nip)
-                                & 0x03FF0000) >> 16;
+        /* Note: the opcode fields will not be set properly for a direct
+         * store load/store, but nobody cares as nobody actually uses
+         * direct store segments.
+         */
+        env->spr[SPR_DSISR] |= (env->error_code & 0x03FF0000) >> 16;
         break;
     case POWERPC_EXCP_PROGRAM:   /* Program exception                        */
         switch (env->error_code & ~0xF) {
