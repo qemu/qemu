@@ -4055,8 +4055,6 @@ static void gen_dcbz(DisasContext *ctx)
     int is_dcbzl = ctx->opcode & 0x00200000 ? 1 : 0;
 
     gen_set_access_type(ctx, ACCESS_CACHE);
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     tcgv_addr = tcg_temp_new();
     tcgv_is_dcbzl = tcg_const_i32(is_dcbzl);
 
@@ -4584,8 +4582,6 @@ static void gen_lscbx(DisasContext *ctx)
     TCGv_i32 t3 = tcg_const_i32(rB(ctx->opcode));
 
     gen_addr_reg_index(ctx, t0);
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_lscbx(t0, cpu_env, t0, t1, t2, t3);
     tcg_temp_free_i32(t1);
     tcg_temp_free_i32(t2);

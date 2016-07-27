@@ -141,13 +141,14 @@ void helper_stsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
     }
 }
 
-static void do_dcbz(CPUPPCState *env, target_ulong addr, int dcache_line_size)
+static void do_dcbz(CPUPPCState *env, target_ulong addr, int dcache_line_size,
+                    uintptr_t raddr)
 {
     int i;
 
     addr &= ~(dcache_line_size - 1);
     for (i = 0; i < dcache_line_size; i += 4) {
-        cpu_stl_data(env, addr + i, 0);
+        cpu_stl_data_ra(env, addr + i, 0, raddr);
     }
     if (env->reserve_addr == addr) {
         env->reserve_addr = (target_ulong)-1ULL;
@@ -168,7 +169,7 @@ void helper_dcbz(CPUPPCState *env, target_ulong addr, uint32_t is_dcbzl)
 
     /* XXX add e500mc support */
 
-    do_dcbz(env, addr, dcbz_size);
+    do_dcbz(env, addr, dcbz_size, GETPC());
 }
 
 void helper_icbi(CPUPPCState *env, target_ulong addr)
@@ -190,7 +191,7 @@ target_ulong helper_lscbx(CPUPPCState *env, target_ulong addr, uint32_t reg,
 
     d = 24;
     for (i = 0; i < xer_bc; i++) {
-        c = cpu_ldub_data(env, addr);
+        c = cpu_ldub_data_ra(env, addr, GETPC());
         addr = addr_add(env, addr, 1);
         /* ra (if not 0) and rb are never modified */
         if (likely(reg != rb && (ra == 0 || reg != ra))) {
