@@ -17,6 +17,7 @@
 #include "block/block.h"
 #include "block/block_int.h"
 #include "block/blockjob.h"
+#include "block/block_backup.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/ratelimit.h"
@@ -253,6 +254,23 @@ static void backup_attached_aio_context(BlockJob *job, AioContext *aio_context)
     BackupBlockJob *s = container_of(job, BackupBlockJob, common);
 
     blk_set_aio_context(s->target, aio_context);
+}
+
+void backup_do_checkpoint(BlockJob *job, Error **errp)
+{
+    BackupBlockJob *backup_job = container_of(job, BackupBlockJob, common);
+    int64_t len;
+
+    assert(job->driver->job_type == BLOCK_JOB_TYPE_BACKUP);
+
+    if (backup_job->sync_mode != MIRROR_SYNC_MODE_NONE) {
+        error_setg(errp, "The backup job only supports block checkpoint in"
+                   " sync=none mode");
+        return;
+    }
+
+    len = DIV_ROUND_UP(backup_job->common.len, backup_job->cluster_size);
+    bitmap_zero(backup_job->done_bitmap, len);
 }
 
 static const BlockJobDriver backup_job_driver = {
