@@ -195,6 +195,7 @@ struct DisasContext {
     /* Routine used to access memory */
     bool pr, hv, dr, le_mode;
     bool lazy_tlb_flush;
+    bool need_access_type;
     int mem_idx;
     int access_type;
     /* Translation flags */
@@ -252,7 +253,7 @@ struct opc_handler_t {
 
 static inline void gen_set_access_type(DisasContext *ctx, int access_type)
 {
-    if (ctx->access_type != access_type) {
+    if (ctx->need_access_type && ctx->access_type != access_type) {
         tcg_gen_movi_i32(cpu_access_type, access_type);
         ctx->access_type = access_type;
     }
@@ -6927,6 +6928,7 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
     ctx.insns_flags = env->insns_flags;
     ctx.insns_flags2 = env->insns_flags2;
     ctx.access_type = -1;
+    ctx.need_access_type = !(env->mmu_model & POWERPC_MMU_64B);
     ctx.le_mode = !!(env->hflags & (1 << MSR_LE));
     ctx.default_tcg_memop_mask = ctx.le_mode ? MO_LE : MO_BE;
 #if defined(TARGET_PPC64)
