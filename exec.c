@@ -598,30 +598,7 @@ AddressSpace *cpu_get_address_space(CPUState *cpu, int asidx)
 }
 #endif
 
-#ifndef CONFIG_USER_ONLY
-static DECLARE_BITMAP(cpu_index_map, MAX_CPUMASK_BITS);
-
-static int cpu_get_free_index(Error **errp)
-{
-    int cpu = find_first_zero_bit(cpu_index_map, MAX_CPUMASK_BITS);
-
-    if (cpu >= MAX_CPUMASK_BITS) {
-        error_setg(errp, "Trying to use more CPUs than max of %d",
-                   MAX_CPUMASK_BITS);
-        return -1;
-    }
-
-    bitmap_set(cpu_index_map, cpu, 1);
-    return cpu;
-}
-
-static void cpu_release_index(CPUState *cpu)
-{
-    bitmap_clear(cpu_index_map, cpu->cpu_index, 1);
-}
-#else
-
-static int cpu_get_free_index(Error **errp)
+static int cpu_get_free_index(void)
 {
     CPUState *some_cpu;
     int cpu_index = 0;
@@ -632,33 +609,21 @@ static int cpu_get_free_index(Error **errp)
     return cpu_index;
 }
 
-static void cpu_release_index(CPUState *cpu)
-{
-    return;
-}
-#endif
-
 void cpu_exec_exit(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-#if defined(CONFIG_USER_ONLY)
     cpu_list_lock();
-#endif
-    if (cpu->cpu_index == -1) {
-        /* cpu_index was never allocated by this @cpu or was already freed. */
-#if defined(CONFIG_USER_ONLY)
+    if (cpu->node.tqe_prev == NULL) {
+        /* there is nothing to undo since cpu_exec_init() hasn't been called */
         cpu_list_unlock();
-#endif
         return;
     }
 
     QTAILQ_REMOVE(&cpus, cpu, node);
-    cpu_release_index(cpu);
-    cpu->cpu_index = -1;
-#if defined(CONFIG_USER_ONLY)
+    cpu->node.tqe_prev = NULL;
+    cpu->cpu_index = UNASSIGNED_CPU_INDEX;
     cpu_list_unlock();
-#endif
 
     if (cc->vmsd != NULL) {
         vmstate_unregister(NULL, cc->vmsd, cpu);
@@ -670,8 +635,8 @@ void cpu_exec_exit(CPUState *cpu)
 
 void cpu_exec_init(CPUState *cpu, Error **errp)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-    Error *local_err = NULL;
+    CPUClass *cc ATTRIBUTE_UNUSED = CPU_GET_CLASS(cpu);
+    Error *local_err ATTRIBUTE_UNUSED = NULL;
 
     cpu->as = NULL;
     cpu->num_ases = 0;
@@ -694,22 +659,15 @@ void cpu_exec_init(CPUState *cpu, Error **errp)
     object_ref(OBJECT(cpu->memory));
 #endif
 
-#if defined(CONFIG_USER_ONLY)
     cpu_list_lock();
-#endif
-    cpu->cpu_index = cpu_get_free_index(&local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-#if defined(CONFIG_USER_ONLY)
-        cpu_list_unlock();
-#endif
-        return;
+    if (cpu->cpu_index == UNASSIGNED_CPU_INDEX) {
+        cpu->cpu_index = cpu_get_free_index();
+        assert(cpu->cpu_index != UNASSIGNED_CPU_INDEX);
     }
     QTAILQ_INSERT_TAIL(&cpus, cpu, node);
-#if defined(CONFIG_USER_ONLY)
-    (void) cc;
     cpu_list_unlock();
-#else
+
+#ifndef CONFIG_USER_ONLY
     if (qdev_get_vmsd(DEVICE(cpu)) == NULL) {
         vmstate_register(NULL, cpu->cpu_index, &vmstate_cpu_common, cpu);
     }

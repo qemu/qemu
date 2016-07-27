@@ -1084,7 +1084,7 @@ int qdev_prop_check_globals(void)
 }
 
 static void qdev_prop_set_globals_for_type(DeviceState *dev,
-                                const char *typename)
+                                           const char *typename)
 {
     GList *l;
 
@@ -1100,7 +1100,7 @@ static void qdev_prop_set_globals_for_type(DeviceState *dev,
         if (err != NULL) {
             error_prepend(&err, "can't apply global %s.%s=%s: ",
                           prop->driver, prop->property, prop->value);
-            if (prop->errp) {
+            if (!dev->hotplugged && prop->errp) {
                 error_propagate(prop->errp, err);
             } else {
                 assert(prop->user_provided);
