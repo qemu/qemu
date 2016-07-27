@@ -23,7 +23,9 @@
 
 #define SLICE_TIME    100000000ULL /* ns */
 #define MAX_IN_FLIGHT 16
-#define DEFAULT_MIRROR_BUF_SIZE   (10 << 20)
+#define MAX_IO_SECTORS ((1 << 20) >> BDRV_SECTOR_BITS) /* 1 Mb */
+#define DEFAULT_MIRROR_BUF_SIZE \
+    (MAX_IN_FLIGHT * MAX_IO_SECTORS * BDRV_SECTOR_SIZE)
 
 /* The mirroring buffer is a list of granularity-sized chunks.
  * Free chunks are organized in a list.
@@ -325,6 +327,8 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     int64_t end = s->bdev_length / BDRV_SECTOR_SIZE;
     int sectors_per_chunk = s->granularity >> BDRV_SECTOR_BITS;
     bool write_zeroes_ok = bdrv_can_write_zeroes_with_unmap(blk_bs(s->target));
+    int max_io_sectors = MAX((s->buf_size >> BDRV_SECTOR_BITS) / MAX_IN_FLIGHT,
+                             MAX_IO_SECTORS);
 
     sector_num = hbitmap_iter_next(&s->hbi);
     if (sector_num < 0) {
@@ -388,7 +392,9 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
                                           nb_chunks * sectors_per_chunk,
                                           &io_sectors, &file);
         if (ret < 0) {
-            io_sectors = nb_chunks * sectors_per_chunk;
+            io_sectors = MIN(nb_chunks * sectors_per_chunk, max_io_sectors);
+        } else if (ret & BDRV_BLOCK_DATA) {
+            io_sectors = MIN(io_sectors, max_io_sectors);
         }
 
         io_sectors -= io_sectors % sectors_per_chunk;
