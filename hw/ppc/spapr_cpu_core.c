@@ -133,6 +133,11 @@ void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     sPAPRDRConnectorClass *drck;
     Error *local_err = NULL;
 
+    if (index == 0) {
+        error_setg(errp, "Boot CPU core may not be unplugged");
+        return;
+    }
+
     g_assert(drc);
 
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
