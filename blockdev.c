@@ -3090,7 +3090,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
             goto out;
         }
         commit_active_start(has_job_id ? job_id : NULL, bs, base_bs, speed,
-                            on_error, block_job_cb, bs, &local_err);
+                            on_error, block_job_cb, bs, &local_err, false);
     } else {
         commit_start(has_job_id ? job_id : NULL, bs, base_bs, top_bs, speed,
                      on_error, block_job_cb, bs,

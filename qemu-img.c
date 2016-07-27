@@ -921,7 +921,7 @@ static int img_commit(int argc, char **argv)
     };
 
     commit_active_start("commit", bs, base_bs, 0, BLOCKDEV_ON_ERROR_REPORT,
-                        common_block_job_cb, &cbi, &local_err);
+                        common_block_job_cb, &cbi, &local_err, false);
     if (local_err) {
         goto done;
     }
