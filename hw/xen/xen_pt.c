@@ -842,7 +842,7 @@ static void xen_pt_realize(PCIDevice *d, Error **errp)
         goto err_out;
     }
     if (!scratch) {
-        error_setg(errp, "no pin interrupt");
+        XEN_PT_LOG(d, "no pin interrupt\n");
         goto out;
     }
 
