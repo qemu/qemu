@@ -5849,7 +5849,6 @@ static void gen_tlbwe_booke206(DisasContext *ctx)
     GEN_PRIV;
 #else
     CHK_SV;
-    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_booke206_tlbwe(cpu_env);
 #endif /* defined(CONFIG_USER_ONLY) */
 }

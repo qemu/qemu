@@ -2598,9 +2598,9 @@ void helper_booke206_tlbwe(CPUPPCState *env)
     tlb = booke206_cur_tlb(env);
 
     if (!tlb) {
-        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                                   POWERPC_EXCP_INVAL |
-                                   POWERPC_EXCP_INVAL_INVAL);
+        raise_exception_err_ra(env, POWERPC_EXCP_PROGRAM,
+                               POWERPC_EXCP_INVAL |
+                               POWERPC_EXCP_INVAL_INVAL, GETPC());
     }
 
     /* check that we support the targeted size */
@@ -2608,9 +2608,9 @@ void helper_booke206_tlbwe(CPUPPCState *env)
     size_ps = booke206_tlbnps(env, tlbn);
     if ((env->spr[SPR_BOOKE_MAS1] & MAS1_VALID) && (tlbncfg & TLBnCFG_AVAIL) &&
         !(size_ps & (1 << size_tlb))) {
-        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                                   POWERPC_EXCP_INVAL |
-                                   POWERPC_EXCP_INVAL_INVAL);
+        raise_exception_err_ra(env, POWERPC_EXCP_PROGRAM,
+                               POWERPC_EXCP_INVAL |
+                               POWERPC_EXCP_INVAL_INVAL, GETPC());
     }
 
     if (msr_gs) {
