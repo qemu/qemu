@@ -2329,6 +2329,30 @@ static void gen_sradi1(DisasContext *ctx)
     gen_sradi(ctx, 1);
 }
 
+/* extswsli & extswsli. */
+static inline void gen_extswsli(DisasContext *ctx, int n)
+{
+    int sh = SH(ctx->opcode) + (n << 5);
+    TCGv dst = cpu_gpr[rA(ctx->opcode)];
+    TCGv src = cpu_gpr[rS(ctx->opcode)];
+
+    tcg_gen_ext32s_tl(dst, src);
+    tcg_gen_shli_tl(dst, dst, sh);
+    if (unlikely(Rc(ctx->opcode) != 0)) {
+        gen_set_Rc0(ctx, dst);
+    }
+}
+
+static void gen_extswsli0(DisasContext *ctx)
+{
+    gen_extswsli(ctx, 0);
+}
+
+static void gen_extswsli1(DisasContext *ctx)
+{
+    gen_extswsli(ctx, 1);
+}
+
 /* srd & srd. */
 static void gen_srd(DisasContext *ctx)
 {
@@ -6228,6 +6252,10 @@ GEN_HANDLER(srad, 0x1F, 0x1A, 0x18, 0x00000000, PPC_64B),
 GEN_HANDLER2(sradi0, "sradi", 0x1F, 0x1A, 0x19, 0x00000000, PPC_64B),
 GEN_HANDLER2(sradi1, "sradi", 0x1F, 0x1B, 0x19, 0x00000000, PPC_64B),
 GEN_HANDLER(srd, 0x1F, 0x1B, 0x10, 0x00000000, PPC_64B),
+GEN_HANDLER2_E(extswsli0, "extswsli", 0x1F, 0x1A, 0x1B, 0x00000000,
+               PPC_NONE, PPC2_ISA300),
+GEN_HANDLER2_E(extswsli1, "extswsli", 0x1F, 0x1B, 0x1B, 0x00000000,
+               PPC_NONE, PPC2_ISA300),
 #endif
 #if defined(TARGET_PPC64)
 GEN_HANDLER(ld, 0x3A, 0xFF, 0xFF, 0x00000000, PPC_64B),
