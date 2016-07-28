@@ -1710,6 +1710,23 @@ void helper_vslv(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 }
 
+void helper_vsrv(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i;
+    unsigned int shift, bytes;
+
+    /* Use reverse order, as destination and source register can be same. Its
+     * being modified in place saving temporary, reverse order will guarantee
+     * that computed result is not fed back.
+     */
+    for (i = ARRAY_SIZE(r->u8) - 1; i >= 0; i--) {
+        shift = b->u8[i] & 0x7;                 /* extract shift value */
+        bytes = ((i ? a->u8[i - 1] : 0) << 8) + a->u8[i];
+                                                /* extract adjacent bytes */
+        r->u8[i] = (bytes >> shift) & 0xFF;     /* shift and store result */
+    }
+}
+
 void helper_vsldoi(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t shift)
 {
     int sh = shift & 0xf;
