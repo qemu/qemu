@@ -494,7 +494,7 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
     if ((rc = getaddrinfo(addr, port, &ai, &peer)) != 0) {
         error_setg(errp, "address resolution failed for %s:%s: %s", addr, port,
                    gai_strerror(rc));
-	goto err;
+        goto err;
     }
 
     /* lookup local addr */
@@ -548,12 +548,16 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
     return sock;
 
 err:
-    if (-1 != sock)
+    if (sock != -1) {
         closesocket(sock);
-    if (local)
+    }
+    if (local) {
         freeaddrinfo(local);
-    if (peer)
+    }
+    if (peer) {
         freeaddrinfo(peer);
+    }
+
     return -1;
 }
 
@@ -816,8 +820,10 @@ int unix_listen(const char *str, char *ostr, int olen, Error **errp)
 
     sock = unix_listen_saddr(saddr, true, errp);
 
-    if (sock != -1 && ostr)
+    if (sock != -1 && ostr) {
         snprintf(ostr, olen, "%s%s", saddr->path, optstr ? optstr : "");
+    }
+
     qapi_free_UnixSocketAddress(saddr);
     return sock;
 }
