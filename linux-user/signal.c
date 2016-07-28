@@ -5925,6 +5925,7 @@ void process_pending_signals(CPUArchState *cpu_env)
         sigfillset(&set);
         sigprocmask(SIG_SETMASK, &set, 0);
 
+    restart_scan:
         sig = ts->sync_signal.pending;
         if (sig) {
             /* Synchronous signals are forced,
@@ -5952,8 +5953,10 @@ void process_pending_signals(CPUArchState *cpu_env)
                 (!sigismember(blocked_set,
                               target_to_host_signal_table[sig]))) {
                 handle_pending_signal(cpu_env, sig, &ts->sigtab[sig - 1]);
-                /* Restart scan from the beginning */
-                sig = 1;
+                /* Restart scan from the beginning, as handle_pending_signal
+                 * might have resulted in a new synchronous signal (eg SIGSEGV).
+                 */
+                goto restart_scan;
             }
         }
 
