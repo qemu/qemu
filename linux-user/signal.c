@@ -569,19 +569,15 @@ static void QEMU_NORETURN force_sig(int target_sig)
 
 /* queue a signal so that it will be send to the virtual CPU as soon
    as possible */
-int queue_signal(CPUArchState *env, int sig, target_siginfo_t *info)
+int queue_signal(CPUArchState *env, int sig, int si_type,
+                 target_siginfo_t *info)
 {
     CPUState *cpu = ENV_GET_CPU(env);
     TaskState *ts = cpu->opaque;
 
     trace_user_queue_signal(env, sig);
 
-    /* Currently all callers define siginfo structures which
-     * use the _sifields._sigfault union member, so we can
-     * set the type here. If that changes we should push this
-     * out so the si_type is passed in by callers.
-     */
-    info->si_code = deposit32(info->si_code, 16, 16, QEMU_SI_FAULT);
+    info->si_code = deposit32(info->si_code, 16, 16, si_type);
 
     ts->sync_signal.info = *info;
     ts->sync_signal.pending = sig;
