@@ -1170,37 +1170,41 @@ GEN_DIVE(divweo, divwe, 1);
 static inline void gen_op_arith_divd(DisasContext *ctx, TCGv ret, TCGv arg1,
                                      TCGv arg2, int sign, int compute_ov)
 {
-    TCGLabel *l1 = gen_new_label();
-    TCGLabel *l2 = gen_new_label();
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+    TCGv_i64 t3 = tcg_temp_new_i64();
 
-    tcg_gen_brcondi_i64(TCG_COND_EQ, arg2, 0, l1);
+    tcg_gen_mov_i64(t0, arg1);
+    tcg_gen_mov_i64(t1, arg2);
     if (sign) {
-        TCGLabel *l3 = gen_new_label();
-        tcg_gen_brcondi_i64(TCG_COND_NE, arg2, -1, l3);
-        tcg_gen_brcondi_i64(TCG_COND_EQ, arg1, INT64_MIN, l1);
-        gen_set_label(l3);
-        tcg_gen_div_i64(ret, arg1, arg2);
+        tcg_gen_setcondi_i64(TCG_COND_EQ, t2, t0, INT64_MIN);
+        tcg_gen_setcondi_i64(TCG_COND_EQ, t3, t1, -1);
+        tcg_gen_and_i64(t2, t2, t3);
+        tcg_gen_setcondi_i64(TCG_COND_EQ, t3, t1, 0);
+        tcg_gen_or_i64(t2, t2, t3);
+        tcg_gen_movi_i64(t3, 0);
+        tcg_gen_movcond_i64(TCG_COND_NE, t1, t2, t3, t2, t1);
+        tcg_gen_div_i64(ret, t0, t1);
     } else {
-        tcg_gen_divu_i64(ret, arg1, arg2);
+        tcg_gen_setcondi_i64(TCG_COND_EQ, t2, t1, 0);
+        tcg_gen_movi_i64(t3, 0);
+        tcg_gen_movcond_i64(TCG_COND_NE, t1, t2, t3, t2, t1);
+        tcg_gen_divu_i64(ret, t0, t1);
     }
     if (compute_ov) {
-        tcg_gen_movi_tl(cpu_ov, 0);
+        tcg_gen_mov_tl(cpu_ov, t2);
+        tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
     }
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    if (sign) {
-        tcg_gen_sari_i64(ret, arg1, 63);
-    } else {
-        tcg_gen_movi_i64(ret, 0);
-    }
-    if (compute_ov) {
-        tcg_gen_movi_tl(cpu_ov, 1);
-        tcg_gen_movi_tl(cpu_so, 1);
-    }
-    gen_set_label(l2);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t2);
+    tcg_temp_free_i64(t3);
+
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, ret);
 }
+
 #define GEN_INT_ARITH_DIVD(name, opc3, sign, compute_ov)                      \
 static void glue(gen_, name)(DisasContext *ctx)                                       \
 {                                                                             \
