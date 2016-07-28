@@ -719,6 +719,42 @@ VCMP(gtsd, >, s64)
 #undef VCMP_DO
 #undef VCMP
 
+#define VCMPNEZ_DO(suffix, element, etype, record)                   \
+void helper_vcmpnez##suffix(CPUPPCState *env, ppc_avr_t *r,          \
+                            ppc_avr_t *a, ppc_avr_t *b)                 \
+{                                                                       \
+    etype ones = (etype)-1;                                             \
+    etype all = ones;                                                   \
+    etype none = 0;                                                     \
+    int i;                                                              \
+                                                                        \
+    for (i = 0; i < ARRAY_SIZE(r->element); i++) {                      \
+        etype result = ((a->element[i] == 0)                            \
+                           || (b->element[i] == 0)                      \
+                           || (a->element[i] != b->element[i]) ?        \
+                           ones : 0x0);                                 \
+        r->element[i] = result;                                         \
+        all &= result;                                                  \
+        none |= result;                                                 \
+    }                                                                   \
+    if (record) {                                                       \
+        env->crf[6] = ((all != 0) << 3) | ((none == 0) << 1);           \
+    }                                                                   \
+}
+
+/* VCMPNEZ - Vector compare not equal to zero
+ *   suffix  - instruction mnemonic suffix (b: byte, h: halfword, w: word)
+ *   element - element type to access from vector
+ */
+#define VCMPNEZ(suffix, element, etype)         \
+    VCMPNEZ_DO(suffix, element, etype, 0)       \
+    VCMPNEZ_DO(suffix##_dot, element, etype, 1)
+VCMPNEZ(b, u8, uint8_t)
+VCMPNEZ(h, u16, uint16_t)
+VCMPNEZ(w, u32, uint32_t)
+#undef VCMPNEZ_DO
+#undef VCMPNEZ
+
 #define VCMPFP_DO(suffix, compare, order, record)                       \
     void helper_vcmp##suffix(CPUPPCState *env, ppc_avr_t *r,            \
                              ppc_avr_t *a, ppc_avr_t *b)                \

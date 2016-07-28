@@ -160,12 +160,21 @@ GEN_VXFORM(vminfp, 5, 17),
 
 #define GEN_VXRFORM1(opname, name, str, opc2, opc3)                     \
     GEN_HANDLER2(name, str, 0x4, opc2, opc3, 0x00000000, PPC_ALTIVEC),
+#define GEN_VXRFORM1_300(opname, name, str, opc2, opc3)                 \
+GEN_HANDLER2_E(name, str, 0x4, opc2, opc3, 0x00000000, PPC_NONE, PPC2_ISA300),
 #define GEN_VXRFORM(name, opc2, opc3)                                \
     GEN_VXRFORM1(name, name, #name, opc2, opc3)                      \
     GEN_VXRFORM1(name##_dot, name##_, #name ".", opc2, (opc3 | (0x1 << 4)))
+#define GEN_VXRFORM_300(name, opc2, opc3)                                   \
+    GEN_VXRFORM1_300(name, name, #name, opc2, opc3)                         \
+    GEN_VXRFORM1_300(name##_dot, name##_, #name ".", opc2, (opc3 | (0x1 << 4)))
+
 GEN_VXRFORM(vcmpequb, 3, 0)
 GEN_VXRFORM(vcmpequh, 3, 1)
 GEN_VXRFORM(vcmpequw, 3, 2)
+GEN_VXRFORM_300(vcmpnezb, 3, 4)
+GEN_VXRFORM_300(vcmpnezh, 3, 5)
+GEN_VXRFORM_300(vcmpnezw, 3, 6)
 GEN_VXRFORM(vcmpgtsb, 3, 12)
 GEN_VXRFORM(vcmpgtsh, 3, 13)
 GEN_VXRFORM(vcmpgtsw, 3, 14)
