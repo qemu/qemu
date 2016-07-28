@@ -512,6 +512,33 @@ void signal_init(void)
     }
 }
 
+#if !((defined(TARGET_ARM) && !defined(TARGET_AARCH64)) ||              \
+      defined(TARGET_X86_64) || defined(TARGET_UNICORE32))
+
+/* Force a SIGSEGV if we couldn't write to memory trying to set
+ * up the signal frame. oldsig is the signal we were trying to handle
+ * at the point of failure.
+ */
+static void force_sigsegv(int oldsig)
+{
+    CPUState *cpu = thread_cpu;
+    CPUArchState *env = cpu->env_ptr;
+    target_siginfo_t info;
+
+    if (oldsig == SIGSEGV) {
+        /* Make sure we don't try to deliver the signal again; this will
+         * end up with handle_pending_signal() calling force_sig().
+         */
+        sigact_table[oldsig - 1]._sa_handler = TARGET_SIG_DFL;
+    }
+    info.si_signo = TARGET_SIGSEGV;
+    info.si_errno = 0;
+    info.si_code = TARGET_SI_KERNEL;
+    info._sifields._kill._pid = 0;
+    info._sifields._kill._uid = 0;
+    queue_signal(env, info.si_signo, QEMU_SI_KILL, &info);
+}
+#endif
 
 /* abort execution with signal */
 static void QEMU_NORETURN force_sig(int target_sig)
@@ -1011,10 +1038,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     return;
 
 give_sigsegv:
-    if (sig == TARGET_SIGSEGV) {
-        ka->_sa_handler = TARGET_SIG_DFL;
-    }
-    force_sig(TARGET_SIGSEGV /* , current */);
+    force_sigsegv(sig);
 }
 
 /* compare linux/arch/i386/kernel/signal.c:setup_rt_frame() */
@@ -1084,10 +1108,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     return;
 
 give_sigsegv:
-    if (sig == TARGET_SIGSEGV) {
-        ka->_sa_handler = TARGET_SIG_DFL;
-    }
-    force_sig(TARGET_SIGSEGV /* , current */);
+    force_sigsegv(sig);
 }
 
 static int
@@ -1416,7 +1437,7 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
 
  give_sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
-    force_sig(TARGET_SIGSEGV);
+    force_sigsegv(usig);
 }
 
 static void setup_rt_frame(int sig, struct target_sigaction *ka,
@@ -2441,7 +2462,7 @@ sigill_and_return:
 #endif
 sigsegv:
     unlock_user(sf, sf_addr, sizeof(struct target_signal_frame));
-    force_sig(TARGET_SIGSEGV);
+    force_sigsegv(sig);
 }
 
 static void setup_rt_frame(int sig, struct target_sigaction *ka,
@@ -3033,7 +3054,7 @@ static void setup_frame(int sig, struct target_sigaction * ka,
     return;
 
 give_sigsegv:
-    force_sig(TARGET_SIGSEGV/*, current*/);
+    force_sigsegv(sig);
 }
 
 long do_sigreturn(CPUMIPSState *regs)
@@ -3142,7 +3163,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 
 give_sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
-    force_sig(TARGET_SIGSEGV/*, current*/);
+    force_sigsegv(sig);
 }
 
 long do_rt_sigreturn(CPUMIPSState *env)
@@ -3345,7 +3366,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
 give_sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
-    force_sig(TARGET_SIGSEGV);
+    force_sigsegv(sig);
 }
 
 static void setup_rt_frame(int sig, struct target_sigaction *ka,
@@ -3405,7 +3426,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 
 give_sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
-    force_sig(TARGET_SIGSEGV);
+    force_sigsegv(sig);
 }
 
 long do_sigreturn(CPUSH4State *regs)
@@ -3652,7 +3673,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     unlock_user_struct(frame, frame_addr, 1);
     return;
 badframe:
-    force_sig(TARGET_SIGSEGV);
+    force_sigsegv(sig);
 }
 
 static void setup_rt_frame(int sig, struct target_sigaction *ka,
@@ -3822,7 +3843,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     unlock_user_struct(frame, frame_addr, 1);
     return;
 badframe:
-    force_sig(TARGET_SIGSEGV);
+    force_sigsegv(sig);
 }
 
 static void setup_rt_frame(int sig, struct target_sigaction *ka,
@@ -4061,10 +4082,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 
 give_sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
-    if (sig == TARGET_SIGSEGV) {
-        ka->_sa_handler = TARGET_SIG_DFL;
-    }
-    force_sig(TARGET_SIGSEGV);
+    force_sigsegv(sig);
 }
 
 long do_sigreturn(CPUOpenRISCState *env)
@@ -4245,7 +4263,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     return;
 
 give_sigsegv:
-    force_sig(TARGET_SIGSEGV);
+    force_sigsegv(sig);
 }
 
 static void setup_rt_frame(int sig, struct target_sigaction *ka,
@@ -4300,7 +4318,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     return;
 
 give_sigsegv:
-    force_sig(TARGET_SIGSEGV);
+    force_sigsegv(sig);
 }
 
 static int
@@ -4811,7 +4829,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
 sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
-    force_sig(TARGET_SIGSEGV);
+    force_sigsegv(sig);
 }
 
 static void setup_rt_frame(int sig, struct target_sigaction *ka,
@@ -4906,7 +4924,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 
 sigsegv:
     unlock_user_struct(rt_sf, rt_sf_addr, 1);
-    force_sig(TARGET_SIGSEGV);
+    force_sigsegv(sig);
 
 }
 
@@ -5155,7 +5173,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     return;
 
 give_sigsegv:
-    force_sig(TARGET_SIGSEGV);
+    force_sigsegv(sig);
 }
 
 static inline int target_rt_setup_ucontext(struct target_ucontext *uc,
@@ -5294,7 +5312,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 
 give_sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
-    force_sig(TARGET_SIGSEGV);
+    force_sigsegv(sig);
 }
 
 long do_sigreturn(CPUM68KState *env)
@@ -5501,10 +5519,8 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
     if (err) {
 give_sigsegv:
-        if (sig == TARGET_SIGSEGV) {
-            ka->_sa_handler = TARGET_SIG_DFL;
-        }
-        force_sig(TARGET_SIGSEGV);
+        force_sigsegv(sig);
+        return;
     }
 
     env->ir[IR_RA] = r26;
@@ -5558,10 +5574,8 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     if (err) {
 give_sigsegv:
-        if (sig == TARGET_SIGSEGV) {
-            ka->_sa_handler = TARGET_SIG_DFL;
-        }
-        force_sig(TARGET_SIGSEGV);
+        force_sigsegv(sig);
+        return;
     }
 
     env->ir[IR_RA] = r26;
@@ -5758,10 +5772,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     return;
 
 give_sigsegv:
-    if (sig == TARGET_SIGSEGV) {
-        ka->_sa_handler = TARGET_SIG_DFL;
-    }
-    force_sig(TARGET_SIGSEGV /* , current */);
+    force_sigsegv(sig);
 }
 
 long do_rt_sigreturn(CPUTLGState *env)
