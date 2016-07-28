@@ -394,6 +394,14 @@ static void test_max_is_missing_limit(void)
         cfg.buckets[i].max = 0;
         cfg.buckets[i].avg = 100;
         g_assert(throttle_is_valid(&cfg, NULL));
+
+        cfg.buckets[i].max = 30;
+        cfg.buckets[i].avg = 100;
+        g_assert(!throttle_is_valid(&cfg, NULL));
+
+        cfg.buckets[i].max = 100;
+        cfg.buckets[i].avg = 100;
+        g_assert(throttle_is_valid(&cfg, NULL));
     }
 }
 
