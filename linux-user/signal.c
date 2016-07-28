@@ -512,8 +512,7 @@ void signal_init(void)
     }
 }
 
-#if !((defined(TARGET_ARM) && !defined(TARGET_AARCH64)) ||              \
-      defined(TARGET_X86_64) || defined(TARGET_UNICORE32))
+#if !(defined(TARGET_X86_64) || defined(TARGET_UNICORE32))
 
 /* Force a SIGSEGV if we couldn't write to memory trying to set
  * up the signal frame. oldsig is the signal we were trying to handle
@@ -1789,7 +1788,7 @@ static void setup_frame_v1(int usig, struct target_sigaction *ka,
 
     trace_user_setup_frame(regs, frame_addr);
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0)) {
-        return;
+        goto sigsegv;
     }
 
     setup_sigcontext(&frame->sc, regs, set->sig[0]);
@@ -1802,6 +1801,9 @@ static void setup_frame_v1(int usig, struct target_sigaction *ka,
                  frame_addr + offsetof(struct sigframe_v1, retcode));
 
     unlock_user_struct(frame, frame_addr, 1);
+    return;
+sigsegv:
+    force_sigsegv(usig);
 }
 
 static void setup_frame_v2(int usig, struct target_sigaction *ka,
@@ -1812,7 +1814,7 @@ static void setup_frame_v2(int usig, struct target_sigaction *ka,
 
     trace_user_setup_frame(regs, frame_addr);
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0)) {
-        return;
+        goto sigsegv;
     }
 
     setup_sigframe_v2(&frame->uc, set, regs);
@@ -1821,6 +1823,9 @@ static void setup_frame_v2(int usig, struct target_sigaction *ka,
                  frame_addr + offsetof(struct sigframe_v2, retcode));
 
     unlock_user_struct(frame, frame_addr, 1);
+    return;
+sigsegv:
+    force_sigsegv(usig);
 }
 
 static void setup_frame(int usig, struct target_sigaction *ka,
@@ -1846,7 +1851,7 @@ static void setup_rt_frame_v1(int usig, struct target_sigaction *ka,
 
     trace_user_setup_rt_frame(env, frame_addr);
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0)) {
-        return /* 1 */;
+        goto sigsegv;
     }
 
     info_addr = frame_addr + offsetof(struct rt_sigframe_v1, info);
@@ -1876,6 +1881,9 @@ static void setup_rt_frame_v1(int usig, struct target_sigaction *ka,
     env->regs[2] = uc_addr;
 
     unlock_user_struct(frame, frame_addr, 1);
+    return;
+sigsegv:
+    force_sigsegv(usig);
 }
 
 static void setup_rt_frame_v2(int usig, struct target_sigaction *ka,
@@ -1888,7 +1896,7 @@ static void setup_rt_frame_v2(int usig, struct target_sigaction *ka,
 
     trace_user_setup_rt_frame(env, frame_addr);
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0)) {
-        return /* 1 */;
+        goto sigsegv;
     }
 
     info_addr = frame_addr + offsetof(struct rt_sigframe_v2, info);
@@ -1904,6 +1912,9 @@ static void setup_rt_frame_v2(int usig, struct target_sigaction *ka,
     env->regs[2] = uc_addr;
 
     unlock_user_struct(frame, frame_addr, 1);
+    return;
+sigsegv:
+    force_sigsegv(usig);
 }
 
 static void setup_rt_frame(int usig, struct target_sigaction *ka,
