@@ -348,6 +348,11 @@ bool throttle_is_valid(ThrottleConfig *cfg, Error **errp)
                        " bps/iops values");
             return false;
         }
+
+        if (cfg->buckets[i].max && cfg->buckets[i].max < cfg->buckets[i].avg) {
+            error_setg(errp, "bps_max/iops_max cannot be lower than bps/iops");
+            return false;
+        }
     }
 
     return true;
