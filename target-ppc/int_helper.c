@@ -1696,6 +1696,20 @@ VSL(w, u32, 0x1F)
 VSL(d, u64, 0x3F)
 #undef VSL
 
+void helper_vslv(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i;
+    unsigned int shift, bytes, size;
+
+    size = ARRAY_SIZE(r->u8);
+    for (i = 0; i < size; i++) {
+        shift = b->u8[i] & 0x7;             /* extract shift value */
+        bytes = (a->u8[i] << 8) +             /* extract adjacent bytes */
+            (((i + 1) < size) ? a->u8[i + 1] : 0);
+        r->u8[i] = (bytes << shift) >> 8;   /* shift and store result */
+    }
+}
+
 void helper_vsldoi(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t shift)
 {
     int sh = shift & 0xf;

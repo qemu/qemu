@@ -38,6 +38,9 @@ GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)
 #define GEN_VXFORM_207(name, opc2, opc3) \
 GEN_HANDLER_E(name, 0x04, opc2, opc3, 0x00000000, PPC_NONE, PPC2_ALTIVEC_207)
 
+#define GEN_VXFORM_300(name, opc2, opc3)                                \
+GEN_HANDLER_E(name, 0x04, opc2, opc3, 0x00000000, PPC_NONE, PPC2_ISA300)
+
 #define GEN_VXFORM_DUAL(name0, name1, opc2, opc3, type0, type1) \
 GEN_HANDLER_E(name0##_##name1, 0x4, opc2, opc3, 0x00000000, type0, type1)
 
@@ -107,6 +110,7 @@ GEN_VXFORM(vsrab, 2, 12),
 GEN_VXFORM(vsrah, 2, 13),
 GEN_VXFORM(vsraw, 2, 14),
 GEN_VXFORM_207(vsrad, 2, 15),
+GEN_VXFORM_300(vslv, 2, 29),
 GEN_VXFORM(vslo, 6, 16),
 GEN_VXFORM(vsro, 6, 17),
 GEN_VXFORM(vaddcuw, 0, 6),

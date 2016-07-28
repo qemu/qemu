@@ -383,6 +383,7 @@ GEN_VXFORM(vsrab, 2, 12);
 GEN_VXFORM(vsrah, 2, 13);
 GEN_VXFORM(vsraw, 2, 14);
 GEN_VXFORM(vsrad, 2, 15);
+GEN_VXFORM(vslv, 2, 29);
 GEN_VXFORM(vslo, 6, 16);
 GEN_VXFORM(vsro, 6, 17);
 GEN_VXFORM(vaddcuw, 0, 6);
