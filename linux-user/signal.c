@@ -512,8 +512,7 @@ void signal_init(void)
     }
 }
 
-#if !defined(TARGET_OPENRISC) && !defined(TARGET_UNICORE32) && \
-    !defined(TARGET_X86_64)
+#if !(defined(TARGET_X86_64) || defined(TARGET_UNICORE32))
 /* Force a synchronously taken signal. The kernel force_sig() function
  * also forces the signal to "not blocked, not ignored", but for QEMU
  * that work is done in process_pending_signals().
@@ -531,9 +530,6 @@ static void force_sig(int sig)
     info._sifields._kill._uid = 0;
     queue_signal(env, info.si_signo, QEMU_SI_KILL, &info);
 }
-#endif
-
-#if !(defined(TARGET_X86_64) || defined(TARGET_UNICORE32))
 
 /* Force a SIGSEGV if we couldn't write to memory trying to set
  * up the signal frame. oldsig is the signal we were trying to handle
@@ -541,22 +537,13 @@ static void force_sig(int sig)
  */
 static void force_sigsegv(int oldsig)
 {
-    CPUState *cpu = thread_cpu;
-    CPUArchState *env = cpu->env_ptr;
-    target_siginfo_t info;
-
     if (oldsig == SIGSEGV) {
         /* Make sure we don't try to deliver the signal again; this will
          * end up with handle_pending_signal() calling dump_core_and_abort().
          */
         sigact_table[oldsig - 1]._sa_handler = TARGET_SIG_DFL;
     }
-    info.si_signo = TARGET_SIGSEGV;
-    info.si_errno = 0;
-    info.si_code = TARGET_SI_KERNEL;
-    info._sifields._kill._pid = 0;
-    info._sifields._kill._uid = 0;
-    queue_signal(env, info.si_signo, QEMU_SI_KILL, &info);
+    force_sig(TARGET_SIGSEGV);
 }
 #endif
 
