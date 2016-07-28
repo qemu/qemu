@@ -1,6 +1,9 @@
 #define _GEN_DFP_LONG(name, op1, op2, mask) \
 GEN_HANDLER_E(name, 0x3B, op1, op2, mask, PPC_NONE, PPC2_DFP)
 
+#define _GEN_DFP_LONG_300(name, op1, op2, mask)                   \
+GEN_HANDLER_E(name, 0x3B, op1, op2, mask, PPC_NONE, PPC2_ISA300)
+
 #define _GEN_DFP_LONGx2(name, op1, op2, mask) \
 GEN_HANDLER_E(name, 0x3B, op1, 0x00 | op2, mask, PPC_NONE, PPC2_DFP), \
 GEN_HANDLER_E(name, 0x3B, op1, 0x10 | op2, mask, PPC_NONE, PPC2_DFP)
@@ -13,6 +16,9 @@ GEN_HANDLER_E(name, 0x3B, op1, 0x18 | op2, mask, PPC_NONE, PPC2_DFP)
 
 #define _GEN_DFP_QUAD(name, op1, op2, mask) \
 GEN_HANDLER_E(name, 0x3F, op1, op2, mask, PPC_NONE, PPC2_DFP)
+
+#define _GEN_DFP_QUAD_300(name, op1, op2, mask)             \
+GEN_HANDLER_E(name, 0x3F, op1, op2, mask, PPC_NONE, PPC2_ISA300)
 
 #define _GEN_DFP_QUADx2(name, op1, op2, mask) \
 GEN_HANDLER_E(name, 0x3F, op1, 0x00 | op2, mask, PPC_NONE, PPC2_DFP), \
@@ -48,11 +54,17 @@ _GEN_DFP_QUAD(name, op1, op2, 0x001F0800)
 #define GEN_DFP_BF_A_B(name, op1, op2) \
 _GEN_DFP_LONG(name, op1, op2, 0x00000001)
 
+#define GEN_DFP_BF_A_B_300(name, op1, op2)          \
+_GEN_DFP_LONG_300(name, op1, op2, 0x00400001)
+
 #define GEN_DFP_BF_Ap_Bp(name, op1, op2) \
 _GEN_DFP_QUAD(name, op1, op2, 0x00610801)
 
 #define GEN_DFP_BF_A_Bp(name, op1, op2) \
 _GEN_DFP_QUAD(name, op1, op2, 0x00600801)
+
+#define GEN_DFP_BF_A_Bp_300(name, op1, op2)     \
+_GEN_DFP_QUAD_300(name, op1, op2, 0x00400001)
 
 #define GEN_DFP_BF_A_DCM(name, op1, op2) \
 _GEN_DFP_LONGx2(name, op1, op2, 0x00600001)
@@ -119,6 +131,8 @@ GEN_DFP_BF_A_B(dtstex, 0x02, 0x05),
 GEN_DFP_BF_Ap_Bp(dtstexq, 0x02, 0x05),
 GEN_DFP_BF_A_B(dtstsf, 0x02, 0x15),
 GEN_DFP_BF_A_Bp(dtstsfq, 0x02, 0x15),
+GEN_DFP_BF_A_B_300(dtstsfi, 0x03, 0x15),
+GEN_DFP_BF_A_Bp_300(dtstsfiq, 0x03, 0x15),
 GEN_DFP_TE_T_B_RMC_Rc(dquai, 0x03, 0x02),
 GEN_DFP_TE_Tp_Bp_RMC_Rc(dquaiq, 0x03, 0x02),
 GEN_DFP_T_A_B_RMC_Rc(dqua, 0x03, 0x00),

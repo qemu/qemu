@@ -45,6 +45,24 @@ static void gen_##name(DisasContext *ctx)         \
     tcg_temp_free_ptr(rb);                        \
 }
 
+#define GEN_DFP_BF_I_B(name)                      \
+static void gen_##name(DisasContext *ctx)         \
+{                                                 \
+    TCGv_i32 uim;                                 \
+    TCGv_ptr rb;                                  \
+    if (unlikely(!ctx->fpu_enabled)) {            \
+        gen_exception(ctx, POWERPC_EXCP_FPU);     \
+        return;                                   \
+    }                                             \
+    gen_update_nip(ctx, ctx->nip - 4);            \
+    uim = tcg_const_i32(UIMM5(ctx->opcode));      \
+    rb = gen_fprp_ptr(rB(ctx->opcode));           \
+    gen_helper_##name(cpu_crf[crfD(ctx->opcode)], \
+                      cpu_env, uim, rb);          \
+    tcg_temp_free_i32(uim);                       \
+    tcg_temp_free_ptr(rb);                        \
+}
+
 #define GEN_DFP_BF_A_DCM(name)                    \
 static void gen_##name(DisasContext *ctx)         \
 {                                                 \
@@ -172,6 +190,8 @@ GEN_DFP_BF_A_B(dtstex)
 GEN_DFP_BF_A_B(dtstexq)
 GEN_DFP_BF_A_B(dtstsf)
 GEN_DFP_BF_A_B(dtstsfq)
+GEN_DFP_BF_I_B(dtstsfi)
+GEN_DFP_BF_I_B(dtstsfiq)
 GEN_DFP_T_B_U32_U32_Rc(dquai, SIMM5, RMC)
 GEN_DFP_T_B_U32_U32_Rc(dquaiq, SIMM5, RMC)
 GEN_DFP_T_A_B_I32_Rc(dqua, RMC)
