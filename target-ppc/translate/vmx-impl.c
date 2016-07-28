@@ -301,8 +301,17 @@ GEN_VXFORM(vminsh, 1, 13);
 GEN_VXFORM(vminsw, 1, 14);
 GEN_VXFORM(vminsd, 1, 15);
 GEN_VXFORM(vavgub, 1, 16);
+GEN_VXFORM(vabsdub, 1, 16);
+GEN_VXFORM_DUAL(vavgub, PPC_ALTIVEC, PPC_NONE, \
+                vabsdub, PPC_NONE, PPC2_ISA300)
 GEN_VXFORM(vavguh, 1, 17);
+GEN_VXFORM(vabsduh, 1, 17);
+GEN_VXFORM_DUAL(vavguh, PPC_ALTIVEC, PPC_NONE, \
+                vabsduh, PPC_NONE, PPC2_ISA300)
 GEN_VXFORM(vavguw, 1, 18);
+GEN_VXFORM(vabsduw, 1, 18);
+GEN_VXFORM_DUAL(vavguw, PPC_ALTIVEC, PPC_NONE, \
+                vabsduw, PPC_NONE, PPC2_ISA300)
 GEN_VXFORM(vavgsb, 1, 20);
 GEN_VXFORM(vavgsh, 1, 21);
 GEN_VXFORM(vavgsw, 1, 22);
