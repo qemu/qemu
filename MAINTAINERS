@@ -449,23 +449,23 @@ S: Maintained
 F: hw/*/versatile*
 
 Xilinx Zynq
+M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 M: Alistair Francis <alistair.francis@xilinx.com>
-M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
 L: qemu-arm@nongnu.org
 S: Maintained
-F: hw/arm/xilinx_zynq.c
-F: hw/misc/zynq_slcr.c
+F: hw/*/xilinx_*
 F: hw/*/cadence_*
-F: hw/ssi/xilinx_spips.c
+F: hw/misc/zynq_slcr.c
+F: include/hw/xilinx.h
+X: hw/ssi/xilinx_*
 
 Xilinx ZynqMP
 M: Alistair Francis <alistair.francis@xilinx.com>
-M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
+M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 L: qemu-arm@nongnu.org
 S: Maintained
-F: hw/arm/xlnx-zynqmp.c
-F: hw/arm/xlnx-ep108.c
-F: include/hw/arm/xlnx-zynqmp.h
+F: hw/*/xlnx*.c
+F: include/hw/*/xlnx*.c
 
 ARM ACPI Subsystem
 M: Shannon Zhao <zhaoshenglong@huawei.com>
@@ -948,14 +948,6 @@ S: Supported
 F: hw/scsi/megasas.c
 F: hw/scsi/mfi.h
 
-Xilinx EDK
-M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
-M: Alistair Francis <alistair.francis@xilinx.com>
-M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
-S: Maintained
-F: hw/*/xilinx_*
-F: include/hw/xilinx.h
-
 Network packet abstractions
 M: Dmitry Fleytman <dmitry@daynix.com>
 S: Maintained
@@ -1242,6 +1234,12 @@ F: qmp-commands.hx
 F: docs/*qmp-*
 F: scripts/qmp/
 T: git git://repo.or.cz/qemu/armbru.git qapi-next
+
+Register API
+M: Alistair Francis <alistair.francis@xilinx.com>
+S: Maintained
+F: hw/core/register.c
+F: include/hw/register.h
 
 SLIRP
 M: Samuel Thibault <samuel.thibault@ens-lyon.org>
