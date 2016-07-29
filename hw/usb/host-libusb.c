@@ -235,7 +235,7 @@ static int usb_host_init(void)
 #ifndef CONFIG_WIN32
     const struct libusb_pollfd **poll;
 #endif
-    int i, rc;
+    int rc;
 
     if (ctx) {
         return 0;
@@ -253,6 +253,7 @@ static int usb_host_init(void)
                                 ctx);
     poll = libusb_get_pollfds(ctx);
     if (poll) {
+        int i;
         for (i = 0; poll[i] != NULL; i++) {
             usb_host_add_fd(poll[i]->fd, poll[i]->events, ctx);
         }
