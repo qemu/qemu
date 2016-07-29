@@ -140,7 +140,7 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
 {
     int r;
     bool backend_kernel = options->backend_type == VHOST_BACKEND_TYPE_KERNEL;
-    struct vhost_net *net = g_malloc(sizeof *net);
+    struct vhost_net *net = g_new0(struct vhost_net, 1);
     uint64_t features = 0;
 
     if (!options->net_backend) {
@@ -185,7 +185,6 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
             fprintf(stderr, "vhost lacks feature mask %" PRIu64
                    " for backend\n",
                    (uint64_t)(~net->dev.features & net->dev.backend_features));
-            vhost_dev_cleanup(&net->dev);
             goto fail;
         }
     }
@@ -197,7 +196,6 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
             fprintf(stderr, "vhost lacks feature mask %" PRIu64
                     " for backend\n",
                     (uint64_t)(~net->dev.features & features));
-            vhost_dev_cleanup(&net->dev);
             goto fail;
         }
     }
@@ -205,7 +203,9 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     vhost_net_ack_features(net, features);
 
     return net;
+
 fail:
+    vhost_dev_cleanup(&net->dev);
     g_free(net);
     return NULL;
 }
@@ -242,8 +242,7 @@ static int vhost_net_start_one(struct vhost_net *net,
         qemu_set_fd_handler(net->backend, NULL, NULL, NULL);
         file.fd = net->backend;
         for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
-            const VhostOps *vhost_ops = net->dev.vhost_ops;
-            r = vhost_ops->vhost_net_set_backend(&net->dev, &file);
+            r = vhost_net_set_backend(&net->dev, &file);
             if (r < 0) {
                 r = -errno;
                 goto fail;
@@ -255,8 +254,7 @@ fail:
     file.fd = -1;
     if (net->nc->info->type == NET_CLIENT_DRIVER_TAP) {
         while (file.index-- > 0) {
-            const VhostOps *vhost_ops = net->dev.vhost_ops;
-            int r = vhost_ops->vhost_net_set_backend(&net->dev, &file);
+            int r = vhost_net_set_backend(&net->dev, &file);
             assert(r >= 0);
         }
     }
@@ -277,8 +275,7 @@ static void vhost_net_stop_one(struct vhost_net *net,
 
     if (net->nc->info->type == NET_CLIENT_DRIVER_TAP) {
         for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
-            const VhostOps *vhost_ops = net->dev.vhost_ops;
-            int r = vhost_ops->vhost_net_set_backend(&net->dev, &file);
+            int r = vhost_net_set_backend(&net->dev, &file);
             assert(r >= 0);
         }
     }
@@ -313,7 +310,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
          * properly.
          */
         if (net->nc->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
-                dev->use_guest_notifier_mask = false;
+            dev->use_guest_notifier_mask = false;
         }
      }
 
@@ -378,19 +375,16 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
 void vhost_net_cleanup(struct vhost_net *net)
 {
     vhost_dev_cleanup(&net->dev);
-    g_free(net);
 }
 
 int vhost_net_notify_migration_done(struct vhost_net *net, char* mac_addr)
 {
     const VhostOps *vhost_ops = net->dev.vhost_ops;
-    int r = -1;
 
-    if (vhost_ops->vhost_migration_done) {
-        r = vhost_ops->vhost_migration_done(&net->dev, mac_addr);
-    }
+    assert(vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
+    assert(vhost_ops->vhost_migration_done);
 
-    return r;
+    return vhost_ops->vhost_migration_done(&net->dev, mac_addr);
 }
 
 bool vhost_net_virtqueue_pending(VHostNetState *net, int idx)
@@ -418,6 +412,7 @@ VHostNetState *get_vhost_net(NetClientState *nc)
         break;
     case NET_CLIENT_DRIVER_VHOST_USER:
         vhost_net = vhost_user_get_vhost_net(nc);
+        assert(vhost_net);
         break;
     default:
         break;
@@ -429,15 +424,10 @@ VHostNetState *get_vhost_net(NetClientState *nc)
 int vhost_set_vring_enable(NetClientState *nc, int enable)
 {
     VHostNetState *net = get_vhost_net(nc);
-    const VhostOps *vhost_ops;
+    const VhostOps *vhost_ops = net->dev.vhost_ops;
 
     nc->vring_enable = enable;
 
-    if (!net) {
-        return 0;
-    }
-
-    vhost_ops = net->dev.vhost_ops;
     if (vhost_ops->vhost_set_vring_enable) {
         return vhost_ops->vhost_set_vring_enable(&net->dev, enable);
     }

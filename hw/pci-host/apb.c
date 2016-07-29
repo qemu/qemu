@@ -634,7 +634,7 @@ static void pci_apb_set_irq(void *opaque, int irq_num, int level)
     }
 }
 
-static int apb_pci_bridge_initfn(PCIDevice *dev)
+static void apb_pci_bridge_realize(PCIDevice *dev, Error **errp)
 {
     pci_bridge_initfn(dev, TYPE_PCI_BUS);
 
@@ -652,7 +652,6 @@ static int apb_pci_bridge_initfn(PCIDevice *dev)
     pci_set_word(dev->config + PCI_STATUS,
                  PCI_STATUS_FAST_BACK | PCI_STATUS_66MHZ |
                  PCI_STATUS_DEVSEL_MEDIUM);
-    return 0;
 }
 
 PCIBus *pci_apb_init(hwaddr special_base,
@@ -843,7 +842,7 @@ static void pbm_pci_bridge_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = apb_pci_bridge_initfn;
+    k->realize = apb_pci_bridge_realize;
     k->exit = pci_bridge_exitfn;
     k->vendor_id = PCI_VENDOR_ID_SUN;
     k->device_id = PCI_DEVICE_ID_SUN_SIMBA;

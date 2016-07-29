@@ -61,8 +61,6 @@ typedef struct VirtioBusClass VirtioPCIBusClass;
 enum {
     VIRTIO_PCI_FLAG_BUS_MASTER_BUG_MIGRATION_BIT,
     VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT,
-    VIRTIO_PCI_FLAG_DISABLE_LEGACY_BIT,
-    VIRTIO_PCI_FLAG_DISABLE_MODERN_BIT,
     VIRTIO_PCI_FLAG_MIGRATE_EXTRA_BIT,
     VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY_BIT,
     VIRTIO_PCI_FLAG_DISABLE_PCIE_BIT,
@@ -77,8 +75,6 @@ enum {
 #define VIRTIO_PCI_FLAG_USE_IOEVENTFD   (1 << VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT)
 
 /* virtio version flags */
-#define VIRTIO_PCI_FLAG_DISABLE_LEGACY (1 << VIRTIO_PCI_FLAG_DISABLE_LEGACY_BIT)
-#define VIRTIO_PCI_FLAG_DISABLE_MODERN (1 << VIRTIO_PCI_FLAG_DISABLE_MODERN_BIT)
 #define VIRTIO_PCI_FLAG_DISABLE_PCIE (1 << VIRTIO_PCI_FLAG_DISABLE_PCIE_BIT)
 
 /* migrate extra state */
@@ -144,6 +140,8 @@ struct VirtIOPCIProxy {
     uint32_t modern_mem_bar;
     int config_cap;
     uint32_t flags;
+    bool disable_modern;
+    OnOffAuto disable_legacy;
     uint32_t class_code;
     uint32_t nvectors;
     uint32_t dfselect;
@@ -158,6 +156,21 @@ struct VirtIOPCIProxy {
     VirtioBusState bus;
 };
 
+static inline bool virtio_pci_modern(VirtIOPCIProxy *proxy)
+{
+    return !proxy->disable_modern;
+}
+
+static inline bool virtio_pci_legacy(VirtIOPCIProxy *proxy)
+{
+    return proxy->disable_legacy == ON_OFF_AUTO_OFF;
+}
+
+static inline void virtio_pci_force_virtio_1(VirtIOPCIProxy *proxy)
+{
+    proxy->disable_modern = false;
+    proxy->disable_legacy = ON_OFF_AUTO_ON;
+}
 
 /*
  * virtio-scsi-pci: This extends VirtioPCIProxy.

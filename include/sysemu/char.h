@@ -70,6 +70,7 @@ struct CharDriverState {
     int (*get_msgfds)(struct CharDriverState *s, int* fds, int num);
     int (*set_msgfds)(struct CharDriverState *s, int *fds, int num);
     int (*chr_add_client)(struct CharDriverState *chr, int fd);
+    int (*chr_wait_connected)(struct CharDriverState *chr, Error **errp);
     IOEventHandler *chr_event;
     IOCanReadHandler *chr_can_read;
     IOReadHandler *chr_read;
@@ -157,6 +158,13 @@ void qemu_chr_disconnect(CharDriverState *chr);
  * Delete all chardevs (when leaving qemu)
  */
 void qemu_chr_cleanup(void);
+
+/**
+ * @qemu_chr_wait_connected:
+ *
+ * Wait for characted backend to be connected.
+ */
+int qemu_chr_wait_connected(CharDriverState *chr, Error **errp);
 
 /**
  * @qemu_chr_new_noreplay:

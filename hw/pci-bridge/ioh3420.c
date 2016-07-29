@@ -100,6 +100,7 @@ static int ioh3420_initfn(PCIDevice *d)
     int rc;
     Error *err = NULL;
 
+    pci_config_set_interrupt_pin(d->config, 1);
     pci_bridge_initfn(d, TYPE_PCIE_BUS);
     pcie_port_init_reg(d);
 

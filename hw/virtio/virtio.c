@@ -458,6 +458,11 @@ static void virtqueue_map_desc(unsigned int *p_num_sg, hwaddr *addr, struct iove
     unsigned num_sg = *p_num_sg;
     assert(num_sg <= max_num_sg);
 
+    if (!sz) {
+        error_report("virtio: zero sized buffers are not allowed");
+        exit(1);
+    }
+
     while (sz) {
         hwaddr len = sz;
 
