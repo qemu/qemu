@@ -171,7 +171,7 @@ void cpu_loop(CPUX86State *env)
     //target_siginfo_t info;
 
     for(;;) {
-        trapnr = cpu_x86_exec(cs);
+        trapnr = cpu_exec(cs);
         switch(trapnr) {
         case 0x80:
             /* syscall from int $0x80 */
@@ -512,7 +512,7 @@ void cpu_loop(CPUSPARCState *env)
     //target_siginfo_t info;
 
     while (1) {
-        trapnr = cpu_sparc_exec(cs);
+        trapnr = cpu_exec(cs);
 
         switch (trapnr) {
 #ifndef TARGET_SPARC64
