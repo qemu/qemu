@@ -375,8 +375,8 @@ void migrate_compress_threads_create(void)
     qemu_cond_init(&comp_done_cond);
     qemu_mutex_init(&comp_done_lock);
     for (i = 0; i < thread_count; i++) {
-        /* com_param[i].file is just used as a dummy buffer to save data, set
-         * it's ops to empty.
+        /* comp_param[i].file is just used as a dummy buffer to save data,
+         * set its ops to empty.
          */
         comp_param[i].file = qemu_fopen_ops(NULL, &empty_ops);
         comp_param[i].done = true;
