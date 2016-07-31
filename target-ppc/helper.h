@@ -1,8 +1,8 @@
 DEF_HELPER_FLAGS_3(raise_exception_err, TCG_CALL_NO_WG, void, env, i32, i32)
 DEF_HELPER_FLAGS_2(raise_exception, TCG_CALL_NO_WG, void, env, i32)
-DEF_HELPER_4(tw, void, env, tl, tl, i32)
+DEF_HELPER_FLAGS_4(tw, TCG_CALL_NO_WG, void, env, tl, tl, i32)
 #if defined(TARGET_PPC64)
-DEF_HELPER_4(td, void, env, tl, tl, i32)
+DEF_HELPER_FLAGS_4(td, TCG_CALL_NO_WG, void, env, tl, tl, i32)
 #endif
 #if !defined(CONFIG_USER_ONLY)
 DEF_HELPER_2(store_msr, void, env, tl)
@@ -22,12 +22,12 @@ DEF_HELPER_1(check_tlb_flush, void, env)
 #endif
 
 DEF_HELPER_3(lmw, void, env, tl, i32)
-DEF_HELPER_3(stmw, void, env, tl, i32)
+DEF_HELPER_FLAGS_3(stmw, TCG_CALL_NO_WG, void, env, tl, i32)
 DEF_HELPER_4(lsw, void, env, tl, i32, i32)
 DEF_HELPER_5(lswx, void, env, tl, i32, i32, i32)
-DEF_HELPER_4(stsw, void, env, tl, i32, i32)
-DEF_HELPER_3(dcbz, void, env, tl, i32)
-DEF_HELPER_2(icbi, void, env, tl)
+DEF_HELPER_FLAGS_4(stsw, TCG_CALL_NO_WG, void, env, tl, i32, i32)
+DEF_HELPER_FLAGS_3(dcbz, TCG_CALL_NO_WG, void, env, tl, i32)
+DEF_HELPER_FLAGS_2(icbi, TCG_CALL_NO_WG, void, env, tl)
 DEF_HELPER_5(lscbx, tl, env, tl, i32, i32, i32)
 
 #if defined(TARGET_PPC64)
@@ -690,4 +690,4 @@ DEF_HELPER_4(dscli, void, env, fprp, fprp, i32)
 DEF_HELPER_4(dscliq, void, env, fprp, fprp, i32)
 
 DEF_HELPER_1(tbegin, void, env)
-DEF_HELPER_1(fixup_thrm, void, env)
+DEF_HELPER_FLAGS_1(fixup_thrm, TCG_CALL_NO_RWG, void, env)
