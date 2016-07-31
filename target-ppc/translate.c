@@ -3480,8 +3480,10 @@ static inline void gen_bcond(DisasContext *ctx, int type)
         } else {
             gen_goto_tb(ctx, 0, li);
         }
-        gen_set_label(l1);
-        gen_goto_tb(ctx, 1, ctx->nip);
+        if ((bo & 0x14) != 0x14) {
+            gen_set_label(l1);
+            gen_goto_tb(ctx, 1, ctx->nip);
+        }
     } else {
         if (NARROW_MODE(ctx)) {
             tcg_gen_andi_tl(cpu_nip, target, (uint32_t)~3);
@@ -3489,9 +3491,11 @@ static inline void gen_bcond(DisasContext *ctx, int type)
             tcg_gen_andi_tl(cpu_nip, target, ~3);
         }
         tcg_gen_exit_tb(0);
-        gen_set_label(l1);
-        gen_update_nip(ctx, ctx->nip);
-        tcg_gen_exit_tb(0);
+        if ((bo & 0x14) != 0x14) {
+            gen_set_label(l1);
+            gen_update_nip(ctx, ctx->nip);
+            tcg_gen_exit_tb(0);
+        }
     }
     if (type == BCOND_LR || type == BCOND_CTR || type == BCOND_TAR) {
         tcg_temp_free(target);
