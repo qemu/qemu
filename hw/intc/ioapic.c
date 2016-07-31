@@ -117,21 +117,25 @@ static void ioapic_service(IOAPICCommonState *s)
                     s->ioredtbl[i] |= IOAPIC_LVT_REMOTE_IRR;
                 }
 
+                if (coalesce) {
+                    /* We are level triggered interrupts, and the
+                     * guest should be still working on previous one,
+                     * so skip it. */
+                    continue;
+                }
+
 #ifdef CONFIG_KVM
                 if (kvm_irqchip_is_split()) {
                     if (info.trig_mode == IOAPIC_TRIGGER_EDGE) {
                         kvm_set_irq(kvm_state, i, 1);
                         kvm_set_irq(kvm_state, i, 0);
                     } else {
-                        if (!coalesce) {
-                            kvm_set_irq(kvm_state, i, 1);
-                        }
+                        kvm_set_irq(kvm_state, i, 1);
                     }
                     continue;
                 }
-#else
-                (void)coalesce;
 #endif
+
                 /* No matter whether IR is enabled, we translate
                  * the IOAPIC message into a MSI one, and its
                  * address space will decide whether we need a
