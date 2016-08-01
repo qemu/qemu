@@ -1169,6 +1169,13 @@ F: numa.c
 F: include/sysemu/numa.h
 T: git git://github.com/ehabkost/qemu.git numa
 
+Host Memory Backends
+M: Eduardo Habkost <ehabkost@redhat.com>
+M: Igor Mammedov <imammedo@redhat.com>
+S: Maintained
+F: backends/hostmem*.c
+F: include/sysemu/hostmem.h
+
 QAPI
 M: Markus Armbruster <armbru@redhat.com>
 M: Michael Roth <mdroth@linux.vnet.ibm.com>
