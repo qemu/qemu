@@ -4612,6 +4612,7 @@ int main(int argc, char **argv, char **envp)
 
     /* vhost-user must be cleaned up before chardevs.  */
     net_cleanup();
+    monitor_cleanup();
     qemu_chr_cleanup();
 
     return 0;

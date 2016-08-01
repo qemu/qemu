@@ -635,6 +635,13 @@ static void monitor_data_init(Monitor *mon)
 
 static void monitor_data_destroy(Monitor *mon)
 {
+    if (mon->chr) {
+        qemu_chr_add_handlers(mon->chr, NULL, NULL, NULL, NULL);
+    }
+    if (monitor_is_qmp(mon)) {
+        json_message_parser_destroy(&mon->qmp.parser);
+    }
+    g_free(mon->rs);
     QDECREF(mon->outbuf);
     qemu_mutex_destroy(&mon->out_lock);
 }
@@ -4193,6 +4200,19 @@ void monitor_init(CharDriverState *chr, int flags)
 
     qemu_mutex_lock(&monitor_lock);
     QLIST_INSERT_HEAD(&mon_list, mon, entry);
+    qemu_mutex_unlock(&monitor_lock);
+}
+
+void monitor_cleanup(void)
+{
+    Monitor *mon, *next;
+
+    qemu_mutex_lock(&monitor_lock);
+    QLIST_FOREACH_SAFE(mon, &mon_list, entry, next) {
+        QLIST_REMOVE(mon, entry);
+        monitor_data_destroy(mon);
+        g_free(mon);
+    }
     qemu_mutex_unlock(&monitor_lock);
 }
 
