@@ -21,6 +21,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "monitor/monitor.h"
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
@@ -269,7 +270,7 @@ ioapic_mem_read(void *opaque, hwaddr addr, unsigned int size)
             val = s->id << IOAPIC_ID_SHIFT;
             break;
         case IOAPIC_REG_VER:
-            val = IOAPIC_VERSION |
+            val = s->version |
                 ((IOAPIC_NUM_PINS - 1) << IOAPIC_VER_ENTRIES_SHIFT);
             break;
         default:
@@ -358,6 +359,13 @@ ioapic_mem_write(void *opaque, hwaddr addr, uint64_t val,
             }
         }
         break;
+    case IOAPIC_EOI:
+        /* Explicit EOI is only supported for IOAPIC version 0x20 */
+        if (size != 4 || s->version != 0x20) {
+            break;
+        }
+        ioapic_eoi_broadcast(val);
+        break;
     }
 
     ioapic_update_kvm_routes(s);
@@ -391,6 +399,12 @@ static void ioapic_realize(DeviceState *dev, Error **errp)
 {
     IOAPICCommonState *s = IOAPIC_COMMON(dev);
 
+    if (s->version != 0x11 && s->version != 0x20) {
+        error_report("IOAPIC only supports version 0x11 or 0x20 "
+                     "(default: 0x11).");
+        exit(1);
+    }
+
     memory_region_init_io(&s->io_memory, OBJECT(s), &ioapic_io_ops, s,
                           "ioapic", 0x1000);
 
@@ -401,6 +415,11 @@ static void ioapic_realize(DeviceState *dev, Error **errp)
     qemu_add_machine_init_done_notifier(&s->machine_done);
 }
 
+static Property ioapic_properties[] = {
+    DEFINE_PROP_UINT8("version", IOAPICCommonState, version, 0x11),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ioapic_class_init(ObjectClass *klass, void *data)
 {
     IOAPICCommonClass *k = IOAPIC_COMMON_CLASS(klass);
@@ -408,6 +427,7 @@ static void ioapic_class_init(ObjectClass *klass, void *data)
 
     k->realize = ioapic_realize;
     dc->reset = ioapic_reset_common;
+    dc->props = ioapic_properties;
 }
 
 static const TypeInfo ioapic_info = {
