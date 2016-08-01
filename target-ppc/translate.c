@@ -5316,12 +5316,6 @@ static void gen_rfsvc(DisasContext *ctx)
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 
-#include "translate/fp-impl.c"
-
-#include "translate/vmx-impl.c"
-
-#include "translate/vsx-impl.c"
-
 /* svc is not implemented for now */
 
 /* BookE specific instructions */
@@ -6108,10 +6102,6 @@ static void gen_maddhd_maddhdu(DisasContext *ctx)
 }
 #endif /* defined(TARGET_PPC64) */
 
-#include "translate/dfp-impl.c"
-
-#include "translate/spe-impl.c"
-
 static void gen_tbegin(DisasContext *ctx)
 {
     if (unlikely(!ctx->tm_enabled)) {
@@ -6190,6 +6180,16 @@ static inline void gen_##name(DisasContext *ctx)               \
 
 GEN_TM_PRIV_NOOP(treclaim);
 GEN_TM_PRIV_NOOP(trechkpt);
+
+#include "translate/fp-impl.inc.c"
+
+#include "translate/vmx-impl.inc.c"
+
+#include "translate/vsx-impl.inc.c"
+
+#include "translate/dfp-impl.inc.c"
+
+#include "translate/spe-impl.inc.c"
 
 static opcode_t opcodes[] = {
 GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE),
@@ -6715,16 +6715,6 @@ GEN_MAC_HANDLER(mulhhwu, 0x08, 0x00),
 GEN_MAC_HANDLER(mullhw, 0x08, 0x0D),
 GEN_MAC_HANDLER(mullhwu, 0x08, 0x0C),
 
-#include "translate/fp-ops.c"
-
-#include "translate/vmx-ops.c"
-
-#include "translate/vsx-ops.c"
-
-#include "translate/dfp-ops.c"
-
-#include "translate/spe-ops.c"
-
 GEN_HANDLER2_E(tbegin, "tbegin", 0x1F, 0x0E, 0x14, 0x01DFF800, \
                PPC_NONE, PPC2_TM),
 GEN_HANDLER2_E(tend,   "tend",   0x1F, 0x0E, 0x15, 0x01FFF800, \
@@ -6747,6 +6737,16 @@ GEN_HANDLER2_E(treclaim, "treclaim", 0x1F, 0x0E, 0x1D, 0x03E0F800, \
                PPC_NONE, PPC2_TM),
 GEN_HANDLER2_E(trechkpt, "trechkpt", 0x1F, 0x0E, 0x1F, 0x03FFF800, \
                PPC_NONE, PPC2_TM),
+
+#include "translate/fp-ops.inc.c"
+
+#include "translate/vmx-ops.inc.c"
+
+#include "translate/vsx-ops.inc.c"
+
+#include "translate/dfp-ops.inc.c"
+
+#include "translate/spe-ops.inc.c"
 };
 
 #include "helper_regs.h"
