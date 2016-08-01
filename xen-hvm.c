@@ -1203,11 +1203,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
         goto err;
     }
 
-    rc = xen_create_ioreq_server(xen_xc, xen_domid, &state->ioservid);
-    if (rc < 0) {
-        perror("xen: ioreq server create");
-        goto err;
-    }
+    xen_create_ioreq_server(xen_xc, xen_domid, &state->ioservid);
 
     state->exit.notify = xen_exit_notifier;
     qemu_add_exit_notifier(&state->exit);
