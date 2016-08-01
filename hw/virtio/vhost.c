@@ -822,6 +822,9 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
                                 struct vhost_virtqueue *vq,
                                 unsigned idx)
 {
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     hwaddr s, l, a;
     int r;
     int vhost_vq_index = dev->vhost_ops->vhost_get_vq_index(dev, idx);
@@ -912,8 +915,19 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
         vhost_virtqueue_mask(dev, vdev, idx, false);
     }
 
+    if (k->query_guest_notifiers &&
+        k->query_guest_notifiers(qbus->parent) &&
+        virtio_queue_vector(vdev, idx) == VIRTIO_NO_VECTOR) {
+        file.fd = -1;
+        r = dev->vhost_ops->vhost_set_vring_call(dev, &file);
+        if (r) {
+            goto fail_vector;
+        }
+    }
+
     return 0;
 
+fail_vector:
 fail_kick:
 fail_alloc:
     cpu_physical_memory_unmap(vq->ring, virtio_queue_get_ring_size(vdev, idx),
