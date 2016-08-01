@@ -1145,7 +1145,7 @@ Configure wan image compression (lossy for slow links).
 Default is auto.
 
 @item streaming-video=[off|all|filter]
-Configure video stream detection.  Default is filter.
+Configure video stream detection.  Default is off.
 
 @item agent-mouse=[on|off]
 Enable/disable passing mouse events via vdagent.  Default is on.
