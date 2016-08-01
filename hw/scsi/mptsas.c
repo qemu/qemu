@@ -1295,6 +1295,8 @@ static void mptsas_scsi_init(PCIDevice *dev, Error **errp)
         /* With msi=auto, we fall back to MSI off silently */
         error_free(err);
 
+        /* Only used for migration.  */
+        s->msi_in_use = (ret == 0);
     }
 
     memory_region_init_io(&s->mmio_io, OBJECT(s), &mptsas_mmio_ops, s,
@@ -1370,7 +1372,7 @@ static const VMStateDescription vmstate_mptsas = {
     .post_load = mptsas_post_load,
     .fields      = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, MPTSASState),
-        VMSTATE_UNUSED(sizeof(bool)), /* Was msi_in_use */
+        VMSTATE_BOOL(msi_in_use, MPTSASState),
         VMSTATE_UINT32(state, MPTSASState),
         VMSTATE_UINT8(who_init, MPTSASState),
         VMSTATE_UINT8(doorbell_state, MPTSASState),
