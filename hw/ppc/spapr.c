@@ -647,13 +647,13 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
         _FDT((fdt_setprop_cell(fdt, offset, "d-cache-size",
                                pcc->l1_dcache_size)));
     } else {
-        fprintf(stderr, "Warning: Unknown L1 dcache size for cpu\n");
+        error_report("Warning: Unknown L1 dcache size for cpu");
     }
     if (pcc->l1_icache_size) {
         _FDT((fdt_setprop_cell(fdt, offset, "i-cache-size",
                                pcc->l1_icache_size)));
     } else {
-        fprintf(stderr, "Warning: Unknown L1 icache size for cpu\n");
+        error_report("Warning: Unknown L1 icache size for cpu");
     }
 
     _FDT((fdt_setprop_cell(fdt, offset, "timebase-frequency", tbfreq)));
@@ -945,20 +945,20 @@ static void spapr_finalize_fdt(sPAPRMachineState *spapr,
 
     ret = spapr_populate_memory(spapr, fdt);
     if (ret < 0) {
-        fprintf(stderr, "couldn't setup memory nodes in fdt\n");
+        error_report("couldn't setup memory nodes in fdt");
         exit(1);
     }
 
     ret = spapr_populate_vdevice(spapr->vio_bus, fdt);
     if (ret < 0) {
-        fprintf(stderr, "couldn't setup vio devices in fdt\n");
+        error_report("couldn't setup vio devices in fdt");
         exit(1);
     }
 
     if (object_resolve_path_type("", TYPE_SPAPR_RNG, NULL)) {
         ret = spapr_rng_populate_dt(fdt);
         if (ret < 0) {
-            fprintf(stderr, "could not set up rng device in the fdt\n");
+            error_report("could not set up rng device in the fdt");
             exit(1);
         }
     }
@@ -974,7 +974,7 @@ static void spapr_finalize_fdt(sPAPRMachineState *spapr,
     /* RTAS */
     ret = spapr_rtas_device_tree_setup(fdt, rtas_addr, rtas_size);
     if (ret < 0) {
-        fprintf(stderr, "Couldn't set up RTAS device tree properties\n");
+        error_report("Couldn't set up RTAS device tree properties");
     }
 
     /* cpus */

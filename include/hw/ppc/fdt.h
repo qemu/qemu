@@ -10,11 +10,13 @@
 #ifndef PPC_FDT_H
 #define PPC_FDT_H
 
-#define _FDT(exp)                               \
-    do { \
+#include "qemu/error-report.h"
+
+#define _FDT(exp)                                                  \
+    do {                                                           \
         int ret = (exp);                                           \
         if (ret < 0) {                                             \
-            fprintf(stderr, "qemu: error creating device tree: %s: %s\n", \
+            error_report("error creating device tree: %s: %s",   \
                     #exp, fdt_strerror(ret));                      \
             exit(1);                                               \
         }                                                          \
