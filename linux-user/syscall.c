@@ -6011,7 +6011,6 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
     TaskState *ts;
     CPUState *new_cpu;
     CPUArchState *new_env;
-    unsigned int nptl_flags;
     sigset_t sigmask;
 
     /* Emulate vfork() with fork() */
@@ -6034,15 +6033,14 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         ts->bprm = parent_ts->bprm;
         ts->info = parent_ts->info;
         ts->signal_mask = parent_ts->signal_mask;
-        nptl_flags = flags;
-        flags &= ~CLONE_NPTL_FLAGS2;
 
-        if (nptl_flags & CLONE_CHILD_CLEARTID) {
+        if (flags & CLONE_CHILD_CLEARTID) {
             ts->child_tidptr = child_tidptr;
         }
 
-        if (nptl_flags & CLONE_SETTLS)
+        if (flags & CLONE_SETTLS) {
             cpu_set_tls (new_env, newtls);
+        }
 
         /* Grab a mutex so that thread setup appears atomic.  */
         pthread_mutex_lock(&clone_lock);
@@ -6052,10 +6050,12 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         pthread_mutex_lock(&info.mutex);
         pthread_cond_init(&info.cond, NULL);
         info.env = new_env;
-        if (nptl_flags & CLONE_CHILD_SETTID)
+        if (flags & CLONE_CHILD_SETTID) {
             info.child_tidptr = child_tidptr;
-        if (nptl_flags & CLONE_PARENT_SETTID)
+        }
+        if (flags & CLONE_PARENT_SETTID) {
             info.parent_tidptr = parent_tidptr;
+        }
 
         ret = pthread_attr_init(&attr);
         ret = pthread_attr_setstacksize(&attr, NEW_STACK_SIZE);
@@ -6074,8 +6074,6 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
             /* Wait for the child to initialize.  */
             pthread_cond_wait(&info.cond, &info.mutex);
             ret = info.tid;
-            if (flags & CLONE_PARENT_SETTID)
-                put_user_u32(ret, parent_tidptr);
         } else {
             ret = -1;
         }
