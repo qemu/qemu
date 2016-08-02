@@ -927,7 +927,7 @@
 #
 # @device: the name of the device which should be copied.
 #
-# @target: the name of the backup target device.
+# @target: the device name or node-name of the backup target node.
 #
 # @sync: what parts of the disk image should be copied to the destination
 #        (all the disk, only the sectors allocated in the topmost image, or
