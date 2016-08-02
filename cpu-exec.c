@@ -204,20 +204,16 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
                              TranslationBlock *orig_tb, bool ignore_icount)
 {
     TranslationBlock *tb;
-    bool old_tb_flushed;
 
     /* Should never happen.
        We only end up here when an existing TB is too long.  */
     if (max_cycles > CF_COUNT_MASK)
         max_cycles = CF_COUNT_MASK;
 
-    old_tb_flushed = cpu->tb_flushed;
-    cpu->tb_flushed = false;
     tb = tb_gen_code(cpu, orig_tb->pc, orig_tb->cs_base, orig_tb->flags,
                      max_cycles | CF_NOCACHE
                          | (ignore_icount ? CF_IGNORE_ICOUNT : 0));
-    tb->orig_tb = cpu->tb_flushed ? NULL : orig_tb;
-    cpu->tb_flushed |= old_tb_flushed;
+    tb->orig_tb = orig_tb;
     /* execute the generated code */
     trace_exec_tb_nocache(tb, tb->pc);
     cpu_tb_exec(cpu, tb);
@@ -338,10 +334,7 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
             tb_lock();
             have_tb_lock = true;
         }
-        /* Check if translation buffer has been flushed */
-        if (cpu->tb_flushed) {
-            cpu->tb_flushed = false;
-        } else if (!tb->invalid) {
+        if (!tb->invalid) {
             tb_add_jump(last_tb, tb_exit, tb);
         }
     }
@@ -606,7 +599,6 @@ int cpu_exec(CPUState *cpu)
                 break;
             }
 
-            atomic_mb_set(&cpu->tb_flushed, false); /* reset before first TB lookup */
             for(;;) {
                 cpu_handle_interrupt(cpu, &last_tb);
                 tb = tb_find(cpu, last_tb, tb_exit);
